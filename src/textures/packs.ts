@@ -44,24 +44,27 @@ export interface PackEntry {
   /** texture repeats per 3 m UV tile (facade convention); = 3 / physical tile size in metres */
   repeat: number;
   normalScale: number;
+  /** base roughness multiplier for the roughness map (1 = use the map as-is) and reflection strength */
+  roughness?: number;
+  envMapIntensity?: number;
 }
 
 export const TEXTURE_PACKS: PackEntry[] = [
-  { key: 'brickRed', variant: 0, color: brickRed, normal: brickN, rough: brickR, repeat: 2, normalScale: 0.9 },
-  { key: 'brickRed', variant: 1, color: brickBrown, normal: brickN, rough: brickR, repeat: 2, normalScale: 0.9 },
-  { key: 'brickRed', variant: 2, color: brickWhite, normal: brickN, rough: brickPaintedR, repeat: 2, normalScale: 0.6 },
-  { key: 'brickRed', variant: 3, color: brickGrey, normal: brickN, rough: brickPaintedR, repeat: 2, normalScale: 0.6 },
-  { key: 'brickPainted', variant: 0, color: brickWhite, normal: brickN, rough: brickPaintedR, repeat: 2, normalScale: 0.6 },
-  { key: 'brickPainted', variant: 1, color: brickGrey, normal: brickN, rough: brickPaintedR, repeat: 2, normalScale: 0.6 },
-  { key: 'brownstone', variant: 0, color: brownstone, normal: brownstoneN, rough: brownstoneR, repeat: 1.5, normalScale: 1.0 },
-  { key: 'limestone', variant: 0, color: limestone, normal: limestoneN, rough: limestoneR, repeat: 1.5, normalScale: 0.7 },
-  { key: 'concrete', variant: 0, color: sidewalk, normal: sidewalkN, rough: sidewalkR, repeat: 1, normalScale: 0.8 },
-  { key: 'concrete', variant: 1, color: paving, normal: pavingN, rough: pavingR, repeat: 1.5, normalScale: 0.8 },
-  { key: 'asphalt', variant: 0, color: asphalt, normal: asphaltN, rough: asphaltR, repeat: 1, normalScale: 0.5 },
-  { key: 'asphalt', variant: 1, color: asphaltWorn, normal: asphaltN, rough: asphaltWornR, repeat: 1, normalScale: 0.5 },
-  { key: 'asphaltWorn', variant: 0, color: asphaltWorn, normal: asphaltN, rough: asphaltWornR, repeat: 1, normalScale: 0.5 },
-  { key: 'asphaltWorn', variant: 1, color: asphaltWorn, normal: asphaltN, rough: asphaltWornR, repeat: 1, normalScale: 0.5 },
-  { key: 'roof', variant: 0, color: roof, normal: roofN, rough: roofR, repeat: 1, normalScale: 0.6 },
+  { key: 'brickRed', variant: 0, color: brickRed, normal: brickN, rough: brickR, repeat: 2, normalScale: 0.9 , roughness: 1, envMapIntensity: 0.1 },
+  { key: 'brickRed', variant: 1, color: brickBrown, normal: brickN, rough: brickR, repeat: 2, normalScale: 0.9 , roughness: 1, envMapIntensity: 0.1 },
+  { key: 'brickRed', variant: 2, color: brickWhite, normal: brickN, rough: brickPaintedR, repeat: 2, normalScale: 0.6 , roughness: 1, envMapIntensity: 0.1 },
+  { key: 'brickRed', variant: 3, color: brickGrey, normal: brickN, rough: brickPaintedR, repeat: 2, normalScale: 0.6 , roughness: 1, envMapIntensity: 0.1 },
+  { key: 'brickPainted', variant: 0, color: brickWhite, normal: brickN, rough: brickPaintedR, repeat: 2, normalScale: 0.6 , roughness: 1, envMapIntensity: 0.1 },
+  { key: 'brickPainted', variant: 1, color: brickGrey, normal: brickN, rough: brickPaintedR, repeat: 2, normalScale: 0.6 , roughness: 1, envMapIntensity: 0.1 },
+  { key: 'brownstone', variant: 0, color: brownstone, normal: brownstoneN, rough: brownstoneR, repeat: 1.5, normalScale: 1.0 , roughness: 1, envMapIntensity: 0.1 },
+  { key: 'limestone', variant: 0, color: limestone, normal: limestoneN, rough: limestoneR, repeat: 1.5, normalScale: 0.7 , roughness: 1, envMapIntensity: 0.1 },
+  { key: 'concrete', variant: 0, color: sidewalk, normal: sidewalkN, rough: sidewalkR, repeat: 1, normalScale: 0.8 , roughness: 1, envMapIntensity: 0.12 },
+  { key: 'concrete', variant: 1, color: paving, normal: pavingN, rough: pavingR, repeat: 1.5, normalScale: 0.8 , roughness: 1, envMapIntensity: 0.12 },
+  { key: 'asphalt', variant: 0, color: asphalt, normal: asphaltN, rough: asphaltR, repeat: 1, normalScale: 0.5 , roughness: 1, envMapIntensity: 0.2 },
+  { key: 'asphalt', variant: 1, color: asphaltWorn, normal: asphaltN, rough: asphaltWornR, repeat: 1, normalScale: 0.5 , roughness: 1, envMapIntensity: 0.2 },
+  { key: 'asphaltWorn', variant: 0, color: asphaltWorn, normal: asphaltN, rough: asphaltWornR, repeat: 1, normalScale: 0.5 , roughness: 1, envMapIntensity: 0.2 },
+  { key: 'asphaltWorn', variant: 1, color: asphaltWorn, normal: asphaltN, rough: asphaltWornR, repeat: 1, normalScale: 0.5 , roughness: 1, envMapIntensity: 0.2 },
+  { key: 'roof', variant: 0, color: roof, normal: roofN, rough: roofR, repeat: 1, normalScale: 0.6 , roughness: 1, envMapIntensity: 0.1 },
 ];
 
 /** Load every pack and hand the maps to the material library. Resolves to the number of entries applied. */
@@ -85,6 +88,10 @@ export async function loadTexturePacks(materials: MaterialLibrary, maxAnisotropy
   await Promise.all(TEXTURE_PACKS.map(async (e) => {
     const [map, normalMap, roughnessMap] = await Promise.all([load(e.color, true), load(e.normal, false), load(e.rough, false)]);
     materials.overrideMaps(e.key, e.variant, { map, normalMap, roughnessMap, repeat: { x: e.repeat, y: e.repeat }, normalScale: e.normalScale });
+    const m = materials.get(e.key, e.variant) as THREE.MeshStandardMaterial;
+    if (e.roughness !== undefined) m.roughness = e.roughness;
+    if (e.envMapIntensity !== undefined) m.envMapIntensity = e.envMapIntensity;
+    m.needsUpdate = true;
     n++;
   }));
   return n;

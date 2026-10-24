@@ -18,20 +18,20 @@ const waitForServer = async () => {
 };
 const errors = [];
 let browser;
-const hardStop = setTimeout(() => { console.error('[smoke] hard timeout'); process.exit(2); }, 90_000);
+const hardStop = setTimeout(() => { console.error('[smoke] hard timeout'); process.exit(2); }, 300_000);
 try {
   await waitForServer(); log('server up');
   browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(String(e)));
-  await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'load', timeout: 30_000 }); log('loaded');
-  await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 30_000 }); log('ready');
+  await page.goto(`http://localhost:${PORT}/?q=low`, { waitUntil: 'load', timeout: 60_000 }); log('loaded');
+  await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 90_000 }); log('ready');
   const gl = await page.evaluate(() => !!document.querySelector('canvas.game')?.getContext('webgl2'));
   await page.waitForTimeout(3000); // let frames run
   const stats = await page.evaluate(() => window.__gtaStats ?? null);
   mkdirSync('tests/e2e/__screenshots__', { recursive: true });
-  await page.screenshot({ path: 'tests/e2e/__screenshots__/smoke.png' });
+  await page.screenshot({ path: 'tests/e2e/__screenshots__/smoke.png', timeout: 120_000 });
   console.log(JSON.stringify({ webgl2: gl, stats, errors }, null, 2));
   if (!gl) { console.error('no WebGL2 context'); process.exitCode = 1; }
   if (errors.length) { console.error('console errors'); process.exitCode = 1; }

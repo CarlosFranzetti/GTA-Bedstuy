@@ -11,10 +11,11 @@ import type { Quality } from './Shadows';
 
 export type { Quality } from './Shadows';
 
-const BLOOM_THRESHOLD = 0.85;
+const BLOOM_THRESHOLD_DAY = 2.4;
+const BLOOM_THRESHOLD_NIGHT = 0.9;
 const BLOOM_RADIUS = 0.4;
-const BLOOM_STRENGTH_DAY = 0.35;
-const BLOOM_STRENGTH_NIGHT = 0.9;
+const BLOOM_STRENGTH_DAY = 0.18;
+const BLOOM_STRENGTH_NIGHT = 0.7;
 
 /**
  * Colour grading + vignette + film grain. Runs on the linear HDR buffer, BEFORE OutputPass
@@ -159,7 +160,7 @@ export class RenderPipeline {
 
   setNight(night: boolean): void {
     this.night = night;
-    if (this.bloom) this.bloom.strength = night ? BLOOM_STRENGTH_NIGHT : BLOOM_STRENGTH_DAY;
+    if (this.bloom) { this.bloom.strength = night ? BLOOM_STRENGTH_NIGHT : BLOOM_STRENGTH_DAY; this.bloom.threshold = night ? BLOOM_THRESHOLD_NIGHT : BLOOM_THRESHOLD_DAY; }
   }
 
   dispose(): void {
@@ -222,7 +223,7 @@ export class RenderPipeline {
 
     this.bloomScale = full ? 1 : 0.5; // UnrealBloomPass already runs at half of what it is given
     this.bloom = this.add(
-      new UnrealBloomPass(new THREE.Vector2(ew, eh), this.night ? BLOOM_STRENGTH_NIGHT : BLOOM_STRENGTH_DAY, BLOOM_RADIUS, BLOOM_THRESHOLD),
+      new UnrealBloomPass(new THREE.Vector2(ew, eh), this.night ? BLOOM_STRENGTH_NIGHT : BLOOM_STRENGTH_DAY, BLOOM_RADIUS, this.night ? BLOOM_THRESHOLD_NIGHT : BLOOM_THRESHOLD_DAY),
     );
 
     this.grading = this.add(new ShaderPass(GRADING_SHADER));

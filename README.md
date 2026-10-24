@@ -22,11 +22,18 @@ Controls: **WASD** move · **Shift** run · **F** enter/exit car · **Space** br
 **Shift** handbrake (in car) · **H** horn · **E** change radio station · **mouse** look ·
 click once to start (audio + mouse capture).
 
+## Graphics quality
+
+The game picks `medium` on desktop and `low` on phones. Override with a URL parameter:
+`?q=low`, `?q=medium` or `?q=high` (high adds 4K shadows, 16-sample ambient occlusion and SMAA).
+
 ## How it is built
 
-Everything is procedural: geometry and textures are generated in code from a small
+Geometry, signage, cars, people and audio are procedural, generated in code from a small
 hand-authored data file (`src/world/data/bedstuy.json`) describing the streets and the
-parody points of interest. No image, model, or audio files are shipped.
+parody points of interest. The large surfaces (brick, brownstone, sidewalks, asphalt, roofs)
+use photo-based PBR textures derived from CC0 ambientCG sets; see `docs/CREDITS.md`.
+No models or audio files are shipped.
 
 Google Street View was used only as a **visual reference** while authoring that data.
 No Street View imagery is stored in this repo or in the game.

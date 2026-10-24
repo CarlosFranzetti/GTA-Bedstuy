@@ -18,7 +18,8 @@ const MOON_COLOR = 0x7f8fd0;
 const HORIZON_COLOR = 0xff9a5c;
 const NOON_COLOR = 0xfff3dc;
 const MOON_INTENSITY = 0.4;
-const SUN_INTENSITY = 1.1;
+const SUN_INTENSITY = 2.2;
+const WHITE = new Color(0xffffff);
 
 /** Sky/fog colour keyframes over the 24-hour day. Last key (24) wraps back to the first. */
 const SKY_KEYS: ReadonlyArray<{ hour: number; color: number }> = [
@@ -185,7 +186,8 @@ export class DayNight implements Clock {
     // Day: sky-coloured fill. Night: cool blue from above, warm sodium bounce from below.
     const night = 1 - t;
     this.hemi.color.copy(this.sky).lerp(NIGHT_SKY_RGB, night);
+    if (night < 0.5) this.hemi.color.lerp(WHITE, 0.45 * (1 - night * 2)); // desaturate the daytime sky fill
     this.hemi.groundColor.copy(GROUND_RGB).lerp(NIGHT_GROUND_RGB, night);
-    this.hemi.intensity = lerp(0.45, 0.7, t);
+    this.hemi.intensity = lerp(0.35, 0.3, t);
   }
 }

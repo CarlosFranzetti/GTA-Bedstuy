@@ -38,7 +38,7 @@ const app = document.getElementById('app')!;
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 const isTouch = Input.isTouchDevice();
 const params = new URLSearchParams(location.search);
-let quality: Quality = (params.get('q') as Quality | null) ?? (isTouch ? 'low' : 'high');
+let quality: Quality = (params.get('q') as Quality | null) ?? (isTouch ? 'low' : 'medium');
 renderer.setPixelRatio(Math.min(quality === 'low' ? 1.25 : 1.75, window.devicePixelRatio));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -66,6 +66,7 @@ setupShadows(renderer, dayNight.sun, quality);
 applyShadowFlags(world.group, true, true);
 const sky = new SkyDome(scene, renderer, materials);
 dayNight.attachSky(sky);
+scene.environmentIntensity = dayNight.isNight ? 0.5 : 0.18;
 const nightLights = new NightLights(scene, world.lamps, { poolSize: quality === 'low' ? 6 : 12 });
 
 // ---- entities
@@ -194,6 +195,7 @@ game.add({
     dayNight.update(dt);
     if (dayNight.isNight !== lastNight) {
       lastNight = dayNight.isNight; audio.setNight(lastNight); pipeline.setNight(lastNight); setLampsLit(world.furnitureGroup, lastNight);
+      scene.environmentIntensity = lastNight ? 0.5 : 0.18;
       for (const v of allVehicles()) v.headlights = lastNight;
     }
     nightLights.update(player.body.pos, dayNight.isNight, dt);
