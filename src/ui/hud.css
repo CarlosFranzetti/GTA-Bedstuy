@@ -1,0 +1,209 @@
+/* GTA Bed-Stuy HUD. Parody styling only: system fonts, no image assets. */
+
+.hud-root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  color: #fff;
+  font-family: Impact, "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.hud-root [hidden] {
+  display: none !important;
+}
+
+/* ---- tiny FPS, top-left */
+.hud-fps {
+  position: absolute;
+  top: 10px;
+  left: 16px;
+  font: 600 10px/1 Arial, Helvetica, sans-serif;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.55);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+}
+
+/* ---- wanted stars, top-right */
+.hud-stars {
+  position: absolute;
+  top: 10px;
+  right: 16px;
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: 3px;
+  white-space: nowrap;
+  color: #f5c542;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.75);
+}
+
+.hud-star {
+  display: inline-block;
+}
+
+.hud-star:not(.on) {
+  opacity: 0.45;
+}
+
+/* ---- speed, bottom-right */
+.hud-speed {
+  position: absolute;
+  right: 16px;
+  bottom: 12px;
+  text-align: right;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.hud-speed-value {
+  display: block;
+  font-size: 60px;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-speed-unit {
+  display: block;
+  margin-top: 2px;
+  font-size: 14px;
+  letter-spacing: 0.14em;
+  color: #f5c542;
+}
+
+/* ---- location label, bottom-left: small caps street name + radio beside it */
+.hud-location {
+  position: absolute;
+  left: 16px;
+  bottom: 12px;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  max-width: calc(100% - 200px);
+}
+
+.hud-street {
+  font-variant-caps: all-small-caps;
+  font-size: 22px;
+  letter-spacing: 0.06em;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.8), 0 0 1px rgba(0, 0, 0, 0.9);
+}
+
+.hud-radio {
+  font: 600 13px/1 Arial, Helvetica, sans-serif;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.88);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+
+.hud-radio::before {
+  content: "\266A\00a0";
+  color: #f5c542;
+}
+
+/* ---- contextual prompt, centre-bottom pill */
+.hud-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 110px;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 197, 66, 0.5);
+  background: rgba(8, 10, 16, 0.72);
+  font: 600 15px/1.2 Arial, Helvetica, sans-serif;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-align: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+
+@media (max-width: 640px) {
+  .hud-prompt {
+    bottom: 300px;
+  }
+}
+
+/* ---- splash overlay */
+.hud-splash {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  box-sizing: border-box;
+  padding: 16px;
+  text-align: center;
+  pointer-events: auto;
+  cursor: pointer;
+  background: radial-gradient(ellipse at 50% 40%, #241a12 0%, #09090d 62%, #050507 100%);
+  transition: opacity 400ms ease;
+}
+
+.hud-splash.fading {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hud-title {
+  margin: 0;
+  font-size: clamp(40px, 9vw, 92px);
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: #f5c542;
+  text-shadow: 0 4px 0 #7a4b10, 0 8px 22px rgba(0, 0, 0, 0.6);
+}
+
+.hud-subtitle {
+  margin: 0;
+  font: italic 14px/1.4 Arial, Helvetica, sans-serif;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.hud-controls {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 22px;
+  max-width: 620px;
+  font: 14px/1.4 Arial, Helvetica, sans-serif;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.hud-controls li:not(:last-child)::after {
+  content: "\00b7";
+  margin-left: 22px;
+  color: #f5c542;
+}
+
+.hud-start {
+  margin: 18px 0 0;
+  font: 18px/1 Impact, "Arial Narrow", Arial, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #fff;
+  animation: hud-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes hud-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-splash {
+    transition: none;
+  }
+
+  .hud-start {
+    animation: none;
+  }
+}
