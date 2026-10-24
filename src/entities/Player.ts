@@ -4,6 +4,8 @@ import {
 } from '@/core/Math2';
 import type { EventBus } from '@/core/Events';
 import type { Input } from '@/core/Input';
+import { animateWalk, buildHumanModel, type HumanModel } from '@/entities/models/humanModel';
+import { Rng } from '@/core/Rng';
 import type { Body2D, Entity, IMaterialLibrary, IVehicle, VehicleInput } from '@/world/types';
 
 export const WALK_SPEED = 3;
@@ -30,12 +32,9 @@ export class Player implements Entity {
 
   private vehicleInput: VehicleInput = { ...NEUTRAL };
   private desiredVel: Vec2 = { x: 0, z: 0 };
-  private walkPhase = 0;
-  private bob = 0;
-  private readonly rig = new THREE.Group();
-  private readonly legs: THREE.Object3D[] = [];
-  private readonly arms: THREE.Object3D[] = [];
-  private readonly geos: THREE.BufferGeometry[] = [];
+  private walkPhase = Math.PI / 2;
+  private walkAmp = 0;
+  private model!: HumanModel;
 
   constructor(readonly id: string, pos: Vec2, materials: IMaterialLibrary, private events: EventBus) {
     this.body = {
@@ -155,25 +154,20 @@ export class Player implements Entity {
 
     const sp = Math.hypot(b.vel.x, b.vel.z);
     if (sp > 0.1) {
-      this.walkPhase += dt * sp * 2.4;
-      const amp = 0.8 * clamp(sp / WALK_SPEED, 0.5, 1.4);
-      const s = Math.sin(this.walkPhase);
-      this.legs[0].rotation.x = s * amp;
-      this.legs[1].rotation.x = -s * amp;
-      this.arms[0].rotation.x = -s * amp * 0.7;
-      this.arms[1].rotation.x = s * amp * 0.7;
-      this.bob = Math.abs(Math.cos(this.walkPhase)) * 0.06;
+      this.walkPhase += dt * sp * 3.2;
+      const target = clamp(sp / WALK_SPEED, 0.6, 1.6);
+      this.walkAmp += (target - this.walkAmp) * Math.min(1, dt * 12);
     } else {
-      for (const p of [...this.legs, ...this.arms]) p.rotation.x *= 0.7;
-      this.bob *= 0.7;
+      this.walkAmp *= Math.pow(0.8, dt * 30);
+      if (this.walkAmp < 0.002) this.walkAmp = 0;
     }
-    applyPose(this.object3D, b.pos, b.heading, this.bob);
+    animateWalk(this.model, this.walkPhase, this.walkAmp);
+    applyPose(this.object3D, b.pos, b.heading, 0);
   }
 
   dispose(): void {
+    // human geometries are shared module-wide; nothing per-player to free
     this.object3D.removeFromParent();
-    for (const g of this.geos) g.dispose();
-    this.geos.length = 0;
   }
 
   private syncToVehicle(): void {
@@ -186,35 +180,11 @@ export class Player implements Entity {
     applyPose(this.object3D, this.body.pos, this.body.heading, 0);
   }
 
-  private geo<T extends THREE.BufferGeometry>(g: T): T { this.geos.push(g); return g; }
-
   private buildMesh(materials: IMaterialLibrary): void {
-    const cloth = materials.get('cloth', 0);
-    const skin = materials.get('skin', 0);
-    this.object3D.add(this.rig);
-    const torso = new THREE.Mesh(this.geo(new THREE.CapsuleGeometry(0.22, 0.45, 4, 8)), cloth);
-    torso.position.y = 1.15;
-    const head = new THREE.Mesh(this.geo(new THREE.SphereGeometry(0.15, 10, 8)), skin);
-    head.position.y = 1.7;
-    this.rig.add(torso, head);
-    const legGeo = this.geo(new THREE.BoxGeometry(0.16, 0.8, 0.18));
-    const armGeo = this.geo(new THREE.BoxGeometry(0.1, 0.55, 0.12));
-    for (const sx of [-1, 1]) {
-      const leg = new THREE.Group();
-      leg.name = sx < 0 ? 'legL' : 'legR';
-      leg.position.set(sx * 0.11, 0.85, 0);
-      const lm = new THREE.Mesh(legGeo, cloth);
-      lm.position.y = -0.4;
-      leg.add(lm);
-      this.rig.add(leg);
-      this.legs.push(leg);
-      const arm = new THREE.Group();
-      arm.position.set(sx * 0.3, 1.42, 0);
-      const am = new THREE.Mesh(armGeo, skin);
-      am.position.y = -0.27;
-      arm.add(am);
-      this.rig.add(arm);
-      this.arms.push(arm);
-    }
+    // fixed-seed rng: the player always looks the same. Variant 0 cloth = the red top.
+    this.model = buildHumanModel(materials, new Rng('player'), {
+      shirt: 0, skin: 0, pants: 1, outfit: 'hoodie', hat: 'cap', accessory: 'none', heightScale: 1,
+    });
+    this.object3D.add(this.model.group);
   }
 }

@@ -72,9 +72,12 @@ describe('Pedestrian', () => {
     expect(ped.state).toBe('walking');
   });
 
-  it('builds a mesh with capsule, head, two legs and uses cloth/skin variants', () => {
+  it('builds a human model (head, two legs, two arms) and uses cloth/skin variants', () => {
     const { ped } = setup();
-    expect(ped.object3D.children.length).toBe(4);
+    expect(ped.object3D.getObjectByName('head')).toBeTruthy();
+    expect(ped.object3D.getObjectByName('legL')).toBeTruthy();
+    expect(ped.object3D.getObjectByName('legR')).toBeTruthy();
+    expect(ped.object3D.getObjectByName('armL')).toBeTruthy();
     const keys = materialCalls.map((c) => c[0]);
     expect(keys).toContain('cloth');
     expect(keys).toContain('skin');
@@ -94,7 +97,7 @@ describe('Pedestrian', () => {
     let maxSwing = 0;
     for (let i = 0; i < 60; i++) {
       ped.update(1 / 60);
-      maxSwing = Math.max(maxSwing, Math.abs((ped.object3D.children[2] as THREE.Mesh).rotation.x));
+      maxSwing = Math.max(maxSwing, Math.abs(ped.object3D.getObjectByName('legL')!.rotation.x));
     }
     expect(maxSwing).toBeGreaterThan(0.2);
   });

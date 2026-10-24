@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { buildCarModel, type CarModel } from '@/entities/models/carModel';
 import {
   applyPose, clamp, dot, forwardFromHeading, perpRight, wrapAngle, type Vec2,
 } from '@/core/Math2';
@@ -27,25 +28,11 @@ const BLUE = 0x1030ff;
 
 const NEUTRAL: VehicleInput = { throttle: 0, steer: 0, brake: false, handbrake: false, horn: false };
 
-// Shared, never-disposed resources.
-const boxCache = new Map<string, THREE.BoxGeometry>();
-function box(w: number, h: number, d: number): THREE.BoxGeometry {
-  const k = `${w.toFixed(3)}|${h.toFixed(3)}|${d.toFixed(3)}`;
-  let g = boxCache.get(k);
-  if (!g) { g = new THREE.BoxGeometry(w, h, d); boxCache.set(k, g); }
-  return g;
-}
-const cylCache = new Map<string, THREE.CylinderGeometry>();
-function wheelGeo(r: number, w: number): THREE.CylinderGeometry {
-  const k = `${r}|${w}`;
-  let g = cylCache.get(k);
-  if (!g) { g = new THREE.CylinderGeometry(r, r, w, 14); g.rotateZ(Math.PI / 2); cylCache.set(k, g); }
-  return g;
-}
-let headMat: THREE.MeshBasicMaterial | null = null;
-let tailMat: THREE.MeshBasicMaterial | null = null;
-const headlightMaterial = () => (headMat ??= new THREE.MeshBasicMaterial({ color: 0xfff2c0 }));
-const taillightMaterial = () => (tailMat ??= new THREE.MeshBasicMaterial({ color: 0xc01010 }));
+const HEAD_ON = 4.0;
+const TAIL_ON = 1.5;
+const TAIL_BRAKE = 3.0;
+const DAMAGE_VISUAL = 0.5;
+const HOOD_LIFT = 0.12;
 
 export class Vehicle implements IVehicle {
   readonly spec: VehicleSpec;
@@ -55,15 +42,16 @@ export class Vehicle implements IVehicle {
   driver: 'player' | 'traffic' | 'cop' | null = null;
   siren = false;
 
+  private _headlights = false;
+  private braking = false;
+  private paintDamaged = false;
+  private model!: CarModel;
   private input: VehicleInput = { ...NEUTRAL };
   private prevHorn = false;
   private time = 0;
   private steerAngle = 0;
   private wheelRoll = 0;
-  private readonly wheelRadius: number;
-  private readonly steerPivots: THREE.Object3D[] = [];
-  private readonly rollPivots: THREE.Object3D[] = [];
-  private readonly lightbar: THREE.Mesh[] = [];
+  private wheelRadius = 0.34;
   private readonly ownMaterials: THREE.Material[] = [];
 
   constructor(
@@ -75,7 +63,6 @@ export class Vehicle implements IVehicle {
     private events: EventBus,
   ) {
     this.spec = spec;
-    this.wheelRadius = spec.type === 'boxtruck' ? 0.5 : 0.34;
     this.body = {
       id,
       kind: spec.type === 'cop' ? 'cop' : 'vehicle',
@@ -97,6 +84,13 @@ export class Vehicle implements IVehicle {
     return dot(this.body.vel, forwardFromHeading(this.body.heading));
   }
 
+  /** Night lights: head 4.0 / tail 1.5 emissive when on, 0 when off. Brake lights override the tail while braking. */
+  get headlights(): boolean { return this._headlights; }
+  set headlights(on: boolean) {
+    this._headlights = on;
+    this.applyLights();
+  }
+
   setInput(input: VehicleInput): void {
     this.input = { ...input };
   }
@@ -115,6 +109,7 @@ export class Vehicle implements IVehicle {
     const input = driven ? this.input : NEUTRAL;
 
     let speed = this.speed;
+    let braking = false;
     const decel = (amount: number) => {
       const d = Math.min(Math.abs(speed), amount * dt);
       speed -= Math.sign(speed) * d;
@@ -125,12 +120,15 @@ export class Vehicle implements IVehicle {
       decel(s.brakeDecel);
     } else if (input.brake) {
       decel(s.brakeDecel);
+      braking = true;
     } else if (throttle * speed < 0 && Math.abs(speed) > 0.5) {
       decel(s.brakeDecel); // pressing the opposite direction brakes first
+      braking = true;
     } else if (throttle !== 0) {
       speed += throttle * s.accel * dt;
     }
-    if (input.handbrake) decel(s.brakeDecel * HANDBRAKE_DECEL_FRAC);
+    if (input.handbrake) { decel(s.brakeDecel * HANDBRAKE_DECEL_FRAC); braking = true; }
+    if (braking !== this.braking) { this.braking = braking; this.applyLights(); }
     speed -= (DRAG_K * speed * Math.abs(speed)) / s.maxSpeed * dt;
     speed = clamp(speed, -REVERSE_MAX, s.maxSpeed);
     if (!driven && Math.abs(speed) < 0.05) speed = 0;
@@ -173,88 +171,72 @@ export class Vehicle implements IVehicle {
     this.object3D.removeFromParent();
     for (const m of this.ownMaterials) m.dispose();
     this.ownMaterials.length = 0;
+    // geometries are shared per type (see carModel cache) and must not be disposed here
   }
 
   // ------------------------------------------------------------------ mesh
 
   private buildMesh(): void {
-    const { length: L, width: W, height: H, type } = this.spec;
-    const R = this.wheelRadius;
-    const g = this.object3D;
-    const isCop = type === 'cop';
-    const isTruck = type === 'boxtruck';
-    const paint = isCop ? this.materials.get('copLivery') : this.materials.carPaint(this.spec.color);
-    const glass = this.materials.get('carGlass');
-    const tire = this.materials.get('tire');
+    this.model = buildCarModel(this.spec.type, this.spec, this.materials);
+    this.wheelRadius = this.model.wheelRadius;
+    this.ownMaterials.push(...this.model.ownMaterials);
+    this.object3D.add(this.model.group);
+    this.applyLights();
+  }
 
-    const add = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number, name?: string): THREE.Mesh => {
-      const m = new THREE.Mesh(geo, mat);
-      m.position.set(x, y, z);
-      if (name) m.name = name;
-      g.add(m);
-      return m;
-    };
+  private applyLights(): void {
+    const m = this.model;
+    if (!m) return;
+    const on = this._headlights;
+    const head = on ? HEAD_ON : 0;
+    const tail = this.braking ? TAIL_BRAKE : on ? TAIL_ON : 0;
+    for (const l of m.headlights) (l.material as THREE.MeshStandardMaterial).emissiveIntensity = head;
+    for (const l of m.taillights) (l.material as THREE.MeshStandardMaterial).emissiveIntensity = tail;
+  }
 
-    if (isTruck) {
-      const chassisH = 0.5;
-      add(box(W * 0.95, chassisH, L), paint, 0, R + chassisH / 2 - 0.05, 0, 'body');
-      const cabL = 2.0, cabH = H * 0.62;
-      add(box(W, cabH, cabL), paint, 0, R + chassisH - 0.05 + cabH / 2, -L / 2 + cabL / 2, 'cab');
-      add(box(W * 0.9, cabH * 0.45, 0.06), glass, 0, R + chassisH - 0.05 + cabH * 0.65, -L / 2 + 0.03, 'windshield');
-      const cargoL = L - cabL - 0.15, cargoH = H - R - chassisH + 0.05;
-      add(box(W, cargoH, cargoL), this.materials.carPaint('#f4f4f4'), 0, R + chassisH - 0.05 + cargoH / 2, L / 2 - cargoL / 2, 'cargo');
-    } else {
-      const bodyH = H * 0.42;
-      const bodyY = R + bodyH / 2 - 0.05;
-      add(box(W, bodyH, L), paint, 0, bodyY, 0, 'body');
-      const cabH = H * 0.4, cabL = L * (type === 'suv' ? 0.62 : 0.5);
-      add(box(W * 0.9, cabH, cabL), glass, 0, bodyY + bodyH / 2 + cabH / 2, L * 0.04, 'cabin');
-      add(box(W * 0.86, 0.06, cabL * 0.9), paint, 0, bodyY + bodyH / 2 + cabH + 0.03, L * 0.04, 'roof');
+  private updateDamageVisual(): void {
+    const m = this.model;
+    const wrecked = this.damage > DAMAGE_VISUAL;
+    if (m.hood) {
+      const t = wrecked ? HOOD_LIFT * Math.min(1, (this.damage - DAMAGE_VISUAL) * 3) : 0;
+      m.hood.rotation.x = t;
     }
-
-    // wheels: steer pivot (front only) -> roll pivot -> tyre mesh
-    const wheelBaseZ = L * 0.34;
-    const wg = wheelGeo(R, 0.26);
-    const wx = W / 2 - 0.05;
-    for (const sx of [-1, 1]) {
-      for (const sz of [-1, 1]) {
-        const steer = new THREE.Group();
-        steer.position.set(sx * wx, R, sz * wheelBaseZ);
-        const roll = new THREE.Group();
-        roll.add(new THREE.Mesh(wg, tire));
-        steer.add(roll);
-        g.add(steer);
-        this.rollPivots.push(roll);
-        if (sz < 0) this.steerPivots.push(steer);
+    if (wrecked === this.paintDamaged) return;
+    this.paintDamaged = wrecked;
+    if (wrecked) {
+      const clones = new Map<THREE.Material, THREE.Material>();
+      for (const mesh of m.paintMeshes) {
+        const src = mesh.material as THREE.Material;
+        let c = clones.get(src);
+        if (!c) {
+          c = src.clone();
+          const col = (c as THREE.MeshStandardMaterial).color;
+          if (col) col.multiplyScalar(0.55);
+          clones.set(src, c);
+          this.ownMaterials.push(c);
+        }
+        mesh.userData.origMaterial = src;
+        mesh.material = c;
       }
-    }
-
-    // lights
-    const lampY = R + (isTruck ? 0.45 : H * 0.2);
-    const lampGeo = box(0.3, 0.14, 0.05);
-    for (const sx of [-1, 1]) {
-      add(lampGeo, headlightMaterial(), sx * (W / 2 - 0.3), lampY, -L / 2 - 0.01, 'headlight');
-      add(lampGeo, taillightMaterial(), sx * (W / 2 - 0.3), lampY, L / 2 + 0.01, 'taillight');
-    }
-
-    if (isCop) {
-      const barY = R + H * 0.42 + H * 0.4 + 0.2;
-      for (const [i, sx] of [-1, 1].entries()) {
-        const mat = new THREE.MeshStandardMaterial({ color: 0x202020, emissive: 0x000000, emissiveIntensity: 0 });
-        this.ownMaterials.push(mat);
-        const m = add(box(0.55, 0.14, 0.28), mat, sx * 0.32, barY, L * 0.04, i === 0 ? 'lightbarA' : 'lightbarB');
-        this.lightbar.push(m);
+    } else {
+      for (const mesh of m.paintMeshes) {
+        const o = mesh.userData.origMaterial as THREE.Material | undefined;
+        if (o) mesh.material = o;
       }
     }
   }
 
   private animate(dt: number, speed: number): void {
     this.wheelRoll -= (speed * dt) / this.wheelRadius;
-    for (const p of this.rollPivots) p.rotation.x = this.wheelRoll;
-    for (const p of this.steerPivots) p.rotation.y = -this.steerAngle;
+    for (const p of this.model.wheels) p.rotation.x = this.wheelRoll;
+    for (const p of this.model.steerPivots) p.rotation.y = -this.steerAngle;
 
-    if (this.lightbar.length === 2) {
-      const [a, b] = this.lightbar.map((m) => m.material as THREE.MeshStandardMaterial);
+    this.updateDamageVisual();
+
+    const bar = this.model.lightbar;
+    if (bar) {
+      const a = bar.red.material as THREE.MeshStandardMaterial;
+      const b = bar.blue.material as THREE.MeshStandardMaterial;
       if (this.siren) {
         const phase = Math.floor(this.time * SIREN_FLIPS_PER_SEC) % 2 === 0;
         a.emissive.setHex(phase ? RED : BLUE);

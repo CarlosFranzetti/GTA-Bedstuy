@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { EventBus } from '@/core/Events';
 import { angleDiff, type Vec2 } from '@/core/Math2';
 import type { Rng } from '@/core/Rng';
+import { animateWalk, buildHumanModel, type HumanModel } from '@/entities/models/humanModel';
 import type { Body2D, Contact, Entity, Graph, GraphNode, IMaterialLibrary, IVehicle, IWorld2D } from '@/world/types';
 
 export type PedState = 'walking' | 'waiting' | 'down' | 'fleeing';
@@ -16,27 +17,13 @@ const MAX_WAIT = 8;
 const ARRIVE = 0.4;
 const FALLBACK_CROSSWALK = /cross|cw/i;
 
-// geometries are shared between all pedestrians
-let bodyGeo: THREE.BufferGeometry | null = null;
-let headGeo: THREE.BufferGeometry | null = null;
-let legGeo: THREE.BufferGeometry | null = null;
-function sharedGeometry(): { body: THREE.BufferGeometry; head: THREE.BufferGeometry; leg: THREE.BufferGeometry } {
-  bodyGeo ??= new THREE.CapsuleGeometry(0.2, 0.55, 4, 8);
-  headGeo ??= new THREE.SphereGeometry(0.15, 10, 8);
-  if (!legGeo) {
-    legGeo = new THREE.BoxGeometry(0.12, 0.7, 0.14);
-    legGeo.translate(0, -0.35, 0); // pivot at the hip
-  }
-  return { body: bodyGeo, head: headGeo, leg: legGeo };
-}
-
 export class Pedestrian implements Entity {
   readonly object3D: THREE.Group;
   readonly body: Body2D;
   state: PedState = 'walking';
 
-  private readonly legL: THREE.Mesh;
-  private readonly legR: THREE.Mesh;
+  private readonly model: HumanModel;
+  private amp = 0;
   private targetId: string | null = null;
   private prevId: string | null = null;
   private downTimer = 0;
@@ -67,20 +54,9 @@ export class Pedestrian implements Entity {
       userData: this,
     };
 
-    const geo = sharedGeometry();
-    const cloth = materials.get('cloth', rng.int(0, 7));
-    const skin = materials.get('skin', rng.int(0, 5));
-    const g = new THREE.Group();
+    this.model = buildHumanModel(materials, rng);
+    const g = this.model.group;
     g.rotation.order = 'YXZ';
-    const torso = new THREE.Mesh(geo.body, cloth);
-    torso.position.y = 1.08;
-    const head = new THREE.Mesh(geo.head, skin);
-    head.position.y = 1.68;
-    this.legL = new THREE.Mesh(geo.leg, cloth);
-    this.legL.position.set(-0.09, 0.78, 0);
-    this.legR = new THREE.Mesh(geo.leg, cloth);
-    this.legR.position.set(0.09, 0.78, 0);
-    g.add(torso, head, this.legL, this.legR);
     this.object3D = g;
 
     if (!this.pickNext(start.id)) this.targetId = null;
@@ -165,7 +141,7 @@ export class Pedestrian implements Entity {
       }
     }
     if (moving) this.phase += dt * (this.state === 'fleeing' ? 12 : 5);
-    this.animate(moving);
+    this.animate(dt, moving);
     this.applyPose();
   }
 
@@ -261,10 +237,11 @@ export class Pedestrian implements Entity {
     return true;
   }
 
-  private animate(moving: boolean): void {
-    const swing = moving ? Math.sin(this.phase) * 0.7 : 0;
-    this.legL.rotation.x = swing;
-    this.legR.rotation.x = -swing;
+  private animate(dt: number, moving: boolean): void {
+    const target = !moving ? 0 : this.state === 'fleeing' ? 1.5 : 1;
+    this.amp += (target - this.amp) * Math.min(1, dt * 10);
+    if (this.amp < 0.01) this.amp = 0;
+    animateWalk(this.model, this.phase, this.amp);
   }
 
   private applyPose(): void {
