@@ -143,7 +143,7 @@ describe('ground painters', () => {
     const v1 = paint(asphaltPainter, 512, 512, 2, 1, true);
     const count = (ops: Op[], name: string) => ops.filter((o) => o.name === name).length;
     expect(count(v1.main, 'strokeRect')).toBeGreaterThan(count(v0.main, 'strokeRect'));
-    expect(count(v1.main, 'ellipse')).toBeGreaterThan(count(v0.main, 'ellipse'));
+    expect(count(v1.main, 'scale')).toBeGreaterThan(count(v0.main, 'scale'));
     expect(count(v1.main, 'stroke')).toBeGreaterThan(count(v0.main, 'stroke'));
     expect(v1.height.some((o) => o.name === 'set:fillStyle' && /^rgb\((15\d),\1,\1\)$/.test(String(o.args[0])))).toBe(true);
     expect(v1.rough.length).toBeGreaterThan(10);

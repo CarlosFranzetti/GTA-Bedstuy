@@ -31,9 +31,13 @@ function disc(c: Ctx, x: number, y: number, r: number): void {
 }
 
 function oval(c: Ctx, x: number, y: number, rx: number, ry: number): void {
+  c.save();
+  c.translate(x, y);
+  c.scale(rx, ry);
   c.beginPath();
-  c.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+  c.arc(0, 0, 1, 0, Math.PI * 2);
   c.fill();
+  c.restore();
 }
 
 function ringStroke(c: Ctx, x: number, y: number, r: number, lw: number, color: string): void {
@@ -244,7 +248,7 @@ export const asphaltPainter: Painter = (ctx, w, h, rng, variant, aux) => {
       ctx.strokeRect(px - 2.5, py - 2.5, pw + 5, ph + 5);
     });
     if (H) {
-      H.fillStyle = gray(rng.range(150, 158));
+      H.fillStyle = gray(154);
       H.fillRect(px, py, pw, ph);
       H.strokeStyle = gray(66);
       H.lineWidth = 2.5;
@@ -532,17 +536,18 @@ interface FlagOpts { heave: 0 | 1 | 2 | 3 | -1; cracked: boolean }
 /** One bluestone flag with its own rng (called twice with equal seeds when the flag wraps around the tile edge). */
 function paintFlag(
   ctx: Ctx, H: Ctx | undefined, seed: number, x: number, y: number, fw: number, fh: number, k: number,
-  opts: FlagOpts, heaved: boolean,
+  opts: FlagOpts, heaved: boolean, ar: Rng,
 ): void {
   const fr = new Rng(seed);
   const j = 2 * k + 1;
   const ix = x + j, iy = y + j, iw = fw - 2 * j, ih = fh - 2 * j;
   const t = fr.next();
   const tone = fr.range(-7, 7);
+  const tilt = fr.range(-6, 6);
   ctx.fillStyle = mixRgb(SLATE, WARM_GREY, t * t, tone);
   ctx.fillRect(ix, iy, iw, ih);
   if (H) {
-    H.fillStyle = gray(128 + fr.range(-6, 6));
+    H.fillStyle = gray(128 + tilt);
     H.fillRect(ix, iy, iw, ih);
   }
   // soft tonal clouds (nested rects) and one bedding band
@@ -579,7 +584,7 @@ function paintFlag(
   // fine grain / mica glints
   speckleIn(ctx, fr, ix, iy, iw, ih, Math.round((iw * ih) / 130),
     ['rgba(235,240,245,0.5)', 'rgba(14,16,22,0.45)', 'rgba(150,160,175,0.4)'], 1, 1.8 * k);
-  if (H) auxSpeckle(H, fr, ix, iy, iw, ih, Math.round((iw * ih) / 90), [112, 124, 138, 148], 1, 1.8 * k, 0.5);
+  if (H) auxSpeckle(H, ar, ix, iy, iw, ih, Math.round((iw * ih) / 90), [112, 124, 138, 148], 1, 1.8 * k, 0.5);
 
   // bevel: lit top / left, shaded bottom / right
   ctx.fillStyle = 'rgba(255,255,255,0.14)';
@@ -685,6 +690,7 @@ export const bluestonePainter: Painter = (ctx, w, h, rng, variant, aux) => {
     H.fillStyle = gray(48);
     H.fillRect(0, 0, w, h);
   }
+  const auxRng = aux?.rng ?? new Rng(0);
   const rows = 2;
   const rh = h / rows;
   for (let r = 0; r < rows; r++) {
@@ -699,8 +705,8 @@ export const bluestonePainter: Painter = (ctx, w, h, rng, variant, aux) => {
         cracked: heaved && rng.chance(0.55),
       };
       const fx = x % w;
-      paintFlag(ctx, H, seed, fx, r * rh, fw, rh, k, opts, heaved);
-      if (fx + fw > w) paintFlag(ctx, H, seed, fx - w, r * rh, fw, rh, k, opts, heaved);
+      paintFlag(ctx, H, seed, fx, r * rh, fw, rh, k, opts, heaved, auxRng);
+      if (fx + fw > w) paintFlag(ctx, H, seed, fx - w, r * rh, fw, rh, k, opts, heaved, auxRng);
       x += fw;
     }
   }
@@ -1027,11 +1033,15 @@ export const manholePainter: Painter = (ctx, w, h, rng, variant, aux) => {
   for (const dy of [-1, 1]) {
     ctx.fillStyle = 'rgb(8,8,8)';
     oval(ctx, cx, cy + dy * 90 * s, 9 * s, 3 * s);
+    ctx.save();
+    ctx.translate(cx, cy + dy * 90 * s);
+    ctx.scale(9.6 * s, 3.6 * s);
     ctx.strokeStyle = IRON_HI;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 0.1;
     ctx.beginPath();
-    ctx.ellipse(cx, cy + dy * 90 * s, 9.6 * s, 3.6 * s, 0, 0, Math.PI * 2);
+    ctx.arc(0, 0, 1, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.restore();
     if (H) {
       H.fillStyle = gray(20);
       oval(H, cx, cy + dy * 90 * s, 9 * s, 3 * s);
