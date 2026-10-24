@@ -25,6 +25,7 @@ import { RenderPipeline } from '@/render/Pipeline';
 import { setupShadows, updateShadowCamera, applyShadowFlags, type Quality } from '@/render/Shadows';
 import { SkyDome } from '@/render/SkyDome';
 import { NightLights } from '@/render/NightLights';
+import { SunFlare } from '@/render/LensFlare';
 import { setLampsLit } from '@/world/FurnitureGen';
 import { loadTexturePacks } from '@/textures/packs';
 
@@ -68,6 +69,7 @@ const sky = new SkyDome(scene, renderer, materials);
 dayNight.attachSky(sky);
 scene.environmentIntensity = dayNight.isNight ? 0.5 : 0.18;
 const nightLights = new NightLights(scene, world.lamps, { poolSize: quality === 'low' ? 6 : 12 });
+const sunFlare = new SunFlare(scene);
 
 // ---- entities
 let vehicleSeq = 0;
@@ -130,7 +132,11 @@ const game = new Game(
     const heading = player.vehicle ? player.vehicle.body.heading : player.body.heading;
     updateCamera();
     updateShadowCamera(dayNight.sun, player.body.pos);
-    sky.update(dayNight.timeOfDay, dayNight.sun.position.clone().normalize(), dayNight.isNight, cam.camera.position);
+    const sunDir = dayNight.sun.position.clone().normalize();
+    sky.update(dayNight.timeOfDay, sunDir, dayNight.isNight, cam.camera.position);
+    sunFlare.update(sunDir, dayNight.isNight ? 0 : Math.max(0, sunDir.y));
+    pipeline.setHour(dayNight.timeOfDay);
+    pipeline.setFocus(cam.camera.position.distanceTo(new THREE.Vector3(pos.x, 1.2, pos.z)));
     pipeline.render();
     frames++;
     const street = grid.nearestStreet(pos);

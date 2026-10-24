@@ -7,6 +7,7 @@ import { buildRoads } from '@/world/RoadBuilder';
 import { subdivideLots } from '@/world/LotSubdivider';
 import { buildBuildings } from '@/world/BuildingGen';
 import { buildFurniture, type LampSpot } from '@/world/FurnitureGen';
+import { buildProps } from '@/world/PropsGen';
 
 export interface BuiltWorld {
   grid: GridModel;
@@ -41,6 +42,11 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
   furniture.group.position.y = SIDEWALK_HEIGHT;
   group.add(furniture.group);
   colliders.push(...furniture.colliders);
+
+  const props = buildProps(grid, lots, materials, rng.fork('props'));
+  props.group.position.y = SIDEWALK_HEIGHT;
+  group.add(props.group);
+  colliders.push(...props.colliders);
 
   let meshes = 0;
   group.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes++; });
