@@ -8,7 +8,6 @@ import type { MaterialKey } from '@/world/types';
 import type { MaterialLibrary } from '@/textures/MaterialLibrary';
 
 import brickRed from '@/assets/textures/brick_red_color.jpg';
-import brickBrown from '@/assets/textures/brick_brown_color.jpg';
 import brickWhite from '@/assets/textures/brick_white_color.jpg';
 import brickGrey from '@/assets/textures/brick_grey_color.jpg';
 import brickN from '@/assets/textures/brick_normal.jpg';
@@ -23,9 +22,12 @@ import limestoneR from '@/assets/textures/limestone_rough.jpg';
 import sidewalk from '@/assets/textures/sidewalk_color.jpg';
 import sidewalkN from '@/assets/textures/sidewalk_normal.jpg';
 import sidewalkR from '@/assets/textures/sidewalk_rough.jpg';
-import paving from '@/assets/textures/paving_color.jpg';
-import pavingN from '@/assets/textures/paving_normal.jpg';
-import pavingR from '@/assets/textures/paving_rough.jpg';
+import dirt from '@/assets/textures/dirt_color.jpg';
+import dirtN from '@/assets/textures/dirt_normal.jpg';
+import dirtR from '@/assets/textures/dirt_rough.jpg';
+import brickTan from '@/assets/textures/brick_tan_color.jpg';
+import brickTanN from '@/assets/textures/brick_tan_normal.jpg';
+import brickTanR from '@/assets/textures/brick_tan_rough.jpg';
 import asphalt from '@/assets/textures/asphalt_color.jpg';
 import asphaltWorn from '@/assets/textures/asphalt_worn_color.jpg';
 import asphaltN from '@/assets/textures/asphalt_normal.jpg';
@@ -51,7 +53,7 @@ export interface PackEntry {
 
 export const TEXTURE_PACKS: PackEntry[] = [
   { key: 'brickRed', variant: 0, color: brickRed, normal: brickN, rough: brickR, repeat: 2, normalScale: 0.9 , roughness: 1, envMapIntensity: 0.1 },
-  { key: 'brickRed', variant: 1, color: brickBrown, normal: brickN, rough: brickR, repeat: 2, normalScale: 0.9 , roughness: 1, envMapIntensity: 0.1 },
+  { key: 'brickRed', variant: 1, color: brickTan, normal: brickTanN, rough: brickTanR, repeat: 2, normalScale: 0.9, roughness: 1, envMapIntensity: 0.1 },
   { key: 'brickRed', variant: 2, color: brickWhite, normal: brickN, rough: brickPaintedR, repeat: 2, normalScale: 0.6 , roughness: 1, envMapIntensity: 0.1 },
   { key: 'brickRed', variant: 3, color: brickGrey, normal: brickN, rough: brickPaintedR, repeat: 2, normalScale: 0.6 , roughness: 1, envMapIntensity: 0.1 },
   { key: 'brickPainted', variant: 0, color: brickWhite, normal: brickN, rough: brickPaintedR, repeat: 2, normalScale: 0.6 , roughness: 1, envMapIntensity: 0.1 },
@@ -59,7 +61,7 @@ export const TEXTURE_PACKS: PackEntry[] = [
   { key: 'brownstone', variant: 0, color: brownstone, normal: brownstoneN, rough: brownstoneR, repeat: 1.5, normalScale: 1.0 , roughness: 1, envMapIntensity: 0.1 },
   { key: 'limestone', variant: 0, color: limestone, normal: limestoneN, rough: limestoneR, repeat: 1.5, normalScale: 0.7 , roughness: 1, envMapIntensity: 0.1 },
   { key: 'concrete', variant: 0, color: sidewalk, normal: sidewalkN, rough: sidewalkR, repeat: 1, normalScale: 0.8 , roughness: 1, envMapIntensity: 0.12 },
-  { key: 'concrete', variant: 1, color: paving, normal: pavingN, rough: pavingR, repeat: 1.5, normalScale: 0.8 , roughness: 1, envMapIntensity: 0.12 },
+  { key: 'concrete', variant: 1, color: dirt, normal: dirtN, rough: dirtR, repeat: 1.5, normalScale: 0.8, roughness: 1, envMapIntensity: 0.05 },
   { key: 'asphalt', variant: 0, color: asphalt, normal: asphaltN, rough: asphaltR, repeat: 1, normalScale: 0.5 , roughness: 1, envMapIntensity: 0.2 },
   { key: 'asphalt', variant: 1, color: asphaltWorn, normal: asphaltN, rough: asphaltWornR, repeat: 1, normalScale: 0.5 , roughness: 1, envMapIntensity: 0.2 },
   { key: 'asphaltWorn', variant: 0, color: asphaltWorn, normal: asphaltN, rough: asphaltWornR, repeat: 1, normalScale: 0.5 , roughness: 1, envMapIntensity: 0.2 },

@@ -11,10 +11,11 @@ The photo-based PBR texture sets in `src/assets/textures/` are derived from
 | Bricks097 | brick_red, brick_brown, brick_white, brick_grey |
 | Concrete042A | concrete, sidewalk, brownstone, limestone |
 | Asphalt026C | asphalt, asphalt_worn, roof |
-| PavingStones150 | paving |
+| Ground111 | dirt |
+| Bricks105 | brick_tan |
 
-The 1K JPG sets were obtained from a public mirror (the `ubyjvovk/asciicity`
-repository, which vendored them with the same CC0 notice) because this build
+The 1K JPG sets were obtained from public mirrors (the `ubyjvovk/asciicity` and
+`amazingsammed/mini_textures` repositories, which vendored them with the same CC0 notice) because this build
 environment cannot reach ambientcg.com directly. Derived variants (painted
 brick, brownstone and limestone courses, worn asphalt, sidewalk slabs, tar roof)
 were generated with the script in `scripts/derive-textures.py`. Normal and roughness maps

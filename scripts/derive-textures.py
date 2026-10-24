@@ -86,3 +86,15 @@ save('roof', roof, combine_normals(asp_n, height_to_normal(gr, 1.2)), np.clip(as
 for s, name in [('metal', 'metal_plates'), ('paving', 'paving'), ('plaster', 'plaster')]:
     save(name, arr(load(s, 'color')), arr(load(s, 'normal')), arr(load(s, 'rough')))
 print('done')
+
+# ---- second mirror (amazingsammed/mini_textures, ambientCG CC0): run with a 3rd arg pointing at it
+if len(sys.argv) > 3:
+    M = sys.argv[3]
+    def loadm(id_, m): return Image.open(os.path.join(M, f'{id_}_{m}.jpg')).convert('RGB' if m != 'roughness' else 'L')
+    g_c, g_n, g_r = arr(loadm('Ground111', 'diffuse')), arr(loadm('Ground111', 'normal')), arr(loadm('Ground111', 'roughness'))
+    dirt = tint(desat(g_c, 0.35), (0.42, 0.36, 0.30)) * 0.9          # brooklyn tree-pit dirt: browner, darker
+    save('dirt', contrast(dirt, 1.05), g_n, np.clip(g_r * 0.9 + 0.1, 0, 1))
+    b_c = arr(loadm('Bricks105', 'diffuse').resize((1024, 1024))); b_n = arr(loadm('Bricks105', 'normal').resize((1024, 1024))); b_r = arr(loadm('Bricks105', 'roughness').resize((1024, 1024)))
+    tan = tint(b_c, (0.62, 0.48, 0.36)) * 0.95                        # iron-spot tan/brown brick
+    save('brick_tan', contrast(tan, 1.08), b_n, b_r)
+    print('mirror sets done')
