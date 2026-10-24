@@ -329,3 +329,28 @@ export interface HudState {
   streetName: string;         // nearest street for the location label
   fps: number;
 }
+
+// ---------------------------------------------------------------- characters (glTF or procedural)
+
+/**
+ * One animated person. `group` is the object to add to the scene (origin at the feet, local forward = -z,
+ * y up). Drive it with setSpeed (m/s) + update(dt) each frame; the rig crossfades idle / walk / run itself.
+ */
+export interface CharacterRig {
+  group: THREE.Group;
+  mixer?: THREE.AnimationMixer;
+  clips: Record<'idle' | 'walk' | 'run', THREE.AnimationAction | null>;
+  /** current ground speed in m/s (walk > 0.3, run > 4.5) */
+  setSpeed(mps: number): void;
+  update(dt: number): void;
+  /** knocked down: freeze the animation and lay the body flat */
+  setDown(down: boolean): void;
+  dispose(): void;
+  /** nominal standing height in metres */
+  height: number;
+}
+
+/** Factory for people: a rigged glTF model or the procedural fallback. `variant` picks a cloth colour. */
+export interface CharacterSource {
+  instantiate(variant: number): CharacterRig;
+}
