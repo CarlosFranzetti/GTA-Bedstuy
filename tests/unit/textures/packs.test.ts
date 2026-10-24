@@ -15,3 +15,19 @@ describe('texture pack manifest', () => {
     expect(seen.size).toBe(TEXTURE_PACKS.length);
   });
 });
+
+import { parseUserTextureName, userPackEntries } from '@/textures/packs';
+
+describe('user photo packs', () => {
+  it('parses key, variant and kind from file names', () => {
+    expect(parseUserTextureName('/x/brownstone.0_color.jpg')).toEqual({ key: 'brownstone', variant: 0, kind: 'color' });
+    expect(parseUserTextureName('/x/brickRed.2_normal.jpg')).toEqual({ key: 'brickRed', variant: 2, kind: 'normal' });
+    expect(parseUserTextureName('/x/asphalt_rough.png')).toEqual({ key: 'asphalt', variant: 0, kind: 'rough' });
+    expect(parseUserTextureName('/x/readme.txt')).toBeNull();
+  });
+  it('groups files into entries and requires a colour map', () => {
+    const entries = userPackEntries({ 'a/brownstone.0_color.jpg': 'u1', 'a/brownstone.0_normal.jpg': 'u2', 'a/asphalt.1_normal.jpg': 'u3' });
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ key: 'brownstone', variant: 0, color: 'u1', normal: 'u2', rough: '', repeat: 1.5 });
+  });
+});
