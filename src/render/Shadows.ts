@@ -3,8 +3,10 @@ import * as THREE from 'three';
 export type Quality = 'low' | 'medium' | 'high';
 
 const MAP_SIZE: Record<Quality, number> = { low: 1024, medium: 2048, high: 4096 };
-/** Half-extent (m) of the orthographic shadow box that follows the player. */
-const HALF_SIZE: Record<Quality, number> = { low: 70, medium: 90, high: 110 };
+/** Half-extent (m) of the orthographic shadow box that follows the player (tighter box = sharper texels). */
+const HALF_SIZE: Record<Quality, number> = { low: 60, medium: 80, high: 100 };
+/** PCF kernel radius per quality: a small radius keeps contact edges crisp, a larger one softens far edges. */
+const SHADOW_RADIUS: Record<Quality, number> = { low: 1.5, medium: 2, high: 3 };
 const SHADOW_NEAR = 1;
 const SHADOW_FAR = 400;
 /** Distance (m) of the light from the shadow target. Must be < SHADOW_FAR and > the box half-size. */
@@ -49,9 +51,10 @@ export function setupShadows(renderer: THREE.WebGLRenderer, sun: THREE.Direction
   cam.near = SHADOW_NEAR;
   cam.far = SHADOW_FAR;
   cam.updateProjectionMatrix();
-  shadow.bias = -0.0005;
-  shadow.normalBias = 0.6;
-  shadow.radius = quality === 'low' ? 1.5 : 2.5;
+  // Tuned so stoops / curbs do not peter-pan (detach from their caster) while avoiding acne.
+  shadow.bias = -0.0003;
+  shadow.normalBias = 0.5;
+  shadow.radius = SHADOW_RADIUS[quality];
 }
 
 const _dir = new THREE.Vector3();
