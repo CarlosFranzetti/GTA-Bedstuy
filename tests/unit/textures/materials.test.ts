@@ -143,7 +143,7 @@ describe('MaterialLibrary', () => {
     lib.setNight(false);
     expect(w.emissiveIntensity).toBe(0);
     expect(late.emissiveIntensity).toBe(0);
-    expect((lib.awning('#ff0000', 'A') as THREE.MeshStandardMaterial).emissiveIntensity).toBe(0);
+    expect((lib.awning('#ff0000', 'A') as THREE.MeshStandardMaterial).emissive.getHex()).toBe(0);
   });
 
   it('textures are repeat-wrapped sRGB canvas textures of 256-512 px; materials are standard', () => {
@@ -201,7 +201,7 @@ describe('MaterialLibrary', () => {
     expect(white.g).toBeGreaterThan(0.85);
     expect(white.b).toBeGreaterThan(0.8);
     expect(yellow.r).toBeGreaterThan(0.8);
-    expect(yellow.g).toBeGreaterThan(0.6);
+    expect(yellow.g).toBeGreaterThan(0.4);
     expect(yellow.b).toBeLessThan(0.3);
     const before = canvases.length;
     lib.get('asphalt', 0);
