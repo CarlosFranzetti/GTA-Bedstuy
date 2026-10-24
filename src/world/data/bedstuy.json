@@ -1,0 +1,242 @@
+{
+  "name": "GTA Bed-Stuy",
+  "seed": 1988,
+  "streets": [
+    {
+      "id": "tompkins",
+      "name": "Tompkins Ave",
+      "signName": "Tompkins Ave",
+      "axis": "ns",
+      "offset": -250,
+      "class": "avenue",
+      "roadWidth": 14,
+      "sidewalkWidth": 4,
+      "oneWay": 0
+    },
+    {
+      "id": "throop",
+      "name": "Throop Ave",
+      "signName": "Throop Ave",
+      "axis": "ns",
+      "offset": 0,
+      "class": "avenue",
+      "roadWidth": 14,
+      "sidewalkWidth": 4,
+      "oneWay": 0
+    },
+    {
+      "id": "garvey",
+      "name": "Marcus Garvey Blvd",
+      "signName": "Marcus Garvey Blvd",
+      "axis": "ns",
+      "offset": 250,
+      "class": "avenue",
+      "roadWidth": 14,
+      "sidewalkWidth": 4,
+      "oneWay": 0
+    },
+    {
+      "id": "hart",
+      "name": "Hart St",
+      "signName": "Hart St",
+      "axis": "ew",
+      "offset": -200,
+      "class": "street",
+      "roadWidth": 10,
+      "sidewalkWidth": 3.5,
+      "oneWay": 1
+    },
+    {
+      "id": "pulaski",
+      "name": "Pulaski St",
+      "signName": "Pulaski St",
+      "axis": "ew",
+      "offset": -100,
+      "class": "street",
+      "roadWidth": 10,
+      "sidewalkWidth": 3.5,
+      "oneWay": -1
+    },
+    {
+      "id": "kosciuszko",
+      "name": "Kosciuszko St",
+      "signName": "Kosciusko St",
+      "axis": "ew",
+      "offset": 0,
+      "class": "street",
+      "roadWidth": 10,
+      "sidewalkWidth": 3.5,
+      "oneWay": 1
+    },
+    {
+      "id": "lafayette",
+      "name": "Lafayette Ave",
+      "signName": "Lafayette Ave",
+      "axis": "ew",
+      "offset": 100,
+      "class": "avenue",
+      "roadWidth": 13,
+      "sidewalkWidth": 4,
+      "oneWay": 0
+    },
+    {
+      "id": "vanburen",
+      "name": "Van Buren St",
+      "signName": "Van Buren St",
+      "axis": "ew",
+      "offset": 200,
+      "class": "street",
+      "roadWidth": 10,
+      "sidewalkWidth": 3.5,
+      "oneWay": 1
+    },
+    {
+      "id": "greene",
+      "name": "Greene Ave",
+      "signName": "Greene Ave",
+      "axis": "ew",
+      "offset": 300,
+      "class": "avenue",
+      "roadWidth": 13,
+      "sidewalkWidth": 4,
+      "oneWay": 0
+    }
+  ],
+  "pois": [
+    {
+      "id": "troop-deli",
+      "block": "r1c1",
+      "face": "W",
+      "t": 0.08,
+      "archetype": "bodega",
+      "sign": "TROOP DELI & GROCERY  ·  OPEN 25 HRS",
+      "awningColor": "#d62828"
+    },
+    {
+      "id": "komat",
+      "block": "r2c0",
+      "face": "E",
+      "t": 0.1,
+      "archetype": "laundromat",
+      "sign": "KOSCIUSZ-K-O-MAT  ·  WASH DRY FOLD",
+      "awningColor": "#1d6fa5"
+    },
+    {
+      "id": "garvey-cutz",
+      "block": "r2c1",
+      "face": "E",
+      "t": 0.12,
+      "archetype": "barbershop",
+      "sign": "GARVEY CUTZ  ·  WALK-INS WELCOME, PATIENCE REQUIRED",
+      "awningColor": "#111111"
+    },
+    {
+      "id": "braids",
+      "block": "r3c0",
+      "face": "W",
+      "t": 0.9,
+      "archetype": "braiding",
+      "sign": "NAH-NAH'S AFRICAN HAIR BRAIDING",
+      "awningColor": "#f4a300"
+    },
+    {
+      "id": "oxtail",
+      "block": "r1c0",
+      "face": "E",
+      "t": 0.9,
+      "archetype": "caribbean",
+      "sign": "AUNTIE'S OXTAIL PALACE  ·  NO SUBSTITUTIONS",
+      "awningColor": "#f7d708"
+    },
+    {
+      "id": "golden",
+      "block": "r3c1",
+      "face": "W",
+      "t": 0.85,
+      "archetype": "chinese",
+      "sign": "GOLDEN LUCKY No. 1 KITCHEN  ·  WE DELIVER (EVENTUALLY)",
+      "awningColor": "#c8102e"
+    },
+    {
+      "id": "slice",
+      "block": "r2c0",
+      "face": "W",
+      "t": 0.08,
+      "archetype": "pizza",
+      "sign": "NOT-RAY'S PIZZA  ·  $1 SLICE ($4.50)",
+      "awningColor": "#1f7a3a"
+    },
+    {
+      "id": "church",
+      "block": "r0c1",
+      "face": "S",
+      "t": 0.5,
+      "archetype": "church",
+      "sign": "GREATER ABUNDANT MOSTLY-SUNDAY TABERNACLE",
+      "awningColor": "#5a2d82"
+    },
+    {
+      "id": "liquor",
+      "block": "r4c0",
+      "face": "E",
+      "t": 0.1,
+      "archetype": "liquor",
+      "sign": "VAN BUREN WINE & LIQUOR  ·  CHILLED",
+      "awningColor": "#111111"
+    },
+    {
+      "id": "dollar",
+      "block": "r4c1",
+      "face": "W",
+      "t": 0.12,
+      "archetype": "dollar",
+      "sign": "99¢ & UP & UP & UP",
+      "awningColor": "#ffd400"
+    },
+    {
+      "id": "rx",
+      "block": "r0c0",
+      "face": "E",
+      "t": 0.1,
+      "archetype": "pharmacy",
+      "sign": "THROOP FAMILY PHARMACY  ·  WE TAKE SOME INSURANCE",
+      "awningColor": "#0a7f5a"
+    },
+    {
+      "id": "daycare",
+      "block": "r3c1",
+      "face": "N",
+      "t": 0.5,
+      "archetype": "daycare",
+      "sign": "LIL SCHOLARS DAYCARE  ·  NAP TIME IS SACRED",
+      "awningColor": "#ff7eb3"
+    },
+    {
+      "id": "funeral",
+      "block": "r1c1",
+      "face": "N",
+      "t": 0.5,
+      "archetype": "funeral",
+      "sign": "GENTLY GOING FUNERAL HOME  ·  EST. A WHILE AGO",
+      "awningColor": "#2b2b2b"
+    },
+    {
+      "id": "auto",
+      "block": "r4c1",
+      "face": "E",
+      "t": 0.88,
+      "archetype": "autorepair",
+      "sign": "GREENE AVE AUTO  ·  INSPECTION, PROBABLY",
+      "awningColor": "#444444"
+    },
+    {
+      "id": "condo",
+      "block": "r0c0",
+      "face": "W",
+      "t": 0.5,
+      "archetype": "condo",
+      "sign": "THE BROWNSTONE RESIDENCES AT HART  ·  NOW LEASING FROM TOO MUCH",
+      "awningColor": "#e8e2d6"
+    }
+  ]
+}
