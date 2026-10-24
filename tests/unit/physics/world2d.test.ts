@@ -131,6 +131,7 @@ describe('World2D.step resolution', () => {
     expect(c.impulse).toBeCloseTo(10, 4);
     expect(fast.vel.x).toBeCloseTo(1, 4); // bounced out at 0.1 * 10
 
+    w.removeBody(fast.id);
     const walker = dyn('player', { kind: 'circle', r: 0.4 }, 4.5, 3, 80, -3, 0);
     w.addBody(walker);
     for (let i = 0; i < 30; i++) {
