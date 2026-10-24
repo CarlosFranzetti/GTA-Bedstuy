@@ -1,6 +1,6 @@
 # GTA Bed-Stuy — Design Spec
 
-**Status:** draft for review
+**Status:** approved 2026-10-24 (Street View reference-only, 10-block area as drawn, sandbox v1, title "GTA Bed-Stuy")
 **Date:** 2026-10-24
 **Author:** Carlos Franzetti (direction), Claude (draft)
 
@@ -271,8 +271,8 @@ a lawyer and this is not legal advice.
 not by itself make trademark use safe. Mitigations in v1: the title screen says
 "a fan tribute, not affiliated with Rockstar Games or Take-Two"; no Rockstar
 logos, fonts, music, characters or assets are used or imitated; the README
-carries the same disclaimer. Consider a working title that nods rather than
-copies (e.g. "Grand Theft Bed-Stuy"); the user decides.
+carries the same disclaimer. Decision: the title stays "GTA Bed-Stuy" with these
+disclaimers; the user chose this knowingly.
 
 ## 11. Testing strategy
 
