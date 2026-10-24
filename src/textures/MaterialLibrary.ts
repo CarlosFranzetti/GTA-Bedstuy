@@ -387,7 +387,7 @@ export class MaterialLibrary implements IMaterialLibrary {
     });
 
     const masonry: Relief = { strength: 2.5, normalScale: 0.6, roughScale: 0.5 };
-    const brickRelief: Relief = { ...masonry, share: 'brick' };
+    const brickRelief: Relief = { ...masonry, strength: 3, share: 'brick' };
     const stone: Relief = { strength: 2.2, normalScale: 0.6, roughScale: null };
     const asphaltRelief: Relief = { strength: 3, normalScale: 0.35, roughScale: 0.5 };
     const concreteRelief: Relief = { strength: 3, normalScale: 0.5, roughScale: null };
@@ -407,7 +407,7 @@ export class MaterialLibrary implements IMaterialLibrary {
       brickRed: { variants: 4, build: tex('brickRed', 1024, 1024, brickPainter, {}, brickRelief) },
       brickPainted: alias('brickPainted', 2, 2, 1024, 1024, brickPainter, {}, brickRelief),
       limestone: { variants: 1, build: tex('limestone', 512, 512, limestonePainter, {}, stone) },
-      cornice: { variants: 1, build: tex('cornice', 512, 512, cornicePainter, {}, { strength: 3, normalScale: 0.7, roughScale: null }) },
+      cornice: { variants: 2, build: tex('cornice', 512, 512, cornicePainter, {}, { strength: 3, normalScale: 0.7, roughScale: 0.5 }) },
       stoop: alias('stoop', 1, 1, 512, 512, brownstonePainter, {}, { ...masonry, roughScale: 1 }),
       window: glass('window', 256, 256, windowPainter, windowEmissivePainter, WINDOW_VARIANTS),
       storefrontGlass: glass('storefrontGlass', 512, 256, storefrontPainter, storefrontEmissivePainter, STOREFRONT_VARIANTS),

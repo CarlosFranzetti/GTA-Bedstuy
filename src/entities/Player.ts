@@ -5,6 +5,7 @@ import {
 import type { EventBus } from '@/core/Events';
 import type { Input } from '@/core/Input';
 import { animateWalk, buildHumanModel, type HumanModel } from '@/entities/models/humanModel';
+import type { CharacterRig, CharacterSource } from '@/world/types';
 import { Rng } from '@/core/Rng';
 import type { Body2D, Entity, IMaterialLibrary, IVehicle, VehicleInput } from '@/world/types';
 
@@ -34,7 +35,10 @@ export class Player implements Entity {
   private desiredVel: Vec2 = { x: 0, z: 0 };
   private walkPhase = Math.PI / 2;
   private walkAmp = 0;
-  private model!: HumanModel;
+  private model: HumanModel | null = null;
+  private rig: CharacterRig | null = null;
+  /** Optional rigged character source (GLB) for the player; set once at boot before constructing the Player. */
+  static characterSource: CharacterSource | null = null;
 
   constructor(readonly id: string, pos: Vec2, materials: IMaterialLibrary, private events: EventBus) {
     this.body = {
@@ -161,7 +165,8 @@ export class Player implements Entity {
       this.walkAmp *= Math.pow(0.8, dt * 30);
       if (this.walkAmp < 0.002) this.walkAmp = 0;
     }
-    animateWalk(this.model, this.walkPhase, this.walkAmp);
+    if (this.rig) { this.rig.setSpeed(sp); this.rig.update(dt); }
+    else if (this.model) animateWalk(this.model, this.walkPhase, this.walkAmp);
     applyPose(this.object3D, b.pos, b.heading, 0);
   }
 
@@ -182,6 +187,7 @@ export class Player implements Entity {
 
   private buildMesh(materials: IMaterialLibrary): void {
     // fixed-seed rng: the player always looks the same. Variant 0 cloth = the red top.
+    if (Player.characterSource) { this.rig = Player.characterSource.instantiate(0); this.object3D.add(this.rig.group); return; }
     this.model = buildHumanModel(materials, new Rng('player'), {
       shirt: 0, skin: 0, pants: 1, outfit: 'hoodie', hat: 'cap', accessory: 'none', heightScale: 1,
     });

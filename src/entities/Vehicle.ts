@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildCarModel, type CarModel } from '@/entities/models/carModel';
+import type { VehicleSources } from '@/entities/models/gltf/VehicleSource';
 import {
   applyPose, clamp, dot, forwardFromHeading, perpRight, wrapAngle, type Vec2,
 } from '@/core/Math2';
@@ -35,6 +36,8 @@ const DAMAGE_VISUAL = 0.5;
 const HOOD_LIFT = 0.12;
 
 export class Vehicle implements IVehicle {
+  /** Optional real car models (GLB) per type; see src/assets/models/README.md. Set once at boot. */
+  static sources: VehicleSources = {};
   readonly spec: VehicleSpec;
   readonly body: Body2D;
   readonly object3D: THREE.Group;
@@ -177,7 +180,7 @@ export class Vehicle implements IVehicle {
   // ------------------------------------------------------------------ mesh
 
   private buildMesh(): void {
-    this.model = buildCarModel(this.spec.type, this.spec, this.materials);
+    this.model = Vehicle.sources[this.spec.type]?.instantiate(this.spec) ?? buildCarModel(this.spec.type, this.spec, this.materials);
     this.wheelRadius = this.model.wheelRadius;
     this.ownMaterials.push(...this.model.ownMaterials);
     this.object3D.add(this.model.group);

@@ -3,6 +3,7 @@ import type { EventBus } from '@/core/Events';
 import { angleDiff, type Vec2 } from '@/core/Math2';
 import type { Rng } from '@/core/Rng';
 import { animateWalk, buildHumanModel, type HumanModel } from '@/entities/models/humanModel';
+import type { CharacterRig, CharacterSource } from '@/world/types';
 import type { Body2D, Contact, Entity, Graph, GraphNode, IMaterialLibrary, IVehicle, IWorld2D } from '@/world/types';
 
 export type PedState = 'walking' | 'waiting' | 'down' | 'fleeing';
@@ -22,7 +23,10 @@ export class Pedestrian implements Entity {
   readonly body: Body2D;
   state: PedState = 'walking';
 
-  private readonly model: HumanModel;
+  private readonly model: HumanModel | null = null;
+  private readonly rig: CharacterRig | null = null;
+  /** Optional rigged character source (GLB); when set, peds use it instead of the procedural model. */
+  static characterSource: CharacterSource | null = null;
   private amp = 0;
   private targetId: string | null = null;
   private prevId: string | null = null;
@@ -54,8 +58,9 @@ export class Pedestrian implements Entity {
       userData: this,
     };
 
-    this.model = buildHumanModel(materials, rng);
-    const g = this.model.group;
+    let g: THREE.Group;
+    if (Pedestrian.characterSource) { this.rig = Pedestrian.characterSource.instantiate(rng.int(0, 7)); g = this.rig.group; }
+    else { this.model = buildHumanModel(materials, rng); g = this.model.group; }
     g.rotation.order = 'YXZ';
     this.object3D = g;
 
@@ -241,7 +246,8 @@ export class Pedestrian implements Entity {
     const target = !moving ? 0 : this.state === 'fleeing' ? 1.5 : 1;
     this.amp += (target - this.amp) * Math.min(1, dt * 10);
     if (this.amp < 0.01) this.amp = 0;
-    animateWalk(this.model, this.phase, this.amp);
+    if (this.rig) { this.rig.setSpeed(this.amp * (this.state === 'fleeing' ? 4 : 1.2)); this.rig.update(dt); }
+    else if (this.model) animateWalk(this.model, this.phase, this.amp);
   }
 
   private applyPose(): void {
@@ -249,6 +255,6 @@ export class Pedestrian implements Entity {
     const down = this.state === 'down';
     o.position.set(this.body.pos.x, down ? 0.22 : 0, this.body.pos.z);
     o.rotation.y = -this.body.heading;
-    o.rotation.x = down ? Math.PI / 2 : 0;
+    if (this.rig) this.rig.setDown(down); else o.rotation.x = down ? Math.PI / 2 : 0;
   }
 }

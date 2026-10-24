@@ -5,6 +5,8 @@ import { brickPainter, brownstonePainter, cornicePainter, limestonePainter } fro
 
 interface Op { name: string; args: unknown[]; fill: string; alpha: number }
 
+const ALLOWED = new Set(['fillRect', 'strokeRect', 'fillText', 'arc', 'beginPath', 'closePath', 'moveTo', 'lineTo', 'fill', 'stroke', 'quadraticCurveTo']);
+
 /** Recording 2D context with save/restore state, no pixel access. */
 function makeCtx(): { ctx: CanvasRenderingContext2D; ops: Op[] } {
   const ops: Op[] = [];
@@ -16,6 +18,8 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; ops: Op[] } {
       if (prop === 'restore') return () => { state = stack.pop() ?? state; ops.push({ name: 'restore', args: [], fill: '', alpha: 0 }); };
       if (prop === 'measureText') return (t: string) => ({ width: t.length * 6 });
       if (prop in state) return state[prop];
+      // the shared pixel-capable fake in materials.test.ts has no ellipse/transforms: painters must not need them
+      if (!ALLOWED.has(prop)) throw new Error(`unsupported canvas call: ${prop}`);
       return (...args: unknown[]) => { ops.push({ name: prop, args, fill: String(state.fillStyle), alpha: Number(state.globalAlpha) }); };
     },
     set(_t, prop: string, v) {
@@ -44,7 +48,7 @@ function luminance(color: string): number {
   let r = 0, g = 0, b = 0;
   const hex = /^#([0-9a-f]{6})$/i.exec(color);
   const rgb = /^rgb\((\d+),(\d+),(\d+)\)$/.exec(color);
-  const hsl = /^hsl\(([\d.]+),([\d.]+)%,([\d.]+)%\)$/.exec(color);
+  const hsl = /^hsl\((-?[\d.]+),([\d.]+)%,([\d.]+)%\)$/.exec(color);
   if (hex) {
     r = parseInt(hex[1].slice(0, 2), 16); g = parseInt(hex[1].slice(2, 4), 16); b = parseInt(hex[1].slice(4, 6), 16);
   } else if (rgb) {
@@ -188,8 +192,8 @@ describe('masonry painters', () => {
     expect(lime).toBeGreaterThan(b0 * 1.5);
   });
 
-  it('brownstone v1 spalls more: far more elliptical flakes than v0', () => {
-    const n = (v: number): number => run(brownstonePainter, 4, v).ops.filter((o) => o.name === 'ellipse').length;
+  it('brownstone v1 spalls more: far more flaked patches (polygon blobs) than v0', () => {
+    const n = (v: number): number => run(brownstonePainter, 4, v).ops.filter((o) => o.name === 'closePath').length;
     expect(n(1)).toBeGreaterThan(n(0) * 2);
   });
 

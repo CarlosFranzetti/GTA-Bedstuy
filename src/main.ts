@@ -13,6 +13,8 @@ import { World2D } from '@/physics/World2D';
 import { Player, ENTER_RANGE } from '@/entities/Player';
 import { Vehicle, VEHICLE_SPECS } from '@/entities/Vehicle';
 import { Pedestrian } from '@/entities/Pedestrian';
+import { resolveCharacterSource, GltfCharacterSource } from '@/entities/models/gltf/CharacterSource';
+import { resolveVehicleSources } from '@/entities/models/gltf/VehicleSource';
 import { TrafficSystem } from '@/game/TrafficSystem';
 import { CopSystem } from '@/game/CopSystem';
 import { WantedSystem } from '@/game/WantedSystem';
@@ -71,7 +73,9 @@ scene.environmentIntensity = dayNight.isNight ? 0.5 : 0.18;
 const nightLights = new NightLights(scene, world.lamps, { poolSize: quality === 'low' ? 6 : 12 });
 const sunFlare = new SunFlare(scene);
 
-// ---- entities
+// ---- entities (optional real models: src/assets/models/README.md)
+Vehicle.sources = await resolveVehicleSources();
+{ const chars = await resolveCharacterSource(materials, rng.fork('characters')); if (chars instanceof GltfCharacterSource) { Pedestrian.characterSource = chars; Player.characterSource = chars; } }
 let vehicleSeq = 0;
 const makeVehicle = (type: VehicleType, pos: Vec2, heading: number, color: string): IVehicle =>
   new Vehicle(`veh${vehicleSeq++}`, { ...VEHICLE_SPECS[type], color }, pos, heading, materials, events);

@@ -57,9 +57,26 @@ function fillW(c: Ctx, x: number, y: number, rw: number, rh: number, w: number, 
   for (const [px, py] of copies(x, y, rw, rh, w, h)) c.fillRect(px, py, rw, rh);
 }
 
-function blob(c: Ctx, cx: number, cy: number, rx: number, ry: number, rot = 0): void {
+/**
+ * Filled (optionally rotated, ragged-edged) ellipse as a polygon. Deliberately avoids ctx.ellipse / transforms so
+ * it also runs on minimal canvas fakes.
+ */
+function blob(c: Ctx, cx: number, cy: number, rx: number, ry: number, rot = 0, rag = 0): void {
+  const n = rx + ry > 24 ? 24 : 14;
+  const cr = Math.cos(rot);
+  const sr = Math.sin(rot);
   c.beginPath();
-  c.ellipse(cx, cy, rx, ry, rot, 0, TAU);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * TAU;
+    const m = 1 + rag * Math.sin(a * 3 + rx) * Math.cos(a * 5 + ry);
+    const ex = Math.cos(a) * rx * m;
+    const ey = Math.sin(a) * ry * m;
+    const x = cx + ex * cr - ey * sr;
+    const y = cy + ex * sr + ey * cr;
+    if (i === 0) c.moveTo(x, y);
+    else c.lineTo(x, y);
+  }
+  c.closePath();
   c.fill();
 }
 
@@ -510,10 +527,10 @@ function paintBlock(
   for (const sp of spalls) {
     c.globalAlpha = 0.55;
     c.fillStyle = hsl(hh - 2, ss, ll - 12);
-    blob(c, sp.cx, sp.cy, sp.rx * 1.15, sp.ry * 1.15, sp.rot);
+    blob(c, sp.cx, sp.cy, sp.rx * 1.15, sp.ry * 1.15, sp.rot, 0.2);
     c.globalAlpha = 0.9;
     c.fillStyle = hsl(hh - 4, ss + 4, ll + 13);
-    blob(c, sp.cx + sp.rx * 0.08, sp.cy + sp.ry * 0.15, sp.rx * 0.8, sp.ry * 0.78, sp.rot);
+    blob(c, sp.cx + sp.rx * 0.08, sp.cy + sp.ry * 0.15, sp.rx * 0.8, sp.ry * 0.78, sp.rot, 0.2);
     c.globalAlpha = 0.35;
     c.fillStyle = '#000000';
     blob(c, sp.cx, sp.cy - sp.ry * 0.4, sp.rx * 0.75, sp.ry * 0.35, sp.rot);
@@ -554,9 +571,9 @@ function paintBlock(
     hCtx.restore();
     for (const sp of spalls) {
       hCtx.fillStyle = gray(150);
-      blob(hCtx, sp.cx, sp.cy, sp.rx * 1.2, sp.ry * 1.2, sp.rot);
+      blob(hCtx, sp.cx, sp.cy, sp.rx * 1.2, sp.ry * 1.2, sp.rot, 0.2);
       hCtx.fillStyle = gray(88 + n * 10);
-      blob(hCtx, sp.cx, sp.cy, sp.rx * 0.9, sp.ry * 0.85, sp.rot);
+      blob(hCtx, sp.cx, sp.cy, sp.rx * 0.9, sp.ry * 0.85, sp.rot, 0.2);
     }
     if (repointTop) {
       hCtx.fillStyle = gray(76);
