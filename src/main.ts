@@ -21,6 +21,12 @@ import { Hud } from '@/ui/Hud';
 import { Minimap } from '@/ui/Minimap';
 import { TouchControls } from '@/ui/TouchControls';
 import { AudioSystem } from '@/audio/AudioSystem';
+import { RenderPipeline } from '@/render/Pipeline';
+import { setupShadows, updateShadowCamera, applyShadowFlags, type Quality } from '@/render/Shadows';
+import { SkyDome } from '@/render/SkyDome';
+import { NightLights } from '@/render/NightLights';
+import { setLampsLit } from '@/world/FurnitureGen';
+import { loadTexturePacks } from '@/textures/packs';
 
 declare global {
   interface Window { __gtaReady?: boolean; __gtaStats?: Record<string, number>; }
@@ -31,7 +37,9 @@ const app = document.getElementById('app')!;
 // ---- renderer / scene
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 const isTouch = Input.isTouchDevice();
-renderer.setPixelRatio(Math.min(isTouch ? 1.25 : 1.75, window.devicePixelRatio));
+const params = new URLSearchParams(location.search);
+let quality: Quality = (params.get('q') as Quality | null) ?? (isTouch ? 'low' : 'high');
+renderer.setPixelRatio(Math.min(quality === 'low' ? 1.25 : 1.75, window.devicePixelRatio));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
@@ -43,7 +51,8 @@ const scene = new THREE.Scene();
 const data = loadBedstuyData();
 const rng = new Rng(data.seed);
 const events = new EventBus();
-const materials = new MaterialLibrary(rng.fork('materials'));
+const materials = new MaterialLibrary(rng.fork('materials'), undefined, { maxAnisotropy: renderer.capabilities.getMaxAnisotropy() });
+const packsReady = loadTexturePacks(materials, renderer.capabilities.getMaxAnisotropy()).catch((e) => { console.warn('texture packs failed', e); return 0; });
 const world = buildWorld(data, materials, rng);
 scene.add(world.group);
 const { grid } = world;
@@ -52,6 +61,12 @@ const physics = new World2D(12);
 for (const c of world.colliders) physics.addStatic(c.shape, c.pos, c.id);
 
 const dayNight = new DayNight(scene, materials, { startHour: 17.5 });
+scene.add(dayNight.sun.target);
+setupShadows(renderer, dayNight.sun, quality);
+applyShadowFlags(world.group, true, true);
+const sky = new SkyDome(scene, renderer, materials);
+dayNight.attachSky(sky);
+const nightLights = new NightLights(scene, world.lamps, { poolSize: quality === 'low' ? 6 : 12 });
 
 // ---- entities
 let vehicleSeq = 0;
@@ -73,8 +88,8 @@ const traffic = new TrafficSystem(grid, physics, events, rng.fork('traffic'), sc
 const cops = new CopSystem(grid, physics, events, rng.fork('cops'), scene, makeVehicle, wanted);
 const audio = new AudioSystem(events);
 
-events.on('enterVehicle', () => physics.removeBody(player.body.id));
-events.on('exitVehicle', () => physics.addBody(player.body));
+events.on('enterVehicle', () => { physics.removeBody(player.body.id); if (player.vehicle) nightLights.attachHeadlights(player.vehicle.object3D, player.vehicle.spec.length); });
+events.on('exitVehicle', () => { physics.addBody(player.body); nightLights.attachHeadlights(null); });
 
 // ---- ui
 const overlay = document.createElement('div');
@@ -86,6 +101,9 @@ hud.showSplash();
 
 const input = new Input(renderer.domElement);
 const cam = new ThirdPersonCamera(window.innerWidth / window.innerHeight);
+const pipeline = new RenderPipeline(renderer, scene, cam.camera, { quality });
+pipeline.setNight(dayNight.isNight);
+setLampsLit(world.furnitureGroup, dayNight.isNight);
 input.onFirstGesture = () => { hud.hideSplash(); events.emit('userGesture', {}); };
 overlay.addEventListener('mousedown', () => input.notifyGesture());
 overlay.addEventListener('pointerdown', () => input.notifyGesture());
@@ -110,7 +128,9 @@ const game = new Game(
     const pos = player.body.pos;
     const heading = player.vehicle ? player.vehicle.body.heading : player.body.heading;
     updateCamera();
-    renderer.render(scene, cam.camera);
+    updateShadowCamera(dayNight.sun, player.body.pos);
+    sky.update(dayNight.timeOfDay, dayNight.sun.position.clone().normalize(), dayNight.isNight, cam.camera.position);
+    pipeline.render();
     frames++;
     const street = grid.nearestStreet(pos);
     let prompt = '';
@@ -148,8 +168,8 @@ game.add({
 
     // entities
     entityById.clear();
-    for (const v of traffic.vehicles) { v.update(dt); entityById.set(v.body.id, v); }
-    for (const v of cops.cops) { v.update(dt); entityById.set(v.body.id, v); }
+    for (const v of traffic.vehicles) { if (v.headlights !== lastNight) { v.headlights = lastNight; applyShadowFlags(v.object3D, true, false); } v.update(dt); entityById.set(v.body.id, v); }
+    for (const v of cops.cops) { if (v.headlights !== lastNight) { v.headlights = lastNight; applyShadowFlags(v.object3D, true, false); } v.update(dt); entityById.set(v.body.id, v); }
     for (const p of traffic.peds) { p.update(dt); entityById.set(p.body.id, p); }
     player.update(dt);
     entityById.set(player.body.id, player);
@@ -172,7 +192,11 @@ game.add({
 
     // environment + audio
     dayNight.update(dt);
-    if (dayNight.isNight !== lastNight) { lastNight = dayNight.isNight; audio.setNight(lastNight); }
+    if (dayNight.isNight !== lastNight) {
+      lastNight = dayNight.isNight; audio.setNight(lastNight); pipeline.setNight(lastNight); setLampsLit(world.furnitureGroup, lastNight);
+      for (const v of allVehicles()) v.headlights = lastNight;
+    }
+    nightLights.update(player.body.pos, dayNight.isNight, dt);
     audio.setEngine(player.vehicle ? Math.abs(player.vehicle.speed) : 0, player.vehicle ? Math.abs(player.lastVehicleInput.throttle) : 0, player.inVehicle);
     audio.update(dt);
 
@@ -183,7 +207,10 @@ game.add({
 window.addEventListener('resize', () => {
   cam.setAspect(window.innerWidth / window.innerHeight);
   renderer.setSize(window.innerWidth, window.innerHeight);
+  pipeline.setSize(window.innerWidth, window.innerHeight);
 });
+applyShadowFlags(player.object3D, true, false);
+packsReady.then((n) => { window.__gtaStats = { ...(window.__gtaStats ?? {}), packs: n }; });
 document.addEventListener('visibilitychange', () => { game.paused = document.hidden; });
 
 // debug/review hooks (harmless in production)
@@ -191,11 +218,13 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
   setFreeCam(x: number, y: number, z: number, lx: number, ly: number, lz: number) { freeCam = { pos: new THREE.Vector3(x, y, z), look: new THREE.Vector3(lx, ly, lz) }; },
   clearFreeCam() { freeCam = null; },
   setHour(h: number) { dayNight.timeOfDay = h; },
+  setQuality(q: Quality) { quality = q; pipeline.setQuality(q); setupShadows(renderer, dayNight.sun, q); },
+  packsReady,
   teleport(x: number, z: number, heading?: number) { const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = x; b.pos.z = z; b.vel.x = 0; b.vel.z = 0; if (heading !== undefined) b.heading = heading; },
   /** run n fixed simulation steps synchronously (for scripted review) */
   step(n: number) { for (let i = 0; i < n; i++) { for (const sys of game.systems) sys.update(game.step); input.endFrame(); } },
   settle(n: number) { for (let i = 0; i < n; i++) updateCamera(); },
-  player, cops, traffic, wanted, physics, grid, events,
+  player, cops, traffic, wanted, physics, grid, events, scene, sky, pipeline, nightLights, dayNight, renderer, materials,
   nearby(r: number) { const p = player.body.pos; const out: unknown[] = []; for (const b of physics.bodies()) { const d = Math.hypot(b.pos.x - p.x, b.pos.z - p.z); if (b.shape.kind === 'circle' && d < r) out.push({ id: b.id, kind: b.kind, d: +d.toFixed(2) }); } return out; },
 };
 

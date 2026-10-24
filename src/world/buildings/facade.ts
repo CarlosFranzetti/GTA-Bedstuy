@@ -1,7 +1,12 @@
 /**
  * Shared building toolkit: a geometry batch that collects boxes/quads per material in a lot-local frame
  * (x along the front, y up, z toward the street; the facade is at z <= 0) with tiling UVs
- * (1 texture repeat per TILE metres), plus helpers for windows, cornices, parapets, fire escapes, tanks.
+ * (1 texture repeat per TILE metres), plus helpers for recessed windows, bracketed cornices, parapets,
+ * roof clutter, fire escapes, tanks and drain pipes.
+ *
+ * Facade walls are built with `wallWithHoles`: windows/doors register a cut-out and the wall is emitted as
+ * quads around them, so every opening is a real recess with reveal faces, a set-back glass pane and a dark
+ * backing panel.
  */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -18,12 +23,16 @@ export type V3 = [number, number, number];
 export interface BuildingMats {
   lib: IMaterialLibrary;
   brownstone: THREE.Material;
+  brownstoneAlt: THREE.Material;
   brickRed: THREE.Material;
+  brickAlt: THREE.Material;
   brickPainted: THREE.Material;
   limestone: THREE.Material;
   cornice: THREE.Material;
   stoop: THREE.Material;
   window: THREE.Material;
+  /** window variants 0..3 (lit / blinds / curtains / dim): picked per window for variety at night */
+  windows: THREE.Material[];
   glass: THREE.Material;
   rollGate: THREE.Material;
   roof: THREE.Material;
@@ -32,18 +41,23 @@ export interface BuildingMats {
   scaffold: THREE.Material;
   chain: THREE.Material;
   plainAwnings: THREE.Material[];
+  darkAwning: THREE.Material;
 }
 
 export function loadMats(lib: IMaterialLibrary): BuildingMats {
+  const windows = [0, 1, 2, 3].map((v) => lib.get('window', v));
   return {
     lib,
     brownstone: lib.get('brownstone', 0),
+    brownstoneAlt: lib.get('brownstone', 1),
     brickRed: lib.get('brickRed', 0),
+    brickAlt: lib.get('brickRed', 1),
     brickPainted: lib.get('brickPainted', 0),
     limestone: lib.get('limestone', 0),
     cornice: lib.get('cornice', 0),
     stoop: lib.get('stoop', 0),
-    window: lib.get('window', 0),
+    window: windows[0],
+    windows,
     glass: lib.get('storefrontGlass', 0),
     rollGate: lib.get('rollGate', 0),
     roof: lib.get('roof', 0),
@@ -52,7 +66,14 @@ export function loadMats(lib: IMaterialLibrary): BuildingMats {
     scaffold: lib.get('scaffold', 0),
     chain: lib.get('chainlink', 0),
     plainAwnings: [lib.awning('#2f6f4f', ''), lib.awning('#8a3b2e', '')],
+    darkAwning: lib.awning('#27303a', ''),
   };
+}
+
+/** Pick a window material variant: mostly lit, some blinds / curtains / dim. */
+export function pickWindow(m: BuildingMats, rng: Rng): THREE.Material {
+  const r = rng.next();
+  return m.windows[r < 0.4 ? 0 : r < 0.62 ? 1 : r < 0.84 ? 2 : 3];
 }
 
 /** Axis-aligned rectangle in the lot-local frame (z0 < z1). */
@@ -83,6 +104,19 @@ interface Raw { p: number[]; n: number[]; uv: number[]; }
 const _v = new THREE.Vector3();
 const _n = new THREE.Vector3();
 
+export interface RectOpt {
+  /** UV repeats across u / v (default: edge length / TILE) */
+  ru?: number;
+  rv?: number;
+  /** flip so the front face points toward this direction */
+  hint?: V3;
+  /** UV origin offset, so neighbouring quads of one wall continue the same texture */
+  u0?: number;
+  v0?: number;
+  /** explicit UV rectangle [uMin, vMin, uMax, vMax] (overrides ru/rv/u0/v0) */
+  uvRect?: [number, number, number, number];
+}
+
 export class LotBatch {
   private raw = new Map<THREE.Material, Raw>();
   private out = new Map<THREE.Material, THREE.BufferGeometry[]>();
@@ -111,18 +145,22 @@ export class LotBatch {
    * Quad o, o+u, o+u+v, o+v. Front face is the side u x v points to (flipped to match `hint` if given).
    * UV repeats: ru across u, rv across v (default: edge length / TILE).
    */
-  rect(mat: THREE.Material, o: V3, u: V3, v: V3, opt?: { ru?: number; rv?: number; hint?: V3 }): void {
+  rect(mat: THREE.Material, o: V3, u: V3, v: V3, opt?: RectOpt): void {
     let [ox, oy, oz] = o;
     let [ux, uy, uz] = u;
     const [vx, vy, vz] = v;
     const ru = opt?.ru ?? Math.hypot(ux, uy, uz) / TILE;
     const rv = opt?.rv ?? Math.hypot(vx, vy, vz) / TILE;
+    let flipped = false;
     if (opt?.hint) {
       const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
       if (nx * opt.hint[0] + ny * opt.hint[1] + nz * opt.hint[2] < 0) {
         ox += ux; oy += uy; oz += uz; ux = -ux; uy = -uy; uz = -uz;
+        flipped = true;
       }
     }
+    let [ua, va, ub, vb] = opt?.uvRect ?? [opt?.u0 ?? 0, opt?.v0 ?? 0, (opt?.u0 ?? 0) + ru, (opt?.v0 ?? 0) + rv];
+    if (flipped) [ua, ub] = [ub, ua];
     const p0 = this.tp([ox, oy, oz]);
     const p1 = this.tp([ox + ux, oy + uy, oz + uz]);
     const p2 = this.tp([ox + ux + vx, oy + uy + vy, oz + uz + vz]);
@@ -130,22 +168,39 @@ export class LotBatch {
     _n.set(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]).cross(_v.set(p3[0] - p0[0], p3[1] - p0[1], p3[2] - p0[2])).normalize();
     const r = this.buf(mat);
     const push = (p: V3, uu: number, vv: number) => { r.p.push(p[0], p[1], p[2]); r.n.push(_n.x, _n.y, _n.z); r.uv.push(uu, vv); };
-    push(p0, 0, 0); push(p1, ru, 0); push(p2, ru, rv);
-    push(p0, 0, 0); push(p2, ru, rv); push(p3, 0, rv);
+    push(p0, ua, va); push(p1, ub, va); push(p2, ub, vb);
+    push(p0, ua, va); push(p2, ub, vb); push(p3, ua, vb);
   }
 
-  /** Triangle (front face by winding a,b,c); UVs are planar world-size / TILE so textures tile consistently. */
-  tri(mat: THREE.Material, a: V3, b: V3, c: V3): void {
+  /**
+   * Triangle (front face by winding a,b,c). Default UVs are planar world-size / TILE so textures tile
+   * consistently; pass `uv` (three [u,v] pairs) to map a specific texture region instead.
+   */
+  tri(mat: THREE.Material, a: V3, b: V3, c: V3, uv?: [[number, number], [number, number], [number, number]]): void {
     const pa = new THREE.Vector3(...this.tp(a)), pb = new THREE.Vector3(...this.tp(b)), pc = new THREE.Vector3(...this.tp(c));
     const e1 = pb.clone().sub(pa);
     const n = e1.clone().cross(pc.clone().sub(pa)).normalize();
     e1.normalize();
     const e2 = n.clone().cross(e1);
     const r = this.buf(mat);
-    for (const p of [pa, pb, pc]) {
+    [pa, pb, pc].forEach((p, i) => {
       const d = p.clone().sub(pa);
-      r.p.push(p.x, p.y, p.z); r.n.push(n.x, n.y, n.z); r.uv.push(d.dot(e1) / TILE, d.dot(e2) / TILE);
-    }
+      r.p.push(p.x, p.y, p.z); r.n.push(n.x, n.y, n.z);
+      if (uv) r.uv.push(uv[i][0], uv[i][1]); else r.uv.push(d.dot(e1) / TILE, d.dot(e2) / TILE);
+    });
+  }
+
+  /** Convex polygon (counter-clockwise seen from the front), fanned from its first vertex. */
+  poly(mat: THREE.Material, pts: V3[]): void {
+    for (let i = 1; i < pts.length - 1; i++) this.tri(mat, pts[0], pts[i], pts[i + 1]);
+  }
+
+  /** Convex polygon whose front face points toward `hint` (winding is reversed if needed). */
+  polyFacing(mat: THREE.Material, pts: V3[], hint: V3): void {
+    const a = pts[0], b = pts[1], c = pts[2];
+    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    this.poly(mat, nx * hint[0] + ny * hint[1] + nz * hint[2] < 0 ? pts.slice().reverse() : pts);
   }
 
   /**
@@ -164,7 +219,7 @@ export class LotBatch {
     if (faces.includes('d')) this.rect(mat, [x0, y0, z0], [dx, 0, 0], [0, 0, dz], o);
   }
 
-  /** Square-section bar from a to b (thickness t); end caps omitted. */
+  /** Thin bar from a to b: a triangular prism (3 long faces, end caps omitted) of apparent thickness t. */
   bar(mat: THREE.Material, a: V3, b: V3, t = 0.05): void {
     const d = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
     const L = d.length();
@@ -173,20 +228,32 @@ export class LotBatch {
     const ref = Math.abs(d.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
     const p1 = d.clone().cross(ref).normalize();
     const p2 = d.clone().cross(p1).normalize();
-    const h = t / 2;
-    const A = new THREE.Vector3(...a);
-    const at = (s1: number, s2: number) => A.clone().addScaledVector(p1, s1 * h).addScaledVector(p2, s2 * h);
-    const U: V3 = [d.x * L, d.y * L, d.z * L];
-    const sv = (v: THREE.Vector3, k: number): V3 => [v.x * k, v.y * k, v.z * k];
-    const hv = (v: THREE.Vector3): V3 => [v.x, v.y, v.z];
-    const o1 = at(1, -1), o2 = at(-1, -1), o3 = at(-1, 1), o4 = at(-1, -1);
-    this.rect(mat, hv(o1), U, sv(p2, t), { hint: hv(p1) });
-    this.rect(mat, hv(o2), U, sv(p2, t), { hint: sv(p1, -1) });
-    this.rect(mat, hv(o3), U, sv(p1, t), { hint: hv(p2) });
-    this.rect(mat, hv(o4), U, sv(p1, t), { hint: sv(p2, -1) });
+    const r = t * 0.62;
+    const corner = (k: number): THREE.Vector3 => {
+      const th = Math.PI / 2 + (k * 2 * Math.PI) / 3;
+      return p1.clone().multiplyScalar(Math.cos(th) * r).addScaledVector(p2, Math.sin(th) * r);
+    };
+    const U: V3 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    for (let k = 0; k < 3; k++) {
+      const c0 = corner(k), c1 = corner((k + 1) % 3);
+      const mid = c0.clone().add(c1);
+      const v = c1.clone().sub(c0);
+      this.rect(mat, [a[0] + c0.x, a[1] + c0.y, a[2] + c0.z], U, [v.x, v.y, v.z], { hint: [mid.x, mid.y, mid.z] });
+    }
   }
 
-  /** Add an existing three geometry (transformed by the current matrix). */
+  /** Vertical open prism with `seg` sides (drain pipes, columns). */
+  cyl(mat: THREE.Material, cx: number, y0: number, y1: number, cz: number, r: number, seg = 5): void {
+    for (let k = 0; k < seg; k++) {
+      const a0 = (k * 2 * Math.PI) / seg, a1 = ((k + 1) * 2 * Math.PI) / seg;
+      const x0 = cx + Math.cos(a0) * r, z0 = cz + Math.sin(a0) * r;
+      const x1 = cx + Math.cos(a1) * r, z1 = cz + Math.sin(a1) * r;
+      const am = (a0 + a1) / 2;
+      this.rect(mat, [x0, y0, z0], [x1 - x0, 0, z1 - z0], [0, y1 - y0, 0], { hint: [Math.cos(am), 0, Math.sin(am)] });
+    }
+  }
+
+  /** Add an existing three geometry (transformed by the current matrix). Only for untextured/untiled materials. */
   geom(mat: THREE.Material, g: THREE.BufferGeometry): void {
     const ng = g.index ? g.toNonIndexed() : g;
     const pos = ng.getAttribute('position'), nor = ng.getAttribute('normal'), uv = ng.getAttribute('uv');
@@ -248,11 +315,103 @@ export function sideWallFrame(side: 'left' | 'right', W: number, D: number): THR
   return m;
 }
 
+/** Matrix mapping the rear wall's local frame (x along the wall, z out of the wall = toward -z) into lot-local space. */
+export function rearWallFrame(W: number, D: number): THREE.Matrix4 {
+  const m = new THREE.Matrix4().makeRotationY(Math.PI);
+  m.setPosition(W, 0, -D);
+  return m;
+}
+
 /** Evenly spaced bay centres across a width. */
 export function bayCentres(width: number, bays: number): number[] {
   const xs: number[] = [];
   for (let i = 0; i < bays; i++) xs.push(((i + 0.5) * width) / bays);
   return xs;
+}
+
+// ---------------------------------------------------------------------------------------------- openings
+
+/** A rectangular cut-out in a wall. With `arch`, a semicircle of radius (x1-x0)/2 sits on top of y1. */
+export interface Hole { x0: number; x1: number; y0: number; y1: number; arch?: boolean; }
+
+const ARCH_SEG = 6;
+
+function archTop(h: Hole): number { return h.arch ? h.y1 + (h.x1 - h.x0) / 2 : h.y1; }
+
+/** Points along the arch from the left springing (angle PI) over the crown to the right springing (0). */
+function archPoints(h: Hole, z: number, seg = ARCH_SEG): V3[] {
+  const r = (h.x1 - h.x0) / 2, cx = (h.x0 + h.x1) / 2;
+  const pts: V3[] = [];
+  for (let k = 0; k <= seg; k++) {
+    const th = Math.PI - (k * Math.PI) / seg;
+    pts.push([cx + Math.cos(th) * r, h.y1 + Math.sin(th) * r, z]);
+  }
+  return pts;
+}
+
+/**
+ * Emit a wall plane (facing +z at depth `z`) from (x0,y0) to (x1,y1) as quads around the holes. UVs continue
+ * across pieces (origin at wall x=0,y=0) so brick courses line up. Holes must not overlap each other.
+ */
+export function wallWithHoles(b: LotBatch, mat: THREE.Material, x0: number, y0: number, x1: number, y1: number, z: number, holes: Hole[]): void {
+  const eps = 1e-4;
+  const hs = holes.filter((h) => h.x1 > x0 && h.x0 < x1 && archTop(h) > y0 && h.y0 < y1);
+  const ys = [y0, y1];
+  for (const h of hs) { ys.push(Math.min(y1, Math.max(y0, h.y0)), Math.min(y1, Math.max(y0, archTop(h)))); }
+  ys.sort((a, c) => a - c);
+  const bands: number[] = [];
+  for (const y of ys) if (!bands.length || y - bands[bands.length - 1] > eps) bands.push(y);
+  for (let i = 0; i + 1 < bands.length; i++) {
+    const ya = bands[i], yb = bands[i + 1];
+    const row = hs.filter((h) => h.y0 <= ya + eps && archTop(h) >= yb - eps).sort((p, q) => p.x0 - q.x0);
+    let x = x0;
+    const piece = (xa: number, xb: number) => {
+      if (xb - xa > eps) b.rect(mat, [xa, ya, z], [xb - xa, 0, 0], [0, yb - ya, 0], { u0: xa / TILE, v0: ya / TILE });
+    };
+    for (const h of row) { piece(x, Math.max(x, h.x0)); x = Math.max(x, h.x1); }
+    piece(x, x1);
+  }
+  // arch spandrels: the two corner pieces between the rectangular cut-out and the semicircle
+  for (const h of hs) {
+    if (!h.arch) continue;
+    const pts = archPoints(h, z);
+    const top = archTop(h);
+    const half = ARCH_SEG / 2;
+    for (let k = 0; k < half; k++) b.tri(mat, [h.x0, top, z], pts[k], pts[k + 1]);
+    for (let k = half; k < ARCH_SEG; k++) b.tri(mat, [h.x1, top, z], pts[k], pts[k + 1]);
+  }
+}
+
+/** Inner faces of an opening cut in a wall at plane `z`, running `d` metres back. */
+export function revealFaces(b: LotBatch, mat: THREE.Material, h: Hole, z: number, d: number, bottom = true): void {
+  const w = h.x1 - h.x0, ht = h.y1 - h.y0;
+  b.rect(mat, [h.x0, h.y0, z - d], [0, 0, d], [0, ht, 0], { hint: [1, 0, 0] });
+  b.rect(mat, [h.x1, h.y0, z - d], [0, 0, d], [0, ht, 0], { hint: [-1, 0, 0] });
+  if (bottom) b.rect(mat, [h.x0, h.y0, z - d], [w, 0, 0], [0, 0, d], { hint: [0, 1, 0] });
+  if (h.arch) {
+    const pts = archPoints(h, z);
+    const cx = (h.x0 + h.x1) / 2;
+    for (let k = 0; k < ARCH_SEG; k++) {
+      const p = pts[k], q = pts[k + 1];
+      b.rect(mat, [p[0], p[1], z - d], [q[0] - p[0], q[1] - p[1], 0], [0, 0, d], { hint: [cx - p[0], h.y1 - p[1], 0] });
+    }
+  } else {
+    b.rect(mat, [h.x0, h.y1, z - d], [w, 0, 0], [0, 0, d], { hint: [0, -1, 0] });
+  }
+}
+
+/** Window pane (and half-disc for arches) at plane gz. */
+function glassPane(b: LotBatch, mat: THREE.Material, h: Hole, gz: number): void {
+  b.rect(mat, [h.x0, h.y0, gz], [h.x1 - h.x0, 0, 0], [0, h.y1 - h.y0, 0], { ru: 1, rv: 1, uvRect: [0.05, 0.05, 0.95, 0.92] });
+  if (h.arch) {
+    const pts = archPoints(h, gz);
+    const cx = (h.x0 + h.x1) / 2;
+    const uv = (p: V3): [number, number] => [0.5 + ((p[0] - cx) / (h.x1 - h.x0)) * 0.9, 0.55 + ((p[1] - h.y1) / (h.x1 - h.x0)) * 0.7];
+    for (let k = 0; k < ARCH_SEG; k++) {
+      const a = pts[k + 1], c = pts[k];
+      b.tri(mat, [cx, h.y1, gz], a, c, [[0.5, 0.55], uv(a), uv(c)]);
+    }
+  }
 }
 
 export interface WindowRow {
@@ -263,27 +422,123 @@ export interface WindowRow {
   h: number;
   /** facade plane z */
   z: number;
+  /** collects wall cut-outs; the caller then builds the wall with `wallWithHoles`. Omit for a flat pane. */
+  holes?: Hole[];
+  /** material of the reveal faces (the facade material); required with `holes` */
+  wall?: THREE.Material;
+  /** reveal depth (default 0.18) */
+  depth?: number;
+  /** stone sill, 0.1 proud */
   sill?: boolean;
-  lintel?: boolean;
-  /** pointed-arch top (church) */
+  /** 'flat' = slab 0.08 proud, 'hood' = stepped hood 0.2 proud */
+  lintel?: boolean | 'flat' | 'hood';
+  /** pale frame boxes around the glass */
+  frame?: boolean;
+  /** semicircular head (church) */
   arch?: boolean;
+  /** trim material for sills/lintels/frames (default limestone) */
+  trim?: THREE.Material;
+  /** random source for the window-variant pick (otherwise variant 0) */
+  rng?: Rng;
+  /** also skip the reveal's bottom ledge (high windows nobody looks down into) */
+  noLedge?: boolean;
 }
 
 export function windows(b: LotBatch, m: BuildingMats, o: WindowRow): void {
+  const trim = o.trim ?? m.limestone;
+  const recess = !!o.holes && !!o.wall;
+  const d = o.depth ?? 0.18;
   for (const x of o.xs) {
-    b.rect(m.window, [x - o.w / 2, o.y, o.z + 0.02], [o.w, 0, 0], [0, o.h, 0], { ru: 1, rv: 1 });
-    if (o.arch) {
-      b.tri(m.window, [x - o.w / 2, o.y + o.h, o.z + 0.02], [x + o.w / 2, o.y + o.h, o.z + 0.02], [x, o.y + o.h + o.w * 0.6, o.z + 0.02]);
+    const glassMat = o.rng ? pickWindow(m, o.rng) : m.window;
+    const hole: Hole = { x0: x - o.w / 2, x1: x + o.w / 2, y0: o.y, y1: o.y + o.h };
+    if (o.arch) hole.arch = true;
+    const gz = recess ? o.z - 0.15 : o.z + 0.02;
+    if (recess) {
+      o.holes!.push(hole);
+      revealFaces(b, o.wall!, hole, o.z, d, !o.noLedge);
+      // dark backing so the open shell never shows the sky through the glass
+      b.rect(m.metal, [hole.x0, hole.y0, o.z - d], [o.w, 0, 0], [0, o.h, 0], { ru: 1, rv: 1 });
+      if (o.arch) {
+        const pts = archPoints(hole, o.z - d);
+        const cx = x;
+        for (let k = 0; k < ARCH_SEG; k++) b.tri(m.metal, [cx, hole.y1, o.z - d], pts[k + 1], pts[k]);
+      }
     }
-    if (o.sill) b.box(m.limestone, x - o.w / 2 - 0.1, o.y - 0.12, o.z, x + o.w / 2 + 0.1, o.y, o.z + 0.16);
-    if (o.lintel) b.box(m.limestone, x - o.w / 2 - 0.08, o.y + o.h, o.z, x + o.w / 2 + 0.08, o.y + o.h + 0.16, o.z + 0.1);
+    glassPane(b, glassMat, hole, gz);
+    if (o.frame) {
+      // pale frame standing proud of the glass: side jambs, head and meeting rail (flat strips)
+      const fz = gz + 0.05, ft = 0.06;
+      b.rect(trim, [hole.x0, hole.y0, fz], [ft, 0, 0], [0, hole.y1 - hole.y0, 0], { ru: 0.1, rv: 0.4 });
+      b.rect(trim, [hole.x1 - ft, hole.y0, fz], [ft, 0, 0], [0, hole.y1 - hole.y0, 0], { ru: 0.1, rv: 0.4 });
+      if (!o.arch) b.rect(trim, [hole.x0 + ft, hole.y1 - ft, fz], [o.w - 2 * ft, 0, 0], [0, ft, 0], { ru: 0.4, rv: 0.1 });
+      b.rect(trim, [hole.x0 + ft, hole.y0 + o.h * 0.5 - 0.03, fz], [o.w - 2 * ft, 0, 0], [0, 0.06, 0], { ru: 0.4, rv: 0.1 });
+    }
+    if (o.sill) b.box(trim, hole.x0 - 0.1, hole.y0 - 0.1, o.z, hole.x1 + 0.1, hole.y0, o.z + 0.1, o.y < 6 ? 'fud' : 'fu');
+    if (o.lintel && !o.arch) {
+      if (o.lintel === 'hood') {
+        b.box(trim, hole.x0 - 0.12, hole.y1, o.z, hole.x1 + 0.12, hole.y1 + 0.16, o.z + 0.16, 'frld');
+        b.box(trim, hole.x0 - 0.2, hole.y1 + 0.16, o.z, hole.x1 + 0.2, hole.y1 + 0.26, o.z + 0.24, 'frlud');
+      } else {
+        b.box(trim, hole.x0 - 0.08, hole.y1, o.z, hole.x1 + 0.08, hole.y1 + 0.16, o.z + 0.08, 'fd');
+      }
+    } else if (o.arch && o.sill !== false) {
+      // stone hood-mould following the arch: a few chunky facets on the face of the wall
+      const pts = archPoints(hole, o.z);
+      for (let k = 0; k < ARCH_SEG; k++) {
+        const p = pts[k], q = pts[k + 1];
+        const cx = x;
+        const push = (a: V3): V3 => {
+          const dx = a[0] - cx, dy = a[1] - hole.y1, L = Math.hypot(dx, dy) || 1;
+          return [a[0] + (dx / L) * 0.12, a[1] + (dy / L) * 0.12, a[2] + 0.06];
+        };
+        const pp = push(p), qq = push(q);
+        b.poly(trim, [[p[0], p[1], o.z + 0.06], [q[0], q[1], o.z + 0.06], qq, pp]);
+      }
+    }
   }
 }
 
-/** Projecting cornice (darker material) with a thinner band under it. */
-export function cornice(b: LotBatch, m: BuildingMats, x0: number, x1: number, y: number, z: number, proud = 0.6): void {
-  b.box(m.cornice, x0 - 0.05, y - 0.35, z, x1 + 0.05, y + 0.15, z + proud);
-  b.box(m.cornice, x0 - 0.02, y - 0.65, z, x1 + 0.02, y - 0.35, z + proud * 0.5);
+/** Slim wrought-iron bars across a basement window (3 pickets + top/bottom rail), in front of the opening. */
+export function windowBars(b: LotBatch, m: BuildingMats, x: number, y: number, w: number, h: number, z: number): void {
+  b.bar(m.metal, [x - w / 2 - 0.03, y + h + 0.03, z + 0.06], [x + w / 2 + 0.03, y + h + 0.03, z + 0.06], 0.04);
+  for (const f of [-0.3, 0, 0.3]) b.bar(m.metal, [x + f * w, y - 0.02, z + 0.06], [x + f * w, y + h + 0.03, z + 0.06], 0.03);
+}
+
+/** Dark fabric awning over a window (sloped top, valance, side triangles). */
+export function windowAwning(b: LotBatch, mat: THREE.Material, x: number, yTop: number, w: number, z: number): void {
+  const x0 = x - w / 2 - 0.08, x1 = x + w / 2 + 0.08, ww = x1 - x0;
+  const drop = 0.4, out = 0.7, val = 0.2;
+  b.rect(mat, [x0, yTop, z], [ww, 0, 0], [0, -drop, out], { uvRect: [0, 0.3, 1, 1], hint: [0, 1, 0.4] });
+  b.rect(mat, [x0, yTop - drop, z + out], [ww, 0, 0], [0, -val, 0], { uvRect: [0, 0.02, 1, 0.26], hint: [0, 0, 1] });
+  b.tri(mat, [x0, yTop, z], [x0, yTop - drop, z + out], [x0, yTop, z + out], [[0.1, 0.5], [0.2, 0.6], [0.1, 0.6]]);
+  b.tri(mat, [x1, yTop, z], [x1, yTop, z + out], [x1, yTop - drop, z + out], [[0.1, 0.5], [0.1, 0.6], [0.2, 0.6]]);
+}
+
+// ---------------------------------------------------------------------------------------------- cornice & roof
+
+/**
+ * Projecting cornice (dark material): main slab, frieze band, and either a dentil row or big brackets underneath.
+ */
+export function cornice(b: LotBatch, m: BuildingMats, x0: number, x1: number, y: number, z: number, proud = 0.6, style: 'dentil' | 'bracket' | 'plain' = 'dentil'): void {
+  const w = x1 - x0;
+  b.box(m.cornice, x0 - 0.06, y - 0.05, z, x1 + 0.06, y + 0.18, z + proud, 'frlud');
+  b.box(m.cornice, x0 - 0.02, y - 0.5, z, x1 + 0.02, y - 0.05, z + proud * 0.28, 'frl');
+  if (style === 'plain') return;
+  if (style === 'dentil') {
+    const n = Math.max(3, Math.floor(w / 0.36));
+    const step = w / n;
+    for (let i = 0; i < n; i++) {
+      const cx = x0 + (i + 0.5) * step;
+      b.box(m.cornice, cx - 0.07, y - 0.22, z + proud * 0.28, cx + 0.07, y - 0.05, z + proud * 0.85, 'fd');
+    }
+  } else {
+    const n = Math.max(2, Math.round(w / 1.3));
+    for (let i = 0; i <= n; i++) {
+      const cx = x0 + 0.12 + ((w - 0.24) * i) / n;
+      // scroll bracket: front block + a slanted underside
+      b.box(m.cornice, cx - 0.09, y - 0.5, z + proud * 0.28, cx + 0.09, y - 0.05, z + proud * 0.9, 'fl');
+    }
+  }
 }
 
 export interface RoofSpec {
@@ -295,18 +550,25 @@ export interface RoofSpec {
   ph?: number;
   frontMat: THREE.Material;
   sideMat: THREE.Material;
+  /** capped with a coping slab */
+  coping?: THREE.Material;
+  /** also emit the outward face of the left / right parapet (exposed corner side walls) */
+  exposeL?: boolean;
+  exposeR?: boolean;
 }
 
-/** Flat tar roof plus a brick parapet ring. */
+/** Flat tar roof plus a brick parapet ring with a stone coping on the street side. */
 export function roofWithParapet(b: LotBatch, m: BuildingMats, r: RoofSpec): void {
   const { x0, x1, zBack, zFront, y } = r;
   const ph = r.ph ?? 0.7, t = 0.25;
   b.rect(m.roof, [x0, y + 0.01, zFront], [x1 - x0, 0, 0], [0, 0, -(zFront - zBack)]);
   if (ph <= 0) return;
-  b.box(r.frontMat, x0, y, zFront - t, x1, y + ph, zFront, 'rlufb');
-  b.box(r.sideMat, x0, y, zBack, x1, y + ph, zBack + t, 'rlufb');
-  b.box(r.sideMat, x0, y, zBack + t, x0 + t, y + ph, zFront - t, 'rufb');
-  b.box(r.sideMat, x1 - t, y, zBack + t, x1, y + ph, zFront - t, 'lufb');
+  const cap = r.coping ?? m.limestone;
+  b.box(r.frontMat, x0, y, zFront - t, x1, y + ph, zFront, 'fb');
+  b.box(cap, x0 - 0.04, y + ph, zFront - t - 0.04, x1 + 0.04, y + ph + 0.09, zFront + 0.05, 'frlu');
+  b.box(r.sideMat, x0, y, zBack, x1, y + ph, zBack + t, 'fub');
+  b.box(r.sideMat, x0, y, zBack + t, x0 + t, y + ph, zFront - t, r.exposeL ? 'rul' : 'ru');
+  b.box(r.sideMat, x1 - t, y, zBack + t, x1, y + ph, zFront - t, r.exposeR ? 'lur' : 'lu');
 }
 
 /** Rooftop water tank on legs (cylinder + cone lid). */
@@ -315,20 +577,77 @@ export function waterTank(b: LotBatch, m: BuildingMats, cx: number, y: number, c
   for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
     b.bar(m.metal, [cx + sx * 0.7, y, cz + sz * 0.7], [cx + sx * 0.7, y + legH, cz + sz * 0.7], 0.1);
   }
-  b.box(m.metal, cx - 0.9, y + legH - 0.08, cz - 0.9, cx + 0.9, y + legH, cz + 0.9);
-  const cyl = new THREE.CylinderGeometry(r, r, h, 12, 1, true);
+  b.box(m.metal, cx - 0.9, y + legH - 0.08, cz - 0.9, cx + 0.9, y + legH, cz + 0.9, 'ufrlb');
+  const cyl = new THREE.CylinderGeometry(r, r, h, 10, 1, true);
   cyl.translate(cx, y + legH + h / 2, cz);
   b.geom(m.tank, cyl);
-  const lid = new THREE.ConeGeometry(r + 0.08, 0.55, 12);
+  const lid = new THREE.ConeGeometry(r + 0.08, 0.55, 10);
   lid.translate(cx, y + legH + h + 0.27, cz);
   b.geom(m.tank, lid);
+}
+
+/** Satellite dish: a six-sided bowl on a pole, facing roughly south-sky (toward the street, up). */
+export function satelliteDish(b: LotBatch, m: BuildingMats, x: number, y: number, z: number, scale = 1): void {
+  b.bar(m.metal, [x, y, z], [x, y + 0.75 * scale, z], 0.06);
+  const c = new THREE.Vector3(x, y + 0.9 * scale, z);
+  const axis = new THREE.Vector3(0.15, 0.55, 0.82).normalize();
+  const e1 = new THREE.Vector3(0, 1, 0).cross(axis).normalize();
+  const e2 = axis.clone().cross(e1).normalize();
+  const rim = (k: number): V3 => {
+    const a = (k * 2 * Math.PI) / 6;
+    const p = c.clone().addScaledVector(e1, Math.cos(a) * 0.36 * scale).addScaledVector(e2, Math.sin(a) * 0.36 * scale).addScaledVector(axis, 0.08 * scale);
+    return [p.x, p.y, p.z];
+  };
+  const ctr = c.clone().addScaledVector(axis, -0.03 * scale);
+  for (let k = 0; k < 6; k++) b.tri(m.cornice, [ctr.x, ctr.y, ctr.z], rim(k), rim(k + 1));
+  const tip = c.clone().addScaledVector(axis, 0.4 * scale);
+  b.bar(m.metal, [c.x, c.y, c.z], [tip.x, tip.y, tip.z], 0.03);
+}
+
+export interface RoofClutter {
+  x0: number; x1: number; zBack: number; zFront: number; y: number;
+  brick: THREE.Material;
+  /** probabilities (0..1) */
+  chimney?: number; skylight?: number; bulkhead?: number; dishes?: number;
+  /** parapet height (so dishes sit on it) */
+  ph?: number;
+}
+
+/** Chimney, skylight, access bulkhead and a couple of dishes on the roof plate. */
+export function roofClutter(b: LotBatch, m: BuildingMats, rng: Rng, o: RoofClutter): void {
+  const w = o.x1 - o.x0, y = o.y;
+  if (rng.chance(o.chimney ?? 0.4)) {
+    const cx = o.x0 + w * rng.range(0.2, 0.8), cz = o.zBack + rng.range(0.9, 2.4);
+    b.box(o.brick, cx - 0.3, y, cz - 0.3, cx + 0.3, y + 1.5, cz + 0.3, 'frlb');
+    b.box(m.limestone, cx - 0.38, y + 1.5, cz - 0.38, cx + 0.38, y + 1.62, cz + 0.38, 'frlub');
+  }
+  if (rng.chance(o.skylight ?? 0.3)) {
+    const cx = o.x0 + w * rng.range(0.3, 0.7), cz = o.zBack + rng.range(3, 5);
+    b.box(m.metal, cx - 0.7, y, cz - 0.5, cx + 0.7, y + 0.35, cz + 0.5, 'frlb');
+    b.rect(m.window, [cx - 0.7, y + 0.35, cz + 0.5], [1.4, 0, 0], [0, 0.35, -1.0], { ru: 1, rv: 1, uvRect: [0.1, 0.55, 0.9, 0.9] });
+  }
+  if (rng.chance(o.bulkhead ?? 0.3)) {
+    const cx = o.x0 + w * rng.range(0.25, 0.75), zf = o.zBack + rng.range(3.6, 5.2);
+    b.box(o.brick, cx - 0.9, y, zf - 1.8, cx + 0.9, y + 2.3, zf, 'frlub');
+    b.rect(m.metal, [cx - 0.4, y, zf + 0.01], [0.8, 0, 0], [0, 1.9, 0], { ru: 0.3, rv: 0.6 });
+    b.box(m.limestone, cx - 1.0, y + 2.3, zf - 1.9, cx + 1.0, y + 2.4, zf + 0.1, 'fu');
+  }
+  if (rng.chance(o.dishes ?? 0.3)) {
+    const n = rng.int(1, 2);
+    for (let i = 0; i < n; i++) satelliteDish(b, m, o.x0 + w * rng.range(0.1, 0.9), y + (o.ph ?? 0.7), o.zFront - 0.4 - rng.range(0, 0.3), rng.range(0.8, 1.2));
+  }
+}
+
+/** Vertical drain pipe (five-sided tube) with two bracket collars. */
+export function drainPipe(b: LotBatch, m: BuildingMats, x: number, y0: number, y1: number, z: number): void {
+  b.cyl(m.metal, x, y0, y1, z + 0.05, 0.045, 5);
 }
 
 /** Iron fire escape: platforms with rails at each floor, diagonal stairs between, drop ladder. */
 export function fireEscape(b: LotBatch, m: BuildingMats, xa: number, xb: number, z: number, platformYs: number[]): void {
   const depth = 1.0;
   platformYs.forEach((y, i) => {
-    b.box(m.metal, xa, y - 0.06, z, xb, y, z + depth, 'ufrl');
+    b.box(m.metal, xa, y - 0.06, z, xb, y, z + depth, 'ufd');
     b.bar(m.metal, [xa, y + 1.0, z + depth], [xb, y + 1.0, z + depth], 0.045);
     b.bar(m.metal, [xa, y + 0.5, z + depth], [xb, y + 0.5, z + depth], 0.04);
     b.bar(m.metal, [xa, y + 1.0, z], [xa, y + 1.0, z + depth], 0.045);
@@ -350,7 +669,12 @@ export function acUnits(b: LotBatch, m: BuildingMats, rng: Rng, spots: { x: numb
   const pool = spots.slice();
   for (let i = 0; i < n; i++) {
     const s = pool.splice(Math.floor(rng.next() * pool.length), 1)[0];
-    b.box(m.limestone, s.x - 0.38, s.y + 0.05, z, s.x + 0.38, s.y + 0.55, z + 0.5);
+    b.box(m.limestone, s.x - 0.38, s.y + 0.05, z - 0.1, s.x + 0.38, s.y + 0.55, z + 0.5, 'frlu');
     b.box(m.metal, s.x - 0.3, s.y + 0.12, z + 0.5, s.x + 0.3, s.y + 0.48, z + 0.52, 'f');
   }
+}
+
+/** A small louvred vent box on a wall (rear / side walls). */
+export function airVent(b: LotBatch, m: BuildingMats, x: number, y: number, z: number): void {
+  b.box(m.metal, x - 0.25, y, z, x + 0.25, y + 0.3, z + 0.12, 'fu');
 }

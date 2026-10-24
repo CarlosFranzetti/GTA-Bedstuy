@@ -6,13 +6,15 @@ import { buildGrid } from '@/world/Grid';
 import { buildRoads } from '@/world/RoadBuilder';
 import { subdivideLots } from '@/world/LotSubdivider';
 import { buildBuildings } from '@/world/BuildingGen';
-import { buildFurniture } from '@/world/FurnitureGen';
+import { buildFurniture, type LampSpot } from '@/world/FurnitureGen';
 
 export interface BuiltWorld {
   grid: GridModel;
   lots: Lot[];
   group: THREE.Group;
   colliders: StaticCollider[];
+  furnitureGroup: THREE.Group;
+  lamps: LampSpot[];
   stats: { meshes: number; lots: number; colliders: number };
 }
 
@@ -42,5 +44,5 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
 
   let meshes = 0;
   group.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes++; });
-  return { grid, lots, group, colliders, stats: { meshes, lots: lots.length, colliders: colliders.length } };
+  return { grid, lots, group, colliders, furnitureGroup: furniture.group, lamps: furniture.lamps, stats: { meshes, lots: lots.length, colliders: colliders.length } };
 }

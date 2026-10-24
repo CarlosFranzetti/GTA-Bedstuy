@@ -6,7 +6,7 @@ import { buildBrownstone } from './brownstone';
 export function buildScaffold(c: LotCtx): LotOutput {
   const { b, m, rng, W } = c;
   const S = 1.9;
-  const base = buildBrownstone(c, { style: 'brownstone', stoop: false, setback: S, floors: rng.int(3, 4) });
+  const base = buildBrownstone(c, { style: 'brownstone', stoop: false, setback: S, floors: rng.int(3, 4), lite: true });
   const { H } = base;
   const zWall = -0.25; // plywood face, inside the lot
   const poleXs: number[] = [0.15];

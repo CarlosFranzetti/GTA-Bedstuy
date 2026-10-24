@@ -7,6 +7,7 @@ import type {
 } from '@/world/types';
 import { subdivideLots } from '@/world/LotSubdivider';
 import { buildBuildings } from '@/world/BuildingGen';
+import { buildGrid, loadBedstuyData } from '@/world/Grid';
 
 function fakeBlock(id = 'r0c0'): Block {
   const NW = { x: -240, z: -95 }, NE = { x: -10, z: -95 }, SE = { x: -10, z: -5 }, SW = { x: -240, z: -5 };
@@ -79,7 +80,7 @@ describe('buildBuildings', () => {
 
   it('returns at least one mesh and stays within the mesh budget', () => {
     expect(meshes.length).toBeGreaterThanOrEqual(1);
-    expect(meshes.length).toBeLessThanOrEqual(25);
+    expect(meshes.length).toBeLessThanOrEqual(30);
   });
 
   it('every mesh has finite positions, normals and uvs', () => {
@@ -213,5 +214,127 @@ describe('buildBuildings', () => {
       const nonVacant = x.lots.filter((l: Lot) => l.type !== 'vacant').length;
       expect(x.colliders.filter((c) => c.shape.kind === 'polygon' && !c.id?.includes('-stoop')).length).toBe(nonVacant);
     }
+  });
+});
+
+describe('facade depth and detail', () => {
+  const r = build();
+  const meshOf = (g: THREE.Group): THREE.Mesh[] => {
+    const out: THREE.Mesh[] = [];
+    g.traverse((o) => { if ((o as THREE.Mesh).isMesh) out.push(o as THREE.Mesh); });
+    return out;
+  };
+  const vertexCount = (g: THREE.Group) => meshOf(g).reduce((n, m) => n + m.geometry.getAttribute('position').count, 0);
+  /** Build one lot on its own (deterministic: same fork label as the full block would use is not needed). */
+  const buildOne = (lot: Lot) => buildBuildings([lot], new StubMaterials(), new Rng(1989).fork(lot.id));
+  const brownstones = r.lots.filter((l) => l.type === 'brownstone' && !l.poi);
+  const rowhouses = r.lots.filter((l) => l.type === 'rowhouse');
+
+  it('adds real facade detail: the block carries far more vertices than the flat-facade version (about 124k)', () => {
+    expect(vertexCount(r.group)).toBeGreaterThan(150_000);
+    const mean = brownstones.reduce((n, l) => n + vertexCount(buildOne(l).group), 0) / brownstones.length;
+    // the old flat brownstone averaged about 1600 vertices; recesses, sills, hoods, cornice teeth and stoop rails push it well past 2000
+    expect(mean).toBeGreaterThan(2000);
+  });
+
+  it('brownstone / rowhouse windows are recesses: glass sits at least 0.14 m behind the wall plane, reveals run 0.18 m deep', () => {
+    for (const lot of [...brownstones, ...rowhouses].slice(0, 20)) {
+      const dx = lot.frontB.x - lot.frontA.x, dz = lot.frontB.z - lot.frontA.z;
+      const dl = Math.hypot(dx, dz);
+      void dl;
+      const res = buildOne(lot);
+      const depthOf = (m: THREE.Mesh) => {
+        const p = m.geometry.getAttribute('position');
+        let max = -Infinity, min = Infinity;
+        for (let i = 0; i < p.count; i++) {
+          const v = (p.getX(i) - lot.frontA.x) * lot.outward.x + (p.getZ(i) - lot.frontA.z) * lot.outward.z;
+          max = Math.max(max, v); min = Math.min(min, v);
+        }
+        return { max, min };
+      };
+      const ms = meshOf(res.group);
+      // the shell is always red brick and ends exactly at the facade plane
+      const shell = ms.find((m) => (m.material as THREE.Material).name === 'brickRed:0')!;
+      const wallPlane = depthOf(shell).max;
+      const glass = ms.filter((m) => (m.material as THREE.Material).name.startsWith('window:'));
+      expect(glass.length).toBeGreaterThan(0);
+      for (const g of glass) expect(depthOf(g).max, lot.id).toBeLessThanOrEqual(wallPlane - 0.14);
+      // reveal faces exist in a facade material: some geometry of the front materials sits ~0.18 m behind the plane
+      let reveal = false;
+      for (const m of ms) {
+        const name = (m.material as THREE.Material).name;
+        if (!/^(brownstone|brickRed|brickPainted|limestone|stoop):/.test(name)) continue;
+        const p = m.geometry.getAttribute('position');
+        for (let i = 0; i < p.count && !reveal; i++) {
+          const v = (p.getX(i) - lot.frontA.x) * lot.outward.x + (p.getZ(i) - lot.frontA.z) * lot.outward.z;
+          if (Math.abs(v - (wallPlane - 0.18)) < 0.011) reveal = true;
+        }
+      }
+      expect(reveal, lot.id).toBe(true);
+    }
+  });
+
+  it('a single house stays a handful of meshes (merged per material)', () => {
+    for (const lot of brownstones.slice(0, 10)) expect(meshOf(buildOne(lot).group).length).toBeLessThanOrEqual(18);
+  });
+
+  it('collider counts are unchanged by the facade work (79 footprints + 58 stoops + 2 fences in the test block)', () => {
+    const polys = r.colliders.filter((c) => c.shape.kind === 'polygon');
+    expect(polys.filter((c) => !c.id?.includes('-stoop')).length).toBe(79);
+    expect(polys.filter((c) => c.id?.includes('-stoop')).length).toBe(58);
+    expect(r.colliders.filter((c) => c.shape.kind === 'segment').length).toBe(2);
+    expect(r.colliders.length).toBe(139);
+  });
+
+  it('no NaN or infinite values in any position, normal or uv attribute', () => {
+    let bad = 0;
+    for (const m of meshOf(r.group)) {
+      for (const name of ['position', 'normal', 'uv']) {
+        const a = m.geometry.getAttribute(name);
+        for (let i = 0; i < a.array.length; i++) if (!Number.isFinite(a.array[i])) bad++;
+      }
+    }
+    expect(bad).toBe(0);
+  });
+
+  it("every lot's building stays within its lot width + 0.5 m along the facade", () => {
+    for (const lot of r.lots) {
+      const dx = lot.frontB.x - lot.frontA.x, dz = lot.frontB.z - lot.frontA.z;
+      const dl = Math.hypot(dx, dz);
+      const ux = dx / dl, uz = dz / dl;
+      let lo = Infinity, hi = -Infinity;
+      for (const m of meshOf(buildOne(lot).group)) {
+        const p = m.geometry.getAttribute('position');
+        for (let i = 0; i < p.count; i++) {
+          const u = (p.getX(i) - lot.frontA.x) * ux + (p.getZ(i) - lot.frontA.z) * uz;
+          lo = Math.min(lo, u); hi = Math.max(hi, u);
+        }
+      }
+      if (!Number.isFinite(lo)) continue;
+      expect(hi - lo, lot.id).toBeLessThanOrEqual(lot.width + 0.5);
+      expect(lo, lot.id).toBeGreaterThanOrEqual(-0.5);
+      expect(hi, lot.id).toBeLessThanOrEqual(lot.width + 0.5);
+    }
+  });
+
+  it('mixed-use lots with a POI get a lit sign frame (window material) and the sign material', () => {
+    const lot = r.lots.find((l) => l.type === 'mixeduse' && l.poi)!;
+    const names = meshOf(buildOne(lot).group).map((m) => (m.material as THREE.Material).name);
+    expect(names.some((n) => n.startsWith('window:'))).toBe(true);
+    expect(names.some((n) => n.startsWith('sign:'))).toBe(true);
+    expect(names.some((n) => n.startsWith('awning:'))).toBe(true);
+    expect(names.some((n) => n.startsWith('chainlink:') || n.startsWith('rollGate:'))).toBe(true);
+  });
+
+  it('the real city stays inside its mesh and triangle budgets', () => {
+    const data = loadBedstuyData();
+    const g = buildGrid(data);
+    const lots = subdivideLots(g, data.pois, new Rng(data.seed).fork('lots'));
+    const res = buildBuildings(lots, new StubMaterials(), new Rng(data.seed).fork('buildings'));
+    const ms = meshOf(res.group);
+    expect(ms.length).toBeLessThanOrEqual(60);
+    const tris = ms.reduce((n, m) => n + m.geometry.getAttribute('position').count / 3, 0);
+    expect(tris).toBeLessThan(600_000);
+    expect(tris).toBeGreaterThan(400_000);
   });
 });
