@@ -83,7 +83,6 @@ export class Pedestrian implements Entity {
     g.add(torso, head, this.legL, this.legR);
     this.object3D = g;
 
-    this.prevId = start.id;
     if (!this.pickNext(start.id)) this.targetId = null;
     this.applyPose();
   }

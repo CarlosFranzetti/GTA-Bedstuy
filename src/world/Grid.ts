@@ -45,7 +45,6 @@ const DIRS: Record<Side, Vec2> = {
   E: { x: 1, z: 0 },
   W: { x: -1, z: 0 },
 };
-const OPPOSITE: Record<Side, Side> = { N: 'S', S: 'N', E: 'W', W: 'E' };
 
 function emptyGraph<N extends GraphNode>(): { nodes: Record<string, N>; edges: GraphEdge[]; adjacency: Record<string, number[]> } {
   return { nodes: {}, edges: [], adjacency: {} };
@@ -272,15 +271,31 @@ export function buildGrid(input: BedstuyData): GridModel {
     }
   }
 
-  // connect through intersections: each entering lane -> each exiting lane (no U-turn unless it is a dead end)
+  // connect through intersections: each entering lane -> each exiting lane (straight, left, right; no U-turns)
+  const hasIncoming = new Set<string>();
+  const linkLanes = (from: string, to: string, streetId: string): void => {
+    addEdge(lanes, from, to, streetId);
+    hasIncoming.add(to);
+  };
   for (const inter of intersections) {
     const entering = chains.filter((c) => c.endInter === inter.id);
     const exiting = chains.filter((c) => c.startInter === inter.id);
     for (const enter of entering) {
-      let targets = exiting.filter((x) => x.exitSide !== enter.enterSide);
-      if (targets.length === 0) targets = exiting.filter((x) => x.exitSide === enter.enterSide && OPPOSITE[x.exitSide] !== enter.enterSide);
       const from = enter.nodeIds[enter.nodeIds.length - 1];
-      for (const out of targets) addEdge(lanes, from, out.nodeIds[0], out.streetId);
+      for (const out of exiting) {
+        if (out.exitSide === enter.enterSide) continue; // U-turn
+        linkLanes(from, out.nodeIds[0], out.streetId);
+      }
+    }
+  }
+  // dead-end corners: a lane that could otherwise never be entered (e.g. the southbound lane at the northern
+  // end of an avenue) is fed by a U-turn from its partner lane on the same side of the intersection
+  for (const out of chains) {
+    if (hasIncoming.has(out.nodeIds[0])) continue;
+    for (const enter of chains) {
+      if (enter.endInter === out.startInter && enter.enterSide === out.exitSide) {
+        linkLanes(enter.nodeIds[enter.nodeIds.length - 1], out.nodeIds[0], out.streetId);
+      }
     }
   }
 
