@@ -3,7 +3,7 @@ import { Rng } from '@/core/Rng';
 import type { IMaterialLibrary, MaterialKey } from '@/world/types';
 import { createCanvas, type Aux, type Painter } from './canvas';
 import { heightFromRgba, heightToNormal } from './normalmap';
-import { asphaltPainter, concretePainter, crosswalkPainter, roofPainter } from './painters/ground';
+import { asphaltPainter, concretePainter, crosswalkPainter, roofPainter, bluestonePainter, granitePainter, manholePainter, gratePainter } from './painters/ground';
 import { brickPainter, brownstonePainter, cornicePainter, limestonePainter } from './painters/masonry';
 import {
   STOREFRONT_VARIANTS, WINDOW_VARIANTS, storefrontEmissivePainter, storefrontPainter,
@@ -397,6 +397,10 @@ export class MaterialLibrary implements IMaterialLibrary {
       asphaltWorn: alias('asphaltWorn', 1, 1, 512, 512, asphaltPainter, {}, asphaltRelief),
       concrete: { variants: 2, build: tex('concrete', 512, 512, concretePainter, {}, concreteRelief) },
       curb: flat(['#9d9b96']),
+      bluestone: { variants: 2, build: tex('bluestone', 512, 512, bluestonePainter, {}, concreteRelief) },
+      granite: { variants: 1, build: tex('granite', 256, 256, granitePainter, { roughness: 0.75 }, stone) },
+      manhole: { variants: 2, build: tex('manhole', 256, 256, manholePainter, { roughness: 0.55, metalness: 0.6 }, { strength: 3, normalScale: 0.8, roughScale: null }) },
+      grate: { variants: 1, build: tex('grate', 256, 256, gratePainter, { roughness: 0.6, metalness: 0.6 }, { strength: 3, normalScale: 0.8, roughScale: null }) },
       laneLine: flat(['#f2f2ee', '#f2c21b'], { roughness: 0.8 }),
       crosswalk: { variants: 1, build: tex('crosswalk', 256, 256, crosswalkPainter) },
       brownstone: { variants: 2, build: tex('brownstone', 1024, 1024, brownstonePainter, {}, masonry) },

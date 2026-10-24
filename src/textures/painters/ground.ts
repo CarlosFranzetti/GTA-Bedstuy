@@ -158,3 +158,12 @@ export const roofPainter: Painter = (ctx, w, h, rng, _variant, aux) => {
     for (let i = 1; i < 4; i++) aux.height.fillRect(0, (i * h) / 4, w, 3);
   }
 };
+
+/** Brooklyn bluestone sidewalk flags (stub: replaced by the ground-texture pass). */
+export const bluestonePainter: Painter = (ctx, w, h) => { ctx.fillStyle = '#5d6670'; ctx.fillRect(0, 0, w, h); };
+/** Granite curb stone (stub). */
+export const granitePainter: Painter = (ctx, w, h) => { ctx.fillStyle = '#8d8a84'; ctx.fillRect(0, 0, w, h); };
+/** Cast-iron manhole cover with a generic pattern (stub). */
+export const manholePainter: Painter = (ctx, w, h) => { ctx.fillStyle = '#3a3a38'; ctx.fillRect(0, 0, w, h); };
+/** Storm-drain grate (stub). */
+export const gratePainter: Painter = (ctx, w, h) => { ctx.fillStyle = '#2f3031'; ctx.fillRect(0, 0, w, h); };

@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import * as THREE from 'three';
-import { readFileSync } from 'node:fs';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { GltfCharacterSource, ProceduralCharacterSource, pickClips } from '@/entities/models/gltf/CharacterSource';
 import { GltfVehicleSource } from '@/entities/models/gltf/VehicleSource';
@@ -19,8 +18,13 @@ function stubTextures(loader: GLTFLoader): GLTFLoader {
   return loader;
 }
 
+type Bytes = { buffer: ArrayBufferLike; byteOffset: number; byteLength: number };
+
 async function parseFixture(): Promise<import('three/addons/loaders/GLTFLoader.js').GLTF> {
-  const buf = readFileSync(new URL('../../fixtures/CesiumMan.glb', import.meta.url));
+  // the project has no @types/node, so load node:fs without static types
+  const spec: string = 'node:fs';
+  const fs = (await import(/* @vite-ignore */ spec)) as { readFileSync(p: URL): Bytes };
+  const buf = fs.readFileSync(new URL('../../fixtures/CesiumMan.glb', import.meta.url));
   const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
   return stubTextures(new GLTFLoader()).parseAsync(ab, '');
 }
@@ -39,10 +43,20 @@ describe('GltfCharacterSource (CesiumMan)', () => {
     expect(source.ready).toBe(true);
     const rig = source.instantiate(0);
     expect(rig.height).toBeCloseTo(1.75, 5);
+    rig.mixer!.stopAllAction(); // back to the bind pose
+    rig.group.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) (o as THREE.SkinnedMesh).skeleton.pose(); });
+    rig.group.updateMatrixWorld(true);
+    const bind = new THREE.Box3().setFromObject(rig.group, true);
+    expect(bind.max.y - bind.min.y).toBeCloseTo(1.75, 2);
+    expect(bind.min.y).toBeCloseTo(0, 2);
+    rig.setSpeed(1.2);
+    rig.update(0);
     rig.group.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(rig.group, true);
-    expect(box.max.y - box.min.y).toBeCloseTo(1.75, 1);
-    expect(Math.abs(box.min.y)).toBeLessThan(0.05);
+    // measured in the first frame of the walk clip: a striding pose is a little shorter than the bind pose (which is 1.75 exactly)
+    expect(box.max.y - box.min.y).toBeGreaterThan(1.65);
+    expect(box.max.y - box.min.y).toBeLessThan(1.8);
+    expect(Math.abs(box.min.y)).toBeLessThan(0.1);
   });
 
   it('treats the single clip as the walk cycle', () => {

@@ -179,7 +179,7 @@ export interface Lot {
 // ---------------------------------------------------------------- materials / textures
 
 export type MaterialKey =
-  | 'asphalt' | 'asphaltWorn' | 'concrete' | 'curb' | 'laneLine' | 'crosswalk'
+  | 'asphalt' | 'asphaltWorn' | 'concrete' | 'curb' | 'laneLine' | 'crosswalk' | 'bluestone' | 'granite' | 'manhole' | 'grate'
   | 'brownstone' | 'brickRed' | 'brickPainted' | 'limestone' | 'cornice' | 'stoop'
   | 'window' | 'storefrontGlass' | 'rollGate' | 'roof' | 'waterTank'
   | 'treeTrunk' | 'treeLeaves' | 'metalDark' | 'metalGreen' | 'hydrant' | 'trash' | 'scaffold' | 'chainlink'
