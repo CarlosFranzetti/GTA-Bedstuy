@@ -211,6 +211,9 @@ export type Shape2D = Circle | OBB | Polygon | Segment;
 
 export type BodyKind = 'player' | 'vehicle' | 'ped' | 'cop' | 'static';
 
+/** A static obstacle produced by world generation (building footprint, tree, pole, curb). */
+export interface StaticCollider { shape: Polygon | Segment | Circle; pos: Vec2; id?: string; }
+
 export interface Body2D {
   id: string;
   kind: BodyKind;
@@ -236,7 +239,8 @@ export interface Contact {
 }
 
 export interface IWorld2D {
-  addStatic(shape: Polygon | Segment | Circle, id?: string): Body2D;
+  /** Polygon/Segment points are in world space; `pos` is used for Circle centres (and may be {0,0} for the others). */
+  addStatic(shape: Polygon | Segment | Circle, pos?: Vec2, id?: string): Body2D;
   addBody(body: Body2D): void;
   removeBody(id: string): void;
   /** Resolve overlaps for all dynamic bodies (push apart, damp velocity) and return the contacts generated this step. */
@@ -282,6 +286,8 @@ export interface IVehicle extends Entity {
   damage: number;
   /** who is driving: 'player' | 'traffic' | 'cop' | null (parked) */
   driver: 'player' | 'traffic' | 'cop' | null;
+  /** cop cars only: lightbar flashing + siren audio */
+  siren: boolean;
   setInput(input: VehicleInput): void;
   /** world position of the driver's door, for enter/exit */
   doorPos(): Vec2;
@@ -292,6 +298,8 @@ export interface Entity {
   readonly object3D: THREE.Object3D;
   readonly body: Body2D;
   update(dt: number): void;
+  /** Called by the integrator for every contact involving this entity's body after World2D.step(). */
+  onContact?(contact: Contact, other: Body2D): void;
   dispose(): void;
 }
 
