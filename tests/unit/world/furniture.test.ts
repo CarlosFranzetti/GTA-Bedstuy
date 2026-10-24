@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { buildFurniture } from '@/world/FurnitureGen';
+import { buildFurniture, setLampsLit } from '@/world/FurnitureGen';
 import { Rng } from '@/core/Rng';
 import type {
   Block, BlockFace, Circle, GridModel, IMaterialLibrary, Lot, PoiDef, Side, StaticCollider, StreetDef,
@@ -139,11 +139,11 @@ describe('buildFurniture', () => {
     expect(colliders.length).toBeGreaterThan(0);
   });
 
-  it('keeps the whole block to at most 10 meshes (signs included)', () => {
+  it('keeps the whole block to at most 11 meshes (signs included)', () => {
     const { group } = build();
-    // 6 material buckets + one mesh per unique sign text (4 streets here)
+    // 6 material buckets + the emissive lamp-head mesh + one mesh per unique sign text (4 streets here)
     expect(group.children.length).toBeGreaterThanOrEqual(1);
-    expect(group.children.length).toBeLessThanOrEqual(10);
+    expect(group.children.length).toBeLessThanOrEqual(11);
   });
 
   it('requests the furniture material keys from the library', () => {
@@ -260,6 +260,23 @@ describe('buildFurniture', () => {
     }
     const texts = new Set(signCalls.map((c) => c[0]));
     for (const s of streets) expect(texts.has(s.signName)).toBe(true);
+  });
+
+  it('reports every lamp head position and lights/darkens the lamp-head mesh', () => {
+    const { group, lamps } = build();
+    expect(lamps.length).toBeGreaterThanOrEqual(4);
+    for (const l of lamps) {
+      expect(l.height).toBeGreaterThan(6);
+      expect(l.height).toBeLessThan(9);
+    }
+    const head = group.children.find((c) => c.name === 'lamp-head') as THREE.Mesh;
+    expect(head).toBeDefined();
+    const mat = head.material as THREE.MeshStandardMaterial;
+    expect(mat.emissiveIntensity).toBe(0);
+    setLampsLit(group, true);
+    expect(mat.emissiveIntensity).toBeCloseTo(2.5);
+    setLampsLit(group, false);
+    expect(mat.emissiveIntensity).toBe(0);
   });
 
   it('is deterministic for a given seed', () => {

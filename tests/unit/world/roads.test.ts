@@ -101,11 +101,19 @@ function meshes(group: THREE.Group): THREE.Mesh[] {
 }
 
 describe('buildRoads', () => {
-  it('merges the whole city into at most 12 meshes', () => {
+  it('merges the whole city into at most 14 meshes', () => {
     const { group } = buildRoads(fakeGrid(), stubLib());
     const n = meshes(group).length;
     expect(n).toBeGreaterThan(0);
-    expect(n).toBeLessThanOrEqual(12);
+    expect(n).toBeLessThanOrEqual(14);
+  });
+
+  it('marks road and sidewalk meshes as shadow receivers and keeps details out of the shadow pass', () => {
+    const { group } = buildRoads(fakeGrid(), stubLib());
+    for (const m of meshes(group)) {
+      expect(m.receiveShadow).toBe(true);
+      expect(m.castShadow).toBe(false);
+    }
   });
 
   it('spans at least the grid bounds', () => {
@@ -118,11 +126,21 @@ describe('buildRoads', () => {
     expect(box.max.z).toBeGreaterThanOrEqual(grid.bounds.maxZ);
   });
 
-  it('requests asphalt, concrete, laneLine, crosswalk and curb materials', () => {
+  it('requests asphalt, concrete, laneLine, crosswalk, curb and metalDark materials', () => {
     const lib = stubLib();
     buildRoads(fakeGrid(), lib);
-    for (const k of ['asphalt', 'concrete', 'laneLine', 'crosswalk', 'curb'] as MaterialKey[]) {
+    for (const k of ['asphalt', 'concrete', 'laneLine', 'crosswalk', 'curb', 'metalDark', 'asphaltWorn'] as MaterialKey[]) {
       expect(lib.keys.has(k)).toBe(true);
+    }
+  });
+
+  it('has no NaN or infinite vertex positions', () => {
+    const { group } = buildRoads(fakeGrid(), stubLib());
+    for (const m of meshes(group)) {
+      const pos = m.geometry.getAttribute('position');
+      for (let i = 0; i < pos.count * 3; i++) {
+        expect(Number.isFinite(pos.array[i] as number)).toBe(true);
+      }
     }
   });
 

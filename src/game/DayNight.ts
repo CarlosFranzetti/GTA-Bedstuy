@@ -2,6 +2,7 @@ import { Color, DirectionalLight, Fog, HemisphereLight } from 'three';
 import type { Scene } from 'three';
 import { clamp, lerp } from '@/core/Math2';
 import type { Clock, IMaterialLibrary } from '@/world/types';
+import type { SkyDome } from '@/render/SkyDome';
 
 const DEFAULT_START_HOUR = 17.5;
 const NIGHT_START = 19.5;
@@ -10,6 +11,9 @@ const SUN_DISTANCE = 200;
 /** Sun path tilts a little south (+z) so shadows are not perfectly east-west. */
 const SUN_SOUTH = 0.3;
 const GROUND_COLOR = 0x2b2620;
+/** Night hemisphere: cool moonlit sky, warm sodium-streetlight bounce from the ground. */
+const NIGHT_HEMI_SKY = 0x3d5290;
+const NIGHT_HEMI_GROUND = 0x5a3c22;
 const MOON_COLOR = 0x7f8fd0;
 const HORIZON_COLOR = 0xff9a5c;
 const NOON_COLOR = 0xfff3dc;
@@ -31,6 +35,9 @@ const SKY_COLORS = SKY_KEYS.map((k) => new Color(k.color));
 const MOON_RGB = new Color(MOON_COLOR);
 const HORIZON_RGB = new Color(HORIZON_COLOR);
 const NOON_RGB = new Color(NOON_COLOR);
+const GROUND_RGB = new Color(GROUND_COLOR);
+const NIGHT_SKY_RGB = new Color(NIGHT_HEMI_SKY);
+const NIGHT_GROUND_RGB = new Color(NIGHT_HEMI_GROUND);
 
 function wrapHour(hour: number): number {
   if (!Number.isFinite(hour)) return 0;
@@ -63,9 +70,17 @@ export function isNightAt(hour: number): boolean {
   return h >= NIGHT_START || h < NIGHT_END;
 }
 
-/** Solar angle: 0 at sunrise (06:00), PI/2 at noon, PI at sunset, -PI/2 at midnight. */
+/**
+ * Solar angle: 0 at sunrise (06:00), PI at sunset (19:30, when night starts), 2*PI at the next sunrise.
+ * The day arc (13.5 h) and the night arc (10.5 h) are each stretched to half a circle so the sun sets
+ * exactly when night lighting kicks in. Noon is ~PI/2, midnight ~3*PI/2 (below the horizon).
+ */
 function sunAngle(hour: number): number {
-  return ((wrapHour(hour) - 6) / 24) * Math.PI * 2;
+  const h = wrapHour(hour);
+  const dayLen = NIGHT_START - NIGHT_END;
+  if (h >= NIGHT_END && h < NIGHT_START) return ((h - NIGHT_END) / dayLen) * Math.PI;
+  const sinceSunset = h >= NIGHT_START ? h - NIGHT_START : h + 24 - NIGHT_START;
+  return Math.PI + (sinceSunset / (24 - dayLen)) * Math.PI;
 }
 
 export interface DayNightOptions {
@@ -90,6 +105,7 @@ export class DayNight implements Clock {
   private readonly materials: IMaterialLibrary;
   private readonly hoursPerSecond: number;
   private readonly sky = new Color();
+  private skyDome: SkyDome | null = null;
 
   constructor(scene: Scene, materials: IMaterialLibrary, opts: DayNightOptions = {}) {
     this.scene = scene;
@@ -113,6 +129,16 @@ export class DayNight implements Clock {
     this.applyLighting();
   }
 
+  /**
+   * Hand scene.background over to a SkyDome mesh: background is cleared and fog takes the dome's
+   * horizon colour. Call SkyDome.update(...) each frame after DayNight.update.
+   */
+  attachSky(sky: SkyDome): void {
+    this.skyDome = sky;
+    this.scene.background = null;
+    this.applyLighting();
+  }
+
   update(dt: number): void {
     const step = Number.isFinite(dt) && dt > 0 ? dt : 0;
     this.timeOfDay = wrapHour(this.timeOfDay + step * this.hoursPerSecond);
@@ -128,16 +154,24 @@ export class DayNight implements Clock {
 
   private applyLighting(): void {
     const h = this.timeOfDay;
-    writeSkyColor(h, this.sky);
-    if (this.scene.fog) this.scene.fog.color.copy(this.sky);
-
     const theta = sunAngle(h);
     const elevation = Math.sin(theta);
+
+    writeSkyColor(h, this.sky);
+    if (this.skyDome) {
+      this.scene.background = null;
+    }
     this.sun.position.set(
       Math.cos(theta) * SUN_DISTANCE,
       Math.sin(theta) * SUN_DISTANCE,
       SUN_SOUTH * SUN_DISTANCE,
     );
+    if (this.skyDome) {
+      // Same elevation SkyDome.update derives from the normalised sun position.
+      this.scene.fog?.color.copy(this.skyDome.horizonColor(this.sun.position.y / this.sun.position.length()));
+    } else if (this.scene.fog) {
+      this.scene.fog.color.copy(this.sky);
+    }
 
     // 0 = night, 1 = full day; ~0.3 at the horizon so dawn/dusk are lit.
     const t = clamp(elevation * 3 + 0.3, 0, 1);
@@ -148,7 +182,10 @@ export class DayNight implements Clock {
       this.sun.color.lerpColors(HORIZON_RGB, NOON_RGB, (t - 0.5) * 2);
     }
 
-    this.hemi.color.copy(this.sky);
+    // Day: sky-coloured fill. Night: cool blue from above, warm sodium bounce from below.
+    const night = 1 - t;
+    this.hemi.color.copy(this.sky).lerp(NIGHT_SKY_RGB, night);
+    this.hemi.groundColor.copy(GROUND_RGB).lerp(NIGHT_GROUND_RGB, night);
     this.hemi.intensity = lerp(0.45, 0.7, t);
   }
 }

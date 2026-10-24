@@ -22,6 +22,10 @@ const TREE_COLLIDER_R = 0.35;
 const LAMP_CURB_INSET = 0.6;
 const LAMP_HEIGHT = 8;
 const LAMP_COLLIDER_R = 0.2;
+const LAMP_ARM = 1.4;
+const LAMP_HEAD_Y = 7.75;
+const LAMP_LIT_INTENSITY = 2.5;
+export const LAMP_HEAD_NAME = 'lamp-head';
 
 const SIGN_HEIGHT = 3;
 const SIGN_W = 1.2;
@@ -63,14 +67,31 @@ function near(p: Vec2, pts: Vec2[], sep: number): boolean {
 
 // ---------------------------------------------------------------- public API
 
+export interface LampSpot { pos: Vec2; height: number; }
+
+/** Switch every lamp head under `group` between dark (day) and glowing (night). */
+export function setLampsLit(group: THREE.Object3D, lit: boolean): void {
+  group.traverse((o) => {
+    if (o.name !== LAMP_HEAD_NAME) return;
+    const mats = (o as THREE.Mesh).material;
+    for (const m of Array.isArray(mats) ? mats : [mats]) {
+      if (m && 'emissiveIntensity' in m) (m as THREE.MeshStandardMaterial).emissiveIntensity = lit ? LAMP_LIT_INTENSITY : 0;
+    }
+  });
+}
+
 export function buildFurniture(
   grid: GridModel,
   lots: Lot[],
   materials: IMaterialLibrary,
   rng: Rng,
-): { group: THREE.Group; colliders: StaticCollider[] } {
+): { group: THREE.Group; colliders: StaticCollider[]; lamps: LampSpot[] } {
   const buckets = new Map<string, Bucket>();
   const colliders: StaticCollider[] = [];
+  const lamps: LampSpot[] = [];
+  const lampHeadMaterial = new THREE.MeshStandardMaterial({
+    name: LAMP_HEAD_NAME, color: '#3b3b3b', roughness: 0.5, metalness: 0.2, emissive: '#ffd9a0', emissiveIntensity: 0,
+  });
   const occupied: Vec2[] = [];
 
   const M = {
@@ -113,8 +134,9 @@ export function buildFurniture(
   function addLamp(base: Vec2, dir: Vec2): void {
     const yaw = alignYaw(dir);
     put('metalDark', M.metalDark, xform(cyl(0.07, 0.09, LAMP_HEIGHT, 6).translate(0, LAMP_HEIGHT / 2, 0), base.x, 0, base.z));
-    put('metalDark', M.metalDark, xform(box(1.4, 0.08, 0.1), base.x + dir.x * 0.7, 7.9, base.z + dir.z * 0.7, yaw));
-    put('metalDark', M.metalDark, xform(box(0.5, 0.16, 0.3), base.x + dir.x * 1.4, 7.75, base.z + dir.z * 1.4, yaw));
+    put('metalDark', M.metalDark, xform(box(LAMP_ARM, 0.08, 0.1), base.x + dir.x * LAMP_ARM / 2, 7.9, base.z + dir.z * LAMP_ARM / 2, yaw));
+    put(LAMP_HEAD_NAME, lampHeadMaterial, xform(box(0.5, 0.16, 0.3), base.x + dir.x * LAMP_ARM, LAMP_HEAD_Y, base.z + dir.z * LAMP_ARM, yaw));
+    lamps.push({ pos: { x: base.x + dir.x * LAMP_ARM, z: base.z + dir.z * LAMP_ARM }, height: LAMP_HEAD_Y });
     circle(base, LAMP_COLLIDER_R);
   }
 
@@ -256,10 +278,10 @@ export function buildFurniture(
     const merged = mergeGeometries(b.geos, false);
     if (!merged) throw new Error(`FurnitureGen: could not merge geometry for ${key}`);
     const mesh = new THREE.Mesh(merged, b.material);
-    mesh.name = `furniture:${key}`;
+    mesh.name = key === LAMP_HEAD_NAME ? LAMP_HEAD_NAME : `furniture:${key}`;
     group.add(mesh);
     for (const g of b.geos) g.dispose();
   }
 
-  return { group, colliders };
+  return { group, colliders, lamps };
 }
