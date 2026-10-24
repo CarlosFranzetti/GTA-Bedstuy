@@ -13,7 +13,7 @@ const GROUND_COLOR = 0x2b2620;
 const MOON_COLOR = 0x7f8fd0;
 const HORIZON_COLOR = 0xff9a5c;
 const NOON_COLOR = 0xfff3dc;
-const MOON_INTENSITY = 0.22;
+const MOON_INTENSITY = 0.4;
 const SUN_INTENSITY = 1.1;
 
 /** Sky/fog colour keyframes over the 24-hour day. Last key (24) wraps back to the first. */
@@ -106,7 +106,7 @@ export class DayNight implements Clock {
     if (scene.fog) {
       scene.fog.color.copy(this.sky);
     } else {
-      scene.fog = new Fog(this.sky, 140, 520);
+      scene.fog = new Fog(this.sky, 220, 900);
     }
 
     materials.setNight(this.isNight);
@@ -149,6 +149,6 @@ export class DayNight implements Clock {
     }
 
     this.hemi.color.copy(this.sky);
-    this.hemi.intensity = lerp(0.25, 0.7, t);
+    this.hemi.intensity = lerp(0.45, 0.7, t);
   }
 }

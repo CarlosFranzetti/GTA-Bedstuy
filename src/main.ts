@@ -94,11 +94,18 @@ let fps = 60, frames = 0, fpsClock = 0;
 let lastNight = dayNight.isNight;
 const copPositions: Vec2[] = [];
 
+let freeCam: { pos: THREE.Vector3; look: THREE.Vector3 } | null = null;
+function updateCamera(): void {
+  const pos = player.body.pos;
+  const heading = player.vehicle ? player.vehicle.body.heading : player.body.heading;
+  if (freeCam) { cam.camera.position.copy(freeCam.pos); cam.camera.lookAt(freeCam.look); }
+  else cam.update(1 / 60, pos, heading, player.inVehicle ? 'vehicle' : 'foot', input);
+}
 const game = new Game(
   () => {
     const pos = player.body.pos;
     const heading = player.vehicle ? player.vehicle.body.heading : player.body.heading;
-    cam.update(1 / 60, pos, heading, player.inVehicle ? 'vehicle' : 'foot', input);
+    updateCamera();
     renderer.render(scene, cam.camera);
     frames++;
     const street = grid.nearestStreet(pos);
@@ -173,6 +180,19 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 document.addEventListener('visibilitychange', () => { game.paused = document.hidden; });
+
+// debug/review hooks (harmless in production)
+(window as unknown as { __gtaDebug: unknown }).__gtaDebug = {
+  setFreeCam(x: number, y: number, z: number, lx: number, ly: number, lz: number) { freeCam = { pos: new THREE.Vector3(x, y, z), look: new THREE.Vector3(lx, ly, lz) }; },
+  clearFreeCam() { freeCam = null; },
+  setHour(h: number) { dayNight.timeOfDay = h; },
+  teleport(x: number, z: number, heading?: number) { const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = x; b.pos.z = z; b.vel.x = 0; b.vel.z = 0; if (heading !== undefined) b.heading = heading; },
+  /** run n fixed simulation steps synchronously (for scripted review) */
+  step(n: number) { for (let i = 0; i < n; i++) { for (const sys of game.systems) sys.update(game.step); input.endFrame(); } },
+  settle(n: number) { for (let i = 0; i < n; i++) updateCamera(); },
+  player, cops, traffic, wanted, physics, grid,
+  nearby(r: number) { const p = player.body.pos; const out: unknown[] = []; for (const b of physics.bodies()) { const d = Math.hypot(b.pos.x - p.x, b.pos.z - p.z); if (b.shape.kind === 'circle' && d < r) out.push({ id: b.id, kind: b.kind, d: +d.toFixed(2) }); } return out; },
+};
 
 window.__gtaReady = true;
 game.start();
