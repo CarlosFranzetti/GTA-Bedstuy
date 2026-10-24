@@ -106,7 +106,7 @@ describe('Hud', () => {
     expect(splash.textContent).toContain('H horn');
     expect(splash.textContent).toContain('E radio');
     expect(splash.textContent).toContain('mouse look');
-    expect(splash.textContent).toContain('click to start');
+    expect(splash.textContent).toContain('click or tap to start');
   });
 
   it('hides the splash 400 ms after hideSplash()', () => {

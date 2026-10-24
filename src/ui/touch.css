@@ -1,0 +1,35 @@
+/* Touch controls: shown only when TouchControls is constructed (coarse pointer devices). */
+.tc-root { position: absolute; inset: 0; pointer-events: none; touch-action: none; user-select: none; -webkit-user-select: none; }
+.tc-look { position: absolute; top: 0; right: 0; bottom: 0; width: 60%; pointer-events: auto; touch-action: none; }
+.tc-stick {
+  position: absolute; left: max(22px, env(safe-area-inset-left, 0px)); bottom: max(26px, env(safe-area-inset-bottom, 0px));
+  width: 150px; height: 150px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 255, 255, 0.35);
+  pointer-events: auto; touch-action: none; display: grid; place-items: center;
+}
+.tc-knob { width: 62px; height: 62px; border-radius: 50%; background: rgba(255, 255, 255, 0.55); box-shadow: 0 2px 8px rgba(0,0,0,.4); transition: transform 40ms linear; }
+.tc-buttons {
+  position: absolute; right: max(18px, env(safe-area-inset-right, 0px)); bottom: max(26px, env(safe-area-inset-bottom, 0px));
+  display: grid; grid-template-columns: 78px 78px; gap: 12px; pointer-events: auto;
+}
+.tc-btn {
+  width: 78px; height: 78px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.4);
+  background: rgba(20, 20, 26, 0.55); color: #fff; font: 700 11px/1.1 system-ui, sans-serif; letter-spacing: .06em;
+  touch-action: none; -webkit-tap-highlight-color: transparent; padding: 0;
+}
+.tc-btn.on { background: rgba(244, 196, 48, 0.85); color: #1a1408; }
+.tc-btn-car { border-color: rgba(244, 196, 48, 0.8); }
+/* re-flow the HUD around the controls */
+.touch canvas.minimap { left: max(16px, env(safe-area-inset-left, 0px)) !important; bottom: auto !important; top: 34px !important; width: 140px !important; height: 140px !important; }
+.touch .hud-location { bottom: 190px; }
+.touch .hud-prompt { bottom: 200px; }
+.touch .hud-speed { bottom: 200px; }
+.touch .hud-fps { display: none; }
+@media (max-height: 420px) {
+  .tc-stick { width: 120px; height: 120px; }
+  .tc-btn { width: 62px; height: 62px; font-size: 10px; }
+  .tc-buttons { grid-template-columns: 62px 62px; gap: 8px; }
+  .touch canvas.minimap { width: 100px !important; height: 100px !important; }
+  .touch .hud-location, .touch .hud-speed { bottom: 150px; }
+  .touch .hud-prompt { bottom: 190px; }
+}

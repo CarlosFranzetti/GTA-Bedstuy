@@ -11,6 +11,7 @@ const CONTROLS = [
   'H horn',
   'E radio',
   'mouse look',
+  'touch: left stick, drag right to look',
 ];
 
 const finite = (n: number, fallback = 0): number => (Number.isFinite(n) ? n : fallback);
@@ -78,7 +79,7 @@ export class Hud {
       controls.appendChild(li);
     }
     const start = this.make('p', 'hud-start');
-    start.textContent = 'click to start';
+    start.textContent = 'click or tap to start';
     this.splashEl.append(title, subtitle, controls, start);
 
     root.append(

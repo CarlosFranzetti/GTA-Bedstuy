@@ -19,6 +19,7 @@ import { WantedSystem } from '@/game/WantedSystem';
 import { DayNight } from '@/game/DayNight';
 import { Hud } from '@/ui/Hud';
 import { Minimap } from '@/ui/Minimap';
+import { TouchControls } from '@/ui/TouchControls';
 import { AudioSystem } from '@/audio/AudioSystem';
 
 declare global {
@@ -29,7 +30,8 @@ const app = document.getElementById('app')!;
 
 // ---- renderer / scene
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(1.75, window.devicePixelRatio));
+const isTouch = Input.isTouchDevice();
+renderer.setPixelRatio(Math.min(isTouch ? 1.25 : 1.75, window.devicePixelRatio));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
@@ -86,6 +88,8 @@ const input = new Input(renderer.domElement);
 const cam = new ThirdPersonCamera(window.innerWidth / window.innerHeight);
 input.onFirstGesture = () => { hud.hideSplash(); events.emit('userGesture', {}); };
 overlay.addEventListener('mousedown', () => input.notifyGesture());
+overlay.addEventListener('pointerdown', () => input.notifyGesture());
+if (isTouch) new TouchControls(overlay, input);
 
 // ---- loop
 const allVehicles = (): IVehicle[] => [...traffic.vehicles, ...cops.cops];
@@ -110,8 +114,9 @@ const game = new Game(
     frames++;
     const street = grid.nearestStreet(pos);
     let prompt = '';
-    if (player.inVehicle) prompt = 'F  Exit car';
-    else { for (const v of allVehicles()) if (dist(v.doorPos(), pos) <= ENTER_RANGE) { prompt = 'F  Enter car'; break; } }
+    const key = isTouch ? 'CAR' : 'F';
+    if (player.inVehicle) prompt = `${key}  Exit car`;
+    else { for (const v of allVehicles()) if (dist(v.doorPos(), pos) <= ENTER_RANGE) { prompt = `${key}  Enter car`; break; } }
     hud.update({
       stars: wanted.stars,
       speedKmh: player.vehicle ? Math.abs(player.vehicle.speed) * 3.6 : 0,

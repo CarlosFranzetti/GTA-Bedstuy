@@ -8,6 +8,9 @@ export class Input {
   pointerLocked = false;
   private firstGesture = false;
   onFirstGesture: (() => void) | null = null;
+  /** Virtual (touch) input merged into the keyboard state. x: -1 left..1 right, y: -1 back..1 forward. */
+  readonly touchAxis = { x: 0, y: 0 };
+  private virtualDown = new Set<string>();
 
   constructor(private el: HTMLElement = document.body) {
     window.addEventListener('keydown', (e) => {
@@ -31,14 +34,29 @@ export class Input {
   }
   /** External trigger for the first gesture (e.g. a click on the splash overlay). */
   notifyGesture(): void { this.gesture(); this.requestLock(); }
-  isDown(code: string): boolean { return this.down.has(code); }
+  isDown(code: string): boolean { return this.down.has(code) || this.virtualDown.has(code); }
+  /** Press/release a key from an on-screen control. A press also counts as an edge for `pressed()`. */
+  setVirtual(code: string, down: boolean): void {
+    if (down) { if (!this.virtualDown.has(code)) this.justPressed.add(code); this.virtualDown.add(code); this.gesture(); }
+    else this.virtualDown.delete(code);
+  }
+  /** Camera look delta from a touch drag, in pixels. */
+  addLook(dx: number, dy: number): void { this.mouseDX += dx; this.mouseDY += dy; }
+  /** True on phones/tablets (coarse pointer or touch points). */
+  static isTouchDevice(): boolean {
+    try { return (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints ?? 0) > 0; } catch { return false; }
+  }
   /** True only on the frame the key went down. */
   pressed(code: string): boolean { return this.justPressed.has(code); }
   /** Returns -1..1 from two keys. */
   axis(neg: string[], pos: string[]): number {
-    const n = neg.some((c) => this.down.has(c)) ? 1 : 0;
-    const p = pos.some((c) => this.down.has(c)) ? 1 : 0;
-    return p - n;
+    const n = neg.some((c) => this.isDown(c)) ? 1 : 0;
+    const p = pos.some((c) => this.isDown(c)) ? 1 : 0;
+    let v = p - n;
+    // analog touch stick: W/S family is the forward axis, A/D family the sideways axis
+    if (pos.includes('KeyW') || pos.includes('ArrowUp')) v += this.touchAxis.y;
+    else if (pos.includes('KeyD') || pos.includes('ArrowRight')) v += this.touchAxis.x;
+    return Math.max(-1, Math.min(1, v));
   }
   endFrame(): void { this.justPressed.clear(); this.mouseDX = 0; this.mouseDY = 0; this.wheel = 0; }
 }
