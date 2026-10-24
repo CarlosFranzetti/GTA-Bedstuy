@@ -106,6 +106,7 @@ const input = new Input(renderer.domElement);
 const cam = new ThirdPersonCamera(window.innerWidth / window.innerHeight);
 const pipeline = new RenderPipeline(renderer, scene, cam.camera, { quality });
 pipeline.setNight(dayNight.isNight);
+pipeline.setExposure(1.0);
 setLampsLit(world.furnitureGroup, dayNight.isNight);
 input.onFirstGesture = () => { hud.hideSplash(); events.emit('userGesture', {}); };
 overlay.addEventListener('mousedown', () => input.notifyGesture());
@@ -134,7 +135,7 @@ const game = new Game(
     updateShadowCamera(dayNight.sun, player.body.pos);
     const sunDir = dayNight.sun.position.clone().normalize();
     sky.update(dayNight.timeOfDay, sunDir, dayNight.isNight, cam.camera.position);
-    sunFlare.update(sunDir, dayNight.isNight ? 0 : Math.max(0, sunDir.y));
+    sunFlare.update(sunDir, dayNight.isNight ? 0 : 1, cam.camera.position);
     pipeline.setHour(dayNight.timeOfDay);
     pipeline.setFocus(cam.camera.position.distanceTo(new THREE.Vector3(pos.x, 1.2, pos.z)));
     pipeline.render();

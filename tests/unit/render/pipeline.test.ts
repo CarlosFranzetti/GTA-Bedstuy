@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { applyShadowFlags, setupShadows, updateShadowCamera } from '@/render/Shadows';
-import { GRADING_SHADER } from '@/render/Pipeline';
+import { DOF_SHADER, GRADING_SHADER } from '@/render/Pipeline';
+import { SunFlare } from '@/render/LensFlare';
 
 function fakeRenderer(): THREE.WebGLRenderer {
   return { shadowMap: { enabled: false, type: 0, autoUpdate: false, needsUpdate: false } } as unknown as THREE.WebGLRenderer;
@@ -36,21 +37,23 @@ describe('setupShadows', () => {
     expect(r.shadowMap.type).toBe(THREE.PCFShadowMap);
     expect(high.castShadow).toBe(true);
     expect(high.shadow.mapSize.x).toBe(4096);
-    expect(high.shadow.camera.right).toBe(110);
+    expect(high.shadow.camera.right).toBe(100);
     expect(high.shadow.camera.far).toBe(400);
-    expect(high.shadow.bias).toBe(-0.0005);
-    expect(high.shadow.normalBias).toBe(0.6);
+    expect(high.shadow.bias).toBe(-0.0003);
+    expect(high.shadow.normalBias).toBe(0.5);
+    expect(high.shadow.radius).toBe(3);
 
     const low = new THREE.DirectionalLight();
     setupShadows(r, low, 'low');
     expect(low.shadow.mapSize.x).toBe(1024);
     expect(low.shadow.mapSize.y).toBe(1024);
-    expect(low.shadow.camera.right).toBe(70);
+    expect(low.shadow.camera.right).toBe(60);
 
     const med = new THREE.DirectionalLight();
     setupShadows(r, med, 'medium');
     expect(med.shadow.mapSize.x).toBe(2048);
-    expect(med.shadow.camera.right).toBe(90);
+    expect(med.shadow.camera.right).toBe(80);
+    expect(med.shadow.radius).toBe(2);
   });
 });
 
@@ -117,5 +120,53 @@ describe('GRADING_SHADER', () => {
     expect(GRADING_SHADER.uniforms.saturation.value).toBeCloseTo(1.12);
     expect(GRADING_SHADER.uniforms.vignette.value).toBeCloseTo(0.35);
     expect(GRADING_SHADER.uniforms.grain.value).toBeCloseTo(0.025);
+  });
+});
+
+describe('GRADING_SHADER LUT support', () => {
+  it('has tLut / useLut uniforms and only declares sampler3D behind USE_LUT', () => {
+    expect(GRADING_SHADER.uniforms).toHaveProperty('tLut');
+    expect(GRADING_SHADER.uniforms).toHaveProperty('useLut');
+    expect(GRADING_SHADER.fragmentShader).toContain('tLut');
+    expect(GRADING_SHADER.fragmentShader).toContain('useLut');
+    const src = GRADING_SHADER.fragmentShader;
+    const first = src.indexOf('sampler3D');
+    expect(first).toBeGreaterThan(-1);
+    expect(src.lastIndexOf('#ifdef USE_LUT', first)).toBeGreaterThan(-1);
+    // the analytic fallback must exist outside the LUT block
+    expect(src).toContain('mathGrade');
+    expect(src).toContain('precision');
+  });
+});
+
+describe('DOF_SHADER', () => {
+  it('exposes focusDistance and aperture uniforms (default focus 7 m) and uses them', () => {
+    expect(DOF_SHADER.uniforms).toHaveProperty('focusDistance');
+    expect(DOF_SHADER.uniforms).toHaveProperty('aperture');
+    expect(DOF_SHADER.uniforms).toHaveProperty('tDepth');
+    expect(DOF_SHADER.uniforms.focusDistance.value).toBe(7);
+    expect(DOF_SHADER.fragmentShader).toContain('focusDistance');
+    expect(DOF_SHADER.fragmentShader).toContain('aperture');
+    expect(DOF_SHADER.fragmentShader).toContain('precision');
+    expect(DOF_SHADER.fragmentShader).toContain('DOF_TAPS 16');
+    expect(DOF_SHADER.fragmentShader).not.toContain('sampler3D');
+  });
+});
+
+describe('SunFlare', () => {
+  it('adds itself to the scene, hides at night and shows at midday', () => {
+    const scene = new THREE.Scene();
+    const flare = new SunFlare(scene);
+    const obj = scene.getObjectByName('SunFlare')!;
+    expect(obj).toBeDefined();
+    flare.update(new THREE.Vector3(0.3, 0.9, 0.2), 1);
+    expect(obj.visible).toBe(true);
+    expect(obj.position.length()).toBeCloseTo(900, 3);
+    flare.update(new THREE.Vector3(0.3, -0.5, 0.2), 1);
+    expect(obj.visible).toBe(false);
+    flare.update(new THREE.Vector3(0.3, 0.9, 0.2), 0);
+    expect(obj.visible).toBe(false);
+    flare.dispose();
+    expect(scene.getObjectByName('SunFlare')).toBeUndefined();
   });
 });
