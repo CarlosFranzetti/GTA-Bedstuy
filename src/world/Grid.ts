@@ -288,14 +288,22 @@ export function buildGrid(input: BedstuyData): GridModel {
       }
     }
   }
-  // dead-end corners: a lane that could otherwise never be entered (e.g. the southbound lane at the northern
-  // end of an avenue) is fed by a U-turn from its partner lane on the same side of the intersection
+  // dead ends: a lane with no legal turn (e.g. northbound at the top of an avenue where the one-way cross street
+  // only enters) or a lane that could never be entered is joined to its partner lane by a U-turn
+  const uTurn = (enter: Chain, out: Chain): void => {
+    linkLanes(enter.nodeIds[enter.nodeIds.length - 1], out.nodeIds[0], out.streetId);
+  };
+  for (const enter of chains) {
+    const last = enter.nodeIds[enter.nodeIds.length - 1];
+    if (lanes.adjacency[last].length > 0) continue;
+    for (const out of chains) {
+      if (out.startInter === enter.endInter && out.exitSide === enter.enterSide) uTurn(enter, out);
+    }
+  }
   for (const out of chains) {
     if (hasIncoming.has(out.nodeIds[0])) continue;
     for (const enter of chains) {
-      if (enter.endInter === out.startInter && enter.enterSide === out.exitSide) {
-        linkLanes(enter.nodeIds[enter.nodeIds.length - 1], out.nodeIds[0], out.streetId);
-      }
+      if (enter.endInter === out.startInter && enter.enterSide === out.exitSide) uTurn(enter, out);
     }
   }
 

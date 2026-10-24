@@ -44,7 +44,7 @@ Rules:
 - Sidewalks: nodes at each block corner (mid-sidewalk), mid-face nodes every ~25 m, and crosswalk endpoints; edges along faces and across crosswalks. Connected (undirected semantics: add both directions).
 - `isOnRoad(p)`: inside any segment rectangle or intersection box.
 
-**Tests** `tests/unit/world/grid.test.ts`: 10 blocks, 18 intersections, 27 segments; `isOnRoad({x:0,z:0})` true; `isOnRoad(center of r2c0)` false; lanes strongly connected (BFS from any node reaches all); sidewalks connected; one-way street `hart` (oneWay +1 = eastbound) has lane headings ≈ +π/2 only; `nearestLaneNode` returns a node within 10 m of a point on Throop; block `r2c0` curb x-range is (−250+7, 0−7) and z-range (−5, 100−6.5).
+**Tests** `tests/unit/world/grid.test.ts`: 10 blocks, 18 intersections, 27 segments; `isOnRoad({x:0,z:0})` true; `isOnRoad(center of r2c0)` false; lanes strongly connected (BFS from any node reaches all); sidewalks connected; one-way street `hart` (oneWay +1 = eastbound) has lane headings ≈ +π/2 only; `nearestLaneNode` returns a node within 10 m of a point on Throop; block `r2c0` curb x-range is (−250+7, 0−7) and z-range (+5, 100−6.5).
 
 ### Task 2: RoadBuilder (Sonnet) — `src/world/RoadBuilder.ts`
 
