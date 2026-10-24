@@ -196,6 +196,8 @@ export interface IMaterialLibrary {
   carPaint(color: string): THREE.Material;
   /** Toggle night state: windows glow, storefronts light up. */
   setNight(night: boolean): void;
+  /** Optional: environment map (PMREM) for reflections on glass, car paint, wet asphalt. */
+  setEnvironment?(env: THREE.Texture | null): void;
 }
 
 // ---------------------------------------------------------------- physics (2D on the ground plane)
@@ -288,6 +290,8 @@ export interface IVehicle extends Entity {
   driver: 'player' | 'traffic' | 'cop' | null;
   /** cop cars only: lightbar flashing + siren audio */
   siren: boolean;
+  /** optional: headlights/taillights lit (night) */
+  headlights?: boolean;
   setInput(input: VehicleInput): void;
   /** world position of the driver's door, for enter/exit */
   doorPos(): Vec2;
