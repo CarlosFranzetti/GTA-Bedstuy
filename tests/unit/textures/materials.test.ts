@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
 import type { MaterialKey } from '@/world/types';
 import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { heightToNormal } from '@/textures/normalmap';
 
 interface Op { name: string; args: unknown[]; font?: string }
 interface FakeCanvas { width: number; height: number; ops: Op[]; getContext(t: string): unknown }
@@ -146,7 +147,7 @@ describe('MaterialLibrary', () => {
     expect((lib.awning('#ff0000', 'A') as THREE.MeshStandardMaterial).emissive.getHex()).toBe(0);
   });
 
-  it('textures are repeat-wrapped sRGB canvas textures of 256-512 px; materials are standard', () => {
+  it('textures are repeat-wrapped sRGB canvas textures of 256-1024 px; materials are standard', () => {
     const { lib, canvases } = setup();
     const keys: MaterialKey[] = ['brickRed', 'brownstone', 'asphalt', 'concrete', 'rollGate', 'window', 'roof', 'treeLeaves', 'chainlink'];
     for (const k of keys) {
@@ -160,14 +161,15 @@ describe('MaterialLibrary', () => {
     }
     for (const c of canvases) {
       expect(c.width).toBeGreaterThanOrEqual(256);
-      expect(c.width).toBeLessThanOrEqual(512);
+      expect(c.width).toBeLessThanOrEqual(1024);
       expect(c.height).toBeGreaterThanOrEqual(128);
-      expect(c.height).toBeLessThanOrEqual(512);
+      expect(c.height).toBeLessThanOrEqual(1024);
     }
     expect((lib.get('brickRed') as THREE.MeshStandardMaterial).roughness).toBe(0.9);
     const g = lib.get('window') as THREE.MeshStandardMaterial;
-    expect(g.roughness).toBe(0.2);
-    expect(g.metalness).toBe(0.1);
+    expect(g.roughness).toBe(0.15);
+    expect(g.metalness).toBe(0.3);
+    expect(g.envMapIntensity).toBe(1);
     expect(g.opacity).toBe(0.9);
     expect(g.transparent).toBe(true);
   });
@@ -222,5 +224,225 @@ describe('MaterialLibrary', () => {
     const names = new Set(canvases[0].ops.map((o) => o.name));
     expect(names.has('drawImage')).toBe(false);
     expect(names.has('fillRect')).toBe(true);
+  });
+});
+
+
+// ------------------------------------------------------------------ PBR additions
+
+/** Fake canvas with a real RGBA buffer: fillRect with rgb()/grey fills (opaque, honours scale); everything else no-ops. */
+function makePixelCanvas(width: number, height: number) {
+  const data = new Uint8ClampedArray(width * height * 4);
+  let sx = 1, sy = 1;
+  let fill = [0, 0, 0];
+  const noop = () => undefined;
+  const ctx: Record<string, unknown> = {
+    save: noop, restore: noop, beginPath: noop, moveTo: noop, lineTo: noop, stroke: noop, fill: noop, arc: noop,
+    strokeRect: noop, fillText: noop, closePath: noop, quadraticCurveTo: noop, translate: noop, rotate: noop,
+    measureText: () => ({ width: 10 }),
+    scale(a: number, b: number) { sx = a; sy = b; },
+    fillRect(x: number, y: number, w: number, h: number) {
+      const x0 = Math.max(0, Math.round(x * sx)), x1 = Math.min(width, Math.round((x + w) * sx));
+      const y0 = Math.max(0, Math.round(y * sy)), y1 = Math.min(height, Math.round((y + h) * sy));
+      for (let yy = y0; yy < y1; yy++) for (let xx = x0; xx < x1; xx++) {
+        const o = (yy * width + xx) * 4;
+        data[o] = fill[0]; data[o + 1] = fill[1]; data[o + 2] = fill[2]; data[o + 3] = 255;
+      }
+    },
+    getImageData: () => ({ data, width, height }),
+    set fillStyle(v: string) {
+      const m = /rgb\((\d+),(\d+),(\d+)\)/.exec(v);
+      fill = m ? [Number(m[1]), Number(m[2]), Number(m[3])] : [128, 128, 128];
+    },
+    set strokeStyle(_v: string) { /* ignored */ },
+    set globalAlpha(_v: number) { /* ignored */ },
+    set lineWidth(_v: number) { /* ignored */ },
+    set font(_v: string) { /* ignored */ },
+    set textAlign(_v: string) { /* ignored */ },
+    set textBaseline(_v: string) { /* ignored */ },
+    set lineCap(_v: string) { /* ignored */ },
+    set lineJoin(_v: string) { /* ignored */ },
+  };
+  return { width, height, data, getContext: () => ctx };
+}
+
+function pixelSetup(opts?: { maxAnisotropy?: number }) {
+  const canvases: ReturnType<typeof makePixelCanvas>[] = [];
+  const factory = (w: number, h: number): HTMLCanvasElement => {
+    const c = makePixelCanvas(w, h);
+    canvases.push(c);
+    return c as unknown as HTMLCanvasElement;
+  };
+  return { lib: new MaterialLibrary(new Rng(99), factory, opts), canvases };
+}
+
+describe('heightToNormal', () => {
+  it('flat field gives (128,128,255)', () => {
+    const w = 8, h = 8;
+    const n = heightToNormal(new Float32Array(w * h).fill(0.4), w, h, 3);
+    expect(n.length).toBe(w * h * 4);
+    for (let i = 0; i < w * h; i++) {
+      expect([n[i * 4], n[i * 4 + 1], n[i * 4 + 2], n[i * 4 + 3]]).toEqual([128, 128, 255, 255]);
+    }
+  });
+
+  it('horizontal step tilts the normal toward -x (R<128) on the rising edge, G stays flat', () => {
+    const w = 16, h = 8;
+    const hf = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = w / 2; x < w; x++) hf[y * w + x] = 1;
+    const n = heightToNormal(hf, w, h, 2);
+    const at = (x: number, y: number) => [n[(y * w + x) * 4], n[(y * w + x) * 4 + 1], n[(y * w + x) * 4 + 2]];
+    expect(at(w / 2, 3)[0]).toBeLessThan(128);     // rising to the right: normal leans left
+    expect(at(w / 2 - 1, 3)[0]).toBeLessThan(128);
+    expect(at(0, 3)[0]).toBeGreaterThan(128);      // wrap-around falling edge leans right
+    expect(at(w / 2, 3)[1]).toBe(128);
+    expect(at(4, 3)).toEqual([128, 128, 255]);
+    expect(at(w / 2, 3)[2]).toBeLessThan(255);
+  });
+
+  it('vertical ramp (height grows toward image bottom) leans +G (toward +v is up, surface faces up)', () => {
+    const w = 8, h = 16;
+    const hf = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) hf[y * w + x] = y < h / 2 ? 0 : 1;
+    const n = heightToNormal(hf, w, h, 2);
+    expect(n[((h / 2) * w + 2) * 4 + 1]).toBeGreaterThan(128);
+    expect(n[((h / 2) * w + 2) * 4]).toBe(128);
+  });
+});
+
+describe('PBR materials', () => {
+  it('carPaint is a cached clearcoat MeshPhysicalMaterial', () => {
+    const { lib } = setup();
+    const m = lib.carPaint('#cc2222') as THREE.MeshPhysicalMaterial;
+    expect(m).toBeInstanceOf(THREE.MeshPhysicalMaterial);
+    expect(m.clearcoat).toBe(1);
+    expect(m.clearcoatRoughness).toBeCloseTo(0.08);
+    expect(m.metalness).toBeCloseTo(0.6);
+    expect(m.roughness).toBeCloseTo(0.35);
+    expect(m.envMapIntensity).toBeCloseTo(1.2);
+    expect(lib.carPaint('#cc2222')).toBe(m);
+    expect(lib.carPaint('#2222cc')).not.toBe(m);
+  });
+
+  it('carGlass and copLivery are physical with the requested settings', () => {
+    const { lib } = setup();
+    const g = lib.get('carGlass') as THREE.MeshPhysicalMaterial;
+    expect(g).toBeInstanceOf(THREE.MeshPhysicalMaterial);
+    expect(g.transmission).toBe(0);
+    expect(g.metalness).toBeCloseTo(0.9);
+    expect(g.roughness).toBeCloseTo(0.05);
+    expect(g.opacity).toBeCloseTo(0.85);
+    expect(g.transparent).toBe(true);
+    expect(g.envMapIntensity).toBeCloseTo(1.5);
+    const c = lib.get('copLivery') as THREE.MeshPhysicalMaterial;
+    expect(c).toBeInstanceOf(THREE.MeshPhysicalMaterial);
+    expect(c.clearcoat).toBe(1);
+    expect(c.map).toBeTruthy();
+  });
+
+  it('setEnvironment applies to existing carPaint and to a window created afterwards', () => {
+    const { lib } = setup();
+    const paint = lib.carPaint('#ffffff') as THREE.MeshPhysicalMaterial;
+    expect(paint.envMap).toBeNull();
+    const env = new THREE.Texture();
+    lib.setEnvironment(env);
+    expect(paint.envMap).toBe(env);
+    const win = lib.get('window') as THREE.MeshStandardMaterial;
+    expect(win.envMap).toBe(env);
+    expect(win.envMapIntensity).toBe(1);
+    const asphalt = lib.get('asphalt') as THREE.MeshStandardMaterial;
+    expect(asphalt.envMap).toBe(env);
+    expect(asphalt.envMapIntensity).toBeCloseTo(0.25);
+    expect((lib.get('metalDark') as THREE.MeshStandardMaterial).envMapIntensity).toBeCloseTo(0.5);
+    expect((lib.carPaint('#00ff00') as THREE.MeshPhysicalMaterial).envMap).toBe(env);
+    lib.setEnvironment(null);
+    expect(paint.envMap).toBeNull();
+    expect(win.envMap).toBeNull();
+  });
+
+  it('fake canvas path produces no normal/roughness maps, creates no extra canvases and does not throw', () => {
+    const { lib, canvases } = setup();
+    for (const k of ['brickRed', 'brownstone', 'limestone', 'cornice', 'asphalt', 'asphaltWorn', 'concrete', 'roof', 'rollGate', 'stoop'] as MaterialKey[]) {
+      const before = canvases.length;
+      const m = lib.get(k) as THREE.MeshStandardMaterial;
+      expect(m.normalMap).toBeNull();
+      expect(m.roughnessMap).toBeNull();
+      expect(canvases.length - before).toBe(1);
+    }
+    expect((lib.get('asphalt') as THREE.MeshStandardMaterial).roughness).toBe(0.9);
+  });
+
+  it('with a pixel-capable canvas, relief materials carry tileable normal (and roughness) maps', () => {
+    const { lib, canvases } = pixelSetup({ maxAnisotropy: 16 });
+    const brick = lib.get('brickRed', 0) as THREE.MeshStandardMaterial;
+    expect(canvases[0].width).toBe(1024);
+    expect(brick.map!.anisotropy).toBe(8);
+    const nm = brick.normalMap!;
+    expect(nm).toBeInstanceOf(THREE.DataTexture);
+    expect(nm.wrapS).toBe(THREE.RepeatWrapping);
+    expect(nm.wrapT).toBe(THREE.RepeatWrapping);
+    expect(nm.anisotropy).toBe(8);
+    expect(nm.repeat.equals(brick.map!.repeat)).toBe(true);
+    expect(brick.normalScale.x).toBeCloseTo(0.6);
+    expect(brick.roughnessMap).toBeTruthy();
+    expect(brick.roughness).toBe(1);
+    // mortar joints are recessed so the normal map is not flat
+    const px = (nm.image as { data: Uint8Array }).data;
+    let varied = 0;
+    for (let i = 0; i < px.length; i += 4) if (px[i] !== 128 || px[i + 1] !== 128) varied++;
+    expect(varied).toBeGreaterThan(1000);
+    // brick relief is shared across variants
+    const brick1 = lib.get('brickRed', 1) as THREE.MeshStandardMaterial;
+    expect(brick1.normalMap).toBe(nm);
+    const asphalt = lib.get('asphalt') as THREE.MeshStandardMaterial;
+    expect(asphalt.normalMap).toBeTruthy();
+    expect(asphalt.normalScale.x).toBeCloseTo(0.35);
+    expect(asphalt.roughnessMap).toBeTruthy();
+    for (const k of ['brownstone', 'limestone', 'cornice', 'concrete', 'roof', 'rollGate'] as MaterialKey[]) {
+      expect((lib.get(k) as THREE.MeshStandardMaterial).normalMap).toBeInstanceOf(THREE.DataTexture);
+    }
+  });
+
+  it('maxAnisotropy option caps colour map anisotropy', () => {
+    const lo = new MaterialLibrary(new Rng(1), (w, h) => makeFakeCanvas(w, h) as unknown as HTMLCanvasElement, { maxAnisotropy: 2 });
+    expect((lo.get('brickRed') as THREE.MeshStandardMaterial).map!.anisotropy).toBe(2);
+  });
+
+  it('overrideMaps applies to existing and later-created materials and keeps night emissive', () => {
+    const { lib } = setup();
+    const mk = () => {
+      const t = new THREE.Texture();
+      return t;
+    };
+    const existing = lib.get('brickRed', 0) as THREE.MeshStandardMaterial;
+    expect(lib.hasOverride('brickRed', 0)).toBe(false);
+    const map = mk(), normalMap = mk(), roughnessMap = mk();
+    lib.overrideMaps('brickRed', 0, { map, normalMap, roughnessMap, repeat: { x: 3, y: 2 }, normalScale: 0.8 });
+    expect(lib.hasOverride('brickRed', 0)).toBe(true);
+    expect(lib.hasOverride('brickRed', 4)).toBe(true); // variant wraps (4 variants)
+    expect(lib.hasOverride('brickRed', 1)).toBe(false);
+    expect(existing.map).toBe(map);
+    expect(existing.normalMap).toBe(normalMap);
+    expect(existing.roughnessMap).toBe(roughnessMap);
+    expect(existing.normalScale.x).toBeCloseTo(0.8);
+    expect(map.wrapS).toBe(THREE.RepeatWrapping);
+    expect(map.colorSpace).toBe(THREE.SRGBColorSpace);
+    expect(normalMap.colorSpace).not.toBe(THREE.SRGBColorSpace);
+    expect(map.repeat.x).toBe(3);
+    expect(map.anisotropy).toBe(8);
+
+    // override before creation, on a night-glowing key
+    const wmap = mk();
+    lib.overrideMaps('window', 1, { map: wmap });
+    lib.setNight(true);
+    const win = lib.get('window', 1) as THREE.MeshStandardMaterial;
+    expect(win.map).toBe(wmap);
+    expect(win.emissiveIntensity).toBe(0.9);
+    expect(win.emissive.getHexString()).toBe('ffd27a');
+    expect(win.metalness).toBeCloseTo(0.3);
+    lib.setNight(false);
+    expect(win.emissiveIntensity).toBe(0);
+    // un-overridden variant is untouched
+    expect((lib.get('window', 0) as THREE.MeshStandardMaterial).map).not.toBe(wmap);
   });
 });

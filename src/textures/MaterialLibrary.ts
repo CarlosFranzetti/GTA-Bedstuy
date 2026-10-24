@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
 import type { IMaterialLibrary, MaterialKey } from '@/world/types';
-import { createCanvas, type Painter } from './canvas';
+import { createCanvas, type Aux, type Painter } from './canvas';
+import { heightFromRgba, heightToNormal } from './normalmap';
 import { asphaltPainter, concretePainter, crosswalkPainter, roofPainter } from './painters/ground';
-import { brickPainter, brownstonePainter, limestonePainter } from './painters/masonry';
+import { brickPainter, brownstonePainter, cornicePainter, limestonePainter } from './painters/masonry';
 import {
   STOREFRONT_VARIANTS, WINDOW_VARIANTS, storefrontEmissivePainter, storefrontPainter,
   windowEmissivePainter, windowPainter,
@@ -13,40 +14,85 @@ import {
 } from './painters/metal';
 import { awningPainter, copLiveryPainter, signPainter } from './painters/signage';
 import { CLOTH_COLORS, LEAF_VARIANTS, SKIN_TONES, treeLeavesPainter, treeTrunkPainter } from './painters/organic';
-import { wrapVariant } from './painters/util';
+import { gray, wrapVariant } from './painters/util';
 
 export type CanvasFactory = (w: number, h: number) => HTMLCanvasElement;
 
 const NIGHT_EMISSIVE = '#ffd27a';
 const NIGHT_INTENSITY = 0.9;
+const MAX_ANISOTROPY = 8;
+
+/** envMapIntensity per key for materials that pick up the scene environment (reflections). */
+const ENV_INTENSITY: Partial<Record<MaterialKey, number>> = {
+  asphalt: 0.25, asphaltWorn: 0.25,
+  window: 1.0, storefrontGlass: 1.0, carGlass: 1.5, copLivery: 1.2,
+  metalDark: 0.5, metalGreen: 0.5, rollGate: 0.5, hydrant: 0.4,
+};
+const PAINT_ENV_INTENSITY = 1.2;
 
 interface Spec {
   variants: number;
   build(variant: number): THREE.Material;
 }
 
+/** How to build relief maps (normal + optional roughness) for a colour painter. */
+interface Relief {
+  /** slope multiplier handed to heightToNormal */
+  strength: number;
+  normalScale: number;
+  /** roughness map resolution relative to the colour map; null/omitted = no roughness map */
+  roughScale?: number | null;
+  /** relief is identical for every variant carrying this key, so build it once and share */
+  share?: string;
+}
+
+interface ReliefMaps { normal: THREE.DataTexture; rough: THREE.CanvasTexture | null; }
+
+export interface MaterialLibraryOptions {
+  /** renderer.capabilities.getMaxAnisotropy(); colour/normal maps use min(8, this). Default 8. */
+  maxAnisotropy?: number;
+}
+
+/** Texture overrides (e.g. photo-based PBR sets) for one material key/variant. */
+export interface MapOverride {
+  map?: THREE.Texture;
+  normalMap?: THREE.Texture;
+  roughnessMap?: THREE.Texture;
+  repeat?: { x: number; y: number };
+  normalScale?: number;
+}
+
 /**
- * Procedural material library. All textures are drawn on 2D canvases (sizes 256-512 px) with painters from
- * ./painters, seeded from the Rng so the city is reproducible. Everything is cached.
+ * Procedural PBR material library. All textures are drawn on 2D canvases (256-1024 px) with painters from
+ * ./painters, seeded from the Rng so the city is reproducible. Masonry / asphalt / concrete / roof / roll gate /
+ * cornice additionally get a tangent-space normal map (and asphalt/brick/brownstone a roughness map) built from
+ * a painted height canvas, but only when the canvas supports pixel read-back (never with the test fake canvas).
+ * Everything is cached.
  *
- * Texture world scale (so UV authors can pick repeats): brick 512px ~ 1.3 m, brownstone/limestone ~ 2 m,
- * concrete 256px = 3 m (2x2 slabs of 1.5 m), others are free-scale.
+ * Texture world scale (so UV authors can pick repeats): brick 1024px ~ 1.3 m, brownstone/limestone ~ 2 m,
+ * concrete 512px = 3 m (2x2 slabs of 1.5 m), others are free-scale.
  */
 export class MaterialLibrary implements IMaterialLibrary {
   private readonly seed: number;
   private readonly factory: CanvasFactory;
+  private readonly aniso: number;
   private readonly cache = new Map<string, THREE.Material>();
   private readonly awnings = new Map<string, THREE.Material>();
   private readonly signs = new Map<string, THREE.Material>();
   private readonly paints = new Map<string, THREE.Material>();
   private readonly glowing: THREE.MeshStandardMaterial[] = [];
   private readonly textures: THREE.Texture[] = [];
+  private readonly envMaterials: THREE.MeshStandardMaterial[] = [];
+  private readonly reliefCache = new Map<string, ReliefMaps>();
+  private readonly overrides = new Map<string, MapOverride>();
+  private env: THREE.Texture | null = null;
   private night = false;
   private readonly specs: Record<MaterialKey, Spec>;
 
-  constructor(rng: Rng, canvasFactory?: CanvasFactory) {
+  constructor(rng: Rng, canvasFactory?: CanvasFactory, opts?: MaterialLibraryOptions) {
     this.seed = Math.floor(rng.next() * 0xffffffff) >>> 0;
     this.factory = canvasFactory ?? createCanvas;
+    this.aniso = Math.max(1, Math.min(MAX_ANISOTROPY, opts?.maxAnisotropy ?? MAX_ANISOTROPY));
     this.specs = this.makeSpecs();
   }
 
@@ -60,8 +106,31 @@ export class MaterialLibrary implements IMaterialLibrary {
       m = spec.build(v);
       m.name = id;
       this.cache.set(id, m);
+      const ei = ENV_INTENSITY[key];
+      if (ei !== undefined && m instanceof THREE.MeshStandardMaterial) this.registerEnv(m, ei);
+      const ov = this.overrides.get(id);
+      if (ov) this.applyOverride(m, ov);
     }
     return m;
+  }
+
+  /**
+   * Swap in externally loaded maps (e.g. CC0 photo PBR sets) for a key/variant. Applies to the cached material if it
+   * exists and is remembered for a material created later. Roughness / metalness / emissive settings are untouched.
+   */
+  overrideMaps(key: MaterialKey, variant: number, maps: MapOverride): void {
+    const spec = this.specs[key];
+    if (!spec) throw new Error(`MaterialLibrary: unknown key ${String(key)}`);
+    const id = `${key}:${wrapVariant(variant, spec.variants)}`;
+    this.overrides.set(id, maps);
+    const m = this.cache.get(id);
+    if (m) this.applyOverride(m, maps);
+  }
+
+  hasOverride(key: MaterialKey, variant: number): boolean {
+    const spec = this.specs[key];
+    if (!spec) return false;
+    return this.overrides.has(`${key}:${wrapVariant(variant, spec.variants)}`);
   }
 
   awning(color: string, text: string): THREE.Material {
@@ -91,11 +160,22 @@ export class MaterialLibrary implements IMaterialLibrary {
   carPaint(color: string): THREE.Material {
     let m = this.paints.get(color);
     if (!m) {
-      m = new THREE.MeshStandardMaterial({ color: new THREE.Color(color), roughness: 0.35, metalness: 0.35 });
-      m.name = `carPaint:${color}`;
+      const p = this.physicalPaint({ color: new THREE.Color(color) });
+      p.name = `carPaint:${color}`;
+      this.registerEnv(p, PAINT_ENV_INTENSITY);
+      m = p;
       this.paints.set(color, m);
     }
     return m;
+  }
+
+  /** Store the environment map; applies to every cached reflective material and to ones created later. */
+  setEnvironment(env: THREE.Texture | null): void {
+    this.env = env;
+    for (const m of this.envMaterials) {
+      m.envMap = env;
+      m.needsUpdate = true;
+    }
   }
 
   setNight(night: boolean): void {
@@ -107,27 +187,158 @@ export class MaterialLibrary implements IMaterialLibrary {
     for (const t of this.textures) t.dispose();
     for (const m of [...this.cache.values(), ...this.awnings.values(), ...this.signs.values(), ...this.paints.values()]) m.dispose();
     this.cache.clear(); this.awnings.clear(); this.signs.clear(); this.paints.clear();
+    this.reliefCache.clear();
     this.textures.length = 0;
     this.glowing.length = 0;
+    this.envMaterials.length = 0;
   }
 
   // ------------------------------------------------------------ internals
 
+  private prepColour(tex: THREE.Texture): void {
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = this.aniso;
+    this.textures.push(tex);
+  }
+
   private texture(label: string, w: number, h: number, paint: Painter, variant: number): THREE.CanvasTexture {
+    return this.textureSet(label, w, h, paint, variant).map;
+  }
+
+  /** True when the 2D context can read pixels back (real canvas), false for recording fakes. */
+  private canReadPixels(ctx: CanvasRenderingContext2D): boolean {
+    try {
+      if (typeof ctx.getImageData !== 'function') return false;
+      const d = ctx.getImageData(0, 0, 1, 1);
+      return !!d && !!d.data && d.data.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  private textureSet(
+    label: string, w: number, h: number, paint: Painter, variant: number, relief?: Relief,
+  ): { map: THREE.CanvasTexture; relief: ReliefMaps | null } {
     const canvas = this.factory(w, h);
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('MaterialLibrary: 2D context unavailable');
     const rng = new Rng((Rng.hash(label) ^ this.seed) >>> 0);
-    paint(ctx, w, h, rng, variant);
-    const tex = new THREE.CanvasTexture(canvas);
+
+    let maps: ReliefMaps | null = relief?.share ? this.reliefCache.get(relief.share) ?? null : null;
+    let aux: Aux | undefined;
+    let hCtx: CanvasRenderingContext2D | null = null;
+    let hCanvas: HTMLCanvasElement | null = null;
+    let rCanvas: HTMLCanvasElement | null = null;
+    if (relief && !maps && this.canReadPixels(ctx)) {
+      hCanvas = this.factory(w, h);
+      hCanvas.width = w;
+      hCanvas.height = h;
+      hCtx = hCanvas.getContext('2d');
+      let rCtx: CanvasRenderingContext2D | null = null;
+      if (hCtx && relief.roughScale) {
+        const rw = Math.max(64, Math.round(w * relief.roughScale));
+        const rh = Math.max(64, Math.round(h * relief.roughScale));
+        rCanvas = this.factory(rw, rh);
+        rCanvas.width = rw;
+        rCanvas.height = rh;
+        rCtx = rCanvas.getContext('2d');
+        rCtx?.scale(rw / w, rh / h);
+      }
+      if (hCtx) {
+        hCtx.fillStyle = gray(128);
+        hCtx.fillRect(0, 0, w, h);
+        const auxSeed = relief.share ? `relief:${relief.share}` : `relief:${label}`;
+        aux = { height: hCtx, rough: rCtx, rng: new Rng((Rng.hash(auxSeed) ^ this.seed) >>> 0) };
+      }
+    }
+
+    paint(ctx, w, h, rng, variant, aux);
+    const map = new THREE.CanvasTexture(canvas);
+    this.prepColour(map);
+
+    if (aux && hCtx && hCanvas && relief) {
+      const normal = this.normalFromHeight(hCtx, w, h, relief.strength);
+      if (normal) {
+        let rough: THREE.CanvasTexture | null = null;
+        if (rCanvas && aux.rough) {
+          rough = new THREE.CanvasTexture(rCanvas);
+          rough.wrapS = THREE.RepeatWrapping;
+          rough.wrapT = THREE.RepeatWrapping;
+          rough.colorSpace = THREE.NoColorSpace;
+          this.textures.push(rough);
+        }
+        maps = { normal, rough };
+        if (relief.share) this.reliefCache.set(relief.share, maps);
+      }
+      hCanvas.width = 0;
+      hCanvas.height = 0;
+    }
+    return { map, relief: maps };
+  }
+
+  /** Read the painted height canvas, build a (tileable) tangent-space normal map as a DataTexture. */
+  private normalFromHeight(hCtx: CanvasRenderingContext2D, w: number, h: number, strength: number): THREE.DataTexture | null {
+    let data: ArrayLike<number> | undefined;
+    try {
+      data = hCtx.getImageData(0, 0, w, h)?.data;
+    } catch {
+      return null;
+    }
+    if (!data || data.length < w * h * 4) return null;
+    const n = heightToNormal(heightFromRgba(data, w, h), w, h, strength);
+    // canvas row 0 is the top (v = 1); DataTexture row 0 is v = 0, so flip rows
+    const out = new Uint8Array(w * h * 4);
+    const rowBytes = w * 4;
+    for (let y = 0; y < h; y++) out.set(n.subarray(y * rowBytes, (y + 1) * rowBytes), (h - 1 - y) * rowBytes);
+    const tex = new THREE.DataTexture(out, w, h, THREE.RGBAFormat, THREE.UnsignedByteType);
     tex.wrapS = THREE.RepeatWrapping;
     tex.wrapT = THREE.RepeatWrapping;
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.anisotropy = 4;
+    tex.magFilter = THREE.LinearFilter;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.generateMipmaps = true;
+    tex.anisotropy = this.aniso;
+    tex.needsUpdate = true;
     this.textures.push(tex);
     return tex;
+  }
+
+  private registerEnv(m: THREE.MeshStandardMaterial, intensity: number): void {
+    m.envMapIntensity = intensity;
+    if (this.env) {
+      m.envMap = this.env;
+      m.needsUpdate = true;
+    }
+    this.envMaterials.push(m);
+  }
+
+  private physicalPaint(p: THREE.MeshPhysicalMaterialParameters): THREE.MeshPhysicalMaterial {
+    return new THREE.MeshPhysicalMaterial({
+      clearcoat: 1, clearcoatRoughness: 0.08, metalness: 0.6, roughness: 0.35, ...p,
+    });
+  }
+
+  private applyOverride(m: THREE.Material, o: MapOverride): void {
+    const mm = m as THREE.MeshStandardMaterial;
+    const prep = (t: THREE.Texture, colour: boolean): void => {
+      t.wrapS = THREE.RepeatWrapping;
+      t.wrapT = THREE.RepeatWrapping;
+      t.anisotropy = this.aniso;
+      if (colour) t.colorSpace = THREE.SRGBColorSpace;
+      if (o.repeat) t.repeat.set(o.repeat.x, o.repeat.y);
+      if (t.image) t.needsUpdate = true;
+    };
+    if (o.map) { prep(o.map, true); mm.map = o.map; }
+    if (o.normalMap) {
+      prep(o.normalMap, false);
+      mm.normalMap = o.normalMap;
+      if (o.normalScale !== undefined) mm.normalScale.set(o.normalScale, o.normalScale);
+    }
+    if (o.roughnessMap) { prep(o.roughnessMap, false); mm.roughnessMap = o.roughnessMap; }
+    mm.needsUpdate = true;
   }
 
   private std(p: THREE.MeshStandardMaterialParameters): THREE.MeshStandardMaterial {
@@ -135,9 +346,20 @@ export class MaterialLibrary implements IMaterialLibrary {
   }
 
   private makeSpecs(): Record<MaterialKey, Spec> {
-    const tex = (key: string, w: number, h: number, paint: Painter, extra: THREE.MeshStandardMaterialParameters = {}) =>
-      (v: number): THREE.Material =>
-        this.std({ map: this.texture(`${key}:${v}`, w, h, paint, v), ...extra });
+    const tex = (key: string, w: number, h: number, paint: Painter, extra: THREE.MeshStandardMaterialParameters = {}, relief?: Relief, offset = 0) =>
+      (v: number): THREE.Material => {
+        const set = this.textureSet(`${key}:${v}`, w, h, paint, v + offset, relief);
+        const m = this.std({ map: set.map, ...extra });
+        if (set.relief && relief) {
+          m.normalMap = set.relief.normal;
+          m.normalScale.set(relief.normalScale, relief.normalScale);
+          if (set.relief.rough) {
+            m.roughnessMap = set.relief.rough;
+            m.roughness = 1; // the map carries the absolute roughness
+          }
+        }
+        return m;
+      };
     const flat = (colors: readonly string[], extra: THREE.MeshStandardMaterialParameters = {}): Spec => ({
       variants: colors.length,
       build: (v) => this.std({ color: new THREE.Color(colors[v]), ...extra }),
@@ -150,8 +372,8 @@ export class MaterialLibrary implements IMaterialLibrary {
           emissive: new THREE.Color(NIGHT_EMISSIVE),
           emissiveMap: this.texture(`${key}:em:${v}`, w, h, emissive, v),
           emissiveIntensity: this.night ? NIGHT_INTENSITY : 0,
-          roughness: 0.2,
-          metalness: 0.1,
+          roughness: 0.15,
+          metalness: 0.3,
           transparent: true,
           opacity: 0.9,
         });
@@ -159,28 +381,38 @@ export class MaterialLibrary implements IMaterialLibrary {
         return m;
       },
     });
-    const alias = (key: MaterialKey, variants: number, offset: number, w: number, h: number, paint: Painter, extra: THREE.MeshStandardMaterialParameters = {}): Spec => ({
+    const alias = (key: MaterialKey, variants: number, offset: number, w: number, h: number, paint: Painter, extra: THREE.MeshStandardMaterialParameters = {}, relief?: Relief): Spec => ({
       variants,
-      build: (v) => this.std({ map: this.texture(`${key}:${v}`, w, h, paint, v + offset), ...extra }),
+      build: tex(key, w, h, paint, extra, relief, offset),
     });
 
+    const masonry: Relief = { strength: 2.5, normalScale: 0.6, roughScale: 0.5 };
+    const brickRelief: Relief = { ...masonry, share: 'brick' };
+    const stone: Relief = { strength: 2.2, normalScale: 0.6, roughScale: null };
+    const asphaltRelief: Relief = { strength: 3, normalScale: 0.35, roughScale: 0.5 };
+    const concreteRelief: Relief = { strength: 3, normalScale: 0.5, roughScale: null };
+
     return {
-      asphalt: { variants: 2, build: tex('asphalt', 512, 512, asphaltPainter) },
-      asphaltWorn: alias('asphaltWorn', 1, 1, 512, 512, asphaltPainter),
-      concrete: { variants: 2, build: tex('concrete', 256, 256, concretePainter) },
+      asphalt: { variants: 2, build: tex('asphalt', 512, 512, asphaltPainter, {}, asphaltRelief) },
+      asphaltWorn: alias('asphaltWorn', 1, 1, 512, 512, asphaltPainter, {}, asphaltRelief),
+      concrete: { variants: 2, build: tex('concrete', 512, 512, concretePainter, {}, concreteRelief) },
       curb: flat(['#9d9b96']),
       laneLine: flat(['#f2f2ee', '#f2c21b'], { roughness: 0.8 }),
       crosswalk: { variants: 1, build: tex('crosswalk', 256, 256, crosswalkPainter) },
-      brownstone: { variants: 2, build: tex('brownstone', 512, 512, brownstonePainter) },
-      brickRed: { variants: 4, build: tex('brickRed', 512, 512, brickPainter) },
-      brickPainted: alias('brickPainted', 2, 2, 512, 512, brickPainter),
-      limestone: { variants: 1, build: tex('limestone', 512, 512, limestonePainter) },
-      cornice: { variants: 1, build: tex('cornice', 512, 512, limestonePainter) },
-      stoop: alias('stoop', 1, 1, 512, 512, brownstonePainter),
+      brownstone: { variants: 2, build: tex('brownstone', 1024, 1024, brownstonePainter, {}, masonry) },
+      brickRed: { variants: 4, build: tex('brickRed', 1024, 1024, brickPainter, {}, brickRelief) },
+      brickPainted: alias('brickPainted', 2, 2, 1024, 1024, brickPainter, {}, brickRelief),
+      limestone: { variants: 1, build: tex('limestone', 512, 512, limestonePainter, {}, stone) },
+      cornice: { variants: 1, build: tex('cornice', 512, 512, cornicePainter, {}, { strength: 3, normalScale: 0.7, roughScale: null }) },
+      stoop: alias('stoop', 1, 1, 512, 512, brownstonePainter, {}, { ...masonry, roughScale: 1 }),
       window: glass('window', 256, 256, windowPainter, windowEmissivePainter, WINDOW_VARIANTS),
       storefrontGlass: glass('storefrontGlass', 512, 256, storefrontPainter, storefrontEmissivePainter, STOREFRONT_VARIANTS),
-      rollGate: { variants: ROLLGATE_VARIANTS, build: tex('rollGate', 256, 256, rollGatePainter, { roughness: 0.6, metalness: 0.4 }) },
-      roof: { variants: 1, build: tex('roof', 512, 512, roofPainter) },
+      rollGate: {
+        variants: ROLLGATE_VARIANTS,
+        build: tex('rollGate', 256, 256, rollGatePainter, { roughness: 0.6, metalness: 0.4 },
+          { strength: 3, normalScale: 0.7, roughScale: null, share: 'rollGate' }),
+      },
+      roof: { variants: 1, build: tex('roof', 512, 512, roofPainter, {}, { strength: 3, normalScale: 0.5, roughScale: null }) },
       waterTank: { variants: 1, build: tex('waterTank', 256, 256, waterTankPainter) },
       treeTrunk: { variants: 1, build: tex('treeTrunk', 256, 256, treeTrunkPainter) },
       treeLeaves: { variants: LEAF_VARIANTS, build: tex('treeLeaves', 256, 256, treeLeavesPainter) },
@@ -196,9 +428,18 @@ export class MaterialLibrary implements IMaterialLibrary {
           transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.5,
         }),
       },
-      carGlass: flat(['#1b2733'], { roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.8 }),
+      carGlass: {
+        variants: 1,
+        build: () => new THREE.MeshPhysicalMaterial({
+          color: new THREE.Color('#1b2733'), roughness: 0.05, metalness: 0.9, transmission: 0,
+          transparent: true, opacity: 0.85,
+        }),
+      },
       tire: { variants: 1, build: tex('tire', 256, 256, tirePainter, { roughness: 0.95 }) },
-      copLivery: { variants: 1, build: tex('copLivery', 512, 256, copLiveryPainter, { roughness: 0.4, metalness: 0.2 }) },
+      copLivery: {
+        variants: 1,
+        build: (v) => this.physicalPaint({ map: this.texture(`copLivery:${v}`, 512, 256, copLiveryPainter, v) }),
+      },
       skin: flat(SKIN_TONES),
       cloth: flat(CLOTH_COLORS),
     };

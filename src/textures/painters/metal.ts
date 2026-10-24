@@ -1,10 +1,10 @@
 import type { Painter } from '../canvas';
-import { blotches, hsl, speckle, withAlpha, wrapVariant } from './util';
+import { auxSpeckle, blotches, gray, hsl, speckle, withAlpha, wrapVariant } from './util';
 
 export const ROLLGATE_VARIANTS = 4;
 
 /** 256px: corrugated horizontal ribs. Variants: 0 plain, 1 magenta tag, 2 cyan tag, 3 dirty/rusty. */
-export const rollGatePainter: Painter = (ctx, w, h, rng, variant) => {
+export const rollGatePainter: Painter = (ctx, w, h, rng, variant, aux) => {
   const v = wrapVariant(variant, ROLLGATE_VARIANTS);
   const ribs = 16;
   const rh = h / ribs;
@@ -17,6 +17,14 @@ export const rollGatePainter: Painter = (ctx, w, h, rng, variant) => {
     ctx.fillRect(0, i * rh + rh * 0.62, w, rh * 0.2);
     ctx.fillStyle = '#4b4e52';
     ctx.fillRect(0, i * rh + rh * 0.86, w, rh * 0.14);
+    if (aux) {
+      // corrugation profile: lit crest, flat, falling shoulder, deep trough
+      const levels: [number, number, number][] = [[0, 0.22, 200], [0.22, 0.62, 160], [0.62, 0.82, 105], [0.82, 1, 45]];
+      for (const [a, b, g] of levels) {
+        aux.height.fillStyle = gray(g);
+        aux.height.fillRect(0, i * rh + rh * a, w, rh * (b - a));
+      }
+    }
   }
   if (v === 1 || v === 2) {
     const col = v === 1 ? '#e0289a' : '#18c4d8';
@@ -43,6 +51,11 @@ export const rollGatePainter: Painter = (ctx, w, h, rng, variant) => {
   // bottom lock bar
   ctx.fillStyle = '#35373a';
   ctx.fillRect(0, h - 8, w, 8);
+  if (aux) {
+    aux.height.fillStyle = gray(215);
+    aux.height.fillRect(0, h - 8, w, 8);
+    auxSpeckle(aux.height, aux.rng, 0, 0, w, h, 800, [110, 150, 190], 1, 2, 0.25);
+  }
   speckle(ctx, w, h, rng, 300, ['#000000', '#ffffff'], 1, 2, 0.08);
 };
 

@@ -55,36 +55,51 @@ export function grimeStreaks(
 export function blotches(
   ctx: CanvasRenderingContext2D, w: number, h: number, rng: Rng,
   count: number, color: string, alpha: number, minR: number, maxR: number,
+  mirror?: { ctx: CanvasRenderingContext2D; color: string } | null,
 ): void {
   ctx.save();
-  ctx.fillStyle = color;
+  mirror?.ctx.save();
   for (let i = 0; i < count; i++) {
-    ctx.globalAlpha = rng.range(alpha * 0.4, alpha);
-    ctx.beginPath();
-    ctx.arc(rng.range(0, w), rng.range(0, h), rng.range(minR, maxR), 0, Math.PI * 2);
-    ctx.fill();
+    const a = rng.range(alpha * 0.4, alpha);
+    const x = rng.range(0, w);
+    const y = rng.range(0, h);
+    const r = rng.range(minR, maxR);
+    for (const [c, col] of mirror ? [[ctx, color], [mirror.ctx, mirror.color]] as const : [[ctx, color]] as const) {
+      c.fillStyle = col;
+      c.globalAlpha = a;
+      c.beginPath();
+      c.arc(x, y, r, 0, Math.PI * 2);
+      c.fill();
+    }
   }
   ctx.restore();
+  mirror?.ctx.restore();
 }
 
 /** Random-walk crack. */
 export function crack(
   ctx: CanvasRenderingContext2D, rng: Rng, x: number, y: number, steps: number, step: number, color: string, width: number,
+  mirrors?: readonly { ctx: CanvasRenderingContext2D; color: string; width: number }[],
 ): void {
-  ctx.save();
-  ctx.strokeStyle = color;
-  ctx.lineWidth = width;
-  ctx.beginPath();
-  ctx.moveTo(x, y);
+  const pts: number[] = [x, y];
   let a = rng.range(0, Math.PI * 2);
   for (let i = 0; i < steps; i++) {
     a += rng.range(-0.7, 0.7);
     x += Math.cos(a) * step * rng.range(0.5, 1.2);
     y += Math.sin(a) * step * rng.range(0.5, 1.2);
-    ctx.lineTo(x, y);
+    pts.push(x, y);
   }
-  ctx.stroke();
-  ctx.restore();
+  const layers = [{ ctx, color, width }, ...(mirrors ?? [])];
+  for (const l of layers) {
+    l.ctx.save();
+    l.ctx.strokeStyle = l.color;
+    l.ctx.lineWidth = l.width;
+    l.ctx.beginPath();
+    l.ctx.moveTo(pts[0], pts[1]);
+    for (let i = 2; i < pts.length; i += 2) l.ctx.lineTo(pts[i], pts[i + 1]);
+    l.ctx.stroke();
+    l.ctx.restore();
+  }
 }
 
 /**
@@ -107,4 +122,42 @@ export function fitFont(
     ctx.font = `${weight} ${px}px ${family}`;
   }
   return px;
+}
+
+/** Grey level 0..255 as a CSS colour. */
+export function gray(n: number): string {
+  const v = Math.max(0, Math.min(255, Math.round(n)));
+  return `rgb(${v},${v},${v})`;
+}
+
+/** Relief-only speckle (uses the aux rng): small squares at the given grey levels inside a region. */
+export function auxSpeckle(
+  ctx: CanvasRenderingContext2D, rng: Rng, x0: number, y0: number, rw: number, rh: number,
+  count: number, levels: readonly number[], minSize: number, maxSize: number, alpha = 1,
+): void {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  for (let i = 0; i < count; i++) {
+    ctx.fillStyle = gray(levels[Math.floor(rng.next() * levels.length)]);
+    const s = rng.range(minSize, maxSize);
+    ctx.fillRect(x0 + rng.range(0, rw), y0 + rng.range(0, rh), s, s);
+  }
+  ctx.restore();
+}
+
+/** Soot streak that fades downward from (x, y0): stepped strips (no gradients) of decreasing alpha. */
+export function sootStreak(
+  ctx: CanvasRenderingContext2D, x: number, y0: number, width: number, len: number, maxAlpha: number, color = '#0a0604',
+): void {
+  const steps = 12;
+  const sh = len / steps;
+  ctx.save();
+  ctx.fillStyle = color;
+  for (let i = 0; i < steps; i++) {
+    const t = i / steps;
+    ctx.globalAlpha = maxAlpha * (1 - t) * (1 - t);
+    const wi = width * (1 - 0.35 * t);
+    ctx.fillRect(x + (width - wi) / 2, y0 + i * sh, wi, sh + 0.5);
+  }
+  ctx.restore();
 }
