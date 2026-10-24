@@ -190,7 +190,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
   /** run n fixed simulation steps synchronously (for scripted review) */
   step(n: number) { for (let i = 0; i < n; i++) { for (const sys of game.systems) sys.update(game.step); input.endFrame(); } },
   settle(n: number) { for (let i = 0; i < n; i++) updateCamera(); },
-  player, cops, traffic, wanted, physics, grid,
+  player, cops, traffic, wanted, physics, grid, events,
   nearby(r: number) { const p = player.body.pos; const out: unknown[] = []; for (const b of physics.bodies()) { const d = Math.hypot(b.pos.x - p.x, b.pos.z - p.z); if (b.shape.kind === 'circle' && d < r) out.push({ id: b.id, kind: b.kind, d: +d.toFixed(2) }); } return out; },
 };
 
