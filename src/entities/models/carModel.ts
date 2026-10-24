@@ -579,7 +579,7 @@ function lensGeo(rx: number, ry: number, rz: number, front: boolean): THREE.Buff
 /** Elliptical bezel ring facing -z or +z, sitting around a lens. */
 function bezelGeo(rx: number, ry: number): THREE.BufferGeometry {
   const g = new THREE.TorusGeometry(1, 0.1, 6, 24);
-  g.scale(rx, ry, 1);
+  g.scale(rx, ry, 0.12);
   return g;
 }
 
@@ -1185,10 +1185,10 @@ function buildTruckParts(spec: VehicleSpec): CarParts {
 
   // ---- mirrors on stalks (dark housings, chrome rim)
   for (const s of [-1, 1]) {
-    trim.add(bx(0.1, 0.4, 0.17, s * (Wc2 + 0.2), 2.1, -(doors[0][0] - 0.02)));
-    chrome.add(bx(0.11, 0.025, 0.18, s * (Wc2 + 0.2), 2.31, -(doors[0][0] - 0.02)));
-    trim.add(bx(0.2, 0.03, 0.03, s * (Wc2 + 0.1), 2.22, -(doors[0][0] - 0.02)));
-    trim.add(bx(0.2, 0.03, 0.03, s * (Wc2 + 0.1), 1.95, -(doors[0][0] - 0.02)));
+    trim.add(bx(0.1, 0.4, 0.17, s * (Wc2 + 0.07), 2.1, -(doors[0][0] - 0.02)));
+    chrome.add(bx(0.11, 0.025, 0.18, s * (Wc2 + 0.07), 2.31, -(doors[0][0] - 0.02)));
+    trim.add(bx(0.12, 0.03, 0.03, s * (Wc2 + 0.03), 2.22, -(doors[0][0] - 0.02)));
+    trim.add(bx(0.12, 0.03, 0.03, s * (Wc2 + 0.03), 1.95, -(doors[0][0] - 0.02)));
     // door step
     trim.add(bx(0.18, 0.04, 0.5, s * (Wc2 + 0.02), 0.95, -2.7));
   }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { buildCarModel } from '@/entities/models/carModel';
+import { buildCarModel, hullSectionCount } from '@/entities/models/carModel';
 import { animateWalk, buildHumanModel } from '@/entities/models/humanModel';
 import { Vehicle, VEHICLE_SPECS } from '@/entities/Vehicle';
 import { EventBus } from '@/core/Events';
@@ -64,6 +64,80 @@ describe('buildCarModel', () => {
     expect(geoOf(a.wheels[0])).toBe(geoOf(a.wheels[3]));
     expect(a.paintMeshes[0].geometry).toBe(b.paintMeshes[0].geometry);
     expect(a.headlights[0].material).not.toBe(b.headlights[0].material);
+  });
+});
+
+/** world-space vertices of a mesh (group transforms applied) */
+const verts = (m: THREE.Mesh): THREE.Vector3[] => {
+  m.updateWorldMatrix(true, false);
+  const p = m.geometry.attributes.position;
+  const out: THREE.Vector3[] = [];
+  for (let i = 0; i < p.count; i++) out.push(new THREE.Vector3().fromBufferAttribute(p, i).applyMatrix4(m.matrixWorld));
+  return out;
+};
+
+describe('lofted car hull', () => {
+  const sedan = buildCarModel('sedan', VEHICLE_SPECS.sedan, materials);
+  const body = verts(sedan.paintMeshes[0]);
+  const maxX = (vs: THREE.Vector3[]) => Math.max(...vs.map((v) => Math.abs(v.x)));
+
+  it('is built from at least 8 control sections and many more lofted stations', () => {
+    expect(hullSectionCount('sedan')).toBeGreaterThanOrEqual(8);
+    expect(hullSectionCount('sedan')).toBeLessThanOrEqual(14);
+    const stations = new Set(body.map((v) => v.z.toFixed(3)));
+    expect(stations.size).toBeGreaterThan(30);
+    expect(sedan.paintMeshes[0].geometry.attributes.position.count).toBeGreaterThan(5000);
+    // smooth shaded: normals are unit length and vary continuously (not one flat normal per quad pair)
+    const n = sedan.paintMeshes[0].geometry.attributes.normal;
+    expect(n.count).toBe(sedan.paintMeshes[0].geometry.attributes.position.count);
+  });
+
+  it('has tumblehome: the roof is narrower than the belt line', () => {
+    const H = VEHICLE_SPECS.sedan.height;
+    const roof = body.filter((v) => v.y > H - 0.08 && Math.abs(v.z) < 1);
+    const belt = body.filter((v) => v.y > 0.9 && v.y < 1.0 && Math.abs(v.z) < 1);
+    expect(roof.length).toBeGreaterThan(10);
+    expect(belt.length).toBeGreaterThan(10);
+    expect(maxX(roof)).toBeLessThan(maxX(belt) - 0.12);
+  });
+
+  it('cuts wheel arches: the body side rises around each wheel centre', () => {
+    for (const w of [sedan.steerPivots[0], sedan.wheels[3].parent!]) {
+      const wz = w.position.z;
+      const side = body.filter((v) => Math.abs(v.x) > 0.7);
+      const near = side.filter((v) => Math.abs(v.z - wz) < 0.12);
+      const between = side.filter((v) => Math.abs(v.z) < 0.2);
+      expect(Math.min(...near.map((v) => v.y))).toBeGreaterThan(Math.min(...between.map((v) => v.y)) + 0.3);
+    }
+  });
+
+  it('carves window openings: glass sits inside the body silhouette', () => {
+    const glass = verts(sedan.group.getObjectByName('glass') as THREE.Mesh);
+    expect(glass.length).toBeGreaterThan(100);
+    expect(maxX(glass)).toBeLessThan(maxX(body));
+  });
+
+  it('keeps a chrome trim material (metalness 1, roughness 0.2) and merges trim per material', () => {
+    const chrome = sedan.group.getObjectByName('chrome') as THREE.Mesh;
+    const m = chrome.material as THREE.MeshStandardMaterial;
+    expect(m.metalness).toBe(1);
+    expect(m.roughness).toBeCloseTo(0.2);
+    const again = buildCarModel('suv', VEHICLE_SPECS.suv, materials).group.getObjectByName('chrome') as THREE.Mesh;
+    expect(again.material).toBe(m);
+  });
+
+  it('SUV and truck keep distinct silhouettes with their own wheel layouts', () => {
+    const suv = buildCarModel('suv', VEHICLE_SPECS.suv, materials);
+    expect(suv.wheelRadius).toBeGreaterThan(sedan.wheelRadius);
+    const truck = buildCarModel('boxtruck', VEHICLE_SPECS.boxtruck, materials);
+    expect(truck.group.getObjectByName('cargo')).toBeTruthy();
+    expect(truck.hood).toBeUndefined();
+  });
+
+  it('stays at or under 60 meshes for every type', () => {
+    for (const t of ['sedan', 'suv', 'boxtruck', 'cop'] as const) {
+      expect(countMeshes(buildCarModel(t, VEHICLE_SPECS[t], materials).group)).toBeLessThanOrEqual(60);
+    }
   });
 });
 
@@ -131,6 +205,44 @@ describe('buildHumanModel', () => {
     const h = buildHumanModel(materials, new Rng(3), { heightScale: 1, accessory: 'none' });
     expect(bbox(h.group).max.y).toBeCloseTo(1.75, 1);
     expect(h.head.position.y).toBeGreaterThan(1.5);
+  });
+
+  it('has real proportions: head above 1.5 m, shoulders wider than hips, named hands, 12-24 meshes', () => {
+    const h = buildHumanModel(materials, new Rng(11), { heightScale: 1, outfit: 'tee', hat: 'hair', accessory: 'none' });
+    h.group.updateMatrixWorld(true);
+    const skull = h.head.getObjectByName('skull')!;
+    expect(new THREE.Box3().setFromObject(skull).max.y).toBeGreaterThan(1.6);
+    expect(new THREE.Box3().setFromObject(skull).min.y).toBeGreaterThan(1.3);
+    const handL = h.group.getObjectByName('handL')!;
+    const handR = h.group.getObjectByName('handR')!;
+    expect(handL).toBeTruthy();
+    expect(handR).toBeTruthy();
+    expect(handL.getWorldPosition(new THREE.Vector3()).x).toBeLessThan(0);
+    expect(handR.getWorldPosition(new THREE.Vector3()).x).toBeGreaterThan(0);
+    expect(handL.getWorldPosition(new THREE.Vector3()).y).toBeLessThan(1.0); // hands hang below the waist
+    const w = (n: string) => size(h.group.getObjectByName(n)!).x;
+    expect(w('chest')).toBeGreaterThan(w('hips') + 0.03);
+    const c = countMeshes(h.group);
+    expect(c).toBeGreaterThanOrEqual(12);
+    expect(c).toBeLessThanOrEqual(24);
+    // shoes: sole sits on the ground
+    expect(bbox(h.group).min.y).toBeLessThan(0.01);
+  });
+
+  it('supports hair, afro, braids and durag variants within the height budget', () => {
+    for (const hat of ['hair', 'afro', 'braids', 'durag', 'cap'] as const) {
+      const h = buildHumanModel(materials, new Rng(2), { heightScale: 1, hat });
+      expect(h.group.getObjectByName(hat === 'hair' ? 'hair' : hat)).toBeTruthy();
+      expect(bbox(h.group).max.y).toBeLessThan(1.82);
+    }
+  });
+
+  it('walk cycle sways the hips and counter-rotates the shoulders', () => {
+    const h = buildHumanModel(materials, new Rng(5));
+    animateWalk(h, 1.0, 1);
+    expect(h.hips.rotation.y).toBeGreaterThan(0.01);
+    expect(h.torso.rotation.y).toBeLessThan(-0.01);
+    expect(Math.sign(h.hips.rotation.y)).toBe(-Math.sign(h.torso.rotation.y));
   });
 
   it('has outfit variety across seeds', () => {
