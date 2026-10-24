@@ -48,7 +48,6 @@ export class TrafficSystem {
   private readonly offs: Array<() => void> = [];
   private spawnTimer = SPAWN_TICK;
   private warm = true;
-  private nextId = 0;
 
   constructor(
     private readonly grid: GridModel,
@@ -218,7 +217,6 @@ export class TrafficSystem {
     this.vehicles.push(v);
     this.scene.add(v.object3D);
     this.world.addBody(v.body);
-    this.nextId++;
   }
 
   private removeVehicle(v: IVehicle): void {

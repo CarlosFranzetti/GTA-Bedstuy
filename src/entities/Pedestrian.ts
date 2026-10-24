@@ -98,6 +98,17 @@ export class Pedestrian implements Entity {
     this.fleeTimer = seconds;
     this.state = 'fleeing';
     this.waitTimer = 0;
+    // heading toward the threat: turn back along the edge we were on
+    const t = this.targetId ? this.sidewalks.nodes[this.targetId] : undefined;
+    if (t && this.prevId && this.sidewalks.nodes[this.prevId]) {
+      const dNow = Math.hypot(this.body.pos.x - from.x, this.body.pos.z - from.z);
+      const dTarget = Math.hypot(t.pos.x - from.x, t.pos.z - from.z);
+      if (dTarget < dNow) {
+        const back = this.prevId;
+        this.prevId = this.targetId;
+        this.targetId = back;
+      }
+    }
   }
 
   onContact(_contact: Contact, other: Body2D): void {
