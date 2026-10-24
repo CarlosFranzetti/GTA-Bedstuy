@@ -30,7 +30,7 @@ function stubLib(): StubLib {
   };
 }
 
-/** 2 ns streets (x = -50, 50) x 2 ew streets (z = -50, 50) -> 1 block, 4 intersections, 4 segments. */
+/** 2 ns streets (x = -50, 50) x 2 ew streets (z = -50, 50) -> 2 blocks (rows 0 and 1), 4 intersections, 4 segments. */
 function fakeGrid(opts: { oneWay?: 0 | 1 | -1 } = {}): GridModel {
   const ow = opts.oneWay ?? 0;
   const street = (id: string, axis: 'ns' | 'ew', offset: number, roadWidth: number): StreetDef => ({
@@ -77,7 +77,12 @@ function fakeGrid(opts: { oneWay?: 0 | 1 | -1 } = {}): GridModel {
   }
   const curb = [{ x: -43, z: -44 }, { x: 43, z: -44 }, { x: 43, z: 44 }, { x: -43, z: 44 }];
   const buildingLine = [{ x: -40, z: -41 }, { x: 40, z: -41 }, { x: 40, z: 41 }, { x: -40, z: 41 }];
-  const blocks: Block[] = [{ id: 'r0c0', row: 0, col: 0, curb, buildingLine, faces: [] }];
+  const curb1 = [{ x: 57, z: -44 }, { x: 90, z: -44 }, { x: 90, z: 44 }, { x: 57, z: 44 }];
+  const buildingLine1 = [{ x: 60, z: -41 }, { x: 87, z: -41 }, { x: 87, z: 41 }, { x: 60, z: 41 }];
+  const blocks: Block[] = [
+    { id: 'r0c0', row: 0, col: 0, curb, buildingLine, faces: [] },
+    { id: 'r1c1', row: 1, col: 1, curb: curb1, buildingLine: buildingLine1, faces: [] },
+  ];
   const node = { id: 'n', pos: { x: 0, z: 0 }, streetId: 'a', heading: 0, stopLine: false };
   return {
     seed: 1,
@@ -101,11 +106,11 @@ function meshes(group: THREE.Group): THREE.Mesh[] {
 }
 
 describe('buildRoads', () => {
-  it('merges the whole city into at most 14 meshes', () => {
+  it('merges the whole city into at most 16 meshes', () => {
     const { group } = buildRoads(fakeGrid(), stubLib());
     const n = meshes(group).length;
     expect(n).toBeGreaterThan(0);
-    expect(n).toBeLessThanOrEqual(14);
+    expect(n).toBeLessThanOrEqual(16);
   });
 
   it('marks road and sidewalk meshes as shadow receivers and keeps details out of the shadow pass', () => {
@@ -126,12 +131,44 @@ describe('buildRoads', () => {
     expect(box.max.z).toBeGreaterThanOrEqual(grid.bounds.maxZ);
   });
 
-  it('requests asphalt, concrete, laneLine, crosswalk, curb and metalDark materials', () => {
+  it('requests asphalt, concrete, laneLine, crosswalk, granite, manhole, grate, bluestone and metalDark materials', () => {
     const lib = stubLib();
     buildRoads(fakeGrid(), lib);
-    for (const k of ['asphalt', 'concrete', 'laneLine', 'crosswalk', 'curb', 'metalDark', 'asphaltWorn'] as MaterialKey[]) {
+    for (const k of ['asphalt', 'concrete', 'laneLine', 'crosswalk', 'granite', 'manhole', 'grate', 'bluestone', 'metalDark', 'asphaltWorn'] as MaterialKey[]) {
       expect(lib.keys.has(k)).toBe(true);
     }
+    // the flat curb colour is gone: curbs are granite now
+    expect(lib.keys.has('curb')).toBe(false);
+  });
+
+  it('lays bluestone on odd block rows and concrete on the others', () => {
+    const lib = stubLib();
+    const { group } = buildRoads(fakeGrid(), lib);
+    const names = meshes(group).map((m) => m.name);
+    expect(names).toContain('sidewalks');
+    expect(names).toContain('sidewalks-bluestone');
+    expect(lib.requested.has('bluestone:0')).toBe(true);
+    expect(lib.requested.has('concrete:0')).toBe(true);
+  });
+
+  it('gives curbs, sidewalks and crosswalks finite UVs, with the curb top on v ~ 1', () => {
+    const { group } = buildRoads(fakeGrid(), stubLib());
+    let maxCurbV = -Infinity;
+    for (const m of meshes(group)) {
+      const uv = m.geometry.getAttribute('uv');
+      expect(uv).toBeDefined();
+      for (let i = 0; i < uv.count * 2; i++) expect(Number.isFinite(uv.array[i] as number)).toBe(true);
+      if (m.name === 'curbs') {
+        const pos = m.geometry.getAttribute('position');
+        let topV = -Infinity;
+        for (let i = 0; i < uv.count; i++) {
+          maxCurbV = Math.max(maxCurbV, uv.getY(i));
+          if (pos.getY(i) > 0.14) topV = Math.max(topV, uv.getY(i));
+        }
+        expect(topV).toBeGreaterThan(0.85);
+      }
+    }
+    expect(maxCurbV).toBeLessThanOrEqual(1);
   });
 
   it('has no NaN or infinite vertex positions', () => {

@@ -107,7 +107,7 @@ function alligator(
   for (let j = 0; j < ny; j++) {
     for (let i = 0; i < nx; i++) {
       const edge = i === 0 || j === 0 || i === nx - 1 || j === ny - 1;
-      const keep = edge ? 0.5 : 0.9;
+      const keep = edge ? 0.6 : 0.93;
       const [px, py] = at(i, j);
       if (i < nx - 1 && rng.chance(keep)) { const [qx, qy] = at(i + 1, j); segs.push(px, py, qx, qy); }
       if (j < ny - 1 && rng.chance(keep)) { const [qx, qy] = at(i, j + 1); segs.push(px, py, qx, qy); }
@@ -179,7 +179,7 @@ export const asphaltPainter: Painter = (ctx, w, h, rng, variant, aux) => {
     wobbleLine(ctx, rng, 1, 0, 1, h, 14, 1.5, 'rgba(0,0,0,0.38)', 2);
     wobbleLine(ctx, rng, 3.5, 0, 3.5, h, 14, 1.5, 'rgba(255,255,255,0.06)', 1.5);
     const cy = rng.range(0.25, 0.75) * h;
-    wobbleLine(ctx, rng, 0, cy, w, cy, 16, 1.2, 'rgba(0,0,0,0.25)', 1.5);
+    wobbleLine(ctx, rng, 0, cy, w, cy, 24, 2.2, 'rgba(0,0,0,0.17)', 1.2);
     if (H) {
       H.strokeStyle = gray(104);
       H.lineWidth = 2.5;
@@ -193,15 +193,15 @@ export const asphaltPainter: Painter = (ctx, w, h, rng, variant, aux) => {
   // alligator cracking inside the wheel tracks
   if (worn) {
     for (const cx of [0.25, 0.75]) {
-      const aw = rng.range(52, 80);
-      const ah = rng.range(110, 190);
+      const aw = rng.range(70, 100);
+      const ah = rng.range(150, 240);
       alligator(
         [
           { ctx, color: 'rgba(8,8,10,0.62)', width: 1.2 },
           ...(H ? [{ ctx: H, color: gray(34), width: 2 }] : []),
           ...(R ? [{ ctx: R, color: gray(255), width: 2 }] : []),
         ],
-        rng, w * cx - aw / 2, rng.range(0, h - ah), aw, ah, rng.range(11, 16),
+        rng, w * cx - aw / 2, rng.range(0, h - ah), aw, ah, rng.range(9, 13),
       );
     }
   }
@@ -235,10 +235,10 @@ export const asphaltPainter: Painter = (ctx, w, h, rng, variant, aux) => {
     ctx.fillStyle = hsl(220, 4, worn ? rng.range(23, 31) : rng.range(15, 20));
     ctx.fillRect(px, py, pw, ph);
     speckleIn(ctx, rng, px, py, pw, ph, Math.round((pw * ph) / 35), ['#494b50', '#17181b', '#3a3c40'], 1, 2.2, 0.6);
-    ctx.strokeStyle = '#0b0b0d';
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#17181b';
+    ctx.lineWidth = 1.5;
     ctx.strokeRect(px, py, pw, ph);
-    withAlpha(ctx, 0.5, () => {
+    withAlpha(ctx, 0.3, () => {
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 3;
       ctx.strokeRect(px - 2.5, py - 2.5, pw + 5, ph + 5);
@@ -263,7 +263,7 @@ export const asphaltPainter: Painter = (ctx, w, h, rng, variant, aux) => {
     const sy = rng.range(0, h);
     const ry = rng.range(14, 38);
     const rx = rng.range(5, 12);
-    for (const [sc, a] of [[1, 0.1], [0.66, 0.12], [0.36, 0.15]] as const) {
+    for (const [sc, a] of [[1, 0.16], [0.66, 0.2], [0.36, 0.24]] as const) {
       withAlpha(ctx, worn ? a : a * 0.6, () => {
         ctx.fillStyle = '#050507';
         oval(ctx, sx, sy, rx * sc, ry * sc);
@@ -318,8 +318,8 @@ export const concretePainter: Painter = (ctx, w, h, rng, variant, aux) => {
       }
     }
   }
-  speckle(ctx, w, h, rng, Math.round((dark ? 4200 : 2500) * kk),
-    dark ? ['#2e2d2a', '#7a7974', '#4a4945'] : ['#8a8881', '#c6c4bc', '#74726c'], 1, (dark ? 3 : 2) * k, 0.5);
+  speckle(ctx, w, h, rng, Math.round((dark ? 3000 : 2500) * kk),
+    dark ? ['#3a3936', '#6c6b66', '#4a4945'] : ['#8a8881', '#c6c4bc', '#74726c'], 1, (dark ? 2.2 : 2) * k, dark ? 0.35 : 0.5);
   blotches(ctx, w, h, rng, dark ? 10 : 12, dark ? '#1a1916' : '#4b4338', 0.1, 6 * k, 26 * k);
   if (H) {
     auxSpeckle(H, aux!.rng, 0, 0, w, h, Math.round((dark ? 14000 : 9000) * kk), [105, 120, 150, 170], 1, (dark ? 3 : 2.2) * k, 0.55);
@@ -484,9 +484,9 @@ export const crosswalkPainter: Painter = (ctx, w, h, rng) => {
     }
   });
   // flaking: asphalt flecks everywhere, more in the wheel tracks
-  speckle(ctx, w, h, rng, 700, ['#383a3f', '#4b4d52', '#2c2e32'], 1, 4, 0.8);
+  speckle(ctx, w, h, rng, 420, ['#383a3f', '#4b4d52', '#2c2e32'], 1, 3.5, 0.8);
   for (const ty of [0.25, 0.75]) {
-    speckleIn(ctx, rng, 0, h * (ty - 0.1), w, h * 0.2, 260, ['#383a3f', '#44464b', '#2c2e32'], 1.5, 5, 0.85);
+    speckleIn(ctx, rng, 0, h * (ty - 0.1), w, h * 0.2, 170, ['#383a3f', '#44464b', '#2c2e32'], 1.5, 4.5, 0.85);
     withAlpha(ctx, 0.14, () => {
       ctx.fillStyle = '#0a0a0b';
       ctx.fillRect(0, h * (ty - 0.045), w, h * 0.09);
@@ -547,13 +547,12 @@ function paintFlag(
   }
   // soft tonal clouds (nested rects) and one bedding band
   for (let i = 0; i < 5; i++) {
-    const rw = fr.range(0.2, 0.6) * iw;
-    const rh = fr.range(0.15, 0.4) * ih;
-    const rx = ix + fr.range(0, iw - rw);
-    const ry = iy + fr.range(0, ih - rh);
-    ctx.fillStyle = i % 2 === 0 ? 'rgba(210,222,236,0.05)' : 'rgba(10,12,18,0.06)';
-    ctx.fillRect(rx, ry, rw, rh);
-    ctx.fillRect(rx + rw * 0.2, ry + rh * 0.2, rw * 0.6, rh * 0.6);
+    const rw = fr.range(0.12, 0.3) * iw;
+    const rh = fr.range(0.08, 0.2) * ih;
+    const rx = ix + rw + fr.range(0, iw - 2 * rw);
+    const ry = iy + rh + fr.range(0, ih - 2 * rh);
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(210,222,236,0.04)' : 'rgba(10,12,18,0.05)';
+    for (const sc of [1, 0.72, 0.44]) oval(ctx, rx, ry, rw * sc, rh * sc);
   }
   const bandH = fr.range(0.05, 0.14) * ih;
   ctx.fillStyle = fr.chance(0.5) ? 'rgba(220,226,232,0.07)' : 'rgba(10,10,14,0.08)';
@@ -774,20 +773,20 @@ export const granitePainter: Painter = (ctx, w, h, rng, _variant, aux) => {
     });
   }
   // salt and pepper
-  const colors = ['#2a2929', '#1d1c1c', '#d9d2ce', '#efe9e4', '#b99088', '#a97f78', '#5a5655', '#7d7776'];
+  const colors = ['#3a3838', '#2c2b2b', '#d2cbc7', '#e6e0db', '#b0898a', '#a27d77', '#645f5e', '#7d7776'];
   const weights = [0, 0, 1, 1, 2, 2, 3, 4, 5, 6, 7, 0, 3, 1];
   ctx.save();
-  for (let i = 0; i < 5200; i++) {
-    ctx.globalAlpha = rng.range(0.5, 0.95);
+  for (let i = 0; i < 6500; i++) {
+    ctx.globalAlpha = rng.range(0.35, 0.8);
     ctx.fillStyle = colors[weights[Math.floor(rng.next() * weights.length)] % colors.length];
-    const sh = rng.range(0.8, 2.3);
+    const sh = rng.range(0.6, 1.6);
     ctx.fillRect(rng.range(0, w), rng.range(0, h), sh * 2, sh);
   }
   ctx.restore();
   if (H) auxSpeckle(H, aux!.rng, 0, 0, w, h, 5000, [100, 114, 142, 158], 1, 3, 0.5);
   // rare larger crystals
-  for (let i = 0; i < 26; i++) {
-    ctx.fillStyle = i % 3 === 0 ? '#1e1d1d' : i % 3 === 1 ? '#e8e0da' : '#b58a82';
+  for (let i = 0; i < 22; i++) {
+    ctx.fillStyle = i % 3 === 0 ? '#2a2929' : i % 3 === 1 ? '#e8e0da' : '#b58a82';
     const sh = rng.range(2, 4);
     ctx.fillRect(rng.range(0, w), rng.range(0, h), sh * 2.2, sh);
   }
@@ -825,14 +824,14 @@ export const granitePainter: Painter = (ctx, w, h, rng, _variant, aux) => {
   }
   // polished glints + chips knocked out of the arris
   speckleIn(ctx, rng, 0, 0, w, h * 0.2, 340, ['#fffaf6', '#e6dcd6'], 1, 2.4, 0.7);
-  withAlpha(ctx, 0.55, () => {
+  withAlpha(ctx, 0.25, () => {
     ctx.fillStyle = '#f7f1ed';
     ctx.fillRect(0, h * 0.215, w, 1.5);
   });
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 4; i++) {
     const cx = rng.range(0, w);
-    ctx.fillStyle = 'rgba(40,36,36,0.65)';
-    polyFill(ctx, [cx, h * 0.2, cx + rng.range(5, 12), h * 0.2, cx + rng.range(2, 6), h * rng.range(0.24, 0.3)]);
+    ctx.fillStyle = 'rgba(52,48,48,0.4)';
+    polyFill(ctx, [cx, h * 0.2, cx + rng.range(4, 9), h * 0.2, cx + rng.range(2, 5), h * rng.range(0.22, 0.25)]);
   }
   if (H) {
     H.fillStyle = gray(138);

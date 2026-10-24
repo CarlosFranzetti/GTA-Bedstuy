@@ -6,6 +6,12 @@
  * Decal stack (y): roadway 0 < surface details 0.012 < paint 0.016 < top layer 0.02.
  * Sidewalk fixtures sit at SIDEWALK_H + 0.012. Decal materials are cloned with polygonOffset so
  * the shared library materials are not mutated.
+ *
+ * UV conventions (world metres; tile sizes match the painters in textures/painters/ground.ts):
+ * asphalt / concrete 3 m per repeat (roadway u runs across the road from its left edge, v along it); bluestone
+ * 2.7 m x 3 m; granite curbs 0.4 m along the run with v = 1 at the top of the curb; manhole discs use the cylinder
+ * cap UV (0..1 across the disc); crosswalk bars / rails sample one 4 m x crosswalk-width tile.
+ * Sidewalks of odd block rows (the brownstone rows) are bluestone flags, the rest is concrete.
  */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -31,6 +37,7 @@ const Y_DECAL = 0.012;
 const Y_LINE = 0.016;
 const Y_TOP = 0.02;
 const Y_WALK = SIDEWALK_H + Y_DECAL;
+const Y_PIT = SIDEWALK_H + 0.02;
 
 const SEG_MARGIN = 6;
 
@@ -49,6 +56,8 @@ const STRIPE_PITCH = 1.0;
 const STOP_W = 0.4;
 const STOP_GAP = 0.5;
 const MANHOLE_R = 0.45;
+const MANHOLE_SEGMENTS = 24;
+const MANHOLE_V1_CHANCE = 0.35;
 const MANHOLE_H = 0.02;
 const GRATE_W = 0.9;
 const GRATE_D = 0.5;
@@ -59,8 +68,26 @@ const PLATE_L = 1.5;
 const PLATE_W = 1.0;
 const SKID_OPACITY = 0.35;
 
+/** metres per texture repeat */
+const TILE_M = 3;
+const BLUESTONE_U = 2.7;
+const BLUESTONE_V = 3;
+const CURB_TILE_M = 0.4;
+/** curb profile v (texture rows): front foot 0 -> chamfer start 0.78 -> flat top 0.86..0.96 (the pale wear band) */
+const CURB_V_FACE = 0.78;
+const CURB_V_TOP_A = 0.86;
+const CURB_V_TOP_B = 0.96;
+/** crosswalk texture: 4 bars at 1 m pitch along u; rails sit 3 % in from the width edges and are 7.5 % wide */
+const XW_TILE_M = 4;
+const XW_RAIL_INSET = 0.03;
+const XW_RAIL_FRAC = 0.075;
+const WORLD_X: Vec2 = { x: 1, z: 0 };
+const WORLD_Z: Vec2 = { x: 0, z: 1 };
+
 type Batch = { material: THREE.Material; geoms: THREE.BufferGeometry[]; name: string };
 type V3 = [number, number, number];
+/** curb vertex: position and texture coordinate */
+interface CurbPt { p: V3; uv: [number, number] }
 
 /** A straight stretch of block curb. 'x' runs along a fixed z line, 'z' along a fixed x line. */
 interface CurbRun {
@@ -78,6 +105,25 @@ function flatQuad(cx: number, cz: number, dir: Vec2, lenAlong: number, lenAcross
   g.rotateX(-Math.PI / 2);
   g.rotateY(Math.atan2(-dir.z, dir.x));
   g.translate(cx, y, cz);
+  return g;
+}
+
+/**
+ * Replaces the uv attribute with a planar projection of the vertex positions:
+ * u = ((p - o) . au) * su + ou, v = ((p - o) . av) * sv + ov (y is ignored).
+ */
+function projectUV(
+  g: THREE.BufferGeometry, o: Vec2, au: Vec2, av: Vec2, su: number, sv: number, ou = 0, ov = 0,
+): THREE.BufferGeometry {
+  const pos = g.getAttribute('position');
+  const uv = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i) - o.x;
+    const z = pos.getZ(i) - o.z;
+    uv[i * 2] = (x * au.x + z * au.z) * su + ou;
+    uv[i * 2 + 1] = (x * av.x + z * av.z) * sv + ov;
+  }
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   return g;
 }
 
@@ -143,24 +189,29 @@ function buildCurbRun(run: CurbRun, ends: Vec2[], out: THREE.BufferGeometry[]): 
   if (stations.length < 2) return;
 
   const pos: number[] = [];
-  const tri = (a: V3, b: V3, c: V3, hint: V3): void => {
-    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
-    const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+  const uvs: number[] = [];
+  const tri = (a: CurbPt, b: CurbPt, c: CurbPt, hint: V3): void => {
+    const ux = b.p[0] - a.p[0], uy = b.p[1] - a.p[1], uz = b.p[2] - a.p[2];
+    const vx = c.p[0] - a.p[0], vy = c.p[1] - a.p[1], vz = c.p[2] - a.p[2];
     const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
     const flip = nx * hint[0] + ny * hint[1] + nz * hint[2] < 0;
     const [p, q] = flip ? [c, b] : [b, c];
-    pos.push(a[0], a[1], a[2], p[0], p[1], p[2], q[0], q[1], q[2]);
+    pos.push(a.p[0], a.p[1], a.p[2], p.p[0], p.p[1], p.p[2], q.p[0], q.p[1], q.p[2]);
+    uvs.push(a.uv[0], a.uv[1], p.uv[0], p.uv[1], q.uv[0], q.uv[1]);
   };
-  const ring = (s: number, h: number): V3[] => {
+  const ring = (s: number, h: number): CurbPt[] => {
     const c = Math.min(CURB_CHAMFER, h * 0.4);
-    const prof: [number, number][] = [[0, 0], [CURB_W, 0], [CURB_W, h - c], [CURB_W - c, h], [c, h], [0, h - c]];
-    return prof.map(([u, y]): V3 => (run.axis === 'x'
-      ? [s, y, run.line + run.outward * u]
-      : [run.line + run.outward * u, y, s]));
+    const prof: [number, number, number][] = [
+      [0, 0, 0], [CURB_W, 0, 0], [CURB_W, h - c, CURB_V_FACE], [CURB_W - c, h, CURB_V_TOP_A], [c, h, CURB_V_TOP_B], [0, h - c, CURB_V_FACE],
+    ];
+    return prof.map(([u, y, v]): CurbPt => ({
+      p: run.axis === 'x' ? [s, y, run.line + run.outward * u] : [run.line + run.outward * u, y, s],
+      uv: [s / CURB_TILE_M, v],
+    }));
   };
-  const centroid = (r: V3[]): V3 => {
+  const centroid = (r: CurbPt[]): V3 => {
     let x = 0, y = 0, z = 0;
-    for (const p of r) { x += p[0]; y += p[1]; z += p[2]; }
+    for (const { p } of r) { x += p[0]; y += p[1]; z += p[2]; }
     const n = r.length;
     return [x / n, y / n, z / n];
   };
@@ -176,9 +227,9 @@ function buildCurbRun(run: CurbRun, ends: Vec2[], out: THREE.BufferGeometry[]): 
       const j = (i + 1) % 6;
       const A = prev[i]!, B = prev[j]!, C = cur[j]!, D = cur[i]!;
       const hint: V3 = [
-        (A[0] + B[0] + C[0] + D[0]) / 4 - mid[0],
-        (A[1] + B[1] + C[1] + D[1]) / 4 - mid[1],
-        (A[2] + B[2] + C[2] + D[2]) / 4 - mid[2],
+        (A.p[0] + B.p[0] + C.p[0] + D.p[0]) / 4 - mid[0],
+        (A.p[1] + B.p[1] + C.p[1] + D.p[1]) / 4 - mid[1],
+        (A.p[2] + B.p[2] + C.p[2] + D.p[2]) / 4 - mid[2],
       ];
       tri(A, B, C, hint);
       tri(A, C, D, hint);
@@ -189,24 +240,40 @@ function buildCurbRun(run: CurbRun, ends: Vec2[], out: THREE.BufferGeometry[]): 
 
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('uv', new THREE.Float32BufferAttribute(new Float32Array((pos.length / 3) * 2), 2));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   g.computeVertexNormals();
   out.push(g);
 }
 
-function addZebra(cw: Crosswalk, out: THREE.BufferGeometry[]): void {
+/**
+ * NYC ladder crosswalk: bars (rungs) every STRIPE_PITCH along the walking direction plus two long lines along the
+ * edges of the crosswalk width. Each quad samples its own part of the 4 m crosswalk texture tile.
+ */
+function addLadder(cw: Crosswalk, out: THREE.BufferGeometry[]): void {
   const span = sub(cw.b, cw.a);
   const L = len(span);
   if (L < 1e-6) return;
   const u = norm(span);
-  // stripes run along the road direction (perpendicular to the crossing direction)
+  // bars run along the road direction (perpendicular to the crossing direction)
   const roadDir = perpRight(u);
   const n = Math.max(1, Math.floor((L - STRIPE_W) / STRIPE_PITCH) + 1);
   const used = (n - 1) * STRIPE_PITCH + STRIPE_W;
-  const first = (L - used) / 2 + STRIPE_W / 2;
+  const t0 = (L - used) / 2;
+  const centre = { x: (cw.a.x + cw.b.x) / 2, z: (cw.a.z + cw.b.z) / 2 };
   for (let k = 0; k < n; k++) {
-    const t = first + k * STRIPE_PITCH;
-    out.push(flatQuad(cw.a.x + u.x * t, cw.a.z + u.z * t, roadDir, cw.width, STRIPE_W, Y_TOP));
+    const t = t0 + STRIPE_W / 2 + k * STRIPE_PITCH;
+    const g = flatQuad(cw.a.x + u.x * t, cw.a.z + u.z * t, roadDir, cw.width, STRIPE_W, Y_TOP);
+    // origin at the crosswalk centre: v = 0.5 across the width; u = this bar's slot in the tile
+    projectUV(g, centre, u, roadDir, 1 / XW_TILE_M, 1 / cw.width,
+      ((k % 4) * STRIPE_PITCH + L / 2 - (t - STRIPE_W / 2)) / XW_TILE_M, 0.5);
+    out.push(g);
+  }
+  const railW = cw.width * XW_RAIL_FRAC;
+  const off = cw.width / 2 - cw.width * XW_RAIL_INSET - railW / 2;
+  for (const sgn of [-1, 1]) {
+    const g = flatQuad(centre.x + roadDir.x * off * sgn, centre.z + roadDir.z * off * sgn, u, L, railW, Y_TOP);
+    projectUV(g, centre, u, roadDir, 1 / XW_TILE_M, 1 / cw.width, (L / 2 - t0) / XW_TILE_M, 0.5);
+    out.push(g);
   }
 }
 
@@ -278,7 +345,8 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
     const d = bounds.maxZ - bounds.minZ + GROUND_MARGIN * 2;
     const cx = (bounds.minX + bounds.maxX) / 2;
     const cz = (bounds.minZ + bounds.maxZ) / 2;
-    std('concrete', 1, 'ground').push(flatQuad(cx, cz, { x: 1, z: 0 }, w, d, Y_GROUND));
+    std('concrete', 1, 'ground').push(
+      projectUV(flatQuad(cx, cz, WORLD_X, w, d, Y_GROUND), { x: 0, z: 0 }, WORLD_X, WORLD_Z, 1 / TILE_M, 1 / TILE_M));
   }
 
   // Roadway: worn asphalt on streets, fresh asphalt in intersections
@@ -286,14 +354,18 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
     const d = sub(s.b, s.a);
     const L = len(d);
     if (L < 1e-6) continue;
-    std('asphalt', 1, 'roadway').push(
-      flatQuad((s.a.x + s.b.x) / 2, (s.a.z + s.b.z) / 2, norm(d), L, s.width, 0),
-    );
+    const dir = norm(d);
+    // u runs across the road from its left edge (one 3 m lane per repeat), v along it
+    std('asphalt', 1, 'roadway').push(projectUV(
+      flatQuad((s.a.x + s.b.x) / 2, (s.a.z + s.b.z) / 2, dir, L, s.width, 0),
+      s.a, perpRight(dir), dir, 1 / TILE_M, 1 / TILE_M, s.width / 2 / TILE_M, 0,
+    ));
   }
   for (const i of grid.intersections) {
-    std('asphalt', 0, 'intersections').push(
-      flatQuad(i.center.x, i.center.z, { x: 1, z: 0 }, i.halfX * 2, i.halfZ * 2, 0),
-    );
+    std('asphalt', 0, 'intersections').push(projectUV(
+      flatQuad(i.center.x, i.center.z, WORLD_X, i.halfX * 2, i.halfZ * 2, 0),
+      { x: 0, z: 0 }, WORLD_X, WORLD_Z, 1 / TILE_M, 1 / TILE_M,
+    ));
   }
 
   // Sidewalk slabs (top at SIDEWALK_H) and curbs along each block outline
@@ -309,11 +381,19 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
     const d = maxZ - minZ;
     const cx = (minX + maxX) / 2;
     const cz = (minZ + maxZ) / 2;
-    std('concrete', 0, 'sidewalks').push(box(cx, SIDEWALK_H / 2, cz, w, SIDEWALK_H, d));
+    // odd block rows are the brownstone rows, where old bluestone flags survive; elsewhere poured concrete
+    const origin = { x: minX, z: minZ };
+    if (bl.row % 2 === 1) {
+      std('bluestone', 0, 'sidewalks-bluestone').push(projectUV(
+        box(cx, SIDEWALK_H / 2, cz, w, SIDEWALK_H, d), origin, WORLD_X, WORLD_Z, 1 / BLUESTONE_U, 1 / BLUESTONE_V));
+    } else {
+      std('concrete', 0, 'sidewalks').push(projectUV(
+        box(cx, SIDEWALK_H / 2, cz, w, SIDEWALK_H, d), origin, WORLD_X, WORLD_Z, 1 / TILE_M, 1 / TILE_M));
+    }
 
     // Curbs sit on the roadway side of each block edge; the north and south runs extend by one
     // curb width so the corner squares are closed.
-    const curbs = std('curb', 0, 'curbs');
+    const curbs = std('granite', 0, 'curbs');
     const runs: CurbRun[] = [
       { axis: 'x', line: minZ, from: minX - CURB_W, to: maxX + CURB_W, outward: -1 },
       { axis: 'x', line: maxZ, from: minX - CURB_W, to: maxX + CURB_W, outward: 1 },
@@ -322,8 +402,10 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
     ];
     for (const run of runs) buildCurbRun(run, ends, curbs);
 
-    // Sidewalk fixtures along each block face: tree pits every ~12 m, avenue cellar plates
-    const treePits = decal('treeTrunk', 0, 'tree-pits');
+    // Sidewalk fixtures along each block face: tree pits every ~12 m, avenue cellar plates.
+    // Tree pits are darker paving (concrete v1) merged into the ground mesh to save a draw call; that material has
+    // no polygon offset, so they sit 2 cm above the walk instead of the usual decal gap.
+    const treePits = std('concrete', 1, 'ground');
     const plates = decal('metalDark', 0, 'metal-details');
     for (const f of bl.faces) {
       const faceLen = len(sub(f.b, f.a));
@@ -335,7 +417,8 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
         const bp = lerp2(f.a, f.b, u);
         const cp = lerp2(f.curbA, f.curbB, u);
         const c = lerp2(bp, cp, 0.55);
-        treePits.push(flatQuad(c.x, c.z, faceDir, TREE_PIT, TREE_PIT, Y_WALK));
+        treePits.push(projectUV(
+          flatQuad(c.x, c.z, faceDir, TREE_PIT, TREE_PIT, Y_PIT), { x: 0, z: 0 }, WORLD_X, WORLD_Z, 1 / TILE_M, 1 / TILE_M));
       }
       if (street.class !== 'avenue') continue;
       for (let t = 4; t <= faceLen - 4; t += 9) {
@@ -366,7 +449,10 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
     const gutters = decal('asphaltWorn', 1, 'gutters');
     for (const sgn of [-1, 1]) {
       const off = s.width / 2 - GUTTER_W / 2;
-      gutters.push(flatQuad(mid.x + right.x * off * sgn, mid.z + right.z * off * sgn, dir, L, GUTTER_W, Y_DECAL));
+      gutters.push(projectUV(
+        flatQuad(mid.x + right.x * off * sgn, mid.z + right.z * off * sgn, dir, L, GUTTER_W, Y_DECAL),
+        s.a, right, dir, 1 / TILE_M, 1 / TILE_M, s.width / 2 / TILE_M, 0,
+      ));
     }
 
     // solid white edge lines
@@ -443,24 +529,25 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
       }
     }
 
-    // manhole covers along the centre lane
-    const metal = decal('metalDark', 0, 'metal-details');
+    // manhole covers along the centre lane: round cast-iron discs, lettering aligned with the street
     const holes = rng.int(2, 3);
     for (let k = 0; k < holes; k++) {
       const t = rng.range(SEG_MARGIN, L - SEG_MARGIN);
-      const g = new THREE.CylinderGeometry(MANHOLE_R, MANHOLE_R, MANHOLE_H, 16);
+      const variant = rng.chance(MANHOLE_V1_CHANCE) ? 1 : 0;
+      const g = new THREE.CylinderGeometry(MANHOLE_R, MANHOLE_R, MANHOLE_H, MANHOLE_SEGMENTS);
+      g.rotateY(Math.atan2(dir.x, dir.z));
       g.translate(s.a.x + dir.x * t, MANHOLE_H / 2, s.a.z + dir.z * t);
-      metal.push(g);
+      decal('manhole', variant, 'manholes').push(g);
     }
   }
 
   // Intersection details: storm drains at each corner, skid marks on the approaches
-  const metalIx = decal('metalDark', 0, 'metal-details');
+  const grates = decal('grate', 0, 'storm-grates');
   const skids = bucket('skid-cracks', 'skid-marks', () => skidMaterial);
   const approaches: Vec2[] = [{ x: 0, z: -1 }, { x: 0, z: 1 }, { x: 1, z: 0 }, { x: -1, z: 0 }];
   for (const i of grid.intersections) {
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-      metalIx.push(box(
+      grates.push(box(
         i.center.x + sx * (i.halfX + 3.6), MANHOLE_H / 2, i.center.z + sz * (i.halfZ - GRATE_D / 2),
         GRATE_W, MANHOLE_H, GRATE_D,
       ));
@@ -483,7 +570,7 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
 
   // Crosswalks (zebra) and stop lines
   for (const cw of grid.crosswalks) {
-    addZebra(cw, std('crosswalk', 0, 'crosswalks'));
+    addLadder(cw, std('crosswalk', 0, 'crosswalks'));
     addStopLine(cw, grid, std('laneLine', 0, 'markings-white'));
   }
 
