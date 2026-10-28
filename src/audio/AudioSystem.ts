@@ -7,13 +7,21 @@
  */
 import type { EventBus } from '@/core/Events';
 import { Rng } from '@/core/Rng';
-import { engineFrequency, hornFrequencies, impactGain, pinkNoise } from './synth';
+import { engineFrequency, gearForSpeed, gearShiftFactor, hornFrequencies, impactGain, pinkNoise, squealLevel } from './synth';
 import { STATIONS, patternAt, stepSeconds, type Note } from './radio';
 
 /** Seconds of audio queued ahead of currentTime by the radio sequencer. */
 const LOOKAHEAD = 0.1;
 const HUM_GAIN = 0.05;
 const RADIO_GAIN = 0.25;
+const DAY_BED_GAIN = 0.035;
+const NIGHT_BED_GAIN = 0.05;
+const CRICKET_GAIN = 0.004;
+const SQUEAL_GAIN = 0.07;
+/** Seconds for the pitch dip after a gear change to recover. */
+const SHIFT_RECOVERY = 0.35;
+/** Time constant (s) of the day/night ambience crossfade. */
+const AMBIENCE_TC = 2.5;
 
 const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0);
 
@@ -25,6 +33,10 @@ interface Graph {
   engineFilter: BiquadFilterNode;
   engineGain: GainNode;
   radioBus: GainNode;
+  dayGain: GainNode;
+  nightGain: GainNode;
+  squealGain: GainNode;
+  squealFilter: BiquadFilterNode;
   /** 1 s of white noise, shared by all noise voices. */
   noise: AudioBuffer;
 }
@@ -52,6 +64,17 @@ export class AudioSystem {
   private sirenIn = 0;
   private radioOn = false;
   private stationIndex = 0;
+  private radioVolume = 1;
+  private slip = 0;
+  private handbrake = false;
+  /** 1 = steady; <1 right after an upshift, >1 after a downshift. Decays back to 1. */
+  private shiftFactor = 1;
+  private gear = -1;
+  /** Reasons the context is suspended ('menu', 'hidden', ...). Empty = running. */
+  private readonly pauseReasons = new Set<string>();
+  private readonly onVisibility = () => {
+    if (document.hidden) this.pause('hidden'); else this.resume('hidden');
+  };
   private step = 0;
   private nextNoteTime = 0;
 
@@ -65,14 +88,20 @@ export class AudioSystem {
       events.on('exitVehicle', () => this.setRadioOn(false)),
       events.on('radioNext', () => this.nextStation()),
     );
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+      document.addEventListener('visibilitychange', this.onVisibility);
+      this.unsubs.push(() => document.removeEventListener('visibilitychange', this.onVisibility));
+    }
   }
 
   /** Creates the AudioContext once and resumes it. Safe to call repeatedly. */
   async start(): Promise<void> {
     if (!this.g) {
       this.g = this.build(this.createContext());
+      // Built while paused (menu open, tab hidden): keep it quiet until every reason is released.
+      if (this.pauseReasons.size > 0 && typeof this.g.ctx.suspend === 'function') void Promise.resolve(this.g.ctx.suspend()).catch(() => undefined);
     }
-    if (this.g.ctx.state === 'suspended') {
+    if (this.pauseReasons.size === 0 && this.g.ctx.state === 'suspended') {
       try {
         await this.g.ctx.resume();
       } catch {
@@ -86,6 +115,12 @@ export class AudioSystem {
     const g = this.g;
     if (!g) return;
     const now = g.ctx.currentTime;
+    if (this.shiftFactor !== 1) {
+      const k = Math.min(1, dt / SHIFT_RECOVERY);
+      this.shiftFactor += (1 - this.shiftFactor) * k;
+      if (Math.abs(this.shiftFactor - 1) < 0.003) this.shiftFactor = 1;
+      this.applyEngine(g);
+    }
     if (this.night) {
       this.sirenIn -= dt;
       if (this.sirenIn <= 0) {
@@ -101,14 +136,63 @@ export class AudioSystem {
     this.engineSpeed = speed;
     this.engineThrottle = throttle;
     this.engineOn = inVehicle;
-    if (this.g) this.applyEngine(this.g);
+    const gear = inVehicle ? gearForSpeed(speed) : -1;
+    // Shift only when already driving in a known gear, and only under power for upshifts.
+    if (this.gear > 0 && gear > 0 && gear !== this.gear && (gear < this.gear || clamp01(throttle) > 0.3)) {
+      this.shiftFactor = gearShiftFactor(this.gear, gear);
+    }
+    this.gear = gear;
+    if (this.g) {
+      this.applyEngine(this.g);
+      this.applySqueal(this.g);
+    }
   }
 
+  /** Lateral tyre slip 0..1 (drift / skid). Ask the vehicle for it; without one, use `setHandbrake`. */
+  setSlip(slip: number): void {
+    this.slip = clamp01(slip);
+    if (this.g) this.applySqueal(this.g);
+  }
+
+  /** Fallback squeal trigger when the vehicle exposes no slip value. */
+  setHandbrake(on: boolean): void {
+    this.handbrake = on;
+    if (this.g) this.applySqueal(this.g);
+  }
+
+  /** Crossfades the day and night ambience beds (about 2.5 s time constant). */
   setNight(night: boolean): void {
     if (night === this.night) return;
     this.night = night;
     if (night) this.sirenIn = 20 + this.rng.range(0, 40);
+    if (this.g) this.applyAmbience(this.g);
   }
+
+  /** Radio level, independent of the master volume. 0..1. */
+  setRadioVolume(v: number): void {
+    this.radioVolume = clamp01(v);
+    const g = this.g;
+    if (g) g.radioBus.gain.setTargetAtTime(this.radioOn ? RADIO_GAIN * this.radioVolume : 0, g.ctx.currentTime, 0.05);
+  }
+
+  /**
+   * Suspends the AudioContext (pause menu, hidden tab). Reasons stack: the context resumes only once every
+   * reason has been released. Safe before start() (the context then stays suspended once created).
+   */
+  pause(reason = 'manual'): void {
+    this.pauseReasons.add(reason);
+    const g = this.g;
+    if (g && typeof g.ctx.suspend === 'function') void Promise.resolve(g.ctx.suspend()).catch(() => undefined);
+  }
+
+  resume(reason = 'manual'): void {
+    this.pauseReasons.delete(reason);
+    const g = this.g;
+    if (this.pauseReasons.size > 0 || !g) return;
+    if (g.ctx.state !== 'running' && typeof g.ctx.resume === 'function') void Promise.resolve(g.ctx.resume()).catch(() => undefined);
+  }
+
+  get paused(): boolean { return this.pauseReasons.size > 0; }
 
   nextStation(): void {
     this.stationIndex = (this.stationIndex + 1) % STATIONS.length;
@@ -169,7 +253,7 @@ export class AudioSystem {
     saw.start(now);
     sq.start(now);
 
-    // City hum: looping pink-ish noise through a lowpass.
+    // City hum: looping pink-ish noise through a lowpass (always on, the base of both ambience beds).
     const humBuf = ctx.createBuffer(1, sr * 2, sr);
     humBuf.getChannelData(0).set(pinkNoise(sr * 2, () => this.rng.next()));
     const hum = ctx.createBufferSource();
@@ -185,25 +269,90 @@ export class AudioSystem {
     humGain.connect(master);
     hum.start(now);
 
+    // Day bed: brighter traffic hiss. Night bed: darker rumble plus faint crickets.
+    const dayFilter = ctx.createBiquadFilter();
+    dayFilter.type = 'bandpass';
+    dayFilter.frequency.value = 1100;
+    const dayGain = ctx.createGain();
+    dayGain.gain.value = this.night ? 0 : DAY_BED_GAIN;
+    hum.connect(dayFilter);
+    dayFilter.connect(dayGain);
+    dayGain.connect(master);
+
+    const nightFilter = ctx.createBiquadFilter();
+    nightFilter.type = 'lowpass';
+    nightFilter.frequency.value = 220;
+    const nightGain = ctx.createGain();
+    nightGain.gain.value = this.night ? NIGHT_BED_GAIN : 0;
+    hum.connect(nightFilter);
+    nightFilter.connect(nightGain);
+    nightGain.connect(master);
+    const cricket = ctx.createOscillator();
+    cricket.type = 'sine';
+    cricket.frequency.value = 4300;
+    const cricketAmp = ctx.createGain();
+    cricketAmp.gain.value = CRICKET_GAIN;
+    const chirp = ctx.createOscillator();
+    chirp.type = 'square';
+    chirp.frequency.value = 11;
+    const chirpDepth = ctx.createGain();
+    chirpDepth.gain.value = CRICKET_GAIN;
+    chirp.connect(chirpDepth);
+    chirpDepth.connect(cricketAmp.gain);
+    cricket.connect(cricketAmp);
+    cricketAmp.connect(nightGain);
+    cricket.start(now);
+    chirp.start(now);
+
+    // Tyre squeal: looping noise through a bandpass, silent until slip is reported.
+    const squealSrc = ctx.createBufferSource();
+    squealSrc.buffer = noise;
+    squealSrc.loop = true;
+    const squealFilter = ctx.createBiquadFilter();
+    squealFilter.type = 'bandpass';
+    squealFilter.Q.value = 6;
+    squealFilter.frequency.value = 1800;
+    const squealGain = ctx.createGain();
+    squealGain.gain.value = 0;
+    squealSrc.connect(squealFilter);
+    squealFilter.connect(squealGain);
+    squealGain.connect(master);
+    squealSrc.start(now);
+
     // Radio bus: sequencer output, faded in and out with the vehicle state.
     const radioBus = ctx.createGain();
-    radioBus.gain.value = this.radioOn ? RADIO_GAIN : 0;
+    radioBus.gain.value = this.radioOn ? RADIO_GAIN * this.radioVolume : 0;
     radioBus.connect(master);
 
-    const g: Graph = { ctx, master, saw, sq, engineFilter, engineGain, radioBus, noise };
+    const g: Graph = { ctx, master, saw, sq, engineFilter, engineGain, radioBus, dayGain, nightGain, squealGain, squealFilter, noise };
     this.applyEngine(g);
+    this.applySqueal(g);
     return g;
   }
 
   private applyEngine(g: Graph): void {
     const now = g.ctx.currentTime;
     const throttle = clamp01(this.engineThrottle);
-    const f = engineFrequency(this.engineSpeed, throttle);
+    const f = engineFrequency(this.engineSpeed, throttle) * this.shiftFactor;
     g.saw.frequency.setTargetAtTime(f, now, 0.05);
     g.sq.frequency.setTargetAtTime(f / 2, now, 0.05);
     g.engineFilter.frequency.setTargetAtTime(300 + 900 * throttle, now, 0.1);
     const target = this.engineOn ? 0.04 + 0.08 * throttle : 0;
     g.engineGain.gain.setTargetAtTime(target, now, 0.2);
+  }
+
+  private applySqueal(g: Graph): void {
+    const now = g.ctx.currentTime;
+    const slip = Math.max(this.slip, this.handbrake ? 0.7 : 0);
+    const level = this.engineOn ? squealLevel(slip, this.engineSpeed) : 0;
+    g.squealGain.gain.setTargetAtTime(level * SQUEAL_GAIN, now, 0.05);
+    g.squealFilter.frequency.setTargetAtTime(1500 + Math.min(1, this.engineSpeed / 30) * 1200, now, 0.1);
+  }
+
+  private applyAmbience(g: Graph): void {
+    const now = g.ctx.currentTime;
+    g.dayGain.gain.setTargetAtTime(this.night ? 0 : DAY_BED_GAIN, now, AMBIENCE_TC);
+    g.nightGain.gain.setTargetAtTime(this.night ? NIGHT_BED_GAIN : 0, now, AMBIENCE_TC);
   }
 
   /* ---------- one-shots ---------- */
@@ -252,7 +401,7 @@ export class AudioSystem {
     const g = this.g;
     if (!g) return;
     const now = g.ctx.currentTime;
-    g.radioBus.gain.setTargetAtTime(on ? RADIO_GAIN : 0, now, 0.1);
+    g.radioBus.gain.setTargetAtTime(on ? RADIO_GAIN * this.radioVolume : 0, now, 0.1);
     if (on) this.nextNoteTime = now + 0.02;
   }
 

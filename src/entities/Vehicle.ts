@@ -10,19 +10,62 @@ import type {
 } from '@/world/types';
 
 export const VEHICLE_SPECS: Record<VehicleType, VehicleSpec> = {
+  // accel is the launch acceleration; the thrust curve a = accel * (throttle - (v/maxSpeed)^2) makes
+  // 0 -> 0.93*maxSpeed take ~6 s for the sedan (= 0-100 km/h) and ~12 s for the box truck.
   sedan: { type: 'sedan', length: 4.6, width: 1.8, height: 1.4, maxSpeed: 30, accel: 8, brakeDecel: 14, maxSteer: 0.6, color: '#8a8f98' },
   suv: { type: 'suv', length: 4.9, width: 2.0, height: 1.8, maxSpeed: 27, accel: 7, brakeDecel: 14, maxSteer: 0.6, color: '#2c3e50' },
-  boxtruck: { type: 'boxtruck', length: 7, width: 2.4, height: 3.2, maxSpeed: 20, accel: 4, brakeDecel: 14, maxSteer: 0.6, color: '#e8e8e8' },
+  boxtruck: { type: 'boxtruck', length: 7, width: 2.4, height: 3.2, maxSpeed: 20, accel: 2.7, brakeDecel: 12, maxSteer: 0.6, color: '#e8e8e8' },
   cop: { type: 'cop', length: 4.6, width: 1.8, height: 1.4, maxSpeed: 33, accel: 9, brakeDecel: 14, maxSteer: 0.6, color: '#f2f2f2' },
 };
 
-/** Plan says 0.4, but with that value a sedan only reaches 0.78*maxSpeed in 6 s and a boxtruck can never reach 0.8*maxSpeed. */
-const DRAG_K = 0.2;
+// ---- longitudinal
 const REVERSE_MAX = 8;
-const GRIP = 0.92;
-const GRIP_HANDBRAKE = 0.6;
+const REVERSE_ACCEL_FRAC = 0.55;
+/** Engine braking when coasting (m/s^2), fading out below 2 m/s. */
+const ENGINE_BRAKE = 1.6;
+/** Brake pedal ramp (1/s): pressing takes ~0.13 s, releasing ~0.07 s. */
+const BRAKE_APPLY = 7.5;
+const BRAKE_RELEASE = 14;
+/** Opposite-direction throttle brakes at this pedal fraction before reversing. */
+const OPPOSE_BRAKE = 0.8;
 const HANDBRAKE_DECEL_FRAC = 0.35;
+// ---- steering
+/** Full-lock sweeps per second at standstill; divided by (1 + speed/STEER_SPEED_REF) so high speed steers lazily. */
+const STEER_RATE = 3.4;
+const STEER_SPEED_REF = 18;
+const STEER_RETURN_MULT = 1.6;
+const STEER_SPEED_SHRINK = 0.7;
+const YAW_ACCEL = 7; // rad/s^2
+// ---- tyres (m/s^2 of lateral acceleration the front / rear axle can hold)
+const MU_FRONT = 10.5;
+const MU_REAR = 11.5;
+/** Lateral velocity is bled at K_LAT * vLat, capped by the rear grip. */
+const K_LAT = 12;
+const HANDBRAKE_REAR_FRAC = 0.22;
+const HANDBRAKE_YAW_BOOST = 1.5;
+const OVERSTEER_SPEED_FRAC = 0.7;
+const OVERSTEER_REAR_FRAC = 0.62;
+// ---- parked cars (driver null)
+const PARKED_FRICTION = 3.0;
+const PARKED_DRAG = 0.35;
+/** A parked car slower than this snaps to rest (static friction), so a walking player cannot shove it. */
+const PARKED_STICK = 0.35;
+// ---- impacts
 const IMPACT_MIN = 0.5;
+const WALL_FRICTION = 0.35;
+const WALL_ALIGN = 0.18;
+const SHAKE_MIN_CLOSING = 2;
+const SHAKE_FULL_CLOSING = 14;
+const SHAKE_DECAY = 5; // 1/s, only when nobody consumes it
+// ---- chassis visuals
+const ROLL_PER_ACCEL = 0.0055;
+const PITCH_PER_ACCEL = 0.004;
+const TILT_K = 70;
+const TILT_C = 10;
+const BOUNCE_K = 150;
+const BOUNCE_C = 11;
+const BOUNCE_MAX = 0.06;
+const MAX_STEP = 1 / 30;
 const SIREN_FLIPS_PER_SEC = 8; // lightbar swaps colours 8 times/s = a 4 Hz red/blue cycle
 const RED = 0xff1010;
 const BLUE = 0x1030ff;
@@ -33,7 +76,22 @@ const HEAD_ON = 4.0;
 const TAIL_ON = 1.5;
 const TAIL_BRAKE = 3.0;
 const DAMAGE_VISUAL = 0.5;
+const DENT_START = 0.3;
+const DENT_MAX = 0.16;
 const HOOD_LIFT = 0.12;
+
+function hash01(x: number, y: number, z: number, seed: number): number {
+  let h = Math.imul(Math.round(x * 100), 73856093) ^ Math.imul(Math.round(y * 100), 19349663) ^ Math.imul(Math.round(z * 100), 83492791) ^ seed;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+
+function seedOf(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return h | 0;
+}
 
 export class Vehicle implements IVehicle {
   /** Optional real car models (GLB) per type; see src/assets/models/README.md. Set once at boot. */

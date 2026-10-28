@@ -1,4 +1,4 @@
-import { clamp, forwardFromHeading, perpRight } from '@/core/Math2';
+import { angleDiff, clamp, forwardFromHeading, perpRight, wrapAngle } from '@/core/Math2';
 import type { Vec2 } from '@/core/Math2';
 import type { GridModel, StreetDef } from '@/world/types';
 
@@ -13,6 +13,33 @@ const HALO = 'rgba(10, 12, 18, 0.85)';
 const LABEL_FONT = '600 9px Arial, Helvetica, sans-serif';
 /** How far ahead along an avenue (metres) its name is drawn from the player's projection. */
 const LABEL_AHEAD_M = 30;
+
+/** Rate (1/s) at which the displayed map heading chases the real heading. */
+const HEADING_SMOOTH = 9;
+/** Cop blips flash between two colours at this rate (Hz). */
+const BLINK_HZ = 2.5;
+const COP_RED = '#ef4444';
+const NORTH_FILL = '#f5c542';
+
+/**
+ * Exponential smoothing toward `target` along the shortest arc. `dt` in seconds.
+ * Returns the new displayed angle (wrapped).
+ */
+export function smoothHeading(current: number, target: number, dt: number, rate = HEADING_SMOOTH): number {
+  if (!Number.isFinite(current)) return wrapAngle(target);
+  const k = 1 - Math.exp(-rate * Math.max(0, dt));
+  return wrapAngle(current + angleDiff(current, target) * k);
+}
+
+/** Where the "N" marker sits on the rim for a map rotated to `mapHeading` (world north is -z). */
+export function northMarkerPos(mapHeading: number, size: number, inset: number): { x: number; y: number } {
+  const half = size / 2;
+  const p = worldToMinimap({ x: 0, z: -1 }, { x: 0, z: 0 }, mapHeading, 1, 0);
+  // worldToMinimap with size 0 gives a pure direction vector (screen space).
+  const len = Math.hypot(p.x, p.y) || 1;
+  const r = half - inset;
+  return { x: half + (p.x / len) * r, y: half + (p.y / len) * r };
+}
 
 type MapPoint = { x: number; y: number };
 type ToMap = (p: Vec2) => MapPoint;
@@ -52,6 +79,9 @@ export class Minimap {
   private readonly ctx: CanvasRenderingContext2D | null;
   private readonly grid: GridModel;
   private readonly avenues: StreetDef[];
+  private mapHeading = Number.NaN;
+  private clock = 0;
+  private lastStamp = Number.NaN;
 
   constructor(root: HTMLElement, grid: GridModel) {
     this.grid = grid;
@@ -72,11 +102,25 @@ export class Minimap {
     this.ctx = canvasContext(canvas);
   }
 
-  update(playerPos: Vec2, heading: number, cops: Vec2[]): void {
+  /**
+   * `dt` (seconds) drives heading smoothing and cop blinking; when omitted it is measured from the clock.
+   * The map rotates by a smoothed heading, so the arrow swings to the true heading and settles.
+   */
+  update(playerPos: Vec2, heading: number, cops: Vec2[], dt?: number): void {
+    let step = dt;
+    if (step === undefined) {
+      const now = typeof performance !== 'undefined' ? performance.now() : 0;
+      step = Number.isFinite(this.lastStamp) ? Math.min(0.1, (now - this.lastStamp) / 1000) : 1 / 60;
+      this.lastStamp = now;
+    }
+    this.clock += step;
+    this.mapHeading = smoothHeading(this.mapHeading, heading, step);
+
     const ctx = this.ctx;
     if (!ctx) return;
     const half = SIZE / 2;
-    const toMap: ToMap = (p) => worldToMinimap(p, playerPos, heading, SCALE, SIZE);
+    const mapHeading = this.mapHeading;
+    const toMap: ToMap = (p) => worldToMinimap(p, playerPos, mapHeading, SCALE, SIZE);
 
     ctx.clearRect(0, 0, SIZE, SIZE);
 
@@ -91,7 +135,9 @@ export class Minimap {
     this.drawCops(ctx, cops, toMap);
     ctx.restore();
 
-    this.drawPlayer(ctx);
+    this.drawNorth(ctx, mapHeading);
+    // Arrow shows the true heading relative to the (slightly lagging) map.
+    this.drawPlayer(ctx, angleDiff(mapHeading, heading));
 
     ctx.beginPath();
     ctx.arc(half, half, half - 1, 0, Math.PI * 2);
@@ -174,20 +220,43 @@ export class Minimap {
   }
 
   private drawCops(ctx: CanvasRenderingContext2D, cops: Vec2[], toMap: ToMap): void {
-    ctx.fillStyle = COP_FILL;
     ctx.strokeStyle = HALO;
     ctx.lineWidth = 1;
+    // Siren flash: red/blue alternation with a slight size pulse.
+    const phase = Math.floor(this.clock * BLINK_HZ * 2) % 2 === 0;
+    ctx.fillStyle = phase ? COP_RED : COP_FILL;
+    const radius = phase ? 4.2 : 3.5;
     for (const c of cops) {
       const p = toMap(c);
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
     }
   }
 
-  private drawPlayer(ctx: CanvasRenderingContext2D): void {
+  private drawNorth(ctx: CanvasRenderingContext2D, mapHeading: number): void {
+    const p = northMarkerPos(mapHeading, SIZE, 11);
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+    ctx.fillStyle = HALO;
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = NORTH_FILL;
+    ctx.stroke();
+    ctx.font = '700 10px Arial, Helvetica, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = NORTH_FILL;
+    ctx.fillText('N', p.x, p.y + 0.5);
+  }
+
+  private drawPlayer(ctx: CanvasRenderingContext2D, rel = 0): void {
     const half = SIZE / 2;
+    ctx.save();
+    ctx.translate(half, half);
+    ctx.rotate(rel);
+    ctx.translate(-half, -half);
     ctx.beginPath();
     ctx.moveTo(half, half - 7);
     ctx.lineTo(half + 5, half + 5);
@@ -198,5 +267,6 @@ export class Minimap {
     ctx.lineWidth = 1.5;
     ctx.fill();
     ctx.stroke();
+    ctx.restore();
   }
 }

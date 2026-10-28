@@ -39,3 +39,27 @@ export function pinkNoise(length: number, random: () => number): Float32Array {
   }
   return out;
 }
+
+/** Speeds (m/s) at which the simulated gearbox goes up a gear: gear 1 below 8, gear 5 above 30. */
+export const GEAR_SPEEDS = [8, 15, 23, 30] as const;
+
+/** 1-based gear for a speed in m/s. */
+export function gearForSpeed(speed: number): number {
+  const s = Math.abs(finite(speed));
+  let g = 1;
+  for (const t of GEAR_SPEEDS) if (s >= t) g++;
+  return g;
+}
+
+/** Multiplier applied to the engine pitch right after a shift: upshifts drop the revs, downshifts blip them. */
+export function gearShiftFactor(from: number, to: number): number {
+  if (to > from) return 0.82;
+  if (to < from) return 1.12;
+  return 1;
+}
+
+/** Tyre squeal level 0..1: needs slip and some speed so a stationary handbrake stays quiet. */
+export function squealLevel(slip: number, speed: number): number {
+  const sp = clamp((Math.abs(finite(speed)) - 2) / 4, 0, 1);
+  return clamp(finite(slip), 0, 1) * sp;
+}
