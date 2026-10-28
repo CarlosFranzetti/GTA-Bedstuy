@@ -117,11 +117,13 @@ const smooth = (a: number, b: number, x: number): number => {
 function patchSkyMaterial(mat: THREE.ShaderMaterial): void {
   mat.uniforms.skyExposure = { value: 0.6 };
   mat.uniforms.nightGlow = { value: new THREE.Color(0x000000) };
+  mat.uniforms.nightGlowAway = { value: new THREE.Color(0x000000) };
+  mat.uniforms.sunDirH = { value: new THREE.Vector3(1, 0, 0) };
   const frag = mat.fragmentShader;
-  const withUniforms = frag.replace('uniform float time;', `uniform float time;\n\t\tconst float SKY_MAX_RADIANCE = ${SKY_MAX_RADIANCE.toFixed(3)};\n\t\tuniform float skyExposure;\n\t\tuniform vec3 nightGlow;`);
+  const withUniforms = frag.replace('uniform float time;', `uniform float time;\n\t\tconst float SKY_MAX_RADIANCE = ${SKY_MAX_RADIANCE.toFixed(3)};\n\t\tuniform float skyExposure;\n\t\tuniform vec3 nightGlow;\n\t\tuniform vec3 nightGlowAway;\n\t\tuniform vec3 sunDirH;`);
   const withGlow = withUniforms.replace(
     'gl_FragColor = vec4( texColor, 1.0 );',
-    'texColor *= skyExposure;\n\t\t\ttexColor = min( texColor, vec3( SKY_MAX_RADIANCE ) );\n\t\t\ttexColor += nightGlow * mix( 1.0, 0.45, clamp( direction.y * 1.5, 0.0, 1.0 ) );\n\t\t\tgl_FragColor = vec4( texColor, 1.0 );',
+    'texColor *= skyExposure;\n\t\t\ttexColor = min( texColor, vec3( SKY_MAX_RADIANCE ) );\n\t\t\tfloat glowAz = dot( normalize( direction.xz + vec2( 1e-5 ) ), sunDirH.xz ) * 0.5 + 0.5;\n\t\t\ttexColor += mix( nightGlowAway, nightGlow, glowAz * glowAz ) * mix( 1.0, 0.45, clamp( direction.y * 1.5, 0.0, 1.0 ) );\n\t\t\tgl_FragColor = vec4( texColor, 1.0 );',
   );
   if (withGlow !== frag) mat.fragmentShader = withGlow;
   mat.needsUpdate = true;
@@ -139,6 +141,7 @@ export class SkyDome {
   private readonly skyScene = new THREE.Scene();
   private readonly uniforms: Record<string, THREE.IUniform>;
   private readonly horizon = new THREE.Color();
+  private readonly glowAway = new THREE.Color();
   private pmrem: THREE.PMREMGenerator | null = null;
   private envTarget: THREE.WebGLRenderTarget | null = null;
   private lastCaptureHour = Number.NaN;
@@ -217,9 +220,16 @@ export class SkyDome {
     u.time.value = this.cloudTime;
 
     horizonColorAt(dir.y, this.horizon);
-    // Blue night glow: full when the sun is well below the horizon, gone by day.
+    // Twilight/night glow (the stock shader goes almost black once the sun is at or below the horizon). Full when the
+    // sun is well below the horizon, fading out by +0.12 elevation. Near the sun's azimuth it takes the horizon colour
+    // (orange at sunset); on the opposite side of the dome it is the cool blue-hour colour, so the dusk sky is a
+    // gradient instead of a flat orange wash.
     const glow = 1 - smooth(-0.12, 0.12, dir.y);
     (u.nightGlow.value as THREE.Color).copy(this.horizon).multiplyScalar(glow * 0.9);
+    horizonColorAt(Math.min(dir.y, -0.05), this.glowAway);
+    (u.nightGlowAway.value as THREE.Color).copy(this.glowAway).multiplyScalar(glow * 0.9);
+    const hl = Math.hypot(dir.x, dir.z);
+    (u.sunDirH.value as THREE.Vector3).set(hl > 1e-4 ? dir.x / hl : 1, 0, hl > 1e-4 ? dir.z / hl : 0);
 
     // Stars fade in as the sun drops below the horizon.
     const starAlpha = (isNight || dir.y < 0 ? 1 - smooth(-0.2, -0.02, dir.y) : 0) * 0.95;
