@@ -378,6 +378,33 @@ export class World2D implements IWorld2D {
     return out;
   }
 
+  /**
+   * Like `raycast` but only STATIC bodies (walls, trees, poles) can be hit: vehicles and pedestrians are
+   * ignored. Used by the camera so a parked car or a passer-by never pulls it in.
+   */
+  raycastStatic(from: Vec2, dir: Vec2, maxDist: number): { body: Body2D; dist: number; point: Vec2 } | null {
+    const dl = Math.hypot(dir.x, dir.z);
+    if (dl < 1e-9 || !(maxDist > 0)) return null;
+    const ex = from.x + (dir.x / dl) * maxDist, ez = from.z + (dir.z / dl) * maxDist;
+    const minX = Math.min(from.x, ex), maxX = Math.max(from.x, ex);
+    const minZ = Math.min(from.z, ez), maxZ = Math.max(from.z, ez);
+    let best: { body: Body2D; dist: number; point: Vec2 } | null = null;
+    const consider = (body: Body2D): void => {
+      const h = rayShape(from, dir, best ? best.dist : maxDist, body);
+      if (h && (!best || h.dist < best.dist)) best = { body, dist: h.dist, point: h.point };
+    };
+    if (this.staticHash.cellCount(minX, minZ, maxX, maxZ) > RAY_LINEAR_FALLBACK_CELLS) {
+      for (let i = 0; i < this.statics.length; i++) consider(this.statics[i].body);
+      return best;
+    }
+    const cand = this.cand;
+    cand.length = 0;
+    this.staticHash.query(minX - 0.1, minZ - 0.1, maxX + 0.1, maxZ + 0.1, ++this.stamp, cand);
+    for (let i = 0; i < cand.length; i++) consider(cand[i].body);
+    cand.length = 0;
+    return best;
+  }
+
   raycast(from: Vec2, dir: Vec2, maxDist: number, ignoreId?: string): { body: Body2D; dist: number; point: Vec2 } | null {
     const dl = Math.hypot(dir.x, dir.z);
     if (dl < 1e-9 || !(maxDist > 0)) return null;

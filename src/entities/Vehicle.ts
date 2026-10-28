@@ -205,6 +205,15 @@ export class Vehicle implements IVehicle {
     return { x: this.body.pos.x - right.x * off, z: this.body.pos.z - right.z * off };
   }
 
+  /** Allocation-free doorPos() for per-frame prompts. */
+  doorPosInto(out: Vec2): Vec2 {
+    const right = perpRight(forwardFromHeading(this.body.heading));
+    const off = this.spec.width / 2 + 0.3;
+    out.x = this.body.pos.x - right.x * off;
+    out.z = this.body.pos.z - right.z * off;
+    return out;
+  }
+
   update(dt: number): void {
     if (!(dt > 0)) return;
     const b = this.body;
