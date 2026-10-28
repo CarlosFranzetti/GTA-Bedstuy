@@ -50,6 +50,7 @@ export class LoadingScreen {
   constructor(parent: HTMLElement, steps: readonly LoadingStep[] = BOOT_STEPS, private readonly doc: Document = document) {
     const d = this.doc;
     const root = d.createElement('div');
+    this.root = root;
     root.id = 'loading';
     root.setAttribute('role', 'progressbar');
     root.setAttribute('aria-label', 'Loading');
@@ -94,7 +95,6 @@ export class LoadingScreen {
     root.appendChild(this.note);
 
     parent.appendChild(root);
-    this.root = root;
     this.refresh();
   }
 
