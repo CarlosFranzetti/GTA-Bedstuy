@@ -36,8 +36,8 @@ export function buildVacant(c: LotCtx): LotOutput {
       const lean = rng.range(-0.12, 0.12);
       const apex: [number, number, number] = [x + lean, hgt, zz + lean * 0.5];
       const p0: [number, number, number] = [x - dx, 0.03, zz - dz], p1: [number, number, number] = [x + dx, 0.03, zz + dz];
-      b.tri(m.leaves, p0, p1, apex, [[0.2, 0.2], [0.35, 0.2], [0.28, 0.6]]);
-      b.tri(m.leaves, p1, p0, apex, [[0.35, 0.2], [0.2, 0.2], [0.28, 0.6]]);
+      b.tri(m.leaves, p0, p1, apex, [[0.45, 0.62], [0.55, 0.62], [0.5, 0.82]]);
+      b.tri(m.leaves, p1, p0, apex, [[0.55, 0.62], [0.45, 0.62], [0.5, 0.82]]);
     }
   }
 

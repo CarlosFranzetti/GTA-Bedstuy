@@ -88,12 +88,13 @@ export interface BuildingMats {
   chain: THREE.Material;
   plainAwnings: THREE.Material[];
   darkAwning: THREE.Material;
-  /** weeds on vacant lots */
+  /** weeds on vacant lots (the plain dark-green awning fabric: no extra material, so no extra draw call) */
   leaves: THREE.Material;
 }
 
 export function loadMats(lib: IMaterialLibrary): BuildingMats {
   const windows = [0, 1, 2, 3].map((v) => lib.get('window', v));
+  const plainAwnings = [lib.awning('#2f6f4f', ''), lib.awning('#8a3b2e', '')];
   return {
     lib,
     brownstone: lib.get('brownstone', 0),
@@ -113,9 +114,9 @@ export function loadMats(lib: IMaterialLibrary): BuildingMats {
     metal: lib.get('metalDark', 0),
     scaffold: lib.get('scaffold', 0),
     chain: lib.get('chainlink', 0),
-    plainAwnings: [lib.awning('#2f6f4f', ''), lib.awning('#8a3b2e', '')],
+    plainAwnings,
     darkAwning: lib.awning('#27303a', ''),
-    leaves: lib.get('treeLeaves', 2),
+    leaves: plainAwnings[0],
   };
 }
 

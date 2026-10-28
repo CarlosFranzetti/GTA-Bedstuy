@@ -106,7 +106,7 @@ export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
     windows(b, m, {
       xs, y: wy, w: uw, h: wh, z: -S, holes: upHoles, wall: frontMat, sill: true,
       lintel: k === 1 && fam.family === 'brownstone' ? 'hood' : 'flat',
-      frame: !lite, noLedge: k >= 2, trim, rng,
+      frame: !lite && top, noLedge: k >= 2, trim, rng,
     });
     if (k === awningFloor) {
       windowAwning(b, m.darkAwning, xs[rng.int(0, bays - 1)], wy + wh + 0.12, uw, -S);

@@ -392,3 +392,20 @@ describe('fitLots / generators', () => {
     expect(rl.widthM).toBe(6);
   });
 });
+
+describe('faces.ts entry point', () => {
+  it('getBedstuyFaces caches the validated real data; faceSpecResolver yields rows or null', async () => {
+    const { getBedstuyFaces, faceSpecResolver, allLots } = await import('@/world/data/faces');
+    expect(getBedstuyFaces()).toBe(getBedstuyFaces());
+    expect(getBedstuyFaces().faces).toHaveLength(40);
+    const resolve = faceSpecResolver(grid);
+    const rows = resolve('r1c1', 'W')!;
+    expect(rows.length).toBeGreaterThan(5);
+    expect(rows[0].id).toBe('r1c1-W-0');
+    expect(resolve('r9c9', 'W')).toBeNull();
+    const all = allLots(grid);
+    expect(all.length).toBeGreaterThan(700);
+    expect(new Set(all.map((l) => l.id)).size).toBe(all.length);
+    expect(all.filter((l) => l.fromData).length).toBe(all.length);
+  });
+});
