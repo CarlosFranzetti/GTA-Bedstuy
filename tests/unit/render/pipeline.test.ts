@@ -39,8 +39,8 @@ describe('setupShadows', () => {
     expect(high.shadow.mapSize.x).toBe(4096);
     expect(high.shadow.camera.right).toBe(100);
     expect(high.shadow.camera.far).toBe(400);
-    expect(high.shadow.bias).toBe(-0.0002);
-    expect(high.shadow.normalBias).toBe(0.18);
+    expect(high.shadow.bias).toBe(-0.00015);
+    expect(high.shadow.normalBias).toBe(0.04);
     expect(high.shadow.radius).toBe(3);
 
     const low = new THREE.DirectionalLight();
@@ -56,14 +56,15 @@ describe('setupShadows', () => {
     expect(med.shadow.radius).toBe(2);
   });
 
-  it('keeps the normal bias between one PCF kernel of texels (no acne) and the old 0.5 m (peter-panning)', () => {
+  it('keeps the normal bias at about one shadow texel (audit rig: no acne down to 0 at 11-17 deg sun) and far under the old 0.5 m (a 0.15 m curb must still cast)', () => {
     const r = fakeRenderer();
     for (const q of ['low', 'medium', 'high'] as const) {
       const l = new THREE.DirectionalLight();
       setupShadows(r, l, q);
       const texel = (2 * l.shadow.camera.right) / l.shadow.mapSize.x;
-      expect(l.shadow.normalBias).toBeGreaterThanOrEqual(texel * l.shadow.radius * 0.9);
-      expect(l.shadow.normalBias).toBeLessThan(0.5);
+      expect(l.shadow.normalBias).toBeGreaterThanOrEqual(texel * 0.5);
+      expect(l.shadow.normalBias).toBeLessThanOrEqual(texel * 1.2);
+      expect(l.shadow.normalBias).toBeLessThan(0.15);
       expect(l.shadow.bias).toBeLessThan(0);
     }
   });

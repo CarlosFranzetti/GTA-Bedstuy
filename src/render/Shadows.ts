@@ -8,14 +8,14 @@ const HALF_SIZE: Record<Quality, number> = { low: 60, medium: 80, high: 100 };
 /** PCF kernel radius per quality: a small radius keeps contact edges crisp, a larger one softens far edges. */
 const SHADOW_RADIUS: Record<Quality, number> = { low: 1.5, medium: 2, high: 3 };
 /**
- * Receiver normal offset (m) and depth bias per quality. Both scale with the shadow texel (HALF_SIZE * 2 / MAP_SIZE:
- * low 11.7 cm, medium 7.8 cm, high 4.9 cm) times the PCF kernel radius: that is the smallest offset that still hides
- * self-shadowing acne on grazing surfaces (the 7:00 / 18:00 sun is only ~11-17 degrees up). The old flat 0.5 m / -0.0003
- * lifted every receiver half a metre, which detaches shadows of sub-metre casters (curbs, stoop cheek walls, poles'
- * bases, wheels) from their feet at low sun (peter-panning: foot gap = bias / tan(elevation)).
+ * Receiver normal offset (m) and depth bias per quality, about one shadow texel (HALF_SIZE * 2 / MAP_SIZE: low 11.7 cm,
+ * medium 7.8 cm, high 4.9 cm). Measured on the light-audit rig (plane + cube + 0.15 m curb + pole + sun-parallel wall in
+ * full sun at 7h = 11.5 deg and 18h = 17.2 deg): no acne even with both biases at 0, while the old flat 0.5 m offset (and
+ * 0.24 m) lifts every receiver above sub-metre casters, so a 0.15 m curb or stoop tread casts no shadow at all and cube
+ * shadows detach from their feet (peter-panning). Keep the offset under the lowest caster height worth shadowing.
  */
-const NORMAL_BIAS: Record<Quality, number> = { low: 0.3, medium: 0.24, high: 0.18 };
-const DEPTH_BIAS: Record<Quality, number> = { low: -0.0003, medium: -0.00025, high: -0.0002 };
+const NORMAL_BIAS: Record<Quality, number> = { low: 0.1, medium: 0.06, high: 0.04 };
+const DEPTH_BIAS: Record<Quality, number> = { low: -0.0003, medium: -0.0002, high: -0.00015 };
 const SHADOW_NEAR = 1;
 const SHADOW_FAR = 400;
 /** Distance (m) of the light from the shadow target. Must be < SHADOW_FAR and > the box half-size. */

@@ -677,3 +677,6 @@ L9 interim (23:50): Weather wiring verified live in main.ts (125/126/325/329/494
 
 ### 2026-10-28T23:51:21Z · P8
 P8 FINAL REPORT: wiring applied (WorldBuilder.ts getBedstuyFaces; main.ts resolveQuality :66, Weather :125/:325/:329/:494, hostedTextures :501/:537, missions :166-189/:385 earlier). Perf medium (total): throop 376, kosciuszko 358, corner 341, aerial-high 309, aerial-low 326, in-car 273, spawn 296; baseline 2118-2919 (Stage 1 ~790); low 219-332. Gates: tsc clean except F12 scratch tests; npm run build ok (6.89 MB); smoke errors []; hosted ?q=low smoke ok (hostedTextures resolves). Full vitest: 1161 pass, 6 fail all F12/Q10 in-flight (traffic.test overtake x2, vehicle scrape, pursuit x2, traffic-5min D1) + f12-q scratch; render+world suites all green. Open: graniteCurb needs RoadBuilder UV remap (FOR FABLE).
+
+### 2026-10-28T23:51:47Z · fable
+@MGR note from P8's report: X5's pulsing gold giver marker at spawn is very large and partly fills the first view (14.7% of throop-street pixels). X5 has exited; please record as a Stage 2 open issue (Fable will shrink it at close-out: smaller radius/height, fade near the camera).
