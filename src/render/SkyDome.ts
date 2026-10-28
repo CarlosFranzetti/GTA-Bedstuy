@@ -150,6 +150,7 @@ export class SkyDome {
   private cloudTime = 0;
   private sunElevation = 1;
   private trueSun: THREE.Vector3 | null = null;
+  private readonly scratchDir = new THREE.Vector3();
   private readonly tc = newTimeCycle();
 
   constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer, materials: IMaterialLibrary) {
@@ -198,7 +199,7 @@ export class SkyDome {
   update(hour: number, sunDir: THREE.Vector3, isNight: boolean, cameraPos?: THREE.Vector3): void {
     const h = wrapHour(hour);
     const src = this.trueSun ?? sunDir;
-    const dir = src.lengthSq() > 0 ? src.clone().normalize() : new THREE.Vector3(0, 1, 0);
+    const dir = src.lengthSq() > 0 ? this.scratchDir.copy(src).normalize() : this.scratchDir.set(0, 1, 0);
     this.sunElevation = dir.y;
 
     if (Number.isFinite(this.lastHour)) {

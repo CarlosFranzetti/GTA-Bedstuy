@@ -1,0 +1,51 @@
+{
+  "name": "aframe-enviropacks",
+  "version": "0.10.0",
+  "description": "High definition environments and materials for aframe",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://gitlab.com/zach-geek/aframe-enviropacks.git"
+  },
+  "keywords": [
+    "VR",
+    "aframe",
+    "aframe-component"
+  ],
+  "author": "Zach Capalbo",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://gitlab.com/zach-geek/aframe-enviropacks/issues"
+  },
+  "homepage": "https://gitlab.com/zach-geek/aframe-enviropacks",
+  "devDependencies": {
+    "@squoosh/cli": "^0.6.1",
+    "aframe": "^1.3.0",
+    "clean-webpack-plugin": "^2.0.0",
+    "css-loader": "^0.28.4",
+    "csv-loader": "^2.1.1",
+    "express": "^4.17.1",
+    "file-loader": "^1.1.11",
+    "glsl-shader-loader": "^0.1.6",
+    "html-loader": "^0.5.5",
+    "html-webpack-plugin": "^3.2.0",
+    "markdown-loader": "^5.1.0",
+    "node-fetch": "^2.6.0",
+    "raw-loader": "^4.0.0",
+    "shortid": "^2.2.15",
+    "stringify-loader": "^1.0.0",
+    "style-loader": "^0.18.2",
+    "terser-webpack-plugin": "^4.2.3",
+    "url-loader": "^3.0.0",
+    "webpack": "^4.30.0",
+    "webpack-cli": "^3.3.10",
+    "webpack-dev-server": "^3.10.1",
+    "webpack-stats-plugin": "^1.0.2",
+    "webpack-visualizer-plugin2": "^1.0.0",
+    "xml-loader": "^1.2.1"
+  },
+  "dependencies": {}
+}

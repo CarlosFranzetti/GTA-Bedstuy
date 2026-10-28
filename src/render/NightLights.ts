@@ -59,6 +59,8 @@ export class NightLights {
   private readonly scene: THREE.Scene;
   private readonly lamps: NightLampSpot[];
   private readonly slots: Slot[];
+  private readonly desired = new Set<number>();
+  private readonly held = new Set<number>();
   private readonly targets: THREE.Object3D[];
   private headlightsEnabled = true;
   private headlightsAttached = false;
@@ -108,7 +110,8 @@ export class NightLights {
     // 1. Which lamps should be lit: the poolSize nearest (night only).
     const n = this.lamps.length;
     const k = this.slots.length;
-    const desired = new Set<number>();
+    const desired = this.desired;
+    desired.clear();
     let cutoff = Infinity;
     if (isNight && n > 0) {
       for (let i = 0; i < n; i++) {
@@ -122,7 +125,8 @@ export class NightLights {
     }
 
     // 2. Release slots whose lamp fell out of range (with hysteresis) or when it is day.
-    const held = new Set<number>();
+    const held = this.held;
+    held.clear();
     for (const s of this.slots) {
       if (s.lamp < 0) continue;
       if (!s.releasing) {

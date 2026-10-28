@@ -167,8 +167,8 @@ describe('MaterialLibrary', () => {
     }
     expect((lib.get('brickRed') as THREE.MeshStandardMaterial).roughness).toBe(0.9);
     const g = lib.get('window') as THREE.MeshStandardMaterial;
-    expect(g.roughness).toBe(0.15);
-    expect(g.metalness).toBe(0.3);
+    expect(g.roughness).toBe(0.08);
+    expect(g.metalness).toBe(0);
     expect(g.envMapIntensity).toBe(1);
     expect(g.opacity).toBe(0.9);
     expect(g.transparent).toBe(true);
@@ -317,7 +317,7 @@ describe('PBR materials', () => {
     expect(m).toBeInstanceOf(THREE.MeshPhysicalMaterial);
     expect(m.clearcoat).toBe(1);
     expect(m.clearcoatRoughness).toBeCloseTo(0.08);
-    expect(m.metalness).toBeCloseTo(0.6);
+    expect(m.metalness).toBeCloseTo(0.15);
     expect(m.roughness).toBeCloseTo(0.35);
     expect(m.envMapIntensity).toBeCloseTo(1.2);
     expect(lib.carPaint('#cc2222')).toBe(m);
@@ -329,7 +329,7 @@ describe('PBR materials', () => {
     const g = lib.get('carGlass') as THREE.MeshPhysicalMaterial;
     expect(g).toBeInstanceOf(THREE.MeshPhysicalMaterial);
     expect(g.transmission).toBe(0);
-    expect(g.metalness).toBeCloseTo(0.9);
+    expect(g.metalness).toBeCloseTo(0);
     expect(g.roughness).toBeCloseTo(0.05);
     expect(g.opacity).toBeCloseTo(0.85);
     expect(g.transparent).toBe(true);
@@ -439,7 +439,7 @@ describe('PBR materials', () => {
     expect(win.map).toBe(wmap);
     expect(win.emissiveIntensity).toBe(0.9);
     expect(win.emissive.getHexString()).toBe('ffd27a');
-    expect(win.metalness).toBeCloseTo(0.3);
+    expect(win.metalness).toBeCloseTo(0);
     lib.setNight(false);
     expect(win.emissiveIntensity).toBe(0);
     // un-overridden variant is untouched

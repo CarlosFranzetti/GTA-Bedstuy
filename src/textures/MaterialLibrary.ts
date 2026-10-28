@@ -353,7 +353,7 @@ export class MaterialLibrary implements IMaterialLibrary {
 
   private physicalPaint(p: THREE.MeshPhysicalMaterialParameters): THREE.MeshPhysicalMaterial {
     return new THREE.MeshPhysicalMaterial({
-      clearcoat: 1, clearcoatRoughness: 0.08, metalness: 0.6, roughness: 0.35, ...p,
+      clearcoat: 1, clearcoatRoughness: 0.08, metalness: 0.15, roughness: 0.35, ...p,
     });
   }
 
@@ -408,8 +408,8 @@ export class MaterialLibrary implements IMaterialLibrary {
           emissive: new THREE.Color(NIGHT_EMISSIVE),
           emissiveMap: this.texture(`${key}:em:${v}`, w, h, emissive, v),
           emissiveIntensity: this.night ? NIGHT_INTENSITY : 0,
-          roughness: 0.15,
-          metalness: 0.3,
+          roughness: 0.08,
+          metalness: 0,
           transparent: true,
           opacity: 0.9,
         });
@@ -456,10 +456,10 @@ export class MaterialLibrary implements IMaterialLibrary {
       waterTank: { variants: 1, build: tex('waterTank', 256, 256, waterTankPainter) },
       treeTrunk: { variants: 1, build: tex('treeTrunk', 256, 256, treeTrunkPainter) },
       treeLeaves: { variants: LEAF_VARIANTS, build: tex('treeLeaves', 256, 256, treeLeavesPainter) },
-      metalDark: flat(['#26282b'], { roughness: 0.6, metalness: 0.5 }),
-      metalGreen: flat(['#1d5a3a'], { roughness: 0.6, metalness: 0.4 }),
-      hydrant: flat(['#c8282a', '#e0b81c'], { roughness: 0.55, metalness: 0.2 }),
-      trash: flat(['#2e3a34'], { roughness: 0.7, metalness: 0.3 }),
+      metalDark: flat(['#26282b'], { roughness: 0.6, metalness: 0 }),
+      metalGreen: flat(['#1d5a3a'], { roughness: 0.6, metalness: 0 }),
+      hydrant: flat(['#c8282a', '#e0b81c'], { roughness: 0.55, metalness: 0 }),
+      trash: flat(['#2e3a34'], { roughness: 0.7, metalness: 0 }),
       scaffold: { variants: 2, build: tex('scaffold', 256, 256, scaffoldPainter) },
       chainlink: {
         variants: 1,
@@ -471,7 +471,7 @@ export class MaterialLibrary implements IMaterialLibrary {
       carGlass: {
         variants: 1,
         build: () => new THREE.MeshPhysicalMaterial({
-          color: new THREE.Color('#1b2733'), roughness: 0.05, metalness: 0.9, transmission: 0,
+          color: new THREE.Color('#1b2733'), roughness: 0.05, metalness: 0, transmission: 0,
           transparent: true, opacity: 0.85,
         }),
       },

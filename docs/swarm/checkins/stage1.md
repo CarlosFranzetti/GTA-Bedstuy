@@ -81,10 +81,14 @@ overlay timing). The user has to check these with the fps overlay.
 
 1. **Material metalness** (R3 §5 item 5): `MaterialLibrary.ts:412` window/storefront glass metalness 0.3 → 0,
    roughness → 0.08; `:474` car glass 0.9 → 0; `:356` paint 0.6 → 0.15; `:459-462` painted metals → 0.
-   Re-run light-audit afterwards. Owner: Fable close-out (M1 has exited).
+   Re-run light-audit afterwards. Owner: Fable close-out (M1 has exited). **DONE 28 Oct 03:3xZ:** all five values applied,
+   materials tests updated, light-audit re-run (low, h=12/18/21, street+car): blown ≤ 0.01 %, night street mean 0.082,
+   dusk car 0.082, no regression against M1's numbers.
 2. **Leftover per-frame allocations:** SkyDome.ts:193 `src.clone()`, LensFlare.ts:154 `sunDir.clone()`,
    NightLights.ts:110/142 Array.from + sort (check throttling), Hud.ts:135 forEach closure + aria-label
-   string every frame, Minimap.ts:200 anchor literals. Owner: Fable close-out or Stage 2 perf lane.
+   string every frame, Minimap.ts:200 anchor literals. Owner: Fable close-out or Stage 2 perf lane. **DONE (partial):**
+   SkyDome/LensFlare clones → scratch vectors, NightLights Sets reused, Hud aria-label only on change. Minimap
+   anchor literals and NightLights sort left for the Stage 2 perf lane (not measurable at this scale).
 3. **Missing tests for PRD §5.2:** top-speed stability, contact jitter, drift slip angle > 15°, full-density
    5-minute no-gridlock sim. Owner: Stage 2 QA lane.
 4. **Real-GPU checks:** fps at medium/high, interpolation smoothness, loading timing, a night view of the
@@ -92,7 +96,8 @@ overlay timing). The user has to check these with the fps overlay.
 5. **R1 assets:** ~130 MB of 2K sets sit only in the session scratchpad. Copy the accepted ones out or keep the
    URL list (in R1.md). Confirm the cgbookcase licence per asset. Reject "Plastic" until traced.
 6. **Grid order unverified** (R2 §1 rows 4–6): N–S street sequence (possible DeKalb Ave between Pulaski and
-   Kosciuszko), one-way directions, road widths.
+   Kosciuszko), one-way directions, road widths. **Re-checked 28 Oct:** still unverifiable from the sandbox; see
+   `docs/reference/block-faces.md` rows 4b/5b. DeKalb decision goes to the user.
 7. **Awning UV stretch** (~2x on ~6.5 m frontages); R4 pre-squeezes icons to compensate.
 8. Varsity cloth key is unused. Car body UVs need v=0 at the sill for R5's dirt band. R5 has no tasks record.
 

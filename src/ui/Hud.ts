@@ -138,11 +138,8 @@ export class Hud {
       el.classList.toggle('on', on);
     });
     if (this.lastStars !== -1 && stars !== this.lastStars) this.pulseStars();
+    if (stars !== this.lastStars) this.starsEl.setAttribute('aria-label', `Wanted level ${stars} of ${MAX_STARS}`);
     this.lastStars = stars;
-    const ariaLabel = `Wanted level ${stars} of ${MAX_STARS}`;
-    if (this.starsEl.getAttribute('aria-label') !== ariaLabel) {
-      this.starsEl.setAttribute('aria-label', ariaLabel);
-    }
 
     this.setSpeed(String(Math.round(Math.abs(finite(state.speedKmh)))));
     this.speedEl.hidden = !state.inVehicle;

@@ -104,6 +104,7 @@ interface ElementSpec {
  */
 export class SunFlare {
   readonly object3d: THREE.Group;
+  private readonly scratchDir = new THREE.Vector3();
   private readonly flare: Lensflare;
   private readonly specs: ElementSpec[] = [];
   private readonly textures: THREE.Texture[] = [];
@@ -151,7 +152,7 @@ export class SunFlare {
    * @param anchor optional world point (e.g. the camera) the flare is placed relative to.
    */
   update(sunDir: THREE.Vector3, sunVisibleIntensity: number, anchor?: THREE.Vector3): void {
-    const dir = sunDir.clone().normalize();
+    const dir = this.scratchDir.copy(sunDir).normalize();
     const elevation = THREE.MathUtils.smoothstep(dir.y, 0.03, 0.35);
     const k = THREE.MathUtils.clamp(sunVisibleIntensity, 0, 1) * elevation;
     this.object3d.position.copy(dir).multiplyScalar(FLARE_DISTANCE);
