@@ -13,6 +13,7 @@ The photo-based PBR texture sets in `src/assets/textures/` are derived from
 | Asphalt026C | asphalt, asphalt_worn, roof |
 | Ground111 | dirt |
 | Bricks105 | brick_tan |
+| Wood027 (via the CC0 `aframe-enviropacks` npm package) | cedar (water tanks) |
 
 The 1K JPG sets were obtained from public mirrors (the `ubyjvovk/asciicity` and
 `amazingsammed/mini_textures` repositories, which vendored them with the same CC0 notice) because this build

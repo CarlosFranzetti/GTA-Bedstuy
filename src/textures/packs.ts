@@ -33,6 +33,9 @@ import asphaltWorn from '@/assets/textures/asphalt_worn_color.jpg';
 import asphaltN from '@/assets/textures/asphalt_normal.jpg';
 import asphaltR from '@/assets/textures/asphalt_rough.jpg';
 import asphaltWornR from '@/assets/textures/asphalt_worn_rough.jpg';
+import cedar from '@/assets/textures/cedar_color.jpg';
+import cedarN from '@/assets/textures/cedar_normal.jpg';
+import cedarR from '@/assets/textures/cedar_rough.jpg';
 import roof from '@/assets/textures/roof_color.jpg';
 import roofN from '@/assets/textures/roof_normal.jpg';
 import roofR from '@/assets/textures/roof_rough.jpg';
@@ -66,6 +69,7 @@ export const TEXTURE_PACKS: PackEntry[] = [
   { key: 'asphalt', variant: 1, color: asphaltWorn, normal: asphaltN, rough: asphaltWornR, repeat: 1, normalScale: 0.5 , roughness: 1, envMapIntensity: 0.2 },
   { key: 'asphaltWorn', variant: 0, color: asphaltWorn, normal: asphaltN, rough: asphaltWornR, repeat: 1, normalScale: 0.5 , roughness: 1, envMapIntensity: 0.2 },
   { key: 'asphaltWorn', variant: 1, color: asphaltWorn, normal: asphaltN, rough: asphaltWornR, repeat: 1, normalScale: 0.5 , roughness: 1, envMapIntensity: 0.2 },
+  { key: 'waterTank', variant: 0, color: cedar, normal: cedarN, rough: cedarR, repeat: 3, normalScale: 0.7, roughness: 1, envMapIntensity: 0.1 },
   { key: 'roof', variant: 0, color: roof, normal: roofN, rough: roofR, repeat: 1, normalScale: 0.6 , roughness: 1, envMapIntensity: 0.1 },
 ];
 
