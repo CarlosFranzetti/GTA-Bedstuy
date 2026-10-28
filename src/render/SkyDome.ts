@@ -17,6 +17,11 @@ const ENV_REBUILD_HOURS_TWILIGHT = 0.05;
 const TWILIGHT_RANGE = { lo: -0.3, hi: 0.35 };
 /** Cloud drift speed in sky `time` units per game hour. */
 const CLOUD_TIME_PER_HOUR = 600;
+/**
+ * Per-channel cap on the dome radiance (after the exposure multiplier). The Preetham sun/Mie lobe goes far above 1 at
+ * dusk, which bloomed into the whole street (blown 19:30 frames). Kept below every bloom threshold in the time cycle.
+ */
+const SKY_MAX_RADIANCE = 0.9;
 
 export interface SkyParams {
   turbidity: number;
@@ -113,10 +118,10 @@ function patchSkyMaterial(mat: THREE.ShaderMaterial): void {
   mat.uniforms.skyExposure = { value: 0.6 };
   mat.uniforms.nightGlow = { value: new THREE.Color(0x000000) };
   const frag = mat.fragmentShader;
-  const withUniforms = frag.replace('uniform float time;', 'uniform float time;\n\t\tuniform float skyExposure;\n\t\tuniform vec3 nightGlow;');
+  const withUniforms = frag.replace('uniform float time;', `uniform float time;\n\t\tconst float SKY_MAX_RADIANCE = ${SKY_MAX_RADIANCE.toFixed(3)};\n\t\tuniform float skyExposure;\n\t\tuniform vec3 nightGlow;`);
   const withGlow = withUniforms.replace(
     'gl_FragColor = vec4( texColor, 1.0 );',
-    'texColor *= skyExposure;\n\t\t\ttexColor += nightGlow * mix( 1.0, 0.45, clamp( direction.y * 1.5, 0.0, 1.0 ) );\n\t\t\tgl_FragColor = vec4( texColor, 1.0 );',
+    'texColor *= skyExposure;\n\t\t\ttexColor = min( texColor, vec3( SKY_MAX_RADIANCE ) );\n\t\t\ttexColor += nightGlow * mix( 1.0, 0.45, clamp( direction.y * 1.5, 0.0, 1.0 ) );\n\t\t\tgl_FragColor = vec4( texColor, 1.0 );',
   );
   if (withGlow !== frag) mat.fragmentShader = withGlow;
   mat.needsUpdate = true;

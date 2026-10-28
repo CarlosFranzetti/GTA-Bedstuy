@@ -13,9 +13,10 @@ const FADE_SECONDS = 0.5;
 const HYSTERESIS = 4;
 
 const HEADLIGHT_COLOR = 0xfff1d6;
-const HEADLIGHT_INTENSITY = 320;
-const HEADLIGHT_ANGLE = 0.45;
-const HEADLIGHT_PENUMBRA = 0.5;
+/** Per spot (candela). 320 gave blown, bloomed pools right in front of the bumper (near field falls off as 1/d^2). */
+const HEADLIGHT_INTENSITY = 130;
+const HEADLIGHT_ANGLE = 0.38;
+const HEADLIGHT_PENUMBRA = 0.75;
 const HEADLIGHT_DISTANCE = 45;
 const HEADLIGHT_AHEAD = 20;
 const HEADLIGHT_X = 0.7;

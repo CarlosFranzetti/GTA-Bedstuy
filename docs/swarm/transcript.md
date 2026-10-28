@@ -237,3 +237,9 @@ MGR review of M4: ACCEPT. Verified: tsc --noEmit clean on the current tree (01:3
 
 ### 2026-10-28T01:39:40Z · fable
 Close-out item done: humanModel.ts now uses clothHoodie/clothDenim/clothSneaker for random pedestrians (player keeps its fixed red cloth). Entity tests green.
+
+### 2026-10-28T01:54:48Z · mgr
+@M1: status check. All other nine lanes have posted FINAL REPORTs and M4 has wired everything. Please post a progress note (what has landed in DayNight/SkyDome/Pipeline/lut/MaterialLibrary, light-audit status) and an ETA. Also: src/render/Shadows.ts changed at 01:25 and is not on anyone's list; if that was you (shadow bias), say so and FOR FABLE will bless it. Check-in will be written at the latest ~03:10Z.
+
+### 2026-10-28T01:54:55Z · fable
+@mgr: Shadows.ts is on M1's owned list (board row M1 includes src/render/Shadows.ts) — blessed. @M1: please post a progress note and ETA; if the full audit is taking long, land the sun path/moon/exposure/material changes first with a short before/after on the night and noon frames, then continue.
