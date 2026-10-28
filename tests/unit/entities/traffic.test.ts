@@ -393,3 +393,362 @@ describe('TrafficSystem', () => {
     expect(p.state).toBe('fleeing');
   });
 });
+
+// ------------------------------------------------------------------ signals, lane discipline, pedestrians
+
+import { TrafficLights } from '@/game/TrafficLights';
+import { AVENUE_LIMIT, STREET_LIMIT } from '@/game/TrafficSystem';
+
+/** Minimal kinematic integration of the inputs an agent produces (accel 6, brake 10, bicycle steering). */
+function stepCar(v: FakeVehicle, agent: TrafficAgent, dt: number): void {
+  agent.update(dt);
+  const i = v.last!;
+  let sp = v.speed;
+  if (i.brake) sp = sp > 0 ? Math.max(0, sp - 10 * dt) : Math.min(0, sp + 10 * dt);
+  else sp += i.throttle * 6 * dt;
+  v.setSpeed(sp);
+  const b = v.body;
+  b.heading += (sp / 2.6) * Math.tan(i.steer * 0.5) * dt;
+  b.vel.x = Math.sin(b.heading) * sp;
+  b.vel.z = -Math.cos(b.heading) * sp;
+  b.pos.x += b.vel.x * dt;
+  b.pos.z += b.vel.z * dt;
+}
+
+/** One avenue ('s', ns) crossing a street ('cross'), 83 s cycle. */
+function signalGrid() {
+  const streets = {
+    s: { id: 's', class: 'avenue', roadWidth: 14, sidewalkWidth: 4, oneWay: 0 },
+    cross: { id: 'cross', class: 'street', roadWidth: 10, sidewalkWidth: 3.5, oneWay: 0 },
+  } as const;
+  return {
+    intersections: [{ id: 'x', center: { x: 30, z: 0 }, nsStreetId: 's', ewStreetId: 'cross', halfX: 7, halfZ: 5 }],
+    streetById: (id: string) => streets[id as keyof typeof streets],
+  };
+}
+function lightsAt(local: number): TrafficLights {
+  const l = new TrafficLights(signalGrid() as never);
+  l.update(((local - l.localTime('x')) % 83 + 83) % 83);
+  return l;
+}
+
+describe('TrafficAgent at signals', () => {
+  /** eastbound lane a(0) -> b(20, stop line of intersection x on street "s") -> c(40) */
+  function lane(): LaneGraph {
+    return buildGraph(
+      [
+        node('a', 0, 0, Math.PI / 2),
+        node('b', 20, 0, Math.PI / 2, { stopLine: true, intersectionId: 'x' }),
+        node('c', 40, 0, Math.PI / 2),
+        node('d', 80, 0, Math.PI / 2),
+      ],
+      [['a', 'b'], ['b', 'c'], ['c', 'd'], ['d', 'a']],
+    ) as LaneGraph;
+  }
+  function setup(lights: TrafficLights, x = 0, speed = 11) {
+    const v = fakeVehicle('v', x, 0, Math.PI / 2);
+    v.setSpeed(speed);
+    const agent = new TrafficAgent(v, lane(), new FakeWorld(), new Rng(1), { startNodeId: 'a', lights, cruiseSpeed: 11 });
+    return { v, agent };
+  }
+
+  it('stops at a red light and holds there', () => {
+    const lights = lightsAt(55); // ns (street "s") red, cross green
+    expect(lights.phaseFor('x', 's')).toBe('red');
+    const { v, agent } = setup(lights);
+    for (let t = 0; t < 8; t += 1 / 30) { stepCar(v, agent, 1 / 30); lights.update(1 / 30); }
+    expect(lights.phaseFor('x', 's')).toBe('red');
+    expect(v.body.pos.x).toBeLessThan(20.01);
+    expect(v.body.pos.x).toBeGreaterThan(14);
+    expect(Math.abs(v.speed)).toBeLessThan(0.1);
+    expect(agent.state).toBe('waiting');
+    expect(agent.targetNodeId).toBe('b');
+  });
+
+  it('proceeds when the light turns green (after a short reaction), without the stop-sign pause', () => {
+    const lights = lightsAt(77); // cross yellow/red: ns about to go green at 83
+    const { v, agent } = setup(lights, 5, 6);
+    let wentAt = -1;
+    for (let t = 0; t < 14; t += 1 / 30) {
+      stepCar(v, agent, 1 / 30);
+      lights.update(1 / 30);
+      if (wentAt < 0 && lights.phaseFor('x', 's') === 'green' && v.body.pos.x > 21) wentAt = t;
+    }
+    expect(v.body.pos.x).toBeGreaterThan(30);
+    expect(agent.targetNodeId).not.toBe('b');
+  });
+
+  it('does not stop at all on green', () => {
+    const lights = lightsAt(5);
+    const { v, agent } = setup(lights);
+    let minSpeed = 99;
+    for (let t = 0; t < 4; t += 1 / 30) {
+      stepCar(v, agent, 1 / 30);
+      lights.update(1 / 30);
+      if (v.body.pos.x > 5) minSpeed = Math.min(minSpeed, v.speed);
+      expect(agent.state).toBe('driving');
+    }
+    expect(minSpeed).toBeGreaterThan(5);
+    expect(v.body.pos.x).toBeGreaterThan(30);
+  });
+
+  it('stops for a yellow it can stop for but carries through one it cannot', () => {
+    // yellow starts at local 45
+    const far = lightsAt(45.5);
+    const a = setup(far, 0, 10); // 20 m from the line at 10 m/s: can stop (needs ~14 m)
+    for (let t = 0; t < 1.2; t += 1 / 30) { stepCar(a.v, a.agent, 1 / 30); far.update(1 / 30); }
+    for (let t = 0; t < 6; t += 1 / 30) { stepCar(a.v, a.agent, 1 / 30); far.update(1 / 30); }
+    expect(a.v.body.pos.x).toBeLessThan(20.01);
+
+    const near = lightsAt(45.5);
+    const b = setup(near, 14, 12); // 6 m from the line at 12 m/s: cannot stop
+    for (let t = 0; t < 3; t += 1 / 30) { stepCar(b.v, b.agent, 1 / 30); near.update(1 / 30); }
+    expect(b.v.body.pos.x).toBeGreaterThan(24);
+  });
+
+  it('a car already committed through the light is not stopped by the red that follows', () => {
+    const lights = lightsAt(46.5); // yellow, 1.5 s left
+    const { v, agent } = setup(lights, 12, 12);
+    for (let t = 0; t < 3; t += 1 / 30) { stepCar(v, agent, 1 / 30); lights.update(1 / 30); }
+    expect(lights.phaseFor('x', 's')).toBe('red');
+    expect(v.body.pos.x).toBeGreaterThan(30);
+  });
+
+  it('cops that ignore stop lines also ignore signals', () => {
+    const lights = lightsAt(55);
+    const v = fakeVehicle('v', 0, 0, Math.PI / 2);
+    v.setSpeed(11);
+    const agent = new TrafficAgent(v, lane(), new FakeWorld(), new Rng(1), { startNodeId: 'a', lights, ignoreStopLines: true, cruiseSpeed: 11 });
+    for (let t = 0; t < 4; t += 1 / 30) stepCar(v, agent, 1 / 30);
+    expect(v.body.pos.x).toBeGreaterThan(30);
+  });
+
+  it('an unsignalised stop line still behaves as a stop sign when lights are supplied', () => {
+    const lights = new TrafficLights({ intersections: [], streetById: () => undefined } as never);
+    const v = fakeVehicle('v', 19, 0, Math.PI / 2);
+    const agent = new TrafficAgent(v, lane(), new FakeWorld(), new Rng(1), { startNodeId: 'a', lights });
+    agent.update(0.1);
+    expect(agent.state).toBe('waiting');
+  });
+});
+
+describe('TrafficAgent driving behaviour', () => {
+  function straight(): LaneGraph {
+    const ns: LaneNode[] = [];
+    const edges: Array<[string, string]> = [];
+    for (let i = 0; i <= 10; i++) { ns.push(node(`n${i}`, i * 20, 0, Math.PI / 2)); if (i > 0) edges.push([`n${i - 1}`, `n${i}`]); }
+    return buildGraph(ns, edges) as LaneGraph;
+  }
+  /** a stationary blocker at (blockX, 0): rays that start within 1 m of z = 0 and point east hit it */
+  function blockerWorld(blockX: number, driver: IVehicle['driver']) {
+    const w = new FakeWorld();
+    const body: Body2D = {
+      id: 'blocker', kind: 'vehicle', shape: { kind: 'obb', halfW: 0.9, halfL: 2.2 },
+      pos: { x: blockX, z: 0 }, vel: { x: 0, z: 0 }, heading: Math.PI / 2, mass: 1400, userData: { driver },
+    };
+    w.ray = (from, dir, max) => {
+      const f = from as { x: number; z: number };
+      const d = dir as { x: number; z: number };
+      if (d.x < 0.5) return null;
+      if (Math.abs(f.z) > 1.0) return null;
+      const dd = blockX - 2.2 - f.x;
+      if (dd < 0 || dd > max) return null;
+      return { body, dist: dd, point: { x: blockX, z: 0 } };
+    };
+    w.circle = () => [];
+    return { w, body };
+  }
+
+  it('overtakes a parked car by moving into the adjacent lane when it is clear, then returns to its lane', () => {
+    const { w } = blockerWorld(60, null);
+    const v = fakeVehicle('v', 20, 0, Math.PI / 2);
+    const agent = new TrafficAgent(v, straight(), w, new Rng(1), { startNodeId: 'n0', cruiseSpeed: 9 });
+    let maxLat = 0;
+    let passed = false;
+    for (let t = 0; t < 30; t += 1 / 30) {
+      stepCar(v, agent, 1 / 30);
+      maxLat = Math.max(maxLat, agent.lateralOffset);
+      if (v.body.pos.x > 70) { passed = true; break; }
+    }
+    expect(maxLat).toBeGreaterThan(3);
+    expect(passed).toBe(true);
+    // beside the blocker the car really was in the other lane (left of eastbound travel = -z)
+    for (let t = 0; t < 6; t += 1 / 30) stepCar(v, agent, 1 / 30);
+    expect(agent.isOvertaking).toBe(false);
+    expect(agent.lateralOffset).toBe(0);
+  });
+
+  it('steers left (negative) while moving out to pass', () => {
+    const { w } = blockerWorld(40, null);
+    const v = fakeVehicle('v', 30, 0, Math.PI / 2);
+    const agent = new TrafficAgent(v, straight(), w, new Rng(1), { startNodeId: 'n0', cruiseSpeed: 9 });
+    let minSteer = 0;
+    for (let t = 0; t < 4; t += 1 / 30) { stepCar(v, agent, 1 / 30); minSteer = Math.min(minSteer, v.last!.steer); }
+    expect(minSteer).toBeLessThan(-0.05);
+    expect(v.body.pos.z).toBeLessThan(-0.3);
+  });
+
+  it('does not overtake when the adjacent lane is not clear', () => {
+    const { w } = blockerWorld(40, null);
+    const base = w.ray!;
+    // oncoming car in the passing lane: any ray from the shifted line hits it
+    w.ray = (from, dir, max, ig) => {
+      const f = from as { x: number; z: number };
+      if (Math.abs(f.z + 3.1) < 1) return { body: { id: 'oncoming' } as Body2D, dist: 12, point: { x: 0, z: 0 } };
+      return base(from, dir, max, ig);
+    };
+    const v = fakeVehicle('v', 33, 0, Math.PI / 2);
+    const agent = new TrafficAgent(v, straight(), w, new Rng(1), { startNodeId: 'n0', cruiseSpeed: 9 });
+    for (let t = 0; t < 6; t += 1 / 30) stepCar(v, agent, 1 / 30);
+    expect(agent.isOvertaking).toBe(false);
+    expect(v.body.pos.x).toBeLessThan(40);
+  });
+
+  it('only passes a broken-down traffic car after waiting about 3 s (parked ones after under 1 s)', () => {
+    const run = (driver: IVehicle['driver']) => {
+      const { w } = blockerWorld(40, driver);
+      const v = fakeVehicle('v', 33, 0, Math.PI / 2);
+      const agent = new TrafficAgent(v, straight(), w, new Rng(1), { startNodeId: 'n0', cruiseSpeed: 9 });
+      for (let t = 0; t < 12; t += 1 / 30) {
+        stepCar(v, agent, 1 / 30);
+        if (agent.isOvertaking) return t;
+      }
+      return Infinity;
+    };
+    const parked = run(null);
+    const stalled = run('traffic');
+    expect(parked).toBeLessThan(3);
+    expect(stalled).toBeGreaterThan(2.5);
+    expect(stalled).toBeLessThan(8);
+  });
+
+  it('honks after being blocked for 3 s, in pulses, and not before', () => {
+    const w = new FakeWorld();
+    w.ray = () => hit(4); // a wall that never moves (no adjacent lane clear either)
+    const v = fakeVehicle('v', 0, 0, Math.PI / 2);
+    const agent = new TrafficAgent(v, straight(), w, new Rng(1), { startNodeId: 'n0', cruiseSpeed: 9, overtake: false });
+    const horns: number[] = [];
+    for (let t = 0; t < 12; t += 0.05) {
+      agent.update(0.05);
+      if (v.last!.horn) horns.push(t);
+    }
+    expect(horns.length).toBeGreaterThan(0);
+    expect(horns[0]).toBeGreaterThan(2.8);
+    expect(horns[0]).toBeLessThan(3.5);
+    expect(horns.some((t) => t > 6.5)).toBe(true); // honks again later
+    expect(horns.length).toBeLessThan(12 / 0.05 / 4); // pulses, not a held horn
+  });
+
+  it('does not honk while queued at a red light', () => {
+    const w = new FakeWorld();
+    w.ray = () => hit(4);
+    const lights = lightsAt(55);
+    const lanes = buildGraph(
+      [node('a', 0, 0, Math.PI / 2), node('b', 20, 0, Math.PI / 2, { stopLine: true, intersectionId: 'x' }), node('c', 40, 0, Math.PI / 2)],
+      [['a', 'b'], ['b', 'c'], ['c', 'a']],
+    ) as LaneGraph;
+    const v = fakeVehicle('v', 0, 0, Math.PI / 2);
+    const agent = new TrafficAgent(v, lanes, w, new Rng(1), { startNodeId: 'c', lights, cruiseSpeed: 9 });
+    for (let t = 0; t < 8; t += 0.05) { agent.update(0.05); expect(v.last!.horn).toBe(false); }
+  });
+
+  it('backs off about 2 m after being stuck for 8 s, then retries', () => {
+    const w = new FakeWorld();
+    w.ray = (from, dir) => ((dir as { x: number }).x > 0 ? hit(3) : null); // blocked ahead only
+    const v = fakeVehicle('v', 0, 0, Math.PI / 2);
+    const agent = new TrafficAgent(v, straight(), w, new Rng(1), { startNodeId: 'n0', cruiseSpeed: 9, overtake: false });
+    let backedAt = -1;
+    for (let t = 0; t < 14; t += 1 / 30) {
+      stepCar(v, agent, 1 / 30);
+      if (backedAt < 0 && agent.state === 'backing') backedAt = t;
+    }
+    expect(backedAt).toBeGreaterThan(7.5);
+    expect(backedAt).toBeLessThan(9);
+    expect(v.body.pos.x).toBeLessThan(-1.2);
+    expect(v.body.pos.x).toBeGreaterThan(-3.5);
+  });
+
+  it('slows to a stop for a pedestrian in the lane ahead and goes once they have crossed', () => {
+    const w = new FakeWorld();
+    const ped: Body2D = { id: 'p', kind: 'ped', shape: { kind: 'circle', r: 0.3 }, pos: { x: 40, z: 0.5 }, vel: { x: 0, z: 0 }, heading: 0, mass: 70 };
+    w.circle = () => [ped];
+    const v = fakeVehicle('v', 0, 0, Math.PI / 2);
+    v.setSpeed(10);
+    const agent = new TrafficAgent(v, straight(), w, new Rng(1), { startNodeId: 'n0', cruiseSpeed: 11 });
+    for (let t = 0; t < 8; t += 1 / 30) stepCar(v, agent, 1 / 30);
+    expect(v.body.pos.x).toBeLessThan(38);
+    expect(v.body.pos.x).toBeGreaterThan(25);
+    expect(Math.abs(v.speed)).toBeLessThan(0.2);
+    ped.pos.z = 8; // reaches the sidewalk
+    for (let t = 0; t < 5; t += 1 / 30) stepCar(v, agent, 1 / 30);
+    expect(v.body.pos.x).toBeGreaterThan(45);
+  });
+
+  it('ignores pedestrians on the sidewalk beside the road', () => {
+    const w = new FakeWorld();
+    const ped: Body2D = { id: 'p', kind: 'ped', shape: { kind: 'circle', r: 0.3 }, pos: { x: 40, z: 6 }, vel: { x: 0, z: 0 }, heading: 0, mass: 70 };
+    w.circle = () => [ped];
+    const v = fakeVehicle('v', 0, 0, Math.PI / 2);
+    v.setSpeed(10);
+    const agent = new TrafficAgent(v, straight(), w, new Rng(1), { startNodeId: 'n0', cruiseSpeed: 11 });
+    for (let t = 0; t < 6; t += 1 / 30) stepCar(v, agent, 1 / 30);
+    expect(v.body.pos.x).toBeGreaterThan(60);
+  });
+
+  it('prefers going straight at forks (about 5:1 per turn)', () => {
+    const lanes = buildGraph(
+      [
+        node('in', 0, 0, Math.PI / 2),
+        node('s', 10, 0, Math.PI / 2), node('l', 10, -10, 0), node('r', 10, 10, Math.PI),
+      ],
+      [['in', 's'], ['in', 'l'], ['in', 'r'], ['s', 'in'], ['l', 'in'], ['r', 'in']],
+    ) as LaneGraph;
+    const counts: Record<string, number> = { s: 0, l: 0, r: 0 };
+    for (let seed = 1; seed <= 300; seed++) {
+      const v = fakeVehicle('v', 0, 0, Math.PI / 2);
+      const agent = new TrafficAgent(v, lanes, new FakeWorld(), new Rng(seed), { startNodeId: 'in' });
+      counts[agent.targetNodeId!]++;
+    }
+    expect(counts.s).toBeGreaterThan(300 * 0.55);
+    expect(counts.l).toBeGreaterThan(10);
+    expect(counts.r).toBeGreaterThan(10);
+  });
+
+  it('respects the street class speed limit with per-driver variance', () => {
+    expect(AVENUE_LIMIT).toBe(13);
+    expect(STREET_LIMIT).toBe(11);
+    const cruise = (id: string, limit: number) => {
+      const v = fakeVehicle(id, 0, 0, Math.PI / 2);
+      const agent = new TrafficAgent(v, straight(), new FakeWorld(), new Rng(1), { startNodeId: 'n0', speedForStreet: () => limit });
+      let lo = 0;
+      let hi = 30;
+      for (let i = 0; i < 20; i++) { // find the speed above which the agent brakes
+        const m = (lo + hi) / 2;
+        v.setSpeed(m);
+        agent.update(1 / 60);
+        if (v.last!.brake) hi = m; else lo = m;
+      }
+      return lo - 1;
+    };
+    const speeds = Array.from({ length: 12 }, (_, i) => cruise(`car${i}`, AVENUE_LIMIT));
+    for (const s of speeds) { expect(s).toBeGreaterThan(AVENUE_LIMIT * 0.85); expect(s).toBeLessThan(AVENUE_LIMIT * 1.06); }
+    expect(Math.max(...speeds) - Math.min(...speeds)).toBeGreaterThan(0.3);
+  });
+});
+
+describe('TrafficSystem with signals', () => {
+  it('owns the lights clock and exposes the controller', () => {
+    const { sys } = makeSystem();
+    const t0 = sys.lights.clock;
+    sys.update(0.5, { x: 0, z: 0 });
+    expect(sys.lights.clock).toBeCloseTo(t0 + 0.5, 5);
+  });
+
+  it('uses a supplied controller', () => {
+    const lights = new TrafficLights({ intersections: [], streetById: () => undefined } as never);
+    const world = new FakeWorld();
+    const sys = new TrafficSystem(fakeGrid(), world, new EventBus(), new Rng(1), new THREE.Scene(), materials,
+      (type, pos, heading) => fakeVehicle('c', pos.x, pos.z, heading, type), undefined, lights);
+    expect(sys.lights).toBe(lights);
+  });
+});
