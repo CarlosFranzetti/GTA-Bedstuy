@@ -317,9 +317,11 @@ describe('facade depth and detail', () => {
         }
       }
       if (!Number.isFinite(lo)) continue;
-      expect(hi - lo, lot.id).toBeLessThanOrEqual(lot.width + 0.5);
-      expect(lo, lot.id).toBeGreaterThanOrEqual(-0.5);
-      expect(hi, lot.id).toBeLessThanOrEqual(lot.width + 0.5);
+      // a corner shop's awning wraps the corner and mitres past the lot end on the cross-street side (S4)
+      const tol = lot.type === 'mixeduse' && lot.corner ? 2.0 : 0.5;
+      expect(hi - lo, lot.id).toBeLessThanOrEqual(lot.width + tol);
+      expect(lo, lot.id).toBeGreaterThanOrEqual(-tol);
+      expect(hi, lot.id).toBeLessThanOrEqual(lot.width + tol);
     }
   });
 

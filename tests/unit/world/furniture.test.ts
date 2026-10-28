@@ -139,11 +139,12 @@ describe('buildFurniture', () => {
     expect(colliders.length).toBeGreaterThan(0);
   });
 
-  it('keeps the whole block to at most 11 meshes (signs included)', () => {
+  it('keeps the whole block to at most 14 meshes (signs included), all instanced', () => {
     const { group } = build();
-    // 6 material buckets + the emissive lamp-head mesh + one mesh per unique sign text (4 streets here)
+    // one InstancedMesh per kind: trunk, leaves, lamp, lamp head, hydrant, trash, mailbox, icebox + one per sign text (4 streets here)
     expect(group.children.length).toBeGreaterThanOrEqual(1);
-    expect(group.children.length).toBeLessThanOrEqual(11);
+    expect(group.children.length).toBeLessThanOrEqual(14);
+    for (const c of group.children) expect((c as THREE.InstancedMesh).isInstancedMesh).toBe(true);
   });
 
   it('requests the furniture material keys from the library', () => {

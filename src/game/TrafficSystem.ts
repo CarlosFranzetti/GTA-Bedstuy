@@ -78,6 +78,9 @@ const SPAWN_MIN = 90;
 const SPAWN_MAX = 150;
 const DESPAWN = 190;
 const SPAWN_TICK = 0.25;
+/** spawn clearance: nobody within SPAWN_CLEAR m, no moving car within SPAWN_BEHIND m behind */
+const SPAWN_CLEAR = 6;
+const SPAWN_BEHIND = 32;
 const PARK_SPACING = 11;
 const PARK_END_MARGIN = 12;
 const PARK_OCCUPANCY = 0.65;
@@ -148,9 +151,10 @@ export class TrafficSystem {
     // drive
     for (let i = this.active.length - 1; i >= 0; i--) {
       const a = this.active[i];
-      if (a.vehicle.driver !== 'traffic') { this.swapRemove(this.active, i); continue; } // stolen
+      if (a.vehicle.driver !== 'traffic') { a.agent.release(); this.swapRemove(this.active, i); continue; } // stolen
       const p = a.vehicle.body.pos;
       if (!Number.isFinite(p.x) || !Number.isFinite(p.z) || dist(p, playerPos) > DESPAWN) {
+        a.agent.release();
         this.swapRemove(this.active, i);
         this.removeVehicle(a.vehicle);
         continue;
@@ -278,7 +282,7 @@ export class TrafficSystem {
       if (n.stopLine) continue;
       const d = dist(n.pos, player);
       if (d < SPAWN_MIN || d > SPAWN_MAX) continue;
-      if (this.world.queryCircle(n.pos, 5).length > 0) continue;
+      if (!this.spawnClear(n)) continue;
       const v = this.makeVehicle(this.pickType(), { x: n.pos.x, z: n.pos.z }, n.heading, this.rng.pick(CAR_COLORS));
       v.driver = 'traffic';
       this.register(v);
@@ -291,6 +295,26 @@ export class TrafficSystem {
       return true;
     }
     return false;
+  }
+
+  /**
+   * A new car appears standing still: nobody may be within a few metres, and nobody may be driving up behind it
+   * (a fast car cannot stop for a car that materialises 7 m ahead of it).
+   */
+  private spawnClear(n: LaneNode): boolean {
+    const list = this.world.queryCircle(n.pos, SPAWN_BEHIND);
+    const fx = Math.sin(n.heading);
+    const fz = -Math.cos(n.heading);
+    for (let i = 0; i < list.length; i++) {
+      const b = list[i];
+      const rx = b.pos.x - n.pos.x;
+      const rz = b.pos.z - n.pos.z;
+      const d = Math.hypot(rx, rz);
+      if (d < SPAWN_CLEAR) return false;
+      if (b.kind !== 'vehicle' && b.kind !== 'cop' && b.kind !== 'player') continue;
+      if (rx * fx + rz * fz < 0 && Math.hypot(b.vel.x, b.vel.z) > 1.5) return false;
+    }
+    return true;
   }
 
   private cruiseFor(streetId: string): number {

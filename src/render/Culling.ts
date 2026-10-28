@@ -103,6 +103,10 @@ export function splitGeometryByCell(geo: THREE.BufferGeometry, cellX: number, ce
   return out;
 }
 
+export function triangleCount(geo: THREE.BufferGeometry): number {
+  return geo.index ? geo.index.count / 3 : (geo.getAttribute('position')?.count ?? 0) / 3;
+}
+
 export interface SplitStats { meshesBefore: number; meshesAfter: number; trianglesAfter: number; }
 
 /**
@@ -110,12 +114,13 @@ export interface SplitStats { meshesBefore: number; meshesAfter: number; triangl
  * userData are kept (names must stay identical: e.g. setLampsLit finds the lamp heads by name). `userData.cell`
  * holds the cell key. Returns the new cell meshes.
  */
-export function splitMeshesIntoCells(group: THREE.Object3D, cellX: number, cellZ: number, stats?: SplitStats): THREE.Mesh[] {
+export function splitMeshesIntoCells(group: THREE.Object3D, cellX: number, cellZ: number, stats?: SplitStats, minTris = 0): THREE.Mesh[] {
   const result: THREE.Mesh[] = [];
-  const originals = group.children.filter((o): o is THREE.Mesh => (o as THREE.Mesh).isMesh === true);
+  // InstancedMesh geometry is a local template shared by every instance: never re-bin it
+  const originals = group.children.filter((o): o is THREE.Mesh => (o as THREE.Mesh).isMesh === true && !(o as THREE.InstancedMesh).isInstancedMesh);
   for (const mesh of originals) {
     if (stats) stats.meshesBefore++;
-    const parts = Array.isArray(mesh.material) ? null : splitGeometryByCell(mesh.geometry, cellX, cellZ);
+    const parts = Array.isArray(mesh.material) || triangleCount(mesh.geometry) < minTris ? null : splitGeometryByCell(mesh.geometry, cellX, cellZ);
     if (!parts || parts.size <= 1) { result.push(mesh); if (stats) { stats.meshesAfter++; } continue; }
     for (const [key, g] of parts) {
       const m = new THREE.Mesh(g, mesh.material);

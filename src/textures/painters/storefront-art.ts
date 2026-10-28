@@ -839,3 +839,32 @@ export function storefrontName(kind: StoreKind, n: number, cuisine?: Cuisine | n
   }
   return pool[Math.abs(n) % pool.length];
 }
+
+/**
+ * Lightbox copy for shops whose awning carries a parody name: what the box says is the trade, not the name (the way a
+ * lit box over a real shop front reads "DELI & GROCERY"). Each line classifies to the same art archetype as its kind;
+ * badge words (OPEN 24 HRS, ATM, EBT) become corner badges. Hand-authored POI shops use their own sign text instead.
+ */
+export const STORE_SIGNS: Record<StoreKind, readonly string[]> = {
+  bodega: ['DELI & GROCERY  ·  OPEN 24 HRS  ·  ATM', 'GROCERY  ·  FRESH DELI  ·  WE ACCEPT EBT', 'FOOD MARKET  ·  LOTTO  ·  ATM', 'CORNER STORE  ·  COLD DRINKS  ·  EBT'],
+  deli: ['DELI  ·  HOT & COLD SANDWICHES', 'DELI  ·  BREAKFAST  ·  LUNCH', 'HEROES & DELI  ·  COFFEE'],
+  laundromat: ['COIN LAUNDRY  ·  WASH DRY FOLD', 'LAUNDROMAT  ·  DROP-OFF SERVICE', 'LAUNDROMAT  ·  OPEN 7 DAYS'],
+  barber: ['BARBER SHOP  ·  WALK-INS', 'BARBERS  ·  FADES & LINE-UPS', 'BARBER SHOP  ·  KIDS CUTS'],
+  liquor: ['WINE & LIQUOR', 'LIQUOR STORE  ·  OPEN LATE', 'WINES  ·  SPIRITS  ·  LIQUOR'],
+  pharmacy: ['PHARMACY  ·  FREE DELIVERY', 'DRUGS  ·  PHARMACY  ·  RX'],
+  daycare: ['DAY CARE  ·  PRE-K  ·  AFTER SCHOOL'],
+  restaurant: ['CARIBBEAN FOOD  ·  TAKE-OUT', 'SOUL FOOD  ·  FISH  ·  WINGS', 'CHINESE FOOD  ·  TAKE-OUT'],
+  cellphone: ['CELL PHONES  ·  UNLOCK  ·  REPAIR', 'WIRELESS  ·  PREPAID  ·  ACCESSORIES'],
+  church: ['GOSPEL CHURCH  ·  ALL WELCOME'],
+  generic: ['NOTARY  ·  TAX  ·  COPIES', 'MULTI SERVICE CENTER'],
+};
+
+/** Lightbox copy for a kind (restaurants by cuisine), deterministic from `n`. */
+export function storefrontSignCopy(kind: StoreKind, n: number, cuisine?: Cuisine | null): string {
+  if (kind === 'restaurant') {
+    const i = cuisine === 'soul' ? 1 : cuisine === 'chinese' ? 2 : 0;
+    return STORE_SIGNS.restaurant[i];
+  }
+  const pool = STORE_SIGNS[kind];
+  return pool[Math.abs(n) % pool.length];
+}

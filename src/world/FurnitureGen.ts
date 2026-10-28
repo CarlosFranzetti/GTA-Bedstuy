@@ -1,6 +1,7 @@
 /**
  * Street furniture on the sidewalk strip: street trees, cobra-head lampposts, street-name boards,
- * hydrants, trash cans, mailboxes and bodega ice-boxes. Everything is merged per material.
+ * hydrants, trash cans, mailboxes and bodega ice-boxes. Every repeated piece is an InstancedMesh (one draw call per
+ * kind for the whole city, any number of copies); street-name boards are one instanced mesh per street text.
  *
  * Sidewalk strip = between a face's curb line (curbA -> curbB) and its building line (a -> b).
  * "Inward" is toward the block, i.e. -outward.
@@ -43,7 +44,21 @@ const CORNER_SIDES: [Side, Side][] = [['N', 'W'], ['N', 'E'], ['S', 'E'], ['S', 
 
 // ---------------------------------------------------------------- geometry helpers
 
-type Bucket = { material: THREE.Material; geos: THREE.BufferGeometry[] };
+/** One kind of repeated prop: a shared local geometry and the flat list of its instance matrices. */
+export interface InstBucket { material: THREE.Material; geometry: THREE.BufferGeometry; matrices: number[]; }
+
+const _q = new THREE.Quaternion();
+const _e = new THREE.Euler();
+const _p = new THREE.Vector3();
+const _s = new THREE.Vector3();
+const _m = new THREE.Matrix4();
+const _local = new THREE.Matrix4();
+
+/** Instance matrix for a piece standing at (x, y, z) with yaw (rotation.y) and optional lean (rotation x, z). */
+export function placeMatrix(out: THREE.Matrix4, x: number, y: number, z: number, yaw = 0, lean: [number, number] = [0, 0], scale = 1): THREE.Matrix4 {
+  _q.setFromEuler(_e.set(lean[0], yaw, lean[1]));
+  return out.compose(_p.set(x, y, z), _q, _s.set(scale, scale, scale));
+}
 
 /** rotation.y that turns a box's local +x onto the direction (dx, dz). */
 function alignYaw(dir: Vec2): number {
@@ -85,8 +100,8 @@ export function buildFurniture(
   lots: Lot[],
   materials: IMaterialLibrary,
   rng: Rng,
-): { group: THREE.Group; colliders: StaticCollider[]; lamps: LampSpot[] } {
-  const buckets = new Map<string, Bucket>();
+): { group: THREE.Group; colliders: StaticCollider[]; lamps: LampSpot[]; instanced: Map<string, InstBucket> } {
+  const insts = new Map<string, InstBucket>();
   const colliders: StaticCollider[] = [];
   const lamps: LampSpot[] = [];
   const lampHeadMaterial = new THREE.MeshStandardMaterial({
@@ -103,75 +118,111 @@ export function buildFurniture(
     concrete: materials.get('concrete'),
   };
 
-  const put = (key: string, material: THREE.Material, geo: THREE.BufferGeometry): void => {
-    let b = buckets.get(key);
-    if (!b) { b = { material, geos: [] }; buckets.set(key, b); }
-    b.geos.push(geo);
+  /** Shared local geometry for a kind of prop, merged from parts (built once, on first use). */
+  const geometries = new Map<string, THREE.BufferGeometry>();
+  const geometry = (key: string, make: () => THREE.BufferGeometry[]): THREE.BufferGeometry => {
+    let g = geometries.get(key);
+    if (!g) {
+      const parts = make();
+      g = parts.length === 1 ? parts[0] : mergeGeometries(parts, false);
+      if (!g) throw new Error(`FurnitureGen: could not merge geometry for ${key}`);
+      if (parts.length > 1) for (const part of parts) part.dispose();
+      geometries.set(key, g);
+    }
+    return g;
+  };
+  /** Adds one instance of prop kind `key`. */
+  const putInst = (key: string, material: THREE.Material, make: () => THREE.BufferGeometry[], m: THREE.Matrix4): void => {
+    let b = insts.get(key);
+    if (!b) { b = { material, geometry: geometry(key, make), matrices: [] }; insts.set(key, b); }
+    const e = m.elements;
+    for (let i = 0; i < 16; i++) b.matrices.push(e[i]);
   };
   const circle = (pos: Vec2, r: number): void => {
     colliders.push({ shape: { kind: 'circle', r }, pos: { x: pos.x, z: pos.z } });
   };
 
-  // ---- primitives
+  // ---- primitives (geometry is built around the local origin; the instance matrix places it)
+
+  const trunkGeo = (): THREE.BufferGeometry[] => [cyl(0.3, 0.3, TREE_TRUNK_H, 6).translate(0, TREE_TRUNK_H / 2, 0)];
+  const blobGeo = (): THREE.BufferGeometry[] => [new THREE.SphereGeometry(1, 7, 5)];
 
   function addTree(base: Vec2): void {
     const yaw = rng.range(0, Math.PI * 2);
     const lean: [number, number] = [rng.range(-0.05, 0.05), rng.range(-0.05, 0.05)];
     const R = rng.range(1.2, 1.6);
-    put('treeTrunk', M.treeTrunk, xform(cyl(0.3, 0.3, TREE_TRUNK_H, 6).translate(0, TREE_TRUNK_H / 2, 0), base.x, 0, base.z, yaw, lean));
+    const tree = placeMatrix(new THREE.Matrix4(), base.x, 0, base.z, yaw, lean);
+    putInst('treeTrunk', M.treeTrunk, trunkGeo, tree);
     const canopy: [number, number, number, number][] = [
       [0, 4.0, 0, R],
       [0.7, 3.6, 0.5, R * 0.8],
     ];
     if (rng.chance(0.6)) canopy.push([-0.6, 3.7, -0.6, R * 0.75]);
     for (const [ox, oy, oz, r] of canopy) {
-      const s = new THREE.SphereGeometry(r, 7, 5).translate(ox, oy, oz);
-      put('treeLeaves', M.treeLeaves, xform(s, base.x, 0, base.z, yaw, lean));
+      _local.compose(_p.set(ox, oy, oz), _q.identity(), _s.set(r, r, r));
+      putInst('treeLeaves', M.treeLeaves, blobGeo, _m.multiplyMatrices(tree, _local));
     }
     circle(base, TREE_COLLIDER_R);
   }
 
+  const lampGeo = (): THREE.BufferGeometry[] => [
+    cyl(0.07, 0.09, LAMP_HEIGHT, 6).translate(0, LAMP_HEIGHT / 2, 0),
+    box(LAMP_ARM, 0.08, 0.1).translate(LAMP_ARM / 2, 7.9, 0),
+  ];
+  const lampHeadGeo = (): THREE.BufferGeometry[] => [box(0.5, 0.16, 0.3).translate(LAMP_ARM, LAMP_HEAD_Y, 0)];
+
   function addLamp(base: Vec2, dir: Vec2): void {
-    const yaw = alignYaw(dir);
-    put('metalDark', M.metalDark, xform(cyl(0.07, 0.09, LAMP_HEIGHT, 6).translate(0, LAMP_HEIGHT / 2, 0), base.x, 0, base.z));
-    put('metalDark', M.metalDark, xform(box(LAMP_ARM, 0.08, 0.1), base.x + dir.x * LAMP_ARM / 2, 7.9, base.z + dir.z * LAMP_ARM / 2, yaw));
-    put(LAMP_HEAD_NAME, lampHeadMaterial, xform(box(0.5, 0.16, 0.3), base.x + dir.x * LAMP_ARM, LAMP_HEAD_Y, base.z + dir.z * LAMP_ARM, yaw));
+    const m = placeMatrix(new THREE.Matrix4(), base.x, 0, base.z, alignYaw(dir));
+    putInst('lamp', M.metalDark, lampGeo, m);
+    putInst(LAMP_HEAD_NAME, lampHeadMaterial, lampHeadGeo, m);
     lamps.push({ pos: { x: base.x + dir.x * LAMP_ARM, z: base.z + dir.z * LAMP_ARM }, height: LAMP_HEAD_Y });
     circle(base, LAMP_COLLIDER_R);
   }
 
   function addSignBoards(base: Vec2, street: StreetDef): void {
-    // Two thin planes (front and back) so the text reads from both sides.
+    // Two thin planes (front and back) so the text reads from both sides. The street's yaw is baked into the geometry
+    // (every board of a street faces the same way), so instances only translate.
     const yaw = street.axis === 'ew' ? 0 : Math.PI / 2;
     const key = `sign:${street.signName}`;
     const mat = materials.sign(street.signName, SIGN_BG, SIGN_FG);
-    const front = new THREE.PlaneGeometry(SIGN_W, SIGN_H).translate(0, 0, 0.01);
-    const back = new THREE.PlaneGeometry(SIGN_W, SIGN_H).rotateY(Math.PI).translate(0, 0, -0.01);
-    put(key, mat, xform(front, base.x, SIGN_HEIGHT, base.z, yaw));
-    put(key, mat, xform(back, base.x, SIGN_HEIGHT, base.z, yaw));
+    putInst(key, mat, () => {
+      const front = new THREE.PlaneGeometry(SIGN_W, SIGN_H).translate(0, 0, 0.01);
+      const back = new THREE.PlaneGeometry(SIGN_W, SIGN_H).rotateY(Math.PI).translate(0, 0, -0.01);
+      return [front.rotateY(yaw), back.rotateY(yaw)];
+    }, placeMatrix(new THREE.Matrix4(), base.x, SIGN_HEIGHT, base.z));
   }
 
+  const hydrantGeo = (): THREE.BufferGeometry[] => [
+    cyl(0.16, 0.18, 0.6).translate(0, 0.3, 0),
+    cyl(0.1, 0.16, 0.18).translate(0, 0.69, 0),
+    box(0.22, 0.12, 0.12).translate(0.2, 0.4, 0),
+  ];
   function addHydrant(p: Vec2, yaw: number): void {
-    put('hydrant', M.hydrant, xform(cyl(0.16, 0.18, 0.6).translate(0, 0.3, 0), p.x, 0, p.z, yaw));
-    put('hydrant', M.hydrant, xform(cyl(0.1, 0.16, 0.18).translate(0, 0.69, 0), p.x, 0, p.z, yaw));
-    put('hydrant', M.hydrant, xform(box(0.22, 0.12, 0.12).translate(0.2, 0.4, 0), p.x, 0, p.z, yaw));
+    putInst('hydrant', M.hydrant, hydrantGeo, placeMatrix(new THREE.Matrix4(), p.x, 0, p.z, yaw));
     circle(p, SLOT_COLLIDER_R);
   }
 
+  const trashGeo = (): THREE.BufferGeometry[] => [
+    cyl(0.22, 0.17, 0.9).translate(0, 0.45, 0),
+    cyl(0.25, 0.25, 0.06).translate(0, 0.93, 0),
+  ];
   function addTrash(p: Vec2, yaw: number): void {
-    put('trash', M.trash, xform(cyl(0.22, 0.17, 0.9).translate(0, 0.45, 0), p.x, 0, p.z, yaw));
-    put('trash', M.trash, xform(cyl(0.25, 0.25, 0.06).translate(0, 0.93, 0), p.x, 0, p.z, yaw));
+    putInst('trash', M.trash, trashGeo, placeMatrix(new THREE.Matrix4(), p.x, 0, p.z, yaw));
     circle(p, SLOT_COLLIDER_R);
   }
 
+  const mailboxGeo = (): THREE.BufferGeometry[] => [
+    box(0.06, 1.0, 0.06).translate(0, 0.5, 0),
+    box(0.42, 0.3, 0.5).translate(0, 1.15, 0),
+  ];
   function addMailbox(p: Vec2, yaw: number): void {
-    put('metalDark', M.metalDark, xform(box(0.06, 1.0, 0.06).translate(0, 0.5, 0), p.x, 0, p.z, yaw));
-    put('metalDark', M.metalDark, xform(box(0.42, 0.3, 0.5).translate(0, 1.15, 0), p.x, 0, p.z, yaw));
+    putInst('mailbox', M.metalDark, mailboxGeo, placeMatrix(new THREE.Matrix4(), p.x, 0, p.z, yaw));
     circle(p, 0.25);
   }
 
+  const iceboxGeo = (): THREE.BufferGeometry[] => [box(ICEBOX_SIZE.w, ICEBOX_SIZE.h, ICEBOX_SIZE.d).translate(0, ICEBOX_SIZE.h / 2, 0)];
   function addIcebox(p: Vec2, yaw: number): void {
-    put('concrete', M.concrete, xform(box(ICEBOX_SIZE.w, ICEBOX_SIZE.h, ICEBOX_SIZE.d).translate(0, ICEBOX_SIZE.h / 2, 0), p.x, 0, p.z, yaw));
+    putInst('icebox', M.concrete, iceboxGeo, placeMatrix(new THREE.Matrix4(), p.x, 0, p.z, yaw));
     circle(p, SLOT_COLLIDER_R);
   }
 
@@ -270,18 +321,19 @@ export function buildFurniture(
     }
   }
 
-  // ---- merge per material
+  // ---- one InstancedMesh per kind of prop
 
   const group = new THREE.Group();
   group.name = 'furniture';
-  for (const [key, b] of buckets) {
-    const merged = mergeGeometries(b.geos, false);
-    if (!merged) throw new Error(`FurnitureGen: could not merge geometry for ${key}`);
-    const mesh = new THREE.Mesh(merged, b.material);
+  for (const [key, b] of insts) {
+    const n = b.matrices.length / 16;
+    const mesh = new THREE.InstancedMesh(b.geometry, b.material, n);
+    (mesh.instanceMatrix.array as Float32Array).set(b.matrices);
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
     mesh.name = key === LAMP_HEAD_NAME ? LAMP_HEAD_NAME : `furniture:${key}`;
     group.add(mesh);
-    for (const g of b.geos) g.dispose();
   }
 
-  return { group, colliders, lamps };
+  return { group, colliders, lamps, instanced: insts };
 }

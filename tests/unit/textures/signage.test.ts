@@ -3,10 +3,11 @@ import { Rng } from '@/core/Rng';
 import type { Painter } from '@/textures/canvas';
 import * as art from '@/textures/painters/storefront-art';
 import {
-  PICTOGRAM_KINDS, classifyArchetype, drawPictogram, drawSegmentDigits, drawStripe, layoutAwning, layoutSign,
-  type Archetype, type StripeKind,
+  MAX_TEX, PICTOGRAM_KINDS, PX_PER_M, STICKER_ATLAS, STICKER_SLOTS, STORE_KINDS, STORE_NAMES, awningCanvasSize, classifyArchetype,
+  cuisineOf, drawPictogram, drawSegmentDigits, drawStripe, layoutAwning, layoutSign, ppmFor, signCanvasSize, storefrontName,
+  type Archetype, type StickerKind, type StripeKind,
 } from '@/textures/painters/storefront-art';
-import { awningPainter, awningStyle, signPainter } from '@/textures/painters/signage';
+import { awningPainter, awningSlopePainter, awningStyle, awningValancePainter, signPainter, stickerAtlasPainter } from '@/textures/painters/signage';
 import bedstuy from '@/world/data/bedstuy.json';
 
 // Wrap drawPictogram so the painter's calls (made through the module binding) can be counted, still drawing for real.
@@ -73,7 +74,8 @@ describe('layoutAwning / archetypes', () => {
       ['CORNER LIQUOR', 'liquor'], ['99¢ PLUS', 'dollar'], ['HEALTHY PHARMACY', 'pharmacy'],
       ['SUNSHINE DAYCARE', 'daycare'], ['EASY FUNERAL HOME', 'funeral'], ['QUICK AUTO', 'auto'],
       ['FIRST BAPTIST CHURCH', 'church'], ['TABERNACLE OF SOMETHING', 'church'], ['NOW LEASING', 'condo'],
-      ['FULTON WIRELESS', 'generic'], ['A', 'generic'],
+      ['FULTON WIRELESS', 'cellphone'], ['FONE FIXERS · UNLOCK · REPAIR', 'cellphone'], ['CELL-U-LAR CITY', 'cellphone'],
+      ['FULTON NOTARY', 'generic'], ['A', 'generic'],
     ];
     for (const [text, arch] of cases) expect(classifyArchetype(text), text).toBe(arch);
     expect(classifyArchetype('king deli')).toBe('bodega');
@@ -246,9 +248,9 @@ describe('storefront art primitives', () => {
   it('drawPictogram draws every kind with balanced save/restore, no text and no unsupported calls', () => {
     const real = vi.mocked(art.drawPictogram).getMockImplementation() ?? drawPictogram;
     for (const kind of PICTOGRAM_KINDS) {
-      for (const aspect of [1, 2.4]) {
+      for (const size of [24, 36]) {
         const { ctx, ops } = strict();
-        real(ctx, kind, 40, 30, 36, art.PICTOGRAM_COLOR[kind], aspect);
+        real(ctx, kind, 40, 30, size, art.PICTOGRAM_COLOR[kind]);
         expect(ops.length, kind).toBeGreaterThan(5);
         expect(ops.filter((o) => o.name === 'save').length, kind).toBe(ops.filter((o) => o.name === 'restore').length);
         expect(ops.some((o) => o.name === 'fillText' || o.name === 'strokeText'), kind).toBe(false);
@@ -276,5 +278,149 @@ describe('storefront art primitives', () => {
     const none = strict();
     drawStripe(none.ctx, 'none', 0, 0, 512, 22, ['#fff']);
     expect(none.ops.length).toBe(0);
+  });
+});
+
+describe('true-aspect textures (no pre-squeeze)', () => {
+  it('canvas size follows the geometry at one density across and down', () => {
+    for (const [w, slope, val] of [[3.2, 1.55, 0.34], [6.2, 1.55, 0.34], [11.4, 1.55, 0.34], [4.4, 1.0, 0.3]] as const) {
+      const g = awningCanvasSize({ widthM: w, slopeM: slope, valanceM: val, fringeM: 0.035 });
+      expect(Math.abs(g.w / w / g.ppm - 1), `awning ${w}`).toBeLessThan(0.02);
+      expect(Math.abs(g.h / (slope + val + 0.035) / g.ppm - 1), `awning ${w}`).toBeLessThan(0.02);
+      expect(g.w).toBeLessThanOrEqual(MAX_TEX);
+    }
+    for (const [w, h] of [[2.6, 0.56], [5.8, 0.56], [11, 0.56]] as const) {
+      const g = signCanvasSize({ widthM: w, heightM: h });
+      expect(Math.abs(g.w / w / g.ppm - 1)).toBeLessThan(0.02);
+      expect(Math.abs(g.h / h / g.ppm - 1)).toBeLessThan(0.02);
+      expect(g.ppm).toBeLessThanOrEqual(PX_PER_M);
+    }
+    // density only drops when the width would overflow the texture limit
+    expect(ppmFor(6)).toBe(PX_PER_M);
+    expect(ppmFor(20)).toBeCloseTo(MAX_TEX / 20, 5);
+  });
+
+  it('painters never scale x and y differently (no squeeze compensation)', () => {
+    const geom = { widthM: 6.2, slopeM: 1.55, valanceM: 0.34, fringeM: 0.035 };
+    const a = awningCanvasSize(geom);
+    const sg = { widthM: 5.8, heightM: 0.56 };
+    const s = signCanvasSize(sg);
+    for (const p of POIS) {
+      for (const ops of [
+        run(awningPainter(p.awningColor, p.sign, geom), a.w, a.h),
+        run(awningValancePainter(p.awningColor, p.sign, geom), a.w, Math.round(0.375 * a.ppm)),
+        run(awningSlopePainter(p.awningColor, p.sign, 6.2), 298, 74),
+        run(signPainter(p.sign, '#161616', '#f5f0e0', sg), s.w, s.h),
+      ]) {
+        for (const o of ops.filter((x) => x.name === 'scale')) expect(o.args[0], p.id).toBe(o.args[1]);
+      }
+    }
+  });
+
+  it('text fits the geometry it was sized for, on every parody name, at corner-store widths too', () => {
+    for (const widthM of [4.4, 6.2, 11.4]) {
+      const geom = { widthM, slopeM: 1.55, valanceM: 0.34, fringeM: 0.035 };
+      const a = awningCanvasSize(geom);
+      const sg = { widthM: widthM - 0.4, heightM: 0.56 };
+      const s = signCanvasSize(sg);
+      for (const name of Object.values(STORE_NAMES).flat()) {
+        for (const x of texts(run(awningPainter('#d62828', name, geom), a.w, a.h))) {
+          expect(String(x.args[0]).length * fontPx(x.font!) * 0.6, `${name} awning ${widthM}`).toBeLessThanOrEqual(a.w);
+        }
+        for (const x of texts(run(signPainter(name, '#161616', '#f5f0e0', sg), s.w, s.h))) {
+          expect(String(x.args[0]).length * fontPx(x.font!) * 0.6, `${name} sign ${widthM}`).toBeLessThanOrEqual(s.w);
+          // letters are no taller than the board
+          expect(fontPx(x.font!), name).toBeLessThanOrEqual(s.h);
+        }
+      }
+    }
+  });
+
+  it('a long awning prints the name once, at the same letter height as a short one', () => {
+    const name = 'KING DELI';
+    const h = (widthM: number): number => {
+      const geom = { widthM, slopeM: 1.55, valanceM: 0.34, fringeM: 0.035 };
+      const a = awningCanvasSize(geom);
+      const t = texts(run(awningPainter('#d62828', name, geom), a.w, a.h));
+      expect(t.length).toBe(1);
+      return fontPx(t[0].font!) / a.ppm; // letter height in metres
+    };
+    expect(h(11.4)).toBeCloseTo(h(6.2), 1);
+  });
+});
+
+describe('storefront names and cuisines', () => {
+  const EXPECT: Record<string, Archetype[]> = {
+    bodega: ['bodega'], deli: ['bodega'], laundromat: ['laundromat'], barber: ['barber'], liquor: ['liquor'], pharmacy: ['pharmacy'],
+    daycare: ['daycare'], restaurant: ['kitchen', 'pizza'], cellphone: ['cellphone'], church: ['church'], generic: ['generic', 'dollar', 'auto'],
+  };
+
+  it('every pooled parody name classifies back to its own type', () => {
+    expect(STORE_KINDS.length).toBe(11);
+    for (const kind of STORE_KINDS) {
+      expect(STORE_NAMES[kind].length, kind).toBeGreaterThanOrEqual(3);
+      for (const n of STORE_NAMES[kind]) expect(EXPECT[kind], `${kind}: ${n}`).toContain(classifyArchetype(n));
+    }
+  });
+
+  it('restaurants come in Caribbean, soul food and Chinese take-out, each with its own icons', () => {
+    expect(STORE_NAMES.restaurant.length).toBe(9);
+    const seen = new Set<string>();
+    ['caribbean', 'soul', 'chinese'].forEach((c, i) => {
+      for (let n = 0; n < 3; n++) {
+        const name = storefrontName('restaurant', n, c as 'caribbean' | 'soul' | 'chinese');
+        expect(STORE_NAMES.restaurant.indexOf(name) / 3 | 0, name).toBe(i);
+        expect(cuisineOf(name), name).toBe(c);
+        seen.add(layoutAwning(name).pictograms.join(','));
+      }
+    });
+    expect(seen.size).toBe(3);
+    expect(layoutAwning(storefrontName('restaurant', 0, 'caribbean')).pictograms).toContain('chili');
+    expect(layoutAwning(storefrontName('restaurant', 0, 'soul')).pictograms).toContain('drumstick');
+    expect(layoutAwning(storefrontName('restaurant', 0, 'chinese')).pictograms).toContain('bowl');
+  });
+
+  it('names are parody: no real chains or brands, deterministic by index', () => {
+    const banned = /(CVS|WALGREEN|RITE AID|DUANE|MCDONALD|BURGER KING|SUBWAY|STARBUCKS|DUNKIN|7-?ELEVEN|VERIZON|T-?MOBILE|SPRINT|AT&T|METRO ?PCS|WESTERN UNION|BUDWEISER|COCA|PEPSI|LOTTERY|MEGA MILLIONS|POWERBALL|DOMINO|PAPA JOHN|FAMILY DOLLAR|KFC|POPEYES|WENDY|HERTZ)/i;
+    for (const kind of STORE_KINDS) {
+      for (const n of STORE_NAMES[kind]) expect(banned.test(n), n).toBe(false);
+      expect(storefrontName(kind, 7)).toBe(storefrontName(kind, 7));
+      expect(storefrontName(kind, 7)).toBe(storefrontName(kind, 7 + STORE_NAMES[kind].length));
+    }
+  });
+});
+
+describe('window stickers', () => {
+  it('atlas slots lie inside the atlas, do not overlap, and are sized in metres at one density', () => {
+    const kinds = Object.keys(STICKER_SLOTS) as StickerKind[];
+    for (const k of kinds) {
+      const s = STICKER_SLOTS[k];
+      expect(s.x + s.w, k).toBeLessThanOrEqual(STICKER_ATLAS.w);
+      expect(s.y + s.h, k).toBeLessThanOrEqual(STICKER_ATLAS.h);
+      expect(s.w / s.wM, k).toBeCloseTo(s.h / s.hM, 3);
+    }
+    for (let i = 0; i < kinds.length; i++) {
+      for (let j = i + 1; j < kinds.length; j++) {
+        const a = STICKER_SLOTS[kinds[i]], b = STICKER_SLOTS[kinds[j]];
+        const overlap = Math.min(a.x + a.w, b.x + b.w) > Math.max(a.x, b.x) && Math.min(a.y + a.h, b.y + b.h) > Math.max(a.y, b.y);
+        expect(overlap, `${kinds[i]} vs ${kinds[j]}`).toBe(false);
+      }
+    }
+  });
+
+  it('paints ATM, EBT, lotto and OPEN stickers with supported calls only, deterministically', () => {
+    const a = run(stickerAtlasPainter, STICKER_ATLAS.w, STICKER_ATLAS.h, 3);
+    const strs = texts(a).map((x) => String(x.args[0]));
+    for (const w of ['ATM', 'EBT', 'LOTTO', 'OPEN', 'MENU']) expect(strs, w).toContain(w);
+    expect(json(run(stickerAtlasPainter, STICKER_ATLAS.w, STICKER_ATLAS.h, 3))).toBe(json(a));
+    // the neon OPEN sign is stroked text (glow passes) inside its own slot
+    expect(a.filter((x) => x.name === 'strokeText').length).toBeGreaterThanOrEqual(4);
+    // generic wording only
+    expect(strs.join(' ')).not.toMatch(/MEGA|POWERBALL|LOTTERY/i);
+  });
+
+  it('cellphone and cuisine pictograms exist', () => {
+    for (const k of ['phone', 'chili', 'drumstick'] as const) expect(PICTOGRAM_KINDS).toContain(k);
+    expect(layoutAwning('FONE FIXERS · UNLOCK').pictograms).toEqual(['phone', 'phone']);
   });
 });

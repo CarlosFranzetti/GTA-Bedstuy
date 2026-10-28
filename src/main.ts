@@ -272,6 +272,7 @@ function placeInterpolated(e: Entity, alpha: number): BlendedPose {
 }
 function interpolateAll(alpha: number, refX: number, refY: number, refZ: number): void {
   const veh = player.vehicle;
+  carLod.setView(cam.camera);
   carLod.beginFrame();
   proxies.beginFrame();
   for (const v of traffic.vehicles) {
@@ -477,6 +478,10 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
 (window as unknown as { __gtaDebug: unknown }).__gtaDebug = {
   setFreeCam(x: number, y: number, z: number, lx: number, ly: number, lz: number) { freeCam = { pos: new THREE.Vector3(x, y, z), look: new THREE.Vector3(lx, ly, lz) }; },
   clearFreeCam() { freeCam = null; },
+  /** Freeze/unfreeze the simulation and render loop (review scripts take deterministic A/B shots with renderOnce). */
+  setPaused(p: boolean) { game.paused = p; },
+  /** Stops the requestAnimationFrame loop (headless review scripts then draw frames by hand with renderOnce). */
+  stopLoop() { game.stop(); },
   setHour(h: number) { dayNight.timeOfDay = h; dayNight.update(0); },
   setQuality(q: Quality) { applyQuality(q); },
   /** Renders one frame synchronously and returns the per-pass draw-call split (for perf scripts). */

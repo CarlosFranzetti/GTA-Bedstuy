@@ -16,7 +16,6 @@
  * Pure helpers (`isProxyable`, `concatIndexed`, `transformInto`) are exported for tests.
  */
 import * as THREE from 'three';
-import { splitGeometryByCell } from '@/render/Culling';
 import { writeYawMatrix } from '@/render/CarLod';
 
 /** A material whose surface is fully described by its depth (no alpha cut-out, no decal blending). */
@@ -67,43 +66,111 @@ export function concatIndexed(list: THREE.BufferGeometry[]): THREE.BufferGeometr
   return out;
 }
 
-/** World-space position+normal copy of a mesh (instances expanded), or null when the geometry is unsuitable. */
-function worldSlim(mesh: THREE.Mesh): THREE.BufferGeometry | null {
-  const g = mesh.geometry;
-  const p = g.getAttribute('position') as THREE.BufferAttribute | undefined;
-  if (!p || p.itemSize < 3 || !(p.array instanceof Float32Array) || (p as unknown as THREE.InterleavedBufferAttribute).isInterleavedBufferAttribute) return null;
-  let n = g.getAttribute('normal') as THREE.BufferAttribute | undefined;
-  if (!n) { const c = g.clone(); c.computeVertexNormals(); n = c.getAttribute('normal') as THREE.BufferAttribute; }
-  const vcount = p.count;
-  const index = g.index ? g.index.array : null;
-  const tris = index ? index.length : vcount;
-  const inst = (mesh as THREE.InstancedMesh).isInstancedMesh ? (mesh as THREE.InstancedMesh) : null;
-  const copies = inst ? inst.count : 1;
-  if (copies === 0) return null;
-  const pos = new Float32Array(copies * vcount * 3), nor = new Float32Array(copies * vcount * 3);
-  const out = (copies * vcount > 65535 ? new Uint32Array(copies * tris) : new Uint16Array(copies * tris));
-  const m = new THREE.Matrix4(), world = mesh.matrixWorld;
-  const psrc = p.itemSize === 3 ? p.array : packXYZ(p);
-  const nsrc = n.itemSize === 3 ? n.array : packXYZ(n);
-  for (let c = 0; c < copies; c++) {
-    if (inst) { inst.getMatrixAt(c, m); m.premultiply(world); } else m.copy(world);
-    transformInto(psrc, pos, c * vcount * 3, vcount, m.elements, false);
-    transformInto(nsrc, nor, c * vcount * 3, vcount, m.elements, true);
-    const base = c * vcount, o = c * tris;
-    if (index) for (let i = 0; i < tris; i++) out[o + i] = index[i] + base;
-    else for (let i = 0; i < tris; i++) out[o + i] = base + i;
-  }
-  const slim = new THREE.BufferGeometry();
-  slim.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  slim.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
-  slim.setIndex(new THREE.BufferAttribute(out, 1));
-  return slim;
-}
+/** A piece of indexed position+normal geometry in world space (one mesh's share of one cell). */
+interface Chunk { pos: Float32Array; nor: Float32Array; idx: Uint32Array; }
 
 function packXYZ(a: THREE.BufferAttribute): Float32Array {
   const o = new Float32Array(a.count * 3);
   for (let i = 0; i < a.count; i++) { o[i * 3] = a.getX(i); o[i * 3 + 1] = a.getY(i); o[i * 3 + 2] = a.getZ(i); }
   return o;
+}
+
+/**
+ * World-space position+normal of a mesh (instances expanded), re-binned by triangle centroid into `cellX` x `cellZ` cells.
+ * Calls `emit(cellKey, chunk)` per non-empty cell. Returns false when the geometry is unsuitable.
+ * Linear in the number of triangle corners (no per-cell pass over all vertices).
+ */
+function binMesh(mesh: THREE.Mesh, cellX: number, cellZ: number, emit: (cell: string, c: Chunk) => void): boolean {
+  const g = mesh.geometry;
+  const p = g.getAttribute('position') as THREE.BufferAttribute | undefined;
+  if (!p || p.itemSize < 3 || (p as unknown as THREE.InterleavedBufferAttribute).isInterleavedBufferAttribute) return false;
+  let n = g.getAttribute('normal') as THREE.BufferAttribute | undefined;
+  if (!n) { const c = g.clone(); c.computeVertexNormals(); n = c.getAttribute('normal') as THREE.BufferAttribute; }
+  const vcount = p.count;
+  const index = g.index ? g.index.array : null;
+  const tris = (index ? index.length : vcount) / 3;
+  if (!Number.isInteger(tris)) return false;
+  const inst = (mesh as THREE.InstancedMesh).isInstancedMesh ? (mesh as THREE.InstancedMesh) : null;
+  const copies = inst ? inst.count : 1;
+  if (copies === 0) return false;
+  const psrc = p.array instanceof Float32Array && p.itemSize === 3 ? p.array : packXYZ(p);
+  const nsrc = n.array instanceof Float32Array && n.itemSize === 3 ? n.array : packXYZ(n);
+  const P = new Float32Array(vcount * 3), N = new Float32Array(vcount * 3);
+  const m = new THREE.Matrix4();
+  const triCell = new Int32Array(tris);
+  const ids = new Map<number, number>();
+  const keys: number[] = [];
+  const stamp = new Int32Array(vcount), slot = new Int32Array(vcount);
+  let generation = 0;
+  for (let c = 0; c < copies; c++) {
+    if (inst) { inst.getMatrixAt(c, m); m.premultiply(mesh.matrixWorld); } else m.copy(mesh.matrixWorld);
+    transformInto(psrc, P, 0, vcount, m.elements, false);
+    transformInto(nsrc, N, 0, vcount, m.elements, true);
+    // bin triangles by centroid
+    const counts: number[] = [];
+    for (let t = 0; t < tris; t++) {
+      const a = index ? index[t * 3] : t * 3, b = index ? index[t * 3 + 1] : t * 3 + 1, d = index ? index[t * 3 + 2] : t * 3 + 2;
+      const cx = (P[a * 3] + P[b * 3] + P[d * 3]) / 3, cz = (P[a * 3 + 2] + P[b * 3 + 2] + P[d * 3 + 2]) / 3;
+      const key = (Math.floor(cx / cellX) + 4096) * 8192 + (Math.floor(cz / cellZ) + 4096);
+      let id = ids.get(key);
+      if (id === undefined) { id = keys.length; keys.push(key); ids.set(key, id); }
+      triCell[t] = id;
+      counts[id] = (counts[id] ?? 0) + 1;
+    }
+    // counting sort of triangles by cell, then one pass per cell over its own triangles only
+    const nCells = keys.length;
+    const start = new Int32Array(nCells + 1);
+    for (let id = 0; id < nCells; id++) start[id + 1] = start[id] + (counts[id] ?? 0);
+    const fill = start.slice(0, nCells);
+    const order = new Int32Array(tris);
+    for (let t = 0; t < tris; t++) order[fill[triCell[t]]++] = t;
+    for (let id = 0; id < nCells; id++) {
+      const cnt = counts[id] ?? 0;
+      if (cnt === 0) continue;
+      const idx = new Uint32Array(cnt * 3);
+      const src: number[] = [];
+      let w = 0;
+      const gen = ++generation;
+      for (let q = start[id]; q < start[id + 1]; q++) {
+        const t = order[q];
+        for (let k = 0; k < 3; k++) {
+          const v = index ? index[t * 3 + k] : t * 3 + k;
+          if (stamp[v] !== gen) { stamp[v] = gen; slot[v] = src.length; src.push(v); }
+          idx[w++] = slot[v];
+        }
+      }
+      const verts = src.length;
+      const pos = new Float32Array(verts * 3), nor = new Float32Array(verts * 3);
+      for (let j = 0; j < verts; j++) {
+        const v = src[j], o = j * 3;
+        pos[o] = P[v * 3]; pos[o + 1] = P[v * 3 + 1]; pos[o + 2] = P[v * 3 + 2];
+        nor[o] = N[v * 3]; nor[o + 1] = N[v * 3 + 1]; nor[o + 2] = N[v * 3 + 2];
+      }
+      const key = keys[id];
+      emit(`${Math.floor(key / 8192) - 4096}_${(key % 8192) - 4096}`, { pos, nor, idx });
+    }
+  }
+  return true;
+}
+
+function concatChunks(list: Chunk[]): THREE.BufferGeometry {
+  let verts = 0, idx = 0;
+  for (const c of list) { verts += c.pos.length / 3; idx += c.idx.length; }
+  const pos = new Float32Array(verts * 3), nor = new Float32Array(verts * 3);
+  const index = verts > 65535 ? new Uint32Array(idx) : new Uint16Array(idx);
+  let v = 0, w = 0;
+  for (const c of list) {
+    pos.set(c.pos, v * 3); nor.set(c.nor, v * 3);
+    for (let i = 0; i < c.idx.length; i++) index[w++] = c.idx[i] + v;
+    v += c.pos.length / 3;
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  out.setIndex(new THREE.BufferAttribute(index, 1));
+  out.computeBoundingBox();
+  out.computeBoundingSphere();
+  return out;
 }
 
 export interface StaticProxy { geometry: THREE.BufferGeometry; side: THREE.Side; cell: string; }
@@ -115,32 +182,27 @@ export interface ProxyBuild { proxies: StaticProxy[]; covered: THREE.Mesh[]; ski
  */
 export function buildStaticProxies(roots: THREE.Object3D[], cellX: number, cellZ: number): ProxyBuild {
   const covered: THREE.Mesh[] = [], skipped: THREE.Mesh[] = [];
-  const lists = new Map<string, { side: THREE.Side; cell: string; geos: THREE.BufferGeometry[] }>();
+  const lists = new Map<string, { side: THREE.Side; cell: string; chunks: Chunk[] }>();
   for (const root of roots) {
     root.updateWorldMatrix(true, true);
     root.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
       if (!isProxyable(mesh.material)) { skipped.push(mesh); return; }
-      const slim = worldSlim(mesh);
-      if (!slim) { skipped.push(mesh); return; }
-      covered.push(mesh);
       const side = (mesh.material as THREE.Material).side;
-      const parts = splitGeometryByCell(slim, cellX, cellZ) ?? new Map([['0_0', slim]]);
-      for (const [cell, g] of parts) {
+      const ok = binMesh(mesh, cellX, cellZ, (cell, chunk) => {
         const key = `${cell}|${side}`;
         let l = lists.get(key);
-        if (!l) { l = { side, cell, geos: [] }; lists.set(key, l); }
-        l.geos.push(g);
-      }
-      if (parts.get('0_0') !== slim) slim.dispose();
+        if (!l) { l = { side, cell, chunks: [] }; lists.set(key, l); }
+        l.chunks.push(chunk);
+      });
+      if (ok) covered.push(mesh); else skipped.push(mesh);
     });
   }
   const proxies: StaticProxy[] = [];
   let vertices = 0, triangles = 0;
   for (const l of lists.values()) {
-    const geometry = concatIndexed(l.geos);
-    for (const g of l.geos) g.dispose();
+    const geometry = concatChunks(l.chunks);
     vertices += geometry.getAttribute('position').count;
     triangles += geometry.index!.count / 3;
     proxies.push({ geometry, side: l.side, cell: l.cell });

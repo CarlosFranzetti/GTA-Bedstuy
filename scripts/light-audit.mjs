@@ -93,7 +93,18 @@ try {
           const p = d.player; const pos = p.vehicle ? p.vehicle.body.pos : p.body.pos;
           if (view === 'aerial') d.setFreeCam(pos.x - 30, 50, pos.z + 110, pos.x, 5, pos.z);
           // night-lamp views: signal heads at the Throop / Kosciuszko crossing, and a storefront-lined stretch of Throop
-          if (view === 'signals') d.setFreeCam(-5, 2.2, 42, 0, 4.6, 6);
+          if (view === 'signals') {
+            // stand 14 m in front of the signal head nearest the Throop / Kosciuszko crossing, looking at it (the lamps are an InstancedMesh)
+            const im = d.scene.getObjectByName('signal-lamps');
+            if (im && im.count) {
+              let best = -1, bd = 1e9;
+              const tmp = im.instanceMatrix.array;
+              for (let i = 0; i < im.count; i++) { const x = tmp[i * 16 + 12], z = tmp[i * 16 + 14]; const dd = Math.hypot(x, z); if (dd < bd) { bd = dd; best = i; } }
+              const o = best * 16; const px = tmp[o + 12], py = tmp[o + 13], pz = tmp[o + 14];
+              const fx = tmp[o + 8], fz = tmp[o + 10]; const fl = Math.hypot(fx, fz) || 1;
+              d.setFreeCam(px + (fx / fl) * 14, 2.0, pz + (fz / fl) * 14, px, py, pz);
+            } else d.setFreeCam(-5, 2.2, 42, 0, 4.6, 6);
+          }
           if (view === 'shops') d.setFreeCam(3, 1.7, -8, 3, 3, -70);
           // an east-west street shot looking away from the low sun (lit road: poles / trees / cars cast shadows to check bias)
           if (view === 'ew') { const east = hour >= 12; d.setFreeCam(east ? -60 : 60, 1.7, 3.5, east ? 20 : -20, 1.0, -3); }

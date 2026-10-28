@@ -405,17 +405,22 @@ export function awningPainter(color: string, text: string, geom?: AwningGeom): P
 }
 
 /** Just the sloped top face: the canvas is `widthM` wide and as tall as the slope at the same density. */
-export function awningSlopePainter(color: string, text: string, widthM: number): Painter {
+export function awningSlopePainter(color: string, text: string, widthM: number, style?: AwningStyle): Painter {
   return (ctx, w, h, rng) => {
     const layout = layoutAwning(text);
+    if (style) layout.style = style;
     slopeZone(ctx, { w, h, ppm: w / widthM, rng, color, text, layout });
   };
 }
 
-/** Just the front valance + fringe rows (canvas = widthM x (valanceM + fringeM)). */
-export function awningValancePainter(color: string, text: string, geom: AwningGeom): Painter {
+/**
+ * Just the front valance + fringe rows (canvas = widthM x (valanceM + fringeM)). `style` overrides the style the text
+ * implies, so an empty-text plain tile can match a named one.
+ */
+export function awningValancePainter(color: string, text: string, geom: AwningGeom, style?: AwningStyle): Painter {
   return (ctx, w, h, rng) => {
     const layout = layoutAwning(text);
+    if (style) layout.style = style;
     const ppm = w / geom.widthM;
     valanceZone(ctx, { w, h, ppm, rng, color, text, layout }, Math.round((geom.fringeM ?? 0) * ppm), scallopPitchPx(geom.widthM, ppm), false);
   };
@@ -561,7 +566,7 @@ export function signPainter(text: string, bg: string, fg: string, geom?: SignGeo
     const margin = Math.max(8, 0.12 * ppm);
     const isz = Math.min(areaH * 0.72, 0.38 * ppm);
     const bh = badges.length ? Math.min(0.24 * ppm, (areaH - 4 * (badges.length - 1)) / badges.length) : 0;
-    const bw = badges.length ? Math.max(...badges.map((b) => b.label.length * 0.34 * bh + 16)) : 0;
+    const bw = badges.length ? Math.min(w * 0.17, Math.max(...badges.map((b) => b.label.length * 0.34 * bh + 16))) : 0;
     const iconW = icon ? isz + 12 : 0;
     const side = icon || badges.length ? Math.max(w * 0.05, iconW + margin * 2, bw + margin * 2) : w * 0.05;
     const maxW = w - 2 * side;

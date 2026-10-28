@@ -46,10 +46,35 @@ const BACK_MAX_TIME = 1.8;
 const OVERTAKE_SHIFT = 3.1;
 const OVERTAKE_PARKED_AFTER = 0.8;
 const OVERTAKE_STALLED_AFTER = 3;
-const OVERTAKE_CLEAR_LEN = 30;
+const OVERTAKE_CLEAR_LEN = 60;
 const LATERAL_RATE = 2.5;
 const PED_SCAN_PERIOD = 0.1;
 const PED_LATERAL = 2.4;
+/** a car shifting into the passing lane creeps (m/s) until its body is this far (plus both half widths) off the blocker */
+const PASS_CREEP = 1.2;
+const PASS_CLEARANCE = 0.4;
+/** the lane offset still to travel above which the obstacle ray is also cast along the line the car is moving onto */
+const OFFSET_RAY_MIN = 0.3;
+/** a blocker moving faster than this is not "stalled": nobody starts a pass around it */
+const PASS_BLOCKER_MAX_SPEED = 0.3;
+const PASS_REAR_CLEAR = 10;
+/** oncoming traffic is fast and a pass is slow: look this far down the passing lane, on three lines across the car */
+const PASS_ATTEMPT_PERIOD = 0.25;
+const PASS_LANE_LINES = [2.4, 3.1, 3.9] as const;
+/** turning: speed through the box, and how sharp a turn counts */
+const TURN_SPEED = 6;
+const TURN_MIN = 0.6;
+/** left turns yield to oncoming traffic that reaches the middle of the box within this many seconds */
+const LEFT_YIELD_TTC = 3.5;
+const LEFT_YIELD_WIDTH = 7;
+const TURN_MAX_WAIT = 8;
+const TURN_CHECK_PERIOD = 0.1;
+/** the cone toward the target node is scanned for pedestrians once the car is turning toward it */
+const TURN_SCAN_ERR = 0.3;
+const TURN_SCAN_DIST = 24;
+
+/** Bodies whose agent is currently passing a stalled car: two queue cars must never pass side by side. */
+const PASSING = new WeakSet<Body2D>();
 
 /**
  * Drives a vehicle along the directed lane graph by feeding it VehicleInput.
@@ -86,6 +111,16 @@ export class TrafficAgent {
   // pedestrians ahead (throttled query)
   private pedTimer = 0;
   private pedGap = Infinity;
+  // turn preview at the stop line this agent is approaching (chosen early so left turns can yield)
+  private preFrom: string | null = null;
+  private preEdge = 0;
+  private preTurn = 0;
+  /** signed heading change of the leg being driven (negative = left) */
+  private legTurn = 0;
+  private turnTimer = 0;
+  private turnBlocked = false;
+  private turnWait = 0;
+  private passTimer = 0;
   // next signalled stop line (cached per target)
   private stopAheadFor: string | null = null;
   private stopAhead: LaneNode | null = null;
@@ -131,6 +166,21 @@ export class TrafficAgent {
   /** current lateral shift to the left of the lane centre (m) */
   get lateralOffset(): number { return this.lat; }
 
+  /** Called when the owner stops driving this agent (despawn, stolen): clears the shared passing flag. */
+  release(): void { this.endPass(); }
+
+  private startPass(blocker: Body2D): void {
+    this.passBody = blocker;
+    this.latTarget = OVERTAKE_SHIFT;
+    PASSING.add(this.vehicle.body);
+  }
+
+  private endPass(): void {
+    this.passBody = null;
+    this.latTarget = 0;
+    PASSING.delete(this.vehicle.body);
+  }
+
   /** Retarget to the nearest node that lies ahead of the vehicle and roughly along its heading. */
   resync(): void {
     const b = this.vehicle.body;
@@ -169,8 +219,7 @@ export class TrafficAgent {
     this.blockedTime = 0;
     this.blockGrace = 0;
     this.lastBlocker = null;
-    this.passBody = null;
-    this.latTarget = 0;
+    this.endPass();
     this.stopAheadFor = null;
   }
 
@@ -184,6 +233,7 @@ export class TrafficAgent {
       if (!node) { this.hold(); return; }
     }
 
+    this.turnTimer -= dt;
     if (this.state === 'backing') { this.back(dt); return; }
 
     if (this.state === 'waiting') {
@@ -195,28 +245,28 @@ export class TrafficAgent {
       node = this.target ?? node;
     }
 
+    if (node.stopLine && !this.ignoreStop) this.previewTurn(node);
+
     // ---- reaching nodes
     const arrive = ARRIVE_RADIUS + 0.15 * Math.max(0, v.speed);
     for (let guard = 0; guard < 3; guard++) {
       node = this.target ?? node;
       if (dist(pos, node.pos) >= arrive) break;
       if (node.stopLine && !this.ignoreStop) {
+        let stop = true;
         if (this.signalGoverned(node)) {
           const ph = this.lights!.phaseFor(node.intersectionId!, node.streetId);
           const committed = this.goLatch === node.id || ph === 'green' ||
             (ph === 'yellow' && this.stopLatch !== node.id && v.speed > 2);
-          if (!committed) {
-            this.state = 'waiting';
-            this.waitTimer = 0;
-            this.extraWait = 0;
-            this.hold();
-            return;
-          }
-          this.goLatch = null;
-        } else {
+          if (committed) { this.goLatch = null; stop = false; }
+        }
+        // green or not, a left turn waits for oncoming traffic and any turn waits for a pedestrian on the exit crosswalk
+        if (!stop && this.turnConflict(node, true)) stop = true;
+        if (stop) {
           this.state = 'waiting';
           this.waitTimer = 0;
           this.extraWait = 0;
+          this.turnWait = 0;
           this.hold();
           return;
         }
@@ -234,7 +284,7 @@ export class TrafficAgent {
       const pb = this.passBody;
       const along = (pb.pos.x - pos.x) * fx + (pb.pos.z - pos.z) * fz;
       const half = pb.shape.kind === 'obb' ? pb.shape.halfL : 2.2;
-      if (along < -(half + 3.2) || Math.hypot(pb.vel.x, pb.vel.z) > 1.5) { this.passBody = null; this.latTarget = 0; }
+      if (along < -(half + 3.2) || Math.hypot(pb.vel.x, pb.vel.z) > 1.5) this.endPass();
     }
     if (this.lat !== this.latTarget) {
       const step = LATERAL_RATE * dt;
@@ -257,17 +307,44 @@ export class TrafficAgent {
     // ---- speed
     const dNode = Math.hypot(node.pos.x - pos.x, node.pos.z - pos.z);
     let desired = this.cruise(node) * clamp(1 - Math.abs(err) / 1.4, 0.35, 1);
-    if (this.passBody) desired = Math.min(desired, 7);
-    if (node.stopLine && !this.ignoreStop && this.mustStopAt(node, dNode, speed)) {
-      const room = Math.max(0, dNode - STOP_POINT);
-      desired = Math.min(desired, Math.sqrt(2 * v.spec.brakeDecel * COMFORT_BRAKE * room));
+    if (this.passBody) {
+      desired = Math.min(desired, 7);
+      // creep until the body (not the lane-offset target) has really cleared the car being passed
+      const pb = this.passBody;
+      const rel = this.scratch;
+      rel.x = pb.pos.x - pos.x;
+      rel.z = pb.pos.z - pos.z;
+      const along = rel.x * fx + rel.z * fz;
+      const side = Math.abs(rel.x * rx + rel.z * rz);
+      const halfL = pb.shape.kind === 'obb' ? pb.shape.halfL : 2.2;
+      const halfW = pb.shape.kind === 'obb' ? pb.shape.halfW : 1;
+      const myHalfW = v.body.shape.kind === 'obb' ? v.body.shape.halfW : 1;
+      const myHalfL = v.body.shape.kind === 'obb' ? v.body.shape.halfL : 2.2;
+      if (along > -(halfL + myHalfL) && side < halfW + myHalfW + PASS_CLEARANCE) desired = Math.min(desired, PASS_CREEP);
     }
+    if (node.stopLine && !this.ignoreStop) {
+      const room = Math.max(0, dNode - STOP_POINT);
+      if (this.mustStopAt(node, dNode, speed) || (dNode < 45 && this.turnConflict(node, false))) {
+        desired = Math.min(desired, Math.sqrt(2 * v.spec.brakeDecel * COMFORT_BRAKE * room));
+      }
+      // slow for the turn before entering the box
+      if (this.preFrom === node.id && Math.abs(this.preTurn) > TURN_MIN) {
+        desired = Math.min(desired, Math.sqrt(TURN_SPEED * TURN_SPEED + 2 * v.spec.brakeDecel * COMFORT_BRAKE * room));
+      }
+    }
+    if (!this.ignoreStop && Math.abs(this.legTurn) > TURN_MIN) desired = Math.min(desired, TURN_SPEED);
 
     // ---- pedestrians in the crosswalk / lane ahead
     this.pedTimer -= dt;
     if (this.pedTimer <= 0) {
       this.pedTimer = PED_SCAN_PERIOD;
       this.pedGap = this.scanPeds(fx, fz, speed);
+      if (Math.abs(err) > TURN_SCAN_ERR && dNode < TURN_SCAN_DIST) {
+        // mid-turn: the crosswalk the car is about to cross lies toward the target node, not along the heading
+        const inv = 1 / Math.max(dNode, 0.1);
+        const toward = this.scanPeds(dx * inv, dz * inv, speed, dNode + 2);
+        if (toward < this.pedGap) this.pedGap = toward;
+      }
     }
     if (this.pedGap < Infinity) {
       const room = Math.max(0, this.pedGap - 3.2);
@@ -281,11 +358,19 @@ export class TrafficAgent {
       this.ignoreRayTimer -= dt;
     } else {
       const f = Math.max(0, speed);
+      const reach = 6 + f;
       this.rayDir.x = fx;
       this.rayDir.z = fz;
-      this.rayFrom.x = pos.x - rx * this.lat;
-      this.rayFrom.z = pos.z - rz * this.lat;
-      const hit = this.world.raycast(this.rayFrom, this.rayDir, 6 + f, v.body.id);
+      // always from the real body (the lane-offset line is only where the body is heading, not where it is) ...
+      let hit = this.world.raycast(pos, this.rayDir, reach, v.body.id);
+      // ... and, while the lateral shift is still being eased in or out, also along the line it is moving onto
+      const off = this.latTarget - this.lat;
+      if (Math.abs(off) > OFFSET_RAY_MIN) {
+        this.rayFrom.x = pos.x - rx * off;
+        this.rayFrom.z = pos.z - rz * off;
+        const hit2 = this.world.raycast(this.rayFrom, this.rayDir, reach, v.body.id);
+        if (hit2 && (!hit || hit2.dist < hit.dist)) hit = hit2;
+      }
       if (hit) { blocked = true; blocker = hit.body; }
     }
     if (blocked) {
@@ -297,15 +382,18 @@ export class TrafficAgent {
     if ((blocked || this.blockGrace > 0) && Math.abs(speed) < 0.6) {
       this.blockedTime += dt;
       if (blocker) this.lastBlocker = blocker;
-      if (this.lastBlocker) this.tryOvertake(this.lastBlocker, fx, fz, rx, rz, node);
+      this.passTimer -= dt;
+      if (this.lastBlocker && this.passTimer <= 0) {
+        this.passTimer = PASS_ATTEMPT_PERIOD;
+        this.tryOvertake(this.lastBlocker, fx, fz, rx, rz, node);
+      }
     } else if (!blocked && this.blockGrace <= 0) {
       this.blockedTime = 0;
       this.lastBlocker = null;
     }
-    if (blocked && this.passBody && this.lat > 0.5 && blocker !== this.passBody) {
+    if (blocked && this.passBody && blocker !== this.passBody) {
       // something else is in the passing lane: give up and tuck back in behind the blocker
-      this.latTarget = 0;
-      this.passBody = null;
+      this.endPass();
     }
 
     // ---- stuck detection / honking
@@ -389,17 +477,79 @@ export class TrafficAgent {
 
   /** Waiting at a stop line: may we go? */
   private releaseFromWait(node: LaneNode, dt: number): boolean {
+    let clear: boolean;
     if (this.signalGoverned(node)) {
       const ph = this.lights!.phaseFor(node.intersectionId!, node.streetId);
       if (ph !== 'green' || this.waitTimer < SIGNAL_REACTION) { this.extraWait = 0; return false; }
-      if (this.intersectionClear(node, true)) return true;
-      this.extraWait += dt;
-      return this.extraWait >= MAX_EXTRA_WAIT;
+      clear = this.intersectionClear(node, true);
+    } else {
+      if (this.waitTimer < STOP_WAIT) return false;
+      clear = this.intersectionClear(node, false);
     }
-    if (this.waitTimer < STOP_WAIT) return false;
-    if (this.intersectionClear(node, false)) return true;
-    this.extraWait += dt;
-    return this.extraWait >= MAX_EXTRA_WAIT;
+    if (!clear) {
+      this.extraWait += dt;
+      if (this.extraWait < MAX_EXTRA_WAIT) return false;
+    }
+    // oncoming traffic (left turns) and pedestrians on the exit crosswalk: wait, but not forever
+    if (this.turnConflict(node, false)) {
+      this.turnWait += dt;
+      return this.turnWait >= TURN_MAX_WAIT;
+    }
+    return true;
+  }
+
+  /**
+   * True while the turn this agent will make from stop line `node` is not safe: a left turn with oncoming traffic
+   * about to reach the box, or any turn with a pedestrian on the stretch toward the exit node. Cached for
+   * TURN_CHECK_PERIOD (`fresh` forces a new query).
+   */
+  private turnConflict(node: LaneNode, fresh: boolean): boolean {
+    if (this.preFrom !== node.id) return false;
+    if (Math.abs(this.preTurn) < 0.25) return false;
+    if (!fresh) {
+      if (this.turnTimer > 0) return this.turnBlocked;
+    }
+    this.turnTimer = TURN_CHECK_PERIOD;
+    this.turnBlocked = this.oncomingConflict(node) || this.exitPedConflict(node);
+    return this.turnBlocked;
+  }
+
+  private oncomingConflict(stop: LaneNode): boolean {
+    if (this.preTurn > -TURN_MIN) return false; // only left turns cross the oncoming lane
+    const dirx = Math.sin(stop.heading);
+    const dirz = -Math.cos(stop.heading);
+    const cx = stop.pos.x + dirx * INTERSECTION_CENTER_AHEAD;
+    const cz = stop.pos.z + dirz * INTERSECTION_CENTER_AHEAD;
+    this.scratch.x = cx + dirx * 18;
+    this.scratch.z = cz + dirz * 18;
+    const list = this.world.queryCircle(this.scratch, 28);
+    const selfId = this.vehicle.body.id;
+    for (let i = 0; i < list.length; i++) {
+      const b = list[i];
+      if (b.id === selfId) continue;
+      if (b.kind !== 'vehicle' && b.kind !== 'cop' && b.kind !== 'player') continue;
+      const sp = Math.hypot(b.vel.x, b.vel.z);
+      if (sp < 1) continue;
+      const rx = b.pos.x - cx;
+      const rz = b.pos.z - cz;
+      const along = rx * dirx + rz * dirz;
+      if (along < -4) continue; // already through
+      if (Math.abs(rx * -dirz + rz * dirx) > LEFT_YIELD_WIDTH) continue;
+      if ((b.vel.x * dirx + b.vel.z * dirz) / sp > -0.6) continue; // not coming toward us
+      if (Math.max(0, along) / sp < LEFT_YIELD_TTC) return true;
+    }
+    return false;
+  }
+
+  /** A pedestrian between the stop line and the exit node of the turn about to be made. */
+  private exitPedConflict(stop: LaneNode): boolean {
+    const exit = this.lanes.nodes[this.lanes.edges[this.preEdge].to];
+    if (!exit) return false;
+    const dx = exit.pos.x - stop.pos.x;
+    const dz = exit.pos.z - stop.pos.z;
+    const d = Math.hypot(dx, dz);
+    if (d < 1) return false;
+    return this.coneGap(stop.pos, dx / d, dz / d, d + 2, 0) < Infinity;
   }
 
   /** The next stop line ahead (following single-successor chains) and whether it is currently not green. */
@@ -432,21 +582,25 @@ export class TrafficAgent {
   // ------------------------------------------------------------------ pedestrians
 
   /** Distance to the nearest pedestrian in the lane ahead (crosswalk or jaywalker), or Infinity. */
-  private scanPeds(fx: number, fz: number, speed: number): number {
-    const pos = this.vehicle.body.pos;
-    const reach = 7 + Math.max(0, speed) * 1.2;
+  private scanPeds(fx: number, fz: number, speed: number, minReach = 0): number {
+    const reach = Math.max(minReach, 7 + Math.max(0, speed) * 1.2);
+    return this.coneGap(this.vehicle.body.pos, fx, fz, reach, 0.5);
+  }
+
+  /** Distance along (fx, fz) from `origin` to the nearest pedestrian within PED_LATERAL of that line, or Infinity. */
+  private coneGap(origin: Vec2, fx: number, fz: number, reach: number, minAlong: number): number {
     const c = this.scratch;
-    c.x = pos.x + fx * reach * 0.5;
-    c.z = pos.z + fz * reach * 0.5;
+    c.x = origin.x + fx * reach * 0.5;
+    c.z = origin.z + fz * reach * 0.5;
     const list = this.world.queryCircle(c, reach * 0.5 + PED_LATERAL);
     let best = Infinity;
     for (let i = 0; i < list.length; i++) {
       const b = list[i];
       if (b.kind !== 'ped' && b.kind !== 'player') continue;
-      const rx = b.pos.x - pos.x;
-      const rz = b.pos.z - pos.z;
+      const rx = b.pos.x - origin.x;
+      const rz = b.pos.z - origin.z;
       const along = rx * fx + rz * fz;
-      if (along < 0.5 || along > reach) continue;
+      if (along < minAlong || along > reach) continue;
       const lateral = Math.abs(rx * -fz + rz * fx);
       if (lateral > PED_LATERAL) continue;
       if (along < best) best = along;
@@ -460,7 +614,7 @@ export class TrafficAgent {
     if (!this.canOvertake || this.passBody || this.state !== 'driving') return;
     if (this.lights && this.signalQueueAhead()) return;
     const sp = Math.hypot(blocker.vel.x, blocker.vel.z);
-    if (sp > 0.5) return;
+    if (sp > PASS_BLOCKER_MAX_SPEED || PASSING.has(blocker)) return;
     const parked = (blocker.userData as { driver?: unknown } | undefined)?.driver === null;
     const wait = parked ? OVERTAKE_PARKED_AFTER : OVERTAKE_STALLED_AFTER;
     if (this.blockedTime < wait) return;
@@ -470,7 +624,13 @@ export class TrafficAgent {
     // adjacent lane clear for a car length and a bit
     const from = { x: pos.x - rx * OVERTAKE_SHIFT, z: pos.z - rz * OVERTAKE_SHIFT };
     const dir = { x: fx, z: fz };
-    if (this.world.raycast(from, dir, OVERTAKE_CLEAR_LEN, this.vehicle.body.id)) return;
+    for (let i = 0; i < PASS_LANE_LINES.length; i++) {
+      const o = { x: pos.x - rx * PASS_LANE_LINES[i], z: pos.z - rz * PASS_LANE_LINES[i] };
+      if (this.world.raycast(o, dir, OVERTAKE_CLEAR_LEN, this.vehicle.body.id)) return;
+    }
+    // nobody close behind in the passing lane (the car queued behind us may be starting its own pass)
+    const back = { x: -fx, z: -fz };
+    if (this.world.raycast(from, back, PASS_REAR_CLEAR, this.vehicle.body.id)) return;
     const ahead = { x: from.x + fx * 8, z: from.z + fz * 8 };
     const near = this.world.queryCircle(ahead, 3);
     for (let i = 0; i < near.length; i++) {
@@ -478,8 +638,7 @@ export class TrafficAgent {
       if (b.id === this.vehicle.body.id || b === blocker) continue;
       if (b.kind === 'vehicle' || b.kind === 'cop' || b.kind === 'player' || b.kind === 'ped') return;
     }
-    this.passBody = blocker;
-    this.latTarget = OVERTAKE_SHIFT;
+    this.startPass(blocker);
     this.blockedTime = 0;
   }
 
@@ -488,8 +647,7 @@ export class TrafficAgent {
     this.backStartX = this.vehicle.body.pos.x;
     this.backStartZ = this.vehicle.body.pos.z;
     this.backTime = 0;
-    this.passBody = null;
-    this.latTarget = 0;
+    this.endPass();
   }
 
   /** Reverse about BACK_DISTANCE metres, then resume. */
@@ -564,16 +722,34 @@ export class TrafficAgent {
     return true;
   }
 
+  /** Decide the turn to make at stop line `from` before reaching it, so a left turn can yield and every turn can slow. */
+  private previewTurn(from: LaneNode): void {
+    if (this.preFrom === from.id) return;
+    const adj = this.lanes.adjacency[from.id];
+    if (!adj || adj.length === 0) { this.preFrom = null; return; }
+    this.preEdge = this.chooseEdge(from, adj);
+    this.preFrom = from.id;
+    const to = this.lanes.nodes[this.lanes.edges[this.preEdge].to];
+    this.preTurn = to ? angleDiff(from.heading, to.heading) : 0;
+    this.turnTimer = 0;
+    this.turnBlocked = false;
+  }
+
+  private chooseEdge(from: LaneNode, adj: number[]): number {
+    if (adj.length === 1) return adj[0];
+    if (this.goal) return this.bestEdgeToGoal(adj, this.goal);
+    return this.weightedEdge(from, adj);
+  }
+
   /** Choose the next target among the successors of `from` (never anything else, so edges are never reversed). */
   private pickNext(from: LaneNode): boolean {
     const adj = this.lanes.adjacency[from.id];
     if (!adj || adj.length === 0) return false;
-    let edgeIdx = adj[0];
-    if (adj.length > 1) {
-      if (this.goal) edgeIdx = this.bestEdgeToGoal(adj, this.goal);
-      else edgeIdx = this.weightedEdge(from, adj);
-    }
+    const edgeIdx = this.preFrom === from.id ? this.preEdge : this.chooseEdge(from, adj);
+    this.preFrom = null;
     const e = this.lanes.edges[edgeIdx];
+    const to = this.lanes.nodes[e.to];
+    this.legTurn = to ? angleDiff(from.heading, to.heading) : 0;
     this.prevId = from.id;
     this.targetId = e.to;
     this.stopLatch = null;

@@ -10,6 +10,7 @@
  * Defects found by these tests are kept in the suite as `it.fails` (they pass while the defect exists and go red
  * the day it is fixed; then flip them to `it`). See docs/swarm/qa-stage2.md for the ids.
  */
+import { appendFileSync, writeFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { EventBus } from '@/core/Events';
@@ -46,6 +47,8 @@ interface Run {
   maxPatrols: number;
 }
 
+const TRACE_: number[] | null = process.env.TRACE ? process.env.TRACE.split(',').map(Number) : null;
+void TRACE_;
 function runTraffic(seed: number): Run {
   const { physics, world } = realPhysics();
   const grid = world.grid;
@@ -65,7 +68,12 @@ function runTraffic(seed: number): Run {
   let t = 0;
   const entities = new Map<string, { onContact?: (c: never, o: never) => void; update(dt: number): void }>();
   const driverOf = new Map<string, string | null>();
+  const hist: { t: number; m: Map<string, string> }[] = [];
   events.on('impact', (e) => {
+    if (process.env.DUMPHARD && e.strength >= 3 && seed === Number(process.env.DUMPHARD)) {
+      log(`=== HARD t=${t.toFixed(1)} ${e.a} ${e.b} ${e.strength.toFixed(1)} @${e.pos.x.toFixed(0)},${e.pos.z.toFixed(0)}`);
+      for (let k = 0; k < hist.length; k += 3) for (const id of [e.a, e.b]) { const l = hist[k].m.get(id); if (l) log(`  T${hist[k].t.toFixed(1)} ${id} ${l}`); }
+    }
     driverOf.get(e.a);
     run.impacts.push({ t, a: e.a, b: e.b, strength: e.strength, x: e.pos.x, z: e.pos.z, aDriver: String(driverOf.get(e.a)), bDriver: String(driverOf.get(e.b)) });
   });
@@ -100,6 +108,29 @@ function runTraffic(seed: number): Run {
       entities.get(c.b.id)?.onContact?.(c as never, c.a as never);
     }
 
+    if (step % 6 === 0) {
+      const act = (traffic as unknown as { active: { agent: any; vehicle: IVehicle }[] }).active;
+      const m = new Map<string, string>();
+      for (const a of act) {
+        const p = a.vehicle.body.pos; const ag = a.agent; const tn = ag.target;
+        m.set(a.vehicle.id, `p=${p.x.toFixed(1)},${p.z.toFixed(1)} h=${a.vehicle.body.heading.toFixed(2)} v=${a.vehicle.speed.toFixed(1)} ${ag.state} tgt=${ag.targetId} d=${tn ? Math.hypot(tn.pos.x-p.x, tn.pos.z-p.z).toFixed(1) : '-'} lat=${ag.lat.toFixed(1)} pass=${!!ag.passBody} stuck=${ag.stuckTime.toFixed(1)} ped=${ag.pedGap === Infinity ? '-' : ag.pedGap.toFixed(1)} ${tn?.stopLine ? 'SL:' + traffic.lights.phaseFor(tn.intersectionId!, tn.streetId) : ''}`);
+      }
+      for (const v of cops.cops) m.set(v.id, `COP p=${v.body.pos.x.toFixed(1)},${v.body.pos.z.toFixed(1)} h=${v.body.heading.toFixed(2)} v=${v.speed.toFixed(1)}`);
+      hist.push({ t, m }); if (hist.length > 25) hist.shift();
+    }
+    if (TRACE && seed === TRACE[0] && t >= TRACE[1] && t <= TRACE[2] && step % 6 === 0) {
+      const act = (traffic as unknown as { active: { agent: any; vehicle: IVehicle }[] }).active;
+      for (const a of act) {
+        const p = a.vehicle.body.pos;
+        if (Math.hypot(p.x - TRACE[3], p.z - TRACE[4]) > TRACE[5]) continue;
+        const ag = a.agent;
+        const tn = ag.target;
+        if (a.vehicle.speed < 0.5 && step % 12 === 0) for (const o of physics.queryCircle(p, 4.5)) if (o.id !== a.vehicle.body.id) log(`   near ${o.id} ${o.kind} ${o.pos.x.toFixed(1)},${o.pos.z.toFixed(1)} h=${o.heading.toFixed(2)} ${JSON.stringify(o.shape)}`);
+        log(`T${t.toFixed(1)} ${a.vehicle.id} p=${p.x.toFixed(1)},${p.z.toFixed(1)} h=${a.vehicle.body.heading.toFixed(2)} v=${a.vehicle.speed.toFixed(1)} ${ag.state} tgt=${ag.targetId} d=${tn ? Math.hypot(tn.pos.x-p.x, tn.pos.z-p.z).toFixed(1) : '-'} lat=${ag.lat.toFixed(1)} pass=${!!ag.passBody} stuck=${ag.stuckTime.toFixed(1)} ped=${ag.pedGap === Infinity ? '-' : ag.pedGap.toFixed(1)} ${tn?.stopLine ? 'SL:' + traffic.lights.phaseFor(tn.intersectionId!, tn.streetId) : ''}`);
+      }
+      for (const v of cops.cops) { const p = v.body.pos; if (Math.hypot(p.x - TRACE[3], p.z - TRACE[4]) <= TRACE[5]) log(`T${t.toFixed(1)} ${v.id} COP p=${p.x.toFixed(1)},${p.z.toFixed(1)} v=${v.speed.toFixed(1)} d=${v.driver}`); }
+      for (const q of traffic.peds) { const p = q.body.pos; if (Math.hypot(p.x - TRACE[3], p.z - TRACE[4]) <= TRACE[5]) log(`T${t.toFixed(1)} ${q.id} PED p=${p.x.toFixed(1)},${p.z.toFixed(1)}`); }
+    }
     // signal bookkeeping
     for (const [key, { i, s }] of pairs) {
       if (traffic.lights.phaseFor(i, s) === 'red') { if (!redSince.has(key)) redSince.set(key, t); } else redSince.delete(key);
@@ -169,17 +200,21 @@ function runTraffic(seed: number): Run {
 }
 
 
+const TRACE: number[] | null = process.env.TRACE ? process.env.TRACE.split(',').map(Number) : null;
+const OUT = process.env.OUT ?? '/tmp/f12.txt';
+const log = (...a: unknown[]) => appendFileSync(OUT, a.map(x => typeof x === 'string' ? x : JSON.stringify(x)).join(' ') + '\n');
 const SEEDS2 = (process.env.SEEDS ?? '7,21').split(',').map(Number);
 describe('diag', () => {
   it('dump', () => {
+    writeFileSync(OUT, '');
     for (const seed of SEEDS2) {
       const r = runTraffic(seed);
       const hard = r.impacts.filter((i) => i.strength >= 3 && (i.aDriver === 'traffic' || i.aDriver === 'cop') && (i.bDriver === 'traffic' || i.bDriver === 'cop'));
       const pairs = new Map<string, number>();
       for (const i of r.impacts) { const k = `${i.a}>${i.b}@${Math.floor(i.t)}`; pairs.set(k, (pairs.get(k) ?? 0) + 1); }
-      console.log(`SEED ${seed}: impacts=${r.impacts.length} hardAIAI=${hard.length} knocked=${JSON.stringify(r.knockedDown)} maxPairPerSec=${Math.max(0,...pairs.values())} stuck=${r.stuck.length} redV=${r.redViolations.length} stopPasses=${r.stopPasses}`);
-      for (const h of hard) console.log(`  hard t=${h.t.toFixed(1)} ${h.a}(${h.aDriver}) ${h.b}(${h.bDriver}) ${h.strength.toFixed(1)} @${h.x.toFixed(0)},${h.z.toFixed(0)}`);
-      console.log('  stuck', r.stuck.slice(0,5), 'red', r.redViolations.slice(0,5));
+      log(`SEED ${seed}: impacts=${r.impacts.length} hardAIAI=${hard.length} knocked=${JSON.stringify(r.knockedDown)} maxPairPerSec=${Math.max(0,...pairs.values())} stuck=${r.stuck.length} redV=${r.redViolations.length} stopPasses=${r.stopPasses}`);
+      for (const h of hard) log(`  hard t=${h.t.toFixed(1)} ${h.a}(${h.aDriver}) ${h.b}(${h.bDriver}) ${h.strength.toFixed(1)} @${h.x.toFixed(0)},${h.z.toFixed(0)}`);
+      log('  stuck', r.stuck.slice(0,5), 'red', r.redViolations.slice(0,5));
     }
   }, 900000);
 });

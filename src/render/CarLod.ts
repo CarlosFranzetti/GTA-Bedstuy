@@ -60,6 +60,7 @@ export function applyCarShadowFlags(root: THREE.Object3D, proxied = false): void
 }
 
 const CAPACITY = 384;
+const _c = new THREE.Vector3();
 
 interface TypeLod {
   paint: THREE.InstancedMesh;
@@ -119,6 +120,10 @@ export class CarLod {
   private readonly lampMat: THREE.MeshBasicMaterial;
   /** number of cars drawn as instances in the last frame (for stats) */
   farCount = 0;
+  private readonly frustum = new THREE.Frustum();
+  private readonly viewMatrix = new THREE.Matrix4();
+  private readonly sphere = new THREE.Sphere();
+  private viewSet = false;
 
   constructor(private readonly materials: IMaterialLibrary, private readonly opts: CarLodOptions) {
     this.group.name = 'car-lod';
@@ -131,6 +136,16 @@ export class CarLod {
     this.darkMat = materials.get('metalDark');
     this.lampMat = new THREE.MeshBasicMaterial({ color: 0xffffff, name: 'car-lod-lamp' });
     for (const t of opts.exclude ?? []) this.types.set(t, null);
+  }
+
+  /**
+   * Camera used to skip far cars that are off screen (instances are not frustum culled one by one by the GPU path).
+   * Pass the camera of the previous render: the matrices are one frame old, which the 8 m margin in `place` covers.
+   */
+  setView(camera: THREE.Camera): void {
+    this.viewMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    this.frustum.setFromProjectionMatrix(this.viewMatrix);
+    this.viewSet = true;
   }
 
   /** Call once per frame before any `place`. */
@@ -155,6 +170,7 @@ export class CarLod {
     info.far = hysteresisFar(info.far, dist, this.near, this.margin);
     if (!info.far) { car.object3D.visible = true; return false; }
     car.object3D.visible = false;
+    if (this.viewSet && !this.frustum.intersectsSphere(this.sphere.set(_c.set(x, 0.9, z), 8))) return true;
     const i = lod.n++;
     const yaw = -heading;
     writeYawMatrix(lod.matrices.array as Float32Array, i * 16, x, z, yaw);
@@ -242,7 +258,7 @@ export class CarLod {
       for (const key of Object.keys(PART_NAMES) as PartKey[]) {
         if (!(PART_NAMES[key] as readonly string[]).includes(o.name)) continue;
         rel.multiplyMatrices(inv, mesh.matrixWorld);
-        parts[key].push(slimGeometry(mesh.geometry, rel));
+        parts[key].push(o.name === 'tyre' ? lowPolyTyre(mesh.geometry, rel) : slimGeometry(mesh.geometry, rel));
       }
     });
     if (parts.paint.length === 0) { disposeModel(model); return null; }
@@ -303,6 +319,26 @@ export class CarLod {
     this.lampMat.dispose();
     this.types.clear();
   }
+}
+
+/**
+ * A 10-sided cylinder with the bounding box of a tyre geometry (axis = its thinnest dimension). The detailed tyre
+ * (tread, sidewall lettering geometry) is several hundred triangles; at LOD distance a ten-gon reads the same.
+ */
+export function lowPolyTyre(src: THREE.BufferGeometry, m: THREE.Matrix4): THREE.BufferGeometry {
+  if (!src.boundingBox) src.computeBoundingBox();
+  const bb = src.boundingBox!;
+  const size = bb.getSize(new THREE.Vector3()), centre = bb.getCenter(new THREE.Vector3());
+  const dims = [size.x, size.y, size.z];
+  const axis = dims.indexOf(Math.min(...dims));
+  const others = dims.filter((_, i) => i !== axis);
+  const radius = (others[0] + others[1]) / 4;
+  const g = new THREE.CylinderGeometry(radius, radius, dims[axis], 10, 1).toNonIndexed(); // axis along y
+  if (axis === 0) g.rotateZ(Math.PI / 2);
+  else if (axis === 2) g.rotateX(Math.PI / 2);
+  g.translate(centre.x, centre.y, centre.z);
+  g.applyMatrix4(m);
+  return g;
 }
 
 /** Non-indexed copy with only position / normal / uv, transformed by `m` (so geometries of one part can merge). */

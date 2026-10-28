@@ -25,6 +25,9 @@ export interface BuiltWorld {
   stats: { meshes: number; lots: number; colliders: number; cells: SplitStats };
 }
 
+/** Meshes below this many triangles are not split per cell: one city-wide draw is cheaper than one per visible cell. */
+export const MIN_SPLIT_TRIANGLES = 12_000;
+
 /** Sidewalk slabs are 0.15 m tall; buildings and furniture sit on top of them. */
 export const SIDEWALK_HEIGHT = 0.15;
 
@@ -79,9 +82,9 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
   // triangles into per-cell meshes (same names/materials, so lamp lookup by name keeps working).
   const cell = cullCellSize(grid);
   const cells: SplitStats = { meshesBefore: 0, meshesAfter: 0, trianglesAfter: 0 };
-  splitMeshesIntoCells(buildings.group, cell.x, cell.z, cells);
-  splitMeshesIntoCells(furniture.group, cell.x, cell.z, cells);
-  const propCells = splitMeshesIntoCells(props.group, cell.x, cell.z, cells);
+  splitMeshesIntoCells(buildings.group, cell.x, cell.z, cells, MIN_SPLIT_TRIANGLES);
+  splitMeshesIntoCells(furniture.group, cell.x, cell.z, cells, MIN_SPLIT_TRIANGLES); // instanced kinds are skipped
+  const propCells = splitMeshesIntoCells(props.group, cell.x, cell.z, cells, MIN_SPLIT_TRIANGLES);
 
   let meshes = 0;
   group.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes++; });
