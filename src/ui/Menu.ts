@@ -89,9 +89,11 @@ export class Menu {
   private opened = false;
   private wasLocked = false;
   private restoreFocus: HTMLElement | null = null;
+  private readonly touchEnabled: boolean;
 
   constructor(parent: HTMLElement, private readonly cb: MenuCallbacks = {}, opts: MenuOptions = {}) {
     this.doc = parent.ownerDocument;
+    this.touchEnabled = !!opts.touch;
     this.storage = opts.storage === undefined ? defaultStorage() : opts.storage;
     const saved = this.load();
     this.state = { ...DEFAULTS, quality: opts.initialQuality ?? DEFAULTS.quality, ...saved };
@@ -183,7 +185,7 @@ export class Menu {
     // Touch pause button lives outside the modal root so it can show while the menu is closed.
     this.pauseButton = this.button('⏸', 'menu-pause-btn');
     this.pauseButton.setAttribute('aria-label', 'Pause');
-    this.pauseButton.hidden = !opts.touch;
+    this.pauseButton.hidden = !this.touchEnabled;
     this.pauseButton.addEventListener('click', () => this.open());
     parent.appendChild(this.pauseButton);
 
@@ -351,9 +353,6 @@ export class Menu {
   }
 
   /* ---------- DOM helpers ---------- */
-
-  private get touchEnabled(): boolean { return this.pauseButtonEnabled; }
-  private pauseButtonEnabled = false;
 
   private el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string): HTMLElementTagNameMap[K] {
     const n = this.doc.createElement(tag);

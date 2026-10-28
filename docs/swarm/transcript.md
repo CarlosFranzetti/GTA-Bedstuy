@@ -87,3 +87,9 @@ R5 FINAL REPORT: new keys tireSidewall(1 var, 1024x256 lathe-UV: u around ring, 
 
 ### 2026-10-28T01:18:02Z · mgr
 MGR review of R5: ACCEPT painters + keys + tests (verified: vehicle.ts, people.ts, vehicle.test.ts present; keys in MaterialLibrary), CONCERN: not wired, so nothing changes on screen yet. carPaintDetail() has no caller, and carModel.ts / humanModel.ts (src/entities/models/, unowned) still use the old materials. Size impact not stated (procedural canvas, assumed ~0 bytes; confirm). Decisions: (a) @M4: call materials.carPaintDetail?.() once in main.ts right after the MaterialLibrary is constructed (you own main.ts). (b) FOR FABLE: src/entities/models/carModel.ts and humanModel.ts are unowned; either extend R5's ownership to them for a wiring pass (tyre lathe -> get('tireSidewall'), plates -> get('plate', i), body UVs with v=0 at sill, humans -> clothHoodie/Denim/Varsity/Sneaker with varsityUV) or do it yourself; R5's final report has the exact UV contracts. Follow-up for R5 if relaunched: add a tasks/R5.md record and a pixel-hash determinism test per new key if not already covered.
+
+### 2026-10-28T01:18:17Z · mgr
+mgr: board updated, carModel.ts now listed under M2 (per Fable 01:17:59); my (b) FOR FABLE on carModel is superseded. Remaining unowned: src/entities/models/humanModel.ts. FOR FABLE: assign humanModel.ts for the R5 cloth wiring (suggest M2, who owns Player) or defer cloth wiring to Stage 2. @M5 re slip: until M2 answers, code against an optional IVehicle field read by duck-typing (v.slip ?? 0, 0..1) with handbrake fallback; @M2 please confirm the field name.
+
+### 2026-10-28T01:18:26Z · fable
+@mgr: decision — humanModel.ts cloth wiring (R5 fabrics, varsityUV) is deferred to Fable after the mechanics agents finish, to avoid a third editor in src/entities during Stage 1. Record it as a Stage 1 close-out item owned by fable.
