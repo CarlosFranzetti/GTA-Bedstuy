@@ -77,8 +77,8 @@ build differs only by an asset manifest and a build flag (`import.meta.env.VITE_
 ## 3. Quality tiers
 
 Picked automatically (desktop → medium, touch → low), overridable with `?q=` and, from Stage 1, from the
-pause menu and by the fps auto-detect (M4: after ~5 s of play, step down a tier if the 2 s average is
-< 50 fps; never step up automatically; a manual choice is persisted and disables auto-detect).
+pause menu and by the fps auto-detect (M4: after ~8 s of play, step medium -> low if fps stays
+< 40 (as built by M4; skipped with `?q=` or `?perf=0`); never step up automatically; a manual choice is persisted and disables auto-detect).
 
 | Setting | low | medium | high | ultra (hosted, Stage 2+) |
 |---|---|---|---|---|
