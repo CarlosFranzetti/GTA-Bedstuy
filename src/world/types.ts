@@ -183,7 +183,8 @@ export type MaterialKey =
   | 'brownstone' | 'brickRed' | 'brickPainted' | 'limestone' | 'cornice' | 'stoop'
   | 'window' | 'storefrontGlass' | 'rollGate' | 'roof' | 'waterTank'
   | 'treeTrunk' | 'treeLeaves' | 'metalDark' | 'metalGreen' | 'hydrant' | 'trash' | 'scaffold' | 'chainlink'
-  | 'carGlass' | 'tire' | 'copLivery' | 'skin' | 'cloth';
+  | 'carGlass' | 'tire' | 'copLivery' | 'skin' | 'cloth'
+  | 'tireSidewall' | 'plate' | 'clothHoodie' | 'clothDenim' | 'clothVarsity' | 'clothSneaker';
 
 export interface IMaterialLibrary {
   /** Shared material for a key. `variant` selects a deterministic colour/texture variant (0..n). Cached. */
@@ -198,6 +199,8 @@ export interface IMaterialLibrary {
   setNight(night: boolean): void;
   /** Optional: environment map (PMREM) for reflections on glass, car paint, wet asphalt. */
   setEnvironment?(env: THREE.Texture | null): void;
+  /** Optional: build and apply flake/dirt/scratch detail maps to every car paint material. */
+  carPaintDetail?(): void;
 }
 
 // ---------------------------------------------------------------- physics (2D on the ground plane)
