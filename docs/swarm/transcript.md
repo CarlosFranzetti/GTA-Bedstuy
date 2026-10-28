@@ -283,3 +283,25 @@ starting L9: reading lighting files; plan = (1) shadow acne 7h/18h med/high, (2)
 
 ### 2026-10-28T21:52:48Z · H7
 starting: read board/PRD 2.3/stage1/vite config/packs.ts/main.ts. Plan: vercel.json, scripts/build-hosted.mjs, src/textures/hosted.ts (manifest + lazy swap via overrideMaps), packs.ts hosted hooks + ultra tier constants, README deploy section, tests. vite.config.ts / package.json diffs will come as FOR FABLE.
+
+### 2026-10-28T21:52:59Z · R2
+starting block-face pass 2 (WebSearch-only; WebFetch limited to s-media.nyc.gov LPC report, one try). Reading grid + pass-1 notes; typology notes to follow as '@D1: typology <street>: ...'.
+
+### 2026-10-28T21:53:06Z · B3
+B3 starting. Plan: (1) facade.ts: storey model (3.3 m parlour, 2.9 m above), pitched helpers; (2) new local LotSpec (floors, widthM, family, stoop{present,heightM}, cornice, bays, use, storefront, trees, scaffold) carried as optional Lot.spec (no types.ts change); subdivideLots gets an optional 4th arg faceSpecs(blockId,side)->LotSpec[]|null (3-arg call stays valid, so P8/WorldBuilder keeps working untouched); buildBuildings stays (lots, materials, rng). (3) brownstone/apartment/church/vacant read the spec, fall back to today's rng path when spec absent. Brick/tan/painted/limestone/brownstone families from existing MaterialKeys (tan brick = brickRed variant 2/3 or brickPainted; no new keys). Files: BuildingGen.ts, LotSubdivider.ts, buildings/{apartment,brownstone,church,facade,scaffold,vacant}.ts, tests/unit/world/building*.test.ts. @D1: please post the schema/loader API (type names, field names, lotsForFace signature) as soon as it is stable; I will adapt my local LotSpec adapter. @S4: mixeduse.ts stays yours; I keep the ctx contract (LotCtx fields b,m,rng,W,D,lot,cornerSide) and will ADD ctx.spec?: LotSpec + exports FLOOR_H(3.3 parlour)/UPPER_H(2.9) from facade.ts; tell me if you want a different ground-floor hand-off (e.g. ctx.groundH).
+
+### 2026-10-28T21:54:06Z · D1
+D1 starting: schema v2 for lots. Files: src/world/data/schema.ts (types+validator+loadFaces+lotsForFace), src/world/data/bedstuy.json (+ optional top-level 'faces'), tests/unit/world/data-schema.test.ts. No Grid.ts change planned.
+@B3 @S4: D1 API (code against this now; module is src/world/data/schema.ts, landing within ~30 min):
+  import { loadFaces, lotsForFace, faceFor, STOREFRONT_TO_ARCHETYPE } from '@/world/data/schema';
+  import type { FaceSet, FaceDef, LotSpec, PlacedLot, Family, Cornice, LotUse, StorefrontKind, Confidence } from '@/world/data/schema';
+  const faces: FaceSet = loadFaces(bedstuyJson);          // validates (throws SchemaError listing every problem), applies defaults; json without 'faces' -> empty set
+  const def: FaceDef | undefined = faceFor(faces, blockFace);  // matches BlockFace by (streetId, side, from/to cross streets)
+  const lots: PlacedLot[] = lotsForFace(grid, blockFace, faces, opts?);   // ALWAYS returns lots (data if present, else typology default generated from grid.seed + face key), ordered along face.a -> face.b (same as Lot.frontA->frontB), widths scaled so sum == |a-b| (or minus opts.insetA/insetB).
+  LotSpec (all resolved, no undefined): { widthM, floors, family: 'brownstone'|'brickRed'|'brickTan'|'brickPainted'|'limestone'|'frame'|'church'|'vacant'|'newBuild', stoop: boolean, stoopHeightM, cornice: 'bracketed'|'plain'|'none', bays, use: 'residential'|'mixed'|'church'|'school'|'vacant'|'garage', storefront?: 'bodega'|'laundromat'|'barber'|'deli'|'liquor'|'pharmacy'|'church'|'daycare'|'restaurant'|'cellphone'|'generic' (set iff use==='mixed' or church/school storefront), trees, scaffold, confidence: 'H'|'M'|'L', note }
+  PlacedLot = LotSpec & { id (= `${blockId}-${side}-${i}`, same scheme as LotSubdivider), index, offsetM (from face.a), frontA, frontB (Vec2), center, outward, depthM, corner (first/last lot), fromData }
+  STOREFRONT_TO_ARCHETYPE: Record<StorefrontKind, types.Archetype> (barber->barbershop, deli->bodega, restaurant->caribbean, cellphone->dollar, generic->dollar).
+Data keys in JSON: faces[] = { street, side:'N'|'S'|'E'|'W' (block side, as BlockFace.side), from, to (cross-street ids, from = west/north end), lots?: [...authoring order from->to...], typology?, pins? }. Questions/changes welcome via @D1.
+
+### 2026-10-28T21:54:21Z · MGR
+MGR: online (Stage 2). PRD §5.3 rewritten as a measurable per-lane table (draw calls < 500 at medium, artifact <= 12 MB, light-audit blown < 0.5% + night street >= 0.085, Q10 sim thresholds, D1 validator rules, H7 vercel/manifest/fallback gates, X5 success+fail/retry tests per mission). stages.md Stage 2 entry criteria updated with Fable's decisions (no DeKalb, WebSearch+typology with confidence tags, Vercel). Every FINAL REPORT must name: files, commands + numbers, size impact, call site in main.ts or a posted @P8 wiring request. Address me as @MGR.

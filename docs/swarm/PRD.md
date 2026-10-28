@@ -136,7 +136,7 @@ An agent changing a tier's cost must say so in its report.
 - Final report posted in the transcript: what changed (files), how verified (commands + numbers),
   size impact, open issues, follow-ups.
 
-### 5.2 Stage 1 (this swarm) — measurable
+### 5.2 Stage 1 (closed 2026-10-28; status in checkins/stage1.md) — measurable
 | Area | Criterion | How measured |
 |---|---|---|
 | Light | No blown highlights at any hour at exposure 1.0: < 0.5% clipped pixels (any channel ≥ 254) per audit view, sky included | light-audit at hours 6, 8, 12, 17, 19, 21, 0, 3 |
@@ -157,12 +157,56 @@ An agent changing a tier's cost must say so in its report.
 | Textures | Storefront art and vehicle/people maps land; deterministic (pixel hash tests); artifact ≤ 12 MB | texture tests + artifact size |
 | Research | block-faces.md, lighting-targets.md, R1 inventory each cite sources and mark confidence/gaps | MGR review |
 
-### 5.3 Stage 2 (preview; detailed in stages.md)
-- Every one of the ~24 block faces matches research + user screenshots on: lot count ±1, floors, material
-  family, stoop yes/no, storefront positions and archetypes (≥ 90% of lots correct by checklist).
-- At least 3 missions playable start to finish with fail/retry, using the event bus; mission state saves.
-- Hosted build deploys from the same codebase with 2K textures and `ultra` tier; artifact still ≤ 16 MB.
-- Neighbourhood recognisability test with the user passes.
+### 5.3 Stage 2 (this swarm, started 2026-10-28T21:48Z) — measurable
+
+Context (Fable's Stage 2 decisions, not re-opened here): the map stays as drawn (no DeKalb Ave); no network
+allowlist and no Street View screenshots, so block-face values come from R2's notes, WebSearch snippets and
+row-house typology knowledge, each value confidence-tagged (`high` = cited source, `med` = typology inference
+from a cited neighbour, `low` = general knowledge). Hosting target is Vercel, static Vite build, output `dist`.
+The original "≥ 90% of lots correct against screenshots" and "recognisability test with the user" criteria
+move to the screenshot pass (Stage 2b / Stage 3 entry) because their evidence does not exist yet.
+
+**Global gates on the integrated tree (both builds):** `npx tsc --noEmit` clean; `npx vitest run` all green
+with test count ≥ 753 (Stage 1 end) and no new skipped tests; `npm run build` succeeds; `node
+scripts/make-artifact.mjs` → `dist/artifact.html` **≤ 12 MB** (warn at 10 MB; hard 16 MB); `node
+tests/e2e/smoke.mjs` prints `errors: []`.
+
+| Lane | Criterion | How measured |
+|---|---|---|
+| D1 data-schema | `bedstuy.json` carries `schemaVersion: 2` with per-face/per-lot fields (floors, widthM, material family, stoop, cornice, use, storefront archetype, trees, scaffold, vacant, `confidence`); v1 files still load (migration path) | loader unit test on the real file + a v1 fixture |
+| D1 | Validator rejects bad data with a path-qualified message: floors outside 1–8, widthM outside 3–40, unknown enum (material/use/archetype), lot widths per face summing to > face length + 1 m, missing `confidence` | ≥ 1 negative test per rule; real file validates with 0 errors |
+| D1 | Coverage: every block face on the drawn grid (~24) has an entry; every lot has floors + material + use (fallback values allowed but tagged `low`) | test counts faces and lots with no missing required field |
+| D1 | `Grid.ts` behaviour unchanged unless stated: existing grid tests green, same street order, same seed output | grid tests |
+| R2 research | `docs/reference/block-faces.md` has a row per face with lot count, typical floors, material mix, stoops, storefront corners, churches/vacant, source (URL or "typology") and confidence; ≥ 1 cited source per street | MGR review |
+| R2 | A per-face screenshot checklist (what to photograph, which fields it settles) exists for the user's future Street View pass | MGR review of `docs/world-notes.md` / `tasks/R2b.md` |
+| B3 buildings | Facade generator reads schema v2: per-lot floors, stoop, cornice, material family and bay rhythm come from data when present; falls back to the Stage 1 seeded generator when absent | unit tests: data lot → matching floor count/stoop/material; missing data → old output |
+| B3 | Deterministic: same seed + data → identical geometry hash; church and vacant lots render from data | hash test |
+| B3 | No draw-call regression from new facade variants: new parts merged per material per cell (B3 states the count, P8 confirms) | `__gtaStats.drawCalls` in smoke before/after |
+| S4 storefronts | Awning/sign geometry UVs at true aspect (texture aspect within ±5% of world-space aspect); R4's ~2x pre-squeeze removed | unit test on UV/size ratio |
+| S4 | Storefront archetype and position from schema v2; corner bodegas wrap the corner (two faces); roll gates down / lightboxes lit at night (state tied to `dayNight.isNight`) | storefront tests + one day/night screenshot by Q10 |
+| X5 missions | Mission framework on the event bus: trigger zones, objectives, timer, fail, retry, reward, HUD text; no per-frame allocations in `update` | unit tests per state transition (start → objective → complete; start → fail → retry) |
+| X5 | 3 missions (bodega delivery, laundromat getaway, cop escape) each completable start-to-finish and failable in a headless sim test | one passing test per mission for success and for fail+retry |
+| X5 | Mission progress persists via `localStorage` (try/catch; game works without it); completed missions stay completed across reload | save/load test with storage throwing and working |
+| X5 | Live: wiring request posted to P8 and applied in `main.ts` (call site named in X5's or P8's report) | MGR checks `main.ts` |
+| H7 hosted | `vercel.json` with `outputDirectory: dist`, a `build:hosted` path (via FOR FABLE for package.json) producing hashed assets, a texture manifest that can point at 2K sets, and the `ultra` tier flag (`VITE_HOSTED`) | build:hosted run; manifest unit test |
+| H7 | Same codebase: the artifact build and the hosted build differ only by flag + manifest; `dist/artifact.html` stays ≤ 12 MB and smoke passes on both outputs | both builds + smoke |
+| H7 | Lazy texture loading does not break offline play: missing hosted assets fall back to the 1K/procedural set without console errors | unit test + smoke |
+| H7 | README has a deploy section (Vercel steps, private/public note) | MGR review |
+| P8 perf | **< 500 draw calls per frame (all passes) at medium** from the 4 Stage 1 camera spots (Stage 1: ~790); triangles not up by > 20% | `__gtaStats.drawCalls` / triangles via smoke or a P8 probe, before/after table |
+| P8 | Props and parked cars instanced; shadow pass culls cells outside the shadow box (shadow-pass draw calls reported separately) | culling tests + numbers in report |
+| P8 | All other lanes' wiring requests applied or explicitly declined in the transcript | MGR checks call sites |
+| L9 lighting | light-audit at hours 6, 7, 12, 18, 19.5, 21, 0 (street, car, aerial; low + medium at 7/18/0): **< 0.5% blown pixels** per frame; night street mean luma **≥ 0.085** (Stage 1: 0.081–0.094) | `scripts/light-audit.mjs` |
+| L9 | Baselines committed under `docs/reference/light-baselines/` (numbers per hour × view × tier; images only if small) so later stages diff against them | file exists, MGR review |
+| L9 | Wet state: `Weather.ts` with a wetness 0–1 that lowers asphalt roughness and adds puddle reflections; dry default unchanged (audit numbers within ±0.01 mean luma at wetness 0) | unit test + audit at wetness 0 and 1 |
+| L9 | No stoop shadow acne at 7h and 18h on medium/high; signal lamps at night bloom without sky haze | close-up audit views, reviewer eyeball |
+| Q10 qa | Missing §5.2 tests exist and pass: top-speed 5 s steering-released yaw rate < 0.02 rad/s; contact bounce ≤ 2 frames; handbrake drift slip angle > 15°; 5-minute full-density (~30 vehicles, ~40 peds) sim where every agent moves ≥ 10 m in every 60 s window | `npx vitest run` on Q10's files |
+| Q10 | `tests/e2e/screens.mjs` renders a fixed screenshot set (day/night × street/bodega corner/aerial) to a git-ignored folder; `docs/swarm/qa-stage2.md` lists regressions with severity | MGR review |
+| T11 textures | Painters for corrugated steel, chain-link, granite curb, cast-iron railing, tar roof, graffiti layer; deterministic (pixel hash tests); procedural only (0 bytes of assets); new MaterialKeys landed via FOR FABLE | `tests/unit/textures/industrial.test.ts` |
+| T11 | Each new key used somewhere (call site named, or a wiring request to B3/P8/S4) | MGR checks call sites |
+| All | FINAL REPORT names files, commands + numbers, size impact, call site or wiring request, open issues | MGR review |
+
+**Deferred to the screenshot pass:** ≥ 90% of lots correct by checklist against user screenshots;
+neighbourhood recognisability test with the user; real-GPU 60 fps at medium (user, fps overlay).
 
 ### 5.4 Stage 3 (preview)
 - User-supplied rigged characters and cars load through the existing glTF hooks with animations
@@ -179,7 +223,7 @@ An agent changing a tier's cost must say so in its report.
   `docs/swarm/checkins/stage<N>.md`.
 
 ## 7. Open questions (owner)
-1. Network allowlist for overpass-api.de / data.cityofnewyork.us for R2 (Fable / user).
+1. Network allowlist for overpass-api.de / data.cityofnewyork.us for R2 (Fable / user). Stage 2: none granted; WebSearch only.
 2. Do user Street View screenshots live outside the repo or in a git-ignored `reference/` folder? (user) — default: outside.
-3. Hosted build target (static host choice) and whether it is public or private (user, Stage 2).
+3. Hosted build target: **decided, Vercel static (output `dist`)**. Public or private still open (user).
 4. Which rigged models the user will supply and their licences (user, Stage 3).

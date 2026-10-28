@@ -23,7 +23,7 @@ paint and clothes, block faces from general knowledge rather than data.
 
 ---
 
-## Stage 1 — Feel and fidelity pass (NOW, swarm started 2026-10-28T01:09Z)
+## Stage 1 — Feel and fidelity pass (DONE, 2026-10-28 01:09Z → 03:33Z; see checkins/stage1.md)
 
 **Goals:** fix how it looks and feels without changing the world layout: lighting & reflections,
 driving feel, signals and AI, smoothness, menus/gamepad, storefront art, vehicle/people textures;
@@ -67,11 +67,11 @@ PRD skeleton.
 
 ---
 
-## Stage 2 — Block-face accuracy, missions, hosted build
+## Stage 2 — Block-face accuracy, missions, hosted build (NOW, swarm started 2026-10-28T21:48Z)
 
 **Goals:**
-1. **Block-face accuracy:** rebuild the ~24 block faces from R2's data plus the user's Street View
-   screenshots (reference only, PRD §2.1): per-lot floors, width, material family, stoop, cornice,
+1. **Block-face accuracy:** rebuild the ~24 block faces from R2's data (and, in a later pass, the user's Street View
+   screenshots, reference only, PRD §2.1): per-lot floors, width, material family, stoop, cornice,
    storefront archetype and position, trees, scaffolds, vacant lots. Data-first: extend `bedstuy.json`
    (schema change via Fable) and a block-face checklist in `docs/world-notes.md`.
 2. **Missions:** a small mission framework on the event bus (trigger, objectives, fail/retry, reward,
@@ -81,19 +81,38 @@ PRD skeleton.
    `ultra` tier, lazy loading; the single-file artifact keeps working under 16 MB.
 4. Carry-overs from Stage 1 check-in (deferred criteria, follow-ups).
 
-**Entry criteria:** Stage 1 check-in written and integrated; R2 block-face data available (with gaps
-listed); user screenshots for the gap lots; licence-verified R1 set list; decision on hosting.
+**Entry criteria (met, with decisions by Fable at 21:48Z):**
+- Stage 1 check-in written and integrated (commits 5cb3754, 72163d7: metalness fixes, leftover allocations, R1 provenance).
+- Grid: the map stays as drawn (no DeKalb Ave between Pulaski and Kosciuszko); street order and one-way questions closed for this stage.
+- Block-face data: no network allowlist and no Street View screenshots arrived, so accuracy is built from R2's notes,
+  WebSearch snippets and row-house typology knowledge, every value confidence-tagged (high / med / low). The
+  screenshot-based ≥ 90% check moves to a later screenshot pass; R2 writes the per-face checklist for it.
+- R1 set list licence-verified (docs/reference/r1-sources); 2K sets not in the repo, so the hosted manifest is built
+  ready for 2K and ships 1K/procedural until the sets land.
+- Hosting decided: Vercel, static Vite build, output `dist`.
 
-**Exit criteria:** PRD §5.3 met; global gates green on both builds; check-in `stage2.md`.
+**Exit criteria:** PRD §5.3 table met or deferred with an owner; global gates green on both builds (artifact ≤ 12 MB, < 500 draw calls at medium); all ten FINAL REPORTs reviewed by MGR; check-in `stage2.md`.
 
 **Risks:** data gaps where OSM/PLUTO are unreachable (mitigate: user screenshots, mark confidence);
 schema churn in `bedstuy.json`/`types.ts` (one owner, Fable, versioned schema); mission scope creep
 (cap at 3–5, reuse systems); two-build drift (one codebase + manifest flag, CI builds both); size
 regressions in artifact when 2K textures arrive (hosted-only asset set).
 
-**Proposed roster (final list in the Stage 1 check-in):** data/schema (block faces) · buildings
-generator (facade variants per face) · storefront placement · mission framework · mission content ·
-hosted build + asset pipeline · lighting follow-ups · QA/regression harness · MGR · Fable.
+**Roster (board.md is the source of truth for owned files):**
+| id | lane | model |
+|---|---|---|
+| D1 | data-schema (bedstuy.json v2, loader, validation) | sonnet |
+| R2 | research-blocks-2 (WebSearch block faces, screenshot checklist) | haiku |
+| B3 | buildings (facades from schema v2) | sonnet |
+| S4 | storefronts (placement, true-aspect awnings, corner wrap, night state) | sonnet |
+| X5 | missions (framework + 3 missions) | sonnet |
+| H7 | hosted-build (Vercel, manifest, ultra, lazy textures) | sonnet |
+| P8 | performance-2 (instancing, < 500 draw calls; owns main.ts/WorldBuilder.ts, applies wiring) | sonnet |
+| L9 | lighting-2 (wet state, acne, lamp bloom, baselines) | sonnet |
+| Q10 | qa (missing §5.2 tests, screenshot set, regression report) | sonnet |
+| T11 | textures-4 (procedural industrial surfaces) | sonnet |
+| MGR | manager | opus |
+| Fable | orchestrator, shared files, commits | session |
 
 ---
 
