@@ -116,19 +116,31 @@ describe('TrafficLights', () => {
 
   it('a southbound platoon at 12 m/s meets green at every light along Throop', () => {
     const lights = new TrafficLights(grid);
-    // the platoon leaves the first light as its ns green begins
-    const first = 'throop|hart';
-    const start = (SIGNAL_TIMING.avenueGreen * 0 + (lights.cycleLength(first) - lights.offsetOf(first))) % lights.cycleLength(first);
-    lights.update(start + 1); // 1 s into the green at hart
-    const ids = ['hart', 'pulaski', 'kosciuszko', 'vanburen'].map((e) => `throop|${e}`);
-    const zs: Record<string, number> = { hart: -200, pulaski: -100, kosciuszko: 0, vanburen: 200 };
-    let t = 1;
-    for (const e of ['hart', 'pulaski', 'kosciuszko', 'vanburen']) {
-      const need = (zs[e] - -200) / 12 + 1 - t;
+    const cycle = lights.cycleLength('throop|hart');
+    // the platoon leaves Hart St (z = -200) one second into its ns green
+    lights.update((cycle - lights.localTime('throop|hart') + 1) % cycle);
+    const stops: Array<[string, number]> = [['hart', -200], ['pulaski', -100], ['kosciuszko', 0], ['lafayette', 100], ['vanburen', 200], ['greene', 300]];
+    let t = 0;
+    for (const [street, z] of stops) {
+      const need = (z + 200) / 12 - t;
       if (need > 0) { lights.update(need); t += need; }
-      expect(lights.phaseFor(`throop|${e}`, 'throop'), e).toBe('green');
+      expect(lights.phaseFor(`throop|${street}`, 'throop'), street).toBe('green');
     }
-    expect(ids.length).toBe(4);
+  });
+
+  it('phaseTimeLeft counts down to the next colour change', () => {
+    const lights = new TrafficLights(grid);
+    const id = inter('throop', 'kosciuszko').id;
+    lights.update(lights.cycleLength(id) - lights.localTime(id)); // ns green begins
+    expect(lights.phaseTimeLeft(id, 'throop')).toBeCloseTo(45, 3);
+    lights.update(44);
+    expect(lights.phaseTimeLeft(id, 'throop')).toBeCloseTo(1, 3);
+    lights.update(2);
+    expect(lights.phaseFor(id, 'throop')).toBe('yellow');
+    expect(lights.phaseTimeLeft(id, 'throop')).toBeCloseTo(2, 3);
+    expect(lights.phaseTimeLeft(id, 'kosciuszko')).toBeCloseTo(3, 3); // red until 49 s
+    expect(lights.secondsUntilGreen(id, 'kosciuszko')).toBeCloseTo(3, 3);
+    expect(lights.secondsUntilGreen(id, 'throop')).toBeCloseTo(83 - 46, 3);
   });
 
   it('unsignalised queries are permissive', () => {

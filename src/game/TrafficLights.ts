@@ -186,6 +186,24 @@ export class TrafficLights {
     return u < greenStart ? greenStart - u : p.cycle - u + greenStart;
   }
 
+  /** Seconds until the signal for `approachStreetId` next changes colour (Infinity when unsignalised). */
+  phaseTimeLeft(intersectionId: string, approachStreetId: string): number {
+    const p = this.plans.get(intersectionId);
+    if (!p) return Infinity;
+    const u = this.local(p);
+    const T = SIGNAL_TIMING;
+    if (approachStreetId === p.nsStreetId) {
+      if (u < p.gNS) return p.gNS - u;
+      if (u < p.gNS + T.yellow) return p.gNS + T.yellow - u;
+      return p.cycle - u;
+    }
+    const s = p.gNS + T.yellow + T.allRed;
+    if (u < s) return s - u;
+    if (u < s + p.gEW) return s + p.gEW - u;
+    if (u < s + p.gEW + T.yellow) return s + p.gEW + T.yellow - u;
+    return p.cycle - u;
+  }
+
   /** Live per-intersection state for rendering. The array and its entries are reused: do not keep references across frames. */
   state(): readonly SignalState[] { return this.states; }
 

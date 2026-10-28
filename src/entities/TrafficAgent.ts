@@ -33,7 +33,10 @@ const STRAIGHT_ANGLE = 0.35;
 /** comfortable braking used to plan stops (fraction of the vehicle's brakeDecel) */
 const COMFORT_BRAKE = 0.6;
 const STOP_POINT = 2.5;
+/** the hardest braking a driver commits to when deciding whether a yellow can still be stopped for */
+const YELLOW_BRAKE = 0.85;
 const SIGNAL_REACTION = 0.4;
+const BLOCK_GRACE = 0.5;
 const HORN_AFTER = 3;
 const HORN_PERIOD = 4;
 const HORN_PULSE = 0.3;
@@ -62,12 +65,16 @@ export class TrafficAgent {
   private waitTimer = 0;
   private extraWait = 0;
   private blockedTime = 0;
+  private blockGrace = 0;
+  private lastBlocker: Body2D | null = null;
   private stuckTime = 0;
   private stuckRetries = 0;
   private ignoreRayTimer = 0;
   private hornClock = 0;
   /** stop line this agent has committed to run (yellow it could not stop for) */
   private goLatch: string | null = null;
+  /** stop line this agent has decided to stop at (so a yellow decision does not flip as it closes in) */
+  private stopLatch: string | null = null;
   // overtaking
   private lat = 0;
   private latTarget = 0;
@@ -86,6 +93,7 @@ export class TrafficAgent {
   private readonly input: VehicleInput = { throttle: 0, steer: 0, brake: false, handbrake: false, horn: false };
   private readonly rayDir: Vec2 = { x: 0, z: -1 };
   private readonly rayFrom: Vec2 = { x: 0, z: 0 };
+  private readonly scratch: Vec2 = { x: 0, z: 0 };
   private readonly ignoreStop: boolean;
   private readonly speedForStreet?: (streetId: string) => number;
   private readonly fixedCruise?: number;
@@ -156,8 +164,11 @@ export class TrafficAgent {
     this.waitTimer = 0;
     this.extraWait = 0;
     this.goLatch = null;
+    this.stopLatch = null;
     this.stuckTime = 0;
     this.blockedTime = 0;
+    this.blockGrace = 0;
+    this.lastBlocker = null;
     this.passBody = null;
     this.latTarget = 0;
     this.stopAheadFor = null;
@@ -192,7 +203,8 @@ export class TrafficAgent {
       if (node.stopLine && !this.ignoreStop) {
         if (this.signalGoverned(node)) {
           const ph = this.lights!.phaseFor(node.intersectionId!, node.streetId);
-          const committed = this.goLatch === node.id || ph === 'green' || (ph === 'yellow' && v.speed > 2);
+          const committed = this.goLatch === node.id || ph === 'green' ||
+            (ph === 'yellow' && this.stopLatch !== node.id && v.speed > 2);
           if (!committed) {
             this.state = 'waiting';
             this.waitTimer = 0;
@@ -278,17 +290,22 @@ export class TrafficAgent {
     }
     if (blocked) {
       desired = 0;
-      if (Math.abs(speed) < 0.3) {
-        this.blockedTime += dt;
-        this.tryOvertake(blocker!, fx, fz, rx, rz, node);
-      }
-      if (this.passBody && this.lat > 0.5 && blocker !== this.passBody) {
-        // something else is in the passing lane: give up and tuck back in behind the blocker
-        this.latTarget = 0;
-        this.passBody = null;
-      }
-    } else {
+      this.blockGrace = BLOCK_GRACE;
+    } else if (this.blockGrace > 0) {
+      this.blockGrace -= dt; // a car creeping up to a stationary one flickers in and out of ray range
+    }
+    if ((blocked || this.blockGrace > 0) && Math.abs(speed) < 0.6) {
+      this.blockedTime += dt;
+      if (blocker) this.lastBlocker = blocker;
+      if (this.lastBlocker) this.tryOvertake(this.lastBlocker, fx, fz, rx, rz, node);
+    } else if (!blocked && this.blockGrace <= 0) {
       this.blockedTime = 0;
+      this.lastBlocker = null;
+    }
+    if (blocked && this.passBody && this.lat > 0.5 && blocker !== this.passBody) {
+      // something else is in the passing lane: give up and tuck back in behind the blocker
+      this.latTarget = 0;
+      this.passBody = null;
     }
 
     // ---- stuck detection / honking
@@ -300,7 +317,7 @@ export class TrafficAgent {
 
     const inp = this.input;
     inp.horn = false;
-    if (this.stuckTime > HORN_AFTER && blocked) {
+    if (this.stuckTime > HORN_AFTER && (blocked || this.blockGrace > 0)) {
       this.hornClock += dt;
       if (this.hornClock >= HORN_PERIOD) this.hornClock -= HORN_PERIOD;
       inp.horn = this.hornClock < HORN_PULSE;
@@ -348,19 +365,25 @@ export class TrafficAgent {
    */
   private mustStopAt(node: LaneNode, d: number, speed: number): boolean {
     if (!this.signalGoverned(node)) return true;
-    if (this.goLatch === node.id) return false;
     const ph = this.lights!.phaseFor(node.intersectionId!, node.streetId);
+    if (this.stopLatch === node.id) return ph !== 'green';
+    if (this.goLatch === node.id) return false;
     if (ph === 'green') return false;
     const room = Math.max(0, d - STOP_POINT);
     const s = Math.max(0, speed);
     const brakeDist = (s * s) / (2 * this.vehicle.spec.brakeDecel * COMFORT_BRAKE);
     if (ph === 'yellow') {
-      if (room > brakeDist * 1.1 + 1) return true;
+      // drive on if the line is reached before the yellow ends (or a stop is no longer possible), else stop
+      const left = this.lights!.phaseTimeLeft(node.intersectionId!, node.streetId);
+      const reach = s > 0.5 ? Math.max(0, d - STOP_POINT) / s : Infinity;
+      const canStop = room >= (s * s) / (2 * this.vehicle.spec.brakeDecel * YELLOW_BRAKE);
+      if (reach > left && canStop) { this.stopLatch = node.id; return true; }
       this.goLatch = node.id;
       return false;
     }
     // red
     if (s > 1 && room < brakeDist * 0.5) { this.goLatch = node.id; return false; } // already in the box: clear it
+    this.stopLatch = node.id;
     return true;
   }
 
@@ -412,7 +435,9 @@ export class TrafficAgent {
   private scanPeds(fx: number, fz: number, speed: number): number {
     const pos = this.vehicle.body.pos;
     const reach = 7 + Math.max(0, speed) * 1.2;
-    const c = { x: pos.x + fx * reach * 0.5, z: pos.z + fz * reach * 0.5 };
+    const c = this.scratch;
+    c.x = pos.x + fx * reach * 0.5;
+    c.z = pos.z + fz * reach * 0.5;
     const list = this.world.queryCircle(c, reach * 0.5 + PED_LATERAL);
     let best = Infinity;
     for (let i = 0; i < list.length; i++) {
@@ -516,7 +541,9 @@ export class TrafficAgent {
   private intersectionClear(stop: LaneNode, movingOnly: boolean): boolean {
     const cx = stop.pos.x + Math.sin(stop.heading) * INTERSECTION_CENTER_AHEAD;
     const cz = stop.pos.z - Math.cos(stop.heading) * INTERSECTION_CENTER_AHEAD;
-    const list = this.world.queryCircle({ x: cx, z: cz }, INTERSECTION_RADIUS);
+    this.scratch.x = cx;
+    this.scratch.z = cz;
+    const list = this.world.queryCircle(this.scratch, INTERSECTION_RADIUS);
     const selfId = this.vehicle.body.id;
     for (let i = 0; i < list.length; i++) {
       const b = list[i];
@@ -549,6 +576,7 @@ export class TrafficAgent {
     const e = this.lanes.edges[edgeIdx];
     this.prevId = from.id;
     this.targetId = e.to;
+    this.stopLatch = null;
     return true;
   }
 

@@ -493,15 +493,15 @@ describe('TrafficAgent at signals', () => {
   });
 
   it('stops for a yellow it can stop for but carries through one it cannot', () => {
-    // yellow starts at local 45
-    const far = lightsAt(45.5);
-    const a = setup(far, 0, 10); // 20 m from the line at 10 m/s: can stop (needs ~14 m)
+    // yellow runs from local 45 to 48
+    const far = lightsAt(46.5);
+    const a = setup(far, 0, 10); // 20 m from the line at 10 m/s, 1.5 s of yellow left: cannot get through, can stop
     for (let t = 0; t < 1.2; t += 1 / 30) { stepCar(a.v, a.agent, 1 / 30); far.update(1 / 30); }
     for (let t = 0; t < 6; t += 1 / 30) { stepCar(a.v, a.agent, 1 / 30); far.update(1 / 30); }
     expect(a.v.body.pos.x).toBeLessThan(20.01);
 
-    const near = lightsAt(45.5);
-    const b = setup(near, 14, 12); // 6 m from the line at 12 m/s: cannot stop
+    const near = lightsAt(46.5);
+    const b = setup(near, 14, 12); // 6 m from the line at 12 m/s: through in half a second
     for (let t = 0; t < 3; t += 1 / 30) { stepCar(b.v, b.agent, 1 / 30); near.update(1 / 30); }
     expect(b.v.body.pos.x).toBeGreaterThan(24);
   });
@@ -579,11 +579,11 @@ describe('TrafficAgent driving behaviour', () => {
   });
 
   it('steers left (negative) while moving out to pass', () => {
-    const { w } = blockerWorld(40, null);
+    const { w } = blockerWorld(50, null);
     const v = fakeVehicle('v', 30, 0, Math.PI / 2);
-    const agent = new TrafficAgent(v, straight(), w, new Rng(1), { startNodeId: 'n0', cruiseSpeed: 9 });
+    const agent = new TrafficAgent(v, straight(), w, new Rng(1), { startNodeId: 'n1', cruiseSpeed: 9 });
     let minSteer = 0;
-    for (let t = 0; t < 4; t += 1 / 30) { stepCar(v, agent, 1 / 30); minSteer = Math.min(minSteer, v.last!.steer); }
+    for (let t = 0; t < 8; t += 1 / 30) { stepCar(v, agent, 1 / 30); minSteer = Math.min(minSteer, v.last!.steer); }
     expect(minSteer).toBeLessThan(-0.05);
     expect(v.body.pos.z).toBeLessThan(-0.3);
   });

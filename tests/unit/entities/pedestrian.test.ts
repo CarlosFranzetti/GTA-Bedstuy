@@ -273,3 +273,234 @@ describe('Pedestrian', () => {
     expect(scene.children.length).toBe(0);
   });
 });
+
+// ------------------------------------------------------------------ signals, groups, stoops, threats
+
+import { TrafficLights } from '@/game/TrafficLights';
+import type { PedCrossing, PedEnvironment } from '@/entities/Pedestrian';
+
+function signalGrid() {
+  const streets = {
+    s: { id: 's', class: 'avenue', roadWidth: 14, sidewalkWidth: 4, oneWay: 0 },
+    cross: { id: 'cross', class: 'street', roadWidth: 10, sidewalkWidth: 3.5, oneWay: 0 },
+  } as const;
+  return {
+    intersections: [{ id: 'x', center: { x: 30, z: 0 }, nsStreetId: 's', ewStreetId: 'cross', halfX: 7, halfZ: 5 }],
+    streetById: (id: string) => streets[id as keyof typeof streets],
+  };
+}
+/** controller whose intersection-local clock reads `local` seconds (0 = ns green begins; ew green 49..79) */
+function lightsAt(local: number): TrafficLights {
+  const l = new TrafficLights(signalGrid() as never);
+  l.update(((local - l.localTime('x')) % 83 + 83) % 83);
+  return l;
+}
+
+describe('Pedestrian with signals', () => {
+  /** a - cw1 ==(crossing the street "cross")== cw2 - b along z = 0 */
+  function crossGraph() {
+    return graph([gn('a', 0, 0), gn('cw1', 3, 0), gn('cw2', 15, 0), gn('b', 18, 0)], [['a', 'cw1'], ['cw1', 'cw2'], ['cw2', 'b']]);
+  }
+  const crossing: PedCrossing = { intersectionId: 'x', crossedStreetId: 'cross' };
+  const crossings = new Map([['cw1>cw2', crossing], ['cw2>cw1', crossing]]);
+  function setupSignal(lights: TrafficLights, extra: Partial<PedEnvironment> = {}) {
+    const env: PedEnvironment = { lights, crossings, ...extra };
+    const ctx = setup(crossGraph(), 'a', 1, new Set(['cw1', 'cw2']));
+    ctx.ped.setEnvironment(env);
+    return { ...ctx, env };
+  }
+
+  it('waits at the curb node until WALK, then crosses', () => {
+    // crossing the "cross" street needs the ns avenue "s" green: that is local 0..45 (WALK for the first ~34 s)
+    const lights = lightsAt(50); // DON'T WALK; the next WALK starts in 33 s
+    expect(lights.walkFor('x', 'cross')).toBe(false);
+    const { ped } = setupSignal(lights);
+    for (let t = 0; t < 25; t += 1 / 30) { ped.update(1 / 30); lights.update(1 / 30); }
+    expect(ped.state).toBe('waiting');
+    expect(ped.waitingForWalk).toBe(true);
+    expect(ped.body.pos.x).toBeLessThan(3.6);
+    expect(ped.body.pos.x).toBeGreaterThan(2.4);
+    expect(lights.walkFor('x', 'cross')).toBe(false);
+    // WALK comes up
+    for (let t = 0; t < 15; t += 1 / 30) { ped.update(1 / 30); lights.update(1 / 30); }
+    expect(lights.walkFor('x', 'cross')).toBe(true);
+    expect(ped.state).toBe('walking');
+    expect(ped.body.pos.x).toBeGreaterThan(3.5);
+  });
+
+  it('does not step off on the flashing DON\'T WALK', () => {
+    const lights = lightsAt(40); // flash begins at ns green 45 - 10/1.2 -> walkLen = max(7, 45-8.3) = 36.7
+    expect(lights.walkStateFor('x', 'cross')).toBe('flash');
+    const { ped } = setupSignal(lights);
+    for (let t = 0; t < 4; t += 1 / 30) { ped.update(1 / 30); lights.update(1 / 30); }
+    expect(ped.state).toBe('waiting');
+  });
+
+  it('finishes crossing when the signal changes to DON\'T WALK mid-way', () => {
+    const lights = lightsAt(30); // WALK, ~6.7 s of it left
+    expect(lights.walkFor('x', 'cross')).toBe(true);
+    const { ped } = setupSignal(lights);
+    let crossedAt = -1;
+    for (let t = 0; t < 30; t += 1 / 30) {
+      ped.update(1 / 30);
+      lights.update(1 / 30);
+      if (crossedAt < 0 && ped.body.pos.x > 5) crossedAt = t;
+    }
+    expect(crossedAt).toBeGreaterThanOrEqual(0);
+    expect(lights.walkFor('x', 'cross')).toBe(false); // long over by now
+    expect(ped.body.pos.x).toBeGreaterThan(14);       // and it made it to the far side regardless
+  });
+
+  it('crossings at an unsignalised intersection fall back to waiting for traffic', () => {
+    const lights = new TrafficLights({ intersections: [], streetById: () => undefined } as never);
+    const { ped, world } = setupSignal(lights);
+    const car = vehicleBody({ speed: 9, driver: 'traffic' });
+    car.pos = { x: 5, z: 8 }; // on the street, not aimed at the curb
+    world.nearby = [car];
+    let waiting = false;
+    for (let i = 0; i < 6 * 30; i++) { ped.update(1 / 30); if (ped.state === 'waiting') { waiting = true; break; } }
+    expect(waiting).toBe(true);
+    expect(ped.waitingForWalk).toBe(false);
+  });
+
+  it('exposes a phone-looking idle pose for some pedestrians waiting at a curb', () => {
+    const poses = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      const lights = lightsAt(50);
+      const events = new EventBus();
+      const ped = new Pedestrian('p', crossGraph().nodes.a, crossGraph(), new FakeWorld(), materials, events, new Rng(seed), new Set(['cw1', 'cw2']), { lights, crossings });
+      for (let t = 0; t < 6; t += 1 / 30) ped.update(1 / 30);
+      poses.add(ped.pose);
+    }
+    expect(poses.has('phone')).toBe(true);
+    expect(poses.has('stand')).toBe(true);
+  });
+
+  it('flees from a car heading straight at it, but not from one passing by', () => {
+    const { ped, world } = setupSignal(lightsAt(5));
+    const toward = vehicleBody({ speed: 8, driver: 'player' });
+    toward.pos = { x: ped.body.pos.x - 4, z: ped.body.pos.z };
+    world.nearby = [toward];
+    for (let t = 0; t < 1; t += 1 / 30) ped.update(1 / 30);
+    expect(ped.state).toBe('fleeing');
+
+    const calm = setupSignal(lightsAt(5));
+    const passing = vehicleBody({ speed: 8, driver: 'player' });
+    passing.pos = { x: calm.ped.body.pos.x - 4, z: calm.ped.body.pos.z + 5 }; // 5 m to the side, same direction
+    calm.world.nearby = [passing];
+    for (let t = 0; t < 1; t += 1 / 30) calm.ped.update(1 / 30);
+    expect(calm.ped.state).not.toBe('fleeing');
+  });
+});
+
+describe('Pedestrian stoops and groups', () => {
+  function line() {
+    return graph([gn('n0', 0, 0), gn('n1', 20, 0)], [['n0', 'n1']]);
+  }
+
+  it('sits on a stoop for 10-30 s next to its path, then gets up and walks on', () => {
+    const g = line();
+    const rng = new Rng(3);
+    const ped = new Pedestrian('p', g.nodes.n0, g, new FakeWorld(), materials, new EventBus(), rng);
+    rng.chance = () => true;
+    ped.setEnvironment({ stoops: [{ pos: { x: 10, z: 2 }, outward: { x: 0, z: -1 } }] });
+    let sitStart = -1;
+    let sitEnd = -1;
+    const dt = 1 / 20;
+    for (let t = 0; t < 120; t += dt) {
+      ped.update(dt);
+      if (sitStart < 0 && ped.state === 'sitting') {
+        sitStart = t;
+        expect(ped.pose).toBe('sit');
+        expect(Math.hypot(ped.body.pos.x - 10, ped.body.pos.z - 2)).toBeLessThan(0.3);
+      }
+      if (sitStart >= 0 && sitEnd < 0 && ped.state !== 'sitting') { sitEnd = t; break; }
+    }
+    expect(sitStart).toBeGreaterThan(0);
+    expect(sitEnd - sitStart).toBeGreaterThanOrEqual(10);
+    expect(sitEnd - sitStart).toBeLessThanOrEqual(30.2);
+    // back on the sidewalk line
+    for (let t = 0; t < 8; t += dt) ped.update(dt);
+    expect(Math.abs(ped.body.pos.z)).toBeLessThan(0.8);
+    expect(ped.state).toBe('walking');
+  });
+
+  it('without lots it idles at a sidewalk node instead', () => {
+    const g = line();
+    const rng = new Rng(3);
+    const ped = new Pedestrian('p', g.nodes.n0, g, new FakeWorld(), materials, new EventBus(), rng);
+    rng.chance = () => true;
+    ped.setEnvironment({});
+    let idled = false;
+    for (let t = 0; t < 60 && !idled; t += 0.05) { ped.update(0.05); idled = ped.state === 'sitting'; }
+    expect(idled).toBe(true);
+    expect(['stand', 'phone']).toContain(ped.pose);
+  });
+
+  it('a stoop sitter flees when a car comes for it', () => {
+    const g = line();
+    const world = new FakeWorld();
+    const rng = new Rng(3);
+    const ped = new Pedestrian('p', g.nodes.n0, g, world, materials, new EventBus(), rng);
+    rng.chance = () => true;
+    ped.setEnvironment({});
+    for (let t = 0; t < 60 && ped.state !== 'sitting'; t += 0.05) ped.update(0.05);
+    expect(ped.state).toBe('sitting');
+    const car = vehicleBody({ speed: 9, driver: 'player' });
+    car.pos = { x: ped.body.pos.x - 5, z: ped.body.pos.z };
+    world.nearby = [car];
+    for (let t = 0; t < 1; t += 0.05) ped.update(0.05);
+    expect(ped.state).toBe('fleeing');
+  });
+
+  it('group members stay beside their leader and wait with it', () => {
+    const lights = lightsAt(50);
+    const crossing: PedCrossing = { intersectionId: 'x', crossedStreetId: 'cross' };
+    const crossings = new Map([['cw1>cw2', crossing], ['cw2>cw1', crossing]]);
+    const g = graph([gn('a', 0, 0), gn('cw1', 3, 0), gn('cw2', 15, 0), gn('b', 18, 0)], [['a', 'cw1'], ['cw1', 'cw2'], ['cw2', 'b']]);
+    const events = new EventBus();
+    const world = new FakeWorld();
+    const leader = new Pedestrian('L', g.nodes.a, g, world, materials, events, new Rng(1), new Set(['cw1', 'cw2']));
+    const f1 = new Pedestrian('F1', g.nodes.a, g, world, materials, events, new Rng(2), new Set(['cw1', 'cw2']));
+    const f2 = new Pedestrian('F2', g.nodes.a, g, world, materials, events, new Rng(3), new Set(['cw1', 'cw2']));
+    for (const p of [leader, f1, f2]) p.setEnvironment({ lights, crossings });
+    f1.body.pos.x = -0.85; f1.body.pos.z = 0.35; f1.follow(leader, -1);
+    f2.body.pos.x = 0.85; f2.body.pos.z = 0.35; f2.follow(leader, 1);
+    expect(f1.groupLeader).toBe(leader);
+    let maxGap = 0;
+    for (let t = 0; t < 20; t += 1 / 30) {
+      for (const p of [leader, f1, f2]) p.update(1 / 30);
+      lights.update(1 / 30);
+      for (const f of [f1, f2]) maxGap = Math.max(maxGap, Math.hypot(f.body.pos.x - leader.body.pos.x, f.body.pos.z - leader.body.pos.z));
+    }
+    expect(leader.state).toBe('waiting');
+    expect(maxGap).toBeLessThan(2.2);
+    // WALK: the group crosses together
+    const maxX = { L: 0, F1: 0, F2: 0 };
+    for (let t = 0; t < 40; t += 1 / 30) {
+      for (const p of [leader, f1, f2]) p.update(1 / 30);
+      lights.update(1 / 30);
+      maxX.L = Math.max(maxX.L, leader.body.pos.x);
+      maxX.F1 = Math.max(maxX.F1, f1.body.pos.x);
+      maxX.F2 = Math.max(maxX.F2, f2.body.pos.x);
+      for (const f of [f1, f2]) maxGap = Math.max(maxGap, Math.hypot(f.body.pos.x - leader.body.pos.x, f.body.pos.z - leader.body.pos.z));
+    }
+    expect(maxX.L).toBeGreaterThan(14);
+    expect(maxX.F1).toBeGreaterThan(13);
+    expect(maxX.F2).toBeGreaterThan(13);
+    expect(maxGap).toBeLessThan(2.5);
+  });
+
+  it('a follower breaks away when its leader is knocked down', () => {
+    const g = line();
+    const world = new FakeWorld();
+    const leader = new Pedestrian('L', g.nodes.n0, g, world, materials, new EventBus(), new Rng(1));
+    const f = new Pedestrian('F', g.nodes.n0, g, world, materials, new EventBus(), new Rng(2));
+    f.follow(leader, 1);
+    leader.onContact(contact(vehicleBody({ speed: 8, driver: 'traffic' }), leader.body), vehicleBody({ speed: 8, driver: 'traffic' }));
+    expect(leader.state).toBe('down');
+    for (let t = 0; t < 3; t += 1 / 30) { leader.update(1 / 30); f.update(1 / 30); }
+    expect(f.groupLeader).toBeNull();
+    expect(f.state).toBe('walking');
+  });
+});

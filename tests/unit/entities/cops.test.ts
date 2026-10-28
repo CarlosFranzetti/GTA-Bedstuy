@@ -316,3 +316,137 @@ describe('CopAgent', () => {
     expect(v.siren).toBe(true);
   });
 });
+
+// ------------------------------------------------------------------ PIT, patrols, signals
+
+import { pitAim, PIT_STARS } from '@/entities/Cop';
+import { TrafficLights } from '@/game/TrafficLights';
+
+describe('PIT manoeuvre', () => {
+  const fwdNorth = { x: 0, z: -1 }; // target heading north; its right is +x
+
+  it('trails from directly behind when not yet lined up (ahead of / beside the target)', () => {
+    const a = pitAim({ x: 0, z: 10 }, { x: 0, z: 0 }, fwdNorth); // 10 m behind, centred -> lined up
+    expect(a.phase).toBe('strike');
+    const beside = pitAim({ x: 5, z: 0 }, { x: 0, z: 0 }, fwdNorth);
+    expect(beside.phase).toBe('trail');
+    expect(beside.aim.z).toBeCloseTo(9, 0); // behind the target (south of it)
+    const ahead = pitAim({ x: 0, z: -12 }, { x: 0, z: 0 }, fwdNorth);
+    expect(ahead.phase).toBe('trail');
+  });
+
+  it('strikes the rear quarter on the side it arrives from, not the centre of the car', () => {
+    const left = pitAim({ x: -2, z: 8 }, { x: 0, z: 0 }, fwdNorth);
+    expect(left.phase).toBe('strike');
+    expect(left.aim.x).toBeLessThan(-0.5);     // left (west) rear quarter
+    expect(left.aim.z).toBeGreaterThan(1);     // behind the centre
+    const right = pitAim({ x: 2, z: 8 }, { x: 0, z: 0 }, fwdNorth);
+    expect(right.aim.x).toBeGreaterThan(0.5);
+  });
+
+  function copAt(x: number, z: number, heading: number) {
+    const v = fakeVehicle('c', x, z, heading);
+    const agent = new CopAgent(v, fakeGrid(), new FakeWorld());
+    v.setSpeed(15);
+    return { v, agent };
+  }
+  const runner = (stars: number, speed = 14) => ({ heading: 0, vel: { x: 0, z: -speed }, stars });
+
+  it('at 3 stars a cop in range trails the runner instead of charging at its centre', () => {
+    const { v, agent } = copAt(8, 0, 0); // beside the target, 8 m east, both facing north
+    agent.update(1 / 60, { x: 0, z: 0 }, runner(PIT_STARS));
+    expect(agent.isRamming).toBe(true);
+    expect(agent.pit).toBe('trail');
+    expect(v.last!.steer).toBeLessThan(-0.3); // the lining-up point is behind the runner (south-west of the cop): swing left and back
+  });
+
+  it('once lined up behind the rear quarter it strikes with full throttle', () => {
+    const { v, agent } = copAt(1.5, 9, 0); // 9 m behind, slightly east, facing north
+    agent.update(1 / 60, { x: 0, z: 0 }, runner(PIT_STARS));
+    expect(agent.pit).toBe('strike');
+    expect(v.last!.throttle).toBe(1);
+    // aims at the quarter west of the cop's line: it steers left (toward -x) a touch rather than straight
+    expect(Math.abs(v.last!.steer)).toBeGreaterThan(0);
+  });
+
+  it('below 3 stars, or against a stationary target, it just charges', () => {
+    const a = copAt(0, 20, 0);
+    a.agent.update(1 / 60, { x: 0, z: 0 }, runner(2));
+    expect(a.agent.pit).toBeNull();
+    const b = copAt(0, 20, 0);
+    b.agent.update(1 / 60, { x: 0, z: 0 }, { heading: 0, vel: { x: 0, z: 0 }, stars: 3 });
+    expect(b.agent.pit).toBeNull();
+  });
+});
+
+describe('CopSystem patrols and signals', () => {
+  it('patrols with off-duty cars (siren off) while nobody is wanted, then dispatches them', () => {
+    const events = new EventBus();
+    const world = new FakeWorld();
+    const wanted = new WantedSystem(events);
+    const made: FakeVehicle[] = [];
+    const sys = new CopSystem(fakeGrid(), world, events, new Rng(3), new THREE.Scene(), (type, pos, heading) => {
+      const v = fakeVehicle(`cop${made.length}`, pos.x, pos.z, heading, type);
+      made.push(v);
+      return v;
+    }, wanted, { patrolCount: 2 });
+    for (let i = 0; i < 10; i++) sys.update(1, P);
+    expect(sys.cops.length).toBe(2);
+    expect(sys.cops.every((c) => !c.siren)).toBe(true);
+    expect(made.every((m) => m.last !== null)).toBe(true); // driving
+    events.emit('crime', { type: 'hitPed', pos: P });
+    sys.update(0.1, P);
+    expect(sys.cops.filter((c) => c.siren).length).toBe(1);
+    expect(sys.cops.length).toBe(2); // one of the patrol cars was dispatched, no extra spawned
+  });
+
+  it('does not patrol by default', () => {
+    const { sys } = setup();
+    for (let i = 0; i < 10; i++) sys.update(1, P);
+    expect(sys.cops.length).toBe(0);
+  });
+
+  function redLightGrid() {
+    const g = fakeGrid();
+    const e = g.lanes.nodes;
+    for (const id of Object.keys(e)) if (e[id].stopLine) e[id].intersectionId = 'x';
+    for (const id of Object.keys(e)) e[id].streetId = 's';
+    return g;
+  }
+  const streets = {
+    s: { id: 's', class: 'avenue', roadWidth: 14, sidewalkWidth: 4, oneWay: 0 },
+    cross: { id: 'cross', class: 'street', roadWidth: 10, sidewalkWidth: 3.5, oneWay: 0 },
+  } as const;
+  const lightsGridDef = {
+    intersections: [{ id: 'x', center: { x: 0, z: 0 }, nsStreetId: 's', ewStreetId: 'cross', halfX: 7, halfZ: 5 }],
+    streetById: (id: string) => streets[id as keyof typeof streets],
+  };
+
+  it('an off-duty cop waits at a red light, a pursuing cop runs it', () => {
+    const lights = new TrafficLights(lightsGridDef as never);
+    lights.update(((55 - lights.localTime('x')) % 83 + 83) % 83); // street "s" red
+    expect(lights.phaseFor('x', 's')).toBe('red');
+    const run = (pursuing: boolean) => {
+      const grid = redLightGrid();
+      // e4 (x = -220) is the first stop line
+      const v = fakeVehicle('c', -250, 2, Math.PI / 2);
+      const agent = new CopAgent(v, grid, new FakeWorld(), lights);
+      agent.setPursuing(pursuing);
+      v.setSpeed(8);
+      let x = v.body.pos.x;
+      for (let t = 0; t < 12; t += 1 / 30) {
+        agent.update(1 / 30, { x: 280, z: 0 });
+        const i = v.last!;
+        let sp = v.speed;
+        if (i.brake) sp = Math.max(0, sp - 10 * (1 / 30)); else sp += i.throttle * 6 * (1 / 30);
+        v.setSpeed(sp);
+        x += sp * (1 / 30);
+        v.body.pos.x = x;
+        v.body.vel.x = sp;
+      }
+      return x;
+    };
+    expect(run(false)).toBeLessThan(-218);   // stopped at the line (x = -220)
+    expect(run(true)).toBeGreaterThan(-150); // blew through
+  });
+});

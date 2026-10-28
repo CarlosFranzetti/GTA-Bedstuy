@@ -19,7 +19,7 @@ import type { GridModel, IMaterialLibrary, Intersection, StaticCollider, StreetD
 import type { Phase, TrafficLights, WalkState } from '@/game/TrafficLights';
 import { alignYaw, box, cyl, frameMatrix, xform } from './common';
 
-export const SIGNAL_POLE_HEIGHT = 5.8;
+export const SIGNAL_POLE_HEIGHT = 6.4;
 const POLE_RADIUS = 0.08;
 const CORNER_INSET = 0.45;
 const LANE_OFFSET = 2.0;
@@ -190,8 +190,10 @@ function addVehHead(
     const dir = { x: dx / len, z: dz / len };
     solid.push(xform(box(len, 0.1, 0.1), pole.x + dx / 2, SIGNAL_POLE_HEIGHT - 0.25, pole.z + dz / 2, alignYaw(dir)));
   }
-  // hanger from arm to head
-  solid.push(xform(box(0.07, SIGNAL_POLE_HEIGHT - 0.25 - HEAD_Y - HEAD_H / 2 + 0.05, 0.07), headXZ.x, (SIGNAL_POLE_HEIGHT - 0.25 + HEAD_Y + HEAD_H / 2) / 2, headXZ.z));
+  // hanger from the arm down to the top of the head
+  const armY = SIGNAL_POLE_HEIGHT - 0.25;
+  const headTop = HEAD_Y + HEAD_H / 2 + 0.12; // backplate is a little taller than the housing
+  solid.push(xform(box(0.07, armY - headTop, 0.07), headXZ.x, (armY + headTop) / 2, headXZ.z));
   const f = frameMatrix(headXZ, HEAD_Y, n);
   // housing + backplate
   const housing = box(HEAD_W, HEAD_H, HEAD_D);
