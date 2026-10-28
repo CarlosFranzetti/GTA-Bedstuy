@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { angleDiff, clamp, forwardFromHeading, wrapAngle, type Vec2 } from './Math2';
+import { angleDiff, clamp, wrapAngle, type Vec2 } from './Math2';
 import type { Input } from './Input';
 import type { IWorld2D } from '@/world/types';
 
@@ -132,13 +132,13 @@ export class ThirdPersonCamera {
     }
 
     // over-the-right-shoulder offset (on foot), perpendicular to the view direction
-    const back = forwardFromHeading(this.yaw);
-    const sx = -back.z * this.shoulder, sz = back.x * this.shoulder;
+    const bx = Math.sin(this.yaw), bz = -Math.cos(this.yaw); // forwardFromHeading without the allocation
+    const sx = -bz * this.shoulder, sz = bx * this.shoulder;
     const horiz = this.distance * Math.cos(this.pitch);
     this.wantPos.set(
-      targetPos.x + sx - back.x * horiz,
+      targetPos.x + sx - bx * horiz,
       Math.max(MIN_CAM_Y, this.height + this.distance * Math.sin(this.pitch)),
-      targetPos.z + sz - back.z * horiz,
+      targetPos.z + sz - bz * horiz,
     );
     this.wantLook.set(targetPos.x + sx, LOOK_UP, targetPos.z + sz);
 
@@ -167,7 +167,7 @@ export class ThirdPersonCamera {
     const d = Math.hypot(dx, dz);
     if (d < MIN_HORIZ) return;
     this.rayDir.x = dx / d; this.rayDir.z = dz / d;
-    const hitDist = this.firstStaticHit(world, target, d);
+    const hitDist = this.firstStaticHit(world, target, d + WALL_MARGIN); // look a margin past the lens
     if (hitDist === null) return;
     const nd = Math.max(MIN_HORIZ, hitDist - WALL_MARGIN);
     if (nd >= d) return;

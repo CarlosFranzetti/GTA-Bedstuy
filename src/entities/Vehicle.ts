@@ -207,10 +207,10 @@ export class Vehicle implements IVehicle {
 
   /** Allocation-free doorPos() for per-frame prompts. */
   doorPosInto(out: Vec2): Vec2 {
-    const right = perpRight(forwardFromHeading(this.body.heading));
-    const off = this.spec.width / 2 + 0.3;
-    out.x = this.body.pos.x - right.x * off;
-    out.z = this.body.pos.z - right.z * off;
+    const h = this.body.heading, off = this.spec.width / 2 + 0.3;
+    // right = perpRight(forward) = (cos h, sin h); the door is on the left
+    out.x = this.body.pos.x - Math.cos(h) * off;
+    out.z = this.body.pos.z - Math.sin(h) * off;
     return out;
   }
 

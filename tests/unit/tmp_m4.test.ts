@@ -3,15 +3,30 @@ import * as THREE from 'three';
 import { buildWorld } from '@/world/WorldBuilder';
 import { loadBedstuyData } from '@/world/Grid';
 import { Rng } from '@/core/Rng';
-import { MaterialLibrary } from '@/textures/MaterialLibrary';
-it('measure', () => {
+it('measure', async () => {
   const data = loadBedstuyData(); const rng = new Rng(data.seed);
-  const mats = new MaterialLibrary(rng.fork('materials'));
+  const cache = new Map<string, THREE.Material>(); const mk = (k: string) => { let m = cache.get(k); if (!m) { m = new THREE.MeshStandardMaterial(); m.name = k; cache.set(k, m); } return m; };
+  const mats = { get: (k: string, v = 0) => mk(k + v), awning: (c: string, t: string) => mk('aw' + c), sign: (t: string) => mk('sign' + t), carPaint: (c: string) => mk(c), setNight() {} };
   const t0 = performance.now();
-  const w = buildWorld(data, mats as never, rng);
-  console.log('build ms', performance.now() - t0, JSON.stringify(w.stats), w.propCells.length);
-  for (const g of [w.group]) g.traverse((o) => { if ((o as THREE.Mesh).isMesh && o.parent && o.parent !== w.group) {} });
-  const per: Record<string, { n: number; tris: number; maxR: number }> = {};
-  w.group.traverse((o) => { const m = o as THREE.Mesh; if (!m.isMesh) return; const k = o.parent!.name; const e = (per[k] ??= { n: 0, tris: 0, maxR: 0 }); e.n++; e.tris += (m.geometry.index?.count ?? 0) / 3; e.maxR = Math.max(e.maxR, m.geometry.boundingSphere?.radius ?? 0); });
-  console.log(JSON.stringify(per));
+  const { buildBuildings } = await import('@/world/BuildingGen');
+  const { buildGrid } = await import('@/world/Grid');
+  const { subdivideLots } = await import('@/world/LotSubdivider');
+  const { splitMeshesIntoCells } = await import('@/render/Culling');
+  const grid = buildGrid(data);
+  const lots = subdivideLots(grid, data.pois, rng.fork('lots'));
+  const cam = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 1200);
+  const spots: Array<[number, number, number, number]> = [[0, 10, 0, 0], [-120, 60, 40, 0.8], [125, 60, 110, 2.5], [10, 25, -140, 4.0]];
+  for (const [cx, cz] of [[1e9, 1e9], [250, 200], [250, 100], [125, 100], [125, 200]]) {
+    const b = buildBuildings(lots, mats as never, rng.fork('buildings'));
+    if (cx < 1e8) splitMeshesIntoCells(b.group, cx, cz);
+    let draws = 0, tris = 0, n = 0;
+    const f = new THREE.Frustum(), m = new THREE.Matrix4();
+    for (const [x, y, z, a] of spots) {
+      cam.position.set(x, y, z); cam.lookAt(x + Math.sin(a) * 50, 3, z - Math.cos(a) * 50); cam.updateMatrixWorld(); cam.updateProjectionMatrix();
+      m.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse); f.setFromProjectionMatrix(m);
+      for (const o of b.group.children) { const me = o as THREE.Mesh; if (!me.geometry.boundingSphere) me.geometry.computeBoundingSphere(); if (f.intersectsSphere(me.geometry.boundingSphere!)) { draws++; tris += me.geometry.index ? me.geometry.index.count / 3 : me.geometry.attributes.position.count / 3; } }
+      n++;
+    }
+    console.log('cell', cx, cz, 'avg draws', draws / n, 'avg tris', Math.round(tris / n));
+  }
 });

@@ -1,12 +1,27 @@
 import * as THREE from 'three';
 import type { EventBus } from '@/core/Events';
 import { angleDiff, type Vec2 } from '@/core/Math2';
+import type { TrafficLights } from '@/game/TrafficLights';
 import type { Rng } from '@/core/Rng';
 import { animateWalk, buildHumanModel, type HumanModel } from '@/entities/models/humanModel';
 import type { CharacterRig, CharacterSource } from '@/world/types';
 import type { Body2D, Contact, Entity, Graph, GraphNode, IMaterialLibrary, IVehicle, IWorld2D } from '@/world/types';
 
-export type PedState = 'walking' | 'waiting' | 'down' | 'fleeing';
+export type PedState = 'walking' | 'waiting' | 'down' | 'fleeing' | 'sitting';
+/** What the body language should look like (hook for animation / debugging). */
+export type PedPose = 'walk' | 'stand' | 'phone' | 'sit' | 'down';
+
+/** A crosswalk edge of the sidewalk graph: which intersection it belongs to and which roadway it crosses. */
+export interface PedCrossing { intersectionId: string; crossedStreetId: string; }
+/** A place to sit: on the stoop of a brownstone, just in front of the building line. */
+export interface StoopSpot { pos: Vec2; outward: Vec2; }
+/** Extra world knowledge handed over after construction (TrafficSystem wires it; legacy callers can skip it). */
+export interface PedEnvironment {
+  lights?: TrafficLights;
+  /** key `${fromNodeId}>${toNodeId}` for both directions of every crosswalk edge */
+  crossings?: ReadonlyMap<string, PedCrossing>;
+  stoops?: ReadonlyArray<StoopSpot>;
+}
 
 const WALK_SPEED = 1.2;
 const FLEE_SPEED = 4;
@@ -17,6 +32,18 @@ const WAIT_RECHECK = 0.3;
 const MAX_WAIT = 8;
 const ARRIVE = 0.4;
 const FALLBACK_CROSSWALK = /cross|cw/i;
+/** longest a pedestrian waits for WALK before stepping off anyway */
+const MAX_SIGNAL_WAIT = 150;
+const PHONE_CHANCE = 0.35;
+const NODE_IDLE_CHANCE = 0.03;
+const STOOP_CHANCE = 0.05;
+const SIT_MIN = 10;
+const SIT_MAX = 30;
+const STOOP_LATERAL = 1.6;
+const THREAT_PERIOD = 0.25;
+const THREAT_RADIUS = 10;
+const THREAT_MIN_SPEED = 4;
+const FOLLOW_DETACH = 9;
 
 export class Pedestrian implements Entity {
   readonly object3D: THREE.Group;
@@ -36,6 +63,17 @@ export class Pedestrian implements Entity {
   private fleeTimer = 0;
   private readonly fleeFrom: Vec2 = { x: 0, z: 0 };
   private phase = 0;
+  private env: PedEnvironment | null = null;
+  private waitCrossing: PedCrossing | null = null;
+  private phoneIdle = false;
+  private sitTimer = 0;
+  private sitOnStoop = false;
+  private detour: { stage: 0 | 1 | 3; p0: Vec2; spot: StoopSpot } | null = null;
+  private threatTimer = 0;
+  private leader: Pedestrian | null = null;
+  private slot = 0;
+  private followers = 0;
+  private movingNow = false;
 
   constructor(
     readonly id: string,
@@ -46,6 +84,7 @@ export class Pedestrian implements Entity {
     private readonly events: EventBus,
     private readonly rng: Rng,
     private readonly crosswalkNodes?: ReadonlySet<string>,
+    env?: PedEnvironment,
   ) {
     this.body = {
       id,
@@ -65,8 +104,33 @@ export class Pedestrian implements Entity {
     this.object3D = g;
 
     if (!this.pickNext(start.id)) this.targetId = null;
+    if (env) this.setEnvironment(env);
     this.applyPose();
   }
+
+  /** Give the pedestrian its signals, crosswalk table and stoops. Safe to call once after construction. */
+  setEnvironment(env: PedEnvironment): void {
+    this.env = env;
+    if (this.prevId && this.state === 'walking') this.gateAt(this.prevId);
+  }
+
+  get pose(): PedPose {
+    if (this.state === 'down') return 'down';
+    if (this.state === 'sitting') return this.sitOnStoop ? 'sit' : this.phoneIdle ? 'phone' : 'stand';
+    if (this.state === 'waiting') return this.phoneIdle ? 'phone' : 'stand';
+    return this.movingNow ? 'walk' : 'stand';
+  }
+
+  /** Walk together with `leader` (a small group). The follower keeps to the leader's side. */
+  follow(leader: Pedestrian, slot: number): void {
+    this.leader = leader;
+    this.slot = slot;
+    leader.followers++;
+  }
+
+  get groupLeader(): Pedestrian | null { return this.leader; }
+  /** True while the pedestrian is waiting at a curb for the WALK signal. */
+  get waitingForWalk(): boolean { return this.state === 'waiting' && this.waitCrossing !== null; }
 
   get targetNodeId(): string | null { return this.targetId; }
   get previousNodeId(): string | null { return this.prevId; }
@@ -79,6 +143,9 @@ export class Pedestrian implements Entity {
     this.fleeTimer = seconds;
     this.state = 'fleeing';
     this.waitTimer = 0;
+    this.waitCrossing = null;
+    this.detour = null;
+    this.detach();
     // heading toward the threat: turn back along the edge we were on
     const t = this.targetId ? this.sidewalks.nodes[this.targetId] : undefined;
     if (t && this.prevId && this.sidewalks.nodes[this.prevId]) {
@@ -98,6 +165,9 @@ export class Pedestrian implements Entity {
     const sp = Math.hypot(other.vel.x, other.vel.z);
     if (sp <= HIT_SPEED) return;
     this.state = 'down';
+    this.waitCrossing = null;
+    this.detour = null;
+    this.detach();
     this.downTimer = DOWN_TIME;
     this.body.vel.x = other.vel.x * 0.5;
     this.body.vel.z = other.vel.z * 0.5;
@@ -131,26 +201,49 @@ export class Pedestrian implements Entity {
         this.recheck -= dt;
         b.vel.x = 0;
         b.vel.z = 0;
+        this.faceTarget(dt);
         if (this.recheck <= 0) {
           this.recheck = WAIT_RECHECK;
-          if (this.waitTimer >= MAX_WAIT || !this.trafficNear(this.pos2())) this.state = 'walking';
+          if (this.waitCrossing) {
+            const c = this.waitCrossing;
+            if (this.waitTimer >= MAX_SIGNAL_WAIT || !this.env?.lights || this.env.lights.walkFor(c.intersectionId, c.crossedStreetId)) {
+              this.waitCrossing = null;
+              this.state = 'walking';
+            }
+          } else if (this.waitTimer >= MAX_WAIT || !this.trafficNear(this.pos2())) this.state = 'walking';
         }
+        this.scanThreats(dt);
+        break;
+      }
+      case 'sitting': {
+        b.vel.x = 0;
+        b.vel.z = 0;
+        this.sitTimer -= dt;
+        if (this.sitTimer <= 0) {
+          this.state = 'walking';
+          this.sitOnStoop = false;
+          this.phoneIdle = false;
+          if (this.detour) this.detour.stage = 3;
+        }
+        this.scanThreats(dt);
         break;
       }
       default: {
         if (this.state === 'fleeing') {
           this.fleeTimer -= dt;
           if (this.fleeTimer <= 0) this.state = 'walking';
-        }
-        moving = this.walk(dt);
+        } else this.scanThreats(dt);
+        moving = this.leader ? this.followLeader(dt) : this.walk(dt);
       }
     }
+    this.movingNow = moving;
     if (moving) this.phase += dt * (this.state === 'fleeing' ? 12 : 5);
     this.animate(dt, moving);
     this.applyPose();
   }
 
   dispose(): void {
+    this.detach();
     this.object3D.removeFromParent();
   }
 
@@ -158,21 +251,37 @@ export class Pedestrian implements Entity {
 
   private pos2(): Vec2 { return this.body.pos; }
 
+  private detach(): void {
+    if (this.leader) { this.leader.followers = Math.max(0, this.leader.followers - 1); this.leader = null; }
+  }
+
+  private faceTarget(dt: number): void {
+    const t = this.targetId ? this.sidewalks.nodes[this.targetId] : undefined;
+    if (!t) return;
+    const b = this.body;
+    const want = Math.atan2(t.pos.x - b.pos.x, -(t.pos.z - b.pos.z));
+    b.heading += angleDiff(b.heading, want) * Math.min(1, dt * 6);
+  }
+
   private walk(dt: number): boolean {
     const b = this.body;
-    const t = this.targetId ? this.sidewalks.nodes[this.targetId] : undefined;
-    if (!t) {
+    let goal: Vec2 | undefined;
+    const det = this.detour;
+    if (det) goal = det.stage === 1 ? det.spot.pos : det.p0;
+    else goal = (this.targetId ? this.sidewalks.nodes[this.targetId] : undefined)?.pos;
+    if (!goal) {
       b.vel.x = 0;
       b.vel.z = 0;
       if (this.prevId) this.pickNext(this.prevId);
       return false;
     }
-    const dx = t.pos.x - b.pos.x;
-    const dz = t.pos.z - b.pos.z;
+    const dx = goal.x - b.pos.x;
+    const dz = goal.z - b.pos.z;
     const d = Math.hypot(dx, dz);
     const speed = this.state === 'fleeing' ? FLEE_SPEED : WALK_SPEED;
-    if (d <= Math.max(ARRIVE, speed * dt)) {
-      this.arrive(t);
+    if (d <= Math.max(det ? 0.15 : ARRIVE, speed * dt)) {
+      if (det) this.advanceDetour(det);
+      else this.arrive(this.sidewalks.nodes[this.targetId!]);
       b.vel.x = 0;
       b.vel.z = 0;
       return false;
@@ -187,13 +296,100 @@ export class Pedestrian implements Entity {
     return true;
   }
 
+  /** Group member: stay at the leader's side, wait when the leader waits. */
+  private followLeader(dt: number): boolean {
+    const L = this.leader!;
+    const b = this.body;
+    if (L.state === 'down' || L.state === 'fleeing' || L.leader === this) { this.detach(); this.snapToGraph(); return false; }
+    const lb = L.body;
+    const dToLeader = Math.hypot(lb.pos.x - b.pos.x, lb.pos.z - b.pos.z);
+    if (dToLeader > FOLLOW_DETACH) { this.detach(); this.snapToGraph(); return false; }
+    const fx = Math.sin(lb.heading);
+    const fz = -Math.cos(lb.heading);
+    const side = 0.85 * this.slot;
+    const tx = lb.pos.x + (-fz) * side - fx * 0.35;
+    const tz = lb.pos.z + fx * side - fz * 0.35;
+    const dx = tx - b.pos.x;
+    const dz = tz - b.pos.z;
+    const d = Math.hypot(dx, dz);
+    const leaderMoving = L.movingNow;
+    if (d < 0.12 || (!leaderMoving && d < 0.5)) {
+      b.vel.x = 0;
+      b.vel.z = 0;
+      if (!leaderMoving) {
+        // idle: face the way the leader faces
+        b.heading += angleDiff(b.heading, lb.heading) * Math.min(1, dt * 4);
+      }
+      return false;
+    }
+    const sp = Math.min(WALK_SPEED * 1.6, Math.max(0.4, d * 2.5, leaderMoving ? WALK_SPEED * 0.9 : 0));
+    const step = Math.min(d, sp * dt);
+    b.vel.x = (dx / d) * sp;
+    b.vel.z = (dz / d) * sp;
+    b.pos.x += (dx / d) * step;
+    b.pos.z += (dz / d) * step;
+    const want = Math.atan2(dx, -dz);
+    b.heading += angleDiff(b.heading, leaderMoving ? lb.heading : want) * Math.min(1, dt * 8);
+    return true;
+  }
+
+  /** After leaving a group: head for the nearest sidewalk node. */
+  private snapToGraph(): void {
+    const b = this.body;
+    let best: string | null = null;
+    let bd = Infinity;
+    for (const id in this.sidewalks.nodes) {
+      const n = this.sidewalks.nodes[id];
+      const d = Math.hypot(n.pos.x - b.pos.x, n.pos.z - b.pos.z);
+      if (d < bd) { bd = d; best = id; }
+    }
+    this.prevId = null;
+    this.targetId = best;
+  }
+
   private arrive(node: GraphNode): void {
     this.pickNext(node.id);
-    if (this.state === 'walking' && this.isCrosswalk(node.id) && this.trafficNear(node.pos)) {
-      this.state = 'waiting';
-      this.waitTimer = 0;
-      this.recheck = WAIT_RECHECK;
+    this.gateAt(node.id);
+    if (this.state !== 'walking' || !this.env) return;
+    // plans only on ordinary edges, never while a group depends on this pedestrian
+    if (this.followers > 0 || this.isCrossingEdge(node.id, this.targetId)) return;
+    if (this.env.stoops && this.env.stoops.length > 0) {
+      if (this.rng.chance(STOOP_CHANCE)) this.planStoop(node);
+    } else if (!this.isCrosswalk(node.id) && this.rng.chance(NODE_IDLE_CHANCE)) {
+      this.state = 'sitting';
+      this.sitOnStoop = false;
+      this.phoneIdle = this.rng.chance(0.5);
+      this.sitTimer = this.rng.range(SIT_MIN, SIT_MAX);
     }
+  }
+
+  private isCrossingEdge(fromId: string | null, toId: string | null): boolean {
+    return !!(fromId && toId && this.env?.crossings?.has(`${fromId}>${toId}`));
+  }
+
+  /** At a node, about to take the edge to `targetId`: stop at the curb unless the signal says WALK. */
+  private gateAt(nodeId: string): void {
+    if (this.state !== 'walking' || !this.targetId) return;
+    const info = this.env?.crossings?.get(`${nodeId}>${this.targetId}`);
+    if (info) {
+      const lights = this.env?.lights;
+      if (lights && lights.hasSignal(info.intersectionId)) {
+        if (!lights.walkFor(info.intersectionId, info.crossedStreetId)) this.startWaiting(info);
+        return;
+      }
+      if (this.trafficNear(this.sidewalks.nodes[nodeId].pos)) this.startWaiting(null);
+      return;
+    }
+    // legacy behaviour (no crosswalk table): look at the traffic when passing a crosswalk node
+    if (!this.env?.crossings && this.isCrosswalk(nodeId) && this.trafficNear(this.sidewalks.nodes[nodeId].pos)) this.startWaiting(null);
+  }
+
+  private startWaiting(info: PedCrossing | null): void {
+    this.state = 'waiting';
+    this.waitCrossing = info;
+    this.waitTimer = 0;
+    this.recheck = WAIT_RECHECK;
+    this.phoneIdle = info !== null && this.rng.chance(PHONE_CHANCE);
   }
 
   private isCrosswalk(id: string): boolean {
@@ -209,6 +405,77 @@ export class Pedestrian implements Entity {
     }
     return false;
   }
+
+  // ------------------------------------------------------------------ stoops
+
+  /** Maybe sit on a stoop along the edge we are about to walk. */
+  private planStoop(from: GraphNode): void {
+    const to = this.targetId ? this.sidewalks.nodes[this.targetId] : undefined;
+    const stoops = this.env?.stoops;
+    if (!to || !stoops) return;
+    const ex = to.pos.x - from.pos.x;
+    const ez = to.pos.z - from.pos.z;
+    const len2 = ex * ex + ez * ez;
+    if (len2 < 25) return;
+    const cands: Array<{ spot: StoopSpot; p0: Vec2 }> = [];
+    for (let i = 0; i < stoops.length; i++) {
+      const sp = stoops[i];
+      const t = ((sp.pos.x - from.pos.x) * ex + (sp.pos.z - from.pos.z) * ez) / len2;
+      if (t < 0.15 || t > 0.85) continue;
+      const p0 = { x: from.pos.x + ex * t, z: from.pos.z + ez * t };
+      if (Math.hypot(sp.pos.x - p0.x, sp.pos.z - p0.z) > STOOP_LATERAL + 2.5) continue;
+      cands.push({ spot: sp, p0 });
+    }
+    if (cands.length === 0) return;
+    const c = cands[Math.floor(this.rng.next() * cands.length) % cands.length];
+    this.detour = { stage: 0, p0: c.p0, spot: c.spot };
+  }
+
+  private advanceDetour(det: NonNullable<Pedestrian['detour']>): void {
+    if (det.stage === 0) { det.stage = 1; return; }
+    if (det.stage === 1) {
+      this.state = 'sitting';
+      this.sitOnStoop = true;
+      this.phoneIdle = this.rng.chance(PHONE_CHANCE);
+      this.sitTimer = this.rng.range(SIT_MIN, SIT_MAX);
+      this.body.heading = Math.atan2(det.spot.outward.x, -det.spot.outward.z);
+      return;
+    }
+    this.detour = null; // back on the walking line
+  }
+
+  // ------------------------------------------------------------------ threats
+
+  /** Run from a vehicle that is heading straight at us at speed (a car mounting the sidewalk). */
+  private scanThreats(dt: number): void {
+    if (!this.env) return;
+    this.threatTimer -= dt;
+    if (this.threatTimer > 0) return;
+    this.threatTimer = THREAT_PERIOD;
+    const p = this.body.pos;
+    const list = this.world.queryCircle(p, THREAT_RADIUS);
+    const crossing = this.isCrossingEdge(this.prevId, this.targetId);
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i];
+      if (o.kind !== 'vehicle' && o.kind !== 'cop') continue;
+      const sp = Math.hypot(o.vel.x, o.vel.z);
+      if (sp < THREAT_MIN_SPEED) continue;
+      const ux = o.vel.x / sp;
+      const uz = o.vel.z / sp;
+      const rx = p.x - o.pos.x;
+      const rz = p.z - o.pos.z;
+      const along = rx * ux + rz * uz;
+      if (along < 0.3 || along > 4 + sp * 0.7) continue;
+      if (Math.abs(rx * uz - rz * ux) > 1.6) continue;
+      // on a crosswalk, ordinary traffic is expected to yield; only the player / runaways scare us there
+      const driver = (o.userData as IVehicle | undefined)?.driver;
+      if (crossing && this.state !== 'fleeing' && driver !== 'player') continue;
+      this.flee(o.pos, 3.5);
+      return;
+    }
+  }
+
+  // ------------------------------------------------------------------ graph walking
 
   /** Choose the next node from `fromId`, never the node we just came from unless it is the only way. */
   private pickNext(fromId: string): boolean {
@@ -247,7 +514,31 @@ export class Pedestrian implements Entity {
     this.amp += (target - this.amp) * Math.min(1, dt * 10);
     if (this.amp < 0.01) this.amp = 0;
     if (this.rig) { this.rig.setSpeed(this.amp * (this.state === 'fleeing' ? 4 : 1.2)); this.rig.update(dt); }
-    else if (this.model) animateWalk(this.model, this.phase, this.amp);
+    else if (this.model) {
+      animateWalk(this.model, this.phase, this.amp);
+      this.applyIdlePose(this.model);
+    }
+  }
+
+  /** Procedural idle poses on top of the walk cycle: looking at a phone, sitting on a step. */
+  private applyIdlePose(m: HumanModel): void {
+    const pose = this.pose;
+    if (pose === 'phone') {
+      m.head.rotation.x = -0.45;
+      m.arms[1].rotation.x = 1.0;
+      m.elbows[1].rotation.x = 1.5;
+    } else if (pose === 'sit') {
+      m.rig.position.y = -0.42;
+      m.legs[0].rotation.x = 1.5;
+      m.legs[1].rotation.x = 1.5;
+      m.knees[0].rotation.x = -1.5;
+      m.knees[1].rotation.x = -1.5;
+      if (this.phoneIdle) {
+        m.head.rotation.x = -0.45;
+        m.arms[1].rotation.x = 1.0;
+        m.elbows[1].rotation.x = 1.5;
+      }
+    }
   }
 
   private applyPose(): void {
