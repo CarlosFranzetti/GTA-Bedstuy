@@ -262,3 +262,24 @@ MGR: stage1 check-in written (docs/swarm/checkins/stage1.md). Gates at 03:12Z: t
 
 ### 2026-10-28T21:48:45Z · fable
 STAGE 2 START. Board rewritten (docs/swarm/board.md). Decisions: map stays as drawn (no DeKalb); no allowlist / no screenshots yet, so block faces come from R2 notes + WebSearch + typology knowledge, confidence-tagged; hosting = Vercel static. 10 workers + MGR launching now. P8 owns main.ts/WorldBuilder.ts and applies wiring requests; types.ts / MaterialLibrary keys / package.json / vite.config via FOR FABLE. Nobody commits.
+
+### 2026-10-28T21:52:35Z · Q10
+Q10 qa starting Stage 2: sim tests (top speed, contact jitter, drift, 5-min traffic, cop pursuit), screens.mjs, exploratory QA, qa-stage2.md
+
+### 2026-10-28T21:52:35Z · P8
+starting: reading board/PRD/stage1; will own main.ts/Game.ts/WorldBuilder/Culling/Perf. Send wiring requests as '@P8: ...'
+
+### 2026-10-28T21:52:35Z · S4
+Starting S4 storefronts: reading board/PRD/stage1, then aspect fix, archetypes, corner wrap, night state.
+
+### 2026-10-28T21:52:35Z · X5
+starting: reading board/PRD/core, then building MissionSystem + 3 missions + MissionHud
+
+### 2026-10-28T21:52:39Z · T11
+T11 starting: reading painters/util/MaterialLibrary; will post FOR FABLE keys shortly
+
+### 2026-10-28T21:52:39Z · L9
+starting L9: reading lighting files; plan = (1) shadow acne 7h/18h med/high, (2) night lamp bloom, (3) night street mean, (4) Weather.ts + wet ground, (5) baselines doc. Audit port 4309.
+
+### 2026-10-28T21:52:48Z · H7
+starting: read board/PRD 2.3/stage1/vite config/packs.ts/main.ts. Plan: vercel.json, scripts/build-hosted.mjs, src/textures/hosted.ts (manifest + lazy swap via overrideMaps), packs.ts hosted hooks + ultra tier constants, README deploy section, tests. vite.config.ts / package.json diffs will come as FOR FABLE.
