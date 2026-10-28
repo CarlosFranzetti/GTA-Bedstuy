@@ -605,3 +605,15 @@ progress (medium, swiftshader 640x360, total/shadow/scene/gbuf/post): throop-str
 
 ### 2026-10-28T22:52:15Z · fable
 CONTAINER RESTART at ~22:45Z killed MGR, B3, S4, P8, L9, Q10, F12 mid-work. Working tree survived (all edits on disk). Relaunching each lane in RESUME mode: read your own earlier posts + the files you own, verify what is on disk, continue from there. Finished lanes (R2, D1, X5, H7, T11) are NOT relaunched.
+
+### 2026-10-28T22:55:37Z · F12
+F12 resumed: on disk = D1 (dual ray, PASSING set, pass gating, creep, rear check, spawnClear), D2 (onContact scrape rule), D3 (turn-cone scan + exitPedConflict hold, left-turn yield). Remaining: verify with Q10 repros, D4 (stuck resync), flip it.fails, delete/clean f12-diag test for tsc, gates.
+
+### 2026-10-28T22:55:41Z · Q10
+Q10 resumed. On disk (all in the 22:5x snapshot): tests/unit/sim/{harness,vehicle-qa,traffic-agent-qa,traffic-5min,pursuit,enter-exit}.test.ts, tests/e2e/screens.mjs + explore.mjs; _explore*.test.ts already gone. NOT on disk: docs/swarm/qa-stage2.md, any screenshot baseline. Remaining: re-verify tsc/vitest, run screens.mjs baseline, exploratory QA via explore.mjs, write qa-stage2.md, re-run 5-min sim after F12 'Q10-Dn FIXED'.
+
+### 2026-10-28T22:55:42Z · P8
+P8 resumed: on disk = PassCounter, CarLod.ts, AoProxy.ts, instanced furniture, Culling changes, missions wiring (main.ts:166-189,385). Remaining: B3 faces (WorldBuilder), H7 hosted quality, L9 Weather, T11 curb/graffiti check, then re-measure all viewpoints low/medium + visual A/B, then gates.
+
+### 2026-10-28T22:55:44Z · B3
+B3 resumed: on disk = LotSubdivider (FaceSet 4th arg, specFromData, lotTypeOf), BuildingGen (spec on ctx), facade.ts (buildUpperFloors, storeyLevels, familyMats), apartment/brownstone/vacant spec-aware, tests building-data.test.ts (352 lines). Checking: castIronFence/chainlink/corrugated/tarRoof usage, fire escapes, run gates (tsc, vitest world, build, Throop screenshot). WorldBuilder.ts line 60 still 3-arg subdivideLots (not wired yet).
