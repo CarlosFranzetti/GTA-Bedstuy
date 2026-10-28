@@ -17,7 +17,7 @@ const LIGHT_DISTANCE = 180;
  * ground, or grazing it, would give no usable or absurdly long shadows, so the direction is
  * mirrored above the ground and lifted to this minimum.
  */
-const MIN_ELEVATION = 0.25;
+const MIN_ELEVATION = 0.12;
 
 /**
  * Enables shadow mapping on the renderer and configures `sun` as the (only) shadow caster.

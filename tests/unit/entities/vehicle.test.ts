@@ -447,4 +447,26 @@ describe('Vehicle', () => {
     expect(plates.size).toBeGreaterThan(1);
     for (const p of plates) expect(Number(p.split(':')[1])).toBeLessThan(4);
   });
+
+  it('a wall scrape (repeated weaker contacts) adds little damage and emits one impact', () => {
+    const events = new EventBus();
+    let n = 0;
+    events.on('impact', () => n++);
+    const v = make('sedan', 0, events);
+    v.driver = 'player';
+    const wall = { id: 'w', kind: 'static', shape: { kind: 'circle', r: 1 }, pos: { x: 3, z: 0 }, vel: { x: 0, z: 0 }, heading: 0, mass: Infinity } as never;
+    const hit = (impulse: number): Contact => ({ a: v.body, b: wall, normal: { x: 1, z: 0 }, depth: 0.05, point: { x: 1, z: 0 }, impulse });
+    v.onContact(hit(8), wall);
+    const first = v.damage;
+    expect(first).toBeCloseTo(0.2);
+    for (let i = 0; i < 30; i++) { v.update(1 / 60); v.onContact(hit(2), wall); }
+    expect(n).toBe(1);
+    expect(v.damage - first).toBeLessThan(0.2); // 30 scrape frames, not 30 full hits
+    // a genuinely harder hit still counts in full
+    v.update(1 / 60);
+    const before = v.damage;
+    v.onContact(hit(12), wall);
+    expect(v.damage - before).toBeCloseTo(0.3);
+    expect(n).toBe(2);
+  });
 });

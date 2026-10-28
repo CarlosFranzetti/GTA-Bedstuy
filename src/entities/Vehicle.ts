@@ -56,6 +56,8 @@ const WALL_FRICTION = 0.35;
 const WALL_ALIGN = 0.18;
 const SHAKE_MIN_CLOSING = 2;
 const SHAKE_FULL_CLOSING = 14;
+const SCRAPE_WINDOW = 0.15;
+const SCRAPE_DAMAGE = 0.05;
 const SHAKE_DECAY = 5; // 1/s, only when nobody consumes it
 // ---- chassis visuals
 const ROLL_PER_ACCEL = 0.0055;
@@ -130,6 +132,8 @@ export class Vehicle implements IVehicle {
   private wheelRoll = 0;
   private wheelRadius = 0.34;
   private slipAmt = 0;
+  private lastHitTime = -10;
+  private lastHitImpulse = 0;
   private readonly ownMaterials: THREE.Material[] = [];
   // chassis springs (rad / m and their velocities)
   private roll = 0; private rollV = 0;
@@ -251,8 +255,14 @@ export class Vehicle implements IVehicle {
 
   onContact(contact: Contact, other: Body2D): void {
     if (contact.impulse < IMPACT_MIN) return;
-    this.damage = clamp(this.damage + contact.impulse / 40, 0, 1);
+    // A car sliding along a wall re-touches it every frame: repeats that are no stronger than the hit
+    // within SCRAPE_WINDOW are a scrape (5% of the damage, no new impact event).
+    const scrape = this.time - this.lastHitTime < SCRAPE_WINDOW && contact.impulse <= this.lastHitImpulse;
+    this.lastHitTime = this.time;
+    this.lastHitImpulse = scrape ? this.lastHitImpulse : contact.impulse;
+    this.damage = clamp(this.damage + (contact.impulse / 40) * (scrape ? SCRAPE_DAMAGE : 1), 0, 1);
     this.reactToImpact(contact, other);
+    if (scrape) return;
     // Two Vehicles both get onContact for the same contact: only the `a` side reports it.
     if (other.userData instanceof Vehicle && contact.a !== this.body) return;
     this.events.emit('impact', {

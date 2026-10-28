@@ -144,5 +144,9 @@ export function presetForHour(hour: number): GradePreset {
   return 'night';
 }
 
-/** Target exposure (relative to the day reference) per preset. */
-export const EXPOSURE_BY_PRESET: Record<GradePreset, number> = { day: 1.0, dusk: 1.15, night: 1.35 };
+/**
+ * Nominal exposure (relative to the day reference) per preset. The pipeline now follows the continuous per-hour
+ * time cycle (LightingConfig); these are only the preset-level reference (night used to be 1.35, which clipped
+ * anything above scene-linear 0.8 and blew out lamps).
+ */
+export const EXPOSURE_BY_PRESET: Record<GradePreset, number> = { day: 1.0, dusk: 1.0, night: 0.95 };

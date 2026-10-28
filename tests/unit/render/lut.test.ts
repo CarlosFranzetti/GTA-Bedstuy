@@ -95,6 +95,6 @@ describe('presetForHour / exposure', () => {
   });
 
   it('has the documented exposure targets', () => {
-    expect(EXPOSURE_BY_PRESET).toEqual({ day: 1.0, dusk: 1.15, night: 1.35 });
+    expect(EXPOSURE_BY_PRESET).toEqual({ day: 1.0, dusk: 1.0, night: 0.95 });
   });
 });
