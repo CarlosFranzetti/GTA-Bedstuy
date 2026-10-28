@@ -25,7 +25,12 @@ export interface BuiltWorld {
 /** Sidewalk slabs are 0.15 m tall; buildings and furniture sit on top of them. */
 export const SIDEWALK_HEIGHT = 0.15;
 
-/** Cell size (m) for splitting merged static meshes: half the N-S street pitch east-west, the E-W street pitch north-south. */
+/**
+ * Cell size (m) for splitting merged static meshes: one block wide (N-S street pitch) by two blocks deep (2 x E-W street
+ * pitch). Measured on the real layout (4 camera spots, 60 deg / 1200 m frustum): unsplit = 29 draws / 581k tris in view;
+ * 250 x 200 = 77 draws / 352k; 125 x 100 = 187 draws / 259k. Finer cells trade draw calls (CPU, x3 passes) for
+ * vertices; this keeps draw calls low while the shadow pass (160 m box) skips most of the city.
+ */
 export function cullCellSize(grid: GridModel): { x: number; z: number } {
   const pitch = (axis: 'ns' | 'ew', fallback: number): number => {
     const o = grid.streets.filter((st) => st.axis === axis).map((st) => st.offset).sort((a, b) => a - b);
@@ -33,7 +38,7 @@ export function cullCellSize(grid: GridModel): { x: number; z: number } {
     for (let i = 1; i < o.length; i++) best = Math.min(best, o[i] - o[i - 1]);
     return isFinite(best) && best > 20 ? best : fallback;
   };
-  return { x: pitch('ns', 250) / 2, z: pitch('ew', 100) };
+  return { x: pitch('ns', 250), z: pitch('ew', 100) * 2 };
 }
 
 export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: Rng): BuiltWorld {

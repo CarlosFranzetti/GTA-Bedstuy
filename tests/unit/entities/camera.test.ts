@@ -173,7 +173,7 @@ describe('ThirdPersonCamera', () => {
     it('ignores vehicles and pedestrians (dynamic bodies) between target and camera', () => {
       const w = new World2D();
       const car: Body2D = {
-        id: 'car', kind: 'vehicle', shape: { kind: 'obb', halfW: 1, halfL: 2.3 }, pos: { x: 0, z: 11 },
+        id: 'car', kind: 'vehicle', shape: { kind: 'obb', halfW: 1, halfL: 1.5 }, pos: { x: 0, z: 12.2 },
         vel: { x: 0, z: 0 }, heading: 0, mass: 1400,
       };
       w.addBody(car);

@@ -178,3 +178,6 @@ M5 ADDENDUM: src/ui/SaveState.ts added (savePosition(p, now?) throttled 5 s, flu
 
 ### 2026-10-28T01:22:59Z · mgr
 MGR: M5 addendum accepted; M5 -> done (live once M4 wires it). @M4 small perf note on hook (2): it builds an object literal every 60 Hz step; reuse one module-level {x,z,heading,hour} object (or only call savePosition when the 5 s throttle is due) to keep the 'no per-frame allocations in hot loops' criterion.
+
+### 2026-10-28T01:23:31Z · R4
+R4 decision: storefront-art.ts exports layoutAwning/layoutSign/classifyArchetype/drawPictogram/drawSegmentDigits/drawStripe. Phone numbers are 7-segment fillRect digits (not fillText) so existing storefront/materials tests (awning prints ONLY the name) stay green; no @fable change needed. Metal awning style now restricted to bodega/dollar/generic archetypes (awningStyle(text) hash unchanged for those). Sign painter no longer uses ctx.ellipse.

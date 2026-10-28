@@ -202,6 +202,7 @@ export function layoutSign(text: string): SignLayout {
   if (!mainLine) mainLine = main;
   const sub = secondary ? stripBadgeWords(secondary) : '';
   const theme = THEMES[archetype];
+  const stripeColors = theme.colors.filter((c) => c !== '#ffffff');
   const n0 = (h >>> 11) % NEON_PALETTE.length;
   const n1 = (n0 + 1 + ((h >>> 17) % (NEON_PALETTE.length - 1))) % NEON_PALETTE.length;
   return {
@@ -212,7 +213,7 @@ export function layoutSign(text: string): SignLayout {
     neon: archetype === 'liquor',
     neonColors: [NEON_PALETTE[n0], NEON_PALETTE[n1]],
     icon: theme.pictograms.length ? theme.pictograms[0] : archetype === 'bodega' ? 'sandwich' : null,
-    stripeColor: theme.colors.length ? theme.colors[h % theme.colors.length] : '#d62828',
+    stripeColor: stripeColors.length ? stripeColors[h % stripeColors.length] : '#d62828',
   };
 }
 

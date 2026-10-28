@@ -194,7 +194,10 @@ export class ThirdPersonCamera {
       const h = world.raycast(f, this.rayDir, remaining);
       if (!h) return null;
       if (h.body.kind === 'static') return travelled + h.dist;
-      const adv = h.dist + 0.05;
+      // a ray that starts inside a body reports nothing, so hop over the body's whole extent
+      const sh = h.body.shape;
+      const extent = sh.kind === 'circle' ? sh.r * 2 : sh.kind === 'obb' ? Math.hypot(sh.halfW, sh.halfL) * 2 : 1;
+      const adv = h.dist + extent;
       f.x += this.rayDir.x * adv; f.z += this.rayDir.z * adv;
       travelled += adv;
     }
