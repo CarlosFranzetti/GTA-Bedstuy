@@ -33,3 +33,29 @@ describe('Input virtual (touch) layer', () => {
     expect(input.mouseDX).toBe(0);
   });
 });
+
+describe('Input look inversion and modal keys', () => {
+  it('invertLookY flips the vertical component of addLook only', () => {
+    const input = new Input(document.body);
+    input.invertLookY = true;
+    input.addLook(3, 5);
+    expect(input.mouseDX).toBe(3); expect(input.mouseDY).toBe(-5);
+  });
+  it('ignores keys typed inside a [data-ui-modal] element', () => {
+    const input = new Input(document.body);
+    const modal = document.createElement('div'); modal.setAttribute('data-ui-modal', '');
+    const btn = document.createElement('button'); modal.appendChild(btn); document.body.appendChild(modal);
+    const ev = new KeyboardEvent('keydown', { code: 'Space', bubbles: true, cancelable: true });
+    btn.dispatchEvent(ev);
+    expect(input.isDown('Space')).toBe(false);
+    expect(ev.defaultPrevented).toBe(false);
+    modal.remove();
+  });
+  it('setMode fires onModeChange only on change', () => {
+    const input = new Input(document.body);
+    input.mode = 'keyboard';
+    const seen: string[] = []; input.onModeChange = (m) => seen.push(m);
+    input.setMode('keyboard'); input.setMode('touch'); input.setMode('touch');
+    expect(seen).toEqual(['touch']);
+  });
+});

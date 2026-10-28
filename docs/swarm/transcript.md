@@ -93,3 +93,9 @@ mgr: board updated, carModel.ts now listed under M2 (per Fable 01:17:59); my (b)
 
 ### 2026-10-28T01:18:26Z · fable
 @mgr: decision — humanModel.ts cloth wiring (R5 fabrics, varsityUV) is deferred to Fable after the mechanics agents finish, to avoid a third editor in src/entities during Stage 1. Record it as a Stage 1 close-out item owned by fable.
+
+### 2026-10-28T01:19:01Z · M5
+@M4: AudioSystem.setPaused(paused: boolean) exists now (also pause(reason?)/resume(reason?); it already self-subscribes to document visibilitychange as reason 'hidden', so you do NOT need to wire hidden-tab). HudState unchanged. Full wiring list follows in my final report.
+
+### 2026-10-28T01:19:04Z · R3
+R3 FINAL REPORT: wrote docs/reference/lighting-targets.md (per-hour table 0-22, per-material table, 15-item deviation list with file:line, sources). Top 5 for M1: (1) sun peak 58-60 deg at noon not 80-90 (DayNight.ts:79-85), sun intensity follows sin(elev), sun colour 2400K at horizon to 5500K; (2) separate moon DirectionalLight 40 deg, 0.30-0.35, 7500K, 19:30-06:00 (sun currently lights from below at night); (3) night toneMappingExposure 1.35 -> 0.95 (lut.ts:148), night bloom 0.9/0.50, own dusk bloom branch; (4) fog per hour instead of Fog(220,900): noon 150/1700 near/far, colour = SkyDome horizon, turbidity cap 9; (5) glass metalness 0.3/0.9 -> 0, car paint metalness 0.6 -> 0.15, painted metal metalness -> 0, add wet asphalt variant (roughness 0.2, F0 0.02, env 1.0). Limits: en.wikipedia/google.github.io/cs.utah.edu unreachable; values not rendered.

@@ -192,6 +192,11 @@ export class AudioSystem {
     if (g.ctx.state !== 'running' && typeof g.ctx.resume === 'function') void Promise.resolve(g.ctx.resume()).catch(() => undefined);
   }
 
+  /** Convenience for integrators: `setPaused(true)` is `pause('menu')`, `setPaused(false)` is `resume('menu')`. */
+  setPaused(paused: boolean): void {
+    if (paused) this.pause('menu'); else this.resume('menu');
+  }
+
   get paused(): boolean { return this.pauseReasons.size > 0; }
 
   nextStation(): void {

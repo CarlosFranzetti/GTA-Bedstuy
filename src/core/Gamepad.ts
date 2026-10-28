@@ -91,7 +91,9 @@ export class GamepadInput {
     const down = (i: number): boolean => !!pad.buttons[i]?.pressed;
     const edge = (i: number): boolean => down(i) && !this.prev[i];
     const lx = pad.axes[0] ?? 0, ly = pad.axes[1] ?? 0, rx = pad.axes[2] ?? 0, ry = pad.axes[3] ?? 0;
-    const left = applyDeadZone(lx, ly), right = applyDeadZone(rx, ry);
+    // Gamepad Y axes are +down; the game's forward axis is +up.
+    const l = applyDeadZone(lx, ly), r = applyDeadZone(rx, ry);
+    const left = { x: l.x, y: -l.y || 0 }, right = { x: r.x, y: r.y };
     const lt = trigger(pad.buttons[BTN.LT]), rt = trigger(pad.buttons[BTN.RT]);
 
     // Any deliberate input switches HUD glyphs to the pad.

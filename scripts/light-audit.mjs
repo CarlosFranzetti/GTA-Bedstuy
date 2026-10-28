@@ -60,6 +60,7 @@ try {
     await page.goto(`http://localhost:${PORT}/?q=${q}`, { waitUntil: 'load', timeout: 90_000 });
     await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 120_000 });
     await page.evaluate(async () => { await window.__gtaDebug.packsReady; const d = window.__gtaDebug; d.dayNight.hoursPerSecond = 0; const o = document.getElementById('overlay'); if (o) o.style.display = 'none'; });
+    const t0 = Date.now();
     const hours = q === 'low' ? HOURS : MEDIUM_HOURS;
     for (const view of VIEWS) {
       await page.evaluate((view) => {
@@ -76,7 +77,7 @@ try {
       for (const hour of hours) {
         await page.evaluate(({ hour, view }) => {
           const d = window.__gtaDebug;
-          d.setHour(hour); d.step(1);
+          d.setHour(hour); d.step(45); d.dayNight.timeOfDay = hour; d.nightLights.update(d.player.body.pos, d.dayNight.isNight, 1);
           d.pipeline.setHour(hour); d.pipeline.setNight(d.dayNight.isNight);
           d.pipeline.snapGrade?.();
           const p = d.player; const pos = p.vehicle ? p.vehicle.body.pos : p.body.pos;
@@ -87,7 +88,7 @@ try {
         await page.evaluate(() => new Promise((res) => { let n = 0; const f = () => (++n >= 4 ? res() : requestAnimationFrame(f)); requestAnimationFrame(f); }));
         const file = `${OUT}/${q}_${view}_${String(hour).replace('.', 'p').padStart(4, '0')}.png`;
         await page.screenshot({ path: file, timeout: 120_000 });
-        results.push(file);
+        results.push(file); console.log(`[audit] ${q} ${view} h=${hour} ${((Date.now() - t0) / 1000).toFixed(0)}s`);
       }
     }
     if (errors.length) console.log(`[audit] console errors (${q}):`, [...new Set(errors)].slice(0, 5));
