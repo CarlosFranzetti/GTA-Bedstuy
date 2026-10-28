@@ -88,6 +88,19 @@ try {
           d.pipeline.snapGrade?.();
           const p = d.player; const pos = p.vehicle ? p.vehicle.body.pos : p.body.pos;
           if (view === 'aerial') d.setFreeCam(pos.x - 30, 50, pos.z + 110, pos.x, 5, pos.z);
+          if (view === 'stoop' || view === 'stoop2') {
+            // close oblique look at the stoop nearest the spawn: acne shows on its treads / cheek walls, peter-panning at the shadow's foot
+            let best = null;
+            for (const b of d.physics.bodies()) {
+              const pts = b.shape.points; if (!pts || !String(b.id).includes('stoop')) continue;
+              const cx = pts.reduce((s, q) => s + q.x, 0) / pts.length + b.pos.x, cz = pts.reduce((s, q) => s + q.z, 0) / pts.length + b.pos.z;
+              const dd = Math.hypot(cx - 9, cz - 20); if (!best || dd < best.dd) best = { cx, cz, dd };
+            }
+            const ox = 9 - best.cx, oz = 20 - best.cz, ol = Math.hypot(ox, oz) || 1;
+            const ux = ox / ol, uz = oz / ol; // unit vector from the stoop toward the street
+            const side = view === 'stoop' ? 3.5 : -3.5; // lateral offset (m) so the view is oblique to the facade
+            d.setFreeCam(best.cx + ux * 6 - uz * side, 2.0, best.cz + uz * 6 + ux * side, best.cx, 0.9, best.cz);
+          }
           d.settle(30);
         }, { hour, view });
         // let a few real frames render so the env map / shadows / grade are current
