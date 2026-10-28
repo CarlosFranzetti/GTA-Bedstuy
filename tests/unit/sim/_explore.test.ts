@@ -23,7 +23,7 @@ for (const seed of [21]) it('traffic crash explore ' + seed, () => {
     if (e.strength < 3) return;
     const A = entities.get(e.a), B = entities.get(e.b);
     if (!A || !B || !(A instanceof Vehicle) || !(B instanceof Vehicle)) return;
-    const near = ints.map((i: any) => ({ i, d: Math.hypot(i.pos.x - e.pos.x, i.pos.z - e.pos.z) })).sort((a: any, b: any) => a.d - b.d)[0];
+    const near = ints.map((i: any) => ({ i, d: Math.hypot(i.center.x - e.pos.x, i.center.z - e.pos.z) })).sort((a: any, b: any) => a.d - b.d)[0];
     const st = (v: any) => { const ag = agents().find((q) => q.vehicle === v); return `${v.id}[${v.driver} h${v.body.heading.toFixed(2)} v${v.speed.toFixed(1)} ${ag ? ag.agent.state : 'parked'} dmg${v.damage.toFixed(2)}]`; };
     console.log(`CRASH t=${simT.toFixed(1)} str=${e.strength.toFixed(1)} at ${e.pos.x.toFixed(0)},${e.pos.z.toFixed(0)} nearest ${near.i.id} d=${near.d.toFixed(0)} ns=${traffic.lights.phaseFor(near.i.id, near.i.nsStreetId)} ew=${traffic.lights.phaseFor(near.i.id, near.i.ewStreetId)} | ${st(A)} vs ${st(B)}`);
   });

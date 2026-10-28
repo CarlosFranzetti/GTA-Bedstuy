@@ -20,6 +20,8 @@ export const UPPER_H = 2.9;
 export const FLOOR_H = PARLOUR_H;
 /** Default raised-basement height (stoop rise) when a lot has no data. */
 export const BASEMENT_H = 1.5;
+/** Metres per repeat of the chain-link fence texture (2 in mesh, 256 px tile). */
+export const CHAIN_TILE = 0.45;
 /** metres per texture repeat */
 export const TILE = 3;
 
@@ -113,7 +115,7 @@ export function loadMats(lib: IMaterialLibrary): BuildingMats {
     tank: lib.get('waterTank', 0),
     metal: lib.get('metalDark', 0),
     scaffold: lib.get('scaffold', 0),
-    chain: lib.get('chainlink', 0),
+    chain: lib.get('chainlinkFence', 0),
     plainAwnings,
     darkAwning: lib.awning('#27303a', ''),
     leaves: plainAwnings[0],

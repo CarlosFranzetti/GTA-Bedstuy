@@ -2,6 +2,7 @@
  * Vacant lot: chain-link fence on posts along the front, a dirt-and-gravel bed, weed tufts, rubble and a few
  * odd leftovers; no building and no footprint collider (just the fence segment).
  */
+import { CHAIN_TILE } from './facade';
 import type { LotCtx, LotOutput } from './facade';
 
 export function buildVacant(c: LotCtx): LotOutput {
@@ -9,8 +10,8 @@ export function buildVacant(c: LotCtx): LotOutput {
   const z = -0.15;
   const h = 2.1;
   // double-sided chain-link panel so it reads from both directions
-  b.rect(m.chain, [0, 0.1, z], [W, 0, 0], [0, h, 0], { ru: W / 1.5, rv: h / 1.5 });
-  b.rect(m.chain, [W, 0.1, z], [-W, 0, 0], [0, h, 0], { ru: W / 1.5, rv: h / 1.5 });
+  b.rect(m.chain, [0, 0.1, z], [W, 0, 0], [0, h, 0], { ru: W / CHAIN_TILE, rv: h / CHAIN_TILE });
+  b.rect(m.chain, [W, 0.1, z], [-W, 0, 0], [0, h, 0], { ru: W / CHAIN_TILE, rv: h / CHAIN_TILE });
   const posts = Math.max(2, Math.ceil(W / 2.4) + 1);
   for (let i = 0; i < posts; i++) {
     const x = 0.05 + ((W - 0.1) * i) / (posts - 1);

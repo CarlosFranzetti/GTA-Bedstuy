@@ -9,7 +9,7 @@
  * the rng, exactly as before the data-driven pass.
  */
 import {
-  BASEMENT_H, PARLOUR_H, acUnits, bayCentres, bayCount, cornice, corniceOfKind, drainPipe, familyMats, fireEscape,
+  BASEMENT_H, CHAIN_TILE, PARLOUR_H, acUnits, bayCentres, bayCount, corniceOfKind, drainPipe, familyMats, fireEscape,
   revealFaces, roofClutter, roofWithParapet, storeyLevels, wallWithHoles, waterTank, windowAwning, windowBars, windows,
 } from './facade';
 import type { Hole, LotCtx, LotOutput, MaterialFamily, Storeys, V3 } from './facade';
@@ -72,7 +72,7 @@ export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
       const barred = rng.chance(0.55);
       for (const x of bsX) {
         if (barred) windowBars(b, m, x, 0.3, 0.9, bwH, -S);
-        else b.rect(m.chain, [x - 0.45, 0.3, -S + 0.05], [0.9, 0, 0], [0, bwH, 0], { ru: 0.9 / 0.6, rv: bwH / 0.6 });
+        else b.rect(m.chain, [x - 0.45, 0.3, -S + 0.05], [0.9, 0, 0], [0, bwH, 0], { ru: 0.9 / CHAIN_TILE, rv: bwH / CHAIN_TILE });
       }
     }
     const eh = Math.max(0.7, bh - 0.3);
@@ -82,7 +82,7 @@ export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
     b.rect(m.metal, [entry.x0, 0, -S - 0.25], [0.9, 0, 0], [0, eh, 0], { ru: 0.4, rv: 0.4 });
     b.box(trim, entry.x0 - 0.1, entry.y1, -S, entry.x1 + 0.1, entry.y1 + 0.12, -S + 0.08, 'fd');
     if (rng.chance(0.4)) b.rect(m.rollGate, [entry.x0, 0, -S + 0.06], [0.9, 0, 0], [0, eh - 0.17, 0], { ru: 0.9 / 1.5, rv: 0.85 / 1.5 });
-    else b.rect(m.chain, [entry.x0, 0, -S + 0.06], [0.9, 0, 0], [0, eh, 0], { ru: 0.9 / 0.6, rv: eh / 0.6 });
+    else b.rect(m.chain, [entry.x0, 0, -S + 0.06], [0.9, 0, 0], [0, eh, 0], { ru: 0.9 / CHAIN_TILE, rv: eh / CHAIN_TILE });
     wallWithHoles(b, m.stoop, 0, 0, W, bh, -S, baseHoles);
   }
 
