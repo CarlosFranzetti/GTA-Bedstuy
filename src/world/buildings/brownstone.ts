@@ -9,7 +9,7 @@
  * the rng, exactly as before the data-driven pass.
  */
 import {
-  BASEMENT_H, CHAIN_TILE, PARLOUR_H, acUnits, bayCentres, bayCount, corniceOfKind, drainPipe, familyMats, fireEscape,
+  BASEMENT_H, CHAIN_TILE, IRON_H, IRON_TILE, PARLOUR_H, acUnits, bayCentres, bayCount, corniceOfKind, drainPipe, familyMats, fireEscape, ironFenceRun,
   revealFaces, roofClutter, roofWithParapet, storeyLevels, wallWithHoles, waterTank, windowAwning, windowBars, windows,
 } from './facade';
 import type { Hole, LotCtx, LotOutput, MaterialFamily, Storeys, V3 } from './facade';
@@ -166,23 +166,25 @@ export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
       b.rect(m.stoop, [xa, yF, zEnd], [cw, 0, 0], [0, yL - yF, zLand - zEnd], { hint: [0, 1, 0] });
       b.rect(m.stoop, [xa, yL, zLand], [cw, 0, 0], [0, 0, -landing], { hint: [0, 1, 0] });
       b.rect(m.stoop, [xa, 0, zEnd], [cw, 0, 0], [0, yF, 0], { hint: [0, 0, 1] });
-      // railing on the cheek: newel posts, sloped + landing handrail, mid rail, pickets
-      const rx = (xo + xi) / 2, rh = 0.95;
-      b.bar(m.metal, [rx, yF, zEnd - 0.05], [rx, yF + rh, zEnd - 0.05], 0.06);
-      b.bar(m.metal, [rx, yL, -S + 0.08], [rx, yL + rh, -S + 0.08], 0.06);
-      for (const [off, t] of [[rh, 0.05], [rh * 0.45, 0.035]] as const) {
-        b.bar(m.metal, [rx, yF + off, zEnd - 0.05], [rx, yL + off, zLand], t);
-        b.bar(m.metal, [rx, yL + off, zLand], [rx, yL + off, -S + 0.08], t);
-      }
-      const np = Math.max(3, Math.round((zLand - zEnd) / 0.28));
-      for (let i = 1; i <= np; i++) {
-        const t = i / (np + 1);
-        const pz = zEnd + (zLand - zEnd) * t, py = yF + (yL - yF) * t;
-        b.bar(m.metal, [rx, py, pz], [rx, py + rh - 0.04, pz], 0.03);
-      }
-      for (const dz of [0.3, 0.6]) b.bar(m.metal, [rx, yL, zLand - dz], [rx, yL + rh - 0.04, zLand - dz], 0.03);
+      // railing on the cheek: newel posts, handrail on top of a cast-iron strip (stoop-railing variant) that follows the slope
+      const rx = (xo + xi) / 2, rh = IRON_H;
+      b.bar(m.metal, [rx, yF, zEnd - 0.05], [rx, yF + rh + 0.04, zEnd - 0.05], 0.07);
+      b.bar(m.metal, [rx, yL, -S + 0.08], [rx, yL + rh + 0.04, -S + 0.08], 0.07);
+      b.bar(m.metal, [rx, yF + rh + 0.03, zEnd - 0.05], [rx, yL + rh + 0.03, zLand], 0.05);
+      b.bar(m.metal, [rx, yL + rh + 0.03, zLand], [rx, yL + rh + 0.03, -S + 0.08], 0.05);
+      const slopeLen = Math.hypot(zLand - zEnd, yL - yF);
+      b.rect(m.ironStoop, [rx, yF, zEnd - 0.05], [0, yL - yF, zLand - zEnd + 0.05], [0, rh, 0], { ru: slopeLen / IRON_TILE, rv: 1 });
+      b.rect(m.ironStoop, [rx, yL, zLand], [0, 0, -(landing - 0.08)], [0, rh, 0], { ru: (landing - 0.08) / IRON_TILE, rv: 1 });
     }
     stoops.push({ x0, x1, z0: -S, z1: zEnd });
+    // areaway fence along the building line (spear variant), open at the stoop foot and the basement entry
+    if (!lite && S >= 2) {
+      const gaps = [[x0 - 0.05, x1 + 0.05], [entryX - 0.5, entryX + 0.5]].sort((p, q) => p[0] - q[0]);
+      let cx = 0.05;
+      for (const [g0, g1] of gaps) { ironFenceRun(b, m.ironAreaway, cx, Math.min(g0, W - 0.05), -0.1); cx = Math.max(cx, g1); }
+      ironFenceRun(b, m.ironAreaway, cx, W - 0.05, -0.1);
+      for (const px of [0.05, x0 - 0.05, x1 + 0.05, W - 0.05]) b.box(m.metal, px - 0.05, 0, -0.15, px + 0.05, IRON_H + 0.1, -0.05, 'fru');
+    }
   }
 
   // ---- yard dressing: trash cans and a planter beside the entry, cellar doors set into the ground

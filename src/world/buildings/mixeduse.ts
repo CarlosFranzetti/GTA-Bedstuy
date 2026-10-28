@@ -70,7 +70,7 @@ const PLAIN_W = 1.5;
 const SIGN_PPM = 80;
 /** Lightbox face widths (m): boxes snap to a class so the same copy is one shared tile. */
 const SIGN_CLASSES = [2.4, 3.4, 4.6, 6.0, 7.6, 9.4, 11.4] as const;
-const LIGHTBOX_NIGHT = 0.7;
+const LIGHTBOX_NIGHT = 0.55; // L9 limit: lightbox emissiveIntensity x texel <= 0.55 (night bloom threshold 0.9)
 const STICKER_NIGHT = 0.55;
 
 // ---------------------------------------------------------------------------------------------- storefront spec
@@ -542,6 +542,7 @@ export class StorefrontKit {
   private readonly plainCache = new Map<string, { valance: Piece; slope: Piece; fringe: Piece }>();
   private readonly signCache = new Map<string, SignTile>();
   private readonly gates = new Map<number, THREE.Material>();
+  private readonly gateDecals = new Map<string, THREE.Material>();
   private readonly flats = new Map<string, THREE.Material>();
   private readonly glowMats: THREE.MeshStandardMaterial[] = [];
 
@@ -611,6 +612,7 @@ export class StorefrontKit {
   private apply(): void {
     for (const m of this.glowMats) m.emissiveIntensity = this.night ? (m.userData.storefrontGlow as number) : 0;
     for (const [closesAt, m] of this.gates) m.visible = isStoreClosed(closesAt, this.hour);
+    for (const [key, m] of this.gateDecals) m.visible = isStoreClosed(Number(key.split(':')[0]), this.hour);
   }
 
   private record(kind: TileRecord['kind'], text: string, widthM: number, heightM: number, w: number, h: number): void {
@@ -761,6 +763,24 @@ export class StorefrontKit {
     return m;
   }
 
+  /**
+   * Graffiti decal for a roll gate: shown only while that gate is down (a clone of the library's graffiti material
+   * per closing hour and variant). closesAt === null = the permanent decal on a closed-down shop's gate.
+   */
+  gateDecal(closesAt: number | null, variant: number): THREE.Material {
+    if (closesAt === null) return this.lib.get('graffiti', variant);
+    if (!this.factory) closesAt = 23;
+    const key = `${closesAt}:${variant}`;
+    let m = this.gateDecals.get(key);
+    if (!m) {
+      m = this.lib.get('graffiti', variant).clone();
+      m.name = `graffiti:gate${closesAt}:${variant}`;
+      this.gateDecals.set(key, m);
+      this.apply();
+    }
+    return m;
+  }
+
   /** Flat painted/tiled colour (bulkheads), shared by name. */
   flat(color: string, roughness = 0.55, metalness = 0): THREE.Material {
     const key = `${color}|${roughness}|${metalness}`;
@@ -778,8 +798,8 @@ export class StorefrontKit {
     this.lit?.dispose();
     this.boards?.dispose();
     this.stickerSheet?.dispose();
-    for (const m of [...this.gates.values(), ...this.flats.values()]) m.dispose();
-    this.gates.clear(); this.flats.clear(); this.awningCache.clear(); this.plainCache.clear(); this.signCache.clear(); this.glowMats.length = 0;
+    for (const m of [...this.gates.values(), ...this.gateDecals.values(), ...this.flats.values()]) m.dispose();
+    this.gates.clear(); this.gateDecals.clear(); this.flats.clear(); this.awningCache.clear(); this.plainCache.clear(); this.signCache.clear(); this.glowMats.length = 0;
     KITS.delete(this);
   }
 }
@@ -1051,7 +1071,8 @@ export function buildGroundFloor(c: LotCtx, plan: StorefrontPlan, brick: THREE.M
 
   // ---- roll gates: housing over every glazed run, the gate itself lowered on closed shops
   const housingY0 = SHOP_H - 0.4;
-  const gateMat = spec.shuttered ? m.rollGate : spec.closesAt === null ? null : kit.gate(spec.closesAt);
+  const gh = Rng.hash(`${c.lot.id}:gate`);
+  const gateMat = spec.shuttered ? (kit.textured ? c.m.lib.get('corrugatedSteel', gh % 3) : m.rollGate) : spec.closesAt === null ? null : kit.gate(spec.closesAt);
   const gateTop = housingY0;
   const gateFront = plan.corner ? [{ a: plan.cut + 0.06, b: W - PIER }] : [{ a: PIER, b: W - PIER }];
   for (const g of gateFront) {
@@ -1070,6 +1091,18 @@ export function buildGroundFloor(c: LotCtx, plan: StorefrontPlan, brick: THREE.M
       const A: V2 = [wx(plan.cut), 0], B: V2 = [f.cx0, -plan.cut];
       const dx = B[0] - A[0], dz = B[1] - A[1];
       b.rect(gateMat, [A[0] + s2 * f.nx * 0.07, 0, A[1] + s2 * 0.07], [dx, 0, dz], [0, gateTop, 0], { hint: [f.nx * s2, 0, s2], ru: 0.7, rv: gateTop / 3 });
+    }
+  }
+  // graffiti over the gate: every closed-down shop, and about one night shutter in three (variant 5 is a roller 'buff'
+  // patch, 0-4 are tags/throw-ups). The decal sits 1 cm in front of the gate quad and shows only while the gate is down.
+  if (gateMat && kit.textured && (spec.shuttered || (gh >> 8) % 3 === 0)) {
+    const v = spec.shuttered ? ((gh >> 4) % 6) : (gh >> 4) % 5;
+    const dMat = kit.gateDecal(spec.shuttered ? null : spec.closesAt, v);
+    for (const g of gateFront) {
+      const len = g.b - g.a;
+      const w = Math.min(len - 0.3, 1.6 + ((gh >> 12) % 5) * 0.4);
+      const a = g.a + (len - w) * (((gh >> 16) % 7) / 6);
+      if (w > 0.6) front(dMat, a, a + w, 0.15, 0.15 + Math.min(gateTop - 0.3, w / 2), 0.16);
     }
   }
   if (plan.grille && !gateMat) {

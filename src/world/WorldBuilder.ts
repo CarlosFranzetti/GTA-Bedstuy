@@ -5,6 +5,7 @@ import type { BedstuyData, GridModel, IMaterialLibrary, Lot, StaticCollider } fr
 import { buildGrid } from '@/world/Grid';
 import { buildRoads } from '@/world/RoadBuilder';
 import { subdivideLots } from '@/world/LotSubdivider';
+import { getBedstuyFaces } from '@/world/data/faces';
 import { buildBuildings } from '@/world/BuildingGen';
 import { buildFurniture, type LampSpot } from '@/world/FurnitureGen';
 import { buildProps } from '@/world/PropsGen';
@@ -57,7 +58,7 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
   group.add(roads.group);
   colliders.push(...roads.colliders);
 
-  const lots = subdivideLots(grid, data.pois, rng.fork('lots'));
+  const lots = subdivideLots(grid, data.pois, rng.fork('lots'), getBedstuyFaces());
   const buildings = buildBuildings(lots, materials, rng.fork('buildings'));
   buildings.group.position.y = SIDEWALK_HEIGHT;
   group.add(buildings.group);

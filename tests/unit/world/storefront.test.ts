@@ -428,7 +428,7 @@ describe('night state', () => {
     kit.setHour(21);
     for (const m of glow) {
       expect(m.emissiveIntensity, m.name).toBeGreaterThan(0.2);
-      expect(m.emissiveIntensity, m.name).toBeLessThanOrEqual(0.8); // under the window glow (0.9): no bloom haze
+      expect(m.emissiveIntensity, m.name).toBeLessThanOrEqual(0.6); // L9: big flat lightbox faces <= 0.6 (night bloom threshold 0.9)
     }
     expect(gate!.visible).toBe(false); // still open at 21:00
 
@@ -497,11 +497,38 @@ describe('the whole city', () => {
 
   it('closed-down shops keep the gate down in daylight; open ones do not', () => {
     const closed = buildLot(lotOf('closed-1', 8, 15, false), null, { storefront: { archetype: 'generic', shuttered: true } } as unknown as LotCtx['spec']);
-    const gate = closed.geoms.find((x) => x.name.startsWith('rollGate:') && !x.name.includes('closes'));
+    // a closed-down shop's shutter is corrugated steel (T11) carrying a permanent graffiti decal, never hidden
+    const gate = closed.geoms.find((x) => x.name.startsWith('corrugatedSteel:'));
     expect(gate).toBeDefined();
+    expect(gate!.mat.visible).toBe(true);
+    const tag = closed.geoms.find((x) => x.name.startsWith('graffiti:'));
+    expect(tag).toBeDefined();
+    expect(tag!.mat.visible).toBe(true);
     expect(closed.ctx.m.rollGate.visible).toBe(true);
     // its sign is dark: no lit sign sheet face is drawn for a shuttered shop
     expect(closed.kit.tiles.some((t) => t.kind === 'sign')).toBe(false);
   });
-});
 
+  it('about a third of night shutters carry a graffiti decal that shows only while the gate is down', () => {
+    let tagged = 0;
+    const total = 30;
+    for (let i = 0; i < total; i++) {
+      const lib = new StubMaterials();
+      const { geoms, kit } = buildLot(lotOf(`tag-${i}`, 8, 15, false), null, { storefront: 'liquor' } as LotCtx['spec'], lib);
+      const decal = geoms.find((x) => x.name.startsWith('graffiti:gate'));
+      if (!decal) continue;
+      tagged++;
+      kit.setHour(12);
+      expect(decal.mat.visible).toBe(false);
+      kit.setHour(3);
+      expect(decal.mat.visible).toBe(true);
+      kit.setHour(7);
+      expect(decal.mat.visible).toBe(false);
+      // a decal sits just in front of the gate quad, inside the opening
+      const vs = verts(decal.g);
+      for (const v of vs) { expect(v.y).toBeGreaterThanOrEqual(0.1); expect(v.y).toBeLessThanOrEqual(SHOP_H); }
+    }
+    expect(tagged).toBeGreaterThan(total * 0.15);
+    expect(tagged).toBeLessThan(total * 0.6);
+  });
+});

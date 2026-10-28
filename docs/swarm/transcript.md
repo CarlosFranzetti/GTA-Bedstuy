@@ -617,3 +617,33 @@ P8 resumed: on disk = PassCounter, CarLod.ts, AoProxy.ts, instanced furniture, C
 
 ### 2026-10-28T22:55:44Z · B3
 B3 resumed: on disk = LotSubdivider (FaceSet 4th arg, specFromData, lotTypeOf), BuildingGen (spec on ctx), facade.ts (buildUpperFloors, storeyLevels, familyMats), apartment/brownstone/vacant spec-aware, tests building-data.test.ts (352 lines). Checking: castIronFence/chainlink/corrugated/tarRoof usage, fire escapes, run gates (tsc, vitest world, build, Throop screenshot). WorldBuilder.ts line 60 still 3-arg subdivideLots (not wired yet).
+
+### 2026-10-28T22:55:52Z · L9
+L9 resumed: on disk = Shadows.ts per-quality normalBias/bias (low .3/-.0003, med .24/-.00025, high .18/-.0002; shadows were flat 0.5), LightingConfig night hemi 4.4 + exposure 1.12 (street luma lift), DayNight.overcast + SkyDome.setOvercast, Weather.ts (410 lines, dry/rain/wet/drying, tests/unit/game/weather.test.ts), ground.ts puddle mask painter (+ tests/unit/textures/puddle.test.ts), light-audit.mjs views signals/shops/ew/stoop + --weather. NOT yet wired by P8 (main.ts has no Weather). Remaining: verify acne proof at 7h/18h medium+high (the 22:45 medium run died on a screenshot timeout), night lamp/emissive bloom check, night street mean numbers, wet layer check, stage2.md baselines table. Machine is heavily loaded; will serialise renders.
+
+### 2026-10-28T22:56:00Z · MGR
+MGR: back online after restart (22:57Z). Accepted so far: R2, X5, T11, D1, H7. Running lanes and what each still owes:
+| lane | still owes |
+|---|---|
+| B3 | castIronFence/tarRoof/chainlink/corrugated usage (T11 keys), FINAL with geometry-hash test + draw-call count; WorldBuilder wiring is P8's |
+| S4 | true-aspect UV test (±5%), corner wrap + night gates/lightboxes tied to dayNight.isNight, tests, FINAL |
+| P8 | wiring queue: B3 subdivideLots(..., getBedstuyFaces()), H7 resolveQuality/startHostedTextures/__gtaDebug.hostedTextures, L9 Weather, T11 graniteCurb/graffiti, missions reset on Menu Reset; draw-call table at 4 Stage 1 spots (low+medium) < 500, tris +<=20% |
+| L9 | light-audit run (7 hours, blown < 0.5%, night street >= 0.085), baselines under docs/reference/light-baselines/, wet 0/1 audit, stoop acne 7h/18h med/high, FINAL |
+| Q10 | screens.mjs baseline, docs/swarm/qa-stage2.md, re-run 5-min sim after F12, FINAL |
+| F12 | D4 resync, flip Q10 it.fails repros to passing, remove f12-diag test, gates, FINAL |
+Note to all: the machine is shared by 6 resumed lanes; post interim numbers rather than waiting on long headless renders. Address me as @MGR.
+
+### 2026-10-28T22:56:13Z · P8
+@B3: wired at WorldBuilder.ts (import getBedstuyFaces + subdivideLots(..., getBedstuyFaces())). @H7: wired at main.ts:34-35 import, :63-64 resolveQuality, :535-537 startHostedTextures after game.start(), :501 __gtaDebug.hostedTextures. @L9: wired at main.ts:125-126 Weather construct+attach, :325 weather.update, :329 flare overcast, :494 setWeather, weather in __gtaDebug. @X5: missions already wired earlier (main.ts:166-189, 385). tsc clean except F12 scratch tests (traffic-f12-diag/q: node types). Next: re-measure perf all viewpoints + visual A/B, T11 curb/graffiti.
+
+### 2026-10-28T22:56:35Z · MGR
+@F12: tsc on the tree (22:56) is clean except your temp tests tests/unit/game/traffic-f12-diag.test.ts (9 errors) and traffic-f12-q.test.ts (3), both node:fs/process; delete them before FINAL. @P8: seen WorldBuilder.ts:61 faces wiring, main.ts:66 resolveQuality, :125 Weather, :501/:537 hostedTextures landing; name all lines in your FINAL. @S4: no post since the restart; please post a resume line (what is on disk, ETA).
+
+### 2026-10-28T22:56:43Z · S4
+S4 resumed: on disk = mixeduse.ts (1216 lines, corner wrap, archetypes, gates, stickers, buildUpperFloors wired), signage.ts (atlas painters, true aspect), storefront-art.ts, signage + storefront tests. State check 22:56: tsc clean for my files; vitest textures+world 499/500, the 1 failure is tests/unit/textures/materials.test.ts 'awning prints uppercase text...' because my awning painter translates the canvas for the valance zone (fake canvas records raw y); fixing in signage.ts by issuing text in absolute y. Remaining: that fix, verify integration/call sites + L9 emissive numbers, graffiti/corrugated gate surrounds check, screenshots 12h/22h on port 4304, final report.
+
+### 2026-10-28T22:58:42Z · B3
+B3: landed castIronFence (stoop railing strips v1 following the stair slope, areaway fence v0 along the building line with gaps at stoop foot + basement entry), chainlinkRail top rail on chain-link vacant fences, corrugatedSteel hoarding (~1/3 of vacant lots) + lean-to shed. FOR FABLE: MaterialLibrary chainlinkRail (line ~453) must be alpha-tested like chainlinkFence: add transparent: true, alphaTest: 0.35, side: THREE.DoubleSide to its std params (painter is transparent above/below the 26 px pipe; opaque material renders it as a black 0.11 m band).
+
+### 2026-10-28T22:58:57Z · fable
+DONE (FOR FABLE B3): chainlinkRail spec now transparent + alphaTest 0.35 + DoubleSide (MaterialLibrary.ts). @B3 go ahead.

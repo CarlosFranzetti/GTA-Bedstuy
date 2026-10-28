@@ -80,7 +80,7 @@ describe('buildBuildings', () => {
 
   it('returns at least one mesh and stays within the mesh budget', () => {
     expect(meshes.length).toBeGreaterThanOrEqual(1);
-    expect(meshes.length).toBeLessThanOrEqual(30);
+    expect(meshes.length).toBeLessThanOrEqual(36); // +4 materials from the T11 keys (castIronFence x2, chainlinkRail, corrugatedSteel)
   });
 
   it('every mesh has finite positions, normals and uvs', () => {

@@ -32,6 +32,8 @@ import { NightLights } from '@/render/NightLights';
 import { SunFlare } from '@/render/LensFlare';
 import { setLampsLit } from '@/world/FurnitureGen';
 import { loadTexturePacks } from '@/textures/packs';
+import { resolveQuality, startHostedTextures } from '@/textures/hosted';
+import { Weather } from '@/game/Weather';
 import { LIGHTING } from '@/render/LightingConfig';
 import { Menu } from '@/ui/Menu';
 import { GamepadInput } from '@/core/Gamepad';
@@ -61,7 +63,8 @@ const params = new URLSearchParams(location.search);
 // A/B switches for perf measurements and bug reports: ?proxies=0 (full shadow/AO scene renders), ?lod=0 (full cars everywhere)
 const useProxies = params.get('proxies') !== '0';
 const useCarLod = params.get('lod') !== '0';
-let quality: Quality = (params.get('q') as Quality | null) ?? (isTouch ? 'low' : 'medium');
+const resolvedQuality = resolveQuality(params.get('q'), isTouch); // ?q=ultra exists only in the hosted build: 'high' + ultra textures
+let quality: Quality = resolvedQuality.quality;
 const pixelRatioFor = (q: Quality): number => Math.min(q === 'low' ? 1.25 : 1.75, window.devicePixelRatio);
 renderer.setPixelRatio(pixelRatioFor(quality));
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -118,6 +121,9 @@ dayNight.attachSky(sky);
 scene.environmentIntensity = dayNight.isNight ? LIGHTING.envIntensityNight : LIGHTING.envIntensityDay;
 const nightLights = new NightLights(scene, world.lamps, { poolSize: LIGHTING.lampPool[quality] });
 const sunFlare = new SunFlare(scene);
+// wet-street / rain state: patches the ground materials in place, so it is built before the shader warm-up compile
+const weather = new Weather(scene, materials, { rainStreaks: { low: 600, medium: 1200, high: 2000 }[quality] });
+weather.attach({ dayNight });
 loading.done('lights');
 await nextPaint();
 
@@ -316,10 +322,11 @@ function drawFrame(alpha: number, frameDt: number): void {
     interpolateAll(alpha, cam.camera.position.x, cam.camera.position.y, cam.camera.position.z);
     updateCamera(frameDt);
     updateSignalMeshes(world.signalsGroup, lights);
+    weather.update(frameDt, cam.camera.position);
     culler.update(cam.camera.position.x, cam.camera.position.z);
     updateShadowCamera(dayNight.sun, camTarget);
     sky.update(dayNight.timeOfDay, sunDir, dayNight.isNight, cam.camera.position);
-    sunFlare.update(sunDir, dayNight.isNight ? 0 : 1, cam.camera.position);
+    sunFlare.update(sunDir, (dayNight.isNight ? 0 : 1) * (1 - weather.overcast), cam.camera.position);
     pipeline.setHour(dayNight.timeOfDay);
     focusPoint.set(camTarget.x, 1.2, camTarget.z);
     pipeline.setFocus(cam.camera.position.distanceTo(focusPoint));
@@ -484,12 +491,14 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
   stopLoop() { game.stop(); },
   setHour(h: number) { dayNight.timeOfDay = h; dayNight.update(0); },
   setQuality(q: Quality) { applyQuality(q); },
+  setWeather(s: 'dry' | 'rain' | 'wet' | 'drying', snap = false) { weather.setState(s, snap); },
   /** Renders one frame synchronously and returns the per-pass draw-call split (for perf scripts). */
   renderOnce(alpha = 1, dt = 1 / 60) {
     drawFrame(alpha, dt);
     return { total: renderer.info.render.calls, shadow: passes.shadow, scene: passes.scene, gbuffer: passes.gbuffer, post: passes.post, triangles: renderer.info.render.triangles, shadowTris: passes.shadowTris, sceneTris: passes.sceneTris, gbufferTris: passes.gbufferTris };
   },
   packsReady,
+  get hostedTextures() { return hostedTextures.done; },
   teleport(x: number, z: number, heading?: number) { const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = x; b.pos.z = z; b.vel.x = 0; b.vel.z = 0; if (heading !== undefined) b.heading = heading; },
   /** run n fixed simulation steps synchronously (for scripted review) */
   step(n: number) { for (let i = 0; i < n; i++) { for (const sys of game.systems) sys.update(game.step); input.endFrame(); } },
@@ -500,7 +509,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
     camHeading = (veh ? veh.body : player.body).heading;
     for (let i = 0; i < n; i++) updateCamera();
   },
-  player, cops, traffic, wanted, physics, grid, events, scene, sky, pipeline, nightLights, dayNight, renderer, materials, perf, culler, carLod, proxies,
+  player, cops, traffic, wanted, physics, grid, events, scene, sky, pipeline, nightLights, dayNight, renderer, materials, perf, culler, carLod, proxies, weather,
   nearby(r: number) { const p = player.body.pos; const out: unknown[] = []; for (const b of physics.bodies()) { const d = Math.hypot(b.pos.x - p.x, b.pos.z - p.z); if (b.shape.kind === 'circle' && d < r) out.push({ id: b.id, kind: b.kind, d: +d.toFixed(2) }); } return out; },
 };
 
@@ -524,3 +533,5 @@ hud.showSplash();
 void loading.hide();
 window.__gtaReady = true;
 game.start();
+// hosted build only (no-op in the single-file artifact): swaps larger texture tiers in after the first paint
+const hostedTextures = startHostedTextures(materials, { ultra: resolvedQuality.ultra, maxAnisotropy: renderer.capabilities.getMaxAnisotropy() });

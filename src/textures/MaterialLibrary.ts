@@ -450,7 +450,7 @@ export class MaterialLibrary implements IMaterialLibrary {
       storefrontGlass: glass('storefrontGlass', 512, 256, storefrontPainter, storefrontEmissivePainter, STOREFRONT_VARIANTS),
       corrugatedSteel: { variants: CORRUGATED_VARIANTS, build: tex('corrugatedSteel', 512, 512, corrugatedSteelPainter, { roughness: 0.55, metalness: 0.3 }, { strength: 3, normalScale: 0.8, roughScale: null }) },
       chainlinkFence: { variants: CHAINLINK_FENCE_VARIANTS, build: (v) => this.std({ map: this.texture('chainlinkFence:' + v, 256, 256, chainlinkFencePainter, v), transparent: true, alphaTest: 0.35, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.35 }) },
-      chainlinkRail: { variants: CHAINLINK_RAIL_VARIANTS, build: tex('chainlinkRail', 256, 64, chainlinkRailPainter, { roughness: 0.45, metalness: 0.4 }) },
+      chainlinkRail: { variants: CHAINLINK_RAIL_VARIANTS, build: tex('chainlinkRail', 256, 64, chainlinkRailPainter, { roughness: 0.45, metalness: 0.4, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide }) },
       graniteCurb: { variants: GRANITE_CURB_VARIANTS, build: tex('graniteCurb', 512, 128, graniteCurbPainter, { roughness: 0.8 }, { strength: 2.4, normalScale: 0.8, roughScale: null }) },
       castIronFence: { variants: CAST_IRON_VARIANTS, build: (v) => this.std({ map: this.texture('castIronFence:' + v, 256, 256, castIronFencePainter, v), transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.5, metalness: 0 }) },
       tarRoof: { variants: TAR_ROOF_VARIANTS, build: tex('tarRoof', 512, 512, tarRoofPainter, { roughness: 0.92 }, { strength: 3, normalScale: 0.6, roughScale: null }) },

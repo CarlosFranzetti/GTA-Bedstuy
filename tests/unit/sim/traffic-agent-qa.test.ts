@@ -65,7 +65,7 @@ describe('TrafficAgent on the real map', () => {
   // Q10-D1: a stalled car in the lane; two followers queue behind it, then start to pass. The obstacle ray is cast
   // from the lane-offset line (pos - right * lat) before the body has moved there, so the passer cannot see the
   // car it is about to clip (and the follower behind cannot see the leader when a pass is cancelled).
-  it.fails('Q10-D1: overtaking a stalled car in the lane does not touch it (no impact >= 1.5 m/s in 40 s)', () => {
+  it('Q10-D1 (fixed by F12): overtaking a stalled car in the lane does not touch it (no impact >= 1.5 m/s in 40 s)', () => {
     const { physics, world } = realPhysics();
     const nodes = lane('kosciuszko', world.grid);
     const events = new EventBus();

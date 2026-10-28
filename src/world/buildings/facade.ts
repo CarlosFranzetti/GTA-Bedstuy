@@ -22,6 +22,11 @@ export const FLOOR_H = PARLOUR_H;
 export const BASEMENT_H = 1.5;
 /** Metres per repeat of the chain-link fence texture (2 in mesh, 256 px tile). */
 export const CHAIN_TILE = 0.45;
+/** castIronFence strip: one texture repeat spans 0.91 m along the fence and the full 0..1 v covers IRON_H of height */
+export const IRON_TILE = 0.91;
+export const IRON_H = 0.91;
+/** corrugatedSteel tile edge (m) */
+export const CORRUGATED_TILE = 1.2;
 /** metres per texture repeat */
 export const TILE = 3;
 
@@ -88,6 +93,13 @@ export interface BuildingMats {
   metal: THREE.Material;
   scaffold: THREE.Material;
   chain: THREE.Material;
+  /** chain-link top rail strip (chainlinkRail, tiles 0.45 m) */
+  chainRail: THREE.Material;
+  /** cast-iron fence strips (alpha-tested, u per IRON_TILE, v 0..1 over IRON_H): spear areaway fence and stoop railing */
+  ironAreaway: THREE.Material;
+  ironStoop: THREE.Material;
+  /** corrugated steel panels (vacant-lot hoarding, sheds), tiles 1.2 m */
+  corrugated: THREE.Material;
   plainAwnings: THREE.Material[];
   darkAwning: THREE.Material;
   /** weeds on vacant lots (the plain dark-green awning fabric: no extra material, so no extra draw call) */
@@ -116,6 +128,10 @@ export function loadMats(lib: IMaterialLibrary): BuildingMats {
     metal: lib.get('metalDark', 0),
     scaffold: lib.get('scaffold', 0),
     chain: lib.get('chainlinkFence', 0),
+    chainRail: lib.get('chainlinkRail', 0),
+    ironAreaway: lib.get('castIronFence', 0),
+    ironStoop: lib.get('castIronFence', 1),
+    corrugated: lib.get('corrugatedSteel', 0),
     plainAwnings,
     darkAwning: lib.awning('#27303a', ''),
     leaves: plainAwnings[0],
@@ -561,6 +577,12 @@ export function windows(b: LotBatch, m: BuildingMats, o: WindowRow): void {
       }
     }
   }
+}
+
+/** Straight run of cast-iron fence (castIronFence quad) along x at depth z, standing on y0; double-sided material. */
+export function ironFenceRun(b: LotBatch, mat: THREE.Material, x0: number, x1: number, z: number, y0 = 0): void {
+  if (x1 - x0 < 0.05) return;
+  b.rect(mat, [x0, y0, z], [x1 - x0, 0, 0], [0, IRON_H, 0], { ru: (x1 - x0) / IRON_TILE, rv: 1 });
 }
 
 /** Slim wrought-iron bars across a basement window (3 pickets + top/bottom rail), in front of the opening. */

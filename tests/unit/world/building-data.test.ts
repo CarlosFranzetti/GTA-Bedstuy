@@ -103,6 +103,26 @@ describe('stoops and railings', () => {
     expect(yRange(byMat(r.group, /^brownstone:/)).lo).toBeGreaterThanOrEqual(0);
   });
 
+  it('stoop railings and the areaway fence use the cast-iron fence strips; flush rows have neither', () => {
+    const r = build([lotOf({ stoop: { present: true, heightM: 1.5 } })]);
+    const stoop = byMat(r.group, /^castIronFence:1$/), area = byMat(r.group, /^castIronFence:0$/);
+    expect(tris(stoop)).toBeGreaterThanOrEqual(4);
+    expect(tris(area)).toBeGreaterThanOrEqual(2);
+    // the stoop railing quads follow the stair slope up to the stoop height + ~0.4 + 0.91
+    expect(yRange(stoop).hi).toBeGreaterThan(1.5 + 0.4);
+    expect(yRange(stoop).hi).toBeLessThan(1.5 + 0.4 + 1.0);
+    // the areaway fence stands on the ground at the building line, 0.91 m tall, never inside the building
+    const ar = yRange(area); expect(ar.lo).toBe(0); expect(ar.hi).toBeCloseTo(0.91, 5);
+    const p = area[0].geometry.getAttribute('position');
+    for (let i = 0; i < p.count; i++) { expect(p.getZ(i)).toBeLessThanOrEqual(0); expect(p.getZ(i)).toBeGreaterThan(-0.5); }
+    // u repeats once per 0.91 m, v spans 0..1
+    const uv = area[0].geometry.getAttribute('uv');
+    let vmax = 0; for (let i = 0; i < uv.count; i++) vmax = Math.max(vmax, uv.getY(i));
+    expect(vmax).toBeCloseTo(1, 6);
+    const flush = build([lotOf({ stoop: { present: false, heightM: 0 } })]);
+    expect(byMat(flush.group, /^castIronFence:/).length).toBe(0);
+  });
+
   it('the parlour wall starts at the stoop height and iron railing geometry exists', () => {
     const r = build([lotOf({ stoop: { present: true, heightM: 1.8 } })]);
     expect(tris(byMat(r.group, /^metalDark:/))).toBeGreaterThan(100);
@@ -221,11 +241,28 @@ describe('churches and vacant lots from data', () => {
     expect(r.colliders.filter((c) => c.shape.kind === 'segment').length).toBe(1);
     expect(bodyOf(r).length).toBe(0);
     const names = new Set(meshesOf(r.group).map((m) => (m.material as THREE.Material).name));
-    expect(names.has('chainlinkFence:0')).toBe(true);
+    expect(names.has('chainlinkFence:0') || names.has('corrugatedSteel:0')).toBe(true);
     // weeds reuse the plain green awning fabric, so vacant lots add no material to the building group
     expect(names.has('awning:#2f6f4f:')).toBe(true);
     for (const n of names) expect(n.startsWith('treeLeaves'), n).toBe(false);
     expect(yRange(meshesOf(r.group)).hi).toBeLessThan(2.5);
+  });
+});
+
+describe('vacant-lot fences', () => {
+  it('lots are fenced with chain-link plus a top rail, or shut behind corrugated steel; sheds are corrugated', () => {
+    const seen = { chain: 0, rail: 0, steel: 0 };
+    for (let seed = 1; seed <= 24; seed++) {
+      const r = build([lotOf({ use: 'vacant', floors: 1, stoop: { present: false, heightM: 0 } }, 'v', 7, 14)], seed);
+      const names = new Set(meshesOf(r.group).map((m) => (m.material as THREE.Material).name));
+      const chain = names.has('chainlinkFence:0'), steel = names.has('corrugatedSteel:0');
+      if (chain) { seen.chain++; expect(names.has('chainlinkRail:0'), 'rail on every chain-link fence').toBe(true); seen.rail++; }
+      if (steel) seen.steel++;
+      expect(chain || steel).toBe(true);
+      expect(yRange(meshesOf(r.group)).hi).toBeLessThan(2.7);
+    }
+    expect(seen.chain).toBeGreaterThan(0);
+    expect(seen.steel).toBeGreaterThan(0);
   });
 });
 

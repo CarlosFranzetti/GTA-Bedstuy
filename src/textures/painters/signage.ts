@@ -139,6 +139,20 @@ function valanceText(
 }
 
 /**
+ * valanceText with the zone translate undone around it, so fillText/strokeText receive canvas-absolute y (what a
+ * reader of the draw calls, or the fake-canvas test, expects) while the picture is identical.
+ */
+function valanceTextAbs(
+  ctx: CanvasRenderingContext2D, y0: number, w: number, top: number, bottom: number, ppm: number, layout: AwningLayout,
+  family: string, fill: string, outline: string, outlineFrac: number, secondaryFill: string,
+): void {
+  ctx.save();
+  ctx.translate(0, -y0);
+  valanceText(ctx, w, top + y0, bottom + y0, ppm, layout, family, fill, outline, outlineFrac, secondaryFill);
+  ctx.restore();
+}
+
+/**
  * The sloped top face: archetype stripe band along the front edge (bottom of the slope image), one big icon sticker
  * and the phone number on a dark plate (seven-segment digits, so the only printed text on an awning is still the
  * name). Sizes are in metres via `ppm`; `h` is the slope zone height in px.
@@ -183,6 +197,8 @@ function metalGround(color: string, text: string): MetalGround {
 
 /** Everything one zone painter needs. `h` is the zone height in px; `ppm` its density. */
 interface Zone {
+  /** Canvas y of the zone's top edge (the caller has translated by it); text is issued in canvas coordinates. */
+  y0?: number;
   w: number;
   h: number;
   ppm: number;
@@ -329,8 +345,8 @@ function valanceZone(ctx: CanvasRenderingContext2D, z: Zone, fringe: number, pit
       ctx.fillStyle = '#000000';
       ctx.fillRect(0, 0, w, 2);
     });
-    if (light) valanceText(ctx, w, 0, textBottom, ppm, layout, VINYL_FONT, '#1a1a1a', 'rgba(255,255,255,0.75)', 0.07, '#2a2a2a');
-    else valanceText(ctx, w, 0, textBottom, ppm, layout, VINYL_FONT, '#ffffff', 'rgba(0,0,0,0.6)', 0.07, '#f3f3ee');
+    if (light) valanceTextAbs(ctx, z.y0 ?? 0, w, 0, textBottom, ppm, layout, VINYL_FONT, '#1a1a1a', 'rgba(255,255,255,0.75)', 0.07, '#2a2a2a');
+    else valanceTextAbs(ctx, z.y0 ?? 0, w, 0, textBottom, ppm, layout, VINYL_FONT, '#ffffff', 'rgba(0,0,0,0.6)', 0.07, '#f3f3ee');
     return;
   }
   const { ground, yellow } = metalGround(color, z.text);
@@ -367,7 +383,7 @@ function valanceZone(ctx: CanvasRenderingContext2D, z: Zone, fringe: number, pit
   }
   speckle(ctx, w, h, rng, Math.round(w * h * 0.0005), ['#7a3a1a', '#5a2a12'], 1, 3, 0.35);
   speckle(ctx, w, h, rng, Math.round(w * h * 0.0027), ['#000000', '#ffffff'], 1, 2, 0.05);
-  valanceText(ctx, w, 4, textBottom0 - Math.max(3, ppm * 0.03) - 2, ppm, layout, METAL_FONT, yellow ? '#c4161c' : '#1d3f8f', '#000000', 0.16, yellow ? '#1d3f8f' : '#c4161c');
+  valanceTextAbs(ctx, z.y0 ?? 0, w, 4, textBottom0 - Math.max(3, ppm * 0.03) - 2, ppm, layout, METAL_FONT, yellow ? '#c4161c' : '#1d3f8f', '#000000', 0.16, yellow ? '#1d3f8f' : '#c4161c');
 }
 
 /** Scallop pitch in px for a valance `widthM` wide at `ppm` (the mesh hangs a zigzag every ~0.34 m). */
@@ -399,7 +415,7 @@ export function awningPainter(color: string, text: string, geom?: AwningGeom): P
     ctx.restore();
     ctx.save();
     ctx.translate(0, slopeH);
-    valanceZone(ctx, { w, h: h - slopeH, ppm, rng, color, text, layout }, fringe, scallopPitchPx(g.widthM, ppm), !geom);
+    valanceZone(ctx, { y0: slopeH, w, h: h - slopeH, ppm, rng, color, text, layout }, fringe, scallopPitchPx(g.widthM, ppm), !geom);
     ctx.restore();
   };
 }
