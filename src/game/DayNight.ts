@@ -124,6 +124,11 @@ export class DayNight implements Clock {
   readonly hemi: HemisphereLight;
   /** True (astronomical) sun direction, below the horizon at night. Sky and flare must use this, not `sun.position`. */
   readonly sunDirection = new Vector3(0, 1, 0);
+  /**
+   * Overcast 0..1, written by Weather (rain gloom): dims the key light, lifts the skylight fill a little, pulls the fog in
+   * and greys it, and thickens the SkyDome clouds. 0 = the clear-sky numbers of TIME_CYCLE exactly.
+   */
+  overcast = 0;
 
   private readonly scene: Scene;
   private readonly materials: IMaterialLibrary;
@@ -191,10 +196,12 @@ export class DayNight implements Clock {
     const sunUp = this.sunDirection.y >= 0;
     const dir = sunUp ? this.sunDirection : moonDirectionAt(h, _moonDir);
     this.sun.position.copy(dir).multiplyScalar(SUN_DISTANCE);
-    const total = tc.sunI + tc.moonI;
+    const o = clamp(this.overcast, 0, 1);
+    const total = tc.sunI * (1 - OVERCAST_SUN_CUT * o) + tc.moonI * (1 - OVERCAST_MOON_CUT * o);
     this.sun.intensity = total;
     this.sun.color.copy(tc.sunColor);
-    if (total > 1e-5) this.sun.color.lerp(MOON_RGB, tc.moonI / total);
+    if (total > 1e-5) this.sun.color.lerp(MOON_RGB, (tc.moonI * (1 - OVERCAST_MOON_CUT * o)) / total);
+    this.skyDome?.setOvercast(o);
 
     // Fog takes the dome's horizon colour (from the TRUE sun elevation), else the plain sky colour.
     if (this.scene.fog) {
