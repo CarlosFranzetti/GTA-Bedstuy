@@ -8,6 +8,7 @@ import { clamp, dist, type Vec2 } from '@/core/Math2';
 import type { Entity, IVehicle, VehicleType, GraphNode, HudState } from '@/world/types';
 import { loadBedstuyData } from '@/world/Grid';
 import { buildWorld } from '@/world/WorldBuilder';
+import { updateSignalMeshes } from '@/world/props/signals';
 import { MaterialLibrary } from '@/textures/MaterialLibrary';
 import { World2D } from '@/physics/World2D';
 import { Player, ENTER_RANGE } from '@/entities/Player';
@@ -31,6 +32,9 @@ import { SunFlare } from '@/render/LensFlare';
 import { setLampsLit } from '@/world/FurnitureGen';
 import { loadTexturePacks } from '@/textures/packs';
 import { LIGHTING } from '@/render/LightingConfig';
+import { Menu } from '@/ui/Menu';
+import { GamepadInput } from '@/core/Gamepad';
+import { loadPosition, savePosition, watchPagehide, type SavedPosition } from '@/ui/SaveState';
 import { LoadingScreen, nextPaint, withTimeout } from '@/render/Loading';
 import { PerfMonitor } from '@/render/Perf';
 import { DistanceCuller } from '@/render/Culling';
@@ -114,12 +118,19 @@ for (const cw of grid.crosswalks) {
 const makePed = (id: string, node: GraphNode) =>
   new Pedestrian(id, node, grid.sidewalks, physics, materials, events, rng.fork(id), crosswalkNodes);
 
-const player = new Player('player', { x: 9, z: 20 }, materials, events);
+// spawn on foot at the saved position (clamped to the map), else at the default spot
+const SPAWN = { x: 9, z: 20 };
+const saved = loadPosition();
+const spawn = saved
+  ? { x: clamp(saved.x, grid.bounds.minX - 25, grid.bounds.maxX + 25), z: clamp(saved.z, grid.bounds.minZ - 25, grid.bounds.maxZ + 25) }
+  : SPAWN;
+const player = new Player('player', spawn, materials, events);
+if (saved) { player.body.heading = saved.heading; dayNight.timeOfDay = saved.hour; }
 scene.add(player.object3D);
 physics.addBody(player.body);
 
 const wanted = new WantedSystem(events);
-const traffic = new TrafficSystem(grid, physics, events, rng.fork('traffic'), scene, materials, makeVehicle, makePed);
+const traffic = new TrafficSystem(grid, physics, events, rng.fork('traffic'), scene, materials, makeVehicle, makePed, undefined, world.lots);
 const cops = new CopSystem(grid, physics, events, rng.fork('cops'), scene, makeVehicle, wanted);
 const audio = new AudioSystem(events);
 
@@ -181,14 +192,28 @@ const poses = new PoseSnapshots();
 const blended: BlendedPose = { x: 0, z: 0, h: 0 };
 const camTarget: Vec2 = { x: 0, z: 0 };
 let camHeading = 0;
-const sunDir = new THREE.Vector3();
+const sunDir = dayNight.sunDirection; // true astronomical sun (the shadow light is mirrored/lifted at night)
 const focusPoint = new THREE.Vector3();
+const camCtx: { world: typeof physics; vehicle: IVehicle | null } = { world: physics, vehicle: null };
+const doorScratch: Vec2 = { x: 0, z: 0 };
+const nearDoor = (v: IVehicle, p: Vec2): boolean => {
+  const d = (v as { doorPosInto?: (out: Vec2) => Vec2 }).doorPosInto?.(doorScratch) ?? v.doorPos();
+  return dist(d, p) <= ENTER_RANGE;
+};
+const savedPose: SavedPosition = { x: 0, z: 0, heading: 0, hour: 0 };
+const currentPose = (): SavedPosition => {
+  const b = player.vehicle ? player.vehicle.body : player.body;
+  savedPose.x = b.pos.x; savedPose.z = b.pos.z; savedPose.heading = b.heading; savedPose.hour = dayNight.timeOfDay;
+  return savedPose;
+};
+let saveTick = 0;
 
 let freeCam: { pos: THREE.Vector3; look: THREE.Vector3 } | null = null;
 function updateCamera(dt = 1 / 60): void {
   if (freeCam) { cam.camera.position.copy(freeCam.pos); cam.camera.lookAt(freeCam.look); }
   else {
-    cam.update(dt, camTarget, camHeading, player.inVehicle ? 'vehicle' : 'foot', input);
+    camCtx.vehicle = player.vehicle;
+    cam.update(dt, camTarget, camHeading, player.inVehicle ? 'vehicle' : 'foot', input, camCtx);
     // consumed here: otherwise frames that run no fixed step (display > 60 Hz) would re-apply the same mouse delta
     input.mouseDX = 0; input.mouseDY = 0;
   }
@@ -234,9 +259,9 @@ const game = new Game(
     // reference for distance culling: the camera, so free-cam review shots are unaffected
     interpolateAll(alpha, cam.camera.position.x, cam.camera.position.z);
     updateCamera(frameDt);
+    updateSignalMeshes(world.signalsGroup, traffic.lights);
     culler.update(cam.camera.position.x, cam.camera.position.z);
     updateShadowCamera(dayNight.sun, camTarget);
-    sunDir.copy(dayNight.sun.position).normalize();
     sky.update(dayNight.timeOfDay, sunDir, dayNight.isNight, cam.camera.position);
     sunFlare.update(sunDir, dayNight.isNight ? 0 : 1, cam.camera.position);
     pipeline.setHour(dayNight.timeOfDay);
@@ -247,13 +272,15 @@ const game = new Game(
     frames++; fpsClock += frameDt;
     if (fpsClock >= 0.5) { fps = Math.round(frames / fpsClock); frames = 0; fpsClock = 0; }
     perf.frame(frameDt);
+    const nowPad = performance.now(); // gamepad polling runs while paused too (Start / menu navigation)
+    gamepad.inVehicle = player.inVehicle; gamepad.update(Math.min(0.1, (nowPad - lastPad) / 1000)); lastPad = nowPad;
 
     // street name and the enter/exit prompt change slowly: refresh ~15 times per second
     if (slowTick++ % 4 === 0) {
       streetName = grid.nearestStreet(pos).signName;
       prompt = '';
       if (player.inVehicle) prompt = PROMPT_EXIT;
-      else { for (const v of allVehicles()) if (dist(v.doorPos(), pos) <= ENTER_RANGE) { prompt = PROMPT_ENTER; break; } }
+      else { for (const v of allVehicles()) if (nearDoor(v, pos)) { prompt = PROMPT_ENTER; break; } }
     }
     hudState.stars = wanted.stars;
     hudState.speedKmh = player.vehicle ? Math.abs(player.vehicle.speed) * 3.6 : 0;
@@ -266,7 +293,7 @@ const game = new Game(
     hud.update(hudState);
     copPositions.length = 0;
     for (const c of cops.cops) copPositions.push(c.body.pos);
-    minimap.update(camTarget, camHeading, copPositions);
+    minimap.update(camTarget, camHeading, copPositions, frameDt);
 
     stats.drawCalls = renderer.info.render.calls;
     stats.triangles = renderer.info.render.triangles;
@@ -278,6 +305,21 @@ const game = new Game(
   },
   () => input.endFrame(),
 );
+
+// pause menu, gamepad, settings (Menu fires its persisted-setting callbacks once at construction)
+let lastPad = performance.now();
+const gamepad = new GamepadInput(input, { onToast: (m) => hud.showToast(m), onStart: () => menu.toggle(), onNav: (d) => menu.navigate(d) });
+const menu = new Menu(overlay, {
+  onPause: (p) => { game.paused = p || document.hidden; gamepad.paused = p; audio.setPaused(p); if (!p) { input.endFrame(); input.requestLock(); } },
+  onQuality: (q) => applyQuality(q),
+  onMasterVolume: (v) => audio.setMasterVolume(v),
+  onRadioVolume: (v) => audio.setRadioVolume(v),
+  onInvertLookY: (b) => { input.invertLookY = b; },
+  onReset: () => { const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = SPAWN.x; b.pos.z = SPAWN.z; b.vel.x = 0; b.vel.z = 0; },
+}, { touch: isTouch, initialQuality: quality, ignoreSavedQuality: params.has('q') });
+input.onModeChange = (m) => { hud.setInputMode(m); menu.setInputMode(m); };
+hud.setInputMode(input.mode); menu.setInputMode(input.mode);
+watchPagehide(currentPose);
 
 // 1) first system: snapshot every dynamic body's pose before the step moves it (render lerps prev -> current)
 game.add({
@@ -336,7 +378,10 @@ game.add({
     }
     nightLights.update(player.body.pos, dayNight.isNight, dt);
     audio.setEngine(player.vehicle ? Math.abs(player.vehicle.speed) : 0, player.vehicle ? Math.abs(player.lastVehicleInput.throttle) : 0, player.inVehicle);
+    const pv = player.vehicle as ({ slip?: number } & IVehicle) | null;
+    audio.setSlip(pv?.slip ?? 0); audio.setHandbrake(player.inVehicle && player.lastVehicleInput.handbrake);
     audio.update(dt);
+    if (++saveTick >= 120) { saveTick = 0; savePosition(currentPose()); }
   },
 });
 
@@ -354,13 +399,13 @@ window.addEventListener('resize', () => {
 applyShadowFlags(player.object3D, true, false);
 packsReady.then((n) => { stats.packs = n; });
 // AudioSystem pauses itself when the tab is hidden; the simulation pauses here
-document.addEventListener('visibilitychange', () => { game.paused = document.hidden; });
+document.addEventListener('visibilitychange', () => { game.paused = document.hidden || menu.isOpen; });
 
 // debug/review hooks (harmless in production)
 (window as unknown as { __gtaDebug: unknown }).__gtaDebug = {
   setFreeCam(x: number, y: number, z: number, lx: number, ly: number, lz: number) { freeCam = { pos: new THREE.Vector3(x, y, z), look: new THREE.Vector3(lx, ly, lz) }; },
   clearFreeCam() { freeCam = null; },
-  setHour(h: number) { dayNight.timeOfDay = h; },
+  setHour(h: number) { dayNight.timeOfDay = h; dayNight.update(0); },
   setQuality(q: Quality) { applyQuality(q); },
   packsReady,
   teleport(x: number, z: number, heading?: number) { const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = x; b.pos.z = z; b.vel.x = 0; b.vel.z = 0; if (heading !== undefined) b.heading = heading; },
@@ -386,7 +431,8 @@ loading.begin('shaders');
 await nextPaint();
 updateCamera();
 try {
-  await withTimeout(renderer.compileAsync(scene, cam.camera), 20_000, undefined);
+  if (renderer.extensions.has('KHR_parallel_shader_compile')) await withTimeout(renderer.compileAsync(scene, cam.camera), 20_000, undefined);
+  else renderer.compile(scene, cam.camera);
   pipeline.render(); // builds the post-processing targets/programs once
 } catch (e) { console.warn('shader warm-up failed', e); }
 renderer.info.reset();

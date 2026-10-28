@@ -8,6 +8,7 @@ import { subdivideLots } from '@/world/LotSubdivider';
 import { buildBuildings } from '@/world/BuildingGen';
 import { buildFurniture, type LampSpot } from '@/world/FurnitureGen';
 import { buildProps } from '@/world/PropsGen';
+import { buildSignals, signalColliders } from '@/world/props/signals';
 import { splitMeshesIntoCells, type SplitStats } from '@/render/Culling';
 
 export interface BuiltWorld {
@@ -16,6 +17,8 @@ export interface BuiltWorld {
   group: THREE.Group;
   colliders: StaticCollider[];
   furnitureGroup: THREE.Group;
+  /** Traffic-signal poles/heads; drive with updateSignalMeshes(signalsGroup, traffic.lights) each frame. */
+  signalsGroup: THREE.Group;
   lamps: LampSpot[];
   /** Per-cell prop meshes (candidates for distance culling). */
   propCells: THREE.Mesh[];
@@ -67,6 +70,11 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
   group.add(props.group);
   colliders.push(...props.colliders);
 
+  const signals = buildSignals(grid, materials);
+  signals.position.y = SIDEWALK_HEIGHT;
+  group.add(signals);
+  colliders.push(...signalColliders(grid));
+
   // The generators merge one geometry per material city-wide, which frustum culling can never reject. Re-bin the
   // triangles into per-cell meshes (same names/materials, so lamp lookup by name keeps working).
   const cell = cullCellSize(grid);
@@ -77,5 +85,5 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
 
   let meshes = 0;
   group.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes++; });
-  return { grid, lots, group, colliders, furnitureGroup: furniture.group, lamps: furniture.lamps, propCells, stats: { meshes, lots: lots.length, colliders: colliders.length, cells } };
+  return { grid, lots, group, colliders, furnitureGroup: furniture.group, signalsGroup: signals, lamps: furniture.lamps, propCells, stats: { meshes, lots: lots.length, colliders: colliders.length, cells } };
 }
