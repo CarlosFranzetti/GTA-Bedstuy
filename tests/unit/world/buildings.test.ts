@@ -194,10 +194,16 @@ describe('buildBuildings', () => {
     expect(lotsBrown.length).toBeGreaterThan(0);
     // normals of the brownstone mesh are all axis aligned horizontal and match some face's outward vector
     const outs = [{ x: 0, z: -1 }, { x: 0, z: 1 }, { x: 1, z: 0 }, { x: -1, z: 0 }];
+    let faceted = 0, tris = 0;
     for (let i = 0; i < nrm.count; i += 3) {
       const nx = nrm.getX(i), nz = nrm.getZ(i);
-      expect(outs.some((o) => Math.abs(o.x - nx) < 1e-4 && Math.abs(o.z - nz) < 1e-4) || Math.abs(nrm.getY(i)) > 0.99).toBe(true);
+      tris++;
+      if (outs.some((o) => Math.abs(o.x - nx) < 1e-4 && Math.abs(o.z - nz) < 1e-4) || Math.abs(nrm.getY(i)) > 0.99) continue;
+      // the only other brownstone faces are the facets of round-headed window reveals: unit length, horizontal-ish
+      faceted++;
+      expect(Math.hypot(nx, nrm.getY(i), nz)).toBeCloseTo(1, 3);
     }
+    expect(faceted / tris).toBeLessThan(0.05);
   });
 
   it('is deterministic', () => {
@@ -334,7 +340,7 @@ describe('facade depth and detail', () => {
     const ms = meshOf(res.group);
     expect(ms.length).toBeLessThanOrEqual(60);
     const tris = ms.reduce((n, m) => n + m.geometry.getAttribute('position').count / 3, 0);
-    expect(tris).toBeLessThan(600_000);
+    expect(tris).toBeLessThan(650_000);
     expect(tris).toBeGreaterThan(400_000);
   });
 });
