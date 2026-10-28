@@ -28,7 +28,7 @@ const BRAKE_APPLY = 7.5;
 const BRAKE_RELEASE = 14;
 /** Opposite-direction throttle brakes at this pedal fraction before reversing. */
 const OPPOSE_BRAKE = 0.8;
-const HANDBRAKE_DECEL_FRAC = 0.35;
+const HANDBRAKE_DECEL_FRAC = 0.2;
 // ---- steering
 /** Full-lock sweeps per second at standstill; divided by (1 + speed/STEER_SPEED_REF) so high speed steers lazily. */
 const STEER_RATE = 3.4;

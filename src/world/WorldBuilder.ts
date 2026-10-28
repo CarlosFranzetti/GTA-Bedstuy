@@ -8,6 +8,7 @@ import { subdivideLots } from '@/world/LotSubdivider';
 import { buildBuildings } from '@/world/BuildingGen';
 import { buildFurniture, type LampSpot } from '@/world/FurnitureGen';
 import { buildProps } from '@/world/PropsGen';
+import { splitMeshesIntoCells, type SplitStats } from '@/render/Culling';
 
 export interface BuiltWorld {
   grid: GridModel;
@@ -16,11 +17,24 @@ export interface BuiltWorld {
   colliders: StaticCollider[];
   furnitureGroup: THREE.Group;
   lamps: LampSpot[];
-  stats: { meshes: number; lots: number; colliders: number };
+  /** Per-cell prop meshes (candidates for distance culling). */
+  propCells: THREE.Mesh[];
+  stats: { meshes: number; lots: number; colliders: number; cells: SplitStats };
 }
 
 /** Sidewalk slabs are 0.15 m tall; buildings and furniture sit on top of them. */
 export const SIDEWALK_HEIGHT = 0.15;
+
+/** Cell size (m) for splitting merged static meshes: half the N-S street pitch east-west, the E-W street pitch north-south. */
+export function cullCellSize(grid: GridModel): { x: number; z: number } {
+  const pitch = (axis: 'ns' | 'ew', fallback: number): number => {
+    const o = grid.streets.filter((st) => st.axis === axis).map((st) => st.offset).sort((a, b) => a - b);
+    let best = Infinity;
+    for (let i = 1; i < o.length; i++) best = Math.min(best, o[i] - o[i - 1]);
+    return isFinite(best) && best > 20 ? best : fallback;
+  };
+  return { x: pitch('ns', 250) / 2, z: pitch('ew', 100) };
+}
 
 export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: Rng): BuiltWorld {
   const grid = buildGrid(data);
@@ -48,7 +62,15 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
   group.add(props.group);
   colliders.push(...props.colliders);
 
+  // The generators merge one geometry per material city-wide, which frustum culling can never reject. Re-bin the
+  // triangles into per-cell meshes (same names/materials, so lamp lookup by name keeps working).
+  const cell = cullCellSize(grid);
+  const cells: SplitStats = { meshesBefore: 0, meshesAfter: 0, trianglesAfter: 0 };
+  splitMeshesIntoCells(buildings.group, cell.x, cell.z, cells);
+  splitMeshesIntoCells(furniture.group, cell.x, cell.z, cells);
+  const propCells = splitMeshesIntoCells(props.group, cell.x, cell.z, cells);
+
   let meshes = 0;
   group.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes++; });
-  return { grid, lots, group, colliders, furnitureGroup: furniture.group, lamps: furniture.lamps, stats: { meshes, lots: lots.length, colliders: colliders.length } };
+  return { grid, lots, group, colliders, furnitureGroup: furniture.group, lamps: furniture.lamps, propCells, stats: { meshes, lots: lots.length, colliders: colliders.length, cells } };
 }

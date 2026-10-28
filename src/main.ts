@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import { Game } from '@/core/Game';
+import { Game, PoseSnapshots, type BlendedPose } from '@/core/Game';
 import { Input } from '@/core/Input';
 import { Rng } from '@/core/Rng';
 import { EventBus } from '@/core/Events';
 import { ThirdPersonCamera } from '@/core/Camera';
 import { clamp, dist, type Vec2 } from '@/core/Math2';
-import type { Entity, IVehicle, VehicleType, GraphNode } from '@/world/types';
+import type { Entity, IVehicle, VehicleType, GraphNode, HudState } from '@/world/types';
 import { loadBedstuyData } from '@/world/Grid';
 import { buildWorld } from '@/world/WorldBuilder';
 import { MaterialLibrary } from '@/textures/MaterialLibrary';
@@ -31,6 +31,9 @@ import { SunFlare } from '@/render/LensFlare';
 import { setLampsLit } from '@/world/FurnitureGen';
 import { loadTexturePacks } from '@/textures/packs';
 import { LIGHTING } from '@/render/LightingConfig';
+import { LoadingScreen, nextPaint, withTimeout } from '@/render/Loading';
+import { PerfMonitor } from '@/render/Perf';
+import { DistanceCuller } from '@/render/Culling';
 
 declare global {
   interface Window { __gtaReady?: boolean; __gtaStats?: Record<string, number>; }
@@ -43,27 +46,44 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'hi
 const isTouch = Input.isTouchDevice();
 const params = new URLSearchParams(location.search);
 let quality: Quality = (params.get('q') as Quality | null) ?? (isTouch ? 'low' : 'medium');
-renderer.setPixelRatio(Math.min(quality === 'low' ? 1.25 : 1.75, window.devicePixelRatio));
+const pixelRatioFor = (q: Quality): number => Math.min(q === 'low' ? 1.25 : 1.75, window.devicePixelRatio);
+renderer.setPixelRatio(pixelRatioFor(quality));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
+// The composer calls renderer.render() once per pass; with autoReset on, info.render.calls only holds the last pass.
+// Reset manually once per frame instead so the stats are the real per-frame total.
+renderer.info.autoReset = false;
 renderer.domElement.className = 'game';
 app.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 
+// ---- loading screen (steps paint between the long synchronous build stages)
+const loading = new LoadingScreen(app);
+await nextPaint();
+
 // ---- world
+loading.begin('materials');
 const data = loadBedstuyData();
 const rng = new Rng(data.seed);
 const events = new EventBus();
 const materials = new MaterialLibrary(rng.fork('materials'), undefined, { maxAnisotropy: renderer.capabilities.getMaxAnisotropy() });
+materials.carPaintDetail();
+loading.done('materials');
+loading.begin('textures'); // finished when the async packs are awaited below, before the splash
 const packsReady = loadTexturePacks(materials, renderer.capabilities.getMaxAnisotropy()).catch((e) => { console.warn('texture packs failed', e); return 0; });
+await nextPaint();
+loading.begin('world');
 const world = buildWorld(data, materials, rng);
 scene.add(world.group);
 const { grid } = world;
 
 const physics = new World2D(12);
 for (const c of world.colliders) physics.addStatic(c.shape, c.pos, c.id);
+loading.done('world');
+await nextPaint();
 
+loading.begin('lights');
 const dayNight = new DayNight(scene, materials, { startHour: LIGHTING.startHour });
 scene.add(dayNight.sun.target);
 setupShadows(renderer, dayNight.sun, quality);
@@ -73,8 +93,15 @@ dayNight.attachSky(sky);
 scene.environmentIntensity = dayNight.isNight ? LIGHTING.envIntensityNight : LIGHTING.envIntensityDay;
 const nightLights = new NightLights(scene, world.lamps, { poolSize: LIGHTING.lampPool[quality] });
 const sunFlare = new SunFlare(scene);
+loading.done('lights');
+await nextPaint();
+
+// distance culling: prop cells (static) and, per frame, traffic cars and peds
+const culler = new DistanceCuller(220);
+for (const m of world.propCells) culler.addStatic(m);
 
 // ---- entities (optional real models: src/assets/models/README.md)
+loading.begin('entities');
 Vehicle.sources = await resolveVehicleSources();
 { const chars = await resolveCharacterSource(materials, rng.fork('characters')); if (chars instanceof GltfCharacterSource) { Pedestrian.characterSource = chars; Player.characterSource = chars; } }
 let vehicleSeq = 0;

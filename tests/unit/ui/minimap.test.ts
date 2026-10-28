@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { Minimap, worldToMinimap } from '@/ui/Minimap';
+import { Minimap, worldToMinimap, smoothHeading, northMarkerPos } from '@/ui/Minimap';
 import { forwardFromHeading, perpRight } from '@/core/Math2';
 import type { GridModel } from '@/world/types';
 
@@ -65,5 +65,71 @@ describe('Minimap', () => {
     expect(root.querySelector('canvas')).not.toBeNull();
     expect(() => minimap.update({ x: 0, z: 0 }, 0, [{ x: 5, z: 5 }])).not.toThrow();
     root.remove();
+  });
+});
+
+describe('smoothHeading', () => {
+  it('moves toward the target without overshooting', () => {
+    const h = smoothHeading(0, 1, 1 / 60);
+    expect(h).toBeGreaterThan(0); expect(h).toBeLessThan(1);
+    expect(smoothHeading(0, 1, 5)).toBeCloseTo(1, 3);
+  });
+  it('takes the short way round the wrap', () => {
+    const h = smoothHeading(3.0, -3.0, 1 / 30);
+    expect(Math.abs(h)).toBeGreaterThan(3.0); // still near +-pi, not swinging through 0
+  });
+  it('snaps when there is no previous heading', () => {
+    expect(smoothHeading(Number.NaN, 1.2, 0.016)).toBeCloseTo(1.2);
+  });
+});
+
+describe('northMarkerPos', () => {
+  it('is at the top of the rim when facing north and at the bottom when facing south', () => {
+    const up = northMarkerPos(0, SIZE, 11);
+    expect(up.x).toBeCloseTo(CENTRE); expect(up.y).toBeCloseTo(11);
+    const down = northMarkerPos(Math.PI, SIZE, 11);
+    expect(down.x).toBeCloseTo(CENTRE, 5); expect(down.y).toBeCloseTo(SIZE - 11);
+  });
+  it('swings to the left when facing east (north is then on the left)', () => {
+    const p = northMarkerPos(Math.PI / 2, SIZE, 11);
+    expect(p.x).toBeLessThan(CENTRE - 50);
+    expect(p.y).toBeCloseTo(CENTRE, 5);
+  });
+});
+
+describe('Minimap dt', () => {
+  it('accepts an explicit dt and tolerates repeated updates', () => {
+    const root = document.createElement('div');
+    const grid = { streets: [], segments: [], intersections: [], bounds: { minX: -50, maxX: 50, minZ: -50, maxZ: 50 } } as unknown as GridModel;
+    const m = new Minimap(root, grid);
+    expect(() => { for (let i = 0; i < 10; i++) m.update({ x: 0, z: 0 }, i * 0.3, [], 1 / 60); }).not.toThrow();
+  });
+});
+
+describe('Minimap drawing (stubbed 2D context)', () => {
+  it('draws the N marker and alternates cop blip colours over time', async () => {
+    const { vi } = await import('vitest');
+    const texts: string[] = [];
+    const fills: string[] = [];
+    const ctx = new Proxy({} as Record<string, unknown>, {
+      get(t, k: string) {
+        if (k === 'fillText') return (s: string) => { texts.push(s); };
+        if (k in t) return t[k];
+        return () => undefined;
+      },
+      set(t, k: string, v) { if (k === 'fillStyle') fills.push(String(v)); t[k] = v; return true; },
+    });
+    const spy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as unknown as CanvasRenderingContext2D);
+    const root = document.createElement('div');
+    const grid = { streets: [], segments: [], intersections: [], bounds: { minX: -50, maxX: 50, minZ: -50, maxZ: 50 } } as unknown as GridModel;
+    const m = new Minimap(root, grid);
+    m.update({ x: 0, z: 0 }, 0, [{ x: 4, z: 4 }], 0.01);
+    expect(texts).toContain('N');
+    const first = fills.filter((f) => f === '#ef4444' || f === '#3b82f6');
+    m.update({ x: 0, z: 0 }, 0, [{ x: 4, z: 4 }], 0.25);
+    const second = fills.filter((f) => f === '#ef4444' || f === '#3b82f6').slice(first.length);
+    expect(first.length).toBe(1); expect(second.length).toBe(1);
+    expect(second[0]).not.toBe(first[0]);
+    spy.mockRestore();
   });
 });

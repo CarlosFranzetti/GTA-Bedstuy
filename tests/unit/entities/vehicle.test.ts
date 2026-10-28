@@ -26,7 +26,7 @@ describe('Vehicle', () => {
     expect(make('sedan').body.mass).toBe(1400);
   });
 
-  it.each(['sedan', 'suv', 'boxtruck', 'cop'] as const)('%s: full throttle 6 s reaches >= 0.8 maxSpeed, never exceeds it', (type) => {
+  it.each(['sedan', 'suv', 'cop'] as const)('%s: full throttle 6 s reaches >= 0.8 maxSpeed, never exceeds it', (type) => {
     const v = make(type);
     v.driver = 'player';
     v.setInput(input({ throttle: 1 }));
@@ -38,13 +38,120 @@ describe('Vehicle', () => {
     expect(v.body.pos.z).toBeLessThan(0);
   });
 
-  it('brake from 20 m/s stops within 3 s', () => {
+  /** time (s) for a full-throttle launch to reach `frac` of maxSpeed */
+  const launchTime = (type: keyof typeof VEHICLE_SPECS, frac: number) => {
+    const v = make(type);
+    v.driver = 'player';
+    v.setInput(input({ throttle: 1 }));
+    for (let i = 1; i <= 60 * 40; i++) { v.update(1 / 60); if (v.speed >= frac * v.spec.maxSpeed) return i / 60; }
+    return Infinity;
+  };
+
+  it('0-100 km/h: sedan about 6 s, box truck about 12 s to the same fraction of its top speed', () => {
+    const sedan = launchTime('sedan', 100 / 3.6 / VEHICLE_SPECS.sedan.maxSpeed);
+    expect(sedan).toBeGreaterThan(5);
+    expect(sedan).toBeLessThan(7);
+    const truck = launchTime('boxtruck', 100 / 3.6 / VEHICLE_SPECS.sedan.maxSpeed);
+    expect(truck).toBeGreaterThan(10);
+    expect(truck).toBeLessThan(14);
+  });
+
+  it('torque falls with speed: getting from 50% to 90% of top speed takes longer than 0 to 50%', () => {
+    const t50 = launchTime('sedan', 0.5);
+    const t90 = launchTime('sedan', 0.9);
+    expect(t90 - t50).toBeGreaterThan(1.5 * t50);
+  });
+
+  it('coasting sheds speed via engine braking and drag, but gently', () => {
+    const v = make();
+    v.driver = 'player';
+    v.body.vel = { x: 0, z: -20 };
+    v.setInput(input());
+    run(v, 1);
+    expect(v.speed).toBeLessThan(18);
+    expect(v.speed).toBeGreaterThan(10);
+  });
+
+  it('brake from 20 m/s stops within 3 s, but not instantly (ABS-like ramp)', () => {
     const v = make();
     v.driver = 'player';
     v.body.vel = { x: 0, z: -20 };
     v.setInput(input({ brake: true }));
-    run(v, 3);
+    v.update(1 / 60);
+    expect(v.speed).toBeGreaterThan(19.5); // first frame: pedal still ramping in
+    run(v, 0.5);
+    expect(v.speed).toBeGreaterThan(8);
+    run(v, 2.5);
     expect(Math.abs(v.speed)).toBeLessThan(0.1);
+    expect(v.body.pos.z).toBeLessThan(-8); // a real braking distance
+  });
+
+  it('brake lights come on while braking', () => {
+    const v = make();
+    v.driver = 'player';
+    v.body.vel = { x: 0, z: -15 };
+    const tail = (v.object3D.getObjectByName('taillightL') ?? null) as THREE.Mesh | null;
+    v.setInput(input({ brake: true }));
+    run(v, 0.5);
+    if (tail) expect((tail.material as THREE.MeshStandardMaterial).emissiveIntensity).toBeGreaterThan(2);
+  });
+
+  it('steering is rate limited: no instant full lock, return-to-centre, narrower lock at speed', () => {
+    const v = make();
+    v.driver = 'player';
+    v.body.vel = { x: 0, z: -10 };
+    v.setInput(input({ steer: 1, throttle: 0.3 }));
+    v.update(1 / 60);
+    expect(Math.abs(v.steering)).toBeGreaterThan(0);
+    expect(Math.abs(v.steering)).toBeLessThan(0.1 * v.spec.maxSteer);
+    run(v, 0.1);
+    expect(Math.abs(v.steering)).toBeLessThan(0.6 * v.spec.maxSteer);
+    run(v, 1);
+    const locked = v.steering;
+    expect(locked).toBeGreaterThan(0.3 * v.spec.maxSteer);
+    expect(locked).toBeLessThan(v.spec.maxSteer); // shrinks with speed
+    v.setInput(input({ steer: 0, throttle: 0.3 }));
+    run(v, 0.15);
+    expect(v.steering).toBeLessThan(locked);
+    expect(v.steering).toBeGreaterThan(0);
+    run(v, 1);
+    expect(Math.abs(v.steering)).toBeLessThan(1e-6);
+    // a hard flick never turns the body instantly
+    const w = make();
+    w.driver = 'player';
+    w.body.vel = { x: 0, z: -25 };
+    w.setInput(input({ steer: 1 }));
+    w.update(1 / 60);
+    expect(Math.abs(w.body.heading)).toBeLessThan(0.01);
+  });
+
+  it('cornering rolls the chassis outward and braking dips the nose', () => {
+    const v = make();
+    v.driver = 'player';
+    v.body.vel = { x: 0, z: -18 };
+    v.setInput(input({ steer: 1, throttle: 0.5 }));
+    run(v, 1);
+    const chassis = v.object3D.children[0];
+    expect(chassis.rotation.z).toBeLessThan(-0.01); // right turn: right side down
+    const w = make();
+    w.driver = 'player';
+    w.body.vel = { x: 0, z: -20 };
+    w.setInput(input({ brake: true }));
+    run(w, 0.4);
+    expect(w.object3D.children[0].rotation.x).toBeLessThan(-0.01);
+  });
+
+  it('impacts kick the suspension (chassis bounce) and it settles again', () => {
+    const v = make();
+    v.driver = 'player';
+    const wall = { id: 'w', kind: 'static', shape: { kind: 'circle', r: 1 }, pos: { x: 0, z: -3 }, vel: { x: 0, z: 0 }, heading: 0, mass: Infinity } as never;
+    v.body.vel = { x: 0, z: -10 };
+    v.onContact({ a: v.body, b: wall, normal: { x: 0, z: -1 }, depth: 0.1, point: { x: 0, z: -2.3 }, impulse: 10 }, wall);
+    let min = 0;
+    for (let i = 0; i < 20; i++) { v.update(1 / 60); min = Math.min(min, v.object3D.children[0].position.y); }
+    expect(min).toBeLessThan(-0.005);
+    run(v, 3);
+    expect(Math.abs(v.object3D.children[0].position.y)).toBeLessThan(0.002);
   });
 
   it('steering right at 10 m/s increases heading (clockwise)', () => {
@@ -68,6 +175,22 @@ describe('Vehicle', () => {
     v.body.vel = { x: 0, z: -5 };
     run(v, 2);
     expect(Math.abs(v.speed)).toBeLessThan(0.1);
+  });
+
+  it('parked car keeps rolling under friction after a nudge (about a metre), not zeroed at once', () => {
+    const v = make();
+    v.body.vel = { x: 0, z: -2.5 };
+    v.update(1 / 60);
+    expect(v.speed).toBeGreaterThan(2); // not zeroed in one step
+    run(v, 2);
+    expect(v.body.pos.z).toBeLessThan(-0.4);
+    expect(v.body.pos.z).toBeGreaterThan(-2);
+    expect(v.speed).toBe(0);
+    // a feeble push (a walking pedestrian) does not creep the car along
+    const w = make();
+    w.body.vel = { x: 0, z: -0.2 };
+    run(w, 1);
+    expect(Math.abs(w.body.pos.z)).toBeLessThan(0.01);
   });
 
   it('reverse is capped at 8 m/s', () => {
@@ -104,6 +227,122 @@ describe('Vehicle', () => {
     };
     expect(lateral(true)).toBeLessThan(lateral(false) + 8); // sanity
     expect(lateral(false)).toBeLessThan(lateral(true));
+  });
+
+  it('handbrake + steering at speed produces real lateral slip; without it the car grips', () => {
+    const slide = (handbrake: boolean) => {
+      const v = make();
+      v.driver = 'player';
+      v.body.vel = { x: 0, z: -20 };
+      v.setInput(input({ steer: 0.7, handbrake }));
+      let maxLat = 0;
+      for (let i = 0; i < 60; i++) { v.update(1 / 60); maxLat = Math.max(maxLat, Math.abs(v.lateralSpeed)); }
+      return { maxLat, slip: v.slip };
+    };
+    const g = slide(false), d = slide(true);
+    expect(g.maxLat).toBeLessThan(2);
+    expect(d.maxLat).toBeGreaterThan(4);
+    expect(d.maxLat).toBeGreaterThan(3 * g.maxLat);
+  });
+
+  it('power oversteer: flat out at high speed with hard lock slides, a lower speed does not', () => {
+    const lat = (speed: number) => {
+      const v = make();
+      v.driver = 'player';
+      v.body.vel = { x: 0, z: -speed };
+      v.setInput(input({ steer: 1, throttle: 1 }));
+      let maxLat = 0;
+      for (let i = 0; i < 120; i++) { v.update(1 / 60); maxLat = Math.max(maxLat, Math.abs(v.lateralSpeed)); }
+      return maxLat;
+    };
+    expect(lat(28)).toBeGreaterThan(2 * lat(8));
+  });
+
+  it('low grip understeers: same lock, less yaw', () => {
+    const yaw = (grip: number) => {
+      const v = make();
+      v.driver = 'player';
+      v.grip = grip;
+      v.body.vel = { x: 0, z: -20 };
+      v.setInput(input({ steer: 1, throttle: 0.4 }));
+      run(v, 1.5);
+      return Math.abs(v.body.heading);
+    };
+    expect(yaw(0.4)).toBeLessThan(yaw(1));
+  });
+
+  it('wall impacts: glancing keeps most speed, head-on loses it all and requests camera shake', () => {
+    const hit = (angleDeg: number) => {
+      const v = make();
+      v.driver = 'player';
+      const speed = 20;
+      v.body.vel = { x: 0, z: -speed };
+      // wall normal (from car toward wall) rotated away from the travel direction by angleDeg
+      const a = (angleDeg * Math.PI) / 180;
+      const n = { x: Math.sin(a), z: -Math.cos(a) };
+      const wall = { id: 'w', kind: 'static', shape: { kind: 'circle', r: 1 }, pos: { x: 0, z: -5 }, vel: { x: 0, z: 0 }, heading: 0, mass: Infinity } as never;
+      const closing = speed * Math.cos(a);
+      // emulate World2D: remove the normal component of velocity
+      const vn = v.body.vel.x * n.x + v.body.vel.z * n.z;
+      v.body.vel = { x: v.body.vel.x - n.x * vn, z: v.body.vel.z - n.z * vn };
+      v.onContact({ a: v.body, b: wall, normal: n, depth: 0.1, point: { x: 0, z: -2.3 }, impulse: closing }, wall);
+      return { speed: Math.hypot(v.body.vel.x, v.body.vel.z), shake: v.shakeRequested };
+    };
+    const glance = hit(80);
+    const head = hit(0);
+    expect(glance.speed).toBeGreaterThan(16);
+    expect(head.speed).toBeLessThan(0.5);
+    expect(head.shake).toBeGreaterThan(0.8);
+    expect(glance.shake).toBeLessThan(head.shake);
+  });
+
+  it('shakeRequested decays on its own when nobody consumes it', () => {
+    const v = make();
+    v.shakeRequested = 1;
+    run(v, 2);
+    expect(v.shakeRequested).toBeLessThan(0.01);
+  });
+
+  it('dents the paint hull above 0.3 damage via a cloned geometry; originals stay shared and are restored on repair', () => {
+    const v = make();
+    const mesh = (v as unknown as { model: { paintMeshes: THREE.Mesh[] } }).model.paintMeshes[0];
+    const original = mesh.geometry;
+    const before = Float32Array.from(original.getAttribute('position').array as Float32Array);
+    v.damage = 0.2;
+    v.update(1 / 60);
+    expect(mesh.geometry).toBe(original);
+    v.damage = 0.8;
+    v.update(1 / 60);
+    expect(mesh.geometry).not.toBe(original);
+    const dented = mesh.geometry.getAttribute('position').array as Float32Array;
+    let moved = 0;
+    for (let i = 0; i < before.length; i++) if (Math.abs(dented[i] - before[i]) > 1e-4) moved++;
+    expect(moved).toBeGreaterThan(before.length * 0.3);
+    // shared geometry untouched
+    const after = original.getAttribute('position').array as Float32Array;
+    for (let i = 0; i < before.length; i++) expect(after[i]).toBe(before[i]);
+    v.damage = 0;
+    v.update(1 / 60);
+    expect(mesh.geometry).toBe(original);
+    v.dispose();
+  });
+
+  it('prevPos / prevHeading hold the previous step; applyInterpolated blends them', () => {
+    const v = make();
+    v.driver = 'player';
+    v.body.vel = { x: 0, z: -10 };
+    v.update(1 / 60);
+    const z1 = v.body.pos.z;
+    v.update(1 / 60);
+    expect(v.prevPos.z).toBeCloseTo(z1, 9);
+    v.applyInterpolated(0.5);
+    expect(v.object3D.position.z).toBeCloseTo((z1 + v.body.pos.z) / 2, 6);
+    v.applyInterpolated(1);
+    expect(v.object3D.position.z).toBeCloseTo(v.body.pos.z, 9);
+    // teleports snap instead of sweeping
+    v.body.pos.x = 500;
+    v.applyInterpolated(0.5);
+    expect(v.object3D.position.x).toBe(500);
   });
 
   it('onContact raises damage by impulse/40 and emits impact', () => {

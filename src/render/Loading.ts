@@ -8,8 +8,8 @@ export const BOOT_STEPS: readonly LoadingStep[] = [
   { id: 'materials', label: 'Materials' },
   { id: 'textures', label: 'Textures' },
   { id: 'world', label: 'World' },
-  { id: 'entities', label: 'Entities' },
   { id: 'lights', label: 'Lights & shadows' },
+  { id: 'entities', label: 'Entities' },
   { id: 'shaders', label: 'Compiling shaders' },
 ];
 

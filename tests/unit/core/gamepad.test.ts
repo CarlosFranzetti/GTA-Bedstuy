@@ -46,11 +46,14 @@ describe('GamepadInput', () => {
 
   it('left stick feeds touchAxis (y inverted so up = forward) and releases to zero', () => {
     const { gp, input, set } = setup();
-    set(makePad({ axes: [0.6, -1, 0, 0] }));
+    set(makePad({ axes: [0, -1, 0, 0] }));
     gp.update(1 / 60);
     expect(input.touchAxis.y).toBeCloseTo(1);
-    expect(input.touchAxis.x).toBeGreaterThan(0.4);
     expect(input.axis(['KeyS'], ['KeyW'])).toBeCloseTo(1);
+    set(makePad({ axes: [0.6, 0, 0, 0] }));
+    gp.update(1 / 60);
+    expect(input.touchAxis.x).toBeGreaterThan(0.4);
+    expect(input.touchAxis.y).toBeCloseTo(0);
     set(makePad({ axes: [0.05, 0.05, 0, 0] }));
     gp.update(1 / 60);
     expect(input.touchAxis).toEqual({ x: 0, y: 0 });
