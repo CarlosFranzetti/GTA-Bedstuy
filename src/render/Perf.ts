@@ -167,7 +167,7 @@ export class PerfMonitor {
 export interface CountableRenderer {
   render(scene: unknown, camera: unknown): void;
   shadowMap: { render(lights: unknown, scene: unknown, camera: unknown): void };
-  info: { render: { calls: number } };
+  info: { render: { calls: number; triangles: number } };
 }
 
 /**
@@ -185,36 +185,46 @@ export class PassCounter {
   post = 0;
   /** Index of the G-buffer pass (1 when GTAO is on, -1 otherwise). */
   gbufferIndex = -1;
+  /** Triangles per pass (same split as the draw calls). */
+  shadowTris = 0;
+  sceneTris = 0;
+  gbufferTris = 0;
   private pass = 0;
   private shadowInPass = 0;
+  private shadowTrisInPass = 0;
 
   get total(): number { return this.shadow + this.scene + this.gbuffer + this.post; }
+  get totalTris(): number { return this.shadowTris + this.sceneTris + this.gbufferTris; }
 
-  beginFrame(): void { this.shadow = 0; this.scene = 0; this.gbuffer = 0; this.post = 0; this.pass = 0; this.shadowInPass = 0; }
+  beginFrame(): void {
+    this.shadow = 0; this.scene = 0; this.gbuffer = 0; this.post = 0; this.pass = 0; this.shadowInPass = 0;
+    this.shadowTris = 0; this.sceneTris = 0; this.gbufferTris = 0; this.shadowTrisInPass = 0;
+  }
 
   /** Adds the calls of one renderer.render invocation (`shadowCalls` of them were the nested shadow pass). */
-  record(calls: number): void {
+  record(calls: number, tris = 0): void {
     const own = Math.max(0, calls - this.shadowInPass);
-    this.shadowInPass = 0;
-    if (this.pass === 0) this.scene += own;
-    else if (this.pass === this.gbufferIndex) this.gbuffer += own;
+    const ownTris = Math.max(0, tris - this.shadowTrisInPass);
+    this.shadowInPass = 0; this.shadowTrisInPass = 0;
+    if (this.pass === 0) { this.scene += own; this.sceneTris += ownTris; }
+    else if (this.pass === this.gbufferIndex) { this.gbuffer += own; this.gbufferTris += ownTris; }
     else this.post += own;
     this.pass++;
   }
-  recordShadow(calls: number): void { this.shadow += calls; this.shadowInPass += calls; }
+  recordShadow(calls: number, tris = 0): void { this.shadow += calls; this.shadowInPass += calls; this.shadowTris += tris; this.shadowTrisInPass += tris; }
 
   /** Wraps renderer.render and renderer.shadowMap.render. Returns a function that restores the originals. */
   attach(renderer: CountableRenderer): () => void {
     const render = renderer.render, shadowRender = renderer.shadowMap.render;
     renderer.render = (scene, camera) => {
-      const before = renderer.info.render.calls;
+      const before = renderer.info.render.calls, t0 = renderer.info.render.triangles;
       render.call(renderer, scene, camera);
-      this.record(renderer.info.render.calls - before);
+      this.record(renderer.info.render.calls - before, renderer.info.render.triangles - t0);
     };
     renderer.shadowMap.render = (lights, scene, camera) => {
-      const before = renderer.info.render.calls;
+      const before = renderer.info.render.calls, t0 = renderer.info.render.triangles;
       shadowRender.call(renderer.shadowMap, lights, scene, camera);
-      this.recordShadow(renderer.info.render.calls - before);
+      this.recordShadow(renderer.info.render.calls - before, renderer.info.render.triangles - t0);
     };
     return () => { renderer.render = render; renderer.shadowMap.render = shadowRender; };
   }

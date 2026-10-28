@@ -58,6 +58,9 @@ const SHAKE_MIN_CLOSING = 2;
 const SHAKE_FULL_CLOSING = 14;
 const SCRAPE_WINDOW = 0.15;
 const SCRAPE_DAMAGE = 0.05;
+/** a repeat inside the scrape window only counts as a new hit above lastHitImpulse * SCRAPE_ESCALATE + SCRAPE_ESCALATE_ADD */
+const SCRAPE_ESCALATE = 1.5;
+const SCRAPE_ESCALATE_ADD = 1;
 const SHAKE_DECAY = 5; // 1/s, only when nobody consumes it
 // ---- chassis visuals
 const ROLL_PER_ACCEL = 0.0055;
@@ -255,9 +258,12 @@ export class Vehicle implements IVehicle {
 
   onContact(contact: Contact, other: Body2D): void {
     if (contact.impulse < IMPACT_MIN) return;
-    // A car sliding along a wall re-touches it every frame: repeats that are no stronger than the hit
-    // within SCRAPE_WINDOW are a scrape (5% of the damage, no new impact event).
-    const scrape = this.time - this.lastHitTime < SCRAPE_WINDOW && contact.impulse <= this.lastHitImpulse;
+    // A car sliding along a wall (or a pedestrian pressed against it) re-touches it every frame with a slowly
+    // changing impulse: a repeat within SCRAPE_WINDOW is a scrape (5% of the damage, no new impact event) unless
+    // it is genuinely harder than the hit that opened the window. lastHitTime is refreshed on every contact, so a
+    // continuous press never leaves the window.
+    const scrape = this.time - this.lastHitTime < SCRAPE_WINDOW &&
+      contact.impulse <= this.lastHitImpulse * SCRAPE_ESCALATE + SCRAPE_ESCALATE_ADD;
     this.lastHitTime = this.time;
     this.lastHitImpulse = scrape ? this.lastHitImpulse : contact.impulse;
     this.damage = clamp(this.damage + (contact.impulse / 40) * (scrape ? SCRAPE_DAMAGE : 1), 0, 1);

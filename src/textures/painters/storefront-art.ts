@@ -64,7 +64,7 @@ export const PX_PER_M = 160;
 export const MAX_TEX = 2048;
 
 /** What an awning texture covers: the sloped top (wall to fold) above the front valance, `widthM` wide. */
-export interface AwningGeom { widthM: number; slopeM: number; valanceM: number }
+export interface AwningGeom { widthM: number; slopeM: number; valanceM: number; fringeM?: number }
 /** What a lightbox texture covers. */
 export interface SignGeom { widthM: number; heightM: number }
 export interface CanvasSize { w: number; h: number; ppm: number }
@@ -77,7 +77,7 @@ export function ppmFor(widthM: number): number {
 /** Canvas size for an awning (slope above valance, one image top to bottom). Both axes share one density. */
 export function awningCanvasSize(g: AwningGeom): CanvasSize {
   const ppm = ppmFor(g.widthM);
-  return { w: Math.max(16, Math.round(g.widthM * ppm)), h: Math.max(16, Math.round((g.slopeM + g.valanceM) * ppm)), ppm };
+  return { w: Math.max(16, Math.round(g.widthM * ppm)), h: Math.max(16, Math.round((g.slopeM + g.valanceM + (g.fringeM ?? 0)) * ppm)), ppm };
 }
 
 /** Canvas size for a lightbox face. */

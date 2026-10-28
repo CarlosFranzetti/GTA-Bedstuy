@@ -87,30 +87,6 @@ function avoidGround(ground: string, colors: readonly string[]): string[] {
 
 // ---------------------------------------------------------------------------------------------- awning
 
-/**
- * Pixel layout of an awning canvas. The canvas is one image, top to bottom: the sloped top face (wall end at the
- * top, front edge at `valTop`), then the front valance down to the bottom edge. Both axes share one density
- * (`ppm` pixels per metre), so nothing is stretched when the geometry is textured 1:1.
- */
-interface AwningPx {
-  w: number;
-  h: number;
-  ppm: number;
-  valTop: number;
-  /** rows reserved at the bottom for the mesh scallop fringe (0 = paint scallop arcs into the canvas instead) */
-  fringe: number;
-  /** metres between mesh scallop tips (geometry uses ~0.34 m), used to align grime */
-  pitchPx: number;
-}
-
-function awningPx(w: number, h: number, geom?: AwningGeom): AwningPx {
-  const g = geom ?? awningGeomOfCanvas(w, h);
-  const ppm = w / g.widthM;
-  const valTop = Math.round((h * g.slopeM) / (g.slopeM + g.valanceM));
-  const n = Math.max(4, Math.round(g.widthM / 0.34));
-  return { w, h, ppm, valTop, fringe: geom ? Math.max(3, Math.round(0.035 * ppm)) : 0, pitchPx: w / n };
-}
-
 /** An icon on a light sticker plate. */
 function plateIcon(ctx: CanvasRenderingContext2D, kind: PictogramKind, cx: number, cy: number, size: number): void {
   drawPlate(ctx, cx, cy, size + 8, size + 6, PLATE_FILL, PLATE_EDGE);
@@ -121,7 +97,7 @@ function plateIcon(ctx: CanvasRenderingContext2D, kind: PictogramKind, cx: numbe
  * Draw the main (and optional secondary) lines centred in the valance band [top, bottom], with the archetype's
  * icons on stickers hugging both sides of the text (one icon is mirrored; otherwise the list is split left/right).
  */
-function valance(
+function valanceText(
   ctx: CanvasRenderingContext2D, w: number, top: number, bottom: number, ppm: number, layout: AwningLayout,
   family: string, fill: string, outline: string, outlineFrac: number, secondaryFill: string,
 ): void {
@@ -163,215 +139,240 @@ function valance(
 }
 
 /**
- * The sloped top face: archetype stripe band just above the fold (the front edge, bottom of the slope region), one
- * big icon sticker and the phone number on a dark plate (seven-segment digits, so the only printed text on an
- * awning is still the name). Sizes are in metres via `ppm`.
+ * The sloped top face: archetype stripe band along the front edge (bottom of the slope image), one big icon sticker
+ * and the phone number on a dark plate (seven-segment digits, so the only printed text on an awning is still the
+ * name). Sizes are in metres via `ppm`; `h` is the slope zone height in px.
  */
-function slopeArt(
-  ctx: CanvasRenderingContext2D, w: number, valTop: number, ppm: number, layout: AwningLayout, ground: string,
-): void {
+function slopeArt(ctx: CanvasRenderingContext2D, w: number, h: number, ppm: number, layout: AwningLayout, ground: string): void {
   if (layout.stripe !== 'none') {
-    const bh = Math.max(8, Math.round(0.14 * ppm));
-    const by = valTop - Math.round(0.07 * ppm) - bh;
+    const bh = Math.max(4, Math.round(0.14 * ppm));
+    const by = h - Math.round(0.07 * ppm) - bh;
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(0, by - 3, w, bh + 6);
+    ctx.fillRect(0, by - 2, w, bh + 4);
     drawStripe(ctx, layout.stripe, 0, by, w, bh, avoidGround(ground, layout.bandColors));
   }
   const hasIcon = layout.pictograms.length > 0;
-  const cy = valTop * 0.38;
-  const isz = Math.min(valTop * 0.5, 0.42 * ppm);
-  const dh = Math.max(10, Math.round(0.13 * ppm));
-  const pw = dh * 9.6 + 18;
-  const total = (hasIcon ? isz + 8 : 0) + (hasIcon && layout.phone ? 0.3 * ppm : 0) + (layout.phone ? pw : 0);
+  const cy = h * 0.38;
+  const isz = Math.min(h * 0.5, 0.42 * ppm);
+  const dh = Math.max(5, Math.round(0.13 * ppm));
+  const pw = dh * 9.6 + 10;
+  const gap = 0.3 * ppm;
+  const total = (hasIcon ? isz + 6 : 0) + (hasIcon && layout.phone ? gap : 0) + (layout.phone ? pw : 0);
   let x = w / 2 - total / 2;
   if (hasIcon) {
-    plateIcon(ctx, layout.pictograms[0], x + (isz + 8) / 2, cy, isz);
-    x += isz + 8 + (layout.phone ? 0.3 * ppm : 0);
+    plateIcon(ctx, layout.pictograms[0], x + (isz + 6) / 2, cy, isz);
+    x += isz + 6 + (layout.phone ? gap : 0);
   }
   if (layout.phone) {
     const cx = x + pw / 2;
-    drawPlate(ctx, cx, cy, pw, dh + 16, 'rgba(18,16,14,1)', '#f1c232', 0.82);
+    drawPlate(ctx, cx, cy, pw, dh + 10, 'rgba(18,16,14,1)', '#f1c232', 0.82);
     drawSegmentDigits(ctx, layout.phone, cx, cy, dh, '#fff1b8');
   }
 }
 
-/** Vinyl awning: weave, sun-faded top, valance with grime, condensed text, icons and phone number. */
-function paintVinyl(ctx: CanvasRenderingContext2D, rng: Rng, color: string, layout: AwningLayout, g: AwningPx): void {
-  const { w, h, ppm, valTop } = g;
-  const hsl = parseHex(color);
-  const light = hsl ? hsl.l > 0.62 : false;
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, w, h);
-  // woven vinyl: faint thread grid + grain
-  const th = Math.max(3, Math.round(ppm * 0.025));
-  withAlpha(ctx, 0.045, () => {
-    ctx.fillStyle = '#000000';
-    for (let x = 0; x < w; x += th) ctx.fillRect(x, 0, 1, h);
-    for (let y = 0; y < h; y += th) ctx.fillRect(0, y, w, 1);
-  });
-  speckle(ctx, w, h, rng, Math.round(w * h * 0.0035), ['#000000', '#ffffff'], 1, 2, 0.06);
-  // vinyl comes in ~0.8 m panels; every other one is a touch darker
-  const panel = 0.8 * ppm;
-  for (let x = 0, i = 0; x < w; x += panel, i++) {
-    if (i % 2) continue;
-    withAlpha(ctx, 0.1, () => {
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(x, 0, Math.min(panel, w - x), valTop);
-    });
-  }
-  slopeArt(ctx, w, valTop, ppm, layout, color);
-  // sun-faded band along the wall end, stepped so it fades out toward the front
-  for (let i = 0; i < 5; i++) {
-    withAlpha(ctx, 0.07, () => {
-      ctx.fillStyle = '#f2ead6';
-      ctx.fillRect(0, 0, w, valTop * 0.3 * (1 - i / 5));
-    });
-  }
-  // valance: lighter band
-  withAlpha(ctx, 0.3, () => {
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, valTop, w, h - valTop);
-  });
-  let textBottom = h - g.fringe;
-  if (g.fringe === 0) {
-    // legacy fixed-size canvas: paint the scallops
-    const sc = 8;
-    const r = w / sc / 2;
-    const base = h - r * 0.55;
-    textBottom = base;
-    ctx.fillStyle = color;
-    ctx.fillRect(0, base, w, h - base);
-    for (let i = 0; i < sc; i++) {
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(r + i * 2 * r, base, r, 0, Math.PI);
-      ctx.fill();
-      withAlpha(ctx, 0.3, () => {
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(r + i * 2 * r, base, r, 0, Math.PI);
-        ctx.fill();
-      });
-    }
-  } else {
-    // the mesh carries the scalloped fringe; its colour comes from the last rows of the canvas
-    ctx.fillStyle = color;
-    ctx.fillRect(0, h - g.fringe, w, g.fringe);
-    withAlpha(ctx, 0.3, () => {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, h - g.fringe, w, g.fringe);
-    });
-  }
-  // grime collects below each scallop tip and streaks down the valance
-  const nTips = Math.max(1, Math.round(w / g.pitchPx));
-  for (let i = 0; i < nTips; i++) {
-    const cx = (i + 0.5) * g.pitchPx;
-    withAlpha(ctx, rng.range(0.1, 0.22), () => {
-      ctx.fillStyle = '#1c150d';
-      ctx.fillRect(cx - g.pitchPx * 0.2, h - g.fringe - 2, g.pitchPx * 0.4, g.fringe + 2);
-    });
-    if (rng.chance(0.6)) {
-      sootStreak(ctx, cx - 2, valTop + 3, rng.range(3, 6), (textBottom - valTop) * rng.range(0.5, 1), 0.12, '#1c150d');
-    }
-  }
-  withAlpha(ctx, 0.25, () => {
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, valTop, w, 2);
-  });
-  if (light) valance(ctx, w, valTop, textBottom, ppm, layout, VINYL_FONT, '#1a1a1a', 'rgba(255,255,255,0.75)', 0.07, '#2a2a2a');
-  else valance(ctx, w, valTop, textBottom, ppm, layout, VINYL_FONT, '#ffffff', 'rgba(0,0,0,0.6)', 0.07, '#f3f3ee');
-}
+interface MetalGround { ground: string; yellow: boolean }
 
-/** Corrugated-metal bodega awning: bright yellow or red ridges, rivet rows, red/blue lettering with a black outline. */
-function paintMetal(
-  ctx: CanvasRenderingContext2D, rng: Rng, color: string, text: string, layout: AwningLayout, g: AwningPx,
-): void {
-  const { w, h, ppm, valTop } = g;
+function metalGround(color: string, text: string): MetalGround {
   const hsl = parseHex(color);
   const hashBit = (Rng.hash(text) >>> 17) & 1;
-  let ground: string;
-  let yellow: boolean;
-  if (hsl && hsl.s > 0.35 && hsl.l > 0.25 && hsl.h >= 35 && hsl.h <= 70) {
-    ground = color;
-    yellow = true;
-  } else if (hsl && hsl.s > 0.35 && hsl.l > 0.2 && (hsl.h <= 18 || hsl.h >= 340)) {
-    ground = color;
-    yellow = false;
-  } else {
-    yellow = hashBit === 1;
-    ground = yellow ? '#e7b52e' : '#c4252b';
+  if (hsl && hsl.s > 0.35 && hsl.l > 0.25 && hsl.h >= 35 && hsl.h <= 70) return { ground: color, yellow: true };
+  if (hsl && hsl.s > 0.35 && hsl.l > 0.2 && (hsl.h <= 18 || hsl.h >= 340)) return { ground: color, yellow: false };
+  const yellow = hashBit === 1;
+  return { ground: yellow ? '#e7b52e' : '#c4252b', yellow };
+}
+
+/** Everything one zone painter needs. `h` is the zone height in px; `ppm` its density. */
+interface Zone {
+  w: number;
+  h: number;
+  ppm: number;
+  rng: Rng;
+  color: string;
+  text: string;
+  layout: AwningLayout;
+}
+
+/** Sloped top face of the awning, vinyl or corrugated metal (wall end at the top, front edge at the bottom). */
+function slopeZone(ctx: CanvasRenderingContext2D, z: Zone): void {
+  const { w, h, ppm, rng, color, layout } = z;
+  if (layout.style === 'vinyl') {
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, w, h);
+    const th = Math.max(3, Math.round(ppm * 0.025));
+    withAlpha(ctx, 0.045, () => {
+      ctx.fillStyle = '#000000';
+      for (let x = 0; x < w; x += th) ctx.fillRect(x, 0, 1, h);
+      for (let y = 0; y < h; y += th) ctx.fillRect(0, y, w, 1);
+    });
+    speckle(ctx, w, h, rng, Math.round(w * h * 0.0035), ['#000000', '#ffffff'], 1, 2, 0.06);
+    // vinyl comes in ~0.8 m panels; every other one is a touch darker
+    const panel = 0.8 * ppm;
+    for (let x = 0, i = 0; x < w; x += panel, i++) {
+      if (i % 2) continue;
+      withAlpha(ctx, 0.1, () => {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x, 0, Math.min(panel, w - x), h);
+      });
+    }
+    slopeArt(ctx, w, h, ppm, layout, color);
+    // sun-faded band along the wall end, stepped so it fades out toward the front
+    for (let i = 0; i < 5; i++) {
+      withAlpha(ctx, 0.07, () => {
+        ctx.fillStyle = '#f2ead6';
+        ctx.fillRect(0, 0, w, h * 0.3 * (1 - i / 5));
+      });
+    }
+    return;
   }
+  const { ground } = metalGround(color, z.text);
   ctx.fillStyle = ground;
   ctx.fillRect(0, 0, w, h);
   // vertical corrugation (ridges run down the slope), ~9 cm pitch
-  const period = Math.max(8, Math.round(0.09 * ppm));
-  const rw = Math.max(2, Math.round(period * 0.21));
+  const period = Math.max(4, Math.round(0.09 * ppm));
+  const rw = Math.max(1, Math.round(period * 0.21));
   for (let x = 0; x < w; x += period) {
     withAlpha(ctx, 0.17, () => {
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(x + period * 0.14, 0, rw, valTop);
+      ctx.fillRect(x + period * 0.14, 0, rw, h);
     });
     withAlpha(ctx, 0.2, () => {
       ctx.fillStyle = '#000000';
-      ctx.fillRect(x + period * 0.64, 0, rw, valTop);
+      ctx.fillRect(x + period * 0.64, 0, rw, h);
     });
   }
-  // lettering board
-  ctx.fillStyle = yellow ? ground : '#f1c232';
-  ctx.fillRect(0, valTop, w, h - valTop);
-  if (yellow) {
-    withAlpha(ctx, 0.2, () => {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, valTop, w, h - valTop);
-    });
-  }
-  for (let x = 0; x < w; x += period) {
-    withAlpha(ctx, 0.06, () => {
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(x + period * 0.64, valTop, rw, h - valTop);
-    });
-  }
-  // fold line / edge trim
-  ctx.fillStyle = 'rgba(0,0,0,0.45)';
-  ctx.fillRect(0, valTop - 1, w, 3);
-  ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  ctx.fillRect(0, valTop + 2, w, 1);
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fillRect(0, h - 5, w, 5);
-  // painted slope graphics sit on the ridges, under the rivets
-  slopeArt(ctx, w, valTop, ppm, layout, ground);
-  // rivet rows: wall end, along the fold, along the bottom (~17.5 cm pitch)
-  const pitch = Math.max(14, Math.round(0.175 * ppm));
-  const rr = Math.max(1.6, ppm * 0.016);
-  const rivets = (y: number): void => {
+  slopeArt(ctx, w, h, ppm, layout, ground);
+  // rivet rows along the wall end and the fold (~17.5 cm pitch)
+  const pitch = Math.max(8, Math.round(0.175 * ppm));
+  const rr = Math.max(1.2, ppm * 0.016);
+  for (const y of [Math.max(4, ppm * 0.04), h - Math.max(4, ppm * 0.04)]) {
     for (let x = pitch / 2; x < w; x += pitch) {
       ctx.fillStyle = '#34322f';
       ctx.beginPath();
       ctx.arc(x, y, rr, 0, Math.PI * 2);
       ctx.fill();
-      withAlpha(ctx, 0.7, () => {
-        ctx.fillStyle = '#e0ddd5';
-        ctx.beginPath();
-        ctx.arc(x - rr * 0.27, y - rr * 0.27, rr * 0.4, 0, Math.PI * 2);
-        ctx.fill();
-      });
     }
-  };
-  rivets(7);
-  rivets(valTop - 7);
-  rivets(h - 9);
-  // sun-fade at the wall end, grime drips and rust flecks near the edges
+  }
   for (let i = 0; i < 4; i++) {
     withAlpha(ctx, 0.06, () => {
       ctx.fillStyle = '#fff6dc';
-      ctx.fillRect(0, 0, w, valTop * 0.22 * (1 - i / 4));
+      ctx.fillRect(0, 0, w, h * 0.22 * (1 - i / 4));
     });
   }
-  const nStreaks = Math.max(7, Math.round((w / ppm) * 1.4));
-  for (let i = 0; i < nStreaks; i++) sootStreak(ctx, rng.range(0, w), 0, rng.range(4, 10), rng.range(valTop * 0.3, valTop), 0.12, '#1a120a');
+  const nStreaks = Math.max(4, Math.round((w / ppm) * 1.4));
+  for (let i = 0; i < nStreaks; i++) sootStreak(ctx, rng.range(0, w), 0, rng.range(2, 6), rng.range(h * 0.3, h), 0.12, '#1a120a');
+  speckle(ctx, w, h, rng, Math.round(w * h * 0.0005), ['#7a3a1a', '#5a2a12'], 1, 3, 0.35);
+}
+
+/**
+ * Front valance: the lettering band (zone `h` px tall) plus `fringe` rows at the bottom that the mesh scallops sample
+ * (they only carry colour and grime). With `arcs` (legacy fixed canvases) the scallops are painted instead.
+ */
+function valanceZone(ctx: CanvasRenderingContext2D, z: Zone, fringe: number, pitchPx: number, arcs: boolean): void {
+  const { w, h, ppm, rng, color, layout } = z;
+  const textBottom0 = h - fringe;
+  if (layout.style === 'vinyl') {
+    const hsl = parseHex(color);
+    const light = hsl ? hsl.l > 0.62 : false;
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, w, h);
+    const th = Math.max(3, Math.round(ppm * 0.025));
+    withAlpha(ctx, 0.045, () => {
+      ctx.fillStyle = '#000000';
+      for (let x = 0; x < w; x += th) ctx.fillRect(x, 0, 1, h);
+    });
+    speckle(ctx, w, h, rng, Math.round(w * h * 0.0035), ['#000000', '#ffffff'], 1, 2, 0.06);
+    withAlpha(ctx, 0.3, () => {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+    });
+    let textBottom = textBottom0;
+    if (arcs) {
+      const sc = 8;
+      const r = w / sc / 2;
+      const base = h - r * 0.55;
+      textBottom = base;
+      ctx.fillStyle = color;
+      ctx.fillRect(0, base, w, h - base);
+      for (let i = 0; i < sc; i++) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(r + i * 2 * r, base, r, 0, Math.PI);
+        ctx.fill();
+        withAlpha(ctx, 0.3, () => {
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(r + i * 2 * r, base, r, 0, Math.PI);
+          ctx.fill();
+        });
+      }
+    } else if (fringe > 0) {
+      ctx.fillStyle = color;
+      ctx.fillRect(0, textBottom0, w, fringe);
+      withAlpha(ctx, 0.3, () => {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, textBottom0, w, fringe);
+      });
+    }
+    // grime collects below each scallop tip and streaks down the valance
+    const nTips = Math.max(1, Math.round(w / pitchPx));
+    for (let i = 0; i < nTips; i++) {
+      const cx = (i + 0.5) * pitchPx;
+      if (fringe > 0) {
+        withAlpha(ctx, rng.range(0.1, 0.22), () => {
+          ctx.fillStyle = '#1c150d';
+          ctx.fillRect(cx - pitchPx * 0.2, textBottom0, pitchPx * 0.4, fringe);
+        });
+      }
+      if (rng.chance(0.6)) sootStreak(ctx, cx - 2, 3, rng.range(3, 6), (textBottom - 3) * rng.range(0.5, 1), 0.12, '#1c150d');
+    }
+    withAlpha(ctx, 0.25, () => {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, w, 2);
+    });
+    if (light) valanceText(ctx, w, 0, textBottom, ppm, layout, VINYL_FONT, '#1a1a1a', 'rgba(255,255,255,0.75)', 0.07, '#2a2a2a');
+    else valanceText(ctx, w, 0, textBottom, ppm, layout, VINYL_FONT, '#ffffff', 'rgba(0,0,0,0.6)', 0.07, '#f3f3ee');
+    return;
+  }
+  const { ground, yellow } = metalGround(color, z.text);
+  const period = Math.max(4, Math.round(0.09 * ppm));
+  const rw = Math.max(1, Math.round(period * 0.21));
+  ctx.fillStyle = yellow ? ground : '#f1c232';
+  ctx.fillRect(0, 0, w, h);
+  if (yellow) {
+    withAlpha(ctx, 0.2, () => {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+    });
+  }
+  for (let x = 0; x < w; x += period) {
+    withAlpha(ctx, 0.06, () => {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(x + period * 0.64, 0, rw, h);
+    });
+  }
+  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillRect(0, 0, w, 3);
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.fillRect(0, 3, w, 1);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(0, h - Math.max(3, fringe), w, Math.max(3, fringe));
+  const pitch = Math.max(8, Math.round(0.175 * ppm));
+  const rr = Math.max(1.2, ppm * 0.016);
+  const ry = textBottom0 - Math.max(3, ppm * 0.03);
+  for (let x = pitch / 2; x < w; x += pitch) {
+    ctx.fillStyle = '#34322f';
+    ctx.beginPath();
+    ctx.arc(x, ry, rr, 0, Math.PI * 2);
+    ctx.fill();
+  }
   speckle(ctx, w, h, rng, Math.round(w * h * 0.0005), ['#7a3a1a', '#5a2a12'], 1, 3, 0.35);
   speckle(ctx, w, h, rng, Math.round(w * h * 0.0027), ['#000000', '#ffffff'], 1, 2, 0.05);
-  valance(ctx, w, valTop + 2, h - 5, ppm, layout, METAL_FONT, yellow ? '#c4161c' : '#1d3f8f', '#000000', 0.16, yellow ? '#1d3f8f' : '#c4161c');
+  valanceText(ctx, w, 4, textBottom0 - Math.max(3, ppm * 0.03) - 2, ppm, layout, METAL_FONT, yellow ? '#c4161c' : '#1d3f8f', '#000000', 0.16, yellow ? '#1d3f8f' : '#c4161c');
+}
+
+/** Scallop pitch in px for a valance `widthM` wide at `ppm` (the mesh hangs a zigzag every ~0.34 m). */
+function scallopPitchPx(widthM: number, ppm: number): number {
+  return (widthM * ppm) / Math.max(4, Math.round(widthM / 0.34));
 }
 
 /**
@@ -381,18 +382,42 @@ function paintMetal(
  * secondary line (everything after the first '·'). The slope carries a big icon sticker, the phone number and a
  * stripe band; the name is the only printed text.
  *
- * `geom` says what the canvas covers in metres (see awningCanvasSize); the canvas must have been sized from it so
- * one pixel is the same length across and down. Without `geom` the painter treats the canvas as true-aspect at
- * PX_PER_M (MaterialLibrary's fixed 512x256 plain awnings).
+ * One image, top to bottom: slope, valance, fringe rows. `geom` says what the canvas covers in metres (see
+ * awningCanvasSize); the canvas must have been sized from it so one pixel is the same length across and down.
+ * Without `geom` the painter treats the canvas as true-aspect at PX_PER_M with the old 72/28 split and painted
+ * scallops (MaterialLibrary's fixed 512x256 plain awnings).
  */
 export function awningPainter(color: string, text: string, geom?: AwningGeom): Painter {
   return (ctx, w, h, rng) => {
     const layout = layoutAwning(text);
-    const g = awningPx(w, h, geom);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    if (layout.style === 'vinyl') paintVinyl(ctx, rng, color, layout, g);
-    else paintMetal(ctx, rng, color, text, layout, g);
+    const g = geom ?? awningGeomOfCanvas(w, h);
+    const ppm = w / g.widthM;
+    const slopeH = Math.round(g.slopeM * ppm);
+    const fringe = geom ? Math.round((g.fringeM ?? 0) * ppm) : 0;
+    ctx.save();
+    slopeZone(ctx, { w, h: slopeH, ppm, rng, color, text, layout });
+    ctx.restore();
+    ctx.save();
+    ctx.translate(0, slopeH);
+    valanceZone(ctx, { w, h: h - slopeH, ppm, rng, color, text, layout }, fringe, scallopPitchPx(g.widthM, ppm), !geom);
+    ctx.restore();
+  };
+}
+
+/** Just the sloped top face: the canvas is `widthM` wide and as tall as the slope at the same density. */
+export function awningSlopePainter(color: string, text: string, widthM: number): Painter {
+  return (ctx, w, h, rng) => {
+    const layout = layoutAwning(text);
+    slopeZone(ctx, { w, h, ppm: w / widthM, rng, color, text, layout });
+  };
+}
+
+/** Just the front valance + fringe rows (canvas = widthM x (valanceM + fringeM)). */
+export function awningValancePainter(color: string, text: string, geom: AwningGeom): Painter {
+  return (ctx, w, h, rng) => {
+    const layout = layoutAwning(text);
+    const ppm = w / geom.widthM;
+    valanceZone(ctx, { w, h, ppm, rng, color, text, layout }, Math.round((geom.fringeM ?? 0) * ppm), scallopPitchPx(geom.widthM, ppm), false);
   };
 }
 

@@ -7,6 +7,15 @@ const MAP_SIZE: Record<Quality, number> = { low: 1024, medium: 2048, high: 4096 
 const HALF_SIZE: Record<Quality, number> = { low: 60, medium: 80, high: 100 };
 /** PCF kernel radius per quality: a small radius keeps contact edges crisp, a larger one softens far edges. */
 const SHADOW_RADIUS: Record<Quality, number> = { low: 1.5, medium: 2, high: 3 };
+/**
+ * Receiver normal offset (m) and depth bias per quality. Both scale with the shadow texel (HALF_SIZE * 2 / MAP_SIZE:
+ * low 11.7 cm, medium 7.8 cm, high 4.9 cm) times the PCF kernel radius: that is the smallest offset that still hides
+ * self-shadowing acne on grazing surfaces (the 7:00 / 18:00 sun is only ~11-17 degrees up). The old flat 0.5 m / -0.0003
+ * lifted every receiver half a metre, which detaches shadows of sub-metre casters (curbs, stoop cheek walls, poles'
+ * bases, wheels) from their feet at low sun (peter-panning: foot gap = bias / tan(elevation)).
+ */
+const NORMAL_BIAS: Record<Quality, number> = { low: 0.3, medium: 0.24, high: 0.18 };
+const DEPTH_BIAS: Record<Quality, number> = { low: -0.0003, medium: -0.00025, high: -0.0002 };
 const SHADOW_NEAR = 1;
 const SHADOW_FAR = 400;
 /** Distance (m) of the light from the shadow target. Must be < SHADOW_FAR and > the box half-size. */
@@ -51,9 +60,9 @@ export function setupShadows(renderer: THREE.WebGLRenderer, sun: THREE.Direction
   cam.near = SHADOW_NEAR;
   cam.far = SHADOW_FAR;
   cam.updateProjectionMatrix();
-  // Tuned so stoops / curbs do not peter-pan (detach from their caster) while avoiding acne.
-  shadow.bias = -0.0003;
-  shadow.normalBias = 0.5;
+  // Tuned so stoops / curbs do not peter-pan (detach from their caster) while avoiding acne (see NORMAL_BIAS).
+  shadow.bias = DEPTH_BIAS[quality];
+  shadow.normalBias = NORMAL_BIAS[quality];
   shadow.radius = SHADOW_RADIUS[quality];
 }
 

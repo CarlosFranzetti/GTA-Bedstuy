@@ -58,6 +58,9 @@ const app = document.getElementById('app')!;
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 const isTouch = Input.isTouchDevice();
 const params = new URLSearchParams(location.search);
+// A/B switches for perf measurements and bug reports: ?proxies=0 (full shadow/AO scene renders), ?lod=0 (full cars everywhere)
+const useProxies = params.get('proxies') !== '0';
+const useCarLod = params.get('lod') !== '0';
 let quality: Quality = (params.get('q') as Quality | null) ?? (isTouch ? 'low' : 'medium');
 const pixelRatioFor = (q: Quality): number => Math.min(q === 'low' ? 1.25 : 1.75, window.devicePixelRatio);
 renderer.setPixelRatio(pixelRatioFor(quality));
@@ -103,13 +106,13 @@ setupShadows(renderer, dayNight.sun, quality);
 applyShadowFlags(world.group, true, true);
 // Shadow pass + AO G-buffer draw merged position-only stand-ins instead of every material mesh (see AoProxy.ts)
 const proxies = new RenderProxies();
-{
+if (useProxies) {
   const t0 = performance.now();
   const build = proxies.addStatic([world.group], 100, 100);
   scene.add(proxies.shadowGroup);
   console.info(`[perf] render proxies: ${proxies.ao.children.length} cells, ${build.vertices} verts, ${build.triangles} tris from ${build.covered.length} meshes (${build.skipped.length} kept real) in ${Math.round(performance.now() - t0)} ms`);
 }
-proxies.wrapShadowRender(renderer);
+if (useProxies) proxies.wrapShadowRender(renderer);
 const sky = new SkyDome(scene, renderer, materials);
 dayNight.attachSky(sky);
 scene.environmentIntensity = dayNight.isNight ? LIGHTING.envIntensityNight : LIGHTING.envIntensityDay;
@@ -133,11 +136,12 @@ const makeVehicle = (type: VehicleType, pos: Vec2, heading: number, color: strin
 const carLod = new CarLod(materials, {
   buildModel: (t) => (Vehicle.sources[t as VehicleType] ? null : buildCarModel(t as VehicleType, VEHICLE_SPECS[t as VehicleType], materials)),
   exclude: ['cop'],
+  nearDist: useCarLod ? 32 : Infinity,
 });
 scene.add(carLod.group);
 const HULL_TYPES = ['sedan', 'suv', 'boxtruck'];
-for (const t of HULL_TYPES) { const g = carLod.hullFor(t); if (g) proxies.addHull(t, g, true); }
-proxies.addHull('capsule', new THREE.CapsuleGeometry(0.28, 1.1, 2, 6).translate(0, 0.83, 0), false);
+if (useProxies) for (const t of HULL_TYPES) { const g = carLod.hullFor(t); if (g) proxies.addHull(t, g, true); }
+if (useProxies) proxies.addHull('capsule', new THREE.CapsuleGeometry(0.28, 1.1, 2, 6).translate(0, 0.83, 0), false);
 const hullKey = (t: string): string => (t === 'cop' ? 'sedan' : t);
 const shadowFlagged = new WeakSet<object>();
 const crosswalkNodes = new Set<string>();
@@ -188,7 +192,7 @@ const minimap = new Minimap(overlay, grid);
 const input = new Input(renderer.domElement);
 const cam = new ThirdPersonCamera(window.innerWidth / window.innerHeight);
 const pipeline = new RenderPipeline(renderer, scene, cam.camera, { quality });
-proxies.attachToPipeline(pipeline);
+if (useProxies) proxies.attachToPipeline(pipeline);
 pipeline.setNight(dayNight.isNight);
 pipeline.setExposure(LIGHTING.exposure);
 setLampsLit(world.furnitureGroup, dayNight.isNight);
@@ -203,7 +207,7 @@ function applyQuality(q: Quality): void {
   renderer.setPixelRatio(pixelRatioFor(q));
   renderer.setSize(window.innerWidth, window.innerHeight);
   pipeline.setQuality(q);
-  proxies.attachToPipeline(pipeline);
+  if (useProxies) proxies.attachToPipeline(pipeline);
   pipeline.setSize(window.innerWidth, window.innerHeight);
   setupShadows(renderer, dayNight.sun, q);
 }
@@ -415,8 +419,8 @@ game.add({
 
     // entities
     entityById.clear();
-    for (const v of traffic.vehicles) { if (!shadowFlagged.has(v)) { shadowFlagged.add(v); applyCarShadowFlags(v.object3D, proxies.hasHull(hullKey(v.spec.type))); } if (v.headlights !== lastNight) v.headlights = lastNight; v.update(dt); entityById.set(v.body.id, v); }
-    for (const v of cops.cops) { if (!shadowFlagged.has(v)) { shadowFlagged.add(v); applyCarShadowFlags(v.object3D, proxies.hasHull(hullKey(v.spec.type))); } if (v.headlights !== lastNight) v.headlights = lastNight; v.update(dt); entityById.set(v.body.id, v); }
+    for (const v of traffic.vehicles) { if (!shadowFlagged.has(v)) { shadowFlagged.add(v); if (useProxies) applyCarShadowFlags(v.object3D, proxies.hasHull(hullKey(v.spec.type))); } if (v.headlights !== lastNight) v.headlights = lastNight; v.update(dt); entityById.set(v.body.id, v); }
+    for (const v of cops.cops) { if (!shadowFlagged.has(v)) { shadowFlagged.add(v); if (useProxies) applyCarShadowFlags(v.object3D, proxies.hasHull(hullKey(v.spec.type))); } if (v.headlights !== lastNight) v.headlights = lastNight; v.update(dt); entityById.set(v.body.id, v); }
     for (const p of traffic.peds) { p.update(dt); entityById.set(p.body.id, p); }
     player.update(dt);
     entityById.set(player.body.id, player);
@@ -478,7 +482,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
   /** Renders one frame synchronously and returns the per-pass draw-call split (for perf scripts). */
   renderOnce(alpha = 1, dt = 1 / 60) {
     drawFrame(alpha, dt);
-    return { total: renderer.info.render.calls, shadow: passes.shadow, scene: passes.scene, gbuffer: passes.gbuffer, post: passes.post, triangles: renderer.info.render.triangles };
+    return { total: renderer.info.render.calls, shadow: passes.shadow, scene: passes.scene, gbuffer: passes.gbuffer, post: passes.post, triangles: renderer.info.render.triangles, shadowTris: passes.shadowTris, sceneTris: passes.sceneTris, gbufferTris: passes.gbufferTris };
   },
   packsReady,
   teleport(x: number, z: number, heading?: number) { const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = x; b.pos.z = z; b.vel.x = 0; b.vel.z = 0; if (heading !== undefined) b.heading = heading; },

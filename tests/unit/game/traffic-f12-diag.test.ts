@@ -20,7 +20,7 @@ import { TrafficSystem } from '@/game/TrafficSystem';
 import { WantedSystem } from '@/game/WantedSystem';
 import { Vehicle, VEHICLE_SPECS } from '@/entities/Vehicle';
 import type { IVehicle, VehicleType } from '@/world/types';
-import { DT, proxyMaterials, realPhysics, stubMaterials } from './harness';
+import { DT, proxyMaterials, realPhysics, stubMaterials } from '../sim/harness';
 
 const SIM_SECONDS = 300;
 const WINDOW = 60;
@@ -168,77 +168,18 @@ function runTraffic(seed: number): Run {
   return run;
 }
 
-const runs = new Map<number, Run>();
-const SEEDS = [7, 21];
-import { afterAll } from "vitest";
-afterAll(() => { for (const [s, r] of runs) console.log("METRICS", s, JSON.stringify({ agents: r.agentsSeen, windows: r.windows, worst: r.worstNet, passes: r.stopPasses, imp: r.impacts.length, hard: r.impacts.filter((i) => i.strength >= 3).length, knock: r.knockedDown.length, ped: [r.pedStill, r.pedWindows], maxA: r.maxAgents, maxP: r.maxPatrols, spd: r.maxSpeedRatio })); });
 
-describe('full-density traffic, 5 simulated minutes on the real map (PRD 5.2)', () => {
-  beforeAll(() => { for (const s of SEEDS) runs.set(s, runTraffic(s)); }, 600_000);
-
-  for (const seed of SEEDS) {
-    describe(`seed ${seed}`, () => {
-      const R = () => runs.get(seed)!;
-
-      it('runs at the medium population (30 cars near the player, 40 peds) with real vehicle physics', () => {
-        expect(R().agentsSeen).toBeGreaterThan(150); // turnover: cars spawn and despawn around the player
-        expect(R().maxAgents).toBeGreaterThanOrEqual(25);
-        expect(R().maxAgents).toBeLessThanOrEqual(42);
-        expect(R().maxPatrols).toBeLessThanOrEqual(2);
-        expect(R().windows).toBeGreaterThan(300); // enough 60 s observations to mean something
-      });
-
-      it('no gridlock: every driving agent moves >= 10 m in every 60 s window', () => {
-        expect(R().stuck).toEqual([]);
-        expect(R().worstNet).toBeGreaterThanOrEqual(10);
-      });
-
-      it('no red-light violations at any signalised stop line', () => {
-        expect(R().stopPasses).toBeGreaterThan(60);
-        expect(R().redViolations).toEqual([]);
-      });
-
-      it('no NaN/Infinity positions, nobody leaves the map by more than 40 m, nobody exceeds its top speed by > 10 %', () => {
-        expect(R().nonFinite).toEqual([]);
-        expect(R().outOfBounds).toEqual([]);
-        expect(R().maxSpeedRatio).toBeLessThan(1.1);
-      });
-
-      it('pedestrians keep moving: fewer than 25 % of 60 s windows with < 10 m of travel', () => {
-        expect(R().pedWindows).toBeGreaterThan(100);
-        expect(R().pedStill / R().pedWindows).toBeLessThan(0.25);
-      });
-    });
-  }
-
-  // ------------------------------------------------------------------ defects found by this sim (kept red-in-reverse)
-
-  // Q10-D1: AI cars rear-end and T-bone each other. The follower's obstacle ray starts at the lane-offset line
-  // (pos - right * lat) although the body has not moved there yet, so it cannot see the car in front while a pass
-  // is being started or cancelled. Expected after the fix: at most a couple of >= 3 m/s AI-vs-AI impacts in 5 min.
-  it('Q10-D1: AI-vs-AI collisions with closing speed >= 3 m/s stay below 3 per 5 minutes (seeds 7 + 21)', () => {
-    for (const seed of SEEDS) {
-      const hard = runs.get(seed)!.impacts.filter((i) => i.strength >= 3 && (i.aDriver === 'traffic' || i.aDriver === 'cop') && (i.bDriver === 'traffic' || i.bDriver === 'cop'));
-      expect(hard.length).toBeLessThan(3);
+const SEEDS2 = (process.env.SEEDS ?? '7,21').split(',').map(Number);
+describe('diag', () => {
+  it('dump', () => {
+    for (const seed of SEEDS2) {
+      const r = runTraffic(seed);
+      const hard = r.impacts.filter((i) => i.strength >= 3 && (i.aDriver === 'traffic' || i.aDriver === 'cop') && (i.bDriver === 'traffic' || i.bDriver === 'cop'));
+      const pairs = new Map<string, number>();
+      for (const i of r.impacts) { const k = `${i.a}>${i.b}@${Math.floor(i.t)}`; pairs.set(k, (pairs.get(k) ?? 0) + 1); }
+      console.log(`SEED ${seed}: impacts=${r.impacts.length} hardAIAI=${hard.length} knocked=${JSON.stringify(r.knockedDown)} maxPairPerSec=${Math.max(0,...pairs.values())} stuck=${r.stuck.length} redV=${r.redViolations.length} stopPasses=${r.stopPasses}`);
+      for (const h of hard) console.log(`  hard t=${h.t.toFixed(1)} ${h.a}(${h.aDriver}) ${h.b}(${h.bDriver}) ${h.strength.toFixed(1)} @${h.x.toFixed(0)},${h.z.toFixed(0)}`);
+      console.log('  stuck', r.stuck.slice(0,5), 'red', r.redViolations.slice(0,5));
     }
-  });
-
-  // Q10-D3: AI cars knock pedestrians down (3 times in seed 7, once in seed 21).
-  it('Q10-D3: no AI car knocks a pedestrian down in 5 minutes (seeds 7 + 21)', () => {
-    for (const seed of SEEDS) expect(runs.get(seed)!.knockedDown).toEqual([]);
-  });
-
-  // Q10-D2: 'impact' events fire every frame while a pedestrian stays pressed against a car (see impact-events.test.ts
-  // for the unit repro). Here: no pair may emit more than 5 impact events in any one second.
-  it('Q10-D2: no entity pair emits more than 5 impact events within one second', () => {
-    for (const seed of SEEDS) {
-      const byPairSecond = new Map<string, number>();
-      for (const i of runs.get(seed)!.impacts) {
-        const k = `${i.a}>${i.b}@${Math.floor(i.t)}`;
-        byPairSecond.set(k, (byPairSecond.get(k) ?? 0) + 1);
-      }
-      const worst = Math.max(0, ...byPairSecond.values());
-      expect(worst).toBeLessThanOrEqual(5);
-    }
-  });
+  }, 900000);
 });

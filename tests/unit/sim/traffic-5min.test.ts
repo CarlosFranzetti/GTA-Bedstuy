@@ -226,9 +226,9 @@ describe('full-density traffic, 5 simulated minutes on the real map (PRD 5.2)', 
     for (const seed of SEEDS) expect(runs.get(seed)!.knockedDown).toEqual([]);
   });
 
-  // Q10-D2: 'impact' events fire every frame while a pedestrian stays pressed against a car (see impact-events.test.ts
-  // for the unit repro). Here: no pair may emit more than 5 impact events in any one second.
-  it.fails('Q10-D2: no entity pair emits more than 5 impact events within one second', () => {
+  // Q10-D2 (fixed): 'impact' events fired every frame while a pedestrian stayed pressed against a car (unit repro in
+  // traffic-agent-qa.test.ts). Regression guard: no pair may emit more than 5 impact events in any one second.
+  it('Q10-D2 (fixed by F12): no entity pair emits more than 5 impact events within one second', () => {
     for (const seed of SEEDS) {
       const byPairSecond = new Map<string, number>();
       for (const i of runs.get(seed)!.impacts) {

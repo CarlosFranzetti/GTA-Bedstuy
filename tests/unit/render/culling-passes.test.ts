@@ -21,7 +21,7 @@ describe('PassCounter', () => {
   });
   it('attach wraps render/shadowMap.render and restores them', () => {
     const r = {
-      info: { render: { calls: 0 } },
+      info: { render: { calls: 0, triangles: 0 } },
       shadowMap: { render() { r.info.render.calls += 7; } },
       render() { r.shadowMap.render(); r.info.render.calls += 20; },
     };

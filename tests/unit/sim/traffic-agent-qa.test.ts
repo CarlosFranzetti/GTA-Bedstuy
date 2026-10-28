@@ -27,7 +27,7 @@ describe('Vehicle impact events (Q10-D2)', () => {
   // A pedestrian (or a scraping car) that stays pressed against a car produces one contact per frame with a
   // slowly changing closing speed. The scrape filter only drops repeats that are NOT stronger than the first hit,
   // so a ramp of 3.00 -> 3.20 m/s fires an `impact` (crash sound, camera shake, crime check) on every frame.
-  it.fails('Q10-D2: a contact pressed for 1 s with a slowly rising impulse (3.0 -> 3.2) emits at most 2 impact events', () => {
+  it('Q10-D2 (fixed by F12): a contact pressed for 1 s with a slowly rising impulse (3.0 -> 3.2) emits at most 2 impact events', () => {
     const events = new EventBus();
     let n = 0;
     events.on('impact', () => n++);
