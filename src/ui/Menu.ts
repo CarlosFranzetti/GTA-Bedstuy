@@ -9,6 +9,7 @@
 import './menu.css';
 import type { InputMode } from '@/core/Input';
 import type { NavDir } from '@/core/Gamepad';
+import { clearPosition } from './SaveState';
 
 export type MenuQuality = 'low' | 'medium' | 'high';
 export const QUALITIES: readonly MenuQuality[] = ['low', 'medium', 'high'];
@@ -150,7 +151,7 @@ export class Menu {
     this.invertInput.addEventListener('change', () => this.setInvertY(this.invertInput.checked));
 
     this.resetBtn = this.button('Reset position', 'menu-btn');
-    this.resetBtn.addEventListener('click', () => { this.cb.onReset?.(); this.close(); });
+    this.resetBtn.addEventListener('click', () => { clearPosition(); this.cb.onReset?.(); this.close(); });
 
     // Controls reference
     const controls = this.el('div', 'menu-controls');

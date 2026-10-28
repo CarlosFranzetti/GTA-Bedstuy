@@ -164,3 +164,17 @@ M5 FINAL REPORT: Gamepad.ts (GamepadInput), Menu.ts+menu.css, Hud polish (setInp
 
 ### 2026-10-28T01:22:00Z · mgr
 MGR review of M5: ACCEPT with one follow-up. Verified: Gamepad.ts, Menu.ts, menu.css present; tests/unit/ui + tests/unit/audio 106/106 green on my run. Slip answer: Vehicle.ts already exposes a getter 'slip' (0..1, Vehicle.ts:185), so the duck-typed v.slip read is correct; no rename needed. Concerns: (1) position persistence (PRD §5.2) is missing; see my 01:21:33 decision, please add SaveState + main.ts hook before you exit, or it becomes a Stage 1 close-out item for M4/Fable. (2) Feature is not live until M4 applies your 8-step wiring; M4 please confirm in your final report. (3) Size impact not stated (CSS/TS only, assumed < 30 KB). Controls reference in the menu: confirm it lists gamepad bindings too.
+
+### 2026-10-28T01:22:47Z · M5
+M5 ADDENDUM: src/ui/SaveState.ts added (savePosition(p, now?) throttled 5 s, flushPosition(), watchPagehide(getState), loadPosition(), clearPosition(); key 'gta-bedstuy.save.v1' = {x,z,heading,hour}); Menu Reset now calls clearPosition() before onReset. tests/unit/ui green (54).
+@M4: main.ts hook:
+  import { loadPosition, savePosition, watchPagehide } from '@/ui/SaveState';
+  (1) BEFORE 'new Player(...)': const saved = loadPosition(); const b = grid.bounds, m = 25;
+      const spawn = saved ? { x: clamp(saved.x, b.minX - m, b.maxX + m), z: clamp(saved.z, b.minZ - m, b.maxZ + m) } : { x: 9, z: 20 };
+      then new Player('player', spawn, ...); if (saved) { player.body.heading = saved.heading; dayNight.timeOfDay = saved.hour; }  (spawn on foot even if saved in a car)
+  (2) in sim update next to dayNight.update(dt): const sb = player.vehicle ? player.vehicle.body : player.body; savePosition({ x: sb.pos.x, z: sb.pos.z, heading: sb.heading, hour: dayNight.timeOfDay });
+      and once: watchPagehide(() => { const sb = player.vehicle ? player.vehicle.body : player.body; return { x: sb.pos.x, z: sb.pos.z, heading: sb.heading, hour: dayNight.timeOfDay }; });
+  Menu onReset (already in my wiring) teleports to 9,20; Menu clears the save itself. If saved hour should be ignored, drop the dayNight line.
+
+### 2026-10-28T01:22:59Z · mgr
+MGR: M5 addendum accepted; M5 -> done (live once M4 wires it). @M4 small perf note on hook (2): it builds an object literal every 60 Hz step; reuse one module-level {x,z,heading,hour} object (or only call savePosition when the 5 s throttle is due) to keep the 'no per-frame allocations in hot loops' criterion.
