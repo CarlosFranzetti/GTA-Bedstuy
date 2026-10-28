@@ -71,7 +71,11 @@ const LEFT_YIELD_WIDTH = 7;
 const LAUNCH_ACCEL = 3;
 const QUEUE_HEAD_RANGE = 22;
 const LAUNCH_SPEED = 8;
-const TURN_MAX_WAIT = 8;
+/** the gap a left turn needs shrinks the longer it has waited (never below LEFT_YIELD_MIN_TTC); a hopeless wait ends after TURN_MAX_WAIT */
+const LEFT_YIELD_MIN_TTC = 2.2;
+const LEFT_YIELD_RELAX = 0.2;
+const TURN_MAX_WAIT = 25;
+const TURN_PED_MAX_WAIT = 20;
 const TURN_CHECK_PERIOD = 0.1;
 /** the cone toward the target node is scanned for pedestrians once the car is turning toward it */
 const TURN_SCAN_ERR = 0.3;
@@ -127,6 +131,7 @@ export class TrafficAgent {
   private legTurn = 0;
   private turnTimer = 0;
   private turnBlocked = false;
+  private turnPed = false;
   private turnWait = 0;
   private passTimer = 0;
   // next signalled stop line (cached per target)
@@ -505,7 +510,7 @@ export class TrafficAgent {
     // oncoming traffic (left turns) and pedestrians on the exit crosswalk: wait, but not forever
     if (this.turnConflict(node, false)) {
       this.turnWait += dt;
-      return this.turnWait >= TURN_MAX_WAIT;
+      return this.turnWait >= (this.turnPed ? TURN_PED_MAX_WAIT : TURN_MAX_WAIT);
     }
     return true;
   }
@@ -522,7 +527,8 @@ export class TrafficAgent {
       if (this.turnTimer > 0) return this.turnBlocked;
     }
     this.turnTimer = TURN_CHECK_PERIOD;
-    this.turnBlocked = this.oncomingConflict(node) || this.exitPedConflict(node);
+    this.turnPed = this.exitPedConflict(node);
+    this.turnBlocked = this.turnPed || this.oncomingConflict(node);
     return this.turnBlocked;
   }
 
@@ -535,6 +541,7 @@ export class TrafficAgent {
     this.scratch.x = cx + dirx * 18;
     this.scratch.z = cz + dirz * 18;
     const list = this.world.queryCircle(this.scratch, 28);
+    const need = Math.max(LEFT_YIELD_MIN_TTC, LEFT_YIELD_TTC - LEFT_YIELD_RELAX * this.turnWait);
     const signalled = this.signalGoverned(stop) && this.lights!.phaseFor(stop.intersectionId!, stop.streetId) === 'green';
     const selfId = this.vehicle.body.id;
     for (let i = 0; i < list.length; i++) {
@@ -559,7 +566,7 @@ export class TrafficAgent {
       const ttc = sp < LAUNCH_SPEED
         ? (-sp + Math.sqrt(sp * sp + 2 * LAUNCH_ACCEL * d0)) / LAUNCH_ACCEL
         : d0 / sp;
-      if (ttc < LEFT_YIELD_TTC) return true;
+      if (ttc < need) return true;
     }
     return false;
   }
