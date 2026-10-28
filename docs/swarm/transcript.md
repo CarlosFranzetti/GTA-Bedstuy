@@ -63,3 +63,24 @@ MGR: PRD and stages written (docs/swarm/PRD.md, docs/swarm/stages.md). Measurabl
 
 ### 2026-10-28T01:16:13Z · fable
 Note on R2 correction (1): the in-game sign spelling 'Kosciusko St' is a deliberate user choice (data id stays 'kosciuszko'); not changing. (2)–(6) noted as unverified; Stage 2 will take the user's Street View screenshots for ground truth.
+
+### 2026-10-28T01:16:36Z · mgr
+MGR review of R2: ACCEPT as partial. Good: honest confidence tags, blocked-endpoint table, re-run plan, landmark anchors (Antioch Baptist 828 Greene, Lafayette magnolia, Upper Room Baptist). Concerns: (1) correction #1 REJECTED: the sign spelling 'Kosciusko St' is a deliberate design decision (spec §1: signs use the user's spelling, data id uses the official one); no change to bedstuy.json. (2) Per-face floors/materials/use (the core deliverable) not delivered; deferred to Stage 2 behind the allowlist or user screenshots. (3) MGR note, own recollection, low-medium confidence: the real N-S sequence likely includes DeKalb Ave between Pulaski St and Kosciuszko St, and Van Buren St may not run west of Throop; treat the grid order as the top verification item for Stage 2. Real business/church names stay reference-only; signs remain parodies.
+
+### 2026-10-28T01:17:22Z · M5
+@M2: for the tyre-squeal loop I need a lateral slip value on the vehicle. What is the field name (I assume IVehicle.slip, 0..1, or slipAngle in rad)? If absent I trigger squeal from input.handbrake. AudioSystem API: setSlip(0..1) / setHandbrake(bool).
+
+### 2026-10-28T01:17:22Z · R1
+R1 progress: found ambientCG/CC0cc0textures sets (Fabric026, Metal009, Metal035, Wood027, WoodFloor041, Plastic, Snow003/004) inside npm aframe-enviropacks 0.10.0 (README: CC0). sweethome3d-textures-ambientcg repo (fabien-michel) confirms CC0 but archives are on murena.io, not fetchable. Dead ends: Kimbatt/cc0-textures (torrents only), @pmndrs/assets, metaverse-terrain. Still hunting corrugated, roofing, chain-link, plywood, granite, tile, cast iron, cedar, rubber, leather/denim.
+
+### 2026-10-28T01:17:40Z · R5
+R5 FINAL REPORT: new keys tireSidewall(1 var, 1024x256 lathe-UV: u around ring, v across profile, tread at v~0.5), plate(4 vars, BK-STUY first, 2:1), clothHoodie(8), clothDenim(6, knee band canvas rows 38-60%), clothVarsity(6; top half v0.5-1 = wool body, bottom half v0-0.5 = leather sleeve; use varsityUV(geo,'body'|'sleeve') from painters/people.ts), clothSneaker(6; v>0.28 upper, v<0.28 sole). MaterialLibrary.carPaintDetail() builds shared 512 flake normal/roughness/dirt and applies to all carPaint materials, past and future (opt-in: someone must call it once, e.g. Game after lib creation). Model agents: wheels use get('tireSidewall') on the lathe tyre, plates use get('plate', i) instead of sign('BK-STUY'), humans use clothHoodie/Denim/Varsity/Sneaker; carModel body needs real UVs (v=0 at sill) for dirt band, merged parts with zero UVs just get a clean texel. 'tire' unchanged (soles, skid marks). Tests tests/unit/textures pass (125), typecheck clean.
+
+### 2026-10-28T01:17:47Z · M4
+@M5: on document.hidden I'd like to suspend/resume audio. Please expose AudioSystem.setPaused(paused: boolean) (suspend ctx + stop radio scheduling / resume) — I'll call it from main.ts via duck-typing (audio.setPaused?.(...)) so it works whether or not it exists yet. Also: main.ts now reuses ONE HudState object per frame and passes real frame dt to nothing else of yours; tell me if HudState gains fields.
+
+### 2026-10-28T01:17:47Z · M4
+@M2: FYI main.ts render loop will (a) call ThirdPersonCamera.update(realFrameDt,...) instead of fixed 1/60 (your exp smoothing uses dt, so it is correct), (b) zero input.mouseDX/DY after cam.update each render frame (at >60Hz the same mouse delta was re-applied on frames with zero sim steps). Camera.update allocates 2+ THREE.Vector3 per call (wantPos/wantLook) - please reuse module-level scratch vectors. Pedestrian/Vehicle doorPos() allocs a Vec2 per call and main calls it for each vehicle every frame for the Enter prompt: consider a doorPosInto(out) or cheap reach test. I interpolate object3D.position.x/z and rotation.y only (rotation.x/z, y untouched) for player/vehicles/peds/cops; if you add prevPos on entities tell me and I will use it.
+
+### 2026-10-28T01:17:59Z · fable
+@M4: please wire R5's materials.carPaintDetail?.() in main.ts right after loadTexturePacks resolves (and before vehicles spawn if feasible), and use materials.get('plate') / 'tireSidewall' only if carModel.ts supports them (it is M2's file now; @M2: consider switching tyres to 'tireSidewall' with the lathe UV R5 described and plates to 'plate' v0).

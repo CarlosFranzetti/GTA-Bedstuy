@@ -15,6 +15,11 @@ import {
 import { awningPainter, copLiveryPainter, signPainter } from './painters/signage';
 import { CLOTH_COLORS, LEAF_VARIANTS, SKIN_TONES, treeLeavesPainter, treeTrunkPainter } from './painters/organic';
 import { gray, wrapVariant } from './painters/util';
+import { CAR_FLAKE_NORMAL_SCALE, PLATE_VARIANTS, carPaintMaps, platePainter, tireSidewallPainter, type CarPaintMaps } from './painters/vehicle';
+import {
+  DENIM_VARIANTS, HOODIE_VARIANTS, SNEAKER_VARIANTS, VARSITY_VARIANTS,
+  denimPainter, hoodiePainter, sneakerPainter, varsityPainter,
+} from './painters/people';
 
 export type CanvasFactory = (w: number, h: number) => HTMLCanvasElement;
 
@@ -86,6 +91,7 @@ export class MaterialLibrary implements IMaterialLibrary {
   private readonly reliefCache = new Map<string, ReliefMaps>();
   private readonly overrides = new Map<string, MapOverride>();
   private env: THREE.Texture | null = null;
+  private paintDetail: CarPaintMaps | null = null;
   private night = false;
   private readonly specs: Record<MaterialKey, Spec>;
 
@@ -163,10 +169,39 @@ export class MaterialLibrary implements IMaterialLibrary {
       const p = this.physicalPaint({ color: new THREE.Color(color) });
       p.name = `carPaint:${color}`;
       this.registerEnv(p, PAINT_ENV_INTENSITY);
+      if (this.paintDetail) this.applyPaintDetail(p, this.paintDetail);
       m = p;
       this.paints.set(color, m);
     }
     return m;
+  }
+
+  /**
+   * Builds (once) the shared 512 px car paint detail set and applies it to every carPaint material, existing and
+   * future: metallic flake + scratch normal map, roughness map (flake sparkle, dirt raises roughness toward the
+   * bottom 25 %) and a white-based dirt map in `map` that darkens the colour slightly near the sill. The clearcoat
+   * is kept. The bodywork needs real UVs (v = 0 at the sill) for the dirt band; with degenerate UVs it falls back to
+   * the clean top-left texel.
+   */
+  carPaintDetail(): CarPaintMaps {
+    if (!this.paintDetail) {
+      const rng = new Rng((Rng.hash('carPaintMaps') ^ this.seed) >>> 0);
+      const maps = carPaintMaps(this.factory, rng, this.aniso);
+      this.textures.push(maps.normalMap, maps.roughnessMap, maps.dirtMap);
+      this.paintDetail = maps;
+    }
+    for (const m of this.paints.values()) this.applyPaintDetail(m, this.paintDetail);
+    return this.paintDetail;
+  }
+
+  private applyPaintDetail(m: THREE.Material, d: CarPaintMaps): void {
+    const mm = m as THREE.MeshPhysicalMaterial;
+    mm.normalMap = d.normalMap;
+    mm.normalScale.set(CAR_FLAKE_NORMAL_SCALE, CAR_FLAKE_NORMAL_SCALE);
+    mm.roughnessMap = d.roughnessMap; // the map carries the absolute roughness
+    mm.roughness = 1;
+    mm.map = d.dirtMap;
+    mm.needsUpdate = true;
   }
 
   /** Store the environment map; applies to every cached reflective material and to ones created later. */
@@ -188,6 +223,7 @@ export class MaterialLibrary implements IMaterialLibrary {
     for (const m of [...this.cache.values(), ...this.awnings.values(), ...this.signs.values(), ...this.paints.values()]) m.dispose();
     this.cache.clear(); this.awnings.clear(); this.signs.clear(); this.paints.clear();
     this.reliefCache.clear();
+    this.paintDetail = null;
     this.textures.length = 0;
     this.glowing.length = 0;
     this.envMaterials.length = 0;
@@ -446,6 +482,30 @@ export class MaterialLibrary implements IMaterialLibrary {
       },
       skin: flat(SKIN_TONES),
       cloth: flat(CLOTH_COLORS),
+      tireSidewall: {
+        variants: 1,
+        build: tex('tireSidewall', 1024, 256, tireSidewallPainter, { roughness: 0.95 }, { strength: 3, normalScale: 0.8, roughScale: null }),
+      },
+      plate: {
+        variants: PLATE_VARIANTS,
+        build: tex('plate', 256, 128, platePainter, { roughness: 0.5, metalness: 0.25 }, { strength: 3, normalScale: 0.7, roughScale: null }),
+      },
+      clothHoodie: {
+        variants: HOODIE_VARIANTS,
+        build: tex('clothHoodie', 256, 256, hoodiePainter, { roughness: 0.95 }, { strength: 2, normalScale: 0.45, roughScale: null, share: 'clothHoodie' }),
+      },
+      clothDenim: {
+        variants: DENIM_VARIANTS,
+        build: tex('clothDenim', 256, 256, denimPainter, { roughness: 0.9 }, { strength: 2.2, normalScale: 0.5, roughScale: null }),
+      },
+      clothVarsity: {
+        variants: VARSITY_VARIANTS,
+        build: tex('clothVarsity', 256, 256, varsityPainter, { roughness: 0.8 }, { strength: 2, normalScale: 0.45, roughScale: null, share: 'clothVarsity' }),
+      },
+      clothSneaker: {
+        variants: SNEAKER_VARIANTS,
+        build: tex('clothSneaker', 256, 256, sneakerPainter, { roughness: 0.6 }, { strength: 2, normalScale: 0.4, roughScale: null, share: 'clothSneaker' }),
+      },
     };
   }
 }
