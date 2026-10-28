@@ -77,6 +77,7 @@ try {
           v.body.pos.x = n.pos.x; v.body.pos.z = n.pos.z; v.body.heading = n.heading; v.body.vel.x = 0; v.body.vel.z = 0;
           d.teleport(n.pos.x, n.pos.z, n.heading);
           p.tryEnter([v]);
+          d.step(90); // the walk-to-door animation takes ~0.4 s of sim time
         }
       }, view);
       for (const hour of hours) {

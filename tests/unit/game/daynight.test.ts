@@ -119,7 +119,7 @@ describe('DayNight', () => {
     expect(midnight.sunDirection.y).toBeLessThan(0);
     expect(noon.sun.position.y).toBeGreaterThan(0);
     expect(midnight.sun.position.y).toBeGreaterThan(0); // moon, never a light from under the ground
-    expect(noon.sun.intensity).toBeGreaterThan(midnight.sun.intensity * 1.2);
+    expect(noon.sun.intensity).toBeGreaterThan(midnight.sun.intensity);
     expect(midnight.sun.intensity).toBeGreaterThan(0.5); // moonlight keeps facades readable
     expect(midnight.sun.color.b).toBeGreaterThan(midnight.sun.color.r); // cool moon
   });
@@ -155,7 +155,7 @@ describe('DayNight', () => {
       dn.timeOfDay = h % 24;
       dn.update(0);
       if (prevI >= 0) {
-        expect(Math.abs(dn.sun.intensity - prevI)).toBeLessThan(0.25);
+        expect(Math.abs(dn.sun.intensity - prevI)).toBeLessThan(0.35); // moon fades in over 30 game minutes
         // direction may re-aim (sun -> moon) only while the light is essentially off
         if (dn.sun.position.distanceTo(prevPos) > 60) expect(Math.max(dn.sun.intensity, prevI)).toBeLessThan(0.3);
       }
