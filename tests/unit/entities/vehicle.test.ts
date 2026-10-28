@@ -432,4 +432,19 @@ describe('Vehicle', () => {
     expect(v.object3D.getObjectByName('lightbarA')).toBeUndefined();
     v.dispose();
   });
+
+  it('tyres use the tireSidewall texture and plates use plate variants chosen per car id', () => {
+    const calls: string[] = [];
+    const rec: IMaterialLibrary = {
+      get: (k, v) => { calls.push(`${k}:${v ?? 0}`); return mat(); },
+      awning: () => mat(), sign: () => mat(), carPaint: () => mat(), setNight: () => {},
+    };
+    const ids = ['a', 'bb', 'ccc', 'dddd', 'eeeee', 'ffffff', 'g7', 'h88'];
+    for (const id of ids) new Vehicle(id, VEHICLE_SPECS.sedan, { x: 0, z: 0 }, 0, rec, new EventBus());
+    expect(calls).toContain('tireSidewall:0');
+    expect(calls).not.toContain('tire:0');
+    const plates = new Set(calls.filter((c) => c.startsWith('plate:')));
+    expect(plates.size).toBeGreaterThan(1);
+    for (const p of plates) expect(Number(p.split(':')[1])).toBeLessThan(4);
+  });
 });

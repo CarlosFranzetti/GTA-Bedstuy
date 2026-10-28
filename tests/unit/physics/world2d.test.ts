@@ -285,4 +285,61 @@ describe('World2D performance smoke', () => {
     expect(ms).toBeLessThan(5); // loose CI bound; real cost is far lower
     for (const b of w.bodies()) { expect(Number.isFinite(b.pos.x)).toBe(true); expect(Number.isFinite(b.pos.z)).toBe(true); }
   });
+
+  it('raycastStatic only ever hits static bodies (vehicles and pedestrians are see-through)', () => {
+    const w = new World2D();
+    const wall = w.addStatic({ kind: 'polygon', points: SQUARE }, undefined, 'wall');
+    const car = dyn('vehicle', { kind: 'obb', halfW: 1, halfL: 2 }, -6, 2, 1400, 0, 0, Math.PI / 2);
+    const ped = dyn('ped', { kind: 'circle', r: 0.3 }, -3, 2, 70);
+    w.addBody(car); w.addBody(ped); w.step(DT);
+    expect(w.raycast({ x: -11, z: 2 }, { x: 1, z: 0 }, 50)!.body).toBe(car);
+    const h = w.raycastStatic({ x: -11, z: 2 }, { x: 1, z: 0 }, 50)!;
+    expect(h.body).toBe(wall);
+    expect(h.dist).toBeCloseTo(11);
+    expect(w.raycastStatic({ x: -11, z: 2 }, { x: 1, z: 0 }, 5)).toBeNull();
+    expect(w.raycastStatic({ x: -11, z: 2 }, { x: 0, z: 0 }, 5)).toBeNull();
+    const far = w.addStatic({ kind: 'circle', r: 1 }, { x: 300, z: 300 });
+    expect(w.raycastStatic({ x: 10, z: 10 }, { x: 1, z: 1 }, 1000)!.body).toBe(far);
+  });
+});
+
+describe('World2D collision response feel', () => {
+  const car = (x: number, z: number, vz: number, mass = 1400) =>
+    dyn('vehicle', { kind: 'obb', halfW: 0.9, halfL: 2.3 }, x, z, mass, 0, vz);
+
+  it('vehicle-vs-vehicle restitution is small: a head-on pair does not spring apart', () => {
+    const w = new World2D();
+    const a = car(0, 0, -10), b = car(0, -4.6, 10);
+    b.heading = Math.PI;
+    w.addBody(a); w.addBody(b);
+    a.pos.z -= 0.05; b.pos.z += 0.05; // already touching
+    w.step(DT);
+    const sep = b.vel.z - a.vel.z; // negative: still closing; positive: separating
+    expect(Math.abs(sep)).toBeLessThan(0.15 * 20 + 1e-6);
+  });
+
+  it('a walking player cannot meaningfully shove a parked car, a car hit by a car moves', () => {
+    const w = new World2D();
+    const parked = car(0, 0, 0);
+    const player = dyn('player', { kind: 'circle', r: 0.4 }, 0, 3.0, 80, 0, -3);
+    w.addBody(parked); w.addBody(player);
+    w.step(DT);
+    expect(Math.hypot(parked.vel.x, parked.vel.z)).toBeLessThan(0.3);
+    const w2 = new World2D();
+    const p2 = car(0, 0, 0), mover = car(0, 4.55, -8);
+    w2.addBody(p2); w2.addBody(mover);
+    w2.step(DT);
+    expect(Math.abs(p2.vel.z)).toBeGreaterThan(3);
+  });
+
+  it('glancing a wall keeps the tangential speed; a head-on hit loses the normal speed', () => {
+    const w = new World2D();
+    w.addStatic({ kind: 'polygon', points: [{ x: 5, z: -100 }, { x: 8, z: -100 }, { x: 8, z: 100 }, { x: 5, z: 100 }] });
+    const slider = dyn('vehicle', { kind: 'obb', halfW: 0.9, halfL: 2.3 }, 4.05, 0, 1400, 1, -20);
+    const rammer = dyn('vehicle', { kind: 'obb', halfW: 0.9, halfL: 2.3 }, 4.05, 50, 1400, 20, 0, Math.PI / 2);
+    w.addBody(slider); w.addBody(rammer);
+    w.step(DT);
+    expect(Math.abs(slider.vel.z)).toBeGreaterThan(19);
+    expect(Math.abs(rammer.vel.x)).toBeLessThan(3);
+  });
 });

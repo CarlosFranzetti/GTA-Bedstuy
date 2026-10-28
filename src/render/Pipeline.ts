@@ -8,15 +8,17 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import type { Pass } from 'three/addons/postprocessing/Pass.js';
 import type { Quality } from './Shadows';
+import { newTimeCycle, timeCycleAt } from './LightingConfig';
 import { GRADE_PRESETS, EXPOSURE_BY_PRESET, buildLut, presetForHour, type GradePreset } from './lut';
 
 export type { Quality } from './Shadows';
 
-const BLOOM_THRESHOLD_DAY = 2.4;
+/** Fallback bloom (no hour known yet); once setHour has been called the per-hour time cycle drives bloom and exposure. */
+const BLOOM_THRESHOLD_DAY = 2.0;
 const BLOOM_THRESHOLD_NIGHT = 0.9;
 const BLOOM_RADIUS = 0.4;
-const BLOOM_STRENGTH_DAY = 0.18;
-const BLOOM_STRENGTH_NIGHT = 0.7;
+const BLOOM_STRENGTH_DAY = 0.1;
+const BLOOM_STRENGTH_NIGHT = 0.5;
 
 const DOF_DEFAULT_FOCUS = 7;
 const DOF_DEFAULT_STRENGTH = 0.6;
@@ -26,8 +28,6 @@ const DOF_MAX_BLUR_1080 = 6;
 /** Focus smoothing rate (1/s) and grade-phase speed (presets/s). */
 const FOCUS_RATE = 4;
 const GRADE_PHASE_SPEED = 0.6;
-/** Auto-exposure convergence rate (1/s). */
-const EXPOSURE_RATE = 1;
 
 /**
  * Depth of field: single-pass 16-tap Vogel-disc bokeh gather driven by a circle of confusion from
@@ -282,6 +282,7 @@ export class RenderPipeline {
   private gradeTarget: GradePreset = 'day';
   private exposureBias = 1;
   private exposureFactor = EXPOSURE_BY_PRESET.day;
+  private readonly tc = newTimeCycle();
   /** Until the first frame is rendered, setNight/setHour snap instead of easing. */
   private settled = false;
 
@@ -333,7 +334,7 @@ export class RenderPipeline {
     this.lastT = now;
     this.updateDof(dt);
     this.updateGrade(dt);
-    this.updateExposure(dt);
+    this.updateExposure();
     if (this.grading) this.grading.uniforms.time.value = (now - this.t0) / 1000;
     this.composer.render();
     this.settled = true;
@@ -356,8 +357,8 @@ export class RenderPipeline {
 
   setNight(night: boolean): void {
     this.night = night;
-    if (this.bloom) { this.bloom.strength = night ? BLOOM_STRENGTH_NIGHT : BLOOM_STRENGTH_DAY; this.bloom.threshold = night ? BLOOM_THRESHOLD_NIGHT : BLOOM_THRESHOLD_DAY; }
     this.retarget();
+    this.updateExposure();
   }
 
   /**
@@ -368,13 +369,13 @@ export class RenderPipeline {
     if (!Number.isFinite(hour)) return;
     this.hour = hour;
     this.retarget();
+    this.updateExposure();
   }
 
   /** Jumps the grade crossfade and auto-exposure straight to the current target (time jumps, debug/audit hooks). */
   snapGrade(): void {
     this.gradePhase = GRADE_PRESETS.indexOf(this.gradeTarget);
-    this.exposureFactor = EXPOSURE_BY_PRESET[this.gradeTarget];
-    this.renderer.toneMappingExposure = this.exposureBias * this.exposureFactor;
+    this.updateExposure();
   }
 
   /** Distance (m) camera -> player; the focus plane eases towards it. Clamped to 0.5..300 m. */
@@ -390,12 +391,12 @@ export class RenderPipeline {
 
   /**
    * Sets the day-reference exposure (default 1). The hour-based auto-exposure multiplies it by
-   * 1.0 / 1.15 / 1.35 (day / dusk / night); the new value is applied to the renderer immediately.
+   * per-hour factor of the time cycle (about 1.0 by day, 0.95 at night); the new value is applied to the renderer immediately.
    */
   setExposure(v: number): void {
     if (!Number.isFinite(v) || v <= 0) return;
     this.exposureBias = v;
-    this.renderer.toneMappingExposure = v * this.exposureFactor;
+    this.updateExposure();
   }
 
   dispose(): void {
@@ -430,8 +431,6 @@ export class RenderPipeline {
     this.gradeTarget = preset;
     if (!this.settled) {
       this.gradePhase = GRADE_PRESETS.indexOf(preset);
-      this.exposureFactor = EXPOSURE_BY_PRESET[preset];
-      this.renderer.toneMappingExposure = this.exposureBias * this.exposureFactor;
     }
   }
 
@@ -470,10 +469,18 @@ export class RenderPipeline {
     g.uniforms.useLut.value = 1;
   }
 
-  private updateExposure(dt: number): void {
-    const target = EXPOSURE_BY_PRESET[this.gradeTarget];
-    this.exposureFactor += (target - this.exposureFactor) * (1 - Math.exp(-dt * EXPOSURE_RATE));
-    this.renderer.toneMappingExposure = this.exposureBias * this.exposureFactor;
+  /**
+   * Exposure and bloom follow the continuous per-hour time cycle (no preset steps, so dusk never pops); the
+   * night flag alone stands in for the hour until the first setHour.
+   */
+  private updateExposure(): void {
+    const tc = timeCycleAt(this.hour ?? (this.night ? 0 : 12), this.tc);
+    this.exposureFactor = tc.exposure;
+    this.renderer.toneMappingExposure = this.exposureBias * tc.exposure;
+    if (this.bloom) {
+      this.bloom.strength = tc.bloomStrength;
+      this.bloom.threshold = tc.bloomThreshold;
+    }
   }
 
   private build(): void {

@@ -74,14 +74,15 @@ export class TrafficLights {
 
   constructor(grid: LightsGrid, startTime = 0) {
     this.time = startTime;
+    const intersections = grid.intersections ?? [];
     let minX = Infinity;
     let minZ = Infinity;
-    for (const it of grid.intersections) {
+    for (const it of intersections) {
       minX = Math.min(minX, it.center.x);
       minZ = Math.min(minZ, it.center.z);
     }
     const T = SIGNAL_TIMING;
-    for (const it of grid.intersections) {
+    for (const it of intersections) {
       const ns = grid.streetById(it.nsStreetId);
       const ew = grid.streetById(it.ewStreetId);
       const nsAve = ns.class === 'avenue';

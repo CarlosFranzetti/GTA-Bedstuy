@@ -325,7 +325,7 @@ export class Vehicle implements IVehicle {
     const aLong = (vLong - vLong0) / h;
     const speedAbs = Math.abs(vLong);
 
-    const braking = this.brakePressure > 0.15 || input.handbrake;
+    const braking = input.brake || oppose || input.handbrake; // lights follow the driver, not the ramping pedal
     if (braking !== this.braking) { this.braking = braking; this.applyLights(); }
 
     // --- steering: rate limited, speed sensitive, returns to centre
@@ -449,7 +449,7 @@ export class Vehicle implements IVehicle {
   // ------------------------------------------------------------------ mesh
 
   private buildMesh(): void {
-    this.model = Vehicle.sources[this.spec.type]?.instantiate(this.spec) ?? buildCarModel(this.spec.type, this.spec, this.materials);
+    this.model = Vehicle.sources[this.spec.type]?.instantiate(this.spec) ?? buildCarModel(this.spec.type, this.spec, this.materials, (this.seed >>> 0) % 4);
     this.wheelRadius = this.model.wheelRadius;
     this.ownMaterials.push(...this.model.ownMaterials);
     this.chassis.add(this.model.group);

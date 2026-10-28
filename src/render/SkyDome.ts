@@ -3,13 +3,18 @@ import { Sky } from 'three/addons/objects/Sky.js';
 import { Rng } from '@/core/Rng';
 import { clamp } from '@/core/Math2';
 import type { IMaterialLibrary } from '@/world/types';
+import { newTimeCycle, timeCycleAt } from '@/render/LightingConfig';
 
 // ---------------------------------------------------------------- tunables
 
 const SKY_SCALE = 2000;
 const STAR_COUNT = 1500;
 const STAR_RADIUS = 800; // inside the camera far plane (900)
+/** Re-capture the PMREM environment after this many game hours (day / night plateaus). */
 const ENV_REBUILD_HOURS = 0.25;
+/** ...and this often while the sky changes quickly (sun elevation sine in TWILIGHT_RANGE), so glass and paint do not pop. */
+const ENV_REBUILD_HOURS_TWILIGHT = 0.05;
+const TWILIGHT_RANGE = { lo: -0.3, hi: 0.35 };
 /** Cloud drift speed in sky `time` units per game hour. */
 const CLOUD_TIME_PER_HOUR = 600;
 
@@ -33,8 +38,8 @@ const PARAM_KEYS: ReadonlyArray<{ hour: number } & SkyParams> = [
   { hour: 9, turbidity: 5, rayleigh: 2.0, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.196 },
   { hour: 12, turbidity: 3.5, rayleigh: 2.4, mieCoefficient: 0.004, mieDirectionalG: 0.75, exposure: 0.21 },
   { hour: 16, turbidity: 5, rayleigh: 2.1, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.196 },
-  { hour: 18.3, turbidity: 9, rayleigh: 1.7, mieCoefficient: 0.011, mieDirectionalG: 0.88, exposure: 0.175 },
-  { hour: 19.5, turbidity: 13, rayleigh: 1.3, mieCoefficient: 0.016, mieDirectionalG: 0.92, exposure: 0.147 },
+  { hour: 18.3, turbidity: 8, rayleigh: 1.7, mieCoefficient: 0.011, mieDirectionalG: 0.88, exposure: 0.175 },
+  { hour: 19.5, turbidity: 9, rayleigh: 1.3, mieCoefficient: 0.016, mieDirectionalG: 0.92, exposure: 0.147 },
   { hour: 21, turbidity: 4, rayleigh: 0.8, mieCoefficient: 0.006, mieDirectionalG: 0.85, exposure: 0.105 },
   { hour: 24, turbidity: 2, rayleigh: 0.6, mieCoefficient: 0.003, mieDirectionalG: 0.8, exposure: 0.087 },
 ];
@@ -136,6 +141,8 @@ export class SkyDome {
   private lastHour = Number.NaN;
   private cloudTime = 0;
   private sunElevation = 1;
+  private trueSun: THREE.Vector3 | null = null;
+  private readonly tc = newTimeCycle();
 
   constructor(scene: THREE.Scene, renderer: THREE.WebGLRenderer, materials: IMaterialLibrary) {
     this.scene = scene;
@@ -167,13 +174,23 @@ export class SkyDome {
   }
 
   /**
+   * DayNight hands over the true (astronomical) sun direction here. `update()` uses it instead of its `sunDir`
+   * argument, because the shadow code re-aims the key light (mirrors it above the ground at night, lifts it near
+   * the horizon) and main.ts derives `sunDir` from that light, which made the dome show a lifted/mirrored sun.
+   */
+  setSunDirection(dir: THREE.Vector3): void {
+    this.trueSun = dir;
+  }
+
+  /**
    * Call once per frame after DayNight.update.
    * `sunDir` is the direction toward the sun (dayNight.sun.position.clone().normalize()).
    * `cameraPos` (optional) re-centres the dome and stars on the camera so the sky never parallaxes.
    */
   update(hour: number, sunDir: THREE.Vector3, isNight: boolean, cameraPos?: THREE.Vector3): void {
     const h = wrapHour(hour);
-    const dir = sunDir.lengthSq() > 0 ? sunDir.clone().normalize() : new THREE.Vector3(0, 1, 0);
+    const src = this.trueSun ?? sunDir;
+    const dir = src.lengthSq() > 0 ? src.clone().normalize() : new THREE.Vector3(0, 1, 0);
     this.sunElevation = dir.y;
 
     if (Number.isFinite(this.lastHour)) {
@@ -209,8 +226,13 @@ export class SkyDome {
       this.stars.position.copy(cameraPos);
     }
 
+    // Materials without their own envMap follow scene.environmentIntensity (main.ts only sets it on day/night flips).
+    this.scene.environmentIntensity = timeCycleAt(h, this.tc).env;
+
     const dh = Math.abs(h - this.lastCaptureHour);
-    const moved = Number.isNaN(this.lastCaptureHour) || Math.min(dh, 24 - dh) > ENV_REBUILD_HOURS;
+    const twilight = dir.y > TWILIGHT_RANGE.lo && dir.y < TWILIGHT_RANGE.hi;
+    const step = twilight ? ENV_REBUILD_HOURS_TWILIGHT : ENV_REBUILD_HOURS;
+    const moved = Number.isNaN(this.lastCaptureHour) || Math.min(dh, 24 - dh) > step;
     if (moved || this.lastNight !== isNight) this.captureEnvironment();
     this.lastNight = isNight;
   }

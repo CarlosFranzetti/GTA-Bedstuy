@@ -126,6 +126,9 @@ export class Pedestrian implements Entity {
     this.leader = leader;
     this.slot = slot;
     leader.followers++;
+    this.state = 'walking';
+    this.waitCrossing = null;
+    this.detour = null;
   }
 
   get groupLeader(): Pedestrian | null { return this.leader; }

@@ -3,7 +3,8 @@ import type { EventBus, GameEvents } from '@/core/Events';
 import { dist, type Vec2 } from '@/core/Math2';
 import type { Rng } from '@/core/Rng';
 import type { Body2D, GridModel, IVehicle, IWorld2D, LaneNode, VehicleType } from '@/world/types';
-import { CopAgent } from '@/entities/Cop';
+import { CopAgent, type CopTarget } from '@/entities/Cop';
+import type { TrafficLights } from './TrafficLights';
 import type { WantedSystem } from './WantedSystem';
 
 export type MakeCopVehicle = (type: VehicleType, pos: Vec2, heading: number, color: string) => IVehicle;
@@ -14,8 +15,18 @@ const DESPAWN_OFF_DUTY = 150;
 const DESPAWN_LOST = 240;
 const HIT_COOLDOWN = 2;
 const HIT_IMPULSE = 3;
+const DESPAWN_PATROL = 190;
+const PATROL_SPAWN_PERIOD = 2;
+const QUARRY_REFRESH = 0.25;
 
-interface CopEntry { vehicle: IVehicle; agent: CopAgent; hitCooldown: number; }
+export interface CopSystemOptions {
+  /** Signals obeyed by off-duty / patrolling cops (pursuing cops always ignore them). */
+  lights?: TrafficLights;
+  /** Cop cars that cruise the lanes like traffic while nobody is wanted (default 0). */
+  patrolCount?: number;
+}
+
+interface CopEntry { vehicle: IVehicle; agent: CopAgent; hitCooldown: number; patrol: boolean; }
 
 export class CopSystem {
   /** Every cop vehicle currently in the world (includes ones stolen by the player). */
@@ -24,6 +35,12 @@ export class CopSystem {
   private readonly entries: CopEntry[] = [];
   private readonly laneNodes: LaneNode[];
   private readonly off: () => void;
+  private readonly lights?: TrafficLights;
+  private readonly patrolCount: number;
+  private patrolTimer = 0;
+  private quarryTimer = 0;
+  private quarryBody: Body2D | null = null;
+  private readonly quarry: CopTarget = { heading: 0, vel: { x: 0, z: 0 }, stars: 0 };
 
   constructor(
     private readonly grid: GridModel,
@@ -33,13 +50,36 @@ export class CopSystem {
     private readonly scene: THREE.Scene,
     private readonly makeVehicle: MakeCopVehicle,
     private readonly wanted: WantedSystem,
+    opts: CopSystemOptions = {},
   ) {
+    this.lights = opts.lights;
+    this.patrolCount = opts.patrolCount ?? 0;
     this.laneNodes = Object.values(grid.lanes.nodes);
     this.off = events.on('impact', (e) => this.onImpact(e));
   }
 
-  update(dt: number, playerPos: Vec2): void {
+  /** `playerBody`: the body the cops chase (the player's car or the player on foot). Looked up when omitted. */
+  update(dt: number, playerPos: Vec2, playerBody?: Body2D): void {
     const wanted = Math.min(3, Math.max(0, this.wanted.stars));
+    const body = playerBody ?? this.findQuarry(dt);
+    let quarry: CopTarget | undefined;
+    if (body) {
+      this.quarry.heading = body.heading;
+      this.quarry.vel = body.vel;
+      this.quarry.stars = wanted;
+      quarry = this.quarry;
+    }
+
+    // patrol cars cruise while nobody is wanted
+    if (wanted === 0 && this.patrolCount > 0) {
+      this.patrolTimer -= dt;
+      if (this.patrolTimer <= 0) {
+        this.patrolTimer = PATROL_SPAWN_PERIOD;
+        let active = 0;
+        for (const e of this.entries) if (e.vehicle.driver === 'cop') active++;
+        if (active < this.patrolCount) this.spawn(playerPos, true);
+      }
+    }
 
     // active (still driven by the AI) cops
     let onDuty = 0;
@@ -81,11 +121,12 @@ export class CopSystem {
       }
       const p = v.body.pos;
       const d = dist(p, playerPos);
-      if (!Number.isFinite(d) || (!e.agent.pursuing && d > DESPAWN_OFF_DUTY) || d > DESPAWN_LOST) {
+      const offDutyLimit = e.patrol ? DESPAWN_PATROL : DESPAWN_OFF_DUTY;
+      if (!Number.isFinite(d) || (!e.agent.pursuing && d > offDutyLimit) || d > DESPAWN_LOST) {
         this.remove(i);
         continue;
       }
-      e.agent.update(dt, playerPos);
+      e.agent.update(dt, playerPos, quarry);
     }
   }
 
@@ -115,7 +156,22 @@ export class CopSystem {
     this.events.emit('crime', { type: 'hitCop', pos: { x: e.pos.x, z: e.pos.z } });
   }
 
-  private spawn(playerPos: Vec2): boolean {
+  /** The body being chased: whichever vehicle the player drives, else the player's own body. Cached briefly. */
+  private findQuarry(dt: number): Body2D | null {
+    this.quarryTimer -= dt;
+    if (this.quarryTimer > 0) return this.quarryBody;
+    this.quarryTimer = QUARRY_REFRESH;
+    let found: Body2D | null = null;
+    for (const b of this.world.bodies()) {
+      if (b.kind === 'player') { found = b; continue; }
+      if (b.kind !== 'vehicle' && b.kind !== 'cop') continue;
+      if ((b.userData as { driver?: string | null } | undefined)?.driver === 'player') { found = b; break; }
+    }
+    this.quarryBody = found;
+    return found;
+  }
+
+  private spawn(playerPos: Vec2, patrol = false): boolean {
     const nodes = this.laneNodes;
     if (nodes.length === 0) return false;
     for (let attempt = 0; attempt < 24; attempt++) {
@@ -129,9 +185,10 @@ export class CopSystem {
       v.siren = true;
       this.scene.add(v.object3D);
       this.world.addBody(v.body);
-      const agent = new CopAgent(v, this.grid, this.world);
+      const agent = new CopAgent(v, this.grid, this.world, this.lights);
+      if (patrol) agent.setPursuing(false);
       this.cops.push(v);
-      this.entries.push({ vehicle: v, agent, hitCooldown: 0 });
+      this.entries.push({ vehicle: v, agent, hitCooldown: 0, patrol });
       return true;
     }
     return false;

@@ -3,13 +3,68 @@ import type { EventBus } from '@/core/Events';
 import { dist, headingFromVec, perpRight, type Vec2 } from '@/core/Math2';
 import type { Rng } from '@/core/Rng';
 import type {
-  GraphNode, GridModel, IMaterialLibrary, IVehicle, IWorld2D, LaneNode, VehicleType,
+  GraphNode, GridModel, IMaterialLibrary, IVehicle, IWorld2D, LaneNode, Lot, VehicleType,
 } from '@/world/types';
-import { Pedestrian } from '@/entities/Pedestrian';
+import { Pedestrian, type PedCrossing, type PedEnvironment, type StoopSpot } from '@/entities/Pedestrian';
 import { TrafficAgent } from '@/entities/TrafficAgent';
+import { TrafficLights } from './TrafficLights';
 
 export type MakeVehicle = (type: VehicleType, pos: Vec2, heading: number, color: string) => IVehicle;
 export type MakePed = (id: string, node: GraphNode) => Pedestrian;
+
+/** Crosswalk edges of the sidewalk graph keyed `${from}>${to}` (both directions), for signal-aware pedestrians. */
+export function buildPedCrossings(grid: GridModel): Map<string, PedCrossing> {
+  const out = new Map<string, PedCrossing>();
+  const crosswalks = grid.crosswalks ?? [];
+  if (crosswalks.length === 0) return out;
+  const nodes = Object.values(grid.sidewalks.nodes);
+  const find = (p: Vec2): GraphNode | undefined => {
+    let best: GraphNode | undefined;
+    let bd = CROSSWALK_MATCH;
+    for (const n of nodes) { const d = dist(n.pos, p); if (d <= bd) { bd = d; best = n; } }
+    return best;
+  };
+  for (const cw of crosswalks) {
+    const inter = grid.intersections.find((i) => i.id === cw.intersectionId);
+    if (!inter) continue;
+    const ns = grid.streetById(inter.nsStreetId);
+    const ew = grid.streetById(inter.ewStreetId);
+    let pa: Vec2;
+    let pb: Vec2;
+    let crossed: string;
+    if (cw.side === 'E' || cw.side === 'W') {
+      pa = { x: cw.a.x, z: cw.a.z - ew.sidewalkWidth / 2 };
+      pb = { x: cw.b.x, z: cw.b.z + ew.sidewalkWidth / 2 };
+      crossed = ew.id;
+    } else {
+      pa = { x: cw.a.x - ns.sidewalkWidth / 2, z: cw.a.z };
+      pb = { x: cw.b.x + ns.sidewalkWidth / 2, z: cw.b.z };
+      crossed = ns.id;
+    }
+    const na = find(pa);
+    const nb = find(pb);
+    if (!na || !nb || na.id === nb.id) continue;
+    const info: PedCrossing = { intersectionId: inter.id, crossedStreetId: crossed };
+    out.set(`${na.id}>${nb.id}`, info);
+    out.set(`${nb.id}>${na.id}`, info);
+  }
+  return out;
+}
+
+/** Sitting places on the stoops of brownstone and rowhouse lots. */
+export function buildStoopSpots(lots: readonly Lot[]): StoopSpot[] {
+  const out: StoopSpot[] = [];
+  for (const l of lots) {
+    if (l.type !== 'brownstone') continue;
+    const mx = (l.frontA.x + l.frontB.x) / 2;
+    const mz = (l.frontA.z + l.frontB.z) / 2;
+    out.push({
+      pos: { x: mx + l.outward.x * STOOP_OUT, z: mz + l.outward.z * STOOP_OUT },
+      outward: { x: l.outward.x, z: l.outward.z },
+    });
+  }
+  return out;
+}
 
 export const CAR_COLORS = [
   '#c0392b', '#2c3e50', '#ecf0f1', '#7f8c8d', '#1f6f8b', '#e0b01e',
@@ -30,6 +85,12 @@ const PARK_EXTRA_OFFSET = 2.6;
 const LANE_OFFSET = 2.0;
 const FLEE_RADIUS = 15;
 const HORN_FLEE_RADIUS = 12;
+/** speed limits: 30 mph on avenues, 25 mph on streets (m/s) */
+export const AVENUE_LIMIT = 13;
+export const STREET_LIMIT = 11;
+const GROUP_CHANCE = 0.35;
+const STOOP_OUT = 1.1;
+const CROSSWALK_MATCH = 0.6;
 
 interface Active { agent: TrafficAgent; vehicle: IVehicle; }
 
@@ -41,11 +102,14 @@ interface Active { agent: TrafficAgent; vehicle: IVehicle; }
 export class TrafficSystem {
   readonly vehicles: IVehicle[] = [];
   readonly peds: Pedestrian[] = [];
+  /** The signal controller. This system is its only clock: it calls `lights.update(dt)` once per `update`. */
+  readonly lights: TrafficLights;
 
   private readonly active: Active[] = [];
   private readonly laneNodes: LaneNode[];
   private readonly speedCache = new Map<string, number>();
   private readonly offs: Array<() => void> = [];
+  private readonly pedEnv: PedEnvironment;
   private spawnTimer = SPAWN_TICK;
   private warm = true;
 
@@ -58,8 +122,16 @@ export class TrafficSystem {
     private readonly materials: IMaterialLibrary,
     private readonly makeVehicle: MakeVehicle,
     private readonly makePed?: MakePed,
+    lights?: TrafficLights,
+    lots?: readonly Lot[],
   ) {
+    this.lights = lights ?? new TrafficLights(grid);
     this.laneNodes = Object.values(grid.lanes.nodes);
+    this.pedEnv = {
+      lights: this.lights,
+      crossings: buildPedCrossings(grid),
+      stoops: lots ? buildStoopSpots(lots) : undefined,
+    };
     this.spawnParked();
     this.spawnPeds();
     this.offs.push(
@@ -72,6 +144,7 @@ export class TrafficSystem {
   get agentCount(): number { return this.active.length; }
 
   update(dt: number, playerPos: Vec2): void {
+    this.lights.update(dt);
     // drive
     for (let i = this.active.length - 1; i >= 0; i--) {
       const a = this.active[i];
@@ -150,9 +223,29 @@ export class TrafficSystem {
       const ped = this.makePed
         ? this.makePed(id, node)
         : new Pedestrian(id, node, this.grid.sidewalks, this.world, this.materials, this.events, this.rng.fork(id), cross);
+      ped.setEnvironment(this.pedEnv);
       this.peds.push(ped);
       this.scene.add(ped.object3D);
       this.world.addBody(ped.body);
+    }
+    this.formGroups();
+  }
+
+  /** Some pedestrians walk in pairs / threes: followers start beside their leader and keep to its side. */
+  private formGroups(): void {
+    let i = 0;
+    while (i < this.peds.length - 1) {
+      if (!this.rng.chance(GROUP_CHANCE)) { i++; continue; }
+      const size = Math.min(this.peds.length - i, this.rng.chance(0.6) ? 2 : 3);
+      const leader = this.peds[i];
+      for (let k = 1; k < size; k++) {
+        const f = this.peds[i + k];
+        const slot = size === 2 ? 1 : k === 1 ? -1 : 1;
+        f.body.pos.x = leader.body.pos.x + slot * 0.85;
+        f.body.pos.z = leader.body.pos.z + 0.35;
+        f.follow(leader, slot);
+      }
+      i += size;
     }
   }
 
@@ -192,6 +285,7 @@ export class TrafficSystem {
       const agent = new TrafficAgent(v, this.grid.lanes, this.world, this.rng.fork(v.id), {
         startNodeId: n.id,
         speedForStreet: (sid) => this.cruiseFor(sid),
+        lights: this.lights,
       });
       this.active.push({ agent, vehicle: v });
       return true;
@@ -202,7 +296,7 @@ export class TrafficSystem {
   private cruiseFor(streetId: string): number {
     let s = this.speedCache.get(streetId);
     if (s === undefined) {
-      s = this.grid.streetById(streetId).class === 'avenue' ? 12 : 8;
+      s = this.grid.streetById(streetId).class === 'avenue' ? AVENUE_LIMIT : STREET_LIMIT;
       this.speedCache.set(streetId, s);
     }
     return s;

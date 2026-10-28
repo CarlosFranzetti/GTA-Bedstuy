@@ -499,14 +499,15 @@ function wheelGeos(R: number, w: number): WheelGeos {
   for (let i = half.length - 2; i >= 0; i--) prof.push(new THREE.Vector2(half[i][0] * R, half[i][1] * w));
   const lathe = new THREE.LatheGeometry(prof, 28);
   lathe.rotateZ(Math.PI / 2);
+  // the lathe keeps its UVs (u around the ring, v over the profile, tread at v = 0.5) for the 'tireSidewall' texture
   const tyre = new Acc().add(lathe);
-  // dark brake discs just behind the spokes, with a small caliper
-  tyre.add(cylX(R * 0.5, w * 0.06, -w * 0.3, 0, 0, 20));
-  tyre.add(cylX(R * 0.5, w * 0.06, w * 0.3, 0, 0, 20));
-  tyre.add(bx(w * 0.2, R * 0.16, R * 0.22, w * 0.3, 0, R * 0.46));
 
   // rim: outer lip rings, five tapered spokes per side and a centre cap
   const rim = new Acc();
+  // dark brake discs just behind the spokes, with a small caliper (metal, not tyre rubber)
+  rim.add(cylX(R * 0.5, w * 0.06, -w * 0.3, 0, 0, 20));
+  rim.add(cylX(R * 0.5, w * 0.06, w * 0.3, 0, 0, 20));
+  rim.add(bx(w * 0.2, R * 0.16, R * 0.22, w * 0.3, 0, R * 0.46));
   for (const s of [-1, 1]) {
     const ring = new THREE.RingGeometry(R * 0.56, R * 0.66, 28);
     ring.rotateY(s * (Math.PI / 2));
@@ -1274,7 +1275,8 @@ function partsFor(type: VehicleType, spec: VehicleSpec): CarParts {
 
 // ---------------------------------------------------------------- public
 
-export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: IMaterialLibrary): CarModel {
+/** `variant` picks the licence plate text (0..3) so not every car wears BK-STUY. */
+export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: IMaterialLibrary, variant = 0): CarModel {
   const parts = partsFor(type, spec);
   const group = new THREE.Group();
   group.name = `car:${type}`;
@@ -1284,7 +1286,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   const paintMat = type === 'cop' ? materials.get('copLivery') : materials.carPaint(spec.color);
   const glassMat = materials.get('carGlass');
   const trimMat = materials.get('metalDark');
-  const tyreMat = materials.get('tire');
+  const tyreMat = materials.get('tireSidewall');
 
   const mesh = (geo: THREE.BufferGeometry, mat: THREE.Material, name: string, parent: THREE.Object3D = group): THREE.Mesh => {
     const m = new THREE.Mesh(geo, mat);
@@ -1323,7 +1325,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   const taillights = parts.tailPos.map((d) => lamp(parts.lampTail, tailMat, 'taillight', d));
 
   // licence plates
-  const plateMat = materials.sign('BK-STUY', '#f6f1dc', '#111');
+  const plateMat = materials.get('plate', variant);
   parts.platePos.forEach((p, i) => {
     const m = mesh(parts.plate, plateMat, i === 0 ? 'plateFront' : 'plateRear');
     m.position.copy(p);
