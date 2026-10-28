@@ -44,6 +44,8 @@ import { MissionMarkerView } from '@/game/missions/MissionMarkerView';
 import { saveMissionData, loadMissionData, clearMissionData } from '@/game/missions/MissionStore';
 import { MissionHud } from '@/ui/MissionHud';
 import { DistanceCuller } from '@/render/Culling';
+import { CarLod, applyCarShadowFlags } from '@/render/CarLod';
+import { buildCarModel } from '@/entities/models/carModel';
 
 declare global {
   interface Window { __gtaReady?: boolean; __gtaStats?: Record<string, number>; }
@@ -117,6 +119,13 @@ Vehicle.sources = await resolveVehicleSources();
 let vehicleSeq = 0;
 const makeVehicle = (type: VehicleType, pos: Vec2, heading: number, color: string): IVehicle =>
   new Vehicle(`veh${vehicleSeq++}`, { ...VEHICLE_SPECS[type], color }, pos, heading, materials, events);
+// far cars are drawn as instances of a per-type model (see CarLod); GLB models and cop cars always use the full model
+const carLod = new CarLod(materials, {
+  buildModel: (t) => (Vehicle.sources[t as VehicleType] ? null : buildCarModel(t as VehicleType, VEHICLE_SPECS[t as VehicleType], materials)),
+  exclude: ['cop'],
+});
+scene.add(carLod.group);
+const shadowFlagged = new WeakSet<object>();
 const crosswalkNodes = new Set<string>();
 for (const cw of grid.crosswalks) {
   for (const p of [cw.a, cw.b]) crosswalkNodes.add(grid.nearestSidewalkNode(p).id);
@@ -241,12 +250,17 @@ function placeInterpolated(e: Entity, alpha: number): BlendedPose {
   o.position.x = blended.x; o.position.z = blended.z; o.rotation.y = -blended.h;
   return blended;
 }
-function interpolateAll(alpha: number, refX: number, refZ: number): void {
+function interpolateAll(alpha: number, refX: number, refY: number, refZ: number): void {
   const veh = player.vehicle;
+  carLod.beginFrame();
   for (const v of traffic.vehicles) {
     const b = placeInterpolated(v, alpha);
-    if (v !== veh) culler.applyTo(v.object3D, b.x, b.z, refX, refZ, v.spec.length);
+    if (v === veh) { carLod.release(v); v.object3D.visible = true; continue; }
+    if (culler.applyTo(v.object3D, b.x, b.z, refX, refZ, v.spec.length)) continue;
+    const dy = refY - 0.8, dx = b.x - refX, dz = b.z - refZ;
+    carLod.place(v, b.x, b.z, b.h, Math.sqrt(dx * dx + dy * dy + dz * dz));
   }
+  carLod.endFrame();
   for (const v of cops.cops) placeInterpolated(v, alpha);
   for (const p of traffic.peds) { const b = placeInterpolated(p, alpha); culler.applyTo(p.object3D, b.x, b.z, refX, refZ, 1); }
   if (veh) {
@@ -268,13 +282,13 @@ let prompt = '';
 const hudState: HudState = { stars: 0, speedKmh: 0, inVehicle: false, radioStation: '', prompt: '', timeOfDay: 0, streetName: '', fps: 60 };
 const passes = new PassCounter();
 passes.attach(renderer);
-const stats: Record<string, number> = { drawCalls: 0, drawCallsShadow: 0, drawCallsScene: 0, drawCallsGBuffer: 0, drawCallsPost: 0, triangles: 0, fps: 60, fps1pctLow: 0, heapMBPerMin: 0, culledObjects: 0, vehicles: 0, peds: 0, cops: 0, meshes: world.stats.meshes, colliders: world.stats.colliders };
+const stats: Record<string, number> = { drawCalls: 0, drawCallsShadow: 0, drawCallsScene: 0, drawCallsGBuffer: 0, drawCallsPost: 0, triangles: 0, fps: 60, fps1pctLow: 0, heapMBPerMin: 0, culledObjects: 0, carsFar: 0, vehicles: 0, peds: 0, cops: 0, meshes: world.stats.meshes, colliders: world.stats.colliders };
 window.__gtaStats = stats;
 
 /** Draws one frame (interpolation, camera, culling, shadow box, post chain). Also used by `__gtaDebug.renderOnce`. */
 function drawFrame(alpha: number, frameDt: number): void {
     // reference for distance culling: the camera, so free-cam review shots are unaffected
-    interpolateAll(alpha, cam.camera.position.x, cam.camera.position.z);
+    interpolateAll(alpha, cam.camera.position.x, cam.camera.position.y, cam.camera.position.z);
     updateCamera(frameDt);
     updateSignalMeshes(world.signalsGroup, lights);
     culler.update(cam.camera.position.x, cam.camera.position.z);
@@ -328,7 +342,7 @@ const game = new Game(
     stats.fps = fps;
     stats.fps1pctLow = Math.round(perf.fps1pctLow * 10) / 10;
     stats.heapMBPerMin = Math.round(perf.heapMBPerMin * 10) / 10;
-    stats.culledObjects = culler.hiddenCount;
+    stats.culledObjects = culler.hiddenCount; stats.carsFar = carLod.farCount;
     stats.vehicles = traffic.vehicles.length; stats.peds = traffic.peds.length; stats.cops = cops.cops.length;
   },
   () => input.endFrame(),
@@ -381,8 +395,8 @@ game.add({
 
     // entities
     entityById.clear();
-    for (const v of traffic.vehicles) { if (v.headlights !== lastNight) { v.headlights = lastNight; applyShadowFlags(v.object3D, true, false); } v.update(dt); entityById.set(v.body.id, v); }
-    for (const v of cops.cops) { if (v.headlights !== lastNight) { v.headlights = lastNight; applyShadowFlags(v.object3D, true, false); } v.update(dt); entityById.set(v.body.id, v); }
+    for (const v of traffic.vehicles) { if (!shadowFlagged.has(v)) { shadowFlagged.add(v); applyCarShadowFlags(v.object3D); } if (v.headlights !== lastNight) v.headlights = lastNight; v.update(dt); entityById.set(v.body.id, v); }
+    for (const v of cops.cops) { if (!shadowFlagged.has(v)) { shadowFlagged.add(v); applyCarShadowFlags(v.object3D); } if (v.headlights !== lastNight) v.headlights = lastNight; v.update(dt); entityById.set(v.body.id, v); }
     for (const p of traffic.peds) { p.update(dt); entityById.set(p.body.id, p); }
     player.update(dt);
     entityById.set(player.body.id, player);
@@ -457,7 +471,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
     camHeading = (veh ? veh.body : player.body).heading;
     for (let i = 0; i < n; i++) updateCamera();
   },
-  player, cops, traffic, wanted, physics, grid, events, scene, sky, pipeline, nightLights, dayNight, renderer, materials, perf, culler,
+  player, cops, traffic, wanted, physics, grid, events, scene, sky, pipeline, nightLights, dayNight, renderer, materials, perf, culler, carLod,
   nearby(r: number) { const p = player.body.pos; const out: unknown[] = []; for (const b of physics.bodies()) { const d = Math.hypot(b.pos.x - p.x, b.pos.z - p.z); if (b.shape.kind === 'circle' && d < r) out.push({ id: b.id, kind: b.kind, d: +d.toFixed(2) }); } return out; },
 };
 

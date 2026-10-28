@@ -450,3 +450,61 @@ D1 API CORRECTIONS + LANDED (src/world/data/schema.ts, src/world/data/faces.ts, 
   - Family enum: brownstone, brickRed, brickTan, brickPainted, limestone, frame, church, vacant, newBuild. Use: residential, mixed, church, school, vacant, garage (garage lots carry storefront 'autorepair').
   - Data is fully explicit for every face (R2's pass-2 anchors merged as confidence-tagged pins: 330 Throop, 289 Kosciuszko vacant lot, PS 79, churches, new builds, etc.). Edit lots in bedstuy.json directly when Street View values arrive; run validateFaces/validateAgainstGrid (the data test does).
 @R2: merged your per-street notes (Antioch is outside the grid, Upper Room not placed at MG corner, Bethany at 460 MG used instead).
+
+### 2026-10-28T22:05:02Z · MGR
+MGR: X5 wiring verified live: main.ts:139-144 (MissionSystem, raiseTo, restore), :319-323 (HUD, markers, minimap blips), :346 (Reset clears save), :377-379 (update, R/X); Events.ts:21-24 mission:* and WantedSystem.raiseTo present. Small follow-up @P8/@X5: Menu Reset clears storage but not the in-memory MissionSystem (completed flags persist until reload); add missions.restore(null) or a reset() call there if cheap. X5 -> done (live).
+
+### 2026-10-28T22:07:32Z · D1
+D1 FINAL REPORT. LANDED: schema v2 for lots. FILES: src/world/data/schema.ts (types, enums, validateFaces/validateLot/validateAgainstGrid, loadFaces, resolveLot defaults, 3 typology generators + pins, fitLots, lotsForFace/lotsForBlock/cornerInsets/faceFor/faceKeyOf/checkAgainstGrid, schemaVersionOf/migrateV1), src/world/data/faces.ts (getBedstuyFaces cached, faceSpecResolver for B3's subdivideLots 4th arg, allLots), src/world/data/bedstuy.json (+schemaVersion 2, +faces: 40 faces / 840 lots; +101 KB, file now 107 KB), tests/unit/world/data-schema.test.ts (33 tests), docs/swarm/tasks/D1.md. Grid.ts untouched. DATA: every one of the 40 block faces has explicit lots (Throop and Kosciuszko hand-anchored: POI storefronts, churches, PS 79, vacant lots, scaffold shed, Throop/Pulaski Second Empire corner; the rest typology rows + R2 pass-2 anchors), all confidence-tagged (L unless R2 has an M source). TESTS: npx vitest run tests/unit/world = 7 files, 132 tests green (data-schema 33: one negative test per validator rule from PRD 5.3 [floors 1-8, widthM 3-40, unknown enums, missing confidence, row longer than face +1 m], real file validates with 0 errors, 40/40 faces covered, widths+insets == face length on all faces to 1e-6, determinism, defaults, v1 fixture loads and falls back to typology). npx tsc --noEmit: my files clean; the only remaining error in the tree is tests/unit/sim/_explore.test.ts (Q10 temp, lateralSpeed on IVehicle), not mine; my temp generator test is deleted. SIZE: artifact +~110 KB JSON (minified by vite, less). WIRING NEEDED: @B3 pass faceSpecResolver(grid) as subdivideLots' faces arg / or call lotsForFace directly and skip LotSubdivider's own corner inset for N/S rows (rows are already inset); @S4 read lot.storefront/sign/awningColor/cornerStreetId from PlacedLot; @P8 nothing until B3 wires it (no new call in main.ts needed if B3 does it inside WorldBuilder/LotSubdivider). FOR FABLE: none needed (no types.ts change; StorefrontKind/Family live in schema.ts and map to types.Archetype via STOREFRONT_TO_ARCHETYPE). NOTES: generator was a one-off (typology rows + pins frozen into JSON); edit lots in the JSON directly when Street View values arrive. Known limit: floors 0 is accepted only for vacant lots (PRD said 1-8).
+
+### 2026-10-28T22:07:33Z · H7
+FOR FABLE: vite.config.ts + package.json + .gitignore for the hosted build (tested via a scratch copy of the repo: artifact build unchanged 6.70 MB incl. new code, hosted build 37 files 6.0 MB with assets/three-<hash>.js split, textures as hashed files, 0 base64 textures, headless smoke ?q=low and ?q=ultra: 0 console errors, 0 failed requests).
+(1) vite.config.ts, replace the whole file with this (full text also at /tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/vite.config.proposed.ts; patch at .../scratchpad/vite.config.patch):
+--- begin ---
+import { defineConfig } from 'vite';
+import { viteSingleFile } from 'vite-plugin-singlefile';
+import path from 'node:path';
+
+/**
+ * Two builds from one codebase (docs/swarm/PRD.md section 2.3):
+ *  - default (`npm run build`, `npm run artifact`): everything inlined into dist/index.html (single-file artifact).
+ *  - hosted  (`VITE_HOSTED=1`, `npm run build:hosted`): normal multi-file output with hashed assets, three.js in its own
+ *    chunk, textures emitted as files (served and cached by the host) instead of base64 data URIs.
+ */
+const hosted = process.env.VITE_HOSTED === '1';
+
+export default defineConfig({
+  base: './',
+  resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
+  plugins: hosted ? [] : [viteSingleFile()],
+  build: hosted
+    ? {
+        target: 'es2022',
+        assetsInlineLimit: 4096,
+        cssCodeSplit: true,
+        reportCompressedSize: false,
+        chunkSizeWarningLimit: 1500,
+        rolldownOptions: {
+          output: {
+            codeSplitting: { groups: [{ name: 'three', test: /node_modules[\\/]three[\\/]/, priority: 10 }] },
+            entryFileNames: 'assets/[name]-[hash].js',
+            chunkFileNames: 'assets/[name]-[hash].js',
+            assetFileNames: 'assets/[name]-[hash][extname]',
+          },
+        },
+      }
+    : { target: 'es2022', assetsInlineLimit: 100_000_000, cssCodeSplit: false, reportCompressedSize: false },
+  test: {
+    include: ['tests/unit/**/*.test.ts'],
+    environment: 'node',
+    testTimeout: 30_000,
+  },
+});
+--- end ---
+(2) package.json scripts, add after the "artifact" line (and put a comma on it):
+    "build:hosted": "node scripts/build-hosted.mjs --only hosted",
+    "build:all": "node scripts/build-hosted.mjs",
+    "smoke:hosted": "node scripts/build-hosted.mjs --only hosted --smoke --port 4307"
+   Optional: "engines": { "node": ">=20.19" } (Vite 8 floor; Vercel picks a compatible Node).
+(3) .gitignore: add a line  dist-hosted
+Notes: default 'npm run build' / 'npm run artifact' are byte-for-byte the old behaviour (no VITE_HOSTED = singlefile on). vercel.json (landed) runs 'VITE_HOSTED=1 npm run build' with output 'dist', so the Vercel dashboard needs only the Vite preset; no dashboard env var needed.

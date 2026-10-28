@@ -1160,3 +1160,58 @@ export const gratePainter: Painter = (ctx, w, h, rng, _variant, aux) => {
   if (H) auxSpeckle(H, aux!.rng, 0, 0, w, h, 1500, [120, 150, 170, 190], 1, 2.4, 0.5);
 };
 
+
+// ---------------------------------------------------------------------------------------------- wet variant
+
+/** World size (m) one repeat of the puddle mask covers; Weather samples it at two incommensurate scales to hide the repeat. */
+export const PUDDLE_MASK_METRES = 18;
+
+/**
+ * Wet-ground variant: a tileable puddle mask (the wet layer on top of asphalt / concrete, see src/game/Weather.ts).
+ * Grey level in the red channel: 0 = dry, ~0.35 = damp rim, 1 = standing water. Puddles are short clusters of
+ * feathered discs (so they read as irregular, elongated pools), wrapped on both axes so the tile repeats seamlessly.
+ * `variant` only reseeds the layout. Uses arc / fillRect / globalAlpha only.
+ */
+export const puddleMaskPainter: Painter = (ctx, w, h, rng, variant) => {
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, w, h);
+  const scale = w / 256;
+  const count = 16 + (wrapVariant(variant, 2) === 1 ? 4 : 0);
+  const layers: ReadonlyArray<readonly [number, number]> = [[1.0, 0.2], [0.82, 0.25], [0.62, 0.32], [0.42, 0.4]];
+  for (let i = 0; i < count; i++) {
+    const cx = rng.range(0, w);
+    const cy = rng.range(0, h);
+    const ang = rng.range(0, Math.PI);
+    const len = rng.range(10, 34) * scale;
+    const baseR = rng.range(6, 16) * scale;
+    const discs = rng.int(3, 6);
+    for (let d = 0; d < discs; d++) {
+      const t = discs === 1 ? 0 : d / (discs - 1) - 0.5;
+      const px = cx + Math.cos(ang) * len * t + rng.range(-3, 3) * scale;
+      const py = cy + Math.sin(ang) * len * t + rng.range(-3, 3) * scale;
+      const r = baseR * rng.range(0.7, 1.15);
+      for (const [k, a] of layers) {
+        withAlpha(ctx, a, () => {
+          ctx.fillStyle = '#ffffff';
+          for (const ox of [-w, 0, w]) for (const oy of [-h, 0, h]) {
+            if (px + ox + r < 0 || px + ox - r > w || py + oy + r < 0 || py + oy - r > h) continue;
+            disc(ctx, px + ox, py + oy, r * k);
+          }
+        });
+      }
+    }
+  }
+  // damp patches: large faint discs so the ground is not binary dry / puddle
+  for (let i = 0; i < 10; i++) {
+    const px = rng.range(0, w);
+    const py = rng.range(0, h);
+    const r = rng.range(24, 54) * scale;
+    withAlpha(ctx, 0.12, () => {
+      ctx.fillStyle = '#9a9a9a';
+      for (const ox of [-w, 0, w]) for (const oy of [-h, 0, h]) {
+        if (px + ox + r < 0 || px + ox - r > w || py + oy + r < 0 || py + oy - r > h) continue;
+        disc(ctx, px + ox, py + oy, r);
+      }
+    });
+  }
+};

@@ -26,7 +26,7 @@ const hostedDir = resolve(root, opt('hosted-dir', 'dist-hosted'));
 const config = opt('config', '');
 const port = Number(opt('port', '4307'));
 const json = flag('json');
-const HOSTED_FIRST_LOAD_BUDGET = 60 * 1024 * 1024; // PRD 2.3: ~60 MB first load, lazy beyond
+const HOSTED_FIRST_LOAD_BUDGET = 60_000_000; // PRD 2.3: ~60 MB first load, lazy beyond
 
 const mb = (b) => (b / 1e6).toFixed(2) + ' MB'; // decimal, like the Stage 1 check-in numbers (stricter than MiB)
 const kb = (b) => (b / 1e3).toFixed(1).padStart(8) + ' kB';

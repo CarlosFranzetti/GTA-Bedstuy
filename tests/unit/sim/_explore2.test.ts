@@ -41,4 +41,17 @@ it('pursuit', () => {
     }
   }
   console.log(log.join(' '));
+  for (const e of (cops as any).entries) {
+    const a = e.agent; const v = e.vehicle;
+    console.log('COP', v.id, 'pos', v.body.pos.x.toFixed(1), v.body.pos.z.toFixed(1), 'h', v.body.heading.toFixed(2), 'speed', v.speed.toFixed(2), 'pursuing', a.pursuing, 'offDuty state', a.offDuty.state, 'target', a.offDuty.targetNodeId, 'prev', a.offDuty.previousNodeId, 'laneState', a.lane.state, 'patrol', e.patrol, 'dmg', v.damage.toFixed(2), 'driver', v.driver);
+    const ag = a.offDuty as any;
+    console.log('  agent', 'stuckTime', ag.stuckTime?.toFixed(1), 'retries', ag.stuckRetries, 'blockedTime', ag.blockedTime?.toFixed(1), 'input', JSON.stringify(ag.input), 'dTarget', ag.target ? Math.hypot(ag.target.pos.x - v.body.pos.x, ag.target.pos.z - v.body.pos.z).toFixed(1) : 'none', 'tpos', ag.target ? ag.target.pos.x.toFixed(0)+','+ag.target.pos.z.toFixed(0) : '', 'lights', !!ag.lights);
+    const near: string[] = [];
+    for (const b of physics.bodies()) { const d = Math.hypot(b.pos.x - v.body.pos.x, b.pos.z - v.body.pos.z); if (b.shape.kind === 'circle' && d < 6 && b !== v.body) near.push(`${b.id}:${b.kind}@${d.toFixed(1)}`); }
+    console.log('  near circles', near.join(' '));
+    const walls = world.colliders.filter((c: any) => { const sh = c.shape; if (sh.kind === 'segment') { return Math.min(Math.hypot(sh.a.x - v.body.pos.x, sh.a.z - v.body.pos.z), Math.hypot(sh.b.x - v.body.pos.x, sh.b.z - v.body.pos.z)) < 12; } if (sh.kind === 'polygon') return sh.points.some((p: any) => Math.hypot(p.x - v.body.pos.x, p.z - v.body.pos.z) < 12); return false; }).map((c: any) => c.id + ':' + c.shape.kind);
+    console.log('  near walls', walls.join(' '));
+    const ahead = physics.raycast({ x: v.body.pos.x, z: v.body.pos.z }, { x: Math.sin(v.body.heading), z: -Math.cos(v.body.heading) }, 15, v.body.id);
+    console.log('  ray ahead', ahead ? `${ahead.body.id} kind=${ahead.body.kind} d=${ahead.dist.toFixed(1)}` : 'none');
+  }
 }, 300_000);
