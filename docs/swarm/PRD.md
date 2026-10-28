@@ -106,8 +106,9 @@ An agent changing a tier's cost must say so in its report.
 - **Driving & on-foot feel (M2):** weight transfer / body roll / pitch visuals, handbrake drift,
   speed-sensitive steering, pushable parked cars, visible damage, camera lag/shake/wall pull-in,
   smoothed on-foot acceleration and turning.
-- **Traffic & AI (M3):** signal controller at the 6 avenue × avenue intersections (Tompkins/Throop/
-  Marcus Garvey × Lafayette/Greene); all-way yield remains at street intersections; agents stop on
+- **Traffic & AI (M3):** signal controller at every intersection (all 18 touch an N-S avenue; the
+  original "6 avenue intersections" minimum meant the avenue × avenue crossings, superseded 01:35 when M3
+  signalised all 18); agents stop on
   red/amber, go on green, yield to crossing peds; peds cross on walk phase, form small groups, sit on
   stoops; cops pursue through the lane graph without getting stuck.
 - **Performance (M4):** render interpolation between fixed steps; frustum culling/instancing/LOD where
@@ -147,7 +148,7 @@ An agent changing a tier's cost must say so in its report.
 | Driving | Stable at speed: no oscillation/yaw wobble with steering released at top speed for 5 s | unit test |
 | Driving | Handbrake at > 40 km/h produces a controllable drift (slip angle > 15°), recoverable | unit test + manual |
 | Driving | Parked cars can be nudged (displaced, not wall-like); collisions damp without jitter (no contact bounce > 2 frames) | physics tests |
-| Traffic | Signals at the 6 avenue × avenue intersections with visible heads; vehicles stop on red, go on green; peds cross on walk | TrafficLights tests + screenshot |
+| Traffic | Signals at all 18 intersections (minimum: the 6 avenue × avenue crossings) with visible heads; vehicles stop on red, go on green; peds cross on walk | TrafficLights tests + screenshot |
 | Traffic | No gridlock in 5 simulated minutes (every agent moves ≥ 10 m in any 60 s window) at medium density | headless sim test |
 | Perf | 60 fps at medium on a mid laptop (fps overlay); in headless SwiftShader, no regression vs Stage 0 frame time | fps overlay + smoke stats |
 | Perf | No per-frame allocations in hot loops (update/render of entities, systems, pipeline) | code review + allocation audit notes |

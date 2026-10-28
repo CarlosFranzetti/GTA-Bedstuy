@@ -9,6 +9,7 @@ import type { Entity, IVehicle, VehicleType, GraphNode, HudState } from '@/world
 import { loadBedstuyData } from '@/world/Grid';
 import { buildWorld } from '@/world/WorldBuilder';
 import { updateSignalMeshes } from '@/world/props/signals';
+import { TrafficLights } from '@/game/TrafficLights';
 import { MaterialLibrary } from '@/textures/MaterialLibrary';
 import { World2D } from '@/physics/World2D';
 import { Player, ENTER_RANGE } from '@/entities/Player';
@@ -130,8 +131,9 @@ scene.add(player.object3D);
 physics.addBody(player.body);
 
 const wanted = new WantedSystem(events);
-const traffic = new TrafficSystem(grid, physics, events, rng.fork('traffic'), scene, materials, makeVehicle, makePed, undefined, world.lots);
-const cops = new CopSystem(grid, physics, events, rng.fork('cops'), scene, makeVehicle, wanted);
+const lights = new TrafficLights(grid); // clocked by TrafficSystem only; main just mirrors it onto the signal meshes
+const traffic = new TrafficSystem(grid, physics, events, rng.fork('traffic'), scene, materials, makeVehicle, makePed, lights, world.lots);
+const cops = new CopSystem(grid, physics, events, rng.fork('cops'), scene, makeVehicle, wanted, { lights, patrolCount: 2 });
 const audio = new AudioSystem(events);
 
 events.on('enterVehicle', () => { physics.removeBody(player.body.id); if (player.vehicle) nightLights.attachHeadlights(player.vehicle.object3D, player.vehicle.spec.length); });
@@ -259,7 +261,7 @@ const game = new Game(
     // reference for distance culling: the camera, so free-cam review shots are unaffected
     interpolateAll(alpha, cam.camera.position.x, cam.camera.position.z);
     updateCamera(frameDt);
-    updateSignalMeshes(world.signalsGroup, traffic.lights);
+    updateSignalMeshes(world.signalsGroup, lights);
     culler.update(cam.camera.position.x, cam.camera.position.z);
     updateShadowCamera(dayNight.sun, camTarget);
     sky.update(dayNight.timeOfDay, sunDir, dayNight.isNight, cam.camera.position);
@@ -342,7 +344,7 @@ game.add({
 
     // ai + systems
     traffic.update(dt, player.body.pos);
-    cops.update(dt, player.body.pos);
+    cops.update(dt, player.body.pos, player.vehicle ? player.vehicle.body : player.body);
     wanted.update(dt);
 
     // entities
