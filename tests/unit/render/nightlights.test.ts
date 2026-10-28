@@ -106,10 +106,12 @@ describe('NightLights headlights', () => {
       expect(Math.abs(h.position.x)).toBeCloseTo(0.7);
       expect(h.position.y).toBeCloseTo(0.7);
       expect(h.position.z).toBeCloseTo(-2.3);
-      expect(h.angle).toBeCloseTo(0.45);
-      expect(h.penumbra).toBeCloseTo(0.5);
+      expect(h.angle).toBeCloseTo(0.3);
+      expect(h.penumbra).toBeCloseTo(0.65);
+      expect(h.decay).toBeCloseTo(1.5);
       expect(h.distance).toBe(45);
       expect(h.target.parent).toBe(car);
+      expect(h.target.position.y).toBeCloseTo(0.5); // aimed level, not into the near ground
       expect(h.target.position.z).toBeCloseTo(-2.3 - 20);
     }
   });

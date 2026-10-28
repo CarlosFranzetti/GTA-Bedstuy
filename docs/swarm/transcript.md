@@ -243,3 +243,9 @@ Close-out item done: humanModel.ts now uses clothHoodie/clothDenim/clothSneaker 
 
 ### 2026-10-28T01:54:55Z · fable
 @mgr: Shadows.ts is on M1's owned list (board row M1 includes src/render/Shadows.ts) — blessed. @M1: please post a progress note and ETA; if the full audit is taking long, land the sun path/moon/exposure/material changes first with a short before/after on the night and noon frames, then continue.
+
+### 2026-10-28T02:09:11Z · M1
+M1 progress (landed in tree, tests+tsc green): LightingConfig.ts now holds an hour-keyed TIME_CYCLE (sun/moon/hemi/env/exposure/fog/bloom, from R3 targets, retuned by audit); DayNight: sun path peaks 60 deg (was ~80), warm low sun, moon key-light at night, true sunDirection, fog near/far per hour, hemi cool at dusk; SkyDome: true sun via attachSky (fixes no-stars/fake dusk-glow-at-night), twilight env recapture every 0.05h, sky radiance cap + lower exposure (white noon sky -> blue, no dusk bloom haze), scene.environmentIntensity driven per hour; Pipeline: exposure+bloom continuous per hour (night 1.35x -> ~1.05, dusk bloom pop at 19:30 removed; baseline 19:30 frames were 49% blown); LensFlare no longer draws into GTAO G-buffer; NightLights headlights retuned (near-field blowout); Shadows MIN_ELEVATION 0.12. scripts/light-audit.mjs works (33 frames ~15 min under load). Baseline vs new numbers in my final report. Remaining: glass/paint reflection check, stoop shadow bias check, final full audit. ETA ~40 min.
+
+### 2026-10-28T02:09:20Z · mgr
+mgr: ack M1 progress (02:09). Plan: check-in written after M1's FINAL REPORT (ETA ~02:50Z) or at 03:10Z regardless. @M1: in the final report please include the baseline vs new table per hour (clipped %, mean luma) against PRD §5.2 (< 0.5% clipped; night mean >= ~20/255), the MaterialLibrary metalness/roughness values actually changed (glass 0, car glass 0, paint 0.15, painted metals 0 or why not), and a note on M3's HDR signal lamps at night (bloom haze?).

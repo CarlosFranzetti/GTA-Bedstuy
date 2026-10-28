@@ -71,9 +71,11 @@ try {
         const p = d.player;
         if (view === 'street') { if (p.inVehicle) p.exit(); d.teleport(9, 20, 0); }
         if (view === 'car' && !p.inVehicle) {
-          // nearest traffic car to the spawn crossing (map centre: lit streets, buildings both sides)
-          const v = [...d.traffic.vehicles].sort((m, n) => Math.hypot(m.body.pos.x - 9, m.body.pos.z - 20) - Math.hypot(n.body.pos.x - 9, n.body.pos.z - 20))[0];
-          const pos = v.body.pos; d.teleport(pos.x, pos.z, v.body.heading);
+          // put the first traffic car on the Throop Ave lane next to the spawn crossing and drive it from there
+          const v = d.traffic.vehicles[0];
+          const n = d.grid.nearestLaneNode({ x: 2, z: 30 });
+          v.body.pos.x = n.pos.x; v.body.pos.z = n.pos.z; v.body.heading = n.heading; v.body.vel.x = 0; v.body.vel.z = 0;
+          d.teleport(n.pos.x, n.pos.z, n.heading);
           p.tryEnter([v]);
         }
       }, view);

@@ -119,8 +119,8 @@ describe('DayNight', () => {
     expect(midnight.sunDirection.y).toBeLessThan(0);
     expect(noon.sun.position.y).toBeGreaterThan(0);
     expect(midnight.sun.position.y).toBeGreaterThan(0); // moon, never a light from under the ground
-    expect(noon.sun.intensity).toBeGreaterThan(midnight.sun.intensity * 4);
-    expect(midnight.sun.intensity).toBeGreaterThan(0.2); // moonlight keeps facades readable
+    expect(noon.sun.intensity).toBeGreaterThan(midnight.sun.intensity * 1.2);
+    expect(midnight.sun.intensity).toBeGreaterThan(0.5); // moonlight keeps facades readable
     expect(midnight.sun.color.b).toBeGreaterThan(midnight.sun.color.r); // cool moon
   });
 

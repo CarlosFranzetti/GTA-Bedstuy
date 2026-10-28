@@ -39,12 +39,12 @@ export interface SkyParams {
 const PARAM_KEYS: ReadonlyArray<{ hour: number } & SkyParams> = [
   { hour: 0, turbidity: 2, rayleigh: 0.6, mieCoefficient: 0.003, mieDirectionalG: 0.8, exposure: 0.087 },
   { hour: 5, turbidity: 3, rayleigh: 0.8, mieCoefficient: 0.004, mieDirectionalG: 0.82, exposure: 0.105 },
-  { hour: 6.5, turbidity: 9, rayleigh: 1.6, mieCoefficient: 0.012, mieDirectionalG: 0.88, exposure: 0.158 },
-  { hour: 9, turbidity: 5, rayleigh: 2.0, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.196 },
-  { hour: 12, turbidity: 3.5, rayleigh: 2.4, mieCoefficient: 0.004, mieDirectionalG: 0.75, exposure: 0.21 },
-  { hour: 16, turbidity: 5, rayleigh: 2.1, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.196 },
-  { hour: 18.3, turbidity: 8, rayleigh: 1.7, mieCoefficient: 0.011, mieDirectionalG: 0.88, exposure: 0.175 },
-  { hour: 19.5, turbidity: 9, rayleigh: 1.3, mieCoefficient: 0.016, mieDirectionalG: 0.92, exposure: 0.147 },
+  { hour: 6.5, turbidity: 9, rayleigh: 1.6, mieCoefficient: 0.012, mieDirectionalG: 0.88, exposure: 0.125 },
+  { hour: 9, turbidity: 5, rayleigh: 2.0, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.14 },
+  { hour: 12, turbidity: 3.5, rayleigh: 2.4, mieCoefficient: 0.004, mieDirectionalG: 0.75, exposure: 0.15 },
+  { hour: 16, turbidity: 5, rayleigh: 2.1, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.14 },
+  { hour: 18.3, turbidity: 8, rayleigh: 1.7, mieCoefficient: 0.011, mieDirectionalG: 0.88, exposure: 0.135 },
+  { hour: 19.5, turbidity: 9, rayleigh: 1.3, mieCoefficient: 0.016, mieDirectionalG: 0.92, exposure: 0.12 },
   { hour: 21, turbidity: 4, rayleigh: 0.8, mieCoefficient: 0.006, mieDirectionalG: 0.85, exposure: 0.105 },
   { hour: 24, turbidity: 2, rayleigh: 0.6, mieCoefficient: 0.003, mieDirectionalG: 0.8, exposure: 0.087 },
 ];

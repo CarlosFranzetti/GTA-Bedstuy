@@ -13,10 +13,17 @@ const FADE_SECONDS = 0.5;
 const HYSTERESIS = 4;
 
 const HEADLIGHT_COLOR = 0xfff1d6;
-/** Per spot (candela). 320 gave blown, bloomed pools right in front of the bumper (near field falls off as 1/d^2). */
-const HEADLIGHT_INTENSITY = 130;
-const HEADLIGHT_ANGLE = 0.38;
-const HEADLIGHT_PENUMBRA = 0.75;
+/**
+ * Per spot (candela). The old 320 cd / decay 2 / 0.45 rad spot put a blown, bloomed pool right in front of the bumper
+ * (ground irradiance of a low spot falls as h/d^3, so the near field is 100x the far field). A flatter decay, a narrower
+ * horizontal cone (its lower edge is feathered by the penumbra, which fades the near field) and a higher output
+ * light the road ahead evenly instead.
+ */
+const HEADLIGHT_INTENSITY = 450;
+const HEADLIGHT_DECAY = 1.5;
+const HEADLIGHT_ANGLE = 0.3;
+const HEADLIGHT_PENUMBRA = 0.65;
+const HEADLIGHT_AIM_Y = 0.5;
 const HEADLIGHT_DISTANCE = 45;
 const HEADLIGHT_AHEAD = 20;
 const HEADLIGHT_X = 0.7;
@@ -79,7 +86,7 @@ export class NightLights {
     this.headlights = [];
     this.targets = [];
     for (const side of [-1, 1]) {
-      const spot = new THREE.SpotLight(HEADLIGHT_COLOR, 0, HEADLIGHT_DISTANCE, HEADLIGHT_ANGLE, HEADLIGHT_PENUMBRA, 2);
+      const spot = new THREE.SpotLight(HEADLIGHT_COLOR, 0, HEADLIGHT_DISTANCE, HEADLIGHT_ANGLE, HEADLIGHT_PENUMBRA, HEADLIGHT_DECAY);
       spot.castShadow = false;
       spot.name = `headlight-${side < 0 ? 'l' : 'r'}`;
       const target = new THREE.Object3D();
@@ -189,7 +196,7 @@ export class NightLights {
     this.headlights.forEach((spot, i) => {
       const x = i === 0 ? -HEADLIGHT_X : HEADLIGHT_X;
       spot.position.set(x, HEADLIGHT_Y, -L / 2);
-      this.targets[i].position.set(x, 0, -L / 2 - HEADLIGHT_AHEAD);
+      this.targets[i].position.set(x, HEADLIGHT_AIM_Y, -L / 2 - HEADLIGHT_AHEAD);
       vehicleObject.add(spot, this.targets[i]);
     });
     this.headlightsAttached = true;
