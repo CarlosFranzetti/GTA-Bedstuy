@@ -38,6 +38,11 @@ import { GamepadInput } from '@/core/Gamepad';
 import { loadPosition, savePosition, watchPagehide, type SavedPosition } from '@/ui/SaveState';
 import { LoadingScreen, nextPaint, withTimeout } from '@/render/Loading';
 import { PerfMonitor, PassCounter } from '@/render/Perf';
+import { MissionSystem } from '@/game/missions/MissionSystem';
+import { buildMissions } from '@/game/missions/content';
+import { MissionMarkerView } from '@/game/missions/MissionMarkerView';
+import { saveMissionData, loadMissionData, clearMissionData } from '@/game/missions/MissionStore';
+import { MissionHud } from '@/ui/MissionHud';
 import { DistanceCuller } from '@/render/Culling';
 
 declare global {
@@ -131,6 +136,14 @@ scene.add(player.object3D);
 physics.addBody(player.body);
 
 const wanted = new WantedSystem(events);
+const missions = new MissionSystem(buildMissions(grid, data, world.lots), {
+  persist: saveMissionData,
+  bus: events,
+  raiseWanted: (stars) => wanted.raiseTo(stars),
+});
+missions.restore(loadMissionData());
+const missionMarkers = new MissionMarkerView();
+scene.add(missionMarkers.group);
 const lights = new TrafficLights(grid); // clocked by TrafficSystem only; main just mirrors it onto the signal meshes
 const traffic = new TrafficSystem(grid, physics, events, rng.fork('traffic'), scene, materials, makeVehicle, makePed, lights, world.lots);
 const cops = new CopSystem(grid, physics, events, rng.fork('cops'), scene, makeVehicle, wanted, { lights, patrolCount: 2 });
@@ -146,6 +159,7 @@ const overlay = document.createElement('div');
 overlay.id = 'overlay';
 app.appendChild(overlay);
 const hud = new Hud(overlay);
+const missionHud = new MissionHud(overlay);
 const minimap = new Minimap(overlay, grid);
 
 const input = new Input(renderer.domElement);
@@ -302,9 +316,11 @@ const game = new Game(
     hudState.streetName = streetName;
     hudState.fps = fps;
     hud.update(hudState);
+    missionHud.update(missions.hud, frameDt);
+    missionMarkers.sync(missions.markers, missions.markersVersion); missionMarkers.update(performance.now() / 1000);
     copPositions.length = 0;
     for (const c of cops.cops) copPositions.push(c.body.pos);
-    minimap.update(camTarget, camHeading, copPositions, frameDt);
+    minimap.update(camTarget, camHeading, copPositions, frameDt, missions.markers);
 
     stats.drawCalls = renderer.info.render.calls;
     stats.drawCallsShadow = passes.shadow; stats.drawCallsScene = passes.scene; stats.drawCallsGBuffer = passes.gbuffer; stats.drawCallsPost = passes.post;
@@ -327,7 +343,7 @@ const menu = new Menu(overlay, {
   onMasterVolume: (v) => audio.setMasterVolume(v),
   onRadioVolume: (v) => audio.setRadioVolume(v),
   onInvertLookY: (b) => { input.invertLookY = b; },
-  onReset: () => { const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = SPAWN.x; b.pos.z = SPAWN.z; b.vel.x = 0; b.vel.z = 0; },
+  onReset: () => { clearMissionData(); const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = SPAWN.x; b.pos.z = SPAWN.z; b.vel.x = 0; b.vel.z = 0; },
 }, { touch: isTouch, initialQuality: quality, ignoreSavedQuality: params.has('q') });
 input.onModeChange = (m) => { hud.setInputMode(m); menu.setInputMode(m); };
 hud.setInputMode(input.mode); menu.setInputMode(input.mode);
@@ -356,6 +372,12 @@ game.add({
     traffic.update(dt, player.body.pos);
     cops.update(dt, player.body.pos, player.vehicle ? player.vehicle.body : player.body);
     wanted.update(dt);
+    {
+      const pv = player.vehicle; const mb = (pv ?? player).body;
+      missions.update(dt, mb.pos, player.inVehicle, wanted.stars, pv ? Math.abs(pv.speed) : Math.hypot(mb.vel.x, mb.vel.z), dayNight.timeOfDay);
+      if (input.pressed('KeyR')) missions.retry(dayNight.timeOfDay);
+      if (input.pressed('KeyX')) missions.abandon();
+    }
 
     // entities
     entityById.clear();

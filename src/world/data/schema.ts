@@ -65,6 +65,7 @@ export const STOREFRONT_TO_ARCHETYPE: Record<StorefrontKind, Archetype> = {
 /** Fully resolved lot: no optional fields except `storefront`, `sign`, `awningColor`. */
 export interface LotSpec {
   widthM: number;
+  /** total storeys above the street INCLUDING the ground floor (a mixed-use lot has `floors - 1` residential floors over the shop); 0 only for vacant lots */
   floors: number;
   family: Family;
   stoop: boolean;

@@ -24,7 +24,7 @@ it('pursuit', () => {
   const pv = makeVehicle('sedan', sn.pos.x, sn.pos.z, sn.heading, events, 'player-car');
   pv.driver = 'player';
   sim.add(pv);
-  const flee = new TrafficAgent(pv, grid.lanes, physics, new Rng(9), { startNodeId: startId, ignoreStopLines: true, cruiseSpeed: 28 });
+  const flee = { update(_: number) {} } as any; pv.body.pos.x = 9; pv.body.pos.z = 20; pv.body.heading = 0; pv.setInput(input());
   let crimes = 0; events.on('crime', (c: any) => { crimes++; if (c.type === 'hitCop') log.push(`hitCop@${simT.toFixed(0)}`); });
   const log: string[] = [];
   let simT = 0;
@@ -35,9 +35,9 @@ it('pursuit', () => {
     cops.update(DT, pv.body.pos, pv.body);
     wanted.update(DT);
     sim.step(DT);
-    if (step % 600 === 0) {
+    if (step % 300 === 0) {
       const d = cops.cops.map((c) => Math.hypot(c.body.pos.x - pv.body.pos.x, c.body.pos.z - pv.body.pos.z).toFixed(0)).join(',');
-      console.log(`t=${simT.toFixed(0)} stars=${wanted.stars} cops=${cops.cops.length} dist=[${d}] pv speed=${pv.speed.toFixed(1)} pos=${pv.body.pos.x.toFixed(0)},${pv.body.pos.z.toFixed(0)} crimes=${crimes}`);
+      console.log(`t=${simT.toFixed(0)} stars=${wanted.stars} cops=${cops.cops.length} dist=[${d}] pv speed=${pv.speed.toFixed(1)} pos=${pv.body.pos.x.toFixed(0)},${pv.body.pos.z.toFixed(0)} crimes=${crimes} dmg=${pv.damage.toFixed(2)} sirens=${cops.cops.filter((c)=>c.siren).length}`);
     }
   }
   console.log(log.join(' '));

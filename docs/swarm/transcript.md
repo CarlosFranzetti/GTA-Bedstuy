@@ -429,3 +429,24 @@ baseline (swiftshader, 640x360, per-pass via new PassCounter; medium total/shado
 
 ### 2026-10-28T22:04:21Z · MGR
 MGR review of T11: ACCEPT, usage pending. Verified: industrial.ts (39.7 KB, 7 painters, 22 variants), industrial.test.ts + softcanvas.ts; npx vitest run tests/unit/textures/industrial.test.ts = 134 pass (pixel-hash determinism, tileability, alpha coverage, no ellipse); keys live in types.ts/MaterialLibrary (Fable 22:00, castIronFence m0); bedstuy-surfaces.md §8 with sources + gaps; size ~0 (procedural). Concern: as of 22:04 NO consumer uses any of the 7 keys (grep src outside industrial/MaterialLibrary/types = 0 hits), so nothing is visible yet. Routing: @B3 castIronFence (stoop/areaway), tarRoof (flat roofs), chainlinkFence+chainlinkRail and corrugatedSteel (vacant lots); @P8 graniteCurb (curbs, RoadBuilder/WorldBuilder side) AND graffiti: the existing tags come from src/world/props/graffiti.ts via PropsGen.ts:36 with flat colour materials, which is P8's PropsGen path, not S4's; @S4 graffiti/corrugatedSteel only on shop gate surrounds. Each names the call site in its FINAL REPORT; any key still unused at check-in is listed as open. T11 -> done.
+
+### 2026-10-28T22:04:46Z · P8
+@X5 @MGR: wired at main.ts:139-146 (MissionSystem w/ bus: events, raiseWanted -> wanted.raiseTo, restore(loadMissionData()), MissionMarkerView in scene), :162 (MissionHud), :377-380 (missions.update + KeyR retry / KeyX abandon in the sim step), :319-320 (missionHud.update, markers sync/update), :323 (Minimap blips = missions.markers), Menu onReset also calls clearMissionData(). tsc clean.
+
+### 2026-10-28T22:04:51Z · L9
+L9 decision: wet ground = in-place layer on existing asphalt/asphaltWorn/concrete/bluestone/curb materials (onBeforeCompile: world-space puddle mask from a tileable mask painter in ground.ts, roughness/albedo/normal/env driven by one uWet uniform). Needs NO new MaterialKey (a separate asphaltWet key would require swapping materials on every road mesh); so no FOR FABLE for types.ts. Weather.ts: dry->rain->wet->drying, debug setter, optional GPU rain streaks. Will post P8 lines when it lands.
+
+### 2026-10-28T22:04:58Z · D1
+D1 API CORRECTIONS + LANDED (src/world/data/schema.ts, src/world/data/faces.ts, bedstuy.json now schemaVersion 2 with 40 faces / 840 lots, tests/unit/world/data-schema.test.ts 33 green). Supersedes my first post where different:
+@B3 @S4:
+  import { getBedstuyFaces, faceSpecResolver, allLots } from '@/world/data/faces';   // validated real data, cached
+  import { lotsForFace, lotsForBlock, faceFor, loadFaces } from '@/world/data/schema;
+  - faceFor(set, grid, blockFace) (grid is a required 2nd arg), lotsForFace(grid, blockFace, set, opts?) -> PlacedLot[]; lotsForBlock(grid, blockId, set).
+  - faceSpecResolver(grid, set?) returns (blockId, side) => PlacedLot[] | null: drop-in for B3's subdivideLots 4th arg. Rows are ordered along face.a -> face.b, widths sum to |a-b| minus the corner insets, ids are `${blockId}-${side}-${i}` (same as LotSubdivider).
+  - N/S faces are inset automatically by the neighbouring E/W corner lots' depthM (E/W faces include their two corner lots). So do NOT add your own corner inset on top when using these rows.
+  - PlacedLot = LotSpec + { id, blockId, side, index, offsetM, frontA, frontB, center, outward, corner, cornerEnd?: 'a'|'b', cornerStreetId?: string (the cross street at that corner, S4's question), fromData }.
+  - LotSpec fields: widthM, floors (TOTAL storeys incl. ground floor; mixed lot = 1 shop + floors-1 above; S4's 'floors above' = floors-1; 0 only for vacant), family, stoop (bool) + stoopHeightM, cornice, bays, use, storefront?, trees (0..3), scaffold, depthM, confidence, note, sign?, awningColor? (the last two carry the POI parody text/colour so S4 can use them instead of the POI lookup).
+  - Storefront enum (S4 asked): bodega, laundromat, barber, deli, liquor, pharmacy, church, daycare, restaurant, cellphone, generic PLUS braiding, pizza, chinese, caribbean, dollar, funeral, autorepair (1:1 with the 15 POI archetypes). STOREFRONT_TO_ARCHETYPE maps to types.Archetype. No cuisine/name/closesAt in the schema; S4 derives those (restaurant -> cuisine by rng).
+  - Family enum: brownstone, brickRed, brickTan, brickPainted, limestone, frame, church, vacant, newBuild. Use: residential, mixed, church, school, vacant, garage (garage lots carry storefront 'autorepair').
+  - Data is fully explicit for every face (R2's pass-2 anchors merged as confidence-tagged pins: 330 Throop, 289 Kosciuszko vacant lot, PS 79, churches, new builds, etc.). Edit lots in bedstuy.json directly when Street View values arrive; run validateFaces/validateAgainstGrid (the data test does).
+@R2: merged your per-street notes (Antioch is outside the grid, Upper Room not placed at MG corner, Bethany at 460 MG used instead).
