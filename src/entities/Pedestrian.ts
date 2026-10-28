@@ -44,6 +44,12 @@ const THREAT_PERIOD = 0.25;
 const THREAT_RADIUS = 10;
 const THREAT_MIN_SPEED = 4;
 const FOLLOW_DETACH = 9;
+/** walking around a stopped car: scan period, radius, speed under which a car counts as stopped, look-ahead and margin (m) */
+const BLOCK_SCAN_PERIOD = 0.1;
+const BLOCK_RADIUS = 4;
+const BLOCK_MAX_SPEED = 1.5;
+const BLOCK_LOOKAHEAD = 0.9;
+const BLOCK_MARGIN = 0.5;
 
 export class Pedestrian implements Entity {
   readonly object3D: THREE.Group;
@@ -74,6 +80,8 @@ export class Pedestrian implements Entity {
   private slot = 0;
   private followers = 0;
   private movingNow = false;
+  private blockTimer = 0;
+  private readonly blockSlide: Vec2 = { x: 0, z: 0 };
 
   constructor(
     readonly id: string,
@@ -289,14 +297,67 @@ export class Pedestrian implements Entity {
       b.vel.z = 0;
       return false;
     }
-    const k = speed / d;
-    b.vel.x = dx * k;
-    b.vel.z = dz * k;
+    let gx = dx / d;
+    let gz = dz / d;
+    // a stopped car across the path: walk around it instead of leaning on it (a pedestrian pinned against a car
+    // makes the car hold, and the car's body keeps the pedestrian from getting through)
+    this.blockTimer -= dt;
+    if (this.blockTimer <= 0) {
+      this.blockTimer = BLOCK_SCAN_PERIOD;
+      this.blockSlide.x = 0;
+      this.blockSlide.z = 0;
+      this.findBlocker(gx, gz);
+    }
+    if (this.blockSlide.x !== 0 || this.blockSlide.z !== 0) { gx = this.blockSlide.x; gz = this.blockSlide.z; }
+    const k = speed;
+    b.vel.x = gx * k;
+    b.vel.z = gz * k;
     b.pos.x += b.vel.x * dt;
     b.pos.z += b.vel.z * dt;
-    const want = Math.atan2(dx, -dz);
+    const want = Math.atan2(gx, -gz);
     b.heading += angleDiff(b.heading, want) * Math.min(1, dt * 10);
     return true;
+  }
+
+  /** Sets blockSlide to the direction along the nearest side of a stopped car that sits on the path (g = unit direction to goal). */
+  private findBlocker(gx: number, gz: number): void {
+    const b = this.body;
+    const list = this.world.queryCircle(b.pos, BLOCK_RADIUS);
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i];
+      if ((o.kind !== 'vehicle' && o.kind !== 'cop') || o.shape.kind !== 'obb') continue;
+      if (Math.hypot(o.vel.x, o.vel.z) > BLOCK_MAX_SPEED) continue;
+      const fx = Math.sin(o.heading);
+      const fz = -Math.cos(o.heading);
+      const rx = -fz;
+      const rz = fx;
+      // the point 0.9 m down the path, in the car's frame
+      const px = b.pos.x + gx * BLOCK_LOOKAHEAD - o.pos.x;
+      const pz = b.pos.z + gz * BLOCK_LOOKAHEAD - o.pos.z;
+      const hl = o.shape.halfL + BLOCK_MARGIN;
+      const hw = o.shape.halfW + BLOCK_MARGIN;
+      const u = px * fx + pz * fz;
+      const w = px * rx + pz * rz;
+      if (Math.abs(u) > hl || Math.abs(w) > hw) continue;
+      const qx = b.pos.x - o.pos.x;
+      const qz = b.pos.z - o.pos.z;
+      const qu = qx * fx + qz * fz;
+      const qw = qx * rx + qz * rz;
+      let tx: number, tz: number;
+      if (Math.abs(qw) / hw >= Math.abs(qu) / hl) {
+        // at a long side: slide toward the end that lies nearer the goal
+        const s = gx * fx + gz * fz >= 0 ? 1 : -1;
+        tx = fx * s;
+        tz = fz * s;
+      } else {
+        const s = gx * rx + gz * rz >= 0 ? 1 : -1;
+        tx = rx * s;
+        tz = rz * s;
+      }
+      this.blockSlide.x = tx;
+      this.blockSlide.z = tz;
+      return;
+    }
   }
 
   /** Group member: stay at the leader's side, wait when the leader waits. */
