@@ -1,3 +1,5 @@
+export type InputMode = 'keyboard' | 'touch' | 'gamepad';
+
 /** Keyboard + mouse state. Poll `isDown` for held keys, `pressed` for edge-triggered actions (consumed per frame). */
 export class Input {
   private down = new Set<string>();
@@ -11,9 +13,17 @@ export class Input {
   /** Virtual (touch) input merged into the keyboard state. x: -1 left..1 right, y: -1 back..1 forward. */
   readonly touchAxis = { x: 0, y: 0 };
   private virtualDown = new Set<string>();
+  /** Invert vertical look (mouse, touch drag and gamepad right stick). Set from the pause menu. */
+  invertLookY = false;
+  /** Last device the player used. Drives HUD glyphs. Changes fire `onModeChange`. */
+  mode: InputMode = Input.isTouchDevice() ? 'touch' : 'keyboard';
+  onModeChange: ((mode: InputMode) => void) | null = null;
 
   constructor(private el: HTMLElement = document.body) {
     window.addEventListener('keydown', (e) => {
+      // Keys typed inside a modal UI (pause menu) belong to that UI: no game state, no preventDefault.
+      if (Input.inModal(e.target)) return;
+      this.setMode('keyboard');
       if (!this.down.has(e.code)) this.justPressed.add(e.code);
       this.down.add(e.code);
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
@@ -21,7 +31,7 @@ export class Input {
     });
     window.addEventListener('keyup', (e) => this.down.delete(e.code));
     window.addEventListener('blur', () => this.down.clear());
-    el.addEventListener('mousemove', (e) => { if (this.pointerLocked) { this.mouseDX += e.movementX; this.mouseDY += e.movementY; } });
+    el.addEventListener('mousemove', (e) => { if (this.pointerLocked) { this.mouseDX += e.movementX; this.mouseDY += this.invertLookY ? -e.movementY : e.movementY; this.setMode('keyboard'); } });
     el.addEventListener('mousedown', () => { this.gesture(); this.requestLock(); });
     el.addEventListener('wheel', (e) => { this.wheel += Math.sign(e.deltaY); }, { passive: true });
     document.addEventListener('pointerlockchange', () => { this.pointerLocked = document.pointerLockElement === el; });
@@ -41,7 +51,16 @@ export class Input {
     else this.virtualDown.delete(code);
   }
   /** Camera look delta from a touch drag, in pixels. */
-  addLook(dx: number, dy: number): void { this.mouseDX += dx; this.mouseDY += dy; }
+  addLook(dx: number, dy: number): void { this.mouseDX += dx; this.mouseDY += this.invertLookY ? -dy : dy; }
+  /** Record which device the player is using; fires `onModeChange` only on a real change. */
+  setMode(mode: InputMode): void {
+    if (this.mode === mode) return;
+    this.mode = mode;
+    this.onModeChange?.(mode);
+  }
+  private static inModal(t: EventTarget | null): boolean {
+    return !!t && typeof (t as Element).closest === 'function' && (t as Element).closest('[data-ui-modal]') !== null;
+  }
   /** True on phones/tablets (coarse pointer or touch points). */
   static isTouchDevice(): boolean {
     try { return (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints ?? 0) > 0; } catch { return false; }

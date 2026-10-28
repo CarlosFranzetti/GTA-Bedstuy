@@ -370,6 +370,13 @@ export class RenderPipeline {
     this.retarget();
   }
 
+  /** Jumps the grade crossfade and auto-exposure straight to the current target (time jumps, debug/audit hooks). */
+  snapGrade(): void {
+    this.gradePhase = GRADE_PRESETS.indexOf(this.gradeTarget);
+    this.exposureFactor = EXPOSURE_BY_PRESET[this.gradeTarget];
+    this.renderer.toneMappingExposure = this.exposureBias * this.exposureFactor;
+  }
+
   /** Distance (m) camera -> player; the focus plane eases towards it. Clamped to 0.5..300 m. */
   setFocus(distanceMetres: number): void {
     if (!Number.isFinite(distanceMetres)) return;

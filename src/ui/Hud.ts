@@ -1,5 +1,6 @@
 import './hud.css';
 import type { HudState } from '@/world/types';
+import type { InputMode } from '@/core/Input';
 
 const FADE_MS = 400;
 const MAX_STARS = 3;
@@ -12,7 +13,19 @@ const CONTROLS = [
   'E radio',
   'mouse look',
   'touch: left stick, drag right to look',
+  'gamepad: sticks, RT/LT drive, A enter/exit',
 ];
+
+/** Glyph shown in the prompt pill for the "enter/exit" action, per input device. */
+const ACTION_GLYPH: Record<InputMode, string> = { keyboard: 'F', touch: 'CAR', gamepad: 'A' };
+/** Prompt prefixes M4 may send (any device's glyph); they are rewritten to the active device's glyph. */
+const GLYPH_ALIASES = new Set(['F', 'CAR', 'A']);
+
+const WELCOME_TITLE = 'Welcome to Bed-Stuy';
+const WELCOME_SUB = 'Brooklyn, New York';
+const CARD_HOLD_MS = 3600;
+const CARD_FADE_MS = 900;
+const TOAST_MS = 2600;
 
 const finite = (n: number, fallback = 0): number => (Number.isFinite(n) ? n : fallback);
 
@@ -36,7 +49,18 @@ export class Hud {
   private readonly streetEl: HTMLElement;
   private readonly radioEl: HTMLElement;
   private readonly splashEl: HTMLElement;
+  private readonly cardEl: HTMLElement;
+  private readonly cardTitleEl: HTMLElement;
+  private readonly cardSubEl: HTMLElement;
+  private readonly toastEl: HTMLElement;
   private fadeTimer: ReturnType<typeof setTimeout> | null = null;
+  private cardTimers: Array<ReturnType<typeof setTimeout>> = [];
+  private toastTimer: ReturnType<typeof setTimeout> | null = null;
+  private welcomed = false;
+  private lastStars = -1;
+  private lastSpeedText = '';
+  private lastPrompt = '';
+  private inputMode: InputMode = 'keyboard';
 
   constructor(root: HTMLElement) {
     this.doc = root.ownerDocument;
@@ -53,6 +77,7 @@ export class Hud {
 
     this.promptEl = this.make('div', 'hud-prompt');
     this.promptEl.hidden = true;
+    this.promptEl.dataset.mode = this.inputMode;
 
     this.speedEl = this.make('div', 'hud-speed');
     this.speedEl.hidden = true;
@@ -65,6 +90,17 @@ export class Hud {
     this.streetEl = this.make('span', 'hud-street');
     this.radioEl = this.make('span', 'hud-radio');
     location.append(this.streetEl, this.radioEl);
+
+    // GTA-style neighbourhood card, bottom-centre-left, fades on its own.
+    this.cardEl = this.make('div', 'hud-card');
+    this.cardEl.hidden = true;
+    this.cardTitleEl = this.make('div', 'hud-card-title');
+    this.cardSubEl = this.make('div', 'hud-card-sub');
+    this.cardEl.append(this.cardTitleEl, this.cardSubEl);
+
+    this.toastEl = this.make('div', 'hud-toast');
+    this.toastEl.hidden = true;
+    this.toastEl.setAttribute('role', 'status');
 
     // Splash is appended last so it paints over everything else.
     this.splashEl = this.make('div', 'hud-splash');
@@ -88,6 +124,8 @@ export class Hud {
       this.promptEl,
       this.speedEl,
       location,
+      this.cardEl,
+      this.toastEl,
       this.splashEl,
     );
   }
@@ -99,16 +137,18 @@ export class Hud {
       setText(el, on ? '★' : '☆');
       el.classList.toggle('on', on);
     });
+    if (this.lastStars !== -1 && stars !== this.lastStars) this.pulseStars();
+    this.lastStars = stars;
     const ariaLabel = `Wanted level ${stars} of ${MAX_STARS}`;
     if (this.starsEl.getAttribute('aria-label') !== ariaLabel) {
       this.starsEl.setAttribute('aria-label', ariaLabel);
     }
 
-    setText(this.speedValueEl, String(Math.round(Math.abs(finite(state.speedKmh)))));
+    this.setSpeed(String(Math.round(Math.abs(finite(state.speedKmh)))));
     this.speedEl.hidden = !state.inVehicle;
 
     const prompt = state.prompt ?? '';
-    setText(this.promptEl, prompt);
+    this.setPrompt(prompt);
     this.promptEl.hidden = prompt.trim() === '';
 
     setText(this.streetEl, state.streetName ?? '');
@@ -117,6 +157,87 @@ export class Hud {
     this.radioEl.hidden = !(state.inVehicle && radio !== '');
 
     setText(this.fpsEl, `${Math.round(finite(state.fps))} FPS`);
+  }
+
+  /** Switch glyphs (prompt pill) to the device the player is using. */
+  setInputMode(mode: InputMode): void {
+    if (mode === this.inputMode) return;
+    this.inputMode = mode;
+    this.promptEl.dataset.mode = mode;
+    this.renderPrompt(this.lastPrompt, true);
+  }
+
+  getInputMode(): InputMode { return this.inputMode; }
+
+  /** Short message at the top-centre (e.g. "Controller connected"). */
+  showToast(message: string, ms = TOAST_MS): void {
+    if (this.toastTimer !== null) clearTimeout(this.toastTimer);
+    this.toastEl.textContent = message;
+    this.toastEl.hidden = false;
+    this.toastEl.classList.remove('out');
+    this.toastTimer = setTimeout(() => {
+      this.toastEl.classList.add('out');
+      this.toastTimer = setTimeout(() => { this.toastEl.hidden = true; this.toastTimer = null; }, 300);
+    }, ms);
+  }
+
+  /** Neighbourhood card: holds, then fades out. */
+  showLocationCard(title: string, sub = ''): void {
+    for (const t of this.cardTimers) clearTimeout(t);
+    this.cardTimers = [];
+    this.cardTitleEl.textContent = title;
+    this.cardSubEl.textContent = sub;
+    this.cardSubEl.hidden = sub === '';
+    this.cardEl.hidden = false;
+    this.cardEl.classList.remove('out');
+    void this.cardEl.offsetWidth; // restart the CSS entrance animation
+    this.cardEl.classList.add('in');
+    this.cardTimers.push(setTimeout(() => {
+      this.cardEl.classList.remove('in');
+      this.cardEl.classList.add('out');
+      this.cardTimers.push(setTimeout(() => { this.cardEl.hidden = true; }, CARD_FADE_MS));
+    }, CARD_HOLD_MS));
+  }
+
+  private pulseStars(): void {
+    this.starsEl.classList.remove('pulse');
+    void this.starsEl.offsetWidth; // restart the animation
+    this.starsEl.classList.add('pulse');
+  }
+
+  /** One fixed-width cell per digit so the readout never jitters. */
+  private setSpeed(text: string): void {
+    if (text === this.lastSpeedText) return;
+    this.lastSpeedText = text;
+    this.speedValueEl.textContent = '';
+    for (const ch of text) {
+      const d = this.doc.createElement('span');
+      d.className = 'hud-digit';
+      d.textContent = ch;
+      this.speedValueEl.appendChild(d);
+    }
+  }
+
+  private setPrompt(prompt: string): void {
+    if (prompt === this.lastPrompt) return;
+    this.lastPrompt = prompt;
+    this.renderPrompt(prompt, false);
+  }
+
+  private renderPrompt(prompt: string, force: boolean): void {
+    if (!force && this.promptEl.dataset.src === prompt) return;
+    this.promptEl.dataset.src = prompt;
+    const m = /^(\S+)\s{2}(.*)$/.exec(prompt);
+    this.promptEl.textContent = '';
+    if (m) {
+      const glyph = GLYPH_ALIASES.has(m[1]) ? ACTION_GLYPH[this.inputMode] : m[1];
+      const key = this.doc.createElement('span');
+      key.className = 'hud-key';
+      key.textContent = glyph;
+      this.promptEl.append(key, this.doc.createTextNode(`  ${m[2]}`));
+    } else {
+      this.promptEl.textContent = prompt;
+    }
   }
 
   showSplash(): void {
@@ -132,6 +253,10 @@ export class Hud {
       this.fadeTimer = null;
       this.splashEl.style.display = 'none';
     }, FADE_MS);
+    if (!this.welcomed) {
+      this.welcomed = true;
+      this.showLocationCard(WELCOME_TITLE, WELCOME_SUB);
+    }
   }
 
   private clearFadeTimer(): void {

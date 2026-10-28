@@ -40,6 +40,7 @@ export class TouchControls {
     look.className = 'tc-look';
     look.addEventListener('pointerdown', (e) => {
       if (this.lookId !== null) return;
+      this.input.setMode('touch');
       this.lookId = e.pointerId; this.lookLast = { x: e.clientX, y: e.clientY };
       try { look.setPointerCapture(e.pointerId); } catch { /* pointer already gone */ }
     });
@@ -61,6 +62,7 @@ export class TouchControls {
     stick.addEventListener('pointerdown', (e) => {
       if (this.stickId !== null) return;
       this.stickId = e.pointerId;
+      this.input.setMode('touch');
       const r = stick.getBoundingClientRect();
       this.stickOrigin = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
       try { stick.setPointerCapture(e.pointerId); } catch { /* pointer already gone */ }
@@ -82,7 +84,7 @@ export class TouchControls {
       const b = document.createElement('button');
       b.type = 'button'; b.className = `tc-btn ${def.cls}`; b.textContent = def.label;
       const press = (e: PointerEvent) => {
-        e.preventDefault(); b.classList.add('on');
+        e.preventDefault(); b.classList.add('on'); this.input.setMode('touch');
         for (const c of def.code) this.input.setVirtual(c, true);
         if (!def.hold) setTimeout(() => { for (const c of def.code) this.input.setVirtual(c, false); b.classList.remove('on'); }, 120);
       };
