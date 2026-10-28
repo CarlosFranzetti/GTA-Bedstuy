@@ -166,7 +166,7 @@ export const corrugatedSteelPainter: Painter = (ctx, w, h, rng, variant, aux) =>
     for (let i = 0; i < 260; i++) {
       ctx.save();
       alphaFill(ctx, cols[Math.floor(rng.next() * cols.length)], rng.range(0.16, 0.38));
-      discWrap(ctx, w, h, rng.range(0, w), rng.range(0, h), rng.range(3, 16));
+      discWrap(ctx, w, h, rng.range(0, w), rng.range(0, h), rng.range(2, 11));
       ctx.restore();
     }
     speckleWrap(ctx, w, h, rng, 1400, ['#2a1408', '#c7803a', '#6b3213'], 1, 3, 0.4);
@@ -271,10 +271,10 @@ export const chainlinkFencePainter: Painter = (ctx, w, h, rng, variant) => {
     }
   }
 
-  if (v === 2 || v === 0) {
-    // rust flecks and a little grime sitting on the wires
-    const n = v === 2 ? 130 : 22;
-    const rust = ['#8a4b24', '#a35a2a', '#6e3a1c'];
+  {
+    // rust flecks (galvanized) or dust and scuffs (vinyl) sitting on the wires
+    const n = v === 2 ? 130 : v === 0 ? 22 : 40;
+    const rust = vinyl ? ['#8fae94', '#14301b', '#a8bfa8'] : ['#8a4b24', '#a35a2a', '#6e3a1c'];
     for (let i = 0; i < n; i++) {
       const cx = Math.floor(rng.range(0, w / P)) * P;
       const y = rng.range(0, h);
@@ -323,10 +323,10 @@ export const chainlinkRailPainter: Painter = (ctx, w, h, rng, variant) => {
   ctx.fillRect(tx + 4, y0 - 4, 2, d + 8);
   ctx.fillStyle = '#9ea3a7';
   ctx.fillRect(tx, y0 - 5, 1, d + 10);
-  if (v === 0) {
+  {
     for (let i = 0; i < 40; i++) {
       ctx.save();
-      alphaFill(ctx, i % 2 ? '#8a4b24' : '#6e3a1c', rng.range(0.3, 0.7));
+      alphaFill(ctx, v === 1 ? (i % 2 ? '#8fae94' : '#14301b') : i % 2 ? '#8a4b24' : '#6e3a1c', rng.range(0.3, 0.7));
       rectWrap(ctx, w, h, Math.floor(rng.range(0, w)), y0 + Math.floor(rng.range(0, d)), rng.range(1, 3), rng.range(1, 2));
       ctx.restore();
     }
@@ -682,7 +682,8 @@ export const tarRoofPainter: Painter = (ctx, w, h, rng, variant, aux) => {
       const py = rng.range(8, h - ph - 8);
       ctx.save();
       ctx.globalAlpha = rng.range(0.7, 0.9);
-      ctx.fillStyle = rgb(150 + rng.range(-8, 8), 154 + rng.range(-8, 8), 157 + rng.range(-8, 8));
+      const aj = rng.range(-9, 9);
+      ctx.fillStyle = rgb(148 + aj, 151 + aj, 152 + aj);
       ragged(ctx, rng, px, py, pw, ph, 8);
       ctx.restore();
       for (let k = 0; k < 26; k++) {

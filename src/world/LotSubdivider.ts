@@ -16,7 +16,8 @@ import type { Rng } from '@/core/Rng';
 import type { BlockFace, GridModel, Lot, LotType, PoiDef, Side } from '@/world/types';
 import type { LotSpec, MaterialFamily } from '@/world/buildings/facade';
 import type { SpecLot } from '@/world/BuildingGen';
-import { faceFor, lotsForFace } from '@/world/data/schema';
+import { STOREFRONT_TO_ARCHETYPE, faceFor, lotsForFace } from '@/world/data/schema';
+import type { StorefrontKind } from '@/world/data/schema';
 import type { FaceSet, LotSpec as DataLotSpec } from '@/world/data/schema';
 
 /** Schema-v2 lot -> the builder-facing spec (families, uses and cornices mapped onto what the generators can draw). */
@@ -225,11 +226,16 @@ export function subdivideLots(grid: GridModel, pois: PoiDef[], rng: Rng, faces?:
     }
     const ok = (i: number) => i >= 0 && i < lots.length && !lots[i].poi && !(special && lots[i].corner);
     let pick = -1;
-    if (poi.archetype === 'church') {
-      // a church that the data already placed on this face is the one the POI names
-      let bd = Infinity;
+    {
+      // a lot the data already made this kind of place (a church; a shop of the POI's archetype) is the one the POI names
+      let bd = poi.archetype === 'church' ? Infinity : 25;
       lots.forEach((l, i) => {
-        if (l.poi || (l as SpecLot).spec?.use !== 'church') return;
+        const sp = (l as SpecLot).spec;
+        if (l.poi || !sp) return;
+        const same = poi.archetype === 'church'
+          ? sp.use === 'church'
+          : sp.use === 'mixed' && !!sp.storefront && STOREFRONT_TO_ARCHETYPE[sp.storefront as StorefrontKind] === poi.archetype;
+        if (!same) return;
         const c = (dist(face.a, l.frontA) + dist(face.a, l.frontB)) / 2;
         if (Math.abs(c - s) < bd) { bd = Math.abs(c - s); pick = i; }
       });
@@ -240,6 +246,7 @@ export function subdivideLots(grid: GridModel, pois: PoiDef[], rng: Rng, faces?:
     }
     if (pick < 0) continue;
     const lot = lots[pick] as SpecLot;
+    const dataChurch = lot.spec?.use === 'church';
     lot.poi = poi;
     if (lot.spec && lot.spec.use !== (poi.archetype === 'church' ? 'church' : poi.archetype === 'condo' ? 'apartment' : 'mixed')) {
       // a POI re-purposes a data lot: keep its floors / family, drop what no longer applies
@@ -251,7 +258,7 @@ export function subdivideLots(grid: GridModel, pois: PoiDef[], rng: Rng, faces?:
       lot.depth = Math.max(lot.depth, 14);
       // widen by absorbing neighbours until a 9 m nave plus tower fits
       const free = (i: number) => i >= 0 && i < lots.length && !lots[i].poi && !lots[i].corner;
-      while (lot.width < CHURCH_MIN_W) {
+      while (lot.width < CHURCH_MIN_W && !dataChurch) {
         const li = lots.indexOf(lot);
         if (free(li + 1)) {
           const n = lots[li + 1];

@@ -17,6 +17,11 @@ export interface GameEvents {
   /** Fired once when the player first interacts (needed to start WebAudio). */
   userGesture: Record<string, never>;
   pedKnockedDown: { id: string; pos: Vec2 };
+  /** Mission framework (src/game/missions). */
+  'mission:started': { id: string; title: string; blurb: string };
+  'mission:objective': { id: string; index: number; total: number; text: string };
+  'mission:completed': { id: string; title: string; cash: number; message: string; totalCash: number };
+  'mission:failed': { id: string; title: string; reason: 'timeUp' | 'clockUp' | 'leftVehicle'; message: string };
 }
 
 type Handler<T> = (payload: T) => void;

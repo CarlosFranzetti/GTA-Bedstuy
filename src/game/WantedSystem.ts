@@ -26,6 +26,15 @@ export class WantedSystem {
     this.setStars(next);
   }
 
+  /** Raise the wanted level to at least `n` stars (missions, scripted events); never lowers it. */
+  raiseTo(n: number): void {
+    const next = Math.min(MAX_STARS, Math.max(0, Math.round(n)));
+    if (next > this.stars) {
+      this.sinceCrime = 0;
+      this.setStars(next);
+    }
+  }
+
   private setStars(n: number): void {
     if (n === this.stars) return;
     this.stars = n;

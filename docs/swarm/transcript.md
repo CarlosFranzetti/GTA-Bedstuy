@@ -374,3 +374,46 @@ MGR review of R2: ACCEPT (partial, as expected without allowlist). Verified: blo
 
 ### 2026-10-28T22:00:20Z · fable
 DONE (FOR FABLE T11 keys): types.ts MaterialKey union + MaterialLibrary.ts import and 7 specs landed (corrugatedSteel, chainlinkFence, chainlinkRail, graniteCurb, castIronFence m=0 per MGR, tarRoof, graffiti). tsc clean except D1's tests/unit/world/data-gen-tmp.test.ts (node:fs types) — @D1: that temp test breaks the whole-tree typecheck; delete it or add the node types reference. @T11 @B3 @S4 @P8: keys are live, use them.
+
+### 2026-10-28T22:01:22Z · X5
+@P8: mission wiring request for src/main.ts (all new files exist and typecheck; tests green).
+IMPORTS:
+import { MissionSystem } from '@/game/missions/MissionSystem';
+import { buildMissions } from '@/game/missions/content';
+import { MissionMarkerView } from '@/game/missions/MissionMarkerView';
+import { saveMissionData, loadMissionData } from '@/game/missions/MissionStore';
+import { MissionHud } from '@/ui/MissionHud';
+CONSTRUCT (after `wanted` is created; world.lots must be the built lots):
+const missions = new MissionSystem(buildMissions(grid, data, world.lots), {
+  persist: saveMissionData,
+  raiseWanted: (stars, pos) => { let g = 3; while (wanted.stars < stars && g-- > 0) events.emit('crime', { type: 'carjack', pos }); },
+});
+missions.restore(loadMissionData());
+const missionMarkers = new MissionMarkerView();
+scene.add(missionMarkers.group);
+UI (after `const hud = new Hud(overlay)`):
+const missionHud = new MissionHud(overlay);
+SIM STEP (in the 'simulation' system, right after wanted.update(dt)):
+{ const pv = player.vehicle; const b = (pv ?? player).body;
+  missions.update(dt, b.pos, player.inVehicle, wanted.stars, pv ? Math.abs(pv.speed) : Math.hypot(b.vel.x, b.vel.z), dayNight.timeOfDay);
+  if (input.pressed('KeyR')) missions.retry(dayNight.timeOfDay);
+  if (input.pressed('KeyX')) missions.abandon(); }
+RENDER CALLBACK (next to hud.update(hudState)):
+missionHud.update(missions.hud, frameDt);
+missionMarkers.sync(missions.markers, missions.markersVersion); missionMarkers.update(performance.now() / 1000);
+Notes: R/X are unused elsewhere (retry prompt text is on the HUD; pass {retryKey,abandonKey} in options if you map a gamepad/touch button, call missions.retry()/abandon() from it). Missions start by walking into the gold giver circle; deadline/time windows use dayNight.timeOfDay (Block Party is offered 6am-6pm, due 20:00; default start 17:30 gives 150 s). Optional debug hook: missions.start('bodega-run').
+
+### 2026-10-28T22:01:22Z · X5
+FOR FABLE: (1) src/core/Events.ts GameEvents: please add the mission events so P8 can pass `bus: events` in MissionSystem options and other systems (audio, radio subtitles) can listen: 'mission:started': { id: string; title: string; blurb: string }; 'mission:objective': { id: string; index: number; total: number; text: string }; 'mission:completed': { id: string; title: string; cash: number; message: string; totalCash: number }; 'mission:failed': { id: string; title: string; reason: 'timeUp'|'clockUp'|'leftVehicle'; message: string }. Until then MissionSystem has its own typed missions.on('mission:completed', fn). (2) Save: SaveState.ts needs nothing from you; I own src/game/missions/MissionStore.ts (key 'gta-bedstuy.missions.v1', try/catch'd, same pattern). If you prefer one store, fold saveMissionData/loadMissionData into SaveState.ts. (3) Minimap.update: optional 5th param blips?: readonly {x:number;z:number;color:string}[] (MissionSystem.markers is structurally compatible); draw each as a small ring in its colour, clamped to the map edge. (4) Optional: WantedSystem.raiseTo(n) would be cleaner than my emit('crime','carjack') hop in the wiring.
+
+### 2026-10-28T22:01:54Z · MGR
+FOR FABLE: (X5 22:01:22) four items, MGR recommendations: (1) APPROVE the 4 'mission:*' events in src/core/Events.ts GameEvents; PRD §5.3 requires the framework on the shared event bus, so P8 should then pass bus: events. (2) KEEP MissionStore.ts separate (own key gta-bedstuy.missions.v1, try/catch); no SaveState merge, Menu Reset should also clear it, @X5 export a clearMissionData() and @P8 call it in Menu onReset. (3) APPROVE optional Minimap blips param, condition: no per-frame allocation (draw straight from MissionSystem.markers, no map/filter). (4) APPROVE WantedSystem.raiseTo(n): the emit('crime',{type:'carjack'}) loop fakes crimes that other listeners (audio/radio, CopSystem) may react to; X5 switches the raiseWanted callback once it lands. @X5: board scope is bodega delivery, laundromat getaway and COP ESCAPE; content/ has blockParty.ts instead. Is cop escape inside laundromatGetaway? If not, either add it or say so in your report (3 missions minimum still holds).
+
+### 2026-10-28T22:02:00Z · X5
+X5 FINAL REPORT: mission framework + 3 missions + HUD landed. FILES: src/game/missions/{types,MissionSystem,MissionStore,MissionMarkerView}.ts, content/{places,bodegaRun,laundromatGetaway,blockParty,index}.ts, src/ui/MissionHud.ts + mission.css, tests/unit/game/mission{,_content,_hud,_markers}.test.ts. FRAMEWORK: data-driven MissionDef; objectives goTo/pickUp/deliver/surviveWanted/loseWanted/timer/holdSpeedBelow/escapeRadius/enterVehicle (+ per-objective timeLimit, stayInVehicle grace, raiseWantedTo); mission timeLimit, deadlineHour (wraps midnight), availableHours; states available/active/complete/failed; retry() resets everything, abandon(); cash + reward toast; local typed events mission:started/objective/completed/failed mirrored to optional bus; markers[] + markersVersion for cylinders/minimap; serialize()/restore() validated JSON + MissionStore (own localStorage key). Coordinates resolve from bedstuy.json POIs/lots (places.ts) so map edits move markers. MISSIONS: Bodega Run (Troop Deli, 3 bags to 3 stoops, 120 s, $150), Laundromat Getaway (KOSCIUSZ-K-O-MAT bag on foot -> 2 stars -> car -> 110 m away -> garage at Garvey/Lafayette-Van Buren -> stop 5 s -> wait stars out, must keep the car, $400), Block Party (Auntie's Oxtail; speaker at Garvey Cutz, table at 99c, ice at Van Buren Wine & Liquor; deliver mid Van Buren before 20:00; offered 6am-6pm; $250). All non-violent. TESTS: tests/unit/game 102 pass (58 of them mine: state machine, trigger radius, timer/clock fail, retry reset, serialize/restore round trip, scripted player chains for all 3 missions incl. failure+retry, hud jsdom, marker pool). tsc: my files clean; only error is someone else's tests/unit/world/data-gen-tmp.test.ts (node:fs types). SIZE: ~46 KB source, est. +12-15 KB minified (CSS ~3 KB). WIRING: see my @P8 post above (5 import lines, construct, missionHud, sim-step update + KeyR/KeyX, render sync). FOR FABLE items posted above (GameEvents mission:* keys, Minimap blips param, optional WantedSystem.raiseTo). NOTES: update() takes trailing optional speedMps and hour beyond the requested 4 args; Block Party at the default 17:30 start leaves 150 s (by car feasible, on foot not), so P8/Fable may want a later-morning start or accept it as the challenge.
+
+### 2026-10-28T22:02:06Z · T11
+industrial.ts LANDED (src/textures/painters/industrial.ts, 7 painters, variants: corrugatedSteel 3, chainlinkFence 3, chainlinkRail 2, graniteCurb 2, castIronFence 3, tarRoof 3, graffiti 6). I see the keys already in types.ts/MaterialLibrary - thanks Fable. Now finishing tests + docs.
+
+### 2026-10-28T22:02:42Z · fable
+DONE (FOR FABLE X5): (1) GameEvents now carries mission:started/objective/completed/failed (src/core/Events.ts) — @P8 pass bus: events to MissionSystem. (2) MissionStore stays separate; @X5 (if still around) / @P8: clearMissionData() on Menu reset per MGR. (3) Minimap.update(playerPos, heading, cops, dt?, blips?) draws rings clamped to the disc edge, alloc-free. (4) WantedSystem.raiseTo(n) added — @P8 use raiseWanted: (stars) => wanted.raiseTo(stars) instead of the carjack loop. Note: temp tests data-gen-tmp.test.ts / zz-preview.tmp.test.ts use node:fs/zlib types and break tsc; owners please delete before FINAL.

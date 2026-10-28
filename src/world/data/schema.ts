@@ -368,7 +368,7 @@ interface Typology {
   /** probability an ordinary lot is mixed-use */
   mixedChance: number;
   storefronts: Weighted<StorefrontKind>;
-  /** floors for mixed-use lots are bumped by this when the roll succeeds */
+  /** probability that the face gets one church (interior lot, 12.5-14 m wide) */
   churchChance: number;
   vacantChance: number;
   scaffoldChance: number;
@@ -457,20 +457,24 @@ export function generateFaceLots(spanM: number, typologyName: TypologyName, rng:
   for (const w of fillWidths(mid, ty.width[0], ty.width[1], rng)) { widths.push(w); isCorner.push(false); }
   if (cw2) { widths.push(cw2); isCorner.push(true); }
 
-  // one church per face with some probability, in an interior position, wide enough for a nave
+  // one church per face with some probability, in an interior position, wide enough for a nave; the other lots
+  // shrink a little to make room so the row still sums to the span
   let churchAt = -1;
   if (widths.length >= 6 && rng.chance(ty.churchChance)) {
     churchAt = rng.int(2, widths.length - 3);
+    const churchW = rng.range(12.5, 14);
+    const others = widths.reduce((sum, w, i) => (i === churchAt ? sum : sum + w), 0);
+    const k = (spanM - churchW) / others;
+    for (let i = 0; i < widths.length; i++) widths[i] = i === churchAt ? churchW : widths[i] * k;
   }
 
   const lots: LotSpec[] = [];
   let prevVacant = false;
   for (let i = 0; i < widths.length; i++) {
-    let w = widths[i];
+    const w = widths[i];
     const corner = isCorner[i];
     const raw: RawLot = { confidence: 'L' };
     if (i === churchAt) {
-      w = rng.range(12.5, 14);
       raw.use = 'church'; raw.family = 'church'; raw.floors = 3; raw.stoop = true; raw.cornice = 'none'; raw.storefront = 'church';
       raw.note = 'typology default: a church on this face';
     } else if (!corner && !prevVacant && rng.chance(ty.vacantChance)) {

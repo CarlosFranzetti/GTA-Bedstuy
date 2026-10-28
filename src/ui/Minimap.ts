@@ -2,6 +2,9 @@ import { angleDiff, clamp, forwardFromHeading, perpRight, wrapAngle } from '@/co
 import type { Vec2 } from '@/core/Math2';
 import type { GridModel, StreetDef } from '@/world/types';
 
+/** A world-space point drawn on the minimap as a coloured ring (mission markers etc.). */
+export interface MinimapBlip { x: number; z: number; color: string }
+
 const SIZE = 220;
 /** Pixels per metre on the minimap. */
 const SCALE = 1.1;
@@ -106,7 +109,7 @@ export class Minimap {
    * `dt` (seconds) drives heading smoothing and cop blinking; when omitted it is measured from the clock.
    * The map rotates by a smoothed heading, so the arrow swings to the true heading and settles.
    */
-  update(playerPos: Vec2, heading: number, cops: Vec2[], dt?: number): void {
+  update(playerPos: Vec2, heading: number, cops: Vec2[], dt?: number, blips?: readonly MinimapBlip[]): void {
     let step = dt;
     if (step === undefined) {
       const now = typeof performance !== 'undefined' ? performance.now() : 0;
@@ -132,6 +135,7 @@ export class Minimap {
     ctx.fillRect(0, 0, SIZE, SIZE);
     this.drawRoads(ctx, toMap);
     this.drawAvenueLabels(ctx, playerPos, toMap);
+    if (blips && blips.length > 0) this.drawBlips(ctx, blips, toMap, half);
     this.drawCops(ctx, cops, toMap);
     ctx.restore();
 
@@ -216,6 +220,26 @@ export class Minimap {
       ctx.strokeText(av.name, 0, 0);
       ctx.fillText(av.name, 0, 0);
       ctx.restore();
+    }
+  }
+
+  /** Mission / objective blips: a small ring in the blip's colour, clamped to the disc edge when off-map. */
+  private drawBlips(ctx: CanvasRenderingContext2D, blips: readonly MinimapBlip[], toMap: ToMap, half: number): void {
+    const edge = half - 6;
+    ctx.lineWidth = 2;
+    for (const b of blips) {
+      const p = toMap(b);
+      let dx = p.x - half, dy = p.y - half;
+      const d = Math.hypot(dx, dy);
+      if (d > edge) { dx *= edge / d; dy *= edge / d; }
+      ctx.beginPath();
+      ctx.arc(half + dx, half + dy, 4, 0, Math.PI * 2);
+      ctx.strokeStyle = b.color;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(half + dx, half + dy, 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = b.color;
+      ctx.fill();
     }
   }
 

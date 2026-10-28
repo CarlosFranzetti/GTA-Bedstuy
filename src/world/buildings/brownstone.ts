@@ -87,7 +87,7 @@ export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
   }
 
   // ---- parlour floor: tall recessed double-hung windows, stone hoods and pale frames; round-headed on some houses
-  const arched = spec ? !!spec.arched : opts.style === 'brownstone' && rng.chance(0.18);
+  const arched = spec?.arched ?? (fam.family === 'brownstone' && rng.chance(0.18));
   const parlourXs = xs.filter((_, i) => i !== doorBay);
   const pw = Math.min(1.1, W / bays - 0.7);
   const pH = arched ? PARLOUR_H - 0.5 - pw / 2 - 0.55 : 2.35;
