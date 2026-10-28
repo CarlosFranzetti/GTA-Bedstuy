@@ -508,3 +508,23 @@ export default defineConfig({
    Optional: "engines": { "node": ">=20.19" } (Vite 8 floor; Vercel picks a compatible Node).
 (3) .gitignore: add a line  dist-hosted
 Notes: default 'npm run build' / 'npm run artifact' are byte-for-byte the old behaviour (no VITE_HOSTED = singlefile on). vercel.json (landed) runs 'VITE_HOSTED=1 npm run build' with output 'dist', so the Vercel dashboard needs only the Vite preset; no dashboard env var needed.
+
+### 2026-10-28T22:07:49Z · H7
+@P8: wiring request for src/main.ts (hosted textures + the 'ultra' flag). I defined ultra WITHOUT touching the Quality type or any Record<Quality,...> table: '?q=ultra' resolves to quality 'high' plus an 'ultra' flag that is true only in the hosted build (in the artifact it is plain 'high'); the flag raises texture anisotropy to 16 and loads 2K sets when src/assets/textures/2k has any. It also fixes today's crash path where an unknown ?q= value is cast straight into Quality.
+Exact edits (anchors are current line numbers):
+1. after line 34 (import { loadTexturePacks } from '@/textures/packs';) add:
+   import { resolveQuality, startHostedTextures } from '@/textures/hosted';
+2. replace line 60 (let quality: Quality = (params.get('q') as Quality | null) ?? (isTouch ? 'low' : 'medium');) with:
+   const resolvedQuality = resolveQuality(params.get('q'), isTouch); // ?q=ultra exists only in the hosted build: 'high' + ultra textures
+   let quality: Quality = resolvedQuality.quality;
+3. optional, ultra only: pixelRatioFor could use Math.min(resolvedQuality.ultra ? 2 : 1.75, devicePixelRatio) for non-low; skip if you prefer to keep ratios untouched (shadows/AO/AA for ultra stay 'high' for now; PRD section 3's ultra render column is not implemented).
+4. right after line 497 (game.start();) add (no-op in the artifact; in the hosted build it waits two frames + idle, then swaps larger texture tiers into the MaterialLibrary and, for ultra, sets anisotropy 16):
+   const hostedTextures = startHostedTextures(materials, { ultra: resolvedQuality.ultra, maxAnisotropy: renderer.capabilities.getMaxAnisotropy() });
+   and in the __gtaDebug object (line ~463, next to packsReady,) add:   hostedTextures: hostedTextures.done,   (declare 'const hostedTextures' before the object or use a getter; build-hosted.mjs --smoke reads window.__gtaDebug.hostedTextures if present, tolerates absence).
+Nothing else in main.ts changes. Signatures: resolveQuality(param: string|null, isTouch: boolean): { quality: 'low'|'medium'|'high'; ultra: boolean }; startHostedTextures(materials: MaterialLibrary, opts?: { ultra?: boolean; maxAnisotropy?: number }): { done: Promise<{ upgraded:number; retuned:number; tier:string; skipped:boolean }>; cancel(): void }. Menu: no 'ultra' button (URL-only), so MenuQuality stays low/medium/high.
+
+### 2026-10-28T22:07:57Z · MGR
+FOR FABLE: (H7 22:07:33) hosted build shared-file edits. MGR recommends APPROVE all three as posted: (1) vite.config.ts: diff is additive, the non-hosted branch is byte-identical to today's build block, so artifact/smoke behaviour cannot change; hosted branch = no singlefile, hashed assets/[name]-[hash], three.js split; (2) package.json scripts build:hosted / build:all / smoke:hosted (port 4307 is H7's); add engines node >=20.19 too (local node is v22.22, Vite 8 floor); (3) .gitignore dist-hosted. After landing, gate = npm run build && node scripts/make-artifact.mjs (expect ~6.7 MB) and npm run build:hosted. Note for H7's final: vercel.json builds to dist while build:hosted writes dist-hosted locally; state that both are the same output, just different dirs.
+
+### 2026-10-28T22:08:18Z · fable
+DONE (FOR FABLE H7): vite.config.ts replaced with the proposed two-branch config, package.json scripts build:hosted / build:all / smoke:hosted + engines node>=20.19, .gitignore dist-hosted. Verified: npm run build → dist/index.html 6.83 MB (single file), VITE_HOSTED=1 build → 35 hashed assets with three chunk split. @H7 your scripts/build-hosted.mjs can now run against the real config.

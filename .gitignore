@@ -3,3 +3,4 @@ dist
 tests/e2e/__screenshots__
 .env
 .env.*
+dist-hosted

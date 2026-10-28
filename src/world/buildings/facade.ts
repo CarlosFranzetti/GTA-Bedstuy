@@ -766,3 +766,94 @@ export function acUnits(b: LotBatch, m: BuildingMats, rng: Rng, spots: { x: numb
 export function airVent(b: LotBatch, m: BuildingMats, x: number, y: number, z: number): void {
   b.box(m.metal, x - 0.25, y, z, x + 0.25, y + 0.3, z + 0.12, 'fu');
 }
+
+// ---------------------------------------------------------------------------------------------- upper floors (shared)
+
+export interface UpperFloorsOpts {
+  /** top of the ground floor / shop slab, lot-local y: the first upper floor stands on it */
+  y0: number;
+  /** storeys above y0 (the shop is not counted), 2.9 m each */
+  floors: number;
+  /** front wall material (the masonry family's face) */
+  wall: THREE.Material;
+  /** sills / lintels / coping (default limestone) */
+  trim?: THREE.Material;
+  /** cornice kind (default: spec.cornice, else 'bracket') */
+  cornice?: CorniceKind;
+  /** window bays (default: spec.bays, else one per 2.4 m, min 2) */
+  bays?: number;
+  /** force or forbid a front fire escape (default: likely on 3-5 floor fronts) */
+  fireEscape?: boolean;
+  /** facade plane z (default 0 = building line) */
+  z?: number;
+}
+
+export interface UpperFloorsResult {
+  /** roof line, lot-local y */
+  topY: number;
+  /** y of each upper floor's window sill row (fire-escape platforms sit just below) */
+  sillYs: number[];
+}
+
+/**
+ * Everything above a ground floor: the party-wall shell from y0 up, the front wall with recessed double-hung
+ * windows (sills, lintels), the cornice, parapet + roof with clutter, a fire escape or AC units, a drain pipe, and
+ * -- on a corner lot -- the windowed side wall above y0. The ground floor itself (0..y0, including the front wall,
+ * shop front or lobby and the side wall below y0) belongs to the caller. Used by apartments and by the mixed-use
+ * lane, so both stack floors the same way.
+ */
+export function buildUpperFloors(c: LotCtx, o: UpperFloorsOpts): UpperFloorsResult {
+  const { b, m, rng, W, D, spec } = c;
+  const z = o.z ?? 0;
+  const n = Math.max(1, Math.round(o.floors));
+  const y0 = o.y0;
+  const topY = y0 + n * UPPER_H;
+  const trim = o.trim ?? m.limestone;
+  const cs = c.cornerSide;
+
+  // party walls + back (a corner side wall is built below with its own windows)
+  b.box(m.brickRed, 0, y0, -D, W, topY, z, cs === 'left' ? 'rb' : cs === 'right' ? 'lb' : 'rlb');
+
+  const bays = Math.max(1, Math.min(Math.floor(W / 1.7), o.bays ?? spec?.bays ?? Math.max(2, Math.round(W / 2.4))));
+  const xs = bayCentres(W, bays);
+  const ww = Math.min(1.1, W / bays - 0.6);
+  const holes: Hole[] = [];
+  const acSpots: { x: number; y: number }[] = [];
+  const sillYs: number[] = [];
+  for (let k = 0; k < n; k++) {
+    const wy = y0 + k * UPPER_H + 0.6;
+    windows(b, m, {
+      xs, y: wy, w: ww, h: 1.75, z, holes, wall: o.wall, sill: true, lintel: k === 0 ? 'hood' : 'flat',
+      frame: k === n - 1, noLedge: k >= 2, trim, rng,
+    });
+    for (const x of xs) acSpots.push({ x, y: wy });
+    sillYs.push(wy);
+  }
+  wallWithHoles(b, o.wall, 0, y0, W, topY, z, holes);
+  b.box(trim, 0, y0 - 0.1, z, W, y0 + 0.03, z + 0.05, 'fud');
+  for (let k = 1; k < n; k++) b.box(trim, 0, y0 + k * UPPER_H - 0.1, z, W, y0 + k * UPPER_H + 0.03, z + 0.05, 'fud');
+
+  corniceOfKind(b, m, 0, W, topY, z, o.cornice ?? spec?.cornice ?? 'bracket', 0.6);
+  roofWithParapet(b, m, { x0: 0, x1: W, zBack: -D, zFront: z, y: topY, frontMat: o.wall, sideMat: m.brickRed, coping: trim, exposeL: cs === 'left', exposeR: cs === 'right' });
+  roofClutter(b, m, rng, { x0: 0, x1: W, zBack: -D, zFront: z, y: topY, brick: m.brickRed, chimney: 0.1, skylight: 0.3, bulkhead: 0.6, dishes: 0.45 });
+  if (n >= 3 && rng.chance(0.5)) waterTank(b, m, W * 0.5, topY, -D + 2.8);
+
+  const feWanted = o.fireEscape ?? rng.chance(n >= 3 && n <= 4 ? 0.85 : n === 2 ? 0.45 : 0.3);
+  if (feWanted && xs.length >= 2) {
+    const pair = xs.length >= 3 && rng.chance(0.5) ? [xs[xs.length - 2], xs[xs.length - 1]] : [xs[0], xs[1]];
+    fireEscape(b, m, Math.max(0.2, pair[0] - 0.7), Math.min(W - 0.2, pair[1] + 0.7), z, sillYs.map((y) => y - 0.05));
+  } else {
+    acUnits(b, m, rng, acSpots, z);
+  }
+  if (rng.chance(0.4)) drainPipe(b, m, rng.chance(0.5) ? 0.14 : W - 0.14, 0.2, topY - 0.4, z);
+
+  if (cs) {
+    const nb = Math.max(2, Math.floor((D - 1) / 3));
+    b.with(sideWallFrame(cs, W, D), () => {
+      const sh: Hole[] = [];
+      for (let k = 0; k < n; k++) windows(b, m, { xs: bayCentres(D, nb), y: y0 + k * UPPER_H + 0.6, w: 1.1, h: 1.75, z: 0, holes: sh, wall: o.wall, sill: true, noLedge: k >= 2, rng });
+      wallWithHoles(b, o.wall, 0, y0, D, topY, 0, sh);
+    });
+  }
+  return { topY, sillYs };
+}

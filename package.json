@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "GTA Bed-Stuy: a non-commercial fan tribute set on ten blocks around Throop Ave & Kosciuszko St, Brooklyn. Not affiliated with Rockstar Games or Take-Two.",
+  "engines": { "node": ">=20.19" },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -11,7 +12,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "node tests/e2e/smoke.mjs",
-    "artifact": "vite build && node scripts/make-artifact.mjs"
+    "artifact": "vite build && node scripts/make-artifact.mjs",
+    "build:hosted": "node scripts/build-hosted.mjs --only hosted",
+    "build:all": "node scripts/build-hosted.mjs",
+    "smoke:hosted": "node scripts/build-hosted.mjs --only hosted --smoke --port 4307"
   },
   "dependencies": {
     "three": "^0.186.1"
