@@ -115,6 +115,14 @@ export class SunFlare {
     this.object3d = new THREE.Group();
     this.object3d.name = 'SunFlare';
     this.flare = new Lensflare();
+    // Lensflare draws its additive quads from onBeforeRender, so every scene render calls it, including
+    // GTAOPass's override-material normal/depth pass: the 520 px glow then lands in the G-buffer (AO halos
+    // and a bogus depth/normal disc around the sun, also read by the DoF pass). Skip any override-material render.
+    const drawFlare = this.flare.onBeforeRender.bind(this.flare);
+    this.flare.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
+      if (scene.overrideMaterial) return;
+      drawFlare(renderer, scene, camera, geometry, material, group);
+    };
 
     const glow = makeGlowTexture();
     const hex = makeHexTexture();

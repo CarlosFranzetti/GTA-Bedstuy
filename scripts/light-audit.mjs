@@ -13,9 +13,11 @@ const VIEWS = arg('views', 'street,car,aerial').split(',');
 const QS = arg('q', 'low,medium').split(',');
 const MEDIUM_HOURS = arg('medium-hours', '12,18,0').split(',').map(Number);
 const PORT = Number(arg('port', '4173'));
+const DIST = arg('dist', 'dist');
+const TAG = arg('tag', '');
 mkdirSync(OUT, { recursive: true });
 
-const preview = spawn('node', ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort'], { stdio: ['ignore', 'pipe', 'pipe'] });
+const preview = spawn('node', ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort', '--outDir', DIST], { stdio: ['ignore', 'pipe', 'pipe'] });
 preview.stderr.on('data', (d) => process.stderr.write(d));
 const waitForServer = async () => {
   for (let i = 0; i < 40; i++) { try { if ((await fetch(`http://localhost:${PORT}/`)).ok) return; } catch {} await new Promise((r) => setTimeout(r, 250)); }
@@ -69,9 +71,10 @@ try {
         const p = d.player;
         if (view === 'street') { if (p.inVehicle) p.exit(); d.teleport(9, 20, 0); }
         if (view === 'car' && !p.inVehicle) {
-          const v = d.traffic.vehicles[0];
+          // nearest traffic car to the spawn crossing (map centre: lit streets, buildings both sides)
+          const v = [...d.traffic.vehicles].sort((m, n) => Math.hypot(m.body.pos.x - 9, m.body.pos.z - 20) - Math.hypot(n.body.pos.x - 9, n.body.pos.z - 20))[0];
           const pos = v.body.pos; d.teleport(pos.x, pos.z, v.body.heading);
-          p.tryEnter([...d.traffic.vehicles]);
+          p.tryEnter([v]);
         }
       }, view);
       for (const hour of hours) {
@@ -81,12 +84,12 @@ try {
           d.pipeline.setHour(hour); d.pipeline.setNight(d.dayNight.isNight);
           d.pipeline.snapGrade?.();
           const p = d.player; const pos = p.vehicle ? p.vehicle.body.pos : p.body.pos;
-          if (view === 'aerial') d.setFreeCam(pos.x + 25, 70, pos.z + 55, pos.x, 0, pos.z);
+          if (view === 'aerial') d.setFreeCam(pos.x - 30, 50, pos.z + 110, pos.x, 5, pos.z);
           d.settle(30);
         }, { hour, view });
         // let a few real frames render so the env map / shadows / grade are current
         await page.evaluate(() => new Promise((res) => { let n = 0; const f = () => (++n >= 4 ? res() : requestAnimationFrame(f)); requestAnimationFrame(f); }));
-        const file = `${OUT}/${q}_${view}_${String(hour).replace('.', 'p').padStart(4, '0')}.png`;
+        const file = `${OUT}/${TAG}${q}_${view}_${String(hour).replace('.', 'p').padStart(4, '0')}.png`;
         await page.screenshot({ path: file, timeout: 120_000 });
         results.push(file); console.log(`[audit] ${q} ${view} h=${hour} ${((Date.now() - t0) / 1000).toFixed(0)}s`);
       }

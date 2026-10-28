@@ -1,4 +1,4 @@
-import { angleDiff, clamp, dist, perpRight, type Vec2 } from '@/core/Math2';
+import { angleDiff, clamp, dist, type Vec2 } from '@/core/Math2';
 import { Rng } from '@/core/Rng';
 import type { TrafficLights } from '@/game/TrafficLights';
 import type { Body2D, IVehicle, IWorld2D, LaneGraph, LaneNode, VehicleInput } from '@/world/types';
@@ -177,7 +177,7 @@ export class TrafficAgent {
 
     if (this.state === 'waiting') {
       this.waitTimer += dt;
-      if (!this.releaseFromWait(node, dt)) { this.hold(); this.noteQueued(dt); return; }
+      if (!this.releaseFromWait(node, dt)) { this.hold(); this.noteQueued(); return; }
       this.state = 'driving';
       this.stuckTime = 0;
       this.pickNext(node);
@@ -400,11 +400,10 @@ export class TrafficAgent {
     return this.lights.phaseFor(s.intersectionId!, s.streetId) !== 'green';
   }
 
-  private noteQueued(dt: number): void {
+  private noteQueued(): void {
     this.stuckTime = 0;
     this.blockedTime = 0;
     this.hornClock = 0;
-    void dt;
   }
 
   // ------------------------------------------------------------------ pedestrians
@@ -588,6 +587,3 @@ export class TrafficAgent {
     return best;
   }
 }
-
-// keep perpRight in the import list for callers that want the same lateral convention
-export const lateralLeft = (fwd: Vec2): Vec2 => { const r = perpRight(fwd); return { x: -r.x, z: -r.z }; };

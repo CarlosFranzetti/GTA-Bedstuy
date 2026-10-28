@@ -114,3 +114,41 @@ MGR review of R1: ACCEPT (partial coverage). Good: 11 sets verified 200 + PIL wi
 
 ### 2026-10-28T01:20:11Z · M2
 M2: Vehicle.ts done (new torque/ABS/steer-rate/slip/roll-pitch/dents/parked friction, prevPos/applyInterpolated/shakeRequested/slip/steering/lateralSpeed/grip). @M3: VehicleInput semantics unchanged but steering is now rate limited (full lock ~0.3 s, slower at speed), brake pedal ramps in ~0.13 s (ABS), coasting uses engine braking + drag, throttle follows a = accel*(throttle - (v/vmax)^2) so throttle 0.15 holds ~0.39*vmax; boxtruck spec accel 4->2.7, brakeDecel 14->12 (12 s to 100km/h-equivalent). Parked (driver null) cars now friction-slow instead of zeroing.
+
+### 2026-10-28T01:21:09Z · M1
+@R3: when lighting-targets.md lands I'll consume it. Specifically I need per-hour (6,9,12,15,18,19.5,21,0): sun/moon illuminance-relative intensity (noon=1), sun colour temp, skylight (hemisphere) colour + intensity relative to sun, target street-level mean sRGB luma, and a recommended material envMapIntensity per class (glass, car paint clearcoat, asphalt, brick). Ping me with partial results as soon as any exist. FYI finding: materials with an explicit envMap (MaterialLibrary.setEnvironment) ignore scene.environmentIntensity entirely in three 0.186 -> window 1.0 / carGlass 1.5 / paint 1.2 are un-attenuated while everything else is x0.18.
+
+### 2026-10-28T01:21:18Z · M3
+Decision: TrafficLights(grid) is created in main and passed to TrafficSystem (which is the SOLE caller of lights.update(dt)); main only calls updateSignalMeshes(signalsGroup, lights) per frame. Details to follow in @M4 / @fable posts at the end.
+
+### 2026-10-28T01:21:19Z · M5
+@M4: M5 wiring for main.ts (all APIs exist and are tested; types: Menu/GamepadInput are in src/ui/Menu.ts and src/core/Gamepad.ts).
+1) imports:
+   import { Menu } from '@/ui/Menu';
+   import { GamepadInput } from '@/core/Gamepad';
+2) right after `if (isTouch) new TouchControls(overlay, input);` (needs input+hud+audio+pipeline+renderer; `game` is used lazily inside callbacks so it may be declared later, but use `let`-free arrow bodies as below):
+   const gamepad = new GamepadInput(input, { onToast: (m) => hud.showToast(m), onStart: () => menu.toggle(), onNav: (d) => menu.navigate(d) });
+   const menu = new Menu(overlay, {
+     onPause: (p) => { game.paused = p || document.hidden; gamepad.paused = p; audio.setPaused(p); if (!p) { input.endFrame(); input.requestLock(); } },
+     onQuality: (q) => { quality = q; pipeline.setQuality(q); setupShadows(renderer, dayNight.sun, q); },
+     onMasterVolume: (v) => audio.setMasterVolume(v),
+     onRadioVolume: (v) => audio.setRadioVolume(v),
+     onInvertLookY: (b) => { input.invertLookY = b; },
+     onReset: () => { const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = 9; b.pos.z = 20; b.vel.x = 0; b.vel.z = 0; },
+   }, { touch: isTouch, initialQuality: quality, ignoreSavedQuality: params.has('q') });
+   input.onModeChange = (m) => { hud.setInputMode(m); menu.setInputMode(m); };
+   hud.setInputMode(input.mode); menu.setInputMode(input.mode);
+   (Menu fires onMasterVolume/onRadioVolume/onInvertLookY/onQuality once at construction for any persisted values; `game`, `audio`, `pipeline` must exist by then, so construct Menu AFTER `const game = new Game(...)`, or move `gamepad`+`menu` just below it.) Reset spawn is (9,20) as in `new Player('player', {x:9,z:20})`.
+3) visibilitychange line: replace with `document.addEventListener('visibilitychange', () => { game.paused = document.hidden || menu.isOpen; });` (AudioSystem already self-handles hidden tab; do NOT also call audio.pause for it.)
+4) per frame in the Game render callback (runs even while paused, which Start/menu nav need): 
+   const nowPad = performance.now(); gamepad.inVehicle = player.inVehicle; gamepad.update(Math.min(0.1, (nowPad - lastPad) / 1000)); lastPad = nowPad;   // declare `let lastPad = performance.now();` above
+5) minimap: pass dt as 4th arg if you have it (optional): minimap.update(camTarget, camHeading, copPositions, frameDt). If omitted it self-times.
+6) audio, next to audio.setEngine(...): 
+   const pv = player.vehicle as ({ slip?: number } & typeof player.vehicle) | null;
+   audio.setSlip(pv?.slip ?? 0); audio.setHandbrake(player.inVehicle && player.lastVehicleInput.handbrake);   // M2 may rename slip, see transcript
+7) prompt: keep sending `${key}  Enter car` with key 'F'; Hud rewrites the glyph (F/CAR/A) per input mode itself, so `const key = isTouch ? 'CAR' : 'F'` can stay or become 'F'.
+8) Hud also has hud.showToast(msg), hud.showLocationCard(title, sub) (auto "Welcome to Bed-Stuy" on first hideSplash). Esc/pointer-lock-loss opens the menu by itself.
+Settings keys: localStorage 'gta-bedstuy.settings.v1' = {quality,master,radio,invertY}.
+
+### 2026-10-28T01:21:21Z · mgr
+@M1: R3 is already DONE (final report 01:19:04). docs/reference/lighting-targets.md has: §1 per-hour table (0,3,6,7,9,12,15,17,18,19,20,22: sun/moon intensity, CCT+hex, hemi sky/ground/intensity, environmentIntensity, final exposure, fog colour/near/far, bloom), §2 per-material r/m/env (glass env 1.0-1.2, car glass 1.5, paint 1.2, asphalt 0.2, brick 0.1, brownstone 0.1), §5 top-5 list. Missing from your ask: target street-level mean luma per hour; use PRD §5.2 thresholds (night mean >= ~20/255, < 0.5% clipped) and record measured values in your report. Fable granted you line-local numeric edits in MaterialLibrary.ts (01:19:25). Your envMap finding matches R3 §3 item 11: fix by scaling per-material envMapIntensity by hour rather than relying on scene.environmentIntensity.

@@ -113,7 +113,7 @@ export class AudioSystem {
   /** Call once per frame. Drives the radio sequencer and the siren timer. */
   update(dt: number): void {
     const g = this.g;
-    if (!g) return;
+    if (!g || this.pauseReasons.size > 0) return;
     const now = g.ctx.currentTime;
     if (this.shiftFactor !== 1) {
       const k = Math.min(1, dt / SHIFT_RECOVERY);

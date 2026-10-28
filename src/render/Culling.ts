@@ -93,7 +93,7 @@ export function splitGeometryByCell(geo: THREE.BufferGeometry, cellX: number, ce
         if (m < 0) continue;
         for (let k = 0; k < size; k++) dst[m * size + k] = arr[v * size + k];
       }
-      g.setAttribute(name, new THREE.BufferAttribute(dst as unknown as ArrayLike<number>, size, a.normalized));
+      g.setAttribute(name, new THREE.BufferAttribute(dst as unknown as Float32Array, size, a.normalized));
     }
     g.setIndex(vcount > 65535 ? new THREE.BufferAttribute(idx, 1) : new THREE.BufferAttribute(new Uint16Array(idx), 1));
     g.computeBoundingBox();

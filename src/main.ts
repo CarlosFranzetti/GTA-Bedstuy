@@ -126,13 +126,14 @@ const audio = new AudioSystem(events);
 events.on('enterVehicle', () => { physics.removeBody(player.body.id); if (player.vehicle) nightLights.attachHeadlights(player.vehicle.object3D, player.vehicle.spec.length); });
 events.on('exitVehicle', () => { physics.addBody(player.body); nightLights.attachHeadlights(null); });
 
+loading.done('entities');
+
 // ---- ui
 const overlay = document.createElement('div');
 overlay.id = 'overlay';
 app.appendChild(overlay);
 const hud = new Hud(overlay);
 const minimap = new Minimap(overlay, grid);
-hud.showSplash();
 
 const input = new Input(renderer.domElement);
 const cam = new ThirdPersonCamera(window.innerWidth / window.innerHeight);
@@ -145,56 +146,152 @@ overlay.addEventListener('mousedown', () => input.notifyGesture());
 overlay.addEventListener('pointerdown', () => input.notifyGesture());
 if (isTouch) new TouchControls(overlay, input);
 
+// ---- quality switching (debug hook and the automatic drop share this path)
+function applyQuality(q: Quality): void {
+  quality = q;
+  renderer.setPixelRatio(pixelRatioFor(q));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  pipeline.setQuality(q);
+  pipeline.setSize(window.innerWidth, window.innerHeight);
+  setupShadows(renderer, dayNight.sun, q);
+}
+// Explicit ?q= (review scripts, bug reports) or ?perf=0 keeps the requested quality for the whole session.
+const perf = new PerfMonitor({
+  getQuality: () => quality,
+  setQuality: applyQuality,
+  autoDrop: !params.has('q') && params.get('perf') !== '0',
+});
+
 // ---- loop
-const allVehicles = (): IVehicle[] => [...traffic.vehicles, ...cops.cops];
+const vehicleScratch: IVehicle[] = [];
+/** Traffic + cop cars in one reusable array (valid until the next call). */
+const allVehicles = (): IVehicle[] => {
+  vehicleScratch.length = 0;
+  for (const v of traffic.vehicles) vehicleScratch.push(v);
+  for (const v of cops.cops) vehicleScratch.push(v);
+  return vehicleScratch;
+};
 const entityById = new Map<string, Entity>();
 let fps = 60, frames = 0, fpsClock = 0;
 let lastNight = dayNight.isNight;
 const copPositions: Vec2[] = [];
 
+// render interpolation: poses are snapshotted at the start of every fixed step and blended by alpha at draw time
+const poses = new PoseSnapshots();
+const blended: BlendedPose = { x: 0, z: 0, h: 0 };
+const camTarget: Vec2 = { x: 0, z: 0 };
+let camHeading = 0;
+const sunDir = new THREE.Vector3();
+const focusPoint = new THREE.Vector3();
+
 let freeCam: { pos: THREE.Vector3; look: THREE.Vector3 } | null = null;
-function updateCamera(): void {
-  const pos = player.body.pos;
-  const heading = player.vehicle ? player.vehicle.body.heading : player.body.heading;
+function updateCamera(dt = 1 / 60): void {
   if (freeCam) { cam.camera.position.copy(freeCam.pos); cam.camera.lookAt(freeCam.look); }
-  else cam.update(1 / 60, pos, heading, player.inVehicle ? 'vehicle' : 'foot', input);
+  else {
+    cam.update(dt, camTarget, camHeading, player.inVehicle ? 'vehicle' : 'foot', input);
+    // consumed here: otherwise frames that run no fixed step (display > 60 Hz) would re-apply the same mouse delta
+    input.mouseDX = 0; input.mouseDY = 0;
+  }
 }
+/** Writes the interpolated pose of an entity to its object (x, z, yaw only; physics bodies are untouched). */
+function placeInterpolated(e: Entity, alpha: number): BlendedPose {
+  poses.blend(e.body, alpha, blended);
+  const o = e.object3D;
+  o.position.x = blended.x; o.position.z = blended.z; o.rotation.y = -blended.h;
+  return blended;
+}
+function interpolateAll(alpha: number, refX: number, refZ: number): void {
+  const veh = player.vehicle;
+  for (const v of traffic.vehicles) {
+    const b = placeInterpolated(v, alpha);
+    if (v !== veh) culler.applyTo(v.object3D, b.x, b.z, refX, refZ, v.spec.length);
+  }
+  for (const v of cops.cops) placeInterpolated(v, alpha);
+  for (const p of traffic.peds) { const b = placeInterpolated(p, alpha); culler.applyTo(p.object3D, b.x, b.z, refX, refZ, 1); }
+  if (veh) {
+    const b = poses.blend(veh.body, alpha, blended);
+    camTarget.x = b.x; camTarget.z = b.z; camHeading = b.h;
+    player.object3D.position.x = b.x; player.object3D.position.z = b.z;
+  } else {
+    const b = placeInterpolated(player, alpha);
+    camTarget.x = b.x; camTarget.z = b.z; camHeading = b.h;
+  }
+}
+
+const PROMPT_KEY = isTouch ? 'CAR' : 'F';
+const PROMPT_EXIT = `${PROMPT_KEY}  Exit car`;
+const PROMPT_ENTER = `${PROMPT_KEY}  Enter car`;
+let slowTick = 0;
+let streetName = '';
+let prompt = '';
+const hudState: HudState = { stars: 0, speedKmh: 0, inVehicle: false, radioStation: '', prompt: '', timeOfDay: 0, streetName: '', fps: 60 };
+const stats: Record<string, number> = { drawCalls: 0, triangles: 0, fps: 60, fps1pctLow: 0, heapMBPerMin: 0, culledObjects: 0, vehicles: 0, peds: 0, cops: 0, meshes: world.stats.meshes, colliders: world.stats.colliders };
+window.__gtaStats = stats;
+
 const game = new Game(
-  () => {
+  (alpha, frameDt) => {
     const pos = player.body.pos;
-    const heading = player.vehicle ? player.vehicle.body.heading : player.body.heading;
-    updateCamera();
-    updateShadowCamera(dayNight.sun, player.body.pos);
-    const sunDir = dayNight.sun.position.clone().normalize();
+    // reference for distance culling: the camera, so free-cam review shots are unaffected
+    interpolateAll(alpha, cam.camera.position.x, cam.camera.position.z);
+    updateCamera(frameDt);
+    culler.update(cam.camera.position.x, cam.camera.position.z);
+    updateShadowCamera(dayNight.sun, camTarget);
+    sunDir.copy(dayNight.sun.position).normalize();
     sky.update(dayNight.timeOfDay, sunDir, dayNight.isNight, cam.camera.position);
     sunFlare.update(sunDir, dayNight.isNight ? 0 : 1, cam.camera.position);
     pipeline.setHour(dayNight.timeOfDay);
-    pipeline.setFocus(cam.camera.position.distanceTo(new THREE.Vector3(pos.x, 1.2, pos.z)));
+    focusPoint.set(camTarget.x, 1.2, camTarget.z);
+    pipeline.setFocus(cam.camera.position.distanceTo(focusPoint));
+    renderer.info.reset();
     pipeline.render();
-    frames++;
-    const street = grid.nearestStreet(pos);
-    let prompt = '';
-    const key = isTouch ? 'CAR' : 'F';
-    if (player.inVehicle) prompt = `${key}  Exit car`;
-    else { for (const v of allVehicles()) if (dist(v.doorPos(), pos) <= ENTER_RANGE) { prompt = `${key}  Enter car`; break; } }
-    hud.update({
-      stars: wanted.stars,
-      speedKmh: player.vehicle ? Math.abs(player.vehicle.speed) * 3.6 : 0,
-      inVehicle: player.inVehicle,
-      radioStation: audio.stationName,
-      prompt,
-      timeOfDay: dayNight.timeOfDay,
-      streetName: street.signName,
-      fps,
-    });
+    frames++; fpsClock += frameDt;
+    if (fpsClock >= 0.5) { fps = Math.round(frames / fpsClock); frames = 0; fpsClock = 0; }
+    perf.frame(frameDt);
+
+    // street name and the enter/exit prompt change slowly: refresh ~15 times per second
+    if (slowTick++ % 4 === 0) {
+      streetName = grid.nearestStreet(pos).signName;
+      prompt = '';
+      if (player.inVehicle) prompt = PROMPT_EXIT;
+      else { for (const v of allVehicles()) if (dist(v.doorPos(), pos) <= ENTER_RANGE) { prompt = PROMPT_ENTER; break; } }
+    }
+    hudState.stars = wanted.stars;
+    hudState.speedKmh = player.vehicle ? Math.abs(player.vehicle.speed) * 3.6 : 0;
+    hudState.inVehicle = player.inVehicle;
+    hudState.radioStation = audio.stationName;
+    hudState.prompt = prompt;
+    hudState.timeOfDay = dayNight.timeOfDay;
+    hudState.streetName = streetName;
+    hudState.fps = fps;
+    hud.update(hudState);
     copPositions.length = 0;
     for (const c of cops.cops) copPositions.push(c.body.pos);
-    minimap.update(pos, heading, copPositions);
-    window.__gtaStats = { drawCalls: renderer.info.render.calls, fps, vehicles: traffic.vehicles.length, peds: traffic.peds.length, cops: cops.cops.length, meshes: world.stats.meshes, colliders: world.stats.colliders };
+    minimap.update(camTarget, camHeading, copPositions);
+
+    stats.drawCalls = renderer.info.render.calls;
+    stats.triangles = renderer.info.render.triangles;
+    stats.fps = fps;
+    stats.fps1pctLow = Math.round(perf.fps1pctLow * 10) / 10;
+    stats.heapMBPerMin = Math.round(perf.heapMBPerMin * 10) / 10;
+    stats.culledObjects = culler.hiddenCount;
+    stats.vehicles = traffic.vehicles.length; stats.peds = traffic.peds.length; stats.cops = cops.cops.length;
   },
   () => input.endFrame(),
 );
 
+// 1) first system: snapshot every dynamic body's pose before the step moves it (render lerps prev -> current)
+game.add({
+  update() {
+    poses.beginCapture();
+    for (const v of traffic.vehicles) poses.capture(v.body);
+    for (const v of cops.cops) poses.capture(v.body);
+    for (const p of traffic.peds) poses.capture(p.body);
+    poses.capture(player.body);
+    poses.endCapture();
+  },
+});
+
+// 2) the simulation
 game.add({
   update(dt) {
     // input
@@ -240,18 +337,23 @@ game.add({
     nightLights.update(player.body.pos, dayNight.isNight, dt);
     audio.setEngine(player.vehicle ? Math.abs(player.vehicle.speed) : 0, player.vehicle ? Math.abs(player.lastVehicleInput.throttle) : 0, player.inVehicle);
     audio.update(dt);
-
-    fpsClock += dt; if (fpsClock >= 0.5) { fps = Math.round(frames / fpsClock); frames = 0; fpsClock = 0; }
   },
 });
 
-window.addEventListener('resize', () => {
-  cam.setAspect(window.innerWidth / window.innerHeight);
+// resize: the canvas is stretched by CSS while the drag is in progress; buffers are reallocated once it settles
+let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+const applyResize = (): void => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   pipeline.setSize(window.innerWidth, window.innerHeight);
+};
+window.addEventListener('resize', () => {
+  cam.setAspect(window.innerWidth / window.innerHeight);
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(applyResize, 120);
 });
 applyShadowFlags(player.object3D, true, false);
-packsReady.then((n) => { window.__gtaStats = { ...(window.__gtaStats ?? {}), packs: n }; });
+packsReady.then((n) => { stats.packs = n; });
+// AudioSystem pauses itself when the tab is hidden; the simulation pauses here
 document.addEventListener('visibilitychange', () => { game.paused = document.hidden; });
 
 // debug/review hooks (harmless in production)
@@ -259,15 +361,38 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
   setFreeCam(x: number, y: number, z: number, lx: number, ly: number, lz: number) { freeCam = { pos: new THREE.Vector3(x, y, z), look: new THREE.Vector3(lx, ly, lz) }; },
   clearFreeCam() { freeCam = null; },
   setHour(h: number) { dayNight.timeOfDay = h; },
-  setQuality(q: Quality) { quality = q; pipeline.setQuality(q); setupShadows(renderer, dayNight.sun, q); },
+  setQuality(q: Quality) { applyQuality(q); },
   packsReady,
   teleport(x: number, z: number, heading?: number) { const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = x; b.pos.z = z; b.vel.x = 0; b.vel.z = 0; if (heading !== undefined) b.heading = heading; },
   /** run n fixed simulation steps synchronously (for scripted review) */
   step(n: number) { for (let i = 0; i < n; i++) { for (const sys of game.systems) sys.update(game.step); input.endFrame(); } },
-  settle(n: number) { for (let i = 0; i < n; i++) updateCamera(); },
-  player, cops, traffic, wanted, physics, grid, events, scene, sky, pipeline, nightLights, dayNight, renderer, materials,
+  settle(n: number) {
+    // review scripts call this after teleport/step without a render: align the camera target with the bodies first
+    const veh = player.vehicle;
+    camTarget.x = (veh ? veh.body : player.body).pos.x; camTarget.z = (veh ? veh.body : player.body).pos.z;
+    camHeading = (veh ? veh.body : player.body).heading;
+    for (let i = 0; i < n; i++) updateCamera();
+  },
+  player, cops, traffic, wanted, physics, grid, events, scene, sky, pipeline, nightLights, dayNight, renderer, materials, perf, culler,
   nearby(r: number) { const p = player.body.pos; const out: unknown[] = []; for (const b of physics.bodies()) { const d = Math.hypot(b.pos.x - p.x, b.pos.z - p.z); if (b.shape.kind === 'circle' && d < r) out.push({ id: b.id, kind: b.kind, d: +d.toFixed(2) }); } return out; },
 };
 
+// ---- finish loading: textures (bounded wait), then GPU warm-up so the first visible frame has neither pop-in nor a compile hitch
+camTarget.x = player.body.pos.x; camTarget.z = player.body.pos.z; camHeading = player.body.heading;
+const packCount = await withTimeout(packsReady, 10_000, -1);
+if (packCount < 0) loading.skip('textures', 'Textures are still loading; continuing without waiting.');
+else loading.done('textures');
+loading.begin('shaders');
+await nextPaint();
+updateCamera();
+try {
+  await withTimeout(renderer.compileAsync(scene, cam.camera), 20_000, undefined);
+  pipeline.render(); // builds the post-processing targets/programs once
+} catch (e) { console.warn('shader warm-up failed', e); }
+renderer.info.reset();
+loading.done('shaders');
+
+hud.showSplash();
+void loading.hide();
 window.__gtaReady = true;
 game.start();

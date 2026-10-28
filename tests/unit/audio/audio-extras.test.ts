@@ -82,6 +82,11 @@ describe('AudioSystem gear shifts', () => {
     await audio.start();
     audio.setEngine(20, 1, true);
     expect(made.osc[0].frequency.last()).toBeCloseTo(engineFrequency(20, 1));
+  });
+
+  it('does not dip when coasting up a gear without throttle', async () => {
+    const { audio, made } = setup();
+    await audio.start();
     audio.setEngine(7.5, 0, true);
     audio.setEngine(8.5, 0.1, true);
     expect(made.osc[0].frequency.last()).toBeCloseTo(engineFrequency(8.5, 0.1));
@@ -216,5 +221,19 @@ describe('AudioSystem pause/resume', () => {
     const audio = new AudioSystem(events, () => f.ctx as unknown as AudioContext);
     await audio.start();
     expect(() => { audio.pause(); audio.resume(); }).not.toThrow();
+  });
+});
+
+describe('AudioSystem.update while paused', () => {
+  it('does not sequence radio notes or sirens', async () => {
+    const { audio, events, made, ctx } = setup();
+    await audio.start();
+    events.emit('enterVehicle', { vehicleId: 'v' });
+    audio.pause('menu');
+    const before = made.osc.length + made.src.length;
+    ctx.currentTime = 5;
+    audio.setNight(true);
+    for (let i = 0; i < 70; i++) audio.update(1);
+    expect(made.osc.length + made.src.length).toBe(before);
   });
 });
