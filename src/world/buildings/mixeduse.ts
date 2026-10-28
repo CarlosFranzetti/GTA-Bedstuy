@@ -599,6 +599,8 @@ export class StorefrontKit {
   }
 
   setHour(hour: number): void {
+    // the game clock calls this every frame: skip until the minute changes (gates/glow only switch on the half hour)
+    if (this.hourSet && Math.abs(hour - this.hour) < 1 / 120) return;
     this.hour = hour;
     this.hourSet = true;
     this.night = isNightHour(hour);

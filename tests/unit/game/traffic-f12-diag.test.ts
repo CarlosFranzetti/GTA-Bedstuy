@@ -113,7 +113,7 @@ function runTraffic(seed: number): Run {
       const m = new Map<string, string>();
       for (const a of act) {
         const p = a.vehicle.body.pos; const ag = a.agent; const tn = ag.target;
-        m.set(a.vehicle.id, `p=${p.x.toFixed(1)},${p.z.toFixed(1)} h=${a.vehicle.body.heading.toFixed(2)} v=${a.vehicle.speed.toFixed(1)} ${ag.state} tgt=${ag.targetId} d=${tn ? Math.hypot(tn.pos.x-p.x, tn.pos.z-p.z).toFixed(1) : '-'} lat=${ag.lat.toFixed(1)} pass=${!!ag.passBody} stuck=${ag.stuckTime.toFixed(1)} ped=${ag.pedGap === Infinity ? '-' : ag.pedGap.toFixed(1)} ${tn?.stopLine ? 'SL:' + traffic.lights.phaseFor(tn.intersectionId!, tn.streetId) : ''}`);
+        m.set(a.vehicle.id, `p=${p.x.toFixed(1)},${p.z.toFixed(1)} h=${a.vehicle.body.heading.toFixed(2)} v=${a.vehicle.speed.toFixed(1)} ${ag.state} tgt=${ag.targetId} d=${tn ? Math.hypot(tn.pos.x-p.x, tn.pos.z-p.z).toFixed(1) : '-'} lat=${ag.lat.toFixed(1)} pass=${!!ag.passBody} stuck=${ag.stuckTime.toFixed(1)} ped=${ag.pedGap === Infinity ? "-" : ag.pedGap.toFixed(1)} LB=${ag.lastBlocker?.id}:${ag.lastBlocker?.kind} bt=${ag.blockedTime.toFixed(1)} ${tn?.stopLine ? 'SL:' + traffic.lights.phaseFor(tn.intersectionId!, tn.streetId) : ''}`);
       }
       for (const v of cops.cops) m.set(v.id, `COP p=${v.body.pos.x.toFixed(1)},${v.body.pos.z.toFixed(1)} h=${v.body.heading.toFixed(2)} v=${v.speed.toFixed(1)}`);
       hist.push({ t, m }); if (hist.length > 25) hist.shift();
@@ -126,9 +126,10 @@ function runTraffic(seed: number): Run {
         const ag = a.agent;
         const tn = ag.target;
         if (a.vehicle.speed < 0.5 && step % 12 === 0) for (const o of physics.queryCircle(p, 4.5)) if (o.id !== a.vehicle.body.id) log(`   near ${o.id} ${o.kind} ${o.pos.x.toFixed(1)},${o.pos.z.toFixed(1)} h=${o.heading.toFixed(2)} ${JSON.stringify(o.shape)}`);
-        log(`T${t.toFixed(1)} ${a.vehicle.id} p=${p.x.toFixed(1)},${p.z.toFixed(1)} h=${a.vehicle.body.heading.toFixed(2)} v=${a.vehicle.speed.toFixed(1)} ${ag.state} tgt=${ag.targetId} d=${tn ? Math.hypot(tn.pos.x-p.x, tn.pos.z-p.z).toFixed(1) : '-'} lat=${ag.lat.toFixed(1)} pass=${!!ag.passBody} stuck=${ag.stuckTime.toFixed(1)} ped=${ag.pedGap === Infinity ? '-' : ag.pedGap.toFixed(1)} ${tn?.stopLine ? 'SL:' + traffic.lights.phaseFor(tn.intersectionId!, tn.streetId) : ''}`);
+        log(`T${t.toFixed(1)} ${a.vehicle.id} p=${p.x.toFixed(1)},${p.z.toFixed(1)} h=${a.vehicle.body.heading.toFixed(2)} v=${a.vehicle.speed.toFixed(1)} ${ag.state} tgt=${ag.targetId} d=${tn ? Math.hypot(tn.pos.x-p.x, tn.pos.z-p.z).toFixed(1) : '-'} lat=${ag.lat.toFixed(1)} pass=${!!ag.passBody} stuck=${ag.stuckTime.toFixed(1)} ped=${ag.pedGap === Infinity ? "-" : ag.pedGap.toFixed(1)} LB=${ag.lastBlocker?.id}:${ag.lastBlocker?.kind} bt=${ag.blockedTime.toFixed(1)} ${tn?.stopLine ? 'SL:' + traffic.lights.phaseFor(tn.intersectionId!, tn.streetId) : ''}`);
       }
       for (const v of cops.cops) { const p = v.body.pos; if (Math.hypot(p.x - TRACE[3], p.z - TRACE[4]) <= TRACE[5]) log(`T${t.toFixed(1)} ${v.id} COP p=${p.x.toFixed(1)},${p.z.toFixed(1)} v=${v.speed.toFixed(1)} d=${v.driver}`); }
+      if (step % 30 === 0) for (const o of physics.queryCircle({ x: TRACE[3], z: TRACE[4] }, TRACE[5])) if (o.kind !== 'ped') log(`   ALL ${o.id} ${o.kind} ${o.pos.x.toFixed(1)},${o.pos.z.toFixed(1)} h=${o.heading.toFixed(2)} ${JSON.stringify(o.shape).slice(0,120)}`);
       for (const q of traffic.peds) { const p = q.body.pos; if (Math.hypot(p.x - TRACE[3], p.z - TRACE[4]) <= TRACE[5]) log(`T${t.toFixed(1)} ${q.id} PED p=${p.x.toFixed(1)},${p.z.toFixed(1)}`); }
     }
     // signal bookkeeping
