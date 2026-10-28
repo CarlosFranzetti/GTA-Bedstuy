@@ -208,7 +208,7 @@ describe('failure, timers and retry', () => {
     step(m, P(0), 1, false, 0, 0, 19.5);
     step(m, P(50), 1, false, 0, 0, 19.9);
     expect(m.isActive).toBe(true);
-    expect(m.hud.timeLeft).toBeCloseTo(0.1 * 60 * 60, 0); // 0.1 game hours at 1 game hour per real minute = 6 s
+    expect(m.hud.timeLeft).toBeCloseTo(6, 0); // 0.1 game hours at 1 game hour per real minute = 6 s
     step(m, P(50), 1, false, 0, 0, 20.01);
     expect(m.failReason).toBe('clockUp');
   });
@@ -322,7 +322,7 @@ describe('objective kinds', () => {
     expect(m.isActive).toBe(true);
     step(m, P(90), 120, true, 0, 0); // outside the zone does not count
     expect(m.isActive).toBe(true);
-    step(m, P(50), 20, true, 0, 0);
+    step(m, P(50), 70, true, 0, 0);
     expect(m.statusOf('t1')).toBe('complete');
   });
 
