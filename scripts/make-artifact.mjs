@@ -5,8 +5,9 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-export const ARTIFACT_WARN_BYTES = 10 * 1024 * 1024;
-export const ARTIFACT_MAX_BYTES = 12 * 1024 * 1024;
+// decimal MB, like the Stage 1 check-in numbers (slightly stricter than MiB)
+export const ARTIFACT_WARN_BYTES = 10_000_000;
+export const ARTIFACT_MAX_BYTES = 12_000_000;
 
 /** Pure transform: single-file index.html text -> artifact body text. */
 export function toArtifact(src) {
@@ -40,7 +41,7 @@ if (isMain) {
   const i = process.argv.indexOf('--dir');
   const dir = i > 0 ? process.argv[i + 1] : 'dist';
   const { file, bytes } = makeArtifact(dir);
-  console.log(file, (bytes / 1024).toFixed(0), 'kB');
-  if (bytes > ARTIFACT_MAX_BYTES) { console.error(`artifact is ${(bytes / 1048576).toFixed(2)} MB: over the 12 MB budget (hard limit 16 MB)`); process.exitCode = 1; }
-  else if (bytes > ARTIFACT_WARN_BYTES) console.warn(`warning: artifact is ${(bytes / 1048576).toFixed(2)} MB (warn at 10 MB, budget 12 MB, hard limit 16 MB)`);
+  console.log(file, (bytes / 1024).toFixed(0), 'kB', `(${(bytes / 1e6).toFixed(2)} MB)`);
+  if (bytes > ARTIFACT_MAX_BYTES) { console.error(`artifact is ${(bytes / 1e6).toFixed(2)} MB: over the 12 MB budget (hard limit 16 MB)`); process.exitCode = 1; }
+  else if (bytes > ARTIFACT_WARN_BYTES) console.warn(`warning: artifact is ${(bytes / 1e6).toFixed(2)} MB (warn at 10 MB, budget 12 MB, hard limit 16 MB)`);
 }

@@ -28,8 +28,8 @@ const port = Number(opt('port', '4307'));
 const json = flag('json');
 const HOSTED_FIRST_LOAD_BUDGET = 60 * 1024 * 1024; // PRD 2.3: ~60 MB first load, lazy beyond
 
-const mb = (b) => (b / 1048576).toFixed(2) + ' MB';
-const kb = (b) => (b / 1024).toFixed(1).padStart(8) + ' kB';
+const mb = (b) => (b / 1e6).toFixed(2) + ' MB'; // decimal, like the Stage 1 check-in numbers (stricter than MiB)
+const kb = (b) => (b / 1e3).toFixed(1).padStart(8) + ' kB';
 const log = (...a) => { if (!json) console.log(...a); };
 const problems = [];
 const warnings = [];
@@ -85,7 +85,8 @@ if (only === 'both' || only === 'hosted') {
   const html = readFileSync(join(hostedDir, 'index.html'), 'utf8');
   const hasThreeChunk = js.some((f) => /(^|[\\/])three-[\w-]+\.js$/.test(f.rel));
   const hashed = files.filter((f) => /assets[\\/].+-[\w-]{8}\.\w+$/.test(f.rel)).length;
-  const inlinedImages = js.reduce((a, f) => a + (readFileSync(f.path, 'utf8').match(/data:image\/(?:jpeg|png|webp);base64/g) || []).length, 0);
+  // three.js carries its own SMAA lookup textures as data URIs; anything sizeable in OUR chunks is a texture that should have been a file
+  const inlinedImages = js.filter((f) => !/(^|[\\/])three-/.test(f.rel)).reduce((a, f) => a + (readFileSync(f.path, 'utf8').match(/data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]{2000,}/g) || []).length, 0);
   summary.hosted = {
     dir: relative(root, hostedDir), files: files.length, totalBytes: total, jsBytes: sum(js), jsGzipBytes: compressed(js, gzipSync), jsBrotliBytes: compressed(js, (b) => brotliCompressSync(b)),
     cssBytes: sum(css), imageBytes: sum(images), imageFiles: images.length, htmlBytes: statSync(join(hostedDir, 'index.html')).size,

@@ -175,7 +175,7 @@ tests/e2e/smoke.mjs` prints `errors: []`.
 |---|---|---|
 | D1 data-schema | `bedstuy.json` carries `schemaVersion: 2` with per-face/per-lot fields (floors, widthM, material family, stoop, cornice, use, storefront archetype, trees, scaffold, vacant, `confidence`); v1 files still load (migration path) | loader unit test on the real file + a v1 fixture |
 | D1 | Validator rejects bad data with a path-qualified message: floors outside 1–8, widthM outside 3–40, unknown enum (material/use/archetype), lot widths per face summing to > face length + 1 m, missing `confidence` | ≥ 1 negative test per rule; real file validates with 0 errors |
-| D1 | Coverage: every block face on the drawn grid (~24) has an entry; every lot has floors + material + use (fallback values allowed but tagged `low`) | test counts faces and lots with no missing required field |
+| D1 | Coverage: every block face on the drawn grid (40 = 10 blocks × 4 sides) has an entry; every lot has floors + material + use (fallback values allowed but tagged `low`) | test counts faces and lots with no missing required field |
 | D1 | `Grid.ts` behaviour unchanged unless stated: existing grid tests green, same street order, same seed output | grid tests |
 | R2 research | `docs/reference/block-faces.md` has a row per face with lot count, typical floors, material mix, stoops, storefront corners, churches/vacant, source (URL or "typology") and confidence; ≥ 1 cited source per street | MGR review |
 | R2 | A per-face screenshot checklist (what to photograph, which fields it settles) exists for the user's future Street View pass | MGR review of `docs/world-notes.md` / `tasks/R2b.md` |
