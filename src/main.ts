@@ -30,6 +30,7 @@ import { NightLights } from '@/render/NightLights';
 import { SunFlare } from '@/render/LensFlare';
 import { setLampsLit } from '@/world/FurnitureGen';
 import { loadTexturePacks } from '@/textures/packs';
+import { LIGHTING } from '@/render/LightingConfig';
 
 declare global {
   interface Window { __gtaReady?: boolean; __gtaStats?: Record<string, number>; }
@@ -63,14 +64,14 @@ const { grid } = world;
 const physics = new World2D(12);
 for (const c of world.colliders) physics.addStatic(c.shape, c.pos, c.id);
 
-const dayNight = new DayNight(scene, materials, { startHour: 17.5 });
+const dayNight = new DayNight(scene, materials, { startHour: LIGHTING.startHour });
 scene.add(dayNight.sun.target);
 setupShadows(renderer, dayNight.sun, quality);
 applyShadowFlags(world.group, true, true);
 const sky = new SkyDome(scene, renderer, materials);
 dayNight.attachSky(sky);
-scene.environmentIntensity = dayNight.isNight ? 0.5 : 0.18;
-const nightLights = new NightLights(scene, world.lamps, { poolSize: quality === 'low' ? 6 : 12 });
+scene.environmentIntensity = dayNight.isNight ? LIGHTING.envIntensityNight : LIGHTING.envIntensityDay;
+const nightLights = new NightLights(scene, world.lamps, { poolSize: LIGHTING.lampPool[quality] });
 const sunFlare = new SunFlare(scene);
 
 // ---- entities (optional real models: src/assets/models/README.md)
@@ -110,7 +111,7 @@ const input = new Input(renderer.domElement);
 const cam = new ThirdPersonCamera(window.innerWidth / window.innerHeight);
 const pipeline = new RenderPipeline(renderer, scene, cam.camera, { quality });
 pipeline.setNight(dayNight.isNight);
-pipeline.setExposure(1.0);
+pipeline.setExposure(LIGHTING.exposure);
 setLampsLit(world.furnitureGroup, dayNight.isNight);
 input.onFirstGesture = () => { hud.hideSplash(); events.emit('userGesture', {}); };
 overlay.addEventListener('mousedown', () => input.notifyGesture());
@@ -206,7 +207,7 @@ game.add({
     dayNight.update(dt);
     if (dayNight.isNight !== lastNight) {
       lastNight = dayNight.isNight; audio.setNight(lastNight); pipeline.setNight(lastNight); setLampsLit(world.furnitureGroup, lastNight);
-      scene.environmentIntensity = lastNight ? 0.5 : 0.18;
+      scene.environmentIntensity = lastNight ? LIGHTING.envIntensityNight : LIGHTING.envIntensityDay;
       for (const v of allVehicles()) v.headlights = lastNight;
     }
     nightLights.update(player.body.pos, dayNight.isNight, dt);

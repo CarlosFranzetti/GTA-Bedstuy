@@ -1,0 +1,19 @@
+# Swarm board (Stage 1)
+
+Owner: Opus manager (keeps this current). Orchestrator: Fable (session). Status values: queued · running · blocked · review · done.
+
+| id | agent | model | task | owns (files) | status |
+|---|---|---|---|---|---|
+| R1 | research-cc0 | haiku | Hunt reachable CC0 texture sets round 3 (corrugated metal, fabric, roof, chain-link, plywood, granite, tile, cast iron) | scratchpad only, docs/swarm/tasks/R1.md | queued |
+| R2 | research-blocks | haiku | Real block-face data for the 10 blocks (OSM/PLUTO via WebFetch): floors, use, material per building | docs/reference/block-faces.md, docs/swarm/tasks/R2.md | queued |
+| R3 | research-lighting | haiku | GTA 5 / real NYC lighting reference: per-hour sun/sky/fog/exposure tables, wet-road and reflection behaviour, audit of our values | docs/reference/lighting-targets.md, docs/swarm/tasks/R3.md | queued |
+| R4 | textures-storefront | sonnet | Storefront graphics: bodega/laundromat/barber awning layouts with product icons, lightbox typography, posters; from briefs | src/textures/painters/signage.ts, src/textures/painters/storefront-art.ts, tests/unit/textures/signage.test.ts | queued |
+| R5 | textures-vehicles-people | sonnet | Car paint flake/dirt/scratch maps, plates, tyres; cloth fabrics for people (hoodie, denim, varsity, sneakers) | src/textures/painters/vehicle.ts, src/textures/painters/people.ts, tests/unit/textures/vehicle.test.ts, MaterialLibrary key lines for new keys only | queued |
+| M1 | lighting-reflections | sonnet | Fix light & reflection issues: env-map intensity per class, glass/paint reflections, night exposure, shadow acne, bloom haze, flare artefacts; light-audit harness | src/render/LightingConfig.ts, src/game/DayNight.ts, src/render/SkyDome.ts, src/render/NightLights.ts, src/render/Pipeline.ts, src/render/LensFlare.ts, src/render/lut.ts, scripts/light-audit.mjs | queued |
+| M2 | driving-feel | sonnet | Vehicle handling: suspension/body roll, drift, braking, pushable parked cars, damage visuals, camera shake; on-foot movement feel | src/entities/Vehicle.ts, src/entities/Player.ts, src/core/Camera.ts, src/physics/*, tests for those | queued |
+| M3 | traffic-ai | sonnet | Traffic lights at avenue intersections, lane changes, yielding to peds, parking behaviour; ped crossings/groups/stoop sitting; cop pursuit polish | src/entities/TrafficAgent.ts, Pedestrian.ts, Cop.ts, src/game/TrafficSystem.ts, CopSystem.ts, WantedSystem.ts, src/game/TrafficLights.ts, tests for those | queued |
+| M4 | performance | sonnet | Smoothness: render interpolation between fixed steps, culling/instancing/LOD, allocation audit, loading screen, fps-based quality auto-detect; owns the entry point | src/core/Game.ts, src/main.ts, src/world/WorldBuilder.ts, src/render/Culling.ts, src/render/Loading.ts, tests | queued |
+| M5 | gameplay-ui | sonnet | Pause/settings menu (quality, volume, controls), gamepad support, enter/exit polish, radio UI, position save, HUD polish | src/ui/*, src/core/Input.ts, src/core/Gamepad.ts, src/audio/*, tests | queued |
+| MGR | manager | opus | Writes PRD + stages, keeps this board, reads transcript, answers cross-agent questions, reviews final reports, writes the stage check-in | docs/swarm/PRD.md, docs/swarm/stages.md, docs/swarm/board.md, docs/swarm/checkins/* | queued |
+
+Rules: touch only owned files; cross-agent requests go through the transcript (`@agent:`); every agent posts start, key decisions, questions, answers, and its final report to the transcript. Shared files nobody owns (types.ts, package.json, config) are requested from the orchestrator via the transcript (`@fable:`).
