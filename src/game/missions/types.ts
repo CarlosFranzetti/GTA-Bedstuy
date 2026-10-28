@@ -77,8 +77,7 @@ export interface MissionDef {
 
 export type MissionStatus = 'available' | 'active' | 'complete' | 'failed';
 
-export type FailReason =
-  | 'timeUp' | 'clockUp' | 'leftVehicle' | 'abandoned';
+export type FailReason = 'timeUp' | 'clockUp' | 'leftVehicle';
 
 export interface MissionEvents {
   'mission:started': { id: string; title: string; blurb: string };

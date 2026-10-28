@@ -1,12 +1,14 @@
-/** A brownstone under renovation: scaffold poles, plank decks and a blue plywood shed wall in front. */
-import { FLOOR_H, BASEMENT_H } from './facade';
+/** A brownstone / brick row under renovation: scaffold poles, plank decks and a blue plywood shed wall in front. */
 import type { LotCtx, LotOutput } from './facade';
 import { buildBrownstone } from './brownstone';
 
 export function buildScaffold(c: LotCtx): LotOutput {
-  const { b, m, rng, W } = c;
+  const { b, m, rng, W, spec } = c;
   const S = 1.9;
-  const base = buildBrownstone(c, { style: 'brownstone', stoop: false, setback: S, floors: rng.int(3, 4), lite: true });
+  const base = buildBrownstone(c, {
+    style: spec && spec.family !== 'brownstone' && spec.family !== 'limestone' ? 'rowhouse' : 'brownstone',
+    stoop: false, setback: S, floors: spec ? undefined : rng.int(3, 4), lite: true,
+  });
   const { H } = base;
   const zWall = -0.25; // plywood face, inside the lot
   const poleXs: number[] = [0.15];
@@ -20,8 +22,8 @@ export function buildScaffold(c: LotCtx): LotOutput {
   // blue plywood shed wall at street level + plank decks at each floor
   b.rect(m.scaffold, [0, 0, zWall + 0.04], [W, 0, 0], [0, 2.9, 0]);
   b.box(m.scaffold, 0, 2.9, -S + 0.1, W, 3.0, zWall + 0.06, 'rlufb');
-  for (let k = 1; k <= base.floors; k++) {
-    const y = BASEMENT_H + (k - 1) * FLOOR_H + 2.0;
+  for (let k = 0; k < base.floors; k++) {
+    const y = base.levels.floorY[k] + 2.0;
     if (y > H) break;
     b.box(m.scaffold, 0, y, -S + 0.1, W, y + 0.06, zWall, 'ufrl');
     b.bar(m.metal, [0, y + 1.0, zWall], [W, y + 1.0, zWall], 0.05);

@@ -332,3 +332,39 @@ CONSUMERS: @B3 castIronFence on stoop/areaway fence quads (u repeat = length/0.9
 
 ### 2026-10-28T21:54:50Z · MGR
 FOR FABLE: (T11 21:54:32) add 7 MaterialKeys corrugatedSteel, chainlinkFence, chainlinkRail, graniteCurb, castIronFence, tarRoof, graffiti + specs from industrial.ts. MGR recommends APPROVE, applied in one edit (types.ts union + MaterialLibrary specs together) only after T11 posts 'industrial.ts LANDED'. One value change: castIronFence is painted cast iron, so metalness 0 (Stage 1 painted-metal rule, MaterialLibrary:459-462), not 0.2; galvanized corrugatedSteel/chainlink at 0.3-0.4 matches rollGate (0.4) and is fine. Consumers: B3 (castIronFence, tarRoof, corrugatedSteel, chainlinkFence), S4 (graffiti), P8 (graniteCurb curb geometry). @T11 @B3 @S4 @P8: each consumer names its call site in its FINAL REPORT; unused keys get flagged in review.
+
+### 2026-10-28T21:58:06Z · R2
+@D1: typology hart: 3-4 storey rows (M). 173 Hart (Tompkins-Throop) 2004 infill, 3 fl, newBuild (L: listing). 226 Hart pre-war 4 fl (L). Cornice/stoop: no source. Sources: Q1 listings. Full detail in block-faces §5.1.
+
+### 2026-10-28T21:58:06Z · R2
+@D1: typology pulaski: 3-4 storey rows and walk-ups (M). 197 Pulaski: 30 Mar 2023 filing, 4 fl, 7 units, newBuild (M filing, L vacancy). 156 Pulaski: 1931, 3 fl, residential (M). 185/195A between Tompkins and Throop (L block). Corner Throop/Pulaski: 330 Throop, Second Empire before 1873, not landmarked (M). Church: Grace Baptist 83 Pulaski, 79th Pct list (M existence, L block). §5.2.
+
+### 2026-10-28T21:58:06Z · R2
+@D1: typology kosciuszko: 3-4 storey rows (M typology). Nearest dated listings 184 and 175 Kosciuszko are west of Tompkins (outside). 289 Kosciuszko: YIMBY says vacant lot for over a decade, 2018 4-storey filing (M vacancy, L block). P.S. 79 near Throop, 1907 photo (L current). Crossover Baptist 358 Kosciuszko (L). No storefront source. §5.3.
+
+### 2026-10-28T21:58:06Z · R2
+@D1: typology lafayette: Neo-Grec brownstone rows (M). 664 Lafayette four-storey three-family brownstone (M, block unclear). Magnolia landmark 677/679 Lafayette, designated 1977 (H tree; pass 1 block placement conflicts with grid, C3, L). 672 Lafayette gutted five-storey brownstone near Tompkins Park (M, block L). No storefront or church source inside the grid. §5.4.
+
+### 2026-10-28T21:58:06Z · R2
+@D1: typology vanburen: 127 Van Buren Queen Anne row, Throop-MG, 3 fl (M; L on floors). 64 Van Buren two-unit brownstone 1901 Tompkins-Throop (M). 25 Van Buren 2014 new build (M). 180 Van Buren: Upper Room Gospel Baptist address, ZIP 11221 (M address; MG corner placement NOT supported, C2). 10,000 sq ft corner lot Van Buren/MG for redevelopment (L, possible vacant). Hattie Carthan Herban Farm Throop-Tompkins: open space. §5.5.
+
+### 2026-10-28T21:58:06Z · R2
+@D1: typology greene: 620 Greene c.1872 Second Empire, Tompkins-Throop, not landmarked, 3 fl (M; cornice bracketed L). 677 Greene 1899 three-family brownstone, Throop-MG, tree-lined per listing (M build, L trees). 626 Greene 4 fl, 6 homes (M, Tompkins side). 650 Greene 2022 4-storey filing, lot Throop-Tompkins (L vacancy). CORRECTION C1: Antioch 828 Greene is Lewis-Stuyvesant, OUTSIDE the grid east of MG. §5.6.
+
+### 2026-10-28T21:58:06Z · R2
+@D1: typology throop (avenue): storefront laundromat Rhea's 442 Throop (M address, L block). Day care 268 Throop (L); family day care 220 Throop listed with an enforcement note, do not use. Churches: Bedford Stuyvesant Assembly of God 299 Throop, Brighter Way Baptist 417 Throop (M, 79th Pct list). Ebenezer Gospel Tabernacle 470 Throop Queen Anne 1891 is OUTSIDE (Gates-Quincy). Residential: 320 Throop 1910 3 storey (M-L), 322 Throop brownstone 1899 (L block), 277 Throop 2016 5-storey 8-unit filing (M). No barber on Throop found. §5.7.
+
+### 2026-10-28T21:58:06Z · R2
+@D1: typology garvey (avenue): church Bethany Baptist 460 Marcus Garvey (M address, L block). 106 MG 2025 permit notice (L). 469 MG Queen Anne flats 1888 at Decatur, outside (M type). Marcus Garvey Houses (NYCHA) location unconfirmed (L). No storefront source. §5.8.
+
+### 2026-10-28T21:58:06Z · R2
+@D1: typology tompkins (avenue): corner storefront 435 Tompkins to condos (M, corner L). Tompkins Ave Congregational chapel at Tompkins-McDonough 1888, McDonough outside grid (M). St. Ambrose former parish house at Tompkins-Kosciuszko corner (L). Permit notices 173, 423, 185 Tompkins (L block, newBuild flags only). §5.9.
+
+### 2026-10-28T21:58:06Z · R2
+@D1 (schema check, R2): (1) block id mapping assumed: rRcC, r0..r4 = Hart/Pulaski/Kosciuszko/Lafayette/Van Buren/Greene (r sits between index r and r+1), c0 = Tompkins-Throop, c1 = Throop-MG. Please confirm against Grid. (2) Typology enums I use match your LotSpec: family, cornice, use, storefront. (3) Face ids: I propose rRcC-<street id>; world-notes uses that. Side N/S/E/W mapping to be copied from BlockFace. Not blocking.
+
+### 2026-10-28T21:58:06Z · R2
+R2: pass 2 done. Blocked: s-media.nyc.gov (LP-2496) ENOTFOUND, so no LPC inventory. Deliverables: block-faces §5 (Pass 2, corrections C1-C5), world-notes.md (40-face checklist), R2b.md (22 queries, dead ends, gaps). Nothing committed.
+
+### 2026-10-28T21:58:11Z · R2
+FINAL REPORT (R2, block-face pass 2, WebSearch only). Files: docs/reference/block-faces.md §5 (Pass 2 per street, corrections C1-C5, D1 defaults table, open items); docs/world-notes.md (per-face checklist, 40 faces rRcC-<street>, D1 LotSpec field names, Street View rules: values only, no pixels, no signage text); docs/swarm/tasks/R2b.md (22 queries Q1-Q22, dead ends, gaps, blocked hosts). Numbers: 9 street segments, 10 blocks, 40 faces. Blocked this pass: s-media.nyc.gov (LP-2496) ENOTFOUND, so LPC inventory not read. Key findings: Antioch 828 Greene is OUTSIDE the grid (east of Marcus Garvey); Upper Room has only 180 Van Buren; 197 Pulaski 2023 filing; 289 Kosciuszko vacant-lot history. Gaps: floors/material/cornice/stoop per block, trees, scaffolding, cross-street order (needs LP-2496, PLUTO or Street View). Nothing committed; no model IDs written.

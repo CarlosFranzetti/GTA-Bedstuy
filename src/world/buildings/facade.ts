@@ -13,12 +13,58 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { IMaterialLibrary, Lot } from '@/world/types';
 import type { Rng } from '@/core/Rng';
 
-export const FLOOR_H = 3.3;
-export const BASEMENT_H = 1.2;
+/** Parlour (or ground) storey height and the storeys above it (real Bed-Stuy rows: tall parlour, shorter upper floors). */
+export const PARLOUR_H = 3.3;
+export const UPPER_H = 2.9;
+/** Legacy single storey height (S4's mixed-use code and the condo curtain wall still use it). */
+export const FLOOR_H = PARLOUR_H;
+/** Default raised-basement height (stoop rise) when a lot has no data. */
+export const BASEMENT_H = 1.5;
 /** metres per texture repeat */
 export const TILE = 3;
 
 export type V3 = [number, number, number];
+
+// ---------------------------------------------------------------------------------------------- lot spec (data-driven)
+
+/** Masonry family of the street front: maps onto the existing MaterialKeys (no new textures). */
+export type MaterialFamily = 'brownstone' | 'brick' | 'tanBrick' | 'paintedBrick' | 'limestone';
+export type CorniceKind = 'none' | 'plain' | 'dentil' | 'bracket';
+export type LotUse = 'residential' | 'apartment' | 'mixed' | 'church' | 'vacant' | 'institutional';
+
+/**
+ * Everything the facade generators need to know about one lot. Produced from the schema-v2 data by
+ * `LotSubdivider.specFromData`; when a lot has no spec every builder falls back to its rng-driven defaults.
+ * `floors` counts storeys above the raised basement, parlour included (a "3 storey" brownstone = parlour + 2).
+ */
+export interface LotSpec {
+  floors: number;
+  widthM: number;
+  family: MaterialFamily;
+  stoop: { present: boolean; heightM: number };
+  cornice: CorniceKind;
+  /** window bays across the front (default: 3 on lots >= 6 m, else 2) */
+  bays?: number;
+  use: LotUse;
+  /** storefront archetype for mixed-use lots (consumed by mixeduse.ts) */
+  storefront?: string;
+  /** street trees in front of the lot (consumed by the furniture lane) */
+  trees?: number;
+  /** lot is under renovation scaffolding */
+  scaffold?: boolean;
+  /** arched parlour windows (brownstone rows) */
+  arched?: boolean;
+}
+
+/** Y levels of a building's storeys. floorY[0] is the parlour/ground floor, floorY[k] the k-th floor above it. */
+export interface Storeys { bh: number; floorY: number[]; H: number; }
+
+export function storeyLevels(bh: number, floors: number): Storeys {
+  const n = Math.max(1, Math.round(floors));
+  const floorY: number[] = [bh];
+  for (let k = 1; k < n; k++) floorY.push(bh + PARLOUR_H + (k - 1) * UPPER_H);
+  return { bh, floorY, H: bh + PARLOUR_H + (n - 1) * UPPER_H };
+}
 
 export interface BuildingMats {
   lib: IMaterialLibrary;
@@ -42,6 +88,8 @@ export interface BuildingMats {
   chain: THREE.Material;
   plainAwnings: THREE.Material[];
   darkAwning: THREE.Material;
+  /** weeds on vacant lots */
+  leaves: THREE.Material;
 }
 
 export function loadMats(lib: IMaterialLibrary): BuildingMats {
@@ -67,6 +115,7 @@ export function loadMats(lib: IMaterialLibrary): BuildingMats {
     chain: lib.get('chainlink', 0),
     plainAwnings: [lib.awning('#2f6f4f', ''), lib.awning('#8a3b2e', '')],
     darkAwning: lib.awning('#27303a', ''),
+    leaves: lib.get('treeLeaves', 2),
   };
 }
 
@@ -97,6 +146,19 @@ export interface LotCtx {
   lot: Lot;
   /** which side wall (local x=0 'left' / x=W 'right') meets the cross street, for corner lots */
   cornerSide: 'left' | 'right' | null;
+  /** data-driven description of the lot; undefined = procedural fallback */
+  spec?: LotSpec;
+}
+
+/** Front and trim materials for a masonry family. */
+export function familyMats(m: BuildingMats, family: MaterialFamily, variant = 0): { front: THREE.Material; trim: THREE.Material } {
+  switch (family) {
+    case 'brownstone': return { front: variant ? m.brownstoneAlt : m.brownstone, trim: m.limestone };
+    case 'brick': return { front: m.brickRed, trim: m.limestone };
+    case 'tanBrick': return { front: m.brickAlt, trim: m.limestone };
+    case 'paintedBrick': return { front: m.brickPainted, trim: m.limestone };
+    case 'limestone': return { front: m.limestone, trim: m.stoop };
+  }
 }
 
 interface Raw { p: number[]; n: number[]; uv: number[]; }
@@ -519,7 +581,7 @@ export function windowAwning(b: LotBatch, mat: THREE.Material, x: number, yTop: 
 /**
  * Projecting cornice (dark material): main slab, frieze band, and either a dentil row or big brackets underneath.
  */
-export function cornice(b: LotBatch, m: BuildingMats, x0: number, x1: number, y: number, z: number, proud = 0.6, style: 'dentil' | 'bracket' | 'plain' = 'dentil'): void {
+export function cornice(b: LotBatch, m: BuildingMats, x0: number, x1: number, y: number, z: number, proud = 0.6, style: 'dentil' | 'bracket' | 'both' | 'plain' = 'dentil'): void {
   const w = x1 - x0;
   b.box(m.cornice, x0 - 0.06, y - 0.05, z, x1 + 0.06, y + 0.18, z + proud, 'frlud');
   b.box(m.cornice, x0 - 0.02, y - 0.5, z, x1 + 0.02, y - 0.05, z + proud * 0.28, 'frl');
@@ -538,7 +600,30 @@ export function cornice(b: LotBatch, m: BuildingMats, x0: number, x1: number, y:
       // scroll bracket: front block + a slanted underside
       b.box(m.cornice, cx - 0.09, y - 0.5, z + proud * 0.28, cx + 0.09, y - 0.05, z + proud * 0.9, 'fl');
     }
+    if (style === 'both') {
+      // small dentils in the gaps between the brackets (Italianate bracketed cornice)
+      const nd = Math.max(2, Math.floor(w / 0.3));
+      const sd = w / nd;
+      for (let i = 0; i < nd; i++) {
+        const cx = x0 + (i + 0.5) * sd;
+        const nearBracket = Array.from({ length: n + 1 }, (_, j) => x0 + 0.12 + ((w - 0.24) * j) / n).some((bx) => Math.abs(bx - cx) < 0.16);
+        if (nearBracket) continue;
+        b.box(m.cornice, cx - 0.05, y - 0.2, z + proud * 0.28, cx + 0.05, y - 0.05, z + proud * 0.7, 'f');
+      }
+    }
   }
+}
+
+/** Cornice from a data kind: 'bracket' = brackets with dentils between them, 'none' leaves a bare parapet. */
+export function corniceOfKind(b: LotBatch, m: BuildingMats, x0: number, x1: number, y: number, z: number, kind: CorniceKind, proud = 0.6): void {
+  if (kind === 'none') return;
+  cornice(b, m, x0, x1, y, z, proud, kind === 'bracket' ? 'both' : kind);
+}
+
+/** Number of window bays: data value, else 3 on lots >= 6 m and 2 below; never tighter than 1.7 m. */
+export function bayCount(W: number, spec?: LotSpec): number {
+  const want = spec?.bays ?? (W >= 6 ? 3 : 2);
+  return Math.max(1, Math.min(Math.floor(W / 1.7), Math.round(want)));
 }
 
 export interface RoofSpec {

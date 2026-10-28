@@ -1,7 +1,9 @@
 /**
  * Photo-based PBR texture packs (CC0, derived from ambientCG; see docs/CREDITS.md) that replace the
  * canvas-painted maps for the big surfaces: masonry, sidewalks, asphalt, roofs. Everything else stays procedural.
- * Vite inlines these imports as data URIs in the single-file build.
+ * Vite inlines these imports as data URIs in the single-file build (the claude.ai artifact); the hosted build
+ * (VITE_HOSTED=1, see vite.config.ts and docs in README "Deploy on Vercel") emits them as hashed files instead.
+ * Larger variants for the hosted build live in ./hosted.ts and swap in through MaterialLibrary.overrideMaps.
  */
 import * as THREE from 'three';
 import type { MaterialKey } from '@/world/types';
@@ -39,6 +41,29 @@ import cedarR from '@/assets/textures/cedar_rough.jpg';
 import roof from '@/assets/textures/roof_color.jpg';
 import roofN from '@/assets/textures/roof_normal.jpg';
 import roofR from '@/assets/textures/roof_rough.jpg';
+
+/**
+ * Texture size tier: '1k' is what ships in every build (the built-in sets below: 1024 px colour/normal, 512 px roughness).
+ * Larger tiers ('2k', '4k') exist only in the hosted build and load lazily (./hosted.ts).
+ */
+export type TextureTier = `${number}k`;
+export const BASE_TIER: TextureTier = '1k';
+/** Numeric rank of a tier ('2k' -> 2); unparsable tiers rank 0. */
+export function tierRank(t: string): number {
+  const m = /^(\d+)k$/.exec(t);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+/**
+ * What the quality tiers do to textures. 'standard' (low/medium/high) keeps the shipped 1K sets and whatever
+ * anisotropy the MaterialLibrary chose (max 8). 'ultra' (hosted build only, `?q=ultra`) loads the highest tier
+ * available (2K when sets exist under src/assets/textures/2k) and raises anisotropy to 16 on every pack texture.
+ */
+export interface TextureProfile { maxTier: TextureTier; anisotropy: number | null }
+export const TEXTURE_PROFILES: Record<'standard' | 'ultra', TextureProfile> = {
+  standard: { maxTier: BASE_TIER, anisotropy: null },
+  ultra: { maxTier: '2k', anisotropy: 16 },
+};
 
 export interface PackEntry {
   key: MaterialKey;
@@ -87,6 +112,11 @@ const USER_DEFAULTS: Partial<Record<MaterialKey, { repeat: number; normalScale: 
   cornice: { repeat: 1, normalScale: 0.8, roughness: 1, envMapIntensity: 0.1 },
 };
 
+/** Default repeat / normal strength for a material key when a pack file set has no built-in entry. */
+export function packDefaults(key: string): { repeat: number; normalScale: number; roughness: number; envMapIntensity: number } {
+  return USER_DEFAULTS[key as MaterialKey] ?? { repeat: 1.5, normalScale: 0.8, roughness: 1, envMapIntensity: 0.1 };
+}
+
 /** Parse a user texture file path like ".../brownstone.0_color.jpg" into its key, variant and map kind. */
 export function parseUserTextureName(path: string): { key: string; variant: number; kind: 'color' | 'normal' | 'rough' } | null {
   const m = /([A-Za-z]+)(?:\.(\d+))?_(color|normal|rough)\.(?:jpe?g|png|webp)$/.exec(path);
@@ -108,7 +138,7 @@ export function userPackEntries(files: Record<string, string>): PackEntry[] {
   const out: PackEntry[] = [];
   for (const s of sets.values()) {
     if (!s.color) continue;
-    const d = USER_DEFAULTS[s.key as MaterialKey] ?? { repeat: 1.5, normalScale: 0.8, roughness: 1, envMapIntensity: 0.1 };
+    const d = packDefaults(s.key);
     out.push({ key: s.key as MaterialKey, variant: s.variant, color: s.color, normal: s.normal ?? '', rough: s.rough ?? '', ...d });
   }
   return out;
@@ -117,6 +147,29 @@ export function userPackEntries(files: Record<string, string>): PackEntry[] {
 /** Photos you converted with scripts/photo-to-pbr.py (src/assets/textures/user/). Override the built-in packs. */
 const USER_FILES = import.meta.glob('@/assets/textures/user/*.{jpg,jpeg,png,webp}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 export const USER_PACKS: PackEntry[] = userPackEntries(USER_FILES);
+
+/** Entry that is actually applied for a key/variant: user photos win over the built-in sets. */
+export function effectivePackEntries(builtIn: PackEntry[] = TEXTURE_PACKS, user: PackEntry[] = USER_PACKS): Map<string, PackEntry> {
+  const byId = new Map<string, PackEntry>();
+  for (const e of [...builtIn, ...user]) byId.set(`${e.key}:${e.variant}`, e);
+  return byId;
+}
+
+/** Every texture created by loadTexturePacks, so a later quality step can retune them (anisotropy) without a reload. */
+const PACK_TEXTURES = new Set<THREE.Texture>();
+
+/** Set anisotropy on every pack texture loaded so far (and on `extra`); no-op for values below 1. Re-uploads the textures. */
+export function setPackAnisotropy(n: number, extra: Iterable<THREE.Texture> = []): number {
+  if (!(n >= 1)) return 0;
+  let count = 0;
+  for (const t of [...PACK_TEXTURES, ...extra]) {
+    if (t.anisotropy === n) continue;
+    t.anisotropy = n;
+    t.needsUpdate = true;
+    count++;
+  }
+  return count;
+}
 
 /** Load every pack and hand the maps to the material library. Resolves to the number of entries applied. */
 export async function loadTexturePacks(materials: MaterialLibrary, maxAnisotropy = 8, loader = new THREE.TextureLoader()): Promise<number> {
@@ -129,14 +182,14 @@ export async function loadTexturePacks(materials: MaterialLibrary, maxAnisotropy
         t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
         t.anisotropy = maxAnisotropy;
         t.needsUpdate = true;
+        PACK_TEXTURES.add(t);
         return t;
       });
       cache.set(url + srgb, p);
     }
     return p;
   };
-  const byId = new Map<string, PackEntry>();
-  for (const e of [...TEXTURE_PACKS, ...USER_PACKS]) byId.set(`${e.key}:${e.variant}`, e); // user photos win
+  const byId = effectivePackEntries(); // user photos win
   let n = 0;
   await Promise.all([...byId.values()].map(async (e) => {
     const [map, normalMap, roughnessMap] = await Promise.all([load(e.color, true), e.normal ? load(e.normal, false) : undefined, e.rough ? load(e.rough, false) : undefined]);

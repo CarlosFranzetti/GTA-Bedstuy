@@ -160,3 +160,62 @@ export class PerfMonitor {
     }
   }
 }
+
+// ---------------------------------------------------------------- per-pass draw-call counter
+
+/** Minimal slice of THREE.WebGLRenderer that PassCounter needs (keeps this file free of a three import). */
+export interface CountableRenderer {
+  render(scene: unknown, camera: unknown): void;
+  shadowMap: { render(lights: unknown, scene: unknown, camera: unknown): void };
+  info: { render: { calls: number } };
+}
+
+/**
+ * Splits renderer.info.render.calls into passes. The composer calls renderer.render once per pass (the shadow map is
+ * rendered from inside the first call), so the n-th call of a frame is pass n:
+ *   pass 0 = the main scene render (minus the shadow pass nested in it),
+ *   pass `gbufferIndex` = GTAO's scene re-render with the normal override material (medium/high only),
+ *   everything else = full-screen post quads.
+ * Call `beginFrame()` right before the composer renders. No allocation per frame.
+ */
+export class PassCounter {
+  shadow = 0;
+  scene = 0;
+  gbuffer = 0;
+  post = 0;
+  /** Index of the G-buffer pass (1 when GTAO is on, -1 otherwise). */
+  gbufferIndex = -1;
+  private pass = 0;
+  private shadowInPass = 0;
+
+  get total(): number { return this.shadow + this.scene + this.gbuffer + this.post; }
+
+  beginFrame(): void { this.shadow = 0; this.scene = 0; this.gbuffer = 0; this.post = 0; this.pass = 0; this.shadowInPass = 0; }
+
+  /** Adds the calls of one renderer.render invocation (`shadowCalls` of them were the nested shadow pass). */
+  record(calls: number): void {
+    const own = Math.max(0, calls - this.shadowInPass);
+    this.shadowInPass = 0;
+    if (this.pass === 0) this.scene += own;
+    else if (this.pass === this.gbufferIndex) this.gbuffer += own;
+    else this.post += own;
+    this.pass++;
+  }
+  recordShadow(calls: number): void { this.shadow += calls; this.shadowInPass += calls; }
+
+  /** Wraps renderer.render and renderer.shadowMap.render. Returns a function that restores the originals. */
+  attach(renderer: CountableRenderer): () => void {
+    const render = renderer.render, shadowRender = renderer.shadowMap.render;
+    renderer.render = (scene, camera) => {
+      const before = renderer.info.render.calls;
+      render.call(renderer, scene, camera);
+      this.record(renderer.info.render.calls - before);
+    };
+    renderer.shadowMap.render = (lights, scene, camera) => {
+      const before = renderer.info.render.calls;
+      shadowRender.call(renderer.shadowMap, lights, scene, camera);
+      this.recordShadow(renderer.info.render.calls - before);
+    };
+    return () => { renderer.render = render; renderer.shadowMap.render = shadowRender; };
+  }
+}

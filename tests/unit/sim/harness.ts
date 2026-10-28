@@ -35,7 +35,7 @@ export function makeVehicle(
 
 /** Entities + World2D stepped like main.ts does. */
 export class Sim {
-  readonly world = new World2D(12);
+  constructor(readonly world: World2D = new World2D(12)) {}
   readonly entities = new Map<string, Entity & { update(dt: number): void }>();
   contactsLastStep: Contact[] = [];
   time = 0;

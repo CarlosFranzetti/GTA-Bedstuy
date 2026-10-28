@@ -69,3 +69,145 @@ Floors are estimates for the game's massing: 3 to 4 for rows, 5 to 6 for walk-up
 | Street View | Google | Not accessed (not permitted) |
 
 To finish this document, allow overpass-api.de and data.cityofnewyork.us in the session network settings and rerun. Then fill the Floors and Trees columns from OSM `building:levels` and PLUTO `NumFloors`, and check the sequence in section 1, row 4, on a map.
+
+---
+
+## 5. Pass 2 (R2, 28 Oct, WebSearch snippets only)
+
+Scope: the nine street segments inside the grid (six east-west rows, three avenues). Block ids follow the grid scheme used in the POIs: `rRcC`, where r0..r4 lie between Hart / Pulaski / Kosciuszko / Lafayette / Van Buren / Greene (row r sits between streets[r] and streets[r+1]), and c0 = Tompkins to Throop, c1 = Throop to Marcus Garvey. This row/column mapping is assumed (L) until D1 confirms it against the Grid block ids. Query numbers (Q1 to Q22) are listed in `docs/swarm/tasks/R2b.md`.
+
+Not reached this pass: LPC designation report LP-2496 (s-media.nyc.gov refused, DNS not in the session allowlist), NYC Open Data, PLUTO, OSM, Street View. Every value below is a search snippet or listing text. Confidence: H = official or multiple sources; M = one credible source (Brownstoner, LPC summary, HDC, a listing with a year built); L = listing-only, marketing copy, undated, or inference.
+
+### 5.0 Corrections to Pass 1 (read before 5.1)
+
+| # | Pass 1 said | Pass 2 finds | Conf |
+|---|---|---|---|
+| C1 | Antioch Baptist, 828 Greene, and the 816-826 Greene rows, sit on the Greene row between Throop and Marcus Garvey | 828 Greene's cross streets are Lewis and Stuyvesant Avenues (HDC and Brownstoner snippets). Lewis is east of Marcus Garvey, so the church is **outside the grid**. The 816-826 rows probably share that end (not re-checked). | M |
+| C2 | Upper Room Baptist (1888) at Marcus Garvey and Van Buren | Only address found: 180 Van Buren St, ZIP 11221 (food-pantry page and a 2023 directory). No Marcus Garvey cross street was found. Pass 1 placement is unverified. | L |
+| C3 | Magnolia at 677/679 Lafayette sits between Tompkins and Marcy | Marcy is west of Tompkins, so that block would lie outside the grid. Not resolved (needs a map). | L |
+| C4 | Grace Baptist at 83 Pulaski | Confirmed as a 79th Precinct church list entry (undated; the layout is jumbled and shows "1200 Bedford Avenue" above it). Block membership not confirmed. | M |
+| C5 | Throop churches and Rhea's Laundromat | Addresses confirmed in listings and the 79th Pct list (299, 417 Throop; 442 Throop). Block membership not confirmed. | M |
+
+### 5.1 Hart St (row r0 north edge; Tompkins to Throop)
+
+- Dominant type: 3 to 4 storey rows and a few infill buildings (M). A 2004 building at 173 Hart St is listed as between Tompkins and Throop, with 3 floors (listing, Q1). Read as `newBuild`, 3 floors, M.
+- 226 Hart St, cross street Tompkins: pre-war, listed as 4 floors (listing, Q1). Block side unverified (L).
+- Pre-war houses: 196 Hart St, listed as a 3-storey brownstone built 1910 (listing, Q1). Its block is not confirmed. Treat as `brownstone`, 3 floors, L.
+- Landmark context: the Willoughby-Hart Historic District was designated by LPC (press release dated 25 Jun 2024, Q1). Its rows are on Hart and Willoughby between Nostrand and Marcy, which is west of the grid. The district's rows are described as largely neo-Grec in brownstone (Q18, M). Applying that to Tompkins to Throop is an extrapolation (L).
+- Stoop, cornice, storefront, trees, scaffolding: no source (gap). Bus stop at Throop and Hart is from pass 1 (listing, unverified).
+
+### 5.2 Pulaski St (row r0 to r1; Tompkins to Throop)
+
+- Dominant type: 3 to 4 storey rows and walk-ups (M typology; L per block).
+- 185 Pulaski and 195A Pulaski are listed between Tompkins and Throop (listings, Q2). Typology not given (L).
+- 197 Pulaski: DOB filing on 30 Mar 2023 for a 4-storey, 7-unit new building, filed by BH Success Group (YIMBY/Marketproof, Q16). Read as `newBuild`, 4 floors, M for filing. Vacancy of the site not stated (L). Block membership not confirmed (likely Tompkins to Throop; L).
+- 156 Pulaski: 9-unit condo in a 3-storey building, built 1931 (listing, Q2). Read as a 1931 walk-up, `residential`, 3 floors, M. Block not confirmed.
+- 88 Pulaski: townhouse, 3 floors, cross street Marcy (listing). Outside the grid (west of Tompkins).
+- Corner, Throop and Pulaski: 330 Throop Ave, Brownstoner "Building of the Day" (Q22). Second Empire private house, built before 1873, architect unknown, not landmarked. A 1980s tax photo shows asphalt siding. Read as `frame` or `brickPainted` (cladding unknown), 3 floors (L), possibly `residential`, M for the house's existence and date. Which of the four corners it occupies is not stated (L).
+- Church: Grace Baptist Church, 83 Pulaski St (79th Pct list; see C4). Use as `use: church`, M for existence, L for block.
+- Storefront archetype on Pulaski: none found.
+
+### 5.3 Kosciuszko St (row r1 to r2; Tompkins to Throop; Throop-side corners)
+
+- Dominant type: rows and small apartment buildings, 3 to 4 storeys (M typology). The nearest dated listings are 184 Kosciuszko (1899, 3 apartments) and 175 Kosciuszko (1910, 2 units, 3 storeys). Both are between Marcy and Tompkins, so **outside the grid** (Q3, M).
+- 289 Kosciuszko: YIMBY (undated) describes a vacant lot left empty for over a decade, with Premier Equities as developer. A 2018 YIMBY permit notice for a 4-storey residential building with a penthouse at the same address. Read as `vacant` (the lot) then `newBuild`, M for the vacancy story, L for block membership (Q16).
+- Institutions: P.S. 79 on Kosciuszko near Throop (1907 Brooklyn Eagle photo caption, Q3). Current status unknown (L). Crossover Baptist Church at 358 Kosciuszko (directory listing, Q9). Block not confirmed (L). A former St. Ambrose parish house at the Tompkins corner (Forgotten NY walking piece, via a search snippet, L).
+- Subway: the Kosciuszko St station's active stairs sit at the Broadway, Kossuth Place and Lafayette Ave junction; closed emergency exits open near DeKalb and Broadway (Wikipedia and Subway Nut snippets, Q13). This is not a grid anchor, because Broadway is not a grid street.
+- Storefront archetype: no source for the grid stretch (gap). Tompkins-corner storefront archetypes are on the Tompkins section (5.9).
+
+### 5.4 Lafayette Ave (row r2 to r3; Tompkins to Marcus Garvey)
+
+- Tree: magnolia grandiflora at 677/679 Lafayette, NYC landmark, designated 12 Jul 1977 (HDC, pass 1, H for the tree; location conflict C3, L).
+- 664 Lafayette: four-storey, three-family Neo-Grec brownstone overlooking Von King Park (Brownstoner "House of the Day", undated; Q12). Read as `brownstone`, 4 floors, `cornice: plain` (L). Block not confirmed.
+- Landmark: LPC report (snippet, Q12) on a neo-Grec residence built in the early 1880s, facing the north side of Tompkins Park from Lafayette Ave. Read as `brownstone` (L). Exact lot not given.
+- 672 Lafayette: gutted five-storey brownstone near Tompkins Park (Brownstoner, Q12). Use as `brownstone`, 5 floors, L.
+- 725 Lafayette and 766 Lafayette: listing pages only (cityrealty, Q12). No typology.
+- Church at Lafayette: Christ Evangelical English Lutheran, 1084 Lafayette (Wikipedia snippet, Q4). Its number is far east, so it is likely **outside the grid** (L).
+- Storefront archetype and church inside the grid: none found (gap).
+
+### 5.5 Van Buren St (row r3 to r4; Tompkins to Marcus Garvey)
+
+- 127 Van Buren: Queen Anne row house, cross streets Throop and Marcus Garvey, built after 1888 and before 1908 by Brownstoner's map dates (Q5). Read as `brownstone`, 3 floors (L), `cornice: plain` (L). Block is inside the grid (c1, Throop to Marcus Garvey), M.
+- 64 Van Buren: two-unit brownstone built 1901, between Tompkins and Throop (Corcoran sold listing, Q5). Read as `brownstone`, `residential`, M.
+- 211 Van Buren: four-storey triplex brownstone, year built 1899 (listing, ZIP 11221, Q5). Block not confirmed (L).
+- 25 Van Buren: built 2014, between Tompkins and Throop (cityrealty, Q5). Read as `newBuild`, 4 floors (L; floor count not in the snippet), M for 2014.
+- Hattie Carthan Herban Farm: on Van Buren between Throop and Tompkins (Forgotten NY, via snippet, Q21). A community farm, not a built frontage. Treat as open space rather than a building lot (L on its exact footprint).
+- Upper Room Gospel Baptist at 180 Van Buren, ZIP 11221 (Q14, M for address; C2).
+- Corner parcel: a commercial listing describes a 10,000 sq ft lot at Van Buren and Marcus Garvey, offered for redevelopment (CommercialSearch, Q10). Possibly `vacant` (L).
+- Permits (undated, Q16): 490 Van Buren (4 storeys, 8 units), 499 Van Buren (4 storeys, 7 units), 299 Van Buren (4 storeys, 10 apartments). Read as `newBuild` candidates, L for block and for vacancy.
+
+### 5.6 Greene Ave (row r4 south edge; Tompkins to Marcus Garvey)
+
+- 620 Greene: private house, cross streets Tompkins and Throop, built about 1872, Second Empire, architect unknown, not landmarked (Brownstoner "Building of the Day", Q6). Read as `frame` or `brickPainted` (L) with a mansard roof; `floors: 3` (L). Inside the grid, M for the house.
+- 626 Greene: Tompkins-side property, four floors, six homes, 421-a abatement to 2031 (NestSeekers listing, Q6). Not described as a brownstone. Read as `residential`, 4 floors, M.
+- 650 Greene: 2022 YIMBY notice for a four-storey residential building on a lot between Throop and Tompkins (Dido Properties, Q6). Read as `newBuild` or `vacant` lot (L).
+- 677 Greene: three-family brownstone built 1899, on the "lush, tree-lined" block between Throop and Marcus Garvey (Corcoran sold; listing copy, Q6, Q21). Read as `brownstone`, `residential`, 3 floors, M for the build year, L for the tree wording.
+- 762 Greene, cross street Marcus Garvey: listing copy says the block is mostly brownstone townhouses (Q6). Its block side is not confirmed, and it may be outside the grid (L).
+- 446 Greene: Bedford and Nostrand; Queen Anne row, c. 1885, architect possibly Amzi Hill (Brownstoner, Q20). **Outside the grid**. Useful only as a typology reference (M).
+- Antioch Baptist, 828 Greene: outside the grid (C1).
+- Storefront archetype: none found on the grid stretch (gap).
+
+### 5.7 Throop Ave (avenue, c0/c1 boundary; full length of the grid)
+
+- Corner storefronts:
+  - Laundromat: Rhea's Laundromat, 442 Throop Ave (listing directory, Q7; reviews). Read as `storefront: laundromat`, M for the address, L for the grid block.
+  - Daycare: Brooklyn Community Day Care Center, 268 Throop (listing, Q7, L). A family day care at 220 Throop Apt 7-B appears in the state registry with an enforcement note (Q7, L). Do not use without a status check.
+  - Pharmacy, liquor and discount shops within 0.2 mi of 276 Throop: pass 1 only (L).
+  - Barbershop: none on Throop (Q7). The only barber result, DIMENSION, has no address (do not use).
+  - Bodega: a shooting at Throop and Quincy, undated (Q7). Quincy is not a grid street.
+- Churches (all M for existence and address, from the 79th Pct list, Q7 and pass 1):
+  - Bedford Stuyvesant Assembly of God, 299 Throop.
+  - Brighter Way Baptist, 417 Throop.
+  - Ebenezer Gospel Tabernacle, 470 Throop: Queen Anne, 1891, built for the Association for Improving the Conditions of the Poor; cross streets Gates and Quincy (Brownstoner, Q7). **Outside the grid** (Gates and Quincy are not row streets).
+  - Our Lady of Victory R.C., 583 Throop (pass 1, not re-checked, L).
+  - Mt. Zion Pentecostal, about 0.1 mi from 276 Throop (pass 1, L).
+- Residential stock:
+  - 320 Throop: built 1910, 3 storeys, 3 units (listing, Q7). `residential`, 3 floors, M-L.
+  - 322 Throop: brownstone built 1899 (PropertyShark, Q5). `brownstone`, L for block.
+  - 277 Throop: 2016 YIMBY filing, five-storey, eight-unit residential (Q16). `newBuild`, 5 floors, M for filing.
+  - 185 Throop: 2015 YIMBY proposal for a six-storey, 89-unit supportive building (Q16). `newBuild`, 6 floors, L for built.
+  - 482 Throop: six-storey residential, with demolition permits filed December 2019 (YIMBY, Q16). Possibly `vacant` after demolition, L.
+  - 171 Throop (2020) and 190 Throop (undated): permit notices only (Q16, L).
+  - 632 Throop: no source found (Q19, dead end).
+- Corner, Throop and Pulaski: 330 Throop (see 5.2).
+- Corner, Throop and Van Buren: no source for a Throop corner there (see 5.5 for the Van Buren farm).
+
+### 5.8 Marcus Garvey Blvd (avenue, c1 east edge; formerly Sumner Ave)
+
+- Church: Bethany Baptist Church, 460 Marcus Garvey Blvd (directory/Benevity listing, Q14, M for the address, L for block).
+- Residential and infill: 106 Marcus Garvey (2025 YIMBY permit notice, undated day; Q16, L). 488 Marcus Garvey (2019 permits, pass 1, L).
+- Queen Anne flats: 469 Marcus Garvey, 1888, corner Decatur (Brownstoner, Q10). Decatur is not a grid street, so it is outside or on the edge (L). Useful as the avenue's Queen Anne reference (M).
+- Public housing: Marcus Garvey Houses (Wikipedia snippet, Q10). Location in the grid not confirmed (L). If it is on this block, `use: residential` with large massing (needs a check).
+- Storefront archetype: none found (gap).
+
+### 5.9 Tompkins Ave (avenue, c0 west edge)
+
+- Corner storefront: 435 Tompkins, a long-crumbling storefront corner to be replaced by condos (Brownstoner, Q9). Read as `storefront: generic` or `mixed`, L for block and corner.
+- Churches: Tompkins Avenue Congregational Church started in a schoolhouse near McDonough Street in 1875. Its chapel at Tompkins and McDonough dates from 1888. A BPL caption dates a campanile at Tompkins and McDonough to about 1910, and names First AME Zion as the current occupant (Q9, M). McDonough is not a grid street, so this is **outside the grid**, on the Tompkins edge (L).
+- Former St. Ambrose parish house at the Tompkins and Kosciuszko corner (Forgotten NY via snippet, L).
+- Permits filed on Tompkins (YIMBY, Q16; block membership unknown): 173 Tompkins (2020), 185 Tompkins (2024), 423 Tompkins (2022), 467 Tompkins. Use only as "new build filed" flags, `newBuild`, L.
+- Mixed use: 343A Tompkins (StreetEasy, Q9, no detail).
+
+### 5.10 Cross-grid typology (summary for D1)
+
+Sources used: LP-2496 summary (CityLand, Q8, M): about 825 buildings, mostly speculative rows of the 1880s and 1890s; the 1890s also added 4 to 5 storey "French flats" in Romanesque and Renaissance Revival styles. Stuyvesant Heights designation keywords include stoop, bay window and cornice (Q18, M).
+
+Recommended defaults for D1 (these are typology defaults, not measured values; confidence L unless noted):
+
+| Field (D1 enum) | Suggested default | Basis | Conf |
+|---|---|---|---|
+| `floors` | rows 3 to 4; walk-ups and French flats 4 to 5; avenue infill 4 to 6 | listings and permits above | M (rows), L (infill) |
+| `family` | `brownstone` for pre-1900 rows on Hart, Kosciuszko, Lafayette, Van Buren, Greene; `brickRed` or `brickTan` for 1900s to 1930s walk-ups; `newBuild` for post-2000 infill; `church` for church lots; `vacant` for lots with a vacancy note | Q1, Q5, Q6, Q8, Q16 | M / L |
+| `cornice` | `bracketed` for Italianate and Second Empire (e.g. 620 Greene, 330 Throop); `plain` for Neo-Grec and Queen Anne (e.g. 127 Van Buren, 664 Lafayette); `none` for flush parapets on infill | Q8, Q18 (style-to-cornice mapping is mine) | L |
+| `stoop` | `true` on row houses; `false` on avenue storefronts and new infill (only where no stoop is evidenced) | Q8 stoop keyword, Q18 | M (rows), L (per block) |
+| `use` / `storefront` | `mixed` with storefront on Throop and Tompkins corners; `church` on the Throop, Pulaski, Marcus Garvey and Tompkins churches above | Q7, Q9, Q14 | M |
+| `trees` | unknown everywhere except the Lafayette magnolia; Greene Throop to Marcus Garvey described as tree-lined (listing copy) | Q6, Q21 | L |
+| `scaffold` | `false` everywhere (no source found) | none | - |
+
+### 5.11 Open items (pass 2)
+
+1. LP-2496 PDF (s-media.nyc.gov): allow it in the session network settings, then read the building-type inventory. It is the best source for cornice and material splits.
+2. Resolve C1 to C3 on a map: the 828 Greene and 816-826 Greene placement, the Upper Room corner, and the magnolia block.
+3. Lafayette, Kosciuszko, Van Buren and Greene north-south sequence is still unverified (Pass 1 item 4).
+4. Trees and scaffolding: no source reached. Street View checklist in `docs/world-notes.md` covers both.
+5. Street-level storefront archetypes: only Throop (laundromat, day care) and Tompkins (condo-replacement corner) have sources. Everything else is a gap.

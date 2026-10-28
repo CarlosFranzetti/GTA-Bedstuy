@@ -1,17 +1,21 @@
 /**
- * Church: 9 m wide nave with pitched roof, square bell tower with steeple, cross and corner pinnacles,
- * recessed pointed-arch windows (half-round heads), arched double door, rose window, railed entrance steps.
+ * Church: gable-front nave with pitched roof, arched double door, a round (rose) window in the gable, recessed
+ * round-headed windows and railed entrance steps. Lots >= 12 m wide also get a square bell tower with steeple, cross
+ * and corner pinnacles; narrower (storefront-chapel) lots are a plain gabled front with a cross on the apex. The front
+ * masonry follows the lot's material family (limestone by default); nave height follows the data floors.
  */
-import { bayCentres, cornice, sideWallFrame, wallWithHoles, windows } from './facade';
+import { bayCentres, cornice, familyMats, sideWallFrame, wallWithHoles, windows } from './facade';
 import type { Hole, LotCtx, LotOutput, V3 } from './facade';
 
 export function buildChurch(c: LotCtx): LotOutput {
-  const { b, m, rng, W, D, lot } = c;
+  const { b, m, rng, W, D, lot, spec } = c;
   const S = 2.4; // front steps live in the yard in front of the facade
-  const tw = Math.min(3.4, W * 0.3); // tower width
+  const tower = W >= 12;
+  const tw = tower ? Math.min(3.4, W * 0.3) : 0; // tower width
   const nx0 = tw, nx1 = W;
   const nw = nx1 - nx0;
-  const eave = 9.0;
+  const eave = spec ? Math.max(8.5, Math.min(11, spec.floors * 3.1)) : 9.0;
+  const front = spec && spec.family !== 'limestone' ? familyMats(m, spec.family, 0).front : m.limestone;
   const rise = Math.min(3.4, nw * 0.35);
   const mid = (nx0 + nx1) / 2;
   const towerDepth = 3.6;
@@ -20,15 +24,17 @@ export function buildChurch(c: LotCtx): LotOutput {
   // nave walls (brick sides/back; limestone front built below with its openings; right side wall has arched windows)
   b.box(m.brickRed, nx0, 0, -D, nx1, eave, -S, 'lb');
   // low wing behind the tower fills the footprint
-  b.box(m.brickRed, 0, 0, -D, tw, 5.5, -S - towerDepth, 'rlb');
-  b.box(m.brickRed, 0, 0, -D, tw, 5.5, -S - towerDepth, 'f');
-  b.rect(m.roof, [0, 5.51, -S - towerDepth], [tw, 0, 0], [0, 0, -(D - S - towerDepth)]);
+  if (tower) {
+    b.box(m.brickRed, 0, 0, -D, tw, 5.5, -S - towerDepth, 'rlb');
+    b.box(m.brickRed, 0, 0, -D, tw, 5.5, -S - towerDepth, 'f');
+    b.rect(m.roof, [0, 5.51, -S - towerDepth], [tw, 0, 0], [0, 0, -(D - S - towerDepth)]);
+  }
 
   // pitched roof (ridge runs front-to-back) + gables
   const lenZ = D - S;
   b.rect(m.roof, [nx0 - 0.15, eave, -D], [0, 0, lenZ + 0.15], [nw / 2 + 0.15, rise, 0]);
   b.rect(m.roof, [nx1 + 0.15, eave, -S], [0, 0, -(lenZ + 0.15)], [-(nw / 2 + 0.15), rise, 0]);
-  b.tri(m.limestone, [nx0, eave, -S + 0.01], [nx1, eave, -S + 0.01], [mid, eave + rise, -S + 0.01]);
+  b.tri(front, [nx0, eave, -S + 0.01], [nx1, eave, -S + 0.01], [mid, eave + rise, -S + 0.01]);
   b.tri(m.brickRed, [nx1, eave, -D - 0.01], [nx0, eave, -D - 0.01], [mid, eave + rise, -D - 0.01]);
   cornice(b, m, nx0, nx1, eave, -S, 0.45, 'dentil');
 
@@ -36,16 +42,16 @@ export function buildChurch(c: LotCtx): LotOutput {
   const doorX = mid;
   const nave: Hole[] = [];
   const doorY = 0.6; // top of the steps
-  windows(b, m, { xs: [doorX], y: doorY, w: 1.8, h: 2.6, z: -S, holes: nave, wall: m.limestone, depth: 0.35, arch: true, sill: false });
+  windows(b, m, { xs: [doorX], y: doorY, w: 1.8, h: 2.6, z: -S, holes: nave, wall: front, depth: 0.35, arch: true, sill: false });
   b.rect(m.metal, [doorX - 0.9, doorY, -S - 0.12], [1.8, 0, 0], [0, 2.5, 0], { ru: 0.6, rv: 0.8 });
   b.rect(m.cornice, [doorX - 0.03, doorY, -S - 0.11], [0.06, 0, 0], [0, 2.5, 0], { ru: 0.05, rv: 0.8 });
-  windows(b, m, { xs: [nx0 + nw * 0.15, nx1 - nw * 0.15], y: 2.2, w: 1.3, h: 3.6, z: -S, holes: nave, wall: m.limestone, arch: true, rng });
-  wallWithHoles(b, m.limestone, nx0, 0, nx1, eave, -S, nave);
+  windows(b, m, { xs: [nx0 + nw * 0.15, nx1 - nw * 0.15], y: 2.2, w: 1.3, h: Math.min(3.6, eave - 4.6), z: -S, holes: nave, wall: front, arch: true, rng });
+  wallWithHoles(b, front, nx0, 0, nx1, eave, -S, nave);
   b.box(m.limestone, doorX - 1.2, doorY, -S, doorX - 0.9, doorY + 3.1, -S + 0.2, 'fl');
   b.box(m.limestone, doorX + 0.9, doorY, -S, doorX + 1.2, doorY + 3.1, -S + 0.2, 'fr');
   // rose window: stone ring around a lit disc, proud of the wall
   {
-    const cy = 7.2, r0 = 1.0, r1 = 1.28, n = 12, z = -S + 0.03;
+    const cy = eave - 1.8, r0 = 1.0, r1 = 1.28, n = 12, z = -S + 0.03;
     const pt = (r: number, k: number, zz: number): V3 => [doorX + Math.cos((k * 2 * Math.PI) / n) * r, cy + Math.sin((k * 2 * Math.PI) / n) * r, zz];
     for (let k = 0; k < n; k++) {
       b.poly(m.limestone, [pt(r0, k, z + 0.05), pt(r1, k, z + 0.05), pt(r1, k + 1, z + 0.05), pt(r0, k + 1, z + 0.05)]);
@@ -54,7 +60,8 @@ export function buildChurch(c: LotCtx): LotOutput {
     for (const k of [0, 3, 6, 9]) b.bar(m.limestone, pt(r0, k, z + 0.04), pt(r0, k + 6, z + 0.04), 0.06);
   }
 
-  // ---- tower
+  // ---- tower (wide lots) or a plain apex cross (narrow ones)
+  if (tower) {
   b.box(m.brickRed, 0, 0, -S - towerDepth, tw, towerH, -S, 'rlb');
   const tHoles: Hole[] = [];
   windows(b, m, { xs: [tw / 2], y: 11.5, w: 1.0, h: 2.6, z: -S, holes: tHoles, wall: m.limestone, depth: 0.3, arch: true });
@@ -76,6 +83,14 @@ export function buildChurch(c: LotCtx): LotOutput {
   // cross on the steeple
   b.bar(m.metal, [ax, apexY, az], [ax, apexY + 1.9, az], 0.12);
   b.bar(m.metal, [ax - 0.5, apexY + 1.4, az], [ax + 0.5, apexY + 1.4, az], 0.1);
+  } else {
+    const ay = eave + rise;
+    b.bar(m.metal, [mid, ay, -S - 0.1], [mid, ay + 1.4, -S - 0.1], 0.1);
+    b.bar(m.metal, [mid - 0.4, ay + 1.0, -S - 0.1], [mid + 0.4, ay + 1.0, -S - 0.1], 0.08);
+    // buttress pilasters at the front corners
+    b.box(m.limestone, nx0, 0, -S, nx0 + 0.45, eave, -S + 0.14, 'frlu');
+    b.box(m.limestone, nx1 - 0.45, 0, -S, nx1, eave, -S + 0.14, 'frlu');
+  }
 
   // ---- entrance steps with cheek walls and iron rails
   const stepW = 3.6;
@@ -108,14 +123,14 @@ export function buildChurch(c: LotCtx): LotOutput {
   if (lot.poi) {
     const sign = m.lib.sign(lot.poi.sign, '#2d1747', '#f2e6c9');
     const sw = Math.min(nw * 0.45, 4.6);
-    const sy0 = 4.9, sy1 = 5.8, f = 0.06, z0 = -S + 0.15;
+    const sy0 = eave - 4.1, sy1 = sy0 + 0.9, f = 0.06, z0 = -S + 0.15;
     b.box(m.metal, doorX - sw / 2, sy0, -S, doorX + sw / 2, sy1, z0, 'rlud');
     b.rect(sign, [doorX - sw / 2 + f, sy0 + f, z0 + 0.005], [sw - 2 * f, 0, 0], [0, sy1 - sy0 - 2 * f, 0], { ru: 1, rv: 1 });
     const uvr: [number, number, number, number] = [0.2, 0.6, 0.8, 0.85];
     b.rect(m.window, [doorX - sw / 2, sy1 - f, z0 + 0.01], [sw, 0, 0], [0, f, 0], { uvRect: uvr });
     b.rect(m.window, [doorX - sw / 2, sy0, z0 + 0.01], [sw, 0, 0], [0, f, 0], { uvRect: uvr });
   } else if (rng.chance(0.5)) {
-    b.box(m.cornice, doorX - 1.4, 4.9, -S, doorX + 1.4, 5.6, -S + 0.12, 'frlud');
+    b.box(m.cornice, doorX - 1.4, eave - 4.1, -S, doorX + 1.4, eave - 3.4, -S + 0.12, 'frlud');
   }
 
   return {

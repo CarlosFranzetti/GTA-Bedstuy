@@ -1,24 +1,29 @@
 /**
- * Six-floor brick apartment block with recessed windows, a canopied lobby door and bracketed cornice; the condo POI
- * gets a glass curtain wall with limestone floor slabs, glass-railed balconies and a roof deck.
+ * Brick walk-up / apartment block (4-6 storeys: 3.3 m ground floor, 2.9 m above) with recessed double-hung windows,
+ * a canopied lobby door, bracketed cornice with dentils and front fire escapes on the 4-5 storey fronts. The material
+ * family comes from the lot data (red / tan / painted brick or limestone). The condo POI gets a glass curtain wall
+ * with limestone floor slabs, glass-railed balconies and a roof deck. Party walls are plain brick; only an exposed
+ * corner side wall carries windows, and the rear is a bare shell.
  */
 import {
-  FLOOR_H, acUnits, airVent, bayCentres, cornice, drainPipe, fireEscape, pickWindow, rearWallFrame, revealFaces,
-  roofClutter, roofWithParapet, sideWallFrame, wallWithHoles, waterTank, windows,
+  FLOOR_H, PARLOUR_H, UPPER_H, acUnits, bayCentres, corniceOfKind, drainPipe, familyMats, fireEscape, pickWindow, revealFaces,
+  roofClutter, roofWithParapet, sideWallFrame, storeyLevels, wallWithHoles, waterTank, windows,
 } from './facade';
 import type { Hole, LotCtx, LotOutput } from './facade';
 
 export function buildApartment(c: LotCtx): LotOutput {
-  const { b, m, rng, W, D, lot } = c;
+  const { b, m, rng, W, D, lot, spec } = c;
   const condo = lot.poi?.archetype === 'condo';
-  const GROUND = 3.6;
-  const floors = condo ? 7 : 6;
-  const H = GROUND + (floors - 1) * FLOOR_H;
+  const floors = condo ? 7 : Math.max(3, Math.min(7, Math.round(spec?.floors ?? rng.int(4, 6))));
+  const GROUND = condo ? 3.6 : PARLOUR_H;
+  const levels = storeyLevels(0, floors);
+  const H = condo ? GROUND + (floors - 1) * FLOOR_H : levels.H;
   const r0 = rng.next();
-  const brick = r0 < 0.3 ? m.brickPainted : r0 < 0.65 ? m.brickRed : m.brickAlt;
+  const brick = spec ? familyMats(m, spec.family, r0 < 0.5 ? 0 : 1).front : r0 < 0.3 ? m.brickPainted : r0 < 0.65 ? m.brickRed : m.brickAlt;
   const cs = c.cornerSide;
 
-  b.box(brick, 0, 0, -D, W, H, 0, cs === 'left' ? 'rb' : cs === 'right' ? 'lb' : 'rlb');
+  // plain red-brick party walls and back; an exposed corner side wall is built separately below in the facade brick
+  b.box(m.brickRed, 0, 0, -D, W, H, 0, cs === 'left' ? 'rb' : cs === 'right' ? 'lb' : 'rlb');
 
   if (condo) {
     // dark backing behind the curtain wall, then storey-high glass bands between limestone floor slabs
@@ -71,7 +76,7 @@ export function buildApartment(c: LotCtx): LotOutput {
     if (rng.chance(0.7)) roofClutter(b, m, rng, { x0: 0, x1: W, zBack: -D, zFront: 0, y: H, brick, chimney: 0, skylight: 0.4, bulkhead: 0.8, dishes: 0.3, ph: 0 });
   } else {
     // front wall with recessed windows and a recessed lobby door under a stone canopy
-    const bays = Math.max(2, Math.floor(W / 2.2));
+    const bays = Math.max(2, spec?.bays ?? Math.floor(W / 2.2));
     const xs = bayCentres(W, bays);
     const doorX = W / 2;
     const holes: Hole[] = [];
@@ -83,23 +88,31 @@ export function buildApartment(c: LotCtx): LotOutput {
     b.box(m.limestone, doorX - 1.2, 2.55, 0, doorX + 1.2, 2.75, 1.3, 'frlufd');
     b.box(m.limestone, doorX - 0.8, 0, 0, doorX - 0.6, 2.4, 0.1, 'fl');
     b.box(m.limestone, doorX + 0.6, 0, 0, doorX + 0.8, 2.4, 0.1, 'fr');
-    windows(b, m, { xs: xs.filter((x) => Math.abs(x - doorX) > 0.9), y: 1.0, w: 1.1, h: 1.7, z: 0, holes, wall: brick, sill: true, lintel: 'flat', rng });
+    const ww = Math.min(1.1, W / bays - 0.6);
+    windows(b, m, { xs: xs.filter((x) => Math.abs(x - doorX) > 0.9), y: 0.9, w: ww, h: 1.7, z: 0, holes, wall: brick, sill: true, lintel: 'flat', frame: true, rng });
     const acSpots: { x: number; y: number }[] = [];
     const fe: number[] = [];
+    const uh = condo ? 1.9 : 1.75;
     for (let k = 1; k < floors; k++) {
-      const fy = GROUND + (k - 1) * FLOOR_H;
-      windows(b, m, { xs, y: fy + 0.9, w: 1.1, h: 1.9, z: 0, holes, wall: brick, sill: true, lintel: 'flat', noLedge: k >= 3, rng });
-      for (const x of xs) acSpots.push({ x, y: fy + 0.9 });
-      fe.push(fy + 0.85);
+      const fy = condo ? GROUND + (k - 1) * FLOOR_H : levels.floorY[k];
+      const wy = fy + (condo ? 0.9 : 0.6);
+      windows(b, m, { xs, y: wy, w: ww, h: uh, z: 0, holes, wall: brick, sill: true, lintel: k === 1 ? 'hood' : 'flat', frame: !condo && k === floors - 1, noLedge: k >= 3, rng });
+      for (const x of xs) acSpots.push({ x, y: wy });
+      fe.push(wy - 0.05);
     }
     wallWithHoles(b, brick, 0, 0, W, H, 0, holes);
     b.box(m.limestone, 0, GROUND - 0.15, 0, W, GROUND + 0.02, 0.07, 'fud');
-    cornice(b, m, 0, W, H, 0, 0.6, 'bracket');
+    if (!condo) for (let k = 2; k < floors; k++) b.box(m.limestone, 0, levels.floorY[k] - 0.1, 0, W, levels.floorY[k] + 0.03, 0.05, 'fud');
+    corniceOfKind(b, m, 0, W, H, 0, spec ? spec.cornice : 'bracket', 0.6);
     roofWithParapet(b, m, { x0: 0, x1: W, zBack: -D, zFront: 0, y: H, frontMat: brick, sideMat: m.brickRed, coping: m.limestone, exposeL: cs === 'left', exposeR: cs === 'right' });
     roofClutter(b, m, rng, { x0: 0, x1: W, zBack: -D, zFront: 0, y: H, brick: m.brickRed, chimney: 0.1, skylight: 0.3, bulkhead: 0.8, dishes: 0.5 });
     if (rng.chance(0.5)) waterTank(b, m, W * 0.5, H, -D + 2.8);
-    if (rng.chance(0.25) && xs.length >= 2) fireEscape(b, m, Math.max(0.2, xs[0] - 0.7), Math.min(W - 0.2, xs[1] + 0.7), 0, fe);
-    else acUnits(b, m, rng, acSpots, 0);
+    // fire escapes are the signature of the 4-5 storey fronts
+    const feChance = condo ? 0 : spec ? (floors >= 4 && floors <= 5 ? 0.9 : floors >= 6 ? 0.5 : 0.1) : floors <= 5 ? 0.75 : 0.3;
+    if (rng.chance(feChance) && xs.length >= 2) {
+      const pair = xs.length >= 3 && rng.chance(0.5) ? [xs[xs.length - 2], xs[xs.length - 1]] : [xs[0], xs[1]];
+      fireEscape(b, m, Math.max(0.2, pair[0] - 0.7), Math.min(W - 0.2, pair[1] + 0.7), 0, fe);
+    } else acUnits(b, m, rng, acSpots, 0);
     if (rng.chance(0.4)) drainPipe(b, m, rng.chance(0.5) ? 0.14 : W - 0.14, 0.2, H - 0.4, 0);
   }
 
@@ -107,19 +120,10 @@ export function buildApartment(c: LotCtx): LotOutput {
     const nb = Math.max(2, Math.floor((D - 1) / 3));
     b.with(sideWallFrame(cs, W, D), () => {
       const holes: Hole[] = [];
-      for (let k = 1; k < floors; k++) windows(b, m, { xs: bayCentres(D, nb), y: GROUND + (k - 1) * FLOOR_H + 0.9, w: 1.1, h: 1.9, z: 0, holes, wall: brick, sill: true, noLedge: k >= 3, rng });
+      for (let k = 1; k < floors; k++) windows(b, m, { xs: bayCentres(D, nb), y: (condo ? GROUND + (k - 1) * FLOOR_H : levels.floorY[k]) + (condo ? 0.9 : 0.6), w: 1.1, h: condo ? 1.9 : 1.75, z: 0, holes, wall: brick, sill: true, noLedge: k >= 3, rng });
       wallWithHoles(b, brick, 0, 0, D, H, 0, holes);
     });
   }
-
-  b.with(rearWallFrame(W, D), () => {
-    if (!condo && rng.chance(0.35)) {
-      const ys: number[] = [];
-      for (let k = 1; k < floors; k++) ys.push(GROUND + (k - 1) * FLOOR_H + 0.85);
-      fireEscape(b, m, W * 0.25, W * 0.7, 0, ys);
-    }
-    if (rng.chance(0.5)) { airVent(b, m, W * 0.3, 1.2, 0); airVent(b, m, W * 0.7, 2.2, 0); }
-  });
 
   return { body: [{ x0: 0, x1: W, z0: -D, z1: 0 }], stoops: [] };
 }

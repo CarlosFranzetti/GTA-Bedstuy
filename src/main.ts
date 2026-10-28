@@ -37,7 +37,7 @@ import { Menu } from '@/ui/Menu';
 import { GamepadInput } from '@/core/Gamepad';
 import { loadPosition, savePosition, watchPagehide, type SavedPosition } from '@/ui/SaveState';
 import { LoadingScreen, nextPaint, withTimeout } from '@/render/Loading';
-import { PerfMonitor } from '@/render/Perf';
+import { PerfMonitor, PassCounter } from '@/render/Perf';
 import { DistanceCuller } from '@/render/Culling';
 
 declare global {
@@ -252,12 +252,13 @@ let slowTick = 0;
 let streetName = '';
 let prompt = '';
 const hudState: HudState = { stars: 0, speedKmh: 0, inVehicle: false, radioStation: '', prompt: '', timeOfDay: 0, streetName: '', fps: 60 };
-const stats: Record<string, number> = { drawCalls: 0, triangles: 0, fps: 60, fps1pctLow: 0, heapMBPerMin: 0, culledObjects: 0, vehicles: 0, peds: 0, cops: 0, meshes: world.stats.meshes, colliders: world.stats.colliders };
+const passes = new PassCounter();
+passes.attach(renderer);
+const stats: Record<string, number> = { drawCalls: 0, drawCallsShadow: 0, drawCallsScene: 0, drawCallsGBuffer: 0, drawCallsPost: 0, triangles: 0, fps: 60, fps1pctLow: 0, heapMBPerMin: 0, culledObjects: 0, vehicles: 0, peds: 0, cops: 0, meshes: world.stats.meshes, colliders: world.stats.colliders };
 window.__gtaStats = stats;
 
-const game = new Game(
-  (alpha, frameDt) => {
-    const pos = player.body.pos;
+/** Draws one frame (interpolation, camera, culling, shadow box, post chain). Also used by `__gtaDebug.renderOnce`. */
+function drawFrame(alpha: number, frameDt: number): void {
     // reference for distance culling: the camera, so free-cam review shots are unaffected
     interpolateAll(alpha, cam.camera.position.x, cam.camera.position.z);
     updateCamera(frameDt);
@@ -270,7 +271,15 @@ const game = new Game(
     focusPoint.set(camTarget.x, 1.2, camTarget.z);
     pipeline.setFocus(cam.camera.position.distanceTo(focusPoint));
     renderer.info.reset();
+    passes.gbufferIndex = quality === 'low' ? -1 : 1;
+    passes.beginFrame();
     pipeline.render();
+}
+
+const game = new Game(
+  (alpha, frameDt) => {
+    const pos = player.body.pos;
+    drawFrame(alpha, frameDt);
     frames++; fpsClock += frameDt;
     if (fpsClock >= 0.5) { fps = Math.round(frames / fpsClock); frames = 0; fpsClock = 0; }
     perf.frame(frameDt);
@@ -298,6 +307,7 @@ const game = new Game(
     minimap.update(camTarget, camHeading, copPositions, frameDt);
 
     stats.drawCalls = renderer.info.render.calls;
+    stats.drawCallsShadow = passes.shadow; stats.drawCallsScene = passes.scene; stats.drawCallsGBuffer = passes.gbuffer; stats.drawCallsPost = passes.post;
     stats.triangles = renderer.info.render.triangles;
     stats.fps = fps;
     stats.fps1pctLow = Math.round(perf.fps1pctLow * 10) / 10;
@@ -409,6 +419,11 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
   clearFreeCam() { freeCam = null; },
   setHour(h: number) { dayNight.timeOfDay = h; dayNight.update(0); },
   setQuality(q: Quality) { applyQuality(q); },
+  /** Renders one frame synchronously and returns the per-pass draw-call split (for perf scripts). */
+  renderOnce(alpha = 1, dt = 1 / 60) {
+    drawFrame(alpha, dt);
+    return { total: renderer.info.render.calls, shadow: passes.shadow, scene: passes.scene, gbuffer: passes.gbuffer, post: passes.post, triangles: renderer.info.render.triangles };
+  },
   packsReady,
   teleport(x: number, z: number, heading?: number) { const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = x; b.pos.z = z; b.vel.x = 0; b.vel.z = 0; if (heading !== undefined) b.heading = heading; },
   /** run n fixed simulation steps synchronously (for scripted review) */

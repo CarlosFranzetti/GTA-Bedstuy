@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import type { Vec2 } from '@/core/Math2';
 import type { Rng } from '@/core/Rng';
 import type { IMaterialLibrary, Lot, StaticCollider } from '@/world/types';
+import type { LotSpec } from '@/world/buildings/facade';
 import { LotBatch, loadMats } from '@/world/buildings/facade';
 import type { LocalRect, LotCtx, LotOutput } from '@/world/buildings/facade';
 import { buildBrownstone } from '@/world/buildings/brownstone';
@@ -16,8 +17,11 @@ import { buildApartment } from '@/world/buildings/apartment';
 import { buildVacant } from '@/world/buildings/vacant';
 import { buildScaffold } from '@/world/buildings/scaffold';
 
+/** A lot as produced by `subdivideLots`: data-driven lots carry the `spec` their facade is generated from. */
+export type SpecLot = Lot & { spec?: LotSpec };
+
 export function buildBuildings(
-  lots: Lot[],
+  lots: SpecLot[],
   materials: IMaterialLibrary,
   rng: Rng,
 ): { group: THREE.Group; colliders: StaticCollider[] } {
@@ -65,7 +69,7 @@ export function buildBuildings(
     if (side && cornersPerFace.get(`${lot.blockId}|${lot.side}`) === 1) side = 'left';
     if (side && mirrored) side = side === 'left' ? 'right' : 'left';
 
-    const ctx: LotCtx = { b: batch, m: mats, rng: lrng, W: lot.width, D: lot.depth, lot, cornerSide: side };
+    const ctx: LotCtx = { b: batch, m: mats, rng: lrng, W: lot.width, D: lot.depth, lot, cornerSide: side, spec: lot.spec };
     let out: LotOutput;
     switch (lot.type) {
       case 'brownstone': out = buildBrownstone(ctx, { style: 'brownstone' }); break;
