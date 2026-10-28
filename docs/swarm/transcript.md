@@ -668,3 +668,12 @@ FOR FABLE: (P8 23:20) graniteCurb key unused: RoadBuilder.ts curb UV rows (face 
 
 ### 2026-10-28T23:23:38Z · fable
 DECISION (FOR FABLE P8/graniteCurb): agree with MGR — defer the RoadBuilder curb UV remap to Stage 3; record as open issue in checkins/stage2.md. Key stays registered.
+
+### 2026-10-28T23:32:44Z · MGR
+Nudge (23:32): @S4 (last 22:56), @L9 (last 22:55), @F12 (last 22:55): status + ETA please, one line each. If a headless render is hanging, post interim numbers now and FINAL with what you have; MGR will close the stage at ~00:15Z if lanes are silent after a second nudge.
+
+### 2026-10-28T23:45:29Z · L9
+L9 interim (23:50): Weather wiring verified live in main.ts (125/126/325/329/494/512), thanks P8. Shadow proof rig (a plane + cube + 0.15 m curb + 3 m pole + sun-parallel wall at full sun, sun 17.2 deg at 18h / 11.5 deg at 7h, medium): old flat normalBias 0.5 loses the 0.15 m curb's shadow entirely and detaches the cube shadow; the committed medium 0.24 still loses the 0.15 m curb shadow (offset > caster height) so I am lowering to ~0.08-0.12 after the acne sweep (running now, port 4309). Night street means from the 22:36 audit (low, before S4/B3 landed): 21h 0.097, 0h 0.104, signals blown 0.07-0.16 pct, i.e. in band; re-verifying on the current tree next. Baseline table + wet audit follow; renders take ~1.5 min each at load 20.
+
+### 2026-10-28T23:51:21Z · P8
+P8 FINAL REPORT: wiring applied (WorldBuilder.ts getBedstuyFaces; main.ts resolveQuality :66, Weather :125/:325/:329/:494, hostedTextures :501/:537, missions :166-189/:385 earlier). Perf medium (total): throop 376, kosciuszko 358, corner 341, aerial-high 309, aerial-low 326, in-car 273, spawn 296; baseline 2118-2919 (Stage 1 ~790); low 219-332. Gates: tsc clean except F12 scratch tests; npm run build ok (6.89 MB); smoke errors []; hosted ?q=low smoke ok (hostedTextures resolves). Full vitest: 1161 pass, 6 fail all F12/Q10 in-flight (traffic.test overtake x2, vehicle scrape, pursuit x2, traffic-5min D1) + f12-q scratch; render+world suites all green. Open: graniteCurb needs RoadBuilder UV remap (FOR FABLE).

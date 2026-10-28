@@ -4,6 +4,7 @@
 //                                    [--dist <dir>]      serve an existing build instead of building one
 //                                    [--no-build]        serve ./dist as it is
 //                                    [--label <text>]    free text stored in stats.json (stage / commit)
+//                                    [--hud]             live loop + page screenshot (with HUD; ~3x the memory, slower)
 //
 // By default a PRIVATE build is made into <outDir>/.dist so a concurrent `npm run build` by another lane cannot
 // swap the files under the browser. Outputs in <outDir>:
@@ -23,7 +24,7 @@ const { chromium } = createRequire(import.meta.url)('playwright');
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function parseArgs(argv) {
-  const o = { port: 4310, q: 'low', width: 640, height: 360, build: true, dist: null, label: '' };
+  const o = { port: 4310, q: 'low', width: 640, height: 360, build: true, dist: null, label: '', hud: false };
   const rest = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -34,6 +35,7 @@ function parseArgs(argv) {
     else if (a === '--dist') { o.dist = resolve(argv[++i]); o.build = false; }
     else if (a === '--no-build') o.build = false;
     else if (a === '--label') o.label = argv[++i];
+    else if (a === '--hud') o.hud = true;
     else rest.push(a);
   }
   o.out = resolve(rest[0] ?? 'qa-screens');
@@ -85,28 +87,39 @@ async function capture() {
     const dbg = (fn, arg) => page.evaluate(fn, arg);
     const hour = (h) => dbg((h) => { window.__gtaDebug.setHour(h); window.__gtaDebug.step(5); }, h);
     const freeCam = (a) => dbg((a) => window.__gtaDebug.setFreeCam(...a), a);
+    // Default ("manual") mode stops the rAF loop and draws frames by hand with renderOnce(): a headless SwiftShader
+    // renderer otherwise grows by ~10-20 MB/s (RSS 0.5 -> 3+ GB in 3 minutes) and gets OOM-killed when other jobs
+    // share the machine. Manual frames are deterministic and read straight from the canvas (no HUD).
+    // `--hud` keeps the live loop and takes a page screenshot (includes the HUD, needs more memory and time).
+    if (!opt.hud) await dbg(() => { window.__gtaDebug.stopLoop(); window.__gtaDebug.renderer.getContext().finish(); });
     const shot = async (name, h) => {
       await dismiss();
       await dbg(() => window.__gtaDebug.settle(120));
-      await page.waitForTimeout(1800);
-      const stats = await dbg(() => ({ ...(window.__gtaStats ?? {}) }));
+      let stats, method = 'canvas';
       const sim = await dbg(() => {
         const d = window.__gtaDebug;
         const b = d.player.vehicle ? d.player.vehicle.body : d.player.body;
         return { player: { x: b.pos.x, z: b.pos.z, heading: b.heading, inVehicle: !!d.player.vehicle }, traffic: d.traffic.vehicles.length, agents: d.traffic.agentCount, peds: d.traffic.peds.length, cops: d.cops.cops.length, stars: d.wanted.stars };
       });
-      // swiftshader frames can take many seconds when the machine is busy. Try a normal page screenshot first
-      // (includes the HUD); if it times out fall back to rendering once and reading the canvas (no HUD).
-      let method = 'page';
-      try { await page.screenshot({ path: `${opt.out}/${name}.png`, timeout: 150_000 }); }
-      catch (e) {
-        log(`${name}: page screenshot failed (${String(e.message).split('\n')[0].slice(0, 80)}), falling back to canvas capture`);
-        const data = await page.evaluate(() => { const d = window.__gtaDebug; d.pipeline.render(); return d.renderer.domElement.toDataURL('image/png'); });
-        writeFileSync(`${opt.out}/${name}.png`, Buffer.from(data.split(',')[1], 'base64'));
-        method = 'canvas';
+      if (opt.hud) {
+        method = 'page';
+        await page.waitForTimeout(1800);
+        stats = await dbg(() => ({ ...(window.__gtaStats ?? {}) }));
+        await page.screenshot({ path: `${opt.out}/${name}.png`, timeout: 150_000 });
+      } else {
+        const r = await dbg((n) => {
+          const d = window.__gtaDebug;
+          let info = null; const t0 = performance.now();
+          const gl = d.renderer.getContext();
+          for (let i = 0; i < n; i++) { info = d.renderOnce(1, 1 / 60); gl.finish(); } // a few frames so exposure / TAA history settle; finish() drains SwiftShader's command backlog
+          const frameMs = (performance.now() - t0) / n;
+          return { info, frameMs, data: d.renderer.domElement.toDataURL('image/png'), stats: { ...(window.__gtaStats ?? {}) } };
+        }, 4);
+        writeFileSync(`${opt.out}/${name}.png`, Buffer.from(r.data.split(',')[1], 'base64'));
+        stats = { ...r.stats, renderOnce: r.info, frameMs: +r.frameMs.toFixed(1), drawCalls: r.info.total, triangles: r.info.triangles };
       }
       frames.push({ name, hour: h, method, stats, sim });
-      log(name, JSON.stringify(stats));
+      log(name, JSON.stringify({ drawCalls: stats.drawCalls, triangles: stats.triangles, frameMs: stats.frameMs }));
     };
 
     await dbg(() => { const d = window.__gtaDebug; d.teleport(9, 20, 0); d.step(10); });

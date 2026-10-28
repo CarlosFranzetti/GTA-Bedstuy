@@ -81,6 +81,13 @@ const TURN_CHECK_PERIOD = 0.1;
 const TURN_SCAN_ERR = 0.3;
 const TURN_SCAN_DIST = 24;
 /** the obstacle ray leans toward the target by this fraction of the heading error (max RAY_LEAD_MAX rad) */
+/** the flank rays run this fraction of the half width off the centre line */
+const FLANK_RAY = 0.75;
+/** a car (slower than FLANK_PED_SPEED) waits while a pedestrian is within FLANK_PED_MARGIN of its body */
+const FLANK_PED_SPEED = 2.5;
+const FLANK_PED_MARGIN = 0.5;
+const FLANK_HOLD_MAX = 3;
+const FLANK_IGNORE_FOR = 5;
 const RAY_LEAD = 0.7;
 const RAY_LEAD_MIN = 0.1;
 const RAY_LEAD_MAX = 0.5;
@@ -123,6 +130,9 @@ export class TrafficAgent {
   // pedestrians ahead (throttled query)
   private pedTimer = 0;
   private pedGap = Infinity;
+  private pedFlank = false;
+  private flankHold = 0;
+  private flankIgnore = 0;
   // turn preview at the stop line this agent is approaching (chosen early so left turns can yield)
   private preFrom: string | null = null;
   private preEdge = 0;
@@ -352,12 +362,25 @@ export class TrafficAgent {
     if (this.pedTimer <= 0) {
       this.pedTimer = PED_SCAN_PERIOD;
       this.pedGap = this.scanPeds(fx, fz, speed);
+      this.pedFlank = speed < FLANK_PED_SPEED && this.pedBesideBody(fx, fz);
       if (Math.abs(err) > TURN_SCAN_ERR && dNode < TURN_SCAN_DIST) {
         // mid-turn: the crosswalk the car is about to cross lies toward the target node, not along the heading
         const inv = 1 / Math.max(dNode, 0.1);
         const toward = this.scanPeds(dx * inv, dz * inv, speed, dNode + 2);
         if (toward < this.pedGap) this.pedGap = toward;
       }
+    }
+    // a pedestrian pressed against the car's front half is not ahead of it by the cone's measure; hold, but a ped whose
+    // path runs through the body must not gridlock the street: after FLANK_HOLD_MAX the car creeps on regardless
+    if (this.flankIgnore > 0) {
+      this.flankIgnore -= dt;
+      this.flankHold = 0;
+    } else if (this.pedFlank) {
+      this.pedGap = Math.min(this.pedGap, 0.1);
+      if (Math.abs(speed) < 0.3) this.flankHold += dt;
+      if (this.flankHold > FLANK_HOLD_MAX) { this.flankIgnore = FLANK_IGNORE_FOR; this.flankHold = 0; }
+    } else {
+      this.flankHold = Math.max(0, this.flankHold - dt);
     }
     if (this.pedGap < Infinity) {
       const room = Math.max(0, this.pedGap - 3.2);
@@ -380,6 +403,15 @@ export class TrafficAgent {
       this.rayDir.z = -Math.cos(aim);
       // always from the real body (the lane-offset line is only where the body is heading, not where it is) ...
       let hit = this.world.raycast(pos, this.rayDir, reach, v.body.id);
+      // ... a car is wider than its centre line: a car easing back into the lane beside us is hit by neither centre ray,
+      // so two more rays run along the flanks of the body
+      const halfW = v.body.shape.kind === 'obb' ? v.body.shape.halfW : 1;
+      for (let side = -1; side <= 1; side += 2) {
+        this.rayFrom.x = pos.x + rx * halfW * FLANK_RAY * side;
+        this.rayFrom.z = pos.z + rz * halfW * FLANK_RAY * side;
+        const hs = this.world.raycast(this.rayFrom, this.rayDir, reach, v.body.id);
+        if (hs && (!hit || hs.dist < hit.dist)) hit = hs;
+      }
       // ... and, while the lateral shift is still being eased in or out, also along the line it is moving onto
       const off = this.latTarget - this.lat;
       if (Math.abs(off) > OFFSET_RAY_MIN) {
@@ -612,6 +644,24 @@ export class TrafficAgent {
   // ------------------------------------------------------------------ pedestrians
 
   /** Distance to the nearest pedestrian in the lane ahead (crosswalk or jaywalker), or Infinity. */
+  /** A pedestrian touching or hugging the front half of the body: a car starting off would sweep it over. */
+  private pedBesideBody(fx: number, fz: number): boolean {
+    const b = this.vehicle.body;
+    const halfL = b.shape.kind === 'obb' ? b.shape.halfL : 2.2;
+    const halfW = b.shape.kind === 'obb' ? b.shape.halfW : 1;
+    const list = this.world.queryCircle(b.pos, halfL + FLANK_PED_MARGIN + halfW);
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i];
+      if (o.kind !== 'ped' && o.kind !== 'player') continue;
+      const rx = o.pos.x - b.pos.x;
+      const rz = o.pos.z - b.pos.z;
+      const along = rx * fx + rz * fz;
+      if (along < -0.5 || along > halfL + FLANK_PED_MARGIN) continue;
+      if (Math.abs(rx * -fz + rz * fx) <= halfW + FLANK_PED_MARGIN) return true;
+    }
+    return false;
+  }
+
   private scanPeds(fx: number, fz: number, speed: number, minReach = 0): number {
     const reach = Math.max(minReach, 7 + Math.max(0, speed) * 1.2);
     return this.coneGap(this.vehicle.body.pos, fx, fz, reach, 0.5);

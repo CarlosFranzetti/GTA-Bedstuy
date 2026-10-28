@@ -77,7 +77,17 @@ function runTraffic(seed: number): Run {
     driverOf.get(e.a);
     run.impacts.push({ t, a: e.a, b: e.b, strength: e.strength, x: e.pos.x, z: e.pos.z, aDriver: String(driverOf.get(e.a)), bDriver: String(driverOf.get(e.b)) });
   });
-  events.on('pedKnockedDown', (e) => run.knockedDown.push({ t, id: e.id }));
+  events.on('pedKnockedDown', (e) => {
+    run.knockedDown.push({ t, id: e.id });
+    if (process.env.DUMPPED && seed === Number(process.env.DUMPPED)) {
+      const pd = traffic.peds.find((q) => q.id === e.id);
+      log(`=== PED ${e.id} t=${t.toFixed(1)} @${pd?.body.pos.x.toFixed(1)},${pd?.body.pos.z.toFixed(1)} walk=${(pd as any)?.walkState}`);
+      for (let k = Math.max(0, hist.length - 9); k < hist.length; k += 2) for (const [id, l] of hist[k].m) {
+        const m = /p=(-?[\d.]+),(-?[\d.]+)/.exec(l); if (!m || !pd) continue;
+        if (Math.hypot(Number(m[1]) - pd.body.pos.x, Number(m[2]) - pd.body.pos.z) < 16) log(`  T${hist[k].t.toFixed(1)} ${id} ${l}`);
+      }
+    }
+  });
 
   // trajectories sampled once a second: id -> [{t,x,z}]
   const trail = new Map<string, { t: number; x: number; z: number }[]>();
@@ -131,6 +141,10 @@ function runTraffic(seed: number): Run {
       for (const v of cops.cops) { const p = v.body.pos; if (Math.hypot(p.x - TRACE[3], p.z - TRACE[4]) <= TRACE[5]) log(`T${t.toFixed(1)} ${v.id} COP p=${p.x.toFixed(1)},${p.z.toFixed(1)} v=${v.speed.toFixed(1)} d=${v.driver}`); }
       if (step % 30 === 0) for (const o of physics.queryCircle({ x: TRACE[3], z: TRACE[4] }, TRACE[5])) if (o.kind !== 'ped') log(`   ALL ${o.id} ${o.kind} ${o.pos.x.toFixed(1)},${o.pos.z.toFixed(1)} h=${o.heading.toFixed(2)} ${JSON.stringify(o.shape).slice(0,120)}`);
       for (const q of traffic.peds) { const p = q.body.pos; if (Math.hypot(p.x - TRACE[3], p.z - TRACE[4]) <= TRACE[5]) log(`T${t.toFixed(1)} ${q.id} PED p=${p.x.toFixed(1)},${p.z.toFixed(1)}`); }
+    }
+    if (process.env.PEDTRACE && seed === Number(process.env.PEDTRACE) && step % 30 === 0 && t >= 52 && t <= 75) {
+      const q = traffic.peds.find((x) => x.id === 'ped10');
+      if (q) log(`PEDT T${t.toFixed(1)} ped10 p=${q.body.pos.x.toFixed(2)},${q.body.pos.z.toFixed(2)} state=${(q as any).state} tgt=${(q as any).targetId} v=${Math.hypot(q.body.vel.x, q.body.vel.z).toFixed(2)} wf=${(q as any).waitingForWalk}`);
     }
     // signal bookkeeping
     for (const [key, { i, s }] of pairs) {
