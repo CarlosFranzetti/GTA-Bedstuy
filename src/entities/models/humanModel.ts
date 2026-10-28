@@ -336,10 +336,12 @@ export function buildHumanModel(materials: IMaterialLibrary, rng: Rng, opts: Hum
     : rng.chance(0.15) ? 'afro' : rng.chance(0.1) ? 'braids' : rng.chance(0.08) ? 'durag' : rng.chance(0.85) ? 'hair' : 'none');
   const accessory = opts.accessory ?? (rng.chance(0.22) ? 'backpack' : rng.chance(0.18) ? 'bag' : 'none');
 
-  const shirt = materials.get('cloth', shirtV);
+  // Fabric textures (R5): hoodies get heathered fleece, most pants denim, most shoes sneakers.
+  // An explicitly requested shirt/pants variant (the player) keeps the flat cloth colour.
+  const shirt = outfit === 'hoodie' && opts.shirt === undefined ? materials.get('clothHoodie', rng.int(0, 7)) : materials.get('cloth', shirtV);
   const skin = materials.get('skin', skinV);
-  const pants = materials.get('cloth', pantsV);
-  const shoes = materials.get('cloth', rng.pick(SHOE_VARIANTS));
+  const pants = opts.pants === undefined && rng.chance(0.6) ? materials.get('clothDenim', rng.int(0, 5)) : materials.get('cloth', pantsV);
+  const shoes = rng.chance(0.7) ? materials.get('clothSneaker', rng.int(0, 5)) : materials.get('cloth', rng.pick(SHOE_VARIANTS));
   const soleMat = materials.get('tire');
   const hairMat = materials.get('cloth', rng.chance(0.7) ? 1 : 10);
   const capMat = materials.get('cloth', rng.int(0, 11));
