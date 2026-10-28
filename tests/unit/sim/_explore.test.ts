@@ -6,7 +6,7 @@ import { TrafficSystem } from '@/game/TrafficSystem';
 import { Vehicle, VEHICLE_SPECS } from '@/entities/Vehicle';
 import { realPhysics, proxyMaterials, stubMaterials, DT } from './harness';
 
-for (const seed of [7, 21]) it('traffic explore ' + seed, () => {
+for (const seed of [21]) it('traffic crash explore ' + seed, () => {
   const { physics, world } = realPhysics();
   const grid = world.grid;
   const events = new EventBus();
@@ -16,10 +16,17 @@ for (const seed of [7, 21]) it('traffic explore ' + seed, () => {
   const traffic = new TrafficSystem(grid, physics, events, new Rng(seed), scene, proxyMaterials(), mk as any, undefined, undefined, world.lots);
   const player = { x: 0, z: 50 };
   const entities = new Map<string, any>();
-  const hist = new Map<string, { t: number; x: number; z: number }[]>();
-  let impacts = 0; const imp: any[] = [];
-  events.on('impact', (e: any) => { impacts++; imp.push({ ...e, t: +(simT).toFixed(1) }); });
   let simT = 0;
+  const agents = () => (traffic as any).active as { agent: any; vehicle: any }[];
+  const ints = grid.intersections;
+  events.on('impact', (e: any) => {
+    if (e.strength < 3) return;
+    const A = entities.get(e.a), B = entities.get(e.b);
+    if (!A || !B || !(A instanceof Vehicle) || !(B instanceof Vehicle)) return;
+    const near = ints.map((i: any) => ({ i, d: Math.hypot(i.pos.x - e.pos.x, i.pos.z - e.pos.z) })).sort((a: any, b: any) => a.d - b.d)[0];
+    const st = (v: any) => { const ag = agents().find((q) => q.vehicle === v); return `${v.id}[${v.driver} h${v.body.heading.toFixed(2)} v${v.speed.toFixed(1)} ${ag ? ag.agent.state : 'parked'} dmg${v.damage.toFixed(2)}]`; };
+    console.log(`CRASH t=${simT.toFixed(1)} str=${e.strength.toFixed(1)} at ${e.pos.x.toFixed(0)},${e.pos.z.toFixed(0)} nearest ${near.i.id} d=${near.d.toFixed(0)} ns=${traffic.lights.phaseFor(near.i.id, near.i.nsStreetId)} ew=${traffic.lights.phaseFor(near.i.id, near.i.ewStreetId)} | ${st(A)} vs ${st(B)}`);
+  });
   for (let step = 0; step < 60 * 300; step++) {
     simT = step / 60; traffic.update(DT, player);
     entities.clear();
@@ -27,32 +34,5 @@ for (const seed of [7, 21]) it('traffic explore ' + seed, () => {
     for (const p of traffic.peds) { p.update(DT); entities.set(p.body.id, p); }
     const contacts = physics.step(DT);
     for (const c of contacts) { entities.get(c.a.id)?.onContact?.(c, c.b); entities.get(c.b.id)?.onContact?.(c, c.a); }
-    if (step % 60 === 0) {
-      const t = step / 60;
-      for (const v of traffic.vehicles) if (v.driver === 'traffic') { let h = hist.get(v.id); if (!h) hist.set(v.id, h = []); h.push({ t, x: v.body.pos.x, z: v.body.pos.z }); }
-    }
   }
-  // windows
-  let worst = Infinity; const bad: string[] = []; let windows = 0;
-  for (const [id, h] of hist) {
-    for (let i = 0; i < h.length; i++) {
-      const a = h[i]; const j = h.findIndex((q) => q.t === a.t + 60);
-      if (j < 0 || h[j].t - a.t !== 60 || j - i !== 60) continue; // contiguous
-      windows++;
-      const d = Math.hypot(h[j].x - a.x, h[j].z - a.z);
-      let path = 0; for (let k = i + 1; k <= j; k++) path += Math.hypot(h[k].x - h[k-1].x, h[k].z - h[k-1].z);
-      worst = Math.min(worst, d);
-      if (d < 10) bad.push(`${id}@${a.t} net=${d.toFixed(1)} path=${path.toFixed(1)} at ${a.x.toFixed(0)},${a.z.toFixed(0)}`);
-    }
-  }
-  console.log('seed', seed, 'agents seen', hist.size, 'windows', windows, 'worst net', worst.toFixed(1), 'bad', bad.length, 'impacts', impacts);
-  console.log(bad.slice(0, 25).join('\n'));
-  const byPair = new Map<string, number>();
-  for (const e of imp) { const k = (e.a.startsWith('veh') ? 'veh' : e.a.replace(/[0-9#]+.*/, '')) + '|' + (e.b.startsWith('veh') ? 'veh' : e.b.replace(/[0-9#]+.*/, '')); byPair.set(k, (byPair.get(k) ?? 0) + 1); }
-  console.log('impact kinds', JSON.stringify([...byPair]));
-  imp.sort((a, b) => b.strength - a.strength);
-  console.log('top', JSON.stringify(imp.slice(0, 8)));
-  const ids = new Map<string, number>(); for (const e of imp) { const k = e.a + '>' + e.b; ids.set(k, (ids.get(k) ?? 0) + 1); }
-  console.log('repeat', JSON.stringify([...ids].sort((a, b) => b[1] - a[1]).slice(0, 8)));
 }, 600_000);
-
