@@ -33,6 +33,6 @@ export function buildProps(
   buildBillboards(pb, grid, lots, materials, rng.fork('props:billboards'));
   buildFences(pb, lots, materials, rng.fork('props:fences'), { vacantFrontFence: options.vacantFrontFence ?? false });
   buildCurbside(pb, grid, lots, materials, rng.fork('props:curbside'));
-  buildGraffiti(pb, lots, rng.fork('props:graffiti'));
+  buildGraffiti(pb, lots, rng.fork('props:graffiti'), materials);
   return { group: pb.build('props'), colliders: pb.colliders };
 }

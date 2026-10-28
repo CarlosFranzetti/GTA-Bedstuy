@@ -67,11 +67,19 @@ const TURN_MIN = 0.6;
 /** left turns yield to oncoming traffic that reaches the middle of the box within this many seconds */
 const LEFT_YIELD_TTC = 3.5;
 const LEFT_YIELD_WIDTH = 7;
+/** a car waiting at the same green launches at about this acceleration; only the head of the queue (within this range of the box) counts */
+const LAUNCH_ACCEL = 3;
+const QUEUE_HEAD_RANGE = 22;
+const LAUNCH_SPEED = 8;
 const TURN_MAX_WAIT = 8;
 const TURN_CHECK_PERIOD = 0.1;
 /** the cone toward the target node is scanned for pedestrians once the car is turning toward it */
 const TURN_SCAN_ERR = 0.3;
 const TURN_SCAN_DIST = 24;
+/** the obstacle ray leans toward the target by this fraction of the heading error (max RAY_LEAD_MAX rad) */
+const RAY_LEAD = 0.7;
+const RAY_LEAD_MIN = 0.1;
+const RAY_LEAD_MAX = 0.5;
 
 /** Bodies whose agent is currently passing a stalled car: two queue cars must never pass side by side. */
 const PASSING = new WeakSet<Body2D>();
@@ -359,8 +367,12 @@ export class TrafficAgent {
     } else {
       const f = Math.max(0, speed);
       const reach = 6 + f;
-      this.rayDir.x = fx;
-      this.rayDir.z = fz;
+      // the ray follows where the car is going, not where it points: mid-turn the nose still points past the target
+      // lane (toward the parked cars at the kerb) although the steering is already bringing it round
+      const lead = Math.abs(err) > RAY_LEAD_MIN ? clamp(err * RAY_LEAD, -RAY_LEAD_MAX, RAY_LEAD_MAX) : 0;
+      const aim = v.body.heading + lead;
+      this.rayDir.x = Math.sin(aim);
+      this.rayDir.z = -Math.cos(aim);
       // always from the real body (the lane-offset line is only where the body is heading, not where it is) ...
       let hit = this.world.raycast(pos, this.rayDir, reach, v.body.id);
       // ... and, while the lateral shift is still being eased in or out, also along the line it is moving onto
@@ -523,20 +535,31 @@ export class TrafficAgent {
     this.scratch.x = cx + dirx * 18;
     this.scratch.z = cz + dirz * 18;
     const list = this.world.queryCircle(this.scratch, 28);
+    const signalled = this.signalGoverned(stop) && this.lights!.phaseFor(stop.intersectionId!, stop.streetId) === 'green';
     const selfId = this.vehicle.body.id;
     for (let i = 0; i < list.length; i++) {
       const b = list[i];
       if (b.id === selfId) continue;
       if (b.kind !== 'vehicle' && b.kind !== 'cop' && b.kind !== 'player') continue;
       const sp = Math.hypot(b.vel.x, b.vel.z);
-      if (sp < 1) continue;
       const rx = b.pos.x - cx;
       const rz = b.pos.z - cz;
       const along = rx * dirx + rz * dirz;
       if (along < -4) continue; // already through
       if (Math.abs(rx * -dirz + rz * dirx) > LEFT_YIELD_WIDTH) continue;
-      if ((b.vel.x * dirx + b.vel.z * dirz) / sp > -0.6) continue; // not coming toward us
-      if (Math.max(0, along) / sp < LEFT_YIELD_TTC) return true;
+      if (sp < 1) {
+        // the head of the oncoming queue stands at the same signal (same street, so the same phase): on green it is
+        // about to pull away and reaches the box from a standstill
+        if (!signalled || along > QUEUE_HEAD_RANGE) continue;
+        const d = (b.userData as { driver?: unknown } | undefined)?.driver;
+        if (d === null || d === undefined) continue; // parked
+      } else if ((b.vel.x * dirx + b.vel.z * dirz) / sp > -0.6) continue; // not coming toward us
+      // a car still pulling away keeps accelerating: time to the middle of the box with LAUNCH_ACCEL below LAUNCH_SPEED
+      const d0 = Math.max(0, along);
+      const ttc = sp < LAUNCH_SPEED
+        ? (-sp + Math.sqrt(sp * sp + 2 * LAUNCH_ACCEL * d0)) / LAUNCH_ACCEL
+        : d0 / sp;
+      if (ttc < LEFT_YIELD_TTC) return true;
     }
     return false;
   }

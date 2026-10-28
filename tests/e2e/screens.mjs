@@ -1,6 +1,6 @@
 // Headless capture of the 7 standard review viewpoints (SwiftShader WebGL) plus a JSON of window.__gtaStats per frame.
 //
-// Usage:  node tests/e2e/screens.mjs <outDir> [--port 4310] [--q low] [--width 960] [--height 540]
+// Usage:  node tests/e2e/screens.mjs <outDir> [--port 4310] [--q low] [--width 640] [--height 360]
 //                                    [--dist <dir>]      serve an existing build instead of building one
 //                                    [--no-build]        serve ./dist as it is
 //                                    [--label <text>]    free text stored in stats.json (stage / commit)
@@ -23,7 +23,7 @@ const { chromium } = createRequire(import.meta.url)('playwright');
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function parseArgs(argv) {
-  const o = { port: 4310, q: 'low', width: 960, height: 540, build: true, dist: null, label: '' };
+  const o = { port: 4310, q: 'low', width: 640, height: 360, build: true, dist: null, label: '' };
   const rest = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];

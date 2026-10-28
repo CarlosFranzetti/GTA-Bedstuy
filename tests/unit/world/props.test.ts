@@ -278,17 +278,15 @@ describe('buildProps', () => {
     expect(area).toBeGreaterThan(0);
   });
 
-  it('draws graffiti quads on the wall beside the vacant lot (tasteful: a few thin strokes, small meshes)', () => {
+  it('draws graffiti decals (library `graffiti` key, one quad per tag) on the wall beside the vacant lot', () => {
     let tags = 0;
     for (let seed = 1; seed <= 10; seed++) tags += (build(seed).group.userData.counts.graffiti as number) ?? 0;
     expect(tags).toBeGreaterThan(0);
     const { group } = build();
-    for (const m of meshes(group).filter((x) => x.name.startsWith('props:graffiti'))) {
-      const mat = m.material as THREE.Material;
-      expect(mat).toBeInstanceOf(THREE.MeshStandardMaterial);
-      expect((mat as THREE.MeshStandardMaterial).transparent).toBe(true);
-      expect((mat as THREE.MeshStandardMaterial).opacity).toBeCloseTo(0.85);
-    }
+    const decals = meshes(group).filter((x) => x.name.startsWith('props:graffiti'));
+    expect(decals.length).toBeGreaterThan(0);
+    expect(decals.length).toBeLessThanOrEqual(5); // merged per texture variant
+    expect(build().requested).toContain('graffiti');
   });
 
   it('is deterministic for a given seed', () => {
