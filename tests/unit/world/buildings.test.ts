@@ -96,7 +96,7 @@ describe('buildBuildings', () => {
   });
 
   it('uses the materials the plan calls for', () => {
-    for (const k of ['brownstone', 'brickRed', 'cornice', 'window', 'storefrontGlass', 'rollGate', 'roof', 'stoop', 'awning', 'sign', 'waterTank', 'metalDark']) {
+    for (const k of ['brownstone', 'brickRed', 'cornice', 'window', 'storefrontGlass', 'rollGate', 'tarRoof', 'stoop', 'awning', 'sign', 'waterTank', 'metalDark']) {
       expect(r.mats.keys.has(k), k).toBe(true);
     }
   });

@@ -75,6 +75,13 @@ function sunAngle(hour: number): number {
   return Math.PI + (sinceSunset / (24 - dayLen)) * Math.PI;
 }
 
+/** Overcast (rain) scaling, see DayNight.overcast. */
+const OVERCAST_SUN_CUT = 0.7;
+const OVERCAST_MOON_CUT = 0.35;
+const OVERCAST_HEMI_GAIN = 0.2;
+const OVERCAST_FOG_CUT = 0.55;
+const OVERCAST_FOG_GREY = 0.55;
+const _grey = new Color();
 const _tc = newTimeCycle();
 const _moonDir = new Vector3();
 
@@ -207,13 +214,19 @@ export class DayNight implements Clock {
     if (this.scene.fog) {
       if (this.skyDome) this.scene.fog.color.copy(this.skyDome.horizonColor(this.sunDirection.y));
       else this.scene.fog.color.copy(this.sky);
+      if (o > 0) {
+        // rain haze: greyer fog
+        const c = this.scene.fog.color;
+        const lum = c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722;
+        c.lerp(_grey.setRGB(lum, lum, lum * 1.04), OVERCAST_FOG_GREY * o);
+      }
       const fog = this.scene.fog as Fog;
-      if (fog.isFog) { fog.near = tc.fogNear; fog.far = tc.fogFar; }
+      if (fog.isFog) { fog.near = tc.fogNear * (1 - 0.4 * o); fog.far = tc.fogFar * (1 - OVERCAST_FOG_CUT * o); }
     }
 
     // Skylight fill: cool zenith colour (blue even at dusk, so shadows stay cool), sunlit-street bounce below.
     this.hemi.color.copy(tc.hemiSky);
     this.hemi.groundColor.copy(tc.hemiGround);
-    this.hemi.intensity = tc.hemiI;
+    this.hemi.intensity = tc.hemiI * (1 + OVERCAST_HEMI_GAIN * o);
   }
 }

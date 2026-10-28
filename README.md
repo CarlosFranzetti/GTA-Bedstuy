@@ -56,6 +56,40 @@ Implementation plan: `docs/superpowers/plans/2026-10-24-gta-bedstuy-v1.md`.
 - `npm run typecheck`
 - `npm run build && npm run test:e2e` headless render smoke test (Playwright + Chromium)
 
+## Deploy on Vercel
+
+The game is a static site: no server, no functions, no runtime network. Vercel only has to run the Vite build and serve the output.
+
+**Project settings** (Import Project, then these; `vercel.json` in the repo already pins the same values, so they only need to be right if you edit them in the dashboard):
+
+| Setting | Value |
+|---|---|
+| Framework Preset | Vite |
+| Build Command | `npm run build` (`vercel.json` runs it as `VITE_HOSTED=1 npm run build`) |
+| Output Directory | `dist` |
+| Install Command | default (`npm install`) |
+| Node.js | 20.19+ or 22.x (Vite 8 requirement; the Vercel default is fine) |
+| Environment variables | none needed |
+
+`vercel.json` also sets the cache headers: everything under `/assets/` is content-hashed and cached for a year (`immutable`), while `/` and `/index.html` are always revalidated, so a new deploy shows up on the next load. No SPA rewrite is needed (single page, no client routes).
+If you ever delete `vercel.json`, add the environment variable `VITE_HOSTED=1` (Production and Preview) in the dashboard, otherwise Vercel serves the single-file artifact build, which works but ships every texture as base64 in one 6.7 MB page.
+
+**The two builds** come from one codebase and differ only by the `VITE_HOSTED` flag:
+
+| | single-file artifact | hosted (Vercel) |
+|---|---|---|
+| Command | `npm run artifact` (= `vite build` then `node scripts/make-artifact.mjs`) | `npm run build:hosted` (output `dist-hosted/`; on Vercel `VITE_HOSTED=1 npm run build` writes `dist/`) |
+| Output | `dist/artifact.html`, everything inlined, about 6.7 MB, budget 12 MB (hard limit 16 MB) | `index.html` + hashed `assets/` files: game code, `three-<hash>.js` as its own chunk, textures as JPG files, about 5.3 MB |
+| Textures | 1K photo sets inlined as base64 | the same 1K sets as files; larger tiers load lazily after first paint |
+| Quality | `?q=low`, `medium`, `high` | adds `?q=ultra` |
+
+`node scripts/build-hosted.mjs` builds both and prints the sizes (`npm run build:all`); it fails if the artifact goes over 12 MB, if a texture ends up inlined in the hosted JS, or if the three.js chunk is missing. `npm run smoke:hosted` additionally serves `dist-hosted/` on port 4307 and loads it headless with `?q=low` and `?q=ultra`, failing on any console error or failed request.
+To look at the hosted build locally: `npm run build:hosted && npx vite preview --outDir dist-hosted --port 4307`.
+
+**`?q=ultra` (hosted only)** renders as `high` and additionally sets anisotropic filtering to 16 on every photo texture and uses the 2K texture tier where one exists. In the single-file artifact `?q=ultra` is simply `high`.
+
+**Adding 2K textures later.** The hosted build is ready for them; nothing is shipped yet because every new texture set needs its CC0 licence recorded in `docs/CREDITS.md` first. To add one, drop the files into `src/assets/textures/2k/` named `<materialKey>.<variant>_color.jpg` (required), `_normal.jpg` and `_rough.jpg` (optional; the 1K maps are kept when missing), for example `asphalt.0_color.jpg`. Repeat and normal strength are taken from the matching 1K entry in `src/textures/packs.ts`. Only the hosted build picks that folder up (the artifact never inlines it), and the files are fetched after first paint and swapped in through `MaterialLibrary.overrideMaps` (`src/textures/hosted.ts`). A 2K colour map costs about 22 MB of GPU memory with mipmaps, so use 2K for the big surfaces only (asphalt, sidewalk, brick, brownstone, roof).
+
 ## Street grid
 
 Two avenue-to-avenue columns (Tompkins Ave → Throop Ave → Marcus Garvey Blvd) by five

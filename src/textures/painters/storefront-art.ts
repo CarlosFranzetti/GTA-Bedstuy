@@ -14,11 +14,12 @@ export type AwningStyle = 'vinyl' | 'metal';
 
 export type Archetype =
   | 'bodega' | 'laundromat' | 'barber' | 'salon' | 'pizza' | 'kitchen' | 'liquor' | 'dollar'
-  | 'pharmacy' | 'daycare' | 'funeral' | 'auto' | 'church' | 'condo' | 'generic';
+  | 'pharmacy' | 'daycare' | 'funeral' | 'auto' | 'church' | 'condo' | 'cellphone' | 'generic';
 
 export const PICTOGRAM_KINDS = [
   'sandwich', 'coffee', 'lottery', 'atm', 'washer', 'shirt', 'scissors', 'comb', 'braid', 'pizza', 'soda', 'bowl',
   'bottle', 'glass', 'tag', 'medcross', 'pill', 'block', 'star', 'candle', 'wrench', 'tire', 'cross', 'house',
+  'phone', 'chili', 'drumstick',
 ] as const;
 export type PictogramKind = (typeof PICTOGRAM_KINDS)[number];
 
@@ -55,13 +56,44 @@ export interface SignLayout {
 }
 
 /**
- * Texture-pixel aspect (world width per pixel / world height per pixel) of each surface for a typical ~6.5 m
- * shopfront (mixeduse.ts maps a 512 px wide texture over the whole frontage). Icons are pre-squeezed by this
- * factor so a round thing still looks round on the building.
+ * Texture density. Awning and lightbox canvases are sized from the real geometry they cover, at the same number of
+ * pixels per metre across and down, so type and icons render at their true aspect with no pre-squeeze. Wider
+ * frontages lower the density just enough to stay inside MAX_TEX.
  */
-export const VALANCE_ASPECT = 2.4;
-export const SLOPE_ASPECT = 1.5;
-export const SIGN_ASPECT = 2.1;
+export const PX_PER_M = 160;
+export const MAX_TEX = 2048;
+
+/** What an awning texture covers: the sloped top (wall to fold) above the front valance, `widthM` wide. */
+export interface AwningGeom { widthM: number; slopeM: number; valanceM: number }
+/** What a lightbox texture covers. */
+export interface SignGeom { widthM: number; heightM: number }
+export interface CanvasSize { w: number; h: number; ppm: number }
+
+/** Pixels per metre for a surface `widthM` wide (PX_PER_M, reduced only when the canvas would exceed MAX_TEX). */
+export function ppmFor(widthM: number): number {
+  return Math.min(PX_PER_M, MAX_TEX / Math.max(0.5, widthM));
+}
+
+/** Canvas size for an awning (slope above valance, one image top to bottom). Both axes share one density. */
+export function awningCanvasSize(g: AwningGeom): CanvasSize {
+  const ppm = ppmFor(g.widthM);
+  return { w: Math.max(16, Math.round(g.widthM * ppm)), h: Math.max(16, Math.round((g.slopeM + g.valanceM) * ppm)), ppm };
+}
+
+/** Canvas size for a lightbox face. */
+export function signCanvasSize(g: SignGeom): CanvasSize {
+  const ppm = ppmFor(g.widthM);
+  return { w: Math.max(16, Math.round(g.widthM * ppm)), h: Math.max(16, Math.round(g.heightM * ppm)), ppm };
+}
+
+/** Geometry assumed when a painter is handed a bare canvas (MaterialLibrary's fixed-size awning()/sign()). */
+export function awningGeomOfCanvas(w: number, h: number): AwningGeom {
+  const ppm = PX_PER_M;
+  return { widthM: w / ppm, slopeM: (h * 0.72) / ppm, valanceM: (h * 0.28) / ppm };
+}
+export function signGeomOfCanvas(w: number, h: number): SignGeom {
+  return { widthM: w / PX_PER_M, heightM: h / PX_PER_M };
+}
 
 // ---------------------------------------------------------------------------------------------- classification
 
@@ -73,6 +105,7 @@ const RULES: readonly [Archetype, RegExp][] = [
   ['barber', /BARBER|\bCUT[SZ]\b/],
   ['salon', /BRAID|SALON|\bNAILS?\b|\bHAIR\b|\bLOCS\b|\bWEAVE/],
   ['pharmacy', /PHARMAC|\bDRUGS?\b|\bRX\b|CHEMIST/],
+  ['cellphone', /WIRELESS|\bCELL\b|\bPHONES?\b|\bFONE|MOBILE|UNLOCK/],
   ['daycare', /DAY ?CARE|PRESCHOOL|SCHOLARS|ACADEMY|\bKIDS\b|NURSERY/],
   ['auto', /\bAUTO\b|\bTIRES?\b|GARAGE|MOTORS|BODY SHOP|\bREPAIRS?\b|MUFFLER/],
   ['liquor', /LIQUOR|\bWINES?\b|SPIRITS|\bBEER\b|TAVERN|\bBAR\b|LOUNGE|\bPUB\b/],
@@ -124,8 +157,32 @@ const THEMES: Record<Archetype, Theme> = {
   auto: { stripe: 'diagonal', colors: ['#f1c232', '#111111'], pictograms: ['wrench', 'tire'], phone: true },
   church: { stripe: 'pin', colors: ['#d4af37'], pictograms: ['cross'], phone: false },
   condo: { stripe: 'pin', colors: ['#3a3a3a'], pictograms: ['house'], phone: true },
+  cellphone: { stripe: 'zigzag', colors: ['#2ee6ff', '#ffffff', '#7a3cff'], pictograms: ['phone', 'phone'], phone: true },
   generic: { stripe: 'none', colors: [], pictograms: [], phone: false },
 };
+
+export type Cuisine = 'caribbean' | 'soul' | 'chinese';
+
+/** Cuisine from sign keywords, or null. Caribbean wins over soul food ("JERK CHICKEN"), soul over Chinese. */
+export function cuisineOf(text: string): Cuisine | null {
+  const t = text.toUpperCase();
+  if (/CARIBBEAN|JERK|OXTAIL|ISLAND|SORREL|PATTIES|ROTI/.test(t)) return 'caribbean';
+  if (/SOUL|SKILLET|BBQ|WINGS|FISH|CHICKEN|DEACON/.test(t)) return 'soul';
+  if (/CHINESE|WOK|DRAGON|TAKE-?OUT|LUCKY|PALACE/.test(t)) return 'chinese';
+  return null;
+}
+
+const CUISINE_ICONS: Record<Cuisine, PictogramKind[]> = {
+  caribbean: ['chili', 'bowl'],
+  soul: ['drumstick', 'soda'],
+  chinese: ['bowl', 'star'],
+};
+
+/** Icons for a restaurant sign: cuisine-specific when the text names one, else bowl + soda. */
+function kitchenIcons(upper: string): PictogramKind[] {
+  const c = cuisineOf(upper);
+  return c ? [...CUISINE_ICONS[c]] : [...THEMES.kitchen.pictograms];
+}
 
 const BODEGA_POOL: readonly PictogramKind[] = ['sandwich', 'coffee', 'lottery', 'atm', 'soda'];
 
@@ -148,6 +205,8 @@ export function layoutAwning(text: string): AwningLayout {
     if (/\bATM\b/.test(upper) && !pool.includes('atm')) pool = [...pool.slice(0, 3), 'atm'];
     const rot = (h >>> 5) % pool.length;
     pictograms = [...pool.slice(rot), ...pool.slice(0, rot)].slice(0, 4);
+  } else if (archetype === 'kitchen') {
+    pictograms = kitchenIcons(upper);
   } else {
     pictograms = [...theme.pictograms];
   }
@@ -212,7 +271,7 @@ export function layoutSign(text: string): SignLayout {
     badges,
     neon: archetype === 'liquor',
     neonColors: [NEON_PALETTE[n0], NEON_PALETTE[n1]],
-    icon: theme.pictograms.length ? theme.pictograms[0] : archetype === 'bodega' ? 'sandwich' : null,
+    icon: archetype === 'kitchen' ? kitchenIcons(upper)[0] : theme.pictograms.length ? theme.pictograms[0] : archetype === 'bodega' ? 'sandwich' : null,
     stripeColor: stripeColors.length ? stripeColors[h % stripeColors.length] : '#d62828',
   };
 }
@@ -225,6 +284,7 @@ export const PICTOGRAM_COLOR: Record<PictogramKind, string> = {
   scissors: '#9aa0a6', comb: '#d62828', braid: '#5a3220', pizza: '#f2b134', soda: '#d32f2f', bowl: '#c4252b',
   bottle: '#1d6b3a', glass: '#c4252b', tag: '#d62828', medcross: '#0a7f5a', pill: '#d62828', block: '#e53935',
   star: '#f2b134', candle: '#f1ead8', wrench: '#444444', tire: '#c4252b', cross: '#5a2d82', house: '#7a4a2a',
+  phone: '#2b3a55', chili: '#d62828', drumstick: '#c9822b',
 };
 
 /** Rounded-rectangle path (quadratic corners) centred at (cx, cy); the caller fills/strokes. */
@@ -306,16 +366,15 @@ export function drawSegmentDigits(
 
 /**
  * Draw a simple product/service pictogram from canvas primitives, centred on (x, y) inside a `size` px square.
- * `color` is the icon's main colour (see PICTOGRAM_COLOR); small details use fixed colours. `aspect` (> 1) squeezes
- * the icon horizontally to cancel a stretched texture mapping. Leaves the context state as it found it.
+ * `color` is the icon's main colour (see PICTOGRAM_COLOR); small details use fixed colours. Textures are authored
+ * at true aspect (PX_PER_M), so there is no squeeze parameter. Leaves the context state as it found it.
  */
 export function drawPictogram(
-  ctx: CanvasRenderingContext2D, kind: PictogramKind, x: number, y: number, size: number, color: string, aspect = 1,
+  ctx: CanvasRenderingContext2D, kind: PictogramKind, x: number, y: number, size: number, color: string,
 ): void {
   const u = size / 2;
   ctx.save();
   ctx.translate(x, y);
-  if (aspect !== 1) ctx.scale(1 / aspect, 1);
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   const rect = (a: number, b: number, c: number, d: number, fill: string): void => {
@@ -550,6 +609,39 @@ export function drawPictogram(
       rect(-0.6, 0.05, 0.26, 0.26, '#8fd0f0');
       rect(0.34, 0.05, 0.26, 0.26, '#8fd0f0');
       break;
+    case 'phone':
+      rect(-0.5, -0.95, 1.0, 1.9, color);
+      rect(-0.4, -0.78, 0.8, 1.42, '#8fd0f0');
+      rect(-0.4, -0.78, 0.8, 0.22, '#cfeeff');
+      disc(0, 0.77, 0.1, '#d9dde0');
+      line([-0.16, -0.9, 0.16, -0.9], 0.06, '#d9dde0');
+      break;
+    case 'chili':
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(-0.55 * u, -0.5 * u);
+      ctx.quadraticCurveTo(0.7 * u, -0.7 * u, 0.85 * u, 0.5 * u);
+      ctx.quadraticCurveTo(0.2 * u, 0.1 * u, -0.55 * u, 0.0 * u);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-0.55 * u, -0.5 * u);
+      ctx.quadraticCurveTo(-0.2 * u, -0.3 * u, 0.1 * u, -0.1 * u);
+      ctx.lineTo(0.0, 0.0);
+      ctx.closePath();
+      ctx.fill();
+      rect(-0.78, -0.62, 0.34, 0.22, '#3a7d2a');
+      line([-0.6, -0.5, -0.9, -0.85], 0.1, '#3a7d2a');
+      break;
+    case 'drumstick':
+      ctx.save();
+      ctx.rotate(-Math.PI / 4);
+      disc(0, -0.3, 0.55, color);
+      rect(-0.12, 0.1, 0.24, 0.75, '#f4efe4');
+      disc(-0.16, 0.9, 0.14, '#f4efe4');
+      disc(0.16, 0.9, 0.14, '#f4efe4');
+      ctx.restore();
+      break;
   }
   ctx.restore();
 }
@@ -652,4 +744,98 @@ export function drawStripe(
       break;
   }
   ctx.restore();
+}
+
+// ---------------------------------------------------------------------------------------------- stickers
+
+export type StickerKind = 'atm' | 'ebt' | 'lotto' | 'h24' | 'open' | 'camera' | 'noloiter' | 'menu';
+
+/** One slot of the 512x384 sticker atlas (px) and the sticker's real size in metres (same pixel density both axes). */
+export interface StickerSlot { x: number; y: number; w: number; h: number; wM: number; hM: number }
+
+export const STICKER_ATLAS = { w: 512, h: 384 } as const;
+export const STICKER_SLOTS: Record<StickerKind, StickerSlot> = {
+  atm: { x: 0, y: 0, w: 128, h: 128, wM: 0.3, hM: 0.3 },
+  ebt: { x: 128, y: 0, w: 128, h: 128, wM: 0.3, hM: 0.3 },
+  lotto: { x: 256, y: 0, w: 128, h: 128, wM: 0.3, hM: 0.3 },
+  h24: { x: 384, y: 0, w: 128, h: 128, wM: 0.3, hM: 0.3 },
+  open: { x: 0, y: 128, w: 256, h: 128, wM: 0.6, hM: 0.3 },
+  camera: { x: 256, y: 128, w: 128, h: 128, wM: 0.3, hM: 0.3 },
+  noloiter: { x: 384, y: 128, w: 128, h: 128, wM: 0.3, hM: 0.3 },
+  menu: { x: 0, y: 256, w: 128, h: 128, wM: 0.3, hM: 0.3 },
+};
+
+// ---------------------------------------------------------------------------------------------- parody names
+
+/** Business types the world builder places. The art archetype (classifyArchetype) is derived from the sign text. */
+export type StoreKind =
+  | 'bodega' | 'deli' | 'laundromat' | 'barber' | 'liquor' | 'pharmacy' | 'daycare' | 'restaurant' | 'cellphone'
+  | 'church' | 'generic';
+
+export const STORE_KINDS: readonly StoreKind[] = [
+  'bodega', 'deli', 'laundromat', 'barber', 'liquor', 'pharmacy', 'daycare', 'restaurant', 'cellphone', 'church', 'generic',
+];
+
+/** Parody sign copy only (PRD 2.1 rule 4): never a real business. Each name must classify back to its type. */
+export const STORE_NAMES: Record<StoreKind, readonly string[]> = {
+  bodega: [
+    'LUCKY STAR DELI & GROCERY  ·  OPEN 24 HRS', 'BEDFORD CORNER STORE  ·  LOTTO  ·  ATM', 'MARCY MINI MARKET  ·  COLD DRINKS  ·  EBT',
+    'EL REY GROCERY  ·  DELI  ·  ATM', 'FRESH CHOICE FOOD MART  ·  WE ACCEPT EBT', "JOSE'S FAMILY MARKET  ·  OPEN 24 HRS",
+    'TWO BROTHERS GROCERY  ·  LOTTO  ·  EBT', 'CORNER KING DELI & GROCERY  ·  ATM',
+  ],
+  deli: [
+    'HEROES DELI  ·  SANDWICHES  ·  BREAKFAST', 'FRESH TO ORDER DELI  ·  BACON EGG & CHEESE', 'ALL DAY BREAKFAST DELI  ·  COFFEE  ·  HEROES',
+    'SANDWICH KINGS DELI  ·  HOT & COLD',
+  ],
+  laundromat: [
+    'SPIN CITY COIN LAUNDRY  ·  WASH DRY FOLD', 'BUBBLES LAUNDROMAT  ·  DROP-OFF SERVICE', 'SUDS & DUDS WASH & FOLD  ·  OPEN 7 DAYS',
+    'CLEAN SWEEP LAUNDROMAT  ·  ATTENDANT ON DUTY',
+  ],
+  barber: [
+    'FRESH CUTZ BARBER SHOP  ·  WALK-INS', 'CROWN KINGS BARBER SHOP  ·  FADES & LINE-UPS', 'SHARP EDGE BARBERS  ·  WALK-INS WELCOME',
+    'LINE-UP LABS BARBER SHOP  ·  KIDS CUTS',
+  ],
+  liquor: [
+    'GOLDEN CORK WINES & LIQUORS', 'TOWN CRIER SPIRITS  ·  WINE  ·  LIQUOR', 'LUCKY 7 LIQUOR & WINE  ·  CHILLED',
+    'LAST CALL LIQUORS  ·  OPEN LATE',
+  ],
+  pharmacy: [
+    'MERCY RX PHARMACY  ·  FREE DELIVERY', 'CORNERSTONE PHARMACY  ·  RX  ·  VACCINES', 'BLOCK PARTY DRUGS  ·  PHARMACY',
+  ],
+  daycare: [
+    'LITTLE STEPS DAY CARE  ·  PRE-K', 'SUNSHINE KIDS ACADEMY  ·  AGES 2-5', 'TINY SCHOLARS DAYCARE  ·  NAP TIME IS SACRED',
+  ],
+  restaurant: [
+    // caribbean
+    'ISLAND SPICE CARIBBEAN KITCHEN  ·  JERK  ·  OXTAIL', 'SORREL & SCOTCH BONNET CARIBBEAN  ·  ROTI  ·  PATTIES', 'MAMA ROSE JERK CHICKEN  ·  PATTIES',
+    // soul food
+    "SISTER SADIE'S SOUL FOOD  ·  FISH  ·  WINGS", 'GOLDEN SKILLET SOUL FOOD  ·  MAC & GREENS', "DEACON'S BBQ & SOUL KITCHEN",
+    // chinese take-out
+    'GOLDEN WOK CHINESE TAKE-OUT  ·  LUNCH SPECIAL', 'NEW LUCKY KITCHEN  ·  CHINESE FOOD', 'DRAGON GATE CHINESE RESTAURANT  ·  BEEF & BROCCOLI',
+  ],
+  cellphone: [
+    'FONE FIXERS  ·  UNLOCK  ·  REPAIR', 'THROOP WIRELESS  ·  PREPAID  ·  ACCESSORIES', 'CELL-U-LAR CITY  ·  CASES  ·  CHARGERS',
+  ],
+  church: [
+    'NEW LIFE DELIVERANCE TABERNACLE', 'HOUSE OF PRAISE MINISTRIES  ·  ALL WELCOME', 'FAITH & FIRE GOSPEL CHAPEL', 'BETHEL RESTORATION CHURCH OF GOD',
+  ],
+  generic: [
+    'MULTI SERVICE CENTER  ·  NOTARY  ·  COPIES', 'QUICK TAX & NOTARY  ·  WALK-INS', 'BED-STUY BUSINESS CENTER  ·  FAX  ·  PRINT',
+    'CHECK CASHING  ·  MONEY ORDERS',
+  ],
+};
+
+/** Which restaurant cuisine a pooled name belongs to (names in STORE_NAMES.restaurant come in threes by cuisine). */
+export function cuisineOfName(name: string): Cuisine | null {
+  return cuisineOf(name);
+}
+
+/** Deterministic parody name for a kind. `n` is any hash/index; `cuisine` picks the matching restaurant trio. */
+export function storefrontName(kind: StoreKind, n: number, cuisine?: Cuisine | null): string {
+  const pool = STORE_NAMES[kind];
+  if (kind === 'restaurant' && cuisine) {
+    const base = cuisine === 'caribbean' ? 0 : cuisine === 'soul' ? 3 : 6;
+    return pool[base + (Math.abs(n) % 3)];
+  }
+  return pool[Math.abs(n) % pool.length];
 }

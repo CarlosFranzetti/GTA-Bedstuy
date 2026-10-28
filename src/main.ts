@@ -45,6 +45,7 @@ import { saveMissionData, loadMissionData, clearMissionData } from '@/game/missi
 import { MissionHud } from '@/ui/MissionHud';
 import { DistanceCuller } from '@/render/Culling';
 import { CarLod, applyCarShadowFlags } from '@/render/CarLod';
+import { RenderProxies } from '@/render/AoProxy';
 import { buildCarModel } from '@/entities/models/carModel';
 
 declare global {
@@ -100,6 +101,15 @@ const dayNight = new DayNight(scene, materials, { startHour: LIGHTING.startHour 
 scene.add(dayNight.sun.target);
 setupShadows(renderer, dayNight.sun, quality);
 applyShadowFlags(world.group, true, true);
+// Shadow pass + AO G-buffer draw merged position-only stand-ins instead of every material mesh (see AoProxy.ts)
+const proxies = new RenderProxies();
+{
+  const t0 = performance.now();
+  const build = proxies.addStatic([world.group], 100, 100);
+  scene.add(proxies.shadowGroup);
+  console.info(`[perf] render proxies: ${proxies.ao.children.length} cells, ${build.vertices} verts, ${build.triangles} tris from ${build.covered.length} meshes (${build.skipped.length} kept real) in ${Math.round(performance.now() - t0)} ms`);
+}
+proxies.wrapShadowRender(renderer);
 const sky = new SkyDome(scene, renderer, materials);
 dayNight.attachSky(sky);
 scene.environmentIntensity = dayNight.isNight ? LIGHTING.envIntensityNight : LIGHTING.envIntensityDay;
@@ -125,6 +135,10 @@ const carLod = new CarLod(materials, {
   exclude: ['cop'],
 });
 scene.add(carLod.group);
+const HULL_TYPES = ['sedan', 'suv', 'boxtruck'];
+for (const t of HULL_TYPES) { const g = carLod.hullFor(t); if (g) proxies.addHull(t, g, true); }
+proxies.addHull('capsule', new THREE.CapsuleGeometry(0.28, 1.1, 2, 6).translate(0, 0.83, 0), false);
+const hullKey = (t: string): string => (t === 'cop' ? 'sedan' : t);
 const shadowFlagged = new WeakSet<object>();
 const crosswalkNodes = new Set<string>();
 for (const cw of grid.crosswalks) {
@@ -174,6 +188,7 @@ const minimap = new Minimap(overlay, grid);
 const input = new Input(renderer.domElement);
 const cam = new ThirdPersonCamera(window.innerWidth / window.innerHeight);
 const pipeline = new RenderPipeline(renderer, scene, cam.camera, { quality });
+proxies.attachToPipeline(pipeline);
 pipeline.setNight(dayNight.isNight);
 pipeline.setExposure(LIGHTING.exposure);
 setLampsLit(world.furnitureGroup, dayNight.isNight);
@@ -188,6 +203,7 @@ function applyQuality(q: Quality): void {
   renderer.setPixelRatio(pixelRatioFor(q));
   renderer.setSize(window.innerWidth, window.innerHeight);
   pipeline.setQuality(q);
+  proxies.attachToPipeline(pipeline);
   pipeline.setSize(window.innerWidth, window.innerHeight);
   setupShadows(renderer, dayNight.sun, q);
 }
@@ -253,16 +269,18 @@ function placeInterpolated(e: Entity, alpha: number): BlendedPose {
 function interpolateAll(alpha: number, refX: number, refY: number, refZ: number): void {
   const veh = player.vehicle;
   carLod.beginFrame();
+  proxies.beginFrame();
   for (const v of traffic.vehicles) {
     const b = placeInterpolated(v, alpha);
-    if (v === veh) { carLod.release(v); v.object3D.visible = true; continue; }
+    if (v === veh) { carLod.release(v); v.object3D.visible = true; proxies.addCar(hullKey(v.spec.type), b.x, b.z, b.h); continue; }
     if (culler.applyTo(v.object3D, b.x, b.z, refX, refZ, v.spec.length)) continue;
     const dy = refY - 0.8, dx = b.x - refX, dz = b.z - refZ;
     carLod.place(v, b.x, b.z, b.h, Math.sqrt(dx * dx + dy * dy + dz * dz));
+    proxies.addCar(hullKey(v.spec.type), b.x, b.z, b.h);
   }
   carLod.endFrame();
-  for (const v of cops.cops) placeInterpolated(v, alpha);
-  for (const p of traffic.peds) { const b = placeInterpolated(p, alpha); culler.applyTo(p.object3D, b.x, b.z, refX, refZ, 1); }
+  for (const v of cops.cops) { const b = placeInterpolated(v, alpha); proxies.addCar(hullKey(v.spec.type), b.x, b.z, b.h); }
+  for (const p of traffic.peds) { const b = placeInterpolated(p, alpha); if (!culler.applyTo(p.object3D, b.x, b.z, refX, refZ, 1)) proxies.addPed(b.x, b.z); }
   if (veh) {
     const b = poses.blend(veh.body, alpha, blended);
     camTarget.x = b.x; camTarget.z = b.z; camHeading = b.h;
@@ -270,7 +288,9 @@ function interpolateAll(alpha: number, refX: number, refY: number, refZ: number)
   } else {
     const b = placeInterpolated(player, alpha);
     camTarget.x = b.x; camTarget.z = b.z; camHeading = b.h;
+    proxies.addPed(b.x, b.z);
   }
+  proxies.endFrame();
 }
 
 const PROMPT_KEY = isTouch ? 'CAR' : 'F';
@@ -395,8 +415,8 @@ game.add({
 
     // entities
     entityById.clear();
-    for (const v of traffic.vehicles) { if (!shadowFlagged.has(v)) { shadowFlagged.add(v); applyCarShadowFlags(v.object3D); } if (v.headlights !== lastNight) v.headlights = lastNight; v.update(dt); entityById.set(v.body.id, v); }
-    for (const v of cops.cops) { if (!shadowFlagged.has(v)) { shadowFlagged.add(v); applyCarShadowFlags(v.object3D); } if (v.headlights !== lastNight) v.headlights = lastNight; v.update(dt); entityById.set(v.body.id, v); }
+    for (const v of traffic.vehicles) { if (!shadowFlagged.has(v)) { shadowFlagged.add(v); applyCarShadowFlags(v.object3D, proxies.hasHull(hullKey(v.spec.type))); } if (v.headlights !== lastNight) v.headlights = lastNight; v.update(dt); entityById.set(v.body.id, v); }
+    for (const v of cops.cops) { if (!shadowFlagged.has(v)) { shadowFlagged.add(v); applyCarShadowFlags(v.object3D, proxies.hasHull(hullKey(v.spec.type))); } if (v.headlights !== lastNight) v.headlights = lastNight; v.update(dt); entityById.set(v.body.id, v); }
     for (const p of traffic.peds) { p.update(dt); entityById.set(p.body.id, p); }
     player.update(dt);
     entityById.set(player.body.id, player);
@@ -471,7 +491,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
     camHeading = (veh ? veh.body : player.body).heading;
     for (let i = 0; i < n; i++) updateCamera();
   },
-  player, cops, traffic, wanted, physics, grid, events, scene, sky, pipeline, nightLights, dayNight, renderer, materials, perf, culler, carLod,
+  player, cops, traffic, wanted, physics, grid, events, scene, sky, pipeline, nightLights, dayNight, renderer, materials, perf, culler, carLod, proxies,
   nearby(r: number) { const p = player.body.pos; const out: unknown[] = []; for (const b of physics.bodies()) { const d = Math.hypot(b.pos.x - p.x, b.pos.z - p.z); if (b.shape.kind === 'circle' && d < r) out.push({ id: b.id, kind: b.kind, d: +d.toFixed(2) }); } return out; },
 };
 

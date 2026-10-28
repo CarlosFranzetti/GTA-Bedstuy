@@ -5,7 +5,7 @@ import type { GridModel, IMaterialLibrary, Lot, MaterialKey, Polygon } from '@/w
 import { buildBuildings } from '@/world/BuildingGen';
 import type { SpecLot } from '@/world/BuildingGen';
 import { lotTypeOf, specFromData, subdivideLots } from '@/world/LotSubdivider';
-import { BASEMENT_H, PARLOUR_H, UPPER_H, storeyLevels } from '@/world/buildings/facade';
+import { BASEMENT_H, LotBatch, PARLOUR_H, UPPER_H, buildUpperFloors, loadMats, storeyLevels } from '@/world/buildings/facade';
 import type { LotSpec } from '@/world/buildings/facade';
 import { buildGrid, loadBedstuyData } from '@/world/Grid';
 import { loadFaces } from '@/world/data/schema';
@@ -80,7 +80,7 @@ describe('storey model', () => {
   it('without a spec the procedural fallback still builds 3-4 floors on the default basement', () => {
     const lot = lotOf({}); delete lot.spec;
     const r = build([lot]);
-    const hi = yRange(byMat(r.group, /^roof:/)).hi; // the tar roof plate sits at the roof line (+1 cm)
+    const hi = yRange(byMat(r.group, /^tarRoof:/)).hi; // the tar roof plate sits at the roof line (+1 cm)
     const candidates = [3, 4].map((f) => BASEMENT_H + PARLOUR_H + (f - 1) * UPPER_H);
     expect(candidates.some((c) => Math.abs(hi - 0.01 - c) < 0.01), `roof at ${hi}`).toBe(true);
   });
@@ -315,5 +315,38 @@ describe('data-driven city vs fallback', () => {
     expect(lotTypeOf(specFromData({ ...base, scaffold: true }))).toBe('scaffold');
     expect(lotTypeOf(specFromData({ ...base, family: 'brickRed' }))).toBe('rowhouse');
     expect(lotTypeOf(specFromData({ ...base, family: 'brownstone' }))).toBe('brownstone');
+  });
+});
+
+describe('buildUpperFloors (shared with the mixed-use lane)', () => {
+  const run = (floors: number, y0: number, over: Partial<{ cornerSide: 'left' | 'right' | null }> = {}) => {
+    const b = new LotBatch();
+    const lot = lotOf({ use: 'mixed', family: 'brick', stoop: { present: false, heightM: 0 } }, 'mx', 7, 15);
+    const m = loadMats(new Stub());
+    const out = buildUpperFloors({ b, m, rng: new Rng(5), W: 7, D: 15, lot, cornerSide: over.cornerSide ?? null, spec: lot.spec }, { y0, floors, wall: m.brickRed });
+    b.flush(new THREE.Matrix4());
+    return { out, merged: b.merged() };
+  };
+  it('stacks 2.9 m floors from y0 and reports the roof line', () => {
+    for (const [floors, y0] of [[2, 4], [3, 4], [4, 3.3]] as const) {
+      const { out, merged } = run(floors, y0);
+      expect(out.topY).toBeCloseTo(y0 + floors * UPPER_H, 6);
+      expect(out.sillYs.length).toBe(floors);
+      const wall = merged.find((r) => r.material.name === 'brickRed:0')!;
+      const p = wall.geometry.getAttribute('position');
+      let lo = Infinity;
+      for (let i = 0; i < p.count; i++) lo = Math.min(lo, p.getY(i));
+      expect(lo).toBeGreaterThanOrEqual(y0 - 1e-6); // nothing below the hand-off line
+    }
+  });
+  it('leaves the corner side open for the caller and adds a windowed side wall above y0', () => {
+    const plain = run(3, 4).merged.find((r) => r.material.name === 'window:0');
+    const corner = run(3, 4, { cornerSide: 'left' }).merged.find((r) => r.material.name === 'window:0');
+    expect(corner!.geometry.getAttribute('position').count).toBeGreaterThan(plain!.geometry.getAttribute('position').count);
+  });
+  it('produces finite geometry', () => {
+    for (const r of run(4, 4, { cornerSide: 'right' }).merged) {
+      for (const nm of ['position', 'normal', 'uv']) for (const v of r.geometry.getAttribute(nm).array) expect(Number.isFinite(v)).toBe(true);
+    }
   });
 });

@@ -148,6 +148,8 @@ export class SkyDome {
   private lastNight: boolean | null = null;
   private lastHour = Number.NaN;
   private cloudTime = 0;
+  private overcast = 0;
+  private lastCaptureOvercast = 0;
   private sunElevation = 1;
   private trueSun: THREE.Vector3 | null = null;
   private readonly scratchDir = new THREE.Vector3();
@@ -187,6 +189,11 @@ export class SkyDome {
    * argument, because the shadow code re-aims the key light (mirrors it above the ground at night, lifts it near
    * the horizon) and main.ts derives `sunDir` from that light, which made the dome show a lifted/mirrored sun.
    */
+  /** Rain gloom 0..1 (Weather via DayNight): more and denser cloud, a duller sky. */
+  setOvercast(o: number): void {
+    this.overcast = clamp(o, 0, 1);
+  }
+
   setSunDirection(dir: THREE.Vector3): void {
     this.trueSun = dir;
   }
@@ -216,7 +223,9 @@ export class SkyDome {
     u.rayleigh.value = p.rayleigh;
     u.mieCoefficient.value = p.mieCoefficient;
     u.mieDirectionalG.value = p.mieDirectionalG;
-    u.skyExposure.value = p.exposure;
+    u.skyExposure.value = p.exposure * (1 - 0.3 * this.overcast);
+    u.cloudCoverage.value = 0.35 + 0.6 * this.overcast;
+    u.cloudDensity.value = 0.35 + 0.5 * this.overcast;
     u.sunPosition.value.copy(dir);
     u.time.value = this.cloudTime;
 
@@ -249,7 +258,8 @@ export class SkyDome {
     const twilight = dir.y > TWILIGHT_RANGE.lo && dir.y < TWILIGHT_RANGE.hi;
     const step = twilight ? ENV_REBUILD_HOURS_TWILIGHT : ENV_REBUILD_HOURS;
     const moved = Number.isNaN(this.lastCaptureHour) || Math.min(dh, 24 - dh) > step;
-    if (moved || this.lastNight !== isNight) this.captureEnvironment();
+    const gloomMoved = Math.abs(this.overcast - this.lastCaptureOvercast) > 0.25;
+    if (moved || gloomMoved || this.lastNight !== isNight) { this.lastCaptureOvercast = this.overcast; this.captureEnvironment(); }
     this.lastNight = isNight;
   }
 

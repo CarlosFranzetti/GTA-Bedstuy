@@ -108,7 +108,14 @@ describe('top speed on a straight (PRD 5.2: stable at speed)', () => {
     const sim = new Sim();
     sim.add(v);
     const xs: number[] = [];
-    sim.run(5, () => xs.push(v.body.pos.x));
+    let prevH = v.body.heading;
+    let maxYaw = 0;
+    sim.run(5, () => {
+      xs.push(v.body.pos.x);
+      maxYaw = Math.max(maxYaw, Math.abs(angleDiff(prevH, v.body.heading)) / DT);
+      prevH = v.body.heading;
+    });
+    expect(maxYaw).toBeLessThan(0.02); // PRD 5.3 Q10 row: yaw rate < 0.02 rad/s
     expect(Math.abs(v.body.heading) * RAD).toBeLessThan(0.01);
     expect(peakToPeak(xs)).toBeLessThan(1e-6);
   });

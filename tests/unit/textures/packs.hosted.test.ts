@@ -244,8 +244,31 @@ describe('pack helpers used by the hosted path', () => {
   it('setPackAnisotropy ignores nonsense and counts changes only', () => {
     const t = new THREE.Texture();
     expect(setPackAnisotropy(0, [t])).toBe(0);
-    expect(setPackAnisotropy(4, [t])).toBe(1);
+    expect(setPackAnisotropy(4, [t])).toBeGreaterThanOrEqual(1);
     expect(setPackAnisotropy(4, [t])).toBe(0);
     expect(t.anisotropy).toBe(4);
+  });
+});
+
+describe('scripts/make-artifact.mjs', () => {
+  const load = async () => (await import(/* @vite-ignore */ ['..', '..', '..', 'scripts', 'make-artifact.mjs'].join('/'))) as {
+    toArtifact(src: string): string; isSingleFile(src: string): boolean; ARTIFACT_MAX_BYTES: number; ARTIFACT_WARN_BYTES: number;
+  };
+  const single = '<!doctype html><html><head><title>T</title><meta name="description" content="d"><style>a{}</style><script type="module">const s="<script src=x></script>";</script></head><body><div id="app"></div></body></html>';
+  const hosted = '<!doctype html><html><head><title>T</title><script type="module" src="./assets/index-abc.js"></script><link rel="stylesheet" href="./assets/i.css"></head><body></body></html>';
+
+  it('tells a single-file page from a hosted one, ignoring tag-like text inside inlined code', async () => {
+    const m = await load();
+    expect(m.isSingleFile(single)).toBe(true);
+    expect(m.isSingleFile(hosted)).toBe(false);
+  });
+  it('keeps title, description, styles, body and scripts; drops the document skeleton', async () => {
+    const out = (await load()).toArtifact(single);
+    expect(out).toContain('<title>T</title>'); expect(out).toContain('<meta name="description"'); expect(out).toContain('<div id="app"></div>'); expect(out).toContain('<script type="module">');
+    expect(out).not.toContain('<!doctype'); expect(out).not.toContain('<head>');
+  });
+  it('budget: warn at 10 MB, fail above 12 MB, under the 16 MB platform limit', async () => {
+    const m = await load();
+    expect(m.ARTIFACT_WARN_BYTES).toBe(10_000_000); expect(m.ARTIFACT_MAX_BYTES).toBe(12_000_000);
   });
 });

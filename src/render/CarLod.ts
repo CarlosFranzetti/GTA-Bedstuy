@@ -47,11 +47,14 @@ type PartKey = keyof typeof PART_NAMES;
 /** Names of the car meshes that should cast shadows (big, readable shapes; wheels/glass/lamps/plates are not worth a draw). */
 const SHADOW_CASTERS = new Set(['body', 'hood', 'cargo', 'trim']);
 
-/** Shadow flags for a full-detail car: only the big shapes cast; nothing receives (as before). */
-export function applyCarShadowFlags(root: THREE.Object3D): void {
+/**
+ * Shadow flags for a full-detail car; nothing receives (as before). With `proxied` the car's shadow comes from the
+ * instanced hull (AoProxy) so none of its own meshes cast; otherwise only the big shapes do.
+ */
+export function applyCarShadowFlags(root: THREE.Object3D, proxied = false): void {
   root.traverse((o) => {
     if (!(o as THREE.Mesh).isMesh) return;
-    o.castShadow = SHADOW_CASTERS.has(o.name);
+    o.castShadow = !proxied && SHADOW_CASTERS.has(o.name);
     o.receiveShadow = false;
   });
 }
@@ -69,6 +72,8 @@ interface TypeLod {
   matrices: THREE.InstancedBufferAttribute;
   headMatrices: THREE.InstancedBufferAttribute | null;
   tailMatrices: THREE.InstancedBufferAttribute | null;
+  /** position + normal only, all parts together: stand-in for the shadow pass and the AO G-buffer */
+  hull: THREE.BufferGeometry;
   n: number; nHead: number; nTail: number;
 }
 
@@ -247,10 +252,17 @@ export class CarLod {
       for (const l of list) l.dispose();
       return g;
     };
+    const hullSrc = [...parts.paint, ...parts.cargo, ...parts.glass, ...parts.dark].map((g) => {
+      const h = new THREE.BufferGeometry();
+      h.setAttribute('position', g.getAttribute('position'));
+      h.setAttribute('normal', g.getAttribute('normal'));
+      return h;
+    });
+    const hull = hullSrc.length ? mergeGeometries(hullSrc, false) : null;
     const paintG = merge(parts.paint)!, cargoG = merge(parts.cargo), glassG = merge(parts.glass), darkG = merge(parts.dark);
     const headG = merge(parts.head), tailG = merge(parts.tail);
     disposeModel(model);
-    if (!glassG || !darkG) return null;
+    if (!glassG || !darkG || !hull) return null;
 
     const matrices = new THREE.InstancedBufferAttribute(new Float32Array(CAPACITY * 16), 16);
     matrices.setUsage(THREE.DynamicDrawUsage);
@@ -267,14 +279,19 @@ export class CarLod {
     const lampAttr = (): THREE.InstancedBufferAttribute => { const a = new THREE.InstancedBufferAttribute(new Float32Array(CAPACITY * 16), 16); a.setUsage(THREE.DynamicDrawUsage); return a; };
     const headMatrices = headG ? lampAttr() : null, tailMatrices = tailG ? lampAttr() : null;
     return {
-      paint: make(paintG, this.paintMat, matrices, true, true),
-      cargo: cargoG ? make(cargoG, this.cargoMat, matrices, true, false) : null,
+      paint: make(paintG, this.paintMat, matrices, false, true),
+      cargo: cargoG ? make(cargoG, this.cargoMat, matrices, false, false) : null,
       glass: make(glassG, this.glassMat, matrices, false, false),
-      dark: make(darkG, this.darkMat, matrices, true, false),
+      dark: make(darkG, this.darkMat, matrices, false, false),
       head: headG && headMatrices ? make(headG, this.lampMat, headMatrices, false, true) : null,
       tail: tailG && tailMatrices ? make(tailG, this.lampMat, tailMatrices, false, true) : null,
-      matrices, headMatrices, tailMatrices, n: 0, nHead: 0, nTail: 0,
+      hull, matrices, headMatrices, tailMatrices, n: 0, nHead: 0, nTail: 0,
     };
+  }
+
+  /** Hull geometry of a car type (built on first use), or null when the type has no LOD model. */
+  hullFor(type: string): THREE.BufferGeometry | null {
+    return this.typeFor(type)?.hull ?? null;
   }
 
   dispose(): void {

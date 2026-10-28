@@ -32,10 +32,10 @@ export interface WeatherOptions {
   canvasFactory?: (w: number, h: number) => HTMLCanvasElement;
 }
 
-/** Collaborators that react to the weather; both optional and duck-typed so tests can pass stubs. */
+/** Collaborators that react to the weather; optional and duck-typed so tests can pass stubs. */
 export interface WeatherTargets {
+  /** DayNight forwards `overcast` to its attached SkyDome, so the sky needs no separate hook. */
   dayNight?: { overcast: number; timeOfDay: number; sunDirection: THREE.Vector3; update(dt: number): void };
-  sky?: { setOvercast(o: number): void };
 }
 
 interface WetSpec {
@@ -356,7 +356,6 @@ export class Weather {
     this.lastOvercast = o;
     const t = this.targets;
     if (t.dayNight) { t.dayNight.overcast = o; t.dayNight.update(0); }
-    t.sky?.setOvercast(o);
   }
 
   private syncUniforms(): void {

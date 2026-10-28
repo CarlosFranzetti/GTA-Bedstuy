@@ -42,9 +42,9 @@ export interface TimeCycleKey {
 }
 
 export const TIME_CYCLE: readonly TimeCycleKey[] = [
-  { hour: 0, sunI: 0, sunColor: 0xff9b3d, moonI: 2.7, hemiSky: 0x5a72b4, hemiGround: 0x5a3c22, hemiI: 3.8, env: 1.9, exposure: 1.05, fogNear: 90, fogFar: 900, bloomThreshold: 0.9, bloomStrength: 0.5 },
-  { hour: 3, sunI: 0, sunColor: 0xff9b3d, moonI: 2.7, hemiSky: 0x566eb0, hemiGround: 0x5a3c22, hemiI: 3.8, env: 1.9, exposure: 1.05, fogNear: 90, fogFar: 900, bloomThreshold: 0.9, bloomStrength: 0.5 },
-  { hour: 5.5, sunI: 0, sunColor: 0xff9b3d, moonI: 2.7, hemiSky: 0x5a72b4, hemiGround: 0x5a3c22, hemiI: 3.8, env: 1.9, exposure: 1.08, fogNear: 80, fogFar: 900, bloomThreshold: 1.0, bloomStrength: 0.4 },
+  { hour: 0, sunI: 0, sunColor: 0xff9b3d, moonI: 2.7, hemiSky: 0x5a72b4, hemiGround: 0x5a3c22, hemiI: 4.4, env: 1.9, exposure: 1.12, fogNear: 90, fogFar: 900, bloomThreshold: 0.9, bloomStrength: 0.5 },
+  { hour: 3, sunI: 0, sunColor: 0xff9b3d, moonI: 2.7, hemiSky: 0x566eb0, hemiGround: 0x5a3c22, hemiI: 4.4, env: 1.9, exposure: 1.12, fogNear: 90, fogFar: 900, bloomThreshold: 0.9, bloomStrength: 0.5 },
+  { hour: 5.5, sunI: 0, sunColor: 0xff9b3d, moonI: 2.7, hemiSky: 0x5a72b4, hemiGround: 0x5a3c22, hemiI: 4.4, env: 1.9, exposure: 1.14, fogNear: 80, fogFar: 900, bloomThreshold: 1.0, bloomStrength: 0.4 },
   { hour: 6, sunI: 0, sunColor: 0xff9b3d, moonI: 0, hemiSky: 0x9aa4c8, hemiGround: 0x5a4636, hemiI: 1.7, env: 0.55, exposure: 1.15, fogNear: 60, fogFar: 900, bloomThreshold: 1.4, bloomStrength: 0.2 },
   { hour: 7, sunI: 1.3, sunColor: 0xffbb81, moonI: 0, hemiSky: 0x9fc9e8, hemiGround: 0x6b5a4a, hemiI: 1.1, env: 0.4, exposure: 1.1, fogNear: 110, fogFar: 1300, bloomThreshold: 1.8, bloomStrength: 0.12 },
   { hour: 9, sunI: 2.4, sunColor: 0xffe0c7, moonI: 0, hemiSky: 0xa8d4f2, hemiGround: 0x7b7268, hemiI: 0.9, env: 0.25, exposure: 1.05, fogNear: 150, fogFar: 1600, bloomThreshold: 2.0, bloomStrength: 0.1 },
@@ -54,9 +54,9 @@ export const TIME_CYCLE: readonly TimeCycleKey[] = [
   { hour: 18, sunI: 2.0, sunColor: 0xffae67, moonI: 0, hemiSky: 0x8fa4d0, hemiGround: 0x64533a, hemiI: 1.7, env: 0.45, exposure: 1.1, fogNear: 80, fogFar: 1000, bloomThreshold: 1.4, bloomStrength: 0.2 },
   { hour: 19, sunI: 0.9, sunColor: 0xff9b3d, moonI: 0, hemiSky: 0x6a7ab8, hemiGround: 0x5e4a38, hemiI: 2.5, env: 0.8, exposure: 1.15, fogNear: 70, fogFar: 900, bloomThreshold: 1.2, bloomStrength: 0.3 },
   { hour: 19.5, sunI: 0, sunColor: 0xff9b3d, moonI: 0, hemiSky: 0x5a6cb0, hemiGround: 0x5a4636, hemiI: 3.0, env: 1.1, exposure: 1.15, fogNear: 80, fogFar: 900, bloomThreshold: 1.0, bloomStrength: 0.4 },
-  { hour: 20, sunI: 0, sunColor: 0xff9b3d, moonI: 2.7, hemiSky: 0x5a72b4, hemiGround: 0x5a3c22, hemiI: 3.8, env: 1.9, exposure: 1.08, fogNear: 90, fogFar: 900, bloomThreshold: 0.9, bloomStrength: 0.5 },
-  { hour: 22, sunI: 0, sunColor: 0xff9b3d, moonI: 2.7, hemiSky: 0x566eb0, hemiGround: 0x5a3c22, hemiI: 3.8, env: 1.9, exposure: 1.05, fogNear: 100, fogFar: 900, bloomThreshold: 0.9, bloomStrength: 0.5 },
-  { hour: 24, sunI: 0, sunColor: 0xff9b3d, moonI: 2.7, hemiSky: 0x5a72b4, hemiGround: 0x5a3c22, hemiI: 3.8, env: 1.9, exposure: 1.05, fogNear: 90, fogFar: 900, bloomThreshold: 0.9, bloomStrength: 0.5 },
+  { hour: 20, sunI: 0, sunColor: 0xff9b3d, moonI: 2.7, hemiSky: 0x5a72b4, hemiGround: 0x5a3c22, hemiI: 4.4, env: 1.9, exposure: 1.14, fogNear: 90, fogFar: 900, bloomThreshold: 0.9, bloomStrength: 0.5 },
+  { hour: 22, sunI: 0, sunColor: 0xff9b3d, moonI: 2.7, hemiSky: 0x566eb0, hemiGround: 0x5a3c22, hemiI: 4.4, env: 1.9, exposure: 1.12, fogNear: 100, fogFar: 900, bloomThreshold: 0.9, bloomStrength: 0.5 },
+  { hour: 24, sunI: 0, sunColor: 0xff9b3d, moonI: 2.7, hemiSky: 0x5a72b4, hemiGround: 0x5a3c22, hemiI: 4.4, env: 1.9, exposure: 1.12, fogNear: 90, fogFar: 900, bloomThreshold: 0.9, bloomStrength: 0.5 },
 ];
 
 export interface TimeCycle {

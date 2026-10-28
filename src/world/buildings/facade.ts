@@ -111,7 +111,7 @@ export function loadMats(lib: IMaterialLibrary): BuildingMats {
     windows,
     glass: lib.get('storefrontGlass', 0),
     rollGate: lib.get('rollGate', 0),
-    roof: lib.get('roof', 0),
+    roof: lib.get('tarRoof', 0),
     tank: lib.get('waterTank', 0),
     metal: lib.get('metalDark', 0),
     scaffold: lib.get('scaffold', 0),
