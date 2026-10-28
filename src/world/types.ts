@@ -184,7 +184,8 @@ export type MaterialKey =
   | 'window' | 'storefrontGlass' | 'rollGate' | 'roof' | 'waterTank'
   | 'treeTrunk' | 'treeLeaves' | 'metalDark' | 'metalGreen' | 'hydrant' | 'trash' | 'scaffold' | 'chainlink'
   | 'carGlass' | 'tire' | 'copLivery' | 'skin' | 'cloth'
-  | 'tireSidewall' | 'plate' | 'clothHoodie' | 'clothDenim' | 'clothVarsity' | 'clothSneaker';
+  | 'tireSidewall' | 'plate' | 'clothHoodie' | 'clothDenim' | 'clothVarsity' | 'clothSneaker'
+  | 'corrugatedSteel' | 'chainlinkFence' | 'chainlinkRail' | 'graniteCurb' | 'castIronFence' | 'tarRoof' | 'graffiti';
 
 export interface IMaterialLibrary {
   /** Shared material for a key. `variant` selects a deterministic colour/texture variant (0..n). Cached. */

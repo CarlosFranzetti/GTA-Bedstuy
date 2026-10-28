@@ -17,9 +17,11 @@ for (const seed of [7, 21]) it('traffic explore ' + seed, () => {
   const player = { x: 0, z: 50 };
   const entities = new Map<string, any>();
   const hist = new Map<string, { t: number; x: number; z: number }[]>();
-  let impacts = 0; events.on('impact', () => impacts++);
+  let impacts = 0; const imp: any[] = [];
+  events.on('impact', (e: any) => { impacts++; imp.push({ ...e, t: +(simT).toFixed(1) }); });
+  let simT = 0;
   for (let step = 0; step < 60 * 300; step++) {
-    traffic.update(DT, player);
+    simT = step / 60; traffic.update(DT, player);
     entities.clear();
     for (const v of traffic.vehicles) { v.update(DT); entities.set(v.body.id, v); }
     for (const p of traffic.peds) { p.update(DT); entities.set(p.body.id, p); }
@@ -45,4 +47,12 @@ for (const seed of [7, 21]) it('traffic explore ' + seed, () => {
   }
   console.log('seed', seed, 'agents seen', hist.size, 'windows', windows, 'worst net', worst.toFixed(1), 'bad', bad.length, 'impacts', impacts);
   console.log(bad.slice(0, 25).join('\n'));
+  const byPair = new Map<string, number>();
+  for (const e of imp) { const k = (e.a.startsWith('veh') ? 'veh' : e.a.replace(/[0-9#]+.*/, '')) + '|' + (e.b.startsWith('veh') ? 'veh' : e.b.replace(/[0-9#]+.*/, '')); byPair.set(k, (byPair.get(k) ?? 0) + 1); }
+  console.log('impact kinds', JSON.stringify([...byPair]));
+  imp.sort((a, b) => b.strength - a.strength);
+  console.log('top', JSON.stringify(imp.slice(0, 8)));
+  const ids = new Map<string, number>(); for (const e of imp) { const k = e.a + '>' + e.b; ids.set(k, (ids.get(k) ?? 0) + 1); }
+  console.log('repeat', JSON.stringify([...ids].sort((a, b) => b[1] - a[1]).slice(0, 8)));
 }, 600_000);
+

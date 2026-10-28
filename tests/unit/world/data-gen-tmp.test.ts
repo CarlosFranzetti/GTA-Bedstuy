@@ -62,7 +62,7 @@ it('generate faces', () => {
   addPin('r1c0', 'S', P(0.62, { widthM: 13, use: 'church', family: 'church', floors: 3, storefront: 'church', stoop: true, cornice: 'none', note: 'a church on the block, typology (Bed-Stuy has one every few blocks)' }));
   addPin('r1c1', 'S', P(0.55, { use: 'vacant', family: 'vacant', floors: 0, widthM: 8, note: 'vacant lot, typology' }));
   addPin('r2c0', 'N', P(0.3, { use: 'residential', family: 'brownstone', floors: 4, scaffold: true, note: 'sidewalk shed, typology: facade work on a rowhouse' }));
-  addPin('r2c1', 'N', P(0.1, { widthM: 28, depthM: 22, use: 'school', family: 'brickTan', floors: 3, stoop: false, cornice: 'plain', bays: 9, storefront: 'daycare', note: 'Public School 79 stood on Kosciuszko near Throop (1907 record, R2); current use unknown' }));
+  addPin('r2c1', 'N', P(0.1, { widthM: 28, depthM: 22, use: 'school', family: 'brickTan', floors: 3, stoop: false, cornice: 'plain', bays: 8, storefront: 'daycare', note: 'Public School 79 stood on Kosciuszko near Throop (1907 record, R2); current use unknown' }));
   // Other streets (R2 anchors)
   addPin('r3c1', 'E', P(0.92, { widthM: 13, use: 'church', family: 'church', floors: 3, storefront: 'church', stoop: true, cornice: 'none', confidence: 'M', note: 'Upper Room Baptist stands at Marcus Garvey & Van Buren (built 1888 as Sumner Ave Baptist, R2); lot inferred' }));
   addPin('r2c1', 'E', P(0.5, { use: 'residential', family: 'newBuild', floors: 5, stoop: false, cornice: 'none', note: 'new building permitted at 488 Marcus Garvey in 2019 (YIMBY, R2); lot inferred' }));
@@ -106,6 +106,7 @@ it('generate faces', () => {
         const o: Record<string, unknown> = { widthM: rw[i], floors: l.floors, family: l.family, use: l.use };
         if (l.storefront) o.storefront = l.storefront;
         for (const k of ['stoop', 'stoopHeightM', 'cornice', 'bays', 'trees', 'scaffold', 'depthM'] as const) {
+          if (k === 'stoopHeightM' && !l.stoop) continue;
           if (l[k] !== defS[k]) o[k] = l[k];
         }
         o.confidence = l.confidence;

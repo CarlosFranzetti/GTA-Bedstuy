@@ -4,23 +4,51 @@
  *    the street-face lots can start cleanly after it).
  *  - Street faces (N/S): lots 5-7.5 m, depth 12-16 m, starting after the adjoining corner lot's depth.
  *  - POIs claim the lot containing their `t` (church lots are widened to fit a 9 m nave).
- * Data-driven faces: when `faceSpecs(blockId, side)` returns a list of LotSpec (left -> right facing the block), the
- * face is cut from that list instead (widths scaled to fit, types and facade parameters taken from the specs); faces
- * the provider returns nothing for keep the procedural subdivision above. Output contract (Lot[]) is unchanged; a
- * data-driven lot just carries an extra `spec`.
+ * Data-driven faces: when a schema-v2 `FaceSet` is passed (4th argument) every face the data describes
+ * (`faceFor(...)` defined) is cut by `lotsForFace` (widths, depth, corner flags, ids) and each lot carries a builder
+ * `spec` (see `specFromData`); faces without data keep the procedural subdivision above. Output contract (Lot[]) is
+ * unchanged; a data-driven lot just carries an extra `spec`. Called with 3 arguments it behaves exactly as before.
  * Deterministic from the Rng.
  */
 import { add, dist, norm, scale, sub } from '@/core/Math2';
 import type { Vec2 } from '@/core/Math2';
 import type { Rng } from '@/core/Rng';
 import type { BlockFace, GridModel, Lot, LotType, PoiDef, Side } from '@/world/types';
-import type { LotSpec } from '@/world/buildings/facade';
+import type { LotSpec, MaterialFamily } from '@/world/buildings/facade';
 import type { SpecLot } from '@/world/BuildingGen';
+import { faceFor, lotsForFace } from '@/world/data/schema';
+import type { FaceSet, LotSpec as DataLotSpec } from '@/world/data/schema';
 
-/** Supplies the data-driven lots of one block face (ordered like BlockFace a -> b), or nothing for the fallback. */
-export type FaceSpecs = (blockId: string, side: Side) => readonly LotSpec[] | null | undefined;
-
-const MIN_LOT_W = 3.5;
+/** Schema-v2 lot -> the builder-facing spec (families, uses and cornices mapped onto what the generators can draw). */
+export function specFromData(d: DataLotSpec): LotSpec {
+  const family: MaterialFamily = ({
+    brownstone: 'brownstone', brickRed: 'brick', brickTan: 'tanBrick', brickPainted: 'paintedBrick', limestone: 'limestone',
+    frame: 'paintedBrick', church: 'limestone', vacant: 'brick', newBuild: 'paintedBrick',
+  } as const)[d.family];
+  const floors = Math.max(0, Math.round(d.floors));
+  let use: LotSpec['use'];
+  let storefront = d.storefront as string | undefined;
+  switch (d.use) {
+    case 'mixed': use = 'mixed'; break;
+    case 'church': use = 'church'; break;
+    case 'school': use = 'institutional'; break;
+    case 'vacant': use = 'vacant'; break;
+    case 'garage': use = 'mixed'; storefront ??= 'autorepair'; break;
+    default: use = !d.stoop && (floors >= 4 || d.family === 'newBuild') ? 'apartment' : 'residential';
+  }
+  return {
+    floors: Math.max(1, floors),
+    widthM: d.widthM,
+    family,
+    stoop: { present: d.stoop, heightM: d.stoop ? d.stoopHeightM : 0 },
+    cornice: d.cornice === 'bracketed' ? 'bracket' : d.cornice,
+    bays: d.bays > 0 ? d.bays : undefined,
+    use,
+    storefront,
+    trees: d.trees,
+    scaffold: d.scaffold,
+  };
+}
 
 /** Which generator builds a lot with this spec. */
 export function lotTypeOf(spec: LotSpec): LotType {
@@ -69,7 +97,7 @@ function rollAvenueType(rng: Rng): LotType {
   return 'brownstone';
 }
 
-interface Piece { w: number; type: LotType; corner: boolean; depth: number; spec?: LotSpec; }
+interface Piece { w: number; type: LotType; corner: boolean; depth: number; }
 
 function streetPieces(span: number, rng: Rng): Piece[] {
   const out: Piece[] = [];
@@ -88,30 +116,7 @@ function streetPieces(span: number, rng: Rng): Piece[] {
   return out;
 }
 
-/** Cut `span` metres into pieces following the specs: scaled to fit, remainder (if the data is short) filled procedurally. */
-function specPieces(specs: readonly LotSpec[], span: number, depth: (spec: LotSpec) => number, rng: Rng, avenue: boolean): Piece[] {
-  const ws = specs.map((sp) => Math.max(MIN_LOT_W, sp.widthM));
-  const total = ws.reduce((a, c) => a + c, 0);
-  const out: Piece[] = [];
-  const fill = total < span * 0.9;
-  const k = fill ? 1 : span / (total || 1);
-  let used = 0;
-  specs.forEach((sp, i) => {
-    let w = ws[i] * k;
-    if (used + w > span - 1e-6) w = span - used;
-    if (w < 1) return;
-    out.push({ w, type: lotTypeOf(sp), corner: false, depth: depth(sp), spec: sp });
-    used += w;
-  });
-  if (fill && span - used > 1e-6) {
-    const rem = span - used;
-    if (avenue) for (const w of fillWidths(rem, 6, 9, rng)) out.push({ w, type: rollAvenueType(rng), corner: false, depth: out.length ? out[out.length - 1].depth : 15 });
-    else for (const p of streetPieces(rem, rng)) out.push(p);
-  } else if (out.length) out[out.length - 1].w += span - used; // kill float residue
-  return out;
-}
-
-export function subdivideLots(grid: GridModel, pois: PoiDef[], rng: Rng, faceSpecs?: FaceSpecs): Lot[] {
+export function subdivideLots(grid: GridModel, pois: PoiDef[], rng: Rng, faces?: FaceSet): Lot[] {
   const byFace = new Map<string, Lot[]>();
   const faceKey = (blockId: string, side: Side) => `${blockId}|${side}`;
   const faceInfo = new Map<string, BlockFace>();
@@ -129,8 +134,19 @@ export function subdivideLots(grid: GridModel, pois: PoiDef[], rng: Rng, faceSpe
       outward: { x: face.outward.x, z: face.outward.z },
       type: p.type,
       corner: p.corner,
-      ...(p.spec ? { spec: { ...p.spec, widthM: p.w } } : {}),
-    } as Lot;
+    };
+  };
+
+  /** A lot from the data (`lotsForFace` output): same id scheme, fronts, corner flag; the spec rides along. */
+  const dataLot = (pl: ReturnType<typeof lotsForFace>[number]): SpecLot => {
+    const spec = specFromData(pl);
+    return {
+      id: pl.id, blockId: pl.blockId, side: pl.side,
+      frontA: pl.frontA, frontB: pl.frontB,
+      width: dist(pl.frontA, pl.frontB), depth: pl.depthM,
+      outward: { x: pl.outward.x, z: pl.outward.z },
+      type: lotTypeOf(spec), corner: pl.corner, spec,
+    };
   };
 
   for (const block of grid.blocks) {
@@ -142,21 +158,23 @@ export function subdivideLots(grid: GridModel, pois: PoiDef[], rng: Rng, faceSpe
     for (const face of ew) {
       const len = dist(face.a, face.b);
       const depth = brng.range(14, 18);
-      endDepths.push({ p: face.a, depth }, { p: face.b, depth });
       const cw1 = Math.min(brng.range(9, 12), len * 0.3);
       const cw2 = Math.min(brng.range(9, 12), len * 0.3);
-      const data = faceSpecs?.(face.blockId, face.side);
-      let pieces: Piece[];
-      if (data && data.length) {
-        pieces = specPieces(data, len, () => depth, brng, true);
-        if (pieces.length) { pieces[0].corner = true; pieces[pieces.length - 1].corner = true; }
-      } else {
-        pieces = [{ w: cw1, type: 'mixeduse', corner: true, depth }];
-        for (const w of fillWidths(len - cw1 - cw2, 6, 9, brng)) {
-          pieces.push({ w, type: rollAvenueType(brng), corner: false, depth });
+      if (faces && faceFor(faces, grid, face)) {
+        const placed = lotsForFace(grid, face, faces);
+        if (placed.length) {
+          endDepths.push({ p: face.a, depth: placed[0].depthM }, { p: face.b, depth: placed[placed.length - 1].depthM });
+          byFace.set(faceKey(face.blockId, face.side), placed.map(dataLot));
+          faceInfo.set(faceKey(face.blockId, face.side), face);
+          continue;
         }
-        pieces.push({ w: cw2, type: 'mixeduse', corner: true, depth });
       }
+      endDepths.push({ p: face.a, depth }, { p: face.b, depth });
+      const pieces: Piece[] = [{ w: cw1, type: 'mixeduse', corner: true, depth }];
+      for (const w of fillWidths(len - cw1 - cw2, 6, 9, brng)) {
+        pieces.push({ w, type: rollAvenueType(brng), corner: false, depth });
+      }
+      pieces.push({ w: cw2, type: 'mixeduse', corner: true, depth });
       let s = 0;
       const lots: Lot[] = [];
       pieces.forEach((p, i) => { lots.push(makeLot(face, i, s, p)); s += p.w; });
@@ -172,14 +190,18 @@ export function subdivideLots(grid: GridModel, pois: PoiDef[], rng: Rng, faceSpe
         return best;
       };
       const i0 = inset(face.a), i1 = inset(face.b);
+      if (faces && faceFor(faces, grid, face)) {
+        const placed = lotsForFace(grid, face, faces, { insetA: i0, insetB: i1, autoInset: false });
+        if (placed.length) {
+          byFace.set(faceKey(face.blockId, face.side), placed.map(dataLot));
+          faceInfo.set(faceKey(face.blockId, face.side), face);
+          continue;
+        }
+      }
       const span = Math.max(0, len - i0 - i1);
       const lots: Lot[] = [];
       let s = i0;
-      const data = faceSpecs?.(face.blockId, face.side);
-      const pieces = data && data.length
-        ? specPieces(data, span, (sp) => (sp.use === 'church' ? brng.range(14, 16) : brng.range(12, 16)), brng, false)
-        : streetPieces(span, brng);
-      pieces.forEach((p, i) => { lots.push(makeLot(face, i, s, p)); s += p.w; });
+      streetPieces(span, brng).forEach((p, i) => { lots.push(makeLot(face, i, s, p)); s += p.w; });
       byFace.set(faceKey(face.blockId, face.side), lots);
       faceInfo.set(faceKey(face.blockId, face.side), face);
     }

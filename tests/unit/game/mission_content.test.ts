@@ -52,10 +52,25 @@ class Driver {
 const objPos = (o: ObjectiveDef): { x: number; z: number } | null =>
   'at' in o && o.at ? o.at : null;
 
-const drivenBy = (m: MissionSystem, def: MissionDef, hour = 12) => {
-  const drv: Driver = new Driver(m, { x: def.giver.x + 40, z: def.giver.z }, hour);
-  return drv;
+/** Distance from point p to segment a-b. */
+const segDist = (p: { x: number; z: number }, a: { x: number; z: number }, b: { x: number; z: number }): number => {
+  const dx = b.x - a.x, dz = b.z - a.z;
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / (dx * dx + dz * dz || 1)));
+  return Math.hypot(p.x - (a.x + t * dx), p.z - (a.z + t * dz));
 };
+
+/** The approach point: 40 m out from the giver on a side whose straight approach crosses no other giver zone. */
+const approach = (def: MissionDef): { x: number; z: number } => {
+  for (const [ox, oz] of [[40, 0], [-40, 0], [0, 40], [0, -40]]) {
+    const a = { x: def.giver.x + ox, z: def.giver.z + oz };
+    const clear = defs.every((o) => o === def || segDist(o.giver, a, def.giver) > o.triggerRadius + 1)
+      && defs.every((o) => Math.hypot(o.giver.x - a.x, o.giver.z - a.z) > o.triggerRadius + 1 || o === def);
+    if (clear) return a;
+  }
+  throw new Error('no clear approach');
+};
+
+const drivenBy = (m: MissionSystem, def: MissionDef, hour = 12) => new Driver(m, approach(def), hour);
 
 const fresh = (extra: { hour?: number } = {}) => {
   const saved: unknown[] = [];
@@ -125,7 +140,7 @@ describe('Bodega Run', () => {
   it('completes on foot in time and pays out', () => {
     const { m, saved, mk } = fresh();
     const d = mk(def);
-    d.go({ x: def.giver.x + 40, z: def.giver.z + 10 }, 5); // arms the trigger
+    d.go(approach(def), 5); // arms the trigger
     d.go(def.giver, 5);
     expect(m.activeId).toBe('bodega-run');
     d.wait(4); // deli bags the order
@@ -144,7 +159,7 @@ describe('Bodega Run', () => {
   it('works from a car too', () => {
     const { m, mk } = fresh();
     const d = mk(def);
-    d.go({ x: def.giver.x + 40, z: def.giver.z + 10 }, 5);
+    d.go(approach(def), 5);
     d.inCar = true;
     d.go(def.giver, 12);
     d.wait(4);
@@ -155,7 +170,7 @@ describe('Bodega Run', () => {
   it('fails on the clock, then a retry can be won', () => {
     const { m, mk } = fresh();
     const d = mk(def);
-    d.go({ x: def.giver.x + 40, z: def.giver.z + 10 }, 5);
+    d.go(approach(def), 5);
     d.go(def.giver, 5);
     d.wait(4);
     d.wait(def.timeLimit!); // lingering in front of the deli
@@ -177,7 +192,7 @@ describe('Laundromat Getaway', () => {
   function toTheCar() {
     const ctx = fresh();
     const d = ctx.mk(def);
-    d.go({ x: def.giver.x + 40, z: def.giver.z }, 5);
+    d.go(approach(def), 5);
     d.go(def.giver, 5);
     expect(ctx.m.activeId).toBe('laundromat-getaway');
     d.go(door, 5);
@@ -195,7 +210,7 @@ describe('Laundromat Getaway', () => {
   it('the bag can only be grabbed on foot', () => {
     const ctx = fresh();
     const d = ctx.mk(def);
-    d.go({ x: def.giver.x + 40, z: def.giver.z }, 5);
+    d.go(approach(def), 5);
     d.go(def.giver, 5);
     d.inCar = true;
     d.go(door, 8);
@@ -259,7 +274,7 @@ describe('Block Party', () => {
   it('is offered by day only', () => {
     const ctx = fresh({ hour: 19 });
     const d = ctx.mk(def);
-    d.go({ x: def.giver.x + 40, z: def.giver.z }, 5);
+    d.go(approach(def), 5);
     d.go(def.giver, 5);
     d.wait(2);
     expect(ctx.m.isActive).toBe(false);
@@ -269,10 +284,11 @@ describe('Block Party', () => {
   it('three stores, then Van Buren, by car from 5:30pm before 8pm', () => {
     const ctx = fresh({ hour: 17.5 });
     const d = ctx.mk(def);
-    d.go({ x: def.giver.x + 40, z: def.giver.z }, 5);
+    d.go(approach(def), 5);
     d.go(def.giver, 5);
     expect(ctx.m.activeId).toBe('block-party');
-    expect(ctx.m.hud.timeLeft).toBeCloseTo(150, 0); // 2.5 game hours at 1 hour per minute
+    expect(ctx.m.hud.timeLeft).toBeLessThan(150); // 2.5 game hours at 1 hour per minute, minus the walk to Auntie
+    expect(ctx.m.hud.timeLeft).toBeGreaterThan(120);
     d.inCar = true;
     for (const p of stops) { d.go(p, 16); d.wait(0.1); }
     expect(ctx.m.carrying).toEqual([]);
@@ -284,7 +300,7 @@ describe('Block Party', () => {
   it('a stop-and-chat stroll misses the party', () => {
     const ctx = fresh({ hour: 17.5 });
     const d = ctx.mk(def);
-    d.go({ x: def.giver.x + 40, z: def.giver.z }, 5);
+    d.go(approach(def), 5);
     d.go(def.giver, 5);
     d.go(stops[0], 3); // 3 m/s: wandering
     d.go(stops[1], 3);
@@ -298,7 +314,7 @@ describe('Block Party', () => {
   it('the deliver needs all three items', () => {
     const ctx = fresh({ hour: 10 });
     const d = ctx.mk(def);
-    d.go({ x: def.giver.x + 40, z: def.giver.z }, 5);
+    d.go(approach(def), 5);
     d.go(def.giver, 5);
     d.go(stops[0], 14); d.wait(0.1);
     d.go(stops[3], 14); d.wait(1); // skipped the table and the ice
@@ -312,7 +328,7 @@ describe('persistence across a reload', () => {
     const ctx = fresh();
     const def = byId('bodega-run');
     const d = ctx.mk(def);
-    d.go({ x: def.giver.x + 40, z: def.giver.z + 10 }, 5);
+    d.go(approach(def), 5);
     d.go(def.giver, 5);
     d.wait(4);
     for (const o of def.objectives.filter((x) => x.kind === 'deliver')) d.go(objPos(o)!, 5.5), d.wait(0.1);
