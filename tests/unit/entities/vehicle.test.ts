@@ -465,8 +465,8 @@ describe('Vehicle', () => {
     // a genuinely harder hit still counts in full
     v.update(1 / 60);
     const before = v.damage;
-    v.onContact(hit(12), wall);
-    expect(v.damage - before).toBeCloseTo(0.3);
+    v.onContact(hit(16), wall); // above 8 * 1.5 + 1 (the SCRAPE_ESCALATE rule), so it is a new hit
+    expect(v.damage - before).toBeCloseTo(0.4);
     expect(n).toBe(2);
   });
 });

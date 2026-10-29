@@ -54,10 +54,8 @@ const LATERAL_RATE = 2.5;
 const PED_SCAN_PERIOD = 0.1;
 const PED_LATERAL = 2.4;
 /** a car shifting into the passing lane creeps (m/s) until its body is this far (plus both half widths) off the blocker */
-const PASS_CREEP = 2;
+const PASS_CREEP = 1.2;
 const PASS_CLEARANCE = 0.4;
-/** gap (m) between the bumper and the car being passed above which the car rolls out around it instead of waiting */
-const PASS_START_GAP = 0.6;
 /** the lane offset still to travel above which the obstacle ray is also cast along the line the car is moving onto */
 const OFFSET_RAY_MIN = 0.3;
 /** a blocker moving faster than this is not "stalled": nobody starts a pass around it */
@@ -409,14 +407,13 @@ export class TrafficAgent {
       const aim = v.body.heading + lead;
       this.rayDir.x = Math.sin(aim);
       this.rayDir.z = -Math.cos(aim);
-      const myHalfL = v.body.shape.kind === 'obb' ? v.body.shape.halfL : 2.2;
       const halfW = v.body.shape.kind === 'obb' ? v.body.shape.halfW : 1;
       let hit: { body: Body2D; dist: number } | null = null;
       const take = (h: { body: Body2D; dist: number } | null): void => {
         if (!h) return;
-        // the car being passed is no obstacle while there is still room to roll out around it (the creep below
-        // keeps the speed down until the body has really cleared it)
-        if (this.passBody && h.body === this.passBody && h.dist > myHalfL + PASS_START_GAP) { creeping = true; return; }
+        // the car being passed is no obstacle: the car rolls out around it at PASS_CREEP (below the 1.5 m/s impact
+        // threshold) until its body has really cleared it
+        if (this.passBody && h.body === this.passBody) { creeping = true; return; }
         if (!hit || h.dist < hit.dist) hit = h;
       };
       // always from the real body (the lane-offset line is only where the body is heading, not where it is) ...
