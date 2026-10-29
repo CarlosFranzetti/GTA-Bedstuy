@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import type { MissionMarker } from './types';
 
-const COLUMN_HEIGHT = 14;
+const COLUMN_HEIGHT = 8;
 const RING_Y = 0.12;
 const MIN_VISUAL_RADIUS = 1.2;
 
@@ -35,7 +35,9 @@ export class MissionMarkerView {
       const m = markers[i];
       const r = Math.max(MIN_VISUAL_RADIUS, m.radius);
       slot.column.position.set(m.x, COLUMN_HEIGHT / 2 + RING_Y, m.z);
-      slot.column.scale.set(r, COLUMN_HEIGHT, r);
+      // Thin beam: the ring shows the trigger radius; a column that wide fills the first view at spawn.
+      const cr = Math.min(0.9, Math.max(0.35, r * 0.3));
+      slot.column.scale.set(cr, COLUMN_HEIGHT, cr);
       slot.ring.position.set(m.x, RING_Y, m.z);
       slot.ring.scale.set(r, 1, r);
       this.tmp.set(m.color);
@@ -52,7 +54,7 @@ export class MissionMarkerView {
   update(t: number): void {
     const k = 0.5 + 0.5 * Math.sin(t * 3);
     for (let i = 0; i < this.shown; i++) {
-      this.slots[i].colMat.opacity = 0.14 + 0.1 * k;
+      this.slots[i].colMat.opacity = 0.1 + 0.08 * k;
       this.slots[i].ringMat.opacity = 0.55 + 0.35 * k;
     }
   }

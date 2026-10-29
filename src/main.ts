@@ -32,6 +32,7 @@ import { NightLights } from '@/render/NightLights';
 import { SunFlare } from '@/render/LensFlare';
 import { setLampsLit } from '@/world/FurnitureGen';
 import { loadTexturePacks } from '@/textures/packs';
+import { setStorefrontHour } from '@/world/buildings/mixeduse';
 import { resolveQuality, startHostedTextures } from '@/textures/hosted';
 import { Weather } from '@/game/Weather';
 import { LIGHTING } from '@/render/LightingConfig';
@@ -451,6 +452,7 @@ game.add({
 
     // environment + audio
     dayNight.update(dt);
+    setStorefrontHour(dayNight.timeOfDay);
     if (dayNight.isNight !== lastNight) {
       lastNight = dayNight.isNight; audio.setNight(lastNight); pipeline.setNight(lastNight); setLampsLit(world.furnitureGroup, lastNight);
       scene.environmentIntensity = lastNight ? LIGHTING.envIntensityNight : LIGHTING.envIntensityDay;
@@ -489,7 +491,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
   setPaused(p: boolean) { game.paused = p; },
   /** Stops the requestAnimationFrame loop (headless review scripts then draw frames by hand with renderOnce). */
   stopLoop() { game.stop(); },
-  setHour(h: number) { dayNight.timeOfDay = h; dayNight.update(0); },
+  setHour(h: number) { dayNight.timeOfDay = h; dayNight.update(0); setStorefrontHour(h); },
   setQuality(q: Quality) { applyQuality(q); },
   setWeather(s: 'dry' | 'rain' | 'wet' | 'drying', snap = false) { weather.setState(s, snap); },
   /** Renders one frame synchronously and returns the per-pass draw-call split (for perf scripts). */

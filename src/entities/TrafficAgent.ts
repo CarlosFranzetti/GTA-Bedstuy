@@ -59,6 +59,9 @@ const PED_LATERAL = 2.4;
 /** a car shifting into the passing lane creeps (m/s) until its body is this far (plus both half widths) off the blocker */
 const PASS_CREEP = 1.2;
 const PASS_CLEARANCE = 0.4;
+/** the swing-out aim point: beside the blocker, this far back from its nose and this far beyond the clearance */
+const PASS_AIM_BACK = 0.5;
+const PASS_AIM_EXTRA = 0.3;
 /** the lane offset still to travel above which the obstacle ray is also cast along the line the car is moving onto */
 const OFFSET_RAY_MIN = 0.3;
 /** a blocker moving faster than this is not "stalled": nobody starts a pass around it */
@@ -330,8 +333,25 @@ export class TrafficAgent {
     const aimZ = node.pos.z - rz * this.lat;
 
     // ---- steering
-    const dx = aimX - pos.x;
-    const dz = aimZ - pos.z;
+    let aimXs = aimX;
+    let aimZs = aimZ;
+    if (this.passBody) {
+      // swinging round the car being passed: aim at the road beside it, not at a lane node 20 m away
+      const pb = this.passBody;
+      const sx = pb.pos.x - pos.x;
+      const sz = pb.pos.z - pos.z;
+      const hL = pb.shape.kind === 'obb' ? pb.shape.halfL : 2.2;
+      const hW = pb.shape.kind === 'obb' ? pb.shape.halfW : 1;
+      const mL = v.body.shape.kind === 'obb' ? v.body.shape.halfL : 2.2;
+      const mW = v.body.shape.kind === 'obb' ? v.body.shape.halfW : 1;
+      const clearSide = hW + mW + PASS_CLEARANCE;
+      if (sx * fx + sz * fz > -(hL + mL) && Math.abs(sx * rx + sz * rz) < clearSide) {
+        aimXs = pb.pos.x + fx * (hL - PASS_AIM_BACK) - rx * (clearSide + PASS_AIM_EXTRA);
+        aimZs = pb.pos.z + fz * (hL - PASS_AIM_BACK) - rz * (clearSide + PASS_AIM_EXTRA);
+      }
+    }
+    const dx = aimXs - pos.x;
+    const dz = aimZs - pos.z;
     const desiredHeading = Math.atan2(dx, -dz);
     const err = angleDiff(v.body.heading, desiredHeading);
     const steer = clamp(STEER_GAIN * err, -1, 1);
