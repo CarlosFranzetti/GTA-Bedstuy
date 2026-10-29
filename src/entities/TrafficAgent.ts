@@ -41,6 +41,9 @@ const HORN_AFTER = 3;
 const HORN_PERIOD = 4;
 const HORN_PULSE = 0.3;
 const STUCK_AFTER = 8;
+/** wedged against a thin static (a signal pole) there is nothing to wait for: back out with a lock after this long */
+const STUCK_AFTER_POLE = 2.5;
+const POLE_MAX_RADIUS = 0.5;
 const BACK_DISTANCE = 2;
 const BACK_MAX_TIME = 1.8;
 /** steering lock (|input|) used when backing out of a repeated wedge */
@@ -479,10 +482,11 @@ export class TrafficAgent {
     } else {
       this.hornClock = 0;
     }
-    if (this.stuckTime > STUCK_AFTER) {
+    const pole = this.lastBlocker !== null && this.lastBlocker.kind === 'static' && this.lastBlocker.shape.kind === 'circle' && this.lastBlocker.shape.r <= POLE_MAX_RADIUS;
+    if (this.stuckTime > (pole ? STUCK_AFTER_POLE : STUCK_AFTER)) {
       this.stuckTime = 0;
       this.stuckRetries++;
-      if (this.stuckRetries >= 2) {
+      if (this.stuckRetries >= 2 || pole) {
         // two plain back-offs returned to the same line (a thin pole, a wedge): back out with a steering lock so the
         // next approach starts from a different heading, then re-pick the nearest forward lane node
         this.ignoreRayTimer = 2;
