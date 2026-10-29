@@ -8,6 +8,7 @@
  * with all static colliders, CopSystem + WantedSystem and a fleeing / waiting player car.
  * The missing arrest is recorded as `it.todo` (gap Q10-G1 in docs/swarm/qa-stage2.md).
  */
+import * as fs from 'node:fs';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { EventBus } from '@/core/Events';
@@ -79,6 +80,7 @@ function pursue(mode: 'flee' | 'wait', seed: number, stars: 1 | 2 | 3, seconds: 
   for (let step = 0; step < total; step++) {
     t = step * DT;
     flee?.update(DT);
+    if (step % 120 === 0 && mode === 'flee') fs.appendFileSync('/tmp/f12pu2.txt', `T${t.toFixed(0)} p=${pv.body.pos.x.toFixed(0)},${pv.body.pos.z.toFixed(0)} v=${pv.speed.toFixed(1)} dmg=${pv.damage.toFixed(2)} st=${(flee as any).state} tgt=${(flee as any).targetId} stuck=${(flee as any).stuckTime.toFixed(1)} LB=${(flee as any).lastBlocker?.id}:${(flee as any).lastBlocker?.kind}\n`);
     cops.update(DT, pv.body.pos, pv.body);
     wanted.update(DT);
     sim.step(DT);
@@ -152,8 +154,7 @@ describe.skip('cop pursuit ends within bounds (no arrest mechanic: escape by sta
   it.todo('Q10-G2: stationary player car is not bulldozed > 100 m across the map by a ramming cop (observed 270 m in 30 s at 3 stars)');
 });
 
-import * as fs from 'node:fs';
 describe('dbg', () => { it('x', () => {
-  const r = pursue('flee', 11, 2, 90);
+  const r = pursue('flee', 5, 3, 120);
   fs.writeFileSync('/tmp/f12pu.txt', JSON.stringify({ ...r, stars: r.stars }) + '\n');
 }); });

@@ -66,6 +66,7 @@ const PASS_ATTEMPT_PERIOD = 0.25;
 const PASS_LANE_LINES = [2.4, 3.1, 3.9] as const;
 /** turning: speed through the box, and how sharp a turn counts */
 const TURN_SPEED = 6;
+const TURN_SPEED_FAST = 13;
 const TURN_MIN = 0.6;
 /** left turns yield to oncoming traffic that reaches the middle of the box within this many seconds */
 const LEFT_YIELD_TTC = 3.5;
@@ -273,7 +274,7 @@ export class TrafficAgent {
       node = this.target ?? node;
     }
 
-    if (node.stopLine && !this.ignoreStop) this.previewTurn(node);
+    if (node.stopLine) this.previewTurn(node);
 
     // ---- reaching nodes
     const arrive = ARRIVE_RADIUS + 0.15 * Math.max(0, v.speed);
@@ -350,17 +351,19 @@ export class TrafficAgent {
       const myHalfL = v.body.shape.kind === 'obb' ? v.body.shape.halfL : 2.2;
       if (along > -(halfL + myHalfL) && side < halfW + myHalfW + PASS_CLEARANCE) desired = Math.min(desired, PASS_CREEP);
     }
-    if (node.stopLine && !this.ignoreStop) {
+    // cops and runaways ignore the lines but still have to get round the corner: a faster limit than civilians use
+    const turnSpeed = this.ignoreStop ? TURN_SPEED_FAST : TURN_SPEED;
+    if (node.stopLine) {
       const room = Math.max(0, dNode - STOP_POINT);
-      if (this.mustStopAt(node, dNode, speed) || (dNode < 45 && this.turnConflict(node, false))) {
+      if (!this.ignoreStop && (this.mustStopAt(node, dNode, speed) || (dNode < 45 && this.turnConflict(node, false)))) {
         desired = Math.min(desired, Math.sqrt(2 * v.spec.brakeDecel * COMFORT_BRAKE * room));
       }
       // slow for the turn before entering the box
       if (this.preFrom === node.id && Math.abs(this.preTurn) > TURN_MIN) {
-        desired = Math.min(desired, Math.sqrt(TURN_SPEED * TURN_SPEED + 2 * v.spec.brakeDecel * COMFORT_BRAKE * room));
+        desired = Math.min(desired, Math.sqrt(turnSpeed * turnSpeed + 2 * v.spec.brakeDecel * COMFORT_BRAKE * room));
       }
     }
-    if (!this.ignoreStop && Math.abs(this.legTurn) > TURN_MIN) desired = Math.min(desired, TURN_SPEED);
+    if (Math.abs(this.legTurn) > TURN_MIN) desired = Math.min(desired, turnSpeed);
 
     // ---- pedestrians in the crosswalk / lane ahead
     this.pedTimer -= dt;
