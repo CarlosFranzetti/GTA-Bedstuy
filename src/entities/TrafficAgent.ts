@@ -43,6 +43,9 @@ const HORN_PULSE = 0.3;
 const STUCK_AFTER = 8;
 const BACK_DISTANCE = 2;
 const BACK_MAX_TIME = 1.8;
+/** steering lock (|input|) used when backing out of a repeated wedge */
+const BACK_LOCK_MIN = 0.6;
+const BACK_LOCK_MAX = 1;
 const OVERTAKE_SHIFT = 3.1;
 const OVERTAKE_PARKED_AFTER = 0.8;
 const OVERTAKE_STALLED_AFTER = 3;
@@ -51,8 +54,10 @@ const LATERAL_RATE = 2.5;
 const PED_SCAN_PERIOD = 0.1;
 const PED_LATERAL = 2.4;
 /** a car shifting into the passing lane creeps (m/s) until its body is this far (plus both half widths) off the blocker */
-const PASS_CREEP = 1.2;
+const PASS_CREEP = 2;
 const PASS_CLEARANCE = 0.4;
+/** gap (m) between the bumper and the car being passed above which the car rolls out around it instead of waiting */
+const PASS_START_GAP = 0.6;
 /** the lane offset still to travel above which the obstacle ray is also cast along the line the car is moving onto */
 const OFFSET_RAY_MIN = 0.3;
 /** a blocker moving faster than this is not "stalled": nobody starts a pass around it */
@@ -85,8 +90,8 @@ const TURN_SCAN_DIST = 24;
 const FLANK_RAY = 0.75;
 /** a car (slower than FLANK_PED_SPEED) waits while a pedestrian is within FLANK_PED_MARGIN of its body */
 const FLANK_PED_SPEED = 2.5;
-const FLANK_PED_MARGIN = 0.5;
-const FLANK_HOLD_MAX = 3;
+const FLANK_PED_MARGIN = 1;
+const FLANK_HOLD_MAX = 6;
 const FLANK_IGNORE_FOR = 5;
 const RAY_LEAD = 0.7;
 const RAY_LEAD_MIN = 0.1;
@@ -113,6 +118,8 @@ export class TrafficAgent {
   private lastBlocker: Body2D | null = null;
   private stuckTime = 0;
   private stuckRetries = 0;
+  private backSteer = 0;
+  private resyncAfterBack = false;
   private ignoreRayTimer = 0;
   private hornClock = 0;
   /** stop line this agent has committed to run (yellow it could not stop for) */
@@ -390,6 +397,7 @@ export class TrafficAgent {
     // ---- obstacle
     let blocked = false;
     let blocker: Body2D | null = null;
+    let creeping = false;
     if (this.ignoreRayTimer > 0) {
       this.ignoreRayTimer -= dt;
     } else {
@@ -401,26 +409,35 @@ export class TrafficAgent {
       const aim = v.body.heading + lead;
       this.rayDir.x = Math.sin(aim);
       this.rayDir.z = -Math.cos(aim);
+      const myHalfL = v.body.shape.kind === 'obb' ? v.body.shape.halfL : 2.2;
+      const halfW = v.body.shape.kind === 'obb' ? v.body.shape.halfW : 1;
+      let hit: { body: Body2D; dist: number } | null = null;
+      const take = (h: { body: Body2D; dist: number } | null): void => {
+        if (!h) return;
+        // the car being passed is no obstacle while there is still room to roll out around it (the creep below
+        // keeps the speed down until the body has really cleared it)
+        if (this.passBody && h.body === this.passBody && h.dist > myHalfL + PASS_START_GAP) { creeping = true; return; }
+        if (!hit || h.dist < hit.dist) hit = h;
+      };
       // always from the real body (the lane-offset line is only where the body is heading, not where it is) ...
-      let hit = this.world.raycast(pos, this.rayDir, reach, v.body.id);
+      take(this.world.raycast(pos, this.rayDir, reach, v.body.id));
       // ... a car is wider than its centre line: a car easing back into the lane beside us is hit by neither centre ray,
       // so two more rays run along the flanks of the body
-      const halfW = v.body.shape.kind === 'obb' ? v.body.shape.halfW : 1;
       for (let side = -1; side <= 1; side += 2) {
         this.rayFrom.x = pos.x + rx * halfW * FLANK_RAY * side;
         this.rayFrom.z = pos.z + rz * halfW * FLANK_RAY * side;
-        const hs = this.world.raycast(this.rayFrom, this.rayDir, reach, v.body.id);
-        if (hs && (!hit || hs.dist < hit.dist)) hit = hs;
+        take(this.world.raycast(this.rayFrom, this.rayDir, reach, v.body.id));
       }
       // ... and, while the lateral shift is still being eased in or out, also along the line it is moving onto
       const off = this.latTarget - this.lat;
       if (Math.abs(off) > OFFSET_RAY_MIN) {
         this.rayFrom.x = pos.x - rx * off;
         this.rayFrom.z = pos.z - rz * off;
-        const hit2 = this.world.raycast(this.rayFrom, this.rayDir, reach, v.body.id);
-        if (hit2 && (!hit || hit2.dist < hit.dist)) hit = hit2;
+        take(this.world.raycast(this.rayFrom, this.rayDir, reach, v.body.id));
       }
-      if (hit) { blocked = true; blocker = hit.body; }
+      if (creeping) desired = Math.min(desired, PASS_CREEP);
+      const h = hit as { body: Body2D; dist: number } | null;
+      if (h) { blocked = true; blocker = h.body; }
     }
     if (blocked) {
       desired = 0;
@@ -449,7 +466,7 @@ export class TrafficAgent {
     const wantsToMove = desired > 0.5 || blocked;
     const queuedForSignal = this.signalQueueAhead();
     if (Math.abs(speed) < 0.3 && wantsToMove && this.pedGap === Infinity && !queuedForSignal) this.stuckTime += dt;
-    else if (Math.abs(speed) > 1) { this.stuckTime = 0; this.stuckRetries = 0; }
+    else if (Math.abs(speed) > 1) { this.stuckTime = 0; if (speed > 2) this.stuckRetries = 0; }
     else if (this.pedGap < Infinity || queuedForSignal) this.stuckTime = Math.max(0, this.stuckTime - dt);
 
     const inp = this.input;
@@ -465,8 +482,17 @@ export class TrafficAgent {
     if (this.stuckTime > STUCK_AFTER) {
       this.stuckTime = 0;
       this.stuckRetries++;
-      if (this.stuckRetries >= 2) { this.ignoreRayTimer = 2; this.stuckRetries = 0; }
-      this.beginBacking();
+      if (this.stuckRetries >= 2) {
+        // two plain back-offs returned to the same line (a thin pole, a wedge): back out with a steering lock so the
+        // next approach starts from a different heading, then re-pick the nearest forward lane node
+        this.ignoreRayTimer = 2;
+        this.stuckRetries = 0;
+        this.beginBacking();
+        this.backSteer = (this.rng.chance(0.5) ? 1 : -1) * this.rng.range(BACK_LOCK_MIN, BACK_LOCK_MAX);
+        this.resyncAfterBack = true;
+      } else {
+        this.beginBacking();
+      }
       this.back(dt);
       return;
     }
@@ -644,7 +670,7 @@ export class TrafficAgent {
   // ------------------------------------------------------------------ pedestrians
 
   /** Distance to the nearest pedestrian in the lane ahead (crosswalk or jaywalker), or Infinity. */
-  /** A pedestrian touching or hugging the front half of the body: a car starting off would sweep it over. */
+  /** A pedestrian touching or hugging the body: a car starting off would sweep it over. */
   private pedBesideBody(fx: number, fz: number): boolean {
     const b = this.vehicle.body;
     const halfL = b.shape.kind === 'obb' ? b.shape.halfL : 2.2;
@@ -656,7 +682,7 @@ export class TrafficAgent {
       const rx = o.pos.x - b.pos.x;
       const rz = o.pos.z - b.pos.z;
       const along = rx * fx + rz * fz;
-      if (along < -0.5 || along > halfL + FLANK_PED_MARGIN) continue;
+      if (along < -(halfL + FLANK_PED_MARGIN) || along > halfL + FLANK_PED_MARGIN) continue;
       if (Math.abs(rx * -fz + rz * fx) <= halfW + FLANK_PED_MARGIN) return true;
     }
     return false;
@@ -743,11 +769,13 @@ export class TrafficAgent {
       this.stuckTime = 0;
       this.blockedTime = 0;
       this.hold();
+      if (this.resyncAfterBack) { this.resyncAfterBack = false; this.resync(); }
+      this.backSteer = 0;
       return;
     }
     const inp = this.input;
     inp.throttle = -0.6;
-    inp.steer = 0;
+    inp.steer = this.backSteer;
     inp.brake = false;
     inp.handbrake = false;
     inp.horn = false;

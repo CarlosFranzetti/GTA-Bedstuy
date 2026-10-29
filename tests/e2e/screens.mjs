@@ -4,6 +4,7 @@
 //                                    [--dist <dir>]      serve an existing build instead of building one
 //                                    [--no-build]        serve ./dist as it is
 //                                    [--label <text>]    free text stored in stats.json (stage / commit)
+//                                    [--resume]          keep frames already listed in <outDir>/stats.json (after a crashed run)
 //                                    [--hud]             live loop + page screenshot (with HUD; ~3x the memory, slower)
 //
 // By default a PRIVATE build is made into <outDir>/.dist so a concurrent `npm run build` by another lane cannot
@@ -16,7 +17,7 @@
 // The pause menu opens on the first click (pointer-lock fails headless), so it is dismissed via the Resume button.
 import { createRequire } from 'node:module';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -24,7 +25,7 @@ const { chromium } = createRequire(import.meta.url)('playwright');
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function parseArgs(argv) {
-  const o = { port: 4310, q: 'low', width: 640, height: 360, build: true, dist: null, label: '', hud: false };
+  const o = { port: 4310, q: 'low', width: 640, height: 360, build: true, dist: null, label: '', hud: false, resume: false };
   const rest = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -36,6 +37,7 @@ function parseArgs(argv) {
     else if (a === '--no-build') o.build = false;
     else if (a === '--label') o.label = argv[++i];
     else if (a === '--hud') o.hud = true;
+    else if (a === '--resume') o.resume = true;
     else rest.push(a);
   }
   o.out = resolve(rest[0] ?? 'qa-screens');
@@ -64,6 +66,10 @@ if (previewDead) { console.error(`[screens] preview server exited (port ${opt.po
 
 const errors = [];
 const frames = [];
+if (opt.resume && existsSync(`${opt.out}/stats.json`)) {
+  try { for (const f of JSON.parse(readFileSync(`${opt.out}/stats.json`, 'utf8')).frames) if (existsSync(`${opt.out}/${f.name}.png`)) frames.push(f); } catch { /* start fresh */ }
+  log(`resuming with ${frames.length} frame(s)`);
+}
 const hardStop = setTimeout(() => { console.error('[screens] hard timeout'); preview.kill(); process.exit(2); }, 2_400_000);
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 let failed = false;
@@ -93,6 +99,7 @@ async function capture() {
     // `--hud` keeps the live loop and takes a page screenshot (includes the HUD, needs more memory and time).
     if (!opt.hud) await dbg(() => { window.__gtaDebug.stopLoop(); window.__gtaDebug.renderer.getContext().finish(); });
     const shot = async (name, h) => {
+      if (frames.some((f) => f.name === name)) return; // captured by an earlier attempt
       await dismiss();
       await dbg(() => window.__gtaDebug.settle(120));
       let stats, method = 'canvas';
@@ -136,9 +143,9 @@ async function capture() {
   }
 }
 try {
-  // a page can crash when several headless browsers fight over the CPU/RAM: retry the whole capture up to 3 times
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try { frames.length = 0; await capture(); failed = false; break; }
+  // a page can crash when several headless browsers fight over the CPU/RAM: retry the capture up to 8 times (frames already taken are kept)
+  for (let attempt = 1; attempt <= 8; attempt++) {
+    try { await capture(); failed = false; break; }
     catch (e) {
       failed = true;
       console.error(`[screens] attempt ${attempt} FAIL`, String(e.message ?? e).slice(0, 400));

@@ -1,6 +1,6 @@
 /**
  * Stage 2 QA: small deterministic repros for the defects the 5-minute traffic sim turned up.
- * Each defect test is `it.fails`: it passes while the defect exists and goes red when it is fixed
+ * Each defect test was `it.fails` (red when fixed); all four were flipped to `it` by F12 once fixed
  * (then change `it.fails` to `it`). Ids are tracked in docs/swarm/qa-stage2.md.
  */
 import { describe, expect, it } from 'vitest';
@@ -92,7 +92,7 @@ describe('TrafficAgent on the real map', () => {
 
   // Q10-D4: a car that has been pushed off its lane drives straight at its target node; if a thin static (signal
   // pole, r = 0.12 m) is on that line it wedges against it, 'backing' 2 m and returning to the same line forever.
-  it.fails('Q10-D4: an off-lane car aimed through a signal pole gets past it within 60 s', () => {
+  it('Q10-D4 (fixed by F12): an off-lane car aimed through a signal pole gets past it within 60 s', () => {
     const { physics, world } = realPhysics();
     const sim = new Sim(physics);
     const v = makeVehicle('sedan', 258.8, -196.7, -2.35, new EventBus(), 'wedge'); // 2.5 m from signal:garvey|hart:1:1

@@ -81,6 +81,8 @@ export class Pedestrian implements Entity {
   private followers = 0;
   private movingNow = false;
   private blockTimer = 0;
+  private blockKey = '';
+  private blockSign: 1 | -1 = 1;
   private readonly blockSlide: Vec2 = { x: 0, z: 0 };
 
   constructor(
@@ -344,20 +346,27 @@ export class Pedestrian implements Entity {
       const qu = qx * fx + qz * fz;
       const qw = qx * rx + qz * rz;
       let tx: number, tz: number;
-      if (Math.abs(qw) / hw >= Math.abs(qu) / hl) {
+      const side = Math.abs(qw) / hw >= Math.abs(qu) / hl;
+      // the way round is chosen once per car and kept (the goal can point straight across the car, where the sign flips)
+      const key = `${o.id}${side ? 'L' : 'E'}`;
+      let s = this.blockKey === key ? this.blockSign : 0;
+      if (side) {
         // at a long side: slide toward the end that lies nearer the goal
-        const s = gx * fx + gz * fz >= 0 ? 1 : -1;
+        if (s === 0) s = gx * fx + gz * fz >= 0 ? 1 : -1;
         tx = fx * s;
         tz = fz * s;
       } else {
-        const s = gx * rx + gz * rz >= 0 ? 1 : -1;
+        if (s === 0) s = gx * rx + gz * rz >= 0 ? 1 : -1;
         tx = rx * s;
         tz = rz * s;
       }
+      this.blockKey = key;
+      this.blockSign = s as 1 | -1;
       this.blockSlide.x = tx;
       this.blockSlide.z = tz;
       return;
     }
+    this.blockKey = '';
   }
 
   /** Group member: stay at the leader's side, wait when the leader waits. */

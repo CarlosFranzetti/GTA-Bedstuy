@@ -214,7 +214,7 @@ describe('full-density traffic, 5 simulated minutes on the real map (PRD 5.2)', 
   // Q10-D1: AI cars rear-end and T-bone each other. The follower's obstacle ray starts at the lane-offset line
   // (pos - right * lat) although the body has not moved there yet, so it cannot see the car in front while a pass
   // is being started or cancelled. Expected after the fix: at most a couple of >= 3 m/s AI-vs-AI impacts in 5 min.
-  it.fails('Q10-D1: AI-vs-AI collisions with closing speed >= 3 m/s stay below 3 per 5 minutes (seeds 7 + 21)', () => {
+  it('Q10-D1 (fixed by F12): AI-vs-AI collisions with closing speed >= 3 m/s stay below 3 per 5 minutes (seeds 7 + 21)', () => {
     for (const seed of SEEDS) {
       const hard = runs.get(seed)!.impacts.filter((i) => i.strength >= 3 && (i.aDriver === 'traffic' || i.aDriver === 'cop') && (i.bDriver === 'traffic' || i.bDriver === 'cop'));
       expect(hard.length).toBeLessThan(3);
@@ -222,7 +222,7 @@ describe('full-density traffic, 5 simulated minutes on the real map (PRD 5.2)', 
   });
 
   // Q10-D3: AI cars knock pedestrians down (3 times in seed 7, once in seed 21).
-  it.fails('Q10-D3: no AI car knocks a pedestrian down in 5 minutes (seeds 7 + 21)', () => {
+  it('Q10-D3 (fixed by F12): no AI car knocks a pedestrian down in 5 minutes (seeds 7 + 21)', () => {
     for (const seed of SEEDS) expect(runs.get(seed)!.knockedDown).toEqual([]);
   });
 

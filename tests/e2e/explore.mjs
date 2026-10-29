@@ -60,6 +60,32 @@ try {
   if (await resume.isVisible().catch(() => false)) await resume.click();
   await page.evaluate(() => { window.__gtaDebug.setHour(12); window.__gtaDebug.step(5); });
 
+  // ------------------------------------------------------------------ 0. initial vehicle state: nobody starts wrecked or interpenetrating
+  report.checks.initialCars = await page.evaluate(() => {
+    const d = window.__gtaDebug;
+    const vs = d.traffic.vehicles;
+    const out = { cars: vs.length, damaged: [], overlapping: [], insideWall: [] };
+    for (const v of vs) if (v.damage > 0.02) out.damaged.push({ id: v.id, damage: +v.damage.toFixed(2), driver: v.driver });
+    for (let i = 0; i < vs.length; i++) {
+      const a = vs[i];
+      const hl = a.spec.length / 2, hw = a.spec.width / 2;
+      const c = Math.cos(a.body.heading), s = Math.sin(a.body.heading);
+      for (let j = i + 1; j < vs.length; j++) {
+        const b = vs[j];
+        const dx = b.body.pos.x - a.body.pos.x, dz = b.body.pos.z - a.body.pos.z;
+        if (dx * dx + dz * dz > 36) continue;
+        // car heading 0 = north (-z); forward = (sin h, -cos h), right = (cos h, sin h)
+        const along = dx * s - dz * c, lat = dx * c + dz * s;
+        const dh = Math.abs(Math.atan2(Math.sin(b.body.heading - a.body.heading), Math.cos(b.body.heading - a.body.heading)));
+        const par = dh < 0.25 || dh > Math.PI - 0.25;
+        if (par && Math.abs(along) < hl * 2 - 0.4 && Math.abs(lat) < hw * 2 - 0.2) out.overlapping.push({ a: a.id, b: b.id, along: +along.toFixed(2), lat: +lat.toFixed(2), at: [+a.body.pos.x.toFixed(1), +a.body.pos.z.toFixed(1)] });
+      }
+    }
+    return out;
+  });
+  if (report.checks.initialCars.damaged.length) add('initialCars', 'P2', `${report.checks.initialCars.damaged.length} of ${report.checks.initialCars.cars} cars start the session damaged`, report.checks.initialCars.damaged.slice(0, 20));
+  if (report.checks.initialCars.overlapping.length) add('initialCars', 'P2', `${report.checks.initialCars.overlapping.length} pair(s) of cars start interpenetrating`, report.checks.initialCars.overlapping.slice(0, 20));
+
   // ------------------------------------------------------------------ 1. block corners
   report.checks.corners = await page.evaluate(() => {
     const d = window.__gtaDebug;
