@@ -82,11 +82,10 @@ export function pickVoices(voices: readonly VoiceLike[]): Record<VoiceRole, Voic
     return v;
   };
   out.host = take((v) => MALE.test(v.name));
-  out.sidekick = take((v) => FEMALE.test(v.name) && v !== out.host);
-  out.caller = take((v) => !FEMALE.test(v.name) || !MALE.test(v.name));
+  out.sidekick = take((v) => FEMALE.test(v.name));
+  out.caller = take((v) => MALE.test(v.name) || !FEMALE.test(v.name));
   out.announcer = take(() => true);
-  // Not enough voices: roles without their own voice share the host's, told apart by pitch and rate.
-  for (const r of ['sidekick', 'caller', 'announcer'] as VoiceRole[]) if (!out[r]) out[r] = null;
+  // With fewer voices than roles the spare roles stay null: they share the host's voice, told apart by pitch and rate.
   return out;
 }
 

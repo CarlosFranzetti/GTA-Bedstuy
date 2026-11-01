@@ -171,6 +171,60 @@ describe('buildRoads', () => {
     expect(maxCurbV).toBeLessThanOrEqual(1);
   });
 
+  describe('graniteCurb (T11 tile: 1.2 m stone, joint at u = 0; rows top 0.48 / chamfer / face 0.54-0.92 / gutter)', () => {
+    const curbMeshes = (g: THREE.Group) => meshes(g).filter((m) => m.name.startsWith('curbs'));
+    // two blocks in the same column-parity class would get one stone; make the second block odd so both variants appear
+    const twoVariantGrid = (): GridModel => { const g = fakeGrid(); g.blocks[1] = { ...g.blocks[1]!, col: 0 }; return g; };
+
+    it('uses the graniteCurb key (both variants, alternating per block) and no longer the generic granite key', () => {
+      const lib = stubLib();
+      const { group } = buildRoads(twoVariantGrid(), lib);
+      expect(lib.requested.has('graniteCurb:0')).toBe(true);
+      expect(lib.requested.has('graniteCurb:1')).toBe(true);
+      expect(lib.requested.has('granite:0')).toBe(false);
+      expect(curbMeshes(group).map((m) => m.name).sort()).toEqual(['curbs', 'curbs-warm']);
+    });
+
+    it('blocks alternate in a checkerboard: neighbours along a row or a column never share a variant', () => {
+      for (const [r, c] of [[0, 0], [0, 1], [1, 0], [1, 1], [2, 3]]) {
+        const lib = stubLib();
+        const g = fakeGrid(); g.blocks.length = 1; g.blocks[0] = { ...g.blocks[0]!, row: r, col: c };
+        buildRoads(g, lib);
+        expect(lib.requested.has(`graniteCurb:${(r + c) % 2}`)).toBe(true);
+        expect(lib.requested.has(`graniteCurb:${1 - ((r + c) % 2)}`)).toBe(false);
+      }
+    });
+
+    it('u counts 1.2 m stones along the run from a joint at u = 0; v follows the painter rows per face', () => {
+      const { group } = buildRoads(fakeGrid(), stubLib());
+      const m = curbMeshes(group).find((x) => x.name === 'curbs')!;
+      const pos = m.geometry.getAttribute('position'), uv = m.geometry.getAttribute('uv');
+      let minU = Infinity, maxU = -Infinity;
+      for (let i = 0; i < uv.count; i++) {
+        minU = Math.min(minU, uv.getX(i)); maxU = Math.max(maxU, uv.getX(i));
+        const v = uv.getY(i), y = pos.getY(i);
+        expect(v).toBeGreaterThan(0.02); expect(v).toBeLessThan(0.98); // never on the tile edge
+        if (y > 0.14) expect(v === 0.97 || v === 0.52 || Math.abs(v - 0.97) < 1e-6 || Math.abs(v - 0.52) < 1e-6).toBe(true); // top face: canvas rows 0..0.48 -> v 0.52..1
+        if (y < 1e-6) expect(v).toBeLessThan(0.1); // foot = gutter grit rows
+      }
+      expect(minU).toBeCloseTo(0, 5);
+      // the longest run of block r0c0 is 86.4 m (86 + two curb widths) -> 72 stones
+      expect(maxU).toBeCloseTo(86.4 / 1.2, 3);
+      // a roadway-facing vertical face spans v 0.03..0.46 (rows 0.54..0.97), the chamfer 0.46..0.52 (rows 0.48..0.54)
+      const vs = new Set<number>(); for (let i = 0; i < uv.count; i++) vs.add(Math.round(uv.getY(i) * 100) / 100);
+      for (const v of [0.03, 0.08, 0.46, 0.52, 0.97]) expect(vs.has(v), String(v)).toBe(true);
+    });
+
+    it('curb geometry (positions) and colliders are unchanged by the UV remap: 4 edge walls, same curb height', () => {
+      const { group, colliders } = buildRoads(fakeGrid(), stubLib());
+      expect(colliders.length).toBe(4);
+      const m = curbMeshes(group)[0]!;
+      const pos = m.geometry.getAttribute('position');
+      let maxY = 0; for (let i = 0; i < pos.count; i++) maxY = Math.max(maxY, pos.getY(i));
+      expect(maxY).toBeCloseTo(0.15, 5);
+    });
+  });
+
   it('has no NaN or infinite vertex positions', () => {
     const { group } = buildRoads(fakeGrid(), stubLib());
     for (const m of meshes(group)) {

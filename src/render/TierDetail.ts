@@ -69,7 +69,7 @@ export function setAnisotropy(root: THREE.Object3D, cap: number): number {
       seen.add(t);
       if (!anisoHome.has(t)) anisoHome.set(t, t.anisotropy);
       const want = Math.max(1, Math.min(cap, anisoHome.get(t)!));
-      if (t.anisotropy !== want) { t.anisotropy = want; t.needsUpdate = true; changed++; }
+      if (t.anisotropy !== want) { t.anisotropy = want; if (t.image) t.needsUpdate = true; changed++; }
     }
   }
   return changed;

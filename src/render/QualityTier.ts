@@ -31,8 +31,6 @@ export interface TierConfig {
   carNearDist: number;
   /** pedestrians are hidden beyond this (m); props use cullDistance */
   pedDistance: number;
-  /** camera far plane (m); every tier shares the game default except phone */
-  cameraFar: number;
   /** fog override (m): the day/night time cycle fog is clamped to these, so the cull edge is hidden. null = time cycle only */
   fog: { near: number; far: number } | null;
   /** rain streak count */
@@ -50,22 +48,22 @@ export interface TierConfig {
 
 export const TIER_CONFIG: Record<Quality, TierConfig> = {
   phone: {
-    maxPixelRatio: 1, maxBufferWidth: 720, cullDistance: 110, carNearDist: 14, pedDistance: 55, cameraFar: 140,
+    maxPixelRatio: 1, maxBufferWidth: 720, cullDistance: 110, carNearDist: 14, pedDistance: 55,
     fog: { near: 35, far: 105 }, rainStreaks: 200, anisotropy: 2, normalMaps: false, stars: false, minimapHz: 30,
     traffic: { maxMoving: 10, peds: 14, parkOccupancy: 0.3, cops: 1 },
   },
   low: {
-    maxPixelRatio: 1.25, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 32, pedDistance: 220, cameraFar: 900,
+    maxPixelRatio: 1.25, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 32, pedDistance: 220,
     fog: null, rainStreaks: 600, anisotropy: 16, normalMaps: true, stars: true, minimapHz: 0,
     traffic: { maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 },
   },
   medium: {
-    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 32, pedDistance: 220, cameraFar: 900,
+    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 32, pedDistance: 220,
     fog: null, rainStreaks: 1200, anisotropy: 16, normalMaps: true, stars: true, minimapHz: 0,
     traffic: { maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 },
   },
   high: {
-    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 32, pedDistance: 220, cameraFar: 900,
+    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 32, pedDistance: 220,
     fog: null, rainStreaks: 2000, anisotropy: 16, normalMaps: true, stars: true, minimapHz: 0,
     traffic: { maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 },
   },

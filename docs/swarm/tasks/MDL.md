@@ -73,8 +73,7 @@ loader normalises height to 1.75 m, so this should be fine; verify in game (open
 - The npm search surfaced mostly unrelated packages; only `@netforge/asset-library-files` and `munim-maps-vehicles` carried
   real car or character GLBs.
 - Kenney's own page is unreachable, so Kenney CC0 rests on the netforge `NOTICE` and secondary mentions (WebSearch,
-  nrknithin PR #54 title "Kenney Car Kit (CC0)"). Mark: secondary, pending primary check. Pinned evidence: the netforge
-  package sha/bytes are recorded above.
+  nrknithin PR #54 title "Kenney Car Kit (CC0)"). Mark: secondary, pending primary check. Pinned tarballs: netforge asset-library-files 0.2.0 sha256 a6413e6d8b5322718a097384d275b9d720927bc159e2d48871d56520b5379eca (18,740,155 B); munim-maps-vehicles 0.5.0 sha256 712e5cab4b1c2b96fb9c1853832fc0332c8632abda06ba5cf253f41b0de0c063 (12,265,705 B).
 - The Quaternius adventurer origin is contested: nrknithin PR #55 says `adventurer` is in the UAC pack, another PR says
   none of the UAC's 50 characters is an adventurer. The netforge NOTICE attributes the set to Quaternius (CC0); the
   Modular Men pack (where an "Adventurer" and "Hoodie" are listed) is the likely source. Not verified at source.
