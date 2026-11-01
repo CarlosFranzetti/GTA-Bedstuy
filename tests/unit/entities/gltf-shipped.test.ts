@@ -219,22 +219,34 @@ describe.each(['character.glb', 'character-hoodie.glb'])('shipped %s', (file) =>
   });
 
   if (file === 'character.glb') {
-    it('faces -z (the game forward): the eyes are in front of the head bone', () => {
-      const rig = source.instantiate(0);
-      rig.group.updateMatrixWorld(true);
+    it('is authored facing glTF +z (the loader turns it to the game -z): the eyes are in front of the head bone', async () => {
+      const raw = await parseShipped(file); // a fresh copy: the source above has already merged its meshes
+      raw.scene.updateMatrixWorld(true);
       let head: THREE.Object3D | undefined;
       const eyes: THREE.Mesh[] = [];
-      rig.group.traverse((o) => {
+      raw.scene.traverse((o) => {
         if (/^head$/i.test(o.name)) head ??= o;
         const m = o as THREE.Mesh;
         if (m.isMesh && /eye/i.test((m.material as THREE.Material).name)) eyes.push(m);
       });
       expect(head).toBeDefined();
       expect(eyes.length).toBeGreaterThan(0);
-      const eyeZ = boxOf(eyes[0]).getCenter(new THREE.Vector3()).z;
-      expect(eyeZ).toBeLessThan(head!.getWorldPosition(new THREE.Vector3()).z);
+      expect(boxOf(eyes[0]).getCenter(new THREE.Vector3()).z).toBeGreaterThan(head!.getWorldPosition(new THREE.Vector3()).z);
     });
   }
+
+  it('is merged into few meshes (draw calls): cloth separate from everything else', () => {
+    const rig = source.instantiate(2);
+    const names: string[] = [];
+    rig.group.traverse((o) => { if ((o as THREE.Mesh).isMesh) names.push(o.name); });
+    if (file === 'character.glb') {
+      expect(names.length).toBeLessThanOrEqual(2);
+      expect(names).toContain('character-rest');
+      const mats: string[] = [];
+      rig.group.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) mats.push((m.material as THREE.Material).name); });
+      expect(mats).toContain('Shirt');
+    } else expect(names.length).toBeLessThan(14);
+  });
 
   it('has no sword or other weapon node', () => {
     let weapon = false;

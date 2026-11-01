@@ -10,6 +10,7 @@
  */
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Rng } from '@/core/Rng';
 import type { CharacterRig, CharacterSource, IMaterialLibrary } from '@/world/types';
 import { animateWalk, buildHumanModel } from '@/entities/models/humanModel';
@@ -114,6 +115,7 @@ export class GltfCharacterSource implements CharacterSource {
     const all = new Set<THREE.Material>();
     this.scene.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) for (const x of Array.isArray(m.material) ? m.material : [m.material]) all.add(x); });
     this.cloth = clothMaterials([...all]);
+    mergeSkinnedMeshes(this.scene, this.cloth);
     // skinned bounds come from the bind pose and would cull animated limbs
     this.scene.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) o.frustumCulled = false; });
   }
@@ -183,6 +185,79 @@ export class GltfCharacterSource implements CharacterSource {
       if (!mesh.isMesh) return;
       mesh.material = Array.isArray(mesh.material) ? mesh.material.map(tintOne) : tintOne(mesh.material);
     });
+  }
+}
+
+/** Float32 position / normal, Uint16 skin indices, Float32 weights, 32-bit index: the common shape for merging. */
+function uniformSkinGeometry(g: THREE.BufferGeometry, colour: THREE.Color | null): THREE.BufferGeometry {
+  const out = new THREE.BufferGeometry();
+  const f = (a: THREE.BufferAttribute | THREE.InterleavedBufferAttribute, size: number, Ctor: typeof Float32Array | typeof Uint16Array): THREE.BufferAttribute => {
+    const arr = new Ctor(a.count * size);
+    for (let i = 0; i < a.count; i++) {
+      arr[i * size] = a.getX(i);
+      if (size > 1) arr[i * size + 1] = a.getY(i);
+      if (size > 2) arr[i * size + 2] = a.getZ(i);
+      if (size > 3) arr[i * size + 3] = a.getW(i);
+    }
+    return new THREE.BufferAttribute(arr, size);
+  };
+  const pos = g.getAttribute('position');
+  out.setAttribute('position', f(pos, 3, Float32Array));
+  const nor = g.getAttribute('normal');
+  if (nor) out.setAttribute('normal', f(nor, 3, Float32Array));
+  out.setAttribute('skinIndex', f(g.getAttribute('skinIndex'), 4, Uint16Array));
+  out.setAttribute('skinWeight', f(g.getAttribute('skinWeight'), 4, Float32Array));
+  if (colour) {
+    const c = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) { c[i * 3] = colour.r; c[i * 3 + 1] = colour.g; c[i * 3 + 2] = colour.b; }
+    out.setAttribute('color', new THREE.BufferAttribute(c, 3));
+  }
+  const idx = g.index ? Uint32Array.from(g.index.array as ArrayLike<number>) : Uint32Array.from({ length: pos.count }, (_, i) => i);
+  out.setIndex(new THREE.BufferAttribute(idx, 1));
+  return out;
+}
+
+/**
+ * glTF loading splits a multi-material mesh into one SkinnedMesh per material (6 for the worker, 14 for the adventurer), and
+ * every one is a draw call in the colour pass and again in each shadow cascade. Untextured meshes that share a skeleton and a
+ * transform are merged into one mesh per cloth material (so the tint still reaches the shirt) plus ONE mesh for everything else,
+ * with the material colours baked into vertex colours. Textured meshes are left alone.
+ */
+export function mergeSkinnedMeshes(scene: THREE.Object3D, cloth: ReadonlySet<THREE.Material>): void {
+  scene.updateMatrixWorld(true);
+  const groups = new Map<string, THREE.SkinnedMesh[]>();
+  scene.traverse((o) => {
+    const m = o as THREE.SkinnedMesh;
+    if (!m.isSkinnedMesh || Array.isArray(m.material)) return;
+    const mat = m.material as THREE.MeshStandardMaterial;
+    if (mat.map || mat.normalMap || mat.vertexColors || mat.transparent || mat.color === undefined) return;
+    if (!m.geometry.getAttribute('skinIndex') || !m.geometry.getAttribute('skinWeight') || !m.geometry.getAttribute('position')) return;
+    const key = `${m.skeleton.bones.map((b) => b.uuid).join(',')}|${m.skeleton.boneInverses.map((i) => i.elements.map((x) => x.toFixed(3)).join(',')).join(';')}|${m.bindMatrix.elements.map((x) => x.toFixed(4)).join(',')}|${m.matrixWorld.elements.map((x) => x.toFixed(4)).join(',')}`;
+    (groups.get(key) ?? groups.set(key, []).get(key)!).push(m);
+  });
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    const bySlot = new Map<THREE.Material | 'rest', THREE.SkinnedMesh[]>();
+    for (const m of list) {
+      const slot = cloth.has(m.material as THREE.Material) ? (m.material as THREE.Material) : 'rest';
+      (bySlot.get(slot) ?? bySlot.set(slot, []).get(slot)!).push(m);
+    }
+    for (const [slot, ms] of bySlot) {
+      if (ms.length < 2 && slot !== 'rest') continue;
+      if (ms.length < 2) continue;
+      const first = ms[0];
+      const geoms = ms.map((m) => uniformSkinGeometry(m.geometry, slot === 'rest' ? (m.material as THREE.MeshStandardMaterial).color : null));
+      const merged = mergeGeometries(geoms, false);
+      for (const g of geoms) g.dispose();
+      if (!merged) continue;
+      if (slot === 'rest') {
+        const rough = ms.reduce((a, m) => a + (m.material as THREE.MeshStandardMaterial).roughness, 0) / ms.length;
+        first.material = new THREE.MeshStandardMaterial({ name: 'character-rest', vertexColors: true, roughness: rough, metalness: 0 });
+      }
+      first.geometry = merged;
+      first.name = slot === 'rest' ? 'character-rest' : `character-${(slot as THREE.Material).name || 'cloth'}`;
+      for (const m of ms) if (m !== first) m.removeFromParent();
+    }
   }
 }
 

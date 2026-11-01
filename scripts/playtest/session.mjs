@@ -114,6 +114,14 @@ async function main() {
   const dist = join(D, '.dist');
   rmSync(dist, { recursive: true, force: true });
   cpSync(srcDist, dist, { recursive: true });
+  // the port must be free: a leftover preview from an earlier run would silently serve another build
+  for (let i = 0; i < 40; i++) {
+    let busy = false;
+    try { busy = (await fetch(`http://localhost:${opt.port}/`)).ok; } catch { /* free */ }
+    if (!busy) break;
+    if (i === 39) { console.error(`[playtest] port ${opt.port} is already serving something; pick another --port`); process.exit(1); }
+    await sleep(500);
+  }
   const preview = spawn('node', [join(ROOT, 'node_modules/vite/bin/vite.js'), 'preview', '--outDir', dist, '--port', String(opt.port), '--strictPort'], { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'] });
   let previewDead = false;
   preview.on('exit', () => { previewDead = true; });

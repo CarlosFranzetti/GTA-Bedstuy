@@ -26,7 +26,7 @@ import { Minimap } from '@/ui/Minimap';
 import { TouchControls } from '@/ui/TouchControls';
 import { AudioSystem } from '@/audio/AudioSystem';
 import { RenderPipeline } from '@/render/Pipeline';
-import { setupShadows, updateShadowCamera, applyShadowFlags, type Quality } from '@/render/Shadows';
+import { setupShadows, updateShadowCamera, applyShadowFlags, SHADOWS_ENABLED, type Quality } from '@/render/Shadows';
 import { SkyDome } from '@/render/SkyDome';
 import { NightLights } from '@/render/NightLights';
 import { SunFlare } from '@/render/LensFlare';
@@ -38,6 +38,7 @@ import { Weather } from '@/game/Weather';
 import { LIGHTING } from '@/render/LightingConfig';
 import { tierConfig, pixelRatioFor } from '@/render/QualityTier';
 import { setNormalMaps, setAnisotropy } from '@/render/TierDetail';
+import { setPhoneDetailHidden } from '@/render/TierGeometry';
 import { Menu } from '@/ui/Menu';
 import { RadioUi } from '@/ui/RadioUi';
 import { GamepadInput } from '@/core/Gamepad';
@@ -49,7 +50,7 @@ import { buildMissions } from '@/game/missions/content';
 import { MissionMarkerView } from '@/game/missions/MissionMarkerView';
 import { saveMissionData, loadMissionData, clearMissionData } from '@/game/missions/MissionStore';
 import { MissionHud } from '@/ui/MissionHud';
-import { DistanceCuller } from '@/render/Culling';
+import { DistanceCuller, InstanceCuller } from '@/render/Culling';
 import { CarLod, applyCarShadowFlags } from '@/render/CarLod';
 import { RenderProxies } from '@/render/AoProxy';
 import { buildCarModel } from '@/entities/models/carModel';
@@ -61,14 +62,17 @@ declare global {
 const app = document.getElementById('app')!;
 
 // ---- renderer / scene
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 const isTouch = Input.isTouchDevice();
 const params = new URLSearchParams(location.search);
 // A/B switches for perf measurements and bug reports: ?proxies=0 (full shadow/AO scene renders), ?lod=0 (full cars everywhere)
-const useProxies = params.get('proxies') !== '0';
+const proxiesAllowed = params.get('proxies') !== '0';
+/** Render proxies (shadow / AO stand-ins) are only built for tiers that draw shadows or AO; the phone tier builds them on its first switch up. */
+let useProxies = false;
 const useCarLod = params.get('lod') !== '0';
 const resolvedQuality = resolveQuality(params.get('q'), isTouch); // ?q=ultra exists only in the hosted build: 'high' + ultra textures
 let quality: Quality = resolvedQuality.quality;
+// the scene is drawn into the composer's targets, so the canvas MSAA only multisamples the final full-screen quad: skip it on phones
+const renderer = new THREE.WebGLRenderer({ antialias: quality !== 'phone', powerPreference: 'high-performance' });
 const tier0 = tierConfig(quality);
 const ratioFor = (q: Quality): number => pixelRatioFor(q, window.devicePixelRatio, window.innerWidth);
 renderer.setPixelRatio(ratioFor(quality));
@@ -114,13 +118,22 @@ setupShadows(renderer, dayNight.sun, quality);
 applyShadowFlags(world.group, true, true);
 // Shadow pass + AO G-buffer draw merged position-only stand-ins instead of every material mesh (see AoProxy.ts)
 const proxies = new RenderProxies();
-if (useProxies) {
+let carLodReady = false;
+let instanceCuller: InstanceCuller | null = null;
+function ensureProxies(): void {
+  if (useProxies || !proxiesAllowed || !SHADOWS_ENABLED[quality]) return;
+  useProxies = true;
+  instanceCuller?.setRange(Infinity); // the proxies read the full instance matrices
   const t0 = performance.now();
   const build = proxies.addStatic([world.group], 100, 100);
   scene.add(proxies.shadowGroup);
   console.info(`[perf] render proxies: ${proxies.ao.children.length} cells, ${build.vertices} verts, ${build.triangles} tris from ${build.covered.length} meshes (${build.skipped.length} kept real) in ${Math.round(performance.now() - t0)} ms`);
+  proxies.wrapShadowRender(renderer);
+  if (carLodReady) registerHulls();
+  shadowFlagged = new WeakSet<object>();
+  instanceCuller?.setRange(tierConfig(quality).instanceDistance);
 }
-if (useProxies) proxies.wrapShadowRender(renderer);
+ensureProxies();
 const sky = new SkyDome(scene, renderer, materials);
 sky.starsEnabled = tier0.stars;
 dayNight.attachSky(sky);
@@ -137,6 +150,10 @@ await nextPaint();
 // distance culling: prop cells (static) and, per frame, traffic cars and peds
 const culler = new DistanceCuller(tier0.cullDistance);
 for (const m of world.propCells) culler.addStatic(m);
+// street trees, lamps, hydrants: one InstancedMesh per kind covers the whole city, so thin them by distance on the phone tier
+instanceCuller = new InstanceCuller();
+for (const o of world.furnitureGroup.children) if ((o as THREE.InstancedMesh).isInstancedMesh) instanceCuller.add(o as THREE.InstancedMesh);
+instanceCuller.setRange(tier0.instanceDistance);
 
 // ---- entities (optional real models: src/assets/models/README.md)
 loading.begin('entities');
@@ -153,10 +170,14 @@ const carLod = new CarLod(materials, {
 });
 scene.add(carLod.group);
 const HULL_TYPES = ['sedan', 'suv', 'boxtruck'];
-if (useProxies) for (const t of HULL_TYPES) { const g = carLod.hullFor(t); if (g) proxies.addHull(t, g, true); }
-if (useProxies) proxies.addHull('capsule', new THREE.CapsuleGeometry(0.28, 1.1, 2, 6).translate(0, 0.83, 0), false);
+function registerHulls(): void {
+  for (const t of HULL_TYPES) { const g = carLod.hullFor(t); if (g) proxies.addHull(t, g, true); }
+  proxies.addHull('capsule', new THREE.CapsuleGeometry(0.28, 1.1, 2, 6).translate(0, 0.83, 0), false);
+}
+carLodReady = true;
+if (useProxies) registerHulls();
 const hullKey = (t: string): string => (t === 'cop' ? 'sedan' : t);
-const shadowFlagged = new WeakSet<object>();
+let shadowFlagged = new WeakSet<object>();
 const crosswalkNodes = new Set<string>();
 for (const cw of grid.crosswalks) {
   for (const p of [cw.a, cw.b]) crosswalkNodes.add(grid.nearestSidewalkNode(p).id);
@@ -219,6 +240,7 @@ function applyQuality(q: Quality): void {
   const prev = quality;
   quality = q;
   const t = tierConfig(q);
+  ensureProxies(); // first switch up from the phone tier: build the shadow / AO stand-ins before the pipeline attaches to them
   renderer.setPixelRatio(ratioFor(q));
   renderer.setSize(window.innerWidth, window.innerHeight);
   pipeline.setQuality(q);
@@ -228,6 +250,7 @@ function applyQuality(q: Quality): void {
   if (q === prev) return;
   // everything below changes with the tier (see QualityTier.ts)
   culler.setMaxDist(t.cullDistance);
+  instanceCuller?.setRange(t.instanceDistance);
   carLod.setNearDist(useCarLod ? t.carNearDist : Infinity);
   weather.setRainStreaks(t.rainStreaks);
   sky.starsEnabled = t.stars;
@@ -239,6 +262,7 @@ function applyQuality(q: Quality): void {
 /** Material detail of a tier: normal / roughness maps and texture anisotropy (re-run after late texture loads). */
 function applyDetail(t = tierConfig(quality)): void {
   setNormalMaps(scene, t.normalMaps);
+  setPhoneDetailHidden(world.group, t.simpleGeometry);
   setAnisotropy(scene, Math.min(t.anisotropy, renderer.capabilities.getMaxAnisotropy()));
 }
 // Explicit ?q= (review scripts, bug reports) or ?perf=0 keeps the requested quality for the whole session.
@@ -353,6 +377,7 @@ function drawFrame(alpha: number, frameDt: number): void {
     updateSignalMeshes(world.signalsGroup, lights);
     weather.update(frameDt, cam.camera.position);
     culler.update(cam.camera.position.x, cam.camera.position.z);
+    instanceCuller?.update(cam.camera.position.x, cam.camera.position.z);
     updateShadowCamera(dayNight.sun, camTarget);
     sky.update(dayNight.timeOfDay, sunDir, dayNight.isNight, cam.camera.position);
     const tf = tierConfig(quality).fog; // phone: pull the fog in so it hides the short cull range (DayNight rewrites it every step)

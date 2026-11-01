@@ -137,7 +137,7 @@ describe('MaterialLibrary', () => {
     expect(w.emissiveIntensity).toBe(0);
     lib.setNight(true);
     expect(w.emissiveIntensity).toBe(0.9);
-    expect(s.emissiveIntensity).toBe(0.9);
+    expect(s.emissiveIntensity).toBe(0.35); // L10: big flat shop glazing is capped (windows keep 0.9)
     expect(w.emissive.getHexString()).toBe('ffd27a');
     const late = lib.get('window', 2) as THREE.MeshStandardMaterial;
     expect(late.emissiveIntensity).toBe(0.9);
@@ -145,6 +145,22 @@ describe('MaterialLibrary', () => {
     expect(w.emissiveIntensity).toBe(0);
     expect(late.emissiveIntensity).toBe(0);
     expect((lib.awning('#ff0000', 'A') as THREE.MeshStandardMaterial).emissive.getHex()).toBe(0);
+  });
+
+  it('shop glazing night emissive is capped at 0.35 x texel in every variant, apartment windows stay at 0.9', () => {
+    const { lib } = setup();
+    lib.setNight(true);
+    for (let v = 0; v < 2; v++) {
+      const s = lib.get('storefrontGlass', v) as THREE.MeshStandardMaterial;
+      expect(s.emissiveIntensity).toBeGreaterThan(0.2);
+      expect(s.emissiveIntensity).toBeLessThanOrEqual(0.35);
+    }
+    for (let v = 0; v < 4; v++) expect((lib.get('window', v) as THREE.MeshStandardMaterial).emissiveIntensity).toBe(0.9);
+    lib.setNight(false);
+    expect((lib.get('storefrontGlass', 1) as THREE.MeshStandardMaterial).emissiveIntensity).toBe(0);
+    // a glazing created while it is already night starts capped too
+    lib.setNight(true);
+    expect((lib.get('storefrontGlass', 0) as THREE.MeshStandardMaterial).emissiveIntensity).toBe(0.35);
   });
 
   it('textures are repeat-wrapped sRGB canvas textures of 256-1024 px; materials are standard', () => {

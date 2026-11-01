@@ -2,8 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { QUALITY_ORDER, TIER_CONFIG, pixelRatioFor, tierBelow, tierConfig } from '@/render/QualityTier';
 import { DEFAULT_CULL_DISTANCE, DistanceCuller, cullDistanceFor, shouldHide } from '@/render/Culling';
-import { LIGHTING, TIME_CYCLE } from '@/render/LightingConfig';
-import { PHONE_BLOOM_MIN_STRENGTH } from '@/render/Pipeline';
+import { LIGHTING } from '@/render/LightingConfig';
 import { SHADOWS_ENABLED, setupShadows } from '@/render/Shadows';
 import { resolveQuality } from '@/textures/hosted';
 import { QUALITIES } from '@/ui/Menu';
@@ -70,11 +69,6 @@ describe('tier table', () => {
     expect(low.shadow.camera.right).toBe(60);
   });
 
-  it('phone bloom only runs when the time cycle asks for glow (dusk / night), not by day', () => {
-    const at = (h: number) => TIME_CYCLE.find((k) => k.hour === h)!.bloomStrength;
-    for (const h of [7, 9, 12, 15, 17, 18]) expect(at(h)).toBeLessThan(PHONE_BLOOM_MIN_STRENGTH);
-    for (const h of [19, 20, 22, 0, 3]) expect(at(h)).toBeGreaterThanOrEqual(PHONE_BLOOM_MIN_STRENGTH);
-  });
 });
 
 describe('pixel ratio', () => {
@@ -198,5 +192,61 @@ describe('runtime tier hooks', () => {
     expect((lod as unknown as { near: number }).near).toBe(14);
     lod.setNearDist(-5); // ignored
     expect((lod as unknown as { near: number }).near).toBe(14);
+  });
+});
+
+import { InstanceCuller } from '@/render/Culling';
+import { HIDDEN_LAYER, PHONE_HIDDEN_MESH, setPhoneDetailHidden } from '@/render/TierGeometry';
+
+describe('TierGeometry', () => {
+  it('hides the small-detail meshes on a camera layer and restores them', () => {
+    const root = new THREE.Group();
+    const mk = (name: string) => { const m = new THREE.Mesh(new THREE.BufferGeometry()); m.name = name; root.add(m); return m; };
+    const fire = mk('buildings:metalDark:0'), wires = mk('props:wires'), wall = mk('buildings:limestone:0'), man = mk('manholes'), poles = mk('signal-poles');
+    expect(setPhoneDetailHidden(root, true)).toBe(3);
+    for (const m of [fire, wires, man]) { expect(m.layers.isEnabled(HIDDEN_LAYER)).toBe(true); expect(m.layers.isEnabled(0)).toBe(false); expect(m.visible).toBe(true); }
+    for (const m of [wall, poles]) expect(m.layers.isEnabled(0)).toBe(true);
+    expect(setPhoneDetailHidden(root, true)).toBe(0);
+    expect(setPhoneDetailHidden(root, false)).toBe(3);
+    expect(fire.layers.isEnabled(0)).toBe(true);
+    expect(PHONE_HIDDEN_MESH.test('furniture:treeLeaves')).toBe(false);
+  });
+});
+
+describe('InstanceCuller', () => {
+  function trees(n: number): THREE.InstancedMesh {
+    const m = new THREE.InstancedMesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial(), n);
+    for (let i = 0; i < n; i++) m.setMatrixAt(i, new THREE.Matrix4().makeTranslation(i * 10, 0, 0));
+    return m;
+  }
+  it('keeps only instances in range (compacted, order kept), restores all on Infinity', () => {
+    const m = trees(100); // x = 0..990
+    const c = new InstanceCuller(10);
+    c.add(m);
+    c.setRange(100);
+    c.update(0, 0);
+    expect(m.count).toBe(12); // x <= 110
+    const a = m.instanceMatrix.array as Float32Array;
+    expect(a[11 * 16 + 12]).toBe(110);
+    c.update(2, 0); // moved less than the step: nothing recomputed
+    expect(m.count).toBe(12);
+    c.update(500, 0);
+    expect(m.count).toBe(23);
+    expect(a[0 * 16 + 12]).toBe(390);
+    c.setRange(Infinity);
+    expect(m.count).toBe(100);
+    expect(a[99 * 16 + 12]).toBe(990);
+    expect(m.visible).toBe(true);
+  });
+  it('hides a mesh with nothing in range (no empty draw call)', () => {
+    const m = trees(5);
+    const c = new InstanceCuller(0);
+    c.add(m);
+    c.setRange(5);
+    c.update(5000, 5000);
+    expect(m.count).toBe(0);
+    expect(m.visible).toBe(false);
+    c.setRange(Infinity);
+    expect(m.visible).toBe(true);
   });
 });

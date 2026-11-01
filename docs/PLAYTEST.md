@@ -8,11 +8,12 @@ one or two plain sentences per step: what you see, what you want, what surprised
 
 ```
 npm run build                                             # once; the harness builds nothing itself
-node scripts/playtest/session.mjs <sessionDir> --port 4402   # --q low  --width 960  --height 540  --max-steps 80  --idle-timeout 600
+scripts/swarm-render.sh node scripts/playtest/session.mjs <sessionDir> --port 4402   # --q low  --width 960  --height 540  --max-steps 80  --idle-timeout 600
 ```
 
+In the swarm, always wrap the run in `scripts/swarm-render.sh` (shared lock, one headless Chromium at a time).
 The game takes 1 to 3 minutes to load on a software renderer. When `<sessionDir>/ready-0` exists the session is live.
-Scripted self-test without a model: `node scripts/playtest/brain-scripted.mjs <sessionDir>`.
+Scripted self-test without a model: `scripts/swarm-render.sh node scripts/playtest/brain-scripted.mjs <sessionDir>`.
 
 ## The loop
 
