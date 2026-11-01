@@ -6,9 +6,14 @@
  *  - DistanceCuller: hides registered objects (prop cells, parked cars, peds) beyond a range.
  */
 import * as THREE from 'three';
+import type { Quality } from './Shadows';
+import { TIER_CONFIG } from './QualityTier';
 
 /** Beyond this distance (m) from the player props, parked cars and peds are hidden. */
 export const DEFAULT_CULL_DISTANCE = 220;
+
+/** Cull range (m) for a quality tier: 220 everywhere except `phone` (110, hidden by its fog). */
+export const cullDistanceFor = (q: Quality): number => TIER_CONFIG[q].cullDistance;
 
 /**
  * True when a sphere (centre cx,cz on the ground plane, radius r) lies entirely farther than `maxDist` from (px,pz).
@@ -151,7 +156,9 @@ export class DistanceCuller {
   private readonly entries: Entry[] = [];
   private readonly hiddenDyn = new Set<THREE.Object3D>();
   private readonly sphere = new THREE.Sphere();
-  constructor(readonly maxDist = DEFAULT_CULL_DISTANCE) {}
+  constructor(public maxDist = DEFAULT_CULL_DISTANCE) {}
+  /** Changes the range (quality switch); the next `update` / `applyTo` shows or hides accordingly. */
+  setMaxDist(d: number): void { if (Number.isFinite(d) && d > 0) this.maxDist = d; }
   /** Static mesh: bounding sphere taken once (the mesh is assumed not to move). */
   addStatic(mesh: THREE.Mesh): void {
     const g = mesh.geometry;
@@ -170,10 +177,10 @@ export class DistanceCuller {
       if (hide !== e.hidden) { e.hidden = hide; e.obj.visible = !hide; }
     }
   }
-  /** Distance-cull one dynamic object located at (x, z). Returns true when it is hidden. */
-  applyTo(obj: THREE.Object3D, x: number, z: number, px: number, pz: number, radius = 4): boolean {
+  /** Distance-cull one dynamic object located at (x, z). Returns true when it is hidden. `range` overrides `maxDist` for this call (peds on phone). */
+  applyTo(obj: THREE.Object3D, x: number, z: number, px: number, pz: number, radius = 4, range = this.maxDist): boolean {
     const was = this.hiddenDyn.has(obj);
-    const hide = shouldHide(was, x, z, radius, px, pz, this.maxDist);
+    const hide = shouldHide(was, x, z, radius, px, pz, Math.min(range, this.maxDist));
     if (hide && !was) { obj.visible = false; this.hiddenDyn.add(obj); }
     else if (!hide && was) { obj.visible = true; this.hiddenDyn.delete(obj); }
     return hide;

@@ -8,7 +8,7 @@ export const LIGHTING = {
   /** base exposure handed to the pipeline (the per-hour time-cycle exposure multiplies it) */
   exposure: 1.0,
   /** streetlight pool size by quality */
-  lampPool: { low: 6, medium: 12, high: 12 },
+  lampPool: { phone: 4, low: 6, medium: 12, high: 12 },
   /** DayNight start hour */
   startHour: 17.5,
   /** Peak sun elevation sine (sin 60 deg). The sun path is elevation = asin(SUN_PEAK * sin(theta)). */

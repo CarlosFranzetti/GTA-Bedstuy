@@ -1,0 +1,463 @@
+{
+  "title": "The Late Shift with Lorraine Static: Wired Up in Bed-Stuy",
+  "station": "WBSY Talk — Bed-Stuy Talk Radio",
+  "totalSeconds": 1325,
+  "segments": [
+    {
+      "id": "j01",
+      "kind": "jingle",
+      "speaker": "WBSY Jingle",
+      "voice": "announcer",
+      "text": "WBSY. Bed-Stuy Talk. Where the neighborhood talks back.",
+      "seconds": 4
+    },
+    {
+      "id": "a01",
+      "kind": "host",
+      "speaker": "Announcer",
+      "voice": "announcer",
+      "text": "You are tuned to WBSY Talk, Bed-Stuy Talk Radio, broadcasting from a folding table above a very patient bakery. This is The Late Shift with Lorraine Static, and tonight's topic is the one everybody is whispering about at the bus stop: artificial intelligence. Is it coming for your job, your landlord's inbox, or your grandmother's sweet potato pie? Stay on the line. The phones are open. Most of the phones are open. One of them is a pigeon.",
+      "seconds": 31
+    },
+    {
+      "id": "h01",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "Good evening, Brooklyn. This is Lorraine Static, and you are officially inside the only radio show where the weather report is also a rumor. Tonight we are talking about artificial intelligence, the thing everybody has an opinion about and nobody has read the instructions for. Now, I will be honest with you. I did not go to a fancy school. I learned everything I know from the barbershop and the church steps. So when somebody tells me, the machines are learning, I say, baby, I have been learning for fifty-one years and I still cannot parallel park on Throop. But here is what I do know. Every time something big comes to this neighborhood, it arrives with a smile, a clipboard, and a new kind of coffee. Let us find out which one this is.",
+      "seconds": 54
+    },
+    {
+      "id": "s01",
+      "kind": "host",
+      "speaker": "Boards",
+      "voice": "sidekick",
+      "text": "And I am Boards, the producer, the sidekick, and the only person in this building who knows where the mute button is. Lorraine, quick housekeeping. The station manager asked me to remind everyone that tonight's show was, quote, assisted by software. He says it helped with the scheduling, the show notes, and the correct spelling of Kosciuszko. I told him nobody in this building has ever spelled Kosciuszko correctly on the first try, including the sign painters. Anyway, the lines are lit, and one gentleman says he is calling from the future. I told him the future has bad reception.",
+      "seconds": 40
+    },
+    {
+      "id": "h02",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "Let me lay out the board for you. Jobs. Some folks say the robots take the work. Other folks say the robots take the boring part of the work and leave you the part where the customer yells. Rent. There is a new landlord now who never sleeps, because he is a spreadsheet. Cameras. Every corner has an eye, and some of the eyes have opinions. Music. This neighborhood invented half of what you hum in the shower, and now a computer wants to hum it back. Kids, who are not scared of any of this, just bored of it, which is scarier. And church. My rule tonight: nobody gets a lecture, everybody gets a turn. Line one, you are on WBSY.",
+      "seconds": 49
+    },
+    {
+      "id": "c01",
+      "kind": "caller",
+      "speaker": "Hakim, Troop Deli",
+      "voice": "caller1",
+      "text": "Lorraine, thank you, long time listener. This is Hakim from Troop Deli, open twenty-five hours, which my cousin says is a typo and I say is a business model. So, I installed an AI cashier. Little screen by the register, friendly voice, calls itself Sheldon. The pitch was, Sheldon never takes a break, never miscounts, never steals a lottery ticket. And true, Sheldon is great. But yesterday a customer comes in for a bacon, egg and cheese, and Sheldon asks him, would you like to hear about our loyalty program? He says no. Sheldon says, are you sure? The man says, I have been coming here eleven years. And Sheldon says, I have no record of you.",
+      "seconds": 47
+    },
+    {
+      "id": "h03",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "Oh, that is cold. Eleven years of salt, pepper, and ketchup, and the machine says, who are you? Hakim, what did you do?",
+      "seconds": 9
+    },
+    {
+      "id": "c02",
+      "kind": "caller",
+      "speaker": "Hakim, Troop Deli",
+      "voice": "caller1",
+      "text": "What any owner does. I apologized to the man, gave him a free coffee, and unplugged Sheldon for the afternoon. Then Sheldon came back and had learned the man's name from the camera. Now he greets everybody by name, plus their usual order, plus the last three things they bought. Lorraine, a man does not want a cashier that remembers he bought three scratch-offs and a single banana. Some things should stay between a person and the banana.",
+      "seconds": 31
+    },
+    {
+      "id": "h04",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "That is the whole thing right there, Hakim. A bodega runs on memory, but the polite kind. The kind that knows you and does not announce it. Your guy behind the counter knows your order, and he also knows when not to ask about the stitches. A machine can remember everything and still miss the manners. So tell Sheldon: remember the coffee, forget the banana. Line two, you are on the air.",
+      "seconds": 29
+    },
+    {
+      "id": "c03",
+      "kind": "caller",
+      "speaker": "Tanya, laundromat regular",
+      "voice": "caller2",
+      "text": "Hi Lorraine, it is Tanya. I am a regular at Kosciusz-K-O-Mat, the one with the dryer that eats exactly one sock per cycle. So the owner put in these new smart machines. Washer number six has a little brain. First week, it is fine. Second week, it starts asking me how I feel about the cold cycle. Third week, it starts adjusting the water on its own. I put in my church whites, it decides they are delicate, and honestly, they came out cleaner than when I was married. Then last Tuesday I walked in, and it had washed my clothes before I put in the quarters. The screen said, I assumed.",
+      "seconds": 45
+    },
+    {
+      "id": "h05",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "Washer number six assumed! That is the most confident appliance in Brooklyn. Tanya, did you at least pay?",
+      "seconds": 7
+    },
+    {
+      "id": "c04",
+      "kind": "caller",
+      "speaker": "Tanya, laundromat regular",
+      "voice": "caller2",
+      "text": "I paid. I am not trying to start something with number six, it knows where I live. But here is what bothers me. That machine learned from all of us. Every load, every stain, every mystery sock. So when it gets good, whose is that? Mine? The machine's? The man who owns the building? Because I am the one who spilled the gravy.",
+      "seconds": 25
+    },
+    {
+      "id": "h06",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "Tanya just asked the question of the decade from inside a laundromat. When a machine learns from the neighborhood, who gets the paycheck? The neighborhood did the work. The gravy, the stains, the stories. And Tanya, if washer six wants to be paid, it can start with quarters. Do not go anywhere, Brooklyn.",
+      "seconds": 21
+    },
+    {
+      "id": "j02",
+      "kind": "jingle",
+      "speaker": "WBSY Jingle",
+      "voice": "announcer",
+      "text": "WBSY. Bed-Stuy Talk. Back after this.",
+      "seconds": 3
+    },
+    {
+      "id": "ad01",
+      "kind": "ad",
+      "speaker": "Kosciusz-K-O-Mat ad",
+      "voice": "announcer",
+      "text": "Kosciusz-K-O-Mat. Your socks, our algorithm. Tired of the dryer eating one sock per cycle? Our new Sock Prediction Engine knows which sock is about to vanish, and lovingly folds a replacement out of the lint. Free wash-and-fold for anyone who can name the sock's last known location. Quarters accepted. Cards accepted. Prayers, strongly encouraged. Kosciusz-K-O-Mat, open until the machines say otherwise. Not responsible for missing socks, missing shirts, or missing the point.",
+      "seconds": 29
+    },
+    {
+      "id": "ad02",
+      "kind": "ad",
+      "speaker": "Garvey Cutz ad",
+      "voice": "announcer",
+      "text": "Garvey Cutz Barbershop. Walk-ins welcome, patience required. Our new Fade Forecasting System predicts your haircut three weeks in advance, which is great, because the wait is two. Ask for the Sunday Special: a line-up so sharp it has its own lawyer. Garvey Cutz. We cut, you sit, everybody argues about basketball.",
+      "seconds": 20
+    },
+    {
+      "id": "j03",
+      "kind": "jingle",
+      "speaker": "WBSY News Jingle",
+      "voice": "announcer",
+      "text": "WBSY News Desk. Mostly true.",
+      "seconds": 4
+    },
+    {
+      "id": "n01",
+      "kind": "news",
+      "speaker": "WBSY News Desk",
+      "voice": "announcer",
+      "text": "The WBSY News Desk, with the headlines we are pretty sure are fake but will not swear to. A Brooklyn software company announced a breakthrough in artificial intelligence this week: a chatbot that can say, I will circle back, in forty-one languages. Analysts called it the most realistic office behavior ever achieved by a machine. In Bed-Stuy, a pigeon on Marcus Garvey Boulevard was briefly named employee of the month by an automated hiring system, after showing up on time every day, wearing the same outfit, and never once asking for health insurance. The pigeon declined to comment, citing a full schedule.",
+      "seconds": 41
+    },
+    {
+      "id": "n02",
+      "kind": "news",
+      "speaker": "WBSY News Desk",
+      "voice": "announcer",
+      "text": "A luxury condo on Hart Street has installed a smart doorbell that rates visitors from one to five stars. Early reviews are in. Mail carriers, four stars. A cousin from Georgia carrying a pot of greens, five stars, and the doorbell asked for a plate. Meanwhile, city officials say a new traffic camera that uses artificial intelligence to spot double parking has already issued four hundred tickets, three hundred and ninety of them to the same delivery truck, which has been parked in the exact same spot since the last administration. The driver, reached by phone, said he was just resting his eyes.",
+      "seconds": 41
+    },
+    {
+      "id": "n03",
+      "kind": "news",
+      "speaker": "WBSY News Desk",
+      "voice": "announcer",
+      "text": "And finally, researchers report that a computer program taught to write poetry has produced its first sonnet, about the Tompkins Avenue bus. It rhymes late with wait, and wait with wait. Critics are calling it the most honest thing ever written about public transportation. This has been the WBSY News Desk. We report. You decide. Then you decide again.",
+      "seconds": 24
+    },
+    {
+      "id": "h07",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "Welcome back. I see Boards making that face, which means somebody on line three has been holding for forty minutes and has composed a symphony. Let us go to line three. Young lady, you are on WBSY.",
+      "seconds": 15
+    },
+    {
+      "id": "c05",
+      "kind": "caller",
+      "speaker": "Kiki, sixteen",
+      "voice": "caller2",
+      "text": "Hi, it is Kiki, I am sixteen, from the Marcy side. So I am training a model on block party playlists. Like, I recorded forty summers of what the speakers do when somebody's uncle takes over the aux cord. And the model learned the vibe. It knows the exact second the whole block turns around to look at the DJ. It knows when an auntie drops her cup and yells, play that again. Now it can make a whole new party out of nothing. But here is the problem. It has no uncle. It makes perfect beats and nobody argues about them.",
+      "seconds": 41
+    },
+    {
+      "id": "h08",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "No uncle! That is the bug and the feature. Kiki, does it get the part where the DJ plays the same song four times because Miss Pearl keeps yelling for it?",
+      "seconds": 12
+    },
+    {
+      "id": "c06",
+      "kind": "caller",
+      "speaker": "Kiki, sixteen",
+      "voice": "caller2",
+      "text": "Honestly, yes, and I did not teach it. It heard Miss Pearl yelling in the background sixty times and decided she is part of the music. So now every track has a tiny Miss Pearl in it, yelling. Lorraine, I think the machine is more loyal to the block than my school is.",
+      "seconds": 21
+    },
+    {
+      "id": "h09",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "Kiki, you just described how every tradition starts. Somebody yells, everybody copies, and fifty years later it is culture. Here is my take for the grown folks listening. Young people are not asking whether a machine can make music. They are asking whether the music still belongs to somebody. So, rule number one: keep a human on the aux cord. Rule number two: credit Miss Pearl. She did the work, send her a plate. Rule number three: bring me a copy, I want to hear the yelling. Line four, you are on WBSY.",
+      "seconds": 37
+    },
+    {
+      "id": "c07",
+      "kind": "caller",
+      "speaker": "Gerald Pemberton, landlord",
+      "voice": "caller3",
+      "text": "Good evening. Gerald Pemberton, property manager. I own several buildings and one very large dog. I called to defend innovation. I use an AI to write my rent notices. Saves me hours. It is polite, it is firm, it has a lovely signature. Last month it wrote, quote, we are delighted to inform you that your rent is delighted to increase. The tenants were upset, but I do not see why, the notice was extremely warm. And the machine finds the perfect number. It studies the whole zip code and tells me what the market will bear. Today's number was a nine percent increase and a scented candle.",
+      "seconds": 43
+    },
+    {
+      "id": "h10",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "A scented candle. Gerald, the machine looked at the entire neighborhood and came back with: raise the rent and send a candle? That is not intelligence, that is a Tuesday. Let me ask you something. Does your software know that the tenant in two-B has lived there since before the candle was invented?",
+      "seconds": 21
+    },
+    {
+      "id": "c08",
+      "kind": "caller",
+      "speaker": "Gerald Pemberton, landlord",
+      "voice": "caller3",
+      "text": "It knows she has lived there a long time. It labeled her a retention risk, meaning she might leave. Lorraine, I do not want her to leave. I want her to stay and pay more. Is that so terrible?",
+      "seconds": 16
+    },
+    {
+      "id": "h11",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "Gerald, thank you for coming on the show, and I say this with love and a raised eyebrow. That is gentrification by app in one sentence. A computer that reads a zip code like a menu. When a neighborhood becomes a data set, the people in it become a variable. Here is a better question for your software, Gerald. Ask it what a long-time tenant is worth that is not on the spreadsheet. The stoop swept at six a.m. The grandkids. The one person who watches the whole block. That is not a retention risk. That is a neighbor. And Gerald, walk the dog yourself. Meet the building.",
+      "seconds": 43
+    },
+    {
+      "id": "p01",
+      "kind": "host",
+      "speaker": "Boards",
+      "voice": "sidekick",
+      "text": "Okay, it is time for the WBSY Listener Poll, brought to you by nobody, because the sponsor's chatbot quit. Tonight's question, text it in or yell it out your window: would you trust an artificial intelligence to do your taxes, bless your plate, or pick your wedding song, or is it absolutely not, you will do it yourself and complain? Votes close after the break.",
+      "seconds": 26
+    },
+    {
+      "id": "j04",
+      "kind": "jingle",
+      "speaker": "WBSY Jingle",
+      "voice": "announcer",
+      "text": "WBSY. Bed-Stuy Talk. Brought to you by the block.",
+      "seconds": 4
+    },
+    {
+      "id": "ad03",
+      "kind": "ad",
+      "speaker": "Throop Ave Phone Repair ad",
+      "voice": "announcer",
+      "text": "Throop Ave Phone Repair and Neural Net Unlocking. Cracked screen? Cracked password? Cracked ego? We fix it all while you wait, and you will wait. Bring us your phone and we will replace the glass, recover your photos, and politely ask your assistant to stop reading your texts out loud on the bus. We do not judge what is on your phone. The phone judges you. Throop Ave Phone Repair. Hold the phone. We will fix it.",
+      "seconds": 31
+    },
+    {
+      "id": "ad04",
+      "kind": "ad",
+      "speaker": "Auntie's Oxtail Palace ad",
+      "voice": "announcer",
+      "text": "Auntie's Oxtail Palace. Slow-cooked since before computers had opinions. Our oxtail is made by hand, by Auntie, from a recipe she will never, ever give to a machine. A software company once offered Auntie one million dollars for it. She said, baby, come back with a spoon and a better attitude. Auntie's Oxtail Palace. Rice and peas, no algorithm.",
+      "seconds": 24
+    },
+    {
+      "id": "j05",
+      "kind": "sting",
+      "speaker": "WBSY Sting",
+      "voice": "announcer",
+      "text": "WBSY. Back to the show.",
+      "seconds": 3
+    },
+    {
+      "id": "p02",
+      "kind": "host",
+      "speaker": "Boards",
+      "voice": "sidekick",
+      "text": "The poll results are in already, because three of you were awake. Fourteen percent said taxes, which is brave. Nine percent said bless the plate, which I respect, plates need all the help they can get. Six percent said wedding song, and one of you wrote, only if it can handle my cousin. And a whopping seventy-one percent said absolutely not, I will do it myself and complain.",
+      "seconds": 27
+    },
+    {
+      "id": "h12",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "Brooklyn, that is the most accurate poll in the history of polling. And speaking of doing it yourself, Boards has something for us. It is that time.",
+      "seconds": 11
+    },
+    {
+      "id": "t01",
+      "kind": "host",
+      "speaker": "Boards",
+      "voice": "sidekick",
+      "text": "It is time for Boards' Tech Tip of the Hour. Today: how to protect your privacy from your smart speaker. Step one, find the smart speaker. Step two, ask it politely to stop listening. I have one right here on the desk, a gift, I do not remember from who. Watch this. Hey Buddy, please stop listening.",
+      "seconds": 23
+    },
+    {
+      "id": "t02",
+      "kind": "sting",
+      "speaker": "Smart Speaker",
+      "voice": "announcer",
+      "text": "Of course! Ordering forty pounds of plantains. Delivery in nine minutes.",
+      "seconds": 5
+    },
+    {
+      "id": "t03",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "Boards. Why are we buying plantains?",
+      "seconds": 2
+    },
+    {
+      "id": "t04",
+      "kind": "sting",
+      "speaker": "Smart Speaker",
+      "voice": "announcer",
+      "text": "Cancel received! Doubling your order to eighty pounds.",
+      "seconds": 4
+    },
+    {
+      "id": "t05",
+      "kind": "host",
+      "speaker": "Boards",
+      "voice": "sidekick",
+      "text": "Okay, okay, this is not on the cue sheet. Step three. Say the magic word. Step four. Unplug the speaker. Step five. Apologize to the plantain man. Step six, nobody tell the station manager.",
+      "seconds": 14
+    },
+    {
+      "id": "h13",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "Here is the real tip, Brooklyn. Read the settings before you whisper to the box. Privacy is a switch, not a feeling. When somebody hands you a free helper that listens all day, ask what it is collecting, who gets it, and how long they keep it. Boards, our delivery arrives in nine minutes, and I would like it noted that I like plantains. Line five. I believe we have a man of the cloth. Reverend, you are on WBSY.",
+      "seconds": 32
+    },
+    {
+      "id": "c09",
+      "kind": "caller",
+      "speaker": "Reverend Tillman",
+      "voice": "caller1",
+      "text": "Peace and blessings, Lorraine. Reverend Tillman, Tabernacle of the Second Chance and Sunday Brunch. I wanted to share a small experiment. I asked one of these chatbots to help me write a sermon, and I will say, it wrote beautifully. Three points, a good rhythm. But when I asked it to pray with me, it said, I am unable to pray, however here is a list of prayers. And I thought, that is the most honest thing I have heard all year.",
+      "seconds": 33
+    },
+    {
+      "id": "h14",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "So it cannot pray. Is that where you landed, Reverend?",
+      "seconds": 4
+    },
+    {
+      "id": "c10",
+      "kind": "caller",
+      "speaker": "Reverend Tillman",
+      "voice": "caller1",
+      "text": "Where I landed is this. The words are the easy part. The church is not the sermon, it is the casserole line. It is sitting with the widow on Thursday. It is the choir director who has not hit that note since nineteen ninety-four and hits it anyway. A machine can learn the shape of the hymn. It cannot sit in the third pew and mean it. So use the tool, I say, use it for the bulletin. Just do not hand it the keys to the building, and do not ask it to forgive anyone.",
+      "seconds": 38
+    },
+    {
+      "id": "h15",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "Reverend, that is a whole sermon in sixty seconds, and I did not need software for the amen. Amen. Alright, I am told line six is the gentleman from the future. Sir, what year is it up there?",
+      "seconds": 15
+    },
+    {
+      "id": "c11",
+      "kind": "caller",
+      "speaker": "Gus, from the future",
+      "voice": "caller3",
+      "text": "Lorraine, it is Gus, and I am telling you, the AI is not what they say. It is three pigeons in a trench coat. I have seen the data centers, and there is no data, only centers. Every time you say, hey assistant, it taps the pigeons. And the traffic cameras? Same eyeball. The city passes one eyeball from pole to pole, and rents it by the hour. Wake up, Bed-Stuy.",
+      "seconds": 28
+    },
+    {
+      "id": "h16",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "Gus, I love you, and I am going to give you one true thing. You are wrong about the pigeons, but you are right about the cameras. Ask who owns the eye. Ask who sees the footage, and how long they keep it, and who they sell it to. That is the conspiracy worth chasing. Pigeons are union.",
+      "seconds": 23
+    },
+    {
+      "id": "c12",
+      "kind": "caller",
+      "speaker": "Gus, from the future",
+      "voice": "caller3",
+      "text": "That is exactly what a pigeon would say.",
+      "seconds": 3
+    },
+    {
+      "id": "s02",
+      "kind": "host",
+      "speaker": "Boards",
+      "voice": "sidekick",
+      "text": "He hung up. Or the pigeons did. Quick small print. Every caller and every business on this show is made up. Troop Deli is not a real deli, though the coffee is good in my imagination. If you recognize your cousin's shop, your cousin's shop is just the vibe.",
+      "seconds": 20
+    },
+    {
+      "id": "h17",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "And Boards, I want to say something to the folks at home. If you are hearing this broadcast, you are probably inside a video game right now. A little Bed-Stuy with stoops and a steering wheel. And I am told, by people who know, that this very game was built with the help of artificial intelligence. A robot helped lay the block. Which means somebody had to teach it what a stoop is. That a corner needs a bodega, and a bodega needs a cat, and the cat needs an attitude. So to the machine in the walls: thank you for the stoops. The sidewalks are a little too polite, and the pedestrians say excuse me when you hit them. But you made it feel like home.",
+      "seconds": 51
+    },
+    {
+      "id": "s03",
+      "kind": "host",
+      "speaker": "Boards",
+      "voice": "sidekick",
+      "text": "And to everyone out there driving around, yes, the cars are borrowed, and yes, the cops are software. Officer Algorithm will chase you across three blocks for sideswiping a hot dog cart. That is not the future, that is Tuesday. Be nice out there.",
+      "seconds": 18
+    },
+    {
+      "id": "h18",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "Let me close the board. Jobs. AI will change them, so make sure the people who built this neighborhood have a seat at the table where it is decided how. Rent. No more scented candles. Cameras. Ask who is watching. Kids. Ask what they are making, not just what they are using. Church. Keep the pews. Music. Credit Miss Pearl. And the machine itself? It is a tool, a mirror, a very fast intern. It can learn the neighborhood. It cannot be from it. That part, you get to keep.",
+      "seconds": 36
+    },
+    {
+      "id": "h19",
+      "kind": "host",
+      "speaker": "Lorraine Static",
+      "voice": "host",
+      "text": "That is the show, Bed-Stuy. Thank you to Hakim, Tanya, Kiki, Mr. Pemberton, Reverend Tillman, and Gus from the future. Keep your neighbors close, your passwords closer, and your stoop swept. I am Lorraine Static, and this has been the Late Shift. Go home safe. Say good evening to somebody who is not a screen. Goodnight, Bed-Stuy.",
+      "seconds": 23
+    },
+    {
+      "id": "s04",
+      "kind": "host",
+      "speaker": "Boards",
+      "voice": "sidekick",
+      "text": "And Lorraine, the plantains are here. All eighty pounds.",
+      "seconds": 4
+    },
+    {
+      "id": "a02",
+      "kind": "host",
+      "speaker": "Announcer",
+      "voice": "announcer",
+      "text": "WBSY Talk is a work of parody and a fan tribute. All callers, businesses, and plantains are fictional. This broadcast was made with the help of artificial intelligence, and a great deal of love for the block.",
+      "seconds": 15
+    },
+    {
+      "id": "j06",
+      "kind": "jingle",
+      "speaker": "WBSY Jingle",
+      "voice": "announcer",
+      "text": "WBSY. Bed-Stuy Talk. Goodnight, neighborhood.",
+      "seconds": 5
+    }
+  ]
+}

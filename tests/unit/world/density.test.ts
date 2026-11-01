@@ -27,12 +27,12 @@ describe('avenue commercial density', () => {
     expect(avenueFaces.size).toBe(20);
   });
 
-  it('each avenue face has 3-5 mixed-use lots, unless POIs placed on non-shop lots force more', () => {
+  it('each avenue face has 3-5 mixed-use lots (POI shops included)', () => {
     for (const [k, fl] of avenueFaces) {
       const mixed = fl.filter((l) => l.type === 'mixeduse');
-      const forced = fl.filter((l) => l.poi && l.spec && l.spec.use !== 'mixed').length; // POI re-purposed a residential data lot
+      // the data makes every POI shop (garage included) part of its face's count, so no POI forces a 6th shop
       expect(mixed.length, k).toBeGreaterThanOrEqual(3);
-      expect(mixed.length, k).toBeLessThanOrEqual(5 + forced);
+      expect(mixed.length, k).toBeLessThanOrEqual(5);
     }
   });
 

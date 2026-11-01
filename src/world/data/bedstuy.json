@@ -1158,7 +1158,7 @@
         {"widthM":7.5,"floors":0,"family":"vacant","use":"vacant","confidence":"L","note":"typology default: vacant lot"},
         {"widthM":8.5,"floors":6,"family":"brickRed","use":"residential","confidence":"L"},
         {"widthM":6.5,"floors":4,"family":"brickTan","use":"residential","confidence":"L"},
-        {"widthM":7.2,"floors":3,"family":"brickRed","use":"mixed","storefront":"bodega","confidence":"L"},
+        {"widthM":7.2,"floors":3,"family":"brickRed","use":"residential","confidence":"L","note":"W2 density pass: residential row between avenue corners (was typology mixed-use)"},
         {"widthM":8.7,"floors":6,"family":"brickRed","use":"mixed","storefront":"daycare","confidence":"L"},
         {"widthM":6.4,"floors":4,"family":"brickTan","use":"mixed","storefront":"restaurant","trees":1,"confidence":"L"},
         {"widthM":10.1,"floors":4,"family":"brickRed","use":"mixed","storefront":"liquor","confidence":"M","note":"POI liquor (game placement, parody)","sign":"VAN BUREN WINE & LIQUOR  ·  CHILLED","awningColor":"#111111"}
@@ -1257,7 +1257,7 @@
         {"widthM":13.4,"floors":1,"family":"brickPainted","use":"garage","storefront":"autorepair","trees":1,"confidence":"M","note":"POI auto (game placement, parody)","sign":"GREENE AVE AUTO  ·  INSPECTION, PROBABLY","awningColor":"#444444"},
         {"widthM":7.7,"floors":5,"family":"brickRed","use":"residential","stoop":false,"cornice":"plain","confidence":"L"},
         {"widthM":7.9,"floors":4,"family":"brickRed","use":"residential","trees":1,"confidence":"L"},
-        {"widthM":8.1,"floors":4,"family":"brickRed","use":"mixed","storefront":"generic","confidence":"L"},
+        {"widthM":8.1,"floors":4,"family":"brickRed","use":"residential","confidence":"L","note":"W2 density pass: residential row between avenue corners (was typology mixed-use)"},
         {"widthM":6.9,"floors":4,"family":"brickPainted","use":"mixed","storefront":"restaurant","confidence":"L"},
         {"widthM":8.1,"floors":6,"family":"brickTan","use":"residential","confidence":"L","note":"W2 density pass: residential row between avenue corners (was typology mixed-use)"},
         {"widthM":6.6,"floors":5,"family":"brickRed","use":"mixed","storefront":"barber","trees":1,"confidence":"L"},
