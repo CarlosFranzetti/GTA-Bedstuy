@@ -12,6 +12,8 @@ scripts/swarm-render.sh node scripts/playtest/session.mjs <sessionDir> --port 44
 ```
 
 In the swarm, always wrap the run in `scripts/swarm-render.sh` (shared lock, one headless Chromium at a time).
+If you start the harness from an agent's background shell, give that shell its maximum timeout (7,200,000 ms): a session
+of 30+ steps takes well over the default 30-minute background limit, and a killed harness writes no video or transcript.
 The game takes 1 to 3 minutes to load on a software renderer. When `<sessionDir>/ready-0` exists the session is live.
 Scripted self-test without a model: `scripts/swarm-render.sh node scripts/playtest/brain-scripted.mjs <sessionDir>`.
 
