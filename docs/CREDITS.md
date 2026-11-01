@@ -27,14 +27,18 @@ original to this project.
 
 ## Models
 
-Recommended car and character glTF files for `src/assets/models/` (MDL, Stage 3). Licence status is stated per pack;
-"secondary" means the licence text was taken from a repackager's NOTICE rather than the author's own page, which this
-build environment cannot reach.
+glTF car and character files in `src/assets/models/` (MDL found them, MDLI integrated them, Stage 3). Licence status is stated
+per pack; "secondary" means the licence text was taken from a repackager's NOTICE rather than the author's own page, which this
+build environment cannot reach. The files are copies of the pack files: no geometry or texture was edited (the character files had
+their animation clips renamed to `Idle` / `Walk` / `Run`). The game only changes how they are drawn (fitted to the vehicle
+dimensions, recoloured, lights and plates added at load time).
 
-- **Kenney Car Kit** (sedan, SUV, police car, delivery van used as a box-truck stand-in). Author: Kenney
-  (https://kenney.nl/assets/car-kit). Licence: **CC0 1.0 Universal** (secondary; the repackager NOTICE says each archive's
-  License.txt reads CC0). Obtained via `@netforge/asset-library-files@0.2.0` (npm; MIT wrapper, art CC0 per its NOTICE).
-- **Quaternius characters** (hooded adventurer, worker). Author: Quaternius (https://quaternius.com). Licence: **CC0 1.0
-  Universal**. The Quaternius Ultimate Animated Character Pack LICENSE.txt (CC0 1.0) is verified; the exact pack of the
-  two characters is secondary (repackager NOTICE). Obtained via `@netforge/asset-library-files@0.2.0`.
-- Not included: `truck-box` from `munim-maps-vehicles@0.5.0` (Apache-2.0), held for approval.
+- **Kenney Car Kit** (`vehicle-sedan.glb` = sedan, `vehicle-suv.glb` = SUV, `vehicle-cop.glb` = police car, `vehicle-boxtruck.glb` =
+  the delivery van, standing in for the box truck). Author: Kenney (https://kenney.nl/assets/car-kit). Licence: **CC0 1.0 Universal**
+  (secondary; the repackager NOTICE says each archive's License.txt reads CC0). Obtained via `@netforge/asset-library-files@0.2.0`
+  (npm; MIT wrapper, art CC0 per its NOTICE).
+- **Quaternius characters** (`character.glb` = worker, the pedestrians and the player; `character-hoodie.glb` = hooded adventurer).
+  Author: Quaternius (https://quaternius.com). Licence: **CC0 1.0 Universal**. The Quaternius Ultimate Animated Character Pack
+  LICENSE.txt (CC0 1.0) is verified; the exact pack of the two characters is secondary (repackager NOTICE). Obtained via
+  `@netforge/asset-library-files@0.2.0`.
+- Not included: `truck-box` from `munim-maps-vehicles@0.5.0` (Apache-2.0), held until its wheels are split into nodes.

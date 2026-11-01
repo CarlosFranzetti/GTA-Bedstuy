@@ -3,6 +3,12 @@ import * as THREE from 'three';
 /** `phone` is the tier below `low` (touch devices): see src/render/QualityTier.ts for every per-tier number. */
 export type Quality = 'phone' | 'low' | 'medium' | 'high';
 
+/**
+ * Whether a tier renders shadows at all. `phone` does not: the shadow pass re-draws the geometry around the player (about
+ * 500 k triangles / 45 draws on a street) which is most of what makes a phone struggle; the proxy and G-buffer machinery
+ * is then not built either. The phone map / box / bias numbers below apply if this is switched on.
+ */
+export const SHADOWS_ENABLED: Record<Quality, boolean> = { phone: false, low: true, medium: true, high: true };
 const MAP_SIZE: Record<Quality, number> = { phone: 512, low: 1024, medium: 2048, high: 4096 };
 /** Half-extent (m) of the orthographic shadow box that follows the player (tighter box = sharper texels). */
 const HALF_SIZE: Record<Quality, number> = { phone: 34, low: 60, medium: 80, high: 100 };
@@ -38,6 +44,11 @@ const MIN_ELEVATION = 0.12;
  * matrixWorld is never updated and the light keeps aiming at the origin.
  */
 export function setupShadows(renderer: THREE.WebGLRenderer, sun: THREE.DirectionalLight, quality: Quality): void {
+  if (!SHADOWS_ENABLED[quality]) {
+    renderer.shadowMap.enabled = false;
+    sun.castShadow = false;
+    return;
+  }
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = true;

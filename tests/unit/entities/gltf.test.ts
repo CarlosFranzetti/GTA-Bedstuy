@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { GltfCharacterSource, ProceduralCharacterSource, pickClips, baseClipName, clothMaterials, tintCloth } from '@/entities/models/gltf/CharacterSource';
+import { GltfCharacterSource, ProceduralCharacterSource, pickClips, baseClipName, clothMaterials, tintCloth, preferredCharacterUrl } from '@/entities/models/gltf/CharacterSource';
 import { GltfVehicleSource } from '@/entities/models/gltf/VehicleSource';
 import { VEHICLE_SPECS } from '@/entities/Vehicle';
 import { Rng } from '@/core/Rng';
@@ -393,5 +393,13 @@ describe('GltfCharacterSource (fake models)', () => {
     expect(dark.r).toBeGreaterThan(0.2);
     const light = tintCloth(new THREE.Color(0xffffff), new THREE.Color(0x4f8fd9));
     expect(light.getHex()).toBe(new THREE.Color(0x4f8fd9).getHex());
+  });
+});
+
+describe('preferredCharacterUrl', () => {
+  it('prefers character.glb, else the first file by name, else null', () => {
+    expect(preferredCharacterUrl({ '/a/character-hoodie.glb': 'h', '/a/character.glb': 'c' })).toBe('c');
+    expect(preferredCharacterUrl({ '/a/character-hoodie.glb': 'h', '/a/character-b.glb': 'b' })).toBe('b');
+    expect(preferredCharacterUrl({})).toBeNull();
   });
 });

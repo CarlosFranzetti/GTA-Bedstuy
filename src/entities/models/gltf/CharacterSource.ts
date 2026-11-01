@@ -322,9 +322,15 @@ export class ProceduralCharacterSource implements CharacterSource {
 
 const CHARACTER_FILES = import.meta.glob('@/assets/models/character*.glb', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
 
+/** `character.glb` if present (the plain, modern person), else the first character*.glb by name. */
+export function preferredCharacterUrl(files: Record<string, string>): string | null {
+  const exact = Object.keys(files).find((k) => /(^|\/)character\.glb$/.test(k));
+  return exact ? files[exact] : firstUrl(files);
+}
+
 /** The bundled character*.glb if there is one and it loads, else the procedural people. */
 export async function resolveCharacterSource(materials: IMaterialLibrary, rng: Rng): Promise<CharacterSource> {
-  const url = firstUrl(CHARACTER_FILES);
+  const url = preferredCharacterUrl(CHARACTER_FILES);
   if (!url) return new ProceduralCharacterSource(materials, rng);
   try {
     return await GltfCharacterSource.load(url);

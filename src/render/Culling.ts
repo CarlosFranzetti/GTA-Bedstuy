@@ -192,3 +192,78 @@ export class DistanceCuller {
     this.entries.length = 0; this.hiddenDyn.clear();
   }
 }
+
+/**
+ * Distance culling for InstancedMeshes (street trees, lamps, hydrants...). A frustum test on an InstancedMesh is all or
+ * nothing, so every tree of the city was drawn every frame. This keeps a copy of each mesh's matrices (and colours) and
+ * compacts the instances within range of the camera to the front of the live buffers, then sets `mesh.count`.
+ *
+ * The compaction only reruns after the camera moved `STEP` m (the range gets `margin` m of slack for that), so a still
+ * camera costs nothing. `setRange(Infinity)` restores every instance. Not for meshes whose instance index means
+ * something (signal lamps are recoloured by index).
+ */
+export class InstanceCuller {
+  static readonly STEP = 5;
+  private readonly entries: Array<{ mesh: THREE.InstancedMesh; matrices: Float32Array; colors: Float32Array | null; xs: Float32Array; zs: Float32Array; n: number }> = [];
+  private range = Infinity;
+  private lastX = NaN;
+  private lastZ = NaN;
+  /** instances currently drawn / registered (stats) */
+  shown = 0;
+  total = 0;
+
+  constructor(readonly margin = 10) {}
+
+  /** Registers an InstancedMesh (its current matrices are the full set). */
+  add(mesh: THREE.InstancedMesh): void {
+    const n = mesh.count;
+    const matrices = Float32Array.from((mesh.instanceMatrix.array as Float32Array).subarray(0, n * 16));
+    const colors = mesh.instanceColor ? Float32Array.from((mesh.instanceColor.array as Float32Array).subarray(0, n * 3)) : null;
+    const xs = new Float32Array(n), zs = new Float32Array(n);
+    for (let i = 0; i < n; i++) { xs[i] = matrices[i * 16 + 12]; zs[i] = matrices[i * 16 + 14]; }
+    this.entries.push({ mesh, matrices, colors, xs, zs, n });
+    this.total += n;
+    this.shown += n;
+  }
+
+  get count(): number { return this.entries.length; }
+
+  /** Culling range in metres; Infinity restores every instance on the next `update`. */
+  setRange(d: number): void {
+    if (d === this.range) return;
+    this.range = d;
+    this.lastX = NaN;
+    if (!Number.isFinite(d)) this.recompute(0, 0);
+  }
+
+  /** Call once per frame with the camera position. */
+  update(px: number, pz: number): void {
+    if (!Number.isFinite(this.range)) return;
+    if (Number.isFinite(this.lastX) && Math.abs(px - this.lastX) < InstanceCuller.STEP && Math.abs(pz - this.lastZ) < InstanceCuller.STEP) return;
+    this.recompute(px, pz);
+  }
+
+  private recompute(px: number, pz: number): void {
+    const all = !Number.isFinite(this.range);
+    const lim = this.range + this.margin;
+    const lim2 = lim * lim;
+    this.lastX = px; this.lastZ = pz;
+    this.shown = 0;
+    for (const e of this.entries) {
+      const dst = e.mesh.instanceMatrix.array as Float32Array;
+      const dstC = e.mesh.instanceColor ? (e.mesh.instanceColor.array as Float32Array) : null;
+      let k = 0;
+      for (let i = 0; i < e.n; i++) {
+        if (!all) { const dx = e.xs[i] - px, dz = e.zs[i] - pz; if (dx * dx + dz * dz > lim2) continue; }
+        dst.set(e.matrices.subarray(i * 16, i * 16 + 16), k * 16);
+        if (dstC && e.colors) dstC.set(e.colors.subarray(i * 3, i * 3 + 3), k * 3);
+        k++;
+      }
+      e.mesh.count = k;
+      this.shown += k;
+      e.mesh.instanceMatrix.clearUpdateRanges(); e.mesh.instanceMatrix.addUpdateRange(0, Math.max(1, k) * 16); e.mesh.instanceMatrix.needsUpdate = true;
+      if (e.mesh.instanceColor) { e.mesh.instanceColor.clearUpdateRanges(); e.mesh.instanceColor.addUpdateRange(0, Math.max(1, k) * 3); e.mesh.instanceColor.needsUpdate = true; }
+      e.mesh.visible = k > 0; // a zero-instance mesh would still cost a draw call
+    }
+  }
+}

@@ -4,7 +4,7 @@ import { QUALITY_ORDER, TIER_CONFIG, pixelRatioFor, tierBelow, tierConfig } from
 import { DEFAULT_CULL_DISTANCE, DistanceCuller, cullDistanceFor, shouldHide } from '@/render/Culling';
 import { LIGHTING, TIME_CYCLE } from '@/render/LightingConfig';
 import { PHONE_BLOOM_MIN_STRENGTH } from '@/render/Pipeline';
-import { setupShadows } from '@/render/Shadows';
+import { SHADOWS_ENABLED, setupShadows } from '@/render/Shadows';
 import { resolveQuality } from '@/textures/hosted';
 import { QUALITIES } from '@/ui/Menu';
 import { FLAT_ROUGHNESS, setAnisotropy, setNormalMaps } from '@/render/TierDetail';
@@ -54,14 +54,18 @@ describe('tier table', () => {
     for (const q of ['low', 'medium', 'high'] as const) expect(TIER_CONFIG[q].traffic).toEqual({ maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 });
   });
 
-  it('shadows: phone uses one 512 px map with a short follow box', () => {
-    const r = { shadowMap: { enabled: false, type: 0, autoUpdate: false, needsUpdate: false } } as unknown as THREE.WebGLRenderer;
+  it('shadows: phone renders none (and turns the map off); the other tiers keep theirs', () => {
+    const r = { shadowMap: { enabled: true, type: 0, autoUpdate: false, needsUpdate: false } } as unknown as THREE.WebGLRenderer;
     const sun = new THREE.DirectionalLight();
+    sun.castShadow = true;
     setupShadows(r, sun, 'phone');
-    expect(sun.shadow.mapSize.x).toBe(512);
-    expect(sun.shadow.camera.right).toBeLessThan(60);
+    expect(SHADOWS_ENABLED).toEqual({ phone: false, low: true, medium: true, high: true });
+    expect(r.shadowMap.enabled).toBe(false);
+    expect(sun.castShadow).toBe(false);
     const low = new THREE.DirectionalLight();
     setupShadows(r, low, 'low');
+    expect(r.shadowMap.enabled).toBe(true);
+    expect(low.castShadow).toBe(true);
     expect(low.shadow.mapSize.x).toBe(1024);
     expect(low.shadow.camera.right).toBe(60);
   });

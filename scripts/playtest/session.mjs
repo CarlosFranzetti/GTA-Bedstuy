@@ -82,13 +82,17 @@ export const hhmm = (h) => { const m = Math.round(((h % 24) + 24) % 24 * 60) % 1
 /** Page-side code (a string so it can be injected before the game boots). */
 const INIT_SCRIPT = `
 (() => {
-  // lets the harness slow the render loop while the tester thinks (a software renderer otherwise grows memory)
+  // The harness can hold the render loop (no frames at all) while the tester thinks and while a screenshot is taken: a
+  // software renderer under load otherwise makes screenshots time out, and memory only grows while frames are drawn.
+  // gl.finish() after every drawn frame keeps the renderer from queueing frames faster than it can draw them.
   const raf = window.requestAnimationFrame.bind(window);
-  window.__ptDelay = 0;
-  // gl.finish() after every game frame: a software renderer otherwise queues frames faster than it can draw them
-  // and the page's memory balloons (an OOM kill looks like "Target crashed")
-  const wrap = (cb) => (t) => { cb(t); try { window.__ptGl ??= window.__gtaDebug?.renderer?.getContext?.(); window.__ptGl?.finish(); } catch { /* ignore */ } };
-  window.requestAnimationFrame = (cb) => (window.__ptDelay > 0 ? setTimeout(() => raf(wrap(cb)), window.__ptDelay) : raf(wrap(cb)));
+  window.__ptHold = false;
+  const loop = (cb) => raf((t) => {
+    if (window.__ptHold) { setTimeout(() => loop(cb), 150); return; }
+    cb(t);
+    try { window.__ptGl ??= window.__gtaDebug?.renderer?.getContext?.(); window.__ptGl?.finish(); } catch { /* ignore */ }
+  });
+  window.requestAnimationFrame = (cb) => loop(cb);
 })();
 `;
 
@@ -168,7 +172,7 @@ async function main() {
       };
       window.__ptSubtitle('Starting the playtest...', 'STEP 0');
       d.setPaused(true);
-      window.__ptDelay = 150;
+      window.__ptHold = true;
     });
     if (opt.hour !== null) await page.evaluate((h) => window.__gtaDebug.setHour(h), opt.hour);
     await sleep(1500);
@@ -176,7 +180,8 @@ async function main() {
     // ---- in-page helpers
     const setSubtitle = (text, label) => page.evaluate(([t, l]) => window.__ptSubtitle(t, l), [text, label]);
     const frames2 = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
-    const running = async (on) => page.evaluate((o) => { window.__gtaDebug.setPaused(!o); window.__ptDelay = o ? 0 : 150; }, on);
+    const running = async (on) => page.evaluate((o) => { window.__gtaDebug.setPaused(!o); window.__ptHold = !o; }, on);
+    const hold = (on) => page.evaluate((o) => { window.__ptHold = o; }, on);
     const gameWait = async (ms) => {
       const need = Math.max(1, Math.round(ms / FIXED_MS));
       const target = await page.evaluate((n) => window.__ptSteps + n, need);
@@ -256,10 +261,11 @@ async function main() {
     const capture = async (n, extra = {}) => {
       const framePath = `frames/step-${n}.jpg`, statePath = `state/step-${n}.json`;
       await dismissMenu();
-      await frames2(); await frames2();
+      await hold(false);
       await page.evaluate(() => { const b = document.getElementById('pt-subtitle'); if (b) b.style.visibility = 'hidden'; });
-      await frames2();
-      await page.screenshot({ path: join(D, framePath), type: 'jpeg', quality: 60, timeout: 120_000 });
+      await frames2(); await frames2(); // draw the final state (canvas + HUD), then freeze rendering for the screenshot
+      await hold(true);
+      await page.screenshot({ path: join(D, framePath), type: 'jpeg', quality: 60, timeout: 240_000 });
       await page.evaluate(() => { const b = document.getElementById('pt-subtitle'); if (b) b.style.visibility = 'visible'; });
       const st = await readState();
       st.step = n; st.consoleErrorsSinceLastStep = errorBuf.splice(0); Object.assign(st, extra);

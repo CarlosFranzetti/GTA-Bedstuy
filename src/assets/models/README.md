@@ -8,7 +8,7 @@ procedural model is used, with one console warning.
 
 | File | Replaces |
 | --- | --- |
-| `character*.glb` (e.g. `character.glb`, `character-hoodie.glb`) | every pedestrian and the player (first file by name wins) |
+| `character*.glb` (e.g. `character.glb`, `character-hoodie.glb`) | every pedestrian and the player (`character.glb` wins, else the first file by name) |
 | `vehicle-sedan.glb` | sedan |
 | `vehicle-suv.glb` | SUV |
 | `vehicle-boxtruck.glb` | box truck |

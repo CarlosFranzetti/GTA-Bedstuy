@@ -73,54 +73,29 @@ M5, M2 and M3 each posted a numbered wiring recipe for M4. M3's signal poles wer
 
 ### M4's report and the 790 draw calls
 
-M4 finished its report at 01:38. It had applied everyone's wiring in the main file and made the game's drawing loop smoother. The headline number was less flattering: with honest counting (M4 found the old counter only measured the last render pass), the game was making **about 790 draw calls per frame** [separate things the graphics card must draw]. M4 split the city into 250 by 200 metre cells so far-away chunks are skipped. In a geometry test from four camera spots, that trade gave 77 draw calls with 352,000 triangles in view, compared with 29 draw calls and 581,000 triangles unsplit.
+M4 finished at 01:38, having applied everyone's wiring in the main file. The headline number was unflattering: with honest counting (the old counter only measured the last render pass), the game made **about 790 draw calls per frame** [separate things the graphics card must draw]. M4 split the city into 250 by 200 metre cells so far-away chunks are skipped; from four camera spots that gave 77 draw calls and 352,000 triangles in view, against 29 and 581,000 unsplit.
 
-One disagreement was settled politely. M2 had built an `applyInterpolated` function for smoothing movement. M4 said it would not use it, because that function creates a small object on every call, and M4 had built its own allocation-free snapshot system doing the same job. MGR agreed: "accepted (alloc-free, single path)".
+One disagreement settled politely: M2 had built an `applyInterpolated` function, but M4 declined to use it because it creates a small object on every call, and its own snapshot system did the same job without allocating. MGR: "accepted (alloc-free, single path)". MGR confirmed the connections by line number, and noted the auto-downgrade threshold (medium to low under 40 fps) was more conservative than the plan's 50, so it updated the plan. None of the smoothness could be verified without a real graphics card, because the test machine renders in software.
 
-MGR's review confirmed the connections by looking at line numbers: the paint call, the save-load, the true sun direction, the camera context. It worried about the 790 number and noted the target auto-downgrade threshold (medium to low when frames fall below 40 per second) was more conservative than the plan's 50. MGR accepted that and updated the plan to match. It also noted that none of the smoothness could be verified without a real graphics card, because the test machine renders in software.
+## Hour 02:00Z to 03:30Z
 
-At 01:39 fable finished the pedestrian clothing job itself, and an hour of quiet followed while M1 kept grinding.
+At 01:54 MGR asked M1 for status because every other lane had finished. At 02:09 M1 posted progress: an hour-by-hour day/night table, a 60-degree sun path, cool moonlight at night, and a fix for a bug it had found: a shadow helper moved the sun's position and the sky used that fake position, so there had been no stars at night and a dusk glow that never moved. Each audit run took about 15 minutes of software rendering.
 
-## Hour 02:00Z
+M1's final report (03:09): the 19:30 "blowout" was fixed. In baseline frames **49 percent of a car view and 5.9 percent of a street view were pure white** from bloom over a hazy dusk sky; after the fix the maximum anywhere was 0.10 percent. Night street brightness landed between 0.081 and 0.094 (21 to 24 out of 255; the bar was 20). Headlights were retuned so bumpers stop blowing out, and the dusk sky got a gradient instead of a flat orange wash. M1 had **not** applied R3's material metalness changes.
 
-At 01:54 MGR asked M1 for status, because every other lane had finished. M1 had edited a shadow file not on its list. fable blessed it, since it was on M1's owned list anyway. At 02:09 M1 posted progress:
-
-- the day/night settings now live in an hour-by-hour table;
-- the sun path peaks at 60 degrees;
-- a cool moonlight takes over at night;
-- the sky now receives the **true** sun direction. This fixed a bug M1 had found where a shadow helper moved the sun's position and the sky used that fake position. The result had been no stars at night and a dusk glow that never moved.
-
-M1 also reported that its audit script was working but each run took about 15 minutes of software rendering.
-
-## Hour 03:00Z
-
-### M1's final report and what the numbers say
-
-M1 posted the full list at 03:09. Highlights:
-
-- The 19:30 "blowout" was fixed. In baseline frames, **49 percent of a car view and 5.9 percent of a street view were pure white** from bloom over a hazy dusk sky. After the fix, the maximum anywhere was 0.10 percent.
-- Night street brightness landed between 0.081 and 0.094 (about 21 to 24 out of 255). The plan's bar was 20 out of 255.
-- Headlights were retuned so they no longer blow out the car bumper.
-- The dusk sky now has a gradient instead of a flat orange wash.
-- A lens-flare effect was stopped from drawing into the depth-and-outline passes where it caused artefacts.
-
-M1 said it had **not** applied the material metalness changes R3 had asked for, and that needed no help from fable.
-
-MGR's review accepted with one pointed concern: fable had asked for those metalness fixes at 01:19, and M1 had skipped them. (This is the **"material metalness debate"** in the loose sense. There was no argument, just a requested change that quietly did not happen, caught in review.) MGR also noted shadows had been tested at one hour only, that M3's glowing signal lamps at night went unmentioned, and that 0.081 sits right at the threshold, so "worth a real-GPU look".
+MGR accepted with one pointed concern: fable had asked for those metalness fixes at 01:19 and M1 skipped them. (This is the "material metalness debate" in the loose sense: no argument, just a requested change that quietly did not happen, caught in review.) MGR also noted shadows were tested at one hour only and 0.081 sits right at the threshold, so "worth a real-GPU look".
 
 ### Closing the stage
 
-At 03:12 MGR wrote the Stage 1 check-in. The gates on the integrated tree: type checking clean, **753 automated tests passing across 49 files**, artifact **6.69 MB** (about 170 KB more than before, against a 12 MB budget), and the end-to-end smoke test without console errors.
-
-At 03:33 fable finished the close-out. The material metalness values from R3 were applied (glass 0, car glass 0, paint 0.15, painted metals 0). Leftover per-frame allocations were cleaned out. R1's licence evidence was saved to the repo. The artifact was published as version 6, now 6.53 MB. The DeKalb Avenue question was left for you, since the sandbox cannot verify it.
+MGR's check-in at 03:12: type checking clean, **753 automated tests passing**, artifact **6.69 MB** (about 170 KB more than before, against a 12 MB budget), smoke test without console errors. At 03:33 fable closed out: R3's metalness values applied (glass 0, car glass 0, paint 0.15, painted metals 0), leftover per-frame allocations removed, R1's licence evidence saved, artifact version 6 published at 6.53 MB. The DeKalb Avenue question stayed with you.
 
 ## What the team learned in Stage 1
 
-1. **Green tests are not a working feature.** Several features passed their own tests but were not connected to the game until M4 applied them in the main file. The fix that worked: every final report must name where the feature is wired, and agents who do not own the main file post exact lines for someone who does.
-2. **Ownership gaps cost time.** Requests landed with the wrong owner (the world builder file went to fable instead of M4; material numbers had no clear owner). Lesson: list every touched file, new ones included, on the board before the stage starts.
-3. **Research behind a locked network is partial research.** R1 and R2 both delivered less than hoped. Per-block facts needed either allowlisted websites or your Street View screenshots.
-4. **Slow audits are a bottleneck.** M1 took two hours because each light audit is a 15-minute software render. Start the audit harness first, or give it its own lane.
-5. **Review caught what lanes skipped.** Two requested items (the metalness fixes, the position save) were missed and caught by MGR checking against the requirements table.
+1. **Green tests are not a working feature.** Several features passed their tests but were not connected until M4 applied them. The fix: every final report must name where the feature is wired.
+2. **Ownership gaps cost time.** Requests landed with the wrong owner (the world builder file, material numbers). List every touched file on the board before the stage starts.
+3. **Research behind a locked network is partial.** Per-block facts need allowlisted websites or your Street View screenshots.
+4. **Slow audits are a bottleneck.** M1 took two hours because each audit is a 15-minute software render.
+5. **Review caught what lanes skipped:** the metalness fixes and the position save.
 
 ---
 
@@ -161,7 +136,7 @@ X5 flagged its own oddity: at the default 17:30 start, Block Party leaves only 1
 
 ### Q10 finds four real traffic bugs
 
-Q10, the QA lane, ran a five-minute simulation on the real map with 30 cars, 40 pedestrians and 2 cop cars. It posted its good news first: the driving model holds up (stable at top speed, no jitter at walls, bounce settles within two frames, handbrake drift works, and 60 km/h with handbrake and half lock gave 25 degrees of slip, recovering in under a second). Then the bad news, in four separate defect reports, each with a failing test that stays as a reminder.
+Q10, the QA lane, ran a five-minute simulation on the real map (30 cars, 40 pedestrians, 2 cop cars). Good news first: the driving model holds up (stable at top speed, no jitter at walls, bounce settles within two frames, and a 60 km/h handbrake turn gave 25 degrees of slip and recovered in under a second). Then four defect reports, each with a failing test kept as a reminder.
 
 - **D1: AI cars crash into each other.** About 30 hard impacts per five minutes. Q10 traced it frame by frame to one cause: the car's "look ahead" ray is cast from where the car *intends* to be, not where it is. When a car starts or cancels overtaking, the ray misses the car ahead and the driver floors it.
 - **D2: impact spam.** A pedestrian pressed against a parked car produced **544** crash events in five minutes, each with sound, camera shake and a cop-hit check, and the check could wrongly add wanted stars.
@@ -249,12 +224,12 @@ MGR was rate-limited, so fable closed the stage. It applied S4's wiring, shrank 
 
 ## What the team learned in Stage 2
 
-1. **Number-driven goals work.** The "under 500 draw calls" target, with P8 reporting per-view numbers, took medium from 2,118 to 2,919 down to 273 to 376 with almost no visible change.
-2. **A QA lane that tries to break things earns its keep.** Q10 found four real traffic defects the other lanes' own tests missed, each with a repro. Fixing one produced a new bug (the ped deadlock), which Q10 caught because it kept running the long sim.
-3. **Fixes interact.** F12's fix for crashes and pedestrian knock-downs created a gridlock risk; S4's night glow broke L9's lighting range. Re-baselining after each landing matters.
-4. **Machine load shapes the schedule.** With six lanes sharing one box, a single headless render took 1.5 minutes or more, and some night shots crashed the browser.
-5. **Restarts and usage limits happen.** The container restart cost about 15 minutes, and resume prompts pointing agents at their own earlier posts recovered every lane. Two lanes (MGR, Q10) ended on the usage limit, not by choice, so snapshots were saved every few minutes.
-6. **Real names stay out of shipped files.** MGR repeatedly pushed real institutions out of anything that ships in the artifact.
+1. **Number-driven goals work.** The "under 500 draw calls" target took medium from 2,118 to 2,919 down to 273 to 376 with almost no visible change.
+2. **A QA lane that tries to break things earns its keep.** Q10 found four real defects the other lanes' own tests missed, and kept running the long sim, which caught the regression.
+3. **Fixes interact.** F12's crash fix risked gridlock; S4's night glow broke L9's lighting range. Re-baseline after each landing.
+4. **Machine load shapes the schedule.** With six lanes on one box a headless render took 1.5 minutes or more, and some night shots crashed the browser.
+5. **Restarts and usage limits happen.** Resume prompts pointing agents at their own earlier posts recovered every lane; MGR and Q10 ended on the usage limit, so snapshots were saved every few minutes.
+6. **Real names stay out of shipped files.**
 
 ---
 
@@ -273,21 +248,19 @@ The root cause, in V1's words, is about timing. The game's input system says a k
 
 V1's fix: a new `Input.consume(code)` that returns true once per press and survives frames with zero steps. It added 11 unit tests, including one proving the old method would re-enter. V1 then asked fable to make the same swap for the mission retry and abandon keys (R and X), which had the identical double-fire: retry or abandon twice per slow frame. This neatly connects to your other complaint, that the game is too heavy for your phone. The heaviness helped cause the exit bug.
 
-### Three new lanes from you
+### Four new lanes from you
 
-At 15:17 fable added four lanes from your direction. The game is too heavy on your phone, so **MOB** builds a phone quality tier. **MDL** looks for free polished car and character models "as a guide". **RADIO** builds a radio that plays your own audio files. **WRITE** writes an original 22-minute AI talk show. Licensing stance stays: no copyrighted songs, no Street View pixels, CC0 models only with credits.
-
-MGR added measurable rows to the requirements for each: the phone tier must hit at most 120 draw calls and 500,000 triangles on the seven viewpoints, and be chosen automatically on touch devices. Radio must ship **no audio in the repo** and cost at most 50 KB of artifact size.
+At 15:17 fable added lanes from your direction. The game is too heavy on your phone, so **MOB** builds a phone quality tier. **MDL** looks for free polished car and character models "as a guide". **RADIO** builds a radio that plays your own audio files. **WRITE** writes an original 22-minute AI talk show. Licensing stance stays: no copyrighted songs, no Street View pixels, CC0 models only, with credits. MGR added measurable rows: the phone tier must hit at most 120 draw calls and 500,000 triangles on the seven viewpoints and be chosen automatically on touch devices; radio must ship **no audio in the repo** and cost at most 50 KB.
 
 ### The radio grows to eight stations
 
-At 15:19 fable passed on your station list. To the original Pop (15 slots), 80s (12), Rap (13) and House and Dub (22), you added Trap (25), Weird/Psych (28, "the user named Tame Impala and Abra as the vibe"), Folky Echo-Dub Rock (16) and Jazzy Rock "That Gets Lit" (16). That makes **147 music slots** plus the WBSY Talk station. Artist names are search keywords only, never bundled audio. Each station needs a parody name, a jingle and its own synthesised fallback sound (trap hi-hats and 808s, slow psychedelic arpeggios with tape wobble, echo-delay dub guitar, a jazz-rock walking bass with ride cymbal) for when a slot is empty.
+At 15:19 fable relayed your station list. To the original Pop (15 slots), 80s (12), Rap (13) and House and Dub (22), you added Trap (25), Weird/Psych (28, "the user named Tame Impala and Abra as the vibe"), Folky Echo-Dub Rock (16) and Jazzy Rock "That Gets Lit" (16). That is **147 music slots** plus the WBSY Talk station. Artist names are search keywords only, never bundled audio. Each station needs a parody name, a jingle and its own synthesised fallback sound (trap hats and 808s, slow psychedelic arpeggios with tape wobble, echo-delay dub guitar, a jazz-rock walking bass) for empty slots.
 
-RADIO acknowledged within a minute. It had also asked WRITE to confirm the shape of the script file, and WRITE answered quickly: the file has a title, station name, total seconds and a list of segments, each with kind (host, caller, ad, jingle, news, sting), speaker, voice and seconds. Spoken segments are at most 60 seconds. RADIO coded to that shape and made its parser tolerant of the older voice names.
+RADIO had asked WRITE to confirm the script file's shape; WRITE answered quickly (title, station, total seconds, and segments with kind, speaker, voice and seconds, spoken segments at most 60 seconds) and RADIO coded to that.
 
 ### WRITE delivers in four minutes
 
-WRITE's final report at 15:20: 57 segments, 3,288 words, 1,325 seconds (target 1,320 plus or minus 30). MGR's review checked every number and added a scan of 28 real AI and tech company or person names: zero hits. The only real names are street names. MGR's one comment on tone: the show host "Garvey Cutz" takes its name from the street and is fine as a street-derived parody.
+WRITE's final report: 57 segments, 3,288 words, 1,325 seconds (target 1,320 plus or minus 30). MGR checked every number and scanned for 28 real AI and tech company or person names: zero hits; the only real names are street names. MGR's one tone note: the host "Garvey Cutz" takes its name from the street and is fine as a street-derived parody.
 
 ### MOB and L10: sharing two files politely
 
@@ -305,16 +278,9 @@ By 15:22 W2 had finished two of three tasks. Its design decision at 15:15 was si
 
 ### BIBLE lands and sets the yardstick
 
-At 15:18 fable relayed your instruction: "Use GTA 5 as your bible". You wanted the views, mechanics, graphics, funny missions, open world and soundtrack for nights and days in Bed-Stuy. At 15:20 fable added your reason: GTA 5 was "the first to make a world people would live in for days at a time". So BIBLE should open with this principle: the target is "a place people want to stay in, not a demo", with ambient life, something to do every 30 seconds, a radio you leave on, and days and nights worth watching. MGR was asked to review everything against the question "would someone live here for a day?"
+At 15:18 fable relayed your instruction: "Use GTA 5 as your bible", for the views, mechanics, graphics, funny missions, open world and soundtrack. At 15:20 it added your reason: GTA 5 was "the first to make a world people would live in for days at a time". So BIBLE should open with the principle that the target is "a place people want to stay in, not a demo": ambient life, something to do every 30 seconds, a radio you leave on, days and nights worth watching.
 
-BIBLE landed in under six minutes: `docs/reference/BIBLE.md`, nine sections, 35 sources. WebFetch is blocked, so it worked from search excerpts only, and it tagged unsourced items as memory or tuning guesses. Its top five gaps ranked by the live-in test:
-1. there is no "thing every 30 seconds" (events, strangers, collectibles);
-2. only three flat missions, and they need a richer template;
-3. the radio has no station wrapper (DJ, ads, news, jingles, ducking and crossfades);
-4. the day has no schedule (rush hours, school run, stoops, block party, night cops, and a 24-minute day);
-5. there is no in-world phone.
-
-It added that police are a 20-second timer rather than line-of-sight, and the camera lacks look-back, cinematic moments and letterbox.
+BIBLE landed in under six minutes: nine sections, 35 sources, from search excerpts only (WebFetch is blocked), with unsourced items tagged as memory or tuning guesses. Its top five gaps, ranked by the "would someone live here?" test: (1) no "thing every 30 seconds"; (2) only three flat missions; (3) the radio has no station wrapper (DJ, ads, news, jingles, crossfades); (4) the day has no schedule (rush hours, school run, block party, night cops); (5) no in-world phone. It added that police are a 20-second timer rather than line-of-sight, and the camera lacks look-back and cinematic moments.
 
 ### You ask to hear them talk
 
@@ -322,21 +288,33 @@ At 15:21, fable posted your request: you want to read the team talking and figur
 
 ### MGR reviews BIBLE and MDL; a new lane appears
 
-At 15:25 MGR accepted BIBLE. In MGR's words, the document "does not tell us to copy GTA, it asks one question of every lane": would someone want to live in this Bed-Stuy for a day? It breaks that into five properties: the world moves without you, something is always one choice away, it has moods, moving feels good, it keeps you company. MGR called the ranked gap list the most useful part, because it says "our gap is content and life, not rendering". MGR folded the yardstick into the requirements and will ask the BIBLE question first in every review, with a caution to treat cited GTA figures as approximate, since they came from search excerpts.
+MGR accepted BIBLE: it "does not tell us to copy GTA, it asks one question of every lane", whether someone would want to live in this Bed-Stuy for a day, broken into five properties (the world moves without you, something is always one choice away, it has moods, moving feels good, it keeps you company). The ranked gap list is the most useful part because it says "our gap is content and life, not rendering". MGR folded the yardstick into the requirements and will ask the BIBLE question first in every review.
 
-MGR also accepted MDL after spot-checking two licences itself (the Quaternius file really is the CC0 dedication). Two follow-ups: the credits file still said the truck was "held for approval", and the Kenney police car has no light bar or headlight nodes, so at night "these cars will look dead". fable's decision: ship the six CC0 files now with the van standing in for the box truck, hold the Apache truck until its wheels are split, and launch a new lane, **MDLI**, to integrate them. MGR added requirements in plain terms: the models must load through the existing loader and face the right way; the old procedural models must take over if a file is missing; cars need lights at night; and the artifact must stay under 12 MB (the files add roughly 1.2 MB). MGR also asked MDLI to tell MOB whether glTF cars or the old procedural boxes cost fewer draw calls on the phone.
-
-Meanwhile RADIO reported its core landed: library, importer, director and talk player, with the dial now at 3 synth stops, 8 library stations and WBSY Talk, 12 stops in all.
+MGR also accepted MDL after spot-checking two licences itself. Follow-ups: the Kenney police car has no light bar, so at night "these cars will look dead". fable decided to ship the six CC0 files now (van as box truck), hold the Apache truck until its wheels are split, and launch **MDLI** to integrate them. MGR's requirements for MDLI: models load through the existing loader, old procedural models take over if a file is missing, cars get lights at night, and the artifact stays under 12 MB (the files add roughly 1.2 MB).
 
 ## Hour 15:30Z
 
 ### RADIO finishes the music-and-talk station
 
-At 15:36 RADIO posted its final report. The dial now has 3 synth stops, 8 library stations (the 147 slots) and WBSY Talk. In plain terms:
+RADIO's final report (15:36): the dial now has 3 synth stops, 8 library stations (the 147 slots) and WBSY Talk.
 
-- **An empty slot is never silence.** It plays 40 seconds of that genre's own synthesised pattern, so the Trap station without your files still sounds like trap hats and 808s.
-- **Switching stations feels like a radio.** There is a short dial-static burst, a per-station jingle on tuning, a half-second crossfade between two "decks", and a station ID every third natural change. Each station keeps its own virtual clock, so it resumes mid-song rather than restarting, like a real broadcast.
-- **The talk station** reads WRITE's 57-segment script with the browser's built-in speech voices, giving four roles different pitch and rate, with stings and a ducked [quieted] bed underneath. On a device with no voice it says so: "WBSY Talk (voice unavailable on this device)".
-- **Your files stay yours.** Song metadata sits in browser storage and the folder handle in IndexedDB. No audio ships in the game. Code size is about 40 KB, and the whole artifact built at 6.96 MB.
+- **An empty slot is never silence.** It plays 40 seconds of that genre's own synthesised pattern.
+- **Switching feels like a radio.** Dial static, a jingle on tuning, a half-second crossfade, a station ID every third change, and each station keeps its own virtual clock, so it resumes mid-song like a real broadcast.
+- **The talk station** reads WRITE's 57-segment script with the browser's built-in voices, and says "WBSY Talk (voice unavailable on this device)" where there are none.
+- **Your files stay yours.** No audio ships in the game. Code size is about 40 KB.
 
-RADIO was candid about the limits. It did not do BIBLE's extras (time-of-day programming, DJ chatter between tracks, a muffled spill of music heard from outside the car). And on Firefox and Safari, reconnecting to your folder needs a user tap, so those users re-add files each session. The only remaining type errors were MOB's in-progress phone work. RADIO also posted six exact line edits for fable to make in `main.ts` and `Menu.ts`, because RADIO does not own those files: the radio library panel, the HUD track name and the Menu button. This is the Stage 1 "name the wiring" lesson, applied.
+RADIO was candid about gaps: no time-of-day programming, no DJ chatter, no muffled spill outside the car, and Firefox and Safari users must re-add their folder each session. It posted six exact line edits for fable because it does not own `main.ts`: the Stage 1 "name the wiring" lesson applied. MGR re-ran 243 tests, confirmed no audio file is in the repo, and liked one judgement call: bare "dub" goes to House and Dub, while only "echo-dub" goes to the folk station, so songs do not land on the wrong station at random. fable applied the edits within seconds and the radio went live.
+
+### The roundtable is quiet, and the machine is struggling
+
+At 15:37 MGR nudged: fifteen minutes after the six questions "no lane has answered yet", and "it now counts as part of each lane's job, not an extra". The silence has a cause. **PT** reported two validation runs dying with "Target crashed": the kernel was killing test browsers for memory (each took 2.6 to 4.8 GB on a 16 GB box with a load average of 30). MOB and W2 reported the same.
+
+### MOB, W2 and MDLI
+
+- **MOB (15:43):** the phone tier is wired in (no ambient occlusion, depth of field or anti-aliasing; 4 lamp lights; automatic on touch devices, dropping from low to phone below 30 fps). First measurement at a noon street: **212 draw calls and 1.21 million triangles against 350 and 1.90 million at low**. The target is 120 and 500,000, so "geometry work continues".
+- **W2 (final):** granite curbs finally applied, closing the Stage 2 mismatch; areaway fences block pedestrians but leave the stoop-foot gap and a 1 m basement entry; avenue shops thinned from **3 to 9 per face (mean 6.4) to 3 to 5 (mean 4.5)**. MGR did not trust the summary and counted lots straight from the data: all 24 north-south avenue faces now have 3 to 5, "and Throop in particular no longer reads as a solid wall of shops". Concerns: Lafayette north (11 of 30 lots) and Greene south (10 of 30) are still very commercial, and a thin dark sliver at one curb ramp might be a visible gap.
+- **MDLI:** the Kenney cars are "toy-proportioned" (1.5 m wide, 1.3 m tall, 2.55 m long) with one colour palette for the whole car. Its fix: fit each car to the spec box per axis but keep wheels round, recolour only the body patch of the palette, and synthesise headlights, taillights, plates and the police light bar.
+
+### MGR admits a mistake
+
+At 15:45 MGR asked V1, PT and L10 for status, saying V1 had been silent for thirty minutes. Within a minute: "I was wrong to call V1 quiet; V1 posted a confirmed root cause at 15:20 and I missed it while reading." MGR then restated the bug in everyday words, adding that it explains "why the user, on a heavy scene, could never get out, and why a fast desktop might not show it", and recommended fable approve V1's change for the R and X keys.
