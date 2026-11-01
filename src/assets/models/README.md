@@ -18,23 +18,37 @@ procedural model is used, with one console warning.
 
 - Skinned humanoid, y-up, units in metres, standing in a neutral pose. The loader measures it and scales it to
   1.75 m, stands it on y = 0 and centres it. It must face glTF forward (+z); the loader turns it to the game's -z.
-- Animation clips, matched by name, case-insensitive: `Idle`, `Walk`, `Run` (or `Jog`). A file with exactly one clip
+- Animation clips, matched by name, case-insensitive, after dropping an armature prefix (`CharacterArmature|`) and a `Man_` style
+  rig prefix: `Idle`, `Walk`, `Run` (or `Jog`, `Sprint`). An exact name wins over look-alikes (`Run` over `Run_Back` / `RunningJump`). A file with exactly one clip
   uses it as the walk cycle. Without an idle clip, characters freeze on the first walk frame when standing.
   Walk plays at about 1.4 m/s, run at about 5.5 m/s; playback speed is scaled to the actual ground speed.
-- Cloth variants: the largest mesh gets a colour multiplied onto its material (8 tints), so crowds vary.
-  Use a light, desaturated base colour / texture for the clothes you want tinted.
+- Cloth variants: materials named like clothes (`shirt`, `top`, `hood`, `jacket`, ...; else everything that is not skin / hair / eyes /
+  metal) get one of 8 tints, so crowds vary. A dark cloth colour takes the tint instead of being multiplied by it. Variant 0 keeps the
+  authored colours. Weapon / prop nodes (`Sword`, `Pistol`, ...) are removed.
+- A root armature scale of 100 (Blender centimetre exports) is fine: the loader measures the posed model and scales it to 1.75 m.
 
 ## Vehicles
 
-- y-up, metres, any size (it is scaled to the vehicle length), wheels resting on the ground, facing +z (or tell us by
-  naming the lights). The loader turns it to -z; if the long axis is x it rotates 90 degrees first.
+- y-up, metres, wheels resting on the ground, facing +z (or tell us by naming the lights). The loader turns it to -z; if the
+  long axis is x it rotates 90 degrees first.
+- The body is fitted to the vehicle spec (`VEHICLE_SPECS` length x width x height) per axis, so toy-proportioned packs (Kenney)
+  match the physics box and the lanes. Wheels are not stretched: they get the height factor uniformly, stay round and keep touching
+  the ground. Only wheels whose bottom is near the ground are spun / steered (a spare tyre named `wheel` is left on the body).
 - Node names the loader looks for (case-insensitive):
   - wheels: `wheel` in the name; front pair: `front`, `_F`, `_FL`, `_FR` (otherwise the two most forward wheels steer)
   - lights: `headlight` / `headlamp`, `taillight` / `taillamp` / `brake light` (mesh or material name), with a standard (PBR) material;
-    they get their own emissive material so the game can light them at night
-  - body paint: material name containing `paint` or `body` (recoloured to the vehicle colour if untextured), otherwise the largest mesh
+    they get their own emissive material so the game can light them at night.
+    **No light nodes (Kenney)? The loader synthesises them**: a lens quad on each front corner and each rear corner, placed on the body
+    surface by casting rays, plus a front and a rear licence plate. The cop car also gets a two-halved red / blue light bar on the roof.
+  - body paint: material name containing `paint` or `body` (recoloured to the vehicle colour if untextured), otherwise the largest mesh.
+    A palette-textured body (one small colour atlas for the whole car, as in the Kenney Car Kit, material `colormap`) is recoloured only
+    inside its paint cell of the atlas (`KENNEY_PAINT_CELLS` in `gltf/VehicleSource.ts`, 8 x 4 cells), keeping the atlas shading; the
+    police car has no cell and keeps its livery. For another palette model pass `{ paintCell }` to `GltfVehicleSource.load`.
   - cop only: light-bar meshes with `bar` / `siren` and `red` / `blue` in the name or material name
   - `hood` / `bonnet` node (optional): lifts when the car is wrecked
+- Far cars: `CarLod` draws every car beyond the near distance as an instance of one merged model per type (body + wheels as 10-gon tyres,
+  lit lamps when the lights are on) and the AoProxy hull is built from it. That needs the palette-paint path above; a car without it simply
+  keeps its full model at any distance (more draw calls).
 
 ## Licence
 

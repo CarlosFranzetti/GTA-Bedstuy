@@ -146,6 +146,15 @@ export interface VehicleLoadOptions {
   paintCell?: PaletteCell | null;
 }
 
+/** Cached, shared geometry of the synthesised parts of one fitted car size (car space). */
+interface LampLayout {
+  head?: THREE.BufferGeometry;
+  tail?: THREE.BufferGeometry;
+  plateFront?: THREE.BufferGeometry;
+  plateRear?: THREE.BufferGeometry;
+  roof?: THREE.Vector3 | null;
+}
+
 const _ray = new THREE.Raycaster();
 interface Surface { point: THREE.Vector3; normal: THREE.Vector3 }
 
@@ -189,6 +198,8 @@ export class GltfVehicleSource {
   private plateSeq = 0;
   private lod: GltfLodParts | null | undefined;
   private fallbackPlate: THREE.Material | null = null;
+  /** synthesised light / plate / bar geometry per fitted size (the ray casts run once per size, not once per car) */
+  private readonly layouts = new Map<string, LampLayout>();
 
   private constructor(private readonly type: VehicleType, private readonly scene: THREE.Object3D, opts: VehicleLoadOptions = {}) {
     this.cell = opts.paintCell !== undefined ? opts.paintCell : KENNEY_PAINT_CELLS[type] ?? null;
@@ -320,8 +331,9 @@ export class GltfVehicleSource {
       }
       return any ?? { point: new THREE.Vector3(x, ys[0] * H, dirZ > 0 ? -L / 2 : L / 2), normal: new THREE.Vector3(0, 0, -dirZ) };
     };
-    const synthLamp = (pts: Surface[], w: number, h: number, colour: number, base: number, name: string): THREE.Mesh => {
-      const g = mergeGeometries(pts.map((p) => quadOn(p, w, h)), false)!;
+    const lay: LampLayout = this.layouts.get(`${W}|${H}|${L}`) ?? {};
+    this.layouts.set(`${W}|${H}|${L}`, lay);
+    const synthLamp = (g: THREE.BufferGeometry, colour: number, base: number, name: string): THREE.Mesh => {
       const mat = new THREE.MeshStandardMaterial({ color: base, emissive: colour, emissiveIntensity: 0, roughness: 0.25, metalness: 0.1, side: THREE.DoubleSide });
       own.push(mat);
       const m = new THREE.Mesh(g, mat);
@@ -330,23 +342,24 @@ export class GltfVehicleSource {
       return m;
     };
     if (!headlights.length) {
-      const pts = [-0.32 * W, 0.32 * W].map((x) => endPoint(x, [0.42, 0.5, 0.34, 0.58, 0.28], 1)); // ray travels +z: hits the front (-z) face
-      headlights = [synthLamp(pts, 0.3 * lampScale, 0.13 * lampScale, HEAD_EMISSIVE, 0xffffff, 'headlight')];
+      lay.head ??= mergeGeometries([-0.32 * W, 0.32 * W].map((x) => quadOn(endPoint(x, [0.42, 0.5, 0.34, 0.58, 0.28], 1), 0.3 * lampScale, 0.13 * lampScale)), false)!; // ray travels +z: hits the front (-z) face
+      headlights = [synthLamp(lay.head, HEAD_EMISSIVE, 0xffffff, 'headlight')];
     }
     if (!taillights.length) {
-      const pts = [-0.34 * W, 0.34 * W].map((x) => endPoint(x, [0.5, 0.42, 0.58, 0.34, 0.66], -1));
-      taillights = [synthLamp(pts, 0.26 * lampScale, 0.11 * lampScale, TAIL_EMISSIVE, 0x7a1010, 'taillight')];
+      lay.tail ??= mergeGeometries([-0.34 * W, 0.34 * W].map((x) => quadOn(endPoint(x, [0.5, 0.42, 0.58, 0.34, 0.66], -1), 0.26 * lampScale, 0.11 * lampScale)), false)!;
+      taillights = [synthLamp(lay.tail, TAIL_EMISSIVE, 0x7a1010, 'taillight')];
     }
 
     // 6. licence plates
     const plates = ctx.materials ?? plateMaterials;
     const plateMat = plates ? plates.get('plate', ctx.variant ?? this.plateSeq++) : this.blankPlate();
-    ['plateFront', 'plateRear'].forEach((name, i) => {
-      const p = endPoint(0, [0.26, 0.3, 0.22, 0.36], i === 0 ? 1 : -1);
-      const m = new THREE.Mesh(quadOn(p, 0.34, 0.17), plateMat);
+    lay.plateFront ??= quadOn(endPoint(0, [0.26, 0.3, 0.22, 0.36], 1), 0.34, 0.17);
+    lay.plateRear ??= quadOn(endPoint(0, [0.26, 0.3, 0.22, 0.36], -1), 0.34, 0.17);
+    for (const [name, g] of [['plateFront', lay.plateFront], ['plateRear', lay.plateRear]] as const) {
+      const m = new THREE.Mesh(g, plateMat);
       m.name = name;
       group.add(m);
-    });
+    }
 
     // 7. cop light bar: found by name, else two boxes on the roof (red / blue halves)
     let lightbar: CarModel['lightbar'];
@@ -360,7 +373,8 @@ export class GltfVehicleSource {
         if (r && b) lightbar = { red: r, blue: b };
       }
       if (!lightbar) {
-        const roof = surfaceHit(targets, new THREE.Vector3(0, H + 1, -0.04 * L), up.clone().negate());
+        if (lay.roof === undefined) lay.roof = surfaceHit(targets, new THREE.Vector3(0, H + 1, -0.04 * L), up.clone().negate())?.point ?? null;
+        const roof = lay.roof ? { point: lay.roof } : null;
         if (roof) {
           const bw = 0.27 * W, bd = 0.14, bh = 0.09;
           const half = (sign: 1 | -1, name: string): THREE.Mesh => {
@@ -498,6 +512,8 @@ export class GltfVehicleSource {
     this.paint.clear();
     this.fallbackPlate?.dispose();
     this.fallbackPlate = null;
+    for (const l of this.layouts.values()) { l.head?.dispose(); l.tail?.dispose(); l.plateFront?.dispose(); l.plateRear?.dispose(); }
+    this.layouts.clear();
     if (this.lod) { this.lod.body.dispose(); this.lod.hull.dispose(); this.lod.head?.dispose(); this.lod.tail?.dispose(); this.lod.material.dispose(); }
     this.lod = undefined;
   }
