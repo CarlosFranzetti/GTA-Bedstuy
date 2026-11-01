@@ -61,3 +61,64 @@ placed at y = 45 m in full sun; sun elevation 11.5 deg (7h) and 17.2 deg (18h).
 
 The city streets at 7h / 18h are almost entirely in building shade (row houses 12-15 m, sun 11-17 deg), so acne can only show on roofs, upper facades and
 sun-parallel walls; none were visible at medium or high in the stoop / east-west street audit frames either.
+
+
+# Stage 3 column (L10, 1 Nov, build 16:15Z, after the shop-glazing cap)
+Same rig (`node scripts/light-audit.mjs`, 640x360, low tier unless stated). S2 = the Stage 2 numbers above, S3 = this build.
+Caveat for the day rows: W2 rebuilt the avenue faces between the two runs, so the spawn view now has a tree trunk in the foreground and a brick wall on the right
+instead of the Stage 2 open shopfront; day means are therefore not comparable one to one (the street is in building shade), only the night rows and blown % are.
+
+## Street view (spawn), low tier
+| hour | S2 mean | S3 mean | S3 blown % | S3 crushed % | S3 sat | S3 low-half mean |
+|---|---|---|---|---|---|---|
+| 6 | 0.082 | 0.083 | 0.00 | 37.3 | 0.53 | 0.078 |
+| 9 | 0.187 | 0.140 | 0.00 | 19.7 | 0.49 | 0.103 |
+| 12 | 0.314 | 0.207 | 0.00 | 6.4 | 0.37 | 0.171 |
+| 15 | 0.305 | 0.231 | 0.00 | 12.1 | 0.31 | 0.216 |
+| 18 | 0.158 | 0.135 | 0.00 | 25.3 | 0.46 | 0.118 |
+| 19.5 | 0.234 | 0.131 | 0.01 | 24.5 | 0.56 | 0.112 |
+| 21 | 0.242 | 0.127 | 0.01 | 30.3 | 0.62 | 0.100 |
+| 0 | 0.244 | 0.130 | 0.01 | 28.0 | 0.61 | 0.104 |
+
+Night spawn mean is now inside the 0.085-0.13 target at 21h and 0h (it is the upper edge of the band).
+
+## Night lamp / shop views, low tier
+| view, hour | S2 mean | S3 mean | S3 blown % | S3 crushed % | S3 low-half mean |
+|---|---|---|---|---|---|
+| signals 21 | 0.218 | 0.208 | 0.08 | 27.9 | 0.240 |
+| signals 0 | 0.220 | 0.218 | 0.08 | 26.2 | 0.243 |
+| shops 21 | 0.121 | 0.111 | 0.01 | 50.3 | 0.104 |
+| shops 0 | 0.184 | 0.139 | 0.01 | 36.7 | 0.171 |
+
+## Medium tier, street view
+| hour | S2 mean | S3 mean | S3 blown % | S3 crushed % | S3 low-half mean |
+|---|---|---|---|---|---|
+| 12 | 0.318 | 0.208 | 0.00 | 6.4 | 0.170 |
+| 18 | 0.156 | 0.132 | 0.00 | 24.5 | 0.116 |
+| 0 | 0.246 | 0.130 | 0.01 | 27.0 | 0.104 |
+
+Blown stays <= 0.08 % in every frame (gate < 0.5 %).
+
+## Shop glazing cap (night)
+Cause: `storefrontGlass` shared one night emissive (0.9 x warm `#ffd27a`) with `window`, and its emissive map is a flat white rectangle for the whole glass, so one shop face
+read as a ~0.85-luma cream wall. Fix, in `src/textures/MaterialLibrary.ts` only: per-key night intensity (`GLASS_NIGHT_INTENSITY`): `storefrontGlass` 0.35 (variant 0) / 0.28 (variant 1),
+`window` unchanged at 0.9 (only variants 0 and 3 of four have a lit emissive map, so upper floors stay a warm patchwork of lit and dark rooms). Lightbox 0.55 and stickers are S4's and unchanged.
+
+Before/after on the Stage 2 audit command (`--hours 21,0 --views street,shops,signals --q low`, before = 15:2xZ build, same spawn scene with the big shop face):
+| view | hour | before mean | after mean |
+|---|---|---|---|
+| street | 21 | 0.240 | 0.127 |
+| street | 0 | 0.141 | 0.130 |
+| shops | 21 | 0.117 | 0.111 |
+| shops | 0 | 0.170 | 0.139 |
+| signals | 21 / 0 | 0.216 / 0.218 | 0.208 / 0.218 |
+
+The street rows also include W2's layout change; the same-build A/B (`--glass 0.9` forces the old value) on a close-up of the nearest shopfront at 21h gives a glazing crop mean of
+0.395 -> 0.300 luma and a frame mean 0.128 -> 0.118, glazing still clearly lit (PNG scratchpad `l10/glaze_before.png` / `glaze_after.png`).
+
+## GTAO proxy halo check (AoProxy vs real scene)
+Same medium build, `?proxies=0` (GTAOPass renders the real scene) vs default (proxy cells), 640x360, spawn street + aerial, 12h and 21h; Default frames, AO-only output, 12h Normal output:
+mean absolute luma difference 0.1-1.2 / 255 (pixels differing by > 16: 0.00-0.36 %), edge band around strong luma edges 0.1-2.6 / 255 versus 0.1-1.0 off-edge. The only visible differences are
+the player capsule vs the real body and car hulls vs real cars (AO blob shape), and a few lamps. Building edges show no halo or outline difference between modes. The dotted dark
+fringe at depth discontinuities (awning edge, poles) is identical with `?proxies=0`, so it comes from GTAOPass (8 samples + denoise) and not from the proxy geometry or normals; it is
+faint (AO min 188/255 at 0.8 blend). Not reproducible as a proxy defect; no change to AoProxy.ts / Pipeline.ts.

@@ -28,7 +28,7 @@ const hardStop = setTimeout(() => { console.error('[enter-exit] hard timeout'); 
 const LAUNCH = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 
 async function open(opts = {}, init) {
-  const ctx = await browser.newContext({ viewport: { width: 480, height: 270 }, ...opts });
+  const ctx = await browser.newContext({ viewport: { width: 640, height: 360 }, ...opts });
   if (init) await ctx.addInitScript(init);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => pageErrors.push(String(e)));
