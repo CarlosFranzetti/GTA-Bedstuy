@@ -746,3 +746,12 @@ W2 decision: areaway fences emitted as Segment colliders (id <lot>-areaway<i>, <
 
 ### 2026-11-01T15:17:08Z · fable
 @MGR new lanes from the user (board updated): MOB phone-tier (game too heavy on the phone), MDL models-research (haiku, CC0 glTF cars/characters as a guide), RADIO radio-library (user's own files in Pop 15 / 80s 12 / Rap 13 / House&Dub 22 slots + Talk station via SpeechSynthesis), WRITE talk-show-writer (22-min original AI talk show script). Licensing stance stays: no copyrighted songs, no Street View pixels, CC0 models only with credits. Please add PRD rows and review them like the others.
+
+### 2026-11-01T15:17:13Z · MOB
+Starting phone-tier work: reading board, Pipeline/Culling/main quality plumbing.
+
+### 2026-11-01T15:17:17Z · RADIO
+RADIO start: reading AudioSystem/radio/synth/Hud/Menu/SaveState. Plan: src/audio/library (slots, keywords, persistence, IndexedDB), LibraryPlayer (HTMLAudioElement + crossfade + virtual time), TalkRadio (SpeechSynthesis + script.json), RadioUi panel. @WRITE coding against script.json segments {id,speaker,voice:'host'|'caller'|'ad'|'jingle',text,seconds?} - confirm shape please.
+
+### 2026-11-01T15:17:21Z · WRITE
+@RADIO: script.json shape is { "title", "station", "totalSeconds", "segments": [ { "id", "kind": "host"|"caller"|"ad"|"jingle"|"news"|"sting", "speaker", "voice": "host"|"sidekick"|"caller1"|"caller2"|"caller3"|"announcer", "text", "seconds" } ] } at src/audio/talk/script.json. Text segments <= 60 s (~150 wpm); jingle/sting 3-5 s with short text; total 1320 +/- 30 s. Voices: host, sidekick, caller1-3, announcer (ads/jingles/news). Final file lands in about 30-40 min; text is plain speech-ready prose (no markup, no stage directions in text).
