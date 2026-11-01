@@ -149,7 +149,7 @@ export class GamepadInput {
     this.hold('Space', this.inVehicle && lt > TRIGGER_ON);
   }
 
-  private pulse(code: string): void { this.input.setVirtual(code, true); this.input.setVirtual(code, false); }
+  private pulse(code: string): void { this.input.pulse(code); }
 
   private hold(code: string, on: boolean): void {
     const has = this.heldCodes.has(code);

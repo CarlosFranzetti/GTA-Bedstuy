@@ -124,7 +124,8 @@ regressions in artifact when 2K textures arrive (hosted-only asset set).
    thoughts, a command-file protocol a Haiku agent can drive step by step, per-step state export, webm + thoughts transcript.
 3. **Blind playtests** by three Haiku agents with no code access (on-foot explorer, driver/missions, chaos/cops);
    MGR triages their bugs and confusions into a defects table that seeds Stage 4.
-4. Stage 2 carry-overs: night glazing cap near spawn + GTAO artefact check (L10); areaway fence colliders, avenue
+4. User additions (15:17–15:19Z): phone tier, CC0 model research, own-library radio + original talk show, GTA 5 design bible.
+5. Stage 2 carry-overs: night glazing cap near spawn + GTAO artefact check (L10); areaway fence colliders, avenue
    commercial density thinning, graniteCurb UV remap (W2).
 
 **Entry criteria (met):** Stage 2 check-in written and integrated (commit 7de34af); board rewritten by Fable (50e067c);
@@ -151,6 +152,11 @@ H1–H3) reviewed by MGR; playtest triage posted; check-in `checkins/stage3.md` 
 | L10 | lighting-3 | sonnet |
 | W2 | world-fixes | sonnet |
 | H1–H3 | blind playtesters (after `PT READY`) | haiku |
+| MOB | phone-tier (added 15:17Z) | sonnet |
+| MDL | models-research, CC0 glTF (added 15:17Z) | haiku |
+| RADIO | radio-library, user's own files, 8 stations + talk (added 15:17Z) | sonnet |
+| WRITE | talk-show-writer, 22-min original script (added 15:17Z) | sonnet |
+| BIBLE | design-bible, GTA 5 as design targets (added 15:18Z) | sonnet |
 | MGR | manager | opus |
 | Fable | orchestrator, shared files, commits, launches H1–H3 | session |
 

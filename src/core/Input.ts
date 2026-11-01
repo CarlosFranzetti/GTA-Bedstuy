@@ -4,6 +4,8 @@ export type InputMode = 'keyboard' | 'touch' | 'gamepad';
 export class Input {
   private down = new Set<string>();
   private justPressed = new Set<string>();
+  /** Edges raised after the frame's simulation steps (gamepad poll in the render callback); they survive one `endFrame()`. */
+  private carryOver = new Set<string>();
   /** Mouse movement since last `endFrame()`, pixels. */
   mouseDX = 0; mouseDY = 0;
   wheel = 0;
@@ -50,6 +52,12 @@ export class Input {
     if (down) { if (!this.virtualDown.has(code)) this.justPressed.add(code); this.virtualDown.add(code); this.gesture(); }
     else this.virtualDown.delete(code);
   }
+  /**
+   * One-shot press edge raised from the render phase (the gamepad poll runs in the render callback, AFTER the
+   * frame's steps and BEFORE `endFrame()`): the edge is kept through that frame's `endFrame()` so the next frame's
+   * steps can still see it. A plain `setVirtual` edge raised there would be wiped before any step read it.
+   */
+  pulse(code: string): void { this.justPressed.add(code); this.carryOver.add(code); this.gesture(); }
   /** Camera look delta from a touch drag, in pixels. */
   addLook(dx: number, dy: number): void { this.mouseDX += dx; this.mouseDY += this.invertLookY ? -dy : dy; }
   /** Record which device the player is using; fires `onModeChange` only on a real change. */
@@ -73,7 +81,7 @@ export class Input {
    * steps before `endFrame()` clears the edge, so `pressed()` is true on every one of them and a toggle
    * (exit then enter the same car) fires twice.
    */
-  consume(code: string): boolean { return this.justPressed.delete(code); }
+  consume(code: string): boolean { this.carryOver.delete(code); return this.justPressed.delete(code); }
   /** Returns -1..1 from two keys. */
   axis(neg: string[], pos: string[]): number {
     const n = neg.some((c) => this.isDown(c)) ? 1 : 0;
@@ -84,5 +92,8 @@ export class Input {
     else if (pos.includes('KeyD') || pos.includes('ArrowRight')) v += this.touchAxis.x;
     return Math.max(-1, Math.min(1, v));
   }
-  endFrame(): void { this.justPressed.clear(); this.mouseDX = 0; this.mouseDY = 0; this.wheel = 0; }
+  endFrame(): void {
+    this.justPressed.clear();
+    if (this.carryOver.size > 0) { for (const c of this.carryOver) this.justPressed.add(c); this.carryOver.clear(); }
+    this.mouseDX = 0; this.mouseDY = 0; this.wheel = 0; }
 }

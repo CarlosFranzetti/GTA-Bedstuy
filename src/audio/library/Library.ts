@@ -193,7 +193,7 @@ export class Library {
     this.begin();
     // Target occupied: the displaced track swaps into the old slot, or returns to the pool.
     const displaced = arr[target];
-    if (prev) this.slots.get(prev.station)![prev.index] = displaced && prev ? displaced : null;
+    if (prev) this.slots.get(prev.station)![prev.index] = displaced ?? null;
     arr[target] = trackIdValue;
     this.touch();
     this.end();

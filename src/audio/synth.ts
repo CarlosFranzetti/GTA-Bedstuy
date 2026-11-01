@@ -63,3 +63,63 @@ export function squealLevel(slip: number, speed: number): number {
   const sp = clamp((Math.abs(finite(speed)) - 2) / 4, 0, 1);
   return clamp(finite(slip), 0, 1) * sp;
 }
+
+/* ---------- radio jingles, ad stings and the talk bed (pure data; AudioSystem plays them) ---------- */
+
+export interface StingNote {
+  freq: number;
+  /** Start offset in seconds from the sting start. */
+  t: number;
+  dur: number;
+  peak: number;
+  type: OscillatorType;
+}
+
+const PENTATONIC = [0, 2, 4, 7, 9, 12, 14, 16];
+const midiHz = (n: number): number => 440 * 2 ** ((n - 69) / 12);
+
+function hashString(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+/** A 5-note station ID motif, different (but stable) for each station id. About 1.4 s long. */
+export function stationJingle(id: string): StingNote[] {
+  let h = hashString(id);
+  const base = 60 + (h % 5);
+  const notes: StingNote[] = [];
+  for (let i = 0; i < 5; i++) {
+    h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
+    const deg = i === 4 ? 12 : PENTATONIC[h % PENTATONIC.length];
+    notes.push({ freq: midiHz(base + deg), t: i * 0.22, dur: i === 4 ? 0.5 : 0.25, peak: 0.5, type: i % 2 ? 'triangle' : 'square' });
+  }
+  return notes;
+}
+
+export type TalkStingKind = 'jingle' | 'ad' | 'news' | 'segment';
+
+/** Short procedural stings between talk segments. */
+export function talkSting(kind: TalkStingKind): StingNote[] {
+  switch (kind) {
+    case 'jingle':
+      return [0, 4, 7, 12, 16].map((d, i) => ({ freq: midiHz(65 + d), t: i * 0.14, dur: i === 4 ? 0.6 : 0.2, peak: 0.5, type: 'square' as const }));
+    case 'ad':
+      return [
+        { freq: midiHz(84), t: 0, dur: 0.12, peak: 0.45, type: 'sine' as const },
+        { freq: midiHz(91), t: 0.14, dur: 0.4, peak: 0.45, type: 'sine' as const },
+        { freq: midiHz(72), t: 0.14, dur: 0.4, peak: 0.25, type: 'triangle' as const },
+      ];
+    case 'news':
+      return [0, 0.18, 0.36].map((t) => ({ freq: 880, t, dur: 0.1, peak: 0.4, type: 'sine' as const }));
+    default:
+      return [{ freq: midiHz(79), t: 0, dur: 0.12, peak: 0.3, type: 'triangle' as const }, { freq: midiHz(72), t: 0.1, dur: 0.18, peak: 0.3, type: 'triangle' as const }];
+  }
+}
+
+export function stingDuration(notes: StingNote[]): number {
+  return notes.reduce((m, n) => Math.max(m, n.t + n.dur), 0);
+}
+
+/** Frequencies (Hz) of the soft chord under the host. */
+export const TALK_BED_FREQS: readonly number[] = [110, 164.81, 196, 246.94];
