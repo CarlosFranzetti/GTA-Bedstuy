@@ -95,5 +95,6 @@ export class Input {
   endFrame(): void {
     this.justPressed.clear();
     if (this.carryOver.size > 0) { for (const c of this.carryOver) this.justPressed.add(c); this.carryOver.clear(); }
-    this.mouseDX = 0; this.mouseDY = 0; this.wheel = 0; }
+    this.mouseDX = 0; this.mouseDY = 0; this.wheel = 0;
+  }
 }

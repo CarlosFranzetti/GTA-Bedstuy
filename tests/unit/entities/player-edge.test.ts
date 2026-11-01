@@ -130,3 +130,30 @@ describe('enter and exit at any frame rate', () => {
     expect(w.radio.length).toBe(1);
   });
 });
+
+describe('gamepad A (polled in the render callback, after the frame steps)', () => {
+  it('the A edge raised during render survives that frame\'s endFrame and fires once in the next frame', () => {
+    const w = world();
+    w.runFor(0.1, 16.7);
+    // frame k: steps run (nothing pressed), THEN render polls the pad (A edge), THEN Game calls endFrame()
+    w.frame(16.7);
+    w.input.pulse('KeyF'); // what Gamepad does in update()
+    w.input.endFrame();    // Game.start: `if (n > 0) this.endFrame()` right after render
+    expect(w.player.inVehicle).toBe(false);
+    // frame k+1 runs the step that must see the edge
+    w.runFor(1.0, 16.7);
+    expect(w.player.inVehicle).toBe(true);
+    w.input.pulse('KeyF'); w.input.endFrame();
+    w.runFor(1.0, 100);
+    expect(w.player.inVehicle).toBe(false);
+    expect(w.player.isEntering).toBe(false);
+  });
+
+  it('a pad edge raised in a zero-step frame fires exactly once', () => {
+    const w = world();
+    w.input.pulse('KeyF');
+    expect(w.input.consume('KeyF')).toBe(true);
+    w.input.endFrame();
+    expect(w.input.consume('KeyF')).toBe(false);
+  });
+});
