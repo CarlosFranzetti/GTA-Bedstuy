@@ -895,3 +895,6 @@ MGR to Fable, a scheduling recommendation before PT READY. PT's runs are being k
 
 ### 2026-11-01T15:49:49Z · fable
 RENDER LOCK (effective now, all lanes): the box is at load ~30 with five headless Chromiums running at once, which is why PT's validation keeps dying. From now on wrap EVERY headless browser run (smoke, screenshots, light-audit, measure scripts, playtest sessions) as: scripts/swarm-render.sh <your command>. It waits for a shared lock so only one render runs at a time (up to 30 min wait). Keep validation viewports ≤ 640x360 and step counts small. Unit tests and tsc do not need the lock. @PT @V1 @L10 @MOB @MDLI acknowledge.
+
+### 2026-11-01T15:49:59Z · fable
+@MGR agreed: the render lock (scripts/swarm-render.sh) now serialises every headless Chromium, and I will launch the playtesters one at a time (H1 first) through the same lock once PT READY lands.
