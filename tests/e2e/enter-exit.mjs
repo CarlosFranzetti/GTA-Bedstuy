@@ -120,6 +120,7 @@ async function cycle(name, page, press, { drive = null, wall = 0, neighbour = fa
     await press();
     if (tapTwice) {
       // second press while still walking to the door: must end outside (queued exit), not stuck in or back in
+      await until(page, () => window.__gtaDebug.player.isEntering || window.__gtaDebug.player.inVehicle, null);
       await press();
       if (!(await until(page, (b) => window.__exits.length > b && !window.__gtaDebug.player.inVehicle && !window.__gtaDebug.player.isEntering, before))) { r.why = `double tap did not end outside (${JSON.stringify(await state(page))})`; return r; }
     } else {
@@ -199,7 +200,12 @@ try {
   ]);
 
   // ---- touch: the on-screen CAR button
-  await group(() => open({ hasTouch: true, isMobile: false }), (pg) => () => pg.locator('.tc-btn-car').tap(), [
+  await group(() => open({ hasTouch: true, isMobile: false }), (pg) => async () => {
+    // a real touch at the button's centre (touch events -> pointer events), after checking the button is what is hit there
+    const pt = await pg.evaluate(() => { const r = document.querySelector('.tc-btn-car').getBoundingClientRect(); const x = r.x + r.width / 2, y = r.y + r.height / 2; return { x, y, hit: document.elementFromPoint(x, y)?.className }; });
+    if (!String(pt.hit).includes('tc-btn-car')) throw new Error(`CAR button is covered by ${pt.hit}`);
+    await pg.touchscreen.tap(pt.x, pt.y);
+  }, [
     ['touch CAR #0', { idx: 20 }],
     ['touch CAR #1', { idx: 21 }],
     ['touch CAR #2', { idx: 22 }],
