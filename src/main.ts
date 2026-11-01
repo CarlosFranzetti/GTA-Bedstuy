@@ -482,8 +482,8 @@ game.add({
     {
       const pv = player.vehicle; const mb = (pv ?? player).body;
       missions.update(dt, mb.pos, player.inVehicle, wanted.stars, pv ? Math.abs(pv.speed) : Math.hypot(mb.vel.x, mb.vel.z), dayNight.timeOfDay);
-      if (input.pressed('KeyR')) missions.retry(dayNight.timeOfDay);
-      if (input.pressed('KeyX')) missions.abandon();
+      if (input.consume('KeyR')) missions.retry(dayNight.timeOfDay);
+      if (input.consume('KeyX')) missions.abandon();
     }
 
     // entities

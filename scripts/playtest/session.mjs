@@ -190,11 +190,20 @@ async function main() {
     const frames2 = () => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     const running = async (on) => page.evaluate((o) => { window.__gtaDebug.setPaused(!o); window.__ptHold = !o; }, on);
     const hold = (on) => page.evaluate((o) => { window.__ptHold = o; }, on);
+    // Waits in GAME time: the sim may run only a few steps per wall second on a software renderer, so the wall-clock
+    // cap is generous (10 min). A wait that is still cut short is recorded in the step's notes as actionsCutShort so
+    // the tester is never misled about how long a key was really held.
+    const cutShort = [];
     const gameWait = async (ms) => {
       const need = Math.max(1, Math.round(ms / FIXED_MS));
-      const target = await page.evaluate((n) => window.__ptSteps + n, need);
-      try { await page.waitForFunction((t) => window.__ptSteps >= t, target, { timeout: Math.max(5000, ms * 12), polling: 40 }); return true; }
-      catch { return false; }
+      const start = await page.evaluate(() => window.__ptSteps);
+      const target = start + need;
+      try { await page.waitForFunction((t) => window.__ptSteps >= t, target, { timeout: 600_000, polling: 40 }); return true; }
+      catch {
+        const got = await page.evaluate(() => window.__ptSteps).catch(() => start);
+        cutShort.push({ requestedMs: ms, ranMs: Math.round((got - start) * FIXED_MS) });
+        return false;
+      }
     };
     const look = (dx, dy) => page.evaluate(([x, y]) => {
       const c = document.querySelector('canvas.game') || document.querySelector('canvas');
@@ -356,7 +365,8 @@ async function main() {
       }
       await gameWait(150); // let the last input take effect
       await running(false);
-      const cap = await capture(n, { notes: notes.length ? notes : undefined });
+      if (cutShort.length) notes.push(...cutShort.map((c) => `action cut short: asked ${c.requestedMs} game ms, ran ${c.ranMs}`));
+      const cap = await capture(n, { notes: notes.length ? notes : undefined, actionsCutShort: cutShort.length ? cutShort.splice(0) : undefined });
       const tEnd = (Date.now() - videoT0) / 1000;
       lastStep = n; processed++;
       appendFileSync(logPath, JSON.stringify({ step: n, thought, actions: ran, ignored: notes.length ? notes : undefined, statePath: cap.statePath, framePath: cap.framePath, t: +((Date.now() - T0) / 1000).toFixed(1), tVideoThought: +tThought.toFixed(2), tVideoActions: +tAct.toFixed(2), tVideoEnd: +tEnd.toFixed(2) }) + '\n');

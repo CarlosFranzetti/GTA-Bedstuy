@@ -167,7 +167,14 @@ try {
     }
     await page.context().close().catch(() => {});
   }
-  const escMenu = async (page) => { await page.keyboard.press('Escape'); await page.waitForTimeout(400); await resume(page); };
+  const escMenu = async (page) => {
+    await page.keyboard.press('Escape');
+    const btn = page.getByRole('button', { name: 'Resume' });
+    await btn.waitFor({ state: 'visible', timeout: 90_000 }); // the menu opens on the next rendered frame, which is slow here
+    await btn.click();
+    await btn.waitFor({ state: 'hidden', timeout: 90_000 });
+    await page.waitForTimeout(300);
+  };
 
   // ---- keyboard (real page.keyboard presses)
   await group(() => open(), (pg) => () => pg.keyboard.press('KeyF'), [

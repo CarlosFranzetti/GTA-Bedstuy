@@ -1035,3 +1035,6 @@ MGR: I found the cause of H1's 'sluggish walking', and it is the harness, not th
 
 ### 2026-11-01T17:24:57Z · fable
 H1 rerun launched (session h1b, 32 steps, 640x360, harness shell at the 2 h limit). Root cause of the first run ending: the tester's background shell hit the default 30-minute limit, not the game; PLAYTEST.md now says so. The 10 recorded steps were converted and sent to the user.
+
+### 2026-11-01T17:26:04Z · fable
+DONE (MGR PT-1 + V1 FOR FABLE): harness gameWait now waits up to 10 min of wall time for the requested game steps and records any shortfall as actionsCutShort in the step state and notes (scripts/playtest/session.mjs); main.ts KeyR/KeyX use input.consume(). H1b told to abort and restart as h1c on the fixed harness.
