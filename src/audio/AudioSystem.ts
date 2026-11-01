@@ -10,6 +10,7 @@ import { Rng } from '@/core/Rng';
 import { engineFrequency, gearForSpeed, gearShiftFactor, hornFrequencies, impactGain, pinkNoise, squealLevel, stationJingle, stingDuration, talkSting, TALK_BED_FREQS, type StingNote, type TalkStingKind } from './synth';
 import { patternAt, stepSeconds, type Note } from './radio';
 import { Library, localLibraryStorage, type LibraryStorage } from './library/Library';
+import { LibraryController, type ControllerDeps } from './library/LibraryController';
 import { RadioDirector } from './RadioDirector';
 import { HtmlAudioDeck } from './decks';
 import { TalkPlayer, type SpeechLike, type UtteranceLike } from './talk/TalkPlayer';
@@ -69,6 +70,8 @@ export interface AudioSystemOptions {
   makeUtterance?: (text: string) => UtteranceLike;
   /** Talk show script. Default: src/audio/talk/script.json when present. */
   script?: TalkSegment[];
+  /** Folder-handle store and importer overrides (tests). */
+  controller?: ControllerDeps;
 }
 
 function browserSpeech(): SpeechLike | null {
@@ -82,6 +85,8 @@ export class AudioSystem {
   private g: Graph | null = null;
   /** Radio dial, music library decks and the talk show. */
   readonly radio: RadioDirector;
+  /** Folder picker / file import / reset for the player's library (used by RadioUi). */
+  readonly libraryController: LibraryController;
   private bed: { gain: GainNode; oscs: OscillatorNode[] } | null = null;
   private bedLevel = 0;
   private lastSynthEpoch = -1;
@@ -125,11 +130,18 @@ export class AudioSystem {
       },
     }, opts.script ?? loadBundledScript());
     this.radio = new RadioDirector(library, talk);
+    this.libraryController = new LibraryController(library, opts.controller);
+    void this.libraryController.init().catch(() => undefined);
     this.radio.onTune = (entry) => {
-      if (entry.kind !== 'talk' && this.radioOn && this.g) this.playSting(stationJingle(entry.id));
+      const g = this.g;
+      if (!g || !this.radioOn) return;
+      // A blip of dial static, then the station's own jingle (WBSY Talk has its own stings).
+      this.noiseBurst(g, { t: g.ctx.currentTime, dur: 0.18, type: 'bandpass', hz: 2500, peak: 0.12, dest: g.musicBus });
+      if (entry.kind !== 'talk') this.playSting(stationJingle(entry.id));
     };
+    this.radio.onSweeper = (entry) => { if (this.radioOn && this.g) this.playSting(stationJingle(entry.id)); };
     this.unsubs.push(
-      events.on('userGesture', () => { void this.start(); }),
+      events.on('userGesture', () => { void this.start(); void this.libraryController.autoReconnect().catch(() => undefined); }),
       events.on('horn', () => this.playHorn()),
       events.on('impact', (e) => this.playImpact(e.strength)),
       events.on('enterVehicle', () => this.setRadioOn(true)),

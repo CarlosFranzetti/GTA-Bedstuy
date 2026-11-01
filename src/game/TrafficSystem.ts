@@ -173,14 +173,11 @@ export class TrafficSystem {
       this.world.removeBody(p.body.id);
       p.dispose();
     }
-    if (this.makePed && this.peds.length < this.density.peds) {
+    if (this.peds.length < this.density.peds) {
       const ids = Object.keys(this.grid.sidewalks.nodes);
-      while (ids.length > 0 && this.peds.length < this.density.peds) {
-        const ped = this.makePed(`ped${this.pedSeq++}`, this.grid.sidewalks.nodes[this.rng.pick(ids)]);
-        ped.setEnvironment(this.pedEnv);
-        this.peds.push(ped);
-        this.scene.add(ped.object3D);
-        this.world.addBody(ped.body);
+      if (ids.length > 0) {
+        const cross = this.crosswalkNodeIds();
+        while (this.peds.length < this.density.peds) this.addPed(this.grid.sidewalks.nodes[this.rng.pick(ids)], cross);
       }
     }
     if (this.density.parkOccupancy < this.parkedShare) {
@@ -272,18 +269,19 @@ export class TrafficSystem {
     const cross = this.crosswalkNodeIds();
     const ids = Object.keys(this.grid.sidewalks.nodes);
     if (ids.length === 0) return;
-    for (let i = 0; i < this.density.peds; i++) {
-      const node = this.grid.sidewalks.nodes[this.rng.pick(ids)];
-      const id = `ped${this.pedSeq++}`;
-      const ped = this.makePed
-        ? this.makePed(id, node)
-        : new Pedestrian(id, node, this.grid.sidewalks, this.world, this.materials, this.events, this.rng.fork(id), cross);
-      ped.setEnvironment(this.pedEnv);
-      this.peds.push(ped);
-      this.scene.add(ped.object3D);
-      this.world.addBody(ped.body);
-    }
+    for (let i = 0; i < this.density.peds; i++) this.addPed(this.grid.sidewalks.nodes[this.rng.pick(ids)], cross);
     this.formGroups();
+  }
+
+  private addPed(node: GraphNode, cross: Set<string>): void {
+    const id = `ped${this.pedSeq++}`;
+    const ped = this.makePed
+      ? this.makePed(id, node)
+      : new Pedestrian(id, node, this.grid.sidewalks, this.world, this.materials, this.events, this.rng.fork(id), cross);
+    ped.setEnvironment(this.pedEnv);
+    this.peds.push(ped);
+    this.scene.add(ped.object3D);
+    this.world.addBody(ped.body);
   }
 
   /** Some pedestrians walk in pairs / threes: followers start beside their leader and keep to its side. */

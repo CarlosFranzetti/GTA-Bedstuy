@@ -23,12 +23,12 @@ for (let i = 0; i < 60; i++) {
 const results = [];
 const pageErrors = [];
 let browser;
-const hardStop = setTimeout(() => { console.error('[enter-exit] hard timeout'); preview.kill(); process.exit(2); }, 540_000);
+const hardStop = setTimeout(() => { console.error('[enter-exit] hard timeout'); preview.kill(); process.exit(2); }, 1_500_000);
 
 const LAUNCH = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 
 async function open(opts = {}, init) {
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, ...opts });
+  const ctx = await browser.newContext({ viewport: { width: 480, height: 270 }, ...opts });
   if (init) await ctx.addInitScript(init);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => pageErrors.push(String(e)));
@@ -112,6 +112,7 @@ function footprintOk(e) { return e.along > e.halfL - 0.01 || e.across > e.halfW 
 async function cycle(name, page, press, { drive = null, wall = 0, neighbour = false, speed = 0, idx = 0 } = {}) {
   const r = { name, ok: false, why: '' };
   results.push(r);
+  const t0 = Date.now();
   try {
     const id = await approachParked(page, idx, { wall, neighbour });
     await waitFrames(page, 1);
@@ -134,6 +135,7 @@ async function cycle(name, page, press, { drive = null, wall = 0, neighbour = fa
     if (!Number.isFinite(s.x + s.z)) { r.why = 'NaN position'; return r; }
     r.ok = true;
   } catch (e) { r.why = `exception: ${e.message}`; }
+  finally { log(`${r.ok ? 'PASS' : 'FAIL'}  ${name}${r.ok ? '' : '  <- ' + r.why}  (${((Date.now() - t0) / 1000).toFixed(1)} s)`); }
   return r;
 }
 

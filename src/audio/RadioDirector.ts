@@ -51,6 +51,9 @@ export class RadioDirector {
   private synthKey = '';
   /** Called when the listener changes station (AudioSystem plays the station jingle). */
   onTune: ((entry: RadioStationEntry) => void) | null = null;
+  /** Called every third natural track change on a music station (a station ID between songs). */
+  onSweeper: ((entry: RadioStationEntry) => void) | null = null;
+  private naturalChanges = 0;
   private readonly unsubLib: () => void;
 
   constructor(readonly library: Library, readonly talk: TalkPlayer, synthStations: Station[] = STATIONS) {
@@ -206,6 +209,7 @@ export class RadioDirector {
     const track = look.segment.track!;
     const cur = locate(tl, vt);
     const offset = cur.segment === look.segment && cur.cycle === look.cycle ? cur.offset : 0;
+    if (this.playingKey !== null && offset === 0 && ++this.naturalChanges % 3 === 0) this.onSweeper?.(c);
     this.startTrack(key, track.id, track.name, track.url!, offset);
   }
 

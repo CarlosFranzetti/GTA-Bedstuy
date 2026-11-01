@@ -120,6 +120,11 @@
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 
+.hud-radio[data-talk] {
+  padding-bottom: 3px;
+  background: linear-gradient(#f5c542, #f5c542) left bottom / calc(var(--talk, 0) * 100%) 2px no-repeat;
+}
+
 .hud-radio::before {
   content: "\266A\00a0";
   color: #f5c542;

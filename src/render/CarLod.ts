@@ -7,12 +7,17 @@
  *   glass, one merged dark mesh (trim, chrome, tyres, plates), and lit head / tail lamps (only cars whose lamps are on).
  * That is 3 to 5 draw calls per car TYPE for all far cars together. Near cars keep their full model.
  *
+ * glTF cars (src/entities/models/gltf/VehicleSource.ts) have their own far model: body + wheels merged into one geometry drawn
+ * with the palette paint material (instanceColor = body colour) plus lit lamps, 1 to 3 draw calls per type. Models that cannot
+ * be instanced that way (no palette paint) simply keep the full model.
+ *
  * Pure helpers (`writeYawMatrix`, `hysteresisFar`, `lampColor`) are exported for tests.
  */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { CarModel } from '@/entities/models/carModel';
 import type { IMaterialLibrary } from '@/world/types';
+import { gltfLodFor, setGltfMaterials, type GltfLodParts } from '@/entities/models/gltf/VehicleSource';
 
 /** Writes the column-major matrix of translate(x, 0, z) * rotateY(yaw) into `out` at element offset `o`. */
 export function writeYawMatrix(out: Float32Array | number[], o: number, x: number, z: number, yaw: number, y = 0): void {
@@ -65,8 +70,8 @@ const _c = new THREE.Vector3();
 interface TypeLod {
   paint: THREE.InstancedMesh;
   cargo: THREE.InstancedMesh | null;
-  glass: THREE.InstancedMesh;
-  dark: THREE.InstancedMesh;
+  glass: THREE.InstancedMesh | null;
+  dark: THREE.InstancedMesh | null;
   head: THREE.InstancedMesh | null;
   tail: THREE.InstancedMesh | null;
   /** matrices shared by paint / glass / dark / cargo (every far car of the type) */
@@ -137,6 +142,7 @@ export class CarLod {
     this.glassMat = materials.get('carGlass');
     this.darkMat = materials.get('metalDark');
     this.lampMat = new THREE.MeshBasicMaterial({ color: 0xffffff, name: 'car-lod-lamp' });
+    setGltfMaterials(materials); // licence plates of glTF cars use the game's plate material
     for (const t of opts.exclude ?? []) this.types.set(t, null);
   }
 
@@ -203,8 +209,8 @@ export class CarLod {
       if (!t) continue;
       this.commit(t.paint, t.n, t.matrices, true);
       if (t.cargo) this.commit(t.cargo, t.n, t.matrices, false);
-      this.commit(t.glass, t.n, t.matrices, false);
-      this.commit(t.dark, t.n, t.matrices, false);
+      if (t.glass) this.commit(t.glass, t.n, t.matrices, false);
+      if (t.dark) this.commit(t.dark, t.n, t.matrices, false);
       if (t.head && t.headMatrices) this.commit(t.head, t.nHead, t.headMatrices, true);
       if (t.tail && t.tailMatrices) this.commit(t.tail, t.nTail, t.tailMatrices, true);
     }
@@ -242,8 +248,9 @@ export class CarLod {
 
   private typeFor(type: string): TypeLod | null {
     if (this.types.has(type)) return this.types.get(type)!;
-    const model = this.opts.buildModel(type);
-    const lod = model ? this.build(model) : null;
+    const gltf = gltfLodFor(type);
+    const model = gltf ? null : this.opts.buildModel(type);
+    const lod = gltf ? this.buildGltf(gltf) : model ? this.build(model) : null;
     this.types.set(type, lod);
     return lod;
   }
@@ -304,6 +311,31 @@ export class CarLod {
       head: headG && headMatrices ? make(headG, this.lampMat, headMatrices, false, true) : null,
       tail: tailG && tailMatrices ? make(tailG, this.lampMat, tailMatrices, false, true) : null,
       hull, matrices, headMatrices, tailMatrices, n: 0, nHead: 0, nTail: 0,
+    };
+  }
+
+  /** The far model of a glTF car: one merged, instance-coloured paint mesh (body + wheels) and lamp meshes. */
+  private buildGltf(parts: GltfLodParts): TypeLod {
+    const matrices = new THREE.InstancedBufferAttribute(new Float32Array(CAPACITY * 16), 16);
+    matrices.setUsage(THREE.DynamicDrawUsage);
+    const make = (geo: THREE.BufferGeometry, mat: THREE.Material, attr: THREE.InstancedBufferAttribute, color: boolean): THREE.InstancedMesh => {
+      const m = new THREE.InstancedMesh(geo, mat, CAPACITY);
+      m.instanceMatrix = attr;
+      if (color) { m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(CAPACITY * 3), 3); m.instanceColor.setUsage(THREE.DynamicDrawUsage); }
+      m.count = 0; m.visible = false; m.frustumCulled = false;
+      m.castShadow = false; m.receiveShadow = false;
+      m.name = `car-lod:${mat.name || mat.type}`;
+      this.group.add(m);
+      return m;
+    };
+    const lampAttr = (): THREE.InstancedBufferAttribute => { const a = new THREE.InstancedBufferAttribute(new Float32Array(CAPACITY * 16), 16); a.setUsage(THREE.DynamicDrawUsage); return a; };
+    const headMatrices = parts.head ? lampAttr() : null, tailMatrices = parts.tail ? lampAttr() : null;
+    return {
+      paint: make(parts.body, parts.material, matrices, true),
+      cargo: null, glass: null, dark: null,
+      head: parts.head && headMatrices ? make(parts.head, this.lampMat, headMatrices, true) : null,
+      tail: parts.tail && tailMatrices ? make(parts.tail, this.lampMat, tailMatrices, true) : null,
+      hull: parts.hull, matrices, headMatrices, tailMatrices, n: 0, nHead: 0, nTail: 0,
     };
   }
 

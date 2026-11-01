@@ -1,5 +1,5 @@
 // Lighting audit: renders hours x viewpoints headlessly and prints luminance stats per frame.
-// Usage: npm run build && node scripts/light-audit.mjs [--out DIR] [--hours 6,9,12] [--views street,car,aerial,signals,shops,ew,stoop,stoop2] [--q low,medium,high] [--medium-hours 12,21] [--dist DIR] [--port N] [--tag PREFIX] [--weather dry|rain|wet|drying]
+// Usage: npm run build && node scripts/light-audit.mjs [--out DIR] [--hours 6,9,12] [--views street,car,aerial,signals,shops,ew,stoop,stoop2] [--q low,medium,high] [--medium-hours 12,21] [--dist DIR] [--port N] [--tag PREFIX] [--weather dry|rain|wet|drying] [--glass 0.9]
 // Views: street (player on foot at the spawn), car (driving), aerial, signals / shops (night lamp bloom), ew (east-west street away from the sun: shadow bias), stoop / stoop2 (close oblique looks at the stoop nearest the spawn).
 // Tiers: low runs --hours; any other tier runs --medium-hours (high is slow on a CPU rasteriser).
 // Stats (sRGB-encoded luma 0..1): mean, %>0.95 (blown), %<0.05 (crushed), mean HSV saturation; "low" = bottom half (street level only).
@@ -17,6 +17,7 @@ const MEDIUM_HOURS = arg('medium-hours', '12,18,0').split(',').map(Number);
 const PORT = Number(arg('port', '4173'));
 const DIST = arg('dist', 'dist');
 const TAG = arg('tag', '');
+const GLASS = arg('glass', ''); // A/B override: force every shop-glazing night emissive to this value (e.g. 0.9 = the pre-L10 look), needs the same build
 const WEATHER = arg('weather', ''); // dry | rain | wet | drying (needs __gtaDebug.setWeather); snapped, so the street is fully soaked
 mkdirSync(OUT, { recursive: true });
 
@@ -84,12 +85,14 @@ try {
         }
       }, view);
       for (const hour of hours) {
-        await page.evaluate(({ hour, view, weather }) => {
+        await page.evaluate(({ hour, view, weather, glass }) => {
           const d = window.__gtaDebug;
           if (weather) d.setWeather(weather, true);
-          d.setHour(hour); d.step(45); d.dayNight.timeOfDay = hour; d.nightLights.update(d.player.body.pos, d.dayNight.isNight, 1);
+          d.setHour(hour);
+          d.step(45); d.dayNight.timeOfDay = hour; d.nightLights.update(d.player.body.pos, d.dayNight.isNight, 1);
           d.pipeline.setHour(hour); d.pipeline.setNight(d.dayNight.isNight);
           d.pipeline.snapGrade?.();
+          if (glass !== '') d.scene.traverse((o) => { const ms = o.material ? [].concat(o.material) : []; for (const m of ms) if (m.userData?.nightIntensity !== undefined && m.map && m.emissiveIntensity > 0 && m.userData.nightIntensity < 0.5) m.emissiveIntensity = Number(glass); });
           const p = d.player; const pos = p.vehicle ? p.vehicle.body.pos : p.body.pos;
           if (view === 'aerial') d.setFreeCam(pos.x - 30, 50, pos.z + 110, pos.x, 5, pos.z);
           // night-lamp views: signal heads at the Throop / Kosciuszko crossing, and a storefront-lined stretch of Throop
@@ -122,7 +125,7 @@ try {
             d.setFreeCam(best.cx + ux * 6 - uz * side, 2.0, best.cz + uz * 6 + ux * side, best.cx, 0.9, best.cz);
           }
           d.settle(30);
-        }, { hour, view, weather: WEATHER });
+        }, { hour, view, weather: WEATHER, glass: GLASS });
         // let a few real frames render so the env map / shadows / grade are current
         await page.evaluate(() => new Promise((res) => { let n = 0; const f = () => (++n >= 4 ? res() : requestAnimationFrame(f)); requestAnimationFrame(f); }));
         const file = `${OUT}/${TAG}${q}_${view}_${String(hour).replace('.', 'p').padStart(4, '0')}.png`;

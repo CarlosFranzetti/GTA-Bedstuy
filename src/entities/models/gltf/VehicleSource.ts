@@ -5,20 +5,29 @@
  * Conventions applied to every instance:
  *  - the model is turned so its long axis is z and its front points to -z (decided from head/tail lights or
  *    front/rear wheels; glTF +z forward is assumed when nothing tells otherwise),
- *  - uniformly scaled so the length equals spec.length, centred on x/z, wheels resting on y = 0,
- *  - nodes named /wheel/i are wrapped in a roll pivot (rotate .x to spin); the two front ones are also wrapped in
- *    a steer pivot (rotate .y),
- *  - meshes named /head.*(light|lamp)/ and /tail.*(light|lamp)/ get their own emissive material clone
- *    (Vehicle drives emissiveIntensity), cop light-bar meshes (name or material contains bar / siren and red / blue) become the lightbar,
- *  - paint meshes = material name /paint|body/ (else the largest mesh); their material is tinted to spec.color
- *    unless it is textured.
+ *  - fitted to the vehicle spec: the body is scaled per axis to spec.length x spec.width x spec.height (toy-proportioned
+ *    packs like Kenney's are much wider and shorter than a real car, and the physics box is the spec), centred on x/z
+ *    and standing on y = 0. Wheels are NOT stretched: they keep a uniform scale (the height factor) so they stay round
+ *    and still touch the ground,
+ *  - nodes named /wheel/i whose bottom is near the ground are wrapped in a roll pivot (rotate .x to spin); the two front
+ *    ones are also wrapped in a steer pivot (rotate .y). Other "wheel" nodes (a spare tyre) stay part of the body,
+ *  - meshes named /head.*(light|lamp)/ and /tail.*(light|lamp)/ get their own emissive material clone (Vehicle drives
+ *    emissiveIntensity). Packs without light nodes (Kenney) get them synthesised: two lens quads laid on the body surface
+ *    at the front corners and at the rear, found by casting rays at the body, plus licence plates. The police car also gets a
+ *    two-halved light bar on the roof (the red and blue meshes Vehicle flashes) when the file has none,
+ *  - paint: material name /paint|body/ (else the largest non-wheel mesh). Untextured paint is tinted to spec.color. Palette
+ *    textured paint (Kenney: one colour-atlas texture for the whole car) is recoloured by PaletteCarPaint inside the
+ *    paint cell of the atlas (see KENNEY_PAINT_CELLS), so the windows, trim and tyres keep their colours,
+ *  - `lodParts()` builds the merged, instance-colourable far-car model that CarLod draws as one instanced mesh per type.
  */
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import type { VehicleSpec, VehicleType } from '@/world/types';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import type { IMaterialLibrary, VehicleSpec, VehicleType } from '@/world/types';
 import type { CarModel } from '@/entities/models/carModel';
+import { VEHICLE_SPECS } from '@/entities/Vehicle';
 import { createGltfLoader, warnOnce, type GLTF } from './loader';
-import { largestMesh } from './CharacterSource';
+import { PaletteCarPaint, type PaletteCell } from './PaletteCarPaint';
 
 const HEAD_RE = /head[\s._-]*(light|lamp)/i;
 const TAIL_RE = /tail[\s._-]*(light|lamp)|brake[\s._-]*light/i;
@@ -28,8 +37,18 @@ const PAINT_RE = /paint|body/i;
 const HOOD_RE = /hood|bonnet/i;
 const BAR_RE = /light[\s._-]*bar|siren|beacon|bar/i;
 
+// same colours as carModel.ts (its materials are built inline there)
 const HEAD_EMISSIVE = 0xfff2cc;
 const TAIL_EMISSIVE = 0xff1a1a;
+
+/** Paint cell of each shipped Kenney car in the shared 8 x 4 palette atlas (cop: keeps its livery). */
+export const KENNEY_PAINT_CELLS: Record<VehicleType, PaletteCell | null> = {
+  sedan: { col: 6, row: 1 }, // red
+  suv: { col: 3, row: 1 }, // green
+  boxtruck: { col: 3, row: 1 }, // green (the delivery van stands in for a box truck)
+  cop: null,
+};
+const KENNEY_MATERIAL = 'colormap';
 
 const names = (o: THREE.Object3D): string => o.name;
 const matOf = (m: THREE.Mesh): THREE.Material | null => (Array.isArray(m.material) ? null : m.material);
@@ -55,37 +74,162 @@ function topmostByName(root: THREE.Object3D, re: RegExp): THREE.Object3D[] {
 
 function boxOf(o: THREE.Object3D): THREE.Box3 { return new THREE.Box3().setFromObject(o, true); }
 
+/** Copies position / normal / uv of a geometry into float32 attributes (quantised, normalised glTF data is int16). */
+export function floatGeometry(g: THREE.BufferGeometry): void {
+  for (const key of ['position', 'normal', 'uv']) {
+    const a = g.getAttribute(key) as THREE.BufferAttribute | undefined;
+    if (!a) continue;
+    if (a.array instanceof Float32Array && !a.normalized && !(a as unknown as THREE.InterleavedBufferAttribute).isInterleavedBufferAttribute) continue;
+    const out = new Float32Array(a.count * a.itemSize);
+    for (let i = 0; i < a.count; i++) {
+      out[i * a.itemSize] = a.getX(i);
+      if (a.itemSize > 1) out[i * a.itemSize + 1] = a.getY(i);
+      if (a.itemSize > 2) out[i * a.itemSize + 2] = a.getZ(i);
+    }
+    g.setAttribute(key, new THREE.BufferAttribute(out, a.itemSize));
+  }
+}
+
+/** Non-indexed copy with position / normal / uv only, transformed by `m`. */
+function slim(src: THREE.BufferGeometry, m: THREE.Matrix4): THREE.BufferGeometry {
+  const g = src.index ? src.toNonIndexed() : src.clone();
+  for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
+  if (!g.getAttribute('normal')) g.computeVertexNormals();
+  if (!g.getAttribute('uv')) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.getAttribute('position').count * 2), 2));
+  g.groups.length = 0;
+  g.applyMatrix4(m);
+  return g;
+}
+
+/** UV of the centre of the atlas cell that most of a geometry's triangle area samples (for the far-car tyres). */
+export function dominantCellUv(g: THREE.BufferGeometry, cols = 8, rows = 4): THREE.Vector2 {
+  const uv = g.getAttribute('uv'), pos = g.getAttribute('position');
+  const out = new THREE.Vector2(0.5, 0.5);
+  if (!uv || !pos) return out;
+  const area = new Map<number, number>();
+  const n = g.index ? g.index.count : pos.count;
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  for (let t = 0; t + 2 < n; t += 3) {
+    const i = g.index ? g.index.getX(t) : t, j = g.index ? g.index.getX(t + 1) : t + 1, k = g.index ? g.index.getX(t + 2) : t + 2;
+    a.fromBufferAttribute(pos, i); b.fromBufferAttribute(pos, j); c.fromBufferAttribute(pos, k);
+    const ar = b.sub(a).cross(c.sub(a)).length() / 2;
+    const u = (uv.getX(i) + uv.getX(j) + uv.getX(k)) / 3, v = (uv.getY(i) + uv.getY(j) + uv.getY(k)) / 3;
+    const key = Math.min(rows - 1, Math.max(0, Math.floor(v * rows))) * cols + Math.min(cols - 1, Math.max(0, Math.floor(u * cols)));
+    area.set(key, (area.get(key) ?? 0) + ar);
+  }
+  let best = -1, bestA = -1;
+  for (const [key, ar] of area) if (ar > bestA) { bestA = ar; best = key; }
+  if (best < 0) return out;
+  return out.set(((best % cols) + 0.5) / cols, (Math.floor(best / cols) + 0.5) / rows);
+}
+
+/** The far-car model CarLod draws instanced (see GltfVehicleSource.lodParts). All geometry is in car space, rest pose. */
+export interface GltfLodParts {
+  /** body + wheels (+ spare, door ...), position / normal / uv; recoloured per instance through the instance colour */
+  body: THREE.BufferGeometry;
+  material: PaletteCarPaint;
+  head: THREE.BufferGeometry | null;
+  tail: THREE.BufferGeometry | null;
+  /** position + normal only: stand-in for the shadow pass and the AO G-buffer */
+  hull: THREE.BufferGeometry;
+}
+
+export interface InstantiateContext {
+  /** the game's material library: licence plates use its textured `plate` material */
+  materials?: IMaterialLibrary;
+  /** licence plate text variant 0..3 (default: a counter, so cars differ) */
+  variant?: number;
+}
+
+export interface VehicleLoadOptions {
+  /** palette atlas cell holding the body paint; null = never recolour textured paint. Default: KENNEY_PAINT_CELLS[type] */
+  paintCell?: PaletteCell | null;
+}
+
+const _ray = new THREE.Raycaster();
+interface Surface { point: THREE.Vector3; normal: THREE.Vector3 }
+
+/** First body surface hit by a ray, with its outward-facing normal in world space (null if nothing is hit). */
+function surfaceHit(targets: THREE.Object3D[], origin: THREE.Vector3, dir: THREE.Vector3): Surface | null {
+  _ray.set(origin, dir);
+  _ray.near = 0;
+  _ray.far = 100;
+  const hit = _ray.intersectObjects(targets, false)[0];
+  if (!hit) return null;
+  const n = hit.face ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : dir.clone().negate();
+  if (n.dot(dir) > 0) n.negate();
+  return { point: hit.point.clone(), normal: n };
+}
+
+/** A w x h quad lying on a surface, facing along its normal, 1 cm proud so it does not z-fight. */
+function quadOn(s: Surface, w: number, h: number): THREE.BufferGeometry {
+  const g = new THREE.PlaneGeometry(w, h);
+  const o = new THREE.Object3D();
+  o.position.copy(s.point).addScaledVector(s.normal, 0.012);
+  o.lookAt(o.position.clone().add(s.normal));
+  o.updateMatrix();
+  g.applyMatrix4(o.matrix);
+  return g;
+}
+
+/** Module state: the loaded sources (CarLod asks for LOD parts by type) and the material library for plates. */
+const loaded: Partial<Record<VehicleType, GltfVehicleSource>> = {};
+let plateMaterials: IMaterialLibrary | null = null;
+/** Called by CarLod: hands the game's material library to the glTF cars (licence plates). */
+export function setGltfMaterials(m: IMaterialLibrary | null): void { plateMaterials = m; }
+/** LOD parts of the loaded glTF car of this type, or null (no file, or a model that cannot be instanced). */
+export function gltfLodFor(type: string): GltfLodParts | null {
+  return loaded[type as VehicleType]?.lodParts() ?? null;
+}
+
 export class GltfVehicleSource {
   readonly ready = true;
   private readonly paint = new Map<string, THREE.Material>();
+  private readonly cell: PaletteCell | null;
+  private plateSeq = 0;
+  private lod: GltfLodParts | null | undefined;
+  private fallbackPlate: THREE.Material | null = null;
 
-  private constructor(private readonly type: VehicleType, private readonly scene: THREE.Object3D) {
-    scene.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) o.frustumCulled = false; });
+  private constructor(private readonly type: VehicleType, private readonly scene: THREE.Object3D, opts: VehicleLoadOptions = {}) {
+    this.cell = opts.paintCell !== undefined ? opts.paintCell : KENNEY_PAINT_CELLS[type] ?? null;
+    scene.traverse((o) => {
+      if ((o as THREE.SkinnedMesh).isSkinnedMesh) o.frustumCulled = false;
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      floatGeometry(m.geometry);
+      for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
+        // flat-shaded palette textures read as plastic at roughness 1
+        if (mat.name === KENNEY_MATERIAL && (mat as THREE.MeshStandardMaterial).roughness !== undefined) (mat as THREE.MeshStandardMaterial).roughness = 0.6;
+      }
+    });
   }
 
-  static async load(url: string, type: VehicleType = 'sedan'): Promise<GltfVehicleSource> {
+  static async load(url: string, type: VehicleType = 'sedan', opts: VehicleLoadOptions = {}): Promise<GltfVehicleSource> {
     const gltf = await createGltfLoader().loadAsync(url);
-    return new GltfVehicleSource(type, gltf.scene);
+    return new GltfVehicleSource(type, gltf.scene, opts);
   }
 
-  static async parse(data: ArrayBuffer, type: VehicleType = 'sedan'): Promise<GltfVehicleSource> {
+  static async parse(data: ArrayBuffer, type: VehicleType = 'sedan', opts: VehicleLoadOptions = {}): Promise<GltfVehicleSource> {
     const gltf = await createGltfLoader().parseAsync(data, '');
-    return new GltfVehicleSource(type, gltf.scene);
+    return new GltfVehicleSource(type, gltf.scene, opts);
   }
 
-  static fromGltf(gltf: GLTF, type: VehicleType = 'sedan'): GltfVehicleSource {
-    return new GltfVehicleSource(type, gltf.scene);
+  static fromGltf(gltf: GLTF, type: VehicleType = 'sedan', opts: VehicleLoadOptions = {}): GltfVehicleSource {
+    return new GltfVehicleSource(type, gltf.scene, opts);
   }
 
   /** Build one car. Geometry and non-light materials are shared between instances. */
-  instantiate(spec: VehicleSpec): CarModel {
+  instantiate(spec: VehicleSpec, ctx: InstantiateContext = {}): CarModel {
     const content = cloneSkinned(this.scene);
     const group = new THREE.Group();
     group.name = `car:${spec.type}:gltf`;
-    group.add(content);
+    const fit = new THREE.Group();
+    fit.name = 'fit';
+    group.add(fit);
+    fit.add(content);
 
     // 1. long axis -> z
-    content.updateMatrixWorld(true);
+    group.updateMatrixWorld(true);
     const raw = boxOf(content).getSize(new THREE.Vector3());
     let yaw = raw.x > raw.z * 1.05 ? Math.PI / 2 : 0;
     content.rotation.y = yaw;
@@ -112,19 +256,37 @@ export class GltfVehicleSource {
     }
     if (frontIsPlusZ) yaw += Math.PI; // game front is -z
     content.rotation.y = yaw;
-    content.updateMatrixWorld(true);
+    group.updateMatrixWorld(true);
 
-    // 3. scale to spec.length, centre on x/z, wheels on the ground
+    // 3. road wheels (bottom near the ground) and their pre-fit transforms
     const box = boxOf(content);
     const size = box.getSize(new THREE.Vector3());
-    const s = size.z > 1e-6 ? spec.length / size.z : 1;
-    content.scale.setScalar(s);
-    content.position.set(-((box.min.x + box.max.x) / 2) * s, -box.min.y * s, -((box.min.z + box.max.z) / 2) * s);
+    const wheelInfo = wheelNodes
+      .map((node) => {
+        const b = boxOf(node);
+        node.updateWorldMatrix(true, false);
+        return { node, centre: b.getCenter(new THREE.Vector3()), radius: (b.max.y - b.min.y) / 2, m0: node.matrixWorld.clone(), minY: b.min.y };
+      })
+      .filter((w) => w.minY < box.min.y + 0.12 * size.y);
+    const roadNodes = new Set(wheelInfo.map((w) => w.node));
+    const inRoadWheel = (o: THREE.Object3D): boolean => { for (let p: THREE.Object3D | null = o; p; p = p.parent) if (roadNodes.has(p)) return true; return false; };
+    const bodyMeshes = all.filter((m) => !inRoadWheel(m));
+
+    // 4. fit: per-axis scale to the spec box, centred, standing on the ground (wheels get the height factor, uniform)
+    const s = new THREE.Vector3(
+      size.x > 1e-6 ? spec.width / size.x : 1,
+      size.y > 1e-6 ? spec.height / size.y : 1,
+      size.z > 1e-6 ? spec.length / size.z : 1,
+    );
+    fit.scale.copy(s);
+    fit.position.set(-((box.min.x + box.max.x) / 2) * s.x, -box.min.y * s.y, -((box.min.z + box.max.z) / 2) * s.z);
     group.updateMatrixWorld(true);
 
     const own: THREE.Material[] = [];
+    const W = spec.width, H = spec.height, L = spec.length;
+    const lampScale = Math.min(1.4, W / 1.8);
 
-    // 4. lights with their own emissive materials
+    // 5. lights with their own emissive materials: found by name, else synthesised on the body surface
     const emissiveClone = (m: THREE.Mesh, colour: number): THREE.Mesh | null => {
       const src = matOf(m);
       if (!src) return null;
@@ -136,9 +298,57 @@ export class GltfVehicleSource {
       own.push(c);
       return m;
     };
-    const headlights = heads.map((m) => emissiveClone(m, HEAD_EMISSIVE)).filter((m): m is THREE.Mesh => !!m);
-    const taillights = tails.map((m) => emissiveClone(m, TAIL_EMISSIVE)).filter((m): m is THREE.Mesh => !!m);
+    let headlights = heads.map((m) => emissiveClone(m, HEAD_EMISSIVE)).filter((m): m is THREE.Mesh => !!m);
+    let taillights = tails.map((m) => emissiveClone(m, TAIL_EMISSIVE)).filter((m): m is THREE.Mesh => !!m);
+    for (const m of headlights) m.name = 'headlight';
+    for (const m of taillights) m.name = 'taillight';
 
+    const targets = bodyMeshes.filter((m) => !headlights.includes(m) && !taillights.includes(m));
+    const up = new THREE.Vector3(0, 1, 0);
+    const cast = (x: number, yFrac: number, dirZ: 1 | -1): Surface | null => {
+      const o = new THREE.Vector3(x, yFrac * H, dirZ > 0 ? -L : L);
+      return surfaceHit(targets, o, new THREE.Vector3(0, 0, dirZ));
+    };
+    /** first candidate height whose hit faces mostly along the car axis; else any hit; else a bounding-box fallback */
+    const endPoint = (x: number, ys: number[], dirZ: 1 | -1): Surface => {
+      let any: Surface | null = null;
+      for (const y of ys) {
+        const h = cast(x, y, dirZ);
+        if (!h) continue;
+        if (Math.abs(h.normal.z) > 0.55) return h;
+        any ??= h;
+      }
+      return any ?? { point: new THREE.Vector3(x, ys[0] * H, dirZ > 0 ? -L / 2 : L / 2), normal: new THREE.Vector3(0, 0, -dirZ) };
+    };
+    const synthLamp = (pts: Surface[], w: number, h: number, colour: number, base: number, name: string): THREE.Mesh => {
+      const g = mergeGeometries(pts.map((p) => quadOn(p, w, h)), false)!;
+      const mat = new THREE.MeshStandardMaterial({ color: base, emissive: colour, emissiveIntensity: 0, roughness: 0.25, metalness: 0.1, side: THREE.DoubleSide });
+      own.push(mat);
+      const m = new THREE.Mesh(g, mat);
+      m.name = name;
+      group.add(m);
+      return m;
+    };
+    if (!headlights.length) {
+      const pts = [-0.32 * W, 0.32 * W].map((x) => endPoint(x, [0.42, 0.5, 0.34, 0.58, 0.28], 1)); // ray travels +z: hits the front (-z) face
+      headlights = [synthLamp(pts, 0.3 * lampScale, 0.13 * lampScale, HEAD_EMISSIVE, 0xffffff, 'headlight')];
+    }
+    if (!taillights.length) {
+      const pts = [-0.34 * W, 0.34 * W].map((x) => endPoint(x, [0.5, 0.42, 0.58, 0.34, 0.66], -1));
+      taillights = [synthLamp(pts, 0.26 * lampScale, 0.11 * lampScale, TAIL_EMISSIVE, 0x7a1010, 'taillight')];
+    }
+
+    // 6. licence plates
+    const plates = ctx.materials ?? plateMaterials;
+    const plateMat = plates ? plates.get('plate', ctx.variant ?? this.plateSeq++) : this.blankPlate();
+    ['plateFront', 'plateRear'].forEach((name, i) => {
+      const p = endPoint(0, [0.26, 0.3, 0.22, 0.36], i === 0 ? 1 : -1);
+      const m = new THREE.Mesh(quadOn(p, 0.34, 0.17), plateMat);
+      m.name = name;
+      group.add(m);
+    });
+
+    // 7. cop light bar: found by name, else two boxes on the roof (red / blue halves)
     let lightbar: CarModel['lightbar'];
     if (spec.type === 'cop') {
       const bars = all.filter((m) => BAR_RE.test(names(m)) || BAR_RE.test(matName(m)));
@@ -149,52 +359,65 @@ export class GltfVehicleSource {
         const b = emissiveClone(blue, 0x0033ff);
         if (r && b) lightbar = { red: r, blue: b };
       }
+      if (!lightbar) {
+        const roof = surfaceHit(targets, new THREE.Vector3(0, H + 1, -0.04 * L), up.clone().negate());
+        if (roof) {
+          const bw = 0.27 * W, bd = 0.14, bh = 0.09;
+          const half = (sign: 1 | -1, name: string): THREE.Mesh => {
+            const mat = new THREE.MeshStandardMaterial({ color: 0x202020, emissive: 0x000000, emissiveIntensity: 0, roughness: 0.3 });
+            own.push(mat);
+            const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), mat);
+            m.name = name;
+            m.position.set(sign * (bw / 2 + 0.01), roof.point.y + bh / 2 - 0.01, roof.point.z);
+            group.add(m);
+            return m;
+          };
+          lightbar = { red: half(-1, 'lightbarA'), blue: half(1, 'lightbarB') };
+        }
+      }
     }
 
-    // 5. paint
+    // 8. paint
     const lit = new Set<THREE.Mesh>([...headlights, ...taillights, ...(lightbar ? [lightbar.red, lightbar.blue] : [])]);
-    let paintMeshes = all.filter((m) => !lit.has(m) && PAINT_RE.test(matName(m)));
+    let paintMeshes = bodyMeshes.filter((m) => !lit.has(m) && PAINT_RE.test(matName(m)));
     if (!paintMeshes.length) {
-      const biggest = largestMesh(content);
-      if (biggest) paintMeshes = [biggest];
-    } else {
-      for (const m of paintMeshes) this.tintPaint(m, spec.color);
+      const biggest = largestWorldMesh(bodyMeshes.filter((m) => !lit.has(m)));
+      paintMeshes = biggest ? [biggest] : [];
     }
+    for (const m of paintMeshes) { this.paintMesh(m, spec.color); m.name = 'body'; }
 
-    // 6. wheels: roll pivot (+ steer pivot on the front pair)
-    const wheelInfo = wheelNodes.map((node) => {
-      const b = boxOf(node);
-      return { node, centre: b.getCenter(new THREE.Vector3()), radius: (b.max.y - b.min.y) / 2 };
-    });
-    let frontSet = wheelInfo.filter((w) => FRONT_RE.test(names(w.node)));
-    if (frontSet.length !== 2 && wheelInfo.length >= 4) {
-      frontSet = [...wheelInfo].sort((a, b) => a.centre.z - b.centre.z).slice(0, 2); // most forward = smallest z
-    }
+    // 9. wheels: roll pivot (+ steer pivot on the front pair); the wheel keeps a uniform scale and moves to the fitted centre
+    const info = wheelInfo.map((w) => ({ ...w, c: w.centre.clone().multiply(s).add(fit.position) }));
+    let frontSet = info.filter((w) => FRONT_RE.test(names(w.node)));
+    if (frontSet.length !== 2 && info.length >= 4) frontSet = [...info].sort((a, b) => a.c.z - b.c.z).slice(0, 2); // most forward = smallest z
     const wheels: THREE.Object3D[] = [];
     const steerPivots: THREE.Object3D[] = [];
-    for (const w of wheelInfo) {
-      const front = frontSet.includes(w);
+    const sw = s.y;
+    for (const w of info) {
       const roll = new THREE.Group();
       roll.name = `${names(w.node)}:roll`;
-      if (front) {
+      const rel = new THREE.Matrix4().makeScale(sw, sw, sw)
+        .multiply(new THREE.Matrix4().makeTranslation(-w.centre.x, -w.centre.y, -w.centre.z))
+        .multiply(w.m0);
+      roll.add(w.node); // leaves the fitted body
+      rel.decompose(w.node.position, w.node.quaternion, w.node.scale);
+      if (frontSet.includes(w)) {
         const steer = new THREE.Group();
         steer.name = `${names(w.node)}:steer`;
-        steer.position.copy(w.centre);
+        steer.position.copy(w.c);
         steer.add(roll);
         group.add(steer);
-        group.updateMatrixWorld(true);
         steerPivots.push(steer);
       } else {
-        roll.position.copy(w.centre);
+        roll.position.copy(w.c);
         group.add(roll);
       }
-      group.updateMatrixWorld(true);
-      roll.attach(w.node); // keeps the world transform
       wheels.push(roll);
     }
-    const wheelRadius = wheelInfo.length ? mean(wheelInfo.map((w) => w.radius)) : 0.33;
+    const wheelRadius = info.length ? mean(info.map((w) => w.radius * sw)) : 0.33;
+    group.updateMatrixWorld(true);
 
-    // 7. hood hinge at the cowl (rear edge of the hood, lowest point)
+    // 10. hood hinge at the cowl (rear edge of the hood, lowest point)
     let hood: THREE.Object3D | undefined;
     if (spec.type !== 'boxtruck') {
       const node = topmostByName(content, HOOD_RE)[0];
@@ -213,24 +436,110 @@ export class GltfVehicleSource {
     return { group, wheels, steerPivots, lightbar, headlights, taillights, hood, paintMeshes, wheelRadius, ownMaterials: own };
   }
 
+  /**
+   * The far-car model: body + wheels merged into one geometry (tyres as 10-gons), drawn with the palette paint material
+   * and an instance colour, plus lamp geometry. Null when the car is not palette-painted (CarLod then keeps the full model).
+   */
+  lodParts(): GltfLodParts | null {
+    if (this.lod !== undefined) return this.lod;
+    this.lod = null;
+    if (!this.cell) return null;
+    const spec = { ...VEHICLE_SPECS[this.type], color: '#ffffff' };
+    const model = this.instantiate(spec, { variant: 0 });
+    const body = model.paintMeshes[0];
+    const src = body ? matOf(body) : null;
+    if (!body || !src || !(src as THREE.MeshStandardMaterial).map) { for (const m of model.ownMaterials) m.dispose(); return null; }
+    model.group.updateMatrixWorld(true);
+    const wheelMeshes = new Set<THREE.Mesh>();
+    for (const w of model.wheels) w.traverse((o) => { if ((o as THREE.Mesh).isMesh) wheelMeshes.add(o as THREE.Mesh); });
+    const skip = new Set<THREE.Object3D>([...model.headlights, ...model.taillights, ...(model.lightbar ? [model.lightbar.red, model.lightbar.blue] : [])]);
+    const parts: THREE.BufferGeometry[] = [];
+    model.group.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || skip.has(m) || wheelMeshes.has(m) || /^plate/.test(m.name)) return;
+      parts.push(slim(m.geometry, m.matrixWorld));
+    });
+    const tmp = new THREE.Box3();
+    for (const roll of model.wheels) {
+      const mesh = [...wheelMeshes].find((m) => { for (let p: THREE.Object3D | null = m; p; p = p.parent) if (p === roll) return true; return false; });
+      if (!mesh) continue;
+      tmp.setFromObject(roll, true);
+      const sz = tmp.getSize(new THREE.Vector3()), c = tmp.getCenter(new THREE.Vector3());
+      const r = Math.max(sz.y, sz.z) / 2;
+      const g = new THREE.CylinderGeometry(r, r, sz.x, 10, 1).toNonIndexed();
+      g.rotateZ(Math.PI / 2);
+      g.translate(c.x, c.y, c.z);
+      const uv = dominantCellUv(mesh.geometry, this.cell.cols ?? 8, this.cell.rows ?? 4);
+      const arr = new Float32Array(g.getAttribute('position').count * 2);
+      for (let i = 0; i < arr.length; i += 2) { arr[i] = uv.x; arr[i + 1] = uv.y; }
+      g.setAttribute('uv', new THREE.BufferAttribute(arr, 2));
+      parts.push(g);
+    }
+    const lamps = (list: THREE.Mesh[]): THREE.BufferGeometry | null => {
+      const gs = list.map((m) => slim(m.geometry, m.matrixWorld));
+      return gs.length ? mergeGeometries(gs, false) : null;
+    };
+    const merged = mergeGeometries(parts, false);
+    for (const g of parts) g.dispose();
+    const head = lamps(model.headlights), tail = lamps(model.taillights);
+    for (const m of model.ownMaterials) m.dispose();
+    if (!merged) return null;
+    const hull = new THREE.BufferGeometry();
+    hull.setAttribute('position', merged.getAttribute('position'));
+    hull.setAttribute('normal', merged.getAttribute('normal'));
+    const material = new PaletteCarPaint().copy(src).setCell(this.cell).setPaint('#ffffff');
+    this.lod = { body: merged, material, head, tail, hull };
+    return this.lod;
+  }
+
   /** Dispose the shared tinted paint materials. */
   dispose(): void {
     for (const m of this.paint.values()) m.dispose();
     this.paint.clear();
+    this.fallbackPlate?.dispose();
+    this.fallbackPlate = null;
+    if (this.lod) { this.lod.body.dispose(); this.lod.hull.dispose(); this.lod.head?.dispose(); this.lod.tail?.dispose(); this.lod.material.dispose(); }
+    this.lod = undefined;
   }
 
-  private tintPaint(mesh: THREE.Mesh, colour: string): void {
+  private blankPlate(): THREE.Material {
+    return this.fallbackPlate ??= new THREE.MeshStandardMaterial({ color: 0xe9e6da, roughness: 0.5, metalness: 0.2, name: 'plate-blank' });
+  }
+
+  /** Recolour one paint mesh to `colour` (shared material per source and colour). */
+  private paintMesh(mesh: THREE.Mesh, colour: string): void {
     const src = matOf(mesh) as THREE.MeshStandardMaterial | null;
-    if (!src || src.map || src.color === undefined) return;
+    if (!src || src.color === undefined) return;
     const key = `${src.uuid}|${colour}`;
     let m = this.paint.get(key);
     if (!m) {
-      m = src.clone();
-      (m as THREE.MeshStandardMaterial).color.set(colour);
+      if (src.map) {
+        // palette texture: recolour the paint cell only (only for the known Kenney atlas, or when a cell was given)
+        if (!this.cell || (src.name !== KENNEY_MATERIAL && !this.explicitCell())) return;
+        m = new PaletteCarPaint().copy(src).setCell(this.cell).setPaint(colour);
+      } else {
+        m = src.clone();
+        (m as THREE.MeshStandardMaterial).color.set(colour);
+      }
       this.paint.set(key, m);
     }
     mesh.material = m;
   }
+
+  private explicitCell(): boolean { return this.cell !== KENNEY_PAINT_CELLS[this.type]; }
+}
+
+/** The mesh with the largest world-space bounding-box volume. */
+function largestWorldMesh(list: THREE.Mesh[]): THREE.Mesh | null {
+  let best: THREE.Mesh | null = null;
+  let bestV = -1;
+  const s = new THREE.Vector3();
+  for (const m of list) {
+    boxOf(m).getSize(s);
+    const v = s.x * s.y * s.z;
+    if (v > bestV) { bestV = v; best = m; }
+  }
+  return best;
 }
 
 export type VehicleSources = Partial<Record<VehicleType, GltfVehicleSource>>;
@@ -245,6 +554,7 @@ export async function resolveVehicleSources(): Promise<VehicleSources> {
     if (!type) return;
     try {
       out[type] = await GltfVehicleSource.load(url, type);
+      loaded[type] = out[type];
     } catch (err) {
       warnOnce(`vehicle-${type}`, `[gltf] could not load vehicle-${type}.glb, using the procedural car`, err);
     }

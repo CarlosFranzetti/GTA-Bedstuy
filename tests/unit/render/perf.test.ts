@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { FrameRing, PerfMonitor, heapGrowthMBPerMin, onePercentLowFps } from '@/render/Perf';
+import type { Quality } from '@/render/Shadows';
 import { LoadingScreen, loadingProgress, withTimeout } from '@/render/Loading';
 
 describe('FrameRing / onePercentLowFps', () => {
@@ -26,9 +27,9 @@ describe('FrameRing / onePercentLowFps', () => {
 });
 
 describe('PerfMonitor', () => {
-  const make = (q: 'low' | 'medium' | 'high', autoDrop = true) => {
+  const make = (q: Quality, autoDrop = true, touch = false) => {
     let quality = q; const logs: string[] = [];
-    const m = new PerfMonitor({ getQuality: () => quality, setQuality: (x) => { quality = x; }, autoDrop, log: (s) => logs.push(s) });
+    const m = new PerfMonitor({ getQuality: () => quality, setQuality: (x) => { quality = x; }, autoDrop, touch, log: (s) => logs.push(s) });
     return { m, logs, get q() { return quality; } };
   };
   it('drops medium to low once after 8 s when the 1% low is under 40 fps', () => {
@@ -44,6 +45,40 @@ describe('PerfMonitor', () => {
     const off = make('medium', false); for (let i = 0; i < 400; i++) off.m.frame(1 / 30); expect(off.q).toBe('medium');
     const fast = make('medium'); for (let i = 0; i < 900; i++) fast.m.frame(1 / 60); expect(fast.q).toBe('medium');
     expect(fast.m.fps1pctLow).toBeCloseTo(60, 0);
+  });
+  describe('touch fallback low -> phone', () => {
+    it('steps down once after 8 s under 30 fps on a touch device', () => {
+      const t = make('low', true, true);
+      for (let i = 0; i < 60 * 3; i++) t.m.frame(1 / 60);   // 3 s of smooth play: no effect
+      expect(t.q).toBe('low');
+      for (let i = 0; i < 25 * 7; i++) t.m.frame(1 / 25);   // 7 s at 25 fps: not yet
+      expect(t.q).toBe('low');
+      for (let i = 0; i < 25 * 2; i++) t.m.frame(1 / 25);   // 9 s total under 30: drop
+      expect(t.q).toBe('phone');
+      expect(t.logs).toHaveLength(1);
+      expect(t.logs[0]).toContain('phone');
+      for (let i = 0; i < 25 * 30; i++) t.m.frame(1 / 25);  // nothing below phone
+      expect(t.q).toBe('phone');
+      expect(t.logs).toHaveLength(1);
+    });
+    it('does not step down on desktop, with autoDrop off, at 31+ fps, or after a recovery', () => {
+      const desktop = make('low'); for (let i = 0; i < 25 * 20; i++) desktop.m.frame(1 / 25); expect(desktop.q).toBe('low');
+      const off = make('low', false, true); for (let i = 0; i < 25 * 20; i++) off.m.frame(1 / 25); expect(off.q).toBe('low');
+      const ok = make('low', true, true); for (let i = 0; i < 32 * 30; i++) ok.m.frame(1 / 32); expect(ok.q).toBe('low');
+      const dip = make('low', true, true);
+      for (let i = 0; i < 25 * 5; i++) dip.m.frame(1 / 25);   // 5 s slow
+      for (let i = 0; i < 60 * 3; i++) dip.m.frame(1 / 60);   // recovers: the counter restarts
+      for (let i = 0; i < 25 * 5; i++) dip.m.frame(1 / 25);   // another 5 s slow, still < 8 s in a row
+      expect(dip.q).toBe('low');
+    });
+    it('medium on a touch device still drops to low first, then to phone', () => {
+      const t = make('medium', true, true);
+      for (let i = 0; i < 20 * 14; i++) t.m.frame(1 / 20);
+      expect(t.q).toBe('low');
+      for (let i = 0; i < 20 * 14; i++) t.m.frame(1 / 20);
+      expect(t.q).toBe('phone');
+      expect(t.logs).toHaveLength(2);
+    });
   });
   it('ignores multi-second stalls (tab switches)', () => {
     const t = make('medium');

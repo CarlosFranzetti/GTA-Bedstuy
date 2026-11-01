@@ -31,16 +31,51 @@ export const CLOTH_TINTS: readonly number[] = [
 
 type ClipName = 'idle' | 'walk' | 'run';
 
-/** Pick idle / walk / run clips by name (case-insensitive). One lone clip is treated as the walk cycle. */
+/** Clip name without an armature prefix ("CharacterArmature|Idle" -> "Idle") and without a "Man_" style rig prefix. */
+export function baseClipName(name: string): string {
+  return name.replace(/^.*[|/]/, '').replace(/^(man|woman|male|female|char|character)[_\s-]+/i, '');
+}
+
+const OTHER_ACTION_RE = /jump|slash|punch|kick|death|die|hit|roll|sit|shoot|gun|sword|wave|clap|interact|back|left|right|dance|spawn/i;
+
+/**
+ * Pick idle / walk / run clips by name (case-insensitive). An exact (prefix-stripped) match wins ("Run" over "RunningJump");
+ * otherwise the first clip containing the word that is not obviously another action. One lone clip is the walk cycle.
+ */
 export function pickClips(animations: readonly THREE.AnimationClip[]): Record<ClipName, THREE.AnimationClip | null> {
   const out: Record<ClipName, THREE.AnimationClip | null> = { idle: null, walk: null, run: null };
   if (animations.length === 1) { out.walk = animations[0]; return out; }
-  for (const c of animations) {
-    if (!out.idle && /idle/i.test(c.name)) out.idle = c;
-    else if (!out.run && /run|jog/i.test(c.name)) out.run = c;
-    else if (!out.walk && /walk/i.test(c.name)) out.walk = c;
-  }
+  const find = (exact: RegExp, loose: RegExp): THREE.AnimationClip | null =>
+    animations.find((c) => exact.test(baseClipName(c.name)))
+    ?? animations.find((c) => loose.test(baseClipName(c.name)) && !OTHER_ACTION_RE.test(baseClipName(c.name).replace(loose, '')))
+    ?? null;
+  out.idle = find(/^idle$/i, /idle/i) ?? animations.find((c) => /^(idle_?neutral|standing|stand)$/i.test(baseClipName(c.name))) ?? null;
+  out.run = find(/^(run|jog|sprint)$/i, /run|jog|sprint/i);
+  out.walk = find(/^walk$/i, /walk/i);
   return out;
+}
+
+/** Weapon / prop nodes of rigged packs (the Quaternius adventurers carry a sword) that a pedestrian should not hold. */
+const PROP_RE = /^(sword|weapon|pistol|gun|rifle|dagger|shield|axe|bow)\b/i;
+/** Materials that are clearly not clothes (never tinted when a mesh has several). */
+const NOT_CLOTH_RE = /skin|hair|eye|brow|teeth|mouth|face|sock|shoe|boot|feet|metal|gold|silver|glass|belt/i;
+const SHIRT_RE = /shirt|top|cloth|hood|jacket|torso|coat|tee|sweat|jersey|uniform/i;
+
+/** Which materials of a mesh are "clothes" (tinted per variant): shirt-like names, else everything that is not skin / hair / metal. */
+export function clothMaterials(materials: readonly THREE.Material[]): Set<THREE.Material> {
+  if (materials.length === 1) return new Set(materials);
+  const shirts = materials.filter((m) => SHIRT_RE.test(m.name));
+  if (shirts.length) return new Set(shirts);
+  const rest = materials.filter((m) => !NOT_CLOTH_RE.test(m.name));
+  return new Set(rest);
+}
+
+/** Multiplies `tint` onto a cloth colour; dark cloth (which multiplication would barely change) takes the tint instead. */
+export function tintCloth(base: THREE.Color, tint: THREE.Color): THREE.Color {
+  const l = 0.2126 * base.r + 0.7152 * base.g + 0.0722 * base.b;
+  if (tint.r > 0.999 && tint.g > 0.999 && tint.b > 0.999) return base; // variant 0 keeps the authored colour
+  if (l < 0.12) return base.copy(tint).multiplyScalar(0.55);
+  return base.multiply(tint);
 }
 
 // ---------------------------------------------------------------- glTF
@@ -59,11 +94,16 @@ export class GltfCharacterSource implements CharacterSource {
   private readonly offset = new THREE.Vector3();
   private readonly bodyGeometry: THREE.BufferGeometry | null;
   private readonly tinted = new Map<number, THREE.Material | THREE.Material[]>();
+  /** the tinted clones (the untinted materials of a mesh stay shared with the source and are not ours to dispose) */
+  private readonly owned = new Set<THREE.Material>();
 
   private constructor(gltf: GLTF, opts: GltfCharacterOptions) {
     this.height = opts.height ?? 1.75;
     this.scene = gltf.scene;
     this.clips = pickClips(gltf.animations);
+    const props: THREE.Object3D[] = [];
+    this.scene.traverse((o) => { if (PROP_RE.test(o.name) && !(o as THREE.Bone).isBone) props.push(o); });
+    for (const o of props) o.removeFromParent();
 
     // measure the bind pose (skinned meshes are measured through their skeleton by Box3.setFromObject)
     this.scene.updateMatrixWorld(true);
@@ -114,7 +154,7 @@ export class GltfCharacterSource implements CharacterSource {
 
   /** Dispose the shared tinted materials (call when the source is discarded). */
   dispose(): void {
-    for (const m of this.tinted.values()) for (const x of Array.isArray(m) ? m : [m]) x.dispose();
+    for (const m of this.tinted.values()) for (const x of Array.isArray(m) ? m : [m]) if (this.owned.has(x)) x.dispose();
     this.tinted.clear();
   }
 
@@ -127,9 +167,14 @@ export class GltfCharacterSource implements CharacterSource {
       if (!mesh.isMesh || mesh.geometry !== this.bodyGeometry) return;
       if (!mat) {
         const tint = new THREE.Color(CLOTH_TINTS[v]);
+        const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        const cloth = clothMaterials(list);
         const tintOne = (m: THREE.Material): THREE.Material => {
+          if (!cloth.has(m)) return m;
           const c = m.clone();
-          (c as THREE.MeshStandardMaterial).color?.multiply(tint);
+          const col = (c as THREE.MeshStandardMaterial).color;
+          if (col) tintCloth(col, tint);
+          this.owned.add(c);
           return c;
         };
         mat = Array.isArray(mesh.material) ? mesh.material.map(tintOne) : tintOne(mesh.material);

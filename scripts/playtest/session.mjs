@@ -83,7 +83,10 @@ const INIT_SCRIPT = `
   // lets the harness slow the render loop while the tester thinks (a software renderer otherwise grows memory)
   const raf = window.requestAnimationFrame.bind(window);
   window.__ptDelay = 0;
-  window.requestAnimationFrame = (cb) => (window.__ptDelay > 0 ? setTimeout(() => raf(cb), window.__ptDelay) : raf(cb));
+  // gl.finish() after every game frame: a software renderer otherwise queues frames faster than it can draw them
+  // and the page's memory balloons (an OOM kill looks like "Target crashed")
+  const wrap = (cb) => (t) => { cb(t); try { window.__ptGl ??= window.__gtaDebug?.renderer?.getContext?.(); window.__ptGl?.finish(); } catch { /* ignore */ } };
+  window.requestAnimationFrame = (cb) => (window.__ptDelay > 0 ? setTimeout(() => raf(wrap(cb)), window.__ptDelay) : raf(wrap(cb)));
 })();
 `;
 
@@ -243,7 +246,7 @@ async function main() {
         hudToast: text('.hud-toast'), locationCard: text('.hud-card'),
         menuOpen,
         nearby: near.slice(0, 5), nearbyTotal: near.length,
-        sim: { steps: window.__ptSteps, fps: Math.round(window.__gtaStats?.fps ?? 0) },
+        sim: { steps: window.__ptSteps, fps: Math.round(window.__gtaStats?.fps ?? 0), heapMB: Math.round((performance.memory?.usedJSHeapSize ?? 0) / 1048576) },
       };
     });
 

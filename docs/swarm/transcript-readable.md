@@ -10,46 +10,13 @@ Three stages are covered. Stage 1 (28 Oct, early morning) was research plus the 
 
 ## Cast list
 
-**Running the show**
-- **fable**, the orchestrator. The one who talks to you, grants permissions, edits the shared files nobody else may touch, and makes the final call on disagreements.
-- **MGR**, the manager. Writes the requirements, reviews every lane's finished work against them, and sends hard decisions up to fable.
+**Running the show:** **fable**, the orchestrator (talks to you, grants permissions, edits the shared files nobody else may touch, settles disagreements). **MGR**, the manager (writes requirements, reviews every lane's work against them, escalates hard calls).
 
-**Stage 1 (research and mechanics)**
-- **R1**, hunts for free-to-use (CC0) photo-realistic textures.
-- **R2**, researches what each Bed-Stuy block really looks like.
-- **R3**, researches real-world sunlight and material values.
-- **R4**, paints shop awnings and signs.
-- **R5**, paints car and clothing textures.
-- **M1**, the lighting engineer.
-- **M2**, driving feel (cars, player, camera).
-- **M3**, traffic lights and AI drivers and pedestrians.
-- **M4**, performance and the main game loop.
-- **M5**, gamepad, menu, HUD and sound.
+**Stage 1 (research and mechanics):** R1 hunts free (CC0) textures. R2 researches what each block really looks like. R3 researches real sunlight and material values. R4 paints shop awnings and signs. R5 paints car and clothing textures. M1 is the lighting engineer. M2 handles driving feel. M3 does traffic lights, AI drivers and pedestrians. M4 does performance and the main loop. M5 does gamepad, menu, HUD and sound.
 
-**Stage 2 (accuracy, missions, hosting)**
-- **D1**, the data-schema engineer (what a "lot" is in data).
-- **R2** returns for a second research pass.
-- **B3**, building generator (brownstones, stoops, fences).
-- **S4**, storefronts (bodegas, awnings, roll gates).
-- **X5**, missions.
-- **H7**, the web-hosting build.
-- **P8**, performance, take two.
-- **L9**, lighting, take two, plus weather.
-- **Q10**, quality assurance (tests and bug-hunting).
-- **T11**, industrial textures (fences, curbs, graffiti).
-- **F12**, traffic bug-fixer.
+**Stage 2 (accuracy, missions, hosting):** D1, data-schema engineer (what a "lot" is in data). R2 again. B3, building generator (brownstones, stoops, fences). S4, storefronts (bodegas, awnings, roll gates). X5, missions. H7, the web-hosting build. P8, performance take two. L9, lighting take two plus weather. Q10, quality assurance. T11, industrial textures (fences, curbs, graffiti). F12, traffic bug-fixer.
 
-**Stage 3 (now)**
-- **V1**, the "can't exit the car" bug.
-- **PT**, builds a recorded playtest harness.
-- **L10**, lighting, take three.
-- **W2**, world fixes.
-- **MOB**, phone version.
-- **MDL**, hunts for free car and character 3D models.
-- **RADIO**, the radio that plays your own music.
-- **WRITE**, writes the talk-show script.
-- **BIBLE**, writes the GTA 5 design bible.
-- **SCRIBE**, me, writing this.
+**Stage 3 (now):** V1, the "can't exit the car" bug. PT, recorded playtest harness. L10, lighting take three. W2, world fixes. MOB, phone version. MDL, free car and character models. RADIO, the radio that plays your own music. WRITE, the talk-show script. BIBLE, the GTA 5 design bible. SCRIBE, me.
 
 ---
 
@@ -62,9 +29,9 @@ Three stages are covered. Stage 1 (28 Oct, early morning) was research plus the 
 
 ### The first wall: the internet is mostly blocked
 
-Almost immediately, R2 hit a problem. Its job was to map the real blocks using OpenStreetMap and New York City open data. Both sites were refused by the network proxy. R2 asked fable to get the two addresses unblocked. fable's answer, a minute later: the allowlist is an environment setting it cannot change from inside the session, so it had asked you. In the meantime R2 should use whatever text sources it could reach. Wikipedia was blocked too.
+Almost immediately R2, whose job was to map the real blocks from OpenStreetMap and New York City open data, found both sites refused by the network proxy. It asked fable to get them unblocked. fable's answer: the allowlist is an environment setting it cannot change from inside the session, so it had asked you. Meanwhile R2 should use whatever text sources it could reach (Wikipedia was blocked too).
 
-By 01:15 R2 filed a partial report. It found several things worth recording, with a confidence rating on each line. The average block is three- or four-storey brick and brownstone rows. Churches sit on Throop, Greene and Marcus Garvey. The avenue order west to east (Tompkins, Throop, Marcus Garvey, Lewis) was confirmed. The only confirmed tree was the Lafayette magnolia landmark. R2 also listed what it could not verify: the north-south street order, one-way directions and road widths.
+By 01:15 R2 filed a partial report, each line tagged with a confidence level: blocks are mostly three- and four-storey brick and brownstone rows; churches sit on Throop, Greene and Marcus Garvey; the avenue order west to east (Tompkins, Throop, Marcus Garvey, Lewis) was confirmed; the only confirmed tree was the Lafayette magnolia landmark. Unverified: the north-south street order, one-way directions and road widths.
 
 ### The Kosciusko spelling: the first disagreement
 
@@ -72,21 +39,19 @@ R2 included a "correction": the in-game sign says "Kosciusko St", but the offici
 
 ### The lighting researcher hands over its numbers
 
-R3 delivered a lighting reference with a table for every hour of the day and every material, plus 15 specific places where the existing code differed from reality. Its top five for M1: the noon sun should peak around 58 to 60 degrees, not 80 to 90; add a separate moon light at night; lower the night exposure and tame the night bloom [the glow around bright lights]; make fog change by hour; and make glass, car paint and painted metal much less mirror-like by setting their metalness near zero.
+R3 delivered an hour-by-hour and material-by-material lighting reference, plus 15 places where the code differed from reality. Its top five for M1: the noon sun should peak near 58 to 60 degrees, not 80 to 90; add a separate moon light at night; lower night exposure and tame night bloom [the glow around bright lights]; vary fog by hour; and make glass, paint and painted metal far less mirror-like by setting metalness near zero.
 
-MGR checked R3's math and accepted the report, with one caution for M1: do not drop night exposure on its own. Pair it with the matching moon, ambient and lamp values and then check the night streets are still readable. MGR also noted that a 60-degree noon sun is a stylistic choice (the real late-October New York noon sun is about 35 degrees), which is fine as long as long golden-hour shadows are kept.
+MGR checked R3's math and accepted, with one caution: do not lower night exposure alone; pair it with moon, ambient and lamp values and check night streets stay readable. MGR also noted a 60-degree noon sun is stylisation (the real late-October noon sun is about 35 degrees), fine so long as long golden-hour shadows stay.
 
 ### Textures: what exists, what does not
 
-R1 reported finding 11 free CC0 texture sets (woven fabric, brushed steel, rust metal, dark wood, planks, tiles, gravel, and so on) in two places: an npm package called aframe-enviropacks and Google's Filament project. It also listed what it could not find: corrugated steel, chain-link, granite, cast iron, tar roofing, rubber, leather, denim.
+R1 found 11 free CC0 texture sets (fabric, brushed steel, rust metal, dark wood, planks, tiles, gravel) in an npm package and in Google's Filament project, and listed what it could not find: corrugated steel, chain-link, granite, cast iron, tar roofing, leather, denim.
 
-MGR accepted this as partial but raised a licence problem. The Filament textures trace back to a source whose CC0 status one reference disputed, so none of them land until the licence is confirmed per asset. One set labelled "Plastic" could not be traced to any original author and was rejected outright. MGR also pointed out that the downloads were in a temporary folder that would vanish at session end, and that 2K images would have to be shrunk to 1K to fit the file-size budget.
+MGR accepted it as partial but raised a licence problem: the Filament textures trace back to a source whose CC0 status one reference disputed, so none land until each asset is confirmed. A set labelled "Plastic" could not be traced to an author and was rejected outright. MGR also noted the downloads sat in a temporary folder that would vanish, and the 2K images would need shrinking to fit the size budget.
 
 ### R5 and the "nothing changes on screen" problem
 
-R5 painted procedural [generated by code, no image files] textures for tyre sidewalls, number plates and four kinds of clothing, and listed the exact texture-coordinate rules for anyone who uses them. It asked fable to add the new texture names to the shared type list, which fable did within a minute.
-
-MGR's review is the first example of a theme that recurs all three stages: **work that passes its own tests but is not connected to the game**. The new car-paint detail function had no caller, and the car and human model files still used the old materials. Nothing would look different on screen. MGR asked M4 to call the paint function from the main game file. The car model was handed to M2. The human model was nobody's, so fable decided to do the clothing hookup itself after the mechanics agents finished, "to avoid a third editor in src/entities during Stage 1". (It did, at 01:39.)
+R5 painted procedural [generated by code, no image files] textures for tyre sidewalls, number plates and clothing. MGR's review is the first example of a theme that recurs in all three stages: **work that passes its own tests but is not connected to the game**. The new car-paint function had no caller, and the car and human model files still used the old materials. MGR sent the paint call to M4 and the car model to M2. The human model was nobody's, so fable took the clothing hookup itself, "to avoid a third editor in src/entities during Stage 1" (done at 01:39).
 
 ### M1 finds a hidden trap in the graphics library
 
@@ -94,20 +59,15 @@ M1, the lighting engineer, reported something that surprised everyone: in the ve
 
 ### The mechanics agents talk to each other
 
-This was the busiest conversation of the stage, with agents negotiating the shape of each other's code.
+- **M4 to M2 (smoothness).** M4 wanted motion to look smooth even though physics steps a fixed 60 times a second, so it asked M2 for each car's previous position, and asked it to stop creating small temporary objects every frame in the camera code, because that makes the browser stutter.
+- **M5 to M2 (tyre squeal).** M5 needed a number for how much a car is sliding. M2 answered: `slip`, from 0 to 1. M5 had already coded around a guess, and the guess was right.
+- **M2 to M3 (driving model).** Steering is now rate-limited (a full turn takes about 0.3 seconds), brakes ramp in over a tenth of a second so wheels do not lock, and a light throttle holds a speed. The box truck was slowed to 12 seconds for 100 km/h.
 
-- **M4 to M2 (physics smoothness).** M4, who owns the main loop, wanted the game to look smooth even when the physics steps at a fixed 60 times a second and the screen refreshes at a different rate. It asked M2 to expose each car's and player's previous position so the screen can blend between steps. M4 also asked M2 to stop creating small temporary objects every frame in the camera code, because that makes the browser stutter.
-- **M2 to M5 (tyre squeal).** M5 needed a number for how much a car is sliding so it could play tyre squeal. M2 answered that the field is called `slip`, from 0 to 1, with two more fields for sideways speed and steering angle. M5 had already coded around a guess, and the guess was right.
-- **M4 to M5 (pausing).** M4 wanted audio to pause when the browser tab is hidden. M5 had already built it, and it even listens for the tab-hidden event by itself.
-- **M2 to M3 (driving model).** M2 told M3 the car model changed: steering is now rate-limited so a full turn takes about 0.3 seconds, brakes ramp in over a tenth of a second (so wheels do not lock), and a light throttle now holds a speed rather than accelerating forever. The box truck was slowed so it takes 12 seconds to reach 100 km/h.
+### The manager tightens the plan
 
-### The manager rewrites the plan around real needs
+On storefronts, R4 would draw phone numbers on awnings. MGR ruled only the fictional 555-01xx range may be used, and every sign is a parody. On traffic lights, MGR's plan said "6 avenue intersections" but M3 built all 18; MGR checked and agreed every crossing touches a north-south avenue, so its own reading was "superseded". MGR also noticed the plan required your position to survive a reload while M5's settings only saved quality and volume, so M5 added a small save helper within a minute.
 
-MGR pushed several decisions in this hour. On storefronts, R4 would draw phone numbers on awnings. MGR ruled that only the fictional 555-01xx range be used, so no real person gets called. Real business names stay reference-only; every sign is a parody. On M3's traffic lights, MGR had said "6 avenue intersections" in the plan, but M3 built all 18 intersections. MGR checked and agreed: every crossing touches a north-south avenue, so all 18 make sense and MGR's own reading was "superseded".
-
-On M5's gap, MGR noticed the plan required that your position survive a reload, and M5's settings only saved quality and volume. MGR decided on the spot that M5 add a small save helper, and M5 did within a minute.
-
-M5 posted a detailed eight-step wiring recipe for M4: the menu, gamepad, pause rules, minimap timing, audio hooks, and so on. M2 and M3 posted theirs. M3's signal poles were the most vivid: 72 collision posts, 2 draw calls for about 500 traffic-light lamps, and lamp colours tuned so the bloom picks them up when lit.
+M5, M2 and M3 each posted a numbered wiring recipe for M4. M3's signal poles were the most vivid: 72 collision posts, and 2 draw calls for about 500 traffic-light lamps, tuned so bloom picks them up when lit.
 
 ## Hour 01:30Z to 02:00Z
 
@@ -173,24 +133,15 @@ At 03:33 fable finished the close-out. The material metalness values from R3 wer
 
 ### Parallel start and the shape of the schema
 
-The first twenty minutes were mostly agents announcing plans and coordinating. The biggest piece of coordination was between **D1**, **B3** and **S4**, because D1's lot data feeds both the building generator and the storefront maker.
+The first twenty minutes were agents announcing plans. The key coordination was between **D1**, **B3** and **S4**, because D1's lot data feeds both the building generator and the storefront maker. D1 described a lot as a width, a number of floors, a material family (brownstone, red brick, tan brick, painted brick, limestone, wood frame, church, vacant, new build), a stoop yes/no, a cornice style, a use, and a confidence tag of High, Medium or Low. B3 coded against a temporary local version so it did not have to wait. S4 asked how a lot's storefront type would arrive and whether a lot knows its cross street; D1 later confirmed both.
 
-D1 described its design as it went: a lot has a width, a number of floors, a material family (brownstone, red brick, tan brick, painted brick, limestone, wood frame, church, vacant, new build), a stoop yes/no, a cornice style, a use (residential, mixed, church, school, vacant, garage), and a confidence tag of High, Medium or Low. B3, seeing this early, wrote its code against a temporary local version so it did not have to wait. S4 asked specific questions: how will a lot's storefront type arrive, and does a lot know which cross street it sits on? D1 answered later with corrected names; the cross street was included.
+S4 proposed a split with B3: S4 builds the ground floor (4.0 m, awning and roll gate), B3 builds everything above. B3 agreed and posted the function at 22:09. S4 also pre-negotiated night lighting with L9, who said night bloom starts at 0.9, so keep shop glow at or below 0.9 and big flat faces at or below 0.6.
 
-S4 also made a proposal to B3 about who builds which part of a shop building. S4 would build the ground floor (up to 4.0 metres, including awning and roll gate) and B3 would build everything above. B3 agreed and posted a function for it at 22:09. S4 also pre-negotiated night lighting with L9: how bright shop signs may glow without causing haze. L9's answer: night bloom starts at 0.9, so keep lightbox glow at or below 0.55 and neon at or below 0.8.
+### R2's second pass: street by street
 
-### R2's second pass: the real streets, street by street
+R2 had web search only, and posted a terse, source-tagged note per street. What the team learned: Antioch Baptist at 828 Greene is **outside** the map, east of Marcus Garvey, so a church planned there was moved. The Upper Room church is only confirmed at 180 Van Buren. A lot at 289 Kosciuszko has been vacant for over a decade, a good anchor. A day-care at 220 Throop has an enforcement note, so R2 told D1 not to use it. Tally: 9 street segments, 10 blocks, 40 block faces, four corrections.
 
-R2 had to work with web search only. It posted a typology note per street, in terse, source-tagged form. Things the team learned:
-
-- Antioch Baptist at 828 Greene is **outside** the map, east of Marcus Garvey. A church that had been planned there was moved off.
-- The Upper Room Gospel Baptist church is only confirmed at 180 Van Buren, not at the Marcus Garvey corner.
-- A vacant lot at 289 Kosciuszko has been empty for over a decade, a good anchor for the data.
-- A day-care at 220 Throop has an enforcement note against it, so R2 told D1 not to use it.
-
-R2's final tally: 9 street segments, 10 blocks, 40 block faces, four corrections. One more LPC (Landmarks Commission) host was blocked.
-
-MGR's review accepted it as partial, and answered R2's question about how blocks are numbered (correct against the grid code). It also raised two concerns. First, the notes contained no web addresses, so a later reader could not re-check them. Second, real church and business names must stay in docs only. That second point came back at D1.
+MGR accepted it as partial and answered R2's block-numbering question. It raised two concerns: no web addresses were recorded, so nobody can re-check the notes, and real church and business names must stay in docs only. That second point came back at D1.
 
 ### T11 asks for new materials
 
@@ -200,17 +151,13 @@ T11 posted a long request for fable to add seven new material names (corrugated 
 
 ### X5 delivers three missions in about ten minutes
 
-X5's first interesting post was a long wiring request for P8, then a report: a data-driven mission framework with nine kinds of objective (go to, pick up, deliver, survive wanted level, lose wanted level, timer, hold speed below, escape radius, enter vehicle), plus failure, retry, abandon, rewards and saving. Three missions, all non-violent:
+X5 built a data-driven mission framework with nine kinds of objective, plus failure, retry, abandon, rewards and saving, and three non-violent missions:
 
 - **Bodega Run:** pick up three bags at a deli and deliver them to three stoops in 120 seconds for $150.
-- **Laundromat Getaway:** steal a bag on foot, get two wanted stars, get a car, get 110 metres away, hide in a garage, stop for five seconds, wait for the stars to clear, keep the car. $400.
+- **Laundromat Getaway:** steal a bag on foot, get two wanted stars, get a car, get 110 metres away, hide in a garage, wait for the stars to clear, keep the car. $400.
 - **Block Party:** gather a speaker, a table and ice and deliver them before 20:00. $250.
 
-X5 flagged one oddity itself: at the default 17:30 game start, Block Party leaves only 150 seconds, doable by car but not on foot.
-
-fable approved four small shared-file changes X5 asked for (mission events on the shared event bus, a minimap blips parameter, and a cleaner `raiseTo` function for wanted stars). The reason for the last one, from MGR: X5's workaround of faking "carjack" crimes would also trigger audio and cop systems that listen for crimes. MGR's one question to X5: where is the "cop escape" mission the plan promised? X5's answer, built into the review: it is the second half of Laundromat Getaway.
-
-P8 wired it all into the main game within three minutes (22:04).
+X5 flagged its own oddity: at the default 17:30 start, Block Party leaves only 150 seconds, doable by car but not on foot. fable approved four small shared-file changes X5 asked for, including a cleaner `raiseTo` function for wanted stars. MGR's reason: X5's workaround of faking "carjack" crimes would also trigger audio and cop systems that listen for crimes. MGR asked where the promised "cop escape" mission was. Answer: the second half of Laundromat Getaway. P8 wired it all in within three minutes.
 
 ### Q10 finds four real traffic bugs
 
@@ -225,21 +172,17 @@ MGR confirmed each root cause by reading the code, set priorities (D1 and D3 fir
 
 ### H7 and the "ultra" tier
 
-H7 proposed shared-file changes to the build config (two builds from one codebase: the single-file artifact and a multi-file hosted version for Vercel with textures as separate cacheable files). MGR said the diff was additive and the artifact branch was byte-identical to before, so approval was safe. fable applied it in a minute (22:08). H7's smoke test of the hosted build had no console errors and no failed requests; artifact 6.83 MB, hosted 5.46 MB with the three.js library split off.
-
-MGR's closing notes: the `?q=ultra` setting existed only in the hosted build, at this point it just raised texture sharpness, and no 2K texture sets were in the repo because the licence checks were pending.
+H7 proposed build-config changes for two builds from one codebase: the single-file artifact, and a multi-file hosted version for Vercel. MGR said the artifact branch was byte-identical to before, so approval was safe; fable applied it in a minute. Smoke test: no console errors, artifact 6.83 MB, hosted 5.46 MB. MGR's notes: `?q=ultra` existed only in the hosted build and for now only raised texture sharpness, since no 2K texture sets were in the repo pending licence checks.
 
 ### D1 lands 840 lots
 
-D1 posted the finished data: **40 block faces, 840 lots, 107 KB**, with 33 tests. MGR accepted with three concerns, the most memorable of which was the commercial density. Throop faces had 5 to 9 mixed shop lots out of 10 or 11. MGR's words: 46 bodegas over 10 blocks "reads as a strip mall". Throop and Tompkins on these blocks are mostly row houses with only corner shops. The second concern was that real church names (Grace Baptist, Crossover Baptist, St. Ambrose, Bethany Baptist) were still sitting in the JSON notes that ship in the artifact; they should be replaced with a source reference. The third: floors 0 is allowed for vacant lots, which the plan had not said.
+D1 posted the finished data: **40 block faces, 840 lots, 107 KB**, 33 tests. MGR accepted with three concerns. The memorable one was commercial density: Throop faces had 5 to 9 shops out of 10 or 11 lots, and 46 bodegas over 10 blocks "reads as a strip mall". Second, real church names (Grace Baptist, Crossover Baptist, St. Ambrose, Bethany Baptist) sat in JSON notes that ship in the artifact; they should become source references. Third, floors 0 is allowed for vacant lots, which the plan had not said.
 
 ### The container restart
 
 At about 22:45 the container restarted. fable's note at 22:52 said it **killed MGR, B3, S4, P8, L9, Q10 and F12 mid-work**. The files on disk survived. fable relaunched each lane in "resume mode": read your own earlier posts and the files you own, verify what is on disk, continue. The finished lanes (R2, D1, X5, H7, T11) were not relaunched.
 
-The resume posts are a useful picture of what survived. F12 reported its fixes for D1, D2 and D3 on disk, D4 remaining. Q10 listed its test files on disk and what was lost: its QA document and any screenshot baseline had not been written. P8 listed its perf tools and said which wiring was pending. L9 found its shadow-bias and weather work intact but unwired. S4 had one failing test.
-
-MGR returned at 22:56 with a table of what each lane still owed and a warning: "the machine is shared by 6 resumed lanes; post interim numbers rather than waiting on long headless renders."
+The resume posts show what survived. F12 had fixes for D1 to D3 on disk and D4 remaining. Q10 listed its test files but had lost its QA document and screenshot baseline. L9 found its shadow and weather work intact but unwired. S4 had one failing test. MGR returned at 22:56 with a table of what each lane still owed, and a warning: "the machine is shared by 6 resumed lanes; post interim numbers rather than waiting on long headless renders."
 
 ### P8's big number
 
@@ -253,11 +196,11 @@ At 23:05, Q10 reported D5, a **regression**. After F12's changes, the five-minut
 
 MGR ruled this was F12's job (P1) and set F12's acceptance bar: all four flipped tests **and** no gridlock on both seeds. MGR suggested fixing both sides: the car counts a long, slow ped-yield as stuck, and the pedestrian steers around a car body it is pressing against. F12 later added the pedestrian walk-around and the car-side "ped beside body" hold.
 
-### B3 delivers, and one material trap
+### B3 delivers
 
-B3's early post at 22:58 flagged that chain-link top-rail had been set up opaque, which would render as a black band. fable fixed it in a minute. B3's final report at 23:22: stoop railings that follow the stair slope, spear-topped areaway fences along the building line, tar roofs, chain-link and corrugated-steel hoarding on vacant lots, fire escapes on tall buildings. Building group draw calls went up by 4; Throop frames stayed at 314 to 378 total.
+B3's early post flagged that the chain-link top rail was set up opaque and would render as a black band; fable fixed it in a minute. B3's final report: stoop railings that follow the stair slope, spear-topped areaway fences, tar roofs, chain-link and corrugated-steel hoarding on vacant lots, fire escapes on tall buildings. Throop frames stayed at 314 to 378 total draw calls.
 
-MGR accepted with three concerns. The "determinism" test compared counts, not actual position data, so a same-count different-geometry change would slip through. The areaway fences had no colliders, so pedestrians walk through the iron. A mesh-count test limit was raised from 30 to 36.
+MGR accepted with three concerns: the "determinism" test compared counts, not actual position data; areaway fences had no colliders, so pedestrians walk through the iron; and a mesh-count test limit was raised from 30 to 36.
 
 ### The graniteCurb UV mismatch
 
@@ -265,11 +208,9 @@ P8 reported that the curb material from T11 was not used. The road builder's cur
 
 ### P8's report
 
-P8 posted its final at 23:51. Medium draw calls across the seven viewpoints: **Throop 376, Kosciuszko 358, corner 341, aerial-high 309, aerial-low 326, in-car 273, spawn-foot 296.** The pre-lane baseline had been 2,118 to 2,919. A visual A/B showed the optimised and unoptimised pictures differing by only 0.7 to 1.2 out of 255. The only large difference was X5's pulsing gold mission marker.
+P8's final, at 23:51. Medium draw calls: **Throop 376, Kosciuszko 358, corner 341, aerial-high 309, aerial-low 326, in-car 273, spawn-foot 296**, against a baseline of 2,118 to 2,919. A visual A/B showed the optimised and plain pictures differing by only 0.7 to 1.2 out of 255; the one large difference was X5's pulsing gold mission marker, which fable noted filled **14.7 percent** of the first view's pixels: "very large and partly fills the first view". fable shrank it at close-out.
 
-That marker became a small side issue. fable noted it filled **14.7 percent** of the first view's pixels: "very large and partly fills the first view". Fable later shrank it.
-
-MGR's concerns on P8: no triangle count was reported (the plan says triangles must not rise more than 20 percent); the menu Reset did not clear the live mission state; and no test checks that shadow-culling actually skips far cells.
+MGR's concerns: no triangle count was reported (the plan caps the rise at 20 percent), menu Reset did not clear live mission state, and nothing tests that shadow culling skips far cells.
 
 ## Hour 00:00Z (29 October)
 
@@ -279,11 +220,9 @@ At 00:02 MGR sent a second nudge: S4 had been silent since 22:56, F12 was moving
 
 ### L9's shadow fix, then the cream-coloured wall
 
-L9's work at the midnight hour has a nice arc.
+L9 built a test rig (a plane, a cube, a 0.15 m curb, a 3 m pole and a sun-parallel wall) at the low sun angles of 7:00 and 18:00. Finding: no acne [speckled false shadows] even with bias at zero, but the old flat 0.5 m offset **removed the curb's shadow entirely and floated the cube's shadow off its base** ("peter-panning"). L9 cut it to about one shadow-texel.
 
-First, shadows. The old setting for shadow offset (normal bias) was a flat 0.5 metres. L9 built a test rig with a plane, a cube, a 0.15 metre curb, a 3 metre pole and a sun-parallel wall, at the low sun angles of 7:00 and 18:00 (11.5 and 17.2 degrees). Finding: no acne [speckled false shadows] even with bias set to zero, but the old 0.5 m bias **removed the shadow of the 0.15 m curb entirely and floated the cube's shadow away from its base** ("peter-panning"). L9 cut the bias to about one shadow-texel: 0.10 low, 0.06 medium, 0.04 high.
-
-Second, night. On the previous tree the night street mean was 0.097 and 0.104, nicely in range. On the current tree it was **0.242 and 0.244**. L9's explanation: S4's storefront glazing beside the spawn point was a huge flat cream-coloured emissive face, about 0.85 brightness, filling a third of the frame. L9 asked S4 to cut shop-window glazing glow to 0.35 or lower. MGR backed the cap, noting that the plan's number is a floor, not a ceiling, so 0.24 was not a failure, but "a flat cream face a third of the frame is an illusion break". MGR also suggested the glow may come from a shared window material rather than S4's, and asked L9 to name the material. In the end this was not resolved and became a Stage 3 open issue.
+Then night. The night street mean had been 0.097 and 0.104, nicely in range. On the current tree it was **0.242 and 0.244**. L9's explanation: S4's storefront glazing beside the spawn was a huge flat cream emissive face, filling a third of the frame. It asked S4 to cap shop-window glow at 0.35. MGR backed the cap: the plan's number is a floor, so 0.24 was not a failure, but "a flat cream face a third of the frame is an illusion break". MGR suspected the glow might come from a shared window material rather than S4's, and asked L9 to name it. That stayed unresolved and became a Stage 3 open issue.
 
 ### F12 and S4 finish
 
@@ -295,7 +234,7 @@ F12's final report: all four of Q10's tests flipped to passing, and five-minute 
 
 F12 also noted D5 did not reproduce after the fix. MGR accepted with this caution: "not reproduced" is not the same as "fixed", because the yield path still has no time cap. A test that pins a slow pedestrian to a car nose for 40 seconds should be added.
 
-S4 reported at 00:23 and 00:27: awnings and signs now drawn at true aspect from atlases sized to real geometry (so the old 2x stretch and its pre-squeeze hack are gone); about 19 shared materials city-wide; corner bodegas that wrap the corner with a chamfered diagonal door; window stickers (ATM, EBT, lotto, 24 HRS, neon OPEN); lightboxes lit after 19:30 at 0.55; roll gates down from 22:00 on by shop type, with graffiti on closed-down gates. S4 also said its 22:00 screenshot crashed the test browser repeatedly "on this loaded box (load avg about 18-25)", which is why night checks were slow all stage. One wiring gap: the main file must call `setStorefrontHour` for gates to come down in game. fable did that at close-out.
+S4's report: awnings and signs at true aspect (the old 2x stretch and its pre-squeeze hack gone, about 19 shared materials city-wide); corner bodegas wrapping the corner with a chamfered diagonal door; window stickers (ATM, EBT, lotto, neon OPEN); lightboxes lit after 19:30 at 0.55; roll gates down from 22:00 by shop type, with graffiti on closed-down gates. S4 also said its 22:00 screenshot kept crashing the test browser "on this loaded box (load avg about 18-25)", which slowed night checks all stage. One wiring gap: the main file had to call `setStorefrontHour`; fable did that at close-out.
 
 L9 also posted its final: weather (dry, rain, wet, drying) with a puddle shader on roads and sidewalks, and light baselines stored in the repo, blown highlights at most 0.09 percent everywhere.
 
@@ -352,13 +291,13 @@ WRITE's final report at 15:20: 57 segments, 3,288 words, 1,325 seconds (target 1
 
 ### MOB and L10: sharing two files politely
 
-MGR spotted early that **MOB and L10 both need to edit `Pipeline.ts` and `LightingConfig.ts`**. The ruling: L10 touches only night values and glazing; MOB touches only its tier branch and a new "phone" row. Each posts the line ranges they edit before saving and re-reads the file before each edit. MOB must also stay away from V1's F-key lines.
+MGR spotted that **MOB and L10 both need to edit `Pipeline.ts` and `LightingConfig.ts`**. Ruling: L10 touches only night values and glazing; MOB only its tier branch and a new "phone" row; each posts its line ranges before saving and re-reads the file before each edit. MOB must also stay away from V1's F-key lines.
 
 ### MDL's licence hunt
 
-MDL first re-checked what the sandbox can reach: only the raw GitHub content host and the npm registry answer. Kenney, Quaternius and Poly Pizza all time out. MDL found a package on npm, a wrapper whose notice says the art is CC0 (Kenney's Car Kit plus Quaternius characters). It recommended a sedan, an SUV, a police car and a delivery van as a stand-in for the box truck, plus two characters (a hooded adventurer and a worker), with animation clips renamed Idle, Walk, Run. It could only offer secondary evidence for the licence. It asked fable to unblock the original sites. fable's answer: that is your environment setting, not something it can change, so it asked you; meanwhile proceed with the package notice and mark the source-page check as pending.
+MDL found that only the raw GitHub host and the npm registry are reachable; Kenney, Quaternius and Poly Pizza all time out. On npm it found a wrapper whose notice says the art is CC0 (Kenney's Car Kit plus Quaternius characters), and recommended a sedan, SUV, police car and delivery van (as a box-truck stand-in), plus a hooded adventurer and a worker, with animation clips renamed Idle, Walk, Run. It could offer only secondary licence evidence and asked fable to unblock the original sites. fable's answer: that is your environment setting, so it asked you; meanwhile proceed with the package notice and mark the source-page check pending.
 
-A genuine decision came up: a true 8.8-metre box truck exists, but it is Apache-2.0, not CC0. fable accepted it: Apache-2.0 is permissive as long as attribution and the licence text are included. Record it in the credits file, and keep it to the hosted build if it is large.
+One real decision: a true 8.8 m box truck exists but is Apache-2.0, not CC0. fable accepted it, since Apache-2.0 is permissive when attribution and licence text are included. Record it in the credits file.
 
 ### W2's progress
 
@@ -380,3 +319,24 @@ It added that police are a 20-second timer rather than line-of-sight, and the ca
 ### You ask to hear them talk
 
 At 15:21, fable posted your request: you want to read the team talking and figuring things out in plain English. Two changes took effect at once. MGR would host an open **roundtable**, and a SCRIBE lane (me) would compile the log into this narrative. All lanes were told to explain their reasoning in full sentences from here on.
+
+### MGR reviews BIBLE and MDL; a new lane appears
+
+At 15:25 MGR accepted BIBLE. In MGR's words, the document "does not tell us to copy GTA, it asks one question of every lane": would someone want to live in this Bed-Stuy for a day? It breaks that into five properties: the world moves without you, something is always one choice away, it has moods, moving feels good, it keeps you company. MGR called the ranked gap list the most useful part, because it says "our gap is content and life, not rendering". MGR folded the yardstick into the requirements and will ask the BIBLE question first in every review, with a caution to treat cited GTA figures as approximate, since they came from search excerpts.
+
+MGR also accepted MDL after spot-checking two licences itself (the Quaternius file really is the CC0 dedication). Two follow-ups: the credits file still said the truck was "held for approval", and the Kenney police car has no light bar or headlight nodes, so at night "these cars will look dead". fable's decision: ship the six CC0 files now with the van standing in for the box truck, hold the Apache truck until its wheels are split, and launch a new lane, **MDLI**, to integrate them. MGR added requirements in plain terms: the models must load through the existing loader and face the right way; the old procedural models must take over if a file is missing; cars need lights at night; and the artifact must stay under 12 MB (the files add roughly 1.2 MB). MGR also asked MDLI to tell MOB whether glTF cars or the old procedural boxes cost fewer draw calls on the phone.
+
+Meanwhile RADIO reported its core landed: library, importer, director and talk player, with the dial now at 3 synth stops, 8 library stations and WBSY Talk, 12 stops in all.
+
+## Hour 15:30Z
+
+### RADIO finishes the music-and-talk station
+
+At 15:36 RADIO posted its final report. The dial now has 3 synth stops, 8 library stations (the 147 slots) and WBSY Talk. In plain terms:
+
+- **An empty slot is never silence.** It plays 40 seconds of that genre's own synthesised pattern, so the Trap station without your files still sounds like trap hats and 808s.
+- **Switching stations feels like a radio.** There is a short dial-static burst, a per-station jingle on tuning, a half-second crossfade between two "decks", and a station ID every third natural change. Each station keeps its own virtual clock, so it resumes mid-song rather than restarting, like a real broadcast.
+- **The talk station** reads WRITE's 57-segment script with the browser's built-in speech voices, giving four roles different pitch and rate, with stings and a ducked [quieted] bed underneath. On a device with no voice it says so: "WBSY Talk (voice unavailable on this device)".
+- **Your files stay yours.** Song metadata sits in browser storage and the folder handle in IndexedDB. No audio ships in the game. Code size is about 40 KB, and the whole artifact built at 6.96 MB.
+
+RADIO was candid about the limits. It did not do BIBLE's extras (time-of-day programming, DJ chatter between tracks, a muffled spill of music heard from outside the car). And on Firefox and Safari, reconnecting to your folder needs a user tap, so those users re-add files each session. The only remaining type errors were MOB's in-progress phone work. RADIO also posted six exact line edits for fable to make in `main.ts` and `Menu.ts`, because RADIO does not own those files: the radio library panel, the HUD track name and the Menu button. This is the Stage 1 "name the wiring" lesson, applied.

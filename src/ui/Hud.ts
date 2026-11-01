@@ -2,6 +2,13 @@ import './hud.css';
 import type { HudState } from '@/world/types';
 import type { InputMode } from '@/core/Input';
 
+/** Optional radio extras next to `HudState.radioStation`: the now-playing file/speaker and the talk-show loop position. */
+export interface RadioHudState {
+  radioTrack?: string;
+  /** 0..1 through the WBSY Talk loop; 0 or absent when another station is tuned. */
+  talkProgress?: number;
+}
+
 const FADE_MS = 400;
 const MAX_STARS = 3;
 const CONTROLS = [
@@ -130,7 +137,7 @@ export class Hud {
     );
   }
 
-  update(state: HudState): void {
+  update(state: HudState & RadioHudState): void {
     const stars = Math.round(Math.min(MAX_STARS, Math.max(0, finite(state.stars))));
     this.starEls.forEach((el, i) => {
       const on = i < stars;
@@ -150,7 +157,11 @@ export class Hud {
 
     setText(this.streetEl, state.streetName ?? '');
     const radio = state.radioStation ?? '';
-    setText(this.radioEl, radio);
+    const track = state.radioTrack ?? '';
+    setText(this.radioEl, track ? `${radio} \u2014 ${track}` : radio);
+    const talk = finite(state.talkProgress ?? 0);
+    if (talk > 0 && talk <= 1) { this.radioEl.dataset.talk = '1'; this.radioEl.style.setProperty('--talk', talk.toFixed(3)); }
+    else if (this.radioEl.dataset.talk) { delete this.radioEl.dataset.talk; this.radioEl.style.removeProperty('--talk'); }
     this.radioEl.hidden = !(state.inVehicle && radio !== '');
 
     setText(this.fpsEl, `${Math.round(finite(state.fps))} FPS`);

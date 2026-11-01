@@ -238,13 +238,17 @@ describe('AudioSystem radio', () => {
     expect(audio.stationName).toBe('WBED 88.9 — Brownstone Boom-Bap');
   });
 
-  it('wraps through the stations on nextStation()', async () => {
+  it('steps through the whole dial on nextStation() and wraps: 3 synth, 8 music, WBSY Talk', async () => {
     const { audio } = setup();
     await audio.start();
-    audio.nextStation();
-    expect(audio.stationName).toBe('Kosciusko Kompa FM');
-    audio.nextStation();
-    expect(audio.stationName).toBe('Throop Talk Radio');
+    const names = [audio.stationName];
+    for (let i = 0; i < 11; i++) { audio.nextStation(); names.push(audio.stationName); }
+    expect(names).toEqual([
+      'WBED 88.9 — Brownstone Boom-Bap', 'Kosciusko Kompa FM', 'Throop Talk Radio',
+      'Bed-Stuy Pop FM', 'Flashback 80s', 'Throop Rap Radio', 'Garvey House & Dub',
+      'Marcy Trap & Plug 808', 'Hazy Tompkins Weird Radio', 'Lewis Ave Echo-Dub Folk', 'Nostrand Jazz-Rock Gets Lit',
+      'WBSY Talk (voice unavailable on this device)',
+    ]);
     audio.nextStation();
     expect(audio.stationName).toBe('WBED 88.9 — Brownstone Boom-Bap');
   });

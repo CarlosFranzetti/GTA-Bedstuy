@@ -56,6 +56,16 @@ describe('Hud', () => {
     expect(speed.textContent).toContain('km/h');
   });
 
+  it('appends the now-playing track to the station name and draws talk progress', () => {
+    const hud = new Hud(root);
+    hud.update({ ...base, inVehicle: true, radioStation: 'Bed-Stuy Pop FM', radioTrack: 'My Song', talkProgress: 0.4 });
+    expect(el(root, '.hud-radio').textContent).toContain('Bed-Stuy Pop FM');
+    expect(el(root, '.hud-radio').textContent).toContain('My Song');
+    expect((el(root, '.hud-radio') as HTMLElement).style.getPropertyValue('--talk')).toBe('0.400');
+    hud.update({ ...base, inVehicle: true, radioStation: 'Bed-Stuy Pop FM' });
+    expect((el(root, '.hud-radio') as HTMLElement).dataset.talk).toBeUndefined();
+  });
+
   it('shows the radio station only in a vehicle', () => {
     const hud = new Hud(root);
     hud.update({ ...base, inVehicle: false });

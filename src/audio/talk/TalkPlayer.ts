@@ -258,6 +258,7 @@ export class TalkPlayer {
       this.timer = this.env.audio.sting(kind) + 0.1;
       this.env.audio.setBed(BED_OPEN);
     } else {
+      this.phase = 'sting';
       this.afterTimer();
     }
   }

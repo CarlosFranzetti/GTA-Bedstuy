@@ -24,8 +24,12 @@ click once to start (audio + mouse capture).
 
 ## Graphics quality
 
-The game picks `medium` on desktop and `low` on phones. Override with a URL parameter:
-`?q=low`, `?q=medium` or `?q=high` (high adds 4K shadows, 16-sample ambient occlusion and SMAA).
+The game picks `medium` on desktop and `phone` on touch devices. Override with a URL parameter:
+`?q=phone`, `?q=low`, `?q=medium` or `?q=high` (high adds 4K shadows, 16-sample ambient occlusion and SMAA).
+`phone` renders at most 720 px wide, drops ambient occlusion, depth of field and SMAA, runs bloom only at dusk and night,
+uses one small shadow map, 4 street lamps, a 110 m view distance hidden by fog, and about a third of the traffic and
+pedestrians. A touch device left on `low` steps down to `phone` by itself if it stays under 30 fps for 8 seconds
+(an explicit `?q=` disables the automatic changes).
 
 ## How it is built
 
@@ -81,7 +85,7 @@ If you ever delete `vercel.json`, add the environment variable `VITE_HOSTED=1` (
 | Command | `npm run artifact` (= `vite build` then `node scripts/make-artifact.mjs`) | `npm run build:hosted` (output `dist-hosted/`; on Vercel `VITE_HOSTED=1 npm run build` writes `dist/`) |
 | Output | `dist/artifact.html`, everything inlined, about 6.7 MB, budget 12 MB (hard limit 16 MB) | `index.html` + hashed `assets/` files: game code, `three-<hash>.js` as its own chunk, textures as JPG files, about 5.3 MB |
 | Textures | 1K photo sets inlined as base64 | the same 1K sets as files; larger tiers load lazily after first paint |
-| Quality | `?q=low`, `medium`, `high` | adds `?q=ultra` |
+| Quality | `?q=phone`, `low`, `medium`, `high` | adds `?q=ultra` |
 
 `node scripts/build-hosted.mjs` builds both and prints the sizes (`npm run build:all`); it fails if the artifact goes over 12 MB, if a texture ends up inlined in the hosted JS, or if the three.js chunk is missing. `npm run smoke:hosted` additionally serves `dist-hosted/` on port 4307 and loads it headless with `?q=low` and `?q=ultra`, failing on any console error or failed request.
 To look at the hosted build locally: `npm run build:hosted && npx vite preview --outDir dist-hosted --port 4307`.

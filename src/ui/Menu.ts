@@ -30,6 +30,7 @@ export interface MenuCallbacks {
   onQuality?: (quality: MenuQuality) => void;
   onMasterVolume?: (volume: number) => void;
   onRadioVolume?: (volume: number) => void;
+  onRadioLibrary?: () => void;
   onInvertLookY?: (invert: boolean) => void;
   onReset?: () => void;
 }
@@ -140,6 +141,8 @@ export class Menu {
     this.radioInput = radioInput; this.radioOut = radioOut;
     masterInput.addEventListener('input', () => this.setMaster(Number(masterInput.value) / 100));
     radioInput.addEventListener('input', () => this.setRadio(Number(radioInput.value) / 100));
+    const libBtn = this.button('Radio library…', 'menu-btn');
+    libBtn.addEventListener('click', () => this.cb.onRadioLibrary?.());
 
     const invertRow = this.el('label', 'menu-row menu-check');
     this.invertInput = this.el('input', '');
@@ -179,7 +182,7 @@ export class Menu {
     const hint = this.el('p', 'menu-hint');
     hint.textContent = 'Esc / Start to resume';
 
-    this.panel.append(title, this.resumeBtn, quality, masterRow, radioRow, invertRow, this.resetBtn, controls, hint);
+    this.panel.append(title, this.resumeBtn, quality, masterRow, radioRow, libBtn, invertRow, this.resetBtn, controls, hint);
     this.root.appendChild(this.panel);
     parent.appendChild(this.root);
 

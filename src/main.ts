@@ -21,7 +21,7 @@ import { TrafficSystem } from '@/game/TrafficSystem';
 import { CopSystem } from '@/game/CopSystem';
 import { WantedSystem } from '@/game/WantedSystem';
 import { DayNight } from '@/game/DayNight';
-import { Hud } from '@/ui/Hud';
+import { Hud, type RadioHudState } from '@/ui/Hud';
 import { Minimap } from '@/ui/Minimap';
 import { TouchControls } from '@/ui/TouchControls';
 import { AudioSystem } from '@/audio/AudioSystem';
@@ -39,6 +39,7 @@ import { LIGHTING } from '@/render/LightingConfig';
 import { tierConfig, pixelRatioFor } from '@/render/QualityTier';
 import { setNormalMaps, setAnisotropy } from '@/render/TierDetail';
 import { Menu } from '@/ui/Menu';
+import { RadioUi } from '@/ui/RadioUi';
 import { GamepadInput } from '@/core/Gamepad';
 import { loadPosition, savePosition, watchPagehide, type SavedPosition } from '@/ui/SaveState';
 import { LoadingScreen, nextPaint, withTimeout } from '@/render/Loading';
@@ -338,7 +339,7 @@ const PROMPT_ENTER = `${PROMPT_KEY}  Enter car`;
 let slowTick = 0;
 let streetName = '';
 let prompt = '';
-const hudState: HudState = { stars: 0, speedKmh: 0, inVehicle: false, radioStation: '', prompt: '', timeOfDay: 0, streetName: '', fps: 60 };
+const hudState: HudState & RadioHudState = { stars: 0, speedKmh: 0, inVehicle: false, radioStation: '', prompt: '', timeOfDay: 0, streetName: '', fps: 60 };
 const passes = new PassCounter();
 passes.attach(renderer);
 const stats: Record<string, number> = { drawCalls: 0, drawCallsShadow: 0, drawCallsScene: 0, drawCallsGBuffer: 0, drawCallsPost: 0, triangles: 0, fps: 60, fps1pctLow: 0, heapMBPerMin: 0, culledObjects: 0, carsFar: 0, vehicles: 0, peds: 0, cops: 0, meshes: world.stats.meshes, colliders: world.stats.colliders };
@@ -387,6 +388,8 @@ const game = new Game(
     hudState.speedKmh = player.vehicle ? Math.abs(player.vehicle.speed) * 3.6 : 0;
     hudState.inVehicle = player.inVehicle;
     hudState.radioStation = audio.stationName;
+    hudState.radioTrack = audio.trackName;
+    hudState.talkProgress = audio.talkProgress;
     hudState.prompt = prompt;
     hudState.timeOfDay = dayNight.timeOfDay;
     hudState.streetName = streetName;
@@ -414,11 +417,13 @@ const game = new Game(
 // pause menu, gamepad, settings (Menu fires its persisted-setting callbacks once at construction)
 let lastPad = performance.now();
 const gamepad = new GamepadInput(input, { onToast: (m) => hud.showToast(m), onStart: () => menu.toggle(), onNav: (d) => menu.navigate(d) });
+const radioUi = new RadioUi(overlay, audio);
 const menu = new Menu(overlay, {
   onPause: (p) => { game.paused = p || document.hidden; gamepad.paused = p; audio.setPaused(p); if (!p) { input.endFrame(); input.requestLock(); } },
   onQuality: (q) => applyQuality(q),
   onMasterVolume: (v) => audio.setMasterVolume(v),
   onRadioVolume: (v) => audio.setRadioVolume(v),
+  onRadioLibrary: () => radioUi.open(),
   onInvertLookY: (b) => { input.invertLookY = b; },
   onReset: () => { clearMissionData(); const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = SPAWN.x; b.pos.z = SPAWN.z; b.vel.x = 0; b.vel.z = 0; },
 }, { touch: isTouch, initialQuality: quality, ignoreSavedQuality: params.has('q') });
