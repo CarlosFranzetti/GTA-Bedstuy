@@ -71,6 +71,7 @@ export class HtmlAudioDeck implements Deck {
     this.wantPlay = true;
     const el = this.el;
     el.src = url;
+    el.load();
     const begin = () => {
       if (my !== this.token) return;
       try { if (offset > 0.05 && (!Number.isFinite(el.duration) || offset < el.duration - 0.2)) el.currentTime = offset; } catch { /* not seekable yet */ }
@@ -78,7 +79,6 @@ export class HtmlAudioDeck implements Deck {
       if (p && typeof p.catch === 'function') p.catch(() => { if (my === this.token) { this.wantPlay = false; this.onError?.(); } });
     };
     if (el.readyState >= 1) begin(); else el.addEventListener('loadedmetadata', begin, { once: true });
-    el.load();
   }
 
   stop(): void {

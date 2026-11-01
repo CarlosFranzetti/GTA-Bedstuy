@@ -24,3 +24,17 @@ shared between variants are stored once (`brick_normal`, `brick_rough`, `brick_p
 
 Everything else in the game (geometry, signage, awnings, audio) is procedural and
 original to this project.
+
+## Models
+
+Recommended car and character glTF files for `src/assets/models/` (MDL, Stage 3). Licence status is stated per pack;
+"secondary" means the licence text was taken from a repackager's NOTICE rather than the author's own page, which this
+build environment cannot reach.
+
+- **Kenney Car Kit** (sedan, SUV, police car, delivery van used as a box-truck stand-in). Author: Kenney
+  (https://kenney.nl/assets/car-kit). Licence: **CC0 1.0 Universal** (secondary; the repackager NOTICE says each archive's
+  License.txt reads CC0). Obtained via `@netforge/asset-library-files@0.2.0` (npm; MIT wrapper, art CC0 per its NOTICE).
+- **Quaternius characters** (hooded adventurer, worker). Author: Quaternius (https://quaternius.com). Licence: **CC0 1.0
+  Universal**. The Quaternius Ultimate Animated Character Pack LICENSE.txt (CC0 1.0) is verified; the exact pack of the
+  two characters is secondary (repackager NOTICE). Obtained via `@netforge/asset-library-files@0.2.0`.
+- Not included: `truck-box` from `munim-maps-vehicles@0.5.0` (Apache-2.0), held for approval.

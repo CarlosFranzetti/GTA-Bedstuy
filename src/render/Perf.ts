@@ -66,6 +66,9 @@ export function heapGrowthMBPerMin(samples: readonly HeapSample[], windowSec = 3
   return ((minB - minA) / (1024 * 1024)) * (60 / windowSec);
 }
 
+/** Seconds of play before the touch low -> phone fallback starts counting. */
+const PHONE_WARMUP_SECONDS = 2;
+
 export interface PerfOptions {
   /** current quality getter */
   getQuality: () => Quality;
@@ -77,6 +80,12 @@ export interface PerfOptions {
   minLowFps?: number;
   /** disable the auto-drop (explicit ?q= on the URL, review scripts) */
   autoDrop?: boolean;
+  /** touch device: `low` steps down to `phone` when the frame rate stays under `phoneFps` for `phoneSeconds` */
+  touch?: boolean;
+  /** fps below which a touch device at `low` steps down to `phone` (default 30) */
+  phoneFps?: number;
+  /** seconds the rate must stay under `phoneFps` (default 8) */
+  phoneSeconds?: number;
   /** MB/min that triggers the console warning */
   heapWarnMBPerMin?: number;
   log?: (msg: string) => void;
@@ -89,6 +98,10 @@ export class PerfMonitor {
   private readonly scratch = new Float32Array(600);
   private playTime = 0;
   private dropped = false;
+  /** smoothed frame time (s) and how long it has stayed above the phone-fallback threshold */
+  private lastDt = 0;
+  private emaDt = 0;
+  private slowSeconds = 0;
   private lowFps = 0;
   private sinceLow = 0;
   private heap: HeapSample[] = [];
@@ -100,7 +113,7 @@ export class PerfMonitor {
 
   constructor(opts: PerfOptions) {
     this.opts = {
-      settleSeconds: 8, minLowFps: 40, autoDrop: true, heapWarnMBPerMin: 50,
+      settleSeconds: 8, minLowFps: 40, autoDrop: true, heapWarnMBPerMin: 50, touch: false, phoneFps: 30, phoneSeconds: 8,
       log: (m) => console.warn(m),
       ...opts,
     };
@@ -113,6 +126,7 @@ export class PerfMonitor {
   /** Call once per rendered frame with the real frame time in seconds. Hitches over 1 s (tab switches) are ignored. */
   frame(dtSeconds: number): void {
     if (!(dtSeconds > 0) || dtSeconds > 1) return;
+    this.lastDt = dtSeconds;
     this.ring.push(dtSeconds * 1000);
     this.playTime += dtSeconds;
     this.clock += dtSeconds;
@@ -124,11 +138,25 @@ export class PerfMonitor {
   }
 
   /** Forget history (call after a quality change so old frames do not count against the new setting). */
-  reset(): void { this.ring.clear(); this.playTime = 0; this.lowFps = 0; this.sinceLow = 0; }
+  reset(): void { this.ring.clear(); this.playTime = 0; this.lowFps = 0; this.sinceLow = 0; this.emaDt = 0; this.slowSeconds = 0; }
 
   private checkDrop(): void {
     const o = this.opts;
-    if (!o.autoDrop || this.dropped || this.playTime < o.settleSeconds || this.ring.length < 120) return;
+    if (!o.autoDrop) return;
+    // touch devices: low -> phone once the (smoothed) frame rate has stayed under phoneFps for phoneSeconds in a row
+    // (counting starts after a short warm-up so the first frames' shader compiles do not count)
+    if (o.touch && o.getQuality() === 'low') {
+      if (this.playTime < PHONE_WARMUP_SECONDS) return;
+      this.emaDt = this.emaDt === 0 ? this.lastDt : this.emaDt + (this.lastDt - this.emaDt) * 0.1;
+      if (this.emaDt > 1 / o.phoneFps) this.slowSeconds += this.lastDt; else this.slowSeconds = 0;
+      if (this.slowSeconds >= o.phoneSeconds) {
+        o.log(`[perf] ${(1 / this.emaDt).toFixed(1)} fps < ${o.phoneFps} for ${o.phoneSeconds} s at low on a touch device: dropping to phone quality`);
+        o.setQuality('phone');
+        this.reset();
+      }
+      return;
+    }
+    if (this.playTime < o.settleSeconds || this.dropped || this.ring.length < 120) return;
     if (o.getQuality() !== 'medium') return;
     const low = onePercentLowFps(this.ring, this.scratch);
     this.lowFps = low;

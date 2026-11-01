@@ -57,3 +57,7 @@ Values are starting points to tune by eye. Only the bloom and tone-mapping notes
 8. **Night streetlights.** Point lights with decay 2, sodium colour (around #ffb35c) on older blocks and cool white (around #f0f4ff) on newer ones, capped at about 32 nearest lights. Coronas as capped sprites.
 9. **Third-person camera.** FOV 60, offset (0, 2.2, -6.5), damping 0.08, plus 1.5 m pull-back above 60 km/h.
 10. **Ambient occlusion.** GTAOPass with radius about 0.5 world units and blendIntensity 0.8, or cheap baked contact shadows under cars, bins and kerbs if GTAOPass is too costly.
+
+## 6. See also: the design bible
+
+`docs/reference/BIBLE.md` (Stage 3) turns these rendering and camera notes into reviewable design targets for camera, mechanics, graphics, missions, ambient world, radio and the hour-by-hour day in Bed-Stuy, framed by one test: would someone want to live in this Bed-Stuy for a day? Where this file and the bible disagree on a number, the bible's `[tune]` targets win; the sourcing caveats here still apply.

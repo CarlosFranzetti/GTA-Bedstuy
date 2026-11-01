@@ -73,6 +73,7 @@ export const CAR_COLORS = [
 
 const PED_COUNT = 40;
 const MAX_TRAFFIC = 30;
+const DEFAULT_PARK_OCCUPANCY_SHARE = 0.65;
 const NEAR_RADIUS = 160;
 const SPAWN_MIN = 90;
 const SPAWN_MAX = 150;
@@ -83,7 +84,6 @@ const SPAWN_CLEAR = 6;
 const SPAWN_BEHIND = 32;
 const PARK_SPACING = 11;
 const PARK_END_MARGIN = 12;
-const PARK_OCCUPANCY = 0.65;
 const PARK_EXTRA_OFFSET = 2.6;
 const LANE_OFFSET = 2.0;
 const FLEE_RADIUS = 15;
@@ -96,6 +96,17 @@ const STOOP_OUT = 1.1;
 const CROSSWALK_MATCH = 0.6;
 
 interface Active { agent: TrafficAgent; vehicle: IVehicle; }
+
+/** How busy the streets are (quality tier: the phone tier runs ~10 cars / 14 peds). Defaults are the full-density numbers. */
+export interface TrafficDensity {
+  /** moving cars near the player */
+  maxMoving: number;
+  /** pedestrians */
+  peds: number;
+  /** share of kerb slots holding a parked car */
+  parkOccupancy: number;
+}
+export const FULL_DENSITY: TrafficDensity = { maxMoving: MAX_TRAFFIC, peds: PED_COUNT, parkOccupancy: DEFAULT_PARK_OCCUPANCY_SHARE };
 
 /**
  * Owns parked cars, moving traffic and pedestrians. It adds/removes their objects to the scene and bodies to the
@@ -115,6 +126,10 @@ export class TrafficSystem {
   private readonly pedEnv: PedEnvironment;
   private spawnTimer = SPAWN_TICK;
   private warm = true;
+  private density: TrafficDensity;
+  /** parked-car occupancy the kerbs were filled with (can only be thinned at runtime, not refilled) */
+  private parkedShare: number;
+  private pedSeq = 0;
 
   constructor(
     private readonly grid: GridModel,
@@ -127,7 +142,10 @@ export class TrafficSystem {
     private readonly makePed?: MakePed,
     lights?: TrafficLights,
     lots?: readonly Lot[],
+    density: Partial<TrafficDensity> = {},
   ) {
+    this.density = { ...FULL_DENSITY, ...density };
+    this.parkedShare = this.density.parkOccupancy;
     this.lights = lights ?? new TrafficLights(grid);
     this.laneNodes = Object.values(grid.lanes.nodes);
     this.pedEnv = {
@@ -141,6 +159,39 @@ export class TrafficSystem {
       events.on('pedKnockedDown', (e) => this.scare(e.pos, FLEE_RADIUS, e.id)),
       events.on('horn', (e) => this.scare(e.pos, HORN_FLEE_RADIUS, null)),
     );
+  }
+
+  /**
+   * Quality-tier switch at runtime. Moving traffic follows `maxMoving` as cars spawn / despawn; pedestrians and parked cars
+   * are removed down to the new numbers at once (cars the player drives are never touched). Raising the numbers adds
+   * pedestrians but cannot refill parked kerbs (they were generated at start).
+   */
+  setDensity(d: Partial<TrafficDensity>): void {
+    this.density = { ...this.density, ...d };
+    while (this.peds.length > this.density.peds) {
+      const p = this.peds.pop()!;
+      this.world.removeBody(p.body.id);
+      p.dispose();
+    }
+    if (this.makePed && this.peds.length < this.density.peds) {
+      const ids = Object.keys(this.grid.sidewalks.nodes);
+      while (ids.length > 0 && this.peds.length < this.density.peds) {
+        const ped = this.makePed(`ped${this.pedSeq++}`, this.grid.sidewalks.nodes[this.rng.pick(ids)]);
+        ped.setEnvironment(this.pedEnv);
+        this.peds.push(ped);
+        this.scene.add(ped.object3D);
+        this.world.addBody(ped.body);
+      }
+    }
+    if (this.density.parkOccupancy < this.parkedShare) {
+      const keep = this.density.parkOccupancy / Math.max(1e-6, this.parkedShare);
+      for (let i = this.vehicles.length - 1; i >= 0; i--) {
+        const v = this.vehicles[i];
+        if (v.driver !== null || this.rng.chance(keep)) continue;
+        this.removeVehicle(v);
+      }
+      this.parkedShare = this.density.parkOccupancy;
+    }
   }
 
   /** Number of vehicles currently driven by a traffic AI. */
@@ -171,7 +222,7 @@ export class TrafficSystem {
       for (let i = 0; i < this.active.length; i++) {
         if (dist(this.active[i].vehicle.body.pos, playerPos) < NEAR_RADIUS) near++;
       }
-      while (budget-- > 0 && near < MAX_TRAFFIC) {
+      while (budget-- > 0 && near < this.density.maxMoving) {
         if (!this.spawnTraffic(playerPos)) break;
         near++;
       }
@@ -201,7 +252,7 @@ export class TrafficSystem {
         // side 1: right-hand curb of the a->b direction; side -1: right-hand curb of b->a
         const h = side === 1 ? heading : heading + Math.PI;
         for (let s = PARK_END_MARGIN; s <= length - PARK_END_MARGIN; s += PARK_SPACING) {
-          if (!this.rng.chance(PARK_OCCUPANCY)) continue;
+          if (!this.rng.chance(this.density.parkOccupancy)) continue;
           const along = s + this.rng.range(-0.6, 0.6);
           const pos = {
             x: seg.a.x + dir.x * along + right.x * curbOffset * side,
@@ -221,9 +272,9 @@ export class TrafficSystem {
     const cross = this.crosswalkNodeIds();
     const ids = Object.keys(this.grid.sidewalks.nodes);
     if (ids.length === 0) return;
-    for (let i = 0; i < PED_COUNT; i++) {
+    for (let i = 0; i < this.density.peds; i++) {
       const node = this.grid.sidewalks.nodes[this.rng.pick(ids)];
-      const id = `ped${i}`;
+      const id = `ped${this.pedSeq++}`;
       const ped = this.makePed
         ? this.makePed(id, node)
         : new Pedestrian(id, node, this.grid.sidewalks, this.world, this.materials, this.events, this.rng.fork(id), cross);

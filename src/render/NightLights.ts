@@ -62,6 +62,7 @@ export class NightLights {
   private readonly desired = new Set<number>();
   private readonly held = new Set<number>();
   private readonly targets: THREE.Object3D[];
+  private range = 26;
   private headlightsEnabled = true;
   private headlightsAttached = false;
   private headlightIntensity = 0;
@@ -72,6 +73,7 @@ export class NightLights {
     this.lamps = lamps;
     const poolSize = Math.max(1, Math.floor(opts.poolSize ?? 12));
     const range = opts.range ?? 26;
+    this.range = range;
     this.dist = new Float64Array(lamps.length);
 
     this.slots = [];
@@ -96,6 +98,28 @@ export class NightLights {
       scene.add(spot, target);
       this.headlights.push(spot);
       this.targets.push(target);
+    }
+  }
+
+  /**
+   * Resizes the lamp pool (quality tier switch). The light count changes, so the renderer recompiles its lit materials once:
+   * only call it from a menu / fallback quality change, never per frame.
+   */
+  setPoolSize(n: number): void {
+    const size = Math.max(1, Math.floor(n));
+    while (this.slots.length > size) {
+      const s = this.slots.pop()!;
+      this.lights.pop();
+      this.scene.remove(s.light);
+      s.light.dispose();
+    }
+    while (this.slots.length < size) {
+      const light = new THREE.PointLight(LAMP_COLOR, 0, this.range, 2);
+      light.castShadow = false;
+      light.name = `night-lamp-${this.slots.length}`;
+      this.scene.add(light);
+      this.lights.push(light);
+      this.slots.push({ light, lamp: -1, releasing: false });
     }
   }
 

@@ -9,7 +9,8 @@
  *
  * UV conventions (world metres; tile sizes match the painters in textures/painters/ground.ts):
  * asphalt / concrete 3 m per repeat (roadway u runs across the road from its left edge, v along it); bluestone
- * 2.7 m x 3 m; granite curbs 0.4 m along the run with v = 1 at the top of the curb; manhole discs use the cylinder
+ * 2.7 m x 3 m; graniteCurb (T11's 512 x 128 tile, one 1.2 m stone, joint at u = 0) u = (station along the run from its
+ * start) / 1.2 m, v by profile row (see CURB_V_*); manhole discs use the cylinder
  * cap UV (0..1 across the disc); crosswalk bars / rails sample one 4 m x crosswalk-width tile.
  * Sidewalks of odd block rows (the brownstone rows) are bluestone flags, the rest is concrete.
  */
@@ -72,11 +73,18 @@ const SKID_OPACITY = 0.35;
 const TILE_M = 3;
 const BLUESTONE_U = 2.7;
 const BLUESTONE_V = 3;
-const CURB_TILE_M = 0.4;
-/** curb profile v (texture rows): front foot 0 -> chamfer start 0.78 -> flat top 0.86..0.96 (the pale wear band) */
-const CURB_V_FACE = 0.78;
-const CURB_V_TOP_A = 0.86;
-const CURB_V_TOP_B = 0.96;
+/** one graniteCurb stone (tile width) in metres; every run starts on a joint (u = 0) */
+const CURB_TILE_M = 1.2;
+/**
+ * graniteCurb painter rows (canvas fractions from the top; the texture is flipY so v = 1 - row): flat top 0..0.48,
+ * chamfer bevel 0.48..0.54, vertical face 0.54..0.92, gutter grit 0.92..1. A 2 % inset keeps every sample off the
+ * tile edge; the face runs down to v 0.03 so the dark gutter silt sits at the foot where the curb meets the road.
+ */
+const CURB_V_TOP_BACK = 0.97; // top face, block-side arris
+const CURB_V_TOP_FRONT = 0.52; // top face, roadway-side arris == start of the chamfer (row 0.48)
+const CURB_V_CHAMFER_END = 0.46; // chamfer end == top of the vertical face (row 0.54)
+const CURB_V_FOOT = 0.03; // foot of the face (gutter grit)
+const CURB_V_BACK_FOOT = 0.08; // block-side foot (hidden under the sidewalk slab)
 /** crosswalk texture: 4 bars at 1 m pitch along u; rails sit 3 % in from the width edges and are 7.5 % wide */
 const XW_TILE_M = 4;
 const XW_RAIL_INSET = 0.03;
@@ -202,11 +210,12 @@ function buildCurbRun(run: CurbRun, ends: Vec2[], out: THREE.BufferGeometry[]): 
   const ring = (s: number, h: number): CurbPt[] => {
     const c = Math.min(CURB_CHAMFER, h * 0.4);
     const prof: [number, number, number][] = [
-      [0, 0, 0], [CURB_W, 0, 0], [CURB_W, h - c, CURB_V_FACE], [CURB_W - c, h, CURB_V_TOP_A], [c, h, CURB_V_TOP_B], [0, h - c, CURB_V_FACE],
+      [0, 0, CURB_V_BACK_FOOT], [CURB_W, 0, CURB_V_FOOT], [CURB_W, h - c, CURB_V_CHAMFER_END],
+      [CURB_W - c, h, CURB_V_TOP_FRONT], [c, h, CURB_V_TOP_BACK], [0, h - c, CURB_V_CHAMFER_END],
     ];
     return prof.map(([u, y, v]): CurbPt => ({
       p: run.axis === 'x' ? [s, y, run.line + run.outward * u] : [run.line + run.outward * u, y, s],
-      uv: [s / CURB_TILE_M, v],
+      uv: [(s - run.from) / CURB_TILE_M, v],
     }));
   };
   const centroid = (r: CurbPt[]): V3 => {
@@ -393,7 +402,9 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
 
     // Curbs sit on the roadway side of each block edge; the north and south runs extend by one
     // curb width so the corner squares are closed.
-    const curbs = std('granite', 0, 'curbs');
+    // alternate T11's two stones (grey / warm pink-grey) block by block in a checkerboard
+    const curbVariant = (bl.row + bl.col) % 2;
+    const curbs = std('graniteCurb', curbVariant, curbVariant === 0 ? 'curbs' : 'curbs-warm');
     const runs: CurbRun[] = [
       { axis: 'x', line: minZ, from: minX - CURB_W, to: maxX + CURB_W, outward: -1 },
       { axis: 'x', line: maxZ, from: minX - CURB_W, to: maxX + CURB_W, outward: 1 },

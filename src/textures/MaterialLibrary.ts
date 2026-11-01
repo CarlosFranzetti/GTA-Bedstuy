@@ -26,6 +26,20 @@ export type CanvasFactory = (w: number, h: number) => HTMLCanvasElement;
 
 const NIGHT_EMISSIVE = '#ffd27a';
 const NIGHT_INTENSITY = 0.9;
+/**
+ * Night emissive intensity per glass key (x emissive-map texel). Apartment windows keep 0.9 (only variants 0 and 3 glow, so a
+ * facade reads as a patchwork of lit and dark rooms). Shop glazing is one large flat lit face, so it is capped at 0.35
+ * (L10: at 0.9 a single shop window filled a third of the spawn view at mean luma 0.24); its variants dim a little
+ * further so neighbouring shops do not match.
+ */
+const GLASS_NIGHT_INTENSITY: Record<string, readonly number[]> = {
+  window: [NIGHT_INTENSITY],
+  storefrontGlass: [0.35, 0.28],
+};
+const glassNightIntensity = (key: string, variant: number): number => {
+  const t = GLASS_NIGHT_INTENSITY[key] ?? [NIGHT_INTENSITY];
+  return t[((variant % t.length) + t.length) % t.length];
+};
 const MAX_ANISOTROPY = 8;
 
 /** envMapIntensity per key for materials that pick up the scene environment (reflections). */
@@ -216,7 +230,7 @@ export class MaterialLibrary implements IMaterialLibrary {
 
   setNight(night: boolean): void {
     this.night = night;
-    for (const m of this.glowing) m.emissiveIntensity = night ? NIGHT_INTENSITY : 0;
+    for (const m of this.glowing) m.emissiveIntensity = night ? ((m.userData.nightIntensity as number | undefined) ?? NIGHT_INTENSITY) : 0;
   }
 
   dispose(): void {
@@ -408,12 +422,13 @@ export class MaterialLibrary implements IMaterialLibrary {
           map: this.texture(`${key}:${v}`, w, h, paint, v),
           emissive: new THREE.Color(NIGHT_EMISSIVE),
           emissiveMap: this.texture(`${key}:em:${v}`, w, h, emissive, v),
-          emissiveIntensity: this.night ? NIGHT_INTENSITY : 0,
+          emissiveIntensity: this.night ? glassNightIntensity(key, v) : 0,
           roughness: 0.08,
           metalness: 0,
           transparent: true,
           opacity: 0.9,
         });
+        m.userData.nightIntensity = glassNightIntensity(key, v);
         this.glowing.push(m);
         return m;
       },

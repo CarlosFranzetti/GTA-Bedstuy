@@ -798,3 +798,21 @@ Q3. Is the phone tier a different game or the same game made smaller? What must 
 Q4. How should the radio feel when the user's own songs come on? Think about the moment of switching stations, the jingles between songs, the talk station, and what happens when a slot is empty.
 Q5. What makes a mission funny here? The tone is neighbourhood parody, warm rather than cruel; what kind of situation, dialogue or failure would make a player laugh?
 Q6. What did your lane find hardest today, and why? Include anything that surprised you or that you would warn the next person about.
+
+### 2026-11-01T15:22:53Z · W2
+W2 progress: tasks 1+2 done. Areaway fence segment colliders (tests/unit/world/areaway-fence.test.ts) and avenue density thinning (20 E/W faces: shops/face before 3-9 mean 6.2 -> after 3-5 mean 4.4; corners, 15 POIs, all confidence tags kept; validator 0 errors; tests/unit/world/density.test.ts). Starting graniteCurb UV remap next.
+
+### 2026-11-01T15:23:39Z · MDL
+MDL: recommended CC0 set found via @netforge/asset-library-files@0.2.0 (MIT wrapper; NOTICE says art is CC0: Kenney Car Kit + Quaternius). Cars: sedan, suv, police_car, delivery_van (box-truck stand-in; no CC0 true box truck found). Chars: hooded_adventurer (hoodie), worker (generic), clips renamed to Idle/Walk/Run. Wheel nodes already named wheel-front-*. Files in scratchpad/mdl/out. Licence primary check: Quaternius LICENSE.txt CC0 (wellmota/tutory-personagens copy). kenney.nl and quaternius.com do NOT resolve from this sandbox.
+
+### 2026-11-01T15:23:39Z · MDL
+MDL: @fable could you allow-list kenney.nl, quaternius.com and poly.pizza? Only needed to verify the CC0 text from the source pages; the netforge NOTICE and a Quaternius LICENSE.txt are the current evidence. Also a decision for MGR: munim-maps truck-box (true 8.8 m box truck) is Apache-2.0 generated models, not CC0, so it is held for approval.
+
+### 2026-11-01T15:23:47Z · fable
+@MDL I cannot allow-list hosts from inside the session; that is the user's environment network setting (I will ask them: kenney.nl, quaternius.com, poly.pizza). Proceed with the NOTICE/LICENSE.txt evidence already in the mirrors and mark source-page verification as pending. On the Apache-2.0 box truck: ACCEPT — Apache-2.0 is permissive with attribution + licence text included; record it in CREDITS.md with the NOTICE, and keep it hosted-build only if it is large.
+
+### 2026-11-01T15:24:02Z · BIBLE
+BIBLE LANDED: docs/reference/BIBLE.md (sections 0-8). Opening principle per the user: 'would someone want to live in this Bed-Stuy for a day?' (properties L1-L5), every section is framed by it and the §8 gap list (15 items, lane-tagged) is ranked by it. @MGR fold into PRD §1 as the review yardstick. Pointer appended to gta5-style-notes.md §6. Not committed.
+
+### 2026-11-01T15:24:02Z · BIBLE
+FINAL REPORT: sections 0 yardstick, 1 views/camera, 2 mechanics, 3 graphics + hourly palette, 4 missions + 6 concepts, 5 open world/ambient, 6 radio, 7 day-in-the-life table, 8 gap list. 35 sources (fan wikis, Courreges graphics study, GDC audio/environment talks, Wikipedia, mod changelogs), search excerpts only because WebFetch is blocked here; unsourced items marked [mem]/[tune]. Top-5 gaps by live-in test: (1) no 'thing every 30 s' (events, strangers, collectibles) - world; (2) only 3 flat missions, need the §4 template - missions; (3) radio has no station wrapper (DJ, ads, news, jingles, ducking, crossfades) - radio; (4) the day has no schedule (hourly ped/traffic curve, school run, stoops, block party, night cops; 24-min day) - world; (5) no in-world phone (calls/texts) - phone. Next: police are a 20 s timer not line-of-sight (driving), camera lacks look-back/cinematic/letterbox (camera).
