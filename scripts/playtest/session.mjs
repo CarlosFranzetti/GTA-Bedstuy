@@ -143,7 +143,7 @@ async function main() {
   page.on('crash', () => { crashed = true; pushErr('PAGE CRASHED'); });
 
   let ended = false;
-  const cleanup = async () => { try { await browser.close(); } catch { /* ignore */ } try { preview.kill(); } catch { /* ignore */ } };
+  const cleanup = async () => { try { await browser.close(); } catch { /* ignore */ } try { preview.kill(); } catch { /* ignore */ } try { rmSync(dist, { recursive: true, force: true }); } catch { /* ignore */ } };
 
   try {
     // ---- boot

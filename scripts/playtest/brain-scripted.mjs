@@ -64,15 +64,18 @@ try {
   s = await act('Looks like a busy Brooklyn street at golden hour. Let me look around before I move.', [{ look: { dx: 350, dy: 0 } }]);
   s = await act('Looking the other way to see what is behind me.', [{ look: { dx: -700, dy: 0 } }]);
   s = await act('Time to walk. I will jog forward a little with Shift held.', [{ keys: ['KeyW', 'ShiftLeft'], ms: 1200 }]);
-  s = await act('Stepping sideways to check the controls respond.', [{ key: 'KeyD', ms: 500 }, { key: 'KeyA', ms: 500 }, { wait: 300 }]);
+  s = await act('Tapping the strafe keys to check the controls respond.', [{ key: 'KeyD', ms: 300 }, { key: 'KeyA', ms: 300 }]);
 
-  // walk to the nearest car
-  for (let i = 0; i < 12; i++) {
+  // walk to the nearest car until the HUD offers "F  Enter car" (the prompt appears when the DOOR is in reach, not the car centre)
+  for (let i = 0; i < 14 && !/enter/i.test(s.prompt); i++) {
     const car = nearestCar(s);
     if (!car) { s = await act('No car in sight. Walking forward to find one.', [{ look: { dx: 300, dy: 0 } }, { key: 'KeyW', ms: 800 }]); continue; }
-    if (car.distance_m <= 3.2 || /enter/i.test(s.prompt)) break;
     const turn = Math.abs(car.bearing_deg) > 8 ? { look: { dx: car.bearing_deg * PX_PER_DEG, dy: 0 } } : null;
-    const walk = Math.max(300, Math.min(1500, (car.distance_m - 2.2) * 350));
+    if (car.distance_m < 2.0) { // hugging the car without a prompt: slide along it to find the door
+      s = await act(`Right beside the ${car.vehicle ?? 'car'} but no prompt yet. Sliding along it to find the door.`, [{ key: i % 2 ? 'KeyS' : 'KeyW', ms: 350 }]);
+      continue;
+    }
+    const walk = Math.max(250, Math.min(1500, (car.distance_m - 1.8) * 330));
     s = await act(`A ${car.vehicle ?? 'car'} is ${car.distance_m} m away, ${car.direction}. Heading for its door.`, [...(turn ? [turn] : []), { key: 'KeyW', ms: walk }]);
   }
   for (let tries = 0; tries < 3 && !s.inVehicle; tries++) {
@@ -80,7 +83,7 @@ try {
     outcome.enteredCar = s.inVehicle;
     if (!s.inVehicle) {
       const car = nearestCar(s);
-      if (car && car.distance_m > 2.5) s = await act('Not close enough, stepping toward the door.', [{ look: { dx: car.bearing_deg * PX_PER_DEG, dy: 0 } }, { key: 'KeyW', ms: 400 }]);
+      if (car && car.distance_m > 1.5) s = await act('Not close enough, stepping toward the door.', [{ look: { dx: car.bearing_deg * PX_PER_DEG, dy: 0 } }, { key: 'KeyW', ms: 300 }]);
     }
   }
   outcome.enteredCar = s.inVehicle;

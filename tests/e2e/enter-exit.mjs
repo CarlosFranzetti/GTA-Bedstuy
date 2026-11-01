@@ -54,7 +54,7 @@ async function resume(page) {
   if (await btn.isVisible().catch(() => false)) await btn.click();
   await page.waitForTimeout(300);
 }
-const state = (page) => page.evaluate(() => { const p = window.__gtaDebug.player; return { inV: p.inVehicle, ent: p.isEntering, veh: p.vehicle?.id ?? null, x: p.body.pos.x, z: p.body.pos.z }; });
+const state = (page) => page.evaluate(() => { const p = window.__gtaDebug.player; const m = document.querySelector('[data-ui-modal]'); return { inV: p.inVehicle, ent: p.isEntering, veh: p.vehicle?.id ?? null, x: +p.body.pos.x.toFixed(1), z: +p.body.pos.z.toFixed(1), menuHidden: m ? m.hasAttribute('hidden') : null, focus: document.activeElement?.tagName, frames: window.__frames }; });
 const waitFrames = (page, n) => page.evaluate((n) => new Promise((res) => { const t = window.__frames + n; const i = setInterval(() => { if (window.__frames >= t) { clearInterval(i); res(); } }, 20); }), n);
 const until = (page, pred, arg, timeout = 30_000) => page.waitForFunction(pred, arg, { timeout, polling: 100 }).then(() => true, () => false);
 
