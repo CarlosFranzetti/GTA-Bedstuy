@@ -54,6 +54,8 @@ export class Player implements Entity {
   private wantRun = false;
   private sprintBlend = 0;
   private entering: { vehicle: IVehicle; t: number; from: Vec2; prevDriver: IVehicle['driver'] } | null = null;
+  /** A second F press arrived during the walk to the door (long on slow machines): exit right after sitting down. */
+  private exitQueued = false;
   private walkPhase = Math.PI / 2;
   private walkAmp = 0;
   private model: HumanModel | null = null;
@@ -130,7 +132,8 @@ export class Player implements Entity {
    * `enterVehicle` fires and `inVehicle` becomes true. Call `update(dt)` as usual.
    */
   tryEnter(vehicles: IVehicle[]): IVehicle | null {
-    if (this.vehicle || this.entering) return null;
+    if (this.entering) { this.exitQueued = true; return null; } // F again while walking to the door: "never mind", leave as soon as seated
+    if (this.vehicle) return null;
     let best: IVehicle | null = null;
     let bestD = ENTER_RANGE;
     for (const v of vehicles) {
@@ -142,6 +145,7 @@ export class Player implements Entity {
     const prevDriver = best.driver;
     best.driver = 'player';
     best.setInput(NEUTRAL);
+    this.exitQueued = false;
     this.entering = { vehicle: best, t: 0, from: { x: this.body.pos.x, z: this.body.pos.z }, prevDriver };
     this.body.shape.r = SEATED_RADIUS; // glide through the car's own collision box
     this.moveDir = null;
@@ -255,6 +259,7 @@ export class Player implements Entity {
     if (e.prevDriver === 'traffic' || e.prevDriver === 'cop') {
       this.events.emit('crime', { type: 'carjack', pos: { x: best.body.pos.x, z: best.body.pos.z } });
     }
+    if (this.exitQueued) { this.exitQueued = false; this.exit(); }
   }
 
   private animateFoot(dt: number): void {

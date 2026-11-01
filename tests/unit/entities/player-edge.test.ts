@@ -102,11 +102,11 @@ describe('enter and exit at any frame rate', () => {
   it('the old pressed() polling DID re-enter on multi-step frames (guards the test itself)', () => {
     const w = world();
     w.press();
-    w.runFor(1.0, 100, false);
+    w.runFor(1.0, 33.4, false); // two steps per frame
     expect(w.player.inVehicle).toBe(true);
     w.press();
-    w.runFor(2.0, 100, false);
-    expect(w.player.inVehicle).toBe(true); // bug: exit and re-enter in the same frame
+    w.runFor(2.0, 33.4, false);
+    expect(w.player.inVehicle).toBe(true); // bug: exit on step 1, re-enter on step 2 of the same frame
   });
 
   it('exit leaves the player outside the car footprint', () => {
@@ -155,5 +155,19 @@ describe('gamepad A (polled in the render callback, after the frame steps)', () 
     expect(w.input.consume('KeyF')).toBe(true);
     w.input.endFrame();
     expect(w.input.consume('KeyF')).toBe(false);
+  });
+});
+
+describe('F pressed again while walking to the door', () => {
+  it('is not lost: the player leaves the car as soon as seated and stays out', () => {
+    const w = world();
+    w.press();
+    w.frame(100);
+    expect(w.player.isEntering).toBe(true);
+    w.press(); // second press during the walk
+    w.runFor(2.0, 100);
+    expect(w.player.inVehicle).toBe(false);
+    expect(w.player.isEntering).toBe(false);
+    expect(w.car.driver).toBeNull();
   });
 });

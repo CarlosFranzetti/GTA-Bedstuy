@@ -56,7 +56,7 @@ async function resume(page) {
 }
 const state = (page) => page.evaluate(() => { const p = window.__gtaDebug.player; const m = document.querySelector('[data-ui-modal]'); return { inV: p.inVehicle, ent: p.isEntering, veh: p.vehicle?.id ?? null, x: +p.body.pos.x.toFixed(1), z: +p.body.pos.z.toFixed(1), menuHidden: m ? m.hasAttribute('hidden') : null, focus: document.activeElement?.tagName, frames: window.__frames }; });
 const waitFrames = (page, n) => page.evaluate((n) => new Promise((res) => { const t = window.__frames + n; const i = setInterval(() => { if (window.__frames >= t) { clearInterval(i); res(); } }, 20); }), n);
-const until = (page, pred, arg, timeout = 30_000) => page.waitForFunction(pred, arg, { timeout, polling: 100 }).then(() => true, () => false);
+const until = (page, pred, arg, timeout = 150_000) => page.waitForFunction(pred, arg, { timeout, polling: 100 }).then(() => true, () => false);
 
 /** Put the player at the driver door of the idx-th parked car (driver === null, at rest) and optionally reposition that car. */
 async function approachParked(page, idx, placement) {
@@ -109,7 +109,7 @@ async function approachParked(page, idx, placement) {
 function footprintOk(e) { return e.along > e.halfL - 0.01 || e.across > e.halfW + 0.05; }
 
 /** One enter+exit cycle driven by `press` (an async function that triggers one F/CAR/A press). */
-async function cycle(name, page, press, { drive = null, wall = 0, neighbour = false, speed = 0, idx = 0 } = {}) {
+async function cycle(name, page, press, { drive = null, wall = 0, neighbour = false, speed = 0, idx = 0, tapTwice = false } = {}) {
   const r = { name, ok: false, why: '' };
   results.push(r);
   const t0 = Date.now();
@@ -118,12 +118,18 @@ async function cycle(name, page, press, { drive = null, wall = 0, neighbour = fa
     await waitFrames(page, 1);
     const before = await page.evaluate(() => window.__exits.length);
     await press();
-    if (!(await until(page, () => window.__gtaDebug.player.inVehicle, null))) { r.why = `never got in (${JSON.stringify(await state(page))})`; return r; }
-    if (drive) { await page.keyboard.down('KeyW'); await page.waitForTimeout(drive); }
-    if (speed) await page.evaluate((s) => { const v = window.__gtaDebug.player.vehicle; v.body.vel.x = Math.sin(v.body.heading) * s; v.body.vel.z = Math.cos(v.body.heading) * s; }, speed);
-    await press();
-    if (drive) await page.keyboard.up('KeyW');
-    if (!(await until(page, () => !window.__gtaDebug.player.inVehicle, null))) { r.why = 'still in the car after the exit press'; return r; }
+    if (tapTwice) {
+      // second press while still walking to the door: must end outside (queued exit), not stuck in or back in
+      await press();
+      if (!(await until(page, (b) => window.__exits.length > b && !window.__gtaDebug.player.inVehicle && !window.__gtaDebug.player.isEntering, before))) { r.why = `double tap did not end outside (${JSON.stringify(await state(page))})`; return r; }
+    } else {
+      if (!(await until(page, () => window.__gtaDebug.player.inVehicle, null))) { r.why = `never got in (${JSON.stringify(await state(page))})`; return r; }
+      if (drive) { await page.keyboard.down('KeyW'); await page.waitForTimeout(drive); }
+      if (speed) await page.evaluate((s) => { const v = window.__gtaDebug.player.vehicle; v.body.vel.x = Math.sin(v.body.heading) * s; v.body.vel.z = Math.cos(v.body.heading) * s; }, speed);
+      await press();
+      if (drive) await page.keyboard.up('KeyW');
+      if (!(await until(page, () => !window.__gtaDebug.player.inVehicle, null))) { r.why = 'still in the car after the exit press'; return r; }
+    }
     // it must STAY out: no re-entry in the following frames
     await waitFrames(page, 4);
     const s = await state(page);
@@ -180,6 +186,7 @@ try {
     ['kb next to another parked car #1', { idx: 12, neighbour: true }],
     ['kb after pause menu #0', { idx: 13 }, escMenu],
     ['kb after pause menu #1', { idx: 14, drive: 600 }, escMenu],
+    ['kb double-tap F during the walk to the door', { idx: 16, tapTwice: true }],
     ['kb back-to-back #0', { idx: 15 }],
     ['kb back-to-back #1', { idx: 15 }],
   ]);

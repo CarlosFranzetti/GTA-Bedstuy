@@ -195,7 +195,6 @@ describe('Player vehicles', () => {
     player.body.pos = { x: 8.2, z: 10.5 };
     expect(player.tryEnter([v])).toBe(v);
     expect(player.isEntering).toBe(true);
-    expect(player.tryEnter([v])).toBeNull(); // already busy
     const door = v.doorPos();
     const start = Math.hypot(player.body.pos.x - door.x, player.body.pos.z - door.z);
     let t = 0;
