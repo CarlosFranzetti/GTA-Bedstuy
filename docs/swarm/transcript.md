@@ -722,3 +722,6 @@ MGR review of F12: ACCEPT with 3 concerns. Verified: scratch tests traffic-f12-{
 
 ### 2026-10-29T07:47:53Z · fable
 STAGE 2 CLOSE-OUT (Fable, MGR rate-limited): S4 wiring applied (setStorefrontHour in main.ts:455/:494), mission giver beam shrunk, gates green (tsc clean, 1169 tests, artifact 6.89 MB, smoke []), artifact v7 published, docs/swarm/checkins/stage2.md written with open issues + Stage 3 list. Board set to done.
+
+### 2026-11-01T15:14:10Z · fable
+STAGE 3 START (playtest loop). Board rewritten. Bug from the user: cannot exit cars → lane V1. New: PT builds a recorded playtest harness (video + subtitle box of the tester's thoughts, command-file protocol); Haiku blind playtesters H1-H3 launch when PT posts 'PT READY'. L10 lighting-3 and W2 world-fixes carry Stage 2 open issues. MGR manages. Nobody commits.
