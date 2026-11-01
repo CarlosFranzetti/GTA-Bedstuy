@@ -36,6 +36,8 @@ import { setStorefrontHour } from '@/world/buildings/mixeduse';
 import { resolveQuality, startHostedTextures } from '@/textures/hosted';
 import { Weather } from '@/game/Weather';
 import { LIGHTING } from '@/render/LightingConfig';
+import { tierConfig, pixelRatioFor } from '@/render/QualityTier';
+import { setNormalMaps, setAnisotropy } from '@/render/TierDetail';
 import { Menu } from '@/ui/Menu';
 import { GamepadInput } from '@/core/Gamepad';
 import { loadPosition, savePosition, watchPagehide, type SavedPosition } from '@/ui/SaveState';
@@ -66,8 +68,9 @@ const useProxies = params.get('proxies') !== '0';
 const useCarLod = params.get('lod') !== '0';
 const resolvedQuality = resolveQuality(params.get('q'), isTouch); // ?q=ultra exists only in the hosted build: 'high' + ultra textures
 let quality: Quality = resolvedQuality.quality;
-const pixelRatioFor = (q: Quality): number => Math.min(q === 'low' ? 1.25 : 1.75, window.devicePixelRatio);
-renderer.setPixelRatio(pixelRatioFor(quality));
+const tier0 = tierConfig(quality);
+const ratioFor = (q: Quality): number => pixelRatioFor(q, window.devicePixelRatio, window.innerWidth);
+renderer.setPixelRatio(ratioFor(quality));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
@@ -87,7 +90,7 @@ loading.begin('materials');
 const data = loadBedstuyData();
 const rng = new Rng(data.seed);
 const events = new EventBus();
-const materials = new MaterialLibrary(rng.fork('materials'), undefined, { maxAnisotropy: renderer.capabilities.getMaxAnisotropy() });
+const materials = new MaterialLibrary(rng.fork('materials'), undefined, { maxAnisotropy: Math.min(tier0.anisotropy, renderer.capabilities.getMaxAnisotropy()) });
 materials.carPaintDetail();
 loading.done('materials');
 loading.begin('textures'); // finished when the async packs are awaited below, before the splash
@@ -118,18 +121,20 @@ if (useProxies) {
 }
 if (useProxies) proxies.wrapShadowRender(renderer);
 const sky = new SkyDome(scene, renderer, materials);
+sky.starsEnabled = tier0.stars;
 dayNight.attachSky(sky);
 scene.environmentIntensity = dayNight.isNight ? LIGHTING.envIntensityNight : LIGHTING.envIntensityDay;
 const nightLights = new NightLights(scene, world.lamps, { poolSize: LIGHTING.lampPool[quality] });
 const sunFlare = new SunFlare(scene);
 // wet-street / rain state: patches the ground materials in place, so it is built before the shader warm-up compile
-const weather = new Weather(scene, materials, { rainStreaks: { low: 600, medium: 1200, high: 2000 }[quality] });
+const weather = new Weather(scene, materials, { rainStreaks: 2000 }); // streak pool; the tier sets how many are drawn
+weather.setRainStreaks(tier0.rainStreaks);
 weather.attach({ dayNight });
 loading.done('lights');
 await nextPaint();
 
 // distance culling: prop cells (static) and, per frame, traffic cars and peds
-const culler = new DistanceCuller(220);
+const culler = new DistanceCuller(tier0.cullDistance);
 for (const m of world.propCells) culler.addStatic(m);
 
 // ---- entities (optional real models: src/assets/models/README.md)
@@ -143,7 +148,7 @@ const makeVehicle = (type: VehicleType, pos: Vec2, heading: number, color: strin
 const carLod = new CarLod(materials, {
   buildModel: (t) => (Vehicle.sources[t as VehicleType] ? null : buildCarModel(t as VehicleType, VEHICLE_SPECS[t as VehicleType], materials)),
   exclude: ['cop'],
-  nearDist: useCarLod ? 32 : Infinity,
+  nearDist: useCarLod ? tier0.carNearDist : Infinity,
 });
 scene.add(carLod.group);
 const HULL_TYPES = ['sedan', 'suv', 'boxtruck'];
@@ -179,8 +184,8 @@ missions.restore(loadMissionData());
 const missionMarkers = new MissionMarkerView();
 scene.add(missionMarkers.group);
 const lights = new TrafficLights(grid); // clocked by TrafficSystem only; main just mirrors it onto the signal meshes
-const traffic = new TrafficSystem(grid, physics, events, rng.fork('traffic'), scene, materials, makeVehicle, makePed, lights, world.lots);
-const cops = new CopSystem(grid, physics, events, rng.fork('cops'), scene, makeVehicle, wanted, { lights, patrolCount: 2 });
+const traffic = new TrafficSystem(grid, physics, events, rng.fork('traffic'), scene, materials, makeVehicle, makePed, lights, world.lots, tier0.traffic);
+const cops = new CopSystem(grid, physics, events, rng.fork('cops'), scene, makeVehicle, wanted, { lights, patrolCount: tier0.traffic.cops });
 const audio = new AudioSystem(events);
 
 events.on('enterVehicle', () => { physics.removeBody(player.body.id); if (player.vehicle) nightLights.attachHeadlights(player.vehicle.object3D, player.vehicle.spec.length); });
@@ -210,19 +215,37 @@ if (isTouch) new TouchControls(overlay, input);
 
 // ---- quality switching (debug hook and the automatic drop share this path)
 function applyQuality(q: Quality): void {
+  const prev = quality;
   quality = q;
-  renderer.setPixelRatio(pixelRatioFor(q));
+  const t = tierConfig(q);
+  renderer.setPixelRatio(ratioFor(q));
   renderer.setSize(window.innerWidth, window.innerHeight);
   pipeline.setQuality(q);
   if (useProxies) proxies.attachToPipeline(pipeline);
   pipeline.setSize(window.innerWidth, window.innerHeight);
   setupShadows(renderer, dayNight.sun, q);
+  if (q === prev) return;
+  // everything below changes with the tier (see QualityTier.ts)
+  culler.setMaxDist(t.cullDistance);
+  carLod.setNearDist(useCarLod ? t.carNearDist : Infinity);
+  weather.setRainStreaks(t.rainStreaks);
+  sky.starsEnabled = t.stars;
+  nightLights.setPoolSize(LIGHTING.lampPool[q]);
+  traffic.setDensity(t.traffic);
+  cops.setPatrolCount(t.traffic.cops);
+  applyDetail(t);
+}
+/** Material detail of a tier: normal / roughness maps and texture anisotropy (re-run after late texture loads). */
+function applyDetail(t = tierConfig(quality)): void {
+  setNormalMaps(scene, t.normalMaps);
+  setAnisotropy(scene, Math.min(t.anisotropy, renderer.capabilities.getMaxAnisotropy()));
 }
 // Explicit ?q= (review scripts, bug reports) or ?perf=0 keeps the requested quality for the whole session.
 const perf = new PerfMonitor({
   getQuality: () => quality,
   setQuality: applyQuality,
   autoDrop: !params.has('q') && params.get('perf') !== '0',
+  touch: isTouch,
 });
 
 // ---- loop
@@ -259,6 +282,9 @@ const currentPose = (): SavedPosition => {
   return savedPose;
 };
 let saveTick = 0;
+let minimapAcc = 0;
+/** seconds between minimap redraws (phone: 30 Hz; 0 = every frame) */
+const minimapPeriod = (): number => { const hz = tierConfig(quality).minimapHz; return hz > 0 ? 1 / hz - 0.004 : 0; };
 
 let freeCam: { pos: THREE.Vector3; look: THREE.Vector3 } | null = null;
 function updateCamera(dt = 1 / 60): void {
@@ -278,6 +304,7 @@ function placeInterpolated(e: Entity, alpha: number): BlendedPose {
   return blended;
 }
 function interpolateAll(alpha: number, refX: number, refY: number, refZ: number): void {
+  const pedRange = tierConfig(quality).pedDistance;
   const veh = player.vehicle;
   carLod.setView(cam.camera);
   carLod.beginFrame();
@@ -292,7 +319,7 @@ function interpolateAll(alpha: number, refX: number, refY: number, refZ: number)
   }
   carLod.endFrame();
   for (const v of cops.cops) { const b = placeInterpolated(v, alpha); proxies.addCar(hullKey(v.spec.type), b.x, b.z, b.h); }
-  for (const p of traffic.peds) { const b = placeInterpolated(p, alpha); if (!culler.applyTo(p.object3D, b.x, b.z, refX, refZ, 1)) proxies.addPed(b.x, b.z); }
+  for (const p of traffic.peds) { const b = placeInterpolated(p, alpha); if (!culler.applyTo(p.object3D, b.x, b.z, refX, refZ, 1, pedRange)) proxies.addPed(b.x, b.z); }
   if (veh) {
     const b = poses.blend(veh.body, alpha, blended);
     camTarget.x = b.x; camTarget.z = b.z; camHeading = b.h;
@@ -327,12 +354,14 @@ function drawFrame(alpha: number, frameDt: number): void {
     culler.update(cam.camera.position.x, cam.camera.position.z);
     updateShadowCamera(dayNight.sun, camTarget);
     sky.update(dayNight.timeOfDay, sunDir, dayNight.isNight, cam.camera.position);
+    const tf = tierConfig(quality).fog; // phone: pull the fog in so it hides the short cull range (DayNight rewrites it every step)
+    if (tf && scene.fog) { const f = scene.fog as THREE.Fog; f.near = Math.min(f.near, tf.near); f.far = Math.min(f.far, tf.far); }
     sunFlare.update(sunDir, (dayNight.isNight ? 0 : 1) * (1 - weather.overcast), cam.camera.position);
     pipeline.setHour(dayNight.timeOfDay);
     focusPoint.set(camTarget.x, 1.2, camTarget.z);
     pipeline.setFocus(cam.camera.position.distanceTo(focusPoint));
     renderer.info.reset();
-    passes.gbufferIndex = quality === 'low' ? -1 : 1;
+    passes.gbufferIndex = quality === 'low' || quality === 'phone' ? -1 : 1;
     passes.beginFrame();
     pipeline.render();
 }
@@ -367,7 +396,8 @@ const game = new Game(
     missionMarkers.sync(missions.markers, missions.markersVersion); missionMarkers.update(performance.now() / 1000);
     copPositions.length = 0;
     for (const c of cops.cops) copPositions.push(c.body.pos);
-    minimap.update(camTarget, camHeading, copPositions, frameDt, missions.markers);
+    minimapAcc += frameDt;
+    if (minimapAcc >= minimapPeriod()) { minimap.update(camTarget, camHeading, copPositions, minimapAcc, missions.markers); minimapAcc = 0; }
 
     stats.drawCalls = renderer.info.render.calls;
     stats.drawCallsShadow = passes.shadow; stats.drawCallsScene = passes.scene; stats.drawCallsGBuffer = passes.gbuffer; stats.drawCallsPost = passes.post;
@@ -470,6 +500,7 @@ game.add({
 // resize: the canvas is stretched by CSS while the drag is in progress; buffers are reallocated once it settles
 let resizeTimer: ReturnType<typeof setTimeout> | undefined;
 const applyResize = (): void => {
+  renderer.setPixelRatio(ratioFor(quality)); // the phone tier caps the buffer width, so it follows rotation
   renderer.setSize(window.innerWidth, window.innerHeight);
   pipeline.setSize(window.innerWidth, window.innerHeight);
 };
@@ -479,7 +510,7 @@ window.addEventListener('resize', () => {
   resizeTimer = setTimeout(applyResize, 120);
 });
 applyShadowFlags(player.object3D, true, false);
-packsReady.then((n) => { stats.packs = n; });
+packsReady.then((n) => { stats.packs = n; applyDetail(); });
 // AudioSystem pauses itself when the tab is hidden; the simulation pauses here
 document.addEventListener('visibilitychange', () => { game.paused = document.hidden || menu.isOpen; });
 
@@ -522,6 +553,7 @@ if (packCount < 0) loading.skip('textures', 'Textures are still loading; continu
 else loading.done('textures');
 loading.begin('shaders');
 await nextPaint();
+applyDetail(); // strips normal maps / lowers anisotropy for the phone tier before the first compile
 updateCamera();
 try {
   if (renderer.extensions.has('KHR_parallel_shader_compile')) await withTimeout(renderer.compileAsync(scene, cam.camera), 20_000, undefined);

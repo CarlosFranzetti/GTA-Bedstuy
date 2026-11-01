@@ -18,6 +18,17 @@ Success test (from the spec, still the north star): someone who knows the neighb
 and says "that's Throop and Kosciusko" within ten seconds, then plays for ten minutes without the
 illusion breaking (no blown-out sky, no jittering cars, no gridlocked intersection, no frame hitching).
 
+### The yardstick (from Stage 3): would someone want to live in this Bed-Stuy for a day?
+The user's direction (1 Nov) is to use GTA 5 as the bible: views, mechanics, graphics, funny missions, open world and
+soundtrack, across nights and days in Bed-Stuy. `docs/reference/BIBLE.md` turns that into design targets (no assets,
+text or values copied). Every review from Stage 3 on asks the BIBLE question first, using its five properties:
+**L1** the world keeps moving without you; **L2** something is always one choice away (about every 30 s of travel);
+**L3** it has moods (dawn, noon, golden hour, rain, night feel like different places); **L4** moving through it feels
+good (camera and controls are a pleasure on their own); **L5** it keeps you company (radio, chatter, calls, jokes).
+The BIBLE §8 gap list (15 items, lane-tagged, ranked by L1–L5) is the backlog the Stage 4 list draws from; its top five
+are ambient events every ~30 s, more and funnier missions on the §4 template, a radio station wrapper, an hourly day
+schedule, and an in-world phone.
+
 ### Who it is for
 - **The neighbourhood player**: knows the blocks, judges the place (grid, brownstones, corner stores,
   signage tone). Cares about recognisability and humour.

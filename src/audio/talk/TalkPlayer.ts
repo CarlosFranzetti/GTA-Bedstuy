@@ -34,6 +34,8 @@ export interface TalkAudio {
   sting(kind: TalkStingKind): number;
   /** Bed level 0..1 (relative; AudioSystem scales it to a tiny gain). */
   setBed(level: number): void;
+  /** Speech volume 0..1 (the game's radio volume). */
+  volume(): number;
 }
 
 export interface TalkEnv {
@@ -296,7 +298,7 @@ export class TalkPlayer {
     u.voice = this.voices[role] ?? (role === 'host' ? null : this.voices.host);
     u.pitch = Math.min(2, Math.max(0.1, prof.pitch + (role === 'caller' ? (ci % 3 - 1) * 0.14 : 0)));
     u.rate = prof.rate + (role === 'caller' ? (ci % 2) * 0.05 : 0);
-    u.volume = 1;
+    u.volume = Math.min(1, Math.max(0, this.env.audio.volume()));
     u.lang = u.voice?.lang ?? 'en-US';
     const my = this.token;
     const next = () => {

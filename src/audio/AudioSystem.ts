@@ -7,13 +7,22 @@
  */
 import type { EventBus } from '@/core/Events';
 import { Rng } from '@/core/Rng';
-import { engineFrequency, gearForSpeed, gearShiftFactor, hornFrequencies, impactGain, pinkNoise, squealLevel } from './synth';
-import { STATIONS, patternAt, stepSeconds, type Note } from './radio';
+import { engineFrequency, gearForSpeed, gearShiftFactor, hornFrequencies, impactGain, pinkNoise, squealLevel, stationJingle, stingDuration, talkSting, TALK_BED_FREQS, type StingNote, type TalkStingKind } from './synth';
+import { patternAt, stepSeconds, type Note } from './radio';
+import { Library, localLibraryStorage, type LibraryStorage } from './library/Library';
+import { RadioDirector } from './RadioDirector';
+import { HtmlAudioDeck } from './decks';
+import { TalkPlayer, type SpeechLike, type UtteranceLike } from './talk/TalkPlayer';
+import { loadBundledScript, type TalkSegment } from './talk/script';
 
 /** Seconds of audio queued ahead of currentTime by the radio sequencer. */
 const LOOKAHEAD = 0.1;
 const HUM_GAIN = 0.05;
 const RADIO_GAIN = 0.25;
+/** Level of the bus that carries the user's tracks, stings and the talk bed (files are full scale, so louder than the synth bus). */
+const MUSIC_GAIN = 0.7;
+/** Talk bed gain at level 1 (the player ducks it to about a quarter under the host). */
+const TALK_BED_GAIN = 0.05;
 const DAY_BED_GAIN = 0.035;
 const NIGHT_BED_GAIN = 0.05;
 const CRICKET_GAIN = 0.004;
@@ -33,6 +42,7 @@ interface Graph {
   engineFilter: BiquadFilterNode;
   engineGain: GainNode;
   radioBus: GainNode;
+  musicBus: GainNode;
   dayGain: GainNode;
   nightGain: GainNode;
   squealGain: GainNode;
@@ -49,8 +59,32 @@ function shape(p: AudioParam, t: number, peak: number, dur: number): void {
   p.exponentialRampToValueAtTime(0.0001, t + dur);
 }
 
+export interface AudioSystemOptions {
+  /** Library of the player's own files. Default: persisted in localStorage. */
+  library?: Library;
+  /** Storage for the default library (ignored when `library` is given). Null disables persistence. */
+  storage?: LibraryStorage | null;
+  /** SpeechSynthesis, or null when the device has none. Default: the browser's. */
+  speech?: SpeechLike | null;
+  makeUtterance?: (text: string) => UtteranceLike;
+  /** Talk show script. Default: src/audio/talk/script.json when present. */
+  script?: TalkSegment[];
+}
+
+function browserSpeech(): SpeechLike | null {
+  try {
+    if (typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') return null;
+    return speechSynthesis as unknown as SpeechLike;
+  } catch { return null; }
+}
+
 export class AudioSystem {
   private g: Graph | null = null;
+  /** Radio dial, music library decks and the talk show. */
+  readonly radio: RadioDirector;
+  private bed: { gain: GainNode; oscs: OscillatorNode[] } | null = null;
+  private bedLevel = 0;
+  private lastSynthEpoch = -1;
   private readonly createContext: () => AudioContext;
   private readonly rng = new Rng('audio');
   private readonly unsubs: Array<() => void> = [];
@@ -63,7 +97,6 @@ export class AudioSystem {
   private night = false;
   private sirenIn = 0;
   private radioOn = false;
-  private stationIndex = 0;
   private radioVolume = 1;
   private slip = 0;
   private handbrake = false;
@@ -78,8 +111,23 @@ export class AudioSystem {
   private step = 0;
   private nextNoteTime = 0;
 
-  constructor(events: EventBus, createContext?: () => AudioContext) {
+  constructor(events: EventBus, createContext?: () => AudioContext, opts: AudioSystemOptions = {}) {
     this.createContext = createContext ?? (() => new AudioContext());
+    const library = opts.library ?? new Library(opts.storage === undefined ? localLibraryStorage() : opts.storage);
+    const speech = opts.speech === undefined ? browserSpeech() : opts.speech;
+    const talk = new TalkPlayer({
+      speech,
+      makeUtterance: opts.makeUtterance ?? ((text) => new SpeechSynthesisUtterance(text) as unknown as UtteranceLike),
+      audio: {
+        sting: (kind) => this.playSting(talkSting(kind), kind),
+        setBed: (level) => this.setBed(level),
+        volume: () => this.radioVolume,
+      },
+    }, opts.script ?? loadBundledScript());
+    this.radio = new RadioDirector(library, talk);
+    this.radio.onTune = (entry) => {
+      if (entry.kind !== 'talk' && this.radioOn && this.g) this.playSting(stationJingle(entry.id));
+    };
     this.unsubs.push(
       events.on('userGesture', () => { void this.start(); }),
       events.on('horn', () => this.playHorn()),
@@ -101,6 +149,7 @@ export class AudioSystem {
       // Built while paused (menu open, tab hidden): keep it quiet until every reason is released.
       if (this.pauseReasons.size > 0 && typeof this.g.ctx.suspend === 'function') void Promise.resolve(this.g.ctx.suspend()).catch(() => undefined);
     }
+    this.syncRadioOn();
     if (this.pauseReasons.size === 0 && this.g.ctx.state === 'suspended') {
       try {
         await this.g.ctx.resume();
@@ -112,8 +161,10 @@ export class AudioSystem {
 
   /** Call once per frame. Drives the radio sequencer and the siren timer. */
   update(dt: number): void {
+    if (this.pauseReasons.size > 0) return;
+    this.radio.update(dt);
     const g = this.g;
-    if (!g || this.pauseReasons.size > 0) return;
+    if (!g) return;
     const now = g.ctx.currentTime;
     if (this.shiftFactor !== 1) {
       const k = Math.min(1, dt / SHIFT_RECOVERY);
@@ -172,7 +223,7 @@ export class AudioSystem {
   setRadioVolume(v: number): void {
     this.radioVolume = clamp01(v);
     const g = this.g;
-    if (g) g.radioBus.gain.setTargetAtTime(this.radioOn ? RADIO_GAIN * this.radioVolume : 0, g.ctx.currentTime, 0.05);
+    if (g) this.applyRadioGain(g, 0.05);
   }
 
   /**
@@ -181,6 +232,7 @@ export class AudioSystem {
    */
   pause(reason = 'manual'): void {
     this.pauseReasons.add(reason);
+    this.radio.setPaused(true);
     const g = this.g;
     if (g && typeof g.ctx.suspend === 'function') void Promise.resolve(g.ctx.suspend()).catch(() => undefined);
   }
@@ -188,6 +240,7 @@ export class AudioSystem {
   resume(reason = 'manual'): void {
     this.pauseReasons.delete(reason);
     const g = this.g;
+    if (this.pauseReasons.size === 0) this.radio.setPaused(false);
     if (this.pauseReasons.size > 0 || !g) return;
     if (g.ctx.state !== 'running' && typeof g.ctx.resume === 'function') void Promise.resolve(g.ctx.resume()).catch(() => undefined);
   }
@@ -200,13 +253,27 @@ export class AudioSystem {
   get paused(): boolean { return this.pauseReasons.size > 0; }
 
   nextStation(): void {
-    this.stationIndex = (this.stationIndex + 1) % STATIONS.length;
-    this.step = 0;
-    if (this.g) this.nextNoteTime = this.g.ctx.currentTime;
+    this.radio.next();
   }
 
+  /** Name of the tuned station (keeps the station name; the track is `trackName`). */
   get stationName(): string {
-    return STATIONS[this.stationIndex].name;
+    return this.radio.stationName;
+  }
+
+  /** Now playing: user file name without extension, or the talk-show speaker. Empty for synth music. */
+  get trackName(): string {
+    return this.radio.trackName;
+  }
+
+  /** Position 0..1 through the WBSY Talk loop while tuned in, otherwise 0. */
+  get talkProgress(): number {
+    return this.radio.talkProgress;
+  }
+
+  /** The player's radio library (for the Radio library panel). */
+  get library(): Library {
+    return this.radio.library;
   }
 
   setMasterVolume(v: number): void {
@@ -218,9 +285,11 @@ export class AudioSystem {
   /** Unsubscribes from events and closes the context. */
   dispose(): void {
     this.unsubs.splice(0).forEach((fn) => fn());
+    this.radio.dispose();
     const g = this.g;
     if (g && typeof g.ctx.close === 'function') void g.ctx.close().catch(() => undefined);
     this.g = null;
+    this.bed = null;
   }
 
   /* ---------- graph ---------- */
@@ -328,10 +397,18 @@ export class AudioSystem {
     const radioBus = ctx.createGain();
     radioBus.gain.value = this.radioOn ? RADIO_GAIN * this.radioVolume : 0;
     radioBus.connect(master);
+    // Music bus: the player's tracks, stings and the talk bed.
+    const musicBus = ctx.createGain();
+    musicBus.gain.value = this.radioOn ? MUSIC_GAIN * this.radioVolume : 0;
+    musicBus.connect(master);
 
-    const g: Graph = { ctx, master, saw, sq, engineFilter, engineGain, radioBus, dayGain, nightGain, squealGain, squealFilter, noise };
+    const g: Graph = { ctx, master, saw, sq, engineFilter, engineGain, radioBus, musicBus, dayGain, nightGain, squealGain, squealFilter, noise };
     this.applyEngine(g);
     this.applySqueal(g);
+    // The user's files play through two media elements. Unlocking them here is inside the first user gesture (iOS).
+    if (typeof Audio !== 'undefined' && typeof ctx.createMediaElementSource === 'function') {
+      try { this.radio.attachDecks([new HtmlAudioDeck(ctx, musicBus), new HtmlAudioDeck(ctx, musicBus)]); } catch { /* no decks: synth only */ }
+    }
     return g;
   }
 
@@ -405,15 +482,33 @@ export class AudioSystem {
     this.radioOn = on;
     const g = this.g;
     if (!g) return;
+    this.applyRadioGain(g, 0.1);
+    if (on) this.nextNoteTime = g.ctx.currentTime + 0.02;
+    this.syncRadioOn();
+  }
+
+  /** Tells the dial the radio is on only once audio has started (speech and files need the first gesture). */
+  private syncRadioOn(): void {
+    this.radio.setOn(this.radioOn && this.g !== null);
+  }
+
+  private applyRadioGain(g: Graph, tc: number): void {
     const now = g.ctx.currentTime;
-    g.radioBus.gain.setTargetAtTime(on ? RADIO_GAIN * this.radioVolume : 0, now, 0.1);
-    if (on) this.nextNoteTime = now + 0.02;
+    g.radioBus.gain.setTargetAtTime(this.radioOn ? RADIO_GAIN * this.radioVolume : 0, now, tc);
+    g.musicBus.gain.setTargetAtTime(this.radioOn ? MUSIC_GAIN * this.radioVolume : 0, now, tc);
   }
 
   private scheduleRadio(g: Graph, now: number): void {
+    const play = this.radio.synthPlayback;
+    if (!play) { this.lastSynthEpoch = -1; return; }
+    if (play.epoch !== this.lastSynthEpoch) {
+      this.lastSynthEpoch = play.epoch;
+      this.step = play.startStep;
+      this.nextNoteTime = now;
+    }
     // After a stall (e.g. a backgrounded tab) resume from now instead of bursting.
     if (this.nextNoteTime < now) this.nextNoteTime = now;
-    const station = STATIONS[this.stationIndex];
+    const station = play.station;
     const stepSec = stepSeconds(station.bpm);
     if (!(stepSec > 0)) return;
     while (this.nextNoteTime < now + LOOKAHEAD) {
@@ -423,6 +518,39 @@ export class AudioSystem {
       this.nextNoteTime += stepSec;
       this.step++;
     }
+  }
+
+  /** Plays a procedural sting on the music bus; returns its length in seconds (also when audio is not started). */
+  private playSting(notes: StingNote[], _kind?: TalkStingKind): number {
+    const g = this.g;
+    if (g) {
+      const t0 = g.ctx.currentTime + 0.02;
+      for (const n of notes) this.tone(g, { type: n.type, freq: n.freq, t: t0 + n.t, dur: n.dur, peak: n.peak * 0.5, dest: g.musicBus });
+    }
+    return stingDuration(notes);
+  }
+
+  /** Quiet chord under the talk show; level 0 silences it. */
+  private setBed(level: number): void {
+    this.bedLevel = Math.max(0, level);
+    const g = this.g;
+    if (!g) return;
+    if (!this.bed && this.bedLevel > 0) {
+      const gain = g.ctx.createGain();
+      gain.gain.value = 0;
+      gain.connect(g.musicBus);
+      const oscs = TALK_BED_FREQS.map((f, i) => {
+        const o = g.ctx.createOscillator();
+        o.type = i % 2 ? 'triangle' : 'sine';
+        o.frequency.value = f;
+        o.detune.value = (i - 1.5) * 4;
+        o.connect(gain);
+        o.start(g.ctx.currentTime);
+        return o;
+      });
+      this.bed = { gain, oscs };
+    }
+    this.bed?.gain.gain.setTargetAtTime(this.bedLevel * TALK_BED_GAIN, g.ctx.currentTime, 0.4);
   }
 
   private playNote(g: Graph, n: Note, t: number, stepSec: number): void {
@@ -450,6 +578,22 @@ export class AudioSystem {
       case 'mumble':
         this.noiseBurst(g, { t, dur: len, type: 'lowpass', hz: 900, peak: 0.5 * n.gain, dest });
         break;
+      case 'sub':
+        this.tone(g, { type: 'sine', freq: n.freq, sweepTo: n.freq * 0.8, sweepDur: Math.min(len, 0.6), t, dur: Math.min(len, 1.2), peak: 0.9 * n.gain, dest });
+        break;
+      case 'ride':
+        this.noiseBurst(g, { t, dur: 0.22, type: 'bandpass', hz: 6500, peak: 0.2 * n.gain, dest });
+        break;
+      case 'pluck': {
+        // Guitar-ish pluck with a dotted-eighth echo (three repeats) for the echo-dub sound.
+        for (let k = 0; k < 4; k++) {
+          this.tone(g, { type: 'triangle', freq: n.freq, t: t + k * stepSec * 3, dur: 0.3, peak: 0.45 * n.gain * 0.5 ** k, lowpass: 2200, dest });
+        }
+        break;
+      }
+      case 'wob':
+        this.tone(g, { type: 'sine', freq: n.freq, t, dur: len, peak: 0.5 * n.gain, wobble: 0.018, dest });
+        break;
     }
   }
 
@@ -459,7 +603,7 @@ export class AudioSystem {
     g: Graph,
     o: {
       type: OscillatorType; freq: number; t: number; dur: number; peak: number; dest: AudioNode;
-      sweepTo?: number; sweepDur?: number; lowpass?: number;
+      sweepTo?: number; sweepDur?: number; lowpass?: number; wobble?: number;
     },
   ): void {
     const osc = g.ctx.createOscillator();
@@ -467,6 +611,11 @@ export class AudioSystem {
     osc.frequency.setValueAtTime(o.freq, o.t);
     if (o.sweepTo !== undefined) {
       osc.frequency.exponentialRampToValueAtTime(o.sweepTo, o.t + (o.sweepDur ?? o.dur));
+    } else if (o.wobble) {
+      // Tape wobble: pitch drifts up and down a few cents over the note.
+      osc.frequency.exponentialRampToValueAtTime(o.freq * (1 + o.wobble), o.t + o.dur * 0.3);
+      osc.frequency.exponentialRampToValueAtTime(o.freq * (1 - o.wobble), o.t + o.dur * 0.65);
+      osc.frequency.exponentialRampToValueAtTime(o.freq, o.t + o.dur);
     }
     const amp = g.ctx.createGain();
     shape(amp.gain, o.t, o.peak, o.dur);

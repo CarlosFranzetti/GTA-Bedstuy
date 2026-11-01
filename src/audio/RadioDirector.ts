@@ -60,7 +60,14 @@ export class RadioDirector {
       { id: 'talk', kind: 'talk', name: 'WBSY Talk' },
     ];
     for (const d of LIBRARY_STATIONS) this.vt.set(d.id, 0);
-    this.unsubLib = library.onChange(() => { this.timelines.clear(); });
+    this.unsubLib = library.onChange(() => {
+      this.timelines.clear();
+      // The playing file was cleared or the library was reset: stop it now.
+      if (this.playingKey && this.playingTrackId && !library.locate(this.playingTrackId)) {
+        this.retireActive(CROSSFADE_SECONDS);
+        this.playingKey = null;
+      }
+    });
   }
 
   /* ---------- reading ---------- */

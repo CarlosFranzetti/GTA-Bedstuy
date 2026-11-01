@@ -131,13 +131,13 @@ describe('buildRoads', () => {
     expect(box.max.z).toBeGreaterThanOrEqual(grid.bounds.maxZ);
   });
 
-  it('requests asphalt, concrete, laneLine, crosswalk, granite, manhole, grate, bluestone and metalDark materials', () => {
+  it('requests asphalt, concrete, laneLine, crosswalk, graniteCurb, manhole, grate, bluestone and metalDark materials', () => {
     const lib = stubLib();
     buildRoads(fakeGrid(), lib);
-    for (const k of ['asphalt', 'concrete', 'laneLine', 'crosswalk', 'granite', 'manhole', 'grate', 'bluestone', 'metalDark', 'asphaltWorn'] as MaterialKey[]) {
+    for (const k of ['asphalt', 'concrete', 'laneLine', 'crosswalk', 'graniteCurb', 'manhole', 'grate', 'bluestone', 'metalDark', 'asphaltWorn'] as MaterialKey[]) {
       expect(lib.keys.has(k)).toBe(true);
     }
-    // the flat curb colour is gone: curbs are granite now
+    // the flat curb colour is gone: curbs are graniteCurb now
     expect(lib.keys.has('curb')).toBe(false);
   });
 
@@ -208,8 +208,8 @@ describe('buildRoads', () => {
         if (y < 1e-6) expect(v).toBeLessThan(0.1); // foot = gutter grit rows
       }
       expect(minU).toBeCloseTo(0, 5);
-      // the longest run of block r0c0 is 86.4 m (86 + two curb widths) -> 72 stones
-      expect(maxU).toBeCloseTo(86.4 / 1.2, 3);
+      // the longest run of block r0c0 is the 88 m east/west edge (z -44..44) -> 73.33 stones
+      expect(maxU).toBeCloseTo(88 / 1.2, 3);
       // a roadway-facing vertical face spans v 0.03..0.46 (rows 0.54..0.97), the chamfer 0.46..0.52 (rows 0.48..0.54)
       const vs = new Set<number>(); for (let i = 0; i < uv.count; i++) vs.add(Math.round(uv.getY(i) * 100) / 100);
       for (const v of [0.03, 0.08, 0.46, 0.52, 0.97]) expect(vs.has(v), String(v)).toBe(true);
