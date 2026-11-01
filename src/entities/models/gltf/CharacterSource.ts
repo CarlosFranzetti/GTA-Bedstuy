@@ -58,7 +58,7 @@ export function pickClips(animations: readonly THREE.AnimationClip[]): Record<Cl
 /** Weapon / prop nodes of rigged packs (the Quaternius adventurers carry a sword) that a pedestrian should not hold. */
 const PROP_RE = /^(sword|weapon|pistol|gun|rifle|dagger|shield|axe|bow)\b/i;
 /** Materials that are clearly not clothes (never tinted when a mesh has several). */
-const NOT_CLOTH_RE = /skin|hair|eye|brow|teeth|mouth|face|sock|shoe|boot|feet|metal|gold|silver|glass|belt/i;
+const NOT_CLOTH_RE = /skin|hair|eye|eyebrow|eyelash|teeth|mouth|face|sock|shoe|boot|feet|metal|gold|silver|glass|belt/i;
 const SHIRT_RE = /shirt|top|cloth|hood|jacket|torso|coat|tee|sweat|jersey|uniform/i;
 
 /** Which materials of a mesh are "clothes" (tinted per variant): shirt-like names, else everything that is not skin / hair / metal. */
@@ -74,7 +74,7 @@ export function clothMaterials(materials: readonly THREE.Material[]): Set<THREE.
 export function tintCloth(base: THREE.Color, tint: THREE.Color): THREE.Color {
   const l = 0.2126 * base.r + 0.7152 * base.g + 0.0722 * base.b;
   if (tint.r > 0.999 && tint.g > 0.999 && tint.b > 0.999) return base; // variant 0 keeps the authored colour
-  if (l < 0.12) return base.copy(tint).multiplyScalar(0.55);
+  if (l < 0.3) return base.copy(tint).multiplyScalar(0.55);
   return base.multiply(tint);
 }
 
@@ -92,10 +92,8 @@ export class GltfCharacterSource implements CharacterSource {
   private readonly clips: Record<ClipName, THREE.AnimationClip | null>;
   private readonly scale: number;
   private readonly offset = new THREE.Vector3();
-  private readonly bodyGeometry: THREE.BufferGeometry | null;
-  private readonly tinted = new Map<number, THREE.Material | THREE.Material[]>();
-  /** the tinted clones (the untinted materials of a mesh stay shared with the source and are not ours to dispose) */
-  private readonly owned = new Set<THREE.Material>();
+  private readonly tinted = new Map<string, THREE.Material>();
+  private readonly cloth: Set<THREE.Material>;
 
   private constructor(gltf: GLTF, opts: GltfCharacterOptions) {
     this.height = opts.height ?? 1.75;
@@ -113,7 +111,9 @@ export class GltfCharacterSource implements CharacterSource {
     // feet on y = 0, centred over the origin (all in the unscaled model space)
     this.offset.set(-(box.min.x + box.max.x) / 2, -box.min.y, -(box.min.z + box.max.z) / 2);
 
-    this.bodyGeometry = largestMesh(this.scene)?.geometry ?? null;
+    const all = new Set<THREE.Material>();
+    this.scene.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) for (const x of Array.isArray(m.material) ? m.material : [m.material]) all.add(x); });
+    this.cloth = clothMaterials([...all]);
     // skinned bounds come from the bind pose and would cull animated limbs
     this.scene.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) o.frustumCulled = false; });
   }
@@ -154,33 +154,34 @@ export class GltfCharacterSource implements CharacterSource {
 
   /** Dispose the shared tinted materials (call when the source is discarded). */
   dispose(): void {
-    for (const m of this.tinted.values()) for (const x of Array.isArray(m) ? m : [m]) if (this.owned.has(x)) x.dispose();
+    for (const m of this.tinted.values()) m.dispose();
     this.tinted.clear();
   }
 
+  /**
+   * Tints the cloth materials. glTF loading splits a multi-material mesh into one mesh per material, so cloth is decided per
+   * material (see clothMaterials), over the whole model; skin, hair and eyes keep the shared source materials.
+   */
   private applyVariant(model: THREE.Object3D, variant: number): void {
-    if (!this.bodyGeometry) return;
+    if (!this.cloth.size) return;
     const v = ((Math.trunc(variant) % CLOTH_TINTS.length) + CLOTH_TINTS.length) % CLOTH_TINTS.length;
-    let mat = this.tinted.get(v);
+    const tint = new THREE.Color(CLOTH_TINTS[v]);
+    const tintOne = (m: THREE.Material): THREE.Material => {
+      if (!this.cloth.has(m)) return m;
+      const key = `${v}|${m.uuid}`;
+      let c = this.tinted.get(key);
+      if (!c) {
+        c = m.clone();
+        const col = (c as THREE.MeshStandardMaterial).color;
+        if (col) tintCloth(col, tint);
+        this.tinted.set(key, c);
+      }
+      return c;
+    };
     model.traverse((o) => {
       const mesh = o as THREE.Mesh;
-      if (!mesh.isMesh || mesh.geometry !== this.bodyGeometry) return;
-      if (!mat) {
-        const tint = new THREE.Color(CLOTH_TINTS[v]);
-        const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        const cloth = clothMaterials(list);
-        const tintOne = (m: THREE.Material): THREE.Material => {
-          if (!cloth.has(m)) return m;
-          const c = m.clone();
-          const col = (c as THREE.MeshStandardMaterial).color;
-          if (col) tintCloth(col, tint);
-          this.owned.add(c);
-          return c;
-        };
-        mat = Array.isArray(mesh.material) ? mesh.material.map(tintOne) : tintOne(mesh.material);
-        this.tinted.set(v, mat);
-      }
-      mesh.material = mat;
+      if (!mesh.isMesh) return;
+      mesh.material = Array.isArray(mesh.material) ? mesh.material.map(tintOne) : tintOne(mesh.material);
     });
   }
 }

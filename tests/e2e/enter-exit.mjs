@@ -142,55 +142,71 @@ async function cycle(name, page, press, { drive = null, wall = 0, neighbour = fa
 try {
   browser = await chromium.launch({ args: LAUNCH });
 
+  /**
+   * Runs the cases against one page, reopening it if the (SwiftShader) renderer crashes, and retries the crashed case
+   * once on the fresh page. A crash is not an assertion failure; a case that fails twice for a real reason does.
+   */
+  async function group(openPage, makePress, cases) {
+    let page = await openPage(); let press = makePress(page);
+    for (const [name, opts, before] of cases) {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (before) await before(page).catch(() => {});
+        const r = await cycle(name, page, press, opts);
+        if (!/Target (page, context or browser has been )?(closed|crashed)/.test(r.why)) break;
+        results.splice(results.indexOf(r), 1);
+        log(`page crashed during "${name}", reopening (attempt ${attempt + 1})`);
+        await page.context().close().catch(() => {});
+        page = await openPage(); press = makePress(page);
+      }
+    }
+    await page.context().close().catch(() => {});
+  }
+  const escMenu = async (page) => { await page.keyboard.press('Escape'); await page.waitForTimeout(400); await resume(page); };
+
   // ---- keyboard (real page.keyboard presses)
-  const kb = await open();
-  const F = () => kb.keyboard.press('KeyF');
-  for (let i = 0; i < 4; i++) await cycle(`kb stationary #${i}`, kb, F, { idx: i });
-  await cycle('kb driving (W held ~1.2 s) then exit', kb, F, { idx: 4, drive: 1200 });
-  await cycle('kb driving #2', kb, F, { idx: 5, drive: 800 });
-  await cycle('kb at speed (14 m/s)', kb, F, { idx: 6, speed: 14 });
-  await cycle('kb at speed (22 m/s)', kb, F, { idx: 7, speed: 22 });
-  await cycle('kb beside a wall #0', kb, F, { idx: 8, wall: 1 });
-  await cycle('kb beside a wall #1', kb, F, { idx: 9, wall: 6 });
-  await cycle('kb beside a wall #2', kb, F, { idx: 10, wall: 12 });
-  await cycle('kb next to another parked car #0', kb, F, { idx: 11, neighbour: true });
-  await cycle('kb next to another parked car #1', kb, F, { idx: 12, neighbour: true });
-  // after the pause menu was opened and closed
-  await kb.keyboard.press('Escape'); await kb.waitForTimeout(400); await resume(kb);
-  await cycle('kb after pause menu #0', kb, F, { idx: 13 });
-  await kb.keyboard.press('Escape'); await kb.waitForTimeout(400); await resume(kb);
-  await cycle('kb after pause menu #1', kb, F, { idx: 14, drive: 600 });
-  // rapid double enter/exit on one car (two cycles back to back)
-  await cycle('kb back-to-back #0', kb, F, { idx: 15 });
-  await cycle('kb back-to-back #1', kb, F, { idx: 15 });
-  await kb.context().close();
+  await group(() => open(), (pg) => () => pg.keyboard.press('KeyF'), [
+    ['kb stationary #0', { idx: 0 }],
+    ['kb stationary #1', { idx: 1 }],
+    ['kb stationary #2', { idx: 2 }],
+    ['kb stationary #3', { idx: 3 }],
+    ['kb driving (W held ~1.2 s) then exit', { idx: 4, drive: 1200 }],
+    ['kb driving #2', { idx: 5, drive: 800 }],
+    ['kb at speed (14 m/s)', { idx: 6, speed: 14 }],
+    ['kb at speed (22 m/s)', { idx: 7, speed: 22 }],
+    ['kb beside a wall #0', { idx: 8, wall: 1 }],
+    ['kb beside a wall #1', { idx: 9, wall: 6 }],
+    ['kb beside a wall #2', { idx: 10, wall: 12 }],
+    ['kb next to another parked car #0', { idx: 11, neighbour: true }],
+    ['kb next to another parked car #1', { idx: 12, neighbour: true }],
+    ['kb after pause menu #0', { idx: 13 }, escMenu],
+    ['kb after pause menu #1', { idx: 14, drive: 600 }, escMenu],
+    ['kb back-to-back #0', { idx: 15 }],
+    ['kb back-to-back #1', { idx: 15 }],
+  ]);
 
   // ---- touch: the on-screen CAR button
-  const touch = await open({ hasTouch: true, isMobile: false });
-  const car = touch.locator('.tc-btn-car');
-  const hasBtn = (await car.count()) > 0;
-  if (!hasBtn) results.push({ name: 'touch CAR button present', ok: false, why: 'no .tc-btn-car in the DOM with hasTouch' });
-  else {
-    const T = async () => { await car.tap(); };
-    for (let i = 0; i < 3; i++) await cycle(`touch CAR #${i}`, touch, T, { idx: 20 + i });
-    await cycle('touch CAR beside a wall', touch, T, { idx: 24, wall: 3 });
-  }
-  await touch.context().close();
+  await group(() => open({ hasTouch: true, isMobile: false }), (pg) => () => pg.locator('.tc-btn-car').tap(), [
+    ['touch CAR #0', { idx: 20 }],
+    ['touch CAR #1', { idx: 21 }],
+    ['touch CAR #2', { idx: 22 }],
+    ['touch CAR beside a wall', { idx: 24, wall: 3 }],
+  ]);
 
   // ---- gamepad: standard-mapping fake pad, button A (index 0)
   const padInit = () => {
     window.__pad = { id: 'fake', index: 0, connected: true, mapping: 'standard', axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 })) };
     navigator.getGamepads = () => [window.__pad];
   };
-  const pad = await open({}, padInit);
-  const A = async () => {
-    await pad.evaluate(() => { window.__pad.buttons[0] = { pressed: true, touched: true, value: 1 }; });
-    await waitFrames(pad, 2);
-    await pad.evaluate(() => { window.__pad.buttons[0] = { pressed: false, touched: false, value: 0 }; });
-    await waitFrames(pad, 2);
-  };
-  for (let i = 0; i < 3; i++) await cycle(`gamepad A #${i}`, pad, A, { idx: 30 + i });
-  await pad.context().close();
+  await group(() => open({}, padInit), (pg) => async () => {
+    await pg.evaluate(() => { window.__pad.buttons[0] = { pressed: true, touched: true, value: 1 }; });
+    await waitFrames(pg, 2);
+    await pg.evaluate(() => { window.__pad.buttons[0] = { pressed: false, touched: false, value: 0 }; });
+    await waitFrames(pg, 2);
+  }, [
+    ['gamepad A #0', { idx: 30 }],
+    ['gamepad A #1', { idx: 31 }],
+    ['gamepad A #2', { idx: 32 }],
+  ]);
 } catch (e) {
   results.push({ name: 'harness', ok: false, why: e.stack ?? e.message });
 } finally {

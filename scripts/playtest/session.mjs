@@ -5,6 +5,7 @@
 // Usage: npm run build            (this script builds nothing; it snapshots ./dist)
 //        node scripts/playtest/session.mjs <sessionDir> [--port 4402] [--q low] [--width 960] [--height 540]
 //                                          [--max-steps 80] [--idle-timeout 600] [--hour <0-24>] [--read-ms-per-char 35]
+//                                          [--dist <dir>]   serve this build instead of ./dist (snapshotted either way)
 //
 // Design notes
 //  * Turn based: the simulation is paused while the tester thinks and runs only while an action executes, so the
@@ -22,7 +23,7 @@ const { chromium } = createRequire(import.meta.url)('playwright');
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function parseArgs(argv) {
-  const o = { port: 4402, q: 'low', width: 960, height: 540, maxSteps: 80, idleTimeout: 600, hour: null, readMsPerChar: 35 };
+  const o = { port: 4402, q: 'low', width: 960, height: 540, maxSteps: 80, idleTimeout: 600, hour: null, readMsPerChar: 35, dist: null };
   const rest = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -33,6 +34,7 @@ function parseArgs(argv) {
     else if (a === '--max-steps') o.maxSteps = Number(argv[++i]);
     else if (a === '--idle-timeout') o.idleTimeout = Number(argv[++i]);
     else if (a === '--hour') o.hour = Number(argv[++i]);
+    else if (a === '--dist') o.dist = resolve(argv[++i]);
     else if (a === '--read-ms-per-char') o.readMsPerChar = Number(argv[++i]);
     else rest.push(a);
   }
@@ -103,7 +105,7 @@ async function main() {
   let videoT0 = T0;
 
   // ---- serve a private snapshot of dist/ (another lane's `vite build` empties dist/ while we run)
-  const srcDist = resolve(ROOT, 'dist');
+  const srcDist = opt.dist ?? resolve(ROOT, 'dist');
   if (!existsSync(join(srcDist, 'index.html'))) { console.error('[playtest] no dist/index.html: run `npm run build` first'); process.exit(1); }
   const dist = join(D, '.dist');
   rmSync(dist, { recursive: true, force: true });
