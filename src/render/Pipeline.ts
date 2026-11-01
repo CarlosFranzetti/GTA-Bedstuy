@@ -20,6 +20,9 @@ const BLOOM_RADIUS = 0.4;
 const BLOOM_STRENGTH_DAY = 0.1;
 const BLOOM_STRENGTH_NIGHT = 0.5;
 
+/** phone tier: the bloom pass is skipped while the time-cycle strength is below this (daytime values are 0.1-0.12). */
+export const PHONE_BLOOM_MIN_STRENGTH = 0.25;
+
 const DOF_DEFAULT_FOCUS = 7;
 const DOF_DEFAULT_STRENGTH = 0.6;
 const DOF_DEFAULT_APERTURE = 0.8;
@@ -241,6 +244,8 @@ export const GRADING_SHADER = {
  * Post-processing chain. Pass order:
  *  - high / medium: RenderPass, GTAOPass, DoF, UnrealBloomPass, grading ShaderPass (3D LUT), SMAAPass, OutputPass
  *  - low:           RenderPass, UnrealBloomPass (quarter res), grading ShaderPass (analytic math), OutputPass
+ *  - phone:         RenderPass, UnrealBloomPass (eighth res, only while the time cycle asks for real bloom: dusk / night),
+ *                   grading ShaderPass (analytic math), OutputPass. No GTAO, no DoF, no SMAA.
  *
  * The composer renders in linear HDR (half float); OutputPass applies renderer.toneMapping
  * (ACES) + sRGB, so keep `renderer.toneMapping = ACESFilmicToneMapping` and let the pipeline,
@@ -325,7 +330,7 @@ export class RenderPipeline {
 
   /** Whether the grading pass uses the 3D LUT (WebGL2, medium/high) or the analytic fallback. */
   get usesLut(): boolean {
-    return this.lutSupported && this.q !== 'low';
+    return this.lutSupported && this.q !== 'low' && this.q !== 'phone';
   }
 
   render(): void {
@@ -480,12 +485,14 @@ export class RenderPipeline {
     if (this.bloom) {
       this.bloom.strength = tc.bloomStrength;
       this.bloom.threshold = tc.bloomThreshold;
+      // phone: bloom costs ~13 full-screen passes, so it only runs when the glow is really visible (lamps at dusk / night)
+      if (this.q === 'phone') this.bloom.enabled = tc.bloomStrength >= PHONE_BLOOM_MIN_STRENGTH;
     }
   }
 
   private build(): void {
     this.disposePasses();
-    const full = this.q !== 'low';
+    const full = this.q !== 'low' && this.q !== 'phone';
     const pr = this.renderer.getPixelRatio();
     const ew = Math.max(1, Math.round(this.w * pr));
     const eh = Math.max(1, Math.round(this.h * pr));
@@ -525,7 +532,7 @@ export class RenderPipeline {
       this.dof = this.add(dof);
     }
 
-    this.bloomScale = full ? 1 : 0.5; // UnrealBloomPass already runs at half of what it is given
+    this.bloomScale = full ? 1 : this.q === 'phone' ? 0.25 : 0.5; // UnrealBloomPass already runs at half of what it is given
     this.bloom = this.add(
       new UnrealBloomPass(new THREE.Vector2(ew, eh), this.night ? BLOOM_STRENGTH_NIGHT : BLOOM_STRENGTH_DAY, BLOOM_RADIUS, this.night ? BLOOM_THRESHOLD_NIGHT : BLOOM_THRESHOLD_DAY),
     );
@@ -543,6 +550,7 @@ export class RenderPipeline {
     // Sync every pass to the current size (addPass already did; this also fixes the bloom scale).
     this.composer.setSize(this.w, this.h);
     this.applyBloomSize();
+    this.updateExposure(); // sets the phone tier's bloom on/off for the current hour
   }
 
   private applyBloomSize(): void {

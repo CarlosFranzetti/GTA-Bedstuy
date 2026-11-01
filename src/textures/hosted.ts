@@ -108,13 +108,13 @@ export interface ResolvedQuality {
 }
 
 /**
- * Parse the `q` URL parameter. Anything but low/medium/high/ultra falls back to the device default. `ultra` exists
+ * Parse the `q` URL parameter. Anything but phone/low/medium/high/ultra falls back to the device default (touch: phone, else medium). `ultra` exists
  * only in the hosted build: there it means quality 'high' plus the ultra texture profile; in the artifact it is plain 'high'.
  */
 export function resolveQuality(param: string | null | undefined, isTouch: boolean, hosted: boolean = IS_HOSTED): ResolvedQuality {
-  if (param === 'low' || param === 'medium' || param === 'high') return { quality: param, ultra: false };
+  if (param === 'phone' || param === 'low' || param === 'medium' || param === 'high') return { quality: param, ultra: false };
   if (param === 'ultra') return { quality: 'high', ultra: hosted };
-  return { quality: isTouch ? 'low' : 'medium', ultra: false };
+  return { quality: isTouch ? 'phone' : 'medium', ultra: false };
 }
 
 /** Texture profile for a resolved quality. */

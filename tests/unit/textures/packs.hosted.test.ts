@@ -110,7 +110,7 @@ describe('quality and the ultra flag', () => {
   });
   it('falls back to the device default for missing or unknown values', () => {
     expect(resolveQuality(null, false)).toEqual({ quality: 'medium', ultra: false });
-    expect(resolveQuality(undefined, true)).toEqual({ quality: 'low', ultra: false });
+    expect(resolveQuality(undefined, true)).toEqual({ quality: 'phone', ultra: false });
     expect(resolveQuality('4k', false)).toEqual({ quality: 'medium', ultra: false });
   });
   it('ultra textures: highest tier 2K and anisotropy 16; standard keeps the 1K base and the library anisotropy', () => {

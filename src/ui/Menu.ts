@@ -11,8 +11,8 @@ import type { InputMode } from '@/core/Input';
 import type { NavDir } from '@/core/Gamepad';
 import { clearPosition } from './SaveState';
 
-export type MenuQuality = 'low' | 'medium' | 'high';
-export const QUALITIES: readonly MenuQuality[] = ['low', 'medium', 'high'];
+export type MenuQuality = 'phone' | 'low' | 'medium' | 'high';
+export const QUALITIES: readonly MenuQuality[] = ['phone', 'low', 'medium', 'high'];
 export const SETTINGS_KEY = 'gta-bedstuy.settings.v1';
 
 export interface MenuSettings {

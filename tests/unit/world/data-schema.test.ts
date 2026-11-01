@@ -368,7 +368,7 @@ describe('fitLots / generators', () => {
     const ave = generateFaceLots(83, 'avenueMixed', new Rng(3), true, true);
     expect(ave[0].use).toBe('mixed');
     expect(ave[ave.length - 1].use).toBe('mixed');
-    expect(ave.filter((l) => l.use === 'mixed').length / ave.length).toBeGreaterThan(0.4);
+    expect(ave.filter((l) => l.use === 'mixed').length / ave.length).toBeGreaterThan(0.2); // Stage 3: mixedChance 0.65 -> 0.3 (+ corners)
     expect(ave[0].floors).toBeGreaterThanOrEqual(3);
   });
   it('typology statistics: street rows are 3-4 storey residential, avenues are taller and mixed', () => {

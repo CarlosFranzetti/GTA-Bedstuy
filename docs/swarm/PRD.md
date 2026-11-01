@@ -213,7 +213,9 @@ neighbourhood recognisability test with the user; real-GPU 60 fps at medium (use
 Context (Fable's Stage 3 decisions): the rigged-models / audio plan moves to Stage 4+ (no models delivered yet).
 Stage 3 is a fix-and-playtest loop: the user's bug (cannot exit cars), Stage 2 open issues 1–4 and 7, a recorded
 playtest harness, then three blind Haiku playtesters (H1 on-foot explorer, H2 driver/missions, H3 chaos/cops)
-whose findings MGR triages into a defects table. Ports: V1 4401, PT 4402, L10 4403, W2 4404, H1–H3 4411–4413, MGR 4420.
+whose findings MGR triages into a defects table. Added 15:17–15:19Z from the user: MOB phone tier, MDL CC0 model
+research, RADIO own-library radio (8 stations, 147 slots) + talk station, WRITE 22-min talk-show script, BIBLE design reference
+(GTA 5 as the yardstick). Licensing: no copyrighted songs bundled, no Street View pixels, CC0 models with credits only. Ports: V1 4401, PT 4402, L10 4403, W2 4404, H1–H3 4411–4413, MGR 4420.
 
 **Global gates on the integrated tree:** `npx tsc --noEmit` clean; `npx vitest run` all green with test count
 ≥ 1169 (Stage 2 end) and no new skipped tests; `npm run build` succeeds; `node scripts/make-artifact.mjs` →
@@ -235,6 +237,19 @@ whose findings MGR triages into a defects table. Ports: V1 4401, PT 4402, L10 44
 | W2 world | Areaway/stoop iron **fences block peds and the player** (colliders exported from facade data); no ped spawns inside a fenced areaway | unit test: walker into a fence stops/deflects; ped sim shows 0 fence penetrations |
 | W2 | Avenue faces thinned: **3–5 mixed (commercial) lots per avenue face**, corner lots kept; residential rows between; validator still 0 errors | test counts mixed lots per avenue face |
 | W2 | **graniteCurb texture applied** to curbs (RoadBuilder UV remap matches T11's painter rows); key now consumed | test on curb UVs/material key + screenshot |
+| MOB phone-tier | New `phone` quality tier, auto-picked on touch devices (overridable `?q=phone`, menu entry, persisted choice): DPR ≤ 1, no GTAO/DoF, bloom cheap or off, ≤ 1 small shadow map or none, ≤ 4 lamp lights, shorter view distance + fog, lower traffic/ped counts | Pipeline/LightingConfig tier tests; `resolveQuality` test incl. hosted |
+| MOB | **≤ 120 draw calls and ≤ 500k triangles per frame** on the 7 viewpoints at `phone` (medium stays < 500 and unchanged) | `__gtaStats` per viewpoint, before/after table |
+| MOB | `phone` frame time in headless ≥ 2× faster than `low` on the same views; real-phone 30 fps is a user check (deferred evidence) | smoke stats; user fps overlay |
+| MOB | `Quality` union changed only via FOR FABLE (`src/world/types.ts`); every `switch` over quality handles `phone` (tsc exhaustive) | tsc + grep |
+| MDL models | ≥ 4 car + ≥ 2 character glTF/GLB candidates **reachable from this sandbox**, each with a licence file/text quoted (CC0 or CC-BY with credit line), source URL, size, node/animation names vs the loader contract in `src/assets/models/README.md` | `docs/swarm/tasks/MDL.md` table, MGR spot-checks 2 licences |
+| MDL | Nothing lands in `src/` or the build; downloads stay in the scratchpad; `docs/CREDITS.md` additions only for packs recommended for import | git diff |
+| RADIO radio | Stations: Pop 15 · 80s 12 · Rap 13 · House&Dub 22 · Trap 25 · Weird/Psych 28 · Folky Echo-Dub Rock 16 · Jazzy Rock 16 slots (**147 music slots**) + WBSY Talk; each with a parody name, jingle and its own procedural synth fallback for empty slots | unit tests on station table + fallback per station |
+| RADIO | The user's **own files only, picked at runtime** (File System Access API, `<input type=file>` fallback), stored in IndexedDB (try/catch; game works without it); **no audio file in the repo or build**, artifact size change ≤ 50 KB; keyword auto-assignment from file/tag names (artist names are keywords only) | tests with storage throwing/working; artifact size before/after; git diff has no audio |
+| RADIO | Talk station plays WRITE's `script.json` with SpeechSynthesis segment by segment (voice per role, jingles/stings between), resumes at the right segment after a station switch (virtual time); silent no-op without `speechSynthesis` | unit tests with a fake synth |
+| RADIO | Now-playing HUD + import/assignment UI reachable from the menu and gamepad; respects master/radio volume; ducking under mission dialogue/sirens kept | MGR checks call sites in main.ts/Menu |
+| WRITE talk show | Original script, station WBSY "Bed-Stuy Talk", topic AI: **1320 ± 30 s** total, ~3,000–3,400 words, segments ≤ 60 s, callers, ≥ 2 ad breaks with parody brands, jingles/stings 3–5 s; matches the shape agreed with RADIO (`src/audio/talk/script.json`) | JSON validates against RADIO's loader test; word count + sum of `seconds` |
+| WRITE | No real people quoted or named as speakers, no real brands/products, no copyrighted lyrics; tone fits PRD §2.1 parody rules | MGR read-through of `docs/reference/talk-show.md` |
+| BIBLE design | `docs/reference/BIBLE.md` describes how GTA 5 does camera/views, driving + on-foot feel, mission structure + humour, world density/ambient life, radio format (incl. the 8 music stations + talk), day/night mood — each as **measurable or checkable design targets** for this game; no assets, no copied text/code | MGR review; targets folded into PRD §1 and used as the review yardstick |
 | H1–H3 | Each playtester produces a recorded session (webm + subtitled thoughts transcript) and a FINAL REPORT with impressions, bugs and confusions (what they tried, what they expected, what happened) | session dirs + transcript posts |
 | MGR | Every playtest bug/confusion lands in a defects table (id, severity, owner lane, repro) posted as `MGR: playtest triage` and carried into `checkins/stage3.md` | MGR post |
 | All | FINAL REPORT names files, commands + numbers, size impact, call site or wiring request, open issues | MGR review |
