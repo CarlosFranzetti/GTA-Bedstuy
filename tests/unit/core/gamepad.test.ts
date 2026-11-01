@@ -89,9 +89,14 @@ describe('GamepadInput', () => {
     gp.update(1 / 60);
     expect(input.pressed('KeyF')).toBe(true);
     expect(input.isDown('KeyF')).toBe(false);
+    // The pad is polled in the render callback, after the frame's steps: the edge survives that frame's
+    // endFrame() so the NEXT frame's steps see it, and is gone after the one after.
     input.endFrame();
-    gp.update(1 / 60);
+    expect(input.pressed('KeyF')).toBe(true);
+    gp.update(1 / 60); // still held: no new edge
+    input.endFrame();
     expect(input.pressed('KeyF')).toBe(false);
+    expect(input.consume('KeyF')).toBe(false);
   });
 
   it('Y is radio (KeyE); LB horn and X handbrake/run are held', () => {

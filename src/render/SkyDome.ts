@@ -134,6 +134,8 @@ function patchSkyMaterial(mat: THREE.ShaderMaterial): void {
 export class SkyDome {
   readonly sky: Sky;
   readonly stars: THREE.Points;
+  /** false on the phone tier: the star layer is never shown */
+  starsEnabled = true;
 
   private readonly scene: THREE.Scene;
   private readonly renderer: THREE.WebGLRenderer;
@@ -243,7 +245,7 @@ export class SkyDome {
 
     // Stars fade in as the sun drops below the horizon.
     const starAlpha = (isNight || dir.y < 0 ? 1 - smooth(-0.2, -0.02, dir.y) : 0) * 0.95;
-    this.stars.visible = starAlpha > 0.01;
+    this.stars.visible = this.starsEnabled && starAlpha > 0.01;
     (this.stars.material as THREE.PointsMaterial).opacity = starAlpha;
 
     if (cameraPos) {

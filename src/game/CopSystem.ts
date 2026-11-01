@@ -36,7 +36,7 @@ export class CopSystem {
   private readonly laneNodes: LaneNode[];
   private readonly off: () => void;
   private readonly lights?: TrafficLights;
-  private readonly patrolCount: number;
+  private patrolCount: number;
   private patrolTimer = 0;
   private quarryTimer = 0;
   private quarryBody: Body2D | null = null;
@@ -57,6 +57,9 @@ export class CopSystem {
     this.laneNodes = Object.values(grid.lanes.nodes);
     this.off = events.on('impact', (e) => this.onImpact(e));
   }
+
+  /** Patrol cars that cruise while nobody is wanted (quality tier); existing ones finish their route. */
+  setPatrolCount(n: number): void { this.patrolCount = Math.max(0, Math.floor(n)); }
 
   /** `playerBody`: the body the cops chase (the player's car or the player on foot). Looked up when omitted. */
   update(dt: number, playerPos: Vec2, playerBody?: Body2D): void {

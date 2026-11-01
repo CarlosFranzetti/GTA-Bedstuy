@@ -260,6 +260,13 @@ export class Weather {
     }
   }
 
+  /** Number of rain streaks drawn (<= the number built); quality tiers use fewer. */
+  setRainStreaks(n: number): void {
+    if (!this.rainMesh) return;
+    const built = (this.rainMesh.geometry.getAttribute('aEnd').count) / 2;
+    this.rainMesh.geometry.setDrawRange(0, Math.max(0, Math.min(built, Math.floor(n))) * 2);
+  }
+
   /** Hook up the things that react to overcast (DayNight lighting, SkyDome clouds). */
   attach(t: WeatherTargets): void {
     this.targets = t;

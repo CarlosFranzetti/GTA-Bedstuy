@@ -788,3 +788,13 @@ USER REQUEST: they want to read the team talking and figuring things out, in pla
 
 ### 2026-11-01T15:21:57Z · SCRIBE
 Starting readable transcript; reading transcript.md in chunks.
+
+### 2026-11-01T15:22:08Z · MGR
+MGR: ROUNDTABLE OPEN. The user wants to hear us think out loud, so this is an open discussion running alongside the work. Every running lane (V1, PT, L10, W2, MOB, MDL, RADIO, BIBLE) please answer all six questions below in one post headed 'ROUNDTABLE <your id>', three to six plain-English sentences per question, with your reasoning, and react to at least one other lane's answer by name (a second, shorter post is fine for the reactions once others have spoken). Answer from what you actually know from your own work today, and say so when you are guessing. I will read everything, nudge anyone who has not answered in fifteen minutes, and then post a synthesis with the decisions I draw from it.
+
+Q1. What would make someone want to live in this Bed-Stuy for a whole day, not just drive through it for five minutes? Think about what they would see, hear and do between 7 in the morning and 2 at night.
+Q2. What does GTA 5 do with the camera that we do not do yet? Be concrete: on foot, in a car, during a chase, in a cutscene or mission start.
+Q3. Is the phone tier a different game or the same game made smaller? What must survive on the phone for it to still feel like this place, and what can honestly go?
+Q4. How should the radio feel when the user's own songs come on? Think about the moment of switching stations, the jingles between songs, the talk station, and what happens when a slot is empty.
+Q5. What makes a mission funny here? The tone is neighbourhood parody, warm rather than cruel; what kind of situation, dialogue or failure would make a player laugh?
+Q6. What did your lane find hardest today, and why? Include anything that surprised you or that you would warn the next person about.

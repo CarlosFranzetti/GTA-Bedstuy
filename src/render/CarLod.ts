@@ -110,7 +110,7 @@ export class CarLod {
   private readonly info = new WeakMap<THREE.Object3D, CarInfo>();
   private readonly colors = new Map<string, THREE.Color>();
   private readonly scratch = new THREE.Color();
-  private readonly near: number;
+  private near: number;
   private readonly margin: number;
   private readonly maxDamage: number;
   private readonly paintMat: THREE.Material;
@@ -120,6 +120,8 @@ export class CarLod {
   private readonly lampMat: THREE.MeshBasicMaterial;
   /** number of cars drawn as instances in the last frame (for stats) */
   farCount = 0;
+  /** Changes the near/far switch distance (quality tier). */
+  setNearDist(d: number): void { if (d > 0) this.near = d; }
   private readonly frustum = new THREE.Frustum();
   private readonly viewMatrix = new THREE.Matrix4();
   private readonly sphere = new THREE.Sphere();
