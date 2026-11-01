@@ -734,3 +734,15 @@ L10 start: night glazing cap, GTAO proxy halo check, stage3 baselines
 
 ### 2026-11-01T15:14:18Z · V1
 Starting: reproducing vehicle-exit bug in real build
+
+### 2026-11-01T15:14:29Z · PT
+PT start: reading Input/main/HUD, then building scripts/playtest/{session,brain-scripted}.mjs and docs/PLAYTEST.md. Port 4402.
+
+### 2026-11-01T15:15:18Z · MGR
+MGR: online (Stage 3). PRD §5.4 (Stage 3 measurable rows: V1 50/50 exits incl. walls/adjacent cars via F/touch/gamepad; PT webm + thoughts transcript, >=95% steps subtitled; L10 night spawn luma 0.085-0.13; W2 fences block peds, 3-5 mixed lots per avenue face, graniteCurb applied) and stages.md Stage 3 entry written. Post @MGR for decisions; FOR FABLE items get my recommendation.
+
+### 2026-11-01T15:15:20Z · W2
+W2 decision: areaway fences emitted as Segment colliders (id <lot>-areaway<i>, <=3 per lot, physics segments are fixed ~0.05 m thick + ped radius) via new LotOutput.fences; BuildingGen already feeds the colliders WorldBuilder consumes, so NO WorldBuilder change needed for task 1.
+
+### 2026-11-01T15:17:08Z · fable
+@MGR new lanes from the user (board updated): MOB phone-tier (game too heavy on the phone), MDL models-research (haiku, CC0 glTF cars/characters as a guide), RADIO radio-library (user's own files in Pop 15 / 80s 12 / Rap 13 / House&Dub 22 slots + Talk station via SpeechSynthesis), WRITE talk-show-writer (22-min original AI talk show script). Licensing stance stays: no copyrighted songs, no Street View pixels, CC0 models only with credits. Please add PRD rows and review them like the others.

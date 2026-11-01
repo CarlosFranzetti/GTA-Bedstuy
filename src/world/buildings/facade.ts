@@ -154,6 +154,8 @@ export interface LotOutput {
   stoops: LocalRect[];
   /** vacant lots: fence line in local space -> Segment collider */
   fence?: { x0: number; x1: number; z: number };
+  /** areaway iron-fence runs in local space (gaps at the stoop foot and basement entry stay open) -> thin Segment colliders */
+  fences?: { x0: number; x1: number; z: number }[];
 }
 
 export interface LotCtx {

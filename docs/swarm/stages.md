@@ -67,7 +67,7 @@ PRD skeleton.
 
 ---
 
-## Stage 2 — Block-face accuracy, missions, hosted build (NOW, swarm started 2026-10-28T21:48Z)
+## Stage 2 — Block-face accuracy, missions, hosted build (DONE, 2026-10-28T21:48Z → 10-29; see checkins/stage2.md)
 
 **Goals:**
 1. **Block-face accuracy:** rebuild the ~24 block faces from R2's data (and, in a later pass, the user's Street View
@@ -116,7 +116,47 @@ regressions in artifact when 2K textures arrive (hosted-only asset set).
 
 ---
 
-## Stage 3 — Rigged characters and cars, audio, polish
+## Stage 3 — Playtest loop (NOW, swarm started 2026-11-01T15:14Z)
+
+**Goals:**
+1. Fix the user-reported bug: **the player cannot exit cars** (F key, touch CAR button, gamepad), plus enter/exit edge cases.
+2. **Recorded playtest harness**: Playwright video + in-page subtitle box burned into the recording showing the tester's
+   thoughts, a command-file protocol a Haiku agent can drive step by step, per-step state export, webm + thoughts transcript.
+3. **Blind playtests** by three Haiku agents with no code access (on-foot explorer, driver/missions, chaos/cops);
+   MGR triages their bugs and confusions into a defects table that seeds Stage 4.
+4. Stage 2 carry-overs: night glazing cap near spawn + GTAO artefact check (L10); areaway fence colliders, avenue
+   commercial density thinning, graniteCurb UV remap (W2).
+
+**Entry criteria (met):** Stage 2 check-in written and integrated (commit 7de34af); board rewritten by Fable (50e067c);
+bug report from the user. The rigged-model / audio plan moves to Stage 4+ because no models or licences have arrived.
+
+**Exit criteria:** PRD §5.4 table met or deferred with an owner; global gates green; every FINAL REPORT (V1, PT, L10, W2,
+H1–H3) reviewed by MGR; playtest triage posted; check-in `checkins/stage3.md` with the Stage 4 list.
+
+**Risks and mitigations:**
+| Risk | Mitigation |
+|---|---|
+| Exit bug is input-path specific (works with one input, not another) or position specific (walls, adjacent cars) | 50-attempt headless matrix across inputs and placements; exit-spot search unit tests |
+| Haiku testers get stuck on the harness protocol instead of the game | PT ships a worked example + scripted demo; protocol tolerant of bad commands; MGR answers `@MGR` fast |
+| Testers' reports are vague | report template: tried / expected / happened / where; subtitle transcript as evidence |
+| Headless load (several Chromium sessions) crashes night renders (seen in Stage 2) | fixed per-lane ports; stagger H1–H3; low tier for playtests |
+| Lighting cap regresses other views | full light-audit before/after table, Stage 3 baselines |
+| Density thinning breaks the validator or storefront placement | validator + storefront tests in W2's gate |
+
+**Roster (board.md is the source of truth for owned files):**
+| id | lane | model |
+|---|---|---|
+| V1 | vehicle-exit-bug | sonnet |
+| PT | playtest-harness | sonnet |
+| L10 | lighting-3 | sonnet |
+| W2 | world-fixes | sonnet |
+| H1–H3 | blind playtesters (after `PT READY`) | haiku |
+| MGR | manager | opus |
+| Fable | orchestrator, shared files, commits, launches H1–H3 | session |
+
+---
+
+## Stage 4+ — Rigged characters and cars, audio, polish (was the Stage 3 plan)
 
 **Goals:**
 1. **Characters and cars from rigged models the user supplies** through the existing glTF hooks
@@ -130,7 +170,7 @@ regressions in artifact when 2K textures arrive (hosted-only asset set).
 
 **Entry criteria:** Stage 2 exit; models delivered with confirmed licences; audio sourcing rules agreed.
 
-**Exit criteria:** PRD §5.4 met; no open P1 bugs; both builds green; final check-in.
+**Exit criteria:** PRD §5.5 met; no open P1 bugs (incl. Stage 3 playtest defects); both builds green; final check-in.
 
 **Risks:** model licences and sizes (hosted-only for heavy models; Draco/meshopt; licence confirmation
 before import); animation retargeting across rigs (constrain to one humanoid skeleton convention);

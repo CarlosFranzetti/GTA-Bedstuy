@@ -59,6 +59,7 @@ export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
   const doorX = xs[doorBay], entryX = xs[entryBay];
   const stoopW = 1.5;
   const stoops: LotOutput['stoops'] = [];
+  const fences: NonNullable<LotOutput['fences']> = [];
   const baseHoles: Hole[] = [];
   const upHoles: Hole[] = [];
   const parlourY = floorY[0];
@@ -181,8 +182,13 @@ export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
     if (!lite && S >= 2) {
       const gaps = [[x0 - 0.05, x1 + 0.05], [entryX - 0.5, entryX + 0.5]].sort((p, q) => p[0] - q[0]);
       let cx = 0.05;
-      for (const [g0, g1] of gaps) { ironFenceRun(b, m.ironAreaway, cx, Math.min(g0, W - 0.05), -0.1); cx = Math.max(cx, g1); }
-      ironFenceRun(b, m.ironAreaway, cx, W - 0.05, -0.1);
+      const run = (x0f: number, x1f: number): void => {
+        if (x1f - x0f < 0.05) return; // same cut-off as ironFenceRun: no quad, no collider
+        ironFenceRun(b, m.ironAreaway, x0f, x1f, -0.1);
+        fences.push({ x0: x0f, x1: x1f, z: -0.1 });
+      };
+      for (const [g0, g1] of gaps) { run(cx, Math.min(g0, W - 0.05)); cx = Math.max(cx, g1); }
+      run(cx, W - 0.05);
       for (const px of [0.05, x0 - 0.05, x1 + 0.05, W - 0.05]) b.box(m.metal, px - 0.05, 0, -0.15, px + 0.05, IRON_H + 0.1, -0.05, 'fru');
     }
   }
@@ -223,6 +229,6 @@ export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
   }
   if (!lite && rng.chance(0.4)) drainPipe(b, m, rng.chance(0.5) ? 0.14 : W - 0.14, 0.2, H - 0.4, -S);
 
-  return { body: [{ x0: 0, x1: W, z0: -D, z1: -S }], stoops, H, S, floors, levels, family: fam.family };
+  return { body: [{ x0: 0, x1: W, z0: -D, z1: -S }], stoops, fences, H, S, floors, levels, family: fam.family };
 }
 

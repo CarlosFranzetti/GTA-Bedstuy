@@ -98,6 +98,14 @@ export function buildBuildings(
         id: `${lot.id}-fence`,
       });
     }
+    // areaway iron fences: thin segments along the building line, open at the stoop foot and basement entry
+    out.fences?.forEach((f, i) => {
+      colliders.push({
+        shape: { kind: 'segment', a: toWorld(f.x0, f.z), b: toWorld(f.x1, f.z) },
+        pos: { x: 0, z: 0 },
+        id: `${lot.id}-areaway${i}`,
+      });
+    });
   }
 
   const group = new THREE.Group();

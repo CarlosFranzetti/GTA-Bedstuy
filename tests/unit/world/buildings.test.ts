@@ -110,7 +110,7 @@ describe('buildBuildings', () => {
 
   it('has one Polygon collider per non-vacant lot (plus stoops) and a Segment per vacant lot', () => {
     const polys = r.colliders.filter((c) => c.shape.kind === 'polygon');
-    const segs = r.colliders.filter((c) => c.shape.kind === 'segment');
+    const segs = r.colliders.filter((c) => c.shape.kind === 'segment' && !c.id?.includes('-areaway'));
     const nonVacant = r.lots.filter((l) => l.type !== 'vacant');
     const vacant = r.lots.filter((l) => l.type === 'vacant');
     const bodies = polys.filter((c) => !c.id?.includes('-stoop'));
@@ -284,12 +284,15 @@ describe('facade depth and detail', () => {
     for (const lot of brownstones.slice(0, 10)) expect(meshOf(buildOne(lot).group).length).toBeLessThanOrEqual(18);
   });
 
-  it('collider counts are unchanged by the facade work (79 footprints + 58 stoops + 2 fences in the test block)', () => {
+  it('collider counts: 79 footprints + 58 stoops + 2 vacant fences + areaway fence segments (<= 3 per lot)', () => {
     const polys = r.colliders.filter((c) => c.shape.kind === 'polygon');
     expect(polys.filter((c) => !c.id?.includes('-stoop')).length).toBe(79);
     expect(polys.filter((c) => c.id?.includes('-stoop')).length).toBe(58);
-    expect(r.colliders.filter((c) => c.shape.kind === 'segment').length).toBe(2);
-    expect(r.colliders.length).toBe(139);
+    const segs = r.colliders.filter((c) => c.shape.kind === 'segment');
+    expect(segs.filter((c) => !c.id?.includes('-areaway')).length).toBe(2);
+    const areaway = segs.filter((c) => c.id?.includes('-areaway'));
+    expect(areaway.length).toBeGreaterThan(0);
+    expect(r.colliders.length).toBe(139 + areaway.length);
   });
 
   it('no NaN or infinite values in any position, normal or uv attribute', () => {

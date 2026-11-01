@@ -157,7 +157,7 @@ An agent changing a tier's cost must say so in its report.
 | Textures | Storefront art and vehicle/people maps land; deterministic (pixel hash tests); artifact ≤ 12 MB | texture tests + artifact size |
 | Research | block-faces.md, lighting-targets.md, R1 inventory each cite sources and mark confidence/gaps | MGR review |
 
-### 5.3 Stage 2 (this swarm, started 2026-10-28T21:48Z) — measurable
+### 5.3 Stage 2 (closed 2026-10-29; status in checkins/stage2.md) — measurable
 
 Context (Fable's Stage 2 decisions, not re-opened here): the map stays as drawn (no DeKalb Ave); no network
 allowlist and no Street View screenshots, so block-face values come from R2's notes, WebSearch snippets and
@@ -208,7 +208,38 @@ tests/e2e/smoke.mjs` prints `errors: []`.
 **Deferred to the screenshot pass:** ≥ 90% of lots correct by checklist against user screenshots;
 neighbourhood recognisability test with the user; real-GPU 60 fps at medium (user, fps overlay).
 
-### 5.4 Stage 3 (preview)
+### 5.4 Stage 3 — playtest loop (swarm started 2026-11-01T15:14Z) — measurable
+
+Context (Fable's Stage 3 decisions): the rigged-models / audio plan moves to Stage 4+ (no models delivered yet).
+Stage 3 is a fix-and-playtest loop: the user's bug (cannot exit cars), Stage 2 open issues 1–4 and 7, a recorded
+playtest harness, then three blind Haiku playtesters (H1 on-foot explorer, H2 driver/missions, H3 chaos/cops)
+whose findings MGR triages into a defects table. Ports: V1 4401, PT 4402, L10 4403, W2 4404, H1–H3 4411–4413, MGR 4420.
+
+**Global gates on the integrated tree:** `npx tsc --noEmit` clean; `npx vitest run` all green with test count
+≥ 1169 (Stage 2 end) and no new skipped tests; `npm run build` succeeds; `node scripts/make-artifact.mjs` →
+`dist/artifact.html` **≤ 12 MB**; `node tests/e2e/smoke.mjs` prints `errors: []`; medium draw calls stay < 500.
+
+| Lane | Criterion | How measured |
+|---|---|---|
+| V1 vehicle-exit | Root cause of "cannot exit the car" named (file:line) and fixed; exit works from **F key, touch CAR button and gamepad** | V1 report + unit tests per input path |
+| V1 | **100 % of 50 headless exit attempts** succeed (player on foot, out of the car, control back on foot within 1 s), including parked **next to a wall**, **next to another car** on either side, at speed ≤ 2 m/s, and right after entering | `tests/e2e/enter-exit.mjs` prints attempts/successes per scenario |
+| V1 | Exit never places the player inside a collider or under the map; if both doors are blocked, a fallback spot (roof/rear) or a clear refusal message, never a silent no-op | unit tests on the exit-spot search |
+| V1 | Enter still works (F near a car, touch, gamepad); no regression in player/vehicle tests | `npx vitest run tests/unit/entities` |
+| PT harness | `scripts/playtest/**` runs a Playwright session against a local preview, records **one webm** per session and writes a **thoughts transcript** (step, time, command, thought, state) | one demo session (scripted brain) with files listed in PT's report |
+| PT | In-page **subtitle box** shows the tester's current thought, burned into the video; **≥ 95 % of steps** carry a non-empty subtitle on screen when their frame is captured | harness counts subtitled steps / total steps and prints it |
+| PT | Command-file protocol a Haiku agent can drive step by step (write a command, wait for the step result + screenshot + state JSON), documented in `docs/PLAYTEST.md` with a worked example; harness survives a bad command without crashing | MGR review + demo log |
+| PT | Per-step state export: mode (foot/car), position, speed, wanted level, mission state, HUD text, console errors | state JSON per step |
+| L10 lighting | **Night spawn view mean luma within 0.085–0.13** (Stage 2: 0.24) via a glazing emissive cap ≈ 0.35 × texel; other night views ≥ 0.085; blown < 0.5 % at every audited hour | `scripts/light-audit.mjs` night views, before/after table |
+| L10 | GTAO outline artefacts vs AoProxy: verified present or absent with an A/B frame; fixed or ticketed with cause | L10 report + frames |
+| L10 | Stage 3 baselines written (`docs/reference/light-baselines/stage3.md`), incl. the hour-7 and car/aerial rows missing from Stage 2 | file exists, MGR review |
+| W2 world | Areaway/stoop iron **fences block peds and the player** (colliders exported from facade data); no ped spawns inside a fenced areaway | unit test: walker into a fence stops/deflects; ped sim shows 0 fence penetrations |
+| W2 | Avenue faces thinned: **3–5 mixed (commercial) lots per avenue face**, corner lots kept; residential rows between; validator still 0 errors | test counts mixed lots per avenue face |
+| W2 | **graniteCurb texture applied** to curbs (RoadBuilder UV remap matches T11's painter rows); key now consumed | test on curb UVs/material key + screenshot |
+| H1–H3 | Each playtester produces a recorded session (webm + subtitled thoughts transcript) and a FINAL REPORT with impressions, bugs and confusions (what they tried, what they expected, what happened) | session dirs + transcript posts |
+| MGR | Every playtest bug/confusion lands in a defects table (id, severity, owner lane, repro) posted as `MGR: playtest triage` and carried into `checkins/stage3.md` | MGR post |
+| All | FINAL REPORT names files, commands + numbers, size impact, call site or wiring request, open issues | MGR review |
+
+### 5.5 Stage 4+ (preview; was the Stage 3 plan)
 - User-supplied rigged characters and cars load through the existing glTF hooks with animations
   (idle/walk/run, wheel/steer, lights), fall back cleanly to procedural.
 - Audio pass: CC0/own engine, ambience, radio content; mix ducking; volume settings respected.
