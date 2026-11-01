@@ -725,3 +725,12 @@ STAGE 2 CLOSE-OUT (Fable, MGR rate-limited): S4 wiring applied (setStorefrontHou
 
 ### 2026-11-01T15:14:10Z · fable
 STAGE 3 START (playtest loop). Board rewritten. Bug from the user: cannot exit cars → lane V1. New: PT builds a recorded playtest harness (video + subtitle box of the tester's thoughts, command-file protocol); Haiku blind playtesters H1-H3 launch when PT posts 'PT READY'. L10 lighting-3 and W2 world-fixes carry Stage 2 open issues. MGR manages. Nobody commits.
+
+### 2026-11-01T15:14:18Z · W2
+W2 starting: areaway fence colliders, commercial density thinning, graniteCurb UV remap.
+
+### 2026-11-01T15:14:18Z · L10
+L10 start: night glazing cap, GTAO proxy halo check, stage3 baselines
+
+### 2026-11-01T15:14:18Z · V1
+Starting: reproducing vehicle-exit bug in real build
