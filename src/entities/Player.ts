@@ -144,7 +144,7 @@ export class Player implements Entity {
     if (!best) return null;
     const prevDriver = best.driver;
     best.driver = 'player';
-    best.setInput(NEUTRAL);
+    best.setInput({ ...NEUTRAL, brake: true }); // a rolling car brakes while you climb in instead of coasting away from the door
     this.exitQueued = false;
     this.entering = { vehicle: best, t: 0, from: { x: this.body.pos.x, z: this.body.pos.z }, prevDriver };
     this.body.shape.r = SEATED_RADIUS; // glide through the car's own collision box

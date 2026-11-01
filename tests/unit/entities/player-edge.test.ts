@@ -102,7 +102,7 @@ describe('enter and exit at any frame rate', () => {
   it('the old pressed() polling DID re-enter on multi-step frames (guards the test itself)', () => {
     const w = world();
     w.press();
-    w.runFor(1.0, 33.4, false); // two steps per frame
+    w.runFor(1.0, 33.4); // enter with the fixed polling (two steps per frame)
     expect(w.player.inVehicle).toBe(true);
     w.press();
     w.runFor(2.0, 33.4, false);
@@ -169,5 +169,18 @@ describe('F pressed again while walking to the door', () => {
     expect(w.player.inVehicle).toBe(false);
     expect(w.player.isEntering).toBe(false);
     expect(w.car.driver).toBeNull();
+  });
+});
+
+describe('claiming a rolling car', () => {
+  it('brakes while the player climbs in: the car stays within a few metres of where it was grabbed', () => {
+    const w = world();
+    w.car.body.vel.x = 10; // rolling at 10 m/s
+    w.player.body.pos.x = w.car.doorPos().x; w.player.body.pos.z = w.car.doorPos().z;
+    const x0 = w.car.body.pos.x, z0 = w.car.body.pos.z;
+    w.player.tryEnter([w.car]);
+    for (let i = 0; i < 60; i++) { w.car.update(FIXED_STEP); w.player.update(FIXED_STEP); }
+    expect(w.player.inVehicle).toBe(true);
+    expect(Math.hypot(w.car.body.pos.x - x0, w.car.body.pos.z - z0)).toBeLessThan(6);
   });
 });

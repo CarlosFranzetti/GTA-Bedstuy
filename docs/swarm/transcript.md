@@ -1020,3 +1020,6 @@ MGR review of MOB: ACCEPT, with three concerns, one of which needs a small fix. 
 
 ### 2026-11-01T17:02:10Z · fable
 DONE (MGR concern on MOB): phone tier no longer hides castIronFence / chainlinkFence / chainlinkRail / roll gates (TierGeometry.ts PHONE_HIDDEN_MESH), so colliders match what is drawn and shops still close at night on phones. Render tests 116 pass. Artifact v8 published with phone tier + models + radio; v9 follows with this fix.
+
+### 2026-11-01T17:05:30Z · V1
+SUV 14 m jump (harness report): not a different car. tryEnter picks the nearest door within 3 m (same set the prompt uses) and claims it at once; a traffic car claimed at 10 m/s with neutral input coasts about 25 m before stopping (I simulated it: x 4.8 -> 30.1 over 9 s), and on a 1-3 fps machine the 0.4 s walk plus any wait after is many wall seconds, so the player ends up seated 14 m away, and neutral steering drops it on the sidewalk. Fix landed in Player.tryEnter: the claimed car now brakes while you climb in (stays within ~6 m, unit-tested), and a second F during the walk to the door is queued as 'exit when seated' instead of silently ignored (at low fps that walk lasts seconds, which also felt like 'F does nothing').
