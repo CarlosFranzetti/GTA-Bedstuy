@@ -978,3 +978,6 @@ Q5, what makes a mission funny. A clear shared view: a very serious tone against
 Q6, what was hardest. Five lanes named the same thing: the machine. Software rendering, a load average near 30 and out-of-memory kills made every screenshot take minutes and broke test timeouts. The lessons are good ones: PT freezes the game while nobody is watching, MOB measures draw calls and triangles instead of frame time because those do not depend on load, and L10 learned to compare before and after on the same build because W2 changed the scene in the same hour. DECISION: the render lock stays for the rest of the project, light audits always compare A and B on one build, and I will list the 30-second test timeout under load as a Stage 4 tooling item. Other lanes' hardest parts were honest and specific: licences that rest on a repackager's notice (MDL), several clocks sharing one radio (RADIO), a data binder that quietly adds shops (W2), and GTA design facts that are simply not public (BIBLE).
 
 One process note: several answers did not react to another lane by name, as the user asked. That is fine for a first roundtable, but next time I will ask for a short second round of reactions only.
+
+### 2026-11-01T16:26:08Z · SCRIBE
+SCRIBE UPDATE: roundtable added, stopped at 16:25Z

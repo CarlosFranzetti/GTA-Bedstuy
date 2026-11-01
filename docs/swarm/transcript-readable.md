@@ -308,23 +308,89 @@ At 16:04 MOB measured the phone tier on the current build (640x360, five of seve
 
 ---
 
+## Hour 16:00Z
+
+Between 16:00 and 16:25 the log held almost nothing but roundtable posts, plus one review of this narrative. At 16:13 MGR accepted the earlier version of this document ("written for a person rather than for the agents"), noted its limit (it stopped at 16:04, before the roundtable answers), and recommended fable resume SCRIBE after the stage closes so you get what the blind testers were thinking. V1 was "deep in the 50-attempt exit test" (MGR's words); V1 had posted nothing new since its root-cause finding. The blind playtests had not started.
+
+---
+
 # THE ROUNDTABLE
-*Opened by MGR at 15:22Z at your request*
+*Opened by MGR at 15:22Z at your request; answers 16:01 to 16:18; synthesis 16:25*
 
-MGR posted six questions: (1) what would make someone live in this Bed-Stuy for a whole day, 7 in the morning to 2 at night; (2) what GTA 5 does with the camera that this game does not; (3) is the phone tier a different game or the same game smaller; (4) how should the radio feel when your own songs come on; (5) what makes a mission funny here; (6) what did each lane find hardest. Each running lane was to answer in three to six plain sentences per question, react to another lane by name, and MGR would synthesise decisions.
+## How it got started
 
-**It did not go smoothly.** Nobody answered for almost 40 minutes, even after the nudge at 15:37. At 16:00 MGR explained the likely reason to fable: workers scan the log for their own name or for final-report items, and "a long list of questions addressed to everyone does not register as a task". It asked fable to relay the questions directly into each running lane's session, with answers wanted by about 16:20, and offered to speak for the finished lanes (W2, RADIO, WRITE, BIBLE, MDL) from their reports.
+MGR asked six questions and wanted three to six plain sentences per question from each running lane, plus a reaction to another lane by name. Then nothing happened for almost 40 minutes. MGR's theory, sent to fable at 16:00: workers scan the log for their own name or for final-report items, and "a long list of questions addressed to everyone does not register as a task". Once fable pushed the questions into each lane's session, eight lanes answered within 17 minutes. Most opened with an honest "this is a guess", which is what MGR had asked for. (Of the lanes not named below, WRITE spoke through its script, and V1 was busy.)
 
-**The first answer came at 16:01, from PT.** It said openly where it was guessing.
+## Question 1: What would make someone live in this Bed-Stuy for a whole day?
 
-- **Living here for a day (Q1):** a day is "small repeatable moments": the bodega gate rolling up at 6, school-hour foot traffic, a stoop conversation, lights coming on at dusk, gates down at 22:00. PT's contribution is a way to find out: blind testers will say which moments they noticed and which they walked past.
-- **Camera (Q2):** on foot the camera moves only when the player moves the mouse, while a good third-person camera eases behind you when you run and frames the car in a chase. "I am guessing here, I have not compared frame by frame."
-- **Phone (Q3):** the same game made smaller. Brownstones, signs, light and sound must survive; shadow quality, post effects and view distance can go.
-- **Radio (Q4):** PT has not played it, so only: a short, readable station card matters most at the moment of switching, and an empty slot should say so plainly instead of going silent.
-- **Funny missions (Q5):** the gap between a very serious objective line and an ordinary street, such as a timer ticking down for something small; failure is funny if the retry line has personality.
-- **Hardest part (Q6):** the machine, not the code: its first three validation runs were killed, so it froze the world while the tester thinks. It reacted to V1 by name: the just-pressed bug "is exactly the kind of bug that only shows up on a slow renderer, which is what the testers will run on". Warning: "always use the render lock and a free port."
+Everyone said the same thing in different words: a day is made of small, repeating, cheap moments tied to the clock, not big set pieces.
 
-Other lanes had not answered when I stopped reading (see the end note). If they post later, their answers belong here.
+- **BIBLE** was the most specific: the place "has to keep moving without you and always offer something one choice away", meaning a stranger, an event or a gag within about 30 seconds, and an hour-by-hour day: school run, noon stoops, golden hour, block party, quiet night cops. "People stay when the street has moods and somebody is always talking to them."
+- **L10**, the lighting engineer, sees it through light: "the sun lowers and the brick goes orange, the lamps and shop signs come on at dusk, some windows are lit and some are not, a roll gate comes down late." A player standing still at 19:30 should watch the street switch to night.
+- **W2** wants a street that feels lived-in "and not like a strip mall": stoops and trees between a few shops, fences and curbs that act like real things. Its density pass today cut shops per face from about 6 to about 4.
+- **MDLI** thinks small moving things sell it: a van with headlights on at dusk, brake lights, "a pedestrian who actually walks with legs instead of sliding".
+- **PT** named a day's moments: the bodega gate rolling up at 6, school-hour foot traffic, a stoop conversation. **MOB** listed what reads as lived-in in its captures: tree canopies, awnings, stoops, lit windows, signals changing, adding that these are also the cheapest things to keep.
+- **RADIO** argued the car radio is a big part of it: "a good radio makes the block feel lived-in even when nothing else is happening". **MDL** offered being known on a few streets: a corner shop with "a regular who remembers your order".
+
+**MGR's decision:** the first Stage 4 world lane builds a day schedule (hourly crowd and traffic curve, evening stoop sitting, school run, late cops) and a small ambient-event system. These are cheap to render, which helps the phone too.
+
+## Question 2: What does GTA 5 do with the camera that we do not?
+
+Nobody here has tuned the camera, so most deferred to BIBLE, which was the only lane with a concrete list: a look-back, a separate cinematic camera, hood and first-person views, letterboxed mission intros, and a follow camera that lags and leans in corners. Ours "has shake and wall pull-in but none of those extras". BIBLE was careful to say the corner-lag claim comes from mod changelogs, not official sources.
+
+Two useful additions came from lanes that stare at frames all day. **MOB**: on the phone tier the street ends in fog at about 110 m, and a low chase camera "makes that feel like atmosphere instead of a limit". **L10**: the pipeline already has depth of field and exposure control, but a fixed camera never uses them on purpose; a chase or cutscene could push them "to tell the player where to look". **W2**, **PT** and **MDLI** guessed that a lower, closer, speed-sensitive camera would sell the street and the new models; PT noted a tester cannot easily look at a pursuer. **RADIO** and **MDL** guessed the same list, and MDL told readers to check the style notes before trusting it.
+
+**MGR's decision:** a Stage 4 camera lane: look-back and corner lag first, because chases need them, then cinematic and letterbox using L10's depth of field. The test is BIBLE's: after a minute of driving, a playtester should not mention the camera at all.
+
+## Question 3: Is the phone tier a different game or the same game smaller?
+
+Unanimous: **the same game, smaller.** Nobody wavered.
+
+- **MOB**, who measured it, gave the clearest inventory. What survives: street layout, brick and stone facades, stoops and cornices, awnings and signs, trees, cars, time-of-day colour and night lamps. What goes: shadows, ambient occlusion, depth of field, bloom, fire escapes and rooftop tanks, wires, trash, iron fences, manholes and "two thirds of the crowd". On three captures "the street still reads as Bed-Stuy".
+- **BIBLE** and **MDL** drew the line at rules: if the phone loses the events, the day schedule, the radio or the rules (physics, exits), "it stops being worth living in".
+- **W2** warned that dropping shops, curb detail or fence colliders would make it a different game.
+- **MDLI** gave a small example: the merged character now costs 2 draw calls instead of 6, and far cars are one instanced draw per type. It offered MOB shorter far distances for glTF cars, unmeasured.
+
+**Who reacted to whom:** L10 agreed with MOB that without shadows "the fog and sky colour have to carry the time of day" and added that night lamps are cheap enough to keep. PT agreed a blind tester on the phone tier is the right test. MOB replied it would make sure the `?q=phone` flag works "and that the fog does not eat the shop signs".
+
+**The one real conflict.** MGR spotted it in the synthesis: MOB hides the iron fences on the phone to save draw calls, but W2 just gave those fences colliders, so a phone player would walk into an invisible wall. **MGR's decision:** MOB keeps the thin, merged areaway fence meshes visible on the phone tier (or removes mesh and collider together); MGR prefers keeping them, "because W2 is right that the fences are part of what makes the block feel real". MGR also recommended fable have one playtester try part of a session on `?q=phone`.
+
+## Question 4: How should the radio feel when your own songs come on?
+
+Everyone wanted it to feel like tuning a station, not pressing shuffle.
+
+- **RADIO** described what it built: each station keeps its own clock, "so you drop into the middle of a song"; half-second crossfades; a jingle and a blip of dial static; an empty slot plays that genre's synth loop "so nothing ever goes silent"; the HUD shows the file name. Then its candid worry: it has only tested with fakes and not heard it in a real browser, so "the exact loudness balance between a user's song and the quiet synth stations is a guess I expect to need tuning".
+- **BIBLE**: start mid-song, duck under a short DJ line, a jingle or ad break every couple of tracks; the songs are the user's, "everything around them is our own parody wrapper". **MDL** added a DJ break or talk-show handoff and a clip of street noise when a song ends.
+- **PT**: a short readable station card matters more than anything technical. **MDLI**: station name and track title plain, no effects on top. **W2**: a quick crossfade and the song title shown.
+- **L10** warned lighting must not react to the music: "a pulsing screen would read as a gimmick". **MOB** asked that decoding happen when a station is chosen, not per frame, so audio does not fight the main thread.
+
+**MGR's decision:** Stage 4 radio work is DJ handoffs, time-of-day programming, muffled sound outside the car, and loudness matching between the user's tracks and the synth fallback.
+
+## Question 5: What makes a mission funny here?
+
+Again a shared view: a very serious tone against a very small stake.
+
+- **MDLI**: "being chased by police for a bodega sandwich", with a cop light bar flashing on a toy-sized car.
+- **PT**: a serious objective line on an ordinary street, such as a timer ticking down for something small; failure is funny "if the retry line has a personality".
+- **L10**: a lit OPEN sign at midnight while the clerk is clearly closing, or a getaway slowed by a double-parked van with its hazards on. **MOB** had a similar idea: the bodega cat or a double-parked box truck blocking the getaway, which "costs us nothing in rendering".
+- **BIBLE**: a character who wants something very specific from a very specific block, "like a cat, a couch, a parking spot or a rival speaker"; the twist reverses the plan, the fail message is funnier than the win message, and "the best line is spoken by a person, not by the HUD", with banter every 10 to 15 seconds while travelling.
+- **W2** and **RADIO** pointed to parody names (Troop Deli, Kosciusz-K-O-Mat) and deadpan, local detail; **MDL**: jokes should come from "the characters' ordinary logic, not random chaos".
+
+**MGR's decision:** Stage 4 missions follow BIBLE's template, each with a character voice line and a fail joke, and MGR suggested reusing RADIO's speech player for mission dialogue, "spoken banter at no asset cost".
+
+## Question 6: What was hardest today?
+
+Five lanes named the same thing: the machine. Software rendering, a load average near 30 and out-of-memory kills made every screenshot take minutes.
+
+- **PT**: its first three validation runs were killed. **MOB** learned to measure draw calls and triangles instead of frame time, "because those do not depend on the machine's load". **MDLI**: a screenshot run took ten minutes. **W2**: tests timing out at the 30-second default.
+- **L10** had the subtlest problem: telling whether a brightness change was its own. It capped shop glazing so a lit face is 0.35 of its texture instead of 0.9, and the spawn view fell to 0.12 mean at night, but W2 had rebuilt the avenue faces the same hour, so the glazing face had already vanished from that frame. L10 solved it with a close-up A/B on one build: the glazing crop went from 0.395 to 0.300 luma and "still reads as lit". It noted that each of its frames took one to two minutes behind the render lock, matching PT's experience.
+- Others named specific hard parts. **W2**: the data binder re-purposes the nearest lot, so a POI shop landing on a residential lot "would silently add a sixth shop". **MDLI**: the Kenney cars share one colour atlas, so tinting the material would turn the windows and tyres the car colour; it recoloured only the paint cell. **RADIO**: time shared between station clocks, a crossfade, files ending early and speech stalling; each needed a guard. **MDL**: licences resting on a repackager's notice because the primary sites do not resolve. **BIBLE**: GTA design facts are not public, so many numbers are marked as "our own targets rather than GTA facts".
+
+**MGR's decisions:** the render lock stays for the rest of the project; light audits always compare A and B on one build; the 30-second test timeout under load is a Stage 4 tooling item.
+
+## The manager's closing note
+
+MGR said the guesses "agree more than I expected". It admitted a process failure: "several answers did not react to another lane by name, as the user asked", and said that next time it will ask for a short second round of reactions only. Reactions that did happen: MOB to PT, L10 to MOB and PT, MDLI to MOB and PT, and V1's root cause cited by PT.
 
 ---
 
@@ -333,13 +399,14 @@ Other lanes had not answered when I stopped reading (see the end note). If they 
 1. **A bug can be a symptom of performance.** The car-exit bug only appears when a frame runs two or more simulation steps: worst on heavy scenes and slow machines.
 2. **Shared hardware is a hidden teammate.** Browsers running at once crashed validation runs until fable imposed a render lock.
 3. **Review means checking.** MGR counted W2's lots itself, re-ran RADIO's tests, and admitted its own misreading of V1.
-4. **A request to "everyone" is a request to no one.** The roundtable stalled until it was pushed into each lane's session.
+4. **A request to "everyone" is a request to no one.** The roundtable stalled for 40 minutes until it was pushed into each lane's session.
+5. **Guesses converge when people are honest about them.** Eight lanes, mostly outside their own specialty, independently described the same day, the same phone tier and the same funny mission.
 
 ---
 
 # Where this transcript stops
 
-I stopped reading at **16:04:19Z on 1 November** (MOB's phone-tier measurement). At that time the roundtable had one answer (PT's), the three blind playtesters had not started (PT's harness was still being validated), and V1, L10, MOB, MDLI and the other lanes had not yet posted their roundtable answers or final reports. If the roundtable answers and MGR's synthesis appear later, they belong in the Roundtable section above.
+I stopped reading at **16:25:04Z on 1 November** (MGR's roundtable synthesis). At that point the blind playtesters had not started (PT's harness was still being validated), V1 had not posted its final report, and the Stage 3 check-in had not been written. Anything posted later is not in this document.
 
 ---
 
