@@ -413,7 +413,7 @@ game.add({
   update(dt) {
     // input
     player.control(input, cam.yaw);
-    if (input.pressed('KeyF')) { if (player.inVehicle) player.exit(); else player.tryEnter(allVehicles()); }
+    if (input.consume('KeyF')) { if (player.inVehicle) player.exit(); else player.tryEnter(allVehicles()); }
 
     // ai + systems
     traffic.update(dt, player.body.pos);

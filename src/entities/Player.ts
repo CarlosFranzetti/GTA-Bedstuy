@@ -87,7 +87,8 @@ export class Player implements Entity {
 
   /**
    * Consume input. F (enter/exit) is NOT handled here: the integrator calls
-   * `input.pressed('KeyF') ? (player.inVehicle ? player.exit() : player.tryEnter(vehicles)) : 0`.
+   * `input.consume('KeyF') ? (player.inVehicle ? player.exit() : player.tryEnter(vehicles)) : 0`
+   * (consume, not pressed: a slow frame runs several fixed steps and the edge must fire once).
    */
   control(input: Input, cameraYaw: number): void {
     if (this.vehicle) {
@@ -100,7 +101,7 @@ export class Player implements Entity {
       };
       this.vehicleInput = vi;
       this.vehicle.setInput(vi);
-      if (input.pressed('KeyE')) this.events.emit('radioNext', {});
+      if (input.consume('KeyE')) this.events.emit('radioNext', {});
       this.desiredVel = { x: 0, z: 0 };
       return;
     }

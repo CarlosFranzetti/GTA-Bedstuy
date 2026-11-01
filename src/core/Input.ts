@@ -67,6 +67,13 @@ export class Input {
   }
   /** True only on the frame the key went down. */
   pressed(code: string): boolean { return this.justPressed.has(code); }
+  /**
+   * Take the press edge: true once per physical press, then false until the key goes down again.
+   * Use this (not `pressed`) for toggles read inside the fixed-step simulation: a slow frame runs several
+   * steps before `endFrame()` clears the edge, so `pressed()` is true on every one of them and a toggle
+   * (exit then enter the same car) fires twice.
+   */
+  consume(code: string): boolean { return this.justPressed.delete(code); }
   /** Returns -1..1 from two keys. */
   axis(neg: string[], pos: string[]): number {
     const n = neg.some((c) => this.isDown(c)) ? 1 : 0;

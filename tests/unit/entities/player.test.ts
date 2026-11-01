@@ -16,6 +16,7 @@ function fakeInput(down: string[] = [], pressed: string[] = []): Input {
   return {
     isDown: (c: string) => d.has(c),
     pressed: (c: string) => p.has(c),
+    consume: (c: string) => p.delete(c),
     axis: (neg: string[], pos: string[]) => (pos.some((c) => d.has(c)) ? 1 : 0) - (neg.some((c) => d.has(c)) ? 1 : 0),
     mouseDX: 0, mouseDY: 0, wheel: 0,
   } as unknown as Input;
