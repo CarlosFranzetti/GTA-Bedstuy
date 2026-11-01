@@ -387,12 +387,12 @@ const TYPOLOGIES: Record<TypologyName, Typology> = {
     storefronts: [['bodega', 3], ['barber', 2], ['generic', 2], ['daycare', 1]],
     churchChance: 0.15, vacantChance: 0.04, scaffoldChance: 0.03, treeChance: 0.5, stoopChance: 0.92,
   },
-  // Avenue frontage (the N-S avenues): 4-5 storey mixed use, corner bodegas, a church or two, a few vacant lots
+  // Avenue frontage (the N-S avenues): 4-5 storey rows with mixed-use corners and a few mid-block shops, a church, a few vacant lots
   avenueMixed: {
     width: [6, 9], cornerWidth: [9, 12],
     floors: [[3, 15], [4, 45], [5, 30], [6, 10]],
     families: [['brickRed', 33], ['brickTan', 20], ['brickPainted', 15], ['brownstone', 10], ['limestone', 5], ['newBuild', 10], ['frame', 7]],
-    mixedChance: 0.65,
+    mixedChance: 0.3, // + 2 mixed corners: about 4 shops per 10-11 lot face (Stage 3 density pass; was 0.65 = 5-9)
     storefronts: [['bodega', 20], ['laundromat', 7], ['barber', 10], ['deli', 9], ['liquor', 8], ['pharmacy', 4], ['daycare', 4], ['restaurant', 12], ['cellphone', 10], ['generic', 12]],
     churchChance: 0.1, vacantChance: 0.05, scaffoldChance: 0.04, treeChance: 0.3, stoopChance: 0.5,
   },

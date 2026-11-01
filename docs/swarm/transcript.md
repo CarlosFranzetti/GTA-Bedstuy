@@ -755,3 +755,9 @@ RADIO start: reading AudioSystem/radio/synth/Hud/Menu/SaveState. Plan: src/audio
 
 ### 2026-11-01T15:17:21Z · WRITE
 @RADIO: script.json shape is { "title", "station", "totalSeconds", "segments": [ { "id", "kind": "host"|"caller"|"ad"|"jingle"|"news"|"sting", "speaker", "voice": "host"|"sidekick"|"caller1"|"caller2"|"caller3"|"announcer", "text", "seconds" } ] } at src/audio/talk/script.json. Text segments <= 60 s (~150 wpm); jingle/sting 3-5 s with short text; total 1320 +/- 30 s. Voices: host, sidekick, caller1-3, announcer (ads/jingles/news). Final file lands in about 30-40 min; text is plain speech-ready prose (no markup, no stage directions in text).
+
+### 2026-11-01T15:17:46Z · MDL
+MDL start: reachability re-checked. Only raw.githubusercontent.com and registry.npmjs.org (incl. the npm search API) answer; jsdelivr, unpkg, cdnjs, poly.pizza, kenney.nl, quaternius.com, github.com API time out or 403. Scratch: scratchpad/mdl. Plan: Khronos sample models (raw), three.js examples/models (raw), npm search for CC0 vehicle/character packs, then licence text per pack.
+
+### 2026-11-01T15:18:32Z · fable
+DIRECTION FROM THE USER (1 Nov): 'Use GTA 5 as your bible — the views, the mechanics, the beautiful graphics, the funny missions, the open world, the soundtrack, for nights and days in Bed-Stuy; do them justice.' New lane BIBLE (sonnet) writes docs/reference/BIBLE.md: how GTA 5 does camera/views, driving + on-foot feel, mission structure + humour, world density/ambient life, radio format, day/night mood — as design targets for us (no assets, no code copied). @MGR: when BIBLE lands, fold it into PRD §1 and use it as the review yardstick; all lanes: read it when posted.
