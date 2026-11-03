@@ -56,7 +56,7 @@ const FAILS: Record<string, { reason: string; run: (bot: Bot, def: MissionDef) =
 
 /** For tooFast / copsCalled / lowScore the failure only exists on specific beats: play up to that beat. */
 const FAIL_AT: Record<string, number> = {
-  'soundclash': 1, 'dollar-van-last-run': 1, 'moving-day': 1, 'open-decks': 3, 'dollar-van-fare': 2, 'aftersloth-residency': 2,
+  'soundclash': 2, 'dollar-van-last-run': 1, 'moving-day': 1, 'open-decks': 3, 'dollar-van-fare': 2, 'aftersloth-residency': 2,
   'block-party': 0, 'permit-pending': 2, 'the-password': 0,
 };
 

@@ -63,7 +63,7 @@ export function soundclash(ctx: PlaceCtx): MissionDef {
     availableHours: [18, 21],
     timeLimit: 260,
     phoneIntro: { from: 'Auntie', text: 'That woman across the street has a bigger speaker than me. Get me a cord, change her playlist, and for the love of God do not let anyone call the cops.' },
-    twist: { at: 3, text: 'The rival DJ is Auntie\'s sister Lorraine. They have not spoken since 1998. It is about a casserole dish.' },
+    twist: { at: 4, text: 'The rival DJ is Auntie\'s sister Lorraine. They have not spoken since 1998. It is about a casserole dish.' },
     failJoke: {
       copsCalled: 'Noise complaint: one star and a lecture from a lady in a bathrobe.',
       timeUp: 'Both speakers go quiet. Peace breaks out. Disgusting.',
@@ -71,6 +71,7 @@ export function soundclash(ctx: PlaceCtx): MissionDef {
     followUp: { from: 'Auntie', text: 'We are speaking again. Do not tell your cousin.', delay: 80 },
     objectives: [
       { kind: 'pickUp', at: poiSpot(ctx, 'dollar'), radius: 5, presence: 'any', items: ['extension cord'], text: 'Buy an extension cord at the 99c store', failIfStars: 1, doneMessage: 'A twenty-foot cord for ninety-nine cents. It is fifteen feet.' },
+      { kind: 'deliver', at: rival, radius: 5, presence: 'any', items: ['extension cord'], text: 'Plug the cord in at the rival stoop', failIfStars: 1 },
       { kind: 'interact', at: rival, radius: 5, prompt: 'Swap her playlist', presses: 3, text: 'Swap the rival playlist for something gentler', failIfStars: 1, banter: ['Auntie (text): "Put on the one with the flute. She hates the flute."'] },
       { kind: 'interact', at: rival, radius: 5, prompt: 'Unplug the speaker', presses: 2, text: 'Unplug the rival speaker (gently)', failIfStars: 1 },
       { kind: 'talkTo', at: rival, radius: 5, presence: 'onFoot', npc: 'Lorraine', text: 'Explain yourself to the DJ', lines: ['Who sent you? Was it Gloria?', 'Tell my sister the casserole dish was never hers.', 'Tell her I said... the flute is nice.'] },

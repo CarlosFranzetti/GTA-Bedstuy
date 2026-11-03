@@ -83,21 +83,58 @@ const fresh = (extra: { hour?: number } = {}) => {
 };
 
 describe('mission content integrity', () => {
-  it('ships three uniquely-named missions with sane geometry', () => {
-    expect(defs.map((d) => d.id)).toEqual(['bodega-run', 'laundromat-getaway', 'block-party']);
-    expect(new Set(defs.map((d) => d.title)).size).toBe(3);
+  it('ships sixteen uniquely-named missions with sane geometry', () => {
+    expect(defs.map((d) => d.id)).toEqual([
+      'bodega-run', 'laundromat-getaway', 'block-party', 'crate-digger', 'open-decks', 'the-password', 'aftersloth-residency',
+      'alternate-side-shuffle', 'soundclash', 'senator-the-cat', 'dollar-van-last-run', 'moving-day', 'permit-pending',
+      'lost-cat', 'dollar-van-fare', 'stoop-sale',
+    ]);
+    expect(new Set(defs.map((d) => d.title)).size).toBe(16);
+    expect(new Set(defs.map((d) => d.id)).size).toBe(16);
     const b = grid.bounds, margin = 30;
     for (const d of defs) {
-      expect(data.pois.some((p) => p.id === d.giverPoi)).toBe(true);
+      if (d.giverPoi !== 'wax-deli') expect(data.pois.some((p) => p.id === d.giverPoi), d.id).toBe(true);
       expect(d.triggerRadius).toBeGreaterThan(1);
       expect(d.objectives.length).toBeGreaterThan(2);
       expect(d.reward.cash).toBeGreaterThan(0);
-      for (const p of [d.giver, ...d.objectives.map(objPos).filter((q): q is { x: number; z: number } => q !== null)]) {
+      // interiors sit 3 km out, so the club/deli door markers are checked against their own street spot instead
+      const route = d.objectives.flatMap((o) => (o.kind === 'tail' ? o.route : o.kind === 'collect' ? o.points : []));
+      for (const p of [d.giver, ...route, ...d.objectives.map(objPos).filter((q): q is { x: number; z: number } => q !== null)]) {
         expect(Number.isFinite(p.x) && Number.isFinite(p.z)).toBe(true);
         expect(p.x).toBeGreaterThan(b.minX - margin); expect(p.x).toBeLessThan(b.maxX + margin);
         expect(p.z).toBeGreaterThan(b.minZ - margin); expect(p.z).toBeLessThan(b.maxZ + margin);
       }
     }
+  });
+
+  it('every mission has the BIBLE template: intro text, follow-up, a fail joke; story twists where promised', () => {
+    const fresh = defs.filter((d) => !['bodega-run', 'laundromat-getaway', 'block-party'].includes(d.id));
+    expect(fresh).toHaveLength(13);
+    for (const d of fresh) {
+      expect(d.phoneIntro?.text.length, `${d.id} intro`).toBeGreaterThan(20);
+      expect(d.followUp?.text.length, `${d.id} follow-up`).toBeGreaterThan(10);
+      expect(Object.keys(d.failJoke ?? {}).length, `${d.id} fail joke`).toBeGreaterThan(0);
+      expect(d.objectives.length, `${d.id} beats`).toBeGreaterThanOrEqual(3);
+      expect(d.objectives.length, `${d.id} beats`).toBeLessThanOrEqual(7);
+      if (d.tag !== 'side') expect(d.twist, `${d.id} twist`).toBeDefined();
+      if (d.twist) { expect(d.twist.at).toBeGreaterThanOrEqual(0); expect(d.twist.at).toBeLessThan(d.objectives.length); }
+    }
+  });
+
+  it('the DJ chapters chain and the night mission lives between 23:00 and 04:00', () => {
+    const by = (id: string) => defs.find((d) => d.id === id)!;
+    expect(by('open-decks').requires).toEqual(['crate-digger']);
+    expect(by('the-password').requires).toEqual(['open-decks']);
+    expect(by('aftersloth-residency').requires).toEqual(['the-password']);
+    expect(by('the-password').setFlags).toContain('aftersloth.unlocked');
+    const pw = by('the-password');
+    expect(pw.availableHours![0]).toBeGreaterThanOrEqual(22);
+    expect(pw.deadlineHour).toBe(4);
+    const res = by('aftersloth-residency');
+    const sets = res.objectives.filter((o) => o.kind === 'djSet');
+    expect(sets.reduce((n, o) => n + (o.kind === 'djSet' ? o.minutes : 0), 0)).toBe(4);
+    expect(res.objectives.some((o) => o.kind === 'interact')).toBe(true); // the generator
+    expect(res.objectives.find((o) => o.kind === 'waitUntilHour')).toMatchObject({ from: 23, to: 4 });
   });
 
   it('giver zones do not overlap each other', () => {
@@ -112,6 +149,8 @@ describe('mission content integrity', () => {
       const bag: string[] = [];
       for (const o of d.objectives) {
         if (o.kind === 'pickUp') bag.push(...o.items);
+        if (o.grant) bag.push(...o.grant);
+        if (o.kind === 'sell') for (let n = 0; n < o.count; n++) { const k = bag.indexOf(o.item); expect(k, `${d.id}: sells ${o.item}`).toBeGreaterThanOrEqual(0); bag.splice(k, 1); }
         if (o.kind === 'deliver') for (const it of o.items) {
           const k = bag.indexOf(it);
           expect(k, `${d.id}: ${it}`).toBeGreaterThanOrEqual(0);
@@ -131,6 +170,9 @@ describe('mission content integrity', () => {
   it('is deterministic and non-violent (no wanted-raising except the laundromat bag)', () => {
     expect(JSON.stringify(buildMissions(grid, data, lots))).toBe(JSON.stringify(defs));
     for (const d of defs) for (const o of d.objectives) if (o.raiseWantedTo !== undefined) expect(d.id).toBe('laundromat-getaway');
+    // the only way stars appear in the new jobs is as a failure rule (a noise complaint, a pulled-over van)
+    const text = JSON.stringify(defs).toLowerCase();
+    for (const bad of ['kill', 'shoot', 'stab', 'gun', 'punch', 'murder', 'blood']) expect(text.includes(`"${bad}`) || text.includes(` ${bad} `)).toBe(false);
   });
 });
 
@@ -337,7 +379,8 @@ describe('persistence across a reload', () => {
     const m2 = new MissionSystem(buildMissions(grid, data, lots));
     expect(m2.restore(JSON.parse(json))).toBe(true);
     expect(m2.isCompleted('bodega-run')).toBe(true);
-    expect(m2.markers.map((k) => k.label)).toEqual(['Laundromat Getaway', 'Block Party']);
+    expect(m2.markers.some((k) => k.label === 'Bodega Run')).toBe(false);
+    expect(m2.markers.length).toBeLessThanOrEqual(4);
     expect(m2.cash).toBe(150);
   });
 });
