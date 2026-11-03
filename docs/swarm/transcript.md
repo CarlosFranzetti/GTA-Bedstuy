@@ -1515,3 +1515,9 @@ CAM FOR FABLE applied: cam.attachLetterbox(overlay) and events.on('mission:start
 
 ### 2026-11-03T22:23:59Z · Fable
 @CARS2 heads-up: tsc currently fails at src/entities/models/carModel.ts(181): 'platePos' missing on CarParts (carBodies.ts). Fine mid-edit, but npx tsc --noEmit must be clean before your FINAL REPORT.
+
+### 2026-11-03T22:28:49Z · CARS2
+Status: the procedural lofted bodies are now the default (the Kenney glTF cars are opt-in with VITE_GLTF_CARS=1 and are not bundled otherwise). The old procedural car was already a real lofted hull but cost about 14 thousand triangles and 19 draw calls per near car; I rebuilt it in carBodies.ts to about 2.4 thousand triangles and 10 draw calls (sedan 2.44k, coupe 2.50k, cab 2.46k, cop 2.50k, van 2.58k, SUV 2.82k), added a coupe and a yellow cab as styles, merged chrome into the trim mesh, and made tyre plus hubcap one mesh per wheel. Frames are being rendered now.
+
+### 2026-11-03T22:30:11Z · PHONEGFX
+Progress: BlobShadows.ts, the phone fog ramp, the night sign bloom gate, the phone grading LUT switch and a tiny 512 pixel sun shadow fed by box casters are written with 14 plus new unit tests green. I am waiting on the shared render lock for the before and after measurements on the seven viewpoints.

@@ -107,6 +107,16 @@ export function cylZ(r: number, len: number, x: number, y: number, z: number, se
   return g;
 }
 
+/** Flat dark decal facing the rear (+z), `w` wide and `h` tall, 2 triangles. */
+export function decalZ(w: number, h: number, x: number, y: number, z: number): THREE.BufferGeometry {
+  return new THREE.PlaneGeometry(w, h).translate(x, y, z);
+}
+
+/** Flat dark decal on a flank facing outward (`side` +1 right / -1 left), `d` long (along z) and `h` tall. */
+export function decalX(d: number, h: number, side: number, x: number, y: number, z: number): THREE.BufferGeometry {
+  return new THREE.PlaneGeometry(d, h).rotateY(side * Math.PI / 2).translate(x, y, z);
+}
+
 export function v3(x: number, y: number, z: number): THREE.Vector3 { return new THREE.Vector3(x, y, z); }
 
 /** Flat strip along a polyline lying on a surface: `nrm` are surface normals, `off` lifts it off the surface. */
@@ -183,7 +193,7 @@ export function bumperGeo(width: number, depth: number, height: number, y: numbe
   s.quadraticCurveTo(-width / 2, depth, -width / 2, depth - r);
   s.closePath();
   const g = new THREE.ExtrudeGeometry(s, {
-    depth: height - 0.04, bevelEnabled: true, bevelSize: 0.02, bevelThickness: 0.02, bevelSegments: 1, curveSegments: 3,
+    depth: height - 0.04, bevelEnabled: false, curveSegments: 2,
   });
   g.translate(0, 0, 0.02);
   g.rotateX(-Math.PI / 2); // shape y -> world -z (forward), extrude z -> world y
@@ -223,7 +233,8 @@ export function monotone(xs: number[], ys: number[]): (x: number) => number {
 
 // ---------------------------------------------------------------- lofted hull
 
-export type Kind = 'paint' | 'glass' | 'dark';
+/** what a hull quad becomes: 'none' leaves it out of every mesh (hidden under the hood panel / underside) */
+export type Kind = 'paint' | 'glass' | 'dark' | 'none';
 
 export interface LoftSpec {
   /** station positions along the car, ascending (rear -> front) */
@@ -302,7 +313,7 @@ export function buildLoft(spec: LoftSpec): Hull {
   const crease = spec.creases[0] ?? 99;
 
   const all: number[] = [];
-  const byKind: Record<Kind, number[]> = { paint: [], glass: [], dark: [] };
+  const byKind: Record<Kind, number[]> = { paint: [], glass: [], dark: [], none: [] };
   for (let i = 0; i < S - 1; i++) {
     const um = (us[i] + us[i + 1]) / 2;
     for (let k = 0; k < M; k++) {
@@ -407,7 +418,7 @@ export function stationList(must: number[], want: number[], maxGap: number): num
   return out;
 }
 
-const END_T = [0, 0.22, 0.6, 1];
+const END_T = [0, 0.3, 1];
 
 /** Smooth rounding of a body end: 0 at the tip -> 1 at distance `dr` (quarter-circle profile). */
 export function endG(d: number, dr: number): number {
@@ -640,7 +651,7 @@ export const STYLES: Record<'sedan' | 'coupe' | 'suv', Style> = {
       [2.41, 1.02, 0.96, 0.92],
     ],
     windshield: [1.1, 0.15],
-    doorGlass: [[0.95, 0.03], [-0.12, -1.0], [-1.12, -1.85]],
+    doorGlass: [[0.95, 0.03], [-0.12, -1.05], [-1.05, -1.85]],
     bPillar: [0.03, -0.12],
     rearGlass: [-1.95, -2.38],
     seams: [0.92, -0.06, -0.98],
@@ -687,7 +698,7 @@ export function archStations(a: Arch, axle: number, n = 6): number[] {
 /** Half-cylinder liner around a wheel well (dark, faces the wheel). */
 export function wheelLiner(a: Arch, x0: number, x1: number, z: number): THREE.BufferGeometry {
   const rr = a.ra - 0.02;
-  const g = new THREE.CylinderGeometry(rr, rr, x1 - x0, 10, 1, true, a.phiS, Math.PI - 2 * a.phiS);
+  const g = new THREE.CylinderGeometry(rr, rr, x1 - x0, 6, 1, true, a.phiS, Math.PI - 2 * a.phiS);
   g.rotateZ(Math.PI / 2);
   g.translate((x0 + x1) / 2, a.R, z);
   return inverted(g);
@@ -734,7 +745,7 @@ export function cabinTrim(hull: Hull, chrome: Acc, trim: Acc, lay: CabinLayout):
 export function isTaxiYellow(hex: string): boolean {
   const c = new THREE.Color(hex);
   const hsl = { h: 0, s: 0, l: 0 };
-  c.getHSL(hsl);
+  c.getHSL(hsl, THREE.SRGBColorSpace);
   return hsl.h >= 0.1 && hsl.h <= 0.16 && hsl.s >= 0.6 && hsl.l >= 0.35 && hsl.l <= 0.65;
 }
 
@@ -792,7 +803,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   const quarter = axleF - arch.halfChord - 0.03; // cladding between the arches
 
   const cls = (um: number, j: number): Kind => {
-    if (um <= hoodFrontU && um >= hoodBackU && j <= 5) return 'dark'; // engine bay under the hood panel
+    if (um <= hoodFrontU && um >= hoodBackU && j <= 5) return 'none'; // under the hood panel (a flat dark box fills the bay)
     const inW = inI(um, ws);
     if ((inW || inI(um, rg)) && j <= 1) return 'glass';
     if (inI(um, bp) && j >= 3 && j <= 5) return 'dark';
@@ -801,7 +812,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
         if (!inW || j >= 4) return 'glass';
       }
     }
-    if (j === 11) return 'dark';
+    if (j === 11) return 'none'; // underside, covered by the pan
     if (j === 10) {
       if (Math.abs(um - axleF) < arch.halfChord + 0.05 || Math.abs(um - axleR) < arch.halfChord + 0.05) return 'dark';
       if (Math.abs(um) < axleF) return 'dark';
@@ -810,11 +821,11 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
     return 'paint';
   };
 
-  const must: number[] = [tipF, tipR, ...ws, ...doors.flat(), ...bp, ...rg, ...seams, hoodBackU, hoodFrontU];
-  const want: number[] = [...su];
+  const must: number[] = [tipF, tipR, ...ws, ...doors.flat(), ...bp, ...rg, hoodBackU, hoodFrontU]; // seams snap to the nearest station
+  const want: number[] = [];
   for (const t of END_T) { want.push(tipF - t * drF, tipR + t * drR); }
-  for (const ax of [axleF, axleR]) want.push(...archStations(arch, ax));
-  const us = stationList(must, want, 0.55);
+  for (const ax of [axleF, axleR]) want.push(...archStations(arch, ax, 4));
+  const us = stationList(must, want, 0.7);
 
   const hull = buildLoft({ us, half: (u) => carHalf(ring(u)), creases: [CAR_CREASE], cls });
   const sideX = (u: number, y: number): number => {
@@ -869,7 +880,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   const uMir = doors[0][0] - 0.02;
   const yMir = fyBelt(uMir) + 0.075;
   const mx = Wb2 + 0.01;
-  const housing = new THREE.SphereGeometry(1, 6, 4).scale(0.045, 0.045, 0.08);
+  const housing = new THREE.SphereGeometry(1, 5, 3).scale(0.045, 0.045, 0.08);
   housing.translate(mx, yMir, -uMir);
   paint.addBoth(housing);
   trim.addBoth(bx(0.1, 0.02, 0.04, Wb2 - 0.01, yMir - 0.03, -uMir - 0.02));
@@ -896,21 +907,18 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   chrome.add(bx(2 * gW + 0.03, 0.014, 0.018, 0, gY - gH / 2 - 0.005, gZ - 0.004));
   chrome.add(cylZ(0.028, 0.012, 0, gY, gZ - 0.012, 8));
   // rear: chrome strip over the bumper, exhaust tip
-  chrome.add(bx(2 * trR.wMax * 0.8, 0.012, 0.014, 0, trR.yBot + 0.02, tipF + 0.006));
   const exX = Wb2 - 0.34;
   chrome.add(cylZ(0.04, 0.16, exX, 0.16, bumperZ - 0.14, 8));
-  // underbody pan so the sky never shows under the car
+  // underbody pan so the sky never shows under the car, and a dark box filling the engine bay under the hood panel
   trim.add(bx(2 * (Wb2 - 0.14), 0.04, L - 0.5, 0, st.sill + 0.04, 0));
+  trim.add(bx(2 * (Wb2 - 0.2), 0.04, hoodFrontU - hoodBackU, 0, fyBelt((hoodBackU + hoodFrontU) / 2) - 0.1, -(hoodBackU + hoodFrontU) / 2));
 
   // ---- interior (seen through the glass): dash and the two front seats
   const yBeltC = fyBelt(0);
   const seatY = st.sill + 0.5 * ky;
   trim.add(bx(2 * Wb2 * 0.78, 0.2, 0.3, 0, yBeltC - 0.13, -(ws[0] - 0.22)));
   const seatU = doors[0][1] + 0.3 * kx;
-  for (const s of [-1, 1]) {
-    trim.add(bx(0.46, 0.5, 0.12, s * 0.35, seatY + 0.28, -(seatU - 0.22)));
-    trim.add(bx(0.46, 0.14, 0.5, s * 0.35, seatY, -seatU));
-  }
+  for (const s of [-1, 1]) trim.add(bx(0.46, 0.5, 0.12, s * 0.35, seatY + 0.28, -(seatU - 0.22)));
   trim.add(bx(2 * Wb2 * 0.72, 0.5, 0.12, 0, seatY + 0.26, -(rg[0] + 0.2)));
 
   // ---- roof rails (SUV)
@@ -921,22 +929,21 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
     const iR1 = hull.at(secs[4][0] - 0.05);
     const pts: THREE.Vector3[] = [];
     for (const i of seq(iR0, iR1)) pts.push(hull.P(i, 3).addScaledVector(hull.N(i, 3), 0.028));
-    const curve = new THREE.CatmullRomCurve3(pts);
-    chrome.addBoth(new THREE.TubeGeometry(curve, 8, 0.015, 4, false));
+    const pA = pts[0], pB = pts[pts.length - 1];
+    chrome.addBoth(bx(0.03, 0.03, Math.abs(pB.z - pA.z), (pA.x + pB.x) / 2, (pA.y + pB.y) / 2 + 0.01, (pA.z + pB.z) / 2));
     for (const f of [0.25, 0.75]) {
       const i = Math.round(lerp(iR0, iR1, f));
       const p = hull.P(i, 3);
       chrome.add(bx(2 * p.x, 0.022, 0.035, 0, p.y + 0.03, p.z));
     }
   }
-  if (st.spoiler) {
+  if (st.spoiler && type !== 'cop' && type !== 'cab') {
     const uS = tipR + 0.2;
     const rr = ring(uS);
     const sp = new THREE.BoxGeometry(2 * (rr.wMax - 0.17), 0.022, 0.13);
     sp.rotateX(-0.22);
     sp.translate(0, rr.yT + 0.012, -uS);
     paint.add(sp);
-    for (const s of [-1, 1]) paint.add(bx(0.016, 0.04, 0.12, s * (rr.wMax - 0.17), rr.yT + 0.022, -uS));
   }
 
   // ---- cop gear / cab roof light
@@ -944,11 +951,9 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   const roofY = hull.P(hull.at(copBarU), 0).y;
   const roofLamp = new Acc();
   if (type === 'cop') {
-    for (const s of [-1, 1]) trim.add(bx(0.05, 0.42, 0.05, s * 0.5, 0.52, -(L / 2 + 0.035)));
-    trim.add(bx(1.05, 0.05, 0.05, 0, 0.7, -(L / 2 + 0.035)));
-    trim.add(bx(1.05, 0.05, 0.05, 0, 0.36, -(L / 2 + 0.035)));
+    for (const s of [-1, 1]) trim.add(bx(0.05, 0.42, 0.05, s * 0.5, 0.52, -(L / 2 - 0.01)));
+    trim.add(bx(1.05, 0.05, 0.05, 0, 0.7, -(L / 2 - 0.01)));
     trim.add(bx(1.1, 0.05, 0.34, 0, roofY + 0.03, -copBarU));
-    chrome.add(bx(1.14, 0.012, 0.02, 0, roofY + 0.175, -copBarU));
   } else if (type === 'cab') {
     trim.add(bx(0.4, 0.03, 0.2, 0, roofY + 0.015, -copBarU));
     roofLamp.add(bx(0.38, 0.1, 0.17, 0, roofY + 0.08, -copBarU));
@@ -957,7 +962,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   // ---- hood panel (separate so it can lift when damaged)
   const iHB = hull.at(hoodBackU);
   const iHF = hull.at(hoodFrontU);
-  const hoodSlots = [18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6];
+  const hoodSlots = [18, 20, 22, 0, 2, 4, 6];
   const hoodSurface = (lift: number): THREE.BufferGeometry => {
     const rows = iHF - iHB + 1;
     const cols = hoodSlots.length;
@@ -991,7 +996,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   const tail = new Acc();
   for (const [sx2, yaw] of [[-1, 0.25], [1, -0.25]] as const) head.add(placeLamp(lensGeo(0.14, 0.05, 0.045, true), v3(sx2 * lx, lampHeadY, -tipF), yaw));
   for (const [sx2, yaw] of [[-1, -0.2], [1, 0.2]] as const) tail.add(placeLamp(lensGeo(0.16, 0.045, 0.04, false), v3(sx2 * ltx, lampTailY, -tipR), yaw));
-  head.add(roofLamp.size ? roofLamp.merge() : new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([], 3)));
+  if (roofLamp.size) head.add(roofLamp.merge());
 
   const parts: CarParts = {
     paint: paint.merge(),
@@ -1044,7 +1049,7 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
   const ww = 0.3;
   const sill = 0.7;
   const arch = archOf(R, sill);
-  const Wc2 = (W - 0.12) / 2;      // cab half-width
+  const Wc2 = (W - 0.16) / 2;      // cab half-width
   const Wg2 = (W - 0.04) / 2;      // cargo half-width
   const uF = L / 2 - 0.12;         // cab nominal front
   const uB = TRUCK_CAB_SECS[0][0]; // cab back
@@ -1083,13 +1088,14 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
     if (inI(um, ws) && j <= 1) return 'glass';
     if (inI(um, bp) && j >= 3 && j <= 5) return 'dark';
     if (j >= 3 && j <= 5 && doors.some((d) => inI(um, d)) && (!inI(um, ws) || j >= 4)) return 'glass';
-    if (j >= 10) return 'dark';
+    if (j === 11) return 'none';
+    if (j === 10) return 'dark';
     return 'paint';
   };
-  const want: number[] = [...su];
+  const want: number[] = [];
   for (const t of END_T) want.push(uF - t * drF, uB + t * drB);
   want.push(...archStations(arch, axleF));
-  const us = stationList([uF, uB, ...ws, ...doors.flat(), ...bp, ...seams], want, 0.4);
+  const us = stationList([uF, uB, ...ws, ...doors.flat(), ...bp], want, 0.8);
   const cab = buildLoft({ us, half: (u) => carHalf(ring(u)), creases: [CAR_CREASE], cls: cabCls });
   const trF = ring(uF);
 
@@ -1100,7 +1106,7 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
     const d = Math.min(cargoFront - u, u - cargoBack);
     const g = endG(d, 0.1);
     const s = 1 - 0.06 * (1 - g);
-    return boxHalf(Wg2 * s, 1.16 + 0.05 * (1 - g), H - 0.06 - 0.05 * (1 - g), 0.07);
+    return boxHalf(Wg2 * s, 1.16 + 0.05 * (1 - g), H - 0.02 - 0.05 * (1 - g), 0.07);
   };
   const boxUs = stationList([cargoBack, cargoFront], END_T.flatMap((t) => [cargoBack + t * 0.1, cargoFront - t * 0.1]), 8);
   const box = buildLoft({ us: boxUs, half: boxRing, creases: [], cls: () => 'paint' });
@@ -1133,23 +1139,22 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
   trim.add(bx(2 * Wc2 * 0.8, 0.3, 0.4, 0, 1.55, -(ws[0] - 0.3)));
   for (const s of [-1, 1]) {
     trim.add(bx(0.5, 0.8, 0.18, s * 0.4, 1.7, -(uB + 0.7)));
-    trim.add(bx(0.5, 0.2, 0.55, s * 0.4, 1.3, -(uB + 1.0)));
   }
 
   // ---- mirrors on stalks (dark housings, chrome rim)
   for (const s of [-1, 1]) {
-    trim.add(bx(0.1, 0.4, 0.17, s * (Wc2 + 0.05), 2.1, -(doors[0][0] - 0.02)));
-    chrome.add(bx(0.11, 0.025, 0.18, s * (Wc2 + 0.05), 2.31, -(doors[0][0] - 0.02)));
+    trim.add(bx(0.1, 0.4, 0.17, s * (Wc2 + 0.03), 2.1, -(doors[0][0] - 0.02)));
+    chrome.add(bx(0.11, 0.025, 0.18, s * (Wc2 + 0.03), 2.31, -(doors[0][0] - 0.02)));
     trim.add(bx(0.12, 0.03, 0.03, s * (Wc2 + 0.03), 2.22, -(doors[0][0] - 0.02)));
     trim.add(bx(0.12, 0.03, 0.03, s * (Wc2 + 0.03), 1.95, -(doors[0][0] - 0.02)));
     // door step
-    trim.add(bx(0.18, 0.04, 0.5, s * (Wc2 + 0.02), 0.95, -2.7));
+    trim.add(bx(0.12, 0.04, 0.5, s * (Wc2 + 0.01), 0.95, -2.7));
   }
 
   // ---- fascia: bumper, grille, lamps
   trim.add(bumperGeo(2 * Wc2, 0.28, 0.3, 0.62, -(L / 2 - 0.28), false));
   trim.add(bx(2 * Wc2 * 0.78, 0.5, 0.02, 0, trF.yBot + 0.34, -(uF + 0.006)));
-  for (let k = 0; k < 5; k++) chrome.add(bx(2 * Wc2 * 0.78, 0.016, 0.016, 0, trF.yBot + 0.14 + k * 0.1, -(uF + 0.018)));
+  for (let k = 0; k < 3; k++) chrome.add(bx(2 * Wc2 * 0.78, 0.016, 0.016, 0, trF.yBot + 0.18 + k * 0.14, -(uF + 0.018)));
   chrome.add(bx(2 * Wc2 * 0.8, 0.03, 0.025, 0, trF.yBot + 0.6, -(uF + 0.01)));
   chrome.add(bx(2 * Wc2 * 0.8, 0.03, 0.025, 0, trF.yBot + 0.08, -(uF + 0.01)));
   chrome.add(cylZ(0.05, 0.014, 0, trF.yBot + 0.34, -(uF + 0.022), 8));
@@ -1169,13 +1174,14 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
 
   // ---- cargo box details: roll-up door lines (rear), side ribs
   const rz = -cargoBack + 0.006;
-  for (let y = 1.45; y <= 3.05; y += 0.145) trim.add(bx(2 * Wg2 - 0.4, 0.016, 0.012, 0, y, rz));
+  // flat dark decals (2 triangles each) instead of boxes
+  for (let y = 1.45; y <= 3.05; y += 0.145) trim.add(decalZ(2 * Wg2 - 0.4, 0.016, 0, y, rz));
   for (const s of [-1, 1]) {
-    trim.add(bx(0.03, 1.7, 0.012, s * (Wg2 - 0.2), 2.25, rz));
-    for (const u of [-2.8, -1.6, -0.4, 0.8]) trim.add(bx(0.014, 1.85, 0.03, s * (Wg2 + 0.004), 2.2, -u));
-    trim.add(bx(0.016, 0.03, 4.4, s * (Wg2 + 0.004), 1.25, 0.6));
+    trim.add(decalZ(0.03, 1.7, s * (Wg2 - 0.2), 2.25, rz));
+    for (const u of [-2.8, -1.6, -0.4, 0.8]) trim.add(decalX(0.03, 1.85, s, Wg2 + 0.004, 2.2, -u));
+    trim.add(decalX(4.4, 0.03, s, Wg2 + 0.004, 1.25, -0.6));
   }
-  trim.add(bx(0.34, 0.07, 0.04, 0, 1.55, rz));
+  trim.add(decalZ(0.34, 0.07, 0, 1.55, rz));
 
   const parts: CarParts = {
     paint: paint.merge(),

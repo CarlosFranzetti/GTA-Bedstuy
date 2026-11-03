@@ -38,12 +38,12 @@ export function lampColor(emissive: THREE.Color, intensity: number, out: THREE.C
   return out.setRGB(emissive.r * intensity, emissive.g * intensity, emissive.b * intensity);
 }
 
-/** Mesh names that make up each LOD part (see carModel.ts). Rims are dropped (hidden inside the tyre at LOD distance). */
+/** Mesh names that make up each LOD part (see carModel.ts). Hubcaps are part of the 'tyre' meshes, which become 10-gons here. */
 const PART_NAMES = {
   paint: ['body', 'hood'],
   cargo: ['cargo'],
   glass: ['glass'],
-  dark: ['trim', 'chrome', 'tyre', 'plateFront', 'plateRear'],
+  dark: ['trim', 'chrome', 'tyre', 'plate', 'plateFront', 'plateRear'],
   head: ['headlight'],
   tail: ['taillight'],
 } as const;
@@ -85,6 +85,10 @@ interface TypeLod {
 
 interface CarInfo {
   far: boolean;
+  /** LOD key: the type, or `type:style` for the non-default body styles (coupe, cab) so the far proxy keeps the silhouette */
+  key: string;
+  /** builds the pristine full model of this car's body style (set by carModel.ts on the model group), if it has one */
+  buildStyled: (() => CarModel) | null;
   color: THREE.Color;
   head: THREE.MeshStandardMaterial | null;
   tail: THREE.MeshStandardMaterial | null;
@@ -167,13 +171,14 @@ export class CarLod {
    * instance (its object3D is then hidden). `dist` is the distance from the camera in metres.
    */
   place(car: LodCar, x: number, z: number, heading: number, dist: number): boolean {
-    const lod = this.typeFor(car.spec.type);
     let info = this.info.get(car.object3D);
     if (!info) {
-      info = { far: false, color: this.colorOf(car.spec.color), head: null, tail: null };
+      info = { far: false, key: car.spec.type, buildStyled: null, color: this.colorOf(car.spec.color), head: null, tail: null };
       this.bindLamps(car.object3D, info);
+      this.bindStyle(car.object3D, car.spec.type, info);
       this.info.set(car.object3D, info);
     }
+    const lod = this.typeFor(info.key, car.spec.type, info.buildStyled);
     if (!lod || car.damage > this.maxDamage || lod.n >= CAPACITY) { info.far = false; car.object3D.visible = true; return false; }
     info.far = hysteresisFar(info.far, dist, this.near, this.margin);
     if (!info.far) { car.object3D.visible = true; return false; }
@@ -246,12 +251,23 @@ export class CarLod {
     });
   }
 
-  private typeFor(type: string): TypeLod | null {
-    if (this.types.has(type)) return this.types.get(type)!;
+  /** Non-default procedural styles (coupe, cab) get their own far proxy, built from the style builder the model carries. */
+  private bindStyle(root: THREE.Object3D, type: string, info: CarInfo): void {
+    root.traverse((o) => {
+      const style = o.userData?.carStyle as string | undefined;
+      const build = o.userData?.buildLodModel as (() => CarModel) | undefined;
+      if (!style || !build || info.buildStyled) return;
+      if (style === 'coupe' || style === 'cab') { info.key = `${type}:${style}`; info.buildStyled = build; }
+    });
+  }
+
+  private typeFor(key: string, type: string = key, buildStyled: (() => CarModel) | null = null): TypeLod | null {
+    if (this.types.has(key)) return this.types.get(key)!;
+    if (this.types.has(type) && this.types.get(type) === null) { this.types.set(key, null); return null; } // excluded type
     const gltf = gltfLodFor(type);
-    const model = gltf ? null : this.opts.buildModel(type);
+    const model = gltf ? null : buildStyled ? buildStyled() : this.opts.buildModel(type);
     const lod = gltf ? this.buildGltf(gltf) : model ? this.build(model) : null;
-    this.types.set(type, lod);
+    this.types.set(key, lod);
     return lod;
   }
 

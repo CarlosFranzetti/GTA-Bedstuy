@@ -17,7 +17,7 @@ const size = (o: THREE.Object3D) => bbox(o).getSize(new THREE.Vector3());
 const countMeshes = (o: THREE.Object3D) => { let n = 0; o.traverse((c) => { if ((c as THREE.Mesh).isMesh) n++; }); return n; };
 
 describe('buildCarModel', () => {
-  it.each(['sedan', 'suv', 'boxtruck', 'cop'] as const)('%s: matches the spec footprint, has wheels and lights, stays under 40 meshes', (type) => {
+  it.each(['sedan', 'suv', 'boxtruck', 'cop'] as const)('%s: matches the spec footprint, has wheels and lights, stays under 12 meshes', (type) => {
     const spec = VEHICLE_SPECS[type];
     const m = buildCarModel(type, spec, materials);
     const s = size(m.group);
@@ -27,15 +27,17 @@ describe('buildCarModel', () => {
     expect(bbox(m.group).min.y).toBeGreaterThanOrEqual(-0.01);
     expect(m.wheels.length).toBeGreaterThanOrEqual(4);
     expect(m.steerPivots.length).toBe(2);
-    expect(m.headlights.length).toBe(2);
-    expect(m.taillights.length).toBe(2);
-    expect(countMeshes(m.group)).toBeLessThanOrEqual(40);
+    expect(m.headlights.length).toBeGreaterThanOrEqual(1); // all head lamps are one merged mesh
+    expect(m.taillights.length).toBeGreaterThanOrEqual(1);
+    expect(countMeshes(m.group)).toBeLessThanOrEqual(12);
   });
 
   it('front is -z: headlights are in front of taillights', () => {
     const m = buildCarModel('sedan', VEHICLE_SPECS.sedan, materials);
-    expect(m.headlights[0].position.z).toBeLessThan(0);
-    expect(m.taillights[0].position.z).toBeGreaterThan(0);
+    const front = new THREE.Box3().setFromObject(m.headlights[0]).getCenter(new THREE.Vector3());
+    const rear = new THREE.Box3().setFromObject(m.taillights[0]).getCenter(new THREE.Vector3());
+    expect(front.z).toBeLessThan(0);
+    expect(rear.z).toBeGreaterThan(0);
     expect(m.steerPivots[0].position.z).toBeLessThan(0);
   });
 
@@ -61,7 +63,8 @@ describe('buildCarModel', () => {
     const b = buildCarModel('sedan', VEHICLE_SPECS.sedan, materials);
     const geoOf = (o: THREE.Object3D) => (o.children[0] as THREE.Mesh).geometry;
     expect(geoOf(a.wheels[0])).toBe(geoOf(b.wheels[0]));
-    expect(geoOf(a.wheels[0])).toBe(geoOf(a.wheels[3]));
+    expect(geoOf(a.wheels[1])).toBe(geoOf(b.wheels[1])); // the rear pair is one cached mesh under the left roll pivot
+    expect(a.wheels[3].children.length).toBe(0);
     expect(a.paintMeshes[0].geometry).toBe(b.paintMeshes[0].geometry);
     expect(a.headlights[0].material).not.toBe(b.headlights[0].material);
   });
@@ -85,8 +88,8 @@ describe('lofted car hull', () => {
     expect(hullSectionCount('sedan')).toBeGreaterThanOrEqual(8);
     expect(hullSectionCount('sedan')).toBeLessThanOrEqual(14);
     const stations = new Set(body.map((v) => v.z.toFixed(3)));
-    expect(stations.size).toBeGreaterThan(30);
-    expect(sedan.paintMeshes[0].geometry.attributes.position.count).toBeGreaterThan(5000);
+    expect(stations.size).toBeGreaterThan(20);
+    expect(sedan.paintMeshes[0].geometry.attributes.position.count).toBeGreaterThan(1500);
     // smooth shaded: normals are unit length and vary continuously (not one flat normal per quad pair)
     const n = sedan.paintMeshes[0].geometry.attributes.normal;
     expect(n.count).toBe(sedan.paintMeshes[0].geometry.attributes.position.count);
@@ -117,12 +120,13 @@ describe('lofted car hull', () => {
     expect(maxX(glass)).toBeLessThan(maxX(body));
   });
 
-  it('keeps a chrome trim material (metalness 1, roughness 0.2) and merges trim per material', () => {
-    const chrome = sedan.group.getObjectByName('chrome') as THREE.Mesh;
-    const m = chrome.material as THREE.MeshStandardMaterial;
-    expect(m.metalness).toBe(1);
-    expect(m.roughness).toBeCloseTo(0.2);
-    const again = buildCarModel('suv', VEHICLE_SPECS.suv, materials).group.getObjectByName('chrome') as THREE.Mesh;
+  it('merges dark plastic and chrome into one vertex-coloured trim mesh with a shared material', () => {
+    const trim = sedan.group.getObjectByName('trim') as THREE.Mesh;
+    const m = trim.material as THREE.MeshStandardMaterial;
+    expect(m.vertexColors).toBe(true);
+    expect(trim.geometry.attributes.color).toBeTruthy();
+    expect(sedan.group.getObjectByName('chrome')).toBeUndefined();
+    const again = buildCarModel('suv', VEHICLE_SPECS.suv, materials).group.getObjectByName('trim') as THREE.Mesh;
     expect(again.material).toBe(m);
   });
 

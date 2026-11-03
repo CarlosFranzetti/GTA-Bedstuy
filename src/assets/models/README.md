@@ -1,5 +1,9 @@
 # Character and vehicle models (glTF / GLB)
 
+**Vehicles are procedural by default** (`src/entities/models/carBodies.ts` + `carModel.ts`: lofted GTA3-era bodies, licence ours). The
+`vehicle-*.glb` files here are an opt-in alternative: build with `VITE_GLTF_CARS=1` to bundle and use them (without the flag they are not
+bundled at all). Characters are unchanged.
+
 Drop a `.glb` in this folder and the game uses it instead of the procedural model. Vite inlines the files
 into the single-file build, so there is nothing to configure. No file (or a file that fails to load) means the
 procedural model is used, with one console warning.

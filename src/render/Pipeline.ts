@@ -11,6 +11,7 @@ import type { Quality } from './Shadows';
 import { newTimeCycle, timeCycleAt, hazeAt, grainAmount } from './LightingConfig';
 import { EXPOSURE_BY_PRESET, HOUR_KEYS, buildLut, lutKeysForHour } from './lut';
 import { FxPass, FX_TIERS, fxPassCosts, type PassCost } from './ssr';
+import { signBloomGate } from './QualityTier';
 
 export type { Quality } from './Shadows';
 
@@ -242,8 +243,9 @@ export const GRADING_SHADER = {
  *  - high / medium: RenderPass, GTAOPass, FxPass (SSR trace at half res while wet + composite: contact, haze), DoF,
  *                   UnrealBloomPass, grading ShaderPass (per-hour 3D LUT), SMAAPass, OutputPass
  *  - low:           RenderPass, UnrealBloomPass (quarter res), grading ShaderPass (per-hour 3D LUT), OutputPass
- *  - phone:         RenderPass, grading ShaderPass (analytic math), OutputPass. No GTAO, no DoF, no SMAA and no bloom
- *                   (UnrealBloomPass is ~13 full-screen draws; the phone budget is 120 draw calls in total).
+ *  - phone:         RenderPass, UnrealBloomPass (quarter res, ENABLED ONLY at night on a device that holds >= 45 fps, see
+ *                   `setMeasuredFps`), grading ShaderPass (the same per-hour 3D LUT as low/medium/high), OutputPass.
+ *                   No GTAO, no DoF, no SMAA (the phone budget is 140 draw calls in total; a skipped pass costs nothing).
  *
  * The composer renders in linear HDR (half float); OutputPass applies renderer.toneMapping
  * (ACES) + sRGB, so keep `renderer.toneMapping = ACESFilmicToneMapping` and let the pipeline,
@@ -270,6 +272,7 @@ export class RenderPipeline {
   private wet = 0;
   private rain = 0;
   private bloomScale = 1;
+  private measuredFps = 0;
   private readonly t0 = performance.now();
   private lastT = performance.now();
   private w: number;
@@ -325,9 +328,32 @@ export class RenderPipeline {
     return this.focusCurrent;
   }
 
-  /** Whether the grading pass uses the per-hour 3D LUT (WebGL2, every tier but phone) or the analytic fallback. */
+  /** Whether the grading pass uses the per-hour 3D LUT (WebGL2, every tier incl. phone) or the analytic fallback. */
   get usesLut(): boolean {
-    return this.lutSupported && this.q !== 'phone';
+    return this.lutSupported;
+  }
+
+  /**
+   * Frame rate the device is really reaching (call about once a second with the smoothed fps). Gates the phone tier's
+   * night sign bloom: on at >= 45 fps, off again under 38 fps, never before a rate was reported.
+   */
+  setMeasuredFps(fps: number): void {
+    this.measuredFps = Number.isFinite(fps) ? fps : 0;
+    this.updateSignBloom();
+  }
+
+  /** Whether the phone tier's night sign bloom is currently switched on (always false on other tiers). */
+  get signBloomOn(): boolean {
+    return this.q === 'phone' && !!this.bloom?.enabled;
+  }
+
+  private isNightNow(): boolean {
+    return this.night || timeCycleAt(this.hour ?? 12, this.tc).sunI <= 0.05;
+  }
+
+  private updateSignBloom(): void {
+    if (this.q !== 'phone' || !this.bloom) return;
+    this.bloom.enabled = signBloomGate(this.q, this.isNightNow(), this.measuredFps, this.bloom.enabled);
   }
 
   /** Ground wetness and rain intensity (0..1) from Weather; drives the SSR trace, the haze and the rain bloom. */
@@ -358,6 +384,7 @@ export class RenderPipeline {
     this.updateDof(dt);
     this.updateGrade();
     this.updateExposure();
+    this.updateSignBloom();
     this.updateFx();
     if (this.grading) this.grading.uniforms.time.value = (now - this.t0) / 1000;
     this.composer.render();
@@ -515,10 +542,12 @@ export class RenderPipeline {
     this.exposureFactor = tc.exposure;
     this.renderer.toneMappingExposure = this.exposureBias * tc.exposure;
     if (this.bloom) {
-      // Rain and wet streets bloom lamps and headlights more (soft halos in the wet air); phone has no bloom.
-      this.bloom.strength = tc.bloomStrength * (1 + 0.7 * this.rain) + 0.05 * this.wet;
-      this.bloom.threshold = tc.bloomThreshold;
-      this.bloom.radius = BLOOM_RADIUS + 0.25 * this.rain;
+      // Rain and wet streets bloom lamps and headlights more (soft halos in the wet air). Phone: a lighter, higher-threshold
+      // bloom so only emissive signs and lamps glow (night only, see updateSignBloom).
+      const ph = this.q === 'phone';
+      this.bloom.strength = ph ? Math.min(tc.bloomStrength, 0.4) : tc.bloomStrength * (1 + 0.7 * this.rain) + 0.05 * this.wet;
+      this.bloom.threshold = ph ? Math.max(tc.bloomThreshold, 1.0) : tc.bloomThreshold;
+      this.bloom.radius = BLOOM_RADIUS + (ph ? 0 : 0.25 * this.rain);
     }
     if (this.grading && this.q !== 'phone') this.grading.uniforms.grain.value = grainAmount(tc.moonI);
   }
@@ -572,14 +601,13 @@ export class RenderPipeline {
     }
 
     this.bloomScale = full ? 1 : 0.5; // UnrealBloomPass already runs at half of what it is given
-    if (this.q !== 'phone') {
-      this.bloom = this.add(
-        new UnrealBloomPass(new THREE.Vector2(ew, eh), this.night ? BLOOM_STRENGTH_NIGHT : BLOOM_STRENGTH_DAY, BLOOM_RADIUS, this.night ? BLOOM_THRESHOLD_NIGHT : BLOOM_THRESHOLD_DAY),
-      );
-    }
+    this.bloom = this.add(
+      new UnrealBloomPass(new THREE.Vector2(ew, eh), this.night ? BLOOM_STRENGTH_NIGHT : BLOOM_STRENGTH_DAY, BLOOM_RADIUS, this.night ? BLOOM_THRESHOLD_NIGHT : BLOOM_THRESHOLD_DAY),
+    );
+    if (this.q === 'phone') this.bloom.enabled = false; // switched on by updateSignBloom (night + >= 45 fps)
 
-    // Grading: per-hour 3D LUT on WebGL2 low/medium/high; analytic grade (no sampler3D in the shader) otherwise.
-    const useLut = this.q !== 'phone' && this.lutSupported;
+    // Grading: per-hour 3D LUT on WebGL2 (every tier incl. phone); analytic grade (no sampler3D in the shader) otherwise.
+    const useLut = this.lutSupported;
     this.grading = this.add(
       new ShaderPass(useLut ? { ...GRADING_SHADER, defines: { USE_LUT: '' } } : GRADING_SHADER),
     );

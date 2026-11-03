@@ -255,6 +255,28 @@ describe('CarLod', () => {
     expect(tris).toBeLessThan(12 + 12 + 24 * 4); // trim box (12) + 10-gon tyre (40), far below a 24-sided tyre
   });
 
+  it('coupe and cab cars get their own far proxy built from the style builder their model carries', async () => {
+    const { CarLod } = await import('@/render/CarLod');
+    let plain = 0;
+    const styled: string[] = [];
+    const lod = new CarLod(lib, { buildModel: () => { plain++; return fakeModel(); }, nearDist: 30, margin: 4 });
+    const styledCar = (style: string, color: string) => {
+      const c = car('sedan', color);
+      const g = new THREE.Group();
+      g.userData.carStyle = style;
+      g.userData.buildLodModel = () => { styled.push(style); return fakeModel(); };
+      c.object3D.add(g);
+      return c;
+    };
+    const a = styledCar('cab', '#e0b01e'), b = styledCar('cab', '#e0b01e'), c = styledCar('coupe', '#ff0000'), d = styledCar('sedan', '#00ff00'), e = car('sedan', '#00ff00');
+    lod.beginFrame();
+    for (const k of [a, b, c, d, e]) expect(lod.place(k, 100, 40, 0, 80)).toBe(true);
+    lod.endFrame();
+    expect(styled).toEqual(['cab', 'coupe']); // one proxy per style, shared by both cabs
+    expect(plain).toBe(1); // the plain sedan (and the car whose style is the default) share the type proxy
+    expect(lod.farCount).toBe(5);
+  });
+
   it('hysteresis, damage and capacity fall back to the full model', async () => {
     const { CarLod } = await import('@/render/CarLod');
     const lod = new CarLod(lib, { buildModel: () => fakeModel(), nearDist: 30, margin: 4 });

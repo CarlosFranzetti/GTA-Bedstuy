@@ -53,14 +53,14 @@ describe('tier table', () => {
     for (const q of ['low', 'medium', 'high'] as const) expect(TIER_CONFIG[q].traffic).toEqual({ maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 });
   });
 
-  it('shadows: phone renders none (and turns the map off); the other tiers keep theirs', () => {
-    const r = { shadowMap: { enabled: true, type: 0, autoUpdate: false, needsUpdate: false } } as unknown as THREE.WebGLRenderer;
+  it('shadows: phone has a tiny sun map fed by the blob casters (no proxy build); the other tiers keep theirs', () => {
+    const r = { shadowMap: { enabled: false, type: 0, autoUpdate: false, needsUpdate: false } } as unknown as THREE.WebGLRenderer;
     const sun = new THREE.DirectionalLight();
-    sun.castShadow = true;
     setupShadows(r, sun, 'phone');
     expect(SHADOWS_ENABLED).toEqual({ phone: false, low: true, medium: true, high: true });
-    expect(r.shadowMap.enabled).toBe(false);
-    expect(sun.castShadow).toBe(false);
+    expect(r.shadowMap.enabled).toBe(true);
+    expect(sun.castShadow).toBe(true);
+    expect(sun.shadow.mapSize.x).toBe(512);
     const low = new THREE.DirectionalLight();
     setupShadows(r, low, 'low');
     expect(r.shadowMap.enabled).toBe(true);

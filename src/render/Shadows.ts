@@ -9,9 +9,15 @@ export type Quality = 'phone' | 'low' | 'medium' | 'high';
  * is then not built either. The phone map / box / bias numbers below apply if this is switched on.
  */
 export const SHADOWS_ENABLED: Record<Quality, boolean> = { phone: false, low: true, medium: true, high: true };
+/**
+ * Whether the tier has a sun shadow map at all. `phone` has one too, but a tiny one fed by BlobShadows' own casters (a box
+ * per car and pedestrian plus one prism mesh for the building lots, 3 shadow draws) instead of the RenderProxies stand-ins
+ * above (which is why SHADOWS_ENABLED stays false there: no 500 k triangle proxy build on a phone). See BlobShadows.ts.
+ */
+export const SUN_SHADOW: Record<Quality, boolean> = { phone: true, low: true, medium: true, high: true };
 const MAP_SIZE: Record<Quality, number> = { phone: 512, low: 1024, medium: 2048, high: 4096 };
 /** Half-extent (m) of the orthographic shadow box that follows the player (tighter box = sharper texels). */
-const HALF_SIZE: Record<Quality, number> = { phone: 34, low: 60, medium: 80, high: 100 };
+const HALF_SIZE: Record<Quality, number> = { phone: 20, low: 60, medium: 80, high: 100 };
 /** PCF kernel radius per quality: a small radius keeps contact edges crisp, a larger one softens far edges. */
 const SHADOW_RADIUS: Record<Quality, number> = { phone: 1, low: 1.5, medium: 2, high: 3 };
 /**
@@ -21,7 +27,7 @@ const SHADOW_RADIUS: Record<Quality, number> = { phone: 1, low: 1.5, medium: 2, 
  * 0.24 m) lifts every receiver above sub-metre casters, so a 0.15 m curb or stoop tread casts no shadow at all and cube
  * shadows detach from their feet (peter-panning). Keep the offset under the lowest caster height worth shadowing.
  */
-const NORMAL_BIAS: Record<Quality, number> = { phone: 0.14, low: 0.1, medium: 0.06, high: 0.04 };
+const NORMAL_BIAS: Record<Quality, number> = { phone: 0.1, low: 0.1, medium: 0.06, high: 0.04 };
 const DEPTH_BIAS: Record<Quality, number> = { phone: -0.0004, low: -0.0003, medium: -0.0002, high: -0.00015 };
 const SHADOW_NEAR = 1;
 const SHADOW_FAR = 400;
@@ -44,7 +50,7 @@ const MIN_ELEVATION = 0.12;
  * matrixWorld is never updated and the light keeps aiming at the origin.
  */
 export function setupShadows(renderer: THREE.WebGLRenderer, sun: THREE.DirectionalLight, quality: Quality): void {
-  if (!SHADOWS_ENABLED[quality]) {
+  if (!SUN_SHADOW[quality]) {
     renderer.shadowMap.enabled = false;
     sun.castShadow = false;
     return;

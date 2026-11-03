@@ -47,28 +47,36 @@ export interface TierConfig {
   stars: boolean;
   /** minimap redraws per second (0 = every frame) */
   minimapHz: number;
+  /** instanced blob shadows under cars and pedestrians (BlobShadows.ts): the stand-in for a sun shadow map */
+  blobShadows: boolean;
+  /** night-time quarter-resolution bloom on emissive signs: frame rate (fps) the device must reach to get it; null = this tier has its own bloom / none */
+  signBloomFps: number | null;
   traffic: TierTraffic;
 }
+
+/** Phone-high: the night sign bloom switches on when the measured frame rate is at or above this, off again below SIGN_BLOOM_OFF_FPS. */
+export const SIGN_BLOOM_ON_FPS = 45;
+export const SIGN_BLOOM_OFF_FPS = 38;
 
 export const TIER_CONFIG: Record<Quality, TierConfig> = {
   phone: {
     maxPixelRatio: 1, maxBufferWidth: 720, cullDistance: 110, carNearDist: 14, instanceDistance: 100, pedDistance: 55,
-    fog: { near: 35, far: 105 }, rainStreaks: 200, anisotropy: 2, normalMaps: false, simpleGeometry: true, stars: false, minimapHz: 30,
+    fog: { near: 22, far: 88 }, rainStreaks: 200, anisotropy: 2, normalMaps: false, simpleGeometry: true, stars: false, minimapHz: 30, blobShadows: true, signBloomFps: SIGN_BLOOM_ON_FPS,
     traffic: { maxMoving: 10, peds: 14, parkOccupancy: 0.3, cops: 1 },
   },
   low: {
     maxPixelRatio: 1.25, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 32, instanceDistance: Infinity, pedDistance: 220,
-    fog: null, rainStreaks: 600, anisotropy: 16, normalMaps: true, simpleGeometry: false, stars: true, minimapHz: 0,
+    fog: null, rainStreaks: 600, anisotropy: 16, normalMaps: true, simpleGeometry: false, stars: true, minimapHz: 0, blobShadows: false, signBloomFps: null,
     traffic: { maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 },
   },
   medium: {
     maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 32, instanceDistance: Infinity, pedDistance: 220,
-    fog: null, rainStreaks: 1200, anisotropy: 16, normalMaps: true, simpleGeometry: false, stars: true, minimapHz: 0,
+    fog: null, rainStreaks: 1200, anisotropy: 16, normalMaps: true, simpleGeometry: false, stars: true, minimapHz: 0, blobShadows: false, signBloomFps: null,
     traffic: { maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 },
   },
   high: {
     maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 32, instanceDistance: Infinity, pedDistance: 220,
-    fog: null, rainStreaks: 2000, anisotropy: 16, normalMaps: true, simpleGeometry: false, stars: true, minimapHz: 0,
+    fog: null, rainStreaks: 2000, anisotropy: 16, normalMaps: true, simpleGeometry: false, stars: true, minimapHz: 0, blobShadows: false, signBloomFps: null,
     traffic: { maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 },
   },
 };
@@ -87,4 +95,41 @@ export function pixelRatioFor(q: Quality, devicePixelRatio: number, cssWidth: nu
 export function tierBelow(q: Quality): Quality | undefined {
   const i = QUALITY_ORDER.indexOf(q);
   return i > 0 ? QUALITY_ORDER[i - 1] : undefined;
+}
+
+/**
+ * Sign bloom gate for the phone tier with hysteresis: true only at night, only on a tier that has the option, and only
+ * while the device keeps up (>= 45 fps to switch on, >= 38 fps to stay on). An unknown / zero rate never turns it on.
+ */
+export function signBloomGate(q: Quality, night: boolean, fps: number, wasOn: boolean): boolean {
+  const need = TIER_CONFIG[q].signBloomFps;
+  if (need === null || !night || !Number.isFinite(fps) || fps <= 0) return false;
+  return wasOn ? fps >= SIGN_BLOOM_OFF_FPS : fps >= need;
+}
+
+/** Fog ramp of a tier: the time-cycle fog (`near`/`far`, m) clamped to the tier override; tiers without one return the input. */
+export function fogRampFor(q: Quality, near: number, far: number): { near: number; far: number } {
+  const t = TIER_CONFIG[q].fog;
+  if (!t) return { near, far };
+  return { near: Math.min(near, t.near), far: Math.min(far, t.far) };
+}
+
+/** Fog density at distance `d` (0..1) for a linear fog ramp: what the player sees of the world edge. */
+export function fogFactorAt(d: number, near: number, far: number): number {
+  if (d <= near) return 0;
+  if (d >= far) return 1;
+  return (d - near) / (far - near);
+}
+
+interface FogLike { near: number; far: number; color: { copy(c: unknown): unknown } }
+/**
+ * Applies the tier fog to the scene fog every frame (DayNight rewrites near/far each step): the ramp is clamped for the
+ * tier and, when the tier has an override, the colour is the sky dome's horizon colour so the world edge dissolves into
+ * the sky instead of ending in a cut. `horizon` is `sky.horizonColor(sunElevationSine)`.
+ */
+export function applyTierFog(fog: FogLike | null | undefined, q: Quality, horizon?: unknown): void {
+  if (!fog) return;
+  const r = fogRampFor(q, fog.near, fog.far);
+  fog.near = r.near; fog.far = r.far;
+  if (horizon && TIER_CONFIG[q].fog) fog.color.copy(horizon);
 }

@@ -1,27 +1,27 @@
 /**
- * Procedural car models built from lofted hulls.
+ * Procedural car models (the default; the CC0 Kenney glTF cars are opt-in with VITE_GLTF_CARS=1, see gltf/VehicleSource.ts).
  *
- * Local frame: forward is -z, +x is the car's right, y up (see core/Math2.ts). Shapes are authored in
- * (u, y) with u the distance along the car (+u = front), so world z = -u.
+ * The bodies are lofted in carBodies.ts (side profile + plan profile + rounded cross-sections, per style); this file turns the
+ * cached geometry into a Three.js model. A near car is ~9 draw calls and about 2.5 k triangles:
+ *   body paint, hood (a separate pivot so it can lift when the car is wrecked), glass, trim (dark plastic + chrome in one
+ *   vertex-coloured mesh), head lamps, tail lamps, plates, and one tyre+hubcap mesh per wheel (the two rear wheels share
+ *   a mesh, since they roll together).
  *
- * Body: a hull is a stack of closed cross-sections (rings) along the length - tapered nose, hood, A-pillar,
- * roof, C-pillar, trunk - joined into quads with smooth vertex normals. A creased belt line separates the
- * lower body from the greenhouse (which tumbles inward toward the roof), wheel arches are real cut-outs in
- * the lower edge of the rings, and window quads are carved out of the paint hull and re-emitted as glass
- * offset 0.02 m inward. Trim (door seams, window surrounds, grille, mirrors, handles...) is merged per
- * material, so a car is ~35 meshes.
+ * Geometry is built once per (style, length, width, height) and cached: every car of a style shares the same BufferGeometry
+ * instances. Only the lamp and light-bar materials are per car, since they are driven individually (brake lights, siren).
  *
- * Geometry is built once per (type, length, width, height) and cached: every car of a type shares the same
- * BufferGeometry instances. Only light/lightbar materials are created per car, since they are driven
- * individually (brake lights, siren).
+ * Styles: sedan, coupe, SUV, van (box truck), cab (a sedan in taxi yellow: livery paint, roof light) and cop (livery, light
+ * bar). The style is picked from the vehicle type, its colour and the plate `variant` (see `styleFor`).
  */
 import * as THREE from 'three';
 import type { IMaterialLibrary, VehicleSpec, VehicleType } from '@/world/types';
 import {
-  Acc, bx, cylX, inverted, lensGeo, bezelGeo, plateGeo, buildPassengerParts, buildTruckParts, wheelRadiusFor, hullSectionCount,
-  type CarParts, type LampDef, type V2,
+  Acc, isTaxiYellow, mirrorX, buildPassengerParts, buildTruckParts, wheelRadiusFor, hullSectionCount,
+  type CarParts,
 } from './carBodies';
 export { wheelRadiusFor, hullSectionCount };
+
+export type CarStyle = 'sedan' | 'coupe' | 'suv' | 'van' | 'cab' | 'cop';
 
 export interface CarModel {
   group: THREE.Group;
@@ -39,87 +39,134 @@ export interface CarModel {
   wheelRadius: number;
   /** per-car materials the owner must dispose */
   ownMaterials: THREE.Material[];
+  style?: CarStyle;
 }
+
+/** Body style of a car: type first, then taxi-yellow paint makes a cab, and plate variant 3 of the plain sedans is the coupe. */
+export function styleFor(type: VehicleType, color: string, variant = 0): CarStyle {
+  if (type === 'cop') return 'cop';
+  if (type === 'suv') return 'suv';
+  if (type === 'boxtruck') return 'van';
+  if (isTaxiYellow(color)) return 'cab';
+  return variant === 3 ? 'coupe' : 'sedan';
+}
+
+/** Paint variants offered per type (2 to 4 each); the traffic palette may pick from these. The cop and cab have a livery. */
+export const PAINT_VARIANTS: Record<VehicleType, readonly string[]> = {
+  sedan: ['#7f8c8d', '#c0392b', '#1f6f8b', '#ecf0f1'],
+  suv: ['#2c3e50', '#27ae60', '#111111', '#95a5a6'],
+  boxtruck: ['#e8e8e8', '#d35400', '#2c3e50'],
+  cop: ['#f2f2f2', '#f2f2f2'],
+};
 
 // ---------------------------------------------------------------- materials owned by the model
 
-let chromeMat: THREE.MeshStandardMaterial | null = null;
-/** Bright polished metal (window surrounds, grille slats, handles, exhaust tip). One shared instance. */
-const chromeMaterial = (): THREE.MeshStandardMaterial =>
-  (chromeMat ??= new THREE.MeshStandardMaterial({ color: 0xdfe3e8, roughness: 0.2, metalness: 1 }));
-
-let rimMat: THREE.MeshStandardMaterial | null = null;
-const rimMaterial = (): THREE.MeshStandardMaterial =>
-  (rimMat ??= new THREE.MeshStandardMaterial({ color: 0xaeb4bb, roughness: 0.3, metalness: 0.7 }));
+let trimMat: THREE.MeshStandardMaterial | null = null;
+/** Black plastic and chrome share one material; the colour comes from the geometry's vertex colours. */
+const trimMaterial = (): THREE.MeshStandardMaterial =>
+  (trimMat ??= new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.38, metalness: 0.55, name: 'carTrim' }));
 
 // ---------------------------------------------------------------- wheels
 
-interface WheelGeos { tyre: THREE.BufferGeometry; rim: THREE.BufferGeometry; }
-const wheelCache = new Map<string, WheelGeos>();
+/** Tyre sides: a 10-gon reads round at the 1.6 cm sagitta it leaves on a 0.34 m radius. */
+const WHEEL_SEG = 10;
+/** Tyre profile, outer half, from the tread centre outwards: [radius / R, axial / w, texture v]. v follows tireSidewallPainter. */
+const TYRE_PROFILE: [number, number, number][] = [[1, 0, 0.5], [1, 0.32, 0.44], [0.84, 0.5, 0.2], [0.6, 0.4, 0.05]];
 
-/** Wheel with the axle along x. `w` is the tread width; the sidewall bulges to ~1.04 w. */
-function wheelGeos(R: number, w: number): WheelGeos {
-  const key = `${R.toFixed(3)}|${w.toFixed(3)}`;
-  let g = wheelCache.get(key);
-  if (g) return g;
-
-  // tyre: lathe with a bulging sidewall, rounded shoulders and a flat tread
-  const half: V2[] = [[0.6, 0.4], [0.66, 0.46], [0.76, 0.505], [0.87, 0.52], [0.945, 0.46], [0.985, 0.36], [1, 0.22], [1, 0]];
-  const prof: THREE.Vector2[] = [];
-  for (const [r, a] of half) prof.push(new THREE.Vector2(r * R, -a * w));
-  for (let i = half.length - 2; i >= 0; i--) prof.push(new THREE.Vector2(half[i][0] * R, half[i][1] * w));
-  const lathe = new THREE.LatheGeometry(prof, 28);
-  lathe.rotateZ(Math.PI / 2);
-  // the lathe keeps its UVs (u around the ring, v over the profile, tread at v = 0.5) for the 'tireSidewall' texture
-  const tyre = new Acc().add(lathe);
-
-  // rim: outer lip rings, five tapered spokes per side and a centre cap
-  const rim = new Acc();
-  // dark brake discs just behind the spokes, with a small caliper (metal, not tyre rubber)
-  rim.add(cylX(R * 0.5, w * 0.06, -w * 0.3, 0, 0, 20));
-  rim.add(cylX(R * 0.5, w * 0.06, w * 0.3, 0, 0, 20));
-  rim.add(bx(w * 0.2, R * 0.16, R * 0.22, w * 0.3, 0, R * 0.46));
-  for (const s of [-1, 1]) {
-    const ring = new THREE.RingGeometry(R * 0.56, R * 0.66, 28);
-    ring.rotateY(s * (Math.PI / 2));
-    ring.translate(s * w * 0.46, 0, 0);
-    rim.add(ring);
-    const lip = new THREE.CylinderGeometry(R * 0.56, R * 0.585, w * 0.12, 28, 1, true);
-    lip.rotateZ(Math.PI / 2);
-    lip.translate(s * w * 0.4, 0, 0);
-    rim.add(s < 0 ? inverted(lip.clone()) : lip);
-    for (let i = 0; i < 5; i++) {
-      const sh = new THREE.Shape();
-      sh.moveTo(-R * 0.085, R * 0.1);
-      sh.lineTo(R * 0.085, R * 0.1);
-      sh.lineTo(R * 0.045, R * 0.57);
-      sh.lineTo(-R * 0.045, R * 0.57);
-      sh.closePath();
-      const sp = new THREE.ExtrudeGeometry(sh, { depth: w * 0.1, bevelEnabled: false });
-      sp.rotateY(Math.PI / 2); // extrude z -> x
-      sp.translate(s * w * 0.3 - (s > 0 ? 0 : w * 0.1), 0, 0);
-      sp.rotateX((i / 5) * Math.PI * 2);
-      rim.add(sp);
-    }
-    // centre cap
-    const cap = new THREE.CylinderGeometry(R * 0.13, R * 0.15, w * 0.1, 16);
-    cap.rotateZ(-s * Math.PI / 2);
-    cap.translate(s * w * 0.36, 0, 0);
-    rim.add(cap);
+/**
+ * One wheel (axle along x, hubcap on the +x face): tyre with sidewall UVs for the 'tireSidewall' texture, plus a dished hubcap
+ * whose UVs land on the hubcap band of that same texture, so tyre and wheel are one mesh with one material.
+ */
+function buildWheel(R: number, w: number): THREE.BufferGeometry {
+  const rings: { a: number; r: number; v: number; nr: number; na: number }[] = [];
+  const prof = [...TYRE_PROFILE.slice(1).reverse().map(([r, a, v]) => ({ r, a: -a, v: 1 - v })), ...TYRE_PROFILE.map(([r, a, v]) => ({ r, a, v }))];
+  // tread centre appears once: the reversed half stops before it, the forward half starts with it
+  for (let k = 0; k < prof.length; k++) {
+    const p = prof[k];
+    const p0 = prof[Math.max(0, k - 1)];
+    const p1 = prof[Math.min(prof.length - 1, k + 1)];
+    const ta = (p1.a - p0.a) * w;
+    const tr = (p1.r - p0.r) * R;
+    const len = Math.hypot(ta, tr) || 1;
+    rings.push({ a: p.a * w, r: p.r * R, v: p.v, na: -tr / len, nr: ta / len });
   }
-  g = { tyre: tyre.merge(), rim: rim.merge() };
-  wheelCache.set(key, g);
+  // hubcap: rim lip -> spoke band -> centre cap, normal +x
+  const hub = [
+    { a: 0.4 * w, r: 0.6 * R, v: 0.04 },
+    { a: 0.36 * w, r: 0.34 * R, v: 0.012 },
+    { a: 0.34 * w, r: 0, v: 0 },
+  ];
+  const pos: number[] = [];
+  const nor: number[] = [];
+  const uv: number[] = [];
+  const idx: number[] = [];
+  const addRing = (a: number, r: number, v: number, na: number, nr: number): void => {
+    for (let i = 0; i <= WHEEL_SEG; i++) {
+      const th = (i / WHEEL_SEG) * Math.PI * 2;
+      const c = Math.cos(th), s = Math.sin(th);
+      pos.push(a, r * c, r * s);
+      nor.push(na, nr * c, nr * s);
+      uv.push(i / WHEEL_SEG, v);
+    }
+  };
+  const stitch = (k0: number): void => {
+    const n = WHEEL_SEG + 1;
+    for (let i = 0; i < WHEEL_SEG; i++) {
+      const A = k0 * n + i, B = A + 1, C = (k0 + 1) * n + i, D = C + 1;
+      idx.push(A, B, C, B, D, C);
+    }
+  };
+  rings.forEach((rg, k) => { addRing(rg.a, rg.r, rg.v, rg.na, rg.nr); if (k > 0) stitch(k - 1); });
+  const base = rings.length;
+  hub.forEach((h, k) => { addRing(h.a, h.r, h.v, 1, 0); if (k > 0) stitch(base + k - 1); });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
   return g;
 }
 
+interface WheelGeos {
+  /** hubcap on +x (right wheels) */
+  right: THREE.BufferGeometry;
+  /** hubcap on -x (left wheels) */
+  left: THREE.BufferGeometry;
+}
+const wheelCache = new Map<string, WheelGeos>();
+function wheelGeos(R: number, w: number): WheelGeos {
+  const key = `${R.toFixed(3)}|${w.toFixed(3)}`;
+  let g = wheelCache.get(key);
+  if (!g) {
+    const right = new Acc().add(buildWheel(R, w)).merge();
+    g = { right, left: mirrorX(right) };
+    wheelCache.set(key, g);
+  }
+  return g;
+}
+
+/** Both rear wheels as one geometry, left wheel at the origin and the right one `span` along +x (they roll together). */
+const rearPairCache = new Map<string, THREE.BufferGeometry>();
+function rearPair(R: number, w: number, span: number): THREE.BufferGeometry {
+  const key = `${R.toFixed(3)}|${w.toFixed(3)}|${span.toFixed(3)}`;
+  let g = rearPairCache.get(key);
+  if (!g) {
+    const wg = wheelGeos(R, w);
+    g = new Acc().add(wg.left.clone()).add(wg.right.clone().translate(span, 0, 0)).merge();
+    rearPairCache.set(key, g);
+  }
+  return g;
+}
+
+// ---------------------------------------------------------------- per-style parts (cached)
 
 const partsCache = new Map<string, CarParts>();
 
-function partsFor(type: VehicleType, spec: VehicleSpec): CarParts {
-  const key = `${type}|${spec.length}|${spec.width}|${spec.height}`;
+function partsFor(style: CarStyle, spec: VehicleSpec): CarParts {
+  const key = `${style}|${spec.length}|${spec.width}|${spec.height}`;
   let p = partsCache.get(key);
   if (!p) {
-    p = type === 'boxtruck' ? buildTruckParts(spec) : buildPassengerParts(type, spec);
+    p = style === 'van' ? buildTruckParts(spec) : buildPassengerParts(style, spec);
     partsCache.set(key, p);
   }
   return p;
@@ -127,17 +174,22 @@ function partsFor(type: VehicleType, spec: VehicleSpec): CarParts {
 
 // ---------------------------------------------------------------- public
 
-/** `variant` picks the licence plate text (0..3) so not every car wears BK-STUY. */
-export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: IMaterialLibrary, variant = 0): CarModel {
-  const parts = partsFor(type, spec);
+/**
+ * `variant` (0..3) picks the licence plate text so not every car wears BK-STUY, and turns plain sedans into coupes at 3.
+ * `style` overrides the automatic choice (the far-car proxies use it to rebuild the exact style).
+ */
+export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: IMaterialLibrary, variant = 0, style?: CarStyle): CarModel {
+  const st = style ?? styleFor(type, spec.color, variant);
+  const parts = partsFor(st, spec);
   const group = new THREE.Group();
   group.name = `car:${type}`;
+  group.userData.carStyle = st;
+  group.userData.buildLodModel = (): CarModel => buildCarModel(type, spec, materials, 0, st);
   const own: THREE.Material[] = [];
   const paintMeshes: THREE.Mesh[] = [];
 
-  const paintMat = type === 'cop' ? materials.get('copLivery') : materials.carPaint(spec.color);
+  const paintMat = st === 'cop' ? materials.get('copLivery') : st === 'cab' ? materials.get('taxiLivery') : materials.carPaint(spec.color);
   const glassMat = materials.get('carGlass');
-  const trimMat = materials.get('metalDark');
   const tyreMat = materials.get('tireSidewall');
 
   const mesh = (geo: THREE.BufferGeometry, mat: THREE.Material, name: string, parent: THREE.Object3D = group): THREE.Mesh => {
@@ -150,8 +202,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   paintMeshes.push(mesh(parts.paint, paintMat, 'body'));
   if (parts.paint2) paintMeshes.push(mesh(parts.paint2, materials.carPaint('#f4f4f4'), 'cargo'));
   mesh(parts.glass, glassMat, 'glass');
-  mesh(parts.trim, trimMat, 'trim');
-  mesh(parts.chrome, chromeMaterial(), 'chrome');
+  mesh(parts.trim, trimMaterial(), 'trim');
 
   let hood: THREE.Object3D | undefined;
   if (parts.hood) {
@@ -163,28 +214,17 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
     hood = pivot;
   }
 
-  // lights: per-car materials so brake lights / headlights toggle independently
+  // lights: per-car materials so brake lights / headlights toggle independently; each colour is ONE mesh
   const headMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff4d6, emissiveIntensity: 0, roughness: 0.2, metalness: 0.1 });
   const tailMat = new THREE.MeshStandardMaterial({ color: 0x7a1010, emissive: 0xff2020, emissiveIntensity: 0, roughness: 0.35, metalness: 0.1 });
   own.push(headMat, tailMat);
-  const lamp = (geo: THREE.BufferGeometry, mat: THREE.Material, name: string, d: LampDef): THREE.Mesh => {
-    const m = mesh(geo, mat, name);
-    m.position.copy(d.pos);
-    m.rotation.y = d.yaw;
-    return m;
-  };
-  const headlights = parts.headPos.map((d) => lamp(parts.lampHead, headMat, 'headlight', d));
-  const taillights = parts.tailPos.map((d) => lamp(parts.lampTail, tailMat, 'taillight', d));
+  const headlights = [mesh(parts.lampHead, headMat, 'headlight')];
+  const taillights = [mesh(parts.lampTail, tailMat, 'taillight')];
 
-  // licence plates
-  const plateMat = materials.get('plate', variant);
-  parts.platePos.forEach((p, i) => {
-    const m = mesh(parts.plate, plateMat, i === 0 ? 'plateFront' : 'plateRear');
-    m.position.copy(p);
-    if (i === 0) m.rotation.y = Math.PI;
-  });
+  // licence plates (both in one mesh)
+  mesh(parts.plate, materials.get('plate', variant), 'plate');
 
-  // wheels: steer pivot (front only) -> roll pivot -> tyre + rim
+  // wheels: steer pivot (front only) -> roll pivot -> tyre + hubcap. The rear pair is one mesh under the left roll pivot.
   const wg = wheelGeos(parts.wheelR, parts.wheelW);
   const wheels: THREE.Object3D[] = [];
   const steerPivots: THREE.Object3D[] = [];
@@ -194,8 +234,8 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
     steer.position.set(w.x, parts.wheelR, w.z);
     const roll = new THREE.Group();
     roll.name = 'wheel';
-    mesh(wg.tyre, tyreMat, 'tyre', roll);
-    mesh(wg.rim, rimMaterial(), 'rim', roll);
+    if (w.front) mesh(w.x < 0 ? wg.left : wg.right, tyreMat, 'tyre', roll);
+    else if (w.x < 0) mesh(rearPair(parts.wheelR, parts.wheelW, -2 * w.x), tyreMat, 'tyre', roll);
     steer.add(roll);
     group.add(steer);
     wheels.push(roll);
@@ -216,5 +256,5 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
     lightbar = { red: a, blue: b };
   }
 
-  return { group, wheels, steerPivots, lightbar, headlights, taillights, hood, paintMeshes, wheelRadius: parts.wheelR, ownMaterials: own };
+  return { group, wheels, steerPivots, lightbar, headlights, taillights, hood, paintMeshes, wheelRadius: parts.wheelR, ownMaterials: own, style: st };
 }
