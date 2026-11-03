@@ -12,7 +12,7 @@
 import { DjGame, MAX_PITCH, type DeckId } from '@/game/DjGame';
 import { LOOP_BARS, type RecordSource } from '@/game/records';
 import type { Inventory } from '@/game/Inventory';
-import { isCloseKey, isConfirmKey, navDirOf, setPanelClass, type NavDir } from './panelKeys';
+import { isCloseKey, isConfirmKey, navDirOf, releasePointerLock, setPanelClass, type NavDir } from './panelKeys';
 import './dj.css';
 
 export interface DjUiDeps {
@@ -20,6 +20,8 @@ export interface DjUiDeps {
   inventory: Inventory;
   source: RecordSource | null;
   onToggle?: (open: boolean) => void;
+  /** Release the mouse capture (pointer lock) on open so the buttons can be clicked. Needs Menu to ignore the unlock. */
+  releasePointerLock?: boolean;
   /** Clock and frame scheduler, overridable in tests. */
   raf?: (fn: (t: number) => void) => number;
   caf?: (id: number) => void;
@@ -123,6 +125,7 @@ export class DjUi {
     this.doc.addEventListener('keydown', this.keyHandler, true);
     this.doc.addEventListener('keyup', this.keyUpHandler, true);
     setPanelClass(this.doc, 'dj-open', true);
+    if (this.d.releasePointerLock) releasePointerLock(this.doc);
     this.last = this.now();
     this.rafId = this.raf(this.frame);
     this.d.onToggle?.(true);

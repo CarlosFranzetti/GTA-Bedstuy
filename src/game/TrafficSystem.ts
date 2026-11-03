@@ -107,11 +107,12 @@ export function pedHourFactor(hour: number): number {
 /** Stoop sitting / door loitering rate multiplier by hour: lunchtime and evening stoops (BIBLE 7: 10-15% sitting), nights quiet. */
 export function idleBoostForHour(hour: number): number {
   const h = ((hour % 24) + 24) % 24;
-  if (h >= 11 && h < 15) return 2.6;
-  if (h >= 16.5 && h < 21) return 3.2;
-  if (h >= 8 && h < 11) return 1.6;
+  if (h >= 11 && h < 15) return 7;
+  if (h >= 16.5 && h < 21) return 5.5;
+  if (h >= 15 && h < 16.5) return 4;
+  if (h >= 8 && h < 11) return 2.5;
   if (h >= 21 || h < 5) return 0.5;
-  return 1;
+  return 1.5;
 }
 
 export const CAR_COLORS = [

@@ -31,6 +31,8 @@ try {
   const waitState = (s, t = 60_000) => page.waitForFunction((x) => window.__gtaDebug.interiors.state === x, s, { timeout: t });
   const shot = (n) => page.screenshot({ path: `${OUT}/shopux-${n}.png`, timeout: 120_000 });
   const hold = async (k, ms) => { await page.keyboard.down(k); await page.waitForTimeout(ms); await page.keyboard.up(k); };
+  // software rendering runs the sim slowly: hold a key until the predicate holds (or give up after maxMs)
+  const walkUntil = async (k, pred, maxMs = 40_000) => { await page.keyboard.down(k); const t0 = Date.now(); let p = await pos(); while (!pred(p) && Date.now() - t0 < maxMs) { await page.waitForTimeout(250); p = await pos(); } await page.keyboard.up(k); return p; };
   const tap = async (k) => { await page.keyboard.down(k); await page.waitForTimeout(120); await page.keyboard.up(k); await page.waitForTimeout(120); };
   const panel = () => D(() => {
     const r = (el) => { const b = el?.getBoundingClientRect(); return b ? { t: b.top, b: b.bottom, l: b.left, r: b.right, h: b.height } : null; };
@@ -49,12 +51,10 @@ try {
   await page.waitForTimeout(600);
   const pr0 = await D(() => window.__gtaDebug.interiors.prompt(window.__gtaDebug.player.body.pos));
   check('prompt shows in the doorstep band at the old spot', /WAX DELI/i.test(pr0), pr0);
-  await hold('KeyA', 3500);
-  const p1 = await pos();
+  const p1 = await walkUntil('KeyA', (p) => p.x < 9.8);
   check('walked out of the areaway through the door gap (x < 11)', p1.x < 11, JSON.stringify(p1));
   // and straight back in from the sidewalk: onto the doorstep
-  await hold('KeyD', 900);
-  const p2 = await pos();
+  const p2 = await walkUntil('KeyD', (p) => p.x > 11.8);
   check('walks onto the doorstep from the sidewalk (x > 11.3)', p2.x > 11.3, JSON.stringify(p2));
   // a few metres along the sidewalk the prompt still shows (band, not a spot)
   const prompts = [];
@@ -101,6 +101,8 @@ try {
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
   check('Escape closed the shop', !(await D(() => window.__gtaDebug.shopUi.isOpen)));
   await tap('KeyF'); await page.waitForFunction(() => window.__gtaDebug.shopUi?.isOpen, null, { timeout: 5000 });
+  await D(() => document.exitPointerLock()); // main.ts passes releasePointerLock once FOR FABLE's lines are in; until then release the capture by hand
+  await page.waitForTimeout(300);
   const hit = await D(() => { const b = document.querySelector('.shop-close').getBoundingClientRect(); const e = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return { at: [b.left + b.width / 2, b.top + b.height / 2], cls: e?.className, tag: e?.tagName, panelHidden: document.querySelector('.shop-root').hidden, root: JSON.stringify(document.querySelector('.shop-root').getBoundingClientRect()), panel: JSON.stringify(document.querySelector('.shop-panel').getBoundingClientRect()) }; });
   log('close hit-test', JSON.stringify(hit));
   check('the Close button is what a click at its centre hits', hit.cls === 'shop-btn shop-close', JSON.stringify(hit));

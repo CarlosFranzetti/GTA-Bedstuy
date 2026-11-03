@@ -209,7 +209,7 @@ export class Menu {
     if (opts.openOnPointerUnlock !== false) {
       const onLock = () => {
         const locked = !!this.doc.pointerLockElement;
-        if (this.wasLocked && !locked && !this.opened) this.open();
+        if (this.wasLocked && !locked && !this.opened && !this.doc.body.classList.contains('ui-panel-open')) this.open();
         this.wasLocked = locked;
       };
       this.doc.addEventListener('pointerlockchange', onLock);

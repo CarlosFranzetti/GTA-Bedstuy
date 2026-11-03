@@ -28,7 +28,7 @@ const deli = INTERIORS.deli.door;
 function walkTo(cols: StaticCollider[], from: Vec2, waypoints: Vec2[]): Vec2 {
   const w = new World2D(12);
   for (const c of cols) w.addStatic(c.shape, c.pos, c.id);
-  const body = { id: 'ped', kind: 'ped' as const, shape: { kind: 'circle' as const, r: 0.3 }, pos: { ...from }, vel: { x: 0, z: 0 }, heading: 0, mass: 80 };
+  const body = { id: 'ped', kind: 'ped' as const, shape: { kind: 'circle' as const, r: 0.4 }, pos: { ...from }, vel: { x: 0, z: 0 }, heading: 0, mass: 80 };
   w.addBody(body);
   const speed = 1.8, dt = 1 / 60;
   for (const t of waypoints) {

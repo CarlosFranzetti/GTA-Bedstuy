@@ -9,7 +9,7 @@
 import { Inventory } from '@/game/Inventory';
 import { PREVIEW_SECONDS } from '@/game/DjAudio';
 import { pressLibraryTrack, guessGenre, type RecordDef, type RecordSource } from '@/game/records';
-import { isCloseKey, isConfirmKey, navDirOf, setPanelClass, type NavDir } from './panelKeys';
+import { isCloseKey, isConfirmKey, navDirOf, releasePointerLock, setPanelClass, type NavDir } from './panelKeys';
 import './shop.css';
 
 export interface ShopEmitter { emit(type: string, payload: unknown): void }
@@ -28,6 +28,8 @@ export interface ShopDeps {
   /** Free records from the drop folder. */
   dropRecords?: readonly RecordDef[];
   onToggle?: (open: boolean) => void;
+  /** Release the mouse capture (pointer lock) on open so the buttons can be clicked. Needs Menu to ignore the unlock. */
+  releasePointerLock?: boolean;
 }
 
 export type BuyOutcome = 'ok' | 'owned' | 'poor';
@@ -97,6 +99,7 @@ export class ShopUi {
     this.doc.addEventListener('keydown', this.keyHandler, true);
     this.doc.addEventListener('keyup', this.keyUpHandler, true);
     setPanelClass(this.doc, 'shop-open', true);
+    if (this.d.releasePointerLock) releasePointerLock(this.doc);
     try { this.root.focus({ preventScroll: true }); } catch { /* detached */ }
     this.d.onToggle?.(true);
   }

@@ -47,6 +47,11 @@ const NODE_IDLE_CHANCE = 0.03;
 const STOOP_CHANCE = 0.05;
 /** chance, at a node, to stop for a while beside a shop door (before the hour boost) */
 const DOOR_CHANCE = 0.04;
+const IDLE_ROLL_MIN = 5;
+const IDLE_ROLL_MAX = 11;
+/** per roll, before the hour boost */
+const IDLE_STOOP = 0.02;
+const IDLE_DOOR = 0.03;
 const DOOR_MIN = 14;
 const DOOR_MAX = 45;
 const SIT_MIN = 10;
@@ -85,6 +90,7 @@ export class Pedestrian implements Entity {
   private waitCrossing: PedCrossing | null = null;
   private phoneIdle = false;
   private sitTimer = 0;
+  private idleTimer = 0;
   private sitOnStoop = false;
   private detour: { stage: 0 | 1 | 3; p0: Vec2; spot: StoopSpot } | null = null;
   private threatTimer = 0;
@@ -298,6 +304,7 @@ export class Pedestrian implements Entity {
     const b = this.body;
     let goal: Vec2 | undefined;
     const det = this.detour;
+    if (!det) this.idleRoll(dt);
     if (det) goal = det.stage === 1 ? det.spot.pos : det.p0;
     else goal = (this.targetId ? this.sidewalks.nodes[this.targetId] : undefined)?.pos;
     if (!goal) {
@@ -447,14 +454,31 @@ export class Pedestrian implements Entity {
     const boost = this.env.idleBoost ?? 1;
     const hasStoops = !!this.env.stoops && this.env.stoops.length > 0, hasDoors = !!this.env.doors && this.env.doors.length > 0;
     if (hasStoops || hasDoors) {
-      if (hasStoops && this.rng.chance(STOOP_CHANCE * boost)) this.planStoop(node, this.env.stoops!);
-      else if (hasDoors && this.rng.chance(DOOR_CHANCE * boost)) this.planStoop(node, this.env.doors!);
+      if (hasStoops && this.rng.chance(Math.min(0.4, STOOP_CHANCE * boost))) this.planStoop(node, this.env.stoops!);
+      else if (hasDoors && this.rng.chance(Math.min(0.3, DOOR_CHANCE * boost))) this.planStoop(node, this.env.doors!);
     } else if (!this.isCrosswalk(node.id) && this.rng.chance(NODE_IDLE_CHANCE)) {
       this.state = 'sitting';
       this.sitOnStoop = false;
       this.phoneIdle = this.rng.chance(0.5);
       this.sitTimer = this.rng.range(SIT_MIN, SIT_MAX);
     }
+  }
+
+  /**
+   * Mid-edge idle opportunities (graph nodes are far apart, so node arrivals alone rarely put anyone on a stoop): every few
+   * seconds a free walker may head for a stoop or a shop door beside the edge it is on; the hour sets the odds.
+   */
+  private idleRoll(dt: number): void {
+    this.idleTimer -= dt;
+    if (this.idleTimer > 0) return;
+    this.idleTimer = this.rng.range(IDLE_ROLL_MIN, IDLE_ROLL_MAX);
+    const env = this.env;
+    if (!env || this.state !== 'walking' || this.leader || this.followers > 0 || !this.targetId || !this.prevId) return;
+    if (this.isCrossingEdge(this.prevId, this.targetId)) return;
+    const boost = env.idleBoost ?? 1;
+    const here = { id: '', pos: { x: this.body.pos.x, z: this.body.pos.z } };
+    if (env.stoops && env.stoops.length > 0 && this.rng.chance(Math.min(0.3, IDLE_STOOP * boost))) this.planStoop(here, env.stoops);
+    else if (env.doors && env.doors.length > 0 && this.rng.chance(Math.min(0.25, IDLE_DOOR * boost))) this.planStoop(here, env.doors);
   }
 
   private isCrossingEdge(fromId: string | null, toId: string | null): boolean {

@@ -34,7 +34,7 @@ describe('pedestrian density by hour (BIBLE section 7)', () => {
 
   it('stoop sitting and door loitering rates peak at lunch and in the evening, and drop at night', () => {
     expect(idleBoostForHour(12)).toBeGreaterThan(2);
-    expect(idleBoostForHour(18)).toBeGreaterThan(idleBoostForHour(12) - 0.01);
+    expect(idleBoostForHour(18)).toBeGreaterThan(2);
     expect(idleBoostForHour(4)).toBeLessThan(1);
   });
 
@@ -65,5 +65,29 @@ describe('pedestrian density by hour (BIBLE section 7)', () => {
     for (let i = 0; i < 40; i++) sys.update(0.4, { x: 5000, z: 5000 });
     expect(sys.peds.length).toBeLessThanOrEqual(5);
     expect(sys.peds.length).toBeGreaterThan(0);
+  });
+
+  it('stoop sitters and shop-door loiterers make up ~10-15% of the crowd at noon and in the evening, and nobody idles at 4 am', () => {
+    const lots = subdivideLots(grid, data.pois, new Rng(data.seed).fork('lots'));
+    const share = (hour: number) => {
+      const sys = new TrafficSystem(grid, new FakeWorld(), new EventBus(), new Rng(5), new THREE.Scene(), materials, () => { throw new Error('no cars'); }, undefined, undefined, lots, { maxMoving: 0, peds: 40, parkOccupancy: 0 });
+      sys.setHour(hour, true);
+      let idle = 0, total = 0, doors = 0, stoops = 0;
+      for (let t = 0; t < 240; t += 0.1) {
+        sys.update(0.1, { x: 9, z: 20 });
+        for (const p of sys.peds) p.update(0.1);
+        if (t > 30 && Math.abs(t % 5) < 0.05) {
+          for (const p of sys.peds) { total++; if (p.state === 'sitting') { idle++; if (p.pose === 'sit') stoops++; else doors++; } }
+        }
+      }
+      return { share: idle / total, doors, stoops };
+    };
+    const noon = share(12), evening = share(18.5), night = share(4);
+    expect(noon.share).toBeGreaterThan(0.06);
+    expect(noon.share).toBeLessThan(0.3);
+    expect(noon.doors).toBeGreaterThan(0);
+    expect(noon.stoops).toBeGreaterThan(0);
+    expect(evening.share).toBeGreaterThan(0.06);
+    expect(night.share).toBeLessThan(0.05);
   });
 });

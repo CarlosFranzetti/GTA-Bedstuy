@@ -187,6 +187,20 @@ describe('ShopUi keyboard and gamepad', () => {
   });
 });
 
+describe('pointer lock release (opt-in)', () => {
+  it('exits pointer lock on open only when releasePointerLock is set', () => {
+    const exit = vi.fn();
+    Object.defineProperty(document, 'pointerLockElement', { value: document.body, configurable: true });
+    (document as unknown as { exitPointerLock: () => void }).exitPointerLock = exit;
+    const mk = (flag: boolean) => { const p = document.createElement('div'); document.body.appendChild(p); return new ShopUi(p, { inventory: new Inventory(PROCEDURAL_RECORDS, null), stock: PROCEDURAL_RECORDS, source: null, preview: null, releasePointerLock: flag }); };
+    const off = mk(false); off.open(); expect(exit).not.toHaveBeenCalled(); off.close();
+    const on = mk(true); on.open(); expect(exit).toHaveBeenCalledTimes(1); on.close();
+    const dj = new DjUi(document.body, { game: new DjGame(null), inventory: new Inventory(PROCEDURAL_RECORDS, null), source: null, raf: () => 0, caf: () => undefined, releasePointerLock: true });
+    dj.open('home'); expect(exit).toHaveBeenCalledTimes(2); dj.leave();
+    Object.defineProperty(document, 'pointerLockElement', { value: null, configurable: true });
+  });
+});
+
 describe('DjUi keyboard and gamepad', () => {
   function makeDj() {
     const game = new DjGame(null);

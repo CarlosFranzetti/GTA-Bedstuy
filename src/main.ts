@@ -261,11 +261,11 @@ function ensureAudio(): boolean {
   djAudio = new WebDjAudio(h);
   preview = new RecordPreview(h);
   dj = new DjGame(djAudio, events);
-  shopUi = new ShopUi(overlay, {
+  shopUi = new ShopUi(overlay, { releasePointerLock: true, 
     inventory, stock: PROCEDURAL_RECORDS, source: recSource, preview, events, dropRecords: drop.defs,
     libraryTracks: () => audio.library.serialize().pool.map((t) => ({ id: t.id, name: t.name, path: t.path })),
   });
-  djUi = new DjUi(overlay, { game: dj, inventory, source: recSource, onToggle: (o) => ambient.duck(o) });
+  djUi = new DjUi(overlay, { game: dj, inventory, source: recSource, onToggle: (o) => ambient.duck(o), releasePointerLock: true });
   return true;
 }
 const interiors = new Interiors({

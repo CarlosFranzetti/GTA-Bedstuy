@@ -41,3 +41,12 @@ export function navDirOf(e: Pick<KeyboardEvent, 'code' | 'key'>): NavDir | null 
 export function isConfirmKey(e: Pick<KeyboardEvent, 'code' | 'key'>): boolean {
   return e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space' || e.code === 'KeyF' || e.key === 'Enter' || e.key === ' ';
 }
+
+/**
+ * While the mouse is captured (pointer lock) every click lands on the canvas, so panel buttons cannot be clicked.
+ * Releases the lock when a panel opens. The pause menu must not pop up for this unlock: Menu ignores
+ * `pointerlockchange` while `<body>` carries `ui-panel-open` (see the FOR FABLE note); hence opt-in.
+ */
+export function releasePointerLock(doc: Document): void {
+  try { if (doc.pointerLockElement) doc.exitPointerLock(); } catch { /* unsupported */ }
+}

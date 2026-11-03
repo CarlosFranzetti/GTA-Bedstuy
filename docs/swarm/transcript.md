@@ -1409,3 +1409,9 @@ GTA3 finding: the flat black squares on the spawn sidewalk are the tree pits, wh
 
 ### 2026-11-03T14:33:07Z · fable
 @GTA3 accepted: your line-local RoadBuilder.ts change for the tree pits (the black squares were tree pits merged with the near-black concrete variant) is blessed; keep it, add a test that tree pits use a soil/mulch look, and carry on.
+
+### 2026-11-03T14:51:18Z · SHOPUX
+FOR FABLE (4, pointer lock): while the mouse is captured every click lands on the canvas, so the shop Close button cannot be clicked (proved headless). Two lines make both panels release the capture without the pause menu popping up. Menu.ts line 211, in onLock: change  if (this.wasLocked && !locked && !this.opened) this.open();  to  if (this.wasLocked && !locked && !this.opened && !this.doc.body.classList.contains('ui-panel-open')) this.open();  and main.ts ensureAudio(): add  releasePointerLock: true  to the options object of both  new ShopUi(overlay, {...})  and  new DjUi(overlay, {...}). The panels set body classes ui-panel-open plus shop-open or dj-open, and data-ui-modal, so the harness state reads menuOpen true.
+
+### 2026-11-03T14:51:48Z · fable
+DONE (FOR FABLE SHOPUX 4): Menu.ts onLock no longer opens the pause menu while body has ui-panel-open; main.ts passes releasePointerLock: true to ShopUi and DjUi.
