@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { EventBus } from '@/core/Events';
 import { angleDiff, type Vec2 } from '@/core/Math2';
 import type { TrafficLights } from '@/game/TrafficLights';
-import type { Rng } from '@/core/Rng';
+import { Rng } from '@/core/Rng';
 import { animateWalk, buildHumanModel, type HumanModel } from '@/entities/models/humanModel';
 import type { CharacterRig, CharacterSource } from '@/world/types';
 import type { Body2D, Contact, Entity, Graph, GraphNode, IMaterialLibrary, IVehicle, IWorld2D } from '@/world/types';
@@ -91,6 +91,8 @@ export class Pedestrian implements Entity {
   private phoneIdle = false;
   private sitTimer = 0;
   private idleTimer = 0;
+  /** own stream for the idle behaviours, so adding them leaves the walking / routing draws of `rng` untouched */
+  private readonly idleRng: Rng;
   private sitOnStoop = false;
   private detour: { stage: 0 | 1 | 3; p0: Vec2; spot: StoopSpot } | null = null;
   private threatTimer = 0;
@@ -114,6 +116,7 @@ export class Pedestrian implements Entity {
     private readonly crosswalkNodes?: ReadonlySet<string>,
     env?: PedEnvironment,
   ) {
+    this.idleRng = new Rng(Rng.hash(`${id}:idle`));
     this.body = {
       id,
       kind: 'ped',
@@ -455,7 +458,7 @@ export class Pedestrian implements Entity {
     const hasStoops = !!this.env.stoops && this.env.stoops.length > 0, hasDoors = !!this.env.doors && this.env.doors.length > 0;
     if (hasStoops || hasDoors) {
       if (hasStoops && this.rng.chance(Math.min(0.4, STOOP_CHANCE * boost))) this.planStoop(node, this.env.stoops!);
-      else if (hasDoors && this.rng.chance(Math.min(0.3, DOOR_CHANCE * boost))) this.planStoop(node, this.env.doors!);
+      else if (hasDoors && this.idleRng.chance(Math.min(0.3, DOOR_CHANCE * boost))) this.planStoop(node, this.env.doors!);
     } else if (!this.isCrosswalk(node.id) && this.rng.chance(NODE_IDLE_CHANCE)) {
       this.state = 'sitting';
       this.sitOnStoop = false;
@@ -471,14 +474,14 @@ export class Pedestrian implements Entity {
   private idleRoll(dt: number): void {
     this.idleTimer -= dt;
     if (this.idleTimer > 0) return;
-    this.idleTimer = this.rng.range(IDLE_ROLL_MIN, IDLE_ROLL_MAX);
+    this.idleTimer = this.idleRng.range(IDLE_ROLL_MIN, IDLE_ROLL_MAX);
     const env = this.env;
     if (!env || this.state !== 'walking' || this.leader || this.followers > 0 || !this.targetId || !this.prevId) return;
     if (this.isCrossingEdge(this.prevId, this.targetId)) return;
     const boost = env.idleBoost ?? 1;
     const here = { id: '', pos: { x: this.body.pos.x, z: this.body.pos.z } };
-    if (env.stoops && env.stoops.length > 0 && this.rng.chance(Math.min(0.3, IDLE_STOOP * boost))) this.planStoop(here, env.stoops);
-    else if (env.doors && env.doors.length > 0 && this.rng.chance(Math.min(0.25, IDLE_DOOR * boost))) this.planStoop(here, env.doors);
+    if (env.stoops && env.stoops.length > 0 && this.idleRng.chance(Math.min(0.3, IDLE_STOOP * boost))) this.planStoop(here, env.stoops);
+    else if (env.doors && env.doors.length > 0 && this.idleRng.chance(Math.min(0.25, IDLE_DOOR * boost))) this.planStoop(here, env.doors);
   }
 
   private isCrossingEdge(fromId: string | null, toId: string | null): boolean {

@@ -414,13 +414,10 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
     for (const run of runs) buildCurbRun(run, ends, curbs);
 
     // Sidewalk fixtures along each block face: tree pits every ~12 m, avenue cellar plates.
-    // Tree pits are darker paving (concrete v1) merged into the ground mesh to save a draw call; that material has
-    // no polygon offset, so they sit 2 cm above the walk instead of the usual decal gap.
-    // Tree pits used the dark concrete variant (concrete:1, ~10% albedo), which shades to pure black beside the light
-    // sidewalk slabs and read as a hole in the pavement. A warm earthy tint of the light slab keeps the pit visible, not black.
+    // Tree pits (and the black squares they used to be): a warm earthy tint of the light slab in their own decal bucket.
     const treePits = bucket('decal:treePit', 'tree-pits', () => {
       const pm = decalMaterial(materials.get('concrete', 0)) as THREE.MeshStandardMaterial;
-      pm.color.set('#9c8467');
+      pm.color.set('#b09a7c');
       return pm;
     });
     // Cellar plates: a mid steel grey, not the near-black metalDark (#26282b renders pure black in the building's shade,
@@ -442,8 +439,11 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
         const bp = lerp2(f.a, f.b, u);
         const cp = lerp2(f.curbA, f.curbB, u);
         const c = lerp2(bp, cp, 0.55);
+        // UV origin on the tile lattice next to the pit (same phase as the world-origin projection, but |uv| < 1.5): with
+        // |uv| ~ 100 the normal-mapped slab shaded to black (the derivative-based tangent frame loses its precision)
+        const org = { x: Math.round(c.x / TILE_M) * TILE_M, z: Math.round(c.z / TILE_M) * TILE_M };
         treePits.push(projectUV(
-          flatQuad(c.x, c.z, faceDir, TREE_PIT, TREE_PIT, Y_PIT), { x: 0, z: 0 }, WORLD_X, WORLD_Z, 1 / TILE_M, 1 / TILE_M));
+          flatQuad(c.x, c.z, faceDir, TREE_PIT, TREE_PIT, Y_PIT), org, WORLD_X, WORLD_Z, 1 / TILE_M, 1 / TILE_M));
       }
       if (street.class !== 'avenue') continue;
       for (let t = 4; t <= faceLen - 4; t += 9) {

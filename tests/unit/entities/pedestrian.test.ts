@@ -430,6 +430,7 @@ describe('Pedestrian stoops and groups', () => {
     const rng = new Rng(3);
     const ped = new Pedestrian('p', g.nodes.n0, g, new FakeWorld(), materials, new EventBus(), rng);
     rng.chance = () => true;
+    (ped as unknown as { idleRng: Rng }).idleRng = rng; // the idle behaviours draw from their own stream; force it too
     ped.setEnvironment({ doors: [{ pos: { x: 10, z: 1.3 }, outward: { x: 0, z: 1 }, kind: 'door' }] });
     let a = -1, z = -1;
     const dt = 1 / 20;
