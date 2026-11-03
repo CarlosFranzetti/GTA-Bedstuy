@@ -239,7 +239,7 @@ export class MissionSystem {
     if (this.cur < 0) return false;
     const i = this.cur;
     this.status[i] = 'available';
-    this.armed[i] = false;
+    this.armed.fill(false);
     this.cur = -1;
     this.clearRun();
     this.hud.status = 'idle';
@@ -660,6 +660,7 @@ export class MissionSystem {
     this.cash += d.reward.cash;
     this.cur = -1;
     this.clearRun();
+    this.armed.fill(false); // finishing on top of another giver must not start that job; leave the zone first
     this.hud.status = 'idle';
     this.hud.cash = this.cash;
     this.toast(`${d.title} done. ${d.reward.message}${d.reward.cash > 0 ? `  +$${d.reward.cash}` : ''}`, 'good');

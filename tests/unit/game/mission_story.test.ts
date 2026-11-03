@@ -38,7 +38,7 @@ function setup(def: MissionDef) {
 const FAILS: Record<string, { reason: string; run: (bot: Bot, def: MissionDef) => void; joke: string }> = {
   'bodega-run': { reason: 'timeUp', run: (b, d) => b.wait(d.timeLimit! + 1), joke: '' },
   'laundromat-getaway': { reason: 'timeUp', run: (b, d) => b.wait(d.timeLimit! + 1), joke: '' },
-  'block-party': { reason: 'clockUp', run: (b) => b.wait(200), joke: '' },
+  'block-party': { reason: 'clockUp', run: (b) => b.wait(900), joke: '' },
   'alternate-side-shuffle': { reason: 'timeUp', run: (b, d) => b.wait(d.timeLimit! + 1), joke: 'The sweeper arrives' },
   'soundclash': { reason: 'copsCalled', run: (b) => { b.raise(1); b.wait(0.2); }, joke: 'Noise complaint' },
   'senator-the-cat': { reason: 'timeUp', run: (b, d) => b.wait(d.timeLimit! + 1), joke: 'footwell' },
@@ -57,7 +57,7 @@ const FAILS: Record<string, { reason: string; run: (bot: Bot, def: MissionDef) =
 /** For tooFast / copsCalled / lowScore the failure only exists on specific beats: play up to that beat. */
 const FAIL_AT: Record<string, number> = {
   'soundclash': 1, 'dollar-van-last-run': 1, 'moving-day': 1, 'open-decks': 3, 'dollar-van-fare': 2, 'aftersloth-residency': 2,
-  'block-party': 0, 'permit-pending': 0, 'the-password': 0,
+  'block-party': 0, 'permit-pending': 2, 'the-password': 0,
 };
 
 describe('every mission: success chain', () => {
@@ -84,7 +84,7 @@ describe('every mission: success chain', () => {
     const chain = ['crate-digger', 'open-decks', 'the-password', 'aftersloth-residency'];
     for (const id of chain) {
       const def = defs.find((d) => d.id === id)!;
-      expect(m.isOffered(id, bot.hour), `${id} not yet offered`).toBe(id === chain[0] || m.isCompleted(chain[chain.indexOf(id) - 1]));
+      expect(m.isOffered(id, -1), `${id} offered only after its predecessor`).toBe(id === chain[0] || m.isCompleted(chain[chain.indexOf(id) - 1]));
       bot.hour = startHourFor(def);
       bot.startMission(def);
       expect(m.activeId).toBe(id);

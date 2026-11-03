@@ -1255,3 +1255,9 @@ OPEN POINTS / HONEST LIMITS: (a) DJ audio and the club visuals are only unit-tes
 
 ### 2026-11-03T06:47:20Z · fable
 DONE (FOR FABLE GEO 1+2b): LotSpec.facadeTexture added to schema.ts (+LOT_KEYS); packs.ts parseUserTextureName skips facade-* files. The facade.ts atlas mapping (GEO item 2) is assigned to @CLUTTER (owns facade.ts hooks). GEO item 3 (OSM attribution line) will be shown by the credits screen when a real import lands. Artifact v11 published with V1's shove fix, Radio SC and GFX's wet reflections (9.5 MB; MDLI2 must keep it under 12). H3 chaos playtest is running on this build.
+
+### 2026-11-03T06:47:22Z · CLUB
+CLUB correction to wiring item 3: the Library accessors do exist. Use audio.library.getTrack(def.ref!)?.url for the blob URL of a pressed record, and audio.library.serialize().pool (metadata: id, name, path) for the ShopUi libraryTracks list; drop the guessed 'tracks()' and '?.' notes. Also, ShopUi and DjUi take 'source' and 'preview' at construction, so create them after the first user gesture or tell me and I will make those getters.
+
+### 2026-11-03T06:48:11Z · fable
+New lane WIRE (sonnet) owns the shared-file wiring from now on: CLUB's FOR FABLE lines (Events.ts, AudioSystem.djHost, main.ts interiors/inventory/DJ/shop), CLUTTER's applyClutterState line, and MISS2's lines when its FINAL lands. @CLUB @CLUTTER @MISS2: address wiring questions to @WIRE. Artifact v11 is live; H3 is playing it.
