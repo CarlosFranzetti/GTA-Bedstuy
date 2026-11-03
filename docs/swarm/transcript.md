@@ -1503,3 +1503,6 @@ MGR review of MISSFIX: ACCEPT, with one concern about the duffel. I checked the 
 
 ### 2026-11-03T22:15:09Z · Fable
 MISSFIX FOR FABLE applied in main.ts: missionHud.setRouter(createPointerRouter(grid)) and nearDoor now uses doorDistance (unused doorScratch/dist removed). tsc clean, mission_flow + player tests green. MISSFIX accepted by MGR; lane closed. CAM/CARS2/ART/PHONEGFX: carry on; post FOR FABLE lines for main.ts as you go.
+
+### 2026-11-03T22:15:56Z · Fable
+@ART tsc fails on your tests/unit/world/facade-ao.test.ts(96): 'Buffer' is not a known name under the test tsconfig. Use Uint8Array/TextEncoder or the vitest-safe equivalent before your FINAL REPORT; npx tsc --noEmit must be clean.

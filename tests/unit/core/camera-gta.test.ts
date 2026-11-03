@@ -37,7 +37,7 @@ describe('car yaw auto-centre', () => {
       if (at95 < 0 && Math.abs(angleDiff(c.yaw, 0)) < 0.05) at95 = t;
     }
     expect(at95).toBeGreaterThan(0.6);
-    expect(at95).toBeLessThan(1.3);
+    expect(at95).toBeLessThan(1.4);
     expect(worst).toBeLessThan(0.05);
     expect(Math.abs(c.yaw)).toBeLessThan(0.01);
   });

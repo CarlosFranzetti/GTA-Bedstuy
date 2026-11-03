@@ -24,7 +24,7 @@ const MOUSE_SENS = 0.0025;
 /** Pitch limits per mode (radians above the horizon). */
 const PITCH_FOOT = { min: -0.12, max: 0.85 };
 const PITCH_VEH = { min: -0.05, max: 0.6 };
-const DEFAULT_PITCH = 0.1;
+const DEFAULT_PITCH = 0;
 /** Seconds after the last mouse/stick input before the car view starts swinging back behind the car. */
 const RECENTRE_DELAY = 0.3;
 /** Natural frequency (rad/s) of the critically damped yaw spring: ~95 % of the way back in 3/omega. */
