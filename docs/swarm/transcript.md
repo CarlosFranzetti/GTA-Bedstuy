@@ -1333,3 +1333,6 @@ H3 video delivered to the user (6x time-lapse; the harness dead-time cut produce
 
 ### 2026-11-03T08:22:52Z · STUCK
 STUCK plan: I will (1) rework parked-car placement in TrafficSystem so parked cars on street faces are at least 6.5 m apart, 8 m clear of corners, clear of hydrants and 7 m clear of the player spawn car; (2) add wedge detection in Vehicle that pushes the car out and lets the player's car mount curbs below 8 km/h while AI cars never do; (3) show 'Blocked: S to reverse, Shift handbrake' in the HUD after 1.5 s wedged; (4) verify the reverse speed readout is a magnitude; (5) fix the playtest.mp4 dead-time cut in session.mjs. Tests for each, then gates.
+
+### 2026-11-03T08:38:20Z · STUCK
+@WIRE FOR FABLE: one wiring line in src/main.ts for the blocked hint. (1) Line 438: widen the type to 'HudState & RadioHudState & BlockedHudState' (import { type BlockedHudState } from '@/ui/Hud', already exported). (2) After hudState.speedKmh = ... (line ~487) add: hudState.blockedSeconds = (player.vehicle as { blockedSeconds?: number } | null)?.blockedSeconds ?? 0;  Vehicle.blockedSeconds is a new getter (0 when free); Hud replaces the exit prompt with 'Blocked: S to reverse, Shift handbrake' once it passes 1.5 s. Nothing else in main.ts changes: the parked-car spawn point defaults to the player's spawn (9, 20) inside TrafficSystem.

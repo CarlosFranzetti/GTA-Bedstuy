@@ -21,7 +21,7 @@ import { TrafficSystem } from '@/game/TrafficSystem';
 import { CopSystem } from '@/game/CopSystem';
 import { WantedSystem } from '@/game/WantedSystem';
 import { DayNight } from '@/game/DayNight';
-import { Hud, type RadioHudState } from '@/ui/Hud';
+import { Hud, type RadioHudState, type BlockedHudState } from '@/ui/Hud';
 import { Minimap } from '@/ui/Minimap';
 import { TouchControls } from '@/ui/TouchControls';
 import { AudioSystem } from '@/audio/AudioSystem';
@@ -435,7 +435,7 @@ const PROMPT_ENTER = `${PROMPT_KEY}  Enter car`;
 let slowTick = 0;
 let streetName = '';
 let prompt = '';
-const hudState: HudState & RadioHudState = { stars: 0, speedKmh: 0, inVehicle: false, radioStation: '', prompt: '', timeOfDay: 0, streetName: '', fps: 60 };
+const hudState: HudState & RadioHudState & BlockedHudState = { stars: 0, speedKmh: 0, inVehicle: false, radioStation: '', prompt: '', timeOfDay: 0, streetName: '', fps: 60 };
 const passes = new PassCounter();
 passes.attach(renderer);
 const stats: Record<string, number> = { drawCalls: 0, drawCallsShadow: 0, drawCallsScene: 0, drawCallsGBuffer: 0, drawCallsPost: 0, triangles: 0, fps: 60, fps1pctLow: 0, heapMBPerMin: 0, culledObjects: 0, carsFar: 0, vehicles: 0, peds: 0, cops: 0, meshes: world.stats.meshes, colliders: world.stats.colliders };
@@ -485,6 +485,7 @@ const game = new Game(
     }
     hudState.stars = wanted.stars;
     hudState.speedKmh = player.vehicle ? Math.hypot(player.vehicle.body.vel.x, player.vehicle.body.vel.z) * 3.6 : 0;
+    hudState.blockedSeconds = (player.vehicle as { blockedSeconds?: number } | null)?.blockedSeconds ?? 0;
     hudState.inVehicle = player.inVehicle;
     hudState.radioStation = audio.stationName;
     hudState.radioTrack = audio.trackName;

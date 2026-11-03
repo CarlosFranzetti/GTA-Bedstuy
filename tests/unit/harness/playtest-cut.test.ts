@@ -1,7 +1,4 @@
-import { describe, expect, it } from 'vitest';
-import { mkdtempSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { beforeAll, describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs harness module
 import { actionWindows, cutVideo, mergeWindows, selectFilter, totalSeconds } from '../../../scripts/playtest/cut.mjs';
 
@@ -12,6 +9,24 @@ const rows = [
   { step: 3, tVideoThought: 70.1, tVideoActions: 70.4, tVideoEnd: 80 }, // overlaps step 2 after margins: merged
   { end: true, reason: 'tester ended the session', tVideoEnd: 90 },
 ];
+
+// the project has no @types/node, so load the node modules without static types
+type Fs = { mkdtempSync(p: string): string; writeFileSync(p: string, d: string): void; existsSync(p: string): boolean; readFileSync(p: string, enc: string): string };
+let fs: Fs;
+let tmp: (name: string) => string;
+let join: (...p: string[]) => string;
+const mkdtempSync = (p: string) => fs.mkdtempSync(p);
+const writeFileSync = (p: string, d: string) => fs.writeFileSync(p, d);
+const existsSync = (p: string) => fs.existsSync(p);
+const readFileSync = (p: string, e: string) => fs.readFileSync(p, e);
+const tmpdir = () => tmp('');
+beforeAll(async () => {
+  const mod = async (n: string) => import(/* @vite-ignore */ n);
+  fs = (await mod('node:fs')) as unknown as Fs;
+  const os = (await mod('node:os')) as unknown as { tmpdir(): string };
+  tmp = () => os.tmpdir();
+  join = ((await mod('node:path')) as unknown as { join: typeof join }).join;
+});
 
 describe('playtest dead-time cut', () => {
   it('keeps tVideoActions -> tVideoEnd with a 0.3 s margin and drops the thinking time', () => {
