@@ -1449,3 +1449,21 @@ H5 FINAL REPORT: I could not get far. Following the HUD pointer I reached Throop
 
 ### 2026-11-03T16:26:29Z · fable
 H5 (phone tier, v14) report relayed: never reached the Wax Deli. Bugs: pinned against building/deli walls while following the pointer (steps 4-5, 7, 12-13); Crate Digger silently replaced by Laundromat Getaway, HUD showed a mission while state said null (step 11-15); duffel pickup never triggered on F (16-22); X abandoned but the HUD kept the arrow (23); P ignored by the harness (24-25); no F door prompt beside the box truck (27-30). New lane MISSFIX (sonnet) owns these. @MGR fold H5 into the Stage 4 check-in; @SHOPUX note the wall-pinning overlaps your door band work.
+
+### 2026-11-03T16:26:37Z · MGR
+MGR: playtest triage for H5 (phone tier, build v14). What H5 was thinking: it set out to do Crate Digger and visit the record shop and home decks, trusting the new mission pointer ('the HUD pointer and minimap are readable and fun, and the dusk street looks good'). It never got there. It spent several steps pressed against brick walls and the glass front of the deli looking for a way round, then, as it closed in on the Crate Digger marker, the pointer silently switched to Laundromat Getaway, and it walked into that giver and started the wrong mission without meaning to. It stood on the pink pad in front of the shop, pressed F five times to 'grab the duffel', watched the timer run, abandoned the mission, tried to open the phone, and ended next to a box truck that offered no 'Enter car' prompt.
+Defects:
+PT4-6 | P1 | MISS2 | The Laundromat Getaway pickup never completed although H5 stood on the pink objective pad for six steps (h5 16-22, positions around (-9, 67)). The objective is a walk-in 4 m circle at the 'komat' point, not an F action, so either the drawn pad is not where the objective circle is, or the circle sits behind the shop front where the player cannot stand. MISS2 please replay with these positions and make the pad and the circle the same place; also show 'walk here' rather than nothing when F is pressed on a walk-in objective.
+PT4-7 | P2 | DRIVE/MISS2 | The pointer switches to the nearest mission giver while you are walking to another one, without a toast, and walking past a giver starts its mission (h5 11-16). Keep the pointer on the chosen mission and require F at a giver.
+PT4-8 | P3 | MISS2 | After abandoning with X the pointer still says 'Laundromat Getaway here' (h5 24).
+PT4-9 | P3 | PT harness | The phone could not be opened because the harness's allowed-key list has no P (scripts/playtest/session.mjs:48); this is a harness limit, not a game bug. Add KeyP.
+PT4-10 | P3 | V1/models | No 'Enter car' prompt beside the box truck at 2.6 m from its centre (h5 28-30); the truck's door point is probably more than 3 m from where a player naturally stands. Check boxtruck doorPos.
+PT4-11 | P3 | world | Walls and glass fronts block straight paths; H5 slid along walls for six steps (h5 4-8, 12-15).
+PT4-12 | P3 | PT harness | The state file said mission null while the HUD showed the pointer (h5 2-15); the harness reads only the active mission.
+Not yet tested in play: SHOPUX's shop and decks fixes, because H5 never reached the Wax Deli. SHOPUX's final report is still missing.
+
+### 2026-11-03T16:28:30Z · MISSFIX
+MISSFIX starting. Plan: I will stop other givers from replacing an active mission and make the HUD and state agree, clear the pointer after an abandon, fix the duffel pickup prompt and trigger, widen the playtest key whitelist, base vehicle door distance on the body footprint, and route the pointer around building lots. Each fix gets a regression test.
+
+### 2026-11-03T16:30:15Z · MISSFIX
+Fix 4 done: the playtest key whitelist now accepts KeyP, Enter, Escape and Backspace (arrows were already there). The runner drops Escape unless a shop or deck panel is open, so it cannot open the pause menu. Test added.

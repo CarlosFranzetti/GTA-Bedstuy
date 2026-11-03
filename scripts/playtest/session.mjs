@@ -44,8 +44,11 @@ function parseArgs(argv) {
   return o;
 }
 
-/** Keys the tester may use (everything the game actually reads; Escape is deliberately absent). */
-export const ALLOWED_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight', 'Space', 'KeyF', 'KeyE', 'KeyR', 'KeyX', 'KeyH']);
+/**
+ * Keys the tester may use (everything the game actually reads). Escape is allowed so a panel (shop, decks) can be left,
+ * but the runner drops it unless `<body>` carries `ui-panel-open`, so it can never open the pause menu.
+ */
+export const ALLOWED_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight', 'Space', 'KeyF', 'KeyE', 'KeyR', 'KeyX', 'KeyH', 'KeyP', 'Enter', 'Escape', 'Backspace']);
 const MAX_HOLD_MS = 10_000, MAX_STEP_MS = 25_000, MAX_ACTIONS = 24, FIXED_MS = 1000 / 60;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -345,10 +348,15 @@ async function main() {
       const ran = [];
       const tAct = (Date.now() - videoT0) / 1000;
       await running(true);
-      for (const a of actions) {
+      for (let a of actions) {
         try {
           if (a.wait !== undefined) { await gameWait(a.wait); ran.push(a); continue; }
           if (!a.keys) { await look(a.look.dx, a.look.dy); await frames2(); ran.push(a); continue; }
+          if (a.keys.includes('Escape') && !(await page.evaluate(() => document.body.classList.contains('ui-panel-open')))) {
+            notes.push('Escape ignored: no panel is open (it would open the pause menu)');
+            a = { ...a, keys: a.keys.filter((k) => k !== 'Escape') };
+            if (!a.keys.length) { await gameWait(a.ms); continue; }
+          }
           for (const k of a.keys) await page.keyboard.down(k);
           if (a.look && a.ms > 0) {
             const slices = Math.max(1, Math.round(a.ms / 100));
