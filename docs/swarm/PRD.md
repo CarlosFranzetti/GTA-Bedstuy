@@ -297,6 +297,8 @@ research, RADIO own-library radio (8 stations, 147 slots) + talk station, WRITE 
 | MISSFIX | The Laundromat duffel pickup completes where its pad is drawn (pad and objective circle coincide, reachable from the sidewalk); pressing F on a walk-in objective gives feedback | mission test with the real POI geometry |
 | MISSFIX | Box truck shows "Enter car" from a natural standing spot beside its cab; harness accepts KeyP; the pointer routes around building lots | vehicle/door test, harness test, pointer test |
 
+| RASC | Radio SC plays random SoundCloud DJ sets ≥ 45 min from the user's ra-nyc API ("title — DJ"); no request before the first tune-in; 429 → silent fallback; no repeats until all heard; pasted links still play | ra-feed + sc-station tests; duration unit confirmed against the live API |
+
 #### Graphics ladder (user direction 3 Nov: "at least GTA3-style graphics for the next push and GTA V level by the end")
 Judged by MGR at every check-in on the 7 standard viewpoints of `tests/e2e/screens.mjs` (noon street, noon corner, golden aerial,
 dusk car, night car, night corner, morning signals), medium tier unless stated. Each level needs every item on every viewpoint.

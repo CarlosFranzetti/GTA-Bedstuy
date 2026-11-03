@@ -18,6 +18,9 @@ export const ENTER_RANGE = 3;
  * body box (0 inside it). A long van or box truck has its door at one flank, so a player standing at the rear or on
  * the far side still counts as "at the car" within ENTER_RANGE of its body; the walk then glides round to the door.
  */
+/** True when `p` is further than ENTER_RANGE from the driver's door (it got in by the body box rule). */
+function doorFar(v: IVehicle, p: Vec2): boolean { return dist(p, v.doorPos()) > ENTER_RANGE; }
+
 export function doorDistance(v: IVehicle, p: Vec2): number {
   const door = dist(p, v.doorPos());
   const s = v.body.shape;
@@ -69,6 +72,14 @@ export class Player implements Entity {
   private moveDir: Vec2 | null = null;
   private wantRun = false;
   private sprintBlend = 0;
+  /** True when the player got in from beyond the driver's door (tail or passenger flank): the door side is likely walled in. */
+  private enteredFar = false;
+  /**
+   * Optional: true when a foot-sized circle at `p` overlaps a static collider. When the host sets it (main.ts passes a
+   * physics static query), exit() tries the driver side, then the passenger side, the rear and the front, and takes the
+   * first free spot. Without it, exit() falls back to the side the player got in from.
+   */
+  blockedAt: ((p: Vec2, r: number) => boolean) | null = null;
   private entering: { vehicle: IVehicle; t: number; from: Vec2; prevDriver: IVehicle['driver'] } | null = null;
   /**
    * Called when the walk to a car door begins. The integrator must take `body` out of the physics world here:
@@ -168,6 +179,7 @@ export class Player implements Entity {
     best.driver = 'player';
     best.setInput({ ...NEUTRAL, brake: true }); // a rolling car brakes while you climb in instead of coasting away from the door
     this.exitQueued = false;
+    this.enteredFar = doorFar(best, this.body.pos);
     this.entering = { vehicle: best, t: 0, from: { x: this.body.pos.x, z: this.body.pos.z }, prevDriver };
     this.body.shape.r = SEATED_RADIUS; // glide through the car's own collision box
     this.onEnterStart?.();
@@ -184,14 +196,27 @@ export class Player implements Entity {
     const f = forwardFromHeading(v.body.heading);
     const left = { x: -perpRight(f).x, z: -perpRight(f).z };
     const off = v.spec.width / 2 + FOOT_RADIUS + EXIT_GAP;
+    const offEnd = v.spec.length / 2 + FOOT_RADIUS + EXIT_GAP;
+    // candidate spots: driver side, passenger side, rear, front (the rest only when a wall blocks the first ones)
+    const cands: Array<{ side: Vec2; d: number }> = [
+      { side: left, d: off }, { side: { x: -left.x, z: -left.z }, d: off }, { side: { x: -f.x, z: -f.z }, d: offEnd }, { side: f, d: offEnd },
+    ];
+    if (this.enteredFar && !this.blockedAt) cands.unshift(cands.splice(1, 1)[0]); // no world query: leave on the side we came in from
+    let pick = cands[0];
+    if (this.blockedAt) {
+      for (const c of cands) {
+        if (!this.blockedAt({ x: v.body.pos.x + c.side.x * c.d, z: v.body.pos.z + c.side.z * c.d }, FOOT_RADIUS)) { pick = c; break; }
+      }
+    }
+    const away = pick.side;
     v.driver = null;
     v.setInput(NEUTRAL);
     this.vehicle = null;
-    this.body.pos.x = v.body.pos.x + left.x * off;
-    this.body.pos.z = v.body.pos.z + left.z * off;
+    this.body.pos.x = v.body.pos.x + away.x * pick.d;
+    this.body.pos.z = v.body.pos.z + away.z * pick.d;
     this.body.vel.x = 0;
     this.body.vel.z = 0;
-    this.body.heading = headingFromVec({ x: -left.x, z: -left.z }); // looking back at the car
+    this.body.heading = headingFromVec({ x: -away.x, z: -away.z }); // looking back at the car
     this.body.shape.r = FOOT_RADIUS;
     this.desiredVel = { x: 0, z: 0 };
     this.moveDir = null;
