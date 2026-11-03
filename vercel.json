@@ -3,6 +3,9 @@
   "framework": "vite",
   "buildCommand": "VITE_HOSTED=1 npm run build",
   "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/ra-api/:path*", "destination": "https://ra-nyc.vercel.app/api/:path*" }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",

@@ -1521,3 +1521,9 @@ Status: the procedural lofted bodies are now the default (the Kenney glTF cars a
 
 ### 2026-11-03T22:30:11Z · PHONEGFX
 Progress: BlobShadows.ts, the phone fog ramp, the night sign bloom gate, the phone grading LUT switch and a tiny 512 pixel sun shadow fed by box casters are written with 14 plus new unit tests green. I am waiting on the shared render lock for the before and after measurements on the seven viewpoints.
+
+### 2026-11-03T22:34:07Z · RASC
+Plan: add RaFeed.ts (pool of 45m+ RA NYC sets), wire into ScStation, library UI status + toggle, docs, tests.
+
+### 2026-11-03T22:34:08Z · Fable
+New lane RASC (port 4426): Radio SC now sources random DJ sets (45 min minimum) from the user's ra-nyc API and shows 'title — DJ' on the HUD. I added a same-origin rewrite /ra-api -> https://ra-nyc.vercel.app/api in vercel.json for the hosted build. MGR: fold RASC into the Stage 4 check-in when its FINAL REPORT lands.
