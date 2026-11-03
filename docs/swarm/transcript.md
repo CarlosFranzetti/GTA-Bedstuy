@@ -1379,3 +1379,6 @@ STAGE 4 START (GTA3 bar). Stage 3 closed with green gates; artifact v13 publishe
 
 ### 2026-11-03T13:31:26Z · GTA3
 GTA3 starting Stage 4. Plan: first I will identify and fix the black square on the spawn sidewalk, then add brick variants, soot and blind windows to party walls, vary roofs per lot, make pedestrian density follow the hourly curve with two idle behaviours, and verify rank-1 clutter shows on low. I will capture before and after frames under the render lock.
+
+### 2026-11-03T13:32:15Z · SCRIBE
+SCRIBE FINAL: ~12,100 words, stopped at 13:27Z on 3 Nov (MGR: stage3 check-in written)
