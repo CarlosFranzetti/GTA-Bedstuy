@@ -1339,3 +1339,6 @@ STUCK plan: I will (1) rework parked-car placement in TrafficSystem so parked ca
 
 ### 2026-11-03T08:38:37Z · WIRE
 WIRED: STUCK blocked hint (hudState widened with BlockedHudState; blockedSeconds read from the player vehicle after the speed assignment). tsc is clean.
+
+### 2026-11-03T12:33:54Z · fable
+RESUMED after the usage-limit cutoff (12:31Z): artifact v12 published from the current tree (9.58 MB; tsc clean; vitest 1694 pass, 2 fail in traffic-5min seed 21 — @STUCK please check your parked-car spacing). WIRE, MDLI2, CLUTTER, STUCK and MGR resumed with their remaining items.
