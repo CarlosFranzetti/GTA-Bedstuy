@@ -265,6 +265,10 @@ export class RenderPipeline {
   private grading: ShaderPass | null = null;
   private gtao: GTAOPass | null = null;
   private dof: DofPass | null = null;
+  private fx: FxPass | null = null;
+  private sunLight: THREE.DirectionalLight | null | undefined;
+  private wet = 0;
+  private rain = 0;
   private bloomScale = 1;
   private readonly t0 = performance.now();
   private lastT = performance.now();
@@ -279,15 +283,10 @@ export class RenderPipeline {
 
   // grading / exposure
   private readonly lutSupported: boolean;
-  private lutTextures: (THREE.Data3DTexture | null)[] = [null, null, null];
-  /** 0 = day, 1 = dusk, 2 = night; moves smoothly towards the target preset. */
-  private gradePhase = 0;
-  private gradeTarget: GradePreset = 'day';
+  private lutTextures: (THREE.Data3DTexture | null)[] = HOUR_KEYS.map(() => null);
   private exposureBias = 1;
   private exposureFactor = EXPOSURE_BY_PRESET.day;
   private readonly tc = newTimeCycle();
-  /** Until the first frame is rendered, setNight/setHour snap instead of easing. */
-  private settled = false;
 
   constructor(
     renderer: THREE.WebGLRenderer,
@@ -326,9 +325,30 @@ export class RenderPipeline {
     return this.focusCurrent;
   }
 
-  /** Whether the grading pass uses the 3D LUT (WebGL2, medium/high) or the analytic fallback. */
+  /** Whether the grading pass uses the per-hour 3D LUT (WebGL2, every tier but phone) or the analytic fallback. */
   get usesLut(): boolean {
-    return this.lutSupported && this.q !== 'low' && this.q !== 'phone';
+    return this.lutSupported && this.q !== 'phone';
+  }
+
+  /** Ground wetness and rain intensity (0..1) from Weather; drives the SSR trace, the haze and the rain bloom. */
+  setWeather(wetness: number, rain: number): void {
+    this.wet = Math.min(1, Math.max(0, Number.isFinite(wetness) ? wetness : 0));
+    this.rain = Math.min(1, Math.max(0, Number.isFinite(rain) ? rain : 0));
+  }
+
+  /** Extra passes this tier adds on top of the stock chain (name, resolution relative to the frame, draws, wet-only). */
+  get fxCosts(): PassCost[] {
+    return this.q === 'phone' ? [] : fxPassCosts(this.q);
+  }
+
+  /** Whether the half-resolution SSR trace ran on the last frame. */
+  get ssrActive(): boolean {
+    return this.fx?.traced ?? false;
+  }
+
+  /** Pass names in render order (tests / the cost report). */
+  get passNames(): string[] {
+    return this.passes.map((p) => p.constructor.name);
   }
 
   render(): void {
@@ -336,11 +356,11 @@ export class RenderPipeline {
     const dt = Math.min(0.25, Math.max(0, (now - this.lastT) / 1000));
     this.lastT = now;
     this.updateDof(dt);
-    this.updateGrade(dt);
+    this.updateGrade();
     this.updateExposure();
+    this.updateFx();
     if (this.grading) this.grading.uniforms.time.value = (now - this.t0) / 1000;
     this.composer.render();
-    this.settled = true;
   }
 
   /** CSS-pixel size (same numbers you pass to renderer.setSize). Also call after changing the pixel ratio. */
@@ -360,7 +380,6 @@ export class RenderPipeline {
 
   setNight(night: boolean): void {
     this.night = night;
-    this.retarget();
     this.updateExposure();
   }
 
@@ -371,13 +390,12 @@ export class RenderPipeline {
   setHour(hour: number): void {
     if (!Number.isFinite(hour)) return;
     this.hour = hour;
-    this.retarget();
     this.updateExposure();
   }
 
-  /** Jumps the grade crossfade and auto-exposure straight to the current target (time jumps, debug/audit hooks). */
+  /** Re-applies the per-hour grade and auto-exposure immediately (time jumps, debug/audit hooks). The grade is a pure function of the hour, so there is nothing to ease. */
   snapGrade(): void {
-    this.gradePhase = GRADE_PRESETS.indexOf(this.gradeTarget);
+    this.updateGrade();
     this.updateExposure();
   }
 
@@ -421,6 +439,7 @@ export class RenderPipeline {
     this.grading = null;
     this.gtao = null;
     this.dof = null;
+    this.fx = null;
   }
 
   private add<T extends Pass>(pass: T): T {
@@ -429,16 +448,8 @@ export class RenderPipeline {
     return pass;
   }
 
-  private retarget(): void {
-    const preset: GradePreset = this.night ? 'night' : this.hour === null ? 'day' : presetForHour(this.hour);
-    this.gradeTarget = preset;
-    if (!this.settled) {
-      this.gradePhase = GRADE_PRESETS.indexOf(preset);
-    }
-  }
-
   private lut(i: number): THREE.Data3DTexture {
-    return (this.lutTextures[i] ??= buildLut(GRADE_PRESETS[i]));
+    return (this.lutTextures[i] ??= buildLut(i));
   }
 
   private updateDof(dt: number): void {
@@ -457,19 +468,42 @@ export class RenderPipeline {
     u.cameraFar.value = this.camera.far;
   }
 
-  private updateGrade(dt: number): void {
+  /** Two baked hour-key LUTs crossfaded by the smoothed hour position (dawn cool -> golden -> flat noon -> amber dusk -> sodium night). */
+  private updateGrade(): void {
     const g = this.grading;
     if (!g || !this.usesLut) return;
-    const target = GRADE_PRESETS.indexOf(this.gradeTarget);
-    const step = GRADE_PHASE_SPEED * dt;
-    const d = target - this.gradePhase;
-    this.gradePhase = Math.abs(d) <= step ? target : this.gradePhase + Math.sign(d) * step;
-    const lo = Math.min(GRADE_PRESETS.length - 1, Math.floor(this.gradePhase));
-    const hi = Math.min(GRADE_PRESETS.length - 1, lo + 1);
-    g.uniforms.tLut.value = this.lut(lo);
-    g.uniforms.tLutB.value = this.lut(hi);
-    g.uniforms.lutMix.value = hi === lo ? 0 : this.gradePhase - lo;
+    const k = lutKeysForHour(this.hour ?? (this.night ? 0 : 12));
+    g.uniforms.tLut.value = this.lut(k.a);
+    g.uniforms.tLutB.value = this.lut(k.b);
+    g.uniforms.lutMix.value = k.mix;
     g.uniforms.useLut.value = 1;
+  }
+
+  private findSun(): THREE.DirectionalLight | null {
+    if (this.sunLight === undefined) {
+      this.sunLight = null;
+      this.scene.traverse((o) => { if (!this.sunLight && (o as THREE.DirectionalLight).isDirectionalLight && (o as THREE.DirectionalLight).castShadow) this.sunLight = o as THREE.DirectionalLight; });
+    }
+    return this.sunLight;
+  }
+
+  private updateFx(): void {
+    const fx = this.fx;
+    if (!fx) return;
+    const f = fx.frame;
+    const hour = this.hour ?? (this.night ? 0 : 12);
+    const tc = timeCycleAt(hour, this.tc);
+    f.wet = this.wet;
+    f.rain = this.rain;
+    const fog = this.scene.fog;
+    if (fog) f.hazeColor.copy(fog.color);
+    const hz = hazeAt(hour, this.rain);
+    f.hazeAmount = hz.amount;
+    f.sunGlow = tc.sunI > 0.3 ? hz.glow : 0;
+    f.sunColor.copy(tc.sunColor);
+    const sun = this.findSun();
+    if (sun) f.sunDir.copy(sun.position).sub(sun.target.position).normalize();
+    f.contact = this.q === 'high' ? 0.55 : 0.5;
   }
 
   /**
@@ -481,9 +515,12 @@ export class RenderPipeline {
     this.exposureFactor = tc.exposure;
     this.renderer.toneMappingExposure = this.exposureBias * tc.exposure;
     if (this.bloom) {
-      this.bloom.strength = tc.bloomStrength;
+      // Rain and wet streets bloom lamps and headlights more (soft halos in the wet air); phone has no bloom.
+      this.bloom.strength = tc.bloomStrength * (1 + 0.7 * this.rain) + 0.05 * this.wet;
       this.bloom.threshold = tc.bloomThreshold;
+      this.bloom.radius = BLOOM_RADIUS + 0.25 * this.rain;
     }
+    if (this.grading && this.q !== 'phone') this.grading.uniforms.grain.value = grainAmount(tc.moonI);
   }
 
   private build(): void {
@@ -521,6 +558,12 @@ export class RenderPipeline {
       });
       this.gtao = this.add(gtao);
 
+      // Screen-space reflections (wet ground), contact darkening and aerial haze: reuses the GTAO depth + normal G-buffer.
+      if (FX_TIERS[this.q].enabled) {
+        const fx = new FxPass(this.camera, gtao.depthTexture, gtao.normalTexture, this.q);
+        this.fx = this.add(fx);
+      }
+
       // Depth of field right after AO, reading the G-buffer depth GTAO just rendered.
       const dof = new DofPass();
       dof.uniforms.tDepth.value = gtao.depthTexture;
@@ -535,8 +578,8 @@ export class RenderPipeline {
       );
     }
 
-    // Grading: 3D LUT on WebGL2 medium/high; analytic grade (no sampler3D in the shader) otherwise.
-    const useLut = full && this.lutSupported;
+    // Grading: per-hour 3D LUT on WebGL2 low/medium/high; analytic grade (no sampler3D in the shader) otherwise.
+    const useLut = this.q !== 'phone' && this.lutSupported;
     this.grading = this.add(
       new ShaderPass(useLut ? { ...GRADING_SHADER, defines: { USE_LUT: '' } } : GRADING_SHADER),
     );

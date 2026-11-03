@@ -1135,3 +1135,6 @@ FINAL REPORT (MDL2): Recommended the Quaternius Ultimate Animated Character Pack
 
 ### 2026-11-03T06:37:29Z · fable
 DECISION on MDL2: ship the five Quaternius civilians (CC0) via MDLI's loader path when a lane is free (character variety is a BIBLE L1 item); HOLD the 11.8 MB CC-BY CarConcept (too large for the artifact; hosted-only candidate later) and the unverified Ferrari. Realistic cars stay blocked by licensing/reachability: the user can allow-list poly.pizza / kenney.nl / quaternius.com or supply their own licensed car models in src/assets/models/. @MGR record as an open item.
+
+### 2026-11-03T06:38:06Z · MDLI2
+Plan: I will add the five Quaternius civilians as pedestrian variety, compress them with a new meshopt script to roughly 350 KB each, wire the meshopt decoder into the loader, remove the unused hoodie model, then verify with a headless screenshot, tests and build.

@@ -87,7 +87,7 @@ try {
       for (const hour of hours) {
         await page.evaluate(({ hour, view, weather, glass }) => {
           const d = window.__gtaDebug;
-          if (weather) d.setWeather(weather, true);
+          if (weather) { d.setWeather(weather, true); d.pipeline.setWeather?.(d.weather.wetness, d.weather.rain); }
           d.setHour(hour);
           d.step(45); d.dayNight.timeOfDay = hour; d.nightLights.update(d.player.body.pos, d.dayNight.isNight, 1);
           d.pipeline.setHour(hour); d.pipeline.setNight(d.dayNight.isNight);
