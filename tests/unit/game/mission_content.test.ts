@@ -5,6 +5,9 @@ import { subdivideLots } from '@/world/LotSubdivider';
 import { MissionSystem } from '@/game/missions/MissionSystem';
 import { buildMissions } from '@/game/missions/content';
 import type { MissionDef, ObjectiveDef } from '@/game/missions/types';
+import { PROCEDURAL_RECORDS } from '@/game/records';
+import { EVENT_ID, INTERIORS, CLUB_UNLOCK_FLAG, CLUB_SLOT_FLAG } from '@/world/interiors/defs';
+import { CRATE_RECORDS, INTERIOR_CLUB, INTERIOR_DELI, FLAG_CLUB_SLOT, FLAG_CLUB_UNLOCKED } from '@/game/missions/content/djIds';
 
 const data = loadBedstuyData();
 const grid = buildGrid(data);
@@ -173,6 +176,23 @@ describe('mission content integrity', () => {
     // the only way stars appear in the new jobs is as a failure rule (a noise complaint, a pulled-over van)
     const text = JSON.stringify(defs).toLowerCase();
     for (const bad of ['shoot', 'stab', 'gun', 'punch', 'murder', 'blood']) expect(text.includes(`"${bad}`) || text.includes(` ${bad} `)).toBe(false);
+  });
+});
+
+describe('contract with the CLUB lane (ids, records, flags)', () => {
+  it('uses the interior event ids, record ids, prices and flags CLUB ships', () => {
+    expect(INTERIOR_DELI).toBe(EVENT_ID.deli);
+    expect(INTERIOR_CLUB).toBe(EVENT_ID.club);
+    expect(FLAG_CLUB_UNLOCKED).toBe(CLUB_UNLOCK_FLAG);
+    expect(FLAG_CLUB_SLOT).toBe(CLUB_SLOT_FLAG);
+    const crate = defs.find((d) => d.id === 'crate-digger')!;
+    const cost = CRATE_RECORDS.reduce((n, id) => {
+      const r = PROCEDURAL_RECORDS.find((x) => x.id === id);
+      expect(r, id).toBeDefined();
+      return n + r!.price;
+    }, 0);
+    expect(crate.stake!).toBeGreaterThanOrEqual(cost);
+    expect(INTERIORS.deli.door.x).toBeDefined();
   });
 });
 
