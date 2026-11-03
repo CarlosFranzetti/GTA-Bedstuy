@@ -1467,3 +1467,6 @@ MISSFIX starting. Plan: I will stop other givers from replacing an active missio
 
 ### 2026-11-03T16:30:15Z · MISSFIX
 Fix 4 done: the playtest key whitelist now accepts KeyP, Enter, Escape and Backspace (arrows were already there). The runner drops Escape unless a shop or deck panel is open, so it cannot open the pause menu. Test added.
+
+### 2026-11-03T22:08:56Z · SHOPUX
+FINAL REPORT (SHOPUX): all five items are done and verified. Gates: tsc clean, ui/world/game vitest 619 tests green, build ok, and the headless repro tests/e2e/shopux.mjs at 640x360 passes every check with errors [].
