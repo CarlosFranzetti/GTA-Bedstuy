@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { Player } from '@/entities/Player';
+import { Player, doorDistance } from '@/entities/Player';
 import { Vehicle, VEHICLE_SPECS } from '@/entities/Vehicle';
 import { EventBus, type GameEvents } from '@/core/Events';
 import type { Input } from '@/core/Input';
@@ -132,6 +132,24 @@ describe('Player on foot', () => {
 const seat = (player: Player) => { for (let i = 0; i < 40 && !player.inVehicle; i++) player.update(1 / 60); };
 
 describe('Player vehicles', () => {
+  it('a long box truck can be entered from its far flank and its tail: distance is measured to the body box, not just the door', () => {
+    const { events } = setup();
+    const truck = new Vehicle('bt', VEHICLE_SPECS.boxtruck, { x: 20, z: 0 }, 0, stubMaterials, events);
+    const { halfW, halfL } = truck.body.shape as { halfW: number; halfL: number };
+    const right = { x: 20 + halfW + 2.5, z: 0 }; // right flank, the door is on the left
+    const tail = { x: 20, z: halfL + 2.5 };
+    expect(Math.hypot(right.x - truck.doorPos().x, right.z - truck.doorPos().z)).toBeGreaterThan(3);
+    expect(Math.hypot(tail.x - truck.doorPos().x, tail.z - truck.doorPos().z)).toBeGreaterThan(3);
+    for (const at of [right, tail]) {
+      const w = setup();
+      w.player.body.pos.x = at.x; w.player.body.pos.z = at.z;
+      expect(doorDistance(truck, at)).toBeLessThanOrEqual(3);
+      expect(w.player.tryEnter([truck])).toBe(truck);
+      truck.driver = null;
+    }
+    expect(doorDistance(truck, { x: 20 + halfW + 3.6, z: 0 })).toBeGreaterThan(3);
+  });
+
   it('tryEnter picks the nearest vehicle within 3 m and ignores one at 5 m', () => {
     const { player, car, log } = setup();
     const far = car('far', 5 + 1.2, 0); // door at x=5 (door is 1.2 left of centre)
