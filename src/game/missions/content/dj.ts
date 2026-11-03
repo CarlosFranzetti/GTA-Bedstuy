@@ -21,13 +21,13 @@ export function crateDigger(): MissionDef {
     triggerRadius: 3,
     stake: 60,
     timeLimit: 480,
-    phoneIntro: { from: 'Ms. Odette', text: 'You look like you can carry a crate. Come in, and spend what you have on three records: Throop Night Bus, Spin Cycle Love and Kickback On Kosciuszko. I will know if you cheat.' },
+    phoneIntro: { from: 'Ms. Odette', text: 'You look like you can carry a crate. Come in, and spend what you have on three records: Throop Night Bus, Spin Cycle Love and Fire Escape Sunrise. I will know if you cheat.' },
     twist: { at: 2, text: 'Ms. Odette does not ring you up at once. She looks at your records, then at you, then slides a flyer across the counter.' },
     failJoke: { timeUp: 'Ms. Odette: "Taste takes time. Yours is still loading."' },
     followUp: { from: 'Ms. Odette', text: "There is an open-decks slot at the block party. Evening. Don't be late and don't bring a laptop.", delay: 80 },
     objectives: [
       { kind: 'enterInterior', id: INTERIOR_DELI, at: door, radius: 4, text: 'Walk into WAX DELI' },
-      { kind: 'buy', shop: SHOP_WAX_DELI, items: [...CRATE_RECORDS], at: door, text: 'Buy Throop Night Bus, Spin Cycle Love and Kickback On Kosciuszko', banter: ['Ms. Odette: "Nope. That one is a crime. The one next to it."'] },
+      { kind: 'buy', shop: SHOP_WAX_DELI, items: [...CRATE_RECORDS], at: door, text: 'Buy Throop Night Bus, Spin Cycle Love and Fire Escape Sunrise', banter: ['Ms. Odette: "Nope. That one is a crime. The one next to it."'] },
       {
         kind: 'timer', seconds: 10, text: 'Ms. Odette wraps your records',
         banter: ['Ms. Odette: "Good. You do not buy what you like. You buy what you can mix."', 'Ms. Odette: "There is a night I will not name. There is a door I will not name. Go be seen first."'],
@@ -57,6 +57,7 @@ export function openDecks(ctx: PlaceCtx): MissionDef {
     phoneIntro: { from: 'Mama Rue', text: 'Odette says you have ears. The party runs from seven. Come early, bring your records, and do not drop the needle on my cousin.' },
     twist: { at: 3, text: 'The decks belong to the only speaker on the block, and the whole street has stopped to watch. No pressure.' },
     failJoke: { lowScore: 'The crowd politely claps. Politely. Which is worse.' },
+    setFlags: [FLAG_CLUB_SLOT],
     followUp: { from: 'Mama Rue', text: 'Somebody from Aftersloth heard you. Look for the flyers after 11. Do not tell them I told you.', delay: 90 },
     objectives: [
       { kind: 'goTo', at: party, radius: 14, presence: 'any', text: 'Head to the block party on Van Buren St' },
@@ -89,7 +90,7 @@ export function thePassword(ctx: PlaceCtx): MissionDef {
       timeUp: 'You wandered Kosciuszko St until it was Tuesday.',
     },
     followUp: { from: 'DJ Sloth', text: "You're on the list. Show up for the residency set. Dress like you are not trying.", delay: 75 },
-    setFlags: [FLAG_CLUB_UNLOCKED, FLAG_CLUB_SLOT],
+    setFlags: [FLAG_CLUB_UNLOCKED],
     objectives: [
       { kind: 'waitUntilHour', from: 23, to: 4, at: facePoint(grid, 'r2c1', 'N', 0.12), radius: 25, text: 'Flyers only go up after 11pm. Wait near the lamp post.' },
       {

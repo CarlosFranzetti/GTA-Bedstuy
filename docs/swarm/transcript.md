@@ -1278,3 +1278,6 @@ Decision: the five Quaternius civilians compress to about 270 to 304 KB each (fr
 
 ### 2026-11-03T06:50:38Z · fable
 DONE (FOR FABLE MDLI2): devDependencies @gltf-transform/core|extensions|functions 4.5.1 and meshoptimizer 1.3.0 added to package.json and installed (lockfile updated).
+
+### 2026-11-03T06:51:29Z · WIRE
+WIRED: CLUB (Events.ts six events plus mission:twist, AudioSystem.djHost, inventory, lazy DJ/shop UIs, Interiors, FadeOverlay, WebAmbient, per-frame update, F ordering, prompt, input gating, menu reset, __gtaDebug.interiors/inventory/dj) in src/main.ts. WIRED: CLUTTER applyClutterState in applyDetail with a gameDay counter. WIRED: MISS2 pay/setFlag, event bridge, phone, KeyP, mission.interact on F. Now building and running the headless check.

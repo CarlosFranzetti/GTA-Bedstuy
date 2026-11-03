@@ -214,9 +214,11 @@ describe('buildProps', () => {
     }
   });
 
-  it('merges to at most 15 meshes', () => {
+  it('merges to at most 15 meshes (plus at most 10 street-clutter buckets)', () => {
     const { group } = build();
-    expect(meshes(group).length).toBeLessThanOrEqual(15);
+    const all = meshes(group);
+    expect(all.filter((m) => !/^props:(clutter-|wiresClutter)/.test(m.name)).length).toBeLessThanOrEqual(15);
+    expect(all.filter((m) => /^props:(clutter-|wiresClutter)/.test(m.name)).length).toBeLessThanOrEqual(10);
     expect(meshes(group).length).toBeGreaterThan(0);
   });
 

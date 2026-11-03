@@ -54,6 +54,17 @@ import { DistanceCuller, InstanceCuller } from '@/render/Culling';
 import { CarLod, applyCarShadowFlags } from '@/render/CarLod';
 import { RenderProxies } from '@/render/AoProxy';
 import { buildCarModel } from '@/entities/models/carModel';
+import { applyClutterState } from '@/world/PropsGen';
+import { Inventory } from '@/game/Inventory';
+import { PROCEDURAL_RECORDS, RecordSource, bundledDropRecords, type BufferContext } from '@/game/records';
+import { DjGame } from '@/game/DjGame';
+import { WebDjAudio, RecordPreview } from '@/game/DjAudio';
+import { DjUi } from '@/ui/DjUi';
+import { ShopUi } from '@/ui/ShopUi';
+import { Interiors, FadeOverlay, WebAmbient } from '@/world/interiors';
+import { Phone, savePhoneData, loadPhoneData, clearPhoneData } from '@/game/Phone';
+import { PhoneHud } from '@/ui/PhoneHud';
+import type { MissionHudState } from '@/game/missions/types';
 
 declare global {
   interface Window { __gtaReady?: boolean; __gtaStats?: Record<string, number>; }
@@ -197,10 +208,14 @@ scene.add(player.object3D);
 physics.addBody(player.body);
 
 const wanted = new WantedSystem(events);
+const drop = bundledDropRecords();
+const inventory = new Inventory(PROCEDURAL_RECORDS);
 const missions = new MissionSystem(buildMissions(grid, data, world.lots), {
   persist: saveMissionData,
   bus: events,
   raiseWanted: (stars) => wanted.raiseTo(stars),
+  pay: (n) => { inventory.add(n); },
+  setFlag: (f) => { inventory.setFlag(f); },
 });
 missions.restore(loadMissionData());
 const missionMarkers = new MissionMarkerView();
@@ -209,6 +224,18 @@ const lights = new TrafficLights(grid); // clocked by TrafficSystem only; main j
 const traffic = new TrafficSystem(grid, physics, events, rng.fork('traffic'), scene, materials, makeVehicle, makePed, lights, world.lots, tier0.traffic);
 const cops = new CopSystem(grid, physics, events, rng.fork('cops'), scene, makeVehicle, wanted, { lights, patrolCount: tier0.traffic.cops });
 const audio = new AudioSystem(events);
+const phone = new Phone();
+phone.restore(loadPhoneData());
+phone.persist = savePhoneData;
+phone.bind(missions);
+
+// DJ audio, record source and the shop / decks UIs need the audio context, so they are built on the first interior action
+// (the F press is a user gesture, so the context exists by then)
+let djAudio: WebDjAudio | null = null, preview: RecordPreview | null = null, recSource: RecordSource | null = null;
+let dj: DjGame | null = null, shopUi: ShopUi | null = null, djUi: DjUi | null = null;
+const fade = new FadeOverlay(document.body);
+const ambient = new WebAmbient(() => audio.djHost, () => recSource);
+const uiOpen = (): boolean => !!(shopUi?.isOpen || djUi?.isOpen);
 
 events.on('enterVehicle', () => { physics.removeBody(player.body.id); if (player.vehicle) nightLights.attachHeadlights(player.vehicle.object3D, player.vehicle.spec.length); });
 events.on('exitVehicle', () => { physics.addBody(player.body); nightLights.attachHeadlights(null); });
@@ -225,6 +252,44 @@ const missionHud = new MissionHud(overlay);
 const minimap = new Minimap(overlay, grid);
 
 const input = new Input(renderer.domElement);
+let lastOutside: Vec2 = { x: SPAWN.x, z: SPAWN.z };
+function ensureAudio(): boolean {
+  if (recSource) return true;
+  const h = audio.djHost;
+  if (!h) return false;
+  recSource = new RecordSource(h.ctx as unknown as BufferContext, (def) => (def.kind === 'library' ? audio.library.getTrack(def.ref!)?.url : drop.urls.get(def.id)));
+  djAudio = new WebDjAudio(h);
+  preview = new RecordPreview(h);
+  dj = new DjGame(djAudio, events);
+  shopUi = new ShopUi(overlay, {
+    inventory, stock: PROCEDURAL_RECORDS, source: recSource, preview, events, dropRecords: drop.defs,
+    libraryTracks: () => audio.library.serialize().pool.map((t) => ({ id: t.id, name: t.name, path: t.path })),
+  });
+  djUi = new DjUi(overlay, { game: dj, inventory, source: recSource, onToggle: (o) => ambient.duck(o) });
+  return true;
+}
+const interiors = new Interiors({
+  scene, world: physics, materials, inventory, getHour: () => dayNight.timeOfDay,
+  teleport: (x, z, h) => { const b = player.body; b.pos.x = x; b.pos.z = z; b.vel.x = 0; b.vel.z = 0; b.heading = h; player.prevPos.x = x; player.prevPos.z = z; },
+  events, onMessage: (m) => hud.showToast(m), onFade: (a) => fade.set(a),
+  onChange: (id) => { ensureAudio(); ambient.set(id); },
+  onAction: (a) => {
+    if (!ensureAudio()) { hud.showToast('Audio is still starting. Try again in a moment.'); return; }
+    if (a.kind === 'shop' || a.kind === 'listen') shopUi!.open();
+    else djUi!.open(a.venue, { minutes: missions.djRequest?.venue === a.venue ? missions.djRequest.minutes : undefined });
+  },
+  dancerCount: quality === 'phone' ? 12 : 16,
+});
+// event bridge: interiors / shop / DJ events -> missions; the power-cut twist -> club blackout
+events.on('interior:entered', (e) => missions.notify({ type: 'interior:entered', id: e.id }));
+events.on('interior:exited', (e) => missions.notify({ type: 'interior:exited', id: e.id }));
+events.on('shop:bought', (e) => missions.notify({ type: 'shop:bought', recordId: e.recordId, shop: e.shop, price: e.price }));
+events.on('dj:setFinished', (e) => missions.notify({ type: 'dj:setFinished', venue: e.venue, score: e.score, minutes: e.minutes }));
+events.on('mission:twist', (e) => { if (e.id === 'aftersloth-residency') interiors.setBlackout(true); });
+events.on('mission:completed', (e) => { if (e.id === 'aftersloth-residency') interiors.setBlackout(false); });
+events.on('mission:failed', (e) => { if (e.id === 'aftersloth-residency') interiors.setBlackout(false); });
+const phoneHud = new PhoneHud(overlay, phone);
+const missionHudScratch = {} as MissionHudState;
 const cam = new ThirdPersonCamera(window.innerWidth / window.innerHeight);
 const pipeline = new RenderPipeline(renderer, scene, cam.camera, { quality });
 if (useProxies) proxies.attachToPipeline(pipeline);
@@ -235,6 +300,10 @@ input.onFirstGesture = () => { hud.hideSplash(); events.emit('userGesture', {});
 overlay.addEventListener('mousedown', () => input.notifyGesture());
 overlay.addEventListener('pointerdown', () => input.notifyGesture());
 if (isTouch) new TouchControls(overlay, input);
+
+/** Game day counter (0 = Monday; advances when the clock wraps past midnight) for the rotating trash-bag piles. */
+let gameDay = 0;
+let prevHour = dayNight.timeOfDay;
 
 // ---- quality switching (debug hook and the automatic drop share this path)
 function applyQuality(q: Quality): void {
@@ -265,6 +334,7 @@ function applyDetail(t = tierConfig(quality)): void {
   setNormalMaps(scene, t.normalMaps);
   setPhoneDetailHidden(world.group, t.simpleGeometry);
   setAnisotropy(scene, Math.min(t.anisotropy, renderer.capabilities.getMaxAnisotropy()));
+  applyClutterState(world.group, quality, gameDay);
 }
 // Explicit ?q= (review scripts, bug reports) or ?perf=0 keeps the requested quality for the whole session.
 const perf = new PerfMonitor({
@@ -410,6 +480,7 @@ const game = new Game(
       prompt = '';
       if (player.inVehicle) prompt = PROMPT_EXIT;
       else { for (const v of allVehicles()) if (nearDoor(v, pos)) { prompt = PROMPT_ENTER; break; } }
+      if (!player.inVehicle) { const ip = interiors.prompt(pos); if (ip) prompt = isTouch ? ip.replace(/^F  /, `${PROMPT_KEY}  `) : ip; }
     }
     hudState.stars = wanted.stars;
     hudState.speedKmh = player.vehicle ? Math.hypot(player.vehicle.body.vel.x, player.vehicle.body.vel.z) * 3.6 : 0;
@@ -417,18 +488,22 @@ const game = new Game(
     hudState.radioStation = audio.stationName;
     hudState.radioTrack = audio.trackName;
     hudState.talkProgress = audio.talkProgress;
-    hudState.prompt = prompt;
+    hudState.prompt = uiOpen() || interiors.locked ? '' : prompt;
     hudState.timeOfDay = dayNight.timeOfDay;
     hudState.streetName = streetName;
     hudState.fps = fps;
     hud.update(hudState);
-    missionHud.update(missions.hud, frameDt);
+    Object.assign(missionHudScratch, missions.hud); missionHudScratch.cash = inventory.cash; // Inventory owns the wallet
+    missionHud.update(missionHudScratch, frameDt);
     missionHud.updatePointer(missions.markers, camTarget, camHeading);
     missionMarkers.sync(missions.markers, missions.markersVersion); missionMarkers.update(performance.now() / 1000);
+    interiors.update(frameDt, dj?.roomBeat ?? null);
+    phone.update(frameDt, pos, dayNight.timeOfDay);
+    phoneHud.update(missions.hud.prompt, pos, camHeading);
     copPositions.length = 0;
     for (const c of cops.cops) copPositions.push(c.body.pos);
     minimapAcc += frameDt;
-    if (minimapAcc >= minimapPeriod()) { minimap.update(camTarget, camHeading, copPositions, minimapAcc, missions.markers); minimapAcc = 0; }
+    if (minimapAcc >= minimapPeriod()) { if (!interiors.inside) minimap.update(camTarget, camHeading, copPositions, minimapAcc, missions.markers); minimapAcc = 0; }
 
     stats.drawCalls = renderer.info.render.calls;
     stats.drawCallsShadow = passes.shadow; stats.drawCallsScene = passes.scene; stats.drawCallsGBuffer = passes.gbuffer; stats.drawCallsPost = passes.post;
@@ -453,7 +528,7 @@ const menu = new Menu(overlay, {
   onRadioVolume: (v) => audio.setRadioVolume(v),
   onRadioLibrary: () => radioUi.open(),
   onInvertLookY: (b) => { input.invertLookY = b; },
-  onReset: () => { clearMissionData(); const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = SPAWN.x; b.pos.z = SPAWN.z; b.vel.x = 0; b.vel.z = 0; },
+  onReset: () => { clearMissionData(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++; if (interiors.inside) interiors.exit(); const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = SPAWN.x; b.pos.z = SPAWN.z; b.vel.x = 0; b.vel.z = 0; },
 }, { touch: isTouch, initialQuality: quality, ignoreSavedQuality: params.has('q') });
 input.onModeChange = (m) => { hud.setInputMode(m); menu.setInputMode(m); };
 hud.setInputMode(input.mode); menu.setInputMode(input.mode);
@@ -475,12 +550,25 @@ game.add({
 game.add({
   update(dt) {
     // input
-    player.control(input, cam.yaw);
-    if (input.consume('KeyF')) { if (player.inVehicle) player.exit(); else player.tryEnter(allVehicles()); }
+    const away = interiors.state !== 'outside'; // inside a room (3 km off the map) or fading: the street sim keeps watching the door
+    const blocked = interiors.locked || uiOpen();
+    if (!away) { lastOutside.x = player.body.pos.x; lastOutside.z = player.body.pos.z; }
+    if (blocked) { for (const k of ['KeyF', 'KeyE', 'KeyR', 'KeyX', 'KeyP']) input.consume(k); }
+    else {
+      player.control(input, cam.yaw);
+      if (input.consume('KeyP')) phoneHud.toggle();
+      if (input.consume('KeyF')) {
+        const fpos = player.body.pos;
+        if (!player.inVehicle && interiors.interact(fpos)) { /* door / shop / decks / bar handled */ }
+        else if (missions.interact(fpos)) { /* mission talk / knock / crank handled */ }
+        else if (player.inVehicle) player.exit();
+        else if (!away) player.tryEnter(allVehicles());
+      }
+    }
 
     // ai + systems
-    traffic.update(dt, player.body.pos);
-    cops.update(dt, player.body.pos, player.vehicle ? player.vehicle.body : player.body);
+    traffic.update(dt, away ? lastOutside : player.body.pos);
+    cops.update(dt, away ? lastOutside : player.body.pos, player.vehicle ? player.vehicle.body : player.body);
     wanted.update(dt);
     {
       const pv = player.vehicle; const mb = (pv ?? player).body;
@@ -510,11 +598,12 @@ game.add({
     // keep the player on the map
     const b = grid.bounds, m = 25;
     const pb = player.vehicle ? player.vehicle.body : player.body;
-    pb.pos.x = clamp(pb.pos.x, b.minX - m, b.maxX + m);
-    pb.pos.z = clamp(pb.pos.z, b.minZ - m, b.maxZ + m);
+    if (!away) { pb.pos.x = clamp(pb.pos.x, b.minX - m, b.maxX + m); pb.pos.z = clamp(pb.pos.z, b.minZ - m, b.maxZ + m); }
 
     // environment + audio
     dayNight.update(dt);
+    if (dayNight.timeOfDay < prevHour - 12) { gameDay++; applyClutterState(world.group, quality, gameDay); }
+    prevHour = dayNight.timeOfDay;
     setStorefrontHour(dayNight.timeOfDay);
     audio.sc?.setGameHour(dayNight.timeOfDay);
     if (dayNight.isNight !== lastNight) {
@@ -522,12 +611,12 @@ game.add({
       scene.environmentIntensity = lastNight ? LIGHTING.envIntensityNight : LIGHTING.envIntensityDay;
       for (const v of allVehicles()) v.headlights = lastNight;
     }
-    nightLights.update(player.body.pos, dayNight.isNight, dt);
+    nightLights.update(away ? lastOutside : player.body.pos, dayNight.isNight, dt);
     audio.setEngine(player.vehicle ? Math.abs(player.vehicle.speed) : 0, player.vehicle ? Math.abs(player.lastVehicleInput.throttle) : 0, player.inVehicle);
     const pv = player.vehicle as ({ slip?: number } & IVehicle) | null;
     audio.setSlip(pv?.slip ?? 0); audio.setHandbrake(player.inVehicle && player.lastVehicleInput.handbrake);
     audio.update(dt);
-    if (++saveTick >= 120) { saveTick = 0; savePosition(currentPose()); }
+    if (++saveTick >= 120 && !away) { saveTick = 0; savePosition(currentPose()); }
   },
 });
 
@@ -556,7 +645,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
   setPaused(p: boolean) { game.paused = p; },
   /** Stops the requestAnimationFrame loop (headless review scripts then draw frames by hand with renderOnce). */
   stopLoop() { game.stop(); },
-  setHour(h: number) { dayNight.timeOfDay = h; dayNight.update(0); setStorefrontHour(h); },
+  setHour(h: number) { dayNight.timeOfDay = h; prevHour = h; dayNight.update(0); setStorefrontHour(h); },
   setQuality(q: Quality) { applyQuality(q); },
   setWeather(s: 'dry' | 'rain' | 'wet' | 'drying', snap = false) { weather.setState(s, snap); },
   /** Renders one frame synchronously and returns the per-pass draw-call split (for perf scripts). */
@@ -576,6 +665,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
     camHeading = (veh ? veh.body : player.body).heading;
     for (let i = 0; i < n; i++) updateCamera();
   },
+  interiors, inventory, phone, get dj() { return dj; }, get shopUi() { return shopUi; }, get djUi() { return djUi; }, ensureAudio, missions,
   player, cops, traffic, wanted, physics, grid, events, scene, sky, pipeline, nightLights, dayNight, renderer, materials, perf, culler, carLod, proxies, weather,
   nearby(r: number) { const p = player.body.pos; const out: unknown[] = []; for (const b of physics.bodies()) { const d = Math.hypot(b.pos.x - p.x, b.pos.z - p.z); if (b.shape.kind === 'circle' && d < r) out.push({ id: b.id, kind: b.kind, d: +d.toFixed(2) }); } return out; },
 };

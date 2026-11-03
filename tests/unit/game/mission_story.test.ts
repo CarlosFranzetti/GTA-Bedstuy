@@ -91,7 +91,7 @@ describe('every mission: success chain', () => {
       bot.playUntil(def);
       expect(m.isCompleted(id)).toBe(true);
     }
-    expect(flags).toEqual(['aftersloth.unlocked', 'aftersloth.slot']);
+    expect(flags).toEqual(['aftersloth.slot', 'aftersloth.unlocked']);
   });
 });
 
