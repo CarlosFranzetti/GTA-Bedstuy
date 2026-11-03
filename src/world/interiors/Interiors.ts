@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import type { Vec2 } from '@/core/Math2';
 import type { Inventory } from '@/game/Inventory';
 import type { IMaterialLibrary, IWorld2D } from '../types';
-import { CLUB_SLOT_FLAG, CLUB_UNLOCK_FLAG, EVENT_ID, INTERIORS, INTERIOR_IDS, doorTrigger, isClubHours, isClubOpen, outwardHeading, type InteriorId } from './defs';
+import { CLUB_SLOT_FLAG, CLUB_UNLOCK_FLAG, EVENT_ID, INTERIORS, INTERIOR_IDS, inDoorBand, isClubHours, isClubOpen, outwardHeading, type InteriorId } from './defs';
 import { buildRoom, type Beat, type Room, type Spot } from './rooms';
 import { box } from './parts';
 
@@ -96,8 +96,7 @@ export class Interiors {
   /** Door within reach of an outdoor position, if any. */
   doorAt(pos: Vec2): InteriorId | null {
     for (const id of INTERIOR_IDS) {
-      const def = INTERIORS[id]; const t = doorTrigger(def);
-      if (Math.hypot(pos.x - t.x, pos.z - t.z) <= def.door.radius) return id;
+      if (inDoorBand(INTERIORS[id], pos.x, pos.z)) return id;
     }
     return null;
   }

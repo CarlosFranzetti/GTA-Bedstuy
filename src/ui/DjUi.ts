@@ -1,11 +1,18 @@
 /**
  * DJ panel: two decks (record picker, play, cue, nudge, pitch +-8 %), crossfader, beat lights, sync meter,
- * crowd meter (club) and a live score. Big touch targets; keyboard shortcuts for desktop.
+ * crowd meter (club) and a live score. Big touch targets; keyboard and gamepad operable.
  * Drives DjGame.tick from its own requestAnimationFrame while open.
+ *
+ * Layout: title + score on top, the decks scroll in the middle, and a sticky footer (status, Finish set, Close) is
+ * always visible, so it fits 640x360 and phones.
+ * Keys: W/S or Up/Down select a control, A/D or Left/Right adjust a slider (else the crossfader), Enter / Space / F
+ * press the selected control, Z/N play, C/M cue, Q/E and U/O nudge, Esc / X / B / Backspace leave the booth.
+ * Gamepad: `navigate(dir)` (d-pad, A confirm, B back).
  */
 import { DjGame, MAX_PITCH, type DeckId } from '@/game/DjGame';
 import { LOOP_BARS, type RecordSource } from '@/game/records';
 import type { Inventory } from '@/game/Inventory';
+import { isCloseKey, isConfirmKey, navDirOf, setPanelClass, type NavDir } from './panelKeys';
 import './dj.css';
 
 export interface DjUiDeps {
@@ -36,12 +43,17 @@ export class DjUi {
   private readonly status: HTMLElement;
   private readonly decks: Array<{
     title: HTMLElement; bpm: HTMLElement; pos: HTMLElement; pitch: HTMLInputElement; pitchLabel: HTMLElement;
-    play: HTMLButtonElement; dots: HTMLElement[]; select: HTMLSelectElement;
+    play: HTMLButtonElement; cue: HTMLButtonElement; nudgeDown: HTMLButtonElement; nudgeUp: HTMLButtonElement;
+    dots: HTMLElement[]; select: HTMLSelectElement;
   }> = [];
   private readonly raf: (fn: (t: number) => void) => number;
   private readonly caf: (id: number) => void;
   private readonly now: () => number;
   private readonly keyHandler = (e: KeyboardEvent) => this.onKey(e);
+  private readonly keyUpHandler = (e: KeyboardEvent) => { if (this.opened && (isConfirmKey(e) || isCloseKey(e))) e.preventDefault(); };
+  /** Keyboard / gamepad order: per deck select, play, cue, nudge -, nudge +, pitch; then the crossfader, Finish set, Close. */
+  private controls: HTMLElement[] = [];
+  private sel = 0;
   private readonly off: () => void;
 
   constructor(parent: HTMLElement, private readonly d: DjUiDeps) {
@@ -53,13 +65,14 @@ export class DjUi {
     this.root.hidden = true;
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-label', 'DJ decks');
+    this.root.setAttribute('data-ui-modal', ''); // the playtest state export reads this as "a menu is open"
+    this.root.tabIndex = -1;
     const panel = this.el('div', 'dj-panel');
 
     const head = this.el('div', 'dj-head');
     const title = this.el('h2', 'dj-title'); title.textContent = 'DECKS';
     this.scoreEl = this.el('div', 'dj-score'); this.scoreEl.textContent = 'Score 0';
-    const finish = this.btn('Finish set', 'dj-btn dj-finish', () => this.finish());
-    head.append(title, this.scoreEl, finish);
+    head.append(title, this.scoreEl);
 
     const row = this.el('div', 'dj-decks');
     for (const id of [0, 1] as const) row.appendChild(this.buildDeck(id));
@@ -78,8 +91,19 @@ export class DjUi {
 
     this.status = this.el('p', 'dj-status'); this.status.setAttribute('role', 'status'); this.status.setAttribute('aria-live', 'polite');
     const help = this.el('p', 'dj-help');
-    help.textContent = 'Match the tempo with the pitch sliders, line the beats up with the nudge buttons, then slide the crossfader across on a bar line. Keys: Z/N play, X/M cue, Left/Right fader, Esc leave.';
-    panel.append(head, row, mid, this.status, help);
+    help.textContent = 'Match the tempo with the pitch sliders, line the beats up with the nudge buttons, then slide the crossfader across on a bar line. Keys: W/S select, A/D adjust, Enter or F press, Z/N play, C/M cue, Esc or X leave.';
+    const scroll = this.el('div', 'dj-scroll');
+    scroll.append(row, mid, help);
+    const foot = this.el('div', 'dj-foot');
+    const finish = this.btn('Finish set', 'dj-btn dj-finish', () => this.finish());
+    const closeBtn = this.btn('Close', 'dj-btn dj-close', () => this.leave());
+    foot.append(this.status, finish, closeBtn);
+    panel.append(head, scroll, foot);
+    this.controls = [
+      ...this.decks.flatMap((d) => [d.select, d.play, d.cue, d.nudgeDown, d.nudgeUp, d.pitch]),
+      this.fader, finish, closeBtn,
+    ];
+    this.root.addEventListener('focusin', (e) => { const i = this.controls.indexOf(e.target as HTMLElement); if (i >= 0) this.sel = i; });
     this.root.appendChild(panel);
     parent.appendChild(this.root);
     this.off = d.inventory.onChange(() => { if (this.opened) this.refreshSelects(); });
@@ -97,10 +121,13 @@ export class DjUi {
     this.crowdWrap.hidden = venue === 'home';
     this.refreshSelects();
     this.doc.addEventListener('keydown', this.keyHandler, true);
+    this.doc.addEventListener('keyup', this.keyUpHandler, true);
+    setPanelClass(this.doc, 'dj-open', true);
     this.last = this.now();
     this.rafId = this.raf(this.frame);
     this.d.onToggle?.(true);
-    this.root.querySelector<HTMLElement>('select')?.focus();
+    this.sel = 0;
+    this.select(0);
   }
 
   /** Ends the set (emits dj:setFinished) and closes the panel. */
@@ -117,6 +144,8 @@ export class DjUi {
   private close(): void {
     this.opened = false; this.root.hidden = true;
     this.doc.removeEventListener('keydown', this.keyHandler, true);
+    this.doc.removeEventListener('keyup', this.keyUpHandler, true);
+    setPanelClass(this.doc, 'dj-open', false);
     if (this.rafId) this.caf(this.rafId);
     this.rafId = 0;
     this.d.onToggle?.(false);
@@ -200,11 +229,10 @@ export class DjUi {
     const nm = this.btn('◀ nudge', 'dj-btn', () => g.nudge(id, -0.05));
     const np = this.btn('nudge ▶', 'dj-btn', () => g.nudge(id, 0.05));
     const reset = this.btn('0%', 'dj-btn dj-small', () => { pitch.value = '0'; g.setPitch(id, 0); });
-    const ctl = this.el('div', 'dj-ctl'); ctl.append(play, cue);
-    const jog = this.el('div', 'dj-ctl'); jog.append(nm, np);
+    const ctl = this.el('div', 'dj-ctl'); ctl.append(play, cue, nm, np);
     const pr = this.el('div', 'dj-pitchrow'); pr.append(pitch, pitchLabel, reset);
-    col.append(label, select, title, bpm, pos, dotRow, ctl, jog, pr);
-    this.decks[id] = { title, bpm, pos, pitch, pitchLabel, play, dots, select };
+    col.append(label, select, title, bpm, pos, dotRow, ctl, pr);
+    this.decks[id] = { title, bpm, pos, pitch, pitchLabel, play, cue, nudgeDown: nm, nudgeUp: np, dots, select };
     return col;
   }
 
@@ -219,22 +247,71 @@ export class DjUi {
     }
   }
 
-  private onKey(e: KeyboardEvent): void {
+  // ------------------------------------------------------------ keyboard / gamepad
+
+  /** d-pad / stick directions and A / B. Up/down move the selection; left/right adjust; confirm presses; back leaves. */
+  navigate(dir: NavDir): void {
     if (!this.opened) return;
+    const g = this.d.game;
+    switch (dir) {
+      case 'up': this.select(this.sel - 1); break;
+      case 'down': this.select(this.sel + 1); break;
+      case 'left':
+      case 'right': {
+        const sign = dir === 'left' ? -1 : 1;
+        const el = this.controls[this.sel];
+        const di = this.decks.findIndex((d) => d.pitch === el);
+        if (di >= 0) {
+          const p = this.decks[di].pitch; const next = Math.max(parseFloat(p.min), Math.min(parseFloat(p.max), parseFloat(p.value) + sign * 0.5));
+          p.value = String(next); g.setPitch(di as DeckId, next / 100);
+        } else g.setCrossfader(g.crossfader + sign * 0.05);
+        break;
+      }
+      case 'confirm': this.press(); break;
+      case 'back': this.leave(); break;
+    }
+  }
+
+  /** Moves the selection (clamped) and focuses the control so the ring shows and the scroller follows. */
+  private select(i: number): void {
+    this.sel = Math.max(0, Math.min(this.controls.length - 1, i));
+    this.controls.forEach((c, k) => c.classList.toggle('dj-sel', k === this.sel));
+    const el = this.controls[this.sel];
+    try { el.focus({ preventScroll: true }); } catch { /* detached */ }
+    (el as { scrollIntoView?: (o: object) => void }).scrollIntoView?.({ block: 'nearest' });
+  }
+
+  /** Enter / Space / F / gamepad A on the selected control. A record picker cycles to the next record. */
+  private press(): void {
+    const el = this.controls[this.sel];
+    if (!el) return;
+    if (el instanceof HTMLSelectElement) {
+      if (el.options.length < 2) return;
+      el.selectedIndex = (el.selectedIndex + 1) % el.options.length;
+      if (el.selectedIndex === 0) el.selectedIndex = 1; // skip the "Choose a record" placeholder
+      el.dispatchEvent(new Event('change'));
+    } else if (el instanceof HTMLButtonElement) el.click();
+  }
+
+  private onKey(e: KeyboardEvent): void {
+    if (!this.opened || e.ctrlKey || e.metaKey || e.altKey) return;
     const g = this.d.game; let used = true;
-    switch (e.code) {
-      case 'Escape': this.leave(); break;
-      case 'KeyZ': g.play(0); break;
-      case 'KeyX': g.cue(0); break;
-      case 'KeyN': g.play(1); break;
-      case 'KeyM': g.cue(1); break;
-      case 'ArrowLeft': g.setCrossfader(g.crossfader - 0.05); break;
-      case 'ArrowRight': g.setCrossfader(g.crossfader + 0.05); break;
-      case 'KeyQ': g.nudge(0, -0.05); break;
-      case 'KeyE': g.nudge(0, 0.05); break;
-      case 'KeyU': g.nudge(1, -0.05); break;
-      case 'KeyO': g.nudge(1, 0.05); break;
-      default: used = false;
+    if (isCloseKey(e)) { if (!e.repeat) this.leave(); }
+    else if (isConfirmKey(e)) { if (!e.repeat) this.navigate('confirm'); }
+    else {
+      const dir = navDirOf(e);
+      if (dir) this.navigate(dir);
+      else switch (e.code) {
+        case 'KeyZ': g.play(0); break;
+        case 'KeyC': g.cue(0); break;
+        case 'KeyN': g.play(1); break;
+        case 'KeyM': g.cue(1); break;
+        case 'KeyQ': g.nudge(0, -0.05); break;
+        case 'KeyE': g.nudge(0, 0.05); break;
+        case 'KeyU': g.nudge(1, -0.05); break;
+        case 'KeyO': g.nudge(1, 0.05); break;
+        default: used = e.code !== 'Tab'; // Tab keeps its browser meaning; other game keys are swallowed
+      }
     }
     if (used) { e.preventDefault(); e.stopPropagation(); }
   }

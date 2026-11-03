@@ -1397,3 +1397,9 @@ H4 (phone tier) report received: picture reads fine on phone, mission pointer wo
 
 ### 2026-11-03T13:57:39Z · SHOPUX
 Plan: I will make the shop and DJ panels fit small viewports with a sticky footer and keyboard and gamepad control, pause the mission timer while they are open, widen the door prompt zone into a band, open the blocked Wax Deli stoop, and verify the mission pointer distance.
+
+### 2026-11-03T14:22:25Z · SHOPUX
+FOR FABLE: three main.ts lines, all tested. (1) line 524, gamepad: replace with  const gamepad = new GamepadInput(input, { onToast: (m) => hud.showToast(m), onStart: () => { if (shopUi?.isOpen) shopUi.close(); else if (djUi?.isOpen) djUi.leave(); else menu.toggle(); }, onNav: (d) => { if (shopUi?.isOpen) shopUi.navigate(d); else if (djUi?.isOpen) djUi.navigate(d); else menu.navigate(d); } });  (2) line 577, mission timer pause: change  missions.update(dt, mb.pos, ...  to  missions.update(uiOpen() ? 0 : dt, mb.pos, ...  (dt 0 freezes every mission clock; tests/unit/game/mission-pause.test.ts proves it). (3) line 500, pointer arrow: change  missionHud.updatePointer(missions.markers, camTarget, camHeading)  to  missionHud.updatePointer(missions.markers, camTarget, cam.yaw)  because on foot the body heading differs from the camera, so the arrow was off by the strafe angle (distance maths was already right: H4 really walked away from the giver). Keyboard needs no main.ts change: both panels capture keys at document level and stop them before Input sees them.
+
+### 2026-11-03T14:23:41Z · fable
+DONE (FOR FABLE SHOPUX): main.ts gamepad start/nav route to the open shop/decks panel, missions.update gets dt 0 while a panel is open, pointer uses cam.yaw. tsc clean.

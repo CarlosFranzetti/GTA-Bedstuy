@@ -497,7 +497,7 @@ const game = new Game(
     hud.update(hudState);
     Object.assign(missionHudScratch, missions.hud); missionHudScratch.cash = inventory.cash; // Inventory owns the wallet
     missionHud.update(missionHudScratch, frameDt);
-    missionHud.updatePointer(missions.markers, camTarget, camHeading);
+    missionHud.updatePointer(missions.markers, camTarget, cam.yaw);
     missionMarkers.sync(missions.markers, missions.markersVersion); missionMarkers.update(performance.now() / 1000);
     interiors.update(frameDt, dj?.roomBeat ?? null);
     phone.update(frameDt, pos, dayNight.timeOfDay);
@@ -521,7 +521,7 @@ const game = new Game(
 
 // pause menu, gamepad, settings (Menu fires its persisted-setting callbacks once at construction)
 let lastPad = performance.now();
-const gamepad = new GamepadInput(input, { onToast: (m) => hud.showToast(m), onStart: () => menu.toggle(), onNav: (d) => menu.navigate(d) });
+const gamepad = new GamepadInput(input, { onToast: (m) => hud.showToast(m), onStart: () => { if (shopUi?.isOpen) shopUi.close(); else if (djUi?.isOpen) djUi.leave(); else menu.toggle(); }, onNav: (d) => { if (shopUi?.isOpen) shopUi.navigate(d); else if (djUi?.isOpen) djUi.navigate(d); else menu.navigate(d); } });
 const radioUi = new RadioUi(overlay, audio);
 const menu = new Menu(overlay, {
   onPause: (p) => { game.paused = p || document.hidden; gamepad.paused = p; audio.setPaused(p); if (!p) { input.endFrame(); input.requestLock(); } },
@@ -574,7 +574,7 @@ game.add({
     wanted.update(dt);
     {
       const pv = player.vehicle; const mb = (pv ?? player).body;
-      missions.update(dt, mb.pos, player.inVehicle, wanted.stars, pv ? Math.abs(pv.speed) : Math.hypot(mb.vel.x, mb.vel.z), dayNight.timeOfDay);
+      missions.update(uiOpen() ? 0 : dt, mb.pos, player.inVehicle, wanted.stars, pv ? Math.abs(pv.speed) : Math.hypot(mb.vel.x, mb.vel.z), dayNight.timeOfDay);
       if (input.consume('KeyR')) missions.retry(dayNight.timeOfDay);
       if (input.consume('KeyX')) missions.abandon();
     }

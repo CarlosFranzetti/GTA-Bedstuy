@@ -9,9 +9,18 @@ export interface DoorDef {
   x: number; z: number;
   /** Unit vector pointing from the door out to the sidewalk. */
   outX: number; outZ: number;
-  /** Trigger radius (m) around the sidewalk point 1.4 m in front of the door. */
+  /** Legacy trigger radius (m) around the sidewalk point 1.4 m in front of the door; the band below is what counts. */
   radius: number;
+  /** How far behind the door line (into the areaway / stoop) the prompt still works. Default DOOR_BAND_IN. */
+  depthIn?: number;
 }
+
+/** The door prompt zone is a band along the frontage, not one spot: 3.2 m wide along the wall ... */
+export const DOOR_BAND_HALF = 1.6;
+/** ... reaching 2.6 m out onto the sidewalk (well over the 1.2 m minimum) ... */
+export const DOOR_BAND_OUT = 2.6;
+/** ... and 0.6 m behind the door line unless the door sets `depthIn`. */
+export const DOOR_BAND_IN = 0.6;
 
 export interface InteriorDef {
   id: InteriorId;
@@ -29,7 +38,8 @@ export interface InteriorDef {
 export const INTERIORS: Record<InteriorId, InteriorDef> = {
   deli: {
     id: 'deli', name: 'WAX DELI', origin: { x: 3000, z: 3000 }, w: 10, d: 8, h: 3.2, sign: 'WAX DELI · RECORDS & HEROES',
-    door: { x: 11.05, z: 34, outX: -1, outZ: 0, radius: 2.1 },
+    // the deli door sits on a brownstone's building line: its areaway and stoop (2.8 m deep) count as the doorstep
+    door: { x: 11.05, z: 34, outX: -1, outZ: 0, radius: 2.1, depthIn: 2.8 },
   },
   club: {
     id: 'club', name: 'AFTERSLOTH', origin: { x: 3000, z: 3120 }, w: 18, d: 14, h: 4.4, sign: '',
@@ -62,6 +72,18 @@ export function isClubOpen(hour: number, unlocked: boolean): boolean { return un
 /** The sidewalk point the player stands on to use a door. */
 export function doorTrigger(def: InteriorDef): { x: number; z: number } {
   return { x: def.door.x + def.door.outX * 1.4, z: def.door.z + def.door.outZ * 1.4 };
+}
+
+/** Door-local coordinates of a point: `along` the frontage (right-hand tangent of `out`) and `out` from the door line. */
+export function doorLocal(def: InteriorDef, x: number, z: number): { along: number; out: number } {
+  const dx = x - def.door.x, dz = z - def.door.z;
+  return { along: dx * -def.door.outZ + dz * def.door.outX, out: dx * def.door.outX + dz * def.door.outZ };
+}
+
+/** True when (x, z) is inside the door's prompt band: |along| <= 1.6 m and -depthIn <= out <= 2.6 m. */
+export function inDoorBand(def: InteriorDef, x: number, z: number): boolean {
+  const { along, out } = doorLocal(def, x, z);
+  return Math.abs(along) <= DOOR_BAND_HALF && out <= DOOR_BAND_OUT && out >= -(def.door.depthIn ?? DOOR_BAND_IN);
 }
 
 /** Player heading (radians, 0 = north/-z) when facing out of the door. */

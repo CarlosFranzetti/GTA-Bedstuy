@@ -14,6 +14,7 @@ import {
 } from './facade';
 import { lotLook, partyWallDetail, roofDetails } from './partyWall';
 import type { Hole, LotCtx, LotOutput, MaterialFamily, Storeys, V3 } from './facade';
+import { DOOR_FENCE_GAP_HALF, doorLocalXs } from '../interiors/doorGaps';
 
 export interface BrownstoneOpts {
   style: 'brownstone' | 'rowhouse';
@@ -182,7 +183,9 @@ export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
     stoops.push({ x0, x1, z0: -S, z1: zEnd });
     // areaway fence along the building line (spear variant), open at the stoop foot and the basement entry
     if (!lite && S >= 2) {
-      const gaps = [[x0 - 0.05, x1 + 0.05], [entryX - 0.5, entryX + 0.5]].sort((p, q) => p[0] - q[0]);
+      // a shop door on this building line (Wax Deli) opens a third gap so the doorstep is walkable
+      const doorGaps = doorLocalXs(lot).map((dx) => [dx - DOOR_FENCE_GAP_HALF, dx + DOOR_FENCE_GAP_HALF]);
+      const gaps = [[x0 - 0.05, x1 + 0.05], [entryX - 0.5, entryX + 0.5], ...doorGaps].sort((p, q) => p[0] - q[0]);
       let cx = 0.05;
       const run = (x0f: number, x1f: number): void => {
         if (x1f - x0f < 0.05) return; // same cut-off as ironFenceRun: no quad, no collider

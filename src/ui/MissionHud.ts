@@ -144,7 +144,8 @@ export class MissionHud {
 
   /**
    * While no mission is running, points at the nearest mission giver: 'Mission: <title>  85 m' with an arrow that
-   * turns relative to where the player/camera faces (heading 0 = north = -z, like the minimap). Call every frame
+   * turns relative to where the SCREEN faces (pass the camera yaw, not the body heading: on foot they differ whenever
+   * the player strafes or orbits; heading 0 = north = -z, like the minimap). Call every frame
    * after update(); it hides itself during a mission.
    */
   updatePointer(markers: readonly MissionMarker[], playerPos: Vec2, heading: number): void {
@@ -163,6 +164,7 @@ export class MissionHud {
       return;
     }
     this.pointerEl.hidden = false;
+    this.pointerEl.dataset.dist = bestD.toFixed(1); // exact metres to the nearest giver, for the playtest state and tests
     const text = bestD < best.radius + 2 ? `Mission: ${best.label}  here` : `Mission: ${best.label}  ${Math.round(bestD / POINTER_STEP_M) * POINTER_STEP_M} m`;
     if (text !== this.lastPointerText) { this.lastPointerText = text; this.pointerText.textContent = text; }
     const rel = angleDiff(heading, headingFromVec({ x: best.x - playerPos.x, z: best.z - playerPos.z }));
