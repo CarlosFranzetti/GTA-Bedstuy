@@ -154,6 +154,9 @@ const DOOR_OUT = 1.3;
 /** a pedestrian is added / removed no closer to the player than this (m), so the crowd changes out of sight */
 const PED_SWAP_CLEAR = 35;
 const PED_TICK = 0.4;
+/** most new pedestrians appear within this range of the player (m) */
+const PED_NEAR = 110;
+const PED_NEAR_SHARE = 0.75;
 const CROSSWALK_MATCH = 0.6;
 
 interface Active { agent: TrafficAgent; vehicle: IVehicle; }
@@ -194,7 +197,7 @@ export class TrafficSystem {
   /** hour-of-day scaling of the pedestrian budget (1 until `setHour` is called) and the ticker that eases toward it */
   private hourFactor = 1;
   private pedTimer = 0;
-  private playerAt: Vec2 = { x: 0, z: 0 };
+  private playerAt: Vec2;
 
   constructor(
     private readonly grid: GridModel,
@@ -210,6 +213,7 @@ export class TrafficSystem {
     density: Partial<TrafficDensity> = {},
     private readonly spawnPoint: Vec2 = PLAYER_SPAWN,
   ) {
+    this.playerAt = { x: spawnPoint.x, z: spawnPoint.z };
     this.density = { ...FULL_DENSITY, ...density };
     this.parkedShare = this.density.parkOccupancy;
     this.lights = lights ?? new TrafficLights(grid);
@@ -262,6 +266,22 @@ export class TrafficSystem {
     if (snap) this.fitPeds(true);
   }
 
+  /**
+   * A sidewalk node for a new pedestrian: most of the crowd is placed within PED_NEAR of the player (so the pavement near
+   * the player is lived-in rather than the whole map evenly), never closer than `minD`.
+   */
+  private pickPedNode(ids: string[], minD: number): GraphNode {
+    const nodes = this.grid.sidewalks.nodes;
+    const wantNear = this.rng.chance(PED_NEAR_SHARE);
+    let node = nodes[this.rng.pick(ids)];
+    for (let k = 0; k < 24; k++) {
+      const d = dist(node.pos, this.playerAt);
+      if (d >= minD && (!wantNear || d <= PED_NEAR)) break;
+      node = nodes[this.rng.pick(ids)];
+    }
+    return node;
+  }
+
   /** Adds / removes pedestrians toward `pedTarget`: all at once, or one per call (far from the player first). */
   private fitPeds(all: boolean): void {
     const target = this.pedTarget;
@@ -284,9 +304,7 @@ export class TrafficSystem {
         p.dispose();
       } else {
         if (ids.length === 0 || !cross) break;
-        let node = this.grid.sidewalks.nodes[this.rng.pick(ids)];
-        for (let k = 0; k < 12 && dist(node.pos, this.playerAt) < (all ? 12 : PED_SWAP_CLEAR); k++) node = this.grid.sidewalks.nodes[this.rng.pick(ids)];
-        this.addPed(node, cross);
+        this.addPed(this.pickPedNode(ids, all ? 12 : PED_SWAP_CLEAR), cross);
       }
       if (!all) break;
     }
@@ -396,7 +414,7 @@ export class TrafficSystem {
     const cross = this.crosswalkNodeIds();
     const ids = Object.keys(this.grid.sidewalks.nodes);
     if (ids.length === 0) return;
-    for (let i = 0; i < this.pedTarget; i++) this.addPed(this.grid.sidewalks.nodes[this.rng.pick(ids)], cross);
+    for (let i = 0; i < this.pedTarget; i++) this.addPed(this.pickPedNode(ids, 0), cross);
     this.formGroups();
   }
 

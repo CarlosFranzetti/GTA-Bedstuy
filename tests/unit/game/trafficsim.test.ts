@@ -106,6 +106,8 @@ describe('signals on the real Bed-Stuy grid', () => {
       sys.update(dt, { x: 0, z: 150 });
       for (const p of sys.peds) {
         p.update(dt);
+        // a group follower walks beside its leader and keeps a stale own edge: the leader's gate is what counts
+        if (p.groupLeader) { last.delete(p.id); continue; }
         const key = `${p.previousNodeId}>${p.targetNodeId}`;
         const info = crossings.get(key);
         if (!info || p.state !== 'walking') { if (!info) last.delete(p.id); continue; }
