@@ -61,6 +61,8 @@ export interface LotSpec {
   scaffold?: boolean;
   /** arched parlour windows (brownstone rows) */
   arched?: boolean;
+  /** file stem of a facade-photo atlas (facade-<lotId>) mapped once across the front; see facadeTexture.ts */
+  facadeTexture?: string;
 }
 
 /** Y levels of a building's storeys. floorY[0] is the parlour/ground floor, floorY[k] the k-th floor above it. */
@@ -204,6 +206,12 @@ export class LotBatch {
   private raw = new Map<THREE.Material, Raw>();
   private out = new Map<THREE.Material, THREE.BufferGeometry[]>();
   private cur = new THREE.Matrix4();
+  private uvMaps = new Map<THREE.Material, (x: number, y: number) => [number, number]>();
+  private nest = 0;
+
+  /** Planar front-wall quads/triangles (constant z, outside any `with` frame) of `mat` take their UVs from `fn(x, y)` instead of tiling. */
+  mapUV(mat: THREE.Material, fn: (x: number, y: number) => [number, number]): void { this.uvMaps.set(mat, fn); }
+  clearUV(): void { this.uvMaps.clear(); }
 
   private buf(mat: THREE.Material): Raw {
     let r = this.raw.get(mat);
@@ -220,7 +228,9 @@ export class LotBatch {
   with(m: THREE.Matrix4, fn: () => void): void {
     const prev = this.cur;
     this.cur = prev.clone().multiply(m);
+    this.nest++;
     fn();
+    this.nest--;
     this.cur = prev;
   }
 
@@ -250,6 +260,14 @@ export class LotBatch {
     const p3 = this.tp([ox + vx, oy + vy, oz + vz]);
     _n.set(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]).cross(_v.set(p3[0] - p0[0], p3[1] - p0[1], p3[2] - p0[2])).normalize();
     const r = this.buf(mat);
+    const mapped = this.nest === 0 ? this.uvMaps.get(mat) : undefined;
+    if (mapped && uz === 0 && vz === 0) {
+      const q0 = mapped(ox, oy), q1 = mapped(ox + ux, oy + uy), q2 = mapped(ox + ux + vx, oy + uy + vy), q3 = mapped(ox + vx, oy + vy);
+      const pushq = (p: V3, q: [number, number]) => { r.p.push(p[0], p[1], p[2]); r.n.push(_n.x, _n.y, _n.z); r.uv.push(q[0], q[1]); };
+      pushq(p0, q0); pushq(p1, q1); pushq(p2, q2);
+      pushq(p0, q0); pushq(p2, q2); pushq(p3, q3);
+      return;
+    }
     const push = (p: V3, uu: number, vv: number) => { r.p.push(p[0], p[1], p[2]); r.n.push(_n.x, _n.y, _n.z); r.uv.push(uu, vv); };
     push(p0, ua, va); push(p1, ub, va); push(p2, ub, vb);
     push(p0, ua, va); push(p2, ub, vb); push(p3, ua, vb);
@@ -266,10 +284,14 @@ export class LotBatch {
     e1.normalize();
     const e2 = n.clone().cross(e1);
     const r = this.buf(mat);
+    const mapped = this.nest === 0 && !uv ? this.uvMaps.get(mat) : undefined;
+    const planar = mapped !== undefined && a[2] === b[2] && b[2] === c[2];
     [pa, pb, pc].forEach((p, i) => {
       const d = p.clone().sub(pa);
       r.p.push(p.x, p.y, p.z); r.n.push(n.x, n.y, n.z);
-      if (uv) r.uv.push(uv[i][0], uv[i][1]); else r.uv.push(d.dot(e1) / TILE, d.dot(e2) / TILE);
+      if (uv) r.uv.push(uv[i][0], uv[i][1]);
+      else if (planar) { const q = mapped!(([a, b, c] as V3[])[i][0], ([a, b, c] as V3[])[i][1]); r.uv.push(q[0], q[1]); }
+      else r.uv.push(d.dot(e1) / TILE, d.dot(e2) / TILE);
     });
   }
 

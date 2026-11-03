@@ -295,6 +295,8 @@ export class AudioSystem {
     return this.radio.talkProgress;
   }
 
+  /** Audio context + master bus for the DJ decks and interior ambience (null until the first user gesture started audio). */
+  get djHost(): { ctx: AudioContext; dest: AudioNode } | null { return this.g ? { ctx: this.g.ctx, dest: this.g.master } : null; }
   /** The player's radio library (for the Radio library panel). */
   get library(): Library {
     return this.radio.library;

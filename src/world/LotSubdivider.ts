@@ -48,6 +48,7 @@ export function specFromData(d: DataLotSpec): LotSpec {
     storefront,
     trees: d.trees,
     scaffold: d.scaffold,
+    facadeTexture: (d as { facadeTexture?: string }).facadeTexture,
   };
 }
 

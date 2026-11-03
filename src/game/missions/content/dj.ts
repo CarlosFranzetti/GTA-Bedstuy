@@ -83,7 +83,7 @@ export function thePassword(ctx: PlaceCtx): MissionDef {
     availableHours: [22, 3],
     deadlineHour: 4,
     phoneIntro: { from: 'Unknown', text: 'Past eleven. Look up. Follow the sloth.' },
-    twist: { at: 1, text: 'The flyer never had a password. It had a knock. Two short, one long, then nothing.' },
+    twist: { at: 2, text: 'The flyer never had a password. It had a knock. Two short, one long, then nothing.' },
     failJoke: {
       clockUp: 'Sunrise. The door was never there. Neither was the club. Go to bed.',
       timeUp: 'You wandered Kosciuszko St until it was Tuesday.',
@@ -91,6 +91,7 @@ export function thePassword(ctx: PlaceCtx): MissionDef {
     followUp: { from: 'DJ Sloth', text: "You're on the list. Show up for the residency set. Dress like you are not trying.", delay: 75 },
     setFlags: [FLAG_CLUB_UNLOCKED, FLAG_CLUB_SLOT],
     objectives: [
+      { kind: 'waitUntilHour', from: 23, to: 4, at: facePoint(grid, 'r2c1', 'N', 0.12), radius: 25, text: 'Flyers only go up after 11pm. Wait near the lamp post.' },
       {
         kind: 'collect', ordered: true, radius: 4, presence: 'onFoot', item: 'flyer',
         points: [facePoint(grid, 'r1c1', 'S', 0.28), facePoint(grid, 'r2c1', 'N', 0.34), facePoint(grid, 'r1c1', 'S', 0.5)],

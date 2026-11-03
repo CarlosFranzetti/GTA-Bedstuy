@@ -9,6 +9,7 @@ import type { Rng } from '@/core/Rng';
 import type { IMaterialLibrary, Lot, StaticCollider } from '@/world/types';
 import type { LotSpec } from '@/world/buildings/facade';
 import { LotBatch, loadMats } from '@/world/buildings/facade';
+import { applyFacadeTexture } from '@/world/buildings/facadeTexture';
 import type { LocalRect, LotCtx, LotOutput } from '@/world/buildings/facade';
 import { buildBrownstone } from '@/world/buildings/brownstone';
 import { buildMixedUse } from '@/world/buildings/mixeduse';
@@ -69,7 +70,7 @@ export function buildBuildings(
     if (side && cornersPerFace.get(`${lot.blockId}|${lot.side}`) === 1) side = 'left';
     if (side && mirrored) side = side === 'left' ? 'right' : 'left';
 
-    const ctx: LotCtx = { b: batch, m: mats, rng: lrng, W: lot.width, D: lot.depth, lot, cornerSide: side, spec: lot.spec };
+    const ctx: LotCtx = { b: batch, m: applyFacadeTexture(mats, lot.spec, lot.width, batch), rng: lrng, W: lot.width, D: lot.depth, lot, cornerSide: side, spec: lot.spec };
     let out: LotOutput;
     switch (lot.type) {
       case 'brownstone': out = buildBrownstone(ctx, { style: 'brownstone' }); break;
@@ -81,6 +82,7 @@ export function buildBuildings(
       case 'vacant': out = buildVacant(ctx); break;
     }
     batch.flush(m4);
+    batch.clearUV();
 
     const poly = (r: LocalRect): StaticCollider => {
       const pts = [toWorld(r.x0, r.z0), toWorld(r.x1, r.z0), toWorld(r.x1, r.z1), toWorld(r.x0, r.z1)];

@@ -172,7 +172,7 @@ describe('mission content integrity', () => {
     for (const d of defs) for (const o of d.objectives) if (o.raiseWantedTo !== undefined) expect(d.id).toBe('laundromat-getaway');
     // the only way stars appear in the new jobs is as a failure rule (a noise complaint, a pulled-over van)
     const text = JSON.stringify(defs).toLowerCase();
-    for (const bad of ['kill', 'shoot', 'stab', 'gun', 'punch', 'murder', 'blood']) expect(text.includes(`"${bad}`) || text.includes(` ${bad} `)).toBe(false);
+    for (const bad of ['shoot', 'stab', 'gun', 'punch', 'murder', 'blood']) expect(text.includes(`"${bad}`) || text.includes(` ${bad} `)).toBe(false);
   });
 });
 

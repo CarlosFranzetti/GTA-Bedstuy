@@ -91,7 +91,7 @@ export class Bot {
       case 'tail': this.followTail(ob); break;
       case 'waitUntilHour':
         if (ob.at) this.go(ob.at, 5);
-        for (let i = 0; i < 60 * 60 * 12 && this.m.objectiveIndex === idx && !this.m.isFailed; i++) this.tick();
+        for (let i = 0; i < 60 * 60 * 26 && this.m.objectiveIndex === idx && !this.m.isFailed; i++) this.tick();
         break;
       case 'enterInterior': this.m.notify({ type: 'interior:entered', id: ob.id }); this.wait(0.1); break;
       case 'exitInterior': this.m.notify({ type: 'interior:exited', id: ob.id }); this.wait(0.1); break;

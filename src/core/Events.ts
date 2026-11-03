@@ -26,6 +26,14 @@ export interface GameEvents {
   'mission:objective': { id: string; index: number; total: number; text: string };
   'mission:completed': { id: string; title: string; cash: number; message: string; totalCash: number };
   'mission:failed': { id: string; title: string; reason: 'timeUp' | 'clockUp' | 'leftVehicle'; message: string };
+  'mission:twist': { id: string; text: string };
+  /** Interiors, record shop and DJ game (src/world/interiors, src/game/DjGame.ts, src/ui/ShopUi.ts). */
+  'interior:entered': { id: string };   // 'wax-deli' | 'aftersloth' | 'home'
+  'interior:exited': { id: string };
+  'shop:bought': { recordId: string; price: number; shop: string };
+  'shop:sold': { recordId: string; price: number; shop: string };
+  'record:pressed': { recordId: string };
+  'dj:setFinished': { venue: string; score: number; minutes: number };
 }
 
 type Handler<T> = (payload: T) => void;

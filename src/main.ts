@@ -412,7 +412,7 @@ const game = new Game(
       else { for (const v of allVehicles()) if (nearDoor(v, pos)) { prompt = PROMPT_ENTER; break; } }
     }
     hudState.stars = wanted.stars;
-    hudState.speedKmh = player.vehicle ? Math.abs(player.vehicle.speed) * 3.6 : 0;
+    hudState.speedKmh = player.vehicle ? Math.hypot(player.vehicle.body.vel.x, player.vehicle.body.vel.z) * 3.6 : 0;
     hudState.inVehicle = player.inVehicle;
     hudState.radioStation = audio.stationName;
     hudState.radioTrack = audio.trackName;
@@ -423,6 +423,7 @@ const game = new Game(
     hudState.fps = fps;
     hud.update(hudState);
     missionHud.update(missions.hud, frameDt);
+    missionHud.updatePointer(missions.markers, camTarget, camHeading);
     missionMarkers.sync(missions.markers, missions.markersVersion); missionMarkers.update(performance.now() / 1000);
     copPositions.length = 0;
     for (const c of cops.cops) copPositions.push(c.body.pos);
