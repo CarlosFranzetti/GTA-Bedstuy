@@ -293,6 +293,10 @@ research, RADIO own-library radio (8 stations, 147 slots) + talk station, WRITE 
 | SHOPUX | Shop and DJ panels fit 640×360 (no clipped buttons), operable and closable by keyboard, gamepad and touch; Escape/Start closes; the pointer lock is released while a panel is open | ui tests + headless repro at 640×360 |
 | SHOPUX | Mission timers freeze while a panel is open; door prompt is a 3.2 m band; the Wax Deli stoop/fence no longer blocks the door; mission pointer arrow uses the camera yaw | game/world/ui tests + H5 replay |
 
+| MISSFIX | An active mission is never replaced by walking past another giver (giver needs F; switching shows a toast); the pointer stays on the chosen mission and clears after abandon; HUD and harness state agree | mission tests + H5 replay |
+| MISSFIX | The Laundromat duffel pickup completes where its pad is drawn (pad and objective circle coincide, reachable from the sidewalk); pressing F on a walk-in objective gives feedback | mission test with the real POI geometry |
+| MISSFIX | Box truck shows "Enter car" from a natural standing spot beside its cab; harness accepts KeyP; the pointer routes around building lots | vehicle/door test, harness test, pointer test |
+
 #### Graphics ladder (user direction 3 Nov: "at least GTA3-style graphics for the next push and GTA V level by the end")
 Judged by MGR at every check-in on the 7 standard viewpoints of `tests/e2e/screens.mjs` (noon street, noon corner, golden aerial,
 dusk car, night car, night corner, morning signals), medium tier unless stated. Each level needs every item on every viewpoint.
