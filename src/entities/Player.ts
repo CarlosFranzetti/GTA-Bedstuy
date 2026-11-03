@@ -76,6 +76,7 @@ export class Player implements Entity {
   private sprintBlend = 0;
   /** True when the player got in from beyond the driver's door (tail or passenger flank): the door side is likely walled in. */
   private enteredFar = false;
+  private enteredFrom: Vec2 = { x: 0, z: 0 };
   /**
    * Optional: true when a foot-sized circle at `p` overlaps a static collider. When the host sets it (main.ts passes a
    * physics static query), exit() tries the driver side, then the passenger side, the rear and the front, and takes the
@@ -177,11 +178,15 @@ export class Player implements Entity {
       if (d <= bestD) { bestD = d; best = v; }
     }
     if (!best) return null;
+    // Getting in from beyond the door only makes sense if there is somewhere to get out again: a car jammed against
+    // walls and props on every side is refused (the player would be spat out inside the wall).
+    if (this.blockedAt && doorFar(best, this.body.pos) && (this.blockedAt(this.body.pos, FOOT_RADIUS) || !this.anyExitFree(best))) return null;
     const prevDriver = best.driver;
     best.driver = 'player';
     best.setInput({ ...NEUTRAL, brake: true }); // a rolling car brakes while you climb in instead of coasting away from the door
     this.exitQueued = false;
     this.enteredFar = doorFar(best, this.body.pos);
+    this.enteredFrom = { x: this.body.pos.x, z: this.body.pos.z };
     this.entering = { vehicle: best, t: 0, from: { x: this.body.pos.x, z: this.body.pos.z }, prevDriver };
     this.body.shape.r = SEATED_RADIUS; // glide through the car's own collision box
     this.onEnterStart?.();
@@ -189,6 +194,17 @@ export class Player implements Entity {
     this.wantRun = false;
     this.desiredVel = { x: 0, z: 0 };
     return best;
+  }
+
+  /** True when at least one of the four sides of `v` has a free foot-sized spot. */
+  private anyExitFree(v: IVehicle): boolean {
+    if (!this.blockedAt) return true;
+    const f = forwardFromHeading(v.body.heading);
+    const r = perpRight(f);
+    const off = v.spec.width / 2 + FOOT_RADIUS + EXIT_GAP, offEnd = v.spec.length / 2 + FOOT_RADIUS + EXIT_GAP;
+    const spots: Array<[number, number, number]> = [[-r.x, -r.z, off], [r.x, r.z, off], [-f.x, -f.z, offEnd], [f.x, f.z, offEnd]];
+    for (const [sx, sz, d] of spots) if (!this.blockedAt({ x: v.body.pos.x + sx * d, z: v.body.pos.z + sz * d }, FOOT_RADIUS)) return true;
+    return false;
   }
 
   /** Leave the vehicle, standing beside its driver's door and facing the car. */
@@ -205,21 +221,33 @@ export class Player implements Entity {
     ];
     let pick = this.enteredFar ? cands[1] : cands[0]; // fallback (no world query, or every spot blocked): the side we came in from
     if (this.enteredFar && !this.blockedAt) cands.unshift(cands.splice(1, 1)[0]);
-    if (this.blockedAt) {
+    let found = !this.blockedAt;
+    const drv = cands[0];
+    const nearEntry = Math.hypot(this.enteredFrom.x - v.body.pos.x, this.enteredFrom.z - v.body.pos.z) < 8;
+    const driverBlocked = !!this.blockedAt && this.blockedAt({ x: v.body.pos.x + drv.side.x * drv.d, z: v.body.pos.z + drv.side.z * drv.d }, FOOT_RADIUS);
+    const backOut = this.enteredFar && driverBlocked && nearEntry && !this.blockedAt!(this.enteredFrom, FOOT_RADIUS);
+    if (this.blockedAt && !backOut) {
       // driver side first, then passenger side, rear, front; if all four are blocked, try again a little further out
       search: for (const extra of EXIT_SEARCH_EXTRA) {
         for (const c of cands) {
           const d = c.d + extra;
-          if (!this.blockedAt({ x: v.body.pos.x + c.side.x * d, z: v.body.pos.z + c.side.z * d }, FOOT_RADIUS)) { pick = { side: c.side, d }; break search; }
+          if (!this.blockedAt({ x: v.body.pos.x + c.side.x * d, z: v.body.pos.z + c.side.z * d }, FOOT_RADIUS)) { pick = { side: c.side, d }; found = true; break search; }
         }
       }
+    }
+    let spotX = v.body.pos.x + pick.side.x * pick.d, spotZ = v.body.pos.z + pick.side.z * pick.d;
+    if ((backOut || !found) && nearEntry) {
+      // walled in on every side: step back out where we got in, which was free
+      spotX = this.enteredFrom.x; spotZ = this.enteredFrom.z;
+      const len = Math.hypot(spotX - v.body.pos.x, spotZ - v.body.pos.z) || 1;
+      pick = { side: { x: (spotX - v.body.pos.x) / len, z: (spotZ - v.body.pos.z) / len }, d: len };
     }
     const away = pick.side;
     v.driver = null;
     v.setInput(NEUTRAL);
     this.vehicle = null;
-    this.body.pos.x = v.body.pos.x + away.x * pick.d;
-    this.body.pos.z = v.body.pos.z + away.z * pick.d;
+    this.body.pos.x = spotX;
+    this.body.pos.z = spotZ;
     this.body.vel.x = 0;
     this.body.vel.z = 0;
     this.body.heading = headingFromVec({ x: -away.x, z: -away.z }); // looking back at the car

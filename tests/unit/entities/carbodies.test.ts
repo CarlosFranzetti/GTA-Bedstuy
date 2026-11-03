@@ -72,7 +72,7 @@ describe.each(CASES)('procedural $style', (c) => {
   });
 
   it('stays within the triangle budget', () => {
-    const budget = c.style === 'suv' ? 2900 : 2600;
+    const budget = c.style === 'suv' ? 2900 : c.style === 'van' ? 2700 : 2600;
     expect(totalTris(m.group)).toBeLessThanOrEqual(budget);
   });
 

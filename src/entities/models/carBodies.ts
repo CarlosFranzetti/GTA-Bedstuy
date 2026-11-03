@@ -1168,7 +1168,7 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
   // ---- chassis, fuel tank, rear bar, mudflaps
   trim.add(bx(1.7, 0.5, L - 0.9, 0, 0.85, 0.05));
   trim.add(bx(2 * Wg2 - 0.3, 0.14, 0.2, 0, 0.72, L / 2 - 0.1)); // rear underride bar
-  trim.add(cylX(0.22, 0.8, Wc2 - 0.4, 0.8, 0.8, 14));
+  trim.add(cylX(0.22, 0.8, Wc2 - 0.4, 0.8, 0.8, 8));
   for (const s of [-1, 1]) trim.add(bx(0.02, 0.4, 0.36, s * (W / 2 - 0.08), 0.42, -axleR + 0.6));
   chrome.add(cylZ(0.05, 0.1, Wc2 - 0.3, 0.55, L / 2 - 0.02, 8));
 

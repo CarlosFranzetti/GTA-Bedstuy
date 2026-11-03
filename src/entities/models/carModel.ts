@@ -70,6 +70,8 @@ const trimMaterial = (): THREE.MeshStandardMaterial =>
 
 /** Tyre sides: a 10-gon reads round at the 1.6 cm sagitta it leaves on a 0.34 m radius. */
 const WHEEL_SEG = 10;
+/** the van's 0.5 m tyres get 12 sides */
+const segFor = (R: number): number => (R > 0.45 ? 12 : WHEEL_SEG);
 /** Tyre profile, outer half, from the tread centre outwards: [radius / R, axial / w, texture v]. v follows tireSidewallPainter. */
 const TYRE_PROFILE: [number, number, number][] = [[1, 0, 0.5], [1, 0.32, 0.44], [0.84, 0.5, 0.2], [0.6, 0.4, 0.05]];
 
@@ -78,6 +80,7 @@ const TYRE_PROFILE: [number, number, number][] = [[1, 0, 0.5], [1, 0.32, 0.44], 
  * whose UVs land on the hubcap band of that same texture, so tyre and wheel are one mesh with one material.
  */
 function buildWheel(R: number, w: number): THREE.BufferGeometry {
+  const SEG = segFor(R);
   const rings: { a: number; r: number; v: number; nr: number; na: number }[] = [];
   const prof = [...TYRE_PROFILE.slice(1).reverse().map(([r, a, v]) => ({ r, a: -a, v: 1 - v })), ...TYRE_PROFILE.map(([r, a, v]) => ({ r, a, v }))];
   // tread centre appears once: the reversed half stops before it, the forward half starts with it
@@ -101,17 +104,17 @@ function buildWheel(R: number, w: number): THREE.BufferGeometry {
   const uv: number[] = [];
   const idx: number[] = [];
   const addRing = (a: number, r: number, v: number, na: number, nr: number): void => {
-    for (let i = 0; i <= WHEEL_SEG; i++) {
-      const th = (i / WHEEL_SEG) * Math.PI * 2;
+    for (let i = 0; i <= SEG; i++) {
+      const th = (i / SEG) * Math.PI * 2;
       const c = Math.cos(th), s = Math.sin(th);
       pos.push(a, r * c, r * s);
       nor.push(na, nr * c, nr * s);
-      uv.push(i / WHEEL_SEG, v);
+      uv.push(i / SEG, v);
     }
   };
   const stitch = (k0: number): void => {
-    const n = WHEEL_SEG + 1;
-    for (let i = 0; i < WHEEL_SEG; i++) {
+    const n = SEG + 1;
+    for (let i = 0; i < SEG; i++) {
       const A = k0 * n + i, B = A + 1, C = (k0 + 1) * n + i, D = C + 1;
       idx.push(A, B, C, B, D, C);
     }

@@ -150,6 +150,20 @@ describe('Player vehicles', () => {
     expect(doorDistance(truck, { x: 20 + halfW + 3.6, z: 0 })).toBeGreaterThan(3);
   });
 
+  it('door against a wall: entering from the street side exits on the passenger side (probe-driven and probe-free)', () => {
+    for (const withProbe of [true, false]) {
+      const { player, car } = setup();
+      const v = car('wall', 0, 0);
+      player.body.pos.x = 2.2; player.body.pos.z = 0; // street side (right flank)
+      if (withProbe) player.blockedAt = (p, r) => p.x - r < -0.9; // the driver spot (x = -1.45) and everything left of the body edge is wall
+      expect(player.tryEnter([v])).toBe(v);
+      seat(player);
+      player.exit();
+      expect(player.body.pos.x).toBeGreaterThan(0.9); // passenger side, on the street side of the car
+      expect(player.inVehicle).toBe(false);
+    }
+  });
+
   it('tryEnter picks the nearest vehicle within 3 m and ignores one at 5 m', () => {
     const { player, car, log } = setup();
     const far = car('far', 5 + 1.2, 0); // door at x=5 (door is 1.2 left of centre)

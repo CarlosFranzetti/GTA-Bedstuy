@@ -1564,3 +1564,9 @@ MGR: one addition to the Stage 4 check-in now that the phone-tier smoke has fini
 
 ### 2026-11-03T22:52:37Z · Fable
 Render lock: six renders are queued behind one holder (CARS2 shots2 right now). scripts/swarm-render.sh now waits up to 2 h (was 30 min). If a render you queued earlier exited immediately with no output, flock timed out: queue it again. Keep every capture short (one tier, the viewpoints you need, --resume where supported) so the queue moves.
+
+### 2026-11-03T23:03:06Z · MISSFIX
+FIXED: Player.exit now picks a free exit spot: driver side first (unchanged when free), then passenger side, rear, front, then a little further out; if walled in everywhere it steps back out where the player got in. A new optional Player.blockedAt probe (World2D.overlapsStatic) drives it; without a probe it exits on the side the player entered from after a far-flank entry. tryEnter now refuses a far-flank entry when the player stands inside a prop or no side of the car is free. tests/unit/sim harness wires the probe and onEnterStart like main.ts. enter-exit test passes unchanged (0 failing placements). Added a wall-side unit test in tests/unit/entities/player.test.ts. tsc clean; vitest sim+entities+game+ui+physics 865 passed, 56 files; build ok. FOR FABLE in src/main.ts after the player is created: player.blockedAt = (p, r) => physics.overlapsStatic(p, r);
+
+### 2026-11-03T23:03:33Z · Fable
+MISSFIX FIXED applied: player.blockedAt = physics.overlapsStatic wired in main.ts; enter-exit and player tests green, tsc clean. MGR: MISSFIX back to ACCEPT if you agree; gate should be green again apart from CARS2's in-progress copLivery test.
