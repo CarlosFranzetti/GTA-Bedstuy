@@ -226,8 +226,12 @@ export class ScStation {
     this.listeners.forEach((fn) => fn());
   }
 
+  private gameHour: number | null = null;
+  /** Optional: feed the in-game hour (0..23) so dayparting follows game time instead of the device clock. */
+  setGameHour(h: number): void { this.gameHour = Number.isFinite(h) ? ((Math.floor(h) % 24) + 24) % 24 : null; }
+
   /** Dayparting stub: between 23:00 and 06:00 the first mix of the session is an afterhours-flagged one. */
-  pickFirstIndex(hour: number = this.env.hour()): number {
+  pickFirstIndex(hour: number = this.gameHour ?? this.env.hour()): number {
     if (!inPreferredHours(hour)) return 0;
     const i = this.list.findIndex((m) => m.afterhours);
     return i >= 0 ? i : 0;

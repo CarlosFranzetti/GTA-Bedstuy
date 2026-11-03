@@ -171,7 +171,7 @@ async function run(args, geo, schema, gridMod) {
   for (const { b, ring } of gridRings) {
     const tags = { ...b.tags };
     for (const p of points) {
-      if (geo.pointInRing(p.point && { x: p.point.lon, z: p.point.lat }, b.ring.map((q) => ({ x: q.lon, z: q.lat })))) {
+      if (geo.pointInRing({ x: p.point.lon, z: p.point.lat }, b.ring.map((q) => ({ x: q.lon, z: q.lat })))) {
         for (const k of ['shop', 'amenity', 'cuisine', 'name']) if (!tags[k] && p.tags[k]) tags[k] = p.tags[k];
       }
     }

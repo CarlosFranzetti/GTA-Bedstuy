@@ -514,6 +514,7 @@ game.add({
     // environment + audio
     dayNight.update(dt);
     setStorefrontHour(dayNight.timeOfDay);
+    audio.sc?.setGameHour(dayNight.timeOfDay);
     if (dayNight.isNight !== lastNight) {
       lastNight = dayNight.isNight; audio.setNight(lastNight); pipeline.setNight(lastNight); setLampsLit(world.furnitureGroup, lastNight);
       scene.environmentIntensity = lastNight ? LIGHTING.envIntensityNight : LIGHTING.envIntensityDay;

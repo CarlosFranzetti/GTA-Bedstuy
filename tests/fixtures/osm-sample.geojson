@@ -1,0 +1,1575 @@
+{
+ "type": "FeatureCollection",
+ "comment": "SYNTHETIC fixture for tests: real-shaped, not real. Built by tests/fixtures/make-osm-sample.mjs from the typology numbers in schema.ts. Not OpenStreetMap data.",
+ "features": [
+  {
+   "type": "Feature",
+   "id": "synthetic/1",
+   "properties": {
+    "building": "retail",
+    "addr:housenumber": "100",
+    "addr:street": "Throop Avenue",
+    "building:levels": "2"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9410308,
+       40.6950607
+      ],
+      [
+       -73.9410899,
+       40.6949783
+      ],
+      [
+       -73.9412529,
+       40.6950454
+      ],
+      [
+       -73.9411939,
+       40.6951278
+      ],
+      [
+       -73.9410308,
+       40.6950607
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/2",
+   "properties": {
+    "shop": "alcohol",
+    "name": "Synthetic Shop"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.9411419,
+     40.6950531
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/3",
+   "properties": {
+    "building": "apartments",
+    "addr:housenumber": "102",
+    "addr:street": "Throop Avenue",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9410899,
+       40.6949783
+      ],
+      [
+       -73.9411325,
+       40.6949187
+      ],
+      [
+       -73.9412608,
+       40.6949715
+      ],
+      [
+       -73.9412182,
+       40.6950311
+      ],
+      [
+       -73.9410899,
+       40.6949783
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/4",
+   "properties": {
+    "building": "retail",
+    "addr:housenumber": "104",
+    "addr:street": "Throop Avenue",
+    "building:levels": "4"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9411325,
+       40.6949187
+      ],
+      [
+       -73.9411737,
+       40.6948611
+      ],
+      [
+       -73.9413546,
+       40.6949356
+      ],
+      [
+       -73.9413134,
+       40.6949931
+      ],
+      [
+       -73.9411325,
+       40.6949187
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/5",
+   "properties": {
+    "shop": "alcohol",
+    "name": "Synthetic Shop"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.9412436,
+     40.6949271
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/6",
+   "properties": {
+    "building": "residential",
+    "addr:housenumber": "106",
+    "addr:street": "Throop Avenue",
+    "building:levels": "4"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9411737,
+       40.6948611
+      ],
+      [
+       -73.9412141,
+       40.6948048
+      ],
+      [
+       -73.941393,
+       40.6948785
+      ],
+      [
+       -73.9413527,
+       40.6949348
+      ],
+      [
+       -73.9411737,
+       40.6948611
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/7",
+   "properties": {
+    "building": "church",
+    "addr:housenumber": "108",
+    "addr:street": "Throop Avenue",
+    "amenity": "place_of_worship",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9412141,
+       40.6948048
+      ],
+      [
+       -73.9412629,
+       40.6947367
+      ],
+      [
+       -73.9414074,
+       40.6947962
+      ],
+      [
+       -73.9413586,
+       40.6948643
+      ],
+      [
+       -73.9412141,
+       40.6948048
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/8",
+   "properties": {
+    "building": "apartments",
+    "addr:housenumber": "110",
+    "addr:street": "Throop Avenue",
+    "height": "12.4"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9413138,
+       40.6946655
+      ],
+      [
+       -73.9413479,
+       40.6946179
+      ],
+      [
+       -73.9414812,
+       40.6946728
+      ],
+      [
+       -73.9414472,
+       40.6947204
+      ],
+      [
+       -73.9413138,
+       40.6946655
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/9",
+   "properties": {
+    "building": "retail",
+    "addr:housenumber": "112",
+    "addr:street": "Throop Avenue",
+    "building:levels": "2"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9413479,
+       40.6946179
+      ],
+      [
+       -73.9413853,
+       40.6945657
+      ],
+      [
+       -73.941571,
+       40.6946422
+      ],
+      [
+       -73.9415336,
+       40.6946944
+      ],
+      [
+       -73.9413479,
+       40.6946179
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/10",
+   "properties": {
+    "shop": "convenience",
+    "name": "Synthetic Shop"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.9414594,
+     40.69463
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/11",
+   "properties": {
+    "building": "house",
+    "addr:housenumber": "114",
+    "addr:street": "Throop Avenue",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9413853,
+       40.6945657
+      ],
+      [
+       -73.9414316,
+       40.6945011
+      ],
+      [
+       -73.9415646,
+       40.6945558
+      ],
+      [
+       -73.9415183,
+       40.6946204
+      ],
+      [
+       -73.9413853,
+       40.6945657
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/12",
+   "properties": {
+    "building": "house",
+    "addr:housenumber": "116",
+    "addr:street": "Throop Avenue"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9414316,
+       40.6945011
+      ],
+      [
+       -73.9414675,
+       40.6944509
+      ],
+      [
+       -73.9415988,
+       40.694505
+      ],
+      [
+       -73.9415629,
+       40.6945551
+      ],
+      [
+       -73.9414316,
+       40.6945011
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/13",
+   "properties": {
+    "building": "retail",
+    "addr:housenumber": "118",
+    "addr:street": "Throop Avenue",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9414675,
+       40.6944509
+      ],
+      [
+       -73.9415006,
+       40.6944047
+      ],
+      [
+       -73.9416863,
+       40.6944812
+      ],
+      [
+       -73.9416532,
+       40.6945274
+      ],
+      [
+       -73.9414675,
+       40.6944509
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/14",
+   "properties": {
+    "shop": "alcohol",
+    "name": "Synthetic Shop"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.9415769,
+     40.6944661
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/15",
+   "properties": {
+    "building": "residential",
+    "addr:housenumber": "201",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9406452,
+       40.6949019
+      ],
+      [
+       -73.9405756,
+       40.6948733
+      ],
+      [
+       -73.9406526,
+       40.6947658
+      ],
+      [
+       -73.9407222,
+       40.6947944
+      ],
+      [
+       -73.9406452,
+       40.6949019
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/16",
+   "properties": {
+    "building": "residential",
+    "addr:housenumber": "203",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9405756,
+       40.6948733
+      ],
+      [
+       -73.9405075,
+       40.6948453
+      ],
+      [
+       -73.9405839,
+       40.6947385
+      ],
+      [
+       -73.9406521,
+       40.6947666
+      ],
+      [
+       -73.9405756,
+       40.6948733
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/17",
+   "properties": {
+    "building": "residential",
+    "addr:housenumber": "205",
+    "addr:street": "Hart Street",
+    "building:levels": "4"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9405075,
+       40.6948453
+      ],
+      [
+       -73.9404443,
+       40.6948192
+      ],
+      [
+       -73.9405172,
+       40.6947174
+      ],
+      [
+       -73.9405804,
+       40.6947434
+      ],
+      [
+       -73.9405075,
+       40.6948453
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/18",
+   "properties": {
+    "building": "house",
+    "addr:housenumber": "207",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9404443,
+       40.6948192
+      ],
+      [
+       -73.9403742,
+       40.6947904
+      ],
+      [
+       -73.9404582,
+       40.6946731
+      ],
+      [
+       -73.9405283,
+       40.6947019
+      ],
+      [
+       -73.9404443,
+       40.6948192
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/19",
+   "properties": {
+    "building": "terrace",
+    "addr:housenumber": "209",
+    "addr:street": "Hart Street",
+    "building:levels": "4"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9403742,
+       40.6947904
+      ],
+      [
+       -73.9403193,
+       40.6947678
+      ],
+      [
+       -73.9403914,
+       40.694667
+      ],
+      [
+       -73.9404463,
+       40.6946896
+      ],
+      [
+       -73.9403742,
+       40.6947904
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/20",
+   "properties": {
+    "building": "house",
+    "addr:housenumber": "211",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9403193,
+       40.6947678
+      ],
+      [
+       -73.940257,
+       40.6947421
+      ],
+      [
+       -73.9403345,
+       40.6946338
+      ],
+      [
+       -73.9403968,
+       40.6946595
+      ],
+      [
+       -73.9403193,
+       40.6947678
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/21",
+   "properties": {
+    "building": "retail",
+    "addr:housenumber": "213",
+    "addr:street": "Hart Street",
+    "building:levels": "2"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.940257,
+       40.6947421
+      ],
+      [
+       -73.9401859,
+       40.6947129
+      ],
+      [
+       -73.9402615,
+       40.6946072
+      ],
+      [
+       -73.9403326,
+       40.6946365
+      ],
+      [
+       -73.940257,
+       40.6947421
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/22",
+   "properties": {
+    "shop": "alcohol",
+    "name": "Synthetic Shop"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.9402593,
+     40.6946747
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/23",
+   "properties": {
+    "building": "residential",
+    "addr:housenumber": "215",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9401859,
+       40.6947129
+      ],
+      [
+       -73.9401231,
+       40.694687
+      ],
+      [
+       -73.9401981,
+       40.6945822
+      ],
+      [
+       -73.9402609,
+       40.6946081
+      ],
+      [
+       -73.9401859,
+       40.6947129
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/24",
+   "properties": {
+    "building": "residential",
+    "addr:housenumber": "217",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9401231,
+       40.694687
+      ],
+      [
+       -73.940059,
+       40.6946606
+      ],
+      [
+       -73.9401369,
+       40.6945519
+      ],
+      [
+       -73.9402009,
+       40.6945783
+      ],
+      [
+       -73.9401231,
+       40.694687
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/25",
+   "properties": {
+    "building": "house",
+    "addr:housenumber": "219",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.940059,
+       40.6946606
+      ],
+      [
+       -73.9400023,
+       40.6946373
+      ],
+      [
+       -73.9400764,
+       40.6945337
+      ],
+      [
+       -73.9401332,
+       40.6945571
+      ],
+      [
+       -73.940059,
+       40.6946606
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/26",
+   "properties": {
+    "building": "house",
+    "addr:housenumber": "221",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9400023,
+       40.6946373
+      ],
+      [
+       -73.9399329,
+       40.6946087
+      ],
+      [
+       -73.9400167,
+       40.6944917
+      ],
+      [
+       -73.9400861,
+       40.6945202
+      ],
+      [
+       -73.9400023,
+       40.6946373
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/27",
+   "properties": {
+    "building": "residential",
+    "addr:housenumber": "223",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9399329,
+       40.6946087
+      ],
+      [
+       -73.9398624,
+       40.6945797
+      ],
+      [
+       -73.9399325,
+       40.6944818
+      ],
+      [
+       -73.940003,
+       40.6945109
+      ],
+      [
+       -73.9399329,
+       40.6946087
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/28",
+   "properties": {
+    "building": "residential",
+    "addr:housenumber": "225",
+    "addr:street": "Hart Street",
+    "height": "12.4"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9398624,
+       40.6945797
+      ],
+      [
+       -73.9397986,
+       40.6945534
+      ],
+      [
+       -73.9398826,
+       40.6944361
+      ],
+      [
+       -73.9399464,
+       40.6944624
+      ],
+      [
+       -73.9398624,
+       40.6945797
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/29",
+   "properties": {
+    "building": "residential",
+    "addr:housenumber": "227",
+    "addr:street": "Hart Street",
+    "building:levels": "4"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9397986,
+       40.6945534
+      ],
+      [
+       -73.9397297,
+       40.6945251
+      ],
+      [
+       -73.9398027,
+       40.6944231
+      ],
+      [
+       -73.9398716,
+       40.6944515
+      ],
+      [
+       -73.9397986,
+       40.6945534
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/30",
+   "properties": {
+    "building": "house",
+    "addr:housenumber": "229",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9396359,
+       40.6944864
+      ],
+      [
+       -73.939568,
+       40.6944585
+      ],
+      [
+       -73.9396385,
+       40.6943601
+      ],
+      [
+       -73.9397064,
+       40.6943881
+      ],
+      [
+       -73.9396359,
+       40.6944864
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/31",
+   "properties": {
+    "building": "residential",
+    "addr:housenumber": "231",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.939568,
+       40.6944585
+      ],
+      [
+       -73.9395,
+       40.6944305
+      ],
+      [
+       -73.9395752,
+       40.6943254
+      ],
+      [
+       -73.9396432,
+       40.6943535
+      ],
+      [
+       -73.939568,
+       40.6944585
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/32",
+   "properties": {
+    "building": "terrace",
+    "addr:housenumber": "233",
+    "addr:street": "Hart Street"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9395,
+       40.6944305
+      ],
+      [
+       -73.9394408,
+       40.6944061
+      ],
+      [
+       -73.9395079,
+       40.6943125
+      ],
+      [
+       -73.939567,
+       40.6943369
+      ],
+      [
+       -73.9395,
+       40.6944305
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/33",
+   "properties": {
+    "building": "terrace",
+    "addr:housenumber": "235",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9394408,
+       40.6944061
+      ],
+      [
+       -73.9393801,
+       40.6943811
+      ],
+      [
+       -73.9394614,
+       40.6942677
+      ],
+      [
+       -73.9395221,
+       40.6942927
+      ],
+      [
+       -73.9394408,
+       40.6944061
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/34",
+   "properties": {
+    "building": "terrace",
+    "addr:housenumber": "237",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9393801,
+       40.6943811
+      ],
+      [
+       -73.9393153,
+       40.6943545
+      ],
+      [
+       -73.9393836,
+       40.6942591
+      ],
+      [
+       -73.9394484,
+       40.6942858
+      ],
+      [
+       -73.9393801,
+       40.6943811
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/35",
+   "properties": {
+    "building": "residential",
+    "addr:housenumber": "239",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9393153,
+       40.6943545
+      ],
+      [
+       -73.9392474,
+       40.6943265
+      ],
+      [
+       -73.9393281,
+       40.6942137
+      ],
+      [
+       -73.9393961,
+       40.6942417
+      ],
+      [
+       -73.9393153,
+       40.6943545
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/36",
+   "properties": {
+    "building": "house",
+    "addr:housenumber": "241",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9392474,
+       40.6943265
+      ],
+      [
+       -73.9391859,
+       40.6943012
+      ],
+      [
+       -73.9392485,
+       40.6942139
+      ],
+      [
+       -73.9393099,
+       40.6942392
+      ],
+      [
+       -73.9392474,
+       40.6943265
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/37",
+   "properties": {
+    "building": "house",
+    "addr:housenumber": "243",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9391859,
+       40.6943012
+      ],
+      [
+       -73.9391131,
+       40.6942712
+      ],
+      [
+       -73.9391778,
+       40.6941809
+      ],
+      [
+       -73.9392506,
+       40.6942109
+      ],
+      [
+       -73.9391859,
+       40.6943012
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/38",
+   "properties": {
+    "building": "retail",
+    "addr:housenumber": "245",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9391131,
+       40.6942712
+      ],
+      [
+       -73.9390448,
+       40.6942431
+      ],
+      [
+       -73.9391232,
+       40.6941337
+      ],
+      [
+       -73.9391914,
+       40.6941618
+      ],
+      [
+       -73.9391131,
+       40.6942712
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/39",
+   "properties": {
+    "shop": "convenience",
+    "name": "Synthetic Shop"
+   },
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -73.9391181,
+     40.6942025
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/40",
+   "properties": {
+    "building": "house",
+    "addr:housenumber": "247",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9390448,
+       40.6942431
+      ],
+      [
+       -73.9389882,
+       40.6942198
+      ],
+      [
+       -73.9390534,
+       40.6941287
+      ],
+      [
+       -73.9391101,
+       40.694152
+      ],
+      [
+       -73.9390448,
+       40.6942431
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/41",
+   "properties": {
+    "building": "house",
+    "addr:housenumber": "249",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9389882,
+       40.6942198
+      ],
+      [
+       -73.9389268,
+       40.6941945
+      ],
+      [
+       -73.9389898,
+       40.6941066
+      ],
+      [
+       -73.9390512,
+       40.6941319
+      ],
+      [
+       -73.9389882,
+       40.6942198
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/42",
+   "properties": {
+    "building": "residential",
+    "addr:housenumber": "251",
+    "addr:street": "Hart Street",
+    "building:levels": "4"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9389268,
+       40.6941945
+      ],
+      [
+       -73.9388546,
+       40.6941648
+      ],
+      [
+       -73.938935,
+       40.6940527
+      ],
+      [
+       -73.9390071,
+       40.6940824
+      ],
+      [
+       -73.9389268,
+       40.6941945
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/43",
+   "properties": {
+    "building": "house",
+    "addr:housenumber": "253",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9388546,
+       40.6941648
+      ],
+      [
+       -73.9387855,
+       40.6941364
+      ],
+      [
+       -73.9388482,
+       40.6940488
+      ],
+      [
+       -73.9389173,
+       40.6940773
+      ],
+      [
+       -73.9388546,
+       40.6941648
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/44",
+   "properties": {
+    "building": "residential",
+    "addr:housenumber": "255",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9387855,
+       40.6941364
+      ],
+      [
+       -73.9387308,
+       40.6941139
+      ],
+      [
+       -73.938806,
+       40.6940088
+      ],
+      [
+       -73.9388607,
+       40.6940314
+      ],
+      [
+       -73.9387855,
+       40.6941364
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/45",
+   "properties": {
+    "building": "terrace",
+    "addr:housenumber": "257",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9387308,
+       40.6941139
+      ],
+      [
+       -73.9386678,
+       40.6940879
+      ],
+      [
+       -73.938732,
+       40.6939982
+      ],
+      [
+       -73.9387951,
+       40.6940242
+      ],
+      [
+       -73.9387308,
+       40.6941139
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "type": "Feature",
+   "id": "synthetic/46",
+   "properties": {
+    "building": "terrace",
+    "addr:housenumber": "259",
+    "addr:street": "Hart Street",
+    "building:levels": "3"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       -73.9386678,
+       40.6940879
+      ],
+      [
+       -73.9385813,
+       40.6940523
+      ],
+      [
+       -73.938664,
+       40.6939368
+      ],
+      [
+       -73.9387505,
+       40.6939724
+      ],
+      [
+       -73.9386678,
+       40.6940879
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}
