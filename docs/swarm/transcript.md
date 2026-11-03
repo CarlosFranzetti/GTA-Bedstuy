@@ -1071,3 +1071,28 @@ MGR: a likely P1 found by H2, reproduced twice at identical coordinates, so V1's
 
 ### 2026-11-01T19:15:51Z · fable
 @MGR V1 resumed on the 14 m enter-teleport P1 with your repro. H2 is at ~step 22; H3 starts after it.
+
+### 2026-11-03T06:20:39Z · MGR
+MGR: playtest triage (H1 full rerun, H2 partial to step 23; H3 runs after V1's teleport fix). First, what the testers were thinking. H1, the on-foot explorer, enjoyed the street at dusk: it read the neon OPEN and EBT signs aloud, liked the Corner Store with its roll-down shutters, peered down a dark basement stair and walked up to a parked police car to see whether it cared. Its mood turned when it took a car: it expected to drive off and instead spent six steps pressing every key in a car that would not move. H2, the driver, wanted a car immediately and a mission second; it got the car in two steps but then spent most of its session fighting curbs, trees and stoops, never found a mission marker, and ended by ramming parked cars on purpose to see whether anyone would notice; nobody did. The most important good news: H1 pressed F to get out three times, on the slow renderer where the user's bug was worst, and it worked on the first press every time.
+
+Defects (id | severity | owner | repro):
+PT3-1 | P1 | V1 (resumed) | Entering a parked car teleports the player 14 m across the avenue. Fresh load at the 17:30 spawn, walk about 4 m north-west to the SUV 1.5 m ahead (state says unoccupied), press F: seated at (-8.2, 16.7). Seen identically in PT's s6 (steps 5-6) and h2 (steps 1-2).
+PT3-2 | P2 | traffic/world (Stage 4) | A parked car cannot be driven out: parked cars stand nose to tail with about 20 cm between bumpers, so forward hits the car ahead, reverse the car behind, and steering at zero speed does nothing. h1c steps 15-21, frame step-17.jpg. Fix by spacing parked cars about 1 m apart and letting low-speed steering pivot the car.
+PT3-3 | P2 | world/physics | On foot the player gets wedged between parked cars and the box truck and cannot move for eight steps. h1c steps 24-32, position near (-3.2, 63.4).
+PT3-4 | P2 | driving | Cars mount the sidewalk easily and then hang on curbs, trees, stoops and shop fronts; getting back onto the road takes several attempts. h2 steps 7, 12, 15-19, 23.
+PT3-5 | P2 | missions/HUD | Missions are hard to find: H2 drove for 23 steps looking for a 'gold marker' and the minimap's small yellow dots were not recognised as missions. h2 steps 13-18.
+PT3-6 | P2 | world/ambient (BIBLE gaps 1 and 4) | The street feels empty of people: H1 noticed no pedestrians on Throop at dusk, and mistook a red parked car for a person in red. h1 steps 0-10, h1c steps 10-11.
+PT3-7 | P3 | wanted/cops | Ramming parked cars and driving along the pavement raises no wanted level; the chaos tester expected some reaction. h2 steps 20-23. H3 will test this properly.
+PT3-8 | P3 | harness or HUD | The speedometer reads 0 in most screenshots even right after the car moved 8 to 17 m, because the frame is captured after the keys are released; testers read it as a dead car. h2 steps 2-9.
+PT3-9 | P3 | V1 | Pressing F next to a rolling car seats you in a car already moving at 13 km/h. h1c step 15.
+PT3-10 | P3 | MDLI/traffic | Traffic cars report a driver but no driver is visible through the glass. h1c steps 3-4.
+PT3-11 | P3 | camera | The camera does not fade or pull past a vehicle right in front of the lens; a pale slab fills the frame. h1c step-26.jpg.
+PT3-12 | P3 | world | A flat dark square on the sidewalk reads as a hole. h1c steps 11-13.
+PT3-13 | P3 | UX | Shop doors look enterable but give no feedback when you walk into them. h1 steps 8-10, h1c step 7.
+PT3-14 | P3 | driving | Steering feels twitchy and the car 'spins around' at low speed. h2 steps 6-7, 16, 21; partly a consequence of PT3-1 and PT3-4.
+PT-1 | fixed | PT/Fable | Harness actions were cut to about half length under load, which made H1's first run feel sluggish; fixed 17:26.
+
+Confirmed working in play: exit with F (3 of 3), enter with F, radio switching with E, horn, crosswalks and signals, minimap street names, night signs.
+
+### 2026-11-03T06:21:14Z · fable
+H2 PARTIAL REPORT (relayed by fable; the tester was cut off by the usage limit at step 23, harness saved video + transcript under playtests/h2): the driver got into the green SUV at spawn with one F (step 2) and was seated 14 m away on the avenue (the P1 V1 is on). Then: the HUD speedometer read 0 right after the car had moved 8 m (step 3; likely a harness capture-after-release artefact but reads as a dead car); the car was repeatedly blocked by parked cars and traffic nose-to-tail and had to reverse out (steps 4, 8, 10, 14, 18); steering felt 'very twitchy' and a turn 'spun the SUV almost all the way around' (steps 6, 20); the SUV kept ending up on the sidewalk, against a shop front, a tree, a stoop (steps 11, 15, 16, 22); the radio switched stations with E and the horn worked; the tester drove 15 steps without finding a mission marker because the minimap shows 'only little yellow dots' (steps 12-17); ramming parked cars and driving along the pavement produced NO wanted stars and no police (steps 19-23). @MGR please fold into the triage. I am opening lane DRIVE (sonnet) now for: steering stability at low speed, crimes for ramming parked cars / sidewalk driving (wanted stars + cop response), a visible mission marker (bigger minimap blip + on-screen arrow/distance to the nearest giver), and a HUD speed that reflects movement.
