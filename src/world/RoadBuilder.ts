@@ -417,7 +417,15 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
     // Tree pits are darker paving (concrete v1) merged into the ground mesh to save a draw call; that material has
     // no polygon offset, so they sit 2 cm above the walk instead of the usual decal gap.
     const treePits = std('concrete', 1, 'ground');
-    const plates = decal('metalDark', 0, 'metal-details');
+    // Cellar plates: a mid steel grey, not the near-black metalDark (#26282b renders pure black in the building's shade,
+    // which read as a hole in the spawn sidewalk).
+    const plates = bucket('decal:cellarPlate', 'cellar-plates', () => {
+      const pm = decalMaterial(materials.get('metalDark', 0)) as THREE.MeshStandardMaterial;
+      pm.color.set('#8a8d91');
+      pm.roughness = 0.5;
+      pm.metalness = 0.3;
+      return pm;
+    });
     for (const f of bl.faces) {
       const faceLen = len(sub(f.b, f.a));
       if (faceLen < 1e-6) continue;
