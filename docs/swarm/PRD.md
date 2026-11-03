@@ -278,6 +278,15 @@ research, RADIO own-library radio (8 stations, 147 slots) + talk station, WRITE 
 | MGR | Every playtest bug/confusion lands in a defects table (id, severity, owner lane, repro) posted as `MGR: playtest triage` and carried into `checkins/stage3.md` | MGR post |
 | All | FINAL REPORT names files, commands + numbers, size impact, call site or wiring request, open issues | MGR review |
 
+#### Graphics ladder (user direction 3 Nov: "at least GTA3-style graphics for the next push and GTA V level by the end")
+Judged by MGR at every check-in on the 7 standard viewpoints of `tests/e2e/screens.mjs` (noon street, noon corner, golden aerial,
+dusk car, night car, night corner, morning signals), medium tier unless stated. Each level needs every item on every viewpoint.
+| Level | Must hold in frame |
+|---|---|
+| **GTA3** | no flat untextured surface; every car and pedestrian a real model with a shadow; lit windows and signs at night; decals on roads; props on every sidewalk; fog hides the world edge; no pop-in within 60 m |
+| **GTA4** | GTA3 plus wet-weather reflections; per-hour grading; haze and lamp bloom; crowd variety (≥ 5 ped models, ≥ 4 car models with colour variants); clutter on every block (bins, bikes, AC units, wires, posters); LOD without visible pop; contact shadows under cars |
+| **GTA5** | GTA4 plus SSR on paint and roads; volumetric light shafts; hourly filmic palette with sunrise/sunset transitions; ambient life (peds talk, sit, cross; traffic density by hour); detailed interiors; a phone tier that still reads as the same game |
+
 ### 5.5 Stage 4+ (preview; was the Stage 3 plan)
 - User-supplied rigged characters and cars load through the existing glTF hooks with animations
   (idle/walk/run, wheel/steer, lights), fall back cleanly to procedural.

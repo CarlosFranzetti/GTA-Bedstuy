@@ -20,6 +20,7 @@ export function crateDigger(): MissionDef {
     giver: door,
     triggerRadius: 3,
     stake: 60,
+    timeLimit: 480,
     phoneIntro: { from: 'Ms. Odette', text: 'You look like you can carry a crate. Come in, and spend what you have on three records: Throop Night Bus, Spin Cycle Love and Kickback On Kosciuszko. I will know if you cheat.' },
     twist: { at: 2, text: 'Ms. Odette does not ring you up at once. She looks at your records, then at you, then slides a flyer across the counter.' },
     failJoke: { timeUp: 'Ms. Odette: "Taste takes time. Yours is still loading."' },

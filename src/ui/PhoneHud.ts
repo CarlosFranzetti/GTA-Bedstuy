@@ -180,7 +180,7 @@ export class PhoneHud {
       this.body.appendChild(wrap);
     }
     const [arrow, title, dist, blurb, hint] = Array.from(wrap.children) as HTMLElement[];
-    const rel = angleDiff(headingFromVec(p.x - this.playerPos.x, p.z - this.playerPos.z), this.heading);
+    const rel = angleDiff(this.heading, headingFromVec({ x: p.x - this.playerPos.x, z: p.z - this.playerPos.z }));
     const deg = Math.round(((rel * 180) / Math.PI) / 3) * 3;
     arrow.textContent = '↑';
     arrow.style.transform = `rotate(${deg}deg)`;

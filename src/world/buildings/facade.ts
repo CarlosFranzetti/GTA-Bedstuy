@@ -527,6 +527,13 @@ export interface WindowRow {
   noLedge?: boolean;
 }
 
+/** Deterministic yes/no from a window's lot-local position (a hash, so the Rng streams are untouched). */
+export function windowHasAc(x: number, y: number, z: number, brick: boolean): boolean {
+  let h = Math.imul(Math.round(x * 100) + 7919, 2654435761) ^ Math.imul(Math.round(y * 100) + 104729, 40503) ^ Math.imul(Math.round(z * 100) + 1299709, 2246822519);
+  h = Math.imul(h ^ (h >>> 15), 2246822519); h ^= h >>> 13;
+  return ((h >>> 0) % 1000) / 1000 < (brick ? 0.3 : 0.17);
+}
+
 export function windows(b: LotBatch, m: BuildingMats, o: WindowRow): void {
   const trim = o.trim ?? m.limestone;
   const recess = !!o.holes && !!o.wall;
@@ -548,6 +555,11 @@ export function windows(b: LotBatch, m: BuildingMats, o: WindowRow): void {
       }
     }
     glassPane(b, glassMat, hole, gz);
+    if (!o.arch && o.y >= 2 && o.w >= 0.8 && o.w <= 1.6 && windowHasAc(x, o.y, o.z, o.wall === m.brickRed || o.wall === m.brickAlt || o.wall === m.brickPainted)) {
+      // window air conditioner (about one window in five, one in three on brick): chosen by a position hash, so no rng stream shifts
+      b.box(m.limestone, x - 0.36, hole.y0 + 0.02, o.z - 0.12, x + 0.36, hole.y0 + 0.5, o.z + 0.4, 'frlu');
+      b.box(m.metal, x - 0.3, hole.y0 + 0.1, o.z + 0.4, x + 0.3, hole.y0 + 0.42, o.z + 0.42, 'f');
+    }
     if (o.frame) {
       // pale frame standing proud of the glass: side jambs, head and meeting rail (flat strips)
       const fz = gz + 0.05, ft = 0.06;

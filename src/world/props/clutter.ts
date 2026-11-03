@@ -73,7 +73,7 @@ function mailbox(): Geos {
     paint(box(0.06, 0.45, 0.06).translate(-0.18, 0.225, 0), '#2a2c30'),
     paint(box(0.06, 0.45, 0.06).translate(0.18, 0.225, 0), '#2a2c30'),
     paint(box(0.5, 0.5, 0.45).translate(0, 0.7, 0), '#1f4f9a'),
-    paint(cyl(0.225, 0.225, 0.5, 9).rotateZ(Math.PI / 2).scale(1, 1, 1).translate(0, 0.95, 0), '#1f4f9a'),
+    paint(cyl(0.225, 0.225, 0.5, 9).rotateX(Math.PI / 2).translate(0, 0.95, 0), '#1f4f9a'),
     paint(box(0.3, 0.05, 0.02).translate(0, 0.78, 0.226), '#0b0e12'),
   ];
 }
@@ -88,11 +88,11 @@ function bikeRack(rng: Rng, bikes: number): Geos {
   return g;
 }
 function bike(rng: Rng, x: number): Geos {
-  const col = rng.pick(BIKE), z = 0.1;
+  const col = rng.pick(BIKE), z = x < 0 ? 0.12 : -0.12;
   const wheel = (dx: number): THREE.BufferGeometry => paint(new THREE.TorusGeometry(0.3, 0.022, 4, 10).translate(x + dx, 0.32, z), '#16181b');
   const bar = (a: [number, number], b: [number, number], t = 0.02): THREE.BufferGeometry => {
     const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    return paint(cyl(t, t, len, 4).rotateZ(Math.atan2(b[0] - a[0], -(b[1] - a[1]))).translate(x + (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, z), col);
+    return paint(cyl(t, t, len, 4).rotateZ(Math.atan2(-(b[0] - a[0]), b[1] - a[1])).translate(x + (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, z), col);
   };
   return [
     wheel(-0.4), wheel(0.4),
@@ -205,7 +205,6 @@ function poster(rng: Rng, p: Vec2, y: number, n: Vec2, w: number, h: number, off
   const g: Geos = [layer(paint(new THREE.PlaneGeometry(w, h), col, 1), 0)];
   g.push(layer(paint(new THREE.CircleGeometry(w * 0.28, 8).translate(0, h * 0.14, 0), ink, 0.85), 0.004));
   for (let i = 0; i < 3; i++) g.push(layer(paint(new THREE.PlaneGeometry(w * rng.range(0.4, 0.8), h * 0.05).translate(0, -h * 0.22 - i * h * 0.1, 0), ink, 0.9), 0.004));
-  if (rng.chance(0.4)) g.push(layer(paint(new THREE.PlaneGeometry(w * 0.3, h * 0.28).translate(w * 0.35, -h * 0.35, 0), '#00000000'.slice(0, 7), 0.0), 0.006)); // torn corner (invisible gap keeps count stable)
   return g;
 }
 
@@ -221,20 +220,22 @@ export const CLUTTER_TRI_BUDGET: Record<string, number> = { phone: 0, low: 45_00
 const bucketOf = (rank: 1 | 2): string => `clutter-sw-r${rank}`;
 
 export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], materials: IMaterialLibrary, rng: Rng): ClutterStats {
-  const swMat = pb.material('clutter-sw', () => new THREE.MeshStandardMaterial({ name: 'clutter-sw', vertexColors: true, roughness: 0.7, metalness: 0.12 }));
-  const flatMat = pb.material('clutter-flat', () => new THREE.MeshStandardMaterial({
-    name: 'clutter-flat', vertexColors: true, transparent: true, depthWrite: false, roughness: 0.9, metalness: 0,
+  // One material instance per bucket: applyClutterState (clutterTier.ts) hides a tier / pickup group by flipping
+  // `material.visible`, which survives the per-cell mesh split in WorldBuilder.
+  const solidMat = (key: string): THREE.Material => pb.material(key, () => new THREE.MeshStandardMaterial({ name: key, vertexColors: true, roughness: 0.7, metalness: 0.12 }));
+  const flat = (key: string): THREE.Material => pb.material(key, () => new THREE.MeshStandardMaterial({
+    name: key, vertexColors: true, transparent: true, depthWrite: false, roughness: 0.9, metalness: 0,
     polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3,
   }));
-  const lightMat = pb.material('clutter-lights', () => new THREE.MeshBasicMaterial({ name: 'clutter-lights', vertexColors: true, toneMapped: false }));
+  const lightMat = pb.material('clutter-lights-r2', () => new THREE.MeshBasicMaterial({ name: 'clutter-lights-r2', vertexColors: true, toneMapped: false }));
   const wireMat = pb.material('clutter-wire', () => new THREE.MeshStandardMaterial({ name: 'clutter-wire', color: '#15171a', roughness: 0.8 }));
   const stats: ClutterStats = { placements: [], tris: { 1: 0, 2: 0 } };
 
-  const emit = (key: string, mat: THREE.Material, geos: Geos, rank: 1 | 2, kind: ClutterKind, x: number, y: number, z: number, yaw: number, solid: boolean, faceKey: string, world = false): void => {
+  const emit = (key: string, geos: Geos, rank: 1 | 2, kind: ClutterKind, x: number, y: number, z: number, yaw: number, solid: boolean, faceKey: string, world = false): void => {
     for (const g of geos) {
       if (!world) xform(g, x, y, z, yaw);
       stats.tris[rank] += triCount(g);
-      pb.put(key, mat, g);
+      pb.put(key, key.startsWith('clutter-flat') ? flat(key) : key.startsWith('clutter-lights') ? lightMat : solidMat(key), g);
     }
     stats.placements.push({ kind, x, z, rank, solid, faceKey });
     pb.count(kind);
@@ -270,7 +271,7 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
             const p = free(s, Math.max(0.6, stripW - 0.75), 1.3);
             if (p && !nearDoorEdge(s) && s > lo + 0.3 && s < hi - 0.3) {
               const day = Math.floor(frng.range(0, 3));
-              emit(`clutter-bag-r1-d${day}`, swMat, bagPile(frng), 1, 'bags', p.x, SW_Y, p.z, frng.range(0, 6), false, fk);
+              emit(`clutter-bag-r1-d${day}`, bagPile(frng), 1, 'bags', p.x, SW_Y, p.z, frng.range(0, 6), false, fk);
               take(p);
             }
           }
@@ -278,40 +279,40 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
           if (lot.type === 'brownstone' && frng.chance(0.18)) {
             const s = lo + 0.9;
             const p = free(s, stripW - 0.6, 1.0);
-            if (p && !nearDoorEdge(s)) { emit(bucketOf(2), swMat, planter(frng), 2, 'planter', p.x, SW_Y, p.z, fr.yaw, true, fk); pb.circle(p, 0.4); take(p); }
+            if (p && !nearDoorEdge(s)) { emit(bucketOf(2), planter(frng), 2, 'planter', p.x, SW_Y, p.z, fr.yaw, true, fk); pb.circle(p, 0.4); take(p); }
           }
         } else if (lot.type === 'mixeduse') {
           const bodega = lot.poi?.archetype === 'bodega';
           if (frng.chance(bodega ? 0.9 : 0.35)) { // sandwich board near the door, on the curb side of the strip's inner half
             const s = frng.chance(0.5) ? lo + 0.8 : hi - 0.8;
             const p = free(s, Math.min(stripW - 0.5, 1.6), 1.1);
-            if (p && !nearDoorEdge(s)) { emit(bucketOf(1), swMat, sandwichBoard(frng), 1, 'sandwichBoard', p.x, SW_Y, p.z, fr.yaw + frng.range(-0.3, 0.3), true, fk); pb.circle(p, 0.35); take(p); }
+            if (p && !nearDoorEdge(s)) { emit(bucketOf(1), sandwichBoard(frng), 1, 'sandwichBoard', p.x, SW_Y, p.z, fr.yaw + frng.range(-0.3, 0.3), true, fk); pb.circle(p, 0.35); take(p); }
           }
           if (bodega) {
             const s = lo + 0.7;
             const p = free(s, Math.min(stripW - 0.5, 1.4), 0.9);
-            if (p) { emit(bucketOf(1), swMat, crates(frng), 1, 'crates', p.x, SW_Y, p.z, fr.yaw, false, fk); take(p); }
+            if (p) { emit(bucketOf(1), crates(frng), 1, 'crates', p.x, SW_Y, p.z, fr.yaw, false, fk); take(p); }
           }
           if (frng.chance(0.3)) {
             const s = hi - 0.5;
             const p = free(s, 0.5, 0.9);
-            if (p) { emit(bucketOf(1), swMat, newsbox(frng), 1, 'newsbox', p.x, SW_Y, p.z, fr.yaw + Math.PI, true, fk); pb.circle(p, 0.28); take(p); }
+            if (p) { emit(bucketOf(1), newsbox(frng), 1, 'newsbox', p.x, SW_Y, p.z, fr.yaw + Math.PI, true, fk); pb.circle(p, 0.28); take(p); }
           }
           if (frng.chance(0.28)) {
             const s = mid + frng.range(-1, 1);
             const p = free(s, 0.8, 1.6);
-            if (p) { emit(bucketOf(2), swMat, bikeRack(frng, frng.chance(0.7) ? (frng.chance(0.5) ? 1 : 2) : 0), 2, 'bikeRack', p.x, SW_Y, p.z, fr.yaw, true, fk); pb.circle(p, 0.45); take(p); }
+            if (p) { emit(bucketOf(2), bikeRack(frng, frng.chance(0.7) ? (frng.chance(0.5) ? 1 : 2) : 0), 2, 'bikeRack', p.x, SW_Y, p.z, fr.yaw, true, fk); pb.circle(p, 0.45); take(p); }
           }
           if (frng.chance(0.25)) {
             for (const dx of [-0.9, 0.9]) {
               const p = free(mid + dx + frng.range(-0.3, 0.3), 0.45, 0.8);
-              if (p) { emit(bucketOf(2), swMat, bollard(frng), 2, 'bollard', p.x, SW_Y, p.z, 0, true, fk); pb.circle(p, 0.12); take(p); }
+              if (p) { emit(bucketOf(2), bollard(frng), 2, 'bollard', p.x, SW_Y, p.z, 0, true, fk); pb.circle(p, 0.12); take(p); }
             }
           }
           if (frng.chance(0.3)) {
             const s = lo + 1.4 + frng.range(0, 1);
             const p = free(s, stripW - 0.45, 1.0);
-            if (p && !nearDoorEdge(s)) { emit(bucketOf(2), swMat, planter(frng), 2, 'planter', p.x, SW_Y, p.z, fr.yaw, true, fk); pb.circle(p, 0.4); take(p); }
+            if (p && !nearDoorEdge(s)) { emit(bucketOf(2), planter(frng), 2, 'planter', p.x, SW_Y, p.z, fr.yaw, true, fk); pb.circle(p, 0.4); take(p); }
           }
           // gum speckle in front of the shop
           if (frng.chance(0.7)) {
@@ -319,13 +320,13 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
             const cp = fr.at(mid + frng.range(-1.5, 1.5), frng.range(1, Math.max(1.2, stripW - 0.4)));
             const n = frng.int(10, 20);
             for (let i = 0; i < n; i++) g.push(paint(flatBlob(frng.range(0.025, 0.05), 1, 1, 0, cp.x + frng.range(-0.7, 0.7), SW_Y, cp.z + frng.range(-0.7, 0.7), 5), frng.chance(0.6) ? '#cfcac0' : '#4b4d51', 0.85));
-            emit('clutter-flat-r2', flatMat, g, 2, 'gum', cp.x, SW_Y, cp.z, 0, false, fk, true);
+            emit('clutter-flat-r2', g, 2, 'gum', cp.x, SW_Y, cp.z, 0, false, fk, true);
           }
         } else if (lot.type === 'scaffold') {
           // construction barricades at the kerb in front of the shed, wheat-pasted ads and a tag on the plywood
           for (const s of [lo + 0.9, hi - 0.9]) {
             const p = free(s, 0.7, 1.2);
-            if (p) { emit(bucketOf(1), swMat, barricade(), 1, 'barricade', p.x, SW_Y, p.z, fr.yaw, true, fk); pb.rectCollider(p, fr.u, 0.9, 0.25); take(p); }
+            if (p) { emit(bucketOf(1), barricade(), 1, 'barricade', p.x, SW_Y, p.z, fr.yaw, true, fk); pb.rectCollider(p, fr.u, 0.9, 0.25); take(p); }
           }
           const n2 = { x: lot.outward.x, z: lot.outward.z };
           const along = { x: (lot.frontB.x - lot.frontA.x) / (lot.width || 1), z: (lot.frontB.z - lot.frontA.z) / (lot.width || 1) };
@@ -337,7 +338,7 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
             const w = frng.range(0.6, 0.85);
             g.push(...poster(frng, wallAt(t), frng.range(0.6, 1.9), n2, w, w * frng.range(1.2, 1.5), 0));
           }
-          emit('clutter-flat-r1', flatMat, g, 1, 'poster', lot.frontA.x, 0, lot.frontA.z, 0, false, fk, true);
+          emit('clutter-flat-r1', g, 1, 'poster', lot.frontA.x, 0, lot.frontA.z, 0, false, fk, true);
           if (frng.chance(0.6)) {
             const variant = frng.int(0, 4), wd = frng.range(1.6, 2.4);
             const gg = new THREE.PlaneGeometry(wd, wd / 2).translate(0, frng.range(0.5, 1.4) + wd / 4, 0).applyMatrix4(frameMatrix(wallAt(frng.range(wd / 2, Math.max(wd / 2 + 0.1, lot.width - wd / 2))), 0, { x: n2.x, z: n2.z }));
@@ -359,7 +360,7 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
               const p = { x: e.x + n.x * 0.03 - lot.outward.x * zc, z: e.z + n.z * 0.03 - lot.outward.z * zc };
               g.push(...poster(frng, p, frng.range(1.6, 3.6), n, 0.38, frng.range(0.5, 0.7), 0));
             }
-            emit('clutter-flat-r2', flatMat, g, 2, 'poster', e.x, 0, e.z, 0, false, fk, true);
+            emit('clutter-flat-r2', g, 2, 'poster', e.x, 0, e.z, 0, false, fk, true);
           }
         }
       }
@@ -367,7 +368,7 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
       // ---- per face: kerb furniture
       if (frng.chance(0.22)) {
         const p = free(fr.L * frng.range(0.35, 0.65), 0.45, 1.5);
-        if (p) { emit(bucketOf(2), swMat, mailbox(), 2, 'mailbox', p.x, SW_Y, p.z, fr.yaw, true, fk); pb.circle(p, 0.28); take(p); }
+        if (p) { emit(bucketOf(2), mailbox(), 2, 'mailbox', p.x, SW_Y, p.z, fr.yaw, true, fk); pb.circle(p, 0.28); take(p); }
       }
       // lamp-post stickers (the mid-face lamp is at 0.6 m in; pole radius ~ 0.085 at sticker height)
       if (frng.chance(0.6)) {
@@ -381,7 +382,7 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
           const q = new THREE.PlaneGeometry(sz, sz * frng.range(0.7, 1.2)).applyMatrix4(frameMatrix({ x: lp.x + nx * r, z: lp.z + nz * r }, frng.range(1.2, 2.0), { x: nx, z: nz }));
           g.push(paint(q, frng.pick(STICKER), 1));
         }
-        emit('clutter-flat-r2', flatMat, g, 2, 'sticker', lp.x, 0, lp.z, 0, false, fk, true);
+        emit('clutter-flat-r2', g, 2, 'sticker', lp.x, 0, lp.z, 0, false, fk, true);
       }
 
       // ---- road and sidewalk decals
@@ -395,7 +396,7 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
         const yaw = frng.range(0, 3.1), w = frng.range(1, 2.4), d = frng.range(0.7, 1.6);
         g.push(paint(flatQuad(w, d, yaw, c.x, ROAD_Y, c.z), '#17191c', 0.62));
         g.push(paint(flatQuad(w * 0.8, d * 0.7, yaw + 0.3, c.x + frng.range(-0.2, 0.2), ROAD_Y + 0.002, c.z + frng.range(-0.2, 0.2)), '#202327', 0.5));
-        emit('clutter-flat-r1', flatMat, g, 1, 'patch', c.x, ROAD_Y, c.z, 0, false, fk, true);
+        emit('clutter-flat-r1', g, 1, 'patch', c.x, ROAD_Y, c.z, 0, false, fk, true);
       }
       if (frng.chance(0.55)) { // tar snake: a thin wavering crack across the lane
         const c = roadPt(frng.range(6, fr.L - 6), frng.range(1.2, maxD));
@@ -405,11 +406,11 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
           const t = i / 9 - 0.5, off = Math.sin(t * 9 + ph) * amp;
           pts.push({ x: c.x + Math.cos(dir) * t * len - Math.sin(dir) * off, z: c.z + Math.sin(dir) * t * len + Math.cos(dir) * off });
         }
-        emit('clutter-flat-r1', flatMat, [ribbon(pts, frng.range(0.04, 0.08), ROAD_Y + 0.001, '#0b0c0e', 0.75)], 1, 'tarSnake', c.x, ROAD_Y, c.z, 0, false, fk, true);
+        emit('clutter-flat-r1', [ribbon(pts, frng.range(0.04, 0.08), ROAD_Y + 0.001, '#0b0c0e', 0.75)], 1, 'tarSnake', c.x, ROAD_Y, c.z, 0, false, fk, true);
       }
       if (frng.chance(0.5)) {
         const c = roadPt(frng.range(8, fr.L - 8), Math.min(maxD, rw / 4 + frng.range(-0.5, 0.5)));
-        emit('clutter-flat-r2', flatMat, [paint(flatBlob(0.34, 1, 1, 0, c.x, ROAD_Y + 0.001, c.z, 14), '#1e2023', 0.9), paint(new THREE.RingGeometry(0.34, 0.43, 14).rotateX(-Math.PI / 2).translate(c.x, ROAD_Y + 0.001, c.z), '#0e0f11', 0.7)], 2, 'manhole', c.x, ROAD_Y, c.z, 0, false, fk, true);
+        emit('clutter-flat-r2', [paint(flatBlob(0.34, 1, 1, 0, c.x, ROAD_Y + 0.001, c.z, 14), '#1e2023', 0.9), paint(new THREE.RingGeometry(0.34, 0.43, 14).rotateX(-Math.PI / 2).translate(c.x, ROAD_Y + 0.001, c.z), '#0e0f11', 0.7)], 2, 'manhole', c.x, ROAD_Y, c.z, 0, false, fk, true);
       }
       { // oil drips where cars park (kerb lane ~ 1.2-2.6 m out)
         const n = frng.int(1, 3);
@@ -417,7 +418,7 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
           const c = roadPt(frng.range(5, fr.L - 5), frng.range(1.4, Math.min(2.4, maxD)));
           const g: Geos = [paint(flatBlob(frng.range(0.22, 0.45), 1, frng.range(0.6, 1), frng.range(0, 3), c.x, ROAD_Y + 0.001, c.z, 9), '#0d0b08', 0.42)];
           if (frng.chance(0.5)) g.push(paint(flatBlob(0.12, 1, 1, 0, c.x + frng.range(-0.3, 0.3), ROAD_Y + 0.002, c.z + frng.range(-0.3, 0.3), 6), '#0d0b08', 0.5));
-          emit('clutter-flat-r2', flatMat, g, 2, 'oil', c.x, ROAD_Y, c.z, 0, false, fk, true);
+          emit('clutter-flat-r2', g, 2, 'oil', c.x, ROAD_Y, c.z, 0, false, fk, true);
         }
       }
       if (frng.chance(0.3)) { // painted NO PARKING stencil beside the hydrant: outlined box, two text bars, a slash
@@ -426,7 +427,7 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
         const part = (w: number, d: number, dx: number, dz: number, rot = 0): THREE.BufferGeometry =>
           paint(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2).rotateY(rot).translate(dx, 0, dz).rotateY(yaw).translate(c.x, ROAD_Y + 0.002, c.z), col, a);
         const g: Geos = [part(W, t, 0, H / 2), part(W, t, 0, -H / 2), part(t, H, W / 2, 0), part(t, H, -W / 2, 0), part(W * 0.7, 0.06, 0, 0.12), part(W * 0.5, 0.06, 0, -0.1), part(W * 1.05, 0.05, 0, 0, 0.42)];
-        emit('clutter-flat-r2', flatMat, g, 2, 'noParking', c.x, ROAD_Y, c.z, 0, false, fk, true);
+        emit('clutter-flat-r2', g, 2, 'noParking', c.x, ROAD_Y, c.z, 0, false, fk, true);
       }
     }
   }
@@ -437,10 +438,11 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
   let spans = 0;
   for (let i = 0; i < faces.length && spans < 6; i++) {
     const A = faces[i];
-    if (Math.abs(Rng_hash(A.key) % 100) >= 24) continue;
+    if (Math.abs(hashStr(A.key) % 100) >= 24) continue;
     const rw = grid.streetById(A.f.streetId).roadWidth;
     const B = faces.find((q, j) => j > i && q.f.streetId === A.f.streetId && q.f.outward.x * A.f.outward.x + q.f.outward.z * A.f.outward.z < -0.9
-      && Math.abs((q.lamp.x - A.lamp.x) * A.f.outward.x + (q.lamp.z - A.lamp.z) * A.f.outward.z - 0) > rw * 0.8
+      && Math.abs((q.lamp.x - A.lamp.x) * A.f.outward.x + (q.lamp.z - A.lamp.z) * A.f.outward.z) > rw * 0.8
+      && Math.abs((q.lamp.x - A.lamp.x) * A.f.outward.x + (q.lamp.z - A.lamp.z) * A.f.outward.z) < rw + 12
       && Math.abs((q.lamp.x - A.lamp.x) * A.fr.u.x + (q.lamp.z - A.lamp.z) * A.fr.u.z) < 10);
     if (!B) continue;
     spans++;
@@ -460,17 +462,17 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
       const p = curve.getPoint(k / nb);
       bulbs.push(paint(new THREE.IcosahedronGeometry(0.07, 0).translate(p.x, p.y - 0.08, p.z), srng.pick(['#ffd27a', '#ff6a5a', '#7ad0ff', '#fff3d0', '#9cff8a'])));
     }
-    emit('clutter-lights-r2', lightMat, bulbs, 2, 'stringLights', A.lamp.x, y, A.lamp.z, 0, false, A.key, true);
+    emit('clutter-lights-r2', bulbs, 2, 'stringLights', A.lamp.x, y, A.lamp.z, 0, false, A.key, true);
     if (srng.chance(0.5)) { // sneakers hung over the wire
       const p = curve.getPoint(srng.range(0.3, 0.7));
       const g = sneakers();
-      for (const q of g) { xform(q, p.x, p.y, p.z, srng.range(0, 3)); stats.tris[1] += triCount(q); pb.put('clutter-sw-r1', swMat, q); }
+      for (const q of g) { xform(q, p.x, p.y, p.z, srng.range(0, 3)); stats.tris[1] += triCount(q); pb.put('clutter-sw-r1', solidMat('clutter-sw-r1'), q); }
     }
   }
   return stats;
 }
 
-function Rng_hash(s: string): number {
+function hashStr(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return h >>> 0;

@@ -66,3 +66,12 @@ describe('RecordSource', () => {
     expect((await ok.load(def))?.duration).toBe(1);
   });
 });
+
+describe('drop folder glob', () => {
+  it('resolves at build time (empty by default)', async () => {
+    const { bundledDropRecords } = await import('@/game/records');
+    const r = bundledDropRecords();
+    expect(Array.isArray(r.defs)).toBe(true);
+    expect(r.urls instanceof Map).toBe(true);
+  });
+});

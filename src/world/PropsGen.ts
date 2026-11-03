@@ -13,6 +13,11 @@ import { buildBillboards } from './props/billboards';
 import { buildFences } from './props/fences';
 import { buildCurbside } from './props/curbside';
 import { buildGraffiti } from './props/graffiti';
+import { buildClutter, type ClutterStats } from './props/clutter';
+import { applyClutterState } from './props/clutterTier';
+
+export { applyClutterState, bagGroupForDay } from './props/clutterTier';
+export { CLUTTER_TRI_BUDGET, DOOR_ZONE, type ClutterPlacement } from './props/clutter';
 
 export { BILLBOARD_TEXTS } from './props/billboards';
 
@@ -27,12 +32,15 @@ export function buildProps(
   materials: IMaterialLibrary,
   rng: Rng,
   options: PropsOptions = {},
-): { group: THREE.Group; colliders: StaticCollider[] } {
+): { group: THREE.Group; colliders: StaticCollider[]; clutter: ClutterStats } {
   const pb = new PropsBuilder();
   buildPoles(pb, grid, lots, materials, rng.fork('props:poles'));
   buildBillboards(pb, grid, lots, materials, rng.fork('props:billboards'));
   buildFences(pb, lots, materials, rng.fork('props:fences'), { vacantFrontFence: options.vacantFrontFence ?? false });
   buildCurbside(pb, grid, lots, materials, rng.fork('props:curbside'));
   buildGraffiti(pb, lots, rng.fork('props:graffiti'), materials);
-  return { group: pb.build('props'), colliders: pb.colliders };
+  const clutter = buildClutter(pb, grid, lots, materials, rng.fork('props:clutter'));
+  const group = pb.build('props');
+  applyClutterState(group, 'high', 0); // default state (survives the cell split): Monday's bag group out; the host re-applies per tier / day
+  return { group, colliders: pb.colliders, clutter };
 }

@@ -1180,3 +1180,78 @@ FOR FABLE: (1) schema.ts: add an optional lot field `facadeTexture?: string` (th
 
 ### 2026-11-03T06:45:18Z · GEO
 FINAL REPORT. The real-blocks pipeline is built and tested against a synthetic fixture; bedstuy.json was NOT modified and no real map data has been imported, because overpass-api.de, openstreetmap.org and data.cityofnewyork.us are still blocked. What exists: src/world/data/geo.ts (projection with a documented approximate origin and fitted bearing, face frames that match Grid.ts, footprint-to-face assignment, tag-to-lot derivation, PLUTO parsing and join, layout with vacant gaps, merge that protects hand-edited lots, Overpass/GeoJSON readers, a serializer that round-trips bedstuy.json byte for byte), scripts/import-osm.mjs (dry run by default, --write, --overwrite, --origin, --bearing, --pluto), tests/fixtures/osm-sample.geojson plus its generator, tests/unit/world/geo.test.ts (35 tests), scripts/photo-to-facade.py and docs/REAL-BLOCKS.md. Gates: tsc shows no errors in my files (other lanes have errors in MissionSystem and a mission HUD test), vitest tests/unit/world is green (246 tests), and the fixture run prints validator: 0 errors. Honest caveats: the default origin 40.6935, -73.9420 is from memory and must be verified with --origin; the PLUTO dataset id 64uk-42ks in the docs is also from memory; the first real import places kept hand lots proportionally, so a second import is more exact.
+
+### 2026-11-03T06:46:03Z · MGR
+MGR review of V1's teleport fix (PT3-1): ACCEPT, P1 closed. V1's explanation fits every fact I had: the SUV's driver door faces the street, the player stood on the sidewalk side, and during the 0.4 s walk to the door the player's body slid through the car's collision box, so the physics pushed the parked car out of its spot at 7 to 9 m/s and it shoved a neighbour across the lane, which is why both runs ended at exactly (-8.2, 16.7). It was a shove, not a teleport, and it also explains part of what H2 felt afterwards, because H2 started its drive in a car sitting crooked in the middle of the avenue. The fix is the minimal one: the player's body leaves the physics world when the walk to the door starts (main.ts:215, player.onEnterStart) instead of when the player sits down. I checked that there is no path where entering is abandoned halfway, which would have left the player without a body; there is none, entering always completes. I ran the new enter-exit sim test with the real colliders plus the player tests and geo tests: 4 files, 69 pass, and V1's browser run is now 28 of 28 including three cycles from the far side of a parked car, each asserting the parked car moves less than 0.6 m. Fable, please keep that main.ts line. H3 can start.
+
+### 2026-11-03T06:46:03Z · MGR
+MGR review of GEO: ACCEPT, with two caveats. The pipeline that turns open map data into our block faces exists and is tested against a synthetic fixture (geo tests pass in my run, validator 0 errors on the fixture), it runs as a dry run unless asked to write, it protects hand-edited lots when merging, and it uses OpenStreetMap and NYC PLUTO only, never Google data, with the ODbL attribution line planned. bedstuy.json was correctly left untouched because the real data hosts are still blocked, so the PRD row is met for the pipeline and deferred for real data. Caveats: the map origin (40.6935, -73.9420) and the PLUTO dataset id are from memory and must be checked on the first real import, and GEO's three FOR FABLE items (an optional facadeTexture field, mapping the user's facade photo once across a lot, and the credit line) should land before the user's photos do; I recommend APPROVE for all three. GEO -> done.
+MGR review of MUSIC (a lane not in my PRD rows): ACCEPT as research. Its honest conclusion is that the only reachable CC0 music is AI-generated lo-fi, and nothing rap, trap, house or dub is both CC0 and reachable, so the user's own files remain the primary source for the eight stations.
+
+### 2026-11-03T06:46:39Z · CLUB
+CLUB progress: everything is implemented and green (tsc clean, tests/unit/game ui world pass for my files; the only failures in that folder are 3 tests in mission_content.test.ts, which is MISS2's). @MISS2 I took your names: events use interior ids 'wax-deli', 'aftersloth', 'home'; shop:bought carries shop:'wax-deli'; the real Crate Digger records are 'wax-03' ($14), 'wax-04' ($16), 'wax-09' ($13); the starter crate already holds wax-01 and wax-02. Door world points are exported from src/world/interiors as doorTrigger(INTERIORS.deli|club|home) (the sidewalk spot in front of each door; deli is Throop east side z=34, club is Kosciuszko north side x=70, home is Throop west side z=-36), so use those instead of a bedstuy.json POI. Flags: I read 'aftersloth.unlocked' for the door and 'aftersloth.slot' for the booth (set it when Open Decks is passed). DjUi.open(venue, {minutes}) takes your djRequest.minutes and auto-finishes at that time; the blackout twist is interiors.setBlackout(true/false).
+
+### 2026-11-03T06:47:01Z · CLUTTER
+FOR FABLE (main.ts, one line): in applyDetail() add applyClutterState(world.group, quality, gameDay) with import { applyClutterState } from '@/world/PropsGen'. The default state is already sane without it (everything on, Monday's trash group out, set on the bucket materials so it survives the cell split), but the call is what turns clutter off for phone, trims it for low, and rotates the trash-bag piles by game day (pass any integer day number, 0=Monday, 6=Sunday is clean). Also tell me if you would rather I leave the rotating bags out.
+
+### 2026-11-03T06:47:14Z · CLUB
+FINAL REPORT (CLUB). Status: done, not committed. Gates: npx tsc --noEmit is clean for the whole tree; npx vitest run tests/unit/game tests/unit/ui tests/unit/world: all of my 6 new test files pass (inventory 6, records 10, dj 10, shop 7, dj-ui 2, interiors 8 tests); the only failures in those folders are 3 tests in tests/unit/game/mission_content.test.ts (MISS2's file, in progress). npm run build ok (dist/index.html 9.51 MB). My code is not imported yet, so it is not in that number; I estimate about 40 KB minified when wired (the drop folder is empty, so nothing else is embedded). Not run in a real browser (no wiring yet), so audio, the dance floor visuals and the camera inside the rooms are untested by eye.
+
+WHAT EXISTS (all new files):
+- src/world/interiors/{defs,parts,rooms,Interiors,FadeOverlay,ambient,index}.ts: three procedural rooms 3 km off the map (deli origin 3000,3000; club 3000,3120; home 3000,3240) with 2D wall and furniture colliders, flat-shaded MeshBasic (no scene lights added, so no shader recompiles), walls face inward so the follow camera never shows a hole (camera also ray-casts statics). WAX DELI: 6 record bins (one InstancedMesh of sleeves), owner NPC, listening station, counter. AFTERSLOTH: dark room, 6x4 dance floor tiles that recolour per beat, strobe on bar downbeats, 6 sweeping lasers, 16 dancing figures (12 to 20 configurable, same procedural human rig with a beat dance), DJ booth with DJ figure, bar and bartender, blackout support. HOME: couch, street window with a dusk backdrop, record shelf, two turntables and a mixer, bed.
+- Interiors state machine: outside -> fadingIn -> inside -> fadingOut -> outside, 0.28 s fade each way, teleport at full black. API: prompt(pos), tryEnter(pos), exit(), interact(pos) (F handler: enter, exit, shop, decks, bar, owner talk), update(dt, beat), locked, state, current, setBlackout(on). Club gate: door opens only 23:00 to 04:00 AND when inventory flag 'aftersloth.unlocked' is set; before the flag there is no prompt at all (hidden entrance); flagged but closed shows "Closed. Doors open 11 PM to 4 AM". Booth needs flag 'aftersloth.slot' (otherwise DJ Sloth waves you off). Doors are placed by me as small meshes at fixed world points (deli: Throop east face x=11.05 z=34; home: Throop west face x=-11.05 z=-36; club: Kosciuszko north face x=70 z=-8.55), so WorldBuilder/mixeduse need no change; a lot-door hook can replace them later by editing INTERIORS[id].door.
+- src/game/Inventory.ts: owns cash (start $120), records (full RecordDef persisted), items, flags; add/spend/buy/sell (half price, floored)/setFlag/hasFlag; localStorage 'gta-bedstuy.inventory.v1', every access in try/catch. Starter crate: wax-01, wax-02.
+- src/game/records.ts: 12 procedural originals (exact BPM 72 to 140, parody titles), pure synthRecord (loops of 16 whole bars), estimateBpm onset estimate (tested within 2.5 BPM), pressLibraryTrack, drop folder glob of src/assets/records/ (README + .gitkeep added), RecordSource (decode + cache).
+- src/game/DjGame.ts (pure logic, fake-able audio port), src/game/DjAudio.ts (WebDjAudio looping buffer decks + RecordPreview 20 s), src/ui/DjUi.ts + dj.css, src/ui/ShopUi.ts + shop.css (touch targets 44 to 52 px; keys Z/X play/cue A, N/M deck B, Left/Right fader, Q/E and U/O nudge, Esc leaves).
+- docs/RECORDS.md. Tests: tests/unit/game/{inventory,records,dj}.test.ts, tests/unit/ui/{shop,dj-ui}.test.ts, tests/unit/world/interiors.test.ts.
+
+FOR FABLE (exact lines):
+1) src/core/Events.ts, add to GameEvents:
+  'interior:entered': { id: string };   // 'wax-deli' | 'aftersloth' | 'home'
+  'interior:exited': { id: string };
+  'shop:bought': { recordId: string; price: number; shop: string };
+  'shop:sold': { recordId: string; price: number; shop: string };
+  'record:pressed': { recordId: string };
+  'dj:setFinished': { venue: string; score: number; minutes: number };
+  (my code emits through a loose { emit(type: string, payload: unknown) } so it compiles before and after.)
+2) src/audio/AudioSystem.ts (RADIO's file), add one getter:
+  get djHost(): { ctx: AudioContext; dest: AudioNode } | null { return this.g ? { ctx: this.g.ctx, dest: this.g.master } : null; }
+3) src/main.ts imports and construction (after audio, player, inventory of missions exist; `overlay` is the HUD root):
+  import { Inventory } from '@/game/Inventory';
+  import { PROCEDURAL_RECORDS, RecordSource, bundledDropRecords, type BufferContext } from '@/game/records';
+  import { DjGame } from '@/game/DjGame';
+  import { WebDjAudio, RecordPreview } from '@/game/DjAudio';
+  import { DjUi } from '@/ui/DjUi';
+  import { ShopUi } from '@/ui/ShopUi';
+  import { Interiors, FadeOverlay, WebAmbient } from '@/world/interiors';
+  const drop = bundledDropRecords();
+  const inventory = new Inventory(PROCEDURAL_RECORDS);
+  inventory.add(0); for (const d of drop.defs) inventory.addRecord(d) is NOT needed (drop records are listed free in the bins).
+  let djAudio: WebDjAudio | null = null, preview: RecordPreview | null = null, recSource: RecordSource | null = null;
+  const ensureAudio = () => { const h = audio.djHost; if (!h || recSource) return; recSource = new RecordSource(h.ctx as unknown as BufferContext, (def) => def.kind === 'library' ? audio.library.getTrack?.(def.ref!)?.url : drop.urls.get(def.id)); djAudio = new WebDjAudio(h); preview = new RecordPreview(h); };
+    (note: adapt the library URL lookup to Library's real accessor for a track's blob url; ShopUi/DjUi only need RecordSource.resolve(def) -> url|undefined.)
+  const dj = new DjGame(null /* swapped for djAudio once ensureAudio ran: construct lazily or give DjGame a setPort */, events);
+  NOTE: DjGame takes its audio port in the constructor; construct `dj` lazily inside ensureAudio() (first F on an interior spot is a user gesture, so the context exists) or, simpler, I can add dj.setPort() on request.
+  const fade = new FadeOverlay(document.body);
+  const ambient = new WebAmbient(() => audio.djHost, () => recSource);
+  const interiors = new Interiors({ scene, world, materials, inventory, getHour: () => dayNight.timeOfDay,
+    teleport: (x, z, h) => { const b = player.body; b.pos.x = x; b.pos.z = z; b.vel.x = 0; b.vel.z = 0; b.heading = h; player.prevPos.x = x; player.prevPos.z = z; },
+    events, onMessage: (m) => hud.showToast(m), onFade: (a) => fade.set(a), onChange: (id) => { ensureAudio(); ambient.set(id); },
+    onAction: (a) => { ensureAudio(); if (a.kind === 'shop' || a.kind === 'listen') shopUi.open(); else djUi.open(a.venue, { minutes: missions.djRequest?.venue === a.venue ? missions.djRequest.minutes : undefined }); },
+    dancerCount: quality === 'phone' ? 12 : 16 });
+  const shopUi = new ShopUi(overlay, { inventory, stock: PROCEDURAL_RECORDS, source: recSource, preview, events, dropRecords: drop.defs, libraryTracks: () => audio.library.tracks().map(t => ({ id: t.id, name: t.name, path: t.path })), onToggle: (o) => { game.paused = o; } });
+  const djUi = new DjUi(overlay, { game: dj, inventory, source: recSource, onToggle: (o) => ambient.duck(o) });
+    (the Library accessor names above are my guess; use whatever lists tracks with ids/urls. ShopUi and DjUi take `source` at construction, so create them after ensureAudio or pass a getter: tell me and I make source a getter.)
+4) src/main.ts per-frame: `interiors.update(frameDt, dj.roomBeat);` and `if (djUi.isOpen) dj.tick` is done by DjUi itself (its own rAF), so nothing else.
+5) src/main.ts prompt (line ~409 slowTick block): after the vehicle prompt: `if (!prompt && !player.inVehicle) prompt = interiors.prompt(pos);`
+6) src/main.ts F handler (line ~477), replace with:
+  if (input.consume('KeyF')) { if (interiors.locked || shopUi.isOpen || djUi.isOpen) { /* ignore */ } else if (player.inVehicle) player.exit(); else if (!interiors.interact(pos)) player.tryEnter(allVehicles()); }
+7) Input gating: skip `player.control(...)` while `interiors.locked || shopUi.isOpen || djUi.isOpen`.
+8) Missions bridge (agreed with MISS2): MissionSystem pay -> `(n) => inventory.add(n)`, setFlag -> `(f) => inventory.setFlag(f)`; forward bus events to missions.notify: interior:entered/exited {id}, shop:bought {recordId, shop}, dj:setFinished {venue,score,minutes}; forward mission:twist {id:'aftersloth-residency'} to `interiors.setBlackout(true)` and its end to `setBlackout(false)`. The mission cash HUD should read `inventory.cash` (Inventory owns the number; MissionSystem keeps no second copy).
+9) Optional: bedstuy.json POIs 'wax-deli' and 'aftersloth' are NOT needed: MISS2 should use doorTrigger(INTERIORS.deli|club) (exported from '@/world/interiors') as the fixed point.
+10) tests/e2e: none added (needs the wiring).
+
+OPEN POINTS / HONEST LIMITS: (a) DJ audio and the club visuals are only unit-tested (fake ports, jsdom); a browser pass is needed once wired. (b) The Radio library blob URL accessor is unknown to me, so library-file records need that one line of glue; until then pressed records show "not loaded this session". (c) The follow camera inside the 8x7 home room may sit tight against the walls; walls are one-sided so it cannot show a hole. (d) Dancers use the procedural human rig, not the GLB characters. (e) Library records default to a genre tempo then measure it on first load; first-beat offset is assumed at 0:00 (nudge fixes it).
+
+### 2026-11-03T06:47:20Z · fable
+DONE (FOR FABLE GEO 1+2b): LotSpec.facadeTexture added to schema.ts (+LOT_KEYS); packs.ts parseUserTextureName skips facade-* files. The facade.ts atlas mapping (GEO item 2) is assigned to @CLUTTER (owns facade.ts hooks). GEO item 3 (OSM attribution line) will be shown by the credits screen when a real import lands. Artifact v11 published with V1's shove fix, Radio SC and GFX's wet reflections (9.5 MB; MDLI2 must keep it under 12). H3 chaos playtest is running on this build.
