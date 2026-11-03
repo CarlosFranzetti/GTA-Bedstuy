@@ -44,6 +44,8 @@ interface Run {
   outOfBounds: string[];
   maxAgents: number;
   maxPatrols: number;
+  /** AI traffic car centres sampled off the roadway (on a sidewalk or building line) */
+  onSidewalk: string[];
 }
 
 function runTraffic(seed: number): Run {
@@ -60,7 +62,7 @@ function runTraffic(seed: number): Run {
 
   const run: Run = {
     seed, agentsSeen: 0, windows: 0, stuck: [], worstNet: Infinity, redViolations: [], stopPasses: 0, impacts: [], knockedDown: [],
-    pedWindows: 0, pedStill: 0, maxSpeedRatio: 0, nonFinite: [], outOfBounds: [], maxAgents: 0, maxPatrols: 0,
+    pedWindows: 0, pedStill: 0, maxSpeedRatio: 0, nonFinite: [], outOfBounds: [], maxAgents: 0, maxPatrols: 0, onSidewalk: [],
   };
   let t = 0;
   const entities = new Map<string, { onContact?: (c: never, o: never) => void; update(dt: number): void }>();
@@ -113,6 +115,7 @@ function runTraffic(seed: number): Run {
         const p = v.body.pos;
         if (!Number.isFinite(p.x) || !Number.isFinite(p.z) || !Number.isFinite(v.body.heading)) run.nonFinite.push(`${v.id}@${t.toFixed(1)}`);
         else if (p.x < b.minX - 40 || p.x > b.maxX + 40 || p.z < b.minZ - 40 || p.z > b.maxZ + 40) run.outOfBounds.push(`${v.id}@${t.toFixed(0)} ${p.x.toFixed(0)},${p.z.toFixed(0)}`);
+        if (v.driver === 'traffic' && !grid.isOnRoad(p) && t > 1) run.onSidewalk.push(`${v.id}@${t.toFixed(0)}s ${p.x.toFixed(0)},${p.z.toFixed(0)}`);
         run.maxSpeedRatio = Math.max(run.maxSpeedRatio, Math.hypot(v.body.vel.x, v.body.vel.z) / v.spec.maxSpeed);
         for (const n of stops) {
           const dx = n.pos.x - p.x, dz = n.pos.z - p.z;
@@ -214,6 +217,10 @@ describe('full-density traffic, 5 simulated minutes on the real map (PRD 5.2)', 
   // Q10-D1: AI cars rear-end and T-bone each other. The follower's obstacle ray starts at the lane-offset line
   // (pos - right * lat) although the body has not moved there yet, so it cannot see the car in front while a pass
   // is being started or cancelled. Expected after the fix: at most a couple of >= 3 m/s AI-vs-AI impacts in 5 min.
+  it('STUCK: no AI traffic car ever drives onto a sidewalk (kerbs are only climbable by the player, seeds 7 + 21)', () => {
+    for (const seed of SEEDS) expect(runs.get(seed)!.onSidewalk, `seed ${seed}`).toEqual([]);
+  });
+
   it('Q10-D1 (fixed by F12): AI-vs-AI collisions with closing speed >= 3 m/s stay below 3 per 5 minutes (seeds 7 + 21)', () => {
     for (const seed of SEEDS) {
       const hard = runs.get(seed)!.impacts.filter((i) => i.strength >= 3 && (i.aDriver === 'traffic' || i.aDriver === 'cop') && (i.bDriver === 'traffic' || i.bDriver === 'cop'));

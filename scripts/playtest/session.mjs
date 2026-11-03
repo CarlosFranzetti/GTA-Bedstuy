@@ -18,6 +18,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, appendFileSync, existsSync, readFileSync, renameSync, cpSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { cutVideo } from './cut.mjs';
 
 const { chromium } = createRequire(import.meta.url)('playwright');
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -457,23 +458,15 @@ function writeTranscript(D, opt, reason, summary) {
   }
   writeFileSync(join(D, 'transcript.md'), lines.join('\n'));
 }
-/** playtest.mp4 = the webm with the dead time (tester thinking while the world is frozen) cut out; playtest-full.mp4 = untouched. */
+/**
+ * playtest.mp4 = the webm reduced to the action windows (log tVideoActions -> tVideoEnd, +-0.3 s): the dead time while the
+ * tester thinks and the world is frozen is gone. One ffmpeg pass (see cut.mjs). If the cut fails there is NO playtest.mp4
+ * (never a stub or a copy of the full video); playtest.webm is the untouched recording.
+ */
 function makeMp4(D) {
-  const webm = join(D, 'playtest.webm');
-  const enc = ['-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '28', '-preset', 'veryfast', '-movflags', '+faststart', '-an'];
-  const full = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', webm, ...enc, join(D, 'playtest-full.mp4')], { stdio: 'inherit' });
-  if (full.status !== 0) { console.error('[playtest] ffmpeg full conversion failed'); return; }
-  const segs = [];
-  for (const r of readLog(D)) {
-    if (r.tVideoThought === undefined) continue;
-    segs.push([Math.max(0, r.tVideoThought - 0.2), r.tVideoEnd + 0.4]);
-  }
-  const fin = readLog(D).find((r) => r.end);
-  if (fin && segs.length) segs.push([Math.max(segs[segs.length - 1][1], fin.tVideoEnd - 3.5), fin.tVideoEnd + 0.5]);
-  if (!segs.length) { renameSync(join(D, 'playtest-full.mp4'), join(D, 'playtest.mp4')); return; }
-  const f = segs.map(([a, b], i) => `[0:v]trim=start=${a.toFixed(2)}:end=${b.toFixed(2)},setpts=PTS-STARTPTS[v${i}]`).join(';') + ';' + segs.map((_, i) => `[v${i}]`).join('') + `concat=n=${segs.length}:v=1:a=0[out]`;
-  const cut = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', webm, '-filter_complex', f, '-map', '[out]', ...enc, join(D, 'playtest.mp4')], { stdio: 'inherit' });
-  if (cut.status !== 0) { console.error('[playtest] trimmed conversion failed; using the full video as playtest.mp4'); renameSync(join(D, 'playtest-full.mp4'), join(D, 'playtest.mp4')); }
+  const res = cutVideo(D, readLog(D));
+  if (res.ok) console.log(`[playtest] playtest.mp4: ${res.windows.length} action windows, ${res.seconds.toFixed(1)} s`);
+  else console.error(`[playtest] playtest.mp4 not written: ${res.reason}. Cut it later with: node scripts/playtest/cut.mjs ${D}`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

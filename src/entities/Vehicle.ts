@@ -61,6 +61,21 @@ const PARKED_FRICTION = 3.0;
 const PARKED_DRAG = 0.35;
 /** A parked car slower than this snaps to rest (static friction), so a walking player cannot shove it. */
 const PARKED_STICK = 0.35;
+// ---- wedge detection (player-driven cars only)
+/** Throttle held at least this hard, slower than WEDGE_SPEED, with a contact this recent counts as pushing into something. */
+const WEDGE_THROTTLE = 0.3;
+const WEDGE_SPEED = 0.5;
+const WEDGE_CONTACT_AGE = 0.12;
+/** After this long wedged the car is eased away from the contact. */
+const WEDGE_AFTER = 0.8;
+/** The push-out: a gentle velocity along the contact normal (m/s), reverse assist and a small turn away over UNSTICK_TIME. */
+const UNSTICK_SPEED = 1.8;
+const UNSTICK_TIME = 0.9;
+const UNSTICK_THROTTLE = 0.7;
+const UNSTICK_YAW = 0.22;
+/** `blockedSeconds` keeps counting while throttle is held and slower than this, and drops to 0 after this long free of contact. */
+const BLOCKED_MAX_SPEED = 3;
+const BLOCKED_FREE_AFTER = 2.5;
 // ---- impacts
 const IMPACT_MIN = 0.5;
 const WALL_FRICTION = 0.35;
@@ -114,6 +129,8 @@ export class Vehicle implements IVehicle {
   static sources: VehicleSources = {};
   /** Speed-dependent steering cap for player-driven cars (see LOW_YAW_CAP). Off only for before/after measurements. */
   static calmSteering = true;
+  /** Wedge push-out for the player's car (see updateWedge). Off only for tests that assert a car held against an obstacle rests. */
+  static wedgeAssist = true;
   readonly spec: VehicleSpec;
   readonly body: Body2D;
   readonly object3D: THREE.Group;
@@ -150,6 +167,20 @@ export class Vehicle implements IVehicle {
   private slipAmt = 0;
   private lastHitTime = -10;
   private lastHitImpulse = 0;
+  // wedge detection
+  private lastContactTime = -10;
+  /** unit vector pointing away from the thing last touched */
+  private contactAway: Vec2 = { x: 0, z: 0 };
+  /** lateral offset (m, + = right of the car) of the last contact point */
+  private contactLat = 0;
+  private wedgeTimer = 0;
+  private wedgeGap = 0;
+  private unstickLeft = 0;
+  private unstickSign = 1;
+  private unstickCount = 0;
+  private lastUnstickTime = -10;
+  private throttleIdle = 0;
+  private _blockedSeconds = 0;
   private readonly ownMaterials: THREE.Material[] = [];
   // chassis springs (rad / m and their velocities)
   private roll = 0; private rollV = 0;
@@ -205,6 +236,12 @@ export class Vehicle implements IVehicle {
   get speedKmh(): number {
     return Math.hypot(this.body.vel.x, this.body.vel.z) * 3.6;
   }
+
+  /**
+   * Seconds the player has been pushing the throttle into something that will not give (held throttle, almost no speed,
+   * touching a body), kept while the push-out nudges the car free. 0 when moving freely. The HUD shows a hint at 1.5 s.
+   */
+  get blockedSeconds(): number { return this._blockedSeconds; }
 
   /** 0..1 tyre slip (for squeal audio / skid effects): 0 = gripping, 1 = fully sliding. */
   get slip(): number { return this.slipAmt; }
@@ -275,6 +312,7 @@ export class Vehicle implements IVehicle {
   }
 
   onContact(contact: Contact, other: Body2D): void {
+    if (this.driver === 'player') this.noteContact(contact);
     if (contact.impulse < IMPACT_MIN) return;
     // A car sliding along a wall (or a pedestrian pressed against it) re-touches it every frame with a slowly
     // changing impulse: a repeat within SCRAPE_WINDOW is a scrape (5% of the damage, no new impact event) unless
@@ -312,13 +350,15 @@ export class Vehicle implements IVehicle {
 
     if (!driven) { this.integrateParked(h); return; }
     const input = this.input;
+    const unstick = this.driver === 'player' && Vehicle.wedgeAssist ? this.updateWedge(h) : null;
 
     const f0 = forwardFromHeading(b.heading);
     const r0 = perpRight(f0);
     let vLong = dot(b.vel, f0);
     const vLong0 = vLong;
     const A = s.accel, vm = s.maxSpeed;
-    const thr = clamp(input.throttle, -1, 1);
+    let thr = clamp(input.throttle, -1, 1);
+    if (unstick !== null) thr = unstick; // reverse assist while the push-out runs
 
     // --- brake pedal (ramped: no instant stop)
     const oppose = !input.brake && thr * vLong < 0 && Math.abs(vLong) > 0.5;
@@ -418,6 +458,62 @@ export class Vehicle implements IVehicle {
     this.aLatF += (aLat - this.aLatF) * k;
     const slipNow = clamp((Math.abs(vLat) - 0.7) / 3.5, 0, 1);
     this.slipAmt += (slipNow - this.slipAmt) * Math.min(1, 10 * h);
+  }
+
+  /** Remember what the car touched and from which side (for the wedge push-out). */
+  private noteContact(contact: Contact): void {
+    const b = this.body;
+    const sgn = contact.a === b ? 1 : -1;
+    this.lastContactTime = this.time;
+    this.contactAway.x = -contact.normal.x * sgn;
+    this.contactAway.z = -contact.normal.z * sgn;
+    const r = perpRight(forwardFromHeading(b.heading));
+    this.contactLat = (contact.point.x - b.pos.x) * r.x + (contact.point.z - b.pos.z) * r.z;
+  }
+
+  /**
+   * Wedge detection for the player's car. Holding the throttle (> WEDGE_AFTER s) into a body at under WEDGE_SPEED
+   * eases the car away from the contact: a gentle velocity along the contact normal, a reverse-assist throttle and a
+   * small turn so the next try clears the obstacle. Returns the throttle override while that runs, else null.
+   */
+  private updateWedge(h: number): number | null {
+    const b = this.body;
+    const input = this.input;
+    const held = Math.abs(input.throttle) > WEDGE_THROTTLE && !input.brake;
+    const vAbs = Math.hypot(b.vel.x, b.vel.z);
+    const touching = this.time - this.lastContactTime < WEDGE_CONTACT_AGE;
+    // blockedSeconds (HUD hint): throttle held, crawling, and recently in contact
+    if (!held) {
+      this.throttleIdle += h;
+      if (this.throttleIdle > 0.4) this._blockedSeconds = 0;
+    } else {
+      this.throttleIdle = 0;
+      if ((vAbs > BLOCKED_MAX_SPEED && this.time - this.lastUnstickTime > 3) || this.time - this.lastContactTime > BLOCKED_FREE_AFTER) this._blockedSeconds = 0;
+      else if ((touching && vAbs < BLOCKED_MAX_SPEED) || this._blockedSeconds > 0) this._blockedSeconds += h;
+    }
+    if (this.unstickLeft > 0) {
+      this.unstickLeft = Math.max(0, this.unstickLeft - h);
+      b.heading = wrapAngle(b.heading + this.unstickSign * (UNSTICK_YAW / UNSTICK_TIME) * h);
+      const f = forwardFromHeading(b.heading);
+      return dot(this.contactAway, f) >= 0 ? UNSTICK_THROTTLE : -UNSTICK_THROTTLE;
+    }
+    if (held && vAbs < WEDGE_SPEED && Math.abs(this.speed) < WEDGE_SPEED) {
+      if (touching) { this.wedgeTimer += h; this.wedgeGap = 0; }
+      else if ((this.wedgeGap += h) > 0.3) this.wedgeTimer = 0;
+    } else { this.wedgeTimer = 0; this.wedgeGap = 0; }
+    if (this.wedgeTimer < WEDGE_AFTER) return null;
+    // wedged: push out. Turn the nose away from the side that is touching (alternate sides when it is dead centre).
+    this.wedgeTimer = 0; this.wedgeGap = 0;
+    this.unstickLeft = UNSTICK_TIME;
+    this.unstickCount++;
+    this.lastUnstickTime = this.time;
+    const f = forwardFromHeading(b.heading);
+    const into = dot(this.contactAway, f) < 0; // contact is ahead: back away, nose turns away from the touching side
+    const lat = this.contactLat;
+    this.unstickSign = Math.abs(lat) > 0.25 ? (lat > 0 ? -1 : 1) * (into ? 1 : -1) : (this.unstickCount % 2 === 0 ? 1 : -1);
+    b.vel.x += this.contactAway.x * UNSTICK_SPEED;
+    b.vel.z += this.contactAway.z * UNSTICK_SPEED;
+    return dot(this.contactAway, f) >= 0 ? UNSTICK_THROTTLE : -UNSTICK_THROTTLE;
   }
 
   private integrateParked(h: number): void {

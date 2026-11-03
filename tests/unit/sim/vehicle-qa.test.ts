@@ -6,13 +6,15 @@
  *  - handbrake drift: slip angle > 15 deg at 60 km/h, controllable and recoverable
  * Physics is stepped like main.ts: Vehicle.update(dt) then World2D.step(dt) then onContact routing.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { Vehicle } from '@/entities/Vehicle';
 import { EventBus } from '@/core/Events';
 import { angleDiff } from '@/core/Math2';
 import type { VehicleType } from '@/world/types';
 import { DT, Sim, input, makeVehicle, peakToPeak, realPhysics, slipAngleDeg, variance } from './harness';
 
 const RAD = 180 / Math.PI;
+afterEach(() => { Vehicle.wedgeAssist = true; });
 const wallSeg = (sim: Sim, ax: number, az: number, bx: number, bz: number, id = 'wall') =>
   sim.world.addStatic({ kind: 'segment', a: { x: ax, z: az }, b: { x: bx, z: bz } }, undefined, id);
 
@@ -194,6 +196,7 @@ describe('resting contact has no jitter (PRD 5.2: collisions damp without jitter
   });
 
   it('full throttle held square into a wall: no jitter, no impact spam, no creeping damage', () => {
+    Vehicle.wedgeAssist = false; // these assert a held car RESTS; the push-out (stuck-unwedge.test.ts) deliberately moves it
     const events = new EventBus();
     let impacts = 0;
     events.on('impact', () => impacts++);
@@ -214,6 +217,7 @@ describe('resting contact has no jitter (PRD 5.2: collisions damp without jitter
   });
 
   it('a car held against a parked car that is itself against a wall (a stack): all three at rest', () => {
+    Vehicle.wedgeAssist = false; // these assert a held car RESTS; the push-out (stuck-unwedge.test.ts) deliberately moves it
     const sim = new Sim();
     wallSeg(sim, -20, -14, 20, -14);
     const pusher = makeVehicle('sedan', 0, 0, 0);
@@ -227,6 +231,7 @@ describe('resting contact has no jitter (PRD 5.2: collisions damp without jitter
   });
 
   it('a wall corner (two walls at 90 deg), car driven into the corner and held there: still (< 1 mm)', () => {
+    Vehicle.wedgeAssist = false; // these assert a held car RESTS; the push-out (stuck-unwedge.test.ts) deliberately moves it
     const sim = new Sim();
     wallSeg(sim, -20, -10, 5, -10, 'n');
     wallSeg(sim, 5, -10, 5, 20, 'e');

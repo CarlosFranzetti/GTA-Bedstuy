@@ -9,6 +9,18 @@ export interface RadioHudState {
   talkProgress?: number;
 }
 
+/** Seconds the player's car has been pushed into something it cannot move (Vehicle.blockedSeconds); hint shows past BLOCKED_HINT_AFTER. */
+export interface BlockedHudState {
+  blockedSeconds?: number;
+}
+export const BLOCKED_HINT_AFTER = 1.5;
+/** The prompt pill text while wedged, per input device (replaces "Exit car" until the car is free). */
+export const BLOCKED_HINT: Record<InputMode, string> = {
+  keyboard: 'Blocked: S to reverse, Shift handbrake',
+  touch: 'Blocked: pull back to reverse',
+  gamepad: 'Blocked: LT to reverse, B handbrake',
+};
+
 const FADE_MS = 400;
 const MAX_STARS = 3;
 const CONTROLS = [
@@ -137,7 +149,7 @@ export class Hud {
     );
   }
 
-  update(state: HudState & RadioHudState): void {
+  update(state: HudState & RadioHudState & BlockedHudState): void {
     const stars = Math.round(Math.min(MAX_STARS, Math.max(0, finite(state.stars))));
     this.starEls.forEach((el, i) => {
       const on = i < stars;
@@ -151,7 +163,8 @@ export class Hud {
     this.setSpeed(String(Math.round(Math.abs(finite(state.speedKmh)))));
     this.speedEl.hidden = !state.inVehicle;
 
-    const prompt = state.prompt ?? '';
+    const blocked = state.inVehicle && finite(state.blockedSeconds ?? 0) > BLOCKED_HINT_AFTER;
+    const prompt = blocked ? BLOCKED_HINT[this.inputMode] : state.prompt ?? '';
     this.setPrompt(prompt);
     this.promptEl.hidden = prompt.trim() === '';
 

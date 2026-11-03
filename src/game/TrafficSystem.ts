@@ -7,6 +7,7 @@ import type {
 } from '@/world/types';
 import { Pedestrian, type PedCrossing, type PedEnvironment, type StoopSpot } from '@/entities/Pedestrian';
 import { TrafficAgent } from '@/entities/TrafficAgent';
+import { VEHICLE_SPECS } from '@/entities/Vehicle';
 import { TrafficLights } from './TrafficLights';
 
 export type MakeVehicle = (type: VehicleType, pos: Vec2, heading: number, color: string) => IVehicle;
@@ -82,8 +83,17 @@ const SPAWN_TICK = 0.25;
 /** spawn clearance: nobody within SPAWN_CLEAR m, no moving car within SPAWN_BEHIND m behind */
 const SPAWN_CLEAR = 6;
 const SPAWN_BEHIND = 32;
-const PARK_SPACING = 11;
+/** distance between parking slots along a face (m, centre to centre before jitter) */
+const PARK_SPACING = 13;
+/** Parked cars on a street face are never closer than this bumper to bumper (a stopped car must be able to pivot out). */
+export const PARK_MIN_GAP = 6.5;
+/** corners (and the hydrants next to them) stay clear: the first slot is this far from the intersection edge */
 const PARK_END_MARGIN = 12;
+/** no parked bumper closer than this to an intersection edge */
+const CORNER_CLEAR = 8;
+/** Where the player starts on foot; the parked car nearest to it is the "spawn car" and gets this much clear space. */
+export const PLAYER_SPAWN: Vec2 = { x: 9, z: 20 };
+export const SPAWN_CAR_CLEAR = 7;
 const PARK_EXTRA_OFFSET = 2.6;
 const LANE_OFFSET = 2.0;
 const FLEE_RADIUS = 15;
@@ -143,6 +153,7 @@ export class TrafficSystem {
     lights?: TrafficLights,
     lots?: readonly Lot[],
     density: Partial<TrafficDensity> = {},
+    private readonly spawnPoint: Vec2 = PLAYER_SPAWN,
   ) {
     this.density = { ...FULL_DENSITY, ...density };
     this.parkedShare = this.density.parkOccupancy;
@@ -233,7 +244,15 @@ export class TrafficSystem {
 
   // ------------------------------------------------------------------ parked cars
 
+  /**
+   * Parked cars on both kerbs of every two-way segment. Along a face the cars are at least PARK_MIN_GAP apart bumper to
+   * bumper (alternate-side-parking spacing, so a car that is boxed in can always back and turn out), and the first slot is
+   * PARK_END_MARGIN from the intersection edge (corners and hydrants stay clear). The car nearest the player's spawn
+   * point (the one a new player walks up to) is kept and every other parked car within SPAWN_CAR_CLEAR of it is dropped.
+   */
   private spawnParked(): void {
+    interface Slot { type: VehicleType; pos: Vec2; h: number; color: string; }
+    const slots: Slot[] = [];
     for (const seg of this.grid.segments) {
       const street = this.grid.streetById(seg.streetId);
       if (street.oneWay !== 0) continue;
@@ -248,18 +267,33 @@ export class TrafficSystem {
       for (const side of [1, -1]) {
         // side 1: right-hand curb of the a->b direction; side -1: right-hand curb of b->a
         const h = side === 1 ? heading : heading + Math.PI;
+        let prevEnd = -Infinity; // far bumper of the previous car along the face
         for (let s = PARK_END_MARGIN; s <= length - PARK_END_MARGIN; s += PARK_SPACING) {
           if (!this.rng.chance(this.density.parkOccupancy)) continue;
           const along = s + this.rng.range(-0.6, 0.6);
-          const pos = {
-            x: seg.a.x + dir.x * along + right.x * curbOffset * side,
-            z: seg.a.z + dir.z * along + right.z * curbOffset * side,
-          };
-          const v = this.makeVehicle(this.pickType(), pos, h, this.rng.pick(CAR_COLORS));
-          v.driver = null;
-          this.register(v);
+          const type = this.pickType();
+          const half = VEHICLE_SPECS[type].length / 2;
+          if (along - half < CORNER_CLEAR || along + half > length - CORNER_CLEAR || along - prevEnd - half < PARK_MIN_GAP) continue;
+          prevEnd = along + half;
+          slots.push({
+            type,
+            pos: {
+              x: seg.a.x + dir.x * along + right.x * curbOffset * side,
+              z: seg.a.z + dir.z * along + right.z * curbOffset * side,
+            },
+            h,
+            color: this.rng.pick(CAR_COLORS),
+          });
         }
       }
+    }
+    let spawnCar: Slot | null = null;
+    for (const sl of slots) if (!spawnCar || dist(sl.pos, this.spawnPoint) < dist(spawnCar.pos, this.spawnPoint)) spawnCar = sl;
+    for (const sl of slots) {
+      if (spawnCar && sl !== spawnCar && dist(sl.pos, spawnCar.pos) < SPAWN_CAR_CLEAR) continue;
+      const v = this.makeVehicle(sl.type, sl.pos, sl.h, sl.color);
+      v.driver = null;
+      this.register(v);
     }
   }
 
