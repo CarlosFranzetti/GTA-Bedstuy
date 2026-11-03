@@ -65,7 +65,9 @@ describe('per-hour LUT blending', () => {
     expect(night[2]).toBeGreaterThan(night[0]);
     // contrast: distance between a shadow and a highlight grey after grading
     const span = (h: number): number => luma(gradeColorAt([0.8, 0.8, 0.8], h)) - luma(gradeColorAt([0.2, 0.2, 0.2], h));
-    expect(span(12)).toBeLessThan(span(23));
+    // ART (Stage 5): noon is no longer the flat key; it carries a real filmic S-curve, close to the night span
+    expect(span(12)).toBeGreaterThan(0.58);
+    expect(span(12)).toBeLessThan(span(23) * 1.1);
   });
 
   it('keeps greys monotonic and channels in range at every key', () => {

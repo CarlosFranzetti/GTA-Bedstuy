@@ -15,6 +15,7 @@ import {
 import { awningPainter, copLiveryPainter, signPainter } from './painters/signage';
 import { CLOTH_COLORS, LEAF_VARIANTS, SKIN_TONES, treeLeavesPainter, treeTrunkPainter } from './painters/organic';
 import { gray, wrapVariant } from './painters/util';
+import { GROUND_VARIATION, disposeVariationTexture, patchGroundVariation } from './groundVariation';
 import { CAR_FLAKE_NORMAL_SCALE, PLATE_VARIANTS, carPaintMaps, platePainter, tireSidewallPainter, type CarPaintMaps } from './painters/vehicle';
 import {
   DENIM_VARIANTS, HOODIE_VARIANTS, SNEAKER_VARIANTS, VARSITY_VARIANTS,
@@ -49,6 +50,10 @@ const ENV_INTENSITY: Partial<Record<MaterialKey, number>> = {
   metalDark: 0.5, metalGreen: 0.5, rollGate: 0.5, hydrant: 0.4,
 };
 const PAINT_ENV_INTENSITY = 1.2;
+/** Keys whose albedo follows the non-repeating world-space ground variation field (ART). */
+const GROUND_VARIATION_KEYS: Partial<Record<MaterialKey, 'asphalt' | 'concrete' | 'paint'>> = {
+  asphalt: 'asphalt', asphaltWorn: 'asphalt', concrete: 'concrete', bluestone: 'concrete', laneLine: 'paint', crosswalk: 'paint',
+};
 
 interface Spec {
   variants: number;
@@ -129,6 +134,8 @@ export class MaterialLibrary implements IMaterialLibrary {
       this.cache.set(id, m);
       const ei = ENV_INTENSITY[key];
       if (ei !== undefined && m instanceof THREE.MeshStandardMaterial) this.registerEnv(m, ei);
+      const gv = GROUND_VARIATION_KEYS[key];
+      if (gv && m instanceof THREE.MeshStandardMaterial) patchGroundVariation(m, GROUND_VARIATION[gv]);
       const ov = this.overrides.get(id);
       if (ov) this.applyOverride(m, ov);
     }
@@ -239,6 +246,7 @@ export class MaterialLibrary implements IMaterialLibrary {
     this.cache.clear(); this.awnings.clear(); this.signs.clear(); this.paints.clear();
     this.reliefCache.clear();
     this.paintDetail = null;
+    disposeVariationTexture();
     this.textures.length = 0;
     this.glowing.length = 0;
     this.envMaterials.length = 0;

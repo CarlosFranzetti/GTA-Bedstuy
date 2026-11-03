@@ -111,6 +111,125 @@ const smooth = (a: number, b: number, x: number): number => {
   return t * t * (3 - 2 * t);
 };
 
+
+// ---------------------------------------------------------------- ART: cloud layer, sun disc, haze band, dusk ramp
+
+export interface CloudParams {
+  /** fraction of the dome the cloud noise is carved over (0..1) */
+  cover: number;
+  /** how opaque the carved cloud gets (0..1) */
+  density: number;
+  /** sun-lit side colour (linear, dome scale: capped at SKY_MAX_RADIANCE) */
+  lit: [number, number, number];
+  /** shadowed underside colour */
+  shade: [number, number, number];
+  /** brightness of the sun disc core (0 below the horizon) */
+  sunDisc: number;
+  /** strength of the horizon haze band (0..1) */
+  haze: number;
+  /** strength of the dusk / dawn colour ramp (0..1, peaks with the sun on the horizon) */
+  dusk: number;
+}
+
+/**
+ * Cloud / sun / haze / dusk look for a sun elevation (sine of the elevation angle) and rain gloom, independent of the GPU so
+ * tests can bound it. `sunRgb` is the key-light colour (linear 0..1) from the time cycle; clouds catch it, so they go amber
+ * and pink at golden hour and grey-blue in the rain.
+ */
+export function cloudParamsAt(sunElevation: number, overcast: number, sunRgb: readonly [number, number, number] = [1, 0.93, 0.87], out?: CloudParams): CloudParams {
+  const e = clamp(sunElevation, -1, 1);
+  const o = clamp(overcast, 0, 1);
+  const up = smooth(-0.06, 0.28, e);
+  const dusk = smooth(-0.2, -0.02, e) * (1 - smooth(0.02, 0.3, e));
+  const night = 1 - smooth(-0.2, 0.0, e);
+  const r = out ?? { cover: 0, density: 0, lit: [0, 0, 0], shade: [0, 0, 0], sunDisc: 0, haze: 0, dusk: 0 };
+  r.cover = clamp(0.4 + 0.1 * (1 - up) + 0.5 * o, 0.25, 0.95);
+  r.density = clamp(0.62 + 0.1 * up + 0.28 * o, 0.5, 1);
+  const gloom = 1 - 0.32 * o;
+  const nl = Math.max(sunRgb[0], sunRgb[1], sunRgb[2], 1e-3);
+  const dim = (0.04 + 0.96 * up) * gloom;
+  r.lit = [
+    clamp((sunRgb[0] / nl) * 0.96 * dim + 0.05 * night + 0.55 * dusk * 0.9, 0, SKY_MAX_RADIANCE),
+    clamp((sunRgb[1] / nl) * 0.93 * dim + 0.06 * night + 0.55 * dusk * 0.42, 0, SKY_MAX_RADIANCE),
+    clamp((sunRgb[2] / nl) * 0.9 * dim + 0.09 * night + 0.55 * dusk * 0.34, 0, SKY_MAX_RADIANCE),
+  ];
+  const sh = (0.1 + 0.9 * up) * (1 - 0.3 * o);
+  r.shade = [
+    clamp(0.4 * sh + 0.025 * night + 0.22 * dusk * 0.5, 0, SKY_MAX_RADIANCE),
+    clamp(0.47 * sh + 0.03 * night + 0.22 * dusk * 0.28, 0, SKY_MAX_RADIANCE),
+    clamp(0.6 * sh + 0.06 * night + 0.22 * dusk * 0.4, 0, SKY_MAX_RADIANCE),
+  ];
+  r.sunDisc = smooth(-0.02, 0.05, e) * (1 - 0.85 * o);
+  r.haze = clamp(0.55 + 0.25 * dusk + 0.2 * o, 0, 0.9);
+  r.dusk = dusk;
+  return r;
+}
+
+const ART_GLSL_DECL = /* glsl */ `
+		uniform float artTime;
+		uniform float artCover;
+		uniform float artDensity;
+		uniform float artQuality;
+		uniform float artSun;
+		uniform float artHaze;
+		uniform float artDusk;
+		uniform vec3 artLit;
+		uniform vec3 artShade;
+		uniform vec3 artSunCol;
+		uniform vec3 artHazeCol;
+		float artH( vec2 p ) { p = fract( p * vec2( 123.34, 456.21 ) ); p += dot( p, p + 45.32 ); return fract( p.x * p.y ); }
+		float artN( vec2 p ) {
+			vec2 i = floor( p ); vec2 f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
+			return mix( mix( artH( i ), artH( i + vec2( 1.0, 0.0 ) ), f.x ), mix( artH( i + vec2( 0.0, 1.0 ) ), artH( i + vec2( 1.0, 1.0 ) ), f.x ), f.y );
+		}
+		float artF( vec2 p, int oct ) {
+			float a = 0.5; float s = 0.0;
+			for ( int i = 0; i < 5; i ++ ) { if ( i >= oct ) break; s += a * artN( p ); p = p * 2.03 + vec2( 17.1, 9.2 ); a *= 0.5; }
+			return s;
+		}`;
+
+/** Composes the dusk ramp, horizon haze, cloud layer and sun disc on the exposed dome colour. Runs after the radiance cap. */
+const ART_GLSL_BODY = /* glsl */ `
+			float artCs = dot( direction, vSunDirection );
+			float artAz = dot( normalize( direction.xz + vec2( 1e-5 ) ), sunDirH.xz ) * 0.5 + 0.5;
+			float artUp = max( direction.y, 0.0 );
+			// dusk / dawn colour ramp: orange-pink at the horizon, magenta, deep blue overhead; strongest toward the sun
+			if ( artDusk > 0.001 ) {
+				float vv = clamp( artUp / 0.7, 0.0, 1.0 );
+				vec3 ramp = mix( vec3( 0.85, 0.36, 0.15 ), vec3( 0.36, 0.17, 0.3 ), smoothstep( 0.0, 0.3, vv ) );
+				ramp = mix( ramp, vec3( 0.05, 0.08, 0.22 ), smoothstep( 0.25, 1.0, vv ) );
+				texColor = mix( texColor, ramp, artDusk * ( 0.3 + 0.7 * artAz ) * ( 1.0 - 0.45 * vv ) );
+			}
+			// horizon haze band (matches the fog colour so the skyline dissolves into the sky)
+			float artHz = 1.0 - smoothstep( 0.0, 0.34, artUp );
+			texColor = mix( texColor, artHazeCol, artHz * artHz * artHaze );
+			// clouds
+			float artAlpha = 0.0;
+			if ( direction.y > 0.015 ) {
+				vec2 cuv = direction.xz / ( direction.y + 0.17 ) * 0.9 + vec2( artTime, artTime * 0.4 );
+				float base = artF( cuv * 1.1, artQuality > 0.5 ? 4 : 3 );
+				float n = base;
+				if ( artQuality > 0.5 ) n = base * 0.72 + artF( cuv * 4.3 + base * 1.5, 3 ) * 0.28;
+				float thr = 1.0 - artCover;
+				float m = smoothstep( thr, thr + 0.2, n );
+				float lit = 0.62;
+				if ( artQuality > 0.5 ) {
+					vec2 cs2 = cuv + sunDirH.xz * 0.07;
+					float n2 = artF( cs2 * 1.1, 3 );
+					lit = clamp( 0.55 + ( base - n2 ) * 5.0, 0.0, 1.0 );
+				}
+				float core = smoothstep( thr + 0.05, thr + 0.5, n );
+				vec3 ccol = mix( artShade, artLit, lit * ( 1.0 - 0.55 * core ) + 0.12 );
+				ccol += artLit * 0.3 * ( m * ( 1.0 - m ) * 4.0 ) * pow( max( artCs, 0.0 ), 5.0 );
+				ccol = min( ccol, vec3( SKY_MAX_RADIANCE ) );
+				artAlpha = clamp( m * artDensity * smoothstep( 0.015, 0.2, direction.y ), 0.0, 1.0 );
+				texColor = mix( texColor, ccol, artAlpha );
+			}
+			// sun disc + glow, hidden behind cloud and below the horizon
+			float artDisc = smoothstep( 0.99935, 0.9998, artCs );
+			float artGlow = pow( max( artCs, 0.0 ), 260.0 ) * 0.45 + pow( max( artCs, 0.0 ), 22.0 ) * 0.1;
+			texColor += artSunCol * ( artDisc * 1.15 + artGlow ) * artSun * ( 1.0 - 0.9 * artAlpha ) * showSunDisc;`;
+
 // ---------------------------------------------------------------- shader patch
 
 /** Adds an exposure multiplier and a faint blue night glow (the stock shader goes almost black at night). */
@@ -119,11 +238,24 @@ function patchSkyMaterial(mat: THREE.ShaderMaterial): void {
   mat.uniforms.nightGlow = { value: new THREE.Color(0x000000) };
   mat.uniforms.nightGlowAway = { value: new THREE.Color(0x000000) };
   mat.uniforms.sunDirH = { value: new THREE.Vector3(1, 0, 0) };
+  mat.uniforms.artTime = { value: 0 };
+  mat.uniforms.artCover = { value: 0.4 };
+  mat.uniforms.artDensity = { value: 0.7 };
+  mat.uniforms.artQuality = { value: 1 };
+  mat.uniforms.artSun = { value: 1 };
+  mat.uniforms.artHaze = { value: 0.55 };
+  mat.uniforms.artDusk = { value: 0 };
+  mat.uniforms.artLit = { value: new THREE.Color(1, 1, 1) };
+  mat.uniforms.artShade = { value: new THREE.Color(0.4, 0.45, 0.55) };
+  mat.uniforms.artSunCol = { value: new THREE.Color(1, 0.9, 0.7) };
+  mat.uniforms.artHazeCol = { value: new THREE.Color(0.4, 0.6, 0.8) };
   const frag = mat.fragmentShader;
-  const withUniforms = frag.replace('uniform float time;', `uniform float time;\n\t\tconst float SKY_MAX_RADIANCE = ${SKY_MAX_RADIANCE.toFixed(3)};\n\t\tuniform float skyExposure;\n\t\tuniform vec3 nightGlow;\n\t\tuniform vec3 nightGlowAway;\n\t\tuniform vec3 sunDirH;`);
+  const withUniforms = frag.replace('uniform float time;', `uniform float time;\n\t\tconst float SKY_MAX_RADIANCE = ${SKY_MAX_RADIANCE.toFixed(3)};\n\t\tuniform float skyExposure;\n\t\tuniform vec3 nightGlow;\n\t\tuniform vec3 nightGlowAway;\n\t\tuniform vec3 sunDirH;${ART_GLSL_DECL}`)
+    // the stock 0.5 degree disc is replaced by the soft ART disc; the stock clouds are off (cloudCoverage 0)
+    .replace('* showSunDisc;\n', '* 0.0;\n');
   const withGlow = withUniforms.replace(
     'gl_FragColor = vec4( texColor, 1.0 );',
-    'texColor *= skyExposure;\n\t\t\ttexColor = min( texColor, vec3( SKY_MAX_RADIANCE ) );\n\t\t\tfloat glowAz = dot( normalize( direction.xz + vec2( 1e-5 ) ), sunDirH.xz ) * 0.5 + 0.5;\n\t\t\ttexColor += mix( nightGlowAway, nightGlow, glowAz * glowAz ) * mix( 1.0, 0.45, clamp( direction.y * 1.5, 0.0, 1.0 ) );\n\t\t\tgl_FragColor = vec4( texColor, 1.0 );',
+    `texColor *= skyExposure;\n\t\t\ttexColor = min( texColor, vec3( SKY_MAX_RADIANCE ) );${ART_GLSL_BODY}\n\t\t\tfloat glowAz = dot( normalize( direction.xz + vec2( 1e-5 ) ), sunDirH.xz ) * 0.5 + 0.5;\n\t\t\ttexColor += mix( nightGlowAway, nightGlow, glowAz * glowAz ) * mix( 1.0, 0.45, clamp( direction.y * 1.5, 0.0, 1.0 ) );\n\t\t\tgl_FragColor = vec4( texColor, 1.0 );`,
   );
   if (withGlow !== frag) mat.fragmentShader = withGlow;
   mat.needsUpdate = true;
@@ -226,8 +358,8 @@ export class SkyDome {
     u.mieCoefficient.value = p.mieCoefficient;
     u.mieDirectionalG.value = p.mieDirectionalG;
     u.skyExposure.value = p.exposure * (1 - 0.3 * this.overcast);
-    u.cloudCoverage.value = 0.35 + 0.6 * this.overcast;
-    u.cloudDensity.value = 0.35 + 0.5 * this.overcast;
+    u.cloudCoverage.value = 0; // the stock cloud layer is replaced by the ART layer (see ART_GLSL_BODY)
+    this.updateArt(h, dir.y);
     u.sunPosition.value.copy(dir);
     u.time.value = this.cloudTime;
 
@@ -263,6 +395,29 @@ export class SkyDome {
     const gloomMoved = Math.abs(this.overcast - this.lastCaptureOvercast) > 0.25;
     if (moved || gloomMoved || this.lastNight !== isNight) { this.lastCaptureOvercast = this.overcast; this.captureEnvironment(); }
     this.lastNight = isNight;
+  }
+
+  private readonly art: CloudParams = cloudParamsAt(1, 0);
+  private wall = 0;
+
+  private updateArt(hour: number, sunElevation: number): void {
+    const u = this.uniforms;
+    timeCycleAt(hour, this.tc);
+    const c = this.tc.sunColor;
+    const a = cloudParamsAt(sunElevation, this.overcast, [c.r, c.g, c.b], this.art);
+    this.wall = typeof performance !== 'undefined' ? performance.now() * 0.001 : 0;
+    u.artTime.value = (this.cloudTime / CLOUD_TIME_PER_HOUR) * 0.04 + this.wall * 0.0035;
+    u.artCover.value = a.cover;
+    u.artDensity.value = a.density;
+    u.artQuality.value = this.starsEnabled ? 1 : 0; // phone: cheaper cloud noise (no detail octaves, no lit-side lookup)
+    u.artSun.value = a.sunDisc;
+    u.artHaze.value = a.haze;
+    u.artDusk.value = a.dusk;
+    (u.artLit.value as THREE.Color).setRGB(a.lit[0], a.lit[1], a.lit[2]);
+    (u.artShade.value as THREE.Color).setRGB(a.shade[0], a.shade[1], a.shade[2]);
+    // sun disc: the key-light colour pushed toward white-hot (it is the brightest thing in the sky), horizon colour for the haze
+    (u.artSunCol.value as THREE.Color).setRGB(0.55 + 0.45 * c.r, 0.5 + 0.4 * c.g, 0.4 + 0.3 * c.b);
+    (u.artHazeCol.value as THREE.Color).copy(this.horizon).multiplyScalar(0.85);
   }
 
   /** Sky colour at the horizon for fog. Pass the sun elevation sine for an exact value; omit for the last update. */

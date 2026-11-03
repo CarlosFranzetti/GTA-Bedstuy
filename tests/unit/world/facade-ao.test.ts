@@ -93,7 +93,7 @@ describe('baked facade vertex AO', () => {
     const b: Uint8Array[] = [];
     r2.group.traverse((o) => { if ((o as THREE.Mesh).isMesh) b.push((o as THREE.Mesh).geometry.getAttribute('color').array as Uint8Array); });
     expect(b.length).toBe(a.length);
-    for (let i = 0; i < a.length; i++) expect(Buffer.from(b[i]).equals(Buffer.from(a[i]))).toBe(true);
+    for (let i = 0; i < a.length; i++) expect(Array.from(b[i])).toEqual(Array.from(a[i]));
   });
 
   it('keeps the build cheap', () => { expect(buildMs).toBeLessThan(20000); });
