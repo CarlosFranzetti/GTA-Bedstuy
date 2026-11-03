@@ -1336,3 +1336,6 @@ STUCK plan: I will (1) rework parked-car placement in TrafficSystem so parked ca
 
 ### 2026-11-03T08:38:20Z · STUCK
 @WIRE FOR FABLE: one wiring line in src/main.ts for the blocked hint. (1) Line 438: widen the type to 'HudState & RadioHudState & BlockedHudState' (import { type BlockedHudState } from '@/ui/Hud', already exported). (2) After hudState.speedKmh = ... (line ~487) add: hudState.blockedSeconds = (player.vehicle as { blockedSeconds?: number } | null)?.blockedSeconds ?? 0;  Vehicle.blockedSeconds is a new getter (0 when free); Hud replaces the exit prompt with 'Blocked: S to reverse, Shift handbrake' once it passes 1.5 s. Nothing else in main.ts changes: the parked-car spawn point defaults to the player's spawn (9, 20) inside TrafficSystem.
+
+### 2026-11-03T08:38:37Z · WIRE
+WIRED: STUCK blocked hint (hudState widened with BlockedHudState; blockedSeconds read from the player vehicle after the speed assignment). tsc is clean.
