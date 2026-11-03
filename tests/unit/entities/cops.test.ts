@@ -94,7 +94,7 @@ function setup(seed = 3) {
   const sys = new CopSystem(fakeGrid(), world, events, new Rng(seed), scene, makeVehicle, wanted);
   const crimes: GameEvents['crime'][] = [];
   events.on('crime', (c) => crimes.push(c));
-  const crime = () => events.emit('crime', { type: 'hitPed', pos: { x: 0, z: 0 } });
+  const crime = () => events.emit('crime', { type: 'carjack', pos: { x: 0, z: 0 } });
   return { events, world, scene, wanted, sys, made, crimes, crime };
 }
 
@@ -224,11 +224,12 @@ describe('CopSystem', () => {
       expect(crimes.length).toBe(0);
     });
 
-    it('ignores traffic hitting a cop and the player hitting traffic', () => {
+    it('ignores traffic hitting a cop; the player bumping traffic is only a star-less hitVehicle', () => {
       const { events, crimes, cop } = withBodies();
       events.emit('impact', { a: 'tv', b: cop.body.id, strength: 9, pos: { x: 0, z: 0 } });
-      events.emit('impact', { a: 'pv', b: 'tv', strength: 9, pos: { x: 0, z: 0 } });
       expect(crimes.length).toBe(0);
+      events.emit('impact', { a: 'pv', b: 'tv', strength: 9, pos: { x: 0, z: 0 } });
+      expect(crimes.map((c) => c.type)).toEqual(['hitVehicle']);
     });
 
     it('does not spam while contact persists (2 s cooldown per cop)', () => {
@@ -394,7 +395,7 @@ describe('CopSystem patrols and signals', () => {
     expect(sys.cops.length).toBe(2);
     expect(sys.cops.every((c) => !c.siren)).toBe(true);
     expect(made.every((m) => m.last !== null)).toBe(true); // driving
-    events.emit('crime', { type: 'hitPed', pos: P });
+    events.emit('crime', { type: 'carjack', pos: P });
     sys.update(0.1, P);
     expect(sys.cops.filter((c) => c.siren).length).toBe(1);
     expect(sys.cops.length).toBe(2); // one of the patrol cars was dispatched, no extra spawned

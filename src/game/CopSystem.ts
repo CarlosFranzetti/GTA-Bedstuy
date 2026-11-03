@@ -18,6 +18,16 @@ const HIT_IMPULSE = 3;
 const DESPAWN_PATROL = 190;
 const PATROL_SPAWN_PERIOD = 2;
 const QUARRY_REFRESH = 0.25;
+// ---- petty crimes (BIBLE ladder: repeated ramming of parked cars = 1 star, pavement driving near people = 1 star)
+/** Closing speed (m/s) above which a collision with a civilian car counts as ramming it. */
+const RAM_MIN_STRENGTH = 3;
+/** Rams within this window add up; the RAM_COUNT-th one is the 'hitParked' crime. */
+const RAM_WINDOW = 15;
+const RAM_COUNT = 2;
+/** Seconds of driving on the pavement with pedestrians around before it is a crime, and how often it repeats. */
+const SIDEWALK_SECONDS = 4;
+const SIDEWALK_MIN_SPEED = 3;
+const SIDEWALK_PED_RADIUS = 14;
 
 export interface CopSystemOptions {
   /** Signals obeyed by off-duty / patrolling cops (pursuing cops always ignore them). */
@@ -41,6 +51,9 @@ export class CopSystem {
   private quarryTimer = 0;
   private quarryBody: Body2D | null = null;
   private readonly quarry: CopTarget = { heading: 0, vel: { x: 0, z: 0 }, stars: 0 };
+  private ramCount = 0;
+  private ramAge = 0;
+  private sidewalkTime = 0;
 
   constructor(
     private readonly grid: GridModel,
@@ -72,6 +85,9 @@ export class CopSystem {
       this.quarry.stars = wanted;
       quarry = this.quarry;
     }
+
+    this.watchSidewalk(dt, body);
+    if (this.ramCount > 0 && (this.ramAge += dt) > RAM_WINDOW) this.ramCount = 0;
 
     // patrol cars cruise while nobody is wanted
     if (wanted === 0 && this.patrolCount > 0) {
@@ -143,13 +159,19 @@ export class CopSystem {
     if (e.strength <= HIT_IMPULSE) return;
     let playerCar = false;
     let cop: Body2D | null = null;
+    let civilian: Body2D | null = null;
     for (const b of this.world.bodies()) {
       const ud = b.userData as { id?: string; driver?: string | null } | undefined;
       if (b.id !== e.a && b.id !== e.b && ud?.id !== e.a && ud?.id !== e.b) continue;
       if ((b.kind === 'vehicle' || b.kind === 'cop') && ud?.driver === 'player') playerCar = true;
       else if (b.kind === 'cop') cop = b;
+      else if (b.kind === 'vehicle') civilian = b;
     }
-    if (!playerCar || !cop) return;
+    if (!playerCar) return;
+    if (!cop) {
+      if (civilian && e.strength >= RAM_MIN_STRENGTH) this.onRam(e);
+      return;
+    }
     const copBody: Body2D = cop;
     const entry = this.entries.find((x) => x.vehicle.body.id === copBody.id);
     if (entry) {
@@ -157,6 +179,48 @@ export class CopSystem {
       entry.hitCooldown = HIT_COOLDOWN;
     }
     this.events.emit('crime', { type: 'hitCop', pos: { x: e.pos.x, z: e.pos.z } });
+  }
+
+  /** The player's car hit a parked or civilian car hard: one bump is a 'hitVehicle'; repeating it is 'hitParked'. */
+  private onRam(e: GameEvents['impact']): void {
+    const pos = { x: e.pos.x, z: e.pos.z };
+    this.ramCount++;
+    this.ramAge = 0;
+    if (this.ramCount >= RAM_COUNT) {
+      this.ramCount = 0;
+      this.events.emit('crime', { type: 'hitParked', pos });
+    } else {
+      this.events.emit('crime', { type: 'hitVehicle', pos });
+    }
+  }
+
+  /** Driving on the pavement (inside a block's curb line) with pedestrians nearby, for SIDEWALK_SECONDS in a row. */
+  private watchSidewalk(dt: number, body: Body2D | null): void {
+    const ud = body?.userData as { driver?: string | null } | undefined;
+    if (!body || (body.kind !== 'vehicle' && body.kind !== 'cop') || ud?.driver !== 'player' ||
+        Math.hypot(body.vel.x, body.vel.z) < SIDEWALK_MIN_SPEED || !this.onSidewalk(body.pos)) {
+      this.sidewalkTime = Math.max(0, this.sidewalkTime - dt * 2);
+      return;
+    }
+    let peds = false;
+    for (const o of this.world.queryCircle(body.pos, SIDEWALK_PED_RADIUS)) if (o.kind === 'ped') { peds = true; break; }
+    if (!peds) { this.sidewalkTime = Math.max(0, this.sidewalkTime - dt); return; }
+    this.sidewalkTime += dt;
+    if (this.sidewalkTime >= SIDEWALK_SECONDS) {
+      this.sidewalkTime = 0;
+      this.events.emit('crime', { type: 'sidewalkDriving', pos: { x: body.pos.x, z: body.pos.z } });
+    }
+  }
+
+  /** True inside a block's curb polygon (the pavement ring plus the lots behind it), i.e. not on a roadway. */
+  private onSidewalk(p: Vec2): boolean {
+    for (const blk of this.grid.blocks ?? []) {
+      const c = blk.curb;
+      let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+      for (const q of c) { minX = Math.min(minX, q.x); maxX = Math.max(maxX, q.x); minZ = Math.min(minZ, q.z); maxZ = Math.max(maxZ, q.z); }
+      if (p.x >= minX && p.x <= maxX && p.z >= minZ && p.z <= maxZ) return true;
+    }
+    return false;
   }
 
   /** The body being chased: whichever vehicle the player drives, else the player's own body. Cached briefly. */

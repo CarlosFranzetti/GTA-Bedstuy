@@ -101,7 +101,9 @@ async function approachParked(page, idx, placement) {
       w.body.pos.z = v.body.pos.z - Math.sin(hd) * (v.spec.width + 0.4);
     }
     const d = v.doorPos();
-    g.teleport(d.x, d.z);
+    window.__car0 = { x: v.body.pos.x, z: v.body.pos.z };
+    if (placement?.farSide) g.teleport(2 * v.body.pos.x - d.x, 2 * v.body.pos.z - d.z); // the passenger side: the glide crosses the car
+    else g.teleport(d.x, d.z);
     return v.id;
   }, { idx, placement });
 }
@@ -109,12 +111,12 @@ async function approachParked(page, idx, placement) {
 function footprintOk(e) { return e.along > e.halfL - 0.01 || e.across > e.halfW + 0.05; }
 
 /** One enter+exit cycle driven by `press` (an async function that triggers one F/CAR/A press). */
-async function cycle(name, page, press, { drive = null, wall = 0, neighbour = false, speed = 0, idx = 0, tapTwice = false } = {}) {
+async function cycle(name, page, press, { drive = null, wall = 0, neighbour = false, speed = 0, idx = 0, tapTwice = false, farSide = false } = {}) {
   const r = { name, ok: false, why: '' };
   results.push(r);
   const t0 = Date.now();
   try {
-    const id = await approachParked(page, idx, { wall, neighbour });
+    const id = await approachParked(page, idx, { wall, neighbour, farSide });
     await waitFrames(page, 1);
     const before = await page.evaluate(() => window.__exits.length);
     await press();
@@ -125,6 +127,10 @@ async function cycle(name, page, press, { drive = null, wall = 0, neighbour = fa
       if (!(await until(page, (b) => window.__exits.length > b && !window.__gtaDebug.player.inVehicle && !window.__gtaDebug.player.isEntering, before))) { r.why = `double tap did not end outside (${JSON.stringify(await state(page))})`; return r; }
     } else {
       if (!(await until(page, () => window.__gtaDebug.player.inVehicle, null))) { r.why = `never got in (${JSON.stringify(await state(page))})`; return r; }
+      if (farSide) {
+        const moved = await page.evaluate(() => { const v = window.__gtaDebug.player.vehicle; return Math.hypot(v.body.pos.x - window.__car0.x, v.body.pos.z - window.__car0.z); });
+        if (moved > 0.6) { r.why = `the parked car was shoved ${moved.toFixed(1)} m while the player climbed in from the far side`; return r; }
+      }
       if (drive) { await page.keyboard.down('KeyW'); await page.waitForTimeout(drive); }
       if (speed) await page.evaluate((s) => { const v = window.__gtaDebug.player.vehicle; v.body.vel.x = Math.sin(v.body.heading) * s; v.body.vel.z = Math.cos(v.body.heading) * s; }, speed);
       await press();
@@ -183,6 +189,9 @@ try {
     ['kb stationary #1', { idx: 1 }],
     ['kb stationary #2', { idx: 2 }],
     ['kb stationary #3', { idx: 3 }],
+    ['kb far side #0 (P1: car must not move)', { idx: 17, farSide: true }],
+    ['kb far side #1', { idx: 18, farSide: true }],
+    ['kb far side #2', { idx: 19, farSide: true }],
     ['kb driving (W held ~1.2 s) then exit', { idx: 4, drive: 1200 }],
     ['kb driving #2', { idx: 5, drive: 800 }],
     ['kb at speed (14 m/s)', { idx: 6, speed: 14 }],

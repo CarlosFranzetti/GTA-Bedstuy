@@ -1,8 +1,13 @@
 import './mission.css';
-import type { MissionHudState } from '@/game/missions/types';
+import { angleDiff, headingFromVec, type Vec2 } from '@/core/Math2';
+import type { MissionHudState, MissionMarker } from '@/game/missions/types';
 
 const TOAST_MS = 4200;
 const LOW_SECONDS = 15;
+/** Distance readout steps (m): the text only changes when the rounded value does. */
+const POINTER_STEP_M = 5;
+/** Arrow rotation is quantised to this many degrees so the DOM is not rewritten every frame. */
+const POINTER_ANGLE_STEP = 3;
 
 function setText(node: Element, text: string): void {
   if (node.textContent !== text) node.textContent = text;
@@ -37,6 +42,12 @@ export class MissionHud {
   private readonly cashEl: HTMLElement;
   private readonly toastEl: HTMLElement;
   private readonly retryEl: HTMLElement;
+  private readonly pointerEl: HTMLElement;
+  private readonly pointerArrow: HTMLElement;
+  private readonly pointerText: HTMLElement;
+  private lastStatus: MissionHudState['status'] = 'idle';
+  private lastPointerText = '';
+  private lastPointerAngle = Number.NaN;
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
   private seenToast = 0;
   private cashShown = 0;
@@ -71,7 +82,15 @@ export class MissionHud {
     this.retryEl = this.make('div', 'msn-retry');
     this.retryEl.hidden = true;
 
-    root.append(this.panel, this.cashEl, this.toastEl, this.retryEl);
+    this.pointerEl = this.make('div', 'msn-pointer');
+    this.pointerEl.hidden = true;
+    this.pointerArrow = this.make('span', 'msn-pointer-arrow');
+    this.pointerArrow.textContent = '\u2191';
+    this.pointerArrow.setAttribute('aria-hidden', 'true');
+    this.pointerText = this.make('span', 'msn-pointer-text');
+    this.pointerEl.append(this.pointerArrow, this.pointerText);
+
+    root.append(this.panel, this.cashEl, this.toastEl, this.retryEl, this.pointerEl);
   }
 
   private make(tag: string, cls: string): HTMLElement {
@@ -82,6 +101,7 @@ export class MissionHud {
 
   /** @param dt seconds since the last call (drives the cash count-up). */
   update(s: Readonly<MissionHudState>, dt = 1 / 60): void {
+    this.lastStatus = s.status;
     const show = s.status === 'active' || s.status === 'failed';
     this.panel.hidden = !show;
     if (show) {
@@ -122,6 +142,34 @@ export class MissionHud {
     }
   }
 
+  /**
+   * While no mission is running, points at the nearest mission giver: 'Mission: <title>  85 m' with an arrow that
+   * turns relative to where the player/camera faces (heading 0 = north = -z, like the minimap). Call every frame
+   * after update(); it hides itself during a mission.
+   */
+  updatePointer(markers: readonly MissionMarker[], playerPos: Vec2, heading: number): void {
+    let best: MissionMarker | null = null;
+    let bestD = Infinity;
+    if (this.lastStatus !== 'active' && this.lastStatus !== 'failed') {
+      for (const m of markers) {
+        if (m.kind !== 'giver') continue;
+        const d = Math.hypot(m.x - playerPos.x, m.z - playerPos.z);
+        if (d < bestD) { bestD = d; best = m; }
+      }
+    }
+    if (!best || !Number.isFinite(bestD)) {
+      this.pointerEl.hidden = true;
+      this.lastPointerText = '';
+      return;
+    }
+    this.pointerEl.hidden = false;
+    const text = bestD < best.radius + 2 ? `Mission: ${best.label}  here` : `Mission: ${best.label}  ${Math.round(bestD / POINTER_STEP_M) * POINTER_STEP_M} m`;
+    if (text !== this.lastPointerText) { this.lastPointerText = text; this.pointerText.textContent = text; }
+    const rel = angleDiff(heading, headingFromVec({ x: best.x - playerPos.x, z: best.z - playerPos.z }));
+    const deg = Math.round((rel * 180 / Math.PI) / POINTER_ANGLE_STEP) * POINTER_ANGLE_STEP;
+    if (deg !== this.lastPointerAngle) { this.lastPointerAngle = deg; this.pointerArrow.style.transform = `rotate(${deg}deg)`; }
+  }
+
   private updateCash(target: number, dt: number): void {
     if (target !== this.cashTarget) {
       if (target > this.cashTarget) { this.cashEl.classList.remove('bump'); void this.cashEl.offsetWidth; this.cashEl.classList.add('bump'); }
@@ -150,6 +198,6 @@ export class MissionHud {
 
   dispose(): void {
     if (this.toastTimer !== null) clearTimeout(this.toastTimer);
-    this.panel.remove(); this.cashEl.remove(); this.toastEl.remove(); this.retryEl.remove();
+    this.panel.remove(); this.cashEl.remove(); this.toastEl.remove(); this.retryEl.remove(); this.pointerEl.remove();
   }
 }

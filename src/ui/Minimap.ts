@@ -3,7 +3,15 @@ import type { Vec2 } from '@/core/Math2';
 import type { GridModel, StreetDef } from '@/world/types';
 
 /** A world-space point drawn on the minimap as a coloured ring (mission markers etc.). */
-export interface MinimapBlip { x: number; z: number; color: string }
+export interface MinimapBlip { x: number; z: number; color: string; kind?: 'giver' | 'objective' | string }
+
+const GOLD = '#f5c542';
+/** Giver blip radius (px) and pulse; objective rings are slightly bigger than the old 4 px too. */
+const GIVER_RADIUS = 8;
+const OBJECTIVE_RADIUS = 5.5;
+const BLIP_PULSE_HZ = 1.4;
+/** Blip size multiplier on touch devices, where the minimap is small and read at a glance. */
+const PHONE_BLIP_SCALE = 1.45;
 
 const SIZE = 220;
 /** Pixels per metre on the minimap. */
@@ -85,6 +93,8 @@ export class Minimap {
   private mapHeading = Number.NaN;
   private clock = 0;
   private lastStamp = Number.NaN;
+  /** 1 on desktop, PHONE_BLIP_SCALE when the primary pointer is coarse (touch). Settable for tests. */
+  blipScale = 1;
 
   constructor(root: HTMLElement, grid: GridModel) {
     this.grid = grid;
@@ -103,6 +113,10 @@ export class Minimap {
     root.appendChild(canvas);
 
     this.ctx = canvasContext(canvas);
+    try {
+      const w = root.ownerDocument.defaultView;
+      if (w && typeof w.matchMedia === 'function' && w.matchMedia('(pointer: coarse)').matches) this.blipScale = PHONE_BLIP_SCALE;
+    } catch { /* no matchMedia: desktop sizing */ }
   }
 
   /**
@@ -223,22 +237,46 @@ export class Minimap {
     }
   }
 
-  /** Mission / objective blips: a small ring in the blip's colour, clamped to the disc edge when off-map. */
+  /**
+   * Mission / objective blips, clamped to the disc edge when off-map. A giver is a clear gold ring with a dark halo and
+   * a pulsing centre dot (a waiting mission); an objective is a ring in its own colour. Bigger on touch devices.
+   */
   private drawBlips(ctx: CanvasRenderingContext2D, blips: readonly MinimapBlip[], toMap: ToMap, half: number): void {
-    const edge = half - 6;
-    ctx.lineWidth = 2;
+    const k = this.blipScale;
+    const edge = half - 6 - 4 * k;
+    const pulse = 0.5 + 0.5 * Math.sin(this.clock * Math.PI * 2 * BLIP_PULSE_HZ);
     for (const b of blips) {
       const p = toMap(b);
       let dx = p.x - half, dy = p.y - half;
       const d = Math.hypot(dx, dy);
-      if (d > edge) { dx *= edge / d; dy *= edge / d; }
+      const off = d > edge;
+      if (off) { dx *= edge / d; dy *= edge / d; }
+      const cx = half + dx, cy = half + dy;
+      const giver = b.kind === 'giver';
+      const r = (giver ? GIVER_RADIUS : OBJECTIVE_RADIUS) * k * (off ? 0.85 : 1);
+      const color = giver ? GOLD : b.color;
+      // dark halo so the ring reads on top of the pale roads
       ctx.beginPath();
-      ctx.arc(half + dx, half + dy, 4, 0, Math.PI * 2);
-      ctx.strokeStyle = b.color;
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.lineWidth = (giver ? 4.5 : 4) * k;
+      ctx.strokeStyle = HALO;
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(half + dx, half + dy, 1.5, 0, Math.PI * 2);
-      ctx.fillStyle = b.color;
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.lineWidth = (giver ? 2.5 : 2) * k;
+      ctx.strokeStyle = color;
+      ctx.stroke();
+      if (giver) {
+        // pulsing wave leaving the ring
+        ctx.beginPath();
+        ctx.arc(cx, cy, r + pulse * 6 * k, 0, Math.PI * 2);
+        ctx.lineWidth = 1.5 * k;
+        ctx.strokeStyle = `rgba(245, 197, 66, ${(0.7 * (1 - pulse)).toFixed(3)})`;
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(cx, cy, (giver ? 2.6 + 1.6 * pulse : 2) * k, 0, Math.PI * 2);
+      ctx.fillStyle = color;
       ctx.fill();
     }
   }

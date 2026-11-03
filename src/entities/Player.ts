@@ -54,6 +54,12 @@ export class Player implements Entity {
   private wantRun = false;
   private sprintBlend = 0;
   private entering: { vehicle: IVehicle; t: number; from: Vec2; prevDriver: IVehicle['driver'] } | null = null;
+  /**
+   * Called when the walk to a car door begins. The integrator must take `body` out of the physics world here:
+   * the door is often on the far side of the car, so the glide crosses the car's own box and, left in World2D,
+   * the player body shoves the (parked) car out of its spot and into traffic.
+   */
+  onEnterStart: (() => void) | null = null;
   /** A second F press arrived during the walk to the door (long on slow machines): exit right after sitting down. */
   private exitQueued = false;
   private walkPhase = Math.PI / 2;
@@ -148,6 +154,7 @@ export class Player implements Entity {
     this.exitQueued = false;
     this.entering = { vehicle: best, t: 0, from: { x: this.body.pos.x, z: this.body.pos.z }, prevDriver };
     this.body.shape.r = SEATED_RADIUS; // glide through the car's own collision box
+    this.onEnterStart?.();
     this.moveDir = null;
     this.wantRun = false;
     this.desiredVel = { x: 0, z: 0 };

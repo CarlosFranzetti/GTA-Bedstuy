@@ -121,6 +121,43 @@ describe('MissionHud', () => {
     expect(cash.textContent).toBe('$150');
   });
 
+  describe('mission finder pointer', () => {
+    const giver = (id: string, x: number, z: number, label = 'Bodega Run') =>
+      ({ id, kind: 'giver', x, z, radius: 3, color: '#f5c542', label }) as const;
+    const objective = { id: 'o', kind: 'objective', x: 0, z: -5, radius: 3, color: '#2ecc71', label: 'Stoop' } as const;
+
+    it('shows the nearest giver with a rounded distance when idle', () => {
+      const hud = new MissionHud(root);
+      hud.update({ ...base(), status: 'idle' });
+      hud.updatePointer([giver('a', 0, -200), giver('b', 3, -86, 'Soundclash'), objective], { x: 0, z: 0 }, 0);
+      const el = q(root, '.msn-pointer');
+      expect(el.hidden).toBe(false);
+      expect(q(root, '.msn-pointer-text').textContent).toBe('Mission: Soundclash  85 m');
+    });
+
+    it('arrow is relative to the facing: giver ahead 0 deg, to the right +90, behind 180', () => {
+      const hud = new MissionHud(root);
+      hud.update({ ...base(), status: 'idle' });
+      const arrow = q(root, '.msn-pointer-arrow');
+      hud.updatePointer([giver('a', 0, -50)], { x: 0, z: 0 }, 0); // facing north, giver north
+      expect(arrow.style.transform).toBe('rotate(0deg)');
+      hud.updatePointer([giver('a', 50, 0)], { x: 0, z: 0 }, 0); // giver east = right of a north-facing player
+      expect(arrow.style.transform).toBe('rotate(90deg)');
+      hud.updatePointer([giver('a', 0, -50)], { x: 0, z: 0 }, Math.PI); // facing south, giver north = behind
+      expect(arrow.style.transform).toBe('rotate(180deg)');
+    });
+
+    it('hides while a mission is active or failed, and when there is no giver', () => {
+      const hud = new MissionHud(root);
+      hud.update(base());
+      hud.updatePointer([giver('a', 0, -50)], { x: 0, z: 0 }, 0);
+      expect(q(root, '.msn-pointer').hidden).toBe(true);
+      hud.update({ ...base(), status: 'idle' });
+      hud.updatePointer([objective], { x: 0, z: 0 }, 0);
+      expect(q(root, '.msn-pointer').hidden).toBe(true);
+    });
+  });
+
   it('dispose removes its nodes', () => {
     const hud = new MissionHud(root);
     hud.dispose();

@@ -1,6 +1,6 @@
 /* Mission HUD. Same language as hud.css: Impact for numbers/titles, Arial for sentences, gold #f5c542 accents. */
 
-.msn-panel[hidden], .msn-panel [hidden], .msn-cash[hidden], .msn-toast[hidden], .msn-retry[hidden] {
+.msn-pointer[hidden], .msn-panel[hidden], .msn-panel [hidden], .msn-cash[hidden], .msn-toast[hidden], .msn-retry[hidden] {
   display: none !important;
 }
 
@@ -164,4 +164,48 @@
 
 @media (prefers-reduced-motion: reduce) {
   .msn-timer.low, .msn-cash.bump, .msn-toast { animation: none; }
+}
+
+/* Mission finder: shown only while no mission is running. Top centre, under the stars row. */
+.msn-pointer {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 32px);
+  padding: 6px 14px 6px 10px;
+  border-radius: 999px;
+  background: rgba(10, 12, 18, 0.62);
+  border: 1px solid rgba(245, 197, 66, 0.55);
+  font: 700 15px/1.2 Arial, Helvetica, sans-serif;
+  letter-spacing: 0.02em;
+  color: #fff;
+  white-space: nowrap;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+}
+
+.msn-pointer-arrow {
+  display: inline-block;
+  width: 26px;
+  height: 26px;
+  line-height: 26px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 900;
+  color: #f5c542;
+  transition: transform 0.08s linear;
+}
+
+.msn-pointer-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 700px), (pointer: coarse) {
+  .msn-pointer { top: 56px; font-size: 14px; }
+  .msn-pointer-arrow { width: 30px; height: 30px; line-height: 30px; font-size: 26px; }
 }

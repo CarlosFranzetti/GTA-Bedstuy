@@ -3,12 +3,24 @@ import type { CrimeType, EventBus } from '@/core/Events';
 const MAX_STARS = 3;
 const DECAY_SECONDS = 20;
 
-/** Stars added per crime type. hitVehicle is a crime (resets the decay timer) but adds nothing. */
+/**
+ * Stars added per crime type (BIBLE §2 ladder): a hit-and-run on a pedestrian is 2 stars, a cop hit or carjack 1,
+ * repeated ramming of parked cars and pavement driving 1 each. hitVehicle is a crime (resets the decay timer)
+ * but adds nothing.
+ */
 const CRIME_STARS: Record<CrimeType, number> = {
-  hitPed: 1,
+  hitPed: 2,
   hitCop: 1,
   carjack: 1,
+  hitParked: 1,
+  sidewalkDriving: 1,
   hitVehicle: 0,
+};
+
+/** Petty crimes never push the level above this many stars on their own. */
+const CRIME_CAP: Partial<Record<CrimeType, number>> = {
+  hitParked: 1,
+  sidewalkDriving: 1,
 };
 
 export class WantedSystem {
@@ -22,7 +34,8 @@ export class WantedSystem {
 
   private onCrime(type: CrimeType): void {
     this.sinceCrime = 0;
-    const next = Math.min(MAX_STARS, this.stars + CRIME_STARS[type]);
+    const cap = CRIME_CAP[type] ?? MAX_STARS;
+    const next = this.stars >= cap ? this.stars : Math.min(cap, this.stars + CRIME_STARS[type]);
     this.setStars(next);
   }
 

@@ -133,3 +133,29 @@ describe('entering and exiting a car beside obstacles', () => {
     expect(Math.abs(car.body.heading - 1.0)).toBeLessThan(0.01);
   });
 });
+
+describe('entering a parked car from its passenger side (P1 teleport)', () => {
+  it('the parked car does not move while the player glides across it to the driver door, with real colliders and a neighbour across the street', () => {
+    const { physics } = realPhysics();
+    const sim = new Sim(physics);
+    const events = new EventBus();
+    // the default spawn block: SUV on the east curb facing +x/north, a sedan on the west side of the lane
+    const suv = makeVehicle('suv', 4.6, 16.7, 6.28, events, 'veh61');
+    const sedan = makeVehicle('sedan', -4.6, 16.9, 3.14, events, 'veh55');
+    sim.add(suv); sim.add(sedan);
+    const player = new Player('player', { x: 6, z: 17 }, stubMaterials, events);
+    sim.entities.set(player.body.id, player);
+    physics.addBody(player.body);
+    events.on('enterVehicle', () => physics.removeBody(player.body.id));
+    events.on('exitVehicle', () => physics.addBody(player.body));
+    player.onEnterStart = () => physics.removeBody(player.body.id); // as wired in main.ts
+    expect(player.tryEnter([suv])).toBe(suv);
+    sim.run(2);
+    expect(player.inVehicle).toBe(true);
+    expect(Math.hypot(suv.body.pos.x - 4.6, suv.body.pos.z - 16.7)).toBeLessThan(0.3);
+    expect(Math.hypot(sedan.body.pos.x + 4.6, sedan.body.pos.z - 16.9)).toBeLessThan(0.1);
+    player.exit();
+    sim.run(1);
+    expect(player.inVehicle).toBe(false);
+  });
+});

@@ -71,7 +71,7 @@ function pursue(mode: 'flee' | 'wait', seed: number, stars: 1 | 2 | 3, seconds: 
   };
   let t = 0;
   events.on('crime', (c) => { r.lastCrime = t; if (c.type === 'hitCop') r.hitCops++; });
-  for (let i = 0; i < stars; i++) events.emit('crime', { type: 'hitPed', pos: p0 });
+  for (let i = 0; i < stars; i++) events.emit('crime', { type: 'carjack', pos: p0 });
 
   let lastStars = -1;
   const total = Math.round(seconds / DT);

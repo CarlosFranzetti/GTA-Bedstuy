@@ -36,6 +36,17 @@ const STEER_SPEED_REF = 18;
 const STEER_RETURN_MULT = 1.6;
 const STEER_SPEED_SHRINK = 0.7;
 const YAW_ACCEL = 7; // rad/s^2
+/**
+ * Calm low-speed handling (playtest: a 2 s A/D hold at 15 km/h turned the SUV ~90 deg and 25 km/h ~130 deg).
+ * The comfortable yaw rate (rad/s) a held steering key may produce: LOW_YAW_CAP up to LOW_YAW_SPEED, rising smoothly
+ * to HIGH_YAW_CAP at HIGH_YAW_SPEED (above that the tyre-grip limit is tighter anyway). The steer angle is shrunk
+ * to atan(cap * wheelbase / v), so full lock is only available below ~2 m/s (7 km/h) and falls off smoothly with speed.
+ * The handbrake bypasses it: sliding is deliberate.
+ */
+const LOW_YAW_CAP = 0.5;
+const HIGH_YAW_CAP = 1.0;
+const LOW_YAW_SPEED = 4;
+const HIGH_YAW_SPEED = 16;
 // ---- tyres (m/s^2 of lateral acceleration the front / rear axle can hold)
 const MU_FRONT = 10.5;
 const MU_REAR = 11.5;
@@ -101,6 +112,8 @@ function seedOf(id: string): number {
 export class Vehicle implements IVehicle {
   /** Optional real car models (GLB) per type; see src/assets/models/README.md. Set once at boot. */
   static sources: VehicleSources = {};
+  /** Speed-dependent steering cap for player-driven cars (see LOW_YAW_CAP). Off only for before/after measurements. */
+  static calmSteering = true;
   readonly spec: VehicleSpec;
   readonly body: Body2D;
   readonly object3D: THREE.Group;
@@ -186,6 +199,11 @@ export class Vehicle implements IVehicle {
   /** Sideways speed in m/s (positive = sliding to the right of the heading). */
   get lateralSpeed(): number {
     return dot(this.body.vel, perpRight(forwardFromHeading(this.body.heading)));
+  }
+
+  /** Ground speed in km/h from the live body velocity (forward + sideways, so a slide or a shove still reads). For the HUD. */
+  get speedKmh(): number {
+    return Math.hypot(this.body.vel.x, this.body.vel.z) * 3.6;
   }
 
   /** 0..1 tyre slip (for squeal audio / skid effects): 0 = gripping, 1 = fully sliding. */
@@ -350,11 +368,18 @@ export class Vehicle implements IVehicle {
     const sRate = (STEER_RATE / (1 + speedAbs / STEER_SPEED_REF)) * (returning ? STEER_RETURN_MULT : 1);
     const dSteer = steerIn - this.steerNorm;
     this.steerNorm += clamp(dSteer, -sRate * h, sRate * h);
-    this.steerAngle = this.steerNorm * s.maxSteer * (1 - STEER_SPEED_SHRINK * Math.min(1, speedAbs / vm));
-
-    // --- yaw: kinematic bicycle, clipped by front grip (understeer), boosted with the handbrake
     const hb = input.handbrake;
     const wheelbase = 0.6 * s.length;
+    let lock = s.maxSteer * (1 - STEER_SPEED_SHRINK * Math.min(1, speedAbs / vm));
+    // player-driven cars only: the traffic / cop AI is tuned against the raw lock
+    if (Vehicle.calmSteering && this.driver === 'player' && !(hb && speedAbs > 3)) {
+      const t = clamp((speedAbs - LOW_YAW_SPEED) / (HIGH_YAW_SPEED - LOW_YAW_SPEED), 0, 1);
+      const cap = LOW_YAW_CAP + (HIGH_YAW_CAP - LOW_YAW_CAP) * t * t * (3 - 2 * t);
+      lock = Math.min(lock, Math.atan((cap * wheelbase) / Math.max(speedAbs, 0.1)));
+    }
+    this.steerAngle = this.steerNorm * lock;
+
+    // --- yaw: kinematic bicycle, clipped by front grip (understeer), boosted with the handbrake
     const kin = (vLong / wheelbase) * Math.tan(this.steerAngle) * (hb && speedAbs > 3 ? HANDBRAKE_YAW_BOOST : 1);
     const yawMax = ((MU_FRONT * this.grip) / Math.max(speedAbs, 2)) * (hb ? 1.6 : 1);
     const yawTarget = clamp(kin, -yawMax, yawMax);

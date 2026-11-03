@@ -212,6 +212,7 @@ const audio = new AudioSystem(events);
 
 events.on('enterVehicle', () => { physics.removeBody(player.body.id); if (player.vehicle) nightLights.attachHeadlights(player.vehicle.object3D, player.vehicle.spec.length); });
 events.on('exitVehicle', () => { physics.addBody(player.body); nightLights.attachHeadlights(null); });
+player.onEnterStart = () => physics.removeBody(player.body.id); // the glide to the door crosses the car's box: no collisions while entering
 
 loading.done('entities');
 

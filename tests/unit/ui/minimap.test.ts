@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { Minimap, worldToMinimap, smoothHeading, northMarkerPos } from '@/ui/Minimap';
 import { forwardFromHeading, perpRight } from '@/core/Math2';
 import type { GridModel } from '@/world/types';
@@ -131,5 +131,44 @@ describe('Minimap drawing (stubbed 2D context)', () => {
     expect(first.length).toBe(1); expect(second.length).toBe(1);
     expect(second[0]).not.toBe(first[0]);
     spy.mockRestore();
+  });
+});
+
+describe('Minimap mission blips', () => {
+  function ring(blips: { x: number; z: number; color: string; kind?: string }[], scale = 1) {
+    const arcs: { r: number; stroke: string }[] = [];
+    const strokes: string[] = [];
+    const ctx = new Proxy({} as Record<string, unknown>, {
+      get(t, k: string) {
+        if (k === 'arc') return (_x: number, _y: number, r: number) => { arcs.push({ r, stroke: '' }); };
+        if (k === 'stroke') return () => { strokes.push(String(t.strokeStyle)); };
+        if (k in t) return t[k];
+        return () => undefined;
+      },
+      set(t, k: string, v) { t[k] = v; return true; },
+    });
+    const spy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as unknown as CanvasRenderingContext2D);
+    const root = document.createElement('div');
+    const grid = { streets: [], segments: [], intersections: [], bounds: { minX: -50, maxX: 50, minZ: -50, maxZ: 50 } } as unknown as GridModel;
+    const m = new Minimap(root, grid);
+    m.blipScale = scale;
+    m.update({ x: 0, z: 0 }, 0, [], 0.01, blips);
+    spy.mockRestore();
+    return { arcs, strokes };
+  }
+
+  it('a giver is a big gold ring (radius >= 8 px) with a gold pulse; an objective keeps its own colour', () => {
+    const g = ring([{ x: 10, z: -10, color: '#ff00ff', kind: 'giver' }]);
+    expect(g.arcs.some((a) => a.r >= 8)).toBe(true);
+    expect(g.strokes).toContain('#f5c542');
+    expect(g.strokes).not.toContain('#ff00ff');
+    const o = ring([{ x: 10, z: -10, color: '#2ecc71', kind: 'objective' }]);
+    expect(o.strokes).toContain('#2ecc71');
+  });
+
+  it('phone scale makes the giver ring larger', () => {
+    const small = Math.max(...ring([{ x: 10, z: -10, color: '#f5c542', kind: 'giver' }], 1).arcs.map((a) => a.r).filter((r) => r < 50));
+    const big = Math.max(...ring([{ x: 10, z: -10, color: '#f5c542', kind: 'giver' }], 1.45).arcs.map((a) => a.r).filter((r) => r < 50));
+    expect(big).toBeGreaterThan(small * 1.3);
   });
 });

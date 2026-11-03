@@ -469,4 +469,74 @@ describe('Vehicle', () => {
     expect(v.damage - before).toBeCloseTo(0.4);
     expect(n).toBe(2);
   });
+
+  describe('calm low-speed steering (playtest H2: a normal turn spun the SUV)', () => {
+    const holdSteer = (type: keyof typeof VEHICLE_SPECS, kmh: number, secs = 2) => {
+      const v = make(type);
+      v.driver = 'player';
+      const target = kmh / 3.6;
+      v.body.vel = { x: 0, z: -target };
+      let turned = 0, prev = v.body.heading;
+      for (let t = 0; t < secs; t += 1 / 60) {
+        v.setInput(input({ steer: 1, throttle: Math.max(0, Math.min(1, (target - v.speed) * 2 + 0.15)) }));
+        v.update(1 / 60);
+        let d = v.body.heading - prev; if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI;
+        turned += d; prev = v.body.heading;
+      }
+      return { v, deg: Math.abs(turned) * 180 / Math.PI };
+    };
+
+    it.each(['sedan', 'suv', 'cop'] as const)('%s: a 2 s A/D hold at 15 km/h turns < 65 deg (was ~90), at 25 km/h < 75 deg (was ~130)', (type) => {
+      expect(holdSteer(type, 15).deg).toBeLessThan(65);
+      expect(holdSteer(type, 25).deg).toBeLessThan(75);
+      expect(holdSteer(type, 15).deg).toBeGreaterThan(30); // still turns, not numb
+    });
+
+    it('full lock only below ~7 km/h, then a smooth reduction with speed', () => {
+      const lockAt = (kmh: number) => {
+        const v = make('suv');
+        v.driver = 'player';
+        v.body.vel = { x: 0, z: -kmh / 3.6 };
+        v.setInput(input({ steer: 1, throttle: 0.2 }));
+        run(v, 1);
+        return Math.abs(v.steering) / v.spec.maxSteer;
+      };
+      const locks = [3, 6, 10, 15, 25, 40, 60].map(lockAt);
+      expect(locks[0]).toBeGreaterThan(0.9); // parking-lot speed: full lock
+      for (let i = 1; i < locks.length; i++) expect(locks[i]).toBeLessThanOrEqual(locks[i - 1] + 1e-9); // monotone, no steps
+      expect(locks[3]).toBeLessThan(0.6); // 15 km/h
+      for (let i = 1; i < locks.length; i++) expect(locks[i - 1] - locks[i]).toBeLessThan(0.45); // smooth
+    });
+
+    it('AI-driven cars keep the raw lock (traffic and cops are tuned against it)', () => {
+      const v = make('sedan');
+      v.driver = 'traffic';
+      v.body.vel = { x: 0, z: -5 };
+      v.setInput(input({ steer: 1, throttle: 0.3 }));
+      run(v, 1);
+      expect(Math.abs(v.steering) / v.spec.maxSteer).toBeGreaterThan(0.8);
+    });
+
+    it('the handbrake bypasses the cap so drifting still works', () => {
+      const v = make('sedan');
+      v.driver = 'player';
+      v.body.vel = { x: 0, z: -60 / 3.6 };
+      v.setInput(input({ steer: 0.5, handbrake: true }));
+      run(v, 0.5);
+      expect(Math.abs(v.lateralSpeed)).toBeGreaterThan(2);
+    });
+  });
+
+  it('speedKmh follows the live body velocity, sideways included', () => {
+    const v = make();
+    v.driver = 'player';
+    expect(v.speedKmh).toBe(0);
+    v.body.vel = { x: 0, z: -10 };
+    expect(v.speedKmh).toBeCloseTo(36, 5);
+    v.body.vel = { x: 6, z: 0 }; // sliding sideways: forward speed is ~0 but the car is moving
+    expect(v.speedKmh).toBeCloseTo(21.6, 5);
+    v.setInput(input());
+    run(v, 0.2);
+    expect(v.speedKmh).toBeGreaterThan(10); // does not drop to 0 the moment the keys are released
+  });
 });

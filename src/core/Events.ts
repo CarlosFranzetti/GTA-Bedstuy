@@ -1,7 +1,11 @@
 /** Typed pub/sub. Systems that must not import each other talk through this. */
 import type { Vec2 } from './Math2';
 
-export type CrimeType = 'hitPed' | 'hitCop' | 'hitVehicle' | 'carjack';
+/**
+ * hitParked: repeated ramming of parked / civilian cars. sidewalkDriving: driving on the pavement near pedestrians.
+ * (hitVehicle is a single bump: it adds no stars but resets the decay timer.)
+ */
+export type CrimeType = 'hitPed' | 'hitCop' | 'hitVehicle' | 'carjack' | 'hitParked' | 'sidewalkDriving';
 
 export interface GameEvents {
   /** Something the cops care about. */
