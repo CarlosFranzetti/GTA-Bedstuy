@@ -658,9 +658,14 @@ export function mergeFace(
   if (!imported.length) return { lots: existing.map((l) => ({ ...l })), stats };
 
   const ew = frame.side === 'E' || frame.side === 'W';
-  const lo = ew ? 0 : NOMINAL_CORNER_M;
-  const hi = ew ? frame.length : frame.length - NOMINAL_CORNER_M;
+  let lo = ew ? 0 : NOMINAL_CORNER_M;
+  let hi = ew ? frame.length : frame.length - NOMINAL_CORNER_M;
   const sum = existing.reduce((s, l) => s + l.widthM, 0) || 1;
+  // Prefer the span the imported lots actually cover when the existing row is about as long: re-importing the importer's
+  // own output (or a hand row that was fitted to the same frontage) then maps every lot back onto itself.
+  const impLo = Math.min(...imported.map((i) => i.s0));
+  const impHi = Math.max(...imported.map((i) => i.s1));
+  if (sum >= 0.75 * (impHi - impLo) && sum <= 1.33 * (impHi - impLo)) { lo = impLo; hi = impHi; }
   const placed: Array<{ s0: number; s1: number; lot: LotJson; prot: boolean }> = [];
   let acc = 0;
   for (const l of existing) {
@@ -701,7 +706,7 @@ export function mergeFace(
   const lots = chosen.map((c) => c.lot);
 
   // keep the row inside the face: scale down uniformly when it is longer than the nominal span
-  const span = hi - lo;
+  const span = (ew ? frame.length : frame.length - 2 * NOMINAL_CORNER_M);
   const total = lots.reduce((s, l) => s + l.widthM, 0);
   if (total > span + 0.5 && span > 0) {
     const k = span / total;
