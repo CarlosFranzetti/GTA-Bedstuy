@@ -70,7 +70,9 @@ export class Bot {
     if (ob.stayInVehicle !== undefined) this.inCar = true;
     switch (ob.kind) {
       case 'goTo': case 'pickUp': case 'deliver':
-        car(ob.presence); this.go(ob.at, mps(ob.presence === 'inVehicle' ? 11 : 5)); this.wait(0.1); break;
+        car(ob.presence); this.go(ob.at, mps(ob.presence === 'inVehicle' ? 11 : 5)); this.wait(0.1);
+        if (ob.kind === 'pickUp' && ob.prompt !== undefined) { this.press(); this.wait(0.1); }
+        break;
       case 'enterVehicle': this.inCar = true; this.wait(0.1); break;
       case 'timer': this.wait(ob.seconds + 0.3); break;
       case 'holdSpeedBelow': if (ob.at) this.go(ob.at, 4); this.wait(ob.seconds + 0.3); break;

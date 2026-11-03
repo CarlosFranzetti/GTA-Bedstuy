@@ -45,6 +45,7 @@ export class MissionHud {
   private readonly pointerEl: HTMLElement;
   private readonly pointerArrow: HTMLElement;
   private readonly pointerText: HTMLElement;
+  private router: ((from: Vec2, to: Vec2) => Vec2) | null = null;
   private lastStatus: MissionHudState['status'] = 'idle';
   private lastPointerText = '';
   private lastPointerAngle = Number.NaN;
@@ -143,17 +144,27 @@ export class MissionHud {
   }
 
   /**
-   * While no mission is running, points at the nearest mission giver: 'Mission: <title>  85 m' with an arrow that
-   * turns relative to where the SCREEN faces (pass the camera yaw, not the body heading: on foot they differ whenever
-   * the player strafes or orbits; heading 0 = north = -z, like the minimap). Call every frame
-   * after update(); it hides itself during a mission.
+   * Route the arrow around building blocks (see game/missions/PointerRoute). Optional: without it the arrow points
+   * straight at the goal.
+   */
+  setRouter(router: ((from: Vec2, to: Vec2) => Vec2) | null): void { this.router = router; }
+
+  /**
+   * One arrow for what to do next. Idle: 'Offer: <title>  85 m' at the nearest giver that can start right now.
+   * During a mission: 'Goal: <objective>  40 m' at the nearest objective marker. Hidden while a mission has failed
+   * and when there is nothing to point at, so a stale arrow can never outlive its mission. The arrow turns relative
+   * to where the SCREEN faces (pass the camera yaw; heading 0 = north = -z, like the minimap) and, with a router, bends
+   * around building blocks along the sidewalk; the distance text is always the straight distance. Call every frame
+   * after update().
    */
   updatePointer(markers: readonly MissionMarker[], playerPos: Vec2, heading: number): void {
     let best: MissionMarker | null = null;
     let bestD = Infinity;
-    if (this.lastStatus !== 'active' && this.lastStatus !== 'failed') {
+    const active = this.lastStatus === 'active';
+    if (active || this.lastStatus === 'idle') {
+      const want = active ? 'objective' : 'giver';
       for (const m of markers) {
-        if (m.kind !== 'giver') continue;
+        if (m.kind !== want) continue;
         const d = Math.hypot(m.x - playerPos.x, m.z - playerPos.z);
         if (d < bestD) { bestD = d; best = m; }
       }
@@ -164,10 +175,13 @@ export class MissionHud {
       return;
     }
     this.pointerEl.hidden = false;
-    this.pointerEl.dataset.dist = bestD.toFixed(1); // exact metres to the nearest giver, for the playtest state and tests
-    const text = bestD < best.radius + 2 ? `Mission: ${best.label}  here` : `Mission: ${best.label}  ${Math.round(bestD / POINTER_STEP_M) * POINTER_STEP_M} m`;
+    this.pointerEl.dataset.dist = bestD.toFixed(1); // exact metres to the target, for the playtest state and tests
+    this.pointerEl.dataset.kind = best.kind;
+    const prefix = active ? 'Goal' : 'Offer';
+    const text = bestD < best.radius + 2 ? `${prefix}: ${best.label}  here` : `${prefix}: ${best.label}  ${Math.round(bestD / POINTER_STEP_M) * POINTER_STEP_M} m`;
     if (text !== this.lastPointerText) { this.lastPointerText = text; this.pointerText.textContent = text; }
-    const rel = angleDiff(heading, headingFromVec({ x: best.x - playerPos.x, z: best.z - playerPos.z }));
+    const aim = this.router && bestD >= best.radius + 2 ? this.router(playerPos, best) : best;
+    const rel = angleDiff(heading, headingFromVec({ x: aim.x - playerPos.x, z: aim.z - playerPos.z }));
     const deg = Math.round((rel * 180 / Math.PI) / POINTER_ANGLE_STEP) * POINTER_ANGLE_STEP;
     if (deg !== this.lastPointerAngle) { this.lastPointerAngle = deg; this.pointerArrow.style.transform = `rotate(${deg}deg)`; }
   }

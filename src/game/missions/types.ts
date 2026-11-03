@@ -31,8 +31,11 @@ interface ObjectiveBase {
 
 /** Be inside the circle (`radius` m around `at`) with the right presence. */
 export interface GoToObjective extends ObjectiveBase { kind: 'goTo'; at: Vec2; radius: number; presence: Presence }
-/** Like goTo, and the player now carries `items` (shown on the HUD, consumed by a later deliver). */
-export interface PickUpObjective extends ObjectiveBase { kind: 'pickUp'; at: Vec2; radius: number; presence: Presence; items: string[] }
+/**
+ * Like goTo, and the player now carries `items` (shown on the HUD, consumed by a later deliver). With `prompt` set the
+ * pickup also needs F inside the circle ('F  <prompt>' shows on the HUD); without it, entering the circle is enough.
+ */
+export interface PickUpObjective extends ObjectiveBase { kind: 'pickUp'; at: Vec2; radius: number; presence: Presence; items: string[]; prompt?: string }
 /** Like goTo, requires every item in `items` to be carried; they are handed over (removed). */
 export interface DeliverObjective extends ObjectiveBase { kind: 'deliver'; at: Vec2; radius: number; presence: Presence; items: string[] }
 /** Accumulates `seconds` of time spent with at least `minStars` stars (default 1): stay on the run that long. */

@@ -101,6 +101,7 @@ export class MissionSystem {
   private inside: string | null = null;
   private lastHour = -1;
   private lastPos: Vec2 = { x: 0, z: 0 };
+  private hasPos = false;
   private talkIdx = 0;
   private presses = 0;
   private done = false;
@@ -203,6 +204,11 @@ export class MissionSystem {
       if (this.presses >= need) this.done = true;
       return true;
     }
+    if (ob.kind === 'pickUp' && ob.prompt !== undefined) {
+      if (!this.reach(pos, ob.at, ob.radius, ob.presence)) return false;
+      this.done = true;
+      return true;
+    }
     if (ob.kind === 'sell' && this.custAt && Math.hypot(pos.x - this.custAt.x, pos.z - this.custAt.z) <= CUSTOMER_RANGE) {
       this.sellOne(ob.item);
       return true;
@@ -223,7 +229,12 @@ export class MissionSystem {
   /** Start a mission directly (debug, or a host-side trigger). Ignores the trigger zone and the hour window. */
   start(id: string): boolean {
     const i = this.indexOf(id);
-    if (i < 0 || this.cur >= 0 || this.status[i] === 'complete') return false;
+    if (i < 0 || this.status[i] === 'complete') return false;
+    if (this.cur >= 0) {
+      // One mission at a time: say so instead of silently ignoring the request or swapping the running one.
+      if (this.cur !== i) this.toast(`Finish or give up ${this.defs[this.cur].title} first.`, 'info');
+      return false;
+    }
     this.begin(i, -1);
     return true;
   }
@@ -288,7 +299,7 @@ export class MissionSystem {
   update(dt: number, pos: Vec2, inVehicle: boolean, wantedStars: number, speedMps = 0, hour = -1): void {
     this.hostInVehicle = inVehicle;
     this.lastHour = hour;
-    this.lastPos.x = pos.x; this.lastPos.z = pos.z;
+    this.lastPos.x = pos.x; this.lastPos.z = pos.z; this.hasPos = true;
     if (this.cur < 0) { this.checkTriggers(pos, hour, dt); return; }
     if (this.status[this.cur] !== 'active') return;
 
@@ -373,7 +384,10 @@ export class MissionSystem {
       if (this.status[i] === 'complete' || !this.requiresMet(i)) continue;
       const d = this.defs[i];
       const dx = pos.x - d.giver.x, dz = pos.z - d.giver.z;
-      if (dx * dx + dz * dz > d.triggerRadius * d.triggerRadius) { this.armed[i] = true; continue; }
+      if (dx * dx + dz * dz > d.triggerRadius * d.triggerRadius) {
+        if (!this.armed[i]) { this.armed[i] = true; this.giverKey = ''; } // the ring is live again: put its marker back
+        continue;
+      }
       inAny = i;
       if (!this.armed[i]) continue;
       if (d.availableHours && hour >= 0 && !inHourWindow(hour, d.availableHours[0], d.availableHours[1])) {
@@ -464,6 +478,7 @@ export class MissionSystem {
   private promptFor(ob: ObjectiveDef, pos: Vec2): string {
     if (ob.kind === 'talkTo') return this.reach(pos, ob.at, ob.radius + TALK_RANGE_EXTRA, ob.presence ?? 'onFoot') ? `F  Talk to ${ob.npc}` : '';
     if (ob.kind === 'interact') return this.reach(pos, ob.at, ob.radius, ob.presence ?? 'onFoot') ? `F  ${ob.prompt}` : '';
+    if (ob.kind === 'pickUp' && ob.prompt !== undefined) return this.reach(pos, ob.at, ob.radius, ob.presence) ? `F  ${ob.prompt}` : '';
     if (ob.kind === 'sell' && this.custAt && Math.hypot(pos.x - this.custAt.x, pos.z - this.custAt.z) <= CUSTOMER_RANGE) return `F  Sell ${ob.item}`;
     return '';
   }
@@ -482,7 +497,9 @@ export class MissionSystem {
   private evaluate(ob: ObjectiveDef, pos: Vec2, inVehicle: boolean, stars: number, speedMps: number, dt: number): boolean {
     switch (ob.kind) {
       case 'goTo': return inCircle(pos, ob.at, ob.radius) && presenceOk(ob.presence, inVehicle);
-      case 'pickUp': return inCircle(pos, ob.at, ob.radius) && presenceOk(ob.presence, inVehicle);
+      case 'pickUp':
+        if (ob.prompt !== undefined) return this.done;
+        return inCircle(pos, ob.at, ob.radius) && presenceOk(ob.presence, inVehicle);
       case 'deliver':
         return inCircle(pos, ob.at, ob.radius) && presenceOk(ob.presence, inVehicle) && this.hasAll(ob.items);
       case 'enterVehicle': return inVehicle;
@@ -721,7 +738,7 @@ export class MissionSystem {
     this.markers.length = 0;
     if (this.cur < 0) {
       const open: number[] = [];
-      for (let i = 0; i < this.defs.length; i++) if (this.offered(i, this.lastHour)) open.push(i);
+      for (let i = 0; i < this.defs.length; i++) if (this.offered(i, this.lastHour) && !this.deadZone(i)) open.push(i);
       if (open.length > MAX_GIVER_MARKERS) {
         const p = this.lastPos;
         const dist = (i: number): number => Math.hypot(this.defs[i].giver.x - p.x, this.defs[i].giver.z - p.z);
@@ -739,6 +756,13 @@ export class MissionSystem {
       this.pushObjectiveMarkers(d.id, ob);
     }
     this.markersVersion++;
+  }
+
+  /** The player stands in this giver's ring but it cannot start until they leave and come back (after an abandon or a finish). */
+  private deadZone(i: number): boolean {
+    if (this.armed[i] || !this.hasPos) return false;
+    const d = this.defs[i];
+    return inCircle(this.lastPos, d.giver, d.triggerRadius);
   }
 
   private pushObjectiveMarkers(missionId: string, ob: ObjectiveDef): void {

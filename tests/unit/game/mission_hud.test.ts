@@ -132,7 +132,7 @@ describe('MissionHud', () => {
       hud.updatePointer([giver('a', 0, -200), giver('b', 3, -86, 'Soundclash'), objective], { x: 0, z: 0 }, 0);
       const el = q(root, '.msn-pointer');
       expect(el.hidden).toBe(false);
-      expect(q(root, '.msn-pointer-text').textContent).toBe('Mission: Soundclash  85 m');
+      expect(q(root, '.msn-pointer-text').textContent).toBe('Offer: Soundclash  85 m');
     });
 
     it('arrow is relative to the facing: giver ahead 0 deg, to the right +90, behind 180', () => {

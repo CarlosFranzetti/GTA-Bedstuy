@@ -50,6 +50,7 @@ class Driver {
     this.speed = 0;
   }
   raise(n: number): void { this.stars = Math.max(this.stars, n); this.sinceCrime = 0; }
+  press(): boolean { return this.m.interact(this); }
 }
 
 const objPos = (o: ObjectiveDef): { x: number; z: number } | null =>
@@ -259,6 +260,10 @@ describe('Laundromat Getaway', () => {
     expect(ctx.m.activeId).toBe('laundromat-getaway');
     d.go(door, 5);
     d.wait(0.2);
+    expect(ctx.m.objectiveIndex).toBe(0); // proximity alone does not grab it: F is required
+    expect(ctx.m.hud.prompt).toBe('F  Grab the duffel');
+    d.press();
+    d.wait(0.2);
     return { ...ctx, d };
   }
 
@@ -277,8 +282,12 @@ describe('Laundromat Getaway', () => {
     d.inCar = true;
     d.go(door, 8);
     d.wait(1);
+    d.press();
+    d.wait(0.2);
     expect(ctx.m.objectiveIndex).toBe(0);
     d.inCar = false;
+    d.wait(0.2);
+    d.press();
     d.wait(0.2);
     expect(ctx.m.objectiveIndex).toBe(1);
   });

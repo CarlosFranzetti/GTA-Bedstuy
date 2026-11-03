@@ -12,6 +12,22 @@ import type { Body2D, Entity, IMaterialLibrary, IVehicle, VehicleInput } from '@
 export const WALK_SPEED = 3;
 export const RUN_SPEED = 6.5;
 export const ENTER_RANGE = 3;
+
+/**
+ * How far `p` is from getting into `v`: the smaller of the distance to the driver's door and the distance to the car's
+ * body box (0 inside it). A long van or box truck has its door at one flank, so a player standing at the rear or on
+ * the far side still counts as "at the car" within ENTER_RANGE of its body; the walk then glides round to the door.
+ */
+export function doorDistance(v: IVehicle, p: Vec2): number {
+  const door = dist(p, v.doorPos());
+  const s = v.body.shape;
+  if (s.kind !== 'obb') return door;
+  const h = v.body.heading, dx = p.x - v.body.pos.x, dz = p.z - v.body.pos.z;
+  const r = dx * Math.cos(h) + dz * Math.sin(h);
+  const f = dx * Math.sin(h) - dz * Math.cos(h);
+  const body = Math.hypot(Math.max(0, Math.abs(r) - s.halfW), Math.max(0, Math.abs(f) - s.halfL));
+  return Math.min(door, body);
+}
 const FOOT_RADIUS = 0.4;
 /** m/s^2 while speeding up / while stopping (a walk-speed start takes ~0.19 s, a stop ~0.11 s). */
 const ACCEL = 16;
@@ -144,7 +160,7 @@ export class Player implements Entity {
     let bestD = ENTER_RANGE;
     for (const v of vehicles) {
       if (v.driver === 'player') continue;
-      const d = dist(this.body.pos, v.doorPos());
+      const d = doorDistance(v, this.body.pos);
       if (d <= bestD) { bestD = d; best = v; }
     }
     if (!best) return null;
