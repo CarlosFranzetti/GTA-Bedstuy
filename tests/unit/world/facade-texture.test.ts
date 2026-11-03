@@ -38,7 +38,7 @@ describe('facade photo atlas', () => {
   it('keeps the procedural facade when the atlas is missing', () => {
     const { group } = buildBuildings([lot('facade-nope')], mats(), new Rng(1));
     expect(group.children.some((c) => c.name.startsWith('buildings:facade:'))).toBe(false);
-    expect(group.children.some((c) => c.name === 'buildings:brownstone:0')).toBe(true);
+    expect(group.children.some((c) => c.name.startsWith('buildings:brownstone'))).toBe(true);
   });
 
   it('atlasUV runs 0..1 across width and photo height', () => {

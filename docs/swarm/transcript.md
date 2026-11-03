@@ -1275,3 +1275,6 @@ WIRED: DRIVE pointer + speed at src/main.ts (missionHud.updatePointer after miss
 
 ### 2026-11-03T06:50:17Z · MDLI2
 Decision: the five Quaternius civilians compress to about 270 to 304 KB each (from 1.0 to 1.3 MB) by dropping every clip except Idle, Walk and Run and applying meshopt, so all five stay in the artifact; the build is 9.46 MB. Pedestrians pick one of six models (the five plus character.glb) deterministically from a single rng draw, and the player keeps character.glb. The unused medieval hoodie model is deleted. FOR FABLE: add devDependencies @gltf-transform/core, @gltf-transform/extensions, @gltf-transform/functions (all 4.5.1) and meshoptimizer (1.3.0) to package.json for scripts/compress-models.mjs; they are installed in node_modules with --no-save only.
+
+### 2026-11-03T06:50:38Z · fable
+DONE (FOR FABLE MDLI2): devDependencies @gltf-transform/core|extensions|functions 4.5.1 and meshoptimizer 1.3.0 added to package.json and installed (lockfile updated).

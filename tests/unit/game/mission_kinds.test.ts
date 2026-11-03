@@ -29,8 +29,9 @@ describe('talkTo / interact', () => {
     expect(bot.press()).toBe(true);
     expect(m.hud.toast).toBe('Ms. Odette: "one"');
     expect(m.isActive).toBe(true);
-    bot.press(); bot.wait(0.1);
+    bot.press();
     expect(m.hud.toast).toBe('Ms. Odette: "two"');
+    bot.wait(0.1);
     expect(m.isCompleted('k')).toBe(true);
   });
 
@@ -102,22 +103,22 @@ describe('tail', () => {
 
 describe('collect', () => {
   it('visits every point in any order and carries the item', () => {
-    const d = mk([{ kind: 'collect', points: [P(30), P(60), P(90)], radius: 3, presence: 'onFoot', item: 'flyer', text: 'collect' }]);
+    const d = mk([{ kind: 'collect', points: [P(30, 30), P(60, -30), P(90)], radius: 3, presence: 'onFoot', item: 'flyer', text: 'collect' }]);
     const { m, bot } = run(d);
     bot.go(P(90), 6);
     expect(m.markers.map((k) => Math.round(k.x))).toEqual([30, 60]);
     expect(m.hud.progress).toBeCloseTo(1 / 3);
-    bot.go(P(30), 6); bot.go(P(60), 6); bot.wait(0.1);
+    bot.go(P(30, 30), 6); bot.go(P(60, -30), 6); bot.wait(0.1);
     expect(m.isCompleted('k')).toBe(true);
   });
 
   it('ordered shows one marker at a time and ignores the wrong point', () => {
-    const d = mk([{ kind: 'collect', ordered: true, points: [P(30), P(60)], radius: 3, presence: 'onFoot', item: 'flyer', text: 'collect' }, { kind: 'timer', seconds: 100, text: 'hold' }]);
+    const d = mk([{ kind: 'collect', ordered: true, points: [P(30, 30), P(60, -30)], radius: 3, presence: 'onFoot', item: 'flyer', text: 'collect' }, { kind: 'timer', seconds: 100, text: 'hold' }]);
     const { m, bot } = run(d);
     expect(m.markers).toHaveLength(1);
-    bot.go(P(60), 6);
+    bot.go(P(60, -30), 6);
     expect(m.objectiveIndex).toBe(0);
-    bot.go(P(30), 6); bot.go(P(60), 6); bot.wait(0.1);
+    bot.go(P(30, 30), 6); bot.go(P(60, -30), 6); bot.wait(0.1);
     expect(m.objectiveIndex).toBe(1);
     expect(m.carrying).toEqual(['flyer', 'flyer']);
   });
