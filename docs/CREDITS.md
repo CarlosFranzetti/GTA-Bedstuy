@@ -53,7 +53,7 @@ dimensions, recoloured, lights and plates added at load time).
   `wellmota/tutory-personagens` (branch `main`, commit 318fec6), folder `quaternius-uac/`.
 - **Modified**: these five files are compressed derivatives, made with `scripts/compress-models.mjs` (glTF-Transform): every animation
   clip except `Idle`, `Walk` and `Run` is dropped, vertex data is quantized and meshopt-compressed (EXT_meshopt_compression). Geometry
-  shape, rig and materials are unchanged. About 1.2 MB each became about 0.3 MB each. The raw sha256 values are in the MDL2 notes.
+  shape and rig are unchanged; the near-black `Skin` colour of the pack is replaced by a natural skin tone per person. About 1.2 MB each became about 0.3 MB each. The raw sha256 values are in the MDL2 notes.
 
 ## Music (researched, not shipped)
 

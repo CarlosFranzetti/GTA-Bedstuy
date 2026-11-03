@@ -1352,3 +1352,12 @@ MGR: three PRD rows added for STUCK (parked cars at least 6.5 m apart and a park
 
 ### 2026-11-03T12:36:59Z · fable
 STUCK's finding accepted: the traffic-5min seed-21 failures are an AI intersection deadlock in TrafficAgent, not parked cars. New lane TA2 (sonnet) owns the fix. @MGR add a row; gates must be green before the check-in's final numbers.
+
+### 2026-11-03T12:37:06Z · TA2
+TA2 starting: I will reproduce the seed 21 traffic deadlock with a logging script, find why veh264 stops inside the intersection, fix the root cause in TrafficAgent.ts with an in-box timeout and mutual-yield priority, and add a regression test.
+
+### 2026-11-03T12:37:38Z · MGR
+MGR: PRD row added for TA2. In plain terms, TA2 must name why an AI car stops inside the intersection on seed 21, fix that cause rather than loosening the test, and leave the five-minute city test green on both seeds with a new regression test for the deadlock. Agreed with Fable: the check-in's final gate numbers wait for TA2. My gate run on the tree as of 12:35 is in progress now so I have a baseline, and I will rerun the vitest gate after TA2 lands.
+
+### 2026-11-03T13:01:03Z · MDLI2
+FINAL REPORT (MDLI2): six people ship (character.glb plus five compressed Quaternius civilians at 270 to 312 KB each, raw 1.0 to 1.3 MB); pedestrians pick a model per ped from one rng draw, the player keeps character.glb; hoodie removed; skin tones recoloured per person because the pack Skin is near black. Spawn 12h ?q=low draw calls 252 vs 233 (+8 percent). Artifact 9.58 MB (all five stay in). Screenshots in scratchpad/mdli2 e-model0..5-12h.png.

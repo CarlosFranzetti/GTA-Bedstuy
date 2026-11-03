@@ -32,7 +32,20 @@ export const MAP = {
   'quaternius-uac-Worker_Male.glb': 'character-worker.glb',
 };
 
-export async function compress(input, output, { keep = ['Idle', 'Walk', 'Run'], tex = 512 } = {}) {
+/**
+ * The pack's `Skin` material is near black (linear 0.013) in every file, which renders as a black face and hands. Each shipped
+ * person gets its own natural skin tone instead (sRGB hex), so the crowd varies. Only the Skin colour factor changes.
+ */
+export const SKIN = {
+  'character-casual-male.glb': 0xc68a5e,
+  'character-casual-female.glb': 0xf1c9a5,
+  'character-suit-male.glb': 0x8d5524,
+  'character-suit-female.glb': 0xd9a877,
+  'character-worker.glb': 0x6b4226,
+};
+const lin = (c) => { const x = c / 255; return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; };
+
+export async function compress(input, output, { keep = ['Idle', 'Walk', 'Run'], tex = 512, skin = null } = {}) {
   await MeshoptEncoder.ready;
   await MeshoptDecoder.ready;
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
@@ -44,6 +57,9 @@ export async function compress(input, output, { keep = ['Idle', 'Walk', 'Run'], 
   const keepRe = new RegExp(`(^|[|/])(${keep.join('|')})$`, 'i');
   for (const a of root.listAnimations()) if (!keepRe.test(a.getName())) a.dispose();
 
+  if (skin !== null) {
+    for (const m of root.listMaterials()) if (/^skin$/i.test(m.getName())) m.setBaseColorFactor([lin((skin >> 16) & 255), lin((skin >> 8) & 255), lin(skin & 255), 1]);
+  }
   const steps = [dedup(), resample(), prune(), weld({ tolerance: 0.0001 })];
   if (root.listTextures().length) {
     const sharp = (await import('sharp')).default;
@@ -71,7 +87,7 @@ if (import.meta.url === `file://${process.argv[1]}` && argv.length) {
     for (const f of await readdir(dir)) if (MAP[f]) jobs.push([join(dir, f), join(outDir, MAP[f])]);
   } else jobs.push([argv[0], argv[1]]);
   for (const [i, o] of jobs) {
-    const r = await compress(i, o, { keep, tex });
+    const r = await compress(i, o, { keep, tex, skin: SKIN[basename(o)] ?? null });
     console.log(`${basename(i)} -> ${basename(o)}: ${(r.in / 1024).toFixed(0)} KB -> ${(r.out / 1024).toFixed(0)} KB, clips ${r.clips.join(',')}`);
   }
 }

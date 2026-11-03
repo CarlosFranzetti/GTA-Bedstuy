@@ -29,13 +29,14 @@ try {
   const waitState = (s, t = 60_000) => page.waitForFunction((x) => window.__gtaDebug.interiors.state === x, s, { timeout: t });
   const shot = (n) => page.screenshot({ path: `${OUT}/wire-${n}.png`, timeout: 120_000 });
   const goto = (x, z, h) => D(([x, z, h]) => { const d = window.__gtaDebug; d.teleport(x, z, h); }, [x, z, h]);
-  const press = async (k) => { await page.keyboard.down(k); await page.waitForTimeout(150); await page.keyboard.up(k); };
+  const enter = async () => { for (let i = 0; i < 6 && (await state()) === 'outside'; i++) { await press('KeyF'); await page.waitForTimeout(2500); } await waitState('inside'); };
+  const press = async (k) => { await page.keyboard.down(k); await page.waitForTimeout(400); await page.keyboard.up(k); };
 
   // --- Wax Deli
   await goto(10.4, 34, 0); await page.waitForTimeout(800);
   const pr = await D(() => window.__gtaDebug.interiors.prompt(window.__gtaDebug.player.body.pos));
   check('deli prompt', /WAX DELI/i.test(pr), pr);
-  await press('KeyF'); await waitState('inside');
+  await enter();
   check('deli inside', (await D(() => window.__gtaDebug.interiors.current)) === 'deli');
   await page.waitForTimeout(800); await shot('deli');
   const cashBefore = await D(() => window.__gtaDebug.inventory.cash);
@@ -60,7 +61,7 @@ try {
 
   // --- Home
   await goto(-10.4, -36, Math.PI); await page.waitForTimeout(800);
-  await press('KeyF'); await waitState('inside');
+  await enter();
   check('home inside', (await D(() => window.__gtaDebug.interiors.current)) === 'home');
   await page.waitForTimeout(800); await shot('home');
   const dj = await D(() => { const d = window.__gtaDebug; d.ensureAudio(); const ui = d.djUi; if (!ui) return 'noui'; ui.open('home'); return { open: ui.isOpen }; });
@@ -75,11 +76,7 @@ try {
   await goto(70, -8.0, 0); await page.waitForTimeout(800);
   const cp = await D(() => window.__gtaDebug.interiors.prompt(window.__gtaDebug.player.body.pos));
   check('club prompt', /AFTERSLOTH/i.test(cp), cp);
-  for (let i = 0; i < 4 && (await state()) !== 'inside'; i++) {
-    await press('KeyF'); await page.waitForTimeout(1500);
-    log('club try', i, JSON.stringify(await D(() => { const d = window.__gtaDebug; return { st: d.interiors.state, pos: { ...d.player.body.pos }, dj: d.djUi?.isOpen, shop: d.shopUi?.isOpen, hour: d.dayNight.timeOfDay, veh: d.player.inVehicle, locked: d.interiors.locked, prompt: d.interiors.prompt(d.player.body.pos) }; })));
-  }
-  await waitState('inside');
+  await enter();
   check('club inside', (await D(() => window.__gtaDebug.interiors.current)) === 'club');
   await page.waitForTimeout(1500); await shot('club');
   await D(() => window.__gtaDebug.interiors.exit());

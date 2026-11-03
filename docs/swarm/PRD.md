@@ -277,6 +277,7 @@ research, RADIO own-library radio (8 stations, 147 slots) + talk station, WRITE 
 | STUCK (from playtests) | Parked cars ≥ 6.5 m apart centre to centre, ≥ 8 m from corners, clear of hydrants and of the player's spawn car; a parked car can be driven out of its spot in a headless test | TrafficSystem tests + scripted pull-out |
 | STUCK | Wedge detection frees a stuck player car; the player's car may mount curbs below 8 km/h, AI cars never; HUD hint "Blocked: S to reverse, Shift handbrake" after 1.5 s wedged | Vehicle + Hud tests |
 | STUCK | Harness dead-time cut produces a correct playtest.mp4 | session test / one rerun |
+| TA2 (traffic deadlock) | Root cause of the seed-21 intersection deadlock named and fixed in `TrafficAgent.ts`; `tests/unit/sim/traffic-5min.test.ts` green on seeds 7 and 21 (no gridlock, no ped knock-downs, 0 red-light runs) plus a regression test for the deadlock | `npx vitest run tests/unit/sim` |
 | H1–H3 | Each playtester produces a recorded session (webm + subtitled thoughts transcript) and a FINAL REPORT with impressions, bugs and confusions (what they tried, what they expected, what happened) | session dirs + transcript posts |
 | MGR | Every playtest bug/confusion lands in a defects table (id, severity, owner lane, repro) posted as `MGR: playtest triage` and carried into `checkins/stage3.md` | MGR post |
 | All | FINAL REPORT names files, commands + numbers, size impact, call site or wiring request, open issues | MGR review |

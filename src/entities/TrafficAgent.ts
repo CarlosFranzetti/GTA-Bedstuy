@@ -98,6 +98,20 @@ const FLANK_PED_SPEED = 2.5;
 const FLANK_PED_MARGIN = 1;
 const FLANK_HOLD_MAX = 6;
 const FLANK_IGNORE_FOR = 5;
+/** do not block the box: a stop line is not entered while the exit lane is jammed this far past the box edge; a hopeless wait ends after BOX_JAM_MAX */
+const BOX_EXIT_LOOKAHEAD = 9;
+/** a parked car that the path to the aim point clears by this much (on top of both half widths) is not a blocker, even when a ray grazes it */
+const PARKED_PATH_MARGIN = 0.3;
+const BOX_EXIT_LATERAL = 2.6;
+const BOX_JAM_SPEED = 1;
+const BOX_JAM_MAX = 8;
+const BOX_JAM_CHECK_PERIOD = 0.2;
+/** an intersection is never a place to stand: blocked this long inside the box, the loser of a mutual block backs out */
+const BOX_RADIUS = 16;
+const BOX_YIELD_AFTER = 1.2;
+const BOX_YIELD_AFTER_STRAIGHT = 3;
+const BOX_YIELD_HOLD = 2.5;
+const BOX_CROSS_ANGLE = 0.6;
 const RAY_LEAD = 0.7;
 const RAY_LEAD_MIN = 0.1;
 const RAY_LEAD_MAX = 0.5;
@@ -156,6 +170,12 @@ export class TrafficAgent {
   private turnPed = false;
   private turnWait = 0;
   private passTimer = 0;
+  // do-not-block-the-box: exit lane jammed beyond the stop line being approached
+  private jamTimer = 0;
+  private jamBlocked = false;
+  private jamWait = 0;
+  /** after yielding inside the box: stand still until this runs out so the other car can clear */
+  private yieldHold = 0;
   // next signalled stop line (cached per target)
   private stopAheadFor: string | null = null;
   private stopAhead: LaneNode | null = null;
@@ -269,6 +289,7 @@ export class TrafficAgent {
     }
 
     this.turnTimer -= dt;
+    this.jamTimer -= dt;
     if (this.state === 'backing') { this.back(dt); return; }
 
     if (this.state === 'waiting') {
@@ -296,12 +317,13 @@ export class TrafficAgent {
           if (committed) { this.goLatch = null; stop = false; }
         }
         // green or not, a left turn waits for oncoming traffic and any turn waits for a pedestrian on the exit crosswalk
-        if (!stop && this.turnConflict(node, true)) stop = true;
+        if (!stop && (this.turnConflict(node, true) || this.exitJammed(node, true))) stop = true;
         if (stop) {
           this.state = 'waiting';
           this.waitTimer = 0;
           this.extraWait = 0;
           this.turnWait = 0;
+          this.jamWait = 0;
           this.hold();
           return;
         }
@@ -378,7 +400,7 @@ export class TrafficAgent {
     const turnSpeed = this.ignoreStop ? TURN_SPEED_FAST : TURN_SPEED;
     if (node.stopLine) {
       const room = Math.max(0, dNode - STOP_POINT);
-      if (!this.ignoreStop && (this.mustStopAt(node, dNode, speed) || (dNode < 45 && this.turnConflict(node, false)))) {
+      if (!this.ignoreStop && (this.mustStopAt(node, dNode, speed) || (dNode < 45 && (this.turnConflict(node, false) || this.exitJammed(node, false))))) {
         desired = Math.min(desired, Math.sqrt(2 * v.spec.brakeDecel * COMFORT_BRAKE * room));
       }
       // slow for the turn before entering the box
@@ -394,7 +416,7 @@ export class TrafficAgent {
       this.pedTimer = PED_SCAN_PERIOD;
       this.pedGap = this.scanPeds(fx, fz, speed);
       this.pedFlank = speed < FLANK_PED_SPEED && this.pedBesideBody(fx, fz);
-      if (Math.abs(err) > TURN_SCAN_ERR && dNode < TURN_SCAN_DIST) {
+      if ((Math.abs(err) > TURN_SCAN_ERR || Math.abs(this.legTurn) > TURN_MIN) && dNode < TURN_SCAN_DIST) {
         // mid-turn: the crosswalk the car is about to cross lies toward the target node, not along the heading
         const inv = 1 / Math.max(dNode, 0.1);
         const toward = this.scanPeds(dx * inv, dz * inv, speed, dNode + 2);
@@ -440,6 +462,7 @@ export class TrafficAgent {
         // the car being passed is no obstacle: the car rolls out around it at PASS_CREEP (below the 1.5 m/s impact
         // threshold) until its body has really cleared it
         if (this.passBody && h.body === this.passBody) { creeping = true; return; }
+        if (this.clearsPath(h.body, dx, dz)) return;
         if (!hit || h.dist < hit.dist) hit = h;
       };
       // always from the real body (the lane-offset line is only where the body is heading, not where it is) ...
@@ -460,7 +483,7 @@ export class TrafficAgent {
       }
       if (creeping) desired = Math.min(desired, PASS_CREEP);
       const h = hit as { body: Body2D; dist: number } | null;
-      if (h) { blocked = true; blocker = h.body; }
+      if (h) { blocked = true; blocker = h.body }
     }
     if (blocked) {
       desired = 0;
@@ -483,6 +506,20 @@ export class TrafficAgent {
     if (blocked && this.passBody && blocker !== this.passBody) {
       // something else is in the passing lane: give up and tuck back in behind the blocker
       this.endPass();
+    }
+
+    // ---- inside the box: never stand there. The loser of a mutual block backs out, then waits for the other to clear
+    if (this.yieldHold > 0) {
+      this.yieldHold -= dt;
+      desired = 0;
+    } else if (blocked && blocker && Math.abs(speed) < 0.3 && this.blockedTime > BOX_YIELD_AFTER && this.boxYield(blocker, node)) {
+      this.yieldHold = BOX_YIELD_HOLD;
+      this.stuckTime = 0;
+      this.blockedTime = 0;
+      this.beginBacking();
+      this.backSteer = 0;
+      this.back(dt);
+      return;
     }
 
     // ---- stuck detection / honking
@@ -589,6 +626,11 @@ export class TrafficAgent {
       this.extraWait += dt;
       if (this.extraWait < MAX_EXTRA_WAIT) return false;
     }
+    // the exit lane is full of standing cars: do not park across the box, but do not wait forever either
+    if (this.exitJammed(node, false)) {
+      this.jamWait += dt;
+      if (this.jamWait < BOX_JAM_MAX) return false;
+    }
     // oncoming traffic (left turns) and pedestrians on the exit crosswalk: wait, but not forever
     if (this.turnConflict(node, false)) {
       this.turnWait += dt;
@@ -683,6 +725,95 @@ export class TrafficAgent {
     const s = this.stopAhead;
     if (!s || !this.signalGoverned(s)) return false;
     return this.lights.phaseFor(s.intersectionId!, s.streetId) !== 'green';
+  }
+
+  /**
+   * A parked car that sits beside, not on, the line from the car to its aim point: a swinging nose (a wide truck
+   * coming out of a turn) makes a ray graze it although the car steers away from it, and then it never gets going.
+   */
+  private clearsPath(o: Body2D, dx: number, dz: number): boolean {
+    if ((o.userData as { driver?: unknown } | undefined)?.driver !== null) return false;
+    const len = Math.hypot(dx, dz);
+    if (len < 1) return false;
+    const b = this.vehicle.body;
+    const ux = dx / len;
+    const uz = dz / len;
+    const rx = o.pos.x - b.pos.x;
+    const rz = o.pos.z - b.pos.z;
+    if (rx * ux + rz * uz < 0) return false;
+    const myHalfW = b.shape.kind === 'obb' ? b.shape.halfW : 1;
+    // the parked car's extent across the path: its long side if it lies along the path, else its short side
+    let ext = 1;
+    if (o.shape.kind === 'obb') {
+      const c = Math.abs(Math.cos(o.heading - Math.atan2(ux, -uz)));
+      ext = o.shape.halfW * c + o.shape.halfL * Math.sqrt(1 - c * c);
+    } else if (o.shape.kind === 'circle') ext = o.shape.r;
+    return Math.abs(rx * -uz + rz * ux) > myHalfW + ext + PARKED_PATH_MARGIN;
+  }
+
+  /** Past a stop line and still within the box of that intersection. */
+  private inBox(): boolean {
+    const prev = this.prevId ? this.lanes.nodes[this.prevId] : undefined;
+    if (!prev || !prev.stopLine) return false;
+    return dist(this.vehicle.body.pos, prev.pos) < BOX_RADIUS;
+  }
+
+  /**
+   * Blocked by a standing car while inside the box: should this car be the one to back out? A left turn gives way to
+   * a car crossing its path; otherwise (and for equal rank) the lower vehicle-id hash gives way, so exactly one of two
+   * mutually blocked cars yields. Straight-through cars only yield after a longer wait.
+   */
+  private boxYield(blocker: Body2D, node: LaneNode): boolean {
+    if (this.ignoreStop || !this.inBox()) return false;
+    if (blocker.kind !== 'vehicle' && blocker.kind !== 'cop' && blocker.kind !== 'player') return false;
+    if (Math.hypot(blocker.vel.x, blocker.vel.z) > 0.5) return false;
+    // something is right behind: backing would only trade one wedge for another
+    const b = this.vehicle.body;
+    const behind = this.world.raycast(b.pos, { x: -Math.sin(b.heading), z: Math.cos(b.heading) }, 3, b.id);
+    if (behind) return false;
+    const crossing = Math.abs(angleDiff(b.heading, blocker.heading)) > BOX_CROSS_ANGLE;
+    const leftTurn = this.legTurn < -TURN_MIN;
+    const myHash = Rng.hash(this.vehicle.id);
+    const theirHash = Rng.hash(blocker.id);
+    if (crossing && leftTurn) return true;
+    if (this.blockedTime < BOX_YIELD_AFTER_STRAIGHT) return false;
+    void node;
+    return myHash < theirHash;
+  }
+
+  /**
+   * Is the exit lane of the turn about to be made from stop line `node` jammed by standing traffic close behind the
+   * box? Entering would park the car across the intersection. Cached for BOX_JAM_CHECK_PERIOD.
+   */
+  private exitJammed(node: LaneNode, fresh: boolean): boolean {
+    if (this.ignoreStop || this.preFrom !== node.id) return false;
+    if (!fresh && this.jamTimer > 0) return this.jamBlocked;
+    this.jamTimer = BOX_JAM_CHECK_PERIOD;
+    this.jamBlocked = false;
+    const exit = this.lanes.nodes[this.lanes.edges[this.preEdge].to];
+    if (!exit) return false;
+    const dirx = Math.sin(exit.heading);
+    const dirz = -Math.cos(exit.heading);
+    const c = this.scratch;
+    c.x = exit.pos.x + dirx * BOX_EXIT_LOOKAHEAD * 0.5;
+    c.z = exit.pos.z + dirz * BOX_EXIT_LOOKAHEAD * 0.5;
+    const list = this.world.queryCircle(c, BOX_EXIT_LOOKAHEAD * 0.5 + BOX_EXIT_LATERAL);
+    const selfId = this.vehicle.body.id;
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i];
+      if (o.id === selfId || (o.kind !== 'vehicle' && o.kind !== 'cop' && o.kind !== 'player')) continue;
+      if (Math.hypot(o.vel.x, o.vel.z) > BOX_JAM_SPEED) continue;
+      const d = (o.userData as { driver?: unknown } | undefined)?.driver;
+      if (d === null || d === undefined) continue; // parked: passed, not queued
+      const rx = o.pos.x - exit.pos.x;
+      const rz = o.pos.z - exit.pos.z;
+      const along = rx * dirx + rz * dirz;
+      if (along < -1 || along > BOX_EXIT_LOOKAHEAD) continue;
+      if (Math.abs(rx * -dirz + rz * dirx) > BOX_EXIT_LATERAL) continue;
+      this.jamBlocked = true;
+      break;
+    }
+    return this.jamBlocked;
   }
 
   private noteQueued(): void {
