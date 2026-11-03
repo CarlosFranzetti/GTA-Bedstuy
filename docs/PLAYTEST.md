@@ -27,7 +27,7 @@ Scripted self-test without a model: `scripts/swarm-render.sh node scripts/playte
 3. Wait until `<sessionDir>/ready-<n>` exists (it can take 10 s to 3 minutes: the renderer is slow). Then go to 1 with `n+1`.
    Number steps 1, 2, 3 ... in order. If you repeat a number the harness uses the next free one (see `log.jsonl`).
 4. To finish, append `{"end":true,"summary":"what you did, what was fun, what was broken, bugs in plain words"}`. The harness
-   then writes `playtest.webm`, `playtest.mp4` (dead time cut out), `playtest-full.mp4` and `transcript.md`. It also ends by itself
+   then writes `playtest.webm`, `playtest.mp4` (only the action windows, tVideoActions to tVideoEnd with a 0.3 s margin, cut in one ffmpeg pass by `scripts/playtest/cut.mjs`; re-cut with `node scripts/playtest/cut.mjs <sessionDir>`; never written if the cut fails) and `transcript.md`. It also ends by itself
    after `--max-steps` steps or `--idle-timeout` seconds without a command. A bad JSON line produces `error-line<N>.json`.
 
 ## Actions (run in order, at most 24 per step; one step is at most 25 game seconds)

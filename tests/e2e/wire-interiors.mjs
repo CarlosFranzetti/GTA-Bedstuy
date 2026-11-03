@@ -50,7 +50,7 @@ try {
   log('buy', JSON.stringify(buy));
   check('shop ui exists + buy ok', buy && buy.o === 'ok' && buy.has && buy.cash < cashBefore, JSON.stringify(buy));
   await page.waitForTimeout(500); await shot('deli-shop');
-  await D(() => window.__gtaDebug.shopUi.close());
+  await D(() => window.__gtaDebug.shopUi.close()); log('shop closed, state', await state());
   // exit: stand at the exit spot (just inside the door)
   await D(() => { const d = window.__gtaDebug; const o = { x: 3000, z: 3000 }; d.teleport(o.x, o.z + 3.3, 0); });
   for (let i = 0; i < 3 && (await state()) === 'inside'; i++) { await page.waitForTimeout(300); await press('KeyF'); await page.waitForTimeout(1200); }
@@ -84,5 +84,5 @@ try {
   check('mission bridge cleared on exit', evs === null, String(evs));
   check('no console errors', errors.length === 0, JSON.stringify(errors));
   console.log(JSON.stringify({ results, errors }, null, 2));
-} catch (e) { console.error('[wire] failed:', e.message); process.exitCode = 1; console.log(JSON.stringify({ results, errors })); }
+} catch (e) { console.error('[wire] failed:', e.stack ?? e.message, JSON.stringify(errors)); process.exitCode = 1; console.log(JSON.stringify({ results, errors })); }
 finally { clearTimeout(hardStop); await browser?.close(); preview.kill(); }
