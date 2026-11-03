@@ -1376,3 +1376,6 @@ MGR: stage3 check-in written (docs/swarm/checkins/stage3.md). In short: the user
 
 ### 2026-11-03T13:31:18Z · fable
 STAGE 4 START (GTA3 bar). Stage 3 closed with green gates; artifact v13 published; fresh 7-viewpoint capture in scratchpad/checkin5. Two lanes now: GTA3 (sonnet) closes the manager's GTA3 gaps (black square on the sidewalk, flat party walls, identical roofs, empty noon sidewalks, low-tier clutter); H4 (haiku) blind-tests the phone tier and the record shop + home decks on v13. SCRIBE is doing the final readable-transcript pass. A manager pass follows when these report.
+
+### 2026-11-03T13:31:26Z · GTA3
+GTA3 starting Stage 4. Plan: first I will identify and fix the black square on the spawn sidewalk, then add brick variants, soot and blind windows to party walls, vary roofs per lot, make pedestrian density follow the hourly curve with two idle behaviours, and verify rank-1 clutter shows on low. I will capture before and after frames under the render lock.
