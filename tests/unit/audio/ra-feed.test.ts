@@ -161,4 +161,64 @@ describe('nextSet', () => {
     expect(feed.playedCount).toBe(1);
     expect(new RaFeed({ fetch: null, storage: mem(), base: 'x' }).nextSet()).toBeNull();
   });
+
+  it('does not repeat the just-finished set as the first pick of a new round', async () => {
+    for (let k = 0; k < 20; k++) {
+      const feed = mk(fake({ perArtist: 1 }), mem(), NOW, () => 0);
+      await feed.ensure();
+      let last = '';
+      for (let i = 0; i < feed.size; i++) last = feed.nextSet()!.url;
+      expect(feed.nextSet()!.url).not.toBe(last);
+    }
+  });
+});
+
+describe('resilience', () => {
+  it('resumes after Retry-After has passed', async () => {
+    let t = NOW;
+    let limited = true;
+    const base = fake({ perArtist: 1 });
+    const fetch = async (u: string) => (limited && u.includes('/artist') ? res({}, 429, { 'Retry-After': '30' }) : base.fetch(u));
+    const feed = new RaFeed({ fetch, storage: mem(), now: () => t, base: 'http://api' });
+    await feed.ensure();
+    expect(feed.rateLimited).toBe(true);
+    const n = base.log.length;
+    t += 10_000;
+    await feed.ensure();
+    expect(base.log.length).toBe(n);
+    limited = false;
+    t += 25_000;
+    expect(feed.rateLimited).toBe(false);
+    await feed.ensure();
+    expect(base.log.length).toBeGreaterThan(n);
+    expect(feed.size).toBeGreaterThan(0);
+  });
+  it('defaults to 60 s without a Retry-After header', async () => {
+    const feed = new RaFeed({ fetch: async (u) => (u.includes('/events') ? fake().fetch(u) : res({}, 429)), storage: mem(), now: () => NOW, base: 'http://api' });
+    await feed.ensure();
+    expect(feed.retryAfterSeconds).toBe(60);
+  });
+  it('skips an artist whose lookup 404s or returns bad JSON and continues', async () => {
+    const base = fake({ perArtist: 2 });
+    let n = 0;
+    const fetch = async (u: string) => {
+      if (!u.includes('/artist')) return base.fetch(u);
+      n++;
+      if (n === 1) return res({}, 404);
+      if (n === 2) return { ok: true, status: 200, json: async () => { throw new Error('bad json'); } } as RaResponse;
+      return base.fetch(u);
+    };
+    const feed = new RaFeed({ fetch, storage: mem(), now: () => NOW, base: 'http://api' });
+    await feed.ensure();
+    expect(feed.size).toBeGreaterThan(0);
+    expect(feed.lookupsMade).toBe(8);
+  });
+  it('still stops on a network failure mid-build', async () => {
+    const base = fake({ perArtist: 2 });
+    let n = 0;
+    const fetch = async (u: string) => { if (u.includes('/artist') && ++n === 2) throw new Error('net'); return base.fetch(u); };
+    const feed = new RaFeed({ fetch, storage: mem(), now: () => NOW, base: 'http://api' });
+    await feed.ensure();
+    expect(feed.lookupsMade).toBe(2);
+  });
 });

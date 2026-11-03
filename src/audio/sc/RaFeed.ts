@@ -107,7 +107,8 @@ export class RaFeed {
   private lookups = 0;
   private tried = false;
   private failed = false;
-  private blocked = false;
+  private blockedUntil = 0;
+  private lastPlayed = '';
   private retryAfterMs = 0;
   private readonly listeners = new Set<() => void>();
   /** Counters for tests and the HUD. */
@@ -139,7 +140,8 @@ export class RaFeed {
   get sets(): readonly RaSet[] { return this.pool; }
   get lookupsMade(): number { return this.lookups; }
   /** True after a 429 this session (no further requests are made). */
-  get rateLimited(): boolean { return this.blocked; }
+  get rateLimited(): boolean { return this.isBlocked(); }
+  private isBlocked(): boolean { return this.env.now() < this.blockedUntil; }
   get retryAfterSeconds(): number { return this.retryAfterMs / 1000; }
   get base(): string { return this.env.base; }
 
@@ -152,9 +154,14 @@ export class RaFeed {
   nextSet(): RaSet | null {
     if (this.pool.length === 0) return null;
     let open = this.pool.filter((s) => !this.played.has(s.url));
-    if (open.length === 0) { this.played.clear(); open = this.pool.slice(); }
+    if (open.length === 0) {
+      this.played.clear();
+      open = this.pool.filter((p) => p.url !== this.lastPlayed);
+      if (open.length === 0) open = this.pool.slice();
+    }
     const s = open[Math.min(open.length - 1, Math.floor(this.env.random() * open.length))];
     this.played.add(s.url);
+    this.lastPlayed = s.url;
     this.persist();
     this.emit();
     return s;
@@ -171,7 +178,7 @@ export class RaFeed {
   ensure(): Promise<void> {
     if (this.inflight) return this.inflight;
     this.tried = true;
-    if (this.cacheUsable() || this.blocked || !this.env.fetch) {
+    if (this.cacheUsable() || this.isBlocked() || !this.env.fetch) {
       if (!this.env.fetch && this.pool.length === 0) this.failed = true;
       this.emit();
       return Promise.resolve();
@@ -195,24 +202,24 @@ export class RaFeed {
     });
   }
 
-  private async getJson(path: string): Promise<{ ok: true; data: unknown } | { ok: false }> {
+  private async getJson(path: string): Promise<{ ok: true; data: unknown } | { ok: false; fatal: boolean }> {
     const f = this.env.fetch;
-    if (!f) return { ok: false };
+    if (!f) return { ok: false, fatal: true };
     const ctl = typeof AbortController === 'function' ? new AbortController() : null;
     const timer = ctl ? setTimeout(() => ctl.abort(), RA_FETCH_TIMEOUT_MS) : null;
     try {
       const r = await f(`${this.env.base}${path}`, { headers: { Accept: 'application/json' }, signal: ctl?.signal });
       if (r.status === 429) {
-        this.blocked = true;
         const ra = Number(r.headers?.get('Retry-After'));
         this.retryAfterMs = Number.isFinite(ra) && ra > 0 ? ra * 1000 : 60000;
-        return { ok: false };
+        this.blockedUntil = this.env.now() + this.retryAfterMs;
+        return { ok: false, fatal: true };
       }
-      if (!r.ok) { this.failed = true; return { ok: false }; }
-      return { ok: true, data: await r.json() };
+      if (!r.ok) return { ok: false, fatal: false };
+      try { return { ok: true, data: await r.json() }; } catch { return { ok: false, fatal: false }; }
     } catch {
       this.failed = true;
-      return { ok: false };
+      return { ok: false, fatal: true };
     } finally {
       if (timer) clearTimeout(timer);
     }
@@ -222,12 +229,12 @@ export class RaFeed {
     type Cand = { id: string; name: string; eventTitle?: string; venue?: string };
     let artists: Cand[] = [];
     for (let attempt = 0; attempt < RA_EVENT_DAY_TRIES && artists.length === 0; attempt++) {
-      if (this.blocked || this.failed) return;
+      if (this.isBlocked() || this.failed) return;
       const back = Math.min(RA_DAYS_BACK - 1, Math.floor(this.env.random() * RA_DAYS_BACK));
       const date = nyDate(this.env.now() - back * 86400000);
       this.eventFetches++;
       const r = await this.getJson(`/events?date=${encodeURIComponent(date)}`);
-      if (!r.ok) return;
+      if (!r.ok) { if (!r.fatal) this.failed = true; return; }
       const events = (r.data as { events?: unknown })?.events;
       const seen = new Set<string>();
       if (Array.isArray(events)) {
@@ -250,10 +257,10 @@ export class RaFeed {
     artists = this.shuffle(artists);
     this.fetchedAt = this.env.now();
     for (const a of artists) {
-      if (this.unplayedCount >= RA_TARGET_SETS || this.lookups >= RA_MAX_LOOKUPS || this.blocked) break;
+      if (this.unplayedCount >= RA_TARGET_SETS || this.lookups >= RA_MAX_LOOKUPS || this.isBlocked()) break;
       this.lookups++;
       const r = await this.getJson(`/artist?id=${encodeURIComponent(a.id)}&name=${encodeURIComponent(a.name)}`);
-      if (!r.ok) break;
+      if (!r.ok) { if (r.fatal || this.isBlocked()) break; continue; }
       const sets = filterSets((r.data as { sets?: unknown })?.sets);
       for (const s of sets) this.add({ url: s.url, title: s.title, dj: a.name, duration: s.duration, artistId: a.id, eventTitle: a.eventTitle, venue: a.venue });
       this.persist();
