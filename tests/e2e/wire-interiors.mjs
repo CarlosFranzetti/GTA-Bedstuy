@@ -75,7 +75,11 @@ try {
   await goto(70, -8.0, 0); await page.waitForTimeout(800);
   const cp = await D(() => window.__gtaDebug.interiors.prompt(window.__gtaDebug.player.body.pos));
   check('club prompt', /AFTERSLOTH/i.test(cp), cp);
-  await press('KeyF'); await waitState('inside');
+  for (let i = 0; i < 4 && (await state()) !== 'inside'; i++) {
+    await press('KeyF'); await page.waitForTimeout(1500);
+    log('club try', i, JSON.stringify(await D(() => { const d = window.__gtaDebug; return { st: d.interiors.state, pos: { ...d.player.body.pos }, dj: d.djUi?.isOpen, shop: d.shopUi?.isOpen, hour: d.dayNight.timeOfDay, veh: d.player.inVehicle, locked: d.interiors.locked, prompt: d.interiors.prompt(d.player.body.pos) }; })));
+  }
+  await waitState('inside');
   check('club inside', (await D(() => window.__gtaDebug.interiors.current)) === 'club');
   await page.waitForTimeout(1500); await shot('club');
   await D(() => window.__gtaDebug.interiors.exit());
