@@ -36,7 +36,15 @@ export function makeVehicle(
 /** Entities + World2D stepped like main.ts does. */
 export class Sim {
   constructor(readonly world: World2D = new World2D(12)) {}
-  readonly entities = new Map<string, Entity & { update(dt: number): void }>();
+  /** Like main.ts: a Player registered here gets the world's static query for choosing a free exit spot. */
+  readonly entities = new (class extends Map<string, Entity & { update(dt: number): void }> {
+    constructor(private readonly w: () => World2D) { super(); }
+    override set(k: string, v: Entity & { update(dt: number): void }): this {
+      const pl = v as unknown as { blockedAt?: ((p: { x: number; z: number }, r: number) => boolean) | null };
+      if (pl && 'blockedAt' in pl) pl.blockedAt = (p, r) => this.w().overlapsStatic(p, r);
+      return super.set(k, v);
+    }
+  })(() => this.world);
   contactsLastStep: Contact[] = [];
   time = 0;
 

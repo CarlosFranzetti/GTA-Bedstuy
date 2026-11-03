@@ -15,8 +15,9 @@ fixed most of that. The user also asked for Radio SC to play random DJ sets of a
 works (RASC), with one data unit still to confirm.
 
 **Gates at close** (HEAD b603440): tsc clean; vitest 112 files, **1750 pass and 1 fail**; build ok; artifact 9.60 MB of 12; headless
-smoke `errors: []` at low (265 draw calls) and medium (321). The phone-tier smoke was still waiting for the render lock when this was
-written. The one failing test is a real regression and is described in §5.
+smoke `errors: []` at low (265 draw calls) and medium (321), and at phone `errors: []` but **209 draw calls and 815k triangles**,
+well over the phone budget of 120 and 500k that MOB met in Stage 3 (83–114, 259k–425k). The one failing test is a real regression
+and is described in §5.
 
 ## 2. Per-lane outcomes
 
@@ -92,7 +93,9 @@ phone (the harness refused the P key), and ended beside a box truck that offered
 4. Ladder: box truck texture, two wall-facing viewpoints, far skyline, pop-in check (§3).
 5. Neither H4's nor H5's path has been replayed blind on the fixed build; the shop and decks remain untested by a tester.
 6. Final reports and reviews still owed by WIRE and CLUTTER, and GTA3 and GFX never posted theirs in the transcript.
-7. The phone-tier smoke at close was still queued behind the render lock.
+7. **Phone budget regression**: the phone smoke at close reads 209 draw calls and 815k triangles at the spawn view (budget ≤ 120 and
+   ≤ 500k). Likely sources are the Stage 4 additions that reach the phone tier (pedestrian models, party-wall and roof detail, clutter,
+   PHONEGFX's shadows and LUT work in progress); PHONEGFX and GTA3 should measure the seven viewpoints at `?q=phone` and bring it back.
 8. Carried from Stage 3: realistic cars blocked by licensing and network; real map data blocked; light baselines incomplete.
 
 ## 6. What went well and what did not
@@ -105,7 +108,7 @@ done from disk. A short template (files, tests run, numbers, what is not done) w
 
 ## 7. Stage 5 list, toward GTA4
 
-1. **Fix PT4-13** and get the gate green; then run a blind replay of H4's and H5's paths on the fixed build (shop, decks, Crate Digger, Laundromat).
+1. **Fix PT4-13** and get the gate green; bring the phone tier back under 120 draw calls and 500k triangles; then run a blind replay of H4's and H5's paths on the fixed build (shop, decks, Crate Digger, Laundromat).
 2. **Finish GTA3**: box truck and other flat vehicle bodies through CARS2's lofted cars; move the two corner viewpoints; far skyline; pop-in check.
 3. **Feel lanes now running** and to be reviewed as they land: CARS2 (real-proportion procedural cars), CAM (lower, closer GTA-style
    camera, look-back, idle cinematic), ART (warmer grade, cloud sky, baked AO), PHONEGFX (blob shadows and a small sun shadow on phone).

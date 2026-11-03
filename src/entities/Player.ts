@@ -201,8 +201,8 @@ export class Player implements Entity {
     const cands: Array<{ side: Vec2; d: number }> = [
       { side: left, d: off }, { side: { x: -left.x, z: -left.z }, d: off }, { side: { x: -f.x, z: -f.z }, d: offEnd }, { side: f, d: offEnd },
     ];
-    if (this.enteredFar && !this.blockedAt) cands.unshift(cands.splice(1, 1)[0]); // no world query: leave on the side we came in from
-    let pick = cands[0];
+    let pick = this.enteredFar ? cands[1] : cands[0]; // fallback (no world query, or every spot blocked): the side we came in from
+    if (this.enteredFar && !this.blockedAt) cands.unshift(cands.splice(1, 1)[0]);
     if (this.blockedAt) {
       for (const c of cands) {
         if (!this.blockedAt({ x: v.body.pos.x + c.side.x * c.d, z: v.body.pos.z + c.side.z * c.d }, FOOT_RADIUS)) { pick = c; break; }

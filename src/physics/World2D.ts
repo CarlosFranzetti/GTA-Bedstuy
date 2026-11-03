@@ -378,6 +378,20 @@ export class World2D implements IWorld2D {
     return out;
   }
 
+  /** True when a circle at `center` overlaps any STATIC body (wall, tree, pole). For spawn / exit spot checks. */
+  overlapsStatic(center: Vec2, r: number): boolean {
+    const cand = this.cand;
+    cand.length = 0;
+    this.staticHash.query(center.x - r, center.z - r, center.x + r, center.z + r, ++this.stamp, cand);
+    const probe = this.probe;
+    probe.pos.x = center.x; probe.pos.z = center.z;
+    (probe.shape as Circle).r = r;
+    let hit = false;
+    for (let i = 0; i < cand.length && !hit; i++) hit = overlapRaw(probe, cand[i].body) !== null;
+    cand.length = 0;
+    return hit;
+  }
+
   /**
    * Like `raycast` but only STATIC bodies (walls, trees, poles) can be hit: vehicles and pedestrians are
    * ignored. Used by the camera so a parked car or a passer-by never pulls it in.
