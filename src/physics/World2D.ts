@@ -387,7 +387,11 @@ export class World2D implements IWorld2D {
     probe.pos.x = center.x; probe.pos.z = center.z;
     (probe.shape as Circle).r = r;
     let hit = false;
-    for (let i = 0; i < cand.length && !hit; i++) hit = overlapRaw(probe, cand[i].body) !== null;
+    for (let i = 0; i < cand.length && !hit; i++) {
+      const c = cand[i];
+      if (!c.isStatic || c.minX > center.x + r || c.maxX < center.x - r || c.minZ > center.z + r || c.maxZ < center.z - r) continue;
+      hit = overlapRaw(probe, c.body) !== null;
+    }
     cand.length = 0;
     return hit;
   }

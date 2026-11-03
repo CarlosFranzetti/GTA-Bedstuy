@@ -46,6 +46,8 @@ const TURN_SMOOTH = 16;
 const ENTER_TIME = 0.4;
 /** Standing clearance outside the body flank after exiting, beyond the foot radius. */
 const EXIT_GAP = 0.15;
+/** Extra metres tried beyond the usual exit spot when a wall or prop blocks every side of the car. */
+const EXIT_SEARCH_EXTRA = [0, 0.6, 1.2, 1.8, 2.4, 3];
 /** Collision radius while seated in a vehicle (effectively no collision footprint). */
 const SEATED_RADIUS = 0.01;
 
@@ -204,8 +206,12 @@ export class Player implements Entity {
     let pick = this.enteredFar ? cands[1] : cands[0]; // fallback (no world query, or every spot blocked): the side we came in from
     if (this.enteredFar && !this.blockedAt) cands.unshift(cands.splice(1, 1)[0]);
     if (this.blockedAt) {
-      for (const c of cands) {
-        if (!this.blockedAt({ x: v.body.pos.x + c.side.x * c.d, z: v.body.pos.z + c.side.z * c.d }, FOOT_RADIUS)) { pick = c; break; }
+      // driver side first, then passenger side, rear, front; if all four are blocked, try again a little further out
+      search: for (const extra of EXIT_SEARCH_EXTRA) {
+        for (const c of cands) {
+          const d = c.d + extra;
+          if (!this.blockedAt({ x: v.body.pos.x + c.side.x * d, z: v.body.pos.z + c.side.z * d }, FOOT_RADIUS)) { pick = { side: c.side, d }; break search; }
+        }
       }
     }
     const away = pick.side;

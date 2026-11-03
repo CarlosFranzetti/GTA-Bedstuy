@@ -210,7 +210,7 @@ const ART_GLSL_BODY = /* glsl */ `
 				float base = artF( cuv * 1.1, artQuality > 0.5 ? 4 : 3 );
 				float n = base;
 				if ( artQuality > 0.5 ) n = base * 0.72 + artF( cuv * 4.3 + base * 1.5, 3 ) * 0.28;
-				float thr = 1.0 - artCover;
+				float thr = 0.74 - artCover * 0.58;
 				float m = smoothstep( thr, thr + 0.2, n );
 				float lit = 0.62;
 				if ( artQuality > 0.5 ) {
@@ -222,7 +222,7 @@ const ART_GLSL_BODY = /* glsl */ `
 				vec3 ccol = mix( artShade, artLit, lit * ( 1.0 - 0.55 * core ) + 0.12 );
 				ccol += artLit * 0.3 * ( m * ( 1.0 - m ) * 4.0 ) * pow( max( artCs, 0.0 ), 5.0 );
 				ccol = min( ccol, vec3( SKY_MAX_RADIANCE ) );
-				artAlpha = clamp( m * artDensity * smoothstep( 0.015, 0.2, direction.y ), 0.0, 1.0 );
+				artAlpha = clamp( m * artDensity * smoothstep( 0.015, 0.1, direction.y ), 0.0, 1.0 );
 				texColor = mix( texColor, ccol, artAlpha );
 			}
 			// sun disc + glow, hidden behind cloud and below the horizon

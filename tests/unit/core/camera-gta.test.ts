@@ -168,3 +168,20 @@ describe('mission letterbox', () => {
     expect(c.letterboxAmount).toBe(0);
   });
 });
+
+describe('rig scales with the vehicle', () => {
+  const settle = (spec?: { length: number; height: number }) => {
+    const c = new ThirdPersonCamera(); c.pitch = 0;
+    for (let i = 0; i < 300; i++) c.update(DT, T, 0, 'vehicle', fake(), { vehicle: { speed: 0, spec } });
+    return c;
+  };
+  it('sedan keeps 4.6 m / 1.7 m; box truck (7 x 3.2 m) sits back and high enough to see over its roof', () => {
+    const sedan = settle({ length: 4.6, height: 1.4 });
+    expect(sedan.camera.position.z).toBeCloseTo(4.6, 1);
+    expect(sedan.camera.position.y).toBeCloseTo(1.7, 1);
+    const truck = settle({ length: 7, height: 3.2 });
+    expect(truck.camera.position.z).toBeCloseTo(7, 1);
+    expect(truck.camera.position.y).toBeGreaterThan(3.2);
+    expect(truck.camera.position.y).toBeLessThan(4);
+  });
+});

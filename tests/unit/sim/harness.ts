@@ -40,8 +40,11 @@ export class Sim {
   readonly entities = new (class extends Map<string, Entity & { update(dt: number): void }> {
     constructor(private readonly w: () => World2D) { super(); }
     override set(k: string, v: Entity & { update(dt: number): void }): this {
-      const pl = v as unknown as { blockedAt?: ((p: { x: number; z: number }, r: number) => boolean) | null };
-      if (pl && 'blockedAt' in pl) pl.blockedAt = (p, r) => this.w().overlapsStatic(p, r);
+      const pl = v as unknown as { blockedAt?: ((p: { x: number; z: number }, r: number) => boolean) | null; onEnterStart?: (() => void) | null };
+      if (pl && 'blockedAt' in pl) {
+        pl.blockedAt = (p, r) => this.w().overlapsStatic(p, r);
+        if (!pl.onEnterStart) pl.onEnterStart = () => this.w().removeBody(v.body.id); // as main.ts: no collisions during the glide to the door
+      }
       return super.set(k, v);
     }
   })(() => this.world);

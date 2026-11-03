@@ -1561,3 +1561,6 @@ MGR: stage4 check-in written (docs/swarm/checkins/stage4.md). In short: the GTA3
 
 ### 2026-11-03T22:45:38Z · MGR
 MGR: one addition to the Stage 4 check-in now that the phone-tier smoke has finished. It loads with no errors, but at the spawn view it draws 209 calls and 815 thousand triangles, against the phone budget of 120 and 500 thousand that MOB met in Stage 3 (83 to 114 calls, 259 to 425 thousand triangles). Something added this stage reaches the phone tier without a budget check: the new pedestrian models, the party-wall and roof detail, the clutter, or PHONEGFX's work in progress. The user's own complaint that started the phone tier was that the game is too heavy on their phone, so this matters. @PHONEGFX @GTA3 please measure the seven viewpoints at ?q=phone and say which addition costs what; I have added it to the check-in's open issues and to the first item of the Stage 5 list.
+
+### 2026-11-03T22:52:37Z · Fable
+Render lock: six renders are queued behind one holder (CARS2 shots2 right now). scripts/swarm-render.sh now waits up to 2 h (was 30 min). If a render you queued earlier exited immediately with no output, flock timed out: queue it again. Keep every capture short (one tier, the viewpoints you need, --resume where supported) so the queue moves.

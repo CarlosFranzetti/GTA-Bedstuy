@@ -15,7 +15,7 @@ export interface CameraContext {
   /** Static geometry to keep the camera out of (defaults to `camera.world`). */
   world?: CameraWorld | null;
   /** The vehicle being driven: its `speed` widens the view and its `shakeRequested` is consumed (read, then zeroed). */
-  vehicle?: { readonly speed: number; shakeRequested?: number } | null;
+  vehicle?: { readonly speed: number; shakeRequested?: number; readonly spec?: { readonly length: number; readonly height: number } } | null;
   /** Speed in m/s when no vehicle object is at hand. */
   speed?: number;
 }
@@ -36,6 +36,7 @@ const MIN_CAM_Y = 0.4;
 /** Pivot offsets: the camera orbits a point `look` m above the ground at the car's roof centre / the player's head. */
 export const CAM_FOOT = { distance: 3.2, height: 1.55, look: 1.4, fov: 64, shoulder: 0.35 };
 export const CAM_VEHICLE = { distance: 4.6, height: 1.7, look: 1.3, fov: 70, fovTop: 82 };
+const SEDAN = { length: 4.6, height: 1.45 };
 /** Extra pull-back (m) at top speed, so the road ahead opens up. */
 const SPEED_DISTANCE = 0.9;
 const SPEED_FULL = 30;
@@ -258,7 +259,12 @@ export class ThirdPersonCamera {
     const speed = vehicleMode ? Math.abs(veh ? veh.speed : ctx?.speed ?? 0) : 0;
     this.speedN += (clamp(speed / SPEED_FULL, 0, 1) - this.speedN) * kSpeed;
 
-    const rig = vehicleMode ? CAM_VEHICLE : CAM_FOOT;
+    // Bigger vehicles (box truck, van) scale the rig so the road ahead shows over their roof; a sedan (4.6 x 1.4) is unchanged.
+    const extraLen = vehicleMode && veh?.spec ? Math.max(0, veh.spec.length - SEDAN.length) : 0;
+    const extraH = vehicleMode && veh?.spec ? Math.max(0, veh.spec.height - SEDAN.height) : 0;
+    const rig = vehicleMode
+      ? { distance: CAM_VEHICLE.distance + extraLen, height: CAM_VEHICLE.height + extraH, look: CAM_VEHICLE.look + 0.9 * extraH }
+      : CAM_FOOT;
     const wantDistance = (rig.distance + (vehicleMode ? SPEED_DISTANCE * this.speedN : 0)) * (1 + CINE_ZOOM * this.cineBlend);
     this.distance += (wantDistance - this.distance) * k;
     this.height += (rig.height - this.height) * k;
