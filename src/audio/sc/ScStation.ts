@@ -7,12 +7,18 @@
  * within 8 s (offline, artifact sandbox blocking third-party iframes) the station falls back to a procedural bed
  * and shows FAILED_NAME. Like the other stations it keeps a virtual clock (`update(dt)` in game time) so tuning
  * in resumes mid-mix via seekTo.
+ *
+ * Sources: a pool of random 45-minute-plus DJ sets from the player's ra-nyc app (see ./RaFeed.ts), interleaved with
+ * the links the player pasted. The pool is fetched only after the first tune-in; if it is unreachable the station
+ * behaves exactly as it did with pasted links only (or the synth bed when there are none).
  */
+
+import { RaFeed, type RaSet, type RaStatus } from './RaFeed';
 
 export const SC_STORAGE_KEY = 'gta-bedstuy.radio.sc.v1';
 export const SC_STATION_NAME = 'Radio SC';
 export const SC_FAILED_NAME = 'Radio SC (needs the hosted build / internet)';
-export const SC_EMPTY_HINT = 'Add SoundCloud links in the Radio library';
+export const SC_EMPTY_HINT = 'No sets yet: check your connection or add SoundCloud links in the Radio library';
 export const SC_API_URL = 'https://w.soundcloud.com/player/api.js';
 export const SC_LOAD_TIMEOUT_MS = 8000;
 export const SC_MAX_MIXES = 40;
@@ -56,7 +62,12 @@ export function inPreferredHours(hour: number): boolean {
 
 export interface ScMix { url: string; afterhours?: boolean }
 
-export interface ScStorage { load(): ScMix[] | null; save(m: ScMix[]): void }
+export interface ScStorage {
+  load(): ScMix[] | null;
+  save(m: ScMix[], opts?: { ra?: boolean }): void;
+  /** The "Random RA sets" checkbox (default on). */
+  loadRa?(): boolean | null;
+}
 
 export function localScStorage(key = SC_STORAGE_KEY): ScStorage {
   return {
@@ -74,8 +85,16 @@ export function localScStorage(key = SC_STORAGE_KEY): ScStorage {
         return out;
       } catch { return null; }
     },
-    save(mixes) {
-      try { globalThis.localStorage?.setItem(key, JSON.stringify({ v: 1, mixes })); } catch { /* blocked or full */ }
+    save(mixes, opts) {
+      try { globalThis.localStorage?.setItem(key, JSON.stringify({ v: 1, mixes, ra: opts?.ra !== false })); } catch { /* blocked or full */ }
+    },
+    loadRa() {
+      try {
+        const raw = globalThis.localStorage?.getItem(key);
+        if (!raw) return null;
+        const j = JSON.parse(raw) as { ra?: unknown };
+        return typeof j?.ra === 'boolean' ? j.ra : null;
+      } catch { return null; }
     },
   };
 }
@@ -109,6 +128,9 @@ export interface ScEnv {
   hour: () => number;
   storage: ScStorage | null;
   timeoutMs: number;
+  /** Random DJ sets from ra-nyc; null disables the pool. */
+  feed: RaFeed | null;
+  random: () => number;
 }
 
 function defaultLoadApi(): Promise<ScApi> {
@@ -136,6 +158,8 @@ function defaultEnv(): ScEnv {
     hour: () => new Date().getHours(),
     storage: localScStorage(),
     timeoutMs: SC_LOAD_TIMEOUT_MS,
+    feed: new RaFeed(),
+    random: Math.random,
   };
 }
 
@@ -158,6 +182,14 @@ export class ScStation {
   private frame: HTMLIFrameElement | null = null;
   private loadedUrl = '';
   private index = 0;
+  /** The current RA pool set, or null while a pasted link (list[index]) is current. */
+  private curSet: RaSet | null = null;
+  private picked = false;
+  private lastWasPool: boolean | null = null;
+  private raOn = true;
+  private errStreak = 0;
+  private prefetched = false;
+  private noSourceAt = 0;
   /** Virtual position inside the current mix, seconds. */
   private pos = 0;
   private duration = 0;
@@ -177,7 +209,32 @@ export class ScStation {
   constructor(env: Partial<ScEnv> = {}) {
     this.env = { ...defaultEnv(), ...env };
     this.list = this.env.storage?.load() ?? [];
+    this.raOn = this.env.storage?.loadRa?.() ?? true;
+    this.env.feed?.onChange(() => {
+      this.listeners.forEach((fn) => fn());
+      // The pool arrived after the first tune-in gave up waiting: start playing it now.
+      if (this.active && this.state === 'idle' && this.picked === false && (this.env.feed?.unplayedCount ?? 0) > 0) this.tuneIn();
+    });
   }
+
+  /* ---------- RA pool ---------- */
+
+  get feed(): RaFeed | null { return this.env.feed; }
+  /** The "Random RA sets" setting. */
+  get randomSets(): boolean { return this.raOn && !!this.env.feed; }
+  setRandomSets(on: boolean): void {
+    if (on === this.raOn) return;
+    this.raOn = on;
+    if (!on && this.curSet) { this.pickNext(); this.pos = 0; this.sync(); }
+    this.changed();
+  }
+  get raStatus(): RaStatus { return this.env.feed?.status ?? 'unavailable'; }
+  /** Pool sets loaded and how many of them were heard this round. */
+  get raCounts(): { loaded: number; heard: number } { return { loaded: this.env.feed?.size ?? 0, heard: this.env.feed?.playedCount ?? 0 }; }
+  private get poolAvailable(): boolean { return this.randomSets && this.env.feed!.status !== 'unavailable'; }
+  /** True when anything could play: pasted links or a reachable pool. */
+  get hasSources(): boolean { return this.list.length > 0 || this.poolAvailable; }
+  private currentUrl(): string | undefined { return this.curSet?.url ?? this.list[this.index]?.url; }
 
   /* ---------- mix list ---------- */
 
@@ -199,7 +256,7 @@ export class ScStation {
     if (i < 0 || i >= this.list.length) return;
     this.list.splice(i, 1);
     if (i < this.index) this.index--;
-    else if (i === this.index) this.pos = 0;
+    else if (i === this.index && !this.curSet) this.pos = 0;
     if (this.index >= this.list.length) this.index = 0;
     this.changed();
     this.sync();
@@ -222,7 +279,7 @@ export class ScStation {
   }
 
   private changed(): void {
-    this.env.storage?.save(this.list.map((m) => ({ ...m })));
+    this.env.storage?.save(this.list.map((m) => ({ ...m })), { ra: this.raOn });
     this.listeners.forEach((fn) => fn());
   }
 
@@ -244,13 +301,21 @@ export class ScStation {
   get isActive(): boolean { return this.active; }
   /** True when the dial should play the procedural bed instead of a mix. */
   get usingBed(): boolean {
-    return this.list.length === 0 || this.state === 'failed' || this.bad.size >= this.list.length;
+    if (!this.hasSources || this.state === 'failed') return true;
+    return !this.poolAvailable && this.list.every((m) => this.bad.has(m.url));
   }
   get stationName(): string { return this.state === 'failed' ? SC_FAILED_NAME : SC_STATION_NAME; }
-  get nowPlaying(): NowPlaying | null { return this.now; }
-  /** HUD line: "Title - user", a hint when empty, or '' while loading. */
+  get nowPlaying(): NowPlaying | null {
+    if (this.curSet) return { title: this.curSet.title, user: this.curSet.dj || this.now?.user || '' };
+    return this.now;
+  }
+  /** HUD line: "Set title — DJ" for pool sets, "Title - user" for pasted links, a hint when empty, '' while loading. */
   get trackName(): string {
-    if (this.list.length === 0) return SC_EMPTY_HINT;
+    if (!this.hasSources) return SC_EMPTY_HINT;
+    if (this.curSet) {
+      const dj = this.curSet.dj || this.now?.user || '';
+      return dj ? `${this.curSet.title} \u2014 ${dj}` : this.curSet.title;
+    }
     if (this.now) return this.now.user ? `${this.now.title} - ${this.now.user}` : this.now.title;
     return '';
   }
@@ -280,7 +345,7 @@ export class ScStation {
 
   /** Advances the virtual clock (game time). */
   update(dt: number): void {
-    if (this.paused || !(dt > 0) || this.list.length === 0) return;
+    if (this.paused || !(dt > 0) || (this.list.length === 0 && !this.curSet)) return;
     this.pos += dt;
     if (!this.active && this.duration > 0 && !this.isSet && this.pos >= this.duration) {
       // The mix "ended" while the player listened to something else: move on without touching the widget.
@@ -289,25 +354,66 @@ export class ScStation {
     }
   }
 
-  /** Skips to the next mix in the list. */
+  /** Skips to the next mix (a random pool set and/or the next pasted link). */
   next(): void {
-    if (this.list.length === 0) return;
+    if (!this.hasSources) return;
     this.step(true);
     this.onBetweenMixes?.();
   }
 
   private step(play: boolean): void {
-    this.index = (this.index + 1) % this.list.length;
+    this.pickNext();
     if (play) this.pos = 0;
-    this.duration = 0;
-    this.isSet = false;
     this.now = null;
     if (play) this.sync();
   }
 
+  /**
+   * Chooses the next item: pool and pasted links alternate (random first pick) when both exist; at the start of a
+   * session the after-hours preference decides between 23:00 and 06:00. Pasted links keep list order.
+   */
+  private pickNext(first = false): void {
+    const feed = this.env.feed;
+    const listOk = this.list.some((m) => !this.bad.has(m.url));
+    const poolOk = this.randomSets && !!feed && feed.size > 0;
+    let wantPool = poolOk;
+    if (poolOk && listOk) {
+      const night = first && inPreferredHours(this.gameHour ?? this.env.hour()) && this.list.some((m) => m.afterhours);
+      wantPool = night ? false : this.lastWasPool === null ? this.env.random() < 0.5 : !this.lastWasPool;
+    }
+    this.duration = 0;
+    this.isSet = false;
+    this.prefetched = false;
+    if (wantPool && feed) {
+      for (let tries = 0; tries < 5; tries++) {
+        const s = feed.nextSet();
+        if (!s) break;
+        if (this.bad.has(s.url)) continue;
+        this.curSet = s;
+        this.picked = true;
+        this.duration = s.duration;
+        this.lastWasPool = true;
+        return;
+      }
+    }
+    this.curSet = null;
+    if (this.list.length > 0) {
+      if (first) this.index = this.pickFirstIndex();
+      else {
+        let n = this.list.length;
+        do { this.index = (this.index + 1) % this.list.length; } while (--n > 0 && this.bad.has(this.list[this.index].url));
+      }
+      this.lastWasPool = false;
+      this.picked = true;
+    }
+  }
+
   private tuneIn(): void {
-    if (this.list.length === 0) return;
-    if (!this.sessionStarted) { this.sessionStarted = true; this.index = this.pickFirstIndex(); this.pos = 0; }
+    if (!this.hasSources) {
+      // Pool unreachable and no pasted links: retry the pool on a later tune-in (rate-limited like a failed widget).
+      if (!(this.randomSets && this.state !== 'loading' && this.env.now() - this.noSourceAt >= 30000)) return;
+    }
+    if (!this.sessionStarted) { this.sessionStarted = true; this.pos = 0; }
     if (this.state === 'failed') {
       if (this.env.now() - this.failedAt < 30000) return;
       this.state = 'idle';
@@ -323,10 +429,15 @@ export class ScStation {
     this.state = 'loading';
     try {
       this.apiLoads++;
-      const api = await withTimeout(this.env.loadApi(), this.env.timeoutMs);
+      const feed = this.randomSets ? this.env.feed : null;
+      // The pool starts loading now (never before the first tune-in). With no pasted links, wait for the first set.
+      if (feed) void feed.ensure();
+      const poolReady = feed && this.list.length === 0 && feed.size === 0 ? withTimeout(feed.whenUsable(), this.env.timeoutMs).catch(() => undefined) : Promise.resolve();
+      const [api] = await Promise.all([withTimeout(this.env.loadApi(), this.env.timeoutMs), poolReady]);
       this.api = api;
-      const url = this.list[this.index]?.url;
-      if (!url) { this.state = 'idle'; return; }
+      if (!this.picked) this.pickNext(true);
+      const url = this.currentUrl();
+      if (!url || !this.hasSources) { this.state = 'idle'; this.noSourceAt = this.env.now(); this.listeners.forEach((fn) => fn()); return; }
       const frame = this.makeFrame(doc, widgetSrc(url));
       this.frame = frame;
       this.loadedUrl = url;
@@ -372,13 +483,20 @@ export class ScStation {
   private bindEvents(api: ScApi, w: ScWidget): void {
     w.bind(ev(api, 'PLAY_PROGRESS', 'playProgress'), (e) => {
       if (e && typeof e.currentPosition === 'number') this.pos = e.currentPosition / 1000;
+      // About five minutes left: top the pool up in the background so the next pick never waits.
+      const feed = this.env.feed;
+      if (!this.prefetched && feed && this.randomSets && this.duration > 0 && this.duration - this.pos <= 300 && feed.unplayedCount < 4) {
+        this.prefetched = true;
+        void feed.ensure();
+      }
     });
-    w.bind(ev(api, 'PLAY', 'play'), () => this.learn(w));
+    w.bind(ev(api, 'PLAY', 'play'), () => { this.errStreak = 0; this.learn(w); });
     w.bind(ev(api, 'ERROR', 'error'), () => {
-      const u = this.list[this.index]?.url;
+      const u = this.currentUrl();
       if (u) this.bad.add(u);
       this.listeners.forEach((fn) => fn());
-      if (this.bad.size < this.list.length) this.step(true);
+      if (++this.errStreak >= 5) { this.teardown(); this.fail(); return; }
+      if (this.hasSources && !this.usingBed) this.step(true);
     });
     w.bind(ev(api, 'FINISH', 'finish'), () => {
       const advance = () => { this.step(true); this.onBetweenMixes?.(); };
@@ -400,7 +518,7 @@ export class ScStation {
   /** Makes the widget match the list position (load another mix if needed). */
   private sync(): void {
     if (this.state !== 'ready' || !this.widget || !this.active) return;
-    const url = this.list[this.index]?.url;
+    const url = this.currentUrl();
     if (!url) { this.widget.pause(); return; }
     if (url !== this.loadedUrl) {
       this.loadedUrl = url;

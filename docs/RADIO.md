@@ -72,7 +72,28 @@ official embedded player (the HTML5 Widget API: a hidden `w.soundcloud.com/playe
 never downloads audio and never calls any other SoundCloud endpoint, and playback follows SoundCloud's terms and
 each artist's own settings (a mix whose owner disabled embedding will not play).
 
-**The list is empty by default. Paste the SoundCloud links you like**: open the pause menu, Radio library, and use
+**Random RA NYC sets (default).** Radio SC plays random DJ sets from your own ra-nyc app
+(`https://ra-nyc.vercel.app/api`). On the first tune-in it picks a random New York day from the last 21 days,
+reads `GET /events?date=YYYY-MM-DD`, collects the distinct artists on those lineups, shuffles them and looks them up
+one at a time with `GET /artist?id=<ra id>&name=<name>` until the pool holds 12 unplayed sets or 8 lookups were made
+this session. Only `provider === 'soundcloud'` sets with `duration >= 2700 s` (45 minutes) are kept; a null duration,
+Mixcloud and archive sets are dropped (the server filters too, the client enforces it again). The HUD reads
+"set title — DJ" (the DJ name is the one RA lists). Order is random with no repeats until every set in the pool has
+been heard, then the round resets. When about 5 minutes of a set remain and fewer than 4 unplayed sets are left, the
+pool is topped up in the background. The pool (cap 80, deduped by URL) and the played list are cached in
+`localStorage` under `gta-bedstuy.radio.ra.v1`; a cache younger than 24 h with at least 6 unplayed sets is reused
+without any network call. A 429 stops all further lookups for the session (Retry-After is recorded, never retried
+in the session). The pause menu's Radio library shows "Random RA NYC sets: n loaded, m heard" (or "unavailable"),
+with a "Random RA sets" checkbox (saved with the list) to keep only your own links. If you also pasted links, they
+alternate with the pool at random; the 45-minute rule applies to pool sets only.
+
+Where the API is read from: the hosted build uses the same-origin proxy `/ra-api` (a `vercel.json` rewrite to
+`https://ra-nyc.vercel.app/api/:path*`, so no CORS is involved). Anywhere else (dev, the single-file artifact) it calls
+`https://ra-nyc.vercel.app/api` directly, which only works if ra-nyc sends `Access-Control-Allow-Origin` for the
+page's origin; otherwise the request is blocked, the Library says "unavailable" and the station falls back to pasted
+links or the synth bed. For testing, set `localStorage['gta-bedstuy.radio.ra.base']` to another base URL.
+
+**Your own links.** The list can stay empty, or paste the SoundCloud links you like: open the pause menu, Radio library, and use
 the Radio SC section at the top. Add a track or playlist/set link (`https://soundcloud.com/artist/mix`), reorder
 with the arrows, remove with x, press Test to check that a link loads, and Next mix to skip. Only `soundcloud.com`
 links are accepted. The list is saved on this device in `localStorage` under `gta-bedstuy.radio.sc.v1`.
@@ -83,13 +104,13 @@ How it behaves:
   build or when the browser reports it is online.
 - If the player is not ready within 8 seconds (offline, or a sandbox that blocks third-party iframes, such as the
   artifact preview), the station shows "Radio SC (needs the hosted build / internet)" and plays its procedural
-  synth bed instead. It retries on a later tune-in (at least 30 s apart). With an empty list it plays the bed and
-  the HUD says to add links.
+  synth bed instead. It retries on a later tune-in (at least 30 s apart). With no pasted links and no reachable RA pool it plays the bed and
+  the HUD says "No sets yet: check your connection or add SoundCloud links in the Radio library".
 - The game's master x radio volume maps to the widget volume (0 to 100); pausing the game, leaving the car or
   muting pauses or silences the widget.
 - Like the other stations it keeps a virtual clock: tune away and back and it seeks to where the mix "would be".
   A playlist/set follows SoundCloud's own track order and is not seeked.
-- The HUD shows "Title - user" from the widget. A short synth "Radio S C" jingle plays on tune-in and between mixes.
+- The HUD shows "set title — DJ" for RA sets and "Title - user" (from the widget) for pasted links. A short synth "Radio S C" jingle plays on tune-in and between mixes.
 - Dayparting stub: tick the after-hours box on a mix (for example a late-night set). Between 23:00 and 06:00 the
   first mix of a session is the first after-hours one; otherwise the first in the list. The hour comes from the
   device clock.

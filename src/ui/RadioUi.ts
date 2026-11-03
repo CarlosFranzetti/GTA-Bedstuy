@@ -33,6 +33,7 @@ export class RadioUi {
   private readonly sc: ScStation | null;
   private scList: HTMLElement | null = null;
   private scMsg: HTMLElement | null = null;
+  private scRaStatus: HTMLElement | null = null;
   private scInput: HTMLInputElement | null = null;
   private readonly status: HTMLElement;
   private readonly fileInput: HTMLInputElement;
@@ -174,10 +175,20 @@ export class RadioUi {
     const testBtn = this.button('Test link', 'rl-btn rl-sc-test');
     const nextBtn = this.button('Next mix', 'rl-btn rl-sc-next');
     row.append(input, add, testBtn, nextBtn);
+    const raRow = this.el('label', 'rl-sc-ra');
+    const raBox = this.el('input', 'rl-sc-ra-toggle');
+    raBox.type = 'checkbox';
+    raBox.checked = sc.randomSets;
+    raBox.addEventListener('change', () => { sc.setRandomSets(raBox.checked); this.renderSc(); });
+    const raTxt = this.el('span', 'rl-sc-ra-label');
+    raTxt.textContent = ' Random RA sets';
+    raRow.append(raBox, raTxt);
+    this.scRaStatus = this.el('p', 'rl-status rl-sc-ra-status');
+    this.scRaStatus.setAttribute('role', 'status');
     this.scMsg = this.el('p', 'rl-status rl-sc-msg');
     this.scMsg.setAttribute('role', 'status');
     this.scList = this.el('ol', 'rl-slots rl-sc-list');
-    det.append(sum, note, row, this.scMsg, this.scList);
+    det.append(sum, note, raRow, this.scRaStatus, row, this.scMsg, this.scList);
 
     const say = (t: string) => { if (this.scMsg) this.scMsg.textContent = t; };
     const doAdd = () => {
@@ -203,6 +214,13 @@ export class RadioUi {
     const sc = this.sc;
     const list = this.scList;
     if (!sc || !list) return;
+    if (this.scRaStatus) {
+      const c = sc.raCounts;
+      this.scRaStatus.textContent = !sc.randomSets ? 'Random RA sets are off. Radio SC plays only your links.'
+        : sc.raStatus === 'unavailable' ? 'RA NYC sets unavailable (offline or blocked)'
+        : sc.raStatus === 'idle' && c.loaded === 0 ? 'Random RA NYC sets load when you first tune in to Radio SC.'
+        : `Random RA NYC sets: ${c.loaded} loaded, ${c.heard} heard`;
+    }
     const frag = this.doc.createDocumentFragment();
     if (sc.mixes.length === 0) {
       const li = this.el('li', 'rl-slot rl-empty');

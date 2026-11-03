@@ -142,3 +142,5 @@
 .rl-sc-input { flex: 1 1 200px; min-width: 0; }
 .rl-sc-current .rl-name { font-weight: 600; }
 .rl-sc-ah { margin: 0 4px; }
+.rl-sc-ra { display: block; margin: 6px 0 2px; cursor: pointer; }
+.rl-sc-ra-status { margin: 2px 0 8px; }

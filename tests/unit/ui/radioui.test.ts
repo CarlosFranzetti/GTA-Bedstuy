@@ -245,4 +245,31 @@ describe('RadioUi Radio SC section', () => {
     qa(ui.root, '.rl-sc-remove')[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(sc.mixes).toHaveLength(1);
   });
+
+  it('shows the RA pool status and a Random RA sets checkbox', async () => {
+    const { ScStation } = await import('@/audio/sc/ScStation');
+    const { RaFeed, RA_CACHE_KEY } = await import('@/audio/sc/RaFeed');
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const library = new Library(memStorage());
+    const libraryController = new LibraryController(library, { handles: memoryHandleStore(), importDeps, win: {} });
+    const sets = [0, 1, 2].map((i) => ({ url: `https://soundcloud.com/dj/s${i}`, title: `S${i}`, dj: 'D', duration: 3600, artistId: String(i) }));
+    const store = new Map([[RA_CACHE_KEY, JSON.stringify({ v: 1, fetchedAt: Date.now(), sets, played: [sets[0].url] })]]);
+    const feed = new RaFeed({ fetch: null, storage: { getItem: (k) => store.get(k) ?? null, setItem: () => undefined }, base: 'x' });
+    const sc = new ScStation({ storage: null, canLoad: () => false, feed });
+    const ui = new RadioUi(parent, { library, libraryController, sc });
+    ui.open();
+    expect(q(ui.root, '.rl-sc-ra-status').textContent).toBe('Random RA NYC sets: 3 loaded, 1 heard');
+    const box = q<HTMLInputElement>(ui.root, '.rl-sc-ra-toggle');
+    expect(box.checked).toBe(true);
+    box.checked = false;
+    box.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(sc.randomSets).toBe(false);
+    expect(q(ui.root, '.rl-sc-ra-status').textContent).toContain('off');
+    const down = new ScStation({ storage: null, canLoad: () => false, feed: new RaFeed({ fetch: null, storage: { getItem: () => null, setItem: () => undefined }, base: 'x' }) });
+    await down.feed!.ensure();
+    const ui2 = new RadioUi(parent, { library, libraryController, sc: down });
+    ui2.open();
+    expect(q(ui2.root, '.rl-sc-ra-status').textContent).toBe('RA NYC sets unavailable (offline or blocked)');
+  });
 });

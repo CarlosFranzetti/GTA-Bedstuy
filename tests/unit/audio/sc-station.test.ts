@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ScStation, normalizeScUrl, widgetSrc, localScStorage, inPreferredHours, SC_FAILED_NAME, SC_EMPTY_HINT, SC_STORAGE_KEY, type ScApi, type ScEnv, type ScMix } from '@/audio/sc/ScStation';
+import { RaFeed, RA_CACHE_KEY, type RaResponse } from '@/audio/sc/RaFeed';
 import { RadioDirector } from '@/audio/RadioDirector';
 import { Library } from '@/audio/library/Library';
 import { TalkPlayer } from '@/audio/talk/TalkPlayer';
@@ -30,7 +31,7 @@ function setup(over: Partial<ScEnv> = {}, mixes: ScMix[] = [{ url: 'https://soun
   const api = { Widget: Object.assign((f: HTMLIFrameElement) => { const w = new FakeWidget(f); widgets.push(w); queueMicrotask(() => w.emit('ready')); return w; }, { Events: { READY: 'ready', PLAY: 'play', PAUSE: 'pause', FINISH: 'finish', ERROR: 'error', PLAY_PROGRESS: 'playProgress' } }) } as unknown as ScApi;
   const loadApi = vi.fn(async () => api);
   const saved: { data: ScMix[] | null } = { data: mixes };
-  const sc = new ScStation({ loadApi, canLoad: () => true, hour: () => 12, storage: { load: () => saved.data, save: (m) => { saved.data = m; } }, ...over });
+  const sc = new ScStation({ loadApi, canLoad: () => true, hour: () => 12, feed: null, storage: { load: () => saved.data, save: (m) => { saved.data = m; } }, ...over });
   return { sc, widgets, loadApi, saved };
 }
 const tick = async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); };
@@ -248,5 +249,116 @@ describe('dial order', () => {
     const names = dir.stations.map((s) => s.name);
     expect(names.slice(-2)).toEqual(['WBSY Talk', 'Radio SC']);
     expect(dir.stations.at(-1)!.kind).toBe('sc');
+  });
+});
+
+describe('RA pool', () => {
+  const NOW = Date.UTC(2026, 10, 3, 17);
+  const poolSets = (n: number) => Array.from({ length: n }, (_, i) => ({ url: `https://soundcloud.com/dj/set${i}`, title: `Long Set ${i}`, dj: `DJ ${i}`, duration: 3600, artistId: String(i) }));
+  const cached = (n: number) => {
+    const map = new Map<string, string>([[RA_CACHE_KEY, JSON.stringify({ v: 1, fetchedAt: NOW, sets: poolSets(n), played: [] })]]);
+    return { getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => { map.set(k, v); } };
+  };
+  const mkFeed = (n: number, fetchFn?: (u: string) => Promise<RaResponse>) => new RaFeed({ fetch: fetchFn ?? (async () => { throw new Error('should not fetch'); }), storage: cached(n), now: () => NOW, base: 'http://api' });
+  const lastLoadedUrl = (w: FakeWidget) => decodeURIComponent((w.frame.src.split('url=')[1] ?? '').split('&')[0]);
+
+  it('never calls the RA API before the first tune-in', async () => {
+    const fetchFn = vi.fn(async () => { throw new Error('offline'); });
+    const feed = new RaFeed({ fetch: fetchFn as never, storage: { getItem: () => null, setItem: () => undefined }, base: 'http://api' });
+    const { sc } = setup({ feed }, []);
+    await tick();
+    expect(fetchFn).not.toHaveBeenCalled();
+    sc.setActive(true);
+    await tick();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('plays a pool set when the user list is empty and shows "title \u2014 DJ"', async () => {
+    const { sc, widgets } = setup({ feed: mkFeed(6) }, []);
+    expect(sc.usingBed).toBe(false);
+    sc.setActive(true);
+    await tick();
+    expect(sc.status).toBe('ready');
+    expect(lastLoadedUrl(widgets[0])).toMatch(/^https:\/\/soundcloud\.com\/dj\/set\d$/);
+    const n = sc.nowPlaying!;
+    expect(sc.trackName).toBe(`${n.title} \u2014 ${n.user}`);
+    expect(sc.trackName).toMatch(/^Long Set \d \u2014 DJ \d$/);
+    expect(sc.usingBed).toBe(false);
+  });
+
+  it('falls back to the widget user when RA has no DJ name', async () => {
+    const feed = mkFeed(1);
+    (feed.sets as unknown as Array<{ dj: string }>)[0].dj = '';
+    const { sc } = setup({ feed }, []);
+    sc.setActive(true);
+    await tick();
+    expect(sc.trackName).toBe('Long Set 0 \u2014 DJ Fake');
+  });
+
+  it('FINISH advances to a different pool set without repeats', async () => {
+    const { sc, widgets } = setup({ feed: mkFeed(4) }, []);
+    sc.setActive(true);
+    await tick();
+    const seen = new Set<string>([lastLoadedUrl(widgets[0])]);
+    for (let i = 0; i < 3; i++) {
+      widgets[0].emit('finish');
+      seen.add((widgets[0].last('load') as [string, string])[1]);
+    }
+    expect(seen.size).toBe(4);
+  });
+
+  it('interleaves pool sets with pasted links', async () => {
+    const { sc, widgets } = setup({ feed: mkFeed(6), random: () => 0.9 }, [{ url: 'https://soundcloud.com/a/one' }, { url: 'https://soundcloud.com/b/two' }]);
+    sc.setActive(true);
+    await tick();
+    const kinds: string[] = [lastLoadedUrl(widgets[0]).includes('/dj/') ? 'pool' : 'user'];
+    for (let i = 0; i < 5; i++) {
+      widgets[0].emit('finish');
+      kinds.push((widgets[0].last('load') as [string, string])[1].includes('/dj/') ? 'pool' : 'user');
+    }
+    expect(kinds).toEqual(['user', 'pool', 'user', 'pool', 'user', 'pool']);
+  });
+
+  it('shows the empty hint only when both the pool and the list are empty', async () => {
+    const offline = new RaFeed({ fetch: async () => { throw new Error('cors'); }, storage: { getItem: () => null, setItem: () => undefined }, base: 'http://api' });
+    const a = setup({ feed: offline }, []);
+    a.sc.setActive(true);
+    await tick();
+    await tick();
+    expect(offline.status).toBe('unavailable');
+    expect(a.sc.trackName).toBe(SC_EMPTY_HINT);
+    expect(a.sc.usingBed).toBe(true);
+    const b = setup({ feed: new RaFeed({ fetch: async () => { throw new Error('cors'); }, storage: { getItem: () => null, setItem: () => undefined }, base: 'http://api' }) });
+    b.sc.setActive(true);
+    await tick();
+    await tick();
+    expect(b.sc.trackName).not.toBe(SC_EMPTY_HINT);
+    expect(b.sc.usingBed).toBe(false);
+  });
+
+  it('the Random RA sets switch keeps only pasted links and is persisted', async () => {
+    const st = localScStorage();
+    const feed = mkFeed(6);
+    const sc = new ScStation({ storage: st, feed, canLoad: () => false });
+    expect(sc.randomSets).toBe(true);
+    sc.addMix('https://soundcloud.com/a/one');
+    sc.setRandomSets(false);
+    expect(new ScStation({ storage: localScStorage(), feed, canLoad: () => false }).randomSets).toBe(false);
+    expect(new ScStation({ storage: localScStorage(), feed, canLoad: () => false }).mixes).toHaveLength(1);
+  });
+
+  it('prefetches when about five minutes remain and the pool is low', async () => {
+    const calls: string[] = [];
+    const feed = mkFeed(2, async (u) => { calls.push(u); throw new Error('offline'); });
+    const { sc, widgets } = setup({ feed }, []);
+    sc.setActive(true);
+    await tick();
+    const base = calls.length; // the tune-in top-up itself (cache had fewer than 6 unplayed)
+    widgets[0].emit('playProgress', { currentPosition: 100 * 1000 });
+    await tick();
+    expect(calls).toHaveLength(base);
+    widgets[0].emit('playProgress', { currentPosition: (600 - 200) * 1000 });
+    await tick();
+    expect(calls.length).toBeGreaterThan(base);
   });
 });

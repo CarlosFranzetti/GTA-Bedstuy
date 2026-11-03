@@ -91,7 +91,7 @@ export class RadioDirector {
   get trackName(): string {
     const c = this.current;
     if (c.kind === 'talk') return this.talk.caption;
-    if (c.kind === 'sc') return this.sc.usingBed && this.sc.mixes.length > 0 ? '' : this.sc.trackName;
+    if (c.kind === 'sc') return this.sc.usingBed && this.sc.hasSources ? '' : this.sc.trackName;
     if (c.kind === 'library' && this.playingKey) return this.playingTrackName;
     return '';
   }
