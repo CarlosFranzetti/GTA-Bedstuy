@@ -25,7 +25,7 @@ interface ObjectiveBase {
   grant?: string[];
   /** Fail ('copsCalled') if the wanted level reaches this many stars while the objective is active. */
   failIfStars?: number;
-  /** Fail ('tooFast') if the player moves faster than this (km/h) for more than half a second (a couch on the roof). */
+  /** Fail ('tooFast') if the player moves faster than this (km/h) for more than half a second, after a 1.5 s lead-in (a couch on the roof). */
   maxKmh?: number;
 }
 

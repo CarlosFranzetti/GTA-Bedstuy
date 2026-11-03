@@ -49,6 +49,7 @@ const MAX_GIVER_MARKERS = 4;
 const GIVER_REFRESH_S = 4;
 const MOVING_MARKER_PERIOD = 0.25;
 const TOO_FAST_GRACE = 0.5;
+const TOO_FAST_LEAD_IN = 1.5;
 const DEFAULT_BANTER_EVERY = 11;
 const DEFAULT_TAIL_GRACE = 6;
 const CUSTOMER_OFFSETS: readonly (readonly [number, number])[] = [[4, 2], [-4, 3], [3, -4], [-3, -3]];
@@ -315,7 +316,7 @@ export class MissionSystem {
     }
     // heat and speed rules
     if (ob.failIfStars !== undefined && wantedStars >= ob.failIfStars) return this.fail('copsCalled');
-    if (ob.maxKmh !== undefined) {
+    if (ob.maxKmh !== undefined && this.objElapsed > TOO_FAST_LEAD_IN) {
       if (speedMps * 3.6 > ob.maxKmh) { this.fastFor += dt; if (this.fastFor > TOO_FAST_GRACE) return this.fail('tooFast'); } else this.fastFor = 0;
     }
     // banter

@@ -112,7 +112,7 @@ export function senatorTheCat(ctx: PlaceCtx): MissionDef {
       { kind: 'pickUp', at: door, radius: 5, presence: 'any', items: ['chopped-cheese bag'], text: 'Grab a chopped-cheese bag from the deli', doneMessage: 'The smell alone will find him.' },
       { kind: 'tail', route: van, speed: 7, maxDistance: 36, target: 'delivery van', text: 'Follow the delivery van with the cat in it', banter: ['Mohammed (text): "Wave the cheese out the window!"'] },
       { kind: 'pickUp', at: van[van.length - 1], radius: 8, presence: 'any', items: ['Senator'], text: 'Collect Senator from the van (bribe him with the cheese)', doneMessage: 'The driver: "I thought he was the manager."' },
-      { kind: 'deliver', at: door, radius: 6, presence: 'any', items: ['Senator'], text: 'Bring Senator home to the deli' },
+      { kind: 'deliver', at: clerk, radius: 5, presence: 'any', items: ['Senator'], text: 'Bring Senator home to Mohammed at the deli' },
     ],
     reward: { cash: 100, message: 'Senator takes his place on the counter. He will never move again.' },
     retryHint: 'the cat is still at large',

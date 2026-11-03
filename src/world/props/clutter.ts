@@ -156,8 +156,8 @@ function bagPile(rng: Rng): Geos {
     const r = rng.range(0.24, 0.36), a = rng.range(0, 6.28), d = i === 0 ? 0 : rng.range(0.2, 0.5);
     const top = i >= 4;
     const x = Math.cos(a) * d, z = Math.sin(a) * d * 0.7, y = top ? r * 1.5 + 0.12 : r * 0.8;
-    g.push(paint(new THREE.SphereGeometry(r, 6, 5).scale(1, 0.85, 1).rotateY(rng.range(0, 3)).translate(x, y, z), rng.pick(BAG)));
-    g.push(paint(new THREE.ConeGeometry(0.05, 0.11, 4).translate(x, y + r * 0.8, z), '#16171a'));
+    g.push(paint(new THREE.SphereGeometry(r, 5, 4).scale(1, 0.85, 1).rotateY(rng.range(0, 3)).translate(x, y, z), rng.pick(BAG)));
+    g.push(paint(new THREE.ConeGeometry(0.05, 0.11, 3).translate(x, y + r * 0.8, z), '#16171a'));
   }
   if (rng.chance(0.35)) g.push(paint(box(0.5, 0.35, 0.4).rotateY(rng.range(0, 3)).translate(rng.range(-0.5, 0.5), 0.18, rng.range(0.3, 0.6)), '#8a7a5a')); // cardboard
   return g;
@@ -234,7 +234,8 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
   const emit = (key: string, geos: Geos, rank: 1 | 2, kind: ClutterKind, x: number, y: number, z: number, yaw: number, solid: boolean, faceKey: string, world = false): void => {
     for (const g of geos) {
       if (!world) xform(g, x, y, z, yaw);
-      stats.tris[rank] += triCount(g);
+      // bag piles come in three pickup groups of which only one is out at a time: count a third
+      stats.tris[rank] += key.startsWith('clutter-bag') ? triCount(g) / 3 : triCount(g);
       pb.put(key, key.startsWith('clutter-flat') ? flat(key) : key.startsWith('clutter-lights') ? lightMat : solidMat(key), g);
     }
     stats.placements.push({ kind, x, z, rank, solid, faceKey });
@@ -288,7 +289,7 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
             const p = free(s, Math.min(stripW - 0.5, 1.6), 1.1);
             if (p && !nearDoorEdge(s)) { emit(bucketOf(1), sandwichBoard(frng), 1, 'sandwichBoard', p.x, SW_Y, p.z, fr.yaw + frng.range(-0.3, 0.3), true, fk); pb.circle(p, 0.35); take(p); }
           }
-          if (bodega) {
+          if (bodega || frng.chance(0.2)) { // milk crates by the corner store
             const s = lo + 0.7;
             const p = free(s, Math.min(stripW - 0.5, 1.4), 0.9);
             if (p) { emit(bucketOf(1), crates(frng), 1, 'crates', p.x, SW_Y, p.z, fr.yaw, false, fk); take(p); }

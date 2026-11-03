@@ -43,14 +43,14 @@ const FAILS: Record<string, { reason: string; run: (bot: Bot, def: MissionDef) =
   'soundclash': { reason: 'copsCalled', run: (b) => { b.raise(1); b.wait(0.2); }, joke: 'Noise complaint' },
   'senator-the-cat': { reason: 'timeUp', run: (b, d) => b.wait(d.timeLimit! + 1), joke: 'footwell' },
   'dollar-van-last-run': { reason: 'copsCalled', run: (b) => { b.raise(2); b.wait(0.2); }, joke: 'bails out at a red light' },
-  'moving-day': { reason: 'tooFast', run: (b) => { b.speed = 6; b.wait(1.2, 6); }, joke: 'honk chorus' },
+  'moving-day': { reason: 'tooFast', run: (b) => { b.wait(2.6, 6); }, joke: 'honk chorus' },
   'permit-pending': { reason: 'clockUp', run: (b) => b.wait(300), joke: 'closes in your face' },
   'crate-digger': { reason: 'timeUp', run: (b, d) => b.wait(d.timeLimit! + 1), joke: 'Taste takes time' },
   'open-decks': { reason: 'lowScore', run: (b) => { b.m.notify({ type: 'dj:setFinished', venue: 'blockparty', score: 20, minutes: 2 }); b.wait(0.1); }, joke: 'politely claps' },
   'the-password': { reason: 'clockUp', run: (b) => b.wait(400), joke: 'Sunrise' },
   'aftersloth-residency': { reason: 'lowScore', run: (b) => { b.m.notify({ type: 'dj:setFinished', venue: 'aftersloth', score: 10, minutes: 2 }); b.wait(0.1); }, joke: 'vending machine' },
   'lost-cat': { reason: 'timeUp', run: (b, d) => b.wait(d.timeLimit! + 1), joke: 'missing-human' },
-  'dollar-van-fare': { reason: 'tooFast', run: (b) => { b.speed = 40; b.wait(1.2, 40); }, joke: 'list of things' },
+  'dollar-van-fare': { reason: 'tooFast', run: (b) => { b.wait(2.6, 40); }, joke: 'list of things' },
   'stoop-sale': { reason: 'timeUp', run: (b, d) => b.wait(d.timeLimit! + 1), joke: 'toasters' },
 };
 

@@ -18,6 +18,8 @@ export class Bot {
   t = 0;
   hour: number;
   private sinceCrime = 0;
+  /** While >= 0, walking stops as soon as the active objective changes (a real player does not walk on after a beat). */
+  private watch = -2;
   constructor(readonly m: MissionSystem, start: P2, hour = 12) { this.x = start.x; this.z = start.z; this.hour = hour; }
 
   get pos(): P2 { return { x: this.x, z: this.z }; }
@@ -34,7 +36,7 @@ export class Bot {
     for (let guard = 0; guard < 60 * 900; guard++) {
       const dx = to.x - this.x, dz = to.z - this.z;
       const d = Math.hypot(dx, dz);
-      if (d < 0.3 || this.m.isFailed) break;
+      if (d < 0.3 || this.m.isFailed || (this.watch !== -2 && this.m.objectiveIndex !== this.watch)) break;
       const s = Math.min(d, mps * DT);
       this.x += (dx / d) * s; this.z += (dz / d) * s;
       this.tick();
@@ -58,6 +60,11 @@ export class Bot {
   /** Play the active objective to completion (one beat). */
   playObjective(ob: ObjectiveDef): void {
     const idx = this.m.objectiveIndex;
+    this.watch = idx;
+    try { this.playBeat(ob, idx); } finally { this.watch = -2; }
+  }
+
+  private playBeat(ob: ObjectiveDef, idx: number): void {
     const mps = (base: number) => this.pace(ob, base);
     const car = (p: 'onFoot' | 'inVehicle' | 'any' | undefined) => { this.inCar = p === 'inVehicle' || (p === 'any' && this.inCar); };
     if (ob.stayInVehicle !== undefined) this.inCar = true;
