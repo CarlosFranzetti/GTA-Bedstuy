@@ -672,7 +672,11 @@ export function mergeFace(
     const a = lo + (acc / sum) * (hi - lo);
     acc += l.widthM;
     const b = lo + (acc / sum) * (hi - lo);
-    placed.push({ s0: a, s1: b, lot: l, prot: !overwrite && isProtected(l) });
+    const prot = !overwrite && isProtected(l);
+    // A hand note that starts with an address ("226 Hart: ...") pins the lot to the footprint carrying that address.
+    const am = prot ? /^\s*(\d+[A-Za-z]?)\s+([A-Za-z]+)/.exec(l.note ?? '') : null;
+    const hit = am ? imported.find((i) => (i.lot.note ?? '').toLowerCase().includes(`${am[1]} ${am[2]}`.toLowerCase())) : undefined;
+    placed.push(hit ? { s0: hit.s0, s1: hit.s1, lot: l, prot } : { s0: a, s1: b, lot: l, prot });
   }
 
   const chosen: Array<{ s0: number; s1: number; lot: LotJson }> = [];
