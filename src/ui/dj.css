@@ -1,0 +1,40 @@
+/* DJ decks panel. Large targets for touch. */
+.dj-root { position: absolute; inset: 0; z-index: 31; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 10px; pointer-events: auto; background: rgba(3, 3, 8, 0.78); font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #fff; }
+.dj-root[hidden] { display: none; }
+.dj-panel { width: min(820px, 100%); max-height: 100%; overflow-y: auto; box-sizing: border-box; padding: 14px; border-radius: 14px; border: 1px solid rgba(255, 64, 160, 0.5); background: rgba(12, 8, 20, 0.96); box-shadow: 0 18px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(255, 64, 160, 0.15); display: flex; flex-direction: column; gap: 10px; }
+.dj-head { display: flex; align-items: center; gap: 12px; }
+.dj-title { margin: 0; flex: 1; font-size: 16px; letter-spacing: 0.2em; color: #ff58b4; }
+.dj-score { font: 700 20px/1 system-ui, sans-serif; color: #f5c542; }
+.dj-decks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dj-deck { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); min-width: 0; }
+.dj-decklabel { font-size: 12px; letter-spacing: 0.15em; opacity: 0.7; }
+.dj-select { min-height: 44px; border-radius: 8px; background: #1b1424; color: #fff; border: 1px solid rgba(255, 255, 255, 0.25); font-size: 14px; padding: 0 8px; width: 100%; }
+.dj-rec { font-weight: 700; font-size: 14px; min-height: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dj-bpm { font: 700 26px/1 ui-monospace, Menlo, monospace; color: #6fe0ff; }
+.dj-pos { font: 12px ui-monospace, monospace; opacity: 0.6; min-height: 14px; }
+.dj-dots { display: flex; gap: 6px; }
+.dj-dot { flex: 1; height: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.15); }
+.dj-dot.on { background: #ff58b4; box-shadow: 0 0 10px #ff58b4; }
+.dj-dot.on.down { background: #fff; }
+.dj-ctl { display: flex; gap: 6px; }
+.dj-btn { flex: 1; min-height: 52px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.25); background: rgba(255, 255, 255, 0.08); color: #fff; font: 700 15px/1 system-ui, sans-serif; cursor: pointer; touch-action: manipulation; }
+.dj-btn:hover { filter: brightness(1.2); }
+.dj-btn:focus-visible, .dj-select:focus-visible { outline: 2px solid #f5c542; outline-offset: 2px; }
+.dj-play.on { background: #2a9d4f; border-color: #2a9d4f; }
+.dj-finish { flex: none; padding: 0 16px; background: #b3243d; border-color: #b3243d; }
+.dj-small { flex: none; min-width: 48px; min-height: 44px; }
+.dj-pitchrow { display: flex; align-items: center; gap: 8px; }
+.dj-pitch, .dj-fader { flex: 1; width: 100%; height: 36px; accent-color: #ff58b4; touch-action: none; }
+.dj-pitchlabel { width: 56px; text-align: right; font: 12px ui-monospace, monospace; }
+.dj-mid { display: flex; flex-direction: column; gap: 6px; }
+.dj-sync { text-align: center; font: 700 14px/1 ui-monospace, monospace; padding: 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.06); }
+.dj-sync[data-q="good"] { background: #1c6b3a; } .dj-sync[data-q="mid"] { background: #7a6a14; } .dj-sync[data-q="bad"] { background: #6b1c2a; }
+.dj-faderlabels { display: flex; justify-content: space-between; font-size: 11px; letter-spacing: 0.15em; opacity: 0.7; }
+.dj-crowd { display: flex; align-items: center; gap: 8px; }
+.dj-crowd[hidden] { display: none; }
+.dj-crowdlabel { font-size: 11px; letter-spacing: 0.15em; opacity: 0.7; }
+.dj-crowdtrack { flex: 1; height: 12px; border-radius: 6px; background: rgba(255, 255, 255, 0.12); overflow: hidden; }
+.dj-crowdbar { height: 100%; width: 0; background: linear-gradient(90deg, #3a86ff, #ff58b4, #f5c542); transition: width 0.2s; }
+.dj-status { margin: 0; min-height: 16px; font-size: 13px; color: #f5c542; }
+.dj-help { margin: 0; font-size: 12px; opacity: 0.6; }
+@media (max-width: 560px) { .dj-decks { grid-template-columns: 1fr; } .dj-help { display: none; } }

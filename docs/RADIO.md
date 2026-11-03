@@ -64,3 +64,32 @@ Audio data is never copied or stored by the game. **Reset library** removes all 
 * `src/audio/talk/` - `script.ts` (parser, `{ id, kind, speaker, voice, text, seconds }`), `TalkPlayer.ts`.
 * `src/ui/RadioUi.ts` + `radio.css` - the Radio library panel.
 * `AudioSystem` exposes `stationName`, `trackName`, `talkProgress`, `library`, `libraryController`.
+
+## Radio SC (SoundCloud mixes)
+
+Radio SC is the last station on the dial, right after WBSY Talk. It streams DJ mixes you choose through SoundCloud's
+official embedded player (the HTML5 Widget API: a hidden `w.soundcloud.com/player` iframe plus `api.js`). The game
+never downloads audio and never calls any other SoundCloud endpoint, and playback follows SoundCloud's terms and
+each artist's own settings (a mix whose owner disabled embedding will not play).
+
+**The list is empty by default. Paste the SoundCloud links you like**: open the pause menu, Radio library, and use
+the Radio SC section at the top. Add a track or playlist/set link (`https://soundcloud.com/artist/mix`), reorder
+with the arrows, remove with x, press Test to check that a link loads, and Next mix to skip. Only `soundcloud.com`
+links are accepted. The list is saved on this device in `localStorage` under `gta-bedstuy.radio.sc.v1`.
+
+How it behaves:
+
+- Nothing loads until you first tune in to Radio SC (lazy). The widget script is requested only in the hosted
+  build or when the browser reports it is online.
+- If the player is not ready within 8 seconds (offline, or a sandbox that blocks third-party iframes, such as the
+  artifact preview), the station shows "Radio SC (needs the hosted build / internet)" and plays its procedural
+  synth bed instead. It retries on a later tune-in (at least 30 s apart). With an empty list it plays the bed and
+  the HUD says to add links.
+- The game's master x radio volume maps to the widget volume (0 to 100); pausing the game, leaving the car or
+  muting pauses or silences the widget.
+- Like the other stations it keeps a virtual clock: tune away and back and it seeks to where the mix "would be".
+  A playlist/set follows SoundCloud's own track order and is not seeked.
+- The HUD shows "Title - user" from the widget. A short synth "Radio S C" jingle plays on tune-in and between mixes.
+- Dayparting stub: tick the after-hours box on a mix (for example a late-night set). Between 23:00 and 06:00 the
+  first mix of a session is the first after-hours one; otherwise the first in the list. The hour comes from the
+  device clock.
