@@ -259,9 +259,9 @@ describe('facade depth and detail', () => {
         return { max, min };
       };
       const ms = meshOf(res.group);
-      // the shell is always red brick and ends exactly at the facade plane
-      const shell = ms.find((m) => (m.material as THREE.Material).name === 'brickRed:0')!;
-      const wallPlane = depthOf(shell).max;
+      // the shell is party-wall brick (a per-lot colour of brickRed) and ends exactly at the facade plane
+      const shells = ms.filter((m) => /^brickRed:\d$/.test((m.material as THREE.Material).name));
+      const wallPlane = Math.max(...shells.map((m) => depthOf(m).max));
       const glass = ms.filter((m) => (m.material as THREE.Material).name.startsWith('window:'));
       expect(glass.length).toBeGreaterThan(0);
       for (const g of glass) expect(depthOf(g).max, lot.id).toBeLessThanOrEqual(wallPlane - 0.14);
@@ -345,7 +345,8 @@ describe('facade depth and detail', () => {
     const ms = meshOf(res.group);
     expect(ms.length).toBeLessThanOrEqual(60);
     const tris = ms.reduce((n, m) => n + m.geometry.getAttribute('position').count / 3, 0);
-    expect(tris).toBeLessThan(650_000);
+    // party-wall dressing and roof extras (GTA3) added ~6% on 609k
+    expect(tris).toBeLessThan(660_000);
     expect(tris).toBeGreaterThan(400_000);
   });
 });

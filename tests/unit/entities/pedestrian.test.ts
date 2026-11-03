@@ -425,6 +425,47 @@ describe('Pedestrian stoops and groups', () => {
     expect(ped.state).toBe('walking');
   });
 
+  it('stops beside a shop door for 14-45 s (standing or on the phone, never sitting), then walks on', () => {
+    const g = line();
+    const rng = new Rng(3);
+    const ped = new Pedestrian('p', g.nodes.n0, g, new FakeWorld(), materials, new EventBus(), rng);
+    rng.chance = () => true;
+    ped.setEnvironment({ doors: [{ pos: { x: 10, z: 1.3 }, outward: { x: 0, z: 1 }, kind: 'door' }] });
+    let a = -1, z = -1;
+    const dt = 1 / 20;
+    for (let t = 0; t < 160; t += dt) {
+      ped.update(dt);
+      if (a < 0 && ped.state === 'sitting') {
+        a = t;
+        expect(['stand', 'phone']).toContain(ped.pose);
+        expect(Math.hypot(ped.body.pos.x - 10, ped.body.pos.z - 1.3)).toBeLessThan(0.3);
+      }
+      if (a >= 0 && z < 0 && ped.state !== 'sitting') { z = t; break; }
+    }
+    expect(a).toBeGreaterThan(0);
+    expect(z - a).toBeGreaterThanOrEqual(14);
+    expect(z - a).toBeLessThanOrEqual(45.2);
+  });
+
+  it('a lunchtime / evening boost makes stoop sitters stay longer', () => {
+    const sit = (boost: number) => {
+      const g = line();
+      const rng = new Rng(3);
+      const ped = new Pedestrian('p', g.nodes.n0, g, new FakeWorld(), materials, new EventBus(), rng);
+      rng.chance = () => true;
+      ped.setEnvironment({ stoops: [{ pos: { x: 10, z: 2 }, outward: { x: 0, z: -1 } }], idleBoost: boost });
+      let a = -1;
+      for (let t = 0; t < 200; t += 0.05) {
+        ped.update(0.05);
+        if (a < 0 && ped.state === 'sitting') a = t;
+        if (a >= 0 && ped.state !== 'sitting') return t - a;
+      }
+      return -1;
+    };
+    expect(sit(3)).toBeGreaterThan(sit(1) - 0.01);
+    expect(sit(3)).toBeLessThanOrEqual(60.2);
+  });
+
   it('without lots it idles at a sidewalk node instead', () => {
     const g = line();
     const rng = new Rng(3);

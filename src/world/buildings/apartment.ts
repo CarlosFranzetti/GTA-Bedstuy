@@ -9,6 +9,7 @@ import {
   FLOOR_H, PARLOUR_H, bayCentres, buildUpperFloors, familyMats, pickWindow, revealFaces,
   roofClutter, sideWallFrame, storeyLevels, wallWithHoles, windows,
 } from './facade';
+import { lotLook, partyWallDetail } from './partyWall';
 import type { Hole, LotCtx, LotOutput } from './facade';
 
 export function buildApartment(c: LotCtx): LotOutput {
@@ -23,7 +24,9 @@ export function buildApartment(c: LotCtx): LotOutput {
   const cs = c.cornerSide;
 
   // plain red-brick party walls and back; an exposed corner side wall is built separately below in the facade brick
-  b.box(m.brickRed, 0, 0, -D, W, condo ? H : GROUND, 0, cs === 'left' ? 'rb' : cs === 'right' ? 'lb' : 'rlb');
+  const look = lotLook(m, lot);
+  b.box(look.party, 0, 0, -D, W, condo ? H : GROUND, 0, cs === 'left' ? 'rb' : cs === 'right' ? 'lb' : 'rlb');
+  if (condo) partyWallDetail(b, m, look, { W, D, y0: GROUND, topY: H, zFront: 0, cornerSide: cs });
 
   if (condo) {
     // dark backing behind the curtain wall, then storey-high glass bands between limestone floor slabs
@@ -63,7 +66,7 @@ export function buildApartment(c: LotCtx): LotOutput {
       b.rect(m.window, [0.4, sy0, 0.31], [W - 0.8, 0, 0], [0, f, 0], { uvRect: uvr });
     }
     // roof deck rail + planters
-    b.rect(m.roof, [0, H + 0.01, 0], [W, 0, 0], [0, 0, -D]);
+    b.rect(look.roof, [0, H + 0.01, 0], [W, 0, 0], [0, 0, -D]);
     b.bar(m.metal, [0.1, H + 1.1, -0.1], [W - 0.1, H + 1.1, -0.1], 0.05);
     b.bar(m.metal, [0.1, H + 1.1, -D + 0.1], [W - 0.1, H + 1.1, -D + 0.1], 0.05);
     b.bar(m.metal, [0.1, H + 1.1, -0.1], [0.1, H + 1.1, -D + 0.1], 0.05);
@@ -73,7 +76,7 @@ export function buildApartment(c: LotCtx): LotOutput {
       b.bar(m.metal, [x, H, -0.1], [x, H + 1.1, -0.1], 0.04);
     }
     b.box(m.stoop, W * 0.2, H, -D * 0.5, W * 0.8, H + 0.35, -D * 0.5 + 0.6, 'frlu');
-    if (rng.chance(0.7)) roofClutter(b, m, rng, { x0: 0, x1: W, zBack: -D, zFront: 0, y: H, brick, chimney: 0, skylight: 0.4, bulkhead: 0.8, dishes: 0.3, ph: 0 });
+    if (rng.chance(0.7)) roofClutter(b, m, rng, { x0: 0, x1: W, zBack: -D, zFront: 0, y: H, brick: look.party, chimney: 0, skylight: 0.4, bulkhead: 0.8, dishes: 0.3, ph: 0 });
   } else {
     // ground floor: recessed lobby door under a stone canopy, recessed windows; everything above is shared upper-floor code
     const bays = Math.max(2, spec?.bays ?? Math.floor(W / 2.2));

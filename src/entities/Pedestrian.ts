@@ -14,13 +14,21 @@ export type PedPose = 'walk' | 'stand' | 'phone' | 'sit' | 'down';
 /** A crosswalk edge of the sidewalk graph: which intersection it belongs to and which roadway it crosses. */
 export interface PedCrossing { intersectionId: string; crossedStreetId: string; }
 /** A place to sit: on the stoop of a brownstone, just in front of the building line. */
-export interface StoopSpot { pos: Vec2; outward: Vec2; }
+export interface StoopSpot {
+  pos: Vec2; outward: Vec2;
+  /** 'door' = a shop door to loiter beside (stand or phone, no sitting); default is a stoop to sit on */
+  kind?: 'stoop' | 'door';
+}
 /** Extra world knowledge handed over after construction (TrafficSystem wires it; legacy callers can skip it). */
 export interface PedEnvironment {
   lights?: TrafficLights;
   /** key `${fromNodeId}>${toNodeId}` for both directions of every crosswalk edge */
   crossings?: ReadonlyMap<string, PedCrossing>;
   stoops?: ReadonlyArray<StoopSpot>;
+  /** shop doors to loiter beside (idle behaviour 2) */
+  doors?: ReadonlyArray<StoopSpot>;
+  /** multiplier on the stoop-sitting and door-loitering chances (the hour of day sets it; 1 = the base rate) */
+  idleBoost?: number;
 }
 
 const WALK_SPEED = 1.2;
@@ -37,6 +45,10 @@ const MAX_SIGNAL_WAIT = 150;
 const PHONE_CHANCE = 0.35;
 const NODE_IDLE_CHANCE = 0.03;
 const STOOP_CHANCE = 0.05;
+/** chance, at a node, to stop for a while beside a shop door (before the hour boost) */
+const DOOR_CHANCE = 0.04;
+const DOOR_MIN = 14;
+const DOOR_MAX = 45;
 const SIT_MIN = 10;
 const SIT_MAX = 30;
 const STOOP_LATERAL = 1.6;
@@ -146,6 +158,8 @@ export class Pedestrian implements Entity {
   }
 
   get groupLeader(): Pedestrian | null { return this.leader; }
+  /** Walking alone (no leader, no followers): safe to remove without orphaning a group. */
+  get isFree(): boolean { return this.leader === null && this.followers === 0 && this.state !== 'down'; }
   /** True while the pedestrian is waiting at a curb for the WALK signal. */
   get waitingForWalk(): boolean { return this.state === 'waiting' && this.waitCrossing !== null; }
 
@@ -430,8 +444,11 @@ export class Pedestrian implements Entity {
     if (this.state !== 'walking' || !this.env) return;
     // plans only on ordinary edges, never while a group depends on this pedestrian
     if (this.followers > 0 || this.isCrossingEdge(node.id, this.targetId)) return;
-    if (this.env.stoops && this.env.stoops.length > 0) {
-      if (this.rng.chance(STOOP_CHANCE)) this.planStoop(node);
+    const boost = this.env.idleBoost ?? 1;
+    const hasStoops = !!this.env.stoops && this.env.stoops.length > 0, hasDoors = !!this.env.doors && this.env.doors.length > 0;
+    if (hasStoops || hasDoors) {
+      if (hasStoops && this.rng.chance(STOOP_CHANCE * boost)) this.planStoop(node, this.env.stoops!);
+      else if (hasDoors && this.rng.chance(DOOR_CHANCE * boost)) this.planStoop(node, this.env.doors!);
     } else if (!this.isCrosswalk(node.id) && this.rng.chance(NODE_IDLE_CHANCE)) {
       this.state = 'sitting';
       this.sitOnStoop = false;
@@ -486,10 +503,9 @@ export class Pedestrian implements Entity {
   // ------------------------------------------------------------------ stoops
 
   /** Maybe sit on a stoop along the edge we are about to walk. */
-  private planStoop(from: GraphNode): void {
+  private planStoop(from: GraphNode, stoops: ReadonlyArray<StoopSpot>): void {
     const to = this.targetId ? this.sidewalks.nodes[this.targetId] : undefined;
-    const stoops = this.env?.stoops;
-    if (!to || !stoops) return;
+    if (!to) return;
     const ex = to.pos.x - from.pos.x;
     const ez = to.pos.z - from.pos.z;
     const len2 = ex * ex + ez * ez;
@@ -512,10 +528,14 @@ export class Pedestrian implements Entity {
     if (det.stage === 0) { det.stage = 1; return; }
     if (det.stage === 1) {
       this.state = 'sitting';
-      this.sitOnStoop = true;
-      this.phoneIdle = this.rng.chance(PHONE_CHANCE);
-      this.sitTimer = this.rng.range(SIT_MIN, SIT_MAX);
-      this.body.heading = Math.atan2(det.spot.outward.x, -det.spot.outward.z);
+      const door = det.spot.kind === 'door';
+      this.sitOnStoop = !door;
+      this.phoneIdle = this.rng.chance(door ? 0.6 : PHONE_CHANCE);
+      const boost = Math.max(1, this.env?.idleBoost ?? 1);
+      this.sitTimer = door ? this.rng.range(DOOR_MIN, DOOR_MAX) : this.rng.range(SIT_MIN, SIT_MAX) * Math.min(2, boost);
+      // stoop sitters face the street; shop loiterers lean on the wall and look along the pavement
+      const out = det.spot.outward;
+      this.body.heading = door ? Math.atan2(-out.z, -out.x) : Math.atan2(out.x, -out.z);
       return;
     }
     this.detour = null; // back on the walking line

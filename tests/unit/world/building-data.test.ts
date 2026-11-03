@@ -135,7 +135,9 @@ describe('families', () => {
     expect(mats('brownstone').some((n) => n.startsWith('brownstone:'))).toBe(true);
     expect(mats('brick').some((n) => n.startsWith('brownstone:'))).toBe(false);
     expect(mats('tanBrick')).toContain('brickRed:1');
-    expect(mats('brick')).not.toContain('brickRed:1');
+    // party walls now take a per-lot brick colour (brickRed:1..3), so compare the same lot: the tan front adds brickRed:1 tris the red one lacks
+    const redTris = (family: LotSpec['family']) => tris(byMat(build([lotOf({ family })]).group, /^brickRed:1$/));
+    expect(redTris('tanBrick')).toBeGreaterThan(redTris('brick'));
     expect(mats('paintedBrick')).toContain('brickPainted:0');
     expect(mats('brick')).not.toContain('brickPainted:0');
     expect(mats('limestone').some((n) => n.startsWith('limestone:'))).toBe(true);

@@ -12,6 +12,7 @@ import {
   BASEMENT_H, CHAIN_TILE, IRON_H, IRON_TILE, PARLOUR_H, acUnits, bayCentres, bayCount, corniceOfKind, drainPipe, familyMats, fireEscape, ironFenceRun,
   revealFaces, roofClutter, roofWithParapet, storeyLevels, wallWithHoles, waterTank, windowAwning, windowBars, windows,
 } from './facade';
+import { lotLook, partyWallDetail, roofDetails } from './partyWall';
 import type { Hole, LotCtx, LotOutput, MaterialFamily, Storeys, V3 } from './facade';
 
 export interface BrownstoneOpts {
@@ -35,7 +36,7 @@ function fallbackFamily(style: BrownstoneOpts['style'], r0: number): { family: M
 }
 
 export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
-  const { b, m, rng, W, D, spec } = c;
+  const { b, m, rng, W, D, spec, lot } = c;
   const lite = !!opts.lite;
   const r0 = rng.next();
   const fam = spec ? { family: spec.family, variant: r0 < 0.5 ? 0 : 1 } : fallbackFamily(opts.style, r0);
@@ -50,7 +51,8 @@ export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
   const wantStoop = opts.stoop !== false && bh > 0;
 
   // shell: brick back/sides (plain party walls); the front wall is built below with its openings cut out
-  b.box(m.brickRed, 0, 0, -D, W, H, -S, 'rlb');
+  const look = lotLook(m, lot);
+  b.box(look.party, 0, 0, -D, W, H, -S, 'rlb');
 
   const bays = bayCount(W, spec);
   const xs = bayCentres(W, bays);
@@ -216,8 +218,10 @@ export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
   // ---- cornice, parapet, roof
   const kind = lite ? 'plain' : spec ? spec.cornice : rng.chance(0.55) ? 'dentil' : 'bracket';
   corniceOfKind(b, m, 0, W, H, -S, kind, 0.6);
-  roofWithParapet(b, m, { x0: 0, x1: W, zBack: -D, zFront: -S, y: H, frontMat, sideMat: m.brickRed, coping: m.limestone });
-  if (!lite) roofClutter(b, m, rng, { x0: 0, x1: W, zBack: -D, zFront: -S, y: H, brick: m.brickRed, chimney: 0.45, skylight: 0.25, bulkhead: floors >= 4 ? 0.3 : 0.12, dishes: 0.3 });
+  roofWithParapet(b, m, { x0: 0, x1: W, zBack: -D, zFront: -S, y: H, frontMat, sideMat: look.party, coping: m.limestone, roof: look.roof });
+  partyWallDetail(b, m, look, { W, D, y0: bh + PARLOUR_H, topY: H, zFront: -S, cornerSide: c.cornerSide });
+  if (!lite) roofDetails(b, m, look, { x0: 0, x1: W, zBack: -D, zFront: -S, y: H });
+  if (!lite) roofClutter(b, m, rng, { x0: 0, x1: W, zBack: -D, zFront: -S, y: H, brick: look.party, chimney: 0.45, skylight: 0.25, bulkhead: floors >= 4 ? 0.3 : 0.12, dishes: 0.3 });
   if (floors >= 4 && rng.chance(0.6)) waterTank(b, m, W * 0.5, H, -D + 2.4);
   const feChance = spec ? (floors >= 4 && bays >= 3 ? 0.3 : 0.08) : 0.25;
   if (floors >= 3 && bays >= 2 && rng.chance(feChance)) {

@@ -67,6 +67,53 @@ export function buildStoopSpots(lots: readonly Lot[]): StoopSpot[] {
   return out;
 }
 
+/** Standing places beside the front of every mixed-use (shop) lot, for pedestrians who stop outside a door. */
+export function buildDoorSpots(lots: readonly Lot[]): StoopSpot[] {
+  const out: StoopSpot[] = [];
+  for (const l of lots) {
+    if (l.type !== 'mixeduse') continue;
+    const mx = (l.frontA.x + l.frontB.x) / 2;
+    const mz = (l.frontA.z + l.frontB.z) / 2;
+    // beside the door, a little off the lot's centre so two shops do not pile people on the same square
+    const ax = l.frontB.x - l.frontA.x, az = l.frontB.z - l.frontA.z;
+    const al = Math.hypot(ax, az) || 1;
+    const off = Math.min(1.6, l.width * 0.25);
+    out.push({
+      pos: { x: mx + (ax / al) * off + l.outward.x * DOOR_OUT, z: mz + (az / al) * off + l.outward.z * DOOR_OUT },
+      outward: { x: l.outward.x, z: l.outward.z },
+      kind: 'door',
+    });
+  }
+  return out;
+}
+
+/**
+ * Pedestrians out on the street as a fraction of the tier's budget, by hour of day (BIBLE section 7, the 'Peds' column
+ * normalised so the 18-21 h peak is 1.0). Noon and 17-20 h are busy, 03-05 h is almost empty. Linear between keys.
+ */
+const PED_HOUR_KEYS: ReadonlyArray<readonly [number, number]> = [
+  [0, 0.17], [3, 0.06], [5, 0.1], [6, 0.55], [8, 0.89], [9, 0.67], [11.5, 0.75], [12.5, 0.85], [14, 0.9], [16, 0.85],
+  [17, 0.95], [18, 1], [20, 1], [21, 0.5], [24, 0.17],
+];
+export function pedHourFactor(hour: number): number {
+  const h = ((hour % 24) + 24) % 24;
+  for (let i = 1; i < PED_HOUR_KEYS.length; i++) {
+    const [h1, f1] = PED_HOUR_KEYS[i];
+    if (h <= h1) { const [h0, f0] = PED_HOUR_KEYS[i - 1]; return f0 + ((f1 - f0) * (h - h0)) / (h1 - h0); }
+  }
+  return PED_HOUR_KEYS[PED_HOUR_KEYS.length - 1][1];
+}
+
+/** Stoop sitting / door loitering rate multiplier by hour: lunchtime and evening stoops (BIBLE 7: 10-15% sitting), nights quiet. */
+export function idleBoostForHour(hour: number): number {
+  const h = ((hour % 24) + 24) % 24;
+  if (h >= 11 && h < 15) return 2.6;
+  if (h >= 16.5 && h < 21) return 3.2;
+  if (h >= 8 && h < 11) return 1.6;
+  if (h >= 21 || h < 5) return 0.5;
+  return 1;
+}
+
 export const CAR_COLORS = [
   '#c0392b', '#2c3e50', '#ecf0f1', '#7f8c8d', '#1f6f8b', '#e0b01e',
   '#27ae60', '#8e44ad', '#111111', '#d35400', '#5d4037', '#95a5a6',
@@ -103,6 +150,10 @@ export const AVENUE_LIMIT = 13;
 export const STREET_LIMIT = 11;
 const GROUP_CHANCE = 0.35;
 const STOOP_OUT = 1.1;
+const DOOR_OUT = 1.3;
+/** a pedestrian is added / removed no closer to the player than this (m), so the crowd changes out of sight */
+const PED_SWAP_CLEAR = 35;
+const PED_TICK = 0.4;
 const CROSSWALK_MATCH = 0.6;
 
 interface Active { agent: TrafficAgent; vehicle: IVehicle; }
@@ -140,6 +191,10 @@ export class TrafficSystem {
   /** parked-car occupancy the kerbs were filled with (can only be thinned at runtime, not refilled) */
   private parkedShare: number;
   private pedSeq = 0;
+  /** hour-of-day scaling of the pedestrian budget (1 until `setHour` is called) and the ticker that eases toward it */
+  private hourFactor = 1;
+  private pedTimer = 0;
+  private playerAt: Vec2 = { x: 0, z: 0 };
 
   constructor(
     private readonly grid: GridModel,
@@ -163,6 +218,8 @@ export class TrafficSystem {
       lights: this.lights,
       crossings: buildPedCrossings(grid),
       stoops: lots ? buildStoopSpots(lots) : undefined,
+      doors: lots ? buildDoorSpots(lots) : undefined,
+      idleBoost: 1,
     };
     this.spawnParked();
     this.spawnPeds();
@@ -179,18 +236,7 @@ export class TrafficSystem {
    */
   setDensity(d: Partial<TrafficDensity>): void {
     this.density = { ...this.density, ...d };
-    while (this.peds.length > this.density.peds) {
-      const p = this.peds.pop()!;
-      this.world.removeBody(p.body.id);
-      p.dispose();
-    }
-    if (this.peds.length < this.density.peds) {
-      const ids = Object.keys(this.grid.sidewalks.nodes);
-      if (ids.length > 0) {
-        const cross = this.crosswalkNodeIds();
-        while (this.peds.length < this.density.peds) this.addPed(this.grid.sidewalks.nodes[this.rng.pick(ids)], cross);
-      }
-    }
+    this.fitPeds(true);
     if (this.density.parkOccupancy < this.parkedShare) {
       const keep = this.density.parkOccupancy / Math.max(1e-6, this.parkedShare);
       for (let i = this.vehicles.length - 1; i >= 0; i--) {
@@ -202,11 +248,58 @@ export class TrafficSystem {
     }
   }
 
+  /** Pedestrians out right now: the tier budget scaled by the hour of day. */
+  get pedTarget(): number { return Math.max(this.density.peds > 0 ? 1 : 0, Math.round(this.density.peds * this.hourFactor)); }
+
+  /**
+   * Time of day (hours, 0-24). The street fills and empties with the BIBLE section 7 curve inside the tier budget, and stoop
+   * sitting / door loitering follow it. The crowd eases toward the target one pedestrian per tick out of the player's sight;
+   * `snap` jumps straight there (scripted captures, tests).
+   */
+  setHour(hour: number, snap = false): void {
+    this.hourFactor = pedHourFactor(hour);
+    (this.pedEnv as { idleBoost?: number }).idleBoost = idleBoostForHour(hour);
+    if (snap) this.fitPeds(true);
+  }
+
+  /** Adds / removes pedestrians toward `pedTarget`: all at once, or one per call (far from the player first). */
+  private fitPeds(all: boolean): void {
+    const target = this.pedTarget;
+    const cross = this.peds.length < target ? this.crosswalkNodeIds() : null;
+    const ids = Object.keys(this.grid.sidewalks.nodes);
+    for (let guard = 0; this.peds.length !== target && guard < 512; guard++) {
+      if (this.peds.length > target) {
+        // remove the farthest loner (a group leader or follower would orphan its group)
+        let best = -1, bd = -1;
+        for (let i = 0; i < this.peds.length; i++) {
+          const p = this.peds[i];
+          if (!p.isFree) continue;
+          const d = dist(p.body.pos, this.playerAt);
+          if (d > bd) { bd = d; best = i; }
+        }
+        if (best < 0) best = this.peds.length - 1;
+        else if (!all && bd < PED_SWAP_CLEAR) break;
+        const [p] = this.peds.splice(best, 1);
+        this.world.removeBody(p.body.id);
+        p.dispose();
+      } else {
+        if (ids.length === 0 || !cross) break;
+        let node = this.grid.sidewalks.nodes[this.rng.pick(ids)];
+        for (let k = 0; k < 12 && dist(node.pos, this.playerAt) < (all ? 12 : PED_SWAP_CLEAR); k++) node = this.grid.sidewalks.nodes[this.rng.pick(ids)];
+        this.addPed(node, cross);
+      }
+      if (!all) break;
+    }
+  }
+
   /** Number of vehicles currently driven by a traffic AI. */
   get agentCount(): number { return this.active.length; }
 
   update(dt: number, playerPos: Vec2): void {
     this.lights.update(dt);
+    this.playerAt = playerPos;
+    this.pedTimer += dt;
+    if (this.pedTimer >= PED_TICK) { this.pedTimer = 0; if (this.peds.length !== this.pedTarget) this.fitPeds(false); }
     // drive
     for (let i = this.active.length - 1; i >= 0; i--) {
       const a = this.active[i];
@@ -303,7 +396,7 @@ export class TrafficSystem {
     const cross = this.crosswalkNodeIds();
     const ids = Object.keys(this.grid.sidewalks.nodes);
     if (ids.length === 0) return;
-    for (let i = 0; i < this.density.peds; i++) this.addPed(this.grid.sidewalks.nodes[this.rng.pick(ids)], cross);
+    for (let i = 0; i < this.pedTarget; i++) this.addPed(this.grid.sidewalks.nodes[this.rng.pick(ids)], cross);
     this.formGroups();
   }
 

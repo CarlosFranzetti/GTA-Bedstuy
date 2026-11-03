@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { IMaterialLibrary, Lot } from '@/world/types';
 import type { Rng } from '@/core/Rng';
+import { lotLook, partyWallDetail, roofDetails } from './partyWall';
 
 /** Parlour (or ground) storey height and the storeys above it (real Bed-Stuy rows: tall parlour, shorter upper floors). */
 export const PARLOUR_H = 3.3;
@@ -91,6 +92,10 @@ export interface BuildingMats {
   glass: THREE.Material;
   rollGate: THREE.Material;
   roof: THREE.Material;
+  /** tarRoof variants 0..2 (dark, light grey, brown-grey): one per lot */
+  roofs?: THREE.Material[];
+  /** brickRed variants 0..3 (red, brown, cream painted, blue-grey painted): party-wall colour per lot */
+  partyBricks?: THREE.Material[];
   tank: THREE.Material;
   metal: THREE.Material;
   scaffold: THREE.Material;
@@ -126,6 +131,8 @@ export function loadMats(lib: IMaterialLibrary): BuildingMats {
     glass: lib.get('storefrontGlass', 0),
     rollGate: lib.get('rollGate', 0),
     roof: lib.get('tarRoof', 0),
+    roofs: [0, 1, 2].map((v) => lib.get('tarRoof', v)),
+    partyBricks: [0, 1, 2, 3].map((v) => lib.get('brickRed', v)),
     tank: lib.get('waterTank', 0),
     metal: lib.get('metalDark', 0),
     scaffold: lib.get('scaffold', 0),
@@ -701,13 +708,15 @@ export interface RoofSpec {
   /** also emit the outward face of the left / right parapet (exposed corner side walls) */
   exposeL?: boolean;
   exposeR?: boolean;
+  /** tar roof material of this lot (default m.roof) */
+  roof?: THREE.Material;
 }
 
 /** Flat tar roof plus a brick parapet ring with a stone coping on the street side. */
 export function roofWithParapet(b: LotBatch, m: BuildingMats, r: RoofSpec): void {
   const { x0, x1, zBack, zFront, y } = r;
   const ph = r.ph ?? 0.7, t = 0.25;
-  b.rect(m.roof, [x0, y + 0.01, zFront], [x1 - x0, 0, 0], [0, 0, -(zFront - zBack)]);
+  b.rect(r.roof ?? m.roof, [x0, y + 0.01, zFront], [x1 - x0, 0, 0], [0, 0, -(zFront - zBack)]);
   if (ph <= 0) return;
   const cap = r.coping ?? m.limestone;
   b.box(r.frontMat, x0, y, zFront - t, x1, y + ph, zFront, 'fb');
@@ -715,6 +724,10 @@ export function roofWithParapet(b: LotBatch, m: BuildingMats, r: RoofSpec): void
   b.box(r.sideMat, x0, y, zBack, x1, y + ph, zBack + t, 'fub');
   b.box(r.sideMat, x0, y, zBack + t, x0 + t, y + ph, zFront - t, r.exposeL ? 'rul' : 'ru');
   b.box(r.sideMat, x1 - t, y, zBack + t, x1, y + ph, zFront - t, r.exposeR ? 'lur' : 'lu');
+  // stone cap on the side and back parapets too (the front one is capped above)
+  b.box(cap, x0 - 0.04, y + ph, zBack - 0.04, x1 + 0.04, y + ph + 0.07, zBack + t + 0.04, 'u');
+  b.box(cap, x0 - 0.04, y + ph, zBack + t + 0.04, x0 + t + 0.04, y + ph + 0.07, zFront - t - 0.04, 'u');
+  b.box(cap, x1 - t - 0.04, y + ph, zBack + t + 0.04, x1 + 0.04, y + ph + 0.07, zFront - t - 0.04, 'u');
 }
 
 /** Rooftop water tank on legs (cylinder + cone lid). */
@@ -870,7 +883,9 @@ export function buildUpperFloors(c: LotCtx, o: UpperFloorsOpts): UpperFloorsResu
   const cs = c.cornerSide;
 
   // party walls + back (a corner side wall is built below with its own windows)
-  b.box(m.brickRed, 0, y0, -D, W, topY, z, cs === 'left' ? 'rb' : cs === 'right' ? 'lb' : 'rlb');
+  const look = lotLook(m, c.lot);
+  b.box(look.party, 0, y0, -D, W, topY, z, cs === 'left' ? 'rb' : cs === 'right' ? 'lb' : 'rlb');
+  partyWallDetail(b, m, look, { W, D, y0, topY, zFront: z, cornerSide: cs });
 
   const bays = Math.max(1, Math.min(Math.floor(W / 1.7), o.bays ?? spec?.bays ?? Math.max(2, Math.round(W / 2.4))));
   const xs = bayCentres(W, bays);
@@ -892,8 +907,9 @@ export function buildUpperFloors(c: LotCtx, o: UpperFloorsOpts): UpperFloorsResu
   for (let k = 1; k < n; k++) b.box(trim, 0, y0 + k * UPPER_H - 0.1, z, W, y0 + k * UPPER_H + 0.03, z + 0.05, 'fud');
 
   corniceOfKind(b, m, 0, W, topY, z, o.cornice ?? spec?.cornice ?? 'bracket', 0.6);
-  roofWithParapet(b, m, { x0: 0, x1: W, zBack: -D, zFront: z, y: topY, frontMat: o.wall, sideMat: m.brickRed, coping: trim, exposeL: cs === 'left', exposeR: cs === 'right' });
-  roofClutter(b, m, rng, { x0: 0, x1: W, zBack: -D, zFront: z, y: topY, brick: m.brickRed, chimney: 0.1, skylight: 0.3, bulkhead: 0.6, dishes: 0.45 });
+  roofWithParapet(b, m, { x0: 0, x1: W, zBack: -D, zFront: z, y: topY, frontMat: o.wall, sideMat: look.party, coping: trim, exposeL: cs === 'left', exposeR: cs === 'right', roof: look.roof });
+  roofClutter(b, m, rng, { x0: 0, x1: W, zBack: -D, zFront: z, y: topY, brick: look.party, chimney: 0.1, skylight: 0.3, bulkhead: 0.6, dishes: 0.45 });
+  roofDetails(b, m, look, { x0: 0, x1: W, zBack: -D, zFront: z, y: topY });
   if (n >= 3 && rng.chance(0.5)) waterTank(b, m, W * 0.5, topY, -D + 2.8);
 
   const feWanted = o.fireEscape ?? rng.chance(n >= 3 && n <= 4 ? 0.85 : n === 2 ? 0.45 : 0.3);

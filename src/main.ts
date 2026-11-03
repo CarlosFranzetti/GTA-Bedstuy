@@ -607,6 +607,7 @@ game.add({
     if (dayNight.timeOfDay < prevHour - 12) { gameDay++; applyClutterState(world.group, quality, gameDay); }
     prevHour = dayNight.timeOfDay;
     setStorefrontHour(dayNight.timeOfDay);
+    traffic.setHour(dayNight.timeOfDay);
     audio.sc?.setGameHour(dayNight.timeOfDay);
     if (dayNight.isNight !== lastNight) {
       lastNight = dayNight.isNight; audio.setNight(lastNight); pipeline.setNight(lastNight); setLampsLit(world.furnitureGroup, lastNight);
@@ -647,7 +648,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
   setPaused(p: boolean) { game.paused = p; },
   /** Stops the requestAnimationFrame loop (headless review scripts then draw frames by hand with renderOnce). */
   stopLoop() { game.stop(); },
-  setHour(h: number) { dayNight.timeOfDay = h; prevHour = h; dayNight.update(0); setStorefrontHour(h); },
+  setHour(h: number) { dayNight.timeOfDay = h; prevHour = h; dayNight.update(0); setStorefrontHour(h); traffic.setHour(h, true); },
   setQuality(q: Quality) { applyQuality(q); },
   setWeather(s: 'dry' | 'rain' | 'wet' | 'drying', snap = false) { weather.setState(s, snap); },
   /** Renders one frame synchronously and returns the per-pass draw-call split (for perf scripts). */

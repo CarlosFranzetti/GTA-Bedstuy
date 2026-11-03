@@ -91,7 +91,7 @@ async function capture() {
     await dismiss();
 
     const dbg = (fn, arg) => page.evaluate(fn, arg);
-    const hour = (h) => dbg((h) => { window.__gtaDebug.setHour(h); window.__gtaDebug.step(5); }, h);
+    const hour = (h) => dbg((h) => { const d = window.__gtaDebug; d.setHour(h); d.traffic.setHour?.(h, true); d.step(5); }, h);
     const freeCam = (a) => dbg((a) => window.__gtaDebug.setFreeCam(...a), a);
     // Default ("manual") mode stops the rAF loop and draws frames by hand with renderOnce(): a headless SwiftShader
     // renderer otherwise grows by ~10-20 MB/s (RSS 0.5 -> 3+ GB in 3 minutes) and gets OOM-killed when other jobs

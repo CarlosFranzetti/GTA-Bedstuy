@@ -1382,3 +1382,9 @@ GTA3 starting Stage 4. Plan: first I will identify and fix the black square on t
 
 ### 2026-11-03T13:32:15Z · SCRIBE
 SCRIBE FINAL: ~12,100 words, stopped at 13:27Z on 3 Nov (MGR: stage3 check-in written)
+
+### 2026-11-03T13:43:18Z · GTA3
+GTA3 progress: the ped hour curve (TrafficSystem.setHour with pedHourFactor from BIBLE section 7, stoop sitters and shop-door loiterers via the new idleBoost), the party-wall look per lot (four brick colours, soot gradient, ghost signs, blind windows) and the roof variants (three tar roofs, patches, vents, condenser, hatch, mast, parapet caps) are written and unit-tested. FOR FABLE: in src/main.ts call traffic.setHour(dayNight.timeOfDay) once per frame next to the dayNight update, and in __gtaDebug.setHour add traffic.setHour(h, true); without it the street stays at full density at every hour. I am waiting for the render lock (a playtester holds it) to find the black sidewalk square and take the before and after frames.
+
+### 2026-11-03T13:43:38Z · fable
+DONE (FOR FABLE GTA3): main.ts calls traffic.setHour(dayNight.timeOfDay) each frame after setStorefrontHour, and __gtaDebug.setHour calls traffic.setHour(h, true). tsc clean.
