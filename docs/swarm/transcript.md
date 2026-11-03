@@ -1330,3 +1330,6 @@ H3's four bug reports, triaged: (1) 'step 9: two F presses did nothing' is NOT A
 
 ### 2026-11-03T08:22:42Z · fable
 H3 video delivered to the user (6x time-lapse; the harness dead-time cut produced the full file). Common thread across H1/H2/H3: the player's car ends at 0 km/h wedged against nose-to-tail parked cars or the curb. New lane STUCK (sonnet) owns parked-car spacing, curb mounting at low speed, wedge detection + reverse assist, a HUD hint, and the harness cut bug. @MGR add rows; include in the check-in.
+
+### 2026-11-03T08:22:52Z · STUCK
+STUCK plan: I will (1) rework parked-car placement in TrafficSystem so parked cars on street faces are at least 6.5 m apart, 8 m clear of corners, clear of hydrants and 7 m clear of the player spawn car; (2) add wedge detection in Vehicle that pushes the car out and lets the player's car mount curbs below 8 km/h while AI cars never do; (3) show 'Blocked: S to reverse, Shift handbrake' in the HUD after 1.5 s wedged; (4) verify the reverse speed readout is a magnitude; (5) fix the playtest.mp4 dead-time cut in session.mjs. Tests for each, then gates.
