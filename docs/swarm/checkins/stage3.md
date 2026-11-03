@@ -1,186 +1,195 @@
 # Stage 3 check-in: the playtest loop
 
-Written by the Opus manager (MGR) on 3 Nov 2026 at about 07:00Z. Stage 3 ran from 1 Nov 15:14Z to 3 Nov 06:45Z, with a gap of
-roughly 35 hours after the account usage limit cut the swarm off on 1 Nov at about 19:20Z. Every review cited here is in
+Written by the Opus manager (MGR) on 3 Nov 2026 at about 13:30Z. Stage 3 ran from 1 Nov 15:14Z to 3 Nov 13:30Z, interrupted twice by
+the account usage limit (1 Nov ~19:20Z to 3 Nov 06:20Z, and again on the morning of 3 Nov). Every review cited here is in
 `transcript.md` (search `MGR review of`); the readable narrative for the user is `transcript-readable.md`.
 
 ## 1. Summary
 
-The stage started with one bug from the user, **"I cannot get out of the car"**, and a new idea: let blind testers play the
-game while a recording shows what they are thinking. Both landed. The car bug turned out to be a family of timing bugs that only
-appear on slow machines, and it is fixed and confirmed in play: the first blind tester pressed F to get out three times on the
-slow software renderer and it worked on the first press every time. The recorded playtest harness works and produced two
-sessions with video and a subtitled transcript of the tester's thoughts; those sessions found one more serious enter/exit bug
-(a parked car being shoved fourteen metres across the avenue), which is also fixed, and a list of fourteen defects and confusions
-that now seed Stage 4.
+The stage started with one bug from the user, **"I cannot get out of the car"**, and one new idea: let blind testers play the game
+while a recording shows what they are thinking. Both landed. The car bug turned out to be a family of timing bugs that only show up on
+slow machines; it is fixed, and all three blind testers confirmed it in play by getting out of a car on the first press of F every
+time they tried. The recorded playtest harness produced three sessions with video and a subtitled transcript of each tester's thoughts.
+Those sessions found a serious second bug (entering a parked car shoved it fourteen metres across the avenue), which is also fixed and
+re-confirmed by the third tester, and they found the single most frustrating thing in the game today: **cars that end up wedged at
+0 km/h against nose-to-tail parked cars**. All three testers lost minutes to it, and the STUCK lane is fixing it now.
 
-Along the way the user widened the stage twice. On 1 Nov they asked for a phone tier, free car and character models, a radio
-that plays their own music in eight genre stations plus an original talk show, and a "GTA 5 as the bible" design reference. On
-3 Nov they asked for GTA 4/5-level graphics, real buildings from map data, GTA-style missions with a DJ storyline, interiors and a
-SoundCloud station. The first wave is finished and reviewed. The second wave started at 06:32Z on 3 Nov and is still running;
-it is recorded here as Stage 4 work already in flight.
+The user widened the stage twice. On 1 Nov they asked for a phone tier, free car and character models, a radio that plays their own
+music in eight genre stations plus an original talk show, and "GTA 5 as the bible". On 3 Nov they asked for GTA 3 to GTA 5 level
+graphics, buildings from real map data, GTA-style missions with a DJ storyline, interiors, a record shop, a club and a SoundCloud
+station. Almost all of it is built and reviewed. The game now has sixteen missions, three interiors, a DJ mini-game, six pedestrian
+models, wet-road reflections, an hourly film grade, crimes that bring the police, a findable mission pointer, a phone tier that
+runs at under half the cost, and a radio with 147 slots for the user's own songs.
 
-Twenty-one lanes posted work this stage. Sixteen are reviewed and accepted (one with no report), one blind tester finished, one
-was cut off mid-session, and six lanes are still running (H3, DRIVE, GFX, CLUTTER, MISS2, CLUB).
+**Final gates** (§5): tsc clean and vitest fully green on HEAD 25001c6 (104 files, 1702 tests, 2 todo); build, artifact (9.58 MB of a
+12 MB budget) and the headless smoke at low and medium (`errors: []`, 259 and 308 draw calls) green on 602fa63, the tree 30 minutes
+earlier. Three lanes are still finishing (STUCK, WIRE, CLUTTER), and the graphics ladder is not yet at GTA3 (§6).
 
 ## 2. Per-agent outcomes
 
 | id | lane | result |
 |---|---|---|
-| V1 | vehicle-exit-bug | ACCEPT. Root cause: the F key's "just pressed" flag lasted for every simulation step of a drawn frame, so on a slow frame the game got you out on step one and back in on step two. Fixed with `Input.consume()` for F, E, R and X; also fixed the gamepad A button being erased before it was read, a second F during the walk to the door being ignored, and a claimed rolling car coasting away. Later fixed the P1 from the playtests: walking to the far-side door slid the player's body through the car's box and shoved the parked car 14 m; the body now leaves physics when the walk starts (`main.ts:215`). Browser run 28/28 (keyboard, touch, gamepad, walls, neighbouring cars, after the pause menu, far side). Open: exit always uses the driver's side with no free-spot search. |
-| PT | playtest-harness | ACCEPT. `scripts/playtest/session.mjs` + `docs/PLAYTEST.md`: turn-based sessions (game paused while the tester thinks), durations in game time, per-step frame + state JSON with plain-language directions to nearby things, subtitle bar burned into the video, webm/mp4 and a readable transcript. Bug PT-1 (actions cut to about half length under load) found by MGR from H1's step counts and fixed by Fable. Open: the subtitle blinks off while each screenshot is taken (88 % of running time covered) and covers the street name. |
-| L10 | lighting-3 | ACCEPT. Shop glazing had shared the apartment windows' night glow and lit a whole shopfront like a cream wall; capped to 0.35/0.28. Night spawn view 0.240 → 0.127 (21h) / 0.130 (0h), inside the 0.085–0.13 band, blown ≤ 0.08 %. GTAO fringe proven to be the AO pass itself, not the proxies. Open: 0h sits on the band's upper edge; hour 7 and car/aerial baselines still missing. |
-| W2 | world-fixes | ACCEPT. Areaway fences now collide (gaps kept at the stoop foot and basement door); avenue faces thinned to 3–5 shop lots each (MGR counted all 24 Tompkins/Throop/Garvey faces); granite curb texture applied. Open: Lafayette N and Greene S between Throop and Garvey still 10–11 shops of 30. |
-| MOB | phone-tier | ACCEPT. New `phone` tier, automatic on touch: 83–114 draw calls and 259k–425k triangles on all seven viewpoints (low: 226–271 and over 1 M). MGR caught that it hid the fences W2 had just made solid (invisible walls); Fable restored fences and roll gates on phone. Open: two viewpoints now look into a brick wall after W2's density change; no headless frame-time comparison. |
-| MDL | models-research | ACCEPT. Six CC0 models (Kenney cars, Quaternius characters) with licence evidence from a repackager's NOTICE plus a verified Quaternius LICENSE.txt. |
-| MDLI | models-integrate | ACCEPT, no report (reviewed from disk). Cars fitted to our vehicle sizes with round wheels, synthesised head/tail lights, plates and a cop light bar, paint-only recolour; characters 1.75 m with Idle/Walk/Run; 94 glTF tests pass. |
-| MDL2 | models-research-2 | ACCEPT for people (five Quaternius UAC civilians, CC0 verified at source). No reachable CC0 realistic car exists; CC-BY CarConcept and an unverified Ferrari held. Warning: all five characters would push the artifact to about 16 MB. |
-| RADIO | radio-library | ACCEPT. Eight library stations with exactly the requested slots (147 in total) plus WBSY Talk; the user's own files only, picked at runtime; no audio in the repo; storage wrapped in try/catch; talk show read by speech synthesis. Open: DJ chatter, time-of-day programming, muffled radio outside the car, loudness matching. |
-| WRITE | talk-show-writer | ACCEPT. 22-minute original script (1325 s, 57 segments, 3288 words), no real brands or people. |
-| RADIO2 | radio-sc | ACCEPT. Radio SC through the official SoundCloud widget only, 8-second fallback to the procedural bed, nothing bundled. Optional wiring to the game clock recommended. |
-| MUSIC | music-research | ACCEPT as research. Only AI-generated CC0 lo-fi is reachable; the user's own files stay the main source. |
-| BIBLE | design-bible | ACCEPT. `docs/reference/BIBLE.md`: the yardstick "would someone want to live in this Bed-Stuy for a day?" with five properties and a ranked 15-item gap list; folded into PRD §1. |
-| GEO | real-buildings-import | ACCEPT. OSM/PLUTO → `bedstuy.json` pipeline tested on a synthetic fixture; real import waits for the data hosts to be allowed. Map origin and PLUTO id are from memory and must be checked. |
-| SCRIBE | scribe | ACCEPT. Readable English narrative of the whole project; needs one more pass to cover the end of this stage. |
-| H1 | blind playtester, on foot | Done (rerun h1c, 32 steps, after a first run cut at 10 steps by a shell time limit). Findings in §4. |
-| H2 | blind playtester, driver | Partial: cut off by the usage limit at step 23; findings relayed by Fable. |
-| H3 | blind playtester, chaos/cops | Not run yet; waits behind V1's teleport fix, which is now in. |
-| DRIVE, GFX, CLUTTER, MISS2, CLUB | Stage 4 lanes opened 3 Nov 06:21–06:40Z | Running; PRD rows written; not reviewed. Their in-progress work currently breaks 7 tests (see §6). |
-| Fable | orchestrator | Board, all shared-file relays (radio wiring, R/X consume, phone fence fix, harness fix, `setWeather` for GFX), render lock, commits, artifacts v8/v9, H1–H2 launches. |
+| V1 | vehicle-exit-bug | ACCEPT. The F key's "just pressed" flag lasted for every simulation step of a slow frame, so the game got you out on one step and back in on the next. Fixed with `Input.consume()` for F, E, R and X, plus the gamepad A button and a second F during the walk to the door. Then fixed the playtest P1: walking to the far-side door slid the player's body through the car and shoved it 14 m; the body now leaves physics when the walk starts (`main.ts:215`). Browser run 28/28. Open: no free-spot search when the driver's side is blocked. |
+| PT | playtest-harness | ACCEPT. Turn-based sessions (game paused while the tester thinks), per-step frame and state, subtitles burned into the video, readable transcript. PT-1 (actions cut to half length under load) found by MGR from H1's step counts, fixed. Open: subtitle blinks off during screenshots; mid-step state changes are not reported (PT3-15). |
+| L10 | lighting-3 | ACCEPT. Shop glazing capped; night spawn 0.240 → 0.127 / 0.130 (band 0.085–0.13); blown ≤ 0.08 %; GTAO fringe explained. Open: hour 7 and car/aerial baselines. |
+| W2 | world-fixes | ACCEPT. Areaway fences collide; avenue faces 3–5 shop lots; granite curb applied. |
+| MOB | phone-tier | ACCEPT. Phone tier 83–114 draw calls and 259k–425k triangles on all seven viewpoints; fences and roll gates restored on phone after MGR caught invisible walls. |
+| MDL / MDL2 | models research | ACCEPT. Kenney cars and Quaternius people, CC0, licence evidence quoted. No reachable CC0 realistic car. |
+| MDLI / MDLI2 | models integrate | ACCEPT (MDLI reviewed from disk, no report). Cars with synthesised lights and paint recolour; six pedestrian models compressed to ~0.3 MB each; +19 draw calls at spawn; artifact 9.58 MB. |
+| RADIO / RADIO2 / WRITE / MUSIC | radio | ACCEPT. Eight stations, 147 slots for the user's own files, WBSY Talk with an original 22-minute script, Radio SC through the official SoundCloud widget only, no audio bundled. |
+| BIBLE | design-bible | ACCEPT. "Would someone want to live in this Bed-Stuy for a day?" with five properties and a ranked gap list; folded into PRD §1. |
+| GEO | real-buildings-import | ACCEPT. OSM/PLUTO pipeline tested on a fixture; real import waits for the hosts to be allowed. |
+| SCRIBE | scribe | ACCEPT. Readable narrative; needs a final pass for 3 Nov. |
+| DRIVE | driving-feel-2 | ACCEPT. Player steering capped at low speed (two-second turn at 15 km/h: 88° → 49°), crimes for ramming parked cars and pavement driving, a pulsing mission blip with an on-screen pointer, speed from the car's real movement. Open: reverse speed shows no sign. |
+| MISS2 | missions-2 | ACCEPT. Sixteen missions on the BIBLE template (six city stories, a four-chapter DJ storyline, three side quests), ten new objective kinds, fail jokes, phone texts; every mission has a success test and a fail-and-retry test. |
+| CLUB | interiors-dj | ACCEPT. Wax Deli, Aftersloth (hidden, 23:00–04:00, after The Password) and the player's home; Inventory owning cash and records; shop; two-deck DJ game. Not yet seen in a real browser. |
+| GFX | graphics-gta | ACCEPT (partial). Hourly film grade, wet-road reflections, haze, grain, contact darkening. Not done: car-paint reflections, neon bounce, four of seven after-frames. No final report found in the transcript. |
+| TA2 | traffic deadlock | ACCEPT. Seed-21 intersection deadlock found and fixed at its cause; five-minute city test green on both seeds. |
+| H1, H2, H3 | blind playtesters | H1 done (32 steps), H2 cut off by the usage limit at step 23, H3 done (30 steps). |
+| STUCK, WIRE, CLUTTER | Stage 4 lanes | Running at close; PRD rows written; reviews carry over (§7). |
+| Fable | orchestrator | Board, every shared-file relay, the render lock, commits, artifacts v8 to v12, playtest launches and video delivery. |
 
 ## 3. The roundtable (1 Nov)
 
-At the user's request MGR asked every lane six questions in plain English. Nine lanes answered. The shared conclusions, and the
-decisions drawn from them: a day in Bed-Stuy is made of small repeating moments tied to the clock (lamps coming on, gates coming
-down, stoop sitting), so Stage 4 builds a day schedule and ambient events first; the camera needs a look-back, a corner lag, a
-cinematic view and a mission letterbox; the phone tier is the same game made smaller, with lamps and sky carrying the time of day;
-the radio should feel like tuning a station, not pressing shuffle; missions are funny when a very serious tone meets a very small
-stake and the fail line beats the win line; and almost every lane named the overloaded machine as its hardest problem, which led
-to the shared render lock.
+At the user's request MGR asked every lane six questions in plain English. Nine lanes answered once Fable relayed the questions into
+their sessions. The shared conclusions: a day in Bed-Stuy is made of small, repeating moments tied to the clock, so build a day schedule
+and ambient events first; the camera needs a look-back, a corner lag, a cinematic view and a letterbox; the phone tier is the same game
+made smaller; the radio should feel like tuning a station; missions are funny when a very serious tone meets a very small stake; and
+almost every lane named the overloaded machine as its hardest problem, which led to the shared render lock.
 
 ## 4. What the blind testers did and thought
 
-**H1, the on-foot explorer**, started at dusk on Throop Avenue and enjoyed it: it read the neon OPEN and EBT signs aloud, liked the
-Corner Store with its blue roll-down shutters, peered down a dark basement stair, and walked up to a parked police car "to see
-whether it bothers me". It looked for people and found none; at one point it walked towards "a person in a red top" that turned
-out to be a red parked car. Its mood changed when it took a car: it pressed F once and was "suddenly sitting inside the red sedan
-and it is already rolling", then spent six steps pressing every key in a car that would not move, concluding "the whole row of
-cars along this block is nose to tail, so none of them can drive off". Getting out worked first time, three times out of three.
-It ended wedged between parked cars and a box truck, unable to walk free.
+**H1, the on-foot explorer**, started at dusk on Throop Avenue and enjoyed it. It read the neon OPEN and EBT signs aloud, liked the
+Corner Store's blue roll-down shutters, peered down a dark basement stair, and walked up to a parked police car "to see whether it
+bothers me". It looked for people and found none, and once walked towards "a person in a red top" that turned out to be a red parked
+car. Its mood changed when it took a car: it was "suddenly sitting inside the red sedan and it is already rolling", and then spent six
+steps pressing every key in a car that would not move, concluding that "the whole row of cars along this block is nose to tail, so
+none of them can drive off". Getting out worked first time, three out of three. It ended wedged on foot between parked cars and a box
+truck.
 
-**H2, the driver**, "wanted a car fast" and had one in two steps, but was seated fourteen metres away in the middle of the avenue
-(the P1 V1 later fixed). It then fought the car: the speedometer "still says zero" after moving eight metres, a turn "spun the
-SUV almost all the way around", and the car kept ending up on the sidewalk against a shop front, a tree and a stoop. It searched
-for a mission for fifteen steps and gave up because "the minimap shows only little yellow dots". It finished by ramming parked
-cars on purpose "to see whether the cops notice"; nobody did. It liked switching radio stations and the horn.
+**H2, the driver**, "wanted a car fast" and had one in two steps, but found itself seated fourteen metres away in the middle of the
+avenue (the shove V1 later fixed). It then fought the car: a turn "spun the SUV almost all the way around", and the car kept ending up
+on the sidewalk against a shop front, a tree and a stoop. It searched fifteen steps for a mission and gave up because "the minimap
+shows only little yellow dots". It finished by ramming parked cars on purpose "to see whether the cops notice"; on that build nobody
+did. The usage limit cut it off at step 23.
 
-### Defects table (posted as `MGR: playtest triage`)
+**H3, the chaos tester**, played after the morning's fixes. It wanted trouble: it ran for a parked SUV, rammed a parked sedan at
+22 km/h, honked, and drove onto the sidewalk towards people while watching the corner of the screen for stars. They came, one at
+step 14 and three at step 18, and at step 22 it wrote "a police car has now shown up right behind me, with a cop inside". It got out,
+back in and out again on single presses, the stars decayed on foot, and it ended flipping through three radio stations. Its spawn SUV
+stayed exactly where it was parked, which confirms the shove fix. It, too, lost eleven steps to a car stuck at 0 km/h after ramming a
+parked car in the parking lane.
 
-| id | severity | owner | what and where |
-|---|---|---|---|
-| PT3-1 | P1 → fixed | V1 | Entering a parked car shoved it 14 m across the avenue (s6 steps 5–6, h2 steps 1–2). Fixed 3 Nov 06:45Z. |
-| PT3-2 | P2 | traffic/world | Parked cars stand nose to tail with ~20 cm gaps, so a parked car cannot be driven out (h1c 15–21, step-17.jpg). |
-| PT3-3 | P2 | world/physics | On foot, wedged between parked cars and the box truck for eight steps (h1c 24–32). |
-| PT3-4 | P2 | DRIVE | Cars mount the sidewalk easily and hang on curbs, trees, stoops, shop fronts (h2 7, 12, 15–19, 23). |
-| PT3-5 | P2 | DRIVE/MISS2 | Missions are not findable; minimap dots not recognised (h2 13–18). |
-| PT3-6 | P2 | world/ambient | The street feels empty of people at dusk (h1 0–10, h1c 10–11). |
-| PT3-7 | P3 | DRIVE | Ramming parked cars and pavement driving raise no wanted level (h2 20–23). |
-| PT3-8 | P3 | DRIVE/PT | Speedometer reads 0 in screenshots right after moving (captured after key release). |
-| PT3-9 | P3 | V1 | F next to a rolling car seats you in a moving car (h1c 15). |
-| PT3-10 | P3 | models/traffic | Traffic cars have a driver but none is visible (h1c 3–4). |
-| PT3-11 | P3 | camera | Camera does not fade a vehicle right in front of the lens (h1c step-26.jpg). |
-| PT3-12 | P3 | world | A dark square on the sidewalk reads as a hole (h1c 11–13). |
-| PT3-13 | P3 | UX/CLUB | Shop doors look enterable but give no feedback (h1 8–10, h1c 7). |
-| PT3-14 | P3 | DRIVE | Steering twitchy, car spins at low speed (h2 6–7, 16, 21). |
-| PT-1 | fixed | PT/Fable | Harness cut actions to about half length under load. |
+### Defects table (`MGR: playtest triage` and its H3 addendum)
 
-Confirmed working in play: exit with F (3/3), enter with F, radio with E, horn, crosswalks and signals, minimap street names, night signs.
+| id | severity | owner | what and where | status |
+|---|---|---|---|---|
+| PT3-1 | P1 | V1 | Entering a parked car shoved it 14 m across the avenue (s6 5–6, h2 1–2) | fixed, confirmed by H3 |
+| PT3-2 | P1 (raised) | STUCK | Car wedged at 0 km/h against nose-to-tail parked cars; cannot pull out (h1c 15–21, h3 13–23) | in progress |
+| PT3-3 | P2 | STUCK | On foot, wedged between parked cars and a box truck (h1c 24–32) | in progress |
+| PT3-4 | P2 | DRIVE/STUCK | Cars mount the sidewalk and hang on curbs, trees, stoops (h2 7–23) | partly fixed (steering); wedge assist in progress |
+| PT3-5 | P2 | DRIVE | Missions not findable (h2 13–18) | fixed (pulsing blip + pointer), not yet playtested |
+| PT3-6 | P2 | world/ambient | Sidewalks feel empty (h1, h1c 10–11; MDLI2 sidewalk frame) | open: variety solved, density not |
+| PT3-7 | P3 | DRIVE | No wanted level for ramming or pavement driving (h2 20–23) | fixed, confirmed by H3 |
+| PT3-8 | P3 | DRIVE | Speedometer 0 after moving (h2 2–9) | explained (real stops); readout now from body velocity |
+| PT3-9 | P3 | V1 | F next to a rolling car seats you in a moving car (h1c 15) | open |
+| PT3-10 | P3 | models/traffic | No visible driver in traffic cars (h1c 3–4) | open |
+| PT3-11 | P3 | camera | Camera does not fade a vehicle in front of the lens (h1c step-26.jpg) | open |
+| PT3-12 | P3 | world | Flat black square on the sidewalk reads as a hole (h1c 11–13; still in GFX and MDLI2 frames) | open |
+| PT3-13 | P3 | UX/CLUB | Shop doors look enterable but give no feedback (h1, h1c 7) | partly addressed by CLUB's three interiors |
+| PT3-14 | P3 | DRIVE | Twitchy steering, spins at low speed (h2 6–21) | fixed (steering cap) |
+| PT3-15 | P3 | PT | Harness hides mid-step changes: H3's "F did nothing" was enter then exit inside one step (h3 9) | open |
+| PT3-16 | P3 | DRIVE | Reverse speed has no sign (h3 18) | STUCK checking |
+| PT3-17 | P3 | UX | Shift is sprint on foot but handbrake in a car (h3 21) | open |
+| PT-1 | — | PT/Fable | Harness cut actions to half length under load | fixed |
+
+Confirmed working in play: exit with F (every attempt by all three testers), enter with F, radio with E, horn, crosswalks and
+signals, minimap street names, night signs, crimes and police response.
 
 ## 5. Acceptance against PRD §5.4
 
 | row | status | evidence |
 |---|---|---|
-| Global gates (Stage 3 tree, 1 Nov 18:17Z, ab689e1) | MET | tsc clean; vitest 81 files / 1413 pass / 2 todo; build ok; artifact 8.18 MB; smoke `errors: []` at low (239 draws) and medium (274 draws) |
-| Global gates (current tree, 3 Nov 06:50Z, a5635c9 + uncommitted Stage 4 work) | NOT MET | tsc clean, build ok, artifact 9.51 MB, but 7 failing tests in 4 files from running lanes (§6); smoke blocked by the render lock |
-| V1: exit from F, touch and gamepad | MET | unit tests per input path; browser run 28/28 |
-| V1: 100 % of 50 headless attempts | MET in substance | 28/28 (not 50) on an overloaded machine, plus 3/3 in blind play |
-| V1: never inside a collider; fallback when both doors blocked | PARTIAL | outside the footprint in every run; no free-spot search or refusal |
-| PT: webm + thoughts transcript; ≥ 95 % steps subtitled | MET | 12/12 validation steps, h1c 32 steps; subtitle on screen ~88 % of running time |
-| PT: command-file protocol, state export | MET | `docs/PLAYTEST.md`; per-step state JSON |
-| L10: night spawn 0.085–0.13; blown < 0.5 % | MET | 0.127 / 0.130; ≤ 0.08 % |
-| L10: GTAO artefact explained | MET | A/B with proxies off |
-| L10: Stage 3 baselines incl. hour 7, car, aerial | PARTIAL | street/shops/signals only, in a Stage 3 section of stage2.md |
-| W2: fences block peds | MET | collider tests |
-| W2: 3–5 mixed lots per avenue face | MET | all 24 avenue faces counted |
-| W2: graniteCurb applied | MET | tests + screenshots |
-| MOB: ≤ 120 draws, ≤ 500k triangles on 7 views | MET | 83–114 / 259k–425k |
-| MOB: headless frame time ≥ 2× faster than low | NOT MEASURED | machine load; real phone is the user's check |
-| MDL / MDL2: ≥ 4 cars + ≥ 2 characters, licences | MET for MDL; MDL2 people only | no reachable CC0 realistic car |
-| MDLI: models load, lights, artifact ≤ 12 MB | MET | 94 tests; artifact 8.18 → 9.51 MB with later lanes |
-| RADIO: 147 slots, own files, no audio in repo | MET | station table, git check |
-| WRITE: 1320 ± 30 s, no real brands/people | MET | 1325 s, 0 hits |
-| RADIO2: official widget only, fallback | MET | 55 tests |
-| GEO: pipeline, validator 0, no Google data | MET (fixture); real data DEFERRED | hosts blocked |
-| BIBLE: checkable targets | MET | folded into PRD §1 |
-| H1–H3: recorded sessions + reports | PARTIAL | H1 done, H2 partial, H3 not run |
-| MGR: defects table | MET | posted, §4 |
-| DRIVE, GFX, MISS2, CLUB, CLUTTER | IN PROGRESS | Stage 4 |
+| Global gates | MET | tsc clean, vitest 104 files / 1702 pass / 2 todo on 25001c6; build ok, artifact 9.58 MB, smoke `errors: []` at low (259 draws) and medium (308 draws) on 602fa63 |
+| V1: exit from F, touch, gamepad | MET | unit tests; browser 28/28; all three testers |
+| V1: 50 headless attempts at 100 % | MET in substance | 28/28 on an overloaded machine |
+| V1: never inside a collider; blocked-door fallback | PARTIAL | no free-spot search |
+| PT: webm + thoughts transcript, ≥ 95 % steps subtitled | MET | three sessions; subtitle on screen ~88 % of running time |
+| L10: night spawn 0.085–0.13, blown < 0.5 % | MET | 0.127 / 0.130; ≤ 0.08 % |
+| L10: Stage 3 baselines incl. hour 7, car, aerial | PARTIAL | street/shops/signals only |
+| W2: fences, 3–5 mixed lots, granite curb | MET | tests; 24 avenue faces counted |
+| MOB: ≤ 120 draws, ≤ 500k tris on 7 views | MET | 83–114 / 259k–425k |
+| MDL/MDL2/MDLI/MDLI2 | MET for people; cars PARTIAL | no reachable CC0 realistic car |
+| RADIO, WRITE, RADIO2 | MET | 147 slots; 1325 s; widget only |
+| GEO | MET on fixture; real data DEFERRED | hosts blocked |
+| BIBLE | MET | PRD §1 |
+| DRIVE | MET | steering numbers, crime tests, pointer, H3 confirmation of crimes |
+| MISS2 | MET | 16 missions, success + fail/retry tests |
+| CLUB | MET in tests; browser DEFERRED | 6 test files; not yet seen in a browser |
+| GFX | PARTIAL | grade, wet reflections, haze, contact darkening; no car-paint reflections or neon; 3/7 after-frames |
+| TA2 | MET | five-minute sim green on both seeds |
+| STUCK, CLUTTER, WIRE | IN PROGRESS | rows written |
+| H1–H3 recorded sessions and reports | MET (H2 partial) | h1c, h2, h3 |
+| MGR defects table | MET | §4 |
 
-### Graphics ladder (new, PRD §5.4)
+## 6. Graphics ladder verdict
 
-Judged on MOB's seven low-tier frames and the medium smoke frame: **not yet GTA3**. Night street views pass most GTA3 items
-(textured surfaces, real car models with lights, lit windows and signs, fog at the edge). They fail on the aerial view, where the
-row houses' side walls are large flat tan surfaces and the tar roofs repeat one blotch pattern; on sidewalk props, which are sparse;
-and on people, who are rarely seen at street level. CLUTTER and GFX are working directly on these.
+The ladder (PRD §5.4) is judged on the seven standard viewpoints. **GTA3 is not reached yet, but it is close.** Already true: textured
+walls and roads, real car and pedestrian models with shadows, lit windows and signs at night, fog hiding the world edge, and since this
+morning wet roads that reflect tail lights and shop light. Still failing GTA3: the golden aerial view shows long flat party walls and
+identical tar roofs; noon sidewalks have almost no props and almost no people; the flat black square on the sidewalk is still visible;
+and only three of the seven after-frames exist, so pop-in within 60 m is unchecked on the other four. CLUTTER's layer (bags, racks,
+planters, posters, decals, wires, window AC units) is built and targets most of these.
 
-## 6. Open issues
+**For GTA4, what is missing:** crowd density at street level (variety is there with six models, the numbers are not), clutter on every
+block (pending CLUTTER), a check that LOD changes do not pop, and reflections on car paint. Per-hour grading, haze, lamp bloom, wet
+reflections and contact darkening are already in. GTA5 items (volumetric light, ambient life by hour, detailed interiors in a browser)
+are Stage 4 and later.
 
-1. **Seven failing tests on the current tree**, all in running lanes: `mission_content.test.ts` (MISS2: expects three missions, sees
-   sixteen), `props.test.ts` mesh cap 16 > 15 (CLUTTER), `pursuit.test.ts` ×2 and `traffic-5min.test.ts` ped knock-down (DRIVE's
-   crime and steering area). Must be green before the next commit that claims a stage.
-2. Parked cars nose to tail (PT3-2) and the on-foot wedge (PT3-3): parked-car spacing of about 1 m and low-speed pivot steering.
-3. Exit has no free-spot search or refusal when the driver's side is blocked (V1 row).
-4. H2 cut off at step 23 and H3 not run: the chaos/cops playtest is still owed, now on the fixed build.
-5. Realistic cars blocked by licensing and network: the user can allow-list kenney.nl, quaternius.com, poly.pizza, or supply licensed models.
-6. Artifact budget: 9.51 MB now; adding all five MDL2 characters would reach ~16 MB. Hosted-only or meshopt for heavy models.
-7. Real map data blocked: overpass-api.de, openstreetmap.org, data.cityofnewyork.us. GEO's origin and PLUTO id need checking on the first import.
-8. Light baselines still lack hour 7 and car/aerial rows; night spawn sits on the band's upper edge.
-9. Two screens.mjs viewpoints (noon-corner, night-corner) look into a wall after the density change; move the camera.
-10. Harness: subtitle blinks off during screenshots and covers the street name; speedometer captured after key release.
-11. Lafayette N / Greene S faces still very commercial; Street View pass with the user's screenshots.
-12. Leftover scratch test `tests/unit/game/_dump.test.ts` broke tsc earlier; currently clean, but scratch tests must stay out of `tests/`.
-13. GEO's three FOR FABLE items (facadeTexture field, facade mapping, ODbL credit) and RADIO2's game-clock wiring are pending.
+## 7. Open issues
 
-## 7. Stage 4 list
+1. STUCK, WIRE and CLUTTER finished their code but had not posted final reports at close; their reviews carry to the next MGR pass.
+   STUCK's work directly addresses PT3-2 and PT3-3, the testers' biggest frustration.
+2. CLUB's interiors, the DJ game and MISS2's DJ storyline have only been tested in unit tests; nobody has walked into the club in a
+   browser yet.
+3. Sidewalk density (PT3-6): the street still reads empty at noon.
+4. Exit free-spot search; F next to a rolling car; visible drivers; near-camera fade; the sidewalk black square; reverse sign; Shift
+   meaning two things (PT3-9 to PT3-17).
+5. GFX's car-paint reflections, neon bounce and the four missing after-frames.
+6. Realistic cars are blocked by licensing and network; the user can allow-list kenney.nl, quaternius.com and poly.pizza or supply
+   licensed models.
+7. Real map data blocked (overpass-api.de, openstreetmap.org, data.cityofnewyork.us); GEO's origin and PLUTO id to be checked on first import.
+8. Light baselines still lack hour 7 and car/aerial; two screens.mjs viewpoints look into a wall after the density change.
+9. Harness: report mid-step changes; subtitle blinks during screenshots; the mp4 dead-time cut (STUCK is fixing).
+10. Some tests are timing-sensitive under machine load (one entity test, and the traffic sim while files were changing); keep an eye on flakiness.
+11. Lafayette N and Greene S faces are still very commercial; the Street View pass with the user's own screenshots is still owed.
 
-1. Finish and review the running lanes: DRIVE (steering, crimes, mission pointer, speed), GFX (GTA3 then GTA4 ladder items with
-   before/after frames of the seven viewpoints), CLUTTER (props, decals, wires within budget), MISS2 (BIBLE-template missions, side
-   quests, DJ storyline, phone texts), CLUB (interiors, inventory, DJ mini-game).
-2. Run H3 (chaos/cops) and a full H2 rerun on the fixed build; one tester on `?q=phone`.
-3. Day schedule and ambient life (BIBLE gaps 1, 4, 9): hourly crowd and traffic curve, stoop sitting, ambient events every ~30 s; visible drivers in traffic cars.
-4. Parked-car spacing and low-speed manoeuvring; exit free-spot search.
-5. Camera: look-back, corner yaw lag, fade of near vehicles, cinematic view, mission letterbox.
-6. Radio: DJ handoffs, dayparting, muffled outside the car, loudness matching; Radio SC on the game clock.
-7. Ship one or two MDL2 characters in the artifact, the rest hosted; realistic cars when hosts or user models allow.
-8. Real-data import once the hosts are allowed; the user's facade photos through `photo-to-facade.py`.
-9. Tooling: move the two blocked viewpoints, complete the light baselines, raise vitest timeouts under load, harness subtitle crop.
+## 8. Stage 4 list
 
-## 8. Process notes
+1. Review STUCK, WIRE and CLUTTER; then a fresh blind playtest round on the new build (one tester on `?q=phone`, one who goes into
+   the record shop and the club, one who plays two missions start to finish).
+2. Reach GTA3 on all seven viewpoints: clutter landed and measured, roof and party-wall variety, the sidewalk square fixed, all seven
+   after-frames; then GTA4: crowd density by hour, LOD pop check, car-paint reflections.
+3. Day schedule and ambient life (BIBLE gaps 1, 4, 9): hourly crowds and traffic, stoop sitting, an event every ~30 s, visible drivers.
+4. Camera: look-back, corner lag, near-vehicle fade, cinematic view, mission letterbox.
+5. Radio: DJ handoffs, dayparting, muffled outside the car, loudness matching; Radio SC on the game clock.
+6. Real-data import and the user's facade photos once the hosts are allowed.
+7. Tooling: move the two blocked viewpoints, complete the light baselines, harden timing-sensitive tests, harness mid-step reporting.
 
-- **The render lock** (`scripts/swarm-render.sh`, added 1 Nov ~15:50Z) was the most important process change. Before it, several
-  software-rendered Chromium instances at 2.6–4.8 GB each pushed the 16 GB box to a load average near 30 and killed PT's first three
-  validation runs. After it, playtests ran one at a time and finished. Its cost is waiting: a playtest holds the lock for its whole
-  session, so my final smoke run could not get it within 30 minutes.
-- **Usage-limit cutoffs**: the swarm stopped on 1 Nov at about 19:20Z in the middle of H2's session; H2's harness ended on its idle
-  timeout and kept a partial video and transcript. The container restarted before 3 Nov 06:20Z with the working tree intact and committed,
-  and Fable resumed lanes from their transcript posts, as in Stage 2. Two lanes had shell-time issues: H1's first run hit a
-  30-minute background-shell limit, fixed by splitting sessions and a 2-hour limit.
-- **Silent lanes**: MDLI finished its code but never posted a report and did not answer nudges; it was reviewed from disk. Messages
-  to V1 once reached PT's session instead; Fable resent them.
-- **The roundtable** produced no answers until Fable relayed the questions into each session: broadcast questions in the transcript
-  do not register as tasks for busy workers.
-- **Playtesting found what tests did not**: the half-length harness actions and the 14 m shove were both found by reading the testers'
-  step counts and positions against what they said they did. Reading a blind tester's thoughts next to the state file is a strong
-  debugging tool and should stay part of every stage.
-- **Scope**: the stage grew from four lanes to twenty-one. Closing it at V1's fix and carrying the 3 Nov lanes into Stage 4 keeps the
-  check-in honest about what is finished.
+## 9. Process notes
+
+- **The render lock** (`scripts/swarm-render.sh`) was the most important process change. Before it, several software-rendered Chromium
+  instances at 2.6 to 4.8 GB each pushed the 16 GB box to a load average near 30 and killed PT's first validation runs. After it,
+  playtests ran one at a time and finished. Its cost is waiting: a playtest holds the lock for its whole session, so other lanes'
+  screenshots and my own smoke runs sometimes waited more than 30 minutes, and GFX could only capture three of its seven after-frames.
+- **Usage-limit cutoffs and the restart.** The swarm stopped on 1 Nov at about 19:20Z in the middle of H2's session (its harness ended
+  on idle timeout and kept a partial video), and again on the morning of 3 Nov. The container restarted between the two; each time the
+  working tree was intact and committed, and Fable resumed every lane from its own transcript posts. Nothing was lost except H2's
+  remaining steps and some review continuity, which is why MDLI and GFX were reviewed from disk and from summaries.
+- **Shell time limits**: H1's first run stopped at a 30-minute background-shell limit; splitting sessions and a two-hour limit fixed it.
+- **Silent lanes and misrouted messages**: MDLI never posted a report; messages for V1 once reached PT; the roundtable got no answers
+  until Fable relayed the questions directly. Broadcast questions in the transcript do not register as tasks for busy workers.
+- **Reading thoughts next to state files is a debugging tool.** The half-length harness actions, the 14 m shove and H3's "F did
+  nothing" were all found by comparing what a tester said it did with the step counts and positions the harness recorded.
+- **Scope**: the stage grew from four lanes to about thirty. Tests and reviews kept up, but the global gate was red for most of
+  3 Nov while lanes overlapped; it is green again at close.

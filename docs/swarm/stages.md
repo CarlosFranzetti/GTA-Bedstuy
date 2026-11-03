@@ -116,7 +116,7 @@ regressions in artifact when 2K textures arrive (hosted-only asset set).
 
 ---
 
-## Stage 3 — Playtest loop (NOW, swarm started 2026-11-01T15:14Z)
+## Stage 3 — Playtest loop (DONE, 2026-11-01T15:14Z → 11-03T13:30Z; see checkins/stage3.md)
 
 **Goals:**
 1. Fix the user-reported bug: **the player cannot exit cars** (F key, touch CAR button, gamepad), plus enter/exit edge cases.
