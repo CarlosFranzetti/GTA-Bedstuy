@@ -13,12 +13,16 @@ const errors = [];
 const results = {};
 let browser;
 const hardStop = setTimeout(() => { console.error('hard timeout'); process.exit(2); }, 420_000);
-const check = (name, ok, extra) => { results[name] = !!ok; log(ok ? 'PASS' : 'FAIL', name, extra ?? ''); if (!ok) process.exitCode = 1; };
+let pageRef = null;
+const check = (name, ok, extra) => { pageRef?.evaluate((n) => { window.__mark = n; }, name).catch(() => {}); results[name] = !!ok; log(ok ? 'PASS' : 'FAIL', name, extra ?? ''); if (!ok) process.exitCode = 1; };
 try {
   for (let i = 0; i < 40; i++) { try { if ((await fetch(`http://localhost:${PORT}/`)).ok) break; } catch {} await new Promise((r) => setTimeout(r, 250)); }
   mkdirSync(OUT, { recursive: true });
   browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
   const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
+  pageRef = page;
+  await page.addInitScript(() => { window.addEventListener('DOMContentLoaded', () => { new MutationObserver(() => { const m = document.querySelector('.menu-root'); const o = m && !m.hidden; if (o && !window.__mo) { window.__mo = true; console.log('MENU-OPENED after: ' + window.__mark); } if (!o) window.__mo = false; }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['hidden'] }); }); });
+  page.on('console', (m) => { if (m.text().startsWith('MENU-OPENED')) log(m.text()); });
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.goto(`http://localhost:${PORT}/?q=phone&perf=0`, { waitUntil: 'load', timeout: 90_000 });
