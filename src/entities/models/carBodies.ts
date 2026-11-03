@@ -39,12 +39,32 @@ export class Acc {
     return this.add(g).add(m);
   }
   get size(): number { return this.geos.length; }
-  merge(): THREE.BufferGeometry {
+  /** Merges everything; with `color` the result also carries a uniform per-vertex `color` attribute (trim + chrome share one mesh). */
+  merge(color?: number): THREE.BufferGeometry {
     const m = mergeGeometries(this.geos, false);
     if (!m) throw new Error('carModel: merge failed');
     for (const g of this.geos) g.dispose();
+    if (color !== undefined) {
+      const c = new THREE.Color(color);
+      const n = m.attributes.position.count;
+      const a = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
+      m.setAttribute('color', new THREE.BufferAttribute(a, 3));
+    }
     return m;
   }
+}
+
+/** Dark plastic and bright chrome merged into ONE vertex-coloured geometry (one draw call instead of two). */
+export const TRIM_DARK = 0x16181b;
+export const TRIM_CHROME = 0xd2d7dd;
+export function mergeTrim(dark: Acc, chrome: Acc): THREE.BufferGeometry {
+  const parts = [dark.merge(TRIM_DARK)];
+  if (chrome.size > 0) parts.push(chrome.merge(TRIM_CHROME));
+  const m = parts.length === 1 ? parts[0] : mergeGeometries(parts, false);
+  if (!m) throw new Error('carBodies: trim merge failed');
+  if (parts.length > 1) for (const g of parts) g.dispose();
+  return m;
 }
 
 /** Mirror across x = 0 (new geometry, winding fixed). */
@@ -163,7 +183,7 @@ export function bumperGeo(width: number, depth: number, height: number, y: numbe
   s.quadraticCurveTo(-width / 2, depth, -width / 2, depth - r);
   s.closePath();
   const g = new THREE.ExtrudeGeometry(s, {
-    depth: height - 0.04, bevelEnabled: true, bevelSize: 0.02, bevelThickness: 0.02, bevelSegments: 2, curveSegments: 6,
+    depth: height - 0.04, bevelEnabled: true, bevelSize: 0.02, bevelThickness: 0.02, bevelSegments: 1, curveSegments: 3,
   });
   g.translate(0, 0, 0.02);
   g.rotateX(-Math.PI / 2); // shape y -> world -z (forward), extrude z -> world y
@@ -387,7 +407,7 @@ export function stationList(must: number[], want: number[], maxGap: number): num
   return out;
 }
 
-const END_T = [0, 0.06, 0.16, 0.32, 0.55, 0.8, 1];
+const END_T = [0, 0.22, 0.6, 1];
 
 /** Smooth rounding of a body end: 0 at the tip -> 1 at distance `dr` (quarter-circle profile). */
 export function endG(d: number, dr: number): number {
@@ -452,22 +472,20 @@ export function boxHalf(wMax: number, yBot: number, yTop: number, rad: number): 
 
 // ---------------------------------------------------------------- per-type parts (cached)
 
-export interface LampDef { pos: THREE.Vector3; yaw: number; }
 
 export interface CarParts {
   paint: THREE.BufferGeometry;
   /** truck cargo box (white paint) */
   paint2?: THREE.BufferGeometry;
   glass: THREE.BufferGeometry;
+  /** dark plastic + chrome in one vertex-coloured geometry */
   trim: THREE.BufferGeometry;
-  chrome: THREE.BufferGeometry;
   hood?: { geo: THREE.BufferGeometry; pivot: THREE.Vector3 };
+  /** all head lamps (+ the cab's roof light) / all tail lamps, car space */
   lampHead: THREE.BufferGeometry;
   lampTail: THREE.BufferGeometry;
-  headPos: LampDef[];
-  tailPos: LampDef[];
+  /** every licence plate (front first) in one geometry */
   plate: THREE.BufferGeometry;
-  platePos: THREE.Vector3[];
   wheels: { x: number; z: number; front: boolean }[];
   wheelR: number;
   wheelW: number;
@@ -477,22 +495,31 @@ export interface CarParts {
 }
 
 
-/** Half-ellipsoid lens facing -z (front) or +z (rear). */
+/** Half-ellipsoid lens facing -z (front) or +z (rear): 10 x 2 segments, 30 triangles. */
 export function lensGeo(rx: number, ry: number, rz: number, front: boolean): THREE.BufferGeometry {
-  const g = new THREE.SphereGeometry(1, 18, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+  const g = new THREE.SphereGeometry(1, 10, 2, 0, Math.PI * 2, 0, Math.PI / 2);
   g.rotateX(front ? -Math.PI / 2 : Math.PI / 2);
   g.scale(rx, ry, rz);
   return g;
 }
 
-/** Elliptical bezel ring facing -z or +z, sitting around a lens. */
-export function bezelGeo(rx: number, ry: number): THREE.BufferGeometry {
-  const g = new THREE.TorusGeometry(1, 0.1, 6, 24);
-  g.scale(rx, ry, 0.12);
-  return g;
+/** Moves a lamp geometry to `pos`, turned by `yaw` about y (car space). */
+export function placeLamp(g: THREE.BufferGeometry, pos: THREE.Vector3, yaw: number): THREE.BufferGeometry {
+  return g.applyMatrix4(new THREE.Matrix4().makeRotationY(yaw).setPosition(pos));
 }
 
-export function plateGeo(): THREE.BufferGeometry { return new THREE.PlaneGeometry(0.34, 0.17); }
+export const PLATE_W = 0.34;
+export const PLATE_H = 0.17;
+/** Licence plates in one geometry (they share the plate texture): the first faces front (-z), the others rear (+z). */
+export function platesGeo(at: THREE.Vector3[]): THREE.BufferGeometry {
+  const acc = new Acc();
+  at.forEach((p, i) => {
+    const g = new THREE.PlaneGeometry(PLATE_W, PLATE_H);
+    if (i === 0) g.rotateY(Math.PI);
+    acc.add(g.translate(p.x, p.y, p.z));
+  });
+  return acc.merge();
+}
 
 /** Re-map UVs so the cop livery lays out once along the car's length (text reads correctly on both flanks). */
 export function liveryUV(g: THREE.BufferGeometry, L: number): void {
@@ -525,9 +552,12 @@ export interface Style {
   clad: number;
   rails: boolean; spoiler: boolean;
   bumperY: number; bumperH: number;
+  /** PLAN profile: [u, half-width factor] along the car (nose / tail taper, fenders), ref metres; linear between entries */
+  plan: [number, number][];
 }
 
-export const STYLES: Record<'sedan' | 'suv', Style> = {
+export type PassengerStyle = 'sedan' | 'coupe' | 'suv' | 'cop' | 'cab';
+export const STYLES: Record<'sedan' | 'coupe' | 'suv', Style> = {
   sedan: {
     Lref: 4.6, Href: 1.4,
     sill: 0.2, wheelR: 0.34, wheelW: 0.225,
@@ -557,6 +587,39 @@ export const STYLES: Record<'sedan' | 'suv', Style> = {
     clad: 11,
     rails: false, spoiler: true,
     bumperY: 0.34, bumperH: 0.22,
+    plan: [[-2.3, 0.9], [-1.7, 0.97], [-0.9, 1], [0.9, 1], [1.7, 0.98], [2.3, 0.92]],
+  },
+  // two-door fastback: cabin pushed back, long hood, steep windshield, sloping rear glass
+  coupe: {
+    Lref: 4.6, Href: 1.4,
+    sill: 0.19, wheelR: 0.34, wheelW: 0.235,
+    axle: 1.4,
+    secs: [
+      [-2.26, 0.95, 0.92, 0.93],
+      [-1.95, 0.99, 0.96, 0.93],
+      [-1.6, 1.05, 0.98, 0.9],
+      [-1.2, 1.2, 0.98, 0.82],
+      [-0.7, 1.34, 0.98, 0.75],
+      [-0.2, 1.4, 0.98, 0.72],
+      [0.3, 1.37, 0.98, 0.74],
+      [0.65, 1.2, 0.975, 0.82],
+      [0.95, 1.02, 0.96, 0.9],
+      [1.4, 0.99, 0.93, 0.93],
+      [1.85, 0.93, 0.87, 0.93],
+      [2.1, 0.88, 0.82, 0.93],
+      [2.26, 0.84, 0.78, 0.93],
+    ],
+    windshield: [0.95, 0.3],
+    doorGlass: [[0.9, -0.5], [-0.66, -1.0]],
+    bPillar: [-0.5, -0.66],
+    rearGlass: [-1.0, -1.5],
+    seams: [0.86, -0.6, -1.02],
+    handles: [-0.3],
+    hoodBack: 0.98,
+    clad: 11,
+    rails: false, spoiler: true,
+    bumperY: 0.33, bumperH: 0.21,
+    plan: [[-2.3, 0.9], [-1.7, 0.98], [-0.9, 1], [0.9, 1], [1.8, 0.97], [2.3, 0.9]],
   },
   suv: {
     Lref: 4.9, Href: 1.8,
@@ -586,6 +649,7 @@ export const STYLES: Record<'sedan' | 'suv', Style> = {
     clad: 9,
     rails: true, spoiler: false,
     bumperY: 0.45, bumperH: 0.28,
+    plan: [[-2.45, 0.94], [-2.0, 0.99], [-1.0, 1], [1.0, 1], [2.0, 0.99], [2.45, 0.95]],
   },
 };
 
@@ -610,7 +674,7 @@ export function archOf(R: number, sill: number): Arch {
 export function archY(a: Arch, du: number): number {
   return Math.abs(du) < a.halfChord ? a.R + Math.sqrt(a.ra * a.ra - du * du) : 0;
 }
-export function archStations(a: Arch, axle: number, n = 12): number[] {
+export function archStations(a: Arch, axle: number, n = 6): number[] {
   const out: number[] = [];
   const a0 = Math.PI - a.phiS;
   for (let k = 0; k <= n; k++) {
@@ -623,7 +687,7 @@ export function archStations(a: Arch, axle: number, n = 12): number[] {
 /** Half-cylinder liner around a wheel well (dark, faces the wheel). */
 export function wheelLiner(a: Arch, x0: number, x1: number, z: number): THREE.BufferGeometry {
   const rr = a.ra - 0.02;
-  const g = new THREE.CylinderGeometry(rr, rr, x1 - x0, 20, 1, true, a.phiS, Math.PI - 2 * a.phiS);
+  const g = new THREE.CylinderGeometry(rr, rr, x1 - x0, 10, 1, true, a.phiS, Math.PI - 2 * a.phiS);
   g.rotateZ(Math.PI / 2);
   g.translate((x0 + x1) / 2, a.R, z);
   return inverted(g);
@@ -666,14 +730,23 @@ export function cabinTrim(hull: Hull, chrome: Acc, trim: Acc, lay: CabinLayout):
   }
 }
 
-export function buildPassengerParts(type: 'sedan' | 'suv' | 'cop', spec: VehicleSpec): CarParts {
-  const st = STYLES[type === 'suv' ? 'suv' : 'sedan'];
+/** Taxi yellow (the traffic palette's '#e0b01e' and anything near it): a sedan in this colour is built as the yellow cab. */
+export function isTaxiYellow(hex: string): boolean {
+  const c = new THREE.Color(hex);
+  const hsl = { h: 0, s: 0, l: 0 };
+  c.getHSL(hsl);
+  return hsl.h >= 0.1 && hsl.h <= 0.16 && hsl.s >= 0.6 && hsl.l >= 0.35 && hsl.l <= 0.65;
+}
+
+export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): CarParts {
+  const st = STYLES[type === 'suv' ? 'suv' : type === 'coupe' ? 'coupe' : 'sedan'];
+  const planAt = monotone(st.plan.map((p) => p[0]), st.plan.map((p) => p[1]));
   const { length: L, width: W, height: H } = spec;
   const kx = L / st.Lref;
   const ky = H / st.Href;
   const R = st.wheelR;
   const arch = archOf(R, st.sill);
-  const Wb2 = W / 2 - 0.02;                // body half-width
+  const Wb2 = W / 2 - 0.05;                // body half-width (mirrors reach W / 2 + 0.02)
   const tipF = L / 2 - 0.04;
   const tipR = -(L / 2 - 0.04);
   const drF = 0.5;
@@ -702,7 +775,7 @@ export function buildPassengerParts(type: 'sedan' | 'suv' | 'cop', spec: Vehicle
     const yBelt = fyBelt(u) - drop;
     const yT = fyT(u) - drop;
     yBot = Math.min(yBot, yBelt - 0.13);
-    const wMax = Wb2 * (0.6 + 0.4 * g);
+    const wMax = Wb2 * (0.6 + 0.4 * g) * planAt(u / kx);
     return { yT, yBelt, yBot, wMax, wR: fwR(u) * wMax };
   };
 
@@ -741,7 +814,7 @@ export function buildPassengerParts(type: 'sedan' | 'suv' | 'cop', spec: Vehicle
   const want: number[] = [...su];
   for (const t of END_T) { want.push(tipF - t * drF, tipR + t * drR); }
   for (const ax of [axleF, axleR]) want.push(...archStations(arch, ax));
-  const us = stationList(must, want, 0.4);
+  const us = stationList(must, want, 0.55);
 
   const hull = buildLoft({ us, half: (u) => carHalf(ring(u)), creases: [CAR_CREASE], cls });
   const sideX = (u: number, y: number): number => {
@@ -773,11 +846,16 @@ export function buildPassengerParts(type: 'sedan' | 'suv' | 'cop', spec: Vehicle
   cabinTrim(hull, chrome, trim, { ws, doors, rg, seams });
   for (const hu of handles) {
     const yH = fyBelt(hu) - 0.075;
-    const hx = sideX(hu, yH) + 0.014;
-    const cap = new THREE.CapsuleGeometry(0.012, 0.12, 3, 6);
-    cap.rotateX(Math.PI / 2);
-    cap.translate(hx, yH, -hu);
-    chrome.addBoth(cap);
+    chrome.addBoth(bx(0.012, 0.022, 0.13, sideX(hu, yH) + 0.008, yH, -hu));
+  }
+  // fuel filler flap on the right rear quarter: a dark rounded decal
+  {
+    const uF = tipR + 0.62 * kx;
+    const yF = fyBelt(uF) - 0.12;
+    const cap = new THREE.CircleGeometry(0.05, 8);
+    cap.rotateY(Math.PI / 2);
+    cap.translate(sideX(uF, yF) + 0.004, yF, -uF);
+    trim.add(cap);
   }
 
   // ---- wheel liners
@@ -787,15 +865,14 @@ export function buildPassengerParts(type: 'sedan' | 'suv' | 'cop', spec: Vehicle
     trim.addBoth(wheelLiner(arch, wx - 0.52 * wTyre - 0.03, Wb2 - 0.01, -ax));
   }
 
-  // ---- mirrors (paint housing, dark face, dark stalk)
+  // ---- mirrors (paint housing + dark face), tips stay within W / 2 + 0.02
   const uMir = doors[0][0] - 0.02;
   const yMir = fyBelt(uMir) + 0.075;
-  const mx = Wb2 + 0.04;
-  const housing = new THREE.SphereGeometry(1, 12, 8).scale(0.05, 0.05, 0.085);
+  const mx = Wb2 + 0.01;
+  const housing = new THREE.SphereGeometry(1, 6, 4).scale(0.045, 0.045, 0.08);
   housing.translate(mx, yMir, -uMir);
   paint.addBoth(housing);
-  trim.addBoth(bx(0.012, 0.06, 0.1, mx + 0.044, yMir, -uMir - 0.006));
-  trim.addBoth(bx(0.1, 0.022, 0.04, Wb2 - 0.01, yMir - 0.035, -uMir - 0.02));
+  trim.addBoth(bx(0.1, 0.02, 0.04, Wb2 - 0.01, yMir - 0.03, -uMir - 0.02));
 
   // ---- front / rear fascia
   const trF = ring(tipF);
@@ -803,72 +880,54 @@ export function buildPassengerParts(type: 'sedan' | 'suv' | 'cop', spec: Vehicle
   const bumperZ = L / 2;
   trim.add(bumperGeo(2 * Wb2 * 0.88, 0.2, st.bumperH, st.bumperY, -(bumperZ - 0.2), false));
   trim.add(bumperGeo(2 * Wb2 * 0.88, 0.2, st.bumperH, st.bumperY, bumperZ - 0.2, true));
-  // lower air dams
-  trim.add(bx(2 * Wb2 * 0.72, 0.05, 0.1, 0, st.bumperY - st.bumperH / 2 - 0.015, -(bumperZ - 0.06)));
-  trim.add(bx(2 * Wb2 * 0.6, 0.04, 0.08, 0, st.bumperY - st.bumperH / 2 - 0.01, bumperZ - 0.05));
   // lower intake slot + fog lamps (front)
   trim.add(bx(2 * Wb2 * 0.5, 0.07, 0.02, 0, st.bumperY - 0.03, -(bumperZ + 0.004)));
-  chrome.add(bx(2 * Wb2 * 0.5, 0.008, 0.012, 0, st.bumperY - 0.065, -(bumperZ + 0.01)));
   for (const s of [-1, 1]) {
-    const fog = new THREE.TorusGeometry(0.04, 0.008, 6, 14);
-    fog.translate(s * (Wb2 * 0.78), st.bumperY - 0.02, -(bumperZ + 0.004));
-    chrome.add(fog);
-    trim.add(new THREE.CircleGeometry(0.04, 12).rotateY(Math.PI).translate(s * (Wb2 * 0.78), st.bumperY - 0.02, -(bumperZ + 0.003)));
+    chrome.add(new THREE.CircleGeometry(0.045, 8).rotateY(Math.PI).translate(s * (Wb2 * 0.78), st.bumperY - 0.02, -(bumperZ + 0.004)));
   }
-  // grille: dark panel, chrome slats and surround, badge
+  // grille: dark panel, two chrome slats, chrome surround, badge
   const gW = trF.wMax * 0.8;
   const gH = 0.17;
   const gY = trF.yT - 0.13;
   const gZ = -(tipF + 0.006);
   trim.add(bx(2 * gW, gH, 0.016, 0, gY, gZ));
-  for (let k = 0; k < 4; k++) chrome.add(bx(2 * gW - 0.04, 0.012, 0.014, 0, gY - gH / 2 + (k + 0.8) * (gH / 4.2), gZ - 0.01));
+  for (let k = 0; k < 2; k++) chrome.add(bx(2 * gW - 0.04, 0.014, 0.014, 0, gY - gH / 4 + k * (gH / 2), gZ - 0.01));
   chrome.add(bx(2 * gW + 0.03, 0.014, 0.018, 0, gY + gH / 2 + 0.005, gZ - 0.004));
   chrome.add(bx(2 * gW + 0.03, 0.014, 0.018, 0, gY - gH / 2 - 0.005, gZ - 0.004));
-  for (const s of [-1, 1]) chrome.add(bx(0.014, gH + 0.02, 0.018, s * (gW + 0.008), gY, gZ - 0.004));
-  chrome.add(cylZ(0.028, 0.012, 0, gY, gZ - 0.012, 14));
+  chrome.add(cylZ(0.028, 0.012, 0, gY, gZ - 0.012, 8));
   // rear: chrome strip over the bumper, exhaust tip
   chrome.add(bx(2 * trR.wMax * 0.8, 0.012, 0.014, 0, trR.yBot + 0.02, tipF + 0.006));
   const exX = Wb2 - 0.34;
-  chrome.add(cylZ(0.04, 0.16, exX, 0.16, bumperZ - 0.14, 14));
-  trim.add(new THREE.CircleGeometry(0.032, 12).translate(exX, 0.16, bumperZ - 0.059));
+  chrome.add(cylZ(0.04, 0.16, exX, 0.16, bumperZ - 0.14, 8));
   // underbody pan so the sky never shows under the car
   trim.add(bx(2 * (Wb2 - 0.14), 0.04, L - 0.5, 0, st.sill + 0.04, 0));
 
-  // ---- interior (seen through the glass): dash, seats
+  // ---- interior (seen through the glass): dash and the two front seats
   const yBeltC = fyBelt(0);
   const seatY = st.sill + 0.5 * ky;
   trim.add(bx(2 * Wb2 * 0.78, 0.2, 0.3, 0, yBeltC - 0.13, -(ws[0] - 0.22)));
-  const seatU = [(ws[1] + bp[0]) / 2 - 0.1, (bp[1] + rg[0]) / 2 + 0.2];
-  seatU[0] = doors[0][1] + 0.3 * kx;
+  const seatU = doors[0][1] + 0.3 * kx;
   for (const s of [-1, 1]) {
-    trim.add(bx(0.46, 0.5, 0.12, s * 0.35, seatY + 0.28, -(seatU[0] - 0.22)));
-    trim.add(bx(0.46, 0.14, 0.5, s * 0.35, seatY, -seatU[0]));
-    trim.add(bx(0.2, 0.14, 0.08, s * 0.35, seatY + 0.6, -(seatU[0] - 0.22)));
+    trim.add(bx(0.46, 0.5, 0.12, s * 0.35, seatY + 0.28, -(seatU - 0.22)));
+    trim.add(bx(0.46, 0.14, 0.5, s * 0.35, seatY, -seatU));
   }
   trim.add(bx(2 * Wb2 * 0.72, 0.5, 0.12, 0, seatY + 0.26, -(rg[0] + 0.2)));
-  trim.add(bx(2 * Wb2 * 0.72, 0.14, 0.5, 0, seatY, -(rg[0] + 0.42)));
 
-  // ---- roof rails (SUV), antenna / spoiler (sedan)
+  // ---- roof rails (SUV)
   const iRoofA = hull.at(secs[st.rails ? 3 : 4][0]);
+  void iRoofA;
   if (st.rails) {
     const iR0 = hull.at(secs[2][0] + 0.12);
     const iR1 = hull.at(secs[4][0] - 0.05);
     const pts: THREE.Vector3[] = [];
     for (const i of seq(iR0, iR1)) pts.push(hull.P(i, 3).addScaledVector(hull.N(i, 3), 0.028));
     const curve = new THREE.CatmullRomCurve3(pts);
-    const tube = new THREE.TubeGeometry(curve, 24, 0.015, 6, false);
-    chrome.addBoth(tube);
-    for (const i of [iR0, hull.at((secs[2][0] + secs[4][0]) / 2), iR1]) {
-      const p = hull.P(i, 3);
-      trim.addBoth(bx(0.04, 0.035, 0.05, p.x, p.y + 0.008, p.z));
-    }
+    chrome.addBoth(new THREE.TubeGeometry(curve, 8, 0.015, 4, false));
     for (const f of [0.25, 0.75]) {
       const i = Math.round(lerp(iR0, iR1, f));
       const p = hull.P(i, 3);
       chrome.add(bx(2 * p.x, 0.022, 0.035, 0, p.y + 0.03, p.z));
     }
-  } else if (type !== 'cop') {
-    trim.add(new THREE.CylinderGeometry(0.008, 0.012, 0.2, 5).translate(0.5, hull.P(iRoofA, 0).y + 0.08, hull.P(iRoofA, 0).z + 0.55));
   }
   if (st.spoiler) {
     const uS = tipR + 0.2;
@@ -880,15 +939,19 @@ export function buildPassengerParts(type: 'sedan' | 'suv' | 'cop', spec: Vehicle
     for (const s of [-1, 1]) paint.add(bx(0.016, 0.04, 0.12, s * (rr.wMax - 0.17), rr.yT + 0.022, -uS));
   }
 
-  // ---- cop gear
+  // ---- cop gear / cab roof light
   const copBarU = secs[st.rails ? 3 : 5][0];
   const roofY = hull.P(hull.at(copBarU), 0).y;
+  const roofLamp = new Acc();
   if (type === 'cop') {
     for (const s of [-1, 1]) trim.add(bx(0.05, 0.42, 0.05, s * 0.5, 0.52, -(L / 2 + 0.035)));
     trim.add(bx(1.05, 0.05, 0.05, 0, 0.7, -(L / 2 + 0.035)));
     trim.add(bx(1.05, 0.05, 0.05, 0, 0.36, -(L / 2 + 0.035)));
     trim.add(bx(1.1, 0.05, 0.34, 0, roofY + 0.03, -copBarU));
     chrome.add(bx(1.14, 0.012, 0.02, 0, roofY + 0.175, -copBarU));
+  } else if (type === 'cab') {
+    trim.add(bx(0.4, 0.03, 0.2, 0, roofY + 0.015, -copBarU));
+    roofLamp.add(bx(0.38, 0.1, 0.17, 0, roofY + 0.08, -copBarU));
   }
 
   // ---- hood panel (separate so it can lift when damaged)
@@ -916,46 +979,28 @@ export function buildPassengerParts(type: 'sedan' | 'suv' | 'cop', spec: Vehicle
     return g;
   };
   const yc = hull.P(iHB, 0).y + 0.012;
-  const hoodAcc = new Acc().add(hoodSurface(0.012)).add(inverted(hoodSurface(-0.004)));
-  const hoodGeo = hoodAcc.merge();
+  const hoodGeo = new Acc().add(hoodSurface(0.012)).merge();
   hoodGeo.translate(0, -yc, hoodBackU);
 
-  // ---- lights
+  // ---- lights: one merged mesh per lamp colour (head / tail), in car space
   const lampHeadY = trF.yT - 0.09;
   const lampTailY = trR.yT - 0.12;
   const lx = trF.wMax - 0.15;
   const ltx = trR.wMax - 0.17;
-  const headPos: LampDef[] = [
-    { pos: v3(-lx, lampHeadY, -tipF), yaw: 0.25 },
-    { pos: v3(lx, lampHeadY, -tipF), yaw: -0.25 },
-  ];
-  const tailPos: LampDef[] = [
-    { pos: v3(-ltx, lampTailY, -tipR), yaw: -0.2 },
-    { pos: v3(ltx, lampTailY, -tipR), yaw: 0.2 },
-  ];
-  for (const l of headPos) {
-    const bz = new THREE.Matrix4().makeRotationY(l.yaw).setPosition(l.pos);
-    chrome.add(bezelGeo(0.15, 0.058).applyMatrix4(bz));
-    trim.add(new THREE.CircleGeometry(1, 20).scale(0.15, 0.058, 1).rotateY(Math.PI).applyMatrix4(bz));
-  }
-  for (const l of tailPos) {
-    const bz = new THREE.Matrix4().makeRotationY(l.yaw).setPosition(l.pos);
-    chrome.add(bezelGeo(0.17, 0.05).applyMatrix4(bz));
-    trim.add(new THREE.CircleGeometry(1, 20).scale(0.17, 0.05, 1).applyMatrix4(bz));
-  }
+  const head = new Acc();
+  const tail = new Acc();
+  for (const [sx2, yaw] of [[-1, 0.25], [1, -0.25]] as const) head.add(placeLamp(lensGeo(0.14, 0.05, 0.045, true), v3(sx2 * lx, lampHeadY, -tipF), yaw));
+  for (const [sx2, yaw] of [[-1, -0.2], [1, 0.2]] as const) tail.add(placeLamp(lensGeo(0.16, 0.045, 0.04, false), v3(sx2 * ltx, lampTailY, -tipR), yaw));
+  head.add(roofLamp.size ? roofLamp.merge() : new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([], 3)));
 
   const parts: CarParts = {
     paint: paint.merge(),
     glass: glass.merge(),
-    trim: trim.merge(),
-    chrome: chrome.merge(),
+    trim: mergeTrim(trim, chrome),
     hood: { geo: hoodGeo, pivot: v3(0, yc, -hoodBackU) },
-    lampHead: lensGeo(0.14, 0.05, 0.045, true),
-    lampTail: lensGeo(0.16, 0.045, 0.04, false),
-    headPos,
-    tailPos,
-    plate: plateGeo(),
-    platePos: [v3(0, st.bumperY, -(bumperZ + 0.003)), v3(0, st.bumperY, bumperZ + 0.003)],
+    lampHead: head.merge(),
+    lampTail: tail.merge(),
+    plate: platesGeo([v3(0, st.bumperY, -(bumperZ + 0.003)), v3(0, st.bumperY, bumperZ + 0.003)]),
     wheels: [],
     wheelR: R,
     wheelW: wTyre,
@@ -966,14 +1011,16 @@ export function buildPassengerParts(type: 'sedan' | 'suv' | 'cop', spec: Vehicle
     parts.wheels.push({ x: s * wx, z: -axleR, front: false });
   }
 
+  if (type === 'cop' || type === 'cab') {
+    liveryUV(parts.paint, L);
+    liveryUV(parts.hood!.geo, L);
+  }
   if (type === 'cop') {
     parts.lightbar = {
       lens: new THREE.BoxGeometry(0.52, 0.1, 0.28),
       a: v3(-0.29, roofY + 0.085, -copBarU),
       b: v3(0.29, roofY + 0.085, -copBarU),
     };
-    liveryUV(parts.paint, L);
-    liveryUV(parts.hood!.geo, L);
   }
   return parts;
 }
@@ -1077,10 +1124,7 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
   };
   for (const hu of [2.3]) {
     const yH = 1.72;
-    const cap = new THREE.CapsuleGeometry(0.016, 0.16, 3, 6);
-    cap.rotateX(Math.PI / 2);
-    cap.translate(sideX(hu, yH) + 0.016, yH, -hu);
-    chrome.addBoth(cap);
+    chrome.addBoth(bx(0.016, 0.03, 0.16, sideX(hu, yH) + 0.012, yH, -hu));
   }
 
   // ---- wheel liners and interior
@@ -1094,8 +1138,8 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
 
   // ---- mirrors on stalks (dark housings, chrome rim)
   for (const s of [-1, 1]) {
-    trim.add(bx(0.1, 0.4, 0.17, s * (Wc2 + 0.07), 2.1, -(doors[0][0] - 0.02)));
-    chrome.add(bx(0.11, 0.025, 0.18, s * (Wc2 + 0.07), 2.31, -(doors[0][0] - 0.02)));
+    trim.add(bx(0.1, 0.4, 0.17, s * (Wc2 + 0.05), 2.1, -(doors[0][0] - 0.02)));
+    chrome.add(bx(0.11, 0.025, 0.18, s * (Wc2 + 0.05), 2.31, -(doors[0][0] - 0.02)));
     trim.add(bx(0.12, 0.03, 0.03, s * (Wc2 + 0.03), 2.22, -(doors[0][0] - 0.02)));
     trim.add(bx(0.12, 0.03, 0.03, s * (Wc2 + 0.03), 1.95, -(doors[0][0] - 0.02)));
     // door step
@@ -1108,27 +1152,13 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
   for (let k = 0; k < 5; k++) chrome.add(bx(2 * Wc2 * 0.78, 0.016, 0.016, 0, trF.yBot + 0.14 + k * 0.1, -(uF + 0.018)));
   chrome.add(bx(2 * Wc2 * 0.8, 0.03, 0.025, 0, trF.yBot + 0.6, -(uF + 0.01)));
   chrome.add(bx(2 * Wc2 * 0.8, 0.03, 0.025, 0, trF.yBot + 0.08, -(uF + 0.01)));
-  chrome.add(cylZ(0.05, 0.014, 0, trF.yBot + 0.34, -(uF + 0.022), 16));
+  chrome.add(cylZ(0.05, 0.014, 0, trF.yBot + 0.34, -(uF + 0.022), 8));
   const headY = 1.1;
   const hx = trF.wMax - 0.22;
-  const headPos: LampDef[] = [
-    { pos: v3(-hx, headY, -uF), yaw: 0.1 },
-    { pos: v3(hx, headY, -uF), yaw: -0.1 },
-  ];
-  const tailPos: LampDef[] = [
-    { pos: v3(-(Wg2 - 0.14), 1.0, L / 2 - 0.06), yaw: 0 },
-    { pos: v3(Wg2 - 0.14, 1.0, L / 2 - 0.06), yaw: 0 },
-  ];
-  for (const l of headPos) {
-    const m = new THREE.Matrix4().makeRotationY(l.yaw).setPosition(l.pos);
-    chrome.add(bezelGeo(0.2, 0.12).applyMatrix4(m));
-    trim.add(new THREE.CircleGeometry(1, 20).scale(0.2, 0.12, 1).rotateY(Math.PI).applyMatrix4(m));
-  }
-  for (const l of tailPos) {
-    const m = new THREE.Matrix4().makeRotationY(l.yaw).setPosition(l.pos);
-    chrome.add(bezelGeo(0.09, 0.17).applyMatrix4(m));
-    trim.add(new THREE.CircleGeometry(1, 20).scale(0.09, 0.17, 1).applyMatrix4(m));
-  }
+  const head = new Acc();
+  const tail = new Acc();
+  for (const [sx2, yaw] of [[-1, 0.1], [1, -0.1]] as const) head.add(placeLamp(lensGeo(0.19, 0.11, 0.05, true), v3(sx2 * hx, headY, -uF), yaw));
+  for (const sx2 of [-1, 1]) tail.add(placeLamp(lensGeo(0.08, 0.16, 0.05, false), v3(sx2 * (Wg2 - 0.14), 1.0, L / 2 - 0.06), 0));
 
   // ---- chassis, fuel tank, rear bar, mudflaps
   trim.add(bx(1.7, 0.5, L - 0.9, 0, 0.85, 0.05));
@@ -1151,14 +1181,10 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
     paint: paint.merge(),
     paint2: paint2.merge(),
     glass: glass.merge(),
-    trim: trim.merge(),
-    chrome: chrome.merge(),
-    lampHead: lensGeo(0.19, 0.11, 0.06, true),
-    lampTail: lensGeo(0.08, 0.16, 0.05, false),
-    headPos,
-    tailPos,
-    plate: plateGeo(),
-    platePos: [v3(0, 0.62, -(L / 2 + 0.003)), v3(0, 0.95, L / 2 + 0.003)],
+    trim: mergeTrim(trim, chrome),
+    lampHead: head.merge(),
+    lampTail: tail.merge(),
+    plate: platesGeo([v3(0, 0.62, -(L / 2 + 0.003)), v3(0, 0.95, L / 2 + 0.003)]),
     wheels: [],
     wheelR: R,
     wheelW: ww,

@@ -1512,3 +1512,6 @@ Decision: the camera pivot now rides rigidly on the car so there is no trailing 
 
 ### 2026-11-03T22:18:53Z · Fable
 CAM FOR FABLE applied: cam.attachLetterbox(overlay) and events.on('mission:started', () => cam.setLetterbox(true, 2.5)) placed right after the camera is constructed (cam is created after the enterVehicle listener, so it lives at line ~297, not 241). tsc clean apart from ART's facade-ao Buffer error.
+
+### 2026-11-03T22:23:59Z · Fable
+@CARS2 heads-up: tsc currently fails at src/entities/models/carModel.ts(181): 'platePos' missing on CarParts (carBodies.ts). Fine mid-edit, but npx tsc --noEmit must be clean before your FINAL REPORT.

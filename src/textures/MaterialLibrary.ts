@@ -12,7 +12,7 @@ import {
 import {
   ROLLGATE_VARIANTS, chainlinkPainter, rollGatePainter, scaffoldPainter, tirePainter, waterTankPainter,
 } from './painters/metal';
-import { awningPainter, copLiveryPainter, signPainter } from './painters/signage';
+import { awningPainter, copLiveryPainter, signPainter, taxiLiveryPainter } from './painters/signage';
 import { CLOTH_COLORS, LEAF_VARIANTS, SKIN_TONES, treeLeavesPainter, treeTrunkPainter } from './painters/organic';
 import { gray, wrapVariant } from './painters/util';
 import { GROUND_VARIATION, disposeVariationTexture, patchGroundVariation } from './groundVariation';
@@ -46,7 +46,7 @@ const MAX_ANISOTROPY = 8;
 /** envMapIntensity per key for materials that pick up the scene environment (reflections). */
 const ENV_INTENSITY: Partial<Record<MaterialKey, number>> = {
   asphalt: 0.25, asphaltWorn: 0.25,
-  window: 1.0, storefrontGlass: 1.0, carGlass: 1.5, copLivery: 1.2,
+  window: 1.7, storefrontGlass: 1.35, carGlass: 1.5, copLivery: 1.2, taxiLivery: 1.2,
   metalDark: 0.5, metalGreen: 0.5, rollGate: 0.5, hydrant: 0.4,
 };
 const PAINT_ENV_INTENSITY = 1.2;
@@ -447,7 +447,7 @@ export class MaterialLibrary implements IMaterialLibrary {
     });
 
     const masonry: Relief = { strength: 2.5, normalScale: 0.6, roughScale: 0.5 };
-    const brickRelief: Relief = { ...masonry, strength: 3, share: 'brick' };
+    const brickRelief: Relief = { ...masonry, strength: 3.6, normalScale: 0.85, share: 'brick' };
     const stone: Relief = { strength: 2.2, normalScale: 0.6, roughScale: null };
     const asphaltRelief: Relief = { strength: 3, normalScale: 0.35, roughScale: 0.5 };
     const concreteRelief: Relief = { strength: 3, normalScale: 0.5, roughScale: null };
@@ -476,7 +476,7 @@ export class MaterialLibrary implements IMaterialLibrary {
       chainlinkRail: { variants: CHAINLINK_RAIL_VARIANTS, build: tex('chainlinkRail', 256, 64, chainlinkRailPainter, { roughness: 0.45, metalness: 0.4, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide }) },
       graniteCurb: { variants: GRANITE_CURB_VARIANTS, build: tex('graniteCurb', 512, 128, graniteCurbPainter, { roughness: 0.8 }, { strength: 2.4, normalScale: 0.8, roughScale: null }) },
       castIronFence: { variants: CAST_IRON_VARIANTS, build: (v) => this.std({ map: this.texture('castIronFence:' + v, 256, 256, castIronFencePainter, v), transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.5, metalness: 0 }) },
-      tarRoof: { variants: TAR_ROOF_VARIANTS, build: tex('tarRoof', 512, 512, tarRoofPainter, { roughness: 0.92 }, { strength: 3, normalScale: 0.6, roughScale: null }) },
+      tarRoof: { variants: TAR_ROOF_VARIANTS, build: tex('tarRoof', 512, 512, tarRoofPainter, { roughness: 0.92, color: new THREE.Color(0.78, 0.77, 0.76) }, { strength: 3, normalScale: 0.6, roughScale: null }) },
       graffiti: { variants: GRAFFITI_VARIANTS, build: (v) => this.std({ map: this.texture('graffiti:' + v, 512, 256, graffitiPainter, v), transparent: true, alphaTest: 0.06, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, roughness: 0.8 }) },
       rollGate: {
         variants: ROLLGATE_VARIANTS,
@@ -510,6 +510,10 @@ export class MaterialLibrary implements IMaterialLibrary {
       copLivery: {
         variants: 1,
         build: (v) => this.physicalPaint({ map: this.texture(`copLivery:${v}`, 512, 256, copLiveryPainter, v) }),
+      },
+      taxiLivery: {
+        variants: 1,
+        build: (v) => this.physicalPaint({ map: this.texture(`taxiLivery:${v}`, 512, 256, taxiLiveryPainter, v) }),
       },
       skin: flat(SKIN_TONES),
       cloth: flat(CLOTH_COLORS),

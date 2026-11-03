@@ -185,7 +185,7 @@ describe('MaterialLibrary', () => {
     const g = lib.get('window') as THREE.MeshStandardMaterial;
     expect(g.roughness).toBe(0.08);
     expect(g.metalness).toBe(0);
-    expect(g.envMapIntensity).toBe(1);
+    expect(g.envMapIntensity).toBe(1.7);
     expect(g.opacity).toBe(0.9);
     expect(g.transparent).toBe(true);
   });
@@ -365,7 +365,7 @@ describe('PBR materials', () => {
     expect(paint.envMap).toBe(env);
     const win = lib.get('window') as THREE.MeshStandardMaterial;
     expect(win.envMap).toBe(env);
-    expect(win.envMapIntensity).toBe(1);
+    expect(win.envMapIntensity).toBe(1.7);
     const asphalt = lib.get('asphalt') as THREE.MeshStandardMaterial;
     expect(asphalt.envMap).toBe(env);
     expect(asphalt.envMapIntensity).toBeCloseTo(0.25);
@@ -399,7 +399,7 @@ describe('PBR materials', () => {
     expect(nm.wrapT).toBe(THREE.RepeatWrapping);
     expect(nm.anisotropy).toBe(8);
     expect(nm.repeat.equals(brick.map!.repeat)).toBe(true);
-    expect(brick.normalScale.x).toBeCloseTo(0.6);
+    expect(brick.normalScale.x).toBeCloseTo(0.85);
     expect(brick.roughnessMap).toBeTruthy();
     expect(brick.roughness).toBe(1);
     // mortar joints are recessed so the normal map is not flat

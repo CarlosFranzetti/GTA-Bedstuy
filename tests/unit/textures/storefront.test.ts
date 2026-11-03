@@ -185,9 +185,9 @@ describe('storefront and street-metal painters', () => {
     expect(texts(a).length + texts(b).length).toBe(0);
   });
 
-  it('copLivery is BPD only and draws a door shield', () => {
+  it('copLivery says POLICE only (no real department) and draws a door shield', () => {
     const o = run(copLiveryPainter, 512, 256, 1);
-    expect(texts(o).map((x) => x.args[0])).toEqual(['BPD']);
+    expect(texts(o).map((x) => x.args[0])).toEqual(['POLICE']);
     expect(json(o)).not.toMatch(/NYPD/);
     expect(o.filter((x) => x.name === 'quadraticCurveTo').length).toBeGreaterThanOrEqual(2);
   });

@@ -183,7 +183,7 @@ export type MaterialKey =
   | 'brownstone' | 'brickRed' | 'brickPainted' | 'limestone' | 'cornice' | 'stoop'
   | 'window' | 'storefrontGlass' | 'rollGate' | 'roof' | 'waterTank'
   | 'treeTrunk' | 'treeLeaves' | 'metalDark' | 'metalGreen' | 'hydrant' | 'trash' | 'scaffold' | 'chainlink'
-  | 'carGlass' | 'tire' | 'copLivery' | 'skin' | 'cloth'
+  | 'carGlass' | 'tire' | 'copLivery' | 'taxiLivery' | 'skin' | 'cloth'
   | 'tireSidewall' | 'plate' | 'clothHoodie' | 'clothDenim' | 'clothVarsity' | 'clothSneaker'
   | 'corrugatedSteel' | 'chainlinkFence' | 'chainlinkRail' | 'graniteCurb' | 'castIronFence' | 'tarRoof' | 'graffiti';
 

@@ -767,7 +767,7 @@ function shield(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number
   ctx.fill();
 }
 
-/** Police car side livery 512x256: white body, blue stripe with reflective trim, door shield, parody text "BPD". */
+/** Police car side livery 512x256: white body, blue stripe with reflective trim, generic door shield, the word "POLICE" (no real department). */
 export const copLiveryPainter: Painter = (ctx, w, h, rng) => {
   ctx.fillStyle = '#f1f3f5';
   ctx.fillRect(0, 0, w, h);
@@ -794,7 +794,36 @@ export const copLiveryPainter: Painter = (ctx, w, h, rng) => {
   shield(ctx, w * 0.17, y + sh / 2, sh * 0.82);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  fitFont(ctx, 'BPD', w * 0.4, sh * 0.8);
+  fitFont(ctx, 'POLICE', w * 0.4, sh * 0.8);
   ctx.fillStyle = '#ffffff';
-  ctx.fillText('BPD', w / 2, y + sh / 2 + 2);
+  ctx.fillText('POLICE', w / 2, y + sh / 2 + 2);
+};
+
+/**
+ * Yellow cab side livery 512x256 (same layout as the police one: u along the car, v up from the sill): taxi yellow with a
+ * black checker band along the doors and the single word "TAXI" on the door (no real fleet or city names).
+ */
+export const taxiLiveryPainter: Painter = (ctx, w, h, rng) => {
+  ctx.fillStyle = '#e8b712';
+  ctx.fillRect(0, 0, w, h);
+  speckle(ctx, w, h, rng, 400, ['#b98a0c', '#f6d04a'], 1, 2, 0.12);
+  // checker band at door-handle height (v 0.45..0.58 -> canvas rows .42h..-.55h)
+  const y = h * 0.42;
+  const bh = h * 0.13;
+  const cell = bh / 2;
+  ctx.fillStyle = '#121212';
+  ctx.fillRect(0, y - 2, w, 2);
+  ctx.fillRect(0, y + bh, w, 2);
+  for (let r = 0; r < 2; r++) {
+    for (let x = 0, i = 0; x < w; x += cell, i++) {
+      if ((i + r) % 2 === 0) ctx.fillRect(x, y + r * cell, cell, cell);
+    }
+  }
+  ctx.fillStyle = '#a97d08';
+  ctx.fillRect(0, h * 0.74, w, 2);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  fitFont(ctx, 'TAXI', w * 0.2, h * 0.17);
+  ctx.fillStyle = '#121212';
+  ctx.fillText('TAXI', w * 0.5, h * 0.29);
 };
