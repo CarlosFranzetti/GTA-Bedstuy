@@ -37,7 +37,9 @@ Geometry, signage, cars, people and audio are procedural, generated in code from
 hand-authored data file (`src/world/data/bedstuy.json`) describing the streets and the
 parody points of interest. The large surfaces (brick, brownstone, sidewalks, asphalt, roofs)
 use photo-based PBR textures derived from CC0 ambientCG sets; see `docs/CREDITS.md`.
-No models or audio files are shipped.
+Models: six rigged CC0 people (Quaternius) and four CC0 cars (Kenney) ship in `src/assets/models/` (see `docs/CREDITS.md`). The
+five Quaternius civilians are compressed with `node scripts/compress-models.mjs --batch <raw-dir>` (meshopt, only the Idle / Walk /
+Run clips kept, about 300 KB each); the loader decodes meshopt itself. No audio files are shipped.
 
 Google Street View was used only as a **visual reference** while authoring that data.
 No Street View imagery is stored in this repo or in the game.

@@ -8,7 +8,7 @@ procedural model is used, with one console warning.
 
 | File | Replaces |
 | --- | --- |
-| `character*.glb` (e.g. `character.glb`, `character-hoodie.glb`) | every pedestrian and the player (`character.glb` wins, else the first file by name) |
+| `character*.glb` (`character.glb`, `character-casual-male.glb`, ...) | the player is `character.glb` (else the first file by name); pedestrians pick one of ALL character files, deterministically per ped (model x 8 cloth tints) |
 | `vehicle-sedan.glb` | sedan |
 | `vehicle-suv.glb` | SUV |
 | `vehicle-boxtruck.glb` | box truck |
@@ -61,7 +61,9 @@ model's source and licence next to it.
 The whole game is one HTML file (artifact limit 16 MB) and every model is base64-inlined (about +33 %).
 
 - Aim for 3 MB or less per GLB, a few thousand triangles per character, textures 1024 px or smaller.
-- Compress with meshopt (supported): `npx gltfpack -i in.glb -o character.glb -cc -tc` or
-  `npx @gltf-transform/cli optimize in.glb character.glb --compress meshopt --texture-size 1024`.
+- Compress with meshopt (supported, MeshoptDecoder is bundled in gltf/loader.ts): `node scripts/compress-models.mjs in.glb out.glb` (keeps only Idle / Walk / Run, quantizes, meshopt,
+  textures to 512 px WebP; `--batch <dir>` does the five Quaternius civilians; needs `@gltf-transform/core|extensions|functions` and
+  `meshoptimizer`, plus `sharp` for textured files). The shipped people are about 300 KB each (raw 1.0 to 1.3 MB). Alternatives:
+  `npx gltfpack -i in.glb -o character.glb -cc -tc` or `npx @gltf-transform/cli optimize in.glb character.glb --compress meshopt --texture-size 1024`.
 - Do not use Draco: its decoder is a separate download which the offline build cannot fetch.
 - KTX2 / Basis textures are not supported either; use JPEG or PNG (WebP works too).

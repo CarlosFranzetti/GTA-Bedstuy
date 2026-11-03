@@ -247,7 +247,9 @@ describe('merge semantics', () => {
     const ex = [lot({ widthM: 50, note: '12 Throop: my uncle lived here', confidence: 'M' }), lot({ widthM: 50 })];
     const items = [imp(60, 70, { note: `${IMPORT_MARK} way/1 · 3 fl · 10 Throop Avenue` }), imp(70, 80, { note: `${IMPORT_MARK} way/2 · 3 fl · 12 Throop Avenue` })];
     const { lots } = mergeFace(ex, items, frame, false);
-    expect(lots.map((l) => l.note?.slice(0, 12))).toEqual([`${IMPORT_MARK} way/1`, '12 Throop: m']);
+    expect(lots).toHaveLength(2);
+    expect(lots[0].note?.startsWith(`${IMPORT_MARK} way/1`)).toBe(true);
+    expect(lots[1].note?.startsWith('12 Throop: my uncle')).toBe(true);
   });
 });
 
@@ -300,14 +302,17 @@ describe('importBlocks on the fixture', () => {
     expect(geoBlock.attribution).toMatch(/OpenStreetMap contributors, ODbL/);
   });
   it('PLUTO fills floors and land use for footprints without OSM levels', () => {
+    const hartFace = (res.json.faces as Array<Record<string, unknown>>).find((f) => f.street === 'hart' && f.side === 'N' && f.from === 'throop')!;
+    const victim = (hartFace.lots as LotJson[]).find((l) => /way\/|synthetic\//.test(l.note ?? '') && /fl \(levels\) · \d+ Hart Street/.test(l.note ?? ''))!;
+    const num = /· (\d+) Hart Street/.exec(victim.note ?? '')![1];
     const feats = sample.map((f) => ({ ...f, tags: { ...f.tags } }));
-    const target = feats.find((f) => f.tags['addr:housenumber'] === '116' && f.tags['addr:street'] === 'Throop Avenue')!;
+    const target = feats.find((f) => f.tags['addr:housenumber'] === num && f.tags['addr:street'] === 'Hart Street')!;
     delete target.tags['building:levels'];
-    const pluto = parsePluto('Address,YearBuilt,LandUse,NumFloors,BldgClass\n116 Throop Avenue,1901,2,6,C1\n');
+    const pluto = parsePluto(`Address,YearBuilt,LandUse,NumFloors,BldgClass\n${num} Hart Street,1901,2,6,C1\n`);
     const r = importBlocks(json, feats, { pluto });
     expect(r.totals.plutoHits).toBe(1);
-    const face = (r.json.faces as Array<Record<string, unknown>>).find((f) => f.street === 'throop' && f.side === 'E' && f.from === 'hart')!;
-    const l = (face.lots as LotJson[]).find((x) => x.note?.includes('116 Throop'))!;
+    const face = (r.json.faces as Array<Record<string, unknown>>).find((f) => f.street === 'hart' && f.side === 'N' && f.from === 'throop')!;
+    const l = (face.lots as LotJson[]).find((x) => x.note?.includes(`${num} Hart Street`))!;
     expect(l.floors).toBe(6);
     expect(l.confidence).toBe('H');
     expect(l.note).toContain('built 1901');

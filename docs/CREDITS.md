@@ -37,17 +37,20 @@ dimensions, recoloured, lights and plates added at load time).
   the delivery van, standing in for the box truck). Author: Kenney (https://kenney.nl/assets/car-kit). Licence: **CC0 1.0 Universal**
   (secondary; the repackager NOTICE says each archive's License.txt reads CC0). Obtained via `@netforge/asset-library-files@0.2.0`
   (npm; MIT wrapper, art CC0 per its NOTICE).
-- **Quaternius characters** (`character.glb` = worker, the pedestrians and the player; `character-hoodie.glb` = hooded adventurer).
+- **Quaternius characters** (`character.glb` = the player and one of the six pedestrian models; the hooded adventurer `character-hoodie.glb` was removed, nothing used it).
   Author: Quaternius (https://quaternius.com). Licence: **CC0 1.0 Universal**. The Quaternius Ultimate Animated Character Pack
   LICENSE.txt (CC0 1.0) is verified; the exact pack of the two characters is secondary (repackager NOTICE). Obtained via
   `@netforge/asset-library-files@0.2.0`.
 - Not included: `truck-box` from `munim-maps-vehicles@0.5.0` (Apache-2.0), held until its wheels are split into nodes.
 
-### Quaternius Ultimate Animated Character Pack (research only, MDL2; not yet in src/assets/models)
+### Quaternius Ultimate Animated Character Pack (five civilians, MDL2 research, MDLI2 integration)
 
-- **Quaternius Ultimate Animated Character Pack** (Casual, Suit, Worker characters; `Idle`, `Walk`, `Run` clips).
+- **Quaternius Ultimate Animated Character Pack**: `character-casual-male.glb`, `character-casual-female.glb`, `character-suit-male.glb`,
+  `character-suit-female.glb`, `character-worker.glb` (pedestrians pick one of these or `character.glb`, deterministically per ped).
   Author: Quaternius (https://quaternius.com, https://www.patreon.com/quaternius). Licence: **CC0 1.0 Universal**, verified from
   the pack's own `LICENSE.txt` (https://raw.githubusercontent.com/wellmota/tutory-personagens/main/quaternius-uac/LICENSE.txt,
   sha256 83d8959f9fc56353ed571fbe2dc52e4bcd64508e2399501cd45ac2ce3df0bf8c). Obtained via the public GitHub repository
-  `wellmota/tutory-personagens` (branch `main`, commit 318fec6), folder `quaternius-uac/`. Files are unmodified copies; no
-  geometry or texture was edited. Not yet integrated into the game.
+  `wellmota/tutory-personagens` (branch `main`, commit 318fec6), folder `quaternius-uac/`.
+- **Modified**: these five files are compressed derivatives, made with `scripts/compress-models.mjs` (glTF-Transform): every animation
+  clip except `Idle`, `Walk` and `Run` is dropped, vertex data is quantized and meshopt-compressed (EXT_meshopt_compression). Geometry
+  shape, rig and materials are unchanged. About 1.2 MB each became about 0.3 MB each. The raw sha256 values are in the MDL2 notes.

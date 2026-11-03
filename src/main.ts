@@ -377,6 +377,7 @@ function drawFrame(alpha: number, frameDt: number): void {
     updateCamera(frameDt);
     updateSignalMeshes(world.signalsGroup, lights);
     weather.update(frameDt, cam.camera.position);
+    pipeline.setWeather(weather.wetness, weather.rain);
     culler.update(cam.camera.position.x, cam.camera.position.z);
     instanceCuller?.update(cam.camera.position.x, cam.camera.position.z);
     updateShadowCamera(dayNight.sun, camTarget);

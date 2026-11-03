@@ -44,3 +44,13 @@ export function streetMid(grid: GridModel, streetId: string, fromCrossId: string
   const mid = (grid.streetById(fromCrossId).offset + grid.streetById(toCrossId).offset) / 2;
   return s.axis === 'ns' ? { x: s.offset, z: mid } : { x: mid, z: s.offset };
 }
+
+/** Centreline crossing of a north-south and an east-west street. */
+export function corner(grid: GridModel, nsId: string, ewId: string): Vec2 {
+  return { x: grid.streetById(nsId).offset, z: grid.streetById(ewId).offset };
+}
+
+/** Walkable point `d` metres from `p` along the direction (ux, uz), for yards and alleys. */
+export function offset(p: Vec2, dx: number, dz: number): Vec2 {
+  return { x: p.x + dx, z: p.z + dz };
+}

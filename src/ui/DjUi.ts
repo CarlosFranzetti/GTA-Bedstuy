@@ -4,7 +4,7 @@
  * Drives DjGame.tick from its own requestAnimationFrame while open.
  */
 import { DjGame, MAX_PITCH, type DeckId } from '@/game/DjGame';
-import { loopSamples, LOOP_BARS, type RecordDef, type RecordSource } from '@/game/records';
+import { LOOP_BARS, type RecordSource } from '@/game/records';
 import type { Inventory } from '@/game/Inventory';
 import './dj.css';
 
@@ -242,5 +242,3 @@ export class DjUi {
   }
 }
 
-export { loopSamples };
-export type { RecordDef };

@@ -31,7 +31,7 @@ const SPAWN = (d: number) => ({ x: 0, z: d / 2 - 1.5, heading: 0 });
 
 function place(model: HumanModel, x: number, z: number, heading: number, scale = 1): void {
   model.group.position.set(x, 0, z);
-  model.group.rotation.y = -heading + Math.PI; // humanModel faces +z at rotation 0 in this rig; face the heading
+  model.group.rotation.y = -heading; // same convention as Math2.applyPose
   model.group.scale.setScalar(scale);
 }
 
@@ -228,7 +228,7 @@ export function buildClub(deps: RoomDeps): Room {
     g.add(m.group); dancers.push({ m, seed: i * 1.7 + rng.next() * 3 });
   }
   const dj = figure(deps.materials, new Rng('dj-sloth'), { outfit: 'hoodie', hat: 'cap', shirt: 7 });
-  place(dj, bx, bz - 0.15, 0); g.add(dj.group);
+  place(dj, bx, bz - 0.15, Math.PI); g.add(dj.group);
   const bartender = figure(deps.materials, new Rng('bartender'), { outfit: 'tee', hat: 'none', shirt: 1 });
   place(bartender, w / 2 - 1.5, 1.4, -Math.PI / 2); g.add(bartender.group);
   const guests = [figure(deps.materials, new Rng('guest1')), figure(deps.materials, new Rng('guest2'))];

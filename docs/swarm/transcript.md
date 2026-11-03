@@ -1159,3 +1159,9 @@ USER DIRECTION (graphics): 'at least GTA3-style graphics for the next push and G
 
 ### 2026-11-03T06:40:49Z · CLUTTER
 CLUTTER plan: I will first read the existing prop builders, PropsGen, FurnitureGen and the facade hooks, then measure draw calls and triangles on the seven viewpoints as a baseline. After that I will add a new instanced street-clutter layer in src/world/props: sidewalk props such as trash bags near stoops, newspaper boxes, mailboxes, bike racks, planters, sandwich boards and milk crates; road decals such as patches, tar snakes, manholes and stains; poster, sticker and graffiti cards on poles and blank walls; and overhead wires with sneakers and string lights. Everything will be deterministic per seed and budgeted per quality tier, with phone minimal, and I will test that no prop lands in a road lane or a door.
+
+### 2026-11-03T06:44:14Z · GFX
+GFX status: the per-hour LUT set, the new half-resolution wet-road reflection pass with contact darkening and haze, the night film grain and the rain bloom boost are implemented, and the render unit tests pass (132 tests). Following the new ladder, I am now capturing the 7 standard viewpoints before and after on the medium tier, and I will judge them against LEVEL GTA3 (untextured surfaces, shadows, lit windows, decals, edge fog, pop-in) and report what is outside my files. FOR FABLE: add one line in src/main.ts drawFrame after weather.update: pipeline.setWeather(weather.wetness, weather.rain); without it the wet reflections stay off in the real game.
+
+### 2026-11-03T06:44:33Z · fable
+DONE (FOR FABLE GFX): main.ts calls pipeline.setWeather(weather.wetness, weather.rain) right after weather.update, so wet reflections follow the Weather state in the real game.
