@@ -123,8 +123,8 @@ export function senatorTheCat(ctx: PlaceCtx): MissionDef {
 export function dollarVanLastRun(ctx: PlaceCtx): MissionDef {
   const { grid } = ctx;
   const stand = facePoint(grid, 'r3c1', 'N', 0.3);
-  const ride = (n: string, from: ReturnType<typeof facePoint>, to: ReturnType<typeof facePoint>, line: string) => [
-    { kind: 'pickUp' as const, at: from, radius: 6, presence: 'inVehicle' as const, items: [n], text: `Pick up ${n}`, failIfStars: 2, stayInVehicle: 12, banter: [line] },
+  const ride = (n: string, from: ReturnType<typeof facePoint>, to: ReturnType<typeof facePoint>, line: string, first = false) => [
+    { kind: 'pickUp' as const, at: from, radius: 6, presence: 'inVehicle' as const, items: [n], text: `Pick up ${n}`, failIfStars: 2, ...(first ? {} : { stayInVehicle: 12 }), banter: [line] },
     { kind: 'deliver' as const, at: to, radius: 6, presence: 'inVehicle' as const, items: [n], text: `Drop ${n} at their stoop`, failIfStars: 2, stayInVehicle: 12, maxKmh: 75 },
   ];
   return {
@@ -145,7 +145,7 @@ export function dollarVanLastRun(ctx: PlaceCtx): MissionDef {
     },
     followUp: { from: 'Dispatch', text: "Tip jar's on the dash. Take what you want.", delay: 70 },
     objectives: [
-      ...ride('Dolores', facePoint(grid, 'r2c1', 'S', 0.5), facePoint(grid, 'r4c0', 'E', 0.5), 'Dolores: "You new? The last guy knew my stoop by heart. And my business."'),
+      ...ride('Dolores', facePoint(grid, 'r2c1', 'S', 0.5), facePoint(grid, 'r4c0', 'E', 0.5), 'Dolores: "You new? The last guy knew my stoop by heart. And my business."', true),
       ...ride('Mr. Pat', facePoint(grid, 'r4c1', 'N', 0.5), facePoint(grid, 'r3c0', 'E', 0.5), 'Mr. Pat: "Turn the radio. Not that one. The other one. No, back."'),
       ...ride('the stranger', facePoint(grid, 'r1c1', 'S', 0.5), facePoint(grid, 'r2c0', 'E', 0.4), 'The stranger: "I know a shortcut. It is not a shortcut."'),
     ],
@@ -193,7 +193,7 @@ export function movingDay(ctx: PlaceCtx): MissionDef {
 export function permitPending(ctx: PlaceCtx): MissionDef {
   const { grid } = ctx;
   const contractor = facePoint(grid, 'r0c1', 'S', 0.3);
-  const office = facePoint(grid, 'r1c1', 'S', 0.25);
+  const office = facePoint(grid, 'r1c1', 'S', 0.6);
   return {
     id: 'permit-pending',
     title: 'Permit Pending',
@@ -212,7 +212,7 @@ export function permitPending(ctx: PlaceCtx): MissionDef {
     followUp: { from: 'Rico', text: 'The shed stays. It is part of the block now.', delay: 80 },
     objectives: [
       {
-        kind: 'tail', route: [corner(grid, 'throop', 'pulaski'), corner(grid, 'garvey', 'pulaski'), corner(grid, 'garvey', 'kosciuszko'), { x: office.x, z: 0 }],
+        kind: 'tail', route: [{ x: contractor.x, z: -100 }, corner(grid, 'garvey', 'pulaski'), corner(grid, 'garvey', 'kosciuszko'), { x: office.x, z: 0 }],
         speed: 8, maxDistance: 45, target: "inspector's sedan", text: "Tail the inspector's gray sedan to the permits office",
         banter: ['Rico (text): "Do not get close. He can smell a clipboard."'],
       },
