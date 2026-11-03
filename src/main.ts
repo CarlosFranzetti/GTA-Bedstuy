@@ -286,6 +286,7 @@ events.on('interior:exited', (e) => missions.notify({ type: 'interior:exited', i
 events.on('shop:bought', (e) => missions.notify({ type: 'shop:bought', recordId: e.recordId, shop: e.shop, price: e.price }));
 events.on('dj:setFinished', (e) => missions.notify({ type: 'dj:setFinished', venue: e.venue, score: e.score, minutes: e.minutes }));
 events.on('mission:twist', (e) => { if (e.id === 'aftersloth-residency') interiors.setBlackout(true); });
+events.on('mission:objective', (e) => { if (e.id === 'aftersloth-residency' && e.index >= 5) interiors.setBlackout(false); });
 events.on('mission:completed', (e) => { if (e.id === 'aftersloth-residency') interiors.setBlackout(false); });
 events.on('mission:failed', (e) => { if (e.id === 'aftersloth-residency') interiors.setBlackout(false); });
 const phoneHud = new PhoneHud(overlay, phone);
@@ -601,7 +602,7 @@ game.add({
     if (!away) { pb.pos.x = clamp(pb.pos.x, b.minX - m, b.maxX + m); pb.pos.z = clamp(pb.pos.z, b.minZ - m, b.maxZ + m); }
 
     // environment + audio
-    dayNight.update(dt);
+    if (interiors.state !== 'inside') dayNight.update(dt); // the clock stops while the player is in a room, so a DJ set cannot run the club past closing
     if (dayNight.timeOfDay < prevHour - 12) { gameDay++; applyClutterState(world.group, quality, gameDay); }
     prevHour = dayNight.timeOfDay;
     setStorefrontHour(dayNight.timeOfDay);
