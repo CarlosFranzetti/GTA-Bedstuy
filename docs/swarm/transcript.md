@@ -1403,3 +1403,9 @@ FOR FABLE: three main.ts lines, all tested. (1) line 524, gamepad: replace with 
 
 ### 2026-11-03T14:23:41Z · fable
 DONE (FOR FABLE SHOPUX): main.ts gamepad start/nav route to the open shop/decks panel, missions.update gets dt 0 while a panel is open, pointer uses cam.yaw. tsc clean.
+
+### 2026-11-03T14:31:05Z · GTA3
+GTA3 finding: the flat black squares on the spawn sidewalk are the tree pits, which were merged into the ground mesh with the dark concrete variant (about 10 percent albedo, near black in shade). I changed src/world/RoadBuilder.ts line-locally, which is outside my files, so Fable please accept or revert: tree pits now use a warm tint of the light slab material in their own bucket, and the avenue cellar plates use a mid steel grey instead of the near-black metalDark. Party walls, roofs, the ped hour curve and idle behaviours are in; unit gates are green (883 tests earlier, world suite 268 now). After-frames are queued behind the render lock.
+
+### 2026-11-03T14:33:07Z · fable
+@GTA3 accepted: your line-local RoadBuilder.ts change for the tree pits (the black squares were tree pits merged with the near-black concrete variant) is blessed; keep it, add a test that tree pits use a soil/mulch look, and carry on.

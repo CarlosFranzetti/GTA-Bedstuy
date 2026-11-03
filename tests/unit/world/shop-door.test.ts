@@ -21,8 +21,8 @@ import { PROCEDURAL_RECORDS } from '@/game/records';
 const stub = new Proxy({}, { get: () => () => new THREE.MeshBasicMaterial() }) as unknown as IMaterialLibrary;
 const data = loadBedstuyData();
 const grid = buildGrid(data);
-const lots = subdivideLots(grid, data.pois, new Rng(7).fork('lots'), getBedstuyFaces());
-const { colliders } = buildBuildings(lots, stub, new Rng(7).fork('buildings'));
+const lots = subdivideLots(grid, data.pois, new Rng(data.seed).fork('lots'), getBedstuyFaces());
+const { colliders } = buildBuildings(lots, stub, new Rng(data.seed).fork('buildings'));
 const deli = INTERIORS.deli.door;
 
 function walkTo(cols: StaticCollider[], from: Vec2, waypoints: Vec2[]): Vec2 {

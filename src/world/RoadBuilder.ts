@@ -416,7 +416,13 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
     // Sidewalk fixtures along each block face: tree pits every ~12 m, avenue cellar plates.
     // Tree pits are darker paving (concrete v1) merged into the ground mesh to save a draw call; that material has
     // no polygon offset, so they sit 2 cm above the walk instead of the usual decal gap.
-    const treePits = std('concrete', 1, 'ground');
+    // Tree pits used the dark concrete variant (concrete:1, ~10% albedo), which shades to pure black beside the light
+    // sidewalk slabs and read as a hole in the pavement. A warm earthy tint of the light slab keeps the pit visible, not black.
+    const treePits = bucket('decal:treePit', 'tree-pits', () => {
+      const pm = decalMaterial(materials.get('concrete', 0)) as THREE.MeshStandardMaterial;
+      pm.color.set('#9c8467');
+      return pm;
+    });
     // Cellar plates: a mid steel grey, not the near-black metalDark (#26282b renders pure black in the building's shade,
     // which read as a hole in the spawn sidewalk).
     const plates = bucket('decal:cellarPlate', 'cellar-plates', () => {
