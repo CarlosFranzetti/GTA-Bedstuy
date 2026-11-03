@@ -102,6 +102,7 @@ try {
   check('X closed the shop', !s.open && !/shop-open/.test(s.bodyClass) && !s.modal, JSON.stringify(s));
   // reopen and close with Escape and with the Close button
   await tap('KeyF'); await page.waitForFunction(() => window.__gtaDebug.shopUi?.isOpen, null, { timeout: 5000 });
+  await page.waitForTimeout(1500); // let the (slow, software-rendered) pointer-unlock event land while the panel is still open
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
   check('Escape closed the shop', !(await D(() => window.__gtaDebug.shopUi.isOpen)));
   await tap('KeyF'); await page.waitForFunction(() => window.__gtaDebug.shopUi?.isOpen, null, { timeout: 5000 });

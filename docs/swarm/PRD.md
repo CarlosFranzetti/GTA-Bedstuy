@@ -282,6 +282,17 @@ research, RADIO own-library radio (8 stations, 147 slots) + talk station, WRITE 
 | MGR | Every playtest bug/confusion lands in a defects table (id, severity, owner lane, repro) posted as `MGR: playtest triage` and carried into `checkins/stage3.md` | MGR post |
 | All | FINAL REPORT names files, commands + numbers, size impact, call site or wiring request, open issues | MGR review |
 
+### 5.4b Stage 4 (GTA3 bar, started 2026-11-03T13:31Z) — measurable
+| Lane | Criterion | How measured |
+|---|---|---|
+| GTA3 | No near-black flat patch on sidewalks (tree pits, cellar plates) in any of the 7 viewpoints | final frames + RoadBuilder test |
+| GTA3 | Party walls varied per lot (brick colour, soot, ghost signs, blind windows); roofs varied (≥ 3 tar variants + rooftop props) | world tests + golden-aerial/roof frames |
+| GTA3 | Pedestrian density follows the hour (BIBLE §7) with stoop sitters and loiterers; noon sidewalks show people; traffic-5min stays green | sim counts per hour + noon frames |
+| GTA3 | Rank-1 clutter visible on low within the triangle budget | stats on low |
+| GTA3 | Every viewpoint passes the LEVEL GTA3 checklist below | MGR verdict per viewpoint |
+| SHOPUX | Shop and DJ panels fit 640×360 (no clipped buttons), operable and closable by keyboard, gamepad and touch; Escape/Start closes; the pointer lock is released while a panel is open | ui tests + headless repro at 640×360 |
+| SHOPUX | Mission timers freeze while a panel is open; door prompt is a 3.2 m band; the Wax Deli stoop/fence no longer blocks the door; mission pointer arrow uses the camera yaw | game/world/ui tests + H5 replay |
+
 #### Graphics ladder (user direction 3 Nov: "at least GTA3-style graphics for the next push and GTA V level by the end")
 Judged by MGR at every check-in on the 7 standard viewpoints of `tests/e2e/screens.mjs` (noon street, noon corner, golden aerial,
 dusk car, night car, night corner, morning signals), medium tier unless stated. Each level needs every item on every viewpoint.
