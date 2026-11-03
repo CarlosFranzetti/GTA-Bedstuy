@@ -476,7 +476,7 @@ export class Pedestrian implements Entity {
     if (this.idleTimer > 0) return;
     this.idleTimer = this.idleRng.range(IDLE_ROLL_MIN, IDLE_ROLL_MAX);
     const env = this.env;
-    if (!env || this.state !== 'walking' || this.leader || this.followers > 0 || !this.targetId || !this.prevId) return;
+    if (!env || env.idleBoost === undefined || this.state !== 'walking' || this.leader || this.followers > 0 || !this.targetId || !this.prevId) return;
     if (this.isCrossingEdge(this.prevId, this.targetId)) return;
     const boost = env.idleBoost ?? 1;
     const here = { id: '', pos: { x: this.body.pos.x, z: this.body.pos.z } };

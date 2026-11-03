@@ -414,14 +414,11 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
     for (const run of runs) buildCurbRun(run, ends, curbs);
 
     // Sidewalk fixtures along each block face: tree pits every ~12 m, avenue cellar plates.
-    // Tree pits (and the black squares they used to be): a warm earthy tint of the light slab in their own decal bucket.
-    const treePits = bucket('decal:treePit', 'tree-pits', () => {
-      const pm = decalMaterial(materials.get('concrete', 0)) as THREE.MeshStandardMaterial;
-      pm.color.set('#b09a7c');
-      return pm;
-    });
-    // Cellar plates: a mid steel grey, not the near-black metalDark (#26282b renders pure black in the building's shade,
-    // which read as a hole in the spawn sidewalk).
+    // Tree pits were drawn as separate quads of the dark concrete variant, then as a cloned decal material: in the headless
+    // renders both shaded to flat black squares on the spawn sidewalk (only a quad sharing the slab's own material rendered
+    // right). Until the cause is found they share the sidewalk material, so a pit is a seamless slab, not a black hole.
+    const treePits = bl.row % 2 === 1 ? std('bluestone', 0, 'sidewalks-bluestone') : std('concrete', 0, 'sidewalks');
+    // Cellar plates: a mid steel grey, not the near-black metalDark (#26282b rendered pure black in the building's shade).
     const plates = bucket('decal:cellarPlate', 'cellar-plates', () => {
       const pm = decalMaterial(materials.get('metalDark', 0)) as THREE.MeshStandardMaterial;
       pm.color.set('#8a8d91');

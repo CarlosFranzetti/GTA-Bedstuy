@@ -108,7 +108,7 @@ export function pedHourFactor(hour: number): number {
 export function idleBoostForHour(hour: number): number {
   const h = ((hour % 24) + 24) % 24;
   if (h >= 11 && h < 15) return 7;
-  if (h >= 16.5 && h < 21) return 5.5;
+  if (h >= 16.5 && h < 21) return 4;
   if (h >= 15 && h < 16.5) return 4;
   if (h >= 8 && h < 11) return 2.5;
   if (h >= 21 || h < 5) return 0.5;
@@ -224,7 +224,6 @@ export class TrafficSystem {
       crossings: buildPedCrossings(grid),
       stoops: lots ? buildStoopSpots(lots) : undefined,
       doors: lots ? buildDoorSpots(lots) : undefined,
-      idleBoost: 1,
     };
     this.spawnParked();
     this.spawnPeds();
@@ -271,9 +270,9 @@ export class TrafficSystem {
    * A sidewalk node for a new pedestrian: most of the crowd is placed within PED_NEAR of the player (so the pavement near
    * the player is lived-in rather than the whole map evenly), never closer than `minD`.
    */
-  private pickPedNode(ids: string[], minD: number): GraphNode {
+  private pickPedNode(ids: string[], minD: number, biased = true): GraphNode {
     const nodes = this.grid.sidewalks.nodes;
-    const wantNear = this.rng.chance(PED_NEAR_SHARE);
+    const wantNear = biased && this.rng.chance(PED_NEAR_SHARE);
     let node = nodes[this.rng.pick(ids)];
     for (let k = 0; k < 24; k++) {
       const d = dist(node.pos, this.playerAt);
@@ -415,7 +414,7 @@ export class TrafficSystem {
     const cross = this.crosswalkNodeIds();
     const ids = Object.keys(this.grid.sidewalks.nodes);
     if (ids.length === 0) return;
-    for (let i = 0; i < this.pedTarget; i++) this.addPed(this.pickPedNode(ids, 0), cross);
+    for (let i = 0; i < this.pedTarget; i++) this.addPed(this.pickPedNode(ids, 0, false), cross); // the opening crowd is spread evenly; hour changes bias new arrivals toward the player
     this.formGroups();
   }
 

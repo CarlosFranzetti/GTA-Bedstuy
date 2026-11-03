@@ -112,8 +112,8 @@ try {
   // --- decks at home
   await D(() => window.__gtaDebug.interiors.exit()); await waitState('outside');
   await D(() => window.__gtaDebug.teleport(-10.4, -36, Math.PI)); await page.waitForTimeout(600);
-  for (let i = 0; i < 6 && (await state()) === 'outside'; i++) { await tap('KeyF'); await page.waitForTimeout(1500); }
-  log('home door', JSON.stringify(await D(() => { const d = window.__gtaDebug; return { st: d.interiors.state, prompt: d.interiors.prompt(d.player.body.pos), shopOpen: d.shopUi.isOpen, djOpen: d.djUi.isOpen, p: { ...d.player.body.pos }, cls: document.body.className }; })));
+  for (let i = 0; i < 6 && (await state()) === 'outside'; i++) { await hold('KeyF', 500); await page.waitForTimeout(2000); }
+  log('home door', JSON.stringify(await D(() => { const d = window.__gtaDebug; return { st: d.interiors.state, prompt: d.interiors.prompt(d.player.body.pos), shopOpen: d.shopUi.isOpen, djOpen: d.djUi.isOpen, p: { ...d.player.body.pos }, cls: document.body.className, modal: document.querySelector('[data-ui-modal]:not([hidden])')?.className ?? null, lock: document.pointerLockElement?.tagName ?? null }; })));
   await waitState('inside');
   await D(() => window.__gtaDebug.teleport(3000 + 2.6, 3240 - 7 / 2 + 1.65, 0)); await page.waitForTimeout(600);
   await tap('KeyF'); await page.waitForFunction(() => window.__gtaDebug.djUi?.isOpen, null, { timeout: 10_000 });
