@@ -136,3 +136,9 @@
   .rl-panel { border-radius: 0; }
   .rl-select { max-width: 50%; }
 }
+
+/* Radio SC section */
+.rl-sc { margin-bottom: 10px; }
+.rl-sc-input { flex: 1 1 200px; min-width: 0; }
+.rl-sc-current .rl-name { font-weight: 600; }
+.rl-sc-ah { margin: 0 4px; }

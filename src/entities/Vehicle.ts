@@ -113,7 +113,7 @@ export class Vehicle implements IVehicle {
   /** Optional real car models (GLB) per type; see src/assets/models/README.md. Set once at boot. */
   static sources: VehicleSources = {};
   /** Speed-dependent steering cap for player-driven cars (see LOW_YAW_CAP). Off only for before/after measurements. */
-  static calmSteering = false;
+  static calmSteering = true;
   readonly spec: VehicleSpec;
   readonly body: Body2D;
   readonly object3D: THREE.Group;

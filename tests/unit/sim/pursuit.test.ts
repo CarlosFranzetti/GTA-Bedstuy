@@ -36,7 +36,17 @@ interface Pursuit {
   playerDisplacement: number;
 }
 
+/**
+ * In 'flee' mode a TrafficAgent (AI, tuned against the raw steering lock) drives the player-flagged car, so the human
+ * low-speed steering cap (Vehicle.calmSteering) must not apply to it.
+ */
 function pursue(mode: 'flee' | 'wait', seed: number, stars: 1 | 2 | 3, seconds: number): Pursuit {
+  const prev = Vehicle.calmSteering;
+  if (mode === 'flee') Vehicle.calmSteering = false;
+  try { return pursueRaw(mode, seed, stars, seconds); } finally { Vehicle.calmSteering = prev; }
+}
+
+function pursueRaw(mode: 'flee' | 'wait', seed: number, stars: 1 | 2 | 3, seconds: number): Pursuit {
   const { physics, world } = realPhysics();
   const grid = world.grid;
   const events = new EventBus();

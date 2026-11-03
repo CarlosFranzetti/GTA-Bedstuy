@@ -8,8 +8,9 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import type { Pass } from 'three/addons/postprocessing/Pass.js';
 import type { Quality } from './Shadows';
-import { newTimeCycle, timeCycleAt } from './LightingConfig';
-import { GRADE_PRESETS, EXPOSURE_BY_PRESET, buildLut, presetForHour, type GradePreset } from './lut';
+import { newTimeCycle, timeCycleAt, hazeAt, grainAmount } from './LightingConfig';
+import { EXPOSURE_BY_PRESET, HOUR_KEYS, buildLut, lutKeysForHour } from './lut';
+import { FxPass, FX_TIERS, fxPassCosts, type PassCost } from './ssr';
 
 export type { Quality } from './Shadows';
 
@@ -25,9 +26,8 @@ const DOF_DEFAULT_STRENGTH = 0.6;
 const DOF_DEFAULT_APERTURE = 0.8;
 /** Maximum blur radius in pixels at 1080p and dofStrength = 1 (scaled with resolution). */
 const DOF_MAX_BLUR_1080 = 6;
-/** Focus smoothing rate (1/s) and grade-phase speed (presets/s). */
+/** Focus smoothing rate (1/s). */
 const FOCUS_RATE = 4;
-const GRADE_PHASE_SPEED = 0.6;
 
 /**
  * Depth of field: single-pass 16-tap Vogel-disc bokeh gather driven by a circle of confusion from
@@ -239,8 +239,9 @@ export const GRADING_SHADER = {
 
 /**
  * Post-processing chain. Pass order:
- *  - high / medium: RenderPass, GTAOPass, DoF, UnrealBloomPass, grading ShaderPass (3D LUT), SMAAPass, OutputPass
- *  - low:           RenderPass, UnrealBloomPass (quarter res), grading ShaderPass (analytic math), OutputPass
+ *  - high / medium: RenderPass, GTAOPass, FxPass (SSR trace at half res while wet + composite: contact, haze), DoF,
+ *                   UnrealBloomPass, grading ShaderPass (per-hour 3D LUT), SMAAPass, OutputPass
+ *  - low:           RenderPass, UnrealBloomPass (quarter res), grading ShaderPass (per-hour 3D LUT), OutputPass
  *  - phone:         RenderPass, grading ShaderPass (analytic math), OutputPass. No GTAO, no DoF, no SMAA and no bloom
  *                   (UnrealBloomPass is ~13 full-screen draws; the phone budget is 120 draw calls in total).
  *

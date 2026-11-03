@@ -42,3 +42,12 @@ dimensions, recoloured, lights and plates added at load time).
   LICENSE.txt (CC0 1.0) is verified; the exact pack of the two characters is secondary (repackager NOTICE). Obtained via
   `@netforge/asset-library-files@0.2.0`.
 - Not included: `truck-box` from `munim-maps-vehicles@0.5.0` (Apache-2.0), held until its wheels are split into nodes.
+
+### Quaternius Ultimate Animated Character Pack (research only, MDL2; not yet in src/assets/models)
+
+- **Quaternius Ultimate Animated Character Pack** (Casual, Suit, Worker characters; `Idle`, `Walk`, `Run` clips).
+  Author: Quaternius (https://quaternius.com, https://www.patreon.com/quaternius). Licence: **CC0 1.0 Universal**, verified from
+  the pack's own `LICENSE.txt` (https://raw.githubusercontent.com/wellmota/tutory-personagens/main/quaternius-uac/LICENSE.txt,
+  sha256 83d8959f9fc56353ed571fbe2dc52e4bcd64508e2399501cd45ac2ce3df0bf8c). Obtained via the public GitHub repository
+  `wellmota/tutory-personagens` (branch `main`, commit 318fec6), folder `quaternius-uac/`. Files are unmodified copies; no
+  geometry or texture was edited. Not yet integrated into the game.

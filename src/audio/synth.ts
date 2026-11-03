@@ -97,6 +97,12 @@ export function stationJingle(id: string): StingNote[] {
   return notes;
 }
 
+/** "Radio S C" station ID: seven quick notes, one per syllable, ending on a held octave. */
+export function scJingle(): StingNote[] {
+  const steps = [0, 4, 7, 4, 9, 7, 12];
+  return steps.map((d, i) => ({ freq: midiHz(62 + d), t: i * 0.13, dur: i === 6 ? 0.6 : 0.16, peak: 0.5, type: i % 2 ? 'triangle' as const : 'square' as const }));
+}
+
 export type TalkStingKind = 'jingle' | 'ad' | 'news' | 'segment';
 
 /** Short procedural stings between talk segments. */

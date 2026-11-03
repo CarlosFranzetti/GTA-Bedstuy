@@ -39,12 +39,13 @@ function setup(tracks: ImportedTrack[] = []) {
 describe('station list', () => {
   it('keeps the three procedural stations first, then eight music stations, then WBSY Talk', () => {
     const { dir } = setup();
-    expect(dir.stations.map((s) => s.kind)).toEqual(['synth', 'synth', 'synth', ...Array(8).fill('library'), 'talk']);
+    expect(dir.stations.map((s) => s.kind)).toEqual(['synth', 'synth', 'synth', ...Array(8).fill('library'), 'talk', 'sc']);
     expect(dir.stations.slice(3, 11).map((s) => s.name)).toEqual([
       'Bed-Stuy Pop FM', 'Flashback 80s', 'Throop Rap Radio', 'Garvey House & Dub',
       'Marcy Trap & Plug 808', 'Hazy Tompkins Weird Radio', 'Lewis Ave Echo-Dub Folk', 'Nostrand Jazz-Rock Gets Lit',
     ]);
-    expect(dir.stations.at(-1)!.name).toBe('WBSY Talk');
+    expect(dir.stations.at(-2)!.name).toBe('WBSY Talk');
+    expect(dir.stations.at(-1)!.name).toBe('Radio SC');
   });
 
   it('next() wraps around the whole dial', () => {

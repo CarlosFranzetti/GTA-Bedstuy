@@ -8,10 +8,13 @@ import './radio.css';
 import { LIBRARY_STATIONS, type LibraryStationId } from '@/audio/library/genres';
 import type { Library, Track } from '@/audio/library/Library';
 import type { LibraryController } from '@/audio/library/LibraryController';
+import type { ScStation } from '@/audio/sc/ScStation';
 
 export interface RadioUiSource {
   library: Library;
   libraryController: LibraryController;
+  /** Radio SC station; the section is left out when absent. */
+  sc?: ScStation;
 }
 
 export interface RadioUiOptions {
@@ -27,6 +30,10 @@ export class RadioUi {
   private readonly lib: Library;
   private readonly ctl: LibraryController;
   private readonly body: HTMLElement;
+  private readonly sc: ScStation | null;
+  private scList: HTMLElement | null = null;
+  private scMsg: HTMLElement | null = null;
+  private scInput: HTMLInputElement | null = null;
   private readonly status: HTMLElement;
   private readonly fileInput: HTMLInputElement;
   private readonly pickBtn: HTMLButtonElement;
@@ -44,6 +51,7 @@ export class RadioUi {
     this.doc = parent.ownerDocument;
     this.lib = src.library;
     this.ctl = src.libraryController;
+    this.sc = src.sc ?? null;
 
     this.root = this.el('div', 'rl-root');
     this.root.hidden = true;
@@ -83,7 +91,9 @@ export class RadioUi {
     this.status.setAttribute('aria-live', 'polite');
 
     this.body = this.el('div', 'rl-body');
-    panel.append(head, note, actions, this.fileInput, this.status, this.body);
+    panel.append(head, note, actions, this.fileInput, this.status);
+    if (this.sc) panel.appendChild(this.buildSc(this.sc));
+    panel.appendChild(this.body);
     this.root.appendChild(panel);
     parent.appendChild(this.root);
 
@@ -110,6 +120,7 @@ export class RadioUi {
       if (files && files.length > 0) { e.preventDefault(); void this.ctl.addFiles(Array.from(files)); }
     });
     this.cleanup.push(this.lib.onChange(() => this.render()), this.ctl.onChange(() => this.render()));
+    if (this.sc) this.cleanup.push(this.sc.onChange(() => this.renderSc()));
     this.render();
   }
 
@@ -139,6 +150,94 @@ export class RadioUi {
   dispose(): void {
     this.cleanup.splice(0).forEach((fn) => fn());
     this.root.remove();
+  }
+
+  /* ---------- Radio SC ---------- */
+
+  private buildSc(sc: ScStation): HTMLElement {
+    const det = this.el('details', 'rl-station rl-sc');
+    det.dataset.station = 'sc';
+    det.open = true;
+    const sum = this.el('summary', 'rl-station-head');
+    const nm = this.el('span', 'rl-station-name');
+    nm.textContent = 'Radio SC (SoundCloud mixes)';
+    sum.appendChild(nm);
+    const note = this.el('p', 'rl-note');
+    note.textContent = 'Paste a SoundCloud track or playlist link. Mixes stream through SoundCloud’s own embedded player (nothing is downloaded) and follow SoundCloud’s terms and the artist’s settings. Needs the hosted build or an internet connection. Flag a mix as after-hours to start the session with it between 23:00 and 06:00.';
+    const row = this.el('div', 'rl-actions');
+    const input = this.el('input', 'rl-select rl-sc-input');
+    input.type = 'url';
+    input.placeholder = 'https://soundcloud.com/artist/mix';
+    input.setAttribute('aria-label', 'SoundCloud link');
+    this.scInput = input;
+    const add = this.button('Add mix', 'rl-btn rl-primary rl-sc-add');
+    const testBtn = this.button('Test link', 'rl-btn rl-sc-test');
+    const nextBtn = this.button('Next mix', 'rl-btn rl-sc-next');
+    row.append(input, add, testBtn, nextBtn);
+    this.scMsg = this.el('p', 'rl-status rl-sc-msg');
+    this.scMsg.setAttribute('role', 'status');
+    this.scList = this.el('ol', 'rl-slots rl-sc-list');
+    det.append(sum, note, row, this.scMsg, this.scList);
+
+    const say = (t: string) => { if (this.scMsg) this.scMsg.textContent = t; };
+    const doAdd = () => {
+      const r = sc.addMix(input.value);
+      if (r.ok) { input.value = ''; say('Added.'); } else say(r.error);
+    };
+    add.addEventListener('click', doAdd);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); doAdd(); } });
+    testBtn.addEventListener('click', () => this.runTest(input.value));
+    nextBtn.addEventListener('click', () => sc.next());
+    this.renderSc();
+    return det;
+  }
+
+  private runTest(url: string): void {
+    const sc = this.sc;
+    if (!sc || !this.scMsg) return;
+    this.scMsg.textContent = 'Testing…';
+    void sc.test(url).then((r) => { if (this.scMsg) this.scMsg.textContent = r.ok ? `Works: ${r.title}` : r.error; });
+  }
+
+  private renderSc(): void {
+    const sc = this.sc;
+    const list = this.scList;
+    if (!sc || !list) return;
+    const frag = this.doc.createDocumentFragment();
+    if (sc.mixes.length === 0) {
+      const li = this.el('li', 'rl-slot rl-empty');
+      li.textContent = 'No mixes yet. Radio SC plays its synth bed until you add some.';
+      frag.appendChild(li);
+    }
+    sc.mixes.forEach((m, i) => {
+      const li = this.el('li', 'rl-slot');
+      const num = this.el('span', 'rl-num');
+      num.textContent = String(i + 1);
+      const label = this.el('span', 'rl-name');
+      label.textContent = m.url.replace('https://soundcloud.com/', '');
+      label.title = m.url;
+      const ah = this.el('input', 'rl-sc-ah');
+      ah.type = 'checkbox';
+      ah.checked = !!m.afterhours;
+      ah.title = 'After-hours mix (preferred first between 23:00 and 06:00)';
+      ah.setAttribute('aria-label', `After-hours: ${label.textContent}`);
+      ah.addEventListener('change', () => sc.setAfterhours(i, ah.checked));
+      const up = this.button('↑', 'rl-btn rl-x rl-sc-up');
+      up.setAttribute('aria-label', `Move mix ${i + 1} up`);
+      up.addEventListener('click', () => sc.moveMix(i, -1));
+      const down = this.button('↓', 'rl-btn rl-x rl-sc-down');
+      down.setAttribute('aria-label', `Move mix ${i + 1} down`);
+      down.addEventListener('click', () => sc.moveMix(i, 1));
+      const t = this.button('Test', 'rl-btn rl-x rl-sc-test-row');
+      t.addEventListener('click', () => this.runTest(m.url));
+      const rm = this.button('×', 'rl-btn rl-x rl-sc-remove');
+      rm.setAttribute('aria-label', `Remove mix ${i + 1}`);
+      rm.addEventListener('click', () => sc.removeMix(i));
+      if (i === sc.currentIndex) li.classList.add('rl-sc-current');
+      li.append(num, label, ah, up, down, t, rm);
+      frag.appendChild(li);
+    });
+    list.replaceChildren(frag);
   }
 
   /* ---------- rendering ---------- */

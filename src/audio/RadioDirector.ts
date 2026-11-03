@@ -12,10 +12,11 @@ import type { Library } from './library/Library';
 import { buildTimeline, locate, type Timeline } from './library/timeline';
 import type { Deck } from './decks';
 import type { TalkPlayer } from './talk/TalkPlayer';
+import { ScStation } from './sc/ScStation';
 
 export const CROSSFADE_SECONDS = 0.5;
 
-export type RadioKind = 'synth' | 'library' | 'talk';
+export type RadioKind = 'synth' | 'library' | 'talk' | 'sc';
 
 export interface RadioStationEntry {
   id: string;
@@ -56,12 +57,14 @@ export class RadioDirector {
   private naturalChanges = 0;
   private readonly unsubLib: () => void;
 
-  constructor(readonly library: Library, readonly talk: TalkPlayer, synthStations: Station[] = STATIONS) {
+  constructor(readonly library: Library, readonly talk: TalkPlayer, synthStations: Station[] = STATIONS, readonly sc: ScStation = new ScStation()) {
     this.stations = [
       ...synthStations.map((s, i): RadioStationEntry => ({ id: `synth${i}`, kind: 'synth', name: s.name, synth: s })),
       ...LIBRARY_STATIONS.map((d): RadioStationEntry => ({ id: d.id, kind: 'library', name: d.name, lib: d.id })),
       { id: 'talk', kind: 'talk', name: 'WBSY Talk' },
+      { id: 'sc', kind: 'sc', name: 'Radio SC' },
     ];
+    sc.onBetweenMixes = () => { if (this.current.kind === 'sc' && this.on) this.onSweeper?.(this.current); };
     for (const d of LIBRARY_STATIONS) this.vt.set(d.id, 0);
     this.unsubLib = library.onChange(() => {
       this.timelines.clear();
@@ -80,6 +83,7 @@ export class RadioDirector {
 
   get stationName(): string {
     const c = this.current;
+    if (c.kind === 'sc') return this.sc.stationName;
     return c.kind === 'talk' ? this.talk.stationName : c.name;
   }
 
@@ -87,6 +91,7 @@ export class RadioDirector {
   get trackName(): string {
     const c = this.current;
     if (c.kind === 'talk') return this.talk.caption;
+    if (c.kind === 'sc') return this.sc.usingBed && this.sc.mixes.length > 0 ? '' : this.sc.trackName;
     if (c.kind === 'library' && this.playingKey) return this.playingTrackName;
     return '';
   }
@@ -134,6 +139,7 @@ export class RadioDirector {
     this.playingKey = null;
     this.retireActive(CROSSFADE_SECONDS);
     this.talk.setActive(this.on && this.current.kind === 'talk');
+    this.sc.setActive(this.on && this.current.kind === 'sc');
     this.onTune?.(this.current);
     this.reconcile();
   }
@@ -148,6 +154,7 @@ export class RadioDirector {
       this.synth = null;
     }
     this.talk.setActive(on && this.current.kind === 'talk');
+    this.sc.setActive(on && this.current.kind === 'sc');
     if (on) this.reconcile();
   }
 
@@ -155,6 +162,7 @@ export class RadioDirector {
     if (p === this.paused) return;
     this.paused = p;
     this.talk.setPaused(p);
+    this.sc.setPaused(p);
     this.decks?.forEach((d) => { if (p) d.pause(); else d.resume(); });
   }
 
@@ -163,6 +171,7 @@ export class RadioDirector {
     if (this.paused || !(dt > 0)) return;
     for (const d of LIBRARY_STATIONS) this.vt.set(d.id, (this.vt.get(d.id) ?? 0) + dt);
     this.talk.update(dt);
+    this.sc.update(dt);
     for (let i = 0; i < 2; i++) {
       const r = this.retire[i];
       if (r !== null) {
@@ -176,6 +185,7 @@ export class RadioDirector {
   dispose(): void {
     this.unsubLib();
     this.talk.dispose();
+    this.sc.dispose();
     this.decks?.forEach((d) => { d.onEnded = null; d.onError = null; d.onDuration = null; d.stop(); });
     this.decks = null;
   }
@@ -186,6 +196,11 @@ export class RadioDirector {
     const c = this.current;
     if (c.kind === 'synth') {
       this.setSynth(c.synth!, 0, 'synth');
+      return;
+    }
+    if (c.kind === 'sc') {
+      // Mixes play in the hidden widget; only the procedural bed (offline, blocked, empty list) uses the synth.
+      if (this.on && this.sc.usingBed) this.setSynth(GENRE_STATIONS.house, 0, 'sc-bed'); else this.synth = null;
       return;
     }
     if (c.kind !== 'library' || !c.lib) { this.synth = null; return; }

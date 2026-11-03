@@ -116,3 +116,39 @@ export function timeCycleAt(hour: number, out: TimeCycle = newTimeCycle()): Time
   out.hemiGround.copy(COLOR_KEYS.hemiGround[i]).lerp(COLOR_KEYS.hemiGround[i + 1], t);
   return out;
 }
+
+/**
+ * Aerial-perspective haze by hour (GFX): `amount` is the share of the horizon colour mixed in at about 1/k metres, `glow` the
+ * forward-scatter toward the sun. Cold thin haze at night and noon, warm thick haze at dawn, golden hour and dusk
+ * (BIBLE section 3: "sunrise/sunset haze", "orange haze"). Rain thickens it.
+ */
+export const HAZE_KEYS: readonly { hour: number; amount: number; glow: number }[] = [
+  { hour: 0, amount: 0.1, glow: 0 },
+  { hour: 4.5, amount: 0.14, glow: 0 },
+  { hour: 6, amount: 0.3, glow: 0.25 },
+  { hour: 8, amount: 0.2, glow: 0.2 },
+  { hour: 12, amount: 0.08, glow: 0 },
+  { hour: 15.5, amount: 0.1, glow: 0.05 },
+  { hour: 17.5, amount: 0.3, glow: 0.45 },
+  { hour: 19, amount: 0.34, glow: 0.35 },
+  { hour: 20.3, amount: 0.18, glow: 0 },
+  { hour: 22.5, amount: 0.1, glow: 0 },
+  { hour: 24, amount: 0.1, glow: 0 },
+];
+
+export function hazeAt(hour: number, rain = 0): { amount: number; glow: number } {
+  const h = Number.isFinite(hour) ? ((hour % 24) + 24) % 24 : 0;
+  let i = 0;
+  while (i < HAZE_KEYS.length - 2 && h >= HAZE_KEYS[i + 1].hour) i++;
+  const a = HAZE_KEYS[i];
+  const b = HAZE_KEYS[i + 1];
+  const t = (h - a.hour) / (b.hour - a.hour);
+  const r = Math.min(1, Math.max(0, rain));
+  return { amount: Math.min(0.7, a.amount + (b.amount - a.amount) * t + 0.22 * r), glow: (a.glow + (b.glow - a.glow) * t) * (1 - 0.7 * r) };
+}
+
+/** Film grain amplitude: faint by day, stronger on the dark side of the clock (night), driven by the moon share of the time cycle. */
+export function grainAmount(moonI: number): number {
+  const n = Math.min(1, Math.max(0, moonI / 2.7));
+  return 0.012 + 0.03 * n;
+}

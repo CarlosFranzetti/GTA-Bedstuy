@@ -216,3 +216,33 @@ describe('RadioUi', () => {
     expect(parent.querySelector('.rl-root')).toBeNull();
   });
 });
+
+describe('RadioUi Radio SC section', () => {
+  it('is absent without a station; with one it adds, validates, reorders, removes and tests', async () => {
+    const { ScStation } = await import('@/audio/sc/ScStation');
+    expect(make().ui.root.querySelector('.rl-sc')).toBeNull();
+    document.body.innerHTML = '';
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const library = new Library(memStorage());
+    const libraryController = new LibraryController(library, { handles: memoryHandleStore(), importDeps, win: {} });
+    const sc = new ScStation({ storage: null, canLoad: () => false });
+    const ui = new RadioUi(parent, { library, libraryController, sc });
+    ui.open();
+    const input = q<HTMLInputElement>(ui.root, '.rl-sc-input');
+    input.value = 'https://example.com/a/b';
+    q<HTMLButtonElement>(ui.root, '.rl-sc-add').click();
+    expect(sc.mixes).toHaveLength(0);
+    expect(q(ui.root, '.rl-sc-msg').textContent).toContain('soundcloud.com');
+    for (const u of ['https://soundcloud.com/a/one', 'https://soundcloud.com/b/two']) { input.value = u; q<HTMLButtonElement>(ui.root, '.rl-sc-add').click(); }
+    expect(qa(ui.root, '.rl-sc-list .rl-slot')).toHaveLength(2);
+    qa(ui.root, '.rl-sc-down')[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(sc.mixes[0].url).toBe('https://soundcloud.com/b/two');
+    input.value = 'https://soundcloud.com/x/y';
+    q<HTMLButtonElement>(ui.root, '.rl-sc-test').click();
+    await flush();
+    expect(q(ui.root, '.rl-sc-msg').textContent).toContain('Radio SC (needs the hosted build');
+    qa(ui.root, '.rl-sc-remove')[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(sc.mixes).toHaveLength(1);
+  });
+});

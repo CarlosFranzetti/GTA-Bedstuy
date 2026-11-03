@@ -7,11 +7,12 @@
  */
 import type { EventBus } from '@/core/Events';
 import { Rng } from '@/core/Rng';
-import { engineFrequency, gearForSpeed, gearShiftFactor, hornFrequencies, impactGain, pinkNoise, squealLevel, stationJingle, stingDuration, talkSting, TALK_BED_FREQS, type StingNote, type TalkStingKind } from './synth';
+import { engineFrequency, gearForSpeed, gearShiftFactor, hornFrequencies, impactGain, pinkNoise, squealLevel, scJingle, stationJingle, stingDuration, talkSting, TALK_BED_FREQS, type StingNote, type TalkStingKind } from './synth';
 import { patternAt, stepSeconds, type Note } from './radio';
 import { Library, localLibraryStorage, type LibraryStorage } from './library/Library';
 import { LibraryController, type ControllerDeps } from './library/LibraryController';
 import { RadioDirector } from './RadioDirector';
+import { ScStation } from './sc/ScStation';
 import { HtmlAudioDeck } from './decks';
 import { TalkPlayer, type SpeechLike, type UtteranceLike } from './talk/TalkPlayer';
 import { loadBundledScript, type TalkSegment } from './talk/script';
@@ -72,6 +73,8 @@ export interface AudioSystemOptions {
   script?: TalkSegment[];
   /** Folder-handle store and importer overrides (tests). */
   controller?: ControllerDeps;
+  /** Radio SC station override (tests). Default: the real widget-backed station. */
+  sc?: ScStation;
 }
 
 function browserSpeech(): SpeechLike | null {
@@ -129,7 +132,7 @@ export class AudioSystem {
         volume: () => this.radioVolume,
       },
     }, opts.script ?? loadBundledScript());
-    this.radio = new RadioDirector(library, talk);
+    this.radio = new RadioDirector(library, talk, undefined, opts.sc ?? new ScStation());
     this.libraryController = new LibraryController(library, opts.controller);
     void this.libraryController.init().catch(() => undefined);
     this.radio.onTune = (entry) => {
@@ -137,9 +140,9 @@ export class AudioSystem {
       if (!g || !this.radioOn) return;
       // A blip of dial static, then the station's own jingle (WBSY Talk has its own stings).
       this.noiseBurst(g, { t: g.ctx.currentTime, dur: 0.18, type: 'bandpass', hz: 2500, peak: 0.12, dest: g.musicBus });
-      if (entry.kind !== 'talk') this.playSting(stationJingle(entry.id));
+      if (entry.kind !== 'talk') this.playSting(entry.kind === 'sc' ? scJingle() : stationJingle(entry.id));
     };
-    this.radio.onSweeper = (entry) => { if (this.radioOn && this.g) this.playSting(stationJingle(entry.id)); };
+    this.radio.onSweeper = (entry) => { if (this.radioOn && this.g) this.playSting(entry.kind === 'sc' ? scJingle() : stationJingle(entry.id)); };
     this.unsubs.push(
       events.on('userGesture', () => { void this.start(); void this.libraryController.autoReconnect().catch(() => undefined); }),
       events.on('horn', () => this.playHorn()),
@@ -234,6 +237,7 @@ export class AudioSystem {
   /** Radio level, independent of the master volume. 0..1. */
   setRadioVolume(v: number): void {
     this.radioVolume = clamp01(v);
+    this.syncScVolume();
     const g = this.g;
     if (g) this.applyRadioGain(g, 0.05);
   }
@@ -264,6 +268,14 @@ export class AudioSystem {
 
   get paused(): boolean { return this.pauseReasons.size > 0; }
 
+  /** The SoundCloud widget has its own output, so the game's master x radio level is mapped onto it. */
+  private syncScVolume(): void {
+    this.radio.sc.setVolume(this.masterVolume * this.radioVolume);
+  }
+
+  /** Radio SC station (mix list, next mix, test) for the Radio library panel. */
+  get sc(): ScStation { return this.radio.sc; }
+
   nextStation(): void {
     this.radio.next();
   }
@@ -290,6 +302,7 @@ export class AudioSystem {
 
   setMasterVolume(v: number): void {
     this.masterVolume = clamp01(v);
+    this.syncScVolume();
     const g = this.g;
     if (g) g.master.gain.setTargetAtTime(this.masterVolume, g.ctx.currentTime, 0.05);
   }
