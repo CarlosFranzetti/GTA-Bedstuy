@@ -32,6 +32,8 @@ const STRAIGHT_WEIGHT = 5;
 const STRAIGHT_ANGLE = 0.35;
 /** comfortable braking used to plan stops (fraction of the vehicle's brakeDecel) */
 const COMFORT_BRAKE = 0.6;
+/** braking planned for a pedestrian ahead is gentler than for a stop line: people step out and flee toward the car */
+const PED_BRAKE = 0.4;
 const STOP_POINT = 2.5;
 /** the hardest braking a driver commits to when deciding whether a yellow can still be stopped for */
 const YELLOW_BRAKE = 0.85;
@@ -437,7 +439,7 @@ export class TrafficAgent {
     }
     if (this.pedGap < Infinity) {
       const room = Math.max(0, this.pedGap - 3.2);
-      desired = Math.min(desired, Math.sqrt(2 * v.spec.brakeDecel * COMFORT_BRAKE * room));
+      desired = Math.min(desired, Math.sqrt(2 * v.spec.brakeDecel * PED_BRAKE * room));
     }
 
     // ---- obstacle
