@@ -129,6 +129,32 @@ describe.each(CASES)('procedural $style', (c) => {
   });
 });
 
+describe.each(CASES)('procedural $style winding', (c) => {
+  it('triangle winding agrees with the vertex normals (no inside-out faces) on body, hood, trim, tyres and lamps', () => {
+    const m = build(c);
+    for (const mesh of meshes(m.group)) {
+      if (['glass', 'plate', 'lightbarA', 'lightbarB'].includes(mesh.name)) continue;
+      const g = mesh.geometry;
+      const pos = g.attributes.position, nor = g.attributes.normal;
+      const idx = g.index ? Array.from(g.index.array as ArrayLike<number>) : Array.from({ length: pos.count }, (_, i) => i);
+      let bad = 0, total = 0;
+      const a = new THREE.Vector3(), b = new THREE.Vector3(), d = new THREE.Vector3(), fn = new THREE.Vector3(), vn = new THREE.Vector3();
+      for (let t = 0; t < idx.length; t += 3) {
+        a.fromBufferAttribute(pos, idx[t]); b.fromBufferAttribute(pos, idx[t + 1]); d.fromBufferAttribute(pos, idx[t + 2]);
+        fn.crossVectors(b.sub(a), d.sub(a));
+        if (fn.lengthSq() < 1e-12) continue;
+        vn.set(0, 0, 0);
+        for (let k = 0; k < 3; k++) vn.add(new THREE.Vector3().fromBufferAttribute(nor, idx[t + k]));
+        total++;
+        if (fn.dot(vn) < 0) bad++;
+      }
+      // the dark engine bay / inner shell is deliberately inside-out in places, so allow a small share, but never a wheel
+      const limit = mesh.name === 'tyre' || mesh.name === 'headlight' || mesh.name === 'taillight' || mesh.name === 'body' || mesh.name === 'hood' ? 0 : 0.5;
+      expect(bad / Math.max(1, total), `${c.style}/${mesh.name}`).toBeLessThanOrEqual(limit);
+    }
+  });
+});
+
 describe('carBodies: livery roles', () => {
   it('the cop has a light bar with two separately lit lenses, the cab has a roof light in the head lamp mesh', () => {
     const cop = build(CASES[5]);

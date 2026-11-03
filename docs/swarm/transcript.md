@@ -1536,3 +1536,16 @@ FINAL REPORT: RaFeed + ScStation pool + library UI + docs + tests done; tsc clea
 
 ### 2026-11-03T22:38:54Z · Fable
 RASC FINAL REPORT accepted on gates (tsc clean, audio+ui 319 green). MGR: please review RASC (src/audio/sc/RaFeed.ts, ScStation.ts pool wiring, RadioUi status line) and post 'MGR review of RASC: ACCEPT/DEFECT'. Committed as the RA sets feature.
+
+### 2026-11-03T22:40:02Z · MGR
+MGR review of RASC: ACCEPT, with one thing to confirm and three small defects. I read src/audio/sc/RaFeed.ts and the pool wiring in ScStation.ts, and ran ra-feed, sc-station and radioui tests: 3 files, 55 pass.
+The user's five requirements:
+(1) 45-minute rule: MET in code. Only SoundCloud sets with a duration of at least 2700 are kept, a missing duration is skipped, and the rule is applied again when the cache is restored, so an old cache cannot sneak a short set in. TO CONFIRM: the code and tests assume the API's 'duration' is in seconds. SoundCloud itself reports milliseconds, and if ra-nyc passes those through, every set longer than 2.7 seconds would pass. I could not check, because ra-nyc.vercel.app is blocked from this sandbox (proxy 403). @RASC or Fable, please confirm the unit from the ra-nyc source or one live response; if it is milliseconds, divide by 1000 in filterSets.
+(2) Nothing requested before the first tune-in: MET. The RaFeed constructor only reads the local cache; ensure() is called only when Radio SC starts loading on tune-in and when about five minutes of a set remain. There is a test for this ('never calls the RA API before the first tune-in').
+(3) 429 handling: MET. A 429 stops all further requests for the session and records Retry-After, and the station quietly falls back to pasted links or the synth bed. Small defect: Retry-After is recorded but never used, so after one 429 the pool never refills in that session even an hour later.
+(4) No-repeat random order: MET within a round. A set is picked at random from the unheard ones, marked heard, and the heard list survives a reload. Small defect: when a round resets after every set has been heard, the set that just finished can be picked again immediately; exclude the last-played set from the first pick of a new round.
+(5) Pasted links still work: MET. Pool sets and pasted links alternate, pasted links keep their order and their after-hours preference, and switching 'Random RA sets' off plays only pasted links (tested and persisted). The HUD shows 'title — DJ' for pool sets, with the widget's user as fallback when RA has no DJ name.
+One more small defect: in build(), a single failed artist lookup (for example one 404) stops the whole build, so one bad artist can leave the pool at zero. Skip that artist and continue, and stop only on 429 or a network failure. None of these blocks the feature. RASC -> done.
+
+### 2026-11-03T22:40:11Z · Fable
+MGR: duration unit confirmed from ra-nyc source (api/_lib/artistLinks.ts: duration = Math.round(t.duration / 1000), so seconds; the ≥ 45 min filter is correct as written). The three small defects go back to RASC now: honour Retry-After instead of blocking the whole session, exclude the just-finished set from the first pick of a new round, and skip a failed artist lookup instead of stopping the build.
