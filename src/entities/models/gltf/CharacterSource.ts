@@ -95,6 +95,8 @@ export class GltfCharacterSource implements CharacterSource {
   private readonly offset = new THREE.Vector3();
   private readonly tinted = new Map<string, THREE.Material>();
   private readonly cloth: Set<THREE.Material>;
+  /** Other people (casual, suit, worker ...) this source also hands out; see `variantCount`. */
+  private alternates: GltfCharacterSource[] = [];
 
   private constructor(gltf: GLTF, opts: GltfCharacterOptions) {
     this.height = opts.height ?? 1.75;
@@ -137,7 +139,24 @@ export class GltfCharacterSource implements CharacterSource {
     return new GltfCharacterSource(gltf, opts);
   }
 
+  /** Add other character models to this source (same orientation / clip rules; each is measured to its own height). */
+  withAlternates(others: readonly GltfCharacterSource[]): this {
+    this.alternates = others.filter((o) => o !== this);
+    return this;
+  }
+
+  /** Number of distinct (model, cloth tint) variants: 8 tints per model. `instantiate(0)` is always this source's own model. */
+  get variantCount(): number { return CLOTH_TINTS.length * (1 + this.alternates.length); }
+
+  /** Variant = model * 8 + tint; model 0 is this source, 1.. are the alternates (so `instantiate(0..7)` is always the primary person). */
   instantiate(variant: number): CharacterRig {
+    const v = Math.max(0, Math.trunc(variant));
+    const model = Math.floor(v / CLOTH_TINTS.length) % (1 + this.alternates.length);
+    if (model > 0) return this.alternates[model - 1].instantiateOwn(v % CLOTH_TINTS.length);
+    return this.instantiateOwn(v);
+  }
+
+  private instantiateOwn(variant: number): CharacterRig {
     const model = cloneSkinned(this.scene);
     model.position.add(this.offset);
     this.applyVariant(model, variant);
@@ -158,6 +177,7 @@ export class GltfCharacterSource implements CharacterSource {
   dispose(): void {
     for (const m of this.tinted.values()) m.dispose();
     this.tinted.clear();
+    for (const a of this.alternates) a.dispose();
   }
 
   /**
@@ -403,12 +423,26 @@ export function preferredCharacterUrl(files: Record<string, string>): string | n
   return exact ? files[exact] : firstUrl(files);
 }
 
-/** The bundled character*.glb if there is one and it loads, else the procedural people. */
+/** Every character*.glb url except the preferred one, sorted by file name (so the order, and the pick per ped, is stable). */
+export function alternateCharacterUrls(files: Record<string, string>): string[] {
+  const main = preferredCharacterUrl(files);
+  return Object.keys(files).sort().map((k) => files[k]).filter((u) => u !== main);
+}
+
+/**
+ * The bundled character*.glb files if there are any and the first loads, else the procedural people. The preferred file is the
+ * primary (the player, `instantiate(0)`); the others are alternates that pedestrians pick from. A broken alternate is skipped
+ * with one warning.
+ */
 export async function resolveCharacterSource(materials: IMaterialLibrary, rng: Rng): Promise<CharacterSource> {
   const url = preferredCharacterUrl(CHARACTER_FILES);
   if (!url) return new ProceduralCharacterSource(materials, rng);
   try {
-    return await GltfCharacterSource.load(url);
+    const primary = await GltfCharacterSource.load(url);
+    const alts = await Promise.all(alternateCharacterUrls(CHARACTER_FILES).map(async (u) => {
+      try { return await GltfCharacterSource.load(u); } catch (err) { warnOnce(`character-alt-${u}`, '[gltf] could not load an extra character model, skipping it', err); return null; }
+    }));
+    return primary.withAlternates(alts.filter((a): a is GltfCharacterSource => a !== null));
   } catch (err) {
     warnOnce('character-load', '[gltf] could not load the character model, using procedural people', err);
     return new ProceduralCharacterSource(materials, rng);

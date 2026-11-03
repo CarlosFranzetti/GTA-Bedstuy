@@ -13,7 +13,8 @@
  */
 import type { Vec2 } from '@/core/Math2';
 import type {
-  FailReason, MissionDef, MissionEventName, MissionEvents, MissionHudState, MissionMarker, MissionSave, ObjectiveDef,
+  DjRequest, FailReason, MissionDef, MissionEventName, MissionEvents, MissionHudState, MissionMarker, MissionSave,
+  MissionSignal, ObjectiveDef,
 } from './types';
 
 export type MissionListener<K extends MissionEventName> = (payload: MissionEvents[K]) => void;
@@ -27,6 +28,10 @@ export interface MissionSystemOptions {
   persist?: (save: MissionSave) => void;
   /** Game hours per real second; converts the deadline-hour clock to real seconds for the HUD. Default 1/60. */
   gameHoursPerSecond?: number;
+  /** Cash reward / stake handed to the player's wallet (CLUB's Inventory.add). Mission `cash` is a running tally either way. */
+  pay?: (cash: number) => void;
+  /** Progress flag raised on completion (Inventory.setFlag), e.g. 'aftersloth.unlocked'. */
+  setFlag?: (id: string) => void;
   /** Labels used in the retry prompt. */
   retryKey?: string;
   abandonKey?: string;
@@ -36,8 +41,23 @@ const COLOR_GIVER = '#f5c542';
 const COLOR_GOAL = '#4ade80';
 const DEFAULT_GAME_HOURS_PER_SECOND = 1 / 60;
 const MAX_STARS = 3;
+const TALK_RANGE_EXTRA = 1.5;
+const CUSTOMER_RANGE = 3;
+const CUSTOMER_STAY = 14;
+const MAX_GIVER_MARKERS = 4;
+const GIVER_REFRESH_S = 4;
+const MOVING_MARKER_PERIOD = 0.25;
+const TOO_FAST_GRACE = 0.5;
+const DEFAULT_BANTER_EVERY = 11;
+const DEFAULT_TAIL_GRACE = 6;
+const CUSTOMER_OFFSETS: readonly (readonly [number, number])[] = [[4, 2], [-4, 3], [3, -4], [-3, -3]];
 
 const wrap24 = (h: number): number => ((h % 24) + 24) % 24;
+/** Hour inside [from, to), wrapping midnight when from > to. */
+export const inHourWindow = (h: number, from: number, to: number): boolean => {
+  const x = wrap24(h), a = wrap24(from), b = to >= 24 ? wrap24(to) : to;
+  return a <= b ? x >= a && x < b : x >= a || x < b;
+};
 const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n);
 
 type Statuses = 'available' | 'active' | 'complete' | 'failed';
@@ -51,7 +71,7 @@ export class MissionSystem {
   /** HUD feed, mutated in place. */
   readonly hud: MissionHudState = {
     status: 'idle', title: '', objective: '', step: 0, steps: 0, timeLeft: -1, progress: -1, carrying: '',
-    cash: 0, toastSeq: 0, toast: '', toastKind: 'info', retryPrompt: '',
+    cash: 0, toastSeq: 0, toast: '', toastKind: 'info', retryPrompt: '', prompt: '',
   };
 
   private readonly defs: readonly MissionDef[];
@@ -72,6 +92,30 @@ export class MissionSystem {
   private readonly items: string[] = [];
   private lastFail: FailReason | null = null;
   private hintedZone = -1;
+  private readonly staked = new Set<string>();
+
+  // per-objective scratch (reset on every objective change)
+  private readonly sigs: MissionSignal[] = [];
+  private inside: string | null = null;
+  private lastHour = -1;
+  private lastPos: Vec2 = { x: 0, z: 0 };
+  private talkIdx = 0;
+  private presses = 0;
+  private done = false;
+  private fastFor = 0;
+  private banterIdx = 0;
+  private banterT = 0;
+  private collected: boolean[] = [];
+  private bought = new Set<string>();
+  private sold = 0;
+  private custT = 0;
+  private custStay = 0;
+  private custAt: Vec2 | null = null;
+  private custN = 0;
+  private tail = { x: 0, z: 0, leg: 0, engaged: false, atEnd: false, lost: 0, dist: 0, total: 1, moved: 0 };
+  private movingT = 0;
+  private giverT = 1e9;
+  private giverKey = '';
 
   constructor(defs: readonly MissionDef[], opts: MissionSystemOptions = {}) {
     this.defs = defs;
@@ -97,6 +141,73 @@ export class MissionSystem {
     return i < 0 ? null : this.status[i];
   }
   isCompleted(id: string): boolean { return this.statusOf(id) === 'complete'; }
+  /** Interior the host last reported entering (or null). */
+  get insideInterior(): string | null { return this.inside; }
+
+  /** Active DJ set the host should run (venue, length, pass mark), or null. */
+  get djRequest(): DjRequest | null {
+    if (!this.isActive) return null;
+    const ob = this.defs[this.cur].objectives[this.obj];
+    if (ob.kind !== 'djSet') return null;
+    return { venue: ob.venue, minutes: ob.minutes, minScore: ob.minScore, at: ob.at ?? null, radius: ob.radius ?? 6 };
+  }
+
+  /** A mission can be offered right now (prerequisites done, hour window open). */
+  isOffered(id: string, hour = this.lastHour): boolean {
+    const i = this.indexOf(id);
+    return i >= 0 && this.offered(i, hour);
+  }
+
+  /** The mission the phone should point at: first story mission on offer, else the first side job. */
+  nextOffer(hour = this.lastHour): MissionDef | null {
+    let side: MissionDef | null = null;
+    for (let i = 0; i < this.defs.length; i++) {
+      if (this.status[i] === 'complete' || !this.requiresMet(i)) continue;
+      const d = this.defs[i];
+      if (d.availableHours && hour >= 0 && !inHourWindow(hour, d.availableHours[0], d.availableHours[1])) continue;
+      if ((d.tag ?? 'story') === 'story') return d;
+      side ??= d;
+    }
+    return side;
+  }
+
+  /** The host forwards cross-system events here (interiors, shop, DJ game, peds). Safe to call any time. */
+  notify(sig: MissionSignal): void {
+    if (sig.type === 'interior:entered') this.inside = sig.id;
+    else if (sig.type === 'interior:exited' && this.inside === sig.id) this.inside = null;
+    if (this.isActive) this.sigs.push(sig);
+  }
+
+  /**
+   * The host calls this when F is pressed. Returns true when a mission interaction took the press (talk, knock,
+   * crank, sell) so the host must not also treat it as enter/exit car.
+   */
+  interact(pos: Vec2): boolean {
+    if (!this.isActive) return false;
+    const ob = this.defs[this.cur].objectives[this.obj];
+    if (ob.kind === 'talkTo') {
+      if (!this.reach(pos, ob.at, ob.radius + TALK_RANGE_EXTRA, ob.presence ?? 'onFoot')) return false;
+      const line = ob.lines[this.talkIdx];
+      this.toast(`${ob.npc}: "${line}"`, 'info');
+      this.talkIdx++;
+      if (this.talkIdx >= ob.lines.length) this.done = true;
+      return true;
+    }
+    if (ob.kind === 'interact') {
+      if (!this.reach(pos, ob.at, ob.radius, ob.presence ?? 'onFoot')) return false;
+      this.presses++;
+      const need = ob.presses ?? 1;
+      this.hud.progress = Math.min(1, this.presses / need);
+      if (this.presses >= need) this.done = true;
+      return true;
+    }
+    if (ob.kind === 'sell' && this.custAt && Math.hypot(pos.x - this.custAt.x, pos.z - this.custAt.z) <= CUSTOMER_RANGE) {
+      this.sellOne(ob.item);
+      return true;
+    }
+    return false;
+  }
+
 
   on<K extends MissionEventName>(type: K, fn: MissionListener<K>): () => void {
     let set = this.listeners.get(type);
@@ -200,6 +311,25 @@ export class MissionSystem {
   }
 
   // ------------------------------------------------------------------ internals
+
+  private presenceAt(): boolean { return this.hostInVehicle; }
+  private hostInVehicle = false;
+  private reach(pos: Vec2, at: Vec2, r: number, presence: 'onFoot' | 'inVehicle' | 'any'): boolean {
+    return inCircle(pos, at, r) && presenceOk(presence, this.hostInVehicle);
+  }
+
+  private requiresMet(i: number): boolean {
+    const req = this.defs[i].requires;
+    if (!req) return true;
+    for (const id of req) if (this.statusOf(id) !== 'complete') return false;
+    return true;
+  }
+
+  private offered(i: number, hour: number): boolean {
+    if (this.status[i] === 'complete' || !this.requiresMet(i)) return false;
+    const w = this.defs[i].availableHours;
+    return !(w && hour >= 0 && !inHourWindow(hour, w[0], w[1]));
+  }
 
   private indexOf(id: string): number {
     for (let i = 0; i < this.defs.length; i++) if (this.defs[i].id === id) return i;

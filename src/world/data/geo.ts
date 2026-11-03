@@ -750,3 +750,179 @@ export function formatBedstuyJson(root: Record<string, unknown>): string {
   }
   return `{\n${parts.join(',\n')}\n}\n`;
 }
+
+// ---------------------------------------------------------------- feature readers (Overpass JSON / GeoJSON)
+
+/** One OSM-like feature after normalisation: a building outline (ring) or a shop/amenity point. */
+export interface GeoFeature { id: string; tags: Tags; ring: LatLon[] | null; point: LatLon | null }
+
+type Loose = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+const dropClose = (ring: LatLon[]): LatLon[] =>
+  (ring.length > 1 && ring[0].lat === ring[ring.length - 1].lat && ring[0].lon === ring[ring.length - 1].lon ? ring.slice(0, -1) : ring);
+
+/** Parse Overpass JSON (`elements`) or GeoJSON text into features. Throws a readable error for anything else. */
+export function parseFeatures(text: string, label = 'input'): GeoFeature[] {
+  let doc: Loose;
+  try { doc = JSON.parse(text) as Loose; } catch (e) { throw new Error(`${label}: not valid JSON (${(e as Error).message})`); }
+  if (doc && Array.isArray(doc.elements)) return fromOverpass(doc.elements as Loose[]);
+  if (doc && (doc.type === 'FeatureCollection' || doc.type === 'Feature')) return fromGeoJson(doc);
+  throw new Error(`${label}: neither Overpass JSON (elements[]) nor GeoJSON (FeatureCollection)`);
+}
+
+function fromOverpass(elements: Loose[]): GeoFeature[] {
+  const nodes = new Map<number, Loose>();
+  for (const e of elements) if (e.type === 'node') nodes.set(e.id, e);
+  const out: GeoFeature[] = [];
+  const ringOf = (way: Loose): LatLon[] | null => {
+    if (Array.isArray(way.geometry)) return dropClose((way.geometry as Loose[]).filter((g) => g && Number.isFinite(g.lat)).map((g) => ({ lat: g.lat as number, lon: g.lon as number })));
+    if (Array.isArray(way.nodes)) {
+      return dropClose((way.nodes as number[]).map((n) => nodes.get(n)).filter((n): n is Loose => Boolean(n)).map((n) => ({ lat: n.lat as number, lon: n.lon as number })));
+    }
+    return null;
+  };
+  for (const e of elements) {
+    const tags = (e.tags ?? {}) as Tags;
+    if (e.type === 'way') {
+      const ring = ringOf(e);
+      if (ring && ring.length >= 3) out.push({ id: `way/${e.id}`, tags, ring, point: null });
+    } else if (e.type === 'relation') {
+      const outer = ((e.members ?? []) as Loose[]).find((m) => m.role === 'outer' && Array.isArray(m.geometry));
+      if (outer) out.push({ id: `relation/${e.id}`, tags, ring: dropClose((outer.geometry as Loose[]).map((g) => ({ lat: g.lat as number, lon: g.lon as number }))), point: null });
+    } else if (e.type === 'node' && e.tags && Number.isFinite(e.lat)) {
+      out.push({ id: `node/${e.id}`, tags, ring: null, point: { lat: e.lat as number, lon: e.lon as number } });
+    }
+  }
+  return out;
+}
+
+function fromGeoJson(doc: Loose): GeoFeature[] {
+  const feats = (doc.type === 'Feature' ? [doc] : doc.features ?? []) as Loose[];
+  const out: GeoFeature[] = [];
+  feats.forEach((f, i) => {
+    const g = f.geometry as Loose | null;
+    if (!g) return;
+    const tags: Tags = {};
+    for (const [k, v] of Object.entries((f.properties ?? {}) as Loose)) if (v !== null && typeof v !== 'object') tags[k] = String(v);
+    const id = String(f.id ?? (f.properties as Loose | undefined)?.['@id'] ?? `feature/${i}`);
+    const conv = (r: number[][]): LatLon[] => dropClose(r.map(([lon, lat]) => ({ lat, lon })));
+    if (g.type === 'Polygon') out.push({ id, tags, ring: conv(g.coordinates[0] as number[][]), point: null });
+    else if (g.type === 'MultiPolygon') {
+      // the largest outer ring stands for the building (courtyards and annexes are separate OSM features anyway)
+      const rings = (g.coordinates as number[][][][]).map((p) => conv(p[0]));
+      rings.sort((a, b) => b.length - a.length);
+      out.push({ id, tags, ring: rings[0], point: null });
+    } else if (g.type === 'Point') out.push({ id, tags, ring: null, point: { lat: g.coordinates[1] as number, lon: g.coordinates[0] as number } });
+  });
+  return out;
+}
+
+// ---------------------------------------------------------------- the import pipeline
+
+export interface ImportOptions {
+  origin?: LatLon;
+  /** compass bearing in degrees, or 'fit' (default) to fit it from the footprints near Throop */
+  bearing?: number | 'fit';
+  overwrite?: boolean;
+  pluto?: Map<string, PlutoRow> | null;
+}
+
+export interface FaceReport {
+  key: string;
+  lengthM: number;
+  footprints: number;
+  before: number;
+  after: number;
+  vacantGaps: number;
+  skippedTooNarrow: number;
+  split: number;
+  stats: MergeStats;
+  items: FaceLayout['items'];
+}
+
+export interface ImportResult {
+  /** the whole bedstuy.json object with updated faces (and a `geo` provenance block); input is not mutated */
+  json: Record<string, unknown>;
+  origin: LatLon;
+  originIsDefault: boolean;
+  bearingDeg: number;
+  bearingNote: string;
+  faces: FaceReport[];
+  totals: { buildings: number; shopPoints: number; outside: number; plutoHits: number; importedH: number; importedM: number };
+}
+
+/**
+ * Footprints + (optional) PLUTO -> updated bedstuy.json object. Pure and deterministic: the same inputs give the same
+ * output. See scripts/import-osm.mjs for the command-line wrapper.
+ */
+export function importBlocks(source: Record<string, unknown>, feats: readonly GeoFeature[], opts: ImportOptions = {}): ImportResult {
+  const json = JSON.parse(JSON.stringify(source)) as Record<string, unknown> & { streets: StreetLite[]; faces: Array<Record<string, unknown>> };
+  const origin = opts.origin ?? ORIGIN_LATLON;
+  const frames = buildFaceFrames(json.streets);
+  const frameByKey = new Map(frames.map((f) => [f.key, f]));
+  const buildings = feats.filter((f) => f.ring && f.ring.length >= 3 && f.tags.building && f.tags.building !== 'no' && !f.tags['building:part']);
+  const points = feats.filter((f) => f.point && (f.tags.shop || f.tags.amenity || f.tags.office));
+
+  let bearingDeg: number;
+  let bearingNote: string;
+  if (opts.bearing === undefined || opts.bearing === 'fit') {
+    const fit = fitBearingAlongStreet(buildings.map((b) => b.ring as LatLon[]), origin, 0, 45);
+    bearingDeg = fit.bearingDeg;
+    bearingNote = fit.edges === 0
+      ? 'no footprints to fit; default bearing'
+      : `fitted from ${fit.edges} footprint edges near Throop (strength ${fit.strength.toFixed(2)})${fit.strength < 0.5 ? ' - LOW, the footprints are not rectilinear; pass --bearing' : ''}`;
+  } else { bearingDeg = opts.bearing; bearingNote = 'given explicitly'; }
+  const proj = makeProjection(origin, bearingDeg);
+
+  const totals = { buildings: buildings.length, shopPoints: points.length, outside: 0, plutoHits: 0, importedH: 0, importedM: 0 };
+  const perFace = new Map<string, FootprintItem[]>();
+  for (const b of buildings) {
+    const ll = b.ring as LatLon[];
+    const ring = ll.map((p) => proj.toGrid(p));
+    const tags: Tags = { ...b.tags };
+    for (const p of points) {
+      const pt = p.point as LatLon;
+      if (pointInRing({ x: pt.lon, z: pt.lat }, ll.map((q) => ({ x: q.lon, z: q.lat })))) {
+        for (const k of ['shop', 'amenity', 'cuisine', 'name']) if (!tags[k] && p.tags[k]) tags[k] = p.tags[k];
+      }
+    }
+    const a = assignFootprint(frames, json.streets, ring, tags['addr:street']);
+    if (!a) { totals.outside++; continue; }
+    const addr = addressOf(tags);
+    const row = opts.pluto && addr ? opts.pluto.get(addressKey(addr.housenumber, addr.street)) : undefined;
+    if (row) totals.plutoHits++;
+    const d = deriveLot(tags, a.s1 - a.s0, a.depthM, row, b.id, a.frame.avenue ? 4 : 3);
+    const list = perFace.get(a.frame.key) ?? [];
+    list.push({ s0: a.s0, s1: a.s1, lot: d.lot, ref: b.id });
+    perFace.set(a.frame.key, list);
+  }
+
+  const faces = json.faces;
+  const byKey = new Map(faces.map((f) => [`${String(f.street)}|${String(f.side)}|${String(f.from)}|${String(f.to)}`, f]));
+  const reports: FaceReport[] = [];
+  for (const [key, items] of [...perFace].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+    const frame = frameByKey.get(key) as FaceFrame;
+    const layout = layoutFace(items);
+    const face = byKey.get(key);
+    const existing = ((face?.lots ?? []) as LotJson[]);
+    const merged = mergeFace(existing, layout.items, frame, Boolean(opts.overwrite));
+    for (const l of merged.lots) if (l.note?.startsWith(IMPORT_MARK)) { if (l.confidence === 'H') totals.importedH++; else totals.importedM++; }
+    reports.push({
+      key, lengthM: frame.length, footprints: items.length, before: existing.length, after: merged.lots.length,
+      vacantGaps: layout.vacantGaps, skippedTooNarrow: layout.skippedTooNarrow, split: layout.split, stats: merged.stats, items: layout.items,
+    });
+    if (face) face.lots = merged.lots;
+    else faces.push({ street: frame.street, side: frame.side, from: frame.from, to: frame.to, note: `imported from OSM footprints ${IMPORT_MARK}`, confidence: 'M', lots: merged.lots });
+  }
+
+  const geoBlock = {
+    origin: { lat: origin.lat, lon: origin.lon, note: opts.origin ? 'given with --origin' : 'approximate, verify (default constant in src/world/data/geo.ts)' },
+    bearingDeg: Math.round(bearingDeg * 100) / 100,
+    attribution: 'Building data (c) OpenStreetMap contributors, ODbL 1.0; attributes from NYC MapPLUTO (NYC Open Data) when joined.',
+  };
+  const ordered: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(json)) if (k !== 'faces' && k !== 'geo') ordered[k] = v;
+  if (perFace.size || json.geo) ordered.geo = perFace.size ? geoBlock : json.geo;
+  ordered.faces = json.faces;
+  return { json: ordered, origin, originIsDefault: !opts.origin, bearingDeg, bearingNote, faces: reports, totals };
+}

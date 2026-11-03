@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { GltfCharacterSource, ProceduralCharacterSource, pickClips, baseClipName, clothMaterials, tintCloth, preferredCharacterUrl } from '@/entities/models/gltf/CharacterSource';
+import { GltfCharacterSource, ProceduralCharacterSource, pickClips, baseClipName, clothMaterials, tintCloth, preferredCharacterUrl, alternateCharacterUrls } from '@/entities/models/gltf/CharacterSource';
 import { GltfVehicleSource } from '@/entities/models/gltf/VehicleSource';
 import { VEHICLE_SPECS } from '@/entities/Vehicle';
 import { Rng } from '@/core/Rng';
@@ -401,5 +401,23 @@ describe('preferredCharacterUrl', () => {
     expect(preferredCharacterUrl({ '/a/character-hoodie.glb': 'h', '/a/character.glb': 'c' })).toBe('c');
     expect(preferredCharacterUrl({ '/a/character-hoodie.glb': 'h', '/a/character-b.glb': 'b' })).toBe('b');
     expect(preferredCharacterUrl({})).toBeNull();
+  });
+});
+
+describe('character variety', () => {
+  it('alternateCharacterUrls: every file but the preferred one, sorted by name', () => {
+    const files = { '/a/character-suit.glb': 's', '/a/character.glb': 'c', '/a/character-casual.glb': 'k' };
+    expect(alternateCharacterUrls(files)).toEqual(['k', 's']);
+    expect(alternateCharacterUrls({ '/a/character.glb': 'c' })).toEqual([]);
+    expect(alternateCharacterUrls({})).toEqual([]);
+  });
+
+  it('a pedestrian pick (one rng draw over variantCount) is deterministic per seed and covers every model', () => {
+    const fake = { variantCount: 48 };
+    const pick = (seed: number): number[] => { const r = new Rng(seed); return Array.from({ length: 200 }, () => r.int(0, fake.variantCount - 1)); };
+    expect(pick(7)).toEqual(pick(7));
+    expect(pick(7)).not.toEqual(pick(8));
+    const models = new Set(pick(7).map((v) => Math.floor(v / 8)));
+    expect([...models].sort()).toEqual([0, 1, 2, 3, 4, 5]);
   });
 });

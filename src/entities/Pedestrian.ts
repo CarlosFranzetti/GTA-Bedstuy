@@ -108,7 +108,11 @@ export class Pedestrian implements Entity {
     };
 
     let g: THREE.Group;
-    if (Pedestrian.characterSource) { this.rig = Pedestrian.characterSource.instantiate(rng.int(0, 7)); g = this.rig.group; }
+    if (Pedestrian.characterSource) {
+      // one rng draw: model * 8 + cloth tint (a source with several people reports variantCount; others have the 8 tints)
+      const n = (Pedestrian.characterSource as { variantCount?: number }).variantCount ?? 8;
+      this.rig = Pedestrian.characterSource.instantiate(rng.int(0, n - 1)); g = this.rig.group;
+    }
     else { this.model = buildHumanModel(materials, rng); g = this.model.group; }
     g.rotation.order = 'YXZ';
     this.object3D = g;

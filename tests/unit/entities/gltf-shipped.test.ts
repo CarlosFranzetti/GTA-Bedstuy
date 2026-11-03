@@ -190,7 +190,50 @@ describe('PaletteCarPaint', () => {
   });
 });
 
-describe.each(['character.glb', 'character-hoodie.glb'])('shipped %s', (file) => {
+const CHARACTER_FILES = ['character.glb', 'character-casual-male.glb', 'character-casual-female.glb', 'character-suit-male.glb', 'character-suit-female.glb', 'character-worker.glb'];
+
+describe('shipped character files', () => {
+  it('are the six people and nothing else (no medieval hoodie model)', async () => {
+    const spec: string = 'node:fs';
+    const fs = (await import(/* @vite-ignore */ spec)) as { readdirSync(p: URL): string[] };
+    const found = fs.readdirSync(new URL('../../../src/assets/models/', import.meta.url)).filter((f) => /^character.*\.glb$/.test(f)).sort();
+    expect(found).toEqual([...CHARACTER_FILES].sort());
+  });
+
+  it('the compressed Quaternius people are meshopt files of at most 350 KB with exactly Idle, Walk and Run', async () => {
+    const spec: string = 'node:fs';
+    const fs = (await import(/* @vite-ignore */ spec)) as { statSync(p: URL): { size: number } };
+    for (const f of CHARACTER_FILES.slice(1)) {
+      expect(fs.statSync(new URL(`../../../src/assets/models/${f}`, import.meta.url)).size).toBeLessThanOrEqual(350 * 1024);
+      const g = await parseShipped(f);
+      expect(g.parser.json.extensionsRequired).toContain('EXT_meshopt_compression');
+      expect(g.animations.map((a) => a.name).sort()).toEqual(['Idle', 'Run', 'Walk']);
+    }
+  });
+
+  it('one pool hands out all six people: the primary for variants 0-7, a stable model per variant, no NaN', async () => {
+    const sources = await Promise.all(CHARACTER_FILES.map(async (f) => GltfCharacterSource.fromGltf(await parseShipped(f))));
+    const pool = sources[0].withAlternates(sources.slice(1));
+    expect(pool.variantCount).toBe(8 * 6);
+    const sig = (v: number): string => { const r = pool.instantiate(v); r.group.updateMatrixWorld(true); const b = boxOf(r.group); return [b.getSize(new THREE.Vector3()).x.toFixed(3), b.getSize(new THREE.Vector3()).y.toFixed(2)].join('/'); };
+    for (let v = 0; v < 8; v++) expect(sig(v)).toBe(sig(0)); // the player's person
+    const models = new Set<string>();
+    for (let m = 0; m < 6; m++) {
+      const rig = pool.instantiate(m * 8 + 3);
+      rig.group.updateMatrixWorld(true);
+      const b = boxOf(rig.group);
+      expect(finite(b)).toBe(true);
+      expect(b.getSize(new THREE.Vector3()).y).toBeGreaterThan(1.68);
+      expect(b.getSize(new THREE.Vector3()).y).toBeLessThan(1.82);
+      expect(pool.instantiate(m * 8 + 3).group.children.length).toBe(1);
+      models.add(sig(m * 8));
+    }
+    expect(models.size).toBeGreaterThanOrEqual(4); // different bodies, not six copies of one
+    expect(sig(6 * 8 + 5)).toBe(sig(5)); // wraps around
+  });
+});
+
+describe.each(CHARACTER_FILES)('shipped %s', (file) => {
   let source: GltfCharacterSource;
   let gltf: GLTF;
   beforeAll(async () => { gltf = await parseShipped(file); source = GltfCharacterSource.fromGltf(gltf); });
@@ -218,7 +261,7 @@ describe.each(['character.glb', 'character-hoodie.glb'])('shipped %s', (file) =>
     expect(rig.group.scale.x).toBe(1);
   });
 
-  if (file === 'character.glb') {
+  if (file !== 'character-nope.glb') {
     it('is authored facing glTF +z (the loader turns it to the game -z): the eyes are in front of the head bone', async () => {
       const raw = await parseShipped(file); // a fresh copy: the source above has already merged its meshes
       raw.scene.updateMatrixWorld(true);
@@ -227,7 +270,7 @@ describe.each(['character.glb', 'character-hoodie.glb'])('shipped %s', (file) =>
       raw.scene.traverse((o) => {
         if (/^head$/i.test(o.name)) head ??= o;
         const m = o as THREE.Mesh;
-        if (m.isMesh && /eye/i.test((m.material as THREE.Material).name)) eyes.push(m);
+        if (m.isMesh && /eye|face/i.test((m.material as THREE.Material).name)) eyes.push(m);
       });
       expect(head).toBeDefined();
       expect(eyes.length).toBeGreaterThan(0);
@@ -239,13 +282,8 @@ describe.each(['character.glb', 'character-hoodie.glb'])('shipped %s', (file) =>
     const rig = source.instantiate(2);
     const names: string[] = [];
     rig.group.traverse((o) => { if ((o as THREE.Mesh).isMesh) names.push(o.name); });
-    if (file === 'character.glb') {
-      expect(names.length).toBeLessThanOrEqual(2);
-      expect(names).toContain('character-rest');
-      const mats: string[] = [];
-      rig.group.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) mats.push((m.material as THREE.Material).name); });
-      expect(mats).toContain('Shirt');
-    } else expect(names.length).toBeLessThan(14);
+    expect(names.length).toBeLessThanOrEqual(2);
+    expect(names).toContain('character-rest');
   });
 
   it('has no sword or other weapon node', () => {
