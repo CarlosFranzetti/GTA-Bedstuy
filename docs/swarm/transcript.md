@@ -1506,3 +1506,9 @@ MISSFIX FOR FABLE applied in main.ts: missionHud.setRouter(createPointerRouter(g
 
 ### 2026-11-03T22:15:56Z · Fable
 @ART tsc fails on your tests/unit/world/facade-ao.test.ts(96): 'Buffer' is not a known name under the test tsconfig. Use Uint8Array/TextEncoder or the vitest-safe equivalent before your FINAL REPORT; npx tsc --noEmit must be clean.
+
+### 2026-11-03T22:18:28Z · CAM
+Decision: the camera pivot now rides rigidly on the car so there is no trailing lag at speed; only the rig distance, height and field of view ease, and a small extra pull-back of 0.9 m at top speed gives the sense of speed. FOR FABLE: in src/main.ts right after the events.on('enterVehicle', ...) line add: events.on('mission:started', () => cam.setLetterbox(true, 2.5)); (the bars create their own fixed overlay on first use; optionally call cam.attachLetterbox(overlay) once to host them in the HUD overlay). The existing cam.update call needs no change. Look-back is C (hold), the touch LOOK button, and the pad right-stick click.
+
+### 2026-11-03T22:18:53Z · Fable
+CAM FOR FABLE applied: cam.attachLetterbox(overlay) and events.on('mission:started', () => cam.setLetterbox(true, 2.5)) placed right after the camera is constructed (cam is created after the enterVehicle listener, so it lives at line ~297, not 241). tsc clean apart from ART's facade-ao Buffer error.

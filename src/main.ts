@@ -294,6 +294,8 @@ events.on('mission:failed', (e) => { if (e.id === 'aftersloth-residency') interi
 const phoneHud = new PhoneHud(overlay, phone);
 const missionHudScratch = {} as MissionHudState;
 const cam = new ThirdPersonCamera(window.innerWidth / window.innerHeight);
+cam.attachLetterbox(overlay);
+events.on('mission:started', () => cam.setLetterbox(true, 2.5));
 const pipeline = new RenderPipeline(renderer, scene, cam.camera, { quality });
 if (useProxies) proxies.attachToPipeline(pipeline);
 pipeline.setNight(dayNight.isNight);
