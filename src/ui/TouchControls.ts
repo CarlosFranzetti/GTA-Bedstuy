@@ -1,5 +1,5 @@
 /** On-screen controls for phones and tablets: left joystick, right-side look drag, action buttons. */
-import type { Input } from '@/core/Input';
+import { LOOK_BACK_KEY, type Input } from '@/core/Input';
 import './touch.css';
 
 export const STICK_RADIUS = 56;   // px of travel for full deflection
@@ -20,6 +20,7 @@ const BUTTONS: ButtonDef[] = [
   { code: ['Space', 'ShiftLeft'], label: 'RUN / BRAKE', hold: true, cls: 'tc-btn-run' },
   { code: ['KeyH'], label: 'HORN', hold: true, cls: 'tc-btn-horn' },
   { code: ['KeyE'], label: 'RADIO', hold: false, cls: 'tc-btn-radio' },
+  { code: [LOOK_BACK_KEY], label: 'LOOK', hold: true, cls: 'tc-btn-look' },
 ];
 
 export class TouchControls {

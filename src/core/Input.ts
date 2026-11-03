@@ -1,3 +1,6 @@
+/** Hold to look back (keyboard); the touch LOOK button and the pad's right-stick click drive the same code. */
+export const LOOK_BACK_KEY = 'KeyC';
+
 export type InputMode = 'keyboard' | 'touch' | 'gamepad';
 
 /** Keyboard + mouse state. Poll `isDown` for held keys, `pressed` for edge-triggered actions (consumed per frame). */
@@ -73,6 +76,12 @@ export class Input {
   static isTouchDevice(): boolean {
     try { return (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints ?? 0) > 0; } catch { return false; }
   }
+  /** True while any key, virtual button, touch stick or look delta is active (the camera's idle detector). */
+  anyInput(): boolean {
+    return this.down.size > 0 || this.virtualDown.size > 0 || this.justPressed.size > 0 || this.touchAxis.x !== 0 || this.touchAxis.y !== 0 || this.mouseDX !== 0 || this.mouseDY !== 0;
+  }
+  /** True while the look-back key is held. */
+  get lookBack(): boolean { return this.isDown(LOOK_BACK_KEY); }
   /** True only on the frame the key went down. */
   pressed(code: string): boolean { return this.justPressed.has(code); }
   /**

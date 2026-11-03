@@ -10,32 +10,32 @@ const fake = (dx = 0, dy = 0) => ({
 }) as unknown as Input;
 
 describe('ThirdPersonCamera', () => {
-  it('uses a 60deg perspective camera with near 0.1 / far 900', () => {
+  it('uses a 64deg (on foot) perspective camera with near 0.1 / far 900', () => {
     const c = new ThirdPersonCamera();
-    expect(c.camera.fov).toBe(60);
+    expect(c.camera.fov).toBe(64);
     expect(c.camera.near).toBe(0.1);
     expect(c.camera.far).toBe(900);
   });
 
-  it('on foot sits 5 m behind and ~2.2 m up (at default pitch ~ slightly above)', () => {
+  it('on foot sits 3.2 m behind and 1.55 m up', () => {
     const c = new ThirdPersonCamera();
     c.yaw = 0; c.pitch = 0;
     c.update(1 / 60, { x: 10, z: 20 }, 0, 'foot', fake());
     // looking north (-z) -> camera is south (+z) of the target
-    // over the right shoulder: 0.5 m to the right (+x when looking north)
-    expect(c.camera.position.x).toBeCloseTo(10.5);
-    expect(c.camera.position.z).toBeCloseTo(25);
-    expect(c.camera.position.y).toBeCloseTo(2.2);
+    // over the right shoulder: 0.35 m to the right (+x when looking north)
+    expect(c.camera.position.x).toBeCloseTo(10.35);
+    expect(c.camera.position.z).toBeCloseTo(23.2);
+    expect(c.camera.position.y).toBeCloseTo(1.55);
   });
 
-  it('mouse orbit: dx turns yaw clockwise, dy clamps pitch to -0.1..0.9', () => {
+  it('mouse orbit: dx turns yaw clockwise, dy clamps pitch to the foot limits -0.12..0.85', () => {
     const c = new ThirdPersonCamera();
     c.update(1 / 60, { x: 0, z: 0 }, 0, 'foot', fake(100, 0));
     expect(c.yaw).toBeCloseTo(0.25);
     c.update(1 / 60, { x: 0, z: 0 }, 0, 'foot', fake(0, 100000));
-    expect(c.pitch).toBeCloseTo(0.9);
+    expect(c.pitch).toBeCloseTo(0.85);
     c.update(1 / 60, { x: 0, z: 0 }, 0, 'foot', fake(0, -100000));
-    expect(c.pitch).toBeCloseTo(-0.1);
+    expect(c.pitch).toBeCloseTo(-0.12);
   });
 
   it('yaw converges behind a vehicle heading PI/2 within 3 s of no mouse input', () => {
@@ -45,9 +45,9 @@ describe('ThirdPersonCamera', () => {
     expect(Math.abs(angleDiff(c.yaw, Math.PI / 2))).toBeLessThan(0.02);
   });
 
-  it('does not recentre before 1.5 s idle, nor while the mouse moves, nor on foot', () => {
+  it('does not recentre while the mouse moves, nor on foot, and waits a beat after the last mouse input', () => {
     const c = new ThirdPersonCamera();
-    for (let t = 0; t < 1.4; t += 1 / 60) c.update(1 / 60, { x: 0, z: 0 }, Math.PI / 2, 'vehicle', fake());
+    for (let t = 0; t < 0.25; t += 1 / 60) c.update(1 / 60, { x: 0, z: 0 }, Math.PI / 2, 'vehicle', fake());
     expect(c.yaw).toBeCloseTo(0);
     const d = new ThirdPersonCamera();
     for (let t = 0; t < 4; t += 1 / 60) d.update(1 / 60, { x: 0, z: 0 }, Math.PI / 2, 'vehicle', fake(0.0001, 0));
@@ -64,34 +64,37 @@ describe('ThirdPersonCamera', () => {
     expect(Math.abs(angleDiff(c.yaw, 3))).toBeLessThan(0.02);
   });
 
-  it('smooths toward a moving target and the vehicle mode pulls the camera back to 8 m', () => {
+  it('smooths toward a moving target and the vehicle mode sits 4.6 m back', () => {
     const c = new ThirdPersonCamera();
     c.yaw = 0; c.pitch = 0;
     c.update(1 / 60, { x: 0, z: 0 }, 0, 'foot', fake());
+    // the pivot rides rigidly on the target (no trailing lag), the rig itself eases between modes
     c.update(1 / 60, { x: 100, z: 0 }, 0, 'foot', fake());
-    expect(c.camera.position.x).toBeGreaterThan(0);
-    expect(c.camera.position.x).toBeLessThan(100);
+    expect(c.camera.position.x).toBeCloseTo(100.35, 2);
+    c.update(1 / 60, { x: 100, z: 0 }, 0, 'vehicle', fake());
+    expect(c.camera.position.z).toBeGreaterThan(3.2);
+    expect(c.camera.position.z).toBeLessThan(4.6);
     const v = new ThirdPersonCamera();
     v.pitch = 0;
     for (let t = 0; t < 3; t += 1 / 60) v.update(1 / 60, { x: 0, z: 0 }, 0, 'vehicle', fake());
-    expect(v.camera.position.z).toBeCloseTo(8, 1);
-    expect(v.camera.position.y).toBeCloseTo(3, 1);
+    expect(v.camera.position.z).toBeCloseTo(4.6, 1);
+    expect(v.camera.position.y).toBeCloseTo(1.7, 1);
     expect(Number.isFinite(v.camera.position.x)).toBe(true);
   });
 
-  it('on foot the view is shifted 0.5 m to the right and the look target follows it', () => {
+  it('on foot the view is shifted 0.35 m to the right and the look target follows it', () => {
     const c = new ThirdPersonCamera();
     c.yaw = Math.PI / 2; c.pitch = 0; // looking east: right is +z
     c.update(1 / 60, { x: 0, z: 0 }, 0, 'foot', fake());
-    expect(c.camera.position.z).toBeCloseTo(0.5);
-    expect(c.camera.position.x).toBeCloseTo(-5);
+    expect(c.camera.position.z).toBeCloseTo(0.35);
+    expect(c.camera.position.x).toBeCloseTo(-3.2);
     const v = new ThirdPersonCamera();
     v.yaw = 0; v.pitch = 0;
     for (let t = 0; t < 3; t += 1 / 60) v.update(1 / 60, { x: 0, z: 0 }, 0, 'vehicle', fake());
     expect(v.camera.position.x).toBeCloseTo(0, 1); // no shoulder in a car
   });
 
-  it('vehicle mode: distance grows 8 -> 10 m and FOV widens 60 -> 68 deg with speed', () => {
+  it('vehicle mode: distance grows 4.6 -> 5.5 m and FOV widens 70 -> 82 deg with speed', () => {
     const slow = new ThirdPersonCamera();
     const fast = new ThirdPersonCamera();
     slow.pitch = fast.pitch = 0;
@@ -99,17 +102,17 @@ describe('ThirdPersonCamera', () => {
       slow.update(1 / 60, { x: 0, z: 0 }, 0, 'vehicle', fake(), { speed: 0 });
       fast.update(1 / 60, { x: 0, z: 0 }, 0, 'vehicle', fake(), { vehicle: { speed: 30 } });
     }
-    expect(slow.camera.position.z).toBeCloseTo(8, 1);
-    expect(slow.camera.fov).toBeCloseTo(60, 1);
-    expect(fast.camera.position.z).toBeCloseTo(10, 1);
-    expect(fast.camera.fov).toBeCloseTo(68, 1);
+    expect(slow.camera.position.z).toBeCloseTo(4.6, 1);
+    expect(slow.camera.fov).toBeCloseTo(70, 1);
+    expect(fast.camera.position.z).toBeCloseTo(5.5, 1);
+    expect(fast.camera.fov).toBeCloseTo(82, 1);
     // reverse speed widens too; and on foot the speed is ignored
     const rev = new ThirdPersonCamera();
     for (let t = 0; t < 4; t += 1 / 60) rev.update(1 / 60, { x: 0, z: 0 }, 0, 'vehicle', fake(), { speed: -30 });
-    expect(rev.camera.fov).toBeCloseTo(68, 1);
+    expect(rev.camera.fov).toBeCloseTo(82, 1);
     const foot = new ThirdPersonCamera();
     for (let t = 0; t < 2; t += 1 / 60) foot.update(1 / 60, { x: 0, z: 0 }, 0, 'foot', fake(), { speed: 30 });
-    expect(foot.camera.fov).toBe(60);
+    expect(foot.camera.fov).toBe(64);
   });
 
   it('impact shake: consumes vehicle.shakeRequested and decays to zero over 0.4 s', () => {
@@ -150,7 +153,7 @@ describe('ThirdPersonCamera', () => {
       const target = { x: 0, z: 14 };
       free.update(1 / 60, target, Math.PI, 'foot', fake());
       walled.update(1 / 60, target, Math.PI, 'foot', fake(), { world: w });
-      expect(free.camera.position.z).toBeLessThan(10); // would sit inside / behind the wall (z 9)
+      expect(free.camera.position.z).toBeLessThan(12); // would sit inside / behind the wall (z 9)
       expect(walled.camera.position.z).toBeGreaterThan(10.2); // kept on the player's side of the wall (z >= 10)
       expect(walled.camera.position.z).toBeLessThan(14);
       // settles and stays out for many frames, even when the smoothing tries to drag it back out
@@ -165,9 +168,9 @@ describe('ThirdPersonCamera', () => {
       c.yaw = Math.PI; c.pitch = 0; c.world = w;
       for (let i = 0; i < 30; i++) c.update(1 / 60, { x: 0, z: 14 }, Math.PI, 'foot', fake());
       expect(c.camera.position.z).toBeGreaterThan(10.2);
-      // walk away from the wall: camera drifts back to its full 5 m
+      // walk away from the wall: camera drifts back to its full 3.2 m
       for (let i = 0; i < 240; i++) c.update(1 / 60, { x: 0, z: 30 }, Math.PI, 'foot', fake());
-      expect(c.camera.position.z).toBeCloseTo(25, 0);
+      expect(c.camera.position.z).toBeCloseTo(26.8, 0);
     });
 
     it('ignores vehicles and pedestrians (dynamic bodies) between target and camera', () => {
@@ -180,13 +183,13 @@ describe('ThirdPersonCamera', () => {
       const c = new ThirdPersonCamera();
       c.yaw = Math.PI; c.pitch = 0;
       c.update(1 / 60, { x: 0, z: 14 }, Math.PI, 'foot', fake(), { world: w });
-      expect(c.camera.position.z).toBeCloseTo(9, 1);
+      expect(c.camera.position.z).toBeCloseTo(10.8, 1);
       // same via the generic raycast fallback (a world without raycastStatic)
       const generic = { raycast: w.raycast.bind(w) };
       const d = new ThirdPersonCamera();
       d.yaw = Math.PI; d.pitch = 0;
       d.update(1 / 60, { x: 0, z: 14 }, Math.PI, 'foot', fake(), { world: generic });
-      expect(d.camera.position.z).toBeCloseTo(9, 1);
+      expect(d.camera.position.z).toBeCloseTo(10.8, 1);
       // and the fallback still finds a wall behind that car
       w.addStatic(wallBody() as never, undefined, 'wall');
       const e = new ThirdPersonCamera();

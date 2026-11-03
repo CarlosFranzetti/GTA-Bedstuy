@@ -4,7 +4,7 @@ import { Input } from '@/core/Input';
 import { Rng } from '@/core/Rng';
 import { EventBus } from '@/core/Events';
 import { ThirdPersonCamera } from '@/core/Camera';
-import { clamp, dist, type Vec2 } from '@/core/Math2';
+import { clamp, type Vec2 } from '@/core/Math2';
 import type { Entity, IVehicle, VehicleType, GraphNode, HudState } from '@/world/types';
 import { loadBedstuyData } from '@/world/Grid';
 import { buildWorld } from '@/world/WorldBuilder';
@@ -12,7 +12,7 @@ import { updateSignalMeshes } from '@/world/props/signals';
 import { TrafficLights } from '@/game/TrafficLights';
 import { MaterialLibrary } from '@/textures/MaterialLibrary';
 import { World2D } from '@/physics/World2D';
-import { Player, ENTER_RANGE } from '@/entities/Player';
+import { Player, ENTER_RANGE, doorDistance } from '@/entities/Player';
 import { Vehicle, VEHICLE_SPECS } from '@/entities/Vehicle';
 import { Pedestrian } from '@/entities/Pedestrian';
 import { resolveCharacterSource, GltfCharacterSource } from '@/entities/models/gltf/CharacterSource';
@@ -46,6 +46,7 @@ import { loadPosition, savePosition, watchPagehide, type SavedPosition } from '@
 import { LoadingScreen, nextPaint, withTimeout } from '@/render/Loading';
 import { PerfMonitor, PassCounter } from '@/render/Perf';
 import { MissionSystem } from '@/game/missions/MissionSystem';
+import { createPointerRouter } from '@/game/missions/PointerRoute';
 import { buildMissions } from '@/game/missions/content';
 import { MissionMarkerView } from '@/game/missions/MissionMarkerView';
 import { saveMissionData, loadMissionData, clearMissionData } from '@/game/missions/MissionStore';
@@ -249,6 +250,7 @@ overlay.id = 'overlay';
 app.appendChild(overlay);
 const hud = new Hud(overlay);
 const missionHud = new MissionHud(overlay);
+missionHud.setRouter(createPointerRouter(grid));
 const minimap = new Minimap(overlay, grid);
 
 const input = new Input(renderer.domElement);
@@ -367,11 +369,7 @@ let camHeading = 0;
 const sunDir = dayNight.sunDirection; // true astronomical sun (the shadow light is mirrored/lifted at night)
 const focusPoint = new THREE.Vector3();
 const camCtx: { world: typeof physics; vehicle: IVehicle | null } = { world: physics, vehicle: null };
-const doorScratch: Vec2 = { x: 0, z: 0 };
-const nearDoor = (v: IVehicle, p: Vec2): boolean => {
-  const d = (v as { doorPosInto?: (out: Vec2) => Vec2 }).doorPosInto?.(doorScratch) ?? v.doorPos();
-  return dist(d, p) <= ENTER_RANGE;
-};
+const nearDoor = (v: IVehicle, p: Vec2): boolean => doorDistance(v, p) <= ENTER_RANGE;
 const savedPose: SavedPosition = { x: 0, z: 0, heading: 0, hour: 0 };
 const currentPose = (): SavedPosition => {
   const b = player.vehicle ? player.vehicle.body : player.body;

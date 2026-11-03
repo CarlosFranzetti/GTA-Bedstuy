@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { angleDiff, clamp, wrapAngle, type Vec2 } from './Math2';
-import type { Input } from './Input';
+import { LOOK_BACK_KEY, type Input } from './Input';
 import type { IWorld2D } from '@/world/types';
 
 export type CameraMode = 'foot' | 'vehicle';
@@ -21,23 +21,37 @@ export interface CameraContext {
 }
 
 const MOUSE_SENS = 0.0025;
-const PITCH_MIN = -0.1;
-const PITCH_MAX = 0.9;
-const DEFAULT_PITCH = 0.15;
-const RECENTRE_DELAY = 1.5;
-const RECENTRE_RATE = 2; // rad/s
-const SMOOTH = 8;        // exponential smoothing rate, 1/s
+/** Pitch limits per mode (radians above the horizon). */
+const PITCH_FOOT = { min: -0.12, max: 0.85 };
+const PITCH_VEH = { min: -0.05, max: 0.6 };
+const DEFAULT_PITCH = 0.1;
+/** Seconds after the last mouse/stick input before the car view starts swinging back behind the car. */
+const RECENTRE_DELAY = 0.3;
+/** Natural frequency (rad/s) of the critically damped yaw spring: ~95 % of the way back in 3/omega. */
+const YAW_OMEGA = 4.6;
+const SMOOTH_VEH = 10;   // exponential smoothing rate of distance/height/shoulder, 1/s
+const SMOOTH_FOOT = 5.5; // slower on foot
 const SPEED_SMOOTH = 2.5;
-const LOOK_UP = 1.2;
 const MIN_CAM_Y = 0.4;
-const FOOT = { distance: 5, height: 2.2 };
-const VEHICLE = { distance: 8, height: 3 };
-/** Vehicle mode: distance grows 8 -> 10 m and the FOV widens 60 -> 68 deg between 0 and SPEED_FULL m/s. */
-const VEHICLE_DISTANCE_EXTRA = 2;
-const BASE_FOV = 60;
-const FOV_EXTRA = 8;
+/** Pivot offsets: the camera orbits a point `look` m above the ground at the car's roof centre / the player's head. */
+export const CAM_FOOT = { distance: 3.2, height: 1.55, look: 1.4, fov: 64, shoulder: 0.35 };
+export const CAM_VEHICLE = { distance: 4.6, height: 1.7, look: 1.3, fov: 70, fovTop: 82 };
+/** Extra pull-back (m) at top speed, so the road ahead opens up. */
+const SPEED_DISTANCE = 0.9;
 const SPEED_FULL = 30;
-const SHOULDER = 0.5;
+/** Look-back: spring rate of the 0..1 blend (snap ~0.35 s) and the key that drives it. */
+const LOOKBACK_OMEGA = 11;
+/** Idle cinematic: seconds of stillness, ramp-in/out rates, drift speed, zoom-out factor. */
+export const IDLE_CINEMATIC_AFTER = 8;
+const CINE_IN = 0.45;     // 1/s (~2.2 s ramp)
+const CINE_OUT = 3.5;     // 1/s
+const CINE_DRIFT = 0.1;   // rad/s of slow orbit
+const CINE_ZOOM = 0.28;   // +28 % distance
+const MOVE_EPS = 0.25;    // m/s of target movement that counts as "not stationary"
+/** Roll with lateral acceleration (rad per m/s^2), capped. */
+const ROLL_PER_G = 0.0035;
+const ROLL_MAX = 0.05;
+const ROLL_SMOOTH = 5;
 const SHAKE_TIME = 0.4;
 const SHAKE_MAX = 1;
 const SHAKE_POS = 0.22; // metres at amplitude 1
@@ -45,33 +59,66 @@ const SHAKE_ROLL = 0.025; // radians at amplitude 1
 /** Keep the lens this far off a wall, and never closer than this to the target (horizontally). */
 const WALL_MARGIN = 0.35;
 const MIN_HORIZ = 0.9;
+const WALL_OUT_RATE = 3;
 const FALLBACK_RAY_STEPS = 4;
+/** Mission letterbox: bar height as a share of the viewport and the slide rate. */
+const LETTERBOX_SHARE = 0.12;
+const LETTERBOX_RATE = 5;
+
+/** Exact step of a critically damped spring on `x` (distance from rest) with velocity `v`. */
+export function dampStep(x: number, v: number, omega: number, dt: number): { x: number; v: number } {
+  const e = Math.exp(-omega * dt);
+  const t = (v + omega * x) * dt;
+  return { v: (v - omega * t) * e, x: (x + t) * e };
+}
+
+/** Field of view (deg) for a car speed in m/s: 70 at rest widening to 82 at SPEED_FULL, either direction. */
+export function vehicleFov(speed: number): number {
+  return CAM_VEHICLE.fov + (CAM_VEHICLE.fovTop - CAM_VEHICLE.fov) * clamp(Math.abs(speed) / SPEED_FULL, 0, 1);
+}
 
 export class ThirdPersonCamera {
   readonly camera: THREE.PerspectiveCamera;
-  /** Heading (radians, clockwise from north) the camera looks toward. Walk "forward" = this. */
+  /** Heading (radians, clockwise from north) the camera looks toward. Walk "forward" = this. Never includes look-back or cinematic offsets. */
   yaw = 0;
   pitch = DEFAULT_PITCH;
   /** Static world used for wall avoidance when `update` is not handed one. */
   world: CameraWorld | null = null;
 
-  private idle = 0;
-  private distance = FOOT.distance;
-  private height = FOOT.height;
-  private shoulder = SHOULDER;
+  private idle = 0;        // seconds since mouse/stick look input
+  private still = 0;       // seconds with no input and a stationary target
+  private yawVel = 0;
+  private distance = CAM_FOOT.distance;
+  private height = CAM_FOOT.height;
+  private lookY = CAM_FOOT.look;
+  private shoulder = CAM_FOOT.shoulder;
   private speedN = 0;
   private shake = 0;
   private clock = 0;
+  private backBlend = 0;   // 0 = behind, 1 = in front looking back
+  private backVel = 0;
+  private cineBlend = 0;
+  private cineYaw = 0;
+  private roll = 0;
+  private headingRate = 0;
+  private prevHeading = 0;
+  private prevX = 0;
+  private prevZ = 0;
+  private wallScale = 1;
+  private lbTarget = false;
+  private lbHold = 0;
+  private lbAmount = 0;
+  private lbEl: HTMLElement | null = null;
+  private lbShown = -1;
   private readonly pos = new THREE.Vector3();
   private readonly look = new THREE.Vector3();
-  private readonly wantPos = new THREE.Vector3();
-  private readonly wantLook = new THREE.Vector3();
   private readonly rayDir: Vec2 = { x: 0, z: 0 };
   private readonly rayFrom: Vec2 = { x: 0, z: 0 };
   private initialised = false;
+  private fovNow: number = CAM_FOOT.fov;
 
   constructor(aspect = 16 / 9) {
-    this.camera = new THREE.PerspectiveCamera(BASE_FOV, aspect, 0.1, 900);
+    this.camera = new THREE.PerspectiveCamera(CAM_FOOT.fov, aspect, 0.1, 900);
   }
 
   setAspect(aspect: number): void {
@@ -81,32 +128,122 @@ export class ThirdPersonCamera {
 
   /** Current shake amplitude 0..1 (decays to 0 over 0.4 s). */
   get shakeAmount(): number { return this.shake; }
+  /** 0 = normal view, 1 = fully swung round to look back. */
+  get lookBackAmount(): number { return this.backBlend; }
+  /** 0..1 strength of the idle cinematic drift (0 = off). */
+  get cinematicAmount(): number { return this.cineBlend; }
+  /** Seconds the player has been still and hands-off. */
+  get idleSeconds(): number { return this.still; }
+  /** Current roll in radians (lateral g). */
+  get rollAngle(): number { return this.roll; }
+  /** 0..1 how far the letterbox bars have slid in. */
+  get letterboxAmount(): number { return this.lbAmount; }
+  get letterboxOn(): boolean { return this.lbTarget; }
 
   /** Kick the camera: amplitude 0..1; stronger hits replace weaker ones in progress. */
   addShake(amount: number): void {
     this.shake = Math.min(SHAKE_MAX, Math.max(this.shake, amount));
   }
 
+  /**
+   * Cinematic bars. `holdSeconds` > 0 switches them off again by themselves after that long (main.ts: `cam.setLetterbox(true, 2.5)`
+   * on mission:started). The bars are the camera's own two fixed divs, created on first use, pointer-transparent.
+   */
+  setLetterbox(on: boolean, holdSeconds = 0): void {
+    this.lbTarget = on;
+    this.lbHold = on && holdSeconds > 0 ? holdSeconds : 0;
+    if (on) this.ensureBars();
+  }
+
+  /** Optional: host the bars inside a given overlay instead of document.body. */
+  attachLetterbox(parent: HTMLElement): void {
+    this.lbEl?.remove();
+    this.lbEl = null;
+    this.ensureBars(parent);
+  }
+
+  private ensureBars(parent?: HTMLElement): void {
+    if (this.lbEl || typeof document === 'undefined') return;
+    const host = parent ?? document.body;
+    if (!host) return;
+    const root = document.createElement('div');
+    root.className = 'cam-letterbox';
+    root.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:40;overflow:hidden;';
+    for (const top of [true, false]) {
+      const bar = document.createElement('div');
+      bar.style.cssText = `position:absolute;left:0;right:0;${top ? 'top' : 'bottom'}:0;height:${LETTERBOX_SHARE * 100}%;background:#000;transform:translateY(${top ? '-100%' : '100%'});will-change:transform;`;
+      root.appendChild(bar);
+    }
+    host.appendChild(root);
+    this.lbEl = root;
+    this.lbShown = -1;
+  }
+
+  private paintBars(): void {
+    if (!this.lbEl || Math.abs(this.lbAmount - this.lbShown) < 0.002) return;
+    this.lbShown = this.lbAmount;
+    const off = (1 - this.lbAmount) * 100;
+    const [top, bottom] = [this.lbEl.children[0] as HTMLElement | undefined, this.lbEl.children[1] as HTMLElement | undefined];
+    if (top) top.style.transform = `translateY(${-off}%)`;
+    if (bottom) bottom.style.transform = `translateY(${off}%)`;
+    this.lbEl.style.visibility = this.lbAmount > 0.001 ? 'visible' : 'hidden';
+  }
+
   update(dt: number, targetPos: Vec2, targetHeading: number, mode: CameraMode, input: Input, ctx?: CameraContext): void {
-    // mouse orbit
-    if (input.mouseDX !== 0 || input.mouseDY !== 0) {
+    const veh = ctx?.vehicle ?? null;
+    const vehicleMode = mode === 'vehicle';
+    const first = !this.initialised;
+    if (first) { this.prevHeading = targetHeading; this.prevX = targetPos.x; this.prevZ = targetPos.z; }
+    const safeDt = Math.max(dt, 1e-5);
+
+    // ---- input activity -------------------------------------------------------------------------------------
+    const lookInput = input.mouseDX !== 0 || input.mouseDY !== 0;
+    const moveSpeed = Math.hypot(targetPos.x - this.prevX, targetPos.z - this.prevZ) / safeDt;
+    const lookBackHeld = input.isDown(LOOK_BACK_KEY);
+    const anyInput = lookInput || lookBackHeld || (typeof input.anyInput === 'function' && input.anyInput());
+    if (lookInput) {
       this.yaw += input.mouseDX * MOUSE_SENS;
-      this.pitch = clamp(this.pitch + input.mouseDY * MOUSE_SENS, PITCH_MIN, PITCH_MAX);
+      this.pitch += input.mouseDY * MOUSE_SENS;
       this.idle = 0;
+      this.yawVel = 0;
     } else {
       this.idle += dt;
     }
+    const lim = vehicleMode ? PITCH_VEH : PITCH_FOOT;
+    this.pitch = clamp(this.pitch, lim.min, lim.max);
+    if (anyInput || moveSpeed > MOVE_EPS) this.still = 0; else this.still += dt;
 
-    // auto-recentre behind the vehicle
-    if (mode === 'vehicle' && this.idle > RECENTRE_DELAY) {
-      const diff = angleDiff(this.yaw, targetHeading);
-      const step = RECENTRE_RATE * dt;
-      this.yaw += clamp(diff, -step, step);
+    // ---- yaw: critically damped swing back behind the car --------------------------------------------------
+    if (vehicleMode && this.idle > RECENTRE_DELAY) {
+      const st = dampStep(angleDiff(targetHeading, this.yaw), this.yawVel, YAW_OMEGA, dt);
+      // st.x is (yaw - heading); keep it on the short arc
+      this.yaw = wrapAngle(targetHeading + st.x);
+      this.yawVel = st.v;
+      // pitch eases back to the default chase angle at the same pace
+      this.pitch += (DEFAULT_PITCH - this.pitch) * (1 - Math.exp(-YAW_OMEGA * 0.6 * dt));
+    } else {
+      this.yawVel = 0;
     }
     this.yaw = wrapAngle(this.yaw);
 
-    // impacts: consume the vehicle's request, decay linearly over SHAKE_TIME
-    const veh = ctx?.vehicle ?? null;
+    // ---- look-back (spring on a 0..1 blend, no overshoot past 1) -------------------------------------------
+    {
+      const st = dampStep(this.backBlend - (lookBackHeld ? 1 : 0), this.backVel, LOOKBACK_OMEGA, dt);
+      this.backBlend = clamp((lookBackHeld ? 1 : 0) + st.x, 0, 1);
+      this.backVel = st.v;
+    }
+
+    // ---- idle cinematic ------------------------------------------------------------------------------------
+    if (this.still >= IDLE_CINEMATIC_AFTER) {
+      this.cineBlend = Math.min(1, this.cineBlend + CINE_IN * dt);
+      this.cineYaw = wrapAngle(this.cineYaw + CINE_DRIFT * this.cineBlend * dt);
+    } else {
+      this.cineBlend = Math.max(0, this.cineBlend - CINE_OUT * dt);
+      this.cineYaw -= this.cineYaw * (1 - Math.exp(-CINE_OUT * dt)); // unwind the drift smoothly
+      if (this.cineBlend === 0 && Math.abs(this.cineYaw) < 1e-4) this.cineYaw = 0;
+    }
+
+    // ---- impacts: consume the vehicle's request, decay linearly over SHAKE_TIME ----------------------------
     if (veh && veh.shakeRequested !== undefined && veh.shakeRequested > 0) {
       this.addShake(veh.shakeRequested);
       veh.shakeRequested = 0;
@@ -114,43 +251,65 @@ export class ThirdPersonCamera {
     this.clock += dt;
     this.shake = Math.max(0, this.shake - (SHAKE_MAX / SHAKE_TIME) * dt);
 
-    const k = this.initialised ? 1 - Math.exp(-SMOOTH * dt) : 1;
-    const kSpeed = this.initialised ? 1 - Math.exp(-SPEED_SMOOTH * dt) : 1;
-    const speed = mode === 'vehicle' ? Math.abs(veh ? veh.speed : ctx?.speed ?? 0) : 0;
+    // ---- speed, rig distance/height/fov --------------------------------------------------------------------
+    const smooth = vehicleMode ? SMOOTH_VEH : SMOOTH_FOOT;
+    const k = first ? 1 : 1 - Math.exp(-smooth * dt);
+    const kSpeed = first ? 1 : 1 - Math.exp(-SPEED_SMOOTH * dt);
+    const speed = vehicleMode ? Math.abs(veh ? veh.speed : ctx?.speed ?? 0) : 0;
     this.speedN += (clamp(speed / SPEED_FULL, 0, 1) - this.speedN) * kSpeed;
 
-    const want = mode === 'vehicle' ? VEHICLE : FOOT;
-    const wantDistance = want.distance + (mode === 'vehicle' ? VEHICLE_DISTANCE_EXTRA * this.speedN : 0);
+    const rig = vehicleMode ? CAM_VEHICLE : CAM_FOOT;
+    const wantDistance = (rig.distance + (vehicleMode ? SPEED_DISTANCE * this.speedN : 0)) * (1 + CINE_ZOOM * this.cineBlend);
     this.distance += (wantDistance - this.distance) * k;
-    this.height += (want.height - this.height) * k;
-    this.shoulder += ((mode === 'foot' ? SHOULDER : 0) - this.shoulder) * k;
+    this.height += (rig.height - this.height) * k;
+    this.lookY += (rig.look - this.lookY) * k;
+    this.shoulder += ((vehicleMode ? 0 : CAM_FOOT.shoulder) - this.shoulder) * k;
 
-    const fov = BASE_FOV + FOV_EXTRA * this.speedN;
-    if (Math.abs(fov - this.camera.fov) > 0.01) {
-      this.camera.fov = fov;
+    const fov = vehicleMode ? CAM_VEHICLE.fov + (CAM_VEHICLE.fovTop - CAM_VEHICLE.fov) * this.speedN : CAM_FOOT.fov;
+    this.fovNow = first ? fov : this.fovNow + (fov - this.fovNow) * k;
+    if (Math.abs(this.fovNow - this.camera.fov) > 0.01) {
+      this.camera.fov = this.fovNow;
       this.camera.updateProjectionMatrix();
     }
 
-    // over-the-right-shoulder offset (on foot), perpendicular to the view direction
-    const bx = Math.sin(this.yaw), bz = -Math.cos(this.yaw); // forwardFromHeading without the allocation
+    // ---- roll with lateral acceleration (speed x yaw rate), car only ---------------------------------------
+    if (!first && dt > 0) {
+      const rate = angleDiff(this.prevHeading, targetHeading) / dt;
+      this.headingRate += (rate - this.headingRate) * (1 - Math.exp(-12 * dt));
+    }
+    const lat = vehicleMode ? (veh ? veh.speed : ctx?.speed ?? 0) * this.headingRate : 0;
+    const wantRoll = clamp(lat * ROLL_PER_G, -ROLL_MAX, ROLL_MAX);
+    this.roll += (wantRoll - this.roll) * (first ? 1 : 1 - Math.exp(-ROLL_SMOOTH * dt));
+    this.prevHeading = targetHeading;
+    this.prevX = targetPos.x; this.prevZ = targetPos.z;
+
+    // ---- rig placement: the pivot rides rigidly on the target; only the rig parameters are smoothed --------
+    const viewYaw = this.yaw + Math.PI * this.backBlend + this.cineYaw;
+    const bx = Math.sin(viewYaw), bz = -Math.cos(viewYaw);
     const sx = -bz * this.shoulder, sz = bx * this.shoulder;
     const horiz = this.distance * Math.cos(this.pitch);
-    this.wantPos.set(
+    this.look.set(targetPos.x + sx, this.lookY, targetPos.z + sz);
+    this.pos.set(
       targetPos.x + sx - bx * horiz,
       Math.max(MIN_CAM_Y, this.height + this.distance * Math.sin(this.pitch)),
       targetPos.z + sz - bz * horiz,
     );
-    this.wantLook.set(targetPos.x + sx, LOOK_UP, targetPos.z + sz);
-
-    this.pos.lerp(this.wantPos, k);
-    this.look.lerp(this.wantLook, k);
     this.initialised = true;
 
     const world = ctx?.world ?? this.world;
-    if (world) this.avoidWalls(world, targetPos);
+    const want = world ? this.wallFraction(world, targetPos) : 1;
+    this.wallScale = want < this.wallScale || first ? want : this.wallScale + (want - this.wallScale) * (1 - Math.exp(-WALL_OUT_RATE * dt));
+    if (this.wallScale < 1) {
+      const s = this.wallScale;
+      this.pos.x = targetPos.x + (this.pos.x - targetPos.x) * s;
+      this.pos.z = targetPos.z + (this.pos.z - targetPos.z) * s;
+      // keep the viewing angle: bring the height in with the distance (never below the ground clamp)
+      this.pos.y = Math.max(MIN_CAM_Y, this.look.y + (this.pos.y - this.look.y) * s);
+    }
 
     this.camera.position.copy(this.pos);
     this.camera.lookAt(this.look);
+    if (this.roll !== 0) this.camera.rotateZ(-this.roll);
 
     if (this.shake > 0) {
       const a = this.shake * this.shake * (3 - 2 * this.shake); // ease so the tail is gentle
@@ -159,23 +318,25 @@ export class ThirdPersonCamera {
       this.camera.translateY((Math.sin(t * 73 + 1.3) + 0.6 * Math.sin(t * 131)) * SHAKE_POS * a);
       this.camera.rotateZ(Math.sin(t * 83 + 0.4) * SHAKE_ROLL * a);
     }
+
+    // ---- letterbox bars --------------------------------------------------------------------------------------
+    if (this.lbHold > 0) { this.lbHold -= dt; if (this.lbHold <= 0) { this.lbHold = 0; this.lbTarget = false; } }
+    const lbGoal = this.lbTarget ? 1 : 0;
+    this.lbAmount += (lbGoal - this.lbAmount) * (1 - Math.exp(-LETTERBOX_RATE * dt));
+    if (Math.abs(lbGoal - this.lbAmount) < 0.002) this.lbAmount = lbGoal;
+    this.paintBars();
   }
 
-  /** Pull `this.pos` in along the ground-plane ray target -> camera if a static polygon is in the way. */
-  private avoidWalls(world: CameraWorld, target: Vec2): void {
+  /** Fraction (0..1] of the target -> camera horizontal distance that stays clear of static walls. */
+  private wallFraction(world: CameraWorld, target: Vec2): number {
     const dx = this.pos.x - target.x, dz = this.pos.z - target.z;
     const d = Math.hypot(dx, dz);
-    if (d < MIN_HORIZ) return;
+    if (d < MIN_HORIZ) return 1;
     this.rayDir.x = dx / d; this.rayDir.z = dz / d;
     const hitDist = this.firstStaticHit(world, target, d + WALL_MARGIN); // look a margin past the lens
-    if (hitDist === null) return;
+    if (hitDist === null) return 1;
     const nd = Math.max(MIN_HORIZ, hitDist - WALL_MARGIN);
-    if (nd >= d) return;
-    const s = nd / d;
-    this.pos.x = target.x + dx * s;
-    this.pos.z = target.z + dz * s;
-    // keep the viewing angle: bring the height in with the distance (never below the ground clamp)
-    this.pos.y = Math.max(MIN_CAM_Y, this.look.y + (this.pos.y - this.look.y) * s);
+    return nd >= d ? 1 : nd / d;
   }
 
   /** Distance along `rayDir` to the first STATIC body within maxDist, or null. Vehicles and peds are ignored. */

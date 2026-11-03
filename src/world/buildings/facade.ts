@@ -209,12 +209,117 @@ export interface RectOpt {
   uvRect?: [number, number, number, number];
 }
 
+
+// ---------------------------------------------------------------------------------------------- baked vertex AO
+
+/** Lowest vertex-AO weight: keeps the darkest corner readable instead of black (also the test bound). */
+export const AO_MIN = 0.55;
+/** Strength of each AO term (fraction of the albedo removed at the darkest point of that term). */
+export const AO_REVEAL = 0.42;
+export const AO_HALO = 0.22;
+export const AO_BASE = 0.3;
+export const AO_OVERHANG = 0.3;
+export const AO_UNDERSIDE = 0.24;
+
+export interface AoOpening { lo: V3; hi: V3; ax: 0 | 2; sign: 1 | -1; plane: number; depth: number; }
+export interface AoOverhang { x0: number; x1: number; y: number; z0: number; z1: number; }
+
+const aoSmooth = (a: number, b: number, x: number): number => {
+  const t = x <= a ? 0 : x >= b ? 1 : (x - a) / (b - a);
+  return t * t * (3 - 2 * t);
+};
+
+/** Downward-facing quads (cornice, sill and lintel undersides, stoop soffits) of one lot; walls just below them get darkened. */
+function collectOverhangs(raw: Map<THREE.Material, Raw>): AoOverhang[] {
+  const out: AoOverhang[] = [];
+  for (const r of raw.values()) {
+    const n = r.p.length / 9;
+    for (let t = 0; t < n; t++) {
+      const i = t * 9;
+      if (r.n[i + 1] > -0.8) continue;
+      const xs = [r.p[i], r.p[i + 3], r.p[i + 6]], zs = [r.p[i + 2], r.p[i + 5], r.p[i + 8]];
+      const x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
+      if (x1 - x0 < 0.25 || z1 - z0 < 0.08) continue;
+      out.push({ x0, x1, z0, z1, y: r.p[i + 1] });
+    }
+  }
+  return out;
+}
+
+/**
+ * Per-vertex ambient-occlusion weight in [AO_MIN, 1] for a vertex at (x,y,z) with normal (nx,ny,nz) in the lot-local frame:
+ * the inside of a window reveal darkens with depth, the wall plane right at an opening gets a soft halo, wall faces below a
+ * cornice / sill / lintel darken, the underside of any overhang is dim, and walls darken toward the ground. Pure and
+ * deterministic.
+ */
+export function vertexAo(x: number, y: number, z: number, nx: number, ny: number, nz: number, openings: readonly AoOpening[], overhangs: readonly AoOverhang[]): number {
+  let ao = 1;
+  const vertical = Math.abs(ny) < 0.35;
+  if (vertical) ao *= 1 - AO_BASE * (1 - aoSmooth(0, 0.9, y));
+  if (ny < -0.8) ao *= 1 - AO_UNDERSIDE;
+  const p = [x, y, z];
+  for (const o of openings) {
+    const lat0 = o.ax === 0 ? 2 : 0; // the in-plane horizontal axis
+    const t = o.sign * (o.plane - p[o.ax]); // depth into the cavity (>0 inside)
+    if (t < -0.06 || t > o.depth + 0.06) continue;
+    const dx = Math.max(o.lo[lat0] - p[lat0], 0, p[lat0] - o.hi[lat0]);
+    const dy = Math.max(o.lo[1] - y, 0, y - o.hi[1]);
+    const dist = Math.hypot(dx, dy);
+    if (dist > 0.36) continue;
+    if (dist < 0.02) ao *= 1 - AO_REVEAL * aoSmooth(0, o.depth, Math.max(0, t));
+    if (t < 0.03 && (o.ax === 0 ? Math.abs(nx) : Math.abs(nz)) > 0.5) ao *= 1 - AO_HALO * (1 - dist / 0.36) ** 1.5;
+  }
+  if (vertical) {
+    for (const h of overhangs) {
+      const d = h.y - y;
+      if (d < -0.01 || d > 0.9) continue;
+      if (x < h.x0 - 0.1 || x > h.x1 + 0.1 || z < h.z0 - 0.1 || z > h.z1 + 0.1) continue;
+      ao *= 1 - AO_OVERHANG * (1 - Math.max(0, d) / 0.9) ** 2;
+    }
+  }
+  return ao < AO_MIN ? AO_MIN : ao > 1 ? 1 : ao;
+}
+
+function bakeVertexAo(p: number[], n: number[], openings: readonly AoOpening[], overhangs: readonly AoOverhang[]): Uint8Array {
+  const count = p.length / 3;
+  const out = new Uint8Array(count * 4);
+  for (let i = 0; i < count; i++) {
+    const v = Math.round(vertexAo(p[i * 3], p[i * 3 + 1], p[i * 3 + 2], n[i * 3], n[i * 3 + 1], n[i * 3 + 2], openings, overhangs) * 255);
+    out[i * 4] = v; out[i * 4 + 1] = v; out[i * 4 + 2] = v; out[i * 4 + 3] = 255;
+  }
+  return out;
+}
+
+/** Building materials read the baked AO from the `color` attribute; geometry without one (shared materials) reads white. */
+function enableVertexAo(m: THREE.Material): void {
+  if (m.vertexColors) return;
+  m.vertexColors = true;
+  (m as THREE.Material & { defaultAttributeValues?: Record<string, number[]> }).defaultAttributeValues = { color: [1, 1, 1, 1] };
+  m.needsUpdate = true;
+}
+
 export class LotBatch {
   private raw = new Map<THREE.Material, Raw>();
   private out = new Map<THREE.Material, THREE.BufferGeometry[]>();
   private cur = new THREE.Matrix4();
   private uvMaps = new Map<THREE.Material, (x: number, y: number) => [number, number]>();
   private nest = 0;
+  /** wall openings of the lot being built (lot-local boxes), used by the baked vertex AO in `flush` */
+  private openings: AoOpening[] = [];
+
+  /** Registers a wall opening (called by `revealFaces`) so `flush` can darken its reveals and the wall around it. */
+  addOpening(h: Hole, z: number, d: number): void {
+    const a = this.tp([h.x0, h.y0, z - d]), c = this.tp([h.x1, archTop(h), z]);
+    const o0 = this.tp([0, 0, 0]), o1 = this.tp([0, 0, 1]);
+    const nx = o1[0] - o0[0], nz = o1[2] - o0[2];
+    if (Math.abs(nx) < 0.5 && Math.abs(nz) < 0.5) return;
+    const ax = Math.abs(nx) > Math.abs(nz) ? 0 : 2;
+    const sign = (ax === 0 ? nx : nz) > 0 ? 1 : -1;
+    const lo: V3 = [Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.min(a[2], c[2])];
+    const hi: V3 = [Math.max(a[0], c[0]), Math.max(a[1], c[1]), Math.max(a[2], c[2])];
+    const plane = sign > 0 ? hi[ax] : lo[ax];
+    this.openings.push({ lo, hi, ax, sign, plane, depth: Math.max(0.05, d) });
+  }
 
   /** Planar front-wall quads/triangles (constant z, outside any `with` frame) of `mat` take their UVs from `fn(x, y)` instead of tiling. */
   mapUV(mat: THREE.Material, fn: (x: number, y: number) => [number, number]): void { this.uvMaps.set(mat, fn); }
@@ -384,9 +489,11 @@ export class LotBatch {
 
   /** Close the current lot: bake the collected geometry into per-material BufferGeometries moved by `m`. */
   flush(m: THREE.Matrix4): void {
+    const overhangs = collectOverhangs(this.raw);
     for (const [mat, r] of this.raw) {
       if (!r.p.length) continue;
       const g = new THREE.BufferGeometry();
+      g.setAttribute('color', new THREE.BufferAttribute(bakeVertexAo(r.p, r.n, this.openings, overhangs), 4, true));
       g.setAttribute('position', new THREE.Float32BufferAttribute(r.p, 3));
       g.setAttribute('normal', new THREE.Float32BufferAttribute(r.n, 3));
       g.setAttribute('uv', new THREE.Float32BufferAttribute(r.uv, 2));
@@ -396,12 +503,14 @@ export class LotBatch {
       list.push(g);
       r.p = []; r.n = []; r.uv = [];
     }
+    this.openings = [];
   }
 
   /** One merged geometry per material. */
   merged(): { material: THREE.Material; geometry: THREE.BufferGeometry }[] {
     const res: { material: THREE.Material; geometry: THREE.BufferGeometry }[] = [];
     for (const [material, list] of this.out) {
+      enableVertexAo(material);
       const geometry = list.length === 1 ? list[0] : mergeGeometries(list, false);
       if (!geometry) continue;
       if (list.length > 1) for (const g of list) g.dispose();
@@ -496,6 +605,7 @@ export function wallWithHoles(b: LotBatch, mat: THREE.Material, x0: number, y0: 
 
 /** Inner faces of an opening cut in a wall at plane `z`, running `d` metres back. */
 export function revealFaces(b: LotBatch, mat: THREE.Material, h: Hole, z: number, d: number, bottom = true): void {
+  b.addOpening(h, z, d);
   const w = h.x1 - h.x0, ht = h.y1 - h.y0;
   b.rect(mat, [h.x0, h.y0, z - d], [0, 0, d], [0, ht, 0], { hint: [1, 0, 0] });
   b.rect(mat, [h.x1, h.y0, z - d], [0, 0, d], [0, ht, 0], { hint: [-1, 0, 0] });

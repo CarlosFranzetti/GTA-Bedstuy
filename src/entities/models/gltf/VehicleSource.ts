@@ -560,7 +560,13 @@ function largestWorldMesh(list: THREE.Mesh[]): THREE.Mesh | null {
 
 export type VehicleSources = Partial<Record<VehicleType, GltfVehicleSource>>;
 
-const VEHICLE_FILES = import.meta.glob('@/assets/models/vehicle-{sedan,suv,boxtruck,cop}.glb', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+/**
+ * The CC0 Kenney vehicle files are OPT-IN (`VITE_GLTF_CARS=1`): the procedural lofted bodies in carModel.ts / carBodies.ts are the
+ * default (GTA3-era proportions, licence ours). Without the flag the glob is dead code, so the .glb files are not bundled at all.
+ */
+const VEHICLE_FILES = (import.meta.env?.VITE_GLTF_CARS === '1'
+  ? import.meta.glob('@/assets/models/vehicle-{sedan,suv,boxtruck,cop}.glb', { eager: true, query: '?url', import: 'default' })
+  : {}) as Record<string, string>;
 
 /** Load every bundled vehicle-<type>.glb. Types without a file (or whose file fails to load) are simply absent. */
 export async function resolveVehicleSources(): Promise<VehicleSources> {

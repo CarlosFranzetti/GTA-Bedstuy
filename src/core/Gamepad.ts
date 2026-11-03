@@ -4,12 +4,13 @@
  *   left stick  -> input.touchAxis (move / steer)           RT -> throttle (adds to touchAxis.y in a car)
  *   right stick -> input.addLook (scaled by dt)             LT -> brake (Space)
  *   A -> KeyF (enter/exit)   X -> ShiftLeft (run / handbrake)   LB -> KeyH (horn)   Y -> KeyE (radio)
+ *   R3 (right-stick click) -> KeyC held (look back)
  *   Start -> onStart (pause menu)   D-pad / A / B -> onNav (menu navigation)
  *
  * Call `update(dt)` once per rendered frame (also while paused, so Start can resume).
  * Touch coexistence: the stick only writes `touchAxis` while it is deflected (and once to zero on release).
  */
-import type { Input } from './Input';
+import { LOOK_BACK_KEY, type Input } from './Input';
 
 /** Radial dead zone. */
 export const DEAD_ZONE = 0.15;
@@ -36,7 +37,7 @@ function trigger(b: GamepadButton | undefined): number {
   return v < TRIGGER_DEAD ? 0 : Math.min(1, v);
 }
 
-const BTN = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, BACK: 8, START: 9, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
+const BTN = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, BACK: 8, START: 9, RS: 11, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
 
 export interface GamepadOptions {
   /** Override for tests. Defaults to `navigator.getGamepads()`. */
@@ -146,6 +147,7 @@ export class GamepadInput {
     // Held actions.
     this.hold('ShiftLeft', down(BTN.X));
     this.hold('KeyH', down(BTN.LB));
+    this.hold(LOOK_BACK_KEY, down(BTN.RS)); // right-stick click: look back
     this.hold('Space', this.inVehicle && lt > TRIGGER_ON);
   }
 
