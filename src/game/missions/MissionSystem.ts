@@ -39,6 +39,7 @@ export interface MissionSystemOptions {
 
 const COLOR_GIVER = '#f5c542';
 const COLOR_GOAL = '#4ade80';
+const COLOR_TARGET = '#fb923c';
 const DEFAULT_GAME_HOURS_PER_SECOND = 1 / 60;
 const MAX_STARS = 3;
 const TALK_RANGE_EXTRA = 1.5;
@@ -253,7 +254,7 @@ export class MissionSystem {
   serialize(): MissionSave {
     const completed: string[] = [];
     for (let i = 0; i < this.defs.length; i++) if (this.status[i] === 'complete') completed.push(this.defs[i].id);
-    return { v: 1, completed, cash: this.cash };
+    return this.staked.size > 0 ? { v: 1, completed, cash: this.cash, staked: [...this.staked] } : { v: 1, completed, cash: this.cash };
   }
 
   /** Loads a save. Returns false (state untouched) when `data` is not a valid save. Unknown mission ids are ignored. */
@@ -267,6 +268,10 @@ export class MissionSystem {
     for (let i = 0; i < this.defs.length; i++) this.status[i] = done.has(this.defs[i].id) ? 'complete' : 'available';
     this.cash = o.cash;
     this.hud.cash = this.cash;
+    this.staked.clear();
+    if (Array.isArray(o.staked)) for (const id of o.staked) if (typeof id === 'string') this.staked.add(id);
+    for (let i = 0; i < this.defs.length; i++) if (this.status[i] === 'complete') for (const f of this.defs[i].setFlags ?? []) this.opts.setFlag?.(f);
+    this.giverKey = '';
     this.rebuildMarkers();
     return true;
   }
@@ -276,11 +281,14 @@ export class MissionSystem {
   /**
    * @param dt fixed step, seconds
    * @param pos player (or driven vehicle) position
-   * @param speedMps current speed in m/s (only holdSpeedBelow needs it)
+   * @param speedMps current speed in m/s (holdSpeedBelow and maxKmh need it)
    * @param hour game hour 0..24, or -1 when unknown (disables hour windows and deadlines)
    */
   update(dt: number, pos: Vec2, inVehicle: boolean, wantedStars: number, speedMps = 0, hour = -1): void {
-    if (this.cur < 0) { this.checkTriggers(pos, hour); return; }
+    this.hostInVehicle = inVehicle;
+    this.lastHour = hour;
+    this.lastPos.x = pos.x; this.lastPos.z = pos.z;
+    if (this.cur < 0) { this.checkTriggers(pos, hour, dt); return; }
     if (this.status[this.cur] !== 'active') return;
 
     const def = this.defs[this.cur];
@@ -305,18 +313,36 @@ export class MissionSystem {
         if (this.outOfCar > ob.stayInVehicle) return this.fail('leftVehicle');
       }
     }
+    // heat and speed rules
+    if (ob.failIfStars !== undefined && wantedStars >= ob.failIfStars) return this.fail('copsCalled');
+    if (ob.maxKmh !== undefined) {
+      if (speedMps * 3.6 > ob.maxKmh) { this.fastFor += dt; if (this.fastFor > TOO_FAST_GRACE) return this.fail('tooFast'); } else this.fastFor = 0;
+    }
+    // banter
+    if (ob.banter && this.banterIdx < ob.banter.length) {
+      this.banterT -= dt;
+      if (this.banterT <= 0) {
+        this.toast(ob.banter[this.banterIdx++], 'info');
+        this.banterT = ob.banterEvery ?? DEFAULT_BANTER_EVERY;
+      }
+    }
 
-    if (this.evaluate(ob, pos, inVehicle, wantedStars, speedMps, dt)) this.advance(ob, pos);
-    else this.syncDynamic();
+    const tailFail = this.evaluateFailing(ob, pos, dt);
+    if (tailFail) return this.fail(tailFail);
+    const complete = this.evaluate(ob, pos, inVehicle, wantedStars, speedMps, dt);
+    this.sigs.length = 0;
+    if (this.cur < 0 || this.status[this.cur] !== 'active') return; // an evaluate-time failure
+    this.hud.prompt = this.promptFor(ob, pos);
+    if (complete) this.advance(ob, pos);
+    else { this.syncDynamic(); this.refreshMoving(dt); }
   }
 
   // ------------------------------------------------------------------ internals
 
-  private presenceAt(): boolean { return this.hostInVehicle; }
-  private hostInVehicle = false;
   private reach(pos: Vec2, at: Vec2, r: number, presence: 'onFoot' | 'inVehicle' | 'any'): boolean {
     return inCircle(pos, at, r) && presenceOk(presence, this.hostInVehicle);
   }
+  private hostInVehicle = false;
 
   private requiresMet(i: number): boolean {
     const req = this.defs[i].requires;
@@ -336,16 +362,20 @@ export class MissionSystem {
     return -1;
   }
 
-  private checkTriggers(pos: Vec2, hour: number): void {
+  private checkTriggers(pos: Vec2, hour: number, dt: number): void {
+    this.hud.prompt = '';
+    this.giverT += dt;
+    const key = this.openKey(hour);
+    if (key !== this.giverKey || this.giverT >= GIVER_REFRESH_S) { this.giverKey = key; this.giverT = 0; this.rebuildMarkers(); }
     let inAny = -1;
     for (let i = 0; i < this.defs.length; i++) {
-      if (this.status[i] === 'complete') continue;
+      if (this.status[i] === 'complete' || !this.requiresMet(i)) continue;
       const d = this.defs[i];
       const dx = pos.x - d.giver.x, dz = pos.z - d.giver.z;
       if (dx * dx + dz * dz > d.triggerRadius * d.triggerRadius) { this.armed[i] = true; continue; }
       inAny = i;
       if (!this.armed[i]) continue;
-      if (d.availableHours && hour >= 0 && !(hour >= d.availableHours[0] && hour < d.availableHours[1])) {
+      if (d.availableHours && hour >= 0 && !inHourWindow(hour, d.availableHours[0], d.availableHours[1])) {
         if (this.hintedZone !== i) {
           this.hintedZone = i;
           this.toast(`${d.title}: come back between ${fmtHour(d.availableHours[0])} and ${fmtHour(d.availableHours[1])}.`, 'info');
@@ -356,6 +386,13 @@ export class MissionSystem {
       return;
     }
     if (inAny < 0) this.hintedZone = -1;
+  }
+
+  /** Which givers are on offer right now, as a cache key for the marker refresh. */
+  private openKey(hour: number): string {
+    let k = '';
+    for (let i = 0; i < this.defs.length; i++) k += this.offered(i, hour) ? '1' : '0';
+    return k;
   }
 
   private begin(i: number, hour: number): void {
@@ -369,11 +406,15 @@ export class MissionSystem {
     this.hud.title = d.title;
     this.hud.steps = d.objectives.length;
     this.hud.retryPrompt = '';
+    this.hud.prompt = '';
+    if (d.stake && !this.staked.has(d.id)) { this.staked.add(d.id); this.opts.pay?.(d.stake); }
+    this.enterObjective();
     this.setObjectiveHud();
     this.rebuildMarkers();
     this.toast(d.blurb, 'info');
     this.emit('mission:started', { id: d.id, title: d.title, blurb: d.blurb });
     this.emit('mission:objective', { id: d.id, index: 0, total: d.objectives.length, text: d.objectives[0].text });
+    this.checkTwist();
     this.syncStatic();
     this.syncDynamic();
   }
@@ -381,9 +422,60 @@ export class MissionSystem {
   private clearRun(): void {
     this.obj = 0; this.elapsed = 0; this.objElapsed = 0; this.acc = 0; this.outOfCar = 0; this.items.length = 0;
     this.hourLeft = -1;
+    this.sigs.length = 0;
+    this.resetObjective();
     this.hud.carrying = '';
     this.hud.timeLeft = -1;
     this.hud.progress = -1;
+    this.hud.prompt = '';
+  }
+
+  /** Reset the per-objective scratch state. */
+  private resetObjective(): void {
+    this.talkIdx = 0; this.presses = 0; this.done = false; this.fastFor = 0; this.banterIdx = 0; this.banterT = 0;
+    this.collected = []; this.bought = new Set(); this.sold = 0; this.custT = 0; this.custStay = 0; this.custAt = null; this.custN = 0;
+    this.movingT = 0;
+    this.tail = { x: 0, z: 0, leg: 0, engaged: false, atEnd: false, lost: 0, dist: 0, total: 1, moved: 0 };
+  }
+
+  /** Called when an objective becomes the active one (also for objective 0). */
+  private enterObjective(): void {
+    this.resetObjective();
+    const ob = this.defs[this.cur].objectives[this.obj];
+    if (ob.kind === 'collect') this.collected = ob.points.map(() => false);
+    if (ob.kind === 'tail') {
+      const r = ob.route;
+      this.tail.x = r[0].x; this.tail.z = r[0].z; this.tail.leg = 0;
+      let len = 0;
+      for (let i = 1; i < r.length; i++) len += Math.hypot(r[i].x - r[i - 1].x, r[i].z - r[i - 1].z);
+      this.tail.total = Math.max(1, len);
+    }
+  }
+
+  private checkTwist(): void {
+    const d = this.defs[this.cur];
+    if (d.twist && d.twist.at === this.obj) {
+      this.toast(d.twist.text, 'info');
+      this.emit('mission:twist', { id: d.id, text: d.twist.text });
+    }
+  }
+
+  private promptFor(ob: ObjectiveDef, pos: Vec2): string {
+    if (ob.kind === 'talkTo') return this.reach(pos, ob.at, ob.radius + TALK_RANGE_EXTRA, ob.presence ?? 'onFoot') ? `F  Talk to ${ob.npc}` : '';
+    if (ob.kind === 'interact') return this.reach(pos, ob.at, ob.radius, ob.presence ?? 'onFoot') ? `F  ${ob.prompt}` : '';
+    if (ob.kind === 'sell' && this.custAt && Math.hypot(pos.x - this.custAt.x, pos.z - this.custAt.z) <= CUSTOMER_RANGE) return `F  Sell ${ob.item}`;
+    return '';
+  }
+
+  /** Failure rules that live inside objective kinds (losing a tail target). Returns the reason or null. */
+  private evaluateFailing(ob: ObjectiveDef, pos: Vec2, dt: number): FailReason | null {
+    if (ob.kind !== 'tail') return null;
+    const t = this.tail;
+    t.dist = Math.hypot(pos.x - t.x, pos.z - t.z);
+    if (!t.engaged) { if (t.dist <= ob.maxDistance) t.engaged = true; return null; }
+    if (t.atEnd) return null;
+    if (t.dist > ob.maxDistance) { t.lost += dt; if (t.lost > (ob.grace ?? DEFAULT_TAIL_GRACE)) return 'lostTarget'; } else t.lost = 0;
+    return null;
   }
 
   private evaluate(ob: ObjectiveDef, pos: Vec2, inVehicle: boolean, stars: number, speedMps: number, dt: number): boolean {
@@ -412,7 +504,122 @@ export class MissionSystem {
         const dx = pos.x - ob.from.x, dz = pos.z - ob.from.z;
         return dx * dx + dz * dz > ob.radius * ob.radius;
       }
+      case 'talkTo': case 'interact': return this.done;
+      case 'collect': return this.evalCollect(ob, pos, inVehicle);
+      case 'tail': return this.evalTail(ob, dt);
+      case 'waitUntilHour': {
+        if (this.lastHour < 0) return false;
+        if (ob.at && !inCircle(pos, ob.at, ob.radius ?? 8)) return false;
+        return inHourWindow(this.lastHour, ob.from, ob.to);
+      }
+      case 'enterInterior': return this.inside === ob.id;
+      case 'exitInterior': return this.inside !== ob.id;
+      case 'djSet': return this.evalDj(ob);
+      case 'buy': return this.evalBuy(ob);
+      case 'sell': return this.evalSell(ob, pos, dt);
     }
+  }
+
+  private evalCollect(ob: Extract<ObjectiveDef, { kind: 'collect' }>, pos: Vec2, inVehicle: boolean): boolean {
+    if (!presenceOk(ob.presence, inVehicle)) return false;
+    let left = 0, changed = false;
+    for (let i = 0; i < ob.points.length; i++) {
+      if (this.collected[i]) continue;
+      if (ob.ordered && this.collected.indexOf(false) !== i) { left++; continue; }
+      if (inCircle(pos, ob.points[i], ob.radius)) {
+        this.collected[i] = true; changed = true;
+        this.items.push(ob.item);
+      } else left++;
+    }
+    if (changed) {
+      this.hud.carrying = this.items.join(', ');
+      this.toast(`${ob.item} ${ob.points.length - left}/${ob.points.length}`, 'good');
+      this.rebuildMarkers();
+    }
+    this.hud.progress = (ob.points.length - left) / ob.points.length;
+    return left === 0;
+  }
+
+  private evalTail(ob: Extract<ObjectiveDef, { kind: 'tail' }>, dt: number): boolean {
+    const t = this.tail, r = ob.route;
+    if (t.engaged && !t.atEnd) {
+      let step = ob.speed * dt;
+      while (step > 0 && t.leg < r.length - 1) {
+        const a = r[t.leg + 1];
+        const dx = a.x - t.x, dz = a.z - t.z, d = Math.hypot(dx, dz);
+        if (d <= step) { t.x = a.x; t.z = a.z; t.leg++; step -= d; t.moved += d; }
+        else { t.x += (dx / d) * step; t.z += (dz / d) * step; t.moved += step; step = 0; }
+      }
+      if (t.leg >= r.length - 1) t.atEnd = true;
+    }
+    this.hud.progress = Math.min(1, t.moved / t.total);
+    const m = this.markers[0];
+    if (m && m.id.endsWith('tail')) { m.x = t.x; m.z = t.z; }
+    return t.atEnd && t.dist <= ob.maxDistance;
+  }
+
+  private evalDj(ob: Extract<ObjectiveDef, { kind: 'djSet' }>): boolean {
+    for (const s of this.sigs) {
+      if (s.type !== 'dj:setFinished' || s.venue !== ob.venue) continue;
+      if (s.minutes !== undefined && s.minutes + 1e-6 < ob.minutes) { this.toast('That set was too short. Run the full time.', 'bad'); continue; }
+      if (s.score >= ob.minScore) return true;
+      this.fail('lowScore');
+      return false;
+    }
+    return false;
+  }
+
+  private evalBuy(ob: Extract<ObjectiveDef, { kind: 'buy' }>): boolean {
+    for (const s of this.sigs) {
+      if (s.type !== 'shop:bought' || (s.shop !== undefined && s.shop !== ob.shop)) continue;
+      if (ob.items.includes(s.recordId) && !this.bought.has(s.recordId)) {
+        this.bought.add(s.recordId);
+        this.toast(`Bought ${this.bought.size}/${ob.items.length}`, 'good');
+      }
+    }
+    this.hud.progress = this.bought.size / ob.items.length;
+    return this.bought.size >= ob.items.length;
+  }
+
+  private evalSell(ob: Extract<ObjectiveDef, { kind: 'sell' }>, pos: Vec2, dt: number): boolean {
+    for (const s of this.sigs) if (s.type === 'sold' && s.item === ob.item) this.sellOne(ob.item);
+    const near = inCircle(pos, ob.at, ob.radius);
+    if (this.custAt) {
+      this.custStay += dt;
+      if (this.custStay > CUSTOMER_STAY || !near) this.dropCustomer();
+    } else if (near && this.sold < ob.count) {
+      this.custT += dt;
+      if (this.custT >= (ob.every ?? 5)) {
+        const o = CUSTOMER_OFFSETS[this.custN++ % CUSTOMER_OFFSETS.length];
+        this.custAt = { x: ob.at.x + o[0], z: ob.at.z + o[1] };
+        this.custStay = 0;
+        this.rebuildMarkers();
+      }
+    }
+    this.hud.progress = this.sold / ob.count;
+    return this.sold >= ob.count;
+  }
+
+  private sellOne(item: string): void {
+    const k = this.items.indexOf(item);
+    if (k >= 0) this.items.splice(k, 1);
+    this.sold++;
+    this.hud.carrying = this.items.join(', ');
+    this.toast(`Sold ${item}  (${this.sold})`, 'good');
+    this.dropCustomer();
+  }
+
+  private dropCustomer(): void {
+    if (!this.custAt) return;
+    this.custAt = null; this.custT = 0; this.custStay = 0;
+    this.rebuildMarkers();
+  }
+
+  /** Re-publish the markers a few times a second while a target is moving (the 3D view only redraws on a version bump). */
+  private refreshMoving(dt: number): void {
+    if (this.defs[this.cur].objectives[this.obj].kind !== 'tail') return;
+    this.movingT += dt;
+    if (this.movingT >= MOVING_MARKER_PERIOD) { this.movingT = 0; this.markersVersion++; }
   }
 
   private hasAll(want: readonly string[]): boolean {
@@ -424,21 +631,24 @@ export class MissionSystem {
     const def = this.defs[this.cur];
     if (done.kind === 'pickUp') {
       for (const it of done.items) this.items.push(it);
-      this.hud.carrying = this.items.join(', ');
     } else if (done.kind === 'deliver') {
       for (const it of done.items) { const k = this.items.indexOf(it); if (k >= 0) this.items.splice(k, 1); }
-      this.hud.carrying = this.items.join(', ');
     }
+    if (done.grant) for (const it of done.grant) this.items.push(it);
+    this.hud.carrying = this.items.join(', ');
     if (done.raiseWantedTo !== undefined) this.opts.raiseWanted?.(Math.min(MAX_STARS, done.raiseWantedTo), pos);
     if (done.doneMessage) this.toast(done.doneMessage, 'info');
 
     this.obj++;
     this.objElapsed = 0; this.acc = 0; this.outOfCar = 0;
     this.hud.progress = -1;
+    this.hud.prompt = '';
     if (this.obj >= def.objectives.length) { this.complete(); return; }
+    this.enterObjective();
     this.setObjectiveHud();
     this.rebuildMarkers();
     this.emit('mission:objective', { id: def.id, index: this.obj, total: def.objectives.length, text: def.objectives[this.obj].text });
+    this.checkTwist();
     this.syncStatic();
     this.syncDynamic();
   }
@@ -453,8 +663,11 @@ export class MissionSystem {
     this.hud.status = 'idle';
     this.hud.cash = this.cash;
     this.toast(`${d.title} done. ${d.reward.message}${d.reward.cash > 0 ? `  +$${d.reward.cash}` : ''}`, 'good');
+    this.giverKey = '';
     this.rebuildMarkers();
     this.syncStatic();
+    if (d.reward.cash > 0) this.opts.pay?.(d.reward.cash);
+    if (d.setFlags) for (const f of d.setFlags) this.opts.setFlag?.(f);
     this.emit('mission:completed', { id: d.id, title: d.title, cash: d.reward.cash, message: d.reward.message, totalCash: this.cash });
     this.opts.persist?.(this.serialize());
   }
@@ -464,10 +677,11 @@ export class MissionSystem {
     const d = this.defs[i];
     this.status[i] = 'failed';
     this.lastFail = reason;
-    const msg = FAIL_TEXT[reason];
+    const msg = d.failJoke?.[reason] ?? FAIL_TEXT[reason];
     this.hud.status = 'failed';
     this.hud.timeLeft = -1;
     this.hud.progress = -1;
+    this.hud.prompt = '';
     this.hud.retryPrompt = `${this.opts.retryKey ?? 'R'}  Retry   ${this.opts.abandonKey ?? 'X'}  Give up${d.retryHint ? `  ·  ${d.retryHint}` : ''}`;
     this.toast(`${d.title} failed. ${msg}`, 'bad');
     this.markers.length = 0;
@@ -504,18 +718,54 @@ export class MissionSystem {
   private rebuildMarkers(): void {
     this.markers.length = 0;
     if (this.cur < 0) {
-      for (let i = 0; i < this.defs.length; i++) {
-        if (this.status[i] === 'complete') continue;
+      const open: number[] = [];
+      for (let i = 0; i < this.defs.length; i++) if (this.offered(i, this.lastHour)) open.push(i);
+      if (open.length > MAX_GIVER_MARKERS) {
+        const p = this.lastPos;
+        const dist = (i: number): number => Math.hypot(this.defs[i].giver.x - p.x, this.defs[i].giver.z - p.z);
+        open.sort((a, b) => dist(a) - dist(b));
+        open.length = MAX_GIVER_MARKERS;
+        open.sort((a, b) => a - b);
+      }
+      for (const i of open) {
         const d = this.defs[i];
         this.markers.push({ id: `${d.id}:giver`, kind: 'giver', x: d.giver.x, z: d.giver.z, radius: d.triggerRadius, color: COLOR_GIVER, label: d.title });
       }
-    } else {
+    } else if (this.status[this.cur] === 'active') {
       const d = this.defs[this.cur];
       const ob = d.objectives[this.obj];
-      const at = ob ? objectivePoint(ob) : null;
-      if (at) this.markers.push({ id: `${d.id}:obj${this.obj}`, kind: 'objective', x: at.x, z: at.z, radius: at.r, color: COLOR_GOAL, label: ob.text });
+      this.pushObjectiveMarkers(d.id, ob);
     }
     this.markersVersion++;
+  }
+
+  private pushObjectiveMarkers(missionId: string, ob: ObjectiveDef): void {
+    const id = `${missionId}:obj${this.obj}`;
+    const add = (x: number, z: number, radius: number, suffix = '', color = COLOR_GOAL): void => {
+      this.markers.push({ id: id + suffix, kind: 'objective', x, z, radius, color, label: ob.text });
+    };
+    switch (ob.kind) {
+      case 'collect':
+        for (let i = 0; i < ob.points.length; i++) {
+          if (this.collected[i]) continue;
+          if (ob.ordered && this.collected.indexOf(false) !== i) continue;
+          add(ob.points[i].x, ob.points[i].z, ob.radius, `:${i}`);
+        }
+        return;
+      case 'tail': add(this.tail.x, this.tail.z, 4, 'tail', COLOR_TARGET); return;
+      case 'sell':
+        add(ob.at.x, ob.at.z, ob.radius);
+        if (this.custAt) add(this.custAt.x, this.custAt.z, 1.5, ':cust', COLOR_TARGET);
+        return;
+      case 'enterInterior': case 'exitInterior': case 'buy': case 'djSet':
+        if (ob.at) add(ob.at.x, ob.at.z, ob.radius ?? 5);
+        return;
+      case 'waitUntilHour': if (ob.at) add(ob.at.x, ob.at.z, ob.radius ?? 8); return;
+      default: {
+        const at = objectivePoint(ob);
+        if (at) add(at.x, at.z, at.r);
+      }
+    }
   }
 
   private emit<K extends MissionEventName>(type: K, payload: MissionEvents[K]): void {
@@ -529,10 +779,14 @@ const FAIL_TEXT: Record<FailReason, string> = {
   timeUp: 'Too slow.',
   clockUp: 'The party started without you.',
   leftVehicle: 'You ditched the car.',
+  lostTarget: 'You lost them.',
+  lowScore: 'The crowd was not feeling it.',
+  copsCalled: 'The heat showed up.',
+  tooFast: 'Too fast. Easy does it.',
 };
 
 function fmtHour(h: number): string {
-  const hh = Math.floor(h) % 24;
+  const hh = Math.floor(wrap24(h));
   const suffix = hh >= 12 ? 'pm' : 'am';
   const h12 = hh % 12 === 0 ? 12 : hh % 12;
   return `${h12}${suffix}`;
@@ -549,7 +803,7 @@ function presenceOk(req: 'onFoot' | 'inVehicle' | 'any', inVehicle: boolean): bo
 
 function objectivePoint(ob: ObjectiveDef): { x: number; z: number; r: number } | null {
   switch (ob.kind) {
-    case 'goTo': case 'pickUp': case 'deliver': return { x: ob.at.x, z: ob.at.z, r: ob.radius };
+    case 'goTo': case 'pickUp': case 'deliver': case 'talkTo': case 'interact': return { x: ob.at.x, z: ob.at.z, r: ob.radius };
     case 'holdSpeedBelow': return ob.at ? { x: ob.at.x, z: ob.at.z, r: ob.radius ?? 5 } : null;
     default: return null;
   }

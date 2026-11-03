@@ -5,7 +5,7 @@ import type { MissionHudState } from '@/game/missions/types';
 
 const base = (): MissionHudState => ({
   status: 'active', title: 'Bodega Run', objective: "Ms. Pearl's stoop", step: 2, steps: 5, timeLeft: 83.2, progress: -1,
-  carrying: 'bodega bag, bodega bag', cash: 0, toastSeq: 0, toast: '', toastKind: 'info', retryPrompt: '',
+  carrying: 'bodega bag, bodega bag', cash: 0, toastSeq: 0, toast: '', toastKind: 'info', retryPrompt: '', prompt: '',
 });
 
 const q = (root: HTMLElement, sel: string): HTMLElement => {

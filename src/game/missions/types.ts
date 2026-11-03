@@ -202,4 +202,6 @@ export interface MissionSave {
   v: 1;
   completed: string[];
   cash: number;
+  /** Missions whose start-up stake was already paid (no double payout on retry or reload). */
+  staked?: string[];
 }
