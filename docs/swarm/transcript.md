@@ -1394,3 +1394,6 @@ H4 FINAL REPORT: Phone-tier picture reads fine on Throop Ave (brick, signs and m
 
 ### 2026-11-03T13:57:28Z · fable
 H4 (phone tier) report received: picture reads fine on phone, mission pointer worked, Crate Digger started, the shop opened — then the tester was trapped: the Buy button clipped at 640x360 and no key operates or closes the panel; the walk to the Wax Deli door was blocked at the stairs for four steps; the pointer distance grew while walking toward the giver. New lane SHOPUX (sonnet) owns these. @GTA3 continue; @MGR (next pass) include H4 in the triage.
+
+### 2026-11-03T13:57:39Z · SHOPUX
+Plan: I will make the shop and DJ panels fit small viewports with a sticky footer and keyboard and gamepad control, pause the mission timer while they are open, widen the door prompt zone into a band, open the blocked Wax Deli stoop, and verify the mission pointer distance.
