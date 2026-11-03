@@ -11,7 +11,7 @@ export type SpotKind = 'exit' | 'shop' | 'listen' | 'dj' | 'bar' | 'talk' | 'cou
 export interface Spot { id: string; kind: SpotKind; x: number; z: number; r: number; label: string }
 
 /** What the room hears: beat phase 0..1, tempo, loudness 0..1. */
-export interface Beat { phase: number; bpm: number; level: number; index: number }
+export interface Beat { phase: number; bpm: number; level: number; index: number; dark?: boolean }
 
 export interface Room {
   id: InteriorId;
@@ -244,17 +244,18 @@ export function buildClub(deps: RoomDeps): Room {
       { id: 'bar', kind: 'bar', x: w / 2 - 2.0, z: 1.4, r: 1.8, label: 'Order a drink ($6)' },
     ],
     update(t, beat) {
-      const lvl = Math.max(0.15, beat.level);
+      const lvl = beat.dark ? 0 : Math.max(0.15, beat.level);
+      lasers.forEach((p) => { p.visible = !beat.dark; });
       if (beat.index !== lastIdx) {
         lastIdx = beat.index;
         for (let i = 0; i < tiles.length; i++) {
           const on = ((i * 7 + beat.index * 3) % 5) < 2;
-          tiles[i].material = on ? palette[(i + beat.index) % 4] : dark;
+          tiles[i].material = on && !beat.dark ? palette[(i + beat.index) % 4] : dark;
         }
         washMat.color.set(['#ff2d95', '#00d4ff', '#9b5de5', '#ffd60a'][beat.index % 4]);
       }
       const pulse = Math.pow(1 - beat.phase, 3);
-      washMat.opacity = 0.05 + 0.25 * pulse * lvl;
+      washMat.opacity = beat.dark ? 0 : 0.05 + 0.25 * pulse * lvl;
       // strobe on the downbeat of every bar: short bursts
       strobeMat.opacity = beat.index % 4 === 0 && beat.phase < 0.12 ? 0.55 * lvl : (beat.index % 8 === 7 && beat.phase > 0.5 && Math.floor(beat.phase * 24) % 2 === 0 ? 0.35 * lvl : 0);
       const sweep = Math.sin((beat.index + beat.phase) * Math.PI / 2);

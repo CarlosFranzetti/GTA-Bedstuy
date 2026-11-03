@@ -13,7 +13,7 @@ import * as THREE from 'three';
 import type { Vec2 } from '@/core/Math2';
 import type { Inventory } from '@/game/Inventory';
 import type { IMaterialLibrary, IWorld2D } from '../types';
-import { CLUB_SLOT_FLAG, CLUB_UNLOCK_FLAG, INTERIORS, INTERIOR_IDS, doorTrigger, isClubHours, isClubOpen, outwardHeading, type InteriorId } from './defs';
+import { CLUB_SLOT_FLAG, CLUB_UNLOCK_FLAG, EVENT_ID, INTERIORS, INTERIOR_IDS, doorTrigger, isClubHours, isClubOpen, outwardHeading, type InteriorId } from './defs';
 import { buildRoom, type Beat, type Room, type Spot } from './rooms';
 import { box } from './parts';
 
@@ -67,6 +67,7 @@ export class Interiors {
   private lastPhase = 0;
   private beatIndex = 0;
   private talkIdx = 0;
+  private dark = false;
   /** Where the player was last seen outside, so `exit()` can fall back to the door. */
   private readonly root = new THREE.Group();
 
@@ -117,6 +118,9 @@ export class Interiors {
     const s = this.spotAt(pos);
     return s ? `F  ${s.label}` : '';
   }
+
+  /** Power cut (mission twist): lights, lasers and strobe go out in the club until switched back on. */
+  setBlackout(on: boolean): void { this.dark = on; }
 
   // ------------------------------------------------------------ actions
 
@@ -199,7 +203,7 @@ export class Interiors {
       if (beat) phase = beat.phase; else phase = (this.clock * bpm / 60) % 1;
       if (phase < this.lastPhase - 0.5) this.beatIndex++;
       this.lastPhase = phase;
-      const b: Beat = { phase, bpm, level: beat ? beat.level : 0.7, index: this.beatIndex };
+      const b: Beat = { phase, bpm, level: beat ? beat.level : 0.7, index: this.beatIndex, dark: this.dark };
       room.update(this.clock, b);
     }
   }
@@ -230,13 +234,13 @@ export class Interiors {
       }
       for (const [rid, r] of this.rooms) r.group.visible = rid === id;
       this.d.teleport(def.origin.x + room.spawn.x, def.origin.z + room.spawn.z, room.spawn.heading);
-      this.d.events?.emit('interior:entered', { id });
+      this.d.events?.emit('interior:entered', { id: EVENT_ID[id] });
       this.d.onChange?.(id);
     } else {
       const id = this.cur!; const def = INTERIORS[id];
       for (const r of this.rooms.values()) r.group.visible = false;
       this.d.teleport(def.door.x + def.door.outX * 1.9, def.door.z + def.door.outZ * 1.9, outwardHeading(def));
-      this.d.events?.emit('interior:exited', { id });
+      this.d.events?.emit('interior:exited', { id: EVENT_ID[id] });
       this.cur = null;
       this.d.onChange?.(null);
     }

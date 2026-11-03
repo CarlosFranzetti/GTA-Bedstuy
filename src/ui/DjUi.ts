@@ -24,6 +24,8 @@ export class DjUi {
   private readonly doc: Document;
   private opened = false;
   private venue = 'home';
+  /** Requested set length (mission djRequest.minutes), 0 = free play. */
+  private targetSeconds = 0;
   private rafId = 0;
   private last = 0;
   private readonly fader: HTMLInputElement;
@@ -87,7 +89,7 @@ export class DjUi {
   get isOpen(): boolean { return this.opened; }
 
   /** Opens the decks and starts a scored set at `venue` ('home', 'aftersloth', ...). */
-  open(venue: string): void {
+  open(venue: string, opts: { minutes?: number } = {}): void {
     if (this.opened) return;
     this.opened = true; this.venue = venue;
     this.d.game.startSet(venue);
@@ -171,7 +173,9 @@ export class DjUi {
     } else { this.syncEl.textContent = 'Start both decks to match them'; this.syncEl.dataset.q = ''; }
     this.fader.value = String(g.crossfader);
     this.crowdBar.style.width = `${Math.round(g.crowd * 100)}%`;
-    this.scoreEl.textContent = `Score ${g.result().score}`;
+    const el = g.elapsed; const clock = `${Math.floor(el / 60)}:${String(Math.floor(el % 60)).padStart(2, '0')}`;
+    this.scoreEl.textContent = `Score ${g.result().score} · ${this.targetSeconds ? `${clock} / ${Math.floor(this.targetSeconds / 60)}:${String(Math.round(this.targetSeconds % 60)).padStart(2, '0')}` : clock}`;
+    if (this.targetSeconds && el >= this.targetSeconds) this.finish();
   }
 
   // ------------------------------------------------------------ build

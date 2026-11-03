@@ -66,3 +66,6 @@ export function doorTrigger(def: InteriorDef): { x: number; z: number } {
 
 /** Player heading (radians, 0 = north/-z) when facing out of the door. */
 export function outwardHeading(def: InteriorDef): number { return Math.atan2(def.door.outX, -def.door.outZ); }
+
+/** Ids used on the EventBus and by missions (MISS2 agreement): 'wax-deli', 'aftersloth', 'home'. */
+export const EVENT_ID: Record<InteriorId, string> = { deli: 'wax-deli', club: 'aftersloth', home: 'home' };

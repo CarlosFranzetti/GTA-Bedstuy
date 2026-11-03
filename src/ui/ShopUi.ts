@@ -93,7 +93,7 @@ export class ShopUi {
     const def = this.d.stock.find((r) => r.id === id);
     if (!def) return 'owned';
     const r = this.d.inventory.buy(def);
-    if (r === 'ok') { this.say(`Bought "${def.title}" for $${def.price}.`); this.d.events?.emit('shop:bought', { recordId: def.id, price: def.price }); }
+    if (r === 'ok') { this.say(`Bought "${def.title}" for $${def.price}.`); this.d.events?.emit('shop:bought', { recordId: def.id, price: def.price, shop: 'wax-deli' }); }
     else if (r === 'poor') this.say(`Not enough cash: "${def.title}" is $${def.price}.`);
     else this.say('You already own that one.');
     return r;
@@ -103,7 +103,7 @@ export class ShopUi {
   sell(id: string): number {
     const def = this.d.inventory.getRecord(id);
     const got = this.d.inventory.sell(id);
-    if (got >= 0 && def) { this.say(`Sold "${def.title}" for $${got}.`); this.d.events?.emit('shop:sold', { recordId: id, price: got }); }
+    if (got >= 0 && def) { this.say(`Sold "${def.title}" for $${got}.`); this.d.events?.emit('shop:sold', { recordId: id, price: got, shop: 'wax-deli' }); }
     return got;
   }
 

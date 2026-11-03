@@ -69,7 +69,7 @@ describe('interior state machine', () => {
     expect(t.it.fade).toBeGreaterThan(0.5);
     t.run(FADE_SECONDS * 1.5);
     expect(t.it.state).toBe('inside'); expect(t.it.current).toBe('deli'); expect(t.it.fade).toBe(0);
-    expect(t.log[0]).toBe('interior:entered:{"id":"deli"}');
+    expect(t.log[0]).toBe('interior:entered:{"id":"wax-deli"}');
     // exit
     expect(t.it.exit()).toBe(true);
     expect(t.it.exit()).toBe(false);
@@ -77,7 +77,7 @@ describe('interior state machine', () => {
     expect(t.it.state).toBe('outside'); expect(t.it.current).toBeNull();
     const d = INTERIORS.deli.door;
     expect(t.tele[1][0]).toBeCloseTo(d.x + d.outX * 1.9, 5);
-    expect(t.log[1]).toBe('interior:exited:{"id":"deli"}');
+    expect(t.log[1]).toBe('interior:exited:{"id":"wax-deli"}');
   });
   it('rooms are far off the map and enclosed by wall colliders', () => {
     for (const id of ['deli', 'club', 'home'] as const) {

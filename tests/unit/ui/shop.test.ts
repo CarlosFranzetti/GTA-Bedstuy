@@ -38,7 +38,7 @@ describe('ShopUi', () => {
     shop.open();
     expect(shop.buy('wax-07')).toBe('ok');
     expect(inventory.cash).toBe(START_CASH - 20);
-    expect(events[0]).toEqual(['shop:bought', { recordId: 'wax-07', price: 20 }]);
+    expect(events[0]).toEqual(['shop:bought', { recordId: 'wax-07', price: 20, shop: 'wax-deli' }]);
     expect(shop.buy('wax-07')).toBe('owned');
     inventory.add(-inventory.cash);
     expect(shop.buy('wax-12')).toBe('poor');

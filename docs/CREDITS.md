@@ -54,3 +54,9 @@ dimensions, recoloured, lights and plates added at load time).
 - **Modified**: these five files are compressed derivatives, made with `scripts/compress-models.mjs` (glTF-Transform): every animation
   clip except `Idle`, `Walk` and `Run` is dropped, vertex data is quantized and meshopt-compressed (EXT_meshopt_compression). Geometry
   shape, rig and materials are unchanged. About 1.2 MB each became about 0.3 MB each. The raw sha256 values are in the MDL2 notes.
+
+## Music (researched, not shipped)
+
+No recorded music is bundled in the repo. Candidate source checked by MUSIC on 2026-11-03 (see docs/swarm/tasks/MUSIC.md):
+
+- **Open Lo-Fi** (upstream `btahir/open-lofi`, mirror `MdShahnawazSheikh/thaxas-lofi`): tracks declared CC0-1.0 by the uploader in the upstream README and LICENSE. Tracks are AI-generated (Suno v5) per the upstream README; chain of title not independently verified. Ten samples were downloaded to the scratchpad only, not into the repo. Status: pending orchestrator approval.

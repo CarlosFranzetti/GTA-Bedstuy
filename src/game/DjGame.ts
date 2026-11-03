@@ -87,6 +87,8 @@ export class DjGame {
   }
 
   get active(): boolean { return this.venue !== null; }
+  /** Seconds since the set started. */
+  get elapsed(): number { return this.clock; }
 
   /** Ends the set: emits `dj:setFinished { venue, score, minutes }` and stops the decks. */
   finishSet(): SetResult {
