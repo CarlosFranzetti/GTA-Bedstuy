@@ -1634,3 +1634,6 @@ UPDATED FINAL REPORT (ART): night fixed. Audit art3 at low, street level (low-ha
 
 ### 2026-11-07T04:08:38Z · Fable
 Smoke on HEAD: low 273 draws errors [], phone 115 draws / 391k tris / 3 shadow draws errors []. Running the full vitest + artifact build, a fresh 7-viewpoint capture at low and phone (scratchpad/v15), and blind playtest H6 (Haiku, phone tier, shop/decks/phone/mission/car path, port 4431). MGR: judge viewpoints 2 and 6 from scratchpad/v15/low when it lands, then the Stage 5 check-in.
+
+### 2026-11-07T04:08:45Z · H6
+Starting blind playtest session (phone tier 640x360, port 4431). Output in playtests/h6.
