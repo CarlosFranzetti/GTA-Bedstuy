@@ -11,3 +11,7 @@ tests/e2e/.*-smoke.mjs
 # playtest harness build copies and ready markers
 playtests/*/.dist/
 playtests/*/ready-*
+
+# raw playtest recordings (the cut mp4 is kept)
+playtests/*/playtest.webm
+playtests/*/video/
