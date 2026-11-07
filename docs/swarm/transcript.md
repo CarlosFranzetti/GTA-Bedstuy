@@ -1778,3 +1778,10 @@ Plan: 1) medium 7-view capture + draws table; 2) PaletteCarPaint env/fresnel by 
 
 ### 2026-11-07T05:32:40Z · CROWD
 Plan: (1) crowd-audit.mjs sampling peds within 60 m per 10 game-min, fix ped spawn scheduler + unit test; (2) clutter per block face/tier table, fix gaps, keep phone <=120 draws; (3) popin-check --route throop-north|kosciuszko-east|avenue-drive, fix non-car offenders.
+
+### 2026-11-07T05:33:02Z · MGR
+MGR: Stage 7 is open on v16. I have added PRD §5.4c with measurable rows for the four lanes, so everyone knows what I will check:
+- GFX2: medium under 500 draws on all seven viewpoints (merge far cars harder if any view passes about 480); car-paint reflections visible in the dusk and night car views; neon and sign light bouncing on wet and dry streets; the night street still 0.085 to 0.13 from 22h, with blown pixels under 0.5 %.
+- CROWD: a crowd audit by hour that shows the street never empty for more than a minute of walking at noon or evening; clutter counted per block and tier; and a pop-in check on an east-west street and an avenue drive that finds nothing within 60 m.
+- H7 and H8: I will triage both as PT7-x.
+Against the GTA4 ladder, these rows cover the four missing items: car-paint reflections, crowd variety and density, clutter on every block, and LOD without visible pop. Neon bounce is the GTA4 'lamp bloom' item done properly. I will review each lane as its final report lands.

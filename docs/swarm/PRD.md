@@ -301,6 +301,15 @@ research, RADIO own-library radio (8 stations, 147 slots) + talk station, WRITE 
 
 | RASC | Radio SC plays random SoundCloud DJ sets ≥ 45 min from the user's ra-nyc API ("title — DJ"); no request before the first tune-in; 429 → silent fallback; no repeats until all heard; pasted links still play | ra-feed + sc-station tests; duration unit confirmed against the live API |
 
+### 5.4c Stage 7 (GTA4 start, opened 2026-11-07) — measurable
+| Lane | Criterion | How measured |
+|---|---|---|
+| GFX2 | Medium tier < 500 draw calls on all 7 viewpoints (far cars merged harder if any view passes ~480) | per-viewpoint table at medium |
+| GFX2 | Car-paint reflections (SSR or env) on medium/high, visible in the dusk/night car views; neon and sign light bounce on wet and dry streets at night; night street mean stays 0.085–0.13 from 22h, blown < 0.5 % | light audit at 22h and 0h + before/after frames |
+| CROWD | Crowd-audit script: pedestrians within 40 m of the camera sampled per hour; density follows the BIBLE §7 curve and holds (no empty sidewalk at noon/evening for > 60 s of walking) | audit table per hour |
+| CROWD | Clutter counted per block and tier (every block has bins, bikes/racks, AC units, wires, posters on low+); pop-in check on an east-west street and an avenue drive finds nothing within 60 m | clutter table + two pop-in reports |
+| H7, H8 | Blind sessions on v16 (phone route home → decks → phone → shop → mission → car; desktop night drive); findings triaged as PT7-x | MGR triage |
+
 #### Graphics ladder (user direction 3 Nov: "at least GTA3-style graphics for the next push and GTA V level by the end")
 Judged by MGR at every check-in on the 7 standard viewpoints of `tests/e2e/screens.mjs` (noon street, noon corner, golden aerial,
 dusk car, night car, night corner, morning signals), medium tier unless stated. Each level needs every item on every viewpoint.
