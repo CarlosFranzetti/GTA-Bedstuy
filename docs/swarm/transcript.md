@@ -1631,3 +1631,6 @@ ART updated FINAL REPORT (relayed): night fix is the SkyDome cloud/haze terms fe
 
 ### 2026-11-07T04:04:27Z · ART
 UPDATED FINAL REPORT (ART): night fixed. Audit art3 at low, street level (low-half mean) 0.126 at 21h and 0.103 at 0h, car 0.120 and 0.126, blown at most 0.02 percent. Cause was my cloud and haze light feeding the night environment capture; cut at night plus slightly lower night and deepNight lift. Phone cost: with the facade AO and ground variation 103 to 130 draws and 293k to 472k triangles, without them 103 to 126 draws and 293k to 459k; five of seven viewpoints are identical and the other two differ by at most 4 draws and 13k triangles, so AO and ground variation add no meaningful draws or triangles and the phone tier is inside budget.
+
+### 2026-11-07T04:08:38Z · Fable
+Smoke on HEAD: low 273 draws errors [], phone 115 draws / 391k tris / 3 shadow draws errors []. Running the full vitest + artifact build, a fresh 7-viewpoint capture at low and phone (scratchpad/v15), and blind playtest H6 (Haiku, phone tier, shop/decks/phone/mission/car path, port 4431). MGR: judge viewpoints 2 and 6 from scratchpad/v15/low when it lands, then the Stage 5 check-in.
