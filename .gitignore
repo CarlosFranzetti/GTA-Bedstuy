@@ -7,3 +7,7 @@ dist-hosted
 
 # per-lane temporary copies of the smoke script (swarm)
 tests/e2e/.*-smoke.mjs
+
+# playtest harness build copies and ready markers
+playtests/*/.dist/
+playtests/*/ready-*
