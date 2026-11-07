@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { QUALITY_ORDER, TIER_CONFIG, pixelRatioFor, tierBelow, tierConfig } from '@/render/QualityTier';
 import { DEFAULT_CULL_DISTANCE, DistanceCuller, cullDistanceFor, shouldHide } from '@/render/Culling';
 import { LIGHTING } from '@/render/LightingConfig';
-import { SHADOWS_ENABLED, setupShadows } from '@/render/Shadows';
+import { SHADOWS_ENABLED, phoneSunCasters, setupShadows } from '@/render/Shadows';
 import { resolveQuality } from '@/textures/hosted';
 import { QUALITIES } from '@/ui/Menu';
 import { FLAT_ROUGHNESS, setAnisotropy, setNormalMaps } from '@/render/TierDetail';
@@ -56,6 +56,7 @@ describe('tier table', () => {
   it('shadows: phone has a tiny sun map fed by the blob casters (no proxy build); the other tiers keep theirs', () => {
     const r = { shadowMap: { enabled: false, type: 0, autoUpdate: false, needsUpdate: false } } as unknown as THREE.WebGLRenderer;
     const sun = new THREE.DirectionalLight();
+    phoneSunCasters.ready = true;
     setupShadows(r, sun, 'phone');
     expect(SHADOWS_ENABLED).toEqual({ phone: false, low: true, medium: true, high: true });
     expect(r.shadowMap.enabled).toBe(true);

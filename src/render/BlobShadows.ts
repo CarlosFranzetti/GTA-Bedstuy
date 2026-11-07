@@ -12,6 +12,7 @@
  * Slots past the capacity are dropped (counted in `droppedCars` / `droppedPeds`), never an error.
  */
 import * as THREE from 'three';
+import { phoneSunCasters } from './Shadows';
 
 export const BLOB_CAR_CAPACITY = 96;
 export const BLOB_PED_CAPACITY = 96;
@@ -181,6 +182,7 @@ export class BlobShadows {
    */
   buildSunCasters(lots: ReadonlyArray<LotFootprint>): { triangles: number; lots: number } {
     if (this.buildingCaster) return { triangles: this.casterTriangles, lots: 0 };
+    phoneSunCasters.ready = true;
     const make = (set: BlobSet, geo: THREE.BufferGeometry, name: string): void => {
       const m = new THREE.InstancedMesh(geo, this.casterMat, set.capacity);
       m.instanceMatrix = set.mesh.instanceMatrix;

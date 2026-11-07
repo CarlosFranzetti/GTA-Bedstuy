@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { SUN_SHADOW, SHADOWS_ENABLED, setupShadows } from '@/render/Shadows';
+import { phoneSunCasters, SUN_SHADOW, SHADOWS_ENABLED, setupShadows } from '@/render/Shadows';
 import {
   buildLotCasterGeometry, CASTER_INSET, LOT_CASTER_HEIGHT,
   BLOB_CAR_CAPACITY, BLOB_Y, BlobShadows, CAR_BLOB_SCALE_L, CAR_BLOB_SCALE_W, PED_BLOB_SIZE, carBlobAlpha, pedBlobAlpha, writeBlobMatrix,
@@ -223,6 +223,10 @@ describe('phone sun shadow casters', () => {
     expect(SHADOWS_ENABLED.phone).toBe(false); // no RenderProxies on a phone
     const r = { shadowMap: { enabled: false, type: 0, autoUpdate: false, needsUpdate: false } } as unknown as THREE.WebGLRenderer;
     const sun = new THREE.DirectionalLight();
+    phoneSunCasters.ready = false;
+    setupShadows(r, sun, 'phone');
+    expect(r.shadowMap.enabled).toBe(false); // no stand-in casters built yet: the world meshes must not all cast into it
+    new BlobShadows().buildSunCasters([]);
     setupShadows(r, sun, 'phone');
     expect(r.shadowMap.enabled).toBe(true); expect(sun.castShadow).toBe(true);
     expect(sun.shadow.mapSize.x).toBe(512);

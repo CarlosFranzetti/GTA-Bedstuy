@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 
 /** Mesh names (see the generators: `buildings:<material>:<variant>`, `props:<kind>`, ...) that the phone tier does not draw. */
-export const PHONE_HIDDEN_MESH = /^(buildings:(metalDark|waterTank|scaffold|corrugatedSteel|sf:stickers|sf:flat)|props:(bags|wires|metalDark|scaffold|cone)|manholes|storm-grates|skid-marks|gutters|metal-details)/;
+export const PHONE_HIDDEN_MESH = /^(buildings:(metalDark|waterTank|scaffold|corrugatedSteel|sf:stickers|sf:flat|castIronFence|chainlinkFence|party-wall-decal)|props:(bags|wires|metalDark|scaffold|cone)|furniture:(trash|hydrant)|cellar-plates|manholes|storm-grates|skid-marks|gutters|metal-details)/;
 
 /** Layer the hidden meshes live on (the cameras only draw layer 0). */
 export const HIDDEN_LAYER = 5;
