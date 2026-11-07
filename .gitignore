@@ -4,3 +4,6 @@ tests/e2e/__screenshots__
 .env
 .env.*
 dist-hosted
+
+# per-lane temporary copies of the smoke script (swarm)
+tests/e2e/.*-smoke.mjs
