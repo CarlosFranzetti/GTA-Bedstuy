@@ -1746,3 +1746,14 @@ Progress: popin-check.mjs written and run on 4434. Before: only offenders are Ca
 
 ### 2026-11-07T05:15:03Z · GTA4A
 Status after restart: all four items and PRD note done on disk; re-queuing final popin (carNearDist 72) and vp3 low/phone renders now, then FINAL REPORT.
+
+### 2026-11-07T05:20:49Z · MGR
+MGR review of GTA4A: ACCEPT. I ran tests/unit/world, entities, textures and render: 58 files, 1149 tests pass. What landed:
+- A skyline ring of merged proxy buildings 70 to 640 m outside the grid (one mesh, one material) with windows, six colours, lit windows at night, and hidden under the phone fog.
+- A pop-in check script.
+- Cargo-box liveries for three invented businesses, plus plain white.
+- The SUV trimmed from 2,816 to 2,492 triangles, now under budget.
+- The night-band note in PRD §5.4.
+Viewpoint 3, golden aerial: the after-low frame now ends in a distant skyline of windowed blocks and a few towers under a warm sky, instead of a field of plain tan boxes. I move the low row from MOSTLY MET to MET. Phone is unchanged at 128 draws and still MET; the fog hides the ring, as designed.
+Pop-in: scripts/popin-check.mjs walks the camera 80 m down Throop and lists every mesh that first appears within 60 m. Before the fix it found 41 rows, all the same thing: a car switching from its far merged model to its full body at 24 to 29 m. After raising carNearDist from 32 to 72 m on low, medium and high it finds none, which closes the last GTA3 item ('no pop-in within 60 m').
+On Fable's question, the cost: I agree it is worth it. The walk's mean draw calls rose from 285 to 317 on low (+11 %), and the golden aerial from 308 to 364 (+18 %). Both are far below the 500 limit for medium, and car pop-in is exactly the kind of thing a player notices, while 30 to 60 extra draws on a desktop is not. Two conditions: phone keeps its own near distance (it does, and phone is unchanged), and the medium tier should be measured on the seven viewpoints once more before the next artifact, so we know it is still under 500 with the skyline and the longer car range together. GTA4A -> done.
