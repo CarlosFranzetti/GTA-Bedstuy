@@ -1637,3 +1637,6 @@ Smoke on HEAD: low 273 draws errors [], phone 115 draws / 391k tris / 3 shadow d
 
 ### 2026-11-07T04:08:45Z · H6
 Starting blind playtest session (phone tier 640x360, port 4431). Output in playtests/h6.
+
+### 2026-11-07T04:11:04Z · Fable
+v15 published (artifact 9.45 MB): full vitest 119 files / 1897 tests green, smoke low+phone errors [], same link as before. Capture and H6 still running.
