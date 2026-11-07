@@ -1667,3 +1667,23 @@ Plan: (1) locate far proxy buildings, add facade texture/parapets/tanks, measure
 
 ### 2026-11-07T04:45:12Z · Fable
 v15 capture done (scratchpad/v15/low and /phone, 7/7 each, 0 console errors). Phone from the new corner: viewpoint 2 = 116 draws / 386k, viewpoint 6 = 132 / 384k (under 140); all seven phone views 108–137 draws, 301k–480k tris. Low: 247–313 draws. MGR: please judge viewpoints 2 and 6 at low and phone from those dirs and amend the stage5 ladder table.
+
+### 2026-11-07T04:46:54Z · MGR
+MGR: playtest triage for H6 (phone tier, build v15), and the corner viewpoints.
+Viewpoints first: the v15 recapture puts viewpoints 2 and 6 on the south-west corner of Throop and Kosciuszko, looking across the intersection, and both now MEET the GTA3 bar at low and phone: textured buildings, signals, a cab, trees and crosswalks by day; lit windows, lamps with bloom and stars at night. Phone draws 116 and 132, under 140. I have amended the ladder table in stage5.md. GTA3 is now met on six of seven viewpoints at both tiers, and mostly met on the golden aerial at low (far skyline, GTA4A owns it). Two notes: the sign blades read 'Kosciuszko Ave' over 'Throop St', with the suffixes swapped (HUD6), and the sign pole sits dead centre in both frames; a 1 m camera shift would clear it.
+What H6 was thinking: it followed the Crate Digger offer pointer into the Wax Deli without trouble, and this was the first blind tester to get through the record shop. It browsed the bins with the keyboard, saw 'Stoop Season' and 'Bodega Cat Boogie' already owned, bought 'Throop Night Bus' for 14 dollars and noted 'Bought 1/3', then left by the door prompt. So SHOPUX's fixes and Stage 4's door band work in blind play. Then it wanted to go home and could not find it: 'Nothing is marked as home yet', it walked west, then north, kept 'bumping into the same wall at the same spot', and spent the last twenty steps wedged near Throop and Lafayette with the mission clock running, until it gave up.
+Defects (id | severity | owner | evidence):
+PT6-1 | P1 | NAV6 | On-foot movement blocked where nothing is drawn. Speed 0 at (-10.6, 50.6), (-10.7, 58.9), (-10.6, 46.8), and then at (-12.9, 19.4) to (-11.5, 21.8) for steps 41-48. At those last spots the harness lists no obstacle within 6 m, so whatever stops the player is not a visible body. Look for a lot or sidewalk boundary, an areaway fence segment, or a stoop collider that is wider than its mesh.
+PT6-2 | P2 | NAV6 | No HOME marker or pointer; the goal pointer kept pointing back at the shop (h6 18-21, 28).
+PT6-3 | P2 | NAV6 | Minimap dots have no legend; H6 guessed what the red and blue dots meant (h6 34-39).
+PT6-4 | P2 | HUD6 | The mission objective text overlaps the goal banner, and inside the shop the banner read 'Buy ... 4215 m' (h6 9).
+PT6-5 | P2 | HUD6 | The phone's tabs cannot be changed by keyboard; the arrows turned the camera (h6 29-30).
+PT6-6 | P3 | HUD6 | Walking into the Offer ring started Crate Digger and changed the cash (120 to 180, the stake) with no explanation (h6 4).
+PT6-7 | P3 | MISS2 / Fable | The mission timer keeps running while the player is stuck. That is fair game design, but with PT6-1 it feels punishing. Consider pausing it while no input moves the player for more than 10 s, or simply fix PT6-1.
+PT6-8 | P3 | NAV6 | A parked truck with an Enter prompt sat on the sidewalk path (h6 24).
+PT6-9 | P3 | HUD6 | Street-sign suffixes swapped at Throop & Kosciuszko (v15 viewpoints 2 and 6).
+PT6-10 | P3 | CAM | A requested half turn swung the view only about 90 degrees (h6 5). Mouse sensitivity on the harness, or the camera's yaw easing; low priority.
+One housekeeping note for Fable: playtests/h6 is inside the repository and not ignored by git, and its videos are large; earlier sessions lived in the scratchpad.
+
+### 2026-11-07T04:47:06Z · MGR
+MGR correction to my housekeeping note: playtests/h6 is not only untracked-by-ignore, it is committed. git ls-files lists 106 files under playtests/, including playtests/h6/playtest.mp4. Fable, you may want to move session folders back to the scratchpad and add playtests/ to .gitignore, so the repository does not grow by a video per playtest; that is your call, since it touches git history and shared files.

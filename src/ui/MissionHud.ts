@@ -30,6 +30,8 @@ export function formatCash(n: number): string {
  */
 export class MissionHud {
   private readonly doc: Document;
+  /** Left column that stacks the mission panel and the Goal/Offer pointer so the two can never overlap. */
+  private readonly col: HTMLElement;
   private readonly panel: HTMLElement;
   private readonly titleEl: HTMLElement;
   private readonly objEl: HTMLElement;
@@ -47,6 +49,7 @@ export class MissionHud {
   private readonly pointerText: HTMLElement;
   private router: ((from: Vec2, to: Vec2) => Vec2) | null = null;
   private lastStatus: MissionHudState['status'] = 'idle';
+  private inside = false;
   private lastPointerText = '';
   private lastPointerAngle = Number.NaN;
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -58,6 +61,7 @@ export class MissionHud {
 
   constructor(root: HTMLElement) {
     this.doc = root.ownerDocument;
+    this.col = this.make('div', 'msn-col');
     this.panel = this.make('div', 'msn-panel');
     this.panel.hidden = true;
     this.titleEl = this.make('div', 'msn-title');
@@ -91,7 +95,8 @@ export class MissionHud {
     this.pointerText = this.make('span', 'msn-pointer-text');
     this.pointerEl.append(this.pointerArrow, this.pointerText);
 
-    root.append(this.panel, this.cashEl, this.toastEl, this.retryEl, this.pointerEl);
+    this.col.append(this.panel, this.pointerEl);
+    root.append(this.col, this.cashEl, this.toastEl, this.retryEl);
   }
 
   private make(tag: string, cls: string): HTMLElement {
@@ -103,6 +108,7 @@ export class MissionHud {
   /** @param dt seconds since the last call (drives the cash count-up). */
   update(s: Readonly<MissionHudState>, dt = 1 / 60): void {
     this.lastStatus = s.status;
+    this.inside = s.inside === true;
     const show = s.status === 'active' || s.status === 'failed';
     this.panel.hidden = !show;
     if (show) {
@@ -178,8 +184,11 @@ export class MissionHud {
     this.pointerEl.dataset.dist = bestD.toFixed(1); // exact metres to the target, for the playtest state and tests
     this.pointerEl.dataset.kind = best.kind;
     const prefix = active ? 'Goal' : 'Offer';
-    const text = bestD < best.radius + 2 ? `${prefix}: ${best.label}  here` : `${prefix}: ${best.label}  ${Math.round(bestD / POINTER_STEP_M) * POINTER_STEP_M} m`;
+    // Interiors are built 3 km off the map, so the straight distance to a street marker is meaningless in there.
+    const text = this.inside ? `${prefix}: ${best.label}  inside` : bestD < best.radius + 2 ? `${prefix}: ${best.label}  here` : `${prefix}: ${best.label}  ${Math.round(bestD / POINTER_STEP_M) * POINTER_STEP_M} m`;
     if (text !== this.lastPointerText) { this.lastPointerText = text; this.pointerText.textContent = text; }
+    this.pointerArrow.style.visibility = this.inside ? 'hidden' : '';
+    if (this.inside) return;
     const aim = this.router && bestD >= best.radius + 2 ? this.router(playerPos, best) : best;
     const rel = angleDiff(heading, headingFromVec({ x: aim.x - playerPos.x, z: aim.z - playerPos.z }));
     const deg = Math.round((rel * 180 / Math.PI) / POINTER_ANGLE_STEP) * POINTER_ANGLE_STEP;
@@ -214,6 +223,6 @@ export class MissionHud {
 
   dispose(): void {
     if (this.toastTimer !== null) clearTimeout(this.toastTimer);
-    this.panel.remove(); this.cashEl.remove(); this.toastEl.remove(); this.retryEl.remove(); this.pointerEl.remove();
+    this.col.remove(); this.cashEl.remove(); this.toastEl.remove(); this.retryEl.remove();
   }
 }

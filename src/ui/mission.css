@@ -4,11 +4,20 @@
   display: none !important;
 }
 
-.msn-panel {
+.msn-col {
   position: absolute;
   top: 30px;
   left: 16px;
-  max-width: min(360px, calc(100% - 200px));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: min(420px, calc(100% - 190px));
+  pointer-events: none;
+}
+
+.msn-panel {
+  max-width: 100%;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85), 0 0 1px rgba(0, 0, 0, 0.9);
 }
 
@@ -103,9 +112,10 @@
 /* ---- toast, below the generic HUD toast */
 .msn-toast {
   position: absolute;
-  top: 56px;
+  top: 34%;
   left: 50%;
   transform: translateX(-50%);
+  pointer-events: none;
   max-width: min(560px, calc(100% - 32px));
   padding: 9px 20px;
   border-radius: 14px;
@@ -157,10 +167,26 @@
 }
 
 @media (max-width: 640px) {
-  .msn-panel { max-width: calc(100% - 140px); }
+  .msn-col { max-width: calc(100% - 150px); }
   .msn-objective { font-size: 13px; }
-  .msn-retry { bottom: 300px; font-size: 13px; white-space: normal; }
+  .msn-retry { font-size: 13px; white-space: normal; }
 }
+
+/* Short viewports (640x360 phone tier): tighter stack, toast and retry pill above the bottom row. */
+@media (max-height: 480px) {
+  .msn-col { top: 26px; gap: 3px; }
+  .msn-title { font-size: 17px; }
+  .msn-objective { margin-top: 2px; font-size: 12px; }
+  .msn-meta { margin-top: 2px; }
+  .msn-timer { font-size: 20px; }
+  .msn-bar { margin-top: 3px; }
+  .msn-toast { top: auto; bottom: 120px; font-size: 13px; padding: 6px 14px; }
+  .msn-retry { bottom: 120px; }
+}
+
+/* Touch layouts put the minimap top-left: the column moves right of it. */
+.touch .msn-col { left: 166px; max-width: calc(100% - 340px); }
+@media (max-height: 420px) { .touch .msn-col { left: 126px; max-width: calc(100% - 290px); } }
 
 @media (prefers-reduced-motion: reduce) {
   .msn-timer.low, .msn-cash.bump, .msn-toast { animation: none; }
@@ -168,14 +194,12 @@
 
 /* Mission finder: shown only while no mission is running. Top centre, under the stars row. */
 .msn-pointer {
-  position: absolute;
-  top: 64px;
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
-  max-width: calc(100% - 32px);
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 6px 14px 6px 10px;
   border-radius: 999px;
   background: rgba(10, 12, 18, 0.62);
@@ -201,11 +225,12 @@
 }
 
 .msn-pointer-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 @media (max-width: 700px), (pointer: coarse) {
-  .msn-pointer { top: 56px; font-size: 14px; }
-  .msn-pointer-arrow { width: 30px; height: 30px; line-height: 30px; font-size: 26px; }
+  .msn-pointer { font-size: 13px; padding: 3px 10px 3px 6px; }
+  .msn-pointer-arrow { width: 24px; height: 24px; line-height: 24px; font-size: 20px; }
 }

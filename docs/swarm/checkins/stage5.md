@@ -45,11 +45,11 @@ Judged on ART's after frames (`scratchpad/art/after2-low`, `after-phone`), PHONE
 | viewpoint | low | phone | notes |
 |---|---|---|---|
 | 1 noon street | MET | MET | Textured street, real models with shadows (blob shadows on phone), props. |
-| 2 noon corner | TO RECAPTURE | TO RECAPTURE | The camera moved out of the building in b193644 at the same minute the reviewed frames were taken; both still show the old wall. |
+| 2 noon corner | MET | MET | Amended 7 Nov after the v15 recapture (`scratchpad/v15`): the camera now stands on the south-west corner of Throop & Kosciuszko looking across the intersection; textured buildings, signals, a cab, trees, crosswalks and sky; phone fog closes the far end. Low 268 draws, phone 116 / 386k. |
 | 3 golden aerial | MOSTLY MET | MET (heavy fog) | Near roofs and walls are good; the far skyline is still plain tan blocks at low. Phone fog hides most of the city. |
 | 4 dusk car | MET | MET | Textured truck and cars, cloud sunset sky, storefronts. |
 | 5 night car | MET | MET | Lit windows and signs, stars, lamps, real car bodies with lights. |
-| 6 night corner | TO RECAPTURE | TO RECAPTURE | Same as viewpoint 2. |
+| 6 night corner | MET | MET | Amended after the v15 recapture: lit windows, street lamps with bloom, stars, lit storefronts and wet-looking crossing. Low 251 draws, phone 132 / 384k (under 140). Two notes for both corner views: the street-sign blades read 'Kosciuszko Ave' over 'Throop St', with the suffixes swapped (HUD6 owns the fix), and the sign pole stands in the centre of the frame, which a 1 m camera shift would clear. |
 | 7 morning signals | MET | MET | |
 
 A pop-in check within 60 m has still not been run.
@@ -69,7 +69,7 @@ pop-in (LOD) check, and neon bounce at night.
 
 ## 5. Open issues
 
-1. Recapture viewpoints 2 and 6 on low, medium and phone from the new corner spot.
+1. ~~Recapture viewpoints 2 and 6~~ done 7 Nov (v15): both MET at low and phone; GTA3 is now met on six of seven viewpoints and mostly met on the golden aerial at low.
 2. The far skyline at low is plain tan blocks.
 3. SUV over its triangle budget; the white cargo box has no livery.
 4. The location card overlaps the minimap and mission offer at 640×360 (seen in CAM's frames).

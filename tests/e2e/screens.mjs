@@ -4,6 +4,7 @@
 //                                    [--dist <dir>]      serve an existing build instead of building one
 //                                    [--no-build]        serve ./dist as it is
 //                                    [--label <text>]    free text stored in stats.json (stage / commit)
+//                                    [--only 3,5]        capture only frames whose name starts with one of these
 //                                    [--resume]          keep frames already listed in <outDir>/stats.json (after a crashed run)
 //                                    [--hud]             live loop + page screenshot (with HUD; ~3x the memory, slower)
 //
@@ -26,7 +27,7 @@ const { chromium } = createRequire(import.meta.url)('playwright');
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function parseArgs(argv) {
-  const o = { port: 4310, q: 'low', width: 640, height: 360, build: true, dist: null, label: '', hud: false, resume: false };
+  const o = { port: 4310, q: 'low', width: 640, height: 360, build: true, dist: null, label: '', hud: false, resume: false, only: null };
   const rest = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -39,6 +40,7 @@ function parseArgs(argv) {
     else if (a === '--label') o.label = argv[++i];
     else if (a === '--hud') o.hud = true;
     else if (a === '--resume') o.resume = true;
+    else if (a === '--only') o.only = argv[++i]; // frame-name prefix(es), comma separated, e.g. --only 3
     else rest.push(a);
   }
   o.out = resolve(rest[0] ?? 'qa-screens');
@@ -101,6 +103,7 @@ async function capture() {
     if (!opt.hud) await dbg(() => { window.__gtaDebug.stopLoop(); window.__gtaDebug.renderer.getContext().finish(); });
     const shot = async (name, h) => {
       if (frames.some((f) => f.name === name)) return; // captured by an earlier attempt
+      if (opt.only && !opt.only.split(',').some((p) => name.startsWith(p))) return;
       await dismiss();
       await dbg(() => window.__gtaDebug.settle(120));
       let stats, method = 'canvas';
@@ -163,4 +166,4 @@ try {
 }
 log(`${frames.length}/7 frames, ${errors.length} console errors, output in ${opt.out}`);
 if (errors.length) console.error('[screens] console errors:', errors.slice(0, 5));
-process.exitCode = failed || frames.length < 7 ? 1 : 0;
+process.exitCode = failed || frames.length < (opt.only ? opt.only.split(',').length : 7) ? 1 : 0;

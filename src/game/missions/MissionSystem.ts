@@ -73,7 +73,7 @@ export class MissionSystem {
   /** HUD feed, mutated in place. */
   readonly hud: MissionHudState = {
     status: 'idle', title: '', objective: '', step: 0, steps: 0, timeLeft: -1, progress: -1, carrying: '',
-    cash: 0, toastSeq: 0, toast: '', toastKind: 'info', retryPrompt: '', prompt: '',
+    cash: 0, toastSeq: 0, toast: '', toastKind: 'info', retryPrompt: '', prompt: '', inside: false,
   };
 
   private readonly defs: readonly MissionDef[];
@@ -176,8 +176,8 @@ export class MissionSystem {
 
   /** The host forwards cross-system events here (interiors, shop, DJ game, peds). Safe to call any time. */
   notify(sig: MissionSignal): void {
-    if (sig.type === 'interior:entered') this.inside = sig.id;
-    else if (sig.type === 'interior:exited' && this.inside === sig.id) this.inside = null;
+    if (sig.type === 'interior:entered') { this.inside = sig.id; this.hud.inside = true; }
+    else if (sig.type === 'interior:exited' && this.inside === sig.id) { this.inside = null; this.hud.inside = false; }
     if (this.isActive) this.sigs.push(sig);
   }
 
@@ -422,11 +422,12 @@ export class MissionSystem {
     this.hud.steps = d.objectives.length;
     this.hud.retryPrompt = '';
     this.hud.prompt = '';
-    if (d.stake && !this.staked.has(d.id)) { this.staked.add(d.id); this.opts.pay?.(d.stake); }
+    let advance = 0;
+    if (d.stake && !this.staked.has(d.id)) { this.staked.add(d.id); this.opts.pay?.(d.stake); advance = d.stake; }
     this.enterObjective();
     this.setObjectiveHud();
     this.rebuildMarkers();
-    this.toast(d.blurb, 'info');
+    this.toast(advance > 0 ? `Mission started: ${d.title}  +$${advance} advance` : `Mission started: ${d.title}`, 'good');
     this.emit('mission:started', { id: d.id, title: d.title, blurb: d.blurb });
     this.emit('mission:objective', { id: d.id, index: 0, total: d.objectives.length, text: d.objectives[0].text });
     this.checkTwist();

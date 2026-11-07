@@ -187,6 +187,8 @@ export interface MissionHudState {
   retryPrompt: string;
   /** "F  Talk to Ms. Odette" while an interaction is in reach, else ''. */
   prompt: string;
+  /** True while the player is inside an interior (built 3 km off the map): the Goal/Offer distance is meaningless then. */
+  inside?: boolean;
 }
 
 /** Signals the host forwards from other systems (interiors, shop, DJ game, peds). */

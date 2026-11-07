@@ -32,7 +32,7 @@ describe('one mission at a time', () => {
   it('every start toasts, and a blocked start() explains itself', () => {
     const m = new MissionSystem([def('a', 0, 'Crate Digger'), def('b', 100, 'Laundromat Getaway')]);
     expect(m.start('a')).toBe(true);
-    expect(m.hud.toast).toContain('Crate Digger blurb');
+    expect(m.hud.toast).toContain('Mission started: Crate Digger');
     const seq = m.hud.toastSeq;
     expect(m.start('b')).toBe(false);
     expect(m.hud.toastSeq).toBe(seq + 1);
