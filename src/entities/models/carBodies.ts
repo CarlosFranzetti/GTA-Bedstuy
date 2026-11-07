@@ -547,6 +547,33 @@ export function liveryUV(g: THREE.BufferGeometry, L: number): void {
   uv.needsUpdate = true;
 }
 
+/** Plain strip at the top of the cargo livery canvas (mirrors CARGO_PLAIN_STRIP in painters/vehicle.ts; a test pins them together). */
+export const CARGO_STRIP = 0.03;
+
+/**
+ * Re-map the cargo box UVs onto the livery canvas: both flanks lay the livery out once along the box (nose to the viewer's right
+ * on each side, so the text reads correctly), v runs sill to roof inside the art area. Roof and underside sample the plain strip.
+ * The ends reuse the nearest column of the livery (base colour and grime).
+ */
+export function boxLiveryUV(g: THREE.BufferGeometry, strip = CARGO_STRIP): void {
+  g.computeBoundingBox();
+  const bb = g.boundingBox!;
+  const L = Math.max(1e-6, bb.max.z - bb.min.z), Hh = Math.max(1e-6, bb.max.y - bb.min.y);
+  const pos = g.attributes.position, nor = g.attributes.normal;
+  let uv = g.attributes.uv as THREE.BufferAttribute | undefined;
+  if (!uv) { uv = new THREE.BufferAttribute(new Float32Array(pos.count * 2), 2); g.setAttribute('uv', uv); }
+  const vMax = 1 - 2 * strip;
+  for (let i = 0; i < pos.count; i++) {
+    const nx = nor.getX(i), ny = nor.getY(i);
+    if (Math.abs(nx) < 0.3 && Math.abs(ny) > 0.7) { uv.setXY(i, 0.5, 1 - strip / 2); continue; }
+    const z = pos.getZ(i);
+    const uu = nx < 0 ? (z - bb.min.z) / L : (bb.max.z - z) / L;
+    const vv = Math.min(vMax, Math.max(0, ((pos.getY(i) - bb.min.y) / Hh) * vMax));
+    uv.setXY(i, Math.min(1, Math.max(0, uu)), vv);
+  }
+  uv.needsUpdate = true;
+}
+
 // ---------------------------------------------------------------- passenger cars
 
 export interface Style {
@@ -562,6 +589,12 @@ export interface Style {
   /** lowest half-ring segment index that is black plastic cladding (SUV skirts) */
   clad: number;
   rails: boolean; spoiler: boolean;
+  /** longest gap (ref m) between hull stations; boxy styles (SUV) tolerate more, which is where their triangle budget comes from */
+  maxGap?: number;
+  /** hull stations across each wheel arch (default 4) */
+  archN?: number;
+  /** end-rounding stations as fractions of the rounded end length (default END_T) */
+  endT?: number[];
   bumperY: number; bumperH: number;
   /** PLAN profile: [u, half-width factor] along the car (nose / tail taper, fenders), ref metres; linear between entries */
   plan: [number, number][];
@@ -658,7 +691,7 @@ export const STYLES: Record<'sedan' | 'coupe' | 'suv', Style> = {
     handles: [0.0, -0.86],
     hoodBack: 1.22,
     clad: 9,
-    rails: true, spoiler: false,
+    rails: true, spoiler: false, maxGap: 1.3, archN: 3, endT: [0, 1],
     bumperY: 0.45, bumperH: 0.28,
     plan: [[-2.45, 0.94], [-2.0, 0.99], [-1.0, 1], [1.0, 1], [2.0, 0.99], [2.45, 0.95]],
   },
@@ -823,9 +856,9 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
 
   const must: number[] = [tipF, tipR, ...ws, ...doors.flat(), ...bp, ...rg, hoodBackU, hoodFrontU]; // seams snap to the nearest station
   const want: number[] = [];
-  for (const t of END_T) { want.push(tipF - t * drF, tipR + t * drR); }
-  for (const ax of [axleF, axleR]) want.push(...archStations(arch, ax, 4));
-  const us = stationList(must, want, 0.7);
+  for (const t of st.endT ?? END_T) { want.push(tipF - t * drF, tipR + t * drR); }
+  for (const ax of [axleF, axleR]) want.push(...archStations(arch, ax, st.archN ?? 4));
+  const us = stationList(must, want, (st.maxGap ?? 0.7) * kx);
 
   const hull = buildLoft({ us, half: (u) => carHalf(ring(u)), creases: [CAR_CREASE], cls });
   const sideX = (u: number, y: number): number => {
@@ -860,7 +893,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
     chrome.addBoth(bx(0.012, 0.022, 0.13, sideX(hu, yH) + 0.008, yH, -hu));
   }
   // fuel filler flap on the right rear quarter: a dark rounded decal
-  {
+  if (!st.rails) {
     const uF = tipR + 0.62 * kx;
     const yF = fyBelt(uF) - 0.12;
     const cap = new THREE.CircleGeometry(0.05, 8);
@@ -893,7 +926,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   trim.add(bumperGeo(2 * Wb2 * 0.88, 0.2, st.bumperH, st.bumperY, bumperZ - 0.2, true));
   // lower intake slot + fog lamps (front)
   trim.add(bx(2 * Wb2 * 0.5, 0.07, 0.02, 0, st.bumperY - 0.03, -(bumperZ + 0.004)));
-  for (const s of [-1, 1]) {
+  for (const s of st.rails ? [] : [-1, 1]) { // the SUV's tall bumper carries no fog lamps (triangle budget)
     chrome.add(new THREE.CircleGeometry(0.045, 8).rotateY(Math.PI).translate(s * (Wb2 * 0.78), st.bumperY - 0.02, -(bumperZ + 0.004)));
   }
   // grille: dark panel, two chrome slats, chrome surround, badge
@@ -916,10 +949,11 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   // ---- interior (seen through the glass): dash and the two front seats
   const yBeltC = fyBelt(0);
   const seatY = st.sill + 0.5 * ky;
-  trim.add(bx(2 * Wb2 * 0.78, 0.2, 0.3, 0, yBeltC - 0.13, -(ws[0] - 0.22)));
+  if (!st.rails) trim.add(bx(2 * Wb2 * 0.78, 0.2, 0.3, 0, yBeltC - 0.13, -(ws[0] - 0.22)));
   const seatU = doors[0][1] + 0.3 * kx;
+  // SUV: front seats only (the rear bench sits behind tinted glass and costs 12 triangles of the 2.5k budget)
   for (const s of [-1, 1]) trim.add(bx(0.46, 0.5, 0.12, s * 0.35, seatY + 0.28, -(seatU - 0.22)));
-  trim.add(bx(2 * Wb2 * 0.72, 0.5, 0.12, 0, seatY + 0.26, -(rg[0] + 0.2)));
+  if (!st.rails) trim.add(bx(2 * Wb2 * 0.72, 0.5, 0.12, 0, seatY + 0.26, -(rg[0] + 0.2)));
 
   // ---- roof rails (SUV)
   const iRoofA = hull.at(secs[st.rails ? 3 : 4][0]);
@@ -1185,7 +1219,7 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
 
   const parts: CarParts = {
     paint: paint.merge(),
-    paint2: paint2.merge(),
+    paint2: ((g) => { boxLiveryUV(g); return g; })(paint2.merge()),
     glass: glass.merge(),
     trim: mergeTrim(trim, chrome),
     lampHead: head.merge(),

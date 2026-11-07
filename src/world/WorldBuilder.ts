@@ -10,6 +10,7 @@ import { buildBuildings } from '@/world/BuildingGen';
 import { buildFurniture, type LampSpot } from '@/world/FurnitureGen';
 import { buildProps } from '@/world/PropsGen';
 import { buildSignals, signalColliders } from '@/world/props/signals';
+import { createSkyline } from '@/world/Skyline';
 import { splitMeshesIntoCells, type SplitStats } from '@/render/Culling';
 
 export interface BuiltWorld {
@@ -86,6 +87,10 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
   splitMeshesIntoCells(buildings.group, cell.x, cell.z, cells, MIN_SPLIT_TRIANGLES);
   splitMeshesIntoCells(furniture.group, cell.x, cell.z, cells, MIN_SPLIT_TRIANGLES); // instanced kinds are skipped
   const propCells = splitMeshesIntoCells(props.group, cell.x, cell.z, cells, MIN_SPLIT_TRIANGLES);
+
+  // the far skyline ring: forked last so the streams of everything above are unchanged
+  const skyline = createSkyline(grid.bounds, materials, rng.fork('skyline'));
+  if (skyline) group.add(skyline);
 
   let meshes = 0;
   group.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes++; });

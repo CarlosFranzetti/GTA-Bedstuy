@@ -257,7 +257,17 @@ export class Interiors {
     g.add(box(sx, 2.1, sz, leaf, dr.x, 1.05, dr.z));
     const fw = alongX ? W + 0.3 : 0.2, fz = alongX ? 0.2 : W + 0.3;
     g.add(box(fw, 2.3, fz, id === 'club' ? '#2a2c30' : '#2b2118', dr.x - dr.outX * 0.03, 1.15, dr.z - dr.outZ * 0.03));
-    if (id === 'deli') {
+    if (id === 'home') {
+      // a green awning over the door and a lit "HOME" board, so the player's own door reads from down the block
+      const awn = alongX ? [1.9, 0.12, 1.0] : [1.0, 0.12, 1.9];
+      g.add(box(awn[0], awn[1], awn[2], '#2f6b4a', dr.x + dr.outX * 0.5, 2.5, dr.z + dr.outZ * 0.5));
+      const hm = this.d.materials.sign(def.sign, '#1f4d36', '#fff3c4');
+      const hs = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.42), hm);
+      hs.position.set(dr.x + dr.outX * 0.13, 2.82, dr.z + dr.outZ * 0.13);
+      hs.rotation.y = Math.atan2(dr.outX, dr.outZ);
+      g.add(hs);
+      g.add(box(0.14, 0.14, 0.02, '#e7d27a', dr.x + (alongX ? 0 : dr.outX * 0.09), 1.75, dr.z + (alongX ? dr.outZ * 0.09 : 0)));
+    } else if (id === 'deli') {
       const m = this.d.materials.sign(def.sign, '#1b1b1b', '#ffd23f');
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.5), m);
       sign.position.set(dr.x + dr.outX * 0.12, 2.65, dr.z + dr.outZ * 0.12);

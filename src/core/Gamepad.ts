@@ -109,6 +109,8 @@ export class GamepadInput {
       if (edge(BTN.DOWN)) this.onNav('down');
       if (edge(BTN.LEFT)) this.onNav('left');
       if (edge(BTN.RIGHT)) this.onNav('right');
+      if (edge(BTN.LB)) this.onNav('left'); // bumpers switch tabs in the phone and shop
+      if (edge(BTN.RB)) this.onNav('right');
       if (edge(BTN.A)) this.onNav('confirm');
       if (edge(BTN.B)) this.onNav('back');
     }

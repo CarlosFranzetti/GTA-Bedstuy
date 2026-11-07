@@ -11,6 +11,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Block, BlockFace, GridModel, IMaterialLibrary, Lot, Side, StaticCollider, StreetDef } from '@/world/types';
 import type { Rng } from '@/core/Rng';
 import type { Vec2 } from '@/core/Math2';
+import { planSignBlades, SIGN_LAYOUT } from '@/world/signBlades';
 
 // ---------------------------------------------------------------- tunables (metres)
 
@@ -28,9 +29,8 @@ const LAMP_HEAD_Y = 7.75;
 const LAMP_LIT_INTENSITY = 2.5;
 export const LAMP_HEAD_NAME = 'lamp-head';
 
-const SIGN_HEIGHT = 3;
-const SIGN_W = 1.2;
-const SIGN_H = 0.25;
+const SIGN_W = SIGN_LAYOUT.width;
+const SIGN_H = SIGN_LAYOUT.height;
 const SIGN_BG = '#0a5a2f';
 const SIGN_FG = '#ffffff';
 
@@ -179,17 +179,18 @@ export function buildFurniture(
     circle(base, LAMP_COLLIDER_R);
   }
 
-  function addSignBoards(base: Vec2, street: StreetDef): void {
-    // Two thin planes (front and back) so the text reads from both sides. The street's yaw is baked into the geometry
-    // (every board of a street faces the same way), so instances only translate.
-    const yaw = street.axis === 'ew' ? 0 : Math.PI / 2;
-    const key = `sign:${street.signName}`;
-    const mat = materials.sign(street.signName, SIGN_BG, SIGN_FG);
-    putInst(key, mat, () => {
-      const front = new THREE.PlaneGeometry(SIGN_W, SIGN_H).translate(0, 0, 0.01);
-      const back = new THREE.PlaneGeometry(SIGN_W, SIGN_H).rotateY(Math.PI).translate(0, 0, -0.01);
-      return [front.rotateY(yaw), back.rotateY(yaw)];
-    }, placeMatrix(new THREE.Matrix4(), base.x, SIGN_HEIGHT, base.z));
+  function addSignBoards(base: Vec2, center: Vec2, streets: StreetDef[]): void {
+    // Two thin planes (front and back) so the text reads from both sides. Each blade's yaw is baked into its geometry
+    // (every board of a street faces the same way), so instances only translate. Layout: world/signBlades.ts.
+    for (const blade of planSignBlades(base, center, streets)) {
+      const key = `sign:${blade.text}`;
+      const mat = materials.sign(blade.text, SIGN_BG, SIGN_FG);
+      putInst(key, mat, () => {
+        const front = new THREE.PlaneGeometry(SIGN_W, SIGN_H).translate(0, 0, 0.01);
+        const back = new THREE.PlaneGeometry(SIGN_W, SIGN_H).rotateY(Math.PI).translate(0, 0, -0.01);
+        return [front.rotateY(blade.yaw), back.rotateY(blade.yaw)];
+      }, placeMatrix(new THREE.Matrix4(), blade.x, blade.y, blade.z));
+    }
   }
 
   const hydrantGeo = (): THREE.BufferGeometry[] => [
@@ -308,11 +309,13 @@ export function buildFurniture(
       const dl = Math.hypot(dir.x, dir.z) || 1;
       addLamp(base, { x: dir.x / dl, z: dir.z / dl });
       occupied.push(base);
+      const cornerStreets: StreetDef[] = [];
       for (const side of CORNER_SIDES[i]) {
         const f = block.faces.find((bf) => bf.side === side);
         if (!f) throw new Error(`FurnitureGen: block ${block.id} has no ${side} face`);
-        addSignBoards(base, grid.streetById(f.streetId));
+        cornerStreets.push(grid.streetById(f.streetId));
       }
+      addSignBoards(base, { x: cx, z: cz }, cornerStreets);
     });
 
     for (const f of block.faces) {

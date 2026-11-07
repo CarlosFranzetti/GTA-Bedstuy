@@ -1,9 +1,12 @@
 import './phone.css';
 import { angleDiff, headingFromVec, type Vec2 } from '@/core/Math2';
 import type { Phone, PhoneMessage } from '@/game/Phone';
+import { isConfirmKey, releasePointerLock, setPanelClass, type NavDir } from './panelKeys';
 
 const TOAST_MS = 4600;
 type Tab = 'messages' | 'contacts' | 'next';
+const TAB_ORDER: readonly Tab[] = ['messages', 'contacts', 'next'];
+const HINT = 'Q / E tabs   Up / Down list   Enter open   P close';
 
 function setText(node: Element, text: string): void {
   if (node.textContent !== text) node.textContent = text;
@@ -24,6 +27,11 @@ export class PhoneHud {
   private readonly tabs = new Map<Tab, HTMLButtonElement>();
   private readonly promptEl: HTMLElement;
   private tab: Tab = 'messages';
+  private readonly hintEl: HTMLElement;
+  private rows: HTMLElement[] = [];
+  private sel = 0;
+  private keysOn = false;
+  private readonly keyHandler = (e: KeyboardEvent): void => this.onKey(e);
   private contact: string | null = null;
   private seenVersion = -1;
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -54,7 +62,7 @@ export class PhoneHud {
     for (const [id, label] of [['messages', 'Texts'], ['contacts', 'Contacts'], ['next', 'Next']] as const) {
       const b = this.doc.createElement('button');
       b.type = 'button'; b.className = 'ph-tab'; b.textContent = label;
-      b.addEventListener('click', () => { this.tab = id; this.contact = null; this.render(); });
+      b.addEventListener('click', () => this.setTab(id));
       this.tabs.set(id, b);
       bar.appendChild(b);
     }
@@ -63,7 +71,9 @@ export class PhoneHud {
     close.addEventListener('click', () => this.phone.close());
     bar.appendChild(close);
     this.body = this.make('div', 'ph-body');
-    this.panel.append(bar, this.body);
+    this.hintEl = this.make('div', 'ph-hint');
+    this.hintEl.textContent = HINT;
+    this.panel.append(bar, this.body, this.hintEl);
 
     this.promptEl = this.make('div', 'ph-prompt');
     this.promptEl.hidden = true;
@@ -103,7 +113,71 @@ export class PhoneHud {
 
   get isOpen(): boolean { return this.phone.isOpen; }
 
+  /**
+   * Keyboard / gamepad while the phone is open. left/right switch tabs, up/down move the list, confirm opens the
+   * selected row (a contact's thread), back leaves a thread and then closes the phone.
+   */
+  navigate(dir: NavDir): void {
+    if (!this.phone.isOpen) return;
+    switch (dir) {
+      case 'left': this.setTab(TAB_ORDER[(TAB_ORDER.indexOf(this.tab) + TAB_ORDER.length - 1) % TAB_ORDER.length]); break;
+      case 'right': this.setTab(TAB_ORDER[(TAB_ORDER.indexOf(this.tab) + 1) % TAB_ORDER.length]); break;
+      case 'up': this.moveSel(-1); break;
+      case 'down': this.moveSel(1); break;
+      case 'confirm': this.activate(); break;
+      case 'back': if (this.contact) { this.contact = null; this.sel = 0; this.render(); } else this.closePhone(); break;
+    }
+  }
+
+  private closePhone(): void { this.phone.close(); this.render(); }
+
+  private setTab(t: Tab): void { this.tab = t; this.contact = null; this.sel = 0; this.render(); }
+
+  private moveSel(d: number): void {
+    if (this.rows.length === 0) return;
+    this.sel = Math.max(0, Math.min(this.rows.length - 1, this.sel + d));
+    this.applySel();
+  }
+
+  private applySel(): void {
+    this.rows.forEach((r, i) => r.classList.toggle('sel', i === this.sel));
+    (this.rows[this.sel] as { scrollIntoView?: (o: object) => void } | undefined)?.scrollIntoView?.({ block: 'nearest' });
+  }
+
+  private activate(): void {
+    if (this.contact) { this.contact = null; this.sel = 0; this.render(); return; }
+    const row = this.rows[this.sel];
+    const who = row?.dataset.from;
+    if (who) { this.tab = 'messages'; this.contact = who; this.sel = 0; this.render(); }
+  }
+
+  /** Document-level, capture phase, only while open: the arrow keys must not reach the camera. */
+  private onKey(e: KeyboardEvent): void {
+    if (!this.phone.isOpen || e.ctrlKey || e.metaKey || e.altKey) return;
+    let dir: NavDir | null = null;
+    let used = true;
+    if (e.code === 'KeyP' || e.code === 'Escape' || e.key === 'Escape') { if (!e.repeat) this.closePhone(); }
+    else if (e.code === 'KeyQ' || e.code === 'ArrowLeft' || e.key === 'ArrowLeft') dir = 'left';
+    else if (e.code === 'KeyE' || e.code === 'ArrowRight' || e.key === 'ArrowRight') dir = 'right';
+    else if (e.code === 'ArrowUp' || e.key === 'ArrowUp') dir = 'up';
+    else if (e.code === 'ArrowDown' || e.key === 'ArrowDown') dir = 'down';
+    else if (e.code === 'Backspace') { if (!e.repeat) this.navigate('back'); }
+    else if (isConfirmKey(e) && e.code !== 'KeyF' && e.code !== 'Space') { if (!e.repeat) this.navigate('confirm'); }
+    else used = false; // WASD, F, Shift ... keep reaching the game; only the keys the phone uses are swallowed
+    if (dir) this.navigate(dir);
+    if (used) { e.preventDefault(); e.stopPropagation(); }
+  }
+
+  private syncOpen(open: boolean): void {
+    if (open === this.keysOn) return;
+    this.keysOn = open;
+    setPanelClass(this.doc, 'phone-open', open);
+    if (open) { this.doc.addEventListener('keydown', this.keyHandler, true); releasePointerLock(this.doc); }
+    else this.doc.removeEventListener('keydown', this.keyHandler, true);
+  }
+
   dispose(): void {
+    this.syncOpen(false);
     if (this.toastTimer) clearTimeout(this.toastTimer);
     this.button.remove(); this.toastEl.remove(); this.panel.remove(); this.promptEl.remove();
   }
@@ -128,14 +202,18 @@ export class PhoneHud {
     this.badge.hidden = n === 0;
     setText(this.badge, String(n));
     this.panel.hidden = !this.phone.isOpen;
+    this.syncOpen(this.phone.isOpen);
     this.button.classList.toggle('on', this.phone.isOpen);
     for (const [id, b] of this.tabs) b.classList.toggle('active', id === this.tab);
     if (!this.phone.isOpen) return;
     if (this.phone.unread > 0) { this.phone.markAllRead(); return; }
     this.body.textContent = '';
+    this.rows = [];
     if (this.tab === 'messages') this.renderMessages(this.contact ? this.phone.thread(this.contact) : this.phone.messages.slice().reverse());
     else if (this.tab === 'contacts') this.renderContacts();
     else this.renderNext();
+    this.sel = Math.max(0, Math.min(this.sel, this.rows.length - 1));
+    this.applySel();
   }
 
   private line(cls: string, text: string): HTMLElement {
@@ -148,8 +226,10 @@ export class PhoneHud {
     if (list.length === 0) { this.body.appendChild(this.line('ph-empty', 'No texts yet. Walk up to a gold marker.')); return; }
     for (const m of list) {
       const row = this.make('div', 'ph-msg');
+      row.dataset.from = m.from;
       row.append(this.line('ph-from', m.from), this.line('ph-text', m.text));
       this.body.appendChild(row);
+      this.rows.push(row);
     }
   }
 
@@ -159,8 +239,10 @@ export class PhoneHud {
     for (const c of cs) {
       const b = this.doc.createElement('button');
       b.type = 'button'; b.className = 'ph-contact'; b.textContent = c.name;
-      b.addEventListener('click', () => { this.tab = 'messages'; this.contact = c.name; this.render(); });
+      b.dataset.from = c.name;
+      b.addEventListener('click', () => { this.tab = 'messages'; this.contact = c.name; this.sel = 0; this.render(); });
       this.body.appendChild(b);
+      this.rows.push(b);
     }
   }
 

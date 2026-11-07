@@ -6,12 +6,12 @@ import type { NavDir } from '@/core/Gamepad';
 
 export type { NavDir };
 
-/** Marks `<body>` while a panel is open: `ui-panel-open` plus a panel-specific class (`shop-open`, `dj-open`). */
+/** Marks `<body>` while a panel is open: `ui-panel-open` plus a panel-specific class (`shop-open`, `dj-open`, `phone-open`). */
 export function setPanelClass(doc: Document, name: string, open: boolean): void {
   const cl = doc.body?.classList;
   if (!cl) return;
   cl.toggle(name, open);
-  const any = [...cl].some((c) => c === 'shop-open' || c === 'dj-open');
+  const any = [...cl].some((c) => c === 'shop-open' || c === 'dj-open' || c === 'phone-open');
   cl.toggle('ui-panel-open', any);
 }
 

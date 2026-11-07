@@ -15,6 +15,9 @@
  */
 import * as THREE from 'three';
 import type { IMaterialLibrary, VehicleSpec, VehicleType } from '@/world/types';
+import { Rng } from '@/core/Rng';
+import { createCanvas } from '@/textures/canvas';
+import { CARGO_LIVERY_H, CARGO_LIVERY_VARIANTS, CARGO_LIVERY_W, cargoLiveryPainter } from '@/textures/painters/vehicle';
 import {
   Acc, isTaxiYellow, mirrorX, buildPassengerParts, buildTruckParts, wheelRadiusFor, hullSectionCount,
   type CarParts,
@@ -65,6 +68,40 @@ let trimMat: THREE.MeshStandardMaterial | null = null;
 /** Black plastic and chrome share one material; the colour comes from the geometry's vertex colours. */
 const trimMaterial = (): THREE.MeshStandardMaterial =>
   (trimMat ??= new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.38, metalness: 0.55, name: 'carTrim' }));
+
+// ---------------------------------------------------------------- cargo box liveries
+
+const liveryMats = new WeakMap<IMaterialLibrary, Map<number, THREE.Material>>();
+
+/**
+ * Material of the van's cargo box for a plate variant (0..3): the shared white car paint with the livery canvas as its colour
+ * map (variant 0 plain white, 1 produce wholesaler, 2 laundry service, 3 movers). Flat panels: no flake normal or roughness map
+ * (they would stretch over the box). Without a DOM (unit tests) it is the plain shared white paint. Cached per library.
+ */
+export function cargoLiveryMaterial(materials: IMaterialLibrary, variant: number): THREE.Material {
+  const base = materials.carPaint('#f4f4f4');
+  if (typeof document === 'undefined') return base;
+  const v = ((Math.floor(variant) % CARGO_LIVERY_VARIANTS) + CARGO_LIVERY_VARIANTS) % CARGO_LIVERY_VARIANTS;
+  let byV = liveryMats.get(materials);
+  if (!byV) { byV = new Map(); liveryMats.set(materials, byV); }
+  let m = byV.get(v);
+  if (!m) {
+    const c = createCanvas(CARGO_LIVERY_W, CARGO_LIVERY_H);
+    const ctx = c.getContext('2d');
+    if (!ctx) return base;
+    cargoLiveryPainter(ctx, CARGO_LIVERY_W, CARGO_LIVERY_H, new Rng(`cargoLivery:${v}`), v);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 8;
+    const mm = (base as THREE.MeshPhysicalMaterial).clone();
+    mm.map = tex; mm.normalMap = null; mm.roughnessMap = null; mm.roughness = 0.5;
+    mm.name = `cargoLivery:${v}`;
+    mm.needsUpdate = true;
+    m = mm;
+    byV.set(v, m);
+  }
+  return m;
+}
 
 // ---------------------------------------------------------------- wheels
 
@@ -203,7 +240,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   };
 
   paintMeshes.push(mesh(parts.paint, paintMat, 'body'));
-  if (parts.paint2) paintMeshes.push(mesh(parts.paint2, materials.carPaint('#f4f4f4'), 'cargo'));
+  if (parts.paint2) paintMeshes.push(mesh(parts.paint2, cargoLiveryMaterial(materials, variant), 'cargo'));
   mesh(parts.glass, glassMat, 'glass');
   mesh(parts.trim, trimMaterial(), 'trim');
 

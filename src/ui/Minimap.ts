@@ -1,6 +1,7 @@
 import { angleDiff, clamp, forwardFromHeading, perpRight, wrapAngle } from '@/core/Math2';
 import type { Vec2 } from '@/core/Math2';
 import type { GridModel, StreetDef } from '@/world/types';
+import { NAV_TARGETS, getNavTarget } from '@/game/missions/NavTargets';
 
 /** A world-space point drawn on the minimap as a coloured ring (mission markers etc.). */
 export interface MinimapBlip { x: number; z: number; color: string; kind?: 'giver' | 'objective' | string }
@@ -31,6 +32,19 @@ const HEADING_SMOOTH = 9;
 const BLINK_HZ = 2.5;
 const COP_RED = '#ef4444';
 const NORTH_FILL = '#f5c542';
+const POI_HOME = '#7cd6a0';
+const POI_DELI = '#f5c542';
+
+/** What the minimap marks mean, for the pause menu. */
+export const MINIMAP_LEGEND: ReadonlyArray<{ swatch: string; shape: 'arrow' | 'ring' | 'dot' | 'house' | 'letter'; text: string }> = [
+  { swatch: PLAYER_FILL, shape: 'arrow', text: 'You (white arrow)' },
+  { swatch: GOLD, shape: 'ring', text: 'Mission offer (gold pulsing ring)' },
+  { swatch: '#ef4444', shape: 'ring', text: 'Mission goal (coloured ring)' },
+  { swatch: POI_HOME, shape: 'house', text: 'HOME' },
+  { swatch: POI_DELI, shape: 'letter', text: 'D: WAX DELI' },
+  { swatch: COP_RED, shape: 'dot', text: 'Police (flashing red/blue)' },
+  { swatch: NORTH_FILL, shape: 'letter', text: 'N: north' },
+];
 
 /**
  * Exponential smoothing toward `target` along the shortest arc. `dt` in seconds.
@@ -149,6 +163,7 @@ export class Minimap {
     ctx.fillRect(0, 0, SIZE, SIZE);
     this.drawRoads(ctx, toMap);
     this.drawAvenueLabels(ctx, playerPos, toMap);
+    this.drawPois(ctx, toMap, half);
     if (blips && blips.length > 0) this.drawBlips(ctx, blips, toMap, half);
     this.drawCops(ctx, cops, toMap);
     ctx.restore();
@@ -278,6 +293,47 @@ export class Minimap {
       ctx.arc(cx, cy, (giver ? 2.6 + 1.6 * pulse : 2) * k, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
+    }
+  }
+
+  /**
+   * Fixed places the player can navigate to (HOME, WAX DELI): a green house for HOME and a gold "D" for the deli, pinned to the
+   * rim when off the map; the one picked with N gets a ring. Legend: see the pause menu (MINIMAP_LEGEND).
+   */
+  private drawPois(ctx: CanvasRenderingContext2D, toMap: ToMap, half: number): void {
+    const k = this.blipScale;
+    const edge = half - 12 * k;
+    const sel = getNavTarget();
+    for (const t of NAV_TARGETS) {
+      const p = toMap(t);
+      let dx = p.x - half, dy = p.y - half;
+      const d = Math.hypot(dx, dy);
+      if (d > edge) { dx *= edge / d; dy *= edge / d; }
+      const cx = half + dx, cy = half + dy;
+      const r = 7 * k;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = HALO;
+      ctx.fill();
+      ctx.lineWidth = (sel?.id === t.id ? 2.5 : 1.5) * k;
+      ctx.strokeStyle = sel?.id === t.id ? '#ffffff' : t.id === 'home' ? POI_HOME : POI_DELI;
+      ctx.stroke();
+      ctx.fillStyle = t.id === 'home' ? POI_HOME : POI_DELI;
+      if (t.id === 'home') {
+        // little house: roof triangle over a square
+        ctx.beginPath();
+        ctx.moveTo(cx - 4.2 * k, cy - 0.5 * k);
+        ctx.lineTo(cx, cy - 4.4 * k);
+        ctx.lineTo(cx + 4.2 * k, cy - 0.5 * k);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillRect(cx - 2.8 * k, cy - 0.5 * k, 5.6 * k, 4 * k);
+      } else {
+        ctx.font = `700 ${Math.round(10 * k)}px Arial, Helvetica, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('D', cx, cy + 0.5);
+      }
     }
   }
 

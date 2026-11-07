@@ -10,6 +10,7 @@ import './menu.css';
 import type { InputMode } from '@/core/Input';
 import type { NavDir } from '@/core/Gamepad';
 import { clearPosition } from './SaveState';
+import { MINIMAP_LEGEND } from './Minimap';
 
 export type MenuQuality = 'phone' | 'low' | 'medium' | 'high';
 export const QUALITIES: readonly MenuQuality[] = ['phone', 'low', 'medium', 'high'];
@@ -53,11 +54,11 @@ const DEFAULTS: MenuSettings = { quality: 'medium', master: 1, radio: 1, invertY
 const CONTROLS: Record<InputMode, { title: string; rows: Array<[string, string]> }> = {
   keyboard: {
     title: 'Keyboard & mouse',
-    rows: [['WASD', 'Move / drive'], ['Mouse', 'Look'], ['Shift', 'Run / handbrake'], ['Space', 'Brake'], ['F', 'Enter / exit car'], ['H', 'Horn'], ['E', 'Next radio station'], ['Esc', 'Pause']],
+    rows: [['WASD', 'Move / drive'], ['Mouse', 'Look'], ['Shift', 'Run / handbrake'], ['Space', 'Brake'], ['F', 'Enter / exit car'], ['H', 'Horn'], ['E', 'Next radio station'], ['N', 'Point at HOME / WAX DELI'], ['Esc', 'Pause']],
   },
   touch: {
     title: 'Touch',
-    rows: [['Left stick', 'Move / drive'], ['Drag right side', 'Look'], ['CAR', 'Enter / exit car'], ['RUN / BRAKE', 'Run, brake'], ['HORN', 'Horn'], ['RADIO', 'Next station'], ['II', 'Pause']],
+    rows: [['Left stick', 'Move / drive'], ['Drag right side', 'Look'], ['CAR', 'Enter / exit car'], ['RUN / BRAKE', 'Run, brake'], ['HORN', 'Horn'], ['RADIO', 'Next station'], ['Tap Offer/Nav chip', 'Point at HOME / WAX DELI'], ['II', 'Pause']],
   },
   gamepad: {
     title: 'Gamepad',
@@ -179,10 +180,27 @@ export class Menu {
     }
     controls.appendChild(cols);
 
+    // Minimap legend: what each dot on the map means
+    const legend = this.el('div', 'menu-legend');
+    const lTitle = this.el('h3', 'menu-subtitle');
+    lTitle.textContent = 'Minimap';
+    const lList = this.el('ul', 'menu-legend-list');
+    for (const item of MINIMAP_LEGEND) {
+      const li = this.el('li', '');
+      const sw = this.el('span', `menu-legend-sw ${item.shape}`);
+      sw.style.setProperty('--sw', item.swatch);
+      sw.setAttribute('aria-hidden', 'true');
+      const tx = this.el('span', '');
+      tx.textContent = item.text;
+      li.append(sw, tx);
+      lList.appendChild(li);
+    }
+    legend.append(lTitle, lList);
+
     const hint = this.el('p', 'menu-hint');
     hint.textContent = 'Esc / Start to resume';
 
-    this.panel.append(title, this.resumeBtn, quality, masterRow, radioRow, libBtn, invertRow, this.resetBtn, controls, hint);
+    this.panel.append(title, this.resumeBtn, quality, masterRow, radioRow, libBtn, invertRow, this.resetBtn, controls, legend, hint);
     this.root.appendChild(this.panel);
     parent.appendChild(this.root);
 

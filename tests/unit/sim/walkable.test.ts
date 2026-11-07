@@ -9,10 +9,16 @@
  * Each span lists the street, side, from-to metres along the edge and the colliding collider ids. Parked cars must not
  * overlap a sidewalk at all.
  */
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { Rng } from '@/core/Rng';
+import { Vehicle, VEHICLE_SPECS } from '@/entities/Vehicle';
+import { TrafficSystem } from '@/game/TrafficSystem';
+import type { IVehicle, VehicleType } from '@/world/types';
 import type { Vec2 } from '@/core/Math2';
 import { World2D } from '@/physics/World2D';
-import { realPhysics } from './harness';
+import { proxyMaterials, realPhysics, stubMaterials } from './harness';
+import { EventBus } from '@/core/Events';
 
 const FOOT = 0.4;
 const STEP = 0.2;
@@ -34,13 +40,15 @@ describe('sidewalks are walkable', () => {
       minX: Math.min(...pts.map((p) => p.x)), maxX: Math.max(...pts.map((p) => p.x)),
       minZ: Math.min(...pts.map((p) => p.z)), maxZ: Math.max(...pts.map((p) => p.z)) };
   });
+  /** colliders touching a probe circle a little wider than the foot, so the walls of a slot are named too */
   const culprits = (p: Vec2): string[] => {
+    const R = FOOT + 0.3;
     const out: string[] = [];
     for (const b of boxes) {
-      if (b.maxX < p.x - FOOT || b.minX > p.x + FOOT || b.maxZ < p.z - FOOT || b.minZ > p.z + FOOT) continue;
+      if (b.maxX < p.x - R || b.minX > p.x + R || b.maxZ < p.z - R || b.minZ > p.z + R) continue;
       const w = new World2D(12);
       w.addStatic(b.shape as never, b.pos, b.id);
-      if (w.overlapsStatic(p, FOOT)) out.push(`${b.id}:${(b.shape as { kind: string }).kind}`);
+      if (w.overlapsStatic(p, R)) out.push(`${b.id}:${(b.shape as { kind: string }).kind}`);
     }
     return out;
   };
@@ -68,10 +76,10 @@ describe('sidewalks are walkable', () => {
 
     let prev: boolean[] | null = null;
     const open: Partial<Record<Span['kind'], Span>> = {};
-    const mark = (kind: Span['kind'], d: number, at: Vec2, on: boolean): void => {
+    const mark = (kind: Span['kind'], d: number, at: Vec2, on: boolean, from = d): void => {
       const cur = open[kind];
       if (on) {
-        if (!cur) { const s: Span = { street: street.id, side, kind, from: d, to: d, at, edge }; spans.push(s); open[kind] = s; } else cur.to = d;
+        if (!cur) { const s: Span = { street: street.id, side, kind, from, to: d, at, edge }; spans.push(s); open[kind] = s; } else cur.to = d;
       } else open[kind] = undefined;
     };
     const pocketRun = { start: -1 };
@@ -83,24 +91,23 @@ describe('sidewalks are walkable', () => {
         free.push(!physics.overlapsStatic({ x: cx + nx * u, z: cz + nz * u }, FOOT));
       }
       const any = free.some(Boolean);
-      const at = { x: cx + nx * (-half + free.indexOf(false) * LAT_STEP), z: cz + nz * (-half + free.indexOf(false) * LAT_STEP) };
       mark('BLOCKED', d, { x: cx, z: cz }, !any);
-      void at;
       // CUT: the free cells here must overlap (in lateral position) a free cell of the previous slice
       if (prev && any && !free.some((f, i) => f && (prev![i] || prev![i - 1] || prev![i + 1]))) mark('CUT', d, { x: cx, z: cz }, true); else mark('CUT', d, { x: cx, z: cz }, false);
-      // POCKET: every free interval is a walled slot narrower than POCKET_SLACK (and none is open to the curb side)
-      let slot = any;
+      // POCKET: some free interval is a slot narrower than POCKET_SLACK walled by statics on both sides
+      let slot = false;
+      let slotAt = { x: cx, z: cz };
       let i = 0;
-      while (i < nLat && any) {
+      while (i < nLat) {
         if (!free[i]) { i++; continue; }
         let j = i;
         while (j + 1 < nLat && free[j + 1]) j++;
         const w = (j - i) * LAT_STEP;
         const walled = i > 0 && j < nLat - 1; // statics on both sides inside the strip
-        if (!(walled && w < POCKET_SLACK)) slot = false;
+        if (walled && w < POCKET_SLACK) { slot = true; const u = -half + ((i + j) / 2) * LAT_STEP; slotAt = { x: cx + nx * u, z: cz + nz * u }; }
         i = j + 1;
       }
-      if (slot) { if (pocketRun.start < 0) pocketRun.start = d; if (d - pocketRun.start >= POCKET_MIN_LEN) mark('POCKET', pocketRun.start, { x: cx, z: cz }, true); }
+      if (slot) { if (pocketRun.start < 0) pocketRun.start = d; if (d - pocketRun.start >= POCKET_MIN_LEN) mark('POCKET', d, slotAt, true, pocketRun.start); }
       else { pocketRun.start = -1; mark('POCKET', d, { x: cx, z: cz }, false); }
       prev = free;
     }
@@ -114,8 +121,28 @@ describe('sidewalks are walkable', () => {
     expect(lines, `blocked sidewalk spans:\n${lines.join('\n')}`).toEqual([]);
   });
 
-  it('parked cars never overlap a sidewalk', () => {
-    // asserted in the second describe below once the parked cars are located
-    expect(true).toBe(true);
+  it('parked cars never overlap a sidewalk (every corner of every parked car is on the roadway)', () => {
+    const events = new EventBus();
+    let seq = 0;
+    const makeVehicle = (type: VehicleType, pos: Vec2, heading: number, color: string): IVehicle =>
+      new Vehicle(`park${seq++}`, { ...VEHICLE_SPECS[type], color }, pos, heading, stubMaterials, events);
+    for (const seed of [1, 2, 3]) {
+      const traffic = new TrafficSystem(grid, new World2D(12), events, new Rng(seed), new THREE.Scene(), proxyMaterials(), makeVehicle, undefined, undefined, world.lots);
+      const bad: string[] = [];
+      let parked = 0;
+      for (const v of traffic.vehicles) {
+        if (v.driver !== null) continue;
+        parked++;
+        const { halfW, halfL } = v.body.shape as { halfW: number; halfL: number };
+        const h = v.body.heading, f = { x: Math.sin(h), z: -Math.cos(h) }; // forwardFromHeading
+        const r = { x: -f.z, z: f.x };
+        for (const [sl, sw] of [[1, 1], [1, -1], [-1, 1], [-1, -1], [0, 1], [0, -1]]) {
+          const c = { x: v.body.pos.x + f.x * halfL * sl + r.x * halfW * sw, z: v.body.pos.z + f.z * halfL * sl + r.z * halfW * sw };
+          if (!grid.isOnRoad(c)) { bad.push(`${v.body.id} (${v.spec.type}) at ${v.body.pos.x.toFixed(1)},${v.body.pos.z.toFixed(1)} corner ${c.x.toFixed(1)},${c.z.toFixed(1)} on ${grid.nearestStreet(c).id}`); break; }
+        }
+      }
+      expect(parked).toBeGreaterThan(50);
+      expect(bad, `seed ${seed}: parked cars overlapping a sidewalk:\n${bad.join('\n')}`).toEqual([]);
+    }
   });
 });

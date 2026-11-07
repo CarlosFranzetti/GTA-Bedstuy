@@ -13,7 +13,8 @@ const FENCE_H = 2.2;
 const POST_SPACING = 3;
 const GATE_W = 2.2;
 const HOARD_H = 2.4;
-const HOARD_OFFSET = 0.9;
+/** Hugs the lot front: a gap wide enough to walk into (the old 0.9 m) is an invisible-wall trap (H6 P1). */
+const HOARD_OFFSET = 0.3;
 
 export interface FenceOptions { vacantFrontFence: boolean; }
 

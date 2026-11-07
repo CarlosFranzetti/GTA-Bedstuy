@@ -549,7 +549,7 @@ const game = new Game(
 
 // pause menu, gamepad, settings (Menu fires its persisted-setting callbacks once at construction)
 let lastPad = performance.now();
-const gamepad = new GamepadInput(input, { onToast: (m) => hud.showToast(m), onStart: () => { if (shopUi?.isOpen) shopUi.close(); else if (djUi?.isOpen) djUi.leave(); else menu.toggle(); }, onNav: (d) => { if (shopUi?.isOpen) shopUi.navigate(d); else if (djUi?.isOpen) djUi.navigate(d); else menu.navigate(d); } });
+const gamepad = new GamepadInput(input, { onToast: (m) => hud.showToast(m), onStart: () => { if (shopUi?.isOpen) shopUi.close(); else if (djUi?.isOpen) djUi.leave(); else menu.toggle(); }, onNav: (d) => { if (phoneHud.isOpen) phoneHud.navigate(d); else if (shopUi?.isOpen) shopUi.navigate(d); else if (djUi?.isOpen) djUi.navigate(d); else menu.navigate(d); } });
 const radioUi = new RadioUi(overlay, audio);
 const menu = new Menu(overlay, {
   onPause: (p) => { game.paused = p || document.hidden; gamepad.paused = p; audio.setPaused(p); if (!p) { input.endFrame(); input.requestLock(); } },

@@ -408,3 +408,85 @@ export const platePainter: Painter = (ctx, w, h, rng, variant, aux) => {
   // age: a little road grime and chips
   speckle(ctx, w, h, rng, 120, ['#7c7568', '#b8b3a4', '#9b9588'], 1, 2, 0.28);
 };
+
+// ---------------------------------------------------------------- cargo box liveries
+
+export const CARGO_LIVERY_W = 1024;
+export const CARGO_LIVERY_H = 512;
+/** 0 plain white, 1 produce wholesaler, 2 laundry service, 3 movers. The car's plate variant (seed % 4) picks one. */
+export const CARGO_LIVERY_VARIANTS = 4;
+/** Invented local businesses (no real brands): [name, tagline]. */
+export const CARGO_LIVERY_TEXT: readonly (readonly [string, string] | null)[] = [
+  null,
+  ['STOOP & SPROUT PRODUCE', 'FRESH TO THE DOOR - WHOLESALE'],
+  ['SUDS & SONS LAUNDRY', 'WASH - FOLD - DELIVER'],
+  ['STEADY HANDS MOVING', 'LOCAL & LONG HAUL - BK 5-5019'],
+];
+/** v fraction (from the top of the canvas) of the strip that stays the plain base colour; roof, ends and underside sample it. */
+export const CARGO_PLAIN_STRIP = 0.03;
+const CARGO_BASE = ['#f4f4f4', '#f1ead3', '#eef3f7', '#f3efe4'] as const;
+
+/**
+ * 1024x512 livery for the cargo box sides (2:1, box length x height). Layout in canvas rows: the top 3 % is plain base colour
+ * (CARGO_PLAIN_STRIP, used by every face that is not a side), the art sits between 8 % and 90 %, the bottom 10 % is road grime.
+ * Variant 0 is plain white with panel seams only.
+ */
+export const cargoLiveryPainter: Painter = (ctx, w, h, rng, variant) => {
+  const v = ((Math.floor(variant) % CARGO_LIVERY_VARIANTS) + CARGO_LIVERY_VARIANTS) % CARGO_LIVERY_VARIANTS;
+  ctx.fillStyle = CARGO_BASE[v];
+  ctx.fillRect(0, 0, w, h);
+  const lines = CARGO_LIVERY_TEXT[v];
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  if (lines) {
+    const [name, tag] = lines;
+    if (v === 1) {
+      // produce: green lower band, tomato-and-leaf mark on the left, bold name
+      ctx.fillStyle = '#2f7d3a'; ctx.fillRect(0, h * 0.72, w, h * 0.18);
+      ctx.fillStyle = '#e2b13c'; ctx.fillRect(0, h * 0.70, w, h * 0.02);
+      ctx.fillStyle = '#d23a2a'; ctx.beginPath(); ctx.arc(w * 0.17, h * 0.4, h * 0.17, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#3d9a47'; ctx.fillRect(w * 0.17 - h * 0.1, h * 0.4 - h * 0.2, h * 0.2, h * 0.05);
+      fitFont(ctx, name, w * 0.58, h * 0.14, 'bold', 'Arial Black, Arial, Helvetica, sans-serif', 10);
+      ctx.fillStyle = '#1f5a29'; ctx.fillText(name, w * 0.62, h * 0.36);
+      fitFont(ctx, tag, w * 0.58, h * 0.07, 'bold', 'Arial, Helvetica, sans-serif', 8);
+      ctx.fillStyle = '#7a5a12'; ctx.fillText(tag, w * 0.62, h * 0.52);
+      ctx.fillStyle = '#f1ead3'; ctx.fillText('BK - NY', w * 0.5, h * 0.81);
+    } else if (v === 2) {
+      // laundry: blue wave bands with bubbles, white name on blue
+      ctx.fillStyle = '#1d5fa8'; ctx.fillRect(0, h * 0.22, w, h * 0.34);
+      ctx.fillStyle = '#6fb2e6'; ctx.fillRect(0, h * 0.6, w, h * 0.05); ctx.fillRect(0, h * 0.68, w, h * 0.03);
+      for (let k = 0; k < 9; k++) {
+        ctx.fillStyle = k % 2 ? '#bfe0f6' : '#e8f3fb';
+        ctx.beginPath(); ctx.arc(w * (0.06 + 0.11 * k), h * (0.8 + 0.04 * Math.sin(k * 1.7)), h * (0.03 + 0.012 * (k % 3)), 0, Math.PI * 2); ctx.fill();
+      }
+      fitFont(ctx, name, w * 0.84, h * 0.17, 'bold', 'Arial Black, Arial, Helvetica, sans-serif', 10);
+      ctx.fillStyle = '#ffffff'; ctx.fillText(name, w * 0.5, h * 0.34);
+      fitFont(ctx, tag, w * 0.6, h * 0.08, 'bold', 'Arial, Helvetica, sans-serif', 8);
+      ctx.fillStyle = '#d6ecfa'; ctx.fillText(tag, w * 0.5, h * 0.48);
+    } else {
+      // movers: deep red lower half-band, arrow-on-a-box mark, big name
+      ctx.fillStyle = '#9c2b27'; ctx.fillRect(0, h * 0.66, w, h * 0.24);
+      ctx.fillStyle = '#e3b43a'; ctx.fillRect(0, h * 0.64, w, h * 0.02);
+      ctx.fillStyle = '#6b4a2b'; ctx.fillRect(w * 0.07, h * 0.24, h * 0.26, h * 0.22);
+      ctx.fillStyle = '#e3b43a'; ctx.fillRect(w * 0.07 + h * 0.11, h * 0.24, h * 0.04, h * 0.22);
+      fitFont(ctx, name, w * 0.6, h * 0.15, 'bold', 'Arial Black, Arial, Helvetica, sans-serif', 10);
+      ctx.fillStyle = '#9c2b27'; ctx.fillText(name, w * 0.64, h * 0.32);
+      fitFont(ctx, tag, w * 0.6, h * 0.075, 'bold', 'Arial, Helvetica, sans-serif', 8);
+      ctx.fillStyle = '#4a3a2a'; ctx.fillText(tag, w * 0.64, h * 0.46);
+      ctx.fillStyle = '#f3efe4'; ctx.fillText('INSURED - BONDED - FAMILY OWNED', w * 0.5, h * 0.78);
+    }
+  }
+  // panel seams (box sheet joints) and rivet-line shadows, on every variant
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  for (let k = 1; k < 6; k++) ctx.fillRect(Math.round((w * k) / 6), h * CARGO_PLAIN_STRIP * 2, 2, h * 0.88);
+  ctx.fillRect(0, h * 0.07, w, 2);
+  // road grime climbing the bottom edge, speckle on top
+  for (let k = 0; k < 8; k++) {
+    ctx.fillStyle = `rgba(80,66,48,${(0.04 + 0.025 * k).toFixed(3)})`;
+    ctx.fillRect(0, h * (0.9 + 0.0125 * k), w, h * 0.0125 + 1);
+  }
+  speckle(ctx, w, h, rng, 300, ['#8a8a82', '#ffffff'], 1, 2, 0.08);
+  // keep the plain strip plain (roof, ends and underside sample it)
+  ctx.fillStyle = CARGO_BASE[v];
+  ctx.fillRect(0, 0, w, h * CARGO_PLAIN_STRIP);
+};

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
 import { MaterialLibrary } from '@/textures/MaterialLibrary';
 import {
+  CARGO_LIVERY_H, CARGO_LIVERY_TEXT, CARGO_LIVERY_VARIANTS, CARGO_LIVERY_W, CARGO_PLAIN_STRIP, cargoLiveryPainter,
   CAR_PAINT_SIZE, PLATE_VARIANTS, TIRE_TEXT, carPaintHeightField, carPaintMaps,
 } from '@/textures/painters/vehicle';
 import {
@@ -171,6 +172,56 @@ describe('people fabrics', () => {
     for (let i = 0; i < body.attributes.uv.count; i++) {
       expect(body.attributes.uv.getY(i)).toBeGreaterThanOrEqual(0.5);
       expect(sleeve.attributes.uv.getY(i)).toBeLessThanOrEqual(0.5);
+    }
+  });
+});
+
+describe('cargo box liveries', () => {
+  const paint = (variant: number, seed = 5) => {
+    const c = makeFakeCanvas(CARGO_LIVERY_W, CARGO_LIVERY_H);
+    cargoLiveryPainter(c.getContext('2d') as CanvasRenderingContext2D, c.width, c.height, new Rng(seed), variant);
+    return c.ops;
+  };
+  const texts = (ops: Op[]) => ops.filter((o) => o.name === 'fillText').map((o) => String(o.args[0]));
+
+  it('offers a plain white plus three local-business liveries', () => {
+    expect(CARGO_LIVERY_VARIANTS).toBe(4);
+    expect(CARGO_LIVERY_TEXT[0]).toBeNull();
+    expect(CARGO_LIVERY_TEXT.slice(1).every((t) => t && t[0].length > 8)).toBe(true);
+  });
+
+  it('variant 0 carries no lettering; variants 1-3 print their invented business name and tagline', () => {
+    expect(texts(paint(0))).toEqual([]);
+    for (let v = 1; v < 4; v++) {
+      const t = texts(paint(v));
+      expect(t).toContain(CARGO_LIVERY_TEXT[v]![0]);
+      expect(t).toContain(CARGO_LIVERY_TEXT[v]![1]);
+    }
+  });
+
+  it('uses no real brand names', () => {
+    const all = CARGO_LIVERY_TEXT.flatMap((t) => (t ? [...t] : [])).join(' ').toUpperCase();
+    for (const brand of ['UPS', 'FEDEX', 'U-HAUL', 'UHAUL', 'DHL', 'PENSKE', 'RYDER', 'AMAZON', 'WHOLE FOODS']) expect(all).not.toContain(brand);
+  });
+
+  it('is deterministic per seed and differs between variants', () => {
+    const sig = (ops: Op[]) => JSON.stringify(ops);
+    expect(sig(paint(2, 9))).toBe(sig(paint(2, 9)));
+    expect(new Set([0, 1, 2, 3].map((v) => sig(paint(v)))).size).toBe(4);
+  });
+
+  it('keeps every rect inside the canvas and finishes by restoring the plain strip', () => {
+    for (let v = 0; v < 4; v++) {
+      const ops = paint(v);
+      for (const o of ops) {
+        if (o.name !== 'fillRect') continue;
+        const [x, y, w, h] = o.args as number[];
+        expect(x).toBeGreaterThanOrEqual(-1); expect(y).toBeGreaterThanOrEqual(-1);
+        expect(x + w).toBeLessThanOrEqual(CARGO_LIVERY_W + 2); expect(y + h).toBeLessThanOrEqual(CARGO_LIVERY_H + 2);
+      }
+      const last = ops[ops.length - 1];
+      expect(last.name).toBe('fillRect');
+      expect(last.args).toEqual([0, 0, CARGO_LIVERY_W, CARGO_LIVERY_H * CARGO_PLAIN_STRIP]);
     }
   });
 });

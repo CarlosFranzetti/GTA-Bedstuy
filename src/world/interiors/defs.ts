@@ -30,7 +30,7 @@ export interface InteriorDef {
   /** Room size, metres: width (x), depth (z), ceiling height. */
   w: number; d: number; h: number;
   door: DoorDef;
-  /** Door sign, empty for the unmarked club door. */
+  /** Door sign, empty for the unmarked club door. HOME carries one so a new player can spot it from the street. */
   sign: string;
 }
 
@@ -46,7 +46,7 @@ export const INTERIORS: Record<InteriorId, InteriorDef> = {
     door: { x: 70, z: -8.55, outX: 0, outZ: 1, radius: 2.0 },
   },
   home: {
-    id: 'home', name: 'HOME', origin: { x: 3000, z: 3240 }, w: 8, d: 7, h: 2.8, sign: '',
+    id: 'home', name: 'HOME', origin: { x: 3000, z: 3240 }, w: 8, d: 7, h: 2.8, sign: 'HOME',
     door: { x: -11.05, z: -36, outX: 1, outZ: 0, radius: 2.0 },
   },
 };

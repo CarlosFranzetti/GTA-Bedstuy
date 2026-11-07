@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { buildCarModel, styleFor, PAINT_VARIANTS, type CarStyle } from '@/entities/models/carModel';
-import { buildLoft, carHalf, isTaxiYellow, mergeTrim, Acc, bx, STYLES, monotone } from '@/entities/models/carBodies';
+import { CARGO_PLAIN_STRIP } from '@/textures/painters/vehicle';
+import { CARGO_STRIP, boxLiveryUV, buildLoft, carHalf, isTaxiYellow, mergeTrim, Acc, bx, STYLES, monotone } from '@/entities/models/carBodies';
 import { VEHICLE_SPECS } from '@/entities/Vehicle';
 import type { IMaterialLibrary, VehicleType } from '@/world/types';
 
@@ -72,7 +73,7 @@ describe.each(CASES)('procedural $style', (c) => {
   });
 
   it('stays within the triangle budget', () => {
-    const budget = c.style === 'suv' ? 2900 : c.style === 'van' ? 2700 : 2600;
+    const budget = c.style === 'suv' ? 2500 : c.style === 'van' ? 2700 : 2600;
     expect(totalTris(m.group)).toBeLessThanOrEqual(budget);
   });
 
@@ -247,5 +248,35 @@ describe('carBodies: lofting toolkit', () => {
     expect(col.count).toBe(g.attributes.position.count);
     expect(col.getX(0)).toBeLessThan(0.2);
     expect(col.getX(col.count - 1)).toBeGreaterThan(0.6);
+  });
+});
+
+describe('cargo box livery UVs', () => {
+  const van = () => meshes(build({ style: 'van', type: 'boxtruck' }).group).find((m) => m.name === 'cargo')!;
+  it('the plain-strip constant matches the painter', () => { expect(CARGO_STRIP).toBe(CARGO_PLAIN_STRIP); });
+  it('side faces lay the livery out once along the box, mirrored so the text reads on both flanks', () => {
+    const g = van().geometry, pos = g.attributes.position, nor = g.attributes.normal, uv = g.attributes.uv;
+    g.computeBoundingBox();
+    const bb = g.boundingBox!;
+    let left = 0, right = 0;
+    for (let i = 0; i < pos.count; i++) {
+      if (Math.abs(nor.getX(i)) < 0.95) continue;
+      expect(uv.getX(i)).toBeGreaterThanOrEqual(0); expect(uv.getX(i)).toBeLessThanOrEqual(1);
+      expect(uv.getY(i)).toBeLessThanOrEqual(1 - 2 * CARGO_STRIP + 1e-6);
+      const t = (pos.getZ(i) - bb.min.z) / (bb.max.z - bb.min.z);
+      if (nor.getX(i) < 0) { expect(uv.getX(i)).toBeCloseTo(t, 4); left++; } else { expect(uv.getX(i)).toBeCloseTo(1 - t, 4); right++; }
+    }
+    expect(left).toBeGreaterThan(0); expect(right).toBeGreaterThan(0);
+  });
+  it('the roof samples the plain strip', () => {
+    const g = van().geometry, nor = g.attributes.normal, uv = g.attributes.uv;
+    let roof = 0;
+    for (let i = 0; i < nor.count; i++) if (nor.getY(i) > 0.99) { expect(uv.getY(i)).toBeGreaterThan(1 - CARGO_STRIP); roof++; }
+    expect(roof).toBeGreaterThan(0);
+  });
+  it('boxLiveryUV is safe on a geometry without uv', () => {
+    const g = new THREE.BoxGeometry(2, 2, 4); g.deleteAttribute('uv');
+    boxLiveryUV(g);
+    expect(g.attributes.uv.count).toBe(g.attributes.position.count);
   });
 });
