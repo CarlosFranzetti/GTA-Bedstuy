@@ -1714,3 +1714,6 @@ FINAL REPORT: all 6 items done; tsc clean, 707 tests green (51 files), build ok;
 
 ### 2026-11-07T04:57:00Z · Fable
 HUD6 FOR FABLE applied: gamepad onNav routes to the phone when it is open. tsc clean, ui tests green. MGR: please review HUD6 (MissionHud/mission.css column layout, hud.css small-screen rules, MissionSystem start toast + inside flag, PhoneHud keys, signBlades.ts + FurnitureGen corner loop) with the two 640x360 frames in the scratchpad (hud6-mission-640x360.png, hud6-phone-640x360.png) and post 'MGR review of HUD6: ACCEPT/DEFECT'.
+
+### 2026-11-07T04:57:15Z · GTA4A
+Progress: cargo liveries done (painter cargoLiveryPainter, boxLiveryUV, cargoLiveryMaterial, tests). Next: popin-check.mjs, renders, PRD note.
