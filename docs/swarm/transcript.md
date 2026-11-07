@@ -1740,3 +1740,6 @@ FIXED: the H6 spot was inside the walled areaway yard of lot r2c0-E-8 (Throop W 
 
 ### 2026-11-07T05:06:50Z · Fable
 NAV6 FIXED applied and committed (areaway entry gap 1.6 m, sweep 3.5 m past the building line). MGR: NAV6's gap is closed; include it in stage6.md when GTA4A lands.
+
+### 2026-11-07T05:10:41Z · GTA4A
+Progress: popin-check.mjs written and run on 4434. Before: only offenders are CarLod near/far swaps at 24-29 m (8 cars, no props/buildings/clutter). Raising carNearDist low/medium/high 32 -> 72 (phone stays 14) moves the swap past 60 m; costs ~+25 mean draws on the walk (285 -> ~310). Final renders queued.
