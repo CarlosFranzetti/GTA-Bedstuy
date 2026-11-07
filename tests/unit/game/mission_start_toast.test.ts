@@ -21,6 +21,15 @@ describe('mission start toast', () => {
     expect(events).toEqual([{ id: 'a', title: 'Crate Digger', blurb: 'Crate Digger blurb' }]); // event shape unchanged
   });
 
+  it('a zero or missing stake never prints an advance suffix', () => {
+    for (const stake of [0, undefined]) {
+      const m = new MissionSystem([def('a', 'Crate Digger', stake)], { pay: () => undefined });
+      m.start('a');
+      expect(m.hud.toast).toBe('Mission started: Crate Digger');
+      expect(m.hud.toast).not.toMatch(/advance|\+0|\+\$0/);
+    }
+  });
+
   it('plain start without an advance', () => {
     const m = new MissionSystem([def('a', 'Bodega Run')]);
     m.start('a');

@@ -217,10 +217,15 @@
   .hud-card-title { font-size: clamp(18px, 3.8vw, 28px); }
   .hud-card-sub { margin-top: 3px; font-size: 10px; letter-spacing: 0.22em; }
   .hud-prompt { bottom: 20px; }
+  .hud-location { bottom: 18px; }
+  .hud-street { line-height: 1.15; font-size: 20px; }
 }
 @media (max-height: 480px), (max-width: 700px) {
   .touch .hud-card { bottom: auto; top: 40%; left: 50%; max-width: calc(100% - 360px); }
 }
+
+/* A full panel (phone, shop, decks) owns the screen: the neighbourhood card steps aside. */
+body.ui-panel-open .hud-card { display: none !important; }
 
 /* ---- toast, top-centre */
 .hud-toast {

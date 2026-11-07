@@ -1,6 +1,7 @@
 // Pop-in (LOD) check: drives the free camera along Throop Ave and reports every mesh that appears close to the camera.
 //
 // Usage:  scripts/swarm-render.sh node scripts/popin-check.mjs [--port 4434] [--q low] [--len 80] [--stepm 1] [--radius 60]
+//                                    [--near <m>]  override CarLod's near/far switch distance (to test a threshold change)
 //                                    [--from-z 50] [--eye 1.7] [--dist <dir>] [--no-build] [--out <file.json>] [--width 640] [--height 360]
 //
 // The camera starts at (0, eye, from-z) on Throop Ave (x = 0, the N-S street) and walks `len` metres north (-z) in `stepm` steps,
@@ -27,7 +28,7 @@ const { chromium } = createRequire(import.meta.url)('playwright');
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 function parseArgs(argv) {
-  const o = { port: 4434, q: 'low', len: 80, stepm: 1, radius: 60, fromZ: 50, eye: 1.7, width: 640, height: 360, build: true, dist: null, out: null };
+  const o = { port: 4434, q: 'low', len: 80, stepm: 1, radius: 60, fromZ: 50, near: null, eye: 1.7, width: 640, height: 360, build: true, dist: null, out: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--port') o.port = Number(argv[++i]);
@@ -35,6 +36,7 @@ function parseArgs(argv) {
     else if (a === '--len') o.len = Number(argv[++i]);
     else if (a === '--stepm') o.stepm = Number(argv[++i]);
     else if (a === '--radius') o.radius = Number(argv[++i]);
+    else if (a === '--near') o.near = Number(argv[++i]);
     else if (a === '--from-z') o.fromZ = Number(argv[++i]);
     else if (a === '--eye') o.eye = Number(argv[++i]);
     else if (a === '--width') o.width = Number(argv[++i]);
@@ -85,6 +87,7 @@ try {
     d.setHour(12);
     d.traffic.setHour?.(12, true);
     d.stopLoop();
+    if (o.near) d.carLod.setNearDist(o.near);
     const TAN = Math.tan((64 * Math.PI) / 360); // tan(vfov / 2) of the on-foot camera
     const aspect = o.width / o.height;
     const gl = d.renderer.getContext();
@@ -121,6 +124,7 @@ try {
         const slack = r * 1.5;
         const inFrustum = depth + r > 0.1 && depth - r < 900 && Math.abs(lat) <= depth * TAN * aspect + slack && Math.abs(up) <= depth * TAN + slack;
         const hasItems = !m.isInstancedMesh || m.count > 0;
+        if (m.isInstancedMesh) return; // one mesh for many instances (far cars, lamps, blobs): its count changing is not an object appearing
         const drawn = visibleChain(m) && hasItems && inFrustum;
         const ndcX = depth > 0.1 ? lat / (depth * TAN * aspect) : 9, ndcY = depth > 0.1 ? up / (depth * TAN) : 9;
         seen.set(m.uuid, { name: nameOf(m), drawn, inFrustum, dist, mid: Math.abs(ndcX) < 0.8 && Math.abs(ndcY) < 0.8 });
@@ -132,12 +136,13 @@ try {
     const offenders = new Map(); // uuid -> row
     let prev = null;
     let meshCount = 0;
+    const calls = [];
     for (let i = 0; i <= steps; i++) {
       const z = o.fromZ - i * o.stepm;
       d.teleport(0, z, 0); // heading 0 = north
       d.step(1);
       d.setFreeCam(0, o.eye, z, 0, o.eye, z - 20);
-      d.renderOnce(1, 1 / 60); gl.finish();
+      calls.push(d.renderOnce(1, 1 / 60).total); gl.finish();
       const now = classify(0, z);
       meshCount = Math.max(meshCount, now.size);
       if (prev) {
@@ -161,8 +166,8 @@ try {
       if (!e) byName.set(r.name + '|' + r.reason, { ...r, meshes: 1 });
       else { e.meshes++; e.count += r.count; if (r.dist < e.dist) { e.dist = r.dist; e.step = r.step; e.z = r.z; } }
     }
-    return { rows: [...byName.values()].sort((a, b) => a.dist - b.dist), steps, meshCount };
-  }, { len: opt.len, stepm: opt.stepm, radius: opt.radius, fromZ: opt.fromZ, eye: opt.eye, width: opt.width, height: opt.height });
+    return { rows: [...byName.values()].sort((a, b) => a.dist - b.dist), steps, meshCount, calls };
+  }, { len: opt.len, stepm: opt.stepm, radius: opt.radius, fromZ: opt.fromZ, near: opt.near, eye: opt.eye, width: opt.width, height: opt.height });
   await page.close().catch(() => {});
 } catch (e) {
   console.error('[popin] FAIL', String(e.message ?? e).slice(0, 500));
@@ -174,8 +179,9 @@ try {
 }
 
 if (result) {
-  const { rows, steps, meshCount } = result;
+  const { rows, steps, meshCount, calls } = result;
   log(`quality ${opt.q}, ${steps + 1} frames, camera z ${opt.fromZ} -> ${opt.fromZ - opt.len} on Throop Ave (x 0), eye ${opt.eye} m, radius ${opt.radius} m, up to ${meshCount} meshes`);
+  log(`draw calls per frame: min ${Math.min(...calls)}, mean ${Math.round(calls.reduce((a, b) => a + b, 0) / calls.length)}, max ${Math.max(...calls)}${opt.near ? `, CarLod near ${opt.near} m` : ''}`);
   if (!rows.length) console.log('no mesh first appeared within the radius');
   else {
     console.log('\n| # | name | reason | nearest (m) | at step / cam z | meshes | sightings |');

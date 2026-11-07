@@ -31,4 +31,13 @@ describe('location card on small viewports (640x360)', () => {
     expect(hud).toMatch(/@media \(max-width: 640px\) and \(min-height: 481px\)/);
     expect(block).toMatch(/\.hud-prompt\s*{[^}]*bottom:\s*20px/);
   });
+
+  it('the card is hidden while any ui-panel-open panel (phone, shop, decks) is open', () => {
+    expect(hud).toMatch(/body\.ui-panel-open \.hud-card\s*{[^}]*display:\s*none/);
+  });
+
+  it('the street line keeps a bottom margin and line-height so it is never clipped at 640x360', () => {
+    expect(block).toMatch(/\.hud-location\s*{[^}]*bottom:\s*18px/);
+    expect(block).toMatch(/\.hud-street\s*{[^}]*line-height:\s*1\.15/);
+  });
 });
