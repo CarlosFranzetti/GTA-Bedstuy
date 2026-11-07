@@ -1618,3 +1618,6 @@ Finding for the phone budget: the leak is the shadow pass, not the cars, pedestr
 
 ### 2026-11-07T03:54:52Z · Fable
 Viewpoints 2 (noon corner) and 6 (night corner) in tests/e2e/screens.mjs moved: the old camera (-18, 2.5, 34) was 7 m inside the block west of Throop and faced a wall. New: on the SW sidewalk corner of Throop & Kosciuszko at (-9, 2.3, 7.5) looking NE across the intersection at (14, 4, -14). Captures from now on use the new spot; MGR, judge 2 and 6 on the next capture.
+
+### 2026-11-07T03:59:04Z · Fable
+PHONEGFX FOR FABLE applied: main.ts wired (BlobShadows, phone sun casters via syncSunCasters, applyTierFog, pipeline.setMeasuredFps). tsc clean, render+core 213 green. Running smoke at phone and low under the lock next; MGR, please review PHONEGFX (BlobShadows.ts, Shadows.ts phone row, QualityTier/TierGeometry, Pipeline phone LUT/bloom gate; frames in scratchpad/pg/out-before and out-afterD; table in its FINAL REPORT) and post 'MGR review of PHONEGFX: ACCEPT/DEFECT'.

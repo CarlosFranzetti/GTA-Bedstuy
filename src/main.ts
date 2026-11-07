@@ -26,7 +26,9 @@ import { Minimap } from '@/ui/Minimap';
 import { TouchControls } from '@/ui/TouchControls';
 import { AudioSystem } from '@/audio/AudioSystem';
 import { RenderPipeline } from '@/render/Pipeline';
-import { setupShadows, updateShadowCamera, applyShadowFlags, SHADOWS_ENABLED, type Quality } from '@/render/Shadows';
+import { BlobShadows } from '@/render/BlobShadows';
+import { applyTierFog } from '@/render/QualityTier';
+import { setupShadows, updateShadowCamera, applyShadowFlags, SHADOWS_ENABLED, SUN_SHADOW, type Quality } from '@/render/Shadows';
 import { SkyDome } from '@/render/SkyDome';
 import { NightLights } from '@/render/NightLights';
 import { SunFlare } from '@/render/LensFlare';
@@ -126,6 +128,24 @@ await nextPaint();
 loading.begin('lights');
 const dayNight = new DayNight(scene, materials, { startHour: LIGHTING.startHour });
 scene.add(dayNight.sun.target);
+const blobs = new BlobShadows(); // phone tier: instanced soft decals under cars and pedestrians instead of a shadow map
+scene.add(blobs.group);
+blobs.setEnabled(tierConfig(quality).blobShadows);
+blobs.buildSunCasters(world.lots); // phone sun shadow: boxes under cars / peds + building-lot prisms (3 shadow draws), see BlobShadows.ts
+scene.add(blobs.casterGroup);
+blobs.wrapShadowRender(renderer);
+/** Phone: the sun shadow map is fed by the blob casters only, so the world meshes (and the player model) stop casting; other tiers restore them. */
+let phoneSunOn: boolean | null = null;
+function syncSunCasters(q: Quality): void {
+  const phoneSun = SUN_SHADOW[q] && !SHADOWS_ENABLED[q];
+  if (phoneSun === phoneSunOn) return;
+  phoneSunOn = phoneSun;
+  blobs.setSunCasters(phoneSun);
+  applyShadowFlags(world.group, !phoneSun, true);
+  if (!phoneSun) for (const m of proxies.covered) m.castShadow = false; // proxied meshes stay out of the shadow pass (the proxies cast for them)
+  proxies.shadowGroup.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.castShadow = !phoneSun; });
+  applyShadowFlags(player.object3D, !phoneSun, false);
+}
 setupShadows(renderer, dayNight.sun, quality);
 applyShadowFlags(world.group, true, true);
 // Shadow pass + AO G-buffer draw merged position-only stand-ins instead of every material mesh (see AoProxy.ts)
@@ -316,6 +336,7 @@ function applyQuality(q: Quality): void {
   const prev = quality;
   quality = q;
   const t = tierConfig(q);
+  syncSunCasters(q);
   ensureProxies(); // first switch up from the phone tier: build the shadow / AO stand-ins before the pipeline attaches to them
   renderer.setPixelRatio(ratioFor(q));
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -323,6 +344,7 @@ function applyQuality(q: Quality): void {
   if (useProxies) proxies.attachToPipeline(pipeline);
   pipeline.setSize(window.innerWidth, window.innerHeight);
   setupShadows(renderer, dayNight.sun, q);
+  blobs.setEnabled(t.blobShadows);
   if (q === prev) return;
   // everything below changes with the tier (see QualityTier.ts)
   culler.setMaxDist(t.cullDistance);
@@ -407,17 +429,19 @@ function interpolateAll(alpha: number, refX: number, refY: number, refZ: number)
   carLod.setView(cam.camera);
   carLod.beginFrame();
   proxies.beginFrame();
+  blobs.beginFrame();
   for (const v of traffic.vehicles) {
     const b = placeInterpolated(v, alpha);
-    if (v === veh) { carLod.release(v); v.object3D.visible = true; proxies.addCar(hullKey(v.spec.type), b.x, b.z, b.h); continue; }
+    if (v === veh) { carLod.release(v); v.object3D.visible = true; proxies.addCar(hullKey(v.spec.type), b.x, b.z, b.h); blobs.addCar(b.x, b.z, b.h, v.spec.length, v.spec.width); continue; }
     if (culler.applyTo(v.object3D, b.x, b.z, refX, refZ, v.spec.length)) continue;
     const dy = refY - 0.8, dx = b.x - refX, dz = b.z - refZ;
     carLod.place(v, b.x, b.z, b.h, Math.sqrt(dx * dx + dy * dy + dz * dz));
     proxies.addCar(hullKey(v.spec.type), b.x, b.z, b.h);
+    blobs.addCar(b.x, b.z, b.h, v.spec.length, v.spec.width);
   }
   carLod.endFrame();
-  for (const v of cops.cops) { const b = placeInterpolated(v, alpha); proxies.addCar(hullKey(v.spec.type), b.x, b.z, b.h); }
-  for (const p of traffic.peds) { const b = placeInterpolated(p, alpha); if (!culler.applyTo(p.object3D, b.x, b.z, refX, refZ, 1, pedRange)) proxies.addPed(b.x, b.z); }
+  for (const v of cops.cops) { const b = placeInterpolated(v, alpha); proxies.addCar(hullKey(v.spec.type), b.x, b.z, b.h); blobs.addCar(b.x, b.z, b.h, v.spec.length, v.spec.width); }
+  for (const p of traffic.peds) { const b = placeInterpolated(p, alpha); if (!culler.applyTo(p.object3D, b.x, b.z, refX, refZ, 1, pedRange)) { proxies.addPed(b.x, b.z); blobs.addPed(b.x, b.z); } }
   if (veh) {
     const b = poses.blend(veh.body, alpha, blended);
     camTarget.x = b.x; camTarget.z = b.z; camHeading = b.h;
@@ -426,8 +450,10 @@ function interpolateAll(alpha: number, refX: number, refY: number, refZ: number)
     const b = placeInterpolated(player, alpha);
     camTarget.x = b.x; camTarget.z = b.z; camHeading = b.h;
     proxies.addPed(b.x, b.z);
+    blobs.addPed(b.x, b.z);
   }
   proxies.endFrame();
+  blobs.endFrame();
 }
 
 const PROMPT_KEY = isTouch ? 'CAR' : 'F';
@@ -454,8 +480,8 @@ function drawFrame(alpha: number, frameDt: number): void {
     instanceCuller?.update(cam.camera.position.x, cam.camera.position.z);
     updateShadowCamera(dayNight.sun, camTarget);
     sky.update(dayNight.timeOfDay, sunDir, dayNight.isNight, cam.camera.position);
-    const tf = tierConfig(quality).fog; // phone: pull the fog in so it hides the short cull range (DayNight rewrites it every step)
-    if (tf && scene.fog) { const f = scene.fog as THREE.Fog; f.near = Math.min(f.near, tf.near); f.far = Math.min(f.far, tf.far); }
+    applyTierFog(scene.fog as THREE.Fog | null, quality); // phone: nearer, denser ramp (DayNight rewrites near/far and sets the colour to the sky horizon every step)
+    blobs.setStrength((dayNight.isNight ? 0 : Math.min(1, sunDir.y * 2.5)) * (1 - weather.overcast));
     sunFlare.update(sunDir, (dayNight.isNight ? 0 : 1) * (1 - weather.overcast), cam.camera.position);
     pipeline.setHour(dayNight.timeOfDay);
     focusPoint.set(camTarget.x, 1.2, camTarget.z);
@@ -512,6 +538,7 @@ const game = new Game(
     stats.drawCallsShadow = passes.shadow; stats.drawCallsScene = passes.scene; stats.drawCallsGBuffer = passes.gbuffer; stats.drawCallsPost = passes.post;
     stats.triangles = renderer.info.render.triangles;
     stats.fps = fps;
+    pipeline.setMeasuredFps(fps);
     stats.fps1pctLow = Math.round(perf.fps1pctLow * 10) / 10;
     stats.heapMBPerMin = Math.round(perf.heapMBPerMin * 10) / 10;
     stats.culledObjects = culler.hiddenCount; stats.carsFar = carLod.farCount;
@@ -636,7 +663,7 @@ window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(applyResize, 120);
 });
-applyShadowFlags(player.object3D, true, false);
+syncSunCasters(quality);
 packsReady.then((n) => { stats.packs = n; applyDetail(); });
 // AudioSystem pauses itself when the tab is hidden; the simulation pauses here
 document.addEventListener('visibilitychange', () => { game.paused = document.hidden || menu.isOpen; });
@@ -670,7 +697,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
     for (let i = 0; i < n; i++) updateCamera();
   },
   interiors, inventory, phone, get dj() { return dj; }, get shopUi() { return shopUi; }, get djUi() { return djUi; }, ensureAudio, missions,
-  player, cops, traffic, wanted, physics, grid, events, scene, sky, pipeline, nightLights, dayNight, renderer, materials, perf, culler, carLod, proxies, weather,
+  player, cops, traffic, wanted, physics, grid, events, scene, sky, pipeline, blobs, nightLights, dayNight, renderer, materials, perf, culler, carLod, proxies, weather,
   nearby(r: number) { const p = player.body.pos; const out: unknown[] = []; for (const b of physics.bodies()) { const d = Math.hypot(b.pos.x - p.x, b.pos.z - p.z); if (b.shape.kind === 'circle' && d < r) out.push({ id: b.id, kind: b.kind, d: +d.toFixed(2) }); } return out; },
 };
 
