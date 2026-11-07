@@ -122,11 +122,11 @@ describe('MaterialLibrary', () => {
     expect(c.ops.some((o) => o.name === 'set:textAlign' && o.args[0] === 'center')).toBe(true);
   });
 
-  it('copLivery says BPD and never NYPD', () => {
+  it('copLivery says POLICE and never a real department name', () => {
     const { lib, canvases } = setup();
     lib.get('copLivery');
     const texts = canvases[0].ops.filter((o) => o.name === 'fillText').map((o) => String(o.args[0]));
-    expect(texts).toContain('BPD');
+    expect(texts).toContain('POLICE');
     expect(JSON.stringify(canvases[0].ops)).not.toMatch(/NYPD/);
   });
 
