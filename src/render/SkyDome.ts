@@ -147,20 +147,20 @@ export function cloudParamsAt(sunElevation: number, overcast: number, sunRgb: re
   r.density = clamp(0.62 + 0.1 * up + 0.28 * o, 0.5, 1);
   const gloom = 1 - 0.32 * o;
   const nl = Math.max(sunRgb[0], sunRgb[1], sunRgb[2], 1e-3);
-  const dim = (0.04 + 0.96 * up) * gloom;
+  const dim = (0.008 + 0.992 * up) * gloom;
   r.lit = [
-    clamp((sunRgb[0] / nl) * 0.96 * dim + 0.05 * night + 0.55 * dusk * 0.9, 0, SKY_MAX_RADIANCE),
-    clamp((sunRgb[1] / nl) * 0.93 * dim + 0.06 * night + 0.55 * dusk * 0.42, 0, SKY_MAX_RADIANCE),
-    clamp((sunRgb[2] / nl) * 0.9 * dim + 0.09 * night + 0.55 * dusk * 0.34, 0, SKY_MAX_RADIANCE),
+    clamp((sunRgb[0] / nl) * 0.96 * dim + 0.006 * night + 0.55 * dusk * 0.9, 0, SKY_MAX_RADIANCE),
+    clamp((sunRgb[1] / nl) * 0.93 * dim + 0.007 * night + 0.55 * dusk * 0.42, 0, SKY_MAX_RADIANCE),
+    clamp((sunRgb[2] / nl) * 0.9 * dim + 0.012 * night + 0.55 * dusk * 0.34, 0, SKY_MAX_RADIANCE),
   ];
-  const sh = (0.1 + 0.9 * up) * (1 - 0.3 * o);
+  const sh = (0.02 + 0.98 * up) * (1 - 0.3 * o);
   r.shade = [
-    clamp(0.4 * sh + 0.025 * night + 0.22 * dusk * 0.5, 0, SKY_MAX_RADIANCE),
-    clamp(0.47 * sh + 0.03 * night + 0.22 * dusk * 0.28, 0, SKY_MAX_RADIANCE),
-    clamp(0.6 * sh + 0.06 * night + 0.22 * dusk * 0.4, 0, SKY_MAX_RADIANCE),
+    clamp(0.4 * sh + 0.004 * night + 0.22 * dusk * 0.5, 0, SKY_MAX_RADIANCE),
+    clamp(0.47 * sh + 0.005 * night + 0.22 * dusk * 0.28, 0, SKY_MAX_RADIANCE),
+    clamp(0.6 * sh + 0.01 * night + 0.22 * dusk * 0.4, 0, SKY_MAX_RADIANCE),
   ];
   r.sunDisc = smooth(-0.02, 0.05, e) * (1 - 0.85 * o);
-  r.haze = clamp(0.55 + 0.25 * dusk + 0.2 * o, 0, 0.9);
+  r.haze = clamp((0.55 + 0.25 * dusk + 0.2 * o) * (1 - 0.7 * night), 0, 0.9);
   r.dusk = dusk;
   return r;
 }
