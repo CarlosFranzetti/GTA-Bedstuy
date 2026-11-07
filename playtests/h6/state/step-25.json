@@ -1,0 +1,78 @@
+{
+  "gameHour": 18.339,
+  "player": {
+    "x": -10.6,
+    "z": 53.9,
+    "headingDeg": 265,
+    "headingCompass": "west",
+    "cameraFacingDeg": 265,
+    "cameraFacing": "west"
+  },
+  "inVehicle": false,
+  "enteringCar": false,
+  "vehicle": null,
+  "walkSpeedKmh": 0,
+  "wantedStars": 0,
+  "prompt": "",
+  "street": "Throop Ave",
+  "radio": "",
+  "mission": {
+    "title": "Crate Digger",
+    "objective": "Buy Throop Night Bus, Spin Cycle Love and Fire Escape Sunrise",
+    "step": "2/4",
+    "timer": "7:12",
+    "carrying": ""
+  },
+  "missionToast": "",
+  "missionRetry": "",
+  "cash": "$166",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": false,
+  "nearby": [
+    {
+      "type": "obstacle",
+      "distance_m": 3.6,
+      "direction": "behind-right",
+      "bearing_deg": 146
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 5.5,
+      "direction": "behind-right",
+      "bearing_deg": 128
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 6.3,
+      "direction": "behind",
+      "bearing_deg": -158,
+      "vehicle": "boxtruck",
+      "occupied": false
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 15.4,
+      "direction": "behind",
+      "bearing_deg": -165,
+      "vehicle": "sedan",
+      "occupied": false
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 24,
+      "direction": "right",
+      "bearing_deg": 109,
+      "vehicle": "sedan",
+      "occupied": false
+    }
+  ],
+  "nearbyTotal": 5,
+  "sim": {
+    "steps": 3722,
+    "fps": 13,
+    "heapMB": 179
+  },
+  "step": 25,
+  "consoleErrorsSinceLastStep": []
+}

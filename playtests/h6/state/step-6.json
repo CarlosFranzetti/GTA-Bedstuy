@@ -1,0 +1,76 @@
+{
+  "gameHour": 17.758,
+  "player": {
+    "x": 11.5,
+    "z": 36.4,
+    "headingDeg": 265,
+    "headingCompass": "west",
+    "cameraFacingDeg": 268,
+    "cameraFacing": "west"
+  },
+  "inVehicle": false,
+  "enteringCar": false,
+  "vehicle": null,
+  "walkSpeedKmh": 0,
+  "wantedStars": 0,
+  "prompt": "",
+  "street": "Throop Ave",
+  "radio": "",
+  "mission": {
+    "title": "Crate Digger",
+    "objective": "Walk into WAX DELI",
+    "step": "1/4",
+    "timer": "7:53",
+    "carrying": ""
+  },
+  "missionToast": "",
+  "missionRetry": "",
+  "cash": "$180",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": false,
+  "nearby": [
+    {
+      "type": "obstacle",
+      "distance_m": 3.8,
+      "direction": "ahead",
+      "bearing_deg": 15
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 5.3,
+      "direction": "ahead-left",
+      "bearing_deg": -37
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 6,
+      "direction": "ahead-right",
+      "bearing_deg": 50
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 9.6,
+      "direction": "ahead-right",
+      "bearing_deg": 46,
+      "vehicle": "suv",
+      "occupied": false
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 17.1,
+      "direction": "ahead",
+      "bearing_deg": 22,
+      "vehicle": "sedan",
+      "occupied": false
+    }
+  ],
+  "nearbyTotal": 6,
+  "sim": {
+    "steps": 907,
+    "fps": 10,
+    "heapMB": 179
+  },
+  "step": 6,
+  "consoleErrorsSinceLastStep": []
+}

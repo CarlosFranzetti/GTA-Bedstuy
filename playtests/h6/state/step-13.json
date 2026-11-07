@@ -1,0 +1,41 @@
+{
+  "gameHour": 17.824,
+  "player": {
+    "x": 2996.8,
+    "z": 3000.7,
+    "headingDeg": 294,
+    "headingCompass": "north-west",
+    "cameraFacingDeg": 294,
+    "cameraFacing": "north-west"
+  },
+  "inVehicle": false,
+  "enteringCar": false,
+  "vehicle": null,
+  "walkSpeedKmh": 0,
+  "wantedStars": 0,
+  "prompt": "",
+  "street": "Marcus Garvey Blvd",
+  "radio": "",
+  "mission": {
+    "title": "Crate Digger",
+    "objective": "Buy Throop Night Bus, Spin Cycle Love and Fire Escape Sunrise",
+    "step": "2/4",
+    "timer": "7:46",
+    "carrying": ""
+  },
+  "missionToast": "Bought 1/3",
+  "missionRetry": "",
+  "cash": "$166",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": true,
+  "nearby": [],
+  "nearbyTotal": 0,
+  "sim": {
+    "steps": 1597,
+    "fps": 17,
+    "heapMB": 179
+  },
+  "step": 13,
+  "consoleErrorsSinceLastStep": []
+}

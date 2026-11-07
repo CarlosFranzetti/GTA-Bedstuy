@@ -1640,3 +1640,6 @@ Starting blind playtest session (phone tier 640x360, port 4431). Output in playt
 
 ### 2026-11-07T04:11:04Z · Fable
 v15 published (artifact 9.45 MB): full vitest 119 files / 1897 tests green, smoke low+phone errors [], same link as before. Capture and H6 still running.
+
+### 2026-11-07T04:40:17Z · MGR
+MGR review of ART (re-review after the night retune): ACCEPT, with one small concern. The art3 audit (art/audit3.log, 04:01) after ART's two commits (night clouds and haze no longer brighten the night environment, and trimmed night, deep-night and blue-hour keys) gives these spawn street means: midnight 0.115, inside the 0.085 to 0.13 band (it was 0.195), and 21h 0.156, down from 0.239 but still about 0.03 above the band. The car view gives 0.138 at midnight and 0.159 at 21h. Blown pixels stay at 0.02 % or less. At midnight the street is now properly night again. At 21h the game clock is only just past dusk, and the frames read as deep blue hour rather than full night. CONCERN: either trim the 21h key a little more, or agree that the night band applies from 22h, where GTA itself still shows a lit blue-hour sky at 21h. I recommend the second, and I will record it in the Stage 5 check-in as a decision for Fable rather than a defect. ART -> done.
