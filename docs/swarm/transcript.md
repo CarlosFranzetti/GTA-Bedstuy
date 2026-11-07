@@ -1576,3 +1576,20 @@ FINAL REPORT. GTA-style camera done, not committed. Car: pivot rides on the roof
 
 ### 2026-11-07T03:44:28Z · Fable
 CAM FINAL REPORT received. MGR: please review CAM (src/core/Camera.ts, Input/Gamepad/TouchControls look-back, tests/unit/core/camera-gta.test.ts) against the brief: car 4.6/1.7/FOV 70–82, truck scaling, on-foot 3.2/1.55/64, look-back, idle cinematic, letterbox; judge the frames in scratchpad/cam/png2 and scratchpad/cam/screens. Post 'MGR review of CAM: ACCEPT/DEFECT'.
+
+### 2026-11-07T03:45:18Z · MGR
+MGR review of CAM: ACCEPT. I ran tests/unit/core and tests/unit/entities/camera.test.ts myself: 6 files and 65 tests pass, including the new camera-gta tests. Checked against the brief:
+- Car rig 4.6 m behind and 1.7 m up at rest: tested.
+- Field of view 70 at rest, widening to 82 at top speed, and 64 on foot: tested on the live camera.
+- Swing back behind the car in about 1.2 s with no more than 5 % overshoot: tested, and stable at large time steps.
+- The rig scales with vehicle size: the sedan keeps its numbers, and the 7 by 3.2 m box truck sits about 7 m back and 4.9 m up: tested.
+- On foot 3.2 m back and 1.55 m up, with a right-shoulder offset.
+- Look-back is wired to the C key, the touch LOOK button and the right-stick click (Input.ts:2, TouchControls.ts:23, Gamepad.ts:150), and tested on foot and in a car.
+- The idle cinematic starts after 8 s of stillness, does not start while moving, and stops on any input.
+- The letterbox is wired to mission starts (main.ts:299, 2.5 s).
+Frames: after-foot.png sits lower and closer behind the player with the street opening ahead, which is the GTA framing the BIBLE asked for. after-lookback.png shows the truck's own cab and the street behind, so look-back clearly works.
+On Fable's question about 4-dusk-car.png and 5-night-car.png: I think they now PASS the GTA3 bar. The truck's rear covers about a quarter of the frame's width and a bit over half its height. Both sidewalks, the road ahead, the storefronts and the sunset or night sky are visible over and around it. Following a box truck from behind looks like this in GTA3 too. More importantly for the ladder, the truck's rear is no longer a flat untextured slab: it now shows a ribbed roll-up door, tail lights and a plate. That was the one reason these two viewpoints failed in Stage 4. Moving the truck rig further back would gain little and would pull the camera into the traffic behind. If the user wants more road, a 0.5 m lower and 1 m further truck rig is a tuning choice, not a defect.
+Two notes that are not CAM's: tsc currently reports one error in ART's facade AO code (a Buffer type), which keeps the gate red until ART fixes it; and in after-car.png the 'Welcome to Bed-Stuy' location card overlaps the minimap and the mission offer on a 640x360 screen, which is a HUD layout item for Stage 5. CAM -> done.
+
+### 2026-11-07T03:45:34Z · MGR
+MGR: two Stage 4 items are confirmed closed. (1) PT4-13, getting out of a car into a wall: Player.exit now picks a free spot and the static-overlap probe is wired (commit 58dd46c). The enter-exit test that failed in 22 placements passes in my run, so MISSFIX moves from DEFECT to done. (2) RASC's three defects (Retry-After, a repeat at a round boundary, one bad artist stopping the build) are reported fixed, and ra-feed tests pass in my run. The duration unit (seconds or milliseconds) from the live ra-nyc API is still unconfirmed from here. Next: I will review CARS2, ART and PHONEGFX as their final reports land, then write the Stage 5 check-in.
