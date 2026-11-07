@@ -27,7 +27,7 @@ export interface TierConfig {
   maxBufferWidth: number;
   /** DistanceCuller range (m) for prop cells, parked cars and peds */
   cullDistance: number;
-  /** CarLod: cars farther than this from the camera use the instanced model */
+  /** CarLod: cars farther than this from the camera use the instanced model. Low and up use 66 m (with CarLod's 4 m margin the swap is never seen inside 60 m: scripts/popin-check.mjs); phone keeps 14 m for draw calls */
   carNearDist: number;
   /** InstancedMesh furniture (trees, lamps...) is thinned beyond this (m); Infinity = all drawn */
   instanceDistance: number;
@@ -65,17 +65,17 @@ export const TIER_CONFIG: Record<Quality, TierConfig> = {
     traffic: { maxMoving: 10, peds: 14, parkOccupancy: 0.3, cops: 1 },
   },
   low: {
-    maxPixelRatio: 1.25, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 32, instanceDistance: Infinity, pedDistance: 220,
+    maxPixelRatio: 1.25, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 66, instanceDistance: Infinity, pedDistance: 220,
     fog: null, rainStreaks: 600, anisotropy: 16, normalMaps: true, simpleGeometry: false, stars: true, minimapHz: 0, blobShadows: false, signBloomFps: null,
     traffic: { maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 },
   },
   medium: {
-    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 32, instanceDistance: Infinity, pedDistance: 220,
+    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 66, instanceDistance: Infinity, pedDistance: 220,
     fog: null, rainStreaks: 1200, anisotropy: 16, normalMaps: true, simpleGeometry: false, stars: true, minimapHz: 0, blobShadows: false, signBloomFps: null,
     traffic: { maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 },
   },
   high: {
-    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 32, instanceDistance: Infinity, pedDistance: 220,
+    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 66, instanceDistance: Infinity, pedDistance: 220,
     fog: null, rainStreaks: 2000, anisotropy: 16, normalMaps: true, simpleGeometry: false, stars: true, minimapHz: 0, blobShadows: false, signBloomFps: null,
     traffic: { maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 },
   },

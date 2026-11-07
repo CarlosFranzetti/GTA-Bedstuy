@@ -156,6 +156,9 @@ describe('yards and recesses behind the building line are not traps', () => {
   const { physics, world } = realPhysics();
   const grid = world.grid;
   const R_IN = 0.4, R_OUT = 0.55, CELL = 0.15, DEPTH = 3.5;
+  /** the raster runs this many cells past both ends of the edge so a way out around a corner counts (cells there are not reported) */
+  const MARGIN = Math.round(5 / CELL);
+  const key = (i: number, j: number): number => (i + 5000) * 1000 + j;
 
   interface Strip { street: string; side: string; edge: string; a: Vec2; dx: number; dz: number; nx: number; nz: number; len: number; half: number; }
   const strips: Strip[] = [];
@@ -181,8 +184,8 @@ describe('yards and recesses behind the building line are not traps', () => {
     const nd = Math.floor(s.len / CELL), nu = Math.floor((2 * s.half + DEPTH) / CELL);
     const memo = new Map<number, boolean>();
     const free = (i: number, j: number): boolean => {
-      if (i < 0 || j < 0 || i > nd || j > nu) return false;
-      const k = i * 1000 + j;
+      if (i < -MARGIN || j < 0 || i > nd + MARGIN || j > nu) return false;
+      const k = key(i, j);
       let v = memo.get(k);
       if (v === undefined) {
         const d = i * CELL, u = -s.half + j * CELL;
@@ -193,9 +196,9 @@ describe('yards and recesses behind the building line are not traps', () => {
     };
     const seen = new Set<number>();
     const queue: Array<[number, number]> = [];
-    const push = (i: number, j: number): void => { const k = i * 1000 + j; if (!seen.has(k) && free(i, j)) { seen.add(k); queue.push([i, j]); } };
+    const push = (i: number, j: number): void => { const k = key(i, j); if (!seen.has(k) && free(i, j)) { seen.add(k); queue.push([i, j]); } };
     if (seeds) for (const [i, j] of seeds) push(i, j);
-    else for (let i = 0; i <= nd; i++) for (let j = 0; j * CELL <= s.half; j++) push(i, j); // the clear sidewalk, up to the building line
+    else for (let i = -MARGIN; i <= nd + MARGIN; i++) for (let j = 0; j * CELL <= s.half; j++) push(i, j); // the clear sidewalk, up to the building line
     while (queue.length) {
       const [i, j] = queue.pop()!;
       push(i + 1, j); push(i - 1, j); push(i, j + 1); push(i, j - 1);
@@ -211,10 +214,10 @@ describe('yards and recesses behind the building line are not traps', () => {
       const trapped: Array<[number, number]> = [];
       // a cell hugging a wall is within reach of the fat body's lane 0.15 m away: only count cells with no `out` cell within 0.3 m
       const nearOut = (i: number, j: number): boolean => {
-        for (let di = -2; di <= 2; di++) for (let dj = -2; dj <= 2; dj++) if (out.has((i + di) * 1000 + (j + dj))) return true;
+        for (let di = -2; di <= 2; di++) for (let dj = -2; dj <= 2; dj++) if (out.has(key(i + di, j + dj))) return true;
         return false;
       };
-      for (const k of inn) { const i = Math.floor(k / 1000), j = k % 1000; if (j > lineJ && !nearOut(i, j)) trapped.push([i, j]); }
+      for (const k of inn) { const i = Math.floor(k / 1000) - 5000, j = k % 1000; if (i >= 0 && i <= Math.floor(s.len / CELL) && j > lineJ && !nearOut(i, j)) trapped.push([i, j]); }
       if (trapped.length < 12) continue; // a few stray cells are crumbs, not a room
       const ds = trapped.map(([i]) => i * CELL);
       const mid = trapped[Math.floor(trapped.length / 2)];
@@ -244,7 +247,7 @@ describe('yards and recesses behind the building line are not traps', () => {
       const reach = flood(s, R_OUT);
       let ok = false;
       for (let di = -3; di <= 3 && !ok; di++) for (let dj = -3; dj <= 3 && !ok; dj++) {
-        if (reach.has((i0 + di) * 1000 + (j0 + dj))) ok = true; // sits in a cell connected to the open sidewalk
+        if (reach.has(key(i0 + di, j0 + dj))) ok = true; // sits in a cell connected to the open sidewalk
       }
       expect(ok, `(${px},${pz}) is in a closed pocket for a ${R_OUT} m body`).toBe(true);
     }
