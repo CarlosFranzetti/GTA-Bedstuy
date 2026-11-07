@@ -37,7 +37,7 @@ Scripted self-test without a model: `scripts/swarm-render.sh node scripts/playte
 | `{"key":"KeyW","ms":1500}` | hold a key for 1500 game milliseconds |
 | `{"keys":["KeyW","ShiftLeft"],"ms":2000}` | hold several keys together (run forward) |
 | `{"key":"KeyF","tap":true}` | press and release once (use for F, E, R, X, H) |
-| `{"look":{"dx":200,"dy":0}}` | turn the camera: `dx` > 0 turns right, about 7 pixels per degree (`dx` 650 is a half turn); `dy` > 0 looks down |
+| `{"look":{"dx":200,"dy":0}}` | turn the camera: `dx` > 0 turns right, about 7 pixels per degree (`dx` 630 is a quarter turn, 1260 a half turn); `dy` > 0 looks down |
 | `{"key":"KeyW","ms":2000,"look":{"dx":-150,"dy":0}}` | hold and turn the camera smoothly during the hold (steer round a corner) |
 | `{"wait":800}` | let the game run for 800 ms with no input |
 

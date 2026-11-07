@@ -1,0 +1,41 @@
+{
+  "gameHour": 18.844,
+  "player": {
+    "x": 2997,
+    "z": 3000.4,
+    "headingDeg": 293,
+    "headingCompass": "north-west",
+    "cameraFacingDeg": 293,
+    "cameraFacing": "north-west"
+  },
+  "inVehicle": false,
+  "enteringCar": false,
+  "vehicle": null,
+  "walkSpeedKmh": 0,
+  "wantedStars": 0,
+  "prompt": "",
+  "street": "Marcus Garvey Blvd",
+  "radio": "",
+  "mission": {
+    "title": "Crate Digger",
+    "objective": "Ms. Odette wraps your records",
+    "step": "3/4",
+    "timer": "7:37",
+    "carrying": ""
+  },
+  "missionToast": "",
+  "missionRetry": "",
+  "cash": "$137",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": true,
+  "nearby": [],
+  "nearbyTotal": 0,
+  "sim": {
+    "steps": 7606,
+    "fps": 14,
+    "heapMB": 179
+  },
+  "step": 43,
+  "consoleErrorsSinceLastStep": []
+}

@@ -1,0 +1,70 @@
+{
+  "gameHour": 18.874,
+  "player": {
+    "x": 9.2,
+    "z": 34,
+    "headingDeg": 270,
+    "headingCompass": "west",
+    "cameraFacingDeg": 164,
+    "cameraFacing": "south"
+  },
+  "inVehicle": false,
+  "enteringCar": false,
+  "vehicle": null,
+  "walkSpeedKmh": 0,
+  "wantedStars": 0,
+  "prompt": "F  Enter WAX DELI",
+  "street": "Throop Ave",
+  "radio": "",
+  "mission": null,
+  "missionToast": "",
+  "missionRetry": "",
+  "cash": "$223",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": false,
+  "nearby": [
+    {
+      "type": "obstacle",
+      "distance_m": 2,
+      "direction": "ahead-right",
+      "bearing_deg": 58
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 2.6,
+      "direction": "behind",
+      "bearing_deg": 157
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 6,
+      "direction": "ahead-right",
+      "bearing_deg": 33
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 6.1,
+      "direction": "behind-right",
+      "bearing_deg": 148,
+      "vehicle": "sedan",
+      "occupied": false
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 17.2,
+      "direction": "behind",
+      "bearing_deg": -179,
+      "vehicle": "sedan",
+      "occupied": false
+    }
+  ],
+  "nearbyTotal": 5,
+  "sim": {
+    "steps": 8794,
+    "fps": 11,
+    "heapMB": 179
+  },
+  "step": 51,
+  "consoleErrorsSinceLastStep": []
+}

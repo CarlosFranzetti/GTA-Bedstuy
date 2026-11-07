@@ -1,0 +1,41 @@
+{
+  "gameHour": 18.844,
+  "player": {
+    "x": 2999.4,
+    "z": 3003.6,
+    "headingDeg": 164,
+    "headingCompass": "south",
+    "cameraFacingDeg": 164,
+    "cameraFacing": "south"
+  },
+  "inVehicle": false,
+  "enteringCar": false,
+  "vehicle": null,
+  "walkSpeedKmh": 0,
+  "wantedStars": 0,
+  "prompt": "F  Leave",
+  "street": "Marcus Garvey Blvd",
+  "radio": "",
+  "mission": {
+    "title": "Crate Digger",
+    "objective": "Head back outside",
+    "step": "4/4",
+    "timer": "7:24",
+    "carrying": ""
+  },
+  "missionToast": "",
+  "missionRetry": "",
+  "cash": "$143",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": false,
+  "nearby": [],
+  "nearbyTotal": 0,
+  "sim": {
+    "steps": 8686,
+    "fps": 19,
+    "heapMB": 179
+  },
+  "step": 50,
+  "consoleErrorsSinceLastStep": []
+}

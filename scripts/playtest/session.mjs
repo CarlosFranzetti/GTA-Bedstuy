@@ -48,7 +48,7 @@ function parseArgs(argv) {
  * Keys the tester may use (everything the game actually reads). Escape is allowed so a panel (shop, decks) can be left,
  * but the runner drops it unless `<body>` carries `ui-panel-open`, so it can never open the pause menu.
  */
-export const ALLOWED_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight', 'Space', 'KeyF', 'KeyE', 'KeyR', 'KeyX', 'KeyH', 'KeyP', 'Enter', 'Escape', 'Backspace']);
+export const ALLOWED_KEYS = new Set(['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ShiftLeft', 'ShiftRight', 'Space', 'KeyF', 'KeyE', 'KeyR', 'KeyX', 'KeyH', 'KeyP', 'KeyN', 'KeyQ', 'KeyC', 'Enter', 'Escape', 'Backspace']);
 const MAX_HOLD_MS = 10_000, MAX_STEP_MS = 25_000, MAX_ACTIONS = 24, FIXED_MS = 1000 / 60;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

@@ -2,8 +2,12 @@
 //
 // Usage:  scripts/swarm-render.sh node scripts/popin-check.mjs [--port 4434] [--q low] [--len 80] [--stepm 1] [--radius 60]
 //                                    [--near <m>]  override CarLod's near/far switch distance (to test a threshold change)
-//                                    [--from-z 50] [--eye 1.7] [--dist <dir>] [--no-build] [--out <file.json>] [--width 640] [--height 360]
+//                                    [--route throop-north|kosciuszko-east|avenue-drive] [--from-z 50] [--eye 1.7] [--dist <dir>] [--no-build] [--out <file.json>] [--width 640] [--height 360]
 //
+// Routes (--route, default throop-north; each sets its own start, direction, length, step and walking/driving speed unless overridden):
+//   throop-north     walk 80 m north up Throop Ave (x 0) from z 50, one sim step per metre
+//   kosciuszko-east  walk 80 m east along the south pavement of Kosciuszko St (z +7) from x 20 at 1.4 m/s (sim runs 43 steps per metre)
+//   avenue-drive     Throop Ave at car speed: 200 m north from z 150 at 15 m/s, eye 2.4 m, one frame per 1.5 m (0.1 s of sim)
 // The camera starts at (0, eye, from-z) on Throop Ave (x = 0, the N-S street) and walks `len` metres north (-z) in `stepm` steps,
 // facing north. The player is teleported along with it so traffic and pedestrians spawn and despawn the way they do in play.
 // After every step one frame is drawn by hand (renderOnce) so the culler and CarLod run, then every mesh in the scene is classified:
@@ -28,17 +32,18 @@ const { chromium } = createRequire(import.meta.url)('playwright');
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 function parseArgs(argv) {
-  const o = { port: 4434, q: 'low', len: 80, stepm: 1, radius: 60, fromZ: 50, near: null, eye: 1.7, width: 640, height: 360, build: true, dist: null, out: null };
+  const o = { port: 4434, q: 'low', len: 80, stepm: 1, radius: 60, fromZ: 50, near: null, eye: 1.7, width: 640, height: 360, route: 'throop-north', speed: null, len0: false, build: true, dist: null, out: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--port') o.port = Number(argv[++i]);
+    if (a === '--route') o.route = argv[++i];
+    else if (a === '--port') o.port = Number(argv[++i]);
     else if (a === '--q') o.q = argv[++i];
-    else if (a === '--len') o.len = Number(argv[++i]);
-    else if (a === '--stepm') o.stepm = Number(argv[++i]);
+    else if (a === '--len') { o.len = Number(argv[++i]); o.lenSet = true; }
+    else if (a === '--stepm') { o.stepm = Number(argv[++i]); o.stepSet = true; }
     else if (a === '--radius') o.radius = Number(argv[++i]);
     else if (a === '--near') o.near = Number(argv[++i]);
-    else if (a === '--from-z') o.fromZ = Number(argv[++i]);
-    else if (a === '--eye') o.eye = Number(argv[++i]);
+    else if (a === '--from-z') { o.fromZ = Number(argv[++i]); o.fromSet = true; }
+    else if (a === '--eye') { o.eye = Number(argv[++i]); o.eyeSet = true; }
     else if (a === '--width') o.width = Number(argv[++i]);
     else if (a === '--height') o.height = Number(argv[++i]);
     else if (a === '--dist') { o.dist = resolve(argv[++i]); o.build = false; }
@@ -48,6 +53,18 @@ function parseArgs(argv) {
   return o;
 }
 const opt = parseArgs(process.argv.slice(2));
+const ROUTES = {
+  'throop-north': { x: 0, z: 50, dx: 0, dz: -1, len: 80, stepm: 1, speed: null, eye: 1.7, label: 'Throop Ave northbound walk' },
+  'kosciuszko-east': { x: 20, z: 7, dx: 1, dz: 0, len: 80, stepm: 1, speed: 1.4, eye: 1.7, label: 'Kosciuszko St eastbound walk (south pavement)' },
+  'avenue-drive': { x: 0, z: 150, dx: 0, dz: -1, len: 200, stepm: 1.5, speed: 15, eye: 2.4, label: 'Throop Ave northbound drive at 15 m/s' },
+};
+const route = ROUTES[opt.route];
+if (!route) { console.error('[popin] unknown --route', opt.route, 'try', Object.keys(ROUTES).join(', ')); process.exit(1); }
+if (!opt.lenSet) opt.len = route.len;
+if (!opt.stepSet) opt.stepm = route.stepm;
+if (!opt.eyeSet) opt.eye = route.eye;
+if (opt.fromSet) { if (route.dx === 0) route.z = opt.fromZ; else route.x = opt.fromZ; }
+opt.fromZ = route.dx === 0 ? route.z : route.x;
 const log = (...a) => console.log('[popin]', ...a);
 
 let distDir = opt.dist ?? resolve(ROOT, 'dist');
@@ -119,8 +136,9 @@ try {
           x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); z0 = Math.min(z0, v.z); z1 = Math.max(z1, v.z);
         }
         const dist = Math.hypot(Math.max(x0 - cx, 0, cx - x1), Math.max(z0 - cz, 0, cz - z1));
-        // camera at (cx, eye, cz) facing -z: depth = cz - c.z, right = +x
-        const depth = cz - c.z, lat = c.x - cx, up = c.y - o.eye;
+        // camera at (cx, eye, cz) facing (dx, dz): depth along it, right = (-dz, dx) (north -> +x, east -> +z)
+        const rx = c.x - cx, rz = c.z - cz;
+        const depth = rx * o.route.dx + rz * o.route.dz, lat = rx * -o.route.dz + rz * o.route.dx, up = c.y - o.eye;
         const slack = r * 1.5;
         const inFrustum = depth + r > 0.1 && depth - r < 900 && Math.abs(lat) <= depth * TAN * aspect + slack && Math.abs(up) <= depth * TAN + slack;
         const hasItems = !m.isInstancedMesh || m.count > 0;
@@ -133,17 +151,18 @@ try {
     };
 
     const steps = Math.round(o.len / o.stepm);
-    const offenders = new Map(); // uuid -> row
+    const offenders = new Map();
     let prev = null;
     let meshCount = 0;
     const calls = [];
     for (let i = 0; i <= steps; i++) {
-      const z = o.fromZ - i * o.stepm;
-      d.teleport(0, z, 0); // heading 0 = north
-      d.step(1);
-      d.setFreeCam(0, o.eye, z, 0, o.eye, z - 20);
+      const R = o.route;
+      const x = R.x + R.dx * i * o.stepm, z = R.z + R.dz * i * o.stepm;
+      d.teleport(x, z, Math.atan2(R.dx, -R.dz)); // heading 0 = north
+      d.step(R.speed ? Math.max(1, Math.round((o.stepm / R.speed) * 60)) : 1); // real time between frames at the route's speed
+      d.setFreeCam(x, o.eye, z, x + R.dx * 20, o.eye, z + R.dz * 20);
       calls.push(d.renderOnce(1, 1 / 60).total); gl.finish();
-      const now = classify(0, z);
+      const now = classify(x, z);
       meshCount = Math.max(meshCount, now.size);
       if (prev) {
         for (const [id, s] of now) {
@@ -153,8 +172,8 @@ try {
           const switched = p && p.inFrustum; // (a) was in view but hidden
           if (!switched && !s.mid) continue; // (b) appearing at the screen edge is just frustum entry
           const row = offenders.get(id);
-          if (!row) offenders.set(id, { name: s.name, dist: +s.dist.toFixed(1), step: i, z, reason: switched ? 'visibility switch' : p ? 'appeared in view' : 'spawned in view', count: 1 });
-          else { row.count++; if (s.dist < row.dist) { row.dist = +s.dist.toFixed(1); row.step = i; row.z = z; } }
+          if (!row) offenders.set(id, { name: s.name, dist: +s.dist.toFixed(1), step: i, z: R.dx === 0 ? z : x, reason: switched ? 'visibility switch' : p ? 'appeared in view' : 'spawned in view', count: 1 });
+          else { row.count++; if (s.dist < row.dist) { row.dist = +s.dist.toFixed(1); row.step = i; row.z = R.dx === 0 ? z : x; } }
         }
       }
       prev = now;
@@ -167,7 +186,7 @@ try {
       else { e.meshes++; e.count += r.count; if (r.dist < e.dist) { e.dist = r.dist; e.step = r.step; e.z = r.z; } }
     }
     return { rows: [...byName.values()].sort((a, b) => a.dist - b.dist), steps, meshCount, calls };
-  }, { len: opt.len, stepm: opt.stepm, radius: opt.radius, fromZ: opt.fromZ, near: opt.near, eye: opt.eye, width: opt.width, height: opt.height });
+  }, { route, len: opt.len, stepm: opt.stepm, radius: opt.radius, fromZ: opt.fromZ, near: opt.near, eye: opt.eye, width: opt.width, height: opt.height });
   await page.close().catch(() => {});
 } catch (e) {
   console.error('[popin] FAIL', String(e.message ?? e).slice(0, 500));
@@ -180,11 +199,11 @@ try {
 
 if (result) {
   const { rows, steps, meshCount, calls } = result;
-  log(`quality ${opt.q}, ${steps + 1} frames, camera z ${opt.fromZ} -> ${opt.fromZ - opt.len} on Throop Ave (x 0), eye ${opt.eye} m, radius ${opt.radius} m, up to ${meshCount} meshes`);
+  log(`quality ${opt.q}, ${steps + 1} frames, route ${opt.route} (${route.label}), camera ${route.dx === 0 ? 'z' : 'x'} ${opt.fromZ} -> ${opt.fromZ + (route.dx + route.dz) * opt.len}, eye ${opt.eye} m, radius ${opt.radius} m, up to ${meshCount} meshes`);
   log(`draw calls per frame: min ${Math.min(...calls)}, mean ${Math.round(calls.reduce((a, b) => a + b, 0) / calls.length)}, max ${Math.max(...calls)}${opt.near ? `, CarLod near ${opt.near} m` : ''}`);
   if (!rows.length) console.log('no mesh first appeared within the radius');
   else {
-    console.log('\n| # | name | reason | nearest (m) | at step / cam z | meshes | sightings |');
+    console.log('\n| # | name | reason | nearest (m) | at step / cam pos | meshes | sightings |');
     console.log('|---|---|---|---|---|---|---|');
     rows.forEach((r, i) => console.log(`| ${i + 1} | ${r.name} | ${r.reason} | ${r.dist} | ${r.step} / ${r.z} | ${r.meshes} | ${r.count} |`));
   }

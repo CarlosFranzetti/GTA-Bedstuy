@@ -1,0 +1,72 @@
+{
+  "gameHour": 19.125,
+  "player": {
+    "x": 3.1,
+    "z": 0.3,
+    "headingDeg": 90,
+    "headingCompass": "east",
+    "cameraFacingDeg": 0,
+    "cameraFacing": "north"
+  },
+  "inVehicle": false,
+  "enteringCar": false,
+  "vehicle": null,
+  "walkSpeedKmh": 0,
+  "wantedStars": 0,
+  "prompt": "F  Enter car",
+  "street": "Kosciusko St",
+  "radio": "",
+  "mission": null,
+  "missionToast": "",
+  "missionRetry": "",
+  "cash": "$223",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": false,
+  "nearby": [
+    {
+      "type": "vehicle",
+      "distance_m": 1.5,
+      "direction": "right",
+      "bearing_deg": 90,
+      "vehicle": "sedan",
+      "occupied": false
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 3.2,
+      "direction": "left",
+      "bearing_deg": -84
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 3.2,
+      "direction": "left",
+      "bearing_deg": -84
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 3.2,
+      "direction": "left",
+      "bearing_deg": -84
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 3.2,
+      "direction": "left",
+      "bearing_deg": -84
+    }
+  ],
+  "nearbyTotal": 3064,
+  "sim": {
+    "steps": 9697,
+    "fps": 10,
+    "heapMB": 179
+  },
+  "step": 56,
+  "consoleErrorsSinceLastStep": [],
+  "notes": [
+    "ignored unknown key(s): KeyQ",
+    "ignored an action with nothing to do"
+  ]
+}

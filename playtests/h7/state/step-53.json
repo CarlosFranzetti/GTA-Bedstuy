@@ -1,0 +1,69 @@
+{
+  "gameHour": 19.053,
+  "player": {
+    "x": 4.6,
+    "z": 0.3,
+    "headingDeg": 0,
+    "headingCompass": "north",
+    "cameraFacingDeg": 0,
+    "cameraFacing": "north"
+  },
+  "inVehicle": true,
+  "enteringCar": false,
+  "vehicle": {
+    "type": "sedan",
+    "speedKmh": 0
+  },
+  "walkSpeedKmh": 0,
+  "wantedStars": 0,
+  "prompt": "F  Exit car",
+  "street": "Kosciusko St",
+  "radio": "WBED 88.9 — Brownstone Boom-Bap",
+  "mission": null,
+  "missionToast": "",
+  "missionRetry": "",
+  "cash": "$223",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": false,
+  "nearby": [
+    {
+      "type": "obstacle",
+      "distance_m": 4.6,
+      "direction": "left",
+      "bearing_deg": -86
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 4.6,
+      "direction": "left",
+      "bearing_deg": -86
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 4.6,
+      "direction": "left",
+      "bearing_deg": -86
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 4.6,
+      "direction": "left",
+      "bearing_deg": -86
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 4.6,
+      "direction": "left",
+      "bearing_deg": -86
+    }
+  ],
+  "nearbyTotal": 3063,
+  "sim": {
+    "steps": 9437,
+    "fps": 12,
+    "heapMB": 179
+  },
+  "step": 53,
+  "consoleErrorsSinceLastStep": []
+}

@@ -173,7 +173,7 @@ async function pedAudit() {
         }
         rows.push({ h, ...rec });
       }
-      return { rows, pts, budget: T.pedTarget };
+      return { rows, pts, budgetFull: T.density.peds };
     }, o);
     await page.close().catch(() => {});
   } finally { clearTimeout(hardStop); await browser.close(); preview.kill(); }
@@ -182,13 +182,11 @@ async function pedAudit() {
   // the share of the map's pavement inside the radius around the point (not known here), so print the map-wide target and the measured total.
   const hm = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
   console.log(`\n## Peds within ${o.radius} m at quality ${o.q} (sample window ${o.window} s per point; points: spawn ${res.pts.spawn.x.toFixed(0)},${res.pts.spawn.z.toFixed(0)}  other ${res.pts.other.x.toFixed(0)},${res.pts.other.z.toFixed(0)})`);
-  console.log('| hour | BIBLE factor | target total | actual total | spawn mean (min-max) | spawn +in/-out | spawn max gap s | other mean (min-max) | other +in/-out | other max gap s |');
+  console.log(`| hour | BIBLE factor (budget ${res.budgetFull}) | target total | actual total | spawn mean (min-max) | spawn +in/-out | spawn max gap s | other mean (min-max) | other +in/-out | other max gap s |`);
   console.log('|---|---|---|---|---|---|---|---|---|---|');
   const bursts = [], empties = [];
-  const pedHourFactor = res.rows.length ? null : null;
   for (const r of res.rows) {
-    const f = r.spawn.target / Math.max(1, res.budgetFull ?? 1);
-    console.log(`| ${hm(r.h)} | ${r.spawn.target} of ${res.budget >= r.spawn.target ? '' : ''}budget | ${r.spawn.target} | ${r.spawn.total} | ${r.spawn.mean.toFixed(1)} (${r.spawn.min}-${r.spawn.max}) | +${r.spawn.arrive}/-${r.spawn.depart} | ${r.spawn.maxGap} | ${r.other.mean.toFixed(1)} (${r.other.min}-${r.other.max}) | +${r.other.arrive}/-${r.other.depart} | ${r.other.maxGap} |`);
+    console.log(`| ${hm(r.h)} | ${(r.spawn.target / Math.max(1, res.budgetFull)).toFixed(2)} | ${r.spawn.target} | ${r.spawn.total} | ${r.spawn.mean.toFixed(1)} (${r.spawn.min}-${r.spawn.max}) | +${r.spawn.arrive}/-${r.spawn.depart} | ${r.spawn.maxGap} | ${r.other.mean.toFixed(1)} (${r.other.min}-${r.other.max}) | +${r.other.arrive}/-${r.other.depart} | ${r.other.maxGap} |`);
     for (const k of ['spawn', 'other']) {
       const c = r[k];
       if (c.arrive + c.depart >= 6 && Math.max(c.arrive, c.depart) >= 4) bursts.push(`${hm(r.h)} ${k}: +${c.arrive}/-${c.depart} in ${o.window} s`);

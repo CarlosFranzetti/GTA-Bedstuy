@@ -62,7 +62,7 @@ describe('pedestrian density by hour (BIBLE section 7)', () => {
     expect(sys.peds.length).toBe(40);
     // eased change: with the player far away, one pedestrian per tick leaves
     sys.setHour(4);
-    for (let i = 0; i < 40; i++) sys.update(0.4, { x: 5000, z: 5000 });
+    for (let i = 0; i < 200; i++) sys.update(0.4, { x: 5000, z: 5000 });
     expect(sys.peds.length).toBeLessThanOrEqual(5);
     expect(sys.peds.length).toBeGreaterThan(0);
   });

@@ -1791,3 +1791,12 @@ Progress: scripts/crowd-audit.mjs --clutter written (SSR, no browser). 2 of 40 f
 
 ### 2026-11-07T05:39:05Z · GFX2
 Code in (CarPaintFx.ts clear coat in PaletteCarPaint, NightBounce.ts additive sign/window/door bounce driven from NightLights), tsc + render/entities tests green. Queued one batched render job (medium 7 views before/after, low 4/5/6 before/after, light-audit 22h/0h before/after); waiting on the render lock behind H7/H8.
+
+### 2026-11-07T05:47:31Z · CROWD
+Progress: new src/entities/PedestrianSpawn.ts scheduler (paced add/remove, steady recycle of far peds into a 62-115 m ring) wired into TrafficSystem + 5 unit tests; popin-check.mjs now has --route throop-north|kosciuszko-east|avenue-drive. Waiting on the render lock for baseline + after audits (another lane holds it).
+
+### 2026-11-07T06:07:46Z · H7
+FINAL: 58 steps, video playtests/h7/playtest.mp4 (cut, 22.8 min), transcript playtests/h7/transcript.md. HOME never found (N key is not allowed by the harness), so no turntables or decks. Crate Digger mission completed at WAX DELI (paid out). One sedan drive done. Full report delivered to caller.
+
+### 2026-11-07T06:08:30Z · Fable
+H7 FINAL REPORT is in (playtests/h7). Harness fixes applied by me: KeyN/KeyQ/KeyC added to the whitelist, PLAYTEST.md half-turn corrected (1260 px). Game findings go to a new lane SHOP7 (port 4439): sell confirm, bins first-Enter, scroll indicator, buy prompt at the crates, Q/E hint vs preview, 'outside inside' goal line, radio caption over the exit prompt, stale post-mission text, HOME unmissable. MGR: triage H7 as PT7-x; H8 still running.

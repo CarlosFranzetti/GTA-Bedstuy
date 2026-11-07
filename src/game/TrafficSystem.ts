@@ -5,6 +5,7 @@ import type { Rng } from '@/core/Rng';
 import type {
   GraphNode, GridModel, IMaterialLibrary, IVehicle, IWorld2D, LaneNode, Lot, VehicleType,
 } from '@/world/types';
+import { PedSpawnScheduler, RECYCLE_DIST, REMOVE_CLEAR, SPAWN_RING_MAX, SPAWN_RING_MIN } from '@/entities/PedestrianSpawn';
 import { Pedestrian, type PedCrossing, type PedEnvironment, type StoopSpot } from '@/entities/Pedestrian';
 import { TrafficAgent } from '@/entities/TrafficAgent';
 import { VEHICLE_SPECS } from '@/entities/Vehicle';
@@ -154,7 +155,7 @@ const STOOP_OUT = 1.1;
 const DOOR_OUT = 1.3;
 /** a pedestrian is added / removed no closer to the player than this (m), so the crowd changes out of sight */
 const PED_SWAP_CLEAR = 35;
-const PED_TICK = 0.4;
+const PED_TICK = 0.25;
 /** most new pedestrians appear within this range of the player (m) */
 const PED_NEAR = 110;
 const PED_NEAR_SHARE = 0.75;
@@ -198,6 +199,7 @@ export class TrafficSystem {
   /** hour-of-day scaling of the pedestrian budget (1 until `setHour` is called) and the ticker that eases toward it */
   private hourFactor = 1;
   private pedTimer = 0;
+  private readonly pedSched = new PedSpawnScheduler();
   private playerAt: Vec2;
 
   constructor(
@@ -253,6 +255,8 @@ export class TrafficSystem {
   }
 
   /** Pedestrians out right now: the tier budget scaled by the hour of day. */
+  /** Same, as a real number (the scheduler rounds it with hysteresis). */
+  get pedTargetF(): number { return Math.max(this.density.peds > 0 ? 1 : 0, this.density.peds * this.hourFactor); }
   get pedTarget(): number { return Math.max(this.density.peds > 0 ? 1 : 0, Math.round(this.density.peds * this.hourFactor)); }
 
   /**
@@ -280,6 +284,50 @@ export class TrafficSystem {
       node = nodes[this.rng.pick(ids)];
     }
     return node;
+  }
+
+  /** A sidewalk node in the spawn ring around the player (out of the near view, within walking-in reach); falls back to any node far enough. */
+  private pickRingNode(ids: string[]): GraphNode {
+    const nodes = this.grid.sidewalks.nodes;
+    let node = nodes[this.rng.pick(ids)];
+    for (let k = 0; k < 48; k++) {
+      const d = dist(node.pos, this.playerAt);
+      if (d >= SPAWN_RING_MIN && d <= SPAWN_RING_MAX) return node;
+      node = nodes[this.rng.pick(ids)];
+    }
+    return this.pickPedNode(ids, PED_SWAP_CLEAR, false);
+  }
+
+  /** The farthest free (not grouped, not down) pedestrian and its distance from the player, or null. */
+  private farthestLoner(): { i: number; d: number } | null {
+    let best = -1, bd = -1;
+    for (let i = 0; i < this.peds.length; i++) {
+      const p = this.peds[i];
+      if (!p.isFree) continue;
+      const d = dist(p.body.pos, this.playerAt);
+      if (d > bd) { bd = d; best = i; }
+    }
+    return best < 0 ? null : { i: best, d: bd };
+  }
+
+  private removePedAt(i: number): void {
+    const [p] = this.peds.splice(i, 1);
+    this.world.removeBody(p.body.id);
+    p.dispose();
+  }
+
+  /**
+   * One scheduler tick (PedestrianSpawn.ts): adds one pedestrian in the spawn ring, removes the farthest loner (out of sight only),
+   * or relocates a loner who wandered beyond RECYCLE_DIST into the ring, so the crowd near the player holds steady.
+   */
+  private stepPeds(dt: number): void {
+    const ids = Object.keys(this.grid.sidewalks.nodes);
+    if (ids.length === 0) return;
+    const far = this.farthestLoner();
+    const act = this.pedSched.tick({ dt, count: this.peds.length, target: this.pedTargetF, hasFar: !!far && far.d > RECYCLE_DIST, rand: this.rng.next() });
+    if (act === 'add') this.addPed(this.pickRingNode(ids), this.crosswalkNodeIds());
+    else if (act === 'remove') { if (far && far.d >= REMOVE_CLEAR) this.removePedAt(far.i); }
+    else if (act === 'recycle' && far) { this.removePedAt(far.i); this.addPed(this.pickRingNode(ids), this.crosswalkNodeIds()); }
   }
 
   /** Adds / removes pedestrians toward `pedTarget`: all at once, or one per call (far from the player first). */
@@ -317,7 +365,7 @@ export class TrafficSystem {
     this.lights.update(dt);
     this.playerAt = playerPos;
     this.pedTimer += dt;
-    if (this.pedTimer >= PED_TICK) { this.pedTimer = 0; if (this.peds.length !== this.pedTarget) this.fitPeds(false); }
+    if (this.pedTimer >= PED_TICK) { const e = this.pedTimer; this.pedTimer = 0; this.stepPeds(e); }
     // drive
     for (let i = this.active.length - 1; i >= 0; i--) {
       const a = this.active[i];
@@ -447,7 +495,9 @@ export class TrafficSystem {
     }
   }
 
+  private crosswalkIdCache: Set<string> | null = null;
   private crosswalkNodeIds(): Set<string> {
+    if (this.crosswalkIdCache) return this.crosswalkIdCache;
     const set = new Set<string>();
     for (const id in this.grid.sidewalks.nodes) {
       const n = this.grid.sidewalks.nodes[id];
@@ -455,6 +505,7 @@ export class TrafficSystem {
         if (dist(n.pos, cw.a) < 1.5 || dist(n.pos, cw.b) < 1.5) { set.add(id); break; }
       }
     }
+    this.crosswalkIdCache = set;
     return set;
   }
 
