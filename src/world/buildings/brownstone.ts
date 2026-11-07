@@ -15,6 +15,8 @@ import {
 import { lotLook, partyWallDetail, roofDetails } from './partyWall';
 import type { Hole, LotCtx, LotOutput, MaterialFamily, Storeys, V3 } from './facade';
 import { DOOR_FENCE_GAP_HALF, doorLocalXs } from '../interiors/doorGaps';
+/** Half width of the basement-entry gap in the areaway fence. 0.5 (a 1.0 m gate) let a wall-hugging player walk into the yard and not back out (H6 P1); 0.8 leaves 1.6 m. */
+const ENTRY_GAP_HALF = 0.8;
 
 export interface BrownstoneOpts {
   style: 'brownstone' | 'rowhouse';
@@ -185,7 +187,7 @@ export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
     if (!lite && S >= 2) {
       // a shop door on this building line (Wax Deli) opens a third gap so the doorstep is walkable
       const doorGaps = doorLocalXs(lot).map((dx) => [dx - DOOR_FENCE_GAP_HALF, dx + DOOR_FENCE_GAP_HALF]);
-      const gaps = [[x0 - 0.05, x1 + 0.05], [entryX - 0.5, entryX + 0.5], ...doorGaps].sort((p, q) => p[0] - q[0]);
+      const gaps = [[x0 - 0.05, x1 + 0.05], [entryX - ENTRY_GAP_HALF, entryX + ENTRY_GAP_HALF], ...doorGaps].sort((p, q) => p[0] - q[0]);
       let cx = 0.05;
       const run = (x0f: number, x1f: number): void => {
         if (x1f - x0f < 0.05) return; // same cut-off as ironFenceRun: no quad, no collider
