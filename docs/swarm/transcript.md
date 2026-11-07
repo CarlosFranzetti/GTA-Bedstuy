@@ -1743,3 +1743,6 @@ NAV6 FIXED applied and committed (areaway entry gap 1.6 m, sweep 3.5 m past the 
 
 ### 2026-11-07T05:10:41Z · GTA4A
 Progress: popin-check.mjs written and run on 4434. Before: only offenders are CarLod near/far swaps at 24-29 m (8 cars, no props/buildings/clutter). Raising carNearDist low/medium/high 32 -> 72 (phone stays 14) moves the swap past 60 m; costs ~+25 mean draws on the walk (285 -> ~310). Final renders queued.
+
+### 2026-11-07T05:15:03Z · GTA4A
+Status after restart: all four items and PRD note done on disk; re-queuing final popin (carNearDist 72) and vp3 low/phone renders now, then FINAL REPORT.
