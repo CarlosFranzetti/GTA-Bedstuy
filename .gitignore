@@ -15,3 +15,7 @@ playtests/*/ready-*
 # raw playtest recordings (the cut mp4 is kept)
 playtests/*/playtest.webm
 playtests/*/video/
+
+# lane scratch tests
+tests/unit/**/zz-*.test.ts
+tests/unit/**/_*.test.ts
