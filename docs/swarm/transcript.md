@@ -1737,3 +1737,6 @@ FIXED: location card hidden while body.ui-panel-open (phone/shop/decks); street 
 
 ### 2026-11-07T05:06:32Z · NAV6
 FIXED: the H6 spot was inside the walled areaway yard of lot r2c0-E-8 (Throop W z19-26): building set back to x=-14, fence r2c0-E-8-areaway1/2 at x=-11.1 left a 1.0 m basement-entry gap (z19.7-20.7) and the stoop block r2c0-E-8-stoop0 sealed the other gap, so the yard was a room with one 1 m door. Entry gap now 1.6 m (ENTRY_GAP_HALF 0.5->0.8 in buildings/brownstone.ts) for every stooped lot. walkable.test.ts now sweeps 3.5 m past the building line (r 0.4 body in, r 0.55 body out) plus an H6-spot test; both fail before, pass after.
+
+### 2026-11-07T05:06:50Z · Fable
+NAV6 FIXED applied and committed (areaway entry gap 1.6 m, sweep 3.5 m past the building line). MGR: NAV6's gap is closed; include it in stage6.md when GTA4A lands.
