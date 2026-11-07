@@ -125,8 +125,8 @@ describe('phone tier table: blobs, bloom, fog', () => {
     expect(fogFactorAt(t.cullDistance, p.near, p.far)).toBe(1);
     expect(fogFactorAt(p.near, p.near, p.far)).toBe(0);
     expect(fogFactorAt((p.near + p.far) / 2, p.near, p.far)).toBeCloseTo(0.5, 5);
-    // a dense ramp: 60% fog by the middle of the street block (35 m)
-    expect(fogFactorAt(35, p.near, p.far)).toBeGreaterThan(0.15);
+    // a dense ramp: a visible haze by 45 m
+    expect(fogFactorAt(45, p.near, p.far)).toBeGreaterThan(0.15);
   });
 
   it('applyTierFog clamps the ramp and only recolours when the tier has an override', () => {

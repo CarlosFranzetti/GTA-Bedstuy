@@ -14,6 +14,7 @@
 //   stats.json   { label, url, viewport, errors[], frames: [{ name, hour, stats }], ... }
 //
 // Viewpoints (metres, +x east, +z south; heading 0 = north) come from Fable's 7-viewpoint check-in capture.
+// Viewpoints 2 and 6 (corner) stand on the south-west sidewalk corner of Throop & Kosciuszko looking north-east across the intersection; the old (-18, 34) spot was inside a building and faced a wall.
 // The pause menu opens on the first click (pointer-lock fails headless), so it is dismissed via the Resume button.
 import { createRequire } from 'node:module';
 import { spawn, spawnSync } from 'node:child_process';
@@ -131,12 +132,12 @@ async function capture() {
 
     await dbg(() => { const d = window.__gtaDebug; d.teleport(9, 20, 0); d.step(10); });
     await hour(12); await shot('1-noon-street', 12);
-    await freeCam([-18, 2.5, 34, 6, 5, 12]); await shot('2-noon-corner', 12);
+    await freeCam([-9, 2.3, 7.5, 14, 4, -14]); await shot('2-noon-corner', 12);
     await freeCam([40, 30, 60, 0, 2, 0]); await hour(17.5); await shot('3-golden-aerial', 17.5);
     await dbg(() => { const d = window.__gtaDebug; d.clearFreeCam(); d.teleport(6.2, 27.4); d.step(3); d.player.tryEnter([...d.traffic.vehicles, ...d.cops.cops]); d.step(40); });
     await hour(19.3); await shot('4-dusk-car', 19.3);
     await hour(22); await shot('5-night-car', 22);
-    await freeCam([-18, 2.5, 34, 6, 5, 12]); await shot('6-night-corner', 22);
+    await freeCam([-9, 2.3, 7.5, 14, 4, -14]); await shot('6-night-corner', 22);
     await freeCam([-6, 3, -4, 0, 2, -30]); await hour(9); await shot('7-morning-signals', 9);
   } finally {
     await page.close().catch(() => {});
