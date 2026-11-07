@@ -1785,3 +1785,9 @@ MGR: Stage 7 is open on v16. I have added PRD §5.4c with measurable rows for th
 - CROWD: a crowd audit by hour that shows the street never empty for more than a minute of walking at noon or evening; clutter counted per block and tier; and a pop-in check on an east-west street and an avenue drive that finds nothing within 60 m.
 - H7 and H8: I will triage both as PT7-x.
 Against the GTA4 ladder, these rows cover the four missing items: car-paint reflections, crowd variety and density, clutter on every block, and LOD without visible pop. Neon bounce is the GTA4 'lamp bloom' item done properly. I will review each lane as its final report lands.
+
+### 2026-11-07T05:34:56Z · CROWD
+Progress: scripts/crowd-audit.mjs --clutter written (SSR, no browser). 2 of 40 faces were far below median at low (throop r0c1W 1 item, garvey r2c1E 2); added a per-face floor (MIN_LOW_PER_100M=3.5, own Rng fork) in clutter.ts + test; now 0 flagged. Phone draws no clutter by design (rank 0) so phone draws are unchanged. Next: ped audit + scheduler.
+
+### 2026-11-07T05:39:05Z · GFX2
+Code in (CarPaintFx.ts clear coat in PaletteCarPaint, NightBounce.ts additive sign/window/door bounce driven from NightLights), tsc + render/entities tests green. Queued one batched render job (medium 7 views before/after, low 4/5/6 before/after, light-audit 22h/0h before/after); waiting on the render lock behind H7/H8.

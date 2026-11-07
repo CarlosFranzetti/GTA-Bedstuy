@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
 import { buildGrid, loadBedstuyData } from '@/world/Grid';
 import { subdivideLots } from '@/world/LotSubdivider';
+import { MIN_LOW_PER_100M } from '@/world/props/clutter';
 import { buildProps, applyClutterState, bagGroupForDay, CLUTTER_TRI_BUDGET, DOOR_ZONE } from '@/world/PropsGen';
 import { buildFurniture } from '@/world/FurnitureGen';
 import { windowHasAc } from '@/world/buildings/facade';
@@ -25,6 +26,19 @@ function world(seed: number) {
 const W = world(1234);
 
 describe('street clutter', () => {
+  it('no block face of 25 m or more is bare at the low tier (floor of MIN_LOW_PER_100M per 100 m)', () => {
+    const low = new Map<string, number>();
+    for (const p of W.clutter.placements) if (p.rank === 1) low.set(p.faceKey, (low.get(p.faceKey) ?? 0) + 1);
+    let checked = 0;
+    for (const b of W.grid.blocks) for (const f of b.faces) {
+      const L = Math.hypot(f.b.x - f.a.x, f.b.z - f.a.z);
+      if (L < 25) continue;
+      checked++;
+      expect(low.get(`${b.id}${f.side}`) ?? 0, `${b.id}${f.side} (${L.toFixed(0)} m)`).toBeGreaterThanOrEqual(Math.floor((L * MIN_LOW_PER_100M) / 100));
+    }
+    expect(checked).toBeGreaterThan(20);
+  });
+
   it('is deterministic per seed and differs between seeds', () => {
     const again = world(1234);
     expect(again.clutter.placements).toEqual(W.clutter.placements);

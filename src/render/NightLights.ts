@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Vec2 } from '@/core/Math2';
+import { NightBounce } from './NightBounce';
 
 // ---------------------------------------------------------------- tunables
 
@@ -67,9 +68,12 @@ export class NightLights {
   private headlightsAttached = false;
   private headlightIntensity = 0;
   private readonly dist = new Float64Array(0);
+  /** sign / shop-window / doorway light bleed (one additive mesh; see NightBounce.ts) */
+  readonly bounce: NightBounce;
 
   constructor(scene: THREE.Scene, lamps: NightLampSpot[], opts: NightLightsOptions = {}) {
     this.scene = scene;
+    this.bounce = new NightBounce(scene);
     this.lamps = lamps;
     const poolSize = Math.max(1, Math.floor(opts.poolSize ?? 12));
     const range = opts.range ?? 26;
@@ -189,6 +193,9 @@ export class NightLights {
         held.add(idx);
       }
     }
+
+    // 4b. Sign / window light bleed on the walls and sidewalks.
+    this.bounce.update(isNight, step);
 
     // 5. Headlights.
     const hlTarget = isNight && this.headlightsEnabled && this.headlightsAttached ? HEADLIGHT_INTENSITY : 0;

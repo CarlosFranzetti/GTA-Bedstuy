@@ -9,6 +9,7 @@
  * darkening (`color.multiplyScalar`) works unchanged. `clone()` keeps everything (the class re-installs the shader hook).
  */
 import * as THREE from 'three';
+import { CAR_PAINT_UNIFORMS, CAR_PAINT_HEADER, CAR_PAINT_COAT } from '@/render/CarPaintFx';
 
 /** A rectangle of a palette atlas, in grid cells (v counts from the top, the glTF convention). */
 export interface PaletteCell {
@@ -23,9 +24,11 @@ const HEADER = /* glsl */ `
 uniform vec4 paintRect;
 uniform vec3 paintColor;
 uniform vec2 paintRef;
+${CAR_PAINT_HEADER}
 `;
 
 const PAINT = /* glsl */ `
+float cpMask = 0.0;
 #ifdef USE_MAP
 {
   vec2 pc = vMapUv;
@@ -38,6 +41,7 @@ const PAINT = /* glsl */ `
       vec3 paintBase = paintColor;
     #endif
     diffuseColor.rgb = diffuse * paintBase * shade;
+    cpMask = 1.0;
   }
 }
 #endif
@@ -59,9 +63,11 @@ export class PaletteCarPaint extends THREE.MeshStandardMaterial {
       shader.uniforms.paintRect = { value: this.paintRect };
       shader.uniforms.paintColor = { value: this.paintColor };
       shader.uniforms.paintRef = { value: this.paintRef };
+      Object.assign(shader.uniforms, CAR_PAINT_UNIFORMS);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <common>', `#include <common>\n${HEADER}`)
         .replace('#include <map_fragment>', `#include <map_fragment>\n${PAINT}`)
+        .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>\n${CAR_PAINT_COAT}`)
         .replace('#include <color_fragment>', ''); // instance colours are the paint colour, not a multiplier
     };
   }

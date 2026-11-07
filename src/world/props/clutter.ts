@@ -213,6 +213,8 @@ function poster(rng: Rng, p: Vec2, y: number, n: Vec2, w: number, h: number, off
 /** Lowest quality rank that draws a bucket: phone 0 (none), low 1, medium and high 2. */
 export const CLUTTER_RANK: Record<string, 0 | 1 | 2> = { phone: 0, low: 1, medium: 2, high: 2 };
 /** Triangle budget of the clutter layer per tier (measured on the real map: see docs/swarm/transcript.md CLUTTER FINAL REPORT). */
+/** Least items per 100 m of frontage a face carries at the low tier (the median face has ~7). */
+export const MIN_LOW_PER_100M = 3.5;
 export const CLUTTER_TRI_BUDGET: Record<string, number> = { phone: 0, low: 45_000, medium: 150_000, high: 150_000 };
 
 // ---------------------------------------------------------------- builder
@@ -250,6 +252,7 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
       const street = grid.streetById(face.streetId);
       const faceLots = lots.filter((l) => l.blockId === block.id && l.side === face.side);
       const used: Vec2[] = [];
+      const faceStart = stats.placements.length;
       const stripW = fr.stripWidth;
       const lotSpan = (l: Lot): [number, number] => { const a = fr.along(l.frontA), b = fr.along(l.frontB); return [Math.min(a, b), Math.max(a, b)]; };
       const free = (s: number, inset: number, sep: number): Vec2 | null => {
@@ -429,6 +432,30 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
           paint(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2).rotateY(rot).translate(dx, 0, dz).rotateY(yaw).translate(c.x, ROAD_Y + 0.002, c.z), col, a);
         const g: Geos = [part(W, t, 0, H / 2), part(W, t, 0, -H / 2), part(t, H, W / 2, 0), part(t, H, -W / 2, 0), part(W * 0.7, 0.06, 0, 0.12), part(W * 0.5, 0.06, 0, -0.1), part(W * 1.05, 0.05, 0, 0, 0.42)];
         emit('clutter-flat-r2', g, 2, 'noParking', c.x, ROAD_Y, c.z, 0, false, fk, true);
+      }
+
+      // ---- floor: every face of a real length carries at least MIN_LOW_PER_100M items at the low tier, so a run of apartments or
+      // quiet lots does not leave a whole face bare (measured per face by scripts/crowd-audit.mjs --clutter). Own Rng stream, so the
+      // rest of the layout is unchanged. Bag piles go at the kerb beside a door, like the stoop ones.
+      if (fr.L >= 25) {
+        const need = Math.floor((fr.L * MIN_LOW_PER_100M) / 100);
+        let have = 0;
+        for (let i = faceStart; i < stats.placements.length; i++) if (stats.placements[i].rank === 1) have++;
+        if (have < need && faceLots.length) {
+          const trng = rng.fork(`c-floor:${fk}`);
+          for (let tries = 0; tries < 48 && have < need; tries++) {
+            const lot = trng.pick(faceLots);
+            if (lot.type === 'scaffold' || lot.type === 'vacant' || lot.type === 'church') continue;
+            const [lo, hi] = lotSpan(lot), mid = (lo + hi) / 2;
+            const side = trng.chance(0.5) ? 1 : -1;
+            const s = mid + side * Math.min(DOOR_ZONE + 0.5, Math.max(DOOR_ZONE + 0.1, (hi - lo) / 2 - 0.7));
+            const p = free(s, Math.max(0.6, stripW - 0.75), 1.3);
+            if (!p || Math.abs(s - mid) < DOOR_ZONE || s < lo + 0.3 || s > hi - 0.3) continue;
+            emit(`clutter-bag-r1-d${Math.floor(trng.range(0, 3))}`, bagPile(trng), 1, 'bags', p.x, SW_Y, p.z, trng.range(0, 6), false, fk);
+            take(p);
+            have++;
+          }
+        }
       }
     }
   }

@@ -12,6 +12,8 @@ import { newTimeCycle, timeCycleAt, hazeAt, grainAmount } from './LightingConfig
 import { EXPOSURE_BY_PRESET, HOUR_KEYS, buildLut, lutKeysForHour } from './lut';
 import { FxPass, FX_TIERS, fxPassCosts, type PassCost } from './ssr';
 import { signBloomGate } from './QualityTier';
+import { setCarPaintTier, setCarPaintWet } from './CarPaintFx';
+import { setBounceTier, setBounceWet } from './NightBounce';
 
 export type { Quality } from './Shadows';
 
@@ -301,6 +303,8 @@ export class RenderPipeline {
     this.scene = scene;
     this.camera = camera;
     this.q = opts.quality ?? 'high';
+    setCarPaintTier(this.q);
+    setBounceTier(this.q);
     const caps = renderer.capabilities as { isWebGL2?: boolean } | undefined;
     this.lutSupported = caps?.isWebGL2 !== false;
     const size = renderer.getSize(new THREE.Vector2());
@@ -360,6 +364,8 @@ export class RenderPipeline {
   setWeather(wetness: number, rain: number): void {
     this.wet = Math.min(1, Math.max(0, Number.isFinite(wetness) ? wetness : 0));
     this.rain = Math.min(1, Math.max(0, Number.isFinite(rain) ? rain : 0));
+    setCarPaintWet(this.wet);
+    setBounceWet(this.wet);
   }
 
   /** Extra passes this tier adds on top of the stock chain (name, resolution relative to the frame, draws, wet-only). */
@@ -400,6 +406,8 @@ export class RenderPipeline {
   }
 
   setQuality(q: Quality): void {
+    setCarPaintTier(q);
+    setBounceTier(q);
     if (q === this.q) return;
     this.q = q;
     this.build();

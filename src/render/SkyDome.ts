@@ -4,6 +4,7 @@ import { Rng } from '@/core/Rng';
 import { clamp } from '@/core/Math2';
 import type { IMaterialLibrary } from '@/world/types';
 import { newTimeCycle, timeCycleAt } from '@/render/LightingConfig';
+import { setCarPaintSky } from '@/render/CarPaintFx';
 
 // ---------------------------------------------------------------- tunables
 
@@ -387,6 +388,7 @@ export class SkyDome {
 
     // Materials without their own envMap follow scene.environmentIntensity (main.ts only sets it on day/night flips).
     this.scene.environmentIntensity = timeCycleAt(h, this.tc).env;
+    setCarPaintSky({ hemiSky: this.tc.hemiSky, horizon: this.horizon, hemiGround: this.tc.hemiGround, env: this.tc.env, night: isNight ? 1 : 0 });
 
     const dh = Math.abs(h - this.lastCaptureHour);
     const twilight = dir.y > TWILIGHT_RANGE.lo && dir.y < TWILIGHT_RANGE.hi;

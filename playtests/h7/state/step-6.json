@@ -1,0 +1,62 @@
+{
+  "gameHour": 17.822,
+  "player": {
+    "x": 24,
+    "z": 1.6,
+    "headingDeg": 92,
+    "headingCompass": "east",
+    "cameraFacingDeg": 92,
+    "cameraFacing": "east"
+  },
+  "inVehicle": false,
+  "enteringCar": false,
+  "vehicle": null,
+  "walkSpeedKmh": 0,
+  "wantedStars": 0,
+  "prompt": "",
+  "street": "Kosciusko St",
+  "radio": "",
+  "mission": null,
+  "missionToast": "",
+  "missionRetry": "",
+  "cash": "$120",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": false,
+  "nearby": [
+    {
+      "type": "obstacle",
+      "distance_m": 5.4,
+      "direction": "behind-right",
+      "bearing_deg": 127
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 6.4,
+      "direction": "behind-right",
+      "bearing_deg": 140
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 7.5,
+      "direction": "left",
+      "bearing_deg": -83
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 24.6,
+      "direction": "behind-right",
+      "bearing_deg": 151,
+      "vehicle": "sedan",
+      "occupied": true
+    }
+  ],
+  "nearbyTotal": 4,
+  "sim": {
+    "steps": 1125,
+    "fps": 10,
+    "heapMB": 179
+  },
+  "step": 6,
+  "consoleErrorsSinceLastStep": []
+}

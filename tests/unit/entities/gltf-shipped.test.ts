@@ -171,10 +171,11 @@ describe('PaletteCarPaint', () => {
     const m = new PaletteCarPaint().setCell({ col: 6, row: 1 }).setPaint('#336699');
     const shader = {
       uniforms: {} as Record<string, { value: unknown }>,
-      fragmentShader: '#include <common>\n#include <map_fragment>\n#include <color_fragment>\nvoid main(){}',
+      fragmentShader: '#include <common>\n#include <map_fragment>\n#include <color_fragment>\n#include <lights_fragment_end>\nvoid main(){}',
     };
     (m.onBeforeCompile as (s: unknown, r: unknown) => void)(shader, null);
-    expect(Object.keys(shader.uniforms).sort()).toEqual(['paintColor', 'paintRect', 'paintRef']);
+    expect(Object.keys(shader.uniforms).filter((k) => !k.startsWith('cp')).sort()).toEqual(['paintColor', 'paintRect', 'paintRef']);
+    expect(Object.keys(shader.uniforms)).toContain('cpMode'); // the shared clear-coat uniforms (render/CarPaintFx)
     expect(shader.fragmentShader).toContain('uniform vec4 paintRect');
     expect(shader.fragmentShader).toContain('USE_INSTANCING_COLOR');
     expect(shader.fragmentShader).not.toContain('#include <color_fragment>');
