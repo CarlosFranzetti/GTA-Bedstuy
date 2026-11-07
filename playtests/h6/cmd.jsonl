@@ -1,0 +1,2 @@
+{"step":1,"thought":"Spawned on a busy street with a brick wall right next to me and a big yellow sign ahead. The top pill says Offer: Crate Digger 15 m with a down arrow, so the goal is behind me. I will turn around to find it.","actions":[{"look":{"dx":650,"dy":0}},{"wait":600}]}
+{"step":2,"thought":"The camera now faces east and the offer arrow points right. The brick building is close and the street is dark. I will turn a bit more toward the arrow and walk toward the record shop.","actions":[{"look":{"dx":200,"dy":0}},{"key":"KeyW","ms":3500},{"wait":300}]}

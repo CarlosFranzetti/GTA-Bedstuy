@@ -1,0 +1,2 @@
+{"step":0,"thought":"(start)","actions":[],"statePath":"state/step-0.json","framePath":"frames/step-0.jpg","t":35.9,"tVideo":35.35,"tVideoEnd":35.35}
+{"step":1,"thought":"Spawned on a busy street with a brick wall right next to me and a big yellow sign ahead. The top pill says Offer: Crate Digger 15 m with a down arrow, so the goal is behind me. I will turn around to find it.","actions":[{"look":{"dx":650,"dy":0}},{"wait":600}],"statePath":"state/step-1.json","framePath":"frames/step-1.jpg","t":67.4,"tVideoThought":43.38,"tVideoActions":50.38,"tVideoEnd":66.92}
