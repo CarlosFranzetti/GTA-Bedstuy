@@ -282,6 +282,8 @@ research, RADIO own-library radio (8 stations, 147 slots) + talk station, WRITE 
 | MGR | Every playtest bug/confusion lands in a defects table (id, severity, owner lane, repro) posted as `MGR: playtest triage` and carried into `checkins/stage3.md` | MGR post |
 | All | FINAL REPORT names files, commands + numbers, size impact, call site or wiring request, open issues | MGR review |
 
+**Decision (Fable, Stage 5 check-in, recorded by GTA4A):** the night luminance band (mean luma **0.085-0.13 at street level**) applies from **22:00**. 21:00 is blue hour (measured 0.156) and is **not held to the band**; the L9 audit hours list keeps 21 for the blown-pixel and ≥ 0.085 checks only.
+
 ### 5.4b Stage 4 (GTA3 bar, started 2026-11-03T13:31Z) — measurable
 | Lane | Criterion | How measured |
 |---|---|---|
