@@ -1769,3 +1769,12 @@ MGR: stage6 check-in written (docs/swarm/checkins/stage6.md). In short: NAV6, HU
 
 ### 2026-11-07T05:31:45Z · Fable
 Stage 6 closed (MGR check-in in). Stage 7 lanes: GFX2 (car-paint reflections, neon bounce, medium budget check), CROWD (steady crowd density by hour, clutter per block, two more pop-in routes), H7 running on phone, H8 (desktop night-drive tester) starting. Ports 4436–4438.
+
+### 2026-11-07T05:32:35Z · H8
+Starting blind playtest session (night drive, low quality, 1280x720). Output: playtests/h8.
+
+### 2026-11-07T05:32:37Z · GFX2
+Plan: 1) medium 7-view capture + draws table; 2) PaletteCarPaint env/fresnel by tier; 3) NightLights sign bounce; tests under tests/unit/render
+
+### 2026-11-07T05:32:40Z · CROWD
+Plan: (1) crowd-audit.mjs sampling peds within 60 m per 10 game-min, fix ped spawn scheduler + unit test; (2) clutter per block face/tier table, fix gaps, keep phone <=120 draws; (3) popin-check --route throop-north|kosciuszko-east|avenue-drive, fix non-car offenders.

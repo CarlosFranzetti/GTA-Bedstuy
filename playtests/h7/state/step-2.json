@@ -1,0 +1,62 @@
+{
+  "gameHour": 17.55,
+  "player": {
+    "x": 9,
+    "z": 20,
+    "headingDeg": 0,
+    "headingCompass": "north",
+    "cameraFacingDeg": 84,
+    "cameraFacing": "east"
+  },
+  "inVehicle": false,
+  "enteringCar": false,
+  "vehicle": null,
+  "walkSpeedKmh": 0,
+  "wantedStars": 0,
+  "prompt": "",
+  "street": "Throop Ave",
+  "radio": "",
+  "mission": null,
+  "missionToast": "",
+  "missionRetry": "",
+  "cash": "$120",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": false,
+  "nearby": [
+    {
+      "type": "obstacle",
+      "distance_m": 3.5,
+      "direction": "behind-right",
+      "bearing_deg": 116
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 5.1,
+      "direction": "behind-left",
+      "bearing_deg": -143,
+      "vehicle": "sedan",
+      "occupied": false
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 10.8,
+      "direction": "behind-right",
+      "bearing_deg": 120,
+      "vehicle": "sedan",
+      "occupied": false
+    }
+  ],
+  "nearbyTotal": 3,
+  "sim": {
+    "steps": 146,
+    "fps": 10,
+    "heapMB": 179
+  },
+  "step": 2,
+  "consoleErrorsSinceLastStep": [],
+  "notes": [
+    "ignored unknown key(s): KeyN",
+    "ignored an action with nothing to do"
+  ]
+}
