@@ -110,8 +110,10 @@ export function buildDeli(deps: RoomDeps): Room {
     id: 'deli', group: g, spawn: SPAWN(d), dancers: 0,
     spots: [
       EXIT_SPOT(d),
-      { id: 'bins', kind: 'shop', x: -2.2, z: -0.4, r: 2.6, label: 'Browse the record bins' },
-      { id: 'owner', kind: 'talk', x: 2.6, z: 0.5, r: 1.6, label: 'Talk to the owner' },
+      // H7: the north crates and the counter gave no prompt (the old 2.6 m spot ended before the middle crates)
+      { id: 'bins', kind: 'shop', x: -1.8, z: -1.4, r: 4.2, label: 'Browse the bins' },
+      { id: 'counter', kind: 'shop', x: 1.2, z: 0.4, r: 1.5, label: 'Browse the bins' },
+      { id: 'owner', kind: 'talk', x: 3.4, z: 0.5, r: 1.3, label: 'Talk to the owner' },
       { id: 'listen', kind: 'listen', x: w / 2 - 1.8, z: 1.8, r: 1.4, label: 'Use the listening station' },
     ],
     update(t) { idle(owner, t, 1); idle(cust, t, 2); },

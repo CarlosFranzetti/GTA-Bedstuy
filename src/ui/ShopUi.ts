@@ -4,7 +4,7 @@
  *
  * Layout: header and tabs on top, a scrolling list, and a sticky footer (status, key hint, Close) that is always
  * on screen, even at 640x360. Keyboard: W/S or arrows select, A/D or arrows switch tabs, Enter / Space / F do the
- * main action (buy, sell, press), E previews, Esc / X / B / Backspace close. Gamepad: `navigate(dir)` (d-pad, A, B).
+ * main action (buy, sell, press), V previews, Q / E switch tabs, Esc / X / B / Backspace close (Esc first cancels a pending sell/buy confirm). Gamepad: `navigate(dir)` (d-pad, A, B).
  */
 import { Inventory } from '@/game/Inventory';
 import { PREVIEW_SECONDS } from '@/game/DjAudio';
@@ -32,6 +32,11 @@ export interface ShopDeps {
   releasePointerLock?: boolean;
 }
 
+/** A sell (or a buy that would leave under $10) needs a second Enter within this many ms. */
+export const CONFIRM_MS = 3000;
+/** Buying stays one-press unless it would leave the player with less than this much cash. */
+export const BUY_CONFIRM_MARGIN = 10;
+
 export type BuyOutcome = 'ok' | 'owned' | 'poor';
 type Tab = 'bins' | 'crate' | 'press';
 const TABS: readonly Tab[] = ['bins', 'crate', 'press'];
@@ -50,6 +55,9 @@ export class ShopUi {
   /** Keyboard / gamepad selection: 0..rows.length-1 are cards, rows.length is the Close button. */
   private sel = 0;
   private rows: Row[] = [];
+  private readonly countEl: HTMLElement;
+  /** Row waiting for its second Enter: `key` is `sell:<id>` or `buy:<id>`. */
+  private armed: { key: string; until: number } | null = null;
   private readonly keyHandler = (e: KeyboardEvent) => this.onKey(e);
   private readonly keyUpHandler = (e: KeyboardEvent) => { if (this.opened && (isConfirmKey(e) || isCloseKey(e))) e.preventDefault(); };
   private readonly off: () => void;
@@ -67,7 +75,9 @@ export class ShopUi {
     const head = this.el('div', 'shop-head');
     const title = this.el('h2', 'shop-title'); title.textContent = 'WAX DELI · Records & Sandwiches';
     this.cashEl = this.el('div', 'shop-cash');
-    head.append(title, this.cashEl);
+    this.countEl = this.el('div', 'shop-count');
+    this.countEl.setAttribute('aria-hidden', 'true');
+    head.append(title, this.countEl, this.cashEl);
     const nav = this.el('div', 'shop-tabs');
     for (const [id, label] of [['bins', 'Bins'], ['crate', 'Your crate'], ['press', 'Press my music']] as const) {
       const b = this.btn(label, 'shop-tab', () => this.setTab(id));
@@ -78,7 +88,7 @@ export class ShopUi {
     this.status.setAttribute('role', 'status'); this.status.setAttribute('aria-live', 'polite');
     const foot = this.el('div', 'shop-foot');
     const hint = this.el('span', 'shop-hint');
-    hint.textContent = 'W/S select · A/D tabs · Enter or F buy · E preview · Esc or X close';
+    hint.textContent = 'W/S select · Q / E tabs · Enter or F buy · V preview · Esc or X close';
     this.closeBtn = this.btn('Close', 'shop-btn shop-close', () => this.close());
     foot.append(this.status, hint, this.closeBtn);
     panel.append(head, nav, this.body, foot);
@@ -94,7 +104,8 @@ export class ShopUi {
   open(): void {
     if (this.opened) return;
     this.opened = true; this.root.hidden = false; this.say('Sleeves are $12 to $25. Preview plays 20 seconds.');
-    this.sel = 0;
+    this.armed = null;
+    this.sel = this.firstBuyableRow();
     this.render();
     this.doc.addEventListener('keydown', this.keyHandler, true);
     this.doc.addEventListener('keyup', this.keyUpHandler, true);
@@ -122,13 +133,33 @@ export class ShopUi {
     if (!this.opened) return;
     const n = this.rows.length;
     switch (dir) {
-      case 'up': this.sel = Math.max(0, this.sel - 1); this.applySel(); break;
-      case 'down': this.sel = Math.min(n, this.sel + 1); this.applySel(); break;
+      case 'up': this.armed = null; this.sel = Math.max(0, this.sel - 1); this.applySel(); break;
+      case 'down': this.armed = null; this.sel = Math.min(n, this.sel + 1); this.applySel(); break;
       case 'left': this.setTab(TABS[(TABS.indexOf(this.tab) + TABS.length - 1) % TABS.length]); break;
       case 'right': this.setTab(TABS[(TABS.indexOf(this.tab) + 1) % TABS.length]); break;
       case 'confirm': if (this.sel >= n) this.close(); else this.rows[this.sel]?.primary?.(); break;
-      case 'back': this.close(); break;
+      case 'back': if (this.pendingConfirm) { this.armed = null; this.say('Cancelled.'); } else this.close(); break;
     }
+  }
+
+  /** True while a sell/buy waits for its second Enter. */
+  get pendingConfirm(): boolean { return !!this.armed && this.armed.until > this.now(); }
+
+  /** Second-Enter gate: the first call arms `key` and shows `prompt`; a second call within CONFIRM_MS runs `fn`. */
+  private confirm(key: string, prompt: string, fn: () => void): void {
+    const t = this.now();
+    if (this.armed && this.armed.key === key && this.armed.until > t) { this.armed = null; fn(); return; }
+    this.armed = { key, until: t + CONFIRM_MS };
+    this.say(prompt);
+  }
+
+  private now(): number { return Date.now(); }
+
+  /** Index of the first bin row the player can still buy or take; 0 when none. */
+  private firstBuyableRow(): number {
+    const list = [...this.d.stock, ...(this.d.dropRecords ?? [])];
+    const i = list.findIndex((def) => !this.d.inventory.hasRecord(def.id));
+    return i < 0 ? 0 : i;
   }
 
   /** E key / gamepad Y: preview (or stop) the selected record. */
@@ -137,9 +168,11 @@ export class ShopUi {
   private onKey(e: KeyboardEvent): void {
     if (!this.opened || e.ctrlKey || e.metaKey || e.altKey) return;
     let used = true;
-    if (isCloseKey(e)) { if (!e.repeat) this.close(); }
+    if (isCloseKey(e)) { if (!e.repeat) this.navigate('back'); }
     else if (isConfirmKey(e)) { if (!e.repeat) this.navigate('confirm'); }
-    else if (e.code === 'KeyE') { if (!e.repeat) this.previewSelected(); }
+    else if (e.code === 'KeyV') { if (!e.repeat) this.previewSelected(); }
+    else if (e.code === 'KeyQ') { if (!e.repeat) this.navigate('left'); }
+    else if (e.code === 'KeyE') { if (!e.repeat) this.navigate('right'); }
     else {
       const dir = navDirOf(e);
       if (dir) this.navigate(dir); else used = e.code !== 'Tab'; // Tab keeps its browser meaning; other game keys are swallowed
@@ -147,7 +180,7 @@ export class ShopUi {
     if (used) { e.preventDefault(); e.stopPropagation(); }
   }
 
-  private setTab(t: Tab): void { this.tab = t; this.sel = 0; this.render(); }
+  private setTab(t: Tab): void { this.tab = t; this.armed = null; this.sel = t === 'bins' ? this.firstBuyableRow() : 0; this.render(); }
 
   private applySel(): void {
     this.sel = Math.max(0, Math.min(this.rows.length, this.sel));
@@ -155,6 +188,15 @@ export class ShopUi {
     this.closeBtn.classList.toggle('sel', this.sel >= this.rows.length);
     const el = this.sel >= this.rows.length ? this.closeBtn : this.rows[this.sel]?.el;
     (el as { scrollIntoView?: (o: object) => void } | undefined)?.scrollIntoView?.({ block: 'nearest' });
+    this.updateCount();
+  }
+
+  /** "n of N" for the highlighted row plus up/down arrows when more rows hide above or below. */
+  private updateCount(): void {
+    const n = this.rows.length;
+    if (n === 0) { this.countEl.textContent = ''; return; }
+    const at = Math.min(this.sel, n - 1) + 1;
+    this.countEl.textContent = (at > 1 ? '\u25B2 ' : '') + at + ' of ' + n + (at < n ? ' \u25BC' : '');
   }
 
   // ------------------------------------------------------------ actions (also used by tests)
@@ -167,6 +209,18 @@ export class ShopUi {
     else if (r === 'poor') this.say(`Not enough cash: "${def.title}" is $${def.price}.`);
     else this.say('You already own that one.');
     return r;
+  }
+
+  /** Keyboard / gamepad buy: quick, unless it would leave under $10. */
+  private keyBuy(def: RecordDef): void {
+    if (def.price > this.d.inventory.cash - BUY_CONFIRM_MARGIN && def.price <= this.d.inventory.cash) {
+      this.confirm(`buy:${def.id}`, `Buy "${def.title}" for $${def.price}? Enter again / Esc`, () => { this.buy(def.id); });
+    } else this.buy(def.id);
+  }
+
+  /** Keyboard / gamepad sell: always asks for a second Enter. */
+  private keySell(def: RecordDef): void {
+    this.confirm(`sell:${def.id}`, `Sell "${def.title}" for $${this.d.inventory.sellPrice(def)}? Enter again / Esc`, () => { this.sell(def.id); });
   }
 
   /** Sells back at half price. Returns the cash received or -1. */
@@ -222,7 +276,7 @@ export class ShopUi {
             ? this.btn('Take (free)', 'shop-btn shop-primary', take)
             : this.btn(`Buy $${def.price}`, 'shop-btn shop-primary', () => { this.buy(def.id); }),
         ], def.price === 0 ? 'Free' : `$${def.price}`, {
-          primary: owned ? () => this.say('You already own that one.') : def.price === 0 ? take : () => { this.buy(def.id); },
+          primary: owned ? () => this.say('You already own that one.') : def.price === 0 ? take : () => this.keyBuy(def),
           secondary: () => this.togglePreview(def.id),
         }));
       }
@@ -233,7 +287,7 @@ export class ShopUi {
         this.body.appendChild(this.card(def, [
           this.btn(this.previewing === def.id ? 'Stop' : 'Preview', 'shop-btn', () => this.togglePreview(def.id)),
           this.btn(`Sell $${this.d.inventory.sellPrice(def)}`, 'shop-btn', () => { this.sell(def.id); }),
-        ], `${Math.round(def.bpm)} BPM`, { primary: () => { this.sell(def.id); }, secondary: () => this.togglePreview(def.id) }));
+        ], `${Math.round(def.bpm)} BPM`, { primary: () => this.keySell(def), secondary: () => this.togglePreview(def.id) }));
       }
     } else {
       const tracks = this.d.libraryTracks?.() ?? [];

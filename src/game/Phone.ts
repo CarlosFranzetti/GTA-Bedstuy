@@ -13,7 +13,7 @@ import type { MissionDef } from './missions/types';
 
 export interface PhoneMessage { id: string; from: string; text: string; read: boolean; seq: number }
 export interface PhoneContact { name: string; lastSeq: number }
-interface Queued { due: number; key: string; from: string; text: string }
+interface Queued { due: number; key: string; from: string; text: string; mission?: string }
 
 /** Where the "next mission" pointer points. */
 export interface PhonePointer { title: string; blurb: string; x: number; z: number; distance: number; hint: string }
@@ -27,7 +27,7 @@ const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFi
 export interface PhoneMissionSource {
   readonly missions: readonly MissionDef[];
   nextOffer(hour?: number): MissionDef | null;
-  on(type: 'mission:started' | 'mission:completed', fn: (e: { id: string }) => void): () => void;
+  on(type: 'mission:started' | 'mission:completed' | 'mission:failed' | 'mission:abandoned', fn: (e: { id: string }) => void): () => void;
 }
 
 export class Phone {
@@ -47,6 +47,8 @@ export class Phone {
   private queue: Queued[] = [];
   private readonly keys = new Set<string>();
   private source: PhoneMissionSource | null = null;
+  /** Missions running right now: a text scoped to one (see `opts.mission`) is dropped once it is not in here. */
+  private readonly activeMissions = new Set<string>();
   private pointerT = 1e9;
 
   get unread(): number { let n = 0; for (const m of this.messages) if (!m.read) n++; return n; }
@@ -64,13 +66,15 @@ export class Phone {
 
   /**
    * Queue a text. `key` de-duplicates (a retry must not resend the intro). `delay` is real seconds.
-   * Returns false when the key was already used.
+   * Returns false when the key was already used. `mission` scopes the text to a running mission: it is never
+   * delivered once that mission has completed, failed or been abandoned (H7: a briefing arrived after the job).
    */
-  text(from: string, text: string, opts: { delay?: number; key?: string } = {}): boolean {
+  text(from: string, text: string, opts: { delay?: number; key?: string; mission?: string } = {}): boolean {
     const key = opts.key ?? '';
     if (key && (this.keys.has(key) || this.queue.some((q) => q.key === key))) return false;
     const delay = Math.max(0, opts.delay ?? 0);
-    this.queue.push({ due: this.time + delay, key, from, text });
+    if (opts.mission && !this.activeMissions.has(opts.mission) && this.source) return false;
+    this.queue.push({ due: this.time + delay, key, from, text, mission: opts.mission });
     if (delay === 0) this.flush();
     else this.save();
     return true;
@@ -94,15 +98,27 @@ export class Phone {
     const offs = [
       source.on('mission:started', (e) => {
         const d = source.missions.find((m) => m.id === e.id);
-        if (d?.phoneIntro) this.text(d.phoneIntro.from, d.phoneIntro.text, { key: `intro:${d.id}` });
+        this.activeMissions.add(e.id);
+        if (d?.phoneIntro) this.text(d.phoneIntro.from, d.phoneIntro.text, { key: `intro:${d.id}`, mission: d.id });
       }),
+      source.on('mission:failed', (e) => { this.endMission(e.id); }),
+      source.on('mission:abandoned', (e) => { this.endMission(e.id); }),
       source.on('mission:completed', (e) => {
+        this.endMission(e.id);
         const d = source.missions.find((m) => m.id === e.id);
         if (d?.followUp) this.text(d.followUp.from, d.followUp.text, { delay: d.followUp.delay, key: `follow:${d.id}` });
         this.pointerT = 1e9;
       }),
     ];
-    return () => { for (const off of offs) off(); this.source = null; };
+    return () => { for (const off of offs) off(); this.source = null; this.activeMissions.clear(); };
+  }
+
+  /** A mission ended (completed, failed, abandoned): its scoped texts still waiting in the queue are discarded. */
+  endMission(id: string): void {
+    this.activeMissions.delete(id);
+    const n = this.queue.length;
+    this.queue = this.queue.filter((q) => q.mission !== id);
+    if (this.queue.length !== n) this.save();
   }
 
   /** Call once per frame (real seconds). Delivers due texts and refreshes the pointer about twice a second. */
@@ -132,6 +148,7 @@ export class Phone {
     this.queue.sort((a, b) => a.due - b.due);
     while (this.queue.length > 0 && this.queue[0].due <= this.time) {
       const q = this.queue.shift()!;
+      if (q.mission && this.source && !this.activeMissions.has(q.mission)) continue;
       if (q.key) this.keys.add(q.key);
       const m: PhoneMessage = { id: `m${this.seq}`, from: q.from, text: q.text, read: this.isOpen, seq: this.seq++ };
       this.messages.push(m);

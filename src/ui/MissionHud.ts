@@ -29,6 +29,8 @@ export function formatCash(n: number): string {
  * started/complete/failed and the retry prompt. `update(mission.hud)` is cheap and writes the DOM only on change.
  * Works on a detached root.
  */
+export const HOME_HINT = 'Your place is the green awning on Throop Ave (press N to point at it)';
+
 export class MissionHud {
   private readonly doc: Document;
   /** Left column that stacks the mission panel and the Goal/Offer pointer so the two can never overlap. */
@@ -204,7 +206,9 @@ export class MissionHud {
     this.pointerEl.dataset.kind = best.kind;
     const prefix = active ? 'Goal' : nav ? 'Nav' : 'Offer';
     // Interiors are built 3 km off the map, so the straight distance to a street marker is meaningless in there.
-    const text = this.inside ? `${prefix}: ${best.label}  inside` : bestD < best.radius + 2 ? `${prefix}: ${best.label}  here` : `${prefix}: ${best.label}  ${Math.round(bestD / POINTER_STEP_M) * POINTER_STEP_M} m`;
+    // "inside" is a where-it-is hint; for an objective that is to leave, it would contradict itself ("Head back outside  inside").
+    const leaving = /\b(outside|leave|exit)\b/i.test(best.label);
+    const text = this.inside ? (leaving ? `${prefix}: ${best.label}` : `${prefix}: ${best.label}  inside`) : bestD < best.radius + 2 ? `${prefix}: ${best.label}  here` : `${prefix}: ${best.label}  ${Math.round(bestD / POINTER_STEP_M) * POINTER_STEP_M} m`;
     if (text !== this.lastPointerText) { this.lastPointerText = text; this.pointerText.textContent = text; }
     this.pointerArrow.style.visibility = this.inside ? 'hidden' : '';
     if (this.inside) return;
@@ -238,6 +242,18 @@ export class MissionHud {
       this.toastEl.classList.add('out');
       this.toastTimer = setTimeout(() => { this.toastEl.hidden = true; this.toastTimer = null; }, 300);
     }, ms);
+  }
+
+  /**
+   * One-time toast at the first spawn so a new player knows where HOME is (H7: nobody found it). Remembered in
+   * localStorage; returns true when it was shown. main.ts calls this once after the first frame.
+   */
+  showHomeHint(): boolean {
+    const KEY = 'gta-bedstuy.homeHint.v1';
+    try { if (localStorage.getItem(KEY)) return false; } catch { /* private mode: show it every run */ }
+    this.showToast(HOME_HINT, 'info', 9000);
+    try { localStorage.setItem(KEY, '1'); } catch { /* ignore */ }
+    return true;
   }
 
   dispose(): void {

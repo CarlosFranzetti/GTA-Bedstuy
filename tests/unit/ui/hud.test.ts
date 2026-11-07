@@ -226,3 +226,14 @@ describe('Hud', () => {
     });
   });
 });
+
+// @ts-ignore node types are not installed in this repo; vitest runs in node
+import { readFileSync as readCss } from 'node:fs';
+describe('H7: radio caption never sits under the prompt at 640x360', () => {
+  it('small viewports keep the location block left of the centred prompt', () => {
+    const css: string = readCss('src/ui/hud.css', 'utf8');
+    const small = css.slice(css.indexOf('@media (max-height: 480px), (max-width: 700px)'));
+    expect(small).toMatch(/\.hud-location\s*{[^}]*max-width:\s*calc\(50% - 1\d\dpx\)/);
+    expect(small).toMatch(/\.hud-prompt\s*{\s*bottom:/);
+  });
+});

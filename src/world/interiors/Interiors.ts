@@ -247,6 +247,15 @@ export class Interiors {
 
   // ------------------------------------------------------------ doors on the street
 
+  /** A sign board that glows (emissive copy of the sign texture) so it stays readable at dusk and from far down the block. */
+  private litSign(text: string, bg: string, fg: string): THREE.Material {
+    const base = this.d.materials.sign(text, bg, fg);
+    const m = base.clone() as THREE.MeshStandardMaterial;
+    if ('emissive' in m && m.map) { m.emissive = new THREE.Color('#ffffff'); m.emissiveMap = m.map; m.emissiveIntensity = 0.85; }
+    m.side = THREE.DoubleSide;
+    return m;
+  }
+
   private buildDoor(id: InteriorId): void {
     const def = INTERIORS[id]; const dr = def.door;
     const g = new THREE.Group(); g.name = `door-${id}`;
@@ -261,11 +270,31 @@ export class Interiors {
       // a green awning over the door and a lit "HOME" board, so the player's own door reads from down the block
       const awn = alongX ? [1.9, 0.12, 1.0] : [1.0, 0.12, 1.9];
       g.add(box(awn[0], awn[1], awn[2], '#2f6b4a', dr.x + dr.outX * 0.5, 2.5, dr.z + dr.outZ * 0.5));
-      const hm = this.d.materials.sign(def.sign, '#1f4d36', '#fff3c4');
-      const hs = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.42), hm);
-      hs.position.set(dr.x + dr.outX * 0.13, 2.82, dr.z + dr.outZ * 0.13);
-      hs.rotation.y = Math.atan2(dr.outX, dr.outZ);
+      // H7: nobody found HOME on a full walk of Throop. A big self-lit board over the door, HOME lettering on the
+      // awning valance, and a blade sign sticking out over the sidewalk so it reads from up and down the block.
+      const lit = this.litSign(def.sign, '#1f4d36', '#fff3c4');
+      const rot = Math.atan2(dr.outX, dr.outZ);
+      const hs = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.8), lit);
+      hs.position.set(dr.x + dr.outX * 0.13, 3.15, dr.z + dr.outZ * 0.13);
+      hs.rotation.y = rot;
+      hs.name = 'home-board';
       g.add(hs);
+      const val = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.45), this.litSign('HOME', '#2f6b4a', '#ffffff'));
+      val.position.set(dr.x + dr.outX * 1.02, 2.3, dr.z + dr.outZ * 1.02);
+      val.rotation.y = rot;
+      val.name = 'home-valance';
+      g.add(val);
+      // blade sign: perpendicular to the wall, one plane per street direction
+      const bx = dr.x + dr.outX * 1.5, bz = dr.z + dr.outZ * 1.5;
+      const along = alongX ? { x: 1, z: 0 } : { x: 0, z: 1 };
+      g.add(box(alongX ? 0.05 : 1.5, 0.05, alongX ? 1.5 : 0.05, '#1b1b1b', dr.x + dr.outX * 0.75, 3.75, dr.z + dr.outZ * 0.75));
+      for (const dir of [1, -1]) {
+        const bl = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.5), this.litSign('HOME', '#1f4d36', '#fff3c4'));
+        bl.position.set(bx + along.x * 0.02 * dir, 3.4, bz + along.z * 0.02 * dir);
+        bl.rotation.y = alongX ? (dir > 0 ? Math.PI / 2 : -Math.PI / 2) : (dir > 0 ? 0 : Math.PI);
+        bl.name = 'home-blade';
+        g.add(bl);
+      }
       g.add(box(0.14, 0.14, 0.02, '#e7d27a', dr.x + (alongX ? 0 : dr.outX * 0.09), 1.75, dr.z + (alongX ? dr.outZ * 0.09 : 0)));
     } else if (id === 'deli') {
       const m = this.d.materials.sign(def.sign, '#1b1b1b', '#ffd23f');

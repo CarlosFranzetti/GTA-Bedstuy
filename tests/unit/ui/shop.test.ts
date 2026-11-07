@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest';
-import { ShopUi } from '@/ui/ShopUi';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ShopUi, CONFIRM_MS } from '@/ui/ShopUi';
 import { Inventory, START_CASH } from '@/game/Inventory';
 import { PROCEDURAL_RECORDS, RecordSource, type BufferContext } from '@/game/records';
 
@@ -86,5 +86,113 @@ describe('ShopUi', () => {
     shop.open();
     shop.root.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(shop.isOpen).toBe(false);
+  });
+});
+
+describe('ShopUi H7 fixes', () => {
+  afterEach(() => { vi.useRealTimers(); });
+  const key = (code: string) => document.dispatchEvent(new KeyboardEvent('keydown', { code, key: code === 'Enter' ? 'Enter' : code, bubbles: true, cancelable: true }));
+  const statusOf = (parent: HTMLElement) => parent.querySelector('.shop-status')!.textContent!;
+
+  it('selling by Enter needs a second Enter within 3 s', () => {
+    vi.useFakeTimers(); vi.setSystemTime(1000);
+    const { shop, inventory, parent } = make();
+    shop.open();
+    const n = inventory.records.length; const c = inventory.cash;
+    shop.navigate('right'); // Your crate
+    shop.navigate('confirm');
+    expect(inventory.records.length).toBe(n);
+    expect(statusOf(parent)).toMatch(/Sell ".+" for \$\d+\? Enter again \/ Esc/);
+    vi.setSystemTime(1000 + CONFIRM_MS - 100);
+    shop.navigate('confirm');
+    expect(inventory.records.length).toBe(n - 1);
+    expect(inventory.cash).toBeGreaterThan(c);
+  });
+  it('the sell confirm expires after 3 s and Esc cancels without closing', () => {
+    vi.useFakeTimers(); vi.setSystemTime(1000);
+    const { shop, inventory } = make();
+    shop.open(); shop.navigate('right');
+    const n = inventory.records.length;
+    shop.navigate('confirm');
+    vi.setSystemTime(1000 + CONFIRM_MS + 50);
+    shop.navigate('confirm'); // too late: re-arms, no sale
+    expect(inventory.records.length).toBe(n);
+    key('Escape');
+    expect(shop.isOpen).toBe(true);
+    expect(shop.pendingConfirm).toBe(false);
+    shop.navigate('confirm'); shop.navigate('down'); shop.navigate('up'); shop.navigate('confirm'); // moving cancels the arm
+    expect(inventory.records.length).toBe(n);
+    key('Escape'); expect(shop.isOpen).toBe(false);
+  });
+  it('mouse click on Sell stays instant', () => {
+    const { shop, parent, inventory } = make();
+    shop.open(); shop.navigate('right');
+    const n = inventory.records.length;
+    [...parent.querySelectorAll<HTMLButtonElement>('.shop-card .shop-btn')].find((b) => b.textContent?.startsWith('Sell'))!.click();
+    expect(inventory.records.length).toBe(n - 1);
+  });
+  it('buying is one Enter while cash stays comfortable, two when it would leave under $10', () => {
+    const { shop, inventory } = make();
+    shop.open();
+    const first = PROCEDURAL_RECORDS.find((r) => !inventory.hasRecord(r.id))!;
+    shop.navigate('confirm');
+    expect(inventory.hasRecord(first.id)).toBe(true);
+    // now nearly broke: price > cash - 10
+    const next = PROCEDURAL_RECORDS.find((r) => !inventory.hasRecord(r.id))!;
+    inventory.add(-inventory.cash + next.price + 5);
+    shop.navigate('down'); // may land elsewhere; select the next unowned row explicitly
+    shop.close(); shop.open();
+    expect(inventory.cash).toBe(next.price + 5);
+    shop.navigate('confirm');
+    expect(inventory.hasRecord(next.id)).toBe(false);
+    shop.navigate('confirm');
+    expect(inventory.hasRecord(next.id)).toBe(true);
+  });
+  it('the highlight starts on the first purchasable row and Enter on an owned row does not eat the next Enter', () => {
+    const { shop, inventory, parent } = make();
+    shop.open();
+    const firstOwned = PROCEDURAL_RECORDS.findIndex((r) => inventory.hasRecord(r.id));
+    const firstFree = PROCEDURAL_RECORDS.findIndex((r) => !inventory.hasRecord(r.id));
+    expect(firstOwned).toBeGreaterThanOrEqual(0);
+    const cards = [...parent.querySelectorAll('.shop-card')];
+    expect(cards[firstFree].classList.contains('sel')).toBe(true);
+    // go up to an owned row: the line shows, and one Enter later we still act on the highlighted row
+    while (!cards.some((c, i) => c.classList.contains('sel') && inventory.hasRecord(PROCEDURAL_RECORDS[i].id))) shop.navigate('up');
+    shop.navigate('confirm');
+    expect(statusOf(parent)).toBe('You already own that one.');
+    expect(shop.pendingConfirm).toBe(false);
+  });
+  it('shows "n of N" and arrows, and keeps it in step with the highlight', () => {
+    const { shop, parent } = make();
+    shop.open();
+    const count = () => parent.querySelector('.shop-count')!.textContent!;
+    const total = parent.querySelectorAll('.shop-card').length;
+    expect(count()).toContain(`of ${total}`);
+    while (!count().startsWith(`${total} of`) && !count().includes(`${total} of`)) shop.navigate('down');
+    expect(count()).toContain('\u25B2');
+    expect(count()).not.toContain('\u25BC');
+    for (let i = 0; i < total; i++) shop.navigate('up');
+    expect(count()).toMatch(/^1 of \d+ \u25BC$/);
+  });
+  it('scrolls the highlighted row into view', () => {
+    const { shop, parent } = make();
+    shop.open();
+    const cards = [...parent.querySelectorAll<HTMLElement>('.shop-card')];
+    const spy = vi.fn(); cards[cards.length - 1].scrollIntoView = spy;
+    for (let i = 0; i < cards.length; i++) shop.navigate('down');
+    expect(spy).toHaveBeenCalled();
+  });
+  it('Q / E switch tabs, V previews, E no longer previews, hint says so', async () => {
+    const { shop, parent, preview } = make();
+    shop.open();
+    const tab = () => parent.querySelector('.shop-tab.on')!.textContent;
+    expect(tab()).toBe('Bins');
+    key('KeyE'); expect(tab()).toBe('Your crate');
+    expect(preview.play).not.toHaveBeenCalled();
+    key('KeyQ'); expect(tab()).toBe('Bins');
+    key('KeyV'); await Promise.resolve(); await Promise.resolve();
+    expect(parent.querySelector('.shop-hint')!.textContent).toMatch(/Q \/ E tabs/);
+    expect(parent.querySelector('.shop-hint')!.textContent).toMatch(/V preview/);
+    expect(parent.querySelector('.shop-hint')!.textContent).not.toMatch(/E preview/);
   });
 });

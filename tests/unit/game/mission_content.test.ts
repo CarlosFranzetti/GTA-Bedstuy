@@ -413,3 +413,15 @@ describe('persistence across a reload', () => {
     expect(m2.cash).toBe(150);
   });
 });
+
+import { crateDigger as crateDiggerDef } from '@/game/missions/content/dj';
+describe('H7: Crate Digger wording', () => {
+  it('says browse the bins (not the listening station) and the wrap-up objective is actionable', () => {
+    const d = crateDiggerDef();
+    const texts = d.objectives.map((o) => o.text);
+    expect(texts.join(' ')).not.toMatch(/listening station/i);
+    expect(texts[1]).toMatch(/browse the bins/i);
+    expect(texts[2]).toBe('Wait for Ms. Odette, then head back outside');
+    expect(d.objectives[2].banter?.[0]).toBe('Ms. Odette wraps your records in brown paper.');
+  });
+});

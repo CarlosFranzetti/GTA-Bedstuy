@@ -149,6 +149,8 @@ export interface MissionEvents {
   'mission:completed': { id: string; title: string; cash: number; message: string; totalCash: number };
   'mission:failed': { id: string; title: string; reason: FailReason; message: string };
   'mission:twist': { id: string; text: string };
+  /** The player gave up a failed or running mission (no penalty). Late mission texts are dropped on this. */
+  'mission:abandoned': { id: string };
 }
 
 export type MissionEventName = keyof MissionEvents;

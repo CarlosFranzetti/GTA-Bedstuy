@@ -311,6 +311,15 @@ export class Minimap {
       if (d > edge) { dx *= edge / d; dy *= edge / d; }
       const cx = half + dx, cy = half + dy;
       const r = 7 * k;
+      if (t.id === 'home') {
+        // H7: HOME was never found. A pulsing ring keeps the house icon catching the eye.
+        const ph = (this.clock * 1.2) % 1;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * (1 + ph * 1.1), 0, Math.PI * 2);
+        ctx.lineWidth = 2 * k;
+        ctx.strokeStyle = `rgba(124, 214, 160, ${(0.9 * (1 - ph)).toFixed(3)})`;
+        ctx.stroke();
+      }
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);
       ctx.fillStyle = HALO;

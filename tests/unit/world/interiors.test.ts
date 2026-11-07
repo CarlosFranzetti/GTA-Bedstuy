@@ -141,3 +141,26 @@ describe('interior state machine', () => {
     for (let i = 0; i < 200; i++) t.it.update(0.016, { phase: (i % 30) / 30, bpm: 124, level: 0.8 });
   });
 });
+
+describe('H7: WAX DELI bins prompt and HOME visibility', () => {
+  it('the north crates and the counter both offer "Browse the bins" and open the shop panel', () => {
+    const t = make(12);
+    t.it.tryEnter(at('deli')); t.run(1);
+    const o = INTERIORS.deli.origin;
+    for (const [x, z] of [[-0.3, -2.3], [1.2, 0.4], [-3.0, -1.0]] as const) {
+      expect(t.it.prompt({ x: o.x + x, z: o.z + z })).toBe('F  Browse the bins');
+      t.it.interact({ x: o.x + x, z: o.z + z });
+      expect(t.actions.at(-1)).toEqual({ kind: 'shop', interior: 'deli' });
+    }
+  });
+  it('HOME gets a large lit board, awning lettering and a blade sign on both street sides', () => {
+    const scene = new THREE.Group();
+    new Interiors({ scene, world: new World2D(), materials, inventory: new Inventory(PROCEDURAL_RECORDS, null), getHour: () => 12, teleport: () => undefined } as never);
+    const names: Record<string, THREE.Mesh[]> = {};
+    scene.traverse((o) => { if (o.name.startsWith('home-')) (names[o.name] ??= []).push(o as THREE.Mesh); });
+    const board = names['home-board'][0].geometry as THREE.PlaneGeometry;
+    expect(board.parameters.width).toBeGreaterThanOrEqual(3);
+    expect(names['home-valance']).toHaveLength(1);
+    expect(names['home-blade']).toHaveLength(2);
+  });
+});

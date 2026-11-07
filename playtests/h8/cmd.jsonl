@@ -1,0 +1,2 @@
+{"step":1,"thought":"I'm on a sidewalk in Throop Ave, and the sky is going dusky purple-blue. There's a white SUV just to my left, about five metres away. I'll turn toward it and walk over.","actions":[{"look":{"dx":-371,"dy":0}},{"key":"KeyW","ms":1600},{"wait":300},{"key":"KeyF","tap":true},{"wait":800}]}
+{"step":2,"thought":"I'm in. The dash prompt says Exit car and the radio says WBED 88.9, Brownstone Boom-Bap. The camera sits right behind a boxy white car. I'll ease off and roll up the avenue.","actions":[{"key":"KeyW","ms":3000},{"wait":400}]}

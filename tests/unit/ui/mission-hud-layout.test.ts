@@ -48,6 +48,21 @@ describe('MissionHud layout', () => {
     expect((root.querySelector('.msn-pointer-arrow') as HTMLElement).style.visibility).toBe('hidden');
   });
 
+  it('a leave-the-building objective reads plain, with no "inside" suffix', () => {
+    const hud = new MissionHud(root);
+    hud.update(state({ inside: true }));
+    hud.updatePointer([{ ...goal, label: 'Head back outside' }], { x: 0, z: 0 }, 0);
+    expect(root.querySelector('.msn-pointer-text')!.textContent).toBe('Goal: Head back outside');
+  });
+
+  it('one-time home hint toast', () => {
+    try { localStorage.removeItem('gta-bedstuy.homeHint.v1'); } catch { /* */ }
+    const hud = new MissionHud(root);
+    expect(hud.showHomeHint()).toBe(true);
+    expect(root.textContent).toContain('Your place is the green awning on Throop Ave (press N to point at it)');
+    expect(hud.showHomeHint()).toBe(false);
+  });
+
   it('back outside the distance and arrow return', () => {
     const hud = new MissionHud(root);
     hud.update(state({ inside: true }));

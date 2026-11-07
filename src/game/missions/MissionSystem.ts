@@ -250,6 +250,7 @@ export class MissionSystem {
   abandon(): boolean {
     if (this.cur < 0) return false;
     const i = this.cur;
+    const abandonedId = this.defs[i].id;
     this.status[i] = 'available';
     this.armed.fill(false);
     this.cur = -1;
@@ -258,6 +259,7 @@ export class MissionSystem {
     this.hud.retryPrompt = '';
     this.rebuildMarkers();
     this.syncStatic();
+    this.emit('mission:abandoned', { id: abandonedId });
     return true;
   }
 

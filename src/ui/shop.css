@@ -41,3 +41,10 @@
   .shop-price { margin-top: 2px; }
 }
 @media (max-width: 520px) { .shop-card { flex-wrap: wrap; } .shop-meta { flex-basis: 40%; } .shop-actions { flex: 1 1 100%; } .shop-actions .shop-btn { flex: 1; } }
+
+.shop-count { flex: none; font: 600 12px/1 system-ui, sans-serif; color: #f5c542; opacity: 0.9; white-space: nowrap; }
+/* visible scrollbar so the list reads as scrollable */
+.shop-body { scrollbar-width: thin; scrollbar-color: #f5c542 rgba(255, 255, 255, 0.1); }
+.shop-body::-webkit-scrollbar { width: 6px; }
+.shop-body::-webkit-scrollbar-thumb { background: #f5c542; border-radius: 3px; }
+.shop-body::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }

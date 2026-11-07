@@ -217,7 +217,9 @@
   .hud-card-title { font-size: clamp(18px, 3.8vw, 28px); }
   .hud-card-sub { margin-top: 3px; font-size: 10px; letter-spacing: 0.22em; }
   .hud-prompt { bottom: 20px; }
-  .hud-location { bottom: 18px; }
+  /* H7: the radio caption ran under the centred "F  Exit car" pill. Keep the whole location block left of the pill. */
+  .hud-location { bottom: 18px; flex-direction: column; align-items: flex-start; flex-wrap: nowrap; gap: 2px; max-width: calc(50% - 130px); }
+  .hud-radio { white-space: normal; line-height: 1.15; }
   .hud-street { line-height: 1.15; font-size: 20px; }
 }
 @media (max-height: 480px), (max-width: 700px) {

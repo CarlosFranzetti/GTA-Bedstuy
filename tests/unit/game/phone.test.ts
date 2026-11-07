@@ -78,6 +78,35 @@ describe('Phone + missions', () => {
     expect(ph.messages).toHaveLength(1);
   });
 
+  it('a scoped text is never delivered once its mission ended (completed, failed or abandoned)', () => {
+    const ph = new Phone();
+    const m = new MissionSystem([def()]);
+    ph.bind(m);
+    ph.text('Boss', 'late briefing', { delay: 5, mission: 'a' }); // refused: 'a' is not running
+    expect(ph.pending).toBe(0);
+    const bot = new Bot(m, P(0));
+    bot.startMission(m.missions[0]);
+    ph.text('Boss', 'queued briefing', { delay: 30, mission: 'a' });
+    expect(ph.pending).toBe(1);
+    bot.wait(1.3); // completes
+    expect(m.isCompleted('a')).toBe(true);
+    ph.update(40, P(0));
+    expect(ph.messages.map((x) => x.text)).toEqual(['intro text']);
+  });
+
+  it('abandoning drops a still-queued scoped text', () => {
+    const d = def({ timeLimit: 0.5 });
+    const m = new MissionSystem([d]);
+    const ph = new Phone();
+    ph.bind(m);
+    const bot = new Bot(m, P(0));
+    bot.startMission(d);
+    ph.text('Boss', 'queued', { delay: 20, mission: 'a' });
+    m.abandon();
+    ph.update(30, P(0));
+    expect(ph.messages.map((x) => x.text)).toEqual(['intro text']);
+  });
+
   it('follow-up arrives 60 s after the reward', () => {
     const d = def();
     const m = new MissionSystem([d]);

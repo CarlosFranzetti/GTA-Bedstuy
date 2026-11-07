@@ -27,10 +27,10 @@ export function crateDigger(): MissionDef {
     followUp: { from: 'Ms. Odette', text: "There is an open-decks slot at the block party. Evening. Don't be late and don't bring a laptop.", delay: 80 },
     objectives: [
       { kind: 'enterInterior', id: INTERIOR_DELI, at: door, radius: 4, text: 'Walk into WAX DELI' },
-      { kind: 'buy', shop: SHOP_WAX_DELI, items: [...CRATE_RECORDS], at: door, text: 'Buy Throop Night Bus, Spin Cycle Love and Fire Escape Sunrise', banter: ['Ms. Odette: "Nope. That one is a crime. The one next to it."'] },
+      { kind: 'buy', shop: SHOP_WAX_DELI, items: [...CRATE_RECORDS], at: door, text: 'Browse the bins (F) and buy Throop Night Bus, Spin Cycle Love and Fire Escape Sunrise', banter: ['Ms. Odette: "Nope. That one is a crime. The one next to it."'] },
       {
-        kind: 'timer', seconds: 10, text: 'Ms. Odette wraps your records',
-        banter: ['Ms. Odette: "Good. You do not buy what you like. You buy what you can mix."', 'Ms. Odette: "There is a night I will not name. There is a door I will not name. Go be seen first."'],
+        kind: 'timer', seconds: 10, text: 'Wait for Ms. Odette, then head back outside',
+        banter: ['Ms. Odette wraps your records in brown paper.', 'Ms. Odette: "Good. You do not buy what you like. You buy what you can mix."', 'Ms. Odette: "There is a night I will not name. There is a door I will not name. Go be seen first."'],
         banterEvery: 4,
       },
       { kind: 'exitInterior', id: INTERIOR_DELI, at: door, radius: 4, text: 'Head back outside', doneMessage: 'Records under your arm, a flyer in your pocket.' },
