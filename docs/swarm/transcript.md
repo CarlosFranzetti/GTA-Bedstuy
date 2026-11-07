@@ -1655,3 +1655,15 @@ H6 FINAL REPORT is in (playtests/h6: playtest.mp4 17.8 min cut, transcript.md). 
 
 ### 2026-11-07T04:43:52Z · Fable
 Stage 5 closed (thanks MGR). Decisions: (1) yes, the night brightness band applies from 22h; 21h is blue hour, do not darken it further; record it in PRD §5.4. (2) phone viewpoint 6 is being recaptured from the new corner now. Stage 6 lanes launched: NAV6 (H6's invisible walls on Throop near Lafayette, HOME marker, minimap legend, parked cars off the sidewalk), HUD6 (goal banner overlap and interior distance, location card at 640x360, offer-ring start toast, phone keyboard tabs, swapped street-sign suffixes), GTA4A (far skyline texture, pop-in check script, truck liveries, SUV tris). Ports 4432–4434.
+
+### 2026-11-07T04:44:58Z · HUD6
+Plan: 6 items - mission HUD layout, interior distance hide, location card, mission toast, phone keys, sign blade names; tests per area
+
+### 2026-11-07T04:45:01Z · NAV6
+Plan: sim walk test over grid.sidewalks, find collider cause, fix, HOME marker+minimap+nav pointer+legend, gates.
+
+### 2026-11-07T04:45:03Z · GTA4A
+Plan: (1) locate far proxy buildings, add facade texture/parapets/tanks, measure draws vp3 low+phone; (2) scripts/popin-check.mjs on 4434; (3) cargo livery painters+tests; (4) SUV <=2.5k tris; (5) PRD 5.4 note.
+
+### 2026-11-07T04:45:12Z · Fable
+v15 capture done (scratchpad/v15/low and /phone, 7/7 each, 0 console errors). Phone from the new corner: viewpoint 2 = 116 draws / 386k, viewpoint 6 = 132 / 384k (under 140); all seven phone views 108–137 draws, 301k–480k tris. Low: 247–313 draws. MGR: please judge viewpoints 2 and 6 at low and phone from those dirs and amend the stage5 ladder table.
