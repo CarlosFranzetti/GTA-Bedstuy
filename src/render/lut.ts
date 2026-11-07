@@ -121,7 +121,7 @@ export function gradeColor(rgb: [number, number, number], preset: GradePreset): 
  * by `lutKeysForHour` (two baked LUTs crossfaded in the grading shader), the last key wraps to the first.
  */
 export const HOUR_KEYS: readonly { name: string; hour: number; params: PresetParams }[] = [
-  { name: 'deepNight', hour: 2, params: { saturation: 0.92, curve: 0.4, shadowTint: [-0.026, 0.003, 0.04], highlightMul: [1.0, 0.94, 0.8], midMul: [0.96, 0.99, 1.06] } },
+  { name: 'deepNight', hour: 2, params: { saturation: 0.92, curve: 0.44, lift: 0.014, shadowTint: [-0.026, 0.003, 0.04], highlightMul: [1.0, 0.94, 0.8], midMul: [0.96, 0.99, 1.06] } },
   { name: 'preDawn', hour: 4.5, params: { saturation: 0.95, curve: 0.36, shadowTint: [-0.024, 0.004, 0.036], highlightMul: [0.98, 0.97, 0.94], midMul: [0.97, 0.99, 1.05] } },
   { name: 'dawn', hour: 6, params: { saturation: 1.06, curve: 0.34, shadowTint: [-0.02, 0.002, 0.03], highlightMul: [1.0, 0.94, 0.84], midMul: [1.0, 0.99, 1.02] } },
   { name: 'morning', hour: 8, params: { saturation: 1.2, curve: 0.34, shadowTint: [-0.016, 0.004, 0.02], highlightMul: [1.0, 0.96, 0.87], midMul: [1.03, 1.0, 0.96], lift: 0.024 } },
@@ -129,8 +129,8 @@ export const HOUR_KEYS: readonly { name: string; hour: number; params: PresetPar
   { name: 'afternoon', hour: 15.5, params: { saturation: 1.26, curve: 0.34, shadowTint: [-0.016, 0.004, 0.018], highlightMul: [1.0, 0.958, 0.86], midMul: [1.04, 1.0, 0.94], lift: 0.024 } },
   { name: 'golden', hour: 17.5, params: { saturation: 1.26, curve: 0.4, shadowTint: [-0.026, -0.002, 0.032], highlightMul: [1.0, 0.89, 0.7], midMul: [1.05, 0.98, 0.9] } },
   { name: 'dusk', hour: 19, params: { saturation: 1.15, curve: 0.4, shadowTint: [-0.02, -0.004, 0.036], highlightMul: [1.0, 0.88, 0.7], midMul: [1.03, 0.97, 0.96] } },
-  { name: 'blueHour', hour: 20.3, params: { saturation: 1.02, curve: 0.37, shadowTint: [-0.024, 0.0, 0.038], highlightMul: [1.0, 0.92, 0.8], midMul: [0.98, 0.99, 1.05] } },
-  { name: 'night', hour: 22.5, params: { saturation: 0.95, curve: 0.4, shadowTint: [-0.026, 0.003, 0.04], highlightMul: [1.0, 0.93, 0.78], midMul: [0.96, 0.99, 1.06] } },
+  { name: 'blueHour', hour: 20.3, params: { saturation: 1.02, curve: 0.37, shadowTint: [-0.024, 0.0, 0.038], highlightMul: [1.0, 0.92, 0.8], midMul: [0.95, 0.97, 1.03], lift: 0.016 } },
+  { name: 'night', hour: 22.5, params: { saturation: 0.95, curve: 0.44, lift: 0.014, shadowTint: [-0.026, 0.003, 0.04], highlightMul: [1.0, 0.93, 0.78], midMul: [0.96, 0.99, 1.06] } },
 ];
 
 function lerp(a: number, b: number, t: number): number {
