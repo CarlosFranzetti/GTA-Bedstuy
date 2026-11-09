@@ -4,7 +4,7 @@
  *  5 reverse camera  6 vehicle identity across exit / re-enter and LOD  (7: the 'rainbow ring' is the sun flare: suppress)
  */
 import * as THREE from 'three';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { ThirdPersonCamera } from '@/core/Camera';
 import type { Input } from '@/core/Input';
 import { EventBus, type GameEvents } from '@/core/Events';
@@ -202,32 +202,51 @@ describe('3 wanted star with no visible crime', () => {
   });
 });
 
-describe('4 mission ring started by driving through', () => {
+describe('4 mission ring: F required, on foot and in a car', () => {
   const def = (): MissionDef => ({
     id: 'r1', title: 'Block Party', blurb: 'b', giverPoi: 'x', giver: { x: 0, z: 0 }, triggerRadius: 5,
     objectives: [{ kind: 'goTo', at: { x: 100, z: 0 }, radius: 4, presence: 'any', text: 'go' }],
     reward: { cash: 1, message: 'ok' },
   });
-  const boot = () => { const m = new MissionSystem([def()]); m.update(DT, { x: 50, z: 0 }, false, 0); return { m }; };
+  const boot = () => {
+    MissionSystem.autoPressF = false;
+    const m = new MissionSystem([def()]);
+    m.update(DT, { x: 50, z: 0 }, false, 0);
+    return { m };
+  };
+  afterEach(() => { MissionSystem.autoPressF = true; });
 
   it('driving through at 40 km/h does not start it and says "Stop here to start Block Party"', () => {
     const { m } = boot();
-    for (let i = 0; i < 60; i++) m.update(DT, { x: 4 - i * 0.15, z: 0 }, true, 0, 11, -1);
+    for (let i = 0; i < 60; i++) { m.update(DT, { x: 4 - i * 0.15, z: 0 }, true, 0, 11, -1); m.interact({ x: 4 - i * 0.15, z: 0 }); }
     expect(m.isActive).toBe(false);
     expect(m.hud.toast).toBe('Stop here to start Block Party');
   });
 
-  it('stopped (< 3 km/h) inside the ring for 1 s starts it; 0.5 s does not', () => {
+  it('on foot: standing in the ring shows "F  Start Block Party" and nothing starts until F; walking through does nothing', () => {
     const { m } = boot();
-    for (let i = 0; i < 30; i++) m.update(DT, { x: 0, z: 0 }, true, 0, 0.2, -1);
+    for (let i = 0; i < 120; i++) m.update(DT, { x: 0, z: 0 }, false, 0, 0, -1);
     expect(m.isActive).toBe(false);
-    for (let i = 0; i < 40; i++) m.update(DT, { x: 0, z: 0 }, true, 0, 0.2, -1);
+    expect(m.hud.prompt).toBe('F  Start Block Party');
+    expect(m.markers.some((k) => k.kind === 'giver')).toBe(true); // ring keeps glowing
+    expect(m.interact({ x: 0, z: 0 })).toBe(true);
     expect(m.isActive).toBe(true);
+    const w = boot().m;
+    for (let i = 0; i < 40; i++) w.update(DT, { x: 6 - i * 0.3, z: 0 }, false, 0, 1.4, -1);
+    w.update(DT, { x: -8, z: 0 }, false, 0, 1.4, -1);
+    expect(w.isActive).toBe(false);
+    expect(w.interact({ x: -8, z: 0 })).toBe(false); // outside: F does nothing
   });
 
-  it('on foot it still starts at once', () => {
+  it('in a car: stopped (< 3 km/h) for 1 s shows the same F prompt (0.5 s does not); F starts it', () => {
     const { m } = boot();
-    m.update(DT, { x: 0, z: 0 }, false, 0, 0, -1);
+    for (let i = 0; i < 30; i++) m.update(DT, { x: 0, z: 0 }, true, 0, 0.2, -1);
+    expect(m.hud.prompt).toBe('');
+    expect(m.interact({ x: 0, z: 0 })).toBe(false);
+    for (let i = 0; i < 40; i++) m.update(DT, { x: 0, z: 0 }, true, 0, 0.2, -1);
+    expect(m.isActive).toBe(false);
+    expect(m.hud.prompt).toBe('F  Start Block Party');
+    expect(m.interact({ x: 0, z: 0 })).toBe(true);
     expect(m.isActive).toBe(true);
   });
 });

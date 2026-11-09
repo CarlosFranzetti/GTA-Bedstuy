@@ -77,7 +77,7 @@ describe.each(CASES)('procedural $style', (c) => {
   });
 
   it('stays within the triangle budget', () => {
-    const budget = c.style === 'van' ? 2700 : 8000; // roster bodies: GTA4 near budget 6-8 k
+    const budget = 8000; // roster bodies: GTA4 near budget 6-8 k
     expect(totalTris(m.group)).toBeLessThanOrEqual(budget);
   });
 

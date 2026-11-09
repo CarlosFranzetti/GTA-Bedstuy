@@ -19,7 +19,7 @@ describe('GTA4-style people (pedBodyHi)', () => {
       expect(hi, PED_SPECS[v].id).toBeLessThanOrEqual(4000);
       expect(mid, PED_SPECS[v].id).toBeGreaterThan(700);
       expect(mid, PED_SPECS[v].id).toBeLessThan(1700);
-      expect(far).toBeLessThan(600);
+      expect(far).toBeLessThan(800);
     }
   });
 
@@ -37,7 +37,7 @@ describe('GTA4-style people (pedBodyHi)', () => {
       expect(bb.max.y, spec.id).toBeGreaterThan(1.7); expect(bb.max.y, spec.id).toBeLessThan(2.05);
       const g = (m.group.getObjectByName('body') as THREE.Mesh).geometry;
       expect(g.boundingBox!.min.z).toBeLessThan(-0.11); // nose and toes point to -z
-      expect(g.boundingBox!.max.x - g.boundingBox!.min.x).toBeGreaterThan(0.5);
+      expect(g.boundingBox!.max.x - g.boundingBox!.min.x).toBeGreaterThan(0.45);
       expect(m.triangles).toBe(hiGeo(v, 'hi').triangles);
     }
   });

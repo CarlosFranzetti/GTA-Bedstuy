@@ -37,7 +37,7 @@ const LEG_X = 0.095;
 interface R { y: number; rx: number; rz: number; cx?: number; cz?: number }
 
 const SEGS: Record<PedDetail, { limb: number; torso: number; head: number; fine: number }> = {
-  hi: { limb: 10, torso: 16, head: 18, fine: 6 },
+  hi: { limb: 12, torso: 20, head: 22, fine: 6 },
   mid: { limb: 8, torso: 10, head: 12, fine: 0 },
   far: { limb: 5, torso: 6, head: 7, fine: 0 },
 };

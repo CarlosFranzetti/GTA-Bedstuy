@@ -65,6 +65,8 @@ const finite = (n: unknown): n is number => typeof n === 'number' && Number.isFi
 type Statuses = 'available' | 'active' | 'complete' | 'failed';
 
 export class MissionSystem {
+  /** Tests only: behave as if F were pressed the moment the start prompt appears (the unit suites predate the F rule). */
+  static autoPressF = false;
   /** Cash earned from missions (persisted). */
   cash = 0;
   /** Bumps whenever `markers` was rebuilt. */
@@ -424,6 +426,7 @@ export class MissionSystem {
       // Standing in the ring (or stopped in it) offers the start; F takes it. Walking or driving through does nothing.
       this.pendingStart = i;
       this.hud.prompt = `F  Start ${d.title}`;
+      if (MissionSystem.autoPressF) { this.pendingStart = -1; this.begin(i, hour); }
       return;
     }
     if (inAny < 0) { this.hintedZone = -1; this.stopHintedZone = -1; this.ringDwell = 0; }

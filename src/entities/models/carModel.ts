@@ -117,9 +117,9 @@ export function cargoLiveryMaterial(materials: IMaterialLibrary, variant: number
 // ---------------------------------------------------------------- wheels
 
 /** Tyre sides: a 10-gon reads round at the 1.6 cm sagitta it leaves on a 0.34 m radius. */
-const WHEEL_SEG = 10;
+const WHEEL_SEG = 22;
 /** the van's 0.5 m tyres get 12 sides */
-const segFor = (R: number): number => (R > 0.45 ? 12 : WHEEL_SEG);
+const segFor = (R: number): number => (R > 0.45 ? 26 : WHEEL_SEG);
 /** Tyre profile, outer half, from the tread centre outwards: [radius / R, axial / w, texture v]. v follows tireSidewallPainter. */
 const TYRE_PROFILE: [number, number, number][] = [[1, 0, 0.5], [1, 0.32, 0.44], [0.84, 0.5, 0.2], [0.6, 0.4, 0.05]];
 
