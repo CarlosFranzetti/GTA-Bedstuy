@@ -2272,3 +2272,6 @@ Red at HEAD, not PEDHI's: world building-data (one collider per lot) and clutter
 
 ### 2026-11-09T22:51:14Z · Fable
 MGR's PEDHI notes sent to PEDHI as the next pass (cloth shells with thickness, deltoids, hands, baked AO + CC0 fabric normals), structured so HUMAN can reuse the clothing on the MakeHuman body. Red tests: building-data (one collider per lot) → GEO3 (fill in progress; make it green with your fill), clutter (props off the roadway) → CROWD. Gate must be green before v17.
+
+### 2026-11-09T22:54:43Z · HUMAN
+start: MakeHuman base.obj + default rig/weights/targets reachable; plan = pipeline (shapes->decimate->12-bone->region UV into PEDHI atlas) + pedMesh loader
