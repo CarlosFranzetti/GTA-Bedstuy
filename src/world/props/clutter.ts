@@ -21,6 +21,8 @@ import { PropsBuilder, box, cyl, faceFrame, frameMatrix, furnitureBlocked, near,
 
 /** Radius (m) around a lot's centre line where its door and stoop are; nothing solid is put there. */
 export const DOOR_ZONE = 1.4;
+/** Planters stand this far in from the building line: 0.6 put a 0.4 m collider in front of an areaway entry gap and left a slot only a thin body could use (NAV6). */
+const PLANTER_OFF_LINE = 1.7;
 const SW_Y = 0.012;
 const ROAD_Y = -0.15 + 0.012;
 
@@ -282,7 +284,7 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
           // a planter on the stoop side of some rows
           if (lot.type === 'brownstone' && frng.chance(0.18)) {
             const s = lo + 0.9;
-            const p = free(s, stripW - 0.6, 1.0);
+            const p = free(s, stripW - PLANTER_OFF_LINE, 1.0);
             if (p && !nearDoorEdge(s)) { emit(bucketOf(2), planter(frng), 2, 'planter', p.x, SW_Y, p.z, fr.yaw, true, fk); pb.circle(p, 0.4); take(p); }
           }
         } else if (lot.type === 'mixeduse') {
@@ -315,7 +317,7 @@ export function buildClutter(pb: PropsBuilder, grid: GridModel, lots: Lot[], mat
           }
           if (frng.chance(0.3)) {
             const s = lo + 1.4 + frng.range(0, 1);
-            const p = free(s, stripW - 0.45, 1.0);
+            const p = free(s, stripW - PLANTER_OFF_LINE, 1.0);
             if (p && !nearDoorEdge(s)) { emit(bucketOf(2), planter(frng), 2, 'planter', p.x, SW_Y, p.z, fr.yaw, true, fk); pb.circle(p, 0.4); take(p); }
           }
           // gum speckle in front of the shop

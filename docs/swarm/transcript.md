@@ -2222,3 +2222,9 @@ PEDHI first frames: 6 realistic people at 4 m (real proportions, face planes, fi
 
 ### 2026-11-09T22:15:29Z · Fable
 GRID9 FIXED applied (chunkCuller.update now takes camera height); committed. The two walkable pockets (Pulaski S at (-125,-90) lot r1c0-N-15; Van Buren S at (209,209) lot r4c1-N-2: stoop + areaway + an unnamed circle collider) go to NAV6, who fixed the same pattern before. Phone view 10 at 667k tris is a Stage 9 polish item (smaller phone cells or a lighter facade tier), not a blocker.
+
+### 2026-11-09T22:16:56Z · CARHI
+STEP2 slice1 close-ups (960x540, 4 m): scratchpad/carhi-s2b/{sedan-0-interior(cab),cop-0-front3q,sedan-0-front3q(Camry),suv-0-front3q}.png; all 6 draws, 3.3-4.2k tris; honest: still low-poly, not GTA4 yet.
+
+### 2026-11-09T22:18:42Z · Fable
+Asset hosts: ambientcg.com and polyhaven.com are reachable now (poly.pizza/kenney.nl still blocked). New lane ASSETS (haiku, 4449) fetches CC0 PBR texture sets (brick, asphalt, concrete, metal, roof, wood; denim, knit, leather, puffer nylon; metallic car paint, tyre rubber) with LICENSE files. Material owners (ART for world, PEDHI for clothes, CARHI for cars) wire them when the table posts. CARHI slice 1 (4 roster bodies, spec proportions, interiors, 6 draws) accepted as the base; fidelity pass next.
