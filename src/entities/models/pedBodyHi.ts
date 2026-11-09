@@ -34,10 +34,10 @@ const UPPER_ARM = 0.29;
 const HEAD_Y = 1.58;
 const LEG_X = 0.095;
 
-interface R { y: number; rx: number; rz: number; cx?: number; cz?: number }
+export interface R { y: number; rx: number; rz: number; cx?: number; cz?: number }
 
 const SEGS: Record<PedDetail, { limb: number; torso: number; head: number; fine: number }> = {
-  hi: { limb: 12, torso: 20, head: 22, fine: 6 },
+  hi: { limb: 10, torso: 18, head: 22, fine: 6 },
   mid: { limb: 8, torso: 10, head: 12, fine: 0 },
   far: { limb: 5, torso: 6, head: 7, fine: 0 },
 };
@@ -50,13 +50,13 @@ function thin(rs: R[], n: number): R[] {
   return out;
 }
 
-interface Part { geo: THREE.BufferGeometry; bone: number }
+export interface Part { geo: THREE.BufferGeometry; bone: number }
 
 /**
  * A smooth loft of elliptical rings (ascending y), wrapped around once: u = angle (the FRONT, -z, at u = 0.5), v = height in the rect.
  * `planar` maps by x / y instead (the face): the back half of the head samples the left edge column of the tile.
  */
-function tube(rings: R[], seg: number, rect: PxRect, opts: { cap?: 'top' | 'bottom' | 'both'; planar?: boolean } = {}): THREE.BufferGeometry {
+export function tube(rings: R[], seg: number, rect: PxRect, opts: { cap?: 'top' | 'bottom' | 'both'; planar?: boolean } = {}): THREE.BufferGeometry {
   const rs = [...rings].sort((a, b) => a.y - b.y);
   const ymin = rs[0].y, ymax = rs[rs.length - 1].y, dy = Math.max(1e-6, ymax - ymin);
   const pos: number[] = [], uv: number[] = [], idx: number[] = [];
@@ -113,6 +113,85 @@ function tube(rings: R[], seg: number, rect: PxRect, opts: { cap?: 'top' | 'bott
   return g;
 }
 
+
+// ---------------------------------------------------------------- clothing as geometry
+
+/** Where a body's torso, arms and legs are (bind pose, rings ascending in y), so the shells can wrap any body (the HUMAN lane's MakeHuman mesh included). */
+export interface RigLayout {
+  torso: R[]; torsoBone: number;
+  arms: Array<{ upper: R[]; fore: R[]; boneUpper: number; boneFore: number }>;
+  legs: Array<{ thigh: R[]; shin: R[]; boneThigh: number; boneShin: number }>;
+  neckY: number;
+}
+
+const THICK: Partial<Record<PedSpec['top']['kind'], number>> = { puffer: 0.022, hoodie: 0.015, jacket: 0.013, cardigan: 0.013, uniform: 0.012, tracksuit: 0.011, vest: 0.01, apron: 0.008, jersey: 0.006, tee: 0.006, blouse: 0.006, scrubs: 0.007, dress: 0.006 };
+
+/**
+ * Jacket / hoodie / vest shell with thickness, hem, collar and cuffs, and a trouser shell with folds, as extra faces for the SAME skinned mesh
+ * (same bones, same material). Pass any body's ring layout; returns [] below the hi level. Sleeve shells follow `spec.top.sleeves`.
+ */
+export function clothingShell(spec: PedSpec, rig: RigLayout, detail: PedDetail): Part[] {
+  if (detail !== 'hi') return [];
+  const out: Part[] = [];
+  const seg = SEGS.hi;
+  const t = THICK[spec.top.kind] ?? 0.008;
+  const grow = (rs: R[], k: number, fold = 0): R[] => rs.map((r, i) => { const f = 1 + (fold ? fold * Math.sin(i * 2.3) : 0); return { ...r, rx: r.rx * f + k, rz: r.rz * f + k }; });
+  const torsoTile = HI_RECTS.torso;
+  // body of the garment: the torso rings pushed out by the thickness, with a rolled hem below
+  const tr = rig.torso.filter((r) => r.y < rig.neckY - 0.01);
+  {
+    const hem: R = { ...tr[0], y: tr[0].y - 0.04, rx: tr[0].rx + t + 0.012, rz: tr[0].rz + t + 0.012 };
+    out.push({ geo: tube([hem, ...grow(tr, t, spec.top.kind === 'puffer' ? 0.012 : 0.006)], seg.torso, torsoTile, { cap: 'bottom' }), bone: rig.torsoBone });
+  }
+  // collar (a hood roll for hoodies)
+  const ny = rig.neckY, big = spec.top.kind === 'hoodie' ? 0.026 : 0.01;
+  out.push({ geo: tube([{ y: ny - 0.012, rx: 0.07 + big, rz: 0.07 + big, cz: big * 0.6 }, { y: ny + 0.022, rx: 0.062 + big, rz: 0.064 + big, cz: big * 0.7 }, { y: ny + 0.05, rx: 0.058 + big * 0.5, rz: 0.06 + big * 0.5, cz: big * 0.4 }], seg.limb, torsoTile), bone: rig.torsoBone });
+  // sleeves with cuffs
+  if (spec.top.sleeves !== 'none') for (const a of rig.arms) {
+    const upper = grow(a.upper, t, 0);
+    out.push({ geo: tube(upper, seg.limb, HI_RECTS.upperArm), bone: a.boneUpper });
+    if (spec.top.sleeves === 'long') {
+      const fore = a.fore.slice(0, -1);
+      const wrist = a.fore[a.fore.length - 1];
+      const last = fore[fore.length - 1];
+      out.push({ geo: tube([...grow(a.fore.slice(0, -1), t, 0.004), { ...last, y: (last.y + wrist.y) / 2 + 0.01, rx: last.rx + t + 0.004, rz: last.rz + t + 0.004 }, { ...wrist, y: wrist.y + 0.012, rx: wrist.rx + t + 0.008, rz: wrist.rz + t + 0.008 }], seg.limb, HI_RECTS.foreArm, { cap: 'bottom' }), bone: a.boneFore });
+    }
+  }
+  // trousers with folds and cuffs (skirts, shorts and leggings are already shaped / skin)
+  const k = spec.bottom.kind;
+  if (k === 'jeans' || k === 'trousers' || k === 'cargo' || k === 'sweats') for (const l of rig.legs) {
+    const tt = k === 'trousers' ? 0.006 : 0.009;
+    out.push({ geo: tube(grow(l.thigh, tt, 0.012), seg.limb, HI_RECTS.thigh), bone: l.boneThigh });
+    const sh = grow(l.shin.slice(0, -1), tt, 0.014);
+    const lastS = sh[sh.length - 1], endS = l.shin[l.shin.length - 1];
+    out.push({ geo: tube([...sh, { ...lastS, y: (lastS.y + endS.y) / 2 + 0.02, rx: lastS.rx + 0.006, rz: lastS.rz + 0.006 }, { ...endS, y: endS.y + 0.025, rx: endS.rx + tt + 0.016, rz: endS.rz + tt + 0.016 }], seg.limb, HI_RECTS.shin, { cap: 'bottom' }), bone: l.boneShin });
+  }
+  return out;
+}
+
+const smoothstep = (a: number, b: number, x: number): number => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+/** Bakes ambient occlusion into a `color` vertex attribute: armpits, under the chin, inside the collar, between the legs, eye sockets, the nose side, the hem. */
+export function bakeAo(g: THREE.BufferGeometry): void {
+  const pos = g.getAttribute('position') as THREE.BufferAttribute;
+  const col = new Float32Array(pos.count * 3);
+  const g2 = (d: number, w: number): number => Math.exp(-(d / w) * (d / w));
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i), ax = Math.abs(x);
+    let f = 1;
+    f *= 1 - 0.38 * g2(y - 1.31, 0.065) * g2(ax - 0.165, 0.045);                              // armpits
+    f *= 1 - 0.42 * g2(y - 1.53, 0.04) * smoothstep(0.02, -0.04, z) * (ax < 0.09 ? 1 : 0.4);   // under the chin
+    f *= 1 - 0.3 * smoothstep(1.52, 1.46, y) * (ax < 0.075 ? 1 : 0);                           // inside the collar
+    f *= 1 - 0.45 * (1 - Math.min(1, ax / 0.075)) * smoothstep(0.62, 0.84, y) * smoothstep(1.0, 0.9, y); // between the legs
+    for (const sx of [-1, 1]) { const dx = x - sx * 0.034, dyy = y - 1.665; if (z < -0.08) f *= 1 - 0.42 * g2(Math.hypot(dx, dyy), 0.016); }   // eye sockets
+    if (z < -0.08 && y > 1.6 && y < 1.7) f *= 1 - 0.25 * g2(ax - 0.02, 0.012);                // beside the nose bridge
+    f *= 1 - 0.2 * smoothstep(0.05, 0.0, y);                                                   // shoes near the ground
+    f *= 1 - 0.18 * g2(y - 0.9, 0.05) * smoothstep(0.1, 0.18, ax);                              // waist crease
+    col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = Math.max(0.35, f);
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+}
+
 const FEMALE = new Set(['puffer-braids', 'headwrap-auntie', 'church-lady', 'scrubs-nurse', 'denim-girl', 'odette']);
 const BULK: Partial<Record<PedSpec['top']['kind'], number>> = { puffer: 1.13, hoodie: 1.06, jacket: 1.04, cardigan: 1.05, tracksuit: 1.03, apron: 1.03 };
 const BUILD = {
@@ -135,7 +214,7 @@ function buildHi(variant: number, detail: PedDetail): HiGeo {
   const add = (geo: THREE.BufferGeometry, bone: number): void => { parts.push({ geo, bone }); };
   const sc = (rs: R[], kx: number, kz: number, ox = 0): R[] => rs.map((r) => ({ ...r, rx: r.rx * kx, rz: r.rz * kz, cx: (r.cx ?? 0) * kx + ox }));
   const T = (n: HiTile): PxRect => HI_RECTS[n];
-  const shX = 0.205 * w * bulk;
+  const shX = 0.19 * w * bulk;
 
   // ---- pelvis (+ skirt) on the hips bone
   const hipW = (female ? 1.07 : 1) * Bd.w;
@@ -149,9 +228,11 @@ function buildHi(variant: number, detail: PedDetail): HiGeo {
   const chestZ = female ? 0.014 : 0;
   const torsoRings: R[] = [
     { y: 0.94, rx: 0.16, rz: 0.108 }, { y: 1.03, rx: 0.15, rz: 0.1 }, { y: 1.14, rx: 0.158, rz: 0.108 }, { y: 1.26, rx: 0.185, rz: 0.118 + chestZ },
-    { y: 1.35, rx: 0.205, rz: 0.125 + chestZ, cz: -0.004 }, { y: 1.41, rx: 0.216, rz: 0.11 }, { y: 1.455, rx: 0.15, rz: 0.092 }, { y: 1.495, rx: 0.062, rz: 0.062 },
+    { y: 1.35, rx: 0.205, rz: 0.125 + chestZ, cz: -0.004 }, { y: 1.41, rx: 0.2, rz: 0.11 }, { y: 1.455, rx: 0.15, rz: 0.092 }, { y: 1.495, rx: 0.062, rz: 0.062 },
   ];
-  add(tube(thin(sc(torsoRings, w * bulk, d * bulk), hi ? 8 : 5), sg.torso, T('torso'), { cap: 'top' }), 2);
+  const torsoR = thin(sc(torsoRings, w * bulk, d * bulk), hi ? 8 : 5);
+  add(tube(torsoR, sg.torso, T('torso'), { cap: 'top' }), 2);
+  const rigArms: RigLayout['arms'] = [], rigLegs: RigLayout['legs'] = [];
   if (s.gear === 'backpack') {
     const k = s.build === 'kid' ? 1.15 : 1;
     add(tube([{ y: 1.0, rx: 0.13 * k, rz: 0.075, cz: 0.175 }, { y: 1.18, rx: 0.15 * k, rz: 0.085, cz: 0.18 }, { y: 1.38, rx: 0.14 * k, rz: 0.075, cz: 0.17 }], 8, T('gear'), { cap: 'both' }), 2);
@@ -165,6 +246,7 @@ function buildHi(variant: number, detail: PedDetail): HiGeo {
   ];
   add(tube(thin(head, hi ? 9 : 6), sg.head, T('head'), { planar: true, cap: 'both' }), 3);
   add(tube([{ y: 1.612, rx: 0.014, rz: 0.03, cz: -0.1 }, { y: 1.645, rx: 0.011, rz: 0.026, cz: -0.114 }, { y: 1.675, rx: 0.008, rz: 0.012, cz: -0.108 }], hi ? 6 : 4, T('head'), { planar: true, cap: 'both' }), 3); // nose wedge
+  add(tube([{ y: 1.64, rx: 0.013, rz: 0.025, cz: -0.112 }, { y: 1.668, rx: 0.009, rz: 0.015, cz: -0.108 }, { y: 1.7, rx: 0.007, rz: 0.01, cz: -0.104 }], hi ? 6 : 4, T('head'), { planar: true, cap: 'both' }), 3); // nose bridge
   if (hi) for (const sx of [-1, 1]) add(tube([{ y: 1.62, rx: 0.008, rz: 0.016, cx: sx * 0.088, cz: 0.01 }, { y: 1.65, rx: 0.01, rz: 0.022, cx: sx * 0.093, cz: 0.012 }, { y: 1.68, rx: 0.008, rz: 0.016, cx: sx * 0.088, cz: 0.01 }], 6, T('head'), { planar: true, cap: 'both' }), 3);
 
   // ---- hair and hats (the hair rect is painted with strands, the hat rect with the cap fabric)
@@ -225,17 +307,18 @@ function buildHi(variant: number, detail: PedDetail): HiGeo {
   // ---- arms: shoulder, upper arm, elbow, forearm, wrist, hand (palm + fingers + thumb)
   for (const [i, sx] of [-1, 1].entries()) {
     const X = sx * shX, ob = i === 0 ? 4 : 6;
-    const upper: R[] = [{ y: 1.465, rx: 0.036, rz: 0.036 }, { y: 1.435, rx: 0.058, rz: 0.056 }, { y: 1.385, rx: 0.056, rz: 0.054 }, { y: 1.29, rx: 0.049, rz: 0.049 }, { y: 1.2, rx: 0.045, rz: 0.045 }, { y: 1.13, rx: 0.042, rz: 0.042 }];
+    const upper: R[] = [{ y: 1.47, rx: 0.03, rz: 0.03 }, { y: 1.445, rx: 0.058, rz: 0.054 }, { y: 1.405, rx: 0.068, rz: 0.062 }, { y: 1.34, rx: 0.06, rz: 0.057 }, { y: 1.25, rx: 0.05, rz: 0.049 }, { y: 1.18, rx: 0.045, rz: 0.045 }, { y: 1.13, rx: 0.042, rz: 0.042 }];
     const fore: R[] = [{ y: 1.13, rx: 0.042, rz: 0.042 }, { y: 1.08, rx: 0.045, rz: 0.044 }, { y: 1.0, rx: 0.038, rz: 0.037 }, { y: 0.92, rx: 0.031, rz: 0.03 }, { y: 0.865, rx: 0.028, rz: 0.026 }];
     const bk = bulk > 1 ? bulk : 1;
-    add(tube(thin(sc(upper, bk, bk, X), hi ? 6 : 3), sg.limb, T('upperArm'), { cap: 'top' }), ob);
+    add(tube(thin(sc(upper, bk, bk, X), hi ? 7 : 3), sg.limb, T('upperArm'), { cap: 'top' }), ob);
     add(tube(thin(sc(fore, bk, bk, X), hi ? 5 : 3), sg.limb, T('foreArm')), ob + 1);
+    rigArms.push({ upper: thin(sc(upper, bk, bk, X), hi ? 7 : 3), fore: thin(sc(fore, bk, bk, X), hi ? 5 : 3), boneUpper: ob, boneFore: ob + 1 });
     const hand = T('hand');
-    add(tube([{ y: 0.865, rx: 0.028, rz: 0.026, cx: X }, { y: 0.83, rx: 0.038, rz: 0.017, cx: X }, { y: 0.78, rx: 0.042, rz: 0.016, cx: X }, { y: 0.74, rx: hi ? 0.04 : 0.03, rz: hi ? 0.015 : 0.014, cx: X }], hi ? 8 : 6, hand, { cap: hi ? undefined : 'bottom' }), ob + 1);
+    add(tube([{ y: 0.865, rx: 0.028, rz: 0.026, cx: X }, { y: 0.83, rx: 0.038, rz: 0.02, cx: X, cz: -0.003 }, { y: 0.78, rx: 0.042, rz: 0.022, cx: X, cz: -0.009 }, { y: 0.74, rx: hi ? 0.04 : 0.03, rz: hi ? 0.02 : 0.016, cx: X, cz: -0.012 }], hi ? 8 : 6, hand, { cap: hi ? undefined : 'bottom' }), ob + 1);
     if (hi) {
       [[-0.027, 0.075], [-0.009, 0.085], [0.009, 0.082], [0.027, 0.068]].forEach(([fx, len], k) => {
         const x = X + fx;
-        add(tube([{ y: 0.74 - len, rx: 0.007, rz: 0.007, cx: x, cz: 0.004 }, { y: 0.74 - len * 0.55, rx: 0.0085, rz: 0.0085, cx: x, cz: 0.002 }, { y: 0.745, rx: 0.0095, rz: 0.009, cx: x }], sg.fine, hand, { cap: 'bottom' }), ob + 1);
+        add(tube([{ y: 0.74 - len * 0.9, rx: 0.007, rz: 0.007, cx: x, cz: -0.046 }, { y: 0.74 - len * 0.5, rx: 0.0085, rz: 0.0085, cx: x, cz: -0.03 }, { y: 0.745, rx: 0.0095, rz: 0.009, cx: x, cz: -0.012 }], sg.fine, hand, { cap: 'bottom' }), ob + 1);
         void k;
       });
       add(tube([{ y: 0.72, rx: 0.009, rz: 0.009, cx: X - sx * 0.052, cz: -0.02 }, { y: 0.775, rx: 0.011, rz: 0.011, cx: X - sx * 0.047, cz: -0.012 }, { y: 0.82, rx: 0.013, rz: 0.012, cx: X - sx * 0.04, cz: -0.004 }], sg.fine, hand, { cap: 'bottom' }), ob + 1);
@@ -249,12 +332,15 @@ function buildHi(variant: number, detail: PedDetail): HiGeo {
     const bw = s.bottom.kind === 'sweats' || s.bottom.kind === 'cargo' ? 1.08 : s.bottom.kind === 'leggings' ? 0.95 : 1;
     add(tube(thin(sc(thigh, bw, bw, LX), hi ? 5 : 3), sg.limb, T('thigh')), lb);
     add(tube(thin(sc(shin, bw, bw, LX), hi ? 5 : 3), sg.limb, T('shin')), lb + 1);
+    rigLegs.push({ thigh: thin(sc(thigh, bw, bw, LX), hi ? 5 : 3), shin: thin(sc(shin, bw, bw, LX), hi ? 5 : 3), boneThigh: lb, boneShin: lb + 1 });
     const tall = s.shoes.high ? 0.13 : 0.105;
     add(tube(thin([
       { y: 0.0, rx: 0.052, rz: 0.125, cx: LX, cz: -0.052 }, { y: 0.022, rx: 0.056, rz: 0.13, cx: LX, cz: -0.052 }, { y: 0.05, rx: 0.052, rz: 0.118, cx: LX, cz: -0.044 },
       { y: 0.075, rx: 0.05, rz: 0.1, cx: LX, cz: -0.03 }, { y: tall, rx: 0.042, rz: 0.062, cx: LX, cz: -0.002 }, { y: tall + 0.03, rx: 0.04, rz: 0.048, cx: LX, cz: 0.004 },
     ], hi ? 6 : 4), sg.limb, T('shoe'), { cap: 'bottom' }), lb + 1);
   }
+
+  if (hi) for (const c of clothingShell(s, { torso: torsoR, torsoBone: 2, arms: rigArms, legs: rigLegs, neckY: 1.47 }, detail)) parts.push(c);
 
   // ---- finish: scale the head (kids), skin to bones, merge
   const placed = parts.map(({ geo, bone }) => {
@@ -269,6 +355,7 @@ function buildHi(variant: number, detail: PedDetail): HiGeo {
   });
   const merged = mergeGeometries(placed, false);
   if (!merged) throw new Error('pedBodyHi: merge failed');
+  bakeAo(merged);
   merged.computeBoundingBox();
   merged.computeBoundingSphere();
   return { geo: merged, triangles: merged.index!.count / 3, shoulderX: shX };
@@ -286,6 +373,37 @@ export function hiGeo(variant: number, detail: PedDetail): HiGeo {
 const matCache = new WeakMap<IMaterialLibrary, Map<string, THREE.Material>>();
 let canvasBroken = false;
 
+// CC0 fabric maps (ASSETS: src/assets/textures/cc0, credit in docs/CREDITS.md): copied into the clothing tiles of each variant's normal and roughness atlas,
+// so the clothing shells use real denim / knit / leather / nylon relief without a second material or draw. Artifact (512) build only.
+const FABRIC_FILES = (import.meta.env?.VITE_HOSTED !== '1'
+  ? import.meta.glob('@/assets/textures/cc0/{denim,cotton_knit,leather,nylon_puffer}/{normal,rough}_512.jpg', { eager: true, query: '?url', import: 'default' })
+  : {}) as Record<string, string>;
+type Fabric = 'denim' | 'cotton_knit' | 'leather' | 'nylon_puffer';
+const fabricImgs = new Map<string, HTMLImageElement | 'loading'>();
+function fabricUrl(f: Fabric, kind: 'normal' | 'rough'): string | null {
+  for (const [path, u] of Object.entries(FABRIC_FILES)) if (path.includes(`/${f}/${kind}_`)) return u;
+  return null;
+}
+/** Which fabric dresses which tile of a variant. */
+export function fabricsFor(spec: PedSpec): Array<[HiTile, Fabric]> {
+  const top: Fabric = spec.top.kind === 'puffer' || spec.top.kind === 'vest' ? 'nylon_puffer' : spec.top.kind === 'uniform' || spec.top.kind === 'jacket' ? 'leather' : 'cotton_knit';
+  const bot: Fabric = spec.bottom.kind === 'jeans' ? 'denim' : spec.bottom.kind === 'trousers' ? 'cotton_knit' : spec.bottom.kind === 'cargo' ? 'denim' : 'cotton_knit';
+  const out: Array<[HiTile, Fabric]> = [['torso', top], ['upperArm', top], ['foreArm', top], ['thigh', bot], ['shin', bot], ['pelvis', bot]];
+  if (['#101010', '#161616', '#3a2a1c', '#5b3a24', '#8a5a2a'].includes(spec.shoes.color)) out.push(['shoe', 'leather']);
+  return out;
+}
+function withFabric(f: Fabric, kind: 'normal' | 'rough', done: (img: HTMLImageElement) => void): void {
+  const url = fabricUrl(f, kind);
+  if (!url || typeof Image === 'undefined') return;
+  const key = `${f}:${kind}`, have = fabricImgs.get(key);
+  if (have && have !== 'loading') { done(have); return; }
+  const img = new Image();
+  img.onload = () => { fabricImgs.set(key, img); done(img); };
+  img.onerror = () => { /* keep the painted relief */ };
+  if (!have) fabricImgs.set(key, 'loading');
+  img.src = url;
+}
+
 /** True on the phone tier (decided when a person is first built). */
 export function pedPhone(): boolean { return carPaintConfigured() && carPaintTier() === 'phone'; }
 
@@ -297,14 +415,14 @@ export function pedHiMaterial(materials: IMaterialLibrary, variant: number, phon
   let m = byV.get(key);
   if (m) return m;
   const spec = PED_SPECS[variant];
-  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0, name: `pedhi:${spec.id}` });
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0, vertexColors: true, name: `pedhi:${spec.id}` });
   if (typeof document !== 'undefined' && !canvasBroken) {
     try {
       const size = phone ? 256 : spec.role === 'player' ? 1024 : 512;
       const ca = createCanvas(size, size), ctxA = ca.getContext('2d');
       if (!ctxA) canvasBroken = true;
       else {
-        let ch: HTMLCanvasElement | null = null, cr: HTMLCanvasElement | null = null;
+        let ch: HTMLCanvasElement | null = null, cr: HTMLCanvasElement | null = null, nCanvas: HTMLCanvasElement | null = null;
         if (!phone) { ch = createCanvas(size, size); cr = createCanvas(size, size); }
         const ctxH = ch?.getContext('2d') ?? null, ctxR = cr?.getContext('2d') ?? null;
         paintPedHi(ctxA, ctxH, ctxR, size, new Rng(`pedhi:${variant}`), variant);
@@ -314,9 +432,16 @@ export function pedHiMaterial(materials: IMaterialLibrary, variant: number, phon
         if (ctxH && ch) {
           const hf = heightFromRgba(ctxH.getImageData(0, 0, size, size).data, size, size);
           const nrm = heightToNormal(hf, size, size, 2.2);
-          const nc = createCanvas(size, size), nctx = nc.getContext('2d');
+          const nc = createCanvas(size, size), nctx = nc.getContext('2d'); nCanvas = nc;
           if (nctx) { nctx.putImageData(new ImageData(nrm as unknown as Uint8ClampedArray<ArrayBuffer>, size, size), 0, 0); const nt = new THREE.CanvasTexture(nc); nt.anisotropy = 4; mat.normalMap = nt; mat.normalScale.set(0.9, 0.9); }
         }
+        const pending: Array<() => void> = [];
+        if (nCanvas && !phone) for (const [tile, fab] of fabricsFor(spec)) {
+          const rc = HI_RECTS[tile], k = size / PEDHI_ATLAS;
+          withFabric(fab, 'normal', (img) => { const c = nCanvas!.getContext('2d'); if (c) { c.drawImage(img, 0, 0, Math.min(img.width, rc.w * 2), Math.min(img.height, rc.h * 2), rc.x * k, rc.y * k, rc.w * k, rc.h * k); if (mat.normalMap) mat.normalMap.needsUpdate = true; } });
+          if (cr) withFabric(fab, 'rough', (img) => { const c = cr!.getContext('2d'); if (c) { c.drawImage(img, 0, 0, Math.min(img.width, rc.w * 2), Math.min(img.height, rc.h * 2), rc.x * k, rc.y * k, rc.w * k, rc.h * k); if (mat.roughnessMap) mat.roughnessMap.needsUpdate = true; } });
+        }
+        void pending;
         if (cr) { const rt = new THREE.CanvasTexture(cr); rt.anisotropy = 4; mat.roughnessMap = rt; mat.roughness = 1; }
       }
     } catch { /* flat colour fallback */ }

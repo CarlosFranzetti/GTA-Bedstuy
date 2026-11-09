@@ -7,12 +7,13 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const { chromium } = createRequire(import.meta.url)('playwright');
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const o = { port: 4440, q: 'low', width: 640, height: 360, dist: null };
+const o = { port: 4440, q: 'low', width: 640, height: 360, dist: null, hour: 12 };
 const rest = [];
 const a = process.argv.slice(2);
 for (let i = 0; i < a.length; i++) {
   if (a[i] === '--port') o.port = Number(a[++i]); else if (a[i] === '--q') o.q = a[++i];
   else if (a[i] === '--width') o.width = Number(a[++i]); else if (a[i] === '--height') o.height = Number(a[++i]);
+  else if (a[i] === '--hour') o.hour = Number(a[++i]);
   else if (a[i] === '--dist') o.dist = resolve(a[++i]); else rest.push(a[i]);
 }
 const out = resolve(rest[0] ?? 'skins-closeups'); mkdirSync(out, { recursive: true });
@@ -29,7 +30,7 @@ try {
   await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 180_000 });
   await page.mouse.click(o.width / 2, o.height / 2); await page.waitForTimeout(800);
   const b = page.getByRole('button', { name: 'Resume' }); if (await b.isVisible().catch(() => false)) { await b.click(); await page.waitForTimeout(300); }
-  await page.evaluate(() => { const d = window.__gtaDebug; d.stopLoop(); d.setHour(12); d.traffic.setHour?.(12, true); d.teleport(9, 20, 0); d.step(600); });
+  await page.evaluate((hr) => { const d = window.__gtaDebug; d.stopLoop(); d.setHour(hr); d.traffic.setHour?.(hr, true); d.teleport(9, 20, 0); d.step(600); }, o.hour);
   const shoot = async (name, js) => {
     const r = await page.evaluate(js);
     if (!r) { console.error(name, 'no target'); return; }
@@ -47,6 +48,15 @@ try {
     d.teleport(cx + 8, cz + 8);
     d.setFreeCam(cx + 2.8, 1.7, cz + 2.8, cx, 1.0, cz);
     return { group: grp.length, cx, cz };
+  });
+  await shoot('closeup-peds-2m', () => {
+    const d = window.__gtaDebug; const ps = d.traffic.peds; let best = null; let bn = -1;
+    for (const p of ps) { const n = ps.filter((q) => Math.hypot(q.body.pos.x - p.body.pos.x, q.body.pos.z - p.body.pos.z) < 3).length; if (n > bn) { bn = n; best = p; } }
+    if (!best) return null;
+    const x = best.body.pos.x, z = best.body.pos.z;
+    d.teleport(x + 8, z + 8);
+    d.setFreeCam(x + 1.5, 1.55, z + 1.4, x, 1.2, z);
+    return { x, z };
   });
   await shoot('closeup-car-4m', () => {
     const d = window.__gtaDebug; const p = d.player.body.pos; let best = null; let bd = 1e9;
