@@ -483,7 +483,7 @@ function drawFrame(alpha: number, frameDt: number): void {
     weather.update(frameDt, cam.camera.position);
     pipeline.setWeather(weather.wetness, weather.rain);
     culler.update(cam.camera.position.x, cam.camera.position.z);
-    chunkCuller.update(cam.camera.position.x, cam.camera.position.z);
+    chunkCuller.update(cam.camera.position.x, cam.camera.position.z, cam.camera.position.y); // range grows with camera height so aerials see every chunk
     instanceCuller?.update(cam.camera.position.x, cam.camera.position.z);
     updateShadowCamera(dayNight.sun, camTarget);
     sky.update(dayNight.timeOfDay, sunDir, dayNight.isNight, cam.camera.position);
