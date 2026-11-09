@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
-const o = { clutter: false, peds: false, port: 4437, q: 'low', radius: 60, window: 40, build: true, dist: null, out: null, minShare: 0.4, chunk: 12, other: null, hours: null };
+const o = { clutter: false, peds: false, port: 4437, q: 'low', radius: 60, window: 40, build: true, dist: null, out: null, minShare: 0.4, chunk: 12, snap: false, settle: 3, other: null, hours: null };
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (a === '--clutter') o.clutter = true;
@@ -27,6 +27,8 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === '--q') o.q = argv[++i];
   else if (a === '--radius') o.radius = Number(argv[++i]);
   else if (a === '--window') o.window = Number(argv[++i]);
+  else if (a === '--snap') o.snap = true;
+  else if (a === '--settle') o.settle = Number(argv[++i]);
   else if (a === '--chunk') o.chunk = Number(argv[++i]);
   else if (a === '--min-share') o.minShare = Number(argv[++i]);
   else if (a === '--other') o.other = argv[++i].split(',').map(Number);
@@ -162,7 +164,8 @@ async function pedAudit() {
         for (const [name, pt] of Object.entries(pts)) {
           d.teleport(pt.x, pt.z, 0);
           settle(h);
-          d.step(60 * 3); // 3 s: lets the player-relative cull / swap state follow the teleport
+          if (o.snap) T.setHour(h, true); // jump the whole crowd to the hour's size first (the audit skips time; play never does)
+          d.step(60 * o.settle); // lets the crowd re-form around the new spot (recycling is one pedestrian per ~1.8 s)
           const counts = [], seen = new Set();
           let arrive = 0, depart = 0, prev = new Set();
           const N = o.window;
