@@ -40,9 +40,11 @@ try {
     place(X, Z0, 0); keyDown('KeyW'); g.step(240); keyUp('KeyW');
     res.afterPoles = +v.body.pos.z.toFixed(2); res.polesClearedBy = +(Z0 - 4 - v.body.pos.z).toFixed(2);
     // 2. reverse out of a fresh pole contact
-    place(X, Z0 + 20, 0); const n = g.physics; for (const p of poles) { p.pos.z += 20; }
-    keyDown('KeyW'); g.step(70); keyUp('KeyW'); keyDown('KeyS'); g.step(150); keyUp('KeyS');
-    res.reverseBack = +(v.body.pos.z - (Z0 + 20 - 4 + 3)).toFixed(2); res.reverseZ = +v.body.pos.z.toFixed(2);
+    [-0.6, -0.2, 0.2, 0.6].forEach((dx, i) => g.physics.addStatic({ kind: 'circle', r: 0.2 }, { x: X + dx, z: Z0 + 16 }, `h8-pole-b${i}`));
+    place(X, Z0 + 24, 0); keyDown('KeyW'); g.step(120); keyUp('KeyW');
+    const atPoles = v.body.pos.z; res.atPoles = +atPoles.toFixed(2);
+    keyDown('KeyS'); g.step(200); keyUp('KeyS');
+    res.reverseBack = +(v.body.pos.z - atPoles).toFixed(2);
     // 3. soft bin
     place(X + 0.1, Z0 - 25, 0); v.body.vel.z = -8; keyDown('KeyW'); g.step(150); keyUp('KeyW');
     res.binPast = +(Z0 - 40 - v.body.pos.z).toFixed(2); res.binSpeedKmh = +v.speedKmh.toFixed(1);

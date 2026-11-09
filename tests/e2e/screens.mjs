@@ -153,7 +153,7 @@ async function capture() {
     // 8: south-west sidewalk corner of Lewis Ave & Kosciuszko St (500, 0), looking north-east across the intersection, like 2
     await moveTo(492, 14); await freeCam([491, 2.3, 7.5, 514, 4, -14]); await hour(12); await shot('8-lewis-corner', 12);
     // 9: golden-hour aerial over the new blocks between Stuyvesant and Malcolm X
-    await moveTo(991, 112); await freeCam([1045, 32, 160, 975, 2, 95]); await hour(17.5); await shot('9-malcolmx-aerial', 17.5);
+    await moveTo(991, 112); await freeCam([975, 34, 175, 900, 2, 60]); await hour(17.5); await shot('9-malcolmx-aerial', 17.5);
     // 10: on Stuyvesant Ave at night looking north up the avenue
     await moveTo(752, 80); await freeCam([752, 2.8, 70, 749, 4, -80]); await hour(22); await shot('10-stuyvesant-night', 22);
   } finally {

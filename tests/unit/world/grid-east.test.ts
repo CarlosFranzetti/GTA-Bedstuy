@@ -229,7 +229,7 @@ describe('B1 chunks', () => {
   });
 
   it('are hidden by distance per tier: phone about a block beyond the fog, low two, medium three', () => {
-    expect(chunkRangeFor('phone')).toBe(200);
+    expect(chunkRangeFor("phone")).toBe(100);
     expect(chunkRangeFor('low')).toBe(420);
     expect(chunkRangeFor('medium')).toBe(520);
     expect(chunkRangeFor('phone')).toBeLessThan(chunkRangeFor('low'));

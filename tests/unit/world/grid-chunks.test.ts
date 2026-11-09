@@ -65,6 +65,16 @@ describe('ChunkCuller', () => {
     expect(cc.count).toBe(0);
   });
 
+  it('range grows with camera height so an aerial never shows a hole', () => {
+    const b = cell(1000, 0, '2_0');
+    const cc = new ChunkCuller(300);
+    cc.add(b);
+    cc.update(0, 0, 3);
+    expect(b.visible).toBe(false);
+    cc.update(0, 0, 40);
+    expect(b.visible).toBe(true);
+  });
+
   it('ignores meshes without a chunk key and a non-positive range', () => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
     const cc = new ChunkCuller(100);
@@ -75,6 +85,6 @@ describe('ChunkCuller', () => {
   });
 
   it('tier ranges: phone fog far + 1 block, low 2 blocks beyond the prop range, medium 3', () => {
-    expect([chunkRangeFor('phone'), chunkRangeFor('low'), chunkRangeFor('medium'), chunkRangeFor('high')]).toEqual([200, 420, 520, 520]);
+    expect([chunkRangeFor('phone'), chunkRangeFor('low'), chunkRangeFor('medium'), chunkRangeFor('high')]).toEqual([100, 420, 520, 520]);
   });
 });

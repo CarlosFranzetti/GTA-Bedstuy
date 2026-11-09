@@ -114,13 +114,16 @@ export function splitGeometryByCell(geo: THREE.BufferGeometry, cellX: number, ce
  * World chunks: the static city is binned into render cells of one block column by two block rows (250 x 200 m on this grid,
  * anchored at the grid's north-west street centre so every cell edge is a street centreline), and the cells are grouped
  * into chunks of 2 x 2 blocks (500 x 200 m). A chunk is hidden as a unit (`ChunkCuller`) beyond a per-tier range: the
- * tier's visible distance (fog far on phone, the prop cull range elsewhere) plus slack of one block on phone, two on low
+ * tier's visible distance (fog far on phone, the prop cull range elsewhere) plus slack of none on phone (the fog edge), two on low
  * and three on medium and high, so the chunk edge never pops inside the visible range.
  */
 export const CHUNK_BLOCKS = 2;
 /** Metres per block used for the slack (the east-west street pitch of the game's grid). */
 export const CHUNK_BLOCK_M = 100;
-export const CHUNK_SLACK_BLOCKS: Record<Quality, number> = { phone: 1, low: 2, medium: 3, high: 3 };
+export const CHUNK_SLACK_BLOCKS: Record<Quality, number> = { phone: 0, low: 2, medium: 3, high: 3 };
+
+/** Extra chunk range (m) per metre of camera height above 3 m (aerial views must not show holes). */
+export const CHUNK_RANGE_PER_M_HEIGHT = 25;
 
 /** Chunk hide distance (m) for a tier. */
 export function chunkRangeFor(q: Quality): number {
@@ -162,6 +165,7 @@ export function chunkKeyOfCell(l: ChunkLayout, cellKey: string): string {
 }
 
 /**
+ * Only buildings and furniture cells are chunked: ground, roads, sidewalks, markings and the skyline ring are never hidden.
  * Hides whole chunks (all the cell meshes sharing `userData.chunk`) when the chunk's ground footprint (the union of its
  * meshes' world bounding boxes on the XZ plane) lies entirely beyond a range from a reference point, with the same
  * hysteresis as DistanceCuller: a hidden chunk reappears only once its nearest edge is `margin` m inside the range.
@@ -186,10 +190,12 @@ export class ChunkCuller {
   get hiddenCount(): number { let n = 0; for (const c of this.chunks.values()) if (c.hidden) n++; return n; }
   /** Chunk keys currently hidden (tests). */
   hiddenKeys(): string[] { return [...this.chunks].filter(([, c]) => c.hidden).map(([k]) => k); }
-  update(px: number, pz: number): void {
+  /** `py` = camera height: the range grows by `CHUNK_RANGE_PER_M_HEIGHT` m per metre of height, so aerials see the whole grid and street level saves the draws. */
+  update(px: number, pz: number, py = 0): void {
+    const base = this.maxDist + Math.max(0, py - 3) * CHUNK_RANGE_PER_M_HEIGHT;
     for (const c of this.chunks.values()) {
       const dx = Math.max(c.minX - px, 0, px - c.maxX), dz = Math.max(c.minZ - pz, 0, pz - c.maxZ);
-      const limit = c.hidden ? this.maxDist - this.margin : this.maxDist;
+      const limit = c.hidden ? base - this.margin : base;
       const hide = dx * dx + dz * dz > limit * limit;
       if (hide !== c.hidden) { c.hidden = hide; for (const m of c.meshes) m.visible = !hide; }
     }
