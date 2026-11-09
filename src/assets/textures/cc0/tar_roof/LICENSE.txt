@@ -1,0 +1,11 @@
+Texture set: tar_roof (tar / bitumen roof)
+Source: Poly Haven asset bitumen
+Source URL: https://polyhaven.com/a/bitumen
+Author: Rob Tuytel (via Poly Haven)
+License: CC0 1.0 Universal (public domain dedication)
+Licence URL: https://creativecommons.org/publicdomain/zero/1.0/
+Verified: polyhaven.com asset page states CC0 1.0 Universal (checked 2026-11-09)
+
+Files: color_1k.jpg (albedo), normal_1k.jpg (OpenGL normal), rough_1k.jpg (roughness), 1K JPEG.
+color_512.jpg, normal_512.jpg, rough_512.jpg: 512 px JPEG re-encodes (quality 82) made by
+scripts/fetch-cc0-textures.mjs for single-file artifacts. Displacement and other maps were not kept.
