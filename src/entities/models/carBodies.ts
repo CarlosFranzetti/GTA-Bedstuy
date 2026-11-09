@@ -416,8 +416,8 @@ export function buildLoft(spec: LoftSpec): Hull {
 
   return {
     us, M, n, halves,
-    P: (i, s0) => { const s = s0 * rf; const o = (i * C + cu[s]) * 3; return v3(pos[o], pos[o + 1], pos[o + 2]); },
-    N: (i, s0) => { const s = s0 * rf; const o = (i * C + cu[s]) * 3; return v3(nor[o], nor[o + 1], nor[o + 2]).normalize(); },
+    P: (i, s0) => { const s = Math.round(s0 * rf) % M; const o = (i * C + cu[s]) * 3; return v3(pos[o], pos[o + 1], pos[o + 2]); },
+    N: (i, s0) => { const s = Math.round(s0 * rf) % M; const o = (i * C + cu[s]) * 3; return v3(nor[o], nor[o + 1], nor[o + 2]).normalize(); },
     at: (u) => {
       let best = 0;
       for (let i = 1; i < S; i++) if (Math.abs(us[i] - u) < Math.abs(us[best] - u)) best = i;
@@ -659,7 +659,7 @@ export const STYLES: Record<StyleKey, Style> = {
     handles: [0.02, -0.8],
     hoodBack: 0.92,
     clad: 11,
-    rails: false, spoiler: true, maxGap: 0.32, archN: 7,
+    rails: false, spoiler: true, maxGap: 0.22, archN: 8,
     bumperY: 0.34, bumperH: 0.22,
     plan: [[-2.3, 0.9], [-1.7, 0.97], [-0.9, 1], [0.9, 1], [1.7, 0.98], [2.3, 0.92]],
   },
@@ -694,7 +694,7 @@ export const STYLES: Record<StyleKey, Style> = {
     handles: [0.08, -0.82],
     hoodBack: 0.96,
     clad: 11,
-    rails: false, spoiler: false, maxGap: 0.3, archN: 7,
+    rails: false, spoiler: false, maxGap: 0.2, archN: 8,
     bumperY: 0.36, bumperH: 0.24,
     plan: [[-2.7, 0.9], [-2.1, 0.97], [-1, 1], [1, 1], [2.1, 0.98], [2.7, 0.92]],
     dims: { L: 5.39, W: 1.99, H: 1.44 },
@@ -728,7 +728,7 @@ export const STYLES: Record<StyleKey, Style> = {
     handles: [0.1, -0.85],
     hoodBack: 1.0,
     clad: 11,
-    rails: false, spoiler: false, maxGap: 0.3, archN: 7,
+    rails: false, spoiler: false, maxGap: 0.2, archN: 8,
     bumperY: 0.36, bumperH: 0.24,
     plan: [[-2.55, 0.9], [-2, 0.98], [-1, 1], [1, 1], [2, 0.98], [2.55, 0.92]],
     dims: { L: 5.04, W: 1.91, H: 1.48 },
@@ -1116,7 +1116,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   // ---- hood panel (separate so it can lift when damaged)
   const iHB = hull.at(hoodBackU);
   const iHF = hull.at(hoodFrontU);
-  const hoodSlots = [18, 20, 22, 0, 2, 4, 6];
+  const hoodSlots = [18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6];
   const hoodSurface = (lift: number): THREE.BufferGeometry => {
     const rows = iHF - iHB + 1;
     const cols = hoodSlots.length;
