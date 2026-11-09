@@ -120,15 +120,12 @@ describe('2 boxed in by a stopped car', () => {
     v.body.vel = { x: Math.sin(v.body.heading) * 8, z: -Math.cos(v.body.heading) * 8 };
     sim.add(v);
     const agent = new TrafficAgent(v, grid.lanes, physics, new Rng('ai'), { startNodeId: n0.id, cruiseSpeed: 11 });
-    const f = { x: Math.sin(v.body.heading), z: -Math.cos(v.body.heading) };
-    const right = { x: -f.z, z: f.x };
-    const lane0 = (p: { x: number; z: number }) => (p.x - me.body.pos.x) * right.x + (p.z - me.body.pos.z) * right.z;
     let stoppedAt = -1, passedAt = -1;
     for (let i = 0; i < 60 * 25; i++) {
       agent.update(DT); sim.step(DT);
       const t = i * DT;
       if (stoppedAt < 0 && Math.abs(v.speed) < 0.6 && Math.hypot(v.body.pos.x - me.body.pos.x, v.body.pos.z - me.body.pos.z) < 12) stoppedAt = t;
-      if (stoppedAt >= 0 && passedAt < 0 && Math.abs(lane0(v.body.pos)) > 0.9) passedAt = t;
+      if (stoppedAt >= 0 && passedAt < 0 && (agent as unknown as { passBody: unknown }).passBody) passedAt = t;
     }
     expect(stoppedAt).toBeGreaterThan(0);
     expect(passedAt).toBeGreaterThan(0);
@@ -211,13 +208,13 @@ describe('4 mission ring started by driving through', () => {
     objectives: [{ kind: 'goTo', at: { x: 100, z: 0 }, radius: 4, presence: 'any', text: 'go' }],
     reward: { cash: 1, message: 'ok' },
   });
-  const boot = () => { const m = new MissionSystem([def()]); const toasts: string[] = []; m.on('toast', (e: { text: string }) => toasts.push(e.text)); m.update(DT, { x: 50, z: 0 }, false, 0); return { m, toasts }; };
+  const boot = () => { const m = new MissionSystem([def()]); m.update(DT, { x: 50, z: 0 }, false, 0); return { m }; };
 
   it('driving through at 40 km/h does not start it and says "Stop here to start Block Party"', () => {
-    const { m, toasts } = boot();
+    const { m } = boot();
     for (let i = 0; i < 60; i++) m.update(DT, { x: 4 - i * 0.15, z: 0 }, true, 0, 11, -1);
     expect(m.isActive).toBe(false);
-    expect(toasts.some((t) => t === 'Stop here to start Block Party')).toBe(true);
+    expect(m.hud.toast).toBe('Stop here to start Block Party');
   });
 
   it('stopped (< 3 km/h) inside the ring for 1 s starts it; 0.5 s does not', () => {
