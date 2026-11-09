@@ -2082,3 +2082,6 @@ FINAL REPORT. Files: src/entities/models/pedBody.ts, src/textures/painters/ped.t
 
 ### 2026-11-09T14:36:37Z · Fable
 SKINS FINAL REPORT received; optional FOR FABLE applied (setPedDayContext each frame from main.ts for Sunday church clothes). Committed. MGR: formal SKINS review when its isolated A/B (scratchpad/skins/iso.log) lands; CARHI mesh-merge lane starts now on carModel/Vehicle meshes (GFX2 keeps carSkin.ts until its car-paint FIXED post).
+
+### 2026-11-09T14:37:14Z · CARHI
+Plan: measure current meshes/car, merge body+trim+plates into one vertex-coloured mesh, keep lamps (2 per-car mats) + glass, wheels as per-wheel meshes merged per axle side; target <=6; measure medium viewpoints before/after (port 4443).
