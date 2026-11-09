@@ -27,6 +27,22 @@ const CROSSWALK_WIDTH = 3;
 const SIDEWALK_SPACING = 25;
 /** tolerance when matching crosswalk endpoints to sidewalk corner nodes */
 const NODE_MATCH_TOL = 0.1;
+/**
+ * The first three north-south streets (Tompkins, Throop, Marcus Garvey) with the six east-west rows form the original
+ * ten-block core. Everything east of it is appended strip by strip (one new avenue per strip), so every list the world
+ * generators walk in order (intersections, blocks, segments) keeps the core first and their random streams unchanged.
+ */
+export const CORE_NS_STREETS = 3;
+
+/** Index groups, in build order, for `count` consecutive cells/streets: the core group first, then one group per extra index. */
+function stripGroups(count: number, core: number): number[][] {
+  const groups: number[][] = [];
+  const first: number[] = [];
+  for (let i = 0; i < Math.min(core, count); i++) first.push(i);
+  if (first.length) groups.push(first);
+  for (let i = core; i < count; i++) groups.push([i]);
+  return groups;
+}
 
 // ---------------------------------------------------------------- data
 
@@ -93,18 +109,21 @@ export function buildGrid(input: BedstuyData): GridModel {
   // ---- intersections (row-major: ew outer, ns inner)
   const intersections: Intersection[] = [];
   const interById = new Map<string, Intersection>();
-  for (const ew of ews) {
-    for (const ns of nss) {
-      const it: Intersection = {
-        id: `${ns.id}|${ew.id}`,
-        center: pt(ns.offset, ew.offset),
-        nsStreetId: ns.id,
-        ewStreetId: ew.id,
-        halfX: ns.roadWidth / 2,
-        halfZ: ew.roadWidth / 2,
-      };
-      intersections.push(it);
-      interById.set(it.id, it);
+  for (const group of stripGroups(nss.length, CORE_NS_STREETS)) {
+    for (const ew of ews) {
+      for (const ni of group) {
+        const ns = nss[ni];
+        const it: Intersection = {
+          id: `${ns.id}|${ew.id}`,
+          center: pt(ns.offset, ew.offset),
+          nsStreetId: ns.id,
+          ewStreetId: ew.id,
+          halfX: ns.roadWidth / 2,
+          halfZ: ew.roadWidth / 2,
+        };
+        intersections.push(it);
+        interById.set(it.id, it);
+      }
     }
   }
   const interId = (ns: StreetDef, ew: StreetDef): string => `${ns.id}|${ew.id}`;
@@ -147,31 +166,34 @@ export function buildGrid(input: BedstuyData): GridModel {
       crosswalks.push(makeCrosswalk(interById.get(to)!, 'N'));
     }
   }
-  for (const ew of ews) {
-    for (let i = 0; i < nss.length - 1; i++) {
-      const n0 = nss[i];
-      const n1 = nss[i + 1];
-      const from = interId(n0, ew);
-      const to = interId(n1, ew);
-      segments.push({
-        id: `${ew.id}:${i}`,
-        streetId: ew.id,
-        fromIntersection: from,
-        toIntersection: to,
-        a: pt(n0.offset + n0.roadWidth / 2, ew.offset),
-        b: pt(n1.offset - n1.roadWidth / 2, ew.offset),
-        width: ew.roadWidth,
-      });
-      crosswalks.push(makeCrosswalk(interById.get(from)!, 'E'));
-      crosswalks.push(makeCrosswalk(interById.get(to)!, 'W'));
+  for (const group of stripGroups(nss.length - 1, CORE_NS_STREETS - 1)) {
+    for (const ew of ews) {
+      for (const i of group) {
+        const n0 = nss[i];
+        const n1 = nss[i + 1];
+        const from = interId(n0, ew);
+        const to = interId(n1, ew);
+        segments.push({
+          id: `${ew.id}:${i}`,
+          streetId: ew.id,
+          fromIntersection: from,
+          toIntersection: to,
+          a: pt(n0.offset + n0.roadWidth / 2, ew.offset),
+          b: pt(n1.offset - n1.roadWidth / 2, ew.offset),
+          width: ew.roadWidth,
+        });
+        crosswalks.push(makeCrosswalk(interById.get(from)!, 'E'));
+        crosswalks.push(makeCrosswalk(interById.get(to)!, 'W'));
+      }
     }
   }
 
   // ---- blocks
   const blocks: Block[] = [];
   const blockMap = new Map<string, Block>();
+  for (const colGroup of stripGroups(nss.length - 1, CORE_NS_STREETS - 1))
   for (let row = 0; row < ews.length - 1; row++) {
-    for (let col = 0; col < nss.length - 1; col++) {
+    for (const col of colGroup) {
       const north = ews[row];
       const south = ews[row + 1];
       const west = nss[col];

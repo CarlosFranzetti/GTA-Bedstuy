@@ -12,7 +12,7 @@
 //       departures inside the radius (bursts) and the longest empty gap, then lists the bursts and empties.
 import { createRequire } from 'node:module';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -127,8 +127,11 @@ async function pedAudit() {
   const allHours = o.hours ?? Array.from({ length: 144 }, (_, i) => i / 6);
   const chunks = [];
   for (let i = 0; i < allHours.length; i += o.chunk) chunks.push(allHours.slice(i, i + o.chunk));
+  const partialFile = o.out ? o.out + '.partial' : null;
+  if (partialFile && existsSync(partialFile)) { res = JSON.parse(readFileSync(partialFile, 'utf8')); console.error(`[crowd] resuming with ${res.rows.length} hours from ${partialFile}`); }
   try {
-   for (const chunk of chunks) { // a fresh page per chunk: one long page run exhausts the headless GPU process
+   for (const chunk of chunks) {
+    if (res && res.rows.some((r) => r.h === chunk[0])) continue; // a fresh page per chunk: one long page run exhausts the headless GPU process
     console.error(`[crowd] hours ${chunk[0]}..${chunk[chunk.length - 1]}`);
     const page = await browser.newPage({ viewport: { width: 320, height: 180 } });
     page.on('pageerror', (e) => console.error('[crowd] pageerror', String(e).slice(0, 200)));
@@ -184,6 +187,7 @@ async function pedAudit() {
     }, { ...o, hours: chunk });
     await page.close().catch(() => {});
     if (!res) res = part; else res.rows.push(...part.rows);
+    if (partialFile) writeFileSync(partialFile, JSON.stringify(res));
    }
   } finally { clearTimeout(hardStop); await browser.close(); preview.kill(); }
   if (!res) return;

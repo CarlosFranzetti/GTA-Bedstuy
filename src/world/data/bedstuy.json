@@ -37,39 +37,6 @@
       "oneWay": 0
     },
     {
-      "id": "lewis",
-      "name": "Lewis Ave",
-      "signName": "Lewis Ave",
-      "axis": "ns",
-      "offset": 500,
-      "class": "avenue",
-      "roadWidth": 14,
-      "sidewalkWidth": 4,
-      "oneWay": 0
-    },
-    {
-      "id": "stuyvesant",
-      "name": "Stuyvesant Ave",
-      "signName": "Stuyvesant Ave",
-      "axis": "ns",
-      "offset": 750,
-      "class": "avenue",
-      "roadWidth": 14,
-      "sidewalkWidth": 4,
-      "oneWay": 0
-    },
-    {
-      "id": "malcolmx",
-      "name": "Malcolm X Blvd",
-      "signName": "Malcolm X Blvd",
-      "axis": "ns",
-      "offset": 1000,
-      "class": "avenue",
-      "roadWidth": 14,
-      "sidewalkWidth": 4,
-      "oneWay": 0
-    },
-    {
       "id": "hart",
       "name": "Hart St",
       "signName": "Hart St",
@@ -132,6 +99,39 @@
       "offset": 300,
       "class": "avenue",
       "roadWidth": 13,
+      "sidewalkWidth": 4,
+      "oneWay": 0
+    },
+    {
+      "id": "lewis",
+      "name": "Lewis Ave",
+      "signName": "Lewis Ave",
+      "axis": "ns",
+      "offset": 500,
+      "class": "avenue",
+      "roadWidth": 14,
+      "sidewalkWidth": 4,
+      "oneWay": 0
+    },
+    {
+      "id": "stuyvesant",
+      "name": "Stuyvesant Ave",
+      "signName": "Stuyvesant Ave",
+      "axis": "ns",
+      "offset": 750,
+      "class": "avenue",
+      "roadWidth": 14,
+      "sidewalkWidth": 4,
+      "oneWay": 0
+    },
+    {
+      "id": "malcolmx",
+      "name": "Malcolm X Blvd",
+      "signName": "Malcolm X Blvd",
+      "axis": "ns",
+      "offset": 1000,
+      "class": "avenue",
+      "roadWidth": 14,
       "sidewalkWidth": 4,
       "oneWay": 0
     }

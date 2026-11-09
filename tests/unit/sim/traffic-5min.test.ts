@@ -235,7 +235,7 @@ describe('full-density traffic, 5 simulated minutes on the real map (PRD 5.2)', 
 
   // Q10-D3: AI cars knock pedestrians down (3 times in seed 7, once in seed 21).
   it('Q10-D3 (fixed by F12): no AI car knocks a pedestrian down in 5 minutes (seeds 7 + 21)', () => {
-    for (const seed of SEEDS) expect(runs.get(seed)!.knockedDown).toEqual([]);
+    for (const seed of SEEDS) { console.log('DBGK', seed, JSON.stringify(runs.get(seed)!.knockedDown), JSON.stringify(runs.get(seed)!.impacts.filter((i) => runs.get(seed)!.knockedDown.some((k) => (i.a === k.id || i.b === k.id) && Math.abs(i.t - k.t) < 1.5)))); expect(runs.get(seed)!.knockedDown).toEqual([]); }
   });
 
   // Q10-D2 (fixed): 'impact' events fired every frame while a pedestrian stayed pressed against a car (unit repro in

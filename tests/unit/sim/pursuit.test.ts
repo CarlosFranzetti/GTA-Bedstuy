@@ -118,7 +118,10 @@ describe('cop pursuit ends within bounds (no arrest mechanic: escape by star dec
     const r = pursue('flee', 5, 3, 120);
     expect(r.nonFinite).toBe(0);
     expect(r.maxOnDuty).toBe(3); // 3 stars dispatch exactly 3 cops
-    expect(r.onDutyOverStars).toBeLessThanOrEqual(3); // sirens follow stars (one-frame lag per decay step: wanted.update runs after cops.update)
+    // sirens follow stars (one-frame lag per decay step: wanted.update runs after cops.update). On the larger map the flee car can ram
+    // a cop (crime: stars climb again), which adds one more decay step, so the bound is the number of decays seen
+    const decays = r.stars.filter((s, i) => i > 0 && s.stars < r.stars[i - 1].stars).length;
+    expect(r.onDutyOverStars).toBeLessThanOrEqual(Math.max(3, decays));
     // hitCop crimes would restart the clock; the bound is relative to the LAST crime
     expect(r.zeroAt).toBeGreaterThan(0);
     expect(r.zeroAt - r.lastCrime).toBeLessThanOrEqual(3 * DECAY + 1);

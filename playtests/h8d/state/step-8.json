@@ -1,0 +1,75 @@
+{
+  "gameHour": 18.089,
+  "player": {
+    "x": -9,
+    "z": -78.5,
+    "headingDeg": 356,
+    "headingCompass": "north",
+    "cameraFacingDeg": 356,
+    "cameraFacing": "north"
+  },
+  "inVehicle": true,
+  "enteringCar": false,
+  "vehicle": {
+    "type": "suv",
+    "speedKmh": 18
+  },
+  "walkSpeedKmh": 0,
+  "wantedStars": 0,
+  "prompt": "F  Exit car",
+  "street": "Throop Ave",
+  "radio": "BK House — No sets yet: check your connection or add SoundCloud links in the Radio library",
+  "mission": {
+    "title": "Block Party",
+    "objective": "Borrow the speaker from Garvey Cutz",
+    "step": "1/4",
+    "timer": "1:55",
+    "carrying": ""
+  },
+  "missionToast": "",
+  "missionRetry": "",
+  "cash": "$120",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": false,
+  "nearby": [
+    {
+      "type": "vehicle",
+      "distance_m": 5.9,
+      "direction": "ahead-right",
+      "bearing_deg": 52,
+      "vehicle": "sedan",
+      "occupied": false
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 7.2,
+      "direction": "behind",
+      "bearing_deg": 175
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 16,
+      "direction": "behind-right",
+      "bearing_deg": 126,
+      "vehicle": "sedan",
+      "occupied": false
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 22.5,
+      "direction": "behind",
+      "bearing_deg": 173,
+      "vehicle": "sedan",
+      "occupied": false
+    }
+  ],
+  "nearbyTotal": 4,
+  "sim": {
+    "steps": 2100,
+    "fps": 10,
+    "heapMB": 228
+  },
+  "step": 8,
+  "consoleErrorsSinceLastStep": []
+}
