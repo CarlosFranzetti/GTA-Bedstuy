@@ -1,0 +1,9 @@
+{
+  "source": "NYC Building Footprints (5zhs-2jue) via NYC Open Data",
+  "url": "https://data.cityofnewyork.us/resource/5zhs-2jue.json",
+  "select": "base_bbl,bin,height_roof,ground_elevation,construction_year,shape_area,the_geom",
+  "where": "base_bbl in(<the BBLs of pluto-bedstuy.json>)",
+  "fetched": "2026-11-09",
+  "rows": 1799,
+  "note": "height_roof is converted from feet to metres (roofM); polygon reduced to its centroid."
+}

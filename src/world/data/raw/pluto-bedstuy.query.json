@@ -1,0 +1,10 @@
+{
+  "source": "NYC Department of City Planning, MapPLUTO (64uk-42ks) via NYC Open Data",
+  "url": "https://data.cityofnewyork.us/resource/64uk-42ks.json",
+  "select": "address,bbl,block,lot,zipcode,bldgclass,landuse,lotarea,bldgarea,numbldgs,numfloors,unitsres,unitstotal,lotfront,lotdepth,bldgfront,bldgdepth,yearbuilt,latitude,longitude,histdist,retailarea,comarea,resarea,ownername",
+  "where": "borough='BK' AND latitude between '40.686' and '40.697' AND longitude between '-73.951' and '-73.933' AND (address like '% HART STREET' OR address like '% PULASKI STREET' OR address like '% KOSCIUSZKO STREET' OR address like '% KOSCIUSKO STREET' OR address like '% LAFAYETTE AVENUE' OR address like '% VAN BUREN STREET' OR address like '% GREENE AVENUE' OR address like '% THROOP AVENUE' OR address like '% TOMPKINS AVENUE' OR address like '% MARCUS GARVEY BLVD' OR address like '% MARCUS GARVEY BOULEVARD')",
+  "order": "bbl",
+  "fetched": "2026-11-09",
+  "rows": 1836,
+  "note": "Zero-valued fields are dropped to keep the file small. Exact block assignment happens in scripts/import-pluto.mjs."
+}

@@ -1,20 +1,28 @@
 # BLOCKS: what stands on each block face, and where it comes from
 
-Lane GEO2, 9 Nov 2026. Companion to `docs/reference/block-faces.md` (R2 passes 1 and 2), which holds the raw search notes; this file is the per-face reading the game data follows.
+Lane GEO2, 9 Nov 2026 (updated for MapPLUTO). Companion to `docs/reference/block-faces.md` (R2 passes 1 and 2), which holds the raw search notes; this file is the per-face reading the game data follows.
 
 ## 0. What could and could not be reached
 
-| Source | Result in this session |
+| Source | Result |
 |---|---|
-| OSM Overpass (`overpass-api.de`, `overpass.kumi.systems`) | **Unreachable.** WebFetch: `getaddrinfo ENOTFOUND` (host outside the session's allowed network domains). |
-| NYC Open Data / PLUTO (`data.cityofnewyork.us`) | **Unreachable**, same error. |
-| WebSearch (listing pages, Brownstoner, YIMBY, GrowNYC, MTA bus-time, Wikipedia snippets) | Reachable, snippets only. |
-| Google Maps / Street View / Earth | Not used (licence rule). |
-| User photos under `src/assets/photos` | None present. |
+| OSM Overpass (`overpass-api.de`, `overpass.kumi.systems`) | **Unreachable** (`ENOTFOUND` in WebFetch; still blocked later). No OSM footprints, no `building:levels` or shop tags. |
+| NYC Open Data, MapPLUTO (`64uk-42ks`), by `curl` after the network change | **Reachable.** 1,836 lots on the nine streets inside the grid box, saved trimmed as `src/world/data/raw/pluto-bedstuy.json` (+ `.query.json` with query and date). |
+| NYC Building Footprints (`5zhs-2jue`) | **Reachable** by BBL: 1,799 footprints (roof height, construction year, ground elevation) in `src/world/data/raw/footprints-bedstuy.json`. The id `nqwf-w8eh` does not exist. |
+| LPC historic districts | Not fetched. PLUTO's own `histdist` column names the Bedford Stuyvesant / Expanded Stuyvesant Heights Historic District on the lots inside it. |
+| WebSearch (listing pages, Brownstoner, YIMBY, GrowNYC, MTA Bus Time, Wikipedia snippets) | Reachable; snippets only. Used for the earlier typology notes and the transit items. |
+| Google Maps / Street View / Earth | Not used. No photos under `src/assets/photos`. |
 
-Consequences, stated plainly: **no footprints, no `building:levels`, no PLUTO floors or year-built, no lot widths** were obtained. `scripts/import-osm.mjs` was therefore **not run on live data** (nothing to feed it; `src/world/data/raw/` was not created). Every lot width in `bedstuy.json` is still the generator's, and the 40 faces' lot counts are the generator's counts. Only type, storeys, family, cornice, stoop, trees and storefront of individual lots were changed, each time with a `[GEO2]` note (the importer treats any hand note as protected, so a later live import keeps these lots).
+**How the lots were built.** `scripts/fetch-pluto.mjs` pulls the rows; `scripts/import-pluto.mjs` places each lot by its own latitude/longitude (PLUTO centroid) in a frame fitted to the street grid (streets run 8.8 degrees off true east), assigns it to the face of the block it sits in, orders it along the face and writes it with: width from `lotfront` (feet to metres), building depth from `bldgdepth`, storeys from `numfloors` (else footprint roof height / 3.1 m), use from `bldgclass` and `landuse` (A/B/C/D residential rows and walk-ups, S/K/C7/D7 and land use 04/05 shop-below, M church, W school, G and land use 10 garage, V and park-owned lots vacant or garden), family and cornice from `yearbuilt` (before 1880 bracketed, to 1925 plain, later none; 1990 and later `newBuild`), stoop from class, age and width. Lots much wider than their building (`lotfront` over twice `bldgfront`) become a building plus set-back lawns. Everything is checked by the schema validators and the 40-face counts below.
 
-Address facts below come from listing pages and news items; where the snippet did not say which side of the street or which block, the fact is placed by typology only and says so. House numbers do not map to game blocks: the game grid is a simplified 2 x 5 layout. Confidence: **M** one credible source, **L** listing-only or inference. Nothing here is **H** because nothing was read from an official dataset.
+**What PLUTO cannot say, and what was done about it.**
+- *Business type.* PLUTO has no shop kind, so a shop lot gets a stand-in kind chosen from its BBL (bodega, deli, barber, restaurant and so on; weights favour bodegas) and the 15 game POIs then pin their kind on the nearest shop lot. The kinds are **not** real business types.
+- *Material and facade.* Brick or brownstone is chosen by a hash of the BBL weighted by build year: not sourced. Street trees (30% of lots) and the scaffold flags (same count per face as before) are decoration, not data.
+- *Year built 1931.* PLUTO uses 1931 for many pre-1931 buildings whose year is unknown; 109 lots carry it. Treat it as "older than the record".
+- *Gaps.* Lots addressed on a cross street (corner buildings, DeKalb Ave lots inside block row r1) are not on the face they touch, and big parcels such as the housing-authority superblocks are addressed on one street only. Where a stretch of face has no PLUTO lot, it is filled with generated rows marked `filler` in the lot note (counted in the table). Two faces have no PLUTO lot at all and keep their earlier typology rows: Marcus Garvey Blvd E Hart-Pulaski and Throop Ave E Lafayette-Van Buren.
+- *Streets that PLUTO shows and the game grid lacks.* DeKalb Avenue runs between Pulaski and Kosciuszko (the real Pulaski-Kosciuszko block is two rows deep and about 167 m from street to street, against 82 m elsewhere). The game keeps its single 100 m row there.
+
+Confidence: PLUTO-built lots are **H** when width and storeys are in the record, **M** otherwise; filler is **L**. Earlier sourced notes (`[GEO2] ...`) whose house number matches a PLUTO lot are carried onto that lot, joined by `||` to the PLUTO line; the 24 typology-only stand-in notes were superseded by the real lots. The earlier pre-PLUTO version of this file's sourcing is kept in sections 1 to 4.
 
 ## 1. Transit near the ten blocks
 
@@ -32,50 +40,50 @@ Address facts below come from listing pages and news items; where the snippet di
 
 ## 3. Per-face table
 
-Lot counts are checked by `tests/unit/world/real-blocks.test.ts`: one row per face, `blockId-side` key, count in the third column. The last column counts lots carrying a `[GEO2]` sourced note. Block ids: `r<row>c<col>`; rows run Hart-Pulaski (r0) to Van Buren-Greene (r4); columns Tompkins-Throop (c0) and Throop-Marcus Garvey (c1). Face side is the side of the block (N/S/E/W).
+Lot counts are checked by `tests/unit/world/real-blocks.test.ts`: one row per face, `blockId-side` key, count in the third column. The composition column ends with PLUTO lots, filler lots and the build-year range. The last column counts lots carrying a `[GEO2]` sourced note. Block ids: `r<row>c<col>`; rows run Hart-Pulaski (r0) to Van Buren-Greene (r4); columns Tompkins-Throop (c0) and Throop-Marcus Garvey (c1). Face side is the side of the block (N/S/E/W).
 
 | face id | street segment | lots | composition now | sourced lots |
 |---|---|---|---|---|
-| r0c0-E | Throop Ave E hart-pulaski | 11 | 3-6 fl; 0 church, 1 vacant, 0 school, 0 scaffold, 0 new; shops 4 | 0 |
-| r0c0-N | Hart St N tompkins-throop | 32 | 3-5 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 2 new; shops 0 | 2 |
-| r0c0-S | Pulaski St S tompkins-throop | 32 | 2-5 fl; 0 church, 1 vacant, 0 school, 0 scaffold, 1 new; shops 0 | 0 |
-| r0c0-W | Tompkins Ave W hart-pulaski | 10 | 3-6 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 1 new; shops 5 | 0 |
-| r0c1-E | Marcus Garvey Blvd E hart-pulaski | 10 | 3-5 fl; 0 church, 1 vacant, 0 school, 0 scaffold, 1 new; shops 5 | 0 |
-| r0c1-N | Hart St N throop-garvey | 32 | 2-5 fl; 0 church, 1 vacant, 0 school, 1 scaffold, 1 new; shops 0 | 0 |
-| r0c1-S | Pulaski St S throop-garvey | 32 | 2-5 fl; 1 church, 2 vacant, 0 school, 0 scaffold, 2 new; shops 1 | 1 |
-| r0c1-W | Throop Ave W hart-pulaski | 10 | 3-6 fl; 0 church, 2 vacant, 0 school, 0 scaffold, 0 new; shops 3 | 0 |
-| r1c0-E | Throop Ave E pulaski-kosciuszko | 10 | 3-5 fl; 2 church, 1 vacant, 0 school, 0 scaffold, 1 new; shops 5 | 0 |
-| r1c0-N | Pulaski St N tompkins-throop | 33 | 3-5 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 1 new; shops 0 | 1 |
-| r1c0-S | Kosciuszko St S tompkins-throop | 32 | 2-5 fl; 1 church, 2 vacant, 0 school, 0 scaffold, 2 new; shops 0 | 0 |
-| r1c0-W | Tompkins Ave W pulaski-kosciuszko | 10 | 3-6 fl; 1 church, 0 vacant, 0 school, 1 scaffold, 4 new; shops 4 | 0 |
-| r1c1-E | Marcus Garvey Blvd E pulaski-kosciuszko | 10 | 3-6 fl; 0 church, 0 vacant, 0 school, 1 scaffold, 0 new; shops 5 | 0 |
-| r1c1-N | Pulaski St N throop-garvey | 32 | 2-5 fl; 0 church, 1 vacant, 0 school, 0 scaffold, 0 new; shops 1 | 0 |
-| r1c1-S | Kosciuszko St S throop-garvey | 33 | 2-5 fl; 0 church, 2 vacant, 0 school, 3 scaffold, 0 new; shops 1 | 1 |
-| r1c1-W | Throop Ave W pulaski-kosciuszko | 11 | 3-5 fl; 1 church, 0 vacant, 0 school, 0 scaffold, 0 new; shops 4 | 1 |
-| r2c0-E | Throop Ave E kosciuszko-lafayette | 10 | 4-5 fl; 0 church, 0 vacant, 0 school, 2 scaffold, 2 new; shops 4 | 0 |
-| r2c0-N | Kosciuszko St N tompkins-throop | 33 | 3-5 fl; 1 church, 1 vacant, 0 school, 4 scaffold, 3 new; shops 1 | 2 |
-| r2c0-S | Lafayette Ave S tompkins-throop | 30 | 3-5 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 1 new; shops 3 | 0 |
-| r2c0-W | Tompkins Ave W kosciuszko-lafayette | 11 | 3-5 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 1 new; shops 4 | 0 |
-| r2c1-E | Marcus Garvey Blvd E kosciuszko-lafayette | 10 | 3-5 fl; 1 church, 1 vacant, 0 school, 0 scaffold, 1 new; shops 5 | 1 |
-| r2c1-N | Kosciuszko St N throop-garvey | 32 | 2-4 fl; 0 church, 2 vacant, 1 school, 0 scaffold, 2 new; shops 1 | 1 |
-| r2c1-S | Lafayette Ave S throop-garvey | 30 | 3-5 fl; 0 church, 2 vacant, 0 school, 0 scaffold, 3 new; shops 6 | 0 |
-| r2c1-W | Throop Ave W kosciuszko-lafayette | 11 | 3-5 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 2 new; shops 5 | 0 |
-| r3c0-E | Throop Ave E lafayette-vanburen | 11 | 3-6 fl; 1 church, 1 vacant, 0 school, 0 scaffold, 0 new; shops 5 | 2 |
-| r3c0-N | Lafayette Ave N tompkins-throop | 30 | 3-5 fl; 0 church, 1 vacant, 0 school, 0 scaffold, 3 new; shops 8 | 1 |
-| r3c0-S | Van Buren St S tompkins-throop | 33 | 2-5 fl; 0 church, 3 vacant, 0 school, 0 scaffold, 0 new; shops 0 | 0 |
-| r3c0-W | Tompkins Ave W lafayette-vanburen | 11 | 3-6 fl; 0 church, 1 vacant, 0 school, 0 scaffold, 0 new; shops 5 | 0 |
-| r3c1-E | Marcus Garvey Blvd E lafayette-vanburen | 10 | 3-6 fl; 0 church, 1 vacant, 0 school, 1 scaffold, 1 new; shops 5 | 1 |
-| r3c1-N | Lafayette Ave N throop-garvey | 30 | 3-5 fl; 0 church, 1 vacant, 0 school, 0 scaffold, 2 new; shops 11 | 0 |
-| r3c1-S | Van Buren St S throop-garvey | 32 | 3-4 fl; 0 church, 1 vacant, 0 school, 1 scaffold, 1 new; shops 0 | 0 |
-| r3c1-W | Throop Ave W lafayette-vanburen | 10 | 3-6 fl; 0 church, 0 vacant, 0 school, 2 scaffold, 1 new; shops 5 | 2 |
-| r4c0-E | Throop Ave E vanburen-greene | 10 | 3-6 fl; 0 church, 2 vacant, 0 school, 0 scaffold, 0 new; shops 4 | 0 |
-| r4c0-N | Van Buren St N tompkins-throop | 33 | 2-5 fl; 0 church, 3 vacant, 0 school, 1 scaffold, 2 new; shops 1 | 3 |
-| r4c0-S | Greene Ave S tompkins-throop | 31 | 3-5 fl; 0 church, 2 vacant, 0 school, 2 scaffold, 3 new; shops 1 | 3 |
-| r4c0-W | Tompkins Ave W vanburen-greene | 10 | 4-5 fl; 0 church, 2 vacant, 0 school, 0 scaffold, 1 new; shops 5 | 0 |
-| r4c1-E | Marcus Garvey Blvd E vanburen-greene | 10 | 1-6 fl; 0 church, 1 vacant, 0 school, 0 scaffold, 0 new; shops 5 | 0 |
-| r4c1-N | Van Buren St N throop-garvey | 32 | 2-5 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 1 new; shops 0 | 1 |
-| r4c1-S | Greene Ave S throop-garvey | 30 | 3-5 fl; 1 church, 0 vacant, 0 school, 0 scaffold, 3 new; shops 2 | 1 |
-| r4c1-W | Throop Ave W vanburen-greene | 10 | 4-5 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 1 new; shops 4 | 0 |
+| r0c0-E | Throop Ave E hart-pulaski | 8 | 3-5 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 2 new; shops 1; PLUTO 8, filler 0, built 1899-2007 | 0 |
+| r0c0-N | Hart St N tompkins-throop | 38 | 2-4 fl; 1 church, 3 vacant, 0 school, 0 scaffold, 0 new; shops 0; PLUTO 38, filler 8, built 1899-1931 | 1 |
+| r0c0-S | Pulaski St S tompkins-throop | 35 | 2-4 fl; 0 church, 1 vacant, 0 school, 0 scaffold, 6 new; shops 0; PLUTO 35, filler 8, built 1905-2024 | 1 |
+| r0c0-W | Tompkins Ave W hart-pulaski | 8 | 2-6 fl; 0 church, 1 vacant, 0 school, 0 scaffold, 2 new; shops 3; PLUTO 8, filler 0, built 1931-2025 | 0 |
+| r0c1-E | Marcus Garvey Blvd E hart-pulaski | 10 | 3-5 fl; 0 church, 1 vacant, 0 school, 0 scaffold, 1 new; shops 5; PLUTO 0, filler 0, built - | 0 |
+| r0c1-N | Hart St N throop-garvey | 14 | 2-3 fl; 0 church, 4 vacant, 1 school, 1 scaffold, 1 new; shops 1; PLUTO 14, filler 5, built 1910-2006 | 0 |
+| r0c1-S | Pulaski St S throop-garvey | 31 | 3-4 fl; 1 church, 0 vacant, 0 school, 0 scaffold, 1 new; shops 0; PLUTO 31, filler 28, built 1931-2015 | 0 |
+| r0c1-W | Throop Ave W hart-pulaski | 9 | 3-4 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 1 new; shops 1; PLUTO 9, filler 2, built 1931-2005 | 0 |
+| r1c0-E | Throop Ave E pulaski-kosciuszko | 14 | 3-4 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 0 new; shops 1; PLUTO 14, filler 11, built 1899-1931 | 0 |
+| r1c0-N | Pulaski St N tompkins-throop | 30 | 2-4 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 5 new; shops 0; PLUTO 30, filler 1, built 1899-2019 | 0 |
+| r1c0-S | Kosciuszko St S tompkins-throop | 32 | 2-6 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 4 new; shops 0; PLUTO 32, filler 9, built 1899-2020 | 1 |
+| r1c0-W | Tompkins Ave W pulaski-kosciuszko | 19 | 2-4 fl; 0 church, 0 vacant, 0 school, 1 scaffold, 15 new; shops 0; PLUTO 19, filler 4, built 1991-1992 | 0 |
+| r1c1-E | Marcus Garvey Blvd E pulaski-kosciuszko | 11 | 2-4 fl; 0 church, 0 vacant, 0 school, 1 scaffold, 0 new; shops 2; PLUTO 11, filler 9, built 1931-1931 | 0 |
+| r1c1-N | Pulaski St N throop-garvey | 18 | 3-6 fl; 1 church, 5 vacant, 0 school, 0 scaffold, 3 new; shops 1; PLUTO 18, filler 4, built 1906-2017 | 0 |
+| r1c1-S | Kosciuszko St S throop-garvey | 27 | 1-4 fl; 0 church, 0 vacant, 0 school, 3 scaffold, 15 new; shops 0; PLUTO 27, filler 4, built 1899-2007 | 0 |
+| r1c1-W | Throop Ave W pulaski-kosciuszko | 11 | 3-4 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 2 new; shops 2; PLUTO 11, filler 8, built 1931-2005 | 0 |
+| r2c0-E | Throop Ave E kosciuszko-lafayette | 6 | 3-6 fl; 0 church, 2 vacant, 0 school, 2 scaffold, 0 new; shops 2; PLUTO 6, filler 0, built 1931-1931 | 1 |
+| r2c0-N | Kosciuszko St N tompkins-throop | 34 | 2-4 fl; 0 church, 0 vacant, 0 school, 4 scaffold, 8 new; shops 0; PLUTO 34, filler 7, built 1899-2007 | 0 |
+| r2c0-S | Lafayette Ave S tompkins-throop | 25 | 2-5 fl; 0 church, 1 vacant, 0 school, 0 scaffold, 11 new; shops 0; PLUTO 25, filler 6, built 1899-2020 | 0 |
+| r2c0-W | Tompkins Ave W kosciuszko-lafayette | 6 | 2-4 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 2 new; shops 1; PLUTO 6, filler 0, built 1899-2006 | 0 |
+| r2c1-E | Marcus Garvey Blvd E kosciuszko-lafayette | 10 | 4-4 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 0 new; shops 1; PLUTO 10, filler 8, built 1931-1931 | 0 |
+| r2c1-N | Kosciuszko St N throop-garvey | 15 | 3-4 fl; 0 church, 0 vacant, 3 school, 0 scaffold, 0 new; shops 4; PLUTO 15, filler 10, built 1931-1959 | 0 |
+| r2c1-S | Lafayette Ave S throop-garvey | 27 | 4-8 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 0 new; shops 1; PLUTO 27, filler 26, built 2008-2008 | 0 |
+| r2c1-W | Throop Ave W kosciuszko-lafayette | 6 | 2-3 fl; 3 church, 0 vacant, 0 school, 0 scaffold, 0 new; shops 0; PLUTO 6, filler 0, built 1899-1997 | 0 |
+| r3c0-E | Throop Ave E lafayette-vanburen | 11 | 3-6 fl; 1 church, 1 vacant, 0 school, 0 scaffold, 0 new; shops 5; PLUTO 0, filler 0, built - | 2 |
+| r3c0-N | Lafayette Ave N tompkins-throop | 35 | 2-4 fl; 0 church, 1 vacant, 0 school, 0 scaffold, 8 new; shops 0; PLUTO 35, filler 4, built 1899-2018 | 0 |
+| r3c0-S | Van Buren St S tompkins-throop | 35 | 2-5 fl; 0 church, 3 vacant, 0 school, 0 scaffold, 9 new; shops 1; PLUTO 35, filler 7, built 1899-2015 | 1 |
+| r3c0-W | Tompkins Ave W lafayette-vanburen | 10 | 3-4 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 0 new; shops 2; PLUTO 10, filler 4, built 1931-1931 | 0 |
+| r3c1-E | Marcus Garvey Blvd E lafayette-vanburen | 11 | 3-4 fl; 0 church, 0 vacant, 0 school, 1 scaffold, 2 new; shops 0; PLUTO 11, filler 9, built 2003-2004 | 0 |
+| r3c1-N | Lafayette Ave N throop-garvey | 29 | 1-4 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 4 new; shops 3; PLUTO 29, filler 0, built 1899-2015 | 1 |
+| r3c1-S | Van Buren St S throop-garvey | 26 | 2-4 fl; 0 church, 0 vacant, 0 school, 1 scaffold, 2 new; shops 1; PLUTO 26, filler 7, built 1899-2017 | 1 |
+| r3c1-W | Throop Ave W lafayette-vanburen | 10 | 2-4 fl; 1 church, 2 vacant, 0 school, 2 scaffold, 0 new; shops 1; PLUTO 10, filler 6, built 1931-1931 | 0 |
+| r4c0-E | Throop Ave E vanburen-greene | 13 | 2-4 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 0 new; shops 1; PLUTO 13, filler 12, built 1899-1899 | 0 |
+| r4c0-N | Van Buren St N tompkins-throop | 38 | 2-4 fl; 0 church, 1 vacant, 0 school, 1 scaffold, 3 new; shops 1; PLUTO 38, filler 4, built 1899-2019 | 1 |
+| r4c0-S | Greene Ave S tompkins-throop | 35 | 1-4 fl; 0 church, 1 vacant, 0 school, 2 scaffold, 0 new; shops 0; PLUTO 35, filler 9, built 1899-1931 | 0 |
+| r4c0-W | Tompkins Ave W vanburen-greene | 11 | 3-4 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 3 new; shops 0; PLUTO 11, filler 4, built 1899-2012 | 0 |
+| r4c1-E | Marcus Garvey Blvd E vanburen-greene | 12 | 3-4 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 0 new; shops 3; PLUTO 12, filler 10, built 1899-1899 | 0 |
+| r4c1-N | Van Buren St N throop-garvey | 36 | 2-3 fl; 0 church, 1 vacant, 0 school, 0 scaffold, 0 new; shops 1; PLUTO 36, filler 9, built 1899-1931 | 0 |
+| r4c1-S | Greene Ave S throop-garvey | 35 | 2-3 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 1 new; shops 0; PLUTO 35, filler 8, built 1899-2008 | 1 |
+| r4c1-W | Throop Ave W vanburen-greene | 3 | 4-4 fl; 0 church, 0 vacant, 0 school, 0 scaffold, 3 new; shops 1; PLUTO 3, filler 0, built 1997-1997 | 0 |
 
 ## 4. Per-segment evidence
 

@@ -1,0 +1,74 @@
+{
+  "gameHour": 17.563,
+  "player": {
+    "x": 4.6,
+    "z": 16.7,
+    "headingDeg": 0,
+    "headingCompass": "north",
+    "cameraFacingDeg": 360,
+    "cameraFacing": "north"
+  },
+  "inVehicle": true,
+  "enteringCar": false,
+  "vehicle": {
+    "type": "suv",
+    "speedKmh": 0
+  },
+  "walkSpeedKmh": 0,
+  "wantedStars": 0,
+  "prompt": "F  Exit car",
+  "street": "Throop Ave",
+  "radio": "BK House — No sets yet: check your connection or add SoundCloud links in the Radio library",
+  "mission": null,
+  "missionToast": "",
+  "missionRetry": "",
+  "cash": "$120",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": false,
+  "nearby": [
+    {
+      "type": "obstacle",
+      "distance_m": 3.5,
+      "direction": "ahead-right",
+      "bearing_deg": 56
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 4.9,
+      "direction": "ahead-right",
+      "bearing_deg": 36
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 7.3,
+      "direction": "behind-right",
+      "bearing_deg": 154
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 9.2,
+      "direction": "left",
+      "bearing_deg": -90,
+      "vehicle": "sedan",
+      "occupied": false
+    },
+    {
+      "type": "ped",
+      "distance_m": 20.7,
+      "direction": "ahead-left",
+      "bearing_deg": -61
+    }
+  ],
+  "nearbyTotal": 5,
+  "sim": {
+    "steps": 215,
+    "fps": 10,
+    "heapMB": 257
+  },
+  "step": 1,
+  "consoleErrorsSinceLastStep": [
+    "Access to fetch at 'https://ra-nyc.vercel.app/api/events?date=2026-10-22' from origin 'http://localhost:4438' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.",
+    "Failed to load resource: net::ERR_FAILED"
+  ]
+}

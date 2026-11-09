@@ -12,6 +12,7 @@ import { loadBedstuyData, buildGrid } from '@/world/Grid';
 import { subdivideLots } from '@/world/LotSubdivider';
 import { buildBuildings } from '@/world/BuildingGen';
 import { getBedstuyFaces } from '@/world/data/faces';
+import { doorLocalXs } from '@/world/interiors/doorGaps';
 
 const stub = new Proxy({}, { get: () => () => new THREE.MeshBasicMaterial() }) as unknown as IMaterialLibrary;
 const grid = buildGrid(loadBedstuyData());
@@ -21,6 +22,7 @@ const fences = colliders.filter((c) => c.id?.includes('-areaway'));
 const byLot = new Map<string, StaticCollider[]>();
 for (const f of fences) { const k = f.id!.replace(/-areaway\d+$/, ''); (byLot.get(k) ?? byLot.set(k, []).get(k)!).push(f); }
 
+const doorLot = (id: string): boolean => { const l = lots.find((x) => x.id === id); return !!l && doorLocalXs(l).length > 0; };
 const seg = (c: StaticCollider) => c.shape as Segment;
 const lenOf = (c: StaticCollider) => Math.hypot(seg(c).b.x - seg(c).a.x, seg(c).b.z - seg(c).a.z);
 
@@ -43,7 +45,8 @@ describe('areaway iron fence colliders', () => {
     expect(byLot.size).toBeGreaterThan(100);
     for (const [id, list] of byLot) {
       expect(list.length, id).toBeGreaterThanOrEqual(1);
-      expect(list.length, id).toBeLessThanOrEqual(3);
+      // a lot carrying an interior door (WAX DELI) gets one extra run: the 1.8 m door gap splits the fence
+      expect(list.length, id).toBeLessThanOrEqual(doorLot(id) ? 4 : 3);
       for (const c of list) { expect(c.shape.kind).toBe('segment'); expect(lenOf(c), id).toBeGreaterThanOrEqual(0.049); }
     }
     expect(fences.length).toBeLessThanOrEqual(byLot.size * 3);

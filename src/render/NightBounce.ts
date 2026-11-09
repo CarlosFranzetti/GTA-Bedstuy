@@ -247,7 +247,7 @@ void main() {
     // pool: brightest at the wall, falls off outward and sideways; wet ground keeps the streak longer
     float along = 1.0 - vUV.y;
     float reach = mix( 3.2, 2.0, uWet );
-    a = pow( max( along, 0.0 ), reach ) * exp( -vUV.x * vUV.x * 3.5 ) * ( 0.9 + 1.1 * uWet );
+    a = pow( max( along, 0.0 ), reach ) * exp( -vUV.x * vUV.x * 3.5 ) * ( 0.9 + 0.3 * uWet );
   }
   gl_FragColor = vec4( vCol.rgb * ( a * vCol.a * vFade ), 1.0 );
 }

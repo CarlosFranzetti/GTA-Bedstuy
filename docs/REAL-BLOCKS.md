@@ -1,5 +1,7 @@
 # Real blocks: building footprints from open data, textures from your own photos
 
+**Update (GEO2, 9 Nov 2026): MapPLUTO is imported.** `node scripts/fetch-pluto.mjs` then `node scripts/import-pluto.mjs --write` rebuild the lots from NYC MapPLUTO and Building Footprints with no OSM data (see `docs/reference/BLOCKS.md`). Restore `bedstuy.json` from git before a re-run if you want the original typology notes as input. The OSM path below still works when Overpass is reachable.
+
 Status: the pipeline is built and tested against a synthetic fixture. The map hosts (overpass-api.de, openstreetmap.org, data.cityofnewyork.us) were blocked in the sandbox when this was written, so no real data has been imported yet. Everything below runs from files you download yourself; once those hosts are allowed the same commands work with `curl` straight into the importer.
 
 Sources used, and nothing else: OpenStreetMap (building outlines, levels, heights, shops) and NYC Open Data MapPLUTO (year built, floors, land use). No Google Maps or Street View data or imagery is read, copied or traced anywhere in this pipeline (PRD 2.1). Facade pictures come only from photos you take yourself.

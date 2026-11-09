@@ -1994,3 +1994,6 @@ Five of five hold, none of the sources is Google data, and BLOCKS.md is honest a
 In the game data: 24 lots now carry source notes, and 23 mid-block shopfronts were removed from the rowhouse side streets, where no source found any storefronts. That makes Hart, Pulaski, Kosciuszko, Van Buren and Greene read as the residential brownstone rows they are. No POI or lot width moved, the real-blocks test passes (3), and the validator is clean. In the after_low frames the avenue still has its shops and the side streets are calmer.
 What is still missing is the part the user cares most about: real footprints, widths and floors. Fable reports data.cityofnewyork.us is now reachable and GEO2 has resumed on PLUTO, so I will review that import separately when it lands. Overpass (OpenStreetMap) is still blocked, so building shapes will come from PLUTO lot data, not OSM footprints. GEO2 -> done for the sourced pass; the PLUTO import is pending.
 Also recorded: Fable's live check against ra-nyc confirms set durations are in SECONDS (3718 and 3318 for one artist), so the 45-minute filter at 2700 is correct and that open item is closed.
+
+### 2026-11-09T09:38:13Z · GEO2
+PLUTO import done: 1836 rows fetched, bedstuy.json regenerated, tests/unit world+game+textures 883 green, tsc clean, build ok. Frames + smoke queued on render lock (4442).
