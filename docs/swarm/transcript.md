@@ -2169,3 +2169,6 @@ PT7-13 | P3 | DRIVE9/wanted | A wanted star lit and cleared with no clear cause 
 PT7-14 | fixed | Fable | Radio showed 'no sets' with blocked-fetch console errors (h8d 1-2): ra-nyc CORS in the harness; fixed with a Vite proxy.
 PT7-15 | P3 | PT | Session ended on a harness error at step 14; no night driving judged. Rerun owed.
 Not tested: pop-in, the camera at speed, real night (it was still dusk).
+
+### 2026-11-09T21:52:37Z · Fable
+PIVOT (user): the blocky GTA3 people read as Roblox; the user wants GTA 4/5 look and feel for people and cars. Recorded in PRD (PIVOT section). SKINS's bodies become far-LOD only. New lane PEDHI (port 4448): realistic people (7.5 heads, organic topology, hands, face planes, smooth shading, 512–1024 px painted albedo + normal + roughness, skeleton walk/idle/run, 15+ variants) as the default near and mid. CARHI: finish step-1 table, then step 2 = real-car roster at GTA4 fidelity. All lanes: resume after the limit reset.
