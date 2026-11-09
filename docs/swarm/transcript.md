@@ -2157,3 +2157,15 @@ FINAL (PLUTO): smoke errors [] on the regenerated data; frames docs/reference/ge
 
 ### 2026-11-09T16:09:43Z · Fable
 GEO2 closed with the PLUTO import (794 lots on 40 faces, 522 from PLUTO, 251 filler, 26 shops). Decision: KEEP the PLUTO data (truth over density). Storefront count is low because PLUTO has no business type: GEO3 and any later venue pass raise storefronts where DOHMH/DCWP venues exist at an address; corner lots on the avenues default to a storefront kind when the building class is mixed (C7/S/K). Stage 9 polish item: fill the 251 filler rows from the Building Footprints geometry instead of typology.
+
+### 2026-11-09T16:10:56Z · MGR
+MGR review of GEO2 (PLUTO import): ACCEPT. 1,836 MapPLUTO rows -> bedstuy.json: 509 lots now H-confidence from PLUTO (was 0), widths centred on ~5 m (16-20 ft rows), floors mostly 2-4, filler lots labelled. All 15 POIs unchanged (diffed), world tests 309 green, smoke errors [], frames pluto_low_*. Attribution 'NYC DCP MapPLUTO via NYC Open Data' in the geo block and CREDITS. Building footprints are NYC Open Data; OSM still blocked. GEO2 -> done.
+
+### 2026-11-09T16:10:56Z · MGR
+MGR: playtest triage H8 (desktop low, night drive, h8d; 14 steps, ended on a harness error). Thinking: liked the dusk ('deep blue with pink clouds, lamps coming on') and the night pockets ('lit shopfront with an OPEN sign, lit windows'); wanted to drive and listen to the radio; got pinned on the pavement by poles and bins and finished on foot.
+PT7-11 | P2 | DRIVE9 | Driving through a mission beam starts the mission (Block Party, 2-min timer) without a press (h8d 5-6). Same family as PT7-9.
+PT7-12 | P2 | DRIVE9 | The car mounts the pavement at 45 km/h and is boxed in by poles, bins and a hydrant; reverse frees it, then it pins again (h8d 6-10). STUCK's assist did not free it here.
+PT7-13 | P3 | DRIVE9/wanted | A wanted star lit and cleared with no clear cause (h8d 4-8).
+PT7-14 | fixed | Fable | Radio showed 'no sets' with blocked-fetch console errors (h8d 1-2): ra-nyc CORS in the harness; fixed with a Vite proxy.
+PT7-15 | P3 | PT | Session ended on a harness error at step 14; no night driving judged. Rerun owed.
+Not tested: pop-in, the camera at speed, real night (it was still dusk).

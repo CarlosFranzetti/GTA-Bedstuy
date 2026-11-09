@@ -85,7 +85,7 @@ describe('driving on the pavement', () => {
     player.driver = 'player';
     player.body.vel = { x: 5, z: 0 };
     sim.add(player);
-    if (withPed) sim.world.addBody({ id: 'ped1', kind: 'ped', shape: { kind: 'circle', r: 0.3 }, pos: { x: -2, z: 14 }, vel: { x: 0, z: 0 }, heading: 0, mass: 80 });
+    if (withPed) sim.world.addBody({ id: 'ped1', kind: 'ped', shape: { kind: 'circle', r: 0.3 }, pos: { x: -8, z: 13 }, vel: { x: 0, z: 0 }, heading: 0, mass: 80 });
     const log: { t: number; stars: number }[] = [];
     for (let s = 0; s < seconds * 60; s++) {
       player.setInput(input({ throttle: 0.45 }));
