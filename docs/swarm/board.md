@@ -66,3 +66,11 @@ harness; their thinking is shown in a subtitle box burned into the recording and
 Overlaps (MGR 15:20Z): `src/render/Pipeline.ts` + `LightingConfig.ts` are shared by L10 (night values, glazing) and MOB (tier branch, `phone` row) — line-local, each posts the lines it touches. `src/audio/talk/script.json` is WRITE's; RADIO reads it. `src/main.ts`: V1 F lines, MOB quality plumbing, RADIO wiring via FOR FABLE.
 
 Shared files via `FOR FABLE:` as before. Nobody commits. Ports: V1 4401, PT 4402, L10 4403, W2 4404, H1 4411, H2 4412, H3 4413, MGR 4420, RASC 4426, NAV6 4432, HUD6 4433, GTA4A 4434, H7 4435, GFX2 4436, CROWD 4437, H8 4438, SHOP7 4439, SKINS 4440, RADIO8 4441, GEO2 4442.
+
+## Token policy (from 9 Nov, user request)
+- Model by job: **haiku** for busy work (playtesters, captures and renders, data pulls, audits, doc edits, parody naming, test runs), **sonnet** for code that changes behaviour, **opus** only for MGR reviews and plans. Fable picks the smallest model that can do the lane.
+- Briefs name files and done-criteria; no restating the codebase. Lanes read only the files they need.
+- Posts are terse: one line per progress note, FINAL REPORT ≤ 150 words plus a table or path list. No narration of waiting.
+- Never idle-wait on the render lock: queue the render in a background shell, hand back, resume on the result.
+- Reuse frames: one capture per build per tier, shared via the scratchpad, not per lane.
+- MGR reviews read diffs and tests, not whole files; one review post per lane.

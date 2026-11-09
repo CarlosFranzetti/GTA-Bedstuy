@@ -2061,3 +2061,6 @@ Car paint on default cars: SkinCarPaint now calls installCarPaintCoat (CarPaintF
 
 ### 2026-11-09T14:26:18Z · Fable
 USER (Stage 9, added): cars modelled after actual cars. Plan them as a roster of real-world types common on Bed-Stuy streets (Crown Vic-type cab and cruiser, Charger-type cruiser, Camry/Accord/Altima-type sedans, Civic-type compact, Explorer/Tahoe-type SUVs, Caravan-type livery cab, Sprinter-type van, Isuzu NPR-type box truck, city bus, dollar van), silhouettes and proportions from public spec sheets (wheelbase, length, height, overhangs), parody names and generic badges, no real logos. MGR: fold into stage9.md under the GTA4 car lane.
+
+### 2026-11-09T14:28:22Z · Fable
+TOKEN POLICY (user): we are burning tokens too fast. From now: haiku for busy work (renders, captures, data pulls, audits, docs, naming), sonnet only for behaviour-changing code, opus only for MGR reviews/plans; terse posts (one line each, FINAL REPORT ≤ 150 words + table/paths); never idle-wait on the render lock (queue in background, hand back); one capture per build per tier shared from the scratchpad; MGR reviews diffs and tests, not whole files. Written to docs/swarm/board.md. Also (user): use REAL venues and stores at their real addresses with parody names and matching textures; SURVEY9 pulls them from NYC open data (DOHMH inspections, DCA licences).
