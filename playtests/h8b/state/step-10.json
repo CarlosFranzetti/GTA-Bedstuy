@@ -1,0 +1,72 @@
+{
+  "gameHour": 18.159,
+  "player": {
+    "x": -5.4,
+    "z": -53.7,
+    "headingDeg": 49,
+    "headingCompass": "north-east",
+    "cameraFacingDeg": 319,
+    "cameraFacing": "north-west"
+  },
+  "inVehicle": false,
+  "enteringCar": false,
+  "vehicle": null,
+  "walkSpeedKmh": 0,
+  "wantedStars": 1,
+  "prompt": "F  Enter car",
+  "street": "Throop Ave",
+  "radio": "",
+  "mission": null,
+  "missionToast": "",
+  "missionRetry": "",
+  "cash": "$120",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": false,
+  "nearby": [
+    {
+      "type": "vehicle",
+      "distance_m": 1.5,
+      "direction": "right",
+      "bearing_deg": 90,
+      "vehicle": "suv",
+      "occupied": false
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 3.3,
+      "direction": "left",
+      "bearing_deg": -101
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 4.3,
+      "direction": "left",
+      "bearing_deg": -108
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 5.4,
+      "direction": "ahead-right",
+      "bearing_deg": 28,
+      "vehicle": "sedan",
+      "occupied": false
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 5.8,
+      "direction": "right",
+      "bearing_deg": 80,
+      "vehicle": "sedan",
+      "occupied": true
+    }
+  ],
+  "nearbyTotal": 11,
+  "sim": {
+    "steps": 2364,
+    "fps": 10,
+    "heapMB": 257
+  },
+  "step": 10,
+  "consoleErrorsSinceLastStep": []
+}

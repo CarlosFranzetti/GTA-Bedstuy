@@ -1,0 +1,75 @@
+{
+  "gameHour": 18.086,
+  "player": {
+    "x": 0.1,
+    "z": -53,
+    "headingDeg": 277,
+    "headingCompass": "west",
+    "cameraFacingDeg": 278,
+    "cameraFacing": "west"
+  },
+  "inVehicle": true,
+  "enteringCar": false,
+  "vehicle": {
+    "type": "suv",
+    "speedKmh": 12
+  },
+  "walkSpeedKmh": 0,
+  "wantedStars": 1,
+  "prompt": "F  Exit car",
+  "street": "Throop Ave",
+  "radio": "WBED 88.9 — Brownstone Boom-Bap",
+  "mission": null,
+  "missionToast": "",
+  "missionRetry": "",
+  "cash": "$120",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": false,
+  "nearby": [
+    {
+      "type": "vehicle",
+      "distance_m": 5.7,
+      "direction": "behind-right",
+      "bearing_deg": 152,
+      "vehicle": "sedan",
+      "occupied": false
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 6.7,
+      "direction": "ahead-right",
+      "bearing_deg": 46,
+      "vehicle": "suv",
+      "occupied": false
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 7.7,
+      "direction": "behind",
+      "bearing_deg": 171
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 7.7,
+      "direction": "ahead",
+      "bearing_deg": -22
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 7.8,
+      "direction": "ahead",
+      "bearing_deg": 24,
+      "vehicle": "sedan",
+      "occupied": false
+    }
+  ],
+  "nearbyTotal": 8,
+  "sim": {
+    "steps": 2099,
+    "fps": 10,
+    "heapMB": 257
+  },
+  "step": 8,
+  "consoleErrorsSinceLastStep": []
+}
