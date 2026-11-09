@@ -282,6 +282,8 @@ export interface VehicleSpec {
   brakeDecel: number;  // m/s^2
   maxSteer: number;    // radians at low speed
   color: string;       // CSS colour
+  /** Display name for the HUD and tools ("Sedan"); a car's body style can refine it (Coupe, Taxi). */
+  name?: string;
 }
 
 export interface IVehicle extends Entity {

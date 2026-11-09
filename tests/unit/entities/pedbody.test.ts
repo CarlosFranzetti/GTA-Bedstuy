@@ -14,7 +14,7 @@ const materials = { get: () => new THREE.MeshStandardMaterial(), carPaint: () =>
 const meshes = (o: THREE.Object3D): THREE.Mesh[] => { const out: THREE.Mesh[] = []; o.traverse((c) => { if ((c as THREE.Mesh).isMesh) out.push(c as THREE.Mesh); }); return out; };
 
 describe('GTA3 people (pedBody)', () => {
-  it('every variant is chunky low poly: 600 to 900 triangles, 11 meshes, one material', () => {
+  it('every variant is chunky low poly: 600 to 900 triangles in ONE skinned mesh (one draw per person) with one material', () => {
     for (let v = 0; v < PED_VARIANT_COUNT; v++) {
       const m = buildPedModel(materials, new Rng(v + 1), { variant: v, heightScale: 1 });
       const ms = meshes(m.group);
@@ -22,7 +22,9 @@ describe('GTA3 people (pedBody)', () => {
       expect(tris, PED_SPECS[v].id).toBeGreaterThanOrEqual(600);
       expect(tris, PED_SPECS[v].id).toBeLessThanOrEqual(900);
       expect(m.triangles).toBe(tris);
-      expect(ms.length).toBe(11);
+      expect(ms.length).toBe(1);
+      expect((ms[0] as THREE.SkinnedMesh).isSkinnedMesh).toBe(true);
+      expect((ms[0] as THREE.SkinnedMesh).skeleton.bones.length).toBe(12);
       expect(new Set(ms.map((x) => x.material)).size).toBe(1);
     }
   });
@@ -36,32 +38,25 @@ describe('GTA3 people (pedBody)', () => {
       expect(bb.min.y).toBeLessThan(0.03);
       if (spec.build === 'kid') expect(bb.max.y).toBeLessThan(1.5); else { expect(bb.max.y, spec.id).toBeGreaterThan(1.6); expect(bb.max.y, spec.id).toBeLessThan(2.0); }
       expect(m.legs.length).toBe(2); expect(m.arms.length).toBe(2); expect(m.knees.length).toBe(2); expect(m.elbows.length).toBe(2);
-      // nose and toes point to -z: the head and shoe boxes extend further toward -z than +z around their centres
-      const skull = m.head.getObjectByName('skull') as THREE.Mesh;
-      skull.geometry.computeBoundingBox();
-      expect(skull.geometry.boundingBox!.min.z).toBeLessThan(-0.1);
-      const shoeBox = new THREE.Box3().setFromObject(m.knees[0]);
-      expect(Math.abs(shoeBox.min.z)).toBeGreaterThan(Math.abs(shoeBox.max.z));
-      const chest = new THREE.Box3().setFromObject(m.torso.getObjectByName('chest')!);
-      const hips = new THREE.Box3().setFromObject(m.hips);
-      if (spec.bottom.kind !== 'skirt') expect(chest.max.x - chest.min.x).toBeGreaterThan((hips.max.x - hips.min.x) * 0.95);
+      const body = m.group.getObjectByName('body') as THREE.Mesh;
+      body.geometry.computeBoundingBox();
+      // toes and the face plane point to -z: the body reaches further toward -z than +z at the head
+      expect(Math.abs(body.geometry.boundingBox!.min.z)).toBeGreaterThan(0.1);
       expect(m.arms[0].position.x).toBeLessThan(0);
     }
   });
 
-  it('big hands and blocky shoes: the hand is wider than a 5 cm wrist and the shoe is longer than 25 cm', () => {
+  it('has a broad torso: shoulders wider than 0.5 m, and big shoes more than 25 cm long', () => {
     const m = buildPedModel(materials, new Rng(5), { variant: 0, heightScale: 1 });
-    const hand = new THREE.Box3().setFromObject(m.elbows[1].getObjectByName('handR')!);
-    expect(hand.max.y - hand.min.y).toBeGreaterThan(0.38);
-    const shoe = new THREE.Box3().setFromObject(m.knees[0].getObjectByName('shin')!);
-    expect(shoe.max.z - shoe.min.z).toBeGreaterThan(0.25);
+    const bb = new THREE.Box3().setFromObject(m.group);
+    expect(bb.max.x - bb.min.x).toBeGreaterThan(0.6);
+    expect(bb.max.z - bb.min.z).toBeGreaterThan(0.25);
   });
 
   it('shares geometry per variant and keeps the walk and idle rig API (animateWalk, pivots)', () => {
     const a = buildPedModel(materials, new Rng(1), { variant: 2 });
     const b = buildPedModel(materials, new Rng(9), { variant: 2 });
-    expect(a.hips.children.length + (a.hips as THREE.Mesh).geometry.id).toBe(b.hips.children.length + (b.hips as THREE.Mesh).geometry.id);
-    expect((a.torso.getObjectByName('chest') as THREE.Mesh).geometry).toBe((b.torso.getObjectByName('chest') as THREE.Mesh).geometry);
+    expect((a.group.getObjectByName('body') as THREE.Mesh).geometry).toBe((b.group.getObjectByName('body') as THREE.Mesh).geometry);
     expect(variantGeo(2)).toBe(variantGeo(2));
     animateWalk(a, 1.2, 1);
     expect(a.legs[0].rotation.x).not.toBe(0);

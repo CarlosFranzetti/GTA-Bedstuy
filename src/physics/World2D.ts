@@ -16,6 +16,8 @@ const RESTITUTION_MIN_SPEED = 1;
 /** Extra push beyond the penetration depth so the pair is strictly separated afterwards. */
 const SLOP = 1e-4;
 const MAX_SUBSTEPS = 4;
+/** Static bodies whose id starts with this never block vehicles (bins and bags get knocked over). */
+export const SOFT_PREFIX = 'soft-';
 /** Dynamic hash is rebuilt once per step; bodies move after that, so queries between steps are padded. */
 const DYN_QUERY_PAD = 2;
 const RAY_LINEAR_FALLBACK_CELLS = 400;
@@ -37,6 +39,8 @@ interface Entry {
   hashed: boolean;
   /** dynamics: already fully handled this step, so pairs with it are skipped by later bodies */
   processed: boolean;
+  /** statics only: a prop (bin, bags) that cars and cops drive through; people and everything else still stop at it */
+  soft: boolean;
 }
 
 class SpatialHash {
@@ -105,7 +109,7 @@ function newEntry(body: Body2D, idx: number, isStatic: boolean): Entry {
   return {
     body, idx, isStatic, stamp: 0, r: 0,
     minX: 0, minZ: 0, maxX: 0, maxZ: 0,
-    cx0: 0, cz0: 0, cx1: 0, cz1: 0, hashed: false, processed: false,
+    cx0: 0, cz0: 0, cx1: 0, cz1: 0, hashed: false, processed: false, soft: false,
   };
 }
 
@@ -211,6 +215,7 @@ export class World2D implements IWorld2D {
   private insertStatic(body: Body2D): void {
     this.removeBody(body.id);
     const e = newEntry(body, this.nextIdx++, true);
+    e.soft = body.id.startsWith(SOFT_PREFIX);
     const s = body.shape;
     let minX: number, minZ: number, maxX: number, maxZ: number;
     if (s.kind === 'circle') {
@@ -302,6 +307,7 @@ export class World2D implements IWorld2D {
       const c = cand[i];
       if (c === e) continue;
       if (c.isStatic) {
+        if (c.soft && (a.kind === 'vehicle' || a.kind === 'cop')) continue;
         const px = a.pos.x, pz = a.pos.z, r = e.r;
         if (c.minX > px + r || c.maxX < px - r || c.minZ > pz + r || c.maxZ < pz - r) continue;
       } else {

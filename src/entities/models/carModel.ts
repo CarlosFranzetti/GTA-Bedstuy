@@ -347,7 +347,8 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   const group = new THREE.Group();
   group.name = `car:${type}`;
   group.userData.carStyle = st;
-  group.userData.buildLodModel = (): CarModel => buildCarModel(type, spec, materials, 0, st, true);
+  group.userData.carVariant = variant;
+  group.userData.buildLodModel = (): CarModel => buildCarModel(type, spec, materials, variant, st, true);
   const own: THREE.Material[] = [];
   const paintMeshes: THREE.Mesh[] = [];
 

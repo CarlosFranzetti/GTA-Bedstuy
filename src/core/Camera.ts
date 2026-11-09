@@ -42,6 +42,11 @@ const SPEED_DISTANCE = 0.9;
 const SPEED_FULL = 30;
 /** Look-back: spring rate of the 0..1 blend (snap ~0.35 s) and the key that drives it. */
 const LOOKBACK_OMEGA = 11;
+/** Reversing: the rig flips to the look-back side (camera ahead of the car, watching the way it is going) above this speed (m/s), and flips back below the exit speed. */
+const REVERSE_ENTER = 1.5;
+const REVERSE_EXIT = 0.5;
+/** Metres kept between the lens and another car when the rig is trimmed to clear it. */
+const CAR_MARGIN = 0.6;
 /** Idle cinematic: seconds of stillness, ramp-in/out rates, drift speed, zoom-out factor. */
 export const IDLE_CINEMATIC_AFTER = 8;
 const CINE_IN = 0.45;     // 1/s (~2.2 s ramp)
@@ -96,6 +101,10 @@ export class ThirdPersonCamera {
   private speedN = 0;
   private shake = 0;
   private clock = 0;
+  /** 0..1: the lens is pressed against / inside another car; the host dims the sun flare and bloom by this. */
+  flareSuppress = 0;
+  private reversing = false;
+  private carScale = 1;
   private backBlend = 0;   // 0 = behind, 1 = in front looking back
   private backVel = 0;
   private cineBlend = 0;
@@ -229,8 +238,13 @@ export class ThirdPersonCamera {
 
     // ---- look-back (spring on a 0..1 blend, no overshoot past 1) -------------------------------------------
     {
-      const st = dampStep(this.backBlend - (lookBackHeld ? 1 : 0), this.backVel, LOOKBACK_OMEGA, dt);
-      this.backBlend = clamp((lookBackHeld ? 1 : 0) + st.x, 0, 1);
+      const vs = vehicleMode ? (veh ? veh.speed : ctx?.speed ?? 0) : 0;
+      if (!vehicleMode) this.reversing = false;
+      else if (!this.reversing && vs < -REVERSE_ENTER) this.reversing = true;
+      else if (this.reversing && vs > -REVERSE_EXIT) this.reversing = false;
+      const backWant = lookBackHeld || this.reversing ? 1 : 0;
+      const st = dampStep(this.backBlend - backWant, this.backVel, LOOKBACK_OMEGA, dt);
+      this.backBlend = clamp(backWant + st.x, 0, 1);
       this.backVel = st.v;
     }
 
@@ -303,7 +317,18 @@ export class ThirdPersonCamera {
     this.initialised = true;
 
     const world = ctx?.world ?? this.world;
-    const want = world ? this.wallFraction(world, targetPos) : 1;
+    let want = world ? this.wallFraction(world, targetPos) : 1;
+    // Reversing / looking back: never put the lens inside (or behind) another car; trim the rig to stop short of it.
+    let carBlocked = 0;
+    if (world && vehicleMode && this.backBlend > 0.3) {
+      const cs = this.carFraction(world, targetPos);
+      carBlocked = cs < 1 ? 1 : 0;
+      this.carScale = cs < this.carScale || first ? cs : this.carScale + (cs - this.carScale) * (1 - Math.exp(-WALL_OUT_RATE * dt));
+    } else {
+      this.carScale += (1 - this.carScale) * (1 - Math.exp(-WALL_OUT_RATE * dt));
+    }
+    want = Math.min(want, this.carScale);
+    this.flareSuppress += (Math.max(carBlocked, this.carScale < 0.97 ? 1 : 0) - this.flareSuppress) * (1 - Math.exp(-8 * dt));
     this.wallScale = want < this.wallScale || first ? want : this.wallScale + (want - this.wallScale) * (1 - Math.exp(-WALL_OUT_RATE * dt));
     if (this.wallScale < 1) {
       const s = this.wallScale;
@@ -342,6 +367,18 @@ export class ThirdPersonCamera {
     const hitDist = this.firstStaticHit(world, target, d + WALL_MARGIN); // look a margin past the lens
     if (hitDist === null) return 1;
     const nd = Math.max(MIN_HORIZ, hitDist - WALL_MARGIN);
+    return nd >= d ? 1 : nd / d;
+  }
+
+  /** Fraction (0..1] of the target -> camera distance that stays clear of other vehicles (only used while reversing / looking back). */
+  private carFraction(world: CameraWorld, target: Vec2): number {
+    const dx = this.pos.x - target.x, dz = this.pos.z - target.z;
+    const d = Math.hypot(dx, dz);
+    if (d < MIN_HORIZ) return 1;
+    this.rayDir.x = dx / d; this.rayDir.z = dz / d;
+    const h = world.raycast(target, this.rayDir, d + CAR_MARGIN) as { dist: number; body?: { kind?: string } } | null;
+    if (!h || !h.body || (h.body.kind !== 'vehicle' && h.body.kind !== 'cop')) return 1;
+    const nd = Math.max(MIN_HORIZ, h.dist - CAR_MARGIN);
     return nd >= d ? 1 : nd / d;
   }
 

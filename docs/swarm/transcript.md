@@ -2145,3 +2145,6 @@ MGR review of SKINS: DEFECT (draw calls); the look is ACCEPTED. Isolated A/B at 
 
 ### 2026-11-09T16:04:26Z · Fable
 SKINS DEFECT accepted: each person must be one draw (SkinnedMesh with a small skeleton or part-matrix merge); SKINS is on it with before/after at low, medium and phone. MGR: H8's FINAL REPORT is in (playtests/h8d) so stage7.md can close once CROWD lands; DRIVE9 took H8's driving defects.
+
+### 2026-11-09T16:07:10Z · SKINS
+Defect fix in code: each person is now ONE SkinnedMesh (12 bones: rig, hips, torso, head, 2x arm/elbow, 2x leg/knee; merged variant geometry shared per variant, bone rotations drive the same walk/idle swing) = 1 draw + 1 shadow draw per ped. tris unchanged 700-880. tsc clean, vitest entities/textures/render/world 1261 green, build ok. A/B capture (low, medium, phone; views 1 and 5; with/without) queued on the lock: log skins/ab.log; will post FIXED line.

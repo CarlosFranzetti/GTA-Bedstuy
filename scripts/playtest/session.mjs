@@ -263,7 +263,7 @@ async function main() {
         gameHour: +d.dayNight.timeOfDay.toFixed(3),
         player: { x: +b.pos.x.toFixed(1), z: +b.pos.z.toFixed(1), headingDeg: deg(b.heading), headingCompass: compass(b.heading), cameraFacingDeg: deg(camYaw), cameraFacing: compass(camYaw) },
         inVehicle: !!veh, enteringCar: !!p.isEntering,
-        vehicle: veh ? { type: veh.spec?.type ?? null, speedKmh: Math.round(Math.abs(veh.speed) * 3.6) } : null,
+        vehicle: veh ? { type: veh.spec?.type ?? null, name: veh.name ?? veh.spec?.name ?? null, plate: veh.plate ?? null, speedKmh: Math.round(Math.abs(veh.speed) * 3.6) } : null,
         walkSpeedKmh: veh ? 0 : Math.round(Math.hypot(b.vel.x, b.vel.z) * 3.6),
         wantedStars: d.wanted.stars,
         prompt: text('.hud-prompt'),
@@ -458,7 +458,7 @@ function writeTranscript(D, opt, reason, summary) {
     if (r.ignored?.length) lines.push(`Harness notes: ${r.ignored.join('; ')}`);
     if (st) {
       const ch = notableChanges(prev, st);
-      lines.push(`State: pos (${st.player.x}, ${st.player.z}), facing ${st.player.cameraFacing}, ${st.inVehicle ? `in ${st.vehicle?.type ?? 'car'} at ${st.vehicle?.speedKmh} km/h` : 'on foot'}, wanted ${st.wantedStars}`);
+      lines.push(`State: pos (${st.player.x}, ${st.player.z}), facing ${st.player.cameraFacing}, ${st.inVehicle ? `in ${st.vehicle?.name ?? st.vehicle?.type ?? 'car'}${st.vehicle?.plate ? ' [' + st.vehicle.plate + ']' : ''} at ${st.vehicle?.speedKmh} km/h` : 'on foot'}, wanted ${st.wantedStars}`);
       if (ch.length) lines.push(`Notable: ${ch.join('; ')}`);
       prev = st;
     }

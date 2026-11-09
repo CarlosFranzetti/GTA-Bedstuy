@@ -12,6 +12,7 @@
  * Local forward = -z, +x is the person's right, 1.75 m for an average adult.
  */
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Rng } from '@/core/Rng';
 import type { IMaterialLibrary } from '@/world/types';
 import { createCanvas } from '@/textures/canvas';
@@ -168,14 +169,12 @@ const BUILD: Record<PedSpec['build'], { sx: BuildScale; height: number; head: nu
 
 const BULK: Partial<Record<PedSpec['top']['kind'], number>> = { puffer: 1.14, hoodie: 1.07, jacket: 1.04, cardigan: 1.05, tracksuit: 1.03, apron: 1.04 };
 
+/** Bone order of the skeleton (also the part -> bone map of the merged geometry). */
+const BONES = ['rig', 'hips', 'torso', 'head', 'armL', 'elbowL', 'armR', 'elbowR', 'legL', 'kneeL', 'legR', 'kneeR'] as const;
+
 export interface VariantGeo {
-  hips: THREE.BufferGeometry;
-  torso: THREE.BufferGeometry;
-  head: THREE.BufferGeometry;
-  upperArm: [THREE.BufferGeometry, THREE.BufferGeometry];
-  foreHand: [THREE.BufferGeometry, THREE.BufferGeometry];
-  thigh: THREE.BufferGeometry;
-  shinShoe: THREE.BufferGeometry;
+  /** the whole person in bind pose, ONE geometry (position, normal, uv, skinIndex, skinWeight): one draw and one shadow draw */
+  geo: THREE.BufferGeometry;
   shoulderX: number;
   triangles: number;
 }
@@ -334,16 +333,32 @@ function buildVariantGeo(variant: number): VariantGeo {
     { y: -0.42, a: 0.062, b: 0.135, zc: -0.06 }, { y: -0.365, a: 0.064, b: 0.138, zc: -0.06 }, { y: -0.31, a: 0.06, b: 0.11, zc: -0.045 }, { y: -0.23, a: 0.07, b: 0.075, zc: 0.0 },
   ], 0.03, shoe, quad('shoe', 0), null);
 
-  const geo: VariantGeo = {
-    hips: toGeometry(hipsA), torso: toGeometry(torsoA), head: toGeometry(headA),
-    upperArm: [upperArm[0], upperArm[1]], foreHand: [foreHand[0], foreHand[1]],
-    thigh: toGeometry(thighA), shinShoe: toGeometry(shinA),
-    shoulderX: 0.27 * w * bulk,
-    triangles: 0,
-  };
-  const tris = (g: THREE.BufferGeometry): number => g.attributes.position.count / 3;
-  geo.triangles = tris(geo.hips) + tris(geo.torso) + tris(geo.head)
-    + tris(geo.upperArm[0]) + tris(geo.upperArm[1]) + tris(geo.foreHand[0]) + tris(geo.foreHand[1]) + 2 * tris(geo.thigh) + 2 * tris(geo.shinShoe);
+  const shX = 0.27 * w * bulk;
+  const parts: Array<[THREE.BufferGeometry, number, number, number, number, number]> = [ // geometry, bone, x, y, z, scale
+    [toGeometry(hipsA), 1, 0, HIP_Y, 0, 1],
+    [toGeometry(torsoA), 2, 0, TORSO_Y, 0, 1],
+    [toGeometry(headA), 3, 0, HEAD_Y, 0, B.head],
+    [upperArm[0], 4, -shX, TORSO_Y + SHOULDER_Y, 0, 1], [foreHand[0], 5, -shX, TORSO_Y + SHOULDER_Y - UPPER_ARM, 0, 1],
+    [upperArm[1], 6, shX, TORSO_Y + SHOULDER_Y, 0, 1], [foreHand[1], 7, shX, TORSO_Y + SHOULDER_Y - UPPER_ARM, 0, 1],
+    [toGeometry(thighA), 8, -LEG_X, HIP_Y, 0, 1], [toGeometry(shinA), 9, -LEG_X, HIP_Y - THIGH, 0, 1],
+    [toGeometry(thighA), 10, LEG_X, HIP_Y, 0, 1], [toGeometry(shinA), 11, LEG_X, HIP_Y - THIGH, 0, 1],
+  ];
+  const placed = parts.map(([g, bone, x, y, z, sc]) => {
+    const c = g.clone();
+    if (sc !== 1) c.scale(sc, sc, sc);
+    c.translate(x, y, z);
+    const n = c.attributes.position.count;
+    const si = new Uint16Array(n * 4), sw = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) { si[i * 4] = bone; sw[i * 4] = 1; }
+    c.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
+    c.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
+    return c;
+  });
+  const merged = mergeGeometries(placed, false);
+  if (!merged) throw new Error('pedBody: merge failed');
+  merged.computeBoundingBox();
+  merged.computeBoundingSphere();
+  const geo: VariantGeo = { geo: merged, shoulderX: shX, triangles: merged.attributes.position.count / 3 };
   return geo;
 }
 
@@ -432,8 +447,7 @@ export function buildPedModel(materials: IMaterialLibrary, rng: Rng, opts: PedOp
   const group = new THREE.Group();
   group.name = 'human';
   group.userData.pedVariant = spec.id;
-  group.scale.setScalar(opts.heightScale ?? B.height * jitter);
-  const rig = new THREE.Group();
+  const rig = new THREE.Bone();
   rig.name = 'rig';
   group.add(rig);
 
@@ -444,55 +458,32 @@ export function buildPedModel(materials: IMaterialLibrary, rng: Rng, opts: PedOp
     return m;
   };
 
-  const hips = mesh(G.hips, rig, 'hips');
-  hips.position.y = HIP_Y;
-
-  const torso = new THREE.Group();
-  torso.name = 'torso';
-  torso.position.y = TORSO_Y;
-  rig.add(torso);
-  mesh(G.torso, torso, 'chest');
-
-  const head = new THREE.Group();
-  head.name = 'head';
-  head.position.y = HEAD_Y;
+  const bone = (name: string, parent: THREE.Object3D, x: number, y: number, z = 0): THREE.Bone => {
+    const b = new THREE.Bone(); b.name = name; b.position.set(x, y, z); parent.add(b); return b;
+  };
+  const hips = bone('hips', rig, 0, HIP_Y);
+  const torso = bone('torso', rig, 0, TORSO_Y);
+  const head = bone('head', rig, 0, HEAD_Y);
   if (B.head !== 1) head.scale.setScalar(B.head);
-  rig.add(head);
-  mesh(G.head, head, 'skull');
-
-  const legs: THREE.Object3D[] = [];
-  const knees: THREE.Object3D[] = [];
-  const arms: THREE.Object3D[] = [];
-  const elbows: THREE.Object3D[] = [];
-  for (const [i, sx] of [-1, 1].entries()) {
+  const arms: THREE.Object3D[] = [], elbows: THREE.Object3D[] = [], legs: THREE.Object3D[] = [], knees: THREE.Object3D[] = [];
+  for (const sx of [-1, 1]) {
     const side = sx < 0 ? 'L' : 'R';
-    const arm = new THREE.Group();
-    arm.name = `arm${side}`;
-    arm.position.set(sx * G.shoulderX, SHOULDER_Y, 0);
-    torso.add(arm);
-    mesh(G.upperArm[i], arm, 'upperArm');
-    const elbow = new THREE.Group();
-    elbow.name = 'elbow';
-    elbow.position.y = -UPPER_ARM;
-    arm.add(elbow);
-    mesh(G.foreHand[i], elbow, `hand${side}`);
-    arms.push(arm);
-    elbows.push(elbow);
-
-    const leg = new THREE.Group();
-    leg.name = `leg${side}`;
-    leg.position.set(sx * LEG_X, HIP_Y, 0);
-    rig.add(leg);
-    mesh(G.thigh, leg, 'thigh');
-    const knee = new THREE.Group();
-    knee.name = 'knee';
-    knee.position.y = -THIGH;
-    leg.add(knee);
-    mesh(G.shinShoe, knee, 'shin');
-    legs.push(leg);
-    knees.push(knee);
+    const arm = bone(`arm${side}`, torso, sx * G.shoulderX, SHOULDER_Y);
+    const elbow = bone('elbow', arm, 0, -UPPER_ARM);
+    const leg = bone(`leg${side}`, rig, sx * LEG_X, HIP_Y);
+    const knee = bone('knee', leg, 0, -THIGH);
+    arms.push(arm); elbows.push(elbow); legs.push(leg); knees.push(knee);
   }
-  void FOREARM; void KNEE_Y;
+  // ONE skinned mesh: one draw call (and one shadow draw) per person; the walk swing rotates the bones
+  const bones: THREE.Bone[] = [rig, hips, torso, head, arms[0], elbows[0], arms[1], elbows[1], legs[0], knees[0], legs[1], knees[1]] as THREE.Bone[];
+  const body = new THREE.SkinnedMesh(G.geo, mat);
+  body.name = 'body';
+  body.frustumCulled = false;
+  group.add(body);
+  group.updateMatrixWorld(true);
+  body.bind(new THREE.Skeleton(bones));
+  group.scale.setScalar(opts.heightScale ?? B.height * jitter);
+  void BONES; void FOREARM; void KNEE_Y;
 
   return { group, legs, arms, head, knees, elbows, torso, rig, hips, spec, variant, triangles: G.triangles };
 }

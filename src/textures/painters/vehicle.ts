@@ -347,6 +347,8 @@ export const tireSidewallPainter: Painter = (ctx, w, h, rng, _variant, aux) => {
 
 const PLATE_TEXTS = ['BK-STUY', 'BK-1623', 'STUY-90', 'BKLYN-7'] as const;
 export const PLATE_VARIANTS = PLATE_TEXTS.length;
+/** Registration text of plate variant `variant` (what the plate mesh of that car reads). */
+export const plateText = (variant: number): string => PLATE_TEXTS[((Math.floor(variant) % PLATE_VARIANTS) + PLATE_VARIANTS) % PLATE_VARIANTS];
 const PLATE_BLUE = '#1c3f94';
 const PLATE_GOLD = '#c9a227';
 

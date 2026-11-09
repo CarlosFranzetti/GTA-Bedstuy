@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildCarModel, type CarModel } from '@/entities/models/carModel';
+import { plateText } from '@/textures/painters/vehicle';
 import type { VehicleSources } from '@/entities/models/gltf/VehicleSource';
 import {
   angleDiff, applyPose, clamp, dot, forwardFromHeading, headingFromVec, perpRight, wrapAngle, type Vec2,
@@ -12,10 +13,10 @@ import type {
 export const VEHICLE_SPECS: Record<VehicleType, VehicleSpec> = {
   // accel is the launch acceleration; the thrust curve a = accel * (throttle - (v/maxSpeed)^2) makes
   // 0 -> 0.93*maxSpeed take ~6 s for the sedan (= 0-100 km/h) and ~12 s for the box truck.
-  sedan: { type: 'sedan', length: 4.6, width: 1.8, height: 1.4, maxSpeed: 30, accel: 8, brakeDecel: 14, maxSteer: 0.6, color: '#8a8f98' },
-  suv: { type: 'suv', length: 4.9, width: 2.0, height: 1.8, maxSpeed: 27, accel: 7, brakeDecel: 14, maxSteer: 0.6, color: '#2c3e50' },
-  boxtruck: { type: 'boxtruck', length: 7, width: 2.4, height: 3.2, maxSpeed: 20, accel: 2.7, brakeDecel: 12, maxSteer: 0.6, color: '#e8e8e8' },
-  cop: { type: 'cop', length: 4.6, width: 1.8, height: 1.4, maxSpeed: 33, accel: 9, brakeDecel: 14, maxSteer: 0.6, color: '#f2f2f2' },
+  sedan: { type: 'sedan', name: 'Sedan', length: 4.6, width: 1.8, height: 1.4, maxSpeed: 30, accel: 8, brakeDecel: 14, maxSteer: 0.6, color: '#8a8f98' },
+  suv: { type: 'suv', name: 'SUV', length: 4.9, width: 2.0, height: 1.8, maxSpeed: 27, accel: 7, brakeDecel: 14, maxSteer: 0.6, color: '#2c3e50' },
+  boxtruck: { type: 'boxtruck', name: 'Box truck', length: 7, width: 2.4, height: 3.2, maxSpeed: 20, accel: 2.7, brakeDecel: 12, maxSteer: 0.6, color: '#e8e8e8' },
+  cop: { type: 'cop', name: 'Police car', length: 4.6, width: 1.8, height: 1.4, maxSpeed: 33, accel: 9, brakeDecel: 14, maxSteer: 0.6, color: '#f2f2f2' },
 };
 
 // ---- longitudinal
@@ -76,6 +77,16 @@ const UNSTICK_YAW = 0.22;
 /** `blockedSeconds` keeps counting while throttle is held and slower than this, and drops to 0 after this long free of contact. */
 const BLOCKED_MAX_SPEED = 3;
 const BLOCKED_FREE_AFTER = 2.5;
+// ---- small static props (poles, hydrants, trees, bollards): the car slides off them instead of stopping dead
+/** Props this small (circle radius, m) deflect the car sideways. */
+const PROP_MAX_R = 0.5;
+/** Sideways speed (m/s) a contact with such a prop gives the car, and the nose turn (rad/s) away from it. */
+const PROP_SLIDE_SPEED = 1.6;
+const PROP_SLIDE_YAW = 0.9;
+/** Above this speed (m/s) the normal wall response is left alone (a real crash). */
+const PROP_SLIDE_MAX_SPEED = 7;
+/** Wall friction is scaled by this against a prop, so a glancing hit keeps its speed. */
+const PROP_FRICTION_SCALE = 0.25;
 // ---- impacts
 const IMPACT_MIN = 0.5;
 const WALL_FRICTION = 0.35;
@@ -222,6 +233,20 @@ export class Vehicle implements IVehicle {
     applyPose(this.object3D, this.body.pos, this.body.heading);
   }
 
+  /** Display name for the HUD / tools: the spec name, refined by the body style the model was built with (Coupe, Taxi). */
+  get name(): string {
+    const style = (this.model?.group.userData as { carStyle?: string } | undefined)?.carStyle;
+    if (style === 'coupe') return 'Coupe';
+    if (style === 'cab') return 'Taxi';
+    return this.spec.name ?? this.spec.type;
+  }
+
+  /** Licence plate text of this car (fixed by its id, so it never changes on exit / re-enter or a LOD swap). */
+  get plate(): string {
+    const v = (this.model?.group.userData as { carVariant?: number } | undefined)?.carVariant ?? (this.seed >>> 0) % 4;
+    return plateText(v);
+  }
+
   /** Forward speed in m/s (negative when reversing), read live from the body so physics nudges are honoured. */
   get speed(): number {
     return dot(this.body.vel, forwardFromHeading(this.body.heading));
@@ -312,7 +337,10 @@ export class Vehicle implements IVehicle {
   }
 
   onContact(contact: Contact, other: Body2D): void {
-    if (this.driver === 'player') this.noteContact(contact);
+    if (this.driver === 'player') {
+      this.noteContact(contact);
+      this.slideOffProp(contact, other);
+    }
     if (contact.impulse < IMPACT_MIN) return;
     // A car sliding along a wall (or a pedestrian pressed against it) re-touches it every frame with a slowly
     // changing impulse: a repeat within SCRAPE_WINDOW is a scrape (5% of the damage, no new impact event) unless
@@ -460,6 +488,34 @@ export class Vehicle implements IVehicle {
     this.slipAmt += (slipNow - this.slipAmt) * Math.min(1, 10 * h);
   }
 
+  /** True for a thin static prop (pole, hydrant, tree, bollard) that a car should slide off. */
+  private static isSmallProp(other: Body2D): boolean {
+    return (other.kind === 'static' || other.mass === Infinity) && other.shape.kind === 'circle' && other.shape.r <= PROP_MAX_R;
+  }
+
+  /**
+   * A player-driven car touching a small static prop at low speed is deflected sideways (away from the side of the
+   * car the prop is on) and its nose is turned off it, so it rolls round the prop instead of pinning against it.
+   */
+  private slideOffProp(contact: Contact, other: Body2D): void {
+    if (!Vehicle.isSmallProp(other)) return;
+    const b = this.body;
+    if (Math.hypot(b.vel.x, b.vel.z) > PROP_SLIDE_MAX_SPEED) return;
+    const sgn = contact.a === b ? 1 : -1;
+    const nx = contact.normal.x * sgn, nz = contact.normal.z * sgn; // toward the prop
+    const f = forwardFromHeading(b.heading);
+    const r = perpRight(f);
+    const lat = (other.pos.x - b.pos.x) * r.x + (other.pos.z - b.pos.z) * r.z; // + = prop on the right
+    const side = Math.abs(lat) > 0.05 ? (lat > 0 ? -1 : 1) : (this.unstickCount++ % 2 === 0 ? 1 : -1);
+    // tangent to the contact, on the chosen side of the car
+    let tx = -nz, tz = nx;
+    if (tx * r.x + tz * r.z > 0 === side < 0) { tx = -tx; tz = -tz; }
+    const have = b.vel.x * tx + b.vel.z * tz;
+    if (have < PROP_SLIDE_SPEED) { b.vel.x += tx * (PROP_SLIDE_SPEED - have); b.vel.z += tz * (PROP_SLIDE_SPEED - have); }
+    const into = nx * f.x + nz * f.z > 0; // prop is ahead: turn the nose away from it
+    b.heading = wrapAngle(b.heading + side * (into ? 1 : -1) * PROP_SLIDE_YAW * (1 / 60));
+  }
+
   /** Remember what the car touched and from which side (for the wedge push-out). */
   private noteContact(contact: Contact): void {
     const b = this.body;
@@ -551,7 +607,7 @@ export class Vehicle implements IVehicle {
       let tx = b.vel.x - nx * vn, tz = b.vel.z - nz * vn;
       const st = Math.hypot(tx, tz);
       if (st > 1e-4) {
-        const keep = Math.max(0, st - WALL_FRICTION * closing) / st;
+        const keep = Math.max(0, st - WALL_FRICTION * (Vehicle.isSmallProp(other) ? PROP_FRICTION_SCALE : 1) * closing) / st;
         tx *= keep; tz *= keep;
         b.vel.x = tx + nx * Math.min(0, vn);
         b.vel.z = tz + nz * Math.min(0, vn);

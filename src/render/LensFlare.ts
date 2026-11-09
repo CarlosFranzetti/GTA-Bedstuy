@@ -110,6 +110,8 @@ export class SunFlare {
   private readonly textures: THREE.Texture[] = [];
   private readonly scene: THREE.Scene;
   private lastIntensity = -1;
+  /** 0..1 host dimmer (camera inside / against another car): scales the whole flare down. */
+  suppress = 0;
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -154,7 +156,7 @@ export class SunFlare {
   update(sunDir: THREE.Vector3, sunVisibleIntensity: number, anchor?: THREE.Vector3): void {
     const dir = this.scratchDir.copy(sunDir).normalize();
     const elevation = THREE.MathUtils.smoothstep(dir.y, 0.03, 0.35);
-    const k = THREE.MathUtils.clamp(sunVisibleIntensity, 0, 1) * elevation;
+    const k = THREE.MathUtils.clamp(sunVisibleIntensity, 0, 1) * elevation * (1 - THREE.MathUtils.clamp(this.suppress, 0, 1));
     this.object3d.position.copy(dir).multiplyScalar(FLARE_DISTANCE);
     if (anchor) this.object3d.position.add(anchor);
     this.object3d.updateMatrixWorld(true);

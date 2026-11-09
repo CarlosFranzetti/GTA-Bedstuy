@@ -138,8 +138,10 @@ export function buildFurniture(
     const e = m.elements;
     for (let i = 0; i < 16; i++) b.matrices.push(e[i]);
   };
-  const circle = (pos: Vec2, r: number): void => {
-    colliders.push({ shape: { kind: 'circle', r }, pos: { x: pos.x, z: pos.z } });
+  let propN = 0;
+  /** `kind` names the collider for physics: 'soft-bin-N' is knocked over by vehicles (World2D lets cars through), 'hydrant-N' stays solid. */
+  const circle = (pos: Vec2, r: number, kind?: string): void => {
+    colliders.push({ shape: { kind: 'circle', r }, pos: { x: pos.x, z: pos.z }, id: kind ? `${kind}-${propN++}` : undefined });
   };
 
   // ---- primitives (geometry is built around the local origin; the instance matrix places it)
@@ -200,7 +202,7 @@ export function buildFurniture(
   ];
   function addHydrant(p: Vec2, yaw: number): void {
     putInst('hydrant', M.hydrant, hydrantGeo, placeMatrix(new THREE.Matrix4(), p.x, 0, p.z, yaw));
-    circle(p, SLOT_COLLIDER_R);
+    circle(p, SLOT_COLLIDER_R, 'hydrant');
   }
 
   const trashGeo = (): THREE.BufferGeometry[] => [
@@ -209,7 +211,7 @@ export function buildFurniture(
   ];
   function addTrash(p: Vec2, yaw: number): void {
     putInst('trash', M.trash, trashGeo, placeMatrix(new THREE.Matrix4(), p.x, 0, p.z, yaw));
-    circle(p, SLOT_COLLIDER_R);
+    circle(p, SLOT_COLLIDER_R, 'soft-bin');
   }
 
   const mailboxGeo = (): THREE.BufferGeometry[] => [

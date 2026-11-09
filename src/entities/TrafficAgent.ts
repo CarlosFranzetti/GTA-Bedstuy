@@ -54,6 +54,8 @@ const BACK_LOCK_MAX = 1;
 const OVERTAKE_SHIFT = 3.1;
 const OVERTAKE_PARKED_AFTER = 0.8;
 const OVERTAKE_STALLED_AFTER = 3;
+/** a stopped player's car (or the player on foot) blocking the lane: go round after this long (must stay under 3 s) */
+const OVERTAKE_PLAYER_AFTER = 1.5;
 const OVERTAKE_CLEAR_LEN = 60;
 const LATERAL_RATE = 2.5;
 const PED_SCAN_PERIOD = 0.1;
@@ -879,7 +881,9 @@ export class TrafficAgent {
     const sp = Math.hypot(blocker.vel.x, blocker.vel.z);
     if (sp > PASS_BLOCKER_MAX_SPEED || PASSING.has(blocker)) return;
     const parked = (blocker.userData as { driver?: unknown } | undefined)?.driver === null;
-    const wait = parked ? OVERTAKE_PARKED_AFTER : OVERTAKE_STALLED_AFTER;
+    const player = blocker.kind === 'player' || (blocker.userData as { driver?: unknown } | undefined)?.driver === 'player';
+    // a stationary player is never waited on: re-plan around them well inside 3 s
+    const wait = parked ? OVERTAKE_PARKED_AFTER : player ? OVERTAKE_PLAYER_AFTER : OVERTAKE_STALLED_AFTER;
     if (this.blockedTime < wait) return;
     // no passing right before a stop line (a queue) or while the target is one we must stop at
     const pos = this.vehicle.body.pos;
