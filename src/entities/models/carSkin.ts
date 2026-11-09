@@ -156,7 +156,9 @@ export function packFor(style: SkinStyle, color: string): number {
   const ways = CAR_COLORWAYS[style];
   const hit = ways.find((w) => w.color.toLowerCase() === color.toLowerCase());
   if (hit) return hit.pack;
-  return Rng.hash(`${style}:${color.toLowerCase()}`) % 3;
+  // plain is the default; the cream stripe and the two-tone lower body are deliberate minorities
+  const h = Rng.hash(`${style}:${color.toLowerCase()}`) % 8;
+  return h < 6 ? 0 : h === 6 ? 1 : 2;
 }
 
 interface SkinSet { tex: Map<string, THREE.DataTexture>; mats: Map<string, THREE.Material> }

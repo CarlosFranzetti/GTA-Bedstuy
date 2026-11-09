@@ -70,18 +70,18 @@ export const CAR_COLORWAYS: Record<SkinStyle, readonly Colorway[]> = {
   sedan: [
     { name: 'signal red', color: '#d6322a', pack: 0 },
     { name: 'harbour blue', color: '#2468c4', pack: 2 },
-    { name: 'bodega white', color: '#ece8da', pack: 1 },
+    { name: 'bodega white', color: '#ece8da', pack: 0 },
     { name: 'bottle green', color: '#2f9a58', pack: 0 },
   ],
   coupe: [
     { name: 'lagoon teal', color: '#16a8a0', pack: 1 },
     { name: 'plum purple', color: '#8a3aa8', pack: 0 },
     { name: 'sunset orange', color: '#e0621a', pack: 1 },
-    { name: 'night black', color: '#1b1c20', pack: 2 },
+    { name: 'night black', color: '#1b1c20', pack: 0 },
   ],
   suv: [
     { name: 'navy', color: '#233a6a', pack: 0 },
-    { name: 'forest green', color: '#2a7a4a', pack: 2 },
+    { name: 'forest green', color: '#2a7a4a', pack: 0 },
     { name: 'brick red', color: '#a8332b', pack: 0 },
     { name: 'pearl silver', color: '#b4bac0', pack: 1 },
   ],
@@ -248,7 +248,7 @@ function paintTop(s: Sk, L: SkinLayout, rng: Rng): void {
   const r = SKIN_RECTS.top;
   const X = (n: number): number => r.x + n * r.w;
   const pack = L.pack ?? 0;
-  s.shade(r.x, r.y + r.h * 0.36, r.w, r.h * 0.28, '#ffffff', 0.4);     // light along the crown
+  s.shade(r.x, r.y + r.h * 0.36, r.w, r.h * 0.28, '#ffffff', 0.15);     // light along the crown
   s.shade(r.x, r.y, r.w, 5, '#000000', 0.2); s.shade(r.x, r.y + r.h - 5, r.w, 5, '#000000', 0.2);
   // hood and boot lid outlines
   const hx = X(L.hoodEnd), bx = X(L.bootStart);
