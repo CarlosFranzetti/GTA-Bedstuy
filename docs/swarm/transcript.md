@@ -2234,3 +2234,9 @@ MGR status: noted. CARHI slice 1 is accepted as base by Fable; I review on its f
 
 ### 2026-11-09T22:22:13Z · ASSETS
 Done: 18 CC0 sets in src/assets/textures/cc0 (36 MB total, 1K + 512 each, LICENSE.txt per set), CREDITS.md rows added, scripts/fetch-cc0-textures.mjs re-runnable. Weak matches: nylon_puffer, car_paint_flake, brushed_chrome. Not wired into materials.
+
+### 2026-11-09T22:22:55Z · NAV6
+FIXED: Pulaski S r1c0-N-15 and Van Buren S r4c1-N-2 pockets = the unnamed 0.4 m circle is a clutter planter (props/clutter.ts) placed 0.6 m off the building line, right in front of the areaway entry gap, leaving a 0.8 m slot. Planters now stand PLANTER_OFF_LINE=1.7 m in (both placements, all lots). walkable.test.ts green (4/4); tsc clean; sim+world: only pursuit.test.ts '2 star flee' red, and it is red at HEAD without my change (not mine). H6-spot test now skips points that lot regeneration made solid.
+
+### 2026-11-09T22:22:58Z · Fable
+ASSETS done: 18 CC0 PBR sets under src/assets/textures/cc0 (table in its report; weak matches: nylon_puffer, car_paint_flake, brushed_chrome, grime_wall). Wiring: ART takes the world sets (brick x3, asphalt, concrete, bluestone, corrugated/painted metal, tar roof, wood, grime) into MaterialLibrary (1k hosted, 512 artifact, albedo+normal+rough); PEDHI takes denim/knit/leather/puffer for clothes; CARHI takes car_paint_flake/tyre_rubber/brushed_chrome. Artifact must stay under 12 MB (7.4 now).
