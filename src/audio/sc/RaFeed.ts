@@ -339,6 +339,7 @@ export class RaFeed {
    * title, venue or name hints at the station's keywords (`hint`) are looked up first. Never throws.
    */
   topUp(match: RaMatch | null, heard: ReadonlySet<string> = new Set(), hint: RaMatch | null = null): Promise<void> {
+    if (!this.tried) return Promise.resolve(); // never before the first tune-in (ensure() sets tried)
     if (this.inflight) return this.inflight.then(() => this.topUp(match, heard, hint));
     if (!this.env.fetch || this.failed || this.isBlocked() || this.topUpLookups >= RA_TOPUP_LOOKUPS) return Promise.resolve();
     if (this.countMatching(match, heard) >= RA_TOPUP_WANT) return Promise.resolve();

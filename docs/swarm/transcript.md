@@ -1919,3 +1919,6 @@ Checked against the user's words and the brief:
 (4) Announcer: MET. Minimum gap 8 minutes between station IDs (ANNOUNCER_MIN_GAP_S), plus a line between sets; never while WBSY Talk is tuned or on air, and it never cancels the talk queue (three tests); the widget is ducked to 22 % while speaking; text-only on the HUD when the device has no voices. It reuses the talk show's voice picking, so the 'same for talk radio' part is consistent: eight personas with their own pitch and rate.
 (5) WBSY Talk unchanged: MET. git shows no change under src/audio/talk, and the talk tests pass.
 User-side note, which is RADIO8's and correct: for the single-file artifact, ra-nyc must send an Access-Control-Allow-Origin header for that origin; the hosted build already goes through the /ra-api proxy. FOR FABLE (RADIO8): the main.ts line audio.setBroadcast({ weather, rain, street }) next to hudState.radioTrack. I recommend APPROVE; without it the announcers cannot mention the weather or the street. RADIO8 -> done.
+
+### 2026-11-09T04:25:53Z · Fable
+MGR's RADIO8 hardening note applied: RaFeed.topUp returns early until ensure() has run once, so no station can reach the ra-nyc API before the first tune-in. Audio tests 261 green. RADIO8 closed.
