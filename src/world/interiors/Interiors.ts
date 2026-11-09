@@ -287,10 +287,10 @@ export class Interiors {
       // blade sign: perpendicular to the wall, one plane per street direction
       const bx = dr.x + dr.outX * 1.5, bz = dr.z + dr.outZ * 1.5;
       const along = alongX ? { x: 1, z: 0 } : { x: 0, z: 1 };
-      g.add(box(alongX ? 0.05 : 1.5, 0.05, alongX ? 1.5 : 0.05, '#1b1b1b', dr.x + dr.outX * 0.75, 3.75, dr.z + dr.outZ * 0.75));
+      g.add(box(alongX ? 0.05 : 1.5, 0.05, alongX ? 1.5 : 0.05, '#1b1b1b', dr.x + dr.outX * 0.75, 4.05, dr.z + dr.outZ * 0.75));
       for (const dir of [1, -1]) {
-        const bl = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.5), this.litSign('HOME', '#1f4d36', '#fff3c4'));
-        bl.position.set(bx + along.x * 0.02 * dir, 3.4, bz + along.z * 0.02 * dir);
+        const bl = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.8), this.litSign('HOME', '#1f4d36', '#fff3c4'));
+        bl.position.set(bx + along.x * 0.02 * dir, 3.6, bz + along.z * 0.02 * dir);
         bl.rotation.y = alongX ? (dir > 0 ? Math.PI / 2 : -Math.PI / 2) : (dir > 0 ? 0 : Math.PI);
         bl.name = 'home-blade';
         g.add(bl);
