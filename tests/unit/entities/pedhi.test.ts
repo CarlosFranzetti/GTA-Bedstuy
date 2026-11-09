@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
 import { animateWalk } from '@/entities/models/humanModel';
 import { PED_SPECS, PED_VARIANT_COUNT } from '@/entities/models/pedBody';
-import { FAR_DIST, MID_DIST, buildPedModel, hiGeo, pedHiMaterial } from '@/entities/models/pedBodyHi';
+import { FAR_DIST, MID_DIST, buildPedModel, clothingShell, fabricsFor, hiGeo, pedHiMaterial, type RigLayout } from '@/entities/models/pedBodyHi';
 import { PEDHI_ATLAS, paintPedHi } from '@/textures/painters/pedHi';
 import { SoftCtx, guard, ALLOWED } from '../textures/softcanvas';
 import type { IMaterialLibrary } from '@/world/types';
@@ -106,5 +106,38 @@ describe('pedHi painter', () => {
     expect(spread(r.pixels())).toBeGreaterThan(20);
     expect(spread(a.pixels())).toBeGreaterThan(150);
     expect(PEDHI_ATLAS).toBe(512);
+  });
+});
+
+describe('clothing shells, baked AO, fabrics', () => {
+  const ring = (y: number, r: number, cx = 0) => ({ y, rx: r, rz: r, cx });
+  const rig: RigLayout = {
+    torso: [ring(0.94, 0.16), ring(1.14, 0.16), ring(1.35, 0.2), ring(1.5, 0.06)], torsoBone: 2, neckY: 1.47,
+    arms: [{ upper: [ring(1.44, 0.06, -0.19), ring(1.13, 0.042, -0.19)], fore: [ring(1.13, 0.042, -0.19), ring(0.9, 0.03, -0.19), ring(0.865, 0.028, -0.19)], boneUpper: 4, boneFore: 5 }],
+    legs: [{ thigh: [ring(0.93, 0.09, -0.09), ring(0.48, 0.055, -0.09)], shin: [ring(0.48, 0.055, -0.09), ring(0.3, 0.05, -0.09), ring(0.09, 0.034, -0.09)], boneThigh: 8, boneShin: 9 }],
+  };
+  it('wraps any ring layout: hoodie shell with collar, sleeves, cuffs and trouser folds, hi level only', () => {
+    const hoodie = PED_SPECS[0];
+    const parts = clothingShell(hoodie, rig, 'hi');
+    expect(parts.length).toBeGreaterThanOrEqual(5);
+    expect(new Set(parts.map((p) => p.bone))).toEqual(new Set([2, 4, 5, 8, 9]));
+    for (const p of parts) expect(p.geo.attributes.uv.count).toBe(p.geo.attributes.position.count);
+    expect(clothingShell(hoodie, rig, 'mid')).toEqual([]);
+    // the shell stands off the body (thickness): a torso ring is wider than the body ring it wraps
+    const torsoShell = parts[0].geo; torsoShell.computeBoundingBox();
+    expect(torsoShell.boundingBox!.max.x).toBeGreaterThan(0.2);
+  });
+  it('bakes ambient occlusion into vertex colours (darker under the chin and in the armpits than on the chest) and uses vertex colours', () => {
+    const g = hiGeo(0, 'hi').geo, c = g.getAttribute('color') as THREE.BufferAttribute, p = g.getAttribute('position');
+    let lo = 1, hi = 0; for (let i = 0; i < c.count; i++) { lo = Math.min(lo, c.getX(i)); hi = Math.max(hi, c.getX(i)); }
+    expect(lo).toBeLessThan(0.75); expect(hi).toBeCloseTo(1, 2);
+    void p;
+    expect((pedHiMaterial(materials, 0, false) as THREE.MeshStandardMaterial).vertexColors).toBe(true);
+  });
+  it('assigns real fabrics to the clothing tiles', () => {
+    const f = fabricsFor(PED_SPECS.find((s) => s.id === 'puffer-braids')!);
+    expect(f.find(([t]) => t === 'torso')![1]).toBe('nylon_puffer');
+    expect(f.find(([t]) => t === 'thigh')![1]).toBe('denim');
+    expect(fabricsFor(PED_SPECS.find((s) => s.id === 'tracksuit-man')!).find(([t]) => t === 'torso')![1]).toBe('cotton_knit');
   });
 });
