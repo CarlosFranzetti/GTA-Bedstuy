@@ -37,6 +37,39 @@
       "oneWay": 0
     },
     {
+      "id": "lewis",
+      "name": "Lewis Ave",
+      "signName": "Lewis Ave",
+      "axis": "ns",
+      "offset": 500,
+      "class": "avenue",
+      "roadWidth": 14,
+      "sidewalkWidth": 4,
+      "oneWay": 0
+    },
+    {
+      "id": "stuyvesant",
+      "name": "Stuyvesant Ave",
+      "signName": "Stuyvesant Ave",
+      "axis": "ns",
+      "offset": 750,
+      "class": "avenue",
+      "roadWidth": 14,
+      "sidewalkWidth": 4,
+      "oneWay": 0
+    },
+    {
+      "id": "malcolmx",
+      "name": "Malcolm X Blvd",
+      "signName": "Malcolm X Blvd",
+      "axis": "ns",
+      "offset": 1000,
+      "class": "avenue",
+      "roadWidth": 14,
+      "sidewalkWidth": 4,
+      "oneWay": 0
+    },
+    {
       "id": "hart",
       "name": "Hart St",
       "signName": "Hart St",
@@ -431,7 +464,7 @@
         {"widthM":10.8,"confidence":"H","cornice":"none","stoop":true,"depthM":19.8,"floors":3,"use":"residential","family":"brownstone","note":"[import] 295 THROOP AVENUE · PLUTO C2 built 1931 LU02 · 3 fl (numfloors) · roof 12.3 m (Building Footprints, BIN 3049413)","trees":1},
         {"widthM":10.8,"confidence":"H","cornice":"none","stoop":true,"depthM":19.8,"floors":3,"use":"residential","family":"brownstone","note":"[import] 299 THROOP AVENUE · PLUTO C2 built 1931 LU02 · 3 fl (numfloors) · roof 12.3 m (Building Footprints, BIN 3049412)","trees":1},
         {"widthM":11.1,"confidence":"H","cornice":"none","stoop":true,"depthM":19.8,"floors":3,"use":"residential","family":"brownstone","note":"[import] 303 THROOP AVENUE · PLUTO C2 built 1931 LU02 · 3 fl (numfloors) · roof 12.3 m (Building Footprints, BIN 3049411)","trees":1},
-        {"widthM":7.4,"confidence":"H","cornice":"none","stoop":false,"depthM":19.8,"floors":3,"use":"mixed","family":"brownstone","storefront":"deli","note":"[import] 305 THROOP AVENUE · PLUTO S5 built 1931 LU04 · shop kind is a stand-in (PLUTO has no business type) · 3 fl (numfloors) · roof 12.6 m (Building Footprints, BIN 3049410)","trees":1}
+        {"widthM":7.4,"confidence":"H","cornice":"none","stoop":false,"depthM":19.8,"floors":3,"use":"mixed","family":"brownstone","storefront":"generic","sign":"Throop Corner Smoke & Candy","note":"[import] 305 THROOP AVENUE · PLUTO S5 built 1931 LU04 · shop kind is a stand-in (PLUTO has no business type) · 3 fl (numfloors) · roof 12.6 m (Building Footprints, BIN 3049410)","trees":1}
       ]
     },
     {
@@ -615,7 +648,7 @@
         {"widthM":6.3,"floors":4,"family":"brownstone","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[import] filler: no PLUTO lot is addressed on this street along this stretch (side wall of a cross-street corner building or the rear of a larger parcel)"},
         {"widthM":6.3,"floors":4,"family":"brownstone","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[import] filler: no PLUTO lot is addressed on this street along this stretch (side wall of a cross-street corner building or the rear of a larger parcel)"},
         {"widthM":6.3,"floors":4,"family":"brownstone","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[import] filler: no PLUTO lot is addressed on this street along this stretch (side wall of a cross-street corner building or the rear of a larger parcel)"},
-        {"widthM":3.5,"confidence":"H","cornice":"none","stoop":false,"depthM":22.9,"floors":2,"use":"mixed","family":"brickRed","storefront":"daycare","note":"[import] 176 MARCUS GARVEY BLVD · PLUTO K4 built 1931 LU04 · shop kind is a stand-in (PLUTO has no business type) · 2 fl (numfloors) · roof 7.3 m (Building Footprints, BIN 3049702)"},
+        {"widthM":3.5,"confidence":"H","cornice":"none","stoop":false,"depthM":22.9,"floors":2,"use":"mixed","family":"brickRed","storefront":"chinese","sign":"Lucky Panda No. 6 Kitchen","note":"[import] 176 MARCUS GARVEY BLVD · PLUTO K4 built 1931 LU04 · shop kind is a stand-in (PLUTO has no business type) · 2 fl (numfloors) · roof 7.3 m (Building Footprints, BIN 3049702)"},
         {"widthM":7.2,"floors":4,"family":"brickRed","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[import] filler: no PLUTO lot is addressed on this street along this stretch (side wall of a cross-street corner building or the rear of a larger parcel)"},
         {"widthM":7.2,"floors":4,"family":"brickRed","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[import] filler: no PLUTO lot is addressed on this street along this stretch (side wall of a cross-street corner building or the rear of a larger parcel)"}
       ]
@@ -743,7 +776,7 @@
         {"widthM":36.7,"confidence":"H","floors":4,"use":"school","storefront":"daycare","note":"[import] 322 KOSCIUSZKO STREET · PLUTO W1 built 1959 LU08 · 4 fl (numfloors) · roof 21.2 m (Building Footprints, BIN 3049858)"},
         {"widthM":36.7,"confidence":"H","floors":4,"use":"school","storefront":"daycare","note":"[import] 322 KOSCIUSZKO STREET · PLUTO W1 built 1959 LU08 · 4 fl (numfloors) · roof 21.2 m (Building Footprints, BIN 3049858)"},
         {"widthM":38.3,"confidence":"H","floors":4,"use":"school","storefront":"daycare","note":"[import] 322 KOSCIUSZKO STREET · PLUTO W1 built 1959 LU08 · 4 fl (numfloors) · roof 21.2 m (Building Footprints, BIN 3049858)"},
-        {"widthM":8.2,"confidence":"H","cornice":"none","stoop":false,"depthM":25.3,"floors":4,"use":"mixed","family":"brickRed","storefront":"deli","note":"[import] 358 KOSCIUSZKO STREET · PLUTO C7 built 1931 LU04 · shop kind is a stand-in (PLUTO has no business type) · 4 fl (numfloors) · roof 15.3 m (Building Footprints, BIN 3049859)"},
+        {"widthM":8.2,"confidence":"H","cornice":"none","stoop":false,"depthM":25.3,"floors":4,"use":"mixed","family":"brickRed","storefront":"caribbean","sign":"Auntie Verna's Jerk Kitchen","note":"[import] 358 KOSCIUSZKO STREET · PLUTO C7 built 1931 LU04 · shop kind is a stand-in (PLUTO has no business type) · 4 fl (numfloors) · roof 15.3 m (Building Footprints, BIN 3049859)"},
         {"widthM":9.1,"floors":3,"family":"brickTan","use":"residential","stoop":true,"cornice":"plain","confidence":"L","note":"[import] filler: no PLUTO lot is addressed on this street along this stretch (side wall of a cross-street corner building or the rear of a larger parcel)"}
       ]
     },
@@ -1234,6 +1267,186 @@
         {"widthM":20.7,"confidence":"H","cornice":"none","stoop":false,"floors":4,"use":"residential","family":"newBuild","note":"[import] 383 THROOP AVENUE · PLUTO D3 built 1997 LU03 · 4 fl (numfloors) · roof 11.4 m (Building Footprints, BIN 3050268)"},
         {"widthM":20.7,"confidence":"H","cornice":"none","stoop":false,"floors":4,"use":"residential","family":"newBuild","note":"[import] 383 THROOP AVENUE · PLUTO D3 built 1997 LU03 · 4 fl (numfloors) · roof 11.4 m (Building Footprints, BIN 3050268)"}
       ]
+    },
+    {
+      "street": "hart", "side": "N", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "pulaski", "side": "S", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "lewis", "side": "E", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "garvey", "side": "W", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "hart", "side": "N", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "pulaski", "side": "S", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "stuyvesant", "side": "E", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "lewis", "side": "W", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "hart", "side": "N", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "pulaski", "side": "S", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "malcolmx", "side": "E", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "stuyvesant", "side": "W", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "pulaski", "side": "N", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "kosciuszko", "side": "S", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "lewis", "side": "E", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "garvey", "side": "W", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "pulaski", "side": "N", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "kosciuszko", "side": "S", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "stuyvesant", "side": "E", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "lewis", "side": "W", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "pulaski", "side": "N", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "kosciuszko", "side": "S", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "malcolmx", "side": "E", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "stuyvesant", "side": "W", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "kosciuszko", "side": "N", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "lafayette", "side": "S", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "lewis", "side": "E", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "garvey", "side": "W", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "kosciuszko", "side": "N", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "lafayette", "side": "S", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "stuyvesant", "side": "E", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "lewis", "side": "W", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "kosciuszko", "side": "N", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "lafayette", "side": "S", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "malcolmx", "side": "E", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "stuyvesant", "side": "W", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "lafayette", "side": "N", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "vanburen", "side": "S", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "lewis", "side": "E", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "garvey", "side": "W", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "lafayette", "side": "N", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "vanburen", "side": "S", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "stuyvesant", "side": "E", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "lewis", "side": "W", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "lafayette", "side": "N", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "vanburen", "side": "S", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "malcolmx", "side": "E", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "stuyvesant", "side": "W", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "vanburen", "side": "N", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "greene", "side": "S", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "lewis", "side": "E", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "garvey", "side": "W", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "vanburen", "side": "N", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "greene", "side": "S", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "stuyvesant", "side": "E", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "lewis", "side": "W", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "vanburen", "side": "N", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "greene", "side": "S", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "malcolmx", "side": "E", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+    },
+    {
+      "street": "stuyvesant", "side": "W", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
     }
   ],
   "geo": {

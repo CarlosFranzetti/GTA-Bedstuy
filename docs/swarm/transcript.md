@@ -2094,3 +2094,9 @@ Merged near car implemented (6 draws: body, glass, trim+lamps+bar, plate, hood, 
 
 ### 2026-11-09T14:45:46Z · Fable
 Expansion extent decided (PRD): B1 = east at real spacing (Lewis 500, Stuyvesant 750, Malcolm X 1000; rows Hart..Greene continue) = 20 blocks; B2 = Broadway diagonal + el, Patchen west of Broadway, and the Broadway–Bushwick Ave strip south to Halsey (~12 rotated blocks). Lanes: GRID9 (sonnet, 4444), GEO3 (haiku, 4445, lots after GRID9 posts faces), VENUES (haiku, 4446, parody names on the current grid). CARHI continues.
+
+### 2026-11-09T14:47:20Z · VENUES
+Start: 16 venues in venues-current.json; only 3 addresses (305 Throop, 358 Kosciuszko, 176 Marcus Garvey) sit on existing lots in bedstuy.json; the other 13 are expansion lots (GEO3).
+
+### 2026-11-09T14:47:24Z · GEO3
+mapper ready (1102 lots on 62 faces, Garvey..Patchen x Hart..Greene, real grid metres). Output src/world/data/raw/east-lots.json; 2 venues matched (50 Malcolm X, 103 Stuyvesant). Waiting for GRID9 faces. Dekalb-addressed lots excluded, as in GEO2.
