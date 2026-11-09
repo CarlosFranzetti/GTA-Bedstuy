@@ -1,20 +1,26 @@
 /**
- * The radio dial: procedural parody stations, the eight music-library stations and WBSY Talk.
+ * The radio dial: eight SoundCloud-mix stations (BK House, Dub Lab, Stoop Radio, Boogie Down, Weird Hours, Yard FM,
+ * Flashback 88, Radio SC), WBSY Talk, and an optional "My Library" station for the player's own files.
  *
- * Every music station has a virtual clock that keeps running while you listen to something else (or are out
- * of the car), so tuning back in resumes mid-track like GTA. Tracks play on two decks with a 0.5 s cross-fade;
- * empty slots play that genre's procedural synth pattern. Time only advances through `update(dt)` (game time),
- * so the radio pauses with the game.
+ * Every SoundCloud station is a `ScStation` fed by the shared ra-nyc pool and filtered by its own keywords; it keeps its
+ * own virtual clock, so tuning away and back resumes mid-set. Each has a synthesized announcer (./announcer). My Library
+ * plays the files the player placed in the Radio library on two decks with a 0.5 s cross-fade and also keeps a virtual
+ * clock. Time only advances through `update(dt)` (game time), so the radio pauses with the game.
  */
-import { STATIONS, GENRE_STATIONS, stepSeconds, type Station } from './radio';
-import { LIBRARY_STATIONS, type LibraryStationId } from './library/genres';
+import { GENRE_STATIONS, SC_STATIONS, type ScStationDef, type Station } from './radio';
+import { LIBRARY_STATIONS } from './library/genres';
 import type { Library } from './library/Library';
-import { buildTimeline, locate, type Timeline } from './library/timeline';
+import { buildLibraryTimeline, locate, type Timeline } from './library/timeline';
 import type { Deck } from './decks';
 import type { TalkPlayer } from './talk/TalkPlayer';
-import { ScStation } from './sc/ScStation';
+import type { SpeechLike, UtteranceLike } from './talk/TalkPlayer';
+import { ScStation, SC_STORAGE_KEY } from './sc/ScStation';
+import { RaFeed, matcherFor } from './sc/RaFeed';
+import { Announcer, DEFAULT_BROADCAST, type BroadcastContext } from './announcer/Announcer';
 
 export const CROSSFADE_SECONDS = 0.5;
+export const MYLIB_ID = 'mylib';
+export const MYLIB_NAME = 'My Library';
 
 export type RadioKind = 'synth' | 'library' | 'talk' | 'sc';
 
@@ -24,7 +30,8 @@ export interface RadioStationEntry {
   /** Display name (talk can change this when voices are unavailable: use `director.stationName`). */
   name: string;
   synth?: Station;
-  lib?: LibraryStationId;
+  /** The SoundCloud station definition for kind 'sc'. */
+  sc?: ScStationDef;
 }
 
 export interface SynthPlayback {
@@ -34,8 +41,25 @@ export interface SynthPlayback {
   startStep: number;
 }
 
+export interface DirectorOptions {
+  /** Shared ra-nyc pool. Default: the Radio SC override's feed, else a new RaFeed. Null disables the pool. */
+  feed?: RaFeed | null;
+  /** Extra ScStation environment (tests: canLoad, loadApi, doc, timeoutMs, ...), applied to every SoundCloud station. */
+  scEnv?: Partial<import('./sc/ScStation').ScEnv>;
+  /** Speech used by the announcers. Absent = no voices (text-only HUD line). */
+  voice?: { speech: SpeechLike | null; makeUtterance: (text: string) => UtteranceLike; volume: () => number; random?: () => number };
+  /** Ready-made announcer (tests). */
+  announcer?: Announcer;
+}
+
+function stationStorageKey(id: string): string {
+  return id === 'sc' ? SC_STORAGE_KEY : `${SC_STORAGE_KEY}.${id}`;
+}
+
 export class RadioDirector {
-  readonly stations: RadioStationEntry[];
+  private dial: RadioStationEntry[] = [];
+  private readonly baseDial: RadioStationEntry[];
+  private readonly myLib: RadioStationEntry = { id: MYLIB_ID, kind: 'library', name: MYLIB_NAME };
   private idx = 0;
   private on = false;
   private paused = false;
@@ -44,30 +68,68 @@ export class RadioDirector {
   private readonly retire: Array<number | null> = [null, null];
   private playingKey: string | null = null;
   private playingTrackName = '';
-  private readonly vt = new Map<LibraryStationId, number>();
+  private libClock = 0;
   private readonly bad = new Set<string>();
-  private readonly timelines = new Map<LibraryStationId, Timeline>();
+  private libTimeline: Timeline | null = null;
   private synth: SynthPlayback | null = null;
   private synthEpoch = 0;
   private synthKey = '';
+  /** The shared ra-nyc pool. */
+  readonly feed: RaFeed | null;
+  /** Every SoundCloud station, in dial order. */
+  readonly scStations: ScStation[] = [];
+  private readonly scMap = new Map<string, ScStation>();
+  /** Radio SC itself (the last SoundCloud station). */
+  readonly sc: ScStation;
+  readonly announcer: Announcer;
+  /** Hour, weather and street that the announcers talk about. */
+  private broadcast: BroadcastContext = { ...DEFAULT_BROADCAST };
   /** Called when the listener changes station (AudioSystem plays the station jingle). */
   onTune: ((entry: RadioStationEntry) => void) | null = null;
-  /** Called every third natural track change on a music station (a station ID between songs). */
+  /** Called between sets and every third natural track change (a station ID between songs). */
   onSweeper: ((entry: RadioStationEntry) => void) | null = null;
   private naturalChanges = 0;
   private readonly unsubLib: () => void;
 
-  constructor(readonly library: Library, readonly talk: TalkPlayer, synthStations: Station[] = STATIONS, readonly sc: ScStation = new ScStation()) {
-    this.stations = [
+  constructor(readonly library: Library, readonly talk: TalkPlayer, synthStations: Station[] = [], sc?: ScStation, opts: DirectorOptions = {}) {
+    this.feed = opts.feed !== undefined ? opts.feed : (sc?.feed ?? new RaFeed());
+    for (const def of SC_STATIONS) {
+      const match = matcherFor(def.patterns);
+      const st = def.id === 'sc' && sc ? sc : new ScStation({
+        ...opts.scEnv,
+        feed: this.feed,
+        config: { id: def.id, name: def.name, match, storageKey: stationStorageKey(def.id) },
+        storage: opts.scEnv?.storage,
+      } as Partial<import('./sc/ScStation').ScEnv>);
+      this.scStations.push(st);
+      this.scMap.set(def.id, st);
+      st.onBetweenMixes = (prev) => {
+        if (!this.on || this.current.sc?.id !== def.id) return;
+        this.announcer.betweenSets(prev, st.nowPlaying);
+        this.onSweeper?.(this.current);
+      };
+    }
+    this.sc = this.scMap.get('sc')!;
+    this.sc.onGameHour = (h) => { if (h !== null) this.broadcast.hour = h; };
+    this.baseDial = [
       ...synthStations.map((s, i): RadioStationEntry => ({ id: `synth${i}`, kind: 'synth', name: s.name, synth: s })),
-      ...LIBRARY_STATIONS.map((d): RadioStationEntry => ({ id: d.id, kind: 'library', name: d.name, lib: d.id })),
+      ...SC_STATIONS.map((d): RadioStationEntry => ({ id: d.id, kind: 'sc', name: d.name, sc: d })),
       { id: 'talk', kind: 'talk', name: 'WBSY Talk' },
-      { id: 'sc', kind: 'sc', name: 'Radio SC' },
     ];
-    sc.onBetweenMixes = () => { if (this.current.kind === 'sc' && this.on) this.onSweeper?.(this.current); };
-    for (const d of LIBRARY_STATIONS) this.vt.set(d.id, 0);
+    const v = opts.voice;
+    this.announcer = opts.announcer ?? new Announcer({
+      speech: v?.speech ?? null,
+      makeUtterance: v?.makeUtterance ?? (() => { throw new Error('no speech'); }),
+      volume: v?.volume ?? (() => 1),
+      setDuck: (level) => { for (const s of this.scStations) s.setDuck(level); },
+      talkBusy: () => this.current.kind === 'talk' || this.talk.isActive,
+      context: () => this.broadcast,
+      random: v?.random ?? Math.random,
+    });
+    this.refreshDial();
     this.unsubLib = library.onChange(() => {
-      this.timelines.clear();
+      this.libTimeline = null;
+      this.refreshDial();
       // The playing file was cleared or the library was reset: stop it now.
       if (this.playingKey && this.playingTrackId && !library.locate(this.playingTrackId)) {
         this.retireActive(CROSSFADE_SECONDS);
@@ -76,40 +138,95 @@ export class RadioDirector {
     });
   }
 
+  /* ---------- the dial ---------- */
+
+  /** My Library is on the dial only while at least one of the player's files can play. */
+  get libraryOnDial(): boolean {
+    return LIBRARY_STATIONS.some((d) => this.library.playableCount(d.id) > 0);
+  }
+
+  private refreshDial(): void {
+    const keepId = this.dial[this.idx]?.id;
+    this.dial = this.libraryOnDial ? [...this.baseDial, this.myLib] : this.baseDial;
+    if (keepId) {
+      const i = this.dial.findIndex((e) => e.id === keepId);
+      if (i >= 0) { this.idx = i; return; }
+      // My Library disappeared under the listener: back to the first station.
+      this.idx = 0;
+      this.synthEpoch++;
+      this.synthKey = '';
+      this.synth = null;
+      this.playingKey = null;
+      this.retireActive(CROSSFADE_SECONDS);
+      this.syncActive();
+      this.announcerTune();
+      this.reconcile();
+    }
+  }
+
+  get stations(): readonly RadioStationEntry[] { return this.dial; }
+
+  scStation(id: string): ScStation | undefined { return this.scMap.get(id); }
+
+  /** The SoundCloud station that is tuned in, or null. */
+  get currentSc(): ScStation | null {
+    const c = this.current;
+    return c.kind === 'sc' ? this.scMap.get(c.id) ?? null : null;
+  }
+
+  /** Feeds hour, weather and street to the announcers (hour 0..24, rain 0..1). */
+  setBroadcast(ctx: Partial<BroadcastContext>): void {
+    this.broadcast = { ...this.broadcast, ...ctx };
+  }
+
+  /** Game radio level (times master) for every SoundCloud widget. */
+  setScVolume(v: number): void {
+    for (const s of this.scStations) s.setVolume(v);
+  }
+
   /* ---------- reading ---------- */
 
   get index(): number { return this.idx; }
-  get current(): RadioStationEntry { return this.stations[this.idx]; }
+  get current(): RadioStationEntry { return this.dial[this.idx] ?? this.dial[0]; }
 
   get stationName(): string {
     const c = this.current;
-    if (c.kind === 'sc') return this.sc.stationName;
+    if (c.kind === 'sc') return this.currentSc!.stationName;
     return c.kind === 'talk' ? this.talk.stationName : c.name;
   }
 
-  /** Now-playing text: file name without extension, or the talk speaker. Empty for synth music. */
+  /**
+   * HUD second half: the announcer's name while they speak ("Station — Deja Fontaine"), else "set title — DJ" for
+   * SoundCloud sets, the file name for My Library, the speaker for WBSY Talk. Empty for synth music.
+   */
   get trackName(): string {
     const c = this.current;
     if (c.kind === 'talk') return this.talk.caption;
-    if (c.kind === 'sc') return this.sc.usingBed && this.sc.hasSources ? '' : this.sc.trackName;
+    if (c.kind === 'sc') {
+      if (this.on && this.announcer.speaking) return this.announcer.name;
+      const sc = this.currentSc!;
+      return sc.usingBed && sc.hasSources ? '' : sc.trackName;
+    }
     if (c.kind === 'library' && this.playingKey) return this.playingTrackName;
     return '';
   }
+
+  /** Text the announcer is saying right now (a subtitle, and the HUD line on devices with no voices). */
+  get announcerLine(): string { return this.on && this.current.kind === 'sc' ? this.announcer.line : ''; }
 
   /** 0..1 through the talk show loop while WBSY Talk is tuned in, otherwise 0. */
   get talkProgress(): number {
     return this.current.kind === 'talk' ? this.talk.progress.fraction : 0;
   }
 
-  /** Virtual clock of a library station in seconds (for tests and the UI). */
-  clock(id: LibraryStationId): number { return this.vt.get(id) ?? 0; }
+  /** Virtual clock of My Library in seconds (for tests). */
+  get libraryClock(): number { return this.libClock; }
 
   get synthPlayback(): SynthPlayback | null { return this.on ? this.synth : null; }
 
-  timeline(id: LibraryStationId): Timeline {
-    let tl = this.timelines.get(id);
-    if (!tl) { tl = buildTimeline(this.library, id, this.bad); this.timelines.set(id, tl); }
-    return tl;
+  timeline(): Timeline {
+    if (!this.libTimeline) this.libTimeline = buildLibraryTimeline(this.library, this.bad);
+    return this.libTimeline;
   }
 
   /* ---------- control ---------- */
@@ -126,21 +243,23 @@ export class RadioDirector {
     this.playingKey = null;
   }
 
-  next(): void { this.select((this.idx + 1) % this.stations.length); }
+  next(): void { this.select((this.idx + 1) % this.dial.length); }
 
   select(i: number): void {
-    const n = this.stations.length;
+    const n = this.dial.length;
     const target = ((Math.round(i) % n) + n) % n;
     if (target === this.idx) return;
+    // Our announcer lets go of the speech queue before WBSY Talk can take it.
+    this.announcer.tuneAway();
     this.idx = target;
     this.synthEpoch++;
     this.synthKey = '';
     this.synth = null;
     this.playingKey = null;
     this.retireActive(CROSSFADE_SECONDS);
-    this.talk.setActive(this.on && this.current.kind === 'talk');
-    this.sc.setActive(this.on && this.current.kind === 'sc');
+    this.syncActive();
     this.onTune?.(this.current);
+    this.announcerTune();
     this.reconcile();
   }
 
@@ -149,29 +268,31 @@ export class RadioDirector {
     if (on === this.on) return;
     this.on = on;
     if (!on) {
+      this.announcer.tuneAway();
       this.retireActive(0.15);
       this.playingKey = null;
       this.synth = null;
     }
-    this.talk.setActive(on && this.current.kind === 'talk');
-    this.sc.setActive(on && this.current.kind === 'sc');
-    if (on) this.reconcile();
+    this.syncActive();
+    if (on) { this.announcerTune(); this.reconcile(); }
   }
 
   setPaused(p: boolean): void {
     if (p === this.paused) return;
     this.paused = p;
     this.talk.setPaused(p);
-    this.sc.setPaused(p);
+    this.announcer.setPaused(p);
+    for (const s of this.scStations) s.setPaused(p);
     this.decks?.forEach((d) => { if (p) d.pause(); else d.resume(); });
   }
 
   /** Advances every station's virtual clock and keeps the decks in step with the active one. */
   update(dt: number): void {
     if (this.paused || !(dt > 0)) return;
-    for (const d of LIBRARY_STATIONS) this.vt.set(d.id, (this.vt.get(d.id) ?? 0) + dt);
+    this.libClock += dt;
     this.talk.update(dt);
-    this.sc.update(dt);
+    for (const s of this.scStations) s.update(dt);
+    this.announcer.update(dt);
     for (let i = 0; i < 2; i++) {
       const r = this.retire[i];
       if (r !== null) {
@@ -184,13 +305,25 @@ export class RadioDirector {
 
   dispose(): void {
     this.unsubLib();
+    this.announcer.dispose();
     this.talk.dispose();
-    this.sc.dispose();
+    for (const s of this.scStations) s.dispose();
     this.decks?.forEach((d) => { d.onEnded = null; d.onError = null; d.onDuration = null; d.stop(); });
     this.decks = null;
   }
 
   /* ---------- internals ---------- */
+
+  private syncActive(): void {
+    const c = this.current;
+    this.talk.setActive(this.on && c.kind === 'talk');
+    for (const s of this.scStations) s.setActive(this.on && c.kind === 'sc' && c.id === s.id);
+  }
+
+  private announcerTune(): void {
+    const c = this.current;
+    if (this.on && c.kind === 'sc' && c.sc) this.announcer.tuneIn(c.sc);
+  }
 
   private reconcile(): void {
     const c = this.current;
@@ -199,26 +332,18 @@ export class RadioDirector {
       return;
     }
     if (c.kind === 'sc') {
-      // Mixes play in the hidden widget; only the procedural bed (offline, blocked, empty list) uses the synth.
-      if (this.on && this.sc.usingBed) this.setSynth(GENRE_STATIONS.house, 0, 'sc-bed'); else this.synth = null;
+      // Sets play in the hidden widget; only the procedural bed (offline, blocked, nothing to play) uses the synth.
+      const sc = this.currentSc!;
+      if (this.on && sc.usingBed) this.setSynth(GENRE_STATIONS[c.sc!.bed], 0, `sc-bed:${c.id}`); else this.synth = null;
       return;
     }
-    if (c.kind !== 'library' || !c.lib) { this.synth = null; return; }
-    if (!this.on) return;
-    const id = c.lib;
-    const tl = this.timeline(id);
-    const vt = this.vt.get(id) ?? 0;
-    const look = locate(tl, vt + CROSSFADE_SECONDS);
-    if (look.segment.kind === 'synth') {
-      this.retireActive(CROSSFADE_SECONDS);
-      this.playingKey = null;
-      const cur = locate(tl, vt);
-      const st = GENRE_STATIONS[id];
-      const off = cur.segment === look.segment ? cur.offset : 0;
-      this.setSynth(st, Math.floor(off / stepSeconds(st.bpm)), `${id}:${look.cycle}:${look.segment.slot}`);
-      return;
-    }
+    if (c.kind !== 'library') { this.synth = null; return; }
     this.synth = null;
+    if (!this.on) return;
+    const tl = this.timeline();
+    if (tl.segments.length === 0 || tl.total <= 0) { this.retireActive(CROSSFADE_SECONDS); this.playingKey = null; return; }
+    const vt = this.libClock;
+    const look = locate(tl, vt + CROSSFADE_SECONDS);
     const key = `${look.cycle}:${look.segment.slot}`;
     if (key === this.playingKey) return;
     const track = look.segment.track!;
@@ -264,13 +389,14 @@ export class RadioDirector {
   private onDeckEnded(i: number): void {
     if (i !== this.activeDeck) return;
     const c = this.current;
-    if (c.kind === 'library' && c.lib && this.playingKey) {
+    if (c.kind === 'library' && this.playingKey) {
       // The file ended before the clock expected: jump the clock into the next block.
-      const tl = this.timeline(c.lib);
-      const vt = this.vt.get(c.lib) ?? 0;
-      const look = locate(tl, vt + CROSSFADE_SECONDS);
-      const end = look.cycle * tl.total + look.segment.start + look.segment.duration;
-      this.vt.set(c.lib, Math.max(vt, end - CROSSFADE_SECONDS + 0.01));
+      const tl = this.timeline();
+      if (tl.segments.length > 0) {
+        const look = locate(tl, this.libClock + CROSSFADE_SECONDS);
+        const end = look.cycle * tl.total + look.segment.start + look.segment.duration;
+        this.libClock = Math.max(this.libClock, end - CROSSFADE_SECONDS + 0.01);
+      }
     }
     this.activeDeck = -1;
     this.playingKey = null;
@@ -279,7 +405,7 @@ export class RadioDirector {
   private onDeckError(i: number): void {
     if (i !== this.activeDeck) return;
     if (this.playingTrackId) this.bad.add(this.playingTrackId);
-    this.timelines.clear();
+    this.libTimeline = null;
     this.activeDeck = -1;
     this.playingKey = null;
   }

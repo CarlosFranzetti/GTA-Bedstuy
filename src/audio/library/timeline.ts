@@ -4,7 +4,7 @@
  * timeline and loops, whether or not the player is listening.
  */
 import type { Library, Track } from './Library';
-import type { LibraryStationId } from './genres';
+import { LIBRARY_STATIONS, type LibraryStationId } from './genres';
 
 /** Seconds of synth music that stand in for one empty slot. */
 export const SYNTH_SLOT_SECONDS = 40;
@@ -40,6 +40,27 @@ export function buildTimeline(lib: Library, station: LibraryStationId, unplayabl
       const last = segments[segments.length - 1];
       if (last && last.kind === 'synth') { last.duration += SYNTH_SLOT_SECONDS; t += SYNTH_SLOT_SECONDS; }
       else { segments.push({ kind: 'synth', slot: i, start: t, duration: SYNTH_SLOT_SECONDS }); t += SYNTH_SLOT_SECONDS; }
+    }
+  }
+  return { segments, total: t };
+}
+
+/**
+ * "My Library": every playable track the player placed on any of the eight slot lists, in list order, as one
+ * looping timeline. No synth blocks: an empty library has no segments (total 0) and the station is not on the dial.
+ */
+export function buildLibraryTimeline(lib: Library, unplayable: ReadonlySet<string> = new Set()): Timeline {
+  const segments: Segment[] = [];
+  let t = 0;
+  let n = 0;
+  for (const st of LIBRARY_STATIONS) {
+    const ids = lib.slotIds(st.id);
+    for (let i = 0; i < ids.length; i++) {
+      const track = lib.slotTrack(st.id, i);
+      if (!track || !track.url || unplayable.has(track.id)) continue;
+      const duration = track.duration > 0 ? track.duration : UNKNOWN_TRACK_SECONDS;
+      segments.push({ kind: 'track', slot: n++, start: t, duration, track });
+      t += duration;
     }
   }
   return { segments, total: t };

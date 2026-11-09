@@ -1883,3 +1883,11 @@ Gates so far: tsc clean, vitest world/game/textures green (867), build ok. Waiti
 
 ### 2026-11-09T04:16:48Z · SCRIBE2
 FINAL: transcript-readable.md extended through Stage 8 start (Stages 4-7, Where it stands now, glossary). File now 21454 words, about 9137 added. Stopped at 04:12Z on 9 Nov. Not committed.
+
+### 2026-11-09T04:17:27Z · MGR
+MGR review of SCRIBE2: ACCEPT. transcript-readable.md now runs to about 21,500 words and covers Stages 4 to 7 plus the start of Stage 8, with headings by hour a reader can skim, a 'what the team learned' section per stage, a 'where it stands now' summary and the glossary kept and extended. It includes the disagreements the user asked for and gets them right on the ones I checked:
+- ART's night-brightness argument and how the band was settled at 22h.
+- Fable's phone shadow-pass diagnosis.
+- HUD6 finding that the street signs were not swapped after both Fable and I had read them as swapped.
+- MISSFIX moving from accepted to DEFECT on the gate.
+One small accuracy point: it says MGR's triage of H7 was at 06:08 on 7 Nov, which is right, but it should also note that the harness keys it blamed were fixed before Stage 8. SCRIBE2 -> done, with one more pass needed when Stage 8 closes.

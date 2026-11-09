@@ -12,7 +12,9 @@ import { patternAt, stepSeconds, type Note } from './radio';
 import { Library, localLibraryStorage, type LibraryStorage } from './library/Library';
 import { LibraryController, type ControllerDeps } from './library/LibraryController';
 import { RadioDirector } from './RadioDirector';
-import { ScStation } from './sc/ScStation';
+import { ScStation, type ScEnv } from './sc/ScStation';
+import type { RaFeed } from './sc/RaFeed';
+import type { BroadcastContext } from './announcer/Announcer';
 import { HtmlAudioDeck } from './decks';
 import { TalkPlayer, type SpeechLike, type UtteranceLike } from './talk/TalkPlayer';
 import { loadBundledScript, type TalkSegment } from './talk/script';
@@ -75,6 +77,10 @@ export interface AudioSystemOptions {
   controller?: ControllerDeps;
   /** Radio SC station override (tests). Default: the real widget-backed station. */
   sc?: ScStation;
+  /** Shared ra-nyc pool override (tests). Null disables the pool. */
+  feed?: RaFeed | null;
+  /** Extra environment for every SoundCloud station (tests: canLoad, loadApi, doc, timeoutMs). */
+  scEnv?: Partial<ScEnv>;
 }
 
 function browserSpeech(): SpeechLike | null {
@@ -132,7 +138,11 @@ export class AudioSystem {
         volume: () => this.radioVolume,
       },
     }, opts.script ?? loadBundledScript());
-    this.radio = new RadioDirector(library, talk, undefined, opts.sc ?? new ScStation());
+    this.radio = new RadioDirector(library, talk, undefined, opts.sc, {
+      feed: opts.feed,
+      scEnv: opts.scEnv,
+      voice: { speech, makeUtterance: opts.makeUtterance ?? ((text) => new SpeechSynthesisUtterance(text) as unknown as UtteranceLike), volume: () => this.radioVolume },
+    });
     this.libraryController = new LibraryController(library, opts.controller);
     void this.libraryController.init().catch(() => undefined);
     this.radio.onTune = (entry) => {
@@ -140,9 +150,9 @@ export class AudioSystem {
       if (!g || !this.radioOn) return;
       // A blip of dial static, then the station's own jingle (WBSY Talk has its own stings).
       this.noiseBurst(g, { t: g.ctx.currentTime, dur: 0.18, type: 'bandpass', hz: 2500, peak: 0.12, dest: g.musicBus });
-      if (entry.kind !== 'talk') this.playSting(entry.kind === 'sc' ? scJingle() : stationJingle(entry.id));
+      if (entry.kind !== 'talk') this.playSting(entry.id === 'sc' ? scJingle() : stationJingle(entry.id));
     };
-    this.radio.onSweeper = (entry) => { if (this.radioOn && this.g) this.playSting(entry.kind === 'sc' ? scJingle() : stationJingle(entry.id)); };
+    this.radio.onSweeper = (entry) => { if (this.radioOn && this.g) this.playSting(entry.id === 'sc' ? scJingle() : stationJingle(entry.id)); };
     this.unsubs.push(
       events.on('userGesture', () => { void this.start(); void this.libraryController.autoReconnect().catch(() => undefined); }),
       events.on('horn', () => this.playHorn()),
@@ -270,11 +280,20 @@ export class AudioSystem {
 
   /** The SoundCloud widget has its own output, so the game's master x radio level is mapped onto it. */
   private syncScVolume(): void {
-    this.radio.sc.setVolume(this.masterVolume * this.radioVolume);
+    this.radio.setScVolume(this.masterVolume * this.radioVolume);
   }
 
   /** Radio SC station (mix list, next mix, test) for the Radio library panel. */
   get sc(): ScStation { return this.radio.sc; }
+
+  /** All eight SoundCloud stations in dial order (for the Radio library panel). */
+  get scStations(): readonly ScStation[] { return this.radio.scStations; }
+
+  /** Hour (0..24), weather ('dry' | 'rain' | 'wet' | 'drying'), rain 0..1 and street name for the announcers' time and weather lines. */
+  setBroadcast(ctx: Partial<BroadcastContext>): void { this.radio.setBroadcast(ctx); }
+
+  /** Text the announcer is saying (subtitle; also the only output on devices with no speech voices). */
+  get announcerLine(): string { return this.radio.announcerLine; }
 
   nextStation(): void {
     this.radio.next();
