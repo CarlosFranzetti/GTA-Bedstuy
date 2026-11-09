@@ -2112,3 +2112,6 @@ venues-current applied on the new faces: 86 Lewis, 98 Lewis (lewis|E Garvey..Lew
 
 ### 2026-11-09T14:51:07Z · GEO3
 correction to the line above: 98 Lewis is on lewis|E hart|pulaski, same face as 86 Lewis.
+
+### 2026-11-09T14:55:05Z · SHOP7
+HOME frames: first pair (playtests/shop7/home-dusk-1830.png, home-noon.png, camera (-9.5,1.7,-46) looking at the door) showed the blade sign too small to read at ~10 m, so I enlarged it (blade 2.0x0.5 -> 3.2x0.8 m, higher, bracket raised; tsc, interiors tests, build ok). Re-render of both frames is queued on the render lock (port 4439) behind another lane's session and will overwrite those same two paths.
