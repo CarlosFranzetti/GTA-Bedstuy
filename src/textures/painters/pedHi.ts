@@ -91,8 +91,8 @@ function paintHead(t: L, s: PedSpec, rng: Rng): void {
   const skin = s.skin;
   t.rect(0, 0, W, W, skin, 1, 128, 140);
   // form shading: darker toward the sides and under the jaw, light on the forehead, cheek bones and nose bridge
-  for (let i = 0; i < 10; i++) { const a = 0.05; t.rect(0, 0, 36 - i * 3.5, W, '#000000', a); t.rect(W - (36 - i * 3.5), 0, 36 - i * 3.5, W, '#000000', a); }
-  for (let i = 0; i < 8; i++) t.rect(0, Y(1.545) + i * 5, W, 256, '#000000', 0.07);
+  for (let i = 0; i < 18; i++) { const a = 0.03; t.rect(0, 0, 40 - i * 2.2, W, '#000000', a); t.rect(W - (40 - i * 2.2), 0, 40 - i * 2.2, W, '#000000', a); }
+  for (let i = 0; i < 24; i++) t.rect(0, Y(1.56) + i * 2, W, 256, '#000000', 0.022);
   t.soft(128, Y(1.725), 70, lt(skin, 0.5), 0.35);
   t.soft(X(-0.05), Y(1.62), 26, lt(skin, 0.45), 0.3); t.soft(X(0.05), Y(1.62), 26, lt(skin, 0.45), 0.3);
   t.soft(X(-0.052), Y(1.6), 22, '#b03030', 0.12); t.soft(X(0.052), Y(1.6), 22, '#b03030', 0.12);
@@ -104,7 +104,7 @@ function paintHead(t: L, s: PedSpec, rng: Rng): void {
   const ey = Y(1.664);
   for (const sx of [-1, 1]) {
     const cx = X(sx * 0.034);
-    t.soft(cx, ey, 24, dk(skin, 0.5), 0.35);
+    t.soft(cx, ey - 2, 30, dk(skin, 0.55), 0.5, 8);
     const ew = f.eyes === 'wide' ? 22 : 20, eh = f.eyes === 'sleepy' ? 6 : f.eyes === 'wide' ? 11 : 9;
     t.poly([[cx - ew, ey], [cx - ew * 0.4, ey - eh], [cx + ew * 0.4, ey - eh], [cx + ew, ey], [cx + ew * 0.4, ey + eh * 0.6], [cx - ew * 0.4, ey + eh * 0.6]], '#efe9e2');
     t.disc(cx - sx * 1.5, ey - 0.5, eh * 0.62, '#4a3220'); t.disc(cx - sx * 1.5, ey - 0.5, eh * 0.4, '#16100c'); t.disc(cx - sx * 1.5 - 2, ey - 3, 1.8, '#ffffff', 0.9);
@@ -112,9 +112,9 @@ function paintHead(t: L, s: PedSpec, rng: Rng): void {
     t.curve(cx - ew * 0.8, ey + 2, cx, ey + eh * 0.7, cx + ew * 0.8, ey + 2, dk(skin, 0.4), 1.3, 0.55);
     if (f.lashes) t.curve(cx - ew, ey - 1, cx, ey - eh - 6, cx + ew, ey - 1, '#0c0806', 3, 0.9);
     // brows: many fine strokes
-    const by = Y(1.692) - (f.brows === 'arched' ? 3 : 0), bw = f.brows === 'thin' ? 3 : 5.5;
+    const by = Y(1.682) - (f.brows === 'arched' ? 3 : 0), bw = f.brows === 'thin' ? 4 : 8;
     const bc = s.hair === 'bald' ? '#2a1e16' : dk(s.hairColor, 0.1);
-    for (let i = 0; i < 26; i++) { const x = cx - 22 + i * 1.75; const yy = by + (f.brows === 'arched' ? -Math.sin((i / 26) * Math.PI) * 6 : -((i / 26) * 3 * -sx)) + rng.range(-1, 1); t.line(x, yy + bw / 2, x + 2 * sx, yy - bw / 2, bc, 1.5, 0.85); }
+    for (let i = 0; i < 26; i++) { const x = cx - 22 + i * 1.75; const yy = by + (f.brows === 'arched' ? -Math.sin((i / 26) * Math.PI) * 6 : -((i / 26) * 3 * -sx)) + rng.range(-1, 1); t.line(x, yy + bw / 2, x + 2 * sx, yy - bw / 2, bc, 2.2, 0.9); }
     if (f.glasses) { t.rect(cx - 26, ey - 15, 52, 30, f.glasses, 0.0); t.line(cx - 26, ey - 15, cx + 26, ey - 15, f.glasses, 2.4); t.line(cx - 26, ey + 15, cx + 26, ey + 15, f.glasses, 2.4); t.line(cx - 26, ey - 15, cx - 26, ey + 15, f.glasses, 2.4); t.line(cx + 26, ey - 15, cx + 26, ey + 15, f.glasses, 2.4); t.rect(cx - 25, ey - 14, 50, 28, '#cfe3ee', 0.14); }
   }
   if (f.glasses) t.line(X(-0.01), ey - 6, X(0.01), ey - 6, f.glasses, 2.4);

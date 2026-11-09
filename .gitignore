@@ -22,3 +22,4 @@ tests/unit/**/_*.test.ts
 
 # oversize playtest video (sent to the user directly)
 playtests/h8d/playtest.mp4
+tests/unit/_scratch/

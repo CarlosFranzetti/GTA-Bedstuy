@@ -119,6 +119,8 @@ export class MissionSystem {
   private movingT = 0;
   private giverT = 1e9;
   private ringDwell = 0;
+  /** Giver whose ring the player stands in and may start with F (-1: none). */
+  private pendingStart = -1;
   private stopHintedZone = -1;
   private giverKey = '';
 
@@ -188,7 +190,14 @@ export class MissionSystem {
    * crank, sell) so the host must not also treat it as enter/exit car.
    */
   interact(pos: Vec2): boolean {
-    if (!this.isActive) return false;
+    if (!this.isActive) {
+      // F inside a live giver ring (on foot, or the car stopped there) starts the mission whose prompt is showing
+      if (this.pendingStart < 0) return false;
+      const i = this.pendingStart;
+      this.pendingStart = -1;
+      this.begin(i, this.lastHour);
+      return true;
+    }
     const ob = this.defs[this.cur].objectives[this.obj];
     if (ob.kind === 'talkTo') {
       if (!this.reach(pos, ob.at, ob.radius + TALK_RANGE_EXTRA, ob.presence ?? 'onFoot')) return false;
@@ -380,6 +389,7 @@ export class MissionSystem {
 
   private checkTriggers(pos: Vec2, hour: number, dt: number, inVehicle = false, speedMps = 0): void {
     this.hud.prompt = '';
+    this.pendingStart = -1;
     this.giverT += dt;
     const key = this.openKey(hour);
     if (key !== this.giverKey || this.giverT >= GIVER_REFRESH_S) { this.giverKey = key; this.giverT = 0; this.rebuildMarkers(); }
@@ -401,7 +411,7 @@ export class MissionSystem {
         }
         continue;
       }
-      // Driving through a ring never starts it: on foot it starts at once, in a vehicle it needs the car stopped in the ring for a second.
+      // Driving or walking through a ring never starts it: on foot the prompt shows at once, in a vehicle the car must be stopped in the ring for a second first; then F starts it.
       if (inVehicle) {
         if (speedMps * 3.6 >= RING_STOP_KMH) {
           this.ringDwell = 0;
@@ -411,8 +421,9 @@ export class MissionSystem {
         this.ringDwell += dt;
         if (this.ringDwell < RING_DWELL_S) continue;
       }
-      this.ringDwell = 0;
-      this.begin(i, hour);
+      // Standing in the ring (or stopped in it) offers the start; F takes it. Walking or driving through does nothing.
+      this.pendingStart = i;
+      this.hud.prompt = `F  Start ${d.title}`;
       return;
     }
     if (inAny < 0) { this.hintedZone = -1; this.stopHintedZone = -1; this.ringDwell = 0; }

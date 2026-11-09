@@ -225,10 +225,10 @@ function buildHi(variant: number, detail: PedDetail): HiGeo {
   // ---- arms: shoulder, upper arm, elbow, forearm, wrist, hand (palm + fingers + thumb)
   for (const [i, sx] of [-1, 1].entries()) {
     const X = sx * shX, ob = i === 0 ? 4 : 6;
-    const upper: R[] = [{ y: 1.435, rx: 0.058, rz: 0.056 }, { y: 1.385, rx: 0.056, rz: 0.054 }, { y: 1.29, rx: 0.049, rz: 0.049 }, { y: 1.2, rx: 0.045, rz: 0.045 }, { y: 1.13, rx: 0.042, rz: 0.042 }];
+    const upper: R[] = [{ y: 1.465, rx: 0.036, rz: 0.036 }, { y: 1.435, rx: 0.058, rz: 0.056 }, { y: 1.385, rx: 0.056, rz: 0.054 }, { y: 1.29, rx: 0.049, rz: 0.049 }, { y: 1.2, rx: 0.045, rz: 0.045 }, { y: 1.13, rx: 0.042, rz: 0.042 }];
     const fore: R[] = [{ y: 1.13, rx: 0.042, rz: 0.042 }, { y: 1.08, rx: 0.045, rz: 0.044 }, { y: 1.0, rx: 0.038, rz: 0.037 }, { y: 0.92, rx: 0.031, rz: 0.03 }, { y: 0.865, rx: 0.028, rz: 0.026 }];
     const bk = bulk > 1 ? bulk : 1;
-    add(tube(thin(sc(upper, bk, bk, X), hi ? 5 : 3), sg.limb, T('upperArm'), { cap: 'top' }), ob);
+    add(tube(thin(sc(upper, bk, bk, X), hi ? 6 : 3), sg.limb, T('upperArm'), { cap: 'top' }), ob);
     add(tube(thin(sc(fore, bk, bk, X), hi ? 5 : 3), sg.limb, T('foreArm')), ob + 1);
     const hand = T('hand');
     add(tube([{ y: 0.865, rx: 0.028, rz: 0.026, cx: X }, { y: 0.83, rx: 0.038, rz: 0.017, cx: X }, { y: 0.78, rx: 0.042, rz: 0.016, cx: X }, { y: 0.74, rx: hi ? 0.04 : 0.03, rz: hi ? 0.015 : 0.014, cx: X }], hi ? 8 : 6, hand, { cap: hi ? undefined : 'bottom' }), ob + 1);
