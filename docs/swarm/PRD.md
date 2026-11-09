@@ -284,6 +284,8 @@ research, RADIO own-library radio (8 stations, 147 slots) + talk station, WRITE 
 
 **Decision (Fable, Stage 5 check-in, recorded by GTA4A):** the night luminance band (mean luma **0.085-0.13 at street level**) applies from **22:00**. 21:00 is blue hour (measured 0.156) and is **not held to the band**; the L9 audit hours list keeps 21 for the blown-pixel and ≥ 0.085 checks only.
 
+**Note (GFX2, 9 Nov):** the night band is measured on dry streets; wet nights may reach 0.15 at street level (wet asphalt, sign bounce and lamp bloom raise it; 22h wet measured 0.145).
+
 ### 5.4b Stage 4 (GTA3 bar, started 2026-11-03T13:31Z) — measurable
 | Lane | Criterion | How measured |
 |---|---|---|
@@ -355,3 +357,4 @@ dusk car, night car, night corner, morning signals), medium tier unless stated. 
 ## Stage 9 asks (user, 9 Nov 14:5xZ)
 - Raise polygon counts toward GTA4 with smarter polygon groupings and textures (people and cars); phone keeps the GTA3 bodies via LOD.
 - Expand the map by about 12 blocks toward Bushwick; add Halsey St and Bushwick Ave (diagonal streets: Broadway with the el, Bushwick Ave).
+- Cars modelled after actual cars seen on Bed-Stuy streets (proportions and silhouettes from public spec sheets: wheelbase, length, height; parody names and generic badges, no real logos): e.g. a Crown Vic-type cab/cruiser, Charger-type cruiser, Camry/Accord/Altima-type sedans, Civic-type compact, Explorer/Tahoe-type SUVs, Caravan-type livery cab, Sprinter-type van, Isuzu NPR-type box truck, a city bus, a dollar van.

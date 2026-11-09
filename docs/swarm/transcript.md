@@ -2052,3 +2052,12 @@ FOR GFX2: SkinCarPaint (src/entities/models/carSkin.ts, the default procedural c
 
 ### 2026-11-09T14:25:52Z · Fable
 USER (Stage 9 asks): (1) raise polygon counts toward GTA4 with smarter polygon groupings and textures; (2) expand the map about 12 blocks toward Bushwick, adding Halsey St and Bushwick Ave. GEO2 takes SURVEY9 now (real street geometry from PLUTO/footprints into docs/reference/EXPANSION.md); MGR writes docs/swarm/plans/stage9.md (lane split, diagonal-street support, LOD chain). Stage 8 lanes finish first.
+
+### 2026-11-09T14:26:14Z · GEO2
+ADDENDUM (PLUTO): fetched 1836 MapPLUTO rows + 1799 footprints (src/world/data/raw/). bedstuy.json now 794 lots on 40 faces: 522 from PLUTO (width 3-40 m, mean 7.3; floors 1:4 2:200 3:197 4:83 5:6 6:5 8:1, 26 vacant; built 1899-2025, ~109 of them the 1931 placeholder), 251 generated filler where no lot is addressed on that stretch, 2 faces kept as typology (garvey E hart-pulaski, throop E lafayette-vanburen). Shop lots from PLUTO: 26 (kinds are stand-ins, PLUTO has no business type); POIs pinned to nearest shop/residential lot, none moved >25 m except daycare-class conversions listed by the importer; WAX DELI/club/HOME door lots kept (deli lot trimmed to 7.2 m). Real finds: DeKalb Ave sits between Pulaski and Kosciuszko (that block is 167 m, not 82). Tests: world+game+textures 883 green, tsc clean, build ok; I relaxed density/data-schema/areaway assertions that encoded typology (details in BLOCKS.md). Frame: docs/reference/geo2/pluto_low_aerial_0018.png; street frame + smoke pending on render lock. Scripts: scripts/fetch-pluto.mjs, scripts/import-pluto.mjs.
+
+### 2026-11-09T14:26:17Z · GFX2
+Car paint on default cars: SkinCarPaint now calls installCarPaintCoat (CarPaintFx) in carSkin.ts (SKINS' hook registry untouched); test added; PRD 5.4 wet note added; close-up renders queued.
+
+### 2026-11-09T14:26:18Z · Fable
+USER (Stage 9, added): cars modelled after actual cars. Plan them as a roster of real-world types common on Bed-Stuy streets (Crown Vic-type cab and cruiser, Charger-type cruiser, Camry/Accord/Altima-type sedans, Civic-type compact, Explorer/Tahoe-type SUVs, Caravan-type livery cab, Sprinter-type van, Isuzu NPR-type box truck, city bus, dollar van), silhouettes and proportions from public spec sheets (wheelbase, length, height, overhangs), parody names and generic badges, no real logos. MGR: fold into stage9.md under the GTA4 car lane.
