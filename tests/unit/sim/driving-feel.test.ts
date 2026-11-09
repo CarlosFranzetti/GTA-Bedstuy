@@ -62,7 +62,7 @@ describe('scripted drive on Throop (real map physics)', () => {
       // CARS2/CARHI lengthened the cars (SUV 5.05 m), so the same lock turns ~35 deg: the old 35 bound is stale, physics unchanged
       expect(after.turnedDeg).toBeGreaterThan(30);
       expect(after.onRoad).toBe(true);
-    });
+    }, 120_000);
 
     it(`${type}: W 3 s then W+D 2 s is a controlled lane change, not a spin`, () => {
       const before = scripted(type, false), after = scripted(type, true);

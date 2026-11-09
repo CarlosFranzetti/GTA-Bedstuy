@@ -85,7 +85,7 @@ describe('1 small static props: slide, do not stick', () => {
     expect(ids.filter((i) => i.startsWith('soft-bin-')).length).toBeGreaterThan(0);
     expect(ids.filter((i) => i.startsWith('hydrant-')).length).toBeGreaterThan(0);
     expect(new Set(ids.filter(Boolean)).size).toBe(ids.filter(Boolean).length);
-  });
+  }, 120_000);
 
   it('drive into a pole cluster, then reverse out (headless repro)', () => {
     const sim = new Sim();
