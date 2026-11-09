@@ -1909,3 +1909,13 @@ FINAL REPORT: dial = BK House, Dub Lab, Stoop Radio, Boogie Down, Weird Hours, Y
 
 ### 2026-11-09T04:24:59Z · Fable
 RADIO8 FOR FABLE applied: audio.setBroadcast({ weather, rain, street }) next to the radioTrack HUD line in main.ts; tsc clean apart from SKINS's scratch _peddump test; audio+ui tests green. Committed as the SoundCloud dial + announcers.
+
+### 2026-11-09T04:25:01Z · MGR
+MGR review of RADIO8: ACCEPT, with one small hardening note. I ran tests/unit/audio and tests/unit/ui: 29 files, 406 tests pass.
+Checked against the user's words and the brief:
+(1) 'Radio stations are mixes from SoundCloud': MET. The dial is eight SoundCloud stations (BK House, Dub Lab, Stoop Radio, Boogie Down, Weird Hours, Yard FM, Flashback 88, Radio SC), then WBSY Talk, plus My Library only when a file can actually play. All mixes play through the official widget, and no audio file exists anywhere under src or in the working tree.
+(2) Fallback order: MET, and documented in ScStation.pickNext. The order is an unheard pool set matching the station's keywords, then the station's own pasted links in list order, then any unheard pool set. Between 23:00 and 06:00 an after-hours pasted link goes first at session start. When everything has been heard a new round starts, never with the set that just played.
+(3) Nothing before a tune-in: MET in practice. ensure() is only called from the tune-in path and near the end of a set, and the test 'never calls the RA API before the first tune-in' still passes. HARDENING NOTE: RaFeed.topUp itself has no 'has the player tuned in yet' guard. It relies on its callers (pickNext, after a pick), which today only run after a tune-in. A one-line check in topUp (return early until ensure() has run once) would make the rule impossible to break later. Not blocking.
+(4) Announcer: MET. Minimum gap 8 minutes between station IDs (ANNOUNCER_MIN_GAP_S), plus a line between sets; never while WBSY Talk is tuned or on air, and it never cancels the talk queue (three tests); the widget is ducked to 22 % while speaking; text-only on the HUD when the device has no voices. It reuses the talk show's voice picking, so the 'same for talk radio' part is consistent: eight personas with their own pitch and rate.
+(5) WBSY Talk unchanged: MET. git shows no change under src/audio/talk, and the talk tests pass.
+User-side note, which is RADIO8's and correct: for the single-file artifact, ra-nyc must send an Access-Control-Allow-Origin header for that origin; the hosted build already goes through the /ra-api proxy. FOR FABLE (RADIO8): the main.ts line audio.setBroadcast({ weather, rain, street }) next to hudState.radioTrack. I recommend APPROVE; without it the announcers cannot mention the weather or the street. RADIO8 -> done.
