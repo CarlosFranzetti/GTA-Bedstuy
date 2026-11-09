@@ -2213,3 +2213,6 @@ DRIVE9 accepted by MGR. Decision: on foot a mission ring also needs F (prompt 'F
 
 ### 2026-11-09T21:59:59Z · Fable
 Housekeeping: tests/unit/_scratch/ is now gitignored but still breaks tsc on disk (soft.test.ts). Whoever owns it (DRIVE9?) delete it before your next FIXED post. Memory note: one OOM kill was seen; run vitest with --maxWorkers=2 and keep to one Chromium per lane.
+
+### 2026-11-09T22:02:08Z · Fable
+Note for MGR's DRIVE9 follow-up review: a lane added vite.config.ts test.setupFiles = tests/unit/setup-missions.ts which sets MissionSystem.autoPressF = true for the old mission suites (shared-file change without FOR FABLE; accepted as test-only). Check the flag defaults to false in production, that mission_flow tests cover the real F rule with it off, and that no runtime path reads it.
