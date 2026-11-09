@@ -1,116 +1,98 @@
-# Radio: your own music, plus WBSY Talk
+# Radio: SoundCloud mix stations, synthesized announcers, WBSY Talk
 
-GTA Bed-Stuy ships **no music**. The car radio plays songs from **your own device**: you point the game at a folder (or pick files), and it plays them on the stations below. Nothing is uploaded and nothing is bundled. Anything you do not load is replaced by that station's built-in synth loop, so a station is never silent.
+GTA Bed-Stuy ships **no music and no recordings**. The car radio is a dial of **eight SoundCloud-mix stations**, each with its own **synthesized announcer** (the browser's SpeechSynthesis voices, the same machinery as WBSY Talk), then **WBSY Talk** (the AI talk show, also synthesized speech) and, only if you add your own files, a **My Library** station at the very end. Sets play only through SoundCloud's official embedded player. Nothing is downloaded or uploaded.
 
-## Stations (press E / RADIO / Y in a car)
+## The dial (press E / RADIO / Y in a car)
 
-| Dial | Station | Slots | Folder / file name keywords |
-|---|---|---|---|
-| 1-3 | WBED Boom-Bap, Kosciusko Kompa FM, Throop Talk Radio | - | built-in synth stations (unchanged) |
-| 4 | Bed-Stuy Pop FM | 15 | pop |
-| 5 | Flashback 80s | 12 | 80s, 1980..1989, eighties |
-| 6 | Throop Rap Radio | 13 | rap, hip-hop, hip hop, boom bap |
-| 7 | Garvey House & Dub | 22 | house, dub, techno |
-| 8 | Marcy Trap & Plug 808 | 25 | trap, drill, 808, plug |
-| 9 | Hazy Tompkins Weird Radio | 28 | psych, psychedelic, dream, indie, weird, wired, synthpop, lo-fi |
-| 10 | Lewis Ave Echo-Dub Folk | 16 | folk, echo, echo-dub, reverb, shoegaze, post-rock |
-| 11 | Nostrand Jazz-Rock Gets Lit | 16 | jazz, fusion, jazz-rock, funk, prog |
-| 12 | WBSY Talk | - | 22-minute original talk show (see below) |
+| Dial | Station | Dial text | Plays (keywords matched against set title and DJ name, any case) | Announcer |
+|---|---|---|---|---|
+| 1 | **BK House** | 90.9 | house, garage, deep, soulful, chicago, jackin, 2-step | Deja Fontaine |
+| 2 | **Dub Lab** | 91.7 | dub, techno, dubstep, bass, minimal, industrial | Odell Reverb |
+| 3 | **Stoop Radio** | 93.5 | hip hop, rap, trap, boom bap, drill, grime, cypher, r&b | Big Tayo |
+| 4 | **Boogie Down** | 95.3 | disco, boogie, funk, soul, italo, groove, nu disco | Velvet Lou |
+| 5 | **Weird Hours** | 97.1 | psych, jazz, experimental, ambient, avant, noise, krautrock, leftfield, improv, weird, dream, idm | Wren Calloway |
+| 6 | **Yard FM** | 98.9 | reggae, dancehall, afrobeat(s), soca, amapiano, kuduro, bashment, zouk, ragga, calypso, riddim, caribbean | Auntie Pearl |
+| 7 | **Flashback 88** | 88.8 | 80s, 198x, eighties, pop, new wave, synthpop, retro, freestyle, hi-nrg | Tommy Tapedeck |
+| 8 | **Radio SC** | 100.1 | any set (RA NYC) | Cass Meridian |
+| 9 | **WBSY Talk** | - | the 22-minute talk show | its own cast |
+| 10 | **My Library** | - | your own files (only on the dial when at least one can play) | none |
 
-147 music slots in total. Keywords are whole words (so "Rapture" is not rap). The nearest folder name wins over parent folders, and the file name is checked last. If a name matches two genres, the more specific wins: trap over rap, 80s over pop, "echo dub" over plain "dub" (a bare "dub" is House & Dub). Artist names (for example the ones in your own folders) only ever act as keywords you put in folder names; the game contains no recordings.
+Keywords are whole words (so "Rapture" is not rap). The table lives in `src/audio/radio.ts` (`SC_STATIONS`, `stationAccepts`). All station, announcer and DJ names are invented; none belongs to a real station or person, and no voice imitates a real DJ.
 
-## Loading your music
+## Where each station's sets come from
 
-Open the pause menu (Esc / the pause button), then **Radio library**.
+All eight stations share one pool of **45-minute-plus SoundCloud DJ sets** read from your own ra-nyc app (`https://ra-nyc.vercel.app/api`, see "RA NYC pool" below). A station picks its next set in this order:
 
-* **Pick folder** (Chrome, Edge and other browsers with the File System Access API): choose the folder where your music lives. Sub-folders are read (six levels deep). The game remembers the folder, and next session asks the browser for read permission again (a tap on **Reconnect folder**, or automatically on your first click). No re-picking needed.
-* **Add files** (everywhere, including iPhone and iPad Safari): select several audio files. Browsers do not let a page remember files, so on those devices add them again each session. The slot choices are remembered, so a song you placed on a station goes back to the same slot once its file is added again.
-* **Fill from folder**: re-reads the remembered folder and places any song that is not on a station yet (for example after you added music or cleared slots).
-* Each station shows its count (for example `7/15`). Open a station to see its slots. Move a song with the **Move to...** dropdown (works on touch), or drag a row onto another station (desktop). The x button clears one slot; the song goes back to "Not on a station yet". Songs that do not match a keyword, or whose station is full, wait there until you place them.
-* **Reset library** (tap twice) forgets every assignment, the remembered folder and all temporary file links.
+1. an **unheard pool set whose title or DJ name matches the station's keywords**;
+2. else the station's own **pasted SoundCloud links** (Radio library, per station, in list order, each once per round);
+3. else **any unheard pool set**;
+4. when everything has been heard, a new round starts (never with the set that just played).
 
-Supported files are whatever your browser can decode: mp3, m4a/aac, ogg/opus, wav, flac (browser dependent).
+Every station remembers what it played, so a set never repeats on a station until its whole pool has been heard (two stations can still play the same set at different times). When fewer than 3 unheard matching sets are left, the pool is **asked for more** (`RaFeed.topUp`): artists whose event title, venue or name hints at the station's keywords are looked up first. It keeps the feed's rate rules: one lookup at a time, at most 32 extra lookups and 8 event days per session (on top of the first build's 8 lookups), 4 lookups per call, and a 429 stops everything for the `Retry-After` period. Everything is silent on failure.
 
-## How it plays
+**Virtual clock per station.** Each station keeps its own clock while you listen to something else or are out of the car. Tune back in and its set resumes where it "would be" (a playlist or set link follows SoundCloud's own track order and is not seeked). A station's clock starts on its first tune-in; nothing loads until then.
 
-* Songs play through the game's own audio, so **Radio volume** in the pause menu controls them, and the radio pauses with the game.
-* Each station has a **virtual clock** that keeps running while you listen to something else or are out of the car. Tune back in and it resumes mid-song, like GTA.
-* Songs cross-fade over 0.5 s. Empty slots play 40 seconds of that genre's synth pattern (pop plucks, 80s gated snare and bass, boom-bap, four-on-the-floor, trap hats and 808, wobbling psych arps, echo-dub guitar, walking bass with ride). Every station has a short synth jingle when you tune in, plus a station ID between songs now and then, and a blip of dial static.
-* The HUD shows the station name and, after a dash, the file name without its extension. On WBSY Talk it shows who is speaking and a thin progress line for the loop.
-* Audio only starts after your first click, key press or tap (browser autoplay rules, including iOS Safari).
+If SoundCloud cannot load (offline, a sandbox that blocks third-party iframes such as the artifact preview, or no sets) the station shows "BK House (needs the hosted build / internet)" or the "No sets yet" hint and plays a short procedural synth bed (house, trap, boom-bap, jazz-rock, psych, echo-dub, 80s) so it is never silent. It retries on a later tune-in, at least 30 s apart.
+
+## Announcers
+
+Each station has an announcer (persona: name and 2 to 3 lines of personality in `src/audio/announcer/personas.ts`; scripts in `src/audio/announcer/scripts.ts`; logic in `Announcer.ts`). Voices are the browser's SpeechSynthesis voices, **picked and told apart exactly like WBSY Talk** (`pickVoices` from `src/audio/talk/TalkPlayer.ts`: up to four distinct voices by language and name, plus a pitch and rate per persona, so a device with one voice still gets eight announcers).
+
+Each station script has: 3 station IDs ("You're locked to BK House, ninety point nine Bed-Stuy."), 3 set intros ("Up next, a set from {dj}: {title}."), 2 generic intros, 2-3 outros ("That was {prevDj}, with {prevTitle}."), 3 clock-and-weather lines ("Ten past midnight on Throop, light rain.") and **22 short idents/one-liners**.
+
+**When they speak**
+
+* on tune-in, after the station jingle (a short ID, at most once per 20 s so flipping the dial is quiet);
+* **between sets**, always: the outro of the set that ended, then the intro of the next ("Up next, a set from {dj}: {title}");
+* otherwise **at most once every 8 minutes**: a one-liner (70 %) or the time and weather (30 %), each line used once before any repeats;
+* **never over WBSY Talk**: the announcer is stopped before the talk show can take the speech queue, drops anything pending while talk is on, and never cancels the talk show's speech;
+* **ducking**: while the announcer talks the SoundCloud widget is turned down to 22 % and eased back up afterwards;
+* **no voices**: with no SpeechSynthesis voices the announcer stays silent and the HUD only shows the text line (`announcerLine`) for as long as it would have taken to read.
+
+The hour comes from the game clock (the same `setGameHour` feed that Radio SC's after-hours rule uses); weather, rain and street come from `audio.setBroadcast({ hour, weather, rain, street })`. Without them the announcer uses the device clock, dry weather and "Throop".
+
+## HUD
+
+* While a set plays: `{station} — {set title} — {dj}` (for pasted links the widget's `Title - user`).
+* While the announcer speaks: `{station} — {announcer name}`.
+* WBSY Talk: the speaker and a thin progress line; My Library: the file name without extension.
+
+## Radio library (pause menu)
+
+* **SoundCloud stations**: one section per station with the genre and keywords, `Pool for BK House: 7 of 24 sets match, 5 not heard yet.`, the RA status line and a "Random RA sets" checkbox (off = only your links), plus **that station's pasted links** (add, test, reorder, remove, after-hours flag, Next mix). Only `soundcloud.com` links are accepted. Lists are saved per station in `localStorage` under `gta-bedstuy.radio.sc.v1` (Radio SC) and `gta-bedstuy.radio.sc.v1.<station id>` (the others).
+* **My Library** (your own files): see the next section.
+
+## My Library (your own music, optional)
+
+The station is **off the dial until you add files**. Open the pause menu, **Radio library**:
+
+* **Pick folder** (Chrome, Edge and other browsers with the File System Access API) or **Add files** (everywhere, including iPhone and iPad Safari; re-add each session there). Sub-folders are read six levels deep. The game remembers the folder and re-asks the browser for permission next session (**Reconnect folder**).
+* **Fill from folder** re-reads the remembered folder. **Reset library** (tap twice) forgets everything.
+* Files are sorted into the eight slot lists by keywords in their folder or file name (pop, 80s, rap, house, trap, psych, folk/echo, jazz/funk; see `src/audio/library/genres.ts`); move them with **Move to...** or drag. **My Library plays every file you placed, in list order, on a loop** with a 0.5 s cross-fade and its own virtual clock. A file only counts once its URL is loaded this session, so saved-but-unreconnected songs keep the station off the dial.
+
+Supported files are whatever your browser can decode. Audio data is never copied or stored by the game.
 
 ## WBSY Talk
 
-An original, fictional 22-minute talk show about AI (script: `src/audio/talk/script.json`), read aloud by your browser's **SpeechSynthesis** voices. Up to four distinct voices are chosen by language and name (host, sidekick, callers, announcer for ads, news and jingles) and each role has its own pitch and rate, so it still sounds like several people on a device with one voice. Procedural stings and jingles mark ads and news, and a quiet chord bed plays under the host. The show loops, keeps virtual time like the music stations, and pauses with the game. If your device has no SpeechSynthesis the station is shown as **WBSY Talk (voice unavailable on this device)** and only the bed and stings play.
+Unchanged: an original, fictional 22-minute talk show about AI (script `src/audio/talk/script.json`) read aloud by SpeechSynthesis with up to four voices, procedural stings and a ducked chord bed. It loops, keeps virtual time and pauses with the game. Without SpeechSynthesis it shows **WBSY Talk (voice unavailable on this device)**.
+
+## RA NYC pool
+
+On the first tune-in the pool picks a random New York day from the last 21 days, reads `GET /events?date=YYYY-MM-DD`, collects the distinct artists, shuffles them and looks them up one at a time with `GET /artist?id=<ra id>&name=<name>` until 12 unheard sets or 8 lookups. Only `provider === 'soundcloud'` sets with `duration >= 2700 s` are kept (the client enforces it again). The pool (cap 80, deduped by URL) and the played list are cached in `localStorage` (`gta-bedstuy.radio.ra.v1`); a cache younger than 24 h with at least 6 unplayed sets is reused without a network call.
+
+Where the API is read from: the hosted build uses the same-origin proxy `/ra-api` (a `vercel.json` rewrite to `https://ra-nyc.vercel.app/api/:path*`, so no CORS is involved). Anywhere else (dev, the single-file artifact) it calls `https://ra-nyc.vercel.app/api` directly, **which only works if ra-nyc sends `Access-Control-Allow-Origin` for the page's origin**; otherwise the pool says "unavailable" and stations fall back to pasted links, then the synth bed. For testing set `localStorage['gta-bedstuy.radio.ra.base']`.
 
 ## What is stored, and where
 
-Only on your device, never sent anywhere:
-
-| What | Where | Content |
-|---|---|---|
-| Library metadata | `localStorage` key `gta-bedstuy.radio.v1` | per song: file name, relative path, size, modified date, duration; which slot of which station it is in; the folder name |
-| Folder handle | IndexedDB `gta-bedstuy-radio` / `handles` | the browser's permission handle for the folder you picked (no files) |
-| Playback links | memory only | temporary `blob:` links to your files, recreated each session |
-
-Audio data is never copied or stored by the game. **Reset library** removes all of the above.
+Only on your device, never sent anywhere: library metadata (`gta-bedstuy.radio.v1`), the folder handle (IndexedDB `gta-bedstuy-radio`), per-station pasted links (`gta-bedstuy.radio.sc.v1[.<id>]`), the RA pool cache and played list (`gta-bedstuy.radio.ra.v1`), and temporary `blob:` links in memory. **Reset library** removes the library data; delete the SoundCloud keys in your browser's site data to forget the links.
 
 ## For developers
 
-* `src/audio/library/genres.ts` - station table, slot counts, keyword matching.
-* `src/audio/library/Library.ts` - slots, counts, assignment, persistence. `timeline.ts` - slots to a looping timeline (tracks and synth blocks).
-* `src/audio/library/import.ts`, `LibraryController.ts` - folder picker, file input, IndexedDB handle, permission re-request.
-* `src/audio/RadioDirector.ts` - the dial, virtual clocks, two-deck cross-fade. `decks.ts` - HTMLAudioElement into the radio gain.
-* `src/audio/talk/` - `script.ts` (parser, `{ id, kind, speaker, voice, text, seconds }`), `TalkPlayer.ts`.
+* `src/audio/radio.ts` - `SC_STATIONS` table (names, dial text, keyword patterns, synth bed), `stationAccepts`, the synth beds.
+* `src/audio/sc/RaFeed.ts` - the shared pool: `pickFor(match, heard)`, `countMatching`, `topUp(match, heard, hint)`, `matcherFor`.
+* `src/audio/sc/ScStation.ts` - one SoundCloud widget station (`config` = id, name, match, storage key): source order, per-station heard set, virtual clock, `setDuck`, `onBetweenMixes(prev)`.
+* `src/audio/announcer/` - `personas.ts`, `scripts.ts` (+ `spokenTime`, `weatherPhrase`, `fillScript`), `Announcer.ts` (cadence, queue, ducking, talk guard, text-only mode).
+* `src/audio/RadioDirector.ts` - the dial (8 `ScStation`s, talk, gated My Library), `stationName`/`trackName`/`announcerLine`, `setBroadcast`, `setScVolume`. `src/audio/library/timeline.ts` `buildLibraryTimeline` for My Library.
+* `src/audio/AudioSystem.ts` - `scStations`, `sc` (Radio SC), `setBroadcast`, `announcerLine`; options `feed` and `scEnv` for tests.
 * `src/ui/RadioUi.ts` + `radio.css` - the Radio library panel.
-* `AudioSystem` exposes `stationName`, `trackName`, `talkProgress`, `library`, `libraryController`.
-
-## Radio SC (SoundCloud mixes)
-
-Radio SC is the last station on the dial, right after WBSY Talk. It streams DJ mixes you choose through SoundCloud's
-official embedded player (the HTML5 Widget API: a hidden `w.soundcloud.com/player` iframe plus `api.js`). The game
-never downloads audio and never calls any other SoundCloud endpoint, and playback follows SoundCloud's terms and
-each artist's own settings (a mix whose owner disabled embedding will not play).
-
-**Random RA NYC sets (default).** Radio SC plays random DJ sets from your own ra-nyc app
-(`https://ra-nyc.vercel.app/api`). On the first tune-in it picks a random New York day from the last 21 days,
-reads `GET /events?date=YYYY-MM-DD`, collects the distinct artists on those lineups, shuffles them and looks them up
-one at a time with `GET /artist?id=<ra id>&name=<name>` until the pool holds 12 unplayed sets or 8 lookups were made
-this session. Only `provider === 'soundcloud'` sets with `duration >= 2700 s` (45 minutes) are kept; a null duration,
-Mixcloud and archive sets are dropped (the server filters too, the client enforces it again). The HUD reads
-"set title — DJ" (the DJ name is the one RA lists). Order is random with no repeats until every set in the pool has
-been heard, then the round resets. When about 5 minutes of a set remain and fewer than 4 unplayed sets are left, the
-pool is topped up in the background. The pool (cap 80, deduped by URL) and the played list are cached in
-`localStorage` under `gta-bedstuy.radio.ra.v1`; a cache younger than 24 h with at least 6 unplayed sets is reused
-without any network call. A 429 stops all further lookups for the session (Retry-After is recorded, never retried
-in the session). The pause menu's Radio library shows "Random RA NYC sets: n loaded, m heard" (or "unavailable"),
-with a "Random RA sets" checkbox (saved with the list) to keep only your own links. If you also pasted links, they
-alternate with the pool at random; the 45-minute rule applies to pool sets only.
-
-Where the API is read from: the hosted build uses the same-origin proxy `/ra-api` (a `vercel.json` rewrite to
-`https://ra-nyc.vercel.app/api/:path*`, so no CORS is involved). Anywhere else (dev, the single-file artifact) it calls
-`https://ra-nyc.vercel.app/api` directly, which only works if ra-nyc sends `Access-Control-Allow-Origin` for the
-page's origin; otherwise the request is blocked, the Library says "unavailable" and the station falls back to pasted
-links or the synth bed. For testing, set `localStorage['gta-bedstuy.radio.ra.base']` to another base URL.
-
-**Your own links.** The list can stay empty, or paste the SoundCloud links you like: open the pause menu, Radio library, and use
-the Radio SC section at the top. Add a track or playlist/set link (`https://soundcloud.com/artist/mix`), reorder
-with the arrows, remove with x, press Test to check that a link loads, and Next mix to skip. Only `soundcloud.com`
-links are accepted. The list is saved on this device in `localStorage` under `gta-bedstuy.radio.sc.v1`.
-
-How it behaves:
-
-- Nothing loads until you first tune in to Radio SC (lazy). The widget script is requested only in the hosted
-  build or when the browser reports it is online.
-- If the player is not ready within 8 seconds (offline, or a sandbox that blocks third-party iframes, such as the
-  artifact preview), the station shows "Radio SC (needs the hosted build / internet)" and plays its procedural
-  synth bed instead. It retries on a later tune-in (at least 30 s apart). With no pasted links and no reachable RA pool it plays the bed and
-  the HUD says "No sets yet: check your connection or add SoundCloud links in the Radio library".
-- The game's master x radio volume maps to the widget volume (0 to 100); pausing the game, leaving the car or
-  muting pauses or silences the widget.
-- Like the other stations it keeps a virtual clock: tune away and back and it seeks to where the mix "would be".
-  A playlist/set follows SoundCloud's own track order and is not seeked.
-- The HUD shows "set title — DJ" for RA sets and "Title - user" (from the widget) for pasted links. A short synth "Radio S C" jingle plays on tune-in and between mixes.
-- Dayparting stub: tick the after-hours box on a mix (for example a late-night set). Between 23:00 and 06:00 the
-  first mix of a session is the first after-hours one; otherwise the first in the list. The hour comes from the
-  device clock.
+* Tests: `tests/unit/audio/{sc-stations,announcer,radio-director,sc-station,ra-feed}.test.ts`, `tests/unit/ui/radioui.test.ts`.

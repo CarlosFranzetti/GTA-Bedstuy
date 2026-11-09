@@ -144,3 +144,10 @@
 .rl-sc-ah { margin: 0 4px; }
 .rl-sc-ra { display: block; margin: 6px 0 2px; cursor: pointer; }
 .rl-sc-ra-status { margin: 2px 0 8px; }
+
+/* SoundCloud station sections */
+.rl-sc-group { margin-bottom: 10px; }
+.rl-sc-group-title { margin: 8px 0 4px; font-size: 14px; }
+.rl-sc-count { opacity: 0.8; }
+.rl-sc-keywords { margin: 2px 0 4px; }
+.rl-sc-pool { margin: 2px 0 8px; }

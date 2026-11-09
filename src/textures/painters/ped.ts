@@ -241,7 +241,7 @@ const light = (c: string, t: number): string => mixHex(c, '#ffffff', t);
 // ---------------------------------------------------------------- pixel font (3 x 5)
 
 // 3 x 5 glyphs, rows top to bottom
-const FONT: Record<string, string[]> = {
+export const PIXEL_FONT: Record<string, string[]> = {
   A: ['.#.', '#.#', '###', '#.#', '#.#'], B: ['##.', '#.#', '##.', '#.#', '##.'], C: ['.##', '#..', '#..', '#..', '.##'],
   D: ['##.', '#.#', '#.#', '#.#', '##.'], E: ['###', '#..', '##.', '#..', '###'], F: ['###', '#..', '##.', '#..', '#..'],
   G: ['.##', '#..', '#.#', '#.#', '.##'], H: ['#.#', '#.#', '###', '#.#', '#.#'], I: ['###', '.#.', '.#.', '.#.', '###'],
@@ -298,7 +298,7 @@ class Tile {
   text(str: string, x: number, y: number, s: number, c: string): void {
     let cx = x;
     for (const ch of str.toUpperCase()) {
-      const g = FONT[ch];
+      const g = PIXEL_FONT[ch];
       if (g) for (let r = 0; r < 5; r++) for (let q = 0; q < 3; q++) if (g[r][q] === '#') this.rect(cx + q * s, y + r * s, s, s, c);
       cx += 4 * s;
     }
@@ -705,9 +705,9 @@ function paintShoe(t: Tile, s: PedSpec, rng: Rng): void {
   // t = 0 (bottom of the tile) is the sole; the opening is at the top
   t.rect(0, 0, 64, 64, sh.color);
   t.rect(0, 0, 64, 16, light(sh.color, 0.1));
-  t.rect(0, 40, 64, 24, sh.sole);                // sole band at the bottom of the tile
-  t.rect(0, 40, 64, 2, dark(sh.sole, 0.2));
-  t.rect(0, 30, 64, 10, dark(sh.color, 0.12));   // toe cap shade
+  t.rect(0, 50, 64, 14, sh.sole);                // sole band at the bottom of the tile
+  t.rect(0, 50, 64, 2, dark(sh.sole, 0.2));
+  t.rect(0, 36, 64, 14, dark(sh.color, 0.12));   // toe cap shade
   t.rect(12, 14, 40, 3, sh.accent); t.rect(12, 20, 40, 3, sh.accent, 0.8);        // laces / strap
   t.rect(0, 22, 14, 18, sh.accent, 0.9);          // swoosh-free accent patch (heel tab)
   for (let i = 0; i < 40; i++) t.rect(rng.range(0, 62), rng.range(30, 62), 2, 1, '#000000', 0.2);

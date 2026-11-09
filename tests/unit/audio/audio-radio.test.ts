@@ -80,7 +80,7 @@ function rig(script: TalkSegment[] = []) {
   const events = new EventBus();
   const { ctx, created } = makeCtx();
   const library = new Library();
-  const audio = new AudioSystem(events, () => ctx as unknown as AudioContext, { library, speech: null, script, controller: { handles: { get: async () => null, put: async () => undefined, clear: async () => undefined } } });
+  const audio = new AudioSystem(events, () => ctx as unknown as AudioContext, { library, speech: null, script, feed: null, scEnv: { canLoad: () => false }, controller: { handles: { get: async () => null, put: async () => undefined, clear: async () => undefined } } });
   return { events, audio, ctx, created, library };
 }
 
@@ -150,15 +150,15 @@ describe('AudioSystem with the music library', () => {
     expect(FakeAudio.instances.every((a) => a.plays >= 1)).toBe(true);
   });
 
-  it('plays the user file on a library station once in a car, and exposes the track name for the HUD', async () => {
+  it('plays the user file on My Library once in a car, and exposes the track name for the HUD', async () => {
     const { audio, events, library } = rig();
     library.addTracks([trackItem('Music/Pop/My Song.mp3')]);
     await audio.start();
     events.emit('enterVehicle', { vehicleId: 'v' });
-    for (let i = 0; i < 3; i++) audio.nextStation(); // -> Bed-Stuy Pop FM
+    audio.radio.select(audio.radio.stations.length - 1); // -> My Library, the last station
     audio.update(0.1);
     await flush();
-    expect(audio.stationName).toBe('Bed-Stuy Pop FM');
+    expect(audio.stationName).toBe('My Library');
     expect(audio.trackName).toBe('My Song');
     const el = FakeAudio.instances.find((a) => a.src === 'blob:Music/Pop/My Song.mp3')!;
     expect(el).toBeDefined();
@@ -169,18 +169,17 @@ describe('AudioSystem with the music library', () => {
     expect(el.paused).toBe(false);
   });
 
-  it('falls back to synth notes on an empty library station (nodes are created, no media element plays)', async () => {
+  it('falls back to synth notes on a SoundCloud station that cannot load (nodes are created, no media element plays)', async () => {
     const { audio, events, created } = rig();
     await audio.start();
     await flush();
     const plays = FakeAudio.instances.map((a) => a.plays);
     events.emit('enterVehicle', { vehicleId: 'v' });
-    for (let i = 0; i < 3; i++) audio.nextStation();
     const before = created.osc.length + created.sources.length;
     audio.update(0.5);
     expect(created.osc.length + created.sources.length).toBeGreaterThan(before);
     expect(FakeAudio.instances.map((a) => a.plays)).toEqual(plays);
-    expect(audio.trackName).toBe('');
+    expect(audio.trackName).toContain('No sets yet'); // the empty-station hint
   });
 
   it('does not run the synth sequencer while a real file is playing', async () => {
@@ -188,7 +187,7 @@ describe('AudioSystem with the music library', () => {
     library.addTracks([trackItem('Pop/a.mp3', 600)]);
     await audio.start();
     events.emit('enterVehicle', { vehicleId: 'v' });
-    for (let i = 0; i < 3; i++) audio.nextStation();
+    audio.radio.select(audio.radio.stations.length - 1);
     audio.update(0.1);
     const before = created.osc.length + created.sources.length;
     audio.update(0.5);
@@ -200,7 +199,7 @@ describe('AudioSystem with the music library', () => {
     await audio.start();
     events.emit('enterVehicle', { vehicleId: 'v' });
     const before = created.osc.length;
-    for (let i = 0; i < 11; i++) audio.nextStation();
+    for (let i = 0; i < 8; i++) audio.nextStation();
     expect(audio.stationName).toBe('WBSY Talk (voice unavailable on this device)');
     for (let i = 0; i < 20; i++) audio.update(0.5);
     expect(created.osc.length).toBeGreaterThan(before); // bed + stings
@@ -214,6 +213,14 @@ describe('AudioSystem with the music library', () => {
     const before = created.osc.length;
     audio.nextStation();
     expect(created.osc.length).toBeGreaterThan(before);
+  });
+
+  it('exposes the eight SoundCloud stations and takes the announcers\' hour and weather', async () => {
+    const { audio } = rig();
+    expect(audio.scStations.map((s) => s.id)).toEqual(['bkhouse', 'dublab', 'stoop', 'boogie', 'weird', 'yard', 'flashback', 'sc']);
+    expect(audio.sc).toBe(audio.scStations[7]);
+    expect(() => audio.setBroadcast({ weather: 'rain', rain: 0.5, hour: 1.25, street: 'Throop Ave' })).not.toThrow();
+    expect(audio.announcerLine).toBe('');
   });
 
   it('is safe to dispose', async () => {

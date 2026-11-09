@@ -1,3 +1,4 @@
+import { setPedDayContext } from '@/entities/models/pedBody';
 import * as THREE from 'three';
 import type { EventBus } from '@/core/Events';
 import { dist, headingFromVec, perpRight, type Vec2 } from '@/core/Math2';
@@ -266,6 +267,7 @@ export class TrafficSystem {
    */
   setHour(hour: number, snap = false): void {
     this.hourFactor = pedHourFactor(hour);
+    setPedDayContext(hour); // GTA3 people: church clothes are likelier in the late morning
     (this.pedEnv as { idleBoost?: number }).idleBoost = idleBoostForHour(hour);
     if (snap) this.fitPeds(true);
   }

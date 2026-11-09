@@ -9,13 +9,18 @@ import { LIBRARY_STATIONS, type LibraryStationId } from '@/audio/library/genres'
 import type { Library, Track } from '@/audio/library/Library';
 import type { LibraryController } from '@/audio/library/LibraryController';
 import type { ScStation } from '@/audio/sc/ScStation';
+import { scStationDef } from '@/audio/radio';
 
 export interface RadioUiSource {
   library: Library;
   libraryController: LibraryController;
-  /** Radio SC station; the section is left out when absent. */
+  /** Radio SC station; the section is left out when absent (and no `scStations`). */
   sc?: ScStation;
+  /** All SoundCloud stations in dial order: one pool-counts and pasted-links section each. */
+  scStations?: readonly ScStation[];
 }
+
+interface ScSection { sc: ScStation; list: HTMLElement; msg: HTMLElement; ra: HTMLElement; pool: HTMLElement; count: HTMLElement; input: HTMLInputElement }
 
 export interface RadioUiOptions {
   /** Called when the panel opens or closes (the pause menu uses it to keep focus sane). */
@@ -30,11 +35,8 @@ export class RadioUi {
   private readonly lib: Library;
   private readonly ctl: LibraryController;
   private readonly body: HTMLElement;
-  private readonly sc: ScStation | null;
-  private scList: HTMLElement | null = null;
-  private scMsg: HTMLElement | null = null;
-  private scRaStatus: HTMLElement | null = null;
-  private scInput: HTMLInputElement | null = null;
+  private readonly scs: readonly ScStation[];
+  private readonly sections = new Map<ScStation, ScSection>();
   private readonly status: HTMLElement;
   private readonly fileInput: HTMLInputElement;
   private readonly pickBtn: HTMLButtonElement;
@@ -52,7 +54,7 @@ export class RadioUi {
     this.doc = parent.ownerDocument;
     this.lib = src.library;
     this.ctl = src.libraryController;
-    this.sc = src.sc ?? null;
+    this.scs = src.scStations && src.scStations.length > 0 ? src.scStations : src.sc ? [src.sc] : [];
 
     this.root = this.el('div', 'rl-root');
     this.root.hidden = true;
@@ -71,7 +73,7 @@ export class RadioUi {
     head.append(title, this.closeBtn);
 
     const note = this.el('p', 'rl-note');
-    note.textContent = 'Plays music from your own device. Files are never uploaded or bundled; only their names and your station choices are remembered here. Empty slots play the station’s built-in synth.';
+    note.textContent = 'The radio dial plays SoundCloud mixes (below). Music from your own device plays on the optional My Library station at the end of the dial, once you add files. Files are never uploaded or bundled; only their names and your slot choices are remembered here.';
 
     const actions = this.el('div', 'rl-actions');
     this.pickBtn = this.button('Pick folder', 'rl-btn rl-primary');
@@ -93,7 +95,7 @@ export class RadioUi {
 
     this.body = this.el('div', 'rl-body');
     panel.append(head, note, actions, this.fileInput, this.status);
-    if (this.sc) panel.appendChild(this.buildSc(this.sc));
+    if (this.scs.length > 0) panel.appendChild(this.buildScGroup());
     panel.appendChild(this.body);
     this.root.appendChild(panel);
     parent.appendChild(this.root);
@@ -121,7 +123,7 @@ export class RadioUi {
       if (files && files.length > 0) { e.preventDefault(); void this.ctl.addFiles(Array.from(files)); }
     });
     this.cleanup.push(this.lib.onChange(() => this.render()), this.ctl.onChange(() => this.render()));
-    if (this.sc) this.cleanup.push(this.sc.onChange(() => this.renderSc()));
+    for (const sc of this.scs) this.cleanup.push(sc.onChange(() => this.renderSc(sc)));
     this.render();
   }
 
@@ -153,24 +155,43 @@ export class RadioUi {
     this.root.remove();
   }
 
-  /* ---------- Radio SC ---------- */
+  /* ---------- SoundCloud stations ---------- */
 
-  private buildSc(sc: ScStation): HTMLElement {
+  private buildScGroup(): HTMLElement {
+    const group = this.el('section', 'rl-sc-group');
+    if (this.scs.length > 1) {
+      const h = this.el('h3', 'rl-sc-group-title');
+      h.textContent = 'SoundCloud stations';
+      const note = this.el('p', 'rl-note');
+      note.textContent = 'Every station plays 45-minute-plus DJ sets from the shared RA NYC pool whose title or DJ name matches its keywords. If none match it plays the links you paste for that station, then any set it has not played yet. Sets stream through SoundCloud’s own embedded player (nothing is downloaded) and follow SoundCloud’s terms and each artist’s settings.';
+      group.append(h, note);
+    }
+    for (const sc of this.scs) group.appendChild(this.buildSc(sc, this.scs.length === 1));
+    return group;
+  }
+
+  private buildSc(sc: ScStation, solo: boolean): HTMLElement {
     const det = this.el('details', 'rl-station rl-sc');
-    det.dataset.station = 'sc';
-    det.open = true;
+    const cfg = sc.config;
+    const def = scStationDef(cfg.id);
+    det.dataset.station = cfg.id;
+    det.open = solo;
     const sum = this.el('summary', 'rl-station-head');
     const nm = this.el('span', 'rl-station-name');
-    nm.textContent = 'Radio SC (SoundCloud mixes)';
-    sum.appendChild(nm);
+    nm.textContent = solo && cfg.id === 'sc' ? 'Radio SC (SoundCloud mixes)' : cfg.name;
+    const count = this.el('span', 'rl-count rl-sc-count');
+    sum.append(nm, count);
+    const kwLine = this.el('p', 'rl-note rl-sc-keywords');
+    kwLine.textContent = def ? (def.keywords.length > 0 ? `${def.genre}. Matches set titles and DJ names containing: ${def.keywords.join(', ')}.` : `${def.genre}. Plays any set.`) : '';
     const note = this.el('p', 'rl-note');
-    note.textContent = 'Paste a SoundCloud track or playlist link. Mixes stream through SoundCloud’s own embedded player (nothing is downloaded) and follow SoundCloud’s terms and the artist’s settings. Needs the hosted build or an internet connection. Flag a mix as after-hours to start the session with it between 23:00 and 06:00.';
+    note.textContent = solo
+      ? 'Paste a SoundCloud track or playlist link. Mixes stream through SoundCloud’s own embedded player (nothing is downloaded) and follow SoundCloud’s terms and the artist’s settings. Needs the hosted build or an internet connection. Flag a mix as after-hours to start the session with it between 23:00 and 06:00.'
+      : 'Your links for this station: played when no matching set is left in the pool. Flag one as after-hours to start the session with it between 23:00 and 06:00.';
     const row = this.el('div', 'rl-actions');
     const input = this.el('input', 'rl-select rl-sc-input');
     input.type = 'url';
     input.placeholder = 'https://soundcloud.com/artist/mix';
-    input.setAttribute('aria-label', 'SoundCloud link');
-    this.scInput = input;
+    input.setAttribute('aria-label', `SoundCloud link for ${cfg.name}`);
     const add = this.button('Add mix', 'rl-btn rl-primary rl-sc-add');
     const testBtn = this.button('Test link', 'rl-btn rl-sc-test');
     const nextBtn = this.button('Next mix', 'rl-btn rl-sc-next');
@@ -179,52 +200,57 @@ export class RadioUi {
     const raBox = this.el('input', 'rl-sc-ra-toggle');
     raBox.type = 'checkbox';
     raBox.checked = sc.randomSets;
-    raBox.addEventListener('change', () => { sc.setRandomSets(raBox.checked); this.renderSc(); });
+    raBox.addEventListener('change', () => { sc.setRandomSets(raBox.checked); this.renderSc(sc); });
     const raTxt = this.el('span', 'rl-sc-ra-label');
     raTxt.textContent = ' Random RA sets';
     raRow.append(raBox, raTxt);
-    this.scRaStatus = this.el('p', 'rl-status rl-sc-ra-status');
-    this.scRaStatus.setAttribute('role', 'status');
-    this.scMsg = this.el('p', 'rl-status rl-sc-msg');
-    this.scMsg.setAttribute('role', 'status');
-    this.scList = this.el('ol', 'rl-slots rl-sc-list');
-    det.append(sum, note, raRow, this.scRaStatus, row, this.scMsg, this.scList);
+    const ra = this.el('p', 'rl-status rl-sc-ra-status');
+    ra.setAttribute('role', 'status');
+    const pool = this.el('p', 'rl-status rl-sc-pool');
+    const msg = this.el('p', 'rl-status rl-sc-msg');
+    msg.setAttribute('role', 'status');
+    const list = this.el('ol', 'rl-slots rl-sc-list');
+    det.append(sum, kwLine, note, raRow, ra, pool, row, msg, list);
+    const sec: ScSection = { sc, list, msg, ra, pool, count, input };
+    this.sections.set(sc, sec);
 
-    const say = (t: string) => { if (this.scMsg) this.scMsg.textContent = t; };
+    const say = (t: string) => { msg.textContent = t; };
     const doAdd = () => {
       const r = sc.addMix(input.value);
       if (r.ok) { input.value = ''; say('Added.'); } else say(r.error);
     };
     add.addEventListener('click', doAdd);
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); doAdd(); } });
-    testBtn.addEventListener('click', () => this.runTest(input.value));
+    testBtn.addEventListener('click', () => this.runTest(sec, input.value));
     nextBtn.addEventListener('click', () => sc.next());
-    this.renderSc();
+    this.renderSc(sc);
     return det;
   }
 
-  private runTest(url: string): void {
-    const sc = this.sc;
-    if (!sc || !this.scMsg) return;
-    this.scMsg.textContent = 'Testing…';
-    void sc.test(url).then((r) => { if (this.scMsg) this.scMsg.textContent = r.ok ? `Works: ${r.title}` : r.error; });
+  private runTest(sec: ScSection, url: string): void {
+    sec.msg.textContent = 'Testing…';
+    void sec.sc.test(url).then((r) => { sec.msg.textContent = r.ok ? `Works: ${r.title}` : r.error; });
   }
 
-  private renderSc(): void {
-    const sc = this.sc;
-    const list = this.scList;
-    if (!sc || !list) return;
-    if (this.scRaStatus) {
-      const c = sc.raCounts;
-      this.scRaStatus.textContent = !sc.randomSets ? 'Random RA sets are off. Radio SC plays only your links.'
-        : sc.raStatus === 'unavailable' ? 'RA NYC sets unavailable (offline or blocked)'
-        : sc.raStatus === 'idle' && c.loaded === 0 ? 'Random RA NYC sets load when you first tune in to Radio SC.'
-        : `Random RA NYC sets: ${c.loaded} loaded, ${c.heard} heard`;
-    }
+  private renderSc(sc: ScStation): void {
+    const sec = this.sections.get(sc);
+    if (!sec) return;
+    const { list } = sec;
+    const c = sc.raCounts;
+    sec.ra.textContent = !sc.randomSets ? 'Random RA sets are off. This station plays only your links.'
+      : sc.raStatus === 'unavailable' ? 'RA NYC sets unavailable (offline or blocked)'
+      : sc.raStatus === 'idle' && c.loaded === 0 ? 'Random RA NYC sets load when you first tune in to a SoundCloud station.'
+      : `Random RA NYC sets: ${c.loaded} loaded, ${c.heard} heard`;
+    const pc = sc.poolCounts;
+    sec.pool.textContent = sc.randomSets && pc.pool > 0
+      ? `Pool for ${sc.config.name}: ${pc.matching} of ${pc.pool} sets match, ${pc.unheard} not heard yet.`
+      : '';
+    sec.count.textContent = `${sc.randomSets ? pc.matching : 0} sets · ${sc.mixes.length} links`;
+    sec.count.setAttribute('aria-label', `${sc.randomSets ? pc.matching : 0} matching pool sets and ${sc.mixes.length} pasted links`);
     const frag = this.doc.createDocumentFragment();
     if (sc.mixes.length === 0) {
       const li = this.el('li', 'rl-slot rl-empty');
-      li.textContent = 'No mixes yet. Radio SC plays its synth bed until you add some.';
+      li.textContent = 'No links yet. This station plays matching pool sets, then any set, then its synth bed.';
       frag.appendChild(li);
     }
     sc.mixes.forEach((m, i) => {
@@ -247,7 +273,7 @@ export class RadioUi {
       down.setAttribute('aria-label', `Move mix ${i + 1} down`);
       down.addEventListener('click', () => sc.moveMix(i, 1));
       const t = this.button('Test', 'rl-btn rl-x rl-sc-test-row');
-      t.addEventListener('click', () => this.runTest(m.url));
+      t.addEventListener('click', () => this.runTest(sec, m.url));
       const rm = this.button('×', 'rl-btn rl-x rl-sc-remove');
       rm.setAttribute('aria-label', `Remove mix ${i + 1}`);
       rm.addEventListener('click', () => sc.removeMix(i));

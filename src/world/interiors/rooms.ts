@@ -1,7 +1,8 @@
 /** The three rooms. Local coordinates: centre (0,0), x east, z south, the door is in the south wall (z = +d/2). */
 import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
-import { buildHumanModel, type HumanModel } from '@/entities/models/humanModel';
+import type { HumanModel } from '@/entities/models/humanModel';
+import { buildPedModel, type PedOptions } from '@/entities/models/pedBody';
 import type { IMaterialLibrary, IWorld2D } from '../types';
 import { INTERIORS, type InteriorId } from './defs';
 import { basic, box, gradientPlane, plane, RoomColliders, shell, sleeveRows } from './parts';
@@ -59,8 +60,8 @@ export function danceFigure(model: HumanModel, t: number, phase: number, level: 
   model.head.rotation.y = Math.sin(t * 0.7 + seed) * 0.2;
 }
 
-function figure(materials: IMaterialLibrary, rng: Rng, opts: Parameters<typeof buildHumanModel>[2] = {}): HumanModel {
-  return buildHumanModel(materials, rng, opts);
+function figure(materials: IMaterialLibrary, rng: Rng, opts: PedOptions = {}): HumanModel {
+  return buildPedModel(materials, rng, opts);
 }
 
 // ---------------------------------------------------------------- WAX DELI
@@ -99,11 +100,11 @@ export function buildDeli(deps: RoomDeps): Room {
   g.add(box(2.4, 0.4, 0.05, '#d62828', 2.6, 2.6, -d / 2 + 0.05));
   g.add(box(w - 1, 0.04, 0.2, '#fff6d0', 0, h - 0.03, 0));
   // owner NPC behind the counter
-  const owner = figure(deps.materials, new Rng('deli-owner'), { outfit: 'tee', hat: 'cap', shirt: 3, skin: 3 });
+  const owner = figure(deps.materials, new Rng('deli-owner'), { variant: 'odette' });
   place(owner, 2.6, -1.3, Math.PI);
   g.add(owner.group);
   // a customer browsing
-  const cust = figure(deps.materials, new Rng('deli-cust'), { outfit: 'hoodie', hat: 'none' });
+  const cust = figure(deps.materials, new Rng('deli-cust'), { variant: 'denim-girl' });
   place(cust, -1.0, 0.6, -Math.PI / 2); g.add(cust.group);
 
   return {
@@ -229,9 +230,9 @@ export function buildClub(deps: RoomDeps): Room {
     place(m, px, pz, rng.range(-Math.PI, Math.PI));
     g.add(m.group); dancers.push({ m, seed: i * 1.7 + rng.next() * 3 });
   }
-  const dj = figure(deps.materials, new Rng('dj-sloth'), { outfit: 'hoodie', hat: 'cap', shirt: 7 });
+  const dj = figure(deps.materials, new Rng('dj-sloth'), { variant: 'dj' });
   place(dj, bx, bz - 0.15, Math.PI); g.add(dj.group);
-  const bartender = figure(deps.materials, new Rng('bartender'), { outfit: 'tee', hat: 'none', shirt: 1 });
+  const bartender = figure(deps.materials, new Rng('bartender'), { variant: 'durag-tee' });
   place(bartender, w / 2 - 1.5, 1.4, -Math.PI / 2); g.add(bartender.group);
   const guests = [figure(deps.materials, new Rng('guest1')), figure(deps.materials, new Rng('guest2'))];
   place(guests[0], -w / 2 + 1.5, -0.5, Math.PI / 2); place(guests[1], -w / 2 + 1.5, 2.3, Math.PI / 2);

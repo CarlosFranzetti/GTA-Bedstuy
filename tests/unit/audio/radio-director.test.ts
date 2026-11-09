@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { RadioDirector, CROSSFADE_SECONDS } from '@/audio/RadioDirector';
 import { Library, type ImportedTrack } from '@/audio/library/Library';
-import { GENRE_STATIONS } from '@/audio/radio';
+import { GENRE_STATIONS, SC_STATIONS } from '@/audio/radio';
 import { TalkPlayer } from '@/audio/talk/TalkPlayer';
 import type { Deck } from '@/audio/decks';
 
@@ -29,7 +29,7 @@ function setup(tracks: ImportedTrack[] = []) {
   const lib = new Library();
   lib.addTracks(tracks);
   const talk = new TalkPlayer({ speech: null, makeUtterance: () => { throw new Error('no speech'); }, audio: { sting: () => 0, setBed: () => undefined, volume: () => 1 } }, []);
-  const dir = new RadioDirector(lib, talk);
+  const dir = new RadioDirector(lib, talk, undefined, undefined, { feed: null, scEnv: { canLoad: () => false } });
   const decks: [FakeDeck, FakeDeck] = [new FakeDeck(), new FakeDeck()];
   dir.attachDecks(decks);
   const idx = (id: string) => dir.stations.findIndex((s) => s.id === id);
@@ -37,15 +37,28 @@ function setup(tracks: ImportedTrack[] = []) {
 }
 
 describe('station list', () => {
-  it('keeps the three procedural stations first, then eight music stations, then WBSY Talk', () => {
+  it('has the eight SoundCloud stations, then WBSY Talk, and no My Library while the library is empty', () => {
     const { dir } = setup();
-    expect(dir.stations.map((s) => s.kind)).toEqual(['synth', 'synth', 'synth', ...Array(8).fill('library'), 'talk', 'sc']);
-    expect(dir.stations.slice(3, 11).map((s) => s.name)).toEqual([
-      'Bed-Stuy Pop FM', 'Flashback 80s', 'Throop Rap Radio', 'Garvey House & Dub',
-      'Marcy Trap & Plug 808', 'Hazy Tompkins Weird Radio', 'Lewis Ave Echo-Dub Folk', 'Nostrand Jazz-Rock Gets Lit',
-    ]);
-    expect(dir.stations.at(-2)!.name).toBe('WBSY Talk');
-    expect(dir.stations.at(-1)!.name).toBe('Radio SC');
+    expect(dir.stations.map((s) => s.kind)).toEqual([...Array(8).fill('sc'), 'talk']);
+    expect(dir.stations.map((s) => s.name)).toEqual(['BK House', 'Dub Lab', 'Stoop Radio', 'Boogie Down', 'Weird Hours', 'Yard FM', 'Flashback 88', 'Radio SC', 'WBSY Talk']);
+    expect(dir.libraryOnDial).toBe(false);
+  });
+
+  it('adds My Library at the end of the dial once a file can play, and removes it when it is cleared', () => {
+    const { dir, lib } = setup([item('Pop/a.mp3', 100)]);
+    expect(dir.libraryOnDial).toBe(true);
+    expect(dir.stations.at(-1)).toMatchObject({ id: 'mylib', name: 'My Library', kind: 'library' });
+    expect(dir.stations).toHaveLength(10);
+    lib.reset();
+    expect(dir.stations).toHaveLength(9);
+    expect(dir.stations.at(-1)!.kind).toBe('talk');
+  });
+
+  it('stays off the dial when tracks are saved but their files are not loaded this session', () => {
+    const lib = new Library();
+    lib.addTracks([{ path: 'Pop/a.mp3', size: 10, lastModified: 1, duration: 100, url: '' }]);
+    const talk = new TalkPlayer({ speech: null, makeUtterance: () => { throw new Error('x'); }, audio: { sting: () => 0, setBed: () => undefined, volume: () => 1 } }, []);
+    expect(new RadioDirector(lib, talk, undefined, undefined, { feed: null }).libraryOnDial).toBe(false);
   });
 
   it('next() wraps around the whole dial', () => {
@@ -53,61 +66,57 @@ describe('station list', () => {
     for (let i = 0; i < dir.stations.length; i++) dir.next();
     expect(dir.index).toBe(0);
   });
-});
 
-describe('synth fallback for empty slots', () => {
-  it('a station with no files plays its genre synth pattern and loads no deck', () => {
-    const { dir, decks, idx } = setup();
-    dir.setOn(true);
-    for (const id of ['pop', 'eighties', 'rap', 'house', 'trap', 'psych', 'folky', 'jazzrock'] as const) {
-      dir.select(idx(id));
-      dir.update(0.1);
-      expect(dir.synthPlayback?.station).toBe(GENRE_STATIONS[id]);
-      expect(dir.trackName).toBe('');
-    }
-    expect(decks[0].loads).toHaveLength(0);
-    expect(decks[1].loads).toHaveLength(0);
-  });
-
-  it('every genre synth pattern has notes (never silent)', () => {
-    for (const st of Object.values(GENRE_STATIONS)) {
+  it('every station has a synth bed that is never silent', () => {
+    for (const def of SC_STATIONS) {
+      const st = GENRE_STATIONS[def.bed];
       expect(st.bpm).toBeGreaterThan(0);
       expect(st.pattern.flat().length).toBeGreaterThan(8);
     }
   });
 
-  it('plays the file while its slot is on and falls back to synth for the empty slots after it', () => {
-    const { dir, decks, idx } = setup([item('Pop/a.mp3', 100)]);
+  it('a SoundCloud station that cannot load plays its bed and no deck', () => {
+    const { dir, decks, idx } = setup();
     dir.setOn(true);
-    dir.select(idx('pop'));
+    for (const def of SC_STATIONS) {
+      dir.select(idx(def.id));
+      dir.update(0.1);
+      expect(dir.synthPlayback?.station).toBe(GENRE_STATIONS[def.bed]);
+    }
+    expect(decks[0].loads).toHaveLength(0);
+  });
+});
+
+describe('My Library', () => {
+  it('plays every placed file in order, then wraps; empty slots never become synth blocks', () => {
+    const { dir, decks, idx } = setup([item('Pop/a.mp3', 100), item('House/b.mp3', 200)]);
+    dir.setOn(true);
+    dir.select(idx('mylib'));
     dir.update(1);
-    expect(decks[0].loads).toEqual([{ url: 'blob:Pop/a.mp3', offset: expect.closeTo(0, 0) }]);
+    expect(decks[0].loads.at(-1)!.url).toBe('blob:Pop/a.mp3');
     expect(dir.trackName).toBe('a');
     expect(dir.synthPlayback).toBeNull();
-    // run past the end of the file: the next 14 slots are empty
-    for (let i = 0; i < 110; i++) dir.update(1);
-    expect(dir.synthPlayback?.station).toBe(GENRE_STATIONS.pop);
-    expect(dir.trackName).toBe('');
-    expect(decks[0].fades.at(-1)).toEqual({ level: 0, seconds: CROSSFADE_SECONDS });
+    expect(dir.timeline().total).toBe(300);
+    for (let i = 0; i < 120; i++) dir.update(1);
+    expect(decks.flatMap((d) => d.loads).at(-1)!.url).toBe('blob:House/b.mp3');
   });
 
-  it('does not touch the decks and reports no synth while the radio is off', () => {
+  it('does not touch the decks while the radio is off', () => {
     const { dir, decks, idx } = setup([item('Pop/a.mp3', 100)]);
-    dir.select(idx('pop'));
+    dir.select(idx('mylib'));
     dir.update(1);
     expect(decks[0].loads).toHaveLength(0);
     expect(dir.synthPlayback).toBeNull();
   });
 
-  it('a track that fails to load is skipped for synth', () => {
-    const { dir, decks, idx } = setup([item('Pop/a.mp3', 100)]);
+  it('a track that fails to load is skipped', () => {
+    const { dir, decks, idx } = setup([item('Pop/a.mp3', 100), item('Pop/b.mp3', 100)]);
     dir.setOn(true);
-    dir.select(idx('pop'));
+    dir.select(idx('mylib'));
     dir.update(1);
     decks[0].onError?.();
     dir.update(0.1);
-    expect(dir.synthPlayback?.station).toBe(GENRE_STATIONS.pop);
-    expect(decks[0].loads).toHaveLength(1); // not retried
+    expect(dir.timeline().segments).toHaveLength(1);
   });
 });
 
@@ -115,12 +124,12 @@ describe('virtual time', () => {
   it('resumes mid-track after listening to something else', () => {
     const { dir, decks, idx } = setup([item('Pop/a.mp3', 200)]);
     dir.setOn(true);
-    dir.select(idx('pop'));
+    dir.select(idx('mylib'));
     dir.update(1);
-    dir.select(idx('rap'));
+    dir.select(idx('stoop'));
     for (let i = 0; i < 60; i++) dir.update(1);
-    expect(dir.clock('pop')).toBeCloseTo(61, 5);
-    dir.select(idx('pop'));
+    expect(dir.libraryClock).toBeCloseTo(61, 5);
+    dir.select(idx('mylib'));
     const last = decks.flatMap((d) => d.loads).at(-1)!;
     expect(last.url).toBe('blob:Pop/a.mp3');
     expect(last.offset).toBeCloseTo(61, 5);
@@ -128,7 +137,7 @@ describe('virtual time', () => {
 
   it('keeps time while the radio is off (out of the car)', () => {
     const { dir, decks, idx } = setup([item('Pop/a.mp3', 300)]);
-    dir.select(idx('pop'));
+    dir.select(idx('mylib'));
     for (let i = 0; i < 30; i++) dir.update(1);
     dir.setOn(true);
     expect(decks[0].loads.at(-1)!.offset).toBeCloseTo(30, 5);
@@ -137,12 +146,12 @@ describe('virtual time', () => {
   it('does not advance while paused with the game', () => {
     const { dir, decks, idx } = setup([item('Pop/a.mp3', 300)]);
     dir.setOn(true);
-    dir.select(idx('pop'));
+    dir.select(idx('mylib'));
     dir.update(5);
     dir.setPaused(true);
     expect(decks[0].paused).toBe(true);
     dir.update(1000);
-    expect(dir.clock('pop')).toBeCloseTo(5, 5);
+    expect(dir.libraryClock).toBeCloseTo(5, 5);
     dir.setPaused(false);
     expect(decks[0].paused).toBe(false);
   });
@@ -150,9 +159,9 @@ describe('virtual time', () => {
   it('plays the second track after the first and picks up mid-way into it on a later tune-in', () => {
     const { dir, decks, idx } = setup([item('Pop/a.mp3', 100), item('Pop/b.mp3', 200)]);
     dir.setOn(true);
-    dir.select(idx('house'));
+    dir.select(idx('stoop'));
     for (let i = 0; i < 150; i++) dir.update(1);
-    dir.select(idx('pop'));
+    dir.select(idx('mylib'));
     const last = decks.flatMap((d) => d.loads).at(-1)!;
     expect(last.url).toBe('blob:Pop/b.mp3');
     expect(last.offset).toBeCloseTo(150 - 100, 5);
@@ -161,8 +170,8 @@ describe('virtual time', () => {
   it('wraps through the loop: a lone track comes round again', () => {
     const { dir, decks, idx } = setup([item('Pop/a.mp3', 100)]);
     dir.setOn(true);
-    dir.select(idx('pop'));
-    const total = dir.timeline('pop').total;
+    dir.select(idx('mylib'));
+    const total = dir.timeline().total;
     for (let i = 0; i < total + 20; i++) dir.update(1);
     const loads = decks.flatMap((d) => d.loads).filter((l) => l.url === 'blob:Pop/a.mp3');
     expect(loads.length).toBe(2);
@@ -174,7 +183,7 @@ describe('cross-fade', () => {
   it('starts the next track half a second early on the other deck and fades the old one out', () => {
     const { dir, decks, idx } = setup([item('Pop/a.mp3', 100), item('Pop/b.mp3', 100)]);
     dir.setOn(true);
-    dir.select(idx('pop'));
+    dir.select(idx('mylib'));
     dir.update(0.1);
     expect(decks[0].loads).toHaveLength(1);
     expect(decks[0].fades.at(-1)).toEqual({ level: 1, seconds: CROSSFADE_SECONDS });
@@ -191,7 +200,7 @@ describe('cross-fade', () => {
   it('a file that ends early moves the clock on instead of looping', () => {
     const { dir, decks, idx } = setup([item('Pop/a.mp3', 100), item('Pop/b.mp3', 100)]);
     dir.setOn(true);
-    dir.select(idx('pop'));
+    dir.select(idx('mylib'));
     for (let i = 0; i < 60; i++) dir.update(1);
     decks[0].onEnded?.(); // real file was shorter than its metadata said
     dir.update(0.1);
@@ -201,7 +210,7 @@ describe('cross-fade', () => {
   it('learns a missing duration from the deck', () => {
     const { dir, decks, idx, lib } = setup([item('Pop/a.mp3', 0)]);
     dir.setOn(true);
-    dir.select(idx('pop'));
+    dir.select(idx('mylib'));
     dir.update(0.1);
     const spy = vi.spyOn(lib, 'updateDuration');
     decks[0].onDuration?.(123);
@@ -210,21 +219,21 @@ describe('cross-fade', () => {
 });
 
 describe('library edits while listening', () => {
-  it('clearing the playing slot fades the file out and switches to synth', () => {
+  it('clearing the last playing file fades it out and drops My Library from the dial', () => {
     const { dir, decks, idx, lib } = setup([item('Pop/a.mp3', 100)]);
     dir.setOn(true);
-    dir.select(idx('pop'));
+    dir.select(idx('mylib'));
     dir.update(1);
-    lib.clearSlot('pop', 0);
+    lib.reset();
     dir.update(0.1);
     expect(decks[0].fades.at(-1)).toEqual({ level: 0, seconds: CROSSFADE_SECONDS });
-    expect(dir.synthPlayback?.station).toBe(GENRE_STATIONS.pop);
+    expect(dir.current.id).toBe('bkhouse');
   });
 
   it('station change and radio off fade the music out', () => {
     const { dir, decks, idx } = setup([item('Pop/a.mp3', 100)]);
     dir.setOn(true);
-    dir.select(idx('pop'));
+    dir.select(idx('mylib'));
     dir.update(1);
     dir.setOn(false);
     expect(decks[0].fades.at(-1)!.level).toBe(0);
@@ -245,10 +254,10 @@ describe('station imaging', () => {
     const ids: string[] = [];
     dir.onSweeper = (e) => ids.push(e.id);
     dir.setOn(true);
-    dir.select(idx('pop'));
+    dir.select(idx('mylib'));
     for (let i = 0; i < 6 * 50; i++) dir.update(1);
     expect(ids.length).toBeGreaterThanOrEqual(1);
-    expect(new Set(ids)).toEqual(new Set(['pop']));
+    expect(new Set(ids)).toEqual(new Set(['mylib']));
   });
 });
 
@@ -259,6 +268,6 @@ describe('tune callback', () => {
     dir.onTune = (e) => seen.push(e.id);
     dir.next();
     dir.next();
-    expect(seen).toEqual(['synth1', 'synth2']);
+    expect(seen).toEqual(['dublab', 'stoop']);
   });
 });

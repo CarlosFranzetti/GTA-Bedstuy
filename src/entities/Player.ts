@@ -4,7 +4,8 @@ import {
 } from '@/core/Math2';
 import type { EventBus } from '@/core/Events';
 import type { Input } from '@/core/Input';
-import { animateWalk, buildHumanModel, type HumanModel } from '@/entities/models/humanModel';
+import { animateWalk, type HumanModel } from '@/entities/models/humanModel';
+import { buildPedModel } from '@/entities/models/pedBody';
 import type { CharacterRig, CharacterSource } from '@/world/types';
 import { Rng } from '@/core/Rng';
 import type { Body2D, Entity, IMaterialLibrary, IVehicle, VehicleInput } from '@/world/types';
@@ -378,9 +379,7 @@ export class Player implements Entity {
   private buildMesh(materials: IMaterialLibrary): void {
     // fixed-seed rng: the player always looks the same. Variant 0 cloth = the red top.
     if (Player.characterSource) { this.rig = Player.characterSource.instantiate(0); this.object3D.add(this.rig.group); return; }
-    this.model = buildHumanModel(materials, new Rng('player'), {
-      shirt: 0, skin: 0, pants: 1, outfit: 'hoodie', hat: 'cap', accessory: 'none', heightScale: 1,
-    });
+    this.model = buildPedModel(materials, new Rng('player'), { variant: 'player', heightScale: 1 });
     this.object3D.add(this.model.group);
   }
 }

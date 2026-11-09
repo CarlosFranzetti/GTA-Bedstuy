@@ -3,7 +3,8 @@ import type { EventBus } from '@/core/Events';
 import { angleDiff, type Vec2 } from '@/core/Math2';
 import type { TrafficLights } from '@/game/TrafficLights';
 import { Rng } from '@/core/Rng';
-import { animateWalk, buildHumanModel, type HumanModel } from '@/entities/models/humanModel';
+import { animateWalk, type HumanModel } from '@/entities/models/humanModel';
+import { buildPedModel } from '@/entities/models/pedBody';
 import type { CharacterRig, CharacterSource } from '@/world/types';
 import type { Body2D, Contact, Entity, Graph, GraphNode, IMaterialLibrary, IVehicle, IWorld2D } from '@/world/types';
 
@@ -134,7 +135,7 @@ export class Pedestrian implements Entity {
       const n = (Pedestrian.characterSource as { variantCount?: number }).variantCount ?? 8;
       this.rig = Pedestrian.characterSource.instantiate(rng.int(0, n - 1)); g = this.rig.group;
     }
-    else { this.model = buildHumanModel(materials, rng); g = this.model.group; }
+    else { this.model = buildPedModel(materials, rng); g = this.model.group; }
     g.rotation.order = 'YXZ';
     this.object3D = g;
 

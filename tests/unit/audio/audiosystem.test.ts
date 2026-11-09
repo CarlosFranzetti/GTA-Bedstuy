@@ -86,7 +86,7 @@ function setup() {
   const events = new EventBus();
   const fake = makeFakeContext();
   const factory = vi.fn(() => fake.ctx as unknown as AudioContext);
-  const audio = new AudioSystem(events, factory);
+  const audio = new AudioSystem(events, factory, { feed: null, scEnv: { canLoad: () => false } });
   return { events, audio, factory, ...fake };
 }
 
@@ -235,29 +235,27 @@ describe('AudioSystem radio', () => {
   it('starts with the first station', async () => {
     const { audio } = setup();
     await audio.start();
-    expect(audio.stationName).toBe('WBED 88.9 — Brownstone Boom-Bap');
+    expect(audio.stationName).toBe('BK House');
   });
 
-  it('steps through the whole dial on nextStation() and wraps: 3 synth, 8 music, WBSY Talk, Radio SC', async () => {
+  it('steps through the whole dial on nextStation() and wraps: 8 SoundCloud stations, WBSY Talk', async () => {
     const { audio } = setup();
     await audio.start();
     const names = [audio.stationName];
-    for (let i = 0; i < 12; i++) { audio.nextStation(); names.push(audio.stationName); }
+    for (let i = 0; i < 8; i++) { audio.nextStation(); names.push(audio.stationName); }
     expect(names).toEqual([
-      'WBED 88.9 — Brownstone Boom-Bap', 'Kosciusko Kompa FM', 'Throop Talk Radio',
-      'Bed-Stuy Pop FM', 'Flashback 80s', 'Throop Rap Radio', 'Garvey House & Dub',
-      'Marcy Trap & Plug 808', 'Hazy Tompkins Weird Radio', 'Lewis Ave Echo-Dub Folk', 'Nostrand Jazz-Rock Gets Lit',
-      'WBSY Talk (voice unavailable on this device)', 'Radio SC',
+      'BK House', 'Dub Lab', 'Stoop Radio', 'Boogie Down', 'Weird Hours', 'Yard FM', 'Flashback 88', 'Radio SC',
+      'WBSY Talk (voice unavailable on this device)',
     ]);
     audio.nextStation();
-    expect(audio.stationName).toBe('WBED 88.9 — Brownstone Boom-Bap');
+    expect(audio.stationName).toBe('BK House');
   });
 
   it('changes station on the radioNext event', async () => {
     const { events, audio } = setup();
     await audio.start();
     events.emit('radioNext', {});
-    expect(audio.stationName).toBe('Kosciusko Kompa FM');
+    expect(audio.stationName).toBe('Dub Lab');
   });
 
   it('only sequences notes while in a vehicle', async () => {

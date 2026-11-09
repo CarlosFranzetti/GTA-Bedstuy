@@ -516,6 +516,7 @@ const game = new Game(
     hudState.inVehicle = player.inVehicle;
     hudState.radioStation = audio.stationName;
     hudState.radioTrack = audio.trackName;
+    audio.setBroadcast({ weather: weather.state, rain: weather.rain, street: hudState.streetName });
     hudState.talkProgress = audio.talkProgress;
     hudState.prompt = uiOpen() || interiors.locked ? '' : prompt;
     hudState.timeOfDay = dayNight.timeOfDay;

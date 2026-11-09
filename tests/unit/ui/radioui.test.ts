@@ -273,3 +273,44 @@ describe('RadioUi Radio SC section', () => {
     expect(q(ui2.root, '.rl-sc-ra-status').textContent).toBe('RA NYC sets unavailable (offline or blocked)');
   });
 });
+
+describe('RadioUi SoundCloud stations', () => {
+  it('shows one section per station with its pool count, keywords and its own pasted-link list', async () => {
+    const { RadioDirector } = await import('@/audio/RadioDirector');
+    const { TalkPlayer } = await import('@/audio/talk/TalkPlayer');
+    const { RaFeed, RA_CACHE_KEY } = await import('@/audio/sc/RaFeed');
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const library = new Library(memStorage());
+    const libraryController = new LibraryController(library, { handles: memoryHandleStore(), importDeps, win: {} });
+    const sets = [
+      { url: 'https://soundcloud.com/dj/a', title: 'Deep House Night', dj: 'A', duration: 3600, artistId: '1' },
+      { url: 'https://soundcloud.com/dj/b', title: 'Garage Hour', dj: 'B', duration: 3600, artistId: '2' },
+      { url: 'https://soundcloud.com/dj/c', title: 'Dub Techno', dj: 'C', duration: 3600, artistId: '3' },
+    ];
+    const store = new Map([[RA_CACHE_KEY, JSON.stringify({ v: 1, fetchedAt: Date.now(), sets, played: [] })]]);
+    const feed = new RaFeed({ fetch: null, storage: { getItem: (k) => store.get(k) ?? null, setItem: () => undefined }, base: 'x' });
+    const talk = new TalkPlayer({ speech: null, makeUtterance: () => { throw new Error('x'); }, audio: { sting: () => 0, setBed: () => undefined, volume: () => 1 } }, []);
+    const dir = new RadioDirector(library, talk, undefined, undefined, { feed, scEnv: { canLoad: () => false, storage: null } });
+    const ui = new RadioUi(parent, { library, libraryController, scStations: dir.scStations });
+    ui.open();
+    const sections = qa(ui.root, '.rl-sc');
+    expect(sections).toHaveLength(8);
+    expect(sections.map((s) => (s as HTMLElement).dataset.station)).toEqual(['bkhouse', 'dublab', 'stoop', 'boogie', 'weird', 'yard', 'flashback', 'sc']);
+    const houseSec = sections[0];
+    expect(q(houseSec, '.rl-station-name').textContent).toBe('BK House');
+    expect(q(houseSec, '.rl-sc-pool').textContent).toBe('Pool for BK House: 2 of 3 sets match, 2 not heard yet.');
+    expect(q(houseSec, '.rl-sc-keywords').textContent).toContain('house');
+    expect(q(sections[1], '.rl-sc-pool').textContent).toBe('Pool for Dub Lab: 1 of 3 sets match, 1 not heard yet.');
+    expect(q(sections[7], '.rl-sc-pool').textContent).toContain('3 of 3 sets match');
+    // links are per station
+    const input = q<HTMLInputElement>(houseSec, '.rl-sc-input');
+    input.value = 'https://soundcloud.com/a/one';
+    q<HTMLButtonElement>(houseSec, '.rl-sc-add').click();
+    expect(dir.scStation('bkhouse')!.mixes).toHaveLength(1);
+    expect(dir.scStation('dublab')!.mixes).toHaveLength(0);
+    expect(qa(houseSec, '.rl-sc-list .rl-slot')).toHaveLength(1);
+    expect(q(sections[1], '.rl-sc-list .rl-empty')).not.toBeNull();
+    expect(q(houseSec, '.rl-sc-count').textContent).toBe('2 sets · 1 links');
+  });
+});

@@ -13,7 +13,8 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Rng } from '@/core/Rng';
 import type { CharacterRig, CharacterSource, IMaterialLibrary } from '@/world/types';
-import { animateWalk, buildHumanModel } from '@/entities/models/humanModel';
+import { animateWalk } from '@/entities/models/humanModel';
+import { buildPedModel, CIVILIAN_COUNT } from '@/entities/models/pedBody';
 import { createGltfLoader, firstUrl, warnOnce, type GLTF } from './loader';
 
 export type { CharacterRig, CharacterSource };
@@ -383,7 +384,7 @@ export class ProceduralCharacterSource implements CharacterSource {
   constructor(private readonly materials: IMaterialLibrary, private readonly rng: Rng) {}
 
   instantiate(variant: number): CharacterRig {
-    const model = buildHumanModel(this.materials, this.rng, { shirt: ((Math.trunc(variant) % 12) + 12) % 12 });
+    const model = buildPedModel(this.materials, this.rng, { variant: ((Math.trunc(variant) % CIVILIAN_COUNT) + CIVILIAN_COUNT) % CIVILIAN_COUNT });
     const group = model.group;
     const height = 1.75 * group.scale.y;
     let phase = 0;
@@ -415,7 +416,13 @@ export class ProceduralCharacterSource implements CharacterSource {
 
 // ---------------------------------------------------------------- resolution
 
-const CHARACTER_FILES = import.meta.glob('@/assets/models/character*.glb', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+/**
+ * The Quaternius glTF people are OPT-IN (`VITE_GLTF_PEDS=1`): the procedural GTA3-style people in pedBody.ts are the default
+ * (our own painted atlases, our licence). Without the flag the glob is dead code, so the .glb files are not bundled at all.
+ */
+const CHARACTER_FILES = (import.meta.env?.VITE_GLTF_PEDS === '1'
+  ? import.meta.glob('@/assets/models/character*.glb', { eager: true, query: '?url', import: 'default' })
+  : {}) as Record<string, string>;
 
 /** `character.glb` if present (the plain, modern person), else the first character*.glb by name. */
 export function preferredCharacterUrl(files: Record<string, string>): string | null {

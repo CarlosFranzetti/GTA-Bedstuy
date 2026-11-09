@@ -119,7 +119,7 @@ describe('fallback', () => {
     const { sc } = setup({ canLoad: () => false });
     const dir = new RadioDirector(new Library(null), new TalkPlayer({ speech: null, makeUtterance: () => { throw new Error('x'); }, audio: { sting: () => 0, setBed: () => undefined, volume: () => 1 } }, []), undefined, sc);
     dir.setOn(true);
-    dir.select(dir.stations.findIndex((s) => s.kind === 'sc'));
+    dir.select(dir.stations.findIndex((s) => s.id === 'sc'));
     await tick();
     expect(dir.synthPlayback).not.toBeNull();
     expect(dir.stationName).toBe(SC_FAILED_NAME);
@@ -244,11 +244,11 @@ describe('test link', () => {
 });
 
 describe('dial order', () => {
-  it('puts Radio SC right after WBSY Talk, at the end of the dial', () => {
+  it('puts Radio SC as the eighth SoundCloud station, right before WBSY Talk', () => {
     const dir = new RadioDirector(new Library(null), new TalkPlayer({ speech: null, makeUtterance: () => { throw new Error('x'); }, audio: { sting: () => 0, setBed: () => undefined, volume: () => 1 } }, []), undefined, setup().sc);
     const names = dir.stations.map((s) => s.name);
-    expect(names.slice(-2)).toEqual(['WBSY Talk', 'Radio SC']);
-    expect(dir.stations.at(-1)!.kind).toBe('sc');
+    expect(names.slice(-2)).toEqual(['Radio SC', 'WBSY Talk']);
+    expect(dir.stations.at(-1)!.kind).toBe('talk');
   });
 });
 
@@ -307,16 +307,17 @@ describe('RA pool', () => {
     expect(seen.size).toBe(4);
   });
 
-  it('interleaves pool sets with pasted links', async () => {
-    const { sc, widgets } = setup({ feed: mkFeed(6), random: () => 0.9 }, [{ url: 'https://soundcloud.com/a/one' }, { url: 'https://soundcloud.com/b/two' }]);
+  it('plays the pool first, then pasted links, then any pool set it has not heard (never repeating)', async () => {
+    const { sc, widgets } = setup({ feed: mkFeed(2), random: () => 0.9 }, [{ url: 'https://soundcloud.com/a/one' }]);
     sc.setActive(true);
     await tick();
-    const kinds: string[] = [lastLoadedUrl(widgets[0]).includes('/dj/') ? 'pool' : 'user'];
-    for (let i = 0; i < 5; i++) {
+    const seq: string[] = [lastLoadedUrl(widgets[0])];
+    for (let i = 0; i < 2; i++) {
       widgets[0].emit('finish');
-      kinds.push((widgets[0].last('load') as [string, string])[1].includes('/dj/') ? 'pool' : 'user');
+      seq.push((widgets[0].last('load') as [string, string])[1]);
     }
-    expect(kinds).toEqual(['user', 'pool', 'user', 'pool', 'user', 'pool']);
+    expect(seq.map((u) => (u.includes('/dj/') ? 'pool' : 'user'))).toEqual(['pool', 'pool', 'user']);
+    expect(new Set(seq).size).toBe(3);
   });
 
   it('shows the empty hint only when both the pool and the list are empty', async () => {

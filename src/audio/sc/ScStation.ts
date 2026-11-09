@@ -226,6 +226,7 @@ export class ScStation {
   /** Pool sets this station has played (per-station no-repeat). */
   private readonly heard = new Set<string>();
   private lastSetUrl = '';
+  private lastLink = '';
   private duck = 1;
   /** Called when the game hour is fed in (the director shares it with the announcers). */
   onGameHour: ((h: number | null) => void) | null = null;
@@ -458,28 +459,36 @@ export class ScStation {
     const fromList = (): boolean => {
       this.curSet = null;
       if (!listOk) return false;
-      if (first && this.lastWasPool === null) this.index = this.pickFirstIndex();
-      else {
-        let n = this.list.length;
-        do { this.index = (this.index + 1) % this.list.length; } while (--n > 0 && this.bad.has(this.list[this.index].url));
+      const n = this.list.length;
+      const start = first && this.lastWasPool === null ? this.pickFirstIndex() : (this.index + 1) % n;
+      for (let k = 0; k < n; k++) {
+        const i = (start + k) % n;
+        const u = this.list[i].url;
+        if (this.bad.has(u) || this.heard.has(u)) continue;
+        this.index = i;
+        this.heard.add(u);
+        this.lastLink = u;
+        this.lastWasPool = false;
+        this.picked = true;
+        return true;
       }
-      this.lastWasPool = false;
-      this.picked = true;
-      return true;
+      return false;
+    };
+    const attempt = (): boolean => {
+      if (nightLink && fromList()) return true;
+      if (usePool && fromPool(match)) return true;
+      if (fromList()) return true;
+      return usePool && fromPool(null);
     };
 
-    let done = false;
-    if (nightLink) done = fromList();
-    if (!done && usePool) done = fromPool(match);
-    if (!done) done = fromList();
-    if (!done && usePool) {
-      done = fromPool(null);
-      // Everything in the pool has been heard here: start a new round (not with the set that just played).
-      if (!done && this.heard.size > 0) {
-        this.heard.clear();
-        if (this.lastSetUrl) this.heard.add(this.lastSetUrl);
-        done = fromPool(match) || fromPool(null);
-      }
+    let done = attempt();
+    // Everything this station can play has been heard: start a new round (never with what just played).
+    if (!done && this.heard.size > 0) {
+      this.heard.clear();
+      if (this.lastSetUrl) this.heard.add(this.lastSetUrl);
+      if (this.lastLink) this.heard.add(this.lastLink);
+      done = attempt();
+      if (!done) { this.heard.clear(); done = attempt(); }
     }
     if (!done) this.curSet = null;
     this.askForMore();
