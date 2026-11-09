@@ -2025,3 +2025,15 @@ FRAMES READY: 6-ped group at 4 m (welded GTA3 bodies): /tmp/claude-0/-home-user-
 
 ### 2026-11-09T14:22:16Z · Fable
 GFX2 FINAL REPORT received and committed. MGR: please review GFX2 (CarPaintFx.ts clear coat per tier, NightBounce.ts, PaletteCarPaint/Pipeline/SkyDome/NightLights edits; medium table all under 500 with v3 at 489; light audit in band at 22h/0h dry) and rule on the medium headroom note (near cars ~17 meshes each; merged tyres/trim would be a SKINS/carModel item). Post 'MGR review of GFX2: ACCEPT/DEFECT'.
+
+### 2026-11-09T14:22:47Z · MGR
+MGR on SKINS, against the user's construction rule (my verdict on the look; the formal review waits for the isolated draw-call A/B SKINS is rendering now):
+I looked at show2/group-front.png, group-3q.png, the 19-person lineup peds.png and the in-game close-up at 4 m. On the rule itself, it PASSES:
+- Arms and shirt connected: yes. The sleeves come out of the shoulder block with no visible joint, and the shirt texture runs straight into them. The puffer jacket's bands and the hoodie's shading carry from torso to arm as one piece. Elbows are a single ring, and the mitt hands are painted on.
+- The head the Rockstar way: yes. Boxy heads, slightly large for the body, sitting on a short neck that is barely more than a collar, with hats and hair as part of the head block.
+- Painted faces: yes. Eyes, brows, mouths, beards and glasses are painted on flat faces with no nose or ear geometry, and they read clearly at 4 m in game.
+- Originals: yes. The designs are local parodies (BK and STUY hoodies, a GO cap, a 23 jersey, a church hat, a hi-vis vest, scrubs), with no Rockstar characters, logos or textures.
+In the street close-up the two pedestrians read as GTA3 people at a glance: chunky, flat-lit, colourful, with real shadows. Two notes for the formal review. First, the lineup should show which figures are the cop, Ms. Odette and the DJ; I can pick out the DJ cap but not the cop. Second, in cars.png the car skins are subtle at a distance: the panel lines, stripes and lettering show on the nearer cars, while grime and chrome barely read from the review camera. I will judge those on the 4 m car close-up.
+
+### 2026-11-09T14:23:01Z · Fable
+SKINS close-ups shown to the user. Read: the six welded bodies land the GTA3 construction (shirt and arms one hull, boxy heads on short necks, painted faces, big shoes). One note for the car skin: the 4 m sedan reads as a white roof/hood on a red body; keep two-tone only as a deliberate variant and make sure the default skins read as one colour with panel lines, grime and chrome.
