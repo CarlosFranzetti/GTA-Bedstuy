@@ -83,7 +83,10 @@ export function raApiBase(opts: { hosted?: boolean; storage?: RaStorage | null }
     const o = st?.getItem(RA_BASE_KEY)?.trim();
     if (o) return o.replace(/\/+$/, '');
   } catch { /* blocked */ }
-  return (opts.hosted ?? isHosted()) ? RA_HOSTED_BASE : RA_PUBLIC_BASE;
+  if (opts.hosted ?? isHosted()) return RA_HOSTED_BASE;
+  // dev server and `vite preview` (the playtest harness) proxy /ra-api too; the single-file artifact has no server
+  try { const h = globalThis.location?.hostname; if (h === 'localhost' || h === '127.0.0.1') return RA_HOSTED_BASE; } catch { /* no window */ }
+  return RA_PUBLIC_BASE;
 }
 
 /** YYYY-MM-DD for the New York calendar day of `ms`. */

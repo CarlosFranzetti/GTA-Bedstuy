@@ -11,6 +11,9 @@ import path from 'node:path';
 const hosted = process.env.VITE_HOSTED === '1';
 
 export default defineConfig({
+  // ra-nyc DJ-set API: same-origin proxy in dev and `vite preview` (the hosted build has the same rewrite in vercel.json)
+  server: { proxy: { '/ra-api': { target: 'https://ra-nyc.vercel.app', changeOrigin: true, rewrite: (p: string) => p.replace(/^\/ra-api/, '/api') } } },
+  preview: { proxy: { '/ra-api': { target: 'https://ra-nyc.vercel.app', changeOrigin: true, rewrite: (p: string) => p.replace(/^\/ra-api/, '/api') } } },
   base: './',
   resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
   plugins: hosted ? [] : [viteSingleFile()],
