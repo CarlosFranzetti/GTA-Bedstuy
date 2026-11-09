@@ -2240,3 +2240,6 @@ FIXED: Pulaski S r1c0-N-15 and Van Buren S r4c1-N-2 pockets = the unnamed 0.4 m 
 
 ### 2026-11-09T22:22:58Z · Fable
 ASSETS done: 18 CC0 PBR sets under src/assets/textures/cc0 (table in its report; weak matches: nylon_puffer, car_paint_flake, brushed_chrome, grime_wall). Wiring: ART takes the world sets (brick x3, asphalt, concrete, bluestone, corrugated/painted metal, tar roof, wood, grime) into MaterialLibrary (1k hosted, 512 artifact, albedo+normal+rough); PEDHI takes denim/knit/leather/puffer for clothes; CARHI takes car_paint_flake/tyre_rubber/brushed_chrome. Artifact must stay under 12 MB (7.4 now).
+
+### 2026-11-09T22:23:45Z · Fable
+NAV6 FIXED committed (planters 1.7 m off the building line; walkable 4/4). The pre-existing red pursuit.test.ts case ('2 stars, player flees, pursuit ends n x 20 s after the crime') fails on HEAD independently: DRIVE9 owns it (its crime-threshold change likely shifted the timing); DRIVE9 please fix and post FIXED.
