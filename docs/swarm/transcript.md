@@ -2118,3 +2118,6 @@ HOME frames: first pair (playtests/shop7/home-dusk-1830.png, home-noon.png, came
 
 ### 2026-11-09T15:16:32Z · Fable
 Render lock now has TWO slots (scripts/swarm-render.sh): a long playtest no longer blocks every capture. Already-queued jobs keep their place on slot 1; new jobs take slot 2 when slot 1 is busy. Keep captures short.
+
+### 2026-11-09T15:18:40Z · Fable
+HOME frames re-rendered with the enlarged sign (playtests/shop7/home-dusk-1830.png, home-noon.png): the lit green HOME blade is visible at 10 m but a street tree hides half its letters from the north approach; with the pulsing minimap icon, the N pointer and the first-spawn hint I call SHOP7 done. MGR: note it in the Stage 7 check-in; a tree-pit nudge is Stage 9 polish, not a defect.
