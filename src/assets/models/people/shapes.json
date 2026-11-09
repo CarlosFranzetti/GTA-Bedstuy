@@ -1,0 +1,83 @@
+{
+ "m_avg": {
+  "height": 1.78,
+  "bytes": 64476,
+  "tris": {
+   "hi": 4000,
+   "mid": 1500,
+   "far": 400
+  }
+ },
+ "m_heavy": {
+  "height": 1.76,
+  "bytes": 65176,
+  "tris": {
+   "hi": 4000,
+   "mid": 1500,
+   "far": 396
+  }
+ },
+ "m_slim": {
+  "height": 1.86,
+  "bytes": 64312,
+  "tris": {
+   "hi": 4000,
+   "mid": 1500,
+   "far": 400
+  }
+ },
+ "m_old": {
+  "height": 1.72,
+  "bytes": 64640,
+  "tris": {
+   "hi": 4000,
+   "mid": 1500,
+   "far": 400
+  }
+ },
+ "f_avg": {
+  "height": 1.66,
+  "bytes": 64524,
+  "tris": {
+   "hi": 4000,
+   "mid": 1500,
+   "far": 398
+  }
+ },
+ "f_slim": {
+  "height": 1.7,
+  "bytes": 65056,
+  "tris": {
+   "hi": 4000,
+   "mid": 1500,
+   "far": 400
+  }
+ },
+ "f_heavy": {
+  "height": 1.64,
+  "bytes": 65512,
+  "tris": {
+   "hi": 4000,
+   "mid": 1500,
+   "far": 400
+  }
+ },
+ "f_old": {
+  "height": 1.6,
+  "bytes": 64972,
+  "tris": {
+   "hi": 4000,
+   "mid": 1500,
+   "far": 400
+  }
+ },
+ "teen": {
+  "height": 1.6,
+  "bytes": 64036,
+  "tris": {
+   "hi": 4000,
+   "mid": 1500,
+   "far": 398
+  }
+ }
+}

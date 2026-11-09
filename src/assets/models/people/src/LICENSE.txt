@@ -1,0 +1,15 @@
+MakeHuman base mesh and data files (CC0 1.0 Universal)
+
+Files in this folder:
+  base.obj.gz            makehuman/data/3dobjs/base.obj
+  default.mhskel         makehuman/data/rigs/default.mhskel
+  default_weights.mhw.gz makehuman/data/rigs/default_weights.mhw
+  targets/*.target.gz    makehuman/data/targets/macrodetails/<name>.target (comment lines stripped)
+
+Source: https://github.com/makehumancommunity/makehuman (raw files under makehuman/data/)
+Their headers state: "This asset was explicitly released as CC0 in september 2020", copyright holders Data Collection AB,
+Joel Palmius, Jonas Hauquier (original mesh and targets by Manuel Bastioni, 2014).
+Licence text: https://creativecommons.org/publicdomain/zero/1.0/
+
+Only these DATA files are used. The MakeHuman application code is AGPL and is neither copied nor used. The .glb files one
+folder up are derived from this data by scripts/people-pipeline.mjs (reshaped, decimated, re-skinned, re-UV'd) and are CC0 too.

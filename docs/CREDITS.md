@@ -93,3 +93,9 @@ No recorded music is bundled in the repo. Candidate source checked by MUSIC on 2
 - Building data pipeline (`scripts/import-osm.mjs`, `docs/REAL-BLOCKS.md`): (c) OpenStreetMap contributors, Open Database License (ODbL) 1.0, https://www.openstreetmap.org/copyright. No OSM data is in `bedstuy.json` yet (the Overpass hosts were unreachable); the credit applies as soon as an import is written.
 - NYC MapPLUTO, NYC Department of City Planning, via NYC Open Data, and NYC Building Footprints (DoITT/OTI), via NYC Open Data: the lots in `src/world/data/bedstuy.json` (width, storeys, class, year built, roof height) come from them via `scripts/fetch-pluto.mjs` and `scripts/import-pluto.mjs`; raw rows in `src/world/data/raw/`. Public data; credit kept.
 - Block descriptions in `docs/reference/BLOCKS.md` come from the public web pages named inline there (Brownstoner, New York YIMBY, GrowNYC, MTA Bus Time, Wikipedia, CityLand, listing sites). Facts only; no text or images copied. No Google Maps, Street View or Earth data is used anywhere.
+
+## People base mesh (HUMAN)
+
+| Asset | Source | Licence | Where |
+|---|---|---|---|
+| MakeHuman base mesh, default rig + weights, macro targets (data files only; the AGPL application code is not used) | https://github.com/makehumancommunity/makehuman (`makehuman/data/3dobjs/base.obj`, `rigs/default.*`, `targets/macrodetails/*`), (c) Data Collection AB, Joel Palmius, Jonas Hauquier, original Manuel Bastioni | CC0 1.0 (released September 2020) | `src/assets/models/people/src/` (+ LICENSE.txt); derived `people/*.glb` via `scripts/people-pipeline.mjs` |

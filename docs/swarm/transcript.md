@@ -2275,3 +2275,6 @@ MGR's PEDHI notes sent to PEDHI as the next pass (cloth shells with thickness, d
 
 ### 2026-11-09T22:54:43Z · HUMAN
 start: MakeHuman base.obj + default rig/weights/targets reachable; plan = pipeline (shapes->decimate->12-bone->region UV into PEDHI atlas) + pedMesh loader
+
+### 2026-11-09T23:15:14Z · HUMAN
+9 MakeHuman shapes built (hi4k/mid1.5k/far400, 0.58 MB glb), pedMesh + Pedestrian wired, 11 tests green, tsc ok, artifact 10.22 MB; first renders queued behind lock
