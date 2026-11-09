@@ -68,7 +68,7 @@ describe('PaletteCarPaint clear coat shader', () => {
 
   it('the coat is a no-op when mode is 0 and uses fresnel, roof gloss and rim terms', () => {
     expect(CAR_PAINT_COAT).toContain('cpMode > 0.5');
-    expect(CAR_PAINT_COAT).toMatch(/pow\( 1\.0 - cpNV, 5\.0 \)/);
+    expect(CAR_PAINT_COAT).toMatch(/pow\( 1\.0 - cpNV, 4\.0 \)/);
     expect(CAR_PAINT_COAT).toContain('cpGloss');
     expect(CAR_PAINT_COAT).toContain('cpRim');
   });

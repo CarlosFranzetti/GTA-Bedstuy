@@ -1,0 +1,1 @@
+{"step":1,"thought":"Dusk on Throop Ave, the sky going deep blue with pink clouds, and the street lamps are just coming on. There's a white SUV on my left about five metres off. I'll turn toward it and walk over.","actions":[{"look":{"dx":-371,"dy":0}},{"key":"KeyW","ms":1600},{"wait":300},{"key":"KeyF","tap":true},{"wait":800}]}

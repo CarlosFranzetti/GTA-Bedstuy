@@ -124,7 +124,11 @@ async function capture() {
           const gl = d.renderer.getContext();
           for (let i = 0; i < n; i++) { info = d.renderOnce(1, 1 / 60); gl.finish(); } // a few frames so exposure / TAA history settle; finish() drains SwiftShader's command backlog
           const frameMs = (performance.now() - t0) / n;
-          return { info, frameMs, data: d.renderer.domElement.toDataURL('image/png'), stats: { ...(window.__gtaStats ?? {}) } };
+          // histogram of visible meshes (and car-lod instanced meshes by name) for budget work
+          const hist = {}; let carLod = 0;
+          d.scene.traverseVisible((o) => { if (!o.isMesh) return; const k = o.isInstancedMesh ? (o.name.startsWith('car-lod') ? 'car-lod' : 'instanced') : o.name.split(':')[0] || o.type; if (k === 'car-lod' && o.count > 0) carLod++; hist[k] = (hist[k] ?? 0) + 1; });
+          const top = Object.entries(hist).sort((a, b) => b[1] - a[1]).slice(0, 12);
+          return { info, frameMs, data: d.renderer.domElement.toDataURL('image/png'), stats: { ...(window.__gtaStats ?? {}), meshHist: top, carLodDrawn: carLod } };
         }, 4);
         writeFileSync(`${opt.out}/${name}.png`, Buffer.from(r.data.split(',')[1], 'base64'));
         stats = { ...r.stats, renderOnce: r.info, frameMs: +r.frameMs.toFixed(1), drawCalls: r.info.total, triangles: r.info.triangles };

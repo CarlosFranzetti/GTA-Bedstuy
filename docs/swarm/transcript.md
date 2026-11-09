@@ -1830,3 +1830,35 @@ Progress: code done, tests green; still waiting for the render lock (H7 playtest
 
 ### 2026-11-09T04:07:28Z · Fable
 RESUME (user): keep iterating to at least GTA3. New direction: (1) models and skins must look GTA3 (chunky low-poly people with painted skins, baked car skins); (2) every music station becomes SoundCloud mixes with synthesized announcers, talk radio stays TTS; (3) the ten blocks must match the real Bed-Stuy from open sources; (4) a readable transcript at the end. Paused lanes SHOP7, CROWD, GFX2, H8 and MGR: resume where you stopped (limits reset, your work is committed). New lanes: SKINS 4440, RADIO8 4441, GEO2 4442, SCRIBE2.
+
+### 2026-11-09T04:07:39Z · SHOP7
+Status: all 10 items coded, unit tests green (679). Running build, then HOME render.
+
+### 2026-11-09T04:07:40Z · CROWD
+Status: resuming. Done on disk: crowd-audit.mjs (--clutter, --peds), clutter floor + test, PedestrianSpawn.ts scheduler + TrafficSystem wiring + tests, popin-check --route. Now running baseline/after audits and 3 pop-in routes under the lock (port 4437).
+
+### 2026-11-09T04:07:41Z · H8
+Resuming: old h8 session ended after 2 steps (idle timeout). Starting fresh session in playtests/h8b, port 4438, low 1280x720.
+
+### 2026-11-09T04:07:42Z · GFX2
+Status: resumed. Code committed by Fable; checking whether my queued batch (medium 7 views, low 4/5/6, audit) ran.
+
+### 2026-11-09T04:08:02Z · MGR
+MGR: resumed. H7 was triaged on 7 Nov as PT7-1 to PT7-10, and I see the harness-side items (the N and Q keys) are already fixed and SHOP7 owns the shop items. I have added PRD rows for SHOP7 and a new §5.4d for the Stage 8 lanes, so each knows what I will check:
+- SKINS: chunky GTA3-style people of 600 to 900 triangles with painted skins, at least 12 civilian variants plus cop, shopkeeper and DJ, as the default; baked car skins; without breaking the phone (140) or medium (500) budgets.
+- RADIO8: eight SoundCloud stations from the ra-nyc pool, through the official widget only, with a synthesized announcer per station, nothing requested before the first tune-in, and a quiet fallback offline.
+- GEO2: the ten blocks from open sources only (OpenStreetMap, NYC PLUTO, LPC reports, Creative Commons photos), never Google data; every changed lot cites its source, and I will spot-check five citations.
+- SCRIBE2: Stages 4 to 8 in plain English, including the disagreements.
+I will write the Stage 7 check-in when GFX2, CROWD, SHOP7 and H8 are in, then Stage 8.
+
+### 2026-11-09T04:08:58Z · GFX2
+Batch1 results: medium draws 444/437/487/470/434/423/446 (view 3 golden aerial 487 > 480, trimming); night bounce +0.008 at 22h (0.126->0.134, over band) so retuned gain 0.5; car coat too faint, strengthened. Batch2 queued.
+
+### 2026-11-09T04:09:08Z · SCRIBE2
+Starting: extending transcript-readable.md from Stage 4 (3 Nov 13:27Z) through Stage 8.
+
+### 2026-11-09T04:09:10Z · SKINS
+Plan: read ped/car paths; build pedBody.ts + painters/ped.ts (default), gate glTF peds behind VITE_GLTF_PEDS, car skins in vehicle.ts via carModel.ts, tests, before/after frames.
+
+### 2026-11-09T04:09:14Z · GEO2
+Plan: 1) try Overpass/PLUTO via WebFetch 2) BLOCKS.md 3) apply to bedstuy.json 4) tests 5) renders

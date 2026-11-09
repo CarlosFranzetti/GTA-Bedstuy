@@ -119,7 +119,7 @@ if ( cpMask > 0.5 && cpMode > 0.5 ) {
   vec3 cpV = normalize( vViewPosition );
   vec3 cpN = normal;
   float cpNV = saturate( dot( cpN, cpV ) );
-  float cpF = 0.04 + 0.96 * pow( 1.0 - cpNV, 5.0 );
+  float cpF = 0.06 + 0.94 * pow( 1.0 - cpNV, 4.0 );
   vec3 cpR = inverseTransformDirection( reflect( -cpV, cpN ), viewMatrix );
   float cpUp = dot( cpN, normalize( ( viewMatrix * vec4( 0.0, 1.0, 0.0, 0.0 ) ).xyz ) );
   float cpGloss = cpRoof * smoothstep( 0.5, 0.95, cpUp );
@@ -135,7 +135,7 @@ if ( cpMask > 0.5 && cpMode > 0.5 ) {
     float cpT = smoothstep( -0.3, 0.3, cpR.y );
     cpEnv = mix( cpStreet * ( 1.0 + cpWet * 1.4 ), mix( cpHorizon, cpZenith, saturate( cpR.y * 1.4 ) ), cpT );
   }
-  float cpK = cpCoat * ( cpF + cpGloss * 0.05 + cpRim * pow( 1.0 - cpNV, 3.0 ) * 0.12 );
+  float cpK = cpCoat * ( cpF + cpGloss * 0.16 + cpRim * pow( 1.0 - cpNV, 3.0 ) * 0.28 );
   reflectedLight.indirectSpecular += cpEnv * cpK;
 }
 `;

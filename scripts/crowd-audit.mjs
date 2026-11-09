@@ -89,7 +89,7 @@ async function clutterAudit() {
     }
     console.log(`\n## Clutter per block face (${rows.length} faces, ${built.clutter.placements.length} items, median per 100 m: low ${mLow.toFixed(1)}, medium ${mMed.toFixed(1)}; phone draws none by design)`);
     console.log('| face | street | len m | phone | low | low/100m | medium | med/100m | solid@low | flag |');
-    console.log('|---|---|---|---|---|---|---|---|---|---|');
+    console.log('|---|---|---|---|---|---|---|---|---|---|---|');
     const show = rows.filter((r) => r.flag.length).sort((a, b) => a.lowPer100 - b.lowPer100);
     for (const r of show) console.log(`| ${r.key} | ${r.street} | ${r.L.toFixed(0)} | 0 | ${r.low} | ${r.lowPer100.toFixed(1)} | ${r.medium} | ${r.medPer100.toFixed(1)} | ${r.lowSolid} | ${r.flag.join(' ')} |`);
     console.log(`\nflagged ${show.length} of ${rows.length} faces (rows above). Totals: low ${rows.reduce((s, r) => s + r.low, 0)} items, medium ${rows.reduce((s, r) => s + r.medium, 0)} items; faces with 0 at low: ${rows.filter((r) => r.low === 0).length} (${rows.filter((r) => r.low === 0 && r.L >= 25).length} of them >= 25 m).`);
@@ -169,7 +169,8 @@ async function pedAudit() {
           let gap = 0, maxGap = 0;
           for (const c of counts) { if (c === 0) { gap++; maxGap = Math.max(maxGap, gap); } else gap = 0; }
           const mean = counts.reduce((a, b) => a + b, 0) / counts.length;
-          rec[name] = { mean, min: Math.min(...counts), max: Math.max(...counts), arrive, depart, maxGap, total: T.peds.length, target: T.pedTarget };
+          let nearest = 1e9; for (const p of T.peds) nearest = Math.min(nearest, Math.hypot(p.body.pos.x - pt.x, p.body.pos.z - pt.z));
+          rec[name] = { nearest: Math.round(nearest), mean, min: Math.min(...counts), max: Math.max(...counts), arrive, depart, maxGap, total: T.peds.length, target: T.pedTarget };
         }
         rows.push({ h, ...rec });
       }
@@ -182,11 +183,11 @@ async function pedAudit() {
   // the share of the map's pavement inside the radius around the point (not known here), so print the map-wide target and the measured total.
   const hm = (h) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.round((h % 1) * 60)).padStart(2, '0')}`;
   console.log(`\n## Peds within ${o.radius} m at quality ${o.q} (sample window ${o.window} s per point; points: spawn ${res.pts.spawn.x.toFixed(0)},${res.pts.spawn.z.toFixed(0)}  other ${res.pts.other.x.toFixed(0)},${res.pts.other.z.toFixed(0)})`);
-  console.log(`| hour | BIBLE factor (budget ${res.budgetFull}) | target total | actual total | spawn mean (min-max) | spawn +in/-out | spawn max gap s | other mean (min-max) | other +in/-out | other max gap s |`);
-  console.log('|---|---|---|---|---|---|---|---|---|---|');
+  console.log(`| hour | BIBLE factor (budget ${res.budgetFull}) | target total | actual total | spawn mean (min-max) | spawn +in/-out | spawn max gap s | spawn nearest m | other mean (min-max) | other +in/-out | other max gap s |`);
+  console.log('|---|---|---|---|---|---|---|---|---|---|---|');
   const bursts = [], empties = [];
   for (const r of res.rows) {
-    console.log(`| ${hm(r.h)} | ${(r.spawn.target / Math.max(1, res.budgetFull)).toFixed(2)} | ${r.spawn.target} | ${r.spawn.total} | ${r.spawn.mean.toFixed(1)} (${r.spawn.min}-${r.spawn.max}) | +${r.spawn.arrive}/-${r.spawn.depart} | ${r.spawn.maxGap} | ${r.other.mean.toFixed(1)} (${r.other.min}-${r.other.max}) | +${r.other.arrive}/-${r.other.depart} | ${r.other.maxGap} |`);
+    console.log(`| ${hm(r.h)} | ${(r.spawn.target / Math.max(1, res.budgetFull)).toFixed(2)} | ${r.spawn.target} | ${r.spawn.total} | ${r.spawn.mean.toFixed(1)} (${r.spawn.min}-${r.spawn.max}) | +${r.spawn.arrive}/-${r.spawn.depart} | ${r.spawn.maxGap} | ${r.spawn.nearest} | ${r.other.mean.toFixed(1)} (${r.other.min}-${r.other.max}) | +${r.other.arrive}/-${r.other.depart} | ${r.other.maxGap} |`);
     for (const k of ['spawn', 'other']) {
       const c = r[k];
       if (c.arrive + c.depart >= 6 && Math.max(c.arrive, c.depart) >= 4) bursts.push(`${hm(r.h)} ${k}: +${c.arrive}/-${c.depart} in ${o.window} s`);

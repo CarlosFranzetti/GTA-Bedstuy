@@ -43,9 +43,9 @@ export interface BounceTier {
 
 export const BOUNCE_TIERS: Record<Quality, BounceTier> = {
   phone: { enabled: false, keep: 0, pool: 0, gain: 0 },
-  low: { enabled: true, keep: 0.7, pool: 2.4, gain: 1 },
-  medium: { enabled: true, keep: 1, pool: 2.8, gain: 1 },
-  high: { enabled: true, keep: 1, pool: 3.2, gain: 1 },
+  low: { enabled: true, keep: 0.7, pool: 2.4, gain: 0.5 },
+  medium: { enabled: true, keep: 1, pool: 2.8, gain: 0.5 },
+  high: { enabled: true, keep: 1, pool: 3.2, gain: 0.5 },
 };
 
 /** Distance from the camera (m) at which a quad has faded out completely; full strength inside FADE_NEAR. */
@@ -242,12 +242,12 @@ void main() {
   float a;
   if ( vKind < 0.5 ) {
     // wall: soft ellipse around the sign
-    a = exp( -( vUV.x * vUV.x * 1.6 + vUV.y * vUV.y * 2.4 ) ) * 0.55;
+    a = exp( -( vUV.x * vUV.x * 2.4 + vUV.y * vUV.y * 3.6 ) ) * 0.8;
   } else {
     // pool: brightest at the wall, falls off outward and sideways; wet ground keeps the streak longer
     float along = 1.0 - vUV.y;
-    float reach = mix( 2.2, 1.5, uWet );
-    a = pow( max( along, 0.0 ), reach ) * exp( -vUV.x * vUV.x * 2.2 ) * ( 0.62 + 0.9 * uWet );
+    float reach = mix( 3.2, 2.0, uWet );
+    a = pow( max( along, 0.0 ), reach ) * exp( -vUV.x * vUV.x * 3.5 ) * ( 0.9 + 1.1 * uWet );
   }
   gl_FragColor = vec4( vCol.rgb * ( a * vCol.a * vFade ), 1.0 );
 }

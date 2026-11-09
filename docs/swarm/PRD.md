@@ -310,6 +310,16 @@ research, RADIO own-library radio (8 stations, 147 slots) + talk station, WRITE 
 | CROWD | Clutter counted per block and tier (every block has bins, bikes/racks, AC units, wires, posters on low+); pop-in check on an east-west street and an avenue drive finds nothing within 60 m | clutter table + two pop-in reports |
 | H7, H8 | Blind sessions on v16 (phone route home → decks → phone → shop → mission → car; desktop night drive); findings triaged as PT7-x | MGR triage |
 
+| SHOP7 (from H7) | Selling needs a confirm; first Enter never lands on an owned row; record list shows a count and scroll indicator; hint keys match the real keys; no 'inside' suffix on outside objectives; radio caption never covers the Exit-car prompt; Odette's wrap step uses its own line | ui/game tests + 640x360 frames |
+
+### 5.4d Stage 8 (user direction 9 Nov) — measurable
+| Lane | Criterion | How measured |
+|---|---|---|
+| SKINS | GTA3-style chunky low-poly people (600–900 tris) with painted texture skins, ≥ 12 civilian variants plus cop, shopkeeper and DJ, as the default (glTF opt-in); baked car skins (panel lines, door gaps, grime, chrome, decals); phone ≤ 140 draws and medium < 500 unchanged | tri counts in tests; before/after frames at low and phone; smoke stats |
+| RADIO8 | 8 music stations play 45-min+ SoundCloud sets from the ra-nyc pool filtered by station keywords, through the official widget only, with a per-station fallback list; a synthesized announcer per station speaks station ID, DJ, set title, hour and weather; WBSY Talk stays TTS; nothing requested before first tune-in; offline/artifact falls back to synth beds with no console errors | audio tests with fake widget/feed; smoke `errors: []` |
+| GEO2 | The ten blocks match the real Throop & Kosciuszko area from **open sources only** (OSM/Overpass, NYC PLUTO, LPC reports, CC Wikimedia), never Google Maps/Street View data or pixels; every changed lot cites a source and confidence; validator 0 errors; ODbL attribution shown when OSM data is used | source table + validator + MGR spot-check of 5 citations |
+| SCRIBE2 | `transcript-readable.md` covers Stages 4–8 in plain English with the disagreements and how they were settled, and keeps the glossary | MGR read-through |
+
 #### Graphics ladder (user direction 3 Nov: "at least GTA3-style graphics for the next push and GTA V level by the end")
 Judged by MGR at every check-in on the 7 standard viewpoints of `tests/e2e/screens.mjs` (noon street, noon corner, golden aerial,
 dusk car, night car, night corner, morning signals), medium tier unless stated. Each level needs every item on every viewpoint.
