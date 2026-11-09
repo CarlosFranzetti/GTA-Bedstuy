@@ -122,6 +122,7 @@ describe('ShopUi H7 fixes', () => {
     expect(shop.pendingConfirm).toBe(false);
     shop.navigate('confirm'); shop.navigate('down'); shop.navigate('up'); shop.navigate('confirm'); // moving cancels the arm
     expect(inventory.records.length).toBe(n);
+    key('Escape'); expect(shop.isOpen).toBe(true); // cancelled the pending confirm
     key('Escape'); expect(shop.isOpen).toBe(false);
   });
   it('mouse click on Sell stays instant', () => {

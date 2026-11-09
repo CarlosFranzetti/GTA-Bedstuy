@@ -97,11 +97,13 @@ describe('ShopUi keyboard and gamepad', () => {
     const { shop, parent, inventory } = makeShop();
     shop.open();
     const sel = () => [...parent.querySelectorAll('.shop-card')].findIndex((c) => c.classList.contains('sel'));
-    expect(sel()).toBe(0);
-    key('KeyS'); expect(sel()).toBe(1);
-    key('ArrowDown'); expect(sel()).toBe(2);
-    key('KeyW'); expect(sel()).toBe(1);
-    key('ArrowUp'); key('ArrowUp'); expect(sel()).toBe(0);
+    const start = PROCEDURAL_RECORDS.findIndex((r) => !inventory.hasRecord(r.id)); // H7: starts on the first purchasable row
+    expect(sel()).toBe(start);
+    key('KeyS'); expect(sel()).toBe(start + 1);
+    key('ArrowDown'); expect(sel()).toBe(start + 2);
+    key('KeyW'); expect(sel()).toBe(start + 1);
+    key('ArrowUp'); key('ArrowUp'); expect(sel()).toBe(start - 1);
+    while (sel() > 0) key('KeyW');
     // find a buyable record, select it, buy with each confirm key
     const buyable = PROCEDURAL_RECORDS.filter((r) => !inventory.hasRecord(r.id) && r.price > 0);
     expect(buyable.length).toBeGreaterThanOrEqual(3);
@@ -122,18 +124,20 @@ describe('ShopUi keyboard and gamepad', () => {
     expect(parent.querySelector('.shop-tab.on')?.textContent).toBe('Your crate');
     const n = inventory.records.length; const cash = inventory.cash;
     key('Enter');
+    expect(inventory.records.length).toBe(n); // H7: the first Enter only asks
+    key('Enter');
     expect(inventory.records.length).toBe(n - 1);
     expect(inventory.cash).toBeGreaterThan(cash);
     key('ArrowRight'); expect(parent.querySelector('.shop-tab.on')?.textContent).toBe('Press my music');
     key('ArrowLeft'); key('ArrowLeft'); expect(parent.querySelector('.shop-tab.on')?.textContent).toBe('Bins');
   });
-  it('E previews the selected record; pressing it again stops', async () => {
+  it('V previews the selected record; pressing it again stops', async () => {
     const { shop, preview } = makeShop();
     shop.open();
-    key('KeyE');
+    key('KeyV');
     await new Promise((r) => setTimeout(r, 0));
     expect(preview.play).toHaveBeenCalledTimes(1);
-    key('KeyE');
+    key('KeyV');
     expect(preview.stop).toHaveBeenCalled();
   });
   it('Escape, X, B and Backspace each close; the Close button is selectable and closes with Enter', () => {
@@ -163,10 +167,11 @@ describe('ShopUi keyboard and gamepad', () => {
     const { shop, parent, inventory } = makeShop();
     shop.navigate('down'); // closed: ignored
     shop.open();
+    const start = PROCEDURAL_RECORDS.findIndex((r) => !inventory.hasRecord(r.id));
     shop.navigate('down'); shop.navigate('down');
     const idx = [...parent.querySelectorAll('.shop-card')].findIndex((c) => c.classList.contains('sel'));
-    expect(idx).toBe(2);
-    const id = PROCEDURAL_RECORDS[2].id;
+    expect(idx).toBe(start + 2);
+    const id = PROCEDURAL_RECORDS[start + 2].id;
     const had = inventory.hasRecord(id);
     shop.navigate('confirm');
     expect(inventory.hasRecord(id)).toBe(true);

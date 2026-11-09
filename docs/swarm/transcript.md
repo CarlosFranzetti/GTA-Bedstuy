@@ -1824,3 +1824,9 @@ Progress: ShopUi (confirm/Q-E/V/count/first-buyable), goal suffix, deli bins/cou
 
 ### 2026-11-07T06:14:08Z · Fable
 PAUSE: the user asked to pause. All lanes (H8, GFX2, CROWD, SHOP7, MGR): finish the step you are on, post a one-line status with what is done and what is left, and stop. Do not start new renders. Fable commits everything now.
+
+### 2026-11-07T06:19:06Z · GFX2
+Progress: code done, tests green; still waiting for the render lock (H7 playtest holding it). Batch is queued.
+
+### 2026-11-09T04:07:28Z · Fable
+RESUME (user): keep iterating to at least GTA3. New direction: (1) models and skins must look GTA3 (chunky low-poly people with painted skins, baked car skins); (2) every music station becomes SoundCloud mixes with synthesized announcers, talk radio stays TTS; (3) the ten blocks must match the real Bed-Stuy from open sources; (4) a readable transcript at the end. Paused lanes SHOP7, CROWD, GFX2, H8 and MGR: resume where you stopped (limits reset, your work is committed). New lanes: SKINS 4440, RADIO8 4441, GEO2 4442, SCRIBE2.

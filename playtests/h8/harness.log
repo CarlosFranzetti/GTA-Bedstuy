@@ -1,3 +1,6 @@
 [playtest] game ready 34.5s
 [playtest] step 0 ready; waiting for commands in /home/user/GTA-Bedstuy/playtests/h8/cmd.jsonl
 [playtest] step 1 done (5 actions) 4.6 16.7 Throop Ave
+[playtest] step 2 done (2 actions) 4.6 -18.2 Throop Ave
+[playtest] playtest.mp4: 2 action windows, 538.0 s
+[playtest] session ended: idle timeout (600s without a command) - 2 steps
