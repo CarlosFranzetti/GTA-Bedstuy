@@ -1,0 +1,67 @@
+{
+  "gameHour": 17.621,
+  "player": {
+    "x": 4.6,
+    "z": -17.4,
+    "headingDeg": 0,
+    "headingCompass": "north",
+    "cameraFacingDeg": 360,
+    "cameraFacing": "north"
+  },
+  "inVehicle": true,
+  "enteringCar": false,
+  "vehicle": {
+    "type": "suv",
+    "speedKmh": 24
+  },
+  "walkSpeedKmh": 0,
+  "wantedStars": 0,
+  "prompt": "F  Exit car",
+  "street": "Throop Ave",
+  "radio": "BK House — Deja Fontaine",
+  "mission": null,
+  "missionToast": "",
+  "missionRetry": "",
+  "cash": "$120",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": false,
+  "nearby": [
+    {
+      "type": "vehicle",
+      "distance_m": 5.3,
+      "direction": "ahead",
+      "bearing_deg": 0,
+      "vehicle": "suv",
+      "occupied": false
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 9.2,
+      "direction": "left",
+      "bearing_deg": -84,
+      "vehicle": "suv",
+      "occupied": false
+    },
+    {
+      "type": "ped",
+      "distance_m": 14.3,
+      "direction": "behind-left",
+      "bearing_deg": -138
+    },
+    {
+      "type": "ped",
+      "distance_m": 15.4,
+      "direction": "behind-left",
+      "bearing_deg": -138
+    }
+  ],
+  "nearbyTotal": 4,
+  "sim": {
+    "steps": 416,
+    "fps": 10,
+    "heapMB": 215
+  },
+  "step": 2,
+  "consoleErrorsSinceLastStep": []
+}

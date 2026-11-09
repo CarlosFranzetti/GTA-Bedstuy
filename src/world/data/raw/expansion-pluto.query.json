@@ -6,5 +6,7 @@
   "order": "bbl",
   "fetched": "2026-11-09",
   "rows": 15153,
-  "crs": "xcoord/ycoord are NY State Plane Long Island (EPSG:2263), US survey feet; latitude/longitude WGS84"
+  "crs": "xcoord/ycoord are NY State Plane Long Island (EPSG:2263), US survey feet; latitude/longitude WGS84",
+  "trim": "Kept only lots with centroid inside the survey polygon (grid x > -40 m, z -340..1060 m, west of the Bushwick Ave centreline +45 m); X/Z are grid metres (+x east, +z south, origin Throop Ave x Kosciuszko St centrelines, grid rotated 8.7 deg from State Plane north-east)",
+  "rows_kept": 6899
 }

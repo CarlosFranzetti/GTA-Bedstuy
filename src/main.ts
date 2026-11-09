@@ -13,6 +13,7 @@ import { TrafficLights } from '@/game/TrafficLights';
 import { MaterialLibrary } from '@/textures/MaterialLibrary';
 import { World2D } from '@/physics/World2D';
 import { Player, ENTER_RANGE, doorDistance } from '@/entities/Player';
+import { setPedDayContext } from '@/entities/models/pedBody';
 import { Vehicle, VEHICLE_SPECS } from '@/entities/Vehicle';
 import { Pedestrian } from '@/entities/Pedestrian';
 import { resolveCharacterSource, GltfCharacterSource } from '@/entities/models/gltf/CharacterSource';
@@ -635,6 +636,7 @@ game.add({
     // environment + audio
     if (interiors.state !== 'inside') dayNight.update(dt); // the clock stops while the player is in a room, so a DJ set cannot run the club past closing
     if (dayNight.timeOfDay < prevHour - 12) { gameDay++; applyClutterState(world.group, quality, gameDay); }
+    setPedDayContext(dayNight.timeOfDay, gameDay % 7 === 6); // Sunday-only church clothes
     prevHour = dayNight.timeOfDay;
     setStorefrontHour(dayNight.timeOfDay);
     traffic.setHour(dayNight.timeOfDay);
