@@ -272,6 +272,7 @@ app.appendChild(overlay);
 const hud = new Hud(overlay);
 const missionHud = new MissionHud(overlay);
 missionHud.setRouter(createPointerRouter(grid));
+setTimeout(() => missionHud.showHomeHint(), 2500); // one-time 'your place is the green awning' toast at first spawn
 const minimap = new Minimap(overlay, grid);
 
 const input = new Input(renderer.domElement);
