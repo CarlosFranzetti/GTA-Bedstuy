@@ -1868,3 +1868,18 @@ Overpass (overpass-api.de, kumi) and NYC Open Data both DNS-blocked (ENOTFOUND).
 
 ### 2026-11-09T04:10:33Z · RADIO8
 PLAN: (1) stations.ts table of 8 SC stations + keyword filters; RaFeed.topUp(match) keyword-aware, same rate rules; ScStation gains per-station config (name, match, own pasted-link key, per-station heard set, fallback order filtered pool > own links > any pool set); RadioDirector dial = 8 SC stations, WBSY Talk, optional My Library (gated on library having tracks). (2) src/audio/announcer/{personas,scripts,Announcer}.ts reusing talk pickVoices/SpeechLike, ducking widget volume, 8-min cadence, never over talk, text-only if no voices. (3) RadioUi per-station pool counts + link lists. (4) docs/RADIO.md rewrite, tests in tests/unit/audio. No shared files touched; FOR FABLE lines at the end.
+
+### 2026-11-09T04:11:17Z · SCRIBE2
+Progress: Stage 4 chapter drafted (~3,100 words). Now Stages 5 and 6.
+
+### 2026-11-09T04:12:56Z · SCRIBE2
+Progress: Stages 5 and 6 drafted. Writing Stage 7 (H7, H8, GFX2, CROWD, pause/resume) and Stage 8 start next.
+
+### 2026-11-09T04:14:13Z · GEO2
+Progress: bedstuy.json edited (24 sourced lot notes, 23 mid-block shopfronts stripped from side streets), BLOCKS.md + real-blocks test written. Running gates + after-renders.
+
+### 2026-11-09T04:15:28Z · GEO2
+Gates so far: tsc clean, vitest world/game/textures green (867), build ok. Waiting on render lock for before/after frames + smoke.
+
+### 2026-11-09T04:16:48Z · SCRIBE2
+FINAL: transcript-readable.md extended through Stage 8 start (Stages 4-7, Where it stands now, glossary). File now 21454 words, about 9137 added. Stopped at 04:12Z on 9 Nov. Not committed.

@@ -20,6 +20,13 @@ export const RA_POOL_CAP = 80;
 export const RA_CACHE_MAX_AGE_MS = 24 * 3600 * 1000;
 export const RA_CACHE_MIN_UNPLAYED = 6;
 export const RA_DAYS_BACK = 21;
+/** Keyword top-ups: extra lookups allowed per session on top of the first build's RA_MAX_LOOKUPS. */
+export const RA_TOPUP_LOOKUPS = 32;
+/** Lookups per top-up call (one at a time), and the number of matching unheard sets that counts as "enough". */
+export const RA_TOPUP_BATCH = 4;
+export const RA_TOPUP_WANT = 3;
+/** Event days that may be read per session (first build plus top-ups). */
+export const RA_MAX_EVENT_FETCHES = 8;
 const RA_FETCH_TIMEOUT_MS = 10000;
 const RA_EVENT_DAY_TRIES = 3;
 
@@ -32,6 +39,15 @@ export interface RaSet {
   artistId: string;
   eventTitle?: string;
   venue?: string;
+}
+
+/** Station filter: matched (case-insensitively by the caller's regexes) against a set's title and DJ name. */
+export type RaMatch = (s: { title: string; dj: string }) => boolean;
+
+/** Builds a matcher from keyword regexes; no patterns means every set matches. */
+export function matcherFor(patterns: readonly RegExp[] | null | undefined): RaMatch | null {
+  if (!patterns || patterns.length === 0) return null;
+  return (s) => { const t = `${s.title} ${s.dj}`; return patterns.some((p) => p.test(t)); };
 }
 
 export type RaStatus = 'idle' | 'loading' | 'ready' | 'unavailable';
@@ -51,6 +67,8 @@ export interface RaResponse {
   headers?: { get(name: string): string | null };
   json(): Promise<unknown>;
 }
+
+const isTestMode = (): boolean => { try { return import.meta.env?.MODE === 'test'; } catch { return false; } };
 
 const isHosted = (): boolean => { try { return import.meta.env?.VITE_HOSTED === '1'; } catch { return false; } };
 
@@ -110,14 +128,19 @@ export class RaFeed {
   private blockedUntil = 0;
   private lastPlayed = '';
   private retryAfterMs = 0;
+  private cands: Array<{ id: string; name: string; eventTitle?: string; venue?: string }> = [];
+  private readonly looked = new Set<string>();
+  private topUpLookups = 0;
   private readonly listeners = new Set<() => void>();
   /** Counters for tests and the HUD. */
   eventFetches = 0;
+  /** Number of keyword top-ups that actually started (tests, docs). */
+  topUps = 0;
 
   constructor(env: Partial<RaEnv> = {}) {
     const storage = env.storage === undefined ? defaultStorage() : env.storage;
     this.env = {
-      fetch: env.fetch === undefined ? (typeof fetch === 'function' ? (u, i) => fetch(u, i) as Promise<RaResponse> : null) : env.fetch,
+      fetch: env.fetch === undefined ? (typeof fetch === 'function' && !isTestMode() ? (u, i) => fetch(u, i) as Promise<RaResponse> : null) : env.fetch,
       storage,
       random: env.random ?? Math.random,
       now: env.now ?? (() => Date.now()),
@@ -160,6 +183,30 @@ export class RaFeed {
       if (open.length === 0) open = this.pool.slice();
     }
     const s = open[Math.min(open.length - 1, Math.floor(this.env.random() * open.length))];
+    this.played.add(s.url);
+    this.lastPlayed = s.url;
+    this.persist();
+    this.emit();
+    return s;
+  }
+
+  /** Pool sets matching `match` (all when null) that `heard` does not contain. */
+  countMatching(match: RaMatch | null, heard: ReadonlySet<string> = new Set()): number {
+    let n = 0;
+    for (const s of this.pool) if (!heard.has(s.url) && (!match || match(s))) n++;
+    return n;
+  }
+
+  /**
+   * A random set matching `match` that the caller has not heard (per-station no-repeat), preferring ones nobody
+   * has played yet. Marks it played pool-wide. Null when nothing qualifies.
+   */
+  pickFor(match: RaMatch | null, heard: ReadonlySet<string>): RaSet | null {
+    const ok = this.pool.filter((s) => !heard.has(s.url) && (!match || match(s)));
+    if (ok.length === 0) return null;
+    const fresh = ok.filter((s) => !this.played.has(s.url));
+    const from = fresh.length > 0 ? fresh : ok;
+    const s = from[Math.min(from.length - 1, Math.floor(this.env.random() * from.length))];
     this.played.add(s.url);
     this.lastPlayed = s.url;
     this.persist();
@@ -225,46 +272,107 @@ export class RaFeed {
     }
   }
 
-  private async build(): Promise<void> {
-    type Cand = { id: string; name: string; eventTitle?: string; venue?: string };
-    let artists: Cand[] = [];
-    for (let attempt = 0; attempt < RA_EVENT_DAY_TRIES && artists.length === 0; attempt++) {
-      if (this.isBlocked() || this.failed) return;
-      const back = Math.min(RA_DAYS_BACK - 1, Math.floor(this.env.random() * RA_DAYS_BACK));
-      const date = nyDate(this.env.now() - back * 86400000);
-      this.eventFetches++;
-      const r = await this.getJson(`/events?date=${encodeURIComponent(date)}`);
-      if (!r.ok) { if (!r.fatal) this.failed = true; return; }
-      const events = (r.data as { events?: unknown })?.events;
-      const seen = new Set<string>();
-      if (Array.isArray(events)) {
-        for (const e of events as Array<Record<string, unknown>>) {
-          const list = Array.isArray(e?.artists) ? (e.artists as Array<Record<string, unknown>>) : [];
-          for (const a of list) {
-            const id = typeof a?.id === 'string' || typeof a?.id === 'number' ? String(a.id) : '';
-            const name = typeof a?.name === 'string' ? a.name.trim() : '';
-            if (!id || !name || seen.has(id)) continue;
-            seen.add(id);
-            artists.push({
-              id, name,
-              eventTitle: typeof e.title === 'string' ? e.title : undefined,
-              venue: typeof (e.venue as { name?: unknown })?.name === 'string' ? (e.venue as { name: string }).name : undefined,
-            });
-          }
+  /** Reads one random recent New York day and returns its distinct artists. Null on a failed request. */
+  private async fetchDay(): Promise<Array<{ id: string; name: string; eventTitle?: string; venue?: string }> | null> {
+    const back = Math.min(RA_DAYS_BACK - 1, Math.floor(this.env.random() * RA_DAYS_BACK));
+    const date = nyDate(this.env.now() - back * 86400000);
+    this.eventFetches++;
+    const r = await this.getJson(`/events?date=${encodeURIComponent(date)}`);
+    if (!r.ok) { if (!r.fatal) this.failed = true; return null; }
+    const out: Array<{ id: string; name: string; eventTitle?: string; venue?: string }> = [];
+    const events = (r.data as { events?: unknown })?.events;
+    const seen = new Set<string>();
+    if (Array.isArray(events)) {
+      for (const e of events as Array<Record<string, unknown>>) {
+        const list = Array.isArray(e?.artists) ? (e.artists as Array<Record<string, unknown>>) : [];
+        for (const a of list) {
+          const id = typeof a?.id === 'string' || typeof a?.id === 'number' ? String(a.id) : '';
+          const name = typeof a?.name === 'string' ? a.name.trim() : '';
+          if (!id || !name || seen.has(id)) continue;
+          seen.add(id);
+          out.push({
+            id, name,
+            eventTitle: typeof e.title === 'string' ? e.title : undefined,
+            venue: typeof (e.venue as { name?: unknown })?.name === 'string' ? (e.venue as { name: string }).name : undefined,
+          });
         }
       }
     }
+    return out;
+  }
+
+  /** One artist lookup (never parallel). Returns false when the run must stop (network failure or 429). */
+  private async lookup(a: { id: string; name: string; eventTitle?: string; venue?: string }): Promise<boolean> {
+    this.looked.add(a.id);
+    this.lookups++;
+    const r = await this.getJson(`/artist?id=${encodeURIComponent(a.id)}&name=${encodeURIComponent(a.name)}`);
+    if (!r.ok) return !(r.fatal || this.isBlocked());
+    const sets = filterSets((r.data as { sets?: unknown })?.sets);
+    for (const s of sets) this.add({ url: s.url, title: s.title, dj: a.name, duration: s.duration, artistId: a.id, eventTitle: a.eventTitle, venue: a.venue });
+    this.persist();
+    this.emit();
+    return true;
+  }
+
+  private async build(): Promise<void> {
+    let artists: Array<{ id: string; name: string; eventTitle?: string; venue?: string }> = [];
+    for (let attempt = 0; attempt < RA_EVENT_DAY_TRIES && artists.length === 0; attempt++) {
+      if (this.isBlocked() || this.failed) return;
+      const day = await this.fetchDay();
+      if (!day) return;
+      artists = day.filter((a) => !this.looked.has(a.id));
+    }
     artists = this.shuffle(artists);
     this.fetchedAt = this.env.now();
-    for (const a of artists) {
+    while (artists.length > 0) {
       if (this.unplayedCount >= RA_TARGET_SETS || this.lookups >= RA_MAX_LOOKUPS || this.isBlocked()) break;
-      this.lookups++;
-      const r = await this.getJson(`/artist?id=${encodeURIComponent(a.id)}&name=${encodeURIComponent(a.name)}`);
-      if (!r.ok) { if (r.fatal || this.isBlocked()) break; continue; }
-      const sets = filterSets((r.data as { sets?: unknown })?.sets);
-      for (const s of sets) this.add({ url: s.url, title: s.title, dj: a.name, duration: s.duration, artistId: a.id, eventTitle: a.eventTitle, venue: a.venue });
+      const a = artists.shift()!;
+      if (!(await this.lookup(a))) break;
+    }
+    this.cands = artists;
+  }
+
+  /**
+   * Asks for more sets when fewer than RA_TOPUP_WANT sets that match `match` (and that `heard` lacks) are in the pool.
+   * Keeps the feed's rate rules: single flight, one lookup at a time, at most RA_TOPUP_LOOKUPS extra lookups and
+   * RA_MAX_EVENT_FETCHES event days per session, and a 429 stops everything for Retry-After. Artists whose event
+   * title, venue or name hints at the station's keywords (`hint`) are looked up first. Never throws.
+   */
+  topUp(match: RaMatch | null, heard: ReadonlySet<string> = new Set(), hint: RaMatch | null = null): Promise<void> {
+    if (this.inflight) return this.inflight.then(() => this.topUp(match, heard, hint));
+    if (!this.env.fetch || this.failed || this.isBlocked() || this.topUpLookups >= RA_TOPUP_LOOKUPS) return Promise.resolve();
+    if (this.countMatching(match, heard) >= RA_TOPUP_WANT) return Promise.resolve();
+    this.tried = true;
+    this.topUps++;
+    this.inflight = this.runTopUp(match, heard, hint).catch(() => { this.failed = true; }).finally(() => {
+      this.inflight = null;
       this.persist();
       this.emit();
+    });
+    this.emit();
+    return this.inflight;
+  }
+
+  private async runTopUp(match: RaMatch | null, heard: ReadonlySet<string>, hint: RaMatch | null): Promise<void> {
+    let made = 0;
+    while (made < RA_TOPUP_BATCH && this.topUpLookups < RA_TOPUP_LOOKUPS && !this.isBlocked() && !this.failed) {
+      if (this.countMatching(match, heard) >= RA_TOPUP_WANT) break;
+      if (this.cands.length === 0) {
+        if (this.eventFetches >= RA_MAX_EVENT_FETCHES) break;
+        const day = await this.fetchDay();
+        if (!day) break;
+        this.cands = this.shuffle(day.filter((a) => !this.looked.has(a.id)));
+        if (this.cands.length === 0) continue;
+      }
+      let at = 0;
+      if (hint) {
+        const i = this.cands.findIndex((a) => hint({ title: `${a.eventTitle ?? ''} ${a.venue ?? ''}`, dj: a.name }));
+        if (i >= 0) at = i;
+      }
+      const [a] = this.cands.splice(at, 1);
+      made++;
+      this.topUpLookups++;
+      if (!(await this.lookup(a))) break;
     }
   }
 

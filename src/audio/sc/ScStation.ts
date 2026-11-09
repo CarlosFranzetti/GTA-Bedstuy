@@ -13,12 +13,13 @@
  * behaves exactly as it did with pasted links only (or the synth bed when there are none).
  */
 
-import { RaFeed, type RaSet, type RaStatus } from './RaFeed';
+import { RaFeed, type RaMatch, type RaSet, type RaStatus } from './RaFeed';
 
 export const SC_STORAGE_KEY = 'gta-bedstuy.radio.sc.v1';
 export const SC_STATION_NAME = 'Radio SC';
 export const SC_FAILED_NAME = 'Radio SC (needs the hosted build / internet)';
 export const SC_EMPTY_HINT = 'No sets yet: check your connection or add SoundCloud links in the Radio library';
+export const SC_HEARD_CAP = 200;
 export const SC_API_URL = 'https://w.soundcloud.com/player/api.js';
 export const SC_LOAD_TIMEOUT_MS = 8000;
 export const SC_MAX_MIXES = 40;
@@ -118,7 +119,20 @@ export interface ScWidget {
 }
 export interface ScApi { Widget: ((el: HTMLIFrameElement) => ScWidget) & { Events?: Record<string, string> } }
 
+/** Which of the dial's SoundCloud stations this instance is. Omitted = the classic Radio SC (every set, own list). */
+export interface ScStationConfig {
+  id: string;
+  name: string;
+  /** Pool filter (title + DJ name). Null = any set. */
+  match: RaMatch | null;
+  /** Looser hint for ranking event days when asking RA for more (defaults to `match`). */
+  hint?: RaMatch | null;
+  /** localStorage key of this station's pasted links. */
+  storageKey: string;
+}
+
 export interface ScEnv {
+  config: ScStationConfig;
   doc: () => Document | null;
   /** Loads the widget API script and resolves with the SC global. */
   loadApi: () => Promise<ScApi>;
@@ -148,15 +162,18 @@ function defaultLoadApi(): Promise<ScApi> {
   });
 }
 
-function defaultEnv(): ScEnv {
+export const DEFAULT_SC_CONFIG: ScStationConfig = { id: 'sc', name: SC_STATION_NAME, match: null, storageKey: SC_STORAGE_KEY };
+
+function defaultEnv(config: ScStationConfig = DEFAULT_SC_CONFIG): ScEnv {
   const hosted = (() => { try { return import.meta.env?.VITE_HOSTED === '1'; } catch { return false; } })();
   return {
+    config,
     doc: () => (typeof document !== 'undefined' ? document : null),
     loadApi: defaultLoadApi,
     canLoad: () => hosted || (typeof navigator === 'undefined' ? false : navigator.onLine !== false),
     now: () => Date.now(),
     hour: () => new Date().getHours(),
-    storage: localScStorage(),
+    storage: localScStorage(config.storageKey),
     timeoutMs: SC_LOAD_TIMEOUT_MS,
     feed: new RaFeed(),
     random: Math.random,
@@ -203,11 +220,19 @@ export class ScStation {
   private now: NowPlaying | null = null;
   private readonly listeners = new Set<() => void>();
   /** Called when the station moves to the next mix (the director plays the station jingle). */
-  onBetweenMixes: (() => void) | null = null;
+  onBetweenMixes: ((prev: NowPlaying | null) => void) | null = null;
   apiLoads = 0;
 
+  /** Pool sets this station has played (per-station no-repeat). */
+  private readonly heard = new Set<string>();
+  private lastSetUrl = '';
+  private duck = 1;
+  /** Called when the game hour is fed in (the director shares it with the announcers). */
+  onGameHour: ((h: number | null) => void) | null = null;
+
   constructor(env: Partial<ScEnv> = {}) {
-    this.env = { ...defaultEnv(), ...env };
+    const config = env.config ?? DEFAULT_SC_CONFIG;
+    this.env = { ...defaultEnv(config), ...env, config };
     this.list = this.env.storage?.load() ?? [];
     this.raOn = this.env.storage?.loadRa?.() ?? true;
     this.env.feed?.onChange(() => {
@@ -215,6 +240,18 @@ export class ScStation {
       // The pool arrived after the first tune-in gave up waiting: start playing it now.
       if (this.active && this.state === 'idle' && this.picked === false && (this.env.feed?.unplayedCount ?? 0) > 0) this.tuneIn();
     });
+  }
+
+  /* ---------- identity ---------- */
+
+  get id(): string { return this.env.config.id; }
+  get config(): ScStationConfig { return this.env.config; }
+  /** Pool sets this station could play (match the keywords), and how many of those it has not heard yet. */
+  get poolCounts(): { matching: number; unheard: number; pool: number } {
+    const f = this.env.feed;
+    const m = this.env.config.match;
+    if (!f) return { matching: 0, unheard: 0, pool: 0 };
+    return { matching: f.countMatching(m), unheard: f.countMatching(m, this.heard), pool: f.size };
   }
 
   /* ---------- RA pool ---------- */
@@ -285,7 +322,10 @@ export class ScStation {
 
   private gameHour: number | null = null;
   /** Optional: feed the in-game hour (0..23) so dayparting follows game time instead of the device clock. */
-  setGameHour(h: number): void { this.gameHour = Number.isFinite(h) ? ((Math.floor(h) % 24) + 24) % 24 : null; }
+  setGameHour(h: number): void {
+    this.gameHour = Number.isFinite(h) ? ((Math.floor(h) % 24) + 24) % 24 : null;
+    this.onGameHour?.(Number.isFinite(h) ? h : null);
+  }
 
   /** Dayparting stub: between 23:00 and 06:00 the first mix of the session is an afterhours-flagged one. */
   pickFirstIndex(hour: number = this.gameHour ?? this.env.hour()): number {
@@ -304,7 +344,10 @@ export class ScStation {
     if (!this.hasSources || this.state === 'failed') return true;
     return !this.poolAvailable && this.list.every((m) => this.bad.has(m.url));
   }
-  get stationName(): string { return this.state === 'failed' ? SC_FAILED_NAME : SC_STATION_NAME; }
+  get stationName(): string {
+    const n = this.env.config.name;
+    return this.state === 'failed' ? `${n} (needs the hosted build / internet)` : n;
+  }
   get nowPlaying(): NowPlaying | null {
     if (this.curSet) return { title: this.curSet.title, user: this.curSet.dj || this.now?.user || '' };
     return this.now;
@@ -340,7 +383,18 @@ export class ScStation {
   /** Radio volume (times master) 0..1 mapped to the widget's 0..100. */
   setVolume(v: number): void {
     this.volume = Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
-    if (this.widget && this.state === 'ready') this.widget.setVolume(Math.round(this.volume * 100));
+    this.pushVolume();
+  }
+
+  /** Announcer ducking: 1 = full level, lower = quieter under the voice. */
+  setDuck(level: number): void {
+    this.duck = Math.max(0, Math.min(1, Number.isFinite(level) ? level : 1));
+    this.pushVolume();
+  }
+  get duckLevel(): number { return this.duck; }
+
+  private pushVolume(): void {
+    if (this.widget && this.state === 'ready') this.widget.setVolume(Math.round(this.volume * this.duck * 100));
   }
 
   /** Advances the virtual clock (game time). */
@@ -357,8 +411,9 @@ export class ScStation {
   /** Skips to the next mix (a random pool set and/or the next pasted link). */
   next(): void {
     if (!this.hasSources) return;
+    const prev = this.nowPlaying ? { ...this.nowPlaying } : null;
     this.step(true);
-    this.onBetweenMixes?.();
+    this.onBetweenMixes?.(prev);
   }
 
   private step(play: boolean): void {
@@ -369,43 +424,80 @@ export class ScStation {
   }
 
   /**
-   * Chooses the next item: pool and pasted links alternate (random first pick) when both exist; at the start of a
-   * session the after-hours preference decides between 23:00 and 06:00. Pasted links keep list order.
+   * Chooses the next item, in this order: an unheard pool set matching the station's keywords; then the station's
+   * own pasted links (list order); then any unheard pool set. Each station remembers what it played (no repeats until
+   * its pool is used up) and asks the feed for more matching sets when its queue runs low. At the start of a session
+   * between 23:00 and 06:00 an after-hours pasted link goes first.
    */
   private pickNext(first = false): void {
     const feed = this.env.feed;
+    const match = this.env.config.match;
+    const usePool = this.randomSets && !!feed && feed.size > 0;
     const listOk = this.list.some((m) => !this.bad.has(m.url));
-    const poolOk = this.randomSets && !!feed && feed.size > 0;
-    let wantPool = poolOk;
-    if (poolOk && listOk) {
-      const night = first && inPreferredHours(this.gameHour ?? this.env.hour()) && this.list.some((m) => m.afterhours);
-      wantPool = night ? false : this.lastWasPool === null ? this.env.random() < 0.5 : !this.lastWasPool;
-    }
     this.duration = 0;
     this.isSet = false;
     this.prefetched = false;
-    if (wantPool && feed) {
+    const nightLink = first && listOk && inPreferredHours(this.gameHour ?? this.env.hour()) && this.list.some((m) => m.afterhours);
+
+    const fromPool = (m: RaMatch | null): boolean => {
+      if (!feed) return false;
       for (let tries = 0; tries < 5; tries++) {
-        const s = feed.nextSet();
-        if (!s) break;
-        if (this.bad.has(s.url)) continue;
+        const s = feed.pickFor(m, this.heardOrBad());
+        if (!s) return false;
+        this.heard.add(s.url);
+        this.lastSetUrl = s.url;
+        if (this.heard.size > SC_HEARD_CAP) this.heard.delete(this.heard.values().next().value as string);
         this.curSet = s;
         this.picked = true;
         this.duration = s.duration;
         this.lastWasPool = true;
-        return;
+        return true;
       }
-    }
-    this.curSet = null;
-    if (this.list.length > 0) {
-      if (first) this.index = this.pickFirstIndex();
+      return false;
+    };
+    const fromList = (): boolean => {
+      this.curSet = null;
+      if (!listOk) return false;
+      if (first && this.lastWasPool === null) this.index = this.pickFirstIndex();
       else {
         let n = this.list.length;
         do { this.index = (this.index + 1) % this.list.length; } while (--n > 0 && this.bad.has(this.list[this.index].url));
       }
       this.lastWasPool = false;
       this.picked = true;
+      return true;
+    };
+
+    let done = false;
+    if (nightLink) done = fromList();
+    if (!done && usePool) done = fromPool(match);
+    if (!done) done = fromList();
+    if (!done && usePool) {
+      done = fromPool(null);
+      // Everything in the pool has been heard here: start a new round (not with the set that just played).
+      if (!done && this.heard.size > 0) {
+        this.heard.clear();
+        if (this.lastSetUrl) this.heard.add(this.lastSetUrl);
+        done = fromPool(match) || fromPool(null);
+      }
     }
+    if (!done) this.curSet = null;
+    this.askForMore();
+  }
+
+  private heardOrBad(): ReadonlySet<string> {
+    if (this.bad.size === 0) return this.heard;
+    const all = new Set(this.heard);
+    this.bad.forEach((u) => all.add(u));
+    return all;
+  }
+
+  /** Keyword-aware top-up: when fewer than a few unheard matching sets are left, the feed looks up more artists. */
+  private askForMore(): void {
+    const feed = this.env.feed;
+    if (!feed || !this.randomSets) return;
+    const cfg = this.env.config;
+    void feed.topUp(cfg.match, this.heardOrBad(), cfg.hint ?? cfg.match);
   }
 
   private tuneIn(): void {
@@ -446,7 +538,7 @@ export class ScStation {
       await withTimeout(new Promise<void>((res) => widget.bind(ev(api, 'READY', 'ready'), () => res())), this.env.timeoutMs);
       this.bindEvents(api, widget);
       this.state = 'ready';
-      widget.setVolume(Math.round(this.volume * 100));
+      this.pushVolume();
       this.learn(widget);
       this.applyPlayback(true);
     } catch {
@@ -488,6 +580,7 @@ export class ScStation {
       if (!this.prefetched && feed && this.randomSets && this.duration > 0 && this.duration - this.pos <= 300 && feed.unplayedCount < 4) {
         this.prefetched = true;
         void feed.ensure();
+        this.askForMore();
       }
     });
     w.bind(ev(api, 'PLAY', 'play'), () => { this.errStreak = 0; this.learn(w); });
@@ -499,7 +592,7 @@ export class ScStation {
       if (this.hasSources && !this.usingBed) this.step(true);
     });
     w.bind(ev(api, 'FINISH', 'finish'), () => {
-      const advance = () => { this.step(true); this.onBetweenMixes?.(); };
+      const advance = () => { const prev = this.nowPlaying ? { ...this.nowPlaying } : null; this.step(true); this.onBetweenMixes?.(prev); };
       if (w.getSounds && w.getCurrentSoundIndex) {
         w.getCurrentSoundIndex((i) => w.getSounds!((s) => { if (s.length <= 1 || i >= s.length - 1) advance(); }));
       } else advance();

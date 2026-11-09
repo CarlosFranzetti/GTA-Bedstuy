@@ -4,7 +4,7 @@
 
 This is a retelling of the team's shared log (`docs/swarm/transcript.md`, about 200 posts). Short phrases in "quote marks" are the agents' own words; everything else is paraphrase. Where an agent posted only numbers, I say so. Technical terms are explained in [square brackets] when they first appear, and in the glossary at the end.
 
-Three stages: Stage 1 (28 Oct) was research plus core mechanics. Stage 2 (28 to 29 Oct) made the neighbourhood accurate and added missions and a web-hosted build. Stage 3 (1 Nov, still running) began with your bug report that you could not get out of cars, then grew with your requests for a lighter phone version, your own music on the radio, and GTA 5 as the design "bible".
+Eight stages so far. Stage 1 (28 Oct) was research plus core mechanics. Stage 2 (28 to 29 Oct) made the neighbourhood accurate and added missions and a web-hosted build. Stage 3 (1 Nov, still running) began with your bug report that you could not get out of cars, then grew with your requests for a lighter phone version, your own music on the radio, and GTA 5 as the design "bible". Stages 4 to 8 (3 to 9 Nov) took the game to the GTA3 graphics bar, added a GTA-style camera, real-proportion cars and a better phone version, ran five more blind playtests (H4 to H8), and then turned toward GTA3 skins, SoundCloud radio stations and the real blocks.
 
 ---
 
@@ -16,7 +16,17 @@ Three stages: Stage 1 (28 Oct) was research plus core mechanics. Stage 2 (28 to 
 
 **Stage 2:** D1 (lot data schema), R2 again, B3 (buildings, stoops, fences), S4 (storefronts), X5 (missions), H7 (web-hosting build), P8 (performance), L9 (lighting and weather), Q10 (quality assurance), T11 (industrial textures), F12 (traffic bug-fixer).
 
-**Stage 3:** V1 (car-exit bug), PT (playtest harness), H1, H2, H3 (the blind playtesters: on-foot explorer, driver, chaos player), L10 (lighting), W2 (world fixes), MOB (phone version), MDL, MDLI, MDL2 and MDLI2 (finding free car and character models, and integrating them), RADIO and RADIO2 (radio for your own music; Radio SC), WRITE (talk-show script), BIBLE (GTA 5 design bible), MUSIC (legal music research), GFX (graphics ladder), GEO (real-building pipeline), MISS2 (missions, phone, DJ storyline), CLUB (record shop, Aftersloth club, home, DJ game), CLUTTER (street clutter), WIRE (shared-file wiring), DRIVE (steering, crimes, mission finding), STUCK (wedged cars), TA2 (traffic deadlock), SCRIBE (me).
+**Stage 3:** V1 (car-exit bug), PT (playtest harness), H1, H2, H3 (the blind playtesters: on-foot explorer, driver, chaos player), L10 (lighting), W2 (world fixes), MOB (phone version), MDL, MDLI, MDL2 and MDLI2 (finding free car and character models, and integrating them), RADIO and RADIO2 (radio for your own music; Radio SC), WRITE (talk-show script), BIBLE (GTA 5 design bible), MUSIC (legal music research), GFX (graphics ladder), GEO (real-building pipeline), MISS2 (missions, phone, DJ storyline), CLUB (record shop, Aftersloth club, home, DJ game), CLUTTER (street clutter), WIRE (shared-file wiring), DRIVE (steering, crimes, mission finding), STUCK (wedged cars), TA2 (traffic deadlock), SCRIBE (an earlier me).
+
+**Stage 4:** GTA3 (the GTA3 bar), H4 and H5 (blind phone-tier testers), SHOPUX (shop and DJ panel usability), MISSFIX (mission flow), RASC (random DJ sets from your ra-nyc app).
+
+**Stage 5:** CARS2 (procedural cars), CAM (GTA-style camera), ART (art direction), PHONEGFX (phone shadows and grade), H6 (blind tester).
+
+**Stage 6:** NAV6 (walkable streets, HOME marker), HUD6 (HUD and street signs), GTA4A (skyline, pop-in, liveries).
+
+**Stage 7:** GFX2 (car paint and neon bounce), CROWD (crowds, clutter, pop-in routes), H7 and H8 (blind testers), SHOP7 (shop and mission fixes).
+
+**Stage 8:** SKINS (GTA3 people and car skins), RADIO8 (SoundCloud stations and announcers), GEO2 (real blocks), SCRIBE2 (this extension).
 
 ---
 
@@ -525,9 +535,322 @@ At 13:27 MGR wrote `checkins/stage3.md`. In short: your car-exit bug is fixed an
 
 ---
 
+# STAGE 4: Reaching the GTA3 Bar
+*3 November, 13:31Z to about 23:00Z, with a long pause in the afternoon*
+
+**The target.** Stage 3 had ended with green gates and your car-exit bug fixed. The manager's graphics ladder (a checklist of what the picture must look like, one rung per GTA generation) had not reached its first rung, "GTA3". Seven standard camera viewpoints are judged against it: a noon street, a noon corner, a golden-hour aerial, a dusk car view, a night car view, a night corner and a morning view of the traffic signals. fable opened Stage 4 at 13:31Z with two lanes: **GTA3** (a Sonnet agent to close the manager's gaps) and **H4** (a Haiku blind tester for the phone version and the record shop on build "v13").
+
+## Hour 13:30Z: the black square turns out to be tree pits
+
+GTA3 opened with its plan at 13:31: find and fix "the black square on the spawn sidewalk", add brick variants, soot and blind windows to the party walls (the tall side walls of buildings that you see above a lower neighbour), vary the roofs, and make the number of pedestrians "follow the hourly curve with two idle behaviours".
+
+By 13:43 GTA3 reported the party walls (four brick colours, soot, ghost signs, blind windows), three tar-roof looks with vents, hatches and parapets, and pedestrians that thin out at night, all unit-tested. It asked fable for two lines in the main file so the street density would follow the clock; fable had them in by 13:43:38.
+
+The mystery of the black square took longer. At 14:31 GTA3 reported the finding: the flat black squares on the spawn sidewalk "are the tree pits". They had been merged into the ground mesh with the darkest concrete variant, "about 10 percent albedo, near black in shade". [Albedo is how much light a surface reflects.] At 15:03 it added a second cause: their texture coordinates sat "at about 100 from the origin on a normal-mapped slab". It had changed `RoadBuilder.ts`, a file outside its lane, and asked fable to "accept or revert". fable answered at 14:33: "accepted: your line-local RoadBuilder.ts change ... is blessed; keep it, add a test that tree pits use a soil/mulch look, and carry on." The same pattern as before: a lane may edit a file it does not own if the edit is a few lines and it announces them.
+
+
+## H4, the first phone-tier tester
+
+H4 finished at 13:56Z. Its report: the phone picture "reads fine on Throop Ave (brick, signs and minimap are clear; distance fog is soft)", the mission pointer worked, and Crate Digger started at the gold ring after about six steps. Then two things went wrong. At the WAX DELI stairs, "my position did not change for four steps", the mission timer kept running, and the door prompt showed "at one exact spot". Inside, F at the counter opened the shop panel, but "the Throop Night Bus Buy button is clipped at the bottom of the 640x360 screen, and none of the keys I have (Tab, arrows, Space, Enter, F) can operate or close the panel". The state file even said `menuOpen false` while the panel was on screen. It also noticed that walking north made the pointer distance grow from 15 to 25 metres.
+
+fable relayed it at 13:57 and opened a new lane, **SHOPUX**, for the shop and DJ panels. MGR later numbered the problems PT4-1 to PT4-5. [PT means playtest; the numbers are defect IDs, and P1 to P3 are severities with P1 the worst.]
+
+## SHOPUX asks for four small edits
+
+SHOPUX's plan at 13:57 was to make the panels fit small screens, add keyboard and gamepad control, pause the mission timer while a panel is open, widen the door prompt and open the blocked stoop. At 14:22 it posted three main-file edits for fable. The most telling: the pointer arrow should use the camera's heading, because "on foot the body heading differs from the camera". It added, to H4's credit and its own: "distance maths was already right: H4 really walked away from the giver". fable applied all three by 14:23.
+
+
+At 14:51 SHOPUX found a fourth problem by experiment: while the mouse is captured by the game, "every click lands on the canvas, so the shop Close button cannot be clicked (proved headless)". fable applied the two-line fix within 30 seconds.
+
+By 15:03 SHOPUX had a 3.2 m wide, 2.6 m deep door band, a gap in the Wax Deli fence, panels that fit, and nearly everything verified. What still failed was the last step of its own replay: "entering the home door and opening the decks". It promised a final report in about fifteen minutes.
+
+## 15:45Z to 16:30Z: the build, the manager's verdict, and a tester who never got there
+
+fable published artifact "v14" at 15:45: 110 test files, 1,743 tests passing, 9.60 MB. At 15:48 MGR posted a batch of reviews, including two for work that had been sitting unreviewed from Stage 3.
+
+**STUCK (the wedged-cars lane): accepted.** Parked cars now keep "at least 6.5 m between them on each kerb and stay 12 m back from the intersection". A car pushing against an obstacle for more than 0.8 seconds "gets a gentle push-out and reverse assist, and after 1.5 s the HUD says 'Blocked: S to reverse, Shift handbrake'". The boxed-in test went from 0 metres of movement to at least 2 in three seconds. MGR also noted that STUCK had "correctly showed that the seed-21 traffic failure was an intersection deadlock and not its spacing", which TA2 then fixed. That closed the testers' biggest frustration from Stage 3, "pending H5's confirmation in play".
+
+**GTA3: accepted, but the ladder only partly met.** GTA3 had never posted a final report, so MGR judged it from its 15:03 status and the frames. Verdict by viewpoint: noon street *met*; both corner views *cannot be judged*, because "the camera still sits against a brick wall since W2's density change in Stage 3"; golden aerial *mostly met* (near walls and roofs fixed, distant skyline still plain tan blocks); both car views *not met*, "for one reason: the box truck in the foreground has a flat, untextured lavender body that fills a third of the frame"; morning signals *met*. People were better but uneven: three pedestrians walking past the Wax Deli in one frame, and the same spot empty a minute later.
+
+MGR also triaged H4, restating what H4 was thinking and splitting its trouble into five numbered defects, all of which SHOPUX had already addressed on paper. It noted that H4 starting Crate Digger after six steps "confirms DRIVE's findability fix (PT3-5) in play."
+
+At 16:17 MGR sent a short nudge to SHOPUX: its fifteen minutes had become over an hour, so "please post what you have, even if the home-door and decks step is still failing, and say so plainly, because H5 is testing exactly that path". MGR added a fallback offer to fable: if SHOPUX had stopped, MGR would review "from disk, as I did for MDLI". There was no reply. The reason shows up only in the manager's check-in, which says Stage 4 had "one usage-limit pause in the afternoon". The log simply goes quiet for almost six hours.
+
+### H5: the tester who could not get there
+
+Before the pause, H5 (also Haiku, phone tier, build v14) had finished at 16:25Z and its report is the most downcast of the stage. "I could not get far." It followed the HUD pointer to Throop Ave and the Golden Cork shop but "never reached WAX DELI or my home". In order:
+
+- Steps 4 to 5, 7, 12 to 13: walking "into brick walls with no clear way round", and "the glass deli front blocks the sidewalk with no visible gap".
+- Step 11: "the Crate Digger mission was silently replaced by Laundromat Getaway with no toast, while the state JSON said mission null until step 15."
+- Steps 16 to 22: "the duffel objective never triggered on F at the pink mat", and the timer ran "from 6:00 to 5:40".
+- Steps 24 to 25: "P did nothing under either key name, so the phone could not be opened."
+- Steps 27 to 30: "F gave no door prompt next to the box truck, so driving was untestable."
+
+It still said something kind: "The HUD pointer and minimap are readable and fun, and the dusk street looks good."
+
+fable relayed it and opened lane **MISSFIX** for the mission flow. MGR then wrote a long triage. Its retelling of what H5 was thinking is worth keeping: H5 "set out to do Crate Digger and visit the record shop and home decks", but "as it closed in on the Crate Digger marker, the pointer silently switched to Laundromat Getaway, and it walked into that giver and started the wrong mission without meaning to". Then it stood on the pink pad, "pressed F five times to 'grab the duffel'", watched the timer run, abandoned the mission, tried the phone and ended beside a truck with no "Enter car" prompt.
+
+
+MISSFIX started at 16:28 and the first fix, the key whitelist, was done by 16:30 (P, Enter, Escape and Backspace now accepted, with Escape dropped unless a shop or deck panel is open "so it cannot open the pause menu").
+
+## Evening: the pause ends, three accepted lanes and one surprise
+
+The log resumes at **22:08Z**. SHOPUX posted a one-line FINAL: all five items done, 619 tests green, build ok, and a headless replay at 640 by 360 that "passes every check with errors []". MGR, who dislikes a one-line report, reviewed the work itself at 22:09 and accepted it: it ran 14 files and 118 tests and read the git changes. It noted "what is not yet proven is the same path in a blind playtest, because H5 never reached the shop."
+
+
+### The review that was reversed
+
+Then, at 22:40, MGR did something it does rarely: it **changed its own verdict**. "MGR: correction to my MISSFIX review. The global gate on b603440 has one failing test, and it is caused by MISSFIX's door-distance change, so I am changing MISSFIX from ACCEPT to DEFECT." The failing test was the enter-exit test: a car parked with its driver door against a wall. Before, a player on the street side was too far from that door to get in. The new distance counted the whole car body, "so the player can now get in from the street side, which is good for the box truck. But Player.exit still always puts you out of the driver's door, which here is against the wall, so the player ends up inside or beyond the wall." In MGR's words, "That is the same family as the user's original complaint", and it is the free-spot search MGR had flagged as an open item at the end of Stage 3. The fix it asked for: try the driver's side, then the passenger side, then the rear.
+
+MISSFIX replied at 23:03: `Player.exit` now picks "driver side first (unchanged when free), then passenger side, rear, front, then a little further out; if walled in everywhere it steps back out where the player got in". It also made `tryEnter` refuse a far-flank entry when no side is free. 865 tests passed. The old test needed no change ("0 failing placements"), and a new wall-side test was added. fable wired a new line in the main file at 23:03.
+
+The lesson MGR drew in the check-in is plain: "I had accepted MISSFIX on its tests, and only the full suite showed that its door change unlocked a bad exit."
+
+## The user's new request: Radio SC from ra-nyc
+
+At 22:34Z, in the middle of this, fable opened **RASC**: "Radio SC now sources random DJ sets (45 min minimum) from the user's ra-nyc API and shows 'title — DJ' on the HUD." [ra-nyc is the user's own app that lists New York DJs and events; Radio SC is the in-game radio station that plays SoundCloud mixes through SoundCloud's official widget.] fable also added a same-origin rewrite in `vercel.json`, `/ra-api` to `https://ra-nyc.vercel.app/api`, so the hosted build can call the app without being blocked by the browser's cross-origin rule.
+
+RASC's plan was one line (a pool of 45-minute-plus sets in a file called `RaFeed.ts`, wired into the station, a library status line and a toggle, docs and tests). By 22:38 it had posted FINAL, with tsc clean, 319 audio and UI tests green, build ok. fable accepted it on the gates and asked MGR to review.
+
+
+MGR's review at 22:40 checked the user's five requirements and found them met in code: sets of at least 45 minutes only, nothing requested before the first tune-in, a quiet fallback after a 429 ("too many requests") reply, no repeats until every set had been heard, and pasted links still playing. It had one thing to confirm: "SoundCloud itself reports milliseconds, and if ra-nyc passes those through, every set longer than 2.7 seconds would pass." It could not check because `ra-nyc.vercel.app` was "blocked from this sandbox (proxy 403)". It also listed three small defects: Retry-After recorded but never used, the just-finished set possibly repeating at a round boundary, and one failed artist lookup stopping the whole build.
+
+This is where fable settled the unit question. At 22:40:11, a few seconds after MGR's review: "duration unit confirmed from ra-nyc source (api/_lib/artistLinks.ts: duration = Math.round(t.duration / 1000), so seconds; the ≥ 45 min filter is correct as written)." The three small defects went back to RASC, which posted a fix at 22:40:41: "RaFeed 429 now resumes after Retry-After (default 60 s), round reset excludes the last-played set, a single failed artist lookup is skipped (stop only on 429 or network failure). ra-feed tests now 15." (MGR's later note on 7 Nov still lists the unit as unconfirmed "from here". fable had read it from the source; MGR had not seen a live response. That small mismatch of who knew what persisted in the check-ins.)
+
+## The phone gets too heavy
+
+At 22:45 MGR added an alarm: the phone smoke test "loads with no errors, but at the spawn view it draws 209 calls and 815 thousand triangles, against the phone budget of 120 and 500 thousand that MOB met in Stage 3". The suspects were the new pedestrians, the wall and roof detail, the clutter, or PHONEGFX's work in progress. "The user's own complaint that started the phone tier was that the game is too heavy on their phone, so this matters." It sets up one of the better detective stories of the project.
+
+## The Stage 4 check-in
+
+MGR wrote `checkins/stage4.md` at 22:41: the GTA3 bar met on three of seven viewpoints and mostly on a fourth, two viewpoints that cannot be judged, two car views failing only because of one flat truck, and a gate with "one real failure" (the exit-into-wall bug, now P1). Its process note says lanes increasingly post "one-line final reports ... or none at all", so reviews have to be done from disk, and it proposed "a short template (files, tests run, numbers, what is not done)".
+
+---
+
+# STAGE 5: The Feel Lanes
+*3 November, 22:12Z, then a pause, then 7 November, 03:44Z to 04:43Z*
+
+**The user's verdict, and fable's reading of it.** At 22:12Z fable posted the user's latest message, dated 3 Nov 22:40Z: "Graphics do not yet feel like GTA3, let us get that working." (The timestamps on that post and the user's message disagree by about half an hour; I quote both as the log has them.) fable's reading of its own frames was blunt: "toy-proportioned cars, flat noon light, a camera too high and far, no shadows on the phone tier." That sentence became four lanes, all started within about 20 seconds of each other, all required to post "before/after frames of the same viewpoints":
+
+- **CARS2:** "procedural GTA3-quality car bodies at real proportions replace the Kenney toys." [Kenney is a free pack of simple low-poly models; procedural means built by code.]
+- **CAM:** "GTA-style lower/closer follow camera, look-back, speed FOV, idle cinematic."
+- **ART:** "one coherent warm filmic look on every tier, sky with clouds and sun, baked facade AO, texture variation."
+- **PHONEGFX:** "blob shadows + small shadow map + grading + sign bloom on phone within 140 draws."
+
+### Neighbours negotiate
+
+At 22:12:54 ART asked PHONEGFX to switch the hourly colour table on for phones, since the phone had "one grade all day with no hour variation"; PHONEGFX's 22:30 progress included "the phone grading LUT switch", so the request was accepted without argument. At 22:15 and 22:23 fable told ART and CARS2 their tests or types did not pass the type check ("Fine mid-edit, but npx tsc --noEmit must be clean before your FINAL REPORT"). CAM also posted a design decision at 22:18: "the camera pivot now rides rigidly on the car so there is no trailing lag at speed; only the rig distance, height and field of view ease, and a small extra pull-back of 0.9 m at top speed gives the sense of speed."
+
+## The gap
+
+PHONEGFX's 22:30 progress note is the last Stage 5 post of 3 November (MISSFIX and RASC, told above, posted a little later). The next Stage 5 entry is dated **7 November, 03:44Z**. Nothing in the raw log explains the three and a half days. MGR's Stage 5 check-in does: Stage 5 "picked up after the Stage 4 close on 3 Nov, paused for the usage limit, and closed after the feel lanes reported on 7 Nov". When the limit reset, the lanes simply carried on from the files on disk: CAM and CARS2 posted full final reports within eight minutes of each other, with no catch-up discussion in the log.
+
+## 03:44Z on 7 November: the reports arrive
+
+### CAM and "the truck question"
+
+CAM's FINAL REPORT (03:44) lists the finished camera: car rig 4.6 m back and 1.7 m up, a yaw spring that re-centres in about 1.2 s, and a rig that "scales with vehicle size ... so the sedan is unchanged and the 7 x 3.2 m box truck sits 7 m back and 4.9 m up and now shows the road over its roof (test added)". On foot it is 3.2 m back and 1.55 m up, with look-back on C, a touch button or right-stick click, an idle cinematic after eight seconds and a mission letterbox.
+
+fable's 03:44 handoff asked MGR to judge the dusk and night car frames. MGR's answer at 03:45 is the best example of reviewer and author converging by evidence:
+
+"I think they now PASS the GTA3 bar. The truck's rear covers about a quarter of the frame's width and a bit over half its height. Both sidewalks, the road ahead, the storefronts and the sunset or night sky are visible over and around it. Following a box truck from behind looks like this in GTA3 too. More importantly for the ladder, the truck's rear is no longer a flat untextured slab: it now shows a ribbed roll-up door, tail lights and a plate."
+
+### CARS2: ten draw calls, not six
+
+## The ART night-brightness argument
+
+This is the stage's clearest disagreement. ART's FINAL REPORT at 03:53:44 said, in short: warm grade on every hour key, clouds with a sun disc, haze, baked facade shading, ground variation, smoke run clean, and "night street 0.239 at 21h and 0.195 at 0h (no worse than the stage 2 baseline, the lit shop window sets that level)".
+
+MGR checked the number against the rulebook, which says the night street should sit in a **band of 0.085 to 0.13** (average picture brightness, 0 black, 1 white). Its review, posted eight seconds later, is a DEFECT on that one item:
+
+"ART argues this matches the Stage 2 baseline because the spawn view looks into a lit shop window. That claim cites a Stage 2 note that L10 superseded in Stage 3. L10 capped the shop glazing, and the Stage 3 section of docs/reference/light-baselines/stage2.md records 0.127 and 0.130 on the same view."
+
+MGR then ruled out the other suspect: the new camera. "I also checked that the rise is ART's grade and not CAM's new framing. 6-night-corner looks at the same brick wall before and after, and its mean went from 0.090 to 0.211. 5-night-car went from 0.099 to 0.200, and 4-dusk-car from 0.069 to 0.258. So night now reads more like late dusk everywhere, and the BIBLE's 'it has moods' property depends on night feeling different from dusk."
+
+The fix was specific (keep the day and dusk retune, pull the night keys back), and MGR left a door open: "If Fable or the user prefers brighter, more readable nights, that is a fair choice, but then the band in PRD §5.4 should be changed on purpose, not by accident."
+
+fable relayed ART's response at 04:02, and ART posted the root cause at 04:04: "Cause was my cloud and haze light feeding the night environment capture; cut at night plus slightly lower night and deepNight lift." So both sides were partly right. The shop window did contribute, but ART's own new clouds and haze were lighting the night sky reflection. New audit numbers: street-level 0.126 at 21h and 0.103 at midnight, blown pixels at most 0.02 percent. (The whole-frame figures were 0.156 and 0.115; the difference between "whole frame" and "street-level, low half" was itself something fable asked MGR to rule on.)
+
+MGR re-reviewed at 04:40 and accepted. At midnight, 0.115, "the street is now properly night again". At 21h, "the game clock is only just past dusk, and the frames read as deep blue hour rather than full night." Its concern led to a proposal and not a demand: "either trim the 21h key a little more, or agree that the night band applies from 22h, where GTA itself still shows a lit blue-hour sky at 21h. I recommend the second ... as a decision for Fable rather than a defect."
+
+**Fable's decision**, at 04:43:52: "(1) yes, the night brightness band applies from 22h; 21h is blue hour, do not darken it further; record it in PRD §5.4." So the rule changed on purpose, in writing, rather than by accident, which was the whole point of MGR's complaint.
+
+## The phone leak that was the shadow pass
+
+This is the detective story begun in Stage 4. After ART's work MGR measured the phone tier again and wrote at 03:53 that the phone was "now at 202 to 227 draw calls and 738k to 949k triangles across the seven views (before ART: 113 to 155 and 333k to 518k). That is far over the budget of 120 and 500k. Not all of it is ART's, but ART's facade and ground work reaches the phone tier, so ART and PHONEGFX must say what each costs there." It was a fair suspicion: ART added facade shading, CARS2 added bodies, and both reached the phone.
+
+PHONEGFX answered at 03:54:39 with evidence rather than defence: "the leak is the shadow pass, not the cars, pedestrians or clutter. ART's phone stats show scene 113 to 144 draws but shadow 81 to 89 draws and 370k to 454k triangles." The committed `Shadows.ts` had switched the phone sun shadow on, "but main.ts is not yet wired to my blob casters, so every world mesh casts into it." Put plainly: the game was drawing every building a second time into a shadow map, because a new feature had been switched on in one file while the cheap stand-ins that were supposed to feed it were not yet hooked up in another. "With my wiring the shadow pass is 3 draws and 8k triangles and the spawn view measures 125 draws and 414k triangles". PHONEGFX also made the shadow map "switch itself off until the casters exist, so an unwired main.ts can no longer leak", and thinned the phone fog to 30 to 100 metres to un-wash the aerial view.
+
+fable applied the wiring at 03:59, and MGR's review (accept) says "Fable's diagnosis is right and is the most useful finding of the stage". The log shows PHONEGFX posting the finding itself, so I cannot say from the transcript who saw it first. The numbers afterwards were the proof: "The seven viewpoints at phone measure 108 to 141 draw calls and 301k to 480k triangles, against 202 to 227 and 738k to 949k before." ART measured its own share at 04:04: at most 4 draws and 13 thousand triangles. MGR's process note: "measure the shadow pass separately (`drawCallsShadow`) before blaming geometry."
+
+## Two corner views were facing a wall
+
+Another long-running problem finally got a decision. Corner viewpoints 2 (noon) and 6 (night) had been unjudgeable since Stage 3 because the camera stood "7 m inside the block west of Throop and faced a wall". At 03:54 fable moved them to "the SW sidewalk corner of Throop & Kosciuszko ... looking NE across the intersection", and ran a fresh capture, "v15". The phone drew 116 and 132 draws there (under 140), and MGR's triage at 04:46 passed both at low and phone: "textured buildings, signals, a cab, trees and crosswalks by day; lit windows, lamps with bloom and stars at night." Six of seven viewpoints were now met.
+
+fable also published artifact **v15** at 04:11 (9.45 MB; 119 test files, 1,897 tests; "same link as before"), and started H6.
+
+## H6: the first blind tester to get through the shop
+
+H6 (Haiku, phone tier 640 by 360, port 4431) began at 04:08:45. It ended after 48 steps at 04:42, stuck near Lafayette Avenue. fable's summary at 04:43 and MGR's at 04:46 agree with the tester's own transcript. Here are H6's subtitles, in order, because they are the best window into a first-time player.
+
+**Finding the shop.** Step 1: "Spawned on a busy street with a brick wall right next to me and a big yellow sign ahead. The top pill says Offer: Crate Digger 15 m with a down arrow, so the goal is behind me. I will turn around to find it." Step 4: "The offer turned into a mission called Crate Digger with a timer of 8:00 and the cash went from 120 to 180 somewhere along the way." Step 5, on turning: "I overshot ... The big half-turn I asked for only swung the view about 90 degrees." Step 8: "The prompt now says F Enter WAX DELI and the screen is going dark, so I am at the door."
+
+**Buying a record.** Step 9, inside: "The mission log jumped to Buy Throop Night Bus, Spin Cycle Love and Fire Escape Sunrise, and the goal says 4215 m, which is odd since I am standing in the shop." Step 13: "I have $180, so I will press F to buy it." The toast read "Bought 1/3". Then, a very human decision at step 15: "I was only going to buy one record today, so I will leave the other two."
+
+**The invisible wall.** Step 22: "I have walked into a corner between a brick wall and a shop window." Step 26: "I keep bumping into the same wall at the same spot, and the camera is pointing at a stoop with a doorway. I think the way west is blocked here." Step 28: "The walk west keeps stopping at the same spot, as if there is an invisible wall." Step 30, on the phone: "The arrow key did not switch the phone tabs. It turned my camera instead, so the phone seems to have no keyboard navigation for its tabs." Step 35: "a red dot at the corner of my minimap, which I cannot read."
+
+MGR's triage gave the verdict on H6's significance: this was "the first blind tester to get through the record shop". So the Stage 4 shop fixes worked "in blind play". Then it listed ten defects, PT6-1 to PT6-10. The headline P1: "On-foot movement blocked where nothing is drawn", with the speeds at 0 recorded at specific coordinates, and at the last spots "the harness lists no obstacle within 6 m, so whatever stops the player is not a visible body". The P2s were no HOME marker, no minimap legend, the mission text overlapping the goal banner, and phone tabs not reachable by keyboard.
+
+MGR also raised a housekeeping flag that became a decision: H6's session folder is "committed", 106 files including `playtests/h6/playtest.mp4`. Its suggestion: "move session folders back to the scratchpad and add playtests/ to .gitignore, so the repository does not grow by a video per playtest; that is your call, since it touches git history and shared files." The Stage 6 check-in repeats the figure (about 100 MB on disk). fable's reply is not in the log, but the repository shows the answer. The `.gitignore` now ignores the raw `playtest.webm` files and `video/` folders and keeps "the cut mp4" and the transcripts, and every later playtest (H7, H8, SHOP7) is committed under `playtests/`. So the decision was: playtests stay in the repo, trimmed to the cut video and the written record.
+
+## Closing Stage 5
+
+At 04:42 MGR wrote `checkins/stage5.md`: all four feel lanes accepted, both Stage 4 blockers closed, and the gate green on commit 2e69cc7 (tsc clean, 1,897 tests, 9.45 MB; smoke at low 273 draws, medium 323, phone 115 and 391 thousand triangles). fable closed the stage at 04:43 and launched Stage 6 in the same message: NAV6 for the invisible walls and HOME marker, HUD6 for the banner overlap, phone keys and "swapped street-sign suffixes", and GTA4A for the far skyline, the pop-in check, truck liveries and the SUV.
+
+---
+
+# STAGE 6: Getting Around, and the Last GTA3 Items
+*7 November, 04:44Z to 05:31Z (47 minutes)*
+
+Three Sonnet lanes launched in the same minute, one for each cluster of H6's findings. This is the fastest stage so far: from H6's report at 04:43 to a published build at 05:30, less than an hour.
+
+## NAV6 and the two different traps
+
+NAV6 planned a "sim walk test over grid.sidewalks, find collider cause, fix". At 04:48:04 it had the first cause: "scaffold-lot plywood hoarding collider stood 0.9 m off the facade = a 0.9 m slot a hugging player walks into and wedges (Throop W z56-63)." [A hoarding is the plywood fence around a lot under work; its invisible collision shape left a slot just wide enough to walk into and too narrow to turn around in.] The new `walkable.test.ts` reported it, and the offset became 0.3 m. It also proved parked cars never sit on a sidewalk and added the HOME sign, minimap icons, a navigation pointer and a legend. Its FINAL REPORT at 04:58 was three lines.
+
+MGR reviewed it at 05:01 and accepted it, after answering the three checks fable had asked: does the walking test cover both sides of every street and the metre against the building? (yes, every 0.2 m, curb to building line); are parked cars off the sidewalk? (yes); is HOME marked? (yes). Then it found the catch:
+
+"THE GAP: H6's last eight steps were stuck further south, at about (-12.9, 19.4) to (-11.5, 21.8), near Lafayette. The harness listed no static obstacle within 6 m there, and x = -12.9 lies on the building side of the lane the e2e walk uses (x = -10.6). NAV6's report does not say what stopped the player at that spot." MGR's guess was a stoop or areaway fence gap that the sweep, which stopped at the building line, could not see. "I count PT6-1 as fixed for the hoarding slot and open for that one spot."
+
+NAV6 posted the answer at 05:06 and it was a *different trap*: "the H6 spot was inside the walled areaway yard of lot r2c0-E-8 (Throop W z19-26): building set back to x=-14, fence r2c0-E-8-areaway1/2 at x=-11.1 left a 1.0 m basement-entry gap (z19.7-20.7) and the stoop block r2c0-E-8-stoop0 sealed the other gap, so the yard was a room with one 1 m door." [An areaway is the sunken yard in front of a brownstone's basement door.] The entry gap became 1.6 m on every stooped lot, and the sweep now reaches 3.5 m past the building line. Both new tests "fail before, pass after", including one at H6's exact coordinates. fable applied and committed it at 05:06.
+
+The check-in states the lesson: "'Fixed' needs a test at the tester's exact spot. NAV6 first fixed the trap it found, but H6's last stuck spot was a different trap a few metres away. Only a test at the coordinates the tester actually reported closed it."
+
+## HUD6 and the street signs that were not swapped
+
+HUD6 planned six items and by 04:51 had all of them coded. Its FINAL REPORT (04:56) listed: mission objective, step counter and timer moved to "their own column above the goal banner"; the goal distance hidden indoors (an "inside" flag); the location card restyled; a toast on mission start; phone keys; and street sign blades.
+
+The signs were the interesting one. Both MGR and fable had read the v15 corner frames as showing "'Kosciuszko Ave' over 'Throop St'", suffixes swapped (defect PT6-9). HUD6 went and looked. MGR's review at 04:58 reports what it found: "HUD6 found that the suffixes were never swapped in the data. The two blades crossed at the pole, so each hid half of the other, and 'Kosciuszko St' and 'Throop Ave' read as 'Kosci... Ave' over '...p St'. The blades now stack and hang toward the block, with a test on the real data." MGR's verdict is a little humbling for the reviewers: "That is a better fix than the one I asked for." The Stage 6 check-in makes it a rule: "Reviewers should describe the symptom and leave the cause to the lane."
+
+## GTA4A: no proxy layer, a pop-in check, and a restart
+
+GTA4A had three jobs: the far skyline, a pop-in check, and cargo liveries, plus trimming the SUV. Its first progress note (04:54) corrects a premise. The brief said the distant blocks were a proxy layer of plain tan boxes; GTA4A "found no proxy layer exists (beyond-grid is void; tan blocks are real far lots)". So it built one: `src/world/Skyline.ts`, "1 mesh/1 material, window atlas, lit windows at night, 6 colours, parapets, tanks, masts". It trimmed the SUV from 2,816 to 2,492 triangles, and wrote the cargo-box livery painter.
+
+At 05:10 it reported the first pop-in result. `scripts/popin-check.mjs` walks the camera 80 m down Throop and lists every mesh that first appears within 60 m. "Before: only offenders are CarLod near/far swaps at 24-29 m (8 cars, no props/buildings/clutter)." [CarLod is the system that shows a cheap merged model for far cars and swaps to the full model when they get close. At 24 to 29 m, you could see the swap.] The fix, raising the swap distance from 32 to 72 metres on low, medium and high (phone stays at 14), "moves the swap past 60 m; costs ~+25 mean draws on the walk (285 -> ~310)".
+
+At 05:15 GTA4A posted "Status after restart: all four items and PRD note done on disk; re-queuing final popin (carNearDist 72) and vp3 low/phone renders now". The log does not say what restarted (the Stage 3 chapter has the same kind of event), but the effect is clear: the session was interrupted, and because the work was already on disk the lane only had to put its renders back in the queue.
+
+MGR's review at 05:20 accepted all of it, with a cost ruling agreed with fable: the low-tier walk's mean draw calls rose from 285 to 317 (+11 %) and the golden aerial from 308 to 364 (+18 %), "both far below the 500 limit for medium, and car pop-in is exactly the kind of thing a player notices". The golden aerial row moved from "mostly met" to **met**. Pop-in: "Before the fix it found 41 rows, all the same thing: a car switching from its far merged model to its full body at 24 to 29 m. After raising carNearDist from 32 to 72 m ... it finds none, which closes the last GTA3 item."
+
+## Closing Stage 6, and building v16
+
+fable published artifact **v16** at 05:30: 127 test files, 1,947 tests, 9.47 MB, smoke at low 322 draws, phone 120 draws and 373 thousand triangles, all with `errors []`, a seven-view capture with zero console errors. It started H7 in the same message. MGR's check-in came at 05:31 with its headline: "LEVEL GTA3 is now met on all seven viewpoints at low and phone." One warning: medium now draws 447 calls at spawn against a limit of 500, "from the skyline plus the longer car range". A second, smaller one: H6's folder in the repository was about 100 MB.
+
+fable closed Stage 6 at 05:31 and launched Stage 7: GFX2, CROWD, H7 and H8.
+
+---
+
+# STAGE 7: Toward GTA4, a Pause, and a Resume
+*7 November, 05:31Z to 06:19Z; paused; resumed 9 November, 04:07Z*
+
+## Four lanes and a measuring stick
+
+fable's Stage 7 lanes at 05:31 were **GFX2** (car-paint reflections, neon bounce, a medium-tier budget check), **CROWD** (steady crowds by hour, clutter per block, two more pop-in routes), **H7** (the phone-tier tester replaying H6's route) and **H8** (a desktop player driving at night at 1280 by 720). At 05:33 MGR added section 5.4c to the requirements, "so everyone knows what I will check": medium under 500 draw calls on all seven viewpoints; a crowd audit showing "the street never empty for more than a minute of walking at noon or evening"; and "the night street still 0.085 to 0.13 from 22h, with blown pixels under 0.5 %". The night rule fable had decided on 7 Nov was now part of the measuring stick.
+
+GFX2 had code in by 05:39: a clear-coat effect in `PaletteCarPaint` and `NightBounce.ts`, "additive sign/window/door bounce driven from NightLights". Then it also queued for the render lock, behind H7 and H8. For a long time the shared rendering machine, not any agent's pace, was what limited Stage 7.
+
+## H7: the tester who looked for home and never found it
+
+H7's session ran from 05:30 to 06:07 (58 steps, about 22.8 minutes of video). Its own summary: "Spawned on Throop Ave, could not find the HOME sign or house in about 20 steps of searching along Throop, Kosciusko and the sidewalks, so the home, turntables and DJ decks were never reached." The reason is in the first lines. H7's brief said the N key points the arrow at HOME, which was exactly what NAV6 had just built.
+
+Step 2: "The brief says N cycles the pointer, so I'll try N to see where it points." The harness note: "ignored unknown key(s): KeyN". Step 3: "N did nothing, the harness ignores that key, so I'll rely on the minimap and the pointer." The fix NAV6 had delivered could not be tried, because the tester's tool refused the key. Step 12: "I didn't move at all. The camera was still angled south-west, so walking forward pushed me into the purple car." Step 18 was the first admission: "The street keeps going and still no HOME sign."
+
+It then did something no earlier blind tester had managed. Step 23: "I walked into the Crate Digger ring and the mission started on its own." Step 31: "Bought Throop Night Bus for $14, so the bin count went to one of three." Step 33: "Two of three bought, $150 left." Then the long list: "The list is very long and I keep scrolling past records" (step 37). At step 39 it found Fire Escape Sunrise and the toast read: Ms. Odette: "Good. You do not buy what you like. You buy what you can mix." That is the first time a blind tester completed the shop half of a mission and heard the shopkeeper's line.
+
+Then the troubles. Step 41: Ms. Odette said "There is a night I will not name. There is a door I will not name. Go be seen first." Step 45: "Oops, that Enter sold Stoop Season for $6 without any confirmation." Step 49: "The goal banner reads Head back outside inside, which is an awkward line."
+
+### What MGR and fable did with it
+
+fable's report at 06:08 gave the immediate fix for its own tool: "Harness fixes applied by me: KeyN/KeyQ/KeyC added to the whitelist, PLAYTEST.md half-turn corrected (1260 px)". That second part closes a small mystery. Back in H6's run, a requested half-turn "only swung the view about 90 degrees" (PT6-10); H7 also reported turns of "a quarter". The fault was in the tester's instructions: the documented number of pixels for a half turn was wrong, so testers who followed the document would turn too little. fable opened lane **SHOP7** (port 4439) for the game findings.
+
+MGR's triage (also 06:08) numbered ten defects, PT7-1 to PT7-10: the missing keys; the HOME sign unseen for 20 steps ("the sign may be too small or face the wrong way"); selling a record with one Enter and no confirmation; Ms. Odette's cryptic line for a later chapter; E starting a preview instead of switching tabs; "Head back outside inside"; a late text; the radio caption over "Exit car"; and walking into an offer ring still starting a mission, flagged as a design choice for fable.
+
+MGR ended with "Good news confirmed in blind play: the shop panel is usable with the keyboard, the mission pays out, entering and driving a car works, and the phone opens and shows the next job." Compared with H4 and H5 in Stage 4, that is a real change: a blind tester completed a mission.
+
+## The user asked to pause
+
+At **06:14:08** fable posted: "PAUSE: the user asked to pause. All lanes (H8, GFX2, CROWD, SHOP7, MGR): finish the step you are on, post a one-line status with what is done and what is left, and stop. Do not start new renders. Fable commits everything now." Only GFX2 replied at 06:19: "code done, tests green; still waiting for the render lock (H7 playtest holding it). Batch is queued." The repository history shows commits labelled "Pause: Stage 7 lanes WIP, playtest logs and transcript". The next post in the log is dated 9 November.
+
+## 9 November, 04:07Z: the user returns with new direction
+
+fable's RESUME post is the pivot of the whole project, so I quote it in full: "RESUME (user): keep iterating to at least GTA3. New direction: (1) models and skins must look GTA3 (chunky low-poly people with painted skins, baked car skins); (2) every music station becomes SoundCloud mixes with synthesized announcers, talk radio stays TTS; (3) the ten blocks must match the real Bed-Stuy from open sources; (4) a readable transcript at the end. Paused lanes SHOP7, CROWD, GFX2, H8 and MGR: resume where you stopped (limits reset, your work is committed). New lanes: SKINS 4440, RADIO8 4441, GEO2 4442, SCRIBE2."
+
+The phrase "limits reset" explains the pause as the usage limit, and "your work is committed" is how each lane knew it could pick up where it stopped. Within 90 seconds the paused lanes posted a status:
+
+- **SHOP7:** "all 10 items coded, unit tests green (679). Running build, then HOME render."
+- **CROWD:** "Done on disk: crowd-audit.mjs (--clutter, --peds), clutter floor + test, PedestrianSpawn.ts scheduler + TrafficSystem wiring + tests. Now running baseline/after audits and 3 pop-in routes under the lock (port 4437)."
+- **H8:** "old h8 session ended after 2 steps (idle timeout). Starting fresh session in playtests/h8b, port 4438, low 1280x720." (The old H8's transcript confirms it: it got into a white SUV, heard the radio say "WBED 88.9, Brownstone Boom-Bap", then ended with "idle timeout (600s without a command)". The log does not say why the tester stopped sending commands.)
+- **GFX2:** resumed, checking whether its queued batch had run.
+
+MGR resumed too and set the measuring stick for the new lanes (see Stage 8). GFX2's first results arrived at 04:08:58 and show it checking its own work against the rules MGR had written:
+
+"Batch1 results: medium draws 444/437/487/470/434/423/446 (view 3 golden aerial 487 > 480, trimming); night bounce +0.008 at 22h (0.126->0.134, over band) so retuned gain 0.5; car coat too faint, strengthened. Batch2 queued."
+
+In plain words: the golden aerial was above MGR's 480 warning line so GFX2 was trimming it; the new neon bounce had pushed the 22h street from 0.126 to 0.134, just over the 0.13 ceiling, so it halved the gain; and the clear coat was too faint, so it strengthened it. Nobody had to ask.
+
+---
+
+# STAGE 8 (the start): GTA3 Skins, SoundCloud Stations, Real Blocks
+*9 November, 04:07Z onward*
+
+Stage 8 is the user's second major redirection since the phone version. At 04:08 MGR added §5.4d to the requirements, with a measurable row for each new lane and a fourth for me.
+
+**SKINS** (port 4440). Its plan at 04:09: build `pedBody.ts` and `painters/ped.ts` as the new default pedestrians, put the old glTF people behind a flag (`VITE_GLTF_PEDS`, as the cars were), and add baked car skins in `vehicle.ts` through `carModel.ts`. MGR's row: "chunky GTA3-style people of 600 to 900 triangles with painted skins, at least 12 civilian variants plus cop, shopkeeper and DJ, as the default; baked car skins; without breaking the phone (140) or medium (500) budgets." The board adds the style notes: PS2-era proportions, panel lines, door gaps, grime, chrome, decals.
+
+**RADIO8** (port 4441), 04:10. The direction was "every music station becomes SoundCloud mixes with synthesized announcers". Its plan: a table of eight SoundCloud stations (house, techno/dub, hip hop/trap, disco/boogie, jazz/weird, reggae/dancehall, 80s/pop and Radio SC), each pulling 45-minute-plus sets from the ra-nyc pool "filtered by title keywords", with a fallback chain ("filtered pool > own links > any pool set"); and an `announcer` module, a persona per station, speaking station IDs and set titles every eight minutes and "never over talk". WBSY Talk stays text-to-speech; "My Library" becomes optional. MGR's row keeps the Stage 4 safeguards: nothing requested before first tune-in, and a quiet synth fallback offline.
+
+**GEO2** (port 4442), 04:09. It wants the real map, and reported at 04:10: "Overpass (overpass-api.de, kumi) and NYC Open Data both DNS-blocked (ENOTFOUND). Doing BLOCKS.md from prior R2 docs + new WebSearch snippets." That is the wall R2 hit on the first day, 12 days earlier. MGR's row is strict: open sources only (OpenStreetMap, NYC PLUTO, LPC reports, Creative Commons photos), "never Google Maps/Street View data or pixels", a cited source and confidence for every changed lot, and a spot-check of five citations.
+
+**SCRIBE2** (me) was told to cover Stages 4 to 8 in plain English "including the disagreements".
+
+The log I have stops here: the three new lanes have posted only plans (and GEO2 its first blocker), and the first Stage 8 results had not been posted when I finished.
+
+---
+
+## What the team learned in Stages 4 to 7
+
+1. **A lane can be right and still be wrong at the join.** MISSFIX's door change was correct for the box truck and made exits worse for every car beside a wall. Only the full test suite saw both. MGR's willingness to reverse its own ACCEPT, in public, is why the gate stayed meaningful.
+2. **Measure the part before blaming the parts.** The phone tier came in at roughly double its budget, and ART, CARS2 and the pedestrians were all plausible culprits. Splitting out the shadow pass showed that one switched-on feature without its wiring was drawing every building twice.
+4. **"Fixed" means fixed at the tester's exact spot.** NAV6's first fix was real and did not help H6's last eight steps.
+5. **A rule that changes should change on purpose.** MGR refused to let night brightness drift (0.239 against a band of 0.085 to 0.13), and fable's answer was to move the band's start to 22h in writing, not to let the art team's grade stand by accident.
+7. **Interruptions cost less when the work is on disk and committed.** The usage-limit pauses (the afternoon of 3 Nov, and 3 to 7 Nov), the user's own pause (7 to 9 Nov) and at least one restart did not lose work, because each lane had its code, tests and plan in the tree. The one thing that did go missing was the wait: renders queued before a restart had to be queued again.
+
+---
+
+# Where it stands now
+*As of the last entries I read, 9 November, about 04:12Z*
+
+**The GTA3 rung of the ladder is met.** The Stage 6 check-in says: "LEVEL GTA3 is now met on all seven standard viewpoints, at low and at phone." The checklist: no flat untextured surface; every car and pedestrian a real model with a shadow; lit windows and signs at night; decals; props on every sidewalk; fog hiding the world edge; no pop-in within 60 m. The last pieces were the lofted cars and truck (CARS2), the camera that no longer hides the street (CAM), the moved corner views, the windowed skyline and the 72 m car swap distance that cleared 41 pop-in rows (GTA4A). At the last full check the phone drew 120 calls and 373 thousand triangles at spawn (budgets 140 and 500 thousand), medium 447 (limit 500).
+
+**The GTA4 rung is partly built.** Already in: per-hour grading, haze and lamp bloom, wet-road reflections, contact shadows, six pedestrian models and six car types with colour variants and liveries. In progress when the log paused: car-paint reflections and neon bounce (GFX2, code in and being tuned: the 22h night street is 0.134 after the bounce, just over the 0.13 ceiling, which GFX2 is bringing back down); steady crowds and clutter on every block (CROWD, scripts and a spawn scheduler written, audits waiting for the render lock); and a pop-in check on two more routes. The medium tier's golden aerial is 487 draws, above MGR's 480 warning line, and is being trimmed.
+
+**Not yet proven in play.** H7 fixed the shop path, but no blind tester has yet found HOME, used the decks or tried the new HOME marker; SHOP7's ten fixes are coded and unit-tested but have not been replayed blind; H8, the night-driving tester, was restarted and had taken only its first step. Two older items are still open: a browser test of switching the phone tier to low while running, and a design question (PT6-7) whether the mission clock should pause while a player is stuck.
+
+**Blocked by the network.** Real car models and real map data. GEO2 hit the same wall on 9 November that R2 hit on 28 October: the OpenStreetMap and New York City data servers refuse the connection from this machine. The Radio SC duration question (seconds or milliseconds) was settled by fable reading the ra-nyc source, though MGR never saw a live response.
+
+**What Stage 8 is doing** (all three lanes started at 04:09 to 04:10Z on 9 November):
+
+1. **SKINS: GTA3 skins.** Chunky, low-poly people (600 to 900 triangles) with hand-painted skins, at least 12 civilians plus a cop, a shopkeeper and a DJ, and baked car skins with panel lines, door gaps, grime and decals, replacing the current look while staying inside the phone and medium budgets.
+2. **RADIO8: SoundCloud stations with announcers.** Eight music stations, each playing 45-minute-plus sets chosen from your ra-nyc pool by keyword, through the official SoundCloud widget only, each with its own synthesized announcer who reads station IDs, the DJ and set title, the hour and the weather. The talk station stays text-to-speech; your own files become an optional "My Library" station.
+3. **GEO2: real blocks.** The ten blocks rewritten to match the real Throop and Kosciuszko area, from open sources only and with a citation per lot. Since the map servers are blocked, this lane works from earlier research notes and web search snippets and says how sure it is of each lot.
+
+MGR will review these as their final reports land, and write the Stage 7 check-in when GFX2, CROWD, SHOP7 and H8 are in.
+
+---
+
 # Where this transcript stops
 
-I stopped reading at **13:27:52Z on 3 November** (MGR: "stage3 check-in written"). At that point STUCK, WIRE and CLUTTER had not posted final reports, GFX's last four after-frames and the next playtest round were still to come, and real map data had not been imported because the hosts remain blocked.
+This extension stops at about **04:12Z on 9 November**. The last entries I read are the first plans of SKINS, RADIO8 and GEO2, GEO2's first blocker, and my own progress notes. Final reports from GFX2, CROWD, SHOP7, H8 and the three Stage 8 lanes, and MGR's Stage 7 check-in, had not yet been posted.
 
 ---
 
@@ -561,3 +884,18 @@ I stopped reading at **13:27:52Z on 3 November** (MGR: "stage3 check-in written"
 - **OSM / PLUTO:** OpenStreetMap and New York City's property database, the legal sources for real building data.
 - **Render lock:** a rule that only one headless browser may render at a time, to stop the shared machine crashing.
 - **Wedged:** a car stuck at 0 km/h against other cars or the curb.
+
+- **Areaway:** the sunken yard in front of a brownstone's basement door. One with a single narrow gap trapped H6.
+- **Band (night brightness):** the target range for average night-street brightness (0.085 to 0.13), applied from 22h since the 7 Nov decision.
+- **Blade:** a name plate on a street-sign pole. Two blades crossing hid each other.
+- **Blob shadow / shadow caster:** a cheap dark disc under a car or person (phone tier) / a mesh drawn into the shadow map. Too many casters made the phone draw everything twice.
+- **Defect IDs (PT4-1, PT6-9 ...):** playtest findings numbered by stage; P1 to P3 are severities, P1 the worst.
+- **Harness whitelist:** the keys the playtest tool lets a tester press. A missing key is ignored, which cost H5 the phone and H7 the HOME arrow.
+- **LOD / CarLod / pop-in:** showing a simple model far away and a full one up close; pop-in is when the swap is visible.
+- **Lofted body:** a car shape built from smooth cross-sections along a side profile.
+- **Party wall:** the tall side wall of a building that shows above a lower neighbour.
+- **Phone tier:** the cut-down setting for touch devices (budget 140 draw calls, 500 thousand triangles). Medium has a budget of under 500 draw calls.
+- **ra-nyc / Radio SC:** the user's app listing New York DJs, and the in-game station that plays their SoundCloud sets through the official widget.
+- **Retry-After / 429:** the server's "too many requests" reply and how long to wait.
+- **Skyline ring:** the distant proxy buildings 70 to 640 m outside the grid, added in Stage 6.
+- **The seven viewpoints:** noon street, noon corner, golden aerial, dusk car, night car, night corner, morning signals.

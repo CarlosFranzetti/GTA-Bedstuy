@@ -60,3 +60,9 @@ dimensions, recoloured, lights and plates added at load time).
 No recorded music is bundled in the repo. Candidate source checked by MUSIC on 2026-11-03 (see docs/swarm/tasks/MUSIC.md):
 
 - **Open Lo-Fi** (upstream `btahir/open-lofi`, mirror `MdShahnawazSheikh/thaxas-lofi`): tracks declared CC0-1.0 by the uploader in the upstream README and LICENSE. Tracks are AI-generated (Suno v5) per the upstream README; chain of title not independently verified. Ten samples were downloaded to the scratchpad only, not into the repo. Status: pending orchestrator approval.
+
+## Map data (GEO2)
+
+- Building data pipeline (`scripts/import-osm.mjs`, `docs/REAL-BLOCKS.md`): (c) OpenStreetMap contributors, Open Database License (ODbL) 1.0, https://www.openstreetmap.org/copyright. No OSM data is in `bedstuy.json` yet (the Overpass host was unreachable); the credit applies as soon as an import is written.
+- NYC MapPLUTO, NYC Department of City Planning, via NYC Open Data (same status: not yet imported).
+- Block descriptions in `docs/reference/BLOCKS.md` come from the public web pages named inline there (Brownstoner, New York YIMBY, GrowNYC, MTA Bus Time, Wikipedia, CityLand, listing sites). Facts only; no text or images copied. No Google Maps, Street View or Earth data is used anywhere.
