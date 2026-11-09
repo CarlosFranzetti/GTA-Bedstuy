@@ -80,7 +80,7 @@ function pursueRaw(mode: 'flee' | 'wait', seed: number, stars: 1 | 2 | 3, second
     sirensOffBy: -1, copsEnd: 0, nonFinite: 0, playerDamage: 0, playerDisplacement: 0,
   };
   let t = 0;
-  events.on('crime', (c) => { if (process.env.DBG) console.log('CRIME', t.toFixed(1), c.type); r.lastCrime = t; if (c.type === 'hitCop') r.hitCops++; });
+  events.on('crime', (c) => { r.lastCrime = t; if (c.type === 'hitCop') r.hitCops++; });
   for (let i = 0; i < stars; i++) events.emit('crime', { type: 'carjack', pos: p0 });
 
   let lastStars = -1;
@@ -133,9 +133,13 @@ describe('cop pursuit ends within bounds (no arrest mechanic: escape by star dec
 
   it.each([1, 2] as const)('%i star(s), player flees: the pursuit ends n x 20 s after the crime', (n) => {
     const r = pursue('flee', 11, n, 90);
-    expect(r.maxOnDuty).toBe(n);
-    expect(r.onDutyOverStars).toBeLessThanOrEqual(2);
-    expect(r.zeroAt - r.lastCrime).toBeLessThanOrEqual(n * DECAY + 1);
+    // The longer CARHI cars (cop 5.04 m) let the flee car clip a cop; every hitCop is +1 star and restarts the clock, so the
+    // dispatch and the decay bound follow the stars actually reached (at most n + hitCops, capped at 3).
+    const peak = Math.min(3, n + r.hitCops);
+    expect(r.maxOnDuty).toBeGreaterThanOrEqual(n);
+    expect(r.maxOnDuty).toBeLessThanOrEqual(peak);
+    expect(r.onDutyOverStars).toBeLessThanOrEqual(2 + r.hitCops);
+    expect(r.zeroAt - r.lastCrime).toBeLessThanOrEqual(peak * DECAY + 1);
     expect(r.sirensOffBy - r.zeroAt).toBeLessThanOrEqual(1);
   });
 
