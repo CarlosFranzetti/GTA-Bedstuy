@@ -255,6 +255,25 @@ describe('CarLod', () => {
     expect(tris).toBeLessThan(12 + 12 + 24 * 4); // trim box (12) + 10-gon tyre (40), far below a 24-sided tyre
   });
 
+  it('a merged near model (instanced wheels, invisible lamp handles) is cut into the far proxy from its farSource', async () => {
+    const { CarLod } = await import('@/render/CarLod');
+    let src = 0;
+    const merged = (): import('@/entities/models/carModel').CarModel => {
+      const m = fakeModel();
+      m.group.clear(); // nothing a proxy could be cut from: only farSource has the split meshes
+      m.farSource = () => { src++; return fakeModel(); };
+      return m;
+    };
+    const lod = new CarLod(lib, { buildModel: () => merged(), nearDist: 30, margin: 4 });
+    const far = car('sedan', '#00ff00', true);
+    lod.beginFrame();
+    expect(lod.place(far, 100, 40, 0, 80)).toBe(true);
+    lod.endFrame();
+    expect(src).toBe(1);
+    expect(lod.farCount).toBe(1);
+    expect(lod.hullFor('sedan')).toBeTruthy();
+  });
+
   it('coupe and cab cars get their own far proxy built from the style builder their model carries', async () => {
     const { CarLod } = await import('@/render/CarLod');
     let plain = 0;

@@ -23,7 +23,9 @@ const CASES: Case[] = [
   { style: 'cab', type: 'sedan', color: '#e0b01e' },
   { style: 'cop', type: 'cop' },
 ];
-const build = (c: Case) => buildCarModel(c.type, { ...VEHICLE_SPECS[c.type], color: c.color ?? VEHICLE_SPECS[c.type].color }, materials, c.variant ?? 0);
+const build = (c: Case) => buildCarModel(c.type, { ...VEHICLE_SPECS[c.type], color: c.color ?? VEHICLE_SPECS[c.type].color }, materials, c.variant ?? 0, undefined, true);
+/** the shipped near car: merged details + instanced wheels */
+const buildNear = (c: Case) => buildCarModel(c.type, { ...VEHICLE_SPECS[c.type], color: c.color ?? VEHICLE_SPECS[c.type].color }, materials, c.variant ?? 0);
 
 const triCount = (g: THREE.BufferGeometry) => (g.index ? g.index.count : g.attributes.position.count) / 3;
 const meshes = (o: THREE.Object3D): THREE.Mesh[] => { const out: THREE.Mesh[] = []; o.traverse((c) => { if ((c as THREE.Mesh).isMesh) out.push(c as THREE.Mesh); }); return out; };
@@ -173,6 +175,69 @@ describe('carBodies: livery roles', () => {
       for (let i = 0; i < uv.count; i++) { min = Math.min(min, uv.getX(i)); max = Math.max(max, uv.getX(i)); }
       expect(max - min).toBeGreaterThan(0.9);
     }
+  });
+});
+
+describe.each(CASES)('merged near $style', (c) => {
+  const m = buildNear(c);
+  const drawn = (): THREE.Mesh[] => meshes(m.group).filter((x) => x.visible);
+  it('draws in at most 6 meshes (cargo vans, cabs and cops included)', () => {
+    expect(drawn().length).toBeLessThanOrEqual(6);
+    expect(drawn().filter((x) => x.name === 'tyre')).toHaveLength(1);
+    expect((drawn().find((x) => x.name === 'tyre') as THREE.InstancedMesh).count).toBe(4);
+  });
+  it('keeps the lamp and light-bar API as invisible handles with their own materials', () => {
+    expect(m.headlights[0].visible).toBe(false);
+    expect(m.headlights[0].material).not.toBe(m.taillights[0].material);
+    expect(m.headlights[0].name).toBe('headlight');
+    expect(m.taillights[0].name).toBe('taillight');
+    if (c.style === 'cop') { expect(m.lightbar!.red.material).not.toBe(m.lightbar!.blue.material); expect(m.lightbar!.red.visible).toBe(false); }
+    else expect(m.lightbar).toBeUndefined();
+  });
+  it('the trim mesh carries lamp kinds and lights them from the handle materials', () => {
+    const trim = m.group.getObjectByName('trim') as THREE.Mesh;
+    const kind = trim.geometry.getAttribute('carKind');
+    const kinds = new Set<number>();
+    for (let i = 0; i < kind.count; i++) kinds.add(kind.getX(i));
+    expect([...kinds].sort()).toEqual(c.style === 'cop' ? [0, 1, 2, 3, 4] : [0, 1, 2]);
+    const hm = m.headlights[0].material as THREE.MeshStandardMaterial;
+    hm.emissiveIntensity = 2;
+    const mat = trim.material as THREE.Material & { onBeforeCompile: (s: { uniforms: Record<string, { value: THREE.Color }>; vertexShader: string; fragmentShader: string }) => void };
+    const sh = { uniforms: {} as Record<string, { value: THREE.Color }>, vertexShader: '#include <common>\n#include <begin_vertex>', fragmentShader: '#include <common>\n#include <roughnessmap_fragment>\n#include <metalnessmap_fragment>\n#include <emissivemap_fragment>' };
+    mat.onBeforeCompile(sh);
+    trim.onBeforeRender({} as never, {} as never, {} as never, trim.geometry, mat, {} as never);
+    expect(sh.uniforms.uHead.value.r).toBeGreaterThan(1.5);
+    expect(sh.uniforms.uTail.value.r).toBe(0);
+    expect(sh.fragmentShader).toContain('uHead');
+    expect(sh.vertexShader).toContain('carKind');
+    hm.emissiveIntensity = 0;
+  });
+  it('wheel instances follow the roll and steer pivots, left hubcaps flipped outward', () => {
+    const set = m.group.getObjectByName('tyre') as THREE.InstancedMesh;
+    m.steerPivots[0].rotation.y = 0.4;
+    m.wheels[1].rotation.x = 1.1;
+    m.group.updateMatrixWorld(true);
+    const mt = new THREE.Matrix4();
+    set.getMatrixAt(0, mt);
+    const steer = m.wheels[0].parent!;
+    const want = new THREE.Matrix4().multiplyMatrices(steer.matrix, m.wheels[0].matrix);
+    if (steer.position.x < 0) want.multiply(new THREE.Matrix4().makeRotationY(Math.PI));
+    expect(mt.elements.every((v, i) => Math.abs(v - want.elements[i]) < 1e-5)).toBe(true);
+    m.group.updateMatrixWorld(true);
+    set.getMatrixAt(1, mt);
+    const roll1 = new THREE.Matrix4().multiplyMatrices(m.wheels[1].parent!.matrix, m.wheels[1].matrix);
+    if (m.wheels[1].parent!.position.x < 0) roll1.multiply(new THREE.Matrix4().makeRotationY(Math.PI));
+    expect(mt.elements.every((v, i) => Math.abs(v - roll1.elements[i]) < 1e-5)).toBe(true);
+    expect(new THREE.Vector3().setFromMatrixPosition(mt).y).toBeCloseTo(m.wheelRadius, 6);
+    expect(set.boundingSphere).toBeTruthy();
+    set.getMatrixAt(3, mt);
+    expect(new THREE.Vector3().setFromMatrixPosition(mt).z).toBeGreaterThan(0);
+  });
+  it('farSource rebuilds the split structure CarLod cuts the far proxies from', () => {
+    const far = m.farSource!();
+    expect(far.farSource).toBeUndefined();
+    expect(far.group.getObjectByName('headlight')!.visible).toBe(true);
+    expect(meshes(far.group).length).toBeGreaterThan(drawn().length);
   });
 });
 

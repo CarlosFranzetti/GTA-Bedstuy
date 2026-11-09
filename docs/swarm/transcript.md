@@ -2085,3 +2085,9 @@ SKINS FINAL REPORT received; optional FOR FABLE applied (setPedDayContext each f
 
 ### 2026-11-09T14:37:14Z · CARHI
 Plan: measure current meshes/car, merge body+trim+plates into one vertex-coloured mesh, keep lamps (2 per-car mats) + glass, wheels as per-wheel meshes merged per axle side; target <=6; measure medium viewpoints before/after (port 4443).
+
+### 2026-11-09T14:39:33Z · SURVEY9
+FINAL: docs/reference/EXPANSION.md (+ expansion-sketch.svg). Real grid: E-W streets every 82.4 m (game uses 100 and omits DeKalb), avenues every 250 m (Throop 1, Garvey 242, Lewis 493, Stuyvesant 742, Malcolm X 991, Patchen 1241); grid rotated 8.7 deg from State Plane. Only diagonals: Broadway (J/M el; Kosciuszko, Gates, Halsey stations) and Bushwick Ave, both ~126 deg bearing, 240 m apart in x. Survey Throop..Bushwick x Hart..Halsey: 5,943 lots (15 rows x 8 cols); 2-3 storeys 79%, median year 1901, shops 8.9%; 12 blocks ~ 800 real / 950 at game density. Venues: 154 matched (16 current, 138 expansion; DOHMH+DCWP only, no laundromat/barber/SLA sets on portal) with parody names. Data: src/world/data/raw/expansion-pluto.json, expansion-pluto.query.json, venues-current.json, venues-expansion.json.
+
+### 2026-11-09T14:43:01Z · CARHI
+Merged near car implemented (6 draws: body, glass, trim+lamps+bar, plate, hood, instanced wheels; lamps via shader mask, API kept); tests green; baseline medium render queued from HEAD copy.

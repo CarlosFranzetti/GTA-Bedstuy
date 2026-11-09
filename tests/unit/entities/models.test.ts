@@ -33,7 +33,7 @@ describe('buildCarModel', () => {
   });
 
   it('front is -z: headlights are in front of taillights', () => {
-    const m = buildCarModel('sedan', VEHICLE_SPECS.sedan, materials);
+    const m = buildCarModel('sedan', VEHICLE_SPECS.sedan, materials, 0, undefined, true);
     const front = new THREE.Box3().setFromObject(m.headlights[0]).getCenter(new THREE.Vector3());
     const rear = new THREE.Box3().setFromObject(m.taillights[0]).getCenter(new THREE.Vector3());
     expect(front.z).toBeLessThan(0);
@@ -61,10 +61,10 @@ describe('buildCarModel', () => {
   it('two sedans share wheel and body geometry; light materials are per car', () => {
     const a = buildCarModel('sedan', VEHICLE_SPECS.sedan, materials);
     const b = buildCarModel('sedan', VEHICLE_SPECS.sedan, materials);
-    const geoOf = (o: THREE.Object3D) => (o.children[0] as THREE.Mesh).geometry;
-    expect(geoOf(a.wheels[0])).toBe(geoOf(b.wheels[0]));
-    expect(geoOf(a.wheels[1])).toBe(geoOf(b.wheels[1])); // the rear pair is one cached mesh under the left roll pivot
-    expect(a.wheels[3].children.length).toBe(0);
+    const set = (m: typeof a) => m.group.getObjectByName('tyre') as THREE.InstancedMesh;
+    expect(set(a).geometry).toBe(set(b).geometry); // all four wheels: one cached geometry, one instanced mesh
+    expect(set(a).count).toBe(4);
+    expect(a.wheels.every((w) => w.children.length === 0)).toBe(true);
     expect(a.paintMeshes[0].geometry).toBe(b.paintMeshes[0].geometry);
     expect(a.headlights[0].material).not.toBe(b.headlights[0].material);
   });
@@ -127,7 +127,8 @@ describe('lofted car hull', () => {
     expect(trim.geometry.attributes.color).toBeTruthy();
     expect(sedan.group.getObjectByName('chrome')).toBeUndefined();
     const again = buildCarModel('suv', VEHICLE_SPECS.suv, materials).group.getObjectByName('trim') as THREE.Mesh;
-    expect(again.material).toBe(m);
+    expect(again.material).not.toBe(m); // per car (lamp uniforms) but one compiled program
+    expect((again.material as THREE.Material).customProgramCacheKey()).toBe(m.customProgramCacheKey());
   });
 
   it('SUV and truck keep distinct silhouettes with their own wheel layouts', () => {

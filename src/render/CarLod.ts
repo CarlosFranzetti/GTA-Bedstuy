@@ -272,7 +272,10 @@ export class CarLod {
   }
 
   /** Merges a pristine model's meshes into the LOD parts (in model space, rest pose). */
-  private build(model: CarModel): TypeLod | null {
+  private build(near: CarModel): TypeLod | null {
+    // merged near cars (carModel.ts) rebuild the split one-mesh-per-material structure the far proxies are cut from
+    let model = near;
+    if (near.farSource) { model = near.farSource(); disposeModel(near); }
     model.group.updateMatrixWorld(true);
     const inv = new THREE.Matrix4().copy(model.group.matrixWorld).invert();
     const parts: Record<PartKey, THREE.BufferGeometry[]> = { paint: [], cargo: [], glass: [], dark: [], head: [], tail: [] };

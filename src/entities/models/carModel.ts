@@ -10,10 +10,17 @@
  * Geometry is built once per (style, length, width, height) and cached: every car of a style shares the same BufferGeometry
  * instances. Only the lamp and light-bar materials are per car, since they are driven individually (brake lights, siren).
  *
+ * NEAR CARS ARE MERGED (CARHI step 1): body paint (+cargo box), glass, 'trim' (dark plastic, chrome, head/tail lamps and the
+ * light-bar lenses in ONE vertex-coloured mesh, the lamps lit by a per-car emissive mask), plate, hood pivot and ONE instanced
+ * mesh for all four wheels = 6 draws (the van has no hood but a cargo box: also 6). `headlights`, `taillights` and
+ * `lightbar` stay in the API as invisible handle meshes whose materials Vehicle drives; the trim mesh reads them every frame.
+ * `buildCarModel(..., split = true)` rebuilds the old one-mesh-per-material structure, which CarLod merges into far proxies.
+ *
  * Styles: sedan, coupe, SUV, van (box truck), cab (a sedan in taxi yellow: livery paint, roof light) and cop (livery, light
  * bar). The style is picked from the vehicle type, its colour and the plate `variant` (see `styleFor`).
  */
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { IMaterialLibrary, VehicleSpec, VehicleType } from '@/world/types';
 import { Rng } from '@/core/Rng';
 import { createCanvas } from '@/textures/canvas';
@@ -45,6 +52,8 @@ export interface CarModel {
   /** per-car materials the owner must dispose */
   ownMaterials: THREE.Material[];
   style?: CarStyle;
+  /** merged near models only: rebuilds the split (one mesh per material) structure that CarLod merges into far proxies */
+  farSource?: () => CarModel;
 }
 
 /** Body style of a car: type first, then taxi-yellow paint makes a cab, and plate variant 3 of the plain sedans is the coupe. */
@@ -225,19 +234,120 @@ function partsFor(style: CarStyle, spec: VehicleSpec): CarParts {
   return p;
 }
 
+// ---------------------------------------------------------------- merged near car: details mesh + wheel set
+
+/** `carKind` vertex attribute of the details mesh. */
+const KIND_TRIM = 0, KIND_HEAD = 1, KIND_TAIL = 2, KIND_BAR_A = 3, KIND_BAR_B = 4;
+
+const detailsCache = new WeakMap<CarParts, THREE.BufferGeometry>();
+/** Trim + head lamps + tail lamps + light-bar lenses as ONE geometry: position, normal, uv, colour and a `carKind` tag. */
+function detailsGeo(parts: CarParts): THREE.BufferGeometry {
+  let out = detailsCache.get(parts);
+  if (out) return out;
+  const list: THREE.BufferGeometry[] = [];
+  const prep = (src: THREE.BufferGeometry, kind: number, color?: number, at?: THREE.Vector3): void => {
+    const g = src.index ? src.toNonIndexed() : src.clone();
+    for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv' && k !== 'color') g.deleteAttribute(k);
+    if (at) g.translate(at.x, at.y, at.z);
+    const n = g.attributes.position.count;
+    if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(n * 2), 2));
+    if (color !== undefined || !g.attributes.color) {
+      const c = new THREE.Color(color ?? 0xffffff);
+      const a = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
+      g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+    }
+    g.setAttribute('carKind', new THREE.BufferAttribute(new Float32Array(n).fill(kind), 1));
+    list.push(g);
+  };
+  prep(parts.trim, KIND_TRIM);
+  prep(parts.lampHead, KIND_HEAD, 0xffffff);
+  prep(parts.lampTail, KIND_TAIL, 0x7a1010);
+  if (parts.lightbar) {
+    prep(parts.lightbar.lens, KIND_BAR_A, 0x202020, parts.lightbar.a);
+    prep(parts.lightbar.lens, KIND_BAR_B, 0x202020, parts.lightbar.b);
+  }
+  const merged = mergeGeometries(list, false);
+  for (const g of list) g.dispose();
+  if (!merged) throw new Error('carModel: details merge failed');
+  detailsCache.set(parts, out = merged);
+  return out;
+}
+
+/** Lamp state of one car, read by the details shader. Values are emissive colour x intensity (linear). */
+interface LampUniforms { uHead: { value: THREE.Color }; uTail: { value: THREE.Color }; uBarA: { value: THREE.Color }; uBarB: { value: THREE.Color } }
+
+/** Details material (one per car, since the lamp uniforms are per car; all share one compiled program). */
+function detailsMaterial(u: LampUniforms): THREE.MeshStandardMaterial {
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.38, metalness: 0.55, name: 'carDetails' });
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, u);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute float carKind;\nvarying float vKind;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvKind = carKind;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vKind;\nuniform vec3 uHead;\nuniform vec3 uTail;\nuniform vec3 uBarA;\nuniform vec3 uBarB;')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nif (vKind > 0.5) roughnessFactor = vKind < 1.5 ? 0.2 : vKind < 2.5 ? 0.35 : 0.3;')
+      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nif (vKind > 0.5) metalnessFactor = vKind < 2.5 ? 0.1 : 0.0;')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vKind < 0.5 ? vec3(0.0) : vKind < 1.5 ? uHead : vKind < 2.5 ? uTail : vKind < 3.5 ? uBarA : vKind < 4.5 ? uBarB : vec3(0.0);');
+  };
+  m.customProgramCacheKey = () => 'carDetails';
+  return m;
+}
+
+/** 180 degrees about y: puts the +x hubcap of the shared wheel geometry on the -x face for the left wheels. */
+const FLIP_Y = new THREE.Matrix4().makeRotationY(Math.PI);
+
+/**
+ * All four wheels as one InstancedMesh. The pivots (steer -> roll) stay as plain Object3Ds so Vehicle keeps rotating
+ * `wheels[i].rotation.x` and `steerPivots[i].rotation.y`; the instance matrices are recomposed from them in updateMatrixWorld.
+ */
+class WheelSet extends THREE.InstancedMesh {
+  private readonly last: number[];
+  constructor(geo: THREE.BufferGeometry, mat: THREE.Material, private readonly rigs: { steer: THREE.Object3D; roll: THREE.Object3D; left: boolean }[]) {
+    super(geo, mat, rigs.length);
+    this.name = 'tyre';
+    this.last = rigs.map(() => NaN);
+    this.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.sync(true);
+    this.computeBoundingSphere();
+  }
+  private sync(force: boolean): void {
+    const m = new THREE.Matrix4();
+    let dirty = false;
+    this.rigs.forEach((r, i) => {
+      const key = r.roll.rotation.x * 7.3 + r.steer.rotation.y;
+      if (!force && key === this.last[i]) return;
+      this.last[i] = key;
+      r.steer.updateMatrix(); r.roll.updateMatrix();
+      m.multiplyMatrices(r.steer.matrix, r.roll.matrix);
+      if (r.left) m.multiply(FLIP_Y);
+      this.setMatrixAt(i, m);
+      dirty = true;
+    });
+    if (dirty) this.instanceMatrix.needsUpdate = true;
+  }
+  override updateMatrixWorld(force?: boolean): void {
+    this.sync(false);
+    super.updateMatrixWorld(force);
+  }
+}
+
+const NO_GEO = new THREE.BufferGeometry();
+
 // ---------------------------------------------------------------- public
 
 /**
  * `variant` (0..3) picks the licence plate text so not every car wears BK-STUY, and turns plain sedans into coupes at 3.
  * `style` overrides the automatic choice (the far-car proxies use it to rebuild the exact style).
  */
-export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: IMaterialLibrary, variant = 0, style?: CarStyle): CarModel {
+export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: IMaterialLibrary, variant = 0, style?: CarStyle, split = false): CarModel {
   const st = style ?? styleFor(type, spec.color, variant);
   const parts = partsFor(st, spec);
   const group = new THREE.Group();
   group.name = `car:${type}`;
   group.userData.carStyle = st;
-  group.userData.buildLodModel = (): CarModel => buildCarModel(type, spec, materials, 0, st);
+  group.userData.buildLodModel = (): CarModel => buildCarModel(type, spec, materials, 0, st, true);
   const own: THREE.Material[] = [];
   const paintMeshes: THREE.Mesh[] = [];
 
@@ -257,7 +367,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   paintMeshes.push(mesh(parts.paint, paintMat, 'body'));
   if (parts.paint2) paintMeshes.push(mesh(parts.paint2, cargoLiveryMaterial(materials, variant), 'cargo'));
   mesh(parts.glass, glassMat, 'glass');
-  mesh(parts.trim, trimMaterial(), 'trim');
+  if (split) mesh(parts.trim, trimMaterial(), 'trim');
 
   let hood: THREE.Object3D | undefined;
   if (parts.hood) {
@@ -269,31 +379,48 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
     hood = pivot;
   }
 
-  // lights: per-car materials so brake lights / headlights toggle independently; each colour is ONE mesh
+  // lights: per-car materials so brake lights / headlights toggle independently
   const headMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff4d6, emissiveIntensity: 0, roughness: 0.2, metalness: 0.1 });
   const tailMat = new THREE.MeshStandardMaterial({ color: 0x7a1010, emissive: 0xff2020, emissiveIntensity: 0, roughness: 0.35, metalness: 0.1 });
   own.push(headMat, tailMat);
-  const headlights = [mesh(parts.lampHead, headMat, 'headlight')];
-  const taillights = [mesh(parts.lampTail, tailMat, 'taillight')];
+  let headlights: THREE.Mesh[], taillights: THREE.Mesh[];
+  const handle = (mat: THREE.Material, name: string): THREE.Mesh => {
+    // merged cars: an invisible, empty mesh that carries the lamp material Vehicle and CarLod drive (it never draws)
+    const h = new THREE.Mesh(NO_GEO, mat);
+    h.name = name; h.visible = false; h.frustumCulled = false;
+    group.add(h);
+    return h;
+  };
+  if (split) {
+    headlights = [mesh(parts.lampHead, headMat, 'headlight')];
+    taillights = [mesh(parts.lampTail, tailMat, 'taillight')];
+  } else {
+    headlights = [handle(headMat, 'headlight')];
+    taillights = [handle(tailMat, 'taillight')];
+  }
 
   // licence plates (both in one mesh)
   mesh(parts.plate, materials.get('plate', variant), 'plate');
 
-  // wheels: steer pivot (front only) -> roll pivot -> tyre + hubcap. The rear pair is one mesh under the left roll pivot.
+  // wheels: steer pivot (front only) -> roll pivot -> (split) tyre + hubcap; the rear pair is one mesh under the left roll pivot
   const wg = wheelGeos(parts.wheelR, parts.wheelW);
   const wheels: THREE.Object3D[] = [];
   const steerPivots: THREE.Object3D[] = [];
+  const rigs: { steer: THREE.Object3D; roll: THREE.Object3D; left: boolean }[] = [];
   for (const w of parts.wheels) {
     const steer = new THREE.Group();
     steer.name = w.front ? 'steerPivot' : 'wheelMount';
     steer.position.set(w.x, parts.wheelR, w.z);
     const roll = new THREE.Group();
     roll.name = 'wheel';
-    if (w.front) mesh(w.x < 0 ? wg.left : wg.right, tyreMat, 'tyre', roll);
-    else if (w.x < 0) mesh(rearPair(parts.wheelR, parts.wheelW, -2 * w.x), tyreMat, 'tyre', roll);
+    if (split) {
+      if (w.front) mesh(w.x < 0 ? wg.left : wg.right, tyreMat, 'tyre', roll);
+      else if (w.x < 0) mesh(rearPair(parts.wheelR, parts.wheelW, -2 * w.x), tyreMat, 'tyre', roll);
+    }
     steer.add(roll);
     group.add(steer);
     wheels.push(roll);
+    rigs.push({ steer, roll, left: w.x < 0 });
     if (w.front) steerPivots.push(steer);
   }
 
@@ -304,12 +431,35 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
       own.push(m);
       return m;
     };
-    const a = mesh(parts.lightbar.lens, mk(), 'lightbarA');
-    a.position.copy(parts.lightbar.a);
-    const b = mesh(parts.lightbar.lens, mk(), 'lightbarB');
-    b.position.copy(parts.lightbar.b);
-    lightbar = { red: a, blue: b };
+    if (split) {
+      const a = mesh(parts.lightbar.lens, mk(), 'lightbarA');
+      a.position.copy(parts.lightbar.a);
+      const b = mesh(parts.lightbar.lens, mk(), 'lightbarB');
+      b.position.copy(parts.lightbar.b);
+      lightbar = { red: a, blue: b };
+    } else {
+      lightbar = { red: handle(mk(), 'lightbarA'), blue: handle(mk(), 'lightbarB') };
+    }
   }
 
-  return { group, wheels, steerPivots, lightbar, headlights, taillights, hood, paintMeshes, wheelRadius: parts.wheelR, ownMaterials: own, style: st };
+  let farSource: (() => CarModel) | undefined;
+  if (!split) {
+    const u: LampUniforms = { uHead: { value: new THREE.Color(0, 0, 0) }, uTail: { value: new THREE.Color(0, 0, 0) }, uBarA: { value: new THREE.Color(0, 0, 0) }, uBarB: { value: new THREE.Color(0, 0, 0) } };
+    const dm = detailsMaterial(u);
+    own.push(dm);
+    const details = mesh(detailsGeo(parts), dm, 'trim');
+    const barA = lightbar ? (lightbar.red.material as THREE.MeshStandardMaterial) : null;
+    const barB = lightbar ? (lightbar.blue.material as THREE.MeshStandardMaterial) : null;
+    const lit = (m: THREE.MeshStandardMaterial, out: THREE.Color): void => {
+      out.copy(m.emissive).multiplyScalar(m.emissiveIntensity);
+    };
+    details.onBeforeRender = () => {
+      lit(headMat, u.uHead.value); lit(tailMat, u.uTail.value);
+      if (barA && barB) { lit(barA, u.uBarA.value); lit(barB, u.uBarB.value); }
+    };
+    group.add(new WheelSet(wg.right, tyreMat, rigs));
+    farSource = () => buildCarModel(type, spec, materials, variant, st, true);
+  }
+
+  return { group, wheels, steerPivots, lightbar, headlights, taillights, hood, paintMeshes, wheelRadius: parts.wheelR, ownMaterials: own, style: st, farSource };
 }

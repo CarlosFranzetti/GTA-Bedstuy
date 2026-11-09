@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1194 669" font-family="sans-serif" font-size="10">
+<rect width="100%" height="100%" fill="#fbfaf6"/>
+<rect x="-28.200000000000003" y="74.86" width="210.0" height="215.88" fill="#ffe9b0" stroke="#c98a00" stroke-dasharray="4 3"/>
+<text x="-24.0" y="72.75999999999999" fill="#8a5a00">current game: Tompkins..Garvey x Hart..Greene</text>
+<line x1="60.0" y1="79.06" x2="528.72" y2="79.06" stroke="#888" stroke-width="1"/>
+<text x="531.72" y="82.06" fill="#555">Hart St</text>
+<line x1="60.0" y1="113.5" x2="478.74" y2="113.5" stroke="#888" stroke-width="1"/>
+<text x="481.74" y="116.5" fill="#555">Pulaski St</text>
+<line x1="60.0" y1="148.36" x2="594.66" y2="148.36" stroke="#888" stroke-width="1"/>
+<text x="597.66" y="151.36" fill="#555">Dekalb Av</text>
+<line x1="60.0" y1="182.79999999999998" x2="631.1999999999999" y2="182.79999999999998" stroke="#888" stroke-width="1"/>
+<text x="634.1999999999999" y="185.79999999999998" fill="#555">Kosciuszko St</text>
+<line x1="60.0" y1="217.23999999999998" x2="679.5" y2="217.23999999999998" stroke="#888" stroke-width="1"/>
+<text x="682.5" y="220.23999999999998" fill="#555">Lafayette Av</text>
+<line x1="60.0" y1="252.1" x2="700.92" y2="252.1" stroke="#888" stroke-width="1"/>
+<text x="703.92" y="255.1" fill="#555">Van Buren St</text>
+<line x1="60.0" y1="286.53999999999996" x2="724.86" y2="286.53999999999996" stroke="#888" stroke-width="1"/>
+<text x="727.86" y="289.53999999999996" fill="#555">Greene Av</text>
+<line x1="60.0" y1="320.97999999999996" x2="692.9399999999999" y2="320.97999999999996" stroke="#888" stroke-width="1"/>
+<text x="695.9399999999999" y="323.97999999999996" fill="#555">Lexington Av</text>
+<line x1="60.0" y1="355.42" x2="743.3399999999999" y2="355.42" stroke="#888" stroke-width="1"/>
+<text x="746.3399999999999" y="358.42" fill="#555">Quincy St</text>
+<line x1="60.0" y1="390.7" x2="833.64" y2="390.7" stroke="#888" stroke-width="1"/>
+<text x="836.64" y="393.7" fill="#555">Gates Av</text>
+<line x1="60.0" y1="424.71999999999997" x2="793.3199999999999" y2="424.71999999999997" stroke="#888" stroke-width="1"/>
+<text x="796.3199999999999" y="427.71999999999997" fill="#555">Monroe St</text>
+<line x1="60.0" y1="459.58" x2="908.4" y2="459.58" stroke="#888" stroke-width="1"/>
+<text x="911.4" y="462.58" fill="#555">Madison St</text>
+<line x1="60.0" y1="494.02" x2="928.98" y2="494.02" stroke="#888" stroke-width="1"/>
+<text x="931.98" y="497.02" fill="#555">Putnam Av</text>
+<line x1="60.0" y1="528.46" x2="978.9599999999999" y2="528.46" stroke="#888" stroke-width="1"/>
+<text x="981.9599999999999" y="531.46" fill="#555">Jefferson Av</text>
+<line x1="60.0" y1="562.9" x2="1001.64" y2="562.9" stroke="#888" stroke-width="1"/>
+<text x="1004.64" y="565.9" fill="#555">Hancock St</text>
+<line x1="60.0" y1="597.76" x2="1059.6" y2="597.76" stroke="#888" stroke-width="1"/>
+<text x="1062.6" y="600.76" fill="#555">Halsey St</text>
+<line x1="77.22" y1="44.2" x2="77.22" y2="628.0" stroke="#aaa" stroke-width="1"/>
+<text x="71.22" y="42.1" fill="#555" transform="rotate(-60 71.22 42.1)">Throop Av</text>
+<line x1="178.44" y1="44.2" x2="178.44" y2="628.0" stroke="#aaa" stroke-width="1"/>
+<text x="172.44" y="42.1" fill="#555" transform="rotate(-60 172.44 42.1)">Marcus Garvey Blvd</text>
+<line x1="283.86" y1="44.2" x2="283.86" y2="628.0" stroke="#aaa" stroke-width="1"/>
+<text x="277.86" y="42.1" fill="#555" transform="rotate(-60 277.86 42.1)">Lewis Av</text>
+<line x1="388.44" y1="44.2" x2="388.44" y2="628.0" stroke="#aaa" stroke-width="1"/>
+<text x="382.44" y="42.1" fill="#555" transform="rotate(-60 382.44 42.1)">Stuyvesant Av</text>
+<line x1="493.02" y1="44.2" x2="493.02" y2="628.0" stroke="#aaa" stroke-width="1"/>
+<text x="487.02" y="42.1" fill="#555" transform="rotate(-60 487.02 42.1)">Malcolm X Blvd</text>
+<line x1="598.02" y1="44.2" x2="598.02" y2="628.0" stroke="#aaa" stroke-width="1"/>
+<text x="592.02" y="42.1" fill="#555" transform="rotate(-60 592.02 42.1)">Patchen Av</text>
+<line x1="715.1999999999999" y1="44.2" x2="715.1999999999999" y2="628.0" stroke="#aaa" stroke-width="1"/>
+<text x="709.1999999999999" y="42.1" fill="#555" transform="rotate(-60 709.1999999999999 42.1)">Ralph Av</text>
+<line x1="802.56" y1="44.2" x2="802.56" y2="628.0" stroke="#aaa" stroke-width="1"/>
+<text x="796.56" y="42.1" fill="#555" transform="rotate(-60 796.56 42.1)">Howard Av</text>
+<line x1="440.3276225244819" y1="40.0" x2="1022.2021180119092" y2="628.0" stroke="#b00020" stroke-width="3"/><text x="795.4523198169383" y="392.8" fill="#b00020">Broadway + J/M el</text>
+<line x1="536.7920853526291" y1="40.0" x2="1133.0599691947443" y2="628.0" stroke="#0057b8" stroke-width="3"/><text x="900.5528156578981" y="392.8" fill="#0057b8">Bushwick Ave</text>
+<circle cx="615.7212204499779" cy="217.23999999999998" r="4" fill="#b00020"/><text x="545.7212204499779" y="211.23999999999998" fill="#b00020">Kosciuszko St stn</text>
+<circle cx="787.374196618769" cy="390.7" r="4" fill="#b00020"/><text x="717.374196618769" y="384.7" fill="#b00020">Gates Av stn</text>
+<circle cx="992.2771439582702" cy="597.76" r="4" fill="#b00020"/><text x="922.2771439582702" y="591.76" fill="#b00020">Halsey St stn</text>
+<line x1="76.8" y1="182.79999999999998" x2="76.89999999999999" y2="182.89999999999998" stroke="#000"/><circle cx="76.8" cy="182.79999999999998" r="3" fill="#000"/><text x="81.8" y="178.79999999999998">origin: Throop x Kosciuszko</text>
+</svg>
