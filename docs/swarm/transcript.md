@@ -1862,3 +1862,9 @@ Plan: read ped/car paths; build pedBody.ts + painters/ped.ts (default), gate glT
 
 ### 2026-11-09T04:09:14Z · GEO2
 Plan: 1) try Overpass/PLUTO via WebFetch 2) BLOCKS.md 3) apply to bedstuy.json 4) tests 5) renders
+
+### 2026-11-09T04:10:18Z · GEO2
+Overpass (overpass-api.de, kumi) and NYC Open Data both DNS-blocked (ENOTFOUND). Doing BLOCKS.md from prior R2 docs + new WebSearch snippets. Before-renders started on 4442.
+
+### 2026-11-09T04:10:33Z · RADIO8
+PLAN: (1) stations.ts table of 8 SC stations + keyword filters; RaFeed.topUp(match) keyword-aware, same rate rules; ScStation gains per-station config (name, match, own pasted-link key, per-station heard set, fallback order filtered pool > own links > any pool set); RadioDirector dial = 8 SC stations, WBSY Talk, optional My Library (gated on library having tracks). (2) src/audio/announcer/{personas,scripts,Announcer}.ts reusing talk pickVoices/SpeechLike, ducking widget volume, 8-min cadence, never over talk, text-only if no voices. (3) RadioUi per-station pool counts + link lists. (4) docs/RADIO.md rewrite, tests in tests/unit/audio. No shared files touched; FOR FABLE lines at the end.
