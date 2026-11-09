@@ -80,7 +80,7 @@ function pursueRaw(mode: 'flee' | 'wait', seed: number, stars: 1 | 2 | 3, second
     sirensOffBy: -1, copsEnd: 0, nonFinite: 0, playerDamage: 0, playerDisplacement: 0,
   };
   let t = 0;
-  events.on('crime', (c) => { r.lastCrime = t; if (c.type === 'hitCop') r.hitCops++; });
+  events.on('crime', (c) => { if (process.env.DBG) console.log('CRIME', t.toFixed(1), c.type); r.lastCrime = t; if (c.type === 'hitCop') r.hitCops++; });
   for (let i = 0; i < stars; i++) events.emit('crime', { type: 'carjack', pos: p0 });
 
   let lastStars = -1;

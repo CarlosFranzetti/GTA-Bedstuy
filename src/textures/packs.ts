@@ -8,6 +8,8 @@
 import * as THREE from 'three';
 import type { MaterialKey } from '@/world/types';
 import type { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { cc0Entries, grimeUrl } from '@/textures/cc0';
+import { patchWallGrime } from '@/textures/groundVariation';
 
 import brickRed from '@/assets/textures/brick_red_color.jpg';
 import brickWhite from '@/assets/textures/brick_white_color.jpg';
@@ -77,9 +79,11 @@ export interface PackEntry {
   /** base roughness multiplier for the roughness map (1 = use the map as-is) and reflection strength */
   roughness?: number;
   envMapIntensity?: number;
+  /** albedo multiplier (hex), e.g. the painted-brick set serving cream / blue-grey variants */
+  tint?: string;
 }
 
-export const TEXTURE_PACKS: PackEntry[] = [
+const BASE_PACKS: PackEntry[] = [
   { key: 'brickRed', variant: 0, color: brickRed, normal: brickN, rough: brickR, repeat: 2, normalScale: 0.9 , roughness: 1, envMapIntensity: 0.1 },
   { key: 'brickRed', variant: 1, color: brickTan, normal: brickTanN, rough: brickTanR, repeat: 2, normalScale: 0.9, roughness: 1, envMapIntensity: 0.1 },
   { key: 'brickRed', variant: 2, color: brickWhite, normal: brickN, rough: brickPaintedR, repeat: 2, normalScale: 0.6 , roughness: 1, envMapIntensity: 0.1 },
@@ -97,6 +101,13 @@ export const TEXTURE_PACKS: PackEntry[] = [
   { key: 'waterTank', variant: 0, color: cedar, normal: cedarN, rough: cedarR, repeat: 3, normalScale: 0.7, roughness: 1, envMapIntensity: 0.1 },
   { key: 'roof', variant: 0, color: roof, normal: roofN, rough: roofR, repeat: 1, normalScale: 0.6 , roughness: 1, envMapIntensity: 0.1 },
 ];
+
+/** The CC0 sets (./cc0.ts) replace the older 1K photo entries for the same key/variant and add the keys that had none (bluestone, roofs, metals). */
+export const TEXTURE_PACKS: PackEntry[] = (() => {
+  const cc0 = cc0Entries();
+  const ids = new Set(cc0.map((e) => `${e.key}:${e.variant}`));
+  return [...BASE_PACKS.filter((e) => !ids.has(`${e.key}:${e.variant}`)), ...cc0];
+})();
 
 /** Defaults for user photo packs (docs/PHOTO-TEXTURES.md), keyed by material. Unknown keys get repeat 1.5. */
 const USER_DEFAULTS: Partial<Record<MaterialKey, { repeat: number; normalScale: number; roughness: number; envMapIntensity: number }>> = {
@@ -192,13 +203,24 @@ export async function loadTexturePacks(materials: MaterialLibrary, maxAnisotropy
   const byId = effectivePackEntries(); // user photos win
   let n = 0;
   await Promise.all([...byId.values()].map(async (e) => {
-    const [map, normalMap, roughnessMap] = await Promise.all([load(e.color, true), e.normal ? load(e.normal, false) : undefined, e.rough ? load(e.rough, false) : undefined]);
+    const [map, normalMap, roughnessMap] = await Promise.all([e.color ? load(e.color, true) : undefined, e.normal ? load(e.normal, false) : undefined, e.rough ? load(e.rough, false) : undefined]);
     materials.overrideMaps(e.key, e.variant, { map, normalMap, roughnessMap, repeat: { x: e.repeat, y: e.repeat }, normalScale: e.normalScale });
     const m = materials.get(e.key, e.variant) as THREE.MeshStandardMaterial;
     if (e.roughness !== undefined) m.roughness = e.roughness;
     if (e.envMapIntensity !== undefined) m.envMapIntensity = e.envMapIntensity;
+    if (e.tint) m.color.set(e.tint);
     m.needsUpdate = true;
     n++;
   }));
+  // grime multiply on wall bases (masonry only), on top of the photo maps, the vertex AO and the hour grade
+  const gu = grimeUrl();
+  if (gu) {
+    const grime = await load(gu, false).catch(() => null);
+    if (grime) {
+      for (const [k, v] of [['brickRed', 0], ['brickRed', 1], ['brickRed', 2], ['brickRed', 3], ['brickPainted', 0], ['brickPainted', 1], ['brownstone', 0], ['brownstone', 1], ['limestone', 0], ['stoop', 0]] as const) {
+        patchWallGrime(materials.get(k, v) as THREE.MeshStandardMaterial, grime);
+      }
+    }
+  }
   return n;
 }

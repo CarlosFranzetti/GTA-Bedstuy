@@ -135,3 +135,29 @@ uniform float artVarWear;`)
   m.customProgramCacheKey = () => `${prevKey ? prevKey.call(m) : ''}|artvar1`;
   m.needsUpdate = true;
 }
+
+/**
+ * Multiplies a CC0 grime map into the albedo of a wall material near the ground: full strength at the base, gone by
+ * about 1.6 m. World-space mapping (x + z along the wall, y up), so it needs no UVs and works with the baked vertex AO.
+ */
+export function patchWallGrime(m: THREE.MeshStandardMaterial, grime: THREE.Texture): void {
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (shader, renderer) => {
+    prev?.call(m, shader, renderer);
+    shader.uniforms.tWallGrime = { value: grime };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWallGrimeW;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWallGrimeW = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWallGrimeW;\nuniform sampler2D tWallGrime;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+{
+  float wgMask = 1.0 - smoothstep( 0.15, 1.6, vWallGrimeW.y );
+  float wgTone = dot( texture2D( tWallGrime, vec2( vWallGrimeW.x + vWallGrimeW.z, vWallGrimeW.y ) * 0.37 ).rgb, vec3( 0.3333 ) );
+  diffuseColor.rgb *= mix( 1.0, 0.5 + 0.8 * wgTone, wgMask * 0.65 );
+}`);
+  };
+  const prevKey = m.customProgramCacheKey;
+  m.customProgramCacheKey = () => `${prevKey ? prevKey.call(m) : ''}|wallgrime1`;
+  m.needsUpdate = true;
+}
