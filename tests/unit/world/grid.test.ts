@@ -22,10 +22,10 @@ function bfs(g: Graph, start: string, reverse = false): Set<string> {
 }
 
 describe('Grid counts', () => {
-  it('has 10 blocks, 18 intersections, 27 segments', () => {
-    expect(grid.blocks).toHaveLength(10);
-    expect(grid.intersections).toHaveLength(18);
-    expect(grid.segments).toHaveLength(27);
+  it('has 25 blocks, 36 intersections, 60 segments (B1: three avenues east of the original ten blocks, see grid-east.test.ts)', () => {
+    expect(grid.blocks).toHaveLength(25);
+    expect(grid.intersections).toHaveLength(36);
+    expect(grid.segments).toHaveLength(60);
     expect(grid.seed).toBe(1988);
   });
 
@@ -53,8 +53,8 @@ describe('Grid counts', () => {
   });
 
   it('has one crosswalk per intersection approach, 3 m wide', () => {
-    // 27 segments x 2 ends
-    expect(grid.crosswalks).toHaveLength(54);
+    // 60 segments x 2 ends
+    expect(grid.crosswalks).toHaveLength(120);
     for (const c of grid.crosswalks) expect(c.width).toBe(3);
     const c = grid.crosswalks.find((x) => x.intersectionId === 'throop|kosciuszko' && x.side === 'E')!;
     // crosses the ew street east of the intersection, spanning its roadway (z -5..5)
@@ -142,7 +142,7 @@ describe('Road queries', () => {
     expect(grid.isOnRoad({ x: -125, z: 50 })).toBe(false); // centre of r2c0
     expect(grid.isOnRoad({ x: -125, z: 6.5 })).toBe(false); // sidewalk
     expect(grid.isOnRoad({ x: -125, z: 4.9 })).toBe(true);
-    expect(grid.isOnRoad({ x: 400, z: 0 })).toBe(false);
+    expect(grid.isOnRoad({ x: 1100, z: 0 })).toBe(false); // east of Malcolm X Blvd
   });
 
   it('nearestStreet picks the closest street', () => {

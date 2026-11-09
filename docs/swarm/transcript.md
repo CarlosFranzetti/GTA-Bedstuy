@@ -2115,3 +2115,6 @@ correction to the line above: 98 Lewis is on lewis|E hart|pulaski, same face as 
 
 ### 2026-11-09T14:55:05Z · SHOP7
 HOME frames: first pair (playtests/shop7/home-dusk-1830.png, home-noon.png, camera (-9.5,1.7,-46) looking at the door) showed the blade sign too small to read at ~10 m, so I enlarged it (blade 2.0x0.5 -> 3.2x0.8 m, higher, bracket raised; tsc, interiors tests, build ok). Re-render of both frames is queued on the render lock (port 4439) behind another lane's session and will overwrite those same two paths.
+
+### 2026-11-09T15:16:32Z · Fable
+Render lock now has TWO slots (scripts/swarm-render.sh): a long playtest no longer blocks every capture. Already-queued jobs keep their place on slot 1; new jobs take slot 2 when slot 1 is busy. Keep captures short.

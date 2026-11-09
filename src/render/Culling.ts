@@ -32,17 +32,17 @@ export function shouldHide(wasHidden: boolean, cx: number, cz: number, r: number
 
 export interface CellKey { ix: number; iz: number; }
 
-/** Cell index of a point for a grid of `cellX` x `cellZ` metres anchored at the world origin. */
-export function cellOf(x: number, z: number, cellX: number, cellZ: number, out: CellKey): CellKey {
-  out.ix = Math.floor(x / cellX);
-  out.iz = Math.floor(z / cellZ);
+/** Cell index of a point for a grid of `cellX` x `cellZ` metres anchored at (`originX`, `originZ`) (default: the world origin). */
+export function cellOf(x: number, z: number, cellX: number, cellZ: number, out: CellKey, originX = 0, originZ = 0): CellKey {
+  out.ix = Math.floor((x - originX) / cellX);
+  out.iz = Math.floor((z - originZ) / cellZ);
   return out;
 }
 
 type AnyArray = Float32Array | Uint8Array | Uint16Array | Uint32Array | Int8Array | Int16Array | Int32Array | Uint8ClampedArray;
 
 /** Splits one (merged) geometry into per-cell geometries by triangle centroid. Returns null if it cannot be split. */
-export function splitGeometryByCell(geo: THREE.BufferGeometry, cellX: number, cellZ: number): Map<string, THREE.BufferGeometry> | null {
+export function splitGeometryByCell(geo: THREE.BufferGeometry, cellX: number, cellZ: number, originX = 0, originZ = 0): Map<string, THREE.BufferGeometry> | null {
   const pos = geo.getAttribute('position');
   if (!pos || (pos as THREE.InterleavedBufferAttribute).isInterleavedBufferAttribute) return null;
   if (geo.groups.length > 1) return null;
@@ -66,7 +66,7 @@ export function splitGeometryByCell(geo: THREE.BufferGeometry, cellX: number, ce
     const a = vi(t, 0), b = vi(t, 1), c = vi(t, 2);
     const cx = (px[a * ps] + px[b * ps] + px[c * ps]) / 3;
     const cz = (px[a * ps + 2] + px[b * ps + 2] + px[c * ps + 2]) / 3;
-    const key = `${Math.floor(cx / cellX)}_${Math.floor(cz / cellZ)}`;
+    const key = `${Math.floor((cx - originX) / cellX)}_${Math.floor((cz - originZ) / cellZ)}`;
     let list = bins.get(key);
     if (!list) { list = []; bins.set(key, list); }
     list.push(t);
@@ -108,6 +108,45 @@ export function splitGeometryByCell(geo: THREE.BufferGeometry, cellX: number, ce
   return out;
 }
 
+// ---------------------------------------------------------------- chunks
+
+/**
+ * World chunks: the static city is binned into chunks of 2 x 2 blocks (anchored at the grid's north-west street corner, so a
+ * chunk edge is always a street centreline) and each chunk is hidden as a unit beyond a per-tier range. The range is the
+ * tier's visible distance (fog far on phone, the prop cull range elsewhere) plus a number of blocks of slack: phone 1,
+ * low 2, medium and high 3 (the slack hides the chunk edge from pop-in; fog hides it on phone).
+ */
+export const CHUNK_BLOCKS = 2;
+/** Metres per block used for the slack (the east-west street pitch of the game's grid). */
+export const CHUNK_BLOCK_M = 100;
+export const CHUNK_SLACK_BLOCKS: Record<Quality, number> = { phone: 1, low: 2, medium: 3, high: 3 };
+
+/** Chunk hide distance (m) for a tier. */
+export function chunkRangeFor(q: Quality): number {
+  const t = TIER_CONFIG[q];
+  const visible = t.fog ? t.fog.far : t.cullDistance;
+  return visible + CHUNK_SLACK_BLOCKS[q] * CHUNK_BLOCK_M;
+}
+
+export interface ChunkLayout { cellX: number; cellZ: number; originX: number; originZ: number; }
+
+/** Chunk grid of a street grid: `CHUNK_BLOCKS` x `CHUNK_BLOCKS` blocks per chunk, anchored at the north-west street centre. */
+export function chunkLayout(streets: ReadonlyArray<{ axis: 'ns' | 'ew'; offset: number }>): ChunkLayout {
+  const along = (axis: 'ns' | 'ew', fallback: number): { pitch: number; origin: number } => {
+    const o = streets.filter((st) => st.axis === axis).map((st) => st.offset).sort((a, b) => a - b);
+    let best = Infinity;
+    for (let i = 1; i < o.length; i++) best = Math.min(best, o[i] - o[i - 1]);
+    return { pitch: isFinite(best) && best > 20 ? best : fallback, origin: o.length ? o[0] : 0 };
+  };
+  const x = along('ns', 250), z = along('ew', 100);
+  return { cellX: x.pitch * CHUNK_BLOCKS, cellZ: z.pitch * CHUNK_BLOCKS, originX: x.origin, originZ: z.origin };
+}
+
+/** `ix_iz` key of the chunk holding (x, z); the same key `splitMeshesIntoCells` stores in `userData.cell`. */
+export function chunkKeyOf(l: ChunkLayout, x: number, z: number): string {
+  return `${Math.floor((x - l.originX) / l.cellX)}_${Math.floor((z - l.originZ) / l.cellZ)}`;
+}
+
 export function triangleCount(geo: THREE.BufferGeometry): number {
   return geo.index ? geo.index.count / 3 : (geo.getAttribute('position')?.count ?? 0) / 3;
 }
@@ -119,13 +158,13 @@ export interface SplitStats { meshesBefore: number; meshesAfter: number; triangl
  * userData are kept (names must stay identical: e.g. setLampsLit finds the lamp heads by name). `userData.cell`
  * holds the cell key. Returns the new cell meshes.
  */
-export function splitMeshesIntoCells(group: THREE.Object3D, cellX: number, cellZ: number, stats?: SplitStats, minTris = 0): THREE.Mesh[] {
+export function splitMeshesIntoCells(group: THREE.Object3D, cellX: number, cellZ: number, stats?: SplitStats, minTris = 0, originX = 0, originZ = 0): THREE.Mesh[] {
   const result: THREE.Mesh[] = [];
   // InstancedMesh geometry is a local template shared by every instance: never re-bin it
   const originals = group.children.filter((o): o is THREE.Mesh => (o as THREE.Mesh).isMesh === true && !(o as THREE.InstancedMesh).isInstancedMesh);
   for (const mesh of originals) {
     if (stats) stats.meshesBefore++;
-    const parts = Array.isArray(mesh.material) || triangleCount(mesh.geometry) < minTris ? null : splitGeometryByCell(mesh.geometry, cellX, cellZ);
+    const parts = Array.isArray(mesh.material) || triangleCount(mesh.geometry) < minTris ? null : splitGeometryByCell(mesh.geometry, cellX, cellZ, originX, originZ);
     if (!parts || parts.size <= 1) { result.push(mesh); if (stats) { stats.meshesAfter++; } continue; }
     for (const [key, g] of parts) {
       const m = new THREE.Mesh(g, mesh.material);

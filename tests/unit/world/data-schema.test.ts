@@ -27,17 +27,18 @@ describe('real bedstuy.json (schema v2)', () => {
     expect(validateAgainstGrid(grid, faces)).toEqual([]);
   });
 
-  it('has an entry for every one of the 40 block faces, none unmatched', () => {
+  it('has an entry for every one of the 100 block faces (40 original + 60 east placeholders), none unmatched', () => {
     const res = checkAgainstGrid(grid, faces);
     expect(res.missing).toEqual([]);
     expect(res.unmatched).toEqual([]);
-    expect(faces.faces).toHaveLength(40);
+    expect(faces.faces).toHaveLength(100);
     for (const b of grid.blocks) for (const f of b.faces) expect(faceFor(faces, grid, f)).toBeDefined();
   });
 
   it('every lot has floors, family and use inside the enums and a confidence tag', () => {
     let n = 0;
     for (const f of faces.faces) {
+      if (f.lots.length === 0 && f.note.includes('[placeholder]')) continue; // east faces wait for GEO3's PLUTO import (GRID9 B1)
       expect(f.lots.length).toBeGreaterThanOrEqual(3); // PLUTO: a face backed by a housing-authority superblock has only a few lots
       for (const l of f.lots) {
         n++;
@@ -57,8 +58,10 @@ describe('real bedstuy.json (schema v2)', () => {
   });
 
   it('Throop and Kosciuszko faces carry the curated anchors', () => {
+    // the original ten blocks only (Tompkins, Throop, Garvey columns); the east blocks are GEO3's
+    const orig = new Set(['tompkins', 'throop', 'garvey']);
     const throop = faces.faces.filter((f) => f.street === 'throop');
-    const kosc = faces.faces.filter((f) => f.street === 'kosciuszko');
+    const kosc = faces.faces.filter((f) => f.street === 'kosciuszko' && orig.has(f.from) && orig.has(f.to));
     expect(throop).toHaveLength(10);
     expect(kosc).toHaveLength(4);
     const all = (list: typeof throop) => list.flatMap((f) => f.lots);
@@ -197,7 +200,7 @@ describe('defaults', () => {
 });
 
 describe('lotsForFace', () => {
-  it('lot widths plus insets equal the face length on all 40 faces (within 1e-6 m)', () => {
+  it('lot widths plus insets equal the face length on all faces (within 1e-6 m)', () => {
     for (const b of grid.blocks) {
       for (const f of b.faces) {
         const lots = lotsForFace(grid, f, faces);
@@ -397,7 +400,7 @@ describe('faces.ts entry point', () => {
   it('getBedstuyFaces caches the validated real data; faceSpecResolver yields rows or null', async () => {
     const { getBedstuyFaces, faceSpecResolver, allLots } = await import('@/world/data/faces');
     expect(getBedstuyFaces()).toBe(getBedstuyFaces());
-    expect(getBedstuyFaces().faces).toHaveLength(40);
+    expect(getBedstuyFaces().faces).toHaveLength(100);
     const resolve = faceSpecResolver(grid);
     const rows = resolve('r1c1', 'W')!;
     expect(rows.length).toBeGreaterThan(5);
@@ -406,6 +409,7 @@ describe('faces.ts entry point', () => {
     const all = allLots(grid);
     expect(all.length).toBeGreaterThan(700);
     expect(new Set(all.map((l) => l.id)).size).toBe(all.length);
-    expect(all.filter((l) => l.fromData).length).toBe(all.length);
+    const origLots = all.filter((l) => /^r[0-4]c[01]-/.test(l.id));
+    expect(origLots.filter((l) => l.fromData).length).toBe(origLots.length); // the east faces are generated placeholders until GEO3
   });
 });

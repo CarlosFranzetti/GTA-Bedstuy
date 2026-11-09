@@ -1,0 +1,72 @@
+{
+  "gameHour": 18.239,
+  "player": {
+    "x": -9.1,
+    "z": -101.1,
+    "headingDeg": 356,
+    "headingCompass": "north",
+    "cameraFacingDeg": 356,
+    "cameraFacing": "north"
+  },
+  "inVehicle": false,
+  "enteringCar": false,
+  "vehicle": null,
+  "walkSpeedKmh": 0,
+  "wantedStars": 0,
+  "prompt": "",
+  "street": "Pulaski St",
+  "radio": "",
+  "mission": {
+    "title": "Block Party",
+    "objective": "Borrow the speaker from Garvey Cutz",
+    "step": "1/4",
+    "timer": "1:46",
+    "carrying": ""
+  },
+  "missionToast": "",
+  "missionRetry": "",
+  "cash": "$120",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": false,
+  "nearby": [
+    {
+      "type": "obstacle",
+      "distance_m": 4.7,
+      "direction": "ahead-right",
+      "bearing_deg": 25
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 4.8,
+      "direction": "ahead",
+      "bearing_deg": 23
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 6.7,
+      "direction": "behind",
+      "bearing_deg": -164
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 6.7,
+      "direction": "behind",
+      "bearing_deg": 170
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 6.8,
+      "direction": "behind",
+      "bearing_deg": 171
+    }
+  ],
+  "nearbyTotal": 10,
+  "sim": {
+    "steps": 2642,
+    "fps": 10,
+    "heapMB": 228
+  },
+  "step": 11,
+  "consoleErrorsSinceLastStep": []
+}

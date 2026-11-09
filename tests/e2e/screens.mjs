@@ -1,4 +1,5 @@
-// Headless capture of the 7 standard review viewpoints (SwiftShader WebGL) plus a JSON of window.__gtaStats per frame.
+// Headless capture of the 10 standard review viewpoints (SwiftShader WebGL) plus a JSON of window.__gtaStats per frame.
+// (1-7 are the original ten-block viewpoints; 8-10 sit in the east expansion: Lewis Ave corner, Malcolm X aerial, Stuyvesant night.)
 //
 // Usage:  node tests/e2e/screens.mjs <outDir> [--port 4310] [--q low] [--width 640] [--height 360]
 //                                    [--dist <dir>]      serve an existing build instead of building one
@@ -12,6 +13,7 @@
 // swap the files under the browser. Outputs in <outDir>:
 //   1-noon-street.png  2-noon-corner.png  3-golden-aerial.png  4-dusk-car.png
 //   5-night-car.png    6-night-corner.png 7-morning-signals.png
+//   8-lewis-corner.png 9-malcolmx-aerial.png 10-stuyvesant-night.png
 //   stats.json   { label, url, viewport, errors[], frames: [{ name, hour, stats }], ... }
 //
 // Viewpoints (metres, +x east, +z south; heading 0 = north) come from Fable's 7-viewpoint check-in capture.
@@ -146,6 +148,14 @@ async function capture() {
     await hour(22); await shot('5-night-car', 22);
     await freeCam([-9, 2.3, 7.5, 14, 4, -14]); await shot('6-night-corner', 22);
     await freeCam([-6, 3, -4, 0, 2, -30]); await hour(9); await shot('7-morning-signals', 9);
+    // east expansion (B1): move the player over so traffic and pedestrians spawn around the new camera spots
+    const moveTo = (x, z) => dbg(([x, z]) => { const d = window.__gtaDebug; d.clearFreeCam(); d.teleport(x, z); d.step(90); }, [x, z]);
+    // 8: south-west sidewalk corner of Lewis Ave & Kosciuszko St (500, 0), looking north-east across the intersection, like 2
+    await moveTo(492, 14); await freeCam([491, 2.3, 7.5, 514, 4, -14]); await hour(12); await shot('8-lewis-corner', 12);
+    // 9: golden-hour aerial over the new blocks between Stuyvesant and Malcolm X
+    await moveTo(800, 60); await freeCam([840, 32, 90, 920, 2, 20]); await hour(17.5); await shot('9-malcolmx-aerial', 17.5);
+    // 10: on Stuyvesant Ave at night looking north up the avenue
+    await moveTo(752, 80); await freeCam([752, 2.8, 70, 749, 4, -80]); await hour(22); await shot('10-stuyvesant-night', 22);
   } finally {
     await page.close().catch(() => {});
   }
@@ -168,6 +178,6 @@ try {
   await browser.close();
   preview.kill();
 }
-log(`${frames.length}/7 frames, ${errors.length} console errors, output in ${opt.out}`);
+log(`${frames.length}/${opt.only ? opt.only.split(',').length : 10} frames, ${errors.length} console errors, output in ${opt.out}`);
 if (errors.length) console.error('[screens] console errors:', errors.slice(0, 5));
-process.exitCode = failed || frames.length < (opt.only ? opt.only.split(',').length : 7) ? 1 : 0;
+process.exitCode = failed || frames.length < (opt.only ? opt.only.split(',').length : 10) ? 1 : 0;

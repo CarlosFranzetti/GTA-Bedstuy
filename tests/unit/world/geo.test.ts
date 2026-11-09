@@ -81,8 +81,8 @@ describe('bearing fit', () => {
 });
 
 describe('face frames', () => {
-  it('derive the same 40 faces the data file describes', () => {
-    expect(frames).toHaveLength(40);
+  it('derive the same 100 faces the data file describes (40 original + 60 east, B1)', () => {
+    expect(frames).toHaveLength(100);
     const dataKeys = json.faces.map((f) => `${String(f.street)}|${String(f.side)}|${String(f.from)}|${String(f.to)}`).sort();
     expect(frames.map((f) => f.key).sort()).toEqual(dataKeys);
   });
@@ -120,7 +120,7 @@ describe('face assignment', () => {
   });
   it('ignores footprints in the roadway or off the grid', () => {
     expect(assignFootprint(frames, json.streets, rect(-3, -150, 3, -140))).toBeNull(); // on Throop itself
-    expect(assignFootprint(frames, json.streets, rect(900, 0, 910, 10))).toBeNull();
+    expect(assignFootprint(frames, json.streets, rect(1100, 0, 1110, 10))).toBeNull(); // east of Malcolm X Blvd
   });
   it('lets addr:street break the tie at a corner, and normalises street names', () => {
     // near the NE corner of the Hart/Throop block: closer to the N building line, but addressed on Throop
@@ -275,10 +275,10 @@ describe('importBlocks on the fixture', () => {
   it('validates with 0 errors against the schema and the real grid', () => {
     expect(validateFaces(res.json)).toEqual([]);
     const set = loadFaces(res.json);
-    expect(set.faces).toHaveLength(40);
+    expect(set.faces).toHaveLength(100);
     expect(validateAgainstGrid(buildGrid(res.json as unknown as BedstuyData), set)).toEqual([]);
   });
-  it('leaves the other 38 faces and the input object untouched', () => {
+  it('leaves the other 98 faces and the input object untouched', () => {
     const before = JSON.stringify(json.faces.filter((f) => !(f.street === 'throop' && f.side === 'E' && f.from === 'hart') && !(f.street === 'hart' && f.side === 'N' && f.from === 'throop')));
     const after = JSON.stringify((res.json.faces as Array<Record<string, unknown>>).filter((f) => !(f.street === 'throop' && f.side === 'E' && f.from === 'hart') && !(f.street === 'hart' && f.side === 'N' && f.from === 'throop')));
     expect(after).toBe(before);

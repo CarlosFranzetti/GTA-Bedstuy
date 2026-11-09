@@ -18,6 +18,7 @@ const lots = subdivideLots(grid, data.pois, new Rng(1988).fork('lots'), getBedst
 const avenueFaces = new Map<string, SpecLot[]>();
 for (const l of lots) {
   if (l.side !== 'E' && l.side !== 'W') continue;
+  if (!/^r[0-4]c[01]$/.test(l.blockId)) continue; // the original ten blocks; the east blocks (B1) are placeholders until GEO3's import
   const k = `${l.blockId}|${l.side}`;
   (avenueFaces.get(k) ?? avenueFaces.set(k, []).get(k)!).push(l);
 }

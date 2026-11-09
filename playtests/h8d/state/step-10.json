@@ -1,0 +1,74 @@
+{
+  "gameHour": 18.179,
+  "player": {
+    "x": -8.4,
+    "z": -91.9,
+    "headingDeg": 266,
+    "headingCompass": "west",
+    "cameraFacingDeg": 356,
+    "cameraFacing": "north"
+  },
+  "inVehicle": false,
+  "enteringCar": false,
+  "vehicle": null,
+  "walkSpeedKmh": 0,
+  "wantedStars": 0,
+  "prompt": "F  Enter car",
+  "street": "Throop Ave",
+  "radio": "",
+  "mission": {
+    "title": "Block Party",
+    "objective": "Borrow the speaker from Garvey Cutz",
+    "step": "1/4",
+    "timer": "1:50",
+    "carrying": ""
+  },
+  "missionToast": "",
+  "missionRetry": "",
+  "cash": "$120",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": false,
+  "nearby": [
+    {
+      "type": "obstacle",
+      "distance_m": 1.3,
+      "direction": "behind-right",
+      "bearing_deg": 138
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 1.5,
+      "direction": "left",
+      "bearing_deg": -90,
+      "vehicle": "suv",
+      "occupied": false
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 2.6,
+      "direction": "ahead",
+      "bearing_deg": 23
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 2.8,
+      "direction": "ahead",
+      "bearing_deg": 25
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 3.3,
+      "direction": "ahead-left",
+      "bearing_deg": -34
+    }
+  ],
+  "nearbyTotal": 8,
+  "sim": {
+    "steps": 2426,
+    "fps": 10,
+    "heapMB": 228
+  },
+  "step": 10,
+  "consoleErrorsSinceLastStep": []
+}

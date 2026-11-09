@@ -335,7 +335,7 @@ describe('data-driven city vs fallback', () => {
     expect(bodies.length).toBe(a.lots.filter((l) => l.type !== 'vacant').length);
     const ms = meshesOf(a.group);
     expect(ms.length).toBeLessThanOrEqual(60);
-    expect(tris(ms)).toBeLessThan(700_000);
+    expect(tris(ms)).toBeLessThan(700_000 * (grid.blocks.length / 10)); // 25 blocks since B1
   });
 
   it('the data city uses no materials (draw calls) the fallback city does not', () => {

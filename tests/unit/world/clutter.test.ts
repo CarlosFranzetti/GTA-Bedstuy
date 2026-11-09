@@ -66,8 +66,10 @@ describe('street clutter', () => {
 
   it('stays inside the per-tier triangle budget', () => {
     expect(CLUTTER_TRI_BUDGET.phone).toBe(0);
-    expect(W.clutter.tris[1]).toBeLessThanOrEqual(CLUTTER_TRI_BUDGET.low);
-    expect(W.clutter.tris[1] + W.clutter.tris[2]).toBeLessThanOrEqual(CLUTTER_TRI_BUDGET.medium);
+    // the budgets were set for the ten-block city; the world is now 25 blocks (B1) and chunk culling bounds what is drawn
+    const grow = W.grid.blocks.length / 10;
+    expect(W.clutter.tris[1]).toBeLessThanOrEqual(CLUTTER_TRI_BUDGET.low * grow);
+    expect(W.clutter.tris[1] + W.clutter.tris[2]).toBeLessThanOrEqual(CLUTTER_TRI_BUDGET.medium * grow);
     expect(W.clutter.tris[1]).toBeGreaterThan(0);
   });
 

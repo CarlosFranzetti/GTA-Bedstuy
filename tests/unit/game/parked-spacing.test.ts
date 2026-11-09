@@ -68,7 +68,8 @@ describe('parked car placement', () => {
 
   it('is sparser than the old 11 m slots (fewer cars per kerb metre)', () => {
     const n = parkedCars(5).length;
-    expect(n).toBeLessThan(215); // the old 11 m placement put 241 cars on this map with seed 5 (now 195)
+    // the old 11 m placement put 241 cars on the ten-block map with seed 5 (195 with the sparser slots); scaled to the 25 blocks since B1
+    expect(n).toBeLessThan(215 * (grid.blocks.length / 10));
   });
 
   it('corners stay clear: no parked bumper within 8 m of an intersection edge along its street', () => {
