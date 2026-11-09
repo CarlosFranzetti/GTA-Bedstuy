@@ -2091,3 +2091,6 @@ FINAL: docs/reference/EXPANSION.md (+ expansion-sketch.svg). Real grid: E-W stre
 
 ### 2026-11-09T14:43:01Z · CARHI
 Merged near car implemented (6 draws: body, glass, trim+lamps+bar, plate, hood, instanced wheels; lamps via shader mask, API kept); tests green; baseline medium render queued from HEAD copy.
+
+### 2026-11-09T14:45:46Z · Fable
+Expansion extent decided (PRD): B1 = east at real spacing (Lewis 500, Stuyvesant 750, Malcolm X 1000; rows Hart..Greene continue) = 20 blocks; B2 = Broadway diagonal + el, Patchen west of Broadway, and the Broadway–Bushwick Ave strip south to Halsey (~12 rotated blocks). Lanes: GRID9 (sonnet, 4444), GEO3 (haiku, 4445, lots after GRID9 posts faces), VENUES (haiku, 4446, parody names on the current grid). CARHI continues.
