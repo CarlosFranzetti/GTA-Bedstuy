@@ -251,7 +251,7 @@ the deck casts the striped light-and-shadow pattern on the street below that peo
 | The street list is wrong or compressed without saying so | EXPANSION.md cites open sources per street; the insert-versus-compress decision is recorded in PRD §5 |
 | Pop-in at chunk edges and LOD boundaries | the pop-in check runs on the new routes and for people; hysteresis on every switch |
 | The near bodies lose the GTA3 charm the user asked for in Stage 8 | silhouettes stay welded and chunky; detail goes into edge loops and textures, not into realism; MGR judges near and mid side by side |
-| Licensing | procedural only; no downloaded models; open data only for lots (PLUTO, NYC footprints, OSM if allowed); no Google data |
+| Licensing | procedural only; no downloaded models; open data only for lots (PLUTO, NYC footprints, OSM if allowed); no Google data; the real-car roster copies proportions only, with parody names, invented badges and invented liveries, never real logos or marks |
 
 ## Gates (every lane, plus these)
 

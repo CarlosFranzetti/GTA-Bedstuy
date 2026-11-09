@@ -1,0 +1,10 @@
+{
+  "source": "NYC DCP MapPLUTO (64uk-42ks) via NYC Open Data",
+  "url": "https://data.cityofnewyork.us/resource/64uk-42ks.json",
+  "select": "address,bbl,block,lot,zipcode,bldgclass,landuse,lotarea,bldgarea,numfloors,unitsres,unitstotal,lotfront,lotdepth,bldgfront,bldgdepth,yearbuilt,latitude,longitude,xcoord,ycoord,histdist,retailarea,comarea,resarea",
+  "where": "borough='BK' AND latitude between '40.6830' and '40.7010' AND longitude between '-73.9470' and '-73.9100'",
+  "order": "bbl",
+  "fetched": "2026-11-09",
+  "rows": 15153,
+  "crs": "xcoord/ycoord are NY State Plane Long Island (EPSG:2263), US survey feet; latitude/longitude WGS84"
+}
