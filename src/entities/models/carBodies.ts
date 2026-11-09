@@ -247,6 +247,8 @@ export interface LoftSpec {
   cls: (um: number, j: number) => Kind;
   /** rings at both ends are closed with a flat cap */
   caps?: boolean;
+  /** 2 = every ring segment is split in two with a smooth 4-point scheme (crease corners stay sharp); P/N/cls keep the original slot numbering */
+  refine?: 1 | 2;
 }
 
 export interface Hull {
@@ -275,12 +277,35 @@ const INNER_INSET = 0.16;
 export function buildLoft(spec: LoftSpec): Hull {
   const { us } = spec;
   const S = us.length;
-  const halves = us.map((u) => spec.half(u));
+  const rf = spec.refine ?? 1;
+  const crease0 = spec.creases[0] ?? 99;
+  const refineHalf = (h: V2[]): V2[] => {
+    const out: V2[] = [];
+    const at = (j: number, a: number): V2 => {
+      // ghost points: mirrored across x = 0 at the ends, straight continuation across the crease corner
+      if (j < 0) return [-h[-j][0], h[-j][1]];
+      if (j > h.length - 1) { const e = 2 * (h.length - 1) - j; return [-h[e][0], h[e][1]]; }
+      void a;
+      return h[j];
+    };
+    for (let j = 0; j < h.length - 1; j++) {
+      out.push(h[j]);
+      let p0 = at(j - 1, 0), p3 = at(j + 2, 0);
+      if (j + 1 === crease0) p3 = [2 * h[j + 1][0] - h[j][0], 2 * h[j + 1][1] - h[j][1]];
+      if (j === crease0) p0 = [2 * h[j][0] - h[j + 1][0], 2 * h[j][1] - h[j + 1][1]];
+      const p1 = h[j], p2 = h[j + 1];
+      out.push([(-p0[0] + 9 * p1[0] + 9 * p2[0] - p3[0]) / 16, (-p0[1] + 9 * p1[1] + 9 * p2[1] - p3[1]) / 16]);
+    }
+    out.push(h[h.length - 1]);
+    return out;
+  };
+  const halves = us.map((u) => (rf === 2 ? refineHalf(spec.half(u)) : spec.half(u)));
   const n = halves[0].length;
   const M = 2 * n - 2;
+  const creases = spec.creases.map((c) => c * rf);
   // columns: one per ring slot, creased slots get an upper (cu) and a lower (cl) column
   const creaseSet = new Set<number>();
-  for (const c of spec.creases) { creaseSet.add(c); creaseSet.add(M - c); }
+  for (const c of creases) { creaseSet.add(c); creaseSet.add(M - c); }
   const slotOfHalf = (j: number, left: boolean): number => (left ? M - j : j);
   const cu = new Array<number>(M);
   const cl = new Array<number>(M);
@@ -310,7 +335,7 @@ export function buildLoft(spec: LoftSpec): Hull {
   // segment k joins slot k -> k+1; j is the half-ring segment index it mirrors
   const segJ = (k: number): number => (k < n - 1 ? k : M - 1 - k);
   const colFor = (s: number, j: number, crease: number): number => (creaseSet.has(s) ? (j < crease ? cu[s] : cl[s]) : cu[s]);
-  const crease = spec.creases[0] ?? 99;
+  const crease = creases[0] ?? 99;
 
   const all: number[] = [];
   const byKind: Record<Kind, number[]> = { paint: [], glass: [], dark: [], none: [] };
@@ -326,7 +351,7 @@ export function buildLoft(spec: LoftSpec): Hull {
       const v01 = i * C + c1;
       const v10 = (i + 1) * C + c0;
       const v11 = (i + 1) * C + c1;
-      const kind = spec.cls(um, j);
+      const kind = spec.cls(um, Math.floor(j / rf));
       byKind[kind].push(v00, v01, v11, v00, v11, v10);
       all.push(v00, v01, v11, v00, v11, v10);
     }
@@ -391,8 +416,8 @@ export function buildLoft(spec: LoftSpec): Hull {
 
   return {
     us, M, n, halves,
-    P: (i, s) => { const o = (i * C + cu[s]) * 3; return v3(pos[o], pos[o + 1], pos[o + 2]); },
-    N: (i, s) => { const o = (i * C + cu[s]) * 3; return v3(nor[o], nor[o + 1], nor[o + 2]).normalize(); },
+    P: (i, s0) => { const s = s0 * rf; const o = (i * C + cu[s]) * 3; return v3(pos[o], pos[o + 1], pos[o + 2]); },
+    N: (i, s0) => { const s = s0 * rf; const o = (i * C + cu[s]) * 3; return v3(nor[o], nor[o + 1], nor[o + 2]).normalize(); },
     at: (u) => {
       let best = 0;
       for (let i = 1; i < S; i++) if (Math.abs(us[i] - u) < Math.abs(us[best] - u)) best = i;
@@ -937,7 +962,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   for (const ax of [axleF, axleR]) want.push(...archStations(arch, ax, st.archN ?? 4));
   const us = stationList(must, want, (st.maxGap ?? 0.7) * kx);
 
-  const hull = buildLoft({ us, half: (u) => carHalf(ring(u)), creases: [CAR_CREASE], cls });
+  const hull = buildLoft({ us, half: (u) => carHalf(ring(u)), creases: [CAR_CREASE], cls, refine: 2 });
   const sideX = (u: number, y: number): number => {
     const h = carHalf(ring(u));
     for (let j = 7; j < 11; j++) {

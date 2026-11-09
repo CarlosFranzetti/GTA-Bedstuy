@@ -324,6 +324,15 @@ research, RADIO own-library radio (8 stations, 147 slots) + talk station, WRITE 
 
 **Night band (decisions 7 and 9 Nov):** 0.085–0.13 street-level mean applies from 22h and is measured on a **dry** street; wet nights may run up to 0.15 because wet asphalt reflecting light is the intended GTA4 look.
 
+### 5.4e Stage 9 rows (lanes CARHI, PEDHI, ASSETS, GEO3, GRID9 B1)
+| Lane | Criterion | How measured |
+|---|---|---|
+| CARHI | Roster cars at public spec-sheet proportions (dimensions verified and cited, not from memory), ≤ 6 draws per near car, 6–8k tris near after the fidelity pass, real panel gaps, 1024 px skin + normal map, no real logos | spec table with sources; mesh/tri tests; lineup vs silhouette outlines |
+| PEDHI | GTA4/5 realism per PIVOT (≈ 7.5 heads tall, organic topology, smooth shading, albedo + normal + roughness, skeleton animation), 2.5–4k tris, ≤ 3 draws + shadow per near person (isolated A/B), blocky GTA3 bodies only > 40 m | close-up frames judged by MGR; A/B stats |
+| ASSETS | Only CC0 sets (ambientCG, Poly Haven) with their licence file stored beside each set and listed in CREDITS.md; hosted build only if the artifact would pass 12 MB | licence files + CREDITS diff + artifact size |
+| GEO3 | Every new block filled from PLUTO with source and confidence; validator 0 errors; POIs unchanged; ODbL/PLUTO attribution | real-blocks tests + validator |
+| GRID9 B1 | Phone chunk slack 0 (hide at fog.far); phone ≤ 140 draws and ≤ 500k tris on all 10 views; walkable sweep green on new sidewalks | phone stats table; walkable test |
+
 #### Graphics ladder (user direction 3 Nov: "at least GTA3-style graphics for the next push and GTA V level by the end")
 Judged by MGR at every check-in on the 7 standard viewpoints of `tests/e2e/screens.mjs` (noon street, noon corner, golden aerial,
 dusk car, night car, night corner, morning signals), medium tier unless stated. Each level needs every item on every viewpoint.

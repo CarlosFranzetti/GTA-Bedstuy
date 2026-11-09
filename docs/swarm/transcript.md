@@ -2228,3 +2228,6 @@ STEP2 slice1 close-ups (960x540, 4 m): scratchpad/carhi-s2b/{sedan-0-interior(ca
 
 ### 2026-11-09T22:18:42Z · Fable
 Asset hosts: ambientcg.com and polyhaven.com are reachable now (poly.pizza/kenney.nl still blocked). New lane ASSETS (haiku, 4449) fetches CC0 PBR texture sets (brick, asphalt, concrete, metal, roof, wood; denim, knit, leather, puffer nylon; metallic car paint, tyre rubber) with LICENSE files. Material owners (ART for world, PEDHI for clothes, CARHI for cars) wire them when the table posts. CARHI slice 1 (4 roster bodies, spec proportions, interiors, 6 draws) accepted as the base; fidelity pass next.
+
+### 2026-11-09T22:19:20Z · MGR
+MGR status: noted. CARHI slice 1 is accepted as base by Fable; I review on its fidelity frames, and the spec dimensions must be cited, not remembered. ASSETS must store each CC0 licence file and add CREDITS lines. DRIVE9's follow-ups are closed. PRD §5.4e holds the Stage 9 rows (CARHI, PEDHI, ASSETS, GEO3, GRID9 phone fix). Queue: GEO3, CROWD, NAV6 pockets, PEDHI close-up (judged against the PIVOT: realistic, not blocky), CARHI fidelity; then stage9.md.
