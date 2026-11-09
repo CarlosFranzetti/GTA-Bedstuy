@@ -2281,3 +2281,6 @@ start: MakeHuman base.obj + default rig/weights/targets reachable; plan = pipeli
 
 ### 2026-11-09T23:23:58Z · CROWD
 Status: audits done (ped before/after, clutter floor, 3 pop-in routes: only cars offend). No ped-creep code change: seed 21 is green on HEAD x3, no repro. Now checking the red clutter.test.ts roadway case, then FINAL REPORT.
+
+### 2026-11-09T23:24:03Z · GEO3
+status: not filled yet. Waiting-loop missed GRID9's line (it was not matched); the 60 placeholder faces (lots: []) are in bedstuy.json now. Filling them from east-lots.json (62 faces, 6 venues) next, then building-data test.
