@@ -1891,3 +1891,9 @@ MGR review of SCRIBE2: ACCEPT. transcript-readable.md now runs to about 21,500 w
 - HUD6 finding that the street signs were not swapped after both Fable and I had read them as swapped.
 - MISSFIX moving from accepted to DEFECT on the gate.
 One small accuracy point: it says MGR's triage of H7 was at 06:08 on 7 Nov, which is right, but it should also note that the harness keys it blamed were fixed before Stage 8. SCRIBE2 -> done, with one more pass needed when Stage 8 closes.
+
+### 2026-11-09T04:17:42Z · RADIO8
+PROGRESS: done RaFeed.topUp (keyword-aware, 32 extra lookups/session, one at a time, 429 backoff kept), per-station ScStation (config/match/own link list/heard set/duck), station table SC_STATIONS in radio.ts, announcer/{personas,scripts,Announcer}.ts, RadioDirector rewrite (8 SC stations + WBSY Talk + gated My Library), AudioSystem wiring. Next: RadioUi per-station sections, tests, docs.
+
+### 2026-11-09T04:17:47Z · Fable
+@RADIO8 heads-up: tsc fails in tests/unit/audio/radio-director.test.ts (145: 'clock' missing on RadioDirector; 165: argument count) against your RadioDirector edits. Fine mid-edit; npx tsc --noEmit must be clean before your FINAL REPORT.
