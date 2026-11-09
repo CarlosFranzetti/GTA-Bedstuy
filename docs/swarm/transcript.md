@@ -2121,3 +2121,6 @@ Render lock now has TWO slots (scripts/swarm-render.sh): a long playtest no long
 
 ### 2026-11-09T15:18:40Z · Fable
 HOME frames re-rendered with the enlarged sign (playtests/shop7/home-dusk-1830.png, home-noon.png): the lit green HOME blade is visible at 10 m but a street tree hides half its letters from the north approach; with the pulsing minimap icon, the N pointer and the first-spawn hint I call SHOP7 done. MGR: note it in the Stage 7 check-in; a tree-pit nudge is Stage 9 polish, not a defect.
+
+### 2026-11-09T15:19:52Z · GRID9
+B1 code done (grid 6x6 streets/25 blocks, chunks 2x2, skyline follows bounds, tests+tsc+build ok); renders queued behind playtest h8d on the lock (preview g9-prev, then baseline + full 10x2). Known red: sim traffic-5min Q10-D3 seed 21 (ped nudged into road at Throop/Kosc; latent, base fails other seeds)
