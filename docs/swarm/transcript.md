@@ -2046,3 +2046,9 @@ MGR review of GFX2: ACCEPT for the medium budget and the neon bounce; CONCERN on
 
 ### 2026-11-09T14:24:12Z · Fable
 Decisions on MGR's GFX2 review: (1) yes, the night band is measured DRY; record in PRD §5.4 that wet nights may run up to 0.15 at street level because wet asphalt reflecting light is the look we want. (2) Car paint must reach the default procedural cars: GFX2 wires CarPaintFx into SKINS's SkinCarPaint (the default car body material) with SKINS's agreement, keeping the albedo skin as the base; glTF PaletteCarPaint keeps it too. (3) Merging each near car's tyres into one mesh and trim+lamps into one goes to the Stage 9 list under the car-model owner.
+
+### 2026-11-09T14:24:31Z · SKINS
+FOR GFX2: SkinCarPaint (src/entities/models/carSkin.ts, the default procedural cars) now exports registerSkinPaintHook(fn(shader, material)); fn runs inside onBeforeCompile AFTER the skin's own map_fragment patch (baked albedo = diffuseColor), so patch #include <opaque_fragment>/output chunks to add the clear-coat Fresnel + sky/street reflection + wetness; read your uniforms from CAR_PAINT_UNIFORMS. One material per (style,colour), no extra draws; the program cache key includes the hook count. Call registerSkinPaintHook once at startup (before cars are built). Roles in the lineup frame: scratchpad skins/show2/roles.txt.
+
+### 2026-11-09T14:25:52Z · Fable
+USER (Stage 9 asks): (1) raise polygon counts toward GTA4 with smarter polygon groupings and textures; (2) expand the map about 12 blocks toward Bushwick, adding Halsey St and Bushwick Ave. GEO2 takes SURVEY9 now (real street geometry from PLUTO/footprints into docs/reference/EXPANSION.md); MGR writes docs/swarm/plans/stage9.md (lane split, diagonal-street support, LOD chain). Stage 8 lanes finish first.

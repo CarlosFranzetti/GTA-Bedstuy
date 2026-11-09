@@ -320,6 +320,8 @@ research, RADIO own-library radio (8 stations, 147 slots) + talk station, WRITE 
 | GEO2 | The ten blocks match the real Throop & Kosciuszko area from **open sources only** (OSM/Overpass, NYC PLUTO, LPC reports, CC Wikimedia), never Google Maps/Street View data or pixels; every changed lot cites a source and confidence; validator 0 errors; ODbL attribution shown when OSM data is used | source table + validator + MGR spot-check of 5 citations |
 | SCRIBE2 | `transcript-readable.md` covers Stages 4–8 in plain English with the disagreements and how they were settled, and keeps the glossary | MGR read-through |
 
+**Night band (decisions 7 and 9 Nov):** 0.085–0.13 street-level mean applies from 22h and is measured on a **dry** street; wet nights may run up to 0.15 because wet asphalt reflecting light is the intended GTA4 look.
+
 #### Graphics ladder (user direction 3 Nov: "at least GTA3-style graphics for the next push and GTA V level by the end")
 Judged by MGR at every check-in on the 7 standard viewpoints of `tests/e2e/screens.mjs` (noon street, noon corner, golden aerial,
 dusk car, night car, night corner, morning signals), medium tier unless stated. Each level needs every item on every viewpoint.
@@ -348,3 +350,8 @@ dusk car, night car, night corner, morning signals), medium tier unless stated. 
 2. Do user Street View screenshots live outside the repo or in a git-ignored `reference/` folder? (user) — default: outside.
 3. Hosted build target: **decided, Vercel static (output `dist`)**. Public or private still open (user).
 4. Which rigged models the user will supply and their licences (user, Stage 3).
+
+
+## Stage 9 asks (user, 9 Nov 14:5xZ)
+- Raise polygon counts toward GTA4 with smarter polygon groupings and textures (people and cars); phone keeps the GTA3 bodies via LOD.
+- Expand the map by about 12 blocks toward Bushwick; add Halsey St and Bushwick Ave (diagonal streets: Broadway with the el, Bushwick Ave).

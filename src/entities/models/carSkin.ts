@@ -10,6 +10,7 @@
  *    (chrome, lamp housings, plate, decals) keep their own colour. One material per (style, colour); the paint colour stays the
  *    material colour, so the wreck darkening in Vehicle (clone + color.multiplyScalar) works unchanged.
  */
+import { installCarPaintCoat } from '@/render/CarPaintFx';
 import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
 import { createCanvas } from '@/textures/canvas';
@@ -119,13 +120,19 @@ export function assignSkinUV(geo: THREE.BufferGeometry, box: PaintBox, offset: T
 // ---------------------------------------------------------------- material
 
 const PAINT_FRAG = /* glsl */ `
+float cpMask = 0.0;
 #ifdef USE_MAP
   vec4 skinS = texture2D( map, vMapUv );
   // paint pixels: paint colour x shading (the clean-paint shading is divided out); fixed pixels: their own colour
   vec3 skinPaint = diffuse * min( skinS.rgb * ${(1 / SKIN_PAINT_BASE).toFixed(4)}, vec3( 1.25 ) );
   diffuseColor.rgb = mix( skinS.rgb, skinPaint, skinS.a );
+  cpMask = skinS.a; // clear coat (render/CarPaintFx) only on paint pixels
 #endif
 `;
+
+/** Extra shader hooks (GFX2's CarPaintFx clear coat registers here): called after the skin's own map_fragment patch, so the baked albedo stays the base. No new draws or materials. */
+const skinHooks: Array<(shader: { fragmentShader: string; vertexShader: string; uniforms: Record<string, { value: unknown }> }, material: THREE.Material) => void> = [];
+export function registerSkinPaintHook(fn: (typeof skinHooks)[number]): void { if (!skinHooks.includes(fn)) skinHooks.push(fn); }
 
 /** The library's physical car paint with a paint-masked skin atlas in `map` (UV set 1). Clones keep the hook and the link to the library paint. */
 export class SkinCarPaint extends THREE.MeshPhysicalMaterial {
@@ -139,8 +146,10 @@ export class SkinCarPaint extends THREE.MeshPhysicalMaterial {
     Object.defineProperty(this, 'envMap', { get: () => this.base?.envMap ?? null, set: () => { /* follows the base */ }, configurable: true });
     this.onBeforeCompile = (shader): void => {
       shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', PAINT_FRAG);
+      installCarPaintCoat(shader);
+      for (const h of skinHooks) h(shader, this);
     };
-    this.customProgramCacheKey = (): string => 'skinCarPaint1';
+    this.customProgramCacheKey = (): string => `skinCarPaint1:${skinHooks.length}`;
   }
 
   copy(source: THREE.Material): this {

@@ -139,3 +139,15 @@ if ( cpMask > 0.5 && cpMode > 0.5 ) {
   reflectedLight.indirectSpecular += cpEnv * cpK;
 }
 `;
+
+/**
+ * Hooks the clear coat into a standard / physical car-paint shader (shared by PaletteCarPaint and SkinCarPaint): binds the shared
+ * uniforms, declares them, and injects the coat after lights_fragment_end. The caller declares `float cpMask` (1 on paint pixels)
+ * somewhere before that point (e.g. in its map_fragment replacement).
+ */
+export function installCarPaintCoat(shader: { uniforms: Record<string, { value: unknown }>; fragmentShader: string }): void {
+  Object.assign(shader.uniforms, CAR_PAINT_UNIFORMS);
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>', `#include <common>\n${CAR_PAINT_HEADER}`)
+    .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>\n${CAR_PAINT_COAT}`);
+}

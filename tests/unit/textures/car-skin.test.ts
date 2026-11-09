@@ -161,4 +161,13 @@ describe('car skin layout and UV set 1', () => {
     expect(m.envMap).toBe(env);
     expect(typeof m.onBeforeCompile).toBe('function');
   });
+
+  it('SkinCarPaint carries the shared clear-coat uniforms and injects the coat for paint pixels only', () => {
+    const m = new SkinCarPaint(new THREE.MeshPhysicalMaterial());
+    const shader = { uniforms: {} as Record<string, { value: unknown }>, fragmentShader: '#include <common>\n#include <map_fragment>\n#include <lights_fragment_end>\nvoid main(){}' };
+    (m.onBeforeCompile as (s: unknown, r: unknown) => void)(shader, null);
+    for (const k of ['cpMode', 'cpCoat', 'cpRim', 'cpRoof', 'cpStreetMix', 'cpWet', 'cpZenith', 'cpHorizon', 'cpStreet']) expect(shader.uniforms[k]).toBeDefined();
+    expect(shader.fragmentShader).toContain('cpMask = skinS.a');
+    expect(shader.fragmentShader.indexOf('#include <lights_fragment_end>')).toBeLessThan(shader.fragmentShader.indexOf('cpMask > 0.5'));
+  });
 });
