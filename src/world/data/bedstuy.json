@@ -1269,184 +1269,244 @@
       ]
     },
     {
-      "street": "hart", "side": "N", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "hart", "side": "N", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "pulaski", "side": "S", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "pulaski", "side": "S", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "lewis", "side": "E", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "lewis", "side": "E", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "garvey", "side": "W", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "garvey", "side": "W", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "hart", "side": "N", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "hart", "side": "N", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "pulaski", "side": "S", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "pulaski", "side": "S", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "stuyvesant", "side": "E", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "stuyvesant", "side": "E", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "lewis", "side": "W", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "lewis", "side": "W", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "hart", "side": "N", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "hart", "side": "N", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "pulaski", "side": "S", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "pulaski", "side": "S", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "malcolmx", "side": "E", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "malcolmx", "side": "E", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "stuyvesant", "side": "W", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "stuyvesant", "side": "W", "from": "hart", "to": "pulaski", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "pulaski", "side": "N", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "pulaski", "side": "N", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "kosciuszko", "side": "S", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "kosciuszko", "side": "S", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "lewis", "side": "E", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "lewis", "side": "E", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "garvey", "side": "W", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "garvey", "side": "W", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "pulaski", "side": "N", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "pulaski", "side": "N", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "kosciuszko", "side": "S", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "kosciuszko", "side": "S", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "stuyvesant", "side": "E", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "stuyvesant", "side": "E", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "lewis", "side": "W", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "lewis", "side": "W", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "pulaski", "side": "N", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "pulaski", "side": "N", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "kosciuszko", "side": "S", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "kosciuszko", "side": "S", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "malcolmx", "side": "E", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "malcolmx", "side": "E", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "stuyvesant", "side": "W", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "stuyvesant", "side": "W", "from": "pulaski", "to": "kosciuszko", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "kosciuszko", "side": "N", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "kosciuszko", "side": "N", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "lafayette", "side": "S", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "lafayette", "side": "S", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "lewis", "side": "E", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "lewis", "side": "E", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "garvey", "side": "W", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "garvey", "side": "W", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "kosciuszko", "side": "N", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "kosciuszko", "side": "N", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "lafayette", "side": "S", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "lafayette", "side": "S", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "stuyvesant", "side": "E", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "stuyvesant", "side": "E", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "lewis", "side": "W", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "lewis", "side": "W", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "kosciuszko", "side": "N", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "kosciuszko", "side": "N", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "lafayette", "side": "S", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "lafayette", "side": "S", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "malcolmx", "side": "E", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "malcolmx", "side": "E", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "stuyvesant", "side": "W", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "stuyvesant", "side": "W", "from": "kosciuszko", "to": "lafayette", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "lafayette", "side": "N", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "lafayette", "side": "N", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "vanburen", "side": "S", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "vanburen", "side": "S", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "lewis", "side": "E", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "lewis", "side": "E", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "garvey", "side": "W", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "garvey", "side": "W", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "lafayette", "side": "N", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "lafayette", "side": "N", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "vanburen", "side": "S", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "vanburen", "side": "S", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "stuyvesant", "side": "E", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "stuyvesant", "side": "E", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "lewis", "side": "W", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "lewis", "side": "W", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "lafayette", "side": "N", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "lafayette", "side": "N", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "vanburen", "side": "S", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "vanburen", "side": "S", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "malcolmx", "side": "E", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "malcolmx", "side": "E", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "stuyvesant", "side": "W", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "stuyvesant", "side": "W", "from": "lafayette", "to": "vanburen", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "vanburen", "side": "N", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "vanburen", "side": "N", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "greene", "side": "S", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "greene", "side": "S", "from": "garvey", "to": "lewis", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "lewis", "side": "E", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "lewis", "side": "E", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "garvey", "side": "W", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "garvey", "side": "W", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "vanburen", "side": "N", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "vanburen", "side": "N", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "greene", "side": "S", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "greene", "side": "S", "from": "lewis", "to": "stuyvesant", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "stuyvesant", "side": "E", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "stuyvesant", "side": "E", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "lewis", "side": "W", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "lewis", "side": "W", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "vanburen", "side": "N", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "vanburen", "side": "N", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "greene", "side": "S", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "greene", "side": "S", "from": "stuyvesant", "to": "malcolmx", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "malcolmx", "side": "E", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "malcolmx", "side": "E", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     },
     {
-      "street": "stuyvesant", "side": "W", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L"
+      "street": "stuyvesant", "side": "W", "from": "vanburen", "to": "greene", "note": "[placeholder] GRID9 B1: procedural lots until GEO3 imports PLUTO for this face", "confidence": "L",
+      "lots": []
     }
   ],
   "geo": {

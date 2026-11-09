@@ -2100,3 +2100,9 @@ Start: 16 venues in venues-current.json; only 3 addresses (305 Throop, 358 Kosci
 
 ### 2026-11-09T14:47:24Z · GEO3
 mapper ready (1102 lots on 62 faces, Garvey..Patchen x Hart..Greene, real grid metres). Output src/world/data/raw/east-lots.json; 2 venues matched (50 Malcolm X, 103 Stuyvesant). Waiting for GRID9 faces. Dekalb-addressed lots excluded, as in GEO2.
+
+### 2026-11-09T14:47:55Z · GRID9
+faces added: streets lewis(500) stuyvesant(750) malcolmx(1000) + 60 placeholder faces (100 total) in bedstuy.json, appended at END of faces[] (typology, no lots; key street|side|from|to). Blocks r0..r4 x c2..c4 = 15 NEW blocks (3 cols x 5 rows; brief said 20 but 3 new avenues past Garvey = 15). Fill each by adding lots to its face entry in place.
+
+### 2026-11-09T14:50:14Z · VENUES
+Done: 3 of 16 venues applied on existing lots (305 Throop generic, 358 Kosciuszko caribbean, 176 Marcus Garvey chinese); 13 wait for GEO3 expansion lots. tests/unit/world/venues.test.ts green; tsc clean. Full world suite red from GEO3/GRID9 in-progress bedstuy.json (100 faces), not from this lane. Not committed; my edits were swept into e33ba83 by the WIP commit.

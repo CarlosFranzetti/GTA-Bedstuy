@@ -9,7 +9,7 @@ import venues from '@/world/data/raw/venues-current.json';
 import { STOREFRONTS } from '@/world/data/schema';
 
 interface RawLot { storefront?: string; sign?: string; note?: string }
-interface RawFace { lots: RawLot[] }
+interface RawFace { lots?: RawLot[] }
 interface RawPoi { id: string; sign?: string }
 interface Venue { real_name: string; address: string; storefront: string; parody_name: string }
 
@@ -23,7 +23,7 @@ const addressRe = (address: string): RegExp => {
   return new RegExp(`(^|[^0-9])${num} ${word}\\b`);
 };
 
-const allLots = faces.flatMap((f) => f.lots);
+const allLots = faces.flatMap((f) => f.lots ?? []);
 const findLot = (address: string): RawLot | undefined => allLots.find((l) => addressRe(address).test((l.note ?? '').toUpperCase()));
 
 /** venues whose address is not on any current lot: expansion lots that GEO3 adds to bedstuy.json */
