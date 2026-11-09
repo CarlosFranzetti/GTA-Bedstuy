@@ -634,7 +634,7 @@ export const STYLES: Record<StyleKey, Style> = {
     handles: [0.02, -0.8],
     hoodBack: 0.92,
     clad: 11,
-    rails: false, spoiler: true, maxGap: 0.5, archN: 6,
+    rails: false, spoiler: true, maxGap: 0.32, archN: 7,
     bumperY: 0.34, bumperH: 0.22,
     plan: [[-2.3, 0.9], [-1.7, 0.97], [-0.9, 1], [0.9, 1], [1.7, 0.98], [2.3, 0.92]],
   },
@@ -669,7 +669,7 @@ export const STYLES: Record<StyleKey, Style> = {
     handles: [0.08, -0.82],
     hoodBack: 0.96,
     clad: 11,
-    rails: false, spoiler: false, maxGap: 0.42, archN: 6,
+    rails: false, spoiler: false, maxGap: 0.3, archN: 7,
     bumperY: 0.36, bumperH: 0.24,
     plan: [[-2.7, 0.9], [-2.1, 0.97], [-1, 1], [1, 1], [2.1, 0.98], [2.7, 0.92]],
     dims: { L: 5.39, W: 1.99, H: 1.44 },
@@ -703,7 +703,7 @@ export const STYLES: Record<StyleKey, Style> = {
     handles: [0.1, -0.85],
     hoodBack: 1.0,
     clad: 11,
-    rails: false, spoiler: false, maxGap: 0.42, archN: 6,
+    rails: false, spoiler: false, maxGap: 0.3, archN: 7,
     bumperY: 0.36, bumperH: 0.24,
     plan: [[-2.55, 0.9], [-2, 0.98], [-1, 1], [1, 1], [2, 0.98], [2.55, 0.92]],
     dims: { L: 5.04, W: 1.91, H: 1.48 },
@@ -1023,14 +1023,32 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   trim.add(bx(2 * (Wb2 - 0.14), 0.04, L - 0.5, 0, st.sill + 0.04, 0));
   trim.add(bx(2 * (Wb2 - 0.2), 0.04, hoodFrontU - hoodBackU, 0, fyBelt((hoodBackU + hoodFrontU) / 2) - 0.1, -(hoodBackU + hoodFrontU) / 2));
 
-  // ---- interior (seen through the glass): dash and the two front seats
+  // ---- interior (seen through the glass): dash with a cluster hood, steering wheel, console, two front seats with
+  // headrests, a rear bench, door cards and parcel shelf. All dark/chrome trim, so the extra detail costs no draw call.
   const yBeltC = fyBelt(0);
   const seatY = st.sill + 0.5 * ky;
-  if (!st.rails) trim.add(bx(2 * Wb2 * 0.78, 0.2, 0.3, 0, yBeltC - 0.13, -(ws[0] - 0.22)));
+  const iw = Wb2 * 0.78;
+  if (!st.rails) {
+    trim.add(bx(2 * iw, 0.2, 0.3, 0, yBeltC - 0.13, -(ws[0] - 0.22)));
+    trim.add(bx(0.4, 0.07, 0.16, -0.38, yBeltC - 0.02, -(ws[0] - 0.12))); // cluster hood
+  }
   const seatU = doors[0][1] + 0.3 * kx;
-  // SUV: front seats only (the rear bench sits behind tinted glass and costs 12 triangles of the 2.5k budget)
-  for (const s of [-1, 1]) trim.add(bx(0.46, 0.5, 0.12, s * 0.35, seatY + 0.28, -(seatU - 0.22)));
-  if (!st.rails) trim.add(bx(2 * Wb2 * 0.72, 0.5, 0.12, 0, seatY + 0.26, -(rg[0] + 0.2)));
+  const wheelU = ws[0] - 0.34;
+  trim.add(new THREE.TorusGeometry(0.17, 0.017, 4, 10).rotateX(-0.9).translate(-0.37, yBeltC - 0.06, -wheelU)); // steering wheel
+  trim.add(cylZ(0.02, 0.22, -0.37, yBeltC - 0.12, -(wheelU + 0.1), 5));
+  for (const s of [-1, 1]) {
+    trim.add(bx(0.46, 0.5, 0.12, s * 0.35, seatY + 0.28, -(seatU - 0.22))); // seat back
+    trim.add(bx(0.46, 0.1, 0.5, s * 0.35, seatY + 0.03, -(seatU + 0.02))); // cushion
+    trim.add(bx(0.2, 0.13, 0.08, s * 0.35, seatY + 0.6, -(seatU - 0.22))); // headrest
+    trim.add(bx(0.06, 0.34, 0.9 * kx, s * (Wb2 - 0.07), yBeltC - 0.22, -(doors[0][0] + doors[0][1]) / 2)); // door card
+  }
+  trim.add(bx(0.16, 0.14, 0.6, 0, seatY + 0.05, -(seatU + 0.12))); // centre console
+  if (!st.rails) {
+    trim.add(bx(2 * Wb2 * 0.72, 0.5, 0.12, 0, seatY + 0.26, -(rg[0] + 0.2)));
+    trim.add(bx(2 * Wb2 * 0.72, 0.1, 0.5, 0, seatY + 0.0, -(rg[0] + 0.45))); // rear cushion
+    for (const s of [-1, 0, 1]) trim.add(bx(0.16, 0.1, 0.07, s * 0.4, seatY + 0.58, -(rg[0] + 0.2))); // rear headrests
+    trim.add(bx(2 * Wb2 * 0.8, 0.03, 0.34, 0, fyBelt(rg[1]) + 0.03, -(rg[1] + 0.2))); // parcel shelf
+  }
 
   // ---- roof rails (SUV)
   const iRoofA = hull.at(secs[st.rails ? 3 : 4][0]);

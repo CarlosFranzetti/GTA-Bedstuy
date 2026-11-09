@@ -81,7 +81,7 @@ describe('Pedestrian', () => {
     const mats = new Set<THREE.Material>();
     ped.object3D.traverse((o) => { if ((o as THREE.Mesh).isMesh) mats.add((o as THREE.Mesh).material as THREE.Material); });
     expect(mats.size).toBe(1);
-    expect([...mats][0].name).toMatch(/^ped:/);
+    expect([...mats][0].name).toMatch(/^pedhi:/);
   });
 
   it('walks at about 1.2 m/s', () => {

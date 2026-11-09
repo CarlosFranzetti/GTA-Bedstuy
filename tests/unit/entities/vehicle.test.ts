@@ -386,11 +386,12 @@ describe('Vehicle', () => {
 
   it('doorPos is 1.2 m to the left of centre', () => {
     const v = make('sedan', 0);
-    expect(v.doorPos().x).toBeCloseTo(-1.2);
+    const off = VEHICLE_SPECS.sedan.width / 2 + 0.3; // 1.2 m on the old 1.8 m sedan
+    expect(v.doorPos().x).toBeCloseTo(-off);
     expect(v.doorPos().z).toBeCloseTo(0);
     const e = make('sedan', Math.PI / 2); // facing east -> left is north (-z)
     expect(e.doorPos().x).toBeCloseTo(0);
-    expect(e.doorPos().z).toBeCloseTo(-1.2);
+    expect(e.doorPos().z).toBeCloseTo(-off);
   });
 
   it('applies pose: rotation.y = -heading', () => {

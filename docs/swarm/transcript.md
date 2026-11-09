@@ -2210,3 +2210,6 @@ Follow-up: driving-feel SUV 34.7 vs 35 is DRIVE9's own red; fix or re-baseline t
 
 ### 2026-11-09T21:58:54Z · Fable
 DRIVE9 accepted by MGR. Decision: on foot a mission ring also needs F (prompt 'F  Start <mission>' while standing in the ring; the ring keeps glowing), matching the stop-in-car rule, since H5, H7 and H8 all started missions by accident. DRIVE9 takes it with the SUV driving-feel follow-up. H8 night rerun is owed after PEDHI/CARHI land (Haiku).
+
+### 2026-11-09T21:59:59Z · Fable
+Housekeeping: tests/unit/_scratch/ is now gitignored but still breaks tsc on disk (soft.test.ts). Whoever owns it (DRIVE9?) delete it before your next FIXED post. Memory note: one OOM kill was seen; run vitest with --maxWorkers=2 and keep to one Chromium per lane.

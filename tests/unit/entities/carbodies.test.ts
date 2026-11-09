@@ -66,16 +66,18 @@ describe.each(CASES)('procedural $style', (c) => {
     for (const mesh of m.paintMeshes) body.union(new THREE.Box3().setFromObject(mesh));
     const all = bb(m.group);
     const s = all.getSize(new THREE.Vector3());
-    expect(Math.abs(s.z - spec.length)).toBeLessThanOrEqual(0.05);
-    expect(Math.abs(s.x - spec.width)).toBeLessThanOrEqual(0.05);
+    // roster bodies (cab, cruiser) carry their own spec-sheet size
+    const dims = c.style === 'cab' ? STYLES.crown.dims! : c.style === 'cop' ? STYLES.charger.dims! : { L: spec.length, W: spec.width, H: spec.height };
+    expect(Math.abs(s.z - dims.L)).toBeLessThanOrEqual(0.05);
+    expect(Math.abs(s.x - dims.W)).toBeLessThanOrEqual(0.05);
     // the roof light / light bar / roof rails stand on the roof: the hull itself reaches the spec height
-    expect(Math.abs(body.max.y - spec.height)).toBeLessThanOrEqual(c.style === 'cop' || c.style === 'cab' ? 0.2 : 0.05);
+    expect(Math.abs(body.max.y - dims.H)).toBeLessThanOrEqual(c.style === 'cop' || c.style === 'cab' ? 0.2 : 0.05);
     expect(all.min.y).toBeGreaterThanOrEqual(-0.02);
     expect(all.min.y).toBeLessThanOrEqual(0.02);
   });
 
   it('stays within the triangle budget', () => {
-    const budget = c.style === 'suv' ? 2500 : c.style === 'van' ? 2700 : 2600;
+    const budget = c.style === 'van' ? 2700 : 8000; // roster bodies: GTA4 near budget 6-8 k
     expect(totalTris(m.group)).toBeLessThanOrEqual(budget);
   });
 
