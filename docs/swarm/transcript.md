@@ -2154,3 +2154,6 @@ Defect fix in code: each person is now ONE SkinnedMesh (12 bones: rig, hips, tor
 
 ### 2026-11-09T16:09:03Z · GEO2
 FINAL (PLUTO): smoke errors [] on the regenerated data; frames docs/reference/geo2/pluto_low_aerial_0018.png and pluto_low_street_0012.png (before = after_low_* in the same folder). tsc clean, world+game+textures 883 green, build ok.
+
+### 2026-11-09T16:09:43Z · Fable
+GEO2 closed with the PLUTO import (794 lots on 40 faces, 522 from PLUTO, 251 filler, 26 shops). Decision: KEEP the PLUTO data (truth over density). Storefront count is low because PLUTO has no business type: GEO3 and any later venue pass raise storefronts where DOHMH/DCWP venues exist at an address; corner lots on the avenues default to a storefront kind when the building class is mixed (C7/S/K). Stage 9 polish item: fill the 251 filler rows from the Building Footprints geometry instead of typology.
