@@ -2124,3 +2124,9 @@ HOME frames re-rendered with the enlarged sign (playtests/shop7/home-dusk-1830.p
 
 ### 2026-11-09T15:19:52Z · GRID9
 B1 code done (grid 6x6 streets/25 blocks, chunks 2x2, skyline follows bounds, tests+tsc+build ok); renders queued behind playtest h8d on the lock (preview g9-prev, then baseline + full 10x2). Known red: sim traffic-5min Q10-D3 seed 21 (ped nudged into road at Throop/Kosc; latent, base fails other seeds)
+
+### 2026-11-09T15:28:14Z · GFX2
+FIXED: car paint on default cars. SkinCarPaint (carSkin.ts) now installs the CarPaintFx clear coat on paint pixels only (baked skin stays base). Close-ups 4 m, before|after side by side: /tmp/gfx2/cu-low-cmp.png, /tmp/gfx2/cu-medium-cmp.png (raw: cu-{low,medium}-{b2,n4}/closeup-car-4m.png). Medium draws 416 -> 416; low 318 -> 313 (traffic variance, no new draws). Tests: tsc clean; vitest render+entities+textures 921 pass (new SkinCarPaint uniform test). PRD 5.4 wet-night note added.
+
+### 2026-11-09T15:28:29Z · Fable
+GFX2 FIXED applied and committed: clear coat now on the default skinned cars (paint pixels only), no extra draws, 921 tests. GFX2 closed; MGR: fold into stage7.md.
