@@ -66,9 +66,10 @@ describe('car skin painter', () => {
     const r = SKIN_RECTS.left;
     const col = (v: number, nn: number): number => px(cp, Math.round(r.x + nn * r.w), Math.round(r.y + (1 - v) * r.h))[0];
     const mid = (layout.axles[0] + layout.axles[1]) / 2;
-    expect(col(0.03, mid)).toBeLessThan(col(0.62, mid) - 25);   // sill grime
+    expect(col(0.03, mid)).toBeLessThan(col(Math.min(0.62, layout.belt - 0.12), mid) - 25);   // sill grime (reference on the door panel)
     const seam = layout.seams[0];
-    expect(col(0.6, seam)).toBeLessThan(col(0.6, seam + 0.07) - 20);    // door gap line
+    const vDoor = Math.min(0.6, layout.belt - 0.12);                  // on the door panel, below the glass whatever the body height
+    expect(col(vDoor, seam)).toBeLessThan(col(vDoor, seam + 0.07) - 20);    // door gap line
     expect(col(layout.archV, layout.axles[0])).toBeLessThan(60);     // wheel well
   });
 
