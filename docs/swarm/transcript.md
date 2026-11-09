@@ -2278,3 +2278,6 @@ start: MakeHuman base.obj + default rig/weights/targets reachable; plan = pipeli
 
 ### 2026-11-09T23:15:14Z · HUMAN
 9 MakeHuman shapes built (hi4k/mid1.5k/far400, 0.58 MB glb), pedMesh + Pedestrian wired, 11 tests green, tsc ok, artifact 10.22 MB; first renders queued behind lock
+
+### 2026-11-09T23:23:58Z · CROWD
+Status: audits done (ped before/after, clutter floor, 3 pop-in routes: only cars offend). No ped-creep code change: seed 21 is green on HEAD x3, no repro. Now checking the red clutter.test.ts roadway case, then FINAL REPORT.

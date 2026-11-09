@@ -17,6 +17,7 @@ export const VEHICLE_SPECS: Record<VehicleType, VehicleSpec> = {
   suv: { type: 'suv', name: 'SUV', length: 5.05, width: 2.0, height: 1.78, maxSpeed: 27, accel: 7, brakeDecel: 14, maxSteer: 0.6, color: '#2c3e50' },
   boxtruck: { type: 'boxtruck', name: 'Box truck', length: 7, width: 2.4, height: 3.2, maxSpeed: 20, accel: 2.7, brakeDecel: 12, maxSteer: 0.6, color: '#e8e8e8' },
   cop: { type: 'cop', name: 'Police car', length: 5.04, width: 1.91, height: 1.48, maxSpeed: 33, accel: 9, brakeDecel: 14, maxSteer: 0.6, color: '#f2f2f2' },
+  cab: { type: 'cab', name: 'Taxi', length: 5.39, width: 1.99, height: 1.44, maxSpeed: 30, accel: 8, brakeDecel: 14, maxSteer: 0.6, color: '#e0b01e' },
 };
 
 // ---- longitudinal

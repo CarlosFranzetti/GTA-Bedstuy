@@ -634,8 +634,9 @@ export interface Style {
 export type PassengerStyle = 'sedan' | 'coupe' | 'suv' | 'cop' | 'cab';
 export type StyleKey = 'sedan' | 'coupe' | 'suv' | 'crown' | 'charger';
 export const STYLES: Record<StyleKey, Style> = {
-  // "Kamari": a mid-size front-drive sedan of the Toyota Camry type (2018-): length 4.88 m (192.1 in), wheelbase 2.82 m (111.2 in),
-  // width 1.84 m (72.4 in), height 1.45 m (56.9 in). VEHICLE_SPECS.sedan carries the same size.
+  // "Kamari": a mid-size front-drive sedan of the Toyota Camry type (XV70, 2018-): length 4,879-4,885 mm (192.1 in), wheelbase 2,825 mm
+  // (111.2 in), width 1,840 mm (72.4 in), height 1,445-1,455 mm. VEHICLE_SPECS.sedan carries the same size.
+  // Sources: https://www.vehiclesizes.com/cars/toyota/camry/camry-viii-xv70-sedan-2018/combined-view , https://auto-data.net/en/toyota-camry-viii-xv70-2.5-181hp-automatic-39090
   sedan: {
     Lref: 4.6, Href: 1.4,
     sill: 0.2, wheelR: 0.34, wheelW: 0.225,
@@ -667,9 +668,10 @@ export const STYLES: Record<StyleKey, Style> = {
     bumperY: 0.34, bumperH: 0.22,
     plan: [[-2.3, 0.9], [-1.7, 0.97], [-0.9, 1], [0.9, 1], [1.7, 0.98], [2.3, 0.92]],
   },
-  // ROSTER (CARHI step 2). Proportions from public spec sheets (manufacturer press kits / encyclopedia entries), approximate:
-  // "Crown Regent": a full-size body-on-frame 3-box sedan of the Ford Crown Victoria type (2003-2011): length 5.39 m (212 in),
-  // wheelbase 2.91 m (114.7 in), width 1.99 m (78.3 in), height 1.44 m (56.8 in). Upright greenhouse, long trunk, tall belt.
+  // ROSTER (CARHI step 2). Proportions checked against public spec listings (WebSearch, 9 Nov 2026):
+  // "Crown Regent": a full-size body-on-frame 3-box sedan of the Ford Crown Victoria type (2003-2011): length 212.0 in (5.39 m),
+  // wheelbase 114.7 in (2.91 m), width 78.2 in (1.99 m, no mirrors), height 56.8 in (1.44 m). Upright greenhouse, long trunk, tall belt.
+  // Sources: https://www.edmunds.com/ford/crown-victoria/2003/features-specs/?sub=sedan , https://www.autopadre.com/vehicle-dimensions/ford-crown-victoria/2011-s-22335
   crown: {
     Lref: 5.39, Href: 1.44,
     sill: 0.2, wheelR: 0.34, wheelW: 0.235,
@@ -703,8 +705,9 @@ export const STYLES: Record<StyleKey, Style> = {
     plan: [[-2.7, 0.9], [-2.1, 0.97], [-1, 1], [1, 1], [2.1, 0.98], [2.7, 0.92]],
     dims: { L: 5.39, W: 1.99, H: 1.44 },
   },
-  // "Charge-R": a current-generation large rear-drive sedan of the Dodge Charger type: length 5.04 m (198.4 in), wheelbase
-  // 3.05 m (120 in), width 1.91 m (75.0 in), height 1.48 m (58.2 in). Long hood, high belt line, short deck, fast C pillar.
+  // "Charge-R": a current-generation large rear-drive sedan of the Dodge Charger type (2015-): length 198.4 in (5.04 m), wheelbase
+  // 120.2 in (3.05 m), width 75.0 in (1.91 m), height 58.2 in (1.48 m). Long hood, high belt line, short deck, fast C pillar.
+  // Sources: https://www.autopadre.com/vehicle-dimensions/dodge-charger/2015-police-18449 , https://www.autoblog.com/buy/2015-Dodge-Charger-R_T__4dr_Rear_wheel_Drive_Sedan/specs/
   charger: {
     Lref: 5.04, Href: 1.48,
     sill: 0.2, wheelR: 0.35, wheelW: 0.245,
@@ -769,12 +772,13 @@ export const STYLES: Record<StyleKey, Style> = {
     bumperY: 0.33, bumperH: 0.21,
     plan: [[-2.3, 0.9], [-1.7, 0.98], [-0.9, 1], [0.9, 1], [1.8, 0.97], [2.3, 0.9]],
   },
-  // "Expedio": a mid-size three-row SUV of the Ford Explorer type (2020-): length 5.05 m (198.3 in), wheelbase 3.03 m (119.1 in),
-  // width 2.00 m (78.9 in, without mirrors), height 1.78 m (70.1 in). VEHICLE_SPECS.suv carries the same size.
+  // "Expedio": a mid-size three-row SUV of the Ford Explorer type (2020-): length 5,049 mm (198.8 in), wheelbase 3,025 mm (119.1 in),
+  // width 2,004 mm (78.9 in, without mirrors), height 1,778 mm (70 in). VEHICLE_SPECS.suv carries the same size.
+  // Sources: https://cars-data.com/en/ford/explorer/dimensions , https://www.autopadre.com/vehicle-dimensions/ford-explorer/2020-base-19934
   suv: {
     Lref: 4.9, Href: 1.8,
     sill: 0.26, wheelR: 0.38, wheelW: 0.25,
-    axle: 1.47,
+    axle: 1.468,
     secs: [
       [-2.41, 1.45, 1.17, 0.8],
       [-2.2, 1.62, 1.17, 0.78],
@@ -1008,6 +1012,25 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
     trim.add(cap);
   }
 
+  // ---- hood and trunk-lid cut lines: constant-width dark ribbons that follow the hull (the hood panel itself sits 6 mm proud)
+  {
+    const iB = hull.at(hoodBackU), iF = hull.at(hoodFrontU);
+    const edge = (slot: number): [number, number][] => seq(iB, iF).map((i) => [i, slot] as [number, number]);
+    for (const sl of [18, 6]) trim.add(rib(edge(sl), 0.009, 0.011));
+    const across = (i: number): [number, number][] => [18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6].map((sl) => [i, sl] as [number, number]);
+    trim.add(rib(across(iB), 0.009, 0.011));
+    trim.add(rib(across(iF), 0.009, 0.011));
+    if (!st.rails) {
+      const iT0 = hull.at(rg[1] - 0.04 * kx), iT1 = hull.at(tipR + 0.3 * kx);
+      for (const sl of [18, 6]) trim.add(rib(seq(iT0, iT1).map((i) => [i, sl] as [number, number]), 0.009, 0.011));
+      trim.add(rib(across(iT0), 0.009, 0.011));
+      trim.add(rib(across(iT1), 0.009, 0.011));
+    } else {
+      const iT0 = hull.at(rg[1] + 0.02 * kx);
+      trim.add(rib(across(iT0), 0.009, 0.011)); // tailgate cut line
+    }
+  }
+
   // ---- wheel liners
   const wTyre = st.wheelW;
   const wx = Wb2 - 0.03 - 0.52 * wTyre;
@@ -1151,8 +1174,8 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
     g.computeVertexNormals();
     return g;
   };
-  const yc = hull.P(iHB, 0).y + 0.012;
-  const hoodGeo = new Acc().add(hoodSurface(0.012)).merge();
+  const yc = hull.P(iHB, 0).y + 0.006;
+  const hoodGeo = new Acc().add(hoodSurface(0.006)).merge();
   hoodGeo.translate(0, -yc, hoodBackU);
 
   // ---- lights: one merged mesh per lamp colour (head / tail), in car space

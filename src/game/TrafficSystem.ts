@@ -118,7 +118,7 @@ export function idleBoostForHour(hour: number): number {
 }
 
 export const CAR_COLORS = [
-  '#c0392b', '#2c3e50', '#ecf0f1', '#7f8c8d', '#1f6f8b', '#e0b01e',
+  '#c0392b', '#2c3e50', '#ecf0f1', '#7f8c8d', '#1f6f8b', '#3a7ca5',
   '#27ae60', '#8e44ad', '#111111', '#d35400', '#5d4037', '#95a5a6',
 ] as const;
 
@@ -452,7 +452,7 @@ export class TrafficSystem {
     for (const sl of slots) if (!spawnCar || dist(sl.pos, this.spawnPoint) < dist(spawnCar.pos, this.spawnPoint)) spawnCar = sl;
     for (const sl of slots) {
       if (spawnCar && sl !== spawnCar && dist(sl.pos, spawnCar.pos) < SPAWN_CAR_CLEAR) continue;
-      const v = this.makeVehicle(sl.type, sl.pos, sl.h, sl.color);
+      const v = this.makeVehicle(sl.type, sl.pos, sl.h, sl.type === 'cab' ? '#e0b01e' : sl.color);
       v.driver = null;
       this.register(v);
     }
@@ -530,7 +530,8 @@ export class TrafficSystem {
       const d = dist(n.pos, player);
       if (d < SPAWN_MIN || d > SPAWN_MAX) continue;
       if (!this.spawnClear(n)) continue;
-      const v = this.makeVehicle(this.pickType(), { x: n.pos.x, z: n.pos.z }, n.heading, this.rng.pick(CAR_COLORS));
+      const type = this.pickType();
+      const v = this.makeVehicle(type, { x: n.pos.x, z: n.pos.z }, n.heading, type === 'cab' ? '#e0b01e' : this.rng.pick(CAR_COLORS));
       v.driver = 'traffic';
       this.register(v);
       const agent = new TrafficAgent(v, this.grid.lanes, this.world, this.rng.fork(v.id), {
@@ -575,7 +576,7 @@ export class TrafficSystem {
 
   private pickType(): VehicleType {
     const r = this.rng.next();
-    return r < 0.7 ? 'sedan' : r < 0.9 ? 'suv' : 'boxtruck';
+    return r < 0.62 ? 'sedan' : r < 0.7 ? 'cab' : r < 0.9 ? 'suv' : 'boxtruck'; // 8 % yellow cabs (a cab is its own type, always taxi yellow)
   }
 
   private register(v: IVehicle): void {

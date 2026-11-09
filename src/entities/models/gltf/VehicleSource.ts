@@ -47,6 +47,7 @@ export const KENNEY_PAINT_CELLS: Record<VehicleType, PaletteCell | null> = {
   suv: { col: 3, row: 1 }, // green
   boxtruck: { col: 3, row: 1 }, // green (the delivery van stands in for a box truck)
   cop: null,
+  cab: null, // the taxi keeps its livery (procedural body)
 };
 const KENNEY_MATERIAL = 'colormap';
 

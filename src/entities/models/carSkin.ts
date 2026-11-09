@@ -173,6 +173,42 @@ export function packFor(style: SkinStyle, color: string): number {
 interface SkinSet { tex: Map<string, THREE.DataTexture>; mats: Map<string, THREE.Material> }
 const sets = new WeakMap<IMaterialLibrary, SkinSet>();
 
+/**
+ * Normal map of a skin, derived from its colour layer: on paint pixels the shading multiplier IS the relief (panel gaps, door
+ * seams, window rubber, grime are darker = recessed), so a Sobel pass over its luminance gives sharp panel lines for free.
+ * Fixed-colour pixels (chrome, lamps, decals) stay flat. Same layout and row order as the albedo (uv1).
+ */
+export function buildSkinNormal(rgba: Uint8Array, w: number, h: number, strength = 2.2): THREE.DataTexture {
+  const hgt = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) hgt[i] = rgba[i * 4 + 3] > 127 ? rgba[i * 4] / 255 : SKIN_PAINT_BASE; // fixed pixels: flat at clean-paint height
+  const out = new Uint8Array(w * h * 4);
+  const at = (x: number, y: number): number => hgt[Math.min(h - 1, Math.max(0, y)) * w + Math.min(w - 1, Math.max(0, x))];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const dx = (at(x + 1, y - 1) + 2 * at(x + 1, y) + at(x + 1, y + 1)) - (at(x - 1, y - 1) + 2 * at(x - 1, y) + at(x - 1, y + 1));
+      const dy = (at(x - 1, y + 1) + 2 * at(x, y + 1) + at(x + 1, y + 1)) - (at(x - 1, y - 1) + 2 * at(x, y - 1) + at(x + 1, y - 1));
+      let nx = -dx * strength, ny = -dy * strength; // texture row 0 is v = 0 (bottom), so +y of the image is +v
+      const nz = 1;
+      const l = Math.hypot(nx, ny, nz);
+      nx /= l; ny /= l;
+      const o = (y * w + x) * 4;
+      out[o] = Math.round((nx * 0.5 + 0.5) * 255);
+      out[o + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+      out[o + 2] = Math.round(((nz / l) * 0.5 + 0.5) * 255);
+      out[o + 3] = 255;
+    }
+  }
+  const t = new THREE.DataTexture(out, w, h, THREE.RGBAFormat);
+  t.colorSpace = THREE.NoColorSpace;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps = true;
+  t.anisotropy = 4;
+  t.channel = 1;
+  t.needsUpdate = true;
+  return t;
+}
+
 let canvasBroken = false;
 /** The atlas of a (style, pack): both layers painted on canvases, packed into one RGBA DataTexture (alpha = paint mask). */
 export function buildSkinTexture(layout: SkinLayout, size = SKIN_W, make: (w: number, h: number) => HTMLCanvasElement = createCanvas): THREE.DataTexture | null {
@@ -192,7 +228,9 @@ export function buildSkinTexture(layout: SkinLayout, size = SKIN_W, make: (w: nu
       data[dst + x * 4 + 3] = msk[src + x * 4]; // red channel of the (grey) mask
     }
   }
+  const nrm = buildSkinNormal(data, w, h);
   const tex = new THREE.DataTexture(data, w, h, THREE.RGBAFormat);
+  tex.userData.normal = nrm;
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.magFilter = THREE.LinearFilter;
   tex.minFilter = THREE.LinearMipmapLinearFilter;
@@ -205,7 +243,7 @@ export function buildSkinTexture(layout: SkinLayout, size = SKIN_W, make: (w: nu
 }
 
 /** Texture width by tier: the phone tier paints half-size skins (decided when a skin is first needed). */
-export function skinSizeNow(): number { return carPaintConfigured() && carPaintTier() === 'phone' ? SKIN_W / 2 : SKIN_W; }
+export function skinSizeNow(): number { return carPaintConfigured() && carPaintTier() === 'phone' ? SKIN_W / 2 : SKIN_W * 2; } // 1024 x 512 off the phone tier
 
 /**
  * The skinned paint for a body style and colour (cached per library), or the library's plain paint when there is no DOM (unit tests)
@@ -233,6 +271,8 @@ export function carSkinMaterial(materials: IMaterialLibrary, style: SkinStyle, c
   m.copy(bm);
   m.base = bm;
   m.map = tex;
+  const nm = tex.userData.normal as THREE.DataTexture | undefined;
+  if (nm) { m.normalMap = nm; m.normalScale.set(0.7, 0.7); m.roughnessMap = null; } // panel lines (uv1); the paint's flake maps sat on the unused uv0
   m.name = `carSkin:${style}:${color}`;
   m.needsUpdate = true;
   set.mats.set(mk, m);

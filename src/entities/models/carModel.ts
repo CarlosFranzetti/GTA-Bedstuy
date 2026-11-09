@@ -59,6 +59,7 @@ export interface CarModel {
 /** Body style of a car: type first, then taxi-yellow paint makes a cab, and plate variant 3 of the plain sedans is the coupe. */
 export function styleFor(type: VehicleType, color: string, variant = 0): CarStyle {
   if (type === 'cop') return 'cop';
+  if (type === 'cab') return 'cab';
   if (type === 'suv') return 'suv';
   if (type === 'boxtruck') return 'van';
   if (isTaxiYellow(color)) return 'cab';
@@ -71,6 +72,7 @@ export const PAINT_VARIANTS: Record<VehicleType, readonly string[]> = {
   suv: CAR_COLORWAYS.suv.map((c) => c.color),
   boxtruck: CAR_COLORWAYS.van.map((c) => c.color),
   cop: ['#f2f2f2', '#f2f2f2'],
+  cab: ['#e0b01e', '#e0b01e'],
 };
 
 // ---------------------------------------------------------------- materials owned by the model

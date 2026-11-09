@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
 import { CAR_COLORWAYS, SKIN_H, SKIN_PAINT_BASE, SKIN_RECTS, SKIN_W, paintCarSkin, type SkinStyle } from '@/textures/painters/vehicle';
-import { SkinCarPaint, assignSkinUV, packFor, paintBox, regionFor, skinLayoutFor } from '@/entities/models/carSkin';
+import { buildSkinNormal, SkinCarPaint, assignSkinUV, packFor, paintBox, regionFor, skinLayoutFor } from '@/entities/models/carSkin';
 import { buildCarModel, PAINT_VARIANTS } from '@/entities/models/carModel';
 import { VEHICLE_SPECS } from '@/entities/Vehicle';
 import { ALLOWED, SoftCtx, guard } from './softcanvas';
@@ -170,5 +170,24 @@ describe('car skin layout and UV set 1', () => {
     for (const k of ['cpMode', 'cpCoat', 'cpRim', 'cpRoof', 'cpStreetMix', 'cpWet', 'cpZenith', 'cpHorizon', 'cpStreet']) expect(shader.uniforms[k]).toBeDefined();
     expect(shader.fragmentShader).toContain('cpMask = skinS.a');
     expect(shader.fragmentShader.indexOf('#include <lights_fragment_end>')).toBeLessThan(shader.fragmentShader.indexOf('cpMask > 0.5'));
+  });
+});
+
+describe('skin normal map', () => {
+  it('turns a recessed panel gap into a tilted normal and keeps flat paint and fixed pixels flat', () => {
+    const w = 8, h = 8;
+    const rgba = new Uint8Array(w * h * 4);
+    for (let i = 0; i < w * h; i++) { rgba[i * 4] = 230; rgba[i * 4 + 1] = 230; rgba[i * 4 + 2] = 230; rgba[i * 4 + 3] = 255; }
+    for (let y = 0; y < h; y++) { const o = (y * w + 4) * 4; rgba[o] = 40; } // a dark vertical gap at x = 4
+    const n = buildSkinNormal(rgba, w, h).image.data as Uint8Array;
+    const nx = (x: number, y: number): number => n[(y * w + x) * 4] / 255 * 2 - 1;
+    const nz = (x: number, y: number): number => n[(y * w + x) * 4 + 2] / 255 * 2 - 1;
+    expect(Math.abs(nx(0, 4))).toBeLessThan(0.05);           // flat paint
+    expect(nx(3, 4)).toBeGreaterThan(0.2);                    // wall of the groove tilts one way...
+    expect(nx(5, 4)).toBeLessThan(-0.2);                      // ...and the other
+    expect(nz(3, 4)).toBeGreaterThan(0);
+    const fixed = rgba.slice(); for (let i = 0; i < w * h; i++) fixed[i * 4 + 3] = 0;
+    const f = buildSkinNormal(fixed, w, h).image.data as Uint8Array;
+    expect(Math.abs(f[(4 * w + 3) * 4] - 128)).toBeLessThan(3); // fixed pixels: no relief
   });
 });

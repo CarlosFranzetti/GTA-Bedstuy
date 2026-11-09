@@ -40,6 +40,7 @@ describe('carBodies: style selection', () => {
     expect(styleFor('suv', '#e0b01e', 3)).toBe('suv');
     expect(styleFor('boxtruck', '#fff')).toBe('van');
     expect(styleFor('cop', '#fff', 3)).toBe('cop');
+    expect(styleFor('cab', '#e0b01e', 0)).toBe('cab'); // the taxi is its own vehicle type
   });
   it('taxi yellow is yellow, not red or grey', () => {
     expect(isTaxiYellow('#e0b01e')).toBe(true);
@@ -249,7 +250,7 @@ describe('carBodies: paint variants', () => {
       const v = PAINT_VARIANTS[t];
       expect(v.length).toBeGreaterThanOrEqual(2);
       expect(v.length).toBeLessThanOrEqual(4);
-      if (t !== 'cop') expect(new Set(v).size).toBe(v.length);
+      if (t !== 'cop' && t !== 'cab') expect(new Set(v).size).toBe(v.length);
       for (const c of v) expect(/^#[0-9a-f]{6}$/i.test(c)).toBe(true);
     }
   });
