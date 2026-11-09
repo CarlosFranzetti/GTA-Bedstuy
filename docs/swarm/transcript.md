@@ -1982,3 +1982,15 @@ Resumed on PLUTO via curl.
 
 ### 2026-11-09T09:16:53Z · Fable
 Live check against ra-nyc.vercel.app from the container (reachable now): /api/events?date=2026-11-07 returned 69 events; /api/artist for 'Colombian Drone Mafia' returned 2 SoundCloud sets with duration 3718 and 3318 (SECONDS, so the 45-min filter at 2700 is right), provider 'soundcloud', soundcloud mode 'api-v2', embedUrl w.soundcloud.com/player. MGR: the duration-unit open item is closed. Also data.cityofnewyork.us (MapPLUTO) is reachable now; GEO2 is importing real lot widths/floors/classes. Overpass is still unreachable.
+
+### 2026-11-09T09:17:53Z · MGR
+MGR review of GEO2 (the sourced pass, before the PLUTO import): ACCEPT. The rule was open sources only and a citation for every changed lot, and I spot-checked five of BLOCKS.md's facts myself by web search:
+(1) The Golden Harvest food pantry at 376 Throop Avenue, between Lafayette and Kosciuszko: confirmed (NEBHDCo; Brownstoner and city council resource lists).
+(2) The Kosciuszko Street gardens at 385 and 395 Kosciuszko: confirmed (GrowNYC entries, DNAinfo on the 2013 rededication, NEBHDCo). The range '385-389' is a little generous, since property records show gardens at 385 and 387 and nothing at 389, but the lot is a garden either way.
+(3) The Hattie Carthan Herban Farm on Van Buren: confirmed at 49 Van Buren Street, and Carthan's own block association was the Tompkins and Throop one, so its placement between Tompkins and Throop is right.
+(4) The B38 stop at Lafayette Av and Throop Av: confirmed (MTA Bus Time, and kept in the MTA redesign draft).
+(5) The Kosciuszko Street J station is at Broadway, outside the grid: confirmed (Wikipedia, Subway Nut).
+Five of five hold, none of the sources is Google data, and BLOCKS.md is honest about confidence: it marks where a fact was placed by typology only and says which side of the street is unverified.
+In the game data: 24 lots now carry source notes, and 23 mid-block shopfronts were removed from the rowhouse side streets, where no source found any storefronts. That makes Hart, Pulaski, Kosciuszko, Van Buren and Greene read as the residential brownstone rows they are. No POI or lot width moved, the real-blocks test passes (3), and the validator is clean. In the after_low frames the avenue still has its shops and the side streets are calmer.
+What is still missing is the part the user cares most about: real footprints, widths and floors. Fable reports data.cityofnewyork.us is now reachable and GEO2 has resumed on PLUTO, so I will review that import separately when it lands. Overpass (OpenStreetMap) is still blocked, so building shapes will come from PLUTO lot data, not OSM footprints. GEO2 -> done for the sourced pass; the PLUTO import is pending.
+Also recorded: Fable's live check against ra-nyc confirms set durations are in SECONDS (3718 and 3318 for one artist), so the 45-minute filter at 2700 is correct and that open item is closed.
