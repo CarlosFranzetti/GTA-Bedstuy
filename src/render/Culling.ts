@@ -162,33 +162,24 @@ export function chunkKeyOfCell(l: ChunkLayout, cellKey: string): string {
 }
 
 /**
- * Hides whole chunks (all the cell meshes sharing `userData.chunk`) beyond a range from a reference point, with the same
- * hysteresis as DistanceCuller. A chunk's bounding circle is the union of its meshes' world bounding spheres.
+ * Hides whole chunks (all the cell meshes sharing `userData.chunk`) when the chunk's ground footprint (the union of its
+ * meshes' world bounding boxes on the XZ plane) lies entirely beyond a range from a reference point, with the same
+ * hysteresis as DistanceCuller: a hidden chunk reappears only once its nearest edge is `margin` m inside the range.
  */
 export class ChunkCuller {
-  private readonly chunks = new Map<string, { meshes: THREE.Mesh[]; cx: number; cz: number; r: number; hidden: boolean; dirty: boolean }>();
-  private readonly sphere = new THREE.Sphere();
-  constructor(public maxDist: number) {}
+  private readonly chunks = new Map<string, { meshes: THREE.Mesh[]; minX: number; maxX: number; minZ: number; maxZ: number; hidden: boolean }>();
+  private readonly box = new THREE.Box3();
+  constructor(public maxDist: number, private readonly margin = 6) {}
   setMaxDist(d: number): void { if (Number.isFinite(d) && d > 0) this.maxDist = d; }
-  /** Registers a cell mesh under its `userData.chunk` key (static: its bounding sphere is taken once). */
+  /** Registers a cell mesh under its `userData.chunk` key (static: its bounding box is taken once). */
   add(mesh: THREE.Mesh): void {
     const key = mesh.userData.chunk as string | undefined;
     if (key === undefined) return;
-    const g = mesh.geometry;
-    if (!g.boundingSphere) g.computeBoundingSphere();
     mesh.updateWorldMatrix(true, false);
-    this.sphere.copy(g.boundingSphere!).applyMatrix4(mesh.matrixWorld);
+    this.box.setFromObject(mesh);
     let c = this.chunks.get(key);
-    if (!c) { c = { meshes: [], cx: this.sphere.center.x, cz: this.sphere.center.z, r: this.sphere.radius, hidden: false, dirty: false }; this.chunks.set(key, c); }
-    else {
-      // union of the circle so far and the new sphere
-      const dx = this.sphere.center.x - c.cx, dz = this.sphere.center.z - c.cz;
-      const d = Math.hypot(dx, dz);
-      if (d + this.sphere.radius > c.r) {
-        if (d + c.r <= this.sphere.radius) { c.cx = this.sphere.center.x; c.cz = this.sphere.center.z; c.r = this.sphere.radius; }
-        else { const nr = (d + c.r + this.sphere.radius) / 2; const k = (nr - c.r) / d; c.cx += dx * k; c.cz += dz * k; c.r = nr; }
-      }
-    }
+    if (!c) { c = { meshes: [], minX: this.box.min.x, maxX: this.box.max.x, minZ: this.box.min.z, maxZ: this.box.max.z, hidden: false }; this.chunks.set(key, c); }
+    else { c.minX = Math.min(c.minX, this.box.min.x); c.maxX = Math.max(c.maxX, this.box.max.x); c.minZ = Math.min(c.minZ, this.box.min.z); c.maxZ = Math.max(c.maxZ, this.box.max.z); }
     c.meshes.push(mesh);
   }
   get count(): number { return this.chunks.size; }
@@ -197,7 +188,9 @@ export class ChunkCuller {
   hiddenKeys(): string[] { return [...this.chunks].filter(([, c]) => c.hidden).map(([k]) => k); }
   update(px: number, pz: number): void {
     for (const c of this.chunks.values()) {
-      const hide = shouldHide(c.hidden, c.cx, c.cz, c.r, px, pz, this.maxDist);
+      const dx = Math.max(c.minX - px, 0, px - c.maxX), dz = Math.max(c.minZ - pz, 0, pz - c.maxZ);
+      const limit = c.hidden ? this.maxDist - this.margin : this.maxDist;
+      const hide = dx * dx + dz * dz > limit * limit;
       if (hide !== c.hidden) { c.hidden = hide; for (const m of c.meshes) m.visible = !hide; }
     }
   }

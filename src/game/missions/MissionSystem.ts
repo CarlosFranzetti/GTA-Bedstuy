@@ -118,6 +118,8 @@ export class MissionSystem {
   private tail = { x: 0, z: 0, leg: 0, engaged: false, atEnd: false, lost: 0, dist: 0, total: 1, moved: 0 };
   private movingT = 0;
   private giverT = 1e9;
+  private ringDwell = 0;
+  private stopHintedZone = -1;
   private giverKey = '';
 
   constructor(defs: readonly MissionDef[], opts: MissionSystemOptions = {}) {
@@ -302,7 +304,7 @@ export class MissionSystem {
     this.hostInVehicle = inVehicle;
     this.lastHour = hour;
     this.lastPos.x = pos.x; this.lastPos.z = pos.z; this.hasPos = true;
-    if (this.cur < 0) { this.checkTriggers(pos, hour, dt); return; }
+    if (this.cur < 0) { this.checkTriggers(pos, hour, dt, inVehicle, speedMps); return; }
     if (this.status[this.cur] !== 'active') return;
 
     const def = this.defs[this.cur];
@@ -376,7 +378,7 @@ export class MissionSystem {
     return -1;
   }
 
-  private checkTriggers(pos: Vec2, hour: number, dt: number): void {
+  private checkTriggers(pos: Vec2, hour: number, dt: number, inVehicle = false, speedMps = 0): void {
     this.hud.prompt = '';
     this.giverT += dt;
     const key = this.openKey(hour);
@@ -399,10 +401,21 @@ export class MissionSystem {
         }
         continue;
       }
+      // Driving through a ring never starts it: on foot it starts at once, in a vehicle it needs the car stopped in the ring for a second.
+      if (inVehicle) {
+        if (speedMps * 3.6 >= RING_STOP_KMH) {
+          this.ringDwell = 0;
+          if (this.stopHintedZone !== i) { this.stopHintedZone = i; this.toast(`Stop here to start ${d.title}`, 'info'); }
+          continue;
+        }
+        this.ringDwell += dt;
+        if (this.ringDwell < RING_DWELL_S) continue;
+      }
+      this.ringDwell = 0;
       this.begin(i, hour);
       return;
     }
-    if (inAny < 0) this.hintedZone = -1;
+    if (inAny < 0) { this.hintedZone = -1; this.stopHintedZone = -1; this.ringDwell = 0; }
   }
 
   /** Which givers are on offer right now, as a cache key for the marker refresh. */
@@ -803,6 +816,10 @@ export class MissionSystem {
     this.opts.bus?.emit(type as never, payload as never);
   }
 }
+
+/** A vehicle starts a mission ring only when slower than this (km/h) for RING_DWELL_S seconds. */
+const RING_STOP_KMH = 3;
+const RING_DWELL_S = 1;
 
 const FAIL_TEXT: Record<FailReason, string> = {
   timeUp: 'Too slow.',

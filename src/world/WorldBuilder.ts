@@ -86,7 +86,9 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
   // triangles into per-cell meshes (same names/materials, so lamp lookup by name keeps working).
   const chunks = chunkLayout(grid.streets);
   const cells: SplitStats = { meshesBefore: 0, meshesAfter: 0, trianglesAfter: 0 };
-  const split = (g: THREE.Object3D): THREE.Mesh[] => splitMeshesIntoCells(g, chunks.cellX, chunks.cellZ, cells, MIN_SPLIT_TRIANGLES, chunks.originX, chunks.originZ);
+  // the split threshold grows with the city (it was set for ten blocks): a material group that was not worth splitting then still is not
+  const minSplit = Math.round(MIN_SPLIT_TRIANGLES * (grid.blocks.length / 10));
+  const split = (g: THREE.Object3D): THREE.Mesh[] => splitMeshesIntoCells(g, chunks.cellX, chunks.cellZ, cells, minSplit, chunks.originX, chunks.originZ);
   // meshes that were too small to split stay city-wide (no cell key) and are never chunk-culled
   const chunkMeshes = [...split(buildings.group), ...split(furniture.group)].filter((m) => typeof m.userData.cell === 'string'); // instanced kinds are skipped
   for (const m of chunkMeshes) m.userData.chunk = chunkKeyOfCell(chunks, m.userData.cell as string);

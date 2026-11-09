@@ -43,21 +43,23 @@ describe('ChunkCuller', () => {
     return m;
   };
 
-  it('hides a chunk as a unit beyond its range and shows it again with hysteresis', () => {
+  it('hides a chunk as a unit once its whole footprint is beyond the range, and shows it again with hysteresis', () => {
+    // two cells of chunk 0_0 (x -100..350) and one cell of chunk 2_0 (x 900..1100); boxes are 200 x 180 m
     const a1 = cell(0, 0, '0_0'), a2 = cell(250, 0, '0_0'), b = cell(1000, 0, '2_0');
     const cc = new ChunkCuller(300);
     for (const m of [a1, a2, b]) cc.add(m);
     expect(cc.count).toBe(2);
     cc.update(0, 0);
-    expect([a1.visible, a2.visible, b.visible]).toEqual([true, true, false]); // chunk 2_0 is 1000 m east, radius ~130
+    expect([a1.visible, a2.visible, b.visible]).toEqual([true, true, false]); // chunk 2_0 starts 900 m east
     cc.update(900, 0);
-    expect([a1.visible, a2.visible, b.visible]).toEqual([false, false, true]);
-    // chunk a: circle centre x = 125, radius 125 + |half box diagonal|; hidden beyond range + radius, back only 6 m inside it
-    const limit = 300 + 125 + Math.hypot(100, 5, 90);
-    cc.update(125 + limit - 3, 0); // just inside the range but not inside the 6 m hysteresis margin
+    expect([a1.visible, a2.visible, b.visible]).toEqual([false, false, true]); // chunk 0_0 ends at x = 350: 550 m away
+    // the nearest edge of chunk 0_0 is x = 350; hidden beyond 300 m (x > 650) and back only 6 m inside the range
+    cc.update(350 + 300 - 3, 0);
     expect(a1.visible).toBe(false);
-    cc.update(125 + limit - 10, 0);
+    cc.update(350 + 300 - 10, 0);
     expect(a1.visible && a2.visible).toBe(true);
+    cc.update(350 + 300 + 1, 0);
+    expect(a1.visible).toBe(false);
     cc.clear();
     expect(b.visible).toBe(true);
     expect(cc.count).toBe(0);

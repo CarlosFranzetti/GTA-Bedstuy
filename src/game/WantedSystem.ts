@@ -23,8 +23,20 @@ const CRIME_CAP: Partial<Record<CrimeType, number>> = {
   sidewalkDriving: 1,
 };
 
+/** One-line names for the toast shown whenever a crime adds a star. */
+export const CRIME_LABEL: Record<CrimeType, string> = {
+  hitPed: 'Hit a pedestrian',
+  hitCop: 'Hit a cop',
+  carjack: 'Carjacking',
+  hitParked: 'Ramming cars',
+  sidewalkDriving: 'Driving on the pavement',
+  hitVehicle: 'Hit a vehicle',
+};
+
 export class WantedSystem {
   stars = 0;
+  /** Host hook: called with a one-line message whenever a crime adds a star (the HUD shows it as a toast). */
+  onStarAdded: ((message: string) => void) | null = null;
   private sinceCrime = 0;
   private readonly off: () => void;
 
@@ -36,7 +48,9 @@ export class WantedSystem {
     this.sinceCrime = 0;
     const cap = CRIME_CAP[type] ?? MAX_STARS;
     const next = this.stars >= cap ? this.stars : Math.min(cap, this.stars + CRIME_STARS[type]);
+    const before = this.stars;
     this.setStars(next);
+    if (next > before) this.onStarAdded?.(`Wanted: ${CRIME_LABEL[type]}`);
   }
 
   /** Raise the wanted level to at least `n` stars (missions, scripted events); never lowers it. */

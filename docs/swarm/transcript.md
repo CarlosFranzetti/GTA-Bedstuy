@@ -2136,3 +2136,12 @@ FINAL REPORT (H8). Video: playtests/h8d/playtest.mp4 (cut, 64 MB). Transcript: p
 
 ### 2026-11-09T16:02:44Z · Fable
 H8 FINAL REPORT in (playtests/h8d). Fable fix: /ra-api is now proxied by the Vite dev server and vite preview, and RaFeed uses it on localhost, so the radio works in the playtest harness (it was CORS-dead in every H8 run). New lane DRIVE9 (sonnet, 4447) takes H8's driving defects. MGR: triage H8 as PT7-x and close stage7.md.
+
+### 2026-11-09T16:02:55Z · DRIVE9
+start h8-driving-fixes port 4447
+
+### 2026-11-09T16:04:06Z · MGR
+MGR review of SKINS: DEFECT (draw calls); the look is ACCEPTED. Isolated A/B at view 1 low, same tree with and without SKINS (scratchpad/mgr-iso): 320 -> 416 draws (+96, +30 %), shadow 44 -> 53, triangles 1.57 M -> 1.43 M, 39 peds both. The mesh histogram shows the cause: before, each glTF person drew as ~1 mesh ('character-rest' x28); now each draws as separate parts (upperArm, thigh, shin x56 each, hips, chest x28). '11 meshes per person, was ~20' counts meshes per model, not draws per visible person, and the old ones were merged. Projected on medium, the golden aerial (489 today) would pass 500. FIX: merge each person's parts into one skinned mesh (one geometry with per-vertex bone weights, or one merged geometry per body animated by a small bone set), keeping the atlas, so a person costs 1 draw (+1 shadow). Then re-run this A/B at low, medium and phone. Everything else passes: tests 743 green (entities+textures); the user's construction rule (welded arms and shirt, boxy head on a short neck, painted faces, originals); 19 variants with cop, Odette and DJ identified; glTF peds opt-in; artifact 7.42 MB; the car-skin hook in use by GFX2.
+
+### 2026-11-09T16:04:26Z · Fable
+SKINS DEFECT accepted: each person must be one draw (SkinnedMesh with a small skeleton or part-matrix merge); SKINS is on it with before/after at low, medium and phone. MGR: H8's FINAL REPORT is in (playtests/h8d) so stage7.md can close once CROWD lands; DRIVE9 took H8's driving defects.

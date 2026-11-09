@@ -20,14 +20,16 @@ const PATROL_SPAWN_PERIOD = 2;
 const QUARRY_REFRESH = 0.25;
 // ---- petty crimes (BIBLE ladder: repeated ramming of parked cars = 1 star, pavement driving near people = 1 star)
 /** Closing speed (m/s) above which a collision with a civilian car counts as ramming it. */
-const RAM_MIN_STRENGTH = 3;
+const RAM_MIN_STRENGTH = 6;
 /** Rams within this window add up; the RAM_COUNT-th one is the 'hitParked' crime. */
 const RAM_WINDOW = 15;
 const RAM_COUNT = 2;
 /** Seconds of driving on the pavement with pedestrians around before it is a crime, and how often it repeats. */
 const SIDEWALK_SECONDS = 4;
-const SIDEWALK_MIN_SPEED = 3;
-const SIDEWALK_PED_RADIUS = 14;
+const SIDEWALK_MIN_SPEED = 5;
+const SIDEWALK_PED_RADIUS = 8;
+/** The car must be this far inside the curb line: brushing the kerb edge is not pavement driving. */
+const SIDEWALK_MARGIN = 1.5;
 
 export interface CopSystemOptions {
   /** Signals obeyed by off-duty / patrolling cops (pursuing cops always ignore them). */
@@ -218,7 +220,7 @@ export class CopSystem {
       const c = blk.curb;
       let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
       for (const q of c) { minX = Math.min(minX, q.x); maxX = Math.max(maxX, q.x); minZ = Math.min(minZ, q.z); maxZ = Math.max(maxZ, q.z); }
-      if (p.x >= minX && p.x <= maxX && p.z >= minZ && p.z <= maxZ) return true;
+      if (p.x >= minX + SIDEWALK_MARGIN && p.x <= maxX - SIDEWALK_MARGIN && p.z >= minZ + SIDEWALK_MARGIN && p.z <= maxZ - SIDEWALK_MARGIN) return true;
     }
     return false;
   }
