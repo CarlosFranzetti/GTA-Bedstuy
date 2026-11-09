@@ -14,7 +14,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Rng } from '@/core/Rng';
 import type { CharacterRig, CharacterSource, IMaterialLibrary } from '@/world/types';
 import { animateWalk } from '@/entities/models/humanModel';
-import { buildPedModel, CIVILIAN_COUNT } from '@/entities/models/pedBody';
+import { CIVILIAN_COUNT } from '@/entities/models/pedBody';
+import { buildPedModel } from '@/entities/models/pedBodyHi';
 import { createGltfLoader, firstUrl, warnOnce, type GLTF } from './loader';
 
 export type { CharacterRig, CharacterSource };

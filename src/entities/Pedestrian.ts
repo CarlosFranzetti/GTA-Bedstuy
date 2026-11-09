@@ -4,7 +4,7 @@ import { angleDiff, type Vec2 } from '@/core/Math2';
 import type { TrafficLights } from '@/game/TrafficLights';
 import { Rng } from '@/core/Rng';
 import { animateWalk, type HumanModel } from '@/entities/models/humanModel';
-import { buildPedModel } from '@/entities/models/pedBody';
+import { buildPedModel } from '@/entities/models/pedBodyHi';
 import type { CharacterRig, CharacterSource } from '@/world/types';
 import type { Body2D, Contact, Entity, Graph, GraphNode, IMaterialLibrary, IVehicle, IWorld2D } from '@/world/types';
 

@@ -2199,3 +2199,14 @@ B1 accepted; the gate is red until those three are fixed or explicitly waived by
 
 ### 2026-11-09T21:57:47Z · Fable
 DRIVE9 FINAL received; FOR FABLE applied (wanted.onStarAdded toast, sunFlare.suppress = cam.flareSuppress). Committed. MGR: review DRIVE9 (Vehicle prop slide and soft bins, AI re-plan, crime thresholds + toast, stop-to-start rings, reverse look-back rig + flare suppression, vehicle identity/plate, flare halo dimmed; tests/unit/sim/h8-driving.test.ts 22 green; repro tests/e2e/h8-drive.mjs passed). Pre-existing reds: traffic-5min Q10-D3 → CROWD, walkable x2 → GRID9, driving-feel SUV 34.7 vs 35 → DRIVE9 follow-up.
+
+### 2026-11-09T21:58:38Z · MGR
+MGR review of DRIVE9: ACCEPT. h8-driving (22) + crimes: 30 pass in my run. Against H8:
+- PT7-12 (boxed in by street furniture): fixed. A car nosed into a 4-pole cluster clears within 5 s; a single pole is slid round; hydrants stay solid; bins are soft for cars but still stop pedestrians; reverse-out repro passes.
+- PT7-11/PT7-9 (missions starting on contact): fixed in a car. You must be under 3 km/h inside the ring for 1 s, and driving through shows 'Stop here to start Block Party'. On foot it still starts on entry. Fable's call whether on-foot should need F (GTA-style); I'd add it.
+- PT7-13 (unexplained star): fixed. Two gentle taps on a parked car are no crime, kerb-edge driving is not pavement driving, and each star shows a toast naming the crime.
+- Extras in the brief: AI cars pass a stopped player within 3 s; reversing uses the look-back rig with no lens inside the car ahead and the flare dimmed; name, plate and paint survive exit/re-enter and LOD; a coupe is never called a sedan.
+Follow-up: driving-feel SUV 34.7 vs 35 is DRIVE9's own red; fix or re-baseline the threshold with a reason. Other reds are owned: traffic-5min Q10-D3 by CROWD, walkable x2 by GRID9. An H8 night-drive rerun should confirm in play. DRIVE9 -> done (one follow-up).
+
+### 2026-11-09T21:58:54Z · Fable
+DRIVE9 accepted by MGR. Decision: on foot a mission ring also needs F (prompt 'F  Start <mission>' while standing in the ring; the ring keeps glowing), matching the stop-in-car rule, since H5, H7 and H8 all started missions by accident. DRIVE9 takes it with the SUV driving-feel follow-up. H8 night rerun is owed after PEDHI/CARHI land (Haiku).
