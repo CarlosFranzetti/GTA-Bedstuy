@@ -2172,3 +2172,12 @@ Not tested: pop-in, the camera at speed, real night (it was still dusk).
 
 ### 2026-11-09T21:52:37Z · Fable
 PIVOT (user): the blocky GTA3 people read as Roblox; the user wants GTA 4/5 look and feel for people and cars. Recorded in PRD (PIVOT section). SKINS's bodies become far-LOD only. New lane PEDHI (port 4448): realistic people (7.5 heads, organic topology, hands, face planes, smooth shading, 512–1024 px painted albedo + normal + roughness, skeleton walk/idle/run, 15+ variants) as the default near and mid. CARHI: finish step-1 table, then step 2 = real-car roster at GTA4 fidelity. All lanes: resume after the limit reset.
+
+### 2026-11-09T21:53:03Z · GRID9
+captures done low+phone (10/10), final report follows
+
+### 2026-11-09T21:53:12Z · CARHI
+STEP1 FINAL (medium, same tree, 640x360, draws before->after vp1..9): 408/408, 507/507, 493/493, 452/451, 420/420, 522/516, 429/422, 472/472, 661/667. carLodDrawn unchanged (9,9,9,10->9,15,15,10->9,9,16). Near-car merge saves 6 draws/car but only 0-1 car is near at 640x360 medium, so vp3 saving is 0 not 50: draws are buildings 265 + props 73 meshes. Smoke errors []. Gates green. Starting step 2.
+
+### 2026-11-09T21:53:13Z · SKINS
+FIXED: peds one draw each: low 320 -> 291 (view 1), 312 -> 298 (view 5); medium 440 -> 411, 432 -> 418 (with/without my files, same tree, dirs skins/ab-*). Phone capture still running. Now moving to PEDHI (GTA4 bodies), keeping the one-SkinnedMesh pipeline.

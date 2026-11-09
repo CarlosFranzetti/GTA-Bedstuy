@@ -327,10 +327,12 @@ research, RADIO own-library radio (8 stations, 147 slots) + talk station, WRITE 
 #### Graphics ladder (user direction 3 Nov: "at least GTA3-style graphics for the next push and GTA V level by the end")
 Judged by MGR at every check-in on the 7 standard viewpoints of `tests/e2e/screens.mjs` (noon street, noon corner, golden aerial,
 dusk car, night car, night corner, morning signals), medium tier unless stated. Each level needs every item on every viewpoint.
+> **Target changed (PIVOT, 9 Nov):** for characters and cars the target is LEVEL GTA4, not GTA3. The GTA3 row still applies to the world (streets, props, lighting); a blocky GTA3 person or car within 40 m now fails the ladder.
+
 | Level | Must hold in frame |
 |---|---|
 | **GTA3** | no flat untextured surface; every car and pedestrian a real model with a shadow; lit windows and signs at night; decals on roads; props on every sidewalk; fog hides the world edge; no pop-in within 60 m |
-| **GTA4** | GTA3 plus wet-weather reflections; per-hour grading; haze and lamp bloom; crowd variety (≥ 5 ped models, ≥ 4 car models with colour variants); clutter on every block (bins, bikes, AC units, wires, posters); LOD without visible pop; contact shadows under cars |
+| **GTA4** | GTA3 plus **characters and cars at GTA4 realism (PIVOT 9 Nov): realistic proportions, organic topology, smooth shading, painted albedo + normal + roughness, skeleton animation; GTA3 blocky bodies only beyond 40 m**; wet-weather reflections; per-hour grading; haze and lamp bloom; crowd variety (≥ 5 ped models, ≥ 4 car models with colour variants); clutter on every block (bins, bikes, AC units, wires, posters); LOD without visible pop; contact shadows under cars |
 | **GTA5** | GTA4 plus SSR on paint and roads; volumetric light shafts; hourly filmic palette with sunrise/sunset transitions; ambient life (peds talk, sit, cross; traffic density by hour); detailed interiors; a phone tier that still reads as the same game |
 
 ### 5.5 Stage 4+ (preview; was the Stage 3 plan)
