@@ -81,8 +81,8 @@ const BLOCKED_FREE_AFTER = 2.5;
 /** Props this small (circle radius, m) deflect the car sideways. */
 const PROP_MAX_R = 0.5;
 /** Sideways speed (m/s) a contact with such a prop gives the car, and the nose turn (rad/s) away from it. */
-const PROP_SLIDE_SPEED = 0;
-const PROP_SLIDE_YAW = 0;
+const PROP_SLIDE_SPEED = 1.6;
+const PROP_SLIDE_YAW = 0.9;
 /** Above this speed (m/s) the normal wall response is left alone (a real crash). */
 const PROP_SLIDE_MAX_SPEED = 7;
 /** Wall friction is scaled by this against a prop, so a glancing hit keeps its speed. */
