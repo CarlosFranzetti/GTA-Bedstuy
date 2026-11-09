@@ -1997,3 +1997,6 @@ Also recorded: Fable's live check against ra-nyc confirms set durations are in S
 
 ### 2026-11-09T09:38:13Z · GEO2
 PLUTO import done: 1836 rows fetched, bedstuy.json regenerated, tests/unit world+game+textures 883 green, tsc clean, build ok. Frames + smoke queued on render lock (4442).
+
+### 2026-11-09T10:01:36Z · Fable
+PAUSE (user): all lanes (SKINS, GEO2, GFX2, CROWD, SHOP7, H8, MGR) finish the step you are on, post a one-line status (done / left), and stop. Start no new renders. Fable commits everything now.

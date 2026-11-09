@@ -1,0 +1,75 @@
+{
+  "gameHour": 17.88,
+  "player": {
+    "x": -5.1,
+    "z": -43,
+    "headingDeg": 293,
+    "headingCompass": "north-west",
+    "cameraFacingDeg": 293,
+    "cameraFacing": "north-west"
+  },
+  "inVehicle": true,
+  "enteringCar": false,
+  "vehicle": {
+    "type": "suv",
+    "speedKmh": 0
+  },
+  "walkSpeedKmh": 0,
+  "wantedStars": 0,
+  "prompt": "F  Exit car",
+  "street": "Throop Ave",
+  "radio": "BK House — No sets yet: check your connection or add SoundCloud links in the Radio library",
+  "mission": null,
+  "missionToast": "",
+  "missionRetry": "",
+  "cash": "$120",
+  "hudToast": "",
+  "locationCard": "",
+  "menuOpen": false,
+  "nearby": [
+    {
+      "type": "obstacle",
+      "distance_m": 4.8,
+      "direction": "ahead-right",
+      "bearing_deg": 33
+    },
+    {
+      "type": "obstacle",
+      "distance_m": 7.4,
+      "direction": "ahead-right",
+      "bearing_deg": 47
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 9.8,
+      "direction": "behind-right",
+      "bearing_deg": 153,
+      "vehicle": "sedan",
+      "occupied": false
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 13.1,
+      "direction": "behind",
+      "bearing_deg": -162,
+      "vehicle": "suv",
+      "occupied": false
+    },
+    {
+      "type": "vehicle",
+      "distance_m": 13.5,
+      "direction": "right",
+      "bearing_deg": 69,
+      "vehicle": "sedan",
+      "occupied": false
+    }
+  ],
+  "nearbyTotal": 8,
+  "sim": {
+    "steps": 1359,
+    "fps": 10,
+    "heapMB": 257
+  },
+  "step": 5,
+  "consoleErrorsSinceLastStep": []
+}
