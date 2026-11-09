@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const { chromium } = createRequire(import.meta.url)('playwright');
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const a = process.argv.slice(2);
-let port = 4440, views = 'peds,faces,cars,car4m,walk'; const rest = [];
+let port = 4440, views = 'group-front,group-3q,peds,cars,car4m'; const rest = [];
 for (let i = 0; i < a.length; i++) { if (a[i] === '--port') port = Number(a[++i]); else if (a[i] === '--views') views = a[++i]; else rest.push(a[i]); }
 const out = resolve(rest[0] ?? 'skins-showcase'); mkdirSync(out, { recursive: true });
 const dev = spawn('node', ['node_modules/vite/bin/vite.js', '--port', String(port), '--strictPort'], { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'] });

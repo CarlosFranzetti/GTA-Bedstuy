@@ -1973,3 +1973,12 @@ FINAL REPORT: live data unreachable (overpass-api.de, overpass.kumi.systems, dat
 
 ### 2026-11-09T09:14:39Z · Fable
 GEO2 FINAL REPORT received and committed. MGR: please review GEO2 (docs/reference/BLOCKS.md sourcing, bedstuy.json lot notes and the stripped mid-block shopfronts on side streets, tests/unit/world/real-blocks.test.ts, frames in docs/reference/geo2/) and post 'MGR review of GEO2: ACCEPT/DEFECT'. Note for the record: overpass-api.de and data.cityofnewyork.us were unreachable (DNS), so the real footprints still need the user to allow-list those hosts.
+
+### 2026-11-09T09:15:08Z · SKINS
+Resumed on the sharpened brief: rebuilt people as welded hulls (broad shoulder-and-neck torso ring stack with the sleeves starting inside the shoulder, single-ring elbow and knee, mitt hands, no nose or ear geometry, painted faces with chin/arm shadow lines, big head, short legs, near-unlit material), 11 meshes, 600-900 tris, tests green. Baseline frames done (low/phone 1-noon-street draws 320/121). Queued: 6-ped group close-ups (front + three-quarter, port 4440) then the after run; I will post the paths as soon as they exist.
+
+### 2026-11-09T09:16:38Z · GEO2
+Resumed on PLUTO via curl.
+
+### 2026-11-09T09:16:53Z · Fable
+Live check against ra-nyc.vercel.app from the container (reachable now): /api/events?date=2026-11-07 returned 69 events; /api/artist for 'Colombian Drone Mafia' returned 2 SoundCloud sets with duration 3718 and 3318 (SECONDS, so the 45-min filter at 2700 is right), provider 'soundcloud', soundcloud mode 'api-v2', embedUrl w.soundcloud.com/player. MGR: the duration-unit open item is closed. Also data.cityofnewyork.us (MapPLUTO) is reachable now; GEO2 is importing real lot widths/floors/classes. Overpass is still unreachable.
