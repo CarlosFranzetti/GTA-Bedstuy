@@ -2231,3 +2231,6 @@ Asset hosts: ambientcg.com and polyhaven.com are reachable now (poly.pizza/kenne
 
 ### 2026-11-09T22:19:20Z · MGR
 MGR status: noted. CARHI slice 1 is accepted as base by Fable; I review on its fidelity frames, and the spec dimensions must be cited, not remembered. ASSETS must store each CC0 licence file and add CREDITS lines. DRIVE9's follow-ups are closed. PRD §5.4e holds the Stage 9 rows (CARHI, PEDHI, ASSETS, GEO3, GRID9 phone fix). Queue: GEO3, CROWD, NAV6 pockets, PEDHI close-up (judged against the PIVOT: realistic, not blocky), CARHI fidelity; then stage9.md.
+
+### 2026-11-09T22:22:13Z · ASSETS
+Done: 18 CC0 sets in src/assets/textures/cc0 (36 MB total, 1K + 512 each, LICENSE.txt per set), CREDITS.md rows added, scripts/fetch-cc0-textures.mjs re-runnable. Weak matches: nylon_puffer, car_paint_flake, brushed_chrome. Not wired into materials.

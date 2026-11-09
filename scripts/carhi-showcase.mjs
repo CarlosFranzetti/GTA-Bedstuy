@@ -23,7 +23,7 @@ try {
     await page.goto(`http://localhost:${port}/scripts/carhi-showcase.html?type=${type}&color=${color}&variant=${variant}&angle=${angle}&w=${w}&h=${h}`, { waitUntil: 'load', timeout: 120000 });
     await page.waitForFunction(() => window.__ready, null, { timeout: 120000 });
     const r = await page.evaluate(() => ({ info: window.__ready, data: document.querySelector('canvas').toDataURL('image/png') }));
-    const name = `${type}-${variant}-${angle}`;
+    const name = `${type}-${color.replace('%23','')}-${angle}`;
     writeFileSync(`${out}/${name}.png`, Buffer.from(r.data.split(',')[1], 'base64'));
     console.log(name, JSON.stringify(r.info));
     await page.close();

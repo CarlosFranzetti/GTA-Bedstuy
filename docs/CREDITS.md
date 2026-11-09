@@ -22,6 +22,33 @@ brick, brownstone and limestone courses, worn asphalt, sidewalk slabs, tar roof)
 were generated with the script in `scripts/derive-textures.py`. Normal and roughness maps
 shared between variants are stored once (`brick_normal`, `brick_rough`, `brick_painted_rough`).
 
+### CC0 PBR sets (src/assets/textures/cc0/)
+
+Fetched by `scripts/fetch-cc0-textures.mjs` (re-runnable). Each set folder has a `LICENSE.txt` with the source URL,
+author and licence. All are **CC0 1.0 Universal**. 1K JPEG albedo / OpenGL normal / roughness, plus 512 px re-encodes
+(`*_512.jpg`). Not wired into materials yet.
+
+| set | source asset | author | source URL |
+|---|---|---|---|
+| brick_red_common | Poly Haven `red_brick_03` | Rob Tuytel | https://polyhaven.com/a/red_brick_03 |
+| brick_brownstone | Poly Haven `concrete_brick_wall_001` | see LICENSE.txt | https://polyhaven.com/a/concrete_brick_wall_001 |
+| brick_painted | Poly Haven `painted_brick` | see LICENSE.txt | https://polyhaven.com/a/painted_brick |
+| asphalt | Poly Haven `asphalt_03` | see LICENSE.txt | https://polyhaven.com/a/asphalt_03 |
+| concrete_sidewalk | Poly Haven `concrete_pavers_03` | see LICENSE.txt | https://polyhaven.com/a/concrete_pavers_03 |
+| bluestone_slate | Poly Haven `castle_wall_slates` | see LICENSE.txt | https://polyhaven.com/a/castle_wall_slates |
+| corrugated_metal | Poly Haven `corrugated_iron_02` | see LICENSE.txt | https://polyhaven.com/a/corrugated_iron_02 |
+| painted_metal | Poly Haven `rusty_painted_metal` | see LICENSE.txt | https://polyhaven.com/a/rusty_painted_metal |
+| tar_roof | Poly Haven `bitumen` | see LICENSE.txt | https://polyhaven.com/a/bitumen |
+| weathered_wood | Poly Haven `brown_planks_05` | see LICENSE.txt | https://polyhaven.com/a/brown_planks_05 |
+| grime_wall | Poly Haven `concrete_wall_006` | see LICENSE.txt | https://polyhaven.com/a/concrete_wall_006 |
+| denim | Poly Haven `denim_fabric` | see LICENSE.txt | https://polyhaven.com/a/denim_fabric |
+| cotton_knit | Poly Haven `cotton_jersey` | see LICENSE.txt | https://polyhaven.com/a/cotton_jersey |
+| leather | Poly Haven `brown_leather` | see LICENSE.txt | https://polyhaven.com/a/brown_leather |
+| nylon_puffer | Poly Haven `bi_stretch` (stretch fabric; closest found) | see LICENSE.txt | https://polyhaven.com/a/bi_stretch |
+| car_paint_flake | ambientCG `Metal027` (powder-coat metal; closest found) | ambientCG.com | https://ambientcg.com/view?id=Metal027 |
+| tyre_rubber | ambientCG `Rubber001` | ambientCG.com | https://ambientcg.com/view?id=Rubber001 |
+| brushed_chrome | ambientCG `Metal009` (brushed steel; proxy) | ambientCG.com | https://ambientcg.com/view?id=Metal009 |
+
 Everything else in the game (geometry, signage, awnings, audio) is procedural and
 original to this project.
 

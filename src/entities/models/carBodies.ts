@@ -183,19 +183,23 @@ export function inverted(g: THREE.BufferGeometry): THREE.BufferGeometry {
 
 /** Plan-view rounded bumper (extruded vertically). Front edge faces -z. Centred in x, back edge at z = 0. */
 export function bumperGeo(width: number, depth: number, height: number, y: number, z: number, rear: boolean): THREE.BufferGeometry {
+  // a bevelled wrap: bowed face, rounded corners, rolled top and bottom edges (was a flat extruded block)
   const r = Math.min(0.16, depth * 0.8);
+  const bow = 0.05;
+  width -= 0.044; // the bevel adds 2.2 cm per side
   const s = new THREE.Shape();
   s.moveTo(-width / 2, 0);
   s.lineTo(width / 2, 0);
   s.lineTo(width / 2, depth - r);
   s.quadraticCurveTo(width / 2, depth, width / 2 - r, depth);
-  s.lineTo(-width / 2 + r, depth);
+  s.quadraticCurveTo(0, depth + bow * 2, -width / 2 + r, depth);
   s.quadraticCurveTo(-width / 2, depth, -width / 2, depth - r);
   s.closePath();
+  const bev = 0.022;
   const g = new THREE.ExtrudeGeometry(s, {
-    depth: height - 0.04, bevelEnabled: false, curveSegments: 2,
+    depth: height - 2 * bev - 0.02, bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: 2, curveSegments: 5,
   });
-  g.translate(0, 0, 0.02);
+  g.translate(0, -(bow + bev), bev + 0.01); // keep the front-most point where the old block ended
   g.rotateX(-Math.PI / 2); // shape y -> world -z (forward), extrude z -> world y
   if (rear) g.rotateY(Math.PI);
   g.translate(0, y - height / 2, z);
@@ -793,7 +797,7 @@ export const STYLES: Record<StyleKey, Style> = {
     handles: [0.0, -0.86],
     hoodBack: 1.22,
     clad: 9,
-    rails: true, spoiler: false, maxGap: 1.3, archN: 3, endT: [0, 1],
+    rails: true, spoiler: false, maxGap: 0.4, archN: 6, endT: [0, 1],
     bumperY: 0.45, bumperH: 0.28,
     plan: [[-2.45, 0.94], [-2.0, 0.99], [-1.0, 1], [1.0, 1], [2.0, 0.99], [2.45, 0.95]],
   },
@@ -1019,6 +1023,16 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   housing.translate(mx, yMir, -uMir);
   paint.addBoth(housing);
   trim.addBoth(bx(0.1, 0.02, 0.04, Wb2 - 0.01, yMir - 0.03, -uMir - 0.02));
+
+  // ---- wipers (two dark blades at the windshield base) and a cowl strip
+  {
+    const rw = ring(ws[0] - 0.04);
+    for (const sx2 of [-1, 1]) {
+      const wp = bx(0.5, 0.01, 0.014, sx2 * 0.3 + 0.12, rw.yT + 0.015, -(ws[0] - 0.05));
+      wp.rotateY(0); trim.add(wp);
+    }
+    trim.add(bx(2 * rw.wMax * 0.8, 0.012, 0.05, 0, rw.yT + 0.008, -(ws[0] + 0.02)));
+  }
 
   // ---- front / rear fascia
   const trF = ring(tipF);

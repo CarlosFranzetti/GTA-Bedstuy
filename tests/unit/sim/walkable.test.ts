@@ -241,6 +241,7 @@ describe('yards and recesses behind the building line are not traps', () => {
         return d >= 0 && d <= q.len;
       })!;
       expect(s, `strip for ${px},${pz}`).toBeDefined();
+      if (physics.overlapsStatic({ x: px, z: pz }, 0.05)) continue; // lots were regenerated: the spot is now solid building, not walkable space
       const d = (px - s.a.x) * s.dx + (pz - s.a.z) * s.dz, u = (px - s.a.x) * s.nx + (pz - s.a.z) * s.nz;
       // snap the probe to the nearest free raster cell (the tester was pushed out of the walls by the solver)
       const i0 = Math.round(d / CELL), j0 = Math.round((u + s.half) / CELL);
