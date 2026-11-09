@@ -40,14 +40,14 @@ export interface PedOptions {
 
 // ---------------------------------------------------------------- proportions (metres)
 
-const HIP_Y = 0.9;
-const THIGH = 0.44;
+const HIP_Y = 0.82;
+const THIGH = 0.4;
 const KNEE_Y = HIP_Y - THIGH;
 const TORSO_Y = HIP_Y + 0.02;
-const SHOULDER_Y = 0.47;
+const SHOULDER_Y = 0.5;
 const UPPER_ARM = 0.3;
 const FOREARM = 0.25;
-const HEAD_Y = 1.62;
+const HEAD_Y = 1.67;
 const LEG_X = 0.1;
 
 // ---------------------------------------------------------------- geometry accumulator
@@ -159,11 +159,11 @@ function toGeometry(acc: Acc): THREE.BufferGeometry {
 
 interface BuildScale { w: number; d: number }
 const BUILD: Record<PedSpec['build'], { sx: BuildScale; height: number; head: number }> = {
-  avg: { sx: { w: 1, d: 1 }, height: 1, head: 1 },
-  slim: { sx: { w: 0.93, d: 0.93 }, height: 0.99, head: 1 },
-  stocky: { sx: { w: 1.12, d: 1.1 }, height: 0.98, head: 1 },
-  tall: { sx: { w: 1, d: 1 }, height: 1.02, head: 1 },
-  kid: { sx: { w: 0.92, d: 0.92 }, height: 0.72, head: 1.3 },
+  avg: { sx: { w: 1, d: 1 }, height: 0.95, head: 1.15 },
+  slim: { sx: { w: 0.93, d: 0.93 }, height: 0.94, head: 1.15 },
+  stocky: { sx: { w: 1.12, d: 1.1 }, height: 0.93, head: 1.15 },
+  tall: { sx: { w: 1, d: 1 }, height: 0.97, head: 1.15 },
+  kid: { sx: { w: 0.92, d: 0.92 }, height: 0.7, head: 1.4 },
 };
 
 const BULK: Partial<Record<PedSpec['top']['kind'], number>> = { puffer: 1.14, hoodie: 1.07, jacket: 1.04, cardigan: 1.05, tracksuit: 1.03, apron: 1.04 };
@@ -283,9 +283,11 @@ function buildVariantGeo(variant: number): VariantGeo {
   // ---- torso (+ pack)
   const torsoA = newAcc();
   const T = (r: Ring[]): Ring[] => scaleRings(r, w * bulk, d * bulk);
+  // one welded hull: hem, waist, chest, broad shoulders sloping into a short thick neck (the sleeves start inside the shoulder)
   prism(torsoA, T([
-    { y: -0.07, a: 0.19, b: 0.115 }, { y: 0.12, a: 0.2, b: 0.12 }, { y: 0.34, a: 0.235, b: 0.13 }, { y: 0.455, a: 0.255, b: 0.118 }, { y: 0.515, a: 0.15, b: 0.085 },
-  ]), 0.045, { front: pedTileRect('torsoFront'), back: pedTileRect('torsoBack'), side: pedTileRect('torsoSide') }, quad('torsoCaps', 2), null);
+    { y: -0.07, a: 0.19, b: 0.115 }, { y: 0.14, a: 0.2, b: 0.12 }, { y: 0.38, a: 0.245, b: 0.13 }, { y: 0.52, a: 0.285, b: 0.118 }, { y: 0.6, a: 0.17, b: 0.09 }, { y: 0.65, a: 0.085, b: 0.08 },
+  ]), 0.045, { front: pedTileRect('torsoFront'), back: pedTileRect('torsoBack'), side: pedTileRect('torsoSide') }, quad('torsoCaps', 0), null);
+  prism(torsoA, [{ y: 0.64, a: 0.075, b: 0.07 }, { y: 0.74, a: 0.075, b: 0.07 }], 0.02, { front: skin, back: skin, side: skin }, null, null);
   if (s.gear === 'backpack') {
     const gc = quad('gear', 2);
     const g = { front: gc, back: gc, side: gc };
@@ -300,25 +302,19 @@ function buildVariantGeo(variant: number): VariantGeo {
   prism(headA, [
     { y: -0.12, a: 0.056, b: 0.07, zc: -0.01 }, { y: -0.075, a: 0.088, b: 0.098 }, { y: 0.0, a: 0.1, b: 0.104 }, { y: 0.05, a: 0.1, b: 0.105 }, { y: 0.12, a: 0.088, b: 0.09 },
   ], 0.03, { front: pedTileRect('headFront'), back: pedTileRect('headBack'), side: pedTileRect('headSide') }, headTop, quad('headCaps', 1));
-  prism(headA, [{ y: -0.2, a: 0.046, b: 0.046 }, { y: -0.09, a: 0.046, b: 0.046 }], 0, { front: skin, back: skin, side: skin }, null, null);
-  prism(headA, [{ y: -0.035, a: 0.018, b: 0.022, zc: -0.118 }, { y: 0.0, a: 0.016, b: 0.014, zc: -0.128 }], 0, { front: skin, back: skin, side: skin }, skin);
-  for (const sx of [-1, 1]) prism(headA, [{ y: -0.03, a: 0.012, b: 0.025, xc: sx * 0.105 }, { y: 0.04, a: 0.012, b: 0.025, xc: sx * 0.105 }], 0, { front: skin, back: skin, side: skin }, skin);
   hairGeo(headA, s);
   hatGeo(headA, s);
 
   // ---- arms
-  const longSleeve = s.top.sleeves === 'long';
-  void longSleeve;
   const upperArm: THREE.BufferGeometry[] = [];
   const foreHand: THREE.BufferGeometry[] = [];
   for (const sx of [-1, 1]) {
     const ua = newAcc();
-    prism(ua, [{ y: 0.04, a: 0.07 * bulk, b: 0.065 * bulk }, { y: -0.12, a: 0.067 * bulk, b: 0.062 * bulk }, { y: -0.3, a: 0.06 * bulk, b: 0.056 * bulk }], 0.02, tile('upperArm'), quad('upperArm', 0), null);
+    prism(ua, [{ y: 0.06, a: 0.075 * bulk, b: 0.07 * bulk }, { y: -0.04, a: 0.078 * bulk, b: 0.072 * bulk }, { y: -0.3, a: 0.062 * bulk, b: 0.058 * bulk }], 0.025, tile('upperArm'), quad('upperArm', 0), null);
     upperArm.push(toGeometry(ua));
     const fh = newAcc();
-    prism(fh, [{ y: 0.02, a: 0.058 * bulk, b: 0.054 * bulk }, { y: -0.12, a: 0.055 * bulk, b: 0.052 * bulk }, { y: -0.25, a: 0.05 * bulk, b: 0.047 * bulk }], 0.02, tile('foreArm'));
-    prism(fh, [{ y: -0.245, a: 0.05, b: 0.052 }, { y: -0.3, a: 0.064, b: 0.046 }, { y: -0.415, a: 0.06, b: 0.04 }], 0.018, tile('hand'), null, quad('hand', 0));
-    prism(fh, [{ y: -0.29, a: 0.014, b: 0.026, xc: -sx * 0.066, zc: -0.012 }, { y: -0.36, a: 0.012, b: 0.022, xc: -sx * 0.066, zc: -0.022 }], 0, tile('hand'), quad('hand', 0));
+    prism(fh, [{ y: 0.0, a: 0.062 * bulk, b: 0.058 * bulk }, { y: -0.13, a: 0.057 * bulk, b: 0.053 * bulk }, { y: -0.25, a: 0.05 * bulk, b: 0.047 * bulk }], 0.02, tile('foreArm'));
+    prism(fh, [{ y: -0.24, a: 0.052, b: 0.05 }, { y: -0.3, a: 0.066, b: 0.048 }, { y: -0.4, a: 0.058, b: 0.04 }], 0.02, tile('hand'), null, quad('hand', 0));
     if (s.gear === 'bag' && sx === -1) {
       const gc = quad('gear', 2);
       const g = { front: gc, back: gc, side: gc };
@@ -330,19 +326,19 @@ function buildVariantGeo(variant: number): VariantGeo {
 
   // ---- legs
   const thighA = newAcc();
-  prism(thighA, [{ y: -0.45, a: 0.075, b: 0.072 }, { y: -0.22, a: 0.088, b: 0.083 }, { y: 0.02, a: 0.095, b: 0.09 }], 0.025, tile('thigh'), null, null);
+  prism(thighA, [{ y: -0.41, a: 0.078, b: 0.074 }, { y: -0.2, a: 0.09, b: 0.085 }, { y: 0.02, a: 0.097, b: 0.092 }], 0.025, tile('thigh'), null, null);
   const shinA = newAcc();
-  prism(shinA, [{ y: -0.34, a: 0.06, b: 0.057 }, { y: -0.18, a: 0.066, b: 0.063 }, { y: 0.0, a: 0.074, b: 0.07 }], 0.025, tile('shin'));
+  prism(shinA, [{ y: -0.28, a: 0.064, b: 0.06 }, { y: -0.14, a: 0.07, b: 0.066 }, { y: 0.0, a: 0.078, b: 0.074 }], 0.025, tile('shin'));
   const shoe = tile('shoe');
   prism(shinA, [
-    { y: -0.46, a: 0.056, b: 0.125, zc: -0.055 }, { y: -0.4, a: 0.058, b: 0.128, zc: -0.055 }, { y: -0.35, a: 0.054, b: 0.105, zc: -0.04 }, { y: -0.285, a: 0.066, b: 0.07, zc: 0.0 },
+    { y: -0.42, a: 0.062, b: 0.135, zc: -0.06 }, { y: -0.365, a: 0.064, b: 0.138, zc: -0.06 }, { y: -0.31, a: 0.06, b: 0.11, zc: -0.045 }, { y: -0.23, a: 0.07, b: 0.075, zc: 0.0 },
   ], 0.03, shoe, quad('shoe', 0), null);
 
   const geo: VariantGeo = {
     hips: toGeometry(hipsA), torso: toGeometry(torsoA), head: toGeometry(headA),
     upperArm: [upperArm[0], upperArm[1]], foreHand: [foreHand[0], foreHand[1]],
     thigh: toGeometry(thighA), shinShoe: toGeometry(shinA),
-    shoulderX: 0.255 * w * bulk + 0.03,
+    shoulderX: 0.27 * w * bulk,
     triangles: 0,
   };
   const tris = (g: THREE.BufferGeometry): number => g.attributes.position.count / 3;
@@ -389,6 +385,7 @@ export function pedMaterial(materials: IMaterialLibrary, variant: number): THREE
         tex.anisotropy = 4;
         tex.name = `pedAtlas:${spec.id}`;
         mat.map = tex;
+        mat.emissiveMap = tex; mat.emissive.setScalar(0.18); // reads almost unlit, like the PS2 originals
       }
     } catch { /* fall through to the flat colour */ }
   }

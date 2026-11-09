@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
-const o = { clutter: false, peds: false, port: 4437, q: 'low', radius: 60, window: 40, build: true, dist: null, out: null, minShare: 0.4, other: null, hours: null };
+const o = { clutter: false, peds: false, port: 4437, q: 'low', radius: 60, window: 40, build: true, dist: null, out: null, minShare: 0.4, chunk: 12, other: null, hours: null };
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
   if (a === '--clutter') o.clutter = true;
@@ -27,6 +27,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === '--q') o.q = argv[++i];
   else if (a === '--radius') o.radius = Number(argv[++i]);
   else if (a === '--window') o.window = Number(argv[++i]);
+  else if (a === '--chunk') o.chunk = Number(argv[++i]);
   else if (a === '--min-share') o.minShare = Number(argv[++i]);
   else if (a === '--other') o.other = argv[++i].split(',').map(Number);
   else if (a === '--hours') o.hours = argv[++i].split(',').map(Number);
@@ -123,7 +124,12 @@ async function pedAudit() {
   const hardStop = setTimeout(() => { console.error('[crowd] hard timeout'); preview.kill(); process.exit(2); }, 3_000_000);
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   let res = null;
+  const allHours = o.hours ?? Array.from({ length: 144 }, (_, i) => i / 6);
+  const chunks = [];
+  for (let i = 0; i < allHours.length; i += o.chunk) chunks.push(allHours.slice(i, i + o.chunk));
   try {
+   for (const chunk of chunks) { // a fresh page per chunk: one long page run exhausts the headless GPU process
+    console.error(`[crowd] hours ${chunk[0]}..${chunk[chunk.length - 1]}`);
     const page = await browser.newPage({ viewport: { width: 320, height: 180 } });
     page.on('pageerror', (e) => console.error('[crowd] pageerror', String(e).slice(0, 200)));
     await page.goto(`${base}/?q=${o.q}&perf=0`, { waitUntil: 'load', timeout: 120_000 });
@@ -131,7 +137,7 @@ async function pedAudit() {
     await page.mouse.click(160, 90); await page.waitForTimeout(600);
     const resume = page.getByRole('button', { name: 'Resume' });
     if (await resume.isVisible().catch(() => false)) { await resume.click(); await page.waitForTimeout(300); }
-    res = await page.evaluate(async (o) => {
+    const part = await page.evaluate(async (o) => {
       const d = window.__gtaDebug;
       d.stopLoop();
       const T = d.traffic;
@@ -175,8 +181,10 @@ async function pedAudit() {
         rows.push({ h, ...rec });
       }
       return { rows, pts, budgetFull: T.density.peds };
-    }, o);
+    }, { ...o, hours: chunk });
     await page.close().catch(() => {});
+    if (!res) res = part; else res.rows.push(...part.rows);
+   }
   } finally { clearTimeout(hardStop); await browser.close(); preview.kill(); }
   if (!res) return;
   // BIBLE section 7 target for the tier: budget at hour 18-20 (factor 1.0) x curve. The in-radius target is the whole-map target x

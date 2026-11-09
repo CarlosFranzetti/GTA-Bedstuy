@@ -34,12 +34,12 @@ describe('GTA3 people (pedBody)', () => {
       const bb = new THREE.Box3().setFromObject(m.group);
       expect(bb.min.y).toBeGreaterThan(-0.02);
       expect(bb.min.y).toBeLessThan(0.03);
-      if (spec.build === 'kid') expect(bb.max.y).toBeLessThan(1.5); else { expect(bb.max.y, spec.id).toBeGreaterThan(1.62); expect(bb.max.y, spec.id).toBeLessThan(2.0); }
+      if (spec.build === 'kid') expect(bb.max.y).toBeLessThan(1.5); else { expect(bb.max.y, spec.id).toBeGreaterThan(1.6); expect(bb.max.y, spec.id).toBeLessThan(2.0); }
       expect(m.legs.length).toBe(2); expect(m.arms.length).toBe(2); expect(m.knees.length).toBe(2); expect(m.elbows.length).toBe(2);
       // nose and toes point to -z: the head and shoe boxes extend further toward -z than +z around their centres
       const skull = m.head.getObjectByName('skull') as THREE.Mesh;
       skull.geometry.computeBoundingBox();
-      expect(skull.geometry.boundingBox!.min.z).toBeLessThan(-0.115);
+      expect(skull.geometry.boundingBox!.min.z).toBeLessThan(-0.1);
       const shoeBox = new THREE.Box3().setFromObject(m.knees[0]);
       expect(Math.abs(shoeBox.min.z)).toBeGreaterThan(Math.abs(shoeBox.max.z));
       const chest = new THREE.Box3().setFromObject(m.torso.getObjectByName('chest')!);

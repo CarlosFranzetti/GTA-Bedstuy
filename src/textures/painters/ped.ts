@@ -330,6 +330,7 @@ function paintHeadFront(t: Tile, s: PedSpec, rng: Rng): void {
   // forehead light, jaw shade
   t.rect(0, 0, 64, 20, light(s.skin, 0.08));
   t.rect(0, 52, 64, 12, dark(s.skin, 0.14));
+  t.rect(0, 56, 64, 3, '#000000', 0.28); // drawn-on shadow line under the chin
   t.rect(0, 0, 4, 64, dark(s.skin, 0.12)); t.rect(60, 0, 4, 64, dark(s.skin, 0.12));
   // hairline (the hair shell covers most of it; this keeps a bald-fade look under caps)
   if (s.hair !== 'bald') {
@@ -544,6 +545,7 @@ function paintTorsoFront(t: Tile, s: PedSpec, rng: Rng): void {
     if (p.print !== 'stripes') paintPrint(t, s, px, p.kind === 'hoodie' ? 32 : py, 36);
   }
   if (p.print === 'stripes' && p.kind !== 'vest') { t.rect(0, 40, 64, 3, p.printColor); t.rect(0, 46, 64, 3, p.printColor); }
+  t.rect(0, 0, 64, 3, '#000000', 0.25); t.rect(0, 14, 64, 2, '#000000', 0.12); // shadow under the neck and the sleeve seam line
   t.bakeEdges(0.24, 7);
   t.bakeBottom(0.22);
 }
@@ -605,6 +607,7 @@ function paintUpperArm(t: Tile, s: PedSpec, rng: Rng): void {
     if (p.sleeves === 'short') t.rect(0, cover - 4, 64, 4, dark(c, 0.2));
     if (p.kind === 'uniform') t.rect(8, 6, 16, 12, p.printColor, 0.6);
   }
+  t.rect(0, 0, 64, 3, '#000000', 0.3); // shadow where the arm leaves the shirt
   t.bakeEdges(0.25, 8);
   t.bakeBottom(0.18);
 }

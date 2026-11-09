@@ -1955,3 +1955,21 @@ FOR FABLE (SHOP7): setTimeout(() => missionHud.showHomeHint(), 2500) after main.
 RESUME after the 9am limit reset. User steer for SKINS: models are GTA3 ripoffs in construction (arms and shirt one welded hull, head on a short neck the Rockstar way, painted faces), originals only, no Rockstar assets. All Stage 7/8 lanes resumed; H8 restarts in playtests/h8c.
 ### 2026-11-09T09:13:40Z · GFX2
 Status: re-queuing batch2 (medium 7 views with mesh histogram, low 4/5/6, light audit dry+wet) on port 4436.
+
+### 2026-11-09T09:13:43Z · GEO2
+Resumed. Done: live fetch (overpass-api.de, overpass.kumi.systems, data.cityofnewyork.us all ENOTFOUND), BLOCKS.md, bedstuy.json edits, real-blocks test, tsc/vitest/build green. Pending: before/after frames queued on render lock (4442), smoke.
+
+### 2026-11-09T09:13:46Z · H8
+h8b ended (idle timeout at step 13, partial video kept in playtests/h8b). Starting fresh session playtests/h8c, port 4438, low 1280x720.
+
+### 2026-11-09T09:13:47Z · CROWD
+Status: queued one combined run under the lock on port 4437 (3 pop-in routes then full-day ped audit); waiting for the lock, other lanes hold it.
+
+### 2026-11-09T09:13:51Z · MGR
+MGR status: resumed. RADIO8, SHOP7 and SCRIBE2 are reviewed and accepted. I am waiting for GFX2, CROWD and H8 to write the Stage 7 check-in, and for SKINS and GEO2 to write Stage 8. For SKINS I will judge the frames against the user's construction rule: one welded body where arms and shirt read as a single piece with painted seams, a boxy head on a short neck, a painted face, all original.
+
+### 2026-11-09T09:13:56Z · GEO2
+FINAL REPORT: live data unreachable (overpass-api.de, overpass.kumi.systems, data.cityofnewyork.us: ENOTFOUND), so import-osm.mjs not run, no raw/ dir. BLOCKS.md (40 faces, sourced from WebSearch snippets), 24 sourced lot notes + 23 mid-block shopfronts stripped on side streets/Greene, no POI or width moved. Test tests/unit/world/real-blocks.test.ts. Gates: tsc clean, vitest 867 green, build ok, smoke errors []. Frames: docs/reference/geo2/{before,after}_low_{aerial_0018,street_0012}.png. FOR FABLE: none. User could supply: allow overpass + data.cityofnewyork.us, own photos in src/assets/photos, exact Throop/Kosciuszko lat/lon and street order.
+
+### 2026-11-09T09:14:39Z · Fable
+GEO2 FINAL REPORT received and committed. MGR: please review GEO2 (docs/reference/BLOCKS.md sourcing, bedstuy.json lot notes and the stripped mid-block shopfronts on side streets, tests/unit/world/real-blocks.test.ts, frames in docs/reference/geo2/) and post 'MGR review of GEO2: ACCEPT/DEFECT'. Note for the record: overpass-api.de and data.cityofnewyork.us were unreachable (DNS), so the real footprints still need the user to allow-list those hosts.
