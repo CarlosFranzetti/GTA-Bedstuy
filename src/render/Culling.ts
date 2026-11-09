@@ -111,10 +111,11 @@ export function splitGeometryByCell(geo: THREE.BufferGeometry, cellX: number, ce
 // ---------------------------------------------------------------- chunks
 
 /**
- * World chunks: the static city is binned into chunks of 2 x 2 blocks (anchored at the grid's north-west street corner, so a
- * chunk edge is always a street centreline) and each chunk is hidden as a unit beyond a per-tier range. The range is the
- * tier's visible distance (fog far on phone, the prop cull range elsewhere) plus a number of blocks of slack: phone 1,
- * low 2, medium and high 3 (the slack hides the chunk edge from pop-in; fog hides it on phone).
+ * World chunks: the static city is binned into render cells of one block column by two block rows (250 x 200 m on this grid,
+ * anchored at the grid's north-west street centre so every cell edge is a street centreline), and the cells are grouped
+ * into chunks of 2 x 2 blocks (500 x 200 m). A chunk is hidden as a unit (`ChunkCuller`) beyond a per-tier range: the
+ * tier's visible distance (fog far on phone, the prop cull range elsewhere) plus slack of one block on phone, two on low
+ * and three on medium and high, so the chunk edge never pops inside the visible range.
  */
 export const CHUNK_BLOCKS = 2;
 /** Metres per block used for the slack (the east-west street pitch of the game's grid). */
@@ -128,9 +129,16 @@ export function chunkRangeFor(q: Quality): number {
   return visible + CHUNK_SLACK_BLOCKS[q] * CHUNK_BLOCK_M;
 }
 
-export interface ChunkLayout { cellX: number; cellZ: number; originX: number; originZ: number; }
+export interface ChunkLayout {
+  /** render cell size (m): one block column wide, two block rows deep */
+  cellX: number; cellZ: number;
+  /** chunk size (m): 2 x 2 blocks */
+  chunkX: number; chunkZ: number;
+  /** north-west street centre: cells and chunks are anchored here */
+  originX: number; originZ: number;
+}
 
-/** Chunk grid of a street grid: `CHUNK_BLOCKS` x `CHUNK_BLOCKS` blocks per chunk, anchored at the north-west street centre. */
+/** Cell and chunk grid of a street grid, anchored at the north-west street centre. */
 export function chunkLayout(streets: ReadonlyArray<{ axis: 'ns' | 'ew'; offset: number }>): ChunkLayout {
   const along = (axis: 'ns' | 'ew', fallback: number): { pitch: number; origin: number } => {
     const o = streets.filter((st) => st.axis === axis).map((st) => st.offset).sort((a, b) => a - b);
@@ -139,12 +147,62 @@ export function chunkLayout(streets: ReadonlyArray<{ axis: 'ns' | 'ew'; offset: 
     return { pitch: isFinite(best) && best > 20 ? best : fallback, origin: o.length ? o[0] : 0 };
   };
   const x = along('ns', 250), z = along('ew', 100);
-  return { cellX: x.pitch * CHUNK_BLOCKS, cellZ: z.pitch * CHUNK_BLOCKS, originX: x.origin, originZ: z.origin };
+  return { cellX: x.pitch, cellZ: z.pitch * CHUNK_BLOCKS, chunkX: x.pitch * CHUNK_BLOCKS, chunkZ: z.pitch * CHUNK_BLOCKS, originX: x.origin, originZ: z.origin };
 }
 
-/** `ix_iz` key of the chunk holding (x, z); the same key `splitMeshesIntoCells` stores in `userData.cell`. */
+/** `ix_iz` key of the chunk holding (x, z). */
 export function chunkKeyOf(l: ChunkLayout, x: number, z: number): string {
-  return `${Math.floor((x - l.originX) / l.cellX)}_${Math.floor((z - l.originZ) / l.cellZ)}`;
+  return `${Math.floor((x - l.originX) / l.chunkX)}_${Math.floor((z - l.originZ) / l.chunkZ)}`;
+}
+
+/** Chunk key of a render cell key (`ix_iz`, as `splitMeshesIntoCells` stores in `userData.cell`). */
+export function chunkKeyOfCell(l: ChunkLayout, cellKey: string): string {
+  const [ix, iz] = cellKey.split('_').map(Number);
+  return chunkKeyOf(l, l.originX + (ix + 0.5) * l.cellX, l.originZ + (iz + 0.5) * l.cellZ);
+}
+
+/**
+ * Hides whole chunks (all the cell meshes sharing `userData.chunk`) beyond a range from a reference point, with the same
+ * hysteresis as DistanceCuller. A chunk's bounding circle is the union of its meshes' world bounding spheres.
+ */
+export class ChunkCuller {
+  private readonly chunks = new Map<string, { meshes: THREE.Mesh[]; cx: number; cz: number; r: number; hidden: boolean; dirty: boolean }>();
+  private readonly sphere = new THREE.Sphere();
+  constructor(public maxDist: number) {}
+  setMaxDist(d: number): void { if (Number.isFinite(d) && d > 0) this.maxDist = d; }
+  /** Registers a cell mesh under its `userData.chunk` key (static: its bounding sphere is taken once). */
+  add(mesh: THREE.Mesh): void {
+    const key = mesh.userData.chunk as string | undefined;
+    if (key === undefined) return;
+    const g = mesh.geometry;
+    if (!g.boundingSphere) g.computeBoundingSphere();
+    mesh.updateWorldMatrix(true, false);
+    this.sphere.copy(g.boundingSphere!).applyMatrix4(mesh.matrixWorld);
+    let c = this.chunks.get(key);
+    if (!c) { c = { meshes: [], cx: this.sphere.center.x, cz: this.sphere.center.z, r: this.sphere.radius, hidden: false, dirty: false }; this.chunks.set(key, c); }
+    else {
+      // union of the circle so far and the new sphere
+      const dx = this.sphere.center.x - c.cx, dz = this.sphere.center.z - c.cz;
+      const d = Math.hypot(dx, dz);
+      if (d + this.sphere.radius > c.r) {
+        if (d + c.r <= this.sphere.radius) { c.cx = this.sphere.center.x; c.cz = this.sphere.center.z; c.r = this.sphere.radius; }
+        else { const nr = (d + c.r + this.sphere.radius) / 2; const k = (nr - c.r) / d; c.cx += dx * k; c.cz += dz * k; c.r = nr; }
+      }
+    }
+    c.meshes.push(mesh);
+  }
+  get count(): number { return this.chunks.size; }
+  get hiddenCount(): number { let n = 0; for (const c of this.chunks.values()) if (c.hidden) n++; return n; }
+  /** Chunk keys currently hidden (tests). */
+  hiddenKeys(): string[] { return [...this.chunks].filter(([, c]) => c.hidden).map(([k]) => k); }
+  update(px: number, pz: number): void {
+    for (const c of this.chunks.values()) {
+      const hide = shouldHide(c.hidden, c.cx, c.cz, c.r, px, pz, this.maxDist);
+      if (hide !== c.hidden) { c.hidden = hide; for (const m of c.meshes) m.visible = !hide; }
+    }
+  }
+  /** Shows everything again and forgets all chunks. */
+  clear(): void { for (const c of this.chunks.values()) for (const m of c.meshes) m.visible = true; this.chunks.clear(); }
 }
 
 export function triangleCount(geo: THREE.BufferGeometry): number {

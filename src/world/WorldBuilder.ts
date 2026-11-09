@@ -11,7 +11,7 @@ import { buildFurniture, type LampSpot } from '@/world/FurnitureGen';
 import { buildProps } from '@/world/PropsGen';
 import { buildSignals, signalColliders } from '@/world/props/signals';
 import { createSkyline } from '@/world/Skyline';
-import { chunkLayout, splitMeshesIntoCells, type ChunkLayout, type SplitStats } from '@/render/Culling';
+import { chunkKeyOfCell, chunkLayout, splitMeshesIntoCells, type ChunkLayout, type SplitStats } from '@/render/Culling';
 
 export interface BuiltWorld {
   grid: GridModel;
@@ -25,8 +25,8 @@ export interface BuiltWorld {
   /** Per-cell prop meshes (candidates for distance culling). */
   propCells: THREE.Mesh[];
   /**
-   * Per-chunk building and furniture meshes (2 x 2 blocks each, `userData.cell` = chunk key): hide them as a unit beyond
-   * `chunkRangeFor(tier)` (a second DistanceCuller; see Culling.ts). Props stay in `propCells`.
+   * Per-cell building and furniture meshes (`userData.cell` = cell key, `userData.chunk` = key of its 2 x 2 block chunk): a
+   * `ChunkCuller` hides each chunk as a unit beyond `chunkRangeFor(tier)` (Culling.ts). Props stay in `propCells`.
    */
   chunkMeshes: THREE.Mesh[];
   chunks: ChunkLayout;
@@ -40,10 +40,11 @@ export const MIN_SPLIT_TRIANGLES = 12_000;
 export const SIDEWALK_HEIGHT = 0.15;
 
 /**
- * Chunk size for splitting merged static meshes: 2 x 2 blocks (500 x 200 m on this grid), anchored at the north-west street
- * corner so every chunk edge is a street centreline (see `chunkLayout`). Earlier measurements on the ten-block layout
- * (4 camera spots, 60 deg / 1200 m frustum): unsplit = 29 draws / 581k tris in view; 250 x 200 = 77 draws / 352k;
- * 125 x 100 = 187 draws / 259k. Bigger cells mean fewer draws; the per-tier chunk range (Culling.ts) bounds the vertices.
+ * Cell size (m) for splitting merged static meshes: one block wide (N-S street pitch) by two blocks deep (2 x E-W street
+ * pitch), anchored at the north-west street centre (the same lattice as before the east expansion, so cell contents of the
+ * original blocks are unchanged). Measured on the real layout (4 camera spots, 60 deg / 1200 m frustum): unsplit = 29 draws /
+ * 581k tris in view; 250 x 200 = 77 draws / 352k; 125 x 100 = 187 draws / 259k. Finer cells trade draw calls (CPU, x3
+ * passes) for vertices. Cells are grouped into 2 x 2 block chunks that are hidden by distance (see `chunkLayout`).
  */
 export function cullCellSize(grid: GridModel): { x: number; z: number } {
   const l = chunkLayout(grid.streets);
@@ -86,7 +87,9 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
   const chunks = chunkLayout(grid.streets);
   const cells: SplitStats = { meshesBefore: 0, meshesAfter: 0, trianglesAfter: 0 };
   const split = (g: THREE.Object3D): THREE.Mesh[] => splitMeshesIntoCells(g, chunks.cellX, chunks.cellZ, cells, MIN_SPLIT_TRIANGLES, chunks.originX, chunks.originZ);
-  const chunkMeshes = [...split(buildings.group), ...split(furniture.group)]; // instanced kinds are skipped
+  // meshes that were too small to split stay city-wide (no cell key) and are never chunk-culled
+  const chunkMeshes = [...split(buildings.group), ...split(furniture.group)].filter((m) => typeof m.userData.cell === 'string'); // instanced kinds are skipped
+  for (const m of chunkMeshes) m.userData.chunk = chunkKeyOfCell(chunks, m.userData.cell as string);
   const propCells = split(props.group);
 
   // the far skyline ring: forked last so the streams of everything above are unchanged

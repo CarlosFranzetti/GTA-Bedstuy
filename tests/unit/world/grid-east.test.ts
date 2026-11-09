@@ -203,8 +203,8 @@ describe('B1 skyline ring', () => {
 describe('B1 chunks', () => {
   const layout = chunkLayout(grid.streets);
 
-  it('are 2 x 2 blocks, anchored at the north-west street corner so chunk edges are street centrelines', () => {
-    expect(layout).toEqual({ cellX: 500, cellZ: 200, originX: -250, originZ: -200 });
+  it('are 2 x 2 blocks (two 250 x 200 m render cells), anchored at the north-west street corner so chunk edges are street centrelines', () => {
+    expect(layout).toEqual({ cellX: 250, cellZ: 200, chunkX: 500, chunkZ: 200, originX: -250, originZ: -200 });
   });
 
   it('give every block exactly one chunk and no chunk more than 2 x 2 blocks', () => {
