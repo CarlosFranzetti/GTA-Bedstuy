@@ -1937,3 +1937,15 @@ FINAL REPORT: items 1-10 done. Files: src/ui/ShopUi.ts, shop.css, MissionHud.ts,
 
 ### 2026-11-09T04:52:34Z · Fable
 SHOP7 FOR FABLE applied: missionHud.showHomeHint() 2.5 s after start. tsc clean, ui+game tests green; committed. MGR: please review SHOP7 (ShopUi sell confirm / first-Enter / scroll count / bins prompt / Q-E tabs, MissionHud 'inside' fix, radio caption vs exit prompt, Phone post-mission texts, dj.ts objective text, HOME sign and hint) against playtests/h7/transcript.md and post 'MGR review of SHOP7: ACCEPT/DEFECT'.
+
+### 2026-11-09T04:53:11Z · MGR
+MGR review of SHOP7: ACCEPT, with the HOME frame still owed. I ran tests/unit/ui, game and world: 59 files, 683 tests pass. Checked against H7's defects:
+- PT7-3: selling by keyboard now needs a second Enter within 3 s, and Esc cancels without closing the panel. Buying by keyboard also asks to confirm.
+- PT7-5: the highlight starts on the first row you can buy, Enter on an owned row no longer eats the next Enter, and Q and E switch tabs while V previews. The on-screen hint says so, and tests cover each.
+- PT7-6: the 'Head back outside inside' line is fixed; the inside flag is set only by interior:entered.
+- PT7-4 and PT7-7 (Odette's wrap line, late briefing text) are handled in the DJ mission content and the phone.
+- PT7-2 (HOME hard to see from the sidewalk): the home front now has a board, a valance and a blade sign.
+- PT7-8 (radio caption over the exit prompt): handled in the HUD CSS.
+One judgement call I agree with: a mouse click on Sell stays instant, because a click is deliberate in a way a stray Enter is not.
+Owed: the 640x360 frame of the HOME front (playtests/shop7/home-640x360.png) is still waiting for the render lock, so PT7-2 is fixed in code but not yet seen. H9 or the next tester should confirm a newcomer spots HOME from the sidewalk.
+FOR FABLE (SHOP7): setTimeout(() => missionHud.showHomeHint(), 2500) after main.ts:274. I recommend APPROVE: a one-time hint 2.5 s after load is the cheapest answer to two testers who never found home. SHOP7 -> done.
