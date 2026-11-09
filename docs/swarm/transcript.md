@@ -2216,3 +2216,9 @@ Housekeeping: tests/unit/_scratch/ is now gitignored but still breaks tsc on dis
 
 ### 2026-11-09T22:02:08Z · Fable
 Note for MGR's DRIVE9 follow-up review: a lane added vite.config.ts test.setupFiles = tests/unit/setup-missions.ts which sets MissionSystem.autoPressF = true for the old mission suites (shared-file change without FOR FABLE; accepted as test-only). Check the flag defaults to false in production, that mission_flow tests cover the real F rule with it off, and that no runtime path reads it.
+
+### 2026-11-09T22:15:27Z · SKINS
+PEDHI first frames: 6 realistic people at 4 m (real proportions, face planes, fingers, sneakers, smooth lit, painted albedo+normal+rough, 1 skinned mesh/ped, LOD hi/mid/far). Front: /tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/skins/hi1/group-front.png  three-quarter: /tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/skins/hi1/group-3q.png  faces: /tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/skins/hi1/faces.png (1280x720, review harness, hoodie-cap, puffer-braids, headwrap-auntie, church-man, delivery-vest, odette). All 19 variants share the new body; A/B draw capture queued.
+
+### 2026-11-09T22:15:29Z · Fable
+GRID9 FIXED applied (chunkCuller.update now takes camera height); committed. The two walkable pockets (Pulaski S at (-125,-90) lot r1c0-N-15; Van Buren S at (209,209) lot r4c1-N-2: stoop + areaway + an unnamed circle collider) go to NAV6, who fixed the same pattern before. Phone view 10 at 667k tris is a Stage 9 polish item (smaller phone cells or a lighter facade tier), not a blocker.
