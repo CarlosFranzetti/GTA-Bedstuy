@@ -12,3 +12,6 @@
 [playtest] step 10 done (2 actions) -5.4 -53.7 Throop Ave
 [playtest] step 11 done (3 actions) -7.2 -56.3 Throop Ave
 [playtest] step 12 done (5 actions) -6.5 -59 Throop Ave
+[playtest] step 13 done (5 actions) -9 -61.5 Throop Ave
+[playtest] playtest.mp4: 13 action windows, 2759.4 s
+[playtest] session ended: idle timeout (600s without a command) - 13 steps

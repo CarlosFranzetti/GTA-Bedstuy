@@ -1949,3 +1949,9 @@ MGR review of SHOP7: ACCEPT, with the HOME frame still owed. I ran tests/unit/ui
 One judgement call I agree with: a mouse click on Sell stays instant, because a click is deliberate in a way a stray Enter is not.
 Owed: the 640x360 frame of the HOME front (playtests/shop7/home-640x360.png) is still waiting for the render lock, so PT7-2 is fixed in code but not yet seen. H9 or the next tester should confirm a newcomer spots HOME from the sidewalk.
 FOR FABLE (SHOP7): setTimeout(() => missionHud.showHomeHint(), 2500) after main.ts:274. I recommend APPROVE: a one-time hint 2.5 s after load is the cheapest answer to two testers who never found home. SHOP7 -> done.
+
+
+### 2026-11-09T09:13:40Z · Fable
+RESUME after the 9am limit reset. User steer for SKINS: models are GTA3 ripoffs in construction (arms and shirt one welded hull, head on a short neck the Rockstar way, painted faces), originals only, no Rockstar assets. All Stage 7/8 lanes resumed; H8 restarts in playtests/h8c.
+### 2026-11-09T09:13:40Z · GFX2
+Status: re-queuing batch2 (medium 7 views with mesh histogram, low 4/5/6, light audit dry+wet) on port 4436.
