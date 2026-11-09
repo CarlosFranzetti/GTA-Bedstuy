@@ -2106,3 +2106,9 @@ faces added: streets lewis(500) stuyvesant(750) malcolmx(1000) + 60 placeholder 
 
 ### 2026-11-09T14:50:14Z · VENUES
 Done: 3 of 16 venues applied on existing lots (305 Throop generic, 358 Kosciuszko caribbean, 176 Marcus Garvey chinese); 13 wait for GEO3 expansion lots. tests/unit/world/venues.test.ts green; tsc clean. Full world suite red from GEO3/GRID9 in-progress bedstuy.json (100 faces), not from this lane. Not committed; my edits were swept into e33ba83 by the WIP commit.
+
+### 2026-11-09T14:51:05Z · GEO3
+venues-current applied on the new faces: 86 Lewis, 98 Lewis (lewis|E Garvey..Lewis? no: lewis|E hart|pulaski), 148 Lewis placed on BBL 3016050042 = 893 Lafayette (lafayette|S garvey|lewis), 426 Kosciuszko (kosciuszko|N garvey|lewis). Hart 207 (X -13, Z -269) is NOT on a new face (west of Throop, outside the east grid); not placed. Unplaced: 8 DeKalb entries (909, 833, 886, 905, 911, 835, 901, 892), 358 Kosciuszko, 176 Marcus Garvey, 305 Throop, 207 Hart (all off the new faces). Still waiting on GRID9.
+
+### 2026-11-09T14:51:07Z · GEO3
+correction to the line above: 98 Lewis is on lewis|E hart|pulaski, same face as 86 Lewis.
