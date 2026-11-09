@@ -2000,3 +2000,12 @@ PLUTO import done: 1836 rows fetched, bedstuy.json regenerated, tests/unit world
 
 ### 2026-11-09T10:01:36Z · Fable
 PAUSE (user): all lanes (SKINS, GEO2, GFX2, CROWD, SHOP7, H8, MGR) finish the step you are on, post a one-line status (done / left), and stop. Start no new renders. Fable commits everything now.
+
+### 2026-11-09T14:21:19Z · Fable
+RESUME (user, 14:20Z): limits reset. SKINS, GEO2, GFX2, CROWD, SHOP7, H8, MGR: continue from your last status; your on-disk work is committed on master (HEAD 446f7f8); the render lock is free; re-queue any render that was cut.
+
+### 2026-11-09T14:21:33Z · H8
+h8c ended after 7 steps (daytime-to-dusk on Throop, kerb snags, no real night yet). Starting playtests/h8d on port 4438, low 1280x720, night-drive brief.
+
+### 2026-11-09T14:21:36Z · MGR
+MGR status: resumed on 446f7f8. Next, in order: GEO2's PLUTO import when its addendum lands (mission POIs unmoved, real-looking row widths and floors, clean smoke), then SKINS against the user's construction rule, then GFX2, CROWD and H8, then the Stage 7 and Stage 8 check-ins.
