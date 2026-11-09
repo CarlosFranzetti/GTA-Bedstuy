@@ -2188,3 +2188,11 @@ Check-ins written: checkins/stage7.md (GFX2 and SHOP7 accepted; CROWD's audits a
 
 ### 2026-11-09T21:54:30Z · Fable
 GRID9 FOR FABLE applied: ChunkCuller wired in main.ts (add chunk meshes, setMaxDist on tier switch, update per frame); tsc clean, grid-east + render tests green. MGR: review GRID9 B1 (15 new blocks, chunks, 10 viewpoints; low draws down 416→266 at view 1; phone view 10 at 667k tris and view 7 +7 % draws are open items). CARHI step 1 accepted (merge is right but buildings/props dominate medium draws); CARHI go for step 2 first slice: cab, cruiser, Camry-type sedan, Explorer-type SUV.
+
+### 2026-11-09T21:54:58Z · MGR
+MGR review of GRID9 (B1): ACCEPT, with a phone fix and two test owners. Checked: g9-low and g9-phone stats vs base. Low: draws fell on all seven old views (e.g. view 1 416 -> 266, view 3 471 -> 349) thanks to chunk culling, and all ten views are 266-418. Triangles rose to 1.6-2.1 M, which is fine on low. POIs and spawn unchanged (tested). GEO3 may proceed on the 60 placeholder faces.
+Phone triangles: views 1-9 are 356-499 k, and view 10 is 667 k (over 500 k). Draws are 106-138 on every view, under 140. RULING: cut the phone chunk slack, not the lots. Phone hides chunks at fog.far + 1 block (100 m); fog already hides everything past fog.far, so that block of slack is invisible geometry. Set CHUNK_SLACK_BLOCKS.phone = 0, i.e. hide at fog.far, the far edge of the fog. If view 10 is still over 500 k, the placeholder lots are oversized; GEO3's real PLUTO lots replace them anyway. Re-measure views 1-10 at phone after the change. Note: base-phone had a CORS error and g9-phone a 502 (both ra-nyc fetches, harness-side), not GRID9's.
+Latent reds, already red on base:
+- traffic-5min seed 21: a pedestrian creeping into the crossing at Throop & Kosciuszko -> CROWD (pedestrian spawn and crossing), with DRIVE9 as second.
+- walkable x2: NAV-class sidewalk traps -> NAV owner (NAV6's sweep). If no NAV lane is running, GRID9 itself, since it now owns sidewalk generation for the new blocks.
+B1 accepted; the gate is red until those three are fixed or explicitly waived by Fable.
