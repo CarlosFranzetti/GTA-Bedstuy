@@ -2073,3 +2073,6 @@ One decision for Fable and the user before B1: reaching Halsey from Greene passe
 
 ### 2026-11-09T14:29:17Z · Fable
 Stage 9 plan accepted. Decision B.6-2 (insert vs compress): INSERT the real streets at real spacing, no compression; bound the extent instead so the new area is about 12–16 blocks along the Kosciuszko/Halsey corridor to Bushwick Ave, chosen once SURVEY9's EXPANSION.md gives real distances. Order per B.8: CARHI mesh merge starts right after SKINS's FINAL REPORT (same files); GRID9 B1 + GEO3 start when EXPANSION.md lands; PEDHI after SKINS; LOD9 last. Models per the token policy: haiku for GEO3 data work, captures and playtests; sonnet for CARHI/PEDHI/GRID9/ROADS9; opus only MGR.
+
+### 2026-11-09T14:29:49Z · Fable
+USER rule: parody naming applies to venues, stores and brands only. SoundCloud mixes are the exception: the HUD and the announcers use the REAL artist/DJ names and set titles exactly as SoundCloud/ra-nyc give them, never parodied. RADIO8 already does this (title — DJ from the API); recorded in PRD. Any lane touching radio text keeps it that way.
