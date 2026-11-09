@@ -13,10 +13,10 @@ import type {
 export const VEHICLE_SPECS: Record<VehicleType, VehicleSpec> = {
   // accel is the launch acceleration; the thrust curve a = accel * (throttle - (v/maxSpeed)^2) makes
   // 0 -> 0.93*maxSpeed take ~6 s for the sedan (= 0-100 km/h) and ~12 s for the box truck.
-  sedan: { type: 'sedan', name: 'Sedan', length: 4.6, width: 1.8, height: 1.4, maxSpeed: 30, accel: 8, brakeDecel: 14, maxSteer: 0.6, color: '#8a8f98' },
-  suv: { type: 'suv', name: 'SUV', length: 4.9, width: 2.0, height: 1.8, maxSpeed: 27, accel: 7, brakeDecel: 14, maxSteer: 0.6, color: '#2c3e50' },
+  sedan: { type: 'sedan', name: 'Sedan', length: 4.88, width: 1.84, height: 1.45, maxSpeed: 30, accel: 8, brakeDecel: 14, maxSteer: 0.6, color: '#8a8f98' },
+  suv: { type: 'suv', name: 'SUV', length: 5.05, width: 2.0, height: 1.78, maxSpeed: 27, accel: 7, brakeDecel: 14, maxSteer: 0.6, color: '#2c3e50' },
   boxtruck: { type: 'boxtruck', name: 'Box truck', length: 7, width: 2.4, height: 3.2, maxSpeed: 20, accel: 2.7, brakeDecel: 12, maxSteer: 0.6, color: '#e8e8e8' },
-  cop: { type: 'cop', name: 'Police car', length: 4.6, width: 1.8, height: 1.4, maxSpeed: 33, accel: 9, brakeDecel: 14, maxSteer: 0.6, color: '#f2f2f2' },
+  cop: { type: 'cop', name: 'Police car', length: 5.04, width: 1.91, height: 1.48, maxSpeed: 33, accel: 9, brakeDecel: 14, maxSteer: 0.6, color: '#f2f2f2' },
 };
 
 // ---- longitudinal

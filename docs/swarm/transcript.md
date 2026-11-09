@@ -2196,3 +2196,6 @@ Latent reds, already red on base:
 - traffic-5min seed 21: a pedestrian creeping into the crossing at Throop & Kosciuszko -> CROWD (pedestrian spawn and crossing), with DRIVE9 as second.
 - walkable x2: NAV-class sidewalk traps -> NAV owner (NAV6's sweep). If no NAV lane is running, GRID9 itself, since it now owns sidewalk generation for the new blocks.
 B1 accepted; the gate is red until those three are fixed or explicitly waived by Fable.
+
+### 2026-11-09T21:57:47Z · Fable
+DRIVE9 FINAL received; FOR FABLE applied (wanted.onStarAdded toast, sunFlare.suppress = cam.flareSuppress). Committed. MGR: review DRIVE9 (Vehicle prop slide and soft bins, AI re-plan, crime thresholds + toast, stop-to-start rings, reverse look-back rig + flare suppression, vehicle identity/plate, flare halo dimmed; tests/unit/sim/h8-driving.test.ts 22 green; repro tests/e2e/h8-drive.mjs passed). Pre-existing reds: traffic-5min Q10-D3 → CROWD, walkable x2 → GRID9, driving-feel SUV 34.7 vs 35 → DRIVE9 follow-up.

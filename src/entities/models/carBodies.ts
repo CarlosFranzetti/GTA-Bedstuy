@@ -598,14 +598,19 @@ export interface Style {
   bumperY: number; bumperH: number;
   /** PLAN profile: [u, half-width factor] along the car (nose / tail taper, fenders), ref metres; linear between entries */
   plan: [number, number][];
+  /** real overall size (m) of a roster body; without it the vehicle spec's size is used */
+  dims?: { L: number; W: number; H: number };
 }
 
 export type PassengerStyle = 'sedan' | 'coupe' | 'suv' | 'cop' | 'cab';
-export const STYLES: Record<'sedan' | 'coupe' | 'suv', Style> = {
+export type StyleKey = 'sedan' | 'coupe' | 'suv' | 'crown' | 'charger';
+export const STYLES: Record<StyleKey, Style> = {
+  // "Kamari": a mid-size front-drive sedan of the Toyota Camry type (2018-): length 4.88 m (192.1 in), wheelbase 2.82 m (111.2 in),
+  // width 1.84 m (72.4 in), height 1.45 m (56.9 in). VEHICLE_SPECS.sedan carries the same size.
   sedan: {
     Lref: 4.6, Href: 1.4,
     sill: 0.2, wheelR: 0.34, wheelW: 0.225,
-    axle: 1.38,
+    axle: 1.33,
     secs: [
       [-2.26, 0.97, 0.94, 0.93],
       [-1.95, 1.0, 0.97, 0.93],
@@ -629,9 +634,79 @@ export const STYLES: Record<'sedan' | 'coupe' | 'suv', Style> = {
     handles: [0.02, -0.8],
     hoodBack: 0.92,
     clad: 11,
-    rails: false, spoiler: true,
+    rails: false, spoiler: true, maxGap: 0.5, archN: 6,
     bumperY: 0.34, bumperH: 0.22,
     plan: [[-2.3, 0.9], [-1.7, 0.97], [-0.9, 1], [0.9, 1], [1.7, 0.98], [2.3, 0.92]],
+  },
+  // ROSTER (CARHI step 2). Proportions from public spec sheets (manufacturer press kits / encyclopedia entries), approximate:
+  // "Crown Regent": a full-size body-on-frame 3-box sedan of the Ford Crown Victoria type (2003-2011): length 5.39 m (212 in),
+  // wheelbase 2.91 m (114.7 in), width 1.99 m (78.3 in), height 1.44 m (56.8 in). Upright greenhouse, long trunk, tall belt.
+  crown: {
+    Lref: 5.39, Href: 1.44,
+    sill: 0.2, wheelR: 0.34, wheelW: 0.235,
+    axle: 1.455,
+    secs: [
+      [-2.69, 1.0, 0.92, 0.93],
+      [-2.35, 1.05, 0.98, 0.93],
+      [-1.9, 1.08, 1.0, 0.92],
+      [-1.5, 1.12, 1.0, 0.88],
+      [-1.25, 1.3, 1.0, 0.8],
+      [-0.95, 1.42, 1.0, 0.74],
+      [-0.35, 1.44, 1.0, 0.73],
+      [0.2, 1.43, 1.0, 0.74],
+      [0.5, 1.33, 1.0, 0.78],
+      [0.9, 1.1, 0.99, 0.88],
+      [1.4, 1.02, 0.96, 0.93],
+      [2.0, 0.98, 0.92, 0.93],
+      [2.45, 0.93, 0.86, 0.92],
+      [2.69, 0.88, 0.8, 0.92],
+    ],
+    windshield: [0.92, 0.2],
+    doorGlass: [[0.8, 0.02], [-0.12, -0.97]],
+    bPillar: [0.02, -0.12],
+    rearGlass: [-1.02, -1.5],
+    seams: [0.86, -0.08, -1.05],
+    handles: [0.08, -0.82],
+    hoodBack: 0.96,
+    clad: 11,
+    rails: false, spoiler: false, maxGap: 0.42, archN: 6,
+    bumperY: 0.36, bumperH: 0.24,
+    plan: [[-2.7, 0.9], [-2.1, 0.97], [-1, 1], [1, 1], [2.1, 0.98], [2.7, 0.92]],
+    dims: { L: 5.39, W: 1.99, H: 1.44 },
+  },
+  // "Charge-R": a current-generation large rear-drive sedan of the Dodge Charger type: length 5.04 m (198.4 in), wheelbase
+  // 3.05 m (120 in), width 1.91 m (75.0 in), height 1.48 m (58.2 in). Long hood, high belt line, short deck, fast C pillar.
+  charger: {
+    Lref: 5.04, Href: 1.48,
+    sill: 0.2, wheelR: 0.35, wheelW: 0.245,
+    axle: 1.525,
+    secs: [
+      [-2.52, 1.02, 0.96, 0.9],
+      [-2.2, 1.08, 1.0, 0.9],
+      [-1.8, 1.12, 1.02, 0.86],
+      [-1.4, 1.28, 1.02, 0.78],
+      [-1.0, 1.41, 1.02, 0.72],
+      [-0.4, 1.48, 1.02, 0.7],
+      [0.15, 1.45, 1.02, 0.71],
+      [0.55, 1.3, 1.02, 0.76],
+      [0.95, 1.13, 1.0, 0.86],
+      [1.5, 1.08, 0.98, 0.93],
+      [2.0, 1.04, 0.95, 0.93],
+      [2.35, 0.97, 0.9, 0.93],
+      [2.52, 0.92, 0.85, 0.93],
+    ],
+    windshield: [0.95, 0.25],
+    doorGlass: [[0.82, -0.02], [-0.12, -1.05]],
+    bPillar: [-0.02, -0.12],
+    rearGlass: [-1.1, -1.7],
+    seams: [0.88, -0.07, -1.12],
+    handles: [0.1, -0.85],
+    hoodBack: 1.0,
+    clad: 11,
+    rails: false, spoiler: false, maxGap: 0.42, archN: 6,
+    bumperY: 0.36, bumperH: 0.24,
+    plan: [[-2.55, 0.9], [-2, 0.98], [-1, 1], [1, 1], [2, 0.98], [2.55, 0.92]],
+    dims: { L: 5.04, W: 1.91, H: 1.48 },
   },
   // two-door fastback: cabin pushed back, long hood, steep windshield, sloping rear glass
   coupe: {
@@ -665,10 +740,12 @@ export const STYLES: Record<'sedan' | 'coupe' | 'suv', Style> = {
     bumperY: 0.33, bumperH: 0.21,
     plan: [[-2.3, 0.9], [-1.7, 0.98], [-0.9, 1], [0.9, 1], [1.8, 0.97], [2.3, 0.9]],
   },
+  // "Expedio": a mid-size three-row SUV of the Ford Explorer type (2020-): length 5.05 m (198.3 in), wheelbase 3.03 m (119.1 in),
+  // width 2.00 m (78.9 in, without mirrors), height 1.78 m (70.1 in). VEHICLE_SPECS.suv carries the same size.
   suv: {
     Lref: 4.9, Href: 1.8,
     sill: 0.26, wheelR: 0.38, wheelW: 0.25,
-    axle: 1.45,
+    axle: 1.47,
     secs: [
       [-2.41, 1.45, 1.17, 0.8],
       [-2.2, 1.62, 1.17, 0.78],
@@ -698,12 +775,12 @@ export const STYLES: Record<'sedan' | 'coupe' | 'suv', Style> = {
 };
 
 export function wheelRadiusFor(type: VehicleType): number {
-  return type === 'boxtruck' ? 0.5 : type === 'suv' ? STYLES.suv.wheelR : STYLES.sedan.wheelR;
+  return type === 'boxtruck' ? 0.5 : type === 'suv' ? STYLES.suv.wheelR : type === 'cop' ? STYLES.charger.wheelR : STYLES.sedan.wheelR;
 }
 
 /** Number of cross-sections that define a type's hull (before smoothing). */
 export function hullSectionCount(type: VehicleType): number {
-  return type === 'boxtruck' ? TRUCK_CAB_SECS.length : STYLES[type === 'suv' ? 'suv' : 'sedan'].secs.length;
+  return type === 'boxtruck' ? TRUCK_CAB_SECS.length : STYLES[type === 'suv' ? 'suv' : type === 'cop' ? 'charger' : 'sedan'].secs.length;
 }
 
 const inI = (u: number, r: V2): boolean => u <= r[0] + 1e-6 && u >= r[1] - 1e-6;
@@ -783,9 +860,9 @@ export function isTaxiYellow(hex: string): boolean {
 }
 
 export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): CarParts {
-  const st = STYLES[type === 'suv' ? 'suv' : type === 'coupe' ? 'coupe' : 'sedan'];
+  const st = STYLES[type === 'suv' ? 'suv' : type === 'coupe' ? 'coupe' : type === 'cab' ? 'crown' : type === 'cop' ? 'charger' : 'sedan'];
   const planAt = monotone(st.plan.map((p) => p[0]), st.plan.map((p) => p[1]));
-  const { length: L, width: W, height: H } = spec;
+  const { length: L, width: W, height: H } = st.dims ? { length: st.dims.L, width: st.dims.W, height: st.dims.H } : spec;
   const kx = L / st.Lref;
   const ky = H / st.Href;
   const R = st.wheelR;

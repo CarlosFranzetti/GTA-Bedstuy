@@ -233,6 +233,7 @@ scene.add(player.object3D);
 physics.addBody(player.body);
 
 const wanted = new WantedSystem(events);
+wanted.onStarAdded = (m) => hud.showToast(m); // name the crime whenever a star is added (H8)
 const drop = bundledDropRecords();
 const inventory = new Inventory(PROCEDURAL_RECORDS);
 const missions = new MissionSystem(buildMissions(grid, data, world.lots), {
@@ -488,6 +489,7 @@ function drawFrame(alpha: number, frameDt: number): void {
     sky.update(dayNight.timeOfDay, sunDir, dayNight.isNight, cam.camera.position);
     applyTierFog(scene.fog as THREE.Fog | null, quality); // phone: nearer, denser ramp (DayNight rewrites near/far and sets the colour to the sky horizon every step)
     blobs.setStrength((dayNight.isNight ? 0 : Math.min(1, sunDir.y * 2.5)) * (1 - weather.overcast));
+    sunFlare.suppress = cam.flareSuppress; // no flare when the camera sits inside another car while reversing
     sunFlare.update(sunDir, (dayNight.isNight ? 0 : 1) * (1 - weather.overcast), cam.camera.position);
     pipeline.setHour(dayNight.timeOfDay);
     focusPoint.set(camTarget.x, 1.2, camTarget.z);
