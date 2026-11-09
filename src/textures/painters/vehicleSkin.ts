@@ -74,7 +74,7 @@ export const CAR_COLORWAYS: Record<SkinStyle, readonly Colorway[]> = {
     { name: 'bottle green', color: '#2f9a58', pack: 0 },
   ],
   coupe: [
-    { name: 'taxi-stand yellow', color: '#e8b81c', pack: 1 },
+    { name: 'lagoon teal', color: '#16a8a0', pack: 1 },
     { name: 'plum purple', color: '#8a3aa8', pack: 0 },
     { name: 'sunset orange', color: '#e0621a', pack: 1 },
     { name: 'night black', color: '#1b1c20', pack: 2 },

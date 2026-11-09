@@ -72,15 +72,16 @@ describe('Pedestrian', () => {
     expect(ped.state).toBe('walking');
   });
 
-  it('builds a human model (head, two legs, two arms) and uses cloth/skin variants', () => {
+  it('builds a GTA3-style person (head, two legs, two arms) that wears one painted-atlas variant material', () => {
     const { ped } = setup();
     expect(ped.object3D.getObjectByName('head')).toBeTruthy();
     expect(ped.object3D.getObjectByName('legL')).toBeTruthy();
     expect(ped.object3D.getObjectByName('legR')).toBeTruthy();
     expect(ped.object3D.getObjectByName('armL')).toBeTruthy();
-    const keys = materialCalls.map((c) => c[0]);
-    expect(keys).toContain('cloth');
-    expect(keys).toContain('skin');
+    const mats = new Set<THREE.Material>();
+    ped.object3D.traverse((o) => { if ((o as THREE.Mesh).isMesh) mats.add((o as THREE.Mesh).material as THREE.Material); });
+    expect(mats.size).toBe(1);
+    expect([...mats][0].name).toMatch(/^ped:/);
   });
 
   it('walks at about 1.2 m/s', () => {

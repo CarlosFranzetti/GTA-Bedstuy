@@ -490,3 +490,4 @@ export const cargoLiveryPainter: Painter = (ctx, w, h, rng, variant) => {
   ctx.fillStyle = CARGO_BASE[v];
   ctx.fillRect(0, 0, w, h * CARGO_PLAIN_STRIP);
 };
+export * from './vehicleSkin';

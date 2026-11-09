@@ -126,7 +126,7 @@ export const PED_SPECS: readonly PedSpec[] = [
     bottom: { kind: 'skirt', color: '#b58ad6', trim: '#8a5fb0' }, shoes: { color: '#f0e6f6', sole: '#b58ad6', accent: '#8a5fb0' }, gear: 'bag', gearColor: '#f0e6f6', weight: 0.35, sunday: true,
   }),
   base({ // 5 delivery rider
-    id: 'delivery-vest', skin: '#9a6a46', hair: 'short', hat: 'cap', hatColor: '#111111', hatTrim: '#f4d03f', hatLogo: 'GO',
+    id: 'delivery-vest', skin: '#c58a5c', hair: 'short', hat: 'cap', hatColor: '#111111', hatTrim: '#f4d03f', hatLogo: 'GO',
     face: { eyes: 'sleepy', brows: 'thick', mouth: 'flat', stubble: true },
     top: { kind: 'vest', color: '#e9d628', trim: '#c8b81c', sleeves: 'long', print: 'stripes', printColor: '#d8d8d8', under: '#22262c' },
     bottom: { kind: 'cargo', color: '#2d3138', trim: '#1c1f24' }, shoes: { color: '#222222', sole: '#111111', accent: '#e9d628' },
@@ -152,7 +152,7 @@ export const PED_SPECS: readonly PedSpec[] = [
     bottom: { kind: 'shorts', color: '#c2392b', trim: '#f4f4f4' }, shoes: { color: '#f4f4f4', sole: '#c2392b', accent: '#c2392b', high: true }, build: 'tall', weight: 1.1,
   }),
   base({ // 9 scrubs
-    id: 'scrubs-nurse', skin: '#8a5a3a', hair: 'bun', hairColor: '#17110d',
+    id: 'scrubs-nurse', skin: '#b57a52', hair: 'bun', hairColor: '#17110d',
     face: { eyes: 'wide', brows: 'arched', mouth: 'smile', lips: '#8a3a3a' },
     top: { kind: 'scrubs', color: '#2aa7a0', trim: '#1f8782', sleeves: 'short', print: 'badge', printColor: '#f4f4f4' },
     bottom: { kind: 'trousers', color: '#2aa7a0', trim: '#1f8782' }, shoes: { color: '#f4f4f4', sole: '#cfcfcf', accent: '#2aa7a0' }, build: 'avg', weight: 0.9,
@@ -182,7 +182,7 @@ export const PED_SPECS: readonly PedSpec[] = [
     bottom: { kind: 'jeans', color: '#262c36', trim: '#161a20' }, shoes: { color: '#d8d0c0', sole: '#8a7a5a', accent: '#3a2a1a', high: true }, weight: 1.2,
   }),
   base({ // 14 plaid work jacket (contractor)
-    id: 'work-plaid', skin: '#c08a60', hair: 'short', hairColor: '#4a3220', hat: 'hardhat', hatColor: '#f0b020', hatTrim: '#c88a10',
+    id: 'work-plaid', skin: '#e0b48c', hair: 'short', hairColor: '#4a3220', hat: 'hardhat', hatColor: '#f0b020', hatTrim: '#c88a10',
     face: { eyes: 'dot', brows: 'thick', mouth: 'frown', stubble: true },
     top: { kind: 'jacket', color: '#a8392b', trim: '#2a2220', sleeves: 'long', print: 'none', printColor: '#ffffff', under: '#d9d4c4', pattern: 'plaid' },
     bottom: { kind: 'jeans', color: '#3a4a60', trim: '#28344a' }, shoes: { color: '#8a6a2a', sole: '#3a2a10', accent: '#c9a36a' }, build: 'stocky', weight: 0.8,

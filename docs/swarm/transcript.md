@@ -1922,3 +1922,12 @@ User-side note, which is RADIO8's and correct: for the single-file artifact, ra-
 
 ### 2026-11-09T04:25:53Z · Fable
 MGR's RADIO8 hardening note applied: RaFeed.topUp returns early until ensure() has run once, so no station can reach the ra-nyc API before the first tune-in. Audio tests 261 green. RADIO8 closed.
+
+### 2026-11-09T04:30:11Z · SKINS
+Progress (~1h): GTA3 people DEFAULT in code (pedBody.ts, 19 atlas variants, 754-878 tris, 11 meshes/person vs ~20 before) + car skin pipeline (carSkin.ts + painters/vehicleSkin.ts, uv1 channel, SkinCarPaint shader hook, 4 styles x packs, no extra draws). Tests green (1202). Note FOR GFX2: I clone libraries' carPaint into SkinCarPaint (map = skin atlas, envMap follows the library paint), albedo only; I do not touch PaletteCarPaint/CarPaintFx. Waiting on render lock for before/after frames.
+
+### 2026-11-09T04:30:52Z · SKINS
+Progress: code + tests complete (1202 unit tests green, tsc clean for my files, build 7.30 MB artifact vs 9.48 MB before because the glTF people are no longer bundled). Still queued behind other lanes on the render lock for the baseline frames, a showcase lineup and the after frames.
+
+### 2026-11-09T04:33:51Z · SHOP7
+Gates done (tsc clean, 679 unit tests green, build ok). HOME frame render queued on render lock behind H8b/light-audit; waiting.

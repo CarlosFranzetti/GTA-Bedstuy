@@ -88,7 +88,7 @@ function edgeKind(n: number, e: number): 0 | 1 | 2 | 3 {
 
 /**
  * A stack of rings (each an octagon, or a rectangle when `cham` is 0) joined by flat-shaded quads. Planar atlas mapping per
- * face: front / back samples by x, the sides by z, v by height. `cap` UV rectangles give the end caps a flat colour.
+ * face: front (seen from -z, +x on the viewer's left) and back (seen from +z) sample by x, the sides by z, v by height. `cap` UV rectangles give the end caps a flat colour.
  */
 function prism(acc: Acc, rings: Ring[], cham: number, faces: Faces, topCap?: PxRect | null, botCap?: PxRect | null, offset: [number, number, number] = [0, 0, 0]): void {
   rings = [...rings].sort((p, q) => p.y - q.y);
@@ -124,7 +124,7 @@ function prism(acc: Acc, rings: Ring[], cham: number, faces: Faces, topCap?: PxR
       const rect = kind === 0 ? faces.front : kind === 1 ? faces.back : faces.side;
       const vert = (c: [number, number], y: number): { p: [number, number, number]; uv: [number, number] } => {
         const t = (y - ymin) / sy;
-        const fu = kind === 0 ? (c[0] - xmin) / sx : kind === 1 ? (xmax - c[0]) / sx : kind === 2 ? (zmax - c[1]) / sz : (c[1] - zmin) / sz;
+        const fu = kind === 0 ? (xmax - c[0]) / sx : kind === 1 ? (c[0] - xmin) / sx : kind === 2 ? (zmax - c[1]) / sz : (c[1] - zmin) / sz;
         return { p: [c[0], y, c[1]], uv: uvOf(rect, fu, t) };
       };
       const p0 = vert(lo[e], rings[i].y), p1 = vert(lo[e1], rings[i].y), p2 = vert(hi[e1], rings[i + 1].y), p3 = vert(hi[e], rings[i + 1].y);
@@ -162,7 +162,7 @@ const BUILD: Record<PedSpec['build'], { sx: BuildScale; height: number; head: nu
   avg: { sx: { w: 1, d: 1 }, height: 1, head: 1 },
   slim: { sx: { w: 0.93, d: 0.93 }, height: 0.99, head: 1 },
   stocky: { sx: { w: 1.12, d: 1.1 }, height: 0.98, head: 1 },
-  tall: { sx: { w: 1, d: 1 }, height: 1.05, head: 1 },
+  tall: { sx: { w: 1, d: 1 }, height: 1.02, head: 1 },
   kid: { sx: { w: 0.92, d: 0.92 }, height: 0.72, head: 1.3 },
 };
 
@@ -362,10 +362,12 @@ export function variantGeo(variant: number): VariantGeo {
 const matCache = new WeakMap<IMaterialLibrary, Map<number, THREE.Material>>();
 
 /** Paint the 256 px atlas of a variant on a canvas (needs a DOM or an injected maker). Deterministic. */
+let canvasBroken = false;
 export function paintPedCanvas(variant: number, make: (w: number, h: number) => HTMLCanvasElement = createCanvas): HTMLCanvasElement | null {
+  if (canvasBroken) return null;
   const c = make(PED_ATLAS, PED_ATLAS);
   const ctx = c.getContext('2d');
-  if (!ctx) return null;
+  if (!ctx) { canvasBroken = true; return null; } // no 2D canvas (jsdom): flat-colour people
   pedAtlasPainter(ctx, PED_ATLAS, PED_ATLAS, new Rng(`ped:${variant}`), variant);
   return c;
 }

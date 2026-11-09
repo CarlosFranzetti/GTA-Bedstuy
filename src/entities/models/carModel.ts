@@ -18,6 +18,8 @@ import type { IMaterialLibrary, VehicleSpec, VehicleType } from '@/world/types';
 import { Rng } from '@/core/Rng';
 import { createCanvas } from '@/textures/canvas';
 import { CARGO_LIVERY_H, CARGO_LIVERY_VARIANTS, CARGO_LIVERY_W, cargoLiveryPainter } from '@/textures/painters/vehicle';
+import { assignSkinUV, carSkinMaterial, paintBox, skinLayoutFor } from './carSkin';
+import { CAR_COLORWAYS, type SkinLayout, type SkinStyle } from '@/textures/painters/vehicleSkin';
 import {
   Acc, isTaxiYellow, mirrorX, buildPassengerParts, buildTruckParts, wheelRadiusFor, hullSectionCount,
   type CarParts,
@@ -56,9 +58,9 @@ export function styleFor(type: VehicleType, color: string, variant = 0): CarStyl
 
 /** Paint variants offered per type (2 to 4 each); the traffic palette may pick from these. The cop and cab have a livery. */
 export const PAINT_VARIANTS: Record<VehicleType, readonly string[]> = {
-  sedan: ['#7f8c8d', '#c0392b', '#1f6f8b', '#ecf0f1'],
-  suv: ['#2c3e50', '#27ae60', '#111111', '#95a5a6'],
-  boxtruck: ['#e8e8e8', '#d35400', '#2c3e50'],
+  sedan: CAR_COLORWAYS.sedan.map((c) => c.color),
+  suv: CAR_COLORWAYS.suv.map((c) => c.color),
+  boxtruck: CAR_COLORWAYS.van.map((c) => c.color),
   cop: ['#f2f2f2', '#f2f2f2'],
 };
 
@@ -201,12 +203,23 @@ function rearPair(R: number, w: number, span: number): THREE.BufferGeometry {
 // ---------------------------------------------------------------- per-style parts (cached)
 
 const partsCache = new Map<string, CarParts>();
+const layoutCache = new Map<string, SkinLayout>();
+
+/** The body styles that wear a baked skin (the cab and the cop car have their own livery maps on the regular UV set). */
+const SKINNED: ReadonlySet<CarStyle> = new Set<CarStyle>(['sedan', 'coupe', 'suv', 'van']);
 
 function partsFor(style: CarStyle, spec: VehicleSpec): CarParts {
   const key = `${style}|${spec.length}|${spec.width}|${spec.height}`;
   let p = partsCache.get(key);
   if (!p) {
     p = style === 'van' ? buildTruckParts(spec) : buildPassengerParts(style, spec);
+    if (SKINNED.has(style)) {
+      // second UV set for the skin atlas (the regular uv stays untouched: dirt-map fallback, far-car proxies)
+      const box = paintBox(p.paint);
+      assignSkinUV(p.paint, box);
+      if (p.hood) assignSkinUV(p.hood.geo, box, p.hood.pivot);
+      layoutCache.set(key, skinLayoutFor(style as SkinStyle, box));
+    }
     partsCache.set(key, p);
   }
   return p;
@@ -228,7 +241,9 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   const own: THREE.Material[] = [];
   const paintMeshes: THREE.Mesh[] = [];
 
-  const paintMat = st === 'cop' ? materials.get('copLivery') : st === 'cab' ? materials.get('taxiLivery') : materials.carPaint(spec.color);
+  const layout = layoutCache.get(`${st}|${spec.length}|${spec.width}|${spec.height}`);
+  const paintMat = st === 'cop' ? materials.get('copLivery') : st === 'cab' ? materials.get('taxiLivery')
+    : layout ? carSkinMaterial(materials, st as SkinStyle, spec.color, layout) : materials.carPaint(spec.color);
   const glassMat = materials.get('carGlass');
   const tyreMat = materials.get('tireSidewall');
 

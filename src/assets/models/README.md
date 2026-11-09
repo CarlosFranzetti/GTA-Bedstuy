@@ -2,7 +2,12 @@
 
 **Vehicles are procedural by default** (`src/entities/models/carBodies.ts` + `carModel.ts`: lofted GTA3-era bodies, licence ours). The
 `vehicle-*.glb` files here are an opt-in alternative: build with `VITE_GLTF_CARS=1` to bundle and use them (without the flag they are not
-bundled at all). Characters are unchanged.
+bundled at all).
+
+**People are procedural by default too** (`src/entities/models/pedBody.ts` + `src/textures/painters/ped.ts`: chunky GTA3-era
+bodies of 750 to 900 triangles with a hand-painted 256 px atlas per variant, our own art). The `character*.glb` files here are an
+opt-in alternative: build with `VITE_GLTF_PEDS=1` to bundle and use them (without the flag they are not bundled at all, which keeps the
+single-file artifact about 2 MB smaller).
 
 Drop a `.glb` in this folder and the game uses it instead of the procedural model. Vite inlines the files
 into the single-file build, so there is nothing to configure. No file (or a file that fails to load) means the
