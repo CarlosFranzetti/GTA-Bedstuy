@@ -96,12 +96,12 @@ it('soft render hi peds', () => {
     const s = hiSampler(v);
     const body = m.group.getObjectByName('body') as THREE.Mesh;
     console.log(PED_SPECS[v].id, m.triangles);
-    jobs.push({ mesh: body, sampler: s });
+    body.geometry = body.geometry.toNonIndexed(); jobs.push({ mesh: body, sampler: s });
   });
   cam.position.set(0, 1.1, 6.5); cam.lookAt(0, 0.95, 0);
   writeFileSync('/tmp/claude-0/scratch/hi.png', png(W, H, rasterize(jobs, cam, W, H, [140, 165, 190])));
   const W2 = 900, H2 = 700; const cam2 = new THREE.PerspectiveCamera(20, W2 / H2, 0.1, 100);
-  const m = buildPedModel(mats, new Rng(3), { variant: list[0], heightScale: 1 }); m.group.rotation.y = Math.PI; m.group.updateMatrixWorld(true);
+  const m = buildPedModel(mats, new Rng(3), { variant: list[0], heightScale: 1 }); m.group.rotation.y = Math.PI; m.group.updateMatrixWorld(true); { const b = m.group.getObjectByName('body') as THREE.Mesh; b.geometry = b.geometry.toNonIndexed(); }
   cam2.position.set(0.5, 1.62, 1.6); cam2.lookAt(0, 1.6, 0);
   writeFileSync('/tmp/claude-0/scratch/hi-face.png', png(W2, H2, rasterize([{ mesh: m.group.getObjectByName('body') as THREE.Mesh, sampler: hiSampler(list[0]) }], cam2, W2, H2, [140, 165, 190])));
 });

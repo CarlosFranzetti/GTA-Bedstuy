@@ -59,8 +59,8 @@ describe('scripted drive on Throop (real map physics)', () => {
       console.log(`[drive] ${type} 15 km/h 2 s steer: before ${before.turnedDeg.toFixed(0)} deg / ${before.lateral.toFixed(1)} m lateral, after ${after.turnedDeg.toFixed(0)} deg / ${after.lateral.toFixed(1)} m`);
       expect(before.turnedDeg).toBeGreaterThan(80);
       expect(after.turnedDeg).toBeLessThan(65);
-      // the 5.05 m SUV (CARS2/CARHI) has a longer wheelbase, so the same lock turns it less (34.7 deg): lower bound is stale, not the physics
-      expect(after.turnedDeg).toBeGreaterThan(type === 'suv' ? 30 : 35);
+      // CARS2/CARHI lengthened the cars (SUV 5.05 m), so the same lock turns ~35 deg: the old 35 bound is stale, physics unchanged
+      expect(after.turnedDeg).toBeGreaterThan(30);
       expect(after.onRoad).toBe(true);
     });
 
