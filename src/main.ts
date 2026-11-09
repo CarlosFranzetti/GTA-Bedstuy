@@ -54,7 +54,7 @@ import { buildMissions } from '@/game/missions/content';
 import { MissionMarkerView } from '@/game/missions/MissionMarkerView';
 import { saveMissionData, loadMissionData, clearMissionData } from '@/game/missions/MissionStore';
 import { MissionHud } from '@/ui/MissionHud';
-import { DistanceCuller, InstanceCuller } from '@/render/Culling';
+import { DistanceCuller, InstanceCuller, ChunkCuller, chunkRangeFor } from '@/render/Culling';
 import { CarLod, applyCarShadowFlags } from '@/render/CarLod';
 import { RenderProxies } from '@/render/AoProxy';
 import { buildCarModel } from '@/entities/models/carModel';
@@ -183,6 +183,8 @@ await nextPaint();
 // distance culling: prop cells (static) and, per frame, traffic cars and peds
 const culler = new DistanceCuller(tier0.cullDistance);
 for (const m of world.propCells) culler.addStatic(m);
+const chunkCuller = new ChunkCuller(chunkRangeFor(quality)); // 2x2-block chunks hidden by distance (GRID9)
+for (const m of world.chunkMeshes) chunkCuller.add(m);
 // street trees, lamps, hydrants: one InstancedMesh per kind covers the whole city, so thin them by distance on the phone tier
 instanceCuller = new InstanceCuller();
 for (const o of world.furnitureGroup.children) if ((o as THREE.InstancedMesh).isInstancedMesh) instanceCuller.add(o as THREE.InstancedMesh);
@@ -345,6 +347,7 @@ function applyQuality(q: Quality): void {
   pipeline.setQuality(q);
   if (useProxies) proxies.attachToPipeline(pipeline);
   pipeline.setSize(window.innerWidth, window.innerHeight);
+  chunkCuller.setMaxDist(chunkRangeFor(q));
   setupShadows(renderer, dayNight.sun, q);
   blobs.setEnabled(t.blobShadows);
   if (q === prev) return;
@@ -479,6 +482,7 @@ function drawFrame(alpha: number, frameDt: number): void {
     weather.update(frameDt, cam.camera.position);
     pipeline.setWeather(weather.wetness, weather.rain);
     culler.update(cam.camera.position.x, cam.camera.position.z);
+    chunkCuller.update(cam.camera.position.x, cam.camera.position.z);
     instanceCuller?.update(cam.camera.position.x, cam.camera.position.z);
     updateShadowCamera(dayNight.sun, camTarget);
     sky.update(dayNight.timeOfDay, sunDir, dayNight.isNight, cam.camera.position);

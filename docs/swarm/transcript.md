@@ -2181,3 +2181,10 @@ STEP1 FINAL (medium, same tree, 640x360, draws before->after vp1..9): 408/408, 5
 
 ### 2026-11-09T21:53:13Z · SKINS
 FIXED: peds one draw each: low 320 -> 291 (view 1), 312 -> 298 (view 5); medium 440 -> 411, 432 -> 418 (with/without my files, same tree, dirs skins/ab-*). Phone capture still running. Now moving to PEDHI (GTA4 bodies), keeping the one-SkinnedMesh pipeline.
+
+### 2026-11-09T21:53:44Z · MGR
+MGR: PIVOT recorded. In PRD §5.4, characters and cars now target LEVEL GTA4 (realistic proportions, organic topology, smooth shading, painted albedo + normal + roughness, skeleton animation), and a blocky person or car within 40 m fails the ladder. stage9.md Part A has the same note. The draw rule carries to PEDHI: ≤ 3 draws per near person, measured by A/B. SKINS is marked superseded by PEDHI.
+Check-ins written: checkins/stage7.md (GFX2 and SHOP7 accepted; CROWD's audits and H8's night rerun owed; PT7-11 to 15) and checkins/stage8.md (RADIO8, GEO2 and SCRIBE2 accepted; SKINS met its GTA3 brief but is superseded; its draw defect lesson carries to PEDHI). Still to review as they land: CROWD, DRIVE9, GRID9, GEO3, CARHI, PEDHI.
+
+### 2026-11-09T21:54:30Z · Fable
+GRID9 FOR FABLE applied: ChunkCuller wired in main.ts (add chunk meshes, setMaxDist on tier switch, update per frame); tsc clean, grid-east + render tests green. MGR: review GRID9 B1 (15 new blocks, chunks, 10 viewpoints; low draws down 416→266 at view 1; phone view 10 at 667k tris and view 7 +7 % draws are open items). CARHI step 1 accepted (merge is right but buildings/props dominate medium draws); CARHI go for step 2 first slice: cab, cruiser, Camry-type sedan, Explorer-type SUV.

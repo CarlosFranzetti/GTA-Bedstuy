@@ -16,6 +16,11 @@ are worth doing only if the street stays alive, the frame rate stays smooth and 
 
 ## Part A: GTA4-fidelity people and cars, as a level-of-detail chain
 
+> **PIVOT (9 Nov 21:5xZ):** the user rejected the blocky GTA3 people as "Roblox". Part A's near step is now the visible look and must be
+> GTA4/5 realism: ~7.5 heads tall, organic topology, smooth shading, painted albedo + normal + roughness, skeleton animation,
+> 2,500–4,000 tris. The GTA3 bodies drop to the far step (> 40 m) or are kept only as a phone fallback. The draw rule stands: a near
+> person costs ≤ 3 draws, a near car ≤ 6. SKINS continues as PEDHI.
+
 ### A.1 Principle
 
 GTA4 did not get its look from triangle counts alone. It got it from **where** the triangles go and from what the textures carry:
