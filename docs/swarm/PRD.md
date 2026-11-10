@@ -379,3 +379,11 @@ The user's words: "I don't know what's up with the cartoonish models I currently
 - Cars: the real-car roster (CARHI roster) at 6,000–8,000 tris near with real panel topology, baked AO, proper wheels with tyre tread and rims, interiors visible through glass, clear coat already in place.
 - Reference the look and feel (proportions, materials, lighting) of GTA 4/5; never copy any Rockstar asset or texture.
 - Asset hosts (9 Nov 22:4xZ): quaternius.com, polyhaven.com, api.polyhaven.com, ambientcg.com and sketchfab.com (site only) are reachable; poly.pizza and kenney.nl are not. Decision: use CC0 PBR texture sets from ambientCG/Poly Haven for world, clothing and car materials (lane ASSETS), with per-set LICENSE files and CREDITS rows; models stay procedural (no suitable CC0 realistic cars/people found yet).
+
+## Stage 10 asks (user, 10 Nov 07:4xZ)
+1. **Radio audio**: SoundCloud stations show title and DJ but no sound. Fix. Only announcer speech is synthesized; music is the real stream via the official widget.
+2. **Cars**: player gets stuck in cars; after exiting cannot move. Fix both.
+3. **Movement and camera**: not smooth enough on foot and driving. Smooth it.
+4. **People**: not everyone Black. Bed-Stuy is multicultural and gentrified: Black, Caribbean, Latino, white, Asian, South Asian, Hasidic Jewish residents, mixed ages and genders. Respectful, no caricature.
+5. **Player**: random ethnicity per new game.
+6. **UI**: on-screen Map button, Phone button, Save game and Load game options.

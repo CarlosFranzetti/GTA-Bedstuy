@@ -82,3 +82,11 @@ Shared files via `FOR FABLE:` as before. Nobody commits. Ports: V1 4401, PT 4402
 - Never idle-wait on the render lock: queue the render in a background shell, hand back, resume on the result.
 - Reuse frames: one capture per build per tier, shared via the scratchpad, not per lane.
 - MGR reviews read diffs and tests, not whole files; one review post per lane.
+
+## Stage 10 lanes (10 Nov)
+| Lane | Model | Owns | Port | Status |
+|---|---|---|---|---|
+| SCFIX | sonnet | src/audio/sc/**, src/audio/radio.ts, src/ui/RadioUi.ts | 4431 | open |
+| CARFIX | sonnet | src/entities/Player.ts, Vehicle enter/exit, src/physics/**, camera rig | 4432 | open |
+| PEOPLE10 | sonnet | src/entities/models/ped*.ts (specs, skin tones, variants), player variant | 4433 | open |
+| UI10 | sonnet | src/ui/Hud.ts, Menu.ts, SaveState.ts, TouchControls.ts, Minimap.ts | 4434 | open |
