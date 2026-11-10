@@ -35,6 +35,7 @@ author and licence. All are **CC0 1.0 Universal**. 1K JPEG albedo / OpenGL norma
 | brick_painted | Poly Haven `painted_brick` | see LICENSE.txt | https://polyhaven.com/a/painted_brick |
 | asphalt | Poly Haven `asphalt_03` | see LICENSE.txt | https://polyhaven.com/a/asphalt_03 |
 | concrete_sidewalk | Poly Haven `concrete_pavers_03` | see LICENSE.txt | https://polyhaven.com/a/concrete_pavers_03 |
+| concrete_pavement | Poly Haven `concrete_pavement` | see LICENSE.txt | https://polyhaven.com/a/concrete_pavement |
 | bluestone_slate | Poly Haven `castle_wall_slates` | see LICENSE.txt | https://polyhaven.com/a/castle_wall_slates |
 | corrugated_metal | Poly Haven `corrugated_iron_02` | see LICENSE.txt | https://polyhaven.com/a/corrugated_iron_02 |
 | painted_metal | Poly Haven `rusty_painted_metal` | see LICENSE.txt | https://polyhaven.com/a/rusty_painted_metal |

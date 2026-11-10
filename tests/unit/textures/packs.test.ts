@@ -42,6 +42,7 @@ describe('CC0 world sets', () => {
       expect(ids(k).length, k).toBeGreaterThan(0);
     }
     expect(PACKS.find((e) => e.key === 'bluestone')!.color).toMatch(/bluestone_slate/);
+    expect(PACKS.find((e) => e.key === 'concrete' && e.variant === 0)!.color).toMatch(/concrete_pavement/); // grey slabs, not brick pavers
     expect(PACKS.find((e) => e.key === 'asphalt' && e.variant === 0)!.color).toMatch(/cc0\/asphalt\//);
   });
   it('use the 512 px files in the artifact build and keep the painted colour for metals', () => {

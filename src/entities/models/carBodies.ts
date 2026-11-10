@@ -997,7 +997,8 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   };
 
   // ---- chrome window surrounds + belt moulding, door seams
-  cabinTrim(hull, chrome, trim, { ws, doors, rg, seams });
+  // skinned bodies (sedan, coupe, SUV) carry their door gaps in the baked skin + normal map; ribbons would double the lines
+  cabinTrim(hull, chrome, trim, { ws, doors, rg, seams: type === 'cab' || type === 'cop' ? seams : [] });
   for (const hu of handles) {
     const yH = fyBelt(hu) - 0.075;
     chrome.addBoth(bx(0.012, 0.022, 0.13, sideX(hu, yH) + 0.008, yH, -hu));

@@ -5,7 +5,7 @@ import {
 import type { EventBus } from '@/core/Events';
 import type { Input } from '@/core/Input';
 import { animateWalk, type HumanModel } from '@/entities/models/humanModel';
-import { buildPedModel } from '@/entities/models/pedBodyHi';
+import { buildPerson as buildPedModel } from '@/entities/models/pedMesh';
 import type { CharacterRig, CharacterSource } from '@/world/types';
 import { Rng } from '@/core/Rng';
 import type { Body2D, Entity, IMaterialLibrary, IVehicle, VehicleInput } from '@/world/types';

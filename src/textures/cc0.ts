@@ -12,13 +12,13 @@ import { ROLLGATE_VARIANTS } from '@/textures/painters/metal';
 const HOSTED = import.meta.env.VITE_HOSTED === '1';
 
 const FILES_512 = !HOSTED
-  ? (import.meta.glob('@/assets/textures/cc0/{asphalt,bluestone_slate,brick_brownstone,brick_painted,brick_red_common,concrete_sidewalk,corrugated_metal,grime_wall,painted_metal,tar_roof,weathered_wood}/*_512.jpg', { eager: true, query: '?url', import: 'default' }) as Record<string, string>)
+  ? (import.meta.glob('@/assets/textures/cc0/{asphalt,bluestone_slate,brick_brownstone,brick_painted,brick_red_common,concrete_pavement,concrete_sidewalk,corrugated_metal,grime_wall,painted_metal,tar_roof,weathered_wood}/*_512.jpg', { eager: true, query: '?url', import: 'default' }) as Record<string, string>)
   : {};
 const FILES_1K = HOSTED
-  ? (import.meta.glob('@/assets/textures/cc0/{asphalt,bluestone_slate,brick_brownstone,brick_painted,brick_red_common,concrete_sidewalk,corrugated_metal,grime_wall,painted_metal,tar_roof,weathered_wood}/*_1k.jpg', { eager: true, query: '?url', import: 'default' }) as Record<string, string>)
+  ? (import.meta.glob('@/assets/textures/cc0/{asphalt,bluestone_slate,brick_brownstone,brick_painted,brick_red_common,concrete_pavement,concrete_sidewalk,corrugated_metal,grime_wall,painted_metal,tar_roof,weathered_wood}/*_1k.jpg', { eager: true, query: '?url', import: 'default' }) as Record<string, string>)
   : {};
 
-export type Cc0Set = 'asphalt' | 'bluestone_slate' | 'brick_brownstone' | 'brick_painted' | 'brick_red_common' | 'concrete_sidewalk'
+export type Cc0Set = 'asphalt' | 'bluestone_slate' | 'brick_brownstone' | 'brick_painted' | 'brick_red_common' | 'concrete_pavement' | 'concrete_sidewalk'
   | 'corrugated_metal' | 'grime_wall' | 'painted_metal' | 'tar_roof' | 'weathered_wood';
 
 export interface Cc0Urls { color: string; normal: string; rough: string }
@@ -58,7 +58,8 @@ export function cc0Entries(files?: Record<string, string>): PackEntry[] {
     e('asphalt', 1, 'asphalt', { repeat: 1, normalScale: 0.5, envMapIntensity: 0.2, tint: '#cfcfcf' }),
     e('asphaltWorn', 0, 'asphalt', { repeat: 1, normalScale: 0.5, envMapIntensity: 0.2, tint: '#cfcfcf' }),
     e('asphaltWorn', 1, 'asphalt', { repeat: 1, normalScale: 0.5, envMapIntensity: 0.2, tint: '#bdbdbd' }),
-    e('concrete', 0, 'concrete_sidewalk', { repeat: 1, normalScale: 0.8, envMapIntensity: 0.12 }),
+    // grey concrete slabs with joints (Bed-Stuy squares); the brick-paver set (concrete_sidewalk) stays out of the street
+    e('concrete', 0, 'concrete_pavement', { repeat: 1.5, normalScale: 0.8, envMapIntensity: 0.12, tint: '#d6d6dc' }),
     e('bluestone', 0, 'bluestone_slate', { repeat: 1, normalScale: 0.6, envMapIntensity: 0.12 }),
     e('bluestone', 1, 'bluestone_slate', { repeat: 1, normalScale: 0.6, envMapIntensity: 0.12, tint: '#d8d8dc' }),
     e('waterTank', 0, 'weathered_wood', { repeat: 3, normalScale: 0.7 }),

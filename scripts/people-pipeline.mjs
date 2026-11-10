@@ -217,7 +217,26 @@ export function buildBody(src, shape) {
   rig.ankleY = rig.ankleL[1];
   const crown = highest - lowest;
   const landmarks = { chinY: joints.chin[1], eyeY: joints.eyeL[1], eyeX: Math.abs(joints.eyeL[0]), crownY: crown, hemY: crown * 0.56, ankleY: rig.ankleL[1], wristY: rig.wristL[1] };
-  return { positions: pos, w12, indices: triangulate(src.obj.quads, pos), rig, landmarks, height: crown };
+  const indices = triangulate(src.obj.quads, pos);
+  smoothFeet(pos, w12, indices, rig.ankleY + 0.03);
+  return { positions: pos, w12, indices, rig, landmarks, height: crown };
+}
+
+/** Laplacian smoothing of the foot (knee-bone vertices below the ankle) so the separate toes become one sneaker-like blob; the flat sole stays put. */
+export function smoothFeet(pos, w12, indices, topY, iterations = 8) {
+  const n = pos.length / 3, nb = Array.from({ length: n }, () => new Set());
+  for (let t = 0; t < indices.length; t += 3) for (let k = 0; k < 3; k++) { nb[indices[t + k]].add(indices[t + (k + 1) % 3]); nb[indices[t + k]].add(indices[t + (k + 2) % 3]); }
+  const foot = [];
+  for (let v = 0; v < n; v++) if (pos[v * 3 + 1] < topY && w12[v * 12 + I.kneeL] + w12[v * 12 + I.kneeR] > 0.5) foot.push(v);
+  for (let it = 0; it < iterations; it++) {
+    const next = foot.map((v) => {
+      let x = 0, y = 0, z = 0;
+      for (const u of nb[v]) { x += pos[u * 3]; y += pos[u * 3 + 1]; z += pos[u * 3 + 2]; }
+      const c = nb[v].size || 1, low = pos[v * 3 + 1] < 0.006;
+      return [pos[v * 3] * 0.4 + (x / c) * 0.6, low ? pos[v * 3 + 1] : pos[v * 3 + 1] * 0.4 + (y / c) * 0.6, pos[v * 3 + 2] * 0.4 + (z / c) * 0.6];
+    });
+    foot.forEach((v, i) => pos.set(next[i], v * 3));
+  }
 }
 
 // ------------------------------------------------------------------ decimation

@@ -8,6 +8,7 @@ import { clamp, type Vec2 } from '@/core/Math2';
 import type { Entity, IVehicle, VehicleType, GraphNode, HudState } from '@/world/types';
 import { loadBedstuyData } from '@/world/Grid';
 import { buildWorld } from '@/world/WorldBuilder';
+import { loadPeople } from '@/entities/models/pedMesh';
 import { updateSignalMeshes } from '@/world/props/signals';
 import { TrafficLights } from '@/game/TrafficLights';
 import { MaterialLibrary } from '@/textures/MaterialLibrary';
@@ -193,6 +194,7 @@ instanceCuller.setRange(tier0.instanceDistance);
 // ---- entities (optional real models: src/assets/models/README.md)
 loading.begin('entities');
 Vehicle.sources = await resolveVehicleSources();
+await withTimeout(loadPeople(), 8_000, 0); // MakeHuman-based people (HUMAN); falls back to procedural if a glb is missing
 { const chars = await resolveCharacterSource(materials, rng.fork('characters')); if (chars instanceof GltfCharacterSource) { Pedestrian.characterSource = chars; Player.characterSource = chars; } }
 let vehicleSeq = 0;
 const makeVehicle = (type: VehicleType, pos: Vec2, heading: number, color: string): IVehicle =>

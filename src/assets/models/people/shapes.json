@@ -1,34 +1,34 @@
 {
  "m_avg": {
   "height": 1.78,
-  "bytes": 64476,
-  "tris": {
-   "hi": 4000,
-   "mid": 1500,
-   "far": 400
-  }
- },
- "m_heavy": {
-  "height": 1.76,
-  "bytes": 65176,
+  "bytes": 64704,
   "tris": {
    "hi": 4000,
    "mid": 1500,
    "far": 396
   }
  },
- "m_slim": {
-  "height": 1.86,
-  "bytes": 64312,
+ "m_heavy": {
+  "height": 1.76,
+  "bytes": 65744,
   "tris": {
    "hi": 4000,
    "mid": 1500,
    "far": 400
   }
  },
+ "m_slim": {
+  "height": 1.86,
+  "bytes": 64840,
+  "tris": {
+   "hi": 4000,
+   "mid": 1500,
+   "far": 398
+  }
+ },
  "m_old": {
   "height": 1.72,
-  "bytes": 64640,
+  "bytes": 64924,
   "tris": {
    "hi": 4000,
    "mid": 1500,
@@ -37,16 +37,16 @@
  },
  "f_avg": {
   "height": 1.66,
-  "bytes": 64524,
+  "bytes": 64808,
   "tris": {
    "hi": 4000,
    "mid": 1500,
-   "far": 398
+   "far": 394
   }
  },
  "f_slim": {
   "height": 1.7,
-  "bytes": 65056,
+  "bytes": 65524,
   "tris": {
    "hi": 4000,
    "mid": 1500,
@@ -55,7 +55,7 @@
  },
  "f_heavy": {
   "height": 1.64,
-  "bytes": 65512,
+  "bytes": 65548,
   "tris": {
    "hi": 4000,
    "mid": 1500,
@@ -64,16 +64,16 @@
  },
  "f_old": {
   "height": 1.6,
-  "bytes": 64972,
+  "bytes": 64956,
   "tris": {
    "hi": 4000,
    "mid": 1500,
-   "far": 400
+   "far": 398
   }
  },
  "teen": {
   "height": 1.6,
-  "bytes": 64036,
+  "bytes": 64264,
   "tris": {
    "hi": 4000,
    "mid": 1500,

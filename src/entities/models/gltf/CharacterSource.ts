@@ -15,7 +15,7 @@ import type { Rng } from '@/core/Rng';
 import type { CharacterRig, CharacterSource, IMaterialLibrary } from '@/world/types';
 import { animateWalk } from '@/entities/models/humanModel';
 import { CIVILIAN_COUNT } from '@/entities/models/pedBody';
-import { buildPedModel } from '@/entities/models/pedBodyHi';
+import { buildPerson as buildPedModel } from '@/entities/models/pedMesh';
 import { createGltfLoader, firstUrl, warnOnce, type GLTF } from './loader';
 
 export type { CharacterRig, CharacterSource };

@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
 import type { HumanModel } from '@/entities/models/humanModel';
 import type { PedOptions } from '@/entities/models/pedBody';
-import { buildPedModel } from '@/entities/models/pedBodyHi';
+import { buildPerson as buildPedModel } from '@/entities/models/pedMesh';
 import type { IMaterialLibrary, IWorld2D } from '../types';
 import { INTERIORS, type InteriorId } from './defs';
 import { basic, box, gradientPlane, plane, RoomColliders, shell, sleeveRows } from './parts';
