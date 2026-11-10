@@ -431,7 +431,7 @@ export function pickPedVariant(rng: Rng, hour = ctxHour, sunday = ctxSunday): nu
   }
   // the groups of the last WINDOW - 1 picks; if they hold too few, this pick must come from a group not among them
   const last = recent.slice(-(WINDOW - 1)), seen = new Set(last);
-  const mustNew = seen.size + (WINDOW - 1 - last.length) < MIN_GROUPS - 0 && (last.length >= WINDOW - 1 ? seen.size < MIN_GROUPS : seen.size + (WINDOW - last.length - 1) < MIN_GROUPS);
+  const mustNew = last.length >= WINDOW - 1 ? seen.size < MIN_GROUPS : seen.size + (WINDOW - 1 - last.length) < MIN_GROUPS;
   let total = 0;
   for (let i = 0; i < CIVILIAN_COUNT; i++) { if (mustNew && seen.has(PED_SPECS[i].group ?? '')) w[i] = 0; total += w[i]; }
   let r = rng.next() * total, pick = CIVILIAN_COUNT - 1;

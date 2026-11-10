@@ -118,22 +118,27 @@ export function cargoLiveryMaterial(materials: IMaterialLibrary, variant: number
 
 // ---------------------------------------------------------------- wheels
 
-/** Tyre sides: a 10-gon reads round at the 1.6 cm sagitta it leaves on a 0.34 m radius. */
-const WHEEL_SEG = 22;
-/** the van's 0.5 m tyres get 12 sides */
+/** Tyre sides: 20 reads round at the 1.6 cm sagitta it leaves on a 0.34 m radius even with the bulged sidewall. */
+const WHEEL_SEG = 20;
+/** the van's 0.5 m tyres get 26 sides */
 const segFor = (R: number): number => (R > 0.45 ? 26 : WHEEL_SEG);
-/** Tyre profile, outer half, from the tread centre outwards: [radius / R, axial / w, texture v]. v follows tireSidewallPainter. */
-const TYRE_PROFILE: [number, number, number][] = [[1, 0, 0.5], [1, 0.32, 0.44], [0.84, 0.5, 0.2], [0.6, 0.4, 0.05]];
+/** Tyre profile, outer half, from the tread centre outwards: [radius / R, axial / w, texture v]: tread, shoulder, bulging sidewall, bead. */
+const TYRE_PROFILE: [number, number, number][] = [[1, 0, 0.5], [1, 0.3, 0.46], [0.975, 0.41, 0.38], [0.9, 0.5, 0.26], [0.78, 0.49, 0.12], [0.68, 0.43, 0.06]];
+
+export type WheelKind = 'alloy' | 'steel';
+/** Texture spots on the tireSidewall map (see tireSidewallPainter's hubcap band): bright wheel metal, dark recess / brake disc. */
+const UV_METAL: [number, number] = [0.15, 0.02];
+const UV_DARK: [number, number] = [0.02, 0.03];
 
 /**
- * One wheel (axle along x, hubcap on the +x face): tyre with sidewall UVs for the 'tireSidewall' texture, plus a dished hubcap
- * whose UVs land on the hubcap band of that same texture, so tyre and wheel are one mesh with one material.
+ * One wheel (axle along x, face on the +x side): a bulged-sidewall tyre with a tread shoulder, a dished rim, and either six
+ * alloy spokes with real depth over a recessed disc with a brake disc behind it, or (steel) a domed hubcap. Tyre, rim and brake
+ * are ONE mesh with the tyre material (the texture's bands supply the colours), so a wheel costs no extra draw.
  */
-function buildWheel(R: number, w: number): THREE.BufferGeometry {
+function buildWheel(R: number, w: number, kind: WheelKind): THREE.BufferGeometry {
   const SEG = segFor(R);
   const rings: { a: number; r: number; v: number; nr: number; na: number }[] = [];
   const prof = [...TYRE_PROFILE.slice(1).reverse().map(([r, a, v]) => ({ r, a: -a, v: 1 - v })), ...TYRE_PROFILE.map(([r, a, v]) => ({ r, a, v }))];
-  // tread centre appears once: the reversed half stops before it, the forward half starts with it
   for (let k = 0; k < prof.length; k++) {
     const p = prof[k];
     const p0 = prof[Math.max(0, k - 1)];
@@ -143,23 +148,17 @@ function buildWheel(R: number, w: number): THREE.BufferGeometry {
     const len = Math.hypot(ta, tr) || 1;
     rings.push({ a: p.a * w, r: p.r * R, v: p.v, na: -tr / len, nr: ta / len });
   }
-  // hubcap: rim lip -> spoke band -> centre cap, normal +x
-  const hub = [
-    { a: 0.4 * w, r: 0.6 * R, v: 0.04 },
-    { a: 0.36 * w, r: 0.34 * R, v: 0.012 },
-    { a: 0.34 * w, r: 0, v: 0 },
-  ];
   const pos: number[] = [];
   const nor: number[] = [];
   const uv: number[] = [];
   const idx: number[] = [];
-  const addRing = (a: number, r: number, v: number, na: number, nr: number): void => {
+  const addRing = (a: number, r: number, u: number | null, v: number, na: number, nr: number): void => {
     for (let i = 0; i <= SEG; i++) {
       const th = (i / SEG) * Math.PI * 2;
       const c = Math.cos(th), s = Math.sin(th);
       pos.push(a, r * c, r * s);
       nor.push(na, nr * c, nr * s);
-      uv.push(i / SEG, v);
+      uv.push(u ?? i / SEG, v);
     }
   };
   const stitch = (k0: number): void => {
@@ -169,15 +168,50 @@ function buildWheel(R: number, w: number): THREE.BufferGeometry {
       idx.push(A, B, C, B, D, C);
     }
   };
-  rings.forEach((rg, k) => { addRing(rg.a, rg.r, rg.v, rg.na, rg.nr); if (k > 0) stitch(k - 1); });
-  const base = rings.length;
-  hub.forEach((h, k) => { addRing(h.a, h.r, h.v, 1, 0); if (k > 0) stitch(base + k - 1); });
+  let ringCount = 0;
+  rings.forEach((rg, k) => { addRing(rg.a, rg.r, null, rg.v, rg.na, rg.nr); ringCount++; if (k > 0) stitch(k - 1); });
+  // rim face, rings in order; uv [u, v] constant per ring (flat colour from the texture's wheel band)
+  const face: { a: number; r: number; uvc: [number, number]; na: number; nr: number }[] = kind === 'alloy'
+    ? [
+      { a: 0.43 * w, r: 0.68 * R, uvc: UV_METAL, na: 1, nr: 0 },
+      { a: 0.43 * w, r: 0.6 * R, uvc: UV_METAL, na: 1, nr: 0 },
+      { a: 0.3 * w, r: 0.56 * R, uvc: UV_DARK, na: 1, nr: 0 },
+      { a: 0.28 * w, r: 0, uvc: UV_DARK, na: 1, nr: 0 },
+    ]
+    : [
+      { a: 0.43 * w, r: 0.68 * R, uvc: UV_METAL, na: 0.6, nr: 0.8 },
+      { a: 0.45 * w, r: 0.58 * R, uvc: UV_METAL, na: 0.85, nr: 0.5 },
+      { a: 0.5 * w, r: 0.3 * R, uvc: UV_METAL, na: 1, nr: 0.15 },
+      { a: 0.52 * w, r: 0, uvc: UV_METAL, na: 1, nr: 0 },
+    ];
+  const base = ringCount;
+  face.forEach((f, k) => { addRing(f.a, f.r, f.uvc[0], f.uvc[1], f.na, f.nr); if (k > 0) stitch(base + k - 1); });
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(idx);
-  return g;
+  const acc = new Acc().add(g);
+  const flat = (geo: THREE.BufferGeometry, [u, v]: [number, number]): THREE.BufferGeometry => {
+    const n = geo.attributes.position.count;
+    const arr = new Float32Array(n * 2);
+    for (let i = 0; i < n; i++) { arr[i * 2] = u; arr[i * 2 + 1] = v; }
+    geo.setAttribute('uv', new THREE.BufferAttribute(arr, 2));
+    return geo;
+  };
+  if (kind === 'alloy') {
+    const N = 6;
+    for (let i = 0; i < N; i++) {
+      // a spoke: 7 cm deep, tapering by being a plain bar, from the cap out to the rim lip
+      const spoke = new THREE.BoxGeometry(0.1 * w, 0.52 * R, 0.14 * R);
+      spoke.translate(0.36 * w, 0.36 * R, 0);
+      spoke.rotateX((i / N) * Math.PI * 2 + 0.26);
+      acc.add(flat(spoke, UV_METAL));
+    }
+    acc.add(flat(new THREE.CylinderGeometry(0.13 * R, 0.13 * R, 0.1 * w, 10).rotateZ(-Math.PI / 2).translate(0.36 * w, 0, 0), UV_METAL)); // centre cap
+    acc.add(flat(new THREE.CylinderGeometry(0.5 * R, 0.5 * R, 0.05 * w, SEG).rotateZ(-Math.PI / 2).translate(0.2 * w, 0, 0), UV_DARK)); // brake disc behind the spokes
+  }
+  return acc.merge();
 }
 
 interface WheelGeos {
@@ -187,11 +221,11 @@ interface WheelGeos {
   left: THREE.BufferGeometry;
 }
 const wheelCache = new Map<string, WheelGeos>();
-function wheelGeos(R: number, w: number): WheelGeos {
-  const key = `${R.toFixed(3)}|${w.toFixed(3)}`;
+function wheelGeos(R: number, w: number, kind: WheelKind): WheelGeos {
+  const key = `${R.toFixed(3)}|${w.toFixed(3)}|${kind}`;
   let g = wheelCache.get(key);
   if (!g) {
-    const right = new Acc().add(buildWheel(R, w)).merge();
+    const right = buildWheel(R, w, kind);
     g = { right, left: mirrorX(right) };
     wheelCache.set(key, g);
   }
@@ -200,11 +234,11 @@ function wheelGeos(R: number, w: number): WheelGeos {
 
 /** Both rear wheels as one geometry, left wheel at the origin and the right one `span` along +x (they roll together). */
 const rearPairCache = new Map<string, THREE.BufferGeometry>();
-function rearPair(R: number, w: number, span: number): THREE.BufferGeometry {
-  const key = `${R.toFixed(3)}|${w.toFixed(3)}|${span.toFixed(3)}`;
+function rearPair(R: number, w: number, span: number, kind: WheelKind): THREE.BufferGeometry {
+  const key = `${R.toFixed(3)}|${w.toFixed(3)}|${span.toFixed(3)}|${kind}`;
   let g = rearPairCache.get(key);
   if (!g) {
-    const wg = wheelGeos(R, w);
+    const wg = wheelGeos(R, w, kind);
     g = new Acc().add(wg.left.clone()).add(wg.right.clone().translate(span, 0, 0)).merge();
     rearPairCache.set(key, g);
   }
@@ -406,7 +440,8 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   mesh(parts.plate, materials.get('plate', variant), 'plate');
 
   // wheels: steer pivot (front only) -> roll pivot -> (split) tyre + hubcap; the rear pair is one mesh under the left roll pivot
-  const wg = wheelGeos(parts.wheelR, parts.wheelW);
+  const wkind: WheelKind = st === 'cab' || st === 'cop' ? 'steel' : 'alloy'; // hubcap steelies on the taxi and the cruiser
+  const wg = wheelGeos(parts.wheelR, parts.wheelW, wkind);
   const wheels: THREE.Object3D[] = [];
   const steerPivots: THREE.Object3D[] = [];
   const rigs: { steer: THREE.Object3D; roll: THREE.Object3D; left: boolean }[] = [];
@@ -418,7 +453,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
     roll.name = 'wheel';
     if (split) {
       if (w.front) mesh(w.x < 0 ? wg.left : wg.right, tyreMat, 'tyre', roll);
-      else if (w.x < 0) mesh(rearPair(parts.wheelR, parts.wheelW, -2 * w.x), tyreMat, 'tyre', roll);
+      else if (w.x < 0) mesh(rearPair(parts.wheelR, parts.wheelW, -2 * w.x, wkind), tyreMat, 'tyre', roll);
     }
     steer.add(roll);
     group.add(steer);

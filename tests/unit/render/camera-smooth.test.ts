@@ -25,7 +25,7 @@ function run(speed: number, mode: 'foot' | 'vehicle', frameMs: number, jitter: n
     const n = stepper.advance(dt);
     for (let i = 0; i < n; i++) { poses.beginCapture(); poses.capture(body); poses.endCapture(); body.pos.z -= speed * FIXED_STEP; }
     poses.blend(body, stepper.alpha, out);
-    cam.update(dt, { x: out.x, z: out.z }, out.h, mode, input);
+    cam.update(dt, { x: out.x, z: out.z }, out.h, mode, input, { speed });
     if (t > 2) {
       const o = cam.camera.position.z - out.z; // camera-to-target offset along the travel axis
       offs.push(o);
@@ -69,6 +69,7 @@ describe('follow camera smoothness', () => {
     const before = cam.camera.position.clone();
     cam.update(1 / 60, { x: 1.4, z: 0 }, 0, 'vehicle', input); // car centre is 1.4 m from the door spot
     const first = Math.hypot(cam.camera.position.x - before.x, cam.camera.position.z - before.z);
+    console.log(`enter pivot jump 1.4 m: first-frame lens move ${first.toFixed(3)} m`);
     expect(first).toBeLessThan(0.5);
     for (let i = 0; i < 180; i++) cam.update(1 / 60, { x: 1.4, z: 0 }, 0, 'vehicle', input);
     expect(Math.abs(cam.camera.position.x - 1.4)).toBeLessThan(0.05); // yaw 0, no shoulder in a car
@@ -83,6 +84,7 @@ describe('follow camera smoothness', () => {
     const d1 = Math.abs(cam.camera.position.z);
     for (let i = 0; i < 60; i++) cam.update(1 / 60, { x: 0, z: 0 }, 0, 'foot', input, { world: wall });
     const d2 = Math.abs(cam.camera.position.z);
+    console.log(`wall pull-in: lens distance before ${d0.toFixed(2)} first frame ${d1.toFixed(2)} settled ${d2.toFixed(2)}`);
     expect(d1).toBeGreaterThan(d2); expect(d1).toBeLessThan(d0);
     expect(d2).toBeLessThan(2 - 0.3);
   });
