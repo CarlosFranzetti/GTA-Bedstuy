@@ -135,6 +135,10 @@ function runTraffic(seed: number): Run {
         if (!Number.isFinite(p.body.pos.x) || !Number.isFinite(p.body.pos.z)) run.nonFinite.push(`${p.id}@${t.toFixed(1)}`);
       }
     }
+    if (seed === 21 && step % 300 === 0 && t > 110 && t < 175) {
+      const pn = traffic.peds.filter((p) => Math.hypot(p.body.pos.x + 15, p.body.pos.z) < 14).map((p) => `${p.id}:${p.state}@${p.body.pos.x.toFixed(1)},${p.body.pos.z.toFixed(1)}`);
+      console.log('DBGP', t.toFixed(0), pn.join(' '));
+    }
     if (seed === 21 && step % 300 === 0 && t > 100 && t < 180) {
       const near = traffic.vehicles.filter((v) => Math.abs(v.body.pos.z) < 8 && v.body.pos.x > -70 && v.body.pos.x < 0).map((v) => `${v.id}:${v.driver}:${v.body.pos.x.toFixed(1)},${v.body.pos.z.toFixed(1)} v${v.speed.toFixed(1)} h${v.body.heading.toFixed(2)}`);
       (globalThis as any).__dbg = ((globalThis as any).__dbg ?? '') + `t=${t.toFixed(0)} ${near.join(' | ')}\n`;

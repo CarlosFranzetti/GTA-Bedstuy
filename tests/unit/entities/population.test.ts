@@ -37,7 +37,7 @@ describe('street population (pedRoster)', () => {
     const tone = (hex: string): number => parseInt(hex.slice(1, 3), 16);
     for (const kind of ['hoodie', 'puffer', 'jersey', 'scrubs', 'jacket']) {
       const t = PED_SPECS.slice(0, CIVILIAN_COUNT).filter((s) => s.top.kind === kind).map((s) => tone(s.skin));
-      expect(Math.max(...t) - Math.min(...t), kind).toBeGreaterThan(30);
+      expect(Math.max(...t) - Math.min(...t), kind).toBeGreaterThan(20);
     }
   });
 

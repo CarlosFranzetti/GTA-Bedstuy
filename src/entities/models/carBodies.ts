@@ -669,6 +669,7 @@ export const STYLES: Record<StyleKey, Style> = {
     hoodBack: 0.92,
     clad: 11,
     rails: false, spoiler: true, maxGap: 0.22, archN: 8,
+    headLamp: 'wedge', grille: 'wedge',
     bumperY: 0.34, bumperH: 0.22,
     plan: [[-2.3, 0.9], [-1.7, 0.97], [-0.9, 1], [0.9, 1], [1.7, 0.98], [2.3, 0.92]],
   },

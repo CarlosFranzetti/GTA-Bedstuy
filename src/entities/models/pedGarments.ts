@@ -89,6 +89,8 @@ interface ShellOpts {
   /** adjust an offset position (hang) given its welded vertex */
   hang?: (p: V3, v: V) => void;
   iterations?: number;
+  /** normal smoothing steps (bust and shoulders need many) */
+  normalIters?: number;
   rim?: number;
   /** uv from the FINAL position of a corner (continuous unwrap); the tile rect lets the back seam be fixed per triangle */
   uv?: (p: V3, v: V) => [number, number];
@@ -117,7 +119,7 @@ function finalize(tris: Tri[], o: ShellOpts): THREE.BufferGeometry | null {
     nb[a].add(b); nb[b].add(a);
   }
   // the decimated mesh has irregular normals: smooth them first so the offset does not shear the texture sideways
-  for (let it = 0; it < 6; it++) {
+  for (let it = 0; it < (o.normalIters ?? 6); it++) {
     const next = N.map((n, i) => {
       let x = n[0] * 2, y = n[1] * 2, z = n[2] * 2;
       for (const j of nb[i]) { x += N[j][0]; y += N[j][1]; z += N[j][2]; }
@@ -246,31 +248,32 @@ export function garmentParts(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSp
     const long = !!top.long;
     const hem = long ? kneeY + 0.05 : lm.hemY - (['puffer', 'hoodie', 'jacket', 'cardigan'].includes(top.kind) ? 0.09 : top.kind === 'tee' || top.kind === 'blouse' ? 0.0 : 0.04);
     const wArm = (v: V): number => wsum(v, B.arms), wHead = (v: V): number => wsum(v, B.head), wLow = (v: V): number => wsum(v, B.legs);
-    let body = clip(all, (v) => wsum(v, B.torso) + wsum(v, B.hips) + (long ? wLow(v) : 0) - wArm(v) - wHead(v) - (long ? 0 : wLow(v)));
+    let body = clip(all, (v) => wsum(v, B.torso) + wsum(v, B.hips) + (long ? wLow(v) : 0) - wArm(v) - wHead(v) - (long ? 0 : wLow(v)) - 0.03);
     body = clip(body, (v) => v.p[1] - hem);
     if (long) body = clip(body, (v) => (v.p[2] < torsoAxis(v.p).cz && v.p[1] < lm.hemY + 0.08 ? Math.abs(v.p[0]) - 0.011 : 1));   // split at the front
     const chest = tr.slice(0, Math.max(2, Math.floor(tr.length * 0.8))).reduce((b, r) => (r[1] * r[3] > b[1] * b[3] ? r : b));
-    const chestY = chest[0], a = HANG_TOP[top.kind] ?? 0.5;
+    const chestY = chest[0], a = Math.max(HANG_TOP[top.kind] ?? 0.5, spec.sex === 'f' ? 0.85 : 0);
     const flare = long ? 0.03 : top.kind === 'puffer' ? 0.01 : 0;
     emit(body, {
-      thick: (v) => tk + (long ? flare * (1 - smooth(hem, lm.hemY, v.p[1])) : 0) + (top.kind === 'hoodie' && v.p[1] > shoulderY ? 0.012 : 0),
+      thick: (v) => tk + (spec.sex === 'f' ? 0.006 : 0) + (long ? flare * (1 - smooth(hem, lm.hemY, v.p[1])) : 0) + (top.kind === 'hoodie' && v.p[1] > shoulderY ? 0.012 : 0),
       hang: (p) => {
         if (p[1] >= chestY || p[1] < lm.hemY - 0.02) return;
         const r = ringAt(tr, p[1]), w = smooth(chestY, chestY - 0.1, p[1]) * a;
         const sx = 1 + Math.max(0, (chest[1] * 0.98) / Math.max(0.05, r.rx) - 1) * w, sz = 1 + Math.max(0, (chest[3] * 0.98) / Math.max(0.05, r.rz) - 1) * w;
         p[0] = r.cx + (p[0] - r.cx) * sx; p[2] = r.cz + (p[2] - r.cz) * sz;
       },
-      iterations: 3, rim: Math.max(0.005, tk * 0.5), uv: cyl(HI_RECTS.torso, hem, neckBase, torsoAxis), tile: HI_RECTS.torso,
+      iterations: 3, normalIters: spec.sex === 'f' ? 22 : 12, rim: Math.max(0.005, tk * 0.5), uv: cyl(HI_RECTS.torso, hem, neckBase, torsoAxis), tile: HI_RECTS.torso,
     });
     if (top.kind !== 'vest' && top.kind !== 'apron' && top.sleeves !== 'none') {
       const sleeveCut = top.sleeves === 'short' ? elbowY + (shoulderY - elbowY) * 0.42 : -9;
-      const arm = clip(all, (v) => wArm(v) - wsum(v, B.torso) - wsum(v, B.hips) - wHead(v));
+      const arm = clip(all, (v) => wArm(v) - wsum(v, B.torso) - wsum(v, B.hips) - wHead(v) - 0.03);
       const upper = clip(clip(arm, (v) => v.p[1] - Math.max(elbowY, sleeveCut)), (v) => v.p[1] < shoulderY + 0.08 ? 1 : -1);
-      emit(upper, { thick: () => tk * 0.85, iterations: 3, rim: Math.max(0.004, tk * 0.4), uv: cyl(HI_RECTS.upperArm, elbowY, neckBase, limbAxis(armRings)), tile: HI_RECTS.upperArm });
-      if (top.sleeves === 'long') {
-        const fore = clip(clip(arm, (v) => elbowY - v.p[1]), (v) => v.p[1] - (wristY + 0.012));
-        emit(fore, { thick: (v) => tk * 0.8 + (v.p[1] < wristY + 0.04 ? 0.003 : 0), iterations: 3, rim: 0.005, uv: cyl(HI_RECTS.foreArm, wristY, elbowY, limbAxis(armRings)), tile: HI_RECTS.foreArm });
-      }
+      const fore = top.sleeves === 'long' ? clip(clip(arm, (v) => elbowY - v.p[1]), (v) => v.p[1] - (wristY + 0.012)) : [];
+      const uvU = cyl(HI_RECTS.upperArm, elbowY, neckBase, limbAxis(armRings)), uvF = cyl(HI_RECTS.foreArm, wristY, elbowY, limbAxis(armRings));
+      // a triangle belongs to one tile: below the elbow line the forearm tile, above it the upper arm tile (cut exactly on the line, so no seam ring)
+      const sleeve = [...upper, ...fore];
+      emit(sleeve, { thick: (v) => (v.p[1] >= elbowY - 1e-5 ? tk * 0.85 : tk * 0.8 + (v.p[1] < wristY + 0.04 ? 0.003 : 0)), iterations: 3, normalIters: 10, rim: Math.max(0.004, tk * 0.4),
+        uv: (p, v) => (p[1] >= elbowY - 1e-4 ? uvU(p) : uvF(p)), tile: undefined });
     }
   }
 
@@ -291,14 +294,14 @@ export function garmentParts(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSp
     };
     const covered = top.long && tk > 0;   // a long coat hides the hips and thighs
     if (!covered) {
-      const pelvis = clip(clip(all, (v) => wH(v) - wL(v) - wsum(v, B.arms) - wsum(v, B.head)), (v) => waist - v.p[1]);
+      const pelvis = clip(clip(all, (v) => wH(v) - wL(v) - wsum(v, B.arms) - wsum(v, B.head) - 0.03), (v) => waist - v.p[1]);
       emit(clip(pelvis, (v) => v.p[1] - (R.hipL[1] - 0.2)), { thick: thickOf, iterations: 3, rim: 0.006, uv: cyl(HI_RECTS.pelvis, R.hipL[1] - 0.2, waist, torsoAxis), tile: HI_RECTS.pelvis });
-      const legs = clip(all, (v) => wL(v) - wH(v));
+      const legs = clip(all, (v) => wL(v) - wH(v) - 0.03);
       const thigh = clip(clip(legs, (v) => v.p[1] - (bk === 'shorts' ? shortsEnd : kneeY)), (v) => hipTop - v.p[1] + 0.4);
       emit(thigh, { thick: thickOf, hang, iterations: 3, rim: 0.006, uv: cyl(HI_RECTS.thigh, kneeY, hipTop, limbAxis(legRings)), tile: HI_RECTS.thigh });
     }
     if (bk !== 'shorts') {
-      const legs = clip(all, (v) => wL(v) - wH(v));
+      const legs = clip(all, (v) => wL(v) - wH(v) - 0.03);
       const shin = clip(clip(legs, (v) => kneeY - v.p[1]), (v) => v.p[1] - cuff);
       emit(shin, { thick: thickOf, hang, iterations: 3, rim: 0.006, uv: cyl(HI_RECTS.shin, lm.ankleY + 0.03, kneeY, limbAxis(legRings)), tile: HI_RECTS.shin });
     }
@@ -357,12 +360,13 @@ export function headShell(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec)
   if (style === 'afro') return out;
   const base = style === 'fade' ? 0.006 : style === 'curly' ? 0.026 : old ? 0.007 : style === 'puff' ? 0.012 : 0.016;
   const topT = style === 'fade' ? 0.8 : old ? 0.78 : 0.7, sideT = style === 'fade' ? 0.52 : old ? 0.55 : 0.4;
-  const bump = (v: V): number => 0.018 * Math.sin(v.p[0] * 210 + 1.3) + 0.012 * Math.sin(v.p[0] * 470);
+  const bump = (v: V): number => 0.03 * Math.sin(v.p[0] * 160 + 1.3) + 0.018 * Math.sin(v.p[0] * 410 + 0.4) + (style === 'short' ? 0.05 * (v.p[0] / rx) : 0);   // irregular, a side part slants it
   const region = (v: V): number => {
     const t = tOf(v.p[1]), ax = Math.min(1, Math.abs(v.p[0]) / rx);
-    const hairline = topT + 0.07 - 0.15 * ax * ax + bump(v);                      // forehead high in the middle, receding at the temples
-    const back = Math.min(t - sideT, (v.p[2] - (zc + rz * (style === 'fade' ? 0.15 : -0.12))) * 14);
-    return Math.max(t - hairline, back);
+    const hairline = topT + 0.07 - (style === 'fade' ? 0.15 : 0.22) * ax * ax + bump(v);                      // forehead high in the middle, receding at the temples
+    const back = Math.min(t - sideT, (v.p[2] - (zc + rz * (style === 'fade' ? 0.15 : -0.55))) * 14);          // sides reach the temples
+    const nape = style === 'fade' || old ? -1 : Math.min(t - 0.27, (v.p[2] - (zc + rz * 0.3)) * 14);                  // and the nape
+    return Math.max(t - hairline, back, nape);
   };
   const noise = (v: V): number => (style === 'curly' ? 0.009 * Math.sin(v.p[0] * 260 + v.p[1] * 190) * Math.cos(v.p[2] * 230) : 0);
   const quiff = (v: V): number => (style === 'short' ? 0.012 * smooth(zc - rz * 0.1, zc - rz * 0.9, v.p[2]) * smooth(0.7, 0.95, tOf(v.p[1])) : 0);

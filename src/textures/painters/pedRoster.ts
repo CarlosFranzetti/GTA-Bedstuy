@@ -17,12 +17,12 @@ export const PALETTE: Record<PopGroup, { skin: string[]; hair: string[] }> = {
   ba: { skin: ['#5e3a26', '#6e4530', '#8d5a3a', '#4a2e1e', '#7a4c32'], hair: ['#0e0a08', '#150e0a', '#1c1410'] },
   ca: { skin: ['#8d5a3a', '#a56e46', '#b97f55', '#6e4530'], hair: ['#120c08', '#1c1410', '#2a1c12'] },
   la: { skin: ['#d9a37a', '#c99068', '#b97f55', '#e0b48a'], hair: ['#17110d', '#241812', '#2a1c12'] },
-  wh: { skin: ['#e8bd9a', '#e2b28c', '#d9a77f', '#ecc4a4', '#dfae88'], hair: ['#4a3220', '#8a6a3a', '#c8a060', '#6a3a22', '#2a1c12', '#b8b8b8'] },
-  ea: { skin: ['#e2b88e', '#d9ab80', '#d0a074', '#e6bf98'], hair: ['#0e0a08', '#17110d', '#1c1410'] },
+  wh: { skin: ['#e0b08c', '#d9a680', '#d19c76', '#e6b894', '#d6a47d'], hair: ['#4a3220', '#8a6a3a', '#c8a060', '#6a3a22', '#2a1c12', '#b8b8b8'] },
+  ea: { skin: ['#dcb088', '#d3a47a', '#cb986e', '#e0b78f'], hair: ['#0e0a08', '#17110d', '#1c1410'] },
   sa: { skin: ['#b97f55', '#a56e46', '#8d5a3a', '#c99068'], hair: ['#0e0a08', '#17110d', '#241812'] },
   me: { skin: ['#d9a37a', '#c99068', '#b97f55', '#e0b48a'], hair: ['#17110d', '#241812', '#2a1c12'] },
   mx: { skin: ['#d9a37a', '#b97f55', '#8d5a3a', '#e0b48a'], hair: ['#17110d', '#2a1c12', '#4a3220'] },
-  hj: { skin: ['#e8bd9a', '#e2b28c', '#d9a77f'], hair: ['#2a1c12', '#4a3220', '#17110d'] },
+  hj: { skin: ['#e0b08c', '#d9a680', '#d19c76'], hair: ['#2a1c12', '#4a3220', '#17110d'] },
 };
 
 const hash = (s: string): number => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
@@ -107,7 +107,7 @@ const NEW_OUTFITS: Record<string, Omit<PedSpec, 'id' | 'skin'>> = {
 
 const PEOPLE: Person[] = [
   // Black American
-  { id: 'ba-hoodie-fade', outfit: 'hoodie-cap', group: 'ba', sex: 'm', age: 'adult' },
+  { id: 'ba-hoodie-fade', outfit: 'hoodie-cap', group: 'ba', sex: 'm', age: 'adult', hat: 'none' },
   { id: 'ba-puffer-braids', outfit: 'puffer-braids', group: 'ba', sex: 'f', age: 'adult', hair: 'braids' },
   { id: 'ba-church-man', outfit: 'church-man', group: 'ba', sex: 'm', age: 'adult', sunday: true },
   { id: 'ba-church-lady', outfit: 'church-lady', group: 'ba', sex: 'f', age: 'adult', sunday: true },

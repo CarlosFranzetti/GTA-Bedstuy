@@ -91,7 +91,7 @@ function paintHead(t: L, s: PedSpec, rng: Rng): void {
   const skin = s.skin;
   t.rect(0, 0, W, W, skin, 1, 128, 140);
   // form shading: darker toward the sides and under the jaw, light on the forehead, cheek bones and nose bridge
-  for (let i = 0; i < 18; i++) { const a = 0.03; t.rect(0, 0, 40 - i * 2.2, W, '#000000', a); t.rect(W - (40 - i * 2.2), 0, 40 - i * 2.2, W, '#000000', a); }
+  for (let i = 0; i < 18; i++) { const a = 0.016; t.rect(0, 0, 40 - i * 2.2, W, '#000000', a); t.rect(W - (40 - i * 2.2), 0, 40 - i * 2.2, W, '#000000', a); }
   for (let i = 0; i < 24; i++) t.rect(0, Y(1.56) + i * 2, W, 256, '#000000', 0.022);
   t.soft(128, Y(1.725), 70, lt(skin, 0.32), 0.16);
   t.soft(X(-0.05), Y(1.62), 26, lt(skin, 0.25), 0.14); t.soft(X(0.05), Y(1.62), 26, lt(skin, 0.25), 0.14);
@@ -104,7 +104,7 @@ function paintHead(t: L, s: PedSpec, rng: Rng): void {
   const ey = Y(1.664);
   for (const sx of [-1, 1]) {
     const cx = X(sx * 0.034);
-    t.soft(cx, ey - 2, 30, dk(skin, 0.55), 0.5, 8);
+    t.soft(cx, ey - 2, 30, dk(skin, 0.3), 0.16, 8);
     const ew = f.eyes === 'wide' ? 22 : 20, eh = f.eyes === 'sleepy' ? 6 : f.eyes === 'wide' ? 11 : 9;
     t.poly([[cx - ew, ey], [cx - ew * 0.4, ey - eh], [cx + ew * 0.4, ey - eh], [cx + ew, ey], [cx + ew * 0.4, ey + eh * 0.6], [cx - ew * 0.4, ey + eh * 0.6]], '#efe9e2');
     t.disc(cx - sx * 1.5, ey - 0.5, eh * 0.62, '#4a3220'); t.disc(cx - sx * 1.5, ey - 0.5, eh * 0.4, '#16100c'); t.disc(cx - sx * 1.5 - 2, ey - 3, 1.8, '#ffffff', 0.9);
@@ -122,8 +122,8 @@ function paintHead(t: L, s: PedSpec, rng: Rng): void {
   if (f.glasses) t.line(X(-0.01), ey - 6, X(0.01), ey - 6, f.glasses, 2.4);
   // nose: bridge light, shaded side planes, nostrils, tip
   t.rect(X(-0.004), Y(1.69), 8, Y(1.63) - Y(1.69), lt(skin, 0.3), 0.35);
-  t.poly([[X(-0.024), Y(1.632)], [X(-0.008), Y(1.675)], [X(-0.012), Y(1.635)]], dk(skin, 0.4), 0.35);
-  t.poly([[X(0.024), Y(1.632)], [X(0.008), Y(1.675)], [X(0.012), Y(1.635)]], dk(skin, 0.4), 0.35);
+  t.poly([[X(-0.024), Y(1.632)], [X(-0.008), Y(1.675)], [X(-0.012), Y(1.635)]], dk(skin, 0.25), 0.18);
+  t.poly([[X(0.024), Y(1.632)], [X(0.008), Y(1.675)], [X(0.012), Y(1.635)]], dk(skin, 0.25), 0.18);
   t.soft(X(-0.013), Y(1.627), 6, '#20100c', 0.55); t.soft(X(0.013), Y(1.627), 6, '#20100c', 0.55);
   t.soft(128, Y(1.628), 9, lt(skin, 0.4), 0.3); t.rect(X(-0.014), Y(1.62), 36, 3, dk(skin, 0.5), 0.3);
   // mouth: upper and lower lip, dark line, small highlight
@@ -188,7 +188,18 @@ function paintTorso(t: L, s: PedSpec, rng: Rng): void {
     case 'puffer': baffles(t, W, H, c, 18, 6); t.rect(cx - 1.5, 0, 3, H, '#bdbdbd', 0.9, 160, 120); t.poly([[cx - 36, 0], [cx + 36, 0], [cx + 30, 10], [cx - 30, 10]], dk(c, 0.35)); break;
     case 'jersey': t.poly([[0, 0], [52, 0], [64, 60], [0, 60]], p.trim); t.poly([[W, 0], [W - 52, 0], [W - 64, 60], [W, 60]], p.trim); t.rect(0, H - 14, W, 14, p.trim); t.rect(0, H - 22, W, 3, p.trim, 0.8); break;
     case 'vest': t.rect(30, 0, 70, H, c); t.rect(W - 100, 0, 70, H, c); for (const y of [50, 92]) { t.rect(30, y, 70, 9, '#dadada', 1, 160, 130); t.rect(W - 100, y, 70, 9, '#dadada', 1, 160, 130); } t.rect(cx - 2, 0, 4, H, '#444'); break;
-    case 'jacket': case 'cardigan': t.rect(cx - 34, 0, 68, H, p.under ?? '#f4f4f4', 1, 128); t.poly([[cx - 42, 0], [cx - 4, 0], [cx - 8, 50], [cx - 22, 128], [cx - 42, 128]], dk(c, 0.04), 1, 120); t.poly([[cx + 42, 0], [cx + 4, 0], [cx + 8, 50], [cx + 22, 128], [cx + 42, 128]], dk(c, 0.04), 1, 120); t.poly([[cx - 42, 0], [cx - 18, 0], [cx - 4, 36], [cx - 24, 30]], lt(c, 0.12), 1, 150); t.poly([[cx + 42, 0], [cx + 18, 0], [cx + 4, 36], [cx + 24, 30]], lt(c, 0.12), 1, 150); if (p.tie) t.poly([[cx - 5, 6], [cx + 5, 6], [cx + 7, 22], [cx + 3, 70], [cx, 78], [cx - 3, 70], [cx - 7, 22]], p.tie, 1, 150); if (p.kind === 'cardigan') for (let y = 20; y < 120; y += 22) t.disc(cx - 14, y, 3.5, '#e8dcc0', 1, 170); else for (let y = 70; y < 128; y += 26) t.disc(cx - 14, y, 3, dk(c, 0.5), 1, 90); if (p.pattern === 'plaid') plaid(t, W, H, c); break;
+    case 'jacket': case 'cardigan': {
+      // closed coat: the shirt shows only in the V above the top button, the fronts meet in a placket below it
+      const vEnd = p.kind === 'cardigan' ? 70 : 56;
+      t.rect(cx - 42, 0, 84, H, dk(c, 0.04), 1, 122);
+      t.poly([[cx - 22, 0], [cx + 22, 0], [cx + 2, vEnd], [cx - 2, vEnd]], p.under ?? '#f4f4f4', 1, 128);
+      t.poly([[cx - 42, 0], [cx - 18, 0], [cx - 3, vEnd - 8], [cx - 26, 30]], lt(c, 0.12), 1, 150); t.poly([[cx + 42, 0], [cx + 18, 0], [cx + 3, vEnd - 8], [cx + 26, 30]], lt(c, 0.12), 1, 150);
+      t.rect(cx - 1, vEnd, 2, H - vEnd, dk(c, 0.45), 0.85, 100);
+      if (p.tie) t.poly([[cx - 4, 4], [cx + 4, 4], [cx + 5, 18], [cx + 2, vEnd - 4], [cx, vEnd], [cx - 2, vEnd - 4], [cx - 5, 18]], p.tie, 1, 150);
+      if (p.kind === 'cardigan') for (let y = vEnd; y < 124; y += 20) t.disc(cx + 5, y, 3.2, '#e8dcc0', 1, 170); else for (let y = vEnd + 6; y < 128; y += 24) t.disc(cx + 5, y, 2.8, dk(c, 0.55), 1, 90);
+      if (p.pattern === 'plaid') plaid(t, W, H, c);
+      break;
+    }
     case 'uniform': t.poly([[cx - 26, 0], [cx + 26, 0], [cx + 16, 24], [cx, 34], [cx - 16, 24]], '#f1efe6'); t.poly([[cx - 26, 0], [cx - 6, 0], [cx, 34], [cx - 20, 24]], dk(c, 0.12), 1, 150); t.poly([[cx + 26, 0], [cx + 6, 0], [cx, 34], [cx + 20, 24]], dk(c, 0.12), 1, 150); if (p.tie) t.poly([[cx - 4, 10], [cx + 4, 10], [cx + 4, 70], [cx, 76], [cx - 4, 70]], p.tie); t.rect(0, 108, W, 12, '#10141c', 1, 150, 90); t.rect(cx - 9, 108, 18, 12, '#c8b04a', 1, 170, 60); t.rect(cx + 42, 40, 34, 26, dk(c, 0.18), 1, 140); t.rect(cx + 42, 40, 34, 2, p.printColor, 0.8); t.text('POLICE', 0 + 6, 60, 1.6, '#e8e8e8'); break;
     case 'scrubs': t.poly([[cx - 28, 0], [cx + 28, 0], [cx, 44]], s.skin); t.poly([[cx - 28, 0], [cx - 18, 0], [cx, 28]], dk(c, 0.2), 1, 150); t.poly([[cx + 28, 0], [cx + 18, 0], [cx, 28]], dk(c, 0.2), 1, 150); t.rect(cx - 62, 70, 36, 30, dk(c, 0.12), 1, 130); t.line(cx - 14, 8, cx - 4, 78, '#f4f4f4', 1.6, 0.8); break;
     case 'blouse': case 'dress': t.poly([[cx - 36, 0], [cx + 36, 0], [cx + 18, 26], [cx - 18, 26]], s.skin); t.poly([[cx - 36, 0], [cx - 18, 0], [cx - 8, 28]], dk(c, 0.15), 1, 150); t.poly([[cx + 36, 0], [cx + 18, 0], [cx + 8, 28]], dk(c, 0.15), 1, 150); t.rect(0, 92, W, 6, p.trim, 0.9, 140); break;

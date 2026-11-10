@@ -352,7 +352,7 @@ function detailsGeo(parts: CarParts): THREE.BufferGeometry {
     list.push(g);
   };
   prep(parts.trim, KIND_TRIM);
-  prep(parts.lampHead, KIND_HEAD, 0xffffff);
+  prep(parts.lampHead, KIND_HEAD, 0xaab4be); // lens glass: grey-clear when dark, lit by the emissive mask at night
   prep(parts.lampTail, KIND_TAIL, 0x7a1010);
   if (parts.lightbar) {
     prep(parts.lightbar.lens, KIND_BAR_A, 0x202020, parts.lightbar.a);

@@ -210,7 +210,7 @@ function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
   switch (spec.hair) {
     case 'bald': break;
     case 'short': case 'fade': if (!covered) hairCap(); break;
-    case 'afro': { const r = ringAt(s.headRings, Y(0.7)); ball(0, Y(0.78), r.cz + r.rz * 0.1, Math.max(r.rx, r.rz) * 1.5, hairR); break; }
+    case 'afro': { const r = ringAt(s.headRings, Y(0.72)); ball(0, Y(0.93), r.cz + r.rz * 0.42, Math.max(r.rx, r.rz) * 1.28, hairR); break; }
     case 'puff': if (!covered) hairCap(); ball(0, Y(1.1), backZ - top.rz * 0.5, H * 0.17, hairR); break;
     case 'bun': if (!covered) hairCap(); ball(0, Y(1.0), backZ - 0.01, H * 0.14, hairR); break;
     case 'long': {
@@ -234,10 +234,10 @@ function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
     }
     case 'braids': case 'locs': {
       if (!covered) hairCap();
-      const n = spec.hair === 'braids' ? 5 : 6, len = spec.hair === 'braids' ? 0.26 : 0.34, r = ringAt(s.headRings, Y(0.5));
+      const n = spec.hair === 'braids' ? 6 : 9, len = spec.hair === 'braids' ? 0.26 : 0.34, r = ringAt(s.headRings, Y(0.5));
       for (let i = 0; i < n; i++) {
         const a = -Math.PI * 0.62 + (i / (n - 1)) * Math.PI * 1.24, x = Math.sin(a) * r.rx * 1.06, z = r.cz + Math.cos(a) * r.rz * 1.06;
-        out.push(loft([{ y: Y(0.5) - len, rx: 0.013, rz: 0.013, cx: x, cz: z }, { y: Y(0.5) - len / 2, rx: 0.017, rz: 0.017, cx: x, cz: z }, { y: Y(0.55), rx: 0.019, rz: 0.019, cx: x, cz: z }], 5, hairR, 3, 'bottom'));
+        out.push(loft([{ y: Y(0.5) - len, rx: 0.009, rz: 0.009, cx: x, cz: z }, { y: Y(0.5) - len / 2, rx: 0.013, rz: 0.013, cx: x, cz: z }, { y: Y(0.55), rx: 0.019, rz: 0.019, cx: x, cz: z }], 5, hairR, 3, 'bottom'));
       }
       break;
     }
@@ -304,7 +304,7 @@ function bodyAo(s: MhShape, pos: Float32Array): Float32Array {
     f *= 1 - 0.38 * g2(y - (sy - 0.11 * k), 0.065 * k) * g2(ax - (sx - 0.02), 0.045);
     f *= 1 - 0.42 * g2(y - lm.chinY, 0.04) * smooth(frontZ + 0.1, frontZ + 0.02, z) * (ax < 0.09 ? 1 : 0.4);
     f *= 1 - 0.45 * (1 - Math.min(1, ax / 0.075)) * g2(y - H * 0.47, 0.06 * k);
-    if (z < frontZ + 0.03) for (const e of [-1, 1]) f *= 1 - 0.42 * g2(Math.hypot(x - e * lm.eyeX, y - lm.eyeY), 0.016);
+    if (z < frontZ + 0.03) for (const e of [-1, 1]) f *= 1 - 0.16 * g2(Math.hypot(x - e * lm.eyeX, y - lm.eyeY), 0.016);
     f *= 1 - 0.2 * smooth(0.05, 0, y);
     f = Math.max(0.35, f);
     out[i] = f; out[i + 1] = Math.pow(f, 1.25); out[i + 2] = Math.pow(f, 1.5);   // warm, subsurface-ish shadows
