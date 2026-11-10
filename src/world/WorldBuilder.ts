@@ -37,6 +37,12 @@ export interface BuiltWorld {
 
 /** Meshes below this many triangles are not split per cell: one city-wide draw is cheaper than one per visible cell. */
 export const MIN_SPLIT_TRIANGLES = 12_000;
+/**
+ * Medium splits smaller meshes too (awnings, signs, decals...): left city-wide they are drawn unculled, 54 draws / 147 k
+ * triangles in every view. Measured at 6 k: medium 1.13-1.25 M -> 0.88-1.02 M triangles (its 1.2 M budget) for 341-380 -> 469-557
+ * draws; low would go 871 k -> 700 k triangles for 288 -> 399 draws, so it and phone (150-draw budget) keep the default.
+ */
+export const SMALL_MESH_SPLIT_TRIANGLES: Partial<Record<Quality, number>> = { medium: 6_000 };
 
 /** Sidewalk slabs are 0.15 m tall; buildings and furniture sit on top of them. */
 export const SIDEWALK_HEIGHT = 0.15;
@@ -90,7 +96,7 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
   const chunks = chunkLayout(grid.streets, FINE_CELLS[tier]);
   const cells: SplitStats = { meshesBefore: 0, meshesAfter: 0, trianglesAfter: 0 };
   // the split threshold grows with the city (it was set for ten blocks): a material group that was not worth splitting then still is not
-  const minSplit = Math.round(MIN_SPLIT_TRIANGLES * (grid.blocks.length / 10));
+  const minSplit = SMALL_MESH_SPLIT_TRIANGLES[tier] ?? Math.round(MIN_SPLIT_TRIANGLES * (grid.blocks.length / 10));
   const split = (g: THREE.Object3D): THREE.Mesh[] => splitMeshesIntoCells(g, chunks.cellX, chunks.cellZ, cells, minSplit, chunks.originX, chunks.originZ);
   // meshes that were too small to split stay city-wide (no cell key) and are never chunk-culled
   const chunkMeshes = [...split(buildings.group), ...split(furniture.group)].filter((m) => typeof m.userData.cell === 'string'); // instanced kinds are skipped

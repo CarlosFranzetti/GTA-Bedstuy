@@ -2364,3 +2364,13 @@ FINAL: cargovan, hatch, beater, bus + NPR boxtruck shipped; tsc clean for my fil
 ### 2026-11-10T10:18:22Z · PERF
 BASELINE (low, v1/v4/v10 tris k scene+shadow): 2134/2371/2650. Causes measured: 3121 tree clouds drawn city-wide (instanceDistance=Infinity on low+) = 404k scene + 300k shadow; shadow-proxy cells 450-600k; car hulls in shadow 5.4k tris each x27 = 146k; buildings 413-678k (250x200 cells drawn whole). Phone base 434/497/634k. Fixes in: trees (range, 48-tri double-sided cloud, 36-tri trunk), hull->24-tri box, shadow AABB/reach trim, fine cells+per-cell cull on phone/low. Phone now 263/280/301k, 115/121/138 draws. Low still ~1.0-1.15M, working on it.
 BUDGETS for other lanes: ROSTER (cars): near model <=4k tris/<=6 draws, far LOD (car-lod + hull source) <=1.2k tris per car (now 5.4k sedan far, 8.3k near). HUMAN (people): hi <=3k, far/mid LOD <=600 tris (pedLod is 4-5.5k each now); hi LOD only <=12 m.
+
+### 2026-11-10T11:20:42Z · PERF
+FINAL. Cause: 3121 tree clouds drawn city-wide (instanceDistance=Infinity), shadow proxies and 5.4k-tri car hulls unculled, 250x200 building cells drawn whole. Fixed: tree range+48-tri double-sided cloud, 24-tri car hulls (shadow+AO), shadow/AO AABB+reach trim + building prisms beyond 45 m, 50 m proxy cells, 125x100 cells with per-cell culling (phone/low/medium), AO reach 70 m, car near 40/52 m. main.ts untouched, no FOR FABLE needed. Gates: tsc ok (only other lanes' _dbg test), vitest render+world only PEOPLE interiors fail, smoke errors [].
+Tris k (draws), views 1/4/10:
+| tier | before | after | budget |
+|---|---|---|---|
+| phone | 434/497/634 (117/122/146) | 260/276/298 (115/121/138) | 300k/150 OK |
+| low | 2134/2371/2650 (270/281/329) | 871/917/1006 (288/309/331) | 500k/220 OVER |
+| medium | n/a | 881/935/1015 (469/526/557) | 1.2M OK |
+Open: low needs building LOD; far cars 5.4k tris (ROSTER <=1.2k), near 8.3k (<=4k); pedLod 4-5k (HUMAN <=600 far).

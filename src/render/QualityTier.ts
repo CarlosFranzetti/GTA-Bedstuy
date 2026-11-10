@@ -70,7 +70,7 @@ export const TIER_CONFIG: Record<Quality, TierConfig> = {
     traffic: { maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 },
   },
   medium: {
-    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 52, instanceDistance: 220, pedDistance: 220,
+    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 52, instanceDistance: 170, pedDistance: 220,
     fog: null, rainStreaks: 1200, anisotropy: 16, normalMaps: true, simpleGeometry: false, stars: true, minimapHz: 0, blobShadows: false, signBloomFps: null,
     traffic: { maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 },
   },
