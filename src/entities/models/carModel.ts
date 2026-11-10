@@ -25,10 +25,10 @@ import type { IMaterialLibrary, VehicleSpec, VehicleType } from '@/world/types';
 import { Rng } from '@/core/Rng';
 import { createCanvas } from '@/textures/canvas';
 import { CARGO_LIVERY_H, CARGO_LIVERY_VARIANTS, CARGO_LIVERY_W, cargoLiveryPainter } from '@/textures/painters/vehicle';
-import { assignSkinUV, carSkinMaterial, paintBox, skinLayoutFor } from './carSkin';
+import { assignSkinUV, buildSkinNormal, carSkinMaterial, paintBox, skinLayoutFor } from './carSkin';
 import { CAR_COLORWAYS, type SkinLayout, type SkinStyle } from '@/textures/painters/vehicleSkin';
 import {
-  Acc, isTaxiYellow, mirrorX, buildPassengerParts, buildTruckParts, wheelRadiusFor, hullSectionCount,
+  Acc, STYLES, isTaxiYellow, mirrorX, buildPassengerParts, buildTruckParts, wheelRadiusFor, hullSectionCount,
   type CarParts,
 } from './carBodies';
 export { wheelRadiusFor, hullSectionCount };
@@ -115,6 +115,60 @@ export function cargoLiveryMaterial(materials: IMaterialLibrary, variant: number
   }
   return m;
 }
+
+// ---------------------------------------------------------------- livery bodies: door gaps + derived normal map
+
+const gapMats = new WeakMap<IMaterialLibrary, Map<string, THREE.Material>>();
+
+/**
+ * The cab and the cruiser keep their livery colour maps (regular uv, text along the flank). This gives them what the baked skins
+ * have: ~8 mm dark door gaps at the style's seams (drawn into a copy of the livery canvas) and a normal map derived from that
+ * canvas (gaps, lettering edges and stripe steps get relief). Cached per library; without a DOM (unit tests) it is the plain livery.
+ */
+function liveryWithGaps(materials: IMaterialLibrary, base: THREE.Material, st: 'cab' | 'cop'): THREE.Material {
+  const src = (base as THREE.MeshStandardMaterial).map?.image as unknown;
+  if (typeof document === 'undefined' || !(typeof HTMLCanvasElement !== 'undefined' && src instanceof HTMLCanvasElement)) return base;
+  let byKey = gapMats.get(materials);
+  if (!byKey) { byKey = new Map(); gapMats.set(materials, byKey); }
+  const hit = byKey.get(st);
+  if (hit) return hit;
+  try {
+    const w = src.width, h = src.height;
+    const c = createCanvas(w, h);
+    const ctx = c.getContext('2d');
+    if (!ctx) return base;
+    ctx.drawImage(src, 0, 0);
+    const style = STYLES[st === 'cab' ? 'crown' : 'charger'];
+    const L = style.dims!.L;
+    const lw = Math.max(1, Math.round(w * 0.0016 * 1.3)); // ~8 mm of the car's length
+    ctx.fillStyle = 'rgba(0,0,0,0.78)';
+    for (const u of style.seams) {
+      for (const n of [(L / 2 - u) / L, (L / 2 + u) / L]) { // left and right flank (liveryUV runs u the other way on the right)
+        ctx.fillRect(Math.round(n * w) - (lw >> 1), Math.round((1 - 0.82) * h), lw, Math.round(0.44 * h));
+      }
+    }
+    const px = ctx.getImageData(0, 0, w, h).data;
+    const rgba = new Uint8Array(w * h * 4);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4, o = ((h - 1 - y) * w + x) * 4;
+        rgba[o] = Math.round(0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2]); rgba[o + 3] = 255;
+      }
+    }
+    const nm = buildSkinNormal(rgba, w, h, 1.1);
+    nm.channel = 0;
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = SRGB;
+    tex.anisotropy = 8;
+    const m = base.clone() as THREE.MeshStandardMaterial;
+    m.map = tex; m.normalMap = nm; m.normalScale = new THREE.Vector2(0.6, 0.6);
+    m.name = `${base.name}+gaps`;
+    m.needsUpdate = true;
+    byKey.set(st, m);
+    return m;
+  } catch { return base; }
+}
+const SRGB = THREE.SRGBColorSpace;
 
 // ---------------------------------------------------------------- wheels
 
@@ -389,7 +443,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   const paintMeshes: THREE.Mesh[] = [];
 
   const layout = layoutCache.get(`${st}|${spec.length}|${spec.width}|${spec.height}`);
-  const paintMat = st === 'cop' ? materials.get('copLivery') : st === 'cab' ? materials.get('taxiLivery')
+  const paintMat = st === 'cop' ? liveryWithGaps(materials, materials.get('copLivery'), 'cop') : st === 'cab' ? liveryWithGaps(materials, materials.get('taxiLivery'), 'cab')
     : layout ? carSkinMaterial(materials, st as SkinStyle, spec.color, layout) : materials.carPaint(spec.color);
   const glassMat = materials.get('carGlass');
   const tyreMat = materials.get('tireSidewall');

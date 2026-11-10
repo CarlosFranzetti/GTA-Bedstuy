@@ -427,7 +427,7 @@ export function pickPedVariant(rng: Rng, hour = ctxHour, sunday = ctxSunday): nu
   const w: number[] = [];
   for (let i = 0; i < CIVILIAN_COUNT; i++) {
     const s = PED_SPECS[i];
-    w.push(s.weight * (s.sunday ? Math.min(1.6, pedChurchBoost(hour, sunday)) : 1));
+    w.push(s.weight * (s.sunday ? Math.min(2.6, pedChurchBoost(hour, sunday)) : 1));
   }
   // the groups of the last WINDOW - 1 picks; if they hold too few, this pick must come from a group not among them
   const last = recent.slice(-(WINDOW - 1)), seen = new Set(last);

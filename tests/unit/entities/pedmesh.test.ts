@@ -124,10 +124,10 @@ describe('shipped people glbs', () => {
     for (const s of shapes) registerShape(s);
   });
 
-  it('ships 6 to 9 shapes under 3 MB in total', async () => {
+  it('ships 6 to 30 shapes under 3 MB in total', async () => {
     const fs = await nodeFs();
     expect(shapes.length).toBeGreaterThanOrEqual(6);
-    expect(shapes.length).toBeLessThanOrEqual(9);
+    expect(shapes.length).toBeLessThanOrEqual(30);
     const bytes = fs.readdirSync(DIR).filter((n: string) => n.endsWith('.glb')).reduce((a: number, f: string) => a + fs.readFileSync(file(f)).length, 0);
     expect(bytes).toBeLessThan(3_000_000);
   });

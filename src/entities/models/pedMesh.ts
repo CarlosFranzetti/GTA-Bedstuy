@@ -119,19 +119,17 @@ export function registerShape(s: MhShape): void { shapes.set(s.name, s); }
 
 // ---------------------------------------------------------------- shape per variant
 
-const FEMALE = new Set(['puffer-braids', 'headwrap-auntie', 'church-lady', 'scrubs-nurse', 'denim-girl', 'odette']);
-const OLD = new Set(['church-lady', 'elder-cardigan']);
+/** body shape of a person: group, sex and age pick one of the shipped MakeHuman shapes (nearest when a combination is not shipped) */
 export function shapeFor(spec: PedSpec): string {
-  const f = FEMALE.has(spec.id);
-  if (spec.build === 'kid') return 'teen';
-  if (OLD.has(spec.id)) return f ? 'f_old' : 'm_old';
-  switch (spec.build) {
-    case 'slim': return f ? 'f_slim' : 'm_slim';
-    case 'tall': return f ? 'f_slim' : 'm_slim';
-    case 'stocky': return f ? 'f_heavy' : 'm_heavy';
-    default: return f ? 'f_avg' : 'm_avg';
-  }
+  const g = spec.group === 'hj' || !spec.group ? 'wh' : spec.group, sex = spec.sex ?? 'm', age = spec.age ?? 'adult';
+  if (age === 'kid' || age === 'teen') return g === 'ea' || sex === 'f' ? 'teen_b' : 'teen_a';
+  if (sex === 'x') return 'mx_x';
+  const dark = g === 'ba' || g === 'ca';
+  if (age === 'old') return sex === 'f' ? (dark ? 'ba_f_old' : 'wh_f_old') : (dark || g === 'la' ? 'ba_m_old' : 'wh_m_old');
+  return `${g}_${sex === 'f' ? 'f' : 'm'}`;
 }
+/** build -> [width, height] scale of the shape (a child is a scaled teen) */
+const BUILD_SCALE: Record<PedSpec['build'], [number, number]> = { avg: [1, 1], slim: [0.94, 0.99], stocky: [1.1, 0.98], tall: [1, 1.04], kid: [0.78, 0.78] };
 
 // ---------------------------------------------------------------- caps (hair, hats, skirt, pack) lofted round the measured rings
 
@@ -386,7 +384,8 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
   group.add(lod);
   group.updateMatrixWorld(true);
   for (const lv of lod.levels) (lv.object as THREE.SkinnedMesh).bind(skeleton);
-  group.scale.setScalar(opts.heightScale ?? jitter);
+  const [bw, bh] = BUILD_SCALE[spec.build];
+  if (opts.heightScale !== undefined) group.scale.setScalar(opts.heightScale); else group.scale.set(bw * jitter, bh * jitter, bw * jitter);
   return { group, legs, arms, head, knees, elbows, torso, rig, hips, spec, variant, triangles };
 }
 

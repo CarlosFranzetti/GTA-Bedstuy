@@ -135,9 +135,9 @@ describe('clothing shells, baked AO, fabrics', () => {
     expect((pedHiMaterial(materials, 0, false) as THREE.MeshStandardMaterial).vertexColors).toBe(true);
   });
   it('assigns real fabrics to the clothing tiles', () => {
-    const f = fabricsFor(PED_SPECS.find((s) => s.id === 'puffer-braids')!);
+    const f = fabricsFor(PED_SPECS.find((s) => s.id === 'ba-puffer-braids')!);
     expect(f.find(([t]) => t === 'torso')![1]).toBe('nylon_puffer');
     expect(f.find(([t]) => t === 'thigh')![1]).toBe('denim');
-    expect(fabricsFor(PED_SPECS.find((s) => s.id === 'tracksuit-man')!).find(([t]) => t === 'torso')![1]).toBe('cotton_knit');
+    expect(fabricsFor(PED_SPECS.find((s) => s.id === 'ca-tracksuit')!).find(([t]) => t === 'torso')![1]).toBe('cotton_knit');
   });
 });

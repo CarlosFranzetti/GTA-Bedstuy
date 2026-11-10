@@ -12,7 +12,7 @@ const at = (px: Uint8ClampedArray, x: number, y: number): [number, number, numbe
 describe('ped atlas painter', () => {
   it('has at least 12 civilian variants plus a cop, Ms. Odette, the DJ and the player, with unique ids', () => {
     expect(CIVILIAN_COUNT).toBeGreaterThanOrEqual(12);
-    expect(PED_VARIANT_COUNT).toBe(CIVILIAN_COUNT + 4);
+    expect(PED_VARIANT_COUNT).toBe(CIVILIAN_COUNT + 3 + 24) // cop, Ms. Odette, the DJ, and the player's 24 random looks;
     expect(new Set(PED_SPECS.map((s) => s.id)).size).toBe(PED_VARIANT_COUNT);
     for (const id of ['cop', 'odette', 'dj', 'player']) expect(PED_SPECS[pedVariantIndex(id)].role).not.toBe('civilian');
     expect(PED_SPECS[pedVariantIndex('odette')].role).toBe('shopkeeper');
@@ -60,7 +60,7 @@ describe('ped atlas painter', () => {
 
   it('puts the print on the front of the shirt (hoodie text, jersey number) and not on a plain back', () => {
     const t = pedTileRect('torsoFront');
-    const { px } = atlas(pedVariantIndex('jersey-teen'));
+    const { px } = atlas(pedVariantIndex('ba-jersey-teen'));
     let light = 0;
     for (let y = t.y + 24; y < t.y + 46; y++) for (let x = t.x + 18; x < t.x + 46; x++) { const c = at(px, x, y); if (c[0] > 230 && c[1] > 230 && c[2] > 230) light++; }
     expect(light).toBeGreaterThan(30);

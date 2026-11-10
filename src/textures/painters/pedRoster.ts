@@ -131,8 +131,8 @@ const PEOPLE: Person[] = [
   { id: 'ea-puffer', outfit: 'puffer-braids', group: 'ea', sex: 'f', age: 'adult', hair: 'long', face: { ...FEM_FACE }, top: { color: '#3a6a8a', trim: '#2a506a' } },
   { id: 'ea-office', outfit: 'office-jacket', group: 'ea', sex: 'm', age: 'adult' },
   { id: 'ea-kid', outfit: 'kid-backpack', group: 'ea', sex: 'm', age: 'kid', hair: 'short', top: { color: '#e0702a' } },
-  // South Asian
-  { id: 'sa-nurse', outfit: 'scrubs-nurse', group: 'sa', sex: 'f', age: 'adult', top: { color: '#3a7ac0', trim: '#2a5a90' }, bottom: { color: '#3a7ac0', trim: '#2a5a90' } },
+  // South Asian (ea-nurse sits above)
+  { id: 'ea-nurse', outfit: 'scrubs-nurse', group: 'ea', sex: 'f', age: 'adult', top: { color: '#3a7ac0', trim: '#2a5a90' }, bottom: { color: '#3a7ac0', trim: '#2a5a90' } },
   { id: 'sa-rider', outfit: 'delivery-vest', group: 'sa', sex: 'm', age: 'adult', hat: 'helmet', hatColor: '#d8d8dc', hatTrim: '#e9d628' },
   { id: 'sa-hijabi', outfit: 'hijabi', group: 'sa', sex: 'f', age: 'adult', hatColor: '#9a5a6a', hatTrim: '#9a5a6a' },
   // Middle Eastern

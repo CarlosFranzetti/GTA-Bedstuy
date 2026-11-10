@@ -139,7 +139,7 @@ export class RadioUi {
     this.tapBar.append(this.tapMsg, this.tapBtn);
     parent.appendChild(this.tapBar);
     // Calls play() inside the click/tap itself: the one thing browsers (iOS above all) accept as permission for sound.
-    this.tapBtn.addEventListener('click', () => { for (const sc of this.scs) if (sc.isActive) sc.userStart(); });
+    this.tapBtn.addEventListener('click', () => { for (const sc of this.scs) if (sc.isActive && sc.playState !== 'starting') sc.userStart(); });
     this.render();
     this.renderTap();
   }

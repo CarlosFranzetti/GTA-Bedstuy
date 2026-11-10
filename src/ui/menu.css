@@ -293,3 +293,8 @@
 @media (max-width: 640px) {
   .menu-legend-list { grid-template-columns: 1fr; }
 }
+
+/* settings and save/load share the panel's column layout */
+.menu-main { display: flex; flex-direction: column; gap: 12px; }
+.menu-main[hidden] { display: none; }
+.menu-save-btn, .menu-save-back { min-height: 44px; }

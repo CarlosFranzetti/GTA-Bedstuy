@@ -841,7 +841,7 @@ export function archStations(a: Arch, axle: number, n = 6): number[] {
 /** Half-cylinder liner around a wheel well (dark, faces the wheel). */
 export function wheelLiner(a: Arch, x0: number, x1: number, z: number): THREE.BufferGeometry {
   const rr = a.ra - 0.02;
-  const g = new THREE.CylinderGeometry(rr, rr, x1 - x0, 6, 1, true, a.phiS, Math.PI - 2 * a.phiS);
+  const g = new THREE.CylinderGeometry(rr, rr, x1 - x0, 14, 1, true, a.phiS, Math.PI - 2 * a.phiS); // 14 segments: a round well, not a box
   g.rotateZ(Math.PI / 2);
   g.translate((x0 + x1) / 2, a.R, z);
   return inverted(g);

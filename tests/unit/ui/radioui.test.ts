@@ -314,3 +314,40 @@ describe('RadioUi SoundCloud stations', () => {
     expect(q(houseSec, '.rl-sc-count').textContent).toBe('2 sets · 1 links');
   });
 });
+
+describe('RadioUi tap to start radio', () => {
+  it('shows "Tap to start radio" when the browser blocks sound, calls play() inside the click, and hides on PLAY', async () => {
+    vi.useFakeTimers();
+    try {
+      const { ScStation, SC_TAP_PROMPT } = await import('@/audio/sc/ScStation');
+      const handlers = new Map<string, Array<(e?: unknown) => void>>();
+      const calls: string[] = [];
+      const w = {
+        bind: (e: string, f: (x?: unknown) => void) => { handlers.set(e, [...(handlers.get(e) ?? []), f]); },
+        load: () => undefined, play: () => { calls.push('play'); }, pause: () => undefined, setVolume: () => undefined, seekTo: () => undefined,
+        next: () => undefined, prev: () => undefined,
+        getCurrentSound: (cb: (s: unknown) => void) => cb({ title: 'T', user: { username: 'DJ' } }), getDuration: (cb: (n: number) => void) => cb(600000),
+      };
+      const api = { Widget: Object.assign(() => { queueMicrotask(() => handlers.get('ready')?.forEach((f) => f())); return w; }, { Events: { READY: 'ready', PLAY: 'play', ERROR: 'error', PLAY_PROGRESS: 'playProgress', FINISH: 'finish' } }) };
+      const sc = new ScStation({ loadApi: async () => api as never, canLoad: () => true, feed: null, blockedMs: 100, storage: { load: () => [{ url: 'https://soundcloud.com/a/b' }], save: () => undefined } });
+      document.body.innerHTML = '';
+      const parent = document.createElement('div');
+      document.body.appendChild(parent);
+      const library = new Library(memStorage());
+      const ui = new RadioUi(parent, { library, libraryController: new LibraryController(library, { handles: memoryHandleStore(), importDeps, win: {} }), scStations: [sc] });
+      expect(ui.tapBar.hidden).toBe(true);
+      sc.setActive(true);
+      await vi.advanceTimersByTimeAsync(10);
+      expect(ui.tapBar.hidden).toBe(true);
+      await vi.advanceTimersByTimeAsync(200);
+      expect(ui.tapBar.hidden).toBe(false);
+      const b = q<HTMLButtonElement>(ui.tapBar, '.rl-tap');
+      expect(b.textContent).toBe(SC_TAP_PROMPT);
+      const before = calls.length;
+      b.click();
+      expect(calls.length).toBe(before + 1); // once, not twice (the page-wide hook already fired)
+      handlers.get('play')?.forEach((f) => f());
+      expect(ui.tapBar.hidden).toBe(true);
+    } finally { vi.useRealTimers(); }
+  });
+});

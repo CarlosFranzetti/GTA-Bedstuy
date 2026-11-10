@@ -344,7 +344,7 @@ export class Menu {
 
   private focusables(): HTMLElement[] {
     // Roving tabindex: only the selected quality button is a stop; arrows move within the group.
-    return Array.from(this.panel.querySelectorAll<HTMLElement>('button, input, select, textarea')).filter((n) => n.tabIndex >= 0 && !(n as HTMLButtonElement).disabled && !n.hidden);
+    return Array.from(this.panel.querySelectorAll<HTMLElement>('button, input, select, textarea')).filter((n) => n.tabIndex >= 0 && !(n as HTMLButtonElement).disabled && !n.closest('[hidden]'));
   }
 
   private adjust(active: HTMLElement | null, delta: number): void {
