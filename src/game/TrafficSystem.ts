@@ -293,6 +293,13 @@ export class TrafficSystem {
   /** Unit vector the player is moving along (the chase camera looks that way); null until they have moved. */
   private facing: Vec2 | null = null;
 
+  /** A pedestrian must not appear on a crosswalk or beside a moving / stopped car (it would stop traffic or be hit). */
+  private pedSpawnUnsafe(node: GraphNode): boolean {
+    if (this.crosswalkNodeIds().has(node.id)) return true;
+    for (const v of this.vehicles) if (dist(v.body.pos, node.pos) < 14) return true;
+    return false;
+  }
+
   /** Does a static body (a building) sit between the player and `to`? */
   private lineBlocked(to: Vec2): boolean {
     const dx = to.x - this.playerAt.x, dz = to.z - this.playerAt.z, d = Math.hypot(dx, dz);
@@ -306,7 +313,7 @@ export class TrafficSystem {
     const nodes = this.grid.sidewalks.nodes;
     let node = nodes[this.pedRng.pick(ids)];
     for (let k = 0; k < 64; k++) {
-      if (spawnAllowed(this.playerAt, this.facing, node.pos, () => this.lineBlocked(node.pos))) return node;
+      if (spawnAllowed(this.playerAt, this.facing, node.pos, () => this.lineBlocked(node.pos)) && !this.pedSpawnUnsafe(node)) return node;
       node = nodes[this.pedRng.pick(ids)];
     }
     return this.pickPedNode(ids, PED_SWAP_CLEAR, false);
