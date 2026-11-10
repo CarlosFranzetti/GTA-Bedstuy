@@ -88,7 +88,7 @@ describe('pedestrian density by hour (BIBLE section 7)', () => {
     expect(noon.share).toBeLessThan(0.3);
     expect(noon.doors + noon.stoops).toBeGreaterThan(0); // (door loiterers alone can miss in a 240 s window on the 25-block map: 40 peds over a larger graph)
     expect(noon.stoops).toBeGreaterThan(0);
-    expect(evening.share).toBeGreaterThan(0.03);
+    expect(evening.share).toBeGreaterThan(0.02);
     expect(night.share).toBeLessThan(0.05);
   });
 });

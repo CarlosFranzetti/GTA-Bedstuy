@@ -2,7 +2,7 @@ import { setPedDayContext } from '@/entities/models/pedBody';
 import * as THREE from 'three';
 import type { EventBus } from '@/core/Events';
 import { dist, headingFromVec, perpRight, type Vec2 } from '@/core/Math2';
-import type { Rng } from '@/core/Rng';
+import { Rng } from '@/core/Rng';
 import type {
   GraphNode, GridModel, IMaterialLibrary, IVehicle, IWorld2D, LaneNode, Lot, VehicleType,
 } from '@/world/types';
@@ -201,6 +201,8 @@ export class TrafficSystem {
   private hourFactor = 1;
   private pedTimer = 0;
   private readonly pedSched = new PedSpawnScheduler();
+  /** the scheduler's own stream (seeded from a label, not forked from `rng`): ped relocation never shifts the cars' random sequence */
+  private readonly pedRng = new Rng(Rng.hash('pedsched'));
   private playerAt: Vec2;
 
   constructor(
@@ -302,10 +304,10 @@ export class TrafficSystem {
   /** A sidewalk node in the spawn ring around the player (out of the near view, within walking-in reach); falls back to any node far enough. */
   private pickRingNode(ids: string[]): GraphNode {
     const nodes = this.grid.sidewalks.nodes;
-    let node = nodes[this.rng.pick(ids)];
+    let node = nodes[this.pedRng.pick(ids)];
     for (let k = 0; k < 64; k++) {
       if (spawnAllowed(this.playerAt, this.facing, node.pos, () => this.lineBlocked(node.pos))) return node;
-      node = nodes[this.rng.pick(ids)];
+      node = nodes[this.pedRng.pick(ids)];
     }
     return this.pickPedNode(ids, PED_SWAP_CLEAR, false);
   }
@@ -339,10 +341,10 @@ export class TrafficSystem {
     let near = 0;
     for (const p of this.peds) if (dist(p.body.pos, this.playerAt) <= LOCAL_RADIUS) near++;
     const target = this.pedTargetF, deficit = target >= 4 && near < Math.round(target * NEAR_SHARE);
-    const act = this.pedSched.tick({ dt, count: this.peds.length, target, deficit, hasFar: !!farWalker && farWalker.d > (deficit ? RECYCLE_DIST_DEFICIT : RECYCLE_DIST), rand: this.rng.next() });
-    if (act === 'add') this.addPed(this.pickRingNode(ids), this.crosswalkNodeIds());
+    const act = this.pedSched.tick({ dt, count: this.peds.length, target, deficit, hasFar: !!farWalker && farWalker.d > (deficit ? RECYCLE_DIST_DEFICIT : RECYCLE_DIST), rand: this.pedRng.next() });
+    if (act === 'add') this.addPed(this.pickRingNode(ids), this.crosswalkNodeIds(), this.pedRng);
     else if (act === 'remove') { if (far && far.d >= REMOVE_CLEAR) this.removePedAt(far.i); }
-    else if (act === 'recycle' && farWalker) { this.removePedAt(farWalker.i); this.addPed(this.pickRingNode(ids), this.crosswalkNodeIds()); }
+    else if (act === 'recycle' && farWalker) { this.removePedAt(farWalker.i); this.addPed(this.pickRingNode(ids), this.crosswalkNodeIds(), this.pedRng); }
   }
 
   /** Adds / removes pedestrians toward `pedTarget`: all at once, or one per call (far from the player first). */
@@ -482,11 +484,11 @@ export class TrafficSystem {
     this.formGroups();
   }
 
-  private addPed(node: GraphNode, cross: Set<string>): void {
+  private addPed(node: GraphNode, cross: Set<string>, rng: Rng = this.rng): void {
     const id = `ped${this.pedSeq++}`;
     const ped = this.makePed
       ? this.makePed(id, node)
-      : new Pedestrian(id, node, this.grid.sidewalks, this.world, this.materials, this.events, this.rng.fork(id), cross);
+      : new Pedestrian(id, node, this.grid.sidewalks, this.world, this.materials, this.events, rng.fork(id), cross);
     ped.setEnvironment(this.pedEnv);
     this.peds.push(ped);
     this.scene.add(ped.object3D);
