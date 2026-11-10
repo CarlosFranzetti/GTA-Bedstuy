@@ -104,7 +104,7 @@ export const CAR_COLORWAYS: Record<SkinStyle, readonly Colorway[]> = {
     { name: 'fleet blue', color: '#2a4f86', pack: 0 },
     { name: 'depot grey', color: '#8d9298', pack: 0 },
   ],
-  bus: [{ name: 'transit white', color: '#f0f0ec', pack: 0 }],
+  bus: [{ name: 'transit white', color: '#f0f0ec', pack: 0 }, { name: 'airport grey', color: '#d7dde3', pack: 0 }],
   van: [
     { name: 'work white', color: '#ebebe4', pack: 0 },
     { name: 'safety orange', color: '#e0701a', pack: 1 },
@@ -337,10 +337,10 @@ function paintBusFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): 
   s.shade(r.x, Y(0.5), r.w, 3, '#ffffff', 0.5);
   s.shade(r.x, Y(0.12), r.w, bottom - Y(0.12), '#000000', 0.2);
   // livery: blue band with a thin yellow line above it, then a lower grey skirt
-  s.solid(r.x, Y(0.43), r.w, Y(0.3) - Y(0.43), '#1b4f93');
-  s.solid(r.x, Y(0.455), r.w, Y(0.435) - Y(0.455), '#f2b705');
-  s.solid(r.x, Y(0.17), r.w, Y(0.12) - Y(0.17), '#7d848c');
-  s.text('BKLYN TRANSIT', side === 'right' ? X(0.27) - 52 : X(0.27), Y(0.405), 1, '#ffffff');
+  s.solid(r.x, Y(0.27), r.w, Y(0.14) - Y(0.27), '#1b4f93');
+  s.solid(r.x, Y(0.292), r.w, Y(0.275) - Y(0.292), '#f2b705');
+  s.solid(r.x, Y(0.1), r.w, Y(0.06) - Y(0.1), '#7d848c');
+  s.text('BKLYN TRANSIT', side === 'right' ? X(0.3) - 52 : X(0.3), Y(0.23), 1, '#ffffff');
   // door seams (front door and middle door, curb side) and panel seams
   for (const n of L.seams) {
     const x = Math.floor(X(n));

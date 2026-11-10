@@ -18,7 +18,7 @@ const run = (v: Vehicle, secs: number, dt = 1 / 60) => { for (let t = 0; t < sec
 describe('Vehicle', () => {
   it('has the specified body', () => {
     const v = make('boxtruck');
-    expect(v.body.shape).toEqual({ kind: 'obb', halfW: 1.2, halfL: 3.5 });
+    expect(v.body.shape).toEqual({ kind: 'obb', halfW: 1.22, halfL: 3.5 });
     expect(v.body.mass).toBe(3500);
     expect(v.body.kind).toBe('vehicle');
     expect(v.body.userData).toBe(v);

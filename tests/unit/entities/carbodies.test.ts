@@ -22,6 +22,10 @@ const CASES: Case[] = [
   { style: 'van', type: 'boxtruck' },
   { style: 'cab', type: 'sedan', color: '#e0b01e' },
   { style: 'cop', type: 'cop' },
+  { style: 'cargo', type: 'cargovan' },
+  { style: 'hatch', type: 'hatch' },
+  { style: 'beater', type: 'beater' },
+  { style: 'bus', type: 'bus' },
 ];
 const build = (c: Case) => buildCarModel(c.type, { ...VEHICLE_SPECS[c.type], color: c.color ?? VEHICLE_SPECS[c.type].color }, materials, c.variant ?? 0, undefined, true);
 /** the shipped near car: merged details + instanced wheels */
@@ -40,6 +44,10 @@ describe('carBodies: style selection', () => {
     expect(styleFor('suv', '#e0b01e', 3)).toBe('suv');
     expect(styleFor('boxtruck', '#fff')).toBe('van');
     expect(styleFor('cop', '#fff', 3)).toBe('cop');
+    expect(styleFor('cargovan', '#fff')).toBe('cargo');
+    expect(styleFor('hatch', '#e0b01e')).toBe('hatch');
+    expect(styleFor('beater', '#fff', 3)).toBe('beater');
+    expect(styleFor('bus', '#fff')).toBe('bus');
     expect(styleFor('cab', '#e0b01e', 0)).toBe('cab'); // the taxi is its own vehicle type
   });
   it('taxi yellow is yellow, not red or grey', () => {
@@ -119,7 +127,7 @@ describe.each(CASES)('procedural $style', (c) => {
     expect(m.group.getObjectByName('plate')).toBeTruthy();
     expect(m.group.getObjectByName('glass')).toBeTruthy();
     expect(m.group.getObjectByName('trim')).toBeTruthy();
-    expect(!!m.hood).toBe(c.style !== 'van');
+    expect(!!m.hood).toBe(c.style !== 'van' && c.style !== 'bus');
     expect(m.headlights[0].position.z).toBeCloseTo(0); // lamps are baked in car space
     const hb = new THREE.Box3().setFromObject(m.headlights[0]);
     const tb = new THREE.Box3().setFromObject(m.taillights[0]);
@@ -187,7 +195,7 @@ describe.each(CASES)('merged near $style', (c) => {
   it('draws in at most 6 meshes (cargo vans, cabs and cops included)', () => {
     expect(drawn().length).toBeLessThanOrEqual(6);
     expect(drawn().filter((x) => x.name === 'tyre')).toHaveLength(1);
-    expect((drawn().find((x) => x.name === 'tyre') as THREE.InstancedMesh).count).toBe(4);
+    expect((drawn().find((x) => x.name === 'tyre') as THREE.InstancedMesh).count).toBe(c.style === 'van' || c.style === 'bus' ? 6 : 4); // dual rear tyres on the truck and the bus
   });
   it('keeps the lamp and light-bar API as invisible handles with their own materials', () => {
     expect(m.headlights[0].visible).toBe(false);

@@ -1,8 +1,8 @@
 /**
- * Debug: walks the scene the way WebGLRenderer would (visible chain, frustum, instance count, draw range, groups) and
- * sums triangles per category for the scene pass (main camera) and the shadow pass (sun shadow camera, castShadow
- * meshes only). Used by scripts/perf-breakdown.mjs; exposed as window.__gtaTriBreakdown(scene, camera, renderer) so
- * main.ts needs no edit. Counts only, never timings.
+ * Debug: hooks every mesh's onBeforeRender / onBeforeShadow, runs one frame through the caller's `render` function and sums the
+ * triangles WebGLRenderer really drew per category (visibility, frustum, layers, instance count, draw range and material
+ * groups all honoured because three itself decides what is drawn). Used by scripts/perf-breakdown.mjs; exposed as
+ * window.__gtaTriBreakdown(scene, render) so main.ts needs no edit. Counts only, never timings.
  */
 import * as THREE from 'three';
 
@@ -44,55 +44,41 @@ function drawTris(m: THREE.Mesh): number {
   return Math.floor(n / 3) * inst;
 }
 
-export function triBreakdown(scene: THREE.Object3D, camera: THREE.Camera, renderer?: THREE.WebGLRenderer): TriBreakdown {
-  scene.updateMatrixWorld();
-  const fr = new THREE.Frustum(), pm = new THREE.Matrix4();
-  camera.updateMatrixWorld();
-  fr.setFromProjectionMatrix(pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-  let sun: THREE.DirectionalLight | null = null;
-  scene.traverse((o) => { if (!sun && (o as THREE.DirectionalLight).isDirectionalLight && (o as THREE.DirectionalLight).castShadow) sun = o as THREE.DirectionalLight; });
-  let sfr: THREE.Frustum | null = null;
-  const sunL = sun as THREE.DirectionalLight | null;
-  if (sunL && (renderer ? renderer.shadowMap.enabled : true)) {
-    const sc = sunL.shadow.camera; sc.updateMatrixWorld();
-    sfr = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(sc.projectionMatrix, sc.matrixWorldInverse));
-  }
+export function triBreakdown(scene: THREE.Object3D, render: () => void): TriBreakdown {
   const out: TriBreakdown = { scene: {}, shadow: {}, sceneTotal: 0, shadowTotal: 0, sceneDraws: 0, shadowDraws: 0, top: [] };
-  const add = (pass: 'scene' | 'shadow', cat: string, tris: number): void => {
+  const per = new Map<string, { pass: string; name: string; cat: string; tris: number; inst: number }>();
+  const saved: Array<[THREE.Object3D, THREE.Object3D['onBeforeRender'], THREE.Object3D['onBeforeShadow']]> = [];
+  const paths = new Map<THREE.Object3D, string>();
+  const walk = (o: THREE.Object3D, path: string): void => { const here = path + '/' + (o.name || o.type); paths.set(o, here); for (const c of o.children) walk(c, here); };
+  walk(scene, '');
+  const add = (pass: 'scene' | 'shadow', m: THREE.Mesh, tris: number): void => {
+    const path = paths.get(m) ?? '';
+    const inst = !!(m as THREE.InstancedMesh).isInstancedMesh;
+    const cat = categorize(path, inst);
     const t = out[pass]; const r = (t[cat] ??= { tris: 0, draws: 0, meshes: 0 });
     r.tris += tris; r.draws++; r.meshes++;
     if (pass === 'scene') { out.sceneTotal += tris; out.sceneDraws++; } else { out.shadowTotal += tris; out.shadowDraws++; }
+    const k = pass + path; const e = per.get(k);
+    if (e) e.tris += tris; else per.set(k, { pass, name: path.slice(-90), cat, tris, inst: inst ? (m as THREE.InstancedMesh).count : 1 });
   };
-  const sphere = new THREE.Sphere();
-  const inFrustum = (f: THREE.Frustum, m: THREE.Mesh): boolean => {
-    if (!m.frustumCulled) return true;
-    const g = m.geometry; if (!g.boundingSphere) g.computeBoundingSphere();
-    if (!g.boundingSphere) return true;
-    sphere.copy(g.boundingSphere).applyMatrix4(m.matrixWorld);
-    return f.intersectsSphere(sphere);
-  };
-  const walkPass = (pass: 'scene' | 'shadow', o: THREE.Object3D, path: string): void => {
-    // the AoProxy shadowGroup is only visible while the shadow map renders (AoProxy.ts)
-    const vis = o.name === 'shadow-proxy' ? pass === 'shadow' : o.visible;
-    if (!vis) return;
-    const here = path + '/' + (o.name || o.type);
+  scene.traverse((o) => {
     const m = o as THREE.Mesh;
-    if (m.isMesh && m.geometry && (pass === 'scene' || m.castShadow)) {
-      const inst = !!(m as THREE.InstancedMesh).isInstancedMesh;
-      const f = pass === 'scene' ? fr : sfr;
-      if (f && (!inst || (m as THREE.InstancedMesh).count > 0)) {
-        const t = drawTris(m);
-        if (t > 0 && inFrustum(f, m)) {
-          const cat = categorize(here, inst);
-          add(pass, cat, t); out.top.push({ pass, name: here.slice(-90), cat, tris: t, inst: inst ? (m as THREE.InstancedMesh).count : 1 });
-        }
-      }
-    }
-    for (const c of o.children) walkPass(pass, c, here);
-  };
-  walkPass('scene', scene, '');
-  if (sfr) walkPass('shadow', scene, '');
-  out.top.sort((a, b) => b.tris - a.tris); out.top = out.top.slice(0, 40);
+    if (!m.isMesh || !m.geometry) return;
+    saved.push([o, o.onBeforeRender, o.onBeforeShadow]);
+    const prevR = o.onBeforeRender, prevS = o.onBeforeShadow;
+    o.onBeforeRender = function (this: THREE.Object3D, ...a: Parameters<THREE.Object3D['onBeforeRender']>) {
+      const grp = a[5] as unknown as { start: number; count: number } | null | undefined;
+      add('scene', m, grp ? Math.floor(grp.count / 3) * ((m as THREE.InstancedMesh).isInstancedMesh ? (m as THREE.InstancedMesh).count : 1) : drawTris(m));
+      return prevR.apply(this, a);
+    };
+    o.onBeforeShadow = function (this: THREE.Object3D, ...a: Parameters<THREE.Object3D['onBeforeShadow']>) {
+      const grp = a[6] as unknown as { start: number; count: number } | null | undefined;
+      add('shadow', m, grp ? Math.floor(grp.count / 3) * ((m as THREE.InstancedMesh).isInstancedMesh ? (m as THREE.InstancedMesh).count : 1) : drawTris(m));
+      return prevS.apply(this, a);
+    };
+  });
+  try { render(); } finally { for (const [o, r, s] of saved) { o.onBeforeRender = r; o.onBeforeShadow = s; } }
+  out.top = [...per.values()].sort((a, b) => b.tris - a.tris).slice(0, 40);
   return out;
 }
 

@@ -1305,9 +1305,9 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   if (st.mirror === 'van') {
     // tall upright van mirror on a short arm: dark housing and a glass-black face, still inside the +0.02 m width allowance
     const yM = 1.62 * ky;
-    trim.addBoth(bx(0.07, 0.3, 0.17, Wb2 + 0.035, yM, -uMir - 0.04));
+    trim.addBoth(bx(0.07, 0.3, 0.17, Wb2 + 0.03, yM, -uMir - 0.04));
     trim.addBoth(bx(0.1, 0.03, 0.04, Wb2 - 0.04, yM - 0.05, -uMir - 0.02));
-    chrome.addBoth(bx(0.012, 0.26, 0.15, Wb2 + 0.074, yM, -uMir - 0.04));
+    chrome.addBoth(bx(0.012, 0.26, 0.15, Wb2 + 0.062, yM, -uMir - 0.04));
   } else {
     const yMir = fyBelt(uMir) + 0.075;
     const mx = Wb2 + 0.01;
@@ -1551,7 +1551,7 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
   const sill = 0.62;
   const arch = archOf(R, sill);
   const Wc2 = 1.03;                // cab half-width (2.06 m cab)
-  const Wg2 = W / 2 - 0.01;        // box half-width
+  const Wg2 = W / 2 - 0.025;       // box half-width
   const uF = L / 2 - 0.1;          // cab nominal front
   const uB = TRUCK_CAB_SECS[0][0]; // cab back
   const [axleF, axleR] = TRUCK_AXLES;
@@ -1828,27 +1828,27 @@ export function buildBusParts(spec: VehicleSpec): CarParts {
   trim.add(bx(1.9, 0.26, 0.04, 0, H - 0.2, -(uScr - 0.02))); // destination sign (dark when off)
   chrome.add(bx(1.96, 0.02, 0.05, 0, H - 0.06, -(uScr - 0.02)));
   // ---- front: bumper, small intake, lamps, wiper; rear: bumper, engine door lines, rear window
-  trim.add(bumperGeo(2 * wM0 * 0.96, 0.24, 0.3, 0.46, -(tipF - 0.24), false));
-  trim.add(bumperGeo(2 * wM0 * 0.96, 0.24, 0.3, 0.46, tipF - 0.24, true));
-  trim.add(bx(1.0, 0.3, 0.02, 0, 0.9, -(tipF + 0.006)));
-  for (let k = 0; k < 3; k++) chrome.add(bx(0.96, 0.012, 0.014, 0, 0.8 + k * 0.1, -(tipF + 0.016)));
-  chrome.add(cylZ(0.05, 0.014, 0, 1.25, -(tipF + 0.016), 8));
+  trim.add(bumperGeo(2 * wM0 * 0.96, 0.24, 0.3, 0.46, -(tipF - 0.28), false));
+  trim.add(bumperGeo(2 * wM0 * 0.96, 0.24, 0.3, 0.46, tipF - 0.28, true));
+  trim.add(bx(1.0, 0.3, 0.02, 0, 0.9, -(tipF - 0.004)));
+  for (let k = 0; k < 3; k++) chrome.add(bx(0.96, 0.012, 0.014, 0, 0.8 + k * 0.1, -(tipF + 0.004)));
+  chrome.add(cylZ(0.05, 0.014, 0, 1.25, -(tipF + 0.004), 8));
   trim.add(decalZ(1.5, 0.5, 0, 2.45, tipF + 0.003)); // rear window (dark)
   for (const y of [1.2, 1.5, 1.8]) trim.add(decalZ(1.3, 0.012, 0, y, tipF + 0.004)); // engine louvres
   trim.add(bx(2 * wM0 * 0.8, 0.5, 0.05, 0, 0.62, -(tipF - 0.02))); // front skirt panel
   const head = new Acc();
   const tail = new Acc();
   {
-    const hp = lampPieces('box', true, v3(wM0 - 0.3, 0.85, -(tipF + 0.002)), -0.05);
+    const hp = lampPieces('box', true, v3(wM0 - 0.3, 0.85, -(tipF - 0.012)), -0.05);
     for (const g of hp.lens) head.addBoth(g);
     for (const g of hp.housing) trim.addBoth(g);
-    const tp = lampPieces('tall', false, v3(wM0 - 0.1, 1.0, tipF + 0.002), 0, 2.0);
+    const tp = lampPieces('tall', false, v3(wM0 - 0.1, 1.0, tipF - 0.012), 0, 2.0);
     for (const g of tp.lens) tail.addBoth(g);
     for (const g of tp.housing) trim.addBoth(g);
   }
   // mirrors: tall flat housings on arms at the screen corners (within the +0.02 m width allowance)
   for (const s of [-1, 1]) {
-    trim.add(bx(0.07, 0.55, 0.16, s * (wM0 + 0.04), 2.2, -(tipF - 0.5)));
+    trim.add(bx(0.07, 0.55, 0.16, s * (wM0 + 0.0), 2.2, -(tipF - 0.5)));
     trim.add(bx(0.12, 0.03, 0.03, s * (wM0 - 0.02), 2.45, -(tipF - 0.5)));
     trim.add(bx(0.12, 0.03, 0.03, s * (wM0 - 0.02), 1.95, -(tipF - 0.5)));
   }
@@ -1867,8 +1867,6 @@ export function buildBusParts(spec: VehicleSpec): CarParts {
   }
   trim.add(bx(0.6, 0.55, 0.5, 0.0 + 0.55, 1.35, -(tipF - 0.9))); // driver's seat
   trim.add(new THREE.TorusGeometry(0.22, 0.02, 4, 10).rotateX(-0.5).translate(0.55, 1.65, -(tipF - 0.45)));
-  // ---- mud flaps
-  for (const s of [-1, 1]) trim.add(bx(0.02, 0.4, 0.4, s * (wM0 - 0.04), 0.3, -axR + 0.7));
 
   const parts: CarParts = {
     paint: paint.merge(),

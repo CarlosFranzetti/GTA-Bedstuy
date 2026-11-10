@@ -42,9 +42,9 @@ try {
       await dismiss(); await dbg(() => window.__gtaDebug.settle(120));
       const r = await dbg(() => {
         const d = window.__gtaDebug; let info; for (let i = 0; i < 3; i++) info = d.renderOnce(1, 1 / 60);
-        return { info, bd: window.__gtaTriBreakdown(d.scene, d.cam.camera, d.renderer), vehicles: d.traffic.vehicles.length, peds: d.traffic.peds.length };
+        return { info, bd: window.__gtaTriBreakdown(d.scene, () => d.renderOnce(1, 1 / 60)), vehicles: d.traffic.vehicles.length, peds: d.traffic.peds.length };
       });
-      results.push({ tier: q, view: name, ...r }); save(); console.log(q, name, r.info.triangles, r.info.total, 'walker scene', r.bd.sceneTotal, 'shadow', r.bd.shadowTotal);
+      results.push({ tier: q, view: name, ...r }); save(); console.log(q, name, r.info.triangles, r.info.total, 'hooked scene', r.bd.sceneTotal, 'shadow', r.bd.shadowTotal);
     };
     await dbg(() => { const d = window.__gtaDebug; d.teleport(9, 20, 0); d.step(10); });
     await hour(12); await shot('1');

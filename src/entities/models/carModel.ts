@@ -508,6 +508,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   const wheels: THREE.Object3D[] = [];
   const steerPivots: THREE.Object3D[] = [];
   const rigs: { steer: THREE.Object3D; roll: THREE.Object3D; left: boolean; dx?: number }[] = [];
+  const duals: typeof rigs = []; // inner rear tyres of dual-rear axles: extra instances after the four wheels
   for (const w of parts.wheels) {
     const steer = new THREE.Group();
     steer.name = w.front ? 'steerPivot' : 'wheelMount';
@@ -522,7 +523,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
     group.add(steer);
     wheels.push(roll);
     rigs.push({ steer, roll, left: w.x < 0 });
-    if (parts.dualRear && !w.front) rigs.push({ steer, roll, left: w.x < 0, dx: (w.x < 0 ? 1 : -1) * 1.12 * parts.wheelW }); // wheel-local +x is outboard on both sides
+    if (parts.dualRear && !w.front) duals.push({ steer, roll, left: w.x < 0, dx: (w.x < 0 ? 1 : -1) * 1.12 * parts.wheelW }); // wheel-local +x is outboard on both sides
     if (w.front) steerPivots.push(steer);
   }
 
@@ -559,7 +560,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
       lit(headMat, u.uHead.value); lit(tailMat, u.uTail.value);
       if (barA && barB) { lit(barA, u.uBarA.value); lit(barB, u.uBarB.value); }
     };
-    group.add(new WheelSet(wg.right, tyreMat, rigs));
+    group.add(new WheelSet(wg.right, tyreMat, [...rigs, ...duals]));
     farSource = () => buildCarModel(type, spec, materials, variant, st, true);
   }
 

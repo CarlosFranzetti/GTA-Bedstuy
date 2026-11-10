@@ -151,21 +151,21 @@ export function buildFurniture(
   const limb = (a: V3, b: V3, r0: number, r1: number): THREE.BufferGeometry => {
     const d = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
     const len = d.length();
-    const g = new THREE.CylinderGeometry(r1, r0, len, 5).translate(0, len / 2, 0);
+    const g = new THREE.CylinderGeometry(r1, r0, len, 4, 1, true).translate(0, len / 2, 0); // open-ended, 4 sides: the ends sit inside the canopy / trunk
     g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()));
     return g.translate(a[0], a[1], a[2]);
   };
   // tapered trunk plus three limbs reaching the canopy clouds (see addTree)
   const trunkGeo = (): THREE.BufferGeometry[] => [
-    cyl(0.2, 0.3, TREE_TRUNK_H, 6).translate(0, TREE_TRUNK_H / 2, 0),
+    new THREE.CylinderGeometry(0.2, 0.3, TREE_TRUNK_H, 6, 1, true).translate(0, TREE_TRUNK_H / 2, 0), // open-ended: ground below, limbs and canopy above
     limb([0, 2.5, 0], [0, 4.0, 0], 0.14, 0.06),
     limb([0, 2.7, 0], [0.7, 3.6, 0.5], 0.1, 0.05),
     limb([0, 2.7, 0], [-0.6, 3.7, -0.6], 0.1, 0.05),
   ];
   /**
    * Canopy cloud: leaf cards scattered through a unit ball, every vertex normal pointing out of the ball centre (so the
-   * cloud shades like a soft volume, not like flat cards) and each card emitted twice (both windings) so the back is lit the
-   * same. Alpha-tested leaf sprite; ~96 triangles, shared by every instance (scale = cloud radius).
+   * cloud shades like a soft volume, not like flat cards) and the double-sided material lights the back the
+   * same (no flipped normal). Alpha-tested leaf sprite; 48 triangles, shared by every instance (scale = cloud radius).
    */
   const blobGeo = (): THREE.BufferGeometry[] => {
     const cr = new Rng('tree-cloud');
@@ -182,7 +182,7 @@ export function buildFurniture(
       const tri = (a: number, b: number, c: number): void => {
         for (const k of [a, b, c]) { const o = corners[k]; pos.push(o.p.x, o.p.y, o.p.z); nor.push(o.n.x, o.n.y, o.n.z); uv.push(o.u, o.v); }
       };
-      tri(0, 1, 2); tri(0, 2, 3); tri(0, 2, 1); tri(0, 3, 2);
+      tri(0, 1, 2); tri(0, 2, 3); // one winding: the treeLeaves material is double-sided (MaterialLibrary), so the back face costs no triangles
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
