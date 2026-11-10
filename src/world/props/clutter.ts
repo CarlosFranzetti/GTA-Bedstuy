@@ -55,7 +55,7 @@ const triCount = (g: THREE.BufferGeometry): number => (g.index ? g.index.count :
 const NEWS = ['#b8281f', '#1f4e9c', '#d9a21b', '#2e7d4f', '#7a3d8f'];
 const BIKE = ['#c0392b', '#2c3e50', '#16a085', '#f39c12', '#222428', '#8e44ad'];
 // charcoal, not black: near-black albedo read as flat black blobs at low (no specular facets, no sky fill)
-const BAG = ['#363a42', '#363a42', '#2f5236', '#4a4e57', '#d9d9d4', '#3d414a'];
+const BAG = ['#3a3e46', '#2d3036', '#2f5236', '#454952', '#c9ced2', '#e6e8e4'];
 const CRATE = ['#2a64b5', '#e8e8e0', '#c03a2b', '#222428'];
 const POSTER = ['#e8d44d', '#e0533a', '#3a7bd5', '#f2f2ee', '#59b36b', '#d96aa7', '#f08a24', '#8a6bd1'];
 const STICKER = ['#e8d44d', '#e0533a', '#3a7bd5', '#f2f2ee', '#59b36b', '#111111'];
@@ -156,11 +156,11 @@ function bagPile(rng: Rng): Geos {
   const g: Geos = [];
   const n = rng.int(3, 7);
   for (let i = 0; i < n; i++) {
-    const r = rng.range(0.24, 0.36), a = rng.range(0, 6.28), d = i === 0 ? 0 : rng.range(0.2, 0.5);
+    const r = rng.range(0.2, 0.28), a = rng.range(0, 6.28), d = i === 0 ? 0 : rng.range(0.2, 0.5);
     const top = i >= 4;
-    const x = Math.cos(a) * d, z = Math.sin(a) * d * 0.7, y = top ? r * 1.5 + 0.12 : r * 0.8;
-    g.push(paint(new THREE.SphereGeometry(r, 5, 4).scale(1, 0.85, 1).rotateY(rng.range(0, 3)).translate(x, y, z), rng.pick(BAG)));
-    g.push(paint(new THREE.ConeGeometry(0.05, 0.11, 3).translate(x, y + r * 0.8, z), '#2a2d33'));
+    const x = Math.cos(a) * d, z = Math.sin(a) * d * 0.7, y = top ? r * 1.36 : r * 0.68;
+    g.push(paint(new THREE.SphereGeometry(r, 6, 4).scale(1.05, 0.68, 0.95).rotateY(rng.range(0, 3)).translate(x, y, z), rng.pick(BAG)));
+    g.push(paint(new THREE.ConeGeometry(0.04, 0.09, 3).translate(x, y + r * 0.7, z), '#2a2d33'));
   }
   if (rng.chance(0.35)) g.push(paint(box(0.5, 0.35, 0.4).rotateY(rng.range(0, 3)).translate(rng.range(-0.5, 0.5), 0.18, rng.range(0.3, 0.6)), '#8a7a5a')); // cardboard
   return g;

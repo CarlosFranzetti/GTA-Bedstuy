@@ -229,7 +229,7 @@ const spawn = saved
   ? { x: clamp(saved.x, grid.bounds.minX - 25, grid.bounds.maxX + 25), z: clamp(saved.z, grid.bounds.minZ - 25, grid.bounds.maxZ + 25) }
   : SPAWN;
 const player = new Player('player', spawn, materials, events);
-player.blockedAt = (p, r) => physics.overlapsStatic(p, r);
+player.blockedAt = (p, r, ignoreId) => physics.overlapsSolid(p, r, ignoreId);
 if (saved) { player.body.heading = saved.heading; dayNight.timeOfDay = saved.hour; }
 scene.add(player.object3D);
 physics.addBody(player.body);

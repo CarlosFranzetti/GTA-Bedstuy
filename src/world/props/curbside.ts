@@ -35,7 +35,7 @@ export function buildCurbside(
 ): void {
   const green = materials.get('metalGreen');
   const metal = materials.get('metalDark');
-  const bagMat = pb.material('bags', () => new THREE.MeshStandardMaterial({ name: 'trash-bags', color: '#444851', roughness: 0.5, metalness: 0.05 }));
+  const bagMat = pb.material('bags', () => new THREE.MeshStandardMaterial({ name: 'trash-bags', vertexColors: true, roughness: 0.32, metalness: 0.08 }));
   const coneMat = pb.material('cone', () => new THREE.MeshStandardMaterial({ name: 'traffic-cone', color: '#ff6a13', roughness: 0.6, metalness: 0 }));
 
   // ---- dumpsters + bag piles, per face
@@ -113,15 +113,46 @@ function addDumpster(pb: PropsBuilder, green: THREE.Material, metal: THREE.Mater
   pb.count('dumpsters');
 }
 
+/** Black-grey contractor bags with the odd clear / white recycling bag. */
+const BAG_COLORS = ['#3a3e46', '#2d3036', '#2d3036', '#454952', '#c9ced2', '#e6e8e4'];
+
+/**
+ * One real-size (60 to 80 cm) trash bag: a squashed, faceted blob with a creased, slightly lumpy surface and a gathered knot
+ * on top, painted with a vertex colour (the shared material is white + vertex colours, gloss from roughness 0.32).
+ */
+function bagGeo(r: number, hex: string, rng: Rng): THREE.BufferGeometry[] {
+  const col = new THREE.Color(hex);
+  const body = new THREE.SphereGeometry(r, 7, 5).scale(1.05, 0.68, 0.95);
+  const pos = body.getAttribute('position');
+  for (let i = 0; i < pos.count; i++) { // creases: deterministic per-vertex push / pull
+    const k = 1 + rng.range(-0.1, 0.07);
+    pos.setXYZ(i, pos.getX(i) * k, pos.getY(i) * (1 + rng.range(-0.06, 0.04)), pos.getZ(i) * k);
+  }
+  const flat = body.toNonIndexed(); // facets: one normal per triangle
+  body.dispose();
+  flat.computeVertexNormals();
+  const knot = new THREE.ConeGeometry(r * 0.2, r * 0.55, 4).translate(rng.range(-0.04, 0.04), r * 0.68 + r * 0.2, 0).rotateZ(rng.range(-0.5, 0.5)).toNonIndexed();
+  knot.computeVertexNormals();
+  return [flat, knot].map((g) => {
+    const n = g.getAttribute('position').count;
+    const c = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { c[i * 3] = col.r; c[i * 3 + 1] = col.g; c[i * 3 + 2] = col.b; }
+    g.setAttribute('color', new THREE.BufferAttribute(c, 3));
+    g.deleteAttribute('uv');
+    return g;
+  });
+}
+
 function addBagPile(pb: PropsBuilder, mat: THREE.Material, p: Vec2, rng: Rng): void {
   const n = rng.int(3, 6);
   for (let i = 0; i < n; i++) {
-    const r = rng.range(0.26, 0.38);
+    const r = rng.range(0.2, 0.28); // 40 to 56 cm wide, ~30 cm tall: real bags
     const a = rng.range(0, Math.PI * 2);
-    const d = i === 0 ? 0 : rng.range(0.2, 0.45);
+    const d = i === 0 ? 0 : rng.range(0.18, 0.4);
     const stacked = i >= 4;
-    const geo = new THREE.SphereGeometry(r, 8, 6).scale(1, 0.85, 1);
-    pb.put('bags', mat, xform(geo, p.x + Math.cos(a) * d, stacked ? r * 1.4 + 0.15 : r * 0.85, p.z + Math.sin(a) * d, rng.range(0, Math.PI)));
+    const y = stacked ? r * 0.68 * 2 - 0.02 : r * 0.68;
+    const yaw = rng.range(0, Math.PI);
+    for (const g of bagGeo(r, rng.pick(BAG_COLORS), rng)) pb.put('bags', mat, xform(g, p.x + Math.cos(a) * d, y, p.z + Math.sin(a) * d, yaw));
   }
   pb.count('bagPiles');
 }

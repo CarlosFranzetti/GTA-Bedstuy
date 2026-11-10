@@ -486,7 +486,7 @@ export class MaterialLibrary implements IMaterialLibrary {
       roof: { variants: 1, build: tex('roof', 512, 512, roofPainter, {}, { strength: 3, normalScale: 0.5, roughScale: null }) },
       waterTank: { variants: 1, build: tex('waterTank', 256, 256, waterTankPainter) },
       treeTrunk: { variants: 1, build: tex('treeTrunk', 256, 256, treeTrunkPainter) },
-      treeLeaves: { variants: LEAF_VARIANTS, build: tex('treeLeaves', 256, 256, treeLeavesPainter) },
+      treeLeaves: { variants: LEAF_VARIANTS, build: tex('treeLeaves', 256, 256, treeLeavesPainter, { roughness: 0.8, alphaTest: 0.45 }) },
       metalDark: flat(['#26282b'], { roughness: 0.6, metalness: 0 }),
       metalGreen: flat(['#1d5a3a'], { roughness: 0.6, metalness: 0 }),
       hydrant: flat(['#c8282a', '#e0b81c'], { roughness: 0.55, metalness: 0 }),

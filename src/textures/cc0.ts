@@ -59,7 +59,7 @@ export function cc0Entries(files?: Record<string, string>): PackEntry[] {
     e('asphaltWorn', 0, 'asphalt', { repeat: 1, normalScale: 0.5, envMapIntensity: 0.2, tint: '#cfcfcf' }),
     e('asphaltWorn', 1, 'asphalt', { repeat: 1, normalScale: 0.5, envMapIntensity: 0.2, tint: '#bdbdbd' }),
     // grey concrete slabs with joints (Bed-Stuy squares); the brick-paver set (concrete_sidewalk) stays out of the street
-    e('concrete', 0, 'concrete_pavement', { repeat: 1.5, normalScale: 0.8, envMapIntensity: 0.12, tint: '#d6d6dc' }),
+    e('concrete', 0, 'concrete_pavement', { repeat: 1.5, normalScale: 0.8, envMapIntensity: 0.12 }),
     // bluestone keeps its procedural flag painter: the bluestone_slate set is a rubble wall, not flagstone
     e('waterTank', 0, 'weathered_wood', { repeat: 3, normalScale: 0.7 }),
   ];

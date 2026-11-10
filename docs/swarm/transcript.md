@@ -2300,3 +2300,9 @@ clutter.test.ts roadway case was a timeout (expect per prop x door); rewritten, 
 
 ### 2026-11-10T07:50:46Z · GEO3
 FINAL: 60 GRID9 placeholder faces filled from east-lots.json: 1404 lots (770 PLUTO, 634 filler), widths 3-34.9 m, floors 1-8, years 1889-2025, 49 storefronts, 6 venue signs (86, 98, 148 via BBL to 893 Lafayette, 426 Kosciuszko, 50 Malcolm X, 103 Stuyvesant). Hart 207 and 8 DeKalb unplaced. Tests: world 23/23 files, 310/310 (clutter needs >30s timeout). tsc clean. No commit.
+
+### 2026-11-10T07:58:19Z · CARFIX
+FINAL: exit spots now avoid cars (overlapsSolid) + ring search; pin recovery; camera pivot glide; touch stick analog. tsc clean. FOR FABLE: main.ts:232 needs overlapsSolid. UI10: none.
+
+### 2026-11-10T07:58:31Z · PEOPLE10
+A done: 9 population groups (race-target blends -> 23 shapes, 1.3 MB glb), 34 civilians + hasidic/hijabi/tote/cyclist/office/androgynous, player random look API, 4-groups-per-20 guarantee + tests green; now B: body-surface garments, shoes, hair volumes

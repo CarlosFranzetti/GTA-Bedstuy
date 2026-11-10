@@ -11,6 +11,8 @@ import type { InputMode } from '@/core/Input';
 import type { NavDir } from '@/core/Gamepad';
 import { clearPosition } from './SaveState';
 import { MINIMAP_LEGEND } from './Minimap';
+import type { SaveManager } from './GameSave';
+import { SavePanel } from './SavePanel';
 
 export type MenuQuality = 'phone' | 'low' | 'medium' | 'high';
 export const QUALITIES: readonly MenuQuality[] = ['phone', 'low', 'medium', 'high'];
@@ -47,6 +49,10 @@ export interface MenuOptions {
   storage?: Pick<Storage, 'getItem' | 'setItem'> | null;
   /** Open when the browser exits pointer lock. Default true. */
   openOnPointerUnlock?: boolean;
+  /** Adds "Save / Load game" (3 slots + autosave, export / import, new game). Omit and the menu has no save screen. */
+  saves?: SaveManager;
+  /** false while a save would store a nonsense pose (inside a room). */
+  canSave?: () => boolean;
 }
 
 const DEFAULTS: MenuSettings = { quality: 'medium', master: 1, radio: 1, invertY: false };
@@ -85,6 +91,10 @@ export class Menu {
   private readonly radioOut: HTMLOutputElement;
   private readonly invertInput: HTMLInputElement;
   private readonly resetBtn: HTMLButtonElement;
+  private readonly mainBox: HTMLElement;
+  private readonly saveBox: HTMLElement;
+  private readonly saveBtn: HTMLButtonElement;
+  private savePanel: SavePanel | null = null;
   private readonly controlSections = new Map<InputMode, HTMLElement>();
   private readonly storage: Pick<Storage, 'getItem' | 'setItem'> | null;
   private readonly cleanup: Array<() => void> = [];
@@ -200,7 +210,20 @@ export class Menu {
     const hint = this.el('p', 'menu-hint');
     hint.textContent = 'Esc / Start to resume';
 
-    this.panel.append(title, this.resumeBtn, quality, masterRow, radioRow, libBtn, invertRow, this.resetBtn, controls, legend, hint);
+    this.mainBox = this.el('div', 'menu-main');
+    this.saveBtn = this.button('Save / Load game', 'menu-btn menu-save-btn');
+    this.saveBtn.hidden = !opts.saves;
+    this.saveBtn.addEventListener('click', () => this.showSave(true));
+    this.mainBox.append(this.resumeBtn, this.saveBtn, quality, masterRow, radioRow, libBtn, invertRow, this.resetBtn, controls, legend, hint);
+    this.saveBox = this.el('div', 'menu-main menu-savebox');
+    this.saveBox.hidden = true;
+    if (opts.saves) {
+      const back = this.button('Back', 'menu-btn menu-save-back');
+      back.addEventListener('click', () => this.showSave(false));
+      this.savePanel = new SavePanel(null, opts.saves, { canSave: opts.canSave, newGame: true, onDone: () => this.close() });
+      this.saveBox.append(back, this.savePanel.root);
+    }
+    this.panel.append(title, this.mainBox, this.saveBox);
     this.root.appendChild(this.panel);
     parent.appendChild(this.root);
 
@@ -217,7 +240,7 @@ export class Menu {
     // ---- global listeners
     const win = this.doc.defaultView;
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'Escape' && !e.repeat) { e.preventDefault(); this.toggle(); }
+      if (e.code === 'Escape' && !e.repeat) { e.preventDefault(); if (this.opened && this.savingView) this.showSave(false); else this.toggle(); }
     };
     win?.addEventListener('keydown', onKey);
     this.cleanup.push(() => win?.removeEventListener('keydown', onKey));
@@ -257,6 +280,7 @@ export class Menu {
 
   close(): void {
     if (!this.opened) return;
+    this.showSave(false);
     this.opened = false;
     this.root.hidden = true;
     this.pauseButton.hidden = !this.touchEnabled;
@@ -267,6 +291,15 @@ export class Menu {
   }
 
   toggle(): void { if (this.opened) this.close(); else this.open(); }
+
+  /** Swaps the settings for the save / load screen and back. No-op without `saves`. */
+  showSave(on: boolean): void {
+    if (!this.savePanel) return;
+    this.mainBox.hidden = on; this.saveBox.hidden = !on;
+    if (on) { this.savePanel.refresh(); this.saveBox.querySelector<HTMLElement>('.menu-save-back')?.focus(); }
+    else if (this.opened && this.doc.activeElement && this.saveBox.contains(this.doc.activeElement)) this.saveBtn.focus();
+  }
+  get savingView(): boolean { return !this.saveBox.hidden; }
 
   /** Highlights the controls column for the device in use. */
   setInputMode(mode: InputMode): void {
@@ -288,12 +321,13 @@ export class Menu {
       case 'left':
       case 'right': this.adjust(active, dir === 'left' ? -1 : 1); break;
       case 'confirm': if (active && items.includes(active)) active.click(); break;
-      case 'back': this.close(); break;
+      case 'back': if (this.savingView) this.showSave(false); else this.close(); break;
     }
   }
 
   dispose(): void {
     this.cleanup.splice(0).forEach((fn) => fn());
+    this.savePanel?.dispose();
     this.root.remove();
     this.pauseButton.remove();
   }

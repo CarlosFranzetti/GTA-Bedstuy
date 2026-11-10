@@ -165,7 +165,7 @@ describe('slot metadata and autosave', () => {
     expect(s).toMatchObject({ empty: false, corrupt: false, day: 2, hour: 9.5, cash: 200, street: 'Throop Ave', savedAt: 1_700_000_000_000 });
     expect(formatClock(9.5)).toBe('9:30am');
     expect(formatClock(0)).toBe('12:00am');
-    expect(formatClock(23.99)).toBe('12:00am');
+    expect(formatClock(23.99)).toBe('11:59pm');
     expect(formatDay(2)).toBe('Day 3 Wed');
   });
 

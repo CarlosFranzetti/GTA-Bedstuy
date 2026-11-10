@@ -3,19 +3,40 @@ import { blotches, hsl, speckle, withAlpha, wrapVariant } from './util';
 
 export const LEAF_VARIANTS = 3;
 
-/** 256px mottled greens. Variants: summer green, deep green, yellow-green. */
+/**
+ * 256px leaf-cluster sprite on a TRANSPARENT background (alpha-tested leaf cards, FurnitureGen builds the canopy from them):
+ * ~230 pointed leaves with a midrib, darker underneath and lighter toward the top, packed into a rounded blob. Variants:
+ * summer green, deep green, yellow-green.
+ */
 export const treeLeavesPainter: Painter = (ctx, w, h, rng, variant) => {
   const v = wrapVariant(variant, LEAF_VARIANTS);
   const hue = [105, 120, 82][v];
-  ctx.fillStyle = hsl(hue, 38, v === 1 ? 17 : 24);
-  ctx.fillRect(0, 0, w, h);
-  for (let i = 0; i < 1400; i++) {
-    ctx.fillStyle = hsl(hue + rng.range(-18, 18), rng.range(30, 55), rng.range(14, 40));
+  const cx = w / 2, cy = h / 2, R = w * 0.46;
+  const leaf = (x: number, y: number, len: number, ang: number, fill: string, rib: string): void => {
+    const c = Math.cos(ang), s = Math.sin(ang), wd = len * 0.36;
+    const tx = x + c * len, ty = y + s * len;
+    const mx = x + c * len * 0.5, my = y + s * len * 0.5;
+    ctx.fillStyle = fill;
     ctx.beginPath();
-    ctx.arc(rng.range(0, w), rng.range(0, h), rng.range(2, 7), 0, Math.PI * 2);
+    ctx.moveTo(x, y);
+    ctx.quadraticCurveTo(mx - s * wd, my + c * wd, tx, ty);
+    ctx.quadraticCurveTo(mx + s * wd, my - c * wd, x, y);
+    ctx.closePath();
     ctx.fill();
+    ctx.strokeStyle = rib;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(tx, ty);
+    ctx.stroke();
+  };
+  for (let i = 0; i < 230; i++) {
+    const a = rng.range(0, Math.PI * 2), d = Math.sqrt(rng.next()) * R;
+    const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d * 0.92;
+    const top = 1 - (y / h); // lighter toward the top of the sprite
+    const l = (i < 90 ? 13 : 20) + top * 20 + rng.range(-4, 6);
+    leaf(x, y, rng.range(13, 24), rng.range(0, Math.PI * 2), hsl(hue + rng.range(-14, 14), rng.range(34, 58), l), hsl(hue + 6, 30, l + 12));
   }
-  blotches(ctx, w, h, rng, 12, '#000000', 0.12, 10, 30);
 };
 
 /** 256px bark: wandering vertical ridges with lit tops and dark fissures, a little moss. Tiles horizontally. */

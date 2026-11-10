@@ -7,3 +7,4 @@ Licence URL: https://creativecommons.org/publicdomain/zero/1.0/
 
 Files: color_1k.jpg (diffuse), normal_1k.jpg (OpenGL normal), rough_1k.jpg (roughness), 1K JPEG.
 color_512.jpg, normal_512.jpg, rough_512.jpg: 512 px JPEG re-encodes (quality 82) for single-file artifacts.
+Note: color_1k.jpg / color_512.jpg were desaturated and re-leveled to a cool light grey (mean ~#a0a4a8) by the ART lane to match NYC concrete sidewalks.

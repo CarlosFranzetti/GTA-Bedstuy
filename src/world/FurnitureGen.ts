@@ -9,7 +9,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Block, BlockFace, GridModel, IMaterialLibrary, Lot, Side, StaticCollider, StreetDef } from '@/world/types';
-import type { Rng } from '@/core/Rng';
+import { Rng } from '@/core/Rng';
+type V3 = [number, number, number];
 import type { Vec2 } from '@/core/Math2';
 import { planSignBlades, SIGN_LAYOUT } from '@/world/signBlades';
 
@@ -146,8 +147,49 @@ export function buildFurniture(
 
   // ---- primitives (geometry is built around the local origin; the instance matrix places it)
 
-  const trunkGeo = (): THREE.BufferGeometry[] => [cyl(0.3, 0.3, TREE_TRUNK_H, 6).translate(0, TREE_TRUNK_H / 2, 0)];
-  const blobGeo = (): THREE.BufferGeometry[] => [new THREE.SphereGeometry(1, 7, 5)];
+  /** Branch from a to b (tapered prism). */
+  const limb = (a: V3, b: V3, r0: number, r1: number): THREE.BufferGeometry => {
+    const d = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+    const len = d.length();
+    const g = new THREE.CylinderGeometry(r1, r0, len, 5).translate(0, len / 2, 0);
+    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()));
+    return g.translate(a[0], a[1], a[2]);
+  };
+  // tapered trunk plus three limbs reaching the canopy clouds (see addTree)
+  const trunkGeo = (): THREE.BufferGeometry[] => [
+    cyl(0.2, 0.3, TREE_TRUNK_H, 6).translate(0, TREE_TRUNK_H / 2, 0),
+    limb([0, 2.5, 0], [0, 4.0, 0], 0.14, 0.06),
+    limb([0, 2.7, 0], [0.7, 3.6, 0.5], 0.1, 0.05),
+    limb([0, 2.7, 0], [-0.6, 3.7, -0.6], 0.1, 0.05),
+  ];
+  /**
+   * Canopy cloud: leaf cards scattered through a unit ball, every vertex normal pointing out of the ball centre (so the
+   * cloud shades like a soft volume, not like flat cards) and each card emitted twice (both windings) so the back is lit the
+   * same. Alpha-tested leaf sprite; ~96 triangles, shared by every instance (scale = cloud radius).
+   */
+  const blobGeo = (): THREE.BufferGeometry[] => {
+    const cr = new Rng('tree-cloud');
+    const pos: number[] = [], nor: number[] = [], uv: number[] = [];
+    const q = new THREE.Quaternion(), e = new THREE.Euler();
+    for (let i = 0; i < 24; i++) {
+      const dir = new THREE.Vector3(cr.range(-1, 1), cr.range(-0.6, 1), cr.range(-1, 1)).normalize().multiplyScalar(0.8 * Math.cbrt(cr.next()));
+      const size = cr.range(0.85, 1.25);
+      q.setFromEuler(e.set(cr.range(0, Math.PI), cr.range(0, Math.PI * 2), cr.range(0, Math.PI)));
+      const corners = [[-1, -1, 0, 0], [1, -1, 1, 0], [1, 1, 1, 1], [-1, 1, 0, 1]].map(([x, y, u, v]) => {
+        const p = new THREE.Vector3(x * size * 0.5, y * size * 0.5, 0).applyQuaternion(q).add(dir);
+        return { p, n: p.clone().normalize(), u, v };
+      });
+      const tri = (a: number, b: number, c: number): void => {
+        for (const k of [a, b, c]) { const o = corners[k]; pos.push(o.p.x, o.p.y, o.p.z); nor.push(o.n.x, o.n.y, o.n.z); uv.push(o.u, o.v); }
+      };
+      tri(0, 1, 2); tri(0, 2, 3); tri(0, 2, 1); tri(0, 3, 2);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    return [g];
+  };
 
   function addTree(base: Vec2): void {
     const yaw = rng.range(0, Math.PI * 2);
