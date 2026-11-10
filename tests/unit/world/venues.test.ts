@@ -29,8 +29,7 @@ const findLot = (address: string): RawLot | undefined => allLots.find((l) => add
 /** venues whose address is not on any current lot: expansion lots that GEO3 adds to bedstuy.json */
 const PENDING_EXPANSION = [
   '909 Dekalb Avenue', '833 Dekalb Avenue', '886 Dekalb Avenue', '905 Dekalb Avenue', '911 Dekalb Avenue',
-  '835 Dekalb Avenue', '901 Dekalb Avenue', '892 Dekalb Avenue', '148 Lewis Ave', '98 Lewis Ave',
-  '426 Kosciuszko St', '86 Lewis Ave', '207 Hart St',
+  '835 Dekalb Avenue', '901 Dekalb Avenue', '892 Dekalb Avenue', '207 Hart St',
 ];
 
 const MISSION_POI_SIGNS: Record<string, string> = {

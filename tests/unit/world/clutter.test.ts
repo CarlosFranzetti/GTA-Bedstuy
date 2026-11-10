@@ -56,12 +56,15 @@ describe('street clutter', () => {
     const doors = W.lots.map((l) => ({ x: (l.frontA.x + l.frontB.x) / 2, z: (l.frontA.z + l.frontB.z) / 2 }));
     const solids = W.clutter.placements.filter((p) => p.solid);
     expect(solids.length).toBeGreaterThan(50);
-    for (const p of solids) {
-      expect(W.grid.isOnRoad({ x: p.x, z: p.z }), `${p.kind} at ${p.x.toFixed(1)},${p.z.toFixed(1)} on the road`).toBe(false);
-      for (const d of doors) expect(Math.hypot(p.x - d.x, p.z - d.z), `${p.kind} too close to a door`).toBeGreaterThan(DOOR_ZONE - 0.6);
-    }
+    // plain loops with one assertion each: an expect() per (prop, door) pair is millions of calls and times out under load
+    const onRoad = solids.filter((p) => W.grid.isOnRoad({ x: p.x, z: p.z })).map((p) => `${p.kind} at ${p.x.toFixed(1)},${p.z.toFixed(1)}`);
+    expect(onRoad, 'solid props on the road').toEqual([]);
+    const nearest = (p: { x: number; z: number }): number => { let m = Infinity; for (const d of doors) { const h = Math.hypot(p.x - d.x, p.z - d.z); if (h < m) m = h; } return m; };
+    const tooClose = solids.filter((p) => nearest(p) <= DOOR_ZONE - 0.6).map((p) => `${p.kind} at ${p.x.toFixed(1)},${p.z.toFixed(1)}`);
+    expect(tooClose, 'solid props too close to a door').toEqual([]);
     // trash bags are not 'solid' (walk-through) but must still keep clear of the door line
-    for (const p of W.clutter.placements.filter((q) => q.kind === 'bags')) for (const d of doors) expect(Math.hypot(p.x - d.x, p.z - d.z)).toBeGreaterThan(DOOR_ZONE - 0.2);
+    const bagsClose = W.clutter.placements.filter((q) => q.kind === 'bags' && nearest(q) <= DOOR_ZONE - 0.2).map((p) => `${p.x.toFixed(1)},${p.z.toFixed(1)}`);
+    expect(bagsClose, 'bags too close to a door').toEqual([]);
   });
 
   it('stays inside the per-tier triangle budget', () => {
