@@ -538,6 +538,8 @@ export interface CarParts {
   wheels: { x: number; z: number; front: boolean }[];
   wheelR: number;
   wheelW: number;
+  /** rear axle runs dual tyres (an inner tyre per side, same mesh instances) */
+  dualRear?: boolean;
   lightbar?: { lens: THREE.BufferGeometry; a: THREE.Vector3; b: THREE.Vector3 };
   /** number of cross-sections of the main hull */
   sections: number;
@@ -1465,29 +1467,36 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
 
 // ---------------------------------------------------------------- box truck
 
+// ROSTER. "Hauler 150": a light-duty cab-over box truck of the Isuzu NPR type with a 16 ft box body. Sources (WebSearch, 10 Nov 2026):
+// wheelbase 150 in (3.81 m) on the 16-18 ft chassis (https://isuzucv.com/pdfs/diesel_measurements.pdf), cab width 81.3 in (2.06 m),
+// cab height ~90 in (2.3 m), body width 96 in (2.44 m), overall height with the box ~3.3 m, overall length of a 16 ft box truck ~7.0 m
+// (https://xr793.com/wp-content/uploads/2020/02/2020-Isuzu-N-Series.pdf, https://www.lynchtruckcenter.com/p/2025-isuzu-npr-npr-hd).
+// 19.5 in wheels (225/70R19.5, R 0.405 m), dual rear tyres, roll-up rear door.
+const TRUCK_R = 0.405;
+const TRUCK_AXLES: [number, number] = [2.45, -1.36];
+
 /** [u, roof height, belt height, roof half-width fraction] for the cab, metres. */
 const TRUCK_CAB_SECS: [number, number, number, number][] = [
-  [1.25, 2.72, 1.85, 0.95],
-  [1.8, 2.74, 1.85, 0.95],
-  [2.8, 2.74, 1.85, 0.95],
-  [2.95, 2.68, 1.85, 0.94],
-  [3.1, 2.38, 1.85, 0.93],
-  [3.3, 2.0, 1.85, 0.92],
-  [3.38, 1.96, 1.85, 0.92],
+  [1.5, 2.28, 1.45, 0.95],
+  [2.1, 2.3, 1.45, 0.95],
+  [2.85, 2.28, 1.45, 0.95],
+  [3.0, 2.22, 1.45, 0.94],
+  [3.2, 1.9, 1.45, 0.93],
+  [3.34, 1.62, 1.45, 0.92],
+  [3.4, 1.58, 1.45, 0.92],
 ];
 
 export function buildTruckParts(spec: VehicleSpec): CarParts {
   const { length: L, width: W, height: H } = spec;
-  const R = 0.5;
-  const ww = 0.3;
-  const sill = 0.7;
+  const R = TRUCK_R;
+  const ww = 0.23;
+  const sill = 0.62;
   const arch = archOf(R, sill);
-  const Wc2 = (W - 0.16) / 2;      // cab half-width
-  const Wg2 = (W - 0.04) / 2;      // cargo half-width
-  const uF = L / 2 - 0.12;         // cab nominal front
+  const Wc2 = 1.03;                // cab half-width (2.06 m cab)
+  const Wg2 = W / 2 - 0.01;        // box half-width
+  const uF = L / 2 - 0.1;          // cab nominal front
   const uB = TRUCK_CAB_SECS[0][0]; // cab back
-  const axleF = L / 2 - 1.0;
-  const axleR = -L / 2 + 1.35;
+  const [axleF, axleR] = TRUCK_AXLES;
 
   // ---- cab hull
   const secs = TRUCK_CAB_SECS.map(([u, yT, yB, wr], i, a) => [i === 0 ? uB : i === a.length - 1 ? uF : u, yT, yB, wr] as const);
@@ -1495,7 +1504,7 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
   const fyT = monotone(su, secs.map((s) => s[1]));
   const fyBelt = monotone(su, secs.map((s) => s[2]));
   const fwR = monotone(su, secs.map((s) => s[3]));
-  const drF = 0.25;
+  const drF = 0.22;
   const drB = 0.1;
   const ring = (u: number): CarRing => {
     const dF = uF - u;
@@ -1507,16 +1516,16 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
     const t = clamp(d / dr, 0, 1);
     const drop = 0.04 * (1 - g);
     let yBot = Math.max(sill, archY(arch, u - axleF));
-    yBot = Math.max(yBot, sill + (front ? 0.18 : 0) * (1 - t) * (1 - t));
+    yBot = Math.max(yBot, sill + (front ? 0.2 : 0) * (1 - t) * (1 - t));
     const yBelt = fyBelt(u) - drop;
     yBot = Math.min(yBot, yBelt - 0.2);
     const wMax = Wc2 * (0.88 + 0.12 * g);
     return { yT: fyT(u) - drop, yBelt, yBot, wMax, wR: fwR(u) * wMax };
   };
-  const ws: V2 = [3.3, 2.82];
-  const doors: V2[] = [[3.05, 2.1], [1.95, 1.5]];
-  const bp: V2 = [2.1, 1.95];
-  const seams = [3.1, 2.02];
+  const ws: V2 = [3.33, 2.88];
+  const doors: V2[] = [[3.08, 2.15]];
+  const bp: V2 = [2.15, 2.03];
+  const seams = [3.12, 2.0];
   const cabCls = (um: number, j: number): Kind => {
     if (inI(um, ws) && j <= 1) return 'glass';
     if (inI(um, bp) && j >= 3 && j <= 5) return 'dark';
@@ -1532,14 +1541,14 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
   const cab = buildLoft({ us, half: (u) => carHalf(ring(u)), creases: [CAR_CREASE], cls: cabCls });
   const trF = ring(uF);
 
-  // ---- cargo box hull
-  const cargoBack = -L / 2 + 0.06;
+  // ---- cargo box hull: 16 ft box (4.9 m), floor 1.05 m, roof at the spec height; it overhangs the cab by 0.4 m each side
+  const cargoBack = -L / 2 + 0.04;
   const cargoFront = uB - 0.05;
   const boxRing = (u: number): V2[] => {
     const d = Math.min(cargoFront - u, u - cargoBack);
     const g = endG(d, 0.1);
     const s = 1 - 0.06 * (1 - g);
-    return boxHalf(Wg2 * s, 1.16 + 0.05 * (1 - g), H - 0.02 - 0.05 * (1 - g), 0.07);
+    return boxHalf(Wg2 * s, 1.05 + 0.05 * (1 - g), H - 0.02 - 0.05 * (1 - g), 0.07);
   };
   const boxUs = stationList([cargoBack, cargoFront], END_T.flatMap((t) => [cargoBack + t * 0.1, cargoFront - t * 0.1]), 8);
   const box = buildLoft({ us: boxUs, half: boxRing, creases: [], cls: () => 'paint' });
@@ -1562,57 +1571,64 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
     return h[9][0];
   };
   for (const hu of [2.3]) {
-    const yH = 1.72;
+    const yH = 1.5;
     chrome.addBoth(bx(0.016, 0.03, 0.16, sideX(hu, yH) + 0.012, yH, -hu));
   }
 
   // ---- wheel liners and interior
-  const wx = W / 2 - 0.04 - 0.52 * ww;
+  const wx = 0.86;
   trim.addBoth(wheelLiner(arch, wx - 0.52 * ww - 0.03, Wc2 - 0.01, -axleF));
-  trim.add(bx(2 * Wc2 * 0.8, 0.3, 0.4, 0, 1.55, -(ws[0] - 0.3)));
+  trim.add(bx(2 * Wc2 * 0.8, 0.3, 0.4, 0, 1.28, -(ws[0] - 0.3)));
   for (const s of [-1, 1]) {
-    trim.add(bx(0.5, 0.8, 0.18, s * 0.4, 1.7, -(uB + 0.7)));
+    trim.add(bx(0.5, 0.8, 0.18, s * 0.4, 1.5, -(uB + 0.6)));
+    trim.add(bx(0.5, 0.12, 0.5, s * 0.4, 1.12, -(uB + 0.85)));
   }
+  trim.add(new THREE.TorusGeometry(0.19, 0.017, 4, 10).rotateX(-0.6).translate(-0.4, 1.5, -(ws[0] - 0.55)));
 
-  // ---- mirrors on stalks (dark housings, chrome rim)
+  // ---- mirrors on stalks (dark housings, chrome rim), a step under each door
+  const yMc = 1.85;
   for (const s of [-1, 1]) {
-    trim.add(bx(0.1, 0.4, 0.17, s * (Wc2 + 0.03), 2.1, -(doors[0][0] - 0.02)));
-    chrome.add(bx(0.11, 0.025, 0.18, s * (Wc2 + 0.03), 2.31, -(doors[0][0] - 0.02)));
-    trim.add(bx(0.12, 0.03, 0.03, s * (Wc2 + 0.03), 2.22, -(doors[0][0] - 0.02)));
-    trim.add(bx(0.12, 0.03, 0.03, s * (Wc2 + 0.03), 1.95, -(doors[0][0] - 0.02)));
-    // door step
-    trim.add(bx(0.12, 0.04, 0.5, s * (Wc2 + 0.01), 0.95, -2.7));
+    trim.add(bx(0.08, 0.34, 0.15, s * (Wc2 + 0.03), yMc, -(doors[0][0] - 0.02)));
+    chrome.add(bx(0.09, 0.022, 0.16, s * (Wc2 + 0.03), yMc + 0.18, -(doors[0][0] - 0.02)));
+    trim.add(bx(0.12, 0.03, 0.03, s * (Wc2 + 0.0), yMc + 0.1, -(doors[0][0] - 0.02)));
+    trim.add(bx(0.12, 0.03, 0.03, s * (Wc2 + 0.0), yMc - 0.1, -(doors[0][0] - 0.02)));
+    trim.add(bx(0.14, 0.04, 0.45, s * (Wc2 - 0.01), 0.58, -2.62)); // door step
   }
 
   // ---- fascia: bumper, grille, lamps
-  trim.add(bumperGeo(2 * Wc2, 0.28, 0.3, 0.62, -(L / 2 - 0.28), false));
-  trim.add(bx(2 * Wc2 * 0.78, 0.5, 0.02, 0, trF.yBot + 0.34, -(uF + 0.006)));
-  for (let k = 0; k < 3; k++) chrome.add(bx(2 * Wc2 * 0.78, 0.016, 0.016, 0, trF.yBot + 0.18 + k * 0.14, -(uF + 0.018)));
-  chrome.add(bx(2 * Wc2 * 0.8, 0.03, 0.025, 0, trF.yBot + 0.6, -(uF + 0.01)));
-  chrome.add(bx(2 * Wc2 * 0.8, 0.03, 0.025, 0, trF.yBot + 0.08, -(uF + 0.01)));
-  chrome.add(cylZ(0.05, 0.014, 0, trF.yBot + 0.34, -(uF + 0.022), 8));
-  const headY = 1.1;
-  const hx = trF.wMax - 0.22;
+  trim.add(bumperGeo(2 * Wc2, 0.26, 0.28, 0.48, -(L / 2 - 0.26), false));
+  trim.add(bx(2 * Wc2 * 0.62, 0.36, 0.02, 0, trF.yBot + 0.32, -(uF + 0.006)));
+  for (let k = 0; k < 3; k++) chrome.add(bx(2 * Wc2 * 0.6, 0.014, 0.016, 0, trF.yBot + 0.2 + k * 0.1, -(uF + 0.018)));
+  chrome.add(cylZ(0.045, 0.014, 0, trF.yBot + 0.5, -(uF + 0.022), 8));
   const head = new Acc();
   const tail = new Acc();
-  for (const [sx2, yaw] of [[-1, 0.1], [1, -0.1]] as const) head.add(placeLamp(lensGeo(0.19, 0.11, 0.05, true), v3(sx2 * hx, headY, -uF), yaw));
-  for (const sx2 of [-1, 1]) tail.add(placeLamp(lensGeo(0.08, 0.16, 0.05, false), v3(sx2 * (Wg2 - 0.14), 1.0, L / 2 - 0.06), 0));
+  {
+    const fx = trF.wMax - 0.2;
+    const hp = lampPieces('box', true, v3(fx, 0.95, -(uF + 0.002)), -0.1);
+    for (const g of hp.lens) head.addBoth(g);
+    for (const g of hp.housing) trim.addBoth(g);
+    const tp = lampPieces('tall', false, v3(Wg2 - 0.1, 1.55, L / 2 - 0.035), 0, 2.4);
+    for (const g of tp.lens) tail.addBoth(g);
+    for (const g of tp.housing) trim.addBoth(g);
+  }
 
-  // ---- chassis, fuel tank, rear bar, mudflaps
-  trim.add(bx(1.7, 0.5, L - 0.9, 0, 0.85, 0.05));
-  trim.add(bx(2 * Wg2 - 0.3, 0.14, 0.2, 0, 0.72, L / 2 - 0.1)); // rear underride bar
-  trim.add(cylX(0.22, 0.8, Wc2 - 0.4, 0.8, 0.8, 8));
-  for (const s of [-1, 1]) trim.add(bx(0.02, 0.4, 0.36, s * (W / 2 - 0.08), 0.42, -axleR + 0.6));
-  chrome.add(cylZ(0.05, 0.1, Wc2 - 0.3, 0.55, L / 2 - 0.02, 8));
+  // ---- chassis rails, fuel tank, rear bar, mudflaps, axles
+  trim.add(bx(1.0, 0.22, L - 1.2, 0, 0.9, 0.0)); // frame rails under the box
+  trim.add(bx(2 * Wg2 - 0.3, 0.14, 0.2, 0, 0.8, L / 2 - 0.1)); // rear underride bar
+  trim.add(cylX(0.2, 0.7, Wc2 - 0.1, 0.85, 0.3, 8));
+  trim.add(cylX(0.07, 2 * wx, 0, R, -axleF, 6));
+  trim.add(cylX(0.09, 2 * wx, 0, R, -axleR, 6));
+  for (const s of [-1, 1]) trim.add(bx(0.02, 0.36, 0.34, s * (wx + 0.2), 0.32, -axleR + 0.6));
+  chrome.add(cylZ(0.045, 0.1, Wc2 - 0.3, 0.7, L / 2 - 0.02, 8));
 
-  // ---- cargo box details: roll-up door lines (rear), side ribs
+  // ---- cargo box details: roll-up door lines (rear), side ribs, lock bar
   const rz = -cargoBack + 0.006;
-  // flat dark decals (2 triangles each) instead of boxes
-  for (let y = 1.45; y <= 3.05; y += 0.145) trim.add(decalZ(2 * Wg2 - 0.4, 0.016, 0, y, rz));
+  for (let y = 1.4; y <= 3.12; y += 0.14) trim.add(decalZ(2 * Wg2 - 0.4, 0.016, 0, y, rz));
+  trim.add(bx(2 * Wg2 - 0.36, 0.04, 0.03, 0, 1.3, rz + 0.01)); // bottom bar of the roll-up door
   for (const s of [-1, 1]) {
-    trim.add(decalZ(0.03, 1.7, s * (Wg2 - 0.2), 2.25, rz));
-    for (const u of [-2.8, -1.6, -0.4, 0.8]) trim.add(decalX(0.03, 1.85, s, Wg2 + 0.004, 2.2, -u));
-    trim.add(decalX(4.4, 0.03, s, Wg2 + 0.004, 1.25, -0.6));
+    trim.add(decalZ(0.03, 1.8, s * (Wg2 - 0.2), 2.22, rz));
+    for (const u of [-2.9, -1.8, -0.7, 0.4]) trim.add(decalX(0.03, 1.95, s, Wg2 + 0.004, 2.18, -u));
+    trim.add(decalX(4.5, 0.03, s, Wg2 + 0.004, 1.25, -1.0));
   }
   trim.add(decalZ(0.34, 0.07, 0, 1.55, rz));
 
@@ -1623,10 +1639,11 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
     trim: mergeTrim(trim, chrome),
     lampHead: head.merge(),
     lampTail: tail.merge(),
-    plate: platesGeo([v3(0, 0.62, -(L / 2 + 0.003)), v3(0, 0.95, L / 2 + 0.003)]),
+    plate: platesGeo([v3(0, 0.48, -(L / 2 + 0.003)), v3(0, 0.8, L / 2 + 0.003)]),
     wheels: [],
     wheelR: R,
     wheelW: ww,
+    dualRear: true,
     sections: TRUCK_CAB_SECS.length,
   };
   for (const s of [-1, 1]) {
@@ -1635,3 +1652,185 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
   }
   return parts;
 }
+
+// ---------------------------------------------------------------- city bus
+
+// ROSTER. "Metro 40": a 40 ft low-floor city transit bus of the New Flyer Xcelsior type: length 40-41 ft (12.2-12.5 m), width 102 in (2.59 m),
+// height 10 ft 6 in (3.2 m), wheelbase 283.8 in (7.21 m), 22.5 in wheels (275/70R22.5, R ~0.5 m) with dual rears. Front door ahead of the
+// front axle, middle door ahead of the rear axle, both on the curb (right) side; continuous window band; destination sign over the screen.
+// Sources: https://en.wikipedia.org/wiki/New_Flyer_Xcelsior , https://nfiportal.nfigroup.com/site-content/uploads/2017/10/Xcelsior-CHARGE-Competetive-Comparison.pdf
+export const BUS_AXLES: [number, number] = [3.65, -3.56];
+export const BUS_BELT = 1.2;
+/** door leaf edges (u, m): front door, middle door */
+export const BUS_SEAMS = [5.5, 4.5, -1.1, -2.1];
+const BUS_WIN_TOP = 2.5;
+
+export function buildBusParts(spec: VehicleSpec): CarParts {
+  const { length: L, width: W, height: H } = spec;
+  const R = 0.5, ww = 0.3, sill = 0.32;
+  const arch = archOf(R, sill);
+  const [axF, axR] = BUS_AXLES;
+  const tipF = L / 2, tipR = -L / 2;
+  const wM0 = W / 2 - 0.03;
+  const uScr = tipF - 0.2;           // windscreen starts here
+  const scrDrop = 0.75;              // the screen's rake: the roof line falls this far over the last 0.2 m
+  const panes: V2[] = [];
+  for (let k = 0; k < 11; k++) { const hi = 5.5 - 1.1 * k; panes.push([hi, Math.max(hi - 1, tipR + 0.25)]); }
+  const doorPanes: V2[] = [panes[0], panes[6]];
+  const yTop = (u: number): number => {
+    if (u > uScr) return H - scrDrop * ((u - uScr) / 0.2);
+    if (u < tipR + 0.25) return H - 0.15 * ((tipR + 0.25 - u) / 0.25);
+    return H;
+  };
+  const ring = (u: number): { yT: number; wM: number; yB: number } => {
+    const d = Math.min(tipF - u, u - tipR);
+    const g = endG(d, 0.3);
+    const t = clamp(d / 0.3, 0, 1);
+    let yB = Math.max(sill, archY(arch, u - axF), archY(arch, u - axR));
+    yB = Math.max(yB, sill + 0.12 * (1 - t) * (1 - t));
+    return { yT: yTop(u), wM: wM0 * (0.9 + 0.1 * g), yB };
+  };
+  const half = (u: number): V2[] => {
+    const { yT, wM, yB } = ring(u);
+    const y4 = Math.min(BUS_WIN_TOP, yT - 0.22);
+    const y6 = BUS_BELT;
+    const y5 = (y4 + y6) / 2;
+    const y7 = yB + (y6 - yB) * 0.45;
+    const y8 = yB + (y6 - yB) * 0.1;
+    return [
+      [0, yT],
+      [wM * 0.45, yT - 0.015],
+      [wM * 0.86, yT - 0.05],
+      [wM - 0.04, yT - 0.17],
+      [wM, y4],
+      [wM, y5],
+      [wM, y6],
+      [wM, y7],
+      [wM - 0.03, y8],
+      [wM - 0.12, yB],
+      [wM * 0.5, yB],
+      [0, yB],
+    ];
+  };
+  const cls = (um: number, j: number, left: boolean): Kind => {
+    if (um >= uScr && j <= 1) return 'glass';
+    if (j === 10) return 'none';
+    if (j === 9) return 'dark';
+    if (j === 4 || j === 5) {
+      if (!left && doorPanes.some((d) => inI(um, d))) return 'glass';
+      if (panes.some((d) => inI(um, d))) return 'glass';
+    }
+    if (j === 6 && !left && doorPanes.some((d) => inI(um, d))) return 'glass'; // the doors reach down to the kick panel
+    return 'paint';
+  };
+  const must: number[] = [tipF, tipR, uScr, tipF - 0.1, tipR + 0.25, ...panes.flat(), ...BUS_SEAMS];
+  const want: number[] = [tipF - 0.05, tipF - 0.15, tipR + 0.05, tipR + 0.15, tipR + 0.4];
+  for (const ax of [axF, axR]) want.push(...archStations(arch, ax, 6));
+  const us = stationList(must, want, 1.4);
+  const hull = buildLoft({ us, half, creases: [], cls });
+
+  const paint = new Acc().add(hull.paint);
+  const trim = new Acc().add(hull.dark);
+  const chrome = new Acc();
+  const glass = new Acc().add(hull.glass);
+  if (hull.inner.attributes.position) trim.add(hull.inner);
+
+  // ---- window band: dark rubber frame lines at the belt and header, door leaf gaps and glazing bars
+  const rib = (pairs: [number, number][], w = 0.02, off = 0.004): THREE.BufferGeometry =>
+    ribbon(pairs.map(([i, s]) => hull.P(i, s)), pairs.map(([i, s]) => hull.N(i, s)), w, off);
+  const seq = (a: number, b: number): number[] => { const o: number[] = []; for (let i = Math.min(a, b); i <= Math.max(a, b); i++) o.push(i); return o; };
+  {
+    const iA = hull.at(5.5), iB = hull.at(tipR + 0.25);
+    for (const slot of [4, 6]) {
+      trim.add(rib(seq(iB, iA).map((i) => [i, slot] as [number, number]), 0.03, 0.006));
+      trim.add(rib(seq(iB, iA).map((i) => [i, M_MIRROR(hull, slot)] as [number, number]), 0.03, 0.006));
+    }
+    // door leaves: a vertical split line down the middle of each door (right side only)
+    for (const d of doorPanes) {
+      const i = hull.at((d[0] + d[1]) / 2);
+      trim.add(rib([[i, 4], [i, 5], [i, 6], [i, 7]], 0.016, 0.006));
+      const iE = [hull.at(d[0]), hull.at(d[1])];
+      for (const e of iE) trim.add(rib([[e, 4], [e, 5], [e, 6], [e, 7]], 0.02, 0.006));
+    }
+    // sliding window glazing bars (left side too): thin vertical posts at each pane's centre
+    for (const p of panes) {
+      const i = hull.at((p[0] + p[1]) / 2);
+      if (Math.abs(p[0] - p[1]) < 0.9) continue;
+      chrome.addBoth(rib([[i, 4], [i, 5]], 0.012, 0.012));
+    }
+  }
+  // wheel liners
+  const wx = 1.0;
+  for (const ax of [axF, axR]) trim.addBoth(wheelLiner(arch, wx - 0.52 * ww - 0.03, wM0 - 0.01, -ax));
+
+  // ---- roof gear: air-conditioning pod, two hatches, a destination sign over the screen
+  trim.add(bx(1.7, 0.2, 2.6, 0, H + 0.08, 3.4)); // pod, rear third
+  trim.add(bx(1.2, 0.05, 0.9, 0, H + 0.02, -1.0));
+  trim.add(bx(1.2, 0.05, 0.9, 0, H + 0.02, 0.5));
+  trim.add(bx(1.9, 0.26, 0.04, 0, H - 0.2, -(uScr - 0.02))); // destination sign (dark when off)
+  chrome.add(bx(1.96, 0.02, 0.05, 0, H - 0.06, -(uScr - 0.02)));
+  // ---- front: bumper, small intake, lamps, wiper; rear: bumper, engine door lines, rear window
+  trim.add(bumperGeo(2 * wM0 * 0.96, 0.24, 0.3, 0.46, -(tipF - 0.24), false));
+  trim.add(bumperGeo(2 * wM0 * 0.96, 0.24, 0.3, 0.46, tipF - 0.24, true));
+  trim.add(bx(1.0, 0.3, 0.02, 0, 0.9, -(tipF + 0.006)));
+  for (let k = 0; k < 3; k++) chrome.add(bx(0.96, 0.012, 0.014, 0, 0.8 + k * 0.1, -(tipF + 0.016)));
+  chrome.add(cylZ(0.05, 0.014, 0, 1.25, -(tipF + 0.016), 8));
+  trim.add(decalZ(1.5, 0.5, 0, 2.45, tipF + 0.003)); // rear window (dark)
+  for (const y of [1.2, 1.5, 1.8]) trim.add(decalZ(1.3, 0.012, 0, y, tipF + 0.004)); // engine louvres
+  trim.add(bx(2 * wM0 * 0.8, 0.5, 0.05, 0, 0.62, -(tipF - 0.02))); // front skirt panel
+  const head = new Acc();
+  const tail = new Acc();
+  {
+    const hp = lampPieces('box', true, v3(wM0 - 0.3, 0.85, -(tipF + 0.002)), -0.05);
+    for (const g of hp.lens) head.addBoth(g);
+    for (const g of hp.housing) trim.addBoth(g);
+    const tp = lampPieces('tall', false, v3(wM0 - 0.1, 1.0, tipF + 0.002), 0, 2.0);
+    for (const g of tp.lens) tail.addBoth(g);
+    for (const g of tp.housing) trim.addBoth(g);
+  }
+  // mirrors: tall flat housings on arms at the screen corners (within the +0.02 m width allowance)
+  for (const s of [-1, 1]) {
+    trim.add(bx(0.07, 0.55, 0.16, s * (wM0 + 0.04), 2.2, -(tipF - 0.5)));
+    trim.add(bx(0.12, 0.03, 0.03, s * (wM0 - 0.02), 2.45, -(tipF - 0.5)));
+    trim.add(bx(0.12, 0.03, 0.03, s * (wM0 - 0.02), 1.95, -(tipF - 0.5)));
+  }
+  // ---- under body, axles, interior (seen through the glass): floor, rows of seats, poles, driver
+  trim.add(bx(2 * (wM0 - 0.1), 0.06, L - 0.9, 0, sill + 0.05, 0));
+  trim.add(cylX(0.09, 2 * wx, 0, R, -axF, 6));
+  trim.add(cylX(0.11, 2 * wx, 0, R, -axR, 6));
+  trim.add(bx(2 * (wM0 - 0.1), 0.05, L - 1.2, 0, 0.98, 0));
+  for (let k = 0; k < 7; k++) {
+    const u = 3.0 - k * 1.1 - (k > 1 ? 0.6 : 0);
+    for (const s of [-1, 1]) {
+      trim.add(bx(0.8, 0.14, 0.45, s * (wM0 - 0.5), 1.1, -u)); // seat cushion row (the bench along the wall)
+      trim.add(bx(0.8, 0.5, 0.1, s * (wM0 - 0.5), 1.45, -(u + 0.2)));
+    }
+    chrome.add(new THREE.CylinderGeometry(0.02, 0.02, 1.9, 5).translate(s0(k) * 0.55, 1.95, -(u + 0.3)));
+  }
+  trim.add(bx(0.6, 0.55, 0.5, 0.0 + 0.55, 1.35, -(tipF - 0.9))); // driver's seat
+  trim.add(new THREE.TorusGeometry(0.22, 0.02, 4, 10).rotateX(-0.5).translate(0.55, 1.65, -(tipF - 0.45)));
+  // ---- mud flaps
+  for (const s of [-1, 1]) trim.add(bx(0.02, 0.4, 0.4, s * (wM0 - 0.04), 0.3, -axR + 0.7));
+
+  const parts: CarParts = {
+    paint: paint.merge(),
+    glass: glass.merge(),
+    trim: mergeTrim(trim, chrome),
+    lampHead: head.merge(),
+    lampTail: tail.merge(),
+    plate: platesGeo([v3(0, 0.46, -(tipF + 0.003)), v3(0, 0.46, tipF + 0.003)]),
+    wheels: [],
+    wheelR: R,
+    wheelW: ww,
+    dualRear: true,
+    sections: 12,
+  };
+  for (const s of [-1, 1]) {
+    parts.wheels.push({ x: s * wx, z: -axF, front: true });
+    parts.wheels.push({ x: s * wx, z: -axR, front: false });
+  }
+  return parts;
+}
+const s0 = (k: number): number => (k % 2 === 0 ? 1 : -1);
+/** the left-hand twin of a right-hand half-ring slot */
+const M_MIRROR = (hull: Hull, slot: number): number => hull.M - slot;

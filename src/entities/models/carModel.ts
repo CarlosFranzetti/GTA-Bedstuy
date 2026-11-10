@@ -402,7 +402,7 @@ const FLIP_Y = new THREE.Matrix4().makeRotationY(Math.PI);
  */
 class WheelSet extends THREE.InstancedMesh {
   private readonly last: number[];
-  constructor(geo: THREE.BufferGeometry, mat: THREE.Material, private readonly rigs: { steer: THREE.Object3D; roll: THREE.Object3D; left: boolean }[]) {
+  constructor(geo: THREE.BufferGeometry, mat: THREE.Material, private readonly rigs: { steer: THREE.Object3D; roll: THREE.Object3D; left: boolean; dx?: number }[]) {
     super(geo, mat, rigs.length);
     this.name = 'tyre';
     this.last = rigs.map(() => NaN);
@@ -419,6 +419,7 @@ class WheelSet extends THREE.InstancedMesh {
       this.last[i] = key;
       r.steer.updateMatrix(); r.roll.updateMatrix();
       m.multiplyMatrices(r.steer.matrix, r.roll.matrix);
+      if (r.dx) m.multiply(new THREE.Matrix4().makeTranslation(r.dx, 0, 0)); // dual rear: the inner tyre sits inboard on the same axle
       if (r.left) m.multiply(FLIP_Y);
       this.setMatrixAt(i, m);
       dirty = true;
@@ -506,7 +507,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   const wg = wheelGeos(parts.wheelR, parts.wheelW, wkind);
   const wheels: THREE.Object3D[] = [];
   const steerPivots: THREE.Object3D[] = [];
-  const rigs: { steer: THREE.Object3D; roll: THREE.Object3D; left: boolean }[] = [];
+  const rigs: { steer: THREE.Object3D; roll: THREE.Object3D; left: boolean; dx?: number }[] = [];
   for (const w of parts.wheels) {
     const steer = new THREE.Group();
     steer.name = w.front ? 'steerPivot' : 'wheelMount';
@@ -521,6 +522,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
     group.add(steer);
     wheels.push(roll);
     rigs.push({ steer, roll, left: w.x < 0 });
+    if (parts.dualRear && !w.front) rigs.push({ steer, roll, left: w.x < 0, dx: (w.x < 0 ? 1 : -1) * 1.12 * parts.wheelW }); // wheel-local +x is outboard on both sides
     if (w.front) steerPivots.push(steer);
   }
 

@@ -2351,3 +2351,6 @@ FOLLOW-UP FINAL: scheduler now spawns from 28 m when the spot is outside a 60-de
 
 ### 2026-11-10T09:29:21Z · ROSTER
 start: van, NPR truck, hatch, beater, bus (in order). Port 4441. Frames to scratchpad/roster/.
+
+### 2026-11-10T09:40:51Z · PERF
+start: measuring tri breakdown (debug walker), then fix biggest first

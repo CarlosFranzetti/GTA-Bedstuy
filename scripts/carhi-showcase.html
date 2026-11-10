@@ -41,10 +41,11 @@ const angle = params.get('angle') ?? 'front3q';
 const m = buildCarModel(type, { ...VEHICLE_SPECS[type], color }, materials, variant);
 scene.add(m.group);
 // 4 m camera: distance from the car's centre to the camera ~4 m on the ground plane
-const dist = 4;
+const dist = Number(params.get('dist') ?? 4);
+const hs = Number(params.get('hs') ?? 1); // height scale for tall vehicles
 const a = { front3q: Math.PI + 0.6, side: Math.PI / 2, rear3q: 0.6, interior: Math.PI + 1.2 }[angle] ?? Math.PI + 0.6;
 const hy = angle === 'interior' ? 2.1 : 1.3;
-cam.position.set(Math.sin(a) * dist, hy, Math.cos(a) * dist); look.set(0, angle === 'interior' ? 0.8 : 0.65, 0); cam.fov = 48;
+cam.position.set(Math.sin(a) * dist, hy * hs, Math.cos(a) * dist); look.set(0, (angle === 'interior' ? 0.8 : 0.65) * hs, 0); cam.fov = Number(params.get('fov') ?? 48);
 cam.updateProjectionMatrix(); cam.lookAt(look);
 for (let i = 0; i < 3; i++) renderer.render(scene, cam);
 let tris = 0, meshes = 0;
