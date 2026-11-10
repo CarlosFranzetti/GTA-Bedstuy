@@ -651,7 +651,7 @@ export interface Style {
   /** absolute lamp centre heights (m) when the default (fascia top minus a constant) does not fit */
   headY?: number; tailY?: number;
   /** lamp distance back from the nose / tail tip (m): the lamp is set on the rounded corner, turned to follow the plan curve (swept back) */
-  lampD?: number; tailD?: number;
+  lampD?: number; tailD?: number; lampInset?: number;
   /** end rounding lengths (m) of the nose / tail (default 0.5 / 0.4) and grille half-width as a fraction of the nose width (default 0.8) */
   endF?: number; endR?: number; grilleW?: number;
   /** big upright van mirrors on the A pillar */
@@ -923,25 +923,25 @@ export const STYLES: Record<StyleKey, Style> = {
       [0.4, 2.76, 1.3, 0.95],
       [0.7, 2.62, 1.3, 0.94],
       [1.0, 2.1, 1.3, 0.92],
-      [1.55, 1.45, 1.3, 0.93],
-      [1.75, 1.27, 1.25, 0.93],
-      [2.2, 1.2, 1.15, 0.93],
-      [2.7, 1.1, 0.95, 0.93],
-      [2.95, 1.02, 0.85, 0.93],
+      [1.8, 1.45, 1.3, 0.93],
+      [1.98, 1.28, 1.25, 0.93],
+      [2.4, 1.2, 1.12, 0.93],
+      [2.8, 1.08, 0.95, 0.93],
+      [2.95, 0.98, 0.85, 0.93],
     ],
-    windshield: [1.55, 1.0],
-    doorGlass: [[1.4, 0.55]],
+    windshield: [1.8, 1.0],
+    doorGlass: [[1.6, 0.55]],
     bPillar: [0.55, 0.48],
     rearGlass: null,
-    seams: [1.42, 0.48, -0.9],
-    handles: [1.0, -0.6],
-    hoodBack: 1.75,
+    seams: [1.62, 0.48, -0.9],
+    handles: [1.2, -0.6],
+    hoodBack: 1.98,
     clad: 11,
     rails: false, spoiler: false, hatchback: true, maxGap: 0.9, archN: 5, endT: [0, 1],
     glassTop: 2.0, headY: 0.86, tailY: 1.2, mirror: 'van',
     bumperY: 0.5, bumperH: 0.3,
     plan: [[-2.95, 0.96], [-2.2, 0.99], [-1, 1], [1, 1], [2.3, 0.98], [2.95, 0.92]],
-    headLamp: 'angular', tailLamp: 'tall', grille: 'wedge', lampD: 0.12, tailD: 0.05, endF: 0.3, endR: 0.12, grilleW: 0.55,
+    headLamp: 'angular', tailLamp: 'tall', grille: 'wedge', lampD: 0.12, tailD: 0.05, endF: 0.3, endR: 0.12, grilleW: 0.55, lampInset: 0.17,
     dims: { L: 5.98, W: 2.06, H: 2.78 },
   },
 };
@@ -1293,7 +1293,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   chrome.add(cylZ(0.028, 0.012, 0, gY, gZ - 0.012, 8));
   // rear: chrome strip over the bumper, exhaust tip
   const exX = Wb2 - 0.34;
-  chrome.add(cylZ(0.04, 0.16, exX, 0.16, bumperZ - 0.14, 8));
+  if (!st.mirror) chrome.add(cylZ(0.04, 0.16, exX, 0.16, bumperZ - 0.14, 8));
   // underbody pan so the sky never shows under the car, and a dark box filling the engine bay under the hood panel
   trim.add(bx(2 * (Wb2 - 0.14), 0.04, L - 0.5, 0, st.sill + 0.04, 0));
   trim.add(bx(2 * (Wb2 - 0.2), 0.04, hoodFrontU - hoodBackU, 0, fyBelt((hoodBackU + hoodFrontU) / 2) - 0.1, -(hoodBackU + hoodFrontU) / 2));
@@ -1405,7 +1405,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
     const r0 = ring(u), r1 = ring(u2);
     const slope = (r0.wMax - r1.wMax) / 0.03; // body half-width growth per metre away from the tip
     const yaw = (front ? -1 : 1) * Math.atan(Math.max(0, slope));
-    return { pos: v3(r0.wMax - 0.012, 0, -u), yaw, yT: r0.yT };
+    return { pos: v3(r0.wMax - 0.012 - (front ? st.lampInset ?? 0 : 0), 0, -u), yaw, yT: r0.yT };
   };
   if (st.headLamp && st.lampD !== undefined) {
     const c = cornerPose(true, st.lampD);

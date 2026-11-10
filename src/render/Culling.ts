@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import type { Quality } from './Shadows';
 import { TIER_CONFIG } from './QualityTier';
+import './TriBreakdown'; // debug: window.__gtaTriBreakdown
 
 /** Beyond this distance (m) from the player props, parked cars and peds are hidden. */
 export const DEFAULT_CULL_DISTANCE = 220;
