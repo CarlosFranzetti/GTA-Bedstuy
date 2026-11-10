@@ -88,7 +88,7 @@
 .ph-text { margin-top: 2px; }
 .ph-contact { display: block; width: 100%; padding: 9px 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); text-align: left; color: #fff; }
 
-.ph-msg.sel, .ph-contact.sel { outline: 2px solid #f5c542; outline-offset: -2px; background: rgba(245, 197, 66, 0.14); }
+.ph-msg.sel, .ph-contact.sel, .sv-btn.sel { outline: 2px solid #f5c542; outline-offset: -2px; background: rgba(245, 197, 66, 0.14); }
 .ph-hint { padding: 5px 10px; border-top: 1px solid rgba(255, 255, 255, 0.12); color: rgba(255, 255, 255, 0.55); font-size: 10px; letter-spacing: 0.04em; text-align: center; }
 @media (pointer: coarse) { .ph-hint { display: none; } }
 

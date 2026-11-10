@@ -1,11 +1,13 @@
 import './phone.css';
 import { angleDiff, headingFromVec, type Vec2 } from '@/core/Math2';
 import type { Phone, PhoneMessage } from '@/game/Phone';
+import type { SaveManager } from './GameSave';
+import { SavePanel } from './SavePanel';
 import { isConfirmKey, releasePointerLock, setPanelClass, type NavDir } from './panelKeys';
 
 const TOAST_MS = 4600;
-type Tab = 'messages' | 'contacts' | 'next';
-const TAB_ORDER: readonly Tab[] = ['messages', 'contacts', 'next'];
+type Tab = 'messages' | 'contacts' | 'next' | 'save';
+const BASE_TABS: readonly Tab[] = ['messages', 'contacts', 'next'];
 const HINT = 'Q / E tabs   Up / Down list   Enter open   P close';
 
 function setText(node: Element, text: string): void {
@@ -17,7 +19,16 @@ function setText(node: Element, text: string): void {
  * the panel (Messages, Contacts, Next mission) and the "F  Talk to ..." interaction prompt that missions feed in.
  * Works on a detached root. `update()` writes the DOM only when something changed.
  */
+export interface PhoneHudOptions {
+  /** Adds a Save tab (slots, export / import) to the phone. */
+  saves?: SaveManager;
+  /** false while a save would store a nonsense pose (inside a room). */
+  canSave?: () => boolean;
+}
+
 export class PhoneHud {
+  private readonly tabOrder: readonly Tab[];
+  private savePanel: SavePanel | null = null;
   private readonly doc: Document;
   private readonly button: HTMLButtonElement;
   private readonly badge: HTMLElement;
@@ -38,8 +49,10 @@ export class PhoneHud {
   private heading = 0;
   private playerPos: Vec2 = { x: 0, z: 0 };
 
-  constructor(root: HTMLElement, private readonly phone: Phone) {
+  constructor(root: HTMLElement, private readonly phone: Phone, opts: PhoneHudOptions = {}) {
     this.doc = root.ownerDocument;
+    this.tabOrder = opts.saves ? [...BASE_TABS, 'save'] : BASE_TABS;
+    if (opts.saves) this.savePanel = new SavePanel(null, opts.saves, { canSave: opts.canSave });
     this.button = this.doc.createElement('button');
     this.button.type = 'button';
     this.button.className = 'ph-button';
@@ -59,7 +72,7 @@ export class PhoneHud {
     this.panel = this.make('div', 'ph-panel');
     this.panel.hidden = true;
     const bar = this.make('div', 'ph-tabs');
-    for (const [id, label] of [['messages', 'Texts'], ['contacts', 'Contacts'], ['next', 'Next']] as const) {
+    for (const [id, label] of ([['messages', 'Texts'], ['contacts', 'Contacts'], ['next', 'Next'], ['save', 'Save']] as const).filter(([id]) => this.tabOrder.includes(id))) {
       const b = this.doc.createElement('button');
       b.type = 'button'; b.className = 'ph-tab'; b.textContent = label;
       b.addEventListener('click', () => this.setTab(id));
@@ -120,8 +133,8 @@ export class PhoneHud {
   navigate(dir: NavDir): void {
     if (!this.phone.isOpen) return;
     switch (dir) {
-      case 'left': this.setTab(TAB_ORDER[(TAB_ORDER.indexOf(this.tab) + TAB_ORDER.length - 1) % TAB_ORDER.length]); break;
-      case 'right': this.setTab(TAB_ORDER[(TAB_ORDER.indexOf(this.tab) + 1) % TAB_ORDER.length]); break;
+      case 'left': this.setTab(this.tabOrder[(this.tabOrder.indexOf(this.tab) + this.tabOrder.length - 1) % this.tabOrder.length]); break;
+      case 'right': this.setTab(this.tabOrder[(this.tabOrder.indexOf(this.tab) + 1) % this.tabOrder.length]); break;
       case 'up': this.moveSel(-1); break;
       case 'down': this.moveSel(1); break;
       case 'confirm': this.activate(); break;
@@ -145,6 +158,7 @@ export class PhoneHud {
   }
 
   private activate(): void {
+    if (this.tab === 'save') { this.rows[this.sel]?.click(); return; }
     if (this.contact) { this.contact = null; this.sel = 0; this.render(); return; }
     const row = this.rows[this.sel];
     const who = row?.dataset.from;
@@ -154,6 +168,8 @@ export class PhoneHud {
   /** Document-level, capture phase, only while open: the arrow keys must not reach the camera. */
   private onKey(e: KeyboardEvent): void {
     if (!this.phone.isOpen || e.ctrlKey || e.metaKey || e.altKey) return;
+    const tg = e.target as HTMLElement | null;
+    if (tg && (tg.tagName === 'TEXTAREA' || tg.tagName === 'SELECT') && e.code !== 'Escape') return; // typing / picking in the save tab
     let dir: NavDir | null = null;
     let used = true;
     if (e.code === 'KeyP' || e.code === 'Escape' || e.key === 'Escape') { if (!e.repeat) this.closePhone(); }
@@ -179,7 +195,7 @@ export class PhoneHud {
   dispose(): void {
     this.syncOpen(false);
     if (this.toastTimer) clearTimeout(this.toastTimer);
-    this.button.remove(); this.toastEl.remove(); this.panel.remove(); this.promptEl.remove();
+    this.savePanel?.dispose(); this.button.remove(); this.toastEl.remove(); this.panel.remove(); this.promptEl.remove();
   }
 
   private showToast(m: PhoneMessage): void {
@@ -211,7 +227,11 @@ export class PhoneHud {
     this.rows = [];
     if (this.tab === 'messages') this.renderMessages(this.contact ? this.phone.thread(this.contact) : this.phone.messages.slice().reverse());
     else if (this.tab === 'contacts') this.renderContacts();
-    else this.renderNext();
+    else if (this.tab === 'save' && this.savePanel) {
+      this.savePanel.refresh();
+      this.body.appendChild(this.savePanel.root);
+      this.rows = Array.from(this.savePanel.root.querySelectorAll<HTMLElement>('button:not(:disabled)'));
+    } else this.renderNext();
     this.sel = Math.max(0, Math.min(this.sel, this.rows.length - 1));
     this.applySel();
   }

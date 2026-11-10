@@ -344,7 +344,7 @@ export class Menu {
 
   private focusables(): HTMLElement[] {
     // Roving tabindex: only the selected quality button is a stop; arrows move within the group.
-    return Array.from(this.panel.querySelectorAll<HTMLElement>('button, input')).filter((n) => n.tabIndex >= 0 && !n.hidden);
+    return Array.from(this.panel.querySelectorAll<HTMLElement>('button, input, select, textarea')).filter((n) => n.tabIndex >= 0 && !(n as HTMLButtonElement).disabled && !n.hidden);
   }
 
   private adjust(active: HTMLElement | null, delta: number): void {
@@ -363,6 +363,7 @@ export class Menu {
 
   private onPanelKey(e: KeyboardEvent): void {
     const active = this.doc.activeElement as HTMLElement | null;
+    if (active?.tagName === 'TEXTAREA' || active?.tagName === 'SELECT') return;
     const items = this.focusables();
     if (e.code === 'Tab' && items.length) {
       const first = items[0], last = items[items.length - 1];
