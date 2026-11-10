@@ -6,7 +6,7 @@ import type { Rng } from '@/core/Rng';
 import type {
   GraphNode, GridModel, IMaterialLibrary, IVehicle, IWorld2D, LaneNode, Lot, VehicleType,
 } from '@/world/types';
-import { PedSpawnScheduler, RECYCLE_DIST, REMOVE_CLEAR, SPAWN_RING_MIN, spawnAllowed } from '@/entities/PedestrianSpawn';
+import { PedSpawnScheduler, LOCAL_RADIUS, NEAR_SHARE, RECYCLE_DIST, RECYCLE_DIST_DEFICIT, REMOVE_CLEAR, SPAWN_RING_MIN, spawnAllowed } from '@/entities/PedestrianSpawn';
 import { Pedestrian, type PedCrossing, type PedEnvironment, type StoopSpot } from '@/entities/Pedestrian';
 import { TrafficAgent } from '@/entities/TrafficAgent';
 import { VEHICLE_SPECS } from '@/entities/Vehicle';
@@ -311,11 +311,11 @@ export class TrafficSystem {
   }
 
   /** The farthest free (not grouped, not down) pedestrian and its distance from the player, or null. */
-  private farthestLoner(): { i: number; d: number } | null {
+  private farthestLoner(walkingOnly = false): { i: number; d: number } | null {
     let best = -1, bd = -1;
     for (let i = 0; i < this.peds.length; i++) {
       const p = this.peds[i];
-      if (!p.isFree) continue;
+      if (!p.isFree || (walkingOnly && p.state !== 'walking')) continue;
       const d = dist(p.body.pos, this.playerAt);
       if (d > bd) { bd = d; best = i; }
     }
@@ -335,11 +335,14 @@ export class TrafficSystem {
   private stepPeds(dt: number): void {
     const ids = Object.keys(this.grid.sidewalks.nodes);
     if (ids.length === 0) return;
-    const far = this.farthestLoner();
-    const act = this.pedSched.tick({ dt, count: this.peds.length, target: this.pedTargetF, hasFar: !!far && far.d > RECYCLE_DIST, rand: this.rng.next() });
+    const far = this.farthestLoner(), farWalker = this.farthestLoner(true); // sitters and door loiterers are never relocated
+    let near = 0;
+    for (const p of this.peds) if (dist(p.body.pos, this.playerAt) <= LOCAL_RADIUS) near++;
+    const target = this.pedTargetF, deficit = target >= 4 && near < Math.round(target * NEAR_SHARE);
+    const act = this.pedSched.tick({ dt, count: this.peds.length, target, deficit, hasFar: !!farWalker && farWalker.d > (deficit ? RECYCLE_DIST_DEFICIT : RECYCLE_DIST), rand: this.rng.next() });
     if (act === 'add') this.addPed(this.pickRingNode(ids), this.crosswalkNodeIds());
     else if (act === 'remove') { if (far && far.d >= REMOVE_CLEAR) this.removePedAt(far.i); }
-    else if (act === 'recycle' && far) { this.removePedAt(far.i); this.addPed(this.pickRingNode(ids), this.crosswalkNodeIds()); }
+    else if (act === 'recycle' && farWalker) { this.removePedAt(farWalker.i); this.addPed(this.pickRingNode(ids), this.crosswalkNodeIds()); }
   }
 
   /** Adds / removes pedestrians toward `pedTarget`: all at once, or one per call (far from the player first). */

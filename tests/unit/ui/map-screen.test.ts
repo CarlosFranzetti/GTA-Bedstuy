@@ -30,8 +30,30 @@ describe('MapView', () => {
       expect(s.x).toBeGreaterThanOrEqual(0); expect(s.x).toBeLessThanOrEqual(390);
       expect(s.y).toBeGreaterThanOrEqual(56); expect(s.y).toBeLessThanOrEqual(844 - 64);
     }
-    expect(grid.bounds.maxX).toBeGreaterThan(900); // Malcolm X Blvd at x=1000 is on the map
+    expect(grid.bounds.maxX).toBeGreaterThan(900); // east expansion // Malcolm X Blvd at x=1000 is on the map
     expect(grid.streets.some((s) => s.id === 'malcolmx')).toBe(true);
+  });
+
+  it('turns the map 90 degrees on a portrait screen so the wide grid fills it, and every transform stays consistent', () => {
+    const v = new MapView(); v.w = 390; v.h = 844;
+    v.fit(grid.bounds, 40, 60, 90);
+    expect(v.rot).toBe(1);
+    const flat = new MapView(); flat.w = 390; flat.h = 844; flat.rot = 0;
+    expect(v.scale).toBeGreaterThan(Math.min(390 / 1330, 700 / 580) * 1.5);
+    for (const p of [{ x: grid.bounds.minX, z: grid.bounds.minZ }, { x: grid.bounds.maxX, z: grid.bounds.maxZ }]) {
+      const s = v.toScreen(p.x, p.z);
+      expect(s.x).toBeGreaterThanOrEqual(0); expect(s.x).toBeLessThanOrEqual(390);
+      expect(s.y).toBeGreaterThanOrEqual(60); expect(s.y).toBeLessThanOrEqual(844 - 90);
+      const w = v.toWorld(s.x, s.y);
+      expect(w.x).toBeCloseTo(p.x); expect(w.z).toBeCloseTo(p.z);
+    }
+    const w = v.toWorld(100, 300); v.zoomAt(100, 300, 2);
+    expect(v.toScreen(w.x, w.z).x).toBeCloseTo(100); expect(v.toScreen(w.x, w.z).y).toBeCloseTo(300);
+    const before = v.toScreen(5, 5); v.panPx(30, -20);
+    const after = v.toScreen(5, 5);
+    expect(after.x - before.x).toBeCloseTo(30); expect(after.y - before.y).toBeCloseTo(-20);
+    const l = new MapView(); l.w = 1280; l.h = 720; l.fit(grid.bounds, 40, 56, 90);
+    expect(l.rot).toBe(0);
   });
 
   it('round-trips screen and world and zooms about the cursor', () => {

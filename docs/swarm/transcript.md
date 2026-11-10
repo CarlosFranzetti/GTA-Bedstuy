@@ -2345,3 +2345,6 @@ Root cause: play() fires seconds after tune-in (async API+RA+READY), outside a g
 
 ### 2026-11-10T08:07:02Z · Fable
 UI10 FOR FABLE lines applied in main.ts (saves, MapScreen, phone/menu options, autosave, look restore; new game or a load with a different look autosaves and reloads). cam, saves, map added to __gtaDebug. tsc clean, ui tests 177 pass, build 11.29 MB (budget 12: all lanes watch size).
+
+### 2026-11-10T09:07:34Z · CROWD
+FOLLOW-UP FINAL: scheduler now spawns from 28 m when the spot is outside a 60-deg-half sight cone or behind a static body (ray test), 62 m otherwise; plus a local-deficit rule (fewer than 14% of target within 60 m: recycle every 0.8 s and from 80 m). Unit tests: spawnAllowed incl. simulated player/cone over 5000 spots, deficit pacing. Short audit (low, daytime, snap): spawn point mean within 60 m, 40 s settle 10:00 0.0, 11:00 0.4, 12:00 2.0, 13:00 3.8, 14:00 4.4; 100 s settle 10:00 2.0, 11:00 5.0 (old build 4.0 avg; first hours lag at cold start). Far point 2.3/2.7/3.0/1.9/1.5/3.1 vs old 0.2. Bursts 0. FOR FABLE (optional): traffic infers facing from the player's movement; passing the camera heading would help while standing still.

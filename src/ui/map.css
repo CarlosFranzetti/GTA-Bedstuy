@@ -82,3 +82,24 @@
   .map-hint { display: none; }
   .map-title { font-size: 18px; }
 }
+
+.map-legend { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 4px 12px; font: 600 11px/1.2 Arial, Helvetica, sans-serif; color: rgba(255,255,255,0.85); text-shadow: 0 1px 3px #000; }
+.map-key { display: inline-flex; align-items: center; gap: 5px; }
+.map-sw { width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.6); display: inline-block; }
+.map-bottom { background: linear-gradient(transparent, rgba(13,17,23,0.85) 35%); padding-top: 14px; }
+.map-top { background: linear-gradient(rgba(13,17,23,0.85) 60%, transparent); padding-bottom: 12px; }
+
+/* HUD button icons: text label on desktop, icon on touch */
+.hb-ico { display: none; margin: auto; }
+.map-button, .ph-button { display: flex; align-items: center; justify-content: center; }
+.hud-root.touch .hb-lbl { display: none; }
+.hud-root.touch .hb-ico { display: block; }
+/* touch: stars row 10, [cash][pause] row 46, [map][phone] icon row 96 */
+.hud-root.touch .ph-button, .hud-root.touch .map-button { width: 48px; height: 44px; top: 96px; }
+.hud-root.touch .ph-button { right: max(16px, env(safe-area-inset-right, 0px)); }
+.hud-root.touch .map-button { right: calc(max(16px, env(safe-area-inset-right, 0px)) + 56px); }
+.hud-root.touch .ph-panel { top: 148px; max-height: max(170px, min(calc(100vh - 164px), 460px)); }
+/* portrait: the mission card gets the full width under the minimap instead of a sliver beside it */
+@media (orientation: portrait) {
+  .hud-root.touch .msn-col { top: 182px; left: 16px; right: 16px; max-width: none; }
+}

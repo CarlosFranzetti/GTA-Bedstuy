@@ -18,6 +18,12 @@ export const MIN_INTERVAL = 0.4;
 export const MAX_INTERVAL = 2.5;
 /** steady-state relocation: one far pedestrian moved to the ring every this many seconds (while any is beyond RECYCLE_DIST) */
 export const RECYCLE_INTERVAL = 1.8;
+/** the same while the player's surroundings (within LOCAL_RADIUS) hold fewer pedestrians than NEAR_SHARE of the crowd */
+export const RECYCLE_INTERVAL_DEFICIT = 2.4;
+export const LOCAL_RADIUS = 60;
+export const NEAR_SHARE = 0.14;
+/** with a local deficit, loners beyond this (m) are fetched, not only those beyond RECYCLE_DIST */
+export const RECYCLE_DIST_DEFICIT = 100;
 /** a pedestrian farther than this from the player is a recycle candidate (m) */
 export const RECYCLE_DIST = 125;
 /** new / relocated pedestrians appear in this ring around the player (m): beyond the near view, within walking-in reach */
@@ -34,6 +40,8 @@ export interface PedSchedulerInput {
   target: number;
   /** is there a loner farther than RECYCLE_DIST to relocate */
   hasFar: boolean;
+  /** fewer pedestrians near the player than NEAR_SHARE of the target: relocate faster and from closer in */
+  deficit?: boolean;
   /** uniform random in 0..1, for interval jitter */
   rand: number;
 }
@@ -68,7 +76,7 @@ export class PedSpawnScheduler {
       return gap > 0 ? 'add' : 'remove';
     }
     if (i.hasFar && this.recycleWait <= 0) {
-      this.recycleWait = RECYCLE_INTERVAL * (0.75 + 0.5 * i.rand);
+      this.recycleWait = (i.deficit ? RECYCLE_INTERVAL_DEFICIT : RECYCLE_INTERVAL) * (0.75 + 0.5 * i.rand);
       return 'recycle';
     }
     return 'none';

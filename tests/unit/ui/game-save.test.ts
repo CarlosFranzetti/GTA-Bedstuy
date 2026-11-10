@@ -210,6 +210,7 @@ describe('Save panel, menu and phone', () => {
     expect(root.querySelectorAll('.sv-slot').length).toBe(4);
     expect(slot('auto').querySelector('.sv-save')).toBeNull(); // autosave cannot be written by hand
     slot('slot1').querySelector<HTMLButtonElement>('.sv-save')!.click(); // empty: saves at once
+    expect(document.querySelector('.sv-toast')!.textContent).toBe('Saved to Slot 1');
     expect(slot('slot1').textContent).toContain('Day 3 Wed');
     expect(slot('slot1').textContent).toContain('$120');
     expect(slot('slot1').textContent).toContain('Throop Ave');
@@ -225,6 +226,7 @@ describe('Save panel, menu and phone', () => {
     w.inventory.add(1000);
     slot('slot1').querySelector<HTMLButtonElement>('.sv-load')!.click();
     expect(w.inventory.cash).toBe(170);
+    expect(document.querySelector('.sv-toast')!.textContent).toBe('Loaded Autosave'.replace('Autosave', 'Slot 1'));
     expect(done).toEqual(['load']);
     root.querySelector<HTMLButtonElement>('.sv-new')!.click();
     expect(newGames).toBe(0);

@@ -23,30 +23,44 @@ const TAP_MS = 600;
 /** Screen px between repeated street names along a long street. */
 const LABEL_SPACING = 280;
 
-/** Pure view transform: world metres <-> screen px, with zoom about a point. North is up (-z). */
+/** Pure view transform: world metres <-> screen px, with zoom about a point. North is up, or (rot 1) to the right. */
 export class MapView {
   cx = 0; cz = 0; scale = 0.3; w = 390; h = 844;
   minScale = 0.1;
+  /** 0: north up. 1: map turned 90 degrees clockwise (north to the right), used when the grid is wider than the portrait screen. */
+  rot: 0 | 1 = 0;
 
-  /** Fits the bounds (plus margin metres) in the viewport. `reserveTop/Bottom` leave room for the toolbars. */
+  /** Fits the bounds (plus margin metres) in the viewport, turning the map when that makes it bigger. */
   fit(b: { minX: number; maxX: number; minZ: number; maxZ: number }, margin = 40, reserveTop = 0, reserveBottom = 0): void {
     const bw = b.maxX - b.minX + margin * 2, bh = b.maxZ - b.minZ + margin * 2;
     const availH = Math.max(50, this.h - reserveTop - reserveBottom);
-    this.scale = Math.min(this.w / bw, availH / bh);
+    const s0 = Math.min(this.w / bw, availH / bh), s1 = Math.min(this.w / bh, availH / bw);
+    this.rot = s1 > s0 * 1.05 ? 1 : 0;
+    this.scale = Math.max(s0, this.rot === 1 ? s1 : s0);
     this.minScale = this.scale * 0.6;
     this.cx = (b.minX + b.maxX) / 2;
-    this.cz = (b.minZ + b.maxZ) / 2 - (reserveTop - reserveBottom) / 2 / this.scale;
+    this.cz = (b.minZ + b.maxZ) / 2;
+    this.panPx(0, (reserveTop - reserveBottom) / 2);
   }
-  toScreen(x: number, z: number): { x: number; y: number } { return { x: this.w / 2 + (x - this.cx) * this.scale, y: this.h / 2 + (z - this.cz) * this.scale }; }
-  toWorld(sx: number, sy: number): Vec2 { return { x: this.cx + (sx - this.w / 2) / this.scale, z: this.cz + (sy - this.h / 2) / this.scale }; }
+  toScreen(x: number, z: number): { x: number; y: number } {
+    const dx = (x - this.cx) * this.scale, dz = (z - this.cz) * this.scale;
+    return this.rot === 0 ? { x: this.w / 2 + dx, y: this.h / 2 + dz } : { x: this.w / 2 - dz, y: this.h / 2 + dx };
+  }
+  toWorld(sx: number, sy: number): Vec2 {
+    const u = (sx - this.w / 2) / this.scale, v = (sy - this.h / 2) / this.scale;
+    return this.rot === 0 ? { x: this.cx + u, z: this.cz + v } : { x: this.cx + v, z: this.cz - u };
+  }
   /** Multiplies the zoom by `k`, keeping the world point under (sx, sy) fixed. */
   zoomAt(sx: number, sy: number, k: number): void {
     const before = this.toWorld(sx, sy);
     this.scale = Math.min(MAX_SCALE, Math.max(this.minScale, this.scale * k));
-    this.cx = before.x - (sx - this.w / 2) / this.scale;
-    this.cz = before.z - (sy - this.h / 2) / this.scale;
+    const now = this.toWorld(sx, sy);
+    this.cx += before.x - now.x; this.cz += before.z - now.z;
   }
-  panPx(dx: number, dy: number): void { this.cx -= dx / this.scale; this.cz -= dy / this.scale; }
+  panPx(dx: number, dy: number): void {
+    if (this.rot === 0) { this.cx -= dx / this.scale; this.cz -= dy / this.scale; }
+    else { this.cx -= dy / this.scale; this.cz += dx / this.scale; }
+  }
 }
 
 const short = (s: string, n = 22): string => {
@@ -104,6 +118,8 @@ export class MapScreen {
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D | null;
   private readonly statusEl: HTMLElement;
+  private topEl: HTMLElement | null = null;
+  private bottomEl: HTMLElement | null = null;
   private readonly clearBtn: HTMLButtonElement;
   private readonly pointers = new Map<number, { x: number; y: number }>();
   private readonly streetExtent = new Map<string, { min: number; max: number }>();
@@ -135,7 +151,7 @@ export class MapScreen {
     this.button = this.mk('button', 'map-button') as HTMLButtonElement;
     this.button.type = 'button';
     this.button.setAttribute('aria-label', 'Map (M)');
-    this.button.textContent = 'MAP';
+    this.button.insertAdjacentHTML('afterbegin', '<span class="hb-lbl">MAP</span><svg class="hb-ico" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 6l6-2.5 6 2.5 6-2.5v14.5l-6 2.5-6-2.5-6 2.5z M9 3.5v14.5 M15 6v14.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>');
     const press = (e: Event): void => { e.preventDefault(); e.stopPropagation(); this.toggle(); };
     this.button.addEventListener('click', press);
     this.button.addEventListener('touchstart', press, { passive: false });
@@ -163,7 +179,12 @@ export class MapScreen {
     this.clearBtn = this.btn('map-clear', 'Clear pin', 'Remove the waypoint', () => setWaypoint(null));
     const hint = this.mk('span', 'map-hint');
     hint.textContent = 'Drag to pan, pinch or wheel to zoom, tap to set a waypoint';
-    bottom.append(me, this.clearBtn, hint);
+    const legend = this.mk('div', 'map-legend');
+    for (const [color, text] of [['#ffffff', 'You'], [HOME_GREEN, 'HOME'], [GOLD, 'Mission offer'], ['#ef4444', 'Goal'], ['#9aa4b2', 'Shop'], [WAYPOINT_BLUE, 'Waypoint']] as const) {
+      const li = this.mk('span', 'map-key'); const sw = this.mk('i', 'map-sw'); sw.style.background = color; li.append(sw, this.doc.createTextNode(text)); legend.appendChild(li);
+    }
+    this.bottomEl = bottom; this.topEl = top;
+    bottom.append(legend, me, this.clearBtn, hint);
 
     this.root.append(this.canvas, top, zoom, bottom);
     parent.append(this.button, this.root);
@@ -330,7 +351,10 @@ export class MapScreen {
     if (first && this.fitted) this.fitAll();
   }
 
-  private fitAll(): void { this.view.fit(this.grid.bounds, 60, 56, 64); }
+  private fitAll(): void {
+    const top = this.topEl?.getBoundingClientRect().height || 56, bot = this.bottomEl?.getBoundingClientRect().height || 64;
+    this.view.fit(this.grid.bounds, 60, top + 6, bot + 6);
+  }
 
   private centreOnPlayer(): void {
     this.view.cx = this.player.x; this.view.cz = this.player.z;
@@ -380,6 +404,19 @@ export class MapScreen {
     this.drawMarkers(ctx);
     this.drawWaypoint(ctx);
     this.drawPlayer(ctx);
+    this.drawNorth(ctx);
+  }
+
+  private drawNorth(ctx: CanvasRenderingContext2D): void {
+    const cx = 26, cy = this.view.h - 150;
+    ctx.save(); ctx.translate(cx, cy);
+    ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fillStyle = HALO; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = GOLD; ctx.stroke();
+    ctx.rotate((this.view.rot * Math.PI) / 2);
+    ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(4, -4); ctx.lineTo(-4, -4); ctx.closePath(); ctx.fillStyle = GOLD; ctx.fill();
+    ctx.restore();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const d = this.view.rot === 0 ? { x: 0, y: 7 } : { x: -7, y: 0 };
+    ctx.font = '700 10px Arial, sans-serif'; ctx.fillStyle = GOLD; ctx.fillText('N', cx + d.x, cy + d.y);
   }
 
   private text(ctx: CanvasRenderingContext2D, s: string, x: number, y: number, color = '#fff', size = 11): void {
@@ -388,38 +425,70 @@ export class MapScreen {
     ctx.strokeText(s, x, y); ctx.fillText(s, x, y);
   }
 
-  /** One name per ~280 px of the visible part of each street, so names stay readable at every zoom and pan. */
+  /**
+   * Street names, one per street segment that is long enough on screen, drawn along the street (kept upright) and skipped
+   * when they would touch a name already placed. Avenues win ties. When no segment of a street is long enough (zoomed
+   * out) the street gets a single name at the middle of its visible part instead, so the overview is still readable.
+   */
   private drawStreetNames(ctx: CanvasRenderingContext2D): void {
     const v = this.view;
-    const tl = v.toWorld(0, 0), br = v.toWorld(v.w, v.h);
+    ctx.font = '700 11px Arial, Helvetica, sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    for (const s of this.grid.streets) {
-      const ext = this.streetExtent.get(s.id);
-      if (!ext) continue;
-      const ew = s.axis === 'ew';
-      const crossVis = ew ? s.offset >= tl.z - 20 && s.offset <= br.z + 20 : s.offset >= tl.x - 20 && s.offset <= br.x + 20;
-      if (!crossVis) continue;
-      const lo = Math.max(ext.min, ew ? tl.x : tl.z), hi = Math.min(ext.max, ew ? br.x : br.z);
-      const lenPx = (hi - lo) * v.scale;
-      const width = s.name.length * 6.4 + 10;
-      if (lenPx < width) continue;
-      const n = Math.max(1, Math.floor(lenPx / LABEL_SPACING));
-      for (let i = 0; i < n; i++) {
-        const along = lo + ((i + 0.5) / n) * (hi - lo);
-        const p = ew ? v.toScreen(along, s.offset) : v.toScreen(s.offset, along);
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        if (!ew) ctx.rotate(-Math.PI / 2);
-        this.text(ctx, s.name, 0, 0, s.class === 'avenue' ? '#ffffff' : '#e2e8f0', 11);
-        ctx.restore();
+    type Cand = { name: string; x: number; y: number; ang: number; w: number; pri: number };
+    const cands: Cand[] = [];
+    const place = (name: string, a: Vec2, b: Vec2, pri: number): void => {
+      const p = v.toScreen((a.x + b.x) / 2, (a.z + b.z) / 2);
+      const q = v.toScreen(b.x, b.z), r = v.toScreen(a.x, a.z);
+      let ang = Math.atan2(q.y - r.y, q.x - r.x);
+      if (ang > Math.PI / 2) ang -= Math.PI; else if (ang <= -Math.PI / 2) ang += Math.PI;
+      cands.push({ name, x: p.x, y: p.y, ang, w: ctx.measureText(name).width || name.length * 6.2, pri });
+    };
+    const lenPx = (a: Vec2, b: Vec2): number => Math.hypot(b.x - a.x, b.z - a.z) * v.scale;
+    const bySt = new Map<string, typeof this.grid.segments>();
+    for (const seg of this.grid.segments) { const l = bySt.get(seg.streetId); if (l) l.push(seg); else bySt.set(seg.streetId, [seg]); }
+    const tl = v.toWorld(0, 0), br = v.toWorld(v.w, v.h);
+    const minX = Math.min(tl.x, br.x) - 20, maxX = Math.max(tl.x, br.x) + 20, minZ = Math.min(tl.z, br.z) - 20, maxZ = Math.max(tl.z, br.z) + 20;
+    for (const st of this.grid.streets) {
+      const segs = bySt.get(st.id) ?? [];
+      const pri = st.class === 'avenue' ? 0 : 1;
+      const wText = ctx.measureText(st.name).width + 14;
+      let any = false;
+      for (const seg of segs) {
+        const mx = (seg.a.x + seg.b.x) / 2, mz = (seg.a.z + seg.b.z) / 2;
+        if (mx < minX || mx > maxX || mz < minZ || mz > maxZ) continue;
+        if (lenPx(seg.a, seg.b) >= wText + 10) { place(st.name, seg.a, seg.b, pri); any = true; }
       }
+      const ext = this.streetExtent.get(st.id);
+      if (!any && ext) {
+        const ew = st.axis === 'ew';
+        const lo = Math.max(ext.min, ew ? minX : minZ), hi = Math.min(ext.max, ew ? maxX : maxZ);
+        const crossOk = ew ? st.offset >= minZ && st.offset <= maxZ : st.offset >= minX && st.offset <= maxX;
+        if (crossOk && (hi - lo) * v.scale >= wText) {
+          const mid = (lo + hi) / 2;
+          place(st.name, ew ? { x: mid - 1, z: st.offset } : { x: st.offset, z: mid - 1 }, ew ? { x: mid + 1, z: st.offset } : { x: st.offset, z: mid + 1 }, pri);
+        }
+      }
+    }
+    cands.sort((a, b) => a.pri - b.pri || b.w - a.w);
+    const placed: Array<{ l: number; t: number; r: number; b: number }> = [];
+    for (const c of cands) {
+      const ca = Math.abs(Math.cos(c.ang)), sa = Math.abs(Math.sin(c.ang));
+      const hw = (c.w * ca + 13 * sa) / 2 + 3, hh = (c.w * sa + 13 * ca) / 2 + 3;
+      const box = { l: c.x - hw, t: c.y - hh, r: c.x + hw, b: c.y + hh };
+      if (box.r < 0 || box.b < 0 || box.l > v.w || box.t > v.h) continue;
+      if (placed.some((o) => box.l < o.r && box.r > o.l && box.t < o.b && box.b > o.t)) continue;
+      placed.push(box);
+      ctx.save();
+      ctx.translate(c.x, c.y); ctx.rotate(c.ang);
+      this.text(ctx, c.name, 0, 0, '#ffffff', 11);
+      ctx.restore();
     }
   }
 
   private drawPlaces(ctx: CanvasRenderingContext2D): void {
     const v = this.view;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const labelShops = v.scale >= 0.9;
+    const labelShops = v.scale >= 0.8;
     for (const pl of this.places) {
       const p = v.toScreen(pl.x, pl.z);
       if (p.x < -30 || p.y < -30 || p.x > v.w + 30 || p.y > v.h + 30) continue;
@@ -480,7 +549,7 @@ export class MapScreen {
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.fill();
-    ctx.rotate(this.heading); // heading 0 = north (up), clockwise
+    ctx.rotate(this.heading + (this.view.rot * Math.PI) / 2); // heading 0 = north, clockwise; the map may be turned
     ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(8, 9); ctx.lineTo(0, 5); ctx.lineTo(-8, 9); ctx.closePath();
     ctx.fillStyle = '#ffffff'; ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 2; ctx.fill(); ctx.stroke();
     ctx.restore();

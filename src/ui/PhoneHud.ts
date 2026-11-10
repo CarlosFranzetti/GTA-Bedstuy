@@ -57,7 +57,7 @@ export class PhoneHud {
     this.button.type = 'button';
     this.button.className = 'ph-button';
     this.button.setAttribute('aria-label', 'Phone');
-    this.button.textContent = 'PHONE';
+    this.button.insertAdjacentHTML('afterbegin', '<span class="hb-lbl">PHONE</span><svg class="hb-ico" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="18" r="1.1" fill="currentColor"/></svg>');
     this.badge = this.make('span', 'ph-badge');
     this.badge.hidden = true;
     this.button.appendChild(this.badge);

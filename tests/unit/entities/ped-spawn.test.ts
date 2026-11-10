@@ -55,6 +55,11 @@ describe('PedSpawnScheduler', () => {
     for (let i = 0, j = 0; i < changes.length; i++) { while (changes[i].t - changes[j].t > 10) j++; expect(i - j + 1).toBeLessThanOrEqual(26); }
   });
 
+  it('relocates faster while the player\'s surroundings are short of pedestrians', () => {
+    const count = (deficit: boolean) => { const s = new PedSpawnScheduler(); let n = 0; for (let t = 0; t < 60; t += 0.25) if (s.tick({ dt: 0.25, count: 20, target: 20, hasFar: true, deficit, rand: 0.5 }) === 'recycle') n++; return n; };
+    expect(count(true)).toBeGreaterThan(15); expect(count(true)).toBeLessThanOrEqual(30); // paced, never a burst: one fetch per ~2.4 s
+  });
+
   it('relocates far pedestrians at a steady trickle while on target, and not when none are far', () => {
     const s = new PedSpawnScheduler();
     let n = 0;

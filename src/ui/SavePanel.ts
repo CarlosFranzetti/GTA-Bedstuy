@@ -76,7 +76,19 @@ export class SavePanel {
     this.drawConfirm();
   }
 
+  /** Short on-screen toast ("Saved to Slot 1"), visible after the menu closes. */
+  private toast(text: string): void {
+    try {
+      const old = this.doc.querySelector('.sv-toast'); old?.remove();
+      const t = this.doc.createElement('div');
+      t.className = 'sv-toast'; t.textContent = text; t.setAttribute('role', 'status');
+      this.doc.body.appendChild(t);
+      setTimeout(() => t.remove(), 2200);
+    } catch { /* no DOM */ }
+  }
+
   say(text: string, bad = false): void {
+    if (!bad && /^(Saved|Loaded|New game)/.test(text)) this.toast(text.replace(/ \(this tab only\)$/, ''));
     this.msg.textContent = text;
     this.msg.classList.toggle('bad', bad);
   }
