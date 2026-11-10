@@ -33,3 +33,6 @@
   .touch .hud-location, .touch .hud-speed { bottom: 150px; }
   .touch .hud-prompt { bottom: 190px; }
 }
+
+/* the cash readout sits left of the pause button (both live at top: 46px on the right) */
+.touch .msn-cash { right: 68px; }

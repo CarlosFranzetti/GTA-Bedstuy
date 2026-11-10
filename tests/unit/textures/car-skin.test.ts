@@ -69,7 +69,8 @@ describe('car skin painter', () => {
     expect(col(0.03, mid)).toBeLessThan(col(Math.min(0.62, layout.belt - 0.12), mid) - 25);   // sill grime (reference on the door panel)
     const seam = layout.seams[0];
     const vDoor = Math.min(0.6, layout.belt - 0.12);                  // on the door panel, below the glass whatever the body height
-    expect(col(vDoor, seam)).toBeLessThan(col(vDoor, seam + 0.07) - 20);    // door gap line
+    const gap = Math.min(...[-0.008, -0.004, 0, 0.004, 0.008].map((d) => col(vDoor, seam + d))); // the gap is ~8 mm: 1-2 px wide
+    expect(gap).toBeLessThan(col(vDoor, seam + 0.07) - 20);    // door gap line
     expect(col(layout.archV, layout.axles[0])).toBeLessThan(60);     // wheel well
   });
 

@@ -192,8 +192,8 @@ export class MapScreen {
     releasePointerLock(this.doc);
     this.doc.addEventListener('keydown', this.keyHandler, true);
     this.layout();
-    if (!this.fitted) { this.fitted = true; this.fitAll(); }
-    this.centreOnPlayer();
+    this.fitted = true;
+    this.fitAll(); // always opens on the whole grid; zoom or "Find me" from there
     this.syncStatus();
     this.draw();
   }
@@ -410,7 +410,7 @@ export class MapScreen {
         ctx.save();
         ctx.translate(p.x, p.y);
         if (!ew) ctx.rotate(-Math.PI / 2);
-        this.text(ctx, s.name, 0, 0, s.class === 'avenue' ? '#ffffff' : '#0d1117', 11);
+        this.text(ctx, s.name, 0, 0, s.class === 'avenue' ? '#ffffff' : '#e2e8f0', 11);
         ctx.restore();
       }
     }

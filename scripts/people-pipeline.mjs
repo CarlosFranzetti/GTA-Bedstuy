@@ -546,7 +546,7 @@ export async function writeGlb(built, path) {
     const mesh = doc.createMesh(lod).addPrimitive(prim);
     scene.addChild(doc.createNode(lod).setMesh(mesh));
   }
-  await doc.transform(quantize({ quantizePosition: 14, quantizeNormal: 8, quantizeTexcoord: 14, quantizeWeight: 8 }), meshopt({ encoder: MeshoptEncoder, level: 'high' }));
+  await doc.transform(quantize({ quantizePosition: 12, quantizeNormal: 8, quantizeTexcoord: 12, quantizeWeight: 8 }), meshopt({ encoder: MeshoptEncoder, level: 'high' }));
   doc.createExtension(EXTMeshoptCompression).setRequired(true);
   doc.getRoot().getAsset().generator = 'GTA Bed-Stuy people-pipeline (MakeHuman CC0 base mesh)';
   const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.encoder': MeshoptEncoder });

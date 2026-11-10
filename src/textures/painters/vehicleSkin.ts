@@ -207,8 +207,8 @@ function paintFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): voi
   // door gaps (dark line with a light edge) and handles
   for (const n of L.seams) {
     const x = X(n);
-    // ~8 mm gap (0.5 canonical px = 1 px of the 1024 atlas) with a faint light lip; it starts at the belt, not the roof
-    s.shade(x - 0.25, beltY, 0.5, Y(0.13) - beltY, '#000000', 0.8);
+    // ~8-12 mm gap (0.8 canonical px = 1.6 px of the 1024 atlas) with a faint light lip; it starts at the belt, not the roof
+    s.shade(x - 0.4, beltY, 0.8, Y(0.13) - beltY, '#000000', 0.9);
     s.shade(x + 0.3, beltY, 0.35, Y(0.14) - beltY, '#ffffff', 0.25);
   }
   for (const n of L.handles) {
