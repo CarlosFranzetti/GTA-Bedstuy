@@ -398,7 +398,7 @@ export function shoeParts(s: MhShape, L: MhLod, spec: PedSpec): THREE.BufferGeom
     if (!st.n) continue;
     const bone = side === 0 ? 9 : 11;
     const cx = (st.x0 + st.x1) / 2, W = (st.x1 - st.x0) * P.w, zHeel = st.z1 + 0.012, zToe = st.z0 - P.toe, len = zHeel - zToe;
-    const S = 18, M = 16, pos: number[] = [], uv: number[] = [], idx: number[] = [];
+    const S = 11, M = 12, pos: number[] = [], uv: number[] = [], idx: number[] = [];
     const zc = (st.z0 + st.z1) / 2 + 0.03, topY = P.ankleH;
     for (let i = 0; i <= S; i++) {
       const u = i / S;                                                  // 0 heel .. 1 toe

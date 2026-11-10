@@ -114,7 +114,7 @@ function paintHead(t: L, s: PedSpec, rng: Rng): void {
     t.soft(cx, ey - eh - 3, 18, dk(skin, 0.4), 0.22);                                                                                                  // lid shadow
     if (f.lashes) t.curve(cx - ew, ey - 1, cx, ey - eh - 6, cx + ew, ey - 1, '#0c0806', 3, 0.9);
     // brows: many fine strokes
-    const by = Y(1.682) - (f.brows === 'arched' ? 3 : 0), bw = f.brows === 'thin' ? 4 : 8;
+    const by = Y(1.682) - (f.brows === 'arched' ? 3 : 0), bw = f.brows === 'thin' ? 3 : 5;
     const bc = mixHex(s.hair === 'bald' ? '#2a1e16' : dk(s.hairColor, 0.1), skin, 0.28);
     for (let i = 0; i < 26; i++) { const x = cx - 22 + i * 1.75; const yy = by + (f.brows === 'arched' ? -Math.sin((i / 26) * Math.PI) * 6 : -((i / 26) * 3 * -sx)) + rng.range(-1, 1); t.line(x, yy + bw / 2, x + 2 * sx, yy - bw / 2, bc, 1.6, 0.55); }
     if (f.glasses) { t.rect(cx - 26, ey - 15, 52, 30, f.glasses, 0.0); t.line(cx - 26, ey - 15, cx + 26, ey - 15, f.glasses, 2.4); t.line(cx - 26, ey + 15, cx + 26, ey + 15, f.glasses, 2.4); t.line(cx - 26, ey - 15, cx - 26, ey + 15, f.glasses, 2.4); t.line(cx + 26, ey - 15, cx + 26, ey + 15, f.glasses, 2.4); t.rect(cx - 25, ey - 14, 50, 28, '#cfe3ee', 0.14); }

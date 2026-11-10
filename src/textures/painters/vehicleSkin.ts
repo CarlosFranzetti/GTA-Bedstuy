@@ -205,13 +205,29 @@ function paintFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): voi
     }
   }
   // door gaps (dark line with a light edge) and handles
-  for (const n of L.seams) {
+  const archN = Math.max(...L.axles); // the rear axle (n grows toward the tail)
+  L.seams.forEach((n, idx) => {
     const x = X(n);
-    // ~8-12 mm gap (0.8 canonical px = 1.6 px of the 1024 atlas) with a faint light lip; it starts at the belt, not the roof
     const gw = Math.max(0.5, 1 / s.k); // one real pixel: 9.5 mm on the 1024 atlas, 19 mm on a 512 one
-    s.shade(Math.floor(x), beltY, gw, Y(0.13) - beltY, '#000000', 0.9);
-    s.shade(Math.floor(x) + gw + 0.5, beltY, gw, Y(0.14) - beltY, '#ffffff', 0.2);
-  }
+    const last = L.seams.length >= 3 && idx === L.seams.length - 1 && L.style !== 'van';
+    if (!last) {
+      // ~8-12 mm gap with a faint light lip; it starts at the belt, not the roof
+      s.shade(Math.floor(x), beltY, gw, Y(0.13) - beltY, '#000000', 0.9);
+      s.shade(Math.floor(x) + gw + 0.5, beltY, gw, Y(0.14) - beltY, '#ffffff', 0.2);
+      return;
+    }
+    // rear door trailing edge: straight down to the top of the rear wheel arch, then round its leading curve to the sill
+    const cx = X(archN), cy = Y(L.archV);
+    const rx = L.archRN * r.w * 1.18, ry = L.archRV * r.h * 1.2;
+    const f = side === 'right' ? 1 : -1; // toward the nose in flank pixels
+    const sinA = Math.max(0.05, Math.min(0.95, ((x - cx) * f) / rx));
+    const a0 = Math.asin(sinA);
+    const yTop = cy - ry * Math.cos(a0);
+    s.shade(Math.floor(x), beltY, gw, Math.max(1, yTop - beltY), '#000000', 0.9);
+    for (let a = a0; a <= Math.PI / 2; a += 0.06) {
+      s.shade(Math.floor(cx + f * rx * Math.sin(a)), cy - ry * Math.cos(a), gw, gw * 1.6, '#000000', 0.9);
+    }
+  });
   for (const n of L.handles) {
     const x = X(n);
     s.solid(x - 4, beltY + 7, 8, 3, '#2a2c30');

@@ -86,7 +86,7 @@ export const SHAPES = {
   teen_a: shape('mx', 'male', 'teen'), teen_b: shape('ea', 'female', 'teen'),
   mx_x: shape('mx', 'x', 'young', {}, 1.72),
 };
-export const LOD_TRIS = { hi: 3400, mid: 1500, far: 400 };
+export const LOD_TRIS = { hi: 2400, mid: 1500, far: 400 };
 
 // ------------------------------------------------------------------ parsing
 

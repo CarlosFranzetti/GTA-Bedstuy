@@ -134,7 +134,7 @@ describe('shipped people glbs', () => {
 
   it('every shape has hi ~4k, mid ~1.5k, far ~400 triangles, stands on y = 0 at its height, front at -z, weights sum to 1', () => {
     for (const s of shapes) {
-      expect(s.lods.hi.index.length / 3, s.name).toBeGreaterThan(3000); expect(s.lods.hi.index.length / 3).toBeLessThanOrEqual(4100);
+      expect(s.lods.hi.index.length / 3, s.name).toBeGreaterThan(2000); expect(s.lods.hi.index.length / 3).toBeLessThanOrEqual(2500);
       expect(s.lods.mid.index.length / 3).toBeGreaterThan(1100); expect(s.lods.mid.index.length / 3).toBeLessThanOrEqual(1600);
       expect(s.lods.far.index.length / 3).toBeGreaterThan(250); expect(s.lods.far.index.length / 3).toBeLessThanOrEqual(450);
       const b = new THREE.Box3().setFromArray(s.lods.hi.position);
@@ -167,8 +167,8 @@ describe('shipped people glbs', () => {
       for (const l of lod.levels) expect(l.object.type).toBe('SkinnedMesh');
       expect(new Set(meshes.map((x) => x.material)).size).toBe(1);
       expect(meshes[0].skeleton.bones.length).toBe(12);
-      expect(m.triangles).toBeGreaterThan(3000);
-      expect(m.triangles).toBeLessThan(12000); // ~4k body + hair / hat caps + PEDHI clothing shells
+      expect(m.triangles).toBeGreaterThan(2500);
+      expect(m.triangles).toBeLessThan(6500); // ~4k body + hair / hat caps + PEDHI clothing shells
       const box = new THREE.Box3().setFromObject(m.group);
       expect(box.max.y).toBeGreaterThan(1.4); expect(box.max.y).toBeLessThan(2.1);
     }

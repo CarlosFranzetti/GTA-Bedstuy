@@ -629,6 +629,10 @@ export interface Style {
   plan: [number, number][];
   /** real overall size (m) of a roster body; without it the vehicle spec's size is used */
   dims?: { L: number; W: number; H: number };
+  /** lamp and grille character of the real type */
+  headLamp?: 'quad' | 'slit' | 'wedge' | 'c';
+  tailLamp?: 'bar' | 'loop';
+  grille?: 'bars' | 'mesh' | 'wedge' | 'slats';
 }
 
 export type PassengerStyle = 'sedan' | 'coupe' | 'suv' | 'cop' | 'cab';
@@ -657,8 +661,8 @@ export const STYLES: Record<StyleKey, Style> = {
       [2.26, 0.84, 0.78, 0.93],
     ],
     windshield: [0.8, 0.1],
-    doorGlass: [[0.68, -0.05], [-0.1, -1.05]],
-    bPillar: [-0.05, -0.1],
+    doorGlass: [[0.68, -0.045], [-0.075, -1.05]],
+    bPillar: [-0.045, -0.075],
     rearGlass: [-1.05, -1.62],
     seams: [0.6, -0.08, -0.9],
     handles: [0.02, -0.8],
@@ -693,8 +697,8 @@ export const STYLES: Record<StyleKey, Style> = {
       [2.69, 0.88, 0.8, 0.92],
     ],
     windshield: [0.92, 0.2],
-    doorGlass: [[0.8, 0.02], [-0.12, -0.97]],
-    bPillar: [0.02, -0.12],
+    doorGlass: [[0.8, 0.0], [-0.035, -0.97]],
+    bPillar: [0.0, -0.035],
     rearGlass: [-1.02, -1.5],
     seams: [0.86, -0.08, -1.05],
     handles: [0.08, -0.82],
@@ -704,6 +708,7 @@ export const STYLES: Record<StyleKey, Style> = {
     bumperY: 0.36, bumperH: 0.24,
     plan: [[-2.7, 0.9], [-2.1, 0.97], [-1, 1], [1, 1], [2.1, 0.98], [2.7, 0.92]],
     dims: { L: 5.39, W: 1.99, H: 1.44 },
+    headLamp: 'quad', tailLamp: 'bar', grille: 'bars',
   },
   // "Charge-R": a current-generation large rear-drive sedan of the Dodge Charger type (2015-): length 198.4 in (5.04 m), wheelbase
   // 120.2 in (3.05 m), width 75.0 in (1.91 m), height 58.2 in (1.48 m). Long hood, high belt line, short deck, fast C pillar.
@@ -728,8 +733,8 @@ export const STYLES: Record<StyleKey, Style> = {
       [2.52, 0.92, 0.85, 0.93],
     ],
     windshield: [0.95, 0.25],
-    doorGlass: [[0.82, -0.02], [-0.12, -1.05]],
-    bPillar: [-0.02, -0.12],
+    doorGlass: [[0.82, -0.04], [-0.075, -1.05]],
+    bPillar: [-0.04, -0.075],
     rearGlass: [-1.1, -1.7],
     seams: [0.88, -0.07, -1.12],
     handles: [0.1, -0.85],
@@ -739,6 +744,7 @@ export const STYLES: Record<StyleKey, Style> = {
     bumperY: 0.36, bumperH: 0.24,
     plan: [[-2.55, 0.9], [-2, 0.98], [-1, 1], [1, 1], [2, 0.98], [2.55, 0.92]],
     dims: { L: 5.04, W: 1.91, H: 1.48 },
+    headLamp: 'slit', tailLamp: 'loop', grille: 'mesh',
   },
   // two-door fastback: cabin pushed back, long hood, steep windshield, sloping rear glass
   coupe: {
@@ -794,14 +800,14 @@ export const STYLES: Record<StyleKey, Style> = {
       [2.41, 1.02, 0.96, 0.92],
     ],
     windshield: [1.1, 0.15],
-    doorGlass: [[0.95, 0.03], [-0.12, -1.05], [-1.05, -1.85]],
-    bPillar: [0.03, -0.12],
+    doorGlass: [[0.95, 0.03], [-0.005, -1.05], [-1.05, -1.85]],
+    bPillar: [0.03, -0.005],
     rearGlass: [-1.95, -2.38],
     seams: [0.92, -0.06, -0.98],
     handles: [0.0, -0.86],
     hoodBack: 1.22,
-    clad: 9,
-    rails: true, spoiler: false, maxGap: 0.4, archN: 6, endT: [0, 1],
+    clad: 10,
+    rails: true, spoiler: false, maxGap: 0.4, archN: 6, headLamp: 'c', grille: 'slats', endT: [0, 1],
     bumperY: 0.45, bumperH: 0.28,
     plan: [[-2.45, 0.94], [-2.0, 0.99], [-1.0, 1], [1.0, 1], [2.0, 0.99], [2.45, 0.95]],
   },
@@ -890,6 +896,46 @@ export function isTaxiYellow(hex: string): boolean {
   const hsl = { h: 0, s: 0, l: 0 };
   c.getHSL(hsl, THREE.SRGBColorSpace);
   return hsl.h >= 0.1 && hsl.h <= 0.16 && hsl.s >= 0.6 && hsl.l >= 0.35 && hsl.l <= 0.65;
+}
+
+
+// ---------------------------------------------------------------- real-type lamp shapes
+
+/** Flat polygon (x across, y up, centred on the lamp) extruded `depth` along +z; optional holes. */
+function shapeGeo(pts: [number, number][], depth: number, holes: [number, number][][] = []): THREE.BufferGeometry {
+  const sh = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
+  for (const h of holes) sh.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x, y))));
+  return new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: false, curveSegments: 4 });
+}
+const rect = (cx: number, cy: number, w: number, h: number): [number, number][] => [[cx - w / 2, cy - h / 2], [cx + w / 2, cy - h / 2], [cx + w / 2, cy + h / 2], [cx - w / 2, cy + h / 2]];
+
+/**
+ * One lamp of a pair, right-hand side, ready to `addBoth`: lens shapes (emissive mesh) and the dark housing behind (trim).
+ * Faces forward (front = true, -z) or back (+z) at `pos` on the fascia, turned by `yaw`. Local shapes are centred on the lamp.
+ */
+function lampPieces(kind: string, front: boolean, pos: THREE.Vector3, yaw: number): { lens: THREE.BufferGeometry[]; housing: THREE.BufferGeometry[] } {
+  const D = 0.03;
+  let lens: [number, number][][] = [];
+  let lensHoles: [number, number][][][] = [];
+  let hous: [number, number][] = rect(0, 0, 0.3, 0.14);
+  switch (kind) {
+    case 'quad': lens = [rect(0, 0.04, 0.24, 0.07), rect(0, -0.04, 0.24, 0.035)]; hous = rect(0, 0, 0.29, 0.15); break; // Crown-type rectangular composite lamp
+    case 'slit': lens = [[[-0.17, -0.012], [0.17, 0.016], [0.17, 0.046], [-0.17, 0.014]], [[-0.17, -0.03], [0.17, -0.003], [0.17, 0.004], [-0.17, -0.023]]]; hous = [[-0.19, -0.04], [0.19, -0.006], [0.19, 0.06], [-0.19, 0.03]]; break; // narrow scowl + DRL
+    case 'wedge': lens = [[[-0.19, -0.04], [0.19, 0.035], [0.19, 0.075], [-0.19, 0.0]], [[-0.17, -0.07], [0.17, 0.0], [0.17, 0.012], [-0.17, -0.058]]]; hous = [[-0.2, -0.08], [0.2, 0.0], [0.2, 0.09], [-0.2, 0.015]]; break; // swept-back
+    case 'c': lens = [rect(0, 0.06, 0.26, 0.026), rect(0, -0.06, 0.26, 0.026), rect(0.118, 0, 0.026, 0.146)]; hous = rect(0, 0, 0.3, 0.19); break; // C-shape DRL signature
+    case 'bar': lens = [rect(0, 0, 0.46, 0.07)]; hous = rect(0, 0, 0.5, 0.1); break; // wide red bar
+    case 'loop': { const o = rect(0, 0, 0.5, 0.075), i = rect(0, 0, 0.44, 0.035); lens = [o]; lensHoles = [[i]]; hous = rect(0, 0, 0.54, 0.105); break; } // racetrack
+    default: lens = [rect(0, 0, 0.3, 0.07)];
+  }
+  const place = (g: THREE.BufferGeometry, proud: number): THREE.BufferGeometry => {
+    if (front) { g.rotateY(Math.PI); g.translate(0, 0, proud); } else g.translate(0, 0, -proud);
+    g.rotateY(yaw);
+    return g.translate(pos.x, pos.y, pos.z);
+  };
+  return {
+    lens: lens.map((pts, k) => place(shapeGeo(pts, D, lensHoles[k] ?? []), 0.01)),
+    housing: [place(shapeGeo(hous, 0.012), 0.002)],
+  };
 }
 
 export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): CarParts {
@@ -1003,14 +1049,15 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
     const yH = fyBelt(hu) - 0.075;
     chrome.addBoth(bx(0.012, 0.022, 0.13, sideX(hu, yH) + 0.008, yH, -hu));
   }
-  // fuel filler flap on the right rear quarter: a dark rounded decal
+  // fuel filler flap on the right rear quarter: a thin dark outline (the flap itself stays body colour)
   if (!st.rails) {
     const uF = tipR + 0.62 * kx;
-    const yF = fyBelt(uF) - 0.12;
-    const cap = new THREE.CircleGeometry(0.05, 8);
-    cap.rotateY(Math.PI / 2);
-    cap.translate(sideX(uF, yF) + 0.004, yF, -uF);
-    trim.add(cap);
+    const yF = fyBelt(uF) - 0.14;
+    const sxF = sideX(uF, yF) + 0.004;
+    const fw = 0.16, fh = 0.12, lw = 0.006;
+    for (const [dz, dy, w2, h2] of [[0, fh / 2, fw, lw], [0, -fh / 2, fw, lw], [fw / 2, 0, lw, fh], [-fw / 2, 0, lw, fh]] as const) {
+      trim.add(decalX(w2, h2, 1, sxF, yF + dy, -uF + dz));
+    }
   }
 
   // ---- hood and trunk-lid cut lines: constant-width dark ribbons that follow the hull (the hood panel itself sits 6 mm proud)
@@ -1065,7 +1112,10 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   trim.add(bumperGeo(2 * Wb2 * 0.88, 0.2, st.bumperH, st.bumperY, -(bumperZ - 0.2), false));
   trim.add(bumperGeo(2 * Wb2 * 0.88, 0.2, st.bumperH, st.bumperY, bumperZ - 0.2, true));
   // lower intake slot + fog lamps (front)
-  trim.add(bx(2 * Wb2 * 0.5, 0.07, 0.02, 0, st.bumperY - 0.03, -(bumperZ + 0.004)));
+  const intakeW = st.grille === 'mesh' ? 0.74 : st.grille === 'wedge' ? 0.66 : st.grille === 'bars' ? 0.34 : 0.5;
+  trim.add(bx(2 * Wb2 * intakeW, st.grille === 'mesh' ? 0.09 : 0.07, 0.02, 0, st.bumperY - 0.03, -(bumperZ + 0.004)));
+  if (st.grille === 'mesh') chrome.add(bx(2 * Wb2 * intakeW + 0.04, 0.012, 0.016, 0, st.bumperY + 0.03, -(bumperZ + 0.012))); // splitter lip line
+  if (st.grille === 'wedge') trim.add(bx(2 * Wb2 * 0.4, 0.05, 0.02, 0, st.bumperY + 0.07, -(bumperZ + 0.004))); // stepped trapezoid intake
   for (const s of st.rails ? [] : [-1, 1]) { // the SUV's tall bumper carries no fog lamps (triangle budget)
     chrome.add(new THREE.CircleGeometry(0.045, 8).rotateY(Math.PI).translate(s * (Wb2 * 0.78), st.bumperY - 0.02, -(bumperZ + 0.004)));
   }
@@ -1075,7 +1125,15 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   const gY = trF.yT - 0.13;
   const gZ = -(tipF + 0.006);
   trim.add(bx(2 * gW, gH, 0.016, 0, gY, gZ));
-  for (let k = 0; k < 2; k++) chrome.add(bx(2 * gW - 0.04, 0.014, 0.014, 0, gY - gH / 4 + k * (gH / 2), gZ - 0.01));
+  if (st.grille === 'bars') {
+    for (let k = -4; k <= 4; k++) chrome.add(bx(0.012, gH - 0.02, 0.014, k * (gW * 0.22), gY, gZ - 0.01)); // upright chrome bars
+  } else if (st.grille === 'mesh') {
+    chrome.add(bx(2 * gW - 0.04, 0.02, 0.014, 0, gY, gZ - 0.01)); // one bar across a black mesh
+  } else if (st.grille === 'slats') {
+    for (let k = -1; k <= 1; k++) chrome.add(bx(2 * gW - 0.04, 0.02, 0.014, 0, gY + k * (gH / 3), gZ - 0.01)); // three thick slats
+  } else {
+    for (let k = 0; k < 2; k++) chrome.add(bx(2 * gW - 0.04, 0.014, 0.014, 0, gY - gH / 4 + k * (gH / 2), gZ - 0.01));
+  }
   chrome.add(bx(2 * gW + 0.03, 0.014, 0.018, 0, gY + gH / 2 + 0.005, gZ - 0.004));
   chrome.add(bx(2 * gW + 0.03, 0.014, 0.018, 0, gY - gH / 2 - 0.005, gZ - 0.004));
   chrome.add(cylZ(0.028, 0.012, 0, gY, gZ - 0.012, 8));
@@ -1186,8 +1244,20 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   const ltx = trR.wMax - 0.17;
   const head = new Acc();
   const tail = new Acc();
-  for (const [sx2, yaw] of [[-1, 0.25], [1, -0.25]] as const) head.add(placeLamp(lensGeo(0.14, 0.05, 0.045, true), v3(sx2 * lx, lampHeadY, -tipF), yaw));
-  for (const [sx2, yaw] of [[-1, -0.2], [1, 0.2]] as const) tail.add(placeLamp(lensGeo(0.16, 0.045, 0.04, false), v3(sx2 * ltx, lampTailY, -tipR), yaw));
+  if (st.headLamp) {
+    const hp = lampPieces(st.headLamp, true, v3(lx, lampHeadY, -tipF), -0.22);
+    for (const g of hp.lens) head.addBoth(g);
+    for (const g of hp.housing) trim.addBoth(g);
+  } else {
+    for (const [sx2, yaw] of [[-1, 0.25], [1, -0.25]] as const) head.add(placeLamp(lensGeo(0.14, 0.05, 0.045, true), v3(sx2 * lx, lampHeadY, -tipF), yaw));
+  }
+  if (st.tailLamp) {
+    const tp = lampPieces(st.tailLamp, false, v3(ltx - 0.1, lampTailY, -tipR), 0.2);
+    for (const g of tp.lens) tail.addBoth(g);
+    for (const g of tp.housing) trim.addBoth(g);
+  } else {
+    for (const [sx2, yaw] of [[-1, -0.2], [1, 0.2]] as const) tail.add(placeLamp(lensGeo(0.16, 0.045, 0.04, false), v3(sx2 * ltx, lampTailY, -tipR), yaw));
+  }
   if (roofLamp.size) head.add(roofLamp.merge());
 
   const parts: CarParts = {
