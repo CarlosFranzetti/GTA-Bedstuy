@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import type { Quality } from './Shadows';
 import { TIER_CONFIG } from './QualityTier';
+import { PHONE_HIDDEN_MESH } from './TierGeometry';
 import './TriBreakdown'; // debug: window.__gtaTriBreakdown
 
 /** Beyond this distance (m) from the player props, parked cars and peds are hidden. */
@@ -137,10 +138,20 @@ export function chunkRangeFor(q: Quality): number {
  * Tiers whose static city is split into half-width, half-depth render cells (125 x 100 m instead of 250 x 200). A cell mesh is
  * drawn whole when any of it is in view or in range, so on a street the coarse cells draw ~4x the triangles that can be seen
  * (measured at the review viewpoints: phone 410 k -> 94 k building triangles at 96 draws; low 416 k -> 252 k at 264 draws).
- * Phone is draw-light (fog-short chunk range, simple geometry); low trades draws for triangles; medium and high keep the coarse
- * cells (their budgets are higher and the draws are the cost there).
+ * Phone is draw-light (fog-short chunk range, simple geometry); low and medium trade draws for triangles (medium's 1.2 M budget
+ * needs it); high keeps the coarse cells.
  */
-export const FINE_CELLS: Record<Quality, boolean> = { phone: true, low: true, medium: false, high: false };
+/** Cell size (m) of the shadow / AO proxy meshes (AoProxy.ts): small cells keep the shadow box and the AO reach (AO_REACH) from drawing a whole 100 m cell for its nearest corner. */
+export const SHADOW_PROXY_CELL: Record<Quality, number> = { phone: 100, low: 50, medium: 50, high: 50 };
+export const FINE_CELLS: Record<Quality, boolean> = { phone: true, low: true, medium: true, high: false };
+
+/**
+ * Small-detail mesh classes of TierGeometry (fire escapes, tanks, fences, wires...) are dropped per chunk / cell beyond this
+ * share of the chunk range: they are 15 to 25 % of the building triangles and a few pixels wide out there (low 210 m, medium
+ * and high 260 m). Phone hides them everywhere through TierGeometry anyway.
+ */
+export const CHUNK_DETAIL_FRACTION = 0.5;
+export const chunkDetailRangeFor = (q: Quality): number => chunkRangeFor(q) * CHUNK_DETAIL_FRACTION;
 
 export interface ChunkLayout {
   /** render cell size (m): one block column wide, two block rows deep */
@@ -182,10 +193,13 @@ export function chunkKeyOfCell(l: ChunkLayout, cellKey: string): string {
  * hysteresis as DistanceCuller: a hidden chunk reappears only once its nearest edge is `margin` m inside the range.
  */
 export class ChunkCuller {
-  private readonly chunks = new Map<string, { meshes: THREE.Mesh[]; minX: number; maxX: number; minZ: number; maxZ: number; hidden: boolean }>();
+  private readonly chunks = new Map<string, { meshes: THREE.Mesh[]; detail: THREE.Mesh[]; minX: number; maxX: number; minZ: number; maxZ: number; hidden: boolean; detailHidden: boolean }>();
+  private detailDist: number;
   private readonly box = new THREE.Box3();
-  constructor(public maxDist: number, private readonly margin = 6) {}
-  setMaxDist(d: number): void { if (Number.isFinite(d) && d > 0) this.maxDist = d; }
+  constructor(public maxDist: number, private readonly margin = 6) { this.detailDist = maxDist * CHUNK_DETAIL_FRACTION; }
+  setMaxDist(d: number): void { if (Number.isFinite(d) && d > 0) { this.maxDist = d; this.detailDist = d * CHUNK_DETAIL_FRACTION; } }
+  /** Range (m) for the small-detail mesh classes; follows `setMaxDist` (CHUNK_DETAIL_FRACTION) unless set here afterwards. Infinity = they follow the chunk. */
+  setDetailRange(d: number): void { if (d > 0) this.detailDist = d; }
   /** Registers a cell mesh under its `userData.chunk` key (static: its bounding box is taken once). */
   add(mesh: THREE.Mesh): void {
     const key = mesh.userData.chunk as string | undefined;
@@ -193,9 +207,10 @@ export class ChunkCuller {
     mesh.updateWorldMatrix(true, false);
     this.box.setFromObject(mesh);
     let c = this.chunks.get(key);
-    if (!c) { c = { meshes: [], minX: this.box.min.x, maxX: this.box.max.x, minZ: this.box.min.z, maxZ: this.box.max.z, hidden: false }; this.chunks.set(key, c); }
+    if (!c) { c = { meshes: [], detail: [], minX: this.box.min.x, maxX: this.box.max.x, minZ: this.box.min.z, maxZ: this.box.max.z, hidden: false, detailHidden: false }; this.chunks.set(key, c); }
     else { c.minX = Math.min(c.minX, this.box.min.x); c.maxX = Math.max(c.maxX, this.box.max.x); c.minZ = Math.min(c.minZ, this.box.min.z); c.maxZ = Math.max(c.maxZ, this.box.max.z); }
     c.meshes.push(mesh);
+    if (PHONE_HIDDEN_MESH.test(mesh.name)) c.detail.push(mesh);
   }
   get count(): number { return this.chunks.size; }
   get hiddenCount(): number { let n = 0; for (const c of this.chunks.values()) if (c.hidden) n++; return n; }
@@ -208,7 +223,13 @@ export class ChunkCuller {
       const dx = Math.max(c.minX - px, 0, px - c.maxX), dz = Math.max(c.minZ - pz, 0, pz - c.maxZ);
       const limit = c.hidden ? base - this.margin : base;
       const hide = dx * dx + dz * dz > limit * limit;
-      if (hide !== c.hidden) { c.hidden = hide; for (const m of c.meshes) m.visible = !hide; }
+      const dlimit = Math.min(base, this.detailDist) - (c.detailHidden ? this.margin : 0);
+      const dHide = hide || dx * dx + dz * dz > dlimit * dlimit;
+      if (hide !== c.hidden || dHide !== c.detailHidden) {
+        c.hidden = hide; c.detailHidden = dHide;
+        for (const m of c.meshes) m.visible = !hide;
+        for (const m of c.detail) m.visible = !dHide; // dHide includes hide
+      }
     }
   }
   /** Shows everything again and forgets all chunks. */

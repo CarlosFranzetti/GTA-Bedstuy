@@ -90,3 +90,8 @@ Shared files via `FOR FABLE:` as before. Nobody commits. Ports: V1 4401, PT 4402
 | CARFIX | sonnet | src/entities/Player.ts, Vehicle enter/exit, src/physics/**, camera rig | 4432 | open |
 | PEOPLE10 | sonnet | src/entities/models/ped*.ts (specs, skin tones, variants), player variant | 4433 | open |
 | UI10 | sonnet | src/ui/Hud.ts, Menu.ts, SaveState.ts, TouchControls.ts, Minimap.ts | 4434 | open |
+
+### Backlog (traffic AI, from CARFIX pass 5)
+- Junction arbiter: one yielder per conflict, then switch `BOX_YIELD` on in TrafficAgent (currently off; naive yield knots seed 58).
+- Seed 91: overtake/head-on standoff on Throop jams (965 stuck entries). Unknown if older.
+- traffic update has rare 10 to 16 ms steps (not spawn); source not found.

@@ -38,6 +38,29 @@ const PED_BRAKE = 0.4;
 const STOP_POINT = 2.5;
 /** The pedestrian and obstacle distances assume a sedan (half length SEDAN_HALF_L): longer bodies (bus, box truck) add the difference so their FRONT, not their centre, stops short of a pedestrian. (Stop lines are judged by the centre and left alone.) */
 const SEDAN_HALF_L = 2.4;
+/** Inside the box: a car whose phase has ended (or that is merging) waits for a gap this long (time to arrival, s) in the conflicting stream. */
+const BOX_GAP_TTC = 2.5;
+/** ...but never longer than this in total, so a stalled cross car cannot hold the box shut. */
+const BOX_HOLD_MAX = 4;
+/** Merging: the yielding car crawls at this speed (m/s) instead of stopping, so it never locks a queue behind it. */
+const MERGE_CRAWL = 2;
+/** Merge yield looks at cars within this many metres of the exit node of the turn being made. */
+const MERGE_RANGE = 16;
+const MERGE_TIE_S = 0.2;
+/**
+ * Master switch for the in-box cross-traffic and merge yield. OFF: with it on, a dense junction on some seeds (58) knots up because
+ * cars hold inside the box while others hold for them. It needs a proper arbiter (one yielder per conflict, others free to pass)
+ * before it can ship; the conflict tests below are kept so that arbiter can be built on them.
+ */
+const BOX_YIELD = false;
+const CROSS_ON = BOX_YIELD;
+const MERGE_ON = BOX_YIELD;
+/** Cross cars slower than this are not treated as a hazard. */
+const CROSS_MIN_SPEED = 0.8;
+/** Pedestrians faster than this (running / fleeing) beside the lane are predicted forward to the car's arrival (+ lookahead s) instead of judged where they stand. */
+const RUN_PED_SPEED = 2;
+const RUN_PED_LATERAL = 14;
+const RUN_PED_LOOKAHEAD = 0.5;
 /** the hardest braking a driver commits to when deciding whether a yellow can still be stopped for */
 const YELLOW_BRAKE = 0.85;
 const SIGNAL_REACTION = 0.4;
@@ -176,6 +199,9 @@ export class TrafficAgent {
   private turnBlocked = false;
   private turnPed = false;
   private turnWait = 0;
+  private boxHold = 0;
+  /** a pedestrian beside the body is walking (not stuck against it): the car keeps holding rather than creeping on */
+  private pedFlankMoving = false;
   private passTimer = 0;
   // do-not-block-the-box: exit lane jammed beyond the stop line being approached
   private jamTimer = 0;
@@ -319,7 +345,8 @@ export class TrafficAgent {
         let stop = true;
         if (this.signalGoverned(node)) {
           const ph = this.lights!.phaseFor(node.intersectionId!, node.streetId);
-          const committed = this.goLatch === node.id || ph === 'green' ||
+          // the yellow-light go decision only stands while the car is fast enough that it cannot stop any more: one that has slowed (behind another car) before the line stops for the red
+          const committed = (this.goLatch === node.id && (ph !== 'red' || v.speed > 3)) || ph === 'green' ||
             (ph === 'yellow' && this.stopLatch !== node.id && v.speed > 2);
           if (committed) { this.goLatch = null; stop = false; }
         }
@@ -417,6 +444,22 @@ export class TrafficAgent {
     }
     if (Math.abs(this.legTurn) > TURN_MIN) desired = Math.min(desired, turnSpeed);
 
+    // ---- inside the box: do not pull out in front of cross traffic released by the new phase, and give way when two
+    // cars turn into the same lane (the later arrival yields; equal arrival: the lower id hash goes first)
+    if (!this.ignoreStop && this.inBox()) {
+      const prev = this.lanes.nodes[this.prevId!];
+      let hold = false;
+      let crossHold = false;
+      if (Math.abs(speed) < 0.5 && this.signalGoverned(prev) && this.lights!.phaseFor(prev.intersectionId!, prev.streetId) !== 'green') {
+        hold = crossHold = CROSS_ON && this.crossConflict(prev);
+      }
+      if (!hold && MERGE_ON && Math.abs(this.legTurn) > TURN_MIN && this.target) hold = this.mergeConflict(this.target, speed, fx, fz);
+      if (hold) {
+        this.boxHold += dt;
+        if (this.boxHold < BOX_HOLD_MAX) desired = crossHold ? 0 : Math.min(desired, MERGE_CRAWL);
+      } else this.boxHold = Math.max(0, this.boxHold - 2 * dt);
+    } else this.boxHold = 0;
+
     // ---- pedestrians in the crosswalk / lane ahead
     this.pedTimer -= dt;
     if (this.pedTimer <= 0) {
@@ -437,7 +480,7 @@ export class TrafficAgent {
       this.flankHold = 0;
     } else if (this.pedFlank) {
       this.pedGap = Math.min(this.pedGap, 0.1);
-      if (Math.abs(speed) < 0.3) this.flankHold += dt;
+      if (Math.abs(speed) < 0.3) this.flankHold += this.pedFlankMoving ? dt * 0.25 : dt; // a walking ped passes by: wait four times as long before creeping on
       if (this.flankHold > FLANK_HOLD_MAX) { this.flankIgnore = FLANK_IGNORE_FOR; this.flankHold = 0; }
     } else {
       this.flankHold = Math.max(0, this.flankHold - dt);
@@ -761,6 +804,65 @@ export class TrafficAgent {
     return Math.abs(rx * -uz + rz * ux) > myHalfW + ext + PARKED_PATH_MARGIN;
   }
 
+  /**
+   * Cross traffic that would reach this car's spot within BOX_GAP_TTC: moving cross cars by their arrival time, and (once our
+   * phase is red, i.e. theirs is green) cars standing within QUEUE_HEAD_RANGE that are about to launch from rest.
+   */
+  private crossConflict(prev: LaneNode): boolean {
+    const b0 = this.vehicle.body;
+    const fx = Math.sin(b0.heading), fz = -Math.cos(b0.heading);
+    const list = this.world.queryCircle(b0.pos, 30);
+    for (let i = 0; i < list.length; i++) {
+      const b = list[i];
+      if (b.id === b0.id || (b.kind !== 'vehicle' && b.kind !== 'cop' && b.kind !== 'player')) continue;
+      if ((b.userData as { driver?: unknown } | undefined)?.driver === null) continue; // parked
+      const dx = Math.sin(b.heading), dz = -Math.cos(b.heading);
+      if (Math.abs(dx * fx + dz * fz) > 0.6) continue; // along our street, not across it
+      const rx = b0.pos.x - b.pos.x, rz = b0.pos.z - b.pos.z;
+      const along = rx * dx + rz * dz;
+      if (along < -3) continue; // already past our spot
+      if (Math.abs(rx * -dz + rz * dx) > 4.5) continue;
+      const sp = hyp(b.vel.x, b.vel.z);
+      let ttc: number;
+      // a car standing still is not a hazard (it may be blocked by us, and waiting on it would lock the box); one that has
+      // started to roll is, and a car still pulling away keeps accelerating
+      if (sp < CROSS_MIN_SPEED) continue;
+      const d0 = Math.max(0, along);
+      ttc = sp < LAUNCH_SPEED ? (-sp + Math.sqrt(sp * sp + 2 * LAUNCH_ACCEL * d0)) / LAUNCH_ACCEL : d0 / sp;
+      if (ttc < BOX_GAP_TTC) return true;
+    }
+    return false;
+  }
+
+  /** Another car heading into the same exit lane that gets there first (or ties and wins the id hash), not one just ahead of us in our own path. */
+  private mergeConflict(exit: LaneNode, speed: number, fx: number, fz: number): boolean {
+    const b0 = this.vehicle.body;
+    const dm = dist(b0.pos, exit.pos);
+    if (dm > MERGE_RANGE) return false;
+    const ex = Math.sin(exit.heading), ez = -Math.cos(exit.heading);
+    const tMe = dm / Math.max(1, Math.abs(speed));
+    const list = this.world.queryCircle(exit.pos, MERGE_RANGE + 6);
+    for (let i = 0; i < list.length; i++) {
+      const b = list[i];
+      if (b.id === b0.id || (b.kind !== 'vehicle' && b.kind !== 'cop' && b.kind !== 'player')) continue;
+      if ((b.userData as { driver?: unknown } | undefined)?.driver === null) continue;
+      const sp = hyp(b.vel.x, b.vel.z);
+      if (sp < 2) continue;
+      const bx = b.vel.x / sp, bz = b.vel.z / sp;
+      if (bx * ex + bz * ez < 0.35) continue; // not going our way
+      const rx = b.pos.x - exit.pos.x, rz = b.pos.z - exit.pos.z;
+      if (rx * ex + rz * ez > 2) continue; // already in the exit lane ahead of the node
+      if (Math.abs(rx * -ez + rz * ex) > 7) continue;
+      // ahead of us in our own path: plain car following, not a merge
+      const ax = b.pos.x - b0.pos.x, az = b.pos.z - b0.pos.z;
+      if (ax * fx + az * fz > 0 && Math.abs(ax * -fz + az * fx) < 2.6) continue;
+      const tB = hyp(rx, rz) / sp;
+      if (tB < tMe - MERGE_TIE_S) return true;
+      if (Math.abs(tB - tMe) <= MERGE_TIE_S && Rng.hash(this.vehicle.id) > Rng.hash(b.id)) return true;
+    }
+    return false;
+  }
+
   /** Past a stop line and still within the box of that intersection. */
   private inBox(): boolean {
     const prev = this.prevId ? this.lanes.nodes[this.prevId] : undefined;
@@ -838,6 +940,7 @@ export class TrafficAgent {
   /** A pedestrian touching or hugging the body: a car starting off would sweep it over. */
   private pedBesideBody(fx: number, fz: number): boolean {
     const b = this.vehicle.body;
+    this.pedFlankMoving = false;
     const halfL = b.shape.kind === 'obb' ? b.shape.halfL : 2.2;
     const halfW = b.shape.kind === 'obb' ? b.shape.halfW : 1;
     const list = this.world.queryCircle(b.pos, halfL + FLANK_PED_MARGIN + halfW);
@@ -848,7 +951,10 @@ export class TrafficAgent {
       const rz = o.pos.z - b.pos.z;
       const along = rx * fx + rz * fz;
       if (along < -(halfL + FLANK_PED_MARGIN) || along > halfL + FLANK_PED_MARGIN) continue;
-      if (Math.abs(rx * -fz + rz * fx) <= halfW + FLANK_PED_MARGIN) return true;
+      if (Math.abs(rx * -fz + rz * fx) <= halfW + FLANK_PED_MARGIN) {
+        if (hyp(o.vel.x, o.vel.z) > 0.4) this.pedFlankMoving = true;
+        return true;
+      }
     }
     return false;
   }
@@ -861,11 +967,11 @@ export class TrafficAgent {
 
   private scanPeds(fx: number, fz: number, speed: number, minReach = 0): number {
     const reach = Math.max(minReach, 7 + Math.max(0, speed) * 1.2);
-    return this.coneGap(this.vehicle.body.pos, fx, fz, reach, 0.5);
+    return this.coneGap(this.vehicle.body.pos, fx, fz, reach, 0.5, speed);
   }
 
   /** Distance along (fx, fz) from `origin` to the nearest pedestrian within PED_LATERAL of that line, or Infinity. */
-  private coneGap(origin: Vec2, fx: number, fz: number, reach: number, minAlong: number): number {
+  private coneGap(origin: Vec2, fx: number, fz: number, reach: number, minAlong: number, carSpeed = 0): number {
     const c = this.scratch;
     c.x = origin.x + fx * reach * 0.5;
     c.z = origin.z + fz * reach * 0.5;
@@ -878,8 +984,16 @@ export class TrafficAgent {
       const rz = b.pos.z - origin.z;
       const along = rx * fx + rz * fz;
       if (along < minAlong || along > reach) continue;
-      const lateral = Math.abs(rx * -fz + rz * fx);
-      if (lateral > PED_LATERAL) continue;
+      const sl = rx * -fz + rz * fx;
+      let lateral = Math.abs(sl);
+      if (lateral > PED_LATERAL) {
+        // a running or fleeing pedestrian beside the lane: where will it be when the car gets there?
+        const pv = hyp(b.vel.x, b.vel.z);
+        if (pv < RUN_PED_SPEED || lateral > RUN_PED_LATERAL) continue;
+        const tArr = Math.max(0, along - 2) / Math.max(2, carSpeed) + RUN_PED_LOOKAHEAD;
+        lateral = Math.abs(sl + (b.vel.x * -fz + b.vel.z * fx) * tArr);
+        if (lateral > PED_LATERAL) continue;
+      }
       if (along < best) best = along;
     }
     return best;

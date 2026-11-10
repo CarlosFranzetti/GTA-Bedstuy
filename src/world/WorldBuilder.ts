@@ -11,8 +11,7 @@ import { buildFurniture, type LampSpot } from '@/world/FurnitureGen';
 import { buildProps } from '@/world/PropsGen';
 import { buildSignals, signalColliders } from '@/world/props/signals';
 import { createSkyline } from '@/world/Skyline';
-import { Input } from '@/core/Input';
-import { resolveQuality } from '@/textures/hosted';
+import { browserTier } from '@/render/StartTier';
 import type { Quality } from '@/render/Shadows';
 import { FINE_CELLS, chunkKeyOfCell, chunkLayout, splitMeshesIntoCells, type ChunkLayout, type SplitStats } from '@/render/Culling';
 
@@ -54,14 +53,8 @@ export function cullCellSize(grid: GridModel): { x: number; z: number } {
   return { x: l.cellX, z: l.cellZ };
 }
 
-/** The tier the game starts in (same rule as main.ts: ?q= or touch -> phone, else medium); 'medium' without a browser (tests). */
-export function startTier(): Quality {
-  if (typeof location === 'undefined') return 'medium';
-  return resolveQuality(new URLSearchParams(location.search).get('q'), Input.isTouchDevice()).quality;
-}
-
-/** `tier` picks the render-cell size (Culling.FINE_CELLS); omitted = the tier the page starts in. */
-export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: Rng, tier: Quality = startTier()): BuiltWorld {
+/** `tier` picks the render-cell size (Culling.FINE_CELLS); omitted = the tier the page starts in (coarse cells without a browser). */
+export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: Rng, tier: Quality = browserTier() ?? 'high'): BuiltWorld {
   const grid = buildGrid(data);
   const group = new THREE.Group();
   group.name = 'world';

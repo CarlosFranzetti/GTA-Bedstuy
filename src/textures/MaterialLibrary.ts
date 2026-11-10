@@ -489,7 +489,7 @@ export class MaterialLibrary implements IMaterialLibrary {
       treeLeaves: { variants: LEAF_VARIANTS, build: (v) => {
         // double-sided cards (the canopy mesh has one winding: half the triangles); the shader keeps the radial canopy normal on the back face
         const m = tex('treeLeaves', 256, 256, treeLeavesPainter, { roughness: 0.8, alphaTest: 0.45, side: THREE.DoubleSide })(v);
-        m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('float faceDirection = gl_FrontFacing ? 1.0 : - 1.0;', 'float faceDirection = 1.0;'); };
+        m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n#ifdef DOUBLE_SIDED\n  normal *= faceDirection; // undo the back-face flip: the canopy normal points out of the cloud on both sides\n#endif'); };
         return m;
       } },
       metalDark: flat(['#26282b'], { roughness: 0.6, metalness: 0 }),

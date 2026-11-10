@@ -18,6 +18,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { writeYawMatrix } from '@/render/CarLod';
+import { browserTier } from '@/render/StartTier';
+import { SHADOW_PROXY_CELL } from '@/render/Culling';
 
 /**
  * Shadow stand-in for a car: two boxes (lower body, cabin) from the hull's bounding box, 24 triangles. The shadow map of the
@@ -236,6 +238,10 @@ interface HullSet { mesh: THREE.InstancedMesh; shadow: THREE.InstancedMesh; n: n
 const _sphere = new THREE.Sphere();
 /** Metres beyond the shadow box's half-size within which the detailed cell proxies still draw (see wrapShadowRender). */
 export const SHADOW_DETAIL_MARGIN = 15;
+/** ...but never farther than this from the player: a cornice or stoop 45 m away is a few shadow texels wide, the building prism carries the mass. */
+export const SHADOW_DETAIL_MAX = 45;
+/** Metres from the camera within which the AO G-buffer draws the static cell proxies. */
+export const AO_REACH = 70;
 /** Radius (m) of the sphere tested against the shadow frustum for a car hull / capsule. */
 const HULL_RADIUS = 3.6;
 
@@ -253,7 +259,9 @@ export class RenderProxies {
   private readonly hullMatrices = new Map<string, THREE.InstancedBufferAttribute>();
   /** shadow-pass copy of the hull matrices: only the instances inside the sun's shadow box (wrapShadowRender) */
   private readonly shadowMatrices = new Map<string, THREE.InstancedBufferAttribute>();
-  private readonly cellBoxes: Array<{ mesh: THREE.Mesh; box: THREE.Box3 }> = [];
+  private readonly cellBoxes: Array<{ mesh: THREE.Mesh; ao: THREE.Mesh; box: THREE.Box3 }> = [];
+  /** cell proxies the last AO G-buffer render drew (tests, stats) */
+  aoCellsDrawn = 0;
   private readonly shadowFrustum = new THREE.Frustum();
   private readonly projScreen = new THREE.Matrix4();
   /** shadow-pass cell meshes / hull instances drawn by the last shadow render (tests, stats) */
@@ -265,6 +273,17 @@ export class RenderProxies {
     this.ao.matrixAutoUpdate = false;
     this.shadowGroup.name = 'shadow-proxy';
     this.shadowGroup.visible = false;
+    // the AO G-buffer re-renders the whole city otherwise: ambient occlusion fades out within ~100 m, so only cells near the camera are drawn
+    this.ao.onBeforeRender = (_r, _s, camera) => {
+      const e = camera.matrixWorld.elements, px = e[12], pz = e[14];
+      let n = 0;
+      for (const c of this.cellBoxes) {
+        const dx = Math.max(c.box.min.x - px, 0, px - c.box.max.x), dz = Math.max(c.box.min.z - pz, 0, pz - c.box.max.z);
+        const v = dx * dx + dz * dz <= AO_REACH * AO_REACH;
+        c.ao.visible = v; if (v) n++;
+      }
+      this.aoCellsDrawn = n;
+    };
     for (const side of [THREE.FrontSide, THREE.BackSide, THREE.DoubleSide]) {
       this.mats[side] = new THREE.MeshBasicMaterial({ side, colorWrite: false, name: `proxy-${side}` });
     }
@@ -272,17 +291,22 @@ export class RenderProxies {
 
   /** Builds the static cell proxies from the world and turns off the covered meshes' own shadow casting. */
   addStatic(roots: THREE.Object3D[], cellX: number, cellZ: number): ProxyBuild {
-    const build = buildStaticProxies(roots, cellX, cellZ);
+    // low has no AO pass, so its proxies can be small cells: the shadow box then draws ~1/3 of the triangles (the cell AABB test is tighter)
+    const t = browserTier();
+    const cell = t ? Math.min(cellX, SHADOW_PROXY_CELL[t]) : cellX;
+    const build = buildStaticProxies(roots, cell, Math.min(cellZ, cell));
     for (const p of build.proxies) {
+      let aoMesh: THREE.Mesh;
       const a = new THREE.Mesh(p.geometry, this.mats[p.side]);
       a.matrixAutoUpdate = false; a.name = `ao:${p.cell}`;
       this.ao.add(a);
+      aoMesh = a;
       const s = new THREE.Mesh(p.geometry, this.mats[p.side]);
       s.matrixAutoUpdate = false; s.castShadow = true; s.receiveShadow = false; s.name = `shadow:${p.cell}`;
       // a cell is 100 x 100 m: three's bounding-sphere test keeps ~4x more cells than the shadow box needs, so wrapShadowRender tests the box
       p.geometry.computeBoundingBox();
       s.frustumCulled = false;
-      this.cellBoxes.push({ mesh: s, box: p.geometry.boundingBox! });
+      this.cellBoxes.push({ mesh: s, ao: aoMesh, box: p.geometry.boundingBox! });
       this.shadowGroup.add(s);
     }
     for (const m of build.covered) m.castShadow = false;
@@ -297,9 +321,9 @@ export class RenderProxies {
     matrices.setUsage(THREE.DynamicDrawUsage);
     const smatrices = new THREE.InstancedBufferAttribute(new Float32Array(CAP * 16), 16);
     smatrices.setUsage(THREE.DynamicDrawUsage);
-    const coarse = castShadow && key !== 'capsule' ? coarseCarHull(geometry) : geometry;
+    const coarse = key !== 'capsule' ? coarseCarHull(geometry) : geometry; // AO and shadow both: a 5 k triangle hull per far car buys nothing at those resolutions
     const make = (shadow: boolean): THREE.InstancedMesh => {
-      const m = new THREE.InstancedMesh(shadow ? coarse : geometry, this.mats[THREE.FrontSide], CAP);
+      const m = new THREE.InstancedMesh(coarse, this.mats[THREE.FrontSide], CAP);
       m.instanceMatrix = shadow ? smatrices : matrices; m.count = 0; m.frustumCulled = false; m.castShadow = shadow; m.receiveShadow = false;
       m.name = `hull:${key}`;
       return m;
@@ -367,8 +391,8 @@ export class RenderProxies {
     sun.shadow.updateMatrices(sun);
     const sc = sun.shadow.camera;
     this.shadowFrustum.setFromProjectionMatrix(this.projScreen.multiplyMatrices(sc.projectionMatrix, sc.matrixWorldInverse));
-    // detailed cell proxies only near the player (the shadow box half-size + 15 m); farther buildings cast through BlobShadows' prisms
-    const reach = sc.right + SHADOW_DETAIL_MARGIN, tx = sun.target.position.x, tz = sun.target.position.z;
+    // detailed cell proxies only near the player (the shadow box half-size + 15 m, at most 45 m); farther buildings cast through BlobShadows' prisms
+    const reach = Math.min(sc.right + SHADOW_DETAIL_MARGIN, SHADOW_DETAIL_MAX), tx = sun.target.position.x, tz = sun.target.position.z;
     let cells = 0;
     for (const c of this.cellBoxes) {
       const dx = Math.max(c.box.min.x - tx, 0, tx - c.box.max.x), dz = Math.max(c.box.min.z - tz, 0, tz - c.box.max.z);

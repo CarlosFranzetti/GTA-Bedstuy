@@ -394,7 +394,8 @@ describe('CopSystem patrols and signals', () => {
     for (let i = 0; i < 10; i++) sys.update(1, P);
     expect(sys.cops.length).toBe(2);
     expect(sys.cops.every((c) => !c.siren)).toBe(true);
-    expect(made.every((m) => m.last !== null)).toBe(true); // driving
+    // made[0] is the throw-away warm-up car built by the CopSystem constructor
+    expect(made.slice(1).every((m) => m.last !== null)).toBe(true); // driving
     events.emit('crime', { type: 'carjack', pos: P });
     sys.update(0.1, P);
     expect(sys.cops.filter((c) => c.siren).length).toBe(1);

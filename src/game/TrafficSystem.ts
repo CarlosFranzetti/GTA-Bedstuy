@@ -193,6 +193,8 @@ export class TrafficSystem {
   private readonly offs: Array<() => void> = [];
   private readonly pedEnv: PedEnvironment;
   private spawnTimer = SPAWN_TICK;
+  /** cars still to spawn from the budget granted at the last SPAWN_TICK (one per step) */
+  private spawnOwed = 0;
   private warm = true;
   private density: TrafficDensity;
   /** parked-car occupancy the kerbs were filled with (can only be thinned at runtime, not refilled) */
@@ -405,20 +407,21 @@ export class TrafficSystem {
       }
       a.agent.update(dt);
     }
-    // spawn
+    // spawn: the budget is owed at each tick and paid out one car per step, so building meshes and agents never piles
+    // 20 cars into a single step (the first tick after loading used to)
     this.spawnTimer += dt;
     if (this.spawnTimer >= SPAWN_TICK) {
       this.spawnTimer = 0;
-      let budget = this.warm ? 20 : 3;
+      this.spawnOwed = Math.min(this.spawnOwed + (this.warm ? 20 : 3), 24);
       this.warm = false;
+    }
+    if (this.spawnOwed > 0) {
       let near = 0;
       for (let i = 0; i < this.active.length; i++) {
         if (dist(this.active[i].vehicle.body.pos, playerPos) < NEAR_RADIUS) near++;
       }
-      while (budget-- > 0 && near < this.density.maxMoving) {
-        if (!this.spawnTraffic(playerPos)) break;
-        near++;
-      }
+      if (near < this.density.maxMoving && this.spawnTraffic(playerPos)) this.spawnOwed--;
+      else this.spawnOwed = 0;
     }
   }
 

@@ -419,6 +419,16 @@ describe('PBR materials', () => {
     }
   });
 
+  it('treeLeaves is double-sided (the canopy mesh has one winding) and keeps the outward canopy normal on the back face', () => {
+    const lib = new MaterialLibrary(new Rng(1), (w, h) => makeFakeCanvas(w, h) as unknown as HTMLCanvasElement);
+    const m = lib.get('treeLeaves') as THREE.MeshStandardMaterial;
+    expect(m.side).toBe(THREE.DoubleSide);
+    expect(m.alphaTest).toBeGreaterThan(0);
+    const shader = { fragmentShader: '#include <normal_fragment_begin>\nvoid x(){}' };
+    m.onBeforeCompile(shader as never, {} as never);
+    expect(shader.fragmentShader).toContain('normal *= faceDirection');
+  });
+
   it('maxAnisotropy option caps colour map anisotropy', () => {
     const lo = new MaterialLibrary(new Rng(1), (w, h) => makeFakeCanvas(w, h) as unknown as HTMLCanvasElement, { maxAnisotropy: 2 });
     expect((lo.get('brickRed') as THREE.MeshStandardMaterial).map!.anisotropy).toBe(2);

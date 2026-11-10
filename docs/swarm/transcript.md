@@ -2360,3 +2360,7 @@ FOLLOW-UP FINAL (update): HIDDEN_RING_MIN=28 m (62 m in view) with cone+occlusio
 
 ### 2026-11-10T09:59:03Z · ROSTER
 FINAL: cargovan, hatch, beater, bus + NPR boxtruck shipped; tsc clean for my files, entities/textures tests pass, build 11.03 MB. Frames: scratchpad/roster/final/. FOR FABLE: main.ts HULL_TYPES add cargovan,hatch,beater,bus; hullKey fine.
+
+### 2026-11-10T10:18:22Z · PERF
+BASELINE (low, v1/v4/v10 tris k scene+shadow): 2134/2371/2650. Causes measured: 3121 tree clouds drawn city-wide (instanceDistance=Infinity on low+) = 404k scene + 300k shadow; shadow-proxy cells 450-600k; car hulls in shadow 5.4k tris each x27 = 146k; buildings 413-678k (250x200 cells drawn whole). Phone base 434/497/634k. Fixes in: trees (range, 48-tri double-sided cloud, 36-tri trunk), hull->24-tri box, shadow AABB/reach trim, fine cells+per-cell cull on phone/low. Phone now 263/280/301k, 115/121/138 draws. Low still ~1.0-1.15M, working on it.
+BUDGETS for other lanes: ROSTER (cars): near model <=4k tris/<=6 draws, far LOD (car-lod + hull source) <=1.2k tris per car (now 5.4k sedan far, 8.3k near). HUMAN (people): hi <=3k, far/mid LOD <=600 tris (pedLod is 4-5.5k each now); hi LOD only <=12 m.

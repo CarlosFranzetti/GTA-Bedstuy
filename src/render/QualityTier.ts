@@ -60,7 +60,7 @@ export const SIGN_BLOOM_OFF_FPS = 38;
 
 export const TIER_CONFIG: Record<Quality, TierConfig> = {
   phone: {
-    maxPixelRatio: 1, maxBufferWidth: 720, cullDistance: 110, carNearDist: 14, instanceDistance: 100, pedDistance: 55,
+    maxPixelRatio: 1, maxBufferWidth: 720, cullDistance: 110, carNearDist: 14, instanceDistance: 80, pedDistance: 55,
     fog: { near: 30, far: 100 }, rainStreaks: 200, anisotropy: 2, normalMaps: false, simpleGeometry: true, stars: false, minimapHz: 30, blobShadows: true, signBloomFps: SIGN_BLOOM_ON_FPS,
     traffic: { maxMoving: 10, peds: 14, parkOccupancy: 0.3, cops: 1 },
   },

@@ -72,6 +72,8 @@ export class CopSystem {
     this.patrolCount = opts.patrolCount ?? 0;
     this.laneNodes = Object.values(grid.lanes.nodes);
     this.off = events.on('impact', (e) => this.onImpact(e));
+    // build (and drop) one cop car now so the shared model cache and JIT are warm: the first dispatch no longer costs a hitch
+    if (this.patrolCount > 0) { const warm = makeVehicle('cop', { x: 0, z: 0 }, 0, '#1b2a4a'); (warm as { dispose?(): void }).dispose?.(); }
   }
 
   /** Patrol cars that cruise while nobody is wanted (quality tier); existing ones finish their route. */

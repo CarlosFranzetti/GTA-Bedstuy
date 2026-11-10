@@ -379,7 +379,8 @@ describe('TrafficSystem', () => {
     const victim = sys.vehicles.find((v) => v.driver === 'traffic')!;
     victim.driver = 'player';
     sys.update(0.016, { x: 0, z: 0 });
-    expect(sys.agentCount).toBe(before - 1);
+    // spawns now trickle one car per step, so a car owed from the last tick may appear in this very step
+    expect(sys.agentCount).toBeLessThanOrEqual(before);
     expect(sys.vehicles).toContain(victim);
     const last = (victim as FakeVehicle).last;
     sys.update(0.016, { x: 0, z: 0 });
