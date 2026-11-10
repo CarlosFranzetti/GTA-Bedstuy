@@ -24,8 +24,9 @@ const base = `http://localhost:${port}`;
 for (let i = 0; i < 80; i++) { try { if ((await fetch(`${base}/`)).ok) break; } catch {} await new Promise((r) => setTimeout(r, 250)); }
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const results = []; const errors = [];
+const save = () => writeFileSync(out, JSON.stringify({ errors, results }, null, 1));
 try {
-  for (const q of tiers) {
+  for (const q of tiers) for (let attempt = 0; attempt < 4; attempt++) { try {
     const page = await browser.newPage({ viewport: { width: W, height: H } });
     page.on('pageerror', (e) => errors.push(String(e).slice(0, 300)));
     await page.goto(`${base}/?q=${q}&perf=0`, { waitUntil: 'load', timeout: 120_000 });
@@ -37,12 +38,13 @@ try {
     await dbg(() => { window.__gtaDebug.stopLoop(); });
     const hour = (h) => dbg((h) => { const d = window.__gtaDebug; d.setHour(h); d.step(5); }, h);
     const shot = async (name) => {
+      if (results.some((r) => r.tier === q && r.view === name)) return;
       await dismiss(); await dbg(() => window.__gtaDebug.settle(120));
       const r = await dbg(() => {
         const d = window.__gtaDebug; let info; for (let i = 0; i < 3; i++) info = d.renderOnce(1, 1 / 60);
         return { info, bd: window.__gtaTriBreakdown(d.scene, d.cam.camera, d.renderer), vehicles: d.traffic.vehicles.length, peds: d.traffic.peds.length };
       });
-      results.push({ tier: q, view: name, ...r }); console.log(q, name, r.info.triangles, r.info.total, 'walker scene', r.bd.sceneTotal, 'shadow', r.bd.shadowTotal);
+      results.push({ tier: q, view: name, ...r }); save(); console.log(q, name, r.info.triangles, r.info.total, 'walker scene', r.bd.sceneTotal, 'shadow', r.bd.shadowTotal);
     };
     await dbg(() => { const d = window.__gtaDebug; d.teleport(9, 20, 0); d.step(10); });
     await hour(12); await shot('1');
@@ -50,6 +52,6 @@ try {
     await hour(19.3); await shot('4');
     await dbg(() => { const d = window.__gtaDebug; d.clearFreeCam(); d.teleport(752, 80); d.step(90); d.setFreeCam(752, 2.8, 70, 749, 4, -80); });
     await hour(22); await shot('10');
-    await page.close();
-  }
-} finally { writeFileSync(out, JSON.stringify({ errors, results }, null, 1)); await browser.close(); preview.kill(); }
+    await page.close(); break;
+  } catch (e) { console.error('attempt', attempt, q, String(e).slice(0, 120)); } }
+} finally { save(); await browser.close(); preview.kill(); }

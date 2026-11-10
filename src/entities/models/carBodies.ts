@@ -1082,6 +1082,74 @@ function lampPieces(kind: string, front: boolean, pos: THREE.Vector3, yaw: numbe
   };
 }
 
+/** A lamp part as two edge curves over the same arc-length knots: y_lo(s), y_hi(s), s from the lamp's inner end. */
+interface LampStrip { s: number[]; lo: number[]; hi: number[] }
+const rectStrip = (s0: number, s1: number, y0: number, y1: number): LampStrip => ({ s: [s0, s0 + (s1 - s0) / 3, s0 + (2 * (s1 - s0)) / 3, s1], lo: [y0, y0, y0, y0], hi: [y1, y1, y1, y1] });
+/** Wrapped lamps (lens strips + a dark housing) that follow the body's plan curve round the corner; lengths in metres along the curve. */
+const WRAP_LAMPS: Record<string, { lens: LampStrip[]; housing: LampStrip }> = {
+  // Camry-type swept-back lamp: tall at the inner end, a long tapered tail that rises along the fender, a DRL strip below
+  swept: {
+    lens: [
+      { s: [0, 0.16, 0.34, 0.52], lo: [-0.05, -0.055, -0.02, 0.04], hi: [0.055, 0.06, 0.07, 0.085] },
+      { s: [0.02, 0.18, 0.34, 0.46], lo: [-0.085, -0.085, -0.055, -0.02], hi: [-0.065, -0.065, -0.037, 0.0] },
+    ],
+    housing: { s: [-0.02, 0.16, 0.34, 0.54], lo: [-0.1, -0.1, -0.075, 0.02], hi: [0.075, 0.08, 0.09, 0.105] },
+  },
+  box: { lens: [rectStrip(0, 0.27, -0.05, 0.05), rectStrip(0.31, 0.39, -0.04, 0.03)], housing: rectStrip(-0.02, 0.41, -0.07, 0.07) },
+  angular: {
+    lens: [{ s: [0, 0.11, 0.22, 0.34], lo: [-0.09, -0.085, -0.075, -0.07], hi: [0.1, 0.095, 0.09, 0.08] }, rectStrip(0, 0.34, -0.118, -0.1)],
+    housing: rectStrip(-0.02, 0.36, -0.13, 0.12),
+  },
+  tall: { lens: [rectStrip(0, 0.1, -0.15, 0.15)], housing: rectStrip(-0.015, 0.115, -0.17, 0.17) },
+  box2: { lens: [rectStrip(0, 0.4, -0.04, 0.05), rectStrip(0, 0.4, -0.075, -0.055)], housing: rectStrip(-0.02, 0.42, -0.09, 0.075) },
+};
+
+/**
+ * Builds a wrapped lamp. `plan(d)` is the body half-width d metres from the tip; the lamp starts at half-width `xIn` on the end face, runs
+ * out to the corner and back along the side. `yc` is the lamp centre height, `k` stretches it vertically (tall lamps).
+ */
+function wrapLamp(kind: string, front: boolean, tipU: number, plan: (d: number) => number, xIn: number, yc: number, k = 1): { lens: THREE.BufferGeometry[]; housing: THREE.BufferGeometry[] } {
+  const spec = WRAP_LAMPS[kind];
+  // plan polyline in (x, d): along the end face to the corner, then the curve
+  const pl: [number, number][] = [[xIn, 0]];
+  if (plan(0) > xIn) pl.push([plan(0), 0]);
+  for (let d = 0.02; d <= 1.2; d += 0.02) if (plan(d) > pl[pl.length - 1][0] - 1e-6) pl.push([plan(d), d]);
+  const cum = [0];
+  for (let i = 1; i < pl.length; i++) cum.push(cum[i - 1] + Math.hypot(pl[i][0] - pl[i - 1][0], pl[i][1] - pl[i - 1][1]));
+  const build = (st: LampStrip, off: number): THREE.BufferGeometry => {
+    const pos: number[] = [];
+    const pt = (sKnot: number, y: number): [number, number, number] => {
+      const sa = clamp(sKnot, 0, cum[cum.length - 1]);
+      let i = 1;
+      while (i < pl.length - 1 && cum[i] < sa) i++;
+      const t = (sa - cum[i - 1]) / Math.max(1e-6, cum[i] - cum[i - 1]);
+      const x = lerp(pl[i - 1][0], pl[i][0], t), d = lerp(pl[i - 1][1], pl[i][1], t);
+      const tx = pl[i][0] - pl[i - 1][0], td = pl[i][1] - pl[i - 1][1];
+      const tl = Math.hypot(tx, td) || 1;
+      const nx = td / tl, nd = -tx / tl; // outward normal in (x, d): out and toward the tip
+      const u = front ? tipU - d - nd * off : tipU + d + nd * off;
+      return [x + nx * off, yc + y * k, -u];
+    };
+    for (let i = 0; i < st.s.length - 1; i++) {
+      const a = pt(st.s[i], st.lo[i]), b = pt(st.s[i], st.hi[i]), c = pt(st.s[i + 1], st.lo[i + 1]), d = pt(st.s[i + 1], st.hi[i + 1]);
+      pos.push(...a, ...c, ...b, ...b, ...c, ...d);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.computeVertexNormals();
+    // faces must look outward: the first triangle (on the end face) should face away from the car
+    const n0 = new THREE.Vector3(g.attributes.normal.getX(0), g.attributes.normal.getY(0), g.attributes.normal.getZ(0));
+    const outward = new THREE.Vector3(0.3, 0, front ? -1 : 1).normalize();
+    if (n0.dot(outward) < 0) {
+      const a = g.attributes.position as THREE.BufferAttribute;
+      for (let t = 0; t < a.count; t += 3) { const x = a.getX(t + 1), y = a.getY(t + 1), z = a.getZ(t + 1); a.setXYZ(t + 1, a.getX(t + 2), a.getY(t + 2), a.getZ(t + 2)); a.setXYZ(t + 2, x, y, z); }
+      g.computeVertexNormals();
+    }
+    return g;
+  };
+  return { lens: spec.lens.map((l) => build(l, 0.02)), housing: [build(spec.housing, 0.01)] };
+}
+
 export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): CarParts {
   const st = STYLES[type === 'cab' ? 'crown' : type === 'cop' ? 'charger' : type];
   const hatchy = st.rails || !!st.hatchback; // tailgate bodies: no boot lid, no rear bench
@@ -1398,30 +1466,8 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   const ltx = trR.wMax - 0.17;
   const head = new Acc();
   const tail = new Acc();
-  // a lamp set on the rounded corner: its inner end sits d metres back from the tip, its outer end where the plan curve is one lamp-length
-  // further round the corner (the lamp is a chord of the curve, pushed out by the sagitta), so it sweeps back along the fender
-  const LAMP_X: Record<string, [number, number]> = { swept: [-0.2, 0.28], box: [-0.16, 0.2], angular: [-0.15, 0.19], tall: [-0.058, 0.058], box2: [-0.2, 0.2] };
-  const cornerPose = (front: boolean, d1: number, kind: string): { pos: THREE.Vector3; yaw: number; yT: number } => {
-    const [x0, x1] = LAMP_X[kind] ?? [-0.15, 0.15];
-    const len = x1 - x0;
-    const uAt = (d: number): number => (front ? tipF - d : tipR + d);
-    const xAt = (d: number): number => ring(uAt(d)).wMax - 0.012 - (front && d === d1 ? st.lampInset ?? 0 : 0);
-    const xa = xAt(d1);
-    let d2 = d1 + 0.02;
-    while (d2 < d1 + 1.2 && Math.hypot(xAt(d2) - xa, d2 - d1) < len) d2 += 0.01;
-    const xb = xAt(d2);
-    const ang = Math.atan2(xb - xa, d2 - d1); // chord angle from the car axis
-    const sag = 0.02;
-    const t0 = -x0 / len; // where the shape origin sits along the chord
-    const cx = xa + (xb - xa) * t0, cd = d1 + (d2 - d1) * t0;
-    const nx = Math.cos(ang), nd = Math.sin(ang); // outward normal of the chord in (x, d)
-    const yaw = (front ? -1 : 1) * ang;
-    void nd;
-    return { pos: v3(cx + nx * sag, 0, -uAt(cd) + (front ? -1 : 1) * 0 + (front ? -Math.sin(ang) * sag : Math.sin(ang) * sag)), yaw, yT: ring(uAt(cd)).yT };
-  };
-  if (st.headLamp && st.lampD !== undefined) {
-    const c = cornerPose(true, st.lampD, st.headLamp);
-    const hp = lampPieces(st.headLamp, true, v3(c.pos.x, st.headY ?? c.yT - 0.09, c.pos.z), c.yaw);
+  if (st.headLamp && st.lampD !== undefined && WRAP_LAMPS[st.headLamp]) {
+    const hp = wrapLamp(st.headLamp, true, tipF, (d) => ring(tipF - d).wMax - 0.012, trF.wMax * (st.grilleW ?? 0.8) + 0.04, st.headY ?? ring(tipF - 0.15).yBelt - 0.14);
     for (const g of hp.lens) head.addBoth(g);
     for (const g of hp.housing) trim.addBoth(g);
   } else if (st.headLamp) {
@@ -1431,9 +1477,9 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   } else {
     for (const [sx2, yaw] of [[-1, 0.25], [1, -0.25]] as const) head.add(placeLamp(lensGeo(0.14, 0.05, 0.045, true), v3(sx2 * lx, lampHeadY, -tipF), yaw));
   }
-  if (st.tailLamp && st.tailD !== undefined) {
-    const c = cornerPose(false, st.tailD, st.tailLamp);
-    const tp = lampPieces(st.tailLamp, false, v3(c.pos.x, st.tailY ?? c.yT - 0.12, c.pos.z), c.yaw, st.glassTop !== undefined ? 1.7 : 1);
+  if (st.tailLamp && st.tailD !== undefined && WRAP_LAMPS[st.tailLamp]) {
+    const wide = st.tailLamp !== 'tall';
+    const tp = wrapLamp(st.tailLamp, false, tipR, (d) => ring(tipR + d).wMax - 0.012, ring(tipR).wMax - (wide ? 0.36 : 0.03), st.tailY ?? (wide ? ring(tipR + 0.1).yT - 0.17 : ring(tipR + 0.1).yT - 0.2), st.glassTop !== undefined ? 2 : 1);
     for (const g of tp.lens) tail.addBoth(g);
     for (const g of tp.housing) trim.addBoth(g);
   } else if (st.tailLamp) {

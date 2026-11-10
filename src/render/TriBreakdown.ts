@@ -71,24 +71,27 @@ export function triBreakdown(scene: THREE.Object3D, camera: THREE.Camera, render
     sphere.copy(g.boundingSphere).applyMatrix4(m.matrixWorld);
     return f.intersectsSphere(sphere);
   };
-  const walk = (o: THREE.Object3D, path: string): void => {
-    if (!o.visible) return;
+  const walkPass = (pass: 'scene' | 'shadow', o: THREE.Object3D, path: string): void => {
+    // the AoProxy shadowGroup is only visible while the shadow map renders (AoProxy.ts)
+    const vis = o.name === 'shadow-proxy' ? pass === 'shadow' : o.visible;
+    if (!vis) return;
     const here = path + '/' + (o.name || o.type);
     const m = o as THREE.Mesh;
-    if (m.isMesh && !(o as THREE.Sprite).isSprite && m.geometry) {
+    if (m.isMesh && m.geometry && (pass === 'scene' || m.castShadow)) {
       const inst = !!(m as THREE.InstancedMesh).isInstancedMesh;
-      const cat = categorize(here, inst);
-      if (!inst || (m as THREE.InstancedMesh).count > 0) {
+      const f = pass === 'scene' ? fr : sfr;
+      if (f && (!inst || (m as THREE.InstancedMesh).count > 0)) {
         const t = drawTris(m);
-        if (t > 0) {
-          if (inFrustum(fr, m)) { add('scene', cat, t); out.top.push({ pass: 'scene', name: here.slice(-90), cat, tris: t, inst: inst ? (m as THREE.InstancedMesh).count : 1 }); }
-          if (sfr && m.castShadow && inFrustum(sfr, m)) { add('shadow', cat, t); out.top.push({ pass: 'shadow', name: here.slice(-90), cat, tris: t, inst: inst ? (m as THREE.InstancedMesh).count : 1 }); }
+        if (t > 0 && inFrustum(f, m)) {
+          const cat = categorize(here, inst);
+          add(pass, cat, t); out.top.push({ pass, name: here.slice(-90), cat, tris: t, inst: inst ? (m as THREE.InstancedMesh).count : 1 });
         }
       }
     }
-    for (const c of o.children) walk(c, here);
+    for (const c of o.children) walkPass(pass, c, here);
   };
-  walk(scene, '');
+  walkPass('scene', scene, '');
+  if (sfr) walkPass('shadow', scene, '');
   out.top.sort((a, b) => b.tris - a.tris); out.top = out.top.slice(0, 40);
   return out;
 }

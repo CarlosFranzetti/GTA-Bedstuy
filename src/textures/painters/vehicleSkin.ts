@@ -312,7 +312,7 @@ function weatherFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): v
   const primer = side === 'right' ? '#6f7864' : '#8d8f8a';
   s.solid(xa + 1.5, beltY + 1, xb - xa - 2, Y(0.15) - beltY - 1, primer);
   s.shade(xa + 1.5, beltY + 1, xb - xa - 2, 1, '#000000', 0.0);
-  for (let i = 0; i < 18; i++) s.solid(xa + rng.range(2, Math.max(3, xb - xa - 6)), rng.range(beltY + 2, Y(0.18)), rng.range(2, 6), rng.range(1, 3), rng.chance(0.5) ? '#5e6658' : '#9a9b94');
+  for (let i = 0; i < 10; i++) s.solid(xa + rng.range(2, Math.max(3, xb - xa - 6)), rng.range(beltY + 2, Y(0.18)), rng.range(2, 5), rng.range(1, 2), rng.chance(0.5) ? '#646d59' : '#838a7a');
   // rust: freckles along the sill, arch lips and the bottom of the doors, a couple of bigger blooms
   const rust = ['#7a3d1c', '#9a5326', '#5c2d14', '#b0642a'];
   for (let i = 0; i < 90; i++) {
