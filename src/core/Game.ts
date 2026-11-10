@@ -4,9 +4,12 @@ import type { Body2D } from '@/world/types';
 export interface Updatable { update(dt: number): void; }
 
 export const FIXED_STEP = 1 / 60;
-export const MAX_STEPS_PER_FRAME = 5;
+/** At most this many catch-up steps per rendered frame; the rest of the backlog is dropped (slow motion beats a death spiral on phones). */
+export const MAX_STEPS_PER_FRAME = 3;
+/** Wall-clock budget (ms) for the steps of one frame: once spent, the remaining steps and backlog are dropped. */
+export const STEP_BUDGET_MS = 20;
 /** Longest frame (s) fed to the accumulator; longer stalls (tab switch, GC) are clamped. */
-export const MAX_FRAME = 0.1;
+export const MAX_FRAME = 0.05;
 
 /** Render interpolation factor for an accumulator value: acc / step clamped to [0, 1]. */
 export function interpAlpha(acc: number, step: number): number {
@@ -107,7 +110,11 @@ export class Game {
       let n = 0;
       if (!this._paused) {
         n = this.stepper.advance(frame);
-        for (let i = 0; i < n; i++) for (let j = 0; j < this.systems.length; j++) this.systems[j].update(this.step);
+        const t0 = performance.now();
+        for (let i = 0; i < n; i++) {
+          for (let j = 0; j < this.systems.length; j++) this.systems[j].update(this.step);
+          if (i + 1 < n && performance.now() - t0 > STEP_BUDGET_MS) { this.stepper.reset(); break; } // steps are costing more than real time: drop the backlog
+        }
       }
       this.alpha = this.stepper.alpha;
       this.frameDt = frame;

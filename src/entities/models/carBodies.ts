@@ -248,7 +248,7 @@ export interface LoftSpec {
   /** half-ring indices whose vertex is duplicated so the surface has a hard crease there */
   creases: number[];
   /** what a quad (station interval midpoint, half-ring segment j = idx j -> j+1) is made of */
-  cls: (um: number, j: number) => Kind;
+  cls: (um: number, j: number, left: boolean) => Kind;
   /** rings at both ends are closed with a flat cap */
   caps?: boolean;
   /** 2 = every ring segment is split in two with a smooth 4-point scheme (crease corners stay sharp); P/N/cls keep the original slot numbering */
@@ -355,7 +355,7 @@ export function buildLoft(spec: LoftSpec): Hull {
       const v01 = i * C + c1;
       const v10 = (i + 1) * C + c0;
       const v11 = (i + 1) * C + c1;
-      const kind = spec.cls(um, Math.floor(j / rf));
+      const kind = spec.cls(um, Math.floor(j / rf), k >= n - 1);
       byKind[kind].push(v00, v01, v11, v00, v11, v10);
       all.push(v00, v01, v11, v00, v11, v10);
     }
@@ -458,6 +458,8 @@ export function endG(d: number, dr: number): number {
 /** Passenger-car half ring: roof centre -> belt -> sill (13 points, crease between idx 6 and 7). */
 export interface CarRing {
   yT: number; yBelt: number; yBot: number; wMax: number; wR: number;
+  /** vans: top of the side glass (the band between it and the belt is the only glass); the wall above is paint */
+  yGl?: number;
 }
 const CAR_CREASE = 6;
 export function carHalf(r: CarRing): V2[] {
@@ -473,13 +475,20 @@ export function carHalf(r: CarRing): V2[] {
   const yB4 = r.yBelt - 0.05;
   const yB3 = Math.min(r.yBot + 0.58 * h, yB4 - 0.03);
   const yB2 = Math.min(r.yBot + 0.2 * h, yB3 - 0.03);
+  let p4: V2 = [wl(0.86), yl(0.86)];
+  let p5: V2 = [wl(0.4), yl(0.4)];
+  if (r.yGl !== undefined && r.yGl < yR - 0.05) {
+    const at = (y: number): V2 => { const t = clamp((y - yG0) / (yR - yG0), 0, 1); return [lerp(wG0, wR, t) + bulge * Math.sin(Math.PI * t), y]; };
+    p4 = at(r.yGl);
+    p5 = at((r.yGl + yG0) / 2);
+  }
   return [
     [0, r.yT],
     [wR * 0.5, r.yT - crown * 0.25],
     [wR * 0.88, r.yT - crown * 0.77],
     [wR, yR],
-    [wl(0.86), yl(0.86)],
-    [wl(0.4), yl(0.4)],
+    p4,
+    p5,
     [wG0, yG0],
     [r.wMax - 0.035, r.yBelt],
     [r.wMax - 0.01, yB4],
@@ -612,7 +621,7 @@ export interface Style {
   axle: number;
   /** [u, roof/deck height centre, belt height, roof half-width as a fraction of body half-width] (ref m) */
   secs: [number, number, number, number][];
-  windshield: V2; doorGlass: V2[]; bPillar: V2; rearGlass: V2;
+  windshield: V2; doorGlass: V2[]; bPillar: V2; rearGlass: V2 | null;
   seams: number[]; handles: number[];
   hoodBack: number;
   /** lowest half-ring segment index that is black plastic cladding (SUV skirts) */
@@ -630,13 +639,25 @@ export interface Style {
   /** real overall size (m) of a roster body; without it the vehicle spec's size is used */
   dims?: { L: number; W: number; H: number };
   /** lamp and grille character of the real type */
-  headLamp?: 'quad' | 'slit' | 'wedge' | 'c';
-  tailLamp?: 'bar' | 'loop';
+  headLamp?: 'quad' | 'slit' | 'wedge' | 'c' | 'swept' | 'box' | 'angular';
+  tailLamp?: 'bar' | 'loop' | 'tall' | 'box2';
   grille?: 'bars' | 'mesh' | 'wedge' | 'slats';
+  /** tailgate body (hatch, van, SUV): no boot lid, no rear bench, a tailgate cut line instead */
+  hatchback?: boolean;
+  /** vans: height of the top of the side glass (m); the wall above it is paint */
+  glassTop?: number;
+  /** absolute lamp centre heights (m) when the default (fascia top minus a constant) does not fit */
+  headY?: number; tailY?: number;
+  /** head lamp: inset from the body edge (m) and yaw (rad, negative = swept back at the outer end) */
+  lampIn?: number; lampYaw?: number;
+  /** tail lamp inset and yaw */
+  tailIn?: number; tailYaw?: number;
+  /** big upright van mirrors on the A pillar */
+  mirror?: 'van';
 }
 
-export type PassengerStyle = 'sedan' | 'coupe' | 'suv' | 'cop' | 'cab';
-export type StyleKey = 'sedan' | 'coupe' | 'suv' | 'crown' | 'charger';
+export type PassengerStyle = 'sedan' | 'coupe' | 'suv' | 'cop' | 'cab' | 'cargo' | 'hatch' | 'beater';
+export type StyleKey = 'sedan' | 'coupe' | 'suv' | 'crown' | 'charger' | 'cargo' | 'hatch' | 'beater';
 export const STYLES: Record<StyleKey, Style> = {
   // "Kamari": a mid-size front-drive sedan of the Toyota Camry type (XV70, 2018-): length 4,879-4,885 mm (192.1 in), wheelbase 2,825 mm
   // (111.2 in), width 1,840 mm (72.4 in), height 1,445-1,455 mm. VEHICLE_SPECS.sedan carries the same size.
@@ -669,7 +690,7 @@ export const STYLES: Record<StyleKey, Style> = {
     hoodBack: 0.92,
     clad: 11,
     rails: false, spoiler: true, maxGap: 0.22, archN: 8,
-    headLamp: 'wedge', grille: 'wedge',
+    headLamp: 'swept', grille: 'wedge', lampIn: 0.13, lampYaw: -0.5,
     bumperY: 0.34, bumperH: 0.22,
     plan: [[-2.3, 0.9], [-1.7, 0.97], [-0.9, 1], [0.9, 1], [1.7, 0.98], [2.3, 0.92]],
   },
@@ -812,6 +833,115 @@ export const STYLES: Record<StyleKey, Style> = {
     bumperY: 0.45, bumperH: 0.28,
     plan: [[-2.45, 0.94], [-2.0, 0.99], [-1.0, 1], [1.0, 1], [2.0, 0.99], [2.45, 0.95]],
   },
+  // ROSTER. "Pacer Hop": a subcompact five-door hatchback of the Honda Fit type (GK, 2015-2020): length 4,064 mm (160 in), wheelbase
+  // 2,530 mm (99.6 in), width 1,702 mm (67 in), height 1,524 mm (60 in). Cab-forward: short hood, long raked windshield, near-vertical tailgate.
+  // Source: https://www.truedelta.com/Honda-Fit/specs-99-2015&r=4 (4dr hatch)
+  hatch: {
+    Lref: 4.06, Href: 1.52,
+    sill: 0.2, wheelR: 0.3, wheelW: 0.195,
+    axle: 1.265,
+    secs: [
+      [-2.03, 1.0, 0.9, 0.9],
+      [-1.96, 1.1, 0.95, 0.9],
+      [-1.8, 1.32, 0.98, 0.84],
+      [-1.58, 1.47, 0.99, 0.78],
+      [-1.2, 1.515, 0.99, 0.75],
+      [-0.4, 1.52, 0.99, 0.74],
+      [0.25, 1.5, 0.99, 0.75],
+      [0.65, 1.38, 0.99, 0.8],
+      [1.05, 1.07, 0.97, 0.9],
+      [1.35, 1.02, 0.94, 0.93],
+      [1.75, 0.97, 0.9, 0.93],
+      [1.95, 0.93, 0.86, 0.92],
+      [2.03, 0.88, 0.8, 0.92],
+    ],
+    windshield: [1.05, 0.25],
+    doorGlass: [[0.9, 0.0], [-0.08, -1.2]],
+    bPillar: [0.0, -0.08],
+    rearGlass: [-1.25, -1.93],
+    seams: [0.84, -0.04, -1.2],
+    handles: [0.06, -0.95],
+    hoodBack: 1.1,
+    clad: 11,
+    rails: false, spoiler: false, hatchback: true, maxGap: 0.24, archN: 6,
+    bumperY: 0.3, bumperH: 0.2,
+    plan: [[-2.05, 0.9], [-1.6, 0.97], [-0.9, 1], [0.9, 1], [1.6, 0.98], [2.05, 0.9]],
+    headLamp: 'swept', tailLamp: 'tall', grille: 'wedge', lampIn: 0.14, lampYaw: -0.5, tailIn: 0.08, tailYaw: 0.3,
+    dims: { L: 4.06, W: 1.7, H: 1.52 },
+  },
+  // ROSTER. "Marlow Sixty": a 1990s mid-size front-drive notchback of the Oldsmobile Cutlass Ciera type (1982-1996): length 190.3 in (4.83 m),
+  // wheelbase 104.9 in (2.66 m), width 69.5 in (1.77 m), height 54.1 in (1.37 m). Boxy: flat hood, upright pillars, flat deck.
+  // Source: https://en.wikipedia.org/wiki/Oldsmobile_Cutlass_Ciera (1994 sedan figures, also Edmunds / Consumer Guide)
+  beater: {
+    Lref: 4.83, Href: 1.37,
+    sill: 0.2, wheelR: 0.3, wheelW: 0.185,
+    axle: 1.332,
+    secs: [
+      [-2.415, 0.98, 0.93, 0.92],
+      [-2.2, 1.0, 0.95, 0.92],
+      [-1.9, 1.02, 0.95, 0.9],
+      [-1.45, 1.06, 0.96, 0.88],
+      [-1.2, 1.3, 0.96, 0.8],
+      [-0.95, 1.36, 0.96, 0.76],
+      [-0.4, 1.37, 0.96, 0.75],
+      [0.35, 1.37, 0.96, 0.75],
+      [0.62, 1.3, 0.96, 0.8],
+      [0.95, 1.05, 0.95, 0.9],
+      [1.4, 1.0, 0.93, 0.93],
+      [1.95, 0.97, 0.9, 0.93],
+      [2.3, 0.93, 0.86, 0.92],
+      [2.415, 0.9, 0.82, 0.92],
+    ],
+    windshield: [0.95, 0.33],
+    doorGlass: [[0.82, -0.02], [-0.07, -0.92]],
+    bPillar: [-0.02, -0.07],
+    rearGlass: [-0.98, -1.5],
+    seams: [0.85, -0.05, -0.97],
+    handles: [0.05, -0.72],
+    hoodBack: 1.0,
+    clad: 11,
+    rails: false, spoiler: false, maxGap: 0.24, archN: 6,
+    bumperY: 0.34, bumperH: 0.22,
+    plan: [[-2.42, 0.92], [-1.9, 0.98], [-0.9, 1], [0.9, 1], [1.9, 0.99], [2.42, 0.94]],
+    headLamp: 'box', tailLamp: 'box2', grille: 'slats', lampIn: 0.12, lampYaw: -0.1, tailIn: 0.12, tailYaw: 0.1,
+    dims: { L: 4.83, W: 1.77, H: 1.37 },
+  },
+  // ROSTER. "Transom 350": a full-size high-roof long-wheelbase cargo van of the Ford Transit type (US 2020-): length 235.5 in (5.98 m),
+  // wheelbase 148 in (3.75 m), width 81.3 in (2.06 m, no mirrors), height 109.6 in (2.78 m). Short nose, steep raked screen, slab sides.
+  // Sources: https://vandimensions.com/database/ford/transit-2014 , https://www.vanguide.co.uk/?p=1480 (L3 H3: 5,931 x 2,059 x 2,780, WB 3,750)
+  cargo: {
+    Lref: 5.98, Href: 2.78,
+    sill: 0.36, wheelR: 0.37, wheelW: 0.235,
+    axle: 1.875,
+    secs: [
+      [-2.95, 2.55, 1.28, 0.93],
+      [-2.8, 2.72, 1.3, 0.95],
+      [-2.3, 2.78, 1.3, 0.95],
+      [-0.5, 2.78, 1.3, 0.95],
+      [0.4, 2.76, 1.3, 0.95],
+      [0.7, 2.62, 1.3, 0.94],
+      [1.0, 2.1, 1.3, 0.92],
+      [1.55, 1.45, 1.3, 0.93],
+      [1.75, 1.27, 1.25, 0.93],
+      [2.2, 1.2, 1.15, 0.93],
+      [2.7, 1.1, 0.95, 0.93],
+      [2.95, 1.02, 0.85, 0.93],
+    ],
+    windshield: [1.55, 1.0],
+    doorGlass: [[1.4, 0.55]],
+    bPillar: [0.55, 0.48],
+    rearGlass: null,
+    seams: [1.42, 0.48, -0.9],
+    handles: [1.0, -0.6],
+    hoodBack: 1.75,
+    clad: 11,
+    rails: false, spoiler: false, hatchback: true, maxGap: 0.9, archN: 5, endT: [0, 1],
+    glassTop: 2.0, headY: 0.86, tailY: 1.2, mirror: 'van',
+    bumperY: 0.5, bumperH: 0.3,
+    plan: [[-2.95, 0.96], [-2.2, 0.99], [-1, 1], [1, 1], [2.3, 0.98], [2.95, 0.92]],
+    headLamp: 'angular', tailLamp: 'tall', grille: 'wedge', lampIn: 0.12, lampYaw: -0.15, tailIn: 0.0, tailYaw: 0,
+    dims: { L: 5.98, W: 2.06, H: 2.78 },
+  },
 };
 
 export function wheelRadiusFor(type: VehicleType): number {
@@ -854,7 +984,7 @@ export function wheelLiner(a: Arch, x0: number, x1: number, z: number): THREE.Bu
   return inverted(g);
 }
 
-interface CabinLayout { ws: V2; doors: V2[]; rg: V2 | null; seams: number[]; }
+interface CabinLayout { ws: V2; doors: V2[]; rg: V2 | null; seams: number[]; topSlot?: number; }
 
 /** Chrome window surrounds + belt moulding and dark door seams, all riding on the hull's own vertices. */
 export function cabinTrim(hull: Hull, chrome: Acc, trim: Acc, lay: CabinLayout): void {
@@ -870,7 +1000,7 @@ export function cabinTrim(hull: Hull, chrome: Acc, trim: Acc, lay: CabinLayout):
   for (const d of doors) {
     const iA = hull.at(d[0]);
     const iB = hull.at(d[1]);
-    const top = (i: number): number => (hull.us[i] > ws[1] + 0.001 && hull.us[i] <= ws[0] ? 4 : 3);
+    const top = (i: number): number => (lay.topSlot ?? (hull.us[i] > ws[1] + 0.001 && hull.us[i] <= ws[0] ? 4 : 3));
     chrome.addBoth(rib([[iA, 6], [iA, 5], [iA, top(iA)]]));
     chrome.addBoth(rib(seq(iA, iB).map((i) => [i, top(i)] as [number, number])));
     chrome.addBoth(rib([[iB, top(iB)], [iB, 5], [iB, 6]]));
@@ -914,7 +1044,7 @@ const rect = (cx: number, cy: number, w: number, h: number): [number, number][] 
  * One lamp of a pair, right-hand side, ready to `addBoth`: lens shapes (emissive mesh) and the dark housing behind (trim).
  * Faces forward (front = true, -z) or back (+z) at `pos` on the fascia, turned by `yaw`. Local shapes are centred on the lamp.
  */
-function lampPieces(kind: string, front: boolean, pos: THREE.Vector3, yaw: number): { lens: THREE.BufferGeometry[]; housing: THREE.BufferGeometry[] } {
+function lampPieces(kind: string, front: boolean, pos: THREE.Vector3, yaw: number, k = 1): { lens: THREE.BufferGeometry[]; housing: THREE.BufferGeometry[] } {
   const D = 0.03;
   let lens: [number, number][][] = [];
   let lensHoles: [number, number][][][] = [];
@@ -924,6 +1054,12 @@ function lampPieces(kind: string, front: boolean, pos: THREE.Vector3, yaw: numbe
     case 'slit': lens = [[[-0.17, -0.012], [0.17, 0.016], [0.17, 0.046], [-0.17, 0.014]], [[-0.17, -0.03], [0.17, -0.003], [0.17, 0.004], [-0.17, -0.023]]]; hous = [[-0.19, -0.04], [0.19, -0.006], [0.19, 0.06], [-0.19, 0.03]]; break; // narrow scowl + DRL
     case 'wedge': lens = [[[-0.19, -0.04], [0.19, 0.035], [0.19, 0.075], [-0.19, 0.0]], [[-0.17, -0.07], [0.17, 0.0], [0.17, 0.012], [-0.17, -0.058]]]; hous = [[-0.2, -0.08], [0.2, 0.0], [0.2, 0.09], [-0.2, 0.015]]; break; // swept-back
     case 'c': lens = [rect(0, 0.06, 0.26, 0.026), rect(0, -0.06, 0.26, 0.026), rect(0.118, 0, 0.026, 0.146)]; hous = rect(0, 0, 0.3, 0.19); break; // C-shape DRL signature
+    // Camry-type swept-back lamp: tall at the inner end, a long tapered tail that rises and runs back along the fender, DRL strip below
+    case 'swept': lens = [[[-0.2, -0.04], [-0.1, -0.055], [0.12, -0.005], [0.27, 0.07], [0.28, 0.1], [0.1, 0.082], [-0.2, 0.045]], [[-0.17, -0.075], [0.08, -0.05], [0.2, -0.01], [0.2, 0.002], [0.08, -0.038], [-0.17, -0.063]]]; hous = [[-0.22, -0.07], [0.1, -0.08], [0.3, 0.045], [0.31, 0.13], [-0.22, 0.08]]; break;
+    case 'box': lens = [rect(-0.02, 0.0, 0.25, 0.1), rect(0.16, -0.02, 0.07, 0.06)]; hous = rect(0.02, 0, 0.36, 0.14); break; // sealed composite rectangle + side marker
+    case 'angular': lens = [[[-0.15, -0.09], [0.17, -0.07], [0.19, 0.08], [-0.15, 0.1]], [[-0.15, -0.115], [0.16, -0.095], [0.16, -0.085], [-0.15, -0.105]]]; hous = [[-0.17, -0.12], [0.21, -0.09], [0.22, 0.1], [-0.17, 0.12]]; break; // tall slanted van lamp
+    case 'tall': lens = [rect(0, 0, 0.075, 0.3 * k)]; hous = rect(0, 0, 0.115, 0.34 * k); break; // upright rear-corner lamp (hatch, van)
+    case 'box2': lens = [rect(0, 0.005, 0.34, 0.085), rect(0, -0.055, 0.34, 0.02)]; hous = rect(0, -0.01, 0.4, 0.16); break;
     case 'bar': lens = [rect(0, 0, 0.46, 0.07)]; hous = rect(0, 0, 0.5, 0.1); break; // wide red bar
     case 'loop': { const o = rect(0, 0, 0.5, 0.075), i = rect(0, 0, 0.44, 0.035); lens = [o]; lensHoles = [[i]]; hous = rect(0, 0, 0.54, 0.105); break; } // racetrack
     default: lens = [rect(0, 0, 0.3, 0.07)];
@@ -940,7 +1076,8 @@ function lampPieces(kind: string, front: boolean, pos: THREE.Vector3, yaw: numbe
 }
 
 export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): CarParts {
-  const st = STYLES[type === 'suv' ? 'suv' : type === 'coupe' ? 'coupe' : type === 'cab' ? 'crown' : type === 'cop' ? 'charger' : 'sedan'];
+  const st = STYLES[type === 'cab' ? 'crown' : type === 'cop' ? 'charger' : type];
+  const hatchy = st.rails || !!st.hatchback; // tailgate bodies: no boot lid, no rear bench
   const planAt = monotone(st.plan.map((p) => p[0]), st.plan.map((p) => p[1]));
   const { length: L, width: W, height: H } = st.dims ? { length: st.dims.L, width: st.dims.W, height: st.dims.H } : spec;
   const kx = L / st.Lref;
@@ -977,7 +1114,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
     const yT = fyT(u) - drop;
     yBot = Math.min(yBot, yBelt - 0.13);
     const wMax = Wb2 * (0.6 + 0.4 * g) * planAt(u / kx);
-    return { yT, yBelt, yBot, wMax, wR: fwR(u) * wMax };
+    return { yT, yBelt, yBot, wMax, wR: fwR(u) * wMax, yGl: st.glassTop === undefined ? undefined : st.glassTop * ky };
   };
 
   // ---- window layout in real metres
@@ -985,7 +1122,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   const ws = sx(st.windshield);
   const doors = st.doorGlass.map(sx);
   const bp = sx(st.bPillar);
-  const rg = sx(st.rearGlass);
+  const rg = st.rearGlass ? sx(st.rearGlass) : null;
   const seams = st.seams.map((v) => v * kx);
   const handles = st.handles.map((v) => v * kx);
   const hoodBackU = st.hoodBack * kx;
@@ -995,11 +1132,12 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   const cls = (um: number, j: number): Kind => {
     if (um <= hoodFrontU && um >= hoodBackU && j <= 5) return 'none'; // under the hood panel (a flat dark box fills the bay)
     const inW = inI(um, ws);
-    if ((inW || inI(um, rg)) && j <= 1) return 'glass';
+    if ((inW || (rg && inI(um, rg))) && j <= 1) return 'glass';
     if (inI(um, bp) && j >= 3 && j <= 5) return 'dark';
     if (j >= 3 && j <= 5) {
       if (doors.some((d) => inI(um, d))) {
-        if (!inW || j >= 4) return 'glass';
+        if (st.glassTop !== undefined) { if (j >= 4) return 'glass'; } // van: only the band under the glass top
+        else if (!inW || j >= 4) return 'glass';
       }
     }
     if (j === 11) return 'none'; // underside, covered by the pan
@@ -1011,7 +1149,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
     return 'paint';
   };
 
-  const must: number[] = [tipF, tipR, ...ws, ...doors.flat(), ...bp, ...rg, hoodBackU, hoodFrontU]; // seams snap to the nearest station
+  const must: number[] = [tipF, tipR, ...ws, ...doors.flat(), ...bp, ...(rg ?? []), hoodBackU, hoodFrontU]; // seams snap to the nearest station
   const want: number[] = [];
   for (const t of st.endT ?? END_T) { want.push(tipF - t * drF, tipR + t * drR); }
   for (const ax of [axleF, axleR]) want.push(...archStations(arch, ax, st.archN ?? 4));
@@ -1045,13 +1183,13 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
 
   // ---- chrome window surrounds + belt moulding, door seams
   // skinned bodies (sedan, coupe, SUV) carry their door gaps in the baked skin + normal map; ribbons would double the lines
-  cabinTrim(hull, chrome, trim, { ws, doors, rg, seams: type === 'cab' || type === 'cop' ? seams : [] });
+  cabinTrim(hull, chrome, trim, { ws, doors, rg, seams: type === 'cab' || type === 'cop' ? seams : [], topSlot: st.glassTop !== undefined ? 4 : undefined });
   for (const hu of handles) {
     const yH = fyBelt(hu) - 0.075;
     chrome.addBoth(bx(0.012, 0.022, 0.13, sideX(hu, yH) + 0.008, yH, -hu));
   }
   // fuel filler flap on the right rear quarter: a thin dark outline (the flap itself stays body colour)
-  if (!st.rails) {
+  if (!hatchy) {
     const uF = tipR + 0.62 * kx;
     const yF = fyBelt(uF) - 0.14;
     const sxF = sideX(uF, yF) + 0.004;
@@ -1069,12 +1207,12 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
     const across = (i: number): [number, number][] => [18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6].map((sl) => [i, sl] as [number, number]);
     trim.add(rib(across(iB), 0.009, 0.011));
     trim.add(rib(across(iF), 0.009, 0.011));
-    if (!st.rails) {
+    if (!hatchy && rg) {
       const iT0 = hull.at(rg[1] - 0.04 * kx), iT1 = hull.at(tipR + 0.3 * kx);
       for (const sl of [18, 6]) trim.add(rib(seq(iT0, iT1).map((i) => [i, sl] as [number, number]), 0.009, 0.011));
       trim.add(rib(across(iT0), 0.009, 0.011));
       trim.add(rib(across(iT1), 0.009, 0.011));
-    } else {
+    } else if (rg) {
       const iT0 = hull.at(rg[1] + 0.02 * kx);
       trim.add(rib(across(iT0), 0.009, 0.011)); // tailgate cut line
     }
@@ -1089,12 +1227,20 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
 
   // ---- mirrors (paint housing + dark face), tips stay within W / 2 + 0.02
   const uMir = doors[0][0] - 0.02;
-  const yMir = fyBelt(uMir) + 0.075;
-  const mx = Wb2 + 0.01;
-  const housing = new THREE.SphereGeometry(1, 5, 3).scale(0.045, 0.045, 0.08);
-  housing.translate(mx, yMir, -uMir);
-  paint.addBoth(housing);
-  trim.addBoth(bx(0.1, 0.02, 0.04, Wb2 - 0.01, yMir - 0.03, -uMir - 0.02));
+  if (st.mirror === 'van') {
+    // tall upright van mirror on a short arm: dark housing and a glass-black face, still inside the +0.02 m width allowance
+    const yM = 1.62 * ky;
+    trim.addBoth(bx(0.07, 0.3, 0.17, Wb2 + 0.035, yM, -uMir - 0.04));
+    trim.addBoth(bx(0.1, 0.03, 0.04, Wb2 - 0.04, yM - 0.05, -uMir - 0.02));
+    chrome.addBoth(bx(0.012, 0.26, 0.15, Wb2 + 0.074, yM, -uMir - 0.04));
+  } else {
+    const yMir = fyBelt(uMir) + 0.075;
+    const mx = Wb2 + 0.01;
+    const housing = new THREE.SphereGeometry(1, 5, 3).scale(0.045, 0.045, 0.08);
+    housing.translate(mx, yMir, -uMir);
+    paint.addBoth(housing);
+    trim.addBoth(bx(0.1, 0.02, 0.04, Wb2 - 0.01, yMir - 0.03, -uMir - 0.02));
+  }
 
   // ---- wipers (two dark blades at the windshield base) and a cowl strip
   {
@@ -1117,7 +1263,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   trim.add(bx(2 * Wb2 * intakeW, st.grille === 'mesh' ? 0.09 : 0.07, 0.02, 0, st.bumperY - 0.03, -(bumperZ + 0.004)));
   if (st.grille === 'mesh') chrome.add(bx(2 * Wb2 * intakeW + 0.04, 0.012, 0.016, 0, st.bumperY + 0.03, -(bumperZ + 0.012))); // splitter lip line
   if (st.grille === 'wedge') trim.add(bx(2 * Wb2 * 0.4, 0.05, 0.02, 0, st.bumperY + 0.07, -(bumperZ + 0.004))); // stepped trapezoid intake
-  for (const s of st.rails ? [] : [-1, 1]) { // the SUV's tall bumper carries no fog lamps (triangle budget)
+  for (const s of st.rails || st.mirror ? [] : [-1, 1]) { // the SUV's tall bumper carries no fog lamps (triangle budget)
     chrome.add(new THREE.CircleGeometry(0.045, 8).rotateY(Math.PI).translate(s * (Wb2 * 0.78), st.bumperY - 0.02, -(bumperZ + 0.004)));
   }
   // grille: dark panel, two chrome slats, chrome surround, badge
@@ -1165,7 +1311,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
     trim.add(bx(0.06, 0.34, 0.9 * kx, s * (Wb2 - 0.07), yBeltC - 0.22, -(doors[0][0] + doors[0][1]) / 2)); // door card
   }
   trim.add(bx(0.16, 0.14, 0.6, 0, seatY + 0.05, -(seatU + 0.12))); // centre console
-  if (!st.rails) {
+  if (!hatchy && rg) {
     trim.add(bx(2 * Wb2 * 0.72, 0.5, 0.12, 0, seatY + 0.26, -(rg[0] + 0.2)));
     trim.add(bx(2 * Wb2 * 0.72, 0.1, 0.5, 0, seatY + 0.0, -(rg[0] + 0.45))); // rear cushion
     for (const s of [-1, 0, 1]) trim.add(bx(0.16, 0.1, 0.07, s * 0.4, seatY + 0.58, -(rg[0] + 0.2))); // rear headrests

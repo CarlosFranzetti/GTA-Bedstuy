@@ -24,7 +24,8 @@ export const SOFT_PREFIX = 'soft-';
 /** Dynamic hash is rebuilt once per step; bodies move after that, so queries between steps are padded. */
 const DYN_QUERY_PAD = 2;
 const RAY_LINEAR_FALLBACK_CELLS = 400;
-const CELL_LIMIT = 32000;
+/** Cell indices stay within +-16000 so the hash key below is a small integer (< 2^30): larger numbers are heap-allocated by V8 on every Map access. */
+const CELL_LIMIT = 16000;
 
 interface Entry {
   body: Body2D;
@@ -56,7 +57,7 @@ class SpatialHash {
     const c = Math.floor(v / this.cell);
     return c < -CELL_LIMIT ? -CELL_LIMIT : c > CELL_LIMIT ? CELL_LIMIT : c;
   }
-  private static key(cx: number, cz: number): number { return (cx + 32768) * 65536 + (cz + 32768); }
+  private static key(cx: number, cz: number): number { return (cx + 16384) * 32768 + (cz + 16384); }
 
   insert(e: Entry, minX: number, minZ: number, maxX: number, maxZ: number): void {
     const cx0 = this.cellOf(minX), cx1 = this.cellOf(maxX), cz0 = this.cellOf(minZ), cz1 = this.cellOf(maxZ);
@@ -156,7 +157,9 @@ function invMass(b: Body2D): number {
 }
 
 function pairKey(a: Entry, b: Entry): number {
-  return a.idx < b.idx ? a.idx * 1048576 + b.idx : b.idx * 1048576 + a.idx;
+  const lo = a.idx < b.idx ? a.idx : b.idx, hi = a.idx < b.idx ? b.idx : a.idx;
+  // small ids give a small-integer key (< 2^30, no heap number per Map access); ids keep growing with spawns, so very large ones fall back to the wide key
+  return hi < 32768 ? lo * 32768 + hi : lo * 1048576 + hi;
 }
 
 export class World2D implements IWorld2D {
