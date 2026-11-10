@@ -151,3 +151,13 @@
 .rl-sc-count { opacity: 0.8; }
 .rl-sc-keywords { margin: 2px 0 4px; }
 .rl-sc-pool { margin: 2px 0 8px; }
+
+/* Tap to start radio / no-stream notice */
+.rl-tapbar {
+  position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+  z-index: 2147483001; display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 32px);
+  padding: 8px 12px; border-radius: 10px; background: rgba(20, 22, 29, 0.94); color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.22); font: 13px system-ui, Arial, sans-serif; pointer-events: auto;
+}
+.rl-tapbar[hidden] { display: none; }
+.rl-tap { min-height: 44px; padding: 0 16px; font-size: 15px; }

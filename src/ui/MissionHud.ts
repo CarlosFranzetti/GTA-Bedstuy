@@ -2,6 +2,7 @@ import './mission.css';
 import { angleDiff, headingFromVec, type Vec2 } from '@/core/Math2';
 import type { MissionHudState, MissionMarker } from '@/game/missions/types';
 import { cycleNavTarget, getNavTarget } from '@/game/missions/NavTargets';
+import { WAYPOINT_REACHED_M, getWaypoint, setWaypoint } from '@/game/missions/Waypoint';
 
 const TOAST_MS = 4200;
 const LOW_SECONDS = 15;
@@ -184,8 +185,13 @@ export class MissionHud {
     let best: MissionMarker | null = null;
     let bestD = Infinity;
     const active = this.lastStatus === 'active';
-    const nav = !active && this.lastStatus === 'idle' ? getNavTarget() : null;
-    if (nav) {
+    const wp = this.lastStatus !== 'failed' ? getWaypoint() : null;
+    const nav = !wp && !active && this.lastStatus === 'idle' ? getNavTarget() : null;
+    if (wp) {
+      best = { id: 'waypoint', kind: 'giver', x: wp.x, z: wp.z, radius: WAYPOINT_REACHED_M, color: '#38bdf8', label: wp.label };
+      bestD = Math.hypot(wp.x - playerPos.x, wp.z - playerPos.z);
+      if (bestD < WAYPOINT_REACHED_M && !this.inside) { setWaypoint(null); this.showToast('Waypoint reached', 'good'); }
+    } else if (nav) {
       best = { id: `nav:${nav.id}`, kind: 'giver', x: nav.x, z: nav.z, radius: nav.radius, color: '#7cd6a0', label: nav.label };
       bestD = Math.hypot(nav.x - playerPos.x, nav.z - playerPos.z);
     } else if (active || this.lastStatus === 'idle') {
@@ -204,7 +210,7 @@ export class MissionHud {
     this.pointerEl.hidden = false;
     this.pointerEl.dataset.dist = bestD.toFixed(1); // exact metres to the target, for the playtest state and tests
     this.pointerEl.dataset.kind = best.kind;
-    const prefix = active ? 'Goal' : nav ? 'Nav' : 'Offer';
+    const prefix = wp ? 'Pin' : active ? 'Goal' : nav ? 'Nav' : 'Offer';
     // Interiors are built 3 km off the map, so the straight distance to a street marker is meaningless in there.
     // "inside" is a where-it-is hint; for an objective that is to leave, it would contradict itself ("Head back outside  inside").
     const leaving = /\b(outside|leave|exit)\b/i.test(best.label);

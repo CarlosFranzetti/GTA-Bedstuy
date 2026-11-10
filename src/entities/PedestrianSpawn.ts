@@ -74,3 +74,29 @@ export class PedSpawnScheduler {
     return 'none';
   }
 }
+
+/** Closest a new / relocated pedestrian may appear when the spot is out of the camera's sight (behind the player, round a corner) (m). */
+export const HIDDEN_RING_MIN = 28;
+/** Half-width of the sight cone (rad): the on-foot camera is 64 deg tall; with a wide aspect and the chase swing, 60 deg each side is safe. */
+export const VIEW_HALF_ANGLE = (60 * Math.PI) / 180;
+
+export interface Vec2Like { x: number; z: number }
+
+/** Is `p` inside the camera's sight cone from `player` looking along the unit vector `facing`? Unknown facing counts as in view. */
+export function inViewCone(player: Vec2Like, facing: Vec2Like | null, p: Vec2Like): boolean {
+  if (!facing) return true;
+  const dx = p.x - player.x, dz = p.z - player.z, d = Math.hypot(dx, dz);
+  if (d < 1e-6) return true;
+  return (dx * facing.x + dz * facing.z) / d >= Math.cos(VIEW_HALF_ANGLE);
+}
+
+/**
+ * May a pedestrian appear at `p`? From SPAWN_RING_MIN out always (to SPAWN_RING_MAX); from HIDDEN_RING_MIN when the spot is outside
+ * the sight cone or a building blocks the line to it (`occluded`, from a ray test the caller makes only for the close candidates).
+ */
+export function spawnAllowed(player: Vec2Like, facing: Vec2Like | null, p: Vec2Like, occluded: () => boolean): boolean {
+  const d = Math.hypot(p.x - player.x, p.z - player.z);
+  if (d > SPAWN_RING_MAX || d < HIDDEN_RING_MIN) return false;
+  if (d >= SPAWN_RING_MIN) return true;
+  return !inViewCone(player, facing, p) || occluded();
+}

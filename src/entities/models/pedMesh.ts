@@ -42,6 +42,22 @@ export function peopleReady(): boolean { return peopleFlag() && shapes.size > 0;
 export function peopleShapes(): string[] { return [...shapes.keys()]; }
 export function clearPeople(): void { shapes.clear(); geoCache.clear(); }
 
+/** smooth normals; vertices at the same position (tile borders of the UV projection) share one normal */
+export function weldedNormals(pos: Float32Array, idx: Uint32Array): Float32Array {
+  const acc = new Map<string, number[]>(), keys: string[] = [];
+  const key = (i: number): string => `${Math.round(pos[i * 3] * 1e5)},${Math.round(pos[i * 3 + 1] * 1e5)},${Math.round(pos[i * 3 + 2] * 1e5)}`;
+  for (let i = 0; i < pos.length / 3; i++) { const k = key(i); keys.push(k); if (!acc.has(k)) acc.set(k, [0, 0, 0]); }
+  for (let t = 0; t < idx.length; t += 3) {
+    const a = idx[t] * 3, b = idx[t + 1] * 3, c = idx[t + 2] * 3;
+    const ux = pos[b] - pos[a], uy = pos[b + 1] - pos[a + 1], uz = pos[b + 2] - pos[a + 2], vx = pos[c] - pos[a], vy = pos[c + 1] - pos[a + 1], vz = pos[c + 2] - pos[a + 2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    for (let k = 0; k < 3; k++) { const s = acc.get(keys[idx[t + k]])!; s[0] += nx; s[1] += ny; s[2] += nz; }
+  }
+  const out = new Float32Array(pos.length);
+  keys.forEach((k, i) => { const s = acc.get(k)!, l = Math.hypot(s[0], s[1], s[2]) || 1; out[i * 3] = s[0] / l; out[i * 3 + 1] = s[1] / l; out[i * 3 + 2] = s[2] / l; });
+  return out;
+}
+
 // ---------------------------------------------------------------- loading
 
 /** Parse one shape glb (meshopt compressed) into plain arrays (dequantised, node transforms applied). */
@@ -61,12 +77,11 @@ function shapeFromGltf(gltf: GLTF): MhShape {
   gltf.scene.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh || !(o.name === 'hi' || o.name === 'mid' || o.name === 'far')) return;
-    const g = m.geometry, pa = g.getAttribute('position'), na = g.getAttribute('normal'), ua = g.getAttribute('uv'), ja = g.getAttribute('skinIndex'), wa = g.getAttribute('skinWeight');
-    const n = pa.count, v = new THREE.Vector3(), mat = m.matrixWorld, nm = new THREE.Matrix3().getNormalMatrix(mat);
-    const position = new Float32Array(n * 3), normal = new Float32Array(n * 3), uv = new Float32Array(n * 2), joints = new Uint16Array(n * 4), weights = new Float32Array(n * 4);
+    const g = m.geometry, pa = g.getAttribute('position'), ua = g.getAttribute('uv'), ja = g.getAttribute('skinIndex'), wa = g.getAttribute('skinWeight');
+    const n = pa.count, v = new THREE.Vector3(), mat = m.matrixWorld;
+    const position = new Float32Array(n * 3), uv = new Float32Array(n * 2), joints = new Uint16Array(n * 4), weights = new Float32Array(n * 4);
     for (let i = 0; i < n; i++) {
       v.set(pa.getX(i), pa.getY(i), pa.getZ(i)).applyMatrix4(mat); position.set([v.x, v.y, v.z], i * 3);
-      v.set(na.getX(i), na.getY(i), na.getZ(i)).applyMatrix3(nm).normalize(); normal.set([v.x, v.y, v.z], i * 3);
       uv[i * 2] = ua.getX(i); uv[i * 2 + 1] = ua.getY(i);
       let s = 0;
       for (let k = 0; k < 4; k++) { joints[i * 4 + k] = ja.getComponent(i, k); weights[i * 4 + k] = wa.getComponent(i, k); s += weights[i * 4 + k]; }
@@ -74,7 +89,7 @@ function shapeFromGltf(gltf: GLTF): MhShape {
     }
     const ix = g.index!, index = new Uint32Array(ix.count);
     for (let i = 0; i < ix.count; i++) index[i] = ix.getX(i);
-    lods[o.name as PedDetail] = { position, normal, uv, joints, weights, index };
+    lods[o.name as PedDetail] = { position, normal: weldedNormals(position, index), uv, joints, weights, index };
   });
   if (!lods.hi || !lods.mid || !lods.far) throw new Error('people glb needs meshes hi, mid and far');
   const p = meta as Omit<MhShape, 'name' | 'lods'> & { shape: string };

@@ -11,6 +11,7 @@
  * with a software canvas and the fake canvases only record. Everything is deterministic given the rng and the variant.
  * No fillText: prints use a 3 x 5 pixel font drawn with rects. All art is invented (no real brands or people).
  */
+import { buildRoster, playerSpecId } from './pedRoster';
 import type { Rng } from '@/core/Rng';
 import type { Painter } from '../canvas';
 
@@ -42,16 +43,21 @@ export function pedTileRect(tile: PedTile, quadrant?: 0 | 1 | 2 | 3): PxRect {
 
 // ---------------------------------------------------------------- the variants
 
-export type HairStyle = 'bald' | 'short' | 'fade' | 'afro' | 'braids' | 'bun' | 'puff' | 'long' | 'locs';
-export type HatStyle = 'none' | 'cap' | 'beanie' | 'headwrap' | 'church' | 'flat' | 'cop' | 'durag' | 'hardhat';
+export type HairStyle = 'bald' | 'short' | 'fade' | 'afro' | 'braids' | 'bun' | 'puff' | 'long' | 'locs' | 'peyot';
+export type HatStyle = 'none' | 'cap' | 'beanie' | 'headwrap' | 'church' | 'flat' | 'cop' | 'durag' | 'hardhat' | 'fedora' | 'hijab' | 'helmet';
 export type TopKind = 'tee' | 'hoodie' | 'puffer' | 'jersey' | 'vest' | 'jacket' | 'cardigan' | 'blouse' | 'uniform' | 'scrubs' | 'dress' | 'tracksuit' | 'apron';
 export type BottomKind = 'jeans' | 'trousers' | 'shorts' | 'skirt' | 'leggings' | 'sweats' | 'cargo';
 export type PedRole = 'civilian' | 'cop' | 'shopkeeper' | 'dj' | 'player';
 export type Build = 'avg' | 'slim' | 'stocky' | 'kid' | 'tall';
 export type PrintKind = 'none' | 'text' | 'star' | 'stripes' | 'bolt' | 'bars' | 'badge' | 'heart';
 
+/** crowd groups of the street population (see pedRoster.ts): Black American, Caribbean, Latino, white, East Asian, South Asian, Middle Eastern, mixed, Hasidic Jewish */
+export type PopGroup = 'ba' | 'ca' | 'la' | 'wh' | 'ea' | 'sa' | 'me' | 'mx' | 'hj';
+
 export interface PedSpec {
   id: string;
+  /** who this person is (decoupled from the outfit): crowd group, sex (x = androgynous), age band; picks the MakeHuman body shape */
+  group?: PopGroup; sex?: 'm' | 'f' | 'x'; age?: 'kid' | 'teen' | 'adult' | 'old';
   role: PedRole;
   skin: string;
   hair: HairStyle;
@@ -68,12 +74,12 @@ export interface PedSpec {
     stubble?: boolean; beard?: boolean; mustache?: boolean; lips?: string; lashes?: boolean; glasses?: string;
   };
   top: {
-    kind: TopKind; color: string; trim: string; sleeves: 'long' | 'short' | 'none';
+    kind: TopKind; color: string; trim: string; sleeves: 'long' | 'short' | 'none'; /** coat / tunic to the knee */ long?: boolean;
     print: PrintKind; printText?: string; printColor: string;
     /** shirt under an open jacket / cardigan / vest */
     under?: string; tie?: string; zip?: boolean; pattern?: 'none' | 'print' | 'plaid';
   };
-  bottom: { kind: BottomKind; color: string; trim: string };
+  bottom: { kind: BottomKind; color: string; trim: string; /** ankle-length skirt */ long?: boolean };
   shoes: { color: string; sole: string; accent: string; high?: boolean };
   gear: 'none' | 'backpack' | 'bag';
   gearColor: string;
@@ -93,7 +99,7 @@ const base = (o: Partial<PedSpec> & Pick<PedSpec, 'id' | 'skin' | 'top' | 'botto
 });
 
 /** Index order matters: civilians first (0..CIVILIAN_COUNT-1), then the named people. */
-export const PED_SPECS: readonly PedSpec[] = [
+export const BASE_SPECS: readonly PedSpec[] = [
   base({ // 0 fitted cap + hoodie
     id: 'hoodie-cap', skin: '#8d5a3b', hair: 'fade', hat: 'cap', hatColor: '#1c2a4a', hatTrim: '#e8e8e8', hatLogo: 'BK',
     face: { eyes: 'dot', brows: 'thick', mouth: 'flat', stubble: true },
@@ -213,12 +219,14 @@ export const PED_SPECS: readonly PedSpec[] = [
   }),
 ];
 
+/** the street population: BASE_SPECS' outfits worn by a mix of people, new outfits, and the player's random looks (pedRoster.ts) */
+export const PED_SPECS: readonly PedSpec[] = buildRoster(BASE_SPECS);
 export const PED_VARIANT_COUNT = PED_SPECS.length;
 /** variants 0..CIVILIAN_COUNT-1 are the street civilians */
 export const CIVILIAN_COUNT = PED_SPECS.filter((s) => s.role === 'civilian').length;
 
 export function pedVariantIndex(id: string): number {
-  const i = PED_SPECS.findIndex((s) => s.id === id);
+  const i = PED_SPECS.findIndex((s) => s.id === (id === 'player' ? playerSpecId() : id));
   if (i < 0) throw new Error(`unknown ped variant ${id}`);
   return i;
 }

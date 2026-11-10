@@ -2,6 +2,7 @@ import { angleDiff, clamp, forwardFromHeading, perpRight, wrapAngle } from '@/co
 import type { Vec2 } from '@/core/Math2';
 import type { GridModel, StreetDef } from '@/world/types';
 import { NAV_TARGETS, getNavTarget } from '@/game/missions/NavTargets';
+import { getWaypoint } from '@/game/missions/Waypoint';
 
 /** A world-space point drawn on the minimap as a coloured ring (mission markers etc.). */
 export interface MinimapBlip { x: number; z: number; color: string; kind?: 'giver' | 'objective' | string }
@@ -42,6 +43,7 @@ export const MINIMAP_LEGEND: ReadonlyArray<{ swatch: string; shape: 'arrow' | 'r
   { swatch: '#ef4444', shape: 'ring', text: 'Mission goal (coloured ring)' },
   { swatch: POI_HOME, shape: 'house', text: 'HOME' },
   { swatch: POI_DELI, shape: 'letter', text: 'D: WAX DELI' },
+  { swatch: '#38bdf8', shape: 'dot', text: 'Waypoint (blue diamond, set on the map)' },
   { swatch: COP_RED, shape: 'dot', text: 'Police (flashing red/blue)' },
   { swatch: NORTH_FILL, shape: 'letter', text: 'N: north' },
 ];
@@ -165,6 +167,7 @@ export class Minimap {
     this.drawAvenueLabels(ctx, playerPos, toMap);
     this.drawPois(ctx, toMap, half);
     if (blips && blips.length > 0) this.drawBlips(ctx, blips, toMap, half);
+    this.drawWaypoint(ctx, toMap, half);
     this.drawCops(ctx, cops, toMap);
     ctx.restore();
 
@@ -344,6 +347,22 @@ export class Minimap {
         ctx.fillText('D', cx, cy + 0.5);
       }
     }
+  }
+
+  /** The map-screen waypoint: a sky-blue diamond, pinned to the rim when off the disc. */
+  private drawWaypoint(ctx: CanvasRenderingContext2D, toMap: ToMap, half: number): void {
+    const wp = getWaypoint();
+    if (!wp) return;
+    const k = this.blipScale;
+    const p = toMap(wp);
+    let dx = p.x - half, dy = p.y - half;
+    const d = Math.hypot(dx, dy), edge = half - 12 * k;
+    if (d > edge) { dx *= edge / d; dy *= edge / d; }
+    const cx = half + dx, cy = half + dy, r = 6.5 * k;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r); ctx.lineTo(cx + r, cy); ctx.lineTo(cx, cy + r); ctx.lineTo(cx - r, cy); ctx.closePath();
+    ctx.fillStyle = '#38bdf8'; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = HALO; ctx.stroke();
   }
 
   private drawCops(ctx: CanvasRenderingContext2D, cops: Vec2[], toMap: ToMap): void {

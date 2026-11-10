@@ -410,6 +410,7 @@ export class ScStation {
     this.active = on;
     if (on) this.tuneIn();
     else { this.widget?.pause(); this.clearTimers(); this.unhook(); this.play_ = 'idle'; this.hideWidget(); }
+    this.listeners.forEach((fn) => fn());
   }
 
   /**

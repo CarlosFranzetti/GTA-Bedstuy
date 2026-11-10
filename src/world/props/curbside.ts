@@ -35,7 +35,7 @@ export function buildCurbside(
 ): void {
   const green = materials.get('metalGreen');
   const metal = materials.get('metalDark');
-  const bagMat = pb.material('bags', () => new THREE.MeshStandardMaterial({ name: 'trash-bags', color: '#0c0d10', roughness: 0.4, metalness: 0.05 }));
+  const bagMat = pb.material('bags', () => new THREE.MeshStandardMaterial({ name: 'trash-bags', color: '#444851', roughness: 0.5, metalness: 0.05 }));
   const coneMat = pb.material('cone', () => new THREE.MeshStandardMaterial({ name: 'traffic-cone', color: '#ff6a13', roughness: 0.6, metalness: 0 }));
 
   // ---- dumpsters + bag piles, per face

@@ -61,7 +61,7 @@ describe('URL validation', () => {
 });
 
 describe('lazy load', () => {
-  it('touches nothing until the first tune-in, then loads the API once and hides the iframe off-screen', async () => {
+  it('touches nothing until the first tune-in, then loads the API once and keeps the iframe tiny but on-screen', async () => {
     const { sc, loadApi, widgets } = setup();
     expect(loadApi).not.toHaveBeenCalled();
     expect(document.querySelector('iframe')).toBeNull();
@@ -74,8 +74,9 @@ describe('lazy load', () => {
     expect(widgets).toHaveLength(1);
     const f = document.querySelector('iframe')!;
     expect(f.src).toContain('https://w.soundcloud.com/player/?url=');
-    expect(f.style.width).toBe('1px');
-    expect(f.style.left).toBe('-9999px');
+    expect(f.style.width).toBe('2px');
+    expect(f.style.left).toBe('0px');
+    expect(f.getAttribute('allow')).toBe('autoplay; encrypted-media');
     expect(f.style.display).not.toBe('none');
     expect(sc.status).toBe('ready');
   });
@@ -362,5 +363,76 @@ describe('RA pool', () => {
     widgets[0].emit('playProgress', { currentPosition: (600 - 200) * 1000 });
     await tick();
     expect(calls.length).toBeGreaterThan(base);
+  });
+});
+
+describe('autoplay blocked / tap to start', () => {
+  const fast = { blockedMs: 100, tapGraceMs: 100, skipMs: 400 };
+  const mk = (over: Partial<ScEnv> = {}, mixes?: ScMix[]) => setup({ ...fast, ...over }, mixes);
+
+  it('reports needsTap when play() gets no PLAY, then a tap calls play() synchronously and clears it on PLAY', async () => {
+    vi.useFakeTimers();
+    const { sc, widgets } = mk();
+    sc.setActive(true);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(sc.status).toBe('ready');
+    expect(sc.needsTap).toBe(false);
+    await vi.advanceTimersByTimeAsync(150);
+    expect(sc.needsTap).toBe(true);
+    expect(sc.notice).toBe(SC_TAP_PROMPT);
+    const before = widgets[0].calls.filter((c) => c[0] === 'play').length;
+    document.body.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(widgets[0].calls.filter((c) => c[0] === 'play').length).toBe(before + 1);
+    widgets[0].emit('play');
+    expect(sc.needsTap).toBe(false);
+    expect(sc.playState).toBe('playing');
+    expect(sc.notice).toBe('');
+  });
+
+  it('never asks for a tap when PLAY arrives', async () => {
+    vi.useFakeTimers();
+    const { sc, widgets } = mk();
+    sc.setActive(true);
+    await vi.advanceTimersByTimeAsync(10);
+    widgets[0].emit('playProgress', { currentPosition: 1500 });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(sc.needsTap).toBe(false);
+    expect(sc.playState).toBe('playing');
+  });
+
+  it('userStart shows the real player after the grace period and skips an unplayable mix', async () => {
+    vi.useFakeTimers();
+    const { sc, widgets } = mk();
+    sc.setActive(true);
+    await vi.advanceTimersByTimeAsync(10);
+    sc.userStart();
+    await vi.advanceTimersByTimeAsync(150);
+    const f = document.querySelector('iframe')!;
+    expect(f.style.width).toContain('300px');
+    await vi.advanceTimersByTimeAsync(400);
+    expect(widgets[0].last('load')![1]).toBe('https://soundcloud.com/b/two');
+  });
+
+  it('an ERROR event skips to the next mix; five in a row give up with a no-stream notice', async () => {
+    const { sc, widgets } = setup();
+    sc.setActive(true);
+    await tick();
+    widgets[0].emit('error');
+    expect(widgets[0].last('load')![1]).toBe('https://soundcloud.com/b/two');
+    for (let i = 0; i < 4; i++) widgets[0].emit('error');
+    expect(sc.status).toBe('failed');
+    expect(sc.notice).toBe(SC_NO_STREAM);
+  });
+
+  it('setting no gesture hook while not blocked, and removes it after PLAY', async () => {
+    vi.useFakeTimers();
+    const { sc, widgets } = mk();
+    sc.setActive(true);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(sc.needsTap).toBe(true);
+    widgets[0].emit('play');
+    const n = widgets[0].calls.length;
+    document.body.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(widgets[0].calls.length).toBe(n);
   });
 });

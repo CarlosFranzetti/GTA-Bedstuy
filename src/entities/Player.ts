@@ -51,6 +51,14 @@ const EXIT_GAP = 0.15;
 const EXIT_SEARCH_EXTRA = [0, 0.6, 1.2, 1.8, 2.4, 3];
 /** Collision radius while seated in a vehicle (effectively no collision footprint). */
 const SEATED_RADIUS = 0.01;
+/** Exit ring search: rings added beyond the body, their spacing (m) and samples per ring. */
+const RING_COUNT = 6;
+const RING_STEP = 0.5;
+const RING_SAMPLES = 16;
+/** Pin recovery: seconds of held input without progress, search radius (m) and glide speed (m/s). */
+const PIN_AFTER = 0.6;
+const PIN_SEARCH = 2.5;
+const PIN_SPEED = 5;
 
 const NEUTRAL: VehicleInput = { throttle: 0, steer: 0, brake: false, handbrake: false, horn: false };
 
@@ -83,7 +91,7 @@ export class Player implements Entity {
    * physics static query), exit() tries the driver side, then the passenger side, the rear and the front, and takes the
    * first free spot. Without it, exit() falls back to the side the player got in from.
    */
-  blockedAt: ((p: Vec2, r: number) => boolean) | null = null;
+  blockedAt: ((p: Vec2, r: number, ignoreId?: string) => boolean) | null = null;
   private entering: { vehicle: IVehicle; t: number; from: Vec2; prevDriver: IVehicle['driver'] } | null = null;
   /**
    * Called when the walk to a car door begins. The integrator must take `body` out of the physics world here:
@@ -93,6 +101,9 @@ export class Player implements Entity {
   onEnterStart: (() => void) | null = null;
   /** A second F press arrived during the walk to the door (long on slow machines): exit right after sitting down. */
   private exitQueued = false;
+  private pinT = 0;
+  private readonly pinLast: Vec2 = { x: 0, z: 0 };
+  private pinTarget: Vec2 | null = null;
   private walkPhase = Math.PI / 2;
   private walkAmp = 0;
   private model: HumanModel | null = null;
@@ -181,7 +192,7 @@ export class Player implements Entity {
     if (!best) return null;
     // Getting in from beyond the door only makes sense if there is somewhere to get out again: a car jammed against
     // walls and props on every side is refused (the player would be spat out inside the wall).
-    if (this.blockedAt && doorFar(best, this.body.pos) && (this.blockedAt(this.body.pos, FOOT_RADIUS) || !this.anyExitFree(best))) return null;
+    if (this.blockedAt && doorFar(best, this.body.pos) && (this.blockedAt(this.body.pos, FOOT_RADIUS, best.id) || !this.anyExitFree(best))) return null;
     const prevDriver = best.driver;
     best.driver = 'player';
     best.setInput({ ...NEUTRAL, brake: true }); // a rolling car brakes while you climb in instead of coasting away from the door
@@ -189,6 +200,7 @@ export class Player implements Entity {
     this.enteredFar = doorFar(best, this.body.pos);
     this.enteredFrom = { x: this.body.pos.x, z: this.body.pos.z };
     this.entering = { vehicle: best, t: 0, from: { x: this.body.pos.x, z: this.body.pos.z }, prevDriver };
+    this.pinT = 0; this.pinTarget = null;
     this.body.shape.r = SEATED_RADIUS; // glide through the car's own collision box
     this.onEnterStart?.();
     this.moveDir = null;
@@ -204,8 +216,71 @@ export class Player implements Entity {
     const r = perpRight(f);
     const off = v.spec.width / 2 + FOOT_RADIUS + EXIT_GAP, offEnd = v.spec.length / 2 + FOOT_RADIUS + EXIT_GAP;
     const spots: Array<[number, number, number]> = [[-r.x, -r.z, off], [r.x, r.z, off], [-f.x, -f.z, offEnd], [f.x, f.z, offEnd]];
-    for (const [sx, sz, d] of spots) if (!this.blockedAt({ x: v.body.pos.x + sx * d, z: v.body.pos.z + sz * d }, FOOT_RADIUS)) return true;
-    return false;
+    for (const [sx, sz, d] of spots) if (!this.blockedAt({ x: v.body.pos.x + sx * d, z: v.body.pos.z + sz * d }, FOOT_RADIUS, v.id)) return true;
+    return this.ringExitSpot(v) !== null;
+  }
+
+  /**
+   * First free foot spot on rings around the car, nearest ring first, starting at the driver's door side and going
+   * round both ways (16 samples per ring). Returns the unit direction from the car centre and the distance, or null.
+   */
+  private ringExitSpot(v: IVehicle): { side: Vec2; d: number } | null {
+    if (!this.blockedAt) return null;
+    const half = Math.hypot(v.spec.width / 2, v.spec.length / 2);
+    const f = forwardFromHeading(v.body.heading);
+    const start = Math.atan2(perpRight(f).z * -1, perpRight(f).x * -1); // driver (left) side
+    for (let k = 0; k < RING_COUNT; k++) {
+      const d = half + FOOT_RADIUS + EXIT_GAP + k * RING_STEP;
+      for (let i = 0; i < RING_SAMPLES; i++) {
+        const a = start + (i % 2 === 0 ? 1 : -1) * Math.ceil(i / 2) * (2 * Math.PI / RING_SAMPLES);
+        const side = { x: Math.cos(a), z: Math.sin(a) };
+        if (!this.blockedAt({ x: v.body.pos.x + side.x * d, z: v.body.pos.z + side.z * d }, FOOT_RADIUS, v.id)) return { side, d };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Nearest free foot spot to `from` within PIN_SEARCH metres that can be reached in a straight line without crossing
+   * a solid, preferring the direction the player is trying to go. Null when none (or no world query).
+   */
+  static findFreeSpot(from: Vec2, blocked: (p: Vec2, r: number) => boolean, prefer: Vec2 | null, maxR = PIN_SEARCH): Vec2 | null {
+    let best: Vec2 | null = null, bestScore = Infinity;
+    for (let d = 0.4; d <= maxR + 1e-6 && !best; d += 0.3) {
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2;
+        const dir = { x: Math.cos(a), z: Math.sin(a) };
+        const p = { x: from.x + dir.x * d, z: from.z + dir.z * d };
+        if (blocked(p, FOOT_RADIUS)) continue;
+        let clear = true;
+        for (let t = 0.25; t < d && clear; t += 0.25) if (blocked({ x: from.x + dir.x * t, z: from.z + dir.z * t }, FOOT_RADIUS * 0.8)) clear = false;
+        if (!clear) continue;
+        const score = prefer ? -(dir.x * prefer.x + dir.z * prefer.z) : 0;
+        if (score < bestScore) { bestScore = score; best = p; }
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Pin recovery: input held, almost no progress for PIN_AFTER seconds (squeezed between cars and walls) -> glide to the
+   * nearest reachable free spot so the player is never trapped. 
+   */
+  private updatePin(dt: number, moved: number): void {
+    const b = this.body;
+    if (this.pinTarget) {
+      const dx = this.pinTarget.x - b.pos.x, dz = this.pinTarget.z - b.pos.z, l = Math.hypot(dx, dz);
+      const step = PIN_SPEED * dt;
+      if (l <= step) { b.pos.x = this.pinTarget.x; b.pos.z = this.pinTarget.z; this.pinTarget = null; }
+      else { b.pos.x += (dx / l) * step; b.pos.z += (dz / l) * step; }
+      this.pinT = 0;
+      return;
+    }
+    if (this.moveDir && moved < WALK_SPEED * dt * 0.15) this.pinT += dt; else this.pinT = Math.max(0, this.pinT - dt * 2);
+    if (this.pinT < PIN_AFTER || !this.blockedAt) return;
+    this.pinT = 0;
+    const blocked = this.blockedAt;
+    this.pinTarget = Player.findFreeSpot(b.pos, (p, r) => blocked(p, r), this.moveDir);
   }
 
   /** Leave the vehicle, standing beside its driver's door and facing the car. */
@@ -225,15 +300,20 @@ export class Player implements Entity {
     let found = !this.blockedAt;
     const drv = cands[0];
     const nearEntry = Math.hypot(this.enteredFrom.x - v.body.pos.x, this.enteredFrom.z - v.body.pos.z) < 8;
-    const driverBlocked = !!this.blockedAt && this.blockedAt({ x: v.body.pos.x + drv.side.x * drv.d, z: v.body.pos.z + drv.side.z * drv.d }, FOOT_RADIUS);
-    const backOut = this.enteredFar && driverBlocked && nearEntry && !this.blockedAt!(this.enteredFrom, FOOT_RADIUS);
+    const driverBlocked = !!this.blockedAt && this.blockedAt({ x: v.body.pos.x + drv.side.x * drv.d, z: v.body.pos.z + drv.side.z * drv.d }, FOOT_RADIUS, v.id);
+    const backOut = this.enteredFar && driverBlocked && nearEntry && !this.blockedAt!(this.enteredFrom, FOOT_RADIUS, v.id);
     if (this.blockedAt && !backOut) {
       // driver side first, then passenger side, rear, front; if all four are blocked, try again a little further out
       search: for (const extra of EXIT_SEARCH_EXTRA) {
         for (const c of cands) {
           const d = c.d + extra;
-          if (!this.blockedAt({ x: v.body.pos.x + c.side.x * d, z: v.body.pos.z + c.side.z * d }, FOOT_RADIUS)) { pick = { side: c.side, d }; found = true; break search; }
+          if (!this.blockedAt({ x: v.body.pos.x + c.side.x * d, z: v.body.pos.z + c.side.z * d }, FOOT_RADIUS, v.id)) { pick = { side: c.side, d }; found = true; break search; }
         }
+      }
+      if (!found) {
+        // all four sides blocked even further out: sample a ring around the car (diagonals included)
+        const ring = this.ringExitSpot(v);
+        if (ring) { pick = ring; found = true; }
       }
     }
     let spotX = v.body.pos.x + pick.side.x * pick.d, spotZ = v.body.pos.z + pick.side.z * pick.d;
@@ -256,6 +336,7 @@ export class Player implements Entity {
     this.desiredVel = { x: 0, z: 0 };
     this.moveDir = null;
     this.sprintBlend = 0;
+    this.pinT = 0; this.pinTarget = null; this.pinLast.x = spotX; this.pinLast.z = spotZ;
     this.vehicleInput = { ...NEUTRAL };
     this.object3D.visible = true;
     this.prevPos.x = this.body.pos.x; this.prevPos.z = this.body.pos.z; this.prevHeading = this.body.heading;
@@ -271,6 +352,12 @@ export class Player implements Entity {
     }
     if (!(dt > 0)) return;
     if (this.entering) { this.updateEntering(dt); return; }
+
+    // pin recovery: progress is measured between steps, i.e. AFTER the physics pass pushed the body back out of things
+    const moved = Math.hypot(b.pos.x - this.pinLast.x, b.pos.z - this.pinLast.z);
+    this.pinLast.x = b.pos.x; this.pinLast.z = b.pos.z;
+    this.updatePin(dt, moved);
+    if (this.pinTarget) { b.vel.x = 0; b.vel.z = 0; this.animateFoot(dt); return; }
 
     // --- sprint ramp, then accelerate toward the desired velocity (no instant starts or stops)
     const ramp = this.wantRun && this.moveDir ? 1 / SPRINT_RAMP_UP : -1 / SPRINT_RAMP_DOWN;

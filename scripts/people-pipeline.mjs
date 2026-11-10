@@ -83,11 +83,8 @@ export const SHAPES = {
   ...Object.fromEntries(Object.keys(GROUPS).flatMap((g) => [[`${g}_m`, shape(g, 'male', 'young')], [`${g}_f`, shape(g, 'female', 'young')]])),
   ba_m_old: shape('ba', 'male', 'old'), ba_f_old: shape('ba', 'female', 'old'),
   wh_m_old: shape('wh', 'male', 'old'), wh_f_old: shape('wh', 'female', 'old'),
-  ea_m_old: shape('ea', 'male', 'old'), la_f_old: shape('la', 'female', 'old'),
-  teen_a: shape('mx', 'male', 'teen'), teen_b: shape('ea', 'female', 'teen'), teen_c: shape('wh', 'male', 'teen'),
+  teen_a: shape('mx', 'male', 'teen'), teen_b: shape('ea', 'female', 'teen'),
   mx_x: shape('mx', 'x', 'young', {}, 1.72),
-  ba_m_heavy: shape('ba', 'male', 'young', { 'universal-male-young-averagemuscle-maxweight': 1 }, 1.76),
-  la_f_heavy: shape('la', 'female', 'young', { 'universal-female-young-averagemuscle-maxweight': 1 }, 1.64),
 };
 export const LOD_TRIS = { hi: 4000, mid: 1500, far: 400 };
 
@@ -540,7 +537,7 @@ export async function writeGlb(built, path) {
     const acc = (nm, arr, type) => doc.createAccessor(nm).setArray(arr).setType(type).setBuffer(buffer);
     const prim = doc.createPrimitive()
       .setAttribute('POSITION', acc('pos', g.position, 'VEC3'))
-      .setAttribute('NORMAL', acc('nrm', g.normal, 'VEC3'))
+      // no NORMAL: the loader welds by position and computes them (saves 13 % of the file)
       .setAttribute('TEXCOORD_0', acc('uv', g.uv, 'VEC2'))
       .setAttribute('JOINTS_0', acc('j', g.joints, 'VEC4'))
       .setAttribute('WEIGHTS_0', acc('w', g.weights, 'VEC4'))

@@ -213,7 +213,7 @@ function registerHulls(): void {
 }
 carLodReady = true;
 if (useProxies) registerHulls();
-const hullKey = (t: string): string => (t === 'cop' ? 'sedan' : t);
+const hullKey = (t: string): string => (t === 'cop' || t === 'cab' ? 'sedan' : t);
 let shadowFlagged = new WeakSet<object>();
 const crosswalkNodes = new Set<string>();
 for (const cw of grid.crosswalks) {

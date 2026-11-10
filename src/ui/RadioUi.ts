@@ -10,6 +10,7 @@ import type { Library, Track } from '@/audio/library/Library';
 import type { LibraryController } from '@/audio/library/LibraryController';
 import type { ScStation } from '@/audio/sc/ScStation';
 import { scStationDef } from '@/audio/radio';
+import { SC_NO_STREAM, SC_TAP_PROMPT } from '@/audio/sc/ScStation';
 
 export interface RadioUiSource {
   library: Library;
@@ -38,6 +39,10 @@ export class RadioUi {
   private readonly scs: readonly ScStation[];
   private readonly sections = new Map<ScStation, ScSection>();
   private readonly status: HTMLElement;
+  /** Floating bar: "Tap to start radio" when the browser blocked sound, or the no-stream notice with Retry. */
+  readonly tapBar: HTMLElement;
+  private readonly tapBtn: HTMLButtonElement;
+  private readonly tapMsg: HTMLElement;
   private readonly fileInput: HTMLInputElement;
   private readonly pickBtn: HTMLButtonElement;
   private readonly reconnectBtn: HTMLButtonElement;
@@ -123,8 +128,30 @@ export class RadioUi {
       if (files && files.length > 0) { e.preventDefault(); void this.ctl.addFiles(Array.from(files)); }
     });
     this.cleanup.push(this.lib.onChange(() => this.render()), this.ctl.onChange(() => this.render()));
-    for (const sc of this.scs) this.cleanup.push(sc.onChange(() => this.renderSc(sc)));
+    for (const sc of this.scs) this.cleanup.push(sc.onChange(() => { this.renderSc(sc); this.renderTap(); }));
+
+    this.tapBar = this.el('div', 'rl-tapbar');
+    this.tapBar.hidden = true;
+    this.tapBar.setAttribute('role', 'status');
+    this.tapBar.setAttribute('aria-live', 'polite');
+    this.tapMsg = this.el('span', 'rl-tapmsg');
+    this.tapBtn = this.button(SC_TAP_PROMPT, 'rl-btn rl-primary rl-tap');
+    this.tapBar.append(this.tapMsg, this.tapBtn);
+    parent.appendChild(this.tapBar);
+    // Calls play() inside the click/tap itself: the one thing browsers (iOS above all) accept as permission for sound.
+    this.tapBtn.addEventListener('click', () => { for (const sc of this.scs) if (sc.isActive) sc.userStart(); });
     this.render();
+    this.renderTap();
+  }
+
+  /** Shows the tap button while an active SoundCloud station is blocked, or the no-stream notice (with Retry). */
+  private renderTap(): void {
+    const sc = this.scs.find((x) => x.isActive && x.notice !== '' && (x.needsTap || x.notice === SC_NO_STREAM));
+    if (!sc) { this.tapBar.hidden = true; return; }
+    const blocked = sc.needsTap;
+    this.tapMsg.textContent = blocked ? 'Your browser blocked the radio sound.' : SC_NO_STREAM;
+    this.tapBtn.textContent = blocked ? SC_TAP_PROMPT : 'Retry';
+    this.tapBar.hidden = false;
   }
 
   get isOpen(): boolean { return this.opened; }
@@ -152,6 +179,7 @@ export class RadioUi {
 
   dispose(): void {
     this.cleanup.splice(0).forEach((fn) => fn());
+    this.tapBar.remove();
     this.root.remove();
   }
 

@@ -6,7 +6,7 @@ import type { Rng } from '@/core/Rng';
 import type {
   GraphNode, GridModel, IMaterialLibrary, IVehicle, IWorld2D, LaneNode, Lot, VehicleType,
 } from '@/world/types';
-import { PedSpawnScheduler, RECYCLE_DIST, REMOVE_CLEAR, SPAWN_RING_MAX, SPAWN_RING_MIN } from '@/entities/PedestrianSpawn';
+import { PedSpawnScheduler, RECYCLE_DIST, REMOVE_CLEAR, SPAWN_RING_MIN, spawnAllowed } from '@/entities/PedestrianSpawn';
 import { Pedestrian, type PedCrossing, type PedEnvironment, type StoopSpot } from '@/entities/Pedestrian';
 import { TrafficAgent } from '@/entities/TrafficAgent';
 import { VEHICLE_SPECS } from '@/entities/Vehicle';
@@ -288,13 +288,23 @@ export class TrafficSystem {
     return node;
   }
 
+  /** Unit vector the player is moving along (the chase camera looks that way); null until they have moved. */
+  private facing: Vec2 | null = null;
+
+  /** Does a static body (a building) sit between the player and `to`? */
+  private lineBlocked(to: Vec2): boolean {
+    const dx = to.x - this.playerAt.x, dz = to.z - this.playerAt.z, d = Math.hypot(dx, dz);
+    if (d < 1) return false;
+    const hit = this.world.raycast(this.playerAt, { x: dx / d, z: dz / d }, d - 1);
+    return !!hit && hit.body.kind === 'static';
+  }
+
   /** A sidewalk node in the spawn ring around the player (out of the near view, within walking-in reach); falls back to any node far enough. */
   private pickRingNode(ids: string[]): GraphNode {
     const nodes = this.grid.sidewalks.nodes;
     let node = nodes[this.rng.pick(ids)];
-    for (let k = 0; k < 48; k++) {
-      const d = dist(node.pos, this.playerAt);
-      if (d >= SPAWN_RING_MIN && d <= SPAWN_RING_MAX) return node;
+    for (let k = 0; k < 64; k++) {
+      if (spawnAllowed(this.playerAt, this.facing, node.pos, () => this.lineBlocked(node.pos))) return node;
       node = nodes[this.rng.pick(ids)];
     }
     return this.pickPedNode(ids, PED_SWAP_CLEAR, false);
@@ -365,6 +375,7 @@ export class TrafficSystem {
 
   update(dt: number, playerPos: Vec2): void {
     this.lights.update(dt);
+    { const mx = playerPos.x - this.playerAt.x, mz = playerPos.z - this.playerAt.z, m = Math.hypot(mx, mz); if (m > 0.02 && m < 20) this.facing = { x: mx / m, z: mz / m }; }
     this.playerAt = playerPos;
     this.pedTimer += dt;
     if (this.pedTimer >= PED_TICK) { const e = this.pedTimer; this.pedTimer = 0; this.stepPeds(e); }

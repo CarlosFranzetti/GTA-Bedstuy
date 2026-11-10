@@ -169,7 +169,7 @@ describe('AudioSystem with the music library', () => {
     expect(el.paused).toBe(false);
   });
 
-  it('falls back to synth notes on a SoundCloud station that cannot load (nodes are created, no media element plays)', async () => {
+  it('synthesizes nothing on a SoundCloud station that cannot load (no nodes, no media element plays)', async () => {
     const { audio, events, created } = rig();
     await audio.start();
     await flush();
@@ -177,7 +177,7 @@ describe('AudioSystem with the music library', () => {
     events.emit('enterVehicle', { vehicleId: 'v' });
     const before = created.osc.length + created.sources.length;
     audio.update(0.5);
-    expect(created.osc.length + created.sources.length).toBeGreaterThan(before);
+    expect(created.osc.length + created.sources.length).toBe(before);
     expect(FakeAudio.instances.map((a) => a.plays)).toEqual(plays);
     expect(audio.trackName).toContain('No sets yet'); // the empty-station hint
   });

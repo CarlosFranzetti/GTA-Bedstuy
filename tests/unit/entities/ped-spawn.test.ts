@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Rng } from '@/core/Rng';
-import { PedSpawnScheduler, CLOSE_IN, MAX_INTERVAL, MIN_INTERVAL, RECYCLE_DIST } from '@/entities/PedestrianSpawn';
+import { HIDDEN_RING_MIN, SPAWN_RING_MAX, SPAWN_RING_MIN, VIEW_HALF_ANGLE, inViewCone, spawnAllowed, PedSpawnScheduler, CLOSE_IN, MAX_INTERVAL, MIN_INTERVAL, RECYCLE_DIST } from '@/entities/PedestrianSpawn';
 import { pedHourFactor } from '@/game/TrafficSystem';
 
 /** Runs the scheduler for a whole simulated day at 0.25 s ticks against a perfect executor; returns the per-second change log. */
@@ -63,5 +63,33 @@ describe('PedSpawnScheduler', () => {
     const s2 = new PedSpawnScheduler();
     for (let t = 0; t < 60; t += 0.25) expect(s2.tick({ dt: 0.25, count: 20, target: 20, hasFar: false, rand: 0.5 })).toBe('none');
     expect(RECYCLE_DIST).toBeGreaterThan(100);
+  });
+});
+
+describe('spawn placement: close only when unseen', () => {
+  const player = { x: 0, z: 0 }, north = { x: 0, z: -1 }; // facing north (-z)
+  it('in view: nothing closer than SPAWN_RING_MIN; behind the player or occluded: from HIDDEN_RING_MIN', () => {
+    expect(spawnAllowed(player, north, { x: 0, z: -40 }, () => false)).toBe(false); // dead ahead, 40 m
+    expect(spawnAllowed(player, north, { x: 0, z: -40 }, () => true)).toBe(true); // ahead but a building blocks it
+    expect(spawnAllowed(player, north, { x: 0, z: 40 }, () => false)).toBe(true); // behind
+    expect(spawnAllowed(player, north, { x: 0, z: 20 }, () => false)).toBe(false); // too close even behind
+    expect(spawnAllowed(player, north, { x: 0, z: -70 }, () => false)).toBe(true); // far ahead is the old ring
+    expect(spawnAllowed(player, north, { x: 0, z: -130 }, () => false)).toBe(false); // beyond the ring
+    expect(spawnAllowed(player, null, { x: 0, z: 40 }, () => false)).toBe(false); // facing unknown: treated as in view
+  });
+  it('simulated player and sight cone: 5000 random spots, every accepted one inside 62 m is outside the cone or occluded, and a third of the 28-62 m annulus behind is usable', () => {
+    const rng = new Rng(11);
+    let accepted = 0, behindTotal = 0, behindOk = 0;
+    for (let i = 0; i < 5000; i++) {
+      const a = rng.range(0, Math.PI * 2), d = rng.range(10, 140);
+      const p = { x: Math.cos(a) * d, z: Math.sin(a) * d };
+      const occ = rng.chance(0.3);
+      const ok = spawnAllowed(player, north, p, () => occ);
+      if (ok) { accepted++; expect(d).toBeGreaterThanOrEqual(HIDDEN_RING_MIN); expect(d).toBeLessThanOrEqual(SPAWN_RING_MAX); if (d < SPAWN_RING_MIN) expect(!inViewCone(player, north, p) || occ).toBe(true); }
+      if (d >= HIDDEN_RING_MIN && d < SPAWN_RING_MIN && !inViewCone(player, north, p)) { behindTotal++; if (ok) behindOk++; }
+    }
+    expect(accepted).toBeGreaterThan(1000);
+    expect(behindOk).toBe(behindTotal); // everything unseen in the annulus is allowed
+    expect(VIEW_HALF_ANGLE).toBeLessThan(Math.PI / 2);
   });
 });

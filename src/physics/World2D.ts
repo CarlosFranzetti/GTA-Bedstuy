@@ -403,6 +403,20 @@ export class World2D implements IWorld2D {
   }
 
   /**
+   * True when a circle at `center` overlaps a static body OR a vehicle / cop car (other than `ignoreId`, e.g. the car
+   * being left). Pedestrians and the player do not count. For choosing exit and unstick spots that are truly free.
+   */
+  overlapsSolid(center: Vec2, r: number, ignoreId?: string): boolean {
+    if (this.overlapsStatic(center, r)) return true;
+    const hits = this.queryCircle(center, r);
+    for (let i = 0; i < hits.length; i++) {
+      const b = hits[i];
+      if ((b.kind === 'vehicle' || b.kind === 'cop') && b.id !== ignoreId) return true;
+    }
+    return false;
+  }
+
+  /**
    * Like `raycast` but only STATIC bodies (walls, trees, poles) can be hit: vehicles and pedestrians are
    * ignored. Used by the camera so a parked car or a passer-by never pulls it in.
    */

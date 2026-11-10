@@ -162,7 +162,7 @@ async function pedAudit() {
       for (const h of hours) {
         const rec = {};
         for (const [name, pt] of Object.entries(pts)) {
-          d.teleport(pt.x, pt.z, 0);
+          d.teleport(pt.x, pt.z + 3, 0); d.step(2); d.teleport(pt.x, pt.z, 0); d.step(2); // a short step north: the scheduler reads the camera facing from the player's last movement
           settle(h);
           if (o.snap) T.setHour(h, true); // jump the whole crowd to the hour's size first (the audit skips time; play never does)
           d.step(60 * o.settle); // lets the crowd re-form around the new spot (recycling is one pedestrian per ~1.8 s)

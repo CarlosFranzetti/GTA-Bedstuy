@@ -258,48 +258,22 @@ describe('AudioSystem radio', () => {
     expect(audio.stationName).toBe('Dub Lab');
   });
 
-  it('only sequences notes while in a vehicle', async () => {
+  it('never sequences synthesized music on a SoundCloud station, in a vehicle or not', async () => {
     const { events, audio, created, ctx } = setup();
     await audio.start();
     const countSteps = () => created.sources.length + created.oscillators.length;
-
     ctx.currentTime = 0;
     audio.update(0.05);
     const onFoot = countSteps();
-    ctx.currentTime = 1;
-    audio.update(0.05);
-    expect(countSteps()).toBe(onFoot);
-
     events.emit('enterVehicle', { vehicleId: 'v1' });
     ctx.currentTime = 2;
     audio.update(0.05);
-    const driving = countSteps();
-    expect(driving).toBeGreaterThan(onFoot);
-
-    events.emit('exitVehicle', { vehicleId: 'v1' });
-    ctx.currentTime = 3;
+    ctx.currentTime = 4;
     audio.update(0.05);
-    expect(countSteps()).toBe(driving);
+    expect(countSteps()).toBe(onFoot);
+    expect(audio.radio.synthPlayback).toBeNull();
   });
 
-  it('schedules ahead of currentTime by about 0.1 s and no further', async () => {
-    const { events, audio, created, ctx } = setup();
-    await audio.start();
-    const oscBefore = created.oscillators.length;
-    const srcBefore = created.sources.length;
-    events.emit('enterVehicle', { vehicleId: 'v1' });
-    ctx.currentTime = 10;
-    audio.update(0);
-    const starts = [
-      ...created.sources.slice(srcBefore).flatMap((s) => s.started),
-      ...created.oscillators.slice(oscBefore).flatMap((o) => o.started),
-    ];
-    expect(starts.length).toBeGreaterThan(0);
-    for (const t of starts) {
-      expect(t).toBeGreaterThanOrEqual(10);
-      expect(t).toBeLessThan(10 + 0.1);
-    }
-  });
 });
 
 describe('AudioSystem master volume', () => {

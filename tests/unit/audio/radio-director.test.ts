@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { RadioDirector, CROSSFADE_SECONDS } from '@/audio/RadioDirector';
 import { Library, type ImportedTrack } from '@/audio/library/Library';
-import { GENRE_STATIONS, SC_STATIONS } from '@/audio/radio';
+import { SC_STATIONS } from '@/audio/radio';
 import { TalkPlayer } from '@/audio/talk/TalkPlayer';
 import type { Deck } from '@/audio/decks';
 
