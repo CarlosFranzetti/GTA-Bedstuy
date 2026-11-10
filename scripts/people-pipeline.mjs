@@ -86,7 +86,7 @@ export const SHAPES = {
   teen_a: shape('mx', 'male', 'teen'), teen_b: shape('ea', 'female', 'teen'),
   mx_x: shape('mx', 'x', 'young', {}, 1.72),
 };
-export const LOD_TRIS = { hi: 4000, mid: 1500, far: 400 };
+export const LOD_TRIS = { hi: 3400, mid: 1500, far: 400 };
 
 // ------------------------------------------------------------------ parsing
 
@@ -234,6 +234,29 @@ export function buildBody(src, shape) {
       }
       if (limb.name === 'arm') { rig['shoulder' + side] = rot(sh); rig['elbow' + side] = rot(at(limb.pts.elbow)); rig['wrist' + side] = rot(at(limb.pts.wrist)); }
       else { rig['hip' + side] = rot(sh); rig['knee' + side] = rot(at(limb.pts.knee)); rig['ankle' + side] = rot(at(limb.pts.ankle)); }
+    }
+  }
+  // relax the arms: the A pose holds the forearms forward; let them hang with a slight elbow bend, and make the hands a little smaller
+  for (const side of ['L', 'R']) {
+    const k = side === 'L' ? 0 : 1, e = rig['elbow' + side], w = rig['wrist' + side];
+    const fwd = Math.atan2(-(w[2] - e[2]), -(w[1] - e[1]));           // forward lean of the forearm (front is -z)
+    const bend = 0.2, ang = -(fwd - bend), c = Math.cos(ang), sn = Math.sin(ang);
+    const rotX = (p) => { const y = p[1] - e[1], z = p[2] - e[2]; return [p[0], e[1] + y * c - z * sn, e[2] + y * sn + z * c]; };
+    const eb = I.elbowL + 2 * k;
+    for (let i = 0; i < n; i++) {
+      const wb = w12[i * 12 + eb];
+      if (wb < 1e-4) continue;
+      const q = rotX([pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]]);
+      pos[i * 3 + 1] += (q[1] - pos[i * 3 + 1]) * wb; pos[i * 3 + 2] += (q[2] - pos[i * 3 + 2]) * wb;
+    }
+    const wr = rotX(w);
+    rig['wrist' + side] = wr;
+    // hands: scale about the wrist (vertices below it, on the elbow bone)
+    for (let i = 0; i < n; i++) {
+      if (w12[i * 12 + eb] < 0.5 || pos[i * 3 + 1] > wr[1]) continue;
+      pos[i * 3] = wr[0] + (pos[i * 3] - wr[0]) * 0.86;
+      pos[i * 3 + 1] = wr[1] + (pos[i * 3 + 1] - wr[1]) * 0.9;
+      pos[i * 3 + 2] = wr[2] + (pos[i * 3 + 2] - wr[2]) * 0.86;
     }
   }
   // straightening the legs moves the soles; put them back on y = 0

@@ -30,6 +30,8 @@ const smooth = (a: number, b: number, x: number): number => { const t = Math.min
 type V3 = [number, number, number];
 export interface V { p: V3; n: V3; uv: [number, number]; j: number[]; w: number[]; c: V3 }
 export type Tri = [V, V, V];
+/** triangles still whole (never cut) and their index in the body, to hide the body triangles a garment fully covers */
+const WHOLE = new WeakMap<object, number>();
 
 /** the body triangles (optionally only some) as a soup of shared vertices */
 export function soupOf(L: MhLod, ao: Float32Array, only?: number[]): Tri[] {
@@ -41,8 +43,8 @@ export function soupOf(L: MhLod, ao: Float32Array, only?: number[]): Tri[] {
   };
   const out: Tri[] = [];
   const n = L.index.length / 3;
-  if (only) for (const t of only) out.push([mk(L.index[t * 3]), mk(L.index[t * 3 + 1]), mk(L.index[t * 3 + 2])]);
-  else for (let t = 0; t < n; t++) out.push([mk(L.index[t * 3]), mk(L.index[t * 3 + 1]), mk(L.index[t * 3 + 2])]);
+  const ids = only ?? Array.from({ length: n }, (_, t) => t);
+  for (const t of ids) { const tri: Tri = [mk(L.index[t * 3]), mk(L.index[t * 3 + 1]), mk(L.index[t * 3 + 2])]; WHOLE.set(tri, t); out.push(tri); }
   return out;
 }
 
@@ -55,6 +57,7 @@ function lerpV(a: V, b: V, t: number): V {
 }
 
 /** keep the part of the soup where f >= 0; triangles crossing the iso-line f = 0 are split exactly on it */
+export const wholeId = (t: Tri): number | undefined => WHOLE.get(t);
 export function clip(tris: Tri[], f: (v: V) => number): Tri[] {
   const out: Tri[] = [];
   const fc = new Map<V, number>();
@@ -87,7 +90,9 @@ interface ShellOpts {
   hang?: (p: V3, v: V) => void;
   iterations?: number;
   rim?: number;
-  uv?: (v: V) => [number, number];
+  /** uv from the FINAL position of a corner (continuous unwrap); the tile rect lets the back seam be fixed per triangle */
+  uv?: (p: V3, v: V) => [number, number];
+  tile?: PxRect;
 }
 
 function finalize(tris: Tri[], o: ShellOpts): THREE.BufferGeometry | null {
@@ -103,9 +108,7 @@ function finalize(tris: Tri[], o: ShellOpts): THREE.BufferGeometry | null {
     corner.push(i);
   }
   for (const n of N) { const l = Math.hypot(n[0], n[1], n[2]) || 1; n[0] /= l; n[1] /= l; n[2] /= l; }
-  const Q: V3[] = P.map((p, i) => [p[0] + N[i][0] * T[i], p[1] + N[i][1] * T[i], p[2] + N[i][2] * T[i]] as V3);
-  if (o.hang) Q.forEach((q, i) => o.hang!(q, rep[i]));
-  // borders: edges used by one triangle
+  // borders: edges used by one triangle; neighbours
   const edge = new Map<string, number>(), nb: Array<Set<number>> = P.map(() => new Set<number>());
   const ek = (a: number, b: number): string => (a < b ? `${a}_${b}` : `${b}_${a}`);
   for (let t = 0; t < tris.length; t++) for (let k = 0; k < 3; k++) {
@@ -113,9 +116,21 @@ function finalize(tris: Tri[], o: ShellOpts): THREE.BufferGeometry | null {
     edge.set(ek(a, b), (edge.get(ek(a, b)) ?? 0) + 1);
     nb[a].add(b); nb[b].add(a);
   }
+  // the decimated mesh has irregular normals: smooth them first so the offset does not shear the texture sideways
+  for (let it = 0; it < 6; it++) {
+    const next = N.map((n, i) => {
+      let x = n[0] * 2, y = n[1] * 2, z = n[2] * 2;
+      for (const j of nb[i]) { x += N[j][0]; y += N[j][1]; z += N[j][2]; }
+      const l = Math.hypot(x, y, z) || 1;
+      return [x / l, y / l, z / l] as V3;
+    });
+    for (let i = 0; i < N.length; i++) N[i] = next[i];
+  }
+  const Q: V3[] = P.map((p, i) => [p[0] + N[i][0] * T[i], p[1] + N[i][1] * T[i], p[2] + N[i][2] * T[i]] as V3);
+  if (o.hang) Q.forEach((q, i) => o.hang!(q, rep[i]));
   const border = new Set<number>();
   for (const [k, c] of edge) if (c === 1) { const [a, b] = k.split('_').map(Number); border.add(a); border.add(b); }
-  for (let it = 0; it < (o.iterations ?? 3); it++) {
+  for (let it = 0; it < Math.min(2, o.iterations ?? 2); it++) {
     const next = Q.map((q, i) => {
       if (border.has(i) || !nb[i].size) return q;
       let x = 0, y = 0, z = 0;
@@ -136,12 +151,19 @@ function finalize(tris: Tri[], o: ShellOpts): THREE.BufferGeometry | null {
   for (const f of FN) { const l = Math.hypot(f[0], f[1], f[2]) || 1; f[0] /= l; f[1] /= l; f[2] /= l; }
   // output (non indexed) + rim strips on the borders
   const pos: number[] = [], nrm: number[] = [], uv: number[] = [], si: number[] = [], sw: number[] = [], col: number[] = [];
-  const push = (p: V3, n: V3, v: V): void => {
+  const push = (p: V3, n: V3, v: V, u?: [number, number]): void => {
     pos.push(...p); nrm.push(...n);
-    const u = o.uv ? o.uv(v) : v.uv; uv.push(u[0], u[1]);
+    const w = u ?? (o.uv ? o.uv(p, v) : v.uv); uv.push(w[0], w[1]);
     si.push(...v.j); sw.push(...v.w); col.push(...v.c);
   };
-  for (let t = 0; t < tris.length; t++) for (let k = 0; k < 3; k++) { const i = corner[t * 3 + k]; push(Q[i], FN[i], tris[t][k]); }
+  for (let t = 0; t < tris.length; t++) {
+    const us: Array<[number, number]> = [0, 1, 2].map((k) => (o.uv ? o.uv(Q[corner[t * 3 + k]], tris[t][k]) : tris[t][k].uv));
+    if (o.uv && o.tile) {
+      const fu = us.map((u) => (u[0] * ATLAS - o.tile!.x - 0.5) / (o.tile!.w - 1));
+      if (Math.max(...fu) - Math.min(...fu) > 0.5) for (const u of us) u[0] = (o.tile.x + 0.5 + 0.01 * (o.tile.w - 1)) / ATLAS;   // crosses the back seam
+    }
+    for (let k = 0; k < 3; k++) { const i = corner[t * 3 + k]; push(Q[i], FN[i], tris[t][k], us[k]); }
+  }
   const rim = o.rim ?? 0.004;
   for (let t = 0; t < tris.length; t++) for (let k = 0; k < 3; k++) {
     const a = corner[t * 3 + k], b = corner[t * 3 + (k + 1) % 3];
@@ -157,7 +179,7 @@ function finalize(tris: Tri[], o: ShellOpts): THREE.BufferGeometry | null {
     const L = Math.hypot(nx, ny, nz) || 1, rn: V3 = flip ? [-nx / L, -ny / L, -nz / L] : [nx / L, ny / L, nz / L];
     const va = tris[t][k], vb = tris[t][(k + 1) % 3];
     const quad: Array<[V3, V]> = flip ? [[Q[a], va], [ia, va], [ib, vb], [Q[a], va], [ib, vb], [Q[b], vb]] : [[Q[a], va], [ib, vb], [ia, va], [Q[a], va], [Q[b], vb], [ib, vb]];
-    for (const [p, v] of quad) push(p, rn, v);
+    for (const [p, v] of quad) push(p, rn, v, o.uv ? o.uv(p, v) : undefined);
   }
   const n = pos.length / 3;
   const g = new THREE.BufferGeometry();
@@ -191,68 +213,97 @@ const THICK_BOTTOM: Partial<Record<PedSpec['bottom']['kind'], number>> = { jeans
 /** radius of the lower leg as a fraction of the thigh at the knee (a straight leg) */
 const STRAIGHT: Partial<Record<PedSpec['bottom']['kind'], number>> = { jeans: 0.78, trousers: 0.86, cargo: 0.98, sweats: 0.92, shorts: 0.9 };
 
-export function garmentParts(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec): THREE.BufferGeometry[] {
-  const out: THREE.BufferGeometry[] = [];
+export interface Garments { parts: THREE.BufferGeometry[]; hide: Set<number> }
+
+/** continuous cylindrical unwrap into a tile: u = angle round the part's axis (front at 0.5, one seam at the back), v = height between y0 and y1 */
+function cyl(rect: PxRect, y0: number, y1: number, axis: (p: V3) => { cx: number; cz: number }): (p: V3) => [number, number] {
+  return (p) => {
+    const a0 = axis(p);
+    let a = Math.atan2(p[0] - a0.cx, p[2] - a0.cz); if (a < 0) a += Math.PI * 2;
+    return tileUV(rect, a / (Math.PI * 2), (p[1] - y0) / Math.max(1e-4, y1 - y0));
+  };
+}
+
+export function garmentParts(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec): Garments {
+  const out: THREE.BufferGeometry[] = [], hide = new Set<number>();
   const lm = s.landmarks, R = s.rig;
-  const kneeY = R.kneeL[1], wristY = R.wristL[1], shoulderY = R.shoulderL[1];
-  const legRings: Ring[] = [...s.legRings.shin, ...s.legRings.thigh].sort((a, b) => a[0] - b[0]) as Ring[];
+  const kneeY = R.kneeL[1], elbowY = R.elbowL[1], wristY = R.wristL[1], shoulderY = R.shoulderL[1], neckBase = shoulderY + 0.04;
+  const legRings = [...s.legRings.shin, ...s.legRings.thigh].sort((a, b) => a[0] - b[0]) as Ring[];
+  const armRings = [...s.armRings.fore, ...s.armRings.upper].sort((a, b) => a[0] - b[0]) as Ring[];
+  const tr = s.torsoRings as Ring[], hipsR = s.hipRings as Ring[];
+  const torsoAxis = (p: V3): { cx: number; cz: number } => { const r = ringAt(p[1] > lm.hemY - 0.02 ? tr : hipsR, p[1]); return { cx: 0, cz: r.cz }; };
+  const limbAxis = (rings: Ring[]) => (p: V3): { cx: number; cz: number } => { const r = ringAt(rings, p[1]); return { cx: (p[0] < 0 ? -1 : 1) * Math.abs(r.cx), cz: r.cz }; };
   const top = spec.top, tk = THICK_TOP[top.kind] ?? 0;
   const all = soupOf(L, ao);
-  const add = (g: THREE.BufferGeometry | null): void => { if (g) out.push(g); };
+  const emit = (tris: Tri[], o: ShellOpts): void => {
+    const g = finalize(tris, o);
+    if (g) out.push(g);
+    for (const t of tris) { const id = wholeId(t); if (id !== undefined) hide.add(id); }
+  };
 
-  // ---- top (body + sleeves in one shell, so it bridges chest and arms): hung from the chest
+  // ---- top: body, sleeves (upper arm, forearm) as separate shells with their own continuous unwraps
   if (tk > 0) {
     const long = !!top.long;
     const hem = long ? kneeY + 0.05 : lm.hemY - (['puffer', 'hoodie', 'jacket', 'cardigan'].includes(top.kind) ? 0.09 : top.kind === 'tee' || top.kind === 'blouse' ? 0.0 : 0.04);
-    const sleeveCut = top.sleeves === 'short' ? R.elbowL[1] + (shoulderY - R.elbowL[1]) * 0.42 : top.sleeves === 'none' || top.kind === 'vest' || top.kind === 'apron' ? 9 : -9;
-    const region = (v: V): number => {
-      const body = wsum(v, B.upperBody) + (long ? wsum(v, B.legs) : 0) - wsum(v, B.head) - 0.5;
-      return body;
-    };
-    let t = clip(all, region);
-    t = clip(t, (v) => v.p[1] - hem);
-    t = clip(t, (v) => (wsum(v, B.arms) > 0.5 ? (sleeveCut > 5 ? -1 : v.p[1] - (top.sleeves === 'long' ? wristY + 0.01 : Math.max(sleeveCut, wristY))) : 1));
-    // hang: below the chest the garment keeps the chest width
-    const tr = s.torsoRings as Ring[];
+    const wArm = (v: V): number => wsum(v, B.arms), wHead = (v: V): number => wsum(v, B.head), wLow = (v: V): number => wsum(v, B.legs);
+    let body = clip(all, (v) => wsum(v, B.torso) + wsum(v, B.hips) + (long ? wLow(v) : 0) - wArm(v) - wHead(v) - (long ? 0 : wLow(v)));
+    body = clip(body, (v) => v.p[1] - hem);
+    if (long) body = clip(body, (v) => (v.p[2] < torsoAxis(v.p).cz && v.p[1] < lm.hemY + 0.08 ? Math.abs(v.p[0]) - 0.011 : 1));   // split at the front
     const chest = tr.slice(0, Math.max(2, Math.floor(tr.length * 0.8))).reduce((b, r) => (r[1] * r[3] > b[1] * b[3] ? r : b));
     const chestY = chest[0], a = HANG_TOP[top.kind] ?? 0.5;
-    const hipsR = s.hipRings as Ring[];
-    const bodyRing = (y: number): ReturnType<typeof ringAt> => ringAt(y > lm.hemY - 0.02 ? tr : hipsR, y);
-    const flare = long ? 0.045 : top.kind === 'puffer' ? 0.01 : 0.0;
-    add(finalize(t, {
+    const flare = long ? 0.03 : top.kind === 'puffer' ? 0.01 : 0;
+    emit(body, {
       thick: (v) => tk + (long ? flare * (1 - smooth(hem, lm.hemY, v.p[1])) : 0) + (top.kind === 'hoodie' && v.p[1] > shoulderY ? 0.012 : 0),
-      hang: (p, v) => {
-        if (wsum(v, B.arms) > 0.5 || p[1] >= chestY) return;
-        const r = bodyRing(p[1]), w = smooth(chestY, chestY - 0.1, p[1]) * a;
+      hang: (p) => {
+        if (p[1] >= chestY || p[1] < lm.hemY - 0.02) return;
+        const r = ringAt(tr, p[1]), w = smooth(chestY, chestY - 0.1, p[1]) * a;
         const sx = 1 + Math.max(0, (chest[1] * 0.98) / Math.max(0.05, r.rx) - 1) * w, sz = 1 + Math.max(0, (chest[3] * 0.98) / Math.max(0.05, r.rz) - 1) * w;
         p[0] = r.cx + (p[0] - r.cx) * sx; p[2] = r.cz + (p[2] - r.cz) * sz;
       },
-      iterations: 4, rim: Math.max(0.005, tk * 0.5),
-    }));
+      iterations: 3, rim: Math.max(0.005, tk * 0.5), uv: cyl(HI_RECTS.torso, hem, neckBase, torsoAxis), tile: HI_RECTS.torso,
+    });
+    if (top.kind !== 'vest' && top.kind !== 'apron' && top.sleeves !== 'none') {
+      const sleeveCut = top.sleeves === 'short' ? elbowY + (shoulderY - elbowY) * 0.42 : -9;
+      const arm = clip(all, (v) => wArm(v) - wsum(v, B.torso) - wsum(v, B.hips) - wHead(v));
+      const upper = clip(clip(arm, (v) => v.p[1] - Math.max(elbowY, sleeveCut)), (v) => v.p[1] < shoulderY + 0.08 ? 1 : -1);
+      emit(upper, { thick: () => tk * 0.85, iterations: 3, rim: Math.max(0.004, tk * 0.4), uv: cyl(HI_RECTS.upperArm, elbowY, neckBase, limbAxis(armRings)), tile: HI_RECTS.upperArm });
+      if (top.sleeves === 'long') {
+        const fore = clip(clip(arm, (v) => elbowY - v.p[1]), (v) => v.p[1] - (wristY + 0.012));
+        emit(fore, { thick: (v) => tk * 0.8 + (v.p[1] < wristY + 0.04 ? 0.003 : 0), iterations: 3, rim: 0.005, uv: cyl(HI_RECTS.foreArm, wristY, elbowY, limbAxis(armRings)), tile: HI_RECTS.foreArm });
+      }
+    }
   }
 
-  // ---- trousers / shorts: straight from the hip and thigh
+  // ---- trousers / shorts: straight from the hip and thigh; waist, thigh and shin shells with their own unwraps
   const bk = spec.bottom.kind, tb = THICK_BOTTOM[bk] ?? 0;
   if (tb > 0) {
-    const waist = lm.hemY + 0.02, shortsEnd = kneeY + 0.1, cuff = lm.ankleY + (bk === 'shorts' ? 0 : 0.05);
-    let t = clip(all, (v) => wsum(v, B.lower) - 0.5);
-    t = clip(t, (v) => waist - v.p[1]);
-    t = clip(t, (v) => v.p[1] - (bk === 'shorts' ? shortsEnd : cuff));
+    const waist = lm.hemY + 0.02, shortsEnd = kneeY + 0.1, cuff = lm.ankleY + (bk === 'shorts' ? 0 : 0.05), hipTop = R.hipL[1] + 0.02;
+    const wL = (v: V): number => wsum(v, B.legs), wH = (v: V): number => wsum(v, B.hips) + wsum(v, B.torso);
     const straight = STRAIGHT[bk];
     const thighTop = ringAt(legRings, kneeY + 0.12), mid = Math.max(thighTop.rx, thighTop.rz);
-    add(finalize(t, {
-      thick: (v) => tb + (bk === 'cargo' || bk === 'sweats' ? 0.006 * smooth(0.45, 0.05, v.p[1]) : 0) + (bk === 'trousers' ? 0.004 : 0),
-      hang: (p, v) => {
-        if (!straight || wsum(v, B.legs) < 0.5 || p[1] > kneeY + 0.22) return;
-        const r = ringAt(legRings, p[1]), side = p[0] < 0 ? -1 : 1, cx = side * Math.abs(r.cx);
-        const target = mid * straight, cur = Math.max(r.rx, r.rz) || 0.04, w = smooth(kneeY + 0.22, kneeY, p[1]);
-        const sc = 1 + Math.max(0, target / cur - 1) * Math.min(1, w + 0.4 * (p[1] < kneeY ? 1 : 0));
-        p[0] = cx + (p[0] - cx) * sc; p[2] = r.cz + (p[2] - r.cz) * sc;
-      },
-      iterations: 3, rim: 0.006,
-    }));
+    const thickOf = (v: V): number => tb + (bk === 'cargo' || bk === 'sweats' ? 0.006 * smooth(0.45, 0.05, v.p[1]) : 0) + (bk === 'trousers' ? 0.004 : 0);
+    const hang = (p: V3, v: V): void => {
+      if (!straight || wL(v) < 0.5 || p[1] > kneeY + 0.22) return;
+      const r = ringAt(legRings, p[1]), cx = (p[0] < 0 ? -1 : 1) * Math.abs(r.cx);
+      const target = mid * straight, cur = Math.max(r.rx, r.rz) || 0.04, w = smooth(kneeY + 0.22, kneeY, p[1]);
+      const sc = 1 + Math.max(0, target / cur - 1) * Math.min(1, w + 0.4 * (p[1] < kneeY ? 1 : 0));
+      p[0] = cx + (p[0] - cx) * sc; p[2] = r.cz + (p[2] - r.cz) * sc;
+    };
+    const covered = top.long && tk > 0;   // a long coat hides the hips and thighs
+    if (!covered) {
+      const pelvis = clip(clip(all, (v) => wH(v) - wL(v) - wsum(v, B.arms) - wsum(v, B.head)), (v) => waist - v.p[1]);
+      emit(clip(pelvis, (v) => v.p[1] - (R.hipL[1] - 0.2)), { thick: thickOf, iterations: 3, rim: 0.006, uv: cyl(HI_RECTS.pelvis, R.hipL[1] - 0.2, waist, torsoAxis), tile: HI_RECTS.pelvis });
+      const legs = clip(all, (v) => wL(v) - wH(v));
+      const thigh = clip(clip(legs, (v) => v.p[1] - (bk === 'shorts' ? shortsEnd : kneeY)), (v) => hipTop - v.p[1] + 0.4);
+      emit(thigh, { thick: thickOf, hang, iterations: 3, rim: 0.006, uv: cyl(HI_RECTS.thigh, kneeY, hipTop, limbAxis(legRings)), tile: HI_RECTS.thigh });
+    }
+    if (bk !== 'shorts') {
+      const legs = clip(all, (v) => wL(v) - wH(v));
+      const shin = clip(clip(legs, (v) => kneeY - v.p[1]), (v) => v.p[1] - cuff);
+      emit(shin, { thick: thickOf, hang, iterations: 3, rim: 0.006, uv: cyl(HI_RECTS.shin, lm.ankleY + 0.03, kneeY, limbAxis(legRings)), tile: HI_RECTS.shin });
+    }
   }
-  return out;
+  return { parts: out, hide };
 }
 
 // ---------------------------------------------------------------- head: hair volume, beard, head scarf
@@ -265,9 +316,9 @@ export function headShell(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec)
   const out: THREE.BufferGeometry[] = [];
   const all = soupOf(L, ao);
   const head = clip(all, (v) => wsum(v, B.head) - 0.55);
-  const mapTo = (r: PxRect) => (v: V): [number, number] => {
-    let a = Math.atan2(v.p[0], v.p[2] - zc); if (a < 0) a += Math.PI * 2;
-    return tileUV(r, a / (Math.PI * 2), tOf(v.p[1]) * 0.9 + 0.05);
+  const mapTo = (r: PxRect) => (p: V3): [number, number] => {
+    let a = Math.atan2(p[0], p[2] - zc); if (a < 0) a += Math.PI * 2;
+    return tileUV(r, a / (Math.PI * 2), tOf(p[1]) * 0.9 + 0.05);
   };
   const fixSeam = (g: THREE.BufferGeometry | null): void => {
     if (!g) return;
@@ -286,7 +337,7 @@ export function headShell(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec)
     fixSeam(finalize(clip(head, oval), { thick: () => 0.017, iterations: 3, rim: 0.007, uv: mapTo(hatR) }));
     const neckDrape = clip(all, (v) => wsum(v, [1, 2, 3]) - wsum(v, B.arms) - 0.5 + (v.p[1] > lm.chinY - 0.2 ? 0 : -9));
     const drape = clip(clip(neckDrape, (v) => v.p[1] - (s.rig.shoulderL[1] - 0.2)), (v) => (v.p[2] < zc - rz * 0.5 && v.p[1] > lm.chinY - 0.01 ? -1 : 1));
-    const hatUV = (v: V): [number, number] => { let a = Math.atan2(v.p[0], v.p[2] - zc); if (a < 0) a += Math.PI * 2; return tileUV(hatR, a / (Math.PI * 2), 0.3); };
+    const hatUV = (p: V3): [number, number] => { let a = Math.atan2(p[0], p[2] - zc); if (a < 0) a += Math.PI * 2; return tileUV(hatR, a / (Math.PI * 2), 0.3); };
     fixSeam(finalize(drape, { thick: (v) => 0.016 + 0.014 * smooth(lm.chinY, s.rig.shoulderL[1] - 0.2, v.p[1]) , iterations: 4, rim: 0.007, uv: hatUV }));
     return out;
   }
@@ -301,13 +352,21 @@ export function headShell(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec)
   }
   if (spec.hat !== 'none' || spec.hair === 'bald') return out;
 
-  const style = spec.hair;
+  // hair: a close volume on the skull whose thickness fades to nothing at an irregular hairline (higher at the temples)
+  const style = spec.hair, old = spec.age === 'old';
   if (style === 'afro') return out;
-  const base = style === 'fade' ? 0.007 : style === 'curly' ? 0.024 : 0.016;
-  const topT = style === 'fade' ? 0.8 : 0.68, sideT = style === 'fade' ? 0.5 : 0.38;
-  const region = (v: V): number => Math.max(tOf(v.p[1]) - topT, Math.min(tOf(v.p[1]) - sideT, (v.p[2] - (zc + rz * (style === 'fade' ? 0.15 : -0.1))) * 14));
-  const noise = (v: V): number => (style === 'curly' ? 0.008 * Math.sin(v.p[0] * 260 + v.p[1] * 190) * Math.cos(v.p[2] * 230) : 0);
-  fixSeam(finalize(clip(head, region), { thick: (v) => (base + noise(v)) * (0.65 + 0.5 * smooth(0.55, 0.95, tOf(v.p[1]))), iterations: 3, rim: 0.004, uv: mapTo(hairR) }));
+  const base = style === 'fade' ? 0.006 : style === 'curly' ? 0.026 : old ? 0.007 : style === 'puff' ? 0.012 : 0.016;
+  const topT = style === 'fade' ? 0.8 : old ? 0.78 : 0.7, sideT = style === 'fade' ? 0.52 : old ? 0.55 : 0.4;
+  const bump = (v: V): number => 0.018 * Math.sin(v.p[0] * 210 + 1.3) + 0.012 * Math.sin(v.p[0] * 470);
+  const region = (v: V): number => {
+    const t = tOf(v.p[1]), ax = Math.min(1, Math.abs(v.p[0]) / rx);
+    const hairline = topT + 0.07 - 0.15 * ax * ax + bump(v);                      // forehead high in the middle, receding at the temples
+    const back = Math.min(t - sideT, (v.p[2] - (zc + rz * (style === 'fade' ? 0.15 : -0.12))) * 14);
+    return Math.max(t - hairline, back);
+  };
+  const noise = (v: V): number => (style === 'curly' ? 0.009 * Math.sin(v.p[0] * 260 + v.p[1] * 190) * Math.cos(v.p[2] * 230) : 0);
+  const quiff = (v: V): number => (style === 'short' ? 0.012 * smooth(zc - rz * 0.1, zc - rz * 0.9, v.p[2]) * smooth(0.7, 0.95, tOf(v.p[1])) : 0);
+  fixSeam(finalize(clip(head, region), { thick: (v) => (base + noise(v) + quiff(v)) * (0.12 + 0.88 * smooth(0, 0.1, region(v))), iterations: 3, rim: 0.003, uv: mapTo(hairR) }));
   return out;
 }
 
@@ -396,8 +455,8 @@ export function info(L: MhLod): Info {
   return c;
 }
 /** indices of the body triangles that are NOT foot (the shoes replace the foot) */
-export function nonFootTriangles(L: MhLod): Uint32Array {
+export function nonFootTriangles(L: MhLod, hide?: Set<number>): Uint32Array {
   const inf = info(L), keep: number[] = [];
-  for (let t = 0; t < inf.tile.length; t++) if (inf.tile[t] !== 'shoe') keep.push(L.index[t * 3], L.index[t * 3 + 1], L.index[t * 3 + 2]);
+  for (let t = 0; t < inf.tile.length; t++) if (inf.tile[t] !== 'shoe' && !hide?.has(t)) keep.push(L.index[t * 3], L.index[t * 3 + 1], L.index[t * 3 + 2]);
   return Uint32Array.from(keep);
 }

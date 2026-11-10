@@ -216,7 +216,7 @@ function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
     case 'long': {
       if (!covered) hairCap();
       const r = ringAt(s.headRings, Y(0.55));
-      out.push(loft([{ y: Y(-0.6), rx: r.rx * 0.8, rz: 0.04, cz: r.cz + r.rz * 0.95 }, { y: Y(-0.3), rx: r.rx * 1.0, rz: 0.05, cz: r.cz + r.rz * 1.0 }, { y: Y(0.1), rx: r.rx * 1.12, rz: r.rz * 0.55, cz: r.cz + r.rz * 0.72 }, { y: Y(0.5), rx: r.rx * 1.1, rz: r.rz * 0.8, cz: r.cz + r.rz * 0.3 }], 14, hairR, 3, 'bottom'));
+      out.push(loft([{ y: Y(-1.25), rx: r.rx * 0.75, rz: 0.04, cz: r.cz + r.rz * 0.95 }, { y: Y(-0.75), rx: r.rx * 0.9, rz: 0.045, cz: r.cz + r.rz * 0.98 }, { y: Y(-0.3), rx: r.rx * 1.0, rz: 0.05, cz: r.cz + r.rz * 1.0 }, { y: Y(0.1), rx: r.rx * 1.12, rz: r.rz * 0.55, cz: r.cz + r.rz * 0.72 }, { y: Y(0.5), rx: r.rx * 1.1, rz: r.rz * 0.8, cz: r.cz + r.rz * 0.3 }], 14, hairR, 3, 'bottom'));
       break;
     }
     case 'peyot': {
@@ -278,8 +278,8 @@ function bodyParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
   const seg = hiDetail ? 16 : 9;
   const hip = s.hipRings, tor = s.torsoRings;
   if (spec.bottom.kind === 'skirt') {
-    const top = hip[hip.length - 1], hem = s.landmarks.crownY * (spec.bottom.long ? 0.12 : spec.top.kind === 'dress' ? 0.25 : 0.31), flare = spec.bottom.long ? 1.55 : 1.7;
-    out.push(loft([{ y: hem, rx: top[1] * flare, rz: top[3] * flare, cz: top[2] }, { y: (hem + top[0]) / 2, rx: top[1] * 1.3, rz: top[3] * 1.3, cz: top[2] }, { y: top[0], rx: top[1] * 1.05, rz: top[3] * 1.05, cz: top[2] }], seg, HI_RECTS.pelvis, 1));
+    const top = hip[hip.length - 1], hem = s.landmarks.crownY * (spec.bottom.long ? 0.12 : spec.top.kind === 'dress' ? 0.25 : 0.31);
+    out.push(loft([{ y: hem, rx: top[1] + 0.1, rz: top[3] + 0.1, cz: top[2] }, { y: (hem + top[0]) / 2, rx: top[1] + 0.05, rz: top[3] + 0.05, cz: top[2] }, { y: top[0], rx: top[1] + 0.015, rz: top[3] + 0.015, cz: top[2] }], seg, HI_RECTS.pelvis, 1));
   }
   if (spec.gear === 'backpack') {
     const mid = tor[Math.floor(tor.length / 2)], k = spec.build === 'kid' ? 1.1 : 1, back = mid[2] + mid[3];
@@ -329,8 +329,11 @@ function geometryFor(s: MhShape, variant: number, detail: PedDetail): { geo: THR
   base.setIndex(new THREE.BufferAttribute(L.index, 1));
   const ao = bodyAo(s, L.position);
   const parts = detail === 'far' ? [] : [...headParts(s, spec, detail === 'hi'), ...bodyParts(s, spec, detail === 'hi')];
-  if (detail === 'hi') parts.push(...garmentParts(s, L, ao, spec), ...headShell(s, L, ao, spec), ...shoeParts(s, L, spec));
-  if (detail === 'hi') base.setIndex(new THREE.BufferAttribute(nonFootTriangles(L), 1));
+  if (detail === 'hi') {
+    const gm = garmentParts(s, L, ao, spec);
+    parts.push(...gm.parts, ...headShell(s, L, ao, spec), ...shoeParts(s, L, spec));
+    base.setIndex(new THREE.BufferAttribute(nonFootTriangles(L, gm.hide), 1));
+  }
   base.setAttribute('color', new THREE.BufferAttribute(ao, 3));
   for (const g of parts) if (!g.getAttribute('color')) g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(g.getAttribute('position').count * 3).fill(1), 3));
   const geo = parts.length ? mergeGeometries([base, ...parts], false) : base;
