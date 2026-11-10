@@ -66,6 +66,9 @@ const THREAT_RADIUS = 10;
 const THREAT_MIN_SPEED = 4;
 const FOLLOW_DETACH = 9;
 /** walking around a stopped car: scan period, radius, speed under which a car counts as stopped, look-ahead and margin (m) */
+/** head-on pedestrian jam: nearly still, another pedestrian within this radius dead ahead -> step right */
+const PED_JAM_SPEED = 0.5;
+const PED_JAM_RADIUS = 1.1;
 const BLOCK_SCAN_PERIOD = 0.1;
 const BLOCK_RADIUS = 4;
 const BLOCK_MAX_SPEED = 1.5;
@@ -399,6 +402,19 @@ export class Pedestrian implements Entity {
       return;
     }
     this.blockKey = '';
+    // two pedestrians head-on in a narrow lane (a crosswalk) press into each other and neither gets through: when blocked by another
+    // pedestrian dead ahead and barely moving, both step to their own right (keep-right), which clears them
+    if (Math.hypot(b.vel.x, b.vel.z) < PED_JAM_SPEED) {
+      for (let i = 0; i < list.length; i++) {
+        const o = list[i];
+        if (o.kind !== 'ped' || o === b) continue;
+        const ox = o.pos.x - b.pos.x, oz = o.pos.z - b.pos.z, od = Math.hypot(ox, oz);
+        if (od > PED_JAM_RADIUS || od < 1e-4 || (ox * gx + oz * gz) / od < 0.6) continue;
+        this.blockSlide.x = gx * 0.35 - gz * 0.94;
+        this.blockSlide.z = gz * 0.35 + gx * 0.94;
+        return;
+      }
+    }
   }
 
   /** Group member: stay at the leader's side, wait when the leader waits. */

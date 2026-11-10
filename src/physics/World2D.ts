@@ -16,6 +16,8 @@ const RESTITUTION_MIN_SPEED = 1;
 /** Extra push beyond the penetration depth so the pair is strictly separated afterwards. */
 const SLOP = 1e-4;
 const MAX_SUBSTEPS = 4;
+/** Calm steps (at rest, untouched) before a dynamic body stops running its own collision pass. */
+const SLEEP_AFTER = 3;
 /** Static bodies whose id starts with this never block vehicles (bins and bags get knocked over). */
 export const SOFT_PREFIX = 'soft-';
 /** Dynamic hash is rebuilt once per step; bodies move after that, so queries between steps are padded. */
@@ -41,6 +43,8 @@ interface Entry {
   processed: boolean;
   /** statics only: a prop (bin, bags) that cars and cops drive through; people and everything else still stop at it */
   soft: boolean;
+  /** dynamics sleep: position at the end of the previous step, consecutive calm steps, and whether anything touched it this step */
+  sx: number; sz: number; calm: number; touched: boolean;
 }
 
 class SpatialHash {
@@ -64,6 +68,14 @@ class SpatialHash {
         arr.push(e);
       }
     }
+  }
+
+  /** Re-file `e` only when its cell range changed (bodies mostly stay in the same cells between steps). */
+  update(e: Entry, minX: number, minZ: number, maxX: number, maxZ: number): void {
+    const cx0 = this.cellOf(minX), cx1 = this.cellOf(maxX), cz0 = this.cellOf(minZ), cz1 = this.cellOf(maxZ);
+    if (e.hashed && e.cx0 === cx0 && e.cx1 === cx1 && e.cz0 === cz0 && e.cz1 === cz1) return;
+    this.remove(e);
+    this.insert(e, minX, minZ, maxX, maxZ);
   }
 
   remove(e: Entry): void {
@@ -110,6 +122,7 @@ function newEntry(body: Body2D, idx: number, isStatic: boolean): Entry {
     body, idx, isStatic, stamp: 0, r: 0,
     minX: 0, minZ: 0, maxX: 0, maxZ: 0,
     cx0: 0, cz0: 0, cx1: 0, cz1: 0, hashed: false, processed: false, soft: false,
+    sx: NaN, sz: NaN, calm: 0, touched: false,
   };
 }
 
@@ -249,15 +262,27 @@ export class World2D implements IWorld2D {
     this.pairContacts.clear();
     const dyn = this.dynamics;
     // re-hash dynamics by their current (post-integration) position
-    this.dynHash.reset();
     for (let i = 0; i < dyn.length; i++) {
       const e = dyn[i];
       const b = e.body;
       e.processed = false;
-      e.hashed = false;
-      this.dynHash.insert(e, b.pos.x - e.r, b.pos.z - e.r, b.pos.x + e.r, b.pos.z + e.r);
+      this.dynHash.update(e, b.pos.x - e.r, b.pos.z - e.r, b.pos.x + e.r, b.pos.z + e.r);
     }
-    for (let i = 0; i < dyn.length; i++) this.processDynamic(dyn[i], dt);
+    // A body that has not moved, has no velocity and was not touched for SLEEP_AFTER steps skips its own collision pass
+    // (parked cars, standing people). It stays in the hash, so anything that moves into it still collides with it; the
+    // contact marks it touched and it wakes on the next step.
+    for (let i = 0; i < dyn.length; i++) {
+      const e = dyn[i], b = e.body;
+      const rest = b.vel.x === 0 && b.vel.z === 0 && b.pos.x === e.sx && b.pos.z === e.sz;
+      if (rest && e.calm >= SLEEP_AFTER) continue;
+      e.calm = rest ? e.calm + 1 : 0;
+      this.processDynamic(e, dt);
+    }
+    for (let i = 0; i < dyn.length; i++) {
+      const e = dyn[i];
+      if (e.touched) { e.calm = 0; e.touched = false; }
+      e.sx = e.body.pos.x; e.sz = e.body.pos.z;
+    }
     return this.contacts;
   }
 
@@ -349,6 +374,7 @@ export class World2D implements IWorld2D {
       contact.point.x = px; contact.point.z = pz;
       if (closing > contact.impulse) contact.impulse = closing;
     }
+    ea.touched = true; eb.touched = true;
     if (total === 0) return;
 
     // positional correction split by inverse mass (statics have inverse mass 0 and never move)

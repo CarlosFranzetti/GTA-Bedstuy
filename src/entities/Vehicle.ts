@@ -169,6 +169,13 @@ export class Vehicle implements IVehicle {
   private input: VehicleInput = { ...NEUTRAL };
   private prevHorn = false;
   private time = 0;
+  /** Parked and fully at rest: update() returns early until something moves it, changes its driver or damages it. */
+  private settled = false;
+  private settleCount = 0;
+  private setX = 0;
+  private setZ = 0;
+  private setH = 0;
+  private setDamage = 0;
   private steerNorm = 0;
   private steerAngle = 0;
   private yawRate = 0;
@@ -307,6 +314,10 @@ export class Vehicle implements IVehicle {
     const b = this.body;
     this.prevPos.x = b.pos.x; this.prevPos.z = b.pos.z; this.prevHeading = b.heading;
     this.time += dt;
+    if (this.settled) {
+      if (this.driver === null && b.vel.x === 0 && b.vel.z === 0 && b.pos.x === this.setX && b.pos.z === this.setZ && b.heading === this.setH && this.damage === this.setDamage) return;
+      this.settled = false; this.settleCount = 0;
+    }
     this.shakeRequested *= Math.exp(-SHAKE_DECAY * dt);
     if (this.shakeRequested < 0.005) this.shakeRequested = 0;
 
@@ -325,6 +336,19 @@ export class Vehicle implements IVehicle {
     this.springs(dt);
     this.animate(dt, this.speed);
     applyPose(this.object3D, b.pos, b.heading);
+    this.checkSettled();
+  }
+
+  /** After five consecutive fully-at-rest parked steps the car stops costing CPU (no springs, wheels, pose writes). */
+  private checkSettled(): void {
+    const b = this.body, E = 1e-4;
+    const rest = this.driver === null && b.vel.x === 0 && b.vel.z === 0 && !this.siren && this.shakeRequested === 0 &&
+      Math.abs(this.roll) < E && Math.abs(this.pitch) < E && Math.abs(this.bounce) < E &&
+      Math.abs(this.rollV) < E && Math.abs(this.pitchV) < E && Math.abs(this.bounceV) < E &&
+      Math.abs(this.aLongF) < E && Math.abs(this.aLatF) < E && Math.abs(this.steerNorm) < E && this.yawRate === 0 && !this.braking;
+    if (!rest) { this.settleCount = 0; return; }
+    if (++this.settleCount < 5) return;
+    this.settled = true; this.setX = b.pos.x; this.setZ = b.pos.z; this.setH = b.heading; this.setDamage = this.damage;
   }
 
   /** Pose the mesh between the previous and current simulation state (alpha 0..1); teleports snap. */

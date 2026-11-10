@@ -23,6 +23,23 @@ const STEPS = FULL ? 3000 : 400;
 
 const pct = (a: number[], p: number): number => { const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(p * s.length))] ?? 0; };
 
+/** BENCH_PROF=<file> writes a V8 .cpuprofile of just the stepping loop (summarise by self time per function). */
+function profiler(file: string | undefined): { start(): void; stop(): void } {
+  if (!file) return { start() {}, stop() {} };
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const req = (globalThis as unknown as { process: { getBuiltinModule(n: string): any } }).process.getBuiltinModule;
+  const { Session } = req('node:inspector'); const fs = req('node:fs');
+  const ses = new Session(); ses.connect();
+  const post = (m: string, p?: object): any => { let out: unknown; ses.post(m, p ?? {}, (_e: unknown, r: unknown) => { out = r; }); return out; };
+  return {
+    start() { post('Profiler.enable'); post('Profiler.setSamplingInterval', { interval: 200 }); post('Profiler.start'); post('HeapProfiler.startSampling', { samplingInterval: 1024, includeObjectsCollectedByMajorGC: true, includeObjectsCollectedByMinorGC: true }); },
+    stop() {
+      const r = post('Profiler.stop'); fs.writeFileSync(file, JSON.stringify(r.profile));
+      const h = post('HeapProfiler.stopSampling'); fs.writeFileSync(file + '.heap', JSON.stringify(h.profile));
+    },
+  };
+}
+
 export function benchSim(steps: number): { rows: Record<string, number[]>; allocKBPerStep: number } {
   const { physics, world } = realPhysics();
   const grid = world.grid;
@@ -53,6 +70,8 @@ export function benchSim(steps: number): { rows: Record<string, number[]>; alloc
   const entities = new Map<string, { onContact?: (c: never, o: never) => void }>();
   const input = (k: Record<string, number>) => ({ axis: (n: string[], p: string[]) => (p.some((c) => k[c]) ? 1 : 0) - (n.some((c) => k[c]) ? 1 : 0), isDown: () => false, consume: () => false }) as never;
   const now = () => performance.now();
+  const prof = profiler(process.env.BENCH_PROF);
+  prof.start();
   for (let i = 0; i < steps; i++) {
     const t0 = now();
     if (i === Math.floor(steps / 2) && !player.inVehicle) { player.body.pos.x = car.body.pos.x - 1.5; player.body.pos.z = car.body.pos.z; player.tryEnter([car]); }
@@ -78,28 +97,18 @@ export function benchSim(steps: number): { rows: Record<string, number[]>; alloc
     rows.total.push(now() - t0);
     if (i % 10 === 9) { const h = process.memoryUsage().heapUsed; if (h > lastHeap) allocBytes += h - lastHeap; lastHeap = h; }
   }
+  prof.stop();
   return { rows, allocKBPerStep: allocBytes / 1024 / steps };
 }
 
-/** BENCH_PROF=<file> writes a V8 .cpuprofile of the measured run (open in Chrome devtools or summarise with a script). */
-async function withProfile<T>(file: string | undefined, f: () => T): Promise<T> {
-  if (!file) return f();
-  const { Session } = await import(/* @vite-ignore */ ('node:' + 'inspector') as string) as any;
-  const fs = await import(/* @vite-ignore */ ('node:' + 'fs') as string) as any;
-  const ses = new Session(); ses.connect();
-  const post = (m: string, p?: object) => new Promise<any>((res, rej) => ses.post(m, p ?? {}, (e: Error | null, r: unknown) => (e ? rej(e) : res(r))));
-  await post('Profiler.enable'); await post('Profiler.setSamplingInterval', { interval: 200 }); await post('Profiler.start');
-  const out = f();
-  const { profile } = await post('Profiler.stop');
-  fs.writeFileSync(file, JSON.stringify(profile));
-  return out;
-}
-
 describe('sim step cost (node, real world)', () => {
-  it(`${STEPS} steps: per-system ms`, async () => {
+  it(`${STEPS} steps: per-system ms`, () => {
     const warm = 60;
-    const { rows, allocKBPerStep } = await withProfile(process.env.BENCH_PROF, () => benchSim(STEPS));
+    const { rows, allocKBPerStep } = benchSim(STEPS);
     const lines = Object.entries(rows).map(([k, v]) => { const x = v.slice(warm); return `${k.padEnd(9)} p50 ${pct(x, .5).toFixed(3)}  p95 ${pct(x, .95).toFixed(3)}  p99 ${pct(x, .99).toFixed(3)}  max ${Math.max(...x).toFixed(2)}`; });
+    const slow: string[] = [];
+    rows.total.forEach((ms, i) => { if (i >= warm && ms > 8) { const top = Object.entries(rows).filter(([k]) => k !== 'total').sort((a, b) => b[1][i] - a[1][i])[0]; slow.push(`#${i} ${ms.toFixed(1)}ms (${top[0]} ${top[1][i].toFixed(1)})`); } });
+    if (slow.length) lines.push(`steps > 8 ms: ${slow.length}: ${slow.slice(0, 12).join(', ')}`);
     console.log(`steps=${STEPS} alloc~${allocKBPerStep.toFixed(1)} KB/step\n` + lines.join('\n'));
     const total = rows.total.slice(warm);
     expect(pct(total, .5)).toBeLessThan(FULL ? 1.0 : 5);

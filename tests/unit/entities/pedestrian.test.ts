@@ -546,4 +546,14 @@ describe('Pedestrian stoops and groups', () => {
     expect(f.groupLeader).toBeNull();
     expect(f.state).toBe('walking');
   });
+
+  it('two pedestrians head-on in a narrow lane each step to their right instead of pressing into each other (crosswalk jam)', () => {
+    const g = graph([gn('a', 0, 0), gn('b', 20, 0)], [['a', 'b']]);
+    const { ped, world } = setup(g, 'a');
+    ped.setEnvironment({});
+    world.nearby = [{ id: 'other', kind: 'ped', shape: { kind: 'circle', r: 0.3 }, pos: { x: 0.8, z: 0 }, vel: { x: 0, z: 0 }, heading: 0, mass: 70, userData: null }];
+    let zMax = 0;
+    for (let i = 0; i < 30; i++) { ped.update(0.1); zMax = Math.max(zMax, ped.body.vel.z); }
+    expect(zMax, 'walking east, its right is +z').toBeGreaterThan(0.5);
+  });
 });
