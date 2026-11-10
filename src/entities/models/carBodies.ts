@@ -1398,17 +1398,29 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   const ltx = trR.wMax - 0.17;
   const head = new Acc();
   const tail = new Acc();
-  // a lamp set on the rounded corner: d metres back from the tip, turned to follow the plan curve
-  const cornerPose = (front: boolean, d: number): { pos: THREE.Vector3; yaw: number; yT: number } => {
-    const u = front ? tipF - d : tipR + d;
-    const u2 = front ? u - 0.03 : u + 0.03;
-    const r0 = ring(u), r1 = ring(u2);
-    const slope = (r0.wMax - r1.wMax) / 0.03; // body half-width growth per metre away from the tip
-    const yaw = (front ? -1 : 1) * Math.atan(Math.max(0, slope));
-    return { pos: v3(r0.wMax - 0.012 - (front ? st.lampInset ?? 0 : 0), 0, -u), yaw, yT: r0.yT };
+  // a lamp set on the rounded corner: its inner end sits d metres back from the tip, its outer end where the plan curve is one lamp-length
+  // further round the corner (the lamp is a chord of the curve, pushed out by the sagitta), so it sweeps back along the fender
+  const LAMP_X: Record<string, [number, number]> = { swept: [-0.2, 0.28], box: [-0.16, 0.2], angular: [-0.15, 0.19], tall: [-0.058, 0.058], box2: [-0.2, 0.2] };
+  const cornerPose = (front: boolean, d1: number, kind: string): { pos: THREE.Vector3; yaw: number; yT: number } => {
+    const [x0, x1] = LAMP_X[kind] ?? [-0.15, 0.15];
+    const len = x1 - x0;
+    const uAt = (d: number): number => (front ? tipF - d : tipR + d);
+    const xAt = (d: number): number => ring(uAt(d)).wMax - 0.012 - (front && d === d1 ? st.lampInset ?? 0 : 0);
+    const xa = xAt(d1);
+    let d2 = d1 + 0.02;
+    while (d2 < d1 + 1.2 && Math.hypot(xAt(d2) - xa, d2 - d1) < len) d2 += 0.01;
+    const xb = xAt(d2);
+    const ang = Math.atan2(xb - xa, d2 - d1); // chord angle from the car axis
+    const sag = 0.02;
+    const t0 = -x0 / len; // where the shape origin sits along the chord
+    const cx = xa + (xb - xa) * t0, cd = d1 + (d2 - d1) * t0;
+    const nx = Math.cos(ang), nd = Math.sin(ang); // outward normal of the chord in (x, d)
+    const yaw = (front ? -1 : 1) * ang;
+    void nd;
+    return { pos: v3(cx + nx * sag, 0, -uAt(cd) + (front ? -1 : 1) * 0 + (front ? -Math.sin(ang) * sag : Math.sin(ang) * sag)), yaw, yT: ring(uAt(cd)).yT };
   };
   if (st.headLamp && st.lampD !== undefined) {
-    const c = cornerPose(true, st.lampD);
+    const c = cornerPose(true, st.lampD, st.headLamp);
     const hp = lampPieces(st.headLamp, true, v3(c.pos.x, st.headY ?? c.yT - 0.09, c.pos.z), c.yaw);
     for (const g of hp.lens) head.addBoth(g);
     for (const g of hp.housing) trim.addBoth(g);
@@ -1420,8 +1432,8 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
     for (const [sx2, yaw] of [[-1, 0.25], [1, -0.25]] as const) head.add(placeLamp(lensGeo(0.14, 0.05, 0.045, true), v3(sx2 * lx, lampHeadY, -tipF), yaw));
   }
   if (st.tailLamp && st.tailD !== undefined) {
-    const c = cornerPose(false, st.tailD);
-    const tp = lampPieces(st.tailLamp, false, v3(c.pos.x - 0.06, st.tailY ?? c.yT - 0.12, c.pos.z), c.yaw, st.glassTop !== undefined ? 1.7 : 1);
+    const c = cornerPose(false, st.tailD, st.tailLamp);
+    const tp = lampPieces(st.tailLamp, false, v3(c.pos.x, st.tailY ?? c.yT - 0.12, c.pos.z), c.yaw, st.glassTop !== undefined ? 1.7 : 1);
     for (const g of tp.lens) tail.addBoth(g);
     for (const g of tp.housing) trim.addBoth(g);
   } else if (st.tailLamp) {

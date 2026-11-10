@@ -18,7 +18,7 @@ const RESTITUTION_MIN_SPEED = 1;
 const SLOP = 1e-4;
 const MAX_SUBSTEPS = 4;
 /** Calm steps (at rest, untouched) before a dynamic body stops running its own collision pass. */
-const SLEEP_AFTER = 1e9;
+const SLEEP_AFTER = 3;
 /** Static bodies whose id starts with this never block vehicles (bins and bags get knocked over). */
 export const SOFT_PREFIX = 'soft-';
 /** Dynamic hash is rebuilt once per step; bodies move after that, so queries between steps are padded. */
