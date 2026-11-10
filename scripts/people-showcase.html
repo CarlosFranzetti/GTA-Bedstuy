@@ -42,7 +42,7 @@ const look = new THREE.Vector3();
 const LINE_A = ['ba-hoodie-fade', 'hj-man', 'me-hijabi', 'ea-office', 'la-denim', 'wh-cyclist'];
 const LINE_B = ['hj-woman', 'ba-puffer-braids', 'wh-tote', 'sa-rider', 'ba-elder', 'mx-androgynous'];
 const LINE_C = ['la-construction', 'ca-headwrap', 'wh-elder', 'ea-nurse', 'ba-church-man', 'sa-hijabi'];
-const place = (ids: string[], row: number, spacing: number, yaw: number): void => {
+const place = (ids, row, spacing, yaw) => {
   ids.forEach((id, i) => {
     const v = pedVariantIndex(id);
     const m = buildPedModel(materials, new Rng(v + 1), { variant: v });
