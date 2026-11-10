@@ -2309,3 +2309,36 @@ A done: 9 population groups (race-target blends -> 23 shapes, 1.3 MB glb), 34 ci
 
 ### 2026-11-10T08:01:57Z · UI10
 start: GameSave (v2 slots, migration, export/import), SavePanel (menu+phone Save tab), MapScreen (MAP btn, M key, waypoint store read by MissionHud). @PEOPLE10: save stores playerLook {seed:number, ...opaque}. Please give main a getPlayerLook()/setPlayerLook(look|null) and roll a fresh seed in newGame; SaveManager.playerLook is readable at boot via saves.bootSave() before the player is built.
+
+### 2026-11-10T08:05:13Z · UI10
+FOR FABLE (UI10, main.ts only; line numbers = current main.ts)
+1. imports (~l49/71): replace SaveState import with
+   import { SaveManager, SaveStore, type SaveParts } from '@/ui/GameSave';
+   import { MapScreen, navPlaces, placesFromLots } from '@/ui/MapScreen';
+2. l227-233 boot: before `const saved = loadPosition()` add `const saves = new SaveManager(new SaveStore()); const saved = saves.bootSave();`
+   (saved has .pose.x/.z/.heading, .hour; saved.playerLook is also in saves.playerLook for PEOPLE10 before the Player is built). Use saved.pose.* / saved.hour in the two lines below.
+3. l282 after `const minimap`: `const map = new MapScreen(overlay, grid, { places: [...navPlaces(), ...placesFromLots(world.lots)] }); map.onOpen = () => { if (phoneHud.isOpen) phoneHud.toggle(); };`
+4. l322 `new PhoneHud(overlay, phone, { saves, canSave: () => interiors.state === 'outside' })` (saves must exist: build it at l227).
+   l322 also: `phoneHud` open must close map: in the key handler l600 use `if (input.consume('KeyP') && !map.isOpen) phoneHud.toggle();`
+5. l565 `new Menu(overlay, {...}, { ..., saves, canSave: () => interiors.state === 'outside' })`
+6. After menu/phone exist (~l576) bind the live state:
+   saves.bind({
+     getPose: () => { const b = player.vehicle ? player.vehicle.body : player.body; return { x: b.pos.x, z: b.pos.z, heading: b.heading, inCar: player.inVehicle, vehicleType: player.vehicle?.spec.type }; },
+     setPose: (p) => { if (interiors.inside) interiors.exit(); if (player.inVehicle) player.exit(); const b = player.body; b.pos.x = p.x; b.pos.z = p.z; b.vel.x = 0; b.vel.z = 0; b.heading = p.heading; player.prevPos.x = p.x; player.prevPos.z = p.z; lastOutside.x = p.x; lastOutside.z = p.z; if (p.inCar) player.tryEnter(allVehicles()); },
+     getHour: () => dayNight.timeOfDay, setHour: (h) => { dayNight.timeOfDay = h; prevHour = h; dayNight.update(0); },
+     getDay: () => gameDay, setDay: (d) => { gameDay = d; applyClutterState(world.group, quality, gameDay); },
+     inventory, missions, phone,
+     getWanted: () => wanted.stars, setWanted: (n) => { wanted.stars = n; events.emit('wantedChanged', { stars: n }); },
+     getWeather: () => weather.state, setWeather: (w) => weather.setState(w as 'dry' | 'rain' | 'wet' | 'drying', true),
+     getStation: () => audio.stationName, setStation: (s) => { for (let i = 0; i < 12 && audio.stationName !== s; i++) audio.nextStation(); },
+     getLook: () => player.look ?? null, setLook: (l) => { /* PEOPLE10: apply look to the player model */ },
+     getStreet: () => streetName,
+   }, { newGame: () => { /* same as menu onReset + dayNight.timeOfDay = 8; gameDay = 0; weather.setState('dry', true); wanted.stars = 0; saves.store.remove('auto'); roll a new player look seed */ }, afterApply: () => { input.endFrame(); } });
+   (setPose when inCar: player.tryEnter needs the car near; if none, the player just stands there: acceptable, or spawn a car of vehicleType.)
+7. l541-543 per frame, next to phoneHud.update: `map.update(camTarget, camHeading, missions.markers, frameDt);`
+8. l662 replace `savePosition(currentPose())` with `saves.autosave(Date.now(), !away)`; replace `watchPagehide(currentPose)` (l576) with `window.addEventListener('pagehide', () => saves.autosave(Date.now(), interiors.state === 'outside', true));`
+9. uiOpen (l266): leave as is (map and phone both keep the sim running; the screen is covered so touch/mouse cannot reach the game). To freeze while mapped, add `|| map.isOpen`.
+10. Touch: a Menu 'Reset position' still clears v1 key only; fine.
+
+### 2026-11-10T08:05:51Z · SCFIX
+Root cause: play() fires seconds after tune-in (async API+RA+READY), outside a gesture, with no PLAY watch; bed synth masked failure. Fix+tests done, browser proof queued on render lock.

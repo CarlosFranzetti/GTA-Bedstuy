@@ -46,7 +46,9 @@ import { setPhoneDetailHidden } from '@/render/TierGeometry';
 import { Menu } from '@/ui/Menu';
 import { RadioUi } from '@/ui/RadioUi';
 import { GamepadInput } from '@/core/Gamepad';
-import { loadPosition, savePosition, watchPagehide, type SavedPosition } from '@/ui/SaveState';
+import { SaveManager, SaveStore } from '@/ui/GameSave';
+import { MapScreen, navPlaces, placesFromLots } from '@/ui/MapScreen';
+import { getPlayerLook, setPlayerLook, randomPlayerLook, type PlayerLook as RosterLook } from '@/textures/painters/pedRoster';
 import { LoadingScreen, nextPaint, withTimeout } from '@/render/Loading';
 import { PerfMonitor, PassCounter } from '@/render/Perf';
 import { MissionSystem } from '@/game/missions/MissionSystem';
@@ -224,13 +226,17 @@ const makePed = (id: string, node: GraphNode) =>
 
 // spawn on foot at the saved position (clamped to the map), else at the default spot
 const SPAWN = { x: 9, z: 20 };
-const saved = loadPosition();
+const saves = new SaveManager(new SaveStore());
+const saved = saves.bootSave();
+// player look: restored from the save, else a fresh random one (new game)
+{ const l = saved?.playerLook as unknown as Partial<RosterLook> | null | undefined; if (l && typeof l.group === 'string' && typeof l.variant === 'number') setPlayerLook(l as RosterLook); }
+const bootLook = getPlayerLook();
 const spawn = saved
-  ? { x: clamp(saved.x, grid.bounds.minX - 25, grid.bounds.maxX + 25), z: clamp(saved.z, grid.bounds.minZ - 25, grid.bounds.maxZ + 25) }
+  ? { x: clamp(saved.pose.x, grid.bounds.minX - 25, grid.bounds.maxX + 25), z: clamp(saved.pose.z, grid.bounds.minZ - 25, grid.bounds.maxZ + 25) }
   : SPAWN;
 const player = new Player('player', spawn, materials, events);
 player.blockedAt = (p, r, ignoreId) => physics.overlapsSolid(p, r, ignoreId);
-if (saved) { player.body.heading = saved.heading; dayNight.timeOfDay = saved.hour; }
+if (saved) { player.body.heading = saved.pose.heading; dayNight.timeOfDay = saved.hour; }
 scene.add(player.object3D);
 physics.addBody(player.body);
 
@@ -280,6 +286,7 @@ const missionHud = new MissionHud(overlay);
 missionHud.setRouter(createPointerRouter(grid));
 setTimeout(() => missionHud.showHomeHint(), 2500); // one-time 'your place is the green awning' toast at first spawn
 const minimap = new Minimap(overlay, grid);
+const map = new MapScreen(overlay, grid, { places: [...navPlaces(), ...placesFromLots(world.lots)] });
 
 const input = new Input(renderer.domElement);
 let lastOutside: Vec2 = { x: SPAWN.x, z: SPAWN.z };
@@ -319,7 +326,8 @@ events.on('mission:twist', (e) => { if (e.id === 'aftersloth-residency') interio
 events.on('mission:objective', (e) => { if (e.id === 'aftersloth-residency' && e.index >= 5) interiors.setBlackout(false); });
 events.on('mission:completed', (e) => { if (e.id === 'aftersloth-residency') interiors.setBlackout(false); });
 events.on('mission:failed', (e) => { if (e.id === 'aftersloth-residency') interiors.setBlackout(false); });
-const phoneHud = new PhoneHud(overlay, phone);
+const phoneHud = new PhoneHud(overlay, phone, { saves, canSave: () => interiors.state === 'outside' });
+map.onOpen = () => { if (phoneHud.isOpen) phoneHud.toggle(); };
 const missionHudScratch = {} as MissionHudState;
 const cam = new ThirdPersonCamera(window.innerWidth / window.innerHeight);
 cam.attachLetterbox(overlay);
@@ -403,12 +411,6 @@ const sunDir = dayNight.sunDirection; // true astronomical sun (the shadow light
 const focusPoint = new THREE.Vector3();
 const camCtx: { world: typeof physics; vehicle: IVehicle | null } = { world: physics, vehicle: null };
 const nearDoor = (v: IVehicle, p: Vec2): boolean => doorDistance(v, p) <= ENTER_RANGE;
-const savedPose: SavedPosition = { x: 0, z: 0, heading: 0, hour: 0 };
-const currentPose = (): SavedPosition => {
-  const b = player.vehicle ? player.vehicle.body : player.body;
-  savedPose.x = b.pos.x; savedPose.z = b.pos.z; savedPose.heading = b.heading; savedPose.hour = dayNight.timeOfDay;
-  return savedPose;
-};
 let saveTick = 0;
 let minimapAcc = 0;
 /** seconds between minimap redraws (phone: 30 Hz; 0 = every frame) */
@@ -540,6 +542,7 @@ const game = new Game(
     interiors.update(frameDt, dj?.roomBeat ?? null);
     phone.update(frameDt, pos, dayNight.timeOfDay);
     phoneHud.update(missions.hud.prompt, pos, camHeading);
+    map.update(camTarget, camHeading, missions.markers, frameDt);
     copPositions.length = 0;
     for (const c of cops.cops) copPositions.push(c.body.pos);
     minimapAcc += frameDt;
@@ -570,10 +573,34 @@ const menu = new Menu(overlay, {
   onRadioLibrary: () => radioUi.open(),
   onInvertLookY: (b) => { input.invertLookY = b; },
   onReset: () => { clearMissionData(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++; if (interiors.inside) interiors.exit(); const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = SPAWN.x; b.pos.z = SPAWN.z; b.vel.x = 0; b.vel.z = 0; },
-}, { touch: isTouch, initialQuality: quality, ignoreSavedQuality: params.has('q') });
+}, { touch: isTouch, initialQuality: quality, ignoreSavedQuality: params.has('q'), saves, canSave: () => interiors.state === 'outside' });
 input.onModeChange = (m) => { hud.setInputMode(m); menu.setInputMode(m); };
 hud.setInputMode(input.mode); menu.setInputMode(input.mode);
-watchPagehide(currentPose);
+let pendingLook: RosterLook | null = null;
+saves.bind({
+  getPose: () => { const b = player.vehicle ? player.vehicle.body : player.body; return { x: b.pos.x, z: b.pos.z, heading: b.heading, inCar: player.inVehicle, vehicleType: player.vehicle?.spec.type }; },
+  setPose: (p) => { if (interiors.inside) interiors.exit(); if (player.inVehicle) player.exit(); const b = player.body; b.pos.x = p.x; b.pos.z = p.z; b.vel.x = 0; b.vel.z = 0; b.heading = p.heading; player.prevPos.x = p.x; player.prevPos.z = p.z; lastOutside.x = p.x; lastOutside.z = p.z; if (p.inCar) player.tryEnter(allVehicles()); },
+  getHour: () => dayNight.timeOfDay, setHour: (h) => { dayNight.timeOfDay = h; prevHour = h; dayNight.update(0); },
+  getDay: () => gameDay, setDay: (d) => { gameDay = d; applyClutterState(world.group, quality, gameDay); },
+  inventory, missions, phone,
+  getWanted: () => wanted.stars, setWanted: (n) => { wanted.stars = n; events.emit('wantedChanged', { stars: n }); },
+  getWeather: () => weather.state, setWeather: (w) => weather.setState(w as 'dry' | 'rain' | 'wet' | 'drying', true),
+  getStation: () => audio.stationName, setStation: (st) => { for (let i = 0; i < 12 && audio.stationName !== st; i++) audio.nextStation(); },
+  getLook: () => ({ seed: 0, ...(pendingLook ?? bootLook) }),
+  setLook: (l) => { const r = l as unknown as Partial<RosterLook> | null; if (r && typeof r.group === 'string' && typeof r.variant === 'number' && (r.group !== bootLook.group || r.variant !== bootLook.variant)) pendingLook = r as RosterLook; },
+  getStreet: () => streetName,
+}, {
+  newGame: () => {
+    clearMissionData(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++;
+    if (interiors.inside) interiors.exit(); if (player.inVehicle) player.exit();
+    const b = player.body; b.pos.x = SPAWN.x; b.pos.z = SPAWN.z; b.vel.x = 0; b.vel.z = 0;
+    dayNight.timeOfDay = 8; prevHour = 8; gameDay = 0; weather.setState('dry', true); wanted.stars = 0;
+    pendingLook = randomPlayerLook(`${Math.random()}:${Date.now()}`);
+  },
+  // the player model is built once at boot, so a different look (new game, or a save with another look) is applied by autosaving and reloading
+  afterApply: () => { input.endFrame(); if (pendingLook) { saves.autosave(Date.now(), true, true); location.reload(); } },
+});
+window.addEventListener('pagehide', () => saves.autosave(Date.now(), interiors.state === 'outside', true));
 
 // 1) first system: snapshot every dynamic body's pose before the step moves it (render lerps prev -> current)
 game.add({
@@ -597,7 +624,7 @@ game.add({
     if (blocked) { for (const k of ['KeyF', 'KeyE', 'KeyR', 'KeyX', 'KeyP']) input.consume(k); }
     else {
       player.control(input, cam.yaw);
-      if (input.consume('KeyP')) phoneHud.toggle();
+      if (input.consume('KeyP') && !map.isOpen) phoneHud.toggle();
       if (input.consume('KeyF')) {
         const fpos = player.body.pos;
         if (!player.inVehicle && interiors.interact(fpos)) { /* door / shop / decks / bar handled */ }
@@ -659,7 +686,7 @@ game.add({
     const pv = player.vehicle as ({ slip?: number } & IVehicle) | null;
     audio.setSlip(pv?.slip ?? 0); audio.setHandbrake(player.inVehicle && player.lastVehicleInput.handbrake);
     audio.update(dt);
-    if (++saveTick >= 120 && !away) { saveTick = 0; savePosition(currentPose()); }
+    if (++saveTick >= 120 && !away) { saveTick = 0; saves.autosave(Date.now(), true); }
   },
 });
 
@@ -684,6 +711,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
 (window as unknown as { __gtaDebug: unknown }).__gtaDebug = {
   setFreeCam(x: number, y: number, z: number, lx: number, ly: number, lz: number) { freeCam = { pos: new THREE.Vector3(x, y, z), look: new THREE.Vector3(lx, ly, lz) }; },
   clearFreeCam() { freeCam = null; },
+  cam, saves, map,
   /** Freeze/unfreeze the simulation and render loop (review scripts take deterministic A/B shots with renderOnce). */
   setPaused(p: boolean) { game.paused = p; },
   /** Stops the requestAnimationFrame loop (headless review scripts then draw frames by hand with renderOnce). */
