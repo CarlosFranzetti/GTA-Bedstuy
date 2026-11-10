@@ -84,7 +84,7 @@ export class PedSpawnScheduler {
 }
 
 /** Closest a new / relocated pedestrian may appear when the spot is out of the camera's sight (behind the player, round a corner) (m). */
-export const HIDDEN_RING_MIN = 45;
+export const HIDDEN_RING_MIN = 54;
 /** Half-width of the sight cone (rad): the on-foot camera is 64 deg tall; with a wide aspect and the chase swing, 60 deg each side is safe. */
 export const VIEW_HALF_ANGLE = (60 * Math.PI) / 180;
 
