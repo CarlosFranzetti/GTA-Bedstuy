@@ -208,8 +208,9 @@ function paintFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): voi
   for (const n of L.seams) {
     const x = X(n);
     // ~8-12 mm gap (0.8 canonical px = 1.6 px of the 1024 atlas) with a faint light lip; it starts at the belt, not the roof
-    s.shade(x - 0.4, beltY, 0.8, Y(0.13) - beltY, '#000000', 0.9);
-    s.shade(x + 0.3, beltY, 0.35, Y(0.14) - beltY, '#ffffff', 0.25);
+    const gw = Math.max(0.5, 1 / s.k); // one real pixel: 9.5 mm on the 1024 atlas, 19 mm on a 512 one
+    s.shade(Math.floor(x), beltY, gw, Y(0.13) - beltY, '#000000', 0.9);
+    s.shade(Math.floor(x) + gw + 0.5, beltY, gw, Y(0.14) - beltY, '#ffffff', 0.2);
   }
   for (const n of L.handles) {
     const x = X(n);
