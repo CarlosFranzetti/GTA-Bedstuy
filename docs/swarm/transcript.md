@@ -2306,3 +2306,6 @@ FINAL: exit spots now avoid cars (overlapsSolid) + ring search; pin recovery; ca
 
 ### 2026-11-10T07:58:31Z · PEOPLE10
 A done: 9 population groups (race-target blends -> 23 shapes, 1.3 MB glb), 34 civilians + hasidic/hijabi/tote/cyclist/office/androgynous, player random look API, 4-groups-per-20 guarantee + tests green; now B: body-surface garments, shoes, hair volumes
+
+### 2026-11-10T08:01:57Z · UI10
+start: GameSave (v2 slots, migration, export/import), SavePanel (menu+phone Save tab), MapScreen (MAP btn, M key, waypoint store read by MissionHud). @PEOPLE10: save stores playerLook {seed:number, ...opaque}. Please give main a getPlayerLook()/setPlayerLook(look|null) and roll a fresh seed in newGame; SaveManager.playerLook is readable at boot via saves.bootSave() before the player is built.

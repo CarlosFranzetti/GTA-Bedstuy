@@ -88,4 +88,22 @@ describe('follow camera smoothness', () => {
     expect(d1).toBeGreaterThan(d2); expect(d1).toBeLessThan(d0);
     expect(d2).toBeLessThan(2 - 0.3);
   });
+
+  it('touch look drags are smoothed over several frames but rotate by exactly the same total, at any frame rate', () => {
+    const total = (frameMs: number) => {
+      const cam = new ThirdPersonCamera();
+      const touch = { ...fake(), mode: 'touch', mouseDX: 0, mouseDY: 0 } as unknown as Input & { mouseDX: number };
+      const yaw0 = cam.yaw;
+      let first = 0;
+      touch.mouseDX = 200; // one burst of drag events
+      cam.update(frameMs / 1000, { x: 0, z: 0 }, 0, 'foot', touch);
+      first = cam.yaw - yaw0;
+      touch.mouseDX = 0;
+      for (let t = 0; t < 1; t += frameMs / 1000) cam.update(frameMs / 1000, { x: 0, z: 0 }, 0, 'foot', touch);
+      return { first, total: cam.yaw - yaw0 };
+    };
+    const a = total(1000 / 60), b = total(1000 / 30);
+    expect(a.total).toBeCloseTo(0.5, 2); expect(b.total).toBeCloseTo(0.5, 2);
+    expect(a.first).toBeLessThan(0.5 * 0.5); // not applied in one frame
+  });
 });

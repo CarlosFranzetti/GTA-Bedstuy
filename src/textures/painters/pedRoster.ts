@@ -153,11 +153,15 @@ const PLAYER_HAIR: Record<PopGroup, Array<PedSpec['hair']>> = {
   sa: ['short', 'fade', 'short'], me: ['short', 'fade', 'short'], mx: ['afro', 'short', 'puff'], hj: ['short', 'short', 'short'],
 };
 const playerId = (l: PlayerLook): string => `player-${l.group}-${l.variant}`;
+/** a fresh random look per page load / new game (fixed under test); UI10's save / load restores it with setPlayerLook */
 let look: PlayerLook = { group: 'ba', variant: 0 };
+let lookInit = false;
+function initLook(): void { if (lookInit) return; lookInit = true; if (import.meta.env?.MODE !== 'test') look = randomPlayerLook(`${Math.random()}:${Date.now()}`); }
 
-export function getPlayerLook(): PlayerLook { return { ...look }; }
+export function getPlayerLook(): PlayerLook { initLook(); return { ...look }; }
 /** Set the player's look (before the player model is built). Unknown groups / variants fall back to the nearest valid one. */
 export function setPlayerLook(l: PlayerLook): void {
+  lookInit = true;
   look = { group: GROUPS.includes(l.group) && l.group !== 'hj' ? l.group : 'ba', variant: Math.max(0, Math.min(PLAYER_VARIANTS - 1, Math.floor(l.variant) || 0)) };
 }
 /** A look from a seed string: any group except the religious-dress one, any of the three hair / skin variants. */
@@ -166,7 +170,7 @@ export function randomPlayerLook(seed: string): PlayerLook {
   const h = hash(seed);
   return { group: gs[h % gs.length], variant: (h >>> 8) % PLAYER_VARIANTS };
 }
-export function playerSpecId(): string { return playerId(look); }
+export function playerSpecId(): string { initLook(); return playerId(look); }
 
 // ---------------------------------------------------------------- the roster
 

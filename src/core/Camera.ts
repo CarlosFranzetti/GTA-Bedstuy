@@ -73,6 +73,8 @@ const LETTERBOX_RATE = 5;
 /** Rate (1/s) at which the pivot jump from getting in / out of a car (door -> car centre) is absorbed, and the largest jump absorbed (m). */
 const PIVOT_SETTLE = 7;
 const PIVOT_JUMP_MAX = 8;
+/** Touch look: drag deltas arrive in bursts per pointer event; they are released through a dt-correct low-pass (rate 1/s) so the view glides. */
+const TOUCH_LOOK_RATE = 26;
 /** Rate (1/s) at which the lens is pulled in when a wall is behind it (it used to snap in a single frame). */
 const WALL_IN_RATE = 22;
 
@@ -131,6 +133,8 @@ export class ThirdPersonCamera {
   private readonly rayFrom: Vec2 = { x: 0, z: 0 };
   private initialised = false;
   private lastMode: CameraMode | null = null;
+  private pendDX = 0;
+  private pendDY = 0;
   private offX = 0;
   private offZ = 0;
   private readonly tgt: Vec2 = { x: 0, z: 0 };
@@ -231,13 +235,21 @@ export class ThirdPersonCamera {
     const safeDt = Math.max(dt, 1e-5);
 
     // ---- input activity -------------------------------------------------------------------------------------
-    const lookInput = input.mouseDX !== 0 || input.mouseDY !== 0;
+    // touch drags are smoothed (total rotation unchanged); mouse and pad deltas stay 1:1
+    let ldx = input.mouseDX, ldy = input.mouseDY;
+    if ((input as { mode?: string }).mode === 'touch') {
+      this.pendDX += ldx; this.pendDY += ldy;
+      const take = Math.abs(this.pendDX) + Math.abs(this.pendDY) < 0.4 ? 1 : 1 - Math.exp(-TOUCH_LOOK_RATE * dt);
+      ldx = this.pendDX * take; ldy = this.pendDY * take;
+      this.pendDX -= ldx; this.pendDY -= ldy;
+    }
+    const lookInput = ldx !== 0 || ldy !== 0;
     const moveSpeed = Math.hypot(rawTarget.x - this.prevX, rawTarget.z - this.prevZ) / safeDt;
     const lookBackHeld = input.isDown(LOOK_BACK_KEY);
     const anyInput = lookInput || lookBackHeld || (typeof input.anyInput === 'function' && input.anyInput());
     if (lookInput) {
-      this.yaw += input.mouseDX * MOUSE_SENS;
-      this.pitch += input.mouseDY * MOUSE_SENS;
+      this.yaw += ldx * MOUSE_SENS;
+      this.pitch += ldy * MOUSE_SENS;
       this.idle = 0;
       this.yawVel = 0;
     } else {
