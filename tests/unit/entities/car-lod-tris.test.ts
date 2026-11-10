@@ -30,11 +30,23 @@ function farTris(type: VehicleType): number {
 
 describe('car detail levels', () => {
   const types = Object.keys(VEHICLE_SPECS) as VehicleType[];
-  it('prints', () => {
-    for (const tier of ['high', 'low'] as const) {
-      setCarPaintTier(tier);
-      for (const t of types) { const n = nearCost(t); console.log(tier, t, 'near', Math.round(n.tris), n.draws, 'far', farTris(t)); }
+  it('lite near models (phone / low) stay under 4.5 k triangles and 6 draws; full detail keeps more', () => {
+    for (const t of types) {
+      setCarPaintTier('high');
+      const full = nearCost(t);
+      setCarPaintTier('low');
+      const lite = nearCost(t);
+      expect(lite.tris, `${t} lite`).toBeLessThanOrEqual(4500);
+      expect(lite.draws, `${t} draws`).toBeLessThanOrEqual(6);
+      expect(lite.tris, `${t} lite < full`).toBeLessThan(full.tris);
     }
-    expect(true).toBe(true);
+  });
+  it('far proxies are under 1.2 k triangles per car (paint + glass + dark + 8-gon wheels)', () => {
+    for (const t of types) expect(farTris(t), t).toBeLessThanOrEqual(1200);
+  });
+  it('the far proxy of the lite and the full model are the same (built from the coarsest level)', () => {
+    setCarPaintTier('high'); const a = farTris('sedan');
+    setCarPaintTier('low'); const b = farTris('sedan');
+    expect(a).toBe(b);
   });
 });

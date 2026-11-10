@@ -19,6 +19,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { writeYawMatrix } from '@/render/CarLod';
 import { browserTier } from '@/render/StartTier';
+import { clusterGeometry } from '@/render/FarGeometry';
 import { SHADOW_PROXY_CELL } from '@/render/Culling';
 
 /**
@@ -231,6 +232,8 @@ export function buildStaticProxies(roots: THREE.Object3D[], cellX: number, cellZ
   return { proxies, covered, skipped, vertices, triangles };
 }
 
+/** Grid (m) the low tier's shadow cell proxies are clustered on. */
+export const SHADOW_PROXY_CLUSTER_M = 0.3;
 const CAP = 512;
 
 interface HullSet { mesh: THREE.InstancedMesh; shadow: THREE.InstancedMesh; n: number; }
@@ -295,6 +298,8 @@ export class RenderProxies {
     const t = browserTier();
     const cell = t ? Math.min(cellX, SHADOW_PROXY_CELL[t]) : cellX;
     const build = buildStaticProxies(roots, cell, Math.min(cellZ, cell));
+    // low has no AO pass and a ~4 cm shadow texel: collapsing the sub-30 cm relief (stoop steps, cornice, window reveals) of the cell proxies saves a third of the shadow triangles
+    if (t === 'low') for (const p of build.proxies) { const g = clusterGeometry(p.geometry, SHADOW_PROXY_CLUSTER_M, true); p.geometry.dispose(); p.geometry = g; }
     for (const p of build.proxies) {
       let aoMesh: THREE.Mesh;
       const a = new THREE.Mesh(p.geometry, this.mats[p.side]);

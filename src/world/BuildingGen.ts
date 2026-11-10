@@ -114,9 +114,9 @@ export function buildBuildings(
   group.name = 'buildings';
   for (const { material, geometry } of batch.merged()) {
     const mesh = new THREE.Mesh(geometry, material);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
     mesh.name = 'buildings:' + (material.name || material.type);
+    mesh.castShadow = mesh.name !== 'buildings:party-wall-decal'; // a painted decal on a party wall: the wall already casts, the shadow pass would draw it twice
+    mesh.receiveShadow = true;
     group.add(mesh);
   }
   return { group, colliders };

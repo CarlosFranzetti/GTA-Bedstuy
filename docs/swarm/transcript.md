@@ -2374,3 +2374,6 @@ Tris k (draws), views 1/4/10:
 | low | 2134/2371/2650 (270/281/329) | 871/917/1006 (288/309/331) | 500k/220 OVER |
 | medium | n/a | 881/935/1015 (469/526/557) | 1.2M OK |
 Open: low needs building LOD; far cars 5.4k tris (ROSTER <=1.2k), near 8.3k (<=4k); pedLod 4-5k (HUMAN <=600 far).
+
+### 2026-11-10T12:12:52Z · LOD
+FINAL: cars far<=1.0k (was 3.7-4.2k), lite near<=4.5k; ped hi cap+12m; bldg far LOD (60 m low/50 phone); low 641/670/682k (was 871/917/1002k), draws unchanged 282-325. Gates green. Over budget: low tris, draws.

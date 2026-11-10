@@ -21,8 +21,31 @@ import { carPaintConfigured, carPaintTier } from '@/render/CarPaintFx';
 import { pickPedVariant, type PedModel, type PedOptions } from './pedBody';
 
 export type PedDetail = 'hi' | 'mid' | 'far';
-export const MID_DIST = 18;
+/** hi detail only inside 12 m (a person is ~70 px tall there at 540 p), mid to 40 m, then the ~400 triangle far body */
+export const MID_DIST = 12;
 export const FAR_DIST = 40;
+/** most people drawn at the hi level at once, by tier (the rest of those inside MID_DIST drop to mid); the player is exempt */
+export const PED_HI_MAX: Record<string, number> = { phone: 0, low: 6, medium: 8, high: 12 };
+
+/**
+ * THREE.LOD with a cap on simultaneous hi bodies. The renderer calls update(camera) once per LOD per pass; a LOD that updates
+ * a second time marks the start of the next pass, which restarts the count (shadow / G-buffer passes use other cameras, so this
+ * only ever demotes, never promotes). `exempt` LODs (the player) always get hi when in range.
+ */
+export class PedLod extends THREE.LOD {
+  exempt = false;
+  private static seen = new Set<PedLod>();
+  private static hi = 0;
+  update(camera: THREE.Camera): void {
+    super.update(camera);
+    if (this.exempt || this.levels.length < 3) return;
+    if (PedLod.seen.has(this)) { PedLod.seen.clear(); PedLod.hi = 0; }
+    PedLod.seen.add(this);
+    if (!this.levels[0].object.visible) return;
+    const max = carPaintConfigured() ? (PED_HI_MAX[carPaintTier()] ?? Infinity) : Infinity;
+    if (++PedLod.hi > max) { this.levels[0].object.visible = false; this.levels[1].object.visible = true; }
+  }
+}
 
 // ---------------------------------------------------------------- rig (metres, feet at y = 0)
 
@@ -489,8 +512,9 @@ export function buildPedModel(materials: IMaterialLibrary, rng: Rng, opts: PedOp
   const bones = [rig, hips, torso, head, arms[0], elbows[0], arms[1], elbows[1], legs[0], knees[0], legs[1], knees[1]] as THREE.Bone[];
   group.updateMatrixWorld(true);
   const skeleton = new THREE.Skeleton(bones);
-  const lod = new THREE.LOD();
+  const lod = new PedLod();
   lod.name = 'pedLod';
+  lod.exempt = opts.heightScale !== undefined;
   const levels: Array<[PedDetail, number]> = phone ? [['mid', 0], ['far', FAR_DIST]] : [['hi', 0], ['mid', MID_DIST], ['far', FAR_DIST]];
   let triangles = 0;
   for (const [detail, dist] of levels) {

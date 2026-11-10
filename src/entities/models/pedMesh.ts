@@ -20,7 +20,7 @@ import type { IMaterialLibrary } from '@/world/types';
 import { createGltfLoader, warnOnce } from './gltf/loader';
 import { HI_RECTS, type HiTile } from '@/textures/painters/pedHi';
 import { PED_SPECS, PED_VARIANT_COUNT, pedVariantIndex, type PedSpec, type PxRect } from '@/textures/painters/ped';
-import { FAR_DIST, MID_DIST, buildPedModel as buildProcedural, pedHiMaterial, pedPhone, type PedDetail } from './pedBodyHi';
+import { FAR_DIST, MID_DIST, PedLod, buildPedModel as buildProcedural, pedHiMaterial, pedPhone, type PedDetail } from './pedBodyHi';
 import { garmentParts, headShell, nonFootTriangles, shoeParts } from './pedGarments';
 import { pickPedVariant, type PedModel, type PedOptions } from './pedBody';
 
@@ -378,7 +378,7 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
   const bones = [rig, hips, torso, head, arms[0], elbows[0], arms[1], elbows[1], legs[0], knees[0], legs[1], knees[1]] as THREE.Bone[];
   group.updateMatrixWorld(true);
   const skeleton = new THREE.Skeleton(bones);
-  const lod = new THREE.LOD(); lod.name = 'pedLod';
+  const lod = new PedLod(); lod.name = 'pedLod'; lod.exempt = opts.heightScale !== undefined;
   const levels: Array<[PedDetail, number]> = phone ? [['mid', 0], ['far', FAR_DIST]] : [['hi', 0], ['mid', MID_DIST], ['far', FAR_DIST]];
   let triangles = 0;
   for (const [detail, dist] of levels) {

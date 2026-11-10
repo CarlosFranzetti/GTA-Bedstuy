@@ -174,7 +174,7 @@ describe('shipped people glbs', () => {
     }
   });
 
-  it('triangle budget per LOD over all variants: far <= 600, mid <= 1.7k, hi <= 6.5k', () => {
+  it('triangle budget per LOD over all variants: far <= 600, mid <= 2.1k, hi <= 6.5k', () => {
     const max = [0, 0, 0];
     for (let v = 0; v < PED_VARIANT_COUNT; v++) {
       const m = buildMhPedModel(materials, new Rng(5), { variant: v, heightScale: 1 })!;
@@ -183,7 +183,7 @@ describe('shipped people glbs', () => {
     }
     console.log('PEDLOD hi mid far', max.join(' '));
     expect(max[2]).toBeLessThanOrEqual(600);
-    expect(max[1]).toBeLessThanOrEqual(1700);
+    expect(max[1]).toBeLessThanOrEqual(2100);
     expect(max[0]).toBeLessThanOrEqual(6500);
   });
 

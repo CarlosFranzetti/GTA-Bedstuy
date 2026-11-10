@@ -7,7 +7,9 @@
  */
 import * as THREE from 'three';
 import type { Quality } from './Shadows';
-import { TIER_CONFIG } from './QualityTier';
+import { TIER_CONFIG, tierConfig } from './QualityTier';
+import { carPaintConfigured, carPaintTier } from './CarPaintFx';
+import { clusterGeometry } from './FarGeometry';
 import { PHONE_HIDDEN_MESH } from './TierGeometry';
 import './TriBreakdown'; // debug: window.__gtaTriBreakdown
 
@@ -193,7 +195,11 @@ export function chunkKeyOfCell(l: ChunkLayout, cellKey: string): string {
  * hysteresis as DistanceCuller: a hidden chunk reappears only once its nearest edge is `margin` m inside the range.
  */
 export class ChunkCuller {
-  private readonly chunks = new Map<string, { meshes: THREE.Mesh[]; detail: THREE.Mesh[]; minX: number; maxX: number; minZ: number; maxZ: number; hidden: boolean; detailHidden: boolean }>();
+  private readonly chunks = new Map<string, { meshes: THREE.Mesh[]; detail: THREE.Mesh[]; far: THREE.Mesh[]; minX: number; maxX: number; minZ: number; maxZ: number; hidden: boolean; detailHidden: boolean; isFar: boolean }>();
+  /** Far representation range (m) for building cells; null = the tier's `buildingFarDist` (read from CarPaintFx's tier). */
+  farOverride: number | null = null;
+  /** far geometries built per update call at most (each is a one-off clustering of one cell mesh, ~2 ms); review scripts raise it through window.__gtaChunkCuller */
+  static buildsPerUpdate = 5;
   private detailDist: number;
   private readonly box = new THREE.Box3();
   constructor(public maxDist: number, private readonly margin = 6) { this.detailDist = maxDist * CHUNK_DETAIL_FRACTION; }
@@ -207,10 +213,15 @@ export class ChunkCuller {
     mesh.updateWorldMatrix(true, false);
     this.box.setFromObject(mesh);
     let c = this.chunks.get(key);
-    if (!c) { c = { meshes: [], detail: [], minX: this.box.min.x, maxX: this.box.max.x, minZ: this.box.min.z, maxZ: this.box.max.z, hidden: false, detailHidden: false }; this.chunks.set(key, c); }
+    if (!c) { c = { meshes: [], detail: [], far: [], minX: this.box.min.x, maxX: this.box.max.x, minZ: this.box.min.z, maxZ: this.box.max.z, hidden: false, detailHidden: false, isFar: false }; this.chunks.set(key, c); }
     else { c.minX = Math.min(c.minX, this.box.min.x); c.maxX = Math.max(c.maxX, this.box.max.x); c.minZ = Math.min(c.minZ, this.box.min.z); c.maxZ = Math.max(c.maxZ, this.box.max.z); }
     c.meshes.push(mesh);
     if (PHONE_HIDDEN_MESH.test(mesh.name)) c.detail.push(mesh);
+    else if (mesh.name.startsWith('buildings:') && mesh.geometry.getAttribute('normal')) c.far.push(mesh);
+  }
+  private farDist(): number {
+    if (this.farOverride !== null) return this.farOverride;
+    return carPaintConfigured() ? tierConfig(carPaintTier()).buildingFarDist : Infinity;
   }
   get count(): number { return this.chunks.size; }
   get hiddenCount(): number { let n = 0; for (const c of this.chunks.values()) if (c.hidden) n++; return n; }
@@ -219,22 +230,60 @@ export class ChunkCuller {
   /** `py` = camera height: the range grows by `CHUNK_RANGE_PER_M_HEIGHT` m per metre of height, so aerials see the whole grid and street level saves the draws. */
   update(px: number, pz: number, py = 0): void {
     const base = this.maxDist + Math.max(0, py - 3) * CHUNK_RANGE_PER_M_HEIGHT;
+    const farDist = this.farDist();
+    const detailDist = Math.min(this.detailDist, farDist);
+    let builds = ChunkCuller.buildsPerUpdate;
     for (const c of this.chunks.values()) {
       const dx = Math.max(c.minX - px, 0, px - c.maxX), dz = Math.max(c.minZ - pz, 0, pz - c.maxZ);
+      const d2 = dx * dx + dz * dz;
       const limit = c.hidden ? base - this.margin : base;
-      const hide = dx * dx + dz * dz > limit * limit;
-      const dlimit = Math.min(base, this.detailDist) - (c.detailHidden ? this.margin : 0);
-      const dHide = hide || dx * dx + dz * dz > dlimit * dlimit;
+      const hide = d2 > limit * limit;
+      const dlimit = Math.min(base, detailDist) - (c.detailHidden ? this.margin : 0);
+      const dHide = hide || d2 > dlimit * dlimit;
       if (hide !== c.hidden || dHide !== c.detailHidden) {
         c.hidden = hide; c.detailHidden = dHide;
         for (const m of c.meshes) m.visible = !hide;
         for (const m of c.detail) m.visible = !dHide; // dHide includes hide
       }
+      // far representation: the cell's building meshes swap to their clustered geometry beyond farDist (3D distance, so aerials stay sharp)
+      const flimit = farDist - (c.isFar ? this.margin : 0);
+      const wantFar = !hide && d2 + py * py > flimit * flimit;
+      if (wantFar !== c.isFar) {
+        if (wantFar) { // the chunk flips once every one of its far geometries exists; until then it keeps the full ones
+          for (const m of c.far) if (builds > 0 && !m.userData.farGeo) { prepareFarGeometry(m); builds--; }
+          if (c.far.some((m) => !m.userData.farGeo)) continue;
+        }
+        c.isFar = wantFar;
+        for (const m of c.far) swapFarGeometry(m, wantFar);
+      }
     }
   }
   /** Shows everything again and forgets all chunks. */
-  clear(): void { for (const c of this.chunks.values()) for (const m of c.meshes) m.visible = true; this.chunks.clear(); }
+  clear(): void { for (const c of this.chunks.values()) { for (const m of c.meshes) m.visible = true; if (c.isFar) for (const m of c.far) swapFarGeometry(m, false); } this.chunks.clear(); }
 }
+
+/** Grid size (m) of the far building geometry: window reveals, cornices and stoop steps collapse into the wall plane. */
+export const FAR_CELL_M = 0.9;
+
+/** Swaps a building cell mesh between its full geometry and a clustered far one (built once, kept in `userData`). */
+export function swapFarGeometry(mesh: THREE.Mesh, far: boolean): void {
+  const u = mesh.userData as { nearGeo?: THREE.BufferGeometry; farGeo?: THREE.BufferGeometry };
+  if (far) {
+    prepareFarGeometry(mesh);
+    mesh.geometry = u.farGeo!;
+  } else if (u.nearGeo) mesh.geometry = u.nearGeo;
+}
+
+/** Builds (once) the clustered far geometry of a building cell mesh. */
+export function prepareFarGeometry(mesh: THREE.Mesh): void {
+  const u = mesh.userData as { nearGeo?: THREE.BufferGeometry; farGeo?: THREE.BufferGeometry };
+  if (u.farGeo) return;
+  if (!u.nearGeo) u.nearGeo = mesh.geometry;
+  u.farGeo = clusterGeometry(u.nearGeo, FAR_CELL_M, true);
+  u.farGeo.computeBoundingSphere(); u.farGeo.computeBoundingBox();
+}
+
+if (typeof window !== 'undefined') (window as unknown as { __gtaChunkCuller: typeof ChunkCuller }).__gtaChunkCuller = ChunkCuller; // debug: review scripts raise buildsPerUpdate
 
 export function triangleCount(geo: THREE.BufferGeometry): number {
   return geo.index ? geo.index.count / 3 : (geo.getAttribute('position')?.count ?? 0) / 3;
