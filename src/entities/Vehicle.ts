@@ -16,7 +16,12 @@ export const VEHICLE_SPECS: Record<VehicleType, VehicleSpec> = {
   // 0 -> 0.93*maxSpeed take ~6 s for the sedan (= 0-100 km/h) and ~12 s for the box truck.
   sedan: { type: 'sedan', name: 'Sedan', length: 4.88, width: 1.84, height: 1.45, maxSpeed: 30, accel: 8, brakeDecel: 14, maxSteer: 0.6, color: '#8a8f98' },
   suv: { type: 'suv', name: 'SUV', length: 5.05, width: 2.0, height: 1.78, maxSpeed: 27, accel: 7, brakeDecel: 14, maxSteer: 0.6, color: '#2c3e50' },
-  boxtruck: { type: 'boxtruck', name: 'Box truck', length: 7, width: 2.4, height: 3.2, maxSpeed: 20, accel: 2.7, brakeDecel: 12, maxSteer: 0.6, color: '#e8e8e8' },
+  // ROSTER: sizes follow the real class, see the style comments in models/carBodies.ts (box truck: Isuzu NPR 16 ft box, bus: 40 ft transit bus)
+  boxtruck: { type: 'boxtruck', name: 'Box truck', length: 7, width: 2.44, height: 3.3, maxSpeed: 20, accel: 2.7, brakeDecel: 12, maxSteer: 0.6, color: '#e8e8e8' },
+  cargovan: { type: 'cargovan', name: 'Cargo van', length: 5.98, width: 2.06, height: 2.78, maxSpeed: 25, accel: 5, brakeDecel: 12, maxSteer: 0.6, color: '#ecf0f1' },
+  hatch: { type: 'hatch', name: 'Hatchback', length: 4.06, width: 1.7, height: 1.52, maxSpeed: 29, accel: 7, brakeDecel: 14, maxSteer: 0.6, color: '#d6322a' },
+  beater: { type: 'beater', name: 'Old sedan', length: 4.83, width: 1.77, height: 1.37, maxSpeed: 26, accel: 5, brakeDecel: 11, maxSteer: 0.6, color: '#8c7a5a' },
+  bus: { type: 'bus', name: 'Bus', length: 12.5, width: 2.59, height: 3.2, maxSpeed: 17, accel: 1.6, brakeDecel: 9, maxSteer: 0.5, color: '#f0f0ec' },
   cop: { type: 'cop', name: 'Police car', length: 5.04, width: 1.91, height: 1.48, maxSpeed: 33, accel: 9, brakeDecel: 14, maxSteer: 0.6, color: '#f2f2f2' },
   cab: { type: 'cab', name: 'Taxi', length: 5.39, width: 1.99, height: 1.44, maxSpeed: 30, accel: 8, brakeDecel: 14, maxSteer: 0.6, color: '#e0b01e' },
 };
@@ -230,7 +235,7 @@ export class Vehicle implements IVehicle {
       pos: { x: pos.x, z: pos.z },
       vel: { x: 0, z: 0 },
       heading,
-      mass: spec.type === 'boxtruck' ? 3500 : 1400,
+      mass: spec.type === 'bus' ? 12000 : spec.type === 'boxtruck' ? 3500 : spec.type === 'cargovan' ? 2400 : spec.type === 'hatch' ? 1150 : 1400,
       userData: this,
     };
     this.prevPos = { x: pos.x, z: pos.z };

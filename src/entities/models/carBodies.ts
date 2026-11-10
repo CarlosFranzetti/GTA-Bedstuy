@@ -648,10 +648,10 @@ export interface Style {
   glassTop?: number;
   /** absolute lamp centre heights (m) when the default (fascia top minus a constant) does not fit */
   headY?: number; tailY?: number;
-  /** head lamp: inset from the body edge (m) and yaw (rad, negative = swept back at the outer end) */
-  lampIn?: number; lampYaw?: number;
-  /** tail lamp inset and yaw */
-  tailIn?: number; tailYaw?: number;
+  /** lamp distance back from the nose / tail tip (m): the lamp is set on the rounded corner, turned to follow the plan curve (swept back) */
+  lampD?: number; tailD?: number;
+  /** end rounding lengths (m) of the nose / tail (default 0.5 / 0.4) and grille half-width as a fraction of the nose width (default 0.8) */
+  endF?: number; endR?: number; grilleW?: number;
   /** big upright van mirrors on the A pillar */
   mirror?: 'van';
 }
@@ -690,7 +690,7 @@ export const STYLES: Record<StyleKey, Style> = {
     hoodBack: 0.92,
     clad: 11,
     rails: false, spoiler: true, maxGap: 0.22, archN: 8,
-    headLamp: 'swept', grille: 'wedge', lampIn: 0.13, lampYaw: -0.5,
+    headLamp: 'swept', grille: 'wedge', lampD: 0.2, grilleW: 0.5,
     bumperY: 0.34, bumperH: 0.22,
     plan: [[-2.3, 0.9], [-1.7, 0.97], [-0.9, 1], [0.9, 1], [1.7, 0.98], [2.3, 0.92]],
   },
@@ -866,7 +866,7 @@ export const STYLES: Record<StyleKey, Style> = {
     rails: false, spoiler: false, hatchback: true, maxGap: 0.24, archN: 6,
     bumperY: 0.3, bumperH: 0.2,
     plan: [[-2.05, 0.9], [-1.6, 0.97], [-0.9, 1], [0.9, 1], [1.6, 0.98], [2.05, 0.9]],
-    headLamp: 'swept', tailLamp: 'tall', grille: 'wedge', lampIn: 0.14, lampYaw: -0.5, tailIn: 0.08, tailYaw: 0.3,
+    headLamp: 'swept', tailLamp: 'tall', grille: 'wedge', lampD: 0.2, tailD: 0.1, endR: 0.2, grilleW: 0.45,
     dims: { L: 4.06, W: 1.7, H: 1.52 },
   },
   // ROSTER. "Marlow Sixty": a 1990s mid-size front-drive notchback of the Oldsmobile Cutlass Ciera type (1982-1996): length 190.3 in (4.83 m),
@@ -903,7 +903,7 @@ export const STYLES: Record<StyleKey, Style> = {
     rails: false, spoiler: false, maxGap: 0.24, archN: 6,
     bumperY: 0.34, bumperH: 0.22,
     plan: [[-2.42, 0.92], [-1.9, 0.98], [-0.9, 1], [0.9, 1], [1.9, 0.99], [2.42, 0.94]],
-    headLamp: 'box', tailLamp: 'box2', grille: 'slats', lampIn: 0.12, lampYaw: -0.1, tailIn: 0.12, tailYaw: 0.1,
+    headLamp: 'box', tailLamp: 'box2', grille: 'slats', lampD: 0.1, tailD: 0.06, endF: 0.3, endR: 0.25, grilleW: 0.6,
     dims: { L: 4.83, W: 1.77, H: 1.37 },
   },
   // ROSTER. "Transom 350": a full-size high-roof long-wheelbase cargo van of the Ford Transit type (US 2020-): length 235.5 in (5.98 m),
@@ -939,18 +939,23 @@ export const STYLES: Record<StyleKey, Style> = {
     glassTop: 2.0, headY: 0.86, tailY: 1.2, mirror: 'van',
     bumperY: 0.5, bumperH: 0.3,
     plan: [[-2.95, 0.96], [-2.2, 0.99], [-1, 1], [1, 1], [2.3, 0.98], [2.95, 0.92]],
-    headLamp: 'angular', tailLamp: 'tall', grille: 'wedge', lampIn: 0.12, lampYaw: -0.15, tailIn: 0.0, tailYaw: 0,
+    headLamp: 'angular', tailLamp: 'tall', grille: 'wedge', lampD: 0.12, tailD: 0.05, endF: 0.3, endR: 0.12, grilleW: 0.55,
     dims: { L: 5.98, W: 2.06, H: 2.78 },
   },
 };
 
 export function wheelRadiusFor(type: VehicleType): number {
-  return type === 'boxtruck' ? 0.5 : type === 'suv' ? STYLES.suv.wheelR : type === 'cop' ? STYLES.charger.wheelR : STYLES.sedan.wheelR;
+  if (type === 'boxtruck' || type === 'bus') return 0.5;
+  if (type === 'cargovan') return STYLES.cargo.wheelR;
+  if (type === 'hatch' || type === 'beater') return STYLES[type].wheelR;
+  return type === 'suv' ? STYLES.suv.wheelR : type === 'cop' ? STYLES.charger.wheelR : STYLES.sedan.wheelR;
 }
 
 /** Number of cross-sections that define a type's hull (before smoothing). */
 export function hullSectionCount(type: VehicleType): number {
-  return type === 'boxtruck' ? TRUCK_CAB_SECS.length : STYLES[type === 'suv' ? 'suv' : type === 'cop' ? 'charger' : 'sedan'].secs.length;
+  if (type === 'boxtruck') return TRUCK_CAB_SECS.length;
+  if (type === 'bus') return 12;
+  return STYLES[type === 'suv' ? 'suv' : type === 'cop' ? 'charger' : type === 'cargovan' ? 'cargo' : type === 'hatch' ? 'hatch' : type === 'beater' ? 'beater' : 'sedan'].secs.length;
 }
 
 const inI = (u: number, r: V2): boolean => u <= r[0] + 1e-6 && u >= r[1] - 1e-6;
@@ -1087,8 +1092,8 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   const Wb2 = W / 2 - 0.05;                // body half-width (mirrors reach W / 2 + 0.02)
   const tipF = L / 2 - 0.04;
   const tipR = -(L / 2 - 0.04);
-  const drF = 0.5;
-  const drR = 0.4;
+  const drF = st.endF ?? 0.5;
+  const drR = st.endR ?? 0.4;
   const axleF = st.axle * kx;
   const axleR = -st.axle * kx;
 
@@ -1267,7 +1272,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
     chrome.add(new THREE.CircleGeometry(0.045, 8).rotateY(Math.PI).translate(s * (Wb2 * 0.78), st.bumperY - 0.02, -(bumperZ + 0.004)));
   }
   // grille: dark panel, two chrome slats, chrome surround, badge
-  const gW = trF.wMax * 0.8;
+  const gW = trF.wMax * (st.grilleW ?? 0.8);
   const gH = 0.17;
   const gY = trF.yT - 0.13;
   const gZ = -(tipF + 0.006);
@@ -1391,15 +1396,34 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   const ltx = trR.wMax - 0.17;
   const head = new Acc();
   const tail = new Acc();
-  if (st.headLamp) {
-    const hp = lampPieces(st.headLamp, true, v3(lx, lampHeadY, -tipF), -0.22);
+  // a lamp set on the rounded corner: d metres back from the tip, turned to follow the plan curve
+  const cornerPose = (front: boolean, d: number): { pos: THREE.Vector3; yaw: number; yT: number } => {
+    const u = front ? tipF - d : tipR + d;
+    const u2 = front ? u - 0.03 : u + 0.03;
+    const r0 = ring(u), r1 = ring(u2);
+    const slope = (r0.wMax - r1.wMax) / 0.03; // body half-width growth per metre away from the tip
+    const yaw = (front ? -1 : 1) * Math.atan(Math.max(0, slope));
+    return { pos: v3(r0.wMax - 0.012, 0, -u), yaw, yT: r0.yT };
+  };
+  if (st.headLamp && st.lampD !== undefined) {
+    const c = cornerPose(true, st.lampD);
+    const hp = lampPieces(st.headLamp, true, v3(c.pos.x, st.headY ?? c.yT - 0.09, c.pos.z), c.yaw);
+    for (const g of hp.lens) head.addBoth(g);
+    for (const g of hp.housing) trim.addBoth(g);
+  } else if (st.headLamp) {
+    const hp = lampPieces(st.headLamp, true, v3(lx, st.headY ?? lampHeadY, -tipF), -0.22);
     for (const g of hp.lens) head.addBoth(g);
     for (const g of hp.housing) trim.addBoth(g);
   } else {
     for (const [sx2, yaw] of [[-1, 0.25], [1, -0.25]] as const) head.add(placeLamp(lensGeo(0.14, 0.05, 0.045, true), v3(sx2 * lx, lampHeadY, -tipF), yaw));
   }
-  if (st.tailLamp) {
-    const tp = lampPieces(st.tailLamp, false, v3(ltx - 0.1, lampTailY, -tipR), 0.2);
+  if (st.tailLamp && st.tailD !== undefined) {
+    const c = cornerPose(false, st.tailD);
+    const tp = lampPieces(st.tailLamp, false, v3(c.pos.x - 0.06, st.tailY ?? c.yT - 0.12, c.pos.z), c.yaw, st.glassTop !== undefined ? 1.7 : 1);
+    for (const g of tp.lens) tail.addBoth(g);
+    for (const g of tp.housing) trim.addBoth(g);
+  } else if (st.tailLamp) {
+    const tp = lampPieces(st.tailLamp, false, v3(ltx - 0.1, st.tailY ?? lampTailY, -tipR), 0.2);
     for (const g of tp.lens) tail.addBoth(g);
     for (const g of tp.housing) trim.addBoth(g);
   } else {

@@ -19,7 +19,7 @@ import {
   CAR_COLORWAYS, SKIN_H, SKIN_PAINT_BASE, SKIN_RECTS, SKIN_W, paintCarSkin, type SkinLayout, type SkinRegion, type SkinStyle,
 } from '@/textures/painters/vehicleSkin';
 import { carPaintConfigured, carPaintTier } from '@/render/CarPaintFx';
-import { STYLES } from './carBodies';
+import { STYLES, BUS_AXLES, BUS_BELT, BUS_SEAMS } from './carBodies';
 
 export interface PaintBox { L: number; W: number; H: number; yMin: number; zMin: number; xMin: number }
 
@@ -29,7 +29,7 @@ export function paintBox(geo: THREE.BufferGeometry, offset: THREE.Vector3 = new 
   return { L: b.max.z - b.min.z, W: b.max.x - b.min.x, H: b.max.y - b.min.y, yMin: b.min.y, zMin: b.min.z, xMin: b.min.x };
 }
 
-const BADGE: Record<SkinStyle, string> = { sedan: 'AVENUE', coupe: 'MARCY', suv: 'KOSCI', van: 'HALSEY' };
+const BADGE: Record<SkinStyle, string> = { sedan: 'AVENUE', coupe: 'MARCY', suv: 'KOSCI', van: 'HALSEY', cargo: 'TRANSOM', hatch: 'PACER', beater: 'MARLOW', bus: 'CITY' };
 const clamp01 = (x: number): number => Math.min(1, Math.max(0, x));
 
 /** Layout of the skin for a body (pure numbers: unit-testable without a DOM). */
@@ -44,6 +44,19 @@ export function skinLayoutFor(style: SkinStyle, box: PaintBox, pack = 0): SkinLa
       headLamp: { x: 0.34, v: 0.2 }, tailLamp: { x: 0.34, v: 0.2 }, badge: BADGE.van,
     };
   }
+  if (style === 'bus') {
+    // the bus: n along the length from the nose; doors (curb side) and axles from the roster layout (buildBusParts: BUS_DOORS, axles)
+    const hh = box.H;
+    const un = (u: number): number => clamp01((box.L / 2 - u) / box.L);
+    return {
+      style, L: box.L, W: box.W, H: box.H, pack,
+      seams: BUS_SEAMS.map(un), handles: [], doorGlass: [], windshield: [0.02, 0.05], rearGlass: [0.95, 0.98],
+      belt: clamp01((BUS_BELT - box.yMin) / hh), axles: [un(BUS_AXLES[0]), un(BUS_AXLES[1])],
+      archV: clamp01((0.5 - box.yMin) / hh), archRV: (0.5 * 1.12) / hh, archRN: (0.5 * 1.12) / box.L,
+      hoodEnd: 0.03, bootStart: 0.97, bumper: [clamp01(0.04), clamp01(0.2)],
+      headLamp: { x: 0.35, v: 0.2 }, tailLamp: { x: 0.35, v: 0.2 }, badge: BADGE.bus,
+    };
+  }
   const st = STYLES[style];
   const uMax = Math.abs(st.secs[0][0]);
   const n = (u: number): number => clamp01((uMax - u) / (2 * uMax));
@@ -54,10 +67,10 @@ export function skinLayoutFor(style: SkinStyle, box: PaintBox, pack = 0): SkinLa
     style, L: box.L, W: box.W, H: box.H, pack,
     seams: st.seams.map(n), handles: st.handles.map(n),
     doorGlass: st.doorGlass.map(([a, b]) => [n(a), n(b)] as [number, number]),
-    windshield: [n(st.windshield[0]), n(st.windshield[1])], rearGlass: [n(st.rearGlass[0]), n(st.rearGlass[1])],
+    windshield: [n(st.windshield[0]), n(st.windshield[1])], rearGlass: st.rearGlass ? [n(st.rearGlass[0]), n(st.rearGlass[1])] : [0.97, 0.99],
     belt: v(belt),
     axles: [n(st.axle), n(-st.axle)], archV: (R - box.yMin) / box.H, archRV: (R * 1.12) / box.H, archRN: (R * 1.12) / box.L,
-    hoodEnd: n(st.hoodBack), bootStart: n(st.rearGlass[1]),
+    hoodEnd: n(st.hoodBack), bootStart: n(st.rearGlass ? st.rearGlass[1] : -uMax + 0.2),
     bumper: [v(st.bumperY - st.bumperH / 2), v(st.bumperY + st.bumperH / 2)],
     headLamp: { x: (box.W / 2 - 0.2) / box.W, v: v(st.bumperY + st.bumperH / 2 + 0.1) },
     tailLamp: { x: (box.W / 2 - 0.22) / box.W, v: v(st.bumperY + st.bumperH / 2 + 0.12) },

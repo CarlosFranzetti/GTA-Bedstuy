@@ -35,7 +35,8 @@ export const SKIN_RECTS = {
 } as const satisfies Record<string, SkinRect>;
 export type SkinRegion = keyof typeof SKIN_RECTS;
 
-export type SkinStyle = 'sedan' | 'coupe' | 'suv' | 'van';
+/** `van` is the box truck's cab; `cargo` the Transit-type cargo van */
+export type SkinStyle = 'sedan' | 'coupe' | 'suv' | 'van' | 'cargo' | 'hatch' | 'beater' | 'bus';
 
 /** Everything the painter needs to know about the body (fractions of the paint's bounding box; length fractions run nose 0 -> tail 1). */
 export interface SkinLayout {
@@ -85,6 +86,25 @@ export const CAR_COLORWAYS: Record<SkinStyle, readonly Colorway[]> = {
     { name: 'brick red', color: '#a8332b', pack: 0 },
     { name: 'pearl silver', color: '#b4bac0', pack: 1 },
   ],
+  hatch: [
+    { name: 'tangerine', color: '#e8791c', pack: 0 },
+    { name: 'sky blue', color: '#3b8fd0', pack: 0 },
+    { name: 'lime', color: '#8cc43a', pack: 0 },
+    { name: 'candy red', color: '#c8283a', pack: 0 },
+  ],
+  // faded, tired paints (the rust and the odd primer panel are painted over them, see weather())
+  beater: [
+    { name: 'faded tan', color: '#8c7a5a', pack: 0 },
+    { name: 'bleached blue', color: '#5f7a8c', pack: 0 },
+    { name: 'tired maroon', color: '#7b3a34', pack: 0 },
+    { name: 'dull silver', color: '#9ea09a', pack: 0 },
+  ],
+  cargo: [
+    { name: 'trade white', color: '#ecf0f1', pack: 0 },
+    { name: 'fleet blue', color: '#2a4f86', pack: 0 },
+    { name: 'depot grey', color: '#8d9298', pack: 0 },
+  ],
+  bus: [{ name: 'transit white', color: '#f0f0ec', pack: 0 }],
   van: [
     { name: 'work white', color: '#ebebe4', pack: 0 },
     { name: 'safety orange', color: '#e0701a', pack: 1 },
@@ -157,7 +177,11 @@ function ellipse(cx: number, cy: number, rx: number, ry: number, maxY: number, n
   return pts;
 }
 
+/** styles whose head and tail lamps are real geometry (no painted lamp patches on the end faces) */
+const GEO_LAMPS: ReadonlySet<SkinStyle> = new Set<SkinStyle>(['hatch', 'beater', 'cargo', 'bus']);
+
 function paintFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): void {
+  if (L.style === 'bus') { paintBusFlank(s, L, side, rng); return; }
   const r = SKIN_RECTS[side];
   const X = (n: number): number => (side === 'right' ? r.x + (1 - n) * r.w : r.x + n * r.w);
   const Y = (v: number): number => r.y + (1 - v) * r.h;
@@ -209,7 +233,8 @@ function paintFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): voi
   L.seams.forEach((n, idx) => {
     const x = X(n);
     const gw = Math.max(0.5, 1 / s.k); // one real pixel: 9.5 mm on the 1024 atlas, 19 mm on a 512 one
-    const last = L.seams.length >= 3 && idx === L.seams.length - 1 && L.style !== 'van';
+    if (L.style === 'cargo' && side === 'left' && idx === 2) return; // the sliding door is on the right only
+    const last = L.seams.length >= 3 && idx === L.seams.length - 1 && L.style !== 'van' && L.style !== 'cargo' && L.style !== 'bus';
     if (!last) {
       // ~8-12 mm gap with a faint light lip; it starts at the belt, not the roof
       s.shade(Math.floor(x), beltY, gw, Y(0.13) - beltY, '#000000', 0.9);
@@ -259,6 +284,77 @@ function paintFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): voi
   // a few nicks and rust freckles near the arches
   for (let i = 0; i < 8; i++) { const n = L.axles[i % Math.max(1, L.axles.length)] ?? 0.3; s.shade(X(n) + rng.range(-14, 14), Y(L.archV) - rng.range(8, 30), 1.5, 1.5, '#6a3a1a', 0.55); }
   // (the model badge lives on the boot lid only, see paintRear)
+  if (L.style === 'cargo' && side === 'right') {
+    // sliding door: upper and lower track lines, a recessed grab handle, and the rail running on to the rear quarter
+    const xa = X(L.seams[1]), xb = X(L.seams[2]);
+    const x0 = Math.min(xa, xb), x1 = Math.max(xa, xb), tail = side === 'right' ? r.x : r.x + r.w;
+    s.shade(x0, Y(0.2), x1 - x0, 1, '#000000', 0.5);
+    s.shade(x0, Y(0.2) + 1, x1 - x0, 0.8, '#ffffff', 0.25);
+    s.shade(x0 - 1, Y(0.84), (x1 - x0) + 2, 1, '#000000', 0.45);
+    s.shade(Math.min(x0, tail + 4), Y(0.2), Math.max(0, x0 - tail - 4), 1, '#000000', 0.3);
+    s.solid((x0 + x1) / 2 - 9, beltY + 9, 7, 3, '#2a2c30'); s.solid((x0 + x1) / 2 - 8.4, beltY + 9.6, 5.8, 1.8, '#c5cad0');
+  }
+  if (L.style === 'beater') weatherFlank(s, L, side, rng);
+}
+
+/** Tired-car dressing on one flank: sun-chalked upper paint, one mismatched primer panel, rust at the arch lips, sills and door bottoms. */
+function weatherFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): void {
+  const r = SKIN_RECTS[side];
+  const X = (n: number): number => (side === 'right' ? r.x + (1 - n) * r.w : r.x + n * r.w);
+  const Y = (v: number): number => r.y + (1 - v) * r.h;
+  const beltY = Y(L.belt);
+  // chalky, sun-bleached upper body and a streaked clear coat
+  s.shade(r.x, beltY, r.w, Y(0.3) - beltY, '#ffffff', 0.16);
+  for (let i = 0; i < 14; i++) s.shade(rng.range(r.x, r.x + r.w - 20), rng.range(beltY, Y(0.3)), rng.range(8, 30), rng.range(2, 8), '#ffffff', rng.range(0.1, 0.22));
+  // mismatched panel: the rear door on the right, the front fender on the left, in grey / green primer
+  const a = side === 'right' ? L.seams[1] : 0.0, b = side === 'right' ? L.seams[2] : L.seams[0];
+  const xa = Math.min(X(a), X(b)), xb = Math.max(X(a), X(b));
+  const primer = side === 'right' ? '#6f7864' : '#8d8f8a';
+  s.solid(xa + 1.5, beltY + 1, xb - xa - 2, Y(0.15) - beltY - 1, primer);
+  s.shade(xa + 1.5, beltY + 1, xb - xa - 2, 1, '#000000', 0.0);
+  for (let i = 0; i < 18; i++) s.solid(xa + rng.range(2, Math.max(3, xb - xa - 6)), rng.range(beltY + 2, Y(0.18)), rng.range(2, 6), rng.range(1, 3), rng.chance(0.5) ? '#5e6658' : '#9a9b94');
+  // rust: freckles along the sill, arch lips and the bottom of the doors, a couple of bigger blooms
+  const rust = ['#7a3d1c', '#9a5326', '#5c2d14', '#b0642a'];
+  for (let i = 0; i < 90; i++) {
+    const n = rng.chance(0.55) ? L.axles[i % L.axles.length] + rng.range(-0.1, 0.1) : rng.range(0.05, 0.95);
+    const v = rng.chance(0.6) ? rng.range(0.02, 0.17) : rng.range(L.archV - 0.02, L.archV + 0.22);
+    s.solid(X(n), Y(v), rng.range(1, 3.2), rng.range(1, 2.6), rng.pick(rust));
+  }
+  for (let i = 0; i < 4; i++) {
+    const cx = X(L.axles[i % L.axles.length] + rng.range(-0.12, 0.12)), cy = Y(rng.range(0.05, 0.14));
+    for (let k = 0; k < 14; k++) s.solid(cx + rng.range(-9, 9), cy + rng.range(-4, 4), rng.range(2, 5), rng.range(1.5, 3.5), rng.pick(rust));
+  }
+  // dents: soft dark smudges
+  for (let i = 0; i < 3; i++) s.shade(rng.range(r.x + 10, r.x + r.w - 40), rng.range(Y(0.5), Y(0.3)), rng.range(14, 30), rng.range(5, 9), '#000000', 0.16);
+}
+
+/** Bus flank: white body, a blue and a yellow stripe under the window band, the agency name, door seams, wheel wells. */
+function paintBusFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): void {
+  const r = SKIN_RECTS[side];
+  const X = (n: number): number => (side === 'right' ? r.x + (1 - n) * r.w : r.x + n * r.w);
+  const Y = (v: number): number => r.y + (1 - v) * r.h;
+  const bottom = r.y + r.h;
+  s.shade(r.x, Y(0.5), r.w, 3, '#ffffff', 0.5);
+  s.shade(r.x, Y(0.12), r.w, bottom - Y(0.12), '#000000', 0.2);
+  // livery: blue band with a thin yellow line above it, then a lower grey skirt
+  s.solid(r.x, Y(0.43), r.w, Y(0.3) - Y(0.43), '#1b4f93');
+  s.solid(r.x, Y(0.455), r.w, Y(0.435) - Y(0.455), '#f2b705');
+  s.solid(r.x, Y(0.17), r.w, Y(0.12) - Y(0.17), '#7d848c');
+  s.text('BKLYN TRANSIT', side === 'right' ? X(0.27) - 52 : X(0.27), Y(0.405), 1, '#ffffff');
+  // door seams (front door and middle door, curb side) and panel seams
+  for (const n of L.seams) {
+    const x = Math.floor(X(n));
+    s.shade(x, Y(0.5), 1, Y(0.12) - Y(0.5), '#000000', side === 'right' ? 0.85 : 0.35);
+  }
+  for (let n = 0.1; n < 0.95; n += 0.1) s.shade(Math.floor(X(n)), Y(0.5), 1, Y(0.17) - Y(0.5), '#000000', 0.18);
+  for (const n of L.axles) {
+    const cx = X(n), cy = Y(L.archV);
+    const rx = L.archRN * r.w, ry = L.archRV * r.h;
+    s.polyShade(ellipse(cx, cy - 1, rx * 1.18, ry * 1.2, bottom), '#000000', 0.38);
+    s.polySolid(ellipse(cx, cy, rx * 1.02, ry * 1.02, bottom), '#101216');
+  }
+  for (let i = 0; i < 8; i++) s.shade(r.x, Y(0.2 * (1 - i / 8)), r.w, Y(0) - Y(0.2 * (1 - i / 8)), '#5e4d38', 0.06);
+  for (let i = 0; i < 90; i++) s.shade(rng.range(r.x, r.x + r.w), rng.range(Y(0.26), bottom - 1), rng.range(1, 3), rng.range(1, 2.5), rng.chance(0.5) ? '#4a3c2a' : '#7a6a52', rng.range(0.15, 0.4));
 }
 
 function paintTop(s: Sk, L: SkinLayout, rng: Rng): void {
@@ -303,10 +399,12 @@ function paintEnd(s: Sk, L: SkinLayout, region: 'front' | 'rear', rng: Rng): voi
   const pv = (L.bumper[0] + L.bumper[1]) / 2;
   s.solid(cx - 14, Y(pv) - 5.5, 28, 11, '#1c2024');
   if (region === 'front') {
-    // grille surround and headlamp housings
-    s.solid(cx - 22, Y(L.headLamp.v - 0.1), 44, 10, '#14171b');
-    s.solid(cx - 22, Y(L.headLamp.v - 0.1), 44, 1, '#aab0b8');
-    for (const sx of [-1, 1]) {
+    // grille surround and headlamp housings (the roster bodies carry real lamp geometry instead)
+    if (!GEO_LAMPS.has(L.style)) {
+      s.solid(cx - 22, Y(L.headLamp.v - 0.1), 44, 10, '#14171b');
+      s.solid(cx - 22, Y(L.headLamp.v - 0.1), 44, 1, '#aab0b8');
+    }
+    for (const sx of GEO_LAMPS.has(L.style) ? [] : [-1, 1]) {
       const lx = cx + sx * L.headLamp.x * r.w;
       s.solid(lx - 12, Y(L.headLamp.v) - 5, 24, 10, '#15181c');
       s.solid(lx - 11, Y(L.headLamp.v) - 4, 22, 1, '#9aa0a8');
@@ -316,18 +414,25 @@ function paintEnd(s: Sk, L: SkinLayout, region: 'front' | 'rear', rng: Rng): voi
     s.shade(r.x + 6, r.y + 5, r.w - 12, 1, '#000000', 0.45);                              // hood front edge
   } else {
     // tail lamp reflector strip: dark red between two lamps, a lighter bar through it
-    s.solid(cx - 38, Y(L.tailLamp.v) - 6, 76, 12, '#2a0c0e');
-    for (const sx of [-1, 1]) {
+    const geo = GEO_LAMPS.has(L.style);
+    if (!geo) s.solid(cx - 38, Y(L.tailLamp.v) - 6, 76, 12, '#2a0c0e');
+    for (const sx of geo ? [] : [-1, 1]) {
       const lx = cx + sx * L.tailLamp.x * r.w;
       s.solid(lx - 13, Y(L.tailLamp.v) - 6, 26, 12, '#8a1a1d');
       s.solid(lx - 11, Y(L.tailLamp.v) - 4.5, 22, 3, '#c8262b');
       s.solid(lx - 11, Y(L.tailLamp.v) + 1, 22, 2, '#d8a020');
     }
-    s.solid(cx - 38, Y(L.tailLamp.v) - 1, 76, 2, '#6a1216');
-    s.shade(r.x + 6, r.y + 7, r.w - 12, 1, '#000000', 0.5);                               // boot lid seam
+    if (!geo) s.solid(cx - 38, Y(L.tailLamp.v) - 1, 76, 2, '#6a1216');
+    if (L.style === 'cargo') {
+      // double rear doors: centre gap, hinge lines, two small handles
+      s.shade(Math.floor(cx), r.y + 6, 1, Y(0.1) - r.y - 6, '#000000', 0.9);
+      s.shade(r.x + 8, r.y + 6, 1, Y(0.1) - r.y - 6, '#000000', 0.6); s.shade(r.x + r.w - 9, r.y + 6, 1, Y(0.1) - r.y - 6, '#000000', 0.6);
+      for (const dx of [-5, 4]) s.solid(cx + dx, Y(0.45), 2, 7, '#2a2c30');
+    } else if (L.style !== 'hatch' && L.style !== 'bus') s.shade(r.x + 6, r.y + 7, r.w - 12, 1, '#000000', 0.5);  // boot lid seam
     s.text(L.badge, cx - L.badge.length * 2, Y(L.tailLamp.v) - 18, 1, '#d7dbe0');
-    s.solid(cx + 30, bottom - 9, 7, 4, '#2b2d31'); s.solid(cx + 31, bottom - 8, 5, 2, '#6a6e74'); // exhaust
+    if (L.style !== 'bus' && L.style !== 'cargo') { s.solid(cx + 30, bottom - 9, 7, 4, '#2b2d31'); s.solid(cx + 31, bottom - 8, 5, 2, '#6a6e74'); } // exhaust
   }
+  if (L.style === 'bus') { s.solid(r.x, Y(0.36), r.w, Y(0.2) - Y(0.36), '#1b4f93'); s.solid(r.x, Y(0.385), r.w, 2, '#f2b705'); if (region === 'rear') s.text('B26', cx - 6, Y(0.8), 1, '#ffffff'); }
   // grime on the valance
   for (let i = 0; i < 6; i++) s.shade(r.x, bottom - 14 + i * 2.4, r.w, 14 - i * 2.4, '#5e4d38', 0.07);
   for (let i = 0; i < 40; i++) s.shade(rng.range(r.x, r.x + r.w), rng.range(bottom - 16, bottom - 1), rng.range(1, 3), 1.5, '#4a3c2a', 0.35);
@@ -350,4 +455,23 @@ export function paintCarSkin(col: CanvasRenderingContext2D, mask: CanvasRenderin
   paintTop(s, layout, rng);
   paintEnd(s, layout, 'front', rng);
   paintEnd(s, layout, 'rear', rng);
+  if (layout.style === 'beater') weatherEnds(s, layout, rng);
+}
+
+/** Beater roof / hood / boot: chalky clear-coat failure in patches, rust bubbling at the panel edges and on the bumpers. */
+function weatherEnds(s: Sk, L: SkinLayout, rng: Rng): void {
+  const t = SKIN_RECTS.top;
+  s.shade(t.x, t.y, t.w, t.h, '#ffffff', 0.2);
+  for (let i = 0; i < 16; i++) s.shade(rng.range(t.x, t.x + t.w - 30), rng.range(t.y + 4, t.y + t.h - 14), rng.range(14, 50), rng.range(8, 22), '#ffffff', rng.range(0.15, 0.3));
+  const rust = ['#7a3d1c', '#9a5326', '#5c2d14', '#b0642a'];
+  for (let i = 0; i < 40; i++) {
+    const edge = rng.chance(0.5);
+    s.solid(rng.range(t.x + 2, t.x + t.w - 3), edge ? t.y + rng.range(2, 8) : t.y + t.h - rng.range(2, 8), rng.range(1, 3), rng.range(1, 2.2), rng.pick(rust));
+  }
+  for (const reg of ['front', 'rear'] as const) {
+    const r = SKIN_RECTS[reg];
+    for (let i = 0; i < 30; i++) s.solid(rng.range(r.x + 3, r.x + r.w - 3), r.y + r.h - rng.range(2, 26), rng.range(1, 3.2), rng.range(1, 2.4), rng.pick(rust));
+    s.shade(r.x, r.y, r.w, r.h * 0.5, '#ffffff', 0.14);
+  }
+  void L;
 }

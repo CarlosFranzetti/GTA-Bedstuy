@@ -28,12 +28,13 @@ import { CARGO_LIVERY_H, CARGO_LIVERY_VARIANTS, CARGO_LIVERY_W, cargoLiveryPaint
 import { assignSkinUV, buildSkinNormal, carSkinMaterial, paintBox, skinLayoutFor } from './carSkin';
 import { CAR_COLORWAYS, type SkinLayout, type SkinStyle } from '@/textures/painters/vehicleSkin';
 import {
-  Acc, STYLES, isTaxiYellow, mirrorX, buildPassengerParts, buildTruckParts, wheelRadiusFor, hullSectionCount,
+  Acc, STYLES, isTaxiYellow, mirrorX, buildPassengerParts, buildTruckParts, buildBusParts, wheelRadiusFor, hullSectionCount,
   type CarParts,
 } from './carBodies';
 export { wheelRadiusFor, hullSectionCount };
 
-export type CarStyle = 'sedan' | 'coupe' | 'suv' | 'van' | 'cab' | 'cop';
+/** `van` is the box truck (Isuzu NPR type); `cargo` is the Transit-type cargo van */
+export type CarStyle = 'sedan' | 'coupe' | 'suv' | 'van' | 'cab' | 'cop' | 'cargo' | 'hatch' | 'beater' | 'bus';
 
 export interface CarModel {
   group: THREE.Group;
@@ -62,6 +63,8 @@ export function styleFor(type: VehicleType, color: string, variant = 0): CarStyl
   if (type === 'cab') return 'cab';
   if (type === 'suv') return 'suv';
   if (type === 'boxtruck') return 'van';
+  if (type === 'cargovan') return 'cargo';
+  if (type === 'hatch' || type === 'beater' || type === 'bus') return type;
   if (isTaxiYellow(color)) return 'cab';
   return variant === 3 ? 'coupe' : 'sedan';
 }
@@ -71,6 +74,10 @@ export const PAINT_VARIANTS: Record<VehicleType, readonly string[]> = {
   sedan: CAR_COLORWAYS.sedan.map((c) => c.color),
   suv: CAR_COLORWAYS.suv.map((c) => c.color),
   boxtruck: CAR_COLORWAYS.van.map((c) => c.color),
+  cargovan: CAR_COLORWAYS.cargo.map((c) => c.color),
+  hatch: CAR_COLORWAYS.hatch.map((c) => c.color),
+  beater: CAR_COLORWAYS.beater.map((c) => c.color),
+  bus: CAR_COLORWAYS.bus.map((c) => c.color),
   cop: ['#f2f2f2', '#f2f2f2'],
   cab: ['#e0b01e', '#e0b01e'],
 };
@@ -306,13 +313,13 @@ const partsCache = new Map<string, CarParts>();
 const layoutCache = new Map<string, SkinLayout>();
 
 /** The body styles that wear a baked skin (the cab and the cop car have their own livery maps on the regular UV set). */
-const SKINNED: ReadonlySet<CarStyle> = new Set<CarStyle>(['sedan', 'coupe', 'suv', 'van']);
+const SKINNED: ReadonlySet<CarStyle> = new Set<CarStyle>(['sedan', 'coupe', 'suv', 'van', 'cargo', 'hatch', 'beater', 'bus']);
 
 function partsFor(style: CarStyle, spec: VehicleSpec): CarParts {
   const key = `${style}|${spec.length}|${spec.width}|${spec.height}`;
   let p = partsCache.get(key);
   if (!p) {
-    p = style === 'van' ? buildTruckParts(spec) : buildPassengerParts(style, spec);
+    p = style === 'van' ? buildTruckParts(spec) : style === 'bus' ? buildBusParts(spec) : buildPassengerParts(style, spec);
     if (SKINNED.has(style)) {
       // second UV set for the skin atlas (the regular uv stays untouched: dirt-map fallback, far-car proxies)
       const box = paintBox(p.paint);
@@ -495,7 +502,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   mesh(parts.plate, materials.get('plate', variant), 'plate');
 
   // wheels: steer pivot (front only) -> roll pivot -> (split) tyre + hubcap; the rear pair is one mesh under the left roll pivot
-  const wkind: WheelKind = st === 'cab' || st === 'cop' ? 'steel' : 'alloy'; // hubcap steelies on the taxi and the cruiser
+  const wkind: WheelKind = st === 'cab' || st === 'cop' || st === 'beater' || st === 'cargo' || st === 'van' || st === 'bus' ? 'steel' : 'alloy'; // hubcap steelies on the taxi, cruiser, beater and the work vehicles
   const wg = wheelGeos(parts.wheelR, parts.wheelW, wkind);
   const wheels: THREE.Object3D[] = [];
   const steerPivots: THREE.Object3D[] = [];

@@ -48,6 +48,10 @@ export const KENNEY_PAINT_CELLS: Record<VehicleType, PaletteCell | null> = {
   boxtruck: { col: 3, row: 1 }, // green (the delivery van stands in for a box truck)
   cop: null,
   cab: null, // the taxi keeps its livery (procedural body)
+  cargovan: null, // ROSTER bodies are procedural only
+  hatch: null,
+  beater: null,
+  bus: null,
 };
 const KENNEY_MATERIAL = 'colormap';
 

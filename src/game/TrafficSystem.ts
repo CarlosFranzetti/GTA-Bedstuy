@@ -554,8 +554,8 @@ export class TrafficSystem {
       const d = dist(n.pos, player);
       if (d < SPAWN_MIN || d > SPAWN_MAX) continue;
       if (!this.spawnClear(n)) continue;
-      const type = this.pickType();
-      const v = this.makeVehicle(type, { x: n.pos.x, z: n.pos.z }, n.heading, type === 'cab' ? '#e0b01e' : this.rng.pick(CAR_COLORS));
+      const type = this.pickType(true);
+      const v = this.makeVehicle(type, { x: n.pos.x, z: n.pos.z }, n.heading, type === 'cab' ? '#e0b01e' : type === 'bus' ? '#f0f0ec' : this.rng.pick(CAR_COLORS));
       v.driver = 'traffic';
       this.register(v);
       const agent = new TrafficAgent(v, this.grid.lanes, this.world, this.rng.fork(v.id), {
@@ -598,9 +598,17 @@ export class TrafficSystem {
     return s;
   }
 
-  private pickType(): VehicleType {
+  /** Traffic mix (a cab is its own type, always taxi yellow); the bus only drives, it is never parked at a kerb. */
+  private pickType(moving = false): VehicleType {
     const r = this.rng.next();
-    return r < 0.62 ? 'sedan' : r < 0.7 ? 'cab' : r < 0.9 ? 'suv' : 'boxtruck'; // 8 % yellow cabs (a cab is its own type, always taxi yellow)
+    if (r < 0.34) return 'sedan';
+    if (r < 0.41) return 'cab';
+    if (r < 0.54) return 'suv';
+    if (r < 0.66) return 'hatch';
+    if (r < 0.77) return 'beater';
+    if (r < 0.86) return 'cargovan';
+    if (r < 0.96) return 'boxtruck';
+    return moving ? 'bus' : 'hatch';
   }
 
   private register(v: IVehicle): void {

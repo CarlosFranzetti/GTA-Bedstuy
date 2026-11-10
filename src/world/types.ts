@@ -270,7 +270,7 @@ export interface VehicleInput {
   horn: boolean;
 }
 
-export type VehicleType = 'sedan' | 'suv' | 'boxtruck' | 'cop' | 'cab';
+export type VehicleType = 'sedan' | 'suv' | 'boxtruck' | 'cop' | 'cab' | 'cargovan' | 'hatch' | 'beater' | 'bus';
 
 export interface VehicleSpec {
   type: VehicleType;
