@@ -5,6 +5,7 @@
  * either winding), segment (world-space a,b; a capsule against circles, a thin rectangle against polygons).
  * Every pairing is supported. All normals/MTVs are expressed "from a toward b".
  */
+import { hyp } from '@/core/Math2';
 import { forwardFromHeading, type Vec2 } from '@/core/Math2';
 import type { Body2D, OBB } from '@/world/types';
 
@@ -44,7 +45,7 @@ function writeObb(pos: Vec2, heading: number, halfW: number, halfL: number, out:
 function writeSegmentRect(a: Vec2, b: Vec2, out: Vec2[]): void {
   const T = SEGMENT_HALF_THICKNESS;
   let dx = b.x - a.x, dz = b.z - a.z;
-  const l = Math.hypot(dx, dz);
+  const l = hyp(dx, dz);
   if (l < EPS) { dx = 1; dz = 0; } else { dx /= l; dz /= l; }
   // extend by T at both ends so corners are square caps
   const ax = a.x - dx * T, az = a.z - dz * T, bx = b.x + dx * T, bz = b.z + dz * T;
@@ -249,7 +250,7 @@ export function pointInPolygon(p: Vec2, pts: Vec2[]): boolean {
 
 /** Ray vs a body's shape. `dir` need not be unit length. Returns distance along the ray (0 if the origin is inside). */
 export function rayShape(from: Vec2, dir: Vec2, maxDist: number, body: Body2D): { dist: number; point: Vec2 } | null {
-  const dl = Math.hypot(dir.x, dir.z);
+  const dl = hyp(dir.x, dir.z);
   if (dl < EPS) return null;
   const dx = dir.x / dl, dz = dir.z / dl;
   const s = body.shape;

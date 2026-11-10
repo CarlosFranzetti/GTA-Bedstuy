@@ -1,3 +1,4 @@
+import { hyp } from '@/core/Math2';
 import * as THREE from 'three';
 import { buildCarModel, type CarModel } from '@/entities/models/carModel';
 import { plateText } from '@/textures/painters/vehicle';
@@ -267,7 +268,7 @@ export class Vehicle implements IVehicle {
 
   /** Ground speed in km/h from the live body velocity (forward + sideways, so a slide or a shove still reads). For the HUD. */
   get speedKmh(): number {
-    return Math.hypot(this.body.vel.x, this.body.vel.z) * 3.6;
+    return hyp(this.body.vel.x, this.body.vel.z) * 3.6;
   }
 
   /**
@@ -355,7 +356,7 @@ export class Vehicle implements IVehicle {
   applyInterpolated(alpha: number): void {
     const b = this.body;
     const a = clamp(alpha, 0, 1);
-    const jump = Math.hypot(b.pos.x - this.prevPos.x, b.pos.z - this.prevPos.z) > 8;
+    const jump = hyp(b.pos.x - this.prevPos.x, b.pos.z - this.prevPos.z) > 8;
     if (jump) { applyPose(this.object3D, b.pos, b.heading); return; }
     const pos = { x: this.prevPos.x + (b.pos.x - this.prevPos.x) * a, z: this.prevPos.z + (b.pos.z - this.prevPos.z) * a };
     applyPose(this.object3D, pos, this.prevHeading + angleDiff(this.prevHeading, b.heading) * a);
@@ -525,7 +526,7 @@ export class Vehicle implements IVehicle {
   private slideOffProp(contact: Contact, other: Body2D): void {
     if (!Vehicle.isSmallProp(other)) return;
     const b = this.body;
-    if (Math.hypot(b.vel.x, b.vel.z) > PROP_SLIDE_MAX_SPEED) return;
+    if (hyp(b.vel.x, b.vel.z) > PROP_SLIDE_MAX_SPEED) return;
     const sgn = contact.a === b ? 1 : -1;
     const nx = contact.normal.x * sgn, nz = contact.normal.z * sgn; // toward the prop
     const f = forwardFromHeading(b.heading);
@@ -561,7 +562,7 @@ export class Vehicle implements IVehicle {
     const b = this.body;
     const input = this.input;
     const held = Math.abs(input.throttle) > WEDGE_THROTTLE && !input.brake;
-    const vAbs = Math.hypot(b.vel.x, b.vel.z);
+    const vAbs = hyp(b.vel.x, b.vel.z);
     const touching = this.time - this.lastContactTime < WEDGE_CONTACT_AGE;
     // blockedSeconds (HUD hint): throttle held, crawling, and recently in contact
     if (!held) {
@@ -608,7 +609,7 @@ export class Vehicle implements IVehicle {
     this.aLongF *= Math.max(0, 1 - 8 * h);
     this.aLatF *= Math.max(0, 1 - 8 * h);
     if (this.braking) { this.braking = false; this.applyLights(); }
-    const sp = Math.hypot(b.vel.x, b.vel.z);
+    const sp = hyp(b.vel.x, b.vel.z);
     if (sp > 0) {
       const ns = sp - (PARKED_FRICTION + PARKED_DRAG * sp) * h;
       if (ns < PARKED_STICK) { b.vel.x = 0; b.vel.z = 0; }
@@ -630,7 +631,7 @@ export class Vehicle implements IVehicle {
       // World2D removed the normal component; scrub the tangential one by Coulomb wall friction
       const vn = b.vel.x * nx + b.vel.z * nz;
       let tx = b.vel.x - nx * vn, tz = b.vel.z - nz * vn;
-      const st = Math.hypot(tx, tz);
+      const st = hyp(tx, tz);
       if (st > 1e-4) {
         const keep = Math.max(0, st - WALL_FRICTION * (Vehicle.isSmallProp(other) ? PROP_FRICTION_SCALE : 1) * closing) / st;
         tx *= keep; tz *= keep;

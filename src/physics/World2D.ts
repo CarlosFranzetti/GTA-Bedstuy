@@ -6,6 +6,7 @@
  * frame, then calls `step(dt)`; read `pos`/`vel` back afterwards. Anti-tunnelling reconstructs each body's
  * motion this frame as `pos - vel*dt -> pos` and probes along it (see `processDynamic`).
  */
+import { hyp } from '@/core/Math2';
 import type { Vec2 } from '@/core/Math2';
 import type { Body2D, Circle, Contact, IWorld2D, Polygon, Segment } from '@/world/types';
 import { overlapRaw, rayShape, SEGMENT_HALF_THICKNESS } from './Collider2D';
@@ -131,13 +132,13 @@ function boundRadius(b: Body2D): number {
   const s = b.shape;
   switch (s.kind) {
     case 'circle': return s.r;
-    case 'obb': return Math.hypot(s.halfW, s.halfL);
+    case 'obb': return hyp(s.halfW, s.halfL);
     case 'polygon': {
       let m = 0;
-      for (const p of s.points) m = Math.max(m, Math.hypot(p.x - b.pos.x, p.z - b.pos.z));
+      for (const p of s.points) m = Math.max(m, hyp(p.x - b.pos.x, p.z - b.pos.z));
       return m;
     }
-    case 'segment': return Math.max(Math.hypot(s.a.x - b.pos.x, s.a.z - b.pos.z), Math.hypot(s.b.x - b.pos.x, s.b.z - b.pos.z)) + SEGMENT_HALF_THICKNESS;
+    case 'segment': return Math.max(hyp(s.a.x - b.pos.x, s.a.z - b.pos.z), hyp(s.b.x - b.pos.x, s.b.z - b.pos.z)) + SEGMENT_HALF_THICKNESS;
   }
 }
 
@@ -290,7 +291,7 @@ export class World2D implements IWorld2D {
     const b = e.body;
     const endX = b.pos.x, endZ = b.pos.z;
     const dispX = b.vel.x * dt, dispZ = b.vel.z * dt;
-    const travel = Math.hypot(dispX, dispZ);
+    const travel = hyp(dispX, dispZ);
     const maxStep = halfSmallestExtent(b);
     let n = 1;
     if (travel > maxStep) n = Math.min(MAX_SUBSTEPS, Math.ceil(travel / maxStep));
@@ -447,7 +448,7 @@ export class World2D implements IWorld2D {
    * ignored. Used by the camera so a parked car or a passer-by never pulls it in.
    */
   raycastStatic(from: Vec2, dir: Vec2, maxDist: number): { body: Body2D; dist: number; point: Vec2 } | null {
-    const dl = Math.hypot(dir.x, dir.z);
+    const dl = hyp(dir.x, dir.z);
     if (dl < 1e-9 || !(maxDist > 0)) return null;
     const ex = from.x + (dir.x / dl) * maxDist, ez = from.z + (dir.z / dl) * maxDist;
     const minX = Math.min(from.x, ex), maxX = Math.max(from.x, ex);
@@ -470,7 +471,7 @@ export class World2D implements IWorld2D {
   }
 
   raycast(from: Vec2, dir: Vec2, maxDist: number, ignoreId?: string): { body: Body2D; dist: number; point: Vec2 } | null {
-    const dl = Math.hypot(dir.x, dir.z);
+    const dl = hyp(dir.x, dir.z);
     if (dl < 1e-9 || !(maxDist > 0)) return null;
     const ex = from.x + (dir.x / dl) * maxDist, ez = from.z + (dir.z / dl) * maxDist;
     const minX = Math.min(from.x, ex), maxX = Math.max(from.x, ex);
@@ -478,24 +479,26 @@ export class World2D implements IWorld2D {
     const cand = this.cand;
     cand.length = 0;
     const stamp = ++this.stamp;
-    let best: { body: Body2D; dist: number; point: Vec2 } | null = null;
-
-    const consider = (body: Body2D): void => {
-      if (ignoreId !== undefined && body.id === ignoreId) return;
-      const h = rayShape(from, dir, best ? best.dist : maxDist, body);
-      if (h && (!best || h.dist < best.dist)) best = { body, dist: h.dist, point: h.point };
-    };
+    this.rayBest = null;
 
     if (this.staticHash.cellCount(minX, minZ, maxX, maxZ) > RAY_LINEAR_FALLBACK_CELLS) {
       // very long ray: cheaper to test everything than to walk thousands of cells
-      for (let i = 0; i < this.statics.length; i++) consider(this.statics[i].body);
-      for (let i = 0; i < this.dynamics.length; i++) consider(this.dynamics[i].body);
-      return best;
+      for (let i = 0; i < this.statics.length; i++) this.considerRay(from, dir, maxDist, this.statics[i].body, ignoreId);
+      for (let i = 0; i < this.dynamics.length; i++) this.considerRay(from, dir, maxDist, this.dynamics[i].body, ignoreId);
+      return this.rayBest;
     }
     this.staticHash.query(minX - 0.1, minZ - 0.1, maxX + 0.1, maxZ + 0.1, stamp, cand);
     this.dynHash.query(minX - DYN_QUERY_PAD, minZ - DYN_QUERY_PAD, maxX + DYN_QUERY_PAD, maxZ + DYN_QUERY_PAD, stamp, cand);
-    for (let i = 0; i < cand.length; i++) consider(cand[i].body);
+    for (let i = 0; i < cand.length; i++) this.considerRay(from, dir, maxDist, cand[i].body, ignoreId);
     cand.length = 0;
-    return best;
+    return this.rayBest;
+  }
+
+  private rayBest: { body: Body2D; dist: number; point: Vec2 } | null = null;
+  private considerRay(from: Vec2, dir: Vec2, maxDist: number, body: Body2D, ignoreId: string | undefined): void {
+    if (ignoreId !== undefined && body.id === ignoreId) return;
+    const best = this.rayBest;
+    const h = rayShape(from, dir, best ? best.dist : maxDist, body);
+    if (h && (!best || h.dist < best.dist)) this.rayBest = { body, dist: h.dist, point: h.point };
   }
 }

@@ -135,6 +135,13 @@ function runTraffic(seed: number): Run {
         if (!Number.isFinite(p.body.pos.x) || !Number.isFinite(p.body.pos.z)) run.nonFinite.push(`${p.id}@${t.toFixed(1)}`);
       }
     }
+    if (seed === 21 && step % 600 === 0 && t > 175 && t < 245) {
+      const v = traffic.vehicles.find((q) => q.id === 'veh533');
+      if (v) { const vx = v.body.pos.x, vz = v.body.pos.z;
+        const pn = traffic.peds.filter((p) => Math.hypot(p.body.pos.x - vx, p.body.pos.z - vz) < 14).map((p) => `${p.id}:${p.state}@${p.body.pos.x.toFixed(1)},${p.body.pos.z.toFixed(1)} v${Math.hypot(p.body.vel.x, p.body.vel.z).toFixed(1)}`);
+        const cn = traffic.vehicles.filter((q) => q !== v && Math.hypot(q.body.pos.x - vx, q.body.pos.z - vz) < 25).map((q) => `${q.id}@${q.body.pos.x.toFixed(0)},${q.body.pos.z.toFixed(0)} v${q.speed.toFixed(1)}`);
+        console.log('DBGR', t.toFixed(0), `veh533@${vx.toFixed(1)},${vz.toFixed(1)} v${v.speed.toFixed(1)}`, pn.join(' '), '||', cn.join(' ')); }
+    }
     if (seed === 21 && step % 300 === 0 && t > 100 && t < 180) {
       const near = traffic.vehicles.filter((v) => Math.abs(v.body.pos.z) < 8 && v.body.pos.x > -70 && v.body.pos.x < 0).map((v) => `${v.id}:${v.driver}:${v.body.pos.x.toFixed(1)},${v.body.pos.z.toFixed(1)} v${v.speed.toFixed(1)} h${v.body.heading.toFixed(2)}`);
       (globalThis as any).__dbg = ((globalThis as any).__dbg ?? '') + `t=${t.toFixed(0)} ${near.join(' | ')}\n`;

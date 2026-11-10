@@ -1,3 +1,4 @@
+import { hyp } from '@/core/Math2';
 import type * as THREE from 'three';
 import type { EventBus, GameEvents } from '@/core/Events';
 import { dist, type Vec2 } from '@/core/Math2';
@@ -200,7 +201,7 @@ export class CopSystem {
   private watchSidewalk(dt: number, body: Body2D | null): void {
     const ud = body?.userData as { driver?: string | null } | undefined;
     if (!body || (body.kind !== 'vehicle' && body.kind !== 'cop') || ud?.driver !== 'player' ||
-        Math.hypot(body.vel.x, body.vel.z) < SIDEWALK_MIN_SPEED || !this.onSidewalk(body.pos)) {
+        hyp(body.vel.x, body.vel.z) < SIDEWALK_MIN_SPEED || !this.onSidewalk(body.pos)) {
       this.sidewalkTime = Math.max(0, this.sidewalkTime - dt * 2);
       return;
     }

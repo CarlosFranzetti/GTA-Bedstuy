@@ -1,3 +1,4 @@
+import { hyp } from '@/core/Math2';
 import * as THREE from 'three';
 import type { EventBus } from '@/core/Events';
 import { angleDiff, type Vec2 } from '@/core/Math2';
@@ -196,8 +197,8 @@ export class Pedestrian implements Entity {
     // heading toward the threat: turn back along the edge we were on
     const t = this.targetId ? this.sidewalks.nodes[this.targetId] : undefined;
     if (t && this.prevId && this.sidewalks.nodes[this.prevId]) {
-      const dNow = Math.hypot(this.body.pos.x - from.x, this.body.pos.z - from.z);
-      const dTarget = Math.hypot(t.pos.x - from.x, t.pos.z - from.z);
+      const dNow = hyp(this.body.pos.x - from.x, this.body.pos.z - from.z);
+      const dTarget = hyp(t.pos.x - from.x, t.pos.z - from.z);
       if (dTarget < dNow) {
         const back = this.prevId;
         this.prevId = this.targetId;
@@ -209,7 +210,7 @@ export class Pedestrian implements Entity {
   onContact(_contact: Contact, other: Body2D): void {
     if (this.state === 'down') return;
     if (other.kind !== 'vehicle' && other.kind !== 'cop') return;
-    const sp = Math.hypot(other.vel.x, other.vel.z);
+    const sp = hyp(other.vel.x, other.vel.z);
     if (sp <= HIT_SPEED) return;
     this.state = 'down';
     this.waitCrossing = null;
@@ -325,7 +326,7 @@ export class Pedestrian implements Entity {
     }
     const dx = goal.x - b.pos.x;
     const dz = goal.z - b.pos.z;
-    const d = Math.hypot(dx, dz);
+    const d = hyp(dx, dz);
     const speed = this.state === 'fleeing' ? FLEE_SPEED : WALK_SPEED;
     if (d <= Math.max(det ? 0.15 : ARRIVE, speed * dt)) {
       if (det) this.advanceDetour(det);
@@ -363,7 +364,7 @@ export class Pedestrian implements Entity {
     for (let i = 0; i < list.length; i++) {
       const o = list[i];
       if ((o.kind !== 'vehicle' && o.kind !== 'cop') || o.shape.kind !== 'obb') continue;
-      if (Math.hypot(o.vel.x, o.vel.z) > BLOCK_MAX_SPEED) continue;
+      if (hyp(o.vel.x, o.vel.z) > BLOCK_MAX_SPEED) continue;
       const fx = Math.sin(o.heading);
       const fz = -Math.cos(o.heading);
       const rx = -fz;
@@ -404,11 +405,11 @@ export class Pedestrian implements Entity {
     this.blockKey = '';
     // two pedestrians head-on in a narrow lane (a crosswalk) press into each other and neither gets through: when blocked by another
     // pedestrian dead ahead and barely moving, both step to their own right (keep-right), which clears them
-    if (Math.hypot(b.vel.x, b.vel.z) < PED_JAM_SPEED) {
+    if (hyp(b.vel.x, b.vel.z) < PED_JAM_SPEED) {
       for (let i = 0; i < list.length; i++) {
         const o = list[i];
         if (o.kind !== 'ped' || o === b) continue;
-        const ox = o.pos.x - b.pos.x, oz = o.pos.z - b.pos.z, od = Math.hypot(ox, oz);
+        const ox = o.pos.x - b.pos.x, oz = o.pos.z - b.pos.z, od = hyp(ox, oz);
         if (od > PED_JAM_RADIUS || od < 1e-4 || (ox * gx + oz * gz) / od < 0.6) continue;
         this.blockSlide.x = gx * 0.35 - gz * 0.94;
         this.blockSlide.z = gz * 0.35 + gx * 0.94;
@@ -423,7 +424,7 @@ export class Pedestrian implements Entity {
     const b = this.body;
     if (L.state === 'down' || L.state === 'fleeing' || L.leader === this) { this.detach(); this.snapToGraph(); return false; }
     const lb = L.body;
-    const dToLeader = Math.hypot(lb.pos.x - b.pos.x, lb.pos.z - b.pos.z);
+    const dToLeader = hyp(lb.pos.x - b.pos.x, lb.pos.z - b.pos.z);
     if (dToLeader > FOLLOW_DETACH) { this.detach(); this.snapToGraph(); return false; }
     const fx = Math.sin(lb.heading);
     const fz = -Math.cos(lb.heading);
@@ -432,7 +433,7 @@ export class Pedestrian implements Entity {
     const tz = lb.pos.z + fx * side - fz * 0.35;
     const dx = tx - b.pos.x;
     const dz = tz - b.pos.z;
-    const d = Math.hypot(dx, dz);
+    const d = hyp(dx, dz);
     const leaderMoving = L.movingNow;
     if (d < 0.12 || (!leaderMoving && d < 0.5)) {
       b.vel.x = 0;
@@ -461,7 +462,7 @@ export class Pedestrian implements Entity {
     let bd = Infinity;
     for (const id in this.sidewalks.nodes) {
       const n = this.sidewalks.nodes[id];
-      const d = Math.hypot(n.pos.x - b.pos.x, n.pos.z - b.pos.z);
+      const d = hyp(n.pos.x - b.pos.x, n.pos.z - b.pos.z);
       if (d < bd) { bd = d; best = id; }
     }
     this.prevId = null;
@@ -542,7 +543,7 @@ export class Pedestrian implements Entity {
     for (let i = 0; i < list.length; i++) {
       const o = list[i];
       if (o.kind !== 'vehicle' && o.kind !== 'cop') continue;
-      if (Math.hypot(o.vel.x, o.vel.z) > HIT_SPEED) return true;
+      if (hyp(o.vel.x, o.vel.z) > HIT_SPEED) return true;
     }
     return false;
   }
@@ -563,7 +564,7 @@ export class Pedestrian implements Entity {
       const t = ((sp.pos.x - from.pos.x) * ex + (sp.pos.z - from.pos.z) * ez) / len2;
       if (t < 0.15 || t > 0.85) continue;
       const p0 = { x: from.pos.x + ex * t, z: from.pos.z + ez * t };
-      if (Math.hypot(sp.pos.x - p0.x, sp.pos.z - p0.z) > STOOP_LATERAL + 2.5) continue;
+      if (hyp(sp.pos.x - p0.x, sp.pos.z - p0.z) > STOOP_LATERAL + 2.5) continue;
       cands.push({ spot: sp, p0 });
     }
     if (cands.length === 0) return;
@@ -602,7 +603,7 @@ export class Pedestrian implements Entity {
     for (let i = 0; i < list.length; i++) {
       const o = list[i];
       if (o.kind !== 'vehicle' && o.kind !== 'cop') continue;
-      const sp = Math.hypot(o.vel.x, o.vel.z);
+      const sp = hyp(o.vel.x, o.vel.z);
       if (sp < THREAT_MIN_SPEED) continue;
       const ux = o.vel.x / sp;
       const uz = o.vel.z / sp;
@@ -637,7 +638,7 @@ export class Pedestrian implements Entity {
         const e = edges[adj[i]];
         if (!useAll && e.to === came) continue;
         const n = this.sidewalks.nodes[e.to];
-        const d = Math.hypot(n.pos.x - this.fleeFrom.x, n.pos.z - this.fleeFrom.z);
+        const d = hyp(n.pos.x - this.fleeFrom.x, n.pos.z - this.fleeFrom.z);
         if (d > bestD) { bestD = d; chosen = adj[i]; }
       }
     } else {

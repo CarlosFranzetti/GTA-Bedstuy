@@ -1,3 +1,4 @@
+import { hyp } from '@/core/Math2';
 import { setPedDayContext } from '@/entities/models/pedBody';
 import * as THREE from 'three';
 import type { EventBus } from '@/core/Events';
@@ -78,7 +79,7 @@ export function buildDoorSpots(lots: readonly Lot[]): StoopSpot[] {
     const mz = (l.frontA.z + l.frontB.z) / 2;
     // beside the door, a little off the lot's centre so two shops do not pile people on the same square
     const ax = l.frontB.x - l.frontA.x, az = l.frontB.z - l.frontA.z;
-    const al = Math.hypot(ax, az) || 1;
+    const al = hyp(ax, az) || 1;
     const off = Math.min(1.6, l.width * 0.25);
     out.push({
       pos: { x: mx + (ax / al) * off + l.outward.x * DOOR_OUT, z: mz + (az / al) * off + l.outward.z * DOOR_OUT },
@@ -302,7 +303,7 @@ export class TrafficSystem {
 
   /** Does a static body (a building) sit between the player and `to`? */
   private lineBlocked(to: Vec2): boolean {
-    const dx = to.x - this.playerAt.x, dz = to.z - this.playerAt.z, d = Math.hypot(dx, dz);
+    const dx = to.x - this.playerAt.x, dz = to.z - this.playerAt.z, d = hyp(dx, dz);
     if (d < 1) return false;
     const hit = this.world.raycast(this.playerAt, { x: dx / d, z: dz / d }, d - 1);
     return !!hit && hit.body.kind === 'static';
@@ -387,7 +388,7 @@ export class TrafficSystem {
 
   update(dt: number, playerPos: Vec2): void {
     this.lights.update(dt);
-    { const mx = playerPos.x - this.playerAt.x, mz = playerPos.z - this.playerAt.z, m = Math.hypot(mx, mz); if (m > 0.02 && m < 20) this.facing = { x: mx / m, z: mz / m }; }
+    { const mx = playerPos.x - this.playerAt.x, mz = playerPos.z - this.playerAt.z, m = hyp(mx, mz); if (m > 0.02 && m < 20) this.facing = { x: mx / m, z: mz / m }; }
     this.playerAt = playerPos;
     this.pedTimer += dt;
     if (this.pedTimer >= PED_TICK) { const e = this.pedTimer; this.pedTimer = 0; this.stepPeds(e); }
@@ -442,7 +443,7 @@ export class TrafficSystem {
       if (street.oneWay !== 0) continue;
       const dx = seg.b.x - seg.a.x;
       const dz = seg.b.z - seg.a.z;
-      const length = Math.hypot(dx, dz);
+      const length = hyp(dx, dz);
       if (length < PARK_END_MARGIN * 2 + 1) continue;
       const dir = { x: dx / length, z: dz / length };
       const right = perpRight(dir);
@@ -580,10 +581,10 @@ export class TrafficSystem {
       const b = list[i];
       const rx = b.pos.x - n.pos.x;
       const rz = b.pos.z - n.pos.z;
-      const d = Math.hypot(rx, rz);
+      const d = hyp(rx, rz);
       if (d < SPAWN_CLEAR) return false;
       if (b.kind !== 'vehicle' && b.kind !== 'cop' && b.kind !== 'player') continue;
-      if (rx * fx + rz * fz < 0 && Math.hypot(b.vel.x, b.vel.z) > 1.5) return false;
+      if (rx * fx + rz * fz < 0 && hyp(b.vel.x, b.vel.z) > 1.5) return false;
     }
     return true;
   }

@@ -1,3 +1,4 @@
+import { hyp } from '@/core/Math2';
 import { angleDiff, clamp, dist, type Vec2 } from '@/core/Math2';
 import { Rng } from '@/core/Rng';
 import type { TrafficLights } from '@/game/TrafficLights';
@@ -251,7 +252,7 @@ export class TrafficAgent {
       const n = this.lanes.nodes[id];
       const dx = n.pos.x - b.pos.x;
       const dz = n.pos.z - b.pos.z;
-      const d = Math.hypot(dx, dz);
+      const d = hyp(dx, dz);
       if (d > 80) continue;
       if (Math.abs(angleDiff(b.heading, n.heading)) > 1.0) continue;
       const ahead = dx * fx + dz * fz;
@@ -345,7 +346,7 @@ export class TrafficAgent {
       const pb = this.passBody;
       const along = (pb.pos.x - pos.x) * fx + (pb.pos.z - pos.z) * fz;
       const half = pb.shape.kind === 'obb' ? pb.shape.halfL : 2.2;
-      if (along < -(half + 3.2) || Math.hypot(pb.vel.x, pb.vel.z) > 1.5) this.endPass();
+      if (along < -(half + 3.2) || hyp(pb.vel.x, pb.vel.z) > 1.5) this.endPass();
     }
     if (this.lat !== this.latTarget) {
       const step = LATERAL_RATE * dt;
@@ -383,7 +384,7 @@ export class TrafficAgent {
     const steer = clamp(STEER_GAIN * err, -1, 1);
 
     // ---- speed
-    const dNode = Math.hypot(node.pos.x - pos.x, node.pos.z - pos.z);
+    const dNode = hyp(node.pos.x - pos.x, node.pos.z - pos.z);
     let desired = this.cruise(node) * clamp(1 - Math.abs(err) / 1.4, 0.35, 1);
     if (this.passBody) {
       desired = Math.min(desired, 7);
@@ -676,7 +677,7 @@ export class TrafficAgent {
       const b = list[i];
       if (b.id === selfId) continue;
       if (b.kind !== 'vehicle' && b.kind !== 'cop' && b.kind !== 'player') continue;
-      const sp = Math.hypot(b.vel.x, b.vel.z);
+      const sp = hyp(b.vel.x, b.vel.z);
       const rx = b.pos.x - cx;
       const rz = b.pos.z - cz;
       const along = rx * dirx + rz * dirz;
@@ -705,7 +706,7 @@ export class TrafficAgent {
     if (!exit) return false;
     const dx = exit.pos.x - stop.pos.x;
     const dz = exit.pos.z - stop.pos.z;
-    const d = Math.hypot(dx, dz);
+    const d = hyp(dx, dz);
     if (d < 1) return false;
     return this.coneGap(stop.pos, dx / d, dz / d, d + 2, 0) < Infinity;
   }
@@ -737,7 +738,7 @@ export class TrafficAgent {
    */
   private clearsPath(o: Body2D, dx: number, dz: number): boolean {
     if ((o.userData as { driver?: unknown } | undefined)?.driver !== null) return false;
-    const len = Math.hypot(dx, dz);
+    const len = hyp(dx, dz);
     if (len < 1) return false;
     const b = this.vehicle.body;
     const ux = dx / len;
@@ -770,7 +771,7 @@ export class TrafficAgent {
   private boxYield(blocker: Body2D, node: LaneNode): boolean {
     if (this.ignoreStop || !this.inBox()) return false;
     if (blocker.kind !== 'vehicle' && blocker.kind !== 'cop' && blocker.kind !== 'player') return false;
-    if (Math.hypot(blocker.vel.x, blocker.vel.z) > 0.5) return false;
+    if (hyp(blocker.vel.x, blocker.vel.z) > 0.5) return false;
     // something is right behind: backing would only trade one wedge for another
     const b = this.vehicle.body;
     const behind = this.world.raycast(b.pos, { x: -Math.sin(b.heading), z: Math.cos(b.heading) }, 3, b.id);
@@ -806,7 +807,7 @@ export class TrafficAgent {
     for (let i = 0; i < list.length; i++) {
       const o = list[i];
       if (o.id === selfId || (o.kind !== 'vehicle' && o.kind !== 'cop' && o.kind !== 'player')) continue;
-      if (Math.hypot(o.vel.x, o.vel.z) > BOX_JAM_SPEED) continue;
+      if (hyp(o.vel.x, o.vel.z) > BOX_JAM_SPEED) continue;
       const d = (o.userData as { driver?: unknown } | undefined)?.driver;
       if (d === null || d === undefined) continue; // parked: passed, not queued
       const rx = o.pos.x - exit.pos.x;
@@ -878,7 +879,7 @@ export class TrafficAgent {
   private tryOvertake(blocker: Body2D, fx: number, fz: number, rx: number, rz: number, node: LaneNode): void {
     if (!this.canOvertake || this.passBody || this.state !== 'driving') return;
     if (this.lights && this.signalQueueAhead()) return;
-    const sp = Math.hypot(blocker.vel.x, blocker.vel.z);
+    const sp = hyp(blocker.vel.x, blocker.vel.z);
     if (sp > PASS_BLOCKER_MAX_SPEED || PASSING.has(blocker)) return;
     const parked = (blocker.userData as { driver?: unknown } | undefined)?.driver === null;
     const player = blocker.kind === 'player' || (blocker.userData as { driver?: unknown } | undefined)?.driver === 'player';
@@ -921,7 +922,7 @@ export class TrafficAgent {
   private back(dt: number): void {
     const v = this.vehicle;
     this.backTime += dt;
-    const moved = Math.hypot(v.body.pos.x - this.backStartX, v.body.pos.z - this.backStartZ);
+    const moved = hyp(v.body.pos.x - this.backStartX, v.body.pos.z - this.backStartZ);
     const bx = -Math.sin(v.body.heading);
     const bz = Math.cos(v.body.heading);
     const behind = this.world.raycast(v.body.pos, { x: bx, z: bz }, 2.8, v.body.id);
@@ -976,7 +977,7 @@ export class TrafficAgent {
       const b = list[i];
       if (b.id === selfId) continue;
       if (b.kind !== 'vehicle' && b.kind !== 'cop' && b.kind !== 'player') continue;
-      const sp = Math.hypot(b.vel.x, b.vel.z);
+      const sp = hyp(b.vel.x, b.vel.z);
       if (movingOnly) {
         if (sp > 2) {
           // moving across our path (not along it)
@@ -985,7 +986,7 @@ export class TrafficAgent {
         }
         continue;
       }
-      const near = Math.hypot(b.pos.x - cx, b.pos.z - cz) < 5;
+      const near = hyp(b.pos.x - cx, b.pos.z - cz) < 5;
       if (sp > 0.5 || near) return false;
     }
     return true;
