@@ -20,7 +20,8 @@ import type { IMaterialLibrary } from '@/world/types';
 import { createGltfLoader, warnOnce } from './gltf/loader';
 import { HI_RECTS, type HiTile } from '@/textures/painters/pedHi';
 import { PED_SPECS, PED_VARIANT_COUNT, pedVariantIndex, type PedSpec, type PxRect } from '@/textures/painters/ped';
-import { FAR_DIST, MID_DIST, buildPedModel as buildProcedural, clothingShell, pedHiMaterial, pedPhone, type PedDetail, type RigLayout } from './pedBodyHi';
+import { FAR_DIST, MID_DIST, buildPedModel as buildProcedural, pedHiMaterial, pedPhone, type PedDetail } from './pedBodyHi';
+import { garmentParts, headShell } from './pedGarments';
 import { pickPedVariant, type PedModel, type PedOptions } from './pedBody';
 
 type Ring = [number, number, number, number, number?]; // y, rx, cz, rz, cx (half extents round the centre)
@@ -185,6 +186,7 @@ function ringAt(rings: Ring[], y: number): { rx: number; cz: number; rz: number 
 
 /** hair / hat parts of a shape and variant, ready to merge (bone 3 = head) */
 function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGeometry[] {
+  // at the hi level short hair and scarves are volumes made from the skull surface (pedGarments.headShell); the rest is lofted here
   const lm = s.landmarks, H = lm.crownY - lm.chinY, Y = (t: number): number => lm.chinY + t * H;
   const seg = hiDetail ? 18 : 10;
   const hairR = HI_RECTS.hair, hatR = HI_RECTS.hat;
@@ -200,7 +202,7 @@ function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
     });
   };
   const covered = spec.hat !== 'none';
-  const hairCap = (): void => { out.push(loft(dome(0.42, 1.045, 0.006, 0.34), seg, hairR, 3, 'top')); };
+  const hairCap = (): void => { if (!hiDetail) out.push(loft(dome(0.42, 1.045, 0.006, 0.34), seg, hairR, 3, 'top')); };
   const ball = (cx: number, y: number, cz: number, rr: number, rect: PxRect): void => {
     out.push(loft([{ y: y - rr, rx: rr * 0.3, rz: rr * 0.3, cx, cz }, { y: y - rr * 0.6, rx: rr * 0.85, rz: rr * 0.85, cx, cz }, { y, rx: rr, rz: rr, cx, cz }, { y: y + rr * 0.6, rx: rr * 0.85, rz: rr * 0.85, cx, cz }, { y: y + rr, rx: rr * 0.3, rz: rr * 0.3, cx, cz }], 10, rect, 3, 'both'));
   };
@@ -214,7 +216,11 @@ function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
     case 'long': {
       if (!covered) hairCap();
       const r = ringAt(s.headRings, Y(0.55));
-      out.push(loft([{ y: Y(-0.55), rx: r.rx * 0.95, rz: 0.03, cz: r.cz + r.rz * 0.9 }, { y: Y(0), rx: r.rx * 1.05, rz: 0.035, cz: r.cz + r.rz * 0.95 }, { y: Y(0.55), rx: r.rx * 1.08, rz: r.rz * 0.5, cz: r.cz + r.rz * 0.6 }], 10, hairR, 3, 'bottom'));
+      out.push(loft([{ y: Y(-0.6), rx: r.rx * 0.8, rz: 0.04, cz: r.cz + r.rz * 0.95 }, { y: Y(-0.3), rx: r.rx * 1.0, rz: 0.05, cz: r.cz + r.rz * 1.0 }, { y: Y(0.1), rx: r.rx * 1.12, rz: r.rz * 0.55, cz: r.cz + r.rz * 0.72 }, { y: Y(0.5), rx: r.rx * 1.1, rz: r.rz * 0.8, cz: r.cz + r.rz * 0.3 }], 14, hairR, 3, 'bottom'));
+      break;
+    }
+    case 'peyot': {
+      if (!covered || spec.hat === 'fedora') { if (spec.hat !== 'fedora') hairCap(); const r = ringAt(s.headRings, Y(0.55)); for (const sx of [-1, 1]) out.push(loft([{ y: Y(0.12), rx: 0.006, rz: 0.006, cx: sx * (r.rx + 0.006), cz: r.cz + 0.006 }, { y: Y(0.3), rx: 0.0085, rz: 0.0085, cx: sx * (r.rx + 0.012), cz: r.cz }, { y: Y(0.52), rx: 0.008, rz: 0.008, cx: sx * (r.rx + 0.008), cz: r.cz - 0.004 }], 6, hairR, 3, 'bottom')); }
       break;
     }
     case 'braids': case 'locs': {
@@ -241,6 +247,14 @@ function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
       for (const sx of [-1, 1]) out.push(loft([{ y: Y(-0.55), rx: 0.016, rz: 0.008, cx: sx * 0.02, cz: backZ + 0.02 }, { y: Y(0.1), rx: 0.018, rz: 0.009, cx: sx * 0.02, cz: backZ + 0.012 }, { y: Y(0.6), rx: 0.016, rz: 0.008, cx: sx * 0.02, cz: backZ }], 4, hatR, 3, 'bottom'));
       break;
     }
+    case 'fedora': {
+      out.push(loft(dome(0.6, 1.07, 0.007, 0, 1.06), seg, hatR, 3, 'top'));
+      const r = ringAt(s.headRings, Y(0.6));
+      out.push(loft([{ y: Y(0.6), rx: r.rx + 0.07, rz: r.rz + 0.07, cz: r.cz }, { y: Y(0.6) + 0.007, rx: r.rx + 0.07, rz: r.rz + 0.07, cz: r.cz }], 18, hatR, 3, 'both'));
+      break;
+    }
+    case 'helmet': out.push(loft(dome(0.52, 1.13, 0.012, 0, 1.06), seg, hatR, 3, 'top')); break;
+    case 'hijab': if (!hiDetail) out.push(loft(dome(0.25, 1.1, 0.012, 0.5, 1.0), seg, hatR, 3, 'top')); break;
     case 'hardhat': { out.push(loft(dome(0.6, 1.15, 0.01, 0), seg, hatR, 3, 'top')); const r = ringAt(s.headRings, Y(0.6)); out.push(loft([{ y: Y(0.6), rx: 0.12, rz: 0.15, cz: r.cz - 0.03 }, { y: Y(0.6) + 0.012, rx: 0.12, rz: 0.15, cz: r.cz - 0.03 }], 14, hatR, 3, 'both')); break; }
   }
   return out;
@@ -251,8 +265,8 @@ function bodyParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
   const seg = hiDetail ? 16 : 9;
   const hip = s.hipRings, tor = s.torsoRings;
   if (spec.bottom.kind === 'skirt') {
-    const top = hip[hip.length - 1], hem = s.landmarks.crownY * (spec.top.kind === 'dress' ? 0.25 : 0.31);
-    out.push(loft([{ y: hem, rx: top[1] * 1.7, rz: top[3] * 1.7, cz: top[2] }, { y: (hem + top[0]) / 2, rx: top[1] * 1.35, rz: top[3] * 1.35, cz: top[2] }, { y: top[0], rx: top[1] * 1.05, rz: top[3] * 1.05, cz: top[2] }], seg, HI_RECTS.pelvis, 1));
+    const top = hip[hip.length - 1], hem = s.landmarks.crownY * (spec.bottom.long ? 0.12 : spec.top.kind === 'dress' ? 0.25 : 0.31), flare = spec.bottom.long ? 1.55 : 1.7;
+    out.push(loft([{ y: hem, rx: top[1] * flare, rz: top[3] * flare, cz: top[2] }, { y: (hem + top[0]) / 2, rx: top[1] * 1.3, rz: top[3] * 1.3, cz: top[2] }, { y: top[0], rx: top[1] * 1.05, rz: top[3] * 1.05, cz: top[2] }], seg, HI_RECTS.pelvis, 1));
   }
   if (spec.gear === 'backpack') {
     const mid = tor[Math.floor(tor.length / 2)], k = spec.build === 'kid' ? 1.1 : 1, back = mid[2] + mid[3];
@@ -262,30 +276,6 @@ function bodyParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
 }
 
 // ---------------------------------------------------------------- clothing shells, ambient occlusion
-
-const R5 = (r: Ring): R => ({ y: r[0], rx: r[1], rz: r[3], cz: r[2], cx: r[4] ?? 0 });
-const mirror = (r: R): R => ({ ...r, cx: -(r.cx ?? 0) });
-/** the body's rings in the layout PEDHI's clothingShell wants (limbs from the top down, torso upwards) so jackets, sleeves and trousers wrap THIS body */
-function rigLayout(s: MhShape): RigLayout {
-  const down = (rs: Ring[]): R[] => rs.map(R5).reverse();
-  const A = s.armRings, L = s.legRings;
-  const side = (m: (r: R) => R): [R[], R[], R[], R[]] => [down(A.upper).map(m), down(A.fore).map(m), down(L.thigh).map(m), down(L.shin).map(m)];
-  const [uL, fL, tL, sL] = side((r) => r), [uR, fR, tR, sR] = side(mirror);
-  return {
-    torso: s.torsoRings.map(R5), torsoBone: 2,
-    arms: [{ upper: uL, fore: fL, boneUpper: 4, boneFore: 5 }, { upper: uR, fore: fR, boneUpper: 6, boneFore: 7 }],
-    legs: [{ thigh: tL, shin: sL, boneThigh: 8, boneShin: 9 }, { thigh: tR, shin: sR, boneThigh: 10, boneShin: 11 }],
-    neckY: s.rig.shoulderL[1] + 0.05,
-  };
-}
-
-function withSkin(g: THREE.BufferGeometry, bone: number): THREE.BufferGeometry {
-  const n = g.getAttribute('position').count, si = new Uint16Array(n * 4), sw = new Float32Array(n * 4);
-  for (let k = 0; k < n; k++) { si[k * 4] = bone; sw[k * 4] = 1; }
-  g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4));
-  g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
-  return g;
-}
 
 const smooth = (a: number, b: number, x: number): number => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 /** vertex colour = baked ambient occlusion (armpits, under the chin, crotch, eye sockets, soles), in this shape's own landmarks */
@@ -323,9 +313,9 @@ function geometryFor(s: MhShape, variant: number, detail: PedDetail): { geo: THR
   base.setAttribute('skinIndex', new THREE.BufferAttribute(L.joints, 4));
   base.setAttribute('skinWeight', new THREE.BufferAttribute(L.weights, 4));
   base.setIndex(new THREE.BufferAttribute(L.index, 1));
-  const parts = detail === 'far' ? [] : [...headParts(s, spec, detail === 'hi'), ...bodyParts(s, spec, detail === 'hi')];
-  if (detail === 'hi') for (const sh of clothingShell(spec, rigLayout(s), 'hi')) parts.push(withSkin(sh.geo, sh.bone));
   const ao = bodyAo(s, L.position);
+  const parts = detail === 'far' ? [] : [...headParts(s, spec, detail === 'hi'), ...bodyParts(s, spec, detail === 'hi')];
+  if (detail === 'hi') parts.push(...garmentParts(s, L, ao, spec), ...headShell(s, L, ao, spec));
   base.setAttribute('color', new THREE.BufferAttribute(ao, 3));
   for (const g of parts) if (!g.getAttribute('color')) g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(g.getAttribute('position').count * 3).fill(1), 3));
   const geo = parts.length ? mergeGeometries([base, ...parts], false) : base;
