@@ -220,7 +220,16 @@ function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
       break;
     }
     case 'peyot': {
-      if (!covered || spec.hat === 'fedora') { if (spec.hat !== 'fedora') hairCap(); const r = ringAt(s.headRings, Y(0.55)); for (const sx of [-1, 1]) out.push(loft([{ y: Y(0.12), rx: 0.006, rz: 0.006, cx: sx * (r.rx + 0.006), cz: r.cz + 0.006 }, { y: Y(0.3), rx: 0.0085, rz: 0.0085, cx: sx * (r.rx + 0.012), cz: r.cz }, { y: Y(0.52), rx: 0.008, rz: 0.008, cx: sx * (r.rx + 0.008), cz: r.cz - 0.004 }], 6, hairR, 3, 'bottom')); }
+      // curled side locks: a tapered helix in front of each ear
+      const r = ringAt(s.headRings, Y(0.5));
+      for (const sx of [-1, 1]) {
+        const rings: R[] = [];
+        for (let i = 0; i <= 14; i++) {
+          const u = i / 14, th = u * Math.PI * 3.2, rad = 0.011 * (1 - u * 0.35);
+          rings.push({ y: Y(0.52) - u * H * 0.42, rx: 0.0082 * (1 - u * 0.5), rz: 0.0082 * (1 - u * 0.5), cx: sx * (r.rx + 0.006 + rad * Math.cos(th)), cz: r.cz - r.rz * 0.35 + rad * Math.sin(th) });
+        }
+        out.push(loft(rings, 6, hairR, 3, 'bottom'));
+      }
       break;
     }
     case 'braids': case 'locs': {
@@ -248,9 +257,13 @@ function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
       break;
     }
     case 'fedora': {
-      out.push(loft(dome(0.6, 1.07, 0.007, 0, 1.06), seg, hatR, 3, 'top'));
-      const r = ringAt(s.headRings, Y(0.6));
-      out.push(loft([{ y: Y(0.6), rx: r.rx + 0.07, rz: r.rz + 0.07, cz: r.cz }, { y: Y(0.6) + 0.007, rx: r.rx + 0.07, rz: r.rz + 0.07, cz: r.cz }], 18, hatR, 3, 'both'));
+      // a proper wide-brim hat: the crown stands above the head, then the flat brim
+      const r = ringAt(s.headRings, Y(0.62)), top = Y(1.0);
+      out.push(loft([
+        { y: Y(0.55), rx: r.rx * 1.1 + 0.008, rz: r.rz * 1.1 + 0.008, cz: r.cz }, { y: Y(0.78), rx: r.rx * 1.12 + 0.01, rz: r.rz * 1.12 + 0.01, cz: r.cz },
+        { y: top, rx: r.rx * 1.1, rz: r.rz * 1.1, cz: r.cz }, { y: top + 0.045, rx: r.rx * 1.02, rz: r.rz * 1.04, cz: r.cz }, { y: top + 0.07, rx: r.rx * 0.9, rz: r.rz * 0.92, cz: r.cz },
+      ], seg, hatR, 3, 'top'));
+      out.push(loft([{ y: Y(0.55), rx: r.rx + 0.075, rz: r.rz + 0.075, cz: r.cz }, { y: Y(0.55) + 0.008, rx: r.rx + 0.075, rz: r.rz + 0.075, cz: r.cz }], 20, hatR, 3, 'both'));
       break;
     }
     case 'helmet': out.push(loft(dome(0.52, 1.13, 0.012, 0, 1.06), seg, hatR, 3, 'top')); break;
@@ -293,7 +306,8 @@ function bodyAo(s: MhShape, pos: Float32Array): Float32Array {
     f *= 1 - 0.45 * (1 - Math.min(1, ax / 0.075)) * g2(y - H * 0.47, 0.06 * k);
     if (z < frontZ + 0.03) for (const e of [-1, 1]) f *= 1 - 0.42 * g2(Math.hypot(x - e * lm.eyeX, y - lm.eyeY), 0.016);
     f *= 1 - 0.2 * smooth(0.05, 0, y);
-    out[i] = out[i + 1] = out[i + 2] = Math.max(0.35, f);
+    f = Math.max(0.35, f);
+    out[i] = f; out[i + 1] = Math.pow(f, 1.25); out[i + 2] = Math.pow(f, 1.5);   // warm, subsurface-ish shadows
   }
   return out;
 }

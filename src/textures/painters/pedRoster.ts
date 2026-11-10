@@ -14,18 +14,25 @@ export const GROUPS = Object.keys(GROUP_SHARE) as PopGroup[];
 
 /** skin tone palettes (sRGB hex), hair colours and natural hair styles per group */
 export const PALETTE: Record<PopGroup, { skin: string[]; hair: string[] }> = {
-  ba: { skin: ['#4a2f1e', '#5e3b24', '#6f4529', '#7a4c30', '#8d5a3b'], hair: ['#0e0a08', '#150e0a', '#1c1410'] },
-  ca: { skin: ['#6b4226', '#8a5a3a', '#9a6a44', '#a8734a'], hair: ['#120c08', '#1c1410', '#2a1c12'] },
-  la: { skin: ['#a8734a', '#b98a5e', '#c58a5c', '#c9966a'], hair: ['#17110d', '#241812', '#2a1c12'] },
-  wh: { skin: ['#e8c4a0', '#f0d0b0', '#dcb08a', '#e0b48c', '#efd2bc'], hair: ['#4a3220', '#8a6a3a', '#c8a060', '#6a3a22', '#2a1c12', '#b8b8b8'] },
-  ea: { skin: ['#e3bd8f', '#dcb386', '#d9ad7e', '#e8c9a0'], hair: ['#0e0a08', '#17110d', '#1c1410'] },
-  sa: { skin: ['#a06a40', '#8f5c38', '#b07a50', '#98643c'], hair: ['#0e0a08', '#17110d', '#241812'] },
-  me: { skin: ['#c49a6c', '#d0a878', '#b88a5c', '#d8b48a'], hair: ['#17110d', '#241812', '#2a1c12'] },
-  mx: { skin: ['#b98a5e', '#a8734a', '#d0a070', '#8d5a3b'], hair: ['#17110d', '#2a1c12', '#4a3220'] },
-  hj: { skin: ['#e8c4a0', '#f0d0b0', '#dcb08a'], hair: ['#2a1c12', '#4a3220', '#17110d'] },
+  ba: { skin: ['#5e3a26', '#6e4530', '#8d5a3a', '#4a2e1e', '#7a4c32'], hair: ['#0e0a08', '#150e0a', '#1c1410'] },
+  ca: { skin: ['#8d5a3a', '#a56e46', '#b97f55', '#6e4530'], hair: ['#120c08', '#1c1410', '#2a1c12'] },
+  la: { skin: ['#d9a37a', '#c99068', '#b97f55', '#e0b48a'], hair: ['#17110d', '#241812', '#2a1c12'] },
+  wh: { skin: ['#f1c9a8', '#ecbf9a', '#e3b08a', '#f4d2b6', '#e8b996'], hair: ['#4a3220', '#8a6a3a', '#c8a060', '#6a3a22', '#2a1c12', '#b8b8b8'] },
+  ea: { skin: ['#e8c096', '#e0b48a', '#d9a37a', '#ecc9a2'], hair: ['#0e0a08', '#17110d', '#1c1410'] },
+  sa: { skin: ['#b97f55', '#a56e46', '#8d5a3a', '#c99068'], hair: ['#0e0a08', '#17110d', '#241812'] },
+  me: { skin: ['#d9a37a', '#c99068', '#b97f55', '#e0b48a'], hair: ['#17110d', '#241812', '#2a1c12'] },
+  mx: { skin: ['#d9a37a', '#b97f55', '#8d5a3a', '#e0b48a'], hair: ['#17110d', '#2a1c12', '#4a3220'] },
+  hj: { skin: ['#f1c9a8', '#ecbf9a', '#e3b08a'], hair: ['#2a1c12', '#4a3220', '#17110d'] },
 };
 
 const hash = (s: string): number => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+/** a few percent of lightness / warmth variation per person so no two tones are identical */
+function varied(hex: string, id: string): string {
+  const h = hash(id + 'v'), k = ((h % 1000) / 1000 - 0.5) * 0.1, w = (((h >>> 10) % 1000) / 1000 - 0.5) * 0.04;
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const o = c.map((x, i) => Math.max(0, Math.min(255, Math.round(x * (1 + k) + (i === 0 ? 255 * w : i === 2 ? -255 * w : 0)))));
+  return `#${o.map((x) => x.toString(16).padStart(2, '0')).join('')}`;
+}
 const pick = <T,>(a: readonly T[], id: string, salt: string): T => a[hash(id + salt) % a.length];
 
 interface Person {
@@ -116,14 +123,14 @@ const PEOPLE: Person[] = [
   { id: 'la-hoodie-cap', outfit: 'hoodie-cap', group: 'la', sex: 'm', age: 'adult', hatColor: '#6a1c1c', hatLogo: 'NY' },
   { id: 'la-delivery', outfit: 'delivery-vest', group: 'la', sex: 'm', age: 'adult' },
   { id: 'la-construction', outfit: 'work-plaid', group: 'la', sex: 'm', age: 'adult' },
-  { id: 'la-denim', outfit: 'denim-girl', group: 'la', sex: 'f', age: 'adult' },
+  { id: 'la-denim', outfit: 'denim-girl', group: 'la', sex: 'f', age: 'adult', hair: 'curly' },
   { id: 'la-jersey-teen', outfit: 'jersey-teen', group: 'la', sex: 'm', age: 'teen', hair: 'short', top: { color: '#2a5aa0' }, bottom: { color: '#2a5aa0' } },
   // white
   { id: 'wh-beanie', outfit: 'puffer-beanie', group: 'wh', sex: 'm', age: 'adult', face: { ...NOFACE, beard: true } },
   { id: 'wh-tote', outfit: 'tote-gentrifier', group: 'wh', sex: 'f', age: 'adult' },
   { id: 'wh-cyclist', outfit: 'cyclist', group: 'wh', sex: 'm', age: 'adult' },
   { id: 'wh-elder', outfit: 'elder-cardigan', group: 'wh', sex: 'm', age: 'old', hairColor: '#d0d0d4' },
-  { id: 'wh-office', outfit: 'office-blouse', group: 'wh', sex: 'f', age: 'adult', hairColor: '#c8a060' },
+  { id: 'wh-office', outfit: 'office-blouse', group: 'wh', sex: 'f', age: 'adult', hair: 'curly', hairColor: '#c8a060' },
   // Hasidic Jewish (religious dress only on the people who wear it)
   { id: 'hj-man', outfit: 'hasidic-man', group: 'hj', sex: 'm', age: 'adult' },
   { id: 'hj-woman', outfit: 'hasidic-woman', group: 'hj', sex: 'f', age: 'adult' },
@@ -137,10 +144,10 @@ const PEOPLE: Person[] = [
   { id: 'sa-hijabi', outfit: 'hijabi', group: 'sa', sex: 'f', age: 'adult', hatColor: '#9a5a6a', hatTrim: '#9a5a6a' },
   // Middle Eastern
   { id: 'me-hijabi', outfit: 'hijabi', group: 'me', sex: 'f', age: 'adult' },
-  { id: 'me-tracksuit', outfit: 'tracksuit-man', group: 'me', sex: 'm', age: 'adult', top: { color: '#2a4a8a' }, bottom: { color: '#2a4a8a' }, shoes: { sole: '#2a4a8a', accent: '#2a4a8a' } },
+  { id: 'me-tracksuit', outfit: 'tracksuit-man', group: 'me', sex: 'm', age: 'adult', hair: 'bald', face: { beard: true }, top: { color: '#2a4a8a' }, bottom: { color: '#2a4a8a' }, shoes: { sole: '#2a4a8a', accent: '#2a4a8a' } },
   // mixed
   { id: 'mx-androgynous', outfit: 'loose-hoodie', group: 'mx', sex: 'x', age: 'adult' },
-  { id: 'mx-jersey-teen', outfit: 'jersey-teen', group: 'mx', sex: 'f', age: 'teen', hair: 'long', top: { color: '#7a3a9a' }, bottom: { color: '#7a3a9a' }, face: { ...FEM_FACE } },
+  { id: 'mx-jersey-teen', outfit: 'jersey-teen', group: 'mx', sex: 'f', age: 'teen', hair: 'curly', top: { color: '#7a3a9a' }, bottom: { color: '#7a3a9a' }, face: { ...FEM_FACE } },
   { id: 'mx-office', outfit: 'office-jacket', group: 'mx', sex: 'f', age: 'adult', hair: 'long', face: { ...FEM_FACE }, bottom: { kind: 'skirt' } },
 ];
 
@@ -187,7 +194,7 @@ function person(base: PedSpec, p: Person, extra?: Omit<PedSpec, 'id' | 'skin'>):
   return {
     ...o,
     id: p.id, role: 'civilian', group: p.group, sex: p.sex, age: p.age,
-    skin: p.skin ?? pick(pal.skin, p.id, 's'),
+    skin: p.skin ?? varied(pick(pal.skin, p.id, 's'), p.id),
     hair: keepHair ? hair : 'short', hairColor,
     hat: p.hat ?? o.hat, hatColor: p.hatColor ?? o.hatColor, hatTrim: p.hatTrim ?? o.hatTrim, hatLogo: p.hatLogo ?? o.hatLogo,
     face, top: { ...o.top, ...p.top }, bottom: { ...o.bottom, ...p.bottom }, shoes: { ...o.shoes, ...p.shoes },

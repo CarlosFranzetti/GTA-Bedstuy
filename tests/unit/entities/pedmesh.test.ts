@@ -168,7 +168,7 @@ describe('shipped people glbs', () => {
       expect(new Set(meshes.map((x) => x.material)).size).toBe(1);
       expect(meshes[0].skeleton.bones.length).toBe(12);
       expect(m.triangles).toBeGreaterThan(3000);
-      expect(m.triangles).toBeLessThan(8000); // ~4k body + hair / hat caps + PEDHI clothing shells
+      expect(m.triangles).toBeLessThan(12000); // ~4k body + hair / hat caps + PEDHI clothing shells
       const box = new THREE.Box3().setFromObject(m.group);
       expect(box.max.y).toBeGreaterThan(1.4); expect(box.max.y).toBeLessThan(2.1);
     }

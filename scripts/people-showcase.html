@@ -46,12 +46,12 @@ const place = (ids, row, spacing, yaw) => {
   ids.forEach((id, i) => {
     const v = pedVariantIndex(id);
     const m = buildPedModel(materials, new Rng(v + 1), { variant: v });
-    m.group.position.set((i - (ids.length - 1) / 2) * spacing, 0, -row * 1.1);
+    m.group.position.set((i - (ids.length - 1) / 2) * spacing + row * spacing * 0.5, 0, -row * 1.25);
     m.group.rotation.y = Math.PI + yaw + 0.08 * ((i % 3) - 1);
     scene.add(m.group);
   });
 };
-if (view === 'lineup') { place(LINE_A, 0, 0.9, 0); place(LINE_B, 1, 0.9, 0); cam.position.set(0, 1.5, 6.2); look.set(0, 0.95, -0.6); cam.fov = 36; }
+if (view === 'lineup') { place(LINE_A, 0, 0.9, 0); place(LINE_B, 1, 0.9, 0); cam.position.set(0, 2.0, 6.4); look.set(0, 0.95, -0.6); cam.fov = 36; }
 else if (view === 'lineup-3q') { place(LINE_A, 0, 0.9, 0.7); place(LINE_B, 1, 0.9, 0.7); cam.position.set(3.2, 1.5, 6.0); look.set(0, 0.95, -0.6); cam.fov = 36; }
 else if (view === 'faces-a') { place(LINE_A, 0, 0.62, 0); cam.position.set(0, 1.62, 2.6); look.set(0, 1.5, 0); cam.fov = 30; }
 else if (view === 'faces-b') { place(LINE_B, 0, 0.62, 0); cam.position.set(0, 1.62, 2.6); look.set(0, 1.5, 0); cam.fov = 30; }

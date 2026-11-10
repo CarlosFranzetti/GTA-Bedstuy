@@ -254,7 +254,7 @@ function paintLeg(t: L, s: PedSpec, rng: Rng, lower: boolean): void {
   if (c) {
     const len = k === 'shorts' && !lower ? 92 : H;
     const denim = k === 'jeans';
-    t.rect(0, 0, W, len, c, 1, 128, denim ? 215 : k === 'leggings' ? 130 : 235);
+    t.rect(0, 0, W, len, c, 1, 128, denim ? 215 : k === 'leggings' ? 215 : 235);
     if (denim) { weave(t, W, len, c, 2.5, 0.22); for (let i = 0; i < 9; i++) t.soft(rng.range(10, 118), rng.range(10, len - 10), rng.range(8, 16), lt(c, 0.3), 0.18); }
     else weave(t, W, len, c, 3, 0.1);
     folds(t, W, len, c, rng, 10);
