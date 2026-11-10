@@ -357,7 +357,7 @@ describe('HUD strings', () => {
     const dir = new RadioDirector(new Library(), talk, undefined, undefined, { feed: null, scEnv: { canLoad: () => false }, voice: { speech, makeUtterance: mkUtt, volume: () => 1 } });
     const sc = dir.scStation('bkhouse')!;
     Object.defineProperty(sc, 'trackName', { get: () => 'Dawn Chorus — Ana K' });
-    Object.defineProperty(sc, 'usingBed', { get: () => false });
+    Object.defineProperty(sc, 'notice', { get: () => '' });
     dir.setOn(true);
     dir.announcer.stop();
     expect(`${dir.stationName} — ${dir.trackName}`).toBe('BK House — Dawn Chorus — Ana K');

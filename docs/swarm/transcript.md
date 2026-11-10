@@ -2297,3 +2297,6 @@ FINAL REPORT. Gates: tsc clean; vitest world+entities+render 938/938; build ok; 
 2 Clutter: --clutter table; throop r0c1W (1 item) and garvey r2c1E were low; added per-face floor MIN_LOW_PER_100M=3.5 (+test), 0 of 40 faces flagged. Phone draws none by design; phone draws before/after min120/mean127/max144 vs 121/127/144.
 3 Pop-in (low, 60m): throop-north none; kosciuszko-east 27 rows, avenue-drive 48 rows, all cars; no non-car offenders.
 clutter.test.ts roadway case was a timeout (expect per prop x door); rewritten, same checks, passes. No FOR FABLE lines.
+
+### 2026-11-10T07:50:46Z · GEO3
+FINAL: 60 GRID9 placeholder faces filled from east-lots.json: 1404 lots (770 PLUTO, 634 filler), widths 3-34.9 m, floors 1-8, years 1889-2025, 49 storefronts, 6 venue signs (86, 98, 148 via BBL to 893 Lafayette, 426 Kosciuszko, 50 Malcolm X, 103 Stuyvesant). Hart 207 and 8 DeKalb unplaced. Tests: world 23/23 files, 310/310 (clutter needs >30s timeout). tsc clean. No commit.

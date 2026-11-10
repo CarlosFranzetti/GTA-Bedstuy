@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ScStation, normalizeScUrl, widgetSrc, localScStorage, inPreferredHours, SC_FAILED_NAME, SC_EMPTY_HINT, SC_STORAGE_KEY, type ScApi, type ScEnv, type ScMix } from '@/audio/sc/ScStation';
+import { ScStation, normalizeScUrl, widgetSrc, localScStorage, inPreferredHours, SC_FAILED_NAME, SC_NO_STREAM, SC_TAP_PROMPT, SC_EMPTY_HINT, SC_STORAGE_KEY, type ScApi, type ScEnv, type ScMix } from '@/audio/sc/ScStation';
 import { RaFeed, RA_CACHE_KEY, type RaResponse } from '@/audio/sc/RaFeed';
 import { RadioDirector } from '@/audio/RadioDirector';
 import { Library } from '@/audio/library/Library';
@@ -84,13 +84,13 @@ describe('lazy load', () => {
     sc.setActive(true);
     await tick();
     expect(loadApi).not.toHaveBeenCalled();
-    expect(sc.usingBed).toBe(true);
+    expect(sc.offline).toBe(true);
     expect(sc.trackName).toBe(SC_EMPTY_HINT);
   });
 });
 
 describe('fallback', () => {
-  it('falls back to the bed with the HUD text when the player never becomes ready within 8 s', async () => {
+  it('reports failure with the HUD text when the player never becomes ready within 8 s', async () => {
     vi.useFakeTimers();
     const api = { Widget: Object.assign((f: HTMLIFrameElement) => new FakeWidget(f), {}) } as unknown as ScApi; // never emits ready
     const { sc } = setup({ loadApi: async () => api });
@@ -101,7 +101,7 @@ describe('fallback', () => {
     expect(sc.status).toBe('failed');
     expect(sc.stationName).toBe(SC_FAILED_NAME);
     expect(sc.stationName).toBe('Radio SC (needs the hosted build / internet)');
-    expect(sc.usingBed).toBe(true);
+    expect(sc.offline).toBe(true);
     expect(document.querySelector('iframe')).toBeNull();
   });
   it('falls back when the script is blocked, and when offline outside the hosted build', async () => {
@@ -115,14 +115,15 @@ describe('fallback', () => {
     expect(b.sc.status).toBe('failed');
     expect(b.loadApi).not.toHaveBeenCalled();
   });
-  it('the director plays the procedural bed while failed', async () => {
+  it('the director synthesizes nothing while failed and the HUD says there is no stream', async () => {
     const { sc } = setup({ canLoad: () => false });
     const dir = new RadioDirector(new Library(null), new TalkPlayer({ speech: null, makeUtterance: () => { throw new Error('x'); }, audio: { sting: () => 0, setBed: () => undefined, volume: () => 1 } }, []), undefined, sc);
     dir.setOn(true);
     dir.select(dir.stations.findIndex((s) => s.id === 'sc'));
     await tick();
-    expect(dir.synthPlayback).not.toBeNull();
+    expect(dir.synthPlayback).toBeNull();
     expect(dir.stationName).toBe(SC_FAILED_NAME);
+    expect(dir.trackName).toBe(SC_NO_STREAM);
   });
 });
 
@@ -275,7 +276,7 @@ describe('RA pool', () => {
 
   it('plays a pool set when the user list is empty and shows "title \u2014 DJ"', async () => {
     const { sc, widgets } = setup({ feed: mkFeed(6) }, []);
-    expect(sc.usingBed).toBe(false);
+    expect(sc.offline).toBe(false);
     sc.setActive(true);
     await tick();
     expect(sc.status).toBe('ready');
@@ -283,7 +284,7 @@ describe('RA pool', () => {
     const n = sc.nowPlaying!;
     expect(sc.trackName).toBe(`${n.title} \u2014 ${n.user}`);
     expect(sc.trackName).toMatch(/^Long Set \d \u2014 DJ \d$/);
-    expect(sc.usingBed).toBe(false);
+    expect(sc.offline).toBe(false);
   });
 
   it('falls back to the widget user when RA has no DJ name', async () => {
@@ -328,13 +329,13 @@ describe('RA pool', () => {
     await tick();
     expect(offline.status).toBe('unavailable');
     expect(a.sc.trackName).toBe(SC_EMPTY_HINT);
-    expect(a.sc.usingBed).toBe(true);
+    expect(a.sc.offline).toBe(true);
     const b = setup({ feed: new RaFeed({ fetch: async () => { throw new Error('cors'); }, storage: { getItem: () => null, setItem: () => undefined }, base: 'http://api' }) });
     b.sc.setActive(true);
     await tick();
     await tick();
     expect(b.sc.trackName).not.toBe(SC_EMPTY_HINT);
-    expect(b.sc.usingBed).toBe(false);
+    expect(b.sc.offline).toBe(false);
   });
 
   it('the Random RA sets switch keeps only pasted links and is persisted', async () => {

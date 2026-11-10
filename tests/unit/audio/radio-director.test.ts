@@ -67,21 +67,13 @@ describe('station list', () => {
     expect(dir.index).toBe(0);
   });
 
-  it('every station has a synth bed that is never silent', () => {
-    for (const def of SC_STATIONS) {
-      const st = GENRE_STATIONS[def.bed];
-      expect(st.bpm).toBeGreaterThan(0);
-      expect(st.pattern.flat().length).toBeGreaterThan(8);
-    }
-  });
-
-  it('a SoundCloud station that cannot load plays its bed and no deck', () => {
+  it('a SoundCloud station that cannot load synthesizes nothing and plays no deck', () => {
     const { dir, decks, idx } = setup();
     dir.setOn(true);
     for (const def of SC_STATIONS) {
       dir.select(idx(def.id));
       dir.update(0.1);
-      expect(dir.synthPlayback?.station).toBe(GENRE_STATIONS[def.bed]);
+      expect(dir.synthPlayback).toBeNull();
     }
     expect(decks[0].loads).toHaveLength(0);
   });
