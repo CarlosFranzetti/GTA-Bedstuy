@@ -21,7 +21,7 @@ import { createGltfLoader, warnOnce } from './gltf/loader';
 import { HI_RECTS, type HiTile } from '@/textures/painters/pedHi';
 import { PED_SPECS, PED_VARIANT_COUNT, pedVariantIndex, type PedSpec, type PxRect } from '@/textures/painters/ped';
 import { FAR_DIST, MID_DIST, buildPedModel as buildProcedural, pedHiMaterial, pedPhone, type PedDetail } from './pedBodyHi';
-import { garmentParts, headShell } from './pedGarments';
+import { garmentParts, headShell, nonFootTriangles, shoeParts } from './pedGarments';
 import { pickPedVariant, type PedModel, type PedOptions } from './pedBody';
 
 type Ring = [number, number, number, number, number?]; // y, rx, cz, rz, cx (half extents round the centre)
@@ -315,7 +315,8 @@ function geometryFor(s: MhShape, variant: number, detail: PedDetail): { geo: THR
   base.setIndex(new THREE.BufferAttribute(L.index, 1));
   const ao = bodyAo(s, L.position);
   const parts = detail === 'far' ? [] : [...headParts(s, spec, detail === 'hi'), ...bodyParts(s, spec, detail === 'hi')];
-  if (detail === 'hi') parts.push(...garmentParts(s, L, ao, spec), ...headShell(s, L, ao, spec));
+  if (detail === 'hi') parts.push(...garmentParts(s, L, ao, spec), ...headShell(s, L, ao, spec), ...shoeParts(s, L, spec));
+  if (detail === 'hi') base.setIndex(new THREE.BufferAttribute(nonFootTriangles(L), 1));
   base.setAttribute('color', new THREE.BufferAttribute(ao, 3));
   for (const g of parts) if (!g.getAttribute('color')) g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(g.getAttribute('position').count * 3).fill(1), 3));
   const geo = parts.length ? mergeGeometries([base, ...parts], false) : base;
