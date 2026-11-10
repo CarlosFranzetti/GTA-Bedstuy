@@ -181,7 +181,8 @@ const TYRE_PROFILE: [number, number, number][] = [[1, 0, 0.5], [1, 0.3, 0.46], [
 
 export type WheelKind = 'alloy' | 'steel';
 /** Texture spots on the tireSidewall map (see tireSidewallPainter's hubcap band): bright wheel metal, dark recess / brake disc. */
-const UV_METAL: [number, number] = [0.15, 0.02];
+const UV_METAL: [number, number] = [0.07, 0.025]; // inside a spoke wedge of the band (bright aluminium)
+const UV_CAP: [number, number] = [0.5, 0.005]; // the band's centre-cap row (brighter)
 const UV_DARK: [number, number] = [0.02, 0.03];
 
 /**
@@ -227,16 +228,16 @@ function buildWheel(R: number, w: number, kind: WheelKind): THREE.BufferGeometry
   // rim face, rings in order; uv [u, v] constant per ring (flat colour from the texture's wheel band)
   const face: { a: number; r: number; uvc: [number, number]; na: number; nr: number }[] = kind === 'alloy'
     ? [
-      { a: 0.43 * w, r: 0.68 * R, uvc: UV_METAL, na: 1, nr: 0 },
-      { a: 0.43 * w, r: 0.6 * R, uvc: UV_METAL, na: 1, nr: 0 },
-      { a: 0.3 * w, r: 0.56 * R, uvc: UV_DARK, na: 1, nr: 0 },
+      { a: 0.43 * w, r: 0.68 * R, uvc: UV_CAP, na: 1, nr: 0 },
+      { a: 0.43 * w, r: 0.54 * R, uvc: UV_CAP, na: 1, nr: 0 },
+      { a: 0.3 * w, r: 0.5 * R, uvc: UV_DARK, na: 1, nr: 0 },
       { a: 0.28 * w, r: 0, uvc: UV_DARK, na: 1, nr: 0 },
     ]
     : [
-      { a: 0.43 * w, r: 0.68 * R, uvc: UV_METAL, na: 0.6, nr: 0.8 },
+      { a: 0.43 * w, r: 0.68 * R, uvc: UV_CAP, na: 0.6, nr: 0.8 },
       { a: 0.45 * w, r: 0.58 * R, uvc: UV_METAL, na: 0.85, nr: 0.5 },
       { a: 0.5 * w, r: 0.3 * R, uvc: UV_METAL, na: 1, nr: 0.15 },
-      { a: 0.52 * w, r: 0, uvc: UV_METAL, na: 1, nr: 0 },
+      { a: 0.52 * w, r: 0, uvc: UV_CAP, na: 1, nr: 0 },
     ];
   const base = ringCount;
   face.forEach((f, k) => { addRing(f.a, f.r, f.uvc[0], f.uvc[1], f.na, f.nr); if (k > 0) stitch(base + k - 1); });
@@ -257,12 +258,12 @@ function buildWheel(R: number, w: number, kind: WheelKind): THREE.BufferGeometry
     const N = 6;
     for (let i = 0; i < N; i++) {
       // a spoke: 7 cm deep, tapering by being a plain bar, from the cap out to the rim lip
-      const spoke = new THREE.BoxGeometry(0.1 * w, 0.52 * R, 0.14 * R);
+      const spoke = new THREE.BoxGeometry(0.1 * w, 0.5 * R, 0.24 * R);
       spoke.translate(0.36 * w, 0.36 * R, 0);
       spoke.rotateX((i / N) * Math.PI * 2 + 0.26);
       acc.add(flat(spoke, UV_METAL));
     }
-    acc.add(flat(new THREE.CylinderGeometry(0.13 * R, 0.13 * R, 0.1 * w, 10).rotateZ(-Math.PI / 2).translate(0.36 * w, 0, 0), UV_METAL)); // centre cap
+    acc.add(flat(new THREE.CylinderGeometry(0.15 * R, 0.15 * R, 0.1 * w, 12).rotateZ(-Math.PI / 2).translate(0.36 * w, 0, 0), UV_CAP)); // centre cap
     acc.add(flat(new THREE.CylinderGeometry(0.5 * R, 0.5 * R, 0.05 * w, SEG).rotateZ(-Math.PI / 2).translate(0.2 * w, 0, 0), UV_DARK)); // brake disc behind the spokes
   }
   return acc.merge();
