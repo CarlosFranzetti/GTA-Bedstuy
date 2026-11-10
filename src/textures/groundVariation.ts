@@ -88,7 +88,7 @@ export interface VariationStrength {
 export const GROUND_VARIATION: Record<'asphalt' | 'concrete' | 'paint', VariationStrength> = {
   asphalt: { tone: 0.34, grime: 0.35, wear: 0.38 },
   concrete: { tone: 0.3, grime: 0.5, wear: 0.22 },
-  paint: { tone: 0.2, grime: 0.55, wear: 0.5 },
+  paint: { tone: 0.24, grime: 0.55, wear: 0.62 },
 };
 
 /** Albedo multiplier (r, g, b) the shader computes for a field sample (mirrors the GLSL, used by the tests). */

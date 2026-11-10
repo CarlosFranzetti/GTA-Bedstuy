@@ -131,7 +131,7 @@ function bagGeo(r: number, hex: string, rng: Rng): THREE.BufferGeometry[] {
   const flat = body.toNonIndexed(); // facets: one normal per triangle
   body.dispose();
   flat.computeVertexNormals();
-  const knot = new THREE.ConeGeometry(r * 0.2, r * 0.55, 4).translate(rng.range(-0.04, 0.04), r * 0.68 + r * 0.2, 0).rotateZ(rng.range(-0.5, 0.5)).toNonIndexed();
+  const knot = new THREE.ConeGeometry(0.022, 0.05, 3).rotateY(rng.range(0, 3)).rotateZ(rng.range(-0.6, 0.6)).translate(rng.range(-0.02, 0.02), r * 0.68 + 0.01, rng.range(-0.02, 0.02)).toNonIndexed();
   knot.computeVertexNormals();
   return [flat, knot].map((g) => {
     const n = g.getAttribute('position').count;

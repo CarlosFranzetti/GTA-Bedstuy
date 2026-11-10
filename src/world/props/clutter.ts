@@ -160,7 +160,7 @@ function bagPile(rng: Rng): Geos {
     const top = i >= 4;
     const x = Math.cos(a) * d, z = Math.sin(a) * d * 0.7, y = top ? r * 1.36 : r * 0.68;
     g.push(paint(new THREE.SphereGeometry(r, 6, 4).scale(1.05, 0.68, 0.95).rotateY(rng.range(0, 3)).translate(x, y, z), rng.pick(BAG)));
-    g.push(paint(new THREE.ConeGeometry(0.04, 0.09, 3).translate(x, y + r * 0.7, z), '#2a2d33'));
+    g.push(paint(new THREE.ConeGeometry(0.022, 0.05, 3).translate(x, y + r * 0.68, z), '#2a2d33'));
   }
   if (rng.chance(0.35)) g.push(paint(box(0.5, 0.35, 0.4).rotateY(rng.range(0, 3)).translate(rng.range(-0.5, 0.5), 0.18, rng.range(0.3, 0.6)), '#8a7a5a')); // cardboard
   return g;
