@@ -105,7 +105,7 @@ export function buildDeli(deps: RoomDeps): Room {
   place(owner, 2.6, -1.3, Math.PI);
   g.add(owner.group);
   // a customer browsing
-  const cust = figure(deps.materials, new Rng('deli-cust'), { variant: 'denim-girl' });
+  const cust = figure(deps.materials, new Rng('deli-cust'), { variant: 'la-denim' });
   place(cust, -1.0, 0.6, -Math.PI / 2); g.add(cust.group);
 
   return {
@@ -233,7 +233,7 @@ export function buildClub(deps: RoomDeps): Room {
   }
   const dj = figure(deps.materials, new Rng('dj-sloth'), { variant: 'dj' });
   place(dj, bx, bz - 0.15, Math.PI); g.add(dj.group);
-  const bartender = figure(deps.materials, new Rng('bartender'), { variant: 'durag-tee' });
+  const bartender = figure(deps.materials, new Rng('bartender'), { variant: 'ba-durag' });
   place(bartender, w / 2 - 1.5, 1.4, -Math.PI / 2); g.add(bartender.group);
   const guests = [figure(deps.materials, new Rng('guest1')), figure(deps.materials, new Rng('guest2'))];
   place(guests[0], -w / 2 + 1.5, -0.5, Math.PI / 2); place(guests[1], -w / 2 + 1.5, 2.3, Math.PI / 2);
