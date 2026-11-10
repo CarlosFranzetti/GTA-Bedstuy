@@ -7,7 +7,7 @@
  * plays the files the player placed in the Radio library on two decks with a 0.5 s cross-fade and also keeps a virtual
  * clock. Time only advances through `update(dt)` (game time), so the radio pauses with the game.
  */
-import { GENRE_STATIONS, SC_STATIONS, type ScStationDef, type Station } from './radio';
+import { SC_STATIONS, type ScStationDef, type Station } from './radio';
 import { LIBRARY_STATIONS } from './library/genres';
 import type { Library } from './library/Library';
 import { buildLibraryTimeline, locate, type Timeline } from './library/timeline';
@@ -205,7 +205,7 @@ export class RadioDirector {
     if (c.kind === 'sc') {
       if (this.on && this.announcer.speaking) return this.announcer.name;
       const sc = this.currentSc!;
-      return sc.usingBed && sc.hasSources ? '' : sc.trackName;
+      return sc.notice && !sc.needsTap ? sc.notice : sc.trackName;
     }
     if (c.kind === 'library' && this.playingKey) return this.playingTrackName;
     return '';
@@ -332,9 +332,8 @@ export class RadioDirector {
       return;
     }
     if (c.kind === 'sc') {
-      // Sets play in the hidden widget; only the procedural bed (offline, blocked, nothing to play) uses the synth.
-      const sc = this.currentSc!;
-      if (this.on && sc.usingBed) this.setSynth(GENRE_STATIONS[c.sc!.bed], 0, `sc-bed:${c.id}`); else this.synth = null;
+      // Sets play in the SoundCloud widget only. When no stream can play, the HUD says so; nothing is synthesized.
+      this.synth = null;
       return;
     }
     if (c.kind !== 'library') { this.synth = null; return; }

@@ -4,8 +4,12 @@
  * undocumented endpoint is used; playback follows SoundCloud's terms with the artist's own player.
  *
  * Lazy: nothing touches the network until the first tune-in. If the widget script or the player does not come up
- * within 8 s (offline, artifact sandbox blocking third-party iframes) the station falls back to a procedural bed
- * and shows FAILED_NAME. Like the other stations it keeps a virtual clock (`update(dt)` in game time) so tuning
+ * within 8 s (offline, artifact sandbox blocking third-party iframes) the station shows FAILED_NAME and an on-screen
+ * "no stream" notice; it never plays synthesized music in place of a mix. Browsers block autoplay: the first
+ * play() runs seconds after the tune-in (script, RA pool and widget READY are all async), outside the gesture, and
+ * on iOS an iframe's media only starts from a tap. So the station watches for PLAY; if none arrives it reports
+ * `needsTap`, arms a one-shot gesture hook (any tap/key calls play() in that same tick), and RadioUi shows a
+ * "Tap to start radio" button that calls `userStart()`. Like the other stations it keeps a virtual clock (`update(dt)` in game time) so tuning
  * in resumes mid-mix via seekTo.
  *
  * Sources: a pool of random 45-minute-plus DJ sets from the player's ra-nyc app (see ./RaFeed.ts), interleaved with
@@ -22,6 +26,14 @@ export const SC_EMPTY_HINT = 'No sets yet: check your connection or add SoundClo
 export const SC_HEARD_CAP = 200;
 export const SC_API_URL = 'https://w.soundcloud.com/player/api.js';
 export const SC_LOAD_TIMEOUT_MS = 8000;
+/** Silence after play() before the station decides the browser blocked it. */
+export const SC_BLOCKED_MS = 3500;
+/** After a tap, how long before the real widget is shown so the user can tap its own play button (iOS). */
+export const SC_TAP_GRACE_MS = 3000;
+/** After a tap, how long before an unplayable mix is skipped. */
+export const SC_SKIP_MS = 9000;
+export const SC_TAP_PROMPT = 'Tap to start radio';
+export const SC_NO_STREAM = 'No stream: SoundCloud could not load (needs the hosted build / internet)';
 export const SC_MAX_MIXES = 40;
 /** Dayparting stub: mixes flagged afterhours are preferred for the first mix between these hours. */
 export const SC_PREFERRED_HOURS = { from: 23, to: 6 } as const;
@@ -142,6 +154,10 @@ export interface ScEnv {
   hour: () => number;
   storage: ScStorage | null;
   timeoutMs: number;
+  /** Timings for the autoplay watchdog (tests shrink them). */
+  blockedMs: number;
+  tapGraceMs: number;
+  skipMs: number;
   /** Random DJ sets from ra-nyc; null disables the pool. */
   feed: RaFeed | null;
   random: () => number;
@@ -175,15 +191,22 @@ function defaultEnv(config: ScStationConfig = DEFAULT_SC_CONFIG): ScEnv {
     hour: () => new Date().getHours(),
     storage: localScStorage(config.storageKey),
     timeoutMs: SC_LOAD_TIMEOUT_MS,
+    blockedMs: SC_BLOCKED_MS,
+    tapGraceMs: SC_TAP_GRACE_MS,
+    skipMs: SC_SKIP_MS,
     feed: new RaFeed(),
     random: Math.random,
   };
 }
 
 type State = 'idle' | 'loading' | 'ready' | 'failed';
+/** What the browser is doing with the widget: 'blocked' = play() was sent and no PLAY came back. */
+export type PlayState = 'idle' | 'starting' | 'playing' | 'blocked';
 
 export interface NowPlaying { title: string; user: string }
 
+const GESTURES = ['pointerup', 'touchend', 'click', 'keydown'] as const;
+const HIDDEN_CSS = 'position:fixed;left:0;bottom:0;width:2px;height:2px;border:0;opacity:0.01;pointer-events:none;z-index:-1;';
 const ev = (api: ScApi, name: string, fallback: string): string => api.Widget.Events?.[name] ?? fallback;
 const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> => new Promise<T>((res, rej) => {
   const t = setTimeout(() => rej(new Error('timeout')), ms);
@@ -222,6 +245,10 @@ export class ScStation {
   /** Called when the station moves to the next mix (the director plays the station jingle). */
   onBetweenMixes: ((prev: NowPlaying | null) => void) | null = null;
   apiLoads = 0;
+  private play_: PlayState = 'idle';
+  private timers: Array<ReturnType<typeof setTimeout>> = [];
+  private hookDoc: Document | null = null;
+  private exposed = false;
 
   /** Pool sets this station has played (per-station no-repeat). */
   private readonly heard = new Set<string>();
@@ -340,14 +367,24 @@ export class ScStation {
   get status(): State { return this.state; }
   get currentIndex(): number { return this.index; }
   get isActive(): boolean { return this.active; }
-  /** True when the dial should play the procedural bed instead of a mix. */
-  get usingBed(): boolean {
+  /** True when no stream can play (SoundCloud unreachable or nothing to play). Nothing is synthesized then. */
+  get offline(): boolean {
     if (!this.hasSources || this.state === 'failed') return true;
     return !this.poolAvailable && this.list.every((m) => this.bad.has(m.url));
   }
   get stationName(): string {
     const n = this.env.config.name;
     return this.state === 'failed' ? `${n} (needs the hosted build / internet)` : n;
+  }
+  get playState(): PlayState { return this.play_; }
+  /** The browser blocked sound: a tap must start it (RadioUi shows the button). */
+  get needsTap(): boolean { return this.active && this.state === 'ready' && !this.paused && this.play_ === 'blocked'; }
+  /** On-screen status line when nothing is audible: no stream, or a tap is needed. Empty while fine. */
+  get notice(): string {
+    if (!this.active) return '';
+    if (this.state === 'failed' || (this.state !== 'loading' && this.hasSources && this.offline)) return SC_NO_STREAM;
+    if (!this.hasSources && this.state !== 'loading') return SC_EMPTY_HINT;
+    return this.needsTap ? SC_TAP_PROMPT : '';
   }
   get nowPlaying(): NowPlaying | null {
     if (this.curSet) return { title: this.curSet.title, user: this.curSet.dj || this.now?.user || '' };
@@ -371,14 +408,38 @@ export class ScStation {
   setActive(on: boolean): void {
     if (on === this.active) return;
     this.active = on;
-    if (on) this.tuneIn(); else this.widget?.pause();
+    if (on) this.tuneIn();
+    else { this.widget?.pause(); this.clearTimers(); this.unhook(); this.play_ = 'idle'; this.hideWidget(); }
+  }
+
+  /**
+   * Call from a real user gesture (click/tap/key handler): sends play() to the widget in the same tick, which is what
+   * browsers need to allow sound. If the widget is not up yet, starts it. If still silent after a grace period the
+   * real (tiny) SoundCloud player is shown so the user can tap its own play button (iOS), and an unplayable mix is
+   * skipped after `skipMs`.
+   */
+  userStart(): void {
+    if (!this.active) return;
+    this.unhook();
+    if (this.state === 'failed') this.failedAt = -Infinity;
+    if (this.state !== 'ready' || !this.widget) { this.tuneIn(); return; }
+    this.pushVolume();
+    this.widget.play();
+    this.play_ = 'starting';
+    this.clearTimers();
+    this.later(this.env.tapGraceMs, () => { if (this.play_ !== 'playing') { this.exposeWidget(); } });
+    this.later(this.env.skipMs, () => {
+      if (this.play_ === 'playing' || !this.active || this.state !== 'ready') return;
+      this.skipBad();
+    });
+    this.listeners.forEach((fn) => fn());
   }
 
   setPaused(p: boolean): void {
     if (p === this.paused) return;
     this.paused = p;
     if (!this.widget || this.state !== 'ready') return;
-    if (p) this.widget.pause(); else if (this.active) this.widget.play();
+    if (p) { this.widget.pause(); this.clearTimers(); } else if (this.active) { this.widget.play(); this.watch(); }
   }
 
   /** Radio volume (times master) 0..1 mapped to the widget's 0..100. */
@@ -393,6 +454,67 @@ export class ScStation {
     this.pushVolume();
   }
   get duckLevel(): number { return this.duck; }
+
+  private later(ms: number, fn: () => void): void {
+    this.timers.push(setTimeout(fn, ms));
+  }
+  private clearTimers(): void {
+    this.timers.forEach((t) => clearTimeout(t));
+    this.timers = [];
+  }
+
+  /** Marks the current mix unplayable and moves on (or gives up after five in a row). */
+  private skipBad(): void {
+    const u = this.currentUrl();
+    if (u) this.bad.add(u);
+    if (++this.errStreak >= 5) { this.teardown(); this.fail(); return; }
+    this.hideWidget();
+    if (this.hasSources && !this.offline) { const prev = this.nowPlaying ? { ...this.nowPlaying } : null; this.step(true); this.onBetweenMixes?.(prev); }
+    else { this.play_ = 'idle'; this.listeners.forEach((fn) => fn()); }
+  }
+
+  /** Arms the silence watchdog after a play() request. */
+  private watch(): void {
+    this.clearTimers();
+    if (this.play_ !== 'playing') this.play_ = 'starting';
+    this.later(this.env.blockedMs, () => {
+      if (!this.active || this.paused || this.state !== 'ready' || this.play_ === 'playing') return;
+      this.play_ = 'blocked';
+      this.hook();
+      this.listeners.forEach((fn) => fn());
+    });
+  }
+
+  /** One-shot gesture hook: while blocked, the next tap or key press anywhere calls play() inside that gesture. */
+  private hook(): void {
+    const d = this.env.doc();
+    if (!d || this.hookDoc) return;
+    this.hookDoc = d;
+    for (const t of GESTURES) d.addEventListener(t, this.onGesture, true);
+  }
+  private unhook(): void {
+    const d = this.hookDoc;
+    if (!d) return;
+    for (const t of GESTURES) d.removeEventListener(t, this.onGesture, true);
+    this.hookDoc = null;
+  }
+  private readonly onGesture = (): void => { this.userStart(); };
+
+  /** Shows the real SoundCloud player in a corner so its own play button can be tapped. */
+  private exposeWidget(): void {
+    if (!this.frame || this.exposed) return;
+    this.exposed = true;
+    this.frame.style.cssText = 'position:fixed;left:8px;bottom:8px;width:min(300px,calc(100vw - 16px));height:120px;border:0;opacity:1;z-index:2147483000;pointer-events:auto;border-radius:6px;';
+    this.frame.setAttribute('aria-hidden', 'false');
+    this.frame.tabIndex = 0;
+  }
+  private hideWidget(): void {
+    if (!this.frame || !this.exposed) return;
+    this.exposed = false;
+    this.frame.style.cssText = HIDDEN_CSS;
+    this.frame.setAttribute('aria-hidden', 'true');
+    this.frame.tabIndex = -1;
+  }
 
   private pushVolume(): void {
     if (this.widget && this.state === 'ready') this.widget.setVolume(Math.round(this.volume * this.duck * 100));
@@ -566,17 +688,21 @@ export class ScStation {
     this.frame?.remove();
     this.frame = null;
     this.widget = null;
+    this.exposed = false;
+    this.clearTimers();
+    this.unhook();
+    this.play_ = 'idle';
   }
 
   private makeFrame(doc: Document, src: string): HTMLIFrameElement {
     const f = doc.createElement('iframe');
     f.src = src;
     f.title = 'SoundCloud player (hidden)';
-    f.setAttribute('allow', 'autoplay');
+    f.setAttribute('allow', 'autoplay; encrypted-media');
     f.setAttribute('aria-hidden', 'true');
     f.tabIndex = -1;
-    // 1x1 and off-screen, but never display:none (some players stop when hidden that way).
-    f.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;border:0;opacity:0.01;pointer-events:none;';
+    // Tiny but laid out inside the viewport (never display:none, never far off-screen: some browsers refuse to play).
+    f.style.cssText = HIDDEN_CSS;
     doc.body.appendChild(f);
     return f;
   }
@@ -584,6 +710,7 @@ export class ScStation {
   private bindEvents(api: ScApi, w: ScWidget): void {
     w.bind(ev(api, 'PLAY_PROGRESS', 'playProgress'), (e) => {
       if (e && typeof e.currentPosition === 'number') this.pos = e.currentPosition / 1000;
+      if (this.play_ !== 'playing') this.markPlaying();
       // About five minutes left: top the pool up in the background so the next pick never waits.
       const feed = this.env.feed;
       if (!this.prefetched && feed && this.randomSets && this.duration > 0 && this.duration - this.pos <= 300 && feed.unplayedCount < 4) {
@@ -592,13 +719,13 @@ export class ScStation {
         this.askForMore();
       }
     });
-    w.bind(ev(api, 'PLAY', 'play'), () => { this.errStreak = 0; this.learn(w); });
+    w.bind(ev(api, 'PLAY', 'play'), () => { this.errStreak = 0; this.markPlaying(); this.learn(w); });
     w.bind(ev(api, 'ERROR', 'error'), () => {
       const u = this.currentUrl();
       if (u) this.bad.add(u);
       this.listeners.forEach((fn) => fn());
       if (++this.errStreak >= 5) { this.teardown(); this.fail(); return; }
-      if (this.hasSources && !this.usingBed) this.step(true);
+      if (this.hasSources && !this.offline) this.step(true);
     });
     w.bind(ev(api, 'FINISH', 'finish'), () => {
       const advance = () => { const prev = this.nowPlaying ? { ...this.nowPlaying } : null; this.step(true); this.onBetweenMixes?.(prev); };
@@ -606,6 +733,15 @@ export class ScStation {
         w.getCurrentSoundIndex((i) => w.getSounds!((s) => { if (s.length <= 1 || i >= s.length - 1) advance(); }));
       } else advance();
     });
+  }
+
+  private markPlaying(): void {
+    this.play_ = 'playing';
+    this.errStreak = 0;
+    this.clearTimers();
+    this.unhook();
+    this.hideWidget();
+    this.listeners.forEach((fn) => fn());
   }
 
   private learn(w: ScWidget): void {
@@ -625,6 +761,7 @@ export class ScStation {
     if (url !== this.loadedUrl) {
       this.loadedUrl = url;
       this.now = null;
+      if (this.play_ === 'playing') this.play_ = 'starting';
       this.widget.load(url, { auto_play: !this.paused, callback: () => { this.learn(this.widget!); this.applyPlayback(false); } });
       return;
     }
@@ -641,7 +778,7 @@ export class ScStation {
         w.seekTo(Math.round(this.pos * 1000));
       });
     }
-    if (!this.paused) w.play();
+    if (!this.paused) { w.play(); this.watch(); }
   }
 
   /**

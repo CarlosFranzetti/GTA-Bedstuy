@@ -32,28 +32,62 @@ export const BODY_VERTS = 13381; // vertices of the body group; everything after
 export const RIG = ['rig', 'hips', 'torso', 'head', 'armL', 'elbowL', 'armR', 'elbowR', 'legL', 'kneeL', 'legR', 'kneeR'];
 const I = Object.fromEntries(RIG.map((n, i) => [n, i]));
 
-/** Macro targets used (makehuman/data/targets/macrodetails/<name>.target). */
+/** Macro targets used (makehuman/data/targets/macrodetails/<name>.target): <race>-<sex>-<age> for the three MakeHuman races, plus weight / muscle. */
+const RACES = ['african', 'asian', 'caucasian'], SEXES = ['male', 'female'], AGES = ['child', 'young', 'old'];
 export const TARGETS = [
-  ...['african', 'asian', 'caucasian'].flatMap((r) => ['male', 'female'].map((g) => `${r}-${g}-young`)),
-  ...['male', 'female'].flatMap((g) => [`caucasian-${g}-child`, `caucasian-${g}-old`]),
-  ...['male', 'female'].flatMap((g) => ['minweight', 'maxweight'].map((w) => `universal-${g}-young-averagemuscle-${w}`)),
+  ...RACES.flatMap((r) => SEXES.flatMap((g) => AGES.map((a) => `${r}-${g}-${a}`))),
+  ...SEXES.flatMap((g) => ['minweight', 'maxweight'].map((w) => `universal-${g}-young-averagemuscle-${w}`)),
   'universal-male-young-maxmuscle-averageweight',
 ];
 
 /**
- * Body shapes: `targets` = weights of the files above (the base mesh is the neutral 1/3-1/3-1/3 human; a pure gender needs its
- * ethnic weights to sum to 1). `height` in metres. `head` scales the head (kids).
+ * Population groups -> blend of MakeHuman's three race targets (a person's face structure, not only the tint). The base mesh is the
+ * neutral 1/3 each human, so a pure sex needs weights summing to 1. Groups are a modelling convenience, not a claim about anyone.
+ */
+export const GROUPS = {
+  ba: { african: 0.88, caucasian: 0.12 },                     // Black American
+  ca: { african: 0.6, caucasian: 0.25, asian: 0.15 },         // Caribbean
+  la: { caucasian: 0.6, asian: 0.25, african: 0.15 },         // Latino
+  wh: { caucasian: 1 },                                       // white
+  ea: { asian: 1 },                                           // East Asian
+  sa: { caucasian: 0.78, asian: 0.12, african: 0.1 },         // South Asian
+  me: { caucasian: 0.9, african: 0.1 },                       // Middle Eastern
+  mx: { caucasian: 0.4, african: 0.3, asian: 0.3 },           // mixed
+};
+
+/** weights of the race targets for a group at an age ('young' | 'old' | 'teen' = child/young) and sex ('male' | 'female' | 'x' = both halves) */
+export function shapeTargets(group, sex, age) {
+  const t = {};
+  const ages = age === 'teen' ? { child: 0.5, young: 0.5 } : { [age]: 1 };
+  const sexes = sex === 'x' ? { male: 0.5, female: 0.5 } : { [sex]: 1 };
+  for (const [race, wr] of Object.entries(GROUPS[group])) for (const [sx, ws] of Object.entries(sexes)) for (const [ag, wa] of Object.entries(ages)) {
+    const k = `${race}-${sx}-${ag}`;
+    t[k] = (t[k] ?? 0) + wr * ws * wa;
+  }
+  return t;
+}
+
+const heights = { male: 1.78, female: 1.66, x: 1.72 };
+function shape(group, sex, age, extra = {}, hOverride = null) {
+  const targets = shapeTargets(group, sex, age);
+  for (const [k, w] of Object.entries(extra)) targets[k] = w;
+  const h = (heights[sex] + (group === 'ea' ? -0.04 : group === 'ba' || group === 'ca' ? 0.01 : 0)) * (age === 'old' ? 0.965 : age === 'teen' ? 0.9 : 1);
+  return { height: hOverride ?? Math.round(h * 100) / 100, targets, group, sex, age };
+}
+
+/**
+ * Body shapes (one glb each). Young adults for every group and sex, a few old people and teens; builds (slim / stocky / tall) are a
+ * runtime non-uniform scale of these.
  */
 export const SHAPES = {
-  m_avg: { height: 1.78, targets: { 'caucasian-male-young': 0.5, 'african-male-young': 0.25, 'asian-male-young': 0.25 } },
-  m_heavy: { height: 1.76, targets: { 'caucasian-male-young': 0.34, 'african-male-young': 0.33, 'asian-male-young': 0.33, 'universal-male-young-averagemuscle-maxweight': 1 } },
-  m_slim: { height: 1.86, targets: { 'african-male-young': 0.6, 'caucasian-male-young': 0.4, 'universal-male-young-averagemuscle-minweight': 0.8 } },
-  m_old: { height: 1.72, targets: { 'caucasian-male-old': 1 } },
-  f_avg: { height: 1.66, targets: { 'caucasian-female-young': 0.4, 'asian-female-young': 0.3, 'african-female-young': 0.3 } },
-  f_slim: { height: 1.7, targets: { 'asian-female-young': 0.6, 'caucasian-female-young': 0.4, 'universal-female-young-averagemuscle-minweight': 0.8 } },
-  f_heavy: { height: 1.64, targets: { 'african-female-young': 0.6, 'caucasian-female-young': 0.4, 'universal-female-young-averagemuscle-maxweight': 1 } },
-  f_old: { height: 1.6, targets: { 'caucasian-female-old': 1 } },
-  teen: { height: 1.6, targets: { 'caucasian-male-child': 0.5, 'caucasian-male-young': 0.5 } },
+  ...Object.fromEntries(Object.keys(GROUPS).flatMap((g) => [[`${g}_m`, shape(g, 'male', 'young')], [`${g}_f`, shape(g, 'female', 'young')]])),
+  ba_m_old: shape('ba', 'male', 'old'), ba_f_old: shape('ba', 'female', 'old'),
+  wh_m_old: shape('wh', 'male', 'old'), wh_f_old: shape('wh', 'female', 'old'),
+  ea_m_old: shape('ea', 'male', 'old'), la_f_old: shape('la', 'female', 'old'),
+  teen_a: shape('mx', 'male', 'teen'), teen_b: shape('ea', 'female', 'teen'), teen_c: shape('wh', 'male', 'teen'),
+  mx_x: shape('mx', 'x', 'young', {}, 1.72),
+  ba_m_heavy: shape('ba', 'male', 'young', { 'universal-male-young-averagemuscle-maxweight': 1 }, 1.76),
+  la_f_heavy: shape('la', 'female', 'young', { 'universal-female-young-averagemuscle-maxweight': 1 }, 1.64),
 };
 export const LOD_TRIS = { hi: 4000, mid: 1500, far: 400 };
 
@@ -457,7 +491,7 @@ export function buildShape(src, simplifier, name) {
   const rings = (arr) => arr.map((a) => a.map(r));
   const R = body.rig;
   const people = {
-    shape: name, height: r(body.height),
+    shape: name, group: shape.group, sex: shape.sex, age: shape.age, height: r(body.height),
     rig: Object.fromEntries(Object.entries(R).map(([k, v]) => [k, Array.isArray(v) ? v.map(r) : r(v)])),
     landmarks: Object.fromEntries(Object.entries(lm).map(([k, v]) => [k, r(v)])),
     headRings: rings(ringsOf(hiMesh, 'head', lm, lm.chinY, lm.crownY, 12)),

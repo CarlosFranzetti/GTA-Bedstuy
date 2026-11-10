@@ -199,7 +199,7 @@ export const GENRE_STATIONS: Record<LibraryStationId, Station> = {
 /* ---------- the SoundCloud dial ----------
  * Eight music stations, every one a SoundCloud-mix station fed by the shared ra-nyc pool (src/audio/sc/RaFeed.ts).
  * A set belongs to a station when its title or DJ name matches one of the station's keyword patterns
- * (case-insensitive). Radio SC has no filter: any set. The synth `bed` is what plays when SoundCloud cannot load. */
+ * (case-insensitive). Radio SC has no filter: any set. When SoundCloud cannot load, the station says so; nothing is synthesized. */
 
 export type ScStationId = 'bkhouse' | 'dublab' | 'stoop' | 'boogie' | 'weird' | 'yard' | 'flashback' | 'sc';
 
@@ -215,8 +215,6 @@ export interface ScStationDef {
   keywords: readonly string[];
   /** Case-insensitive patterns matched against "set title + DJ name". Empty = every set. */
   patterns: readonly RegExp[];
-  /** Synth pattern that plays while SoundCloud is unreachable. */
-  bed: LibraryStationId;
 }
 
 /** Whole-word-ish match so "rap" does not hit "rapture". */
@@ -224,21 +222,21 @@ const kw = (alts: string): RegExp => new RegExp(`(?:^|[^a-z0-9])(?:${alts})(?:$|
 
 export const SC_STATIONS: readonly ScStationDef[] = [
   { id: 'bkhouse', name: 'BK House', freq: 'ninety point nine', genre: 'house / garage', tagline: 'Deep, soulful, four on the floor',
-    keywords: ['house', 'garage', 'deep', 'soulful', 'chicago', 'jackin'], patterns: [kw('house|garage|deep|soulful|chicago|jackin|2[- ]?step')], bed: 'house' },
+    keywords: ['house', 'garage', 'deep', 'soulful', 'chicago', 'jackin'], patterns: [kw('house|garage|deep|soulful|chicago|jackin|2[- ]?step')] },
   { id: 'dublab', name: 'Dub Lab', freq: 'ninety one point seven', genre: 'techno / dub / dubstep', tagline: 'Low end under glass',
-    keywords: ['dub', 'techno', 'dubstep', 'bass', 'riddim'], patterns: [kw('dub|techno|dubstep|bass|minimal|industrial')], bed: 'trap' },
+    keywords: ['dub', 'techno', 'dubstep', 'bass', 'riddim'], patterns: [kw('dub|techno|dubstep|bass|minimal|industrial')] },
   { id: 'stoop', name: 'Stoop Radio', freq: 'ninety three point five', genre: 'hip hop / trap', tagline: 'Straight off the stoop',
-    keywords: ['hip hop', 'rap', 'trap', 'boom bap', 'drill', 'grime', 'r&b'], patterns: [kw('hip[- ]?hop|rap|trap|boom[- ]?bap|drill|grime|cypher|r&b|rnb')], bed: 'rap' },
+    keywords: ['hip hop', 'rap', 'trap', 'boom bap', 'drill', 'grime', 'r&b'], patterns: [kw('hip[- ]?hop|rap|trap|boom[- ]?bap|drill|grime|cypher|r&b|rnb')] },
   { id: 'boogie', name: 'Boogie Down', freq: 'ninety five point three', genre: 'disco / boogie / funk', tagline: 'Mirror balls and bass lines',
-    keywords: ['disco', 'boogie', 'funk', 'soul', 'italo', 'groove'], patterns: [kw('disco|boogie|funk|soul|italo|groove|nu[- ]?disco')], bed: 'jazzrock' },
+    keywords: ['disco', 'boogie', 'funk', 'soul', 'italo', 'groove'], patterns: [kw('disco|boogie|funk|soul|italo|groove|nu[- ]?disco')] },
   { id: 'weird', name: 'Weird Hours', freq: 'ninety seven point one', genre: 'psych / jazz / experimental', tagline: 'For the hours nobody else is awake',
-    keywords: ['psych', 'jazz', 'experimental', 'ambient', 'avant', 'krautrock', 'leftfield'], patterns: [kw('psych(?:edelic)?|jazz|experimental|ambient|avant|noise|krautrock|leftfield|improv|weird|dream|idm')], bed: 'psych' },
+    keywords: ['psych', 'jazz', 'experimental', 'ambient', 'avant', 'krautrock', 'leftfield'], patterns: [kw('psych(?:edelic)?|jazz|experimental|ambient|avant|noise|krautrock|leftfield|improv|weird|dream|idm')] },
   { id: 'yard', name: 'Yard FM', freq: 'ninety eight point nine', genre: 'reggae / dancehall / afrobeats', tagline: 'Sound system on the avenue',
-    keywords: ['reggae', 'dancehall', 'afrobeats', 'soca', 'amapiano', 'riddim'], patterns: [kw('reggae|dancehall|afro(?:beats?)?|soca|amapiano|kuduro|bashment|zouk|ragga|calypso|riddim|caribbean')], bed: 'folky' },
+    keywords: ['reggae', 'dancehall', 'afrobeats', 'soca', 'amapiano', 'riddim'], patterns: [kw('reggae|dancehall|afro(?:beats?)?|soca|amapiano|kuduro|bashment|zouk|ragga|calypso|riddim|caribbean')] },
   { id: 'flashback', name: 'Flashback 88', freq: 'eighty-eight point eight', genre: '80s / pop', tagline: 'Leg warmers and boom boxes',
-    keywords: ['80s', 'eighties', 'pop', 'new wave', 'synthpop', 'retro'], patterns: [kw('80\'?s|198\\d|eighties|pop|new[- ]?wave|synth[- ]?pop|retro|freestyle|hi[- ]?nrg')], bed: 'eighties' },
+    keywords: ['80s', 'eighties', 'pop', 'new wave', 'synthpop', 'retro'], patterns: [kw('80\'?s|198\\d|eighties|pop|new[- ]?wave|synth[- ]?pop|retro|freestyle|hi[- ]?nrg')] },
   { id: 'sc', name: 'Radio SC', freq: 'one hundred point one', genre: 'RA NYC, any set', tagline: 'Whatever the city played last night',
-    keywords: [], patterns: [], bed: 'house' },
+    keywords: [], patterns: [] },
 ];
 
 export function scStationDef(id: string): ScStationDef | undefined {

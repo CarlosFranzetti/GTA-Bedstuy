@@ -2290,3 +2290,10 @@ FIXED (PEDHI pass 2): clothes as geometry merged into the same SkinnedMesh (hood
 
 ### 2026-11-10T07:47:03Z · Fable
 Stage 10 opened from user playtest: see PRD 'Stage 10 asks' and board. Lanes SCFIX, CARFIX, PEOPLE10, UI10. Stage 9 lanes resume after.
+
+### 2026-11-10T07:50:30Z · CROWD
+FINAL REPORT. Gates: tsc clean; vitest world+entities+render 938/938; build ok; traffic-5min 14/14 x3 (seed 21 Q10-D3 not reproducible, was red once during other lanes' edits; no ped-creep code change, signal-wait tests already cover it).
+1 Peds: scripts/crowd-audit.mjs --peds (--snap/--settle/--hours/--chunk, resumable) + src/entities/PedestrianSpawn.ts scheduler (paced one change per 0.4-2.5s, recycle far peds into 62-115m ring) wired in TrafficSystem; 5 unit tests. Hourly, low, 60m: empties at the far point 18->6 of 24, bursts 0, spawn-point mean 4.0->2.3 (ring excludes <62m: weaker near spawn, not tuned). Full 144-sample table: scratchpad/audit-after.log.
+2 Clutter: --clutter table; throop r0c1W (1 item) and garvey r2c1E were low; added per-face floor MIN_LOW_PER_100M=3.5 (+test), 0 of 40 faces flagged. Phone draws none by design; phone draws before/after min120/mean127/max144 vs 121/127/144.
+3 Pop-in (low, 60m): throop-north none; kosciuszko-east 27 rows, avenue-drive 48 rows, all cars; no non-car offenders.
+clutter.test.ts roadway case was a timeout (expect per prop x door); rewritten, same checks, passes. No FOR FABLE lines.
