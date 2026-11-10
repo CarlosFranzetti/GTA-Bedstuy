@@ -2342,3 +2342,6 @@ FOR FABLE (UI10, main.ts only; line numbers = current main.ts)
 
 ### 2026-11-10T08:05:51Z · SCFIX
 Root cause: play() fires seconds after tune-in (async API+RA+READY), outside a gesture, with no PLAY watch; bed synth masked failure. Fix+tests done, browser proof queued on render lock.
+
+### 2026-11-10T08:07:02Z · Fable
+UI10 FOR FABLE lines applied in main.ts (saves, MapScreen, phone/menu options, autosave, look restore; new game or a load with a different look autosaves and reloads). cam, saves, map added to __gtaDebug. tsc clean, ui tests 177 pass, build 11.29 MB (budget 12: all lanes watch size).
