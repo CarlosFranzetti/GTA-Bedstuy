@@ -207,8 +207,9 @@ function paintFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): voi
   // door gaps (dark line with a light edge) and handles
   for (const n of L.seams) {
     const x = X(n);
-    s.shade(x - 0.7, Y(1), 1.5, Y(0.13) - Y(1), '#000000', 0.75);
-    s.shade(x + 0.8, Y(0.9), 0.8, Y(0.14) - Y(0.9), '#ffffff', 0.35);
+    // ~8 mm gap (0.5 canonical px = 1 px of the 1024 atlas) with a faint light lip; it starts at the belt, not the roof
+    s.shade(x - 0.25, beltY, 0.5, Y(0.13) - beltY, '#000000', 0.8);
+    s.shade(x + 0.3, beltY, 0.35, Y(0.14) - beltY, '#ffffff', 0.25);
   }
   for (const n of L.handles) {
     const x = X(n);
@@ -240,8 +241,7 @@ function paintFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): voi
   }
   // a few nicks and rust freckles near the arches
   for (let i = 0; i < 8; i++) { const n = L.axles[i % Math.max(1, L.axles.length)] ?? 0.3; s.shade(X(n) + rng.range(-14, 14), Y(L.archV) - rng.range(8, 30), 1.5, 1.5, '#6a3a1a', 0.55); }
-  // invented model badge on the rear quarter
-  s.text(L.badge, side === 'right' ? X(L.bootStart + 0.05) - L.badge.length * 4 : X(L.bootStart + 0.05), beltY + 22, 1, '#d7dbe0');
+  // (the model badge lives on the boot lid only, see paintRear)
 }
 
 function paintTop(s: Sk, L: SkinLayout, rng: Rng): void {

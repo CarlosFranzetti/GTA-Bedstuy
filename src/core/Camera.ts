@@ -70,6 +70,11 @@ const FALLBACK_RAY_STEPS = 4;
 /** Mission letterbox: bar height as a share of the viewport and the slide rate. */
 const LETTERBOX_SHARE = 0.12;
 const LETTERBOX_RATE = 5;
+/** Rate (1/s) at which the pivot jump from getting in / out of a car (door -> car centre) is absorbed, and the largest jump absorbed (m). */
+const PIVOT_SETTLE = 7;
+const PIVOT_JUMP_MAX = 8;
+/** Rate (1/s) at which the lens is pulled in when a wall is behind it (it used to snap in a single frame). */
+const WALL_IN_RATE = 22;
 
 /** Exact step of a critically damped spring on `x` (distance from rest) with velocity `v`. */
 export function dampStep(x: number, v: number, omega: number, dt: number): { x: number; v: number } {
@@ -125,6 +130,10 @@ export class ThirdPersonCamera {
   private readonly rayDir: Vec2 = { x: 0, z: 0 };
   private readonly rayFrom: Vec2 = { x: 0, z: 0 };
   private initialised = false;
+  private lastMode: CameraMode | null = null;
+  private offX = 0;
+  private offZ = 0;
+  private readonly tgt: Vec2 = { x: 0, z: 0 };
   private fovNow: number = CAM_FOOT.fov;
 
   constructor(aspect = 16 / 9) {
@@ -203,12 +212,27 @@ export class ThirdPersonCamera {
     const veh = ctx?.vehicle ?? null;
     const vehicleMode = mode === 'vehicle';
     const first = !this.initialised;
+    // The pivot differs between modes (the player's door spot vs the car's centre): carry the jump as an offset that decays,
+    // so getting in or out glides the view instead of popping it by a metre or two.
+    if (this.lastMode !== null && mode !== this.lastMode) {
+      const jx = this.prevX - targetPos.x, jz = this.prevZ - targetPos.z;
+      if (Math.hypot(jx, jz) < PIVOT_JUMP_MAX) { this.offX += jx; this.offZ += jz; } else { this.offX = 0; this.offZ = 0; }
+    }
+    this.lastMode = mode;
+    if (this.offX !== 0 || this.offZ !== 0) {
+      const decay = Math.exp(-PIVOT_SETTLE * dt);
+      this.offX *= decay; this.offZ *= decay;
+      if (Math.abs(this.offX) < 1e-3 && Math.abs(this.offZ) < 1e-3) { this.offX = 0; this.offZ = 0; }
+    }
+    const rawTarget = targetPos;
+    this.tgt.x = targetPos.x + this.offX; this.tgt.z = targetPos.z + this.offZ;
+    targetPos = this.tgt;
     if (first) { this.prevHeading = targetHeading; this.prevX = targetPos.x; this.prevZ = targetPos.z; }
     const safeDt = Math.max(dt, 1e-5);
 
     // ---- input activity -------------------------------------------------------------------------------------
     const lookInput = input.mouseDX !== 0 || input.mouseDY !== 0;
-    const moveSpeed = Math.hypot(targetPos.x - this.prevX, targetPos.z - this.prevZ) / safeDt;
+    const moveSpeed = Math.hypot(rawTarget.x - this.prevX, rawTarget.z - this.prevZ) / safeDt;
     const lookBackHeld = input.isDown(LOOK_BACK_KEY);
     const anyInput = lookInput || lookBackHeld || (typeof input.anyInput === 'function' && input.anyInput());
     if (lookInput) {
@@ -301,7 +325,7 @@ export class ThirdPersonCamera {
     const wantRoll = clamp(lat * ROLL_PER_G, -ROLL_MAX, ROLL_MAX);
     this.roll += (wantRoll - this.roll) * (first ? 1 : 1 - Math.exp(-ROLL_SMOOTH * dt));
     this.prevHeading = targetHeading;
-    this.prevX = targetPos.x; this.prevZ = targetPos.z;
+    this.prevX = rawTarget.x; this.prevZ = rawTarget.z;
 
     // ---- rig placement: the pivot rides rigidly on the target; only the rig parameters are smoothed --------
     const viewYaw = this.yaw + Math.PI * this.backBlend + this.cineYaw;
@@ -329,7 +353,9 @@ export class ThirdPersonCamera {
     }
     want = Math.min(want, this.carScale);
     this.flareSuppress += (Math.max(carBlocked, this.carScale < 0.97 ? 1 : 0) - this.flareSuppress) * (1 - Math.exp(-8 * dt));
-    this.wallScale = want < this.wallScale || first ? want : this.wallScale + (want - this.wallScale) * (1 - Math.exp(-WALL_OUT_RATE * dt));
+    this.wallScale = first ? want
+      : want < this.wallScale ? this.wallScale + (want - this.wallScale) * (1 - Math.exp(-WALL_IN_RATE * dt))
+      : this.wallScale + (want - this.wallScale) * (1 - Math.exp(-WALL_OUT_RATE * dt));
     if (this.wallScale < 1) {
       const s = this.wallScale;
       this.pos.x = targetPos.x + (this.pos.x - targetPos.x) * s;

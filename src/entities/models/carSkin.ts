@@ -178,7 +178,7 @@ const sets = new WeakMap<IMaterialLibrary, SkinSet>();
  * seams, window rubber, grime are darker = recessed), so a Sobel pass over its luminance gives sharp panel lines for free.
  * Fixed-colour pixels (chrome, lamps, decals) stay flat. Same layout and row order as the albedo (uv1).
  */
-export function buildSkinNormal(rgba: Uint8Array, w: number, h: number, strength = 2.2): THREE.DataTexture {
+export function buildSkinNormal(rgba: Uint8Array, w: number, h: number, strength = 1.3): THREE.DataTexture {
   const hgt = new Float32Array(w * h);
   for (let i = 0; i < w * h; i++) hgt[i] = rgba[i * 4 + 3] > 127 ? rgba[i * 4] / 255 : SKIN_PAINT_BASE; // fixed pixels: flat at clean-paint height
   const out = new Uint8Array(w * h * 4);

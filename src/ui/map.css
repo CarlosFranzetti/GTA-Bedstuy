@@ -1,0 +1,84 @@
+/* Full-screen map + the MAP button. Same language as phone.css: Impact labels, Arial sentences, gold #f5c542 accents. */
+.map-button[hidden], .map-root[hidden] { display: none !important; }
+
+/* HUD button column (top-right): stars 10-36, pause 46-90 (touch), PHONE 96-140, MAP 146-190. All 44 px high. */
+.map-button {
+  position: absolute;
+  top: 146px;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  width: 72px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(124, 214, 160, 0.75);
+  border-radius: 8px;
+  background: rgba(10, 10, 14, 0.72);
+  color: #7cd6a0;
+  font: 400 15px/1 Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  letter-spacing: 0.1em;
+  pointer-events: auto;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+.map-button.on { background: #7cd6a0; color: #111; }
+
+.map-root {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  background: #0d1117;
+  color: #fff;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+.map-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+.map-canvas:active { cursor: grabbing; }
+
+.map-top, .map-bottom {
+  position: absolute;
+  left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+  pointer-events: none;
+}
+.map-top { top: 0; padding-top: max(6px, env(safe-area-inset-top, 0px)); }
+.map-bottom { bottom: 0; padding-bottom: max(8px, env(safe-area-inset-bottom, 0px)); flex-wrap: wrap; }
+.map-title { font: 400 22px/1 Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif; letter-spacing: 0.1em; color: #7cd6a0; text-shadow: 0 2px 4px #000; }
+.map-status { flex: 1; min-width: 0; font: 600 14px/1.2 Arial, Helvetica, sans-serif; color: #38bdf8; text-shadow: 0 1px 3px #000; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-hint { flex: 1 1 200px; font: 12px/1.3 Arial, Helvetica, sans-serif; color: rgba(255, 255, 255, 0.6); text-shadow: 0 1px 3px #000; }
+
+.map-btn {
+  pointer-events: auto;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+  background: rgba(10, 10, 14, 0.82);
+  color: #fff;
+  font: 700 14px/1 Arial, Helvetica, sans-serif;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+.map-btn:disabled { opacity: 0.4; cursor: default; }
+.map-btn:focus-visible, .map-button:focus-visible { outline: 2px solid #f5c542; outline-offset: 2px; }
+.map-close { font-size: 18px; border-color: rgba(245, 197, 66, 0.7); color: #f5c542; }
+.map-zoom {
+  position: absolute;
+  right: max(12px, env(safe-area-inset-right, 0px));
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.map-zin, .map-zout { font-size: 22px; padding: 0; }
+@media (max-height: 420px) {
+  .map-hint { display: none; }
+  .map-title { font-size: 18px; }
+}

@@ -4,11 +4,11 @@
 
 .ph-button {
   position: absolute;
-  top: 92px;
-  right: 16px;
-  min-width: 64px;
-  height: 36px;
-  padding: 0 12px;
+  top: 96px;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  width: 72px;
+  height: 44px;
+  padding: 0;
   border: 1px solid rgba(245, 197, 66, 0.7);
   border-radius: 8px;
   background: rgba(10, 10, 14, 0.72);
@@ -55,10 +55,10 @@
 
 .ph-panel {
   position: absolute;
-  top: 136px;
-  right: 16px;
-  width: min(300px, calc(100% - 32px));
-  max-height: min(60vh, 420px);
+  top: 196px;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  width: min(320px, calc(100% - 32px));
+  max-height: max(170px, min(calc(100vh - 212px), 460px));
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(245, 197, 66, 0.55);

@@ -418,17 +418,27 @@ let ctxSunday = true;
 export function setPedDayContext(hour: number, sunday = true): void { ctxHour = hour; ctxSunday = sunday; }
 
 /** Weighted civilian pick; Sunday-service variants get a boost 9:00 to 13:30. Always consumes exactly one rng draw. */
+/** last picks' crowd groups: any 20 consecutive picks always hold at least MIN_GROUPS distinct groups (a street never looks like one community) */
+const recent: string[] = [];
+const WINDOW = 20, MIN_GROUPS = 4;
+export function resetPopulation(): void { recent.length = 0; }
+
 export function pickPedVariant(rng: Rng, hour = ctxHour, sunday = ctxSunday): number {
-  let total = 0;
   const w: number[] = [];
   for (let i = 0; i < CIVILIAN_COUNT; i++) {
     const s = PED_SPECS[i];
-    const v = s.weight * (s.sunday ? pedChurchBoost(hour, sunday) : 1);
-    w.push(v); total += v;
+    w.push(s.weight * (s.sunday ? Math.min(1.6, pedChurchBoost(hour, sunday)) : 1));
   }
-  let r = rng.next() * total;
-  for (let i = 0; i < CIVILIAN_COUNT; i++) { r -= w[i]; if (r < 0) return i; }
-  return CIVILIAN_COUNT - 1;
+  // the groups of the last WINDOW - 1 picks; if they hold too few, this pick must come from a group not among them
+  const last = recent.slice(-(WINDOW - 1)), seen = new Set(last);
+  const mustNew = seen.size + (WINDOW - 1 - last.length) < MIN_GROUPS - 0 && (last.length >= WINDOW - 1 ? seen.size < MIN_GROUPS : seen.size + (WINDOW - last.length - 1) < MIN_GROUPS);
+  let total = 0;
+  for (let i = 0; i < CIVILIAN_COUNT; i++) { if (mustNew && seen.has(PED_SPECS[i].group ?? '')) w[i] = 0; total += w[i]; }
+  let r = rng.next() * total, pick = CIVILIAN_COUNT - 1;
+  for (let i = 0; i < CIVILIAN_COUNT; i++) { if (w[i] <= 0) continue; r -= w[i]; if (r < 0) { pick = i; break; } }
+  recent.push(PED_SPECS[pick].group ?? '');
+  if (recent.length > 200) recent.splice(0, 100);
+  return pick;
 }
 
 // ---------------------------------------------------------------- builder

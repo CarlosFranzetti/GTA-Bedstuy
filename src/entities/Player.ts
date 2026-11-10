@@ -51,6 +51,8 @@ const EXIT_GAP = 0.15;
 const EXIT_SEARCH_EXTRA = [0, 0.6, 1.2, 1.8, 2.4, 3];
 /** Collision radius while seated in a vehicle (effectively no collision footprint). */
 const SEATED_RADIUS = 0.01;
+/** Share of full speed at the smallest stick deflection (just past the dead zone), rising linearly to 1 at full deflection. */
+const STICK_MIN_SPEED = 0.35;
 /** Exit ring search: rings added beyond the body, their spacing (m) and samples per ring. */
 const RING_COUNT = 6;
 const RING_STEP = 0.5;
@@ -82,6 +84,8 @@ export class Player implements Entity {
   private desiredVel: Vec2 = { x: 0, z: 0 };
   private moveDir: Vec2 | null = null;
   private wantRun = false;
+  /** 0..1 stick deflection of the current move input (1 for keys). */
+  private moveMag = 1;
   private sprintBlend = 0;
   /** True when the player got in from beyond the driver's door (tail or passenger flank): the door side is likely walled in. */
   private enteredFar = false;
@@ -167,6 +171,7 @@ export class Player implements Entity {
     const l = Math.hypot(dx, dz);
     if (l > 1e-6) {
       this.moveDir = { x: dx / l, z: dz / l };
+      this.moveMag = Math.min(1, l); // a half-pushed touch stick walks slower; keys and a full stick are 1
       this.wantRun = input.isDown('ShiftLeft') || input.isDown('ShiftRight');
     } else {
       this.moveDir = null;
@@ -364,7 +369,7 @@ export class Player implements Entity {
     this.sprintBlend = clamp(this.sprintBlend + ramp * dt, 0, 1);
     if (this.moveDir) {
       const k = this.sprintBlend;
-      const sp = WALK_SPEED + (RUN_SPEED - WALK_SPEED) * (k * k * (3 - 2 * k));
+      const sp = (WALK_SPEED + (RUN_SPEED - WALK_SPEED) * (k * k * (3 - 2 * k))) * (STICK_MIN_SPEED + (1 - STICK_MIN_SPEED) * this.moveMag);
       this.desiredVel = { x: this.moveDir.x * sp, z: this.moveDir.z * sp };
       const want = headingFromVec(this.moveDir);
       b.heading = wrapAngle(b.heading + angleDiff(b.heading, want) * (1 - Math.exp(-TURN_SMOOTH * dt)));
