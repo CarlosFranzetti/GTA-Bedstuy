@@ -21,3 +21,15 @@ describe('parked vehicle settling', () => {
     expect(v.speed).toBeGreaterThan(2);
   });
 });
+
+describe('static contact memory (lets the traffic AI recognise a clipped signal pole)', () => {
+  it('recentStaticContact returns the touched static for 0.25 s, then null', () => {
+    const v = makeVehicle('sedan', 0, 0, 0, new EventBus());
+    const pole = { id: 'signal:x', kind: 'static', shape: { kind: 'circle', r: 0.12 }, pos: { x: 0, z: -3 }, vel: { x: 0, z: 0 }, heading: 0, mass: Infinity } as never;
+    expect(v.recentStaticContact()).toBeNull();
+    v.onContact({ a: v.body, b: pole, normal: { x: 0, z: -1 }, depth: 0, point: { x: 0, z: -2.4 }, impulse: 0 } as never, pole);
+    expect(v.recentStaticContact()).toBe(pole);
+    for (let i = 0; i < 20; i++) v.update(1 / 60);
+    expect(v.recentStaticContact()).toBeNull();
+  });
+});

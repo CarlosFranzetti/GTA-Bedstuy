@@ -147,6 +147,16 @@ describe('buildFurniture', () => {
     for (const c of group.children) expect((c as THREE.InstancedMesh).isInstancedMesh).toBe(true);
   });
 
+  it('a street tree is cheap: canopy cloud <= 56 triangles (one winding, double-sided material), trunk <= 40', () => {
+    const { group } = build();
+    const tris = (n: string): number => {
+      const g = (group.children.find((c) => c.name.endsWith(n)) as THREE.InstancedMesh).geometry;
+      return (g.index ? g.index.count : g.getAttribute('position').count) / 3;
+    };
+    expect(tris('treeLeaves')).toBeLessThanOrEqual(56);
+    expect(tris('treeTrunk')).toBeLessThanOrEqual(40);
+  });
+
   it('requests the furniture material keys from the library', () => {
     const { requested } = build();
     for (const key of ['treeTrunk', 'treeLeaves', 'metalDark', 'hydrant', 'trash', 'concrete']) {

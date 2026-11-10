@@ -173,6 +173,8 @@ export class BlobShadows {
   readonly casterGroup = new THREE.Group();
   private readonly casterMat: THREE.MeshBasicMaterial;
   private casterOn = false;
+  /** tiers with a real sun shadow draw the (inset, low) building prisms for the geometry beyond the detailed proxies' reach */
+  farBuildings = false;
   private buildingCaster: THREE.Mesh | null = null;
   private casterTriangles = 0;
 
@@ -205,6 +207,7 @@ export class BlobShadows {
   get sunCasters(): boolean { return this.casterOn && !!this.buildingCaster; }
   setSunCasters(on: boolean): void {
     this.casterOn = on;
+    this.farBuildings = !on; // main.ts calls this for every tier: off = a tier with a real sun shadow map
     // with a real sun shadow the blob only needs to ground the wheels / feet: halve its weight
     this.applyStrength();
   }
@@ -213,7 +216,10 @@ export class BlobShadows {
   wrapShadowRender(renderer: { shadowMap: { render: (...a: never[]) => void } }): () => void {
     const orig = renderer.shadowMap.render;
     renderer.shadowMap.render = ((...a: never[]) => {
-      this.casterGroup.visible = this.sunCasters;
+      // phone: every caster. Other tiers: only the building prisms, as the far stand-in for the detailed cell proxies (RenderProxies keeps those to the shadow box's surroundings)
+      const all = this.sunCasters;
+      this.casterGroup.visible = all || (this.farBuildings && !!this.buildingCaster);
+      for (const s of [this.cars, this.peds]) if (s.caster) s.caster.visible = all && s.n > 0;
       try { orig.apply(renderer.shadowMap, a); } finally { this.casterGroup.visible = false; }
     }) as never;
     return () => { renderer.shadowMap.render = orig; };

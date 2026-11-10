@@ -194,6 +194,8 @@ export class Vehicle implements IVehicle {
   private lastHitImpulse = 0;
   // wedge detection
   private lastContactTime = -10;
+  private staticContact: Body2D | null = null;
+  private staticContactTime = -10;
   /** unit vector pointing away from the thing last touched */
   private contactAway: Vec2 = { x: 0, z: 0 };
   /** lateral offset (m, + = right of the car) of the last contact point */
@@ -367,7 +369,13 @@ export class Vehicle implements IVehicle {
     applyPose(this.object3D, pos, this.prevHeading + angleDiff(this.prevHeading, b.heading) * a);
   }
 
+  /** The static body (pole, wall) touched within the last 0.25 s, else null. Lets the AI tell a thin pole from a car in its way. */
+  recentStaticContact(): Body2D | null {
+    return this.time - this.staticContactTime < 0.25 ? this.staticContact : null;
+  }
+
   onContact(contact: Contact, other: Body2D): void {
+    if (other.kind === 'static' || other.mass === Infinity) { this.staticContact = other; this.staticContactTime = this.time; }
     if (this.driver === 'player') {
       this.noteContact(contact);
       this.slideOffProp(contact, other);

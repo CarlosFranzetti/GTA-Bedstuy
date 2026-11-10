@@ -48,7 +48,7 @@ describe('tier table', () => {
     expect(p.traffic.cops).toBeLessThan(l.traffic.cops);
     expect(LIGHTING.lampPool.phone).toBeLessThan(LIGHTING.lampPool.low);
     // low keeps its previous behaviour
-    expect(l).toMatchObject({ maxPixelRatio: 1.25, cullDistance: 220, carNearDist: 72, rainStreaks: 600, fog: null, normalMaps: true });
+    expect(l).toMatchObject({ maxPixelRatio: 1.25, cullDistance: 220, carNearDist: 40, rainStreaks: 600, fog: null, normalMaps: true });
     expect(LIGHTING.lampPool).toMatchObject({ low: 6, medium: 12, high: 12 });
     for (const q of ['low', 'medium', 'high'] as const) expect(TIER_CONFIG[q].traffic).toEqual({ maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 });
   });

@@ -27,9 +27,9 @@ export interface TierConfig {
   maxBufferWidth: number;
   /** DistanceCuller range (m) for prop cells, parked cars and peds */
   cullDistance: number;
-  /** CarLod: cars farther than this from the camera use the instanced model. Low and up use 72 m (car centre distance; with CarLod's 4 m margin and a half car length the swap lands past 60 m from the camera: scripts/popin-check.mjs); phone keeps 14 m for draw calls */
+  /** CarLod: cars farther than this from the camera use the instanced model. Low 40 m, medium 52, high 72 (car centre distance; with CarLod's 4 m margin and a half car length the swap lands ~12 m past that from the camera): a near car is 7 to 8 k triangles and 5 to 8 draws; phone keeps 14 m */
   carNearDist: number;
-  /** InstancedMesh furniture (trees, lamps...) is thinned beyond this (m); Infinity = all drawn */
+  /** InstancedMesh furniture (trees, lamps...) is thinned beyond this (m). Never Infinity: a frustum test on an InstancedMesh is all or nothing, so Infinity draws every tree of the whole city (3 k clouds, 400 k triangles, twice with the shadow pass) */
   instanceDistance: number;
   /** pedestrians are hidden beyond this (m); props use cullDistance */
   pedDistance: number;
@@ -65,20 +65,32 @@ export const TIER_CONFIG: Record<Quality, TierConfig> = {
     traffic: { maxMoving: 10, peds: 14, parkOccupancy: 0.3, cops: 1 },
   },
   low: {
-    maxPixelRatio: 1.25, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 72, instanceDistance: Infinity, pedDistance: 220,
+    maxPixelRatio: 1.25, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 40, instanceDistance: 160, pedDistance: 220,
     fog: null, rainStreaks: 600, anisotropy: 16, normalMaps: true, simpleGeometry: false, stars: true, minimapHz: 0, blobShadows: false, signBloomFps: null,
     traffic: { maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 },
   },
   medium: {
-    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 72, instanceDistance: Infinity, pedDistance: 220,
+    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 52, instanceDistance: 220, pedDistance: 220,
     fog: null, rainStreaks: 1200, anisotropy: 16, normalMaps: true, simpleGeometry: false, stars: true, minimapHz: 0, blobShadows: false, signBloomFps: null,
     traffic: { maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 },
   },
   high: {
-    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 72, instanceDistance: Infinity, pedDistance: 220,
+    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 72, instanceDistance: 320, pedDistance: 220,
     fog: null, rainStreaks: 2000, anisotropy: 16, normalMaps: true, simpleGeometry: false, stars: true, minimapHz: 0, blobShadows: false, signBloomFps: null,
     traffic: { maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 },
   },
+};
+
+/**
+ * Per-frame budgets at the standard review viewpoints (tests/e2e/screens.mjs 1, 4, 10; 960x540; triangles = scene + shadow
+ * passes as WebGLRenderer.info reports them, draws = all passes). Measured with scripts/perf-breakdown.mjs; locked by
+ * tests/unit/render/tri-budget.test.ts (tier numbers) and checked against a render by the same script.
+ */
+export const TIER_BUDGET: Record<Quality, { triangles: number; draws: number }> = {
+  phone: { triangles: 300_000, draws: 150 },
+  low: { triangles: 500_000, draws: 220 },
+  medium: { triangles: 1_200_000, draws: 320 },
+  high: { triangles: 2_000_000, draws: 450 },
 };
 
 export const tierConfig = (q: Quality): TierConfig => TIER_CONFIG[q];

@@ -11,7 +11,10 @@ import { buildFurniture, type LampSpot } from '@/world/FurnitureGen';
 import { buildProps } from '@/world/PropsGen';
 import { buildSignals, signalColliders } from '@/world/props/signals';
 import { createSkyline } from '@/world/Skyline';
-import { chunkKeyOfCell, chunkLayout, splitMeshesIntoCells, type ChunkLayout, type SplitStats } from '@/render/Culling';
+import { Input } from '@/core/Input';
+import { resolveQuality } from '@/textures/hosted';
+import type { Quality } from '@/render/Shadows';
+import { FINE_CELLS, chunkKeyOfCell, chunkLayout, splitMeshesIntoCells, type ChunkLayout, type SplitStats } from '@/render/Culling';
 
 export interface BuiltWorld {
   grid: GridModel;
@@ -51,7 +54,14 @@ export function cullCellSize(grid: GridModel): { x: number; z: number } {
   return { x: l.cellX, z: l.cellZ };
 }
 
-export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: Rng): BuiltWorld {
+/** The tier the game starts in (same rule as main.ts: ?q= or touch -> phone, else medium); 'medium' without a browser (tests). */
+export function startTier(): Quality {
+  if (typeof location === 'undefined') return 'medium';
+  return resolveQuality(new URLSearchParams(location.search).get('q'), Input.isTouchDevice()).quality;
+}
+
+/** `tier` picks the render-cell size (Culling.FINE_CELLS); omitted = the tier the page starts in. */
+export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: Rng, tier: Quality = startTier()): BuiltWorld {
   const grid = buildGrid(data);
   const group = new THREE.Group();
   group.name = 'world';
@@ -84,14 +94,15 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
 
   // The generators merge one geometry per material city-wide, which frustum culling can never reject. Re-bin the
   // triangles into per-cell meshes (same names/materials, so lamp lookup by name keeps working).
-  const chunks = chunkLayout(grid.streets);
+  const chunks = chunkLayout(grid.streets, FINE_CELLS[tier]);
   const cells: SplitStats = { meshesBefore: 0, meshesAfter: 0, trianglesAfter: 0 };
   // the split threshold grows with the city (it was set for ten blocks): a material group that was not worth splitting then still is not
   const minSplit = Math.round(MIN_SPLIT_TRIANGLES * (grid.blocks.length / 10));
   const split = (g: THREE.Object3D): THREE.Mesh[] => splitMeshesIntoCells(g, chunks.cellX, chunks.cellZ, cells, minSplit, chunks.originX, chunks.originZ);
   // meshes that were too small to split stay city-wide (no cell key) and are never chunk-culled
   const chunkMeshes = [...split(buildings.group), ...split(furniture.group)].filter((m) => typeof m.userData.cell === 'string'); // instanced kinds are skipped
-  for (const m of chunkMeshes) m.userData.chunk = chunkKeyOfCell(chunks, m.userData.cell as string);
+  // fine-cell tiers cull per cell (a cell is drawn whole, so a 500 x 200 m chunk would draw its far half too); coarse tiers cull per 2 x 2 block chunk
+  for (const m of chunkMeshes) m.userData.chunk = FINE_CELLS[tier] ? (m.userData.cell as string) : chunkKeyOfCell(chunks, m.userData.cell as string);
   const propCells = split(props.group);
 
   // the far skyline ring: forked last so the streams of everything above are unchanged

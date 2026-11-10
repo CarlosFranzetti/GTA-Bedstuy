@@ -16,7 +16,26 @@
  * Pure helpers (`isProxyable`, `concatIndexed`, `transformInto`) are exported for tests.
  */
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { writeYawMatrix } from '@/render/CarLod';
+
+/**
+ * Shadow stand-in for a car: two boxes (lower body, cabin) from the hull's bounding box, 24 triangles. The shadow map of the
+ * low / medium tiers has 8 to 12 cm texels, so the full far-LOD hull (5 k triangles per sedan) buys nothing there.
+ */
+export function coarseCarHull(hull: THREE.BufferGeometry): THREE.BufferGeometry {
+  if (!hull.boundingBox) hull.computeBoundingBox();
+  const b = hull.boundingBox!;
+  const sx = b.max.x - b.min.x, sy = b.max.y - b.min.y, sz = b.max.z - b.min.z;
+  const cx = (b.max.x + b.min.x) / 2, cz = (b.max.z + b.min.z) / 2;
+  const lengthIsZ = sz >= sx;
+  const lower = new THREE.BoxGeometry(sx, sy * 0.55, sz).translate(cx, b.min.y + sy * 0.275, cz);
+  const cabin = new THREE.BoxGeometry(lengthIsZ ? sx * 0.85 : sx * 0.55, sy * 0.45, lengthIsZ ? sz * 0.55 : sz * 0.85).translate(cx, b.min.y + sy * 0.775, cz);
+  const g = mergeGeometries([lower, cabin], false)!;
+  lower.dispose(); cabin.dispose();
+  g.deleteAttribute('uv');
+  return g;
+}
 
 /** A material whose surface is fully described by its depth (no alpha cut-out, no decal blending). */
 export function isProxyable(mat: THREE.Material | THREE.Material[]): boolean {
@@ -214,6 +233,12 @@ const CAP = 512;
 
 interface HullSet { mesh: THREE.InstancedMesh; shadow: THREE.InstancedMesh; n: number; }
 
+const _sphere = new THREE.Sphere();
+/** Metres beyond the shadow box's half-size within which the detailed cell proxies still draw (see wrapShadowRender). */
+export const SHADOW_DETAIL_MARGIN = 15;
+/** Radius (m) of the sphere tested against the shadow frustum for a car hull / capsule. */
+const HULL_RADIUS = 3.6;
+
 export class RenderProxies {
   /** Scene for GTAOPass: static cells, car hulls, ped capsules. */
   readonly ao = new THREE.Scene();
@@ -226,6 +251,14 @@ export class RenderProxies {
   private readonly hulls = new Map<string, HullSet>();
   private capsule: HullSet | null = null;
   private readonly hullMatrices = new Map<string, THREE.InstancedBufferAttribute>();
+  /** shadow-pass copy of the hull matrices: only the instances inside the sun's shadow box (wrapShadowRender) */
+  private readonly shadowMatrices = new Map<string, THREE.InstancedBufferAttribute>();
+  private readonly cellBoxes: Array<{ mesh: THREE.Mesh; box: THREE.Box3 }> = [];
+  private readonly shadowFrustum = new THREE.Frustum();
+  private readonly projScreen = new THREE.Matrix4();
+  /** shadow-pass cell meshes / hull instances drawn by the last shadow render (tests, stats) */
+  shadowCellsDrawn = 0;
+  shadowHullsDrawn = 0;
 
   constructor() {
     this.ao.name = 'ao-proxy';
@@ -246,6 +279,10 @@ export class RenderProxies {
       this.ao.add(a);
       const s = new THREE.Mesh(p.geometry, this.mats[p.side]);
       s.matrixAutoUpdate = false; s.castShadow = true; s.receiveShadow = false; s.name = `shadow:${p.cell}`;
+      // a cell is 100 x 100 m: three's bounding-sphere test keeps ~4x more cells than the shadow box needs, so wrapShadowRender tests the box
+      p.geometry.computeBoundingBox();
+      s.frustumCulled = false;
+      this.cellBoxes.push({ mesh: s, box: p.geometry.boundingBox! });
       this.shadowGroup.add(s);
     }
     for (const m of build.covered) m.castShadow = false;
@@ -258,9 +295,12 @@ export class RenderProxies {
   addHull(key: string, geometry: THREE.BufferGeometry, castShadow: boolean): void {
     const matrices = new THREE.InstancedBufferAttribute(new Float32Array(CAP * 16), 16);
     matrices.setUsage(THREE.DynamicDrawUsage);
+    const smatrices = new THREE.InstancedBufferAttribute(new Float32Array(CAP * 16), 16);
+    smatrices.setUsage(THREE.DynamicDrawUsage);
+    const coarse = castShadow && key !== 'capsule' ? coarseCarHull(geometry) : geometry;
     const make = (shadow: boolean): THREE.InstancedMesh => {
-      const m = new THREE.InstancedMesh(geometry, this.mats[THREE.FrontSide], CAP);
-      m.instanceMatrix = matrices; m.count = 0; m.frustumCulled = false; m.castShadow = shadow; m.receiveShadow = false;
+      const m = new THREE.InstancedMesh(shadow ? coarse : geometry, this.mats[THREE.FrontSide], CAP);
+      m.instanceMatrix = shadow ? smatrices : matrices; m.count = 0; m.frustumCulled = false; m.castShadow = shadow; m.receiveShadow = false;
       m.name = `hull:${key}`;
       return m;
     };
@@ -270,6 +310,7 @@ export class RenderProxies {
     const set: HullSet = { mesh, shadow, n: 0 };
     if (key === 'capsule') this.capsule = set; else this.hulls.set(key, set);
     this.hullMatrices.set(key, matrices);
+    this.shadowMatrices.set(key, smatrices);
   }
 
   hasHull(key: string): boolean { return this.hulls.has(key); }
@@ -306,14 +347,51 @@ export class RenderProxies {
     if (this.capsule) commit(this.capsule, 'capsule');
   }
 
-  /** Makes the shadow-only group visible exactly while the shadow map renders. Returns an undo function. */
+  /**
+   * Makes the shadow-only group visible exactly while the shadow map renders, and trims it to what the sun's shadow box can
+   * see: cell proxies by box-vs-frustum (not bounding sphere), car hulls by distance to the box. Returns an undo function.
+   */
   wrapShadowRender(renderer: { shadowMap: { render: (...a: never[]) => void } }): () => void {
     const orig = renderer.shadowMap.render;
     renderer.shadowMap.render = ((...a: never[]) => {
+      this.trimForShadow((a[0] as unknown as THREE.Light[] | undefined) ?? []);
       this.shadowGroup.visible = true;
       try { orig.apply(renderer.shadowMap, a); } finally { this.shadowGroup.visible = false; }
     }) as never;
     return () => { renderer.shadowMap.render = orig; };
+  }
+
+  private trimForShadow(lights: THREE.Light[]): void {
+    const sun = lights.find((l) => l.castShadow && (l as THREE.DirectionalLight).isDirectionalLight) as THREE.DirectionalLight | undefined;
+    if (!sun) return;
+    sun.shadow.updateMatrices(sun);
+    const sc = sun.shadow.camera;
+    this.shadowFrustum.setFromProjectionMatrix(this.projScreen.multiplyMatrices(sc.projectionMatrix, sc.matrixWorldInverse));
+    // detailed cell proxies only near the player (the shadow box half-size + 15 m); farther buildings cast through BlobShadows' prisms
+    const reach = sc.right + SHADOW_DETAIL_MARGIN, tx = sun.target.position.x, tz = sun.target.position.z;
+    let cells = 0;
+    for (const c of this.cellBoxes) {
+      const dx = Math.max(c.box.min.x - tx, 0, tx - c.box.max.x), dz = Math.max(c.box.min.z - tz, 0, tz - c.box.max.z);
+      const v = dx * dx + dz * dz <= reach * reach && this.shadowFrustum.intersectsBox(c.box);
+      c.mesh.visible = v; if (v) cells++;
+    }
+    this.shadowCellsDrawn = cells;
+    let hulls = 0;
+    for (const [key, h] of this.hulls) {
+      const dst = this.shadowMatrices.get(key)!;
+      if (h.shadow.instanceMatrix !== dst) continue; // no shadow set for this key
+      const src = h.mesh.instanceMatrix.array as Float32Array, out = dst.array as Float32Array;
+      let k = 0;
+      for (let i = 0; i < h.n; i++) {
+        _sphere.center.set(src[i * 16 + 12], 0.8, src[i * 16 + 14]); _sphere.radius = HULL_RADIUS;
+        if (!this.shadowFrustum.intersectsSphere(_sphere)) continue;
+        for (let j = 0; j < 16; j++) out[k * 16 + j] = src[i * 16 + j];
+        k++;
+      }
+      h.shadow.count = k; h.shadow.visible = k > 0; hulls += k;
+      if (k > 0) { dst.clearUpdateRanges(); dst.addUpdateRange(0, k * 16); dst.needsUpdate = true; }
+    }
+    this.shadowHullsDrawn = hulls;
   }
 
   /**

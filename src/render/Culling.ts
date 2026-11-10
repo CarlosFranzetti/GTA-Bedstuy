@@ -133,6 +133,15 @@ export function chunkRangeFor(q: Quality): number {
   return visible + CHUNK_SLACK_BLOCKS[q] * CHUNK_BLOCK_M;
 }
 
+/**
+ * Tiers whose static city is split into half-width, half-depth render cells (125 x 100 m instead of 250 x 200). A cell mesh is
+ * drawn whole when any of it is in view or in range, so on a street the coarse cells draw ~4x the triangles that can be seen
+ * (measured at the review viewpoints: phone 410 k -> 94 k building triangles at 96 draws; low 416 k -> 252 k at 264 draws).
+ * Phone is draw-light (fog-short chunk range, simple geometry); low trades draws for triangles; medium and high keep the coarse
+ * cells (their budgets are higher and the draws are the cost there).
+ */
+export const FINE_CELLS: Record<Quality, boolean> = { phone: true, low: true, medium: false, high: false };
+
 export interface ChunkLayout {
   /** render cell size (m): one block column wide, two block rows deep */
   cellX: number; cellZ: number;
@@ -143,7 +152,7 @@ export interface ChunkLayout {
 }
 
 /** Cell and chunk grid of a street grid, anchored at the north-west street centre. */
-export function chunkLayout(streets: ReadonlyArray<{ axis: 'ns' | 'ew'; offset: number }>): ChunkLayout {
+export function chunkLayout(streets: ReadonlyArray<{ axis: 'ns' | 'ew'; offset: number }>, fine = false): ChunkLayout {
   const along = (axis: 'ns' | 'ew', fallback: number): { pitch: number; origin: number } => {
     const o = streets.filter((st) => st.axis === axis).map((st) => st.offset).sort((a, b) => a - b);
     let best = Infinity;
@@ -151,7 +160,8 @@ export function chunkLayout(streets: ReadonlyArray<{ axis: 'ns' | 'ew'; offset: 
     return { pitch: isFinite(best) && best > 20 ? best : fallback, origin: o.length ? o[0] : 0 };
   };
   const x = along('ns', 250), z = along('ew', 100);
-  return { cellX: x.pitch, cellZ: z.pitch * CHUNK_BLOCKS, chunkX: x.pitch * CHUNK_BLOCKS, chunkZ: z.pitch * CHUNK_BLOCKS, originX: x.origin, originZ: z.origin };
+  const k = fine ? 0.5 : 1;
+  return { cellX: x.pitch * k, cellZ: z.pitch * CHUNK_BLOCKS * k, chunkX: x.pitch * CHUNK_BLOCKS, chunkZ: z.pitch * CHUNK_BLOCKS, originX: x.origin, originZ: z.origin };
 }
 
 /** `ix_iz` key of the chunk holding (x, z). */

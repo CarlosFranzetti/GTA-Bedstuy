@@ -298,6 +298,8 @@ export interface IVehicle extends Entity {
   siren: boolean;
   /** optional: headlights/taillights lit (night) */
   headlights?: boolean;
+  /** optional: the static body (pole, wall) this car touched within the last ~0.25 s, else null */
+  recentStaticContact?(): Body2D | null;
   setInput(input: VehicleInput): void;
   /** world position of the driver's door, for enter/exit */
   doorPos(): Vec2;

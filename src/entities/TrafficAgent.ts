@@ -36,6 +36,8 @@ const COMFORT_BRAKE = 0.6;
 /** braking planned for a pedestrian ahead is gentler than for a stop line: people step out and flee toward the car */
 const PED_BRAKE = 0.4;
 const STOP_POINT = 2.5;
+/** The pedestrian and obstacle distances assume a sedan (half length SEDAN_HALF_L): longer bodies (bus, box truck) add the difference so their FRONT, not their centre, stops short of a pedestrian. (Stop lines are judged by the centre and left alone.) */
+const SEDAN_HALF_L = 2.4;
 /** the hardest braking a driver commits to when deciding whether a yellow can still be stopped for */
 const YELLOW_BRAKE = 0.85;
 const SIGNAL_REACTION = 0.4;
@@ -441,7 +443,7 @@ export class TrafficAgent {
       this.flankHold = Math.max(0, this.flankHold - dt);
     }
     if (this.pedGap < Infinity) {
-      const room = Math.max(0, this.pedGap - 3.2);
+      const room = Math.max(0, this.pedGap - 3.2 - this.extraHalfL());
       desired = Math.min(desired, Math.sqrt(2 * v.spec.brakeDecel * PED_BRAKE * room));
     }
 
@@ -453,7 +455,7 @@ export class TrafficAgent {
       this.ignoreRayTimer -= dt;
     } else {
       const f = Math.max(0, speed);
-      const reach = 6 + f;
+      const reach = 6 + f + this.extraHalfL();
       // the ray follows where the car is going, not where it points: mid-turn the nose still points past the target
       // lane (toward the parked cars at the kerb) although the steering is already bringing it round
       const lead = Math.abs(err) > RAY_LEAD_MIN ? clamp(err * RAY_LEAD, -RAY_LEAD_MAX, RAY_LEAD_MAX) : 0;
@@ -544,7 +546,10 @@ export class TrafficAgent {
     } else {
       this.hornClock = 0;
     }
-    const pole = this.lastBlocker !== null && this.lastBlocker.kind === 'static' && this.lastBlocker.shape.kind === 'circle' && this.lastBlocker.shape.r <= POLE_MAX_RADIUS;
+    // a pole the rays did not see (a signal pole clipped mid-turn) counts too: the car is touching it
+    const touched = v.recentStaticContact?.() ?? null;
+    const pole = (this.lastBlocker !== null && this.lastBlocker.kind === 'static' && this.lastBlocker.shape.kind === 'circle' && this.lastBlocker.shape.r <= POLE_MAX_RADIUS) ||
+      (touched !== null && touched.shape.kind === 'circle' && touched.shape.r <= POLE_MAX_RADIUS);
     if (this.stuckTime > (pole ? STUCK_AFTER_POLE : STUCK_AFTER)) {
       this.stuckTime = 0;
       this.stuckRetries++;
@@ -848,6 +853,12 @@ export class TrafficAgent {
     return false;
   }
 
+  /** Metres by which this body's half length exceeds a sedan's (0 for cars). */
+  private extraHalfL(): number {
+    const sh = this.vehicle.body.shape;
+    return sh.kind === 'obb' ? Math.max(0, sh.halfL - SEDAN_HALF_L) : 0;
+  }
+
   private scanPeds(fx: number, fz: number, speed: number, minReach = 0): number {
     const reach = Math.max(minReach, 7 + Math.max(0, speed) * 1.2);
     return this.coneGap(this.vehicle.body.pos, fx, fz, reach, 0.5);
@@ -912,6 +923,7 @@ export class TrafficAgent {
 
   private beginBacking(): void {
     this.state = 'backing';
+    this.goLatch = null; // the yellow/green that committed this car to the box may be over by the time it comes forward again: re-read the signal
     this.backStartX = this.vehicle.body.pos.x;
     this.backStartZ = this.vehicle.body.pos.z;
     this.backTime = 0;
