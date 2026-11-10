@@ -17,6 +17,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { CarModel } from '@/entities/models/carModel';
 import type { IMaterialLibrary } from '@/world/types';
+import { CAR_CLOSE_DIST, tierConfig } from '@/render/QualityTier';
+import { carPaintConfigured, carPaintTier } from '@/render/CarPaintFx';
 import { gltfLodFor, setGltfMaterials, type GltfLodParts } from '@/entities/models/gltf/VehicleSource';
 
 /** Writes the column-major matrix of translate(x, 0, z) * rotateY(yaw) into `out` at element offset `o`. */
@@ -36,6 +38,68 @@ export function hysteresisFar(wasFar: boolean, dist: number, near: number, margi
 /** Instance colour of a lamp: emissive colour times intensity (HDR, so bloom still picks lit lamps up). */
 export function lampColor(emissive: THREE.Color, intensity: number, out: THREE.Color): THREE.Color {
   return out.setRGB(emissive.r * intensity, emissive.g * intensity, emissive.b * intensity);
+}
+
+/** Triangle budget of each far-proxy part (sums to ~1.1 k with the 4 wheel discs of 32 triangles). */
+export const FAR_TRIS = { paint: 520, cargo: 160, glass: 140, dark: 240 } as const;
+
+/**
+ * Vertex clustering: snaps vertices to a grid of `cell` metres (cell = average of its vertices), drops the triangles that
+ * collapse or repeat. Works on a non-indexed position / normal / uv geometry and returns the same layout.
+ */
+export function clusterGeometry(src: THREE.BufferGeometry, cell: number): THREE.BufferGeometry {
+  const pos = src.getAttribute('position'), nor = src.getAttribute('normal'), uv = src.getAttribute('uv');
+  const n = pos.count;
+  const ids = new Map<number, number>();
+  const sum: number[] = []; // per cluster: x y z nx ny nz u v count
+  const of = new Int32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const key = ((Math.floor(x / cell) + 2048) * 4096 + (Math.floor(y / cell) + 2048)) * 4096 + (Math.floor(z / cell) + 2048);
+    let id = ids.get(key);
+    if (id === undefined) { id = ids.size; ids.set(key, id); sum.push(0, 0, 0, 0, 0, 0, 0, 0, 0); }
+    of[i] = id;
+    const o = id * 9;
+    sum[o] += x; sum[o + 1] += y; sum[o + 2] += z;
+    if (nor) { sum[o + 3] += nor.getX(i); sum[o + 4] += nor.getY(i); sum[o + 5] += nor.getZ(i); }
+    if (uv) { sum[o + 6] += uv.getX(i); sum[o + 7] += uv.getY(i); }
+    sum[o + 8]++;
+  }
+  const seen = new Set<string>();
+  const tri: number[] = [];
+  for (let i = 0; i + 2 < n; i += 3) {
+    const a = of[i], b = of[i + 1], c = of[i + 2];
+    if (a === b || b === c || a === c) continue;
+    const k = [a, b, c].sort((p, q) => p - q).join(',');
+    if (seen.has(k)) continue;
+    seen.add(k);
+    tri.push(a, b, c);
+  }
+  const P = new Float32Array(tri.length * 3), N = new Float32Array(tri.length * 3), U = new Float32Array(tri.length * 2);
+  for (let t = 0; t < tri.length; t++) {
+    const o = tri[t] * 9, k = 1 / sum[o + 8];
+    P[t * 3] = sum[o] * k; P[t * 3 + 1] = sum[o + 1] * k; P[t * 3 + 2] = sum[o + 2] * k;
+    const nx = sum[o + 3], ny = sum[o + 4], nz = sum[o + 5], l = Math.hypot(nx, ny, nz) || 1;
+    N[t * 3] = nx / l; N[t * 3 + 1] = ny / l; N[t * 3 + 2] = nz / l;
+    U[t * 2] = sum[o + 6] * k; U[t * 2 + 1] = sum[o + 7] * k;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(P, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(N, 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(U, 2));
+  return g;
+}
+
+/** `g` clustered to at most `max` triangles with the finest grid that fits (g itself when it already does). */
+export function shrink(g: THREE.BufferGeometry | null, max: number): THREE.BufferGeometry | null {
+  if (!g || g.getAttribute('position').count / 3 <= max) return g;
+  let lo = 0.02, hi = 2, best: THREE.BufferGeometry | null = null;
+  for (let i = 0; i < 12; i++) {
+    const mid = (lo + hi) / 2;
+    const c = clusterGeometry(g, mid);
+    if (c.getAttribute('position').count / 3 <= max) { best = c; hi = mid; } else lo = mid;
+  }
+  return best ?? clusterGeometry(g, hi);
 }
 
 /** Mesh names that make up each LOD part (see carModel.ts). Hubcaps are part of the 'tyre' meshes, which become 10-gons here. */
@@ -129,6 +193,12 @@ export class CarLod {
   private readonly lampMat: THREE.MeshBasicMaterial;
   /** number of cars drawn as instances in the last frame (for stats) */
   farCount = 0;
+  /** full-detail cars (beyond CAR_CLOSE_DIST) placed so far this frame, and the cap of the current tier */
+  private nearCount = 0;
+  private nearMax = Infinity;
+  /** Overrides the tier's cap on full-detail cars (tests). */
+  setNearMax(n: number): void { this.nearMax = n; this.fixedNearMax = true; }
+  private fixedNearMax = false;
   /** Changes the near/far switch distance (quality tier). */
   setNearDist(d: number): void { if (d > 0) this.near = d; }
   private readonly frustum = new THREE.Frustum();
@@ -164,6 +234,8 @@ export class CarLod {
   beginFrame(): void {
     for (const t of this.types.values()) if (t) { t.n = 0; t.nHead = 0; t.nTail = 0; }
     this.farCount = 0;
+    this.nearCount = 0;
+    if (!this.fixedNearMax) this.nearMax = carPaintConfigured() ? tierConfig(carPaintTier()).carNearMax : Infinity;
   }
 
   /**
@@ -181,7 +253,8 @@ export class CarLod {
     const lod = this.typeFor(info.key, car.spec.type, info.buildStyled);
     if (!lod || car.damage > this.maxDamage || lod.n >= CAPACITY) { info.far = false; car.object3D.visible = true; return false; }
     info.far = hysteresisFar(info.far, dist, this.near, this.margin);
-    if (!info.far) { car.object3D.visible = true; return false; }
+    if (!info.far && dist > CAR_CLOSE_DIST && this.nearCount >= this.nearMax) info.far = true; // over the tier's cap of full cars
+    if (!info.far) { if (dist > CAR_CLOSE_DIST) this.nearCount++; car.object3D.visible = true; return false; }
     car.object3D.visible = false;
     if (this.viewSet && !this.frustum.intersectsSphere(this.sphere.set(_c.set(x, 0.9, z), 8))) return true;
     const i = lod.n++;
@@ -279,6 +352,7 @@ export class CarLod {
     model.group.updateMatrixWorld(true);
     const inv = new THREE.Matrix4().copy(model.group.matrixWorld).invert();
     const parts: Record<PartKey, THREE.BufferGeometry[]> = { paint: [], cargo: [], glass: [], dark: [], head: [], tail: [] };
+    const tyres: THREE.BufferGeometry[] = [];
     const rel = new THREE.Matrix4();
     model.group.traverse((o) => {
       const mesh = o as THREE.Mesh;
@@ -286,7 +360,8 @@ export class CarLod {
       for (const key of Object.keys(PART_NAMES) as PartKey[]) {
         if (!(PART_NAMES[key] as readonly string[]).includes(o.name)) continue;
         rel.multiplyMatrices(inv, mesh.matrixWorld);
-        parts[key].push(o.name === 'tyre' ? lowPolyTyre(mesh.geometry, rel) : slimGeometry(mesh.geometry, rel));
+        if (o.name === 'tyre') tyres.push(lowPolyTyre(mesh.geometry, rel));
+        else parts[key].push(slimGeometry(mesh.geometry, rel));
       }
     });
     if (parts.paint.length === 0) { disposeModel(model); return null; }
@@ -296,15 +371,17 @@ export class CarLod {
       for (const l of list) l.dispose();
       return g;
     };
-    const hullSrc = [...parts.paint, ...parts.cargo, ...parts.glass, ...parts.dark].map((g) => {
+    // far proxy budget (about 1.1 k triangles per car): each part is vertex-clustered down to its share, the wheels are 8-gon discs
+    const paintG = shrink(merge(parts.paint), FAR_TRIS.paint)!, cargoG = shrink(merge(parts.cargo), FAR_TRIS.cargo), glassG = shrink(merge(parts.glass), FAR_TRIS.glass);
+    const darkG = merge([...(parts.dark.length ? [shrink(merge(parts.dark), FAR_TRIS.dark)!] : []), ...tyres]);
+    const headG = merge(parts.head), tailG = merge(parts.tail);
+    const hullSrc = [paintG, cargoG, glassG, darkG].filter((g): g is THREE.BufferGeometry => !!g).map((g) => {
       const h = new THREE.BufferGeometry();
       h.setAttribute('position', g.getAttribute('position'));
       h.setAttribute('normal', g.getAttribute('normal'));
       return h;
     });
     const hull = hullSrc.length ? mergeGeometries(hullSrc, false) : null;
-    const paintG = merge(parts.paint)!, cargoG = merge(parts.cargo), glassG = merge(parts.glass), darkG = merge(parts.dark);
-    const headG = merge(parts.head), tailG = merge(parts.tail);
     disposeModel(model);
     if (!glassG || !darkG || !hull) return null;
 
@@ -386,7 +463,7 @@ export function lowPolyTyre(src: THREE.BufferGeometry, m: THREE.Matrix4): THREE.
   const axis = dims.indexOf(Math.min(...dims));
   const others = dims.filter((_, i) => i !== axis);
   const radius = (others[0] + others[1]) / 4;
-  const g = new THREE.CylinderGeometry(radius, radius, dims[axis], 10, 1).toNonIndexed(); // axis along y
+  const g = new THREE.CylinderGeometry(radius, radius, dims[axis], 8, 1).toNonIndexed(); // axis along y
   if (axis === 0) g.rotateZ(Math.PI / 2);
   else if (axis === 2) g.rotateX(Math.PI / 2);
   g.translate(centre.x, centre.y, centre.z);

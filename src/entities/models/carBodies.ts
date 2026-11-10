@@ -1150,7 +1150,7 @@ function wrapLamp(kind: string, front: boolean, tipU: number, plan: (d: number) 
   return { lens: spec.lens.map((l) => build(l, 0.02)), housing: [build(spec.housing, 0.01)] };
 }
 
-export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): CarParts {
+export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec, refine: 1 | 2 = 2): CarParts {
   const st = STYLES[type === 'cab' ? 'crown' : type === 'cop' ? 'charger' : type];
   const hatchy = st.rails || !!st.hatchback; // tailgate bodies: no boot lid, no rear bench
   const planAt = monotone(st.plan.map((p) => p[0]), st.plan.map((p) => p[1]));
@@ -1230,7 +1230,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec): Ca
   for (const ax of [axleF, axleR]) want.push(...archStations(arch, ax, st.archN ?? 4));
   const us = stationList(must, want, (st.maxGap ?? 0.7) * kx);
 
-  const hull = buildLoft({ us, half: (u) => carHalf(ring(u)), creases: [CAR_CREASE], cls, refine: 2 });
+  const hull = buildLoft({ us, half: (u) => carHalf(ring(u)), creases: [CAR_CREASE], cls, refine });
   const sideX = (u: number, y: number): number => {
     const h = carHalf(ring(u));
     for (let j = 7; j < 11; j++) {

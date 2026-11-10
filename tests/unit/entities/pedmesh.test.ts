@@ -174,6 +174,19 @@ describe('shipped people glbs', () => {
     }
   });
 
+  it('triangle budget per LOD over all variants: far <= 600, mid <= 1.7k, hi <= 6.5k', () => {
+    const max = [0, 0, 0];
+    for (let v = 0; v < PED_VARIANT_COUNT; v++) {
+      const m = buildMhPedModel(materials, new Rng(5), { variant: v, heightScale: 1 })!;
+      const lod = m.group.getObjectByName('pedLod') as THREE.LOD;
+      lod.levels.forEach((l, i) => { const g = (l.object as THREE.Mesh).geometry; max[i] = Math.max(max[i], g.index!.count / 3); });
+    }
+    console.log('PEDLOD hi mid far', max.join(' '));
+    expect(max[2]).toBeLessThanOrEqual(600);
+    expect(max[1]).toBeLessThanOrEqual(1700);
+    expect(max[0]).toBeLessThanOrEqual(6500);
+  });
+
   it('buildPerson uses the people shapes when loaded and PEDHI otherwise', () => {
     const a = buildPerson(materials, new Rng(9), { variant: 0 });
     expect(a.group.userData.pedShape).toBeTruthy();
