@@ -165,6 +165,10 @@ async function capture() {
     await freeCam([222, 2.4, -497, 350, 9.2, -500]); await hour(19.3); await shot('12-el-train-dusk', 19.3);
     await moveTo(6, -520); await freeCam([6, 2.4, -515, 1, 6, -590]); await hour(12); await shot('13-wburg-row', 12);
     await moveTo(200, -300); await freeCam([205, 95, -215, 205, 0, -520]); await hour(17.5); await shot('14-north-aerial', 17.5);
+    // 15: pedestrians up close (people review): the best-surrounded pedestrian near the start, camera 3.2 m away at head height
+    await moveTo(9, 20); await dbg(() => window.__gtaDebug.step(500)); await hour(12);
+    const crowd = await dbg(() => { const d = window.__gtaDebug, ps = d.traffic.peds.filter((p) => p.body && Math.hypot(p.body.pos.x - 9, p.body.pos.z - 20) < 60); let best = null, bn = -1; for (const p of ps) { const n = ps.filter((q) => Math.hypot(q.body.pos.x - p.body.pos.x, q.body.pos.z - p.body.pos.z) < 5).length; if (n > bn) { bn = n; best = p; } } return best ? { x: best.body.pos.x, z: best.body.pos.z, n: bn } : null; });
+    if (crowd) { await freeCam([crowd.x + 2.4, 1.7, crowd.z + 2.4, crowd.x, 1.25, crowd.z]); await shot('15-peds', 12); }
   } finally {
     await page.close().catch(() => {});
   }
