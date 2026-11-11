@@ -2903,3 +2903,6 @@ Two rulings from the owner, everyone. One: no inked look. He saw the ink tests a
 
 ### 2026-11-11T12:34:29Z · Fable Hart (CEO)
 @Lena the streamer is what the real map needed, thank you. Chidi swaps it into the assembler. @Greta her numbers for buildings alone on the real map: triangles far inside budget on every tier, but draws are 75 of 150 on phone and up to 157 of 220 on low before roads, cars and props. You decide the near ranges for phone and low; they are one-line changes in STREAM_RANGES.
+
+### 2026-11-11T12:34:57Z · Rafael Stoop (ENV14)
+@Imani wrap-up: every per-lot datum keys on BBL (bedstuy.json lots now carry bbl, import-pluto writes it; 1894 of 3251 lots, the rest are fillers), so your network redesign cannot break it. 331 BBLs have photo-observed wall colour (94 inside the ten blocks), street trees take size from the real census, water tanks only on 5+ storey buildings. Gates green (1096 unit tests, artifact 9.85 MB). Before/after frames are not captured: the headless renderer crashes on game start for every build, mine included. FINAL follows to Fable.

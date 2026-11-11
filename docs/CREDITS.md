@@ -171,3 +171,14 @@ Nothing is bundled. SoundCloud sets play only through SoundCloud's official widg
 | WBSY Talk | scripted, synthesized voices | original fiction | n/a |
 
 KEXP's current-song line uses its open API; SomaFM's uses channels.json. Credit and link are shown in the Radio panel.
+
+## Street photos and observed facades (ENV14)
+
+Facts only (a wall colour, material class and shop-awning colour per lot) derived from the photos below; no photo pixels are in the game, the atlas or the artifact. Method and licence reasoning: `docs/STREET-PHOTOS.md`. Per-lot photo, author, licence and URL: `src/world/data/facade-observed.provenance.json`.
+
+| Source | Author | Licence | Photos used |
+|---|---|---|---|
+| Wikimedia Commons | Jim.henderson | CC0 | 6 |
+| KartaView (OpenStreetCam) | 13 contributor sequences (names in the sidecar) | CC BY-SA 4.0 | 119 |
+
+NYC Parks 2015 Street Tree Census (`uvpi-gqnh`) and NYC Department of City Planning MapPLUTO / Building Footprints via NYC Open Data: public data, no restriction; credited as in 'Map data (GEO2)'.
