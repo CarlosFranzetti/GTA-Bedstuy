@@ -259,23 +259,43 @@ function blockedAt(q: Vec2, d: Derived, net: RoadNet): boolean {
   return false;
 }
 
+/** a column centre on curb line `side` (+1 left of travel, -1 right) at arc length s */
+function curbSpot(p: ElPath, net: RoadNet, s: number, side: 1 | -1): { p: Vec2; dir: Vec2 } {
+  const c = pointOnPath(p, s);
+  const off = halfWidthAt(net, c.p) + COLUMN_OUT;
+  return { p: { x: c.p.x - c.dir.z * off * side, z: c.p.z + c.dir.x * off * side }, dir: c.dir };
+}
+
 /**
- * Column positions: every COLUMN_STEP metres along the path, one on each curb line (a pair at the same s, left curb first, i.e.
- * `spots[2k]` and `spots[2k+1]` are a pair and share `dir`). A pair is left out when either column, or the track centre, would
- * stand inside a paved node polygon or a crosswalk band; the girders then span that gap.
+ * Column positions on both curb lines, every COLUMN_STEP metres along the path (spacing never above it). A column that would
+ * stand inside a paved node polygon or a crosswalk band is not placed: the previous column is pulled up to the edge of the
+ * blocked stretch (spacing not below MIN_SPACING) and the next one starts right after it, so the girders span the junction.
+ * Each curb line is placed on its own (a diagonal Broadway meets a cross street at different s on its two kerbs). Returned in
+ * order of s, left kerb then right kerb at equal s; `dir` is the travel direction of the path there.
  */
 export function columnSpots(p: ElPath, d: Derived, net: RoadNet): Array<{ p: Vec2; dir: Vec2 }> {
-  const out: Array<{ p: Vec2; dir: Vec2 }> = [];
-  for (let s = COLUMN_STEP / 2; s <= p.length - COLUMN_STEP / 2 + 1e-6; s += COLUMN_STEP) {
-    const c = pointOnPath(p, s);
-    const off = halfWidthAt(net, c.p) + COLUMN_OUT;
-    const nx = -c.dir.z, nz = c.dir.x;
-    const a = { x: c.p.x + nx * off, z: c.p.z + nz * off };
-    const b = { x: c.p.x - nx * off, z: c.p.z - nz * off };
-    if (blockedAt(a, d, net) || blockedAt(b, d, net) || blockedAt(c.p, d, net)) continue;
-    out.push({ p: a, dir: c.dir }, { p: b, dir: c.dir });
-  }
-  return out;
+  const per: Array<Array<{ s: number; spot: { p: Vec2; dir: Vec2 } }>> = [[], []];
+  const FINE = 0.5, MIN_SPACING = 6;
+  ([1, -1] as const).forEach((side, k) => {
+    const legal = (s: number): boolean => !blockedAt(curbSpot(p, net, s, side).p, d, net);
+    let last = -Infinity;
+    const put = (s: number): void => { per[k].push({ s, spot: curbSpot(p, net, s, side) }); last = s; };
+    const end = p.length - 3;
+    let target = COLUMN_STEP / 2;
+    while (target <= end) {
+      if (legal(target)) { put(target); target = last + COLUMN_STEP; continue; }
+      // blocked: pull the previous column's successor back to the edge of the blocked stretch, then jump past it
+      let back = target - FINE;
+      while (back > last + MIN_SPACING && !legal(back)) back -= FINE;
+      if (back > last + MIN_SPACING && back > last) put(back);
+      let fwd = target + FINE;
+      while (fwd <= end && !legal(fwd)) fwd += FINE;
+      if (fwd > end) break;
+      put(fwd);
+      target = last + COLUMN_STEP;
+    }
+  });
+  return [...per[0], ...per[1]].sort((x, y) => (x.s - y.s) || 0).map((e) => e.spot);
 }
 
 // ------------------------------------------------------------------------------------------------ timetable on s

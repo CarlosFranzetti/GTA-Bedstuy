@@ -77,9 +77,13 @@ ofl/barlowsemicondensed, ofl/barlow); neither declares a Reserved Font Name.
 - UI: **Barlow Condensed** (500, 600, 700, plus 600 italic) for every HUD number and label; **Barlow Semi Condensed** (500)
   for subtitles, tips, menu rows and the map. Use tabular figures for cash and timers (`font-variant-numeric:
   tabular-nums`; if the build lacks tnum, set each digit in a fixed-width span).
-- Self-host woff2 subsets (Latin + $, digits, punctuation) in the repo; all font files together under 120 kB; inline in the
-  single-file build; ship OFL.txt beside them and name both fonts in the credits. No Google Fonts link at runtime
-  (Electron and the artifact are offline). Remove Impact / Roboto Condensed / system stacks as the primary face.
+- Hosted web build and Electron apps: self-host woff2 subsets (Latin + $, digits, punctuation) in public/fonts, all font
+  files together under 120 kB, OFL.txt beside them, both fonts named in the credits.
+- Single-file build: do NOT inline the fonts (it is at 11.96 of 12 MB). It loads Anton and Barlow Condensed through a Google
+  Fonts stylesheet link, with a fallback stack that still reads condensed and bold offline: "Anton", "Arial Narrow Bold",
+  Impact, sans-serif for display; "Barlow Condensed", "Roboto Condensed", "Arial Narrow", system-ui, sans-serif for UI.
+  Layout must not break if the link fails (no text that only fits in the condensed face).
+- Remove Impact / Roboto Condensed / system stacks as the primary face everywhere else.
 Sizes at 1280x720 (scale with the shorter viewport side, clamp so phone portrait never goes below the minimum):
 | Role | Face | Size | Min on phone |
 |---|---|---|---|
@@ -126,6 +130,17 @@ palette, blips in our own simple shapes (no GTA blip sprites).
 Fails: web-app buttons in the HUD, pills with borders, emoji, overlapping cards, text breaking at a hyphen, anything that
 moves when nothing changed, two instances of the same information.
 
+## (c2) Settings and pause menu (Priya, after title, credits and loading art) — Fable ruling, 11 Nov
+Keep the layout the owner asked for in Stage 13: tabs across the top, the list of rows "label ◄ value ►" on the left, the
+description panel on the right, APPLY / DEFAULTS / BACK in a footer bar. Restyle it to the polished dark look:
+- Scrimmed dark panels rgba(10,10,12,.72) over a blurred or darkened game frame (or one illustrated panel from (a) on the
+  right, never under a row), 2 px radius, hairline dividers rgba(255,255,255,.08).
+- Type from (b): tabs Barlow Cond 600 20 px uppercase, rows Barlow Semi Cond 500 20 to 22 px, description 16 px, title in
+  Anton 56 to 64 px. No ink outlines, no halftone, no stroke on any menu text.
+- Selected row: a solid accent bar (gold #e8b53a, 4 px) on the left plus a lighter row fill; values in white, arrows dim
+  until hovered. Selection moves with a 120 ms fade, nothing bounces.
+- Fits 1280x720 and 390x844 with no row cut and no control on top of art.
+
 ## (d) Characters (Leila)
 Proportions: 7.5 heads for men, 7 to 7.25 for women; shoulders 2 to 2.3 head widths on men, 1.6 to 1.8 on women.
 Shoulder and neck construction (this is the owner's "shoulders are weird"):
@@ -143,7 +158,7 @@ scale. Each one varies at least two of: height, shoulder width, waist width, hip
 7. Curvy woman (hips 1.3 x shoulders, fuller thighs). 8. Heavy woman (full torso and arms, wide hips).
 9. Older woman (shorter, rounded upper back). 10. Teen (shorter, 6.5 to 7 heads, thin limbs).
 In a lineup of 12 random peds: at least six different outlines, at least three heights, at least two heavy bodies.
-Triangle budget (our decision): ped LOD0 2,500 to 4,000 tris, LOD1 (beyond 25 m) 800 to 1,200, LOD2 / impostor beyond 60 m;
+Triangle budget (our own numbers, accepted by Fable 11 Nov; the GTA III / IV figures remain unverified): ped LOD0 2,500 to 4,000 tris, LOD1 (beyond 25 m) 800 to 1,200, LOD2 / impostor beyond 60 m;
 player and story characters up to 7,000 at LOD0. Fewer polygons, placed at joints and the silhouette; flat areas get none.
 Smooth-shade the body and garments as one group; no visible facets on jaw, skull or shoulder at 3 m.
 Clothes: texture first (fabric grain, seams, pockets, zips painted with a normal map), geometry only where the silhouette
@@ -170,7 +185,7 @@ deck, stripes or vents drawn as geometry steps, chrome outline on every edge.
 ## (f) Banned
 - Cartoon faces (big eyes, simplified mouths), caricature proportions, toon/cel shading on 3D models.
 - Flat vector posters, halftone dots, comic speech bubbles and sound-effect lettering (the v1 comic idiom is retired:
-  settings move to the HUD look: scrimmed dark panels, Barlow, no ink outlines).
+  settings keep their layout and move to the polished dark look in (c2)).
 - Lettering, numbers or logos on clothing; text in textures that cannot be read.
 - Visible seams, slivers, spikes, zigzag hems, floating parts, z-fighting, windshield gaps.
 - Any Rockstar or other game asset, logo, font or traced image; Pricedown or lookalikes; non-open-licence fonts.
@@ -181,4 +196,5 @@ deck, stripes or vents drawn as geometry steps, chrome outline on every edge.
   still a diving hood (tight to the face, ruffle at the neck, no drape). The flat-shaded faces facet at 3 m.
 - Cars: paint and wheels hold up. The tops are the problem: a dark slot at the windshield base, the glass sits proud of the
   pillars, a bright lip runs round the roof edge, and the wedge truck's windshield overhangs its cowl.
-- Map: clean and readable; on phone portrait the right-hand avenue label runs under the zoom buttons.
+- Map: clean and readable; avenue labels run under the zoom buttons (phone portrait, desktop zoomed in). The waypoint
+  route must follow the streets (Fable ruling): the grid route exists now, the real-map route comes with Imani's team.

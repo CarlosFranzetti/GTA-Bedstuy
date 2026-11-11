@@ -74,7 +74,7 @@ describe('placeLots on the real network', () => {
     // lots that cannot sit on a face by the brief's own rules: no edge, zero frontage, condo duplicates, narrow blocks
     const excused = (droppedR1.noEdge ?? 0) + (droppedR1.zeroFrontage ?? 0) + (droppedR1.duplicateUnit ?? 0) + (droppedR1.narrowBlock ?? 0) + (droppedR1.noBlock ?? 0);
     const denom = r1.length - excused;
-    process_report(report, r1.length, placed, denom);
+    console.log('REPORT', JSON.stringify(report));
     expect(placed / denom).toBeGreaterThanOrEqual(0.95);
   });
   it('ids are the BBLs and unique', () => {
