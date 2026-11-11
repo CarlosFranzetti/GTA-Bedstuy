@@ -264,6 +264,9 @@ describe('derived geometry on the real R1+R2 network', async () => {
     const noLine = net.blocks.map((b, i) => ({ b, i })).filter(({ b, i }) => !b.island && d.buildingRings[i].length === 0);
     expect(noLine.map(({ i }) => i)).toEqual([]);
   });
+  it('few blocks need the fallback building line (kerb offset); the rest are built edge by edge', () => {
+    expect(d.fallbackBuilding.length).toBeLessThan(10);
+  });
   it('kerb rings lie inside the centreline ring and building lines inside the kerb (areas shrink)', () => {
     net.blocks.forEach((b, i) => {
       if (b.island || !d.buildingRings[i].length) return;
