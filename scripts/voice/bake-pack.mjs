@@ -183,7 +183,9 @@ mkdirSync(join(WORK, 'clips'), { recursive: true });
 const progressFile = join(WORK, `progress-${SHARD}.json`);
 const indexFile = join(WORK, `index-${SHARD}.jsonl`);
 let doneNow = 0, audioSec = 0, computeSec = 0, bytesNow = 0, failed = 0;
-let usedBytes = [...index.keys()].reduce((n, k) => n + statSync(clipFile(k)).size, 0);
+// Clips from an older plan (before the prosody layer every sentence was one clip at the cast speed) stay on disk but no longer count against the budget.
+const planKeys = new Set(plan.map((c) => c.key));
+let usedBytes = [...index.keys()].filter((k) => planKeys.has(k)).reduce((n, k) => n + statSync(clipFile(k)).size, 0);
 const started = new Date().toISOString();
 const writeProgress = (cur) => atomicWrite(progressFile, JSON.stringify({
   pid: process.pid, shard: `${SHARD}/${SHARDS}`, started, updated: new Date().toISOString(), done: doneNow, remaining: todo.length - doneNow - failed, failed,

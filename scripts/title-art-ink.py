@@ -20,7 +20,7 @@ img = img.resize((W, H), Image.LANCZOS)
 rng = np.random.default_rng(a.seed)
 
 # 1. flatten: edge-preserving-ish smoothing (median passes) so surfaces become shapes
-sm = img.filter(ImageFilter.MedianFilter(5)).filter(ImageFilter.GaussianBlur(1.2)).filter(ImageFilter.MedianFilter(5))
+sm = img.filter(ImageFilter.GaussianBlur(1.4)).filter(ImageFilter.MedianFilter(7)).filter(ImageFilter.GaussianBlur(0.8))
 rgb = np.asarray(sm).astype(np.float32) / 255.0
 
 # 2. tone bands: split luminance into four hard steps, keep hue, lift saturation
@@ -32,10 +32,10 @@ target = bands[idx]
 chroma = rgb / np.maximum(lum[..., None], 0.02)
 chroma = np.clip(chroma, 0, 3.0)
 tone = np.clip(chroma * target[..., None], 0, 1)
-tone = 0.78 * tone + 0.22 * rgb  # a little of the original gradient survives so skies do not band like a poster
+tone = 0.5 * tone + 0.5 * rgb  # a little of the original gradient survives so skies do not band like a poster
 hsv = Image.fromarray((tone * 255).astype(np.uint8)).convert('HSV')
 h, s, v = [np.asarray(c).astype(np.float32) for c in hsv.split()]
-s = np.clip(s * 1.28, 0, 255)
+s = np.clip(s * 1.12, 0, 255)
 tone = np.asarray(Image.merge('HSV', [Image.fromarray(c.astype(np.uint8)) for c in (h, s, v)]).convert('RGB')).astype(np.float32) / 255.0
 
 # 3. warm grade: push highlights amber, shadows cold teal-blue
@@ -52,19 +52,19 @@ def sobel(x):
     gy = (x[2:, :-2] + 2 * x[2:, 1:-1] + x[2:, 2:]) - (x[:-2, :-2] + 2 * x[:-2, 1:-1] + x[:-2, 2:])
     return np.pad(np.hypot(gx, gy), 1)
 e = sobel(g) + 0.5 * sum(sobel(c[..., k]) for k in range(3)) / 3.0
-thr = np.percentile(e, 90.5) * (1.0 / a.line)
+thr = np.percentile(e, 96.5) * (1.0 / a.line)
 ink = (e > thr).astype(np.uint8) * 255
-inkimg = Image.fromarray(ink).filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.GaussianBlur(0.7))
+inkimg = Image.fromarray(ink).filter(ImageFilter.GaussianBlur(0.9))
 m = (np.asarray(inkimg).astype(np.float32) / 255.0)
-m = np.clip((m - 0.35) * 2.4, 0, 1)[..., None]
+m = np.clip((m - 0.3) * 1.9, 0, 0.88)[..., None]
 inkc = np.array([0.045, 0.035, 0.06], np.float32)
 out = tone * (1 - m) + inkc * m
 
 # 5. vignette + grain
 yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
 r = np.hypot((xx - W / 2) / (W / 2), (yy - H / 2) / (H / 2))
-out *= (1 - 0.34 * np.clip(r - 0.45, 0, 1) ** 1.4)[..., None]
-grain = rng.normal(0, 0.022, (H, W, 1)).astype(np.float32)
+out *= (1 - 0.5 * np.clip(r - 0.4, 0, 1) ** 1.4)[..., None]
+grain = rng.normal(0, 0.03, (H, W, 1)).astype(np.float32)
 out = np.clip(out + grain, 0, 1)
 Image.fromarray((out * 255).astype(np.uint8)).save(a.dst, 'WEBP', quality=a.q, method=6)
 import os; print(a.dst, os.path.getsize(a.dst) // 1024, 'kB')
