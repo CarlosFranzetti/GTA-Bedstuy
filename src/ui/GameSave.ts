@@ -1,5 +1,5 @@
 /**
- * Full game saves: 3 manual slots + an autosave, versioned (v2), migrating the old position-only v1 key.
+ * Full game saves: 3 manual slots + an autosave, versioned (v3), migrating v2 (no story block) and the old position-only v1 key.
  * Pure (no DOM, no three.js). Every storage access is try/catch; when localStorage is blocked or full the saves live in
  * memory for the session and `storageOk` is false so the UI can offer Export / Import (JSON file) instead.
  *
@@ -9,7 +9,11 @@
 import type { Inventory } from '@/game/Inventory';
 import type { RecordDef } from '@/game/records';
 
-export const SAVE_VERSION = 2;
+/**
+ * v3 adds `story` (StoryState: branch flags, fork choices, heard news). v2 saves load unchanged (story absent: the mission
+ * save's embedded block, if any, still restores it). The slot key prefix keeps its 'v2' so existing slots are not orphaned.
+ */
+export const SAVE_VERSION = 3;
 export const SAVE_PREFIX = 'gta-bedstuy.save.v2.';
 export const LEGACY_SAVE_KEY = 'gta-bedstuy.save.v1';
 export const EXPORT_FORMAT = 'gta-bedstuy-save';
@@ -41,6 +45,8 @@ export interface SaveData {
   missions?: unknown;
   /** Phone.serialize() */
   phone?: unknown;
+  /** StoryState.serialize(): flags, fork choices, heard news (v3). */
+  story?: unknown;
   wanted?: number;
   weather?: string;
   radioStation?: string;
@@ -82,6 +88,17 @@ function cleanLook(o: unknown): PlayerLook | null {
   return { ...(o as PlayerLook), seed: o.seed };
 }
 
+/** A story block that is not the exact StoryState shape is dropped (the save still loads, without branch state). */
+function cleanStory(o: unknown): { v: 1; flags: string[]; choices: Record<string, string>; seenNews: string[] } | undefined {
+  if (!isObj(o) || o.v !== 1 || !Array.isArray(o.flags) || !isObj(o.choices) || !Array.isArray(o.seenNews)) return undefined;
+  const str = (x: unknown): x is string => typeof x === 'string' && x.length > 0 && x.length <= 80;
+  const flags = o.flags.filter(str).slice(0, 200);
+  const seenNews = o.seenNews.filter(str).slice(0, 200);
+  const choices: Record<string, string> = {};
+  for (const [k, v] of Object.entries(o.choices)) if (str(k) && str(v)) choices[k] = v;
+  return { v: 1, flags, choices, seenNews };
+}
+
 function cleanInventory(o: unknown): SaveInventory | undefined {
   if (!isObj(o)) return undefined;
   const records = Array.isArray(o.records) ? (o.records.filter((r) => isObj(r) && typeof r.id === 'string') as unknown as RecordDef[]) : [];
@@ -98,7 +115,7 @@ function cleanInventory(o: unknown): SaveInventory | undefined {
  */
 export function migrateSave(raw: unknown, now: number = Date.now()): SaveData | null {
   if (!isObj(raw)) return null;
-  if (raw.v === SAVE_VERSION) {
+  if (raw.v === SAVE_VERSION || raw.v === 2) {
     const p = raw.pose;
     if (!isObj(p) || !finite(p.x) || !finite(p.z) || !finite(p.heading) || !finite(raw.hour)) return null;
     const out: SaveData = {
@@ -114,6 +131,8 @@ export function migrateSave(raw: unknown, now: number = Date.now()): SaveData | 
     if (inv) out.inventory = inv;
     if (raw.missions !== undefined) out.missions = raw.missions;
     if (raw.phone !== undefined) out.phone = raw.phone;
+    const story = cleanStory(raw.story);
+    if (story) out.story = story;
     if (finite(raw.wanted)) out.wanted = Math.max(0, Math.min(6, Math.round(raw.wanted)));
     if (typeof raw.weather === 'string') out.weather = raw.weather;
     if (typeof raw.radioStation === 'string') out.radioStation = raw.radioStation;
@@ -136,7 +155,8 @@ export interface SaveParts {
   getHour(): number; setHour(h: number): void;
   getDay(): number; setDay(d: number): void;
   inventory: Pick<Inventory, 'cash' | 'records' | 'flags' | 'items' | 'reset' | 'add' | 'addRecord' | 'giveItem' | 'setFlag'>;
-  missions: { serialize(): unknown; restore(d: unknown): boolean };
+  /** MissionSystem: `story` is its StoryState (saved as the top-level `story` field). */
+  missions: { serialize(): unknown; restore(d: unknown): boolean; story?: { serialize(): unknown; restore(d: unknown): boolean } };
   phone: { serialize(): unknown; restore(d: unknown): boolean };
   getWanted(): number; setWanted(n: number): void;
   getWeather(): string; setWeather(w: string): void;
@@ -151,7 +171,7 @@ export function captureSave(p: SaveParts, now: number = Date.now()): SaveData {
   return {
     v: SAVE_VERSION, savedAt: now, pose: p.getPose(), hour: p.getHour(), day: p.getDay(), cash: inv.cash,
     inventory: { records: inv.records, items: inv.items(), flags: inv.flags },
-    missions: p.missions.serialize(), phone: p.phone.serialize(), wanted: p.getWanted(), weather: p.getWeather(),
+    missions: p.missions.serialize(), story: p.missions.story?.serialize(), phone: p.phone.serialize(), wanted: p.getWanted(), weather: p.getWeather(),
     radioStation: p.getStation(), playerLook: p.getLook(), street: p.getStreet(),
   };
 }
@@ -168,6 +188,7 @@ export function applySave(p: SaveParts, s: SaveData): void {
   }
   if (s.cash !== undefined) { const d = s.cash - p.inventory.cash; if (d !== 0) p.inventory.add(d); }
   if (s.missions !== undefined) p.missions.restore(s.missions);
+  if (s.story !== undefined) p.missions.story?.restore(s.story);
   if (s.phone !== undefined) p.phone.restore(s.phone);
   if (s.day !== undefined) p.setDay(s.day);
   p.setHour(s.hour);

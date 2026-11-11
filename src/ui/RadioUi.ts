@@ -11,6 +11,7 @@ import type { LibraryController } from '@/audio/library/LibraryController';
 import type { ScStation } from '@/audio/sc/ScStation';
 import { scStationDef } from '@/audio/radio';
 import { SC_NO_STREAM, SC_TAP_PROMPT } from '@/audio/sc/ScStation';
+import { createLoadingTheme, LOOP_SEC, type LoadingTheme } from '@/audio/loadingTheme';
 
 export interface RadioUiSource {
   library: Library;
@@ -19,6 +20,8 @@ export interface RadioUiSource {
   sc?: ScStation;
   /** All SoundCloud stations in dial order: one pool-counts and pasted-links section each. */
   scStations?: readonly ScStation[];
+  /** AudioSystem's context + master bus (null until audio has started); the Loading theme row plays through it. */
+  readonly djHost?: { ctx: AudioContext; dest: AudioNode } | null;
 }
 
 interface ScSection { sc: ScStation; list: HTMLElement; msg: HTMLElement; ra: HTMLElement; pool: HTMLElement; count: HTMLElement; input: HTMLInputElement }
@@ -36,6 +39,9 @@ export class RadioUi {
   private readonly lib: Library;
   private readonly ctl: LibraryController;
   private readonly body: HTMLElement;
+  private readonly host: RadioUiSource;
+  private theme: LoadingTheme | null = null;
+  private themeBtn: HTMLButtonElement | null = null;
   private readonly scs: readonly ScStation[];
   private readonly sections = new Map<ScStation, ScSection>();
   private readonly status: HTMLElement;
@@ -57,6 +63,7 @@ export class RadioUi {
 
   constructor(parent: HTMLElement, src: RadioUiSource, private readonly opts: RadioUiOptions = {}) {
     this.doc = parent.ownerDocument;
+    this.host = src;
     this.lib = src.library;
     this.ctl = src.libraryController;
     this.scs = src.scStations && src.scStations.length > 0 ? src.scStations : src.sc ? [src.sc] : [];
@@ -101,6 +108,7 @@ export class RadioUi {
     this.body = this.el('div', 'rl-body');
     panel.append(head, note, actions, this.fileInput, this.status);
     if (this.scs.length > 0) panel.appendChild(this.buildScGroup());
+    panel.appendChild(this.buildThemeRow());
     panel.appendChild(this.body);
     this.root.appendChild(panel);
     parent.appendChild(this.root);
@@ -170,6 +178,7 @@ export class RadioUi {
     if (!this.opened) return;
     this.opened = false;
     this.confirmReset = false;
+    this.stopTheme();
     this.root.hidden = true;
     this.restoreFocus?.focus?.();
     this.opts.onToggle?.(false);
@@ -178,12 +187,38 @@ export class RadioUi {
   toggle(): void { if (this.opened) this.close(); else this.open(); }
 
   dispose(): void {
+    this.stopTheme();
     this.cleanup.splice(0).forEach((fn) => fn());
     this.tapBar.remove();
     this.root.remove();
   }
 
   /* ---------- SoundCloud stations ---------- */
+
+  private stopTheme(): void {
+    if (this.theme) { this.theme.stop(0.3); this.theme = null; }
+    if (this.themeBtn) this.themeBtn.textContent = 'Play loading theme';
+  }
+
+  /** "Loading theme": audition the original funk / disco loading-screen tune (src/audio/loadingTheme.ts). */
+  private buildThemeRow(): HTMLElement {
+    const row = this.el('div', 'rl-actions rl-theme');
+    const label = this.el('span', 'rl-note');
+    label.textContent = `Loading theme: "Bed-Stuy Boogie", an original funk / disco tune made in the game (${Math.round(LOOP_SEC)} s loop).`;
+    const btn = this.button('Play loading theme', 'rl-btn');
+    this.themeBtn = btn;
+    btn.addEventListener('click', () => {
+      if (this.theme?.playing) { this.theme.stop(0.4); this.theme = null; btn.textContent = 'Play loading theme'; return; }
+      const h = this.host.djHost;
+      if (!h) { label.textContent = 'Audio has not started yet: tap anywhere in the game first.'; return; }
+      void h.ctx.resume?.();
+      this.theme = createLoadingTheme(h.ctx, h.dest, { volume: 0.8 });
+      this.theme.start();
+      btn.textContent = 'Stop loading theme';
+    });
+    row.append(btn, label);
+    return row;
+  }
 
   private buildScGroup(): HTMLElement {
     const group = this.el('section', 'rl-sc-group');

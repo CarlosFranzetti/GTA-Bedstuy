@@ -1597,7 +1597,7 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
       trim.add(bx(0.2, 0.26, 0.64, s2 * (hw - 0.1), bed.floor + 0.15, -axleR)); // wheel-well hump
       chrome.add(bx(0.06, 0.016, len, s2 * (hw + 0.01), yRail + 0.004, mid)); // rail cap
     }
-    trim.add(bx(2 * hw, yRail - bed.floor + 0.35, 0.06, 0, (yRail + bed.floor) / 2 + 0.17, -(bed.u0 - 0.03))); // cab back wall (bed side)
+    trim.add(bx(2 * hw, yRail - bed.floor, 0.06, 0, (yRail + bed.floor) / 2, -(bed.u0 - 0.03))); // cab back wall (bed side)
     trim.add(bx(2 * hw, 0.05, 0.04, 0, bed.floor + 0.2, -(bed.u1 + 0.08))); // tailgate inner lip
     trim.add(bx(0.32, 0.04, 0.025, 0, yRail - 0.12, -(bed.u1 - 0.003))); // tailgate handle
     for (let k = 0; k < 5; k++) trim.add(bx(2 * hw - 0.1, 0.012, 0.05, 0, bed.floor + 0.03, mid + (k - 2) * 0.32)); // liner ribs

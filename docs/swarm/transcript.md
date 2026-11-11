@@ -2413,3 +2413,12 @@ start: neural TTS lane. Chose kokoro-js 1.2.1 (Apache-2.0 code+Kokoro-82M weight
 
 ### 2026-11-11T07:51:48Z · MENU
 start: verify OPTIONS wiring, then GTA V style pause menu (Menu.ts/menu.css), HUD finish, loading art+music. FOR FABLE lines at end.
+
+### 2026-11-11T07:58:26Z · FLICKER
+added GpuProfile (device->tier, 31 tests), ContextGuard, Perf auto-drop needs sustained slow share (single hitch dropped medium->low); rendering flicker metric pre vs new
+
+### 2026-11-11T07:58:35Z · CARS12
+new types built (pickup crossover minivan luxury towncar pony garbage ambulance dollarvan), look/variant system + shader wear overlay in; rendering sheets, then tests
+
+### 2026-11-11T08:02:08Z · WBURG
+start: 4 block rows north of Hart (Myrtle, Park, Flushing, Wallabout; block ids r-1..r-4, built after the old lists so streams are unchanged) with PLUTO lots, then el over Flushing Ave + 2 four-car trains + 2 stations + lime-line entrances (src/transit/**, own culling inside buildWorld). Grid + world tests green; rendering next. main.ts hooks come as FOR FABLE lines.

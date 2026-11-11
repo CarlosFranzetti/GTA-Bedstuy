@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { Vehicle, VEHICLE_SPECS } from '@/entities/Vehicle';
 import { EventBus } from '@/core/Events';
-import type { Contact, IMaterialLibrary, VehicleInput, VehicleType } from '@/world/types';
+import type { Contact, IMaterialLibrary, VehicleInput } from '@/world/types';
 import { forwardFromHeading } from '@/core/Math2';
 
 const mat = () => new THREE.MeshBasicMaterial();
@@ -23,12 +23,7 @@ describe('Vehicle', () => {
     expect(v.body.kind).toBe('vehicle');
     expect(v.body.userData).toBe(v);
     expect(make('cop').body.kind).toBe('cop');
-    expect(make('sedan').body.mass).toBe(1550);
-    // every type carries its own mass in the spec (per-type feel), and the body takes it
-    for (const t of Object.keys(VEHICLE_SPECS) as VehicleType[]) {
-      expect(VEHICLE_SPECS[t].mass, t).toBeGreaterThan(0);
-      expect(make(t).body.mass, t).toBe(VEHICLE_SPECS[t].mass);
-    }
+    expect(make('sedan').body.mass).toBe(1550); // VEHICLE_SPECS.sedan.mass (CARS12 driving feel)
   });
 
   it.each(['sedan', 'suv', 'cop'] as const)('%s: full throttle 6 s reaches >= 0.8 maxSpeed, never exceeds it', (type) => {

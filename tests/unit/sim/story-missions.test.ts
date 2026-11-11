@@ -67,14 +67,28 @@ const routeStart = (def: MissionDef, kind: string, skip = 0): { x: number; z: nu
 
 interface FailSpec { reason: string; until: number; run: (b: Bot, d: MissionDef) => void; joke?: string }
 const far = { x: 900, z: 900 };
+/** Keep within a few metres of the moving tail target (a stealth tail's worst habit). */
+const hug = (b: Bot, seconds: number): void => {
+  for (let i = 0; i < seconds * 60 && !b.m.isFailed; i++) {
+    const mk = b.m.markers.find((k) => k.id.endsWith('tail'));
+    if (mk) { b.x = mk.x + 3; b.z = mk.z; }
+    b.tick();
+  }
+};
+/** Take your post, then walk away from it. */
+const abandonPost = (b: Bot, d: MissionDef, seconds: number): void => {
+  const ob = d.objectives.find((o) => o.kind === 'stakeout')!;
+  if (ob.kind === 'stakeout') { b.teleport(ob.at); b.wait(1); }
+  b.teleport(far); b.wait(seconds);
+};
 /** How each story mission is made to fail: the reason, the beat to play up to, and what goes wrong. */
 const FAILS: Record<string, FailSpec> = {
   'notice-of-intent': { reason: 'timeUp', until: 0, run: (b) => b.wait(131), joke: 'tape' },
   'public-comment': { reason: 'lostRace', until: 2, run: (b) => b.wait(120), joke: 'lanyards' },
   'handle-with-care': { reason: 'cargoBroken', until: 2, run: (b) => { for (let i = 0; i < 3; i++) { b.m.notify({ type: 'impact', strength: 40 }); b.wait(0.1); } }, joke: 'ploughed field' },
   'back-rent': { reason: 'timeUp', until: 1, run: (b, d) => b.wait(d.timeLimit! + 1), joke: 'bank makes a decision' },
-  'fleece-vest': { reason: 'spotted', until: 2, run: (b, d) => { b.teleport({ x: routeStart(d, 'tail').x + 3, z: routeStart(d, 'tail').z }); b.wait(4); }, joke: 'fruit basket' },
-  'open-house': { reason: 'blownCover', until: 1, run: (b) => { b.teleport(far); b.wait(9); }, joke: 'falafel' },
+  'fleece-vest': { reason: 'spotted', until: 2, run: (b, d) => { b.teleport({ x: routeStart(d, 'tail').x + 3, z: routeStart(d, 'tail').z }); hug(b, 8); }, joke: 'fruit basket' },
+  'open-house': { reason: 'blownCover', until: 1, run: (b, d) => abandonPost(b, d, 9), joke: 'falafel' },
   'walk-dee-home': { reason: 'lostTarget', until: 0, run: (b) => { b.wait(0.5); b.teleport(far); b.wait(11); }, joke: 'lol where r u' },
   'repo-the-repo': { reason: 'copsCalled', until: 1, run: (b) => { b.raise(1); b.wait(0.2); }, joke: 'choir' },
   'crate-expectations': { reason: 'timeUp', until: 1, run: (b, d) => b.wait(d.timeLimit! + 1), joke: 'PARTNERING' },
@@ -82,7 +96,7 @@ const FAILS: Record<string, FailSpec> = {
   'smoke-signals': { reason: 'timeUp', until: 0, run: (b) => b.wait(91), joke: 'another go' },
   'borough-hall-express': { reason: 'cargoBroken', until: 1, run: (b) => { for (let i = 0; i < 3; i++) { b.m.notify({ type: 'impact', strength: 30 }); b.wait(0.1); } }, joke: 'collective complaint' },
   'last-call-on-throop': { reason: 'lowScore', until: 2, run: (b) => { b.m.notify({ type: 'dj:setFinished', venue: 'aftersloth', score: 5, minutes: 2 }); b.wait(0.1); }, joke: 'bass' },
-  'last-stop-north': { reason: 'blownCover', until: 3, run: (b) => { b.teleport(far); b.wait(6); }, joke: 'model unit' },
+  'last-stop-north': { reason: 'blownCover', until: 3, run: (b, d) => abandonPost(b, d, 6), joke: 'model unit' },
 };
 
 describe('story missions: every one completes, pays and plays its beats', () => {
@@ -125,6 +139,7 @@ describe('story missions: every one can fail with its joke and the retry can be 
       bot.stars = 0;
       expect(m.retry(bot.hour)).toBe(true);
       bot.inCar = false;
+      bot.teleport(def.giver); // the retry starts you back at the giver, not wherever you gave up
       bot.playUntil(def);
       expect(m.statusOf(def.id)).toBe('complete');
     });

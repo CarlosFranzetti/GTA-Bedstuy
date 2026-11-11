@@ -336,13 +336,13 @@ describe('data-driven city vs fallback', () => {
     const ms = meshesOf(a.group);
     expect(ms.length).toBeLessThanOrEqual(80); // WBURG: warehouse and balcony geometry add a few more material groups
     expect(tris(ms)).toBeLessThan(700_000 * (grid.blocks.length / 10)); // 25 blocks since B1
-  });
+  }, 120_000); // WBURG: the city has 45 blocks now; whole-city builds take longer under a loaded machine
 
   it('the data city uses no materials (draw calls) the fallback city does not', () => {
     const names = (f?: typeof faces) => new Set(meshesOf(buildBuildings(lotsOf(f), new Stub(), new Rng(data.seed).fork('buildings')).group).map((m) => (m.material as THREE.Material).name.replace(/^(awning|sign):.*/, '$1')));
     const fall = names(), dataSet = names(faces);
     expect([...dataSet].filter((n) => !fall.has(n))).toEqual([]);
-  });
+  }, 120_000); // WBURG: the city has 45 blocks now; whole-city builds take longer under a loaded machine
 
   it('specFromData maps the schema to builder specs (families, uses, cornices)', () => {
     const base = { widthM: 6, floors: 3, family: 'brickTan', stoop: true, stoopHeightM: 1.5, cornice: 'bracketed', bays: 3, use: 'residential', trees: 1, scaffold: false, depthM: 14, confidence: 'M', note: '' } as const;

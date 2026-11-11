@@ -8,6 +8,7 @@
  */
 import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
+import { DETAIL_GLSL, detailAtlasTexture } from '@/textures/detailAtlas';
 
 export const VARIATION_SIZE = 256;
 /** world metres covered by one repeat of the field at the large / small scale */
@@ -177,6 +178,7 @@ export function patchGroundDetail(m: THREE.MeshStandardMaterial, kind: GroundDet
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (shader, renderer) => {
     prev?.call(m, shader, renderer);
+    shader.uniforms.tDetail = { value: detailAtlasTexture() };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vGdW;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGdW = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
@@ -188,7 +190,8 @@ float gdNoise( vec2 p ) {
   vec2 i = floor( p ); vec2 f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
   return mix( mix( gdHash( i ), gdHash( i + vec2( 1.0, 0.0 ) ), f.x ), mix( gdHash( i + vec2( 0.0, 1.0 ) ), gdHash( i + vec2( 1.0, 1.0 ) ), f.x ), f.y );
 }
-float gdRect( vec2 pf, vec4 r ) { vec2 q = step( r.xy, pf ) * step( pf, r.xy + r.zw ); return q.x * q.y; }`)
+float gdRect( vec2 pf, vec4 r ) { vec2 q = step( r.xy, pf ) * step( pf, r.xy + r.zw ); return q.x * q.y; }
+${DETAIL_GLSL}`)
       .replace('#include <map_fragment>', `#include <map_fragment>
 {
   vec2 gw = vGdW.xz;
@@ -210,6 +213,17 @@ float gdRect( vec2 pf, vec4 r ) { vec2 q = step( r.xy, pf ) * step( pf, r.xy + r
       diffuseColor.rgb *= 1.0 - run * ( 1.0 - smoothstep( 0.38, 0.42, d ) ) * 0.4;
       diffuseColor.rgb *= 1.0 + run * ( smoothstep( 0.38, 0.42, d ) - smoothstep( 0.5, 0.56, d ) ) * 0.28;
     }
+    vec2 kc = gw / 29.0; vec2 ki = floor( kc ); float kh = gdHash( ki + 71.0 );
+    if ( kh > 0.82 ) {
+      // Belgian block showing through worn asphalt
+      vec4 kr = vec4( 0.15 + gdHash( ki + 1.1 ) * 0.3, 0.15 + gdHash( ki + 2.2 ) * 0.3, 0.2 + gdHash( ki + 3.3 ) * 0.25, 0.1 + gdHash( ki + 4.4 ) * 0.12 );
+      vec2 kf = fract( kc ) + ( vec2( gdNoise( gw * 1.3 ), gdNoise( gw * 1.3 + 3.1 ) ) - 0.5 ) * 0.03;
+      vec2 ke = min( kf - kr.xy, kr.xy + kr.zw - kf );
+      float kedge = min( ke.x, ke.y );
+      float km = smoothstep( 0.0, 0.01, kedge );
+      vec3 kcol = vec3( 0.42, 0.4, 0.37 ) * dtlGain( 2.0, gw / 2.4, 1.5 ) * ( 0.75 + 0.5 * gdNoise( gw * 0.7 ) );
+      diffuseColor.rgb = mix( diffuseColor.rgb, kcol, km * 0.9 );
+    }
     vec2 oc = gw / 4.5; vec2 oi = floor( oc ); float oh = gdHash( oi + 21.0 );
     if ( oh > 0.84 ) {
       vec2 ctr = vec2( 0.3 + gdHash( oi + 1.0 ) * 0.4, 0.3 + gdHash( oi + 2.0 ) * 0.4 );
@@ -223,10 +237,18 @@ float gdRect( vec2 pf, vec4 r ) { vec2 q = step( r.xy, pf ) * step( pf, r.xy + r
     if ( sh > 0.9 ) diffuseColor.rgb *= vec3( 1.1, 1.12, 1.15 );
     if ( sh < 0.1 ) diffuseColor.rgb *= vec3( 0.86, 0.82, 0.76 );
     vec2 pc = gw / 6.0; vec2 pi = floor( pc ); float ph = gdHash( pi + 31.0 );
-    if ( ph > 0.9 ) {
-      vec4 r = vec4( gdHash( pi + 1.3 ) * 0.3, gdHash( pi + 2.9 ) * 0.3, 0.2 + gdHash( pi + 4.1 ) * 0.35, 0.15 + gdHash( pi + 5.7 ) * 0.3 );
-      diffuseColor.rgb = mix( diffuseColor.rgb, vec3( gdLum * 0.62 ), gdRect( fract( pc ), r ) * 0.8 );
+    if ( ph > 0.88 ) {
+      // re-poured slab section: warped soft edge, a tone shift that keeps the slab texture, a dark joint line at the edge
+      vec4 r = vec4( gdHash( pi + 1.3 ) * 0.3, gdHash( pi + 2.9 ) * 0.3, 0.3 + gdHash( pi + 4.1 ) * 0.4, 0.3 + gdHash( pi + 5.7 ) * 0.5 );
+      vec2 pf = fract( pc ) + ( vec2( gdNoise( gw * 2.1 ), gdNoise( gw * 2.1 + 7.3 ) ) - 0.5 ) * 0.04;
+      vec2 pe = min( pf - r.xy, r.xy + r.zw - pf );
+      float pedge = min( pe.x, pe.y );
+      float pm = smoothstep( 0.0, 0.015, pedge );
+      float pseam = step( 0.0, pedge ) * ( 1.0 - smoothstep( 0.004, 0.014, pedge ) );
+      vec3 ptone = ph > 0.95 ? vec3( 0.84, 0.82, 0.78 ) : vec3( 1.1, 1.1, 1.12 );
+      diffuseColor.rgb *= mix( vec3( 1.0 ), ptone, pm ) * ( 1.0 - 0.35 * pseam );
     }
+    // old paving showing through: stone-block patches in the asphalt are in the asphalt branch
     float crack = 1.0 - smoothstep( 0.0, 0.014, abs( gdNoise( gw * 1.7 + 4.0 ) - 0.5 ) );
     crack *= smoothstep( 0.55, 0.7, gdNoise( gw * 0.25 ) );
     diffuseColor.rgb *= 1.0 - crack * 0.45;
@@ -247,7 +269,7 @@ float gdRect( vec2 pf, vec4 r ) { vec2 q = step( r.xy, pf ) * step( pf, r.xy + r
 }`);
   };
   const prevKey = m.customProgramCacheKey;
-  m.customProgramCacheKey = () => `${prevKey ? prevKey.call(m) : ''}|gdetail1-${id}`;
+  m.customProgramCacheKey = () => `${prevKey ? prevKey.call(m) : ''}|gdetail2-${id}`;
   m.needsUpdate = true;
 }
 

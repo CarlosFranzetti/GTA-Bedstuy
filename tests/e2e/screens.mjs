@@ -1,4 +1,4 @@
-// Headless capture of the 10 standard review viewpoints (SwiftShader WebGL) plus a JSON of window.__gtaStats per frame.
+// Headless capture of the 14 standard review viewpoints (SwiftShader WebGL) plus a JSON of window.__gtaStats per frame.
 // (1-7 are the original ten-block viewpoints; 8-10 sit in the east expansion: Lewis Ave corner, Malcolm X aerial, Stuyvesant night.)
 //
 // Usage:  node tests/e2e/screens.mjs <outDir> [--port 4310] [--q low] [--width 640] [--height 360]
@@ -14,6 +14,7 @@
 //   1-noon-street.png  2-noon-corner.png  3-golden-aerial.png  4-dusk-car.png
 //   5-night-car.png    6-night-corner.png 7-morning-signals.png
 //   8-lewis-corner.png 9-malcolmx-aerial.png 10-stuyvesant-night.png
+//   11-flushing-el.png 12-el-train-dusk.png 13-wburg-row.png 14-north-aerial.png   (WBURG: north rows, the el and a train at Flushing Av)
 //   stats.json   { label, url, viewport, errors[], frames: [{ name, hour, stats }], ... }
 //
 // Viewpoints (metres, +x east, +z south; heading 0 = north) come from Fable's 7-viewpoint check-in capture.
@@ -156,6 +157,14 @@ async function capture() {
     await moveTo(991, 112); await freeCam([975, 34, 175, 900, 2, 60]); await hour(17.5); await shot('9-malcolmx-aerial', 17.5);
     // 10: on Stuyvesant Ave at night looking north up the avenue
     await moveTo(752, 80); await freeCam([752, 2.8, 70, 749, 4, -80]); await hour(22); await shot('10-stuyvesant-night', 22);
+    // WBURG 11-14: the four block rows north of Hart (Myrtle, Park, Flushing, Wallabout) and the el over Flushing Ave. 11 and 12 need window.__gtaDebug.transit
+    // (world.transit); the clock of the trains is set so the west-bound train stands at the Flushing Av platform with its doors open.
+    const atStation = (id, station) => dbg(([id, station]) => { const t = window.__gtaDebug.transit; if (!t) return -1; for (let s = 0; s < 240; s += 0.5) { t.setTime(s); const st = t.stateOf(id); if (st.phase === 'dwell' && st.station === station && st.doors > 0.99) return s; } return -1; }, [id, station]);
+    await moveTo(330, -470); await atStation('eb', 0);
+    await freeCam([285, 2.3, -486, 372, 9.6, -500]); await hour(12); await shot('11-flushing-el', 12);
+    await freeCam([352, 1.8, -488, 392, 10.2, -500]); await hour(19.3); await shot('12-el-train-dusk', 19.3);
+    await moveTo(6, -520); await freeCam([6, 2.4, -515, 1, 6, -590]); await hour(12); await shot('13-wburg-row', 12);
+    await moveTo(200, -300); await freeCam([205, 95, -215, 205, 0, -520]); await hour(17.5); await shot('14-north-aerial', 17.5);
   } finally {
     await page.close().catch(() => {});
   }
@@ -178,6 +187,6 @@ try {
   await browser.close();
   preview.kill();
 }
-log(`${frames.length}/${opt.only ? opt.only.split(',').length : 10} frames, ${errors.length} console errors, output in ${opt.out}`);
+log(`${frames.length}/${opt.only ? opt.only.split(',').length : 14} frames, ${errors.length} console errors, output in ${opt.out}`);
 if (errors.length) console.error('[screens] console errors:', errors.slice(0, 5));
-process.exitCode = failed || frames.length < (opt.only ? opt.only.split(',').length : 10) ? 1 : 0;
+process.exitCode = failed || frames.length < (opt.only ? opt.only.split(',').length : 14) ? 1 : 0;

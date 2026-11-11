@@ -59,6 +59,8 @@ const DEFAULT_BANTER_EVERY = 11;
 const DEFAULT_TAIL_GRACE = 6;
 const DEFAULT_SPOT_GRACE = 2.5;
 const DEFAULT_STAKEOUT_SLACK = 6;
+/** After this many seconds a vehicle-type gate relaxes: any wheels will do (no soft-lock when the bus never comes). */
+const VEHICLE_SOFT_S = 45;
 const FRAGILE_HP = 100;
 const FRAGILE_MIN_IMPACT = 3;
 const FRAGILE_PER_IMPACT = 1.6;
@@ -149,6 +151,8 @@ export class MissionSystem {
   private spotted = 0;
   private slackUsed = 0;
   private stakeEvt = 0;
+  private stakeIn = false;
+  private softHinted = false;
   private rival = { x: 0, z: 0, leg: 0, moved: 0, total: 1, pause: 0, stumble: 0, done: false, cp: 0 };
 
   constructor(defs: readonly MissionDef[], opts: MissionSystemOptions = {}) {
@@ -562,7 +566,7 @@ export class MissionSystem {
   private resetObjective(): void {
     this.talkIdx = 0; this.presses = 0; this.done = false; this.fastFor = 0; this.banterIdx = 0; this.banterT = 0;
     this.collected = []; this.bought = new Set(); this.sold = 0; this.custT = 0; this.custStay = 0; this.custAt = null; this.custN = 0;
-    this.movingT = 0; this.spotsDone = []; this.forkOpts = []; this.spotted = 0; this.slackUsed = 0; this.stakeEvt = 0;
+    this.movingT = 0; this.spotsDone = []; this.forkOpts = []; this.spotted = 0; this.slackUsed = 0; this.stakeEvt = 0; this.stakeIn = false; this.softHinted = false;
     this.subQueue = []; this.subHold = 0;
     this.rival = { x: 0, z: 0, leg: 0, moved: 0, total: 1, pause: 0, stumble: 0, done: false, cp: 0 };
     this.tail = { x: 0, z: 0, leg: 0, engaged: false, atEnd: false, lost: 0, dist: 0, total: 1, moved: 0 };
@@ -690,7 +694,8 @@ export class MissionSystem {
   }
 
   private evalStakeoutFail(ob: Extract<ObjectiveDef, { kind: 'stakeout' }>, pos: Vec2, dt: number): FailReason | null {
-    if (inCircle(pos, ob.at, ob.radius)) return null;
+    if (inCircle(pos, ob.at, ob.radius)) { this.stakeIn = true; return null; }
+    if (!this.stakeIn) return null; // still on the way to the post
     this.slackUsed += dt;
     return this.slackUsed > (ob.slack ?? DEFAULT_STAKEOUT_SLACK) ? 'blownCover' : null;
   }
@@ -767,7 +772,10 @@ export class MissionSystem {
   /** The host's vehicle type satisfies the objective's `vehicle` list (waived when the host does not report types). */
   private vehOk(ob: ObjectiveDef): boolean {
     if (!ob.vehicle || this.hostVehicle === '' || !this.hostInVehicle) return true;
-    return ob.vehicle.includes(this.hostVehicle);
+    if (ob.vehicle.includes(this.hostVehicle)) return true;
+    if (this.objElapsed < VEHICLE_SOFT_S) return false;
+    if (!this.softHinted) { this.softHinted = true; this.toast('Fine. Any wheels will do.', 'info'); }
+    return true;
   }
 
   private evalRace(ob: Extract<ObjectiveDef, { kind: 'race' }>, pos: Vec2, inVehicle: boolean): boolean {

@@ -352,5 +352,5 @@ describe('facade depth and detail', () => {
     const grow = g.blocks.length / 10;
     expect(tris).toBeLessThan(660_000 * grow);
     expect(tris).toBeGreaterThan(400_000);
-  });
+  }, 120_000); // WBURG: the city has 45 blocks now; whole-city builds take longer under a loaded machine
 });

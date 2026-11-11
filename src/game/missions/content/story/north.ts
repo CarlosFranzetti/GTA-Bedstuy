@@ -55,7 +55,7 @@ export function lastStopNorth(_ctx: PlaceCtx, el: NonNullable<StoryFeatures['el'
         banter: ['The model has tiny people. Every tiny person is holding a tiny coffee. None of the tiny people are Black. The tiny dog is.'],
       },
       { kind: 'stakeout', at: unit, radius: 10, seconds: 20, slack: 5, presence: 'onFoot', failIfStars: 1, text: 'Stand quietly while the tour group passes', events: [{ at: 6, text: 'A guide: "And here we have the community-forward ground floor."' }] },
-      { kind: 'goTo', at: el.home, radius: 14, presence: 'any', text: 'Ride home with the photographs' },
+      { kind: 'goTo', at: el.home, radius: 14, presence: 'any', text: 'Ride home with the photographs', say: [{ who: 'Yossi', text: 'Send me the tiny trees. All of them. Slowly, so I can feel it.' }] },
     ],
     reward: { cash: 320, message: 'Yossi: "You photographed a tiny tree for me. I will never be able to repay a tiny tree."' },
     retryHint: 'the model is still on its plinth',

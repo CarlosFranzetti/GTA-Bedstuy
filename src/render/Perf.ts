@@ -46,6 +46,20 @@ export function onePercentLowFps(ring: FrameRing, scratch: Float32Array = new Fl
   return avgMs > 0 ? 1000 / avgMs : 0;
 }
 
+/**
+ * Share (0..1) of the stored frames slower than `thresholdMs`. The auto drop needs this to be sustained (>= SLOW_SHARE_MIN):
+ * a lone shader-compile or GC hitch moves the 1% low a lot but is 1 frame in 600, and must not downgrade the whole game
+ * (a visible quality jump that reads as a graphics glitch, worst on a Mac, where Metal compiles pipelines on first use).
+ */
+export function slowFrameShare(ring: FrameRing, thresholdMs: number, scratch: Float32Array = new Float32Array(ring.capacity)): number {
+  const n = ring.copyTo(scratch);
+  if (n === 0) return 0;
+  let c = 0;
+  for (let i = 0; i < n; i++) if (scratch[i] > thresholdMs) c++;
+  return c / n;
+}
+export const SLOW_SHARE_MIN = 0.05;
+
 export interface HeapSample { t: number; bytes: number; }
 
 /**
@@ -163,7 +177,7 @@ export class PerfMonitor {
     if (o.getQuality() !== 'medium') return;
     const low = onePercentLowFps(this.ring, this.scratch);
     this.lowFps = low;
-    if (low < o.minLowFps) {
+    if (low < o.minLowFps && slowFrameShare(this.ring, 1000 / o.minLowFps, this.scratch) >= SLOW_SHARE_MIN) {
       this.dropped = true;
       o.log(`[perf] 1% low ${low.toFixed(1)} fps < ${o.minLowFps} at medium: dropping to low quality`);
       o.setQuality('low');

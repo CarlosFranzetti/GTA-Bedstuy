@@ -20,6 +20,10 @@ import { SCRIPTS, fillScript, shortStreet, spokenTime, weatherPhrase, type Weath
 
 /** At most one unprompted announcement per this many seconds. */
 export const ANNOUNCER_MIN_GAP_S = 8 * 60;
+/** A fresh story bulletin is read once this long after the last announcement (instead of waiting for the 8 minute gap). */
+export const ANNOUNCER_NEWS_GAP_S = 45;
+/** Chance that an unprompted one-liner is a story ad when ads are loaded. */
+export const ANNOUNCER_AD_CHANCE = 0.3;
 /** Wait after a tune-in or a set change so the station jingle is not talked over. */
 export const ANNOUNCER_JINGLE_DELAY_S = 1.8;
 /** Minimum seconds between two tune-in IDs. */
@@ -35,6 +39,10 @@ export interface BroadcastContext {
   /** Rain intensity 0..1. */
   rain: number;
   street: string;
+  /** Story news (newest first), read once each: the story director's `broadcast().bulletins`. */
+  bulletins?: readonly string[];
+  /** Story ads that may replace a one-liner (`broadcast().ads`). */
+  ads?: readonly string[];
 }
 
 export const DEFAULT_BROADCAST: BroadcastContext = { hour: -1, weather: 'dry', rain: 0, street: 'Throop Ave' };
@@ -94,6 +102,7 @@ export class Announcer {
   private voices: Record<string, VoiceLike | null> | null = null;
   private voiceCount = -1;
   private readonly bags = new Map<string, number[]>();
+  private readonly newsHeard = new Set<string>();
   /** Everything that was announced, newest last (tests and the transcript). */
   readonly history: Array<{ station: string; kind: AnnounceKind; text: string }> = [];
 
@@ -195,6 +204,7 @@ export class Announcer {
         break;
       default:
         if (this.sinceLast >= ANNOUNCER_MIN_GAP_S) this.idle();
+        else if (this.sinceLast >= ANNOUNCER_NEWS_GAP_S && this.nextBulletin() !== null) this.speakBulletin();
     }
   }
 
@@ -211,10 +221,26 @@ export class Announcer {
 
   /* ---------- internals ---------- */
 
+  /** The newest story bulletin this announcer has not read yet. */
+  private nextBulletin(): string | null {
+    for (const b of this.env.context().bulletins ?? []) if (!this.newsHeard.has(b)) return b;
+    return null;
+  }
+
+  private speakBulletin(): void {
+    const b = this.nextBulletin();
+    if (b === null) return;
+    this.newsHeard.add(b);
+    this.begin('ident', ['News.', b]);
+  }
+
   /** One unprompted line: mostly one-liners, sometimes the clock and weather. */
   private idle(): void {
     const def = this.def;
     if (!def) return;
+    if (this.nextBulletin() !== null) { this.speakBulletin(); return; }
+    const ads = this.env.context().ads;
+    if (ads && ads.length > 0 && this.env.random() < ANNOUNCER_AD_CHANCE) { this.begin('ident', [this.pick(ads)]); return; }
     const s = SCRIPTS[def.id];
     if (this.env.random() < 0.3) {
       const ctx = this.env.context();

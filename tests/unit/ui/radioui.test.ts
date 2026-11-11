@@ -34,6 +34,15 @@ describe('RadioUi', () => {
   let ctx: ReturnType<typeof make>;
   beforeEach(() => { ctx = make(); });
 
+  it('has an auditionable Loading theme row that needs started audio', () => {
+    const { ui } = ctx;
+    const b = btn(ui.root, 'Play loading theme');
+    expect(b).toBeTruthy();
+    b.click();
+    expect(ui.root.textContent).toContain('Audio has not started yet');
+    expect(b.textContent).toBe('Play loading theme');
+  });
+
   it('is a hidden modal dialog until opened, and reports open/close', () => {
     const { ui, onToggle } = ctx;
     expect(ui.root.hidden).toBe(true);

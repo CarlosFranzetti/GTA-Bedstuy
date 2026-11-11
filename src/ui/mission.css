@@ -304,3 +304,7 @@
 .hud-root.touch .msn-sub { bottom: 220px; max-width: calc(100% - 32px); font-size: 16px; }
 @media (max-height: 420px) { .hud-root.touch .msn-sub { bottom: 14px; max-width: calc(100% - 420px); font-size: 14px; } }
 @media (prefers-reduced-motion: reduce) { .msn-cash-delta.show, .msn-sub.in { animation: none; } }
+
+/* story dialogue: the speaker's name leads the subtitle line */
+.msn-sub .msn-who { color: #f5c542; font-weight: 700; margin-right: 2px; }
+.msn-sub .msn-who::after { content: ':'; }

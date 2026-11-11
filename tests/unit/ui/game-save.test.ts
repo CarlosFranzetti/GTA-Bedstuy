@@ -46,7 +46,7 @@ describe('GameSave round trip', () => {
     w.live.pose = { x: -42.5, z: 99, heading: 3, inCar: true, vehicleType: 'taxi' };
     w.live.wanted = 3; w.live.weather = 'rain'; w.live.station = 'Wax FM'; w.live.hour = 22.25; w.live.day = 4;
     const snap = JSON.parse(JSON.stringify(captureSave(w.parts, 1000)));
-    expect(snap.v).toBe(2);
+    expect(snap.v).toBe(3);
     expect(snap.cash).toBe(420);
 
     const w2 = world();
@@ -87,9 +87,9 @@ describe('GameSave round trip', () => {
 });
 
 describe('migration', () => {
-  it('v1 position-only save becomes v2 with the rest left undefined', () => {
+  it('v1 position-only save becomes v3 with the rest left undefined', () => {
     const s = migrateSave({ x: 1, z: 2, heading: 0.5, hour: 30 }, 5)!;
-    expect(s).toMatchObject({ v: 2, savedAt: 5, pose: { x: 1, z: 2, heading: 0.5, inCar: false }, hour: 6 });
+    expect(s).toMatchObject({ v: 3, savedAt: 5, pose: { x: 1, z: 2, heading: 0.5, inCar: false }, hour: 6 });
     expect(s.cash).toBeUndefined();
     const w = world();
     w.inventory.add(10);
@@ -263,27 +263,23 @@ describe('Save panel, menu and phone', () => {
     expect(root.querySelector('.sv-msg')!.textContent).toContain('Imported');
   });
 
-  it('the pause menu opens the save screen and Escape steps back before closing', () => {
+  it('the pause menu has a SAVE tab with the slots; loading a slot closes the menu', () => {
     const w = world();
     const mgr = new SaveManager(new SaveStore(memStore())); mgr.bind(w.parts);
     const menu = new Menu(root, {}, { saves: mgr, storage: null, openOnPointerUnlock: false });
     menu.open();
-    root.querySelector<HTMLButtonElement>('.menu-save-btn')!.click();
-    expect(menu.savingView).toBe(true);
+    root.querySelector<HTMLButtonElement>('.menu-tab[data-tab="save"]')!.click();
+    expect(menu.tabName).toBe('save');
     expect(root.querySelector('.sv-slot')).not.toBeNull();
-    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
-    expect(menu.savingView).toBe(false);
-    expect(menu.isOpen).toBe(true);
-    menu.showSave(true);
     root.querySelector<HTMLButtonElement>('.sv-slot[data-slot="slot2"] .sv-save')!.click();
     expect(mgr.slot('slot2').empty).toBe(false);
     root.querySelector<HTMLButtonElement>('.sv-slot[data-slot="slot2"] .sv-load')!.click();
     expect(menu.isOpen).toBe(false); // loading closes the menu so the game resumes
   });
 
-  it('a menu without saves has no Save button visible', () => {
+  it('a menu without saves has no SAVE tab', () => {
     new Menu(root, {}, { storage: null, openOnPointerUnlock: false });
-    expect(root.querySelector<HTMLElement>('.menu-save-btn')!.hidden).toBe(true);
+    expect(root.querySelector<HTMLElement>('.menu-tab[data-tab="save"]')!.hidden).toBe(true);
   });
 
   it('the phone has a Save tab', () => {

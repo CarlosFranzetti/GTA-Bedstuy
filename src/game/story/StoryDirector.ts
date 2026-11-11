@@ -40,7 +40,7 @@ export interface DirectorOptions {
 }
 
 const CHAPTER_LINES: Record<string, string> = {
-  'notice-of-intent': 'Notice of Intent: four doors, four notices, one LLC with a UPS Store for a face.',
+  'notice-of-intent': 'Notice of Intent: four doors, four notices, one LLC with a mailbox rental for a face.',
   'public-comment': 'Public Comment: three minutes, a cab, a rival lanyard, a vote that was always 4-3.',
   'handle-with-care': 'Handle With Care: Odette\'s test pressings made it across Bed-Stuy with their grooves.',
   'back-rent': 'Back Rent: Odette was short. You chose how she got whole.',

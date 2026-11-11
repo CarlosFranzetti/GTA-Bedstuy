@@ -213,7 +213,7 @@ describe('lotsForFace', () => {
           expect(ins.b).toBeGreaterThan(8);
           expect(sum + ins.a + ins.b).toBeCloseTo(total, 6);
         }
-        expect(lots.length).toBeGreaterThanOrEqual(3);
+        expect(lots.length).toBeGreaterThanOrEqual(2); // WBURG: a public-housing face is two towers and a lawn
         for (const l of lots) expect(l.widthM).toBeGreaterThan(2.5);
       }
     }

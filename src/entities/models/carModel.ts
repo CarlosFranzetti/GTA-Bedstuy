@@ -400,7 +400,7 @@ function rearDualPair(R: number, w: number, span: number, kind: WheelKind, lv: C
   let g = rearDualCache.get(key);
   if (!g) {
     const wg = wheelGeos(R, w, kind, lv), d = 1.12 * w;
-    g = new Acc().add(wg.left.clone().translate(d, 0, 0)).add(wg.right.clone().translate(span - d, 0, 0)).merge();
+    g = new Acc().add(wg.left.clone()).add(wg.right.clone().translate(span, 0, 0)).add(wg.left.clone().translate(d, 0, 0)).add(wg.right.clone().translate(span - d, 0, 0)).merge();
     rearDualCache.set(key, g);
   }
   return g;
@@ -663,8 +663,8 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
     if (split) {
       if (w.front) mesh(w.x < 0 ? wg.left : wg.right, tyreMat, 'tyre', roll);
       else if (w.x < 0) {
-        mesh(rearPair(parts.wheelR, parts.wheelW, -2 * w.x, wkind, lv), tyreMat, 'tyre', roll);
-        if (parts.dualRear) mesh(rearDualPair(parts.wheelR, parts.wheelW, -2 * w.x, wkind, lv), tyreMat, 'tyre', roll); // the far proxies keep the dual rear tyres
+        // dual rear axles: the inner tyres ride in the same mesh, so the far proxies keep them without a draw more
+        mesh(parts.dualRear ? rearDualPair(parts.wheelR, parts.wheelW, -2 * w.x, wkind, lv) : rearPair(parts.wheelR, parts.wheelW, -2 * w.x, wkind, lv), tyreMat, 'tyre', roll);
       }
     }
     steer.add(roll);

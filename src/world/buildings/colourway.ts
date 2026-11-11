@@ -12,8 +12,10 @@ import type { LotSpec, MaterialFamily } from './facade';
 
 export type RGB = [number, number, number];
 
-/** Wall surface kinds; the value is what the shader branches on (`kind * 32` is stored in `aStyle.x`). */
-export const WallKind = { brick: 0, siding: 1, stucco: 2, panel: 3, glazed: 4, trim: 5, awning: 6, stripedAwning: 7 } as const;
+/** Wall surface kinds; the value is what the shader branches on (`kind * KIND_STEP` is stored in `aStyle.x`). */
+export const WallKind = { brick: 0, siding: 1, stucco: 2, panel: 3, glazed: 4, trim: 5, awning: 6, stripedAwning: 7, gate: 8, party: 9 } as const;
+/** `kind * KIND_STEP` is the byte stored in `aStyle.x` (kinds 0..10 fit). */
+export const KIND_STEP = 24;
 export type WallKindValue = (typeof WallKind)[keyof typeof WallKind];
 
 export interface Colourway {
@@ -223,8 +225,8 @@ export interface ToneBytes { tone: [number, number, number, number]; style: [num
 
 const b = (v: number): number => Math.max(0, Math.min(255, Math.round(v)));
 const wallStyle = (cw: Colourway, kind: number, party: boolean): [number, number, number, number] =>
-  [b(kind * 32), b(cw.mortar * 255), b(cw.seed * 255), b(cw.weather * 255 * (party ? 1.15 : 1))];
-const flatStyle = (cw: Colourway): [number, number, number, number] => [b(WallKind.trim * 32), 128, b(cw.seed * 255), b(cw.weather * 120)];
+  [b(kind * KIND_STEP), b(cw.mortar * 255), b(cw.seed * 255), b(cw.weather * 255 * (party ? 1.15 : 1))];
+const flatStyle = (cw: Colourway): [number, number, number, number] => [b(WallKind.trim * KIND_STEP), 128, b(cw.seed * 255), b(cw.weather * 120)];
 
 /**
  * Tone for the vertices of material `name` in a lot: `frontFace` is true for street-facing quads of a front-family material
@@ -235,7 +237,7 @@ export function toneFor(name: string, cw: Colourway, frontFace: boolean, limesto
   if (WALLS.test(name)) {
     if (frontFace) return { tone: [...cw.front, b(cw.paint * 255)], style: wallStyle(cw, cw.kind, false) };
     const p = cw.party[Math.max(0, Math.min(3, v))];
-    return { tone: [...p, b((v >= 2 ? 0.9 : 0.35) * 255)], style: wallStyle(cw, WallKind.brick, true) };
+    return { tone: [...p, b((v >= 2 ? 0.9 : 0.35) * 255)], style: wallStyle(cw, WallKind.party, true) };
   }
   if (name.startsWith('limestone:')) {
     if (limestoneIsFront && frontFace) return { tone: [...cw.front, b(cw.paint * 255)], style: wallStyle(cw, cw.kind === WallKind.brick ? WallKind.brick : WallKind.trim, false) };
@@ -246,10 +248,10 @@ export function toneFor(name: string, cw: Colourway, frontFace: boolean, limesto
     const s: RGB = [b(f[0] * 0.78 + 20), b(f[1] * 0.78 + 20), b(f[2] * 0.78 + 20)];
     return { tone: [...s, 235], style: flatStyle(cw) };
   }
-  if (name === 'awning:#8a3b2e|') return { tone: [...cw.awning[0], 250], style: [b((cw.striped ? WallKind.stripedAwning : WallKind.awning) * 32), 128, b(cw.seed * 255), 0] };
-  if (name === 'awning:#27303a|') return { tone: [...cw.awning[1], 250], style: [b(WallKind.awning * 32), 128, b(cw.seed * 255), 0] };
+  if (name === 'awning:#8a3b2e|') return { tone: [...cw.awning[0], 250], style: [b((cw.striped ? WallKind.stripedAwning : WallKind.awning) * KIND_STEP), 128, b(cw.seed * 255), 0] };
+  if (name === 'awning:#27303a|') return { tone: [...cw.awning[1], 250], style: [b(WallKind.awning * KIND_STEP), 128, b(cw.seed * 255), 0] };
   if (name.startsWith('cornice:')) return { tone: [...cw.cornice, 235], style: flatStyle(cw) };
-  if (name.startsWith('rollGate:')) return { tone: [...cw.gate, 235], style: flatStyle(cw) };
+  if (name.startsWith('rollGate:')) return { tone: [...cw.gate, 235], style: [b(WallKind.gate * KIND_STEP), 128, b(cw.seed * 255), b(cw.weather * 255)] };
   if (name.startsWith('metalDark:') || name.startsWith('castIronFence:')) return { tone: [...cw.metal, 245], style: flatStyle(cw) };
   return null;
 }
