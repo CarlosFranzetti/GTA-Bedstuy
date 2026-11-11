@@ -400,6 +400,17 @@ describe('chunk layout', () => {
   });
 });
 
+describe('cells', () => {
+  it('default keeps the core network at one cell per material (draws <= today\'s 17); cellM 128 splits on the 128 m hash', () => {
+    const one = buildRoadMeshes(coreNet, coreDerived, mats, { tier: 'low' });
+    expect(meshStats(one).meshes).toBeLessThanOrEqual(17);
+    const split = buildRoadMeshes(coreNet, coreDerived, mats, { tier: 'low', cellM: 128 });
+    expect(meshStats(split).meshes).toBeGreaterThan(200);
+    expect(meshStats(split).triangles).toBe(meshStats(one).triangles);
+    expect(split.userData.chunkLayout.cellX).toBe(128);
+  });
+});
+
 describe('budget on the core network (computed from geometry, no render)', () => {
   it('triangles and meshes per tier are sane and monotone', () => {
     const res = (['phone', 'low', 'medium', 'high'] as const).map((tier) => ({ tier, ...meshStats(buildRoadMeshes(coreNet, coreDerived, mats, { tier })) }));

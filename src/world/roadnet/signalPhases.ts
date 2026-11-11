@@ -94,8 +94,24 @@ export function signalGroups(net: RoadNet, d: Derived, cluster: number[]): numbe
     for (const id of g) { sx += Math.cos(2 * d.legs[id].angle); sz += Math.sin(2 * d.legs[id].angle); }
     return axisOf(Math.atan2(sz, sx) / 2);
   };
+  const streetsOf = (g: number[]): Set<string> => new Set(g.map((id) => net.streetIdOf(d.legs[id].edge)));
+  // one street never sits in two phases (a car on it is identified by street id): groups that share a street merge first
+  for (let again = true; again;) {
+    again = false;
+    outer: for (let i = 0; i < groups.length; i++) {
+      const si = streetsOf(groups[i]);
+      for (let j = i + 1; j < groups.length; j++) {
+        if ([...streetsOf(groups[j])].some((s) => si.has(s))) {
+          groups[i] = groups[i].concat(groups[j]);
+          groups.splice(j, 1);
+          again = true;
+          break outer;
+        }
+      }
+    }
+  }
   const target = legs.length >= 5 ? 3 : 2;
-  // merge the two groups with the closest axes until the target count is reached
+  // then merge the two groups with the closest axes until the target count is reached
   while (groups.length > target) {
     let bi = 0, bj = 1, best = Infinity;
     for (let i = 0; i < groups.length; i++) {
@@ -115,9 +131,13 @@ export function signalGroups(net: RoadNet, d: Derived, cluster: number[]): numbe
   return groups;
 }
 
-/** is this cluster a signal? (any node 'signal' and at least two phase groups to alternate) */
+/**
+ * is this cluster a signal? (a node is 'signal', it is a real junction with 3+ approach legs, and its legs form at least two
+ * phase groups to alternate; a street meeting only itself has one group and works as an all-way stop)
+ */
 export function clusterIsSignal(net: RoadNet, d: Derived, cluster: number[], control: readonly ControlTruth[]): boolean {
   if (!cluster.some((v) => control[v] === 'signal')) return false;
+  if (approachLegs(net, d, cluster).length < MIN_JUNCTION_LEGS) return false;
   return signalGroups(net, d, cluster).length >= 2;
 }
 

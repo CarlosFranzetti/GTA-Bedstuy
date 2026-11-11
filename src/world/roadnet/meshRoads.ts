@@ -32,7 +32,10 @@ export interface RoadMeshOptions {
   tier: Quality;
   /** centre lines, stop bars and zebra bands (default true) */
   markings?: boolean;
-  /** render cell size in metres; default 128 m (roads are cheap in triangles, expensive in draws: see chunksReal.ts) */
+  /**
+   * render cell size in metres. Default: ONE cell while the network has <= AUTO_SINGLE_CELL_TRIS triangles, else 256 m. Measured on the
+   * R1+R2 core: 60 k road triangles in total but 141..513 draws per view at 128 m cells (today: 17 draws), 9 draws unsplit.
+   */
   cellM?: number;
   /** where a zebra is drawn: (edge, node) pairs of the pedestrian graph's crosswalks; default buildSidewalkGraph(net, d).crosswalks */
   crosswalks?: ReadonlyArray<{ edge: number; node: number }>;
@@ -65,6 +68,9 @@ const EDGE_W = 0.12;
 /** a ribbon shorter than this gets no markings (two crosswalk bands and two stop bars would collide) */
 const MIN_MARKED_RIBBON = 9;
 const MIN_RIBBON = 0.05;
+/** below this many road triangles the whole network stays one cell per material (draw calls cost more than the triangles) */
+export const AUTO_SINGLE_CELL_TRIS = 150_000;
+const SINGLE_CELL_M = 1e6;
 
 type V3 = [number, number, number];
 
@@ -446,7 +452,9 @@ export function buildRoadMeshes(net: RoadNet, d: Derived, mats: WorldMaterials, 
     parts[s.part].add(mesh);
   }
   const base = chunkLayoutFromBounds(net.bounds, false);
-  const cell = opts.cellM ?? 128;
+  let total = 0;
+  for (const sl of slots.values()) total += sl.batch.triangles;
+  const cell = opts.cellM ?? (total <= AUTO_SINGLE_CELL_TRIS ? SINGLE_CELL_M : 256);
   const layout = { ...base, cellX: cell, cellZ: cell, chunkX: Math.max(base.chunkX, cell), chunkZ: Math.max(base.chunkZ, cell) };
   for (const part of Object.keys(parts) as Part[]) splitMeshesIntoCells(parts[part], layout.cellX, layout.cellZ, undefined, 0, layout.originX, layout.originZ);
   tagRoadChunks(root, layout);

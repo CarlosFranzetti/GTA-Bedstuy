@@ -35,6 +35,12 @@ export interface RealLot extends Lot {
   wedge?: boolean;
   /** frontage scale applied on this face */
   scale: number;
+  /** which end(s) of the face this corner lot touches: 'a' (frontA side), 'b' (frontB side) or 'ab' */
+  cornerEnd?: 'a' | 'b' | 'ab';
+  /** the street the lot fronts is an avenue, arterial or other non-street class */
+  avenue?: boolean;
+  /** PLUTO facts the building generator needs (all from the lots file) */
+  pluto?: { cls: string; lu: string; fl: number | null; yr: number | null; bd: number | null; bf: number | null; rf: number | null; lf: number };
 }
 
 export interface LotReport {
@@ -61,7 +67,7 @@ const NEAR_FACE = 25;
 
 interface PlutoLot {
   bbl: string; ph?: string; x: number; z: number; lf: number | null; ld: number | null; fl: number | null; yr: number | null;
-  cls?: string; lu?: string; e: number; s: number | null; sd: number; blk: number; bins?: string[]; ad?: string; fa?: number;
+  cls?: string; lu?: string; bd?: number | null; bf?: number | null; rf?: number | null; e: number; s: number | null; sd: number; blk: number; bins?: string[]; ad?: string; fa?: number;
 }
 
 // ---------------------------------------------------------------- polygon helpers
@@ -340,6 +346,9 @@ export function placeLotsDetailed(net: RoadNet, d: Derived, faces: RealFace[][],
         out.push({
           id: lot.bbl, bbl: lot.bbl, blockId: F.blockId, side: F.side, frontA: fA, frontB: fB, width: w, depth,
           outward: F.outward, type, corner: cornerA || cornerB, poly, block: bi, face: fi, scale: exact,
+          cornerEnd: cornerA && cornerB ? 'ab' : cornerA ? 'a' : cornerB ? 'b' : undefined,
+          avenue: net.edges[F.edge].cls !== 'street',
+          pluto: { cls: lot.cls ?? '', lu: lot.lu ?? '', fl: lot.fl ?? null, yr: lot.yr ?? null, bd: lot.bd ?? null, bf: lot.bf ?? null, rf: lot.rf ?? null, lf: lot.lf! },
         });
       }
     }

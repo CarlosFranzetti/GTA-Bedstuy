@@ -52,9 +52,10 @@ export function bodyTypeId(spec: Pick<PedSpec, 'id' | 'build' | 'sex' | 'age' | 
   if (age === 'teen') return 'teen';
   if (age === 'old') return 'elder';
   if (spec.role !== 'civilian' && spec.role !== 'player') return spec.build === 'stocky' ? 'short-stocky' : spec.build === 'tall' ? 'tall-thin' : spec.build === 'slim' ? 'slim' : 'avg';
-  if (spec.build === 'stocky') return spec.sex === 'f' ? 'heavy' : hash(spec.id) < 0.5 ? 'short-stocky' : 'heavy';
-  if (spec.build === 'tall') return spec.sex === 'f' ? 'tall-thin' : hash(spec.id) < 0.5 ? 'tall-thin' : 'broad';
-  if (spec.build === 'slim') return hash(spec.id) < 0.5 ? 'slim' : spec.sex === 'f' ? 'petite' : 'tall-thin';
+  const r = hash(spec.id + ':b');
+  if (spec.build === 'stocky') return spec.sex === 'f' ? (r < 0.5 ? 'pear' : 'heavy') : r < 0.4 ? 'short-stocky' : r < 0.7 ? 'broad' : 'heavy';
+  if (spec.build === 'tall') return spec.sex === 'f' ? 'tall-thin' : r < 0.5 ? 'tall-thin' : 'athletic';
+  if (spec.build === 'slim') return r < 0.5 ? 'slim' : spec.sex === 'f' ? 'petite' : 'tall-thin';
   const list = spec.sex === 'f' ? FEMALE_TYPES : MALE_TYPES;
   return list[Math.floor(hash(spec.id + ':body') * list.length) % list.length];
 }

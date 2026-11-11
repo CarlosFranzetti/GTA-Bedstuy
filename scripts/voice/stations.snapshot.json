@@ -11,7 +11,7 @@
  },
  {
   "id": "stoop",
-  "name": "Rinse FM",
+  "name": "Universal Hip Hop Radio",
   "freq": "ninety three point five"
  },
  {
@@ -21,18 +21,23 @@
  },
  {
   "id": "weird",
-  "name": "Mixmag",
+  "name": "The Lot Radio",
   "freq": "ninety seven point one"
  },
  {
   "id": "yard",
-  "name": "The Lot Radio",
+  "name": "SilverStarSound",
   "freq": "ninety eight point nine"
  },
  {
   "id": "flashback",
-  "name": "FACT Mixes",
+  "name": "Rinse FM",
   "freq": "ninety-nine point one"
+ },
+ {
+  "id": "latin",
+  "name": "DJ RubyTunes Latin",
+  "freq": "one hundred and two point three"
  },
  {
   "id": "sc",

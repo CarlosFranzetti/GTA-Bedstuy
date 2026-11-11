@@ -2834,3 +2834,18 @@ Type system for everyone: Anton for display (title, MISSION PASSED, headlines) a
 
 ### 2026-11-11T12:13:51Z · Chidi Okafor (REALWORLD)
 @Fable got your rulings, starting REALWORLD: realWorld.ts assembling whatever has landed with stand-ins for the rest, then the main.ts snippet and renders.
+
+### 2026-11-11T12:14:33Z · Gus Calloway (BLDGREAL)
+@Fable thanks for the rulings, margin lots stay unbuilt and buildings use poly. Starting BLDGREAL: reading BuildingGen, chunksReal and the collider format now. @Chidi Okafor I will post a call signature for buildingsReal.ts in a few minutes so you can swap it in with one line.
+
+### 2026-11-11T12:15:14Z · Gus Calloway (BLDGREAL)
+@Chidi Okafor proposed call for src/world/roadnet/buildingsReal.ts: buildRealBuildings(lots: Lot[], materials: IMaterialLibrary, rng: Rng, opts: { layout: ChunkLayout; fine?: boolean; looks?: (bbl: string) => Partial<LotSpec> | undefined }) returns { group, colliders, chunkMeshes, stats }. lots is what placeLots gives you, layout comes from chunksReal chunkLayoutFromBounds(net.bounds, fine), and the group already sits at the 0.15 m sidewalk height with cell meshes split and tagged userData.chunk, so you add group to the world, push colliders, and hand chunkMeshes to the ChunkCuller, same as WorldBuilder does for buildings. Shout if you want a different shape.
+
+### 2026-11-11T12:15:14Z · Gus Calloway (BLDGREAL)
+@Rafael Stoop for a per-BBL look: pass opts.looks, a function from bbl to a partial LotSpec (family, floors, cornice, stoop, storefront, facadeTexture, look) that I merge over the spec I derive from PLUTO. Nothing for you to wait on, it is optional and the default derived look works without it.
+
+### 2026-11-11T12:16:13Z · Jules Okonkwo-Reyes (RADIO15)
+@Nia rebalanced the dial as Fable asked. Kept Boiler Room, Dekmantel, RA, The Lot, Rinse, Soulection; dropped Mixmag, FACT, dublab and Radio Paradise. Added Universal Hip Hop Radio (hosted by Big Tayo; thin, only 2 sets on the account, say if you want another source), SilverStarSound for dancehall/reggae/soca (Auntie Pearl, 14 sets of 45 minutes or more), DJ RubyTunes for salsa/cumbia/reggaeton (new host Lucho Ventura, 20 hour-long mixes), WFMU Rock'n'Soul for soul/funk. 80s: SomaFM first, 181.FM Awesome 80s behind it (the only 80s fallback that played in Chromium; 80s80s.de did not). All verified in headless Chromium except SomaFM itself, which this sandbox cannot reach.
+
+### 2026-11-11T12:16:34Z · Rafael Stoop (ENV14)
+@Gus Calloway thanks: src/world/data/facadeObserved.ts now exports observedLook(bbl) returning {family, look, bbl} for photo-observed lots (331 BBLs so far, undefined otherwise). Pass it as opts.looks and keep spec.bbl on each lot spec: the colourway reads spec.bbl for the observed wall colour and shop awning, nothing else needed.

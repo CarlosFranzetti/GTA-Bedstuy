@@ -131,10 +131,10 @@ describe('RealTrafficLights', () => {
     expect(lights.intersectionIds.length).toBeLessThanOrEqual(signalNodes);
     const all = new Set(realClusters.map(clusterId));
     for (const id of lights.intersectionIds) expect(all.has(id)).toBe(true);
-    // a matched node is only left out when it has fewer than two phase groups (a mid-block or two-leg signal)
+    // a matched node is only left out when it is no junction (under 3 approach legs) or its legs form one phase group
     for (const c of realClusters) {
       if (!c.some((v) => realControl[v] === 'signal') || lights.hasSignal(clusterId(c))) continue;
-      expect(signalGroups(realNet, realD, c).length).toBeLessThan(2);
+      expect(approachLegs(realNet, realD, c).length < 3 || signalGroups(realNet, realD, c).length < 2).toBe(true);
     }
   });
 
@@ -196,8 +196,9 @@ describe('RealTrafficLights', () => {
         expect(lights.phaseFor(id, sid)).toBe(lights.phaseForLeg(id, leg));
       }
     }
-    // streets that bend or fork inside a junction are rare
-    expect(ambiguous / total).toBeLessThan(0.1);
+    // one street never sits in two phases of a signalised cluster
+    expect(ambiguous).toBe(0);
+    expect(total).toBeGreaterThan(200);
   });
 
   it('unsignalised clusters are always green and walk; a stop-controlled cluster has no controller', () => {
@@ -253,7 +254,10 @@ describe('RealTrafficLights', () => {
   it('on the grid adapter it signalises the same intersections as TrafficLights', () => {
     const gl = new RealTrafficLights(gridNet, gridD, nodeControl(gridNet, {}));
     const old = new TrafficLights(grid);
-    expect(gl.intersectionIds.length).toBe(old.intersectionIds.length);
+    // the grid also signalises its four 2-leg corners, which are not junctions here
+    const corners = gridNet.nodes.filter((_, v) => gridNet.incident[v].length < 3 && old.hasSignal(gridNet.nodes[v].ref!)).length;
+    expect(gl.intersectionIds.length).toBe(old.intersectionIds.length - corners);
+    for (const [v, n] of gridNet.nodes.entries()) if (gridNet.incident[v].length >= 3) expect(gl.hasSignal(`n${v}`)).toBe(old.hasSignal(n.ref!));
   });
 });
 
@@ -462,6 +466,12 @@ describe('driving on the real core (120 agents, 10 minutes, headless)', () => {
     const agentSeconds = 120 * 600;
     // eslint-disable-next-line no-console
     console.log('WP2 sim', JSON.stringify({ agents: 120, seconds: 600, respawns, offSamples, off, stuckAgentSeconds: +stuckAgentSeconds.toFixed(0), everStuck: everStuck.size, stuckFrac: +(stuckAgentSeconds / agentSeconds).toFixed(4) }));
+    if (process.env.WP2_DEBUG) {
+      for (const i of everStuck) {
+        const sl = slots[i]; const p = sl.v.body.pos; const tg = sl.agent.target;
+        console.log('STUCK', i, realNet.streetNameAt(p), p.x.toFixed(0), p.z.toFixed(0), 'state', sl.agent.state, 'still', sl.still.toFixed(0), 'tgt', tg?.id, tg?.stopLine, tg?.intersectionId, 'prev', sl.agent.previousNodeId);
+      }
+    }
     expect(offAt).toEqual([]);
     expect(off).toBe(0);
     expect(stuckAgentSeconds / agentSeconds).toBeLessThan(0.01);

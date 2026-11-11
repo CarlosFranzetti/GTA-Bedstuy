@@ -53,3 +53,12 @@ export const FAMILY_FOR_OBSERVED: Record<ObservedMaterial, { family: 'brownstone
   stucco: { family: 'paintedBrick' },
   panel: { family: 'paintedBrick', look: 'newBuild' },
 };
+
+/**
+ * `looks(bbl)` for the real-map building builder (BLDGREAL `opts.looks`): the wall family and look of an observed lot, or undefined.
+ * The builder must also put `bbl` on the spec it passes to the colourway (`spec.bbl`) so the observed wall colour applies.
+ */
+export function observedLook(bbl: string): { family: 'brownstone' | 'brick' | 'tanBrick' | 'paintedBrick' | 'limestone'; look?: 'frame' | 'newBuild'; bbl: string } | undefined {
+  const o = observedFacade(bbl);
+  return o ? { ...FAMILY_FOR_OBSERVED[o.material], bbl } : undefined;
+}
