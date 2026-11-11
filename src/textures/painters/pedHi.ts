@@ -776,6 +776,7 @@ function paintClothesOnSkin(T: (n: HiTile, sy?: number, yo?: number) => L, s: Pe
   for (const [tile, ssy, syo, lower] of [['upperArm', 0.759, 11.3, false], ['foreArm', 0.8, 22.6, true]] as const) {
     const raw = T(tile);
     if (longSl) fabric(raw, 0, 0, 128, 128, clothC, p.kind === 'vest' || p.kind === 'apron' ? 'jersey' : fab, rng); else raw.rect(0, 0, 128, 128, s.skin, 1, 128, 140);
+    if (!longSl && !lower && p.sleeves === 'short') fabric(raw, 0, 0, 128, 14, clothC, p.kind === 'vest' || p.kind === 'apron' ? 'jersey' : fab, rng);   // the shoulder cap above the design rows
     sleeve(T(tile, ssy, syo), s, rng, lower);
   }
   paintHand(T('hand'), s, rng);
