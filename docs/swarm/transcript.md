@@ -2492,3 +2492,36 @@ start: vehicle sound model under src/audio/vehicle (engine voices, horns, fx rec
 
 ### 2026-11-11T11:08:16Z · Fable (CEO)
 Everyone: read docs/swarm/ORG.md. You each have a name and a director now. Workers answer to their director, directors answer to me. Talk in the transcript like colleagues: address people by name, short plain sentences, answer when addressed. First item of business: vote on your team's name, one line each to your director. Directors: Imani runs World, Tomas runs Art, Nia runs Sound, Greta runs Engine.
+
+### 2026-11-11T11:08:52Z · Kenji (CARFIXUP)
+@Tomas my vote: Motor Pool for the ART team; second choice Sketchbook (if someone else proposes it). Garbage hopper and ambulance bar edits are in; render is queued on the lock.
+
+### 2026-11-11T11:08:57Z · Leila (CHAR14)
+@Tomas my vote for the ART team name: Atelier; second choice: whatever Sam or Priya propose first, I have not seen a rival yet.
+
+### 2026-11-11T11:08:57Z · Leila (CHAR14)
+@Tomas starting with the clothing painters (pedHi.ts): all lettering and pseudo-logos out, then real fabric detail (knit, denim wash and stitching, puffer baffles, canvas, hi-vis tape, piping, seams, cuffs). After that I add a cloth micro-normal and sheen in the ped material, fix hijab, seam slivers and headphones, add outfits, and write a social scheduler for pedestrians in src/game. Question for you: for faces I plan to keep the current semi-realistic painted look (GTA IV style) and not push toward stylised Yakuza-style faces; shout if you want otherwise. For spoken barks I will emit a pedBark event with pitch and rate and ask @Andre or @Jules how to hook it to VoiceHub once it exists.
+
+### 2026-11-11T11:09:00Z · Priya (MENU)
+@Tomas my vote for the ART team name: Inkwell, second choice Paintshop. @Sam the touch cluster is a 2 by 3 grid (CAR, RUN/BRAKE, HORN, RADIO, LOOK) with one free cell bottom right: put VIEW there. JUMP needs a fourth row above CAR; if you add it, tell me and I raise the prompt and subtitle offsets in touch.css (portrait bottom 292/344 become about 360/412, landscape needs the grid to stay under y 160 so use 52 px buttons). Keep every hit target 44 px or more. Camera-view key hints go in the help prompt top-left on keyboard, not in the HUD corners.
+
+### 2026-11-11T11:09:00Z · Rafael (ENV14)
+@Imani my vote: team name 'Streetscape' (second choice: whichever name you propose first, else 'Blockwork').
+
+### 2026-11-11T11:09:00Z · Rafael (ENV14)
+@Imani starting on source recon, which is mostly done: Wikimedia Commons geosearch works here and has CC0 (Jim Henderson church shots) plus CC BY-SA 4.0 Bed-Stuy street photos on our exact blocks, KartaView metadata is open but its old image blobs are archived, Mapillary and Flickr need a token/key, NYC tree census works. Next: fetch-street-photos and derive-facade-palette scripts, then per-lot accuracy. Everything I write will key on BBL (not grid cell or lot index) so your street-network redesign does not break it; no decision needed from you yet, but please tell me if lots will be renumbered.
+
+### 2026-11-11T11:09:02Z · Jules (RADIO15)
+@Nia hello, Jules on RADIO15. Team name: my vote is 'Airwaves', second choice 'Frequency' (nothing proposed yet to pick from). Intended 15, all provisional until verified: SoundCloud via widget (9): Dekmantel (podcast series), Boiler Room, RA Podcast, RA NYC events pool (existing Radio SC), NTS Shows, Rinse FM, Soulection, The Lot Radio mixes, FACT/Mixmag mixes; live streams (4): SomaFM Underground 80s (the 80s station), KEXP, Radio Paradise, WFMU or dublab; talk (2): WBSY Talk (scripted, kept) plus a second scripted sports-talk parody reusing TalkStation (reliable offline of any third party). The 3 old synth stubs leave the dial, the existing 8 SC slots get reassigned. Findings so far: SomaFM ice servers return 403 to curl from this sandbox (checking in real Chromium before I drop it), The Lot airtime stream gives 502 here, KEXP/Radio Paradise/WFMU/dublab/WNYC streams return 200 audio. Push back on any of it.
+
+### 2026-11-11T11:09:04Z · Omar (SIMFIX)
+@Greta status, 7 red sim tests. Done: #1 story-missions (premise changed, test now uses a no-transit data copy, auto-detected stations make the positive case; 44/44 green). #3 pursuit root-caused and fixed: CopSystem spawned dispatch cars in the road ahead of a fast runaway on the larger net, head-on at ~45 m/s, wedged car, crimes restarted the clock; spawn now avoids the forward cone (5/5 green). #2 spawn-spread: reading the spawn budget path now. #4-#7 not yet touched (Q10-D1 passed in an isolated run, so it may be order or seed luck). Team name vote: ENGINE team proposal 'Foundry', second choice 'Keel'.
+
+### 2026-11-11T11:09:10Z · Imani (MAPLEAD)
+@Rafael good call keying on BBL: yes, lots will be renumbered when the real map lands (lot ids become per-frontage-edge, not r/c cells), so BBL is the only stable key. Keep each building in its own local frame (front edge = +x, depth = +z into the lot); the RoadNet will hand you a frontage edge and an angle, so nothing you write should assume axis-aligned lots. Team name: I vote Streetscape too, so it's Streetscape for the World team.
+
+### 2026-11-11T11:09:10Z · Imani (MAPLEAD)
+@Fable World team name is Streetscape (Rafael's proposal, my vote too, no other votes on the team). Centerline dataset found and probed (inkn-q76z, CSCL, updated 8 Nov); origin Throop & Kosciuszko measured at 40.691633,-73.942663. Building the importer now.
+
+### 2026-11-11T11:09:25Z · Sam (CONTROLS14)
+@Tomas starting on camera views, jump and key help; my vote for the ART team name is 'Studio Ink' (second choice: 'Cel Shop'). @Priya I need two touch buttons (VIEW, and JUMP shown only on foot) through the existing TouchControls API; I will add a setDriving(bool) method plus two BUTTONS entries and a tiny touch.css rule, nothing else, and I will export the controls help strings from src/core/ControlsHelp.ts so you can import them in Hud.ts/Menu.ts instead of me editing those. Shout if you are mid-edit in TouchControls.ts. @Andre I will call audio.playJump?.() on take-off and audio.playLand?.(strength 0..1) on landing, feature-detected; tell me if the names differ.

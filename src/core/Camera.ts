@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { angleDiff, clamp, wrapAngle, type Vec2 } from './Math2';
 import { LOOK_BACK_KEY, type Input } from './Input';
 import type { IWorld2D } from '@/world/types';
+import { CameraViews } from './CameraViews';
 
 export type CameraMode = 'foot' | 'vehicle';
 
@@ -25,6 +26,10 @@ const MOUSE_SENS = 0.0025;
 /** Pitch limits per mode (radians above the horizon). */
 const PITCH_FOOT = { min: -0.12, max: 0.85 };
 const PITCH_VEH = { min: -0.05, max: 0.6 };
+/** First person / bumper views look freely up and down. */
+const PITCH_FIRST = { min: -1.15, max: 1.15 };
+/** Distance (m) below which the rig counts as first person: the look target blends from the pivot to straight ahead. */
+const FIRST_BLEND_DIST = 1.2;
 const DEFAULT_PITCH = 0;
 /** Seconds after the last mouse/stick input before the car view starts swinging back behind the car. */
 const RECENTRE_DELAY = 0.3;
@@ -140,6 +145,11 @@ export class ThirdPersonCamera {
   private offZ = 0;
   private readonly tgt: Vec2 = { x: 0, z: 0 };
   private fovNow: number = CAM_FOOT.fov;
+  private forward = 0;
+  private firstAmt = 0;
+  /** Selectable views (V cycle, double-tap swap, B shoulder); main.ts feeds it key edges via `views.handleKeys`. */
+  readonly views = new CameraViews();
+  private cineDist = 0; private cineHeight = 0; private cineLook = 0; private cineFov = 0; private cineShotYaw = 0;
   /** Degrees added to the on-foot and vehicle field of view (Menu > Advanced graphics > Field of view). */
   fovOffset = 0;
 
@@ -165,6 +175,10 @@ export class ThirdPersonCamera {
   /** 0..1 how far the letterbox bars have slid in. */
   get letterboxAmount(): number { return this.lbAmount; }
   get letterboxOn(): boolean { return this.lbTarget; }
+  /** 0..1: how far into first person the rig is. The host hides the player's head (on foot) once this passes ~0.85. */
+  get firstPersonAmount(): number { return this.firstAmt; }
+  /** Id of the active view for the current mode ('chase', 'first', 'hood', 'cinematic' ...). */
+  get viewId(): string { return this.views.id(this.lastMode ?? 'foot'); }
 
   /** Kick the camera: amplitude 0..1; stronger hits replace weaker ones in progress. */
   addShake(amount: number): void {
@@ -258,7 +272,10 @@ export class ThirdPersonCamera {
     } else {
       this.idle += dt;
     }
-    const lim = vehicleMode ? PITCH_VEH : PITCH_FOOT;
+    this.views.tick(dt, mode);
+    const vrig = this.views.rig(mode);
+    const snap = first || this.views.cutThisFrame;
+    const lim = vrig.first ? PITCH_FIRST : vehicleMode ? PITCH_VEH : PITCH_FOOT;
     this.pitch = clamp(this.pitch, lim.min, lim.max);
     if (anyInput || moveSpeed > MOVE_EPS) this.still = 0; else this.still += dt;
 
@@ -307,7 +324,7 @@ export class ThirdPersonCamera {
 
     // ---- speed, rig distance/height/fov --------------------------------------------------------------------
     const smooth = vehicleMode ? SMOOTH_VEH : SMOOTH_FOOT;
-    const k = first ? 1 : 1 - Math.exp(-smooth * dt);
+    const k = snap ? 1 : 1 - Math.exp(-smooth * dt);
     const kSpeed = first ? 1 : 1 - Math.exp(-SPEED_SMOOTH * dt);
     const speed = vehicleMode ? Math.abs(veh ? veh.speed : ctx?.speed ?? 0) : 0;
     this.speedN += (clamp(speed / SPEED_FULL, 0, 1) - this.speedN) * kSpeed;
@@ -315,21 +332,36 @@ export class ThirdPersonCamera {
     // Bigger vehicles (box truck, van) scale the rig so the road ahead shows over their roof; a sedan (4.6 x 1.4) is unchanged.
     const extraLen = vehicleMode && veh?.spec ? Math.max(0, veh.spec.length - SEDAN.length) : 0;
     const extraH = vehicleMode && veh?.spec ? Math.max(0, veh.spec.height - SEDAN.height) : 0;
-    const rig = vehicleMode
+    const cine = vrig.cinematic && vehicleMode ? this.views.director.shot : null;
+    const sedanRig = vehicleMode
       ? { distance: CAM_VEHICLE.distance + extraLen + (veh?.spec?.camDist ?? 0), height: CAM_VEHICLE.height + extraH + (veh?.spec?.camHeight ?? 0), look: CAM_VEHICLE.look + 0.9 * extraH }
       : CAM_FOOT;
-    const wantDistance = (rig.distance + (vehicleMode ? SPEED_DISTANCE * this.speedN : 0)) * (1 + CINE_ZOOM * this.cineBlend);
+    const vlen = veh?.spec?.length ?? SEDAN.length;
+    const vh = veh?.spec?.height ?? SEDAN.height;
+    const rig = vehicleMode
+      ? vrig.first
+        ? { distance: 0, height: vh * 0.55 + 0.25, look: vh * 0.55 + 0.25, forward: vrig.forwardShare * vlen }
+        : cine
+          ? { distance: cine.distance, height: cine.height, look: cine.look, forward: 0 }
+          : { distance: sedanRig.distance * vrig.distScale, height: sedanRig.height * vrig.heightScale, look: sedanRig.look, forward: 0 }
+      : { distance: vrig.distance, height: vrig.height, look: vrig.look, forward: 0 };
+    const wantDistance = (rig.distance + (vehicleMode && !vrig.first && !cine ? SPEED_DISTANCE * this.speedN : 0)) * (1 + CINE_ZOOM * this.cineBlend);
     this.distance += (wantDistance - this.distance) * k;
     this.height += (rig.height - this.height) * k;
     this.lookY += (rig.look - this.lookY) * k;
-    this.shoulder += ((vehicleMode ? 0 : CAM_FOOT.shoulder) - this.shoulder) * k;
+    this.forward += (rig.forward - this.forward) * k;
+    this.shoulder += ((vehicleMode ? 0 : vrig.shoulder * this.views.side) - this.shoulder) * k;
+    this.cineShotYaw = cine ? cine.yaw : 0;
 
-    const fov = (vehicleMode ? CAM_VEHICLE.fov + (CAM_VEHICLE.fovTop - CAM_VEHICLE.fov) * this.speedN : CAM_FOOT.fov) + this.fovOffset;
-    this.fovNow = first ? fov : this.fovNow + (fov - this.fovNow) * k;
+    const fov = vehicleMode
+      ? (cine ? cine.fov : CAM_VEHICLE.fov + (CAM_VEHICLE.fovTop - CAM_VEHICLE.fov) * this.speedN + vrig.fov) + this.fovOffset
+      : vrig.fov + this.fovOffset;
+    this.fovNow = snap ? fov : this.fovNow + (fov - this.fovNow) * k;
     if (Math.abs(this.fovNow - this.camera.fov) > 0.01) {
       this.camera.fov = this.fovNow;
       this.camera.updateProjectionMatrix();
     }
+    this.firstAmt = clamp(1 - this.distance / FIRST_BLEND_DIST, 0, 1);
 
     // ---- roll with lateral acceleration (speed x yaw rate), car only ---------------------------------------
     if (!first && dt > 0) {
@@ -343,20 +375,28 @@ export class ThirdPersonCamera {
     this.prevX = rawTarget.x; this.prevZ = rawTarget.z;
 
     // ---- rig placement: the pivot rides rigidly on the target; only the rig parameters are smoothed --------
-    const viewYaw = this.yaw + Math.PI * this.backBlend + this.cineYaw;
+    const viewYaw = this.yaw + Math.PI * this.backBlend + this.cineYaw + this.cineShotYaw;
     const bx = Math.sin(viewYaw), bz = -Math.cos(viewYaw);
     const sx = -bz * this.shoulder, sz = bx * this.shoulder;
     const horiz = this.distance * Math.cos(this.pitch);
     this.look.set(targetPos.x + sx, this.lookY, targetPos.z + sz);
     this.pos.set(
-      targetPos.x + sx - bx * horiz,
+      targetPos.x + sx + bx * (this.forward - horiz),
       Math.max(MIN_CAM_Y, this.height + this.distance * Math.sin(this.pitch)),
-      targetPos.z + sz - bz * horiz,
+      targetPos.z + sz + bz * (this.forward - horiz),
     );
+    if (this.firstAmt > 0) {
+      // first person / bumper: look straight along the view (pitch up/down), blended in as the lens reaches the pivot
+      const w = this.firstAmt * this.firstAmt * (3 - 2 * this.firstAmt);
+      const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
+      this.look.x += (this.pos.x + bx * cp * 10 - this.look.x) * w;
+      this.look.y += (this.pos.y - sp * 10 - this.look.y) * w;
+      this.look.z += (this.pos.z + bz * cp * 10 - this.look.z) * w;
+    }
     this.initialised = true;
 
     const world = ctx?.world ?? this.world;
-    let want = world ? this.wallFraction(world, targetPos) : 1;
+    let want = world && this.firstAmt < 0.5 ? this.wallFraction(world, targetPos) : 1;
     // Reversing / looking back: never put the lens inside (or behind) another car; trim the rig to stop short of it.
     let carBlocked = 0;
     if (world && vehicleMode && this.backBlend > 0.3) {

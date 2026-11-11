@@ -557,11 +557,16 @@ export class TrafficSystem {
   private spawnTraffic(player: Vec2): boolean {
     const list = this.laneNodes;
     if (list.length === 0) return false;
-    for (let attempt = 0; attempt < 14; attempt++) {
-      const n = list[Math.floor(this.rng.next() * list.length) % list.length];
+    // the ring is a small share of the lane nodes on the big map, so random picks alone miss it (and a miss zeroed the
+    // owed budget: the street stayed empty). Scan from a random start for nodes inside the ring instead.
+    const start = Math.floor(this.rng.next() * list.length) % list.length;
+    let tried = 0;
+    for (let k = 0; k < list.length; k++) {
+      const n = list[(start + k) % list.length];
       if (n.stopLine) continue;
       const d = dist(n.pos, player);
       if (d < SPAWN_MIN || d > SPAWN_MAX) continue;
+      if (++tried > 14) break;
       if (!this.spawnClear(n)) continue;
       const type = this.pickType(true);
       const v = this.makeVehicle(type, { x: n.pos.x, z: n.pos.z }, n.heading, this.paintFor(type));
