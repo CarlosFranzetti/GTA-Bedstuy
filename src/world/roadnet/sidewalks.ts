@@ -191,9 +191,13 @@ export function buildSidewalkGraph(net: RoadNet, d: Derived, opts: { spacing?: n
     const r = rings[ri];
     const a = r[si], c = r[(si + 1) % r.length];
     const len = distance(a, c);
-    if (len < 3 * MIN_END_GAP) continue;
-    const gap = MIN_END_GAP / len;
     list.sort((u, v) => u.t - v.t);
+    if (len < (list.length + 1) * MIN_END_GAP) {
+      // too short to keep the gap: spread the ends evenly so no edge has zero length
+      list.forEach((pd, i) => { pd.t = (i + 1) / (list.length + 1); pd.p = { x: a.x + (c.x - a.x) * pd.t, z: a.z + (c.z - a.z) * pd.t }; });
+      continue;
+    }
+    const gap = MIN_END_GAP / len;
     let lo = gap;
     for (const pd of list) {
       pd.t = Math.max(pd.t, lo);

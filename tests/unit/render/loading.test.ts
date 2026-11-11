@@ -11,12 +11,13 @@ describe('LoadingScreen stages', () => {
   it('shows the active stage with n/total and tracks progress', () => {
     const ld = new LoadingScreen(parent);
     expect(ld.progress).toBe(0);
-    expect(ld.stageLabel).toBe('Materials (1/6)');
+    expect(ld.stageLabel).toBe('Streets');
     ld.begin('materials');
-    expect(ld.stageLabel).toBe('Materials (1/6)');
-    expect(ld.progress).toBeCloseTo(0.5 / BOOT_STEPS.length);
+    expect(ld.stageLabel).toBe('Streets');
+    expect(ld.progress).toBeCloseTo(0.5 / 13);
+    expect(ld.percent).toBe(4);
     ld.done('materials'); ld.begin('textures');
-    expect(ld.stageLabel).toBe('Textures (2/6)');
+    expect(ld.stageLabel).toBe('Signs & paint');
     for (const s of BOOT_STEPS) ld.done(s.id);
     expect(ld.progress).toBe(1);
     expect(ld.stageLabel).toBe('Ready');
@@ -32,24 +33,19 @@ describe('LoadingScreen stages', () => {
 });
 
 describe('LoadingScreen panels and tips', () => {
-  it('draws only the first panel (and the next one a moment later), rotates every PANEL_MS, wraps', () => {
+  it('shows three distinct diagonal panels and swaps one slot at a time', () => {
     const ld = new LoadingScreen(parent);
     expect(PANELS.length).toBeGreaterThanOrEqual(4);
     expect(PANELS.length).toBeLessThanOrEqual(6);
-    expect(ld.panelIndex).toBe(0);
-    expect(ld.drawnPanels).toBe(1);
-    vi.advanceTimersByTime(700);
-    expect(ld.drawnPanels).toBe(2);
-    vi.advanceTimersByTime(PANEL_MS - 700);
-    expect(ld.panelIndex).toBe(1);
-    const canvases = [...parent.querySelectorAll('.ld-panel')];
-    expect(canvases[1]?.classList.contains('on')).toBe(true);
-    expect(canvases[0]?.classList.contains('out')).toBe(true);
-    expect(canvases.filter((c) => c.classList.contains('on')).length).toBe(1);
-    vi.advanceTimersByTime(PANEL_MS * (PANELS.length - 1));
-    expect(ld.panelIndex).toBe(0);
-    expect(ld.drawnPanels).toBe(PANELS.length);
-    expect(parent.querySelector('.ld-cap-title')?.textContent).toBe(PANELS[0]?.caption);
+    expect(ld.drawnPanels).toBe(3);
+    expect(new Set(ld.visiblePanels).size).toBe(3);
+    vi.advanceTimersByTime(PANEL_MS / 3);
+    expect(ld.visiblePanels).toEqual([3, 1, 2]);
+    const on = [...parent.querySelectorAll('.ld-panel.on')];
+    expect(on.length).toBe(3); // one front canvas per slot
+    vi.advanceTimersByTime(PANEL_MS * 3);
+    expect(new Set(ld.visiblePanels).size).toBe(3);
+    expect(ld.percent).toBe(0);
   });
   it('rotates tips', () => {
     const ld = new LoadingScreen(parent);

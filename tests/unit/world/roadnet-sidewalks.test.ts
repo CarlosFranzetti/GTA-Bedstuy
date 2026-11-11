@@ -28,11 +28,13 @@ describe('sidewalk graph on the grid adapter', () => {
   // the grid has square corners: derive without curb returns so ring corners are comparable
   const d = deriveGeometry(net, { rStreet: 0, rAvenue: 0 });
   const sw = buildSidewalkGraph(net, d);
+  // the grid graph rounds face length / 25 (faces up to 37 m between nodes); ours caps edges at `spacing`, so compare with 37.5
+  const swLoose = buildSidewalkGraph(net, d, { spacing: 37.5 });
 
-  it('node count within 10 % of the grid graph', () => {
-    const a = Object.keys(sw.graph.nodes).length;
+  it('node count within 10 % of the grid graph (crosswalk ends not counted: the grid reuses corners for them)', () => {
+    const a = Object.keys(swLoose.graph.nodes).length - swLoose.crosswalkNodes.size;
     const b = Object.keys(grid.sidewalks.nodes).length;
-    console.log(`grid sidewalks: ${a} nodes vs ${b}, crosswalks ${sw.crosswalks.length} vs ${grid.crosswalks.length}, skipped ${sw.skipped}`);
+    console.log(`grid sidewalks: ${a} ring nodes (strict 25 m: ${Object.keys(sw.graph.nodes).length - sw.crosswalkNodes.size}) vs ${b}, crosswalks ${sw.crosswalks.length} vs ${grid.crosswalks.length}, skipped ${sw.skipped}`);
     expect(Math.abs(a - b) / b).toBeLessThan(0.1);
   });
 
