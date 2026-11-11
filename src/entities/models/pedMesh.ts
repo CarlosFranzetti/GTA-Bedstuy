@@ -291,12 +291,12 @@ function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
     const r = ringAt(s.headRings, Y(0.45)), gr = HI_RECTS.hair;
     // over-ear headphones: a band that rises from each ear cup over the crown (two lofts, each monotonic in height) and two padded cups
     const R = r.rx + 0.014, ye = Y(0.45), yt = Y(1.0) + 0.03;
+    const nr = hiDetail ? 6 : 4, ks = hiDetail ? [0.5, 1, 0.5] : [0.6, 1, 0.6], kd = hiDetail ? [-0.036, 0, 0.036] : [-0.03, 0, 0.03];
     for (const sx of [-1, 1]) {
       const rings: R[] = [];
-      for (let i = 0; i <= 8; i++) { const th = (i / 8) * (Math.PI / 2 - 0.05); rings.push({ y: ye + (yt - ye) * Math.sin(th), rx: 0.0055, rz: 0.011, cx: sx * R * Math.cos(th) * (1 + 0.04 * Math.sin(th)), cz: r.cz }); }
-      out.push(loft(rings, 6, hatR, 3, 'both'));
-      const k = [0.45, 0.85, 1, 0.85, 0.45], dy = [-0.036, -0.02, 0, 0.02, 0.036];
-      out.push(loft(k.map((kk, i) => ({ y: ye + dy[i], rx: 0.016 * kk + 0.002, rz: 0.034 * kk, cx: sx * (R + 0.006), cz: r.cz })), 12, hatR, 3, 'both'));
+      for (let i = 0; i <= nr; i++) { const th = (i / nr) * (Math.PI / 2 - 0.05); rings.push({ y: ye + (yt - ye) * Math.sin(th), rx: 0.0055, rz: 0.011, cx: sx * R * Math.cos(th) * (1 + 0.04 * Math.sin(th)), cz: r.cz }); }
+      out.push(loft(rings, hiDetail ? 5 : 4, hatR, 3, 'both'));
+      out.push(loft(ks.map((kk, i) => ({ y: ye + kd[i], rx: 0.016 * kk + 0.002, rz: 0.034 * kk, cx: sx * (R + 0.006), cz: r.cz })), hiDetail ? 10 : 7, hatR, 3, 'both'));
     }
   } else if (grown && !covered && spec.hat !== 'hijab' && roll >= 0.1 && roll < 0.2) {
     const n = ringAt(s.headRings, lm.chinY);

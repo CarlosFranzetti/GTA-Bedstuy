@@ -151,7 +151,7 @@ export function targetDepth(lot: RealLot): number {
 }
 
 /** largest rectangle [xl, xr] x [0, depth] (lot frame, depth inward from the front) inside lot.poly, or null */
-export function fitFootprint(lot: RealLot, minWidth = 3.5, minDepth = 6): Footprint | null {
+export function fitFootprint(lot: RealLot, minWidth = 3, minDepth = 4.5): Footprint | null {
   const dx = lot.frontB.x - lot.frontA.x, dz = lot.frontB.z - lot.frontA.z;
   const W = Math.hypot(dx, dz) || 1;
   const dir = { x: dx / W, z: dz / W };
@@ -159,13 +159,13 @@ export function fitFootprint(lot: RealLot, minWidth = 3.5, minDepth = 6): Footpr
   const at = (x: number, y: number): Vec2 => ({ x: lot.frontA.x + dir.x * x + inw.x * y, z: lot.frontA.z + dir.z * x + inw.z * y });
   let area = 0;
   for (let i = 0; i < lot.poly.length; i++) { const p = lot.poly[i], q = lot.poly[(i + 1) % lot.poly.length]; area += p.x * q.z - q.x * p.z; }
-  const orient = area >= 0 ? -1 : 1;
+  const orient = area >= 0 ? 1 : -1;
   const tol = -0.12;
   const ok = (x: number, y: number): boolean => insideBy(lot.poly, at(x, y), orient) >= tol;
   const dT = targetDepth(lot);
   if (ok(0, dT) && ok(W, dT)) return { xl: 0, xr: W, depth: dT };
   let best: Footprint | null = null, bestA = 0;
-  for (let d = dT; d >= minDepth - 1e-9; d -= Math.max(1, dT * 0.1)) {
+  for (let d = dT; d >= minDepth - 1e-9; d -= Math.max(0.5, dT * 0.06)) {
     // the polygon is convex, so for a given depth the feasible x range at depth d is an interval; scan its ends
     let xl = 0;
     while (xl < W && !ok(xl, d)) xl += 0.25;

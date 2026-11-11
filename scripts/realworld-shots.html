@@ -1,0 +1,78 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>realworld shots</title>
+<style>html,body{margin:0;background:#789;overflow:hidden}</style></head>
+<body><script type="module">
+// REALWORLD review harness (dev server only): builds the real-map world with the real pieces and renders the three owner frames.
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Rng } from '@/core/Rng';
+import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { buildRealWorld, measureWorld } from '@/world/roadnet/realWorld';
+import { pointOnPath } from '@/world/roadnet/elReal';
+
+const params = new URLSearchParams(location.search);
+const W = Number(params.get('w') ?? 1280), H = Number(params.get('h') ?? 720);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9db7cf);
+const pm = new THREE.PMREMGenerator(renderer);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.5;
+const sun = new THREE.DirectionalLight(0xfff2dc, 2.4); sun.position.set(-300, 500, 200); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x6a5a48, 0.8));
+const materials = new MaterialLibrary(new Rng(7));
+materials.setEnvironment(scene.environment);
+
+const rw = await buildRealWorld({ materials, rng: new Rng(7), tier: 'high' });
+scene.add(rw.group);
+const out = {};
+const shot = (name, cam) => { renderer.render(scene, cam); out[name] = renderer.domElement.toDataURL('image/png'); };
+
+// 1. top-down of the whole network (orthographic), with buildings and with roads only
+{
+  const b = rw.net.bounds, cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
+  const spanX = b.maxX - b.minX + 200, spanZ = b.maxZ - b.minZ + 200;
+  const half = Math.max(spanX / 2, (spanZ / 2) * (W / H));
+  const cam = new THREE.OrthographicCamera(-half, half, half * (H / W), -half * (H / W), 1, 5000);
+  cam.position.set(cx, 2000, cz); cam.up.set(0, 0, -1); cam.lookAt(cx, 0, cz);
+  const blds = rw.group.children.filter((c) => c.name !== 'roads-real' && c.name !== 'ground-real');
+  blds.forEach((o) => { o.visible = false; });
+  shot('top-roads', cam);
+  blds.forEach((o) => { o.visible = true; });
+  shot('top-all', cam);
+}
+// 2. under the el on Broadway: on the JZ path between Myrtle and Kosciuszko, looking along it
+{
+  const jz = rw.el.paths.find((p) => p.id === 'JZ');
+  const st = rw.el.stations.filter((s) => s.path === 'JZ');
+  const s = (st.find((x) => x.id === 'myrtle').s + st.find((x) => x.id === 'kosciuszko').s) / 2 - 120;
+  const c = pointOnPath(jz, s);
+  const cam = new THREE.PerspectiveCamera(70, W / H, 0.1, 1500);
+  cam.position.set(c.p.x - c.dir.x * 20, 1.7, c.p.z - c.dir.z * 20);
+  cam.lookAt(c.p.x + c.dir.x * 60, 5.5, c.p.z + c.dir.z * 60);
+  shot('under-el-broadway', cam);
+}
+// 3. a bent residential street near the spawn: the street edge with the sharpest kink within 350 m
+{
+  let best = null;
+  rw.net.edges.forEach((e, i) => {
+    if (e.cls !== 'street' || e.pts.length < 3 || e.level !== 0) return;
+    for (let k = 1; k < e.pts.length - 1; k++) {
+      const a = e.pts[k - 1], b = e.pts[k], c = e.pts[k + 1];
+      const t = Math.abs(Math.atan2((b.x - a.x) * (c.z - b.z) - (b.z - a.z) * (c.x - b.x), (b.x - a.x) * (c.x - b.x) + (b.z - a.z) * (c.z - b.z)));
+      const d = Math.hypot(b.x - rw.spawn.x, b.z - rw.spawn.z);
+      if (d < 350 && Math.hypot(b.x - a.x, b.z - a.z) > 25 && (!best || t > best.t)) best = { t, a, b, c, name: e.name };
+    }
+  });
+  const cam = new THREE.PerspectiveCamera(65, W / H, 0.1, 1500);
+  const dx = best.b.x - best.a.x, dz = best.b.z - best.a.z, l = Math.hypot(dx, dz);
+  cam.position.set(best.b.x - (dx / l) * 28, 1.7, best.b.z - (dz / l) * 28);
+  cam.lookAt(best.c.x, 3, best.c.z);
+  out.bentInfo = { name: best.name, deg: Math.round((best.t * 180) / Math.PI) };
+  shot('bent-street', cam);
+}
+window.__ready = { shots: out, standIns: rw.standIns, stats: rw.stats, bent: out.bentInfo, info: renderer.info.render };
+</script></body></html>

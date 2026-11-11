@@ -10,7 +10,7 @@ import { CAST_MAP } from './cast';
 import { ClipCache } from './ClipCache';
 import { FxBank, playLaugh, playSfx, type FxHost } from './fx';
 import { clipKey, lineSeconds } from './script';
-import { fadeEdges, planLine, trimClip, turnGap } from './prosody';
+import { planLine, shapeClip, turnGap } from './prosody';
 import { rhythmFor } from './rhythm';
 import type { CastMember, Clip, TtsEngine } from './types';
 import { pickVoices, type SpeechLike, type UtteranceLike, type VoiceLike } from '../talk/TalkPlayer';
@@ -238,7 +238,7 @@ export class SpeechPlayer {
       }
       if (my !== this.token) return;
       sayIndex++;
-      const pcm = fadeEdges(trimClip(clip.samples, clip.sampleRate), clip.sampleRate);
+      const pcm = shapeClip(clip.samples, clip.sampleRate);
       const buf = host.ctx.createBuffer(1, pcm.length, clip.sampleRate);
       buf.copyToChannel(pcm as Float32Array<ArrayBuffer>, 0);
       const src = host.ctx.createBufferSource();

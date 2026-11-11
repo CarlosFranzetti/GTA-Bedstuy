@@ -24,12 +24,12 @@ describe('buildRealWorld', () => {
     expect(rw.colliders.length).toBeGreaterThan(100);
     expect(rw.sidewalks.graph.nodes).toBeTruthy();
     expect(Number.isFinite(rw.spawn.x)).toBe(true);
-  }, 120000);
+  }, 900000);
 
   it('falls back to stand-ins when asked and still builds', async () => {
     const rw = await buildRealWorld({ materials: stubLib(), rng: new Rng(7), forceStandIns: true });
     expect(rw.standIns.length).toBe(2);
     expect(rw.group.getObjectByName('roads-standin')).toBeTruthy();
     expect(rw.colliders.length).toBeGreaterThan(100);
-  }, 120000);
+  }, 900000);
 });

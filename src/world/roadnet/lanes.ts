@@ -10,7 +10,7 @@
  * An entering lane's last node is the stop line (`stopLine: true`, `intersectionId` = cluster id `n{minNode}`) at `cut +
  * STOP_LINE` (contract.ts); an exiting lane starts at `cut + EXIT`. Connectors are cubic Beziers sampled every `turnStep`
  * m, ids `cx:{from}>{to}:{i}`. No U-turns except where the graph would otherwise strand a lane (dead ends, one-way
- * edges whose only way on is back). Right turns leave the rightmost lane, left turns the leftmost, straights map lane i to
+ * edges whose only way on is back); dead ends are a sink and a source, not a U-turn (no room to turn a car). Right turns leave the rightmost lane, left turns the leftmost, straights map lane i to
  * lane i. Stubs: an entering lane runs to the stub node and ends (despawn point); an exiting lane starts there (spawn point).
  * `level != 0` edges get lanes but only connect to edges of the same level.
  */
@@ -18,6 +18,7 @@ import { angleDiff, headingFromVec } from '@/core/Math2';
 import type { Vec2 } from '@/core/Math2';
 import type { GraphEdge, LaneGraph, LaneNode } from '@/world/types';
 import { STOP_LINE } from './contract';
+import { pointInPolygon } from './geom';
 import { clusterId, clusterIndexOfNode, isRibbonless, junctionClusters, outerLegs } from './clusters';
 import type { Derived } from './derive';
 import type { RoadNet } from './RoadNet';
@@ -108,6 +109,22 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
     graph.edges.push(e);
   };
 
+  // paved = on a roadway, or not inside any block's kerb ring (isOnRoad alone only knows discs around nodes, which misses the links of a
+  // cluster; a kerb ring alone can be degenerate on thin wedges and cover the centreline)
+  const curbs = d.curbRings.map((ring) => {
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const q of ring) { x0 = Math.min(x0, q.x); z0 = Math.min(z0, q.z); x1 = Math.max(x1, q.x); z1 = Math.max(z1, q.z); }
+    return { ring, box: [x0, z0, x1, z1] as const };
+  });
+  const onRoad = (p: Vec2): boolean => {
+    if (net.isOnRoad(p)) return true;
+    for (const q of curbs) {
+      if (q.ring.length < 3 || p.x < q.box[0] || p.x > q.box[2] || p.z < q.box[1] || p.z > q.box[3]) continue;
+      if (pointInPolygon(p, q.ring)) return false;
+    }
+    return true;
+  };
+
   // ---- classify every leg's junction (cluster x level): 3+ legs junction, 2 through, 1 dead end or stub
   const kindOfLeg = new Map<number, EndKind>();
   const groupOfLeg = new Map<number, string>();
@@ -179,7 +196,9 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
         const id = `${e}:${dir}:${lane}`;
         const nodeIds: string[] = [];
         params.forEach((tau, i) => {
-          const { p, t } = sampleOffset(tp, tc, tau, off);
+          let { p, t } = sampleOffset(tp, tc, tau, off);
+          // an acute corner's kerb ring can reach over the lane: slide the node toward the centreline until it is on the pavement
+          for (let f = 0.75; f >= 0 && !onRoad(p); f -= 0.25) ({ p, t } = sampleOffset(tp, tc, tau, off * f));
           const last = i === params.length - 1;
           const stop = last && endKind === 'junction';
           const node: LaneNode = {
@@ -212,7 +231,7 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
     const key = `${from.id}>${to.id}`;
     if (linked.has(key)) return;
     linked.add(key);
-    const nodeIds = bezierConnector(from, to, o.turnStep, b.id, addNode);
+    const nodeIds = bezierConnector(from, to, o.turnStep, b.id, addNode, onRoad);
     let prev = from.id;
     for (const nid of nodeIds) { addEdge(prev, nid, graph.nodes[to.id].streetId); prev = nid; }
     addEdge(prev, to.id, graph.nodes[to.id].streetId);
@@ -235,17 +254,9 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
       const mine = new Map<string, number>(); // connectors per entering chain
       const mark = (a: LaneChain): void => { mine.set(a.id, (mine.get(a.id) ?? 0) + 1); };
 
-      if (kind === 'dead') {
-        // one leg: every entering lane turns around into the exit lane across from it
-        for (const a of ins) {
-          const mates = outs.filter((b) => b.edge === a.edge);
-          if (!mates.length) continue;
-          const b = mates[Math.min(mates.length - 1, Math.max(0, mates.length - 1 - a.lane))];
-          connect(a, b, name, true);
-          mark(a);
-        }
-        continue;
-      }
+      // a dead end has no room for a car to turn round (the streets are 7 to 14 m wide): its lanes are a sink and a source,
+      // like a stub, and are reported in extraSinks / extraSources
+      if (kind === 'dead') continue;
 
       for (const a of ins) {
         for (const b of outs) {
@@ -304,11 +315,11 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
   for (const c of chains) {
     const l = last(c);
     if (c.endKind !== 'stub' && graph.adjacency[l.id].length === 0) {
-      (groupsOut.has(groupOfLeg.get(c.enterLeg) ?? '') ? strandedEnds : extraSinks).push(l.id);
+      (c.endKind !== 'dead' && groupsOut.has(groupOfLeg.get(c.enterLeg) ?? '') ? strandedEnds : extraSinks).push(l.id);
     }
     const f = first(c);
     if (c.startKind !== 'stub' && !hasIncoming.has(f.id)) {
-      (groupsIn.has(groupOfLeg.get(c.exitLeg) ?? '') ? orphanStarts : extraSources).push(f.id);
+      (c.startKind !== 'dead' && groupsIn.has(groupOfLeg.get(c.exitLeg) ?? '') ? orphanStarts : extraSources).push(f.id);
     }
   }
   return { graph, chains, connectors, strandedEnds, orphanStarts, extraSinks, extraSources, clusters };
@@ -345,39 +356,66 @@ function sampleOffset(tp: readonly Vec2[], tc: Float64Array, tau: number, o: num
   return { p: { x: base.x - t.z * o * scale, z: base.z + t.x * o * scale }, t };
 }
 
-/** Bezier from lane node `from` to lane node `to` along their headings; returns the ids of the interior nodes it adds */
-function bezierConnector(from: LaneNode, to: LaneNode, step: number, tag: string, add: (n: LaneNode) => void): string[] {
+/**
+ * Bezier from lane node `from` to lane node `to` along their headings; returns the ids of the interior nodes it adds. The
+ * handle length starts at ~0.4 of the chord and shrinks while samples fall off the paved area (`onRoad`), which keeps tight
+ * turns inside the curb returns.
+ */
+function bezierConnector(from: LaneNode, to: LaneNode, step: number, tag: string, add: (n: LaneNode) => void, onRoad: (p: Vec2) => boolean): string[] {
   const p0 = from.pos;
   const p3 = to.pos;
   const chord = Math.hypot(p3.x - p0.x, p3.z - p0.z);
   const t0 = dirOf(from.heading);
   const t3 = dirOf(to.heading);
   const turn = Math.abs(angleDiff(from.heading, to.heading));
-  const k = chord * (0.4 + 0.27 * (turn / Math.PI) ** 2);
-  const p1 = { x: p0.x + t0.x * k, z: p0.z + t0.z * k };
-  const p2 = { x: p3.x - t3.x * k, z: p3.z - t3.z * k };
-  const at = (t: number): Vec2 => {
-    const u = 1 - t;
-    const a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, e = t * t * t;
-    return { x: a * p0.x + b * p1.x + c * p2.x + e * p3.x, z: a * p0.z + b * p1.z + c * p2.z + e * p3.z };
-  };
-  const tangent = (t: number): Vec2 => {
-    const u = 1 - t;
-    return {
-      x: 3 * u * u * (p1.x - p0.x) + 6 * u * t * (p2.x - p1.x) + 3 * t * t * (p3.x - p2.x),
-      z: 3 * u * u * (p1.z - p0.z) + 6 * u * t * (p2.z - p1.z) + 3 * t * t * (p3.z - p2.z),
+  const k0 = chord * (0.4 + 0.27 * (turn / Math.PI) ** 2);
+  let best: { pts: Vec2[]; tans: Vec2[]; bad: number } | null = null;
+  for (const scale of [1, 0.75, 0.55, 0.4]) {
+    const k = k0 * scale;
+    const p1 = { x: p0.x + t0.x * k, z: p0.z + t0.z * k };
+    const p2 = { x: p3.x - t3.x * k, z: p3.z - t3.z * k };
+    const at = (t: number): Vec2 => {
+      const u = 1 - t;
+      const a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, e = t * t * t;
+      return { x: a * p0.x + b * p1.x + c * p2.x + e * p3.x, z: a * p0.z + b * p1.z + c * p2.z + e * p3.z };
     };
-  };
-  let len = 0;
-  let prev = p0;
-  for (let i = 1; i <= 12; i++) { const q = at(i / 12); len += Math.hypot(q.x - prev.x, q.z - prev.z); prev = q; }
-  const n = Math.max(1, Math.ceil(len / step));
-  const ids: string[] = [];
-  for (let i = 1; i < n; i++) {
-    const t = i / n;
-    const id = `cx:${from.id}>${tag}:${i}`;
-    add({ id, pos: at(t), streetId: to.streetId, heading: headingFromVec(tangent(t)), stopLine: false });
-    ids.push(id);
+    const tangent = (t: number): Vec2 => {
+      const u = 1 - t;
+      return {
+        x: 3 * u * u * (p1.x - p0.x) + 6 * u * t * (p2.x - p1.x) + 3 * t * t * (p3.x - p2.x),
+        z: 3 * u * u * (p1.z - p0.z) + 6 * u * t * (p2.z - p1.z) + 3 * t * t * (p3.z - p2.z),
+      };
+    };
+    let len = 0;
+    let prev = p0;
+    for (let i = 1; i <= 12; i++) { const q = at(i / 12); len += Math.hypot(q.x - prev.x, q.z - prev.z); prev = q; }
+    const n = Math.max(1, Math.ceil(len / step));
+    const pts: Vec2[] = [];
+    const tans: Vec2[] = [];
+    let bad = 0;
+    for (let i = 1; i < n; i++) {
+      let q = at(i / n);
+      if (!onRoad(q)) {
+        // pull the sample toward the straight chord until it is on the pavement
+        const c = { x: p0.x + (p3.x - p0.x) * (i / n), z: p0.z + (p3.z - p0.z) * (i / n) };
+        let fixed = false;
+        for (const w of [0.4, 0.7, 1]) {
+          const r = { x: q.x * (1 - w) + c.x * w, z: q.z * (1 - w) + c.z * w };
+          if (onRoad(r)) { q = r; fixed = true; break; }
+        }
+        if (!fixed) bad++;
+      }
+      pts.push(q);
+      tans.push(tangent(i / n));
+    }
+    if (!best || bad < best.bad) best = { pts, tans, bad };
+    if (bad === 0) break;
   }
+  const ids: string[] = [];
+  best!.pts.forEach((q, i) => {
+    const id = `cx:${from.id}>${tag}:${i + 1}`;
+    add({ id, pos: q, streetId: to.streetId, heading: headingFromVec(best!.tans[i]), stopLine: false });
+    ids.push(id);
+  });
   return ids;
 }

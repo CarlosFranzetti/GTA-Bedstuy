@@ -61,6 +61,8 @@ export interface RealWorldOptions {
   materials: IMaterialLibrary;
   rng: Rng;
   tier?: Quality;
+  /** real BuildingGen buildings within this many metres of the spawn (default 400); farther blocks get plain boxes. Infinity = all (slow: minutes). */
+  buildingRadius?: number;
   /** force the stand-ins (tests, and to compare against the real pieces) */
   forceStandIns?: boolean;
 }
@@ -129,13 +131,13 @@ function standInRoads(net: RoadNet, d: Derived, mats: IMaterialLibrary): THREE.G
 }
 
 /** Box buildings from the building rings (height by block hash 8..20 m): the stand-in for faces + lots + BuildingGen. */
-function standInBuildings(net: RoadNet, d: Derived, mats: IMaterialLibrary): { group: THREE.Group; colliders: StaticCollider[] } {
+function standInBuildings(net: RoadNet, d: Derived, mats: IMaterialLibrary, skipBlocks?: ReadonlySet<number>): { group: THREE.Group; colliders: StaticCollider[] } {
   const group = new THREE.Group();
   group.name = 'buildings-standin';
   const pos: number[] = [];
   const colliders: StaticCollider[] = [];
   d.buildingRings.forEach((ring, i) => {
-    if (ring.length < 3) return;
+    if (ring.length < 3 || skipBlocks?.has(i)) return;
     const h = 8 + ((i * 2654435761) >>> 0) % 13;
     const pts = signedArea(ring) > 0 ? ring : ring.slice().reverse();
     const n = pts.length;
@@ -218,6 +220,8 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   group.add(roads);
   t('roads', t0);
 
+  const { spawn, heading } = spawnNear(net, sidewalks, { x: 0, z: 0 });
+
   // buildings
   t0 = performance.now();
   let lots: Lot[] = [];
@@ -225,8 +229,16 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   try {
     if (opts.forceStandIns) throw new Error('forced');
     const lotsJson = (await import('@/world/data/raw/lots-real-r1r2a.json')).default as unknown;
-    lots = placeLots(net, derived, blockFaces(net, derived), lotsJson);
+    const all = placeLots(net, derived, blockFaces(net, derived), lotsJson) as Array<Lot & { block?: number }>;
+    const R = opts.buildingRadius ?? 400;
+    const near = (l: Lot): boolean => Math.hypot((l.frontA.x + l.frontB.x) / 2 - spawn.x, (l.frontA.z + l.frontB.z) / 2 - spawn.z) <= R;
+    lots = all.filter(near);
+    const nearBlocks = new Set<number>(all.filter(near).map((l) => l.block ?? -1));
     bld = buildBuildings(lots, mats, rng.fork('buildings'));
+    // beyond the radius: plain boxes from the building rings, so the skyline of the whole network is there
+    const far = standInBuildings(net, derived, mats, nearBlocks);
+    bld.group.add(...far.group.children);
+    bld.colliders.push(...far.colliders);
     bld.group.position.y = SIDEWALK_HEIGHT;
     // re-bin into render cells so the chunk culler can hide far ones
     const cells = { meshesBefore: 0, meshesAfter: 0, trianglesAfter: 0 };
@@ -257,7 +269,6 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   }
   t('el', t0);
 
-  const { spawn, heading } = spawnNear(net, sidewalks, { x: 0, z: 0 });
   const stats = { ...measureWorld(group), lots: lots.length, colliders: colliders.length, ms };
   void ROAD_CHUNK_PREFIX;
   return { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, notice: REAL_NOTICE, standIns, el, stats };

@@ -94,7 +94,7 @@ export class Credits {
   navigate(dir: NavDir): boolean {
     if (!this.opened) return false;
     if (dir === 'back') this.close();
-    else if (dir === 'up' || dir === 'down') { this.stopAuto(); this.scroller?.scrollBy({ top: dir === 'up' ? -140 : 140 }); }
+    else if (dir === 'up' || dir === 'down') { this.stopAuto(); if (this.scroller) this.scroller.scrollTop += dir === 'up' ? -140 : 140; }
     return true;
   }
 

@@ -11,7 +11,7 @@ import { ClipCache } from '../ClipCache';
 import { FxBank, type FxHost } from '../fx';
 import type { PackLookup } from '../pack';
 import { clipKey, lineSeconds } from '../script';
-import { fadeEdges, pedRhythmId, planSpeech, trimClip, type Phrase } from '../prosody';
+import { pedRhythmId, planSpeech, shapeClip, type Phrase } from '../prosody';
 import { rhythmFor } from '../rhythm';
 import type { Clip, TtsEngine } from '../types';
 import { pickVoices, type SpeechLike, type UtteranceLike, type VoiceLike } from '../../talk/TalkPlayer';
@@ -173,7 +173,7 @@ export class PedVoicePlayer implements SpeechBackend {
     let at = ctx.currentTime + 0.03;
     const start = at;
     for (const [i, c] of clips.entries()) {
-      const pcm = fadeEdges(trimClip(c.samples, c.sampleRate), c.sampleRate);
+      const pcm = shapeClip(c.samples, c.sampleRate);
       const buf = ctx.createBuffer(1, pcm.length, c.sampleRate);
       buf.copyToChannel(pcm as Float32Array<ArrayBuffer>, 0);
       const src = ctx.createBufferSource();

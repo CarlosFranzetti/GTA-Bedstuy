@@ -2,53 +2,33 @@
  * Rhythm profiles (lane PROSODY): how each cast member paces speech, apart from the voice preset. Keyed by cast id so
  * cast.ts stays untouched. Anyone not listed (a new host, a pedestrian, a story character) gets a profile derived from
  * a hash of the id, so no two of them share a rhythm. Columns:
- *   rate spread pause pauseSpread rush drag finalSlow emphasis turn pickup
+ *   rate pause energy unsteadiness gravity (expanded to the full Rhythm in P)
  */
 import { hash32 } from './script';
 import type { Rhythm } from './prosody';
 
-const P = (a: readonly number[]): Rhythm => ({ rate: a[0], spread: a[1], pause: a[2], pauseSpread: a[3], rush: a[4], drag: a[5], finalSlow: a[6], emphasis: a[7], turn: a[8], pickup: a[9] });
+/** rate, pause, energy (rushing, interrupting, leaning on words), unsteadiness (how uneven tempo and pauses are), gravity (dragging, slowing at the end of a sentence). */
+const P = ([rate, pause, e, u, g]: readonly number[]): Rhythm => ({
+  rate, pause, spread: 0.015 + 0.12 * u, pauseSpread: 0.05 + 0.5 * u, rush: 0.5 * e, drag: 0.4 * g, finalSlow: 0.16 * g,
+  emphasis: 0.1 + 0.35 * e, turn: pause * (1.1 - 0.4 * e), pickup: 0.8 * Math.max(0, e - 0.3),
+});
 
-export const RHYTHMS: Readonly<Record<string, Rhythm>> = {
+export const RHYTHMS: Readonly<Record<string, Rhythm>> = Object.fromEntries(Object.entries({
   // music DJs
-  deja: P([0.98, 0.06, 1.25, 0.3, 0.05, 0.25, 0.1, 0.25, 1.1, 0.1]),
-  odell: P([0.96, 0.05, 1.8, 0.35, 0, 0.4, 0.14, 0.3, 1.5, 0]),
-  tayo: P([1.04, 0.1, 0.55, 0.3, 0.4, 0.05, 0.02, 0.3, 0.5, 0.45]),
-  lou: P([0.96, 0.05, 1.55, 0.3, 0, 0.35, 0.16, 0.3, 1.3, 0.05]),
-  wren: P([0.96, 0.09, 1.7, 0.55, 0.05, 0.4, 0.12, 0.2, 1.4, 0]),
-  pearl: P([1.02, 0.08, 0.95, 0.4, 0.15, 0.15, 0.06, 0.4, 0.8, 0.3]),
-  tommy: P([1.06, 0.11, 0.5, 0.25, 0.45, 0.04, 0.01, 0.35, 0.45, 0.5]),
-  lucho: P([1.04, 0.09, 0.7, 0.3, 0.3, 0.08, 0.03, 0.3, 0.6, 0.35]),
-  cass: P([1.0, 0.04, 1.0, 0.15, 0.05, 0.1, 0.05, 0.2, 1, 0.05]),
-  // talk hosts
-  buck: P([1.02, 0.07, 0.75, 0.3, 0.2, 0.2, 0.08, 0.45, 0.55, 0.5]),
-  lorraine: P([0.98, 0.06, 1.35, 0.35, 0.05, 0.25, 0.12, 0.25, 1.15, 0.1]),
-  boards: P([1.04, 0.08, 0.8, 0.25, 0.25, 0.05, 0.03, 0.15, 0.7, 0.3]),
-  candace: P([1.04, 0.1, 0.7, 0.3, 0.3, 0.05, 0.02, 0.5, 0.6, 0.35]),
-  garrett: P([1.0, 0.07, 1.05, 0.45, 0.1, 0.3, 0.05, 0.4, 0.95, 0.15]),
-  odessa: P([0.96, 0.03, 1.2, 0.12, 0, 0.1, 0.1, 0.2, 1.2, 0]),
-  abernathy: P([0.96, 0.06, 1.3, 0.4, 0.05, 0.3, 0.12, 0.35, 1.2, 0.25]),
-  delacroix: P([1.02, 0.09, 0.8, 0.35, 0.3, 0.1, 0.04, 0.45, 0.6, 0.45]),
-  juniper: P([0.96, 0.04, 1.6, 0.25, 0, 0.3, 0.14, 0.15, 1.4, 0]),
-  declan: P([1.06, 0.1, 0.7, 0.3, 0.35, 0.05, 0.02, 0.3, 0.6, 0.35]),
-  hollis: P([0.95, 0.03, 1.4, 0.15, 0, 0.2, 0.13, 0.2, 1.25, 0.05]),
-  winston: P([0.94, 0.06, 1.6, 0.45, 0, 0.45, 0.15, 0.35, 1.3, 0.05]),
-  marisol: P([1.04, 0.1, 0.8, 0.35, 0.3, 0.1, 0.04, 0.45, 0.55, 0.45]),
-  dana: P([1.02, 0.03, 0.95, 0.12, 0.05, 0.05, 0.1, 0.15, 0.9, 0]),
+  deja: [0.98, 1.25, 0.15, 0.3, 0.5], odell: [0.96, 1.8, 0, 0.4, 0.8], tayo: [1.04, 0.55, 0.8, 0.4, 0.05], lou: [0.96, 1.55, 0.05, 0.3, 0.9],
+  wren: [0.96, 1.7, 0.1, 0.7, 0.7], pearl: [1.02, 0.95, 0.35, 0.5, 0.35], tommy: [1.06, 0.5, 0.9, 0.3, 0.05], lucho: [1.05, 0.65, 0.6, 0.4, 0.05],
+  cass: [1, 1, 0.1, 0.1, 0.3],
+  // talk hosts and guests
+  buck: [1.02, 0.75, 0.75, 0.4, 0.3], lorraine: [0.98, 1.35, 0.1, 0.4, 0.7], boards: [1.04, 0.8, 0.5, 0.25, 0.15], candace: [1.04, 0.7, 0.6, 0.35, 0.1],
+  garrett: [1, 1.05, 0.2, 0.6, 0.3], odessa: [0.96, 1.2, 0, 0.1, 0.6], abernathy: [0.96, 1.3, 0.1, 0.5, 0.7], delacroix: [1.02, 0.8, 0.6, 0.45, 0.2],
+  juniper: [0.96, 1.6, 0, 0.3, 0.8], declan: [1.06, 0.7, 0.7, 0.35, 0.1], hollis: [0.95, 1.4, 0, 0.1, 0.7], winston: [0.94, 1.6, 0, 0.6, 0.9],
+  marisol: [1.04, 0.8, 0.6, 0.45, 0.2], dana: [1.02, 0.95, 0.1, 0.1, 0.6],
   // callers
-  hakim: P([1.02, 0.08, 0.95, 0.4, 0.15, 0.15, 0.05, 0.3, 0.8, 0.2]),
-  tanya: P([1.06, 0.1, 0.65, 0.35, 0.35, 0.08, 0.02, 0.45, 0.5, 0.5]),
-  kiki: P([1.08, 0.12, 0.7, 0.5, 0.3, 0.15, 0, 0.2, 0.7, 0.3]),
-  gerald: P([0.98, 0.05, 1.0, 0.25, 0.1, 0.2, 0.08, 0.4, 0.85, 0.35]),
-  gus: P([1.08, 0.13, 0.55, 0.45, 0.45, 0.1, 0.02, 0.5, 0.45, 0.5]),
-  tillman: P([0.94, 0.04, 1.5, 0.25, 0, 0.3, 0.14, 0.3, 1.3, 0]),
-  rosa: P([0.98, 0.07, 1.3, 0.4, 0.05, 0.3, 0.1, 0.25, 1.1, 0.05]),
-  dev: P([1.06, 0.15, 0.95, 0.6, 0.3, 0.2, 0, 0.1, 0.75, 0.15]),
-  // ads and machines: even, little spread
-  trent: P([1.08, 0.04, 0.6, 0.12, 0.45, 0, 0.02, 0.2, 0.6, 0]),
-  noelle: P([0.98, 0.03, 1.15, 0.1, 0, 0.05, 0.07, 0.15, 1, 0]),
-  smartspeaker: P([1, 0.01, 1, 0.05, 0, 0, 0, 0, 1, 0]),
-};
+  hakim: [1.02, 0.95, 0.3, 0.5, 0.3], tanya: [1.06, 0.65, 0.7, 0.45, 0.1], kiki: [1.08, 0.7, 0.5, 0.8, 0], gerald: [0.98, 1, 0.4, 0.3, 0.45],
+  gus: [1.08, 0.55, 0.9, 0.6, 0.1], tillman: [0.94, 1.5, 0, 0.3, 0.8], rosa: [0.98, 1.3, 0.1, 0.5, 0.6], dev: [1.06, 0.95, 0.4, 1, 0],
+  // ads and machines: even, little spread, nobody interrupts
+  trent: [1.08, 0.6, 0.3, 0.1, 0.1], noelle: [0.98, 1.15, 0, 0.1, 0.5], smartspeaker: [1, 1, 0, 0, 0],
+}).map(([k, v]) => [k, P(v)]));
 
 const cache = new Map<string, Rhythm>();
 
@@ -58,7 +38,7 @@ export function rhythmFor(id: string): Rhythm {
   if (hit) return hit;
   const h = parseInt(hash32(`rhythm|${id}`), 16);
   const u = (k: number) => ((h >>> (k * 5)) & 31) / 31;
-  const r = P([0.94 + 0.12 * u(0), 0.04 + 0.08 * u(1), 0.7 + 0.8 * u(2), 0.15 + 0.35 * u(3), 0.35 * u(4), 0.3 * u(5), 0.1 * u(0), 0.1 + 0.3 * u(1), 0.6 + 0.8 * u(2), 0.4 * u(3)]);
+  const r = P([0.94 + 0.12 * u(0), 0.7 + 0.8 * u(1), 0.7 * u(2), 0.7 * u(3), 0.7 * u(4)]);
   cache.set(id, r);
   return r;
 }

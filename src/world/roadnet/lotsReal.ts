@@ -39,6 +39,8 @@ export interface RealLot extends Lot {
   cornerEnd?: 'a' | 'b' | 'ab';
   /** the street the lot fronts is an avenue, arterial or other non-street class */
   avenue?: boolean;
+  /** import phase of the lot (R1 | R2) */
+  ph?: string;
   /** PLUTO facts the building generator needs (all from the lots file) */
   pluto?: { cls: string; lu: string; fl: number | null; yr: number | null; bd: number | null; bf: number | null; rf: number | null; lf: number };
 }
@@ -348,6 +350,7 @@ export function placeLotsDetailed(net: RoadNet, d: Derived, faces: RealFace[][],
           outward: F.outward, type, corner: cornerA || cornerB, poly, block: bi, face: fi, scale: exact,
           cornerEnd: cornerA && cornerB ? 'ab' : cornerA ? 'a' : cornerB ? 'b' : undefined,
           avenue: net.edges[F.edge].cls !== 'street',
+          ph: lot.ph,
           pluto: { cls: lot.cls ?? '', lu: lot.lu ?? '', fl: lot.fl ?? null, yr: lot.yr ?? null, bd: lot.bd ?? null, bf: lot.bf ?? null, rf: lot.rf ?? null, lf: lot.lf! },
         });
       }
