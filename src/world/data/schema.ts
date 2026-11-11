@@ -89,6 +89,8 @@ export interface LotSpec {
   /** optional parody sign text / awning colour carried through from a POI */
   sign?: string;
   awningColor?: string;
+  /** NYC tax lot id (borough+block+lot, 10 digits): the stable key for per-lot observed data (facade-observed.json); survives re-gridding */
+  bbl?: string;
 }
 
 /** What an author may write in JSON for a lot (everything optional except where a rule below says otherwise). */
@@ -166,7 +168,7 @@ export class SchemaError extends Error {
 
 const LOT_KEYS = new Set([
   'widthM', 'floors', 'family', 'stoop', 'stoopHeightM', 'cornice', 'bays', 'use', 'storefront', 'trees', 'scaffold',
-  'depthM', 'confidence', 'note', 'sign', 'awningColor',
+  'depthM', 'confidence', 'note', 'sign', 'awningColor', 'bbl',
 ]);
 const FACE_KEYS = new Set(['street', 'side', 'from', 'to', 'typology', 'seed', 'lots', 'pins', 'confidence', 'note']);
 
@@ -215,6 +217,7 @@ export function validateLot(raw: unknown, path: string, needWidth: boolean): str
   if (raw.note !== undefined && typeof raw.note !== 'string') out.push(`${path}.note: expected string`);
   if (raw.sign !== undefined && typeof raw.sign !== 'string') out.push(`${path}.sign: expected string`);
   if (raw.awningColor !== undefined && typeof raw.awningColor !== 'string') out.push(`${path}.awningColor: expected string`);
+  if (raw.bbl !== undefined && (typeof raw.bbl !== 'string' || !/^\d{10}$/.test(raw.bbl))) out.push(`${path}.bbl: expected a 10-digit BBL string`);
   // cross-field sanity (only when both sides are explicit)
   const use = raw.use;
   const sf = raw.storefront;
@@ -354,6 +357,7 @@ export function resolveLot(raw: RawLot, ctx: ResolveCtx): LotSpec {
   if (storefront) spec.storefront = storefront;
   if (raw.sign !== undefined) spec.sign = raw.sign;
   if (raw.awningColor !== undefined) spec.awningColor = raw.awningColor;
+  if (raw.bbl !== undefined) spec.bbl = raw.bbl;
   return spec;
 }
 

@@ -58,12 +58,13 @@ describe('ped atlas painter', () => {
     }
   });
 
-  it('puts the print on the front of the shirt (hoodie text, jersey number) and not on a plain back', () => {
+  it('has no lettering: the jersey carries contrast trim and no numerals', () => {
+    for (const s of PED_SPECS) { expect((s.top as { printText?: string }).printText, s.id).toBeUndefined(); expect(s.hatLogo === '' || s.hatLogo === '*', s.id).toBe(true); }
     const t = pedTileRect('torsoFront');
     const { px } = atlas(pedVariantIndex('ba-jersey-teen'));
-    let light = 0;
-    for (let y = t.y + 24; y < t.y + 46; y++) for (let x = t.x + 18; x < t.x + 46; x++) { const c = at(px, x, y); if (c[0] > 230 && c[1] > 230 && c[2] > 230) light++; }
-    expect(light).toBeGreaterThan(30);
+    let trim = 0;
+    for (let y = t.y + 58; y < t.y + 63; y++) for (let x = t.x + 4; x < t.x + 60; x++) { const c = at(px, x, y); if (c[0] > 200 && c[1] > 200 && c[2] > 200) trim++; }
+    expect(trim).toBeGreaterThan(30);
   });
 
   it('mixHex and the church boost behave', () => {

@@ -22,6 +22,9 @@ import { TalkStation, type TalkLike } from './voice/TalkStation';
 import { DjScheduler } from './voice/Scheduler';
 import type { TtsEngine } from './voice/types';
 import type { PersistentStore } from './voice/ClipCache';
+import { VehicleAudio } from './vehicle/VehicleAudio';
+import type { Surface } from './vehicle/fx';
+import type { Listener, TrafficCar } from './vehicle/nodes';
 import { loadBundledScript, type TalkSegment } from './talk/script';
 
 /** Seconds of audio queued ahead of currentTime by the radio sequencer. */
@@ -117,6 +120,8 @@ export class AudioSystem {
   readonly radio: RadioDirector;
   /** Folder picker / file import / reset for the player's library (used by RadioUi). */
   readonly libraryController: LibraryController;
+  /** Vehicle, road, body and world sounds (SFX14). Active once a vehicle type is set. */
+  readonly vehicle = new VehicleAudio(() => this.rng.next());
   private bed: { gain: GainNode; oscs: OscillatorNode[] } | null = null;
   private bedLevel = 0;
   private lastSynthEpoch = -1;
@@ -197,8 +202,8 @@ export class AudioSystem {
     this.radio.onSweeper = (entry) => { if (this.radioOn && this.g) this.playSting(entry.id === 'sc' ? scJingle() : stationJingle(entry.id)); };
     this.unsubs.push(
       events.on('userGesture', () => { void this.start(); void this.libraryController.autoReconnect().catch(() => undefined); }),
-      events.on('horn', () => this.playHorn()),
-      events.on('impact', (e) => this.playImpact(e.strength)),
+      events.on('horn', (e) => { if (this.vehicle.typed) this.vehicle.hornEvent(e.pos); else this.playHorn(); }),
+      events.on('impact', (e) => { this.playImpact(e.strength); if (this.vehicle.typed) this.vehicle.playCrash(e.strength); }),
       events.on('enterVehicle', () => this.setRadioOn(true)),
       events.on('exitVehicle', () => this.setRadioOn(false)),
       events.on('radioNext', () => this.nextStation()),
@@ -234,6 +239,7 @@ export class AudioSystem {
     const g = this.g;
     if (!g) return;
     const now = g.ctx.currentTime;
+    this.vehicle.update(dt);
     if (this.shiftFactor !== 1) {
       const k = Math.min(1, dt / SHIFT_RECOVERY);
       this.shiftFactor += (1 - this.shiftFactor) * k;
@@ -251,7 +257,9 @@ export class AudioSystem {
   }
 
   /** Call once per frame with the vehicle state. Speed in m/s, throttle 0..1. */
-  setEngine(speed: number, throttle: number, inVehicle: boolean, pitch = 1): void {
+  setEngine(speed: number, throttle: number, inVehicle: boolean, pitch = 1, type?: string | null): void {
+    if (type !== undefined) this.vehicle.setType(type);
+    this.vehicle.setDrive(speed, throttle, inVehicle);
     this.engineSpeed = speed;
     this.enginePitch = Number.isFinite(pitch) && pitch > 0 ? pitch : 1;
     this.engineThrottle = throttle;
@@ -267,6 +275,29 @@ export class AudioSystem {
       this.applySqueal(this.g);
     }
   }
+
+  /* ---------- vehicle, road, body and world (SFX14) ---------- */
+
+  /** Sets the player's vehicle type (null = on foot / legacy engine). setEngine(..., type) does the same. */
+  setVehicle(type: string | null): void { this.vehicle.setType(type); }
+  /** Horn button held state: sustains horns and sirens until released. */
+  setHornHeld(on: boolean): void { this.vehicle.setHornHeld(on); }
+  /** AI car honks with its own horn (rate-limited, distance-attenuated). Returns whether it played. */
+  honkAt(id: string, type: string, dist: number): boolean { return this.vehicle.honkAt(id, type, dist); }
+  /** Listener and nearby AI cars; the nearest few get engine voices. Call once per frame. */
+  setTraffic(listener: Listener, cars: TrafficCar[], dt = 1 / 60): void { this.vehicle.setTraffic(listener, cars, dt); }
+  setReverse(on: boolean): void { this.vehicle.setReverse(on); }
+  setBraking(on: boolean): void { this.vehicle.setBraking(on); }
+  setIndicator(on: boolean): void { this.vehicle.setIndicator(on); }
+  setSurface(s: Surface | 'wet'): void { this.vehicle.setSurface(s); }
+  setRain(v: number): void { this.vehicle.setRain(v); }
+  setDistrict(id: string | null): void { this.vehicle.setDistrict(id); }
+  playDoor(open: boolean, type?: string | null): void { this.vehicle.playDoor(open, type); }
+  playKerb(strength: number): void { this.vehicle.playKerb(strength); }
+  playFootstep(surface: Surface = 'asphalt', run = false): void { this.vehicle.playFootstep(surface, run); }
+  playJump(): void { this.vehicle.playJump(); }
+  playLand(strength = 0.5): void { this.vehicle.playLand(strength); }
+  playUi(kind: 'tick' | 'ok' | 'back' = 'tick'): void { this.vehicle.playUi(kind); }
 
   /** Lateral tyre slip 0..1 (drift / skid). Ask the vehicle for it; without one, use `setHandbrake`. */
   setSlip(slip: number): void {
@@ -383,6 +414,7 @@ export class AudioSystem {
   dispose(): void {
     this.unsubs.splice(0).forEach((fn) => fn());
     this.radio.dispose();
+    this.vehicle.dispose();
     const g = this.g;
     if (g && typeof g.ctx.close === 'function') void g.ctx.close().catch(() => undefined);
     this.g = null;
@@ -500,6 +532,7 @@ export class AudioSystem {
     musicBus.connect(master);
 
     const g: Graph = { ctx, master, saw, sq, engineFilter, engineGain, radioBus, musicBus, dayGain, nightGain, squealGain, squealFilter, noise };
+    this.vehicle.attach(ctx, master, noise);
     this.applyEngine(g);
     this.applySqueal(g);
     // The user's files play through two media elements. Unlocking them here is inside the first user gesture (iOS).
@@ -516,7 +549,7 @@ export class AudioSystem {
     g.saw.frequency.setTargetAtTime(f, now, 0.05);
     g.sq.frequency.setTargetAtTime(f / 2, now, 0.05);
     g.engineFilter.frequency.setTargetAtTime(300 + 900 * throttle, now, 0.1);
-    const target = this.engineOn ? 0.04 + 0.08 * throttle : 0;
+    const target = this.engineOn && !this.vehicle.typed ? 0.04 + 0.08 * throttle : 0;
     g.engineGain.gain.setTargetAtTime(target, now, 0.2);
   }
 

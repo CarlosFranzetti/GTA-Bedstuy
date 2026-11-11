@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Block, BlockFace, GridModel, IMaterialLibrary, Lot, Side, StaticCollider, StreetDef } from '@/world/types';
 import { Rng } from '@/core/Rng';
+import { treeStyleFor } from '@/world/data/streetTrees';
 type V3 = [number, number, number];
 import type { Vec2 } from '@/core/Math2';
 import { planSignBlades, SIGN_LAYOUT } from '@/world/signBlades';
@@ -191,11 +192,14 @@ export function buildFurniture(
     return [g];
   };
 
-  function addTree(base: Vec2): void {
+  function addTree(base: Vec2, streetId: string): void {
     const yaw = rng.range(0, Math.PI * 2);
     const lean: [number, number] = [rng.range(-0.05, 0.05), rng.range(-0.05, 0.05)];
-    const R = rng.range(1.2, 1.6);
-    const tree = placeMatrix(new THREE.Matrix4(), base.x, 0, base.z, yaw, lean);
+    // size and species from the street's real tree census (own hash stream: the layout rng above is untouched)
+    const tr = new Rng(Rng.hash(`tree:${streetId}:${base.x.toFixed(1)}:${base.z.toFixed(1)}`));
+    const style = treeStyleFor(streetId, tr.next(), tr.next(), tr.next());
+    const R = rng.range(1.2, 1.6) * style.canopy;
+    const tree = placeMatrix(new THREE.Matrix4(), base.x, 0, base.z, yaw, lean).scale(_p.set(style.scale, style.scale, style.scale));
     putInst('treeTrunk', M.treeTrunk, trunkGeo, tree);
     const canopy: [number, number, number, number][] = [
       [0, 4.0, 0, R],
@@ -302,7 +306,7 @@ export function buildFurniture(
       if (inMixedUse(sj)) continue;
       const p = at(sj, TREE_CURB_INSET);
       if (near(p, occupied, TREE_CLEARANCE)) continue;
-      addTree(p);
+      addTree(p, f.streetId);
       occupied.push(p);
     }
 

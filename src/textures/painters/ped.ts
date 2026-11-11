@@ -49,7 +49,7 @@ export type TopKind = 'tee' | 'hoodie' | 'puffer' | 'jersey' | 'vest' | 'jacket'
 export type BottomKind = 'jeans' | 'trousers' | 'shorts' | 'skirt' | 'leggings' | 'sweats' | 'cargo';
 export type PedRole = 'civilian' | 'cop' | 'shopkeeper' | 'dj' | 'player';
 export type Build = 'avg' | 'slim' | 'stocky' | 'kid' | 'tall';
-export type PrintKind = 'none' | 'text' | 'star' | 'stripes' | 'bolt' | 'bars' | 'badge' | 'heart';
+export type PrintKind = 'none' | 'star' | 'stripes' | 'bolt' | 'bars' | 'badge' | 'heart';
 
 /** crowd groups of the street population (see pedRoster.ts): Black American, Caribbean, Latino, white, East Asian, South Asian, Middle Eastern, mixed, Hasidic Jewish */
 export type PopGroup = 'ba' | 'ca' | 'la' | 'wh' | 'ea' | 'sa' | 'me' | 'mx' | 'hj';
@@ -77,7 +77,9 @@ export interface PedSpec {
     kind: TopKind; color: string; trim: string; sleeves: 'long' | 'short' | 'none'; /** coat / tunic to the knee */ long?: boolean;
     print: PrintKind; printText?: string; printColor: string;
     /** shirt under an open jacket / cardigan / vest */
-    under?: string; tie?: string; zip?: boolean; pattern?: 'none' | 'print' | 'plaid';
+    under?: string; tie?: string; zip?: boolean; pattern?: 'none' | 'print' | 'plaid' | 'heather' | 'stripe' | 'check' | 'block';
+    /** jacket worn open over `under` (a tee or hoodie shows) */ open?: boolean;
+    /** what the outer layer is made of (default by garment) */ fabric?: 'canvas' | 'denim' | 'leather' | 'wool' | 'fleece' | 'knit';
   };
   bottom: { kind: BottomKind; color: string; trim: string; /** ankle-length skirt */ long?: boolean };
   shoes: { color: string; sole: string; accent: string; high?: boolean };
@@ -101,9 +103,9 @@ const base = (o: Partial<PedSpec> & Pick<PedSpec, 'id' | 'skin' | 'top' | 'botto
 /** Index order matters: civilians first (0..CIVILIAN_COUNT-1), then the named people. */
 export const BASE_SPECS: readonly PedSpec[] = [
   base({ // 0 fitted cap + hoodie
-    id: 'hoodie-cap', skin: '#8d5a3b', hair: 'fade', hat: 'cap', hatColor: '#1c2a4a', hatTrim: '#e8e8e8', hatLogo: 'BK',
+    id: 'hoodie-cap', skin: '#8d5a3b', hair: 'fade', hat: 'cap', hatColor: '#1c2a4a', hatTrim: '#e8e8e8', hatLogo: '',
     face: { eyes: 'dot', brows: 'thick', mouth: 'flat', stubble: true },
-    top: { kind: 'hoodie', color: '#2b2f36', trim: '#454b55', sleeves: 'long', print: 'text', printText: 'STUY', printColor: '#e8e8e8', zip: false },
+    top: { kind: 'hoodie', color: '#2b2f36', trim: '#454b55', sleeves: 'long', print: 'none', printColor: '#e8e8e8', zip: false, pattern: 'heather' },
     bottom: { kind: 'jeans', color: '#34506f', trim: '#243a52' }, shoes: { color: '#f4f4f4', sole: '#cfcfcf', accent: '#1c2a4a' }, weight: 1.4,
   }),
   base({ // 1 orange puffer + braids
@@ -132,7 +134,7 @@ export const BASE_SPECS: readonly PedSpec[] = [
     bottom: { kind: 'skirt', color: '#b58ad6', trim: '#8a5fb0' }, shoes: { color: '#f0e6f6', sole: '#b58ad6', accent: '#8a5fb0' }, gear: 'bag', gearColor: '#f0e6f6', weight: 0.35, sunday: true,
   }),
   base({ // 5 delivery rider
-    id: 'delivery-vest', skin: '#c58a5c', hair: 'short', hat: 'cap', hatColor: '#111111', hatTrim: '#f4d03f', hatLogo: 'GO',
+    id: 'delivery-vest', skin: '#c58a5c', hair: 'short', hat: 'cap', hatColor: '#111111', hatTrim: '#f4d03f', hatLogo: '',
     face: { eyes: 'sleepy', brows: 'thick', mouth: 'flat', stubble: true },
     top: { kind: 'vest', color: '#e9d628', trim: '#c8b81c', sleeves: 'long', print: 'stripes', printColor: '#d8d8d8', under: '#22262c' },
     bottom: { kind: 'cargo', color: '#2d3138', trim: '#1c1f24' }, shoes: { color: '#222222', sole: '#111111', accent: '#e9d628' },
@@ -154,7 +156,7 @@ export const BASE_SPECS: readonly PedSpec[] = [
   base({ // 8 teen in a jersey
     id: 'jersey-teen', skin: '#5a3822', hair: 'afro', hairColor: '#0e0a08',
     face: { eyes: 'dot', brows: 'thick', mouth: 'grin' },
-    top: { kind: 'jersey', color: '#c2392b', trim: '#f4f4f4', sleeves: 'none', print: 'text', printText: '23', printColor: '#f4f4f4' },
+    top: { kind: 'jersey', color: '#c2392b', trim: '#f4f4f4', sleeves: 'none', print: 'stripes', printColor: '#f4f4f4', pattern: 'block' },
     bottom: { kind: 'shorts', color: '#c2392b', trim: '#f4f4f4' }, shoes: { color: '#f4f4f4', sole: '#c2392b', accent: '#c2392b', high: true }, build: 'tall', weight: 1.1,
   }),
   base({ // 9 scrubs
@@ -206,15 +208,15 @@ export const BASE_SPECS: readonly PedSpec[] = [
     bottom: { kind: 'skirt', color: '#3a2d52', trim: '#241a38' }, shoes: { color: '#f4d03f', sole: '#3a2d52', accent: '#c0392b' }, build: 'stocky', weight: 0,
   }),
   base({ // 17 the DJ
-    id: 'dj', role: 'dj', skin: '#5a3822', hair: 'bald', hat: 'cap', hatColor: '#d4a017', hatTrim: '#111111', hatLogo: 'DJ',
+    id: 'dj', role: 'dj', skin: '#5a3822', hair: 'bald', hat: 'cap', hatColor: '#d4a017', hatTrim: '#111111', hatLogo: '',
     face: { eyes: 'dot', brows: 'thick', mouth: 'grin', beard: true, glasses: '#111111' },
     top: { kind: 'hoodie', color: '#6a2a8a', trim: '#4a1c64', sleeves: 'long', print: 'bars', printColor: '#f4d03f' },
     bottom: { kind: 'jeans', color: '#161820', trim: '#0c0e14' }, shoes: { color: '#d4a017', sole: '#111111', accent: '#111111', high: true }, build: 'tall', weight: 0,
   }),
   base({ // 18 the player: red hoodie, cap, jeans
-    id: 'player', role: 'player', skin: '#8d5a3b', hair: 'short', hat: 'cap', hatColor: '#111111', hatTrim: '#d63a2a', hatLogo: 'B',
+    id: 'player', role: 'player', skin: '#8d5a3b', hair: 'short', hat: 'cap', hatColor: '#111111', hatTrim: '#d63a2a', hatLogo: '',
     face: { eyes: 'dot', brows: 'thick', mouth: 'smile' },
-    top: { kind: 'hoodie', color: '#d63a2a', trim: '#a8261b', sleeves: 'long', print: 'text', printText: 'BK', printColor: '#f4f4f4', zip: false },
+    top: { kind: 'hoodie', color: '#d63a2a', trim: '#a8261b', sleeves: 'long', print: 'none', printColor: '#f4f4f4', zip: false, pattern: 'heather' },
     bottom: { kind: 'jeans', color: '#34506f', trim: '#243a52' }, shoes: { color: '#f4f4f4', sole: '#cfcfcf', accent: '#d63a2a' }, build: 'avg', weight: 0,
   }),
 ];
@@ -430,13 +432,6 @@ function folds(t: Tile, color: string, rng: Rng, n: number, x0 = 0, x1 = 64, y0 
 function paintPrint(t: Tile, s: PedSpec, cx: number, cy: number, maxW: number): void {
   const p = s.top;
   switch (p.print) {
-    case 'text': {
-      const txt = p.printText ?? '';
-      const sc = Math.max(2, Math.min(4, Math.floor(maxW / Math.max(1, txt.length * 4 - 1))));
-      const w = t.textWidth(txt, sc);
-      t.text(txt, cx - w / 2, cy - (5 * sc) / 2, sc, p.printColor);
-      break;
-    }
     case 'star': {
       const pts: Array<[number, number]> = [];
       for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5; const r = i % 2 === 0 ? 10 : 4.5; pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r]); }
@@ -567,15 +562,12 @@ function paintTorsoBack(t: Tile, s: PedSpec, rng: Rng): void {
   if (p.kind === 'hoodie') { t.poly([[10, 0], [54, 0], [46, 20], [32, 26], [18, 20]], dark(c, 0.16)); t.line(32, 24, 32, 64, dark(c, 0.4), 1.5, 0.5); }
   else if (p.kind === 'puffer') for (let y = 10; y < 64; y += 11) { t.rect(0, y, 64, 1.8, dark(c, 0.55), 0.7); t.rect(0, y + 1.8, 64, 3, light(c, 0.1), 0.5); }
   else if (p.kind === 'vest') { t.rect(8, 0, 48, 64, p.color); t.rect(8, 28, 48, 6, p.printColor); t.rect(8, 48, 48, 5, p.printColor); t.poly([[20, 0], [32, 18], [44, 0]], p.printColor); }
-  else if (p.kind === 'jersey') { t.text(p.printText ?? '', 32 - t.textWidth(p.printText ?? '', 4) / 2, 18, 4, p.printColor); t.rect(0, 58, 64, 6, p.trim); t.rect(0, 0, 14, 22, p.trim); t.rect(50, 0, 14, 22, p.trim); }
+  else if (p.kind === 'jersey') { t.rect(0, 58, 64, 6, p.trim); t.rect(0, 0, 14, 22, p.trim); t.rect(50, 0, 14, 22, p.trim); }
   else if (p.kind === 'tracksuit') { t.rect(0, 0, 4, 64, p.trim); t.rect(60, 0, 4, 64, p.trim); }
-  else if (p.kind === 'uniform') { t.rect(0, 52, 64, 5, '#16213a'); t.text('POLICE', 32 - t.textWidth('POLICE', 2) / 2, 22, 2, '#e8e8e8'); }
+  else if (p.kind === 'uniform') { t.rect(0, 52, 64, 5, '#16213a'); t.rect(40, 18, 10, 12, dark(c, 0.2)); }
   else if (p.kind === 'scrubs') { t.rect(0, 0, 64, 4, dark(c, 0.15)); }
   else if (p.pattern === 'plaid') { for (let x = 4; x < 64; x += 10) t.rect(x, 0, 4, 64, dark(c, 0.45), 0.5); for (let y = 2; y < 64; y += 10) t.rect(0, y, 64, 4, dark(c, 0.45), 0.5); }
   else if (p.kind === 'apron') { t.poly([[14, 0], [20, 0], [32, 30], [44, 0], [50, 0], [32, 40]], p.color); t.rect(8, 40, 48, 4, p.color); }
-  if (p.print === 'text' && p.kind !== 'jersey' && p.kind !== 'uniform' && (p.kind === 'tee' || p.kind === 'hoodie')) {
-    t.text(p.printText ?? '', 32 - t.textWidth(p.printText ?? '', 2) / 2, 38, 2, p.printColor);
-  }
   t.bakeEdges(0.24, 7);
   t.bakeBottom(0.22);
 }
@@ -738,9 +730,6 @@ function paintGear(t: Tile, s: PedSpec, rng: Rng): void {
     const pts: Array<[number, number]> = [];
     for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5; const r = i % 2 === 0 ? 9 : 4; pts.push([48 + Math.cos(a) * r, 16 + Math.sin(a) * r]); }
     t.poly(pts, s.hatTrim);
-  } else if (s.hatLogo) {
-    const sc = s.hatLogo.length > 2 ? 2 : 3;
-    t.text(s.hatLogo, 48 - t.textWidth(s.hatLogo, sc) / 2, 16 - (5 * sc) / 2, sc, s.hatTrim);
   }
   // Q2 backpack / bag: colour, zip pocket, strap lines
   const gc = s.gearColor;

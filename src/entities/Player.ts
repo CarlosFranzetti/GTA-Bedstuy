@@ -5,6 +5,8 @@ import {
 import type { EventBus } from '@/core/Events';
 import type { Input } from '@/core/Input';
 import { animateWalk, type HumanModel } from '@/entities/models/humanModel';
+import { animateJump } from '@/entities/models/jumpPose';
+import { JumpState } from '@/entities/Jump';
 import { buildPerson as buildPedModel } from '@/entities/models/pedMesh';
 import type { CharacterRig, CharacterSource } from '@/world/types';
 import { Rng } from '@/core/Rng';
@@ -108,6 +110,19 @@ export class Player implements Entity {
   private pinT = 0;
   private readonly pinLast: Vec2 = { x: 0, z: 0 };
   private pinTarget: Vec2 | null = null;
+  /** Jump state (visual arc only). The host sets `jumpLocked` while a menu is open or the player is inside an interior. */
+  readonly jump = new JumpState();
+  jumpLocked = false;
+  /** Fires on take-off and on landing (strength 0..1): hook audio here, e.g. `audio.playJump?.()`, `audio.playLand?.(s)`. */
+  onJump: (() => void) | null = null;
+  onLand: ((strength: number) => void) | null = null;
+  private prevY = 0;
+  private landCheck = false;
+  private firstPerson = false;
+  /** Height above the ground (m); also on `body.height` so World2D lets the player over low props. */
+  get jumpHeight(): number { return this.jump.y; }
+  /** Scale for the blob shadow under the player (1 on the ground, smaller in the air). */
+  get shadowScale(): number { return this.jump.shadowScale; }
   private walkPhase = Math.PI / 2;
   private walkAmp = 0;
   private model: HumanModel | null = null;
@@ -162,6 +177,8 @@ export class Player implements Entity {
 
     this.vehicleInput = { ...NEUTRAL };
     if (this.entering) { this.moveDir = null; this.wantRun = false; return; }
+    // Space on foot is jump (in a vehicle it is the brake, handled above); a press while locked is swallowed
+    if (input.consume('Space') && !this.jumpLocked) this.jump.tryJump(true, Math.hypot(this.body.vel.x, this.body.vel.z));
     const fwd = input.axis(['KeyS', 'ArrowDown'], ['KeyW', 'ArrowUp']);
     const right = input.axis(['KeyA', 'ArrowLeft'], ['KeyD', 'ArrowRight']);
     const f = forwardFromHeading(cameraYaw);
@@ -206,6 +223,7 @@ export class Player implements Entity {
     this.enteredFrom = { x: this.body.pos.x, z: this.body.pos.z };
     this.entering = { vehicle: best, t: 0, from: { x: this.body.pos.x, z: this.body.pos.z }, prevDriver };
     this.pinT = 0; this.pinTarget = null;
+    this.jump.reset(); this.body.height = 0; this.prevY = 0;
     this.body.shape.r = SEATED_RADIUS; // glide through the car's own collision box
     this.onEnterStart?.();
     this.moveDir = null;
@@ -249,7 +267,7 @@ export class Player implements Entity {
    * Nearest free foot spot to `from` within PIN_SEARCH metres that can be reached in a straight line without crossing
    * a solid, preferring the direction the player is trying to go. Null when none (or no world query).
    */
-  static findFreeSpot(from: Vec2, blocked: (p: Vec2, r: number) => boolean, prefer: Vec2 | null, maxR = PIN_SEARCH): Vec2 | null {
+  static findFreeSpot(from: Vec2, blocked: (p: Vec2, r: number) => boolean, prefer: Vec2 | null, maxR = PIN_SEARCH, straight = true): Vec2 | null {
     let best: Vec2 | null = null, bestScore = Infinity;
     for (let d = 0.4; d <= maxR + 1e-6 && !best; d += 0.3) {
       for (let i = 0; i < 16; i++) {
@@ -258,7 +276,7 @@ export class Player implements Entity {
         const p = { x: from.x + dir.x * d, z: from.z + dir.z * d };
         if (blocked(p, FOOT_RADIUS)) continue;
         let clear = true;
-        for (let t = 0.25; t < d && clear; t += 0.25) if (blocked({ x: from.x + dir.x * t, z: from.z + dir.z * t }, FOOT_RADIUS * 0.8)) clear = false;
+        for (let t = 0.25; straight && t < d && clear; t += 0.25) if (blocked({ x: from.x + dir.x * t, z: from.z + dir.z * t }, FOOT_RADIUS * 0.8)) clear = false;
         if (!clear) continue;
         const score = prefer ? -(dir.x * prefer.x + dir.z * prefer.z) : 0;
         if (score < bestScore) { bestScore = score; best = p; }
@@ -358,6 +376,19 @@ export class Player implements Entity {
     if (!(dt > 0)) return;
     if (this.entering) { this.updateEntering(dt); return; }
 
+    // jump: advance the arc first so the physics pass of this step sees the new height
+    this.prevY = this.jump.y;
+    this.jump.update(dt);
+    b.height = this.jump.y;
+    if (this.jump.takeLaunched()) this.onJump?.();
+    const impact = this.jump.takeLanded();
+    if (impact >= 0) { this.landCheck = true; this.onLand?.(impact); }
+    if (this.landCheck && !this.jump.airborne) {
+      this.landCheck = false;
+      // landed inside something solid (a prop it was vaulting, a fence line): glide to the nearest free spot
+      if (this.blockedAt && this.blockedAt(b.pos, FOOT_RADIUS)) this.pinTarget = Player.findFreeSpot(b.pos, (p, r) => this.blockedAt!(p, r), this.moveDir, PIN_SEARCH, false);
+    }
+
     // pin recovery: progress is measured between steps, i.e. AFTER the physics pass pushed the body back out of things
     const moved = Math.hypot(b.pos.x - this.pinLast.x, b.pos.z - this.pinLast.z);
     this.pinLast.x = b.pos.x; this.pinLast.z = b.pos.z;
@@ -369,10 +400,10 @@ export class Player implements Entity {
     this.sprintBlend = clamp(this.sprintBlend + ramp * dt, 0, 1);
     if (this.moveDir) {
       const k = this.sprintBlend;
-      const sp = (WALK_SPEED + (RUN_SPEED - WALK_SPEED) * (k * k * (3 - 2 * k))) * (STICK_MIN_SPEED + (1 - STICK_MIN_SPEED) * this.moveMag);
+      const sp = (WALK_SPEED + (RUN_SPEED - WALK_SPEED) * (k * k * (3 - 2 * k))) * (STICK_MIN_SPEED + (1 - STICK_MIN_SPEED) * this.moveMag) * this.jump.speedScale;
       this.desiredVel = { x: this.moveDir.x * sp, z: this.moveDir.z * sp };
       const want = headingFromVec(this.moveDir);
-      b.heading = wrapAngle(b.heading + angleDiff(b.heading, want) * (1 - Math.exp(-TURN_SMOOTH * dt)));
+      b.heading = wrapAngle(b.heading + angleDiff(b.heading, want) * (1 - Math.exp(-TURN_SMOOTH * this.jump.accelScale * dt)));
     } else {
       this.desiredVel = { x: 0, z: 0 };
     }
@@ -380,7 +411,7 @@ export class Player implements Entity {
     const el = Math.hypot(ex, ez);
     if (el > 1e-9) {
       const reversing = this.moveDir !== null && b.vel.x * this.desiredVel.x + b.vel.z * this.desiredVel.z < 0;
-      const rate = this.moveDir ? ACCEL * (reversing ? TURN_ACCEL_BOOST : 1) : DECEL;
+      const rate = (this.moveDir ? ACCEL * (reversing ? TURN_ACCEL_BOOST : 1) : DECEL) * this.jump.accelScale;
       const step = Math.min(el, rate * dt);
       b.vel.x += (ex / el) * step;
       b.vel.z += (ez / el) * step;
@@ -397,10 +428,20 @@ export class Player implements Entity {
     const b = this.body;
     if (this.vehicle) { applyPose(this.object3D, b.pos, b.heading, 0); return; }
     const a = clamp(alpha, 0, 1);
-    if (Math.hypot(b.pos.x - this.prevPos.x, b.pos.z - this.prevPos.z) > 8) { applyPose(this.object3D, b.pos, b.heading, 0); return; }
+    const y = this.prevY + (this.jump.y - this.prevY) * a;
+    if (Math.hypot(b.pos.x - this.prevPos.x, b.pos.z - this.prevPos.z) > 8) { applyPose(this.object3D, b.pos, b.heading, y); return; }
     const pos = { x: this.prevPos.x + (b.pos.x - this.prevPos.x) * a, z: this.prevPos.z + (b.pos.z - this.prevPos.z) * a };
-    applyPose(this.object3D, pos, this.prevHeading + angleDiff(this.prevHeading, b.heading) * a, 0);
+    applyPose(this.object3D, pos, this.prevHeading + angleDiff(this.prevHeading, b.heading) * a, y);
   }
+
+  /** First-person view: hide the head (and hat/hair with it) so the lens inside it sees nothing; the body keeps casting its shadow. */
+  setFirstPerson(on: boolean): void {
+    if (on === this.firstPerson) return;
+    this.firstPerson = on;
+    if (this.model) this.model.head.visible = !on;
+    else if (this.rig) this.rig.group.traverse((o) => { if (/head|hair|hat|cap/i.test(o.name)) o.visible = !on; });
+  }
+  get isFirstPerson(): boolean { return this.firstPerson; }
 
   private updateEntering(dt: number): void {
     const e = this.entering!;
@@ -449,8 +490,11 @@ export class Player implements Entity {
       if (this.walkAmp < 0.002) this.walkAmp = 0;
     }
     if (this.rig) { this.rig.setSpeed(sp); this.rig.update(dt); }
-    else if (this.model) animateWalk(this.model, this.walkPhase, this.walkAmp);
-    applyPose(this.object3D, b.pos, b.heading, 0);
+    else if (this.model) {
+      if (this.jump.busy) animateJump(this.model, this.jump.phase, this.jump.t, this.jump.vy);
+      else animateWalk(this.model, this.walkPhase, this.walkAmp);
+    }
+    applyPose(this.object3D, b.pos, b.heading, this.jump.y);
   }
 
   dispose(): void {

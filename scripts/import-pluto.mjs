@@ -157,6 +157,7 @@ async function run(args) {
     if (!floors && fp?.roofM) { floors = Math.max(1, Math.round(fp.roofM / STOREY_M)); floorsFrom = 'footprint roof height'; }
     if (!floors) { floorsFrom = 'default'; }
     const lot = { widthM: round1(Math.max(3, widthFt * FT)), confidence: 'H' };
+    if (/^\d{10}$/.test(String(r.bbl))) lot.bbl = String(r.bbl); // stable tax-lot key for per-lot observed data (facade-observed.json)
     const bits = [`${r.address}`, `PLUTO ${bc}${year ? ` built ${year}` : ''}${r.landuse ? ` LU${String(r.landuse).padStart(2, '0')}` : ''}`];
     let use = 'residential', family, storefront;
     const retail = num(r.retailarea) > 0;

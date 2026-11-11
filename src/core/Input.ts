@@ -1,6 +1,9 @@
 /** Hold to look back (keyboard); the touch LOOK button and the pad's right-stick click drive the same code. */
 export const LOOK_BACK_KEY = 'KeyC';
 
+/** Edge-only pseudo key raised by a middle mouse click. */
+export const MIDDLE_MOUSE = 'MouseMiddle';
+
 export type InputMode = 'keyboard' | 'touch' | 'gamepad';
 
 /** Keyboard + mouse state. Poll `isDown` for held keys, `pressed` for edge-triggered actions (consumed per frame). */
@@ -37,7 +40,10 @@ export class Input {
     window.addEventListener('keyup', (e) => this.down.delete(e.code));
     window.addEventListener('blur', () => this.down.clear());
     el.addEventListener('mousemove', (e) => { if (this.pointerLocked) { this.mouseDX += e.movementX; this.mouseDY += this.invertLookY ? -e.movementY : e.movementY; this.setMode('keyboard'); } });
-    el.addEventListener('mousedown', () => { this.gesture(); this.requestLock(); });
+    el.addEventListener('mousedown', (e) => {
+      this.gesture(); this.requestLock();
+      if (e.button === 1) { e.preventDefault(); this.justPressed.add(MIDDLE_MOUSE); } // middle click: swap camera shoulder
+    });
     el.addEventListener('wheel', (e) => { this.wheel += Math.sign(e.deltaY); }, { passive: true });
     document.addEventListener('pointerlockchange', () => { this.pointerLocked = document.pointerLockElement === el; });
   }

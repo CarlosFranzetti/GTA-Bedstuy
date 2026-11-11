@@ -24,3 +24,4 @@ tests/unit/**/_*.test.ts
 playtests/h8d/playtest.mp4
 tests/unit/_scratch/
 tests/unit/tmp/
+cache/
