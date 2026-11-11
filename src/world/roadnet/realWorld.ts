@@ -33,6 +33,9 @@ import { blockFaces } from './faces';
 import { placeLots } from './lotsReal';
 import { allColumnSpots, buildElPaths } from './elReal';
 import { buildElStructureReal } from './elStructureReal';
+import { RealTrains } from './elTrainsReal';
+import { RealBuildingStreamer, type ColliderHost } from './buildingStream';
+import type { RealLot } from './lotsReal';
 import { signedArea } from './geom';
 
 export interface RealWorld {
@@ -48,6 +51,13 @@ export interface RealWorld {
   /** player start on a sidewalk, and the heading (radians, 0 = north) along the street there */
   spawn: Vec2;
   spawnHeading: number;
+  /** the streamed buildings (root is inside `group`) */
+  streamer: RealBuildingStreamer | null;
+  /** attach (or replace) the physics collider host: replays every collider currently standing */
+  setColliderHost: (h: ColliderHost) => void;
+  /** per frame: streams buildings around (px, pz), runs the el trains. cam = camera position. */
+  update: (dt: number, px: number, pz: number, cam: { x: number; y: number; z: number }, night: boolean) => void;
+  trains: RealTrains | null;
   /** one line for the screen */
   notice: string;
   /** pieces that fell back to a stand-in, with the reason */
@@ -61,8 +71,10 @@ export interface RealWorldOptions {
   materials: IMaterialLibrary;
   rng: Rng;
   tier?: Quality;
-  /** real BuildingGen buildings within this many metres of the spawn (default 400); farther blocks get plain boxes. Infinity = all (slow: minutes). */
-  buildingRadius?: number;
+  /** where the streamer hands building colliders (can also be set later with `rw.setColliderHost`) */
+  colliders?: ColliderHost;
+  /** build the near ring around the spawn for up to this many ms before returning (default 2500); the rest streams in `update` */
+  warmMs?: number;
   /** force the stand-ins (tests, and to compare against the real pieces) */
   forceStandIns?: boolean;
 }
@@ -222,39 +234,35 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
 
   const { spawn, heading } = spawnNear(net, sidewalks, { x: 0, z: 0 });
 
-  // buildings
+  // buildings: streamed by 128 m chunk around the player (WP4 buildingStream), far boxes beyond; stand-in boxes if it throws
   t0 = performance.now();
   let lots: Lot[] = [];
-  let bld: { group: THREE.Group; colliders: StaticCollider[] };
+  let streamer: RealBuildingStreamer | null = null;
+  const held = new Map<string, StaticCollider>();
+  let host: ColliderHost | undefined = opts.colliders;
+  const proxyHost: ColliderHost = {
+    add: (cs) => { for (const c of cs) if (c.id) held.set(c.id, c); host?.add(cs); },
+    remove: (ids) => { for (const id of ids) held.delete(id); host?.remove(ids); },
+  };
   try {
     if (opts.forceStandIns) throw new Error('forced');
     const lotsJson = (await import('@/world/data/raw/lots-real-r1r2a.json')).default as unknown;
-    const all = placeLots(net, derived, blockFaces(net, derived), lotsJson) as Array<Lot & { block?: number }>;
-    const R = opts.buildingRadius ?? 400;
-    const near = (l: Lot): boolean => Math.hypot((l.frontA.x + l.frontB.x) / 2 - spawn.x, (l.frontA.z + l.frontB.z) / 2 - spawn.z) <= R;
-    lots = all.filter(near);
-    const nearBlocks = new Set<number>(all.filter(near).map((l) => l.block ?? -1));
-    bld = buildBuildings(lots, mats, rng.fork('buildings'));
-    // beyond the radius: plain boxes from the building rings, so the skyline of the whole network is there
-    const far = standInBuildings(net, derived, mats, nearBlocks);
-    bld.group.add(...far.group.children);
-    bld.colliders.push(...far.colliders);
-    bld.group.position.y = SIDEWALK_HEIGHT;
-    // re-bin into render cells so the chunk culler can hide far ones
-    const cells = { meshesBefore: 0, meshesAfter: 0, trianglesAfter: 0 };
-    const split = splitMeshesIntoCells(bld.group, chunks.cellX, chunks.cellZ, cells, 6000, chunks.originX, chunks.originZ);
-    for (const m of split) {
-      if (typeof m.userData.cell !== 'string') continue;
-      m.userData.chunk = fine ? (m.userData.cell as string) : chunkKeyOfCell(chunks, m.userData.cell as string);
-      chunkMeshes.push(m);
+    lots = placeLots(net, derived, blockFaces(net, derived), lotsJson);
+    streamer = new RealBuildingStreamer({ lots: lots as RealLot[], materials: mats, rng: rng.fork('buildings'), layout: chunks, tier, colliders: proxyHost });
+    group.add(streamer.root);
+    const end = performance.now() + (opts.warmMs ?? 2500);
+    while (performance.now() < end) {
+      streamer.update(spawn.x, spawn.z, 0, 250);
+      const st = streamer.stats();
+      if (st.queued === 0 && st.building === 0) break;
     }
   } catch (e) {
     standIns.push(`buildings: ${(e as Error).message}`);
-    bld = standInBuildings(net, derived, mats);
+    const bld = standInBuildings(net, derived, mats);
     bld.group.position.y = SIDEWALK_HEIGHT;
+    group.add(bld.group);
+    colliders.push(...bld.colliders);
   }
-  group.add(bld.group);
-  colliders.push(...bld.colliders);
   t('buildings', t0);
 
   // the el
@@ -269,9 +277,13 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   }
   t('el', t0);
 
+  let trains: RealTrains | null = null;
+  try { trains = new RealTrains(el.paths, el.stations); group.add(trains.group); } catch (e) { standIns.push(`trains: ${(e as Error).message}`); }
+  const update: RealWorld['update'] = (dt, px, pz, cam, night) => { streamer?.update(px, pz, cam.y); trains?.update(dt, cam, night); };
+  const setColliderHost = (h: ColliderHost): void => { host = h; if (held.size) h.add([...held.values()]); };
   const stats = { ...measureWorld(group), lots: lots.length, colliders: colliders.length, ms };
   void ROAD_CHUNK_PREFIX;
-  return { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, notice: REAL_NOTICE, standIns, el, stats };
+  return { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, streamer, setColliderHost, update, trains, notice: REAL_NOTICE, standIns, el, stats };
 }
 
 /** WP2 lane graph of a built real world (async only to keep lanes.ts out of the first chunk). */

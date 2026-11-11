@@ -41,7 +41,7 @@ const SNAP_TOL = 3;
 const MIN_NODE_GAP = 0.25;
 const MIN_END_GAP = 0.3;
 
-function insetRing(ring: ReadonlyArray<Vec2>, d: number): Vec2[] {
+export function insetRing(ring: ReadonlyArray<Vec2>, d: number): Vec2[] {
   const n = ring.length;
   if (n < 3) return [];
   // inward side: probe a point just inside the first edge
