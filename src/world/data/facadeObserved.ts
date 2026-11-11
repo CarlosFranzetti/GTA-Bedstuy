@@ -6,6 +6,7 @@
  */
 import observed from './facade-observed.json';
 import { ENV14_ON } from './env14';
+import floorsCheck from './floors-check.json';
 
 export type ObservedMaterial = 'brownstone' | 'redBrick' | 'tanBrick' | 'paintedBrick' | 'limestone' | 'siding' | 'stucco' | 'panel';
 export interface ObservedFacade {
@@ -55,10 +56,13 @@ export const FAMILY_FOR_OBSERVED: Record<ObservedMaterial, { family: 'brownstone
 };
 
 /**
- * `looks(bbl)` for the real-map building builder (BLDGREAL `opts.looks`): the wall family and look of an observed lot, or undefined.
- * The builder must also put `bbl` on the spec it passes to the colourway (`spec.bbl`) so the observed wall colour applies.
+ * `looks(bbl)` for the real-map building builder (`opts.looks` of buildRealBuildings / RealBuildingStreamer): the wall family and look of
+ * a photo-observed lot, and the storey count from the floors check (scripts/check-floors.mjs: footprint roof height against PLUTO) where
+ * the city's datasets disagree; undefined when neither applies. The builder must keep `bbl` on the spec it passes to the colourway.
  */
-export function observedLook(bbl: string): { family: 'brownstone' | 'brick' | 'tanBrick' | 'paintedBrick' | 'limestone'; look?: 'frame' | 'newBuild'; bbl: string } | undefined {
+export function observedLook(bbl: string): { family?: 'brownstone' | 'brick' | 'tanBrick' | 'paintedBrick' | 'limestone'; look?: 'frame' | 'newBuild'; floors?: number; bbl: string } | undefined {
   const o = observedFacade(bbl);
-  return o ? { ...FAMILY_FOR_OBSERVED[o.material], bbl } : undefined;
+  const fl = ENV14_ON ? (floorsCheck.floors as Record<string, number>)[bbl] : undefined;
+  if (!o && fl === undefined) return undefined;
+  return { ...(o ? FAMILY_FOR_OBSERVED[o.material] : {}), ...(fl !== undefined ? { floors: fl } : {}), bbl };
 }

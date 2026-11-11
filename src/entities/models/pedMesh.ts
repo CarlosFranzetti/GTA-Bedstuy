@@ -293,12 +293,15 @@ function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
         wrap.push({ y: Y(t), rx: (r.rx + g) * (1 - 0.5 * top), rz: (r.rz * 0.72 + g * 0.4) * (1 - 0.5 * top), cz: r.cz + r.rz * 0.3 + 0.012 });
       }
       out.push(loft(wrap, hiDetail ? 16 : 10, hatR, 3, 'top'));
-      const reach = loose ? 0.34 : 0.2, rows = hiDetail ? 8 : 5, mant: R[] = [], nk = ringAt(s.headRings, lm.chinY);
+      const reach = loose ? 0.34 : 0.2, rows = hiDetail ? 9 : 6, mant: R[] = [], nk = ringAt(s.headRings, lm.chinY), w0 = wrap[0];
+      const rxN = nk.rx * 0.9 + 0.034, rzN = nk.rz * 0.75 + 0.03, topY = w0.y;
       for (let i = 0; i <= rows; i++) {
-        const u = i / rows, y = lm.chinY - 0.03 - u * (lm.chinY - 0.03 - (shY - reach));
-        const tr = ringAt(s.torsoRings, y), open = smooth(0, 0.55, u), taper = 1 - (loose ? 0.15 : 0.4) * smooth(0.55, 1, u);
-        const wob = 0.008 * Math.sin(u * 7 + 1) + (loose ? 0.012 * Math.sin(u * 4.3) : 0);
-        mant.push({ y, rx: (nk.rx * 0.9 + 0.03 + (shW * 0.92 - nk.rx * 0.9) * open) * taper + wob, rz: (nk.rz * 0.75 + 0.022 + Math.max(0, tr.rz - nk.rz * 0.75) * open) + 0.02 + wob, cz: nk.cz + (tr.cz - nk.cz) * open + (loose ? 0.012 * open : 0), cx: loose ? 0.03 * open : 0 });
+        const u = i / rows, y = topY - u * (topY - (shY - reach)), tr = ringAt(s.torsoRings, y);
+        const pinch = smooth(0, 0.22, u), open = smooth(0.18, 0.75, u), taper = 1 - (loose ? 0.12 : 0.38) * smooth(0.6, 1, u);
+        const wob = 0.007 * Math.sin(u * 7 + 1) + (loose ? 0.012 * Math.sin(u * 4.3) : 0);
+        const rx = (w0.rx + (rxN - w0.rx) * pinch + (shW * 0.8 - rxN) * open) * taper + wob;
+        const rz = w0.rz + (rzN - w0.rz) * pinch + (Math.max(rzN, tr.rz + 0.03) - rzN) * open + wob;
+        mant.push({ y, rx, rz, cz: (w0.cz ?? 0) + ((tr.cz) - (w0.cz ?? 0)) * Math.max(pinch * 0.6, open), cx: loose ? 0.03 * open : 0 });
       }
       out.push(loft(mant, hiDetail ? 16 : 10, hatR, 3, 'bottom'));
       break;

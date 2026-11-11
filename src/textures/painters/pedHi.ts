@@ -782,7 +782,7 @@ function paintClothesOnSkin(T: (n: HiTile, sy?: number, yo?: number) => L, s: Pe
   paintNeck(T('neck'), s, rng);
   // the collar: the lower part of the neck tile is the garment's collar band, so the neckline is one clean line
   if (!['scrubs', 'blouse', 'dress', 'apron', 'vest'].includes(p.kind)) {
-    const nt = T('neck'), collar = p.kind === 'uniform' ? '#f1efe6' : baseTop;
+    const nt = T('neck'), collar = baseTop;
     nt.rect(0, 40, 128, 24, collar, 1, 128, 232);
     if (['tee', 'hoodie', 'jersey', 'tracksuit', 'puffer'].includes(p.kind)) rib(nt, 0, 44, 128, 20, collar, false);
     for (let i = 0; i < 10; i++) nt.rect(0, 30 + i, 128, 1, collar, 0.7 * (i / 10));
@@ -798,22 +798,27 @@ function paintClothesOnSkin(T: (n: HiTile, sy?: number, yo?: number) => L, s: Pe
     }
     paintLeg(T(tile, ssy, syo), s, rng, lower);
   }
+  // the top's hem band, drawn on the pelvis AND the upper-thigh island (the sides of the hips belong to the thigh tile, whose rows start at the hip line)
+  const hemBand = (tile: HiTile, rows: number): void => {
+    if (rows <= 2) return;
+    const tt2 = T(tile), clipped = tt2.at(HI_RECTS[tile], 1, 0), hc = p.color, isRib = ['hoodie', 'puffer', 'jersey', 'tracksuit'].includes(p.kind);
+    void clipped;
+    const box = T(tile).at({ x: HI_RECTS[tile].x, y: HI_RECTS[tile].y, w: 128, h: Math.max(1, Math.round(rows)) });
+    fabric(box, 0, 0, 128, rows, baseTop, p.kind === 'vest' || p.kind === 'apron' ? 'jersey' : fab, rng);
+    if (p.kind === 'puffer') baffles(box, 128, rows, hc, 20, 2);
+    if (p.pattern === 'plaid') plaid(box, 128, rows, hc);
+    if (isRib) rib(box, 0, Math.max(0, rows - 11), 128, Math.min(11, rows), p.kind === 'tracksuit' ? p.trim : hc);
+    else { box.rect(0, rows - 7, 128, 7, dk(hc, 0.08), 1, 124); stitch(box, 0, rows - 5, 128, rows - 5, lt(hc, 0.3), 0.55); }
+    const full = T(tile);
+    for (let i = 0; i < 12; i++) full.rect(0, rows + i, 128, 1, hc, 0.7 * (1 - i / 12) * (1 - i / 12));
+    full.rect(0, rows, 128, 3, '#000000', 0.28); full.rect(0, rows + 3, 128, 5, '#000000', 0.1);
+  };
+  if (!(p.long && p.kind !== 'dress')) hemBand('thigh', Math.min(128, ((1.067 - hemTop) / 0.573) * 128));
   // pelvis: trousers or skirt, with the top's hem hanging over the first rows
   const pr = T('pelvis');
   fabric(pr, 0, 0, 128, 40, b.color, tb, rng);
   paintPelvis(T('pelvis', 1.101, 35.6), s, rng);
-  const rows = Math.min(128, Math.max(0, ((PELVIS_TOP - hemTop) / PELVIS_H) * 128));
-  if (rows > 2 && !(p.long && p.kind !== 'dress' && false)) {
-    const hc = p.color, isRib = ['hoodie', 'puffer', 'jersey', 'tracksuit'].includes(p.kind);
-    fabric(pr, 0, 0, 128, rows, baseTop, p.kind === 'vest' || p.kind === 'apron' ? 'jersey' : fab, rng);
-    if (p.kind === 'puffer') baffles(pr.at({ x: HI_RECTS.pelvis.x, y: HI_RECTS.pelvis.y, w: 128, h: Math.max(1, Math.round(rows)) }), 128, rows, hc, 20, 2);
-    if (p.pattern === 'plaid') plaid(pr.at({ x: HI_RECTS.pelvis.x, y: HI_RECTS.pelvis.y, w: 128, h: Math.max(1, Math.round(rows)) }), 128, rows, hc);
-    if (isRib) rib(pr, 0, Math.max(0, rows - 11), 128, Math.min(11, rows), p.kind === 'tracksuit' ? p.trim : hc);
-    else { pr.rect(0, rows - 7, 128, 7, dk(hc, 0.08), 1, 124); stitch(pr, 0, rows - 5, 128, rows - 5, lt(hc, 0.3), 0.55); }
-    // the island borders of the body mesh follow triangle edges, so the hem fades over a few centimetres instead of being a razor line
-    for (let i = 0; i < 12; i++) pr.rect(0, rows + i, 128, 1, hc, 0.7 * (1 - i / 12) * (1 - i / 12));
-    pr.rect(0, rows, 128, 3, '#000000', 0.28); pr.rect(0, rows + 3, 128, 5, '#000000', 0.1);
-  }
+  hemBand('pelvis', Math.min(128, Math.max(0, ((PELVIS_TOP - hemTop) / PELVIS_H) * 128)));
   // a long coat carries on down the thighs
   if (p.long && p.kind !== 'dress') {
     for (const [tile] of [['thigh'], ['shin']] as const) { const th = T(tile); if (tile === 'thigh') { fabric(th, 0, 0, 128, 128, p.color, fab, rng); th.rect(0, 112, 128, 16, dk(p.color, 0.18), 1, 138); stitch(th, 0, 114, 128, 114, lt(p.color, 0.3), 0.5); th.rect(63, 0, 2, 112, '#000000', 0.3, 96); } }
