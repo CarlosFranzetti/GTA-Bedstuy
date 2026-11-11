@@ -17,7 +17,11 @@
     "artifact": "vite build && node scripts/make-artifact.mjs",
     "build:hosted": "node scripts/build-hosted.mjs --only hosted",
     "build:all": "node scripts/build-hosted.mjs",
-    "smoke:hosted": "node scripts/build-hosted.mjs --only hosted --smoke --port 4307"
+    "smoke:hosted": "node scripts/build-hosted.mjs --only hosted --smoke --port 4307",
+    "native:install": "npm --prefix native ci",
+    "native:dev": "VITE_HOSTED=1 vite build && npm --prefix native run prep && npm --prefix native run dev",
+    "native:build:mac": "VITE_HOSTED=1 vite build && npm --prefix native run dist:mac",
+    "native:build:win": "VITE_HOSTED=1 vite build && npm --prefix native run dist:win"
   },
   "dependencies": {
     "three": "^0.186.1"

@@ -104,3 +104,22 @@ No recorded music is bundled in the repo. Candidate source checked by MUSIC on 2
 | Asset | Source | Licence | Where |
 |---|---|---|---|
 | MakeHuman base mesh, default rig + weights, macro targets (data files only; the AGPL application code is not used) | https://github.com/makehumancommunity/makehuman (`makehuman/data/3dobjs/base.obj`, `rigs/default.*`, `targets/macrodetails/*`), (c) Data Collection AB, Joel Palmius, Jonas Hauquier, original Manuel Bastioni | CC0 1.0 (released September 2020) | `src/assets/models/people/src/` (+ LICENSE.txt); derived `people/*.glb` via `scripts/people-pipeline.mjs` |
+
+## HD voices (VOX): on-device neural text-to-speech
+
+Opt-in "HD voices" for the music-station DJs and WBSY Talk. Nothing below is bundled in the game: the library is loaded from a public CDN and the model from Hugging Face at run time, and cached by the browser. Full decision record: `docs/reference/VOICES.md`.
+
+| Component | Used as | Licence | Source |
+|---|---|---|---|
+| kokoro-js 1.2.1 (hexgrad, contributor Xenova) | TTS runtime, `dist/kokoro.web.js` loaded from jsDelivr | Apache-2.0 | https://github.com/hexgrad/kokoro (npm `kokoro-js`) |
+| Kokoro-82M v1.0 (ONNX export `onnx-community/Kokoro-82M-v1.0-ONNX`, from `hexgrad/Kokoro-82M`) | model weights and the 28 English voice style packs (`af_*`, `am_*`, `bf_*`, `bm_*`) | Apache-2.0 (HF model card metadata of both repos). Trained on permissive or public-domain audio and synthetic audio from closed TTS providers; no voice clones. | https://huggingface.co/hexgrad/Kokoro-82M |
+| Kokoro training data, attribution requested by the model card | CC BY audio used in training: Koniwa `tnc` (CC BY 3.0) and SIWIS (CC BY 4.0). Neither is an English voice we ship, but the card asks for this credit. | CC BY 3.0 / CC BY 4.0 | model card, "Creative Commons Attribution" |
+| StyleTTS 2 (architecture) | Kokoro is built on it | MIT | https://github.com/yl4579/StyleTTS2 |
+| transformers.js (`@huggingface/transformers` 3.x) and onnxruntime-web | inference, pulled in by kokoro-js | Apache-2.0 and MIT | https://github.com/huggingface/transformers.js |
+| phonemizer.js (Xenova) wrapping eSpeak NG | text to phonemes inside kokoro-js | wrapper Apache-2.0; eSpeak NG is GPL-3.0 (its `COPYING`) | https://github.com/xenova/phonemizer.js |
+
+eSpeak NG is GPL-3.0. We do not copy or redistribute it: the user's browser downloads it from the CDN as part of kokoro-js. If this project is ever repackaged with the library vendored into the build, re-check the GPL implications first.
+
+Candidates not used, with the reason, are in `docs/reference/VOICES.md` (Piper: GPL-3.0 engine and per-voice dataset licences; Supertonic: OpenRAIL; KittenTTS: Apache-2.0 but fewer voices).
+
+All DJs, hosts, callers, shows and commercials (`src/audio/voice/**`) are original fiction written for this fan tribute. No real person, station or brand is named or imitated; a lint test (`tests/unit/audio/voice-content.test.ts`) enforces a deny-list of real brands, outlets and public figures.

@@ -56,7 +56,7 @@ describe('navigation', () => {
     const c = buildCsp();
     expect(c).toContain("default-src 'self'");
     expect(c).toContain('frame-src https://w.soundcloud.com');
-    expect(c).not.toContain('unsafe-eval');
+    expect(c).not.toMatch(/'unsafe-eval'/);
   });
 });
 describe('window state', () => {
