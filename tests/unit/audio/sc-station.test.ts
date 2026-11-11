@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ScStation, normalizeScUrl, widgetSrc, localScStorage, inPreferredHours, SC_FAILED_NAME, SC_NO_STREAM, SC_TAP_PROMPT, SC_EMPTY_HINT, SC_STORAGE_KEY, type ScApi, type ScEnv, type ScMix } from '@/audio/sc/ScStation';
+import { ScStation, normalizeScUrl, widgetSrc, localScStorage, inPreferredHours, SC_FAILED_NAME, SC_LOAD_TIMEOUT_MS, SC_NO_STREAM, SC_TAP_PROMPT, SC_EMPTY_HINT, SC_STORAGE_KEY, type ScApi, type ScEnv, type ScMix } from '@/audio/sc/ScStation';
 import { RaFeed, RA_CACHE_KEY, type RaResponse } from '@/audio/sc/RaFeed';
 import { RadioDirector } from '@/audio/RadioDirector';
 import { Library } from '@/audio/library/Library';
@@ -61,7 +61,7 @@ describe('URL validation', () => {
 });
 
 describe('lazy load', () => {
-  it('touches nothing until the first tune-in, then loads the API once and keeps the iframe tiny but on-screen', async () => {
+  it('touches nothing until the first tune-in, then loads the API once and keeps the iframe invisible but on-screen', async () => {
     const { sc, loadApi, widgets } = setup();
     expect(loadApi).not.toHaveBeenCalled();
     expect(document.querySelector('iframe')).toBeNull();
@@ -74,7 +74,7 @@ describe('lazy load', () => {
     expect(widgets).toHaveLength(1);
     const f = document.querySelector('iframe')!;
     expect(f.src).toContain('https://w.soundcloud.com/player/?url=');
-    expect(f.style.width).toBe('2px');
+    expect(f.style.width).toBe('320px'); // invisible (opacity) but a real size: the player threw on a zero-size canvas at 2px
     expect(f.style.left).toBe('0px');
     expect(f.getAttribute('allow')).toBe('autoplay; encrypted-media');
     expect(f.style.display).not.toBe('none');
@@ -91,14 +91,15 @@ describe('lazy load', () => {
 });
 
 describe('fallback', () => {
-  it('reports failure with the HUD text when the player never becomes ready within 8 s', async () => {
+  it('reports failure with the HUD text when the player never becomes ready within the load timeout', async () => {
     vi.useFakeTimers();
     const api = { Widget: Object.assign((f: HTMLIFrameElement) => new FakeWidget(f), {}) } as unknown as ScApi; // never emits ready
     const { sc } = setup({ loadApi: async () => api });
     sc.setActive(true);
-    await vi.advanceTimersByTimeAsync(7900);
+    // a slow phone or cellular link can take well over 8 s to load the player: still loading at 30 s
+    await vi.advanceTimersByTimeAsync(30000);
     expect(sc.status).toBe('loading');
-    await vi.advanceTimersByTimeAsync(200);
+    await vi.advanceTimersByTimeAsync(SC_LOAD_TIMEOUT_MS - 30000 + 100);
     expect(sc.status).toBe('failed');
     expect(sc.stationName).toBe(SC_FAILED_NAME);
     expect(sc.stationName).toBe('Radio SC (needs the hosted build / internet)');

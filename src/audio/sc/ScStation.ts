@@ -25,13 +25,17 @@ export const SC_FAILED_NAME = 'Radio SC (needs the hosted build / internet)';
 export const SC_EMPTY_HINT = 'No sets yet: check your connection or add SoundCloud links in the Radio library';
 export const SC_HEARD_CAP = 200;
 export const SC_API_URL = 'https://w.soundcloud.com/player/api.js';
-export const SC_LOAD_TIMEOUT_MS = 8000;
+/** How long the SoundCloud player may take to load before the station gives up. It pulls ~10 scripts, so slow phones and
+ * cellular links need far more than a few seconds: at 8 s the station failed with the title showing and no sound. */
+export const SC_LOAD_TIMEOUT_MS = 45000;
+/** After a failed load, how long before the next tune-in or tap may retry. */
+export const SC_RETRY_MS = 5000;
 /** Silence after play() before the station decides the browser blocked it. */
-export const SC_BLOCKED_MS = 3500;
+export const SC_BLOCKED_MS = 5000;
 /** After a tap, how long before the real widget is shown so the user can tap its own play button (iOS). */
 export const SC_TAP_GRACE_MS = 3000;
 /** After a tap, how long before an unplayable mix is skipped. */
-export const SC_SKIP_MS = 9000;
+export const SC_SKIP_MS = 30000; // long enough to tap the real player's own play button (iOS) and to buffer on cellular
 export const SC_TAP_PROMPT = 'Tap to start radio';
 export const SC_NO_STREAM = 'No stream: SoundCloud could not load (needs the hosted build / internet)';
 export const SC_MAX_MIXES = 40;
@@ -206,7 +210,8 @@ export type PlayState = 'idle' | 'starting' | 'playing' | 'blocked';
 export interface NowPlaying { title: string; user: string }
 
 const GESTURES = ['pointerup', 'touchend', 'click', 'keydown'] as const;
-const HIDDEN_CSS = 'position:fixed;left:0;bottom:0;width:2px;height:2px;border:0;opacity:0.01;pointer-events:none;z-index:-1;';
+// Invisible but laid out at a real size: at 2x2 px the SoundCloud player threw on its own zero-size waveform canvas.
+const HIDDEN_CSS = 'position:fixed;left:0;bottom:0;width:320px;height:120px;border:0;opacity:0.01;pointer-events:none;z-index:-1;';
 const ev = (api: ScApi, name: string, fallback: string): string => api.Widget.Events?.[name] ?? fallback;
 const withTimeout = <T,>(p: Promise<T>, ms: number): Promise<T> => new Promise<T>((res, rej) => {
   const t = setTimeout(() => rej(new Error('timeout')), ms);
@@ -639,7 +644,7 @@ export class ScStation {
     }
     if (!this.sessionStarted) { this.sessionStarted = true; this.pos = 0; }
     if (this.state === 'failed') {
-      if (this.env.now() - this.failedAt < 30000) return;
+      if (this.env.now() - this.failedAt < SC_RETRY_MS) return;
       this.state = 'idle';
     }
     if (this.state === 'idle') { void this.boot(); return; }

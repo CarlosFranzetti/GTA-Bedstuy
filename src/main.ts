@@ -711,7 +711,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
 (window as unknown as { __gtaDebug: unknown }).__gtaDebug = {
   setFreeCam(x: number, y: number, z: number, lx: number, ly: number, lz: number) { freeCam = { pos: new THREE.Vector3(x, y, z), look: new THREE.Vector3(lx, ly, lz) }; },
   clearFreeCam() { freeCam = null; },
-  cam, saves, map,
+  cam, saves, map, audio,
   /** Freeze/unfreeze the simulation and render loop (review scripts take deterministic A/B shots with renderOnce). */
   setPaused(p: boolean) { game.paused = p; },
   /** Stops the requestAnimationFrame loop (headless review scripts then draw frames by hand with renderOnce). */
