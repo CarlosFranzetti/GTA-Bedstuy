@@ -36,6 +36,10 @@ export const SC_BLOCKED_MS = 5000;
 export const SC_TAP_GRACE_MS = 3000;
 /** After a tap, how long before an unplayable mix is skipped. */
 export const SC_SKIP_MS = 30000; // long enough to tap the real player's own play button (iOS) and to buffer on cellular
+/** A mix that reports playing but whose position has not moved for this long is nudged, then skipped. */
+export const SC_STALL_MS = 12000;
+/** Position frozen this long after PLAY: send play() again. */
+export const SC_STALL_NUDGE_MS = 5000;
 export const SC_TAP_PROMPT = 'Tap to start radio';
 export const SC_NO_STREAM = 'No stream: SoundCloud could not load (needs the hosted build / internet)';
 export const SC_MAX_MIXES = 40;
@@ -243,6 +247,11 @@ export class ScStation {
   private paused = false;
   private volume = 1;
   private failedAt = 0;
+  /** stall watchdog: last time PLAY_PROGRESS reported a new position */
+  private lastProgAt = 0;
+  private lastProgPos = -1;
+  private stallId: ReturnType<typeof setInterval> | null = null;
+  private stallKicks = 0;
   private sessionStarted = false;
   private readonly bad = new Set<string>();
   private now: NowPlaying | null = null;
@@ -696,6 +705,7 @@ export class ScStation {
     this.widget = null;
     this.exposed = false;
     this.clearTimers();
+    this.stopStallWatch();
     this.unhook();
     this.play_ = 'idle';
   }
@@ -715,7 +725,10 @@ export class ScStation {
 
   private bindEvents(api: ScApi, w: ScWidget): void {
     w.bind(ev(api, 'PLAY_PROGRESS', 'playProgress'), (e) => {
-      if (e && typeof e.currentPosition === 'number') this.pos = e.currentPosition / 1000;
+      if (e && typeof e.currentPosition === 'number') {
+        this.pos = e.currentPosition / 1000;
+        if (e.currentPosition !== this.lastProgPos) { this.lastProgPos = e.currentPosition; this.lastProgAt = this.env.now(); this.stallKicks = 0; }
+      }
       if (this.play_ !== 'playing') this.markPlaying();
       // About five minutes left: top the pool up in the background so the next pick never waits.
       const feed = this.env.feed;
@@ -741,8 +754,32 @@ export class ScStation {
     });
   }
 
+  /**
+   * Stall watchdog. Some mixes (older MP3 streams) report PLAY and then never advance: the station showed the title
+   * and DJ in silence. If the position stands still for SC_STALL_MS the player is nudged once, then the mix is skipped.
+   */
+  private watchStall(): void {
+    this.lastProgAt = this.env.now();
+    if (this.stallId) return;
+    this.stallId = setInterval(() => {
+      const now = this.env.now();
+      if (!this.widget || this.state !== 'ready' || !this.active || this.paused || this.play_ !== 'playing') { this.lastProgAt = now; return; }
+      // the first nudge comes quickly (a start that hangs is common and one more play() cures it); the skip waits longer
+      if (now - this.lastProgAt < (this.stallKicks === 0 ? SC_STALL_NUDGE_MS : SC_STALL_MS)) return;
+      this.lastProgAt = now;
+      if (this.stallKicks++ < 1) { this.widget.play(); return; }
+      this.stallKicks = 0;
+      this.skipBad();
+    }, 2000);
+  }
+  private stopStallWatch(): void {
+    if (this.stallId) clearInterval(this.stallId);
+    this.stallId = null;
+  }
+
   private markPlaying(): void {
     this.play_ = 'playing';
+    this.watchStall();
     this.errStreak = 0;
     this.clearTimers();
     this.unhook();

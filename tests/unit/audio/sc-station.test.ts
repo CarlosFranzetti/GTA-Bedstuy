@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ScStation, normalizeScUrl, widgetSrc, localScStorage, inPreferredHours, SC_FAILED_NAME, SC_LOAD_TIMEOUT_MS, SC_NO_STREAM, SC_TAP_PROMPT, SC_EMPTY_HINT, SC_STORAGE_KEY, type ScApi, type ScEnv, type ScMix } from '@/audio/sc/ScStation';
+import { ScStation, normalizeScUrl, widgetSrc, localScStorage, inPreferredHours, SC_FAILED_NAME, SC_LOAD_TIMEOUT_MS, SC_STALL_MS, SC_NO_STREAM, SC_TAP_PROMPT, SC_EMPTY_HINT, SC_STORAGE_KEY, type ScApi, type ScEnv, type ScMix } from '@/audio/sc/ScStation';
 import { RaFeed, RA_CACHE_KEY, type RaResponse } from '@/audio/sc/RaFeed';
 import { RadioDirector } from '@/audio/RadioDirector';
 import { Library } from '@/audio/library/Library';
@@ -435,5 +435,39 @@ describe('autoplay blocked / tap to start', () => {
     const n = widgets[0].calls.length;
     document.body.dispatchEvent(new Event('click', { bubbles: true }));
     expect(widgets[0].calls.length).toBe(n);
+  });
+});
+
+describe('stall watchdog', () => {
+  it('nudges a mix whose position stops advancing, then skips to the next one', async () => {
+    vi.useFakeTimers();
+    const { sc, widgets } = setup();
+    sc.setActive(true);
+    await vi.advanceTimersByTimeAsync(10);
+    const w = widgets[0];
+    w.emit('play');
+    w.emit('playProgress', { currentPosition: 1600 });
+    expect(sc.playState).toBe('playing');
+    const first = w.last('load')?.[1] ?? 'initial';
+    const playsBefore = w.calls.filter((c) => c[0] === 'play').length;
+    // position frozen: first a nudge (play again) ...
+    await vi.advanceTimersByTimeAsync(SC_STALL_MS + 3500);
+    expect(w.calls.filter((c) => c[0] === 'play').length).toBeGreaterThan(playsBefore);
+    expect(w.calls.some((c) => c[0] === 'load' && c[1] !== first)).toBe(false);
+    // ... and when it still does not move, the next mix is loaded
+    await vi.advanceTimersByTimeAsync(SC_STALL_MS + 3500);
+    expect(w.calls.some((c) => c[0] === 'load')).toBe(true);
+  });
+
+  it('leaves a mix alone while its position keeps moving', async () => {
+    vi.useFakeTimers();
+    const { sc, widgets } = setup();
+    sc.setActive(true);
+    await vi.advanceTimersByTimeAsync(10);
+    const w = widgets[0];
+    w.emit('play');
+    for (let t = 1; t <= 40; t++) { w.emit('playProgress', { currentPosition: t * 1000 }); await vi.advanceTimersByTimeAsync(1000); }
+    expect(w.calls.some((c) => c[0] === 'load')).toBe(false);
+    expect(sc.playState).toBe('playing');
   });
 });
