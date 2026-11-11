@@ -106,12 +106,31 @@ export function buildEl(lib: IMaterialLibrary): ElBuild {
 
   // ---- stations
   const stationDeck = new GeoBuilder(), canopy = new GeoBuilder();
-  const signMeshes: THREE.Mesh[] = [];
+  // sign boards: quads accumulated per sign material, merged into one double-sided mesh per material (a handful of draws, not dozens)
+  const signQuads = new Map<THREE.Material, number[]>();
   const sign = (text: string, bg: string, fg: string, w: number, h: number, pos: [number, number, number], yaw: number): void => {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lib.sign(text, bg, fg));
-    m.position.set(...pos); m.rotation.y = yaw; m.name = 'el:sign'; signMeshes.push(m);
-    const back = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lib.sign(text, bg, fg));
-    back.position.set(pos[0], pos[1], pos[2]); back.rotation.y = yaw + Math.PI; back.name = 'el:sign'; signMeshes.push(back);
+    const mat = lib.sign(text, bg, fg);
+    let q = signQuads.get(mat);
+    if (!q) { q = []; signQuads.set(mat, q); }
+    const c = Math.cos(yaw), sn = Math.sin(yaw);
+    const corner = (lx: number, ly: number): number[] => [pos[0] + lx * c, pos[1] + ly, pos[2] - lx * sn];
+    const a = corner(-w / 2, -h / 2), b = corner(w / 2, -h / 2), cc = corner(w / 2, h / 2), d = corner(-w / 2, h / 2);
+    // front (uv left to right), then the back face with the same text mirrored back to reading order
+    q.push(...a, 0, 0, ...b, 1, 0, ...cc, 1, 1, ...a, 0, 0, ...cc, 1, 1, ...d, 0, 1);
+    q.push(...b, 0, 0, ...a, 1, 0, ...d, 1, 1, ...b, 0, 0, ...d, 1, 1, ...cc, 0, 1);
+  };
+  const flushSigns = (): THREE.Mesh[] => {
+    const meshes: THREE.Mesh[] = [];
+    for (const [mat, q] of signQuads) {
+      const n = q.length / 5, pos = new Float32Array(n * 3), uv = new Float32Array(n * 2);
+      for (let i = 0; i < n; i++) { pos.set(q.slice(i * 5, i * 5 + 3), i * 3); uv.set(q.slice(i * 5 + 3, i * 5 + 5), i * 2); }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+      g.computeVertexNormals(); g.computeBoundingSphere();
+      const m = new THREE.Mesh(g, mat); m.name = 'el:sign'; meshes.push(m);
+    }
+    signQuads.clear();
+    return meshes;
   };
   STATIONS.forEach((st, si) => {
     const px0 = st.x - st.length / 2, px1 = st.x + st.length / 2;
@@ -170,8 +189,7 @@ export function buildEl(lib: IMaterialLibrary): ElBuild {
   const stMesh = new THREE.Mesh(stationDeck.build(), mat); stMesh.name = 'el:stations'; stMesh.castShadow = true; stMesh.receiveShadow = true;
   const canMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.1, side: THREE.DoubleSide, name: 'el:canopy' });
   const canMesh = new THREE.Mesh(canopy.build(), canMat); canMesh.name = 'el:canopy'; canMesh.castShadow = true; canMesh.receiveShadow = true;
-  out.props.push(stMesh, canMesh, ...signMeshes);
-  signMeshes.length = 0;
+  out.props.push(stMesh, canMesh, ...flushSigns());
 
   // ---- lime-line subway entrances (G-train style: green globe, railed stair going down)
   const ent = new GeoBuilder();
@@ -207,7 +225,7 @@ export function buildEl(lib: IMaterialLibrary): ElBuild {
   entranceAt('Flushing Av', 273, -488.2, 'x', 'LIME LINE · FLUSHING AV · BKLYN TRANSIT');
   entranceAt('Myrtle-Willoughby', 273, -309.7, 'x', 'LIME LINE · MYRTLE AV · BKLYN TRANSIT');
   const entMesh = new THREE.Mesh(ent.build(), mat); entMesh.name = 'lime:entrances'; entMesh.castShadow = true; entMesh.receiveShadow = true;
-  out.props.push(entMesh, ...globes, ...signMeshes);
+  out.props.push(entMesh, ...globes, ...flushSigns());
   return out;
 }
 

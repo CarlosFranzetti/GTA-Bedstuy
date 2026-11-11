@@ -207,3 +207,11 @@ Expansion area (first 60 of 138; the rest in the JSON):
 | 1072 Dekalb Avenue | Chinese takeout | Linda'S Asian Kitchen | DeKalb Block Chinese | chinese | DOHMH restaurant inspections 43nn-pn8j |
 | 1126 Broadway | Chinese takeout | Dragon King | Jade Panda No. 8 Kitchen | chinese | DOHMH restaurant inspections 43nn-pn8j |
 | 1157 Broadway | Chinese takeout | China Garden | Happy Dragon No. 4 Kitchen | chinese | DOHMH restaurant inspections 43nn-pn8j |
+
+## 7. North toward Williamsburg (WBURG, 11 Nov 2026)
+
+Source: MapPLUTO (`64uk-42ks`, fetched 11 Nov, lat 40.6925 to 40.7120, lon -73.9520 to -73.9200), same State Plane to grid fit as section 1, trimmed rows in `src/world/data/raw/north-pluto.json` (2,274 lots). Importer: `scripts/import-north.mjs` (idempotent, splices 80 faces into `bedstuy.json`).
+
+Measured east-west streets north of Hart (grid z at x = 0; slope in z per x), from the lots addressed on them: Hart -249 (-0.02), Willoughby Ave -322 (-0.05), Vernon Ave -413, Myrtle Ave -481 (-0.015), Park Ave -762 (+0.016, mostly housing superblocks and the Marcy Houses), Ellery St -821 (-0.06), **Flushing Ave -989 (-0.085: it drifts 150 m north over the 1,250 m of the map, the diagonal Bed-Stuy / Williamsburg seam)**, Harrison Ave -1015, Bartlett St -1087, Gerry St -1170, Wallabout St -1183. The user's recollection of the order (Ellery, Park, Flushing) is close: the real order is Myrtle, Park, Ellery, Flushing, then the South Williamsburg streets; Willoughby and Vernon sit between Hart and Myrtle.
+
+Game rows (100 m, like the rest): Hart -200, **Myrtle Ave -300, Park Ave -400, Flushing Ave -500, Wallabout St -600**; Willoughby, Vernon, Ellery, Harrison, Bartlett and Gerry are left out the way DeKalb was (a real band of 235 to 285 m is squeezed into each game block; each lot is placed by its position inside its real band, attached to the nearest face, and lots deeper than 34 m from every face are dropped). Block ids count from Hart-Pulaski = row 0, so the four new rows are `r-1` (Myrtle-Hart) to `r-4` (Flushing-Wallabout) and the 25 old blocks keep their ids, indices and random streams. Flushing Ave is 16 m wide with 4.5 m sidewalks. Avenue names keep their Bed-Stuy names across the new rows (the real continuations change: Marcus Garvey Blvd becomes Marcy Ave, Throop Ave ends at Flushing).

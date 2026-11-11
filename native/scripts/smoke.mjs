@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 const electron = createRequire(import.meta.url)('electron');
 const PORT = 4477;
-const p = spawn(electron, ['.', `--remote-debugging-port=${PORT}`, '--disable-gpu-sandbox'], { env: { ...process.env, GTA_SMOKE: '1' }, stdio: 'inherit' });
+const p = spawn(electron, ['.', `--remote-debugging-port=${PORT}`, '--no-sandbox', '--disable-gpu-sandbox'], { env: { ...process.env, GTA_SMOKE: '1' }, stdio: 'inherit' });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let page;
 for (let i = 0; i < 60 && !page; i++) {

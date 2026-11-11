@@ -166,7 +166,7 @@ if ( vLtTone.a > 0.01 ) {
     if ( ltSh > 0.74 && ltSu.x > 0.0 && ltSu.x < 1.0 && ltSu.y > 0.0 && ltSu.y < 1.0 ) {
       float ltIdx = floor( ltHash( vec2( ltCell + 3.0, ltSeed * 29.0 ) ) * ${WALL_SIGNS.length}.0 );
       vec2 ltCellUv = vec2( mod( ltIdx, ${SIGN_COLS}.0 ), floor( ltIdx / ${SIGN_COLS}.0 ) );
-      vec4 ltSg = texture2D( tSigns, ( ltCellUv + vec2( ltSu.x, 1.0 - ltSu.y ) ) / vec2( ${SIGN_COLS}.0, ${SIGN_ROWS}.0 ) );
+      vec4 ltSg = texture2D( tSigns, vec2( ltCellUv.x + ltSu.x, ${SIGN_ROWS - 1}.0 - ltCellUv.y + ltSu.y ) / vec2( ${SIGN_COLS}.0, ${SIGN_ROWS}.0 ) );
       float ltFade = 0.35 + 0.4 * ltNoise( ltP * vec2( 1.3, 1.9 ) + ltSeed * 5.0 );
       vec3 ltSc = pow( ltSg.rgb, vec3( 2.2 ) );
       ltCol = mix( ltCol, ltSc * ( 0.5 + 0.5 * ltLr ) * 0.8 + ltCol * 0.15, ltSg.a * ltFade );

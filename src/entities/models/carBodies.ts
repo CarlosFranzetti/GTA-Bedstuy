@@ -1677,8 +1677,9 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
   chrome.add(cylZ(0.028, 0.012, 0, gY, gZ - 0.012, 8));
   // rear: chrome strip over the bumper, exhaust tip
   const exX = Wb2 - 0.34;
-  if (!st.mirror) chrome.add(cylZ(0.04, 0.16, exX, 0.16, bumperZ - 0.14, 8));
-  if (type === 'pony' || type === 'luxury') chrome.add(cylZ(0.04, 0.16, -exX, 0.16, bumperZ - 0.14, 8)); // dual exhaust
+  // exhaust tips tucked under the valance (a tip hanging behind the bumper reads as a detached pipe)
+  if (!st.mirror) chrome.add(cylZ(0.04, 0.12, exX, st.bumperY - st.bumperH / 2 + 0.01, bumperZ - 0.24, 8));
+  if (type === 'pony' || type === 'luxury') chrome.add(cylZ(0.04, 0.12, -exX, st.bumperY - st.bumperH / 2 + 0.01, bumperZ - 0.24, 8)); // dual exhaust
   // underbody pan so the sky never shows under the car, and a dark box filling the engine bay under the hood panel
   trim.add(bx(2 * (Wb2 - 0.14), 0.04, L - 0.5, 0, st.sill + 0.04, 0));
   trim.add(bx(2 * (Wb2 - 0.2), 0.04, hoodFrontU - hoodBackU, 0, fyBelt((hoodBackU + hoodFrontU) / 2) - 0.1, -(hoodBackU + hoodFrontU) / 2));
@@ -2066,7 +2067,7 @@ export function buildTruckParts(spec: VehicleSpec, kind: 'box' | 'garbage' = 'bo
     for (const s2 of [-1, 1]) {
       trim.add(bx(0.1, 0.9, 0.1, s2 * (Wg2 - 0.2), 1.9, rz - 0.06)); // lift-arm post
       trim.add(bx(0.08, 0.08, 0.7, s2 * (Wg2 - 0.03), 2.5, -(cargoBack + 0.9))); // side hatch hinge
-      trim.add(bx(0.03, 1.2, 2.0, s2 * (Wg2 + 0.006), 2.35, -(cargoBack + 2.6))); // side panel hatch outline
+      for (const [dy, dz, h2, d2] of [[0.6, 0, 0.02, 2.0], [-0.6, 0, 0.02, 2.0], [0, 1.0, 1.2, 0.02], [0, -1.0, 1.2, 0.02]] as const) trim.add(bx(0.012, h2, d2, s2 * (Wg2 + 0.004), 2.35 + dy, -(cargoBack + 2.6) + dz)); // side panel hatch outline (thin lines)
     }
     trim.add(bx(2 * Wg2 - 0.2, 0.18, 0.3, 0, 0.82, L / 2 - 0.17)); // rear step platform
     for (let k = -3; k <= 3; k++) chrome.add(bx(0.02, 0.5, 0.03, k * 0.3, 1.9, rz - 0.02)); // comb teeth

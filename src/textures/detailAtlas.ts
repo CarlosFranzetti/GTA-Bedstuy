@@ -82,7 +82,7 @@ export function detailAtlasTexture(): THREE.Texture {
     const url = Object.values(FILES)[0];
     if (url && typeof Image !== 'undefined') {
       const img = new Image();
-      img.onload = () => { t.image = img as unknown as HTMLCanvasElement; t.needsUpdate = true; };
+      img.onload = () => { t.dispose(); t.image = img as unknown as HTMLCanvasElement; t.needsUpdate = true; }; // dispose: the placeholder had a different size
       img.src = url;
     }
   }
@@ -113,7 +113,8 @@ export function disposeDetailTextures(): void { atlas?.dispose(); signs?.dispose
 export const DETAIL_GLSL = `uniform sampler2D tDetail;
 float dtlRel( float tile, vec2 p ) {
   vec2 f = fract( p );
-  vec2 o = vec2( mod( tile, 2.0 ), floor( tile / 2.0 ) ) * 0.5;
-  return textureGrad( tDetail, o + 0.002 + f * 0.496, dFdx( p ) * 0.496, dFdy( p ) * 0.496 ).r * 2.0;
+  vec2 o = vec2( mod( tile, 2.0 ), 1.0 - floor( tile / 2.0 ) ) * 0.5;
+  float v = textureGrad( tDetail, o + 0.002 + f * 0.496, dFdx( p ) * 0.496, dFdy( p ) * 0.496 ).r * 2.0;
+  return v < 0.01 ? 1.0 : v; // an incomplete / not yet uploaded texture reads 0: stay neutral
 }
 float dtlGain( float tile, vec2 p, float gain ) { return 1.0 + ( dtlRel( tile, p ) - 1.0 ) * gain; }`;

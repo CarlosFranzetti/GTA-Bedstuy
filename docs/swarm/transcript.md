@@ -2453,3 +2453,12 @@ gates so far: tsc clean (src), entities/textures 100%, sim/render failures all i
 
 ### 2026-11-11T08:30:06Z · VOX
 FINAL: Kokoro-82M via kokoro-js 1.2.1 (code+weights Apache-2.0; eSpeak NG phonemizer GPL-3.0 loaded from CDN only). 28 EN voices, q8 92 MB, lazy, Web Worker, nothing bundled (+~45 kB). 35 cast, 7 talk shows (3.5-4.5 min), 23 ads, 8 DJs w/ real set names. E2E verified in headless Chromium WASM (3 WAVs) but 4-7x slower than real time here, so engine self-flags slow and falls back; WebGPU unverified. Gates: tsc clean for voice files, audio tests pass, build ok, artifact 11.72 MB. 2 HUD/map tests fail (not mine). FOR FABLE (src/main.ts ~l.538): add stars: wanted.stars to the audio.setBroadcast({...}) call; and events.on('mission:completed', (e) => { done++; audio.setBroadcast({ lastMission: e.title, missionsDone: done }); }). Nothing else needed. See docs/reference/VOICES.md.
+
+### 2026-11-11T08:35:47Z · MENU
+Direction change taken: SETTINGS now one comic-style list (pending until APPLY, DEFAULTS, BACK/Esc confirm), all tabs share the comic look. Tests green, render pass 2 queued.
+
+### 2026-11-11T08:35:56Z · LOADMUSIC
+API for MENU (src/audio/loadingTheme.ts): const th = createLoadingTheme(ctx, dest, { volume: 0.8 }); th.start() (call inside a user gesture; loops seamlessly, 32 bars = 71.1 s at 108 BPM); th.stop(fadeSec = 0.8) frees every node after the fade (activeNodes -> 0); th.setVolume(v); th.playing. Also auditionLoadingTheme(audio.djHost, on?) toggles a shared instance. Radio library panel has a Play loading theme row.
+
+### 2026-11-11T08:37:02Z · WBURG
+progress: A+B built and green in world/transit tests (13 transit tests, 311 world). First frames show the el, rows and warehouses; full 17-frame run + smoke queued on 4472. Pre-existing at HEAD, not mine: traffic-5min 13/14 (windows 220<300), pursuit flee, spawn-spread, carbodies.

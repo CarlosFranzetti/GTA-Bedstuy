@@ -161,8 +161,8 @@ if (uCond.w > 0.5) {
   float n1 = vnoise(q * 3.3), n2 = vnoise(q * 12.0);
   float yN = clamp((q.y - uBox.x) / uBox.y, 0.0, 1.0);
   float dl = uCond.x / 3.0;
-  float dirtAmt = dl * smoothstep(0.12 + 0.5 * dl, 0.0, yN) * (0.55 + 0.7 * n1);
-  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.2, 0.17, 0.12), clamp(dirtAmt * 0.85, 0.0, 0.8));
+  float dirtAmt = dl * smoothstep(0.12 + 0.45 * dl, 0.0, yN) * (0.7 + 0.4 * n1);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.2, 0.17, 0.12), clamp(dirtAmt * 0.6, 0.0, 0.6));
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.5, 0.46, 0.38), dl * 0.2 * (0.4 + n2));
   if (uCond.y > 0.5) {
     float rl = uCond.y / 3.0;
@@ -178,8 +178,8 @@ if (uCond.w > 0.5) {
     if (uDent[i].w > 0.0) {
       float d = length(q - uDent[i].xyz) / uDent[i].w;
       if (d < 1.0) {
-        float ring = smoothstep(0.5, 0.82, d) * (1.0 - smoothstep(0.82, 1.0, d));
-        diffuseColor.rgb *= 1.0 - 0.4 * ring + 0.14 * (1.0 - smoothstep(0.0, 0.5, d));
+        float ring = smoothstep(0.35, 0.75, d) * (1.0 - smoothstep(0.75, 1.0, d));
+        diffuseColor.rgb *= 1.0 - 0.2 * ring + 0.1 * (1.0 - smoothstep(0.0, 0.7, d));
       }
     }
   }
