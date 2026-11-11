@@ -215,7 +215,7 @@ const carLod = new CarLod(materials, {
   nearDist: useCarLod ? tier0.carNearDist : Infinity,
 });
 scene.add(carLod.group);
-const HULL_TYPES = ['sedan', 'suv', 'boxtruck', 'cargovan', 'hatch', 'beater', 'bus'];
+const HULL_TYPES = ['sedan', 'suv', 'boxtruck', 'cargovan', 'hatch', 'beater', 'bus', 'pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'garbage', 'ambulance', 'dollarvan'];
 function registerHulls(): void {
   for (const t of HULL_TYPES) { const g = carLod.hullFor(t); if (g) proxies.addHull(t, g, true); }
   proxies.addHull('capsule', new THREE.CapsuleGeometry(0.28, 1.1, 2, 6).translate(0, 0.83, 0), false);
@@ -698,7 +698,7 @@ game.add({
       for (const v of allVehicles()) v.headlights = lastNight;
     }
     nightLights.update(away ? lastOutside : player.body.pos, dayNight.isNight, dt);
-    audio.setEngine(player.vehicle ? Math.abs(player.vehicle.speed) : 0, player.vehicle ? Math.abs(player.lastVehicleInput.throttle) : 0, player.inVehicle);
+    audio.setEngine(player.vehicle ? Math.abs(player.vehicle.speed) : 0, player.vehicle ? Math.abs(player.lastVehicleInput.throttle) : 0, player.inVehicle, player.vehicle?.spec.enginePitch ?? 1);
     const pv = player.vehicle as ({ slip?: number } & IVehicle) | null;
     audio.setSlip(pv?.slip ?? 0); audio.setHandbrake(player.inVehicle && player.lastVehicleInput.handbrake);
     audio.update(dt);

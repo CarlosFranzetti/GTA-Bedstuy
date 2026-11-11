@@ -1,4 +1,5 @@
 import './save.css';
+import { exportSavesToFile, isNativeApp } from '@/native/NativeBridge';
 import { MANUAL_SLOTS, SLOT_LABEL, exportFileName, formatClock, formatDay, formatStamp, type SaveManager, type SlotId, type SlotInfo } from './GameSave';
 
 export interface SavePanelOptions {
@@ -163,6 +164,14 @@ export class SavePanel {
     const text = this.mgr.exportSlot(info.id);
     if (!text) { this.say('Nothing to export', true); return; }
     this.paste.value = text;
+    if (isNativeApp()) { // the desktop shell has a real save dialog
+      void exportSavesToFile(text, exportFileName(info)).then((ok) => { if (ok) this.say(`Exported ${info.label}.`); else this.fallbackDownload(text, info); });
+      return;
+    }
+    this.fallbackDownload(text, info);
+  }
+
+  private fallbackDownload(text: string, info: SlotInfo): void {
     try {
       const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
       const a = this.doc.createElement('a');

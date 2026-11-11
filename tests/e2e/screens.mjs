@@ -160,22 +160,22 @@ async function capture() {
     // WBURG 11-17: the four block rows north of Hart (Myrtle, Park, Flushing, Wallabout) and the el over Flushing Ave. 11 and 12 need window.__gtaDebug.transit
     // (world.transit); the clock of the trains is set so the west-bound train stands at the Flushing Av platform with its doors open.
     const atStation = (id, station) => dbg(([id, station]) => { const t = window.__gtaDebug.transit; if (!t) return -1; for (let s = 0; s < 240; s += 0.5) { t.setTime(s); const st = t.stateOf(id); if (st.phase === 'dwell' && st.station === station && st.doors > 0.99) return s; } return -1; }, [id, station]);
-    await moveTo(330, -470); await atStation('eb', 0);
+    await moveTo(330, -470); await atStation('eb', 1);
     await freeCam([318, 38, -445, 380, 9, -500]); await hour(12); await shot('11-flushing-el', 12);
     await freeCam([440, 34, -545, 375, 9.5, -500]); await hour(19.3); await shot('12-el-train-dusk', 19.3);
     await moveTo(6, -520); await freeCam([6, 2.4, -515, 1, 6, -590]); await hour(12); await shot('13-wburg-row', 12);
     await moveTo(200, -300); await freeCam([205, 95, -215, 205, 0, -520]); await hour(17.5); await shot('14-north-aerial', 17.5);
     // 15: close above the Flushing Av platform with the east-bound train standing, doors open; 16: night at the lime-line entrance (Garvey x Flushing); 17: inside the car after boarding (F at the stair foot)
-    await moveTo(330, -470); await atStation('eb', 0);
-    await freeCam([362, 22, -474, 376, 10.4, -499.5]); await hour(12); await shot('15-train-platform', 12);
+    await moveTo(330, -470); await atStation('eb', 1);
+    await freeCam([372, 34, -468, 376, 10.4, -499.5]); await hour(12); await shot('15-train-platform', 12);
     await moveTo(290, -480); await freeCam([292, 2.2, -496.5, 273, 1.3, -488.2]); await hour(22); await shot('16-lime-entrance-night', 22);
-    await atStation('eb', 0);
+    await atStation('eb', 1);
     await dbg(() => { const t = window.__gtaDebug.transit; if (!t) return; const e = t.el.entrances.find((q) => q.station === 1); t.tryBoard(e.x, e.z); t.update(0.5, { x: 1e6, y: 0, z: 1e6 }, false, true); const c = t.ride?.cam; if (c) window.__gtaDebug.setFreeCam(c.px, c.py, c.pz, c.lx, c.ly, c.lz); });
     await hour(12); await shot('17-ride-inside', 12);
-    // 15: pedestrians up close (people review): the best-surrounded pedestrian near the start, camera 3.2 m away at head height
-    await moveTo(9, 20); await dbg(() => window.__gtaDebug.step(500)); await hour(12);
+    // 17: pedestrians up close (people review): the best-surrounded pedestrian near the start, camera 3.2 m away at head height
+    await moveTo(9, 20); await dbg(() => window.__gtaDebug.step(2400)); await hour(12);
     const crowd = await dbg(() => { const d = window.__gtaDebug, ps = d.traffic.peds.filter((p) => p.body && Math.hypot(p.body.pos.x - 9, p.body.pos.z - 20) < 60); let best = null, bn = -1; for (const p of ps) { const n = ps.filter((q) => Math.hypot(q.body.pos.x - p.body.pos.x, q.body.pos.z - p.body.pos.z) < 5).length; if (n > bn) { bn = n; best = p; } } return best ? { x: best.body.pos.x, z: best.body.pos.z, n: bn } : null; });
-    if (crowd) { await freeCam([crowd.x + 2.4, 1.7, crowd.z + 2.4, crowd.x, 1.25, crowd.z]); await shot('15-peds', 12); }
+    if (crowd) { await freeCam([crowd.x + 2.4, 1.7, crowd.z + 2.4, crowd.x, 1.25, crowd.z]); await shot('17-peds', 12); }
   } finally {
     await page.close().catch(() => {});
   }

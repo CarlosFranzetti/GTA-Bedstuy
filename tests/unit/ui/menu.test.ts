@@ -568,4 +568,57 @@ describe('Menu (open-world pause layout)', () => {
     for (let i = 0; i < 8; i++) { seen.push(menu.tabName); menu.tab(1); }
     expect(new Set(seen)).toEqual(new Set<MenuTab>(['map', 'missions', 'stats', 'settings', 'radio']));
   });
+
+  describe('desktop shell and HD voices', () => {
+    afterEach(() => { delete (globalThis as { gtaNative?: unknown }).gtaNative; });
+    const native = () => {
+      const n = { isNative: true as const, platform: 'darwin', version: '1', setFullscreen: vi.fn(), quit: vi.fn(), saveFile: vi.fn(async () => true) };
+      (globalThis as { gtaNative?: unknown }).gtaNative = n;
+      return n;
+    };
+
+    it('in a browser there is no Quit row; in the shell Quit needs two presses and the install hint is hidden', () => {
+      const plain = new Menu(parent, {}, { storage: null, fullscreen: null, installable: true });
+      plain.open();
+      expect(row(plain, 'quit').hidden).toBe(true);
+      expect(row(plain, 'install').hidden).toBe(false);
+      plain.dispose();
+      const n = native();
+      const menu = new Menu(parent, {}, { storage: null, fullscreen: null, installable: true });
+      menu.open();
+      expect(row(menu, 'install').hidden).toBe(true);
+      row(menu, 'quit').click();
+      expect(n.quit).not.toHaveBeenCalled();
+      row(menu, 'quit').click();
+      expect(n.quit).toHaveBeenCalledTimes(1);
+    });
+
+    it('Window Mode goes through gtaNative.setFullscreen when present', () => {
+      const n = native();
+      const menu = new Menu(parent, {}, { storage: null, fullscreen: null });
+      menu.open();
+      expect(row(menu, 'windowmode').hidden).toBe(false);
+      row(menu, 'windowmode').click();
+      act(menu, 'apply').click();
+      expect(n.setFullscreen).toHaveBeenLastCalledWith(true);
+      expect(val(menu, 'windowmode')).toBe('Full screen');
+    });
+
+    it('HD voices row appears only with the host switch and changes it on APPLY', () => {
+      const bare = new Menu(parent, {}, { storage: null, fullscreen: null });
+      bare.open();
+      expect(row(bare, 'hdvoices').hidden).toBe(true);
+      bare.dispose();
+      let on = false;
+      const set = vi.fn((v: boolean) => { on = v; });
+      const menu = new Menu(parent, {}, { storage: null, fullscreen: null, hdVoices: { get: () => on, set } });
+      menu.open();
+      expect(row(menu, 'hdvoices').hidden).toBe(false);
+      row(menu, 'hdvoices').click();
+      expect(set).not.toHaveBeenCalled();
+      act(menu, 'apply').click();
+      expect(set).toHaveBeenCalledWith(true);
+      expect(val(menu, 'hdvoices')).toBe('ON');
+    });
+  });
 });

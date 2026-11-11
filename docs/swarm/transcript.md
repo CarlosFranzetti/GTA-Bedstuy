@@ -2465,3 +2465,6 @@ progress: A+B built and green in world/transit tests (13 transit tests, 311 worl
 
 ### 2026-11-11T10:00:56Z · PLAYTEST
 FINAL. Local live-gameplay 10/10; live-gameplay 10/10; live-radio PASS (SC playback 45.7 s). Full desktop pass 31/34 with fatal at new-game (page navigates). Phone profile 4/7 (MAP/PHONE locators miss icon-only buttons). Defects: D1 major phone HUD overlap (CAR/MAP/RUN/phone icon over speed and street label, playtests/p12/P4-map.png); D7 major 300 m drives stall at 126-198 m (physics/traffic, unconfirmed); D8 major newGame navigates the page; D9 major load restored 4214 m away once, not reproduced; minors D2 ticker overlap, D3 map label collision, D4 colour seam in 08-phone (FLICKER), D5 untextured block (TEXVAR), D6 van fills view (CARS12); D10 radio 'no sets' on local build (502s). Report: playtests/p12/REPORT.md. Nothing in src/ touched; nothing committed.
+
+### 2026-11-11T10:03:34Z · WBURG
+fixed my red tests: trafficlights (60 intersections), map-screen portrait threshold (grid 1330x910; MENU need not touch it), culling-buckets cap 24. Publishing data.transit.stations next.

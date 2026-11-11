@@ -195,3 +195,12 @@ describe('structure, culling and the ride', () => {
     expect(t.takeMessage()).toMatch(/next train|stand clear/i);
   });
 });
+
+describe('published data', () => {
+  it('bedstuy.json carries transit.stations that match the timetable stations', async () => {
+    const { default: json } = await import('@/world/data/bedstuy.json');
+    const st = (json as unknown as { transit: { stations: Array<{ id: string; x: number; z: number }> } }).transit.stations;
+    expect(st.length).toBeGreaterThanOrEqual(2);
+    for (const s of STATIONS) expect(st.find((q) => q.id === s.id)).toMatchObject({ x: s.x, z: EL_Z });
+  });
+});

@@ -133,6 +133,13 @@ if ( vLtTone.a > 0.01 ) {
   } else if ( ltKind > 4.5 && ltKind < 5.5 ) {
     // limestone / cast stone trim, cornices, stoops
     ltCol *= dtlGain( 3.0, ltP / 1.6 + ltSeed * 7.0, 2.6 ) * dtlGain( 3.0, ltP / 5.3, 1.8 );
+    // ashlar courses: per-block tone and a joint line, so a big plain limestone face (pier, stoop wing) never reads as a flat grey slab
+    vec2 ltBk = vec2( ltS / 0.9 + ltSeed * 9.0, ltY / 0.42 );
+    vec2 ltBi = floor( ltBk + vec2( 0.5 * mod( floor( ltBk.y ), 2.0 ), 0.0 ) );
+    vec2 ltBf = fract( ltBk + vec2( 0.5 * mod( floor( ltBk.y ), 2.0 ), 0.0 ) );
+    float ltJ = 1.0 - smoothstep( 0.0, 0.045, min( min( ltBf.x, 1.0 - ltBf.x ) * 0.9, min( ltBf.y, 1.0 - ltBf.y ) * 0.42 ) * 2.4 );
+    ltCol *= ( 0.86 + 0.28 * ltHash( ltBi + ltSeed * 13.0 ) ) * ( 1.0 - 0.32 * ltJ );
+    ltCol *= mix( vec3( 1.04, 1.0, 0.94 ), vec3( 0.95, 0.99, 1.05 ), ltNoise( ltP * 0.35 + ltSeed * 3.0 ) );
   } else if ( ltKind > 7.5 && ltKind < 8.5 ) {
     // roll-down gate: plain / rusty / tagged, by lot seed
     float ltGs = fract( ltSeed * 7.31 + 0.17 );

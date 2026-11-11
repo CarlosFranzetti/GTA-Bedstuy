@@ -139,7 +139,7 @@ export class Hud {
     this.areaEl = this.make('span', 'hud-area');
     this.areaEl.textContent = AREA_NAME;
     this.radioEl = this.make('span', 'hud-radio');
-    location.append(this.streetEl, this.areaEl, this.radioEl);
+    location.append(this.speedEl, this.streetEl, this.areaEl, this.radioEl); // the speed sits in the same column, so a long radio line can never overlap it
 
     // Bars under the minimap (bottom-left).
     this.barsEl = this.make('div', 'hud-bars');
@@ -195,7 +195,6 @@ export class Hud {
       this.fpsEl,
       this.starsEl,
       this.promptEl,
-      this.speedEl,
       this.barsEl,
       location,
       this.stationBanner,
@@ -231,7 +230,7 @@ export class Hud {
       if (street !== '' && this.lastStreet !== '') this.restart(this.locationEl, 'fresh');
       this.lastStreet = street;
     }
-    this.locationEl.hidden = street === '' && !state.radioStation;
+    this.locationEl.hidden = street === '' && !state.radioStation && !state.inVehicle;
     const radio = state.radioStation ?? '';
     if (radio !== this.lastStation) {
       if (radio !== '' && this.lastStation !== '') this.showStationBanner(radio);

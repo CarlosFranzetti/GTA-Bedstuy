@@ -400,6 +400,8 @@ export class MapScreen {
     }
 
     this.drawStreetNames(ctx);
+    this.placed = [];
+    this.reserveMarkerLabels(ctx);
     this.drawPlaces(ctx);
     this.drawMarkers(ctx);
     this.drawWaypoint(ctx);
@@ -417,6 +419,24 @@ export class MapScreen {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     const d = this.view.rot === 0 ? { x: 0, y: 7 } : { x: -7, y: 0 };
     ctx.font = '700 10px Arial, sans-serif'; ctx.fillStyle = GOLD; ctx.fillText('N', cx + d.x, cy + d.y);
+  }
+
+  /** Label rectangles drawn this frame: a new label steps up or down until it clears them (a shop name never covers a mission name). */
+  private placed: Array<{ x0: number; x1: number; y0: number; y1: number }> = [];
+
+  private label(ctx: CanvasRenderingContext2D, s: string, x: number, y: number, color: string, size: number, required: boolean, dry = false): void {
+    ctx.font = `700 ${size}px Arial, Helvetica, sans-serif`;
+    const hw = ctx.measureText(s).width / 2 + 2, hh = size / 2 + 2;
+    const free = (yy: number): boolean => !this.placed.some((r) => x + hw > r.x0 && x - hw < r.x1 && yy + hh > r.y0 && yy - hh < r.y1);
+    let yy = y;
+    if (!free(yy)) {
+      const step = size + 3;
+      const tries = [-1, 1, -2, 2, -3, 3].map((k) => y + k * step);
+      const hit = tries.find(free);
+      if (hit === undefined) { if (!required) return; } else yy = hit;
+    }
+    this.placed.push({ x0: x - hw, x1: x + hw, y0: yy - hh, y1: yy + hh });
+    if (!dry) this.text(ctx, s, x, yy, color, size);
   }
 
   private text(ctx: CanvasRenderingContext2D, s: string, x: number, y: number, color = '#fff', size = 11): void {
@@ -501,19 +521,37 @@ export class MapScreen {
         ctx.fillStyle = HOME_GREEN;
         ctx.beginPath(); ctx.moveTo(p.x - 7, p.y - 1); ctx.lineTo(p.x, p.y - 8); ctx.lineTo(p.x + 7, p.y - 1); ctx.closePath(); ctx.fill();
         ctx.fillRect(p.x - 4.5, p.y - 1, 9, 7);
-        this.text(ctx, 'HOME', p.x, p.y + 22, HOME_GREEN, 12);
+        this.label(ctx, 'HOME', p.x, p.y + 22, HOME_GREEN, 12, true);
       } else if (pl.kind === 'venue') {
         ctx.beginPath(); ctx.arc(p.x, p.y, 11, 0, Math.PI * 2); ctx.fillStyle = HALO; ctx.fill();
         ctx.lineWidth = 2; ctx.strokeStyle = GOLD; ctx.stroke();
         this.text(ctx, pl.label.charAt(0), p.x, p.y + 0.5, GOLD, 13);
-        this.text(ctx, pl.label, p.x, p.y + 22, GOLD, 11);
+        this.label(ctx, pl.label, p.x, p.y + 22, GOLD, 11, true);
       } else {
         const r = 4.5;
         ctx.fillStyle = pl.color ?? '#9aa4b2';
         ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
         ctx.lineWidth = 1.5; ctx.strokeStyle = HALO; ctx.strokeRect(p.x - r, p.y - r, r * 2, r * 2);
-        if (labelShops) this.text(ctx, pl.label, p.x, p.y - 12, '#e5e9f0', 10);
+        if (labelShops) this.label(ctx, pl.label, p.x, p.y - 12, '#e5e9f0', 10, false);
       }
+    }
+  }
+
+  private markerLabelY = new Map<MapMarker, number>();
+
+  /** Mission labels claim their space first, so shop and venue names move out of their way. */
+  private reserveMarkerLabels(ctx: CanvasRenderingContext2D): void {
+    const v = this.view;
+    this.markerLabelY.clear();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const m of this.markers) {
+      if (!m.label) continue;
+      const p = v.toScreen(m.x, m.z);
+      if (p.x < -20 || p.y < -20 || p.x > v.w + 20 || p.y > v.h + 20) continue;
+      const r = m.kind === 'giver' ? 9 : 7;
+      const before = this.placed.length;
+      this.label(ctx, m.label, p.x, p.y - r - 8, '', 11, true, true);
+      this.markerLabelY.set(m, this.placed[before] ? (this.placed[before].y0 + this.placed[before].y1) / 2 : p.y - r - 8);
     }
   }
 
@@ -530,7 +568,7 @@ export class MapScreen {
       ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.lineWidth = 5; ctx.strokeStyle = HALO; ctx.stroke();
       ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.lineWidth = 2.5; ctx.strokeStyle = color; ctx.stroke();
       ctx.beginPath(); ctx.arc(p.x, p.y, 2.5 + (giver ? 1.5 * pulse : 0), 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
-      if (m.label) this.text(ctx, m.label, p.x, p.y - r - 8, color, 11);
+      if (m.label) this.text(ctx, m.label, p.x, this.markerLabelY.get(m) ?? p.y - r - 8, color, 11);
     }
   }
 

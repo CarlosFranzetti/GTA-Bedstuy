@@ -107,9 +107,8 @@
 
 /* ---- speed, bottom-right above the street name */
 .hud-speed {
-  position: absolute;
-  right: max(16px, env(safe-area-inset-right, 0px));
-  bottom: calc(max(12px, env(safe-area-inset-bottom, 0px)) + 62px);
+  position: static;
+  margin-bottom: 4px;
   text-align: right;
   text-shadow: 0 2px 5px rgba(0, 0, 0, 0.85);
 }
@@ -312,7 +311,6 @@
   .hud-street { font-size: 19px; line-height: 1.15; }
   .hud-radio { white-space: normal; line-height: 1.15; }
   .hud-area { font-size: 11px; }
-  .hud-speed { bottom: calc(max(12px, env(safe-area-inset-bottom, 0px)) + 52px); }
   .hud-speed-value { font-size: 40px; }
   .hud-station { width: calc(100% - 220px); }
 }
