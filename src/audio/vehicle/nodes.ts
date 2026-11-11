@@ -30,7 +30,7 @@ function osc(ctx: BaseAudioContext, type: OscillatorType, h?: [number, number, n
   if (w) o.setPeriodicWave(w); else o.type = h ? 'sawtooth' : type;
   return o;
 }
-function gain(ctx: BaseAudioContext, v: number, to?: AudioNode): GainNode {
+function gain(ctx: BaseAudioContext, v: number, to?: AudioNode | AudioParam): GainNode {
   const g = ctx.createGain();
   g.gain.value = v;
   if (to) g.connect(to);

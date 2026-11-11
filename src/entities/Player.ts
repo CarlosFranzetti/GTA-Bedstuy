@@ -267,7 +267,7 @@ export class Player implements Entity {
    * Nearest free foot spot to `from` within PIN_SEARCH metres that can be reached in a straight line without crossing
    * a solid, preferring the direction the player is trying to go. Null when none (or no world query).
    */
-  static findFreeSpot(from: Vec2, blocked: (p: Vec2, r: number) => boolean, prefer: Vec2 | null, maxR = PIN_SEARCH): Vec2 | null {
+  static findFreeSpot(from: Vec2, blocked: (p: Vec2, r: number) => boolean, prefer: Vec2 | null, maxR = PIN_SEARCH, straight = true): Vec2 | null {
     let best: Vec2 | null = null, bestScore = Infinity;
     for (let d = 0.4; d <= maxR + 1e-6 && !best; d += 0.3) {
       for (let i = 0; i < 16; i++) {
@@ -276,7 +276,7 @@ export class Player implements Entity {
         const p = { x: from.x + dir.x * d, z: from.z + dir.z * d };
         if (blocked(p, FOOT_RADIUS)) continue;
         let clear = true;
-        for (let t = 0.25; t < d && clear; t += 0.25) if (blocked({ x: from.x + dir.x * t, z: from.z + dir.z * t }, FOOT_RADIUS * 0.8)) clear = false;
+        for (let t = 0.25; straight && t < d && clear; t += 0.25) if (blocked({ x: from.x + dir.x * t, z: from.z + dir.z * t }, FOOT_RADIUS * 0.8)) clear = false;
         if (!clear) continue;
         const score = prefer ? -(dir.x * prefer.x + dir.z * prefer.z) : 0;
         if (score < bestScore) { bestScore = score; best = p; }
@@ -386,7 +386,7 @@ export class Player implements Entity {
     if (this.landCheck && !this.jump.airborne) {
       this.landCheck = false;
       // landed inside something solid (a prop it was vaulting, a fence line): glide to the nearest free spot
-      if (this.blockedAt && this.blockedAt(b.pos, FOOT_RADIUS)) this.pinTarget = Player.findFreeSpot(b.pos, (p, r) => this.blockedAt!(p, r), this.moveDir);
+      if (this.blockedAt && this.blockedAt(b.pos, FOOT_RADIUS)) this.pinTarget = Player.findFreeSpot(b.pos, (p, r) => this.blockedAt!(p, r), this.moveDir, PIN_SEARCH, false);
     }
 
     // pin recovery: progress is measured between steps, i.e. AFTER the physics pass pushed the body back out of things

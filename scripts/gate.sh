@@ -72,11 +72,13 @@ else
   else row gameplay SKIP "no dist-hosted/"; fi
   if [ -f dist/index.html ]; then
     run perf "$RENDER" node scripts/perf-breakdown.mjs "$LOGS/perf.json" --q "$TIERS" --dist dist --port 4442
-    VERDICT=$(npx tsx -e "
-      import { readFileSync } from 'node:fs'; import { TIER_BUDGET } from './src/render/QualityTier.ts';
-      const j = JSON.parse(readFileSync('$LOGS/perf.json', 'utf8')); const bad = []; const tiers = '$TIERS'.split(',');
+    VERDICT=$(node -e "
+      const fs = require('fs'); const src = fs.readFileSync('src/render/QualityTier.ts', 'utf8');
+      const blk = src.slice(src.indexOf('TIER_BUDGET'), src.indexOf('};', src.indexOf('TIER_BUDGET'))); const B = {};
+      for (const m of blk.matchAll(/(\\w+):\\s*\\{\\s*triangles:\\s*([\\d_]+),\\s*draws:\\s*(\\d+)/g)) B[m[1]] = { triangles: +m[2].replace(/_/g, ''), draws: +m[3] };
+      const j = JSON.parse(fs.readFileSync('$LOGS/perf.json', 'utf8')); const bad = []; const tiers = '$TIERS'.split(',');
       for (const t of tiers) { const rs = j.results.filter((r) => r.tier === t); if (rs.length < 3) bad.push(t + ': ' + rs.length + '/3 views');
-        for (const r of rs) { const b = TIER_BUDGET[t]; if (r.info.triangles > b.triangles || r.info.total > b.draws) bad.push(t + ' v' + r.view + ' ' + Math.round(r.info.triangles / 1000) + 'k/' + r.info.total); } }
+        for (const r of rs) { const b = B[t]; if (!b || r.info.triangles > b.triangles || r.info.total > b.draws) bad.push(t + ' v' + r.view + ' ' + Math.round(r.info.triangles / 1000) + 'k/' + r.info.total + (b ? '' : ' (no budget)')); } }
       console.log(bad.length ? 'FAIL ' + bad.join(', ') : 'PASS ' + tiers.join('/') + ' within TIER_BUDGET');" 2>&1 | tail -1)
     case "$VERDICT" in PASS*) row perf PASS "${VERDICT#PASS }" ;; *) row perf FAIL "${VERDICT#FAIL }" ;; esac
   else row perf SKIP "no dist/"; fi

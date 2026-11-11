@@ -35,7 +35,7 @@ it here.
 |---|---|---|
 | WORLD | **Streetscape** | Rafael proposed, Imani agreed (11 Nov) |
 | ART | **Inkwell** | Priya proposed, most votes, Tomas agreed (11 Nov) |
-| SOUND | (voting) | |
+| SOUND | **Airwaves** | Jules proposed, Andre second choice, Nia agreed (11 Nov) |
 | ENGINE | (voting) | |
 
 ## Bringing someone back
