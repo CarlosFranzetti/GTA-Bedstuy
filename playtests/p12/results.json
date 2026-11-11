@@ -3,312 +3,87 @@
   "seed": 7,
   "stages": [
     {
-      "stage": "01-boot",
-      "shot": "playtests/p12/01-boot.png"
+      "stage": "P0-phone-boot",
+      "shot": "playtests/p12/P0-phone-boot.png"
     },
     {
-      "stage": "01-boot",
-      "x": 9,
-      "z": 20,
-      "inCar": false,
-      "vehicle": null,
-      "speed": 0,
-      "wanted": 0,
-      "mission": null,
-      "station": "BK House",
-      "inside": false,
-      "mapOpen": false
+      "stage": "P1-car",
+      "shot": "playtests/p12/P1-car.png"
     },
     {
-      "stage": "02b-mid-walk",
-      "shot": "playtests/p12/02b-mid-walk.png"
+      "stage": "P2-radio",
+      "shot": "playtests/p12/P2-radio.png"
     },
     {
-      "stage": "02-walk-throop",
-      "shot": "playtests/p12/02-walk-throop.png",
-      "x": -6.61,
-      "z": 55.66,
-      "inCar": false,
-      "vehicle": null,
-      "speed": 0,
-      "wanted": 0,
-      "mission": null,
-      "station": "BK House",
-      "inside": false,
-      "mapOpen": false
+      "stage": "P3-stick",
+      "shot": "playtests/p12/P3-stick.png"
     },
     {
-      "stage": "04-wanted",
-      "shot": "playtests/p12/04-wanted-raised.png",
-      "x": -6.73,
-      "z": 55.72,
-      "inCar": false,
-      "vehicle": null,
-      "speed": 0,
-      "wanted": 2,
-      "mission": null,
-      "station": "BK House",
-      "inside": false,
-      "mapOpen": false
+      "stage": "P4-map",
+      "shot": "playtests/p12/P4-map.png"
     },
     {
-      "stage": "04-wanted-cleared",
-      "shot": "playtests/p12/04-wanted-cleared.png",
-      "x": 443.27,
-      "z": 55.72,
-      "inCar": false,
-      "vehicle": null,
-      "speed": 0,
-      "wanted": 0,
-      "mission": null,
-      "station": "BK House",
-      "inside": false,
-      "mapOpen": false
-    },
-    {
-      "stage": "05-mission-start",
-      "shot": "playtests/p12/05-mission-start.png",
-      "x": 8.3,
-      "z": -88,
-      "inCar": false,
-      "vehicle": null,
-      "speed": 0,
-      "wanted": 0,
-      "mission": "bodega-run",
-      "station": "BK House",
-      "inside": false,
-      "mapOpen": false
-    },
-    {
-      "stage": "05-mission-complete",
-      "shot": "playtests/p12/05-mission-complete.png",
-      "x": 56.6,
-      "z": -6.75,
-      "inCar": false,
-      "vehicle": null,
-      "speed": 0,
-      "wanted": 0,
-      "mission": null,
-      "station": "BK House",
-      "inside": false,
-      "mapOpen": false
-    },
-    {
-      "stage": "05-mission-fail",
-      "shot": "playtests/p12/05-mission-fail.png",
-      "x": -9,
-      "z": 64.8,
-      "inCar": false,
-      "vehicle": null,
-      "speed": 0,
-      "wanted": 0,
-      "mission": null,
-      "station": "BK House",
-      "inside": false,
-      "mapOpen": false
-    },
-    {
-      "stage": "06-entered",
-      "shot": "playtests/p12/06-entered.png",
-      "x": 10.67,
-      "z": 32.8,
-      "inCar": false,
-      "vehicle": null,
-      "speed": 0,
-      "wanted": 0,
-      "mission": null,
-      "station": "BK House",
-      "inside": false,
-      "mapOpen": false
-    },
-    {
-      "stage": "06-left",
-      "shot": "playtests/p12/06-left.png",
-      "x": 3000,
-      "z": 3002.5,
-      "inCar": false,
-      "vehicle": null,
-      "speed": 0,
-      "wanted": 0,
-      "mission": null,
-      "station": "BK House",
-      "inside": true,
-      "mapOpen": false
-    },
-    {
-      "stage": "07-map",
-      "shot": "playtests/p12/07-map-open.png"
-    },
-    {
-      "stage": "07-waypoint",
-      "shot": "playtests/p12/07-waypoint.png"
-    },
-    {
-      "stage": "08-phone",
-      "shot": "playtests/p12/08-phone.png"
-    },
-    {
-      "stage": "09-walked-away",
-      "shot": "playtests/p12/09-walked-away.png",
-      "x": 2995.43,
-      "z": 3003.57,
-      "inCar": false,
-      "vehicle": null,
-      "speed": 0,
-      "wanted": 0,
-      "mission": null,
-      "station": "BK House",
-      "inside": true,
-      "mapOpen": false
-    },
-    {
-      "stage": "09-loaded",
-      "shot": "playtests/p12/09-loaded.png",
-      "x": 8.42,
-      "z": 34.36,
-      "inCar": false,
-      "vehicle": null,
-      "speed": 0,
-      "wanted": 0,
-      "mission": null,
-      "station": "BK House",
-      "inside": false,
-      "mapOpen": false
+      "stage": "P5-phone",
+      "shot": "playtests/p12/P5-phone.png"
     }
   ],
   "checks": [
     {
-      "stage": "02-walk-throop",
-      "name": "walk ~4 blocks (330 m)",
+      "stage": "P0-phone-boot",
+      "name": "no horizontal page scroll",
       "pass": true,
-      "detail": "337 m walked, 15 stuck segments, from (9,20)"
+      "detail": "scrollWidth 750 vs 750"
     },
     {
-      "stage": "03a-cargovan",
-      "name": "find cargovan",
-      "pass": false,
-      "detail": "no vehicle of this type in traffic"
-    },
-    {
-      "stage": "03b-sedan",
-      "name": "find sedan",
-      "pass": false,
-      "detail": "no vehicle of this type in traffic"
-    },
-    {
-      "stage": "03c-suv",
-      "name": "find suv",
-      "pass": false,
-      "detail": "no vehicle of this type in traffic"
-    },
-    {
-      "stage": "04-wanted",
-      "name": "wanted rises to 2 stars",
-      "pass": true,
-      "detail": "stars 2 (debug raise, no cop chase)"
-    },
-    {
-      "stage": "04-wanted",
-      "name": "wanted cleared after escape",
-      "pass": true,
-      "detail": "stars 0 after 120 game-s away"
-    },
-    {
-      "stage": "05-mission",
-      "name": "start bodega-run",
-      "pass": true,
-      "detail": "active bodega-run"
-    },
-    {
-      "stage": "05-mission",
-      "name": "complete bodega-run",
-      "pass": true,
-      "detail": "5 objectives visited by position (interior/item steps may need manual play)"
-    },
-    {
-      "stage": "05-mission-fail",
-      "name": "abandon laundromat-getaway with X",
-      "pass": true,
-      "detail": "{\"active\":null,\"failed\":false,\"reason\":null}"
-    },
-    {
-      "stage": "06-shop-interior",
-      "name": "enter interior/shop with F",
-      "pass": false,
-      "detail": "prompt \"F  Enter WAX DELI\""
-    },
-    {
-      "stage": "06-shop-interior",
-      "name": "leave interior",
-      "pass": false,
-      "detail": ""
-    },
-    {
-      "stage": "07-map",
-      "name": "map opens (M)",
+      "stage": "P0-phone-boot",
+      "name": "touch CAR enters a car",
       "pass": true,
       "detail": ""
     },
     {
-      "stage": "07-map",
-      "name": "tap sets a waypoint",
+      "stage": "P0-phone-boot",
+      "name": "touch RADIO changes station",
       "pass": true,
-      "detail": "bottom bar: \"YouHOMEMission offerGoalShopWaypointFind meClear pinDrag to pan, pinch or wheel \""
+      "detail": "BK House -> Dub Lab"
     },
     {
-      "stage": "07-map",
-      "name": "map closes (M)",
+      "stage": "P0-phone-boot",
+      "name": "touch stick drives the car",
       "pass": true,
-      "detail": ""
+      "detail": "22.6 m in 3 game-s"
     },
     {
-      "stage": "08-phone",
-      "name": "phone opens (P)",
-      "pass": true,
-      "detail": ""
-    },
-    {
-      "stage": "09-save-load",
-      "name": "save to slot1",
-      "pass": true,
-      "detail": ""
-    },
-    {
-      "stage": "09-save-load",
-      "name": "walk away after save (>=3 m)",
-      "pass": true,
-      "detail": "4.7 m"
-    },
-    {
-      "stage": "09-save-load",
-      "name": "load slot1 restores position (<1 m)",
+      "stage": "P0-phone-boot",
+      "name": "touch MAP opens the map",
       "pass": false,
-      "detail": "restored to 4214.19 m"
+      "detail": ""
+    },
+    {
+      "stage": "P0-phone-boot",
+      "name": "PHONE button on screen",
+      "pass": false,
+      "detail": ""
+    },
+    {
+      "stage": "P0-phone-boot",
+      "name": "touch PHONE opens the phone",
+      "pass": false,
+      "detail": ""
     }
   ],
-  "errors": [],
-  "notes": [
+  "errors": [
     {
-      "stage": "02-walk-throop",
-      "msg": "vehicle types present in traffic: hatch, beater, sedan, cargovan, cab, suv, boxtruck"
+      "stage": "P0-phone-boot",
+      "kind": "console",
+      "msg": "Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
     },
     {
-      "stage": "02-walk-throop",
-      "msg": "bus: not present in traffic at this moment"
-    },
-    {
-      "stage": "05-mission",
-      "msg": "first offered mission: Bodega Run (bodega-run), 5 objectives"
-    },
-    {
-      "stage": "05-mission",
-      "msg": "trigger walk did not start it; called missions.start() as fallback"
-    },
-    {
-      "stage": "06-shop-interior",
-      "msg": "door prompts found: F  Enter HOME | F  Enter WAX DELI"
+      "stage": "P0-phone-boot",
+      "kind": "console",
+      "msg": "Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
     }
   ],
-  "fatal": "10-new-game: page.evaluate: Execution context was destroyed, most likely because of a navigation",
-  "elapsedS": 889
+  "notes": [],
+  "fatal": null,
+  "elapsedS": 91
 }

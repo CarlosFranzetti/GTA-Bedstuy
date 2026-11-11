@@ -1,0 +1,921 @@
+{
+  "live": false,
+  "seed": 7,
+  "stages": [
+    {
+      "stage": "01-boot",
+      "shot": "playtests/p12/01-boot.png"
+    },
+    {
+      "stage": "01-boot",
+      "x": 9,
+      "z": 20,
+      "inCar": false,
+      "vehicle": null,
+      "speed": 0,
+      "wanted": 0,
+      "mission": null,
+      "station": "BK House",
+      "inside": false,
+      "mapOpen": false
+    },
+    {
+      "stage": "02b-mid-walk",
+      "shot": "playtests/p12/02b-mid-walk.png"
+    },
+    {
+      "stage": "02-walk-throop",
+      "shot": "playtests/p12/02-walk-throop.png",
+      "x": -6.61,
+      "z": 55.66,
+      "inCar": false,
+      "vehicle": null,
+      "speed": 0,
+      "wanted": 0,
+      "mission": null,
+      "station": "BK House",
+      "inside": false,
+      "mapOpen": false
+    },
+    {
+      "stage": "03a-cargovan-enter",
+      "shot": "playtests/p12/03a-cargovan-enter.png",
+      "x": -75.04,
+      "z": 95.36,
+      "inCar": true,
+      "vehicle": "cargovan",
+      "speed": 0,
+      "wanted": 0,
+      "mission": null,
+      "station": "BK House",
+      "inside": false,
+      "mapOpen": false
+    },
+    {
+      "stage": "03a-cargovan-drive-mid",
+      "shot": "playtests/p12/03a-cargovan-drive-mid.png",
+      "x": -95.35,
+      "z": 107.51,
+      "inCar": true,
+      "vehicle": "cargovan",
+      "speed": 0,
+      "wanted": 0,
+      "mission": null,
+      "station": "BK House",
+      "inside": false,
+      "mapOpen": false
+    },
+    {
+      "stage": "03a-cargovan-exit",
+      "shot": "playtests/p12/03a-cargovan-exit.png",
+      "x": 0.29,
+      "z": 107.66,
+      "inCar": false,
+      "vehicle": null,
+      "speed": 0,
+      "wanted": 0,
+      "mission": null,
+      "station": "BK House",
+      "inside": false,
+      "mapOpen": false
+    },
+    {
+      "stage": "03b-sedan-enter",
+      "shot": "playtests/p12/03b-sedan-enter.png",
+      "x": 4.6,
+      "z": 130.95,
+      "inCar": true,
+      "vehicle": "sedan",
+      "speed": 0,
+      "wanted": 0,
+      "mission": null,
+      "station": "BK House",
+      "inside": false,
+      "mapOpen": false
+    },
+    {
+      "stage": "03b-sedan-exit",
+      "shot": "playtests/p12/03b-sedan-exit.png",
+      "x": 2.18,
+      "z": 34.5,
+      "inCar": false,
+      "vehicle": null,
+      "speed": 0,
+      "wanted": 0,
+      "mission": null,
+      "station": "BK House",
+      "inside": false,
+      "mapOpen": false
+    },
+    {
+      "stage": "03c-suv-enter",
+      "shot": "playtests/p12/03c-suv-enter.png",
+      "x": -4.6,
+      "z": 69.38,
+      "inCar": true,
+      "vehicle": "suv",
+      "speed": 0,
+      "wanted": 0,
+      "mission": null,
+      "station": "BK House",
+      "inside": false,
+      "mapOpen": false
+    },
+    {
+      "stage": "03c-radio-0",
+      "shot": "playtests/p12/03c-radio-0.png",
+      "station": "Dub Lab"
+    },
+    {
+      "stage": "03c-radio-1",
+      "shot": "playtests/p12/03c-radio-1.png",
+      "station": "Stoop Radio"
+    },
+    {
+      "stage": "03c-radio-2",
+      "shot": "playtests/p12/03c-radio-2.png",
+      "station": "Boogie Down"
+    },
+    {
+      "stage": "03c-radio-3",
+      "shot": "playtests/p12/03c-radio-3.png",
+      "station": "Weird Hours"
+    },
+    {
+      "stage": "03c-radio-4",
+      "shot": "playtests/p12/03c-radio-4.png",
+      "station": "Yard FM"
+    },
+    {
+      "stage": "03c-radio-5",
+      "shot": "playtests/p12/03c-radio-5.png",
+      "station": "Flashback 88"
+    },
+    {
+      "stage": "03c-radio-6",
+      "shot": "playtests/p12/03c-radio-6.png",
+      "station": "Radio SC"
+    },
+    {
+      "stage": "03c-radio-7",
+      "shot": "playtests/p12/03c-radio-7.png",
+      "station": "WBSY Talk"
+    },
+    {
+      "stage": "03c-radio-8",
+      "shot": "playtests/p12/03c-radio-8.png",
+      "station": "BK House"
+    },
+    {
+      "stage": "03c-suv-exit",
+      "shot": "playtests/p12/03c-suv-exit.png",
+      "x": -7.75,
+      "z": 124.65,
+      "inCar": false,
+      "vehicle": null,
+      "speed": 0,
+      "wanted": 0,
+      "mission": null,
+      "station": "BK House",
+      "inside": false,
+      "mapOpen": false
+    },
+    {
+      "stage": "04-wanted",
+      "shot": "playtests/p12/04-wanted-raised.png",
+      "x": -7.38,
+      "z": 128.11,
+      "inCar": false,
+      "vehicle": null,
+      "speed": 0,
+      "wanted": 2,
+      "mission": null,
+      "station": "BK House",
+      "inside": false,
+      "mapOpen": false
+    },
+    {
+      "stage": "04-wanted-cleared",
+      "shot": "playtests/p12/04-wanted-cleared.png",
+      "x": 442.62,
+      "z": 128.11,
+      "inCar": false,
+      "vehicle": null,
+      "speed": 0,
+      "wanted": 0,
+      "mission": null,
+      "station": "BK House",
+      "inside": false,
+      "mapOpen": false
+    },
+    {
+      "stage": "05-mission-start",
+      "shot": "playtests/p12/05-mission-start.png",
+      "x": 8.3,
+      "z": -88,
+      "inCar": false,
+      "vehicle": null,
+      "speed": 0,
+      "wanted": 0,
+      "mission": "bodega-run",
+      "station": "BK House",
+      "inside": false,
+      "mapOpen": false
+    },
+    {
+      "stage": "05-mission-complete",
+      "shot": "playtests/p12/05-mission-complete.png",
+      "x": 56.6,
+      "z": -6.75,
+      "inCar": false,
+      "vehicle": null,
+      "speed": 0,
+      "wanted": 0,
+      "mission": null,
+      "station": "BK House",
+      "inside": false,
+      "mapOpen": false
+    },
+    {
+      "stage": "05-mission-fail",
+      "shot": "playtests/p12/05-mission-fail.png",
+      "x": -9,
+      "z": 64.8,
+      "inCar": false,
+      "vehicle": null,
+      "speed": 0,
+      "wanted": 0,
+      "mission": null,
+      "station": "BK House",
+      "inside": false,
+      "mapOpen": false
+    },
+    {
+      "stage": "06-entered",
+      "shot": "playtests/p12/06-entered.png",
+      "x": 3000,
+      "z": 3002.5,
+      "inCar": false,
+      "vehicle": null,
+      "speed": 0,
+      "wanted": 0,
+      "mission": null,
+      "station": "BK House",
+      "inside": true,
+      "mapOpen": false
+    },
+    {
+      "stage": "06-left",
+      "shot": "playtests/p12/06-left.png",
+      "x": 9.15,
+      "z": 34,
+      "inCar": false,
+      "vehicle": null,
+      "speed": 0,
+      "wanted": 0,
+      "mission": null,
+      "station": "BK House",
+      "inside": false,
+      "mapOpen": false
+    },
+    {
+      "stage": "07-map",
+      "shot": "playtests/p12/07-map-open.png"
+    },
+    {
+      "stage": "07-waypoint",
+      "shot": "playtests/p12/07-waypoint.png"
+    },
+    {
+      "stage": "08-phone",
+      "shot": "playtests/p12/08-phone.png"
+    },
+    {
+      "stage": "09-walked-away",
+      "shot": "playtests/p12/09-walked-away.png",
+      "x": 9.13,
+      "z": 42.74,
+      "inCar": false,
+      "vehicle": null,
+      "speed": 0,
+      "wanted": 0,
+      "mission": null,
+      "station": "BK House",
+      "inside": false,
+      "mapOpen": false
+    },
+    {
+      "stage": "09-loaded",
+      "shot": "playtests/p12/09-loaded.png",
+      "x": 9.15,
+      "z": 34,
+      "inCar": false,
+      "vehicle": null,
+      "speed": 0,
+      "wanted": 0,
+      "mission": null,
+      "station": "BK House",
+      "inside": false,
+      "mapOpen": false
+    }
+  ],
+  "checks": [
+    {
+      "stage": "02-walk-throop",
+      "name": "walk ~4 blocks (330 m)",
+      "pass": true,
+      "detail": "337 m walked, 15 stuck segments, from (9,20)"
+    },
+    {
+      "stage": "03a-cargovan",
+      "name": "enter cargovan with F",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "stage": "03a-cargovan",
+      "name": "drive cargovan 300 m",
+      "pass": false,
+      "detail": "194 m in 150 game-s, top 52 km/h"
+    },
+    {
+      "stage": "03a-cargovan",
+      "name": "brake cargovan",
+      "pass": true,
+      "detail": "speed after brake 0 km/h"
+    },
+    {
+      "stage": "03a-cargovan",
+      "name": "reverse cargovan",
+      "pass": true,
+      "detail": "speed -20 km/h, moved 7.4 m"
+    },
+    {
+      "stage": "03a-cargovan-exit",
+      "name": "exit cargovan",
+      "pass": true,
+      "detail": "0 obstacles within 4 m"
+    },
+    {
+      "stage": "03a-cargovan-exit",
+      "name": "walk after exit cargovan (>=3 m in 2 game-s)",
+      "pass": true,
+      "detail": "best 5.7 m with KeyW"
+    },
+    {
+      "stage": "03b-sedan",
+      "name": "enter sedan with F",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "stage": "03b-sedan",
+      "name": "drive sedan 300 m",
+      "pass": false,
+      "detail": "198 m in 150 game-s, top 58 km/h"
+    },
+    {
+      "stage": "03b-sedan",
+      "name": "brake sedan",
+      "pass": true,
+      "detail": "speed after brake 0 km/h"
+    },
+    {
+      "stage": "03b-sedan",
+      "name": "reverse sedan",
+      "pass": true,
+      "detail": "speed -25 km/h, moved 10.5 m"
+    },
+    {
+      "stage": "03b-sedan-exit",
+      "name": "exit sedan",
+      "pass": true,
+      "detail": "0 obstacles within 4 m"
+    },
+    {
+      "stage": "03b-sedan-exit",
+      "name": "walk after exit sedan (>=3 m in 2 game-s)",
+      "pass": true,
+      "detail": "best 5.7 m with KeyW"
+    },
+    {
+      "stage": "03c-suv",
+      "name": "enter suv with F",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "stage": "03c-suv",
+      "name": "drive suv 300 m",
+      "pass": false,
+      "detail": "126 m in 150 game-s, top 47 km/h"
+    },
+    {
+      "stage": "03c-suv",
+      "name": "brake suv",
+      "pass": true,
+      "detail": "speed after brake 0 km/h"
+    },
+    {
+      "stage": "03c-suv",
+      "name": "reverse suv",
+      "pass": true,
+      "detail": "speed -2 km/h, moved 4.0 m"
+    },
+    {
+      "stage": "03c-radio",
+      "name": "cycle all radio stations",
+      "pass": true,
+      "detail": "9 stations"
+    },
+    {
+      "stage": "03c-suv-exit",
+      "name": "exit suv",
+      "pass": true,
+      "detail": "2 obstacles within 4 m"
+    },
+    {
+      "stage": "03c-suv-exit",
+      "name": "walk after exit suv (>=3 m in 2 game-s)",
+      "pass": true,
+      "detail": "best 3.5 m with KeyW"
+    },
+    {
+      "stage": "04-wanted",
+      "name": "wanted rises to 2 stars",
+      "pass": true,
+      "detail": "stars 2 (debug raise, no cop chase)"
+    },
+    {
+      "stage": "04-wanted",
+      "name": "wanted cleared after escape",
+      "pass": true,
+      "detail": "stars 0 after 120 game-s away"
+    },
+    {
+      "stage": "05-mission",
+      "name": "start bodega-run",
+      "pass": true,
+      "detail": "active bodega-run"
+    },
+    {
+      "stage": "05-mission",
+      "name": "complete bodega-run",
+      "pass": true,
+      "detail": "5 objectives visited by position (interior/item steps may need manual play)"
+    },
+    {
+      "stage": "05-mission-fail",
+      "name": "abandon laundromat-getaway with X",
+      "pass": true,
+      "detail": "{\"active\":null,\"failed\":false,\"reason\":null}"
+    },
+    {
+      "stage": "06-shop-interior",
+      "name": "enter interior/shop with F",
+      "pass": true,
+      "detail": "prompt \"F  Enter WAX DELI\""
+    },
+    {
+      "stage": "06-shop-interior",
+      "name": "leave interior",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "stage": "07-map",
+      "name": "map opens (M)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "stage": "07-map",
+      "name": "tap sets a waypoint",
+      "pass": true,
+      "detail": "bottom bar: \"YouHOMEMission offerGoalShopWaypointFind meClear pinDrag to pan, pinch or wheel \""
+    },
+    {
+      "stage": "07-map",
+      "name": "map closes (M)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "stage": "08-phone",
+      "name": "phone opens (P)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "stage": "09-save-load",
+      "name": "save to slot1",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "stage": "09-save-load",
+      "name": "walk away after save (>=3 m)",
+      "pass": true,
+      "detail": "8.7 m"
+    },
+    {
+      "stage": "09-save-load",
+      "name": "load slot1 restores position (<1 m)",
+      "pass": true,
+      "detail": "restored to 0.00 m"
+    }
+  ],
+  "errors": [
+    {
+      "stage": "03a-cargovan",
+      "kind": "console",
+      "msg": "Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
+    },
+    {
+      "stage": "03b-sedan",
+      "kind": "console",
+      "msg": "Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
+    },
+    {
+      "stage": "03c-suv",
+      "kind": "console",
+      "msg": "Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
+    },
+    {
+      "stage": "03c-radio",
+      "kind": "console",
+      "msg": "Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
+    },
+    {
+      "stage": "03c-radio",
+      "kind": "console",
+      "msg": "Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
+    },
+    {
+      "stage": "03c-radio",
+      "kind": "console",
+      "msg": "Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
+    },
+    {
+      "stage": "03c-radio",
+      "kind": "console",
+      "msg": "Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
+    },
+    {
+      "stage": "03c-radio",
+      "kind": "console",
+      "msg": "Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
+    },
+    {
+      "stage": "03c-radio",
+      "kind": "console",
+      "msg": "Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
+    },
+    {
+      "stage": "03c-radio",
+      "kind": "console",
+      "msg": "Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
+    },
+    {
+      "stage": "03c-radio",
+      "kind": "console",
+      "msg": "Failed to load resource: the server responded with a status of 502 (Bad Gateway)"
+    }
+  ],
+  "notes": [
+    {
+      "stage": "02-walk-throop",
+      "msg": "vehicle types present in traffic: hatch, beater, sedan, cargovan, cab, suv, boxtruck"
+    },
+    {
+      "stage": "02-walk-throop",
+      "msg": "bus: not present in traffic at this moment"
+    },
+    {
+      "stage": "03a-cargovan",
+      "msg": "teleported next to cargovan (nearest was 79 m away)"
+    },
+    {
+      "stage": "03b-sedan",
+      "msg": "teleported next to sedan (nearest was 20 m away)"
+    },
+    {
+      "stage": "03c-suv",
+      "msg": "teleported next to suv (nearest was 33 m away)"
+    },
+    {
+      "stage": "03c-radio",
+      "msg": "radio reports playing: none; not playing: Dub Lab | Stoop Radio | Boogie Down | Weird Hours | Yard FM | Flashback 88 | Radio SC | WBSY Talk | BK House"
+    },
+    {
+      "stage": "05-mission",
+      "msg": "first offered mission: Bodega Run (bodega-run), 5 objectives"
+    },
+    {
+      "stage": "05-mission",
+      "msg": "trigger walk did not start it; called missions.start() as fallback"
+    },
+    {
+      "stage": "06-shop-interior",
+      "msg": "door prompts found: F  Enter HOME | F  Enter WAX DELI"
+    },
+    {
+      "stage": "10-new-game",
+      "msg": "newGame: returned"
+    }
+  ],
+  "fatal": "10-new-game: page.evaluate: Execution context was destroyed, most likely because of a navigation",
+  "radio": [
+    {
+      "n": 0,
+      "name": "Dub Lab",
+      "playing": false,
+      "sc": {
+        "state": "idle",
+        "loadedUrl": "",
+        "index": 0,
+        "picked": false,
+        "raOn": true,
+        "errStreak": 0,
+        "prefetched": false,
+        "noSourceAt": 1794388753601,
+        "pos": 0,
+        "duration": 0,
+        "isSet": false,
+        "active": true,
+        "paused": false,
+        "volume": 1,
+        "failedAt": 0,
+        "lastProgAt": 0,
+        "lastProgPos": -1,
+        "stallKicks": 0,
+        "sessionStarted": true,
+        "apiLoads": 1,
+        "play_": "idle",
+        "exposed": false,
+        "lastSetUrl": "",
+        "lastLink": "",
+        "duck": 1
+      }
+    },
+    {
+      "n": 1,
+      "name": "Stoop Radio",
+      "playing": false,
+      "sc": {
+        "state": "idle",
+        "loadedUrl": "",
+        "index": 0,
+        "picked": false,
+        "raOn": true,
+        "errStreak": 0,
+        "prefetched": false,
+        "noSourceAt": 1794388766308,
+        "pos": 0,
+        "duration": 0,
+        "isSet": false,
+        "active": true,
+        "paused": false,
+        "volume": 1,
+        "failedAt": 0,
+        "lastProgAt": 0,
+        "lastProgPos": -1,
+        "stallKicks": 0,
+        "sessionStarted": true,
+        "apiLoads": 1,
+        "play_": "idle",
+        "exposed": false,
+        "lastSetUrl": "",
+        "lastLink": "",
+        "duck": 1
+      }
+    },
+    {
+      "n": 2,
+      "name": "Boogie Down",
+      "playing": false,
+      "sc": {
+        "state": "idle",
+        "loadedUrl": "",
+        "index": 0,
+        "picked": false,
+        "raOn": true,
+        "errStreak": 0,
+        "prefetched": false,
+        "noSourceAt": 1794388778009,
+        "pos": 0,
+        "duration": 0,
+        "isSet": false,
+        "active": true,
+        "paused": false,
+        "volume": 1,
+        "failedAt": 0,
+        "lastProgAt": 0,
+        "lastProgPos": -1,
+        "stallKicks": 0,
+        "sessionStarted": true,
+        "apiLoads": 1,
+        "play_": "idle",
+        "exposed": false,
+        "lastSetUrl": "",
+        "lastLink": "",
+        "duck": 1
+      }
+    },
+    {
+      "n": 3,
+      "name": "Weird Hours",
+      "playing": false,
+      "sc": {
+        "state": "idle",
+        "loadedUrl": "",
+        "index": 0,
+        "picked": false,
+        "raOn": true,
+        "errStreak": 0,
+        "prefetched": false,
+        "noSourceAt": 1794388791171,
+        "pos": 0,
+        "duration": 0,
+        "isSet": false,
+        "active": true,
+        "paused": false,
+        "volume": 1,
+        "failedAt": 0,
+        "lastProgAt": 0,
+        "lastProgPos": -1,
+        "stallKicks": 0,
+        "sessionStarted": true,
+        "apiLoads": 1,
+        "play_": "idle",
+        "exposed": false,
+        "lastSetUrl": "",
+        "lastLink": "",
+        "duck": 1
+      }
+    },
+    {
+      "n": 4,
+      "name": "Yard FM",
+      "playing": false,
+      "sc": {
+        "state": "idle",
+        "loadedUrl": "",
+        "index": 0,
+        "picked": false,
+        "raOn": true,
+        "errStreak": 0,
+        "prefetched": false,
+        "noSourceAt": 1794388803584,
+        "pos": 0,
+        "duration": 0,
+        "isSet": false,
+        "active": true,
+        "paused": false,
+        "volume": 1,
+        "failedAt": 0,
+        "lastProgAt": 0,
+        "lastProgPos": -1,
+        "stallKicks": 0,
+        "sessionStarted": true,
+        "apiLoads": 1,
+        "play_": "idle",
+        "exposed": false,
+        "lastSetUrl": "",
+        "lastLink": "",
+        "duck": 1
+      }
+    },
+    {
+      "n": 5,
+      "name": "Flashback 88",
+      "playing": false,
+      "sc": {
+        "state": "idle",
+        "loadedUrl": "",
+        "index": 0,
+        "picked": false,
+        "raOn": true,
+        "errStreak": 0,
+        "prefetched": false,
+        "noSourceAt": 1794388813366,
+        "pos": 0,
+        "duration": 0,
+        "isSet": false,
+        "active": true,
+        "paused": false,
+        "volume": 1,
+        "failedAt": 0,
+        "lastProgAt": 0,
+        "lastProgPos": -1,
+        "stallKicks": 0,
+        "sessionStarted": true,
+        "apiLoads": 1,
+        "play_": "idle",
+        "exposed": false,
+        "lastSetUrl": "",
+        "lastLink": "",
+        "duck": 1
+      }
+    },
+    {
+      "n": 6,
+      "name": "Radio SC",
+      "playing": false,
+      "sc": {
+        "state": "idle",
+        "loadedUrl": "",
+        "index": 0,
+        "picked": false,
+        "raOn": true,
+        "errStreak": 0,
+        "prefetched": false,
+        "noSourceAt": 1794388827100,
+        "pos": 0,
+        "duration": 0,
+        "isSet": false,
+        "active": true,
+        "paused": false,
+        "volume": 1,
+        "failedAt": 0,
+        "lastProgAt": 0,
+        "lastProgPos": -1,
+        "stallKicks": 0,
+        "sessionStarted": true,
+        "apiLoads": 1,
+        "play_": "idle",
+        "exposed": false,
+        "lastSetUrl": "",
+        "lastLink": "",
+        "duck": 1,
+        "gameHour": 5
+      }
+    },
+    {
+      "n": 7,
+      "name": "WBSY Talk",
+      "playing": false,
+      "sc": {
+        "state": "idle",
+        "loadedUrl": "",
+        "index": 0,
+        "picked": false,
+        "raOn": true,
+        "errStreak": 0,
+        "prefetched": false,
+        "noSourceAt": 1794388827100,
+        "pos": 0,
+        "duration": 0,
+        "isSet": false,
+        "active": false,
+        "paused": false,
+        "volume": 1,
+        "failedAt": 0,
+        "lastProgAt": 0,
+        "lastProgPos": -1,
+        "stallKicks": 0,
+        "sessionStarted": true,
+        "apiLoads": 1,
+        "play_": "idle",
+        "exposed": false,
+        "lastSetUrl": "",
+        "lastLink": "",
+        "duck": 1,
+        "gameHour": 5
+      }
+    },
+    {
+      "n": 8,
+      "name": "BK House",
+      "playing": false,
+      "sc": {
+        "state": "idle",
+        "loadedUrl": "",
+        "index": 0,
+        "picked": false,
+        "raOn": true,
+        "errStreak": 0,
+        "prefetched": false,
+        "noSourceAt": 1794388852187,
+        "pos": 0,
+        "duration": 0,
+        "isSet": false,
+        "active": true,
+        "paused": false,
+        "volume": 1,
+        "failedAt": 0,
+        "lastProgAt": 0,
+        "lastProgPos": -1,
+        "stallKicks": 0,
+        "sessionStarted": true,
+        "apiLoads": 4,
+        "play_": "idle",
+        "exposed": false,
+        "lastSetUrl": "",
+        "lastLink": "",
+        "duck": 1
+      }
+    }
+  ],
+  "elapsedS": 2618
+}
