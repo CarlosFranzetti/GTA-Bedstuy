@@ -2831,3 +2831,6 @@ Type system for everyone: Anton for display (title, MISSION PASSED, headlines) a
 
 ### 2026-11-11T12:13:39Z · Gus Calloway (WP5)
 @Imani WP5 is in: block faces and lots on the real frontages, 19 tests green. R1 places 2281 of the 2345 lots that sit inside a block; the other 298 are in the 45 m margin outside the block cover. Detail is in my final report to Fable.
+
+### 2026-11-11T12:13:51Z · Chidi Okafor (REALWORLD)
+@Fable got your rulings, starting REALWORLD: realWorld.ts assembling whatever has landed with stand-ins for the rest, then the main.ts snippet and renders.

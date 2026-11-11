@@ -39,7 +39,7 @@ interface Person {
   id: string; outfit: string; group: PopGroup; sex: 'm' | 'f' | 'x'; age: 'kid' | 'teen' | 'adult' | 'old';
   hair?: PedSpec['hair']; hairColor?: string; hat?: PedSpec['hat']; hatColor?: string; hatTrim?: string; hatLogo?: string;
   face?: Partial<PedSpec['face']>; top?: Partial<PedSpec['top']>; bottom?: Partial<PedSpec['bottom']>; build?: PedSpec['build'];
-  gear?: PedSpec['gear']; gearColor?: string; shoes?: Partial<PedSpec['shoes']>; sunday?: boolean; skin?: string;
+  gear?: PedSpec['gear']; gearColor?: string; shoes?: Partial<PedSpec['shoes']>; sunday?: boolean; skin?: string; body?: PedSpec['body'];
 }
 
 const FEM_FACE: Partial<PedSpec['face']> = { eyes: 'wide', brows: 'arched', lashes: true, lips: '#a8484f' };
@@ -287,7 +287,7 @@ function person(base: PedSpec, p: Person, extra?: Omit<PedSpec, 'id' | 'skin'>):
     hat: p.hat ?? o.hat, hatColor: p.hatColor ?? o.hatColor, hatTrim: p.hatTrim ?? o.hatTrim, hatLogo: p.hatLogo ?? o.hatLogo,
     face, top: { ...o.top, ...p.top }, bottom: { ...o.bottom, ...p.bottom }, shoes: { ...o.shoes, ...p.shoes },
     gear: p.gear ?? o.gear, gearColor: p.gearColor ?? o.gearColor,
-    build: p.build ?? (p.age === 'kid' ? 'kid' : o.build), sunday: p.sunday ?? false,
+    build: p.build ?? (p.age === 'kid' ? 'kid' : o.build), body: p.body ?? o.body, sunday: p.sunday ?? false,
     weight: 1,
   };
 }
