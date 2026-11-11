@@ -247,10 +247,12 @@ export function garmentParts(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSp
     for (const t of tris) { const id = wholeId(t); if (id !== undefined) hide.add(id); }
   };
 
+  // hem of the top (a hanging hoodie / jacket ends below the waist); the trousers start just above it so their hips never pierce the hem
+  const topHem = tk > 0 ? (top.long ? kneeY + 0.05 : lm.hemY - (['puffer', 'hoodie', 'jacket', 'cardigan'].includes(top.kind) ? 0.09 : top.kind === 'tee' || top.kind === 'blouse' ? 0.0 : 0.04)) : Infinity;
   // ---- top: body, sleeves (upper arm, forearm) as separate shells with their own continuous unwraps
   if (tk > 0) {
     const long = !!top.long;
-    const hem = long ? kneeY + 0.05 : lm.hemY - (['puffer', 'hoodie', 'jacket', 'cardigan'].includes(top.kind) ? 0.09 : top.kind === 'tee' || top.kind === 'blouse' ? 0.0 : 0.04);
+    const hem = topHem;
     const wArm = (v: V): number => wsum(v, B.arms), wHead = (v: V): number => wsum(v, B.head), wLow = (v: V): number => wsum(v, B.legs);
     const bodyF = smoothField(all, (v) => wsum(v, B.torso) + wsum(v, B.hips) + (long ? wLow(v) : 0) - wArm(v) - wHead(v) - (long ? 0 : wLow(v)) + 0.1);
     let body = clip(all, bodyF);
@@ -260,7 +262,7 @@ export function garmentParts(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSp
     const chestY = chest[0], a = Math.max(HANG_TOP[top.kind] ?? 0.5, spec.sex === 'f' ? 0.85 : 0);
     const flare = long ? 0.03 : top.kind === 'puffer' ? 0.01 : 0;
     emit(body, {
-      thick: (v) => tk + (spec.sex === 'f' ? 0.006 : 0) + (long ? flare * (1 - smooth(hem, lm.hemY, v.p[1])) : 0) + (top.kind === 'hoodie' && v.p[1] > shoulderY ? 0.012 : 0),
+      thick: (v) => tk + (spec.sex === 'f' ? 0.006 : 0) + (long ? flare * (1 - smooth(hem, lm.hemY, v.p[1])) : 0) + (top.kind === 'hoodie' && v.p[1] > shoulderY ? 0.012 : 0) + (long ? 0 : 0.014 * smooth(hem + 0.12, hem, v.p[1])),
       hang: (p) => {
         if (p[1] >= chestY || p[1] < lm.hemY - 0.02) return;
         const r = ringAt(tr, p[1]), w = smooth(chestY, chestY - 0.1, p[1]) * a;
@@ -285,7 +287,7 @@ export function garmentParts(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSp
   // ---- trousers / shorts: straight from the hip and thigh; waist, thigh and shin shells with their own unwraps
   const bk = spec.bottom.kind, tb = THICK_BOTTOM[bk] ?? 0;
   if (tb > 0) {
-    const waist = lm.hemY + 0.02, shortsEnd = kneeY + 0.1, cuff = lm.ankleY + (bk === 'shorts' ? 0 : 0.05), hipTop = R.hipL[1] + 0.02;
+    const waist = Math.min(lm.hemY + 0.02, topHem + 0.025), shortsEnd = kneeY + 0.1, cuff = lm.ankleY + (bk === 'shorts' ? 0 : 0.05), hipTop = R.hipL[1] + 0.02;
     const wL = (v: V): number => wsum(v, B.legs), wH = (v: V): number => wsum(v, B.hips) + wsum(v, B.torso);
     const straight = STRAIGHT[bk];
     const thighTop = ringAt(legRings, kneeY + 0.12), mid = Math.max(thighTop.rx, thighTop.rz);
@@ -297,7 +299,8 @@ export function garmentParts(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSp
       const sc = 1 + Math.max(0, target / cur - 1) * Math.min(1, w + 0.4 * (p[1] < kneeY ? 1 : 0));
       p[0] = cx + (p[0] - cx) * sc; p[2] = r.cz + (p[2] - r.cz) * sc;
     };
-    const legF = smoothField(all, (v) => wL(v) - wH(v) + 0.04);
+    // arms and head are excluded explicitly: a vertex with no leg and no hip weight (a hand) used to count as 'leg' and was wrapped in trousers
+    const legF = smoothField(all, (v) => wL(v) - wH(v) - wsum(v, B.arms) - wsum(v, B.head) + 0.04);
     const covered = top.long && tk > 0;   // a long coat hides the hips and thighs
     if (!covered) {
       const pelvis = clip(clip(all, smoothField(all, (v) => wH(v) - wL(v) - wsum(v, B.arms) - wsum(v, B.head) + 0.04)), (v) => waist - v.p[1]);
@@ -312,7 +315,22 @@ export function garmentParts(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSp
       emit(shin, { thick: thickOf, hang, iterations: 3, rim: 0.006, uv: cyl(HI_RECTS.shin, lm.ankleY + 0.03, kneeY, limbAxis(legRings)), tile: HI_RECTS.shin });
     }
   }
-  return { parts: out, hide };
+  return { parts: out, hide: shrinkHide(L, hide) };
+}
+
+/**
+ * The body triangles under a shell are hidden, but a shell's border is pulled in and smoothed, so a crack could open between two shells
+ * (torso and sleeve at the armhole) and show the ground behind. Keep the ring of body triangles that touch a triangle that is not
+ * hidden: they stay drawn under the shell border (painted as cloth in the same tile) and close the crack.
+ */
+export function shrinkHide(L: MhLod, hide: Set<number>): Set<number> {
+  const key = (i: number): string => `${Math.round(L.position[i * 3] * 1e4)},${Math.round(L.position[i * 3 + 1] * 1e4)},${Math.round(L.position[i * 3 + 2] * 1e4)}`;
+  const open = new Set<string>();
+  const n = L.index.length / 3;
+  for (let t = 0; t < n; t++) if (!hide.has(t)) for (let k = 0; k < 3; k++) open.add(key(L.index[t * 3 + k]));
+  const out = new Set<number>();
+  for (const t of hide) { let touches = false; for (let k = 0; k < 3 && !touches; k++) touches = open.has(key(L.index[t * 3 + k])); if (!touches) out.add(t); }
+  return out;
 }
 
 // ---------------------------------------------------------------- head: hair volume, beard, head scarf

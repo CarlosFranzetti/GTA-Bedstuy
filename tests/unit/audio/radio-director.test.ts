@@ -37,10 +37,10 @@ function setup(tracks: ImportedTrack[] = []) {
 }
 
 describe('station list', () => {
-  it('has the 15 dial stations (8 SoundCloud, 5 live, 2 talk) and no My Library while the library is empty', () => {
+  it('has the 15 dial stations (9 SoundCloud, 4 live music, 2 talk) and no My Library while the library is empty', () => {
     const { dir } = setup();
-    expect(dir.stations.map((s) => s.kind)).toEqual(['sc', 'sc', 'sc', 'sc', 'sc', 'sc', 'sc', 'sc', ...Array(5).fill('live'), 'talk', 'live']);
-    expect(dir.stations.map((s) => s.name)).toEqual(['Boiler Room', 'Dekmantel Podcast', 'Resident Advisor', 'Mixmag', 'FACT Mixes', 'Rinse FM', 'Soulection', 'The Lot Radio', 'dublab', 'KEXP 90.3', 'Radio Paradise', 'WFMU 91.1', 'SomaFM Underground 80s', 'WBSY Talk', 'WNYC 93.9 FM']);
+    expect(dir.stations.map((s) => s.kind)).toEqual(['sc', 'sc', 'sc', 'sc', 'sc', 'live', 'sc', 'sc', 'sc', 'sc', 'live', 'live', 'live', 'talk', 'live']);
+    expect(dir.stations.map((s) => s.name)).toEqual(['Boiler Room', 'Dekmantel Podcast', 'Resident Advisor', 'Rinse FM', 'Soulection', "WFMU Rock'n'Soul", 'Universal Hip Hop Radio', 'SilverStarSound', 'DJ RubyTunes Latin', 'The Lot Radio', 'WFMU 91.1', 'KEXP 90.3', 'SomaFM Underground 80s', 'WBSY Talk', 'WNYC 93.9 FM']);
     expect(dir.libraryOnDial).toBe(false);
   });
 

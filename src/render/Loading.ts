@@ -1,31 +1,33 @@
 /**
- * Boot loading screen: rotating comic-poster art panels (see loadingArt.ts), title logo, slim progress bar with the
- * current stage, gameplay tips and the fan-tribute disclaimer. Safe to use before the game exists.
+ * Boot loading screen, GTA 5 idiom with our own art: two or three diagonal hero panels (see loadingArt.ts), each with a slow
+ * ken-burns and swapping one at a time about every 7 s; a bold title; one tip; a load bar with a human stage label and a
+ * percentage that never moves back and never reads 100 % until loading is done; the fan-tribute disclaimer. Safe to use before the game exists.
  * Hooks (constructor options): onShow when it appears, onFirstGesture on the first click/tap/key while it is up (the
  * moment browsers allow audio, so the loading tune can start), onHide when it starts to fade.
  */
 import './loading.css';
-import { PANELS, drawPanel, panelSize } from './loadingArt';
+import { PANELS, drawPanel, slotLayout } from './loadingArt';
 
 export type StepState = 'pending' | 'active' | 'done' | 'skipped';
 
-export interface LoadingStep { id: string; label: string; }
+export interface LoadingStep { id: string; label: string; /** share of the bar; heavy stages weigh more */ weight?: number }
 
+/** Boot stages in main.ts order, with human labels. */
 export const BOOT_STEPS: readonly LoadingStep[] = [
-  { id: 'materials', label: 'Materials' },
-  { id: 'textures', label: 'Textures' },
-  { id: 'world', label: 'World' },
-  { id: 'lights', label: 'Lights & shadows' },
-  { id: 'entities', label: 'Entities' },
-  { id: 'shaders', label: 'Compiling shaders' },
+  { id: 'materials', label: 'Streets', weight: 1 },
+  { id: 'textures', label: 'Signs & paint', weight: 2 },
+  { id: 'world', label: 'Buildings', weight: 4 },
+  { id: 'lights', label: 'Lights', weight: 1 },
+  { id: 'entities', label: 'People & cars', weight: 3 },
+  { id: 'shaders', label: 'Radio & polish', weight: 2 },
 ];
 
-/** Fraction complete (0..1) given step states; the active step counts as half done. */
-export function loadingProgress(states: readonly StepState[]): number {
+/** Fraction complete (0..1) given step states and optional weights; the active step counts as half done. */
+export function loadingProgress(states: readonly StepState[], weights?: readonly number[]): number {
   if (states.length === 0) return 1;
-  let s = 0;
-  for (const st of states) s += st === 'done' || st === 'skipped' ? 1 : st === 'active' ? 0.5 : 0;
-  return s / states.length;
+  let s = 0, t = 0;
+  states.forEach((st, i) => { const w = weights?.[i] ?? 1; t += w; s += w * (st === 'done' || st === 'skipped' ? 1 : st === 'active' ? 0.5 : 0); });
+  return t > 0 ? s / t : 1;
 }
 
 /** Resolves with `p`'s value, or `fallback` after `ms` (never rejects). */
@@ -46,7 +48,7 @@ export function nextPaint(): Promise<void> {
 }
 
 /** Milliseconds each art panel stays up, and each tip. */
-export const PANEL_MS = 5200;
+export const PANEL_MS = 7000;
 export const TIP_MS = 6500;
 
 export const LOADING_TIPS: readonly string[] = [
@@ -75,15 +77,16 @@ export class LoadingScreen {
   private readonly bar: HTMLElement;
   private readonly note: HTMLElement;
   private readonly stageEl: HTMLElement;
+  private readonly pctEl: HTMLElement;
   private readonly tipEl: HTMLElement;
-  private readonly capTitle: HTMLElement;
-  private readonly capSub: HTMLElement;
   private readonly chip: HTMLButtonElement;
-  private readonly canvases: HTMLCanvasElement[] = [];
-  private readonly drawn = new Set<number>();
+  private readonly slots: Array<{ wrap: HTMLElement; cv: [HTMLCanvasElement, HTMLCanvasElement]; front: 0 | 1; panel: number }> = [];
+  private readonly drawn = new Set<string>();
   private readonly labels = new Map<string, string>();
+  private readonly weights = new Map<string, number>();
   private readonly states = new Map<string, StepState>();
-  private panel = 0;
+  private shown = 0;
+  private swaps = 0;
   private tip = 0;
   private timers: Array<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval>> = [];
   private gestured = false;
@@ -108,13 +111,15 @@ export class LoadingScreen {
     root.setAttribute('aria-valuemax', '100');
 
     const stage = el('div', 'ld-stage', root);
-    PANELS.forEach((p, i) => {
-      const cv = el('canvas', 'ld-panel', stage);
-      cv.dataset.panel = p.id;
-      cv.setAttribute('aria-hidden', 'true');
-      this.canvases.push(cv);
-      void i;
-    });
+    const view = d.defaultView;
+    const lay = slotLayout(view?.innerWidth ?? 1280, view?.innerHeight ?? 720);
+    for (let i = 0; i < 3; i++) {
+      const wrap = el('div', 'ld-slotwrap', stage);
+      const slot = el('div', 'ld-slot', wrap);
+      const mk = (): HTMLCanvasElement => { const cv = el('canvas', 'ld-panel', slot); cv.setAttribute('aria-hidden', 'true'); return cv; };
+      this.slots.push({ wrap, cv: [mk(), mk()], front: 0, panel: i % PANELS.length });
+      if (i >= lay.slots) wrap.hidden = true;
+    }
     el('div', 'ld-shade', root);
 
     const logo = el('div', 'ld-logo', root);
@@ -122,32 +127,28 @@ export class LoadingScreen {
     const bs = el('span', 'ld-logo-b', logo); bs.textContent = 'BED-STUY';
     const tag = el('span', 'ld-logo-c', logo); tag.textContent = 'a fan tribute';
 
-    const cap = el('div', 'ld-caption', root);
-    this.capTitle = el('b', 'ld-cap-title', cap);
-    this.capSub = el('span', 'ld-cap-sub', cap);
-
-    this.chip = el('button', 'ld-sound', root);
-    this.chip.type = 'button';
-    this.chip.textContent = 'Click for sound';
-
     const bottom = el('div', 'ld-bottom', root);
     this.tipEl = el('div', 'ld-tip', bottom);
     const row = el('div', 'ld-row', bottom);
     this.stageEl = el('span', 'ld-stage-label', row);
     this.note = el('span', 'ld-note', row);
+    this.pctEl = el('span', 'ld-pct', row);
+    this.chip = el('button', 'ld-sound', row);
+    this.chip.type = 'button';
+    this.chip.textContent = 'Click for sound';
     const track = el('div', 'ld-track', bottom);
     this.bar = el('div', 'ld-fill', track);
     const disc = el('p', 'ld-disclaimer', bottom);
     disc.textContent = 'GTA Bed-Stuy is a non-commercial fan tribute to the Brooklyn neighbourhood. Not affiliated with or endorsed by Rockstar Games or Take-Two Interactive. All art, music and code are original.';
 
-    for (const s of steps) { this.labels.set(s.id, s.label); this.states.set(s.id, 'pending'); }
+    for (const s of steps) { this.labels.set(s.id, s.label); this.weights.set(s.id, s.weight ?? 1); this.states.set(s.id, 'pending'); }
     parent.appendChild(root);
     this.tipEl.textContent = LOADING_TIPS[0] ?? '';
-    this.showPanel(0);
+    this.slots.slice(0, lay.slots).forEach((sl, i) => this.paint(i, sl.panel, true));
     this.refresh();
 
-    // rotation: art panels and tips, lazily drawn one ahead
-    this.timers.push(setInterval(() => this.showPanel(this.panel + 1), PANEL_MS));
+    // rotation: one slot swaps its panel at a time, so every slot changes about every PANEL_MS
+    this.timers.push(setInterval(() => this.swap(), PANEL_MS / lay.slots));
     this.timers.push(setInterval(() => this.nextTip(), TIP_MS));
     for (const ev of LoadingScreen.GESTURES) d.addEventListener(ev, this.onGesture, true);
     this.chip.addEventListener('click', this.onGesture);
@@ -160,10 +161,15 @@ export class LoadingScreen {
   skip(id: string, why = ''): void { this.set(id, 'skipped'); if (why) this.warn(why); }
   /** Show a non-fatal warning line (e.g. texture timeout). */
   warn(text: string): void { this.note.textContent = text; }
-  get progress(): number { return loadingProgress([...this.states.values()]); }
+  /** Raw fraction complete (0..1). */
+  get progress(): number { const ids = [...this.states.keys()]; return loadingProgress(ids.map((i) => this.states.get(i)!), ids.map((i) => this.weights.get(i) ?? 1)); }
+  /** Whole percent on the bar: monotonic, and 100 only once every stage is done or skipped. */
+  get percent(): number { return this.shown; }
   stateOf(id: string): StepState | undefined { return this.states.get(id); }
-  /** Index of the art panel on screen, how many panels have been drawn so far, and the stage label text. */
-  get panelIndex(): number { return this.panel; }
+  /** Panel shown in the first slot, how many panel canvases have been drawn so far, the stage label and the tip. */
+  get panelIndex(): number { return this.slots[0]?.panel ?? 0; }
+  /** The panels on screen now, one per visible slot. */
+  get visiblePanels(): number[] { return this.slots.filter((s) => !s.wrap.hidden).map((s) => s.panel); }
   get drawnPanels(): number { return this.drawn.size; }
   get stageLabel(): string { return this.stageEl.textContent ?? ''; }
   get tipText(): string { return this.tipEl.textContent ?? ''; }
@@ -177,45 +183,45 @@ export class LoadingScreen {
   }
 
   private refresh(): void {
-    const pct = Math.round(this.progress * 100);
-    this.bar.style.width = `${pct}%`;
-    this.root.setAttribute('aria-valuenow', String(pct));
     const all = [...this.states.entries()];
+    const complete = all.every(([, st]) => st === 'done' || st === 'skipped');
+    const raw = Math.round(this.progress * 100);
+    this.shown = Math.max(this.shown, complete ? 100 : Math.min(99, raw));
+    this.bar.style.width = `${this.shown}%`;
+    this.pctEl.textContent = `${this.shown}%`;
+    this.root.setAttribute('aria-valuenow', String(this.shown));
     const active = all.find(([, st]) => st === 'active') ?? all.find(([, st]) => st === 'pending');
-    const doneCount = all.filter(([, st]) => st === 'done' || st === 'skipped').length;
-    const label = active ? this.labels.get(active[0]) ?? '' : 'Ready';
-    this.stageEl.textContent = all.length === 0 ? '' : active ? `${label} (${Math.min(all.length, doneCount + 1)}/${all.length})` : 'Ready';
+    this.stageEl.textContent = all.length === 0 ? '' : active ? this.labels.get(active[0]) ?? '' : 'Ready';
   }
 
-  private showPanel(i: number): void {
-    const n = this.canvases.length;
-    if (n === 0 || this.hidden) return;
-    const next = ((i % n) + n) % n;
-    const prev = this.panel;
-    this.ensureDrawn(next);
-    for (const [k, cv] of this.canvases.entries()) {
-      cv.classList.remove('out');
-      if (k === prev && prev !== next) { cv.classList.remove('on'); cv.classList.add('out'); }
-    }
-    this.canvases[next]?.classList.add('on');
-    this.panel = next;
-    const info = PANELS[next];
-    if (info) { this.capTitle.textContent = info.caption; this.capSub.textContent = info.sub; }
-    // draw the following panel a moment later, off the critical path
-    const ahead = (next + 1) % n;
-    if (!this.drawn.has(ahead)) this.timers.push(setTimeout(() => this.ensureDrawn(ahead), 600));
-  }
-
-  private ensureDrawn(i: number): void {
-    if (this.drawn.has(i)) return;
-    this.drawn.add(i);
-    const cv = this.canvases[i];
-    if (!cv) return;
+  /** Draws panel `panel` into the slot's back canvas and brings it to the front. */
+  private paint(i: number, panel: number, first = false): void {
+    const sl = this.slots[i];
+    if (!sl) return;
+    const back = (first ? sl.front : 1 - sl.front) as 0 | 1;
+    const cv = sl.cv[back];
     const view = this.doc.defaultView;
-    const size = panelSize(view?.innerWidth ?? 1280, view?.innerHeight ?? 720);
-    cv.width = size.w;
-    cv.height = size.h;
-    if (!drawPanel(cv, i)) cv.classList.add('plain');
+    const lay = slotLayout(view?.innerWidth ?? 1280, view?.innerHeight ?? 720);
+    cv.width = lay.w; cv.height = lay.h;
+    cv.classList.remove('plain');
+    if (!drawPanel(cv, panel)) cv.classList.add('plain');
+    this.drawn.add(`${i}:${panel}`);
+    const old = sl.cv[sl.front];
+    if (old !== cv) { old.classList.remove('on'); old.classList.add('out'); }
+    cv.classList.remove('out'); cv.classList.add('on');
+    sl.front = back; sl.panel = panel;
+    if (old !== cv) this.timers.push(setTimeout(() => old.classList.remove('out'), 900));
+  }
+
+  private swap(): void {
+    if (this.hidden) return;
+    const vis = this.slots.filter((s) => !s.wrap.hidden);
+    if (vis.length === 0) return;
+    const i = this.swaps++ % vis.length;
+    const shown = new Set(vis.map((s) => s.panel));
+    let next = (Math.max(...shown) + 1) % PANELS.length;
+    for (let k = 0; k < PANELS.length && shown.has(next); k++) next = (next + 1) % PANELS.length;
+    this.paint(i, next);
   }
 
   private nextTip(): void {

@@ -304,8 +304,8 @@ describe('RadioUi SoundCloud stations', () => {
     const ui = new RadioUi(parent, { library, libraryController, scStations: dir.scStations });
     ui.open();
     const sections = qa(ui.root, '.rl-sc');
-    expect(sections).toHaveLength(8);
-    expect(sections.map((s) => (s as HTMLElement).dataset.station)).toEqual(['bkhouse', 'dublab', 'stoop', 'boogie', 'weird', 'yard', 'flashback', 'sc']);
+    expect(sections).toHaveLength(9);
+    expect(sections.map((s) => (s as HTMLElement).dataset.station)).toEqual(['bkhouse', 'dublab', 'stoop', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc']);
     const houseSec = sections[0];
     expect(q(houseSec, '.rl-station-name').textContent).toBe('Boiler Room');
     expect(q(houseSec, '.rl-sc-pool').textContent).toBe('Pool for Boiler Room: 2 of 3 sets match, 2 not heard yet.');
@@ -383,9 +383,9 @@ describe('RadioUi station list (15 stations)', () => {
     const items = qa(ui.root, '.rl-dial-item');
     expect(items).toHaveLength(15);
     const badges = items.map((li) => q(li, '.rl-badge').textContent);
-    expect(badges.filter((b) => b === 'SC')).toHaveLength(7);
+    expect(badges.filter((b) => b === 'SC')).toHaveLength(8);
     expect(badges.filter((b) => b === 'RA')).toHaveLength(1);
-    expect(badges.filter((b) => b === 'LIVE')).toHaveLength(6);
+    expect(badges.filter((b) => b === 'LIVE')).toHaveLength(5);
     expect(badges.filter((b) => b === 'TALK')).toHaveLength(1);
     expect(q(ui.root, '.rl-dial-current')).toBe(items[0]);
     expect(q(items[0], '.rl-dial-about').textContent).toMatch(/Boiler Room/);

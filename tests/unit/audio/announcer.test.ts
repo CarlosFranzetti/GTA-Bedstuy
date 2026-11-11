@@ -278,7 +278,7 @@ describe('ducking', () => {
 });
 
 describe('voices', () => {
-  it('uses the persona pitch and rate and a voice picked like WBSY Talk, all eight told apart', () => {
+  it('uses the persona pitch and rate and a voice picked like WBSY Talk, all nine told apart', () => {
     const seen = new Set<string>();
     for (const def of SC_STATIONS) {
       const r = rig();
@@ -292,7 +292,7 @@ describe('voices', () => {
       expect(u.voice).not.toBeNull();
       seen.add(`${u.voice!.name}|${u.pitch}|${u.rate}`);
     }
-    expect(seen.size).toBe(8);
+    expect(seen.size).toBe(9);
   });
 
   it('with a single voice every announcer still shares it, told apart by pitch and rate', () => {

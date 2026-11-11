@@ -30,7 +30,7 @@ describe('Announcer with the voice hub', () => {
     a.tuneIn(stoop);
     a.update(2);
     await until(() => !a.speaking);
-    expect(speech.spoken.join(' ')).toMatch(/Rinse FM/);
+    expect(speech.spoken.join(' ')).toMatch(/Universal Hip Hop Radio/);
     speech.spoken.length = 0;
     a.betweenSets({ title: 'Cypher Season 4', dj: 'MC Lowtide' }, { title: 'Block Party Tape', dj: 'DJ Marcy Flats' });
     a.update(2);

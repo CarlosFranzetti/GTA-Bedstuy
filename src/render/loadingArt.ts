@@ -19,14 +19,13 @@ export interface PanelInfo {
 }
 
 type Ctx = CanvasRenderingContext2D;
-interface Scene { sky: [string, string]; ground: string; horizon: number; draw: (c: Ctx, rnd: () => number) => void }
+interface Scene { sky: [string, string]; ground: string; horizon: number; draw: (c: Ctx, rnd: () => number, place: () => void) => void; heroes: ReadonlyArray<{ x: number; y?: number; h: number; look: Hero }> }
 
 export const PANELS: readonly PanelInfo[] = [
   { id: 'stoop', caption: 'The Stoop', sub: 'Brownstone blocks, Sunday evening' },
   { id: 'deli', caption: 'The Corner Deli', sub: 'Open late. Bacon egg and cheese, always' },
   { id: 'cab', caption: 'Throop Ave', sub: 'Yellow cab, green light' },
   { id: 'dj', caption: 'On the Decks', sub: 'Funk, boom-bap and block-party bass' },
-  { id: 'train', caption: 'The Elevated', sub: 'Next stop: everywhere' },
   { id: 'roof', caption: 'Rooftop Hour', sub: 'Water tower, sunset, good company' },
 ];
 
@@ -114,6 +113,27 @@ function rays(c: Ctx, cx: number, cy: number, r: number, n: number, color: strin
 type Hair = 'afro' | 'braids' | 'cap' | 'wrap' | 'bun' | 'fade' | 'locs';
 interface Figure { skin: string; top: string; bottom: string; hair: Hair; hairColor?: string; sit?: boolean; arm?: 'up' | 'down' | 'bag' }
 
+function hairdo(c: Ctx, x: number, headY: number, hr: number, skin: string, hair: string, style: Hair): void {
+  c.fillStyle = hair;
+  c.strokeStyle = INK;
+  c.lineWidth = 4;
+  switch (style) {
+    case 'afro': disc(c, x, headY - hr * 0.35, hr * 1.35, hair, 4); disc(c, x, headY + hr * 0.15, hr * 0.92, skin, 0); break;
+    case 'braids':
+      c.beginPath(); c.arc(x, headY, hr * 1.08, Math.PI * 0.95, Math.PI * 2.05); c.fill(); c.stroke();
+      for (const s of [-1, 1]) box(c, x + s * hr * 0.95 - hr * 0.12, headY - hr * 0.1, hr * 0.26, hr * 1.7, hair, 3);
+      break;
+    case 'cap': c.beginPath(); c.arc(x, headY - hr * 0.1, hr * 1.06, Math.PI, 0); c.closePath(); c.fill(); c.stroke(); box(c, x - hr * 0.1, headY - hr * 0.15, hr * 1.5, hr * 0.28, hair, 3); break;
+    case 'wrap': disc(c, x, headY - hr * 0.35, hr * 1.05, '#e05a3a', 4); box(c, x - hr * 1.02, headY - hr * 0.55, hr * 2.04, hr * 0.42, '#f2b632', 3); break;
+    case 'bun': disc(c, x, headY - hr * 1.2, hr * 0.5, hair, 4); c.beginPath(); c.arc(x, headY, hr * 1.05, Math.PI * 0.98, Math.PI * 2.02); c.fill(); c.stroke(); break;
+    case 'locs':
+      c.beginPath(); c.arc(x, headY - hr * 0.05, hr * 1.08, Math.PI * 0.9, Math.PI * 2.1); c.fill(); c.stroke();
+      for (let i = -2; i <= 2; i++) box(c, x + i * hr * 0.4 - hr * 0.1, headY - hr * 0.2, hr * 0.22, hr * (1.4 + (i % 2 ? 0.3 : 0)), hair, 3);
+      break;
+    default: c.beginPath(); c.arc(x, headY - hr * 0.1, hr * 1.04, Math.PI * 1.02, Math.PI * 1.98); c.closePath(); c.fill(); c.stroke();
+  }
+}
+
 /** Flat poster figure, feet at (x, y), `h` tall. Faceless on purpose: silhouette-level, same proportions for everyone. */
 function person(c: Ctx, x: number, y: number, h: number, f: Figure): void {
   const hr = h * 0.085;
@@ -146,24 +166,77 @@ function person(c: Ctx, x: number, y: number, h: number, f: Figure): void {
   // neck + head
   box(c, x - hr * 0.35, torsoTop - hr * 0.4, hr * 0.7, hr * 0.5, f.skin, 3);
   disc(c, x, headY, hr, f.skin, 4);
-  // hair
-  c.fillStyle = hair;
-  c.strokeStyle = INK;
-  c.lineWidth = 4;
-  switch (f.hair) {
-    case 'afro': disc(c, x, headY - hr * 0.35, hr * 1.35, hair, 4); disc(c, x, headY + hr * 0.15, hr * 0.92, f.skin, 0); break;
-    case 'braids':
-      c.beginPath(); c.arc(x, headY, hr * 1.08, Math.PI * 0.95, Math.PI * 2.05); c.fill(); c.stroke();
-      for (const s of [-1, 1]) box(c, x + s * hr * 0.95 - hr * 0.12, headY - hr * 0.1, hr * 0.26, hr * 1.7, hair, 3);
-      break;
-    case 'cap': c.beginPath(); c.arc(x, headY - hr * 0.1, hr * 1.06, Math.PI, 0); c.closePath(); c.fill(); c.stroke(); box(c, x - hr * 0.1, headY - hr * 0.15, hr * 1.5, hr * 0.28, hair, 3); break;
-    case 'wrap': disc(c, x, headY - hr * 0.35, hr * 1.05, '#e05a3a', 4); box(c, x - hr * 1.02, headY - hr * 0.55, hr * 2.04, hr * 0.42, '#f2b632', 3); break;
-    case 'bun': disc(c, x, headY - hr * 1.2, hr * 0.5, hair, 4); c.beginPath(); c.arc(x, headY, hr * 1.05, Math.PI * 0.98, Math.PI * 2.02); c.fill(); c.stroke(); break;
-    case 'locs':
-      c.beginPath(); c.arc(x, headY - hr * 0.05, hr * 1.08, Math.PI * 0.9, Math.PI * 2.1); c.fill(); c.stroke();
-      for (let i = -2; i <= 2; i++) box(c, x + i * hr * 0.4 - hr * 0.1, headY - hr * 0.2, hr * 0.22, hr * (1.4 + (i % 2 ? 0.3 : 0)), hair, 3);
-      break;
-    default: c.beginPath(); c.arc(x, headY - hr * 0.1, hr * 1.04, Math.PI * 1.02, Math.PI * 1.98); c.closePath(); c.fill(); c.stroke();
+  hairdo(c, x, headY, hr, f.skin, hair, f.hair);
+}
+
+
+export interface Hero {
+  /** feet position and height are set by the scene; this is the look */
+  skin: string; top: string; bottom: string; shoe: string; hair: Hair; hairColor?: string;
+  /** arm angles in degrees from hanging straight down, outward positive: [left upper, left lower, right upper, right lower] */
+  arms: readonly [number, number, number, number];
+  /** warm or coloured rim light, from the left */
+  rim: string;
+  gear?: 'shades' | 'phones' | 'bag';
+  collar?: string;
+}
+
+/**
+ * A foreground hero: 60 to 80 % of the frame, ink outlines, a rim light down the lit (left) side and halftone shadow on the
+ * other. Feet at (x, y), `h` tall. Same proportions for everyone; poses come from the arm angles.
+ */
+function hero(c: Ctx, x: number, y: number, h: number, f: Hero): void {
+  const hr = h * 0.078, headY = y - h + hr * 1.15, shY = y - h * 0.79, hipY = y - h * 0.47;
+  const sw = h * 0.125, hw = h * 0.085;
+  c.lineJoin = 'round'; c.lineCap = 'round';
+  const limb = (pts: ReadonlyArray<readonly [number, number]>, w: number, fill: string): void => {
+    const path = (): void => { c.beginPath(); pts.forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py))); };
+    c.strokeStyle = INK; c.lineWidth = w + 9; path(); c.stroke();
+    c.strokeStyle = fill; c.lineWidth = w; path(); c.stroke();
+    c.save(); c.translate(-w * 0.3, 0); c.strokeStyle = f.rim; c.globalAlpha = 0.85; c.lineWidth = Math.max(3, w * 0.2); path(); c.stroke(); c.restore();
+  };
+  const arm = (side: -1 | 1, up: number, lo: number): void => {
+    const sx = x + side * sw * 0.92, ua = (up * Math.PI) / 180, la = ((up + lo) * Math.PI) / 180;
+    const ex = sx + side * Math.sin(ua) * h * 0.175, ey = shY + h * 0.03 + Math.cos(ua) * h * 0.175;
+    const wx = ex + side * Math.sin(la) * h * 0.165, wy = ey + Math.cos(la) * h * 0.165;
+    limb([[sx, shY + h * 0.03], [ex, ey], [wx, wy]], h * 0.06, f.top);
+    disc(c, wx, wy + 2, h * 0.034, f.skin, 4);
+  };
+  const [lu, ll, ru, rl] = f.arms;
+  // legs, then the far arm, torso, near arm
+  for (const side of [-1, 1] as const) {
+    const fx = x + side * hw * 0.55;
+    limb([[fx, hipY], [fx + side * h * 0.012, y - h * 0.22], [fx + side * h * 0.02, y - h * 0.045]], h * 0.085, f.bottom);
+    shape(c, [[fx - h * 0.05, y - h * 0.045], [fx + h * 0.075, y - h * 0.045], [fx + h * 0.105, y - h * 0.012], [fx + h * 0.105, y], [fx - h * 0.055, y]], f.shoe, 5);
+    box(c, fx - h * 0.055, y - h * 0.014, h * 0.16, h * 0.014, '#f4f1ea', 0);
+  }
+  arm(1, ru, rl);
+  const torso = (): void => { c.beginPath(); c.moveTo(x - sw, shY); c.quadraticCurveTo(x, shY - h * 0.03, x + sw, shY); c.lineTo(x + hw * 1.05, hipY + h * 0.03); c.lineTo(x - hw * 1.05, hipY + h * 0.03); c.closePath(); };
+  torso(); c.fillStyle = f.top; c.fill(); c.lineWidth = 6; c.strokeStyle = INK; c.stroke();
+  c.save(); torso(); c.clip();
+  c.strokeStyle = f.rim; c.lineWidth = 12; c.beginPath(); c.moveTo(x - sw, shY); c.lineTo(x - hw * 1.05, hipY + h * 0.03); c.stroke();
+  halftone(c, x + sw * 0.15, shY - 10, sw * 1.2, hipY - shY + 40, 'rgba(20,16,28,0.38)', 9, (nx) => nx);
+  c.fillStyle = f.collar ?? f.bottom; c.beginPath(); c.moveTo(x - hr * 0.7, shY - h * 0.02); c.lineTo(x, shY + h * 0.07); c.lineTo(x + hr * 0.7, shY - h * 0.02); c.closePath(); c.fill();
+  c.fillStyle = f.bottom; c.fillRect(x - hw * 1.1, hipY - h * 0.005, hw * 2.2, h * 0.04);
+  c.restore();
+  if (f.gear === 'bag') { limb([[x + sw * 0.8, shY + 4], [x - hw * 0.8, hipY + h * 0.02]], h * 0.02, '#14101c'); box(c, x - hw * 1.6, hipY - h * 0.02, h * 0.1, h * 0.085, '#c8935a', 4); }
+  arm(-1, lu, ll);
+  // neck, head, face
+  box(c, x - hr * 0.38, shY - h * 0.075, hr * 0.76, h * 0.07, f.skin, 4);
+  disc(c, x, headY, hr, f.skin, 5);
+  c.save(); c.beginPath(); c.arc(x, headY, hr, 0, Math.PI * 2); c.clip();
+  c.strokeStyle = f.rim; c.lineWidth = 9; c.beginPath(); c.arc(x, headY, hr - 1, Math.PI * 0.62, Math.PI * 1.38); c.stroke();
+  halftone(c, x + hr * 0.15, headY - hr, hr, hr * 2, 'rgba(20,16,28,0.35)', 6, (nx) => nx);
+  c.restore();
+  hairdo(c, x, headY, hr, f.skin, f.hairColor ?? '#1d1620', f.hair);
+  c.fillStyle = INK; c.strokeStyle = INK; c.lineWidth = 3;
+  if (f.gear === 'shades') { box(c, x - hr * 0.85, headY - hr * 0.2, hr * 0.72, hr * 0.36, INK, 2); box(c, x + hr * 0.13, headY - hr * 0.2, hr * 0.72, hr * 0.36, INK, 2); c.fillStyle = 'rgba(255,255,255,0.5)'; c.fillRect(x - hr * 0.7, headY - hr * 0.14, hr * 0.2, hr * 0.08); }
+  else { for (const e of [-1, 1]) { c.beginPath(); c.ellipse(x + e * hr * 0.38, headY - hr * 0.05, hr * 0.11, hr * 0.15, 0, 0, 7); c.fill(); c.beginPath(); c.moveTo(x + e * hr * 0.6, headY - hr * 0.36); c.lineTo(x + e * hr * 0.2, headY - hr * 0.3); c.stroke(); } }
+  c.beginPath(); c.moveTo(x - hr * 0.06, headY + hr * 0.12); c.lineTo(x - hr * 0.14, headY + hr * 0.32); c.lineTo(x + hr * 0.04, headY + hr * 0.32); c.stroke();
+  c.beginPath(); c.arc(x, headY + hr * 0.42, hr * 0.28, 0.15 * Math.PI, 0.85 * Math.PI); c.stroke();
+  if (f.gear === 'phones') {
+    c.lineWidth = 8; c.beginPath(); c.arc(x, headY - hr * 0.1, hr * 1.12, Math.PI * 1.02, Math.PI * 1.98); c.stroke();
+    for (const e of [-1, 1]) box(c, x + e * hr * 1.05 - hr * 0.2, headY - hr * 0.3, hr * 0.4, hr * 0.7, f.rim, 4);
   }
 }
 
@@ -174,7 +247,8 @@ const SKIN = ['#7a4a2e', '#c68a5c', '#4a2c1e', '#e0b58a', '#9a6240', '#b87850'] 
 const SCENES: Record<string, Scene> = {
   stoop: {
     sky: ['#f7c47a', '#ee6f4a'], ground: '#4a4658', horizon: 470,
-    draw(c) {
+    heroes: [{ x: 730, h: 440, look: { skin: SKIN[1], top: '#e4572e', bottom: '#2b3a67', shoe: '#f2b632', hair: 'braids', arms: [14, 8, 150, 25], rim: '#ffe2a8', collar: '#fff3b0' } }],
+    draw(c, _r, place) {
       rays(c, 160, 130, 900, 14, 'rgba(255,240,200,0.28)');
       // sidewalk + street
       box(c, -40, 440, 1080, 40, '#cbb89b', 5);
@@ -204,13 +278,13 @@ const SCENES: Record<string, Scene> = {
       // people on the stoop
       person(c, 250, 372, 150, { skin: SKIN[0], top: '#e4572e', bottom: '#2b3a67', hair: 'braids', sit: true });
       person(c, 306, 340, 152, { skin: SKIN[3], top: '#3a86ff', bottom: '#222831', hair: 'cap', arm: 'up' });
-      person(c, 780, 470, 170, { skin: SKIN[1], top: '#f2b632', bottom: '#2b2d42', hair: 'afro', arm: 'bag' });
       halftone(c, 0, 0, 520, 300, 'rgba(120,30,20,0.35)', 12, (nx, ny) => Math.max(0, 1 - nx * 1.3 - ny * 0.6));
     },
   },
   deli: {
     sky: ['#8fd0e8', '#d8f0f4'], ground: '#51505c', horizon: 470,
-    draw(c) {
+    heroes: [{ x: 250, h: 430, look: { skin: SKIN[2], top: '#f7f2e6', bottom: '#2d6a4f', shoe: '#14101c', hair: 'fade', arms: [18, -8, 30, -85], rim: '#fff0c0', gear: 'bag', collar: '#2f9e5b' } }],
+    draw(c, _r, place) {
       halftone(c, 0, 0, 1000, 240, 'rgba(255,255,255,0.45)', 14, (nx, ny) => 1 - ny);
       box(c, -40, 450, 1080, 36, '#d6c8b0', 5);
       box(c, -40, 486, 1080, 120, '#51505c', 0);
@@ -234,7 +308,6 @@ const SCENES: Record<string, Scene> = {
       for (const bx of [210, 270]) { box(c, bx, 430, 46, 28, '#7a7f87', 4); for (let i = 0; i < 4; i++) disc(c, bx + 8 + i * 10, 420 - (i % 2) * 8, 9, ['#ff6b6b', '#ffd166', '#f78fb3', '#ff9f1c'][i] ?? '#fff', 3); }
       // neon "OPEN"
       box(c, 800, 330, 80, 40, '#14101c', 4); c.fillStyle = '#ff5a5f'; c.font = '800 26px system-ui, sans-serif'; c.fillText('OPEN', 840, 360);
-      person(c, 640, 490, 176, { skin: SKIN[2], top: '#ffffff', bottom: '#2d6a4f', hair: 'fade', arm: 'bag' });
       person(c, 860, 494, 168, { skin: SKIN[4], top: '#9d4edd', bottom: '#1d3557', hair: 'bun', arm: 'down' });
       person(c, 90, 494, 160, { skin: SKIN[5], top: '#ffb703', bottom: '#264653', hair: 'wrap' });
       halftone(c, 700, 0, 300, 562, 'rgba(20,16,28,0.25)', 12, (nx, ny) => nx * (1 - ny * 0.4));
@@ -242,7 +315,8 @@ const SCENES: Record<string, Scene> = {
   },
   cab: {
     sky: ['#ffd36e', '#ff8a5c'], ground: '#3a3a4a', horizon: 400,
-    draw(c) {
+    heroes: [{ x: 880, h: 440, look: { skin: SKIN[3], top: '#06d6a0', bottom: '#073b4c', shoe: '#ef476f', hair: 'locs', arms: [16, 6, 120, 45], rim: '#fff1c0', gear: 'shades', collar: '#073b4c' } }],
+    draw(c, _r, place) {
       rays(c, 760, 250, 1000, 18, 'rgba(255,255,255,0.22)');
       // buildings silhouette
       let x = -20;
@@ -267,27 +341,24 @@ const SCENES: Record<string, Scene> = {
       disc(c, cx + 245, cy - 40, 12, '#fff6c0', 4);
       // passenger silhouettes in the cab
       disc(c, cx - 80, cy - 112, 20, '#14101c', 0); disc(c, cx + 50, cy - 112, 20, '#14101c', 0);
-      person(c, 900, 396, 150, { skin: SKIN[1], top: '#06d6a0', bottom: '#073b4c', hair: 'locs', arm: 'up' });
       person(c, 80, 398, 140, { skin: SKIN[3], top: '#ef476f', bottom: '#26547c', hair: 'cap' });
       halftone(c, 0, 380, 1000, 182, 'rgba(0,0,0,0.3)', 12, (nx, ny) => ny);
     },
   },
   dj: {
     sky: ['#2b1b52', '#7a2f8f'], ground: '#1a1228', horizon: 440,
-    draw(c, rnd) {
+    heroes: [{ x: 500, y: 470, h: 380, look: { skin: SKIN[0], top: '#ffd23f', bottom: '#1d1830', shoe: '#14101c', hair: 'afro', arms: [40, -75, 40, -75], rim: '#ff9bd0', gear: 'phones', collar: '#1d1830' } }],
+    draw(c, rnd, place) {
       rays(c, 500, 300, 1100, 22, 'rgba(255,90,170,0.3)', 0.1);
       halftone(c, 0, 0, 1000, 562, 'rgba(255,200,60,0.4)', 16, (nx, ny) => Math.max(0, 1 - Math.hypot(nx - 0.5, ny - 0.5) * 2.2));
       // speakers
       for (const sx of [40, 800]) { box(c, sx, 200, 160, 262, '#1d1830', 6); disc(c, sx + 80, 290, 52, '#3a3158', 5); disc(c, sx + 80, 290, 20, '#14101c', 4); disc(c, sx + 80, 400, 30, '#3a3158', 5); }
       // equaliser bars
       for (let i = 0; i < 20; i++) { const bh = 40 + rnd() * 120; box(c, 250 + i * 25, 250 - bh, 18, bh, ['#ff4d6d', '#ffd23f', '#3ddc97'][i % 3] ?? '#fff', 3); }
+      place();
       // table
       box(c, 220, 392, 560, 40, '#2a2240', 6); box(c, 250, 432, 500, 130, '#1d1830', 6);
       // DJ behind the decks
-      person(c, 500, 392, 250, { skin: SKIN[0], top: '#ffd23f', bottom: '#1d1830', hair: 'afro', arm: 'up' });
-      // headphones
-      c.lineWidth = 7; c.strokeStyle = INK; c.beginPath(); c.arc(500, 170, 44, Math.PI * 1.05, Math.PI * 1.95); c.stroke();
-      box(c, 450, 160, 14, 34, '#ff4d6d', 4); box(c, 536, 160, 14, 34, '#ff4d6d', 4);
       // decks
       for (const dx of [290, 560]) { box(c, dx, 340, 150, 56, '#3a3158', 5); disc(c, dx + 75, 366, 38, '#14101c', 4); disc(c, dx + 75, 366, 12, '#ff4d6d', 3); }
       box(c, 462, 352, 76, 44, '#14101c', 4); for (let i = 0; i < 4; i++) box(c, 470 + i * 17, 358, 7, 28, i % 2 ? '#3ddc97' : '#ffd23f', 0);
@@ -298,38 +369,10 @@ const SCENES: Record<string, Scene> = {
       for (let i = 0; i < 14; i++) { c.fillStyle = ['#ffd23f', '#ff4d6d', '#3ddc97'][i % 3] ?? '#fff'; c.beginPath(); c.arc(60 + rnd() * 880, 40 + rnd() * 180, 3 + rnd() * 4, 0, 7); c.fill(); }
     },
   },
-  train: {
-    sky: ['#3b2a6e', '#ff9a5c'], ground: '#1b1626', horizon: 500,
-    draw(c) {
-      disc(c, 700, 330, 120, '#ffe08a', 0);
-      halftone(c, 0, 0, 1000, 360, 'rgba(255,150,90,0.55)', 14, (nx, ny) => ny);
-      // skyline silhouettes
-      let x = -10;
-      for (const h of [120, 190, 150, 230, 140, 260, 170, 210, 130, 180]) { box(c, x, 400 - h, 104, h, '#2a1f45', 5); x += 104; }
-      // viaduct
-      box(c, -40, 300, 1080, 26, '#1b1626', 6);
-      for (let i = 0; i < 8; i++) { box(c, 20 + i * 140, 326, 36, 190, '#241c35', 5); shape(c, [[10 + i * 140, 326], [66 + i * 140, 326], [50 + i * 140, 360], [26 + i * 140, 360]], '#241c35', 4); }
-      // train
-      for (let i = 0; i < 3; i++) {
-        const tx = 40 + i * 330;
-        box(c, tx, 204, 316, 96, i === 0 ? '#d94f3d' : '#c9ccd4', 6);
-        box(c, tx, 258, 316, 14, '#14101c', 0);
-        for (let k = 0; k < 6; k++) box(c, tx + 16 + k * 50, 222, 34, 32, '#ffd96a', 4);
-      }
-      box(c, 40, 190, 316, 14, '#14101c', 4);
-      // rail sparks / lamps
-      for (let i = 0; i < 5; i++) { box(c, 80 + i * 200, 150, 8, 54, '#14101c', 0); disc(c, 84 + i * 200, 148, 10, '#ffe08a', 3); }
-      // street level
-      box(c, -40, 500, 1080, 100, '#1b1626', 0);
-      for (let i = 0; i < 5; i++) box(c, 40 + i * 200, 530, 100, 8, '#f4d35e', 0);
-      person(c, 780, 520, 180, { skin: SKIN[0], top: '#4cc9f0', bottom: '#14101c', hair: 'locs', arm: 'bag' });
-      person(c, 850, 520, 168, { skin: SKIN[3], top: '#ffd23f', bottom: '#2a1f45', hair: 'bun' });
-      person(c, 150, 520, 176, { skin: SKIN[5], top: '#ef476f', bottom: '#14101c', hair: 'cap', arm: 'down' });
-    },
-  },
   roof: {
     sky: ['#ff6b6b', '#ffd36e'], ground: '#2b2340', horizon: 440,
-    draw(c) {
+    heroes: [{ x: 380, h: 420, look: { skin: SKIN[1], top: '#3a86ff', bottom: '#14101c', shoe: '#ffd23f', hair: 'afro', arms: [12, 6, 20, -30], rim: '#fff0b8', collar: '#14101c' } }, { x: 620, h: 400, look: { skin: SKIN[0], top: '#ffd23f', bottom: '#5f0f40', shoe: '#14101c', hair: 'wrap', arms: [15, 5, 140, 30], rim: '#fff0b8', collar: '#5f0f40' } }],
+    draw(c, _r, place) {
       rays(c, 300, 360, 1200, 20, 'rgba(255,255,220,0.3)');
       disc(c, 300, 360, 150, '#fff0b8', 6);
       halftone(c, 0, 0, 1000, 340, 'rgba(160,30,70,0.4)', 13, (nx, ny) => 1 - ny * 1.2);
@@ -350,9 +393,6 @@ const SCENES: Record<string, Scene> = {
       c.lineWidth = 3; c.strokeStyle = INK; c.beginPath(); c.moveTo(0, 220); c.quadraticCurveTo(250, 320, 520, 230); c.stroke();
       for (let i = 0; i < 9; i++) { const t = i / 8; disc(c, t * 520, 220 + Math.sin(t * Math.PI) * 78 + 8, 9, ['#ffd23f', '#ff6b6b', '#8be9fd'][i % 3] ?? '#fff', 3); }
       // friends on the roof
-      person(c, 380, 440, 200, { skin: SKIN[1], top: '#3a86ff', bottom: '#14101c', hair: 'afro' });
-      person(c, 470, 440, 186, { skin: SKIN[0], top: '#ffd23f', bottom: '#5f0f40', hair: 'wrap', arm: 'up' });
-      person(c, 560, 440, 192, { skin: SKIN[3], top: '#06d6a0', bottom: '#14101c', hair: 'bun', arm: 'down' });
     },
   },
 };
@@ -369,9 +409,11 @@ export function drawPanel(canvas: HTMLCanvasElement, index: number): boolean {
   try { c = canvas.getContext('2d'); } catch { c = null; }
   if (!c) return false;
   const w = canvas.width, h = canvas.height;
-  const s = Math.min(w / DESIGN_W, h / DESIGN_H);
-  const ox = (w - DESIGN_W * s) / 2;
-  const oy = (h - DESIGN_H * s) / 2;
+  // cover the canvas, crop sideways around the heroes, stand the scene on the bottom edge
+  const s = Math.max(w / DESIGN_W, h / DESIGN_H);
+  const focus = scene.heroes.reduce((a, hh) => a + hh.x, 0) / Math.max(1, scene.heroes.length);
+  const ox = Math.min(40 * s, Math.max(w - (DESIGN_W + 40) * s, w / 2 - focus * s));
+  const oy = h - DESIGN_H * s;
   c.save();
   // extended backdrop: sky above the horizon, ground below it, so non-16:9 canvases have no empty bars
   const horizonY = oy + scene.horizon * s;
@@ -388,22 +430,23 @@ export function drawPanel(canvas: HTMLCanvasElement, index: number): boolean {
   c.rect(-ox / s, -oy / s, w / s, h / s);
   c.clip();
   c.textBaseline = 'alphabetic';
-  scene.draw(c, mulberry32(0xb3d57 + index * 977));
-  c.restore();
-  // diagonal split: a bold ink slash with a halftone shadow, cut from the lower-left to the upper-right
-  c.save();
-  c.strokeStyle = INK;
-  c.lineWidth = Math.max(4, w * 0.008);
-  c.beginPath();
-  c.moveTo(0, h * 0.965);
-  c.lineTo(w, h * 0.035);
-  c.stroke();
+  let placed = false;
+  const place = (): void => {
+    if (placed) return;
+    placed = true;
+    for (const hh of scene.heroes) hero(c, hh.x, hh.y ?? 552, hh.h, hh.look);
+  };
+  scene.draw(c, mulberry32(0xb3d57 + index * 977), place);
+  place();
   c.restore();
   return true;
 }
 
-/** Canvas size for the panels: capped so a panel stays ~0.5 MP (16:9 landscape, or 9:16 on a portrait screen). */
-export function panelSize(viewW: number, viewH: number): { w: number; h: number } {
-  const portrait = viewH > viewW;
-  return portrait ? { w: 540, h: 960 } : { w: 960, h: 540 };
+/**
+ * Slot canvas size: the screen shows `slots` diagonal panels side by side (landscape) or stacked (portrait), each about
+ * 0.5 MP at most. Landscape slots are tall and narrow, portrait slots wide and short.
+ */
+export function slotLayout(viewW: number, viewH: number): { w: number; h: number; slots: number } {
+  if (viewH > viewW) return { w: 540, h: Math.round(Math.min(760, 540 * (viewH * 0.56) / Math.max(1, viewW))), slots: 2 };
+  return { w: Math.round(540 * (viewW * 0.42) / Math.max(1, viewH)), h: 540, slots: 3 };
 }

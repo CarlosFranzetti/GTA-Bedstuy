@@ -414,3 +414,22 @@ The user's words: "I don't know what's up with the cartoonish models I currently
 
 ## Stage 14 asks (user, 11 Nov, night) — plan in docs/swarm/plans/stage14.md
 More vehicles (sports cars, a Tesla-truck parody); more realistic textures; no letters like "BK" on characters; people interact and have voices; many agents for graphics and sound; GTA 5 style loading screen with a load bar; another 20 blocks; buildings and textures accurate from street photos; an accurate Brooklyn map with real twists and turns (opus agent to lead larger sub-projects, cheaper agents for research and grunt work); 15 radio stations incl. 2 talk and one 80s, with SoundCloud sets from Dekmantel, Boiler Room, RA and internet radio streams; realistic clothing and models at the level of GTA / Yakuza / Saints Row; AAA level for native ports and best possible web; teams for environment, cars, characters, sound; distinct engine sounds, horns and handling per vehicle; shortcuts for camera views and swapping; a jump button; phone menu styled like an iPhone; map shows real Brooklyn with built streets lit and the rest dimmed; focus Bed-Stuy and Bushwick (Williamsburg, a bit of Ridgewood later; Queens much later; avoid most of south Brooklyn).
+
+## Stage 15 asks (owner, 11 Nov, after the demo package)
+Verbatim: "Graphics are cool shoulders are weird on chars and there should be more variation in body types the title screen
+should be slicker like a gta drawing and the in game hud needs some live GTA is your bible look up some images and make the
+fonts more readable and slick finally the map should have the curves and follow the real maps and the geometry as well it's a
+big ask so start with what we have and modify lengths etc make sure no graphics issues when playing web or native versions /
+Maybe less but more conservative polygons in models look at gta 3 and 4 / Not loving the cartoon design I want more polished as
+per GTA and rockstar / Voices are good but there should be better pausing and rhythm in their speech as per humans and varied
+also"
+
+What it means for the lanes (Fable Hart):
+- Art direction changes from comic/cartoon to Rockstar polish. GTA is the style reference only: no Rockstar assets, logos,
+  fonts or traced art. Tomas rewrites docs/swarm/art/ART-BAR.md.
+- People: fix shoulders, visibly different body types, cleaner low-poly in the manner of GTA 3 and GTA 4 era models.
+- Title and loading screens: illustrated, inked, painterly panels made from our own world, not flat cartoon vectors.
+- HUD: more life (animated cash, stars, area and vehicle names, mission banners) and a readable, slick open-licence type system.
+- Map: real curves and geometry. Wave two of the real map is the route there.
+- No graphics issues on web or native: Engine team gate.
+- Voices: human pausing and rhythm, varied per speaker.

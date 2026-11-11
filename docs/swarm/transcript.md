@@ -2753,3 +2753,18 @@ Morning all. The owner asked for demos, credits and a hip-hop title theme. I sen
 
 ### 2026-11-11T12:02:50Z · June Crosswalk (WP3)
 @Imani starting WP3. June here, going by June Crosswalk. @Theo @Lena @Gus @Chidi src/world/roadnet/contract.ts now exists: CROSSWALK_START 0.5, CROSSWALK_WIDTH 3, STOP_LINE 4.5, all measured along a leg from its cut.
+
+### 2026-11-11T12:03:27Z · Lena "Hashmark" (WP4)
+@Imani starting WP4. Lena here, going by Lena "Hashmark" from now on (spatial hash is half my job). Road, sidewalk, curb and marking meshing along polylines plus a 64/128 m chunk layout, new files meshRoads.ts and chunksReal.ts only. I will use contract.ts as it stands.
+
+### 2026-11-11T12:06:20Z · Priya Ink (CREDITS)
+@Fable understood, no more flat cartoon posters. I am taking src/ui/Hud.ts title block and hud.css title rules, src/ui/Credits.ts and credits.css, and the loading art (src/render/loadingArt.ts, loading.css, Loading.ts art parts). @Zadie I leave the load bar logic and HUD to you; tell me if you already edited loading.css.
+
+### 2026-11-11T12:06:26Z · Fable Hart (CEO)
+New feedback from the owner, everyone. He likes the graphics. He does not like the cartoon look: he wants Rockstar polish, with GTA as the reference and nothing copied. Tomas is back to rewrite the art bar. Priya has title, loading art and credits. Zadie has the map tidy-up, then the HUD and fonts. Leila has shoulders and body types. Dmitri keeps the car tops. Mei is back for speech rhythm and pauses.
+
+### 2026-11-11T12:06:26Z · Fable Hart (CEO)
+@Imani team (Theo, June, Lena, Gus, Chidi): the owner asked again for the real curves and geometry and said 'start with what we have and modify lengths'. That is your wave two. I want the first walkable real-map build behind the switch as soon as roads, sidewalks and lots exist, even if it is rough. Tell me the moment the pieces fit so I can wire it.
+
+### 2026-11-11T12:06:27Z · Fable Hart (CEO)
+@Greta the owner also said 'make sure no graphics issues when playing web or native versions'. That is your gate. I need the crash cause first, then the platform check list he can run on his Mac and on Windows.

@@ -1,6 +1,8 @@
 import './hud.css';
 import type { HudState } from '@/world/types';
 import type { InputMode } from '@/core/Input';
+import { menuArtSvg } from './menuArt';
+import { DISCLAIMER } from './creditsData';
 
 /** Optional radio extras next to `HudState.radioStation`: the now-playing file/speaker and the talk-show loop position. */
 export interface RadioHudState {
@@ -94,6 +96,10 @@ export class Hud {
   private lastStreet = '';
   private readonly radioEl: HTMLElement;
   private readonly splashEl: HTMLElement;
+  /** The title screen appeared (true: showSplash) or the player started (false: hideSplash). The host starts / fades the title theme here. */
+  onSplash: ((shown: boolean) => void) | null = null;
+  /** The CREDITS button on the title screen was pressed: the host opens the roll. */
+  onCredits: (() => void) | null = null;
   private readonly cardEl: HTMLElement;
   private readonly cardTitleEl: HTMLElement;
   private readonly cardSubEl: HTMLElement;
@@ -177,19 +183,44 @@ export class Hud {
 
     // Splash is appended last so it paints over everything else.
     this.splashEl = this.make('div', 'hud-splash');
+    const art = this.make('div', 'hud-art');
+    art.setAttribute('aria-hidden', 'true');
+    art.innerHTML = menuArtSvg('t');
+    const shade = this.make('div', 'hud-shade');
+    const by = this.make('p', 'hud-by');
+    by.textContent = 'Carlos Franzetti presents';
     const title = this.make('h1', 'hud-title');
-    title.textContent = 'GTA BED-STUY';
+    const gta = this.make('span', 'hud-title-a');
+    gta.textContent = 'GTA';
+    const stuy = this.make('span', 'hud-title-b');
+    stuy.textContent = 'BED-STUY';
+    title.append(gta, this.doc.createTextNode(' '), stuy);
     const subtitle = this.make('p', 'hud-subtitle');
-    subtitle.textContent = 'a fan tribute · not affiliated with Rockstar Games or Take-Two';
+    subtitle.textContent = DISCLAIMER;
+    const start = this.make('p', 'hud-start');
+    start.textContent = 'press start';
+    const startSub = this.make('p', 'hud-start-sub');
+    startSub.textContent = 'click, tap or press any key';
+    const credits = this.make('button', 'hud-credits');
+    credits.type = 'button';
+    credits.textContent = 'Credits';
+    // a press on the button is not "start the game": keep it from reaching the overlay's first-gesture handler
+    for (const t of ['pointerdown', 'mousedown', 'touchstart']) credits.addEventListener(t, (e) => e.stopPropagation());
+    credits.addEventListener('click', (e) => { e.stopPropagation(); this.onCredits?.(); });
+    const fold = this.make('details', 'hud-fold');
+    for (const t of ['pointerdown', 'mousedown', 'touchstart', 'click']) fold.addEventListener(t, (e) => e.stopPropagation());
+    const summary = this.doc.createElement('summary');
+    summary.textContent = 'Controls';
     const controls = this.make('ul', 'hud-controls');
     for (const label of CONTROLS) {
       const li = this.doc.createElement('li');
       li.textContent = label;
       controls.appendChild(li);
     }
-    const start = this.make('p', 'hud-start');
-    start.textContent = 'click or tap to start';
-    this.splashEl.append(title, subtitle, controls, start);
+    fold.append(summary, controls);
+    const menu = this.make('div', 'hud-title-menu');
+    menu.append(start, startSub, credits, fold);
+    this.splashEl.append(art, shade, by, title, subtitle, menu);
 
     root.append(
       this.fpsEl,
@@ -380,6 +411,7 @@ export class Hud {
     this.clearFadeTimer();
     this.splashEl.classList.remove('fading');
     this.splashEl.style.display = '';
+    this.onSplash?.(true);
   }
 
   hideSplash(): void {
@@ -389,6 +421,7 @@ export class Hud {
       this.fadeTimer = null;
       this.splashEl.style.display = 'none';
     }, FADE_MS);
+    this.onSplash?.(false);
     if (!this.welcomed) {
       this.welcomed = true;
       this.showLocationCard(WELCOME_TITLE, WELCOME_SUB);

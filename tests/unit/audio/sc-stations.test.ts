@@ -19,8 +19,8 @@ const stoop = scStationDef('stoop')!;
 
 describe('station table', () => {
   it('has the eight stations in dial order, Radio SC last', () => {
-    expect(SC_STATIONS.map((s) => s.name)).toEqual(['Boiler Room', 'Dekmantel Podcast', 'Rinse FM', 'Soulection', 'Mixmag', 'The Lot Radio', 'FACT Mixes', 'Resident Advisor']);
-    expect(SC_STATIONS.map((s) => s.id)).toEqual(['bkhouse', 'dublab', 'stoop', 'boogie', 'weird', 'yard', 'flashback', 'sc']);
+    expect(SC_STATIONS.map((s) => s.name)).toEqual(['Boiler Room', 'Dekmantel Podcast', 'Universal Hip Hop Radio', 'Soulection', 'The Lot Radio', 'SilverStarSound', 'Rinse FM', 'DJ RubyTunes Latin', 'Resident Advisor']);
+    expect(SC_STATIONS.map((s) => s.id)).toEqual(['bkhouse', 'dublab', 'stoop', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc']);
   });
 
   it('filters by keywords in the set title or the DJ name, case-insensitively', () => {
@@ -265,7 +265,7 @@ describe('virtual clock per station', () => {
     expect(dir.scStation('stoop')!.position).toBeCloseTo(50, 5); // starts when first tuned in
     dir.selectById('bkhouse');
     expect(dir.scStation('bkhouse')!.position).toBeCloseTo(150, 5); // resumes where the set would be
-    expect(dir.scStations).toHaveLength(8);
+    expect(dir.scStations).toHaveLength(9);
     expect(dir.sc.id).toBe('sc');
   });
 });

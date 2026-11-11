@@ -68,7 +68,7 @@ describe('voice content', () => {
       for (const t of c.intros) { expect(t).toMatch(/\{dj\}/); expect(t).toMatch(/\{title\}/); }
       for (const t of c.outros) expect(t).toMatch(/\{prev(Dj|Title)\}/);
     }
-    expect(new Set(SC_STATIONS.map((s) => DJ_COPY[s.id].who)).size).toBe(8);
+    expect(new Set(SC_STATIONS.map((s) => DJ_COPY[s.id].who)).size).toBe(9);
   });
 
   it('the parody deny-list catches real brands and people', () => {

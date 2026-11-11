@@ -215,10 +215,10 @@ describe('AudioSystem with the music library', () => {
     expect(created.osc.length).toBeGreaterThan(before);
   });
 
-  it('exposes the eight SoundCloud stations and takes the announcers\' hour and weather', async () => {
+  it('exposes the nine SoundCloud stations and takes the announcers\' hour and weather', async () => {
     const { audio } = rig();
-    expect(audio.scStations.map((s) => s.id)).toEqual(['bkhouse', 'dublab', 'stoop', 'boogie', 'weird', 'yard', 'flashback', 'sc']);
-    expect(audio.sc).toBe(audio.scStations[7]);
+    expect(audio.scStations.map((s) => s.id)).toEqual(['bkhouse', 'dublab', 'stoop', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc']);
+    expect(audio.sc).toBe(audio.scStations[8]);
     expect(() => audio.setBroadcast({ weather: 'rain', rain: 0.5, hour: 1.25, street: 'Throop Ave' })).not.toThrow();
     expect(audio.announcerLine).toBe('');
   });

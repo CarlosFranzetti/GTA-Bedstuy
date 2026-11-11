@@ -35,7 +35,7 @@ beforeEach(() => { clock = 0; vi.useFakeTimers(); });
 afterEach(() => { vi.useRealTimers(); });
 
 describe('catalog', () => {
-  it('has 15 stations: 8 SoundCloud, 5 live music, 2 talk, one 80s, https only, unique ids', () => {
+  it('has 15 stations: 9 SoundCloud/RA, 4 live music, 2 talk, one 80s, https only, unique ids', () => {
     expect(CATALOG).toHaveLength(15);
     expect(new Set(CATALOG.map((e) => e.id)).size).toBe(15);
     expect(CATALOG.filter((e) => e.talk).map((e) => e.id)).toEqual(['talk', 'wnyc']);
@@ -91,7 +91,7 @@ describe('LiveStation', () => {
   });
 
   it('stall watchdog: no progress for 12 s while playing reconnects (and cycles to the alternate stream URL)', () => {
-    const live = catalogEntry('rparadise')!;
+    const live = catalogEntry('u80s')!;
     const s = new LiveStation(live, env());
     s.setActive(true);
     audio.emit('playing');
@@ -100,7 +100,7 @@ describe('LiveStation', () => {
     expect(s.connects).toBe(1);
     advance(6000);
     expect(s.connects).toBe(2);
-    expect(audio.src).toBe(live.streams![1]);
+    expect(audio.src).toBe(live.streams![1]); // SomaFM mirror 2
     // progress resets the clock
     audio.emit('playing');
     audio.currentTime = 6; audio.emit('timeupdate');
@@ -194,8 +194,8 @@ describe('RadioDirector with live stations', () => {
     dir.setOn(true);
     dir.selectById('kexp');
     for (let i = 0; i < LIVE_MAX_RECONNECTS + 1; i++) audio.emit('error');
-    expect(dir.current.id).toBe('rparadise');
-    expect(toasts[0]).toMatch(/KEXP 90.3 is off the air. Tuning to Radio Paradise/);
+    expect(dir.current.id).toBe('u80s');
+    expect(toasts[0]).toMatch(/KEXP 90.3 is off the air. Tuning to SomaFM Underground 80s/);
     expect(dir.trackName).toMatch(/off the air/);
     expect(dir.isFailed('kexp')).toBe(true);
     // every live station fails in turn; the dial walks on and ends on a station with a message, not a loop

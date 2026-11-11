@@ -354,21 +354,25 @@ body.ui-panel-open .hud-card { display: none !important; }
   .hud-station { top: calc(max(12px, env(safe-area-inset-top, 0px)) + 4px); width: calc(100% - 32px); }
 }
 
-/* ---- splash overlay */
+/* ---- title screen: the pause-menu poster art, a big skewed logo, PRESS START, a small CREDITS button, controls folded away */
 .hud-splash {
+  --ink: #101418; --gold: #f5b21a;
+  --cx-font: Impact, Haettenschweiler, "Arial Narrow Bold", "Franklin Gothic Heavy", "Arial Narrow", system-ui, sans-serif;
   position: absolute;
   inset: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  gap: 16px;
+  gap: 10px;
   box-sizing: border-box;
-  padding: 16px;
-  text-align: center;
+  padding: max(20px, env(safe-area-inset-top, 0px)) max(7vw, env(safe-area-inset-right, 0px)) max(20px, env(safe-area-inset-bottom, 0px)) max(7vw, env(safe-area-inset-left, 0px));
+  text-align: left;
   pointer-events: auto;
   cursor: pointer;
-  background: radial-gradient(ellipse at 50% 40%, #241a12 0%, #09090d 62%, #050507 100%);
+  font-family: var(--cx-font);
+  background: #0b0d11;
   transition: opacity 400ms ease;
 }
 
@@ -377,52 +381,116 @@ body.ui-panel-open .hud-card { display: none !important; }
   pointer-events: none;
 }
 
-.hud-title {
-  margin: 0;
-  font-size: clamp(40px, 9vw, 92px);
-  line-height: 1;
-  letter-spacing: 0.04em;
-  color: #f5c542;
-  text-shadow: 0 4px 0 #7a4b10, 0 8px 22px rgba(0, 0, 0, 0.6);
-}
+.hud-art { position: absolute; inset: 0; pointer-events: none; opacity: 0.9; }
+.hud-art svg { width: 100%; height: 100%; display: block; }
+.hud-shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to right, rgba(11, 13, 17, 0.93) 0%, rgba(11, 13, 17, 0.8) 38%, rgba(11, 13, 17, 0) 66%), linear-gradient(to top, rgba(11, 13, 17, 0.7), rgba(11, 13, 17, 0) 40%); }
+.hud-splash > :not(.hud-art):not(.hud-shade) { position: relative; z-index: 1; }
 
-.hud-subtitle {
-  margin: 0;
-  font: italic 600 14px/1.4 var(--gui-font);
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.hud-controls {
-  list-style: none;
-  margin: 10px 0 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px 22px;
-  max-width: 620px;
-  font: 600 14px/1.4 var(--gui-font);
-  color: rgba(255, 255, 255, 0.88);
-}
-
-.hud-controls li:not(:last-child)::after {
-  content: "\00b7";
-  margin-left: 22px;
-  color: #f5c542;
-}
-
-.hud-start {
-  margin: 18px 0 0;
-  font: 800 18px/1 var(--gui-font);
-  letter-spacing: 0.14em;
+.hud-by {
+  margin: 0 0 4px;
+  font: 400 clamp(14px, 2.2vh, 20px)/1 var(--cx-font);
+  letter-spacing: 0.32em;
   text-transform: uppercase;
   color: #fff;
+  -webkit-text-stroke: 4px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 2px 3px 0 var(--ink);
+}
+
+.hud-title {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 0.88;
+  text-transform: uppercase;
+  color: var(--gold);
+  transform: skew(-7deg) rotate(-2deg);
+  transform-origin: 0 100%;
+  -webkit-text-stroke: 9px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 6px 7px 0 var(--ink);
+}
+.hud-title-a { font: 400 clamp(46px, 11vh, 120px)/0.9 var(--cx-font); color: #fff; letter-spacing: 0.12em; }
+.hud-title-b { font: 400 clamp(60px, 22vh, 230px)/0.88 var(--cx-font); letter-spacing: 0.01em; }
+
+.hud-subtitle {
+  margin: 8px 0 0;
+  max-width: 34em;
+  font: 400 clamp(12px, 1.7vh, 15px)/1.4 var(--cx-font);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.hud-title-menu { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 14px; }
+
+.hud-start {
+  margin: 0;
+  font: 400 clamp(26px, 5vh, 44px)/1 var(--cx-font);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+  -webkit-text-stroke: 6px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 3px 4px 0 var(--ink);
   animation: hud-pulse 1.4s ease-in-out infinite;
+}
+.hud-start-sub { margin: 0; font: 400 13px/1 var(--cx-font); letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255, 255, 255, 0.7); }
+
+.hud-credits {
+  appearance: none;
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 0 22px;
+  border: 4px solid var(--ink);
+  background: #fff;
+  color: var(--ink);
+  font: 400 18px/1 var(--cx-font);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transform: skew(-8deg);
+  box-shadow: 3px 3px 0 var(--ink);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.hud-credits:hover, .hud-credits:focus-visible { background: var(--gold); outline: none; }
+
+.hud-fold { font: 400 13px/1.4 var(--cx-font); letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 255, 255, 0.75); }
+.hud-fold summary { cursor: pointer; padding: 6px 0; min-height: 20px; list-style-position: inside; }
+.hud-controls {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 10px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  max-width: 520px;
+  background: rgba(11, 13, 17, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.88);
+}
+.hud-controls li:not(:last-child)::after {
+  content: "\00b7";
+  margin-left: 18px;
+  color: var(--gold);
 }
 
 @keyframes hud-pulse {
-  0%, 100% { opacity: 0.45; }
+  0%, 100% { opacity: 0.55; }
   50% { opacity: 1; }
+}
+
+/* phone portrait: art hugs the right edge at full height, text sits low and centred */
+@media (max-aspect-ratio: 1/1) {
+  .hud-art svg { position: absolute; top: 0; right: -18%; height: 100%; width: auto; aspect-ratio: 16 / 9; }
+  .hud-splash { align-items: center; justify-content: flex-end; text-align: center; padding-bottom: max(96px, 14vh); }
+  .hud-shade { background: linear-gradient(to top, rgba(11, 13, 17, 0.95) 0%, rgba(11, 13, 17, 0.75) 48%, rgba(11, 13, 17, 0.1) 80%); }
+  .hud-title { align-items: center; transform-origin: 50% 100%; }
+  .hud-title-a { font-size: clamp(40px, 11vw, 70px); }
+  .hud-title-b { font-size: clamp(54px, 19vw, 120px); }
+  .hud-title-menu { align-items: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {

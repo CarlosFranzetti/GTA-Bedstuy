@@ -60,6 +60,8 @@ export interface MenuCallbacks {
   onMasterVolume?: (volume: number) => void;
   onRadioVolume?: (volume: number) => void;
   onRadioLibrary?: () => void;
+  /** Opens the credits roll (Settings > Game > Credits). Omit and the row is not shown. */
+  onCredits?: () => void;
   onInvertLookY?: (invert: boolean) => void;
   onReset?: () => void;
 }
@@ -964,6 +966,7 @@ export class Menu {
     S.set('master', { id: 'master', label: 'Master Volume', kind: 'slider', min: 0, max: 100, step: 5, def: () => 100, desc: 'Volume of everything in the game.', fmt: (v) => `${v}%`, get: () => Math.round(this.state.master * 100), set: ((v: number) => this.setMaster(v / 100)) as RowSpec['set'] });
     S.set('radiovol', { id: 'radiovol', label: 'Radio Volume', kind: 'slider', min: 0, max: 100, step: 5, def: () => 100, desc: 'Volume of the radio stations, relative to the master volume.', fmt: (v) => `${v}%`, get: () => Math.round(this.state.radio * 100), set: ((v: number) => this.setRadio(v / 100)) as RowSpec['set'] });
     S.set('radiolib', { id: 'radiolib', label: 'Radio library', kind: 'action', desc: 'Opens the radio library: tracks, stations and the playlist.', press: () => { this.cb.onRadioLibrary?.(); } });
+    S.set('credits', { id: 'credits', label: 'Credits', kind: 'action', desc: 'Who made the game, and who we thank.', visible: () => !!this.cb.onCredits, press: () => { this.cb.onCredits?.(); } });
     S.set('quit', {
       id: 'quit', label: 'Quit to Desktop', kind: 'action', desc: 'Closes the game window. Your autosave is kept. Press twice to confirm.',
       visible: () => nativeQuit() !== null, text: () => (this.quitArmed ? 'PRESS AGAIN' : '\u203A'),
@@ -1020,7 +1023,7 @@ export class Menu {
       ['Graphics', [S.get('quality')!, S.get('autodetect')!, ...g('shadows', 'drawDistance', 'treeRange', 'crowd', 'traffic', 'aa', 'textures', 'ao', 'bloom', 'dof', 'vignette', 'grain', 'fov')]],
       ['Audio', [S.get('master')!, S.get('radiovol')!, S.get('hdvoices')!]],
       ['Controls', [S.get('invert')!]],
-      ['Game', [S.get('install')!, S.get('radiolib')!, S.get('reset')!, S.get('quit')!]],
+      ['Game', [S.get('install')!, S.get('radiolib')!, S.get('reset')!, S.get('credits')!, S.get('quit')!]],
       [`${CONTROLS[this.inputMode].title} controls`, CONTROLS[this.inputMode].rows.map(([k, v]) => ({ id: `c:${k}`, label: k, kind: 'info' as const, desc: `${k}: ${v}. The list follows the device you are using.`, text: () => v }))],
       ['Minimap', MINIMAP_LEGEND.map((item) => ({ id: `l:${item.text}`, label: item.text, kind: 'info' as const, desc: `On the minimap: ${item.text}.`, text: () => '', swatch: { color: item.swatch, shape: item.shape } }))],
     ];
