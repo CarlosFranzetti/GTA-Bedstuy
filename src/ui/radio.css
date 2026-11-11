@@ -161,3 +161,15 @@
 }
 .rl-tapbar[hidden] { display: none; }
 .rl-tap { min-height: 44px; padding: 0 16px; font-size: 15px; }
+
+.rl-dial { margin-bottom: 10px; }
+.rl-dial-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.rl-dial-item { margin: 0; }
+.rl-dial-btn { display: flex; width: 100%; align-items: center; gap: 8px; text-align: left; flex-wrap: wrap; }
+.rl-dial-current .rl-dial-btn { outline: 2px solid currentColor; }
+.rl-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; padding: 2px 6px; border-radius: 4px; border: 1px solid currentColor; min-width: 34px; text-align: center; }
+.rl-dial-name { font-weight: 600; }
+.rl-dial-genre { opacity: 0.7; font-size: 12px; }
+.rl-dial-off { margin-left: auto; font-size: 11px; opacity: 0.8; }
+.rl-dial-about { margin: 4px 2px 6px; }
+.rl-dial-about a { color: inherit; text-decoration: underline; }

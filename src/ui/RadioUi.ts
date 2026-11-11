@@ -10,6 +10,8 @@ import type { Library, Track } from '@/audio/library/Library';
 import type { LibraryController } from '@/audio/library/LibraryController';
 import type { ScStation } from '@/audio/sc/ScStation';
 import { scStationDef } from '@/audio/radio';
+import { SOURCE_LABEL } from '@/audio/stations';
+import type { RadioStationEntry } from '@/audio/RadioDirector';
 import { SC_NO_STREAM, SC_TAP_PROMPT } from '@/audio/sc/ScStation';
 import { createLoadingTheme, LOOP_SEC, type LoadingTheme } from '@/audio/loadingTheme';
 
@@ -20,6 +22,14 @@ export interface RadioUiSource {
   sc?: ScStation;
   /** All SoundCloud stations in dial order: one pool-counts and pasted-links section each. */
   scStations?: readonly ScStation[];
+  /** The 15-station dial (type badge, about line, site link) and tuning; the Stations list is left out when absent. */
+  readonly radioStations?: readonly RadioStationEntry[];
+  readonly radioCurrentId?: string;
+  selectRadioStation?(id: string): boolean;
+  onRadioChange?(f: () => void): () => void;
+  readonly radioNeedsTap?: boolean;
+  radioUserStart?(): void;
+  radioFailed?(id: string): boolean;
   /** AudioSystem's context + master bus (null until audio has started); the Loading theme row plays through it. */
   readonly djHost?: { ctx: AudioContext; dest: AudioNode } | null;
   /** VOX: HD voices (on-device neural TTS). The row is left out when `setHdVoices` is absent. */
@@ -51,6 +61,7 @@ export class RadioUi {
   private readonly scs: readonly ScStation[];
   private readonly sections = new Map<ScStation, ScSection>();
   private readonly status: HTMLElement;
+  private dialList: HTMLElement | null = null;
   /** Floating bar: "Tap to start radio" when the browser blocked sound, or the no-stream notice with Retry. */
   readonly tapBar: HTMLElement;
   private readonly tapBtn: HTMLButtonElement;
@@ -113,6 +124,7 @@ export class RadioUi {
 
     this.body = this.el('div', 'rl-body');
     panel.append(head, note, actions, this.fileInput, this.status);
+    if (this.host.radioStations && this.host.radioStations.length > 0) panel.appendChild(this.buildDial());
     if (this.scs.length > 0) panel.appendChild(this.buildScGroup());
     panel.appendChild(this.buildThemeRow());
     if (this.host.setHdVoices) panel.appendChild(this.buildHdRow());
@@ -154,7 +166,12 @@ export class RadioUi {
     this.tapBar.append(this.tapMsg, this.tapBtn);
     parent.appendChild(this.tapBar);
     // Calls play() inside the click/tap itself: the one thing browsers (iOS above all) accept as permission for sound.
-    this.tapBtn.addEventListener('click', () => { for (const sc of this.scs) if (sc.isActive && sc.playState !== 'starting') sc.userStart(); });
+    this.tapBtn.addEventListener('click', () => {
+      for (const sc of this.scs) if (sc.isActive && sc.playState !== 'starting') sc.userStart();
+      this.host.radioUserStart?.();
+    });
+    const offDial = this.host.onRadioChange?.(() => { this.renderDial(); this.renderTap(); });
+    if (offDial) this.cleanup.push(offDial);
     this.render();
     this.renderTap();
   }
@@ -162,7 +179,15 @@ export class RadioUi {
   /** Shows the tap button while an active SoundCloud station is blocked, or the no-stream notice (with Retry). */
   private renderTap(): void {
     const sc = this.scs.find((x) => x.isActive && x.notice !== '' && (x.needsTap || x.notice === SC_NO_STREAM));
-    if (!sc) { this.tapBar.hidden = true; return; }
+    if (!sc) {
+      // Live streams share the tap-to-start bar.
+      if (this.host.radioNeedsTap) {
+        this.tapMsg.textContent = 'Your browser blocked the radio sound.';
+        this.tapBtn.textContent = SC_TAP_PROMPT;
+        this.tapBar.hidden = false;
+      } else this.tapBar.hidden = true;
+      return;
+    }
     const blocked = sc.needsTap;
     this.tapMsg.textContent = blocked ? 'Your browser blocked the radio sound.' : SC_NO_STREAM;
     this.tapBtn.textContent = blocked ? SC_TAP_PROMPT : 'Retry';
@@ -254,13 +279,66 @@ export class RadioUi {
     return row;
   }
 
+  /** The Stations list: all dial stations in genre order with type badges; the tuned one shows its about line and site link. */
+  private buildDial(): HTMLElement {
+    const sec = this.el('section', 'rl-dial');
+    const h = this.el('h3', 'rl-sc-group-title');
+    h.textContent = `Stations (${this.host.radioStations!.length})`;
+    const note = this.el('p', 'rl-note');
+    note.textContent = 'Tap a station to tune it (it plays when you are in a car). SC = SoundCloud sets in the official player, RA = Resident Advisor sets, LIVE = a public internet radio stream, TALK = talk radio. Nothing is downloaded or bundled.';
+    this.dialList = this.el('ul', 'rl-dial-list');
+    sec.append(h, note, this.dialList);
+    this.renderDial();
+    return sec;
+  }
+
+  private renderDial(): void {
+    const list = this.dialList;
+    const src = this.host.radioStations;
+    if (!list || !src) return;
+    const cur = this.host.radioCurrentId;
+    list.replaceChildren(...src.filter((e) => e.info).map((e) => {
+      const li = this.el('li', 'rl-dial-item');
+      li.dataset.station = e.id;
+      const btn = this.button('', 'rl-btn rl-dial-btn');
+      const tuned = e.id === cur;
+      btn.setAttribute('aria-pressed', tuned ? 'true' : 'false');
+      if (tuned) li.classList.add('rl-dial-current');
+      const badge = this.el('span', 'rl-badge');
+      badge.textContent = e.badge ?? '';
+      badge.title = e.source ? SOURCE_LABEL[e.source] : '';
+      const nm = this.el('span', 'rl-dial-name');
+      nm.textContent = e.name;
+      const gen = this.el('span', 'rl-dial-genre');
+      gen.textContent = e.info!.genre;
+      btn.append(badge, nm, gen);
+      if (this.host.radioFailed?.(e.id)) { const f = this.el('span', 'rl-dial-off'); f.textContent = 'off the air'; btn.appendChild(f); }
+      btn.addEventListener('click', () => { this.host.selectRadioStation?.(e.id); this.renderDial(); });
+      li.appendChild(btn);
+      if (tuned) {
+        const about = this.el('p', 'rl-note rl-dial-about');
+        about.textContent = e.info!.about + ' ';
+        if (e.info!.site) {
+          const a = this.doc.createElement('a');
+          a.href = e.info!.site;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.textContent = `${e.name} website`;
+          about.appendChild(a);
+        }
+        li.appendChild(about);
+      }
+      return li;
+    }));
+  }
+
   private buildScGroup(): HTMLElement {
     const group = this.el('section', 'rl-sc-group');
     if (this.scs.length > 1) {
       const h = this.el('h3', 'rl-sc-group-title');
       h.textContent = 'SoundCloud stations';
       const note = this.el('p', 'rl-note');
-      note.textContent = 'Every station plays 45-minute-plus DJ sets from the shared RA NYC pool whose title or DJ name matches its keywords. If none match it plays the links you paste for that station, then any set it has not played yet. Sets stream through SoundCloud’s own embedded player (nothing is downloaded) and follow SoundCloud’s terms and each artist’s settings.';
+      note.textContent = 'Each station plays sets from its own public SoundCloud account (Resident Advisor also mixes in the RA NYC event pool): it loads the account in SoundCloud’s own embedded player and starts at a random set, preferring ones of 45 minutes or more. Links you paste for a station play after its own sets. Nothing is downloaded; playback follows SoundCloud’s terms and each artist’s settings.';
       group.append(h, note);
     }
     for (const sc of this.scs) group.appendChild(this.buildSc(sc, this.scs.length === 1));
@@ -279,7 +357,7 @@ export class RadioUi {
     const count = this.el('span', 'rl-count rl-sc-count');
     sum.append(nm, count);
     const kwLine = this.el('p', 'rl-note rl-sc-keywords');
-    kwLine.textContent = def ? (def.keywords.length > 0 ? `${def.genre}. Matches set titles and DJ names containing: ${def.keywords.join(', ')}.` : `${def.genre}. Plays any set.`) : '';
+    kwLine.textContent = def && !def.usesPool ? `${def.genre}. ${def.tagline}` : def ? (def.keywords.length > 0 ? `${def.genre}. Matches set titles and DJ names containing: ${def.keywords.join(', ')}.` : `${def.genre}. Plays any set.`) : '';
     const note = this.el('p', 'rl-note');
     note.textContent = solo
       ? 'Paste a SoundCloud track or playlist link. Mixes stream through SoundCloud’s own embedded player (nothing is downloaded) and follow SoundCloud’s terms and the artist’s settings. Needs the hosted build or an internet connection. Flag a mix as after-hours to start the session with it between 23:00 and 06:00.'

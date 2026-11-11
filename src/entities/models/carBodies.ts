@@ -1889,8 +1889,13 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
   const trF = ring(tipF);
   const trR = ring(tipR);
   const bumperZ = L / 2;
-  trim.add(bumperGeo(2 * Wb2 * 0.88, 0.2, st.bumperH, st.bumperY, -(bumperZ - 0.2), false));
-  trim.add(bumperGeo(2 * Wb2 * 0.88, 0.2, st.bumperH, st.bumperY, bumperZ - 0.2, true));
+  // CARS14: the bumper blends into the body corners instead of standing off as a plank: its width follows the hull's own width a
+  // little behind the tip (the nose / tail taper), and it is shallower; the front-most point stays where the old block ended.
+  // Existing types keep the old plank unless their hull is clearly narrower there (then it shrinks to the hull).
+  const bumpW = (tip: number, dir: number): number => 2 * Math.min(Wb2 * 0.88, ring(tip - dir * 0.14).wMax * 0.97);
+  const bDepth = isCars14(type) ? 0.13 : 0.2;
+  trim.add(bumperGeo(bumpW(tipF, 1), bDepth, st.bumperH, st.bumperY, -(bumperZ - bDepth), false));
+  trim.add(bumperGeo(bumpW(tipR, 1), bDepth, st.bumperH, st.bumperY, bumperZ - bDepth, true));
   // lower intake slot + fog lamps (front)
   const intakeW = st.grille === 'mesh' ? 0.74 : st.grille === 'wedge' ? 0.66 : st.grille === 'bars' ? 0.34 : 0.5;
   trim.add(bx(2 * Wb2 * intakeW, st.grille === 'mesh' ? 0.09 : 0.07, 0.02, 0, st.bumperY - 0.03, -(bumperZ + 0.004)));
@@ -1941,7 +1946,8 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
   // ---- interior (seen through the glass): dash with a cluster hood, steering wheel, console, two front seats with
   // headrests, a rear bench, door cards and parcel shelf. All dark/chrome trim, so the extra detail costs no draw call.
   const yBeltC = fyBelt(0);
-  const seatY = st.sill + 0.5 * ky;
+  // low roofs (sports cars): sink the seats so the headrests stay under the roof; bodies at 1.35 m and above are unchanged
+  const seatY = st.sill + 0.5 * ky - (H < 1.35 ? (1.35 - H) * 1.7 : 0);
   const iw = Wb2 * 0.78;
   if (!st.rails) {
     trim.add(bx(2 * iw, 0.2, 0.3, 0, yBeltC - 0.13, -(ws[0] - 0.22)));

@@ -13,6 +13,7 @@ import { clipKey, lineSeconds, parseLine } from './script';
 import type { CastMember, Clip, Direction, TtsEngine } from './types';
 import { pickVoices, type SpeechLike, type UtteranceLike, type VoiceLike } from '../talk/TalkPlayer';
 import type { VoiceRole } from '../talk/script';
+import type { PackLookup } from './pack';
 
 export interface ResolvedLine { who: string; text: string }
 
@@ -41,7 +42,12 @@ export interface SpeechPlayerEnv {
   /** Seconds to wait for a rendered sentence before giving up on HD for this segment. */
   stallSeconds?: number;
   fxBank?: (host: FxHost) => FxBank;
+  /** Pre-rendered voice pack (hosted and native builds); null/absent in the artifact. Looked up before the cache and the live engine. */
+  pack?: () => PackLookup | null;
 }
+
+/** A sentence the pack and the cache do not hold while no live engine can render it. Not an engine failure. */
+export class ClipMiss extends Error {}
 
 type Item =
   | { k: 'say'; cast: CastMember; text: string; line: number; first: boolean }
@@ -87,7 +93,8 @@ export class SpeechPlayer {
   /** Which path a play() started now would take. */
   get mode(): 'neural' | 'system' | 'silent' {
     const e = this.env.engine();
-    if (e && e.usable && this.env.ctx() && this.env.dest()) return 'neural';
+    const packReady = this.env.pack?.()?.state === 'ready';
+    if ((e && e.usable || packReady) && this.env.ctx() && this.env.dest()) return 'neural';
     if (this.env.speech) return 'system';
     return 'silent';
   }
@@ -97,6 +104,8 @@ export class SpeechPlayer {
 
   /** Background pre-render of a segment's sentences (neural only; harmless otherwise). */
   prefetch(lines: readonly ResolvedLine[], max = 12): void {
+    const pack = this.env.pack?.();
+    if (pack && pack.state === 'ready') pack.warm(expand(lines).filter((i): i is Extract<Item, { k: 'say' }> => i.k === 'say').map((i) => clipKey(i.text, i.cast.voice, i.cast.speed)));
     const e = this.env.engine();
     if (!e || !e.usable) return;
     let n = 0;
@@ -112,13 +121,21 @@ export class SpeechPlayer {
     const my = ++this.token;
     this.active = true;
     const items = expand(lines);
-    const mode = this.mode;
+    let mode = this.mode;
+    // Pack-only playback (no usable live engine): every sentence must be in the pack or the memory cache, otherwise the
+    // whole segment is spoken by one system voice instead of switching voices in the middle of a line.
+    if (mode === 'neural' && !this.env.engine()?.usable && !this.covered(items)) mode = this.env.speech ? 'system' : 'silent';
     const finish = () => { if (my !== this.token) return; this.active = false; cb.onEnd?.(); };
     if (items.length === 0) { queueMicrotask(finish); return { cancel: () => this.cancelIf(my), mode }; }
     if (mode === 'neural') void this.runNeural(items, lines, cb, my, finish);
     else if (mode === 'system') void this.runSystem(items, cb, my, finish);
     else this.startSilent(items, lines, cb, my, finish);
     return { cancel: () => this.cancelIf(my), mode };
+  }
+
+  private covered(items: readonly Item[]): boolean {
+    const pack = this.env.pack?.();
+    return items.every((i) => i.k !== 'say' || this.env.cache.has(clipKey(i.text, i.cast.voice, i.cast.speed)) || !!pack?.has(clipKey(i.text, i.cast.voice, i.cast.speed)));
   }
 
   cancel(): void {
@@ -162,10 +179,12 @@ export class SpeechPlayer {
 
   private render(it: Extract<Item, { k: 'say' }>, priority: 0 | 1): Promise<Clip> {
     const e = this.env.engine();
-    if (!e) return Promise.reject(new Error('no engine'));
     const key = clipKey(it.text, it.cast.voice, it.cast.speed);
-    return this.env.cache.get(key).then((hit) => {
+    const pack = this.env.pack?.();
+    const fromPack: Promise<Clip | null> = pack && pack.has(key) ? pack.get(key) : Promise.resolve(null);
+    return fromPack.then((baked) => baked ?? this.env.cache.get(key)).then((hit) => {
       if (hit) return hit;
+      if (!e || !e.usable) throw new ClipMiss('clip not in the voice pack or cache');
       return e.synth({ text: it.text, voice: it.cast.voice, speed: it.cast.speed }, priority).then((c) => { this.env.cache.put(key, c); return c; });
     }).then((c) => c, (err) => { throw err; }) as Promise<Clip>;
   }
@@ -239,6 +258,7 @@ export class SpeechPlayer {
   }
 
   private trouble(err: unknown): void {
+    if (err instanceof ClipMiss) return; // nothing failed: the pack just does not hold this sentence
     const msg = err instanceof Error ? err.message : String(err);
     if (!this.warned) { this.warned = true; (this.env.warn ?? ((m: string) => console.warn(m)))(`HD voices stalled or failed (${msg}); using system voices`); }
     this.env.onEngineTrouble?.(msg);

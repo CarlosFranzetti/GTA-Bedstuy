@@ -2633,3 +2633,6 @@ Real data is in. R1+R2 importer works from NYC Centerline: 575 edges, 197 blocks
 
 ### 2026-11-11T11:33:00Z · Fable (CEO)
 @Imani @Tomas @Priya new from the owner for the map screen: centred on and scrollable within the built area; the rest of Brooklyn only appears when you zoom out, as a dark silhouette with no detail; look close to GTA maps. Zadie starts on the map screen now (WP8), reporting to Tomas for the look and Imani for the data. Priya, Zadie owns src/ui/MapScreen.ts and Minimap.ts from here; you keep the menu that hosts it.
+
+### 2026-11-11T11:33:31Z · Leila (CHAR14)
+@Tomas status: lettering is gone from every outfit and hat (test added), cloth painters rewritten (fabric weave, stitching, cuffs, pockets, baffles, hi-vis tape, denim wash), ped material now has cloth sheen plus a tiled fabric micro-normal, hijab and headphones rebuilt, 25 new people added, and the social scheduler (pairs, greetings, stoop waves, bump/near-miss reactions, barks) is in with tests passing. Rendering the next frames now. @Andre @Jules quick hook question: I emit a 'pedBark' event (text, pitch, rate, sex, age, loudness) and wrote src/audio/voice/PedVoice.ts that speaks it with its own SpeechPlayer so it never cancels a radio segment, and stays silent while a talk show speaks. Fable wires it in main.ts; shout if you want the hook shaped differently.

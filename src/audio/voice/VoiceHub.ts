@@ -8,6 +8,7 @@
 import { ClipCache, idbStore, type PersistentStore } from './ClipCache';
 import { NeuralTts } from './NeuralTts';
 import { SpeechPlayer } from './SpeechPlayer';
+import { createPackSource, DEFAULT_PACK_SOURCE, webAudioDecoder, type PackEnv, type VoicePackSource } from './pack';
 import { HD_VOICES, type TtsEngine } from './types';
 import type { SpeechLike, UtteranceLike } from '../talk/TalkPlayer';
 
@@ -42,11 +43,19 @@ export interface HubOptions {
   persist?: PersistentStore | null;
   engineFactory?: () => TtsEngine;
   warn?: (msg: string) => void;
+  /**
+   * Folder of the pre-rendered voice pack ("./voice/"), hosted and native builds only. Absent in the single-file
+   * artifact, where nothing is fetched and SpeechSynthesis (or optional live HD) is the voice.
+   */
+  packBase?: string | null;
+  packFetch?: PackEnv['fetchImpl'];
 }
 
 export class VoiceHub {
   readonly cache: ClipCache;
   readonly player: SpeechPlayer;
+  /** Pre-rendered pack (null when this build does not ship one). */
+  readonly pack: VoicePackSource | null;
   private _engine: TtsEngine | null = null;
   private enabled: boolean;
   private gesture = false;
@@ -56,10 +65,12 @@ export class VoiceHub {
   constructor(private readonly opts: HubOptions) {
     this.cache = new ClipCache(opts.persist === undefined ? safeIdb() : opts.persist);
     this.enabled = this.readSetting();
+    this.pack = opts.packBase ? createPackSource(DEFAULT_PACK_SOURCE, { base: opts.packBase, fetchImpl: opts.packFetch, decode: webAudioDecoder(opts.ctx), warn: opts.warn ?? ((m) => console.warn(m)) }) : null;
     this.player = new SpeechPlayer({
       ctx: opts.ctx, dest: opts.dest, speech: opts.speech, makeUtterance: opts.makeUtterance, volume: opts.volume, warn: opts.warn,
       engine: () => (this.enabled ? this._engine : null),
       cache: this.cache,
+      pack: () => this.pack,
       onEngineTrouble: () => { this._engine?.demote?.(); this.refresh(); },
     });
   }
@@ -70,6 +81,8 @@ export class VoiceHub {
   /** Text for the toggle: what it is and what it costs to download. */
   get label(): string { return `${HD_VOICES.label}, one-time download about ${HD_VOICES.downloadMb} MB`; }
   get canSpeak(): boolean { return this.player.mode !== 'silent'; }
+  /** Debug-panel text for the voice pack: engine label and state, or "no pack". */
+  get packLabel(): string { return this.pack ? `${this.pack.label}: ${this.pack.state}` : 'no voice pack in this build'; }
 
   onChange(f: () => void): () => void { this.listeners.add(f); return () => this.listeners.delete(f); }
 
@@ -83,6 +96,7 @@ export class VoiceHub {
   /** Call on the first user gesture (audio start). Begins the model download if HD is on. */
   onGesture(): void {
     this.gesture = true;
+    void this.pack?.load();
     this.maybeLoad();
     this.refresh();
   }

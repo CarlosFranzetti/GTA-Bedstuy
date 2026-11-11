@@ -607,6 +607,12 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   const cond = layout && box && look ? condFor(box, layout, look, seed) : undefined;
   const paintMat = st === 'cop' ? liveryWithGaps(materials, materials.get('copLivery'), 'cop') : st === 'cab' ? liveryWithGaps(materials, materials.get('taxiLivery'), 'cab')
     : layout ? carSkinMaterial(materials, skinStyleOf(st), spec.color, layout, { pack, cond, condKey: look?.condKey, type }) : materials.carPaint(spec.color);
+  if (st === 'wedgetruck' && (paintMat as SkinCarPaint).isSkinCarPaint) {
+    // CARS14 satire: unpainted stainless slab: full metal, brushed (anisotropic) highlights, no clearcoat
+    const m = paintMat as SkinCarPaint;
+    m.metalness = 1; m.roughness = 0.35; m.roughnessMap = null; m.clearcoat = 0; m.anisotropy = 0.7; m.anisotropyRotation = Math.PI / 2;
+    m.envMapIntensity = 1.6; m.needsUpdate = true;
+  }
   const glassMat = glassFor(materials, look?.tint ?? 0);
   const tyreMat = materials.get('tireSidewall');
 
