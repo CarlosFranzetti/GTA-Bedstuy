@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   BAR_CHORDS, BAR_PLANS, BAR_SEC, BASS, CHORDS, CHOP, HOOK, INTRO_PLANS, INTRO_SEC, INTRO_STEPS, KEY_PCS, LOOP_BARS, LOOP_SEC, LOOP_STEPS, SCRATCH,
-  STEP_SEC, SWING, TITLE_BPM, ceilingCurve, createTitleTheme, gritCurve, makeCrackle, makeVowel, planForBar, rnd, satCurve, stepPosition, stepTime,
+  STEP_SEC, SWING, TITLE_BPM, ceilingCurve, createTitleTheme, makeCrackle, makeVowel, planForBar, rnd, satCurve, stepPosition, stepTime,
 } from '@/audio/titleTheme';
 
 class Param {
@@ -89,7 +89,7 @@ describe('arrangement and note data', () => {
     expect(BAR_PLANS[4].hook).toBe(1);
     expect(BAR_PLANS[20].hook).toBe(2);
     expect(BAR_PLANS.slice(16, 20).every((p) => !p.snare)).toBe(true);
-    expect(BAR_PLANS[19].riser).toBe(true);
+    expect(BAR_PLANS[19].roll).toBe(true);
     for (const b of [11, 15, 19, 27, 31]) expect(BAR_PLANS[b].scratch, `bar ${b}`).toBeGreaterThanOrEqual(0);
     expect(BAR_PLANS[31].end).toBeLessThan(16);
     expect(new Set(BAR_PLANS.map((p) => p.kick.join())).size).toBeGreaterThanOrEqual(3);
@@ -121,10 +121,9 @@ describe('arrangement and note data', () => {
 });
 
 describe('pure DSP helpers', () => {
-  it('ceiling never exceeds -1 dBFS; saturation and grit stay inside full scale', () => {
+  it('ceiling never exceeds -1 dBFS; saturation stays inside full scale', () => {
     expect(Math.max(...Array.from(ceilingCurve()).map(Math.abs))).toBeLessThan(0.8913);
     expect(Math.max(...Array.from(satCurve()).map(Math.abs))).toBeLessThanOrEqual(1.0001);
-    expect(Math.max(...Array.from(gritCurve()).map(Math.abs))).toBeLessThanOrEqual(1.0001);
   });
   it('builds deterministic, finite crackle and vowel buffers', () => {
     const a = makeCrackle(8000, 1), b = makeCrackle(8000, 1);

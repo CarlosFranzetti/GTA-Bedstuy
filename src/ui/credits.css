@@ -12,7 +12,7 @@
 .cr-art { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .cr-art img { width: 100%; height: 100%; object-fit: cover; opacity: 0; filter: grayscale(0.6) blur(3px); transition: opacity 800ms ease; }
 .cr-art img.on { opacity: 0.2; }
-.cr-shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to bottom, rgba(7, 8, 13, 0.9) 0%, rgba(7, 8, 13, 0) 14%, rgba(7, 8, 13, 0) 84%, rgba(7, 8, 13, 0.95) 100%); z-index: 1; }
+.cr-shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to bottom, rgba(7, 8, 13, 0.9) 0%, rgba(7, 8, 13, 0) 14%, rgba(7, 8, 13, 0) 80%, rgba(7, 8, 13, 0.95) 100%); z-index: 2; }
 .cr-x {
   appearance: none; position: absolute; z-index: 3; top: max(14px, env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px));
   width: 44px; height: 44px; padding: 0; border: 2px solid rgba(255, 255, 255, 0.7); border-radius: 0; background: rgba(6, 6, 10, 0.6); color: #fff; font: 700 18px/1 var(--font-hud);

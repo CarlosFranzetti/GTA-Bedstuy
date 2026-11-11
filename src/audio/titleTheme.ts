@@ -3,7 +3,7 @@
  * Plain Web Audio nodes only: no files, no samples. Every melody, bass line and drum pattern was written for this game.
  *
  * Arrangement: 4-bar intro once (filtered e-piano chop opening up, drums drop in, scratch), then a 32-bar loop (about 85 s):
- *   0-3 groove | 4-7 groove + hook | 8-11 B-section (ghost snares, scratch) | 12-15 clap + hook (scratch) | 16-19 breakdown + riser |
+ *   0-3 groove | 4-7 groove + hook | 8-11 B-section (ghost snares, scratch) | 12-15 clap + hook (scratch) | 16-19 breakdown + snare roll |
  *   20-23 big (octave hook) | 24-27 B again (scratch) | 28-31 final hook, stop-time rewind into bar 0.
  * Parts: sine/sat 808 sub with slides, punchy kick with click, cracking snare + layered clap, dusty hats with ghosts, chopped
  * Rhodes-ish keys (periodic wave, chorus, 12-bit grit), bell hook, vowel-sample scratch, vinyl crackle, plate reverb, dotted delay.
@@ -89,11 +89,11 @@ export interface BarPlan {
   bass: number; chop: number;
   /** 0 none, 1 hook, 2 hook + octave layer. */
   hook: 0 | 1 | 2;
-  scratch: number; crash: boolean; riser: boolean; roll: boolean;
+  scratch: number; crash: boolean; roll: boolean;
   /** Steps >= end are silent for the band (stop-time). */
   end: number;
 }
-const blank = (): BarPlan => ({ kick: KICKS[0], snare: true, ghost: false, clap: false, hats: 2, open: 0, bass: 1, chop: 1, hook: 0, scratch: -1, crash: false, riser: false, roll: false, end: 16 });
+const blank = (): BarPlan => ({ kick: KICKS[0], snare: true, ghost: false, clap: false, hats: 2, open: 0, bass: 1, chop: 1, hook: 0, scratch: -1, crash: false, roll: false, end: 16 });
 
 export const INTRO_PLANS: BarPlan[] = [
   { ...blank(), kick: [], snare: false, hats: 0, bass: 0, chop: 3 },
@@ -115,7 +115,7 @@ export function planForBar(barIn: number): BarPlan {
   if (j === 3 && sec !== 4) { p.kick = KICKS[2]; if (p.bass === 1) p.bass = 2; }
   p.crash = j === 0 && (sec === 0 || sec === 3 || sec === 5 || sec === 7);
   p.scratch = ({ 11: 0, 15: 1, 27: 2, 19: 3, 31: 4 } as Record<number, number>)[bar] ?? -1;
-  if (bar === 19) { p.riser = true; p.roll = true; }
+  if (bar === 19) p.roll = true;
   if (bar === 31) p.end = 12;
   return p;
 }
@@ -127,8 +127,6 @@ const curve = (f: (x: number) => number): Float32Array => { const c = new Float3
 export const ceilingCurve = (): Float32Array => curve((x) => 0.89 * Math.tanh(x / 0.89));
 /** Gentle tape-ish saturation (tanh), normalised so full scale stays full scale. */
 export const satCurve = (k = 1.5): Float32Array => curve((x) => Math.tanh(k * x) / Math.tanh(k));
-/** 12-bit-sampler style staircase. */
-export const gritCurve = (levels = 48): Float32Array => curve((x) => Math.round(x * levels) / levels);
 /** Vinyl dust: sparse pops of random size plus a faint hiss. Deterministic. */
 export function makeCrackle(sr: number, secs = 6, seed = 77): Float32Array {
   const r = mulberry32(seed), n = Math.floor(sr * secs), d = new Float32Array(n);
@@ -154,7 +152,7 @@ export function makeVowel(sr: number, secs = 0.5, f0 = 160): Float32Array {
   for (let i = 0; i < n; i++) d[i] = (d[i] / pk) * Math.min(1, i / fade, (n - 1 - i) / fade);
   return d;
 }
-export function rnd(g: number): number { let x = Math.imul(g + 1, 0x9e3779b1) >>> 0; x ^= x >>> 15; x = Math.imul(x, 0x85ebca6b) >>> 0; return (x >>> 8) / 16777216; }
+export const rnd = (g: number): number => mulberry32(g)();
 
 // ---------------------------------------------------------------- engine
 export type PartName = 'kick' | 'snare' | 'hats' | 'bass' | 'keys' | 'hook' | 'scratch' | 'crackle';
@@ -192,7 +190,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
   const live = new Set<AudioNode>();
   const T = (t: number): number => Math.max(t, ctx.currentTime);
   let noiseBuf: AudioBuffer | null = null, vowelBuf: AudioBuffer | null = null, wave: PeriodicWave | null = null;
-  let wow: GainNode, bassOsc: OscillatorNode, bassAmp: GainNode, duckBass: GainNode, duckKeys: GainNode, keysLP: BiquadFilterNode, keysIn: GainNode, kickBus: GainNode, clickBp: BiquadFilterNode, snareIn: BiquadFilterNode, crackBp: BiquadFilterNode, snareBus: GainNode, clapBp: BiquadFilterNode, hatHp: BiquadFilterNode, crashHp: BiquadFilterNode, riserBp: BiquadFilterNode, hookIn: GainNode, scrIn: GainNode, rev: GainNode, dly: GainNode;
+  let wow: GainNode, bassOsc: OscillatorNode, bassAmp: GainNode, duckBass: GainNode, duckKeys: GainNode, keysLP: BiquadFilterNode, keysIn: GainNode, kickBus: GainNode, clickBp: BiquadFilterNode, snareIn: BiquadFilterNode, crackBp: BiquadFilterNode, snareBus: GainNode, clapBp: BiquadFilterNode, hatHp: BiquadFilterNode, crashHp: BiquadFilterNode, hookIn: GainNode, scrIn: GainNode, rev: GainNode, dly: GainNode;
   let out: GainNode | null = null;
 
   const track = <A extends AudioNode>(x: A): A => { live.add(x); created++; return x; };
@@ -243,10 +241,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     glue.connect(lim);
     const sum = gain(1, filt('lowpass', 10500, 0.5, shaper(satCurve(), glue, '2x')));
     const part = (p: PartName, to: AudioNode = sum): GainNode => gain(mix[p], to);
-    const pan = (p: number, from: AudioNode, to: AudioNode): void => {
-      const c = ctx as unknown as { createStereoPanner?: () => StereoPannerNode };
-      if (typeof c.createStereoPanner === 'function') { const sp = track(c.createStereoPanner()); sp.pan.value = p; from.connect(sp); sp.connect(to); } else from.connect(to);
-    };
+    const pan = (p: number, from: AudioNode, to: AudioNode): void => { const sp = track(ctx.createStereoPanner()); sp.pan.value = p; from.connect(sp); sp.connect(to); };
 
     // plate reverb (generated impulse) and dotted-eighth delay
     const rl = Math.floor(sr * 1.5), imp = ctx.createBuffer(2, rl, sr);
@@ -267,7 +262,6 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     const keysBus = part('keys'); pan(-0.15, duckKeys, keysBus); send(keysBus, 0.16, 0.14);
     keysIn = gain(1), keysLP = filt('lowpass', 2300, 0.5, duckKeys);
     keysIn.connect(keysLP);
-    keysLP.connect(shaper(gritCurve(), filt('lowpass', 2200, 0.5, gain(0.1, duckKeys))));
     wow = gain(7); const wowO = osc('sine', 0.55, wow); // tape wow, +-7 cents, shared by every key voice
     // hook: bell -> low-pass -> bus
     hookIn = gain(1); const hookBus = part('hook'), hookLp = filt('lowpass', 3000, 0.5); hookIn.connect(hookLp); pan(0.2, hookLp, hookBus); send(hookBus, 0.28, 0.34);
@@ -276,7 +270,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     snareBus = part('snare'); snareIn = filt('highpass', 1300, 0.7, snareBus), crackBp = filt('bandpass', 3400, 0.6, snareBus), clapBp = filt('bandpass', 1700, 0.5, snareBus);
     send(snareBus, 0.2, 0);
     const hatBus = part('hats'), hatLp = filt('lowpass', 13000, 0.5); hatHp = filt('highpass', 6500, 0.6, hatLp); pan(0.25, hatLp, hatBus);
-    crashHp = filt('highpass', 5000, 0.7, hatBus), riserBp = filt('bandpass', 400, 0.8, hatBus);
+    crashHp = filt('highpass', 5000, 0.7, hatBus);
     // scratch: vowel record -> band -> grit -> bus
     scrIn = gain(1); const scrBus = part('scratch'), scrHp = filt('highpass', 260, 0.7), scrLp = filt('lowpass', 4800, 0.6);
     scrIn.connect(scrHp); scrHp.connect(shaper(driveCurve(1.6), scrLp)); pan(0.1, scrLp, scrBus); send(scrBus, 0.25, 0.1);
@@ -316,13 +310,6 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
   const clap = (t: number, g16: number): void => hit(clapBp, T(t), g16 * 0.31 + 0.5, 0.3, 0.8, 0.012, 4, 0.011);
   const hat = (t: number, g16: number, v: number, open: boolean): void => hit(hatHp, T(t), g16 * 0.0917, open ? 0.4 : 0.07, v, open ? 0.08 : 0.011);
   const crash = (t: number, g16: number): void => hit(crashHp, T(t), g16 * 0.05, 1.8, 0.45, 0.4);
-  function riser(t: number, dur: number, g16: number): void {
-    const tt = T(t), g = gain(0, riserBp);
-    g.gain.setValueAtTime(0.0001, tt); g.gain.exponentialRampToValueAtTime(0.8, tt + dur); g.gain.linearRampToValueAtTime(0, tt + dur + 0.04);
-    riserBp.frequency.setValueAtTime(400, tt); riserBp.frequency.exponentialRampToValueAtTime(8000, tt + dur);
-    const s = bufSrc(noiseBuf, g); s.loop = true; s.start(tt, (g16 * 0.11) % 1); s.stop(tt + dur + 0.06);
-    release([s], [g]);
-  }
   function bassNote(t: number, midi: number, lenSteps: number, slide: boolean): void {
     const f = midiToHz(midi), tt = T(t), end = tt + Math.max(0.08, lenSteps * STEP_SEC * 0.94);
     bassOsc.frequency.setValueAtTime(slide ? prevBass : f, tt);
@@ -347,11 +334,10 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     const tt = T(t), f = midiToHz(midi), dur = lenSteps * STEP_SEC;
     const g = gain(0, hookIn); const a = g.gain, tc = Math.min(0.45, dur * 0.75);
     a.setValueAtTime(0, tt); a.linearRampToValueAtTime(amp, tt + 0.006); a.setTargetAtTime(0, tt + 0.006, tc);
-    const b = gain(0.3, g), d = gain(0.1, g);
-    const o1 = osc('sine', f, g), o2 = osc('sine', f * 2, b), o3 = osc('sine', f * 3, d);
-    b.gain.setValueAtTime(0.3, tt); b.gain.setTargetAtTime(0, tt, 0.12); d.gain.setValueAtTime(0.1, tt); d.gain.setTargetAtTime(0, tt, 0.04);
-    for (const o of [o1, o2, o3]) { o.start(tt); o.stop(tt + dur + 0.6); }
-    release([o1, o2, o3], [g, b, d]);
+    const b = gain(0.3, g), o1 = osc('sine', f, g), o2 = osc('sine', f * 2, b);
+    b.gain.setValueAtTime(0.3, tt); b.gain.setTargetAtTime(0, tt, 0.12);
+    for (const o of [o1, o2]) { o.start(tt); o.stop(tt + dur + 0.6); }
+    release([o1, o2], [g, b]);
   }
   function scratch(t: number, flicks: Array<[number, number, number, number]>): void {
     flicks.forEach(([s, len, r0, r1], i) => {
@@ -374,7 +360,6 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
       if (bar === 20) keysLP.frequency.setTargetAtTime(3200, T(t), 0.08);
     }
     if (step === 0 && p.crash) crash(t, gs);
-    if (p.riser && step === 0) riser(t, BAR_SEC, gs);
     if (step < p.end) {
       if (p.kick.includes(step)) { kick(ts, step === 0 ? 1 : 0.85); duck(ts, 0.3); }
       if (p.snare && (step === 4 || step === 12)) snare(t + 0.006, gs, 1, false);

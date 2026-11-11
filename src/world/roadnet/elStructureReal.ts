@@ -96,7 +96,8 @@ export function buildElStructureReal(paths: ElPath[], spots: Array<{ p: Vec2; di
   const group = new THREE.Group();
   group.name = 'el:real';
   const steel = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.25, name: 'el:steel' });
-  const signFn = (mats as SignLib | undefined)?.sign;
+  const signLib = mats as SignLib | undefined;
+  const signFn = signLib?.sign ? (text: string, bg: string, fg: string): THREE.Material => signLib.sign!(text, bg, fg) : undefined;
   const signQuads = new Map<THREE.Material, number[]>();
   const sign = (text: string, bg: string, fg: string, w: number, h: number, c: Vec2, d: Vec2, lat: number, y: number): void => {
     if (!signFn) return;

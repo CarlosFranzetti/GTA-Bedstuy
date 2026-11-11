@@ -435,7 +435,9 @@ body.ui-panel-open .hud-card { display: none !important; }
   .hud-title-b { font-size: clamp(54px, 21vw, 120px); }
   .hud-rule { width: 70%; }
   .hud-subtitle { left: 16px; right: 16px; text-align: center; bottom: calc(clamp(18px, 6.5vh, 64px) + 10px); }
-  .hud-by { left: 0; right: 0; text-align: center; }
+  .hud-by { left: 0; right: 0; text-align: center; letter-spacing: 0.26em; }
+  .hud-fold { top: calc(clamp(18px, 6.5vh, 64px) + 44px); left: 0; right: 0; text-align: center; }
+  .hud-controls { align-items: center; text-align: center; margin: 4px 16px 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -544,4 +546,14 @@ body.ui-panel-open .hud-card { display: none !important; }
   .hud-stars.gain .hud-star.on, .hud-stars.cooling .hud-star.on, .hud-vehicle.in { animation: none; }
   .hud-place.show { animation: none; opacity: 1; }
   .hud-stars.cooling .hud-star.on { opacity: 0.6; }
+}
+
+/* small viewports: keep the phone-tier sizes (the polish rules above come later in the file and would otherwise win) */
+@media (max-height: 480px), (max-width: 700px) {
+  .hud-street { font-size: 20px; line-height: 1.15; }
+  .hud-area { font-size: 11px; }
+  .hud-speed-value { font-size: 42px; }
+  .hud-vehicle-name { font-size: 18px; }
+  .hud-vehicle { margin-bottom: 4px; }
+  .hud-stars { font-size: 20px; }
 }

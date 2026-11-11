@@ -29,43 +29,18 @@ export interface TitleMusic {
   readonly available: boolean;
 }
 
-function defaultContext(): AudioContext | null {
-  try {
-    const w = globalThis as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext };
-    const Ctor = w.AudioContext ?? w.webkitAudioContext;
-    return Ctor ? new Ctor() : null;
-  } catch { return null; }
-}
-const UNLOCK_EVENTS = ['pointerdown', 'keydown', 'touchstart'];
+const UNLOCK = ['pointerdown', 'keydown', 'touchstart'];
+type Hook = Pick<EventTarget, 'addEventListener' | 'removeEventListener'> | null;
 
 export function createTitleMusic(opts: TitleMusicOptions = {}): TitleMusic {
   const load = opts.load ?? (() => import('@/audio/titleTheme'));
-  const makeContext = opts.makeContext ?? defaultContext;
-  let volume = opts.volume ?? 0.8;
-  let ctx: AudioContext | null = null;
-  let theme: TitleThemeApi | null = null;
-  let gen = 0; // bumped by every start() and stop(): a stale async start sees the change and gives up
-  let busy = false;
-  let usable = false;
-  let unlock: (() => void) | null = null;
-
-  const target = (): OptionalTarget => (opts.unlockTarget !== undefined ? opts.unlockTarget : (typeof (globalThis as { addEventListener?: unknown }).addEventListener === 'function' ? (globalThis as unknown as OptionalTarget) : null));
-  type OptionalTarget = Pick<EventTarget, 'addEventListener' | 'removeEventListener'> | null;
-  const unhook = (): void => {
-    if (!unlock) return;
-    const t = target(), f = unlock; unlock = null;
-    if (t) for (const e of UNLOCK_EVENTS) { try { t.removeEventListener(e, f); } catch { /* ignore */ } }
-  };
-  const hook = (c: AudioContext): void => {
-    const t = target();
-    if (!t) return;
-    unlock = () => { try { void c.resume(); } catch { /* ignore */ } if (c.state !== 'suspended') unhook(); };
-    for (const e of UNLOCK_EVENTS) { try { t.addEventListener(e, unlock); } catch { /* ignore */ } }
-  };
-  const free = (c: AudioContext | null, fade: number): void => {
-    if (!c) return;
-    setTimeout(() => { try { void c.close(); } catch { /* already closed */ } }, Math.max(0, fade) * 1000 + 300);
-  };
+  const makeContext = opts.makeContext ?? ((): AudioContext | null => {
+    try { const w = globalThis as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }; const C = w.AudioContext ?? w.webkitAudioContext; return C ? new C() : null; } catch { return null; }
+  });
+  let volume = opts.volume ?? 0.8, ctx: AudioContext | null = null, theme: TitleThemeApi | null = null, gen = 0, busy = false, usable = false, unlock: (() => void) | null = null;
+  const target = (): Hook => (opts.unlockTarget !== undefined ? opts.unlockTarget : typeof (globalThis as { addEventListener?: unknown }).addEventListener === 'function' ? (globalThis as unknown as Hook) : null);
+  const unhook = (): void => { const t = target(), f = unlock; unlock = null; if (t && f) for (const e of UNLOCK) t.removeEventListener(e, f); };
+  const free = (c: AudioContext | null, fade: number): void => { if (c) setTimeout(() => { try { void c.close(); } catch { /* already closed */ } }, Math.max(0, fade) * 1000 + 300); };
 
   return {
     get playing(): boolean { return !!theme?.playing; },
@@ -77,8 +52,7 @@ export function createTitleMusic(opts: TitleMusicOptions = {}): TitleMusic {
       const my = ++gen;
       void (async () => {
         try {
-          const mod = await load();
-          const factory = mod.createTitleTheme;
+          const factory = (await load()).createTitleTheme;
           if (typeof factory !== 'function') return;
           usable = true;
           if (my !== gen) return; // stopped while loading
@@ -87,10 +61,11 @@ export function createTitleMusic(opts: TitleMusicOptions = {}): TitleMusic {
           ctx = c;
           try { await c.resume(); } catch { /* locked: the gesture hook below resumes it */ }
           if (my !== gen) { if (ctx === c) ctx = null; free(c, 0); return; }
-          if (c.state === 'suspended') hook(c);
+          const t = c.state === 'suspended' ? target() : null;
+          if (t) { unlock = () => { void c.resume(); if (c.state !== 'suspended') unhook(); }; for (const e of UNLOCK) t.addEventListener(e, unlock); }
           theme = (factory as TitleThemeFactory)(c, c.destination, { volume, lookAhead: 0.4 });
           theme.start();
-        } catch { theme = null; unhook(); const c = ctx; ctx = null; free(c, 0); } finally { busy = false; }
+        } catch { theme = null; unhook(); free(ctx, 0); ctx = null; } finally { busy = false; }
       })();
     },
     stop(fadeSec = 2.5): void {
@@ -98,8 +73,7 @@ export function createTitleMusic(opts: TitleMusicOptions = {}): TitleMusic {
       unhook();
       try { theme?.stop(fadeSec); } catch { /* ignore */ }
       theme = null;
-      const c = ctx; ctx = null;
-      free(c, fadeSec);
+      free(ctx, fadeSec); ctx = null;
     },
   };
 }

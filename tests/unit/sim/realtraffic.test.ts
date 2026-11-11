@@ -24,7 +24,7 @@ import { makeRealTraffic } from '@/world/roadnet/trafficReal';
 import type { IVehicle, VehicleType } from '@/world/types';
 import { DT, proxyMaterials, stubMaterials } from './harness';
 
-const SIM_SECONDS = 600;
+const SIM_SECONDS = Number((globalThis as unknown as { process?: { env?: Record<string, string> } }).process?.env?.RT_SECONDS ?? 600);
 const WINDOW = 60;
 
 const net = RoadNet.fromJson(core as unknown as RoadNetJson);
@@ -35,7 +35,7 @@ interface Run {
   agentsSeen: number; windows: number; stuck: string[]; worstNet: number; redViolations: string[]; stopPasses: number;
   knockedDown: string[]; pedBadStarts: string[]; pedStarts: number; maxAgents: number; minAgentsAfterWarmup: number;
   pedMin: number; pedMax: number; pedTarget: number; parked: number; nonFinite: string[]; inBlock: number; samples: number;
-  recycled: number; crossings: number; signals: number; start: Vec2; hardAi: number;
+  blockAt: string[]; recycled: number; crossings: number; signals: number; start: Vec2; hardAi: number;
 }
 
 function runReal(seed: number): Run {
@@ -56,7 +56,7 @@ function runReal(seed: number): Run {
   const run: Run = {
     agentsSeen: 0, windows: 0, stuck: [], worstNet: Infinity, redViolations: [], stopPasses: 0, knockedDown: [], pedBadStarts: [],
     pedStarts: 0, maxAgents: 0, minAgentsAfterWarmup: Infinity, pedMin: Infinity, pedMax: 0, pedTarget: traffic.pedTarget, parked,
-    nonFinite: [], inBlock: 0, samples: 0, recycled: 0, crossings: grid.pedCrossings?.size ?? 0, signals: rt.lights.intersectionIds.length,
+    nonFinite: [], inBlock: 0, samples: 0, blockAt: [], recycled: 0, crossings: grid.pedCrossings?.size ?? 0, signals: rt.lights.intersectionIds.length,
     start: player, hardAi: 0,
   };
   let t = 0;
@@ -107,7 +107,7 @@ function runReal(seed: number): Run {
       for (const v of movers) {
         const p = v.body.pos;
         if (!Number.isFinite(p.x) || !Number.isFinite(p.z)) { run.nonFinite.push(`${v.id}@${t.toFixed(1)}`); continue; }
-        if (step % 30 === 0) { run.samples++; if (inBlock(p)) run.inBlock++; }
+        if (step % 30 === 0) { run.samples++; if (inBlock(p)) { run.inBlock++; if (run.blockAt.length < 400) run.blockAt.push(`${v.id}@${t.toFixed(0)} ${p.x.toFixed(0)},${p.z.toFixed(0)} ${net.streetNameAt(p)} sp${v.speed.toFixed(1)}`); } }
         for (const n of near) {
           const dx = n.pos.x - p.x, dz = n.pos.z - p.z, dd = dx * dx + dz * dz;
           if (dd > 36) { counted.delete(`${v.id}@${n.id}`); continue; }
@@ -202,6 +202,9 @@ describe('TrafficSystem on the real map, headless 10 minutes', () => {
 
   it('reports', () => {
     // eslint-disable-next-line no-console
-    console.log('REALTRAFFIC', JSON.stringify({ ...R, stuck: R.stuck.length, redViolations: R.redViolations.length, pedBadStarts: R.pedBadStarts.length }));
+    console.log('REALTRAFFIC', JSON.stringify({ ...R, stuck: R.stuck.length, redViolations: R.redViolations.length, pedBadStarts: R.pedBadStarts.length, blockAt: undefined }));
+    console.log('STUCKIDS', [...new Set(R.stuck.map((x) => x.split(' ')[0]))].join(','), R.stuck.slice(0, 3).join(' | '));
+    console.log('RED', R.redViolations.slice(0, 6).join(' | '));
+    console.log('BLOCK', R.blockAt.filter((_, i) => i % 12 === 0).slice(0, 30).join(' | '));
   });
 });
