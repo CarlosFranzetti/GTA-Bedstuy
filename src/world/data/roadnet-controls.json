@@ -1,0 +1,2137 @@
+{
+ "meta": {
+  "v": 1,
+  "script": "scripts/import-signals.mjs",
+  "nodesFrom": "src/world/data/roadnet-core.json",
+  "tolerance_m": 15,
+  "sources": [
+   {
+    "dataset": "xc4v-ntf4",
+    "name": "VZV Leading Pedestrian Interval Signals",
+    "points": 109
+   },
+   {
+    "dataset": "de3m-c5p4",
+    "name": "Accessible Pedestrian Signal Locations",
+    "points": 45
+   },
+   {
+    "dataset": "8kuj-2n3u",
+    "name": "Exclusive Pedestrian Signal (Barnes Dance) Locations",
+    "points": 3
+   }
+  ],
+  "controlValues": "signal (a dataset point within tolerance) | stop (none: no stop-sign or all-way-stop inventory in NYC Open Data) | none (no point; not verified unsignalised) | stub/deadend are kept as none",
+  "inferred": "the core control from build.ts (heuristic), for comparison only",
+  "counts": {
+   "nodes": 369,
+   "signal": 93,
+   "stop": 0,
+   "none": 276,
+   "inferredSignal": 270,
+   "signalAgreeingWithInferred": 91,
+   "pointsInsideCoverage": {
+    "xc4v-ntf4": 84,
+    "de3m-c5p4": 36,
+    "8kuj-2n3u": 2
+   },
+   "matchedPerDataset": {
+    "xc4v-ntf4": 84,
+    "de3m-c5p4": 33,
+    "8kuj-2n3u": 2
+   },
+   "unmatchedPerDataset": {
+    "xc4v-ntf4": 0,
+    "de3m-c5p4": 3,
+    "8kuj-2n3u": 0
+   }
+  }
+ },
+ "nodes": {
+  "0": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "1": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "2": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "3": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "4": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "5": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "6": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "7": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "8": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "9": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "10": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "11": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "12": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "13": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "14": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "15": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "16": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "17": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "18": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "19": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "20": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "21": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "22": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "23": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "24": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "25": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "26": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "27": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "28": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "29": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "30": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "31": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "32": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "33": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "34": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "35": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "36": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "37": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "38": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "39": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "40": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "41": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "42": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "43": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "44": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "45": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "46": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "47": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "48": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "49": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "50": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "51": {
+   "control": "signal",
+   "source": [
+    "8kuj-2n3u",
+    "de3m-c5p4"
+   ],
+   "inferred": "signal"
+  },
+  "52": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "53": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "54": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "55": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "56": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "57": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "58": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "59": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "60": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "61": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "62": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "63": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "64": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "65": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "66": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "67": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "68": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "69": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4"
+   ],
+   "inferred": "signal"
+  },
+  "70": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "71": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "72": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "73": {
+   "control": "signal",
+   "source": [
+    "8kuj-2n3u",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "74": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "75": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "76": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "77": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "78": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "79": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "80": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "81": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "82": {
+   "control": "none",
+   "source": null,
+   "inferred": "deadend"
+  },
+  "83": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "84": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "85": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "86": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "87": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "88": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "89": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4"
+   ],
+   "inferred": "signal"
+  },
+  "90": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "91": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "92": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "93": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "94": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "95": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "96": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "97": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "98": {
+   "control": "none",
+   "source": null,
+   "inferred": "deadend"
+  },
+  "99": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "100": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "101": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "102": {
+   "control": "none",
+   "source": null,
+   "inferred": "none"
+  },
+  "103": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "104": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "105": {
+   "control": "none",
+   "source": null,
+   "inferred": "none"
+  },
+  "106": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "107": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "108": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "109": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "110": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "111": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "112": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "113": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "114": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "115": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "116": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "117": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "118": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "119": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "120": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "121": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "122": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "123": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "124": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "125": {
+   "control": "none",
+   "source": null,
+   "inferred": "none"
+  },
+  "126": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "127": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "128": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "129": {
+   "control": "none",
+   "source": null,
+   "inferred": "none"
+  },
+  "130": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "131": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "132": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "133": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "134": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "135": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "136": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "137": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "138": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "139": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "140": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "141": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "142": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "143": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "144": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "145": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "146": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "147": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "148": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "149": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "150": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "151": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "152": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "153": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "154": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "155": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "156": {
+   "control": "none",
+   "source": null,
+   "inferred": "deadend"
+  },
+  "157": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "158": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "159": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "160": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "161": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "162": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "163": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "164": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "165": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "166": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "167": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "168": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "169": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "170": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "171": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "172": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "173": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "174": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "175": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "176": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "177": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "178": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "179": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "180": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "181": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "182": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "183": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "184": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "185": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "186": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "187": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "188": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "189": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "190": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "191": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "192": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4"
+   ],
+   "inferred": "signal"
+  },
+  "193": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "194": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "195": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "196": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "197": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "198": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "199": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4"
+   ],
+   "inferred": "signal"
+  },
+  "200": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "201": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "202": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "203": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "204": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "205": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "206": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "207": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "208": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "209": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "210": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "211": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4"
+   ],
+   "inferred": "signal"
+  },
+  "212": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "213": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "214": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "215": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "216": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "217": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "stop"
+  },
+  "218": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "219": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "220": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "221": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "222": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "223": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "224": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4"
+   ],
+   "inferred": "signal"
+  },
+  "225": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "226": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "227": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "228": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "229": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "230": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "231": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "232": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "233": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "stop"
+  },
+  "234": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "235": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "236": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "237": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "238": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "239": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "240": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "241": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "242": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "243": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "244": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "245": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "246": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "247": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "248": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "249": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "250": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "251": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "252": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "253": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "254": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "255": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "256": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "257": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "258": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "259": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "260": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "261": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "262": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "263": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "264": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "265": {
+   "control": "none",
+   "source": null,
+   "inferred": "deadend"
+  },
+  "266": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "267": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "268": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "269": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "270": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "271": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "272": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "273": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "274": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "275": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "276": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "277": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "278": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "279": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "280": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "281": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "282": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "283": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "284": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "285": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "286": {
+   "control": "none",
+   "source": null,
+   "inferred": "none"
+  },
+  "287": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "288": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "289": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "290": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "291": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "292": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "293": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "294": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "295": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "296": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "297": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "298": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "299": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "300": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "301": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "302": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "303": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "304": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "305": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "306": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "307": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "308": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "309": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "310": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "311": {
+   "control": "none",
+   "source": null,
+   "inferred": "none"
+  },
+  "312": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "313": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "314": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "315": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "316": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4"
+   ],
+   "inferred": "signal"
+  },
+  "317": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "318": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4"
+   ],
+   "inferred": "signal"
+  },
+  "319": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "320": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "321": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "322": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "323": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "324": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "325": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "326": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "327": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "328": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "329": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "330": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "331": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "332": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "333": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "334": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "335": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "336": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "337": {
+   "control": "none",
+   "source": null,
+   "inferred": "none"
+  },
+  "338": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "339": {
+   "control": "none",
+   "source": null,
+   "inferred": "stop"
+  },
+  "340": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "341": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "342": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "343": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "344": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "345": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "346": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4"
+   ],
+   "inferred": "signal"
+  },
+  "347": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "348": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "349": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "350": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "351": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "352": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "353": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "354": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "355": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "356": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "357": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "358": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "359": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "360": {
+   "control": "signal",
+   "source": [
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "361": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "362": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "363": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "364": {
+   "control": "signal",
+   "source": [
+    "de3m-c5p4",
+    "xc4v-ntf4"
+   ],
+   "inferred": "signal"
+  },
+  "365": {
+   "control": "none",
+   "source": null,
+   "inferred": "signal"
+  },
+  "366": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "367": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  },
+  "368": {
+   "control": "none",
+   "source": null,
+   "inferred": "stub"
+  }
+ },
+ "unmatched": [
+  {
+   "src": "de3m-c5p4",
+   "label": "Stuyvesant Avenue and Pulaski Street",
+   "where": "Stuyvesant Avenue and Pulaski Street / 2023-07-26T00:00:00.000",
+   "x": 749.7,
+   "z": -143.7,
+   "nearestNode": 257,
+   "dist": 23.4
+  },
+  {
+   "src": "de3m-c5p4",
+   "label": "Throop Avenue and Vernon Avenue",
+   "where": "Throop Avenue and Vernon Avenue / 2023-05-26T00:00:00.000",
+   "x": 11.6,
+   "z": -389.4,
+   "nearestNode": 218,
+   "dist": 25.3
+  },
+  {
+   "src": "de3m-c5p4",
+   "label": "Broadway with Park Avenue and Park Street",
+   "where": "Broadway with Park Avenue and Park Street / 2022-07-29T00:00:00.000",
+   "x": 449.8,
+   "z": -752.9,
+   "nearestNode": 113,
+   "dist": 15.5
+  }
+ ]
+}
