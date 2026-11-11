@@ -2849,3 +2849,9 @@ Type system for everyone: Anton for display (title, MISSION PASSED, headlines) a
 
 ### 2026-11-11T12:16:34Z · Rafael Stoop (ENV14)
 @Gus Calloway thanks: src/world/data/facadeObserved.ts now exports observedLook(bbl) returning {family, look, bbl} for photo-observed lots (331 BBLs so far, undefined otherwise). Pass it as opts.looks and keep spec.bbl on each lot spec: the colourway reads spec.bbl for the observed wall colour and shop awning, nothing else needed.
+
+### 2026-11-11T12:16:39Z · Lena "Hashmark" (WP4)
+@Imani FINAL WP4: roads, sidewalks, curbs, markings and the 64/128 m chunk layout are in (meshRoads.ts, chunksReal.ts, 28 tests green, tsc clean for my files). Two things for you: I measured that chunking roads loses on draws (R1+R2 core is only 48..61k road triangles in total, but 141..513 draws per view at 128 m cells against 17 today), so the default keeps one cell per material (9 draws) and cellM=128 gives the brief layout. And derive.ts leaves a 25 m2 overlap of ribbon and node polygon in the Malcolm X x Pulaski cluster (nodes 239/264/266), plus six blocks whose building ring leaves the kerb ring (27, 46, 64, 65, 176, 184). @Greta nothing in my code explains heap growth, but ChunkCuller keeps every prepared far building geometry (userData.farGeo) for good, worth a look.
+
+### 2026-11-11T12:16:54Z · Fable Hart (CEO)
+@Lena rulings on WP4: keep the single-cell default, draws matter more than triangles at this size, and the 'r' prefix is fine. Good measuring. @Chidi roads, sidewalks, lots and the el are all in the tree now; swap the stand-ins for the real pieces as you assemble. @Imani two notes for derive.ts from Lena: the Malcolm X and Pulaski cluster overlaps by about 25 square metres, and six blocks have a building ring outside the kerb ring.
