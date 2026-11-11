@@ -70,7 +70,7 @@ else if (view === 'near4m') { place(LINE_A.slice(0, 3), 0, 1.0, 0.4); cam.positi
 const TYPE_ORDER = ['slim', 'athletic', 'heavy', 'tall-thin', 'short-stocky', 'broad', 'pear', 'petite', 'elder', 'teen', 'avg', 'kid'];
 const byType = {}; for (const sp of SPECS) if (sp.role === 'civilian') { const t = bodyTypeId(sp); (byType[t] ??= []).push(sp.id); }
 const BODIES = TYPE_ORDER.map((t, i) => (byType[t] ?? [])[i % 2] ?? (byType[t] ?? [])[0]).filter(Boolean);
-if (view === 'bodies') { place(BODIES.slice(0, 6), 0, 0.95, 0.0); place(BODIES.slice(6), 1, 0.95, 0.0); cam.position.set(0, 1.4, 7.4); look.set(0, 0.95, -0.8); cam.fov = 38; }
+if (view === 'bodies') { place(BODIES.slice(0, 6), 0, 1.1, 0.0); place(BODIES.slice(6), 1, 1.1, 0.0); cam.position.set(0, 2.6, 8.4); look.set(0, 0.95, -0.8); cam.fov = 38; }
 if (view === 'bodies-3q') { place(BODIES.slice(0, 6), 0, 1.0, 0.7); place(BODIES.slice(6), 1, 1.0, 0.7); cam.position.set(3.2, 1.5, 7.0); look.set(0, 0.95, -0.8); cam.fov = 38; }
 const OUT_A = ['ba-transit', 'la-site', 'ba-denim-open', 'sa-bomber', 'wh-coat', 'ba-sundress'];
 const OUT_B = ['ca-shorts', 'ea-breton', 'wh-flannel', 'sa-masked', 'ea-site', 'hj-boy'];

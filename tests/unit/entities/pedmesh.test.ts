@@ -168,13 +168,13 @@ describe('shipped people glbs', () => {
       expect(new Set(meshes.map((x) => x.material)).size).toBe(1);
       expect(meshes[0].skeleton.bones.length).toBe(12);
       expect(m.triangles).toBeGreaterThan(2500);
-      expect(m.triangles).toBeLessThan(6500); // ~4k body + hair / hat caps + PEDHI clothing shells
+      expect(m.triangles).toBeLessThan(9000); // ~6.4k body (head 2k, hands 0.7k, rest 3.7k) + hair / hat caps + shoes
       const box = new THREE.Box3().setFromObject(m.group);
       expect(box.max.y).toBeGreaterThan(1.4); expect(box.max.y).toBeLessThan(2.1);
     }
   });
 
-  it('triangle budget per LOD over all variants: far <= 600, mid <= 2.1k, hi <= 6.5k', () => {
+  it('triangle budget per LOD over all variants: far <= 600, mid <= 2.1k, hi <= 9k', () => {
     const max = [0, 0, 0];
     for (let v = 0; v < PED_VARIANT_COUNT; v++) {
       const m = buildMhPedModel(materials, new Rng(5), { variant: v, heightScale: 1 })!;
@@ -184,7 +184,7 @@ describe('shipped people glbs', () => {
     console.log('PEDLOD hi mid far', max.join(' '));
     expect(max[2]).toBeLessThanOrEqual(600);
     expect(max[1]).toBeLessThanOrEqual(2100);
-    expect(max[0]).toBeLessThanOrEqual(6500);
+    expect(max[0]).toBeLessThanOrEqual(9000);
   });
 
   it('buildPerson uses the people shapes when loaded and PEDHI otherwise', () => {

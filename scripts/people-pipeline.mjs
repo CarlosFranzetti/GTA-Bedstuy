@@ -86,9 +86,20 @@ export const SHAPES = {
   teen_a: shape('mx', 'male', 'teen'), teen_b: shape('ea', 'female', 'teen'),
   mx_x: shape('mx', 'x', 'young', {}, 1.72),
 };
-export const LOD_TRIS = { hi: 2700, mid: 1500, far: 400 };
-/** extra triangles the hi LOD keeps in the head (a smooth face and skull) */
-export const HEAD_TRIS = { hi: 1000, mid: 0, far: 0 };
+/**
+ * Triangle budget per LOD and REGION (stage 14: "better polygons", the triangles go where the eye goes). Each region is simplified on its
+ * own with the others locked, so a hand keeps its fingers and the head its brow, nose and lips while the legs stay lean.
+ *   head  = vertices weighted to the head bone (skull, face, ears, neck above the chin)   [Ines tunes this one]
+ *   hands = forearm-bone vertices below the wrist                                          [Ines tunes this one]
+ *   body  = everything else: neck, trapezius, shoulders, torso, arms, legs                 [Leila tunes this one]
+ * The far LOD ignores regions (one global pass to `body`).
+ */
+export const REGION_BUDGET = {
+  hi: { head: 2000, hands: 700, body: 3700 },
+  mid: { head: 450, hands: 120, body: 930 },
+  far: { head: 0, hands: 0, body: 400 },
+};
+export const LOD_TRIS = { hi: 6400, mid: 1500, far: 400 };
 
 // ------------------------------------------------------------------ parsing
 
@@ -297,25 +308,34 @@ export function smoothFeet(pos, w12, indices, topY, iterations = 8) {
 
 // ------------------------------------------------------------------ decimation
 
-/** Simplify to ~targetTris triangles keeping the bone weights; returns a compact mesh. */
-export function decimate(simplifier, body, targetTris, headTris = 0) {
+/** Simplify to ~targetTris triangles keeping the bone weights; with a budget {head, hands, body} each region is simplified separately (see REGION_BUDGET). */
+export function decimate(simplifier, body, targetTris, budget = null) {
   const { positions, w12, indices } = body;
   if (indices.length / 3 <= targetTris) return compact(body, indices);
   const attr = new Float32Array(w12.length);
   for (let i = 0; i < w12.length; i++) attr[i] = w12[i];
   const wts = new Array(12).fill(0.05), nv = positions.length / 3;
-  if (headTris > 0) {
-    // the head keeps more triangles than the body: pass A collapses only head vertices (everything else locked) down to headTris,
-    // pass B locks the head and decimates the rest to the target total
-    const isHead = new Uint8Array(nv);
-    for (let v = 0; v < nv; v++) isHead[v] = w12[v * 12 + 3] >= 0.5 ? 1 : 0;
-    let headT = 0;
-    for (let t = 0; t < indices.length; t += 3) if (isHead[indices[t]] || isHead[indices[t + 1]] || isHead[indices[t + 2]]) headT++;
-    const lockBody = new Uint8Array(nv).map((_, v) => (isHead[v] ? 0 : 1));
-    const [a] = simplifier.simplifyWithAttributes(indices, positions, 3, attr, 12, wts, lockBody, (indices.length / 3 - headT + headTris) * 3, 1, []);
-    const lockHead = new Uint8Array(nv).map((_, v) => (isHead[v] ? 1 : 0));
-    const [b] = simplifier.simplifyWithAttributes(a, positions, 3, attr, 12, wts, lockHead, targetTris * 3, 1, []);
-    return compact(body, b);
+  if (budget && (budget.head > 0 || budget.hands > 0)) {
+    const wristY = body.landmarks?.wristY ?? 0.9;
+    const region = new Uint8Array(nv);   // 0 body, 1 head, 2 hands
+    for (let v = 0; v < nv; v++) {
+      if (w12[v * 12 + I.head] >= 0.5) region[v] = 1;
+      else if ((w12[v * 12 + I.elbowL] >= 0.5 || w12[v * 12 + I.elbowR] >= 0.5) && positions[v * 3 + 1] < wristY) region[v] = 2;
+    }
+    const triRegion = (ix, t) => Math.max(region[ix[t]], region[ix[t + 1]], region[ix[t + 2]]) === 0 ? 0 : (region[ix[t]] === 1 || region[ix[t + 1]] === 1 || region[ix[t + 2]] === 1 ? 1 : 2);
+    const count = (ix, r) => { let n = 0; for (let t = 0; t < ix.length; t += 3) if (triRegion(ix, t) === r) n++; return n; };
+    let ix = indices;
+    for (const [r, want] of [[1, budget.head], [2, budget.hands]]) {
+      if (want <= 0) continue;
+      const have = count(ix, r);
+      if (have <= want) continue;
+      const lock = new Uint8Array(nv).map((_, v) => (region[v] === r ? 0 : 1));
+      [ix] = simplifier.simplifyWithAttributes(ix, positions, 3, attr, 12, wts, lock, (ix.length / 3 - have + want) * 3, 1, []);
+    }
+    // the rest (neck, shoulders, torso, limbs) with head and hands locked, down to the body budget
+    const keep = count(ix, 1) + count(ix, 2), lockKeep = new Uint8Array(nv).map((_, v) => (region[v] !== 0 ? 1 : 0));
+    [ix] = simplifier.simplifyWithAttributes(ix, positions, 3, attr, 12, wts, lockKeep, (keep + budget.body) * 3, 1, []);
+    return compact(body, ix);
   }
   const [out] = simplifier.simplifyWithAttributes(indices, positions, 3, attr, 12, wts, null, targetTris * 3, 1, []);
   return compact(body, out);
@@ -519,7 +539,7 @@ export function buildShape(src, simplifier, name) {
   const body = buildBody(src, shape);
   const lods = {};
   for (const [lod, tris] of Object.entries(LOD_TRIS)) {
-    const m = decimate(simplifier, body, tris, HEAD_TRIS[lod] ?? 0);
+    const m = decimate(simplifier, body, tris, REGION_BUDGET[lod]);
     lods[lod] = { ...projectUVs(m, body.landmarks), triangles: m.indices.length / 3, mesh: m };
   }
   const hiMesh = lods.hi.mesh, lm = body.landmarks;

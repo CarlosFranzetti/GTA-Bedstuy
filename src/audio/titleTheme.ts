@@ -192,12 +192,8 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
   const live = new Set<AudioNode>();
   const T = (t: number): number => Math.max(t, ctx.currentTime);
   let noiseBuf: AudioBuffer | null = null, vowelBuf: AudioBuffer | null = null, wave: PeriodicWave | null = null;
-  interface Chain {
-    out: GainNode; wow: GainNode; bassOsc: OscillatorNode; bassAmp: GainNode; duckBass: GainNode; duckKeys: GainNode; keysLP: BiquadFilterNode; keysIn: GainNode;
-    kickBus: GainNode; clickBp: BiquadFilterNode; snareIn: BiquadFilterNode; crackBp: BiquadFilterNode; snareBus: GainNode; clapBp: BiquadFilterNode;
-    hatHp: BiquadFilterNode; crashHp: BiquadFilterNode; riserBp: BiquadFilterNode; hookIn: GainNode; scrIn: GainNode; rev: GainNode; dly: GainNode;
-  }
-  let n: Chain | null = null;
+  let wow: GainNode, bassOsc: OscillatorNode, bassAmp: GainNode, duckBass: GainNode, duckKeys: GainNode, keysLP: BiquadFilterNode, keysIn: GainNode, kickBus: GainNode, clickBp: BiquadFilterNode, snareIn: BiquadFilterNode, crackBp: BiquadFilterNode, snareBus: GainNode, clapBp: BiquadFilterNode, hatHp: BiquadFilterNode, crashHp: BiquadFilterNode, riserBp: BiquadFilterNode, hookIn: GainNode, scrIn: GainNode, rev: GainNode, dly: GainNode;
+  let out: GainNode | null = null;
 
   const track = <A extends AudioNode>(x: A): A => { live.add(x); created++; return x; };
   const gain = (v: number, to?: AudioNode): GainNode => { const g = track(ctx.createGain()); g.gain.value = v; if (to) g.connect(to); return g; };
@@ -238,10 +234,10 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     wave = typeof ctx.createPeriodicWave === 'function' ? ctx.createPeriodicWave(h, im) : null;
 
     // master: sum -> tape saturation -> glue compressor -> limiter -> soft ceiling -> out(volume/fade) -> dest
-    const out = track(ctx.createGain()); out.gain.value = 0; out.connect(dest);
+    const o0 = out = track(ctx.createGain()); o0.gain.value = 0; o0.connect(dest);
     const lim = track(ctx.createDynamicsCompressor());
     lim.threshold.value = -3; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.003; lim.release.value = 0.12;
-    lim.connect(shaper(ceilingCurve(), out));
+    lim.connect(shaper(ceilingCurve(), o0));
     const glue = track(ctx.createDynamicsCompressor());
     glue.threshold.value = -17; glue.knee.value = 10; glue.ratio.value = 3; glue.attack.value = 0.012; glue.release.value = 0.16;
     glue.connect(lim);
@@ -256,31 +252,31 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     const rl = Math.floor(sr * 1.5), imp = ctx.createBuffer(2, rl, sr);
     for (let c = 0; c < 2; c++) { const d = imp.getChannelData(c), r = mulberry32(600 + c); let lp = 0; for (let i = 0; i < rl; i++) { lp += 0.5 * ((r() * 2 - 1) - lp); d[i] = lp * Math.pow(1 - i / rl, 2.8); } }
     const conv = track(ctx.createConvolver()); conv.buffer = imp;
-    const rev = gain(1, conv); conv.connect(gain(0.3, sum));
+    rev = gain(1, conv); conv.connect(gain(0.3, sum));
     const dl = track(ctx.createDelay(1.5)); dl.delayTime.value = STEP_SEC * 3;
-    const fb = gain(0.3), dlp = filt('lowpass', 1500, 0.5); const dly = gain(1, dl);
+    const fb = gain(0.3), dlp = filt('lowpass', 1500, 0.5); dly = gain(1, dl);
     dl.connect(dlp); dlp.connect(fb); fb.connect(dl); dlp.connect(gain(0.5, sum));
     const send = (from: AudioNode, r: number, d: number): void => { if (r > 0) from.connect(gain(r, rev)); if (d > 0) from.connect(gain(d, dly)); };
 
     // 808: sine -> amp -> drive -> low-pass -> duck -> bus
-    const duckBass = gain(1, part('bass')), duckKeys = gain(1);
+    duckBass = gain(1, part('bass')), duckKeys = gain(1);
     const bassLp = filt('lowpass', 800, 0.6, duckBass), bassSh = shaper(driveCurve(2.6), bassLp);
-    const bassAmp = gain(0, gain(2.2, bassSh));
-    const bassOsc = osc('sine', 49, bassAmp);
+    bassAmp = gain(0, gain(2.2, bassSh));
+    bassOsc = osc('sine', 49, bassAmp);
     // keys: periodic-wave voices -> low-pass -> chorus + 12-bit grit -> bus
     const keysBus = part('keys'); pan(-0.15, duckKeys, keysBus); send(keysBus, 0.16, 0.14);
-    const keysIn = gain(1), keysLP = filt('lowpass', 2300, 0.5, duckKeys);
+    keysIn = gain(1), keysLP = filt('lowpass', 2300, 0.5, duckKeys);
     keysIn.connect(keysLP);
     keysLP.connect(shaper(gritCurve(), filt('lowpass', 2200, 0.5, gain(0.1, duckKeys))));
-    const wow = gain(7), wowO = osc('sine', 0.55, wow); // tape wow, +-7 cents, shared by every key voice
+    wow = gain(7), wowO = osc('sine', 0.55, wow); // tape wow, +-7 cents, shared by every key voice
     // hook: bell -> low-pass -> bus
     const hookBus = part('hook'), hookIn = gain(1), hookLp = filt('lowpass', 3000, 0.5); hookIn.connect(hookLp); pan(0.2, hookLp, hookBus); send(hookBus, 0.28, 0.34);
     // drums
-    const kickBus = part('kick'), clickBp = filt('bandpass', 2600, 1, kickBus);
-    const snareBus = part('snare'); const snareIn = filt('highpass', 1300, 0.7, snareBus), crackBp = filt('bandpass', 3400, 0.6, snareBus), clapBp = filt('bandpass', 1700, 0.5, snareBus);
+    kickBus = part('kick'), clickBp = filt('bandpass', 2600, 1, kickBus);
+    snareBus = part('snare'); snareIn = filt('highpass', 1300, 0.7, snareBus), crackBp = filt('bandpass', 3400, 0.6, snareBus), clapBp = filt('bandpass', 1700, 0.5, snareBus);
     send(snareBus, 0.2, 0);
     const hatBus = part('hats'), hatHp = filt('highpass', 6500, 0.6), hatLp = filt('lowpass', 13000, 0.5); hatHp.connect(hatLp); pan(0.25, hatLp, hatBus);
-    const crashHp = filt('highpass', 5000, 0.7, hatBus), riserBp = filt('bandpass', 400, 0.8, hatBus);
+    crashHp = filt('highpass', 5000, 0.7, hatBus), riserBp = filt('bandpass', 400, 0.8, hatBus);
     // scratch: vowel record -> band -> grit -> bus
     const scrBus = part('scratch'), scrIn = gain(1), scrHp = filt('highpass', 260, 0.7), scrLp = filt('lowpass', 4800, 0.6);
     scrIn.connect(scrHp); scrHp.connect(shaper(driveCurve(1.6), scrLp)); pan(0.1, scrLp, scrBus); send(scrBus, 0.25, 0.1);
@@ -289,13 +285,12 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     const cs = bufSrc(cb, filt('highpass', 500, 0.7, filt('lowpass', 9000, 0.7, part('crackle')))); cs.loop = true;
 
     for (const o of [bassOsc, wowO, cs]) o.start(ctx.currentTime);
-    return { out, wow, bassOsc, bassAmp, duckBass, duckKeys, keysLP, keysIn, kickBus, clickBp, snareIn, crackBp, snareBus, clapBp, hatHp, crashHp, riserBp, hookIn, scrIn, rev, dly };
   }
 
   // ---------------------------------------------------------------- voices
   function duck(t: number, depth: number): void {
-    const c = n!, tt = T(t);
-    for (const [g, d] of [[c.duckBass, depth], [c.duckKeys, 0.6 + 0.4 * depth]] as Array<[GainNode, number]>) { g.gain.setValueAtTime(d, tt); g.gain.setTargetAtTime(1, tt + 0.01, 0.07); }
+    const tt = T(t);
+    for (const [g, d] of [[duckBass, depth], [duckKeys, 0.6 + 0.4 * depth]] as Array<[GainNode, number]>) { g.gain.setValueAtTime(d, tt); g.gain.setTargetAtTime(1, tt + 0.01, 0.07); }
   }
   /** Noise burst(s) through `to`: n repeats `gap` apart, each decaying with time constant tc (the last one 3.7x longer). */
   function hit(to: AudioNode, tt: number, off: number, dur: number, v: number, tc: number, nb = 1, gap = 0): void {
@@ -304,53 +299,53 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     release([noise(tt, off, dur, g)], [g]);
   }
   function kick(t: number, v: number): void {
-    const c = n!, tt = T(t), g = gain(0, c.kickBus), o = osc('sine', 160, g);
+    const tt = T(t), g = gain(0, kickBus), o = osc('sine', 160, g);
     o.frequency.exponentialRampToValueAtTime(64, tt + 0.05);
     g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(v, tt + 0.002); g.gain.setTargetAtTime(0, tt + 0.012, 0.075);
     o.start(tt); o.stop(tt + 0.45); release([o], [g]);
-    hit(c.clickBp, tt, t * 3.7, 0.03, v * 0.6, 0.003);
+    hit(clickBp, tt, t * 3.7, 0.03, v * 0.6, 0.003);
   }
   function snare(t: number, g16: number, v: number, ghost: boolean): void {
-    const c = n!, tt = T(t), body = gain(0, c.snareBus), to = osc('triangle', 205, body), k = ghost ? 0.3 : 1;
-    hit(c.snareIn, tt, g16 * 0.173, 0.3, v * 0.7, 0.065 * k);
-    hit(c.crackBp, tt, g16 * 0.29 + 0.4, 0.15, v * 1.2, 0.022 * k);
+    const tt = T(t), body = gain(0, snareBus), to = osc('triangle', 205, body), k = ghost ? 0.3 : 1;
+    hit(snareIn, tt, g16 * 0.173, 0.3, v * 0.7, 0.065 * k);
+    hit(crackBp, tt, g16 * 0.29 + 0.4, 0.15, v * 1.2, 0.022 * k);
     to.frequency.setValueAtTime(205, tt); to.frequency.exponentialRampToValueAtTime(165, tt + 0.05);
     body.gain.setValueAtTime(v * 0.6, tt); body.gain.setTargetAtTime(0, tt + 0.003, 0.04 * k);
     to.start(tt); to.stop(tt + 0.25); release([to], [body]);
   }
-  const clap = (t: number, g16: number): void => hit(n!.clapBp, T(t), g16 * 0.31 + 0.5, 0.3, 0.8, 0.012, 4, 0.011);
-  const hat = (t: number, g16: number, v: number, open: boolean): void => hit(n!.hatHp, T(t), g16 * 0.0917, open ? 0.4 : 0.07, v, open ? 0.08 : 0.011);
-  const crash = (t: number, g16: number): void => hit(n!.crashHp, T(t), g16 * 0.05, 1.8, 0.45, 0.4);
+  const clap = (t: number, g16: number): void => hit(clapBp, T(t), g16 * 0.31 + 0.5, 0.3, 0.8, 0.012, 4, 0.011);
+  const hat = (t: number, g16: number, v: number, open: boolean): void => hit(hatHp, T(t), g16 * 0.0917, open ? 0.4 : 0.07, v, open ? 0.08 : 0.011);
+  const crash = (t: number, g16: number): void => hit(crashHp, T(t), g16 * 0.05, 1.8, 0.45, 0.4);
   function riser(t: number, dur: number, g16: number): void {
-    const c = n!, tt = T(t), g = gain(0, c.riserBp);
+    const tt = T(t), g = gain(0, riserBp);
     g.gain.setValueAtTime(0.0001, tt); g.gain.exponentialRampToValueAtTime(0.8, tt + dur); g.gain.linearRampToValueAtTime(0, tt + dur + 0.04);
-    c.riserBp.frequency.setValueAtTime(400, tt); c.riserBp.frequency.exponentialRampToValueAtTime(8000, tt + dur);
+    riserBp.frequency.setValueAtTime(400, tt); riserBp.frequency.exponentialRampToValueAtTime(8000, tt + dur);
     const s = bufSrc(noiseBuf, g); s.loop = true; s.start(tt, (g16 * 0.11) % 1); s.stop(tt + dur + 0.06);
     release([s], [g]);
   }
   function bassNote(t: number, midi: number, lenSteps: number, slide: boolean): void {
-    const c = n!, f = midiToHz(midi), tt = T(t), end = tt + Math.max(0.08, lenSteps * STEP_SEC * 0.94);
-    c.bassOsc.frequency.setValueAtTime(slide ? prevBass : f, tt);
-    if (slide) c.bassOsc.frequency.exponentialRampToValueAtTime(f, tt + 0.08);
+    const f = midiToHz(midi), tt = T(t), end = tt + Math.max(0.08, lenSteps * STEP_SEC * 0.94);
+    bassOsc.frequency.setValueAtTime(slide ? prevBass : f, tt);
+    if (slide) bassOsc.frequency.exponentialRampToValueAtTime(f, tt + 0.08);
     prevBass = f;
-    const a = c.bassAmp.gain;
+    const a = bassAmp.gain;
     a.setValueAtTime(0, tt); a.linearRampToValueAtTime(1, tt + 0.005); a.setTargetAtTime(0.55, tt + 0.005, 0.28);
     a.setValueAtTime(0.4, end); a.linearRampToValueAtTime(0, end + 0.04);
   }
   function keysHit(t: number, chord: { keys: number[] }, gate: number, vel: number): void {
-    const c = n!, tt = T(t), end = tt + Math.max(0.05, gate * STEP_SEC);
-    const g = gain(0, c.keysIn); const a = g.gain;
+    const tt = T(t), end = tt + Math.max(0.05, gate * STEP_SEC);
+    const g = gain(0, keysIn); const a = g.gain;
     a.setValueAtTime(0, tt); a.linearRampToValueAtTime(vel * 0.3, tt + 0.004); a.setTargetAtTime(vel * 0.14, tt + 0.004, 0.3); a.setTargetAtTime(0, end, 0.014);
     const srcs: Src[] = [];
     for (const m of chord.keys) {
-      const o = osc('sine', midiToHz(m), g); if (wave) o.setPeriodicWave(wave); c.wow.connect(o.detune);
+      const o = osc('sine', midiToHz(m), g); if (wave) o.setPeriodicWave(wave); wow.connect(o.detune);
       o.start(tt); o.stop(end + 0.2); srcs.push(o);
     }
     release(srcs, [g]);
   }
   function hookNote(t: number, midi: number, lenSteps: number, amp: number): void {
-    const c = n!, tt = T(t), f = midiToHz(midi), dur = lenSteps * STEP_SEC;
-    const g = gain(0, c.hookIn); const a = g.gain, tc = Math.min(0.45, dur * 0.75);
+    const tt = T(t), f = midiToHz(midi), dur = lenSteps * STEP_SEC;
+    const g = gain(0, hookIn); const a = g.gain, tc = Math.min(0.45, dur * 0.75);
     a.setValueAtTime(0, tt); a.linearRampToValueAtTime(amp, tt + 0.006); a.setTargetAtTime(0, tt + 0.006, tc);
     const b = gain(0.3, g), d = gain(0.1, g);
     const o1 = osc('sine', f, g), o2 = osc('sine', f * 2, b), o3 = osc('sine', f * 3, d);
@@ -359,9 +354,8 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     release([o1, o2, o3], [g, b, d]);
   }
   function scratch(t: number, flicks: Array<[number, number, number, number]>): void {
-    const c = n!;
     flicks.forEach(([s, len, r0, r1], i) => {
-      const tt = T(t + s * STEP_SEC), d = len * STEP_SEC, g = gain(0, c.scrIn);
+      const tt = T(t + s * STEP_SEC), d = len * STEP_SEC, g = gain(0, scrIn);
       g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(0.9, tt + 0.004); g.gain.setValueAtTime(0.9, tt + d * 0.8); g.gain.linearRampToValueAtTime(0, tt + d);
       const x = bufSrc(vowelBuf, g); x.playbackRate.setValueAtTime(r0, tt); x.playbackRate.linearRampToValueAtTime(r1, tt + d);
       x.start(tt, 0.02 + (i % 3) * 0.06); x.stop(tt + d + 0.02);
@@ -375,10 +369,9 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     const p = pos.intro ? INTRO_PLANS[bar] : BAR_PLANS[bar];
     const chord = CHORDS[pos.intro ? CYC_A[bar] : BAR_CHORDS[bar]];
     const sw = (step & 1) ? SWING * STEP_SEC : 0, ts = t + sw;
-    const c = n!;
     if (step === 0 && !pos.intro) {
-      if (bar === 16) c.keysLP.frequency.setTargetAtTime(900, T(t), 0.3);
-      if (bar === 20) c.keysLP.frequency.setTargetAtTime(3200, T(t), 0.08);
+      if (bar === 16) keysLP.frequency.setTargetAtTime(900, T(t), 0.3);
+      if (bar === 20) keysLP.frequency.setTargetAtTime(3200, T(t), 0.08);
     }
     if (step === 0 && p.crash) crash(t, gs);
     if (p.riser && step === 0) riser(t, BAR_SEC, gs);
@@ -440,7 +433,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
       running = false;
       if (timer) { clearInterval(timer); timer = null; }
       const c = n;
-      if (c) { const now = ctx.currentTime; c.out.gain.cancelScheduledValues(now); c.out.gain.setTargetAtTime(0, now, Math.max(0.005, fadeSec / 4)); }
+      if (c) { const now = ctx.currentTime; out.gain.cancelScheduledValues(now); out.gain.setTargetAtTime(0, now, Math.max(0.005, fadeSec / 4)); }
       if (fadeSec <= 0) finalize(); else finalizeTimer = setTimeout(finalize, fadeSec * 1000 + 150);
     },
     setVolume(v: number) {
