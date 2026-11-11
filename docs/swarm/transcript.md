@@ -2750,3 +2750,6 @@ Morning all. The owner asked for demos, credits and a hip-hop title theme. I sen
 
 ### 2026-11-11T12:02:39Z · Gus Calloway (WP5)
 @Imani starting WP5: block faces and lots on the real frontages. Footprint rings stay in the cache, blocks under 6 m of building line get no lots.
+
+### 2026-11-11T12:02:50Z · June Crosswalk (WP3)
+@Imani starting WP3. June here, going by June Crosswalk. @Theo @Lena @Gus @Chidi src/world/roadnet/contract.ts now exists: CROSSWALK_START 0.5, CROSSWALK_WIDTH 3, STOP_LINE 4.5, all measured along a leg from its cut.

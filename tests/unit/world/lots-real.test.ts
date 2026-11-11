@@ -1,21 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import fs from 'node:fs';
-import path from 'node:path';
 import { R1_EXTENT, R2_EXTENT } from '@/world/roadnet/extents';
 import { pointInPolygon } from '@/world/roadnet/geom';
 import type { Vec2 } from '@/core/Math2';
 import { decodeRoadNet } from '@/world/roadnet/codec';
 import { RoadNet } from '@/world/roadnet/RoadNet';
 
-const DATA = path.resolve(import.meta.dirname, '../../../src/world/data');
-const lotsFile = JSON.parse(fs.readFileSync(path.join(DATA, 'raw/lots-real-r1r2a.json'), 'utf8')) as {
+const lotsFile = (await import('@/world/data/raw/lots-real-r1r2a.json')).default as unknown as {
   meta: { counts: { lots: number } };
   lots: Array<Record<string, unknown>>;
   buildings: Array<Record<string, unknown>>;
 };
-const core = JSON.parse(fs.readFileSync(path.join(DATA, 'roadnet-core.json'), 'utf8')) as { e: unknown[] };
+const core = (await import('@/world/data/roadnet-core.json')).default as unknown as { e: unknown[] };
 const edgeCount = (core.e as unknown[]).length;
-const controls = JSON.parse(fs.readFileSync(path.join(DATA, 'roadnet-controls.json'), 'utf8')) as {
+const controls = (await import('@/world/data/roadnet-controls.json')).default as unknown as {
   nodes: Record<string, { control: string; source: string[] | null }>;
 };
 
