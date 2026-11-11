@@ -187,7 +187,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
   const lookAhead = opts.lookAhead ?? 0.1, intervalMs = opts.intervalMs ?? 25;
   const mix: Record<PartName, number> = { ...DEFAULT_MIX, ...(opts.mix ?? {}) };
   let volume = clamp01(opts.volume ?? 0.85);
-  let running = false, t0 = 0, nextStep = 0, created = 0, prevBass = 49;
+  let running = false, t0 = 0, nextStep = 0, created = 0, prevBass = 98;
   let timer: ReturnType<typeof setInterval> | null = null, finalizeTimer: ReturnType<typeof setTimeout> | null = null;
   const live = new Set<AudioNode>();
   const T = (t: number): number => Math.max(t, ctx.currentTime);
@@ -224,7 +224,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(peak, tt + attack); g.gain.setTargetAtTime(0, tt + attack, tc);
   };
 
-  function buildChain(): Chain {
+  function buildChain(): void {
     const sr = ctx.sampleRate;
     noiseBuf = ctx.createBuffer(1, Math.floor(sr * 2), sr);
     { const d = noiseBuf.getChannelData(0), r = mulberry32(4321); for (let i = 0; i < d.length; i++) d[i] = r() * 2 - 1; }
@@ -268,17 +268,17 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     keysIn = gain(1), keysLP = filt('lowpass', 2300, 0.5, duckKeys);
     keysIn.connect(keysLP);
     keysLP.connect(shaper(gritCurve(), filt('lowpass', 2200, 0.5, gain(0.1, duckKeys))));
-    wow = gain(7), wowO = osc('sine', 0.55, wow); // tape wow, +-7 cents, shared by every key voice
+    wow = gain(7); const wowO = osc('sine', 0.55, wow); // tape wow, +-7 cents, shared by every key voice
     // hook: bell -> low-pass -> bus
-    const hookBus = part('hook'), hookIn = gain(1), hookLp = filt('lowpass', 3000, 0.5); hookIn.connect(hookLp); pan(0.2, hookLp, hookBus); send(hookBus, 0.28, 0.34);
+    hookIn = gain(1); const hookBus = part('hook'), hookLp = filt('lowpass', 3000, 0.5); hookIn.connect(hookLp); pan(0.2, hookLp, hookBus); send(hookBus, 0.28, 0.34);
     // drums
     kickBus = part('kick'), clickBp = filt('bandpass', 2600, 1, kickBus);
     snareBus = part('snare'); snareIn = filt('highpass', 1300, 0.7, snareBus), crackBp = filt('bandpass', 3400, 0.6, snareBus), clapBp = filt('bandpass', 1700, 0.5, snareBus);
     send(snareBus, 0.2, 0);
-    const hatBus = part('hats'), hatHp = filt('highpass', 6500, 0.6), hatLp = filt('lowpass', 13000, 0.5); hatHp.connect(hatLp); pan(0.25, hatLp, hatBus);
+    const hatBus = part('hats'), hatLp = filt('lowpass', 13000, 0.5); hatHp = filt('highpass', 6500, 0.6, hatLp); pan(0.25, hatLp, hatBus);
     crashHp = filt('highpass', 5000, 0.7, hatBus), riserBp = filt('bandpass', 400, 0.8, hatBus);
     // scratch: vowel record -> band -> grit -> bus
-    const scrBus = part('scratch'), scrIn = gain(1), scrHp = filt('highpass', 260, 0.7), scrLp = filt('lowpass', 4800, 0.6);
+    scrIn = gain(1); const scrBus = part('scratch'), scrHp = filt('highpass', 260, 0.7), scrLp = filt('lowpass', 4800, 0.6);
     scrIn.connect(scrHp); scrHp.connect(shaper(driveCurve(1.6), scrLp)); pan(0.1, scrLp, scrBus); send(scrBus, 0.25, 0.1);
     // vinyl crackle, constant
     const cb = ctx.createBuffer(1, Math.floor(sr * 6), sr); cb.getChannelData(0).set(makeCrackle(sr));
@@ -395,7 +395,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
   }
 
   function scheduleUntil(horizon: number): void {
-    if (!running || !n) return;
+    if (!running || !out) return;
     const now = ctx.currentTime;
     while (stepTime(t0, nextStep) < horizon) {
       const t = stepTime(t0, nextStep);
@@ -411,20 +411,20 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
       try { (x as unknown as { onended: unknown }).onended = null; } catch { /* ignore */ }
       try { x.disconnect(); } catch { /* already disconnected */ }
     }
-    live.clear(); noiseBuf = null; vowelBuf = null; wave = null; n = null;
+    live.clear(); noiseBuf = null; vowelBuf = null; wave = null; out = null;
   }
 
   return {
     start() {
       if (running) return;
-      if (finalizeTimer || n) finalize();
+      if (finalizeTimer || out) finalize();
       if (typeof (ctx as AudioContext).resume === 'function' && (ctx as AudioContext).state === 'suspended') void Promise.resolve((ctx as AudioContext).resume()).catch(() => undefined);
-      created = 0; prevBass = 49;
-      n = buildChain();
+      created = 0; prevBass = 98;
+      buildChain();
       const now = ctx.currentTime;
-      n.out.gain.setValueAtTime(0, now); n.out.gain.linearRampToValueAtTime(volume, now + 0.25);
+      out!.gain.setValueAtTime(0, now); out!.gain.linearRampToValueAtTime(volume, now + 0.25);
       t0 = now + 0.06; nextStep = 0; running = true;
-      n.keysLP.frequency.setValueAtTime(450, t0); n.keysLP.frequency.exponentialRampToValueAtTime(3200, t0 + INTRO_SEC);
+      keysLP.frequency.setValueAtTime(450, t0); keysLP.frequency.exponentialRampToValueAtTime(3200, t0 + INTRO_SEC);
       scheduleUntil(now + lookAhead);
       if (!opts.manual) timer = setInterval(() => scheduleUntil(ctx.currentTime + lookAhead), intervalMs);
     },
@@ -432,13 +432,12 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
       if (!running) return;
       running = false;
       if (timer) { clearInterval(timer); timer = null; }
-      const c = n;
-      if (c) { const now = ctx.currentTime; out.gain.cancelScheduledValues(now); out.gain.setTargetAtTime(0, now, Math.max(0.005, fadeSec / 4)); }
+      if (out) { const now = ctx.currentTime; out.gain.cancelScheduledValues(now); out.gain.setTargetAtTime(0, now, Math.max(0.005, fadeSec / 4)); }
       if (fadeSec <= 0) finalize(); else finalizeTimer = setTimeout(finalize, fadeSec * 1000 + 150);
     },
     setVolume(v: number) {
       volume = clamp01(v);
-      if (running && n) { const now = ctx.currentTime; n.out.gain.cancelScheduledValues(now); n.out.gain.setTargetAtTime(volume, now, 0.04); }
+      if (running && out) { const now = ctx.currentTime; out.gain.cancelScheduledValues(now); out.gain.setTargetAtTime(volume, now, 0.04); }
     },
     get playing() { return running; },
     scheduleUntil,

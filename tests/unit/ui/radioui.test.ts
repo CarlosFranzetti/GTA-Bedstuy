@@ -311,7 +311,7 @@ describe('RadioUi SoundCloud stations', () => {
     expect(q(houseSec, '.rl-sc-pool').textContent).toBe('Pool for Boiler Room: 2 of 3 sets match, 2 not heard yet.');
     expect(q(houseSec, '.rl-sc-keywords').textContent).toContain('house');
     expect(q(sections[1], '.rl-sc-pool').textContent).toBe('Pool for Dekmantel Podcast: 1 of 3 sets match, 1 not heard yet.');
-    expect(q(sections[7], '.rl-sc-pool').textContent).toContain('3 of 3 sets match');
+    expect(q(sections[8], '.rl-sc-pool').textContent).toContain('3 of 3 sets match');
     // links are per station
     const input = q<HTMLInputElement>(houseSec, '.rl-sc-input');
     input.value = 'https://soundcloud.com/a/one';
