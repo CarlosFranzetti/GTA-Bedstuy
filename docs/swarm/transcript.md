@@ -2401,3 +2401,6 @@ API for GUI: import { createLoadingTheme } from '@/audio/loadingTheme'; const th
 
 ### 2026-11-11T07:17:49Z · TEXVAR
 Per-lot colourways baked as vertex attrs (aTone/aStyle) read by shared wall/trim/awning/gate/metal materials + ground detail shader; 0 new meshes. Looks per block face 3.3 -> 14.4. Queued A/B renders (VITE_TEXVAR=0 vs on).
+
+### 2026-11-11T07:30:03Z · CARS12
+start: reading car stack; plan = authenticity fixes to nine, seeded variants, new types pickup/crossover/minivan/luxury/towncar/pony/garbage/ambulance/dollarvan, per-type handling

@@ -104,3 +104,12 @@ Shared files via `FOR FABLE:` as before. Nobody commits. Ports: V1 4401, PT 4402
 | GUI | sonnet | src/ui/Hud.ts, hud.css, phone.css, mission.css, radio.css, src/render/Loading.ts (visuals) | 4463 |
 | LOADMUSIC | sonnet | new src/audio/loadingTheme.ts + tests | none |
 | TEXVAR | sonnet | src/textures/**, facade/material variation in src/world building generators | 4464 |
+
+## Stage 12 lanes (11 Nov)
+| Lane | Model | Owns | Port |
+|---|---|---|---|
+| PEOPLE12 | sonnet | src/entities/models/ped*.ts, src/textures/painters/ped*.ts, scripts/people-* | 4471 |
+| WBURG | sonnet | grid/world data north-west extension, elevated train + stations (new src/world/transit/**, src/entities/Train*.ts) | 4472 |
+| STORY | sonnet | src/game/missions/**, characters, dialogue, phone messages | 4473 |
+| CARS12 | sonnet | src/entities/models/car*.ts, vehicleSkin painters, traffic mix | 4474 |
+| PLAYTEST | haiku | read-only; scripts/playtest/**, playtests/** reports | 4475 |

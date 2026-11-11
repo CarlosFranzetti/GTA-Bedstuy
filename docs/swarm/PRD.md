@@ -396,3 +396,12 @@ The user's words: "I don't know what's up with the cartoonish models I currently
 5. **Loading screen**: cool graphics, plus cheesy funky loading music in the GTA 4 spirit: electric guitar and disco bass, synthesized in code (original, nothing sampled or copied).
 6. **Textures more varied.**
 7. Many subagents, economical token use.
+
+## Stage 12 asks (user, 11 Nov, later)
+1. People models smoother and more varied (GTA 4 bar).
+2. Expand toward Williamsburg; add trains.
+3. More missions, more characters, more story; more humour and darkness.
+4. Cars more authentic, more variation.
+5. A playtester agent.
+6. Runs well on a macOS M4 laptop and Windows; the iPhone version is limited by design.
+7. Keep going on textures, loading screens, GTA-style GUI, loading music. Many agents in parallel.
