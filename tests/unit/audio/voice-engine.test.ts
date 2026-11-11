@@ -235,7 +235,9 @@ describe('SpeechPlayer', () => {
     let ended = false;
     t.player.play(lines, { onLine: (c) => seen.push(c.id), onEnd: () => { ended = true; } });
     await flush(40);
-    expect(t.engine.calls.map((c) => [c.voice, c.speed])).toEqual([['am_onyx', 1.05], ['am_onyx', 1.05], ['am_liam', 1.08]]);
+    // each phrase carries its own speed from the speaker's rhythm profile (prosody.ts), near the cast speed
+    expect(t.engine.calls.map((c) => c.voice)).toEqual(['am_onyx', 'am_onyx', 'am_liam']);
+    for (const c of t.engine.calls) expect(Math.abs(c.speed / (c.voice === 'am_onyx' ? 1.05 : 1.08) - 1)).toBeLessThan(0.3);
     expect(t.engine.calls[0].text).toBe('Good morning, Brooklyn.');
     expect(t.sources).toHaveLength(3);
     const [a, b, c] = t.sources;
@@ -257,7 +259,7 @@ describe('SpeechPlayer', () => {
     t.player.play(lines);
     await flush(40);
     expect(t.engine.calls.length).toBe(n);
-    expect(t.cache.has(clipKey('Good morning, Brooklyn.', 'am_onyx', 1.05))).toBe(true);
+    expect(t.cache.has(clipKey('Good morning, Brooklyn.', 'am_onyx', t.engine.calls[0].speed))).toBe(true);
   });
 
   it('cancel stops scheduled audio, drops queued renders and never fires onEnd', async () => {

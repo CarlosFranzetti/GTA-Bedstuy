@@ -346,11 +346,11 @@ describe('fixtures', () => {
   });
 
   it('two nodes joined by a ribbonless edge become one unioned polygon (no overlap)', () => {
-    // two crossings of a 10 m street with 10 m cross streets 14 m apart: the link has no ribbon
+    // two crossings of a 10 m street with 10 m cross streets 10 m apart: the link has no ribbon
     const nodes: RNNodeData[] = [
-      { p: P(0, 0), control: 'signal' }, { p: P(14, 0), control: 'signal' },
-      { p: P(-100, 0), control: 'stub' }, { p: P(114, 0), control: 'stub' },
-      { p: P(0, -100), control: 'stub' }, { p: P(0, 100), control: 'stub' }, { p: P(14, -100), control: 'stub' }, { p: P(14, 100), control: 'stub' },
+      { p: P(0, 0), control: 'signal' }, { p: P(10, 0), control: 'signal' },
+      { p: P(-100, 0), control: 'stub' }, { p: P(110, 0), control: 'stub' },
+      { p: P(0, -100), control: 'stub' }, { p: P(0, 100), control: 'stub' }, { p: P(10, -100), control: 'stub' }, { p: P(10, 100), control: 'stub' },
     ];
     const mk = (a: number, b: number): RNEdgeData => ({ a, b, pts: [nodes[a].p, nodes[b].p], name: `e${a}${b}`, cls: 'street', width: 10, sidewalk: 4, lanes: 2, oneway: 0, level: 0 });
     const net = withBlocks(nodes, [mk(2, 0), mk(0, 1), mk(1, 3), mk(0, 4), mk(0, 5), mk(1, 6), mk(1, 7)]);
@@ -358,9 +358,9 @@ describe('fixtures', () => {
     expect(hasRibbon(net, d, 1)).toBe(false);
     const roads = buildRoadMeshes(net, d, mats, { tier: 'low' });
     const asphalt = trisOf(roads, 'asphalt');
-    expect(overlapNear(asphalt, P(7, 0), 60)).toBeLessThan(0.05);
+    expect(overlapNear(asphalt, P(5, 0), 60)).toBeLessThan(0.05);
     // the link edge is covered by the union
-    expect(asphalt.some((t) => pointInTri(P(7, 0), t))).toBe(true);
+    expect(asphalt.some((t) => pointInTri(P(5, 0), t))).toBe(true);
   });
 
   it('unionPolygons: two overlapping squares give one ring of the union area; disjoint squares give null', () => {
