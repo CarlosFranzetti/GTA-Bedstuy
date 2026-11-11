@@ -22,8 +22,9 @@
  *
  * Rings. `curbRings[i]` is block i's kerb polygon (curb returns included) and `buildingRings[i]` its building line (kerb
  * offset inward by each edge's sidewalk width; corner arcs concentric: radius r - sidewalk, sharp when that is < 0.3 m).
- * Both have positive signed area in the geom.ts convention (clockwise on screen). `buildingRings[i]` is [] when the block is
- * too thin to hold a building line (collapsed or self-crossing).
+ * Both have positive signed area in the geom.ts convention (clockwise on screen). `curbRings[i]` is [] only for a traffic
+ * island smaller than the surrounding roads; `buildingRings[i]` is [] when the block is too thin to hold a building line
+ * (collapsed or self-crossing).
  *
  * Stubs, dead ends and pass-through nodes get no node polygon ([]); their ribbon simply ends at the node (cut 0).
  */
@@ -407,9 +408,12 @@ export function deriveGeometry(net: RoadNet, options: DeriveOptions = {}): Deriv
   const curbRings: Vec2[][] = [];
   const buildingRings: Vec2[][] = [];
   for (let i = 0; i < net.blocks.length; i++) {
-    const cr = ringOf(i, false);
-    curbRings.push(signedArea(cr) < 0 ? cr.reverse() : cr);
-    const br = ringOf(i, true);
+    const cr0 = ringOf(i, false);
+    const cr = signedArea(cr0) < 0 ? cr0.reverse() : cr0;
+    // a traffic island smaller than the roads around it has no kerb of its own once the roads are widened: []
+    const crOk = cr.length >= 3 && signedArea(cr) > 0.05 && isSimpleRing(cr);
+    curbRings.push(crOk ? cr : []);
+    const br = crOk ? ringOf(i, true) : [];
     const ok = br.length >= 3 && signedArea(br) > 0.5 && isSimpleRing(br);
     buildingRings.push(ok ? br : []);
   }

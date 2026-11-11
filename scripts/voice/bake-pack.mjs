@@ -16,6 +16,7 @@
 //   node scripts/voice/bake-pack.mjs --plan                 print the plan (clips, speech seconds, per tier) and exit
 //   nohup node scripts/voice/bake-pack.mjs > cache/voice-bake/bake.log 2>&1 &      render in the background
 //   node scripts/voice/bake-pack.mjs --status              progress, speed, eta, bytes, coverage per tier
+//   node scripts/voice/bake-pack.mjs --count-chars          characters an ElevenLabs bake of this plan would bill (no API call)
 //   node scripts/voice/bake-pack.mjs --assemble             rebuild public/voice from the finished clips and exit
 //
 // Options: --out public/voice  --tiers 0,1,2  --shard 0/2 (run two processes on different cores)  --limit N
@@ -34,7 +35,7 @@ const opt = (n, d) => { const i = args.indexOf(`--${n}`); return i >= 0 && args[
 const flag = (n) => args.includes(`--${n}`);
 
 // ---- proxy re-launch (Node only honours these at start-up)
-if ((process.env.HTTPS_PROXY || process.env.https_proxy) && !process.env.NODE_USE_ENV_PROXY && !flag('no-relaunch') && !flag('assemble') && !flag('plan') && !flag('status')) {
+if ((process.env.HTTPS_PROXY || process.env.https_proxy) && !process.env.NODE_USE_ENV_PROXY && !flag('no-relaunch') && !flag('assemble') && !flag('plan') && !flag('status') && !flag('count-chars')) {
   const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...args, '--no-relaunch'], {
     stdio: 'inherit',
     env: { ...process.env, NODE_USE_ENV_PROXY: '1', NODE_EXTRA_CA_CERTS: process.env.NODE_EXTRA_CA_CERTS || '/root/.ccr/ca-bundle.crt' },
@@ -149,6 +150,15 @@ if (flag('plan')) {
   const s = stats(plan);
   console.log(JSON.stringify({ clips: s.clips, chars: s.chars, approxSpeechSec: Math.round(s.approxSec), approxMinutes: +(s.approxSec / 60).toFixed(1), byTier: s.byTier }, null, 2));
   console.log(`bundle+plan ${(Date.now() - t0) / 1000}s; at 6x real time the whole plan renders in about ${(s.approxSec * 6 / 3600).toFixed(1)} h`);
+  process.exit(0);
+}
+
+if (flag('count-chars')) {
+  // What an ElevenLabs bake of the same plan would cost: one billed character per spoken character per clip. Nothing is called.
+  const byTier = {}; let total = 0;
+  for (const c of plan) { byTier[c.tier] = (byTier[c.tier] ?? 0) + c.text.length; total += c.text.length; }
+  const talk = plan.filter((c) => c.tier <= 3).reduce((n, c) => n + c.text.length, 0);
+  console.log(JSON.stringify({ clips: plan.length, totalChars: total, talkAndDjChars: talk, byTier, note: 'planning only; no API is called' }, null, 2));
   process.exit(0);
 }
 

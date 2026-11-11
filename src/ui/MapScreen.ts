@@ -372,7 +372,7 @@ export class MapScreen {
 
   /** One snap-level in (+1) or out (-1), about the screen centre of the map. */
   stepZoom(dir: 1 | -1): void {
-    this.zoomTo = { scale: this.view.stepScale(dir), sx: this.view.ox, sy: this.view.oy };
+    this.zoomTo = { scale: this.view.stepScale(dir, this.zoomTo?.scale), sx: this.view.ox, sy: this.view.oy };
     this.atFit = false;
   }
 

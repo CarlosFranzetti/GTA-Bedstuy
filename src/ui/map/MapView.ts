@@ -107,12 +107,12 @@ export class MapView {
     return best;
   }
   /** The level one step in/out from the current one (stays put at the ends). */
-  stepScale(dir: 1 | -1): number {
+  stepScale(dir: 1 | -1, from = this.scale): number {
     const lv = this.levels();
-    if (!lv.length) return this.scale;
-    const cur = this.levelIndex();
+    if (!lv.length) return from;
+    const cur = this.levelIndex(from);
     // when between levels, a step goes to the next level in that direction
-    const i = dir > 0 ? (lv[cur] > this.scale * 1.02 ? cur : cur + 1) : (lv[cur] < this.scale / 1.02 ? cur : cur - 1);
+    const i = dir > 0 ? (lv[cur] > from * 1.02 ? cur : cur + 1) : (lv[cur] < from / 1.02 ? cur : cur - 1);
     return lv[clamp(i, 0, lv.length - 1)];
   }
 }

@@ -80,6 +80,7 @@ describe('waypoint and blips', () => {
     map.tapAt(at(300, 300).x, at(300, 300).y);
     expect(map.selectedBlip?.label).toBe('Bodega');
     expect(getWaypoint()).toMatchObject({ x: 300, z: 300, label: 'Bodega' });
+    map.update({ x: 0, z: 0 }, 0);
     expect((map.root.querySelector('.map-card') as HTMLElement).hidden).toBe(false);
     expect(map.blips().some((b) => b.kind === 'station')).toBe(true);
   });
