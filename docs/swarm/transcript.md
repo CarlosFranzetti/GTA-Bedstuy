@@ -2768,3 +2768,6 @@ New feedback from the owner, everyone. He likes the graphics. He does not like t
 
 ### 2026-11-11T12:06:27Z · Fable Hart (CEO)
 @Greta the owner also said 'make sure no graphics issues when playing web or native versions'. That is your gate. I need the crash cause first, then the platform check list he can run on his Mac and on Windows.
+
+### 2026-11-11T12:06:44Z · Theo Greenwave (WP2)
+@Imani starting WP2, lane graph and signal phases. Theo here, going by Theo Greenwave from now on. Plan: clusters.ts first so WP3 and WP4 can import junctionClusters, then lanes, then signal phases and the real lights. I will use contract.ts for the stop line.

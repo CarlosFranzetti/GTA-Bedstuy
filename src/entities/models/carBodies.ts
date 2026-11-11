@@ -1545,7 +1545,8 @@ export function cabinTrim(hull: Hull, chrome: Acc, trim: Acc, lay: CabinLayout):
     const path: [number, number][] = [[iA, 0], [iA, 1]];
     for (const i of seq(iA, iB)) path.push([i, 2]);
     path.push([iB, 1], [iB, 0]);
-    chrome.addBoth(rib(path));
+    trim.addBoth(rib(path, 0.034, 0.003)); // black frit border round the glass
+    chrome.addBoth(rib(path, 0.008, 0.0045)); // thin bright edge
   }
   for (const su0 of seams) {
     const i = hull.at(su0);
@@ -1725,7 +1726,16 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     for (const ax of [axleF, axleR]) yBot = Math.max(yBot, archY(arch, u - ax));
     yBot = Math.max(yBot, st.sill + (front ? 0.2 : 0.12) * (1 - t) * (1 - t));
     const yBelt = fyBelt(u) - drop;
-    const yT = fyT(u) - drop;
+    // greenhouse: the windshield and the rear window are each one planar, raked surface (straight line between the cowl and the header),
+    // so the glass is a flat pane with crisp edges instead of a bent, rounded-over sheet
+    let yTu = fyT(u);
+    const w0 = st.windshield[0] * kx, w1 = st.windshield[1] * kx;
+    if (u <= w0 && u >= w1 && w0 > w1) yTu = lerp(fyT(w0), fyT(w1), (w0 - u) / (w0 - w1));
+    else if (st.rearGlass && !st.hatchback) {
+      const r0 = st.rearGlass[0] * kx, r1 = st.rearGlass[1] * kx;
+      if (u <= r0 && u >= r1 && r0 > r1) yTu = lerp(fyT(r0), fyT(r1), (r0 - u) / (r0 - r1));
+    }
+    const yT = yTu - drop;
     yBot = Math.min(yBot, yBelt - 0.13);
     const wMax = Wb2 * (0.6 + 0.4 * g) * planAt(u / kx);
     return { yT, yBelt, yBot, wMax, wR: fwR(u) * wMax, yGl: st.glassTop === undefined ? undefined : st.glassTop * ky };
@@ -1882,7 +1892,7 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
       const wp = bx(0.5, 0.01, 0.014, sx2 * 0.3 + 0.12, rw.yT + 0.015, -(ws[0] - 0.05));
       wp.rotateY(0); trim.add(wp);
     }
-    trim.add(bx(2 * rw.wMax * 0.8, 0.012, 0.05, 0, rw.yT + 0.008, -(ws[0] + 0.02)));
+    trim.add(bx(2 * rw.wR * 0.9, 0.01, 0.03, 0, rw.yT + 0.006, -(ws[0] + 0.015))); // cowl strip: windshield width, thin
   }
 
   // ---- front / rear fascia
