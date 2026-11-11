@@ -387,7 +387,7 @@ describe('director wiring', () => {
     const speech = new FakeSpeech();
     const talk = new TalkPlayer({ speech: null, makeUtterance: mkUtt, audio: { sting: () => 0, setBed: () => undefined, volume: () => 1 } }, []);
     const sweeps: string[] = [];
-    const dir = new RadioDirector(new Library(), talk, undefined, undefined, { feed: null, scEnv: { canLoad: () => false, storage: { load: () => [{ url: 'https://soundcloud.com/a/one' }, { url: 'https://soundcloud.com/b/two' }], save: () => undefined } }, voice: { speech, makeUtterance: mkUtt, volume: () => 1 } });
+    const dir = new RadioDirector(new Library(), talk, undefined, undefined, { feed: null, autoSkip: false, scEnv: { canLoad: () => false, storage: { load: () => [{ url: 'https://soundcloud.com/a/one' }, { url: 'https://soundcloud.com/b/two' }], save: () => undefined } }, voice: { speech, makeUtterance: mkUtt, volume: () => 1 } });
     dir.onSweeper = (e) => sweeps.push(e.id);
     dir.setOn(true);
     dir.update(2.5);

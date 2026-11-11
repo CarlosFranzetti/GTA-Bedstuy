@@ -247,11 +247,11 @@ describe('test link', () => {
 });
 
 describe('dial order', () => {
-  it('puts Radio SC as the eighth SoundCloud station, right before WBSY Talk', () => {
+  it('ends the 15-station dial with the two talk stations', () => {
     const dir = new RadioDirector(new Library(null), new TalkPlayer({ speech: null, makeUtterance: () => { throw new Error('x'); }, audio: { sting: () => 0, setBed: () => undefined, volume: () => 1 } }, []), undefined, setup().sc);
     const names = dir.stations.map((s) => s.name);
-    expect(names.slice(-2)).toEqual(['Radio SC', 'WBSY Talk']);
-    expect(dir.stations.at(-1)!.kind).toBe('talk');
+    expect(names.slice(-2)).toEqual(['WBSY Talk', 'WNYC 93.9 FM']);
+    expect(names).toContain('Resident Advisor');
   });
 });
 

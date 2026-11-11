@@ -75,6 +75,8 @@ export interface DirectorOptions {
   announcer?: Announcer;
   /** Live-stream environment (tests: fake audio element, clock). */
   liveEnv?: Partial<LiveEnv>;
+  /** Move to the next station when the tuned one fails (default true). */
+  autoSkip?: boolean;
   /** Remembers the last station across sessions. Absent = not persisted. */
   lastStore?: LastStationStore;
 }
@@ -119,6 +121,7 @@ export class RadioDirector {
   private readonly failWave = new Set<string>();
   private readonly handledFail = new Set<string>();
   private readonly lastStore: LastStationStore | null;
+  private readonly autoSkip: boolean;
   private readonly changeListeners = new Set<() => void>();
   /** Hour, weather and street that the announcers talk about. */
   private broadcast: BroadcastContext = { ...DEFAULT_BROADCAST };
@@ -154,6 +157,7 @@ export class RadioDirector {
     this.sc = this.scMap.get('sc')!;
     this.sc.onGameHour = (h) => { if (h !== null) this.broadcast.hour = h; };
     this.lastStore = opts.lastStore ?? null;
+    this.autoSkip = opts.autoSkip !== false;
     for (const e of CATALOG) {
       if (e.kind !== 'live-stream') continue;
       const ls = new LiveStation(e, opts.liveEnv);
@@ -450,6 +454,7 @@ export class RadioDirector {
 
   /** Tunes to the next station that has not failed in this run, with a toast. Stops when every station has failed. */
   private skipFailed(from: RadioStationEntry): void {
+    if (!this.autoSkip) return;
     this.failWave.add(from.id);
     const n = this.dial.length;
     for (let k = 1; k < n; k++) {

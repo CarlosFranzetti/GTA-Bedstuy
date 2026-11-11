@@ -37,10 +37,10 @@ function setup(tracks: ImportedTrack[] = []) {
 }
 
 describe('station list', () => {
-  it('has the eight SoundCloud stations, then WBSY Talk, and no My Library while the library is empty', () => {
+  it('has the 15 dial stations (8 SoundCloud, 5 live, 2 talk) and no My Library while the library is empty', () => {
     const { dir } = setup();
-    expect(dir.stations.map((s) => s.kind)).toEqual([...Array(8).fill('sc'), 'talk']);
-    expect(dir.stations.map((s) => s.name)).toEqual(['Boiler Room', 'Dekmantel Podcast', 'Rinse FM', 'Soulection', 'NTS Shows', 'The Lot Radio', 'FACT Mixes', 'Radio SC', 'WBSY Talk']);
+    expect(dir.stations.map((s) => s.kind)).toEqual(['sc', 'sc', 'sc', 'sc', 'sc', 'sc', 'sc', 'sc', ...Array(5).fill('live'), 'talk', 'live']);
+    expect(dir.stations.map((s) => s.name)).toEqual(['Boiler Room', 'Dekmantel Podcast', 'Resident Advisor', 'NTS Shows', 'FACT Mixes', 'Rinse FM', 'Soulection', 'The Lot Radio', 'dublab', 'KEXP 90.3', 'Radio Paradise', 'WFMU 91.1', 'SomaFM Underground 80s', 'WBSY Talk', 'WNYC 93.9 FM']);
     expect(dir.libraryOnDial).toBe(false);
   });
 
@@ -48,10 +48,10 @@ describe('station list', () => {
     const { dir, lib } = setup([item('Pop/a.mp3', 100)]);
     expect(dir.libraryOnDial).toBe(true);
     expect(dir.stations.at(-1)).toMatchObject({ id: 'mylib', name: 'My Library', kind: 'library' });
-    expect(dir.stations).toHaveLength(10);
+    expect(dir.stations).toHaveLength(16);
     lib.reset();
-    expect(dir.stations).toHaveLength(9);
-    expect(dir.stations.at(-1)!.kind).toBe('talk');
+    expect(dir.stations).toHaveLength(15);
+    expect(dir.stations.at(-1)!.id).toBe('wnyc');
   });
 
   it('stays off the dial when tracks are saved but their files are not loaded this session', () => {
@@ -260,6 +260,6 @@ describe('tune callback', () => {
     dir.onTune = (e) => seen.push(e.id);
     dir.next();
     dir.next();
-    expect(seen).toEqual(['dublab', 'stoop']);
+    expect(seen).toEqual(['dublab', 'sc']);
   });
 });

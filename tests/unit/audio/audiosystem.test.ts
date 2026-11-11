@@ -238,14 +238,15 @@ describe('AudioSystem radio', () => {
     expect(audio.stationName).toBe('Boiler Room');
   });
 
-  it('steps through the whole dial on nextStation() and wraps: 8 SoundCloud stations, WBSY Talk', async () => {
+  it('steps through the whole 15-station dial on nextStation() and wraps', async () => {
     const { audio } = setup();
     await audio.start();
     const names = [audio.stationName];
-    for (let i = 0; i < 8; i++) { audio.nextStation(); names.push(audio.stationName); }
+    for (let i = 0; i < 14; i++) { audio.nextStation(); names.push(audio.stationName); }
     expect(names).toEqual([
-      'Boiler Room', 'Dekmantel Podcast', 'Rinse FM', 'Soulection', 'NTS Shows', 'The Lot Radio', 'FACT Mixes', 'Radio SC',
-      'WBSY Talk (voice unavailable on this device)',
+      'Boiler Room', 'Dekmantel Podcast', 'Resident Advisor', 'NTS Shows', 'FACT Mixes', 'Rinse FM', 'Soulection', 'The Lot Radio',
+      'dublab', 'KEXP 90.3', 'Radio Paradise', 'WFMU 91.1', 'SomaFM Underground 80s',
+      'WBSY Talk (voice unavailable on this device)', 'WNYC 93.9 FM',
     ]);
     audio.nextStation();
     expect(audio.stationName).toBe('Boiler Room');

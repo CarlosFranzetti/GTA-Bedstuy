@@ -199,7 +199,7 @@ describe('AudioSystem with the music library', () => {
     await audio.start();
     events.emit('enterVehicle', { vehicleId: 'v' });
     const before = created.osc.length;
-    for (let i = 0; i < 8; i++) audio.nextStation();
+    audio.selectRadioStation('talk');
     expect(audio.stationName).toBe('WBSY Talk (voice unavailable on this device)');
     for (let i = 0; i < 20; i++) audio.update(0.5);
     expect(created.osc.length).toBeGreaterThan(before); // bed + stings
