@@ -391,7 +391,14 @@ export function deriveGeometry(net: RoadNet, options: DeriveOptions = {}): Deriv
       for (let q = 0; q < wpts.length; q++) {
         if (q > 0) acc += distance(wpts[q - 1], wpts[q]);
         if (q === 0 || q === wpts.length - 1) continue;
-        if (acc > startT + 1e-6 && acc < L - endT - 1e-6) ring.push(offsetVertex(wpts[q - 1], wpts[q], wpts[q + 1], off));
+        if (acc <= startT - 4 * off || acc >= L - endT + 4 * off) continue; // far inside a corner: cannot matter
+        const v = offsetVertex(wpts[q - 1], wpts[q], wpts[q + 1], off);
+        // position of the (mitred) offset vertex along the incoming and outgoing segments; the kerb corner returns end at startT / L - endT
+        const l1 = distance(wpts[q - 1], wpts[q]) || 1;
+        const l2 = distance(wpts[q], wpts[q + 1]) || 1;
+        const sIn = acc - l1 + ((v.x - wpts[q - 1].x) * (wpts[q].x - wpts[q - 1].x) + (v.z - wpts[q - 1].z) * (wpts[q].z - wpts[q - 1].z)) / l1;
+        const sOut = acc + ((v.x - wpts[q].x) * (wpts[q + 1].x - wpts[q].x) + (v.z - wpts[q].z) * (wpts[q + 1].z - wpts[q].z)) / l2;
+        if (sIn > startT + 1e-6 && sOut < L - endT - 1e-6) ring.push(v);
       }
     }
     const out = dedupe(ring);

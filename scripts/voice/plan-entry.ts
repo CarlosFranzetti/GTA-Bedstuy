@@ -9,7 +9,8 @@
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { planPack, planStats, type PlanClip, type StationFill } from '../../src/audio/voice/packPlan';
-import { planBarks } from '../../src/audio/voice/peds/lines';
+import { BARKS as SOCIAL_BARKS } from '../../src/game/pedBarks';
+import { planBarks, planExternalBarks } from '../../src/audio/voice/peds/lines';
 import { planStory, type StoryLine } from '../../src/audio/voice/StoryVoices';
 
 /** Mission and story dialogue: every `{ who: '...', text: '...' }` literal under src/game/missions/content (no world needed). */
@@ -38,6 +39,6 @@ export async function buildPlan(root: string, snapshotPath: string): Promise<Pla
   const dir = join(root, 'src/game/missions/content');
   let story: StoryLine[] = [];
   try { story = extractStoryLines(dir); } catch (e) { console.warn(`[plan] story lines unavailable: ${(e as Error).message}`); }
-  return planPack({ stations, extra: [...planStory(story), ...planBarks()] });
+  return planPack({ stations, extra: [...planStory(story), ...planBarks(), ...planExternalBarks(['chat', 'chatReply', 'laugh', 'bye', 'excuse', 'bumped', 'crash', 'phone'].flatMap((k) => [...(SOCIAL_BARKS as Record<string, readonly string[]>)[k] ?? []]))] });
 }
 export { planStats };

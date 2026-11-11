@@ -30,9 +30,18 @@ const full = new Map();
 for (const p of posts) if (p.name.includes(' ') && p.first !== 'Fable') full.set(p.first, p.name);
 full.set('Fable', 'Fable Hart');
 const show = (first) => full.get(first) ?? first;
-const line = (p) => `**${show(p.first)}** · ${p.t}\n> ${p.body}\n`;
+// chat style: "Rafael Stoop, to Imani (11:09): ..." with the leading @mentions turned into the addressee
+const line = (p) => {
+  const to = [];
+  let body = p.body;
+  for (;;) { const m = body.match(/^@([A-Z][a-z]+)(?:\s+[A-Z][\w"'-]+)?[,:]?\s+/); if (!m) break; to.push(show(m[1]).split(' ')[0]); body = body.slice(m[0].length); }
+  body = body.replace(/@([A-Z][a-z]+)/g, (_, n) => show(n).split(' ')[0]);
+  body = body.charAt(0).toUpperCase() + body.slice(1);
+  const whom = to.length ? `, to ${[...new Set(to)].join(' and ')}` : '';
+  return `**${show(p.first)}**${whom} (${p.t}): ${body}\n`;
+};
 const allHands = posts.filter((p) => p.first === 'Fable');
-let md = `# Studio conversations\n\nFrom ${since.slice(0, 16).replace('T', ' ')} UTC. Posts are shown as written, grouped by who was talking. `
+let md = `# Studio conversations\n\nFrom ${since.slice(0, 16).replace('T', ' ')} UTC. Each line is one post, in order, with who was speaking and who they were speaking to. `
   + `Times are UTC.\n\n## All hands: Fable Hart to the studio\n\n${allHands.map(line).join('\n')}\n`;
 for (const [team, info] of Object.entries(TEAMS)) {
   const thread = posts.filter((p) => teamOf(p.first) === team || (p.first === 'Fable' && info.people.some((n) => p.body.includes('@' + n))));

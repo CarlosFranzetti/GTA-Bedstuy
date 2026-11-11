@@ -81,3 +81,15 @@ export function planBarks(): PlanClip[] {
   }
   return out;
 }
+
+/** Lines written by CHAR14 (src/game/pedBarks.ts) for kinds without a table here: baked for two groups each, tier 5. */
+export function planExternalBarks(lines: readonly string[]): PlanClip[] {
+  const out: PlanClip[] = [];
+  for (const text of new Set(lines)) {
+    for (const gid of bakedGroups(`ext:${hash32(text)}`, [])) {
+      const g = GROUP_BY_ID.get(gid)!;
+      out.push({ key: clipKey(text, g.voice, g.speed), who: g.id, voice: g.voice, speed: g.speed, text, kind: 'bark', bank: `bark-${g.id}`, tier: 5 });
+    }
+  }
+  return out;
+}

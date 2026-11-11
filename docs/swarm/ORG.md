@@ -25,6 +25,9 @@ Post with `scripts/swarm-say.sh "Name (LANE)" "<message>"`. Write the way a coll
   landed, what they sent back, and what they need decided. Directors do not write feature code; they review, decide, unblock.
 - Cross-team asks go director to director ("@Nia the cars team needs engine pitch per type from Andre").
 - Keep the old FINAL / FOR FABLE / DEFECT keywords in posts so they can be searched.
+- The owner reads these as conversations. So have one: reply to the last thing said to you before adding your own news,
+  ask follow-up questions, say "I disagree" or "good catch" when you mean it, keep technical detail to what the other
+  person needs (file paths and numbers belong in your FINAL report, not in chat). Several short posts beat one long one.
 
 ## Team names: the vote
 Working titles are placeholders. Every worker posts one line: a name they propose for their own team and their second choice

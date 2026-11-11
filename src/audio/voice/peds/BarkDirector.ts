@@ -34,10 +34,8 @@ export const LIMITS = {
 } as const;
 
 const AMBIENT: ReadonlySet<BarkKind> = new Set(['greeting', 'chat', 'stoop', 'seller']);
-const EXT_REACTION: ReadonlySet<string> = new Set(['bumped', 'crash']);
-export function classOf(kind: string): SpeechClass { return AMBIENT.has(kind as BarkKind) ? 'ambient' : kind in EXT_AMBIENT || !EXT_REACTION.has(kind) && !(kind in REACTION_KINDS) ? 'ambient' : 'reaction'; }
-const EXT_AMBIENT: Record<string, true> = { chatReply: true, laugh: true, bye: true, excuse: true, phone: true };
 const REACTION_KINDS: Record<string, true> = { carClose: true, horn: true, nearMiss: true, knockedDown: true, gunshot: true, wanted: true, rain: true, playerRunning: true, playerDancing: true, complaint: true, bumped: true, crash: true };
+export function classOf(kind: string): SpeechClass { return kind in REACTION_KINDS ? 'reaction' : 'ambient'; }
 
 /** Leila's request (event `pedBark`): WHEN a ped speaks and to whom. */
 export interface PedBarkEvent {
@@ -196,7 +194,7 @@ export class BarkDirector {
       if (!s.hasPos || !ev.pos || Math.hypot(s.x - pos.x, s.y - pos.y) <= LIMITS.areaRadius) return this.drop('area');
     }
     if (ev.kind === 'chat' && ev.with) return this.requestChat(ev, now, dist, pos);
-    if (!(ev.kind in REACTION_KINDS) && !AMBIENT.has(ev.kind as BarkKind) && !ev.text) return this.drop('bad');
+    if (!(BARK_KINDS as readonly string[]).includes(ev.kind) && !ev.text) return this.drop('bad');
 
     const blocked = this.blockedPresets();
     const voice = this.registry.voiceFor(ev.pedId, { seed: ev.seed ?? hashId(ev.pedId), age: ev.age, gender: ev.gender }, pos, blocked);

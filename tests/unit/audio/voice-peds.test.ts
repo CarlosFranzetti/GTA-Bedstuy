@@ -4,7 +4,7 @@ import { assignVoice, candidateGroups, PedVoiceRegistry, playbackFor, MAX_CENTS 
 import { BARK_KINDS, BARKS, CHATS, norm } from '@/audio/voice/peds/barks';
 import { BARK_LINES, planBarks } from '@/audio/voice/peds/lines';
 import { PED_GROUPS } from '@/audio/voice/peds/groups';
-import { BarkDirector, LIMITS, type BackendHooks, type DirectorEnv, type SpeakJob, type SpeechBackend, type SpeechEventName } from '@/audio/voice/peds/BarkDirector';
+import { BarkDirector, LIMITS, normalizeBark, type BackendHooks, type DirectorEnv, type SpeakJob, type SpeechBackend, type SpeechEventName } from '@/audio/voice/peds/BarkDirector';
 import { syllableOpen, distanceGain } from '@/audio/voice/peds/PedVoicePlayer';
 import { findBlocked, findDenied } from '@/audio/voice/script';
 import { STORY_VOICES, planStory } from '@/audio/voice/StoryVoices';
@@ -323,5 +323,20 @@ describe('pack plan', () => {
     expect(plan[0].tier).toBe(0);
     expect(plan.some((c) => c.text.includes('{'))).toBe(false);
     expect(ADS.map((a) => a.id).join(' ')).not.toMatch(/oatly/);
+  });
+});
+
+describe('pedBark shapes', () => {
+  it('accepts PedSocial\'s event (id, text, pos x/z, sex, age) and maps kinds', () => {
+    const e = normalizeBark({ id: 'p9', text: 'Whoa! Slow down!', kind: 'nearMiss', pos: { x: 3, z: 4 }, pitch: 1, rate: 1, sex: 'f', age: 'old', loud: 1 })!;
+    expect(e).toMatchObject({ pedId: 'p9', kind: 'nearMiss', gender: 'f', age: 'elder', pos: { x: 3, y: 4 } });
+    expect(normalizeBark({ id: 'p1', text: 'Walk safe.', kind: 'bye', pos: { x: 0, z: 0 } })!.text).toBe('Walk safe.');
+    expect(normalizeBark({ nope: 1 })).toBeNull();
+  });
+  it('speaks the emitter\'s own text for kinds without a table', () => {
+    const sim = makeSim();
+    expect(sim.dir.request(normalizeBark({ id: 'p1', text: 'Walk safe.', kind: 'bye', pos: { x: 0, z: 0 } })!)).toBe(true);
+    expect(sim.begun[0].text).toBe('Walk safe.');
+    expect(sim.dir.request({ pedId: 'p2', kind: 'bye', pos: { x: 90, y: 0 } })).toBe(false);
   });
 });
