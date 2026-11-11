@@ -103,3 +103,5 @@ Each type must be recognisable with eyes closed within 2 s of idle or 3 s of a p
   (primary/fallback/bed), stall count over 120 s; plus the same from a second network if any URL 403s here.
 - VOX/VOICE14: time to first audio per line (pack, cache, live), render speed (seconds of compute per second of audio),
   pack size, per-clip LUFS spread (all within -16 +/- 1), subtitle sync error under 150 ms.
+
+Decision (owner, 11 Nov): scripted hosts and shows use the free voices. ElevenLabs is not used.

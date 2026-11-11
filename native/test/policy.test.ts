@@ -78,3 +78,13 @@ describe('window state', () => {
     expect(loadState(fs, f + '.missing', d).width).toBe(1280);
   });
 });
+
+describe('appQueryFromArgs', () => {
+  it('maps the debug and tier switches and ignores anything else', async () => {
+    const { appQueryFromArgs } = await import('../src/policy');
+    expect(appQueryFromArgs(['/Applications/GTA Bed-Stuy.app/Contents/MacOS/GTA Bed-Stuy'])).toBe('');
+    expect(appQueryFromArgs(['x', '--debug-gfx'])).toBe('?debug=gfx');
+    expect(appQueryFromArgs(['x', '--debug-gfx', '--q=low'])).toBe('?debug=gfx&q=low');
+    expect(appQueryFromArgs(['x', '--q=ultra', '--q=<script>', '--url=evil'])).toBe('');
+  });
+});

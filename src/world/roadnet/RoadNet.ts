@@ -187,7 +187,7 @@ export class RoadNet {
         const b = pts[k + 1];
         const l = distance(a, b);
         if (l < 1e-6) continue;
-        // left-hand normal in screen space (+z down) for a positive (clockwise-on-screen) ring points inward
+        // (-dz, dx) points to the right of the walk in the top-down view, i.e. into a positive (clockwise) ring
         const nx = (-(b.z - a.z) / l) * sgn;
         const nz = ((b.x - a.x) / l) * sgn;
         sides.push({ a: { x: a.x + nx * off, z: a.z + nz * off }, b: { x: b.x + nx * off, z: b.z + nz * off } });

@@ -17,6 +17,7 @@ import { createCanvas } from '@/textures/canvas';
 import { heightFromRgba, heightToNormal } from '@/textures/normalmap';
 import { HEAD_MAP, HI_RECTS, PEDHI_ATLAS, paintPedHi, type HiTile } from '@/textures/painters/pedHi';
 import { PED_SPECS, PED_VARIANT_COUNT, pedVariantIndex, type PedSpec, type PxRect } from '@/textures/painters/ped';
+import { pedFabrics } from '@/textures/painters/pedHi';
 import { carPaintConfigured, carPaintTier } from '@/render/CarPaintFx';
 import { pickPedVariant, type PedModel, type PedOptions } from './pedBody';
 
@@ -447,16 +448,82 @@ export function fabricsFor(spec: PedSpec): Array<[HiTile, Fabric]> {
   if (['#101010', '#161616', '#3a2a1c', '#5b3a24', '#8a5a2a'].includes(spec.shoes.color)) out.push(['shoe', 'leather']);
   return out;
 }
-function withFabric(f: Fabric, kind: 'normal' | 'rough', done: (img: HTMLImageElement) => void): void {
-  const url = fabricUrl(f, kind);
-  if (!url || typeof Image === 'undefined') return;
-  const key = `${f}:${kind}`, have = fabricImgs.get(key);
-  if (have && have !== 'loading') { done(have); return; }
-  const img = new Image();
-  img.onload = () => { fabricImgs.set(key, img); done(img); };
-  img.onerror = () => { /* keep the painted relief */ };
-  if (!have) fabricImgs.set(key, 'loading');
-  img.src = url;
+// ---- cloth micro-normal: one tiled detail normal per fabric family, shared by every person (cloth only, at garment scale, not stretched over a tile)
+type DetailSet = 'denim' | 'cotton_knit' | 'nylon_puffer' | 'none';
+const DETAIL_OF: Record<string, [DetailSet, number, number]> = {   // fabric -> [CC0 set, repeats across the atlas, strength]
+  denim: ['denim', 34, 0.9], canvas: ['denim', 22, 0.8], knit: ['cotton_knit', 26, 1.0], jersey: ['cotton_knit', 42, 0.55], fleece: ['cotton_knit', 20, 0.8],
+  wool: ['cotton_knit', 30, 0.7], poplin: ['cotton_knit', 56, 0.4], nylon: ['nylon_puffer', 40, 0.7], leather: ['none', 1, 0], satin: ['none', 1, 0],
+};
+const detailTex = new Map<DetailSet, THREE.Texture>();
+/** a small tileable twill / weave normal, painted procedurally: the stand-in until a CC0 map has loaded (and on the hosted build, which ships none) */
+function proceduralDetail(): THREE.Texture {
+  const n = 64, h = new Float32Array(n * n);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const tw = Math.sin(((x + y) / n) * Math.PI * 16) * 0.5 + 0.5, wv = (Math.floor(x / 2) + Math.floor(y / 2)) % 2 ? 0.25 : 0;
+    h[y * n + x] = tw * 0.6 + wv + (((x * 928371 + y * 689287) % 97) / 97) * 0.15;
+  }
+  const out = new Uint8Array(n * n * 4);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const g = (xx: number, yy: number): number => h[((yy + n) % n) * n + ((xx + n) % n)];
+    const dx = (g(x + 1, y) - g(x - 1, y)) * 1.4, dy = (g(x, y + 1) - g(x, y - 1)) * 1.4, l = Math.hypot(dx, dy, 1), i = (y * n + x) * 4;
+    out[i] = (-dx / l * 0.5 + 0.5) * 255; out[i + 1] = (dy / l * 0.5 + 0.5) * 255; out[i + 2] = (1 / l * 0.5 + 0.5) * 255; out[i + 3] = 255;
+  }
+  const t = new THREE.DataTexture(out, n, n, THREE.RGBAFormat);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.needsUpdate = true;
+  return t;
+}
+function detailFor(set: DetailSet): THREE.Texture | null {
+  if (set === 'none') return null;
+  let t = detailTex.get(set);
+  if (!t) {
+    t = proceduralDetail(); detailTex.set(set, t);
+    const url = fabricUrl(set, 'normal');
+    if (url && typeof Image !== 'undefined') {
+      const img = new Image();
+      img.onload = () => { const real = new THREE.Texture(img); real.wrapS = real.wrapT = THREE.RepeatWrapping; real.anisotropy = 4; real.needsUpdate = true; const old = detailTex.get(set); detailTex.set(set, real); for (const m of detailUsers.get(set) ?? []) { m.uniforms[m.slot].value = real; } void old; };
+      img.src = url;
+    }
+  }
+  return t;
+}
+const detailUsers = new Map<DetailSet, Array<{ uniforms: Record<string, { value: unknown }>; slot: string }>>();
+
+/**
+ * Cloth response on top of MeshPhysicalMaterial: (1) a tiled fabric micro-normal on the garment tiles of the atlas (top tiles take the top's fabric,
+ * leg tiles the trousers'), masked to cloth by the painted roughness (skin and hair are smoother than cloth), (2) a sheen term on cloth only
+ * (fuzz on the grazing edges of cotton and fleece, none on skin), so cloth does not shine like plastic and skin does not look furry.
+ */
+function clothShader(mat: THREE.MeshPhysicalMaterial, spec: PedSpec): void {
+  const fb = pedFabrics(spec), top = DETAIL_OF[fb.top] ?? ['none', 1, 0], bot = DETAIL_OF[fb.bottom] ?? ['none', 1, 0];
+  const tT = detailFor(top[0]), tB = detailFor(bot[0]);
+  mat.onBeforeCompile = (shader) => {
+    const u = shader.uniforms as Record<string, { value: unknown }>;
+    u.pedDetailTop = { value: tT }; u.pedDetailBot = { value: tB };
+    u.pedDetailAmt = { value: new THREE.Vector4(top[2] * (tT ? 1 : 0), bot[2] * (tB ? 1 : 0), top[1], bot[1]) };
+    for (const [set, slot] of [[top[0], 'pedDetailTop'], [bot[0], 'pedDetailBot']] as const) { if (set === 'none') continue; const l = detailUsers.get(set) ?? []; l.push({ uniforms: u, slot }); detailUsers.set(set, l); }
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>
+uniform sampler2D pedDetailTop;
+uniform sampler2D pedDetailBot;
+uniform vec4 pedDetailAmt;
+float pedCloth = 0.0;')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>
+pedCloth = smoothstep(0.6, 0.68, roughnessFactor);')
+      .replace('#include <normal_fragment_maps>', THREE.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', `mapN.xy *= normalScale;
+        {
+          vec2 ap = vec2(vNormalMapUv.x * 512.0, (1.0 - vNormalMapUv.y) * 512.0);
+          float zTop = step(128.0, ap.y) * step(ap.y, 256.0) * step(256.0, ap.x) + step(256.0, ap.y) * step(ap.y, 384.0) * step(ap.x, 256.0);
+          float zBot = step(384.0, ap.y) * step(ap.x, 384.0);
+          vec2 dt = (texture2D(pedDetailTop, vNormalMapUv * pedDetailAmt.z).xy * 2.0 - 1.0) * pedDetailAmt.x * zTop;
+          vec2 db = (texture2D(pedDetailBot, vNormalMapUv * pedDetailAmt.w).xy * 2.0 - 1.0) * pedDetailAmt.y * zBot;
+          mapN.xy += (dt + db) * pedCloth;
+        }`))
+      .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>
+#ifdef USE_SHEEN
+ material.sheenColor *= pedCloth * (0.35 + diffuseColor.rgb);
+#endif');
+  };
+  mat.customProgramCacheKey = () => 'pedcloth1';
 }
 
 /** True on the phone tier (decided when a person is first built). */
@@ -470,7 +537,10 @@ export function pedHiMaterial(materials: IMaterialLibrary, variant: number, phon
   let m = byV.get(key);
   if (m) return m;
   const spec = PED_SPECS[variant];
-  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0, vertexColors: true, name: `pedhi:${spec.id}` });
+  // cloth sheen and a fabric micro-normal (clothShader) on the full tiers; the phone tier keeps the plain standard material
+  const mat: THREE.MeshStandardMaterial = phone
+    ? new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0, vertexColors: true, name: `pedhi:${spec.id}` })
+    : new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0, vertexColors: true, name: `pedhi:${spec.id}`, sheen: 1, sheenRoughness: 0.55, sheenColor: new THREE.Color(0.42, 0.42, 0.42), specularIntensity: 0.7 });
   if (typeof document !== 'undefined' && !canvasBroken) {
     try {
       const size = phone ? 256 : spec.role === 'player' ? 1024 : 512;
@@ -490,13 +560,7 @@ export function pedHiMaterial(materials: IMaterialLibrary, variant: number, phon
           const nc = createCanvas(size, size), nctx = nc.getContext('2d'); nCanvas = nc;
           if (nctx) { nctx.putImageData(new ImageData(nrm as unknown as Uint8ClampedArray<ArrayBuffer>, size, size), 0, 0); const nt = new THREE.CanvasTexture(nc); nt.anisotropy = 4; mat.normalMap = nt; mat.normalScale.set(0.9, 0.9); }
         }
-        const pending: Array<() => void> = [];
-        if (nCanvas && !phone) for (const [tile, fab] of fabricsFor(spec)) {
-          const rc = HI_RECTS[tile], k = size / PEDHI_ATLAS;
-          withFabric(fab, 'normal', (img) => { const c = nCanvas!.getContext('2d'); if (c) { c.drawImage(img, 0, 0, Math.min(img.width, rc.w * 2), Math.min(img.height, rc.h * 2), rc.x * k, rc.y * k, rc.w * k, rc.h * k); if (mat.normalMap) mat.normalMap.needsUpdate = true; } });
-          if (cr) withFabric(fab, 'rough', (img) => { const c = cr!.getContext('2d'); if (c) { c.drawImage(img, 0, 0, Math.min(img.width, rc.w * 2), Math.min(img.height, rc.h * 2), rc.x * k, rc.y * k, rc.w * k, rc.h * k); if (mat.roughnessMap) mat.roughnessMap.needsUpdate = true; } });
-        }
-        void pending;
+        if (!phone) clothShader(mat as THREE.MeshPhysicalMaterial, spec);
         if (cr) { const rt = new THREE.CanvasTexture(cr); rt.anisotropy = 4; mat.roughnessMap = rt; mat.roughness = 1; }
       }
     } catch { /* flat colour fallback */ }

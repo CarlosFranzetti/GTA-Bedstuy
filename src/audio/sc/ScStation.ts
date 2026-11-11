@@ -856,7 +856,7 @@ export class ScStation {
     }
     if (this.env.config.randomStart && !this.randomizedFor && this.widget.getSounds) {
       const w = this.widget;
-      w.getSounds((snd) => this.randomStart(w, snd as ScSound[], true));
+      w.getSounds?.((snd) => this.randomStart(w, snd as ScSound[], true));
       return;
     }
     this.applyPlayback(true);

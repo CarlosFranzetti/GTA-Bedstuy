@@ -63,7 +63,7 @@ export function polylineLength(pts: ReadonlyArray<Vec2>): number {
   return l;
 }
 
-/** Shoelace area in the x/z plane. Positive = counter-clockwise when drawn with +x right and +z DOWN (screen space). */
+/** Shoelace area in the x/z plane. Positive = clockwise when drawn with +x right and +z DOWN (screen/top-down map view). */
 export function signedArea(ring: ReadonlyArray<Vec2>): number {
   let a = 0;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) a += (ring[j].x * ring[i].z - ring[i].x * ring[j].z);
@@ -218,9 +218,9 @@ export interface PlanarFace {
 }
 
 /**
- * Faces of a planar straight-line graph (edges must only meet at their endpoints). Each face is traced with the face on the
- * LEFT of the walk in screen space (+x right, +z down), so bounded faces come out with positive signed area and the outer
- * face of each connected component negative. Dead-end edges are walked twice inside the face they poke into.
+ * Faces of a planar graph (edges must only meet at their endpoints). Bounded faces are walked clockwise in the top-down
+ * view (+x right, +z down), i.e. with the face on the RIGHT of the walk, and come out with positive signed area; the outer
+ * face of each connected component is negative. Dead-end edges are walked twice inside the face they poke into.
  */
 export function planarFaces(nodeCount: number, edges: ReadonlyArray<PlanarEdge>): PlanarFace[] {
   // half-edge h = 2*e (a->b) or 2*e+1 (b->a)

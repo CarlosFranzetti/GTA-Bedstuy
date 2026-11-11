@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
   APP_HOST, APP_ORIGIN, APP_SCHEME, RA_TIMEOUT_MS, buildCsp, isAllowedNavigation, isAppNavigation,
-  isExternalOpenable, loadState, mapRaApi, resolveAppPath, saveState,
+  isExternalOpenable, loadState, mapRaApi, resolveAppPath, saveState, appQueryFromArgs,
 } from './policy';
 
 const dev = process.argv.includes('--dev');
@@ -118,7 +118,7 @@ function createWindow() {
   });
   w.webContents.on('will-frame-navigate', (e) => { if (!isAllowedNavigation(e.url)) e.preventDefault(); });
   w.webContents.on('will-attach-webview', (e) => e.preventDefault());
-  void w.loadURL(`${APP_ORIGIN}/index.html`);
+  void w.loadURL(`${APP_ORIGIN}/index.html${appQueryFromArgs(process.argv)}`); // --debug-gfx, --q=<tier> (docs/PLATFORM-CHECK.md)
 }
 
 function wireSession() {

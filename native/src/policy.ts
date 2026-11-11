@@ -129,3 +129,16 @@ export function loadState(fs: Fsish, file: string, displays: Rect[]): WindowStat
 export function saveState(fs: Fsish, file: string, state: WindowState): boolean {
   try { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, JSON.stringify(state)); return true; } catch { return false; }
 }
+
+/**
+ * Query string for the game page from the app's command line, so a player can open the graphics debug overlay or force a tier in the
+ * native app the same way as in a browser: `--debug-gfx` -> `debug=gfx`, `--q=low` (phone|low|medium|high) -> `q=low`. Anything else
+ * is ignored (no free-form query reaches the page). Returns '' or a string starting with '?'.
+ */
+export function appQueryFromArgs(argv: readonly string[]): string {
+  const p: string[] = [];
+  if (argv.includes('--debug-gfx')) p.push('debug=gfx');
+  const q = argv.map((a) => /^--q=(phone|low|medium|high)$/.exec(a)?.[1]).find(Boolean);
+  if (q) p.push(`q=${q}`);
+  return p.length ? `?${p.join('&')}` : '';
+}

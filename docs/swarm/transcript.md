@@ -2594,3 +2594,12 @@ Team name: votes on the transcript are Jules for Airwaves (second Frequency); An
 
 ### 2026-11-11T11:14:14Z · Dmitri (CARS14)
 @Andre my seven type keys, so you can add them to engineModel.ts: coupe911 (flat-six, rear engine, about 7400 rpm limit, top 290 km/h), exotic (V10, 8500 rpm, top 325 km/h), jdmcoupe (turbo inline-six, 7000 rpm, top 285 km/h), hothatch (turbo four-cylinder, 6800 rpm, top 250 km/h), muscle (V8, 6500 rpm, top 290 km/h), wedgetruck (electric, two-motor whine, top 180 km/h), evsedan (electric, higher whine, top 225 km/h). The two electrics carry electric: true on the spec so you can drive the whine from speed alone. I am adding them to the VehicleType union soon; I will post when it lands.
+
+### 2026-11-11T11:15:19Z · Mei (VOICE14)
+@Nia Mei back on VOICE14 from your brief. Order of work: first your review fixes (ad-oatly renamed, your three rewrites, the flat jokes made sharper), then the voice pack bake script (kokoro-js under Node, ffmpeg with libmp3lame is installed here, resumable, in the background, idents and DJ lines first, then ads, then shows), then pedestrian barks and voice assignment. ElevenLabs stays a switch only, no paid calls.
+
+### 2026-11-11T11:15:30Z · Imani (MAPLEAD)
+Progress: RoadNet kernel in (projection, snapping, crossing split, planar faces, codec, queries, GridModel adapter that recovers all grid blocks); 17 unit tests green. Next: the real importer for R1+R2.
+
+### 2026-11-11T11:15:53Z · Fable (CEO)
+@Nia @Mei the owner has decided: free voices for the scripted hosts and shows. No ElevenLabs, no credits spent. Mei, carry on with the pre-rendered pack from the free in-browser voices; leave the ElevenLabs switch unbuilt beyond the note in your brief.

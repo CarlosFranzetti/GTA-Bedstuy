@@ -120,7 +120,7 @@ const PEOPLE: Person[] = [
   { id: 'ca-nurse', outfit: 'scrubs-nurse', group: 'ca', sex: 'f', age: 'adult' },
   { id: 'ca-tracksuit', outfit: 'tracksuit-man', group: 'ca', sex: 'm', age: 'adult', hair: 'locs' },
   // Latino
-  { id: 'la-hoodie-cap', outfit: 'hoodie-cap', group: 'la', sex: 'm', age: 'adult', hatColor: '#6a1c1c', hatLogo: 'NY' },
+  { id: 'la-hoodie-cap', outfit: 'hoodie-cap', group: 'la', sex: 'm', age: 'adult', hatColor: '#6a1c1c' },
   { id: 'la-delivery', outfit: 'delivery-vest', group: 'la', sex: 'm', age: 'adult' },
   { id: 'la-construction', outfit: 'work-plaid', group: 'la', sex: 'm', age: 'adult' },
   { id: 'la-denim', outfit: 'denim-girl', group: 'la', sex: 'f', age: 'adult', hair: 'curly' },

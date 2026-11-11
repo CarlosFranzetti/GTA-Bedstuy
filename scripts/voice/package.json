@@ -1,0 +1,9 @@
+{
+  "name": "gta-bedstuy-voice-bake",
+  "private": true,
+  "type": "module",
+  "description": "Offline voice pack bake (Kokoro-82M via kokoro-js on Node). Separate from the root package so the game's lockfile and CI are untouched. Run: npm --prefix scripts/voice install",
+  "dependencies": {
+    "kokoro-js": "1.2.1"
+  }
+}

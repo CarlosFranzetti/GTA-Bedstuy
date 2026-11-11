@@ -9,6 +9,7 @@
  *     --out cache/street-photos  cache folder (git-ignored)
  *     --max 80                   most photos to download per run
  *     --no-download              manifest only
+ *     --only commons|kartaview|mapillary   run one source (the manifest is merged, so runs add to each other)
  *
  * Sources, in order:
  *   1. Wikimedia Commons (geosearch, no key). Only files whose licence is CC0 / public domain / CC BY / CC BY-SA are kept;
@@ -31,6 +32,7 @@ const opt = (n, d) => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i
 const flag = (n) => args.includes(`--${n}`);
 const OUT = path.resolve(ROOT, opt('out', 'cache/street-photos'));
 const RADIUS = Number(opt('radius', 400));
+const ONLY = opt('only', ''); // commons | kartaview | mapillary
 const WIDTH = Number(opt('width', 1280));
 const MAX = Number(opt('max', 80));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -45,9 +47,9 @@ const normLicence = (s) => { for (const [re, v] of LICENCES) if (re.test((s ?? '
 const stripHtml = (s) => (s ?? '').replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 
 async function getJson(url, headers = {}) {
-  for (let attempt = 0; attempt < 5; attempt++) {
+  for (let attempt = 0; attempt < 6; attempt++) {
     const res = await fetch(url, { headers: { 'User-Agent': UA, ...headers } });
-    if (res.status === 429 || res.status >= 500) { await sleep(2000 * (attempt + 1)); continue; }
+    if (res.status === 429 || res.status >= 500) { await sleep(6000 * (attempt + 1)); continue; }
     const text = await res.text();
     try { return JSON.parse(text); } catch { throw new Error(`non-JSON from ${url.slice(0, 90)}: ${text.slice(0, 80)}`); }
   }
@@ -80,7 +82,8 @@ async function fromCommons(points, manifest) {
       action: 'query', format: 'json', generator: 'geosearch', ggscoord: `${lat}|${lon}`, ggsradius: String(Math.min(RADIUS, 10000)), ggsnamespace: '6', ggslimit: '50',
       prop: 'imageinfo|coordinates', iiprop: 'url|extmetadata|size|mime', iiurlwidth: String(WIDTH), iiextmetadatafilter: 'LicenseShortName|LicenseUrl|Artist|Credit|DateTimeOriginal|ImageDescription', colimit: '50',
     });
-    const j = await getJson(`https://commons.wikimedia.org/w/api.php?${q}`);
+    let j;
+    try { j = await getJson(`https://commons.wikimedia.org/w/api.php?${q}`); } catch (e) { console.log(`commons point ${lat},${lon}: ${e.message.slice(0, 60)}`); continue; }
     for (const p of Object.values(j.query?.pages ?? {})) {
       const ii = p.imageinfo?.[0];
       if (!ii || !/^image\/(jpeg|png)/.test(ii.mime ?? '')) continue;
@@ -96,7 +99,7 @@ async function fromCommons(points, manifest) {
         taken: ii.extmetadata?.DateTimeOriginal?.value ? stripHtml(ii.extmetadata.DateTimeOriginal.value) : null, description: stripHtml(ii.extmetadata?.ImageDescription?.value).slice(0, 200), width: ii.thumbwidth ?? ii.width, height: ii.thumbheight ?? ii.height,
       });
     }
-    await sleep(1200);
+    await sleep(2500);
   }
   return found;
 }
@@ -156,6 +159,7 @@ async function main() {
   console.log(`${points.length} query points, radius ${RADIUS} m`);
   const lists = [];
   for (const [name, fn] of [['commons', fromCommons], ['kartaview', fromKartaView], ['mapillary', (p, m) => fromMapillary(p, m, notes)]]) {
+    if (ONLY && ONLY !== name) continue;
     try { const got = await fn(points, photos); console.log(`${name}: ${got.length} new candidates`); lists.push(...got); } catch (e) { notes.push(`${name}: ${e.message}`); console.log(`${name}: failed, ${e.message}`); }
   }
   let downloaded = 0;
