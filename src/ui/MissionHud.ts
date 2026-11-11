@@ -184,7 +184,7 @@ export class MissionHud {
     const was = this.lastStatus;
     this.lastStatus = s.status;
     this.inside = s.inside === true;
-    if (was === 'active' && s.status === 'complete') this.showPassed(s.title, Math.max(0, s.cash - this.cashTarget));
+    if (was === 'active' && s.status === 'complete') this.showPassed(s.title, 0); // the reward tallies as the cash lands (updateCash adds it)
     this.tallyPassed(dt);
     const show = s.status === 'active' || s.status === 'failed';
     this.panel.hidden = !show;

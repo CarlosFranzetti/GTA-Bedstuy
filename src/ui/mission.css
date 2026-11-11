@@ -308,3 +308,20 @@
 /* story dialogue: the speaker's name leads the subtitle line */
 .msn-sub .msn-who { color: #f5c542; font-weight: 700; margin-right: 2px; }
 .msn-sub .msn-who::after { content: ':'; }
+
+/* ---- UI14: cash flash on change (green up, red down), mission passed banner */
+.hud-root .msn-cash { font: 700 36px/1 var(--font-hud); letter-spacing: 0.02em; font-variant-numeric: tabular-nums lining-nums; color: #e9f5e6; text-shadow: var(--text-shadow); }
+.hud-root .msn-cash.flash { animation: msn-flash-up 900ms ease-out; }
+.hud-root .msn-cash.flash[data-flash="down"] { animation-name: msn-flash-down; }
+@keyframes msn-flash-up { 0% { color: #7fe08a; text-shadow: 0 0 14px rgba(127, 224, 138, 0.8), var(--text-shadow); } 100% { color: #e9f5e6; } }
+@keyframes msn-flash-down { 0% { color: #ff6a5c; text-shadow: 0 0 14px rgba(255, 106, 92, 0.8), var(--text-shadow); } 100% { color: #e9f5e6; } }
+.hud-root .msn-cash-delta { font: 700 20px/1 var(--font-hud); }
+
+.msn-passed { position: absolute; left: 50%; top: 30%; transform: translateX(-50%); text-align: center; pointer-events: none; width: min(92vw, 720px); }
+.msn-passed[hidden] { display: none !important; }
+.msn-passed.in { animation: msn-passed-in 4200ms ease-out both; }
+.msn-passed-word { font: 400 clamp(44px, 9vw, 104px)/1 var(--font-display); letter-spacing: 0.03em; text-transform: uppercase; color: #f2c230; -webkit-text-stroke: 2px rgba(0, 0, 0, 0.85); paint-order: stroke fill; text-shadow: 0 4px 18px rgba(0, 0, 0, 0.6); }
+.msn-passed-title { margin-top: 6px; font: 600 clamp(16px, 2.6vw, 24px)/1.1 var(--font-hud); letter-spacing: 0.22em; text-transform: uppercase; color: #fff; text-shadow: var(--text-shadow); }
+.msn-passed-reward { margin-top: 10px; font: 700 clamp(30px, 5vw, 48px)/1 var(--font-hud); font-variant-numeric: tabular-nums lining-nums; color: #7fe08a; text-shadow: var(--text-shadow); }
+@keyframes msn-passed-in { 0% { opacity: 0; transform: translateX(-50%) scale(1.12); letter-spacing: 0.12em; } 8% { opacity: 1; transform: translateX(-50%) scale(1); letter-spacing: 0.03em; } 82% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .hud-root .msn-cash.flash { animation: none; } .msn-passed.in { animation: none; } }
