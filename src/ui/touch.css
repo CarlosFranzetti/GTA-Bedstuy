@@ -19,20 +19,21 @@
 }
 .tc-btn.on { background: rgba(244, 196, 48, 0.85); color: #1a1408; }
 .tc-btn-car { border-color: rgba(244, 196, 48, 0.8); }
-/* re-flow the HUD around the controls */
-.touch canvas.minimap { left: max(16px, env(safe-area-inset-left, 0px)) !important; bottom: auto !important; top: 34px !important; width: 140px !important; height: 140px !important; }
+/* re-flow the HUD around the controls: minimap + bars top-left, street/speed above the buttons bottom-right */
+.hud-root.touch canvas.minimap { left: max(16px, env(safe-area-inset-left, 0px)) !important; bottom: auto !important; top: 34px !important; width: 140px !important; height: 140px !important; }
+.hud-root.touch .hud-bars { bottom: auto; top: 180px; width: 140px; }
 .touch .hud-location { bottom: 190px; }
 .touch .hud-prompt { bottom: 200px; }
-.touch .hud-speed { bottom: 200px; }
+.touch .hud-speed { bottom: 246px; }
+.touch .hud-stars { right: calc(max(16px, env(safe-area-inset-right, 0px)) + 52px); top: 46px; }
 .touch .hud-fps { display: none; }
 @media (max-height: 420px) {
   .tc-stick { width: 120px; height: 120px; }
   .tc-btn { width: 62px; height: 62px; font-size: 10px; }
   .tc-buttons { grid-template-columns: 62px 62px; gap: 8px; }
-  .touch canvas.minimap { width: 100px !important; height: 100px !important; }
-  .touch .hud-location, .touch .hud-speed { bottom: 150px; }
+  .hud-root.touch canvas.minimap { width: 100px !important; height: 100px !important; }
+  .hud-root.touch .hud-bars { top: 140px; width: 100px; }
+  .touch .hud-location { bottom: 150px; }
+  .touch .hud-speed { bottom: 196px; }
   .touch .hud-prompt { bottom: 190px; }
 }
-
-/* the cash readout sits left of the pause button (both live at top: 46px on the right) */
-.touch .msn-cash { right: 68px; }

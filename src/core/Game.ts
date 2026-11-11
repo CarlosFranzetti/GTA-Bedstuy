@@ -93,6 +93,8 @@ export class Game {
   alpha = 0;
   /** Real (clamped) duration of the frame being rendered, seconds. */
   frameDt = 1 / 60;
+  /** Frame limiter (frames per second, 0 = every display frame). Independent of vsync: a 120 Hz display skips frames to hold the cap. */
+  maxFps = 0;
   readonly systems: Updatable[] = [];
   constructor(private render: (alpha: number, frameDt: number) => void, private endFrame: () => void = () => {}) {}
   get paused(): boolean { return this._paused; }
@@ -105,6 +107,7 @@ export class Game {
     this.last = performance.now();
     const tick = (now: number) => {
       this.raf = requestAnimationFrame(tick);
+      if (this.maxFps > 0 && now - this.last < 1000 / this.maxFps - 1.5) return; // 1.5 ms slack: rAF stamps jitter around the vsync
       const frame = Math.min(MAX_FRAME, Math.max(0, (now - this.last) / 1000));
       this.last = now;
       let n = 0;

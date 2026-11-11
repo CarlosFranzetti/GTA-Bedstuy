@@ -92,6 +92,20 @@ export function worldToMinimap(
   return { x: half + u * scale, y: half - v * scale };
 }
 
+/** Corner radius of the rounded-square frame (canvas px at SIZE). */
+const CORNER = 28;
+
+/** Path for a rounded square spanning lo..hi on both axes. */
+function roundedSquare(ctx: CanvasRenderingContext2D, lo: number, hi: number, r: number): void {
+  ctx.beginPath();
+  ctx.moveTo(lo + r, lo);
+  ctx.arcTo(hi, lo, hi, hi, r);
+  ctx.arcTo(hi, hi, lo, hi, r);
+  ctx.arcTo(lo, hi, lo, lo, r);
+  ctx.arcTo(lo, lo, hi, lo, r);
+  ctx.closePath();
+}
+
 /** getContext can return null (or throw) when no canvas backend exists, e.g. plain jsdom. */
 function canvasContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D | null {
   try {
@@ -125,7 +139,7 @@ export class Minimap {
     // Positioned inline so the minimap lays out correctly even without hud.css.
     canvas.style.cssText =
       `position:absolute;left:16px;bottom:52px;width:${SIZE}px;height:${SIZE}px;` +
-      'border-radius:50%;pointer-events:none;';
+      'border-radius:14%;pointer-events:none;';
     root.appendChild(canvas);
 
     this.ctx = canvasContext(canvas);
@@ -158,8 +172,7 @@ export class Minimap {
     ctx.clearRect(0, 0, SIZE, SIZE);
 
     ctx.save();
-    ctx.beginPath();
-    ctx.arc(half, half, half, 0, Math.PI * 2);
+    roundedSquare(ctx, 0, SIZE, CORNER);
     ctx.clip();
     ctx.fillStyle = DISC_FILL;
     ctx.fillRect(0, 0, SIZE, SIZE);
@@ -175,10 +188,9 @@ export class Minimap {
     // Arrow shows the true heading relative to the (slightly lagging) map.
     this.drawPlayer(ctx, angleDiff(mapHeading, heading));
 
-    ctx.beginPath();
-    ctx.arc(half, half, half - 1, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-    ctx.lineWidth = 2;
+    roundedSquare(ctx, 1.5, SIZE - 1.5, CORNER - 1.5);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.lineWidth = 3;
     ctx.stroke();
   }
 

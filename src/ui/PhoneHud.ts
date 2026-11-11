@@ -7,6 +7,22 @@ import { isConfirmKey, releasePointerLock, setPanelClass, type NavDir } from './
 
 const TOAST_MS = 4600;
 type Tab = 'messages' | 'contacts' | 'next' | 'save';
+/** Apps the phone hands to the game (opening them closes the phone). Supplying `apps` makes the phone open on the app grid. */
+export interface PhoneApps {
+  map?: () => void;
+  radio?: () => void;
+  settings?: () => void;
+}
+const ICON = (body: string): string => `<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+const APP_ICONS = {
+  messages: ICON('<path d="M4 5h16v11H9l-4 4v-4H4z"/>'),
+  contacts: ICON('<circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-4 3-6 7-6s7 2 7 6"/>'),
+  goals: ICON('<path d="M12 3v18M12 3l7 4-7 4"/>'),
+  map: ICON('<path d="M3 6l6-2.5 6 2.5 6-2.5v14.5l-6 2.5-6-2.5-6 2.5z M9 3.5v14.5 M15 6v14.5"/>'),
+  save: ICON('<path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/>'),
+  radio: ICON('<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M7 8l9-5M8 14h5M17 13v2"/>'),
+  settings: ICON('<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>'),
+} as const;
 const BASE_TABS: readonly Tab[] = ['messages', 'contacts', 'next'];
 const HINT = 'Q / E tabs   Up / Down list   Enter open   P close';
 
@@ -24,6 +40,8 @@ export interface PhoneHudOptions {
   saves?: SaveManager;
   /** false while a save would store a nonsense pose (inside a room). */
   canSave?: () => boolean;
+  /** Game hooks for the Map / Radio / Settings apps. When given, the phone opens on the app grid. */
+  apps?: PhoneApps;
 }
 
 export class PhoneHud {
@@ -38,7 +56,10 @@ export class PhoneHud {
   private readonly tabs = new Map<Tab, HTMLButtonElement>();
   private readonly promptEl: HTMLElement;
   private tab: Tab = 'messages';
+  private home = false;
+  private readonly apps: PhoneApps | null;
   private readonly hintEl: HTMLElement;
+  private readonly homeBar: HTMLButtonElement;
   private rows: HTMLElement[] = [];
   private sel = 0;
   private keysOn = false;
@@ -51,6 +72,7 @@ export class PhoneHud {
 
   constructor(root: HTMLElement, private readonly phone: Phone, opts: PhoneHudOptions = {}) {
     this.doc = root.ownerDocument;
+    this.apps = opts.apps ?? null;
     this.tabOrder = opts.saves ? [...BASE_TABS, 'save'] : BASE_TABS;
     if (opts.saves) this.savePanel = new SavePanel(null, opts.saves, { canSave: opts.canSave });
     this.button = this.doc.createElement('button');
@@ -71,6 +93,10 @@ export class PhoneHud {
 
     this.panel = this.make('div', 'ph-panel');
     this.panel.hidden = true;
+    const status = this.make('div', 'ph-status');
+    status.setAttribute('aria-hidden', 'true');
+    status.append(this.make('span', 'ph-carrier'), this.make('span', 'ph-notch'), this.make('span', 'ph-battery'));
+    status.firstElementChild!.textContent = 'BK 5G';
     const bar = this.make('div', 'ph-tabs');
     for (const [id, label] of ([['messages', 'Texts'], ['contacts', 'Contacts'], ['next', 'Next'], ['save', 'Save']] as const).filter(([id]) => this.tabOrder.includes(id))) {
       const b = this.doc.createElement('button');
@@ -86,7 +112,12 @@ export class PhoneHud {
     this.body = this.make('div', 'ph-body');
     this.hintEl = this.make('div', 'ph-hint');
     this.hintEl.textContent = HINT;
-    this.panel.append(bar, this.body, this.hintEl);
+    this.homeBar = this.doc.createElement('button');
+    this.homeBar.type = 'button';
+    this.homeBar.className = 'ph-homebar';
+    this.homeBar.setAttribute('aria-label', 'Home: app grid');
+    this.homeBar.addEventListener('click', () => this.goHome());
+    this.panel.append(status, bar, this.body, this.hintEl, this.homeBar);
 
     this.promptEl = this.make('div', 'ph-prompt');
     this.promptEl.hidden = true;
@@ -107,7 +138,7 @@ export class PhoneHud {
   /** Key P / touch button. */
   toggle(): void {
     this.phone.toggle();
-    if (this.phone.isOpen) this.phone.markAllRead();
+    if (this.phone.isOpen) { this.phone.markAllRead(); if (this.apps) this.home = true; }
     this.render();
   }
 
@@ -132,19 +163,31 @@ export class PhoneHud {
    */
   navigate(dir: NavDir): void {
     if (!this.phone.isOpen) return;
+    if (this.home) {
+      switch (dir) {
+        case 'left': case 'up': this.moveSel(dir === 'up' ? -4 : -1); break;
+        case 'right': case 'down': this.moveSel(dir === 'down' ? 4 : 1); break;
+        case 'confirm': this.rows[this.sel]?.click(); break;
+        case 'back': this.closePhone(); break;
+      }
+      return;
+    }
     switch (dir) {
       case 'left': this.setTab(this.tabOrder[(this.tabOrder.indexOf(this.tab) + this.tabOrder.length - 1) % this.tabOrder.length]); break;
       case 'right': this.setTab(this.tabOrder[(this.tabOrder.indexOf(this.tab) + 1) % this.tabOrder.length]); break;
       case 'up': this.moveSel(-1); break;
       case 'down': this.moveSel(1); break;
       case 'confirm': this.activate(); break;
-      case 'back': if (this.contact) { this.contact = null; this.sel = 0; this.render(); } else this.closePhone(); break;
+      case 'back': if (this.contact) { this.contact = null; this.sel = 0; this.render(); } else if (this.apps) this.goHome(); else this.closePhone(); break;
     }
   }
 
   private closePhone(): void { this.phone.close(); this.render(); }
 
-  private setTab(t: Tab): void { this.tab = t; this.contact = null; this.sel = 0; this.render(); }
+  /** Back to the app grid (only reachable with `apps`, or from the home bar). */
+  private goHome(): void { this.home = true; this.contact = null; this.sel = 0; this.render(); }
+
+  private setTab(t: Tab): void { this.home = false; this.tab = t; this.contact = null; this.sel = 0; this.render(); }
 
   private moveSel(d: number): void {
     if (this.rows.length === 0) return;
@@ -220,12 +263,15 @@ export class PhoneHud {
     this.panel.hidden = !this.phone.isOpen;
     this.syncOpen(this.phone.isOpen);
     this.button.classList.toggle('on', this.phone.isOpen);
+    this.panel.classList.toggle('home', this.home);
+    this.homeBar.hidden = this.home;
     for (const [id, b] of this.tabs) b.classList.toggle('active', id === this.tab);
     if (!this.phone.isOpen) return;
     if (this.phone.unread > 0) { this.phone.markAllRead(); return; }
     this.body.textContent = '';
     this.rows = [];
-    if (this.tab === 'messages') this.renderMessages(this.contact ? this.phone.thread(this.contact) : this.phone.messages.slice().reverse());
+    if (this.home) this.renderHome();
+    else if (this.tab === 'messages') this.renderMessages(this.contact ? this.phone.thread(this.contact) : this.phone.messages.slice().reverse());
     else if (this.tab === 'contacts') this.renderContacts();
     else if (this.tab === 'save' && this.savePanel) {
       this.savePanel.refresh();
@@ -234,6 +280,30 @@ export class PhoneHud {
     } else this.renderNext();
     this.sel = Math.max(0, Math.min(this.sel, this.rows.length - 1));
     this.applySel();
+  }
+
+  /** App grid: Messages, Contacts, Goals, Map, Save, Radio, Settings (the last three need game hooks). */
+  private renderHome(): void {
+    const grid = this.make('div', 'ph-apps');
+    const add = (id: keyof typeof APP_ICONS, label: string, run: () => void, badge = 0): void => {
+      const b = this.doc.createElement('button');
+      b.type = 'button'; b.className = `ph-app ph-app-${id}`; b.dataset.app = id;
+      b.insertAdjacentHTML('afterbegin', `<span class="ph-app-ico">${APP_ICONS[id]}</span>`);
+      const l = this.make('span', 'ph-app-lbl'); l.textContent = label; b.appendChild(l);
+      if (badge > 0) { const bd = this.make('span', 'ph-app-badge'); bd.textContent = String(badge); b.appendChild(bd); }
+      b.addEventListener('click', run);
+      grid.appendChild(b); this.rows.push(b);
+    };
+    const tab = (t: Tab) => (): void => this.setTab(t);
+    const game = (fn?: () => void) => (): void => { this.closePhone(); fn?.(); };
+    add('messages', 'Messages', tab('messages'));
+    add('contacts', 'Contacts', tab('contacts'));
+    add('goals', 'Goals', tab('next'));
+    if (this.apps?.map) add('map', 'Map', game(this.apps.map));
+    if (this.tabOrder.includes('save')) add('save', 'Save', tab('save'));
+    if (this.apps?.radio) add('radio', 'Radio', game(this.apps.radio));
+    if (this.apps?.settings) add('settings', 'Settings', game(this.apps.settings));
+    this.body.appendChild(grid);
   }
 
   private line(cls: string, text: string): HTMLElement {

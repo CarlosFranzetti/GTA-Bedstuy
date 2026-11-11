@@ -57,9 +57,9 @@ export function lotLook(m: BuildingMats, lot: Lot): LotLook {
 
 // ---------------------------------------------------------------------------------------------- decal atlas
 
-const ATLAS_W = 1024, ATLAS_H = 768;
+const ATLAS_W = 1024, ATLAS_H = 1024;
 /** four ghost-sign tiles (512 x 256) and a soot tile (512 x 256 at 0,512), canvas pixel rects */
-const GHOSTS: ReadonlyArray<readonly [number, number]> = [[0, 0], [512, 0], [0, 256], [512, 256]];
+const GHOSTS: ReadonlyArray<readonly [number, number]> = [[0, 0], [512, 0], [0, 256], [512, 256], [512, 512], [0, 768], [512, 768]];
 const SOOT_TILE = [0, 512] as const;
 const TILE_W = 512, TILE_H = 256;
 
@@ -72,8 +72,8 @@ function paintGhost(ctx: CanvasRenderingContext2D, ox: number, oy: number, i: nu
   ctx.rect(ox + pad, oy + pad, TILE_W - 2 * pad, TILE_H - 2 * pad);
   ctx.clip();
   // painted field with a hand-lettered look: a cream or pale-red panel, a rule, two lines of text
-  const field = ['#e7dfc9', '#d9cdb0', '#c9b69a', '#e2d6c0'][i];
-  const ink = ['#2d3a4a', '#7a2a22', '#243a2e', '#4a2a3a'][i];
+  const field = ['#e7dfc9', '#d9cdb0', '#c9b69a', '#e2d6c0', '#cfd8d0', '#e8d9b4', '#d8c3c0'][i];
+  const ink = ['#2d3a4a', '#7a2a22', '#243a2e', '#4a2a3a', '#2a4a55', '#6a3a14', '#3a2a50'][i];
   ctx.fillStyle = field;
   ctx.fillRect(ox + pad, oy + pad, TILE_W - 2 * pad, TILE_H - 2 * pad);
   ctx.strokeStyle = ink; ctx.lineWidth = 6;
@@ -84,6 +84,9 @@ function paintGhost(ctx: CanvasRenderingContext2D, ox: number, oy: number, i: nu
     ['PIGEON BRAND BREAD', 'BAKED THIS MORNING - ASK YOUR GROCER'],
     ['MADAME LULA\'S TONIC', 'FOR THE NERVES AND THE LANDLORD'],
     ['MURPHY & SON PIANOS', 'TUNED - MOVED - FORGIVEN'],
+    ['STUYVESANT STOVE & FLUE', 'SOOT REMOVED - NO QUESTIONS ASKED'],
+    ['BEDFORD BLOOMER TAILORS', 'ALTERED WHILE YOU WAIT AND WAIT'],
+    ['DELANCEY\'S DRY CLEANING', 'SPOTLESS SINCE NEARLY 1931'],
   ];
   ctx.font = '900 58px Impact, "Arial Black", sans-serif';
   ctx.fillText(lines[i][0], ox + TILE_W / 2, oy + 98, TILE_W - 60);
@@ -197,7 +200,7 @@ export function partyWallDetail(b: LotBatch, m: BuildingMats, look: LotLook, o: 
       const yTop = topY - 0.9 - drop;
       if (yTop - h > y0 + 0.4) {
         const zc = -(kind === 'both' ? 1.2 + w / 2 : rng.range(1.4 + w / 2, Math.max(1.4 + w / 2, Math.min(span - 1 - w / 2, 7 + w / 2))));
-        const g = GHOSTS[rng.int(0, 3)];
+        const g = GHOSTS[rng.int(0, GHOSTS.length - 1)];
         const z0 = zFront + zc - w / 2, z1 = zFront + zc + w / 2;
         const u: [number, number, number] = side === 'left' ? [0, 0, z1 - z0] : [0, 0, -(z1 - z0)];
         b.rect(decal, [x + nx * 0.03, yTop - h, side === 'left' ? z0 : z1], u, [0, h, 0], { uvRect: atlasRect(g[0], g[1], TILE_W, TILE_H, 8) });

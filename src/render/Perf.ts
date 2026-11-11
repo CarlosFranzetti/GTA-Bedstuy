@@ -119,6 +119,9 @@ export class PerfMonitor {
     };
   }
 
+  /** Menu > Graphics > Auto: turns the automatic tier drop on or off at run time. */
+  setAutoDrop(on: boolean): void { this.opts.autoDrop = on; }
+
   /** 1% low fps over the last ~600 frames (0 until at least one frame was recorded). */
   get fps1pctLow(): number { return this.lowFps; }
   get droppedQuality(): boolean { return this.dropped; }

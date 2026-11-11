@@ -100,3 +100,27 @@ describe('PoseSnapshots', () => {
     expect(Math.cos(out.h)).toBeCloseTo(-1, 6);
   });
 });
+
+describe('Game frame cap', () => {
+  it('maxFps skips display frames that come sooner than the cap interval', async () => {
+    const { Game } = await import('@/core/Game');
+    const cbs: Array<(t: number) => void> = [];
+    const g = globalThis as unknown as { requestAnimationFrame: (f: (t: number) => void) => number; cancelAnimationFrame: () => void };
+    const oldRaf = g.requestAnimationFrame, oldCaf = g.cancelAnimationFrame;
+    g.requestAnimationFrame = (f) => { cbs.push(f); return cbs.length; };
+    g.cancelAnimationFrame = () => {};
+    try {
+      let drawn = 0;
+      const game = new Game(() => { drawn++; });
+      game.maxFps = 30;
+      game.start();
+      for (let i = 1; i <= 12; i++) cbs.shift()!(performance.now() + i * (1000 / 120)); // 120 Hz display, 100 ms
+      expect(drawn).toBeGreaterThanOrEqual(2);
+      expect(drawn).toBeLessThanOrEqual(5);
+      const before = drawn;
+      game.maxFps = 0;
+      for (let i = 13; i <= 20; i++) cbs.shift()!(performance.now() + i * (1000 / 120));
+      expect(drawn - before).toBe(8);
+    } finally { g.requestAnimationFrame = oldRaf; g.cancelAnimationFrame = oldCaf; }
+  });
+});

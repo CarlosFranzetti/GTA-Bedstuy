@@ -27,23 +27,55 @@ export const FAR_DIST = 40;
 /** most people drawn at the hi level at once, by tier (the rest of those inside MID_DIST drop to mid); the player is exempt */
 export const PED_HI_MAX: Record<string, number> = { phone: 0, low: 6, medium: 8, high: 12 };
 
+/** Share of a level's switch distance a person must move back inside before the nearer level returns (no flip-flop at 12 m / 40 m). */
+export const PED_LOD_HYSTERESIS = 0.15;
+const _pv1 = new THREE.Vector3();
+const _pv2 = new THREE.Vector3();
+
 /**
- * THREE.LOD with a cap on simultaneous hi bodies. The renderer calls update(camera) once per LOD per pass; a LOD that updates
- * a second time marks the start of the next pass, which restarts the count (shadow / G-buffer passes use other cameras, so this
- * only ever demotes, never promotes). `exempt` LODs (the player) always get hi when in range.
+ * THREE.LOD with hysteresis on the switch distances and a cap on simultaneous hi bodies. The renderer calls update(camera) once
+ * per LOD per frame (the AO / shadow passes draw other scenes or cameras and do not update it); a LOD that updates a second time
+ * marks the start of the next pass. The cap is stable: a person who held a hi slot in the previous pass keeps it while inside
+ * range, and newcomers only fill slots nobody holds, so the scene-graph order cannot reshuffle who is hi when somebody walks across
+ * 12 m. `exempt` LODs (the player) always get hi when in range and do not count.
  */
 export class PedLod extends THREE.LOD {
   exempt = false;
+  /** level chosen by distance alone (before the cap), kept for the hysteresis */
+  private lv = 0;
+  private heldPass = -2;
   private static seen = new Set<PedLod>();
+  private static pass = 0;
   private static hi = 0;
+  /** hi slots held in the previous pass by LODs not yet updated in this one (reserved against newcomers) */
+  private static pending = 0;
+  /** Overrides the tier's cap (tests). */
+  static capOverride: number | null = null;
+  /** Forgets the pass bookkeeping (tests; a scene swap). */
+  static resetPass(): void { PedLod.seen.clear(); PedLod.pass = 0; PedLod.hi = 0; PedLod.pending = 0; }
   update(camera: THREE.Camera): void {
-    super.update(camera);
-    if (this.exempt || this.levels.length < 3) return;
-    if (PedLod.seen.has(this)) { PedLod.seen.clear(); PedLod.hi = 0; }
-    PedLod.seen.add(this);
-    if (!this.levels[0].object.visible) return;
-    const max = carPaintConfigured() ? (PED_HI_MAX[carPaintTier()] ?? Infinity) : Infinity;
-    if (++PedLod.hi > max) { this.levels[0].object.visible = false; this.levels[1].object.visible = true; }
+    const levels = this.levels, n = levels.length;
+    if (n < 2) return;
+    _pv1.setFromMatrixPosition(camera.matrixWorld);
+    _pv2.setFromMatrixPosition(this.matrixWorld);
+    const dist = _pv1.distanceTo(_pv2) / ((camera as THREE.PerspectiveCamera).zoom || 1);
+    let lv = Math.min(this.lv, n - 1);
+    while (lv + 1 < n && dist >= levels[lv + 1].distance) lv++;
+    while (lv > 0 && dist < levels[lv].distance * (1 - PED_LOD_HYSTERESIS)) lv--;
+    this.lv = lv;
+    let shown = lv;
+    if (!this.exempt && n >= 3) {
+      if (PedLod.seen.has(this)) { PedLod.seen.clear(); PedLod.pending = PedLod.hi; PedLod.hi = 0; PedLod.pass++; }
+      PedLod.seen.add(this);
+      const held = this.heldPass === PedLod.pass - 1;
+      if (held && PedLod.pending > 0) PedLod.pending--;
+      if (lv === 0) {
+        const max = PedLod.capOverride ?? (carPaintConfigured() ? (PED_HI_MAX[carPaintTier()] ?? Infinity) : Infinity);
+        if (held ? PedLod.hi < max : PedLod.hi + PedLod.pending < max) { PedLod.hi++; this.heldPass = PedLod.pass; }
+        else shown = 1;
+      }
+    }
+    for (let i = 0; i < n; i++) levels[i].object.visible = i === shown;
   }
 }
 

@@ -13,7 +13,7 @@ describe('ThirdPersonCamera', () => {
   it('uses a 64deg (on foot) perspective camera with near 0.1 / far 900', () => {
     const c = new ThirdPersonCamera();
     expect(c.camera.fov).toBe(64);
-    expect(c.camera.near).toBe(0.1);
+    expect(c.camera.near).toBe(0.2); // DepthRange.ts: 24-bit depth step at 300 m
     expect(c.camera.far).toBe(900);
   });
 

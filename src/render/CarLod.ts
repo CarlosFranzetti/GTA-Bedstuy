@@ -91,6 +91,8 @@ interface TypeLod {
 
 interface CarInfo {
   far: boolean;
+  /** frame number (CarLod.frame) in which this car last held one of the capped full-detail slots */
+  heldFrame: number;
   /** LOD key: the type, or `type:style` for the non-default body styles (coupe, cab) so the far proxy keeps the silhouette */
   key: string;
   /** builds the pristine full model of this car's body style (set by carModel.ts on the model group), if it has one */
@@ -138,6 +140,9 @@ export class CarLod {
   /** full-detail cars (beyond CAR_CLOSE_DIST) placed so far this frame, and the cap of the current tier */
   private nearCount = 0;
   private nearMax = Infinity;
+  /** frame counter, and how many cars held a capped slot last frame that have not been placed yet this frame (their slots stay reserved) */
+  private frame = 0;
+  private pendingHolders = 0;
   /** Overrides the tier's cap on full-detail cars (tests). */
   setNearMax(n: number): void { this.nearMax = n; this.fixedNearMax = true; }
   private fixedNearMax = false;
@@ -176,7 +181,9 @@ export class CarLod {
   beginFrame(): void {
     for (const t of this.types.values()) if (t) { t.n = 0; t.nHead = 0; t.nTail = 0; }
     this.farCount = 0;
+    this.pendingHolders = this.nearCount; // last frame's holders keep their slots; newcomers only fill what is left (no re-sort, no reshuffle)
     this.nearCount = 0;
+    this.frame++;
     if (!this.fixedNearMax) this.nearMax = carPaintConfigured() ? tierConfig(carPaintTier()).carNearMax : Infinity;
   }
 
@@ -187,7 +194,7 @@ export class CarLod {
   place(car: LodCar, x: number, z: number, heading: number, dist: number): boolean {
     let info = this.info.get(car.object3D);
     if (!info) {
-      info = { far: false, key: car.spec.type, buildStyled: null, color: this.colorOf(car.spec.color), head: null, tail: null };
+      info = { far: false, heldFrame: -2, key: car.spec.type, buildStyled: null, color: this.colorOf(car.spec.color), head: null, tail: null };
       this.bindLamps(car.object3D, info);
       this.bindStyle(car.object3D, car.spec.type, info);
       this.info.set(car.object3D, info);
@@ -195,8 +202,15 @@ export class CarLod {
     const lod = this.typeFor(info.key, car.spec.type, info.buildStyled);
     if (!lod || car.damage > this.maxDamage || lod.n >= CAPACITY) { info.far = false; car.object3D.visible = true; return false; }
     info.far = hysteresisFar(info.far, dist, this.near, this.margin);
-    if (!info.far && dist > CAR_CLOSE_DIST && this.nearCount >= this.nearMax) info.far = true; // over the tier's cap of full cars
-    if (!info.far) { if (dist > CAR_CLOSE_DIST) this.nearCount++; car.object3D.visible = true; return false; }
+    const held = info.heldFrame === this.frame - 1;
+    if (held && this.pendingHolders > 0) this.pendingHolders--;
+    if (!info.far && dist > CAR_CLOSE_DIST) {
+      // tier cap on full-detail cars: a car that held a slot last frame keeps it; a newcomer only takes a slot nobody holds
+      // (placement order alone must not decide, or one car crossing a threshold swaps two others every frame)
+      const room = held ? this.nearCount < this.nearMax : this.nearCount + this.pendingHolders < this.nearMax;
+      if (!room) info.far = true;
+    }
+    if (!info.far) { if (dist > CAR_CLOSE_DIST) { this.nearCount++; info.heldFrame = this.frame; } car.object3D.visible = true; return false; }
     car.object3D.visible = false;
     if (this.viewSet && !this.frustum.intersectsSphere(this.sphere.set(_c.set(x, 0.9, z), 8))) return true;
     const i = lod.n++;

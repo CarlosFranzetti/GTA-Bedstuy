@@ -21,6 +21,19 @@ export const BLOCKED_HINT: Record<InputMode, string> = {
   gamepad: 'Blocked: LT to reverse, B handbrake',
 };
 
+/** Optional real player vitals (0..1). The game has no health model yet: bars show HEAT (wanted) and SPEED until these are supplied. */
+export interface VitalsHudState {
+  health?: number;
+  armour?: number;
+}
+
+/** Station banner: how long it stays after a tune, and how many stations the strip shows around the current one. */
+export const STATION_BANNER_MS = 2600;
+export const STATION_STRIP_SLOTS = 5;
+const AREA_NAME = 'Bed-Stuy';
+/** Speed bar full-scale (km/h). */
+const SPEED_BAR_MAX = 140;
+
 const FADE_MS = 400;
 const MAX_STARS = 3;
 const CONTROLS = [
@@ -66,6 +79,18 @@ export class Hud {
   private readonly speedEl: HTMLElement;
   private readonly speedValueEl: HTMLElement;
   private readonly streetEl: HTMLElement;
+  private readonly areaEl: HTMLElement;
+  private readonly locationEl: HTMLElement;
+  private readonly barsEl: HTMLElement;
+  private readonly bars = new Map<string, { row: HTMLElement; fill: HTMLElement }>();
+  private readonly stationBanner: HTMLElement;
+  private readonly stationNameEl: HTMLElement;
+  private readonly stationSubEl: HTMLElement;
+  private readonly stationStripEl: HTMLElement;
+  private stations: string[] = [];
+  private lastStation = '';
+  private stationTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastStreet = '';
   private readonly radioEl: HTMLElement;
   private readonly splashEl: HTMLElement;
   private readonly cardEl: HTMLElement;
@@ -105,10 +130,37 @@ export class Hud {
     unit.textContent = 'km/h';
     this.speedEl.append(this.speedValueEl, unit);
 
+    // Bottom-right: street name (fades in on change), area name, radio caption.
     const location = this.make('div', 'hud-location');
+    this.locationEl = location;
     this.streetEl = this.make('span', 'hud-street');
+    this.areaEl = this.make('span', 'hud-area');
+    this.areaEl.textContent = AREA_NAME;
     this.radioEl = this.make('span', 'hud-radio');
-    location.append(this.streetEl, this.radioEl);
+    location.append(this.streetEl, this.areaEl, this.radioEl);
+
+    // Bars under the minimap (bottom-left).
+    this.barsEl = this.make('div', 'hud-bars');
+    for (const [id, label] of [['health', 'HP'], ['armour', 'AR'], ['heat', 'HEAT'], ['speed', 'SPD']] as const) {
+      const row = this.make('div', `hud-bar hud-bar-${id}`);
+      row.hidden = true;
+      const lbl = this.make('span', 'hud-bar-lbl');
+      lbl.textContent = label;
+      const track = this.make('span', 'hud-bar-track');
+      const fill = this.make('i', 'hud-bar-fill');
+      track.appendChild(fill);
+      row.append(lbl, track);
+      this.barsEl.appendChild(row);
+      this.bars.set(id, { row, fill });
+    }
+
+    // Station banner: big name + horizontal strip, top-centre, shown briefly when the station changes.
+    this.stationBanner = this.make('div', 'hud-station');
+    this.stationBanner.hidden = true;
+    this.stationNameEl = this.make('div', 'hud-station-name');
+    this.stationSubEl = this.make('div', 'hud-station-sub');
+    this.stationStripEl = this.make('div', 'hud-station-strip');
+    this.stationBanner.append(this.stationNameEl, this.stationSubEl, this.stationStripEl);
 
     // GTA-style neighbourhood card, bottom-centre-left, fades on its own.
     this.cardEl = this.make('div', 'hud-card');
@@ -142,14 +194,16 @@ export class Hud {
       this.starsEl,
       this.promptEl,
       this.speedEl,
+      this.barsEl,
       location,
+      this.stationBanner,
       this.cardEl,
       this.toastEl,
       this.splashEl,
     );
   }
 
-  update(state: HudState & RadioHudState & BlockedHudState): void {
+  update(state: HudState & RadioHudState & BlockedHudState & VitalsHudState): void {
     const stars = Math.round(Math.min(MAX_STARS, Math.max(0, finite(state.stars))));
     this.starEls.forEach((el, i) => {
       const on = i < stars;
@@ -168,8 +222,19 @@ export class Hud {
     this.setPrompt(prompt);
     this.promptEl.hidden = prompt.trim() === '';
 
-    setText(this.streetEl, state.streetName ?? '');
+    const street = state.streetName ?? '';
+    setText(this.streetEl, street);
+    if (street !== this.lastStreet) {
+      if (street !== '' && this.lastStreet !== '') this.restart(this.locationEl, 'fresh');
+      this.lastStreet = street;
+    }
+    this.locationEl.hidden = street === '' && !state.radioStation;
     const radio = state.radioStation ?? '';
+    if (radio !== this.lastStation) {
+      if (radio !== '' && this.lastStation !== '') this.showStationBanner(radio);
+      this.lastStation = radio;
+    }
+    this.updateBars(state);
     const track = state.radioTrack ?? '';
     setText(this.radioEl, track ? `${radio} \u2014 ${track}` : radio);
     const talk = finite(state.talkProgress ?? 0);
@@ -189,6 +254,54 @@ export class Hud {
   }
 
   getInputMode(): InputMode { return this.inputMode; }
+
+  /** Station names for the banner's strip, in dial order. */
+  setStations(names: readonly string[]): void { this.stations = [...names]; }
+
+  /** Banner for `station`: big name (before the dash), tagline, and up to STATION_STRIP_SLOTS stations around it. */
+  showStationBanner(station: string): void {
+    const [head, ...rest] = station.split(/\s+[\u2014-]\s+/);
+    setText(this.stationNameEl, head);
+    setText(this.stationSubEl, rest.join(' \u2014 '));
+    this.stationSubEl.hidden = rest.length === 0;
+    this.stationStripEl.textContent = '';
+    const list = this.stations.length > 0 && this.stations.includes(station) ? this.stations : [station];
+    const n = list.length;
+    const slots = Math.min(STATION_STRIP_SLOTS, n);
+    const cur = list.indexOf(station);
+    for (let k = 0; k < slots; k++) {
+      const name = list[(((cur + k - Math.floor(slots / 2)) % n) + n) % n];
+      const chip = this.make('span', 'hud-station-chip');
+      chip.textContent = name.split(/\s+[\u2014-]\s+/)[0];
+      if (k === Math.floor(slots / 2)) chip.classList.add('on');
+      this.stationStripEl.appendChild(chip);
+    }
+    this.stationBanner.hidden = false;
+    this.restart(this.stationBanner, 'in');
+    if (this.stationTimer !== null) clearTimeout(this.stationTimer);
+    this.stationTimer = setTimeout(() => { this.stationBanner.hidden = true; this.stationTimer = null; }, STATION_BANNER_MS);
+  }
+
+  private updateBars(state: VitalsHudState & HudState): void {
+    const frac = (v: number): number => Math.min(1, Math.max(0, finite(v)));
+    const set = (id: string, show: boolean, v = 0): void => {
+      const b = this.bars.get(id);
+      if (!b) return;
+      b.row.hidden = !show;
+      if (show) b.fill.style.width = `${Math.round(frac(v) * 100)}%`;
+    };
+    const hasHealth = typeof state.health === 'number';
+    set('health', hasHealth, state.health);
+    set('armour', typeof state.armour === 'number' && state.armour > 0, state.armour);
+    set('heat', true, Math.round(Math.min(MAX_STARS, Math.max(0, finite(state.stars)))) / MAX_STARS);
+    set('speed', !!state.inVehicle, Math.abs(finite(state.speedKmh)) / SPEED_BAR_MAX);
+  }
+
+  private restart(el: HTMLElement, cls: string): void {
+    el.classList.remove(cls);
+    void el.offsetWidth; // restart the CSS animation
+    el.classList.add(cls);
+  }
 
   /** Short message at the top-centre (e.g. "Controller connected"). */
   showToast(message: string, ms = TOAST_MS): void {

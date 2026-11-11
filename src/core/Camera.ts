@@ -1,3 +1,4 @@
+import { CAMERA_NEAR, CAMERA_FAR } from '@/render/DepthRange';
 import * as THREE from 'three';
 import { angleDiff, clamp, wrapAngle, type Vec2 } from './Math2';
 import { LOOK_BACK_KEY, type Input } from './Input';
@@ -139,9 +140,11 @@ export class ThirdPersonCamera {
   private offZ = 0;
   private readonly tgt: Vec2 = { x: 0, z: 0 };
   private fovNow: number = CAM_FOOT.fov;
+  /** Degrees added to the on-foot and vehicle field of view (Menu > Advanced graphics > Field of view). */
+  fovOffset = 0;
 
   constructor(aspect = 16 / 9) {
-    this.camera = new THREE.PerspectiveCamera(CAM_FOOT.fov, aspect, 0.1, 900);
+    this.camera = new THREE.PerspectiveCamera(CAM_FOOT.fov, aspect, CAMERA_NEAR, CAMERA_FAR);
   }
 
   setAspect(aspect: number): void {
@@ -321,7 +324,7 @@ export class ThirdPersonCamera {
     this.lookY += (rig.look - this.lookY) * k;
     this.shoulder += ((vehicleMode ? 0 : CAM_FOOT.shoulder) - this.shoulder) * k;
 
-    const fov = vehicleMode ? CAM_VEHICLE.fov + (CAM_VEHICLE.fovTop - CAM_VEHICLE.fov) * this.speedN : CAM_FOOT.fov;
+    const fov = (vehicleMode ? CAM_VEHICLE.fov + (CAM_VEHICLE.fovTop - CAM_VEHICLE.fov) * this.speedN : CAM_FOOT.fov) + this.fovOffset;
     this.fovNow = first ? fov : this.fovNow + (fov - this.fovNow) * k;
     if (Math.abs(this.fovNow - this.camera.fov) > 0.01) {
       this.camera.fov = this.fovNow;

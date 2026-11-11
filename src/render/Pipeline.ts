@@ -256,7 +256,16 @@ export const GRADING_SHADER = {
  * DoF reads the depth texture of the GTAO G-buffer (a separate target), because the composer's own
  * ping-pong targets cannot be sampled while one of them is the DoF write target (feedback loop).
  */
+/** Player-facing post-processing switches (Menu > Advanced graphics). A pass the tier does not build ignores its switch. */
+export interface PostOptions { ao: boolean; bloom: boolean; dof: boolean; aa: boolean; vignette: boolean; grain: boolean }
+export const DEFAULT_POST_OPTIONS: Readonly<PostOptions> = { ao: true, bloom: true, dof: true, aa: true, vignette: true, grain: true };
+const GRADING_VIGNETTE = 0.35;
+
 export class RenderPipeline {
+  private post: PostOptions = { ...DEFAULT_POST_OPTIONS };
+  private smaa: SMAAPass | null = null;
+  /** the player's AA choice; null = the tier default (SMAA on medium / high only) */
+  private aaUser: boolean | null = null;
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene: THREE.Scene;
   private readonly camera: THREE.PerspectiveCamera;
@@ -271,6 +280,7 @@ export class RenderPipeline {
   private dof: DofPass | null = null;
   private fx: FxPass | null = null;
   private sunLight: THREE.DirectionalLight | null | undefined;
+  private sunMiss = 0;
   private wet = 0;
   private rain = 0;
   private bloomScale = 1;
@@ -319,6 +329,29 @@ export class RenderPipeline {
     return this.q;
   }
 
+  /** Which post passes the current tier built (a switch for a missing pass is a no-op, and the menu hides it). */
+  get postSupport(): PostOptions {
+    return { ao: !!this.gtao, bloom: !!this.bloom, dof: !!this.dof, aa: !!this.smaa, vignette: !!this.grading, grain: !!this.grading };
+  }
+
+  /** Live switches for AO (G-buffer, contact/SSR and DoF share it), bloom, DoF, SMAA, vignette and film grain. */
+  setPostOptions(o: Partial<PostOptions>): void {
+    this.post = { ...this.post, ...o };
+    if (o.aa !== undefined) this.aaUser = o.aa;
+    this.applyPost();
+  }
+
+  private applyPost(): void {
+    const p = this.post;
+    if (this.gtao) this.gtao.enabled = p.ao;
+    if (this.fx) this.fx.enabled = p.ao;
+    if (this.dof) this.dof.enabled = p.ao && p.dof && this.dofStrengthV > 0.001; // DoF samples the AO G-buffer depth
+    if (this.smaa) this.smaa.enabled = this.aaUser ?? (this.q !== 'low');
+    if (this.bloom) this.bloom.enabled = p.bloom && (this.q !== 'phone' || this.bloom.enabled);
+    if (this.grading) this.grading.uniforms.vignette.value = p.vignette ? GRADING_VIGNETTE : 0;
+    if (this.grading) this.updateExposure();
+  }
+
   /** Depth-of-field strength 0..1 (0 disables the pass). Default 0.6. */
   get dofStrength(): number {
     return this.dofStrengthV;
@@ -357,7 +390,7 @@ export class RenderPipeline {
 
   private updateSignBloom(): void {
     if (this.q !== 'phone' || !this.bloom) return;
-    this.bloom.enabled = signBloomGate(this.q, this.isNightNow(), this.measuredFps, this.bloom.enabled);
+    this.bloom.enabled = this.post.bloom && signBloomGate(this.q, this.isNightNow(), this.measuredFps, this.bloom.enabled);
   }
 
   /** Ground wetness and rain intensity (0..1) from Weather; drives the SSR trace, the haze and the rain bloom. */
@@ -475,6 +508,7 @@ export class RenderPipeline {
     this.gtao = null;
     this.dof = null;
     this.fx = null;
+    this.smaa = null;
   }
 
   private add<T extends Pass>(pass: T): T {
@@ -492,7 +526,7 @@ export class RenderPipeline {
     const dof = this.dof;
     if (!dof) return;
     const strength = this.dofStrengthV;
-    dof.enabled = strength > 0.001;
+    dof.enabled = strength > 0.001 && this.post.ao && this.post.dof;
     if (!dof.enabled) return;
     const pr = this.renderer.getPixelRatio();
     const u = dof.uniforms;
@@ -515,7 +549,8 @@ export class RenderPipeline {
   }
 
   private findSun(): THREE.DirectionalLight | null {
-    if (this.sunLight === undefined) {
+    // not found (no shadow-casting sun, e.g. Shadows set to Off before the first frame): look again now and then
+    if (this.sunLight === undefined || (this.sunLight === null && ++this.sunMiss % 120 === 0)) {
       this.sunLight = null;
       this.scene.traverse((o) => { if (!this.sunLight && (o as THREE.DirectionalLight).isDirectionalLight && (o as THREE.DirectionalLight).castShadow) this.sunLight = o as THREE.DirectionalLight; });
     }
@@ -557,7 +592,7 @@ export class RenderPipeline {
       this.bloom.threshold = ph ? Math.max(tc.bloomThreshold, 1.0) : tc.bloomThreshold;
       this.bloom.radius = BLOOM_RADIUS + (ph ? 0 : 0.25 * this.rain);
     }
-    if (this.grading && this.q !== 'phone') this.grading.uniforms.grain.value = grainAmount(tc.moonI);
+    if (this.grading && this.q !== 'phone') this.grading.uniforms.grain.value = this.post.grain ? grainAmount(tc.moonI) : 0;
   }
 
   private build(): void {
@@ -621,12 +656,13 @@ export class RenderPipeline {
     );
     this.grading.uniforms.useLut.value = 0;
 
-    if (full) this.add(new SMAAPass());
+    if (this.q !== 'phone') { this.smaa = this.add(new SMAAPass()); this.smaa.enabled = full; } // low builds it switched off: the AA option can turn it on
     this.add(new OutputPass()); // last: tone mapping + sRGB
 
     // Sync every pass to the current size (addPass already did; this also fixes the bloom scale).
     this.composer.setSize(this.w, this.h);
     this.applyBloomSize();
+    this.applyPost();
   }
 
   private applyBloomSize(): void {

@@ -176,7 +176,9 @@ describe('buildBuildings', () => {
         const wa = b.clone().sub(a).cross(c.clone().sub(a)).length() / 2;
         const ua = Math.abs((uv.getX(i + 1) - uv.getX(i)) * (uv.getY(i + 2) - uv.getY(i)) - (uv.getX(i + 2) - uv.getX(i)) * (uv.getY(i + 1) - uv.getY(i))) / 2;
         if (wa < 1e-6) continue;
-        expect(ua / wa).toBeCloseTo(1 / 9, 2);
+        // one repeat per 3 m, jittered per lot by the colourway's UV scale (0.88..1.16, area 0.77..1.35)
+        expect(ua / wa).toBeGreaterThan(0.77 / 9 - 1e-3);
+        expect(ua / wa).toBeLessThan(1.35 / 9 + 1e-3);
         checked++;
       }
       expect(checked).toBeGreaterThan(0);

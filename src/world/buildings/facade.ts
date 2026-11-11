@@ -13,6 +13,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { IMaterialLibrary, Lot } from '@/world/types';
 import type { Rng } from '@/core/Rng';
 import { lotLook, partyWallDetail, roofDetails } from './partyWall';
+import { toneFor, type Colourway } from './colourway';
 
 /** Parlour (or ground) storey height and the storeys above it (real Bed-Stuy rows: tall parlour, shorter upper floors). */
 export const PARLOUR_H = 3.3;
@@ -64,6 +65,8 @@ export interface LotSpec {
   arched?: boolean;
   /** file stem of a facade-photo atlas (facade-<lotId>) mapped once across the front; see facadeTexture.ts */
   facadeTexture?: string;
+  /** wood-frame house (siding) or new-build condo (panel cladding / glazed brick): picks the wall kind in colourway.ts */
+  look?: 'frame' | 'newBuild';
 }
 
 /** Y levels of a building's storeys. floorY[0] is the parlour/ground floor, floorY[k] the k-th floor above it. */
@@ -115,7 +118,8 @@ export interface BuildingMats {
 
 export function loadMats(lib: IMaterialLibrary): BuildingMats {
   const windows = [0, 1, 2, 3].map((v) => lib.get('window', v));
-  const plainAwnings = [lib.awning('#2f6f4f', ''), lib.awning('#8a3b2e', '')];
+  // the two plain awnings are recoloured per lot (colourway.ts); the weeds keep their own green fabric
+  const plainAwnings = [lib.awning('#8a3b2e', ''), lib.awning('#27303a', '')];
   return {
     lib,
     brownstone: lib.get('brownstone', 0),
@@ -143,7 +147,7 @@ export function loadMats(lib: IMaterialLibrary): BuildingMats {
     corrugated: lib.get('corrugatedSteel', 0),
     plainAwnings,
     darkAwning: lib.awning('#27303a', ''),
-    leaves: plainAwnings[0],
+    leaves: lib.awning('#2f6f4f', ''),
   };
 }
 
@@ -294,7 +298,8 @@ function bakeVertexAo(p: number[], n: number[], openings: readonly AoOpening[], 
 function enableVertexAo(m: THREE.Material): void {
   if (m.vertexColors) return;
   m.vertexColors = true;
-  (m as THREE.Material & { defaultAttributeValues?: Record<string, number[]> }).defaultAttributeValues = { color: [1, 1, 1, 1] };
+  // aTone / aStyle (lotTone.ts): zero alpha = "no recolour" for geometry that does not carry them
+  (m as THREE.Material & { defaultAttributeValues?: Record<string, number[]> }).defaultAttributeValues = { color: [1, 1, 1, 1], aTone: [0, 0, 0, 0], aStyle: [0, 0, 0, 0] };
   m.needsUpdate = true;
 }
 
@@ -304,6 +309,7 @@ export class LotBatch {
   private cur = new THREE.Matrix4();
   private uvMaps = new Map<THREE.Material, (x: number, y: number) => [number, number]>();
   private nest = 0;
+  private cw: { cw: Colourway; front: ReadonlySet<THREE.Material> | null; corner: boolean; limestoneFront: boolean } | null = null;
   /** wall openings of the lot being built (lot-local boxes), used by the baked vertex AO in `flush` */
   private openings: AoOpening[] = [];
 
@@ -324,6 +330,11 @@ export class LotBatch {
   /** Planar front-wall quads/triangles (constant z, outside any `with` frame) of `mat` take their UVs from `fn(x, y)` instead of tiling. */
   mapUV(mat: THREE.Material, fn: (x: number, y: number) => [number, number]): void { this.uvMaps.set(mat, fn); }
   clearUV(): void { this.uvMaps.clear(); }
+
+  /** Colourway of the lot being built: `flush` bakes it into the `aTone` / `aStyle` attributes (and jitters wall UVs). `front` = the front-family materials (null = every wall material). */
+  setColourway(cw: Colourway | null, front: ReadonlySet<THREE.Material> | null = null, corner = false, limestoneFront = false): void {
+    this.cw = cw ? { cw, front, corner, limestoneFront } : null;
+  }
 
   private buf(mat: THREE.Material): Raw {
     let r = this.raw.get(mat);
@@ -496,6 +507,7 @@ export class LotBatch {
       g.setAttribute('color', new THREE.BufferAttribute(bakeVertexAo(r.p, r.n, this.openings, overhangs), 4, true));
       g.setAttribute('position', new THREE.Float32BufferAttribute(r.p, 3));
       g.setAttribute('normal', new THREE.Float32BufferAttribute(r.n, 3));
+      this.bakeTone(g, mat, r);
       g.setAttribute('uv', new THREE.Float32BufferAttribute(r.uv, 2));
       g.applyMatrix4(m);
       let list = this.out.get(mat);
@@ -504,6 +516,35 @@ export class LotBatch {
       r.p = []; r.n = []; r.uv = [];
     }
     this.openings = [];
+  }
+
+  /** `aTone` (target sRGB + paint amount) and `aStyle` (kind, mortar, seed, weather) for the shared wall materials; jitters wall UVs per lot. */
+  private bakeTone(g: THREE.BufferGeometry, mat: THREE.Material, r: Raw): void {
+    const count = r.p.length / 3;
+    const tone = new Uint8Array(count * 4), style = new Uint8Array(count * 4);
+    const c = this.cw;
+    if (c && mat.name) {
+      const isFront = c.front === null || c.front.has(mat);
+      const sideT = toneFor(mat.name, c.cw, false, c.limestoneFront);
+      const frontT = isFront || mat.name.startsWith('limestone:') ? toneFor(mat.name, c.cw, true, c.limestoneFront) : sideT;
+      if (sideT || frontT) {
+        for (let i = 0; i < count; i++) {
+          const t = (isFront || c.limestoneFront) && (r.n[i * 3 + 2] > 0.7 || c.corner) ? frontT : sideT;
+          if (!t) continue;
+          tone.set(t.tone, i * 4); style.set(t.style, i * 4);
+        }
+        if (/^(brickRed|brickPainted|brownstone|limestone|stoop):/.test(mat.name)) {
+          const { scale, ou, ov, flip } = c.cw.uv;
+          for (let i = 0; i < count; i++) {
+            const u = r.uv[i * 2], v = r.uv[i * 2 + 1];
+            r.uv[i * 2] = (flip ? -u : u) * scale + ou;
+            r.uv[i * 2 + 1] = v * scale + ov;
+          }
+        }
+      }
+    }
+    g.setAttribute('aTone', new THREE.BufferAttribute(tone, 4, true));
+    g.setAttribute('aStyle', new THREE.BufferAttribute(style, 4, true));
   }
 
   /** One merged geometry per material. */

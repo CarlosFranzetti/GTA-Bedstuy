@@ -234,3 +234,73 @@
   .msn-pointer { font-size: 13px; padding: 3px 10px 3px 6px; }
   .msn-pointer-arrow { width: 24px; height: 24px; line-height: 24px; font-size: 20px; }
 }
+
+/* ---- GTA-idiom pass: money top-right, help box top-left, subtitles bottom-centre. Prefixed with .hud-root so it wins over the rules above. */
+.hud-root .msn-cash {
+  top: calc(max(10px, env(safe-area-inset-top, 0px)) - 2px);
+  right: max(16px, env(safe-area-inset-right, 0px));
+  font: 800 34px/1 var(--gui-font);
+  letter-spacing: 0.03em;
+  color: #6fd06a;
+  text-shadow: 0 2px 0 #1c4d1f, 0 3px 8px rgba(0, 0, 0, 0.7);
+}
+.hud-root .msn-cash-delta {
+  position: absolute;
+  top: calc(max(10px, env(safe-area-inset-top, 0px)) + 6px);
+  right: calc(max(16px, env(safe-area-inset-right, 0px)) + 150px);
+  font: 800 20px/1 var(--gui-font);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+.msn-cash-delta[hidden], .msn-sub[hidden] { display: none !important; }
+.msn-cash-delta[data-sign="up"] { color: #8be58a; }
+.msn-cash-delta[data-sign="down"] { color: #ff6f61; }
+.msn-cash-delta.show { animation: msn-delta 1800ms ease-out forwards; }
+@keyframes msn-delta {
+  0% { opacity: 0; transform: translateY(-8px); }
+  12% { opacity: 1; transform: none; }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(8px); }
+}
+
+/* objective / help box: dark plate with a gold edge */
+.hud-root .msn-panel {
+  padding: 8px 14px 9px 12px;
+  border-left: 4px solid #f5d04a;
+  border-radius: 4px 8px 8px 4px;
+  background: rgba(8, 10, 16, 0.72);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+.hud-root .msn-title { font: 800 15px/1 var(--gui-font); font-variant-caps: normal; text-transform: uppercase; letter-spacing: 0.12em; color: #f5d04a; }
+.hud-root .msn-objective { font: 600 15px/1.25 var(--gui-font); }
+.hud-root .msn-step, .hud-root .msn-carry { font-family: var(--gui-font); }
+.hud-root .msn-timer { font: 800 24px/1 var(--gui-font); font-variant-numeric: tabular-nums; }
+.hud-root .msn-pointer { font-family: var(--gui-font); }
+.hud-root .msn-toast, .hud-root .msn-retry { font: 700 15px/1.3 var(--gui-font); border-radius: 8px; border-width: 0 0 0 4px; }
+
+/* subtitle: bottom-centre, keyword highlights in gold */
+.hud-root .msn-sub {
+  position: absolute;
+  left: 50%;
+  bottom: calc(max(18px, env(safe-area-inset-bottom, 0px)) + 4px);
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(640px, calc(100% - 520px));
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.5);
+  font: 700 18px/1.25 var(--gui-font);
+  text-align: center;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+}
+.msn-sub.in { animation: msn-sub-in 260ms ease-out; }
+@keyframes msn-sub-in { from { opacity: 0; transform: translateX(-50%) translateY(6px); } to { opacity: 1; transform: translateX(-50%); } }
+.msn-kw { color: #f5d04a; font-weight: 800; }
+/* tight widths: the sub sits above the touch controls, full width */
+@media (max-width: 1000px) { .hud-root .msn-sub { max-width: calc(100% - 32px); bottom: calc(max(18px, env(safe-area-inset-bottom, 0px)) + 62px); } }
+.hud-root.touch .msn-sub { bottom: 220px; max-width: calc(100% - 32px); font-size: 16px; }
+@media (max-height: 420px) { .hud-root.touch .msn-sub { bottom: 14px; max-width: calc(100% - 420px); font-size: 14px; } }
+@media (prefers-reduced-motion: reduce) { .msn-cash-delta.show, .msn-sub.in { animation: none; } }

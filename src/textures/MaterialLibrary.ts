@@ -15,7 +15,8 @@ import {
 import { awningPainter, copLiveryPainter, signPainter, taxiLiveryPainter } from './painters/signage';
 import { CLOTH_COLORS, LEAF_VARIANTS, SKIN_TONES, treeLeavesPainter, treeTrunkPainter } from './painters/organic';
 import { gray, wrapVariant } from './painters/util';
-import { GROUND_VARIATION, disposeVariationTexture, patchGroundVariation } from './groundVariation';
+import { LOT_TONE_KEYS, patchLotTone } from './lotTone';
+import { GROUND_DETAIL_KEYS, patchGroundDetail, GROUND_VARIATION, disposeVariationTexture, patchGroundVariation } from './groundVariation';
 import { CAR_FLAKE_NORMAL_SCALE, PLATE_VARIANTS, carPaintMaps, platePainter, tireSidewallPainter, type CarPaintMaps } from './painters/vehicle';
 import {
   DENIM_VARIANTS, HOODIE_VARIANTS, SNEAKER_VARIANTS, VARSITY_VARIANTS,
@@ -136,6 +137,9 @@ export class MaterialLibrary implements IMaterialLibrary {
       if (ei !== undefined && m instanceof THREE.MeshStandardMaterial) this.registerEnv(m, ei);
       const gv = GROUND_VARIATION_KEYS[key];
       if (gv && m instanceof THREE.MeshStandardMaterial) patchGroundVariation(m, GROUND_VARIATION[gv]);
+      if (m instanceof THREE.MeshStandardMaterial && LOT_TONE_KEYS.includes(key)) patchLotTone(m);
+      const gd = GROUND_DETAIL_KEYS[key];
+      if (gd && m instanceof THREE.MeshStandardMaterial) patchGroundDetail(m, gd);
       const ov = this.overrides.get(id);
       if (ov) this.applyOverride(m, ov);
     }
@@ -168,6 +172,7 @@ export class MaterialLibrary implements IMaterialLibrary {
       const map = this.texture(`awning:${id}`, 512, 256, awningPainter(color, text), 0);
       m = this.std({ map, roughness: 0.85 });
       m.name = `awning:${id}`;
+      if (text === '' && (color === '#8a3b2e' || color === '#27303a')) patchLotTone(m as THREE.MeshStandardMaterial); // per-lot fabric colour (colourway.ts)
       this.awnings.set(id, m);
     }
     return m;

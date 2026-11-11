@@ -602,9 +602,11 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
   for (const [, b] of batches) {
     if (b.geoms.length === 0) continue;
     if (b.name.startsWith('markings') || b.name === 'crosswalks') {
+      // paint sits 4 mm above the surface details (decalMaterial: -1) and 16 mm above the asphalt: one more depth step so far
+      // paint does not shimmer against them (4 mm is far below the 24-bit step beyond ~80 m)
       b.material.polygonOffset = true;
-      b.material.polygonOffsetFactor = -1;
-      b.material.polygonOffsetUnits = -1;
+      b.material.polygonOffsetFactor = -2;
+      b.material.polygonOffsetUnits = -2;
     }
     const prepared = b.geoms.map((g) => (g.index ? g.toNonIndexed() : g));
     const merged = mergeGeometries(prepared, false);

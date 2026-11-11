@@ -437,6 +437,10 @@ export class InstanceCuller {
         k++;
       }
       e.mesh.count = k;
+      // three computes an InstancedMesh's bounding sphere once, over the instances present at the time; after a compaction it
+      // would describe the old set (the first render happens after the first compaction, so: the spawn area), and the frustum
+      // test would then drop the whole mesh whenever that stale sphere is off screen while its live instances are on screen.
+      e.mesh.boundingSphere = null; e.mesh.boundingBox = null;
       this.shown += k;
       e.mesh.instanceMatrix.clearUpdateRanges(); e.mesh.instanceMatrix.addUpdateRange(0, Math.max(1, k) * 16); e.mesh.instanceMatrix.needsUpdate = true;
       if (e.mesh.instanceColor) { e.mesh.instanceColor.clearUpdateRanges(); e.mesh.instanceColor.addUpdateRange(0, Math.max(1, k) * 3); e.mesh.instanceColor.needsUpdate = true; }

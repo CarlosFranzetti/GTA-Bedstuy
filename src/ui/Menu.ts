@@ -13,6 +13,12 @@ import { clearPosition } from './SaveState';
 import { MINIMAP_LEGEND } from './Minimap';
 import type { SaveManager } from './GameSave';
 import { SavePanel } from './SavePanel';
+import { FullscreenControl } from './Fullscreen';
+import {
+  GraphicsStore, supports, SHADOW_MODES, FPS_CAPS, RANGES,
+  type GraphicsKey, type GraphicsSettings, type ShadowMode,
+} from './GraphicsSettings';
+import type { Quality } from '@/render/Shadows';
 
 export type MenuQuality = 'phone' | 'low' | 'medium' | 'high';
 export const QUALITIES: readonly MenuQuality[] = ['phone', 'low', 'medium', 'high'];
@@ -20,6 +26,8 @@ export const SETTINGS_KEY = 'gta-bedstuy.settings.v1';
 
 export interface MenuSettings {
   quality: MenuQuality;
+  /** Auto preset: the device default tier, with the automatic drop when the frame rate is poor. A tier button turns it off. */
+  auto: boolean;
   /** 0..1 */
   master: number;
   /** 0..1 */
@@ -31,6 +39,10 @@ export interface MenuCallbacks {
   /** Game should freeze while true. Resume (false) is invoked inside a user gesture: a good place to re-request pointer lock. */
   onPause?: (paused: boolean) => void;
   onQuality?: (quality: MenuQuality) => void;
+  /** Auto preset switched on / off: the host turns the automatic quality drop (PerfMonitor.setAutoDrop) on / off. */
+  onAuto?: (auto: boolean) => void;
+  /** An advanced graphics setting changed (or a persisted override was loaded): re-derive and apply (live, no reload). */
+  onGraphics?: (settings: GraphicsSettings, changed: readonly GraphicsKey[]) => void;
   onMasterVolume?: (volume: number) => void;
   onRadioVolume?: (volume: number) => void;
   onRadioLibrary?: () => void;
@@ -53,9 +65,19 @@ export interface MenuOptions {
   saves?: SaveManager;
   /** false while a save would store a nonsense pose (inside a room). */
   canSave?: () => boolean;
+  /** Shared store of the advanced graphics overrides (main.ts also reads it on a tier switch). Default: a new one on `storage`. */
+  graphics?: GraphicsStore;
+  /** Current tier of the game (the automatic drop changes it behind the menu's back): read when the menu opens. */
+  getQuality?: () => MenuQuality;
+  /** Full screen control (tests inject a mocked one). Default: one on the real document. */
+  fullscreen?: FullscreenControl | null;
+  /** Auto preset on when nothing is saved (the host: no ?q= and no ?perf=0). Default false. */
+  auto?: boolean;
+  /** Show a "Play full screen" button on the title screen (`.hud-splash`). Default true. */
+  titleFullscreen?: boolean;
 }
 
-const DEFAULTS: MenuSettings = { quality: 'medium', master: 1, radio: 1, invertY: false };
+const DEFAULTS: MenuSettings = { quality: 'medium', auto: false, master: 1, radio: 1, invertY: false };
 
 const CONTROLS: Record<InputMode, { title: string; rows: Array<[string, string]> }> = {
   keyboard: {
@@ -73,6 +95,36 @@ const CONTROLS: Record<InputMode, { title: string; rows: Array<[string, string]>
 };
 
 const clamp01 = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : fallback);
+
+type AdvControl =
+  | { kind: 'range'; min: number; max: number; step: number; scale: number; fmt: (v: number) => string }
+  | { kind: 'bool' }
+  | { kind: 'seg'; options: ReadonlyArray<readonly [string | number, string]> };
+interface AdvSpec { key: GraphicsKey; label: string; control: AdvControl }
+const asPct = (v: number): string => `${Math.round(v * 100)}%`;
+const frac = (r: { min: number; max: number; step: number }): AdvControl => ({ kind: 'range', min: Math.round(r.min * 100), max: Math.round(r.max * 100), step: Math.round(r.step * 100), scale: 100, fmt: asPct });
+const SHADOW_LABEL: Record<ShadowMode, string> = { off: 'Off', blob: 'Blob', low: 'Low', medium: 'Medium', high: 'High' };
+
+/** Advanced graphics rows, in menu order. A row shows only when GraphicsSettings.supports(tier) lists its key. */
+export const ADVANCED_ROWS: readonly AdvSpec[] = [
+  { key: 'resolution', label: 'Resolution scale', control: frac(RANGES.resolution) },
+  { key: 'nativeDpr', label: 'Native display resolution', control: { kind: 'bool' } },
+  { key: 'shadows', label: 'Shadows', control: { kind: 'seg', options: SHADOW_MODES.map((m) => [m, SHADOW_LABEL[m]] as const) } },
+  { key: 'drawDistance', label: 'Draw distance', control: frac(RANGES.drawDistance) },
+  { key: 'treeRange', label: 'Tree & prop range', control: frac(RANGES.treeRange) },
+  { key: 'crowd', label: 'Crowd density', control: frac(RANGES.crowd) },
+  { key: 'traffic', label: 'Traffic density', control: frac(RANGES.traffic) },
+  { key: 'aa', label: 'Anti-aliasing', control: { kind: 'seg', options: [['off', 'Off'], ['smaa', 'SMAA']] } },
+  { key: 'ao', label: 'Ambient occlusion', control: { kind: 'bool' } },
+  { key: 'bloom', label: 'Bloom', control: { kind: 'bool' } },
+  { key: 'dof', label: 'Depth of field', control: { kind: 'bool' } },
+  { key: 'vignette', label: 'Vignette', control: { kind: 'bool' } },
+  { key: 'grain', label: 'Film grain', control: { kind: 'bool' } },
+  { key: 'textures', label: 'Texture quality', control: { kind: 'seg', options: [['low', 'Low'], ['medium', 'Medium'], ['high', 'High']] } },
+  { key: 'fpsCap', label: 'Frame rate cap', control: { kind: 'seg', options: FPS_CAPS.map((c) => [c, c === 0 ? 'None' : String(c)] as const) } },
+  { key: 'fov', label: 'Field of view', control: { kind: 'range', min: RANGES.fov.min, max: RANGES.fov.max, step: RANGES.fov.step, scale: 1, fmt: (v) => `${Math.round(v)}°` } },
+  { key: 'showFps', label: 'Show FPS', control: { kind: 'bool' } },
+];
 
 function defaultStorage(): Pick<Storage, 'getItem' | 'setItem'> | null {
   try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; }
@@ -103,14 +155,37 @@ export class Menu {
   private wasLocked = false;
   private restoreFocus: HTMLElement | null = null;
   private readonly touchEnabled: boolean;
+  readonly graphics: GraphicsStore;
+  readonly fullscreen: FullscreenControl | null;
+  private readonly advBox: HTMLElement;
+  private readonly advToggle: HTMLButtonElement;
+  private readonly advReset: HTMLButtonElement;
+  private readonly advSummary: HTMLElement;
+  private readonly advRows = new Map<GraphicsKey, { row: HTMLElement; spec: AdvSpec; input?: HTMLInputElement; out?: HTMLOutputElement; btns?: HTMLButtonElement[] }>();
+  private readonly autoBtn: HTMLButtonElement;
+  private readonly fsBtn: HTMLButtonElement;
+  private readonly fsCorner: HTMLButtonElement;
+  private readonly fsTitle: HTMLButtonElement;
+  private readonly installNote: HTMLElement;
+  private readonly fpsEl: HTMLElement;
+  private fpsRaf = 0;
+  /** the tier the game runs now (the automatic drop can differ from the chosen one) */
+  private liveTier: MenuQuality;
+  private readonly deviceTier: MenuQuality;
+  private readonly getLive: (() => MenuQuality) | undefined;
 
   constructor(parent: HTMLElement, private readonly cb: MenuCallbacks = {}, opts: MenuOptions = {}) {
     this.doc = parent.ownerDocument;
     this.touchEnabled = !!opts.touch;
     this.storage = opts.storage === undefined ? defaultStorage() : opts.storage;
     const saved = this.load();
-    this.state = { ...DEFAULTS, quality: opts.initialQuality ?? DEFAULTS.quality, ...saved };
-    if (opts.ignoreSavedQuality && opts.initialQuality) this.state.quality = opts.initialQuality;
+    this.state = { ...DEFAULTS, quality: opts.initialQuality ?? DEFAULTS.quality, auto: opts.auto ?? false, ...saved };
+    if (opts.ignoreSavedQuality && opts.initialQuality) { this.state.quality = opts.initialQuality; this.state.auto = false; }
+    this.deviceTier = opts.initialQuality ?? DEFAULTS.quality;
+    this.liveTier = this.state.quality;
+    this.getLive = opts.getQuality;
+    this.graphics = opts.graphics ?? new GraphicsStore(this.storage);
+    this.fullscreen = opts.fullscreen === undefined ? new FullscreenControl(this.doc, this.storage) : opts.fullscreen;
 
     // ---- DOM
     this.root = this.el('div', 'menu-root');
@@ -136,6 +211,11 @@ export class Menu {
     const group = this.el('div', 'menu-seg');
     group.setAttribute('role', 'radiogroup');
     group.setAttribute('aria-labelledby', 'menu-quality-label');
+    this.autoBtn = this.button('Auto', 'menu-seg-btn');
+    this.autoBtn.setAttribute('role', 'radio');
+    this.autoBtn.dataset.quality = 'auto';
+    this.autoBtn.addEventListener('click', () => this.setAuto(true));
+    group.appendChild(this.autoBtn);
     for (const q of QUALITIES) {
       const b = this.button(q[0].toUpperCase() + q.slice(1), 'menu-seg-btn');
       b.setAttribute('role', 'radio');
@@ -214,7 +294,33 @@ export class Menu {
     this.saveBtn = this.button('Save / Load game', 'menu-btn menu-save-btn');
     this.saveBtn.hidden = !opts.saves;
     this.saveBtn.addEventListener('click', () => this.showSave(true));
-    this.mainBox.append(this.resumeBtn, this.saveBtn, quality, masterRow, radioRow, libBtn, invertRow, this.resetBtn, controls, legend, hint);
+
+    // Display: full screen + install hint
+    const fsRow = this.el('div', 'menu-row menu-fs-row');
+    const fsLabel = this.el('span', 'menu-label');
+    fsLabel.textContent = 'Full screen';
+    this.fsBtn = this.button('', 'menu-btn menu-fs-btn');
+    this.fsBtn.addEventListener('click', () => { void this.fullscreen?.toggle(); });
+    fsRow.append(fsLabel, this.fsBtn);
+    this.installNote = this.el('p', 'menu-note menu-install');
+    this.installNote.textContent = 'Install as app: Chrome, menu > Cast, save and share > Install page as app. Safari, File > Add to Dock. It then opens in its own window with no browser bars.';
+
+    // Advanced graphics (collapsed): individual settings over the tier
+    this.advToggle = this.button('Advanced graphics', 'menu-btn menu-adv-toggle');
+    this.advToggle.setAttribute('aria-expanded', 'false');
+    this.advToggle.setAttribute('aria-controls', 'menu-adv');
+    this.advToggle.addEventListener('click', () => this.setAdvOpen(this.advToggle.getAttribute('aria-expanded') !== 'true'));
+    this.advBox = this.el('div', 'menu-adv menu-section');
+    this.advBox.id = 'menu-adv';
+    this.advBox.hidden = true;
+    this.advSummary = this.el('p', 'menu-note menu-adv-summary');
+    this.advReset = this.button('Reset to preset', 'menu-btn menu-adv-reset');
+    this.advReset.addEventListener('click', () => this.graphics.reset());
+    this.advBox.appendChild(this.advSummary);
+    for (const spec of ADVANCED_ROWS) this.advBox.appendChild(this.buildAdvRow(spec));
+    this.advBox.appendChild(this.advReset);
+
+    this.mainBox.append(this.resumeBtn, this.saveBtn, quality, fsRow, this.installNote, masterRow, radioRow, libBtn, invertRow, this.advToggle, this.advBox, this.resetBtn, controls, legend, hint);
     this.saveBox = this.el('div', 'menu-main menu-savebox');
     this.saveBox.hidden = true;
     if (opts.saves) {
@@ -234,7 +340,24 @@ export class Menu {
     this.pauseButton.addEventListener('click', () => this.open());
     parent.appendChild(this.pauseButton);
 
+    // Small corner button (mouse and keyboard players) and the title-screen offer. Both need a user gesture, which a click is.
+    this.fsCorner = this.button('', 'menu-fs-corner');
+    this.fsCorner.addEventListener('click', () => { void this.fullscreen?.toggle(); });
+    this.fsCorner.hidden = this.touchEnabled || !this.fullscreen?.supported;
+    parent.appendChild(this.fsCorner);
+    this.fsTitle = this.button('Play full screen', 'menu-fs-title');
+    this.fsTitle.hidden = true;
+    parent.appendChild(this.fsTitle);
+    this.fpsEl = this.el('div', 'fps-counter');
+    this.fpsEl.hidden = true;
+    this.fpsEl.setAttribute('aria-hidden', 'true');
+    parent.appendChild(this.fpsEl);
+    this.installNote.hidden = this.isStandalone();
+
     this.syncUi();
+    this.syncAdv();
+    this.syncFs();
+    this.syncFps();
     this.setInputMode(opts.touch ? 'touch' : 'keyboard');
 
     // ---- global listeners
@@ -247,6 +370,33 @@ export class Menu {
 
     this.root.addEventListener('keydown', (e) => this.onPanelKey(e));
 
+    // advanced graphics: any change (slider, toggle, reset) re-syncs the rows and tells the host
+    this.cleanup.push(this.graphics.onChange((changed) => { this.syncAdv(); this.syncFps(); this.cb.onGraphics?.(this.graphics.effective(this.liveTier), changed); }));
+
+    // full screen: Esc (or the browser's own exit) leaves it, then the pause screen opens; a late resize event fixes Safari's stale size
+    if (this.fullscreen) {
+      this.cleanup.push(this.fullscreen.onChange((on, escaped) => {
+        this.syncFs();
+        win?.setTimeout(() => win.dispatchEvent(new Event('resize')), 150);
+        if (!on && escaped && !this.opened && !this.doc.body.classList.contains('ui-panel-open')) this.open();
+      }));
+      const fs = this.fullscreen;
+      this.fsTitle.addEventListener('click', () => { void fs.enter(); });
+      // "Play full screen" remembered: the click that starts the game on the title screen also enters it
+      if (opts.titleFullscreen !== false) {
+        const gesture = (): void => { if (fs.preferred && !fs.active && this.splashShowing()) void fs.enter(); };
+        parent.addEventListener('mousedown', gesture, true);
+        parent.addEventListener('click', gesture, true);
+        this.cleanup.push(() => { parent.removeEventListener('mousedown', gesture, true); parent.removeEventListener('click', gesture, true); });
+        const splash = parent.querySelector('.hud-splash');
+        if (splash && typeof MutationObserver !== 'undefined') {
+          const mo = new MutationObserver(() => this.syncFs());
+          mo.observe(splash, { attributes: true, attributeFilter: ['style', 'class'] });
+          this.cleanup.push(() => mo.disconnect());
+        }
+      }
+    }
+
     if (opts.openOnPointerUnlock !== false) {
       const onLock = () => {
         const locked = !!this.doc.pointerLockElement;
@@ -258,6 +408,8 @@ export class Menu {
     }
 
     // ---- push persisted values into the game
+    if (this.graphics.hasOverrides) this.cb.onGraphics?.(this.graphics.effective(this.liveTier), Object.keys(this.graphics.raw) as GraphicsKey[]);
+    if (this.state.auto !== (opts.auto ?? false)) this.cb.onAuto?.(this.state.auto);
     if (saved.master !== undefined) this.cb.onMasterVolume?.(this.state.master);
     if (saved.radio !== undefined) this.cb.onRadioVolume?.(this.state.radio);
     if (saved.invertY !== undefined) this.cb.onInvertLookY?.(this.state.invertY);
@@ -273,6 +425,7 @@ export class Menu {
     this.restoreFocus = this.doc.activeElement instanceof HTMLElement ? this.doc.activeElement : null;
     this.root.hidden = false;
     this.pauseButton.hidden = true;
+    this.syncLiveTier();
     try { this.doc.exitPointerLock?.(); } catch { /* not locked / unsupported */ }
     this.cb.onPause?.(true);
     this.resumeBtn.focus();
@@ -328,23 +481,51 @@ export class Menu {
   dispose(): void {
     this.cleanup.splice(0).forEach((fn) => fn());
     this.savePanel?.dispose();
+    this.doc.defaultView?.cancelAnimationFrame?.(this.fpsRaf);
+    this.fullscreen?.dispose();
     this.root.remove();
     this.pauseButton.remove();
+    this.fsCorner.remove(); this.fsTitle.remove(); this.fpsEl.remove();
   }
 
   /* ---------- settings ---------- */
 
+  /** A tier button: picks the tier and turns Auto off. */
   private setQuality(q: MenuQuality): void {
-    if (this.state.quality === q) { this.syncUi(); return; }
-    this.state.quality = q; this.save(); this.syncUi(); this.cb.onQuality?.(q);
+    const wasAuto = this.state.auto;
+    this.state.auto = false;
+    if (wasAuto) this.cb.onAuto?.(false);
+    this.liveTier = q;
+    if (this.state.quality === q) { this.save(); this.syncUi(); this.syncAdv(); if (wasAuto) this.cb.onQuality?.(q); return; }
+    this.state.quality = q; this.save(); this.syncUi(); this.syncAdv(); this.cb.onQuality?.(q);
+  }
+
+  /** Auto preset: the device's default tier and the automatic drop. */
+  private setAuto(on: boolean): void {
+    if (!on) { this.setQuality(this.state.quality); return; }
+    const was = this.state.auto, prevTier = this.liveTier;
+    this.state.auto = true; this.state.quality = this.deviceTier; this.liveTier = this.deviceTier;
+    this.save(); this.syncUi(); this.syncAdv();
+    if (!was) this.cb.onAuto?.(true);
+    if (prevTier !== this.deviceTier) this.cb.onQuality?.(this.deviceTier);
+  }
+
+  private syncLiveTier(): void {
+    const q = this.getLive?.();
+    if (q && q !== this.liveTier) { this.liveTier = q; this.syncUi(); this.syncAdv(); }
   }
   private setMaster(v: number): void { this.state.master = clamp01(v, 1); this.save(); this.syncUi(); this.cb.onMasterVolume?.(this.state.master); }
   private setRadio(v: number): void { this.state.radio = clamp01(v, 1); this.save(); this.syncUi(); this.cb.onRadioVolume?.(this.state.radio); }
   private setInvertY(b: boolean): void { this.state.invertY = b; this.save(); this.syncUi(); this.cb.onInvertLookY?.(b); }
 
   private syncUi(): void {
+    const auto = this.state.auto;
+    this.autoBtn.setAttribute('aria-checked', String(auto));
+    this.autoBtn.classList.toggle('on', auto);
+    this.autoBtn.tabIndex = auto ? 0 : -1;
+    this.autoBtn.textContent = auto ? `Auto (${this.liveTier[0].toUpperCase()}${this.liveTier.slice(1)})` : 'Auto';
     for (const [q, b] of this.qualityBtns) {
-      const on = q === this.state.quality;
+      const on = !auto && q === this.state.quality;
       b.setAttribute('aria-checked', String(on));
       b.classList.toggle('on', on);
       b.tabIndex = on ? 0 : -1;
@@ -363,6 +544,7 @@ export class Menu {
       const o = JSON.parse(raw) as Record<string, unknown>;
       const out: Partial<MenuSettings> = {};
       if (QUALITIES.includes(o.quality as MenuQuality)) out.quality = o.quality as MenuQuality;
+      if (typeof o.auto === 'boolean') out.auto = o.auto;
       if (typeof o.master === 'number') out.master = clamp01(o.master, 1);
       if (typeof o.radio === 'number') out.radio = clamp01(o.radio, 1);
       if (typeof o.invertY === 'boolean') out.invertY = o.invertY;
@@ -372,6 +554,122 @@ export class Menu {
 
   private save(): void {
     try { this.storage?.setItem(SETTINGS_KEY, JSON.stringify(this.state)); } catch { /* quota / blocked: settings just won't persist */ }
+  }
+
+  /* ---------- advanced graphics ---------- */
+
+  private setAdvOpen(open: boolean): void {
+    this.advBox.hidden = !open;
+    this.advToggle.setAttribute('aria-expanded', String(open));
+    this.advToggle.classList.toggle('open', open);
+    if (open) this.syncAdv();
+  }
+
+  private buildAdvRow(spec: AdvSpec): HTMLElement {
+    const c = spec.control;
+    const id = `menu-adv-${spec.key}`;
+    const entry: { row: HTMLElement; spec: AdvSpec; input?: HTMLInputElement; out?: HTMLOutputElement; btns?: HTMLButtonElement[] } = { row: this.el('div', `menu-row menu-adv-row menu-adv-${spec.key}`), spec };
+    entry.row.dataset.key = spec.key;
+    if (c.kind === 'range') {
+      const [row, input, out] = this.slider(spec.label, id);
+      input.min = String(c.min); input.max = String(c.max); input.step = String(c.step);
+      input.addEventListener('input', () => this.graphics.set(spec.key, Number(input.value) / c.scale as never));
+      row.className = entry.row.className;
+      row.dataset.key = spec.key;
+      Object.assign(entry, { row, input, out });
+    } else if (c.kind === 'bool') {
+      const row = this.el('label', `menu-row menu-check menu-adv-row menu-adv-${spec.key}`);
+      row.dataset.key = spec.key;
+      const text = this.el('span', 'menu-label'); text.textContent = spec.label;
+      const input = this.el('input', ''); input.type = 'checkbox'; input.id = id;
+      input.addEventListener('change', () => this.graphics.set(spec.key, input.checked as never));
+      row.append(text, input);
+      Object.assign(entry, { row, input });
+    } else {
+      const label = this.el('span', 'menu-label'); label.id = `${id}-label`; label.textContent = spec.label;
+      const group = this.el('div', 'menu-seg');
+      group.setAttribute('role', 'radiogroup'); group.setAttribute('aria-labelledby', label.id);
+      const btns = c.options.map(([value, text]) => {
+        const b = this.button(text, 'menu-seg-btn');
+        b.setAttribute('role', 'radio'); b.dataset.value = String(value);
+        b.addEventListener('click', () => this.graphics.set(spec.key, value as never));
+        group.appendChild(b);
+        return b;
+      });
+      entry.row.append(label, group);
+      entry.btns = btns;
+    }
+    this.advRows.set(spec.key, entry);
+    return entry.row;
+  }
+
+  private syncAdv(): void {
+    const tier = this.liveTier as Quality;
+    const sup = supports(tier);
+    const eff = this.graphics.effective(tier);
+    for (const [key, e] of this.advRows) {
+      e.row.hidden = !sup.keys.has(key);
+      e.row.classList.toggle('is-custom', this.graphics.isOverridden(key));
+      const v = eff[key];
+      const c = e.spec.control;
+      if (c.kind === 'range' && e.input && e.out) { e.input.value = String(Math.round((v as number) * c.scale)); e.out.value = c.fmt(v as number); }
+      else if (c.kind === 'bool' && e.input) e.input.checked = v as boolean;
+      else if (c.kind === 'seg' && e.btns) {
+        for (const b of e.btns) {
+          const on = b.dataset.value === String(v);
+          b.setAttribute('aria-checked', String(on)); b.classList.toggle('on', on); b.tabIndex = on ? 0 : -1;
+          b.hidden = key === 'shadows' && !sup.shadows.includes(b.dataset.value as ShadowMode);
+        }
+      }
+    }
+    const n = Object.keys(this.graphics.raw).length;
+    const name = this.liveTier[0].toUpperCase() + this.liveTier.slice(1);
+    this.advSummary.textContent = n ? `${name} preset with ${n} change${n === 1 ? '' : 's'} (marked)` : `${name} preset, no changes`;
+    this.advReset.disabled = n === 0;
+  }
+
+  /* ---------- full screen / FPS ---------- */
+
+  private isStandalone(): boolean {
+    try {
+      const mm = this.doc.defaultView?.matchMedia;
+      return !!mm && ['fullscreen', 'standalone'].some((m) => mm.call(this.doc.defaultView, `(display-mode: ${m})`).matches);
+    } catch { return false; }
+  }
+
+  private splashShowing(): boolean {
+    const el = this.root.parentElement?.querySelector<HTMLElement>('.hud-splash');
+    return !!el && el.style.display !== 'none' && !el.classList.contains('fading');
+  }
+
+  private syncFs(): void {
+    const fs = this.fullscreen;
+    const ok = !!fs?.supported;
+    const on = !!fs?.active;
+    this.fsBtn.hidden = !ok;
+    this.fsBtn.textContent = on ? 'Exit full screen (Alt+Enter)' : 'Enter full screen (Alt+Enter)';
+    this.fsBtn.setAttribute('aria-pressed', String(on));
+    this.fsCorner.hidden = this.touchEnabled || !ok;
+    this.fsCorner.textContent = on ? '\u2715' : '\u26F6';
+    this.fsCorner.title = this.fsCorner.ariaLabel = on ? 'Exit full screen (Alt+Enter)' : 'Full screen (Alt+Enter)';
+    this.fsTitle.hidden = !ok || on || !this.splashShowing() || this.opened;
+    this.fsTitle.classList.toggle('remembered', !!fs?.preferred);
+  }
+
+  /** Small FPS counter (display refresh rate as seen by requestAnimationFrame), only while "Show FPS" is on. */
+  private syncFps(): void {
+    const on = this.graphics.effective(this.liveTier as Quality).showFps;
+    this.fpsEl.hidden = !on;
+    const win = this.doc.defaultView;
+    if (!on || !win?.requestAnimationFrame) { win?.cancelAnimationFrame?.(this.fpsRaf); this.fpsRaf = 0; return; }
+    if (this.fpsRaf) return;
+    let frames = 0, t0 = win.performance.now();
+    const tick = (now: number): void => {
+      frames++;
+      if (now - t0 >= 500) { this.fpsEl.textContent = `${Math.round((frames * 1000) / (now - t0))} FPS`; frames = 0; t0 = now; }
+      this.fpsRaf = win.requestAnimationFrame(tick);
+    };
+    this.fpsRaf = win.requestAnimationFrame(tick);
   }
 
   /* ---------- keyboard ---------- */
@@ -384,14 +682,15 @@ export class Menu {
   private adjust(active: HTMLElement | null, delta: number): void {
     if (!active) return;
     if (active instanceof HTMLInputElement && active.type === 'range') {
-      const v = Math.min(100, Math.max(0, Number(active.value) + delta * 5));
+      const step = Number(active.step) || 5, lo = Number(active.min), hi = Number(active.max);
+      const v = Math.min(hi, Math.max(lo, Number(active.value) + delta * step));
       active.value = String(v);
       active.dispatchEvent(new Event('input', { bubbles: true }));
-    } else if (active.dataset.quality) {
-      const i = QUALITIES.indexOf(active.dataset.quality as MenuQuality);
-      const next = QUALITIES[Math.min(QUALITIES.length - 1, Math.max(0, i + delta))];
-      this.setQuality(next);
-      this.qualityBtns.get(next)?.focus();
+    } else if (active.getAttribute('role') === 'radio') {
+      // any segmented group (quality, shadows, AA, ...): the neighbour in the direction pressed, skipping hidden options
+      const sibs = Array.from(active.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? []).filter((b) => !b.hidden);
+      const next = sibs[Math.min(sibs.length - 1, Math.max(0, sibs.indexOf(active as HTMLButtonElement) + delta))];
+      if (next && next !== active) { next.click(); next.focus(); }
     }
   }
 
@@ -405,8 +704,9 @@ export class Menu {
       else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
     } else if (e.code === 'ArrowDown') { e.preventDefault(); this.navigate('down'); }
     else if (e.code === 'ArrowUp') { e.preventDefault(); this.navigate('up'); }
-    else if (e.code === 'ArrowLeft' && active?.dataset.quality) { e.preventDefault(); this.adjust(active, -1); }
-    else if (e.code === 'ArrowRight' && active?.dataset.quality) { e.preventDefault(); this.adjust(active, 1); }
+    else if ((e.code === 'ArrowLeft' || e.code === 'ArrowRight') && active && (active.getAttribute('role') === 'radio' || (active instanceof HTMLInputElement && active.type === 'range'))) {
+      e.preventDefault(); this.adjust(active, e.code === 'ArrowLeft' ? -1 : 1);
+    }
   }
 
   /* ---------- DOM helpers ---------- */

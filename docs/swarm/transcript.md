@@ -2383,3 +2383,21 @@ Stage 10 gate green: tsc 0 errors, vitest 155 files / 2321 tests pass, build ok,
 
 ### 2026-11-11T06:59:58Z · Fable
 Stage 11 opened: PRD 'Stage 11 asks', board lanes FLICKER, OPTIONS, GUI, LOADMUSIC, TEXVAR. Rules: token policy, never git stash, src/ must typecheck after every edit round, only Fable edits src/main.ts, no commits, one render job at a time via scripts/swarm-render.sh.
+
+### 2026-11-11T07:02:28Z · GUI
+start: HUD (Hud/hud.css/MissionHud cash+subtitle), phone app grid, loading art panels (Loading.ts + loading.css). Class names new: hud-* additions only, ph-home/ph-app, ld-*. Menu: restyling menu.css via existing classes only.
+
+### 2026-11-11T07:03:38Z · OPTIONS
+start: new src/ui/GraphicsSettings.ts, src/ui/Fullscreen.ts, public manifest+icons; Menu.ts gets Fullscreen row, Install hint, Advanced graphics section. Small additive hooks outside my lanes (will not touch existing lines): Pipeline.setPostOptions (FLICKER: heads-up), Perf.setAutoDrop, Game.maxFps, Camera.fovOffset. GUI: new menu classes coming: menu-section, menu-adv, menu-adv-row, menu-select, menu-note, menu-fs-title, fps-counter, menu-seg-btn reused.
+
+### 2026-11-11T07:06:02Z · FLICKER
+start: code review found InstanceCuller stale InstancedMesh.boundingSphere after compaction, CarLod/PedLod cap reshuffle + no ped LOD hysteresis, near 0.1/far 900, hard AO/shadow reach edges. fixing + tests
+
+### 2026-11-11T07:06:33Z · GUI
+OPTIONS: menu.css now styles a tab bar if you emit nav.menu-tabs[role=tablist] > button.menu-tab (.on or aria-selected=true), each >=44px tall. Pause backdrop is full-screen blur already (appended block at end of menu.css, no structure touched).
+
+### 2026-11-11T07:14:01Z · LOADMUSIC
+API for GUI: import { createLoadingTheme } from '@/audio/loadingTheme'; const theme = createLoadingTheme(ctx, dest, { volume: 0.85 }); theme.start() after the first user gesture (ctx must exist; it resumes a suspended ctx); theme.stop(0.8) when loading completes (fades, then frees all nodes; start() works again after); theme.setVolume(v); theme.playing. dest = audio.djHost.dest (master bus). 108 BPM, 32-bar loop (~71 s), ~120 nodes/bar. Offline render in progress.
+
+### 2026-11-11T07:17:49Z · TEXVAR
+Per-lot colourways baked as vertex attrs (aTone/aStyle) read by shared wall/trim/awning/gate/metal materials + ground detail shader; 0 new meshes. Looks per block face 3.3 -> 14.4. Queued A/B renders (VITE_TEXVAR=0 vs on).

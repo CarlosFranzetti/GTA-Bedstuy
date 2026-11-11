@@ -245,6 +245,14 @@ export const SHADOW_DETAIL_MARGIN = 15;
 export const SHADOW_DETAIL_MAX = 45;
 /** Metres from the camera within which the AO G-buffer draws the static cell proxies. */
 export const AO_REACH = 70;
+/** A cell proxy that is already drawn stays drawn until it is this much (m) beyond its reach (hysteresis: no blinking at the edge while the camera sways or the shadow box steps). */
+export const PROXY_REACH_HYSTERESIS = 8;
+/** True when a cell box lies within `reach` of (px, pz); an already visible cell gets `PROXY_REACH_HYSTERESIS` more. Pure. */
+export function cellInReach(wasVisible: boolean, minX: number, maxX: number, minZ: number, maxZ: number, px: number, pz: number, reach: number): boolean {
+  const r = wasVisible ? reach + PROXY_REACH_HYSTERESIS : reach;
+  const dx = Math.max(minX - px, 0, px - maxX), dz = Math.max(minZ - pz, 0, pz - maxZ);
+  return dx * dx + dz * dz <= r * r;
+}
 /** Radius (m) of the sphere tested against the shadow frustum for a car hull / capsule. */
 const HULL_RADIUS = 3.6;
 
@@ -281,8 +289,7 @@ export class RenderProxies {
       const e = camera.matrixWorld.elements, px = e[12], pz = e[14];
       let n = 0;
       for (const c of this.cellBoxes) {
-        const dx = Math.max(c.box.min.x - px, 0, px - c.box.max.x), dz = Math.max(c.box.min.z - pz, 0, pz - c.box.max.z);
-        const v = dx * dx + dz * dz <= AO_REACH * AO_REACH;
+        const v = cellInReach(c.ao.visible, c.box.min.x, c.box.max.x, c.box.min.z, c.box.max.z, px, pz, AO_REACH);
         c.ao.visible = v; if (v) n++;
       }
       this.aoCellsDrawn = n;
@@ -400,8 +407,7 @@ export class RenderProxies {
     const reach = Math.min(sc.right + SHADOW_DETAIL_MARGIN, SHADOW_DETAIL_MAX), tx = sun.target.position.x, tz = sun.target.position.z;
     let cells = 0;
     for (const c of this.cellBoxes) {
-      const dx = Math.max(c.box.min.x - tx, 0, tx - c.box.max.x), dz = Math.max(c.box.min.z - tz, 0, tz - c.box.max.z);
-      const v = dx * dx + dz * dz <= reach * reach && this.shadowFrustum.intersectsBox(c.box);
+      const v = cellInReach(c.mesh.visible, c.box.min.x, c.box.max.x, c.box.min.z, c.box.max.z, tx, tz, reach) && this.shadowFrustum.intersectsBox(c.box);
       c.mesh.visible = v; if (v) cells++;
     }
     this.shadowCellsDrawn = cells;

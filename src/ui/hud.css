@@ -8,7 +8,9 @@
   user-select: none;
   -webkit-user-select: none;
   color: #fff;
-  font-family: Impact, "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --gui-font: "Roboto Condensed", "Arial Narrow", "Helvetica Neue", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+  font-family: var(--gui-font);
+  font-stretch: condensed;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -19,25 +21,25 @@
 /* ---- tiny FPS, top-left */
 .hud-fps {
   position: absolute;
-  top: 10px;
-  left: 16px;
-  font: 600 10px/1 Arial, Helvetica, sans-serif;
+  top: max(8px, env(safe-area-inset-top, 0px));
+  left: max(16px, env(safe-area-inset-left, 0px));
+  font: 600 10px/1 var(--gui-font);
   letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.5);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
 }
 
-/* ---- wanted stars, top-right */
+/* ---- wanted stars, top-right under the cash readout */
 .hud-stars {
   position: absolute;
-  top: 10px;
-  right: 16px;
+  top: calc(max(10px, env(safe-area-inset-top, 0px)) + 38px);
+  right: max(16px, env(safe-area-inset-right, 0px));
   font-size: 26px;
   line-height: 1;
-  letter-spacing: 3px;
+  letter-spacing: 4px;
   white-space: nowrap;
-  color: #f5c542;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.75);
+  color: #f5d04a;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), 0 0 10px rgba(245, 197, 66, 0.25);
 }
 
 .hud-star {
@@ -58,28 +60,69 @@
 }
 
 .hud-star:not(.on) {
-  opacity: 0.45;
+  opacity: 0.35;
 }
 
-/* ---- speed, bottom-right */
+/* ---- minimap: rounded square, thin frame (the canvas draws the frame stroke), soft shadow */
+.hud-root canvas.minimap {
+  left: max(16px, env(safe-area-inset-left, 0px)) !important;
+  bottom: calc(max(14px, env(safe-area-inset-bottom, 0px)) + 36px) !important;
+  border-radius: 14% !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+}
+
+/* ---- bars under the minimap: health / armour when the game supplies them, else HEAT (wanted) and SPEED (in a car) */
+.hud-bars {
+  position: absolute;
+  left: max(16px, env(safe-area-inset-left, 0px));
+  bottom: max(14px, env(safe-area-inset-bottom, 0px));
+  width: 220px;
+  display: grid;
+  gap: 4px;
+  align-content: end;
+}
+.hud-bar { display: flex; align-items: center; gap: 6px; height: 12px; }
+.hud-bar-lbl {
+  flex: none;
+  width: 30px;
+  font: 700 9px/1 var(--gui-font);
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.8);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+.hud-bar-track {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 0 1px 3px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.hud-bar-fill { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: 4px; transition: width 220ms ease; background: #fff; }
+.hud-bar-health .hud-bar-fill { background: #4fbf5f; }
+.hud-bar-armour .hud-bar-fill { background: #4da3e8; }
+.hud-bar-heat .hud-bar-fill { background: linear-gradient(90deg, #f5c542, #ee5a3c); }
+.hud-bar-speed .hud-bar-fill { background: #d9dde4; }
+
+/* ---- speed, bottom-right above the street name */
 .hud-speed {
   position: absolute;
-  right: 16px;
-  bottom: 12px;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(max(12px, env(safe-area-inset-bottom, 0px)) + 62px);
   text-align: right;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.85);
 }
 
 .hud-speed-value {
   display: block;
-  font-size: 60px;
-  line-height: 0.9;
+  font: 800 54px/0.9 var(--gui-font);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
   white-space: nowrap;
 }
 
-/* fixed-width cell per digit: Impact has proportional figures, so tabular-nums alone is not enough */
+/* fixed-width cell per digit so the readout never jitters */
 .hud-digit {
   display: inline-block;
   min-width: 0.56em;
@@ -89,59 +132,105 @@
 .hud-speed-unit {
   display: block;
   margin-top: 2px;
-  font-size: 14px;
-  letter-spacing: 0.14em;
-  color: #f5c542;
+  font: 700 13px/1 var(--gui-font);
+  letter-spacing: 0.16em;
+  color: #f5d04a;
 }
 
-/* ---- location label, bottom-left: small caps street name + radio beside it */
+/* ---- location block, bottom-right: street name (fades in on change), area, radio caption */
 .hud-location {
   position: absolute;
-  left: 16px;
-  bottom: 12px;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  max-width: calc(100% - 200px);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  max-width: min(46%, 420px);
+  text-align: right;
+}
+.hud-location.fresh { animation: hud-loc-in 700ms ease-out; }
+@keyframes hud-loc-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
 }
 
 .hud-street {
-  font-variant-caps: all-small-caps;
-  font-size: 22px;
-  letter-spacing: 0.06em;
-  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.8), 0 0 1px rgba(0, 0, 0, 0.9);
+  font: 800 24px/1.05 var(--gui-font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85), 0 0 1px rgba(0, 0, 0, 0.9);
+}
+.hud-area {
+  font: 700 13px/1.1 var(--gui-font);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.78);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
 }
 
 .hud-radio {
-  font: 600 13px/1 Arial, Helvetica, sans-serif;
-  letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.88);
+  font: 600 12px/1.2 var(--gui-font);
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.85);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 
 .hud-radio[data-talk] {
   padding-bottom: 3px;
-  background: linear-gradient(#f5c542, #f5c542) left bottom / calc(var(--talk, 0) * 100%) 2px no-repeat;
+  background: linear-gradient(#f5d04a, #f5d04a) left bottom / calc(var(--talk, 0) * 100%) 2px no-repeat;
 }
 
 .hud-radio::before {
   content: "\266A\00a0";
-  color: #f5c542;
+  color: #f5d04a;
 }
+
+/* ---- radio station banner, top-centre: big name + horizontal strip of neighbouring stations */
+.hud-station {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(560px, calc(100% - 200px));
+  text-align: center;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+}
+.hud-station.in { animation: hud-station-in 260ms ease-out; }
+@keyframes hud-station-in { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; transform: translateX(-50%); } }
+.hud-station-name { font: 800 clamp(22px, 4vw, 36px)/1 var(--gui-font); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud-station-sub { margin-top: 3px; font: 700 12px/1 var(--gui-font); letter-spacing: 0.22em; text-transform: uppercase; color: #f5d04a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud-station-strip { display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
+.hud-station-chip {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 120px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  background: rgba(8, 10, 16, 0.55);
+  font: 700 11px/1 var(--gui-font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hud-station-chip.on { background: #f5d04a; color: #15110a; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); }
 
 /* ---- contextual prompt, centre-bottom pill */
 .hud-prompt {
   position: absolute;
   left: 50%;
-  bottom: 110px;
+  bottom: 84px;
   transform: translateX(-50%);
   max-width: calc(100% - 32px);
-  padding: 7px 16px;
-  border-radius: 999px;
-  border: 1px solid rgba(245, 197, 66, 0.5);
-  background: rgba(8, 10, 16, 0.72);
-  font: 600 15px/1.2 Arial, Helvetica, sans-serif;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 0;
+  border-left: 4px solid #f5d04a;
+  background: rgba(8, 10, 16, 0.78);
+  font: 700 15px/1.2 var(--gui-font);
   letter-spacing: 0.04em;
   white-space: nowrap;
   text-align: center;
@@ -154,9 +243,9 @@
   margin-right: 2px;
   padding: 1px 6px;
   border-radius: 5px;
-  background: #f5c542;
+  background: #f5d04a;
   color: #15110a;
-  font-weight: 700;
+  font-weight: 800;
   text-align: center;
 }
 
@@ -172,7 +261,7 @@
 .hud-card {
   position: absolute;
   left: 50%;
-  bottom: 22%;
+  bottom: 26%;
   transform: translateX(-50%);
   text-align: center;
   opacity: 0;
@@ -189,7 +278,7 @@
 
 .hud-card-sub {
   margin-top: 6px;
-  font: 600 13px/1 Arial, Helvetica, sans-serif;
+  font: 700 13px/1 var(--gui-font);
   letter-spacing: 0.3em;
   text-transform: uppercase;
   color: #f5c542;
@@ -210,17 +299,22 @@
   to { opacity: 1; transform: translateX(-50%) translateY(0); letter-spacing: 0.06em; }
 }
 
-/* Small viewports (640x360 phone tier): shrink the minimap and keep the location card, prompt and mission HUD clear of it. */
+/* Small viewports (640x360 phone tier): shrink the minimap; location block and prompt stay clear of it. */
 @media (max-height: 480px), (max-width: 700px) {
-  canvas.minimap { width: 110px !important; height: 110px !important; bottom: 44px !important; }
+  .hud-root canvas.minimap { width: 110px !important; height: 110px !important; bottom: calc(max(10px, env(safe-area-inset-bottom, 0px)) + 34px) !important; }
+  .hud-bars { width: 110px; bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
   .hud-card { left: calc(50% + 40px); bottom: 64px; width: max-content; max-width: calc(100% - 300px); }
   .hud-card-title { font-size: clamp(18px, 3.8vw, 28px); }
   .hud-card-sub { margin-top: 3px; font-size: 10px; letter-spacing: 0.22em; }
   .hud-prompt { bottom: 20px; }
-  /* H7: the radio caption ran under the centred "F  Exit car" pill. Keep the whole location block left of the pill. */
-  .hud-location { bottom: 18px; flex-direction: column; align-items: flex-start; flex-wrap: nowrap; gap: 2px; max-width: calc(50% - 130px); }
+  /* H7: keep the (right-anchored) location block clear of the centred prompt pill */
+  .hud-location { bottom: 18px; max-width: calc(50% - 130px); }
+  .hud-street { font-size: 19px; line-height: 1.15; }
   .hud-radio { white-space: normal; line-height: 1.15; }
-  .hud-street { line-height: 1.15; font-size: 20px; }
+  .hud-area { font-size: 11px; }
+  .hud-speed { bottom: calc(max(12px, env(safe-area-inset-bottom, 0px)) + 52px); }
+  .hud-speed-value { font-size: 40px; }
+  .hud-station { width: calc(100% - 220px); }
 }
 @media (max-height: 480px), (max-width: 700px) {
   .touch .hud-card { bottom: auto; top: 40%; left: 50%; max-width: calc(100% - 360px); }
@@ -232,14 +326,15 @@ body.ui-panel-open .hud-card { display: none !important; }
 /* ---- toast, top-centre */
 .hud-toast {
   position: absolute;
-  top: 16px;
+  top: calc(max(12px, env(safe-area-inset-top, 0px)) + 4px);
   left: 50%;
   transform: translateX(-50%);
   padding: 8px 18px;
-  border-radius: 999px;
-  border: 1px solid rgba(245, 197, 66, 0.5);
-  background: rgba(8, 10, 16, 0.78);
-  font: 600 14px/1.2 Arial, Helvetica, sans-serif;
+  border-radius: 8px;
+  border: 0;
+  border-left: 4px solid #f5d04a;
+  background: rgba(8, 10, 16, 0.82);
+  font: 700 14px/1.2 var(--gui-font);
   letter-spacing: 0.04em;
   white-space: nowrap;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
@@ -258,6 +353,7 @@ body.ui-panel-open .hud-card { display: none !important; }
   .hud-prompt {
     bottom: 300px;
   }
+  .hud-station { top: calc(max(12px, env(safe-area-inset-top, 0px)) + 4px); width: calc(100% - 32px); }
 }
 
 /* ---- splash overlay */
@@ -294,7 +390,7 @@ body.ui-panel-open .hud-card { display: none !important; }
 
 .hud-subtitle {
   margin: 0;
-  font: italic 14px/1.4 Arial, Helvetica, sans-serif;
+  font: italic 600 14px/1.4 var(--gui-font);
   color: rgba(255, 255, 255, 0.7);
 }
 
@@ -307,7 +403,7 @@ body.ui-panel-open .hud-card { display: none !important; }
   justify-content: center;
   gap: 6px 22px;
   max-width: 620px;
-  font: 14px/1.4 Arial, Helvetica, sans-serif;
+  font: 600 14px/1.4 var(--gui-font);
   color: rgba(255, 255, 255, 0.88);
 }
 
@@ -319,7 +415,7 @@ body.ui-panel-open .hud-card { display: none !important; }
 
 .hud-start {
   margin: 18px 0 0;
-  font: 18px/1 Impact, "Arial Narrow", Arial, sans-serif;
+  font: 800 18px/1 var(--gui-font);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #fff;
@@ -340,6 +436,11 @@ body.ui-panel-open .hud-card { display: none !important; }
   .hud-stars.pulse,
   .hud-card.in,
   .hud-toast {
+    animation: none;
+  }
+
+  .hud-location.fresh,
+  .hud-station.in {
     animation: none;
   }
 

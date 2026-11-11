@@ -298,3 +298,69 @@
 .menu-main { display: flex; flex-direction: column; gap: 12px; }
 .menu-main[hidden] { display: none; }
 .menu-save-btn, .menu-save-back { min-height: 44px; }
+
+/* ---- GUI lane: GTA-idiom pause screen. Full-screen dark blurred backdrop, top tab bar (MAP / GAME / SAVE / SETTINGS style),
+   content plate below. Tab classes OPTIONS can adopt: .menu-tabs (nav row, role=tablist) > .menu-tab (button, .on or aria-selected=true). */
+.menu-root {
+  align-items: flex-start;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  background: radial-gradient(ellipse at 50% 0%, rgba(24, 28, 40, 0.8), rgba(3, 4, 8, 0.9) 70%);
+  -webkit-backdrop-filter: blur(10px) saturate(0.8);
+  backdrop-filter: blur(10px) saturate(0.8);
+  font-family: var(--gui-font, "Roboto Condensed", "Arial Narrow", "Helvetica Neue", "Segoe UI", system-ui, sans-serif);
+}
+.menu-panel {
+  width: min(760px, 100%);
+  margin: 0 auto;
+  border: 0;
+  border-top: 3px solid #f5d04a;
+  border-radius: 0 0 6px 6px;
+  background: rgba(10, 12, 18, 0.82);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.menu-title { font: 800 30px/1 var(--gui-font, system-ui, sans-serif); letter-spacing: 0.14em; text-shadow: none; color: #fff; }
+.menu-subtitle { font-family: var(--gui-font, system-ui, sans-serif); color: #f5d04a; }
+.menu-tabs { display: flex; gap: 2px; margin: 0 -24px 6px; padding: 0 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.18); overflow-x: auto; }
+.menu-tab {
+  appearance: none; flex: none; min-height: 44px; padding: 0 18px; border: 0; border-bottom: 3px solid transparent; background: transparent;
+  color: rgba(255, 255, 255, 0.6); font: 800 15px/1 var(--gui-font, system-ui, sans-serif); letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer;
+}
+.menu-tab:hover { color: #fff; }
+.menu-tab.on, .menu-tab[aria-selected="true"] { color: #fff; border-bottom-color: #f5d04a; background: rgba(245, 208, 74, 0.1); }
+.menu-btn, .menu-seg, .menu-seg-btn { font-family: var(--gui-font, system-ui, sans-serif); }
+.menu-btn { border-radius: 6px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 800; }
+.menu-primary { background: #f5d04a; border-color: #f5d04a; }
+.menu-seg { border-radius: 6px; }
+.menu-seg-btn.on { background: #f5d04a; }
+.menu-pause-btn { border-radius: 10px; border-color: rgba(255, 255, 255, 0.55); font-weight: 800; }
+@media (max-width: 560px) { .menu-tabs { margin: 0 -16px 6px; padding: 0 16px; } .menu-tab { padding: 0 12px; font-size: 13px; letter-spacing: 0.08em; } }
+
+/* ---- Options lane: full screen, install hint, advanced graphics, FPS counter ---- */
+.menu-note { margin: 0; font-size: 12.5px; line-height: 1.4; color: rgba(255, 255, 255, 0.6); }
+.menu-section { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.04); }
+.menu-adv[hidden], .menu-adv [hidden], .menu-main [hidden] { display: none !important; }
+.menu-adv-toggle { text-align: left; }
+.menu-adv-toggle::after { content: "\25B8"; float: right; transition: transform 0.15s; }
+.menu-adv-toggle.open::after { transform: rotate(90deg); }
+.menu-adv-row { min-height: 34px; padding-left: 8px; border-left: 2px solid transparent; }
+.menu-adv-row.is-custom { border-left-color: #f5c542; }
+.menu-adv-row .menu-seg-btn { min-width: 44px; }
+.menu-adv-reset:disabled { opacity: 0.45; cursor: default; }
+.menu-fs-btn { min-height: 38px; padding: 6px 14px; }
+.menu-fs-corner {
+  position: absolute; right: 10px; bottom: 10px; z-index: 15; width: 34px; height: 34px; padding: 0;
+  appearance: none; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.28); background: rgba(10, 12, 18, 0.55);
+  color: #fff; font: 600 18px/1 system-ui, Arial, sans-serif; opacity: 0.45; cursor: pointer; pointer-events: auto;
+}
+.menu-fs-corner:hover, .menu-fs-corner:focus-visible { opacity: 1; }
+.menu-fs-title {
+  position: absolute; left: 50%; bottom: 7%; transform: translateX(-50%); z-index: 40; min-height: 44px; padding: 10px 22px;
+  appearance: none; border-radius: 10px; border: 1px solid rgba(245, 197, 66, 0.7); background: rgba(10, 12, 18, 0.78);
+  color: #f5c542; font: 600 15px/1.2 system-ui, Arial, sans-serif; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; pointer-events: auto;
+}
+.menu-fs-title.remembered { background: #f5c542; color: #15110a; }
+.fps-counter {
+  position: absolute; left: 8px; top: 8px; z-index: 14; padding: 2px 7px; border-radius: 5px; pointer-events: none;
+  background: rgba(0, 0, 0, 0.5); color: #9dffb0; font: 600 12px/1.4 ui-monospace, Menlo, Consolas, monospace;
+}

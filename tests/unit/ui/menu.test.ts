@@ -9,7 +9,7 @@ function memStore(initial: Record<string, string> = {}) {
 
 function cbs() {
   return {
-    onPause: vi.fn(), onQuality: vi.fn(), onMasterVolume: vi.fn(), onRadioVolume: vi.fn(), onRadioLibrary: vi.fn(), onInvertLookY: vi.fn(), onReset: vi.fn(),
+    onPause: vi.fn(), onQuality: vi.fn(), onMasterVolume: vi.fn(), onRadioVolume: vi.fn(), onRadioLibrary: vi.fn(), onInvertLookY: vi.fn(), onReset: vi.fn(), onAuto: vi.fn(), onGraphics: vi.fn(),
   } satisfies Required<MenuCallbacks>;
 }
 
@@ -71,14 +71,14 @@ describe('Menu', () => {
     const invert = slider('menu-invert');
     invert.checked = true; invert.dispatchEvent(new Event('change', { bubbles: true }));
     expect(cb.onInvertLookY).toHaveBeenCalledWith(true);
-    expect(JSON.parse(store.data[SETTINGS_KEY])).toEqual({ quality: 'high', master: 0.4, radio: 0.15, invertY: true });
+    expect(JSON.parse(store.data[SETTINGS_KEY])).toEqual({ quality: 'high', auto: false, master: 0.4, radio: 0.15, invertY: true });
   });
 
   it('restores saved settings into the UI and pushes them to the game on construction', () => {
     const cb = cbs();
     const store = memStore({ [SETTINGS_KEY]: JSON.stringify({ quality: 'low', master: 0.3, radio: 0.8, invertY: true }) });
     const menu = new Menu(parent, cb, { storage: store, initialQuality: 'high' });
-    expect(menu.settings).toEqual({ quality: 'low', master: 0.3, radio: 0.8, invertY: true });
+    expect(menu.settings).toEqual({ auto: false, quality: 'low', master: 0.3, radio: 0.8, invertY: true });
     expect(cb.onQuality).toHaveBeenCalledWith('low');
     expect(cb.onMasterVolume).toHaveBeenCalledWith(0.3);
     expect(cb.onRadioVolume).toHaveBeenCalledWith(0.8);
@@ -181,5 +181,86 @@ describe('Menu', () => {
     document.dispatchEvent(new Event('pointerlockchange'));
     expect(menu.isOpen).toBe(true);
     delete (document as unknown as Record<string, unknown>).pointerLockElement;
+  });
+
+  describe('advanced graphics, auto and full screen', () => {
+    const fakeFs = () => {
+      const listeners = new Set<(on: boolean, esc?: boolean) => void>();
+      let active = false;
+      const fs = {
+        supported: true, preferred: false,
+        get active() { return active; },
+        toggle: vi.fn(async () => { active = !active; listeners.forEach((f) => f(active, false)); return active; }),
+        enter: vi.fn(async () => true), exit: vi.fn(), dispose: vi.fn(),
+        onChange: (f: (on: boolean, esc?: boolean) => void) => { listeners.add(f); return () => listeners.delete(f); },
+      };
+      return { fs: fs as never, esc: () => { active = false; listeners.forEach((f) => f(false, true)); } };
+    };
+    const row = (key: string) => parent.querySelector<HTMLElement>(`.menu-adv-row[data-key="${key}"]`)!;
+
+    it('lists rows by tier, applies a change live through onGraphics and persists it', () => {
+      const cb = cbs();
+      const store = memStore();
+      const menu = new Menu(parent, cb, { storage: store, initialQuality: 'medium', fullscreen: null });
+      expect(row('ao').hidden).toBe(false);
+      const shadow = row('shadows').querySelector<HTMLButtonElement>('[data-value="off"]')!;
+      shadow.click();
+      expect(cb.onGraphics).toHaveBeenLastCalledWith(expect.objectContaining({ shadows: 'off' }), ['shadows']);
+      expect(JSON.parse(store.data['gta-bedstuy.graphics.v1']).overrides).toEqual({ shadows: 'off' });
+      expect(row('shadows').classList.contains('is-custom')).toBe(true);
+      const fov = row('fov').querySelector<HTMLInputElement>('input')!;
+      fov.value = '80'; fov.dispatchEvent(new Event('input', { bubbles: true }));
+      expect(menu.graphics.effective('medium').fov).toBe(80);
+      (parent.querySelector('.menu-adv-reset') as HTMLButtonElement).click();
+      expect(menu.graphics.hasOverrides).toBe(false);
+      expect(cb.onGraphics).toHaveBeenLastCalledWith(expect.objectContaining({ shadows: 'medium', fov: 64 }), expect.arrayContaining(['shadows', 'fov']));
+    });
+
+    it('hides rows the tier cannot do and follows the live tier on open', () => {
+      let live: 'phone' | 'high' = 'high';
+      const menu = new Menu(parent, cbs(), { storage: null, initialQuality: 'high', fullscreen: null, getQuality: () => live });
+      expect(row('ao').hidden).toBe(false);
+      live = 'phone'; menu.open();
+      expect(row('ao').hidden).toBe(true);
+      expect(row('aa').hidden).toBe(true);
+      expect(row('shadows').querySelector<HTMLButtonElement>('[data-value="high"]')!.hidden).toBe(true);
+    });
+
+    it('Auto selects the device tier and reports onAuto; a tier button turns it off', () => {
+      const cb = cbs();
+      const menu = new Menu(parent, cb, { storage: null, initialQuality: 'medium', auto: true, fullscreen: null });
+      const auto = parent.querySelector<HTMLButtonElement>('[data-quality="auto"]')!;
+      expect(auto.getAttribute('aria-checked')).toBe('true');
+      parent.querySelector<HTMLButtonElement>('[data-quality="high"]')!.click();
+      expect(cb.onAuto).toHaveBeenLastCalledWith(false);
+      expect(menu.settings.auto).toBe(false);
+      auto.click();
+      expect(cb.onAuto).toHaveBeenLastCalledWith(true);
+      expect(cb.onQuality).toHaveBeenLastCalledWith('medium');
+    });
+
+    it('full screen button toggles; Esc out of full screen opens the pause menu', () => {
+      const { fs, esc } = fakeFs();
+      const cb = cbs();
+      const menu = new Menu(parent, cb, { storage: null, fullscreen: fs, openOnPointerUnlock: false });
+      const btn = parent.querySelector<HTMLButtonElement>('.menu-fs-btn')!;
+      expect(btn.hidden).toBe(false);
+      btn.click();
+      expect((fs as { toggle: unknown }).toggle).toHaveBeenCalled();
+      expect(btn.getAttribute('aria-pressed')).toBe('true');
+      expect(menu.isOpen).toBe(false);
+      esc();
+      expect(menu.isOpen).toBe(true);
+    });
+
+    it('arrow keys move through a segmented advanced row', () => {
+      const cb = cbs();
+      new Menu(parent, cb, { storage: null, initialQuality: 'high', fullscreen: null }).open();
+      (parent.querySelector('.menu-adv-toggle') as HTMLButtonElement).click();
+      const hi = row('shadows').querySelector<HTMLButtonElement>('[data-value="high"]')!;
+      hi.focus();
+      hi.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowLeft', bubbles: true }));
+      expect(cb.onGraphics).toHaveBeenLastCalledWith(expect.objectContaining({ shadows: 'medium' }), ['shadows']);
+    });
   });
 });

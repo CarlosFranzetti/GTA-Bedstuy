@@ -5,6 +5,9 @@ import { cycleNavTarget, getNavTarget } from '@/game/missions/NavTargets';
 import { WAYPOINT_REACHED_M, getWaypoint, setWaypoint } from '@/game/missions/Waypoint';
 
 const TOAST_MS = 4200;
+/** Subtitle (bottom-centre) hold time per objective change, and how long a +$/-$ delta chip lingers. */
+export const SUBTITLE_MS = 6000;
+export const CASH_DELTA_MS = 1800;
 const LOW_SECONDS = 15;
 /** Distance readout steps (m): the text only changes when the rounded value does. */
 const POINTER_STEP_M = 5;
@@ -23,6 +26,33 @@ export function formatClock(seconds: number): string {
 
 export function formatCash(n: number): string {
   return `$${Math.max(0, Math.round(Number.isFinite(n) ? n : 0)).toLocaleString('en-US')}`;
+}
+
+/** Words worth a highlight in a subtitle: money, numbers with units, and capitalised names after the first word. */
+const KEYWORD = /\$[\d,]+|\b\d+(?:\.\d+)?\s?(?:m|km|min|sec|s|blocks?)\b|\b[A-Z][\w'.-]*(?:\s+[A-Z][\w'.-]*)*/g;
+
+/** Splits `text` into text nodes and `<b class="msn-kw">` highlights. A lone capitalised first word is not highlighted. */
+export function highlightKeywords(doc: Document, text: string): Node[] {
+  const out: Node[] = [];
+  let at = 0;
+  for (const m of text.matchAll(KEYWORD)) {
+    const i = m.index ?? 0;
+    if (i === 0 && /^[A-Z][a-z'-]*$/.test(m[0])) continue;
+    if (i > at) out.push(doc.createTextNode(text.slice(at, i)));
+    const b = doc.createElement('b');
+    b.className = 'msn-kw';
+    b.textContent = m[0];
+    out.push(b);
+    at = i + m[0].length;
+  }
+  if (at < text.length) out.push(doc.createTextNode(text.slice(at)));
+  return out;
+}
+
+/** "+$50" / "-$20" for a cash change (null for no change). */
+export function formatCashDelta(d: number): string | null {
+  const r = Math.round(Number.isFinite(d) ? d : 0);
+  return r === 0 ? null : `${r > 0 ? '+' : '-'}$${Math.abs(r).toLocaleString('en-US')}`;
 }
 
 /**
@@ -46,6 +76,12 @@ export class MissionHud {
   private readonly barFill: HTMLElement;
   private readonly carryEl: HTMLElement;
   private readonly cashEl: HTMLElement;
+  private readonly deltaEl: HTMLElement;
+  private readonly subEl: HTMLElement;
+  private deltaSum = 0;
+  private deltaTimer: ReturnType<typeof setTimeout> | null = null;
+  private subTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastObjective = '';
   private readonly toastEl: HTMLElement;
   private readonly retryEl: HTMLElement;
   private readonly pointerEl: HTMLElement;
@@ -86,6 +122,10 @@ export class MissionHud {
 
     this.cashEl = this.make('div', 'msn-cash');
     this.cashEl.hidden = true;
+    this.deltaEl = this.make('div', 'msn-cash-delta');
+    this.deltaEl.hidden = true;
+    this.subEl = this.make('div', 'msn-sub');
+    this.subEl.hidden = true;
     this.toastEl = this.make('div', 'msn-toast');
     this.toastEl.hidden = true;
     this.toastEl.setAttribute('role', 'status');
@@ -101,7 +141,7 @@ export class MissionHud {
     this.pointerEl.append(this.pointerArrow, this.pointerText);
 
     this.col.append(this.panel, this.pointerEl);
-    root.append(this.col, this.cashEl, this.toastEl, this.retryEl);
+    root.append(this.col, this.cashEl, this.deltaEl, this.subEl, this.toastEl, this.retryEl);
 
     // Idle pointer: N (or a tap on the chip) cycles Offer -> HOME -> WAX DELI -> Offer (see game/missions/NavTargets).
     this.pointerEl.style.pointerEvents = 'auto';
@@ -132,6 +172,8 @@ export class MissionHud {
     if (show) {
       setText(this.titleEl, s.status === 'failed' ? `${s.title} · failed` : s.title);
       setText(this.objEl, s.objective);
+      if (s.status === 'active' && s.objective !== this.lastObjective) this.showSubtitle(s.objective);
+      this.lastObjective = s.status === 'active' ? s.objective : '';
       setText(this.stepEl, s.steps > 1 ? `${s.step}/${s.steps}` : '');
 
       const running = s.status === 'active' && s.timeLeft >= 0;
@@ -156,6 +198,7 @@ export class MissionHud {
       setText(this.carryEl, s.carrying);
     }
 
+    if (!show) this.lastObjective = '';
     this.retryEl.hidden = !(s.status === 'failed' && s.retryPrompt !== '');
     setText(this.retryEl, s.retryPrompt);
 
@@ -224,8 +267,31 @@ export class MissionHud {
     if (deg !== this.lastPointerAngle) { this.lastPointerAngle = deg; this.pointerArrow.style.transform = `rotate(${deg}deg)`; }
   }
 
+  /** Bottom-centre subtitle with highlighted keywords; clears itself after `ms`. */
+  showSubtitle(text: string, ms = SUBTITLE_MS): void {
+    if (this.subTimer !== null) clearTimeout(this.subTimer);
+    this.subEl.textContent = '';
+    this.subEl.append(...highlightKeywords(this.doc, text));
+    this.subEl.hidden = text === '';
+    this.subEl.classList.remove('in'); void this.subEl.offsetWidth; this.subEl.classList.add('in');
+    this.subTimer = setTimeout(() => { this.subEl.hidden = true; this.subTimer = null; }, ms);
+  }
+
+  private showCashDelta(d: number): void {
+    this.deltaSum = this.deltaTimer !== null ? this.deltaSum + d : d;
+    const txt = formatCashDelta(this.deltaSum);
+    if (this.deltaTimer !== null) clearTimeout(this.deltaTimer);
+    if (txt === null) { this.deltaEl.hidden = true; this.deltaTimer = null; return; }
+    this.deltaEl.textContent = txt;
+    this.deltaEl.dataset.sign = this.deltaSum > 0 ? 'up' : 'down';
+    this.deltaEl.hidden = false;
+    this.deltaEl.classList.remove('show'); void this.deltaEl.offsetWidth; this.deltaEl.classList.add('show');
+    this.deltaTimer = setTimeout(() => { this.deltaEl.hidden = true; this.deltaTimer = null; this.deltaSum = 0; }, CASH_DELTA_MS);
+  }
+
   private updateCash(target: number, dt: number): void {
     if (target !== this.cashTarget) {
+      if (this.cashTarget > 0 || this.cashShown > 0) this.showCashDelta(target - this.cashTarget);
       if (target > this.cashTarget) { this.cashEl.classList.remove('bump'); void this.cashEl.offsetWidth; this.cashEl.classList.add('bump'); }
       this.cashTarget = target;
     }
@@ -265,6 +331,6 @@ export class MissionHud {
   dispose(): void {
     if (this.toastTimer !== null) clearTimeout(this.toastTimer);
     this.doc.removeEventListener('keydown', this.onKey);
-    this.col.remove(); this.cashEl.remove(); this.toastEl.remove(); this.retryEl.remove();
+    if (this.deltaTimer) clearTimeout(this.deltaTimer); if (this.subTimer) clearTimeout(this.subTimer); this.deltaEl.remove(); this.subEl.remove(); this.col.remove(); this.cashEl.remove(); this.toastEl.remove(); this.retryEl.remove();
   }
 }
