@@ -16,7 +16,10 @@ export function parseLine(text: string, maxChars = 160): Direction[] {
     const tag = m[1].toLowerCase();
     const arg = (m[2] ?? '').trim();
     if (tag === 'pause') out.push({ t: 'pause', s: Math.min(4, Math.max(0.1, Number(arg) || 0.6)) });
-    else if (tag === 'beat') out.push({ t: 'pause', s: 0.35 });
+    else if (tag === 'beat') out.push({ t: 'beat' });
+    else if (tag === 'breath') out.push({ t: 'breath' });
+    else if (tag === 'punch') out.push({ t: 'punch' });
+    else if (tag === 'em') out.push({ t: 'em' });
     else if (tag === 'laugh') out.push({ t: 'laugh' });
     else if (tag === 'over') out.push({ t: 'over' });
     else if (tag === 'sfx') out.push({ t: 'sfx', name: arg || 'sting' });
@@ -57,6 +60,8 @@ export function lineSeconds(text: string, speed = 1): number {
     if (d.t === 'say') s += Math.max(0.6, d.text.split(/\s+/).length / (2.6 * speed) + 0.25);
     else if (d.t === 'pause') s += d.s;
     else if (d.t === 'laugh') s += 0.9;
+    else if (d.t === 'beat' || d.t === 'punch') s += 0.4;
+    else if (d.t === 'breath') s += 0.2;
   }
   return s;
 }
@@ -136,7 +141,7 @@ export function lintLines(where: string, lines: readonly ScriptLine[], cast: Rea
     const slur = findBlocked(l.text);
     if (slur.length) issues.push({ where: w, problem: `blocked word: ${slur.join(', ')}` });
     for (const m of l.text.matchAll(/\[([a-z]+)/gi)) {
-      if (!['pause', 'beat', 'laugh', 'over', 'sfx'].includes(m[1].toLowerCase())) issues.push({ where: w, problem: `unknown direction [${m[1]}]` });
+      if (!['pause', 'beat', 'breath', 'punch', 'em', 'laugh', 'over', 'sfx'].includes(m[1].toLowerCase())) issues.push({ where: w, problem: `unknown direction [${m[1]}]` });
     }
     if ((l.text.match(/\[/g) ?? []).length !== (l.text.match(/\]/g) ?? []).length) issues.push({ where: w, problem: 'unbalanced bracket' });
   });

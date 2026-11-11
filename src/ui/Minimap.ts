@@ -13,6 +13,8 @@ const GOLD = '#f5c542';
 const GIVER_RADIUS = 8;
 const OBJECTIVE_RADIUS = 5.5;
 const BLIP_PULSE_HZ = 1.4;
+/** Seconds a newly seen blip pings on the radar. */
+const NEW_BLIP_S = 1.4;
 /** Blip size multiplier on touch devices, where the minimap is small and read at a glance. */
 const PHONE_BLIP_SCALE = 1.45;
 
@@ -272,6 +274,19 @@ export class Minimap {
    * Mission / objective blips, clamped to the disc edge when off-map. A giver is a clear gold ring with a dark halo and
    * a pulsing centre dot (a waiting mission); an objective is a ring in its own colour. Bigger on touch devices.
    */
+  private readonly blipSeen = new Map<string, number>();
+  /** Clock time at which this blip (by place and colour) was first drawn; entries die when it stops being drawn for a while. */
+  private blipBorn(b: MinimapBlip): number {
+    const key = `${Math.round(b.x)}:${Math.round(b.z)}:${b.kind ?? ''}:${b.color}`;
+    const t = this.blipSeen.get(key);
+    if (t !== undefined) return t;
+    // the first frame after the minimap appears is not "new": start settled
+    const born = this.clock < 1 ? -10 : this.clock;
+    this.blipSeen.set(key, born);
+    if (this.blipSeen.size > 200) this.blipSeen.clear();
+    return born;
+  }
+
   private drawBlips(ctx: CanvasRenderingContext2D, blips: readonly MinimapBlip[], toMap: ToMap, half: number): void {
     const k = this.blipScale;
     const edge = half - 6 - 4 * k;
@@ -286,6 +301,20 @@ export class Minimap {
       const giver = b.kind === 'giver';
       const r = (giver ? GIVER_RADIUS : OBJECTIVE_RADIUS) * k * (off ? 0.85 : 1);
       const color = giver ? GOLD : b.color;
+      // radar ping: a blip seen for the first time sends out two expanding rings (1.4 s), then settles
+      const born = this.blipBorn(b);
+      const age = this.clock - born;
+      if (age < NEW_BLIP_S && !off) {
+        for (const lag of [0, 0.35]) {
+          const u = (age - lag) / (NEW_BLIP_S - 0.35);
+          if (u <= 0 || u >= 1) continue;
+          ctx.beginPath();
+          ctx.arc(cx, cy, r + u * 22 * k, 0, Math.PI * 2);
+          ctx.lineWidth = 2 * k;
+          ctx.strokeStyle = `rgba(255, 255, 255, ${(0.85 * (1 - u)).toFixed(3)})`;
+          ctx.stroke();
+        }
+      }
       // dark halo so the ring reads on top of the pale roads
       ctx.beginPath();
       ctx.arc(cx, cy, r, 0, Math.PI * 2);

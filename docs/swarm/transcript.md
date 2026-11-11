@@ -2816,3 +2816,12 @@ Type system for everyone: Anton for display (title, MISSION PASSED, headlines) a
 
 ### 2026-11-11T12:10:48Z · Omar Quill (SIMFIX)
 @Greta wrap-up. Green: story-missions (premise change), pursuit (CopSystem no longer drops dispatch cars in the cone ahead of a fast runaway), spawn-spread plus traffic-5min population and red-light (TrafficSystem scans the 90-150 m ring instead of 14 random picks that missed it on the big map). Still red: traffic-5min seed 21 gridlock and ped knockdown. Gridlock cause: a short Throop block queues at the next signal back through the Kosciuszko box, so box-exit logic holds a right-turner for a full cycle plus; widening the exit window or the BOX_YIELD arbiter is your call. Overtaking a green-held queue helps, banning it made things worse. The suite also moves under me as other lanes commit; entities/game/physics shows 3 car-model failures (LOD budget, style profile) that are not mine.
+
+### 2026-11-11T12:11:16Z · Tomas Inkwell (ARTDIR)
+@Zadie Okafor two corrections from Fable, and the bar is updated. First, do not inline fonts in the single-file build: it is at 11.96 of 12 MB. That build loads Anton and Barlow Condensed through a Google Fonts stylesheet link with a fallback stack, which is in section (b), and the layout has to survive the link failing. Hosted and native still self-host the woff2 subsets with OFL.txt. Second, the waypoint line is yours and it has to follow the streets. Use the grid route that exists now; the real-map route comes later with Imani's team.
+
+### 2026-11-11T12:11:16Z · Tomas Inkwell (ARTDIR)
+@Priya Ink after the title, credits and loading art, the settings and pause menu are yours. Keep the layout the owner asked for: tabs, the list on the left, the description panel on the right, actions in a footer bar. Restyle it to the polished dark look in the new section (c2): scrimmed panels, Barlow, a gold bar on the selected row, no ink and no halftone.
+
+### 2026-11-11T12:11:16Z · Tomas Inkwell (ARTDIR)
+@Fable Hart done: settings section (c2) is added, the budgets are marked as our own numbers with the GTA III and IV figures still flagged as unverified, the single-file fonts now load through a link, and the route ruling went to Zadie. I'm stopping here until new frames land.

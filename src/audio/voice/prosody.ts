@@ -4,7 +4,7 @@
  * (SpeechPlayer, PedVoicePlayer) and the offline bake (packPlan) ask for exactly the same clips. Only the clips are
  * baked; the silences are laid on the WebAudio timeline by the player, so pause lengths can change without a re-bake.
  */
-import { hash32 } from './script';
+import { hash32, parseLine } from './script';
 
 /** How one speaker paces speech. 1 = neutral. See rhythm.ts for the cast. */
 export interface Rhythm {
@@ -191,4 +191,40 @@ export function fadeEdges(x: Float32Array, rate: number, sec = 0.006): Float32Ar
   const n = Math.min(y.length >> 1, Math.round(sec * rate));
   for (let i = 0; i < n; i++) { const g = 0.5 - 0.5 * Math.cos((Math.PI * i) / n); y[i] *= g; y[y.length - 1 - i] *= g; }
   return y;
+}
+
+/* ---------- a whole script line ---------- */
+
+export type LineItem =
+  | { k: 'say'; text: string; speed: number; gap: number; first: boolean; em: boolean }
+  | { k: 'pause'; s: number }
+  | { k: 'laugh' }
+  | { k: 'sfx'; name: string }
+  | { k: 'over' };
+
+/**
+ * A script line (words plus [pause 0.6] [beat] [breath] [punch] [em] [laugh] [over] [sfx x]) as phrases and pauses.
+ * [breath] is a short human breath (0.2 s), [beat] a beat (0.35 s), [punch] a beat before a punchline that also leans on
+ * the next words, [em] leans on the next words (one slowed phrase). Every pause is jittered by the speaker's profile
+ * and seeded by the text, so a line always breathes the same way. `whole` keeps sentences whole (SpeechSynthesis).
+ */
+export function planLine(text: string, who: string, baseSpeed: number, r: Rhythm, whole = false): LineItem[] {
+  const out: LineItem[] = [];
+  let em = false; let first = true;
+  const trim = (cap: number) => { const p = out[out.length - 1]; if (p?.k === 'say') p.gap = Math.min(p.gap, cap); };
+  parseLine(text).forEach((d, i) => {
+    const seed = `${who}|${text}|${i}`;
+    if (d.t === 'say') {
+      for (const p of planSentence(d.text, who, baseSpeed, r, { em, whole })) { out.push({ k: 'say', text: p.text, speed: p.speed, gap: p.gap, first, em: p.em }); first = false; }
+      em = false;
+    } else if (d.t === 'pause') { trim(0.05); out.push({ k: 'pause', s: jitterPause(d.s, r, seed, false) }); }
+    else if (d.t === 'breath') { trim(0.04); out.push({ k: 'pause', s: jitterPause(0.2, r, seed) }); }
+    else if (d.t === 'beat') { trim(0.05); out.push({ k: 'pause', s: jitterPause(0.35, r, seed) }); }
+    else if (d.t === 'punch') { trim(0.05); out.push({ k: 'pause', s: jitterPause(0.55, r, seed) }); em = true; }
+    else if (d.t === 'em') em = true;
+    else if (d.t === 'laugh') { trim(0.06); out.push({ k: 'laugh' }); }
+    else if (d.t === 'over') out.push({ k: 'over' });
+    else out.push({ k: 'sfx', name: d.name });
+  });
+  return out;
 }

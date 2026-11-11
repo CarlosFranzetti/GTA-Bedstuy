@@ -32,6 +32,8 @@ export interface CastMember {
 /**
  * One line of a script: `who` is a cast id. `text` holds the words plus inline stage directions in square brackets:
  *   [pause 0.6]  silence       [beat]   short pause (0.35 s)      [laugh]  laugh track burst (not spoken)
+ *   [breath]     a breath (0.2 s)   [punch]  beat before a punchline, leans on the next words   [em]  lean on the next words (slowed)
+ *   (pauses are jittered by the speaker's rhythm profile, rhythm.ts; use these sparingly)
  *   [over]       (first token) starts before the previous line ends (interruption)
  *   [sfx name]   a procedural effect: airhorn, gavel, phone, static, cash, buzz, sting
  * Slots like {street} are filled at air time.
@@ -57,6 +59,10 @@ export interface Show {
 export type Direction =
   | { t: 'say'; text: string }
   | { t: 'pause'; s: number }
+  | { t: 'beat' }
+  | { t: 'breath' }
+  | { t: 'punch' }
+  | { t: 'em' }
   | { t: 'laugh' }
   | { t: 'over' }
   | { t: 'sfx'; name: string };

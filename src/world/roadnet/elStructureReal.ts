@@ -89,7 +89,7 @@ function bentGeometry(): THREE.BufferGeometry {
 }
 
 /**
- * `spots` as returned by columnSpots (pairs, left then right), all paths' spots concatenated; `stations` adds the platforms.
+ * `spots` as returned by columnSpots, all paths' spots concatenated; `stations` adds the platforms.
  * `mats` may carry `sign(text, bg, fg)` (the material library) for the name boards; without it the boards are left out.
  */
 export function buildElStructureReal(paths: ElPath[], spots: Array<{ p: Vec2; dir: Vec2 }>, mats: unknown, stations: readonly ElStationReal[] = []): THREE.Group {
@@ -181,11 +181,22 @@ export function buildElStructureReal(paths: ElPath[], spots: Array<{ p: Vec2; di
   }
   for (const m of signMeshes(signQuads)) group.add(m);
 
-  // ---- columns and bents: two instanced meshes
+  // ---- columns and bents: two instanced meshes. A bent joins a left and a right column at the same place along the line.
   const n = spots.length;
+  const pairs: Array<[number, number]> = [];
+  const taken = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    if (taken[i]) continue;
+    for (let j = i + 1; j < n; j++) {
+      const dx = spots[j].p.x - spots[i].p.x, dz = spots[j].p.z - spots[i].p.z;
+      if (Math.hypot(dx, dz) > 24) continue;
+      const along = dx * spots[i].dir.x + dz * spots[i].dir.z, across = dx * -spots[i].dir.z + dz * spots[i].dir.x;
+      if (!taken[j] && Math.abs(along) <= 1.2 && Math.abs(across) >= 10 && Math.abs(across) <= 22) { taken[i] = taken[j] = 1; pairs.push([i, j]); break; }
+    }
+  }
   const cols = new THREE.InstancedMesh(columnGeometry(DECK_Y0 - 0.2), steel, n);
   cols.name = 'el:columns';
-  const bents = new THREE.InstancedMesh(bentGeometry(), steel, Math.floor(n / 2));
+  const bents = new THREE.InstancedMesh(bentGeometry(), steel, pairs.length);
   bents.name = 'el:bents';
   const m4 = new THREE.Matrix4(), rot = new THREE.Matrix4(), scl = new THREE.Matrix4();
   const place = (x: number, z: number, dir: Vec2, sz: number): THREE.Matrix4 => {
@@ -195,15 +206,16 @@ export function buildElStructureReal(paths: ElPath[], spots: Array<{ p: Vec2; di
     return m4;
   };
   for (let i = 0; i < n; i++) cols.setMatrixAt(i, place(spots[i].p.x, spots[i].p.z, spots[i].dir, 1));
-  for (let i = 0; i + 1 < n; i += 2) {
-    const a = spots[i], c = spots[i + 1];
+  pairs.forEach(([i, j], k) => {
+    const a = spots[i], c = spots[j];
     const w = Math.hypot(a.p.x - c.p.x, a.p.z - c.p.z) + 0.8;
-    bents.setMatrixAt(i / 2, place((a.p.x + c.p.x) / 2, (a.p.z + c.p.z) / 2, a.dir, w));
-  }
+    bents.setMatrixAt(k, place((a.p.x + c.p.x) / 2, (a.p.z + c.p.z) / 2, a.dir, w));
+  });
   cols.instanceMatrix.needsUpdate = true; bents.instanceMatrix.needsUpdate = true;
   cols.castShadow = bents.castShadow = true; cols.receiveShadow = bents.receiveShadow = true;
   cols.computeBoundingSphere(); bents.computeBoundingSphere();
   group.add(cols, bents);
   group.userData.columnCount = n;
+  group.userData.bentCount = pairs.length;
   return group;
 }

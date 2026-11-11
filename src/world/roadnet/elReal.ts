@@ -246,7 +246,12 @@ function halfWidthAt(net: RoadNet, q: Vec2): number {
 
 /** true when a column footprint at q would stand in a paved node polygon or a crosswalk band */
 function blockedAt(q: Vec2, d: Derived, net: RoadNet): boolean {
-  for (const poly of d.nodePolys) if (poly.length && pointInPolygon(q, poly)) return true;
+  for (const poly of d.nodePolys) {
+    if (!poly.length) continue;
+    // the footprint, not just the centre: the centre and four points half a metre out
+    if (pointInPolygon(q, poly) || pointInPolygon({ x: q.x + 0.5, z: q.z }, poly) || pointInPolygon({ x: q.x - 0.5, z: q.z }, poly)
+      || pointInPolygon({ x: q.x, z: q.z + 0.5 }, poly) || pointInPolygon({ x: q.x, z: q.z - 0.5 }, poly)) return true;
+  }
   const a0 = SHARED_CROSSWALK.start - COLUMN_PAD, a1 = SHARED_CROSSWALK.start + SHARED_CROSSWALK.width + COLUMN_PAD;
   for (const leg of d.legs) {
     const n = net.nodes[leg.node].p;
@@ -273,7 +278,7 @@ function curbSpot(p: ElPath, net: RoadNet, s: number, side: 1 | -1): { p: Vec2; 
  * Each curb line is placed on its own (a diagonal Broadway meets a cross street at different s on its two kerbs). Returned in
  * order of s, left kerb then right kerb at equal s; `dir` is the travel direction of the path there.
  */
-export function columnSpots(p: ElPath, d: Derived, net: RoadNet): Array<{ p: Vec2; dir: Vec2 }> {
+function columnSpotsS(p: ElPath, d: Derived, net: RoadNet): Array<{ s: number; spot: { p: Vec2; dir: Vec2 } }> {
   const per: Array<Array<{ s: number; spot: { p: Vec2; dir: Vec2 } }>> = [[], []];
   const FINE = 0.5, MIN_SPACING = 6;
   ([1, -1] as const).forEach((side, k) => {
@@ -295,7 +300,22 @@ export function columnSpots(p: ElPath, d: Derived, net: RoadNet): Array<{ p: Vec
       target = last + COLUMN_STEP;
     }
   });
-  return [...per[0], ...per[1]].sort((x, y) => (x.s - y.s) || 0).map((e) => e.spot);
+  return [...per[0], ...per[1]].sort((x, y) => x.s - y.s);
+}
+
+export function columnSpots(p: ElPath, d: Derived, net: RoadNet): Array<{ p: Vec2; dir: Vec2 }> {
+  return columnSpotsS(p, d, net).map((e) => e.spot);
+}
+
+/** The columns of the whole el: the J/Z path in full, the M path only where it has left the shared Broadway stretch (built once). */
+export function allColumnSpots(paths: readonly ElPath[], d: Derived, net: RoadNet): Array<{ p: Vec2; dir: Vec2 }> {
+  const jz = paths.find((q) => q.id === 'JZ');
+  const out: Array<{ p: Vec2; dir: Vec2 }> = [];
+  for (const path of paths) {
+    const from = path.id === 'M' && jz ? sharedPrefix(jz, path) : 0;
+    for (const e of columnSpotsS(path, d, net)) if (e.s >= from) out.push(e.spot);
+  }
+  return out;
 }
 
 // ------------------------------------------------------------------------------------------------ timetable on s
