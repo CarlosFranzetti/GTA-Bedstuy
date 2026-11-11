@@ -81,7 +81,7 @@ describe('car looks (CARS12 variation)', () => {
     expect(low.group.getObjectByName('body')!.position.y).toBeCloseTo(-0.07, 5);
     expect(up.group.getObjectByName('body')!.position.y).toBe(0);
     expect(low.wheels[0].parent!.position.y).toBeCloseTo(up.wheels[0].parent!.position.y, 6);
-    expect((low.group.getObjectByName('glass') as THREE.Mesh).material.name).toBe('carGlass:tint2');
+    expect(((low.group.getObjectByName('glass') as THREE.Mesh).material as THREE.Material).name).toBe('carGlass:tint2');
   });
   it('wheel designs all build, and the deep rim keeps the tyre radius', () => {
     for (const w of ['steel', 'steelBare', 'alloy6', 'alloy5', 'mesh', 'deep', 'turbine'] as const) {

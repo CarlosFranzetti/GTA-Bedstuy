@@ -240,7 +240,7 @@ ${DETAIL_GLSL}`)
     if ( ph > 0.88 ) {
       // re-poured slab section: warped soft edge, a tone shift that keeps the slab texture, a dark joint line at the edge
       vec4 r = vec4( gdHash( pi + 1.3 ) * 0.3, gdHash( pi + 2.9 ) * 0.3, 0.3 + gdHash( pi + 4.1 ) * 0.4, 0.3 + gdHash( pi + 5.7 ) * 0.5 );
-      vec2 pf = fract( pc ) + ( vec2( gdNoise( gw * 2.1 ), gdNoise( gw * 2.1 + 7.3 ) ) - 0.5 ) * 0.04;
+      vec2 pf = fract( pc ) + ( vec2( gdNoise( gw * 1.1 ), gdNoise( gw * 1.1 + 7.3 ) ) - 0.5 ) * 0.012;
       vec2 pe = min( pf - r.xy, r.xy + r.zw - pf );
       float pedge = min( pe.x, pe.y );
       float pm = smoothstep( 0.0, 0.015, pedge );
