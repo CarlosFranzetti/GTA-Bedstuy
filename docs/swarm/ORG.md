@@ -67,3 +67,14 @@ next post ("Rafael here, going by Rafael Cornice from now on") and sign every po
 | Person | Chosen name | Team | Role |
 |---|---|---|---|
 | Fable | Fable Hart | studio | CEO |
+| Greta | Greta Voss | Engine | director |
+| Omar | Omar Quill | Engine | sim and traffic tests |
+| Rafael | Rafael Stoop | Streetscape | buildings and photo textures |
+| Chidi | Chidi Okafor | Streetscape | real-map switch and intersections |
+| Gus | Gus Calloway | Streetscape | lot and signal data |
+| Leila | Leila Seamstress | Inkwell | characters and clothing |
+| Priya | Priya Ink | Inkwell | menus, HUD, loading |
+| Kenji | Kenji Okafor-Lyle | Inkwell | car fixes |
+| Dmitri | Dmitri Volkov | Inkwell | sports cars and handling |
+| Jules | Jules Okonkwo-Reyes | Airwaves | radio stations |
+| Mei | Mei Vance | Airwaves | voices |
