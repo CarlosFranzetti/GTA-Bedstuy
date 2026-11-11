@@ -1,5 +1,5 @@
 /**
- * Announcer personas, one per SoundCloud station. All eight are invented: none is a real person or a real station,
+ * Announcer personas, one per SoundCloud station. All nine are invented: none is a real person or a real station,
  * and nothing here imitates a real voice. The voices are the browser's SpeechSynthesis voices, picked and told
  * apart exactly like WBSY Talk does it (src/audio/talk/TalkPlayer.ts `pickVoices` plus a pitch and rate per persona),
  * so a device with a single voice still gets eight distinguishable announcers.
@@ -33,7 +33,9 @@ export const PERSONAS: readonly Persona[] = [
   { stationId: 'yard', name: 'Auntie Pearl', role: 'sidekick', pitch: 1.0, rate: 1.06,
     personality: ['Warm, teasing auntie who runs the sound system and the cookout.', 'Tells you to eat something, turn it up, and call your mother, in that order.'] },
   { stationId: 'flashback', name: 'Tommy Tapedeck', role: 'host', pitch: 1.0, rate: 1.12,
-    personality: ['Overexcited 1980s-style morning-zoo DJ with a rewind button for a heart.', 'Sprinkles in sound-effect words and talks to the cassette deck like it is a person.'] },
+    personality: ['Overexcited pirate-radio MC with a rewind button for a heart.', 'Sprinkles in sound-effect words and calls every bass line serious business.'] },
+  { stationId: 'latin', name: 'Lucho Ventura', role: 'caller', pitch: 0.95, rate: 1.1,
+    personality: ['Warm, fast-talking host who narrates the dance floor like a ringside commentator.', 'Counts everyone into the clave and never lets a song end in silence.'] },
   { stationId: 'sc', name: 'Cass Meridian', role: 'announcer', pitch: 1.04, rate: 1.04,
     personality: ['Crisp, curious music nerd who reads the title and the DJ credit like liner notes.', 'Cares more about a seamless transition than about being heard.'] },
 ];

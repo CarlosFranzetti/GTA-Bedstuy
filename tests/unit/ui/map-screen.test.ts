@@ -129,7 +129,7 @@ describe('MapScreen', () => {
     const reached: string[] = [];
     window.addEventListener('keydown', (e) => reached.push(e.code));
     key('KeyP'); key('KeyW');
-    expect(reached).toEqual(['KeyW']); // P swallowed, the game still sees movement keys
+    expect(reached).toEqual([]); // P and the WASD pan keys are swallowed: the player does not move while the map is open
   });
 
   it('a tap sets the waypoint; a drag pans instead', () => {

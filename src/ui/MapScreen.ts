@@ -109,6 +109,7 @@ export class MapScreen {
   private readonly zlvlEl: HTMLElement;
   private readonly legendEl: HTMLElement;
   private readonly legendBtn: HTMLButtonElement;
+  private hintEl: HTMLElement | null = null;
   private topEl: HTMLElement | null = null;
   private bottomEl: HTMLElement | null = null;
   private readonly clearBtn: HTMLButtonElement;
@@ -204,11 +205,12 @@ export class MapScreen {
       li.append(cv, this.doc.createTextNode(text));
       this.legendEl.appendChild(li);
     }
-    this.legendBtn = this.btn('map-legendbtn', 'Legend', 'Show or hide the legend', () => this.toggleLegend());
+    this.legendBtn = this.btn('map-legendbtn', 'KEY', 'Show or hide the legend (L)', () => this.toggleLegend());
     const me = this.btn('map-me', 'Find me', 'Centre the map on you', () => this.centreOnPlayer());
     this.clearBtn = this.btn('map-clear', 'Clear pin', 'Remove the waypoint', () => setWaypoint(null));
     const hint = this.mk('span', 'map-hint');
-    hint.textContent = 'Drag or arrows to pan, wheel / pinch / +- to zoom, click to set a waypoint';
+    hint.textContent = 'Drag to pan, click to set a waypoint';
+    this.hintEl = hint;
     this.bottomEl = bottom; this.topEl = top;
     bottom.append(this.legendEl, this.legendBtn, me, this.clearBtn, hint);
 
@@ -250,9 +252,11 @@ export class MapScreen {
     releasePointerLock(this.doc);
     this.doc.addEventListener('keydown', this.keyHandler, true);
     this.doc.addEventListener('keyup', this.keyUp, true);
+    this.root.tabIndex = -1;
+    try { this.root.focus({ preventScroll: true }); } catch { /* not focusable */ } // keys typed inside [data-ui-modal] never reach the game (Input.inModal)
     this.view.far = this.farRect();
     this.layout(true);
-    if (this.legendOn === null) this.setLegend(this.view.w >= 700 && this.view.h >= 520);
+    if (this.legendOn === null) this.setLegend(false); // collapsed behind the KEY chip
     this.requestOverview();
     this.selected = null; this.hover = null;
     this.syncStatus();
@@ -431,13 +435,14 @@ export class MapScreen {
 
   private onKey(e: KeyboardEvent): void {
     if (!this.opened || e.ctrlKey || e.metaKey || e.altKey) return;
+    this.firstInput();
     let used = true;
     if (e.code === 'KeyM' || e.code === 'Escape' || e.key === 'Escape') { if (!e.repeat) this.close(); }
     else if (e.code === 'KeyP') { /* swallowed: the phone does not open under the map */ }
     else if (e.key === '+' || e.key === '=' || e.code === 'NumpadAdd') { if (!e.repeat) this.stepZoom(1); }
     else if (e.key === '-' || e.code === 'NumpadSubtract') { if (!e.repeat) this.stepZoom(-1); }
     else if (e.code.startsWith('Arrow')) { this.keysDown.add(e.code); }
-    else if (e.code === 'KeyW' || e.code === 'KeyA' || e.code === 'KeyS' || e.code === 'KeyD') { this.keysDown.add(e.code); used = false; } // the game keeps its movement keys
+    else if (e.code === 'KeyW' || e.code === 'KeyA' || e.code === 'KeyS' || e.code === 'KeyD') { this.keysDown.add(e.code); } // pans the map; swallowed so the player does not move
     else if (e.code === 'KeyC') this.centreOnPlayer();
     else if (e.code === 'KeyL') this.toggleLegend();
     else if ((e.code === 'Enter' || e.code === 'Space') && !(e.target as HTMLElement | null)?.closest?.('button')) { if (!e.repeat) this.tapAt(this.cursor.x, this.cursor.y); }
@@ -468,8 +473,11 @@ export class MapScreen {
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
 
+  private firstInput(): void { if (this.hintEl) this.hintEl.hidden = true; }
+
   private onDown(e: PointerEvent): void {
     e.preventDefault();
+    this.firstInput();
     const p = this.local(e);
     this.pointers.set(e.pointerId, p);
     try { this.canvas.setPointerCapture(e.pointerId); } catch { /* synthetic event / unsupported */ }
@@ -699,7 +707,7 @@ export class MapScreen {
       }
     }
     // the el: a dashed line with ties
-    const e0 = v.toScreen(EL_X_WEST, EL_Z), e1 = v.toScreen(EL_X_EAST, EL_Z);
+    const e0 = v.toScreen(Math.max(EL_X_WEST, a.minX), EL_Z), e1 = v.toScreen(Math.min(EL_X_EAST, a.maxX), EL_Z); // the el stops at the built edge
     ctx.beginPath(); ctx.moveTo(e0.x, e0.y); ctx.lineTo(e1.x, e1.y);
     ctx.lineWidth = Math.max(2.2, 6 * v.scale); ctx.strokeStyle = C.halo; ctx.setLineDash([]); ctx.stroke();
     ctx.lineWidth = Math.max(1.4, 3 * v.scale); ctx.strokeStyle = C.el; ctx.setLineDash([Math.max(6, 14 * v.scale * 2), Math.max(4, 8 * v.scale * 2)]); ctx.stroke();
@@ -731,7 +739,9 @@ export class MapScreen {
     const clip = { x0: 0, x1: v.w, y0: top, y1: v.h - bot };
     const a = this.source.bounds;
     ctx.font = '700 11px Arial, Helvetica, sans-serif';
+    const detail = v.scale >= v.fitScale * 1.4; // fit zoom: one name per avenue / arterial; cross streets and repeats come one level in
     for (const s of this.source.streets()) {
+      if (!detail && s.cls === 'street') continue;
       const w = (ctx.measureText(s.name).width || s.name.length * 6.2) + 4;
       const pri = s.cls === 'street' ? 2 : 1;
       for (let i = 0; i + 1 < s.pts.length; i++) {
@@ -749,7 +759,7 @@ export class MapScreen {
         const mid = (t0 + t1) / 2;
         const inArea = (t: number): boolean => { const q = v.toWorld(A.x + dx * t, A.y + dy * t); return q.x >= a.minX - 15 && q.x <= a.maxX + 15 && q.z >= a.minZ - 15 && q.z <= a.maxZ + 15; };
         const spacing = 300 / len;
-        const n = Math.floor((vis - w) / 300);
+        const n = detail ? Math.floor((vis - w) / 300) : 0;
         for (let k = -n; k <= n; k++) {
           const t = mid + k * spacing;
           if (!inArea(t)) continue;

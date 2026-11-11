@@ -52,37 +52,39 @@ export interface CatalogEntry {
 export const CATALOG: readonly CatalogEntry[] = [
   /* club / electronic */
   { id: 'bkhouse', name: 'Boiler Room', kind: 'sc-account', group: 'club', genre: 'club sets / house / techno', dj: 'deja', site: 'https://boilerroom.tv',
-    about: 'Filmed club sets from Boiler Room, streamed from their SoundCloud through the official player.', scUrls: ['https://soundcloud.com/platform/tracks'] },
+    about: 'Filmed club sets from Boiler Room, from their SoundCloud through the official player.', scUrls: ['https://soundcloud.com/platform/tracks'] },
   { id: 'dublab', name: 'Dekmantel Podcast', kind: 'sc-account', group: 'club', genre: 'techno / house / leftfield', dj: 'odell', site: 'https://www.dekmantel.com',
-    about: 'The Dekmantel podcast series (Amsterdam), streamed from their SoundCloud through the official player.', scUrls: ['https://soundcloud.com/dkmntl/tracks'] },
+    about: 'The Dekmantel podcast series (Amsterdam), from their SoundCloud through the official player.', scUrls: ['https://soundcloud.com/dkmntl/tracks'] },
   { id: 'sc', name: 'Resident Advisor', kind: 'ra-pool', group: 'club', genre: 'RA NYC events + RA Podcast', dj: 'cass', site: 'https://ra.co',
-    about: 'DJ sets by artists playing New York events (RA NYC) plus the RA Podcast, streamed through the official SoundCloud player.', scUrls: ['https://soundcloud.com/resident-advisor/tracks'] },
-  /* eclectic / experimental */
-  { id: 'weird', name: 'Mixmag', kind: 'sc-account', group: 'eclectic', genre: 'club / electronic mixes', dj: 'wren', site: 'https://mixmag.net',
-    about: 'Mixmag Lab and mix series from the Mixmag SoundCloud, through the official player.', scUrls: ['https://soundcloud.com/mixmag-1/tracks'] },
-  { id: 'flashback', name: 'FACT Mixes', kind: 'sc-account', group: 'eclectic', genre: 'bass / electronic mixes', dj: 'tommy', site: 'https://www.factmag.com',
-    about: 'FACT magazine mix series archive (180.Fact SoundCloud), through the official player.', scUrls: ['https://soundcloud.com/180fact/tracks'] },
-  /* hip hop / soul / uk */
-  { id: 'stoop', name: 'Rinse FM', kind: 'sc-account', group: 'urban', genre: 'UK club / grime / garage', dj: 'tayo', site: 'https://rinse.fm',
+    about: 'DJ sets by artists playing New York events (RA NYC) plus the RA Podcast, through the official SoundCloud player.', scUrls: ['https://soundcloud.com/resident-advisor/tracks'] },
+  { id: 'flashback', name: 'Rinse FM', kind: 'sc-account', group: 'bass', genre: 'UK grime / garage / bass', dj: 'tommy', site: 'https://rinse.fm',
     about: 'Rinse FM shows from the Rinse SoundCloud, through the official player.', scUrls: ['https://soundcloud.com/rinsefm/tracks'] },
-  { id: 'boogie', name: 'Soulection', kind: 'sc-account', group: 'urban', genre: 'soul / beats / future funk', dj: 'lou', site: 'https://soulection.com',
+  /* soul / funk / disco */
+  { id: 'boogie', name: 'Soulection', kind: 'sc-account', group: 'soul', genre: 'soul / beats / future funk', dj: 'lou', site: 'https://soulection.com',
     about: 'Soulection Radio episodes from the Soulection SoundCloud, through the official player.', scUrls: ['https://soundcloud.com/soulection/tracks'] },
-  { id: 'yard', name: 'The Lot Radio', kind: 'sc-account', group: 'urban', genre: 'Brooklyn: everything', dj: 'pearl', site: 'https://www.thelotradio.com',
-    about: 'Shows from The Lot Radio (Greenpoint, Brooklyn), from their SoundCloud through the official player.', scUrls: ['https://soundcloud.com/thelotradio/tracks'] },
-  /* live music streams */
-  { id: 'dublive', name: 'dublab', kind: 'live-stream', group: 'live', genre: 'LA: leftfield / ambient / beats', site: 'https://www.dublab.com',
-    about: 'dublab, a listener-supported radio project from Los Angeles. Live public stream.', streams: ['https://dublab.out.airtime.pro/dublab_a'] },
-  { id: 'kexp', name: 'KEXP 90.3', kind: 'live-stream', group: 'live', genre: 'Seattle: indie / world / rock', site: 'https://www.kexp.org',
+  { id: 'rnsoul', name: "WFMU Rock'n'Soul", kind: 'live-stream', group: 'soul', genre: 'vintage soul / funk / R&B', site: 'https://wfmu.org/',
+    about: "WFMU's Rock'n'Soul Radio, vintage soul, funk and R&B from Jersey City. Live public stream.", streams: ['https://stream0.wfmu.org/rocknsoul'] },
+  /* hip hop */
+  { id: 'stoop', name: 'Universal Hip Hop Radio', kind: 'sc-account', group: 'hiphop', genre: 'hip hop radio shows', dj: 'tayo', site: 'https://soundcloud.com/uhhmradio',
+    about: 'Universal Hip Hop Radio shows (The Jam) from their SoundCloud, through the official player.', scUrls: ['https://soundcloud.com/uhhmradio/tracks'] },
+  /* Caribbean */
+  { id: 'yard', name: 'SilverStarSound', kind: 'sc-account', group: 'caribbean', genre: 'dancehall / reggae / soca', dj: 'pearl', site: 'https://soundcloud.com/silver-star-sound',
+    about: 'Dancehall, reggae and soca juggling sets from SilverStarSound, through the official SoundCloud player.', scUrls: ['https://soundcloud.com/silver-star-sound/tracks'] },
+  /* Latin */
+  { id: 'latin', name: 'DJ RubyTunes Latin', kind: 'sc-account', group: 'latin', genre: 'salsa / cumbia / reggaeton / bachata', dj: 'lucho', site: 'https://soundcloud.com/djrubytunes',
+    about: 'Hour-long salsa, cumbia, reggaeton and bachata mixes from DJ RubyTunes, through the official SoundCloud player.', scUrls: ['https://soundcloud.com/djrubytunes/tracks'] },
+  /* eclectic */
+  { id: 'weird', name: 'The Lot Radio', kind: 'sc-account', group: 'eclectic', genre: 'Brooklyn: everything', dj: 'wren', site: 'https://www.thelotradio.com',
+    about: 'Shows from The Lot Radio (Williamsburg, Brooklyn), from their SoundCloud through the official player.', scUrls: ['https://soundcloud.com/thelotradio/tracks'] },
+  { id: 'wfmu', name: 'WFMU 91.1', kind: 'live-stream', group: 'eclectic', genre: 'freeform (Jersey City / NYC)', site: 'https://wfmu.org',
+    about: 'WFMU 91.1 FM, the longest-running freeform station in the US. Live public stream.', streams: ['https://stream0.wfmu.org/freeform-128k'] },
+  { id: 'kexp', name: 'KEXP 90.3', kind: 'live-stream', group: 'eclectic', genre: 'Seattle: indie / world / rock', site: 'https://www.kexp.org',
     about: 'KEXP 90.3 FM Seattle, listener-supported. Live public stream with the current song from their open API.',
     streams: ['https://kexp.streamguys1.com/kexp128.mp3'], nowPlaying: { url: 'https://api.kexp.org/v2/plays/?limit=1', shape: 'kexp' } },
-  { id: 'rparadise', name: 'Radio Paradise', kind: 'live-stream', group: 'live', genre: 'eclectic rock / world', site: 'https://radioparadise.com',
-    about: 'Radio Paradise, listener-supported eclectic radio. Live public stream (128k).', streams: ['https://stream.radioparadise.com/mp3-128', 'https://stream.radioparadise.com/aac-128'] },
-  { id: 'wfmu', name: 'WFMU 91.1', kind: 'live-stream', group: 'live', genre: 'freeform (Jersey City / NYC)', site: 'https://wfmu.org',
-    about: 'WFMU 91.1 FM, the longest-running freeform station in the US. Live public stream.', streams: ['https://stream0.wfmu.org/freeform-128k'] },
-  /* 80s */
+  /* 80s: SomaFM first, 181.FM Awesome 80s behind it (plays in Chromium; SomaFM refuses this sandbox) */
   { id: 'u80s', name: 'SomaFM Underground 80s', kind: 'live-stream', group: '80s', genre: '80s synthpop / new wave', site: 'https://somafm.com/u80s/',
-    about: 'SomaFM Underground 80s, early 80s UK synthpop and new wave. Listener-supported, live public stream.',
-    streams: ['https://ice2.somafm.com/u80s-128-mp3', 'https://ice6.somafm.com/u80s-128-mp3', 'https://ice2.somafm.com/u80s-128-aac'],
+    about: 'SomaFM Underground 80s, early 80s UK synthpop and new wave. Listener-supported, live public stream; falls back to 181.FM Awesome 80s if SomaFM cannot be reached.',
+    streams: ['https://ice2.somafm.com/u80s-128-mp3', 'https://ice6.somafm.com/u80s-128-mp3', 'https://ice2.somafm.com/u80s-128-aac', 'https://listen.181fm.com/181-awesome80s_128k.mp3'],
     nowPlaying: { url: 'https://api.somafm.com/channels.json', shape: 'somafm', channel: 'u80s' } },
   /* talk */
   { id: 'talk', name: 'WBSY Talk', kind: 'scripted', group: 'talk', genre: 'satire talk (scripted)', talk: true, site: '',

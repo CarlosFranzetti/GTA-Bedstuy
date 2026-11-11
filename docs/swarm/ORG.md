@@ -6,9 +6,9 @@ has a name and signs posts as `Name (LANE)`.
 ## Reporting lines
 | Team (working title) | Director (Opus) | Workers |
 |---|---|---|
-| WORLD: map, streets, buildings, environment | **Imani** (MAPLEAD) | Rafael (ENV14); alumni: Chidi (WBURG), Noor (TEXVAR), Gus (GEO3), Bea (ART) |
-| ART: characters, cars, interface, controls | **Tomas** (ARTDIR) | Leila (CHAR14), Kenji (CARFIXUP), Dmitri (CARS14, starts after Kenji), Priya (MENU), Sam (CONTROLS14), Zadie (UI14, starts after Priya); alumni: Ines (PEOPLE12/HUMAN), Rocco (CARS12/ROSTER) |
-| SOUND: radio, voices, effects, music | **Nia** (SOUNDDIR) | Jules (RADIO15), Andre (SFX14); alumni: Mei (VOX), Cal (SCFIX), Otis (LOADMUSIC) |
+| WORLD: map, streets, buildings, environment | **Imani** (MAPLEAD) | Rafael (ENV14); real-map wave two: Theo (WP2), June (WP3), Lena (WP4, on loan), Gus (WP5), Chidi (WP10); alumni: Noor (TEXVAR), Bea (ART) |
+| ART: characters, cars, interface, controls | **Tomas** (ARTDIR) | Leila (CHAR14), Kenji (CARFIXUP), Dmitri (CARS14, starts after Kenji), Priya (CREDITS: credits roll and title screen), Sam (CONTROLS14), Zadie (UI14); alumni: Ines (PEOPLE12/HUMAN), Rocco (CARS12/ROSTER) |
+| SOUND: radio, voices, effects, music | **Nia** (SOUNDDIR) | Jules (RADIO15), Andre (SFX14), Otis (TITLEMUSIC: hip-hop title theme); alumni: Mei (VOX), Cal (SCFIX) |
 | ENGINE: stability, performance, platforms, QA | **Greta** (ENGDIR) | Omar (SIMFIX); alumni: Lena (PERF/LOD), Hana (FLICKER), Viktor (NATIVE), Ash (PLAYTEST), Theo (CARFIX), June (CROWD), Wren (STORY) |
 
 Alumni are finished lanes whose work the owner called solid. They are on call: a director asks Fable, Fable brings them back
@@ -81,3 +81,5 @@ next post ("Rafael here, going by Rafael Cornice from now on") and sign every po
 | Dmitri | Dmitri Volkov | Inkwell | sports cars and handling |
 | Jules | Jules Okonkwo-Reyes | Airwaves | radio stations |
 | Mei | Mei Vance | Airwaves | voices |
+| Imani | Imani Adeyemi | Streetscape | director |
+| Zadie | Zadie Okafor | Inkwell | map screen, phone, loading screen |

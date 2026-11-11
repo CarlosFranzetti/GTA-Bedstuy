@@ -23,6 +23,8 @@ export const CAST: readonly CastMember[] = [
     persona: 'Teasing auntie who runs the sound system and the cookout. Eat something, turn it up, call your mother.', catchphrases: ['Did you eat?', 'Turn it up, baby.'] }),
   m({ id: 'tommy', name: 'Tommy Tapedeck', kind: 'dj', voice: 'am_fenrir', speed: 1.14, fx: 'studio', fallback: { role: 'host', pitch: 1.0, rate: 1.12 },
     persona: 'Overexcited 1980s morning-zoo DJ with a rewind button for a heart.', catchphrases: ['Rewind that!', 'Hit the boom box!'] }),
+  m({ id: 'lucho', name: 'Lucho Ventura', kind: 'dj', voice: 'am_eric', speed: 1.08, fx: 'studio', fallback: { role: 'caller', pitch: 0.95, rate: 1.1 },
+    persona: 'Warm fast-talking dance-floor commentator who counts everybody into the clave.', catchphrases: ['Dale, dale.', 'The clave is the clock.'] }),
   m({ id: 'cass', name: 'Cass Meridian', kind: 'dj', voice: 'bf_emma', speed: 1.02, fx: 'studio', fallback: { role: 'announcer', pitch: 1.04, rate: 1.04 },
     persona: 'Crisp, curious music nerd who reads the title and DJ credit like liner notes.', catchphrases: ['Credits, as always.', 'Seamless, I hope.'] }),
 

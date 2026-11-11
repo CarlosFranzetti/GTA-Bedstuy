@@ -94,4 +94,4 @@ for (const [k, v] of [...rows].sort((x, y) => y[1] - x[1])) console.log(k.padEnd
 console.log('\nlargest items:');
 for (const f of files.sort((x, y) => y.b - x.b).slice(0, 25)) console.log('  ' + (f.b / 1e3).toFixed(0).padStart(6) + ' kB  ' + f.c.padEnd(30) + ' ' + f.name);
 if (jsonSrc.length) { console.log('\nJSON modules in the bundle (minified size):'); for (const [n, b] of jsonSrc.sort((x, y) => y[1] - x[1])) console.log('  ' + (b / 1e3).toFixed(0).padStart(6) + ' kB  ' + n); }
-if (jsonOut) writeFileSync(jsonOut, JSON.stringify({ total, categories: Object.fromEntries(rows), top: files.slice(0, 60) }, null, 1));
+if (jsonOut) writeFileSync(jsonOut, JSON.stringify({ total, categories: Object.fromEntries(rows), top: files }, null, 1));

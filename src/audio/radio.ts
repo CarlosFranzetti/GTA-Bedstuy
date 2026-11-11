@@ -202,7 +202,7 @@ export const GENRE_STATIONS: Record<LibraryStationId, Station> = {
  * A set belongs to a station when its title or DJ name matches one of the station's keyword patterns
  * (case-insensitive). Radio SC has no filter: any set. When SoundCloud cannot load, the station says so; nothing is synthesized. */
 
-export type ScStationId = 'bkhouse' | 'dublab' | 'stoop' | 'boogie' | 'weird' | 'yard' | 'flashback' | 'sc';
+export type ScStationId = 'bkhouse' | 'dublab' | 'stoop' | 'boogie' | 'weird' | 'yard' | 'flashback' | 'latin' | 'sc';
 
 export interface ScStationDef {
   id: ScStationId;
@@ -230,7 +230,7 @@ const kw = (alts: string): RegExp => new RegExp(`(?:^|[^a-z0-9])(?:${alts})(?:$|
 /** Dial text for the announcers, per SoundCloud station id. */
 const SC_FREQ: Record<ScStationId, string> = {
   bkhouse: 'ninety point nine', dublab: 'ninety one point seven', stoop: 'ninety three point five', boogie: 'ninety five point three',
-  weird: 'ninety seven point one', yard: 'ninety eight point nine', flashback: 'eighty-eight point eight', sc: 'one hundred point one',
+  weird: 'ninety seven point one', yard: 'ninety eight point nine', flashback: 'ninety-nine point one', latin: 'one hundred and two point three', sc: 'one hundred point one',
 };
 
 /** The eight SoundCloud stations are the catalog's sc-account / ra-pool entries (src/audio/stations.ts), in dial order.
@@ -244,10 +244,11 @@ const SC_HINTS: Record<ScStationId, { keywords: readonly string[]; patterns: rea
   weird: { keywords: ['psych', 'jazz', 'experimental', 'ambient', 'avant', 'krautrock', 'leftfield'], patterns: [kw('psych(?:edelic)?|jazz|experimental|ambient|avant|noise|krautrock|leftfield|improv|weird|dream|idm')] },
   yard: { keywords: ['reggae', 'dancehall', 'afrobeats', 'soca', 'amapiano', 'riddim'], patterns: [kw('reggae|dancehall|afro(?:beats?)?|soca|amapiano|kuduro|bashment|zouk|ragga|calypso|riddim|caribbean')] },
   flashback: { keywords: ['80s', 'eighties', 'pop', 'new wave', 'synthpop', 'retro'], patterns: [kw('80\'?s|198\\d|eighties|pop|new[- ]?wave|synth[- ]?pop|retro|freestyle|hi[- ]?nrg')] },
+  latin: { keywords: ['salsa', 'reggaeton', 'cumbia', 'bachata', 'latin'], patterns: [kw('salsa|reggaeton|cumbia|bachata|merengue|latin|latino|mambo')] },
   sc: { keywords: [], patterns: [] },
 };
 
-const SC_ORDER = ['bkhouse', 'dublab', 'stoop', 'boogie', 'weird', 'yard', 'flashback', 'sc'];
+const SC_ORDER = ['bkhouse', 'dublab', 'stoop', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc'];
 export const SC_STATIONS: readonly ScStationDef[] = CATALOG.filter((e) => e.kind === 'sc-account' || e.kind === 'ra-pool' || e.kind === 'sc-playlist').map((e): ScStationDef => ({
   id: e.id as ScStationId,
   name: e.name,
