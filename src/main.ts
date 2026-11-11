@@ -266,6 +266,7 @@ const lights = new TrafficLights(grid); // clocked by TrafficSystem only; main j
 const traffic = new TrafficSystem(grid, physics, events, rng.fork('traffic'), scene, materials, makeVehicle, makePed, lights, world.lots, tier0.traffic);
 const cops = new CopSystem(grid, physics, events, rng.fork('cops'), scene, makeVehicle, wanted, { lights, patrolCount: tier0.traffic.cops });
 const audio = new AudioSystem(events);
+audio.radio.onToast = (m) => hud.showToast(m); // a station that fails to play skips ahead and says so
 const phone = new Phone();
 phone.restore(loadPhoneData());
 phone.persist = savePhoneData;

@@ -7,7 +7,7 @@ export interface Rect { minX: number; maxX: number; minZ: number; maxZ: number }
 export const NORTH_UP_ANGLE = -(REAL_FRAME.rotDeg * Math.PI) / 180;
 export const MAP_MAX_SCALE = 6;
 /** Zoom steps as multiples of the fit scale: 1 is the built area filling the screen, below 1 is the Brooklyn overview. */
-export const ZOOM_STEPS = [1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8] as const;
+export const ZOOM_STEPS = [1 / 16, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8] as const;
 /** Metres the centre may stray past the built area at normal zoom. */
 export const PAN_MARGIN = 60;
 
@@ -42,7 +42,12 @@ export class MapView {
     this.cx = (b.minX + b.maxX) / 2;
     this.cz = (b.minZ + b.maxZ) / 2;
     this.ox = this.w / 2; this.oy = reserveTop + availH / 2;
-    this.minScale = this.far ? Math.min(this.fitScale / 8, 0.02) : this.fitScale * 0.85;
+    this.setFar(this.far);
+  }
+  /** Sets the larger region reachable by zooming out (the overview); null limits zoom-out to just past the fit scale. */
+  setFar(r: Rect | null): void {
+    this.far = r;
+    this.minScale = r ? this.fitScale / 16.5 : this.fitScale * 0.85;
   }
 
   toScreen(x: number, z: number): { x: number; y: number } {

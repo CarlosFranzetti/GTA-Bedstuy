@@ -117,7 +117,6 @@ export class PedVoicePlayer implements SpeechBackend {
       this.modes.system++;
       let t0 = 0;
       const end = () => { if (dead) return; dead = true; cleanup(); hooks.ended(); };
-      u.onstart = () => { /* some engines never fire it; the timer below starts the envelope */ };
       u.onend = end; u.onerror = end;
       try { speech.speak(u); } catch { end(); return; }
       t0 = Date.now();

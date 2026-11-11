@@ -23,6 +23,8 @@ import { DjScheduler } from './voice/Scheduler';
 import type { TtsEngine } from './voice/types';
 import type { PersistentStore } from './voice/ClipCache';
 import { VehicleAudio } from './vehicle/VehicleAudio';
+import { BarkDirector, type PedBarkEvent, type SpeechEventName } from './voice/peds/BarkDirector';
+import { PedVoicePlayer } from './voice/peds/PedVoicePlayer';
 import type { Surface } from './vehicle/fx';
 import type { Listener, TrafficCar } from './vehicle/nodes';
 import { loadBundledScript, type TalkSegment } from './talk/script';
@@ -120,6 +122,9 @@ function browserSpeech(): SpeechLike | null {
 export class AudioSystem {
   private g: Graph | null = null;
   private readonly hub: VoiceHub;
+  /** VOICE14: pedestrian, story and mission speech (barks, subtitles, visemes). Driven by the `pedBark` and `mission:subtitle` events. */
+  private readonly peds: BarkDirector;
+  private inCar = false;
   /** Radio dial, music library decks and the talk show. */
   readonly radio: RadioDirector;
   /** Folder picker / file import / reset for the player's library (used by RadioUi). */
@@ -170,11 +175,25 @@ export class AudioSystem {
       makeUtterance: makeUtt,
       volume: () => this.radioVolume,
       hosted: vo.hosted ?? hostedBuild(),
+      packBase: (vo.hosted ?? hostedBuild()) ? './voice/' : null,
       phone: vo.phone ?? detectPhone(),
       artifact: vo.artifact,
       storage: vo.storage === undefined ? safeStorage() : vo.storage,
       persist: vo.store,
       engineFactory: vo.engine,
+    });
+    const bus = events as unknown as { on(t: string, f: (p: never) => void): () => void; emit(t: string, p: unknown): void };
+    this.peds = new BarkDirector({
+      now: () => (typeof performance !== 'undefined' ? performance.now() / 1000 : Date.now() / 1000),
+      random: () => this.rng.next(),
+      emit: (type, payload) => bus.emit(type, payload),
+      subtitleMode: () => { try { const v = localStorage.getItem('wbsy.subtitles'); return v === 'story' || v === 'off' ? v : 'all'; } catch { return 'all'; } },
+      radioSpeechInCar: () => this.inCar && this.radioOn && this.hub.player.busy,
+      idle: () => !this.hub.player.busy,
+      backend: new PedVoicePlayer({
+        ctx: () => this.g?.ctx ?? null, dest: () => this.g?.master ?? null, pack: () => this.hub.pack, cache: this.hub.cache,
+        engine: () => this.hub.engine, speech, makeUtterance: makeUtt, volume: () => this.radioVolume,
+      }),
     });
     const talk: TalkLike = opts.script ? new TalkPlayer({
       speech,
@@ -210,8 +229,11 @@ export class AudioSystem {
       events.on('userGesture', () => { void this.start(); void this.libraryController.autoReconnect().catch(() => undefined); }),
       events.on('horn', (e) => { if (this.vehicle.typed) this.vehicle.hornEvent(e.pos); else this.playHorn(); }),
       events.on('impact', (e) => { this.playImpact(e.strength); if (this.vehicle.typed) this.vehicle.playCrash(e.strength); }),
-      events.on('enterVehicle', () => this.setRadioOn(true)),
-      events.on('exitVehicle', () => this.setRadioOn(false)),
+      events.on('enterVehicle', () => { this.inCar = true; this.setRadioOn(true); }),
+      events.on('exitVehicle', () => { this.inCar = false; this.setRadioOn(false); }),
+      // VOICE14: Leila's pedBark request and every mission / story subtitle line get a voice.
+      bus.on('pedBark', (e) => { this.peds.request(e as PedBarkEvent); }),
+      events.on('mission:subtitle', (e) => { this.peds.speakStory(e.who, e.text, 'mission'); }),
       events.on('radioNext', () => this.nextStation()),
     );
     if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
@@ -242,6 +264,7 @@ export class AudioSystem {
   update(dt: number): void {
     if (this.pauseReasons.size > 0) return;
     this.radio.update(dt);
+    this.peds.update();
     const g = this.g;
     if (!g) return;
     const now = g.ctx.currentTime;
@@ -380,6 +403,15 @@ export class AudioSystem {
   get scStations(): readonly ScStation[] { return this.radio.scStations; }
 
   /** Hour (0..24), weather ('dry' | 'rain' | 'wet' | 'drying'), rain 0..1 and street name for the announcers' time and weather lines. */
+  /** VOICE14: say a line in a character's voice at a place (story walk-ons, scripted beats). Returns false when that speaker has no voice (subtitle only). */
+  speakAt(who: string, text: string, opts: { pos?: { x: number; y: number }; dist?: number; kind?: 'story' | 'mission' } = {}): boolean {
+    return this.peds.speakStory(who, text, opts.kind ?? 'story', opts);
+  }
+  /** VOICE14: hook for speech events (speech:start, speech:viseme, speech:end, speech:subtitle) besides the event bus. */
+  onSpeech(fn: (type: SpeechEventName, payload: unknown) => void): () => void { return this.peds.onSpeech(fn); }
+  /** Debug panel text for the voice pack. */
+  get voicePackLabel(): string { return this.hub.packLabel; }
+
   setBroadcast(ctx: Partial<BroadcastContext>): void { this.radio.setBroadcast(ctx); }
 
   /** HD voices (on-device neural TTS): toggle, state for the UI and the one-line size note. */
