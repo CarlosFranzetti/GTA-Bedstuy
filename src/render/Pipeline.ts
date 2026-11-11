@@ -6,6 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { BLOOM_INPUT_CAP, HDR_CAP, HDR_SAFE_GLSL, guardBloomInput } from '@/render/HdrGuard';
 import type { Pass } from 'three/addons/postprocessing/Pass.js';
 import type { Quality } from './Shadows';
 import { newTimeCycle, timeCycleAt, hazeAt, grainAmount } from './LightingConfig';
@@ -91,8 +92,10 @@ export const DOF_SHADER = {
       return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
     }
 
+    ${HDR_SAFE_GLSL}
     void main() {
       vec4 center = texture2D(tDiffuse, vUv);
+      center.rgb = hdrSafe(center.rgb, ${HDR_CAP.toFixed(1)});
       float cocC = cocPx(viewDist(texture2D(tDepth, vUv).x));
       if (cocC < 0.25) {
         gl_FragColor = center;
@@ -112,7 +115,7 @@ export const DOF_SHADER = {
         float cocS = cocPx(viewDist(texture2D(tDepth, uv).x));
         // The sample only spreads onto this pixel if its own blur disc reaches it.
         float w = clamp(cocS - rpx + 1.0, 0.0, 1.0);
-        vec3 col = min(texture2D(tDiffuse, uv).rgb, vec3(24.0));
+        vec3 col = hdrSafe(texture2D(tDiffuse, uv).rgb, 24.0);
         sum += col * w;
         wsum += w;
       }
@@ -216,9 +219,10 @@ export const GRADING_SHADER = {
       return mix(c, c * tint, splitStrength);
     }
 
+    ${HDR_SAFE_GLSL}
     void main() {
       vec4 tex = texture2D(tDiffuse, vUv);
-      vec3 c = max(tex.rgb, vec3(0.0));
+      vec3 c = hdrSafe(tex.rgb, ${HDR_CAP.toFixed(1)});
 
       #ifdef USE_LUT
       if (useLut > 0.5) c = lutGrade(c);
@@ -657,6 +661,8 @@ export class RenderPipeline {
     this.bloom = this.add(
       new UnrealBloomPass(new THREE.Vector2(ew, eh), this.night ? BLOOM_STRENGTH_NIGHT : BLOOM_STRENGTH_DAY, BLOOM_RADIUS, this.night ? BLOOM_THRESHOLD_NIGHT : BLOOM_THRESHOLD_DAY),
     );
+    // one Inf or NaN pixel in the scene buffer must not be blurred into a screen-filling black block (see HdrGuard)
+    if (!guardBloomInput(this.bloom as unknown as Parameters<typeof guardBloomInput>[0], BLOOM_INPUT_CAP)) console.warn('[gfx] bloom input guard not applied: three.js shader changed');
     if (this.q === 'phone') this.bloom.enabled = false; // switched on by updateSignBloom (night + >= 45 fps)
 
     // Grading: per-hour 3D LUT on WebGL2 (every tier incl. phone); analytic grade (no sampler3D in the shader) otherwise.

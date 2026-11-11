@@ -14,6 +14,7 @@
  * The pass is skipped entirely on low and phone (see Pipeline.ts).
  */
 import * as THREE from 'three';
+import { HDR_CAP, HDR_SAFE_GLSL } from '@/render/HdrGuard';
 import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { Rng } from '@/core/Rng';
 import { createCanvas } from '@/textures/canvas';
@@ -152,6 +153,7 @@ export const SSR_TRACE_SHADER = {
     return uv.x > 0.0 && uv.x < 1.0 && uv.y > 0.0 && uv.y < 1.0;
   }
 
+  ${HDR_SAFE_GLSL}
   void main() {
     gl_FragColor = vec4(0.0);
     float d = texture2D(tDepth, vUv).x;
@@ -211,12 +213,12 @@ export const SSR_TRACE_SHADER = {
     if (dot(nh, R) > 0.35) return;
 
     float rough = 1.0 - pud; // damp road = blurry, puddle = sharp
-    vec3 col = texture2D(tDiffuse, huv).rgb;
+    vec3 col = hdrSafe(texture2D(tDiffuse, huv).rgb, 10.0);
     float wsum = 1.0;
     for (int i = 0; i < SSR_BLUR; i++) {
       float a = float(i) * 2.39996 + jitter * 6.2831;
       float r = (0.5 + 0.5 * float(i + 1) / float(SSR_BLUR)) * rough * 7.0;
-      col += texture2D(tDiffuse, huv + vec2(cos(a), sin(a)) * r * uTexel).rgb;
+      col += hdrSafe(texture2D(tDiffuse, huv + vec2(cos(a), sin(a)) * r * uTexel).rgb, 10.0);
       wsum += 1.0;
     }
     col = min(col / wsum, vec3(10.0));
@@ -276,9 +278,10 @@ export const FX_COMPOSITE_SHADER = {
     return occ / float(CONTACT_TAPS);
   }
 
+  ${HDR_SAFE_GLSL}
   void main() {
     vec4 tex = texture2D(tDiffuse, vUv);
-    vec3 c = tex.rgb;
+    vec3 c = hdrSafe(tex.rgb, ${HDR_CAP.toFixed(1)});
     float d = texture2D(tDepth, vUv).x;
     if (d >= 0.99999) { gl_FragColor = tex; return; }
     vec3 vp = viewPosAt(vUv, d);
