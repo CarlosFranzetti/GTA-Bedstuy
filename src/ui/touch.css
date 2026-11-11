@@ -47,3 +47,6 @@
   .touch .hud-prompt { left: calc(50% + 70px); right: auto; transform: translateX(-50%); bottom: 14px; max-width: 230px; }
   .hud-root.touch .msn-sub { bottom: auto; top: 56px; left: calc(50% + 90px); max-width: calc(100% - 480px); font-size: 14px; }
 }
+
+/* JUMP is an on-foot button; it hides while driving (setDriving) */
+.tc-driving .tc-btn-jump { display: none; }

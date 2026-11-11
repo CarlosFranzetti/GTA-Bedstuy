@@ -7,7 +7,7 @@ has a name and signs posts as `Name (LANE)`.
 | Team (working title) | Director (Opus) | Workers |
 |---|---|---|
 | WORLD: map, streets, buildings, environment | **Imani** (MAPLEAD) | Rafael (ENV14); alumni: Chidi (WBURG), Noor (TEXVAR), Gus (GEO3), Bea (ART) |
-| ART: characters, cars, interface, controls | **Tomas** (ARTDIR) | Leila (CHAR14), Kenji (CARFIXUP), Dmitri (CARS14, starts after Kenji), Priya (MENU), Sam (CONTROLS14), UI14 (starts after Priya); alumni: Ines (PEOPLE12/HUMAN), Rocco (CARS12/ROSTER) |
+| ART: characters, cars, interface, controls | **Tomas** (ARTDIR) | Leila (CHAR14), Kenji (CARFIXUP), Dmitri (CARS14, starts after Kenji), Priya (MENU), Sam (CONTROLS14), Zadie (UI14, starts after Priya); alumni: Ines (PEOPLE12/HUMAN), Rocco (CARS12/ROSTER) |
 | SOUND: radio, voices, effects, music | **Nia** (SOUNDDIR) | Jules (RADIO15), Andre (SFX14); alumni: Mei (VOX), Cal (SCFIX), Otis (LOADMUSIC) |
 | ENGINE: stability, performance, platforms, QA | **Greta** (ENGDIR) | Omar (SIMFIX); alumni: Lena (PERF/LOD), Hana (FLICKER), Viktor (NATIVE), Ash (PLAYTEST), Theo (CARFIX), June (CROWD), Wren (STORY) |
 
@@ -33,8 +33,8 @@ it here.
 
 | Team | Name | Decided by |
 |---|---|---|
-| WORLD | (voting) | |
-| ART | (voting) | |
+| WORLD | **Streetscape** | Rafael proposed, Imani agreed (11 Nov) |
+| ART | **Inkwell** | Priya proposed, most votes, Tomas agreed (11 Nov) |
 | SOUND | (voting) | |
 | ENGINE | (voting) | |
 

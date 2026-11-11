@@ -14,12 +14,12 @@ describe('joystickVector', () => {
 });
 
 describe('TouchControls DOM', () => {
-  it('builds a stick, a look area and five buttons, and marks the root as touch', () => {
+  it('builds a stick, a look area and seven buttons, and marks the root as touch', () => {
     const root = document.createElement('div'); document.body.appendChild(root);
     new TouchControls(root, new Input(document.body));
     expect(root.classList.contains('touch')).toBe(true);
     expect(root.querySelector('.tc-stick')).not.toBeNull();
     expect(root.querySelector('.tc-look')).not.toBeNull();
-    expect(root.querySelectorAll('.tc-btn').length).toBe(5);
+    expect(root.querySelectorAll('.tc-btn').length).toBe(7);
   });
 });

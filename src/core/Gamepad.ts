@@ -5,6 +5,7 @@
  *   right stick -> input.addLook (scaled by dt)             LT -> brake (Space)
  *   A -> KeyF (enter/exit)   X -> ShiftLeft (run / handbrake)   LB -> KeyH (horn)   Y -> KeyE (radio)
  *   R3 (right-stick click) -> KeyC held (look back)
+ *   Select/Back -> KeyV (camera view)   RB -> KeyB (shoulder swap)   B on foot -> Space (jump)
  *   Start -> onStart (pause menu)   D-pad / A / B -> onNav (menu navigation)
  *
  * Call `update(dt)` once per rendered frame (also while paused, so Start can resume).
@@ -150,6 +151,9 @@ export class GamepadInput {
     // Edge actions: press-and-release in the same poll so `pressed()` sees one edge.
     if (edge(BTN.A)) this.pulse('KeyF');
     if (edge(BTN.Y)) this.pulse('KeyE');
+    if (edge(BTN.BACK)) this.pulse('KeyV');                       // Select / Back / Share: cycle the camera view (double-tap swaps the last two)
+    if (edge(BTN.RB)) this.pulse('KeyB');                         // RB: swap the over-the-shoulder side
+    if (edge(BTN.B) && !this.inVehicle) this.pulse('Space');      // B / Circle on foot: jump (X is run, A is enter/exit, Space is the brake in a car)
     // Held actions.
     this.hold('ShiftLeft', down(BTN.X));
     this.hold('KeyH', down(BTN.LB));
