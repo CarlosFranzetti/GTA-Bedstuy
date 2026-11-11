@@ -2407,3 +2407,9 @@ start: reading car stack; plan = authenticity fixes to nine, seeded variants, ne
 
 ### 2026-11-11T07:35:38Z · STORY
 start: 'Air Rights' arc (3 acts, 13 missions + 1 gated north/el). New: src/game/story/** (cast, StoryState, StoryDirector, news, ambient), mission kinds spots/pay/fork/chase/race/stakeout + tail stealth/escort + fragile cargo + subtitles (say) + when-flags in MissionSystem/types, content/story/*, GameSave v3 (story field), additive Announcer news/ads hook, MissionHud dialogue subtitle. Will not touch src/main.ts; FOR FABLE lines at the end. WBURG: north/el detection = data.transit?.stations (>=2 {id,x,z}) and grid.bounds.minZ < -400; tell me if your data shape differs.
+
+### 2026-11-11T07:51:08Z · VOX
+start: neural TTS lane. Chose kokoro-js 1.2.1 (Apache-2.0 code+Kokoro-82M weights, q8 ~92 MB, 28 EN voices US/UK, self-contained kokoro.web.js on jsDelivr, HF CORS ok). New: src/audio/voice/** (NeuralTts, worker, engine iface, FX, shows data, scheduler), docs/reference/VOICES.md, CREDITS.md. Hooks into RadioDirector/radio/Announcer additive only; no main.ts edits.
+
+### 2026-11-11T07:51:48Z · MENU
+start: verify OPTIONS wiring, then GTA V style pause menu (Menu.ts/menu.css), HUD finish, loading art+music. FOR FABLE lines at end.

@@ -357,7 +357,11 @@ export function headShell(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec)
     beard = clip(beard, (v) => zc - 0.005 - v.p[2]);
     beard = clip(beard, (v) => rx * 0.97 - Math.abs(v.p[0]));
     beard = clip(beard, (v) => Math.max(Math.abs(v.p[0]) - rx * 0.36, Math.max(0.12 - tOf(v.p[1]), tOf(v.p[1]) - 0.3)));
-    fixSeam(finalize(beard, { thick: (v) => 0.005 + 0.008 * smooth(0.3, 0.05, tOf(v.p[1])) * smooth(rx * 0.97, rx * 0.5, Math.abs(v.p[0])), iterations: 4, rim: 0.005, uv: mapTo(hairR) }));
+    // the beard shell reads the same planar face map as the skin under it (the painted beard, stubble and lips), so it has no edge of its own
+    const ys = [lm.chinY, lm.chinY + 0.41 * (lm.eyeY - lm.chinY), lm.chinY + 0.68 * (lm.eyeY - lm.chinY), lm.eyeY, lm.crownY], ts = [0, 0.255, 0.42, 0.565, 1];
+    const headT = (y: number): number => { if (y <= ys[0]) return 0; for (let k = 1; k < ys.length; k++) if (y <= ys[k]) return ts[k - 1] + ((y - ys[k - 1]) / (ys[k] - ys[k - 1])) * (ts[k] - ts[k - 1]); return 1; };
+    const faceUV = (p: V3): [number, number] => tileUV(HI_RECTS.head, p[2] > zc + 0.015 ? (p[0] >= 0 ? 0.992 : 0.008) : 0.5 + 0.189 * (p[0] / Math.max(1e-3, lm.eyeX)), headT(p[1]));
+    fixSeam(finalize(beard, { thick: (v) => 0.004 + 0.006 * smooth(0.3, 0.05, tOf(v.p[1])) * smooth(rx * 0.97, rx * 0.5, Math.abs(v.p[0])), iterations: 4, rim: 0.005, uv: faceUV }));
   }
   if (spec.hat !== 'none' || spec.hair === 'bald') return out;
 

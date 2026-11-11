@@ -39,7 +39,7 @@ describe('real bedstuy.json (schema v2)', () => {
     let n = 0;
     for (const f of faces.faces) {
       if (f.lots.length === 0 && f.note.includes('[placeholder]')) continue; // east faces wait for GEO3's PLUTO import (GRID9 B1)
-      expect(f.lots.length).toBeGreaterThanOrEqual(3); // PLUTO: a face backed by a housing-authority superblock has only a few lots
+      expect(f.lots.length).toBeGreaterThanOrEqual(2); // PLUTO: a face backed by a housing-authority superblock has only a few lots (towers and lawns)
       for (const l of f.lots) {
         n++;
         expect(Number.isInteger(l.floors)).toBe(true);
@@ -60,7 +60,7 @@ describe('real bedstuy.json (schema v2)', () => {
   it('Throop and Kosciuszko faces carry the curated anchors', () => {
     // the original ten blocks only (Tompkins, Throop, Garvey columns); the east blocks are GEO3's
     const orig = new Set(['tompkins', 'throop', 'garvey']);
-    const throop = faces.faces.filter((f) => f.street === 'throop');
+    const throop = faces.faces.filter((f) => f.street === 'throop' && ['hart', 'pulaski', 'kosciuszko', 'lafayette', 'vanburen', 'greene'].includes(f.from));
     const kosc = faces.faces.filter((f) => f.street === 'kosciuszko' && orig.has(f.from) && orig.has(f.to));
     expect(throop).toHaveLength(10);
     expect(kosc).toHaveLength(4);

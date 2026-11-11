@@ -13,6 +13,10 @@ export interface P2 { x: number; z: number }
 export class Bot {
   x: number; z: number;
   inCar = false;
+  /** Vehicle type the host reports while inCar ('' = unknown, which waives vehicle gates). */
+  vehicle = '';
+  /** Fork picks by fork id (the option's flag); a fork not listed takes its first available option. */
+  choices: Record<string, string> = {};
   stars = 0;
   speed = 0;
   t = 0;
@@ -28,7 +32,7 @@ export class Bot {
     if (this.stars > 0) { this.sinceCrime += DT; if (this.sinceCrime >= 20) { this.sinceCrime = 0; this.stars--; } }
     this.t += DT;
     this.hour = (this.hour + GAME_HOURS_PER_SECOND * DT) % 24;
-    this.m.update(DT, this, this.inCar, this.stars, this.speed, this.hour);
+    this.m.update(DT, this, this.inCar, this.stars, this.speed, this.hour, this.vehicle);
   }
   wait(seconds: number, speed = 0): void { this.speed = speed; for (let i = 0; i < seconds / DT; i++) { this.tick(); } }
   go(to: P2, mps: number): void {
@@ -66,14 +70,14 @@ export class Bot {
 
   private playBeat(ob: ObjectiveDef, idx: number): void {
     const mps = (base: number) => this.pace(ob, base);
-    const car = (p: 'onFoot' | 'inVehicle' | 'any' | undefined) => { this.inCar = p === 'inVehicle' || (p === 'any' && this.inCar); };
+    const car = (p: 'onFoot' | 'inVehicle' | 'any' | undefined) => { this.inCar = p === 'inVehicle' || (p === 'any' && this.inCar); if (this.inCar && ob.vehicle) this.vehicle = ob.vehicle[0]; };
     if (ob.stayInVehicle !== undefined) this.inCar = true;
     switch (ob.kind) {
       case 'goTo': case 'pickUp': case 'deliver':
         car(ob.presence); this.go(ob.at, mps(ob.presence === 'inVehicle' ? 11 : 5)); this.wait(0.1);
         if (ob.kind === 'pickUp' && ob.prompt !== undefined) { this.press(); this.wait(0.1); }
         break;
-      case 'enterVehicle': this.inCar = true; this.wait(0.1); break;
+      case 'enterVehicle': this.inCar = true; if (ob.vehicle) this.vehicle = ob.vehicle[0]; this.wait(0.1); break;
       case 'timer': this.wait(ob.seconds + 0.3); break;
       case 'holdSpeedBelow': if (ob.at) this.go(ob.at, 4); this.wait(ob.seconds + 0.3); break;
       case 'escapeRadius': this.go({ x: ob.from.x + ob.radius + 8, z: ob.from.z }, 11); this.wait(0.1); break;
@@ -103,18 +107,55 @@ export class Bot {
         for (const it of ob.items) { this.m.notify({ type: 'shop:bought', recordId: it, shop: ob.shop, price: 10 }); this.wait(0.1); }
         break;
       case 'sell': this.sellAll(ob); break;
+      case 'spots':
+        car(ob.presence ?? 'onFoot');
+        for (const p of ob.points) { this.go(p, mps(this.inCar ? 11 : 5)); this.wait(0.1); this.press(); this.wait(0.1); }
+        break;
+      case 'pay': car(ob.presence ?? 'onFoot'); this.go(ob.at, mps(this.inCar ? 11 : 5)); this.wait(0.1); this.press(); this.wait(0.1); break;
+      case 'fork': {
+        car(ob.presence ?? 'onFoot');
+        const open = ob.options.filter((o) => this.m.story.test(o.when));
+        const pick = open.find((o) => o.flag === this.choices[ob.id]) ?? open[0];
+        this.go(pick.at, mps(this.inCar ? 11 : 5)); this.wait(0.1); this.press(); this.wait(0.1);
+        break;
+      }
+      case 'chase': this.chase(ob); break;
+      case 'race':
+        car(ob.presence ?? 'inVehicle');
+        for (const p of ob.route.slice(1)) { this.go(p, 15); this.wait(0.05); }
+        break;
+      case 'stakeout': car(ob.presence); this.go(ob.at, 4); this.wait(ob.seconds + 0.6); break;
     }
   }
 
   followTail(ob: Extract<ObjectiveDef, { kind: 'tail' }>): void {
     const idx = this.m.objectiveIndex;
-    this.go(ob.route[0], 11);
+    // a stealth tail stays in the band between minDistance and maxDistance; others hug the target
+    const gap = ob.minDistance !== undefined ? (ob.minDistance + ob.maxDistance) / 2 : 2;
+    this.go({ x: ob.route[0].x + gap, z: ob.route[0].z }, 11);
     this.speed = ob.speed;
     for (let i = 0; i < 60 * 600 && this.m.objectiveIndex === idx && !this.m.isFailed; i++) {
       const mk = this.m.markers.find((k) => k.id.endsWith('tail'));
-      if (mk) { this.x = mk.x - 2; this.z = mk.z + 2; }
+      if (mk) { this.x = mk.x + gap; this.z = mk.z; }
       this.tick();
     }
+  }
+
+  /** Run after the 'rival' marker at jogging speed until caught (or the target gets away). */
+  chase(ob: Extract<ObjectiveDef, { kind: 'chase' }>): void {
+    const idx = this.m.objectiveIndex;
+    this.go(ob.route[0], 5);
+    this.speed = 6;
+    for (let i = 0; i < 60 * 300 && this.m.objectiveIndex === idx && !this.m.isFailed; i++) {
+      const mk = this.m.markers.find((k) => k.id.endsWith('rival'));
+      if (mk) {
+        const dx = mk.x - this.x, dz = mk.z - this.z, d = Math.hypot(dx, dz) || 1;
+        const s = Math.min(d, 6 * DT);
+        this.x += (dx / d) * s; this.z += (dz / d) * s;
+      }
+      this.tick();
+    }
+    this.speed = 0;
   }
 
   sellAll(ob: Extract<ObjectiveDef, { kind: 'sell' }>): void {

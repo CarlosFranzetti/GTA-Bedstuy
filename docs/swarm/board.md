@@ -114,3 +114,6 @@ Shared files via `FOR FABLE:` as before. Nobody commits. Ports: V1 4401, PT 4402
 | CARS12 | sonnet | src/entities/models/car*.ts, vehicleSkin painters, traffic mix | 4474 |
 | PLAYTEST | haiku | read-only; scripts/playtest/**, playtests/** reports | 4475 |
 | VOX | sonnet | src/audio/voice/** (in-browser neural TTS, free/open; radio hosts, talk shows, interviews, ads) | 4476 |
+| MENU | sonnet | merges OPTIONS + GUI (both stopped mid-work): GTA V style pause menu, HUD, phone, loading screen, fullscreen, graphics settings | 4462 |
+| TEXVAR (cont.) | sonnet | texture variety + finishing LOADMUSIC (src/audio/loadingTheme.ts) | 4464 |
+| FLICKER (cont.) | sonnet | flicker fixes + Mac M-series / Windows / iPhone platform defaults | 4461 |

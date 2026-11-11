@@ -102,15 +102,15 @@ function paintHead(t: L, s: PedSpec, rng: Rng): void {
   const shade = (x: number, y: number, r: number, c: string, al: number): void => t.soft(x, y, r, c, al, 12);
   t.rect(0, 0, W, W, skin, 1, 128, 140);
   // smooth tone: a cool/warm gradient from forehead to chin, darker at the sides and under the jaw, light on forehead, cheek bones, nose bridge
-  const side = mixHex(skin, '#1c1816', 0.62);   // a neutral shade: darkening the saturated tone itself turns dark skin maroon
-  for (let i = 0; i < 26; i++) { const a = 0.007, w = 54 - i * 2; t.rect(0, 0, w, W, side, a); t.rect(W - w, 0, w, W, side, a); }
-  for (let i = 0; i < 40; i++) t.rect(0, Y(1.57) + i * 1.6, W, 256, side, 0.009);
+  const side = '#000000';   // black at low alpha keeps the hue: darkening the saturated tone itself turns dark skin maroon
+  for (let i = 0; i < 26; i++) { const a = 0.0075, w = 54 - i * 2; t.rect(0, 0, w, W, side, a); t.rect(W - w, 0, w, W, side, a); }
+  for (let i = 0; i < 40; i++) t.rect(0, Y(1.57) + i * 1.6, W, 256, side, 0.007);
   shade(128, Y(1.73), 80, lt(skin, 0.3), 0.16);
   for (const sx of [-1, 1]) {
     shade(X(sx * 0.054), Y(1.62), 34, lt(skin, 0.18), 0.12);                                                    // cheekbone light
-    shade(X(sx * 0.07), Y(1.6), 30, mixHex(skin, '#1c1816', 0.4), 0.1);                                                        // hollow under it
+    shade(X(sx * 0.07), Y(1.6), 30, side, 0.05);                                                        // hollow under it
     shade(X(sx * 0.046), Y(1.595), 28, mixHex(skin, '#c4605a', 0.55), fem ? 0.18 : 0.1);                       // warm cheek, makeup blush on some faces
-    shade(X(sx * 0.028), Y(1.545), 22, mixHex(skin, '#1c1816', 0.4), 0.07);                                                    // jaw line
+    shade(X(sx * 0.028), Y(1.545), 22, side, 0.04);                                                    // jaw line
   }
   shade(128, Y(1.628), 14, mixHex(skin, '#c4605a', 0.5), 0.12);                                                 // nose tip warmth
   // pores and fine grain, freckles on some
@@ -186,7 +186,7 @@ function paintHead(t: L, s: PedSpec, rng: Rng): void {
   if (f.mustache) for (let i = 0; i < 120; i++) { const x = rng.range(-0.034, 0.034); t.line(X(x), my - rng.range(6, 15), X(x * 1.1 + rng.range(-0.004, 0.004)), my - rng.range(1, 8), hairc, 1.2, 0.55); }
   // stubble: a shadow that fades out upwards from the jaw, chin and upper lip, plus single hairs
   if (f.stubble) {
-    for (let i = 0; i < 16; i++) { const y0 = Y(1.536) - 6 + i * 4.4; t.rect(X(-0.07) + i * 1.2, y0, 2 * (X(0.07) - X(-0.07) - i * 2.4) / 2, 4.4, '#1a1410', 0.008 + 0.01 * (1 - i / 16)); }
+    for (let i = 0; i < 16; i++) { const y0 = Y(1.536) - 6 + i * 4.4; t.rect(X(-0.07) + i * 1.2, y0, 2 * (X(0.07) - X(-0.07) - i * 2.4) / 2, 4.4, '#000000', 0.006 + 0.008 * (1 - i / 16)); }
     for (let i = 0; i < 1100; i++) { const x = rng.range(-0.075, 0.075), y = rng.range(1.53, 1.618), fall = (y - 1.53) / 0.088; if (rng.next() < fall * 0.85) continue; t.rect(X(x), Y(y), 1.1, 1.8, hairc, 0.4); }
   }
   // beard: feathered, three layers (soft fill, lighter edge, strands), the lips and a skin gap stay clear
@@ -199,7 +199,7 @@ function paintHead(t: L, s: PedSpec, rng: Rng): void {
     t.rect(X(-0.026), my - 2, X(0.026) - X(-0.026), 2, '#2a1210', 0.4);
   }
   // the outer columns of the planar map are stretched over the sides and back of the head: plain slightly darker skin (no ear colour there)
-  t.rect(0, 0, 4, W, mixHex(skin, '#1c1816', 0.2), 1, 128, 150); t.rect(W - 4, 0, 4, W, mixHex(skin, '#1c1816', 0.2), 1, 128, 150);
+  t.rect(0, 0, 4, W, dk(skin, 0.12), 1, 128, 150); t.rect(W - 4, 0, 4, W, dk(skin, 0.12), 1, 128, 150);
   if (s.hair !== 'bald') { t.rect(0, 0, 4, Y(1.69), s.hairColor); t.rect(W - 4, 0, 4, Y(1.69), s.hairColor); }
   // earrings / studs
 }

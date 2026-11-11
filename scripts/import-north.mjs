@@ -40,6 +40,9 @@ const num = (s) => { const v = Number.parseFloat(s); return Number.isFinite(v) ?
 const round1 = (n) => Math.round(n * 10) / 10;
 
 const rows = JSON.parse(fs.readFileSync(RAW, 'utf8'));
+// venues already placed by the VENUES lane (parody names): a lot at the same house number and street word carries the sign
+const venueKey = (a) => { const [n, w] = String(a).toUpperCase().split(/\s+/); return `${n} ${w}`; };
+const VENUES = new Map(JSON.parse(fs.readFileSync(path.join(ROOT, 'src/world/data/raw/venues-current.json'), 'utf8')).venues.map((v) => [venueKey(v.address), v]));
 const streetOf = (r) => r.address.replace(/^\S+\s+/, '').toUpperCase();
 
 // ---- avenue lines x(z): least squares on lots addressed on each avenue, anchored to the known x at z = 0 when the sample is thin
@@ -114,6 +117,8 @@ function mkLot(r, ctx) {
   if (storefront) lot.storefront = storefront;
   if (!widthFt) lot.confidence = 'M';
   if (use !== 'vacant' && use !== 'garage' && !lot.trees && hash(`${r.bbl}t`) < 0.25 && !ctx.industrialFace) lot.trees = 1;
+  const venue = VENUES.get(venueKey(r.address));
+  if (venue && use !== 'vacant' && use !== 'church') { lot.use = 'mixed'; lot.storefront = venue.storefront; lot.sign = venue.parody_name; lot.stoop = false; lot.floors = Math.max(2, lot.floors); }
   lot.note = `[WBURG] ${bits.join(' · ')} · ${floors} fl`;
   return lot;
 }
@@ -195,6 +200,7 @@ for (let br = 0; br < 4; br++) {
         while (sum < (ewFace ? COL_LEN - 40 : faceLen - 6) && k < 40) {
           const tower = k % 2 === 0;
           const w = tower ? 30 : 14 + hash(`${key}lawn${k}`) * 6;
+          if (sum + w > (ewFace ? COL_LEN - 36 : faceLen - 1)) break;
           kept.push(tower
             ? { widthM: round1(w), floors: 6 + (hash(`${key}h${k}`) < 0.4 ? 1 : 0), family: 'brickTan', use: 'residential', stoop: false, cornice: 'none', depthM: 14, confidence: 'M', note: '[WBURG] public-housing tower (PLUTO class D superblock in this block)' }
             : { widthM: round1(w), floors: 0, family: 'vacant', use: 'vacant', trees: 2, confidence: 'M', note: '[WBURG] lawn between towers (PLUTO class D superblock)' });

@@ -482,7 +482,8 @@ describe('the whole city', () => {
     const lots = subdivideLots(grid, data.pois, new Rng(data.seed).fork('lots'), getBedstuyFaces());
     const lib = new StubMaterials();
     const res = buildBuildings(lots, lib, new Rng(data.seed).fork('buildings'));
-    const mixed = lots.filter((l) => l.type === 'mixeduse');
+    // WBURG: Flushing Ave warehouses enter through the mixed-use type but draw no shop front
+    const mixed = lots.filter((l) => l.type === 'mixeduse' && (l as { spec?: { storefront?: string } }).spec?.storefront !== 'warehouse');
     expect(mixed.length).toBeGreaterThan(40);
     const names = new Set<string>();
     res.group.traverse((o) => { if ((o as THREE.Mesh).isMesh) names.add(((o as THREE.Mesh).material as THREE.Material).name); });

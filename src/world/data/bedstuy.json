@@ -3750,14 +3750,18 @@
       ]
     },
     {
-      "street": "stuyvesant", "side": "W", "from": "flushing", "to": "park", "note": "[WBURG] PLUTO lots for this face (1 placed, 2 used; filler where the real band is shorter)", "confidence": "M",
+      "street": "stuyvesant", "side": "W", "from": "flushing", "to": "park", "note": "[WBURG] PLUTO lots for this face (1 placed, 6 used; filler where the real band is shorter)", "confidence": "M",
       "lots": [
         {"widthM":30,"floors":6,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"},
-        {"widthM":30,"floors":6,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"}
+        {"widthM":17.8,"floors":0,"family":"vacant","use":"vacant","trees":2,"confidence":"M","note":"[WBURG] lawn between towers (PLUTO class D superblock)"},
+        {"widthM":5.5,"floors":4,"family":"brickRed","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[WBURG] filler: no PLUTO lot placed on this stretch"},
+        {"widthM":5.5,"floors":4,"family":"brickRed","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[WBURG] filler: no PLUTO lot placed on this stretch"},
+        {"widthM":5.5,"floors":4,"family":"brickRed","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[WBURG] filler: no PLUTO lot placed on this stretch"},
+        {"widthM":5.5,"floors":4,"family":"brickRed","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[WBURG] filler: no PLUTO lot placed on this stretch","depthM":16}
       ]
     },
     {
-      "street": "park", "side": "N", "from": "tompkins", "to": "throop", "note": "[WBURG] PLUTO lots for this face (2 placed, 9 used; filler where the real band is shorter)", "confidence": "M",
+      "street": "park", "side": "N", "from": "tompkins", "to": "throop", "note": "[WBURG] PLUTO lots for this face (2 placed, 10 used; filler where the real band is shorter)", "confidence": "M",
       "lots": [
         {"widthM":30,"floors":7,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"},
         {"widthM":14.6,"floors":0,"family":"vacant","use":"vacant","trees":2,"confidence":"M","note":"[WBURG] lawn between towers (PLUTO class D superblock)"},
@@ -3767,11 +3771,12 @@
         {"widthM":14.5,"floors":0,"family":"vacant","use":"vacant","trees":2,"confidence":"M","note":"[WBURG] lawn between towers (PLUTO class D superblock)"},
         {"widthM":30,"floors":7,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"},
         {"widthM":14.6,"floors":0,"family":"vacant","use":"vacant","trees":2,"confidence":"M","note":"[WBURG] lawn between towers (PLUTO class D superblock)"},
-        {"widthM":30,"floors":7,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"}
+        {"widthM":6,"floors":4,"family":"brickTan","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[WBURG] filler: no PLUTO lot placed on this stretch"},
+        {"widthM":6,"floors":4,"family":"brickTan","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[WBURG] filler: no PLUTO lot placed on this stretch"}
       ]
     },
     {
-      "street": "myrtle", "side": "S", "from": "tompkins", "to": "throop", "note": "[WBURG] PLUTO lots for this face (0 placed, 9 used; filler where the real band is shorter)", "confidence": "L",
+      "street": "myrtle", "side": "S", "from": "tompkins", "to": "throop", "note": "[WBURG] PLUTO lots for this face (0 placed, 10 used; filler where the real band is shorter)", "confidence": "L",
       "lots": [
         {"widthM":30,"floors":6,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"},
         {"widthM":14.5,"floors":0,"family":"vacant","use":"vacant","trees":2,"confidence":"M","note":"[WBURG] lawn between towers (PLUTO class D superblock)"},
@@ -3781,7 +3786,8 @@
         {"widthM":14.4,"floors":0,"family":"vacant","use":"vacant","trees":2,"confidence":"M","note":"[WBURG] lawn between towers (PLUTO class D superblock)"},
         {"widthM":30,"floors":6,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"},
         {"widthM":14.4,"floors":0,"family":"vacant","use":"vacant","trees":2,"confidence":"M","note":"[WBURG] lawn between towers (PLUTO class D superblock)"},
-        {"widthM":30,"floors":6,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"}
+        {"widthM":6,"floors":4,"family":"brickRed","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[WBURG] filler: no PLUTO lot placed on this stretch"},
+        {"widthM":6,"floors":4,"family":"brickRed","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[WBURG] filler: no PLUTO lot placed on this stretch"}
       ]
     },
     {
@@ -3793,10 +3799,14 @@
       ]
     },
     {
-      "street": "tompkins", "side": "W", "from": "park", "to": "myrtle", "note": "[WBURG] PLUTO lots for this face (0 placed, 2 used; filler where the real band is shorter)", "confidence": "L",
+      "street": "tompkins", "side": "W", "from": "park", "to": "myrtle", "note": "[WBURG] PLUTO lots for this face (0 placed, 6 used; filler where the real band is shorter)", "confidence": "L",
       "lots": [
         {"widthM":30,"floors":6,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"},
-        {"widthM":30,"floors":6,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"}
+        {"widthM":20,"floors":0,"family":"vacant","use":"vacant","trees":2,"confidence":"M","note":"[WBURG] lawn between towers (PLUTO class D superblock)"},
+        {"widthM":5.5,"floors":4,"family":"brickPainted","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[WBURG] filler: no PLUTO lot placed on this stretch"},
+        {"widthM":5.5,"floors":4,"family":"brickPainted","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[WBURG] filler: no PLUTO lot placed on this stretch"},
+        {"widthM":5.5,"floors":4,"family":"brickPainted","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[WBURG] filler: no PLUTO lot placed on this stretch"},
+        {"widthM":5.5,"floors":4,"family":"brickPainted","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[WBURG] filler: no PLUTO lot placed on this stretch","depthM":16}
       ]
     },
     {
@@ -3810,7 +3820,7 @@
         {"widthM":16.7,"floors":0,"family":"vacant","use":"vacant","trees":2,"confidence":"M","note":"[WBURG] lawn between towers (PLUTO class D superblock)"},
         {"widthM":30,"floors":6,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"},
         {"widthM":16.7,"floors":0,"family":"vacant","use":"vacant","trees":2,"confidence":"M","note":"[WBURG] lawn between towers (PLUTO class D superblock)"},
-        {"widthM":30,"floors":6,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"}
+        {"widthM":6,"floors":4,"family":"brickRed","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[WBURG] filler: no PLUTO lot placed on this stretch"}
       ]
     },
     {
@@ -3843,7 +3853,7 @@
       ]
     },
     {
-      "street": "park", "side": "N", "from": "garvey", "to": "lewis", "note": "[WBURG] PLUTO lots for this face (5 placed, 9 used; filler where the real band is shorter)", "confidence": "M",
+      "street": "park", "side": "N", "from": "garvey", "to": "lewis", "note": "[WBURG] PLUTO lots for this face (5 placed, 10 used; filler where the real band is shorter)", "confidence": "M",
       "lots": [
         {"widthM":30,"floors":6,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"},
         {"widthM":14.5,"floors":0,"family":"vacant","use":"vacant","trees":2,"confidence":"M","note":"[WBURG] lawn between towers (PLUTO class D superblock)"},
@@ -3853,11 +3863,12 @@
         {"widthM":14.6,"floors":0,"family":"vacant","use":"vacant","trees":2,"confidence":"M","note":"[WBURG] lawn between towers (PLUTO class D superblock)"},
         {"widthM":30,"floors":6,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"},
         {"widthM":14.6,"floors":0,"family":"vacant","use":"vacant","trees":2,"confidence":"M","note":"[WBURG] lawn between towers (PLUTO class D superblock)"},
-        {"widthM":30,"floors":6,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"}
+        {"widthM":6,"floors":4,"family":"brickRed","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[WBURG] filler: no PLUTO lot placed on this stretch"},
+        {"widthM":6,"floors":4,"family":"brickRed","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[WBURG] filler: no PLUTO lot placed on this stretch"}
       ]
     },
     {
-      "street": "myrtle", "side": "S", "from": "garvey", "to": "lewis", "note": "[WBURG] PLUTO lots for this face (0 placed, 8 used; filler where the real band is shorter)", "confidence": "L",
+      "street": "myrtle", "side": "S", "from": "garvey", "to": "lewis", "note": "[WBURG] PLUTO lots for this face (0 placed, 9 used; filler where the real band is shorter)", "confidence": "L",
       "lots": [
         {"widthM":30,"floors":7,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"},
         {"widthM":19.4,"floors":0,"family":"vacant","use":"vacant","trees":2,"confidence":"M","note":"[WBURG] lawn between towers (PLUTO class D superblock)"},
@@ -3866,7 +3877,8 @@
         {"widthM":30,"floors":7,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"},
         {"widthM":19.5,"floors":0,"family":"vacant","use":"vacant","trees":2,"confidence":"M","note":"[WBURG] lawn between towers (PLUTO class D superblock)"},
         {"widthM":30,"floors":7,"family":"brickTan","use":"residential","stoop":false,"cornice":"none","depthM":14,"confidence":"M","note":"[WBURG] public-housing tower (PLUTO class D superblock in this block)"},
-        {"widthM":19.6,"floors":0,"family":"vacant","use":"vacant","trees":2,"confidence":"M","note":"[WBURG] lawn between towers (PLUTO class D superblock)"}
+        {"widthM":6,"floors":4,"family":"brickRed","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[WBURG] filler: no PLUTO lot placed on this stretch"},
+        {"widthM":6,"floors":4,"family":"brickRed","use":"residential","stoop":false,"cornice":"plain","confidence":"L","note":"[WBURG] filler: no PLUTO lot placed on this stretch"}
       ]
     },
     {

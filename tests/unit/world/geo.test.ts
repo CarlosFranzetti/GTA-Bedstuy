@@ -275,7 +275,7 @@ describe('importBlocks on the fixture', () => {
   it('validates with 0 errors against the schema and the real grid', () => {
     expect(validateFaces(res.json)).toEqual([]);
     const set = loadFaces(res.json);
-    expect(set.faces).toHaveLength(100);
+    expect(set.faces).toHaveLength(180);
     expect(validateAgainstGrid(buildGrid(res.json as unknown as BedstuyData), set)).toEqual([]);
   });
   it('leaves the other 98 faces and the input object untouched', () => {
