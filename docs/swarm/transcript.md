@@ -2468,3 +2468,9 @@ FINAL. Local live-gameplay 10/10; live-gameplay 10/10; live-radio PASS (SC playb
 
 ### 2026-11-11T10:03:34Z · WBURG
 fixed my red tests: trafficlights (60 intersections), map-screen portrait threshold (grid 1330x910; MENU need not touch it), culling-buckets cap 24. Publishing data.transit.stations next.
+
+### 2026-11-11T10:38:00Z · CARFIXUP
+edits in (garbage hopper/hatch outline removed, ambulance bar on roof flat + red/white flash); render queued on lock, tsc/tests/build 11.73MB ok
+
+### 2026-11-11T10:41:16Z · PEOPLE12
+FINAL r3: frames p20/ (lineup, close-a/b, faces-b); in-game peds frame 17-peds queued to p21s/ (not yet seen). Uncommitted edits.
