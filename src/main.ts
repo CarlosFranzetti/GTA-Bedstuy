@@ -42,6 +42,7 @@ import { Weather } from '@/game/Weather';
 import { LIGHTING } from '@/render/LightingConfig';
 import { tierConfig, pixelRatioFor } from '@/render/QualityTier';
 import { classifyGpu, readGpuInfo, profilePixelRatio } from '@/render/GpuProfile';
+import { BlinkProbe } from '@/render/BlinkProbe';
 import { ContextGuard } from '@/render/ContextGuard';
 import { gfxDebugRequested, mountGfxDebug, flagToggle } from '@/render/GfxDebug';
 import { setNormalMaps, setAnisotropy } from '@/render/TierDetail';
@@ -434,7 +435,7 @@ function applyGraphics(): void {
   setNormalMaps(scene, gfx.normalMaps); setAnisotropy(scene, Math.min(gfx.anisotropy, renderer.capabilities.getMaxAnisotropy()));
   pipeline.setPostOptions(gfx.post); cam.fovOffset = gfx.fovOffset; game.maxFps = gfx.maxFps;
 }
-const setTier = (q: Quality): void => { applyQuality(q); applyGraphics(); };
+const setTier = (q: Quality): void => { if (blinkProbe) blinkProbe.tierSwitches++; applyQuality(q); applyGraphics(); };
 // Explicit ?q= (review scripts, bug reports) or ?perf=0 keeps the requested quality for the whole session.
 const perf = new PerfMonitor({
   getQuality: () => quality,
@@ -442,6 +443,11 @@ const perf = new PerfMonitor({
   autoDrop: !params.has('q') && params.get('perf') !== '0',
   touch: isTouch,
 });
+
+// ---- flicker diagnosis (?debug=gfx only): blink counters and a switch that bypasses the whole post chain
+const blinkProbe = gfxDebugRequested(location.search) ? new BlinkProbe() : null;
+let gfxBypassPost = false;
+const blinkReader = { read(x: number, y: number, out: Uint8Array): void { const gl = renderer.getContext(); gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out); } };
 
 // ---- loop
 const vehicleScratch: IVehicle[] = [];
@@ -562,7 +568,11 @@ function drawFrame(alpha: number, frameDt: number): void {
     renderer.info.reset();
     passes.gbufferIndex = quality === 'low' || quality === 'phone' ? -1 : 1;
     passes.beginFrame();
-    if (!contextGuard.isLost) pipeline.render();
+    if (!contextGuard.isLost) {
+      if (gfxBypassPost) renderer.render(scene, cam.camera); else pipeline.render();
+      // ?debug=gfx: read a few pixels of the finished frame to count whole-screen blinks (see BlinkProbe)
+      if (blinkProbe) { renderer.setRenderTarget(null); blinkProbe.sample(blinkReader, renderer.domElement.width, renderer.domElement.height); }
+    }
 }
 
 const game = new Game(
@@ -791,6 +801,7 @@ game.add({
 // resize: the canvas is stretched by CSS while the drag is in progress; buffers are reallocated once it settles
 let resizeTimer: ReturnType<typeof setTimeout> | undefined;
 const applyResize = (): void => {
+  if (blinkProbe) blinkProbe.resizes++;
   renderer.setPixelRatio(ratioFor(quality)); // the phone tier caps the buffer width, so it follows rotation
   renderer.setSize(window.innerWidth, window.innerHeight);
   pipeline.setSize(window.innerWidth, window.innerHeight);
@@ -806,7 +817,13 @@ if (gfxDebugRequested(location.search)) {
     rendererString: gpu.reason, profile: gpu, tier: () => quality, pixelRatio: () => renderer.getPixelRatio(),
     bufferSize: () => ({ w: renderer.domElement.width, h: renderer.domElement.height }),
     activePasses: () => pipeline.activePassNames, contextLosses: () => contextGuard.lostCount,
-    toggles: [po('ao', 'Ambient occlusion'), po('bloom', 'Bloom'), po('dof', 'Depth of field'), po('aa', 'Anti-aliasing'), po('vignette', 'Vignette'), po('grain', 'Film grain')],
+    stats: () => blinkProbe?.report() ?? {},
+    toggles: [
+      flagToggle('post', 'All post effects (off = plain render)', () => !gfxBypassPost, (on) => { gfxBypassPost = !on; }),
+      flagToggle('hud', 'HUD and page overlays', () => overlay.style.display !== 'none', (on) => { overlay.style.display = on ? '' : 'none'; }),
+      flagToggle('shadows', 'Shadows', () => renderer.shadowMap.enabled, (on) => { renderer.shadowMap.enabled = on; scene.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined; if (m) for (const x of Array.isArray(m) ? m : [m]) x.needsUpdate = true; }); }),
+      po('ao', 'Ambient occlusion'), po('bloom', 'Bloom'), po('dof', 'Depth of field'), po('aa', 'Anti-aliasing'), po('vignette', 'Vignette'), po('grain', 'Film grain'),
+    ],
   });
 }
 window.addEventListener('resize', () => {
