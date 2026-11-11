@@ -46,9 +46,11 @@ export function candidateGroups(t: PedTraits): PedVoiceGroup[] {
   return c.length ? [...c] : [...PED_GROUPS];
 }
 
-export function assignVoice(t: PedTraits, taken: ReadonlySet<string> = new Set()): PedVoice {
+export function assignVoice(t: PedTraits, taken: ReadonlySet<string> = new Set(), blockedPresets: ReadonlySet<string> = new Set()): PedVoice {
   const rnd = seededRandom(t.seed * 2654435761 + 12345);
-  const cands = candidateGroups(t);
+  let cands = candidateGroups(t);
+  const unblocked = cands.filter((g) => !blockedPresets.has(g.voice));
+  if (unblocked.length) cands = unblocked;
   // seeded shuffle of the candidates
   for (let i = cands.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [cands[i], cands[j]] = [cands[j], cands[i]]; }
   const steps = RATE_STEPS.slice(1);
@@ -68,12 +70,12 @@ export class PedVoiceRegistry {
   get(pedId: string): PedVoice | undefined { return this.voices.get(pedId)?.voice; }
 
   /** The ped's voice (assigned on first use) avoiding every voice already used by a registered ped within the radius. */
-  voiceFor(pedId: string, traits: PedTraits, pos: { x: number; y: number }): PedVoice {
+  voiceFor(pedId: string, traits: PedTraits, pos: { x: number; y: number }, blockedPresets?: ReadonlySet<string>): PedVoice {
     const known = this.voices.get(pedId);
     if (known) { known.x = pos.x; known.y = pos.y; return known.voice; }
     const taken = new Set<string>();
     for (const o of this.voices.values()) if (Math.hypot(o.x - pos.x, o.y - pos.y) <= this.radius) taken.add(o.voice.key);
-    const voice = assignVoice(traits, taken);
+    const voice = assignVoice(traits, taken, blockedPresets);
     this.voices.set(pedId, { voice, x: pos.x, y: pos.y });
     if (this.voices.size > this.cap) { const first = this.voices.keys().next().value; if (first !== undefined) this.voices.delete(first); }
     return voice;

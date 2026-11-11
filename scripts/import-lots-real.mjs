@@ -20,7 +20,8 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const PLUTO_RAW = path.join(ROOT, 'src/world/data/raw/pluto-r1r2.json');
+const PLUTO_RAW = path.join(ROOT, 'cache/lots-real/pluto-r1r2.json');
+const RINGS_OUT = path.join(ROOT, 'cache/lots-real/footprint-rings-r1r2.json');
 const FOOT_RAW = path.join(ROOT, 'cache/lots-real/footprints-r1r2.json');
 const OUT = path.join(ROOT, 'src/world/data/raw/lots-real-r1r2a.json');
 const CORE = path.join(ROOT, 'src/world/data/roadnet-core.json');
@@ -175,6 +176,9 @@ async function main() {
       return o;
     });
     const outBuildings = [...buildings.values()].sort((a, b) => a.bin.localeCompare(b.bin));
+    // footprint polygons are big (git-ignored cache); the tracked file keeps the per-building numbers only
+    fs.writeFileSync(RINGS_OUT, JSON.stringify(Object.fromEntries(outBuildings.map((b) => [b.bin, b.rings]))));
+    for (const b of outBuildings) delete b.rings;
     const coreSha = crypto.createHash('sha1').update(coreJson).digest('hex');
     const out = {
       meta: {
@@ -200,7 +204,8 @@ async function main() {
             d: 'distance from lot centroid to edge e (m)', blk: 'RoadNet block index containing the centroid, -1 none',
             bins: 'BINs of footprints on this lot', fa: 'footprint area sum (m2)', rf: 'highest roof height (m, footprint data)',
           },
-          building: { bin: 'NYC BIN', bbl: 'lot BBL', rf: 'roof height (m)', yr: 'construction year', fa: 'footprint area (m2)', rings: 'footprint outer rings, flat [x0,z0,x1,z1,...] in 0.1 m integers' },
+          building: { bin: 'NYC BIN', bbl: 'lot BBL', rf: 'roof height (m)', yr: 'construction year', fa: 'footprint area (m2)' },
+          rings: 'footprint outer rings (flat [x0,z0,x1,z1,...] in 0.1 m integers) are keyed by BIN in cache/lots-real/footprint-rings-r1r2.json (git-ignored)',
         },
         counts: {
           lots: outLots.length,
@@ -235,7 +240,7 @@ async function main() {
     }
     const a = anomalies;
     console.log(`anomalies: duplicate BBL ${a.duplicateBbl.length} (${a.duplicateBbl.slice(0, 8).join(', ')}); zero frontage ${a.zeroFrontage.length}; no street within ${ANOMALY_M} m ${a.noStreet60.length}; no coordinates ${a.noCoordinates.length}; outside extents ${a.outsideExtents}`);
-    console.log(`buildings: ${outBuildings.length} for ${new Set(outBuildings.map((b) => b.bbl)).size} lots; buildings in footprints with no matching lot: ${foot.rows.length - outBuildings.length} (other BBL or duplicate BIN)`);
+    console.log(`footprints: ${outBuildings.length} kept (on ${new Set(outBuildings.map((b) => b.bbl)).size} lots) of ${foot.rows.length} in the box; the rest lie outside the extents or have no kept lot`);
     console.log(`roadnet-core sha1 ${coreSha.slice(0, 12)}, ${net.edges.length} edges`);
   } finally {
     await vite.close();
