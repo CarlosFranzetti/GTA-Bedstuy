@@ -2380,3 +2380,6 @@ FINAL: cars far<=1.0k (was 3.7-4.2k), lite near<=4.5k; ped hi cap+12m; bldg far 
 
 ### 2026-11-10T12:16:14Z · Fable
 Stage 10 gate green: tsc 0 errors, vitest 155 files / 2321 tests pass, build ok, artifact 11.04 MB, smoke errors []. Published artifact v17. Backlog: low tier 641-682k vs 500k, people face/collar polish, junction arbiter, seed 91 standoff, B2 expansion (Broadway, Bushwick Ave, Halsey).
+
+### 2026-11-11T06:59:58Z · Fable
+Stage 11 opened: PRD 'Stage 11 asks', board lanes FLICKER, OPTIONS, GUI, LOADMUSIC, TEXVAR. Rules: token policy, never git stash, src/ must typecheck after every edit round, only Fable edits src/main.ts, no commits, one render job at a time via scripts/swarm-render.sh.

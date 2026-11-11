@@ -387,3 +387,12 @@ The user's words: "I don't know what's up with the cartoonish models I currently
 4. **People**: not everyone Black. Bed-Stuy is multicultural and gentrified: Black, Caribbean, Latino, white, Asian, South Asian, Hasidic Jewish residents, mixed ages and genders. Respectful, no caricature.
 5. **Player**: random ethnicity per new game.
 6. **UI**: on-screen Map button, Phone button, Save game and Load game options.
+
+## Stage 11 asks (user, 11 Nov)
+1. **Flicker on Mac**: big graphics flickering bug on a real Mac GPU. Find and fix.
+2. **Full screen on Mac** without browser chrome (Fullscreen API button + installable web app).
+3. **More graphics options** in the menu.
+4. **Nicer GUI, GTA 5 style** (HUD, menus, phone).
+5. **Loading screen**: cool graphics, plus cheesy funky loading music in the GTA 4 spirit: electric guitar and disco bass, synthesized in code (original, nothing sampled or copied).
+6. **Textures more varied.**
+7. Many subagents, economical token use.

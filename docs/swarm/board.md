@@ -95,3 +95,12 @@ Shared files via `FOR FABLE:` as before. Nobody commits. Ports: V1 4401, PT 4402
 - Junction arbiter: one yielder per conflict, then switch `BOX_YIELD` on in TrafficAgent (currently off; naive yield knots seed 58).
 - Seed 91: overtake/head-on standoff on Throop jams (965 stuck entries). Unknown if older.
 - traffic update has rare 10 to 16 ms steps (not spawn); source not found.
+
+## Stage 11 lanes (11 Nov)
+| Lane | Model | Owns | Port |
+|---|---|---|---|
+| FLICKER | sonnet | src/render/** (culling, LOD, shadows, post), depth/blend settings | 4461 |
+| OPTIONS | sonnet | src/ui/Menu.ts, menu.css, quality tier options, fullscreen, web app manifest | 4462 |
+| GUI | sonnet | src/ui/Hud.ts, hud.css, phone.css, mission.css, radio.css, src/render/Loading.ts (visuals) | 4463 |
+| LOADMUSIC | sonnet | new src/audio/loadingTheme.ts + tests | none |
+| TEXVAR | sonnet | src/textures/**, facade/material variation in src/world building generators | 4464 |
