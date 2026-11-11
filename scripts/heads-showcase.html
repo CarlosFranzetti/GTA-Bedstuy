@@ -1,0 +1,75 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>people showcase</title>
+<style>html,body{margin:0;background:#789;overflow:hidden}</style></head>
+<body><script type="module">
+// Review harness for the SKINS lane: lines up every GTA3 person and every skinned car body (no game, no world).
+// Dev server only: vite --port N, then /scripts/skins-showcase.html?view=peds|faces|cars|car4m&q=low|phone
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Rng } from '@/core/Rng';
+import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { PED_SPECS } from '@/entities/models/pedBody';
+import { buildPerson as buildPedModel, loadPeople } from '@/entities/models/pedMesh';
+import { pedVariantIndex, PED_SPECS as SPECS } from '@/textures/painters/ped';
+import { setPeopleMode } from '@/textures/painters/pedMode';
+import { bodyTypeId } from '@/entities/models/pedBodyTypes';
+import { paintPedHi } from '@/textures/painters/pedHi';
+await loadPeople();
+import { animateWalk } from '@/entities/models/humanModel';
+import { buildCarModel } from '@/entities/models/carModel';
+import { VEHICLE_SPECS } from '@/entities/Vehicle';
+import { CAR_COLORWAYS } from '@/textures/painters/vehicleSkin';
+
+const params = new URLSearchParams(location.search);
+const view = params.get('view') ?? 'peds';
+setPeopleMode(params.get('mode') === 'shells' ? 'shells' : 'skin');
+const POSE = params.get('pose') ?? 'stand', SIL = params.get('sil') === '1';
+const W = Number(params.get('w') ?? 1280), H = Number(params.get('h') ?? 720);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8aa4bc);
+const pm = new THREE.PMREMGenerator(renderer);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.5;
+const sun = new THREE.DirectionalLight(0xfff2dc, 2.6); sun.position.set(-6, 10, 5); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x6a5a48, 0.7));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: 0x5a5d62, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const materials = new MaterialLibrary(new Rng(7));
+materials.carPaintDetail();
+materials.setEnvironment(scene.environment);
+const cam = new THREE.PerspectiveCamera(38, W / H, 0.1, 100);
+const look = new THREE.Vector3();
+
+
+const ROW = ['ba-hoodie-fade', 'ba-puffer-braids', 'ca-tracksuit', 'la-denim', 'wh-beanie', 'ea-office', 'sa-bomber', 'me-tracksuit', 'hj-man', 'wh-elder', 'ba-elder', 'mx-office'];
+const ROW2 = ['ea-nurse', 'la-construction', 'sa-hijabi', 'ca-headwrap', 'ba-church-man', 'wh-office', 'ba-jersey-teen', 'mx-breton', 'hj-woman', 'la-delivery', 'ba-durag', 'me-hijabi'];
+const place = (ids, spacing, yaw, z = 0, jitter = 0) => {
+  ids.forEach((id, i) => {
+    const v = pedVariantIndex(id);
+    const m = buildPedModel(materials, new Rng(v + 1), { variant: v });
+    m.group.position.set((i - (ids.length - 1) / 2) * spacing, 0, z);
+    m.group.rotation.y = Math.PI + yaw + jitter * ((i % 3) - 1);
+    if (POSE === 'stride') animateWalk(m, Math.PI / 2 + (i % 2) * Math.PI, 1);
+    scene.add(m.group);
+  });
+};
+const n = Number(params.get('n') ?? 10);
+const set = params.get('set') === 'b' ? ROW2 : ROW;
+if (view === 'row') { place(set.slice(0, n), 0.5, 0.6, 0, 0.12); cam.position.set(0, 1.62, 4.6); look.set(0, 1.58, 0); cam.fov = 21; }
+else if (view === 'rowfront') { place(set.slice(0, n), 0.5, 0, 0, 0.0); cam.position.set(0, 1.62, 4.6); look.set(0, 1.58, 0); cam.fov = 21; }
+else if (view === 'close') { const ids = (params.get('ids') ?? 'ba-hoodie-fade,wh-elder').split(','); place(ids, 0.42, Number(params.get('yaw') ?? 0.5), 0, 0); cam.position.set(0, 1.64, Number(params.get('d') ?? 1.1)); look.set(0, 1.62, 0); cam.fov = 28; }
+else if (view === 'side') { const ids = (params.get('ids') ?? 'ba-hoodie-fade,wh-elder').split(','); place(ids, 0.42, Math.PI / 2, 0, 0); cam.position.set(0, 1.64, Number(params.get('d') ?? 1.1)); look.set(0, 1.62, 0); cam.fov = 28; }
+else if (view === 'hands') { const ids = (params.get('ids') ?? 'ba-hoodie-fade,wh-coat,ba-sundress').split(','); place(ids, 0.55, 0.9); cam.position.set(1.0, 0.95, 1.1); look.set(0, 0.86, 0); cam.fov = 26; }
+else if (view === 'street') {
+  const ids = ROW.concat(ROW2);
+  ids.forEach((id, i) => { const v = pedVariantIndex(id); const m = buildPedModel(materials, new Rng(v + 1), { variant: v }); const d = [3, 5, 8, 12, 16, 22][i % 6]; m.group.position.set(-4.5 + (i % 4) * 3 + (i >> 2) * 0.4, 0, -d + 5); m.group.rotation.y = Math.PI + 0.5 - (i % 5) * 0.25; scene.add(m.group); });
+  cam.position.set(0, 1.6, 7); look.set(0, 1.2, -12); cam.fov = 46;
+}
+cam.updateProjectionMatrix(); cam.lookAt(look);
+for (let i = 0; i < 3; i++) renderer.render(scene, cam);
+window.__ready = { tris: renderer.info.render.triangles, calls: renderer.info.render.calls };
+</script></body></html>
