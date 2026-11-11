@@ -67,6 +67,8 @@ export interface LotSpec {
   facadeTexture?: string;
   /** wood-frame house (siding) or new-build condo (panel cladding / glazed brick): picks the wall kind in colourway.ts */
   look?: 'frame' | 'newBuild';
+  /** NYC tax lot id; keys the observed-facade override (src/world/data/facadeObserved.ts) */
+  bbl?: string;
 }
 
 /** Y levels of a building's storeys. floorY[0] is the parlour/ground floor, floorY[k] the k-th floor above it. */

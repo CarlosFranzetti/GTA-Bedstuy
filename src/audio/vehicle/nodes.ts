@@ -33,7 +33,7 @@ function osc(ctx: BaseAudioContext, type: OscillatorType, h?: [number, number, n
 function gain(ctx: BaseAudioContext, v: number, to?: AudioNode | AudioParam): GainNode {
   const g = ctx.createGain();
   g.gain.value = v;
-  if (to) g.connect(to);
+  if (to) (g as GainNode).connect(to as AudioNode);
   return g;
 }
 function filt(ctx: BaseAudioContext, type: BiquadFilterType, hz: number, q = 0.7, to?: AudioNode): BiquadFilterNode {

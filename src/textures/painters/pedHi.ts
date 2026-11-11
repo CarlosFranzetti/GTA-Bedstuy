@@ -48,13 +48,12 @@ class L {
   /** polygon clipped to the tile (Sutherland-Hodgman) */
   private clipPoly(pts: ReadonlyArray<readonly [number, number]>): Array<[number, number]> {
     let out = pts.map((p) => [p[0], p[1]] as [number, number]);
-    const edges: Array<[(p: [number, number]) => number]> = [[(p) => p[0]], [(p) => this.bw - p[0]], [(p) => p[1]], [(p) => this.bh - p[1]]];
-    for (const [f] of edges) {
-      if (!out.length || !Number.isFinite(f([0, 0]) + 0) && false) break;
+    if (!Number.isFinite(this.bw)) return out;
+    const fs: Array<(p: [number, number]) => number> = [(p) => p[0], (p) => this.bw - p[0], (p) => p[1], (p) => this.bh - p[1]];
+    for (const f of fs) {
       const inp = out; out = [];
       for (let i = 0; i < inp.length; i++) {
         const A = inp[i], B = inp[(i + 1) % inp.length], fa = f(A), fb = f(B);
-        if (!Number.isFinite(fa) || !Number.isFinite(fb)) { out = inp; break; }
         if (fa >= 0) out.push(A);
         if ((fa >= 0) !== (fb >= 0)) { const t = fa / (fa - fb); out.push([A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t]); }
       }

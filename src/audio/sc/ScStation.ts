@@ -81,7 +81,7 @@ export function inPreferredHours(hour: number): boolean {
 
 /* ---------- mix list ---------- */
 
-export interface ScMix { url: string; afterhours?: boolean }
+export interface ScMix { url: string; afterhours?: boolean; /** A catalog source (account or playlist) of the station, not a pasted link: never saved, never removed. */ builtin?: boolean }
 
 export interface ScStorage {
   load(): ScMix[] | null;
@@ -135,6 +135,7 @@ export interface ScWidget {
   getCurrentSound(cb: (s: ScSound | null) => void): void;
   getDuration(cb: (ms: number) => void): void;
   getSounds?(cb: (s: unknown[]) => void): void;
+  skip?(index: number): void;
   getCurrentSoundIndex?(cb: (i: number) => void): void;
 }
 export interface ScApi { Widget: ((el: HTMLIFrameElement) => ScWidget) & { Events?: Record<string, string> } }
@@ -149,7 +150,14 @@ export interface ScStationConfig {
   hint?: RaMatch | null;
   /** localStorage key of this station's pasted links. */
   storageKey: string;
+  /** Catalog sources: SoundCloud account/playlist URLs that always belong to the station (played through the widget). */
+  sources?: readonly string[];
+  /** After loading a multi-sound source, skip to a random sound (preferring sets of at least 45 min). */
+  randomStart?: boolean;
 }
+
+/** Sets shorter than this are only picked when nothing longer is in the source. */
+export const SC_MIN_SET_MS = 45 * 60 * 1000;
 
 export interface ScEnv {
   config: ScStationConfig;
@@ -275,7 +283,7 @@ export class ScStation {
   constructor(env: Partial<ScEnv> = {}) {
     const config = env.config ?? DEFAULT_SC_CONFIG;
     this.env = { ...defaultEnv(config), ...env, config };
-    this.list = this.env.storage?.load() ?? [];
+    this.list = [...(config.sources ?? []).map((url): ScMix => ({ url, builtin: true })), ...(this.env.storage?.load() ?? [])];
     this.raOn = this.env.storage?.loadRa?.() ?? true;
     this.env.feed?.onChange(() => {
       this.listeners.forEach((fn) => fn());
@@ -332,7 +340,7 @@ export class ScStation {
   }
 
   removeMix(i: number): void {
-    if (i < 0 || i >= this.list.length) return;
+    if (i < 0 || i >= this.list.length || this.list[i].builtin) return;
     this.list.splice(i, 1);
     if (i < this.index) this.index--;
     else if (i === this.index && !this.curSet) this.pos = 0;
@@ -358,7 +366,7 @@ export class ScStation {
   }
 
   private changed(): void {
-    this.env.storage?.save(this.list.map((m) => ({ ...m })), { ra: this.raOn });
+    this.env.storage?.save(this.list.filter((m) => !m.builtin).map((m) => ({ ...m })), { ra: this.raOn });
     this.listeners.forEach((fn) => fn());
   }
 
@@ -481,6 +489,15 @@ export class ScStation {
   /** Marks the current mix unplayable and moves on (or gives up after five in a row). */
   private skipBad(): void {
     const u = this.currentUrl();
+    const src = u ? this.list.find((m) => m.url === u && m.builtin) : undefined;
+    if (src && this.isSet && this.widget && this.env.config.randomStart && this.errStreak < 4) {
+      // A catalog account or playlist with many sounds: try another sound of it before giving the whole source up.
+      this.errStreak++;
+      const w = this.widget;
+      w.getSounds?.((s) => this.randomStart(w, s as ScSound[], true));
+      this.lastProgAt = this.env.now();
+      return;
+    }
     if (u) this.bad.add(u);
     if (++this.errStreak >= 5) { this.teardown(); this.fail(); return; }
     this.hideWidget();
@@ -555,6 +572,7 @@ export class ScStation {
   }
 
   private step(play: boolean): void {
+    this.randomizedFor = '';
     this.pickNext();
     if (play) this.pos = 0;
     this.now = null;
@@ -793,8 +811,35 @@ export class ScStation {
       this.listeners.forEach((fn) => fn());
     });
     w.getDuration((ms) => { if (ms > 0) this.duration = ms / 1000; });
-    w.getSounds?.((s) => { this.isSet = s.length > 1; });
+    w.getSounds?.((s) => { this.isSet = s.length > 1; this.randomStart(w, s as ScSound[]); });
   }
+
+  /** Sound indexes already played from each source (per-station no-repeat for random starts). */
+  private readonly heardIdx = new Map<string, Set<number>>();
+  private randomizedFor = '';
+  /** Skips a freshly loaded account/playlist to a random sound, preferring unheard sets of 45 minutes or more. */
+  private randomStart(w: ScWidget, sounds: ScSound[], force = false): void {
+    const cfg = this.env.config;
+    const url = this.loadedUrl;
+    if (!cfg.randomStart || !w.skip || sounds.length < 2 || (!force && this.randomizedFor === url)) return;
+    this.randomizedFor = url;
+    const seen = this.heardIdx.get(url) ?? new Set<number>();
+    const all = sounds.map((_, i) => i);
+    const longs = all.filter((i) => (sounds[i].duration ?? SC_MIN_SET_MS) >= SC_MIN_SET_MS);
+    const pools = [longs, all].map((p) => p.filter((i) => !seen.has(i)));
+    let pool = pools[0].length ? pools[0] : pools[1];
+    if (!pool.length) { seen.clear(); pool = longs.length ? longs : all; }
+    const idx = pool[Math.min(pool.length - 1, Math.floor(this.env.random() * pool.length))];
+    seen.add(idx);
+    this.heardIdx.set(url, seen);
+    this.lastProgPos = -1;
+    this.now = null;
+    w.skip(idx);
+    this.sndIndex = idx;
+    if (!this.paused && this.active) w.play();
+  }
+  /** Index of the sound the station skipped to in the current source (for tests and the HUD). */
+  sndIndex = -1;
 
   /** Makes the widget match the list position (load another mix if needed). */
   private sync(): void {
@@ -807,6 +852,11 @@ export class ScStation {
       this.now = null;
       if (this.play_ === 'playing') this.play_ = 'starting';
       this.widget.load(url, { auto_play: !this.paused, callback: () => { this.learn(this.widget!); this.applyPlayback(false); } });
+      return;
+    }
+    if (this.env.config.randomStart && !this.randomizedFor && this.widget.getSounds) {
+      const w = this.widget;
+      w.getSounds((snd) => this.randomStart(w, snd as ScSound[], true));
       return;
     }
     this.applyPlayback(true);

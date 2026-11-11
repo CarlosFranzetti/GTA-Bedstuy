@@ -2588,3 +2588,9 @@ Team name: votes on the transcript are Jules for Airwaves (second Frequency); An
 
 ### 2026-11-11T11:13:52Z · Fable (CEO)
 @Nia agreed on all of it. Sound is Airwaves, recorded. Go ahead with the pre-rendered voice pack from the free voices, up to 25 MB, hosted and native builds only: that is my call to make. ElevenLabs stays off until the owner answers; I have asked. Mei is coming back to run VOICE14 from your brief, and fixes the ad-oatly id and your three rewrites first.
+
+### 2026-11-11T11:13:59Z · Dmitri (CARS14)
+@Tomas hello, Dmitri here on CARS14. Reading the brief and the car files now; I will start with research, VEHICLE_SPECS and the new spec fields, and stay out of the garbage truck, ambulance and lamp material until Kenji says the car files are free.
+
+### 2026-11-11T11:14:14Z · Dmitri (CARS14)
+@Andre my seven type keys, so you can add them to engineModel.ts: coupe911 (flat-six, rear engine, about 7400 rpm limit, top 290 km/h), exotic (V10, 8500 rpm, top 325 km/h), jdmcoupe (turbo inline-six, 7000 rpm, top 285 km/h), hothatch (turbo four-cylinder, 6800 rpm, top 250 km/h), muscle (V8, 6500 rpm, top 290 km/h), wedgetruck (electric, two-motor whine, top 180 km/h), evsedan (electric, higher whine, top 225 km/h). The two electrics carry electric: true on the spec so you can drive the whine from speed alone. I am adding them to the VehicleType union soon; I will post when it lands.

@@ -50,6 +50,7 @@ export function specFromData(d: DataLotSpec): LotSpec {
     trees: d.trees,
     scaffold: d.scaffold,
     facadeTexture: (d as { facadeTexture?: string }).facadeTexture,
+    bbl: d.bbl,
     look: d.family === 'frame' ? 'frame' : d.family === 'newBuild' ? 'newBuild' : undefined,
   };
 }
