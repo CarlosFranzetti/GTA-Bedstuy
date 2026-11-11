@@ -1334,9 +1334,9 @@ export const STYLES: Record<StyleKey, Style> = {
     axle: 1.367,
     secs: [
       [-2.3, 1.0, 0.94, 0.9],
-      [-2.22, 1.12, 1.04, 0.9],
-      [-2.1, 1.28, 1.1, 0.86],
-      [-1.8, 1.38, 1.1, 0.8],
+      [-2.15, 1.1, 1.04, 0.9],
+      [-1.95, 1.22, 1.08, 0.86],
+      [-1.55, 1.37, 1.1, 0.8],
       [-1.2, 1.4, 1.1, 0.76],
       [-0.5, 1.401, 1.1, 0.74],
       [0.1, 1.385, 1.1, 0.74],
@@ -1348,9 +1348,9 @@ export const STYLES: Record<StyleKey, Style> = {
       [2.3, 0.82, 0.78, 0.9],
     ],
     windshield: [0.9, 0.25],
-    doorGlass: [[0.75, -0.1], [-0.18, -0.95], [-1.02, -1.7]],
+    doorGlass: [[0.75, -0.1], [-0.18, -0.95], [-1.02, -1.45]],
     bPillar: [-0.1, -0.18],
-    rearGlass: [-1.8, -2.16],
+    rearGlass: [-1.6, -2.12],
     seams: [0.78, -0.14, -1.0],
     handles: [0.2, -0.6],
     hoodBack: 0.92,
@@ -1955,10 +1955,10 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
   // CARS14 exotic: big dark side intakes behind the doors (ahead of the rear wheel) and a rear diffuser with fins
   if (type === 'exotic') {
     for (const sg of [-1, 1]) {
-      for (const [u0, u1] of [[-0.55, -1.15]] as [number, number][]) {
+      for (const [u0, u1] of [[-0.4, -0.85]] as [number, number][]) {
         const um = (u0 + u1) / 2;
-        const x = sideX(um, 0.55) * sg + sg * 0.004;
-        trim.add(bx(0.03, 0.26, Math.abs(u1 - u0), x, 0.55, -um));
+        const x = sideX(um, 0.6) * sg + sg * 0.004;
+        trim.add(bx(0.03, 0.2, Math.abs(u1 - u0), x, 0.6, -um));
       }
     }
     trim.add(bx(2 * (Wb2 - 0.35), 0.1, 0.22, 0, st.sill + 0.08, bumperZ - 0.16));

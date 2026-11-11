@@ -135,6 +135,12 @@ const packsReady = loadTexturePacks(materials, renderer.capabilities.getMaxAniso
 await nextPaint();
 loading.begin('world');
 const world = buildWorld(data, materials, rng);
+// Real-map preview (`?map=real`): hosted and native builds only. The flag is a build-time constant, so the single-file
+// build drops this branch and never carries the real street network or the 1.5 MB lot data.
+const realWorld = import.meta.env?.VITE_HOSTED === '1' && params.get('map') === 'real'
+  ? await (await import('@/world/roadnet/realWorld')).buildRealWorld({ materials, rng: rng.fork('real'), tier: quality })
+  : null;
+if (realWorld) Object.assign(world, { group: realWorld.group, colliders: realWorld.colliders, chunkMeshes: realWorld.chunkMeshes, propCells: [], lamps: [], lots: realWorld.lots, furnitureGroup: new THREE.Group() });
 scene.add(world.group);
 const { grid } = world;
 
@@ -241,14 +247,15 @@ const makePed = (id: string, node: GraphNode) =>
 // spawn on foot at the saved position (clamped to the map), else at the default spot
 const SPAWN = { x: 9, z: 20 };
 const saves = new SaveManager(new SaveStore());
-const saved = saves.bootSave();
+const saved = realWorld ? null : saves.bootSave(); // the preview never reads or writes the grid save
 // player look: restored from the save, else a fresh random one (new game)
 { const l = saved?.playerLook as unknown as Partial<RosterLook> | null | undefined; if (l && typeof l.group === 'string' && typeof l.variant === 'number') setPlayerLook(l as RosterLook); }
 const bootLook = getPlayerLook();
 const spawn = saved
   ? { x: clamp(saved.pose.x, grid.bounds.minX - 25, grid.bounds.maxX + 25), z: clamp(saved.pose.z, grid.bounds.minZ - 25, grid.bounds.maxZ + 25) }
-  : SPAWN;
+  : (realWorld ? realWorld.spawn : SPAWN);
 const player = new Player('player', spawn, materials, events);
+if (realWorld) player.body.heading = realWorld.spawnHeading;
 player.blockedAt = (p, r, ignoreId) => physics.overlapsSolid(p, r, ignoreId);
 if (saved) { player.body.heading = saved.pose.heading; dayNight.timeOfDay = saved.hour; }
 scene.add(player.object3D);
@@ -270,8 +277,8 @@ missions.restore(loadMissionData());
 const missionMarkers = new MissionMarkerView();
 scene.add(missionMarkers.group);
 const lights = new TrafficLights(grid); // clocked by TrafficSystem only; main just mirrors it onto the signal meshes
-const traffic = new TrafficSystem(grid, physics, events, rng.fork('traffic'), scene, materials, makeVehicle, makePed, lights, world.lots, tier0.traffic);
-const cops = new CopSystem(grid, physics, events, rng.fork('cops'), scene, makeVehicle, wanted, { lights, patrolCount: tier0.traffic.cops });
+const traffic = new TrafficSystem(grid, physics, events, rng.fork('traffic'), scene, materials, makeVehicle, makePed, lights, world.lots, realWorld ? { ...tier0.traffic, maxMoving: 0, peds: 0, parkOccupancy: 0, cops: 0 } : tier0.traffic);
+const cops = new CopSystem(grid, physics, events, rng.fork('cops'), scene, makeVehicle, wanted, { lights, patrolCount: realWorld ? 0 : tier0.traffic.cops });
 const audio = new AudioSystem(events);
 audio.radio.onToast = (m) => hud.showToast(m); // a station that fails to play skips ahead and says so
 const phone = new Phone();
@@ -304,6 +311,7 @@ const overlay = document.createElement('div');
 overlay.id = 'overlay';
 app.appendChild(overlay);
 const hud = new Hud(overlay);
+if (realWorld) { const n = document.createElement('div'); n.textContent = realWorld.notice; n.style.cssText = 'position:fixed;left:8px;bottom:6px;font:11px monospace;color:#fff;opacity:.75;z-index:50;pointer-events:none'; document.body.appendChild(n); }
 const missionHud = new MissionHud(overlay);
 missionHud.setRouter(createPointerRouter(grid));
 setTimeout(() => missionHud.showHomeHint(), 2500); // one-time 'your place is the green awning' toast at first spawn
@@ -660,7 +668,7 @@ saves.bind({
   // the player model is built once at boot, so a different look (new game, or a save with another look) is applied by autosaving and reloading
   afterApply: () => { input.endFrame(); story.resync(); if (pendingLook) { saves.autosave(Date.now(), true, true); location.reload(); } },
 });
-window.addEventListener('pagehide', () => saves.autosave(Date.now(), interiors.state === 'outside', true));
+window.addEventListener('pagehide', () => { if (!realWorld) saves.autosave(Date.now(), interiors.state === 'outside', true); });
 
 // 1) first system: snapshot every dynamic body's pose before the step moves it (render lerps prev -> current)
 game.add({
@@ -732,7 +740,7 @@ game.add({
     if (player.inVehicle && player.vehicle) { player.object3D.position.x = player.vehicle.body.pos.x; player.object3D.position.z = player.vehicle.body.pos.z; }
 
     // keep the player on the map
-    const b = grid.bounds, m = 25;
+    const b = realWorld ? realWorld.net.bounds : grid.bounds, m = 25;
     const pb = player.vehicle ? player.vehicle.body : player.body;
     if (!away) { pb.pos.x = clamp(pb.pos.x, b.minX - m, b.maxX + m); pb.pos.z = clamp(pb.pos.z, b.minZ - m, b.maxZ + m); }
 
@@ -773,7 +781,7 @@ game.add({
     const pv = player.vehicle as ({ slip?: number } & IVehicle) | null;
     audio.setSlip(pv?.slip ?? 0); audio.setHandbrake(player.inVehicle && player.lastVehicleInput.handbrake);
     audio.update(dt);
-    if (++saveTick >= 120 && !away) { saveTick = 0; saves.autosave(Date.now(), true); }
+    if (++saveTick >= 120 && !away && !realWorld) { saveTick = 0; saves.autosave(Date.now(), true); }
   },
 });
 

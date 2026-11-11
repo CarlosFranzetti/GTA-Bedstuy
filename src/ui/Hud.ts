@@ -1,7 +1,6 @@
 import './hud.css';
 import type { HudState } from '@/world/types';
 import type { InputMode } from '@/core/Input';
-import { menuArtSvg } from './menuArt';
 import { DISCLAIMER } from './creditsData';
 
 /** Optional radio extras next to `HudState.radioStation`: the now-playing file/speaker and the talk-show loop position. */
@@ -48,6 +47,8 @@ const SPEED_BAR_MAX = 140;
 
 const FADE_MS = 400;
 const MAX_STARS = 3;
+/** Title panels, tried in order (only the first one that loads is shown full bleed for now). */
+const TITLE_ART = ['title-1.webp'];
 const CONTROLS = [
   'WASD move',
   'Shift run',
@@ -210,8 +211,9 @@ export class Hud {
     this.splashEl = this.make('div', 'hud-splash');
     const art = this.make('div', 'hud-art');
     art.setAttribute('aria-hidden', 'true');
-    art.innerHTML = menuArtSvg('t');
+    this.loadArt(art);
     const shade = this.make('div', 'hud-shade');
+    const barT = this.make('div', 'hud-bar top'), barB = this.make('div', 'hud-bar bot');
     const by = this.make('p', 'hud-by');
     by.textContent = 'Carlos Franzetti presents';
     const title = this.make('h1', 'hud-title');
@@ -220,6 +222,7 @@ export class Hud {
     const stuy = this.make('span', 'hud-title-b');
     stuy.textContent = 'BED-STUY';
     title.append(gta, this.doc.createTextNode(' '), stuy);
+    const rule = this.make('div', 'hud-rule');
     const subtitle = this.make('p', 'hud-subtitle');
     subtitle.textContent = DISCLAIMER;
     const start = this.make('p', 'hud-start');
@@ -243,9 +246,9 @@ export class Hud {
       controls.appendChild(li);
     }
     fold.append(summary, controls);
-    const menu = this.make('div', 'hud-title-menu');
-    menu.append(start, startSub, credits, fold);
-    this.splashEl.append(art, shade, by, title, subtitle, menu);
+    const lock = this.make('div', 'hud-lock');
+    lock.append(title, rule, start, startSub, credits);
+    this.splashEl.append(art, shade, barT, barB, by, lock, subtitle, fold);
 
     root.append(
       this.fpsEl,
@@ -452,6 +455,20 @@ export class Hud {
       this.promptEl.append(key, this.doc.createTextNode(`  ${m[2]}`));
     } else {
       this.promptEl.textContent = prompt;
+    }
+  }
+
+  /** Title illustration (public/art, hosted and native builds). Missing files (the single-file artifact) leave the graded dark backdrop. */
+  private loadArt(host: HTMLElement): void {
+    const base = this.doc.baseURI;
+    for (const name of TITLE_ART) {
+      const img = this.doc.createElement('img');
+      img.alt = '';
+      img.decoding = 'async';
+      img.addEventListener('load', () => img.classList.add('on'));
+      img.addEventListener('error', () => img.remove());
+      try { img.src = new URL(`art/${name}`, base).href; } catch { continue; }
+      host.appendChild(img);
     }
   }
 

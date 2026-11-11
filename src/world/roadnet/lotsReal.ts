@@ -8,8 +8,9 @@
  * Each lot is attached to a face of its block (same edge, nearest to the centroid; blk -1 lots go to the nearest face within
  * 25 m), the lots of a face are ordered along it, their frontages scaled so they fill the usable face exactly (clamped to
  * 0.6..1.6, the remainder becomes equal gaps; a face needing more than 1.6 keeps real widths and positions; a face outside 0.85..1.15 is reported), depth = PLUTO lot depth clipped to the
- * block (half of the way to the opposite building line on a through-lot). Corner lots (within 8 m of a face end) at a corner
- * of 70..180 degrees are cut by the bisector of the corner so the two lots that meet there do not overlap. At a wedge corner
+ * block (half of the way to the opposite building line on a through-lot). Corner lots (within 8 m of a face end): at a corner of
+ * 70..120 degrees the lot nearest the corner keeps its full rectangle (depth capped at 14..28 m) and the lots of the other face
+ * start after it; at 120..180 degrees the lots are cut by the bisector so the two that meet there do not overlap. At a wedge corner
  * (interior angle < 70 degrees, Broadway/Bushwick triangles) both faces stop short of the corner by depth/tan(angle) and the
  * leftover is a `vacant` lot (fence + paving), never a skewed building. Lots that would overlap a lot already placed, or leave
  * the building line, get a shorter depth (down to 5 m) and are dropped otherwise.
@@ -63,6 +64,8 @@ export interface LotReport {
 export const MIN_BLOCK_WIDTH = 6;
 export const WEDGE_DEG = 70;
 export const CORNER_REACH = 8;
+/** corners up to this interior angle keep the corner lot's full rectangle; wider ones are cut by the bisector */
+export const CORNER_FULL_DEG = 120;
 const MIN_DEPTH = 5;
 const SCALE_LO = 0.6, SCALE_HI = 1.6;
 const NEAR_FACE = 25;
@@ -262,6 +265,32 @@ export function placeLotsDetailed(net: RoadNet, d: Derived, faces: RealFace[][],
         outward: F.outward, type: 'vacant', corner: true, poly, block: bi, face: j, wedge: true, scale: 1,
       });
     }
+    // corners of 70..120 degrees: the lot nearest the corner keeps its full rectangle (capped depth), the lots of the other face
+    // start after it (inset). Corners of 120..180 degrees keep the bisector cut (the two rectangles hardly meet there).
+    const capA = fs.map(() => Infinity), capB = fs.map(() => Infinity);
+    const loserA = fs.map(() => false), loserB = fs.map(() => false);
+    for (let j = 0; j < fs.length && fs.length > 1; j++) {
+      const j2 = (j + 1) % fs.length;
+      const F = fs[j], G = fs[j2];
+      if (F.angleA < WEDGE_DEG || F.angleA > CORNER_FULL_DEG || inset[j][0] > 0) continue;
+      const lf = byFace.get(key(bi, j)), lg = byFace.get(key(bi, j2));
+      const lenF = distance(F.a, F.b), lenG = distance(G.a, G.b);
+      let dF = Infinity, dG = Infinity;
+      let wF: PlutoLot | null = null, wG: PlutoLot | null = null;
+      for (const it of lf ?? []) { const dd = Math.max(0, it.t); if (dd < dF) { dF = dd; wF = it.lot; } }
+      for (const it of lg ?? []) { const dd = Math.max(0, lenG - it.t); if (dd < dG) { dG = dd; wG = it.lot; } }
+      if (!wF && !wG) continue;
+      const fWins = dF <= dG;
+      const w = (fWins ? wF : wG)!;
+      const cd = Math.min(w.ld && w.ld > 0 ? w.ld : 20, Math.max(14, (w.bd ?? 0) + 4), 28);
+      if (fWins) {
+        capA[j] = cd;
+        if (wG) { inset[j2][1] = Math.min(cd + 0.2, 0.45 * lenG); loserB[j2] = true; }
+      } else {
+        capB[j2] = cd;
+        if (wF) { inset[j][0] = Math.min(cd + 0.2, 0.45 * lenF); loserA[j] = true; }
+      }
+    }
     for (let fi = 0; fi < fs.length; fi++) {
       const F = fs[fi];
       const list = byFace.get(key(bi, fi));
@@ -319,13 +348,13 @@ export function placeLotsDetailed(net: RoadNet, d: Derived, faces: RealFace[][],
         }
         const room = Number.isFinite(R) ? R + 0.2 : 60;
         const want = lot.ld && lot.ld > 0 ? Math.min(lot.ld, 60) : 20;
-        let depth = Math.min(want, opposite ? room / 2 : room - 0.3);
-        const cornerA = F.angleA < 179.5 && x0 - 0 < CORNER_REACH + inset[fi][0] && k === 0;
-        const cornerB = F.angleB < 179.5 && len - x1 < CORNER_REACH + inset[fi][1] && k === take - 1;
+        let depth = Math.min(want, opposite ? room / 2 : room - 0.3, k === 0 ? capA[fi] : Infinity, k === take - 1 ? capB[fi] : Infinity);
+        const cornerA = F.angleA < 179.5 && !loserA[fi] && x0 - 0 < CORNER_REACH + inset[fi][0] && k === 0;
+        const cornerB = F.angleB < 179.5 && !loserB[fi] && len - x1 < CORNER_REACH + inset[fi][1] && k === take - 1;
         const cutAt = (dep: number): Vec2[] => {
           let poly: Vec2[] = [fA, fB, { x: fB.x + inward.x * dep, z: fB.z + inward.z * dep }, { x: fA.x + inward.x * dep, z: fA.z + inward.z * dep }];
-          if (cornerA && F.angleA >= WEDGE_DEG && F.angleA < 179.5) poly = bisect(poly, F.a, e, inward, F.angleA, 1);
-          if (cornerB && F.angleB >= WEDGE_DEG && F.angleB < 179.5) poly = bisect(poly, F.b, { x: -e.x, z: -e.z }, inward, F.angleB, 1);
+          if (cornerA && F.angleA > CORNER_FULL_DEG && F.angleA < 179.5) poly = bisect(poly, F.a, e, inward, F.angleA, 1);
+          if (cornerB && F.angleB > CORNER_FULL_DEG && F.angleB < 179.5) poly = bisect(poly, F.b, { x: -e.x, z: -e.z }, inward, F.angleB, 1);
           return poly;
         };
         const ok = (poly: Vec2[]): boolean => {

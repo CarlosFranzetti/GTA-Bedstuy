@@ -25,6 +25,7 @@ rgb = np.asarray(sm).astype(np.float32) / 255.0
 
 # 2. tone bands: split luminance into four hard steps, keep hue, lift saturation
 lum = rgb @ np.array([0.299, 0.587, 0.114], np.float32)
+lum = np.asarray(Image.fromarray((lum * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(3.0))).astype(np.float32) / 255.0  # band on a soft luminance: no speckle on noisy ground
 bands = np.array([0.10, 0.30, 0.56, 0.86], np.float32)
 edges = np.array([0.17, 0.38, 0.64], np.float32)
 idx = np.digitize(lum, edges)
@@ -32,7 +33,7 @@ target = bands[idx]
 chroma = rgb / np.maximum(lum[..., None], 0.02)
 chroma = np.clip(chroma, 0, 3.0)
 tone = np.clip(chroma * target[..., None], 0, 1)
-tone = 0.5 * tone + 0.5 * rgb  # a little of the original gradient survives so skies do not band like a poster
+tone = 0.42 * tone + 0.58 * rgb  # a little of the original gradient survives so skies do not band like a poster
 hsv = Image.fromarray((tone * 255).astype(np.uint8)).convert('HSV')
 h, s, v = [np.asarray(c).astype(np.float32) for c in hsv.split()]
 s = np.clip(s * 1.12, 0, 255)
