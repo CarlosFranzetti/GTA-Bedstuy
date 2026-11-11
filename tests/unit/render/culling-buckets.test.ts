@@ -45,7 +45,7 @@ describe('furniture instancing buckets (real map)', () => {
   it('city-wide draw budget: at most 8 + one per street sign text', () => {
     const signs = [...a.instanced.keys()].filter((k) => k.startsWith('sign:')).length;
     expect(a.group.children.length).toBeLessThanOrEqual(8 + signs);
-    expect(a.group.children.length).toBeLessThanOrEqual(20);
+    expect(a.group.children.length).toBeLessThanOrEqual(24); // 20 + the four street-name signs of the WBURG rows (Myrtle, Park, Flushing, Wallabout)
   });
 
   it('one lamp and one lamp head per reported lamp spot; matrices are finite and sit inside the map', () => {

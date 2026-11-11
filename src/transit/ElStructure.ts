@@ -179,7 +179,7 @@ export function buildEl(lib: IMaterialLibrary): ElBuild {
   out.night.push({ mat: globeMat, day: 0.25, nightV: 1.6 });
   const globes: THREE.Mesh[] = [];
   const entranceAt = (name: string, x: number, z: number, along: 'x' | 'z', label: string): void => {
-    const w = along === 'x' ? 3.4 : 1.8, d = along === 'x' ? 1.8 : 3.4;
+    const w = along === 'x' ? 3.2 : 1.4, d = along === 'x' ? 1.4 : 3.2;
     const x0 = x - w / 2, x1 = x + w / 2, z0 = z - d / 2, z1 = z + d / 2;
     ent.box(x0, 0.15, z0, x1, 0.2, z1, DARK); // the opening
     // stairwell: dark well with treads going down, drawn as stepped strips slightly below the paving
@@ -199,13 +199,13 @@ export function buildEl(lib: IMaterialLibrary): ElBuild {
     };
     if (along === 'x') { post(x1, z0); post(x1, z1); } else { post(x0, z1); post(x1, z1); }
     // sign board on the first globe post side
-    sign(label, '#0f4a26', '#e9f3e3', 1.7, 0.5, [x, 1.5, along === 'x' ? z1 + 0.06 : z0 - 0.06], along === 'x' ? 0 : Math.PI);
+    sign(label, '#0f4a26', '#e9f3e3', 1.7, 0.5, [x, 1.5, along === 'x' ? (z > -400 ? z0 - 0.06 : z1 + 0.06) : z0 - 0.06], along === 'x' ? (z > -400 ? Math.PI : 0) : Math.PI);
     out.colliders.push(poly([[x0, z0], [x1, z0], [x1, z1], [x0, z1]], `lime-${name}`));
     out.subway.push({ name, x, z });
   };
   // Garvey x Flushing (south-east sidewalk corner) and Garvey x Myrtle (north-east sidewalk corner)
-  entranceAt('Flushing Av', 270.5, -489.2, 'x', 'LIME LINE · FLUSHING AV · BKLYN TRANSIT');
-  entranceAt('Myrtle-Willoughby', 270.5, -308.5, 'x', 'LIME LINE · MYRTLE AV · BKLYN TRANSIT');
+  entranceAt('Flushing Av', 273, -488.2, 'x', 'LIME LINE · FLUSHING AV · BKLYN TRANSIT');
+  entranceAt('Myrtle-Willoughby', 273, -309.7, 'x', 'LIME LINE · MYRTLE AV · BKLYN TRANSIT');
   const entMesh = new THREE.Mesh(ent.build(), mat); entMesh.name = 'lime:entrances'; entMesh.castShadow = true; entMesh.receiveShadow = true;
   out.props.push(entMesh, ...globes, ...signMeshes);
   return out;

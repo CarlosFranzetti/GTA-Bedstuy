@@ -238,7 +238,7 @@ describe('Menu (open-world pause layout)', () => {
       enter(menu, 'autodetect');
       expect(val(menu, 'autodetect')).toBe('ON');
       press('ArrowLeft'); // off
-      goto(menu, 'quality'); press('ArrowRight'); // high
+      press('ArrowUp'); press('ArrowRight'); // back up to the preset, medium -> high
       act(menu, 'apply').click();
       expect(menu.settings).toMatchObject({ auto: false, quality: 'high' });
       expect(cb.onAuto).toHaveBeenLastCalledWith(false);
@@ -293,10 +293,8 @@ describe('Menu (open-world pause layout)', () => {
       expect(val(menu, 'quality')).toBe('High');
       menu.navigate('left'); menu.navigate('left');
       expect(val(menu, 'quality')).toBe('Low');
-      menu.navigate('down'); // autodetect
-      menu.navigate('confirm');
-      menu.navigate('down'); menu.navigate('confirm'); // shadows cycles to the next value
-      expect(menu.pendingCount).toBe(3);
+      menu.navigate('down'); menu.navigate('down'); menu.navigate('confirm'); // shadows cycles to the next value
+      expect(menu.pendingCount).toBe(2);
       for (let i = 0; i < 60 && menu.focusZone === 'list'; i++) menu.navigate('down');
       menu.navigate('confirm'); // APPLY
       expect(menu.pendingCount).toBe(0);
