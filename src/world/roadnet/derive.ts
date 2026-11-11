@@ -196,8 +196,8 @@ export function isSimpleRing(ring: ReadonlyArray<Vec2>, eps = 1e-7): boolean {
 
 function dedupe(ring: Vec2[]): Vec2[] {
   const out: Vec2[] = [];
-  for (const p of ring) if (!out.length || distance(out[out.length - 1], p) > 1e-6) out.push(p);
-  while (out.length > 1 && distance(out[0], out[out.length - 1]) <= 1e-6) out.pop();
+  for (const p of ring) if (!out.length || distance(out[out.length - 1], p) > 0.05) out.push(p);
+  while (out.length > 1 && distance(out[0], out[out.length - 1]) <= 0.05) out.pop();
   return out;
 }
 
