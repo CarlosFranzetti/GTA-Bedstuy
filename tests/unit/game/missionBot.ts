@@ -144,7 +144,6 @@ export class Bot {
   /** Run after the 'rival' marker at jogging speed until caught (or the target gets away). */
   chase(ob: Extract<ObjectiveDef, { kind: 'chase' }>): void {
     const idx = this.m.objectiveIndex;
-    this.go(ob.route[0], 5);
     this.speed = 6;
     for (let i = 0; i < 60 * 300 && this.m.objectiveIndex === idx && !this.m.isFailed; i++) {
       const mk = this.m.markers.find((k) => k.id.endsWith('rival'));
