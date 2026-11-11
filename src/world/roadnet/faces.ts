@@ -100,7 +100,7 @@ function facesOfBlock(net: RoadNet, d: Derived, bi: number): RealFace[] {
   for (let i = 0; i < n; i++) {
     const p = ring[i], q = ring[(i + 1) % n];
     const l = distance(p, q);
-    let best: { w: number; score: number } | null = null;
+    const best = { w: -1, score: Infinity };
     if (l >= 0.3) {
       const dir = unit(p, q);
       walks.forEach((w, wi) => {
@@ -114,11 +114,11 @@ function facesOfBlock(net: RoadNet, d: Derived, bi: number): RealFace[] {
           const out = tm < 0 ? -tm : tm > len ? tm - len : 0;
           if (out > 25) continue;
           const score = out + Math.abs(dp) + Math.abs(dq);
-          if (!best || score < best.score) best = { w: wi, score };
+          if (score < best.score) { best.w = wi; best.score = score; }
         }
       });
     }
-    match.push(best ? { w: best.w } : null);
+    match.push(best.w >= 0 ? { w: best.w } : null);
   }
   // runs of consecutive matched segments on one walk entry
   const runs: Run[] = [];

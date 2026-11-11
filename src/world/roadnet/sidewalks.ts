@@ -19,6 +19,7 @@ import type { Vec2 } from '@/core/Math2';
 import type { Crosswalk, Graph, GraphEdge, GraphNode, Side } from '@/world/types';
 import type { PedCrossing } from '@/entities/Pedestrian';
 import { CROSSWALK_START, CROSSWALK_WIDTH } from './contract';
+import { clusterIndexOfNode, isRibbonless, junctionClusters } from './clusters';
 import type { Derived } from './derive';
 import { closestOnSegment, distance, pointInPolygon } from './geom';
 import type { RoadNet } from './RoadNet';
@@ -89,16 +90,6 @@ export function walkingRing(d: Derived, b: number, island: boolean): Vec2[] {
   return out.length >= 3 ? out : [];
 }
 
-/** union-find over ribbonless edges: node -> cluster id (smallest node id of the cluster) */
-function clusterOf(net: RoadNet, d: Derived): number[] {
-  const par = net.nodes.map((_, i) => i);
-  const find = (x: number): number => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
-  net.edges.forEach((e, i) => {
-    if (d.cuts[i].cutA + d.cuts[i].cutB >= net.lengths[i]) par[find(e.a)] = find(e.b);
-  });
-  return net.nodes.map((_, i) => find(i));
-}
-
 function sideOf(dir: Vec2): Side {
   return Math.abs(dir.x) >= Math.abs(dir.z) ? (dir.x >= 0 ? 'E' : 'W') : (dir.z >= 0 ? 'S' : 'N');
 }
@@ -126,7 +117,7 @@ export function buildSidewalkGraph(net: RoadNet, d: Derived, opts: { spacing?: n
   const both = (a: string, b: string, streetId?: string): void => { addEdge(a, b, streetId); addEdge(b, a, streetId); };
 
   // ---- which legs get a crosswalk, and where their ends land
-  const cl = clusterOf(net, d);
+  const cl = clusterIndexOfNode(net, junctionClusters(net, d));
   const live = new Set<number>();
   net.nodes.forEach((n, i) => { if (n.control === 'signal' || n.control === 'stop') live.add(cl[i]); });
   const crosswalks: RealCrosswalk[] = [];
@@ -157,7 +148,7 @@ export function buildSidewalkGraph(net: RoadNet, d: Derived, opts: { spacing?: n
     const cut = d.cuts[leg.edge];
     const mine = leg.end === 'a' ? cut.cutA : cut.cutB;
     const other = leg.end === 'a' ? cut.cutB : cut.cutA;
-    if (cut.cutA + cut.cutB >= L) continue; // ribbonless
+    if (isRibbonless(net, d, leg.edge)) continue;
     const band = mine + CROSSWALK_START + CROSSWALK_WIDTH;
     if (band > L - other) continue;
     const sC = mine + CROSSWALK_START + CROSSWALK_WIDTH / 2;

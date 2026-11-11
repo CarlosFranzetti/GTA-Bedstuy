@@ -49,6 +49,8 @@ export function highlightKeywords(doc: Document, text: string): Node[] {
   return out;
 }
 
+const PASSED_MS = 4200;
+
 /** "+$50" / "-$20" for a cash change (null for no change). */
 export function formatCashDelta(d: number): string | null {
   const r = Math.round(Number.isFinite(d) ? d : 0);
@@ -78,6 +80,12 @@ export class MissionHud {
   private readonly cashEl: HTMLElement;
   private readonly deltaEl: HTMLElement;
   private readonly subEl: HTMLElement;
+  private readonly passedEl: HTMLElement;
+  private readonly passedTitle: HTMLElement;
+  private readonly passedReward: HTMLElement;
+  private passedTimer: ReturnType<typeof setTimeout> | null = null;
+  private passedShown = 0;
+  private passedTarget = 0;
   private deltaSum = 0;
   private deltaTimer: ReturnType<typeof setTimeout> | null = null;
   private subTimer: ReturnType<typeof setTimeout> | null = null;
@@ -142,7 +150,14 @@ export class MissionHud {
     this.pointerEl.append(this.pointerArrow, this.pointerText);
 
     this.col.append(this.panel, this.pointerEl);
-    root.append(this.col, this.cashEl, this.deltaEl, this.subEl, this.toastEl, this.retryEl);
+    this.passedEl = this.make('div', 'msn-passed');
+    this.passedEl.hidden = true;
+    this.passedEl.setAttribute('role', 'status');
+    const pw = this.make('div', 'msn-passed-word'); pw.textContent = 'Mission passed';
+    this.passedTitle = this.make('div', 'msn-passed-title');
+    this.passedReward = this.make('div', 'msn-passed-reward');
+    this.passedEl.append(pw, this.passedTitle, this.passedReward);
+    root.append(this.col, this.cashEl, this.deltaEl, this.subEl, this.toastEl, this.retryEl, this.passedEl);
 
     // Idle pointer: N (or a tap on the chip) cycles Offer -> HOME -> WAX DELI -> Offer (see game/missions/NavTargets).
     this.pointerEl.style.pointerEvents = 'auto';
@@ -166,8 +181,11 @@ export class MissionHud {
 
   /** @param dt seconds since the last call (drives the cash count-up). */
   update(s: Readonly<MissionHudState>, dt = 1 / 60): void {
+    const was = this.lastStatus;
     this.lastStatus = s.status;
     this.inside = s.inside === true;
+    if (was === 'active' && s.status === 'complete') this.showPassed(s.title, Math.max(0, s.cash - this.cashTarget));
+    this.tallyPassed(dt);
     const show = s.status === 'active' || s.status === 'failed';
     this.panel.hidden = !show;
     if (show) {
@@ -300,6 +318,29 @@ export class MissionHud {
     this.subTimer = setTimeout(() => { this.subEl.hidden = true; this.subTimer = null; }, ms);
   }
 
+  /** "MISSION PASSED" banner: the title, then the reward tallies up. Cash that lands while it is up adds to the tally. */
+  showPassed(title: string, reward = 0, ms = PASSED_MS): void {
+    setText(this.passedTitle, title);
+    this.passedShown = 0; this.passedTarget = reward;
+    this.passedReward.hidden = reward <= 0;
+    setText(this.passedReward, formatCash(0));
+    this.passedEl.hidden = false;
+    this.passedEl.classList.remove('in'); void this.passedEl.offsetWidth; this.passedEl.classList.add('in');
+    if (this.passedTimer !== null) clearTimeout(this.passedTimer);
+    this.passedTimer = setTimeout(() => { this.passedEl.hidden = true; this.passedTimer = null; }, ms);
+  }
+
+  private tallyPassed(dt: number): void {
+    if (this.passedEl.hidden) return;
+    this.passedReward.hidden = this.passedTarget <= 0;
+    if (this.passedShown !== this.passedTarget) {
+      const diff = this.passedTarget - this.passedShown;
+      const step = Math.max(1, Math.abs(diff) * Math.min(1, dt * 2.2));
+      this.passedShown = Math.abs(diff) <= step ? this.passedTarget : this.passedShown + Math.sign(diff) * step;
+      setText(this.passedReward, formatCash(Math.round(this.passedShown)));
+    }
+  }
+
   private showCashDelta(d: number): void {
     this.deltaSum = this.deltaTimer !== null ? this.deltaSum + d : d;
     const txt = formatCashDelta(this.deltaSum);
@@ -315,7 +356,10 @@ export class MissionHud {
   private updateCash(target: number, dt: number): void {
     if (target !== this.cashTarget) {
       if (this.cashTarget > 0 || this.cashShown > 0) this.showCashDelta(target - this.cashTarget);
+      if (!this.passedEl.hidden && target > this.cashTarget) this.passedTarget += target - this.cashTarget; // reward paid while the banner is up
       if (target > this.cashTarget) { this.cashEl.classList.remove('bump'); void this.cashEl.offsetWidth; this.cashEl.classList.add('bump'); }
+      this.cashEl.dataset.flash = target > this.cashTarget ? 'up' : 'down';
+      this.cashEl.classList.remove('flash'); void this.cashEl.offsetWidth; this.cashEl.classList.add('flash');
       this.cashTarget = target;
     }
     if (this.cashShown !== this.cashTarget) {
@@ -354,6 +398,6 @@ export class MissionHud {
   dispose(): void {
     if (this.toastTimer !== null) clearTimeout(this.toastTimer);
     this.doc.removeEventListener('keydown', this.onKey);
-    if (this.deltaTimer) clearTimeout(this.deltaTimer); if (this.subTimer) clearTimeout(this.subTimer); this.deltaEl.remove(); this.subEl.remove(); this.col.remove(); this.cashEl.remove(); this.toastEl.remove(); this.retryEl.remove();
+    if (this.deltaTimer) clearTimeout(this.deltaTimer); if (this.subTimer) clearTimeout(this.subTimer); this.deltaEl.remove(); this.subEl.remove(); this.col.remove(); this.cashEl.remove(); this.toastEl.remove(); this.retryEl.remove(); this.passedEl.remove(); if (this.passedTimer) clearTimeout(this.passedTimer);
   }
 }
