@@ -72,8 +72,7 @@ const SIGN_BG = '#0a5a2f';
 const SIGN_FG = '#ffffff';
 
 type Kind = 'tree' | 'lamp' | 'hydrant' | 'trash' | 'sign' | 'stop';
-interface Item { kind: Kind; x: number; y: number; z: number; yaw: number; text?: string; streetId?: string; dir?: Vec2 }
-interface SignalPole { x: number; z: number; leg: number; cluster: string; group: number; dir: Vec2 }
+interface Item { kind: Kind; x: number; y: number; z: number; yaw: number; text?: string; streetId?: string; dir?: Vec2; out?: Vec2 }
 
 export interface RealPropsOptions {
   net: RoadNet;
@@ -204,24 +203,70 @@ const DARK: Record<keyof typeof LIT, THREE.Color> = {
   red: new THREE.Color().setRGB(0.1, 0.015, 0.015), yellow: new THREE.Color().setRGB(0.1, 0.075, 0.01), green: new THREE.Color().setRGB(0.01, 0.08, 0.04),
   hand: new THREE.Color().setRGB(0.08, 0.035, 0.005), walk: new THREE.Color().setRGB(0.08, 0.08, 0.09),
 };
+const VEH_KINDS = ['red', 'yellow', 'green'] as const;
 const localM = (m: THREE.Matrix4, x: number, y: number, z: number, sx = 1, sy = 1, sz = 1): THREE.Matrix4 =>
   m.clone().multiply(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(sx, sy, sz)));
 
 interface Rig { cluster: string; group: number; veh: number; ped: number; key: number }
 interface SignalSet { lamps: THREE.InstancedMesh; rigs: Rig[] }
+interface SignalPole { x: number; z: number; out: Vec2; roadSide: Vec2; reach: number; cluster: string; group: number }
 
-/** Pole, mast arm, vehicle head and ped head of one approach; returns the lamp instance matrices (3 vehicle + 2 ped). */
-function signalRig(p: SignalPole, hw: number, solid: THREE.BufferGeometry[]): THREE.Matrix4[] {
-  const pole = { x: p.x, z: p.z };
-  solid.push(xform(cyl(0.08, 0.1, SIGNAL_POLE_HEIGHT, 8), pole.x, SIGNAL_POLE_HEIGHT / 2, pole.z));
-  solid.push(xform(cyl(0.15, 0.15, 0.5, 8), pole.x, 0.25, pole.z));
-  // head over the right lane, 'toward the road' = minus the pole's kerb side: the pole sits (hw + inset) from the centreline
-  // so the head is `reach` metres from the pole toward the centreline
-  const n = p.dir; // faces the approaching driver
-  const toRoad = { x: p.dir.z, z: -p.dir.x }; // perpendicular; sign fixed by the caller through `roadSide`
-  void toRoad;
-  return [];
-  void hw; void n;
+/** Pole, mast arm, vehicle head and ped head of one approach (merged-geometry parts) and its five lamp matrices (3 vehicle, hand, walk). */
+function signalRig(p: SignalPole, solid: THREE.BufferGeometry[]): THREE.Matrix4[] {
+  solid.push(xform(cyl(0.08, 0.1, SIGNAL_POLE_HEIGHT, 8), p.x, SIGNAL_POLE_HEIGHT / 2, p.z));
+  solid.push(xform(cyl(0.15, 0.15, 0.5, 8), p.x, 0.25, p.z));
+  const head = { x: p.x + p.roadSide.x * p.reach, z: p.z + p.roadSide.z * p.reach };
+  const arm = alignYaw(p.roadSide);
+  solid.push(xform(box(p.reach, 0.1, 0.1), (p.x + head.x) / 2, SIG.armY, (p.z + head.z) / 2, arm));
+  const headTop = SIG.headY + SIG.headH / 2 + 0.12;
+  solid.push(xform(box(0.07, SIG.armY - headTop, 0.07), head.x, (SIG.armY + headTop) / 2, head.z));
+  const f = frameMatrix(head, SIG.headY, p.out); // local +z faces the approaching driver
+  solid.push(box(SIG.headW, SIG.headH, SIG.headD).applyMatrix4(localM(f, 0, 0, -SIG.headD / 2 + 0.02)));
+  solid.push(box(SIG.headW + 0.28, SIG.headH + 0.24, 0.03).applyMatrix4(localM(f, 0, 0, -SIG.headD + 0.01)));
+  const lamps: THREE.Matrix4[] = [];
+  for (let i = 0; i < 3; i++) lamps.push(localM(f, 0, SIG.lampDy - i * SIG.lampDy, 0.025, SIG.lampR, SIG.lampR, 1));
+  // ped head on the pole, facing across the roadway toward the pedestrians who walk toward this pole
+  const pp = { x: p.x + p.roadSide.x * 0.16, z: p.z + p.roadSide.z * 0.16 };
+  const g = frameMatrix(pp, SIG.pedY, p.roadSide);
+  solid.push(box(SIG.pedW, SIG.pedH, SIG.pedD).applyMatrix4(localM(g, 0, 0, -SIG.pedD / 2 + 0.02)));
+  lamps.push(localM(g, 0, SIG.pedLampDy, 0.025, SIG.pedLampR, SIG.pedLampR, 1));
+  lamps.push(localM(g, 0, -SIG.pedLampDy, 0.025, SIG.pedLampR, SIG.pedLampR, 1));
+  return lamps;
+}
+
+const PHASE_CODE = { red: 0, yellow: 1, green: 2 } as const;
+const WALK_CODE = { dont: 0, flash: 1, walk: 2 } as const;
+
+/** The two things of RealTrafficLights that the heads need (a Pick, so tests can fake it). */
+export interface RealSignalSource {
+  readonly clock: number;
+  stateOf(id: string): { groups: ReadonlyArray<{ phase: 'red' | 'yellow' | 'green'; walk: 'dont' | 'flash' | 'walk' }> } | undefined;
+}
+
+/** Flip the signal heads under `group` to match the controller. Touches only rigs whose phase or walk state changed. */
+export function updateRealSignals(group: THREE.Object3D, lights: RealSignalSource): void {
+  const blink = Math.floor(lights.clock * 2) & 1;
+  group.traverse((o) => {
+    const set = o.userData.realSignals as SignalSet | undefined;
+    if (!set) return;
+    const lamps = set.lamps;
+    let dirty = false;
+    for (const rig of set.rigs) {
+      const g = lights.stateOf(rig.cluster)?.groups[rig.group];
+      if (!g) continue;
+      const key = PHASE_CODE[g.phase] | (WALK_CODE[g.walk] << 2) | ((g.walk === 'flash' ? blink : 0) << 4);
+      if (key === rig.key) continue;
+      rig.key = key;
+      dirty = true;
+      lamps.setColorAt(rig.veh, g.phase === 'red' ? LIT.red : DARK.red);
+      lamps.setColorAt(rig.veh + 1, g.phase === 'yellow' ? LIT.yellow : DARK.yellow);
+      lamps.setColorAt(rig.veh + 2, g.phase === 'green' ? LIT.green : DARK.green);
+      const handOn = g.walk === 'dont' || (g.walk === 'flash' && blink === 1);
+      lamps.setColorAt(rig.ped, handOn ? LIT.hand : DARK.hand);
+      lamps.setColorAt(rig.ped + 1, g.walk === 'walk' ? LIT.walk : DARK.walk);
+    }
+    if (dirty && lamps.instanceColor) lamps.instanceColor.needsUpdate = true;
+  });
 }
 
 // ---------------------------------------------------------------- main
@@ -373,19 +418,207 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
     }
   }
 
-  // ---- signal poles and stop signs on the approach legs (leg.dir points away from the node, so drivers face +dir)
-  const approachPole = (legId: number, s: number): { p: Vec2; roadSide: Vec2 } | null => {
+  // ---- approach poles: signal masts and stop signs (leg.dir points away from the node; drivers approach facing +dir)
+  const approachSpot = (legId: number, s: number): { p: Vec2; out: Vec2; roadSide: Vec2; hw: number } => {
     const leg = d.legs[legId];
     const E = net.edges[leg.edge];
     const L = net.lengths[leg.edge];
     const cut = leg.end === 'a' ? d.cuts[leg.edge].cutA : d.cuts[leg.edge].cutB;
-    const ss = cut + s;
-    const { p, dir } = net.pointAt(leg.edge, leg.end === 'a' ? ss : L - ss);
-    const out = leg.end === 'a' ? dir : { x: -dir.x, z: -dir.z }; // away from the node
-    const right = { x: out.z, z: -out.x }; // the approaching driver's right-hand side (plus normal of the outgoing direction is the opposite)
-    const off = E.width / 2 + SIGNAL_POLE_INSET;
-    return { p: { x: p.x + right.x * off, z: p.z + right.z * off }, roadSide: { x: -right.x, z: -right.z } };
+    const { p, dir } = net.pointAt(leg.edge, leg.end === 'a' ? cut + s : L - (cut + s));
+    const out = leg.end === 'a' ? dir : { x: -dir.x, z: -dir.z };
+    const right = { x: out.z, z: -out.x }; // right-hand side of a driver travelling toward the node
+    const hw = E.width / 2;
+    const off = hw + SIGNAL_POLE_INSET;
+    return { p: { x: p.x + right.x * off, z: p.z + right.z * off }, out, roadSide: { x: -right.x, z: -right.z }, hw };
   };
-  void approachPole; void poles; void SIGNAL_POLE_S; void STOP_SIGN_S; void rigLegs; void stopLegs; void counts; void materials; void layout; void chunkKeyOf; void rng; void sw; void taken;
-  throw new Error('unfinished');
+  for (const [legId, info] of rigLegs) {
+    for (const extra of [0, 1.5, 3]) {
+      const a = approachSpot(legId, SIGNAL_POLE_S + extra);
+      if (!ok(a.p, 2.5)) continue;
+      claim(a.p);
+      poles.push({ x: a.p.x, z: a.p.z, out: a.out, roadSide: a.roadSide, reach: a.hw * 0.5 + SIGNAL_POLE_INSET, cluster: info.cluster, group: info.group });
+      break;
+    }
+  }
+  for (const legId of stopLegs) {
+    const a = approachSpot(legId, STOP_SIGN_S);
+    if (!ok(a.p, 2)) continue;
+    claim(a.p);
+    items.push({ kind: 'stop', x: a.p.x, y: 0, z: a.p.z, yaw: 0, out: a.out });
+    counts.stopSigns++;
+  }
+  counts.signalPoles = poles.length;
+
+  // ---- bucket by 128 m chunk and build the meshes
+  const geo = buildGeometries();
+  const M = {
+    trunk: materials.get('treeTrunk'), leaves: materials.get('treeLeaves'), metal: materials.get('metalDark'),
+    hydrant: materials.get('hydrant'), trash: materials.get('trash'),
+    lampHead: new THREE.MeshStandardMaterial({ name: LAMP_HEAD_NAME, color: '#3b3b3b', roughness: 0.5, metalness: 0.2, emissive: '#ffd9a0', emissiveIntensity: 0 }),
+    signalLamp: new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }),
+    stop: materials.sign('STOP', '#b01020', '#ffffff'),
+  };
+  interface Bucket { tree: Item[]; lamp: Item[]; hydrant: Item[]; trash: Item[]; sign: Item[]; stop: Item[]; poles: SignalPole[] }
+  const buckets = new Map<string, Bucket>();
+  const bucketOf = (x: number, z: number): Bucket => {
+    const k = chunkKeyOf(layout, x, z);
+    let b = buckets.get(k);
+    if (!b) { b = { tree: [], lamp: [], hydrant: [], trash: [], sign: [], stop: [], poles: [] }; buckets.set(k, b); }
+    return b;
+  };
+  for (const it of items) bucketOf(it.x, it.z)[it.kind].push(it);
+  for (const p of poles) bucketOf(p.x, p.z).poles.push(p);
+
+  const group = new THREE.Group();
+  group.name = 'furniture-real';
+  group.position.y = SIDEWALK_HEIGHT;
+  const colliders: StaticCollider[] = [];
+  const lamps: LampSpot[] = [];
+  const lampsByChunk = new Map<string, LampSpot[]>();
+  const chunkMeshes: THREE.Mesh[] = [];
+  const byChunk = new Map<string, THREE.Mesh[]>();
+  let cid = 0;
+  const circle = (x: number, z: number, r: number, kind: string): void => {
+    colliders.push({ shape: { kind: 'circle', r }, pos: { x, z }, id: `rp:${kind}-${cid++}` });
+  };
+  const trisOf = (g: THREE.BufferGeometry): number => (g.index ? g.index.count : g.getAttribute('position').count) / 3;
+  let triangles = 0;
+  const perChunk: Array<{ tris: number; draws: number }> = [];
+  const mat = new THREE.Matrix4(), tmp = new THREE.Matrix4(), cloud = new THREE.Matrix4();
+  const sc = new THREE.Vector3(), id4 = new THREE.Quaternion();
+
+  for (const [key, b] of [...buckets].sort((x, y) => (x[0] < y[0] ? -1 : 1))) {
+    const meshes: THREE.Mesh[] = [];
+    let chunkTris = 0;
+    const add = (m: THREE.Mesh, name: string, tris: number): void => {
+      m.name = name;
+      m.userData.chunk = key;
+      group.add(m);
+      meshes.push(m);
+      chunkMeshes.push(m);
+      chunkTris += tris;
+    };
+    const instanced = (name: string, g: THREE.BufferGeometry, material: THREE.Material, ms: number[]): THREE.InstancedMesh | null => {
+      const n = ms.length / 16;
+      if (n === 0) return null;
+      const im = new THREE.InstancedMesh(g, material, n);
+      (im.instanceMatrix.array as Float32Array).set(ms);
+      im.instanceMatrix.needsUpdate = true;
+      im.computeBoundingSphere();
+      add(im, name, trisOf(g) * n);
+      return im;
+    };
+    const push = (out: number[], m: THREE.Matrix4): void => { for (let i = 0; i < 16; i++) out.push(m.elements[i]); };
+
+    // trees: trunk + two or three leaf clouds each
+    const trunkM: number[] = [], leafM: number[] = [];
+    for (const t of b.tree) {
+      const tr = new Rng(Rng.hash(`tree:${t.streetId}:${t.x.toFixed(1)}:${t.z.toFixed(1)}`));
+      const style = treeStyleFor(t.streetId ?? '', tr.next(), tr.next(), tr.next());
+      const R = (1.2 + 0.4 * tr.next()) * style.canopy;
+      placeMatrix(mat, t.x, 0, t.z, t.yaw, [(tr.next() - 0.5) * 0.1, (tr.next() - 0.5) * 0.1]).scale(sc.set(style.scale, style.scale, style.scale));
+      push(trunkM, mat);
+      const canopy: Array<[number, number, number, number]> = [[0, 4.0, 0, R], [0.7, 3.6, 0.5, R * 0.8]];
+      if (tr.chance(0.6)) canopy.push([-0.6, 3.7, -0.6, R * 0.75]);
+      for (const [ox, oy, oz, r] of canopy) {
+        tmp.compose(new THREE.Vector3(ox, oy, oz), id4, sc.set(r, r, r));
+        push(leafM, cloud.multiplyMatrices(mat, tmp));
+      }
+      circle(t.x, t.z, TREE_COLLIDER_R, 'tree');
+    }
+    instanced('furniture:treeTrunk', geo.trunk, M.trunk, trunkM);
+    instanced('furniture:treeLeaves', geo.leaves, M.leaves, leafM);
+
+    // lamps (street and corner)
+    const lampM: number[] = [];
+    const spots: LampSpot[] = [];
+    for (const l of b.lamp) {
+      push(lampM, placeMatrix(mat, l.x, 0, l.z, l.yaw));
+      spots.push({ pos: { x: l.x + l.dir!.x * LAMP_ARM, z: l.z + l.dir!.z * LAMP_ARM }, height: LAMP_HEAD_Y });
+      circle(l.x, l.z, LAMP_COLLIDER_R, 'lamp');
+    }
+    instanced('furniture:lamp', geo.lamp, M.metal, lampM);
+    instanced(LAMP_HEAD_NAME, geo.lampHead, M.lampHead, lampM);
+    if (spots.length) { lamps.push(...spots); lampsByChunk.set(key, spots); }
+    counts.lamps += b.lamp.length;
+
+    const hydM: number[] = [], binM: number[] = [];
+    for (const h of b.hydrant) { push(hydM, placeMatrix(mat, h.x, 0, h.z, h.yaw)); circle(h.x, h.z, 0.3, 'hydrant'); }
+    for (const t of b.trash) { push(binM, placeMatrix(mat, t.x, 0, t.z, t.yaw)); circle(t.x, t.z, 0.3, 'soft-bin'); }
+    instanced('furniture:hydrant', geo.hydrant, M.hydrant, hydM);
+    instanced('furniture:trash', geo.trash, M.trash, binM);
+    counts.hydrants += b.hydrant.length;
+    counts.bins += b.trash.length;
+    counts.trees += b.tree.length;
+
+    // street-name blades: one merged two-sided mesh per street text in the chunk (yaw differs per blade)
+    const byText = new Map<string, THREE.BufferGeometry[]>();
+    for (const sgn of b.sign) {
+      const front = new THREE.PlaneGeometry(SIGN_LAYOUT.width, SIGN_LAYOUT.height).translate(0, 0, 0.01);
+      const back = new THREE.PlaneGeometry(SIGN_LAYOUT.width, SIGN_LAYOUT.height).rotateY(Math.PI).translate(0, 0, -0.01);
+      const list = byText.get(sgn.text!) ?? [];
+      const m4 = placeMatrix(new THREE.Matrix4(), sgn.x, sgn.y, sgn.z, sgn.yaw);
+      list.push(front.applyMatrix4(m4), back.applyMatrix4(m4));
+      byText.set(sgn.text!, list);
+    }
+    for (const [text, parts] of byText) {
+      const g = mergeGeometries(parts, false);
+      parts.forEach((p) => p.dispose());
+      if (g) add(new THREE.Mesh(g, materials.sign(text, SIGN_BG, SIGN_FG)), `props:sign:${text}`, trisOf(g));
+    }
+
+    // stop signs: pole + two-sided octagon-sized plane, merged into two meshes per chunk
+    if (b.stop.length) {
+      const polesG: THREE.BufferGeometry[] = [], boards: THREE.BufferGeometry[] = [];
+      for (const s of b.stop) {
+        const m4 = placeMatrix(new THREE.Matrix4(), s.x, 0, s.z);
+        polesG.push(geo.stopPole.clone().applyMatrix4(m4));
+        const fm = frameMatrix({ x: s.x, z: s.z }, STOP_SIGN_HEIGHT - 0.3, s.out!);
+        boards.push(new THREE.PlaneGeometry(0.62, 0.62).translate(0, 0, 0.05).applyMatrix4(fm));
+        boards.push(new THREE.PlaneGeometry(0.62, 0.62).rotateY(Math.PI).translate(0, 0, 0.04).applyMatrix4(fm));
+        circle(s.x, s.z, 0.1, 'stopsign');
+      }
+      const pg = mergeGeometries(polesG, false), bg = mergeGeometries(boards, false);
+      polesG.forEach((g) => g.dispose()); boards.forEach((g) => g.dispose());
+      if (pg) add(new THREE.Mesh(pg, M.metal), 'props:stoppoles', trisOf(pg));
+      if (bg) add(new THREE.Mesh(bg, M.stop), 'props:stopsigns', trisOf(bg));
+    }
+
+    // signals: one merged metal mesh and one instanced lamp mesh per chunk
+    if (b.poles.length) {
+      const solid: THREE.BufferGeometry[] = [];
+      const lampMats: THREE.Matrix4[] = [];
+      const rigs: Rig[] = [];
+      for (const p of b.poles) {
+        const lm = signalRig(p, solid);
+        rigs.push({ cluster: p.cluster, group: p.group, veh: lampMats.length, ped: lampMats.length + 3, key: -1 });
+        lampMats.push(...lm);
+        circle(p.x, p.z, 0.12, 'signal');
+      }
+      const merged = mergeGeometries(solid, false);
+      solid.forEach((g) => g.dispose());
+      if (merged) { const m = new THREE.Mesh(merged, M.metal); m.castShadow = true; add(m, 'props:signal-poles', trisOf(merged)); }
+      const lm = new THREE.InstancedMesh(geo.signLampDisc, M.signalLamp, lampMats.length);
+      lampMats.forEach((m4, i) => { lm.setMatrixAt(i, m4); lm.setColorAt(i, i % 5 < 3 ? DARK[VEH_KINDS[i % 5]] : (i % 5 === 3 ? DARK.hand : DARK.walk)); });
+      lm.instanceMatrix.needsUpdate = true;
+      if (lm.instanceColor) lm.instanceColor.needsUpdate = true;
+      lm.computeBoundingSphere();
+      lm.userData.realSignals = { lamps: lm, rigs } satisfies SignalSet;
+      add(lm, 'props:signal-lamps', trisOf(geo.signLampDisc) * lampMats.length);
+    }
+    byChunk.set(key, meshes);
+    triangles += chunkTris;
+    perChunk.push({ tris: chunkTris, draws: meshes.length });
+  }
+
+  const n = Math.max(1, perChunk.length);
+  const stats: RealPropsStats = {
+    ...counts, colliders: colliders.length, chunks: perChunk.length, meshes: chunkMeshes.length, triangles,
+    perChunk: {
+      trianglesMean: Math.round(triangles / n), trianglesMax: Math.max(0, ...perChunk.map((c) => c.tris)),
+      drawsMean: Math.round((chunkMeshes.length / n) * 10) / 10, drawsMax: Math.max(0, ...perChunk.map((c) => c.draws)),
+    },
+    ms: Math.round(performance.now() - t0),
+  };
+  return { group, colliders, lamps, chunkMeshes, byChunk, lampsByChunk, stats };
 }

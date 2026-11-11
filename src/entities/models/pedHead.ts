@@ -116,10 +116,8 @@ export function faceMorph(s: MhShape, spec: PedSpec, L: MhLod, tr: FaceTraits = 
     const front = sstep(f.midZ - 0.01, f.frontZ + 0.02, z);                 // 1 on the face plane, 0 behind the middle of the head
     const nv = (y - f.chinY) / D;                                            // 0 at the chin, 1 at the eyes, > 1 the brow and forehead
     let dx = 0, dy = 0, dz = 0;
-    // jaw and lower face: the width follows how low on the face we are, strongest at the angle of the jaw
-    const jaw = sstep(0.95, 0.25, nv) * sstep(0.35, 0.8, nv + 0.25) * (1 - sstep(f.midZ + 0.04, f.midZ - 0.04, z) * 0.0);
-    dx += x * (tr.jawW - 1) * sstep(1.0, 0.1, nv) * (0.4 + 0.6 * sstep(0.0, 0.6, nv * 0 + (1 - nv)));
-    void jaw;
+    // jaw and lower face: the width fades in from the eyes down to the angle of the jaw
+    dx += x * (tr.jawW - 1) * sstep(1.15, 0.15, nv);
     // chin: forward and down
     const chinG = gauss(y - (f.chinY + 0.012), 0.022) * gauss(ax, 0.034) * front;
     dz -= tr.chinFwd * chinG; dy -= tr.chinDrop * chinG;

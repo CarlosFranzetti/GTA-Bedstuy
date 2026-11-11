@@ -34,9 +34,9 @@ import { placeLots } from './lotsReal';
 import { allColumnSpots, buildElPaths } from './elReal';
 import { buildElStructureReal } from './elStructureReal';
 import { RealTrains } from './elTrainsReal';
-import { RealBuildingStreamer, type ColliderHost } from './buildingStream';
+import { RealBuildingStreamer, type ColliderHost, type StreamRanges } from './buildingStream';
 import type { RealLot } from './lotsReal';
-import { signedArea } from './geom';
+import { pointInPolygon, signedArea } from './geom';
 
 export interface RealWorld {
   net: RoadNet;
@@ -60,6 +60,8 @@ export interface RealWorld {
   trains: RealTrains | null;
   /** one line for the screen */
   notice: string;
+  /** blocks left without lots and boxes because their building ring leaves the kerb ring */
+  badBlocks: number[];
   /** pieces that fell back to a stand-in, with the reason */
   standIns: string[];
   /** the el: station list for the timetable hook-up later */
@@ -73,6 +75,8 @@ export interface RealWorldOptions {
   tier?: Quality;
   /** where the streamer hands building colliders (can also be set later with `rw.setColliderHost`) */
   colliders?: ColliderHost;
+  /** override the streamer's ranges (renders: far = 1e5 shows boxes over the whole map) */
+  streamRanges?: Partial<StreamRanges>;
   /** build the near ring around the spawn for up to this many ms before returning (default 2500); the rest streams in `update` */
   warmMs?: number;
   /** force the stand-ins (tests, and to compare against the real pieces) */
@@ -169,6 +173,20 @@ function standInBuildings(net: RoadNet, d: Derived, mats: IMaterialLibrary, skip
   return { group, colliders };
 }
 
+/**
+ * Blocks whose building ring leaves the kerb ring (derive.ts defect: a ring vertex outside the kerb polygon; Lena listed 27, 46,
+ * 64, 65, 176, 184). They get no stand-in box and no lots until derive.ts is fixed.
+ */
+export function badBlocks(net: RoadNet, d: Derived): Set<number> {
+  const bad = new Set<number>();
+  net.blocks.forEach((_, i) => {
+    const ring = d.buildingRings[i], curb = d.curbRings[i];
+    if (!ring || ring.length < 3) return;
+    if (!curb || curb.length < 3 || ring.some((p) => !pointInPolygon(p, curb))) bad.add(i);
+  });
+  return bad;
+}
+
 /** nearest sidewalk-graph node to p, and the heading of the nearest street there */
 function spawnNear(net: RoadNet, sw: SidewalkNet, p: Vec2): { spawn: Vec2; heading: number } {
   let best: Vec2 | null = null, bd = Infinity;
@@ -234,6 +252,8 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
 
   const { spawn, heading } = spawnNear(net, sidewalks, { x: 0, z: 0 });
 
+  const bad = badBlocks(net, derived);
+
   // buildings: streamed by 128 m chunk around the player (WP4 buildingStream), far boxes beyond; stand-in boxes if it throws
   t0 = performance.now();
   let lots: Lot[] = [];
@@ -247,8 +267,8 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   try {
     if (opts.forceStandIns) throw new Error('forced');
     const lotsJson = (await import('@/world/data/raw/lots-real-r1r2a.json')).default as unknown;
-    lots = placeLots(net, derived, blockFaces(net, derived), lotsJson);
-    streamer = new RealBuildingStreamer({ lots: lots as RealLot[], materials: mats, rng: rng.fork('buildings'), layout: chunks, tier, colliders: proxyHost });
+    lots = (placeLots(net, derived, blockFaces(net, derived), lotsJson) as Array<Lot & { block?: number }>).filter((l) => !bad.has(l.block ?? -1));
+    streamer = new RealBuildingStreamer({ lots: lots as RealLot[], materials: mats, rng: rng.fork('buildings'), layout: chunks, tier, colliders: proxyHost, ranges: opts.streamRanges });
     group.add(streamer.root);
     const end = performance.now() + (opts.warmMs ?? 2500);
     while (performance.now() < end) {
@@ -258,7 +278,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
     }
   } catch (e) {
     standIns.push(`buildings: ${(e as Error).message}`);
-    const bld = standInBuildings(net, derived, mats);
+    const bld = standInBuildings(net, derived, mats, bad);
     bld.group.position.y = SIDEWALK_HEIGHT;
     group.add(bld.group);
     colliders.push(...bld.colliders);
@@ -283,7 +303,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   const setColliderHost = (h: ColliderHost): void => { host = h; if (held.size) h.add([...held.values()]); };
   const stats = { ...measureWorld(group), lots: lots.length, colliders: colliders.length, ms };
   void ROAD_CHUNK_PREFIX;
-  return { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, streamer, setColliderHost, update, trains, notice: REAL_NOTICE, standIns, el, stats };
+  return { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, badBlocks: [...bad].sort((a, b) => a - b), streamer, setColliderHost, update, trains, notice: REAL_NOTICE, standIns, el, stats };
 }
 
 /** WP2 lane graph of a built real world (async only to keep lanes.ts out of the first chunk). */
