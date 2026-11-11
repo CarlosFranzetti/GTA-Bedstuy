@@ -317,6 +317,24 @@
       "awningColor": "#e8e2d6"
     }
   ],
+  "transit": {
+    "operator": "BKLYN TRANSIT",
+    "line": "el over Flushing Ave (z -500), straightened from the real J/M/Z on Broadway",
+    "stations": [
+      {
+        "id": "myrtle",
+        "name": "Myrtle Av",
+        "x": 875,
+        "z": -500
+      },
+      {
+        "id": "flushing",
+        "name": "Flushing Av",
+        "x": 375,
+        "z": -500
+      }
+    ]
+  },
   "faces": [
     {
       "street": "hart", "side": "N", "from": "tompkins", "to": "throop", "note": "Hart St: late-19th-century neo-Grec rowhouses, 3-4 floors (R2, typology M, floors L)", "confidence": "L",

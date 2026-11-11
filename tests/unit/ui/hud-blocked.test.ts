@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { Hud, BLOCKED_HINT } from '@/ui/Hud';
 import { Vehicle, VEHICLE_SPECS } from '@/entities/Vehicle';
 import { EventBus } from '@/core/Events';
@@ -40,7 +40,7 @@ describe('Hud blocked hint and speed readout', () => {
   });
 
   it('the speedometer reads the magnitude: reversing at 8 m/s reads 29, not negative, and never jumps', () => {
-    const v = new Vehicle('r', { ...VEHICLE_SPECS.sedan }, { x: 0, z: 0 }, 0, new Proxy({}, { get: () => () => new THREE.MeshBasicMaterial() }) as unknown as IMaterialLibrary, new EventBus());
+    const v = new Vehicle('r', { ...VEHICLE_SPECS.sedan }, { x: 0, z: 0 }, 0, new Proxy({}, { get: () => () => new THREE.MeshStandardMaterial() }) as unknown as IMaterialLibrary, new EventBus());
     v.body.vel = { x: 0, z: 8 }; // heading 0 faces -z, so +z is reverse
     expect(v.speed).toBeLessThan(0);
     expect(v.speedKmh).toBeGreaterThan(28);

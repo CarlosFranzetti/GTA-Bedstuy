@@ -53,6 +53,8 @@ export interface BedstuyData {
   seed: number;
   streets: StreetDef[];
   pois: PoiDef[];
+  /** WBURG: the elevated line; platform centres in grid metres (src/transit/ElLine.ts is the source of truth for timetables) */
+  transit?: { operator: string; line: string; stations: Array<{ id: string; name: string; x: number; z: number }> };
 }
 
 // ---------------------------------------------------------------- grid model (output of Grid.ts)
@@ -288,6 +290,8 @@ export interface VehicleSpec {
   /** Driving feel (all optional, default = the old sedan values): mass kg, tyre grip multiplier, steering-rate multiplier,
    *  engine note pitch multiplier (audio: pass to AudioSystem.setEngine as the 4th argument). */
   mass?: number; grip?: number; steerRate?: number; enginePitch?: number;
+  /** extra chase-camera pull-back and lift (m) for big bodies, added to the camera's own length/height scaling (Camera.ts reads these) */
+  camDist?: number; camHeight?: number;
 }
 
 export interface IVehicle extends Entity {

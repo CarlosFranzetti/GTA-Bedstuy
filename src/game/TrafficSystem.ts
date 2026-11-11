@@ -127,7 +127,7 @@ export const CAR_COLORS = [
 /** Cumulative traffic mix (CARS12): [type, upper edge of its slice of 0..1]. Sedans and crossovers lead, the oddities are rare. */
 const TRAFFIC_MIX: ReadonlyArray<readonly [VehicleType, number]> = [
   ['sedan', 0.21], ['cab', 0.28], ['crossover', 0.38], ['suv', 0.46], ['hatch', 0.53], ['beater', 0.6], ['pickup', 0.66], ['minivan', 0.71],
-  ['luxury', 0.75], ['towncar', 0.79], ['pony', 0.81], ['cargovan', 0.86], ['dollarvan', 0.89], ['boxtruck', 0.94], ['bus', 0.965], ['garbage', 0.98], ['ambulance', 0.99],
+  ['luxury', 0.75], ['towncar', 0.79], ['pony', 0.81], ['cargovan', 0.86], ['dollarvan', 0.89], ['boxtruck', 0.93], ['bus', 0.97], ['garbage', 0.982], ['ambulance', 0.99],
 ];
 const PED_COUNT = 40;
 const MAX_TRAFFIC = 30;

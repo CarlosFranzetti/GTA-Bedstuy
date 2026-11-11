@@ -41,6 +41,9 @@ import { resolveQuality, startHostedTextures } from '@/textures/hosted';
 import { Weather } from '@/game/Weather';
 import { LIGHTING } from '@/render/LightingConfig';
 import { tierConfig, pixelRatioFor } from '@/render/QualityTier';
+import { classifyGpu, readGpuInfo, profilePixelRatio } from '@/render/GpuProfile';
+import { ContextGuard } from '@/render/ContextGuard';
+import { gfxDebugRequested, mountGfxDebug, flagToggle } from '@/render/GfxDebug';
 import { setNormalMaps, setAnisotropy } from '@/render/TierDetail';
 import { setPhoneDetailHidden } from '@/render/TierGeometry';
 import { Menu } from '@/ui/Menu';
@@ -89,12 +92,14 @@ const proxiesAllowed = params.get('proxies') !== '0';
 /** Render proxies (shadow / AO stand-ins) are only built for tiers that draw shadows or AO; the phone tier builds them on its first switch up. */
 let useProxies = false;
 const useCarLod = params.get('lod') !== '0';
-const resolvedQuality = resolveQuality(params.get('q'), isTouch); // ?q=ultra exists only in the hosted build: 'high' + ultra textures
+// device profile: Apple Silicon and capable Windows GPUs start on high, integrated GPUs lower, phones on the phone tier
+const gpu = classifyGpu(readGpuInfo());
+const resolvedQuality = params.get('q') ? resolveQuality(params.get('q'), isTouch) : { quality: gpu.tier, ultra: false }; // ?q=ultra exists only in the hosted build: 'high' + ultra textures
 let quality: Quality = resolvedQuality.quality;
 // the scene is drawn into the composer's targets, so the canvas MSAA only multisamples the final full-screen quad: skip it on phones
-const renderer = new THREE.WebGLRenderer({ antialias: quality !== 'phone', powerPreference: 'high-performance' });
+const renderer = new THREE.WebGLRenderer({ ...gpu.contextAttributes });
 const tier0 = tierConfig(quality);
-const ratioFor = (q: Quality): number => pixelRatioFor(q, window.devicePixelRatio, window.innerWidth);
+const ratioFor = (q: Quality): number => profilePixelRatio(pixelRatioFor(q, window.devicePixelRatio, window.innerWidth), gpu, window.innerWidth);
 renderer.setPixelRatio(ratioFor(quality));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -210,7 +215,7 @@ const carLod = new CarLod(materials, {
   nearDist: useCarLod ? tier0.carNearDist : Infinity,
 });
 scene.add(carLod.group);
-const HULL_TYPES = ['sedan', 'suv', 'boxtruck', 'cargovan', 'hatch', 'beater', 'bus'];
+const HULL_TYPES = ['sedan', 'suv', 'boxtruck', 'cargovan', 'hatch', 'beater', 'bus', 'pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'garbage', 'ambulance', 'dollarvan'];
 function registerHulls(): void {
   for (const t of HULL_TYPES) { const g = carLod.hullFor(t); if (g) proxies.addHull(t, g, true); }
   proxies.addHull('capsule', new THREE.CapsuleGeometry(0.28, 1.1, 2, 6).translate(0, 0.83, 0), false);
@@ -338,6 +343,9 @@ events.on('mission:started', () => cam.setLetterbox(true, 2.5));
 // story ("Air Rights"): phone follow-ups, radio bulletins and ads, letterbox beats, flag-driven street notices, cargo damage
 const story = new StoryDirector(missions, phone, { onBeat: (sec) => cam.setLetterbox(true, sec), onBroadcast: (b) => audio.setBroadcast(b) });
 const storyNotices = new AmbientNotices(grid); scene.add(storyNotices.group);
+// talk radio news reacts to finished missions
+let missionsDone = 0;
+events.on('mission:completed', (e) => { missionsDone++; audio.setBroadcast({ lastMission: e.title, missionsDone }); });
 events.on('impact', (e) => { const v = player.vehicle; if (v && (e.a === v.body.id || e.b === v.body.id)) missions.notify({ type: 'impact', strength: e.strength }); });
 const pipeline = new RenderPipeline(renderer, scene, cam.camera, { quality });
 if (useProxies) proxies.attachToPipeline(pipeline);
@@ -426,6 +434,7 @@ const minimapPeriod = (): number => { const hz = tierConfig(quality).minimapHz; 
 let freeCam: { pos: THREE.Vector3; look: THREE.Vector3 } | null = null;
 function updateCamera(dt = 1 / 60): void {
   if (freeCam) { cam.camera.position.copy(freeCam.pos); cam.camera.lookAt(freeCam.look); }
+  else if (world.transit.ride) { const c = world.transit.ride.cam; cam.camera.position.set(c.px, c.py, c.pz); cam.camera.lookAt(c.lx, c.ly, c.lz); }
   else {
     camCtx.vehicle = player.vehicle;
     cam.update(dt, camTarget, camHeading, player.inVehicle ? 'vehicle' : 'foot', input, camCtx);
@@ -491,6 +500,9 @@ function drawFrame(alpha: number, frameDt: number): void {
     interpolateAll(alpha, cam.camera.position.x, cam.camera.position.y, cam.camera.position.z);
     updateCamera(frameDt);
     updateSignalMeshes(world.signalsGroup, lights);
+    // elevated line: trains on a timetable, station doors, rumble with distance falloff
+    world.transit.attachAudio(audio.djHost?.ctx, audio.djHost?.dest);
+    world.transit.update(frameDt, cam.camera.position, dayNight.isNight);
     weather.update(frameDt, cam.camera.position);
     pipeline.setWeather(weather.wetness, weather.rain);
     culler.update(cam.camera.position.x, cam.camera.position.z);
@@ -508,7 +520,7 @@ function drawFrame(alpha: number, frameDt: number): void {
     renderer.info.reset();
     passes.gbufferIndex = quality === 'low' || quality === 'phone' ? -1 : 1;
     passes.beginFrame();
-    pipeline.render();
+    if (!contextGuard.isLost) pipeline.render();
 }
 
 const game = new Game(
@@ -535,7 +547,7 @@ const game = new Game(
     hudState.inVehicle = player.inVehicle;
     hudState.radioStation = audio.stationName;
     hudState.radioTrack = audio.trackName;
-    audio.setBroadcast({ weather: weather.state, rain: weather.rain, street: hudState.streetName });
+    audio.setBroadcast({ weather: weather.state, rain: weather.rain, street: hudState.streetName, stars: wanted.stars });
     hudState.talkProgress = audio.talkProgress;
     hudState.prompt = uiOpen() || interiors.locked ? '' : prompt;
     hudState.timeOfDay = dayNight.timeOfDay;
@@ -630,13 +642,18 @@ game.add({
     if (!away) { lastOutside.x = player.body.pos.x; lastOutside.z = player.body.pos.z; }
     if (blocked) { for (const k of ['KeyF', 'KeyE', 'KeyR', 'KeyX', 'KeyP']) input.consume(k); }
     else {
-      player.control(input, cam.yaw);
+      // riding the el: the player is carried by the train until the next stop
+      const ride = world.transit.ride;
+      if (ride) { player.body.pos.x = ride.x; player.body.pos.z = ride.z; player.body.vel.x = 0; player.body.vel.z = 0; } else player.control(input, cam.yaw);
+      const alight = world.transit.takeAlight(); if (alight) { player.body.pos.x = alight.x; player.body.pos.z = alight.z; }
+      const tm = world.transit.takeMessage(); if (tm) hud.showToast(tm);
       if (input.consume('KeyP') && !map.isOpen) phoneHud.toggle();
       if (input.consume('KeyF')) {
         const fpos = player.body.pos;
         if (!player.inVehicle && interiors.interact(fpos)) { /* door / shop / decks / bar handled */ }
         else if (missions.interact(fpos)) { /* mission talk / knock / crank handled */ }
         else if (player.inVehicle) player.exit();
+        else if (!away && world.transit.tryBoard(fpos.x, fpos.z)) { const m = world.transit.takeMessage(); if (m) hud.showToast(m); }
         else if (!away) player.tryEnter(allVehicles());
       }
     }
@@ -690,7 +707,7 @@ game.add({
       for (const v of allVehicles()) v.headlights = lastNight;
     }
     nightLights.update(away ? lastOutside : player.body.pos, dayNight.isNight, dt);
-    audio.setEngine(player.vehicle ? Math.abs(player.vehicle.speed) : 0, player.vehicle ? Math.abs(player.lastVehicleInput.throttle) : 0, player.inVehicle);
+    audio.setEngine(player.vehicle ? Math.abs(player.vehicle.speed) : 0, player.vehicle ? Math.abs(player.lastVehicleInput.throttle) : 0, player.inVehicle, player.vehicle?.spec.enginePitch ?? 1);
     const pv = player.vehicle as ({ slip?: number } & IVehicle) | null;
     audio.setSlip(pv?.slip ?? 0); audio.setHandbrake(player.inVehicle && player.lastVehicleInput.handbrake);
     audio.update(dt);
@@ -705,6 +722,20 @@ const applyResize = (): void => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   pipeline.setSize(window.innerWidth, window.innerHeight);
 };
+// a lost WebGL context (GPU reset, tab eviction) must not leave a black screen: skip drawing, then rebuild sizes on restore
+const contextGuard = new ContextGuard(renderer.domElement, { onRestored: applyResize });
+// moving the window between displays changes devicePixelRatio without a resize event
+{ let mq: MediaQueryList | null = null; const watchDpr = (): void => { mq?.removeEventListener('change', onDpr); mq = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`); mq.addEventListener('change', onDpr); }; const onDpr = (): void => { applyResize(); watchDpr(); }; if (typeof window.matchMedia === 'function') watchDpr(); }
+// ?debug=gfx: overlay with the renderer string, tier, DPR, active passes and switches to turn each effect off (for bug reports)
+if (gfxDebugRequested(location.search)) {
+  const po = (k: 'ao' | 'bloom' | 'dof' | 'aa' | 'vignette' | 'grain', label: string) => flagToggle(k, label, () => pipeline.postState[k], (on) => pipeline.setPostOptions({ [k]: on }));
+  mountGfxDebug(document.body, {
+    rendererString: gpu.reason, profile: gpu, tier: () => quality, pixelRatio: () => renderer.getPixelRatio(),
+    bufferSize: () => ({ w: renderer.domElement.width, h: renderer.domElement.height }),
+    activePasses: () => pipeline.activePassNames, contextLosses: () => contextGuard.lostCount,
+    toggles: [po('ao', 'Ambient occlusion'), po('bloom', 'Bloom'), po('dof', 'Depth of field'), po('aa', 'Anti-aliasing'), po('vignette', 'Vignette'), po('grain', 'Film grain')],
+  });
+}
 window.addEventListener('resize', () => {
   cam.setAspect(window.innerWidth / window.innerHeight);
   clearTimeout(resizeTimer);
@@ -719,7 +750,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
 (window as unknown as { __gtaDebug: unknown }).__gtaDebug = {
   setFreeCam(x: number, y: number, z: number, lx: number, ly: number, lz: number) { freeCam = { pos: new THREE.Vector3(x, y, z), look: new THREE.Vector3(lx, ly, lz) }; },
   clearFreeCam() { freeCam = null; },
-  cam, saves, map, audio,
+  cam, saves, map, audio, transit: world.transit,
   /** Freeze/unfreeze the simulation and render loop (review scripts take deterministic A/B shots with renderOnce). */
   setPaused(p: boolean) { game.paused = p; },
   /** Stops the requestAnimationFrame loop (headless review scripts then draw frames by hand with renderOnce). */

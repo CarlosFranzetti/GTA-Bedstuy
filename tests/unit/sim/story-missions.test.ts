@@ -16,8 +16,8 @@ import { Bot, startHourFor } from '../game/missionBot';
 const data = loadBedstuyData();
 const grid = buildGrid(data);
 const lots = subdivideLots(grid, data.pois, new Rng(data.seed).fork('lots'));
-const EL = { home: { x: 40, z: 60 }, north: { x: 120, z: -480 } };
-const all = buildMissions(grid, data, lots, { el: EL });
+// the real map publishes data.transit.stations, so the el mission comes from auto-detection (the positive case)
+const all = buildMissions(grid, data, lots);
 const story = all.filter((d) => d.act !== undefined);
 const byId = (id: string): MissionDef => all.find((d) => d.id === id)!;
 const LEGACY_PREREQ = ['crate-digger', 'open-decks', 'the-password', 'aftersloth-residency'];
@@ -304,8 +304,11 @@ describe('vehicle gates are soft and feature gating is clean', () => {
     const none = buildMissions(grid, data, lots, {});
     expect(none.some((d) => d.id === 'last-stop-north')).toBe(false);
     expect(none.filter((d) => d.id !== 'last-stop-north').map((d) => d.id)).toEqual(all.filter((d) => d.id !== 'last-stop-north').map((d) => d.id));
-    // the real world has no stations yet (WBURG): auto-detection finds none
-    expect(buildMissions(grid, data, lots).some((d) => d.id === 'last-stop-north')).toBe(false);
+    // premise changed (WBURG): the real map now publishes data.transit.stations, so auto-detection finds the el.
+    // The "no stations" case builds from a copy of the data without transit.
+    const noTransit = { ...data, transit: undefined };
+    expect(buildMissions(grid, noTransit, lots).some((d) => d.id === 'last-stop-north')).toBe(false);
+    expect(all.some((d) => d.id === 'last-stop-north')).toBe(true); // completes: see the per-mission completes test
   });
 });
 

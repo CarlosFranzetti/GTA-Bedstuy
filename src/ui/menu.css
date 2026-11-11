@@ -215,24 +215,26 @@
   .gp-shell { padding: max(8px, env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px)); }
   .gp-back { display: block; }
   .gp-x { display: none; }
-  .menu-title { font-size: 52px; -webkit-text-stroke-width: 7px; }
+  .menu-title { font-size: 40px; -webkit-text-stroke-width: 6px; text-shadow: 4px 4px 0 var(--ink); }
   .gp-game { display: none; }
-  .gp-when { display: none; }
+  .gp-when, .gp-street { display: none; }
   .gp-player { padding: 4px 10px; }
-  .gp-street { max-width: 34vw; }
   .gp-tabhint { display: none; }
   .menu-tab { min-width: 76px; padding: 0 12px; font-size: 16px; }
   .gp-foot { display: none; }
   .gp-pane-radio, .gp-pane-missions, .gp-pane-stats { grid-template-columns: minmax(0, 1fr); }
   .gp-pane-settings { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 6px; }
   .gp-pane-radio .gp-desc, .gp-pane-missions .gp-desc, .gp-pane-stats .gp-desc { display: none; }
-  .gp-acts { flex-direction: row; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0 4px; padding: 0 0 2px; overflow: visible; }
-  .gp-act { font-size: 34px; -webkit-text-stroke-width: 6px; text-shadow: 3px 4px 0 var(--ink); }
+  .gp-acts { flex-direction: row; flex-wrap: nowrap; justify-content: space-between; align-items: center; gap: 0; padding: 0 0 2px; overflow: visible; }
+  .gp-act { font-size: 27px; padding: 0 2px; -webkit-text-stroke-width: 5px; text-shadow: 3px 3px 0 var(--ink); }
   .gp-acts .gp-desc, .gp-status { display: none; }
-  .gp-row { grid-template-columns: minmax(0, 1fr) minmax(150px, 50%); gap: 10px; font-size: 19px; padding-right: 4px; }
+  .gp-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; font-size: 18px; padding-right: 2px; }
+  .gp-val { justify-content: flex-end; min-width: 150px; }
+  .gp-arrow { width: 40px; }
   .gp-lab { white-space: normal; line-height: 1; }
-  .gp-sub { width: calc(100% - 50% - 14px); font-size: 15px; }
-  .gp-bar i { width: 6px; }
+  .gp-sub { width: auto; text-align: left; padding-left: 4px; font-size: 15px; }
+  .gp-bar { gap: 2px; }
+  .gp-bar i { width: 4px; }
   .gp-maphost { border-width: 3px; box-shadow: none; }
 }
 

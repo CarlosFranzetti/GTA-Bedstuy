@@ -326,9 +326,12 @@ async function desktopPass(browser) {
   // newGame() may reload the page (the navigation destroys the context): treat that as the result
   const ngRes = await page.evaluate(() => window.__gtaDebug.saves.newGame()).then(() => 'returned', (e) => 'navigated: ' + e.message.slice(0, 80));
   note(`newGame: ${ngRes}`);
+  let ng = null;
   if (ngRes === 'returned') {
-    await sleep(800); await D.sim(1);
-    const ng = await D.st();
+    await sleep(800);
+    try { await D.sim(1); ng = await D.st(); } catch (e) { note('page navigated after newGame (reload): ' + e.message.slice(0, 80)); }
+  }
+  if (ng) {
     check('new game runs and resets', !ng.inCar, `position (${ng.x}, ${ng.z})`);
     R.stages.push({ stage, shot: await shot('10-new-game'), ...ng });
   } else {

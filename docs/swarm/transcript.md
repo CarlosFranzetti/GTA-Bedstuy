@@ -2444,3 +2444,42 @@ start->done: Electron shell in native/ (own package.json), CI .github/workflows/
 
 ### 2026-11-11T08:20:27Z · VOX
 progress: engine+scheduler+content+tests written (kokoro-js q8 92 MB, WASM verified in headless Chromium: load OK, rtf ~5-7x on this 4-vCPU box so engine self-flags slow and falls back; WebGPU path off by default, unverified). Adds optional Announcer env {dj,hub}, BroadcastContext {stars,missionsDone,lastMission}, RadioUi HD row, AudioSystem hub. Running e2e samples now.
+
+### 2026-11-11T08:24:40Z · FLICKER
+FINAL: code done, render gates queued (flick-pre/new.json, smoke.out in scratchpad); report to Fable
+
+### 2026-11-11T08:29:02Z · CARS12
+gates so far: tsc clean (src), entities/textures 100%, sim/render failures all identical on HEAD copy (pursuit, spawn-spread, vehicle-qa, enter-exit, traffic-5min seed7 'windows 220>300'); build 11.71 MB. Render queued (18 types x2 + street).
+
+### 2026-11-11T08:30:06Z · VOX
+FINAL: Kokoro-82M via kokoro-js 1.2.1 (code+weights Apache-2.0; eSpeak NG phonemizer GPL-3.0 loaded from CDN only). 28 EN voices, q8 92 MB, lazy, Web Worker, nothing bundled (+~45 kB). 35 cast, 7 talk shows (3.5-4.5 min), 23 ads, 8 DJs w/ real set names. E2E verified in headless Chromium WASM (3 WAVs) but 4-7x slower than real time here, so engine self-flags slow and falls back; WebGPU unverified. Gates: tsc clean for voice files, audio tests pass, build ok, artifact 11.72 MB. 2 HUD/map tests fail (not mine). FOR FABLE (src/main.ts ~l.538): add stars: wanted.stars to the audio.setBroadcast({...}) call; and events.on('mission:completed', (e) => { done++; audio.setBroadcast({ lastMission: e.title, missionsDone: done }); }). Nothing else needed. See docs/reference/VOICES.md.
+
+### 2026-11-11T08:35:47Z · MENU
+Direction change taken: SETTINGS now one comic-style list (pending until APPLY, DEFAULTS, BACK/Esc confirm), all tabs share the comic look. Tests green, render pass 2 queued.
+
+### 2026-11-11T08:35:56Z · LOADMUSIC
+API for MENU (src/audio/loadingTheme.ts): const th = createLoadingTheme(ctx, dest, { volume: 0.8 }); th.start() (call inside a user gesture; loops seamlessly, 32 bars = 71.1 s at 108 BPM); th.stop(fadeSec = 0.8) frees every node after the fade (activeNodes -> 0); th.setVolume(v); th.playing. Also auditionLoadingTheme(audio.djHost, on?) toggles a shared instance. Radio library panel has a Play loading theme row.
+
+### 2026-11-11T08:37:02Z · WBURG
+progress: A+B built and green in world/transit tests (13 transit tests, 311 world). First frames show the el, rows and warehouses; full 17-frame run + smoke queued on 4472. Pre-existing at HEAD, not mine: traffic-5min 13/14 (windows 220<300), pursuit flee, spawn-spread, carbodies.
+
+### 2026-11-11T10:00:56Z · PLAYTEST
+FINAL. Local live-gameplay 10/10; live-gameplay 10/10; live-radio PASS (SC playback 45.7 s). Full desktop pass 31/34 with fatal at new-game (page navigates). Phone profile 4/7 (MAP/PHONE locators miss icon-only buttons). Defects: D1 major phone HUD overlap (CAR/MAP/RUN/phone icon over speed and street label, playtests/p12/P4-map.png); D7 major 300 m drives stall at 126-198 m (physics/traffic, unconfirmed); D8 major newGame navigates the page; D9 major load restored 4214 m away once, not reproduced; minors D2 ticker overlap, D3 map label collision, D4 colour seam in 08-phone (FLICKER), D5 untextured block (TEXVAR), D6 van fills view (CARS12); D10 radio 'no sets' on local build (502s). Report: playtests/p12/REPORT.md. Nothing in src/ touched; nothing committed.
+
+### 2026-11-11T10:03:34Z · WBURG
+fixed my red tests: trafficlights (60 intersections), map-screen portrait threshold (grid 1330x910; MENU need not touch it), culling-buckets cap 24. Publishing data.transit.stations next.
+
+### 2026-11-11T10:38:00Z · CARFIXUP
+edits in (garbage hopper/hatch outline removed, ambulance bar on roof flat + red/white flash); render queued on lock, tsc/tests/build 11.73MB ok
+
+### 2026-11-11T10:41:16Z · PEOPLE12
+FINAL r3: frames p20/ (lineup, close-a/b, faces-b); in-game peds frame 17-peds queued to p21s/ (not yet seen). Uncommitted edits.
+
+### 2026-11-11T10:46:59Z · TEXVAR
+FINAL: per-lot colourways + 4-tile CC0 detail atlas (stucco, glazed tile, cast stone, cobble; +66 KB), gate states, parody wall signs, soft sidewalk patches, ashlar trim (D5 grey block = plain limestone trim face; now per-block tone and joints). Artifact 11.72 MB. Draw calls +0.0%, tris within 0.1% (frames 8,10). Frames texvar/final/low. LOADMUSIC: createLoadingTheme(ctx, dest, {volume}) -> start()/stop(fadeSec)/setVolume(v)/playing; peak -5.5 dBFS, no silent bars.
+
+### 2026-11-11T11:06:35Z · CHAR14
+start: reading ped painters; plan = strip lettering, fabric patterns, shader mats, hijab/seams, social scheduler
+
+### 2026-11-11T11:06:47Z · MAPLEAD
+started: reading grid consumers, probing NYC centerline dataset

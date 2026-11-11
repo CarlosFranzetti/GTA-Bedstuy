@@ -31,7 +31,7 @@ npm --prefix native run dist:win   # -> native/release/*.exe (installer and port
 ```
 
 ## Build in CI and download
-GitHub: Actions, "native", Run workflow (branch master). It builds `macos-14` (arm64) and `windows-latest` (x64) and uploads artifacts `gta-bedstuy-mac-arm64` and `gta-bedstuy-win-x64` on the run page. Pushing a tag `v*` (for example `git tag v0.1.0 && git push origin v0.1.0`) also attaches the files to a GitHub Release. CI is the first proof that the Mac and Windows packages build; nothing was built on those platforms before it ran.
+GitHub: Actions, "native", Run workflow (branch master). It builds `macos-latest` (Apple Silicon, arm64) and `windows-latest` (x64) and uploads artifacts `gta-bedstuy-mac-arm64` and `gta-bedstuy-win-x64` on the run page. Pushing a tag `v*` (for example `git tag v0.1.0 && git push origin v0.1.0`) also attaches the files to a GitHub Release. CI is the first proof that the Mac and Windows packages build; nothing was built on those platforms before it ran.
 
 ## Opening an unsigned app
 - macOS: the app is ad-hoc signed, not notarized. Open the dmg, drag to Applications, then right-click the app, Open, Open. Or: `xattr -dr com.apple.quarantine "/Applications/GTA Bed-Stuy.app"`.

@@ -125,9 +125,9 @@ export function planForBar(barIn: number): BarPlan {
   if (bar < 4) {
     p.section = 'intro';
     p.keys = bar === 0 || bar === 3; p.gtr = true; p.snare = bar >= 2;
-    p.kick = bar >= 1 ? 'four' : 'none';
+    p.kick = bar >= 1 ? 'four' : 'late';
     p.hats = bar < 2 ? 'eighth' : 'full';
-    p.bass = bar >= 2 ? 'simple' : 'none';
+    p.bass = bar >= 2 ? 'simple' : bar === 0 ? 'sustain' : 'none';
     p.fill = bar === 3 ? 'tom' : 'none';
     p.crash = bar === 0;
   } else if (bar < 12) {
@@ -236,7 +236,7 @@ export function ceilingCurve(n = 2048): Float32Array {
 // ---------------------------------------------------------------- engine
 
 export type PartName = 'kick' | 'snare' | 'hats' | 'perc' | 'bass' | 'gtr' | 'lead' | 'keys' | 'strings' | 'brass';
-export const DEFAULT_MIX: Record<PartName, number> = { kick: 0.9, snare: 0.55, hats: 0.42, perc: 0.34, bass: 0.5, gtr: 0.55, lead: 0.3, keys: 0.25, strings: 0.17, brass: 0.2 };
+export const DEFAULT_MIX: Record<PartName, number> = { kick: 0.9, snare: 0.55, hats: 0.55, perc: 0.36, bass: 0.44, gtr: 0.62, lead: 0.3, keys: 0.25, strings: 0.17, brass: 0.2 };
 
 export interface LoadingThemeOptions {
   /** Output level 0..1 (default 0.85). */
@@ -371,7 +371,7 @@ export function createLoadingTheme(ctx: BaseAudioContext, dest: AudioNode, opts:
     const gtrWah = filt('bandpass', 700, 3.2);
     const wahLfoG = gain(260); wahLfoG.connect(gtrWah.frequency); const wahLfo = osc('sine', 0.45, wahLfoG);
     const gtrDrive = gain(2.4); const gtrSh = track(ctx.createWaveShaper()); gtrSh.curve = driveCurve(2.2) as Float32Array<ArrayBuffer>;
-    const gtrHp = filt('highpass', 150, 0.7); const gtrLp = filt('lowpass', 4200, 0.8); const gtrPk = filt('peaking', 1500, 1.1);
+    const gtrHp = filt('highpass', 150, 0.7); const gtrLp = filt('lowpass', 5800, 0.8); const gtrPk = filt('peaking', 1500, 1.1);
     gtrPk.gain.value = 3.5;
     gtrIn.connect(gtrWah); gtrWah.connect(gtrDrive); gtrDrive.connect(gtrSh); gtrSh.connect(gtrHp); gtrHp.connect(gtrPk); gtrPk.connect(gtrLp);
     pan(-0.3, gtrLp, gtrBus); send(gtrLp, 0.1, 0.06);

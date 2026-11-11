@@ -59,7 +59,7 @@ const menu = new Menu(overlay, {}, {
   touch, saves, storage: null, openOnPointerUnlock: false, map, missionLog, installable: true,
   info: () => ({ cash: inventory.cash, hour: live.hour, day: live.day, street: grid.nearestStreet({ x: live.x, z: live.z }).signName, station: 'Static FM', stats: [['Records owned', '4'], ['Missions done', '1 / 5']] }),
 });
-if (q.has('bg')) for (const e of [document.documentElement, document.body]) e.style.background = "#2a3140 url('/playtests/p12/01-boot.png') center / cover";
+if (q.has('bg')) for (const e of [document.documentElement, document.body]) e.style.background = 'linear-gradient(180deg, #6f9bd1 0%, #b9d2ea 42%, #6c6f78 43%, #4b4e57 100%)';
 
 const markers = [
   { id: 'g', kind: 'giver' as const, x: 60, z: -40, radius: 3, color: '#f5c542', label: 'Ms. Odette' },

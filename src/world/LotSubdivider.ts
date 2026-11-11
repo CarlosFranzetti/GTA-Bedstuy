@@ -45,7 +45,8 @@ export function specFromData(d: DataLotSpec): LotSpec {
     cornice: d.cornice === 'bracketed' ? 'bracket' : d.cornice,
     bays: d.bays > 0 ? d.bays : undefined,
     use,
-    storefront,
+    // WBURG: the parody names of the north rows ride along as a storefront input (the old blocks keep their plain archetype, so their shops and random streams are unchanged)
+    storefront: d.sign && d.storefront && storefront !== 'warehouse' && d.note?.startsWith('[WBURG]') ? ({ archetype: storefront, sign: d.sign, awningColor: d.awningColor } as unknown as string) : storefront,
     trees: d.trees,
     scaffold: d.scaffold,
     facadeTexture: (d as { facadeTexture?: string }).facadeTexture,

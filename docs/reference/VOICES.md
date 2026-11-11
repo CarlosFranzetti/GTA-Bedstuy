@@ -19,7 +19,18 @@ Limits, stated plainly: the 28 voices are generic US and UK English. There is **
 
 ## Measured on this container (headless Chromium, WASM, no GPU, 4 vCPU, no cross-origin isolation so one thread)
 
-See the "Verified end to end" section below for the numbers from the real run.
+Real run with the shipped `NeuralTts` class (module worker from a Blob, kokoro-js 1.2.1 from jsDelivr, model `onnx-community/Kokoro-82M-v1.0-ONNX`, q8 92 MB, device `wasm`), headless Chromium through the sandbox proxy:
+
+| Step | Result |
+|---|---|
+| import of `kokoro.web.js` | 0.7 s |
+| model download + session init + first inference (warm-up) | 41 s total in the harness, 14.5 s for the bare load in the first spike |
+| `buck` (am_onyx 1.05, studio chain) | 4.47 s of audio in 29.8 s, **6.7 s of compute per second of audio** |
+| `hakim` (am_adam 1.02, phone chain) | 8.20 s of audio in 36.2 s, 4.4x |
+| `pearl` (af_kore 1.05, studio chain) | 5.83 s of audio in 26.0 s, 4.5x |
+| spike, raw kokoro-js: af_heart 7.4x, bm_george 5.4x, am_fenrir 7.7x | |
+
+So on this container (4 shared vCPU, one WASM thread because the page is not cross-origin isolated) HD voices are 4 to 8 times slower than real time. `NeuralTts` measures this in its warm-up and, above 1.6x, flags itself `slow`: the game then keeps using SpeechSynthesis, with one console warning. Sample WAVs: `/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/vox/` (`buck_morning_studio.wav`, `hakim_caller_phone.wav`, `pearl_dj_studio.wav` after the per-character effect chain; `af_heart.wav`, `bm_george.wav`, `am_fenrir.wav` raw).
 
 Expect WebGPU on a MacBook to be several times faster than this container; that path (`device: 'webgpu'`, fp32, 326 MB) is implemented in `NeuralTts` but is **off by default and was not run here** (no GPU). The default WASM q8 path was run.
 
@@ -59,4 +70,8 @@ WBSY Talk: Buck Mercer, Lorraine Static, Boards, Candace Prowse, Garrett Lyle-Vo
 
 ## Verified end to end versus mocked
 
-Filled in by the lane report; see the bottom of this file.
+Verified for real (headless Chromium, WASM, jsDelivr and Hugging Face reachable from the container): the library import from the CDN, model download and caching path, the worker protocol, rendering with three different cast voices, the WebAudio effect chains (`studio`, `phone`) on a real `OfflineAudioContext`, and `SpeechPlayer` playing two lines (sentences, pause, interruption) through the real engine and a real `AudioContext` to `onEnd` (the harness lifted the slow-device threshold for that step because this machine is slower than real time).
+
+Mocked (unit tests with a fake worker, fake engine and fake AudioContext): engine fallback, timeouts and the single warning, cancel on station change, queue priority, cache, scheduling order, hub defaults, Announcer and TalkStation behaviour.
+
+Not verified: WebGPU (no GPU here), audible quality through speakers and real-time music ducking in a running game, the `RadioUi` row in a browser, Windows, and whether a MacBook on WASM is above or below the 1.6x threshold. To try the GPU path in a browser: `localStorage['wbsy.hdGpu']='1'` and reload (downloads about 326 MB).

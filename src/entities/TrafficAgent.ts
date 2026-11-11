@@ -102,7 +102,7 @@ const PASS_ATTEMPT_PERIOD = 0.25;
 const PASS_LANE_LINES = [2.4, 3.1, 3.9] as const;
 /** turning: speed through the box, and how sharp a turn counts */
 const TURN_SPEED = 6;
-const TURN_SPEED_FAST = 13;
+const TURN_SPEED_FAST = 9;
 const TURN_MIN = 0.6;
 /** left turns yield to oncoming traffic that reaches the middle of the box within this many seconds */
 const LEFT_YIELD_TTC = 3.5;

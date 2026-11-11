@@ -320,7 +320,7 @@ function paintLivery(s: Sk, L: SkinLayout, side: 'left' | 'right', pack: number,
     13: () => { band(0.4, 0.48, '#2f8a4a'); txt('WIRE-IT', 0.8, 2, '#2f8a4a'); txt('CABLE & FIBER', 0.64, 1, '#2a2d31'); s.solid(X(nA + 0.05) - 4, Y(0.82) - 4, 8, 8, '#2f8a4a'); },
     14: () => { band(0.45, 0.8, '#bfe0f6'); band(0.45, 0.47, '#1d5fa8'); txt('FOLD & GO', 0.75, 2, '#1d5fa8'); txt('LAUNDRY', 0.6, 1, '#1d5fa8'); },
     20: () => { band(0.3, 0.4, '#c8202a'); band(0.4, 0.43, '#e07a1a'); band(0.62, 0.9, '#f4f4f4'); txt('AMBULANCE', 0.8, 2, '#c8202a'); txt('BORO EMS 4', 0.67, 1, '#1b2a4a'); s.solid(X(nc) - 7, Y(0.94) - 3, 14, 3, '#c8202a'); s.solid(X(nc) - 2, Y(0.97) - 8, 4, 12, '#c8202a'); },
-    21: () => { band(0.34, 0.42, '#1b4f93'); band(0.42, 0.45, '#f2b705'); txt('JITNEY', 0.78, 2, '#1b4f93'); txt('$2.50 FLATBUSH - DOWNTOWN', 0.6, 1, '#2a2d31'); },
+    21: () => { band(0.34, 0.42, '#1b4f93'); band(0.42, 0.45, '#f2b705'); txt('JITNEY', 0.27, 2, '#1b4f93'); txt('$2.50 FLATBUSH - DOWNTOWN', 0.17, 1, '#2a2d31'); },
   };
   (def[pack] ?? (() => { /* plain */ }))();
   void rng;

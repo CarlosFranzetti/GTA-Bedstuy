@@ -118,3 +118,15 @@ Shared files via `FOR FABLE:` as before. Nobody commits. Ports: V1 4401, PT 4402
 | TEXVAR (cont.) | sonnet | texture variety + finishing LOADMUSIC (src/audio/loadingTheme.ts) | 4464 |
 | FLICKER (cont.) | sonnet | flicker fixes + Mac M-series / Windows / iPhone platform defaults | 4461 |
 | NATIVE | sonnet | native/** (desktop shell), .github/workflows/native.yml, docs/NATIVE.md | 4477 |
+
+## Stage 14 lanes (11 Nov, night) — plan: docs/swarm/plans/stage14.md
+| Lane | Model | Owns | Port |
+|---|---|---|---|
+| MAPLEAD | opus | docs/swarm/plans/realmap.md, scripts/import-streets.mjs, src/world/roadnet/** (new) | none |
+| RADIO15 | sonnet | src/audio/radio.ts, RadioDirector, src/audio/sc/**, new src/audio/stream/** | 4481 |
+| SFX14 | sonnet | engine/horn/world sound synthesis (src/audio/engine*, sfx*), per-vehicle audio specs | none |
+| CHAR14 | sonnet | src/entities/models/ped*.ts, src/textures/painters/ped*.ts, ped interaction (src/entities/Pedestrian*.ts social behaviour) | 4482 |
+| ENV14 | sonnet | src/world/buildings/**, facade textures, scripts/fetch-street-photos.mjs | 4483 |
+| CONTROLS14 | sonnet | src/core/Camera.ts (view modes), src/core/Input.ts, Player jump | 4484 |
+| CARS14 | sonnet | car models/specs (after CARFIXUP) | 4485 |
+| UI14 | sonnet | phone, loading screen, map screen (after MENU) | 4486 |

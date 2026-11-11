@@ -39,7 +39,7 @@ describe('MapView', () => {
     v.fit(grid.bounds, 40, 60, 90);
     expect(v.rot).toBe(1);
     const flat = new MapView(); flat.w = 390; flat.h = 844; flat.rot = 0;
-    expect(v.scale).toBeGreaterThan(Math.min(390 / 1330, 700 / 580) * 1.5);
+    expect(v.scale).toBeGreaterThan(Math.min(390 / 1330, 700 / 910) * 1.2); // WBURG: the grid is 1330 x 910 m now, so the turned fit gains less
     for (const p of [{ x: grid.bounds.minX, z: grid.bounds.minZ }, { x: grid.bounds.maxX, z: grid.bounds.maxZ }]) {
       const s = v.toScreen(p.x, p.z);
       expect(s.x).toBeGreaterThanOrEqual(0); expect(s.x).toBeLessThanOrEqual(390);

@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   push:
     tags: ['v*']
+    branches: [master]
+    paths:
+      - 'native/**'
+      - '.github/workflows/native.yml'
 
 permissions:
   contents: write
@@ -14,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+          - os: macos-latest
             script: dist:mac
             name: mac-arm64
             paths: |
@@ -67,8 +71,8 @@ jobs:
         run: npm --prefix native run ${{ matrix.script }}
         env:
           # All optional. Empty values are ignored by electron-builder, giving an unsigned (mac: ad-hoc) build.
-          CSC_LINK: ${{ matrix.os == 'macos-14' && secrets.CSC_LINK || '' }}
-          CSC_KEY_PASSWORD: ${{ matrix.os == 'macos-14' && secrets.CSC_KEY_PASSWORD || '' }}
+          CSC_LINK: ${{ startsWith(matrix.os, 'macos') && secrets.CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ startsWith(matrix.os, 'macos') && secrets.CSC_KEY_PASSWORD || '' }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}

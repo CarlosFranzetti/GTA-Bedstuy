@@ -21,6 +21,7 @@ import { SavePanel } from './SavePanel';
 import { FullscreenControl } from './Fullscreen';
 import { RowList, type RowSpec } from './menuRows';
 import { menuArtSvg } from './menuArt';
+import { isNativeApp, nativeQuit, nativeShell } from '@/native/NativeBridge';
 import {
   GraphicsStore, supports, presetFor, SHADOW_MODES, FPS_CAPS, RANGES, gpuLoad, optionLoad, loadLabel,
   type GraphicsKey, type GraphicsSettings, type ShadowMode,
@@ -127,6 +128,8 @@ export interface MenuOptions {
   info?: () => MenuInfo;
   /** Mission log for the MISSIONS tab (feature-detected: without it the tab shows the active mission only). */
   missionLog?: () => readonly MissionLogEntry[];
+  /** HD voices switch (the host's AudioSystem: hdVoices / setHdVoices / hdLabel). Omit and the row is not shown. */
+  hdVoices?: { get(): boolean; set(on: boolean): void; label?(): string };
   /** Show the "install as app" hint (hosted build only). Default: true when built with VITE_HOSTED=1. */
   installable?: boolean;
 }
@@ -260,6 +263,8 @@ export class Menu {
   private readonly descs = new Map<string, DescPanel>();
   private readonly gfxRows = new Map<GraphicsKey, RowSpec>();
   private readonly specs = new Map<string, RowSpec>();
+  private nativeFs = false;
+  private quitArmed = false;
   private resetArmed = false;
   private resetTimer = 0;
 
@@ -544,6 +549,7 @@ export class Menu {
     this.root.hidden = true;
     this.pauseButton.hidden = !this.touchEnabled;
     this.disarmReset();
+    this.quitArmed = false;
     this.pending.clear(); this.disarmDiscard(); this.statusEl.textContent = ''; this.zone = 'list';
     this.optList.refresh();
     const prev = this.restoreFocus;
@@ -930,13 +936,17 @@ export class Menu {
     const S = this.specs;
     S.set('windowmode', {
       id: 'windowmode', label: 'Window Mode', kind: 'seg', desc: 'Windowed, or full screen with no browser bars. Alt+Enter also toggles it. Esc leaves full screen and opens this menu.',
-      visible: () => !!fs?.supported, options: () => [{ value: 'window', label: 'Windowed' }, { value: 'full', label: 'Full screen' }],
-      get: () => (fs?.active ? 'full' : 'window'), def: () => 'window',
-      set: ((v: string) => { if ((v === 'full') !== !!fs?.active) void fs?.toggle(); }) as RowSpec['set'],
+      visible: () => !!fs?.supported || isNativeApp(), options: () => [{ value: 'window', label: 'Windowed' }, { value: 'full', label: 'Full screen' }],
+      get: () => ((nativeShell() ? this.nativeFs : fs?.active) ? 'full' : 'window'), def: () => 'window',
+      set: ((v: string) => {
+        const n = nativeShell();
+        if (n) { this.nativeFs = v === 'full'; n.setFullscreen(this.nativeFs); return; }
+        if ((v === 'full') !== !!fs?.active) void fs?.toggle();
+      }) as RowSpec['set'],
     });
     S.set('install', {
       id: 'install', label: 'Install as app', kind: 'info', desc: 'Chrome: menu, Cast, save and share, Install page as app. Safari: File, Add to Dock. It then opens in its own window with no browser bars.',
-      visible: () => (this.opts.installable ?? hostedBuild()) && !this.isStandalone(), text: () => 'How to',
+      visible: () => (this.opts.installable ?? hostedBuild()) && !this.isStandalone() && !isNativeApp(), text: () => 'How to',
     });
     S.set('quality', {
       id: 'quality', label: 'Quality Preset', kind: 'seg', gfx: 'preset',
@@ -954,6 +964,18 @@ export class Menu {
     S.set('master', { id: 'master', label: 'Master Volume', kind: 'slider', min: 0, max: 100, step: 5, def: () => 100, desc: 'Volume of everything in the game.', fmt: (v) => `${v}%`, get: () => Math.round(this.state.master * 100), set: ((v: number) => this.setMaster(v / 100)) as RowSpec['set'] });
     S.set('radiovol', { id: 'radiovol', label: 'Radio Volume', kind: 'slider', min: 0, max: 100, step: 5, def: () => 100, desc: 'Volume of the radio stations, relative to the master volume.', fmt: (v) => `${v}%`, get: () => Math.round(this.state.radio * 100), set: ((v: number) => this.setRadio(v / 100)) as RowSpec['set'] });
     S.set('radiolib', { id: 'radiolib', label: 'Radio library', kind: 'action', desc: 'Opens the radio library: tracks, stations and the playlist.', press: () => { this.cb.onRadioLibrary?.(); } });
+    S.set('quit', {
+      id: 'quit', label: 'Quit to Desktop', kind: 'action', desc: 'Closes the game window. Your autosave is kept. Press twice to confirm.',
+      visible: () => nativeQuit() !== null, text: () => (this.quitArmed ? 'PRESS AGAIN' : '\u203A'),
+      press: () => { if (!this.quitArmed) { this.quitArmed = true; this.refreshAll(); return; } nativeQuit()?.(); },
+    });
+    S.set('hdvoices', {
+      id: 'hdvoices', label: 'HD Voices', kind: 'toggle',
+      desc: 'Neural speech for the radio hosts and talk shows. It downloads a voice model the first time. Off keeps the lightweight built-in voices.',
+      visible: () => !!this.opts.hdVoices, get: () => !!this.opts.hdVoices?.get(), def: () => false,
+      set: ((v: boolean) => { this.opts.hdVoices?.set(v); }) as RowSpec['set'],
+      text: () => this.opts.hdVoices?.label?.() ?? '',
+    });
     S.set('station', { id: 'station', label: 'Tuned to', kind: 'info', desc: 'The station playing now. Press E in the game (Y on a gamepad) to change it.', text: () => this.opts.info?.().station || 'Off' });
     S.set('invert', { id: 'invert', label: 'Invert Look Y', kind: 'toggle', def: () => false, desc: 'Inverts vertical look for the mouse, the right stick and touch drag.', get: () => this.state.invertY, set: ((v: boolean) => this.setInvertY(v)) as RowSpec['set'] });
     S.set('reset', {
@@ -996,9 +1018,9 @@ export class Menu {
     const sections: Array<[string, RowSpec[]]> = [
       ['Display', [S.get('windowmode')!, ...g('fpsCap', 'resolution', 'nativeDpr', 'showFps')]],
       ['Graphics', [S.get('quality')!, S.get('autodetect')!, ...g('shadows', 'drawDistance', 'treeRange', 'crowd', 'traffic', 'aa', 'textures', 'ao', 'bloom', 'dof', 'vignette', 'grain', 'fov')]],
-      ['Audio', [S.get('master')!, S.get('radiovol')!]],
+      ['Audio', [S.get('master')!, S.get('radiovol')!, S.get('hdvoices')!]],
       ['Controls', [S.get('invert')!]],
-      ['Game', [S.get('install')!, S.get('radiolib')!, S.get('reset')!]],
+      ['Game', [S.get('install')!, S.get('radiolib')!, S.get('reset')!, S.get('quit')!]],
       [`${CONTROLS[this.inputMode].title} controls`, CONTROLS[this.inputMode].rows.map(([k, v]) => ({ id: `c:${k}`, label: k, kind: 'info' as const, desc: `${k}: ${v}. The list follows the device you are using.`, text: () => v }))],
       ['Minimap', MINIMAP_LEGEND.map((item) => ({ id: `l:${item.text}`, label: item.text, kind: 'info' as const, desc: `On the minimap: ${item.text}.`, text: () => '', swatch: { color: item.swatch, shape: item.shape } }))],
     ];

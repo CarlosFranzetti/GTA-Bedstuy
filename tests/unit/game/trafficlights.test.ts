@@ -27,10 +27,10 @@ function nsTimeline(lights: TrafficLights, id: string, ns: string, step = 0.05, 
 }
 
 describe('TrafficLights', () => {
-  it('signalises all 36 intersections (every one touches an avenue)', () => {
+  it('signalises all 60 intersections (every one touches an avenue)', () => {
     const lights = new TrafficLights(grid);
-    expect(lights.intersectionIds).toHaveLength(36);
-    expect(lights.state()).toHaveLength(36);
+    expect(lights.intersectionIds).toHaveLength(60);
+    expect(lights.state()).toHaveLength(60);
   });
 
   it('avenue x street: avenue 45 s green, 3 s yellow, 1 s all red, street 30 s, 83 s cycle', () => {
@@ -215,7 +215,7 @@ describe('signal meshes', () => {
   });
 
   it('colliders: four poles per intersection', () => {
-    expect(signalColliders(grid)).toHaveLength(36 * 4);
+    expect(signalColliders(grid)).toHaveLength(60 * 4);
   });
 
   it('updateSignalMeshes lights the red lamp on a red approach and the green one on green', () => {

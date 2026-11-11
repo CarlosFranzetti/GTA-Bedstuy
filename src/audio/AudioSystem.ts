@@ -127,6 +127,8 @@ export class AudioSystem {
   // State. Recorded even before start(), applied once the graph exists.
   private masterVolume = 1;
   private engineSpeed = 0;
+  /** engine note multiplier of the vehicle type (VehicleSpec.enginePitch: a bus rumbles low, a hatchback revs high); 1 = the old sedan note */
+  private enginePitch = 1;
   private engineThrottle = 0;
   private engineOn = false;
   private night = false;
@@ -249,8 +251,9 @@ export class AudioSystem {
   }
 
   /** Call once per frame with the vehicle state. Speed in m/s, throttle 0..1. */
-  setEngine(speed: number, throttle: number, inVehicle: boolean): void {
+  setEngine(speed: number, throttle: number, inVehicle: boolean, pitch = 1): void {
     this.engineSpeed = speed;
+    this.enginePitch = Number.isFinite(pitch) && pitch > 0 ? pitch : 1;
     this.engineThrottle = throttle;
     this.engineOn = inVehicle;
     const gear = inVehicle ? gearForSpeed(speed) : -1;
@@ -509,7 +512,7 @@ export class AudioSystem {
   private applyEngine(g: Graph): void {
     const now = g.ctx.currentTime;
     const throttle = clamp01(this.engineThrottle);
-    const f = engineFrequency(this.engineSpeed, throttle) * this.shiftFactor;
+    const f = engineFrequency(this.engineSpeed, throttle) * this.shiftFactor * this.enginePitch;
     g.saw.frequency.setTargetAtTime(f, now, 0.05);
     g.sq.frequency.setTargetAtTime(f / 2, now, 0.05);
     g.engineFilter.frequency.setTargetAtTime(300 + 900 * throttle, now, 0.1);

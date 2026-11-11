@@ -16,7 +16,7 @@ export interface CameraContext {
   /** Static geometry to keep the camera out of (defaults to `camera.world`). */
   world?: CameraWorld | null;
   /** The vehicle being driven: its `speed` widens the view and its `shakeRequested` is consumed (read, then zeroed). */
-  vehicle?: { readonly speed: number; shakeRequested?: number; readonly spec?: { readonly length: number; readonly height: number } } | null;
+  vehicle?: { readonly speed: number; shakeRequested?: number; readonly spec?: { readonly length: number; readonly height: number; readonly camDist?: number; readonly camHeight?: number } } | null;
   /** Speed in m/s when no vehicle object is at hand. */
   speed?: number;
 }
@@ -316,7 +316,7 @@ export class ThirdPersonCamera {
     const extraLen = vehicleMode && veh?.spec ? Math.max(0, veh.spec.length - SEDAN.length) : 0;
     const extraH = vehicleMode && veh?.spec ? Math.max(0, veh.spec.height - SEDAN.height) : 0;
     const rig = vehicleMode
-      ? { distance: CAM_VEHICLE.distance + extraLen, height: CAM_VEHICLE.height + extraH, look: CAM_VEHICLE.look + 0.9 * extraH }
+      ? { distance: CAM_VEHICLE.distance + extraLen + (veh?.spec?.camDist ?? 0), height: CAM_VEHICLE.height + extraH + (veh?.spec?.camHeight ?? 0), look: CAM_VEHICLE.look + 0.9 * extraH }
       : CAM_FOOT;
     const wantDistance = (rig.distance + (vehicleMode ? SPEED_DISTANCE * this.speedN : 0)) * (1 + CINE_ZOOM * this.cineBlend);
     this.distance += (wantDistance - this.distance) * k;

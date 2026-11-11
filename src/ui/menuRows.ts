@@ -231,7 +231,7 @@ export class RowList {
       b.addEventListener('click', (e) => { e.stopPropagation(); this.pointerTo(built); this.adjust(delta); });
       return b;
     };
-    if (spec.kind === 'seg' || spec.kind === 'slider') {
+    if (spec.kind === 'seg' || spec.kind === 'slider' || spec.kind === 'toggle') {
       built.left = arrow('l', '‹', -1);
       built.right = arrow('r', '›', 1);
     }
@@ -297,7 +297,7 @@ export class RowList {
     if (s.kind === 'header') return;
     const text = b.val.querySelector<HTMLElement>('.gp-text')!;
     let shown = '';
-    if (s.kind === 'toggle') { const on = Boolean(s.get?.()); shown = on ? 'ON' : 'OFF'; b.el.classList.toggle('on', on); b.el.setAttribute('aria-checked', String(on)); }
+    if (s.kind === 'toggle') { const on = Boolean(s.get?.()); shown = on ? 'ON' : 'OFF'; b.el.classList.toggle('on', on); b.el.setAttribute('aria-checked', String(on)); if (b.left) b.left.disabled = !on; if (b.right) b.right.disabled = on; }
     else if (s.kind === 'seg') {
       const opts = s.options?.() ?? [];
       const v = s.get?.();

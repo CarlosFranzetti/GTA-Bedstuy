@@ -252,7 +252,7 @@ export function garmentParts(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSp
     const long = !!top.long;
     const hem = long ? kneeY + 0.05 : lm.hemY - (['puffer', 'hoodie', 'jacket', 'cardigan'].includes(top.kind) ? 0.09 : top.kind === 'tee' || top.kind === 'blouse' ? 0.0 : 0.04);
     const wArm = (v: V): number => wsum(v, B.arms), wHead = (v: V): number => wsum(v, B.head), wLow = (v: V): number => wsum(v, B.legs);
-    const bodyF = smoothField(all, (v) => wsum(v, B.torso) + wsum(v, B.hips) + (long ? wLow(v) : 0) - wArm(v) - wHead(v) - (long ? 0 : wLow(v)) + 0.015);
+    const bodyF = smoothField(all, (v) => wsum(v, B.torso) + wsum(v, B.hips) + (long ? wLow(v) : 0) - wArm(v) - wHead(v) - (long ? 0 : wLow(v)) + 0.04);
     let body = clip(all, bodyF);
     body = clip(body, (v) => v.p[1] - hem);
     if (long) body = clip(body, (v) => (v.p[2] < torsoAxis(v.p).cz && v.p[1] < lm.hemY + 0.08 ? Math.abs(v.p[0]) - 0.011 : 1));   // split at the front
@@ -271,7 +271,7 @@ export function garmentParts(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSp
     });
     if (top.kind !== 'vest' && top.kind !== 'apron' && top.sleeves !== 'none') {
       const sleeveCut = top.sleeves === 'short' ? elbowY + (shoulderY - elbowY) * 0.42 : -9;
-      const arm = clip(all, smoothField(all, (v) => wArm(v) - wsum(v, B.torso) - wsum(v, B.hips) - wHead(v) + 0.015));
+      const arm = clip(all, smoothField(all, (v) => wArm(v) - wsum(v, B.torso) - wsum(v, B.hips) - wHead(v) + 0.04));
       const upper = clip(clip(arm, (v) => v.p[1] - Math.max(elbowY, sleeveCut)), (v) => v.p[1] < shoulderY + 0.08 ? 1 : -1);
       const fore = top.sleeves === 'long' ? clip(clip(arm, (v) => elbowY - v.p[1]), (v) => v.p[1] - (wristY + 0.012)) : [];
       const uvU = cyl(HI_RECTS.upperArm, elbowY, neckBase, limbAxis(armRings)), uvF = cyl(HI_RECTS.foreArm, wristY, elbowY, limbAxis(armRings));
@@ -297,10 +297,10 @@ export function garmentParts(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSp
       const sc = 1 + Math.max(0, target / cur - 1) * Math.min(1, w + 0.4 * (p[1] < kneeY ? 1 : 0));
       p[0] = cx + (p[0] - cx) * sc; p[2] = r.cz + (p[2] - r.cz) * sc;
     };
-    const legF = smoothField(all, (v) => wL(v) - wH(v) + 0.015);
+    const legF = smoothField(all, (v) => wL(v) - wH(v) + 0.04);
     const covered = top.long && tk > 0;   // a long coat hides the hips and thighs
     if (!covered) {
-      const pelvis = clip(clip(all, smoothField(all, (v) => wH(v) - wL(v) - wsum(v, B.arms) - wsum(v, B.head) + 0.015)), (v) => waist - v.p[1]);
+      const pelvis = clip(clip(all, smoothField(all, (v) => wH(v) - wL(v) - wsum(v, B.arms) - wsum(v, B.head) + 0.04)), (v) => waist - v.p[1]);
       emit(clip(pelvis, (v) => v.p[1] - (R.hipL[1] - 0.2)), { thick: thickOf, iterations: 3, rim: 0.006, uv: cyl(HI_RECTS.pelvis, R.hipL[1] - 0.2, waist, torsoAxis), tile: HI_RECTS.pelvis });
       const legs = clip(all, legF);
       const thigh = clip(clip(legs, (v) => v.p[1] - (bk === 'shorts' ? shortsEnd : kneeY)), (v) => hipTop - v.p[1] + 0.4);
@@ -338,16 +338,22 @@ export function headShell(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec)
   const hatR = HI_RECTS.hat, hairR = HI_RECTS.hair;
 
   if (spec.hat === 'hijab') {
-    // wraps hair, ears and neck, with a clean oval opening round the face, and drapes over the shoulders and chest
+    // cloth, not a hood: stands 2 to 3 cm off the skull, an underscarf line at the forehead, wraps under the chin and drapes in soft folds
+    // over the shoulders and chest; a second, looser shawl style for some women
+    let hh2 = 2166136261; for (let i = 0; i < spec.id.length; i++) { hh2 ^= spec.id.charCodeAt(i); hh2 = Math.imul(hh2, 16777619); }
+    const loose = ((hh2 >>> 0) % 2) === 0;
     const oval = (v: V): number => {
-      const x = v.p[0] / (rx * 0.74), y = (tOf(v.p[1]) - 0.4) / 0.36, z = (zc - v.p[2]) / (rz * 0.2);
+      const x = v.p[0] / (rx * 0.72), y = (tOf(v.p[1]) - 0.4) / 0.35, z = (zc - v.p[2]) / (rz * 0.2);
       return z < 0 ? 1 : Math.hypot(x, y) - 1;
     };
-    fixSeam(finalize(clip(head, oval), { thick: () => 0.017, iterations: 3, rim: 0.007, uv: mapTo(hatR) }));
-    const neckDrape = clip(all, (v) => wsum(v, [1, 2, 3]) - wsum(v, B.arms) - 0.5 + (v.p[1] > lm.chinY - 0.2 ? 0 : -9));
-    const drape = clip(clip(neckDrape, (v) => v.p[1] - (s.rig.shoulderL[1] - 0.2)), (v) => (v.p[2] < zc - rz * 0.5 && v.p[1] > lm.chinY - 0.01 ? -1 : 1));
+    const volume = (v: V): number => 0.016 + 0.014 * smooth(0.35, 0.95, tOf(v.p[1])) + (loose ? 0.008 : 0) + 0.004 * Math.sin(v.p[0] * 70 + v.p[1] * 25);
+    fixSeam(finalize(clip(head, oval), { thick: volume, iterations: 5, normalIters: 14, rim: 0.007, uv: mapTo(hatR) }));
+    const shY = s.rig.shoulderL[1], reach = loose ? 0.34 : 0.22;
+    const neckField = smoothField(all, (v) => wsum(v, [1, 2, 3]) - wsum(v, B.arms) - 0.5 + (v.p[1] > lm.chinY - 0.2 ? 0 : -9), 5);
+    const neckDrape = clip(all, neckField);
+    const drape = clip(clip(neckDrape, (v) => v.p[1] - (shY - reach)), (v) => (v.p[2] < zc - rz * 0.5 && v.p[1] > lm.chinY - 0.01 ? -1 : 1));
     const hatUV = (p: V3): [number, number] => { let a = Math.atan2(p[0], p[2] - zc); if (a < 0) a += Math.PI * 2; return tileUV(hatR, a / (Math.PI * 2), 0.3); };
-    fixSeam(finalize(drape, { thick: (v) => 0.016 + 0.014 * smooth(lm.chinY, s.rig.shoulderL[1] - 0.2, v.p[1]) , iterations: 4, rim: 0.007, uv: hatUV }));
+    fixSeam(finalize(drape, { thick: (v) => 0.02 + (loose ? 0.026 : 0.016) * smooth(lm.chinY, shY - reach, v.p[1]) + 0.006 * Math.sin(v.p[0] * 80), iterations: 6, normalIters: 14, rim: 0.007, uv: hatUV }));
     return out;
   }
 

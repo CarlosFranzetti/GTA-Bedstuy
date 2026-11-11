@@ -713,7 +713,7 @@ export const STYLES: Record<StyleKey, Style> = {
     hoodBack: 0.92,
     clad: 11,
     rails: false, spoiler: true, maxGap: 0.22, archN: 8,
-    headLamp: 'swept', grille: 'wedge', lampD: 0.2, grilleW: 0.5,
+    headLamp: 'swept', tailLamp: 'camryT', grille: 'wedge', lampD: 0.2, tailD: 0.1, grilleW: 0.5,
     bumperY: 0.34, bumperH: 0.22,
     plan: [[-2.3, 0.9], [-1.7, 0.97], [-0.9, 1], [0.9, 1], [1.7, 0.98], [2.3, 0.92]],
   },
@@ -819,7 +819,7 @@ export const STYLES: Record<StyleKey, Style> = {
     handles: [-0.3],
     hoodBack: 0.98,
     clad: 11,
-    rails: false, spoiler: true,
+    rails: false, spoiler: true, headLamp: 'wedge', tailLamp: 'bar',
     bumperY: 0.33, bumperH: 0.21,
     plan: [[-2.3, 0.9], [-1.7, 0.98], [-0.9, 1], [0.9, 1], [1.8, 0.97], [2.3, 0.9]],
   },
@@ -852,7 +852,7 @@ export const STYLES: Record<StyleKey, Style> = {
     handles: [0.0, -0.86],
     hoodBack: 1.22,
     clad: 10,
-    rails: true, spoiler: false, maxGap: 0.4, archN: 6, headLamp: 'c', grille: 'slats', endT: [0, 1],
+    rails: true, spoiler: false, maxGap: 0.4, archN: 6, headLamp: 'c', tailLamp: 'tall', tailD: 0.05, grille: 'slats', endT: [0, 1],
     bumperY: 0.45, bumperH: 0.28,
     plan: [[-2.45, 0.94], [-2.0, 0.99], [-1.0, 1], [1.0, 1], [2.0, 0.99], [2.45, 0.95]],
   },
@@ -864,16 +864,17 @@ export const STYLES: Record<StyleKey, Style> = {
     sill: 0.2, wheelR: 0.3, wheelW: 0.195,
     axle: 1.265,
     secs: [
-      [-2.03, 1.0, 0.9, 0.9],
-      [-1.96, 1.1, 0.95, 0.9],
-      [-1.8, 1.32, 0.98, 0.84],
-      [-1.58, 1.47, 0.99, 0.78],
-      [-1.2, 1.515, 0.99, 0.75],
-      [-0.4, 1.52, 0.99, 0.74],
-      [0.25, 1.5, 0.99, 0.75],
-      [0.65, 1.38, 0.99, 0.8],
-      [1.05, 1.07, 0.97, 0.9],
-      [1.35, 1.02, 0.94, 0.93],
+      [-2.03, 0.98, 0.9, 0.9],
+      [-1.98, 1.12, 0.95, 0.9],
+      [-1.88, 1.3, 0.98, 0.85],
+      [-1.65, 1.43, 0.99, 0.8],
+      [-1.25, 1.5, 0.99, 0.76],
+      [-0.6, 1.52, 0.99, 0.74],
+      [0.0, 1.5, 0.99, 0.74],
+      [0.45, 1.42, 0.99, 0.78],
+      [0.85, 1.22, 0.99, 0.85],
+      [1.15, 1.07, 0.97, 0.9],
+      [1.4, 1.02, 0.94, 0.93],
       [1.75, 0.97, 0.9, 0.93],
       [1.95, 0.93, 0.86, 0.92],
       [2.03, 0.88, 0.8, 0.92],
@@ -944,11 +945,11 @@ export const STYLES: Record<StyleKey, Style> = {
       [0.4, 2.76, 1.3, 0.95],
       [0.7, 2.62, 1.3, 0.94],
       [1.0, 2.1, 1.3, 0.92],
-      [1.8, 1.45, 1.3, 0.93],
-      [1.98, 1.28, 1.25, 0.93],
-      [2.4, 1.2, 1.12, 0.93],
-      [2.8, 1.08, 0.95, 0.93],
-      [2.95, 0.98, 0.85, 0.93],
+      [1.8, 1.4, 1.3, 0.93],
+      [1.98, 1.22, 1.17, 0.93],
+      [2.4, 1.12, 1.05, 0.93],
+      [2.8, 1.0, 0.9, 0.93],
+      [2.95, 0.92, 0.82, 0.92],
     ],
     windshield: [1.8, 1.0],
     doorGlass: [[1.6, 0.55]],
@@ -961,7 +962,7 @@ export const STYLES: Record<StyleKey, Style> = {
     rails: false, spoiler: false, hatchback: true, maxGap: 0.9, archN: 5, endT: [0, 1],
     glassTop: 2.0, headY: 0.86, tailY: 1.2, mirror: 'van',
     bumperY: 0.5, bumperH: 0.3,
-    plan: [[-2.95, 0.96], [-2.2, 0.99], [-1, 1], [1, 1], [2.3, 0.98], [2.95, 0.92]],
+    plan: [[-2.95, 0.96], [-2.2, 0.99], [-1, 1], [1, 1], [2.3, 0.97], [2.95, 0.88]],
     headLamp: 'angular', tailLamp: 'tall', grille: 'wedge', lampD: 0.12, tailD: 0.05, endF: 0.3, endR: 0.12, grilleW: 0.55, lampInset: 0.17,
     dims: { L: 5.98, W: 2.06, H: 2.78 },
   },
@@ -1190,11 +1191,11 @@ export const STYLES: Record<StyleKey, Style> = {
       [0.4, 2.76, 1.3, 0.95],
       [0.7, 2.62, 1.3, 0.94],
       [1.0, 2.1, 1.3, 0.92],
-      [1.8, 1.45, 1.3, 0.93],
-      [1.98, 1.28, 1.25, 0.93],
-      [2.4, 1.2, 1.12, 0.93],
-      [2.8, 1.08, 0.95, 0.93],
-      [2.95, 0.98, 0.85, 0.93],
+      [1.8, 1.4, 1.3, 0.93],
+      [1.98, 1.22, 1.17, 0.93],
+      [2.4, 1.12, 1.05, 0.93],
+      [2.8, 1.0, 0.9, 0.93],
+      [2.95, 0.92, 0.82, 0.92],
     ],
     windshield: [1.8, 1.0],
     doorGlass: [[1.6, 0.55], [0.4, -0.5], [-0.62, -1.6], [-1.72, -2.6]],
@@ -1207,7 +1208,7 @@ export const STYLES: Record<StyleKey, Style> = {
     rails: false, spoiler: false, hatchback: true, maxGap: 0.9, archN: 5, endT: [0, 1],
     glassTop: 2.1, headY: 0.86, tailY: 1.2, mirror: 'van',
     bumperY: 0.5, bumperH: 0.3,
-    plan: [[-2.95, 0.96], [-2.2, 0.99], [-1, 1], [1, 1], [2.3, 0.98], [2.95, 0.92]],
+    plan: [[-2.95, 0.96], [-2.2, 0.99], [-1, 1], [1, 1], [2.3, 0.97], [2.95, 0.88]],
     headLamp: 'angular', tailLamp: 'tall', grille: 'wedge', lampD: 0.12, tailD: 0.05, endF: 0.3, endR: 0.12, grilleW: 0.55, lampInset: 0.17,
     dims: { L: 5.98, W: 2.06, H: 2.78 },
     windowed: true,
@@ -1676,8 +1677,9 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
   chrome.add(cylZ(0.028, 0.012, 0, gY, gZ - 0.012, 8));
   // rear: chrome strip over the bumper, exhaust tip
   const exX = Wb2 - 0.34;
-  if (!st.mirror) chrome.add(cylZ(0.04, 0.16, exX, 0.16, bumperZ - 0.14, 8));
-  if (type === 'pony' || type === 'luxury') chrome.add(cylZ(0.04, 0.16, -exX, 0.16, bumperZ - 0.14, 8)); // dual exhaust
+  // exhaust tips tucked under the valance (a tip hanging behind the bumper reads as a detached pipe)
+  if (!st.mirror) chrome.add(cylZ(0.04, 0.12, exX, st.bumperY - st.bumperH / 2 + 0.01, bumperZ - 0.24, 8));
+  if (type === 'pony' || type === 'luxury') chrome.add(cylZ(0.04, 0.12, -exX, st.bumperY - st.bumperH / 2 + 0.01, bumperZ - 0.24, 8)); // dual exhaust
   // underbody pan so the sky never shows under the car, and a dark box filling the engine bay under the hood panel
   trim.add(bx(2 * (Wb2 - 0.14), 0.04, L - 0.5, 0, st.sill + 0.04, 0));
   trim.add(bx(2 * (Wb2 - 0.2), 0.04, hoodFrontU - hoodBackU, 0, fyBelt((hoodBackU + hoodFrontU) / 2) - 0.1, -(hoodBackU + hoodFrontU) / 2));
@@ -1748,6 +1750,7 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
   // ---- cop gear / cab roof light
   const copBarU = secs[st.rails ? 3 : 5][0];
   const roofY = hull.P(hull.at(copBarU), 0).y;
+  const ambU = secs[3][0], ambY = hull.P(hull.at(ambU), 0).y; // the ambulance bar sits on the flat roof, not over the sloping windshield header
   const roofLamp = new Acc();
   if (type === 'cop' && !unmarked) {
     for (const s of [-1, 1]) trim.add(bx(0.05, 0.42, 0.05, s * 0.5, 0.52, -(L / 2 - 0.01)));
@@ -1757,7 +1760,7 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     // unmarked: a push bar only (no roof bar); the strobes sit in the grille and behind the windshield (lightbar lenses below)
     trim.add(bx(1.0, 0.05, 0.05, 0, 0.6, -(L / 2 - 0.01)));
   } else if (type === 'ambulance') {
-    trim.add(bx(1.5, 0.05, 0.34, 0, roofY + 0.03, -(ws[1] + 0.2))); // roof light bar base
+    trim.add(bx(1.5, 0.05, 0.34, 0, ambY + 0.03, -ambU)); // roof light bar base, on the flat of the roof
     for (const s2 of [-1, 1]) trim.add(bx(0.06, 0.06, 0.06, s2 * (st.dims!.W / 2 - 0.2), 1.9 * ky, -(doors[0][0] + 0.1))); // side warning lamps
   } else if (type === 'cab') {
     trim.add(bx(0.4, 0.03, 0.2, 0, roofY + 0.015, -copBarU));
@@ -1856,8 +1859,8 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     const yD = fyBelt(ws[0] - 0.4) + 0.03;
     parts.lightbar = { lens: new THREE.BoxGeometry(0.22, 0.045, 0.07), a: v3(-0.3, yD, -(ws[0] - 0.3)), b: v3(0.3, yD, -(ws[0] - 0.3)) };
   } else if (type === 'ambulance') {
-    const yB = roofY + 0.085;
-    parts.lightbar = { lens: new THREE.BoxGeometry(0.7, 0.1, 0.28), a: v3(-0.38, yB, -(ws[1] + 0.2)), b: v3(0.38, yB, -(ws[1] + 0.2)) };
+    const yB = ambY + 0.085;
+    parts.lightbar = { lens: new THREE.BoxGeometry(0.7, 0.1, 0.28), a: v3(-0.38, yB, -ambU), b: v3(0.38, yB, -ambU) };
   }
   // ---- anchors for per-car extras (carExtras.ts)
   {
@@ -2059,16 +2062,17 @@ export function buildTruckParts(spec: VehicleSpec, kind: 'box' | 'garbage' = 'bo
   const rz = -cargoBack + 0.006;
   if (G) {
     // rear loader: hopper mouth (dark), loading lip, packer blade slot, lift arms and comb, bumper step, side hatches, roof beacon
-    trim.add(bx(2 * Wg2 - 0.5, 0.9, 1.1, 0, 1.45, -(cargoBack + 0.55))); // hopper void
-    trim.add(bx(2 * Wg2 - 0.3, 0.14, 0.2, 0, 1.2, rz - 0.1)); // sill lip
-    trim.add(bx(2 * Wg2 - 0.7, 0.5, 0.03, 0, 2.2, -(cargoBack + 1.5))); // packer panel
+    // clean hopper: a dark opening panel just proud of the rear face, a loading sill, hinge pins and hydraulic rams on each side
+    trim.add(bx(2 * Wg2 - 0.7, 0.85, 0.05, 0, 1.78, rz + 0.012)); // hopper opening
+    trim.add(bx(2 * Wg2 - 0.4, 0.1, 0.2, 0, 1.3, rz - 0.07)); // loading sill
+    trim.add(bx(2 * Wg2 - 0.4, 0.06, 0.06, 0, 2.24, rz - 0.01)); // top lip of the opening
     for (const s2 of [-1, 1]) {
-      trim.add(bx(0.1, 0.9, 0.1, s2 * (Wg2 - 0.2), 1.9, rz - 0.06)); // lift-arm post
+      trim.add(bx(0.1, 0.9, 0.1, s2 * (Wg2 - 0.28), 1.78, rz - 0.03)); // lift-arm post
+      trim.add(new THREE.CylinderGeometry(0.04, 0.04, 0.75, 6).translate(s2 * (Wg2 - 0.14), 1.95, rz - 0.02)); // hydraulic ram
       trim.add(bx(0.08, 0.08, 0.7, s2 * (Wg2 - 0.03), 2.5, -(cargoBack + 0.9))); // side hatch hinge
-      trim.add(bx(0.03, 1.2, 2.0, s2 * (Wg2 + 0.006), 2.35, -(cargoBack + 2.6))); // side panel hatch outline
     }
     trim.add(bx(2 * Wg2 - 0.2, 0.18, 0.3, 0, 0.82, L / 2 - 0.17)); // rear step platform
-    for (let k = -3; k <= 3; k++) chrome.add(bx(0.02, 0.5, 0.03, k * 0.3, 1.9, rz - 0.02)); // comb teeth
+    for (let k = -3; k <= 3; k++) chrome.add(bx(0.02, 0.4, 0.03, k * 0.3, 1.5, rz)); // comb teeth
   } else {
   for (let y = 1.4; y <= 3.12; y += 0.14) trim.add(decalZ(2 * Wg2 - 0.4, 0.016, 0, y, rz));
   trim.add(bx(2 * Wg2 - 0.36, 0.04, 0.03, 0, 1.3, rz + 0.01)); // bottom bar of the roll-up door

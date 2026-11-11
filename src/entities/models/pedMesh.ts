@@ -282,6 +282,20 @@ function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
     case 'hijab': if (!hiDetail) out.push(loft(dome(0.25, 1.1, 0.012, 0.5, 1.0), seg, hatR, 3, 'top')); break;
     case 'hardhat': { out.push(loft(dome(0.6, 1.15, 0.01, 0), seg, hatR, 3, 'top')); const r = ringAt(s.headRings, Y(0.6)); out.push(loft([{ y: Y(0.6), rx: 0.12, rz: 0.15, cz: r.cz - 0.03 }, { y: Y(0.6) + 0.012, rx: 0.12, rz: 0.15, cz: r.cz - 0.03 }], 14, hatR, 3, 'both')); break; }
   }
+  // accessories picked by the person's id (not by group): headphones, a scarf
+  let h = 2166136261; for (let i = 0; i < spec.id.length; i++) { h ^= spec.id.charCodeAt(i); h = Math.imul(h, 16777619); }
+  const roll = (h >>> 0) / 4294967296, grown = spec.age !== 'kid';
+  if (grown && spec.hat === 'none' && spec.hair !== 'afro' && roll < 0.1) {
+    const r = ringAt(s.headRings, Y(0.45)), gr = HI_RECTS.hair;
+    const puck = (cx: number, y: number, cz: number, rx: number, ry: number, rz: number, n: number): void => {
+      out.push(loft([{ y: y - ry, rx: rx * 0.5, rz: rz * 0.5, cx, cz }, { y, rx, rz, cx, cz }, { y: y + ry, rx: rx * 0.5, rz: rz * 0.5, cx, cz }], n, gr, 3, 'both'));
+    };
+    for (const sx of [-1, 1]) puck(sx * (r.rx + 0.012), Y(0.45), r.cz, 0.011, 0.026, 0.024, 8);
+    for (let i = 0; i <= 10; i++) { const a = -1.3 + (i / 10) * 2.6; puck(Math.sin(a) * (r.rx * 1.05 + 0.012), Y(0.62) + Math.cos(a) * H * 0.5, r.cz, 0.0045, 0.016, 0.0055, 5); }
+  } else if (grown && !covered && spec.hat !== 'hijab' && roll >= 0.1 && roll < 0.2) {
+    const n = ringAt(s.headRings, lm.chinY);
+    out.push(loft([{ y: lm.chinY - 0.07, rx: n.rx * 0.7 + 0.04, rz: n.rz * 0.7 + 0.04, cz: n.cz }, { y: lm.chinY - 0.02, rx: n.rx * 0.7 + 0.034, rz: n.rz * 0.7 + 0.034, cz: n.cz }, { y: lm.chinY + 0.015, rx: n.rx * 0.7 + 0.03, rz: n.rz * 0.7 + 0.03, cz: n.cz }], 14, hatR, 3, 'both'));
+  }
   return out;
 }
 
@@ -413,6 +427,7 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
     if (grown) target = Math.min(1.95, Math.max(1.5, target));
     const hs = target / shape.height, wide = bw * (1 + tri() * 0.12 + (rng.chance(0.14) ? 0.12 : 0)) * (hs > 1.05 ? 0.98 : 1);
     group.scale.set(wide * (0.97 + 0.03 * hs), hs, wide * (0.97 + 0.03 * hs));
+    if (age === 'old') torso.userData.stoop = -rng.range(0.1, 0.2);
     for (const k of [0, 1]) arms[k].scale.y = 1 + rng.range(-0.03, 0.03);
     head.scale.setScalar((age === 'kid' ? 1.06 : 1) * rng.range(0.96, 1.05));
     torso.scale.set(1 + rng.range(-0.025, 0.025), 1, 1 + rng.range(-0.04, 0.04));

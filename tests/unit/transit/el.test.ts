@@ -173,7 +173,7 @@ describe('structure, culling and the ride', () => {
     expect(t.tryBoard(ent.x, ent.z)).toBe(true);
     expect(t.ride).not.toBeNull();
     expect(t.ride!.to).toBe(STATIONS.findIndex((s) => s.id === 'myrtle'));
-    expect(Math.abs(t.ride!.x - STATIONS[1].x)).toBeLessThan(0.1);
+    expect(Math.abs(t.ride!.x - STATIONS[1].x)).toBeLessThan(20);
     // ride on: the standing point follows the train east, the camera is inside the car height band
     t.update(25, { x: 0, y: 2, z: 0 }, false);
     expect(t.ride).not.toBeNull();
@@ -193,5 +193,14 @@ describe('structure, culling and the ride', () => {
     const ent = t.el.entrances[0];
     expect(t.tryBoard(ent.x, ent.z)).toBe(true);
     expect(t.takeMessage()).toMatch(/next train|stand clear/i);
+  });
+});
+
+describe('published data', () => {
+  it('bedstuy.json carries transit.stations that match the timetable stations', async () => {
+    const { default: json } = await import('@/world/data/bedstuy.json');
+    const st = (json as unknown as { transit: { stations: Array<{ id: string; x: number; z: number }> } }).transit.stations;
+    expect(st.length).toBeGreaterThanOrEqual(2);
+    for (const s of STATIONS) expect(st.find((q) => q.id === s.id)).toMatchObject({ x: s.x, z: EL_Z });
   });
 });

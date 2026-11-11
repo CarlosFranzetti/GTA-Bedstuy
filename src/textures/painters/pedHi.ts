@@ -102,8 +102,8 @@ function paintHead(t: L, s: PedSpec, rng: Rng): void {
   const shade = (x: number, y: number, r: number, c: string, al: number): void => t.soft(x, y, r, c, al, 12);
   t.rect(0, 0, W, W, skin, 1, 128, 140);
   // smooth tone: a cool/warm gradient from forehead to chin, darker at the sides and under the jaw, light on forehead, cheek bones, nose bridge
-  const side = '#000000';   // black at low alpha keeps the hue: darkening the saturated tone itself turns dark skin maroon
-  for (let i = 0; i < 26; i++) { const a = 0.0075, w = 54 - i * 2; t.rect(0, 0, w, W, side, a); t.rect(W - w, 0, w, W, side, a); }
+  const light = parseInt(skin.slice(1, 3), 16) > 190, side = light ? '#7a3a2a' : '#000000';   // black at low alpha keeps the hue: darkening the saturated tone itself turns dark skin maroon
+  for (let i = 0; i < 26; i++) { const a = light ? 0.006 : 0.0075, w = 54 - i * 2; t.rect(0, 0, w, W, side, a); t.rect(W - w, 0, w, W, side, a); }
   for (let i = 0; i < 40; i++) t.rect(0, Y(1.57) + i * 1.6, W, 256, side, 0.007);
   shade(128, Y(1.73), 80, lt(skin, 0.3), 0.16);
   for (const sx of [-1, 1]) {
@@ -129,22 +129,22 @@ function paintHead(t: L, s: PedSpec, rng: Rng): void {
     const cx = X(sx * 0.034);
     shade(cx, ey - 1, 34, dk(skin, 0.4), 0.14);                                                                 // socket
     shade(cx, ey - 7, 22, shadow, fem ? 0.26 : 0.1);                                                            // lid colour
-    const ew = f.eyes === 'wide' ? 22 : 20, eh = f.eyes === 'sleepy' ? 6.5 : f.eyes === 'wide' ? 11 : 9;
+    const ew = f.eyes === 'wide' ? 16 : 14.5, eh = f.eyes === 'sleepy' ? 3.8 : f.eyes === 'wide' ? 5.6 : 4.6;
     const eye = [[cx - ew, ey + 0.5], [cx - ew * 0.55, ey - eh * 0.85], [cx, ey - eh], [cx + ew * 0.55, ey - eh * 0.85], [cx + ew, ey + 0.5], [cx + ew * 0.55, ey + eh * 0.65], [cx, ey + eh * 0.75], [cx - ew * 0.55, ey + eh * 0.65]] as Array<[number, number]>;
-    t.poly(eye, dk('#efe9e2', 0.1));
-    t.poly(eye.map(([x, y]) => [cx + (x - cx) * 0.98, y + 0.5] as [number, number]), '#f6f1ea', 0.9);
+    t.poly(eye, dk('#e4dfd8', 0.12));
+    t.poly(eye.map(([x, y]) => [cx + (x - cx) * 0.98, y + 0.5] as [number, number]), '#e9e4dc', 0.9);
     for (const k of [0.34, 0.42]) t.rect(cx - ew, ey - eh, ew * 2, eh * k, '#000000', 0.07);                         // upper lid shadow on the white
     t.rect(cx + (sx > 0 ? ew * 0.45 : -ew), ey - eh * 0.4, ew * 0.55, eh * 1.2, '#d86a62', 0.06);                  // caruncle side
-    const ix = cx - sx * 1.2, ir = eh * 0.74;
+    const ix = cx - sx * 0.8, ir = eh * 0.9;
     t.disc(ix, ey - 0.3, ir, dk(iris, 0.55));                                                                   // limbal ring
     t.disc(ix, ey - 0.3, ir * 0.86, iris);
     t.disc(ix, ey + 0.8, ir * 0.62, lt(iris, 0.28), 0.5);                                                        // lighter lower iris
     for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; t.line(ix + Math.cos(a) * ir * 0.35, ey - 0.3 + Math.sin(a) * ir * 0.35, ix + Math.cos(a) * ir * 0.8, ey - 0.3 + Math.sin(a) * ir * 0.8, dk(iris, 0.4), 0.7, 0.35); }
     t.disc(ix, ey - 0.3, ir * 0.42, '#0c0806');                                                                  // pupil
-    t.disc(ix + 2.2, ey - 3, 1.9, '#ffffff', 0.95); t.disc(ix - 1.8, ey + 2, 1, '#ffffff', 0.5);                  // specular
-    t.poly([[cx - ew - 1, ey + 1], [cx - ew * 0.55, ey - eh * 0.9], [cx, ey - eh - 1.2], [cx + ew * 0.55, ey - eh * 0.9], [cx + ew + 1, ey + 1], [cx + ew * 0.55, ey - eh * 0.4], [cx, ey - eh * 0.55], [cx - ew * 0.55, ey - eh * 0.4]], skin, 0.9);   // upper lid over the eye
-    t.curve(cx - ew, ey + 0.5, cx, ey - eh * 2 - 1, cx + ew, ey + 0.5, '#1a1210', 2.1, 0.82);                    // lash line
-    if (f.lashes || fem) t.curve(cx - ew, ey - 0.5, cx, ey - eh * 2 - 3.5, cx + ew, ey - 0.5, '#0c0806', 2.8, 0.85);
+    t.disc(ix + 1.2, ey - 1.4, 0.8, '#ffffff', 0.9);                  // specular
+    t.poly([[cx - ew - 1, ey + 1], [cx - ew * 0.55, ey - eh * 0.9], [cx, ey - eh - 1.2], [cx + ew * 0.55, ey - eh * 0.9], [cx + ew + 1, ey + 1], [cx + ew * 0.55, ey - eh * 0.15], [cx, ey - eh * 0.3], [cx - ew * 0.55, ey - eh * 0.15]], skin, 0.95);   // upper lid over the eye
+    t.curve(cx - ew, ey + 0.5, cx, ey - eh * 2 - 1, cx + ew, ey + 0.5, dk(s.hairColor, 0.3), 1.1, 0.55);                    // lash line
+    if (f.lashes || fem) t.curve(cx - ew, ey - 0.5, cx, ey - eh * 2 - 1.5, cx + ew, ey - 0.5, '#1c1210', 1.5, 0.55);
     t.curve(cx - ew * 0.9, ey + 2.5, cx, ey + eh * 0.9 + 1, cx + ew * 0.9, ey + 2.5, dk(skin, 0.4), 1.2, 0.4);   // lower lid
     t.curve(cx - ew * 0.9, ey - eh * 1.9, cx, ey - eh * 2.7, cx + ew * 0.9, ey - eh * 1.9, dk(skin, 0.5), 1.2, 0.3);  // lid crease
     if (old) { for (let i = 0; i < 3; i++) t.line(cx + sx * (ew + 2), ey - 2 + i * 3.5, cx + sx * (ew + 12), ey - 5 + i * 6, dk(skin, 0.5), 0.9, 0.3); t.soft(cx, ey + 8, 14, dk(skin, 0.4), 0.14, 6); }
@@ -155,7 +155,7 @@ function paintHead(t: L, s: PedSpec, rng: Rng): void {
       const u = i / 37, x = cx - sx * 0 + (-22 + u * 44) * 1, rise = arch ? -Math.sin(u * Math.PI) * 6 - 0 : -u * 3 * sx * -1 * 0 - Math.sin(u * Math.PI) * 2.5;
       const thick = bw * (1 - Math.pow(Math.abs(u - (sx < 0 ? 0.75 : 0.25)) * 1.2, 2) * 0.7);
       const yy = by + rise + (sx < 0 ? u * 2.2 - 1.1 : (1 - u) * 2.2 - 1.1) * (arch ? 0 : 1) + rng.range(-0.6, 0.6);
-      t.line(x, yy + thick / 2, x + 2.4 * sx * -1, yy - thick / 2, bc, 1.3, 0.5);
+      t.line(x, yy + thick / 2, x + 2.4 * sx * -1, yy - thick / 2, bc, 1.1, 0.34);
     }
     if (f.glasses) { const gc = f.glasses; for (const [a, b, c2, d] of [[-27, -15, 27, -15], [-27, 15, 27, 15], [-27, -15, -27, 15], [27, -15, 27, 15]]) t.line(cx + a, ey + b, cx + c2, ey + d, gc, 2.2); t.rect(cx - 26, ey - 14, 52, 28, '#cfe3ee', 0.12); t.line(cx - 22, ey - 12, cx - 8, ey + 4, '#ffffff', 1.6, 0.25); }
   }
@@ -251,9 +251,9 @@ function paintTorso(t: L, s: PedSpec, rng: Rng): void {
     case 'vest': t.rect(30, 0, 70, H, c); t.rect(W - 100, 0, 70, H, c); for (const y of [50, 92]) { t.rect(30, y, 70, 9, '#dadada', 1, 160, 130); t.rect(W - 100, y, 70, 9, '#dadada', 1, 160, 130); } t.rect(cx - 2, 0, 4, H, '#444'); break;
     case 'jacket': case 'cardigan': {
       // closed coat: the shirt shows only in the V above the top button, the fronts meet in a placket below it
-      const vEnd = p.long ? 22 : p.kind === 'cardigan' ? 70 : 56;   // a knee-length coat stretches the tile over twice the height: a short V
+      const vEnd = p.long ? 14 : p.kind === 'cardigan' ? 70 : 56;   // a knee-length coat stretches the tile over twice the height: a short V
       t.rect(cx - 42, 0, 84, H, dk(c, 0.04), 1, 122);
-      t.poly([[cx - 22, 0], [cx + 22, 0], [cx + 2, vEnd], [cx - 2, vEnd]], p.under ?? '#f4f4f4', 1, 128);
+      t.poly([[cx - (p.long ? 11 : 22), 0], [cx + (p.long ? 11 : 22), 0], [cx + 2, vEnd], [cx - 2, vEnd]], p.under ?? '#f4f4f4', 1, 128);
       t.poly([[cx - 42, 0], [cx - 18, 0], [cx - 3, vEnd - 8], [cx - 26, 30]], lt(c, 0.12), 1, 150); t.poly([[cx + 42, 0], [cx + 18, 0], [cx + 3, vEnd - 8], [cx + 26, 30]], lt(c, 0.12), 1, 150);
       t.rect(cx - 1, vEnd, 2, H - vEnd, dk(c, 0.45), 0.85, 100);
       if (p.tie) t.poly([[cx - 4, 4], [cx + 4, 4], [cx + 5, 18], [cx + 2, vEnd - 4], [cx, vEnd], [cx - 2, vEnd - 4], [cx - 5, 18]], p.tie, 1, 150);

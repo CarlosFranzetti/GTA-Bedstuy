@@ -127,6 +127,12 @@ export class NeuralTts implements TtsEngine {
     });
   }
 
+  demote(): void {
+    if (this._slow) return;
+    this._slow = true;
+    this.warn('HD voices are too slow on this device; using system voices');
+  }
+
   cancelAll(): void {
     const dropped = this.queue.splice(0);
     for (const j of dropped) j.reject(new Error('cancelled'));
