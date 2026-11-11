@@ -182,7 +182,13 @@ function route(kind: 'broadway' | 'street'): { name: string; pts: Array<{ x: num
   const dir = { x: b.x - a.x, z: b.z - a.z }; const dl = Math.hypot(dir.x, dir.z) || 1;
   const order = edges.map((e, i) => ({ e, t: ((mids[i].x - a.x) * dir.x + (mids[i].z - a.z) * dir.z) / dl })).sort((p, q) => p.t - q.t).map((o) => o.e);
   const pts: Array<{ x: number; z: number }> = [];
-  for (const e of order) { let from = net.pointAt(e, 0).p; const to = net.pointAt(e, net.lengths[e]).p; if (pts.length && Math.hypot(from.x - pts[pts.length - 1].x, from.z - pts[pts.length - 1].z) > Math.hypot(to.x - pts[pts.length - 1].x, to.z - pts[pts.length - 1].z)) from = to; for (let s = 0; s <= net.lengths[e]; s += 30) pts.push(net.pointAt(e, from === net.pointAt(e, 0).p ? s : net.lengths[e] - s).p); }
+  for (const e of order) {
+    const L = net.lengths[e];
+    const p0 = net.pointAt(e, 0).p, p1 = net.pointAt(e, L).p;
+    const last = pts[pts.length - 1];
+    const rev = last ? Math.hypot(p1.x - last.x, p1.z - last.z) < Math.hypot(p0.x - last.x, p0.z - last.z) : false;
+    for (let t = 0; t <= L; t += 30) pts.push(net.pointAt(e, rev ? L - t : t).p);
+  }
   return { name, pts };
 }
 

@@ -11,6 +11,7 @@ ap.add_argument('src'); ap.add_argument('dst')
 ap.add_argument('--crop'); ap.add_argument('--size', default='1600x900'); ap.add_argument('--flip', action='store_true')
 ap.add_argument('--q', type=int, default=62); ap.add_argument('--seed', type=int, default=7); ap.add_argument('--warm', type=float, default=1.0)
 ap.add_argument('--line', type=float, default=1.0)
+ap.add_argument('--focus', help='cx,cy,rx,ry in 0..1: the hero. Inside: heavy ink and rim; outside: lighter, flatter, cooler')
 a = ap.parse_args()
 img = Image.open(a.src).convert('RGB')
 if a.crop: img = img.crop(tuple(int(v) for v in a.crop.split(',')))
@@ -18,6 +19,16 @@ W, H = (int(v) for v in a.size.split('x'))
 if a.flip: img = img.transpose(Image.FLIP_LEFT_RIGHT)
 img = img.resize((W, H), Image.LANCZOS)
 rng = np.random.default_rng(a.seed)
+if a.focus:
+    fx, fy, frx, fry = (float(v) for v in a.focus.split(','))
+    yy0, xx0 = np.mgrid[0:H, 0:W].astype(np.float32)
+    foc = np.exp(-(((xx0 / W - fx) / frx) ** 2 + ((yy0 / H - fy) / fry) ** 2) ** 1.5)
+    foc = np.asarray(Image.fromarray((foc * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(18))).astype(np.float32) / 255.0
+else:
+    foc = np.ones((H, W), np.float32) * 0.6
+# background: a touch of depth haze before the tones are computed
+bgblur = img.filter(ImageFilter.GaussianBlur(2.2))
+img = Image.fromarray((np.asarray(img) * foc[..., None] + np.asarray(bgblur) * (1 - foc[..., None])).astype(np.uint8))
 
 # 1. flatten: edge-preserving-ish smoothing (median passes) so surfaces become shapes
 sm = img.filter(ImageFilter.GaussianBlur(1.4)).filter(ImageFilter.MedianFilter(7)).filter(ImageFilter.GaussianBlur(0.8))
@@ -54,12 +65,16 @@ def sobel(x):
     return np.pad(np.hypot(gx, gy), 1)
 e = sobel(g) + 0.5 * sum(sobel(c[..., k]) for k in range(3)) / 3.0
 thr = np.percentile(e, 96.5) * (1.0 / a.line)
-ink = (e > thr).astype(np.uint8) * 255
+thr_map = thr * (1.9 - 1.0 * foc)  # background lines need a stronger edge to appear
+ink = (e > thr_map).astype(np.uint8) * 255
 inkimg = Image.fromarray(ink).filter(ImageFilter.GaussianBlur(0.9))
 m = (np.asarray(inkimg).astype(np.float32) / 255.0)
 m = np.clip((m - 0.3) * 1.9, 0, 0.88)[..., None]
 inkc = np.array([0.045, 0.035, 0.06], np.float32)
 out = tone * (1 - m) + inkc * m
+cool = np.array([0.92, 0.97, 1.08], np.float32)
+out = out * (1 - (1 - foc)[..., None] * 0.35) + (out * cool) * ((1 - foc)[..., None] * 0.35)  # background: cooler
+out = out * (0.82 + 0.18 * foc[..., None]) + (1 - foc[..., None]) * 0.03  # and a little flatter / lighter
 
 # 5. vignette + grain
 yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)

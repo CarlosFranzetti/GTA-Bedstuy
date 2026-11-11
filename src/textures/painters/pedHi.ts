@@ -372,7 +372,7 @@ function paintTorso(t: L, s: PedSpec, rng: Rng): void {
   const isVest = p.kind === 'vest', isApron = p.kind === 'apron';
   const baseC = isVest ? (p.under ?? '#222') : isApron ? (p.under ?? '#2d7a4a') : c;
   const st = lt(mixHex(baseC, '#c89a4a', 0.5), 0.1);              // top-stitch colour that reads on this cloth
-  const formal = p.kind === 'jacket' || p.kind === 'uniform';
+  const formal = p.kind === 'jacket' || p.kind === 'uniform', SK = peopleMode() === 'skin';   // in skin mode the first design rows lie across the shoulders, so no full-width collar strips
   fabric(t, 0, 0, W, H, baseC, isVest || isApron ? 'jersey' : fab, rng);
   if (p.pattern === 'heather' || p.kind === 'hoodie' || p.kind === 'tee') speck(t, 0, 0, W, H, baseC, rng, 520, p.pattern === 'heather' ? 0.4 : 0.14);
   // the chest takes the light, the flanks and the hem fall off; creases where the body folds
@@ -411,7 +411,7 @@ function paintTorso(t: L, s: PedSpec, rng: Rng): void {
       t.poly([[0, 0], [58, 0], [70, H], [0, H]], p.trim, 0.95, 128, 236); t.poly([[W, 0], [W - 58, 0], [W - 70, H], [W, H]], p.trim, 0.95, 128, 236);
       if (p.pattern === 'block') { t.poly([[cx - 46, 0], [cx + 46, 0], [cx + 18, H - 20], [cx - 74, H - 20]], dk(c, 0.18), 0.9, 128); }
       for (let y = 4; y < H - 16; y += 5) for (let x = (y / 5) % 2 ? 2 : 0; x < W; x += 5) t.rect(x, y, 1.4, 1.4, '#000000', 0.22, 80);
-      rib(t, 0, 0, W, 8, p.trim, false); t.rect(0, H - 24, W, 3, p.trim, 0.9); t.rect(0, H - 19, W, 1.6, p.trim, 0.8); rib(t, 0, H - 13, W, 13, c, false);
+      if (!SK) rib(t, 0, 0, W, 8, p.trim, false); t.rect(0, H - 24, W, 3, p.trim, 0.9); t.rect(0, H - 19, W, 1.6, p.trim, 0.8); rib(t, 0, H - 13, W, 13, c, false);
       break;
     }
     case 'vest': {
@@ -450,7 +450,7 @@ function paintTorso(t: L, s: PedSpec, rng: Rng): void {
       if (denim) { t.poly([[cx - 40, 0], [cx - 16, 0], [cx - 6, 26], [cx - 34, 20]], lt(c, 0.1), 1, 150, 230); t.poly([[cx + 40, 0], [cx + 16, 0], [cx + 6, 26], [cx + 34, 20]], lt(c, 0.1), 1, 150, 230); }
       else if (canvas) { t.poly([[cx - 44, 0], [cx - 14, 0], [cx - 4, 22], [cx - 38, 18]], mixHex(c, '#3a2410', 0.5), 1, 146, 245); t.poly([[cx + 44, 0], [cx + 14, 0], [cx + 4, 22], [cx + 38, 18]], mixHex(c, '#3a2410', 0.5), 1, 146, 245); }
       else { t.poly([[cx - 42, 0], [cx - 18, 0], [cx - 3, vEnd > 20 ? Math.min(vEnd - 8, 48) : 12], [cx - 28, 28]], lt(c, 0.14), 1, 156); t.poly([[cx + 42, 0], [cx + 18, 0], [cx + 3, vEnd > 20 ? Math.min(vEnd - 8, 48) : 12], [cx + 28, 28]], lt(c, 0.14), 1, 156); t.line(cx - 28, 28, cx - 3, vEnd > 20 ? Math.min(vEnd - 8, 48) : 12, '#000000', 1.2, 0.35, 90); t.line(cx + 28, 28, cx + 3, vEnd > 20 ? Math.min(vEnd - 8, 48) : 12, '#000000', 1.2, 0.35, 90); }
-      t.rect(0, 0, W, 5, dk(c, 0.25), 0.9, 108);                                                                       // collar stand round the neck
+      if (!SK) t.rect(0, 0, W, 5, dk(c, 0.25), 0.9, 108);                                                              // collar stand round the neck
       if (knit) { for (let x = 0; x < W; x += 3) t.rect(x, 0, 1.1, H, dk(c, 0.25), 0.25, 108); rib(t, 0, H - 12, W, 12, c); t.rect(cx - 36, 82, 24, 24, dk(c, 0.1), 0.7, 118); stitch(t, cx - 36, 82, cx - 12, 82, lt(c, 0.25), 0.5); }
       else if (denim) {
         t.curve(0, 26, cx, 34, W, 26, dk(c, 0.4), 1.8, 0.6); stitch(t, 0, 29, W, 29, '#d8a050', 0.8); stitch(t, 0, 23, W, 23, '#d8a050', 0.8);   // yoke
@@ -540,7 +540,8 @@ function paintTorso(t: L, s: PedSpec, rng: Rng): void {
   if (!isVest && !formal && p.kind !== 'cardigan' && p.print !== 'stripes' && p.print !== 'none' && p.kind !== 'jersey') motif(t, p.print, cx, p.kind === 'hoodie' ? 62 : 60, 60, p.printColor, rng);
   // the garment sags: dirt and wear at the hem, shadow under the arms and the collar
   hemDirt(t, 0, 0, W, H, rng, 0.03);
-  t.rect(0, 0, W, 4, '#000000', 0.2); t.rect(0, H - 10, W, 10, '#000000', 0.12);
+  if (!SK) t.rect(0, 0, W, 4, '#000000', 0.2);
+  t.rect(0, H - 10, W, 10, '#000000', 0.12);
 }
 
 function sleeve(t: L, s: PedSpec, rng: Rng, lower: boolean): void {
@@ -779,6 +780,14 @@ function paintClothesOnSkin(T: (n: HiTile, sy?: number, yo?: number) => L, s: Pe
   }
   paintHand(T('hand'), s, rng);
   paintNeck(T('neck'), s, rng);
+  // the collar: the lower part of the neck tile is the garment's collar band, so the neckline is one clean line
+  if (!['scrubs', 'blouse', 'dress', 'apron', 'vest'].includes(p.kind)) {
+    const nt = T('neck'), collar = p.kind === 'uniform' ? '#f1efe6' : baseTop;
+    nt.rect(0, 40, 128, 24, collar, 1, 128, 232);
+    if (['tee', 'hoodie', 'jersey', 'tracksuit', 'puffer'].includes(p.kind)) rib(nt, 0, 44, 128, 20, collar, false);
+    for (let i = 0; i < 10; i++) nt.rect(0, 30 + i, 128, 1, collar, 0.7 * (i / 10));
+    nt.rect(0, 40, 128, 2, '#000000', 0.25);
+  }
   // legs
   const kind = b.kind;
   for (const [tile, ssy, syo, lower] of [['thigh', 0.766, 18.1, false], ['shin', 0.88, 7.4, true]] as const) {
@@ -801,7 +810,9 @@ function paintClothesOnSkin(T: (n: HiTile, sy?: number, yo?: number) => L, s: Pe
     if (p.pattern === 'plaid') plaid(pr.at({ x: HI_RECTS.pelvis.x, y: HI_RECTS.pelvis.y, w: 128, h: Math.max(1, Math.round(rows)) }), 128, rows, hc);
     if (isRib) rib(pr, 0, Math.max(0, rows - 11), 128, Math.min(11, rows), p.kind === 'tracksuit' ? p.trim : hc);
     else { pr.rect(0, rows - 7, 128, 7, dk(hc, 0.08), 1, 124); stitch(pr, 0, rows - 5, 128, rows - 5, lt(hc, 0.3), 0.55); }
-    pr.rect(0, rows, 128, 4, '#000000', 0.3); pr.rect(0, rows + 4, 128, 3, '#000000', 0.12);
+    // the island borders of the body mesh follow triangle edges, so the hem fades over a few centimetres instead of being a razor line
+    for (let i = 0; i < 12; i++) pr.rect(0, rows + i, 128, 1, hc, 0.7 * (1 - i / 12) * (1 - i / 12));
+    pr.rect(0, rows, 128, 3, '#000000', 0.28); pr.rect(0, rows + 3, 128, 5, '#000000', 0.1);
   }
   // a long coat carries on down the thighs
   if (p.long && p.kind !== 'dress') {

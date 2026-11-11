@@ -470,10 +470,10 @@ function skinExtras(s: MhShape, spec: PedSpec, hi: boolean): THREE.BufferGeometr
   if (spec.top.kind === 'hoodie') {
     const nk = ringAt(hr, lm.chinY - 0.02), y0 = lm.chinY - 0.1, w = 1 + (bt.shoulders - 1) * 0.5;
     out.push(loft([
-      { y: y0 - 0.05, rx: (nk.rx + 0.055) * w, rz: nk.rz + 0.05, cz: nk.cz + 0.05 },
-      { y: y0 + 0.01, rx: (nk.rx + 0.07) * w, rz: nk.rz + 0.06, cz: nk.cz + 0.06 },
-      { y: y0 + 0.07, rx: nk.rx + 0.045, rz: nk.rz + 0.045, cz: nk.cz + 0.045 },
-      { y: lm.chinY + 0.0, rx: nk.rx + 0.03, rz: nk.rz + 0.03, cz: nk.cz + 0.02 },
+      { y: y0 - 0.06, rx: (nk.rx + 0.05) * w, rz: nk.rz + 0.04, cz: nk.cz + 0.045 },
+      { y: y0 - 0.0, rx: (nk.rx + 0.058) * w, rz: nk.rz + 0.048, cz: nk.cz + 0.05 },
+      { y: y0 + 0.05, rx: nk.rx + 0.032, rz: nk.rz + 0.032, cz: nk.cz + 0.03 },
+      { y: lm.chinY - 0.02, rx: nk.rx + 0.022, rz: nk.rz + 0.022, cz: nk.cz + 0.012 },
     ], seg, HI_RECTS.torso, 2, 'bottom'));
   }
   if (spec.top.long && spec.top.kind !== 'dress') {
