@@ -8,6 +8,7 @@ import type {
   GraphNode, GridModel, IMaterialLibrary, IVehicle, IWorld2D, LaneNode, Lot, VehicleType,
 } from '@/world/types';
 import { PedSpawnScheduler, LOCAL_RADIUS, NEAR_SHARE, RECYCLE_DIST, RECYCLE_DIST_DEFICIT, REMOVE_CLEAR, SPAWN_RING_MIN, spawnAllowed } from '@/entities/PedestrianSpawn';
+import { PedSocial } from '@/game/PedSocial';
 import { Pedestrian, type PedCrossing, type PedEnvironment, type StoopSpot } from '@/entities/Pedestrian';
 import { TrafficAgent } from '@/entities/TrafficAgent';
 import { VEHICLE_SPECS } from '@/entities/Vehicle';
@@ -210,6 +211,8 @@ export class TrafficSystem {
   private hourFactor = 1;
   private pedTimer = 0;
   private readonly pedSched = new PedSpawnScheduler();
+  /** neighbourly behaviour of the pedestrians near the player (conversations, greetings, reactions, barks) */
+  readonly social: PedSocial;
   /** the scheduler's own stream (seeded from a label, not forked from `rng`): ped relocation never shifts the cars' random sequence */
   private readonly pedRng = new Rng(Rng.hash('pedsched'));
   private playerAt: Vec2;
@@ -239,6 +242,7 @@ export class TrafficSystem {
       stoops: lots ? buildStoopSpots(lots) : undefined,
       doors: lots ? buildDoorSpots(lots) : undefined,
     };
+    this.social = new PedSocial(events, { rng: new Rng(Rng.hash('pedsocial')), maxPairs: this.density.peds >= 24 ? 4 : this.density.peds >= 8 ? 2 : 1 });
     this.spawnParked();
     this.spawnPeds();
     this.offs.push(
@@ -254,6 +258,7 @@ export class TrafficSystem {
    */
   setDensity(d: Partial<TrafficDensity>): void {
     this.density = { ...this.density, ...d };
+    this.social.setMaxPairs(this.density.peds >= 24 ? 4 : this.density.peds >= 8 ? 2 : 1);
     this.fitPeds(true);
     if (this.density.parkOccupancy < this.parkedShare) {
       const keep = this.density.parkOccupancy / Math.max(1e-6, this.parkedShare);
@@ -278,6 +283,7 @@ export class TrafficSystem {
    */
   setHour(hour: number, snap = false): void {
     this.hourFactor = pedHourFactor(hour);
+    this.social.setHour(hour);
     setPedDayContext(hour); // GTA3 people: church clothes are likelier in the late morning
     (this.pedEnv as { idleBoost?: number }).idleBoost = idleBoostForHour(hour);
     if (snap) this.fitPeds(true);
@@ -398,6 +404,7 @@ export class TrafficSystem {
     this.lights.update(dt);
     { const mx = playerPos.x - this.playerAt.x, mz = playerPos.z - this.playerAt.z, m = hyp(mx, mz); if (m > 0.02 && m < 20) this.facing = { x: mx / m, z: mz / m }; }
     this.playerAt = playerPos;
+    this.social.update(dt, this.peds, playerPos);
     this.pedTimer += dt;
     if (this.pedTimer >= PED_TICK) { const e = this.pedTimer; this.pedTimer = 0; this.stepPeds(e); }
     // drive
@@ -432,6 +439,7 @@ export class TrafficSystem {
   }
 
   dispose(): void {
+    this.social.dispose();
     for (const off of this.offs) off();
     this.offs.length = 0;
   }
