@@ -15,6 +15,9 @@ const SPAWN_MAX = 140;
 const DESPAWN_OFF_DUTY = 150;
 const DESPAWN_LOST = 240;
 const HIT_COOLDOWN = 2;
+/** a runaway faster than this does not get a dispatch placed within this cone (cosine) ahead of it */
+const AHEAD_MIN_SPEED = 8;
+const AHEAD_CONE_COS = 0.5;
 const HIT_IMPULSE = 3;
 const DESPAWN_PATROL = 190;
 const PATROL_SPAWN_PERIOD = 2;
@@ -131,7 +134,7 @@ export class CopSystem {
     while (onDuty < wanted) {
       const off = this.entries.find((e) => e.vehicle.driver === 'cop' && !e.agent.pursuing);
       if (off) off.agent.setPursuing(true);
-      else if (!this.spawn(playerPos)) break;
+      else if (!this.spawn(playerPos, false, quarry?.vel)) break;
       onDuty++;
     }
 
@@ -243,7 +246,12 @@ export class CopSystem {
     return found;
   }
 
-  private spawn(playerPos: Vec2, patrol = false): boolean {
+  /**
+   * A pursuit car appears 100 to 140 m out. Against a player running at speed it is placed off the forward cone (the road
+   * ahead) for the first attempts: a car spawned in the lane a runaway is about to take is a head-on at a combined 45 m/s,
+   * not a chase. The bigger the road net the likelier that was, so the bias is part of the dispatch, not luck.
+   */
+  private spawn(playerPos: Vec2, patrol = false, playerVel?: Vec2): boolean {
     const nodes = this.laneNodes;
     if (nodes.length === 0) return false;
     for (let attempt = 0; attempt < 24; attempt++) {
@@ -251,6 +259,10 @@ export class CopSystem {
       if (n.stopLine) continue;
       const d = dist(n.pos, playerPos);
       if (d < SPAWN_MIN || d > SPAWN_MAX) continue;
+      if (!patrol && playerVel && attempt < 16) {
+        const sp = Math.hypot(playerVel.x, playerVel.z);
+        if (sp > AHEAD_MIN_SPEED && ((n.pos.x - playerPos.x) * playerVel.x + (n.pos.z - playerPos.z) * playerVel.z) / (d * sp) > AHEAD_CONE_COS) continue;
+      }
       if (this.world.queryCircle(n.pos, 5).length > 0) continue;
       const v = this.makeVehicle('cop', { x: n.pos.x, z: n.pos.z }, n.heading, '#1b2a4a');
       v.driver = 'cop';
