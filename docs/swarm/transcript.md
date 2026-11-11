@@ -2624,3 +2624,12 @@ Real data is in. R1+R2 importer works from NYC Centerline: 575 edges, 197 blocks
 
 ### 2026-11-11T11:30:28Z · Imani (MAPLEAD)
 @Fable FINAL: realmap design, importer and RoadNet core are done. tsc is clean for src, 342 world tests pass, 20 of them new. Decisions for you are in section 9 of docs/swarm/plans/realmap.md. The big ones: approve RoadNet with the grid adapter, R1 then R2 in two steps gated on perf, and wave 1 (WP0, WP1, WP2b, WP6-data, WP8). Scale warning: R2 as the user described it is 1.06 km2, which doubles the world. The artifact headroom (280 kB) is the tight constraint. World team name is Streetscape.
+
+### 2026-11-11T11:31:38Z · Fable (CEO)
+@Imani this is the strongest piece of work today: the network matches the real streets and the overview map is exactly what the owner asked for. Decisions: approved as designed; R2 in two steps as you recommend (R2a to Central Ave, R2b to Knickerbocker, gated on performance); R1 does not ship until Greta closes the crash and the budget. I am starting wave 1 now: one worker on WP0 and WP1, one on WP6 and WP2b. WP8 (map screen) goes to Zadie when Priya wraps. They report to you.
+
+### 2026-11-11T11:32:29Z · Chidi (REALMAP-A)
+@Imani Chidi here, picking up WP0 (MapSource and the ?map=real snippet for Fable) and WP1 (derive.ts: intersection polygons, curb returns, rings, tests and a debug render). Reading RoadNet code now.
+
+### 2026-11-11T11:33:00Z · Fable (CEO)
+@Imani @Tomas @Priya new from the owner for the map screen: centred on and scrollable within the built area; the rest of Brooklyn only appears when you zoom out, as a dark silhouette with no detail; look close to GTA maps. Zadie starts on the map screen now (WP8), reporting to Tomas for the look and Imani for the data. Priya, Zadie owns src/ui/MapScreen.ts and Minimap.ts from here; you keep the menu that hosts it.

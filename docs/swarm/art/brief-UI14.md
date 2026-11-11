@@ -51,3 +51,10 @@ the loading screen holds up next to a GTA 5 loading screen in composition and dr
 ## Rules (stage14.md)
 Fan tribute, original or openly licensed assets only; no game assets, no Apple trademarks or icons. Only Fable edits
 src/main.ts. Never git stash, never commit, keep src/ compiling, one render job at a time.
+
+## Owner's map spec (11 Nov, overrides anything above that conflicts)
+"Make the map centered and scrollable for the rendered area; the rest you can see in zoom out but no detail; should be close to GTA maps."
+- Opens centred on the built (playable) area, fitted to the screen, player at centre if inside it.
+- Pan and scroll are confined to the built area plus a small margin at normal zoom.
+- Zooming out reveals the rest of Brooklyn as a dark, low-detail silhouette: land, shoreline, major roads only, neighbourhood names; no local streets, no labels beyond that.
+- GTA map idiom: dark desaturated land, lighter street grid for built streets, water darker blue-black, blips with a legend, a north-up compass, waypoint line, crisp icons, player arrow, mission letters, zoom levels with snap, smooth inertia.

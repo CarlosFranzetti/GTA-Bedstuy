@@ -336,6 +336,7 @@ export class Pedestrian implements Entity {
   }
 
   dispose(): void {
+    this.dropChat(false, 5);
     this.detach();
     this.object3D.removeFromParent();
   }

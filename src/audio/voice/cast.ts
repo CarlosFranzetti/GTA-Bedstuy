@@ -86,3 +86,9 @@ export const CAST: readonly CastMember[] = [
 const byId = new Map(CAST.map((c) => [c.id, c]));
 export const CAST_MAP: ReadonlyMap<string, CastMember> = byId;
 export function castMember(id: string): CastMember | undefined { return byId.get(id); }
+
+/** Pedestrian voices are made on the fly (PedVoice): one cast member per person, kept out of the show cast. Old ones are dropped past `keep`. */
+export function registerPedCast(c: CastMember, keep = 300): void {
+  byId.set(c.id, c);
+  if (byId.size > CAST.length + keep) for (const k of [...byId.keys()]) if (k.startsWith('ped:') && k !== c.id) { byId.delete(k); if (byId.size <= CAST.length + keep / 2) break; }
+}
