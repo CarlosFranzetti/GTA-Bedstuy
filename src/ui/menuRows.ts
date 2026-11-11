@@ -226,7 +226,7 @@ export class RowList {
     const built: Built = { spec, el, val };
     const arrow = (cls: string, glyph: string, delta: -1 | 1): HTMLButtonElement => {
       const b = d.createElement('button');
-      b.type = 'button'; b.tabIndex = -1; b.className = `gp-arrow ${cls}`; b.textContent = glyph;
+      b.type = 'button'; b.tabIndex = -1; b.className = `gp-arrow ${cls}`; b.textContent = glyph === '\u2039' ? '\u25C4' : '\u25BA';
       b.setAttribute('aria-label', delta < 0 ? `Decrease ${spec.label}` : `Increase ${spec.label}`);
       b.addEventListener('click', (e) => { e.stopPropagation(); this.pointerTo(built); this.adjust(delta); });
       return b;

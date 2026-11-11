@@ -32,12 +32,14 @@ describe('Menu (open-world pause layout)', () => {
   afterEach(() => { parent.remove(); });
 
   const press = (code: string, opts: KeyboardEventInit = {}) => (document.activeElement ?? document.body).dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true, ...opts }));
-  const cat = (m: Menu, id: string) => m.root.querySelector<HTMLElement>(`.gp-cats [data-id="cat:${id}"]`)!;
-  const row = (m: Menu, id: string) => m.root.querySelector<HTMLElement>(`.gp-pane-settings .gp-opts [data-id="${id}"]`)!;
-  const rows = (m: Menu) => [...m.root.querySelectorAll<HTMLElement>('.gp-pane-settings .gp-opts .gp-row')].filter((r) => !r.hidden);
-  const hi = (m: Menu) => m.root.querySelector<HTMLElement>('.gp-pane-settings .gp-opts .gp-row.hi')!;
-  /** opens the menu on a settings category with the focus in the options column */
-  const enter = (m: Menu, id: string) => { m.open(); cat(m, id).click(); };
+  const row = (m: Menu, id: string) => m.root.querySelector<HTMLElement>(`.gp-pane-settings .gp-list [data-id="${id}"]`)!;
+  const rows = (m: Menu) => [...m.root.querySelectorAll<HTMLElement>('.gp-pane-settings .gp-list .gp-row')].filter((r) => !r.hidden);
+  const hi = (m: Menu) => m.root.querySelector<HTMLElement>('.gp-pane-settings .gp-list .gp-row.hi')!;
+  const act = (m: Menu, name: string) => m.root.querySelector<HTMLButtonElement>(`.gp-act-${name}`)!;
+  /** goes to a row with the arrow keys / navigate and returns it */
+  const goto = (m: Menu, id: string) => { for (let i = 0; i < 80 && hi(m)?.dataset.id !== id; i++) m.navigate('down'); return row(m, id); };
+  const enter = (m: Menu, id?: string) => { m.open(); if (id) goto(m, id); };
+  const val = (m: Menu, id: string) => row(m, id).querySelector('.gp-text')!.textContent;
 
   it('starts hidden (hidden attribute, not display hacks) and toggles with open/close + onPause', () => {
     const cb = cbs();
@@ -65,13 +67,13 @@ describe('Menu (open-world pause layout)', () => {
     expect(menu.isOpen).toBe(false);
   });
 
-  it('is a labelled modal dialog and focuses the highlighted category on open', () => {
+  it('is a labelled modal dialog and focuses the first selectable row on open', () => {
     const menu = new Menu(parent, {}, { storage: null });
     menu.open();
     expect(menu.root.getAttribute('role')).toBe('dialog');
     expect(menu.root.getAttribute('aria-modal')).toBe('true');
     expect(menu.root.hasAttribute('data-ui-modal')).toBe(true);
-    expect(document.activeElement).toBe(cat(menu, 'display'));
+    expect(document.activeElement).toBe(hi(menu));
   });
 
   describe('header and tabs', () => {
@@ -129,96 +131,140 @@ describe('Menu (open-world pause layout)', () => {
     });
   });
 
-  describe('settings: keyboard', () => {
-    it('lists the eight categories', () => {
-      const menu = new Menu(parent, {}, { storage: null });
-      expect([...menu.root.querySelectorAll('.gp-cats .gp-lab')].map((n) => n.textContent)).toEqual(['Display', 'Graphics', 'Advanced Graphics', 'Audio', 'Controls', 'Camera', 'Radio / Voices', 'Game']);
-    });
-
-    it('up / down moves through categories (the options follow), right enters the options, Backspace returns', () => {
+  describe('settings: one list with pending changes', () => {
+    it('is a single scrolling list with yellow sub-headers and the APPLY / DEFAULTS / BACK stack', () => {
       const menu = new Menu(parent, {}, { storage: null, fullscreen: null });
-      menu.open();
-      expect(menu.category).toBe('display');
-      press('ArrowDown'); expect(menu.category).toBe('graphics');
-      expect(row(menu, 'g:shadows')).not.toBeNull();
-      expect(menu.focusColumn).toBe('cats');
-      press('ArrowRight');
-      expect(menu.focusColumn).toBe('opts');
-      expect(hi(menu).dataset.id).toBe('quality');
-      press('ArrowDown'); expect(hi(menu).dataset.id).toBe('g:shadows');
-      press('ArrowUp'); press('ArrowUp'); expect(hi(menu).dataset.id).toBe('g:aa'); // wraps
-      press('Backspace');
-      expect(menu.focusColumn).toBe('cats');
-      expect(menu.isOpen).toBe(true);
-      press('Backspace'); // at the top level Backspace resumes
-      expect(menu.isOpen).toBe(false);
+      expect(menu.root.querySelector('.gp-cats')).toBeNull();
+      expect([...menu.root.querySelectorAll('.gp-pane-settings .gp-sub')].map((n) => n.textContent)).toEqual(['Display', 'Graphics', 'Audio', 'Controls', 'Game', 'Keyboard & mouse controls', 'Minimap']);
+      expect([...menu.root.querySelectorAll('.gp-act')].map((n) => n.textContent)).toEqual(['Apply', 'Defaults', 'Back']);
+      expect(menu.root.querySelector('.menu-title')!.textContent).toBe('Settings');
     });
 
-    it('left / right changes a segmented row, a slider and a toggle, calls the host and persists', () => {
+    it('up / down move through the rows and skip the sub-headers; arrows past the end reach the action stack', () => {
+      const menu = new Menu(parent, {}, { storage: null, fullscreen: null, initialQuality: 'medium' });
+      menu.open();
+      expect(hi(menu).dataset.id).toBe('g:fpsCap'); // window mode is hidden without full screen support; headers are never selected
+      press('ArrowDown'); expect(hi(menu).dataset.id).toBe('g:resolution');
+      press('ArrowUp'); press('ArrowUp');
+      expect(menu.focusZone).toBe('list');
+      for (let i = 0; i < 60 && menu.focusZone === 'list'; i++) press('ArrowDown');
+      expect(menu.focusZone).toBe('acts');
+      expect(act(menu, 'apply').classList.contains('hi')).toBe(true);
+      press('ArrowDown'); expect(act(menu, 'defaults').classList.contains('hi')).toBe(true);
+      press('ArrowUp'); press('ArrowUp');
+      expect(menu.focusZone).toBe('list');
+    });
+
+    it('left / right change a segmented row, a slider and a toggle as PENDING: nothing reaches the host until APPLY', () => {
       const cb = cbs();
       const store = memStore();
       const menu = new Menu(parent, cb, { storage: store, initialQuality: 'medium', fullscreen: null });
-      enter(menu, 'graphics');
-      expect(hi(menu).dataset.id).toBe('quality');
+      enter(menu, 'quality');
       press('ArrowRight');
+      expect(val(menu, 'quality')).toBe('High');
+      expect(menu.pendingCount).toBe(1);
+      expect(cb.onQuality).not.toHaveBeenCalled();
+      goto(menu, 'master'); press('ArrowLeft');
+      expect(val(menu, 'master')).toBe('95%');
+      goto(menu, 'invert'); press('ArrowRight');
+      expect(val(menu, 'invert')).toBe('ON');
+      expect(menu.pendingCount).toBe(3);
+      expect(cb.onMasterVolume).not.toHaveBeenCalled();
+      expect(store.data[SETTINGS_KEY]).toBeUndefined();
+      act(menu, 'apply').click();
+      expect(menu.pendingCount).toBe(0);
       expect(cb.onQuality).toHaveBeenLastCalledWith('high');
-      expect(menu.settings.quality).toBe('high');
-      press('ArrowLeft'); press('ArrowLeft');
-      expect(cb.onQuality).toHaveBeenLastCalledWith('low');
-      cat(menu, 'audio').click();
-      press('ArrowLeft'); // master 100 -> 95
       expect(cb.onMasterVolume).toHaveBeenLastCalledWith(0.95);
-      expect(row(menu, 'master').querySelector('.gp-text')!.textContent).toBe('95%');
-      cat(menu, 'camera').click();
-      press('ArrowDown'); // invert look Y
-      expect(hi(menu).dataset.id).toBe('invert');
-      expect(row(menu, 'invert').querySelector('.gp-text')!.textContent).toBe('OFF');
-      press('ArrowRight');
       expect(cb.onInvertLookY).toHaveBeenLastCalledWith(true);
-      expect(row(menu, 'invert').querySelector('.gp-text')!.textContent).toBe('ON');
-      press('Enter'); // Enter toggles back
-      expect(cb.onInvertLookY).toHaveBeenLastCalledWith(false);
-      expect(JSON.parse(store.data[SETTINGS_KEY])).toEqual({ quality: 'low', auto: false, master: 0.95, radio: 1, invertY: false });
+      expect(JSON.parse(store.data[SETTINGS_KEY])).toEqual({ quality: 'high', auto: false, master: 0.95, radio: 1, invertY: true });
+      expect(val(menu, 'invert')).toBe('ON');
     });
 
-    it('the value arrows and a click on a row change values with the pointer', () => {
+    it('going back to the original value drops the pending change', () => {
+      const menu = new Menu(parent, cbs(), { storage: null, initialQuality: 'medium', fullscreen: null });
+      enter(menu, 'quality');
+      press('ArrowRight'); expect(menu.pendingCount).toBe(1);
+      press('ArrowLeft'); expect(menu.pendingCount).toBe(0);
+    });
+
+    it('arrows, a click on a row and Enter on the keyboard all edit the pending value', () => {
+      const menu = new Menu(parent, cbs(), { storage: null, initialQuality: 'medium', fullscreen: null });
+      menu.open();
+      row(menu, 'master').querySelector<HTMLButtonElement>('.gp-arrow.l')!.click();
+      expect(val(menu, 'master')).toBe('95%');
+      row(menu, 'quality').click(); // click cycles a segmented row
+      expect(val(menu, 'quality')).toBe('High');
+      goto(menu, 'invert'); press('Enter');
+      expect(val(menu, 'invert')).toBe('ON');
+      expect(menu.pendingCount).toBe(3);
+    });
+
+    it('DEFAULTS makes the preset values pending and APPLY commits them (graphics overrides are dropped)', () => {
+      const cb = cbs();
+      const menu = new Menu(parent, cb, { storage: memStore(), initialQuality: 'medium', fullscreen: null });
+      menu.graphics.set('shadows', 'off'); menu.graphics.set('crowd', 0.5);
+      menu.open();
+      expect(val(menu, 'g:shadows')).toBe('Off');
+      act(menu, 'defaults').click();
+      expect(val(menu, 'g:shadows')).toBe('Medium');
+      expect(val(menu, 'g:crowd')).toBe('100%');
+      expect(menu.graphics.hasOverrides).toBe(true); // still pending
+      act(menu, 'apply').click();
+      expect(menu.graphics.hasOverrides).toBe(false);
+      expect(cb.onGraphics).toHaveBeenLastCalledWith(expect.objectContaining({ shadows: 'medium', crowd: 1 }), expect.any(Array));
+    });
+
+    it('BACK with pending changes asks first (DISCARD?), a second press discards and resumes; Esc is BACK', () => {
       const cb = cbs();
       const menu = new Menu(parent, cb, { storage: null, initialQuality: 'medium', fullscreen: null });
-      enter(menu, 'audio');
-      row(menu, 'master').querySelector<HTMLButtonElement>('.gp-arrow.l')!.click();
-      expect(cb.onMasterVolume).toHaveBeenLastCalledWith(0.95);
-      row(menu, 'master').querySelector<HTMLButtonElement>('.gp-arrow.r')!.click();
-      expect(cb.onMasterVolume).toHaveBeenLastCalledWith(1);
-      expect(row(menu, 'master').querySelector<HTMLButtonElement>('.gp-arrow.r')!.disabled).toBe(true);
-      cat(menu, 'graphics').click();
-      row(menu, 'quality').click(); // click cycles a segmented row
+      enter(menu, 'master'); press('ArrowLeft');
+      expect(menu.pendingCount).toBe(1);
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
+      expect(menu.isOpen).toBe(true);
+      expect(act(menu, 'back').textContent).toBe('Discard?');
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
+      expect(menu.isOpen).toBe(false);
+      expect(menu.pendingCount).toBe(0);
+      expect(cb.onMasterVolume).not.toHaveBeenCalled();
+      menu.open();
+      expect(val(menu, 'master')).toBe('100%');
+      act(menu, 'back').click(); // nothing pending: closes at once
+      expect(menu.isOpen).toBe(false);
+    });
+
+    it('Auto Detect Settings and the preset: apply order keeps the chosen preset on top', () => {
+      const cb = cbs();
+      const menu = new Menu(parent, cb, { storage: null, initialQuality: 'medium', auto: true, fullscreen: null });
+      enter(menu, 'autodetect');
+      expect(val(menu, 'autodetect')).toBe('ON');
+      press('ArrowLeft'); // off
+      goto(menu, 'quality'); press('ArrowRight'); // high
+      act(menu, 'apply').click();
+      expect(menu.settings).toMatchObject({ auto: false, quality: 'high' });
+      expect(cb.onAuto).toHaveBeenLastCalledWith(false);
       expect(cb.onQuality).toHaveBeenLastCalledWith('high');
     });
 
-    it('the highlighted row is marked (.hi) and the options list is the active column', () => {
-      const menu = new Menu(parent, {}, { storage: null, fullscreen: null });
-      enter(menu, 'graphics');
-      expect(hi(menu).dataset.id).toBe('quality');
-      expect(menu.root.querySelector('.gp-opts.active')).not.toBeNull();
-      expect(menu.root.querySelector('.gp-cats.active')).toBeNull();
-      expect(menu.root.querySelector('.gp-cats.dim')).not.toBeNull();
+    it('each graphics row maps to a real setting and changes it on APPLY', () => {
+      const menu = new Menu(parent, cbs(), { storage: null, initialQuality: 'high', fullscreen: null });
+      menu.open();
+      const ids = rows(menu).map((r) => r.dataset.id);
+      expect(ids).toEqual(expect.arrayContaining(['g:fpsCap', 'g:resolution', 'g:nativeDpr', 'g:showFps', 'quality', 'autodetect', 'g:shadows', 'g:drawDistance', 'g:treeRange', 'g:crowd', 'g:traffic', 'g:aa', 'g:textures', 'g:ao', 'g:bloom', 'g:dof', 'g:vignette', 'g:grain', 'g:fov', 'master', 'radiovol', 'invert']));
+      row(menu, 'g:ao').click(); row(menu, 'g:dof').click(); row(menu, 'g:bloom').click();
+      row(menu, 'g:traffic').querySelector<HTMLButtonElement>('.gp-arrow.l')!.click();
+      expect(menu.graphics.effective('high')).toMatchObject({ ao: true, dof: true, bloom: true, traffic: 1 });
+      act(menu, 'apply').click();
+      expect(menu.graphics.effective('high')).toMatchObject({ ao: false, dof: false, bloom: false, traffic: 0.75 });
     });
 
-    it('Controls lists the controls of the device in use and follows a device change', () => {
-      const menu = new Menu(parent, {}, { storage: null });
+    it('Controls reference follows the device and Reset position needs a second press', () => {
+      const cb = cbs();
+      const menu = new Menu(parent, cb, { storage: null, fullscreen: null });
       menu.open();
-      cat(menu, 'controls').click();
       expect(rows(menu).some((r) => r.textContent!.includes('Enter / exit car'))).toBe(true);
-      expect(rows(menu).some((r) => r.textContent!.includes('LT'))).toBe(false);
       menu.setInputMode('gamepad');
       expect(rows(menu).some((r) => r.textContent!.includes('Throttle'))).toBe(true);
-    });
-
-    it('Reset position needs a second press and then calls onReset and closes', () => {
-      const cb = cbs();
-      const menu = new Menu(parent, cb, { storage: null });
-      enter(menu, 'game');
-      row(menu, 'reset').click();
+      goto(menu, 'reset').click();
       expect(cb.onReset).not.toHaveBeenCalled();
       expect(row(menu, 'reset').textContent).toContain('PRESS AGAIN');
       row(menu, 'reset').click();
@@ -226,38 +272,36 @@ describe('Menu (open-world pause layout)', () => {
       expect(menu.isOpen).toBe(false);
     });
 
-    it('Radio library calls the host', () => {
+    it('Radio library reaches the host at once (it is an action, not a setting)', () => {
       const cb = cbs();
       const menu = new Menu(parent, cb, { storage: null });
-      enter(menu, 'radio');
+      menu.open();
       row(menu, 'radiolib').click();
       expect(cb.onRadioLibrary).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('gamepad', () => {
-    it('navigate(): up / down select, right enters, left / right change, confirm accepts, back steps out then resumes', () => {
+    it('navigate(): up / down select, left / right change, confirm cycles / accepts, back asks then resumes', () => {
       const cb = cbs();
       const menu = new Menu(parent, cb, { storage: null, initialQuality: 'medium', fullscreen: null });
-      menu.navigate('down'); // closed: inert
-      expect(menu.category).toBe('display');
+      menu.navigate('down');
+      expect(menu.pendingCount).toBe(0); // closed: inert
       menu.open();
-      menu.navigate('down');
-      expect(menu.category).toBe('graphics');
+      goto(menu, 'quality');
       menu.navigate('right');
-      expect(menu.focusColumn).toBe('opts');
-      menu.navigate('right');
-      expect(cb.onQuality).toHaveBeenLastCalledWith('high');
-      menu.navigate('left');
-      expect(cb.onQuality).toHaveBeenLastCalledWith('medium');
-      menu.navigate('down');
-      menu.navigate('confirm'); // shadows cycles
-      expect(cb.onGraphics).toHaveBeenLastCalledWith(expect.objectContaining({ shadows: 'high' }), ['shadows']);
-      menu.navigate('back');
-      expect(menu.focusColumn).toBe('cats');
+      expect(val(menu, 'quality')).toBe('High');
+      menu.navigate('left'); menu.navigate('left');
+      expect(val(menu, 'quality')).toBe('Low');
+      menu.navigate('down'); // autodetect
       menu.navigate('confirm');
-      expect(menu.focusColumn).toBe('opts');
-      menu.navigate('back'); menu.navigate('back');
+      menu.navigate('down'); menu.navigate('confirm'); // shadows cycles to the next value
+      expect(menu.pendingCount).toBe(3);
+      for (let i = 0; i < 60 && menu.focusZone === 'list'; i++) menu.navigate('down');
+      menu.navigate('confirm'); // APPLY
+      expect(menu.pendingCount).toBe(0);
+      expect(cb.onQuality).toHaveBeenLastCalledWith('low');
+      menu.navigate('back');
       expect(menu.isOpen).toBe(false);
     });
 
@@ -279,8 +323,9 @@ describe('Menu (open-world pause layout)', () => {
       expect(cb.onMasterVolume).toHaveBeenCalledWith(0.3);
       expect(cb.onRadioVolume).toHaveBeenCalledWith(0.8);
       expect(cb.onInvertLookY).toHaveBeenCalledWith(true);
-      menu.open(); cat(menu, 'audio').click();
-      expect(row(menu, 'master').querySelector('.gp-text')!.textContent).toBe('30%');
+      menu.open();
+      expect(val(menu, 'master')).toBe('30%');
+      expect(val(menu, 'invert')).toBe('ON');
     });
 
     it('ignoreSavedQuality keeps the URL/device quality', () => {
@@ -298,130 +343,84 @@ describe('Menu (open-world pause layout)', () => {
       other.remove();
       const throwing = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } };
       const menu = new Menu(parent, {}, { storage: throwing, fullscreen: null });
-      enter(menu, 'graphics');
-      expect(() => press('ArrowLeft')).not.toThrow();
+      enter(menu, 'quality');
+      press('ArrowLeft');
+      expect(() => act(menu, 'apply').click()).not.toThrow();
       expect(menu.settings.quality).toBe('low');
     });
 
     it('graphics overrides persist and merge over the tier preset on the next start', () => {
       const store = memStore();
       const a = new Menu(parent, {}, { storage: store, initialQuality: 'medium', fullscreen: null });
-      a.graphics.set('shadows', 'off');
-      a.graphics.set('crowd', 0.5);
+      a.open();
+      row(a, 'g:shadows').querySelector<HTMLButtonElement>('.gp-arrow.l')!.click();
+      row(a, 'g:shadows').querySelector<HTMLButtonElement>('.gp-arrow.l')!.click();
+      row(a, 'g:crowd').querySelector<HTMLButtonElement>('.gp-arrow.l')!.click();
+      act(a, 'apply').click();
+      expect(JSON.parse(store.data['gta-bedstuy.graphics.v1']).overrides).toEqual({ shadows: 'blob', crowd: 0.75 });
       a.dispose();
       const cb = cbs();
       const b = new Menu(parent, cb, { storage: store, initialQuality: 'medium', fullscreen: null });
-      expect(b.graphics.effective('medium')).toMatchObject({ shadows: 'off', crowd: 0.5, ao: true });
-      expect(cb.onGraphics).toHaveBeenCalledWith(expect.objectContaining({ shadows: 'off', crowd: 0.5 }), expect.arrayContaining(['shadows', 'crowd']));
+      expect(b.graphics.effective('medium')).toMatchObject({ shadows: 'blob', crowd: 0.75, ao: true });
+      expect(cb.onGraphics).toHaveBeenCalledWith(expect.objectContaining({ shadows: 'blob', crowd: 0.75 }), expect.arrayContaining(['shadows', 'crowd']));
     });
   });
 
-  describe('advanced graphics, auto, full screen', () => {
-    it('applies a change live through onGraphics, persists it, marks the row and Reset clears it', () => {
-      const cb = cbs();
-      const store = memStore();
-      const menu = new Menu(parent, cb, { storage: store, initialQuality: 'medium', fullscreen: null });
-      enter(menu, 'graphics');
-      expect(row(menu, 'g:shadows').classList.contains('is-custom')).toBe(false);
-      row(menu, 'g:shadows').querySelector<HTMLButtonElement>('.gp-arrow.l')!.click(); // medium -> low
-      expect(cb.onGraphics).toHaveBeenLastCalledWith(expect.objectContaining({ shadows: 'low' }), ['shadows']);
-      expect(JSON.parse(store.data['gta-bedstuy.graphics.v1']).overrides).toEqual({ shadows: 'low' });
-      expect(row(menu, 'g:shadows').classList.contains('is-custom')).toBe(true);
-      cat(menu, 'camera').click();
-      press('ArrowRight'); // fov 64 -> 66
-      expect(menu.graphics.effective('medium').fov).toBe(66);
-      cat(menu, 'advanced').click();
-      const reset = row(menu, 'gfxreset');
-      expect(reset.textContent).toContain('2 changed');
-      reset.click();
-      expect(menu.graphics.hasOverrides).toBe(false);
-      expect(cb.onGraphics).toHaveBeenLastCalledWith(expect.objectContaining({ shadows: 'medium', fov: 64 }), expect.arrayContaining(['shadows', 'fov']));
-    });
-
-    it('each advanced row maps to a real setting', () => {
-      const menu = new Menu(parent, cbs(), { storage: null, initialQuality: 'high', fullscreen: null });
-      enter(menu, 'advanced');
-      const ids = rows(menu).map((r) => r.dataset.id);
-      expect(ids).toEqual(['g:drawDistance', 'g:treeRange', 'g:crowd', 'g:traffic', 'g:ao', 'g:bloom', 'g:dof', 'g:vignette', 'g:grain', 'gfxreset']);
-      row(menu, 'g:ao').click(); row(menu, 'g:dof').click(); row(menu, 'g:bloom').click();
-      expect(menu.graphics.effective('high')).toMatchObject({ ao: false, dof: false, bloom: false });
-      row(menu, 'g:traffic').querySelector<HTMLButtonElement>('.gp-arrow.l')!.click();
-      expect(menu.graphics.effective('high').traffic).toBe(0.75);
-    });
-
+  describe('tier rows, full screen, install, FPS', () => {
     it('hides rows the tier cannot do and follows the live tier on open', () => {
       let live: 'phone' | 'high' = 'high';
       const menu = new Menu(parent, cbs(), { storage: null, initialQuality: 'high', fullscreen: null, getQuality: () => live });
-      menu.open(); cat(menu, 'advanced').click();
+      menu.open();
       expect(row(menu, 'g:ao').hidden).toBe(false);
       menu.close();
       live = 'phone'; menu.open();
-      expect(row(menu, 'g:ao').hidden).toBe(true);
-      expect(row(menu, 'g:dof').hidden).toBe(true);
-      cat(menu, 'graphics').click();
-      expect(row(menu, 'g:aa').hidden).toBe(true);
+      for (const id of ['g:ao', 'g:dof', 'g:aa', 'g:nativeDpr']) expect(row(menu, id).hidden, id).toBe(true);
+      expect(row(menu, 'g:shadows').querySelector('.gp-text')!.textContent).toBe('Blob');
     });
 
-    it('Auto selects the device tier and reports onAuto; a tier choice turns it off', () => {
-      const cb = cbs();
-      const menu = new Menu(parent, cb, { storage: null, initialQuality: 'medium', auto: true, fullscreen: null });
-      enter(menu, 'graphics');
-      const q = row(menu, 'quality');
-      expect(q.querySelector('.gp-text')!.textContent).toBe('Auto (Medium)');
-      press('ArrowRight');
-      expect(cb.onAuto).toHaveBeenLastCalledWith(false);
-      expect(menu.settings.auto).toBe(false);
-      expect(cb.onQuality).toHaveBeenLastCalledWith('phone'); // the options run Auto, Phone, Low, Medium, High
-      press('ArrowLeft');
-      expect(menu.settings.auto).toBe(true);
-      expect(cb.onAuto).toHaveBeenLastCalledWith(true);
-      expect(cb.onQuality).toHaveBeenLastCalledWith('medium');
-    });
-
-    it('Full screen row toggles the control; Esc out of full screen opens the pause menu', () => {
+    it('Window Mode toggles full screen on APPLY; Esc out of full screen opens the pause menu', () => {
       const { fs, esc } = fakeFs();
       const menu = new Menu(parent, cbs(), { storage: null, fullscreen: fs, openOnPointerUnlock: false });
       menu.open();
-      const r = row(menu, 'fullscreen');
-      expect(r.hidden).toBe(false);
-      expect(r.querySelector('.gp-text')!.textContent).toBe('OFF');
-      r.click();
+      expect(val(menu, 'windowmode')).toBe('Windowed');
+      row(menu, 'windowmode').click();
+      expect(val(menu, 'windowmode')).toBe('Full screen');
+      expect((fs as { toggle: unknown }).toggle).not.toHaveBeenCalled();
+      act(menu, 'apply').click();
       expect((fs as { toggle: unknown }).toggle).toHaveBeenCalled();
-      expect(row(menu, 'fullscreen').querySelector('.gp-text')!.textContent).toBe('ON');
+      expect(val(menu, 'windowmode')).toBe('Full screen');
       menu.close();
-      expect(menu.isOpen).toBe(false);
       esc();
       expect(menu.isOpen).toBe(true);
     });
 
-    it('the Full screen row is hidden where the browser cannot do it', () => {
+    it('Window Mode is hidden where the browser cannot do full screen', () => {
       const { fs } = fakeFs();
       (fs as { supported: boolean }).supported = false;
       const menu = new Menu(parent, cbs(), { storage: null, fullscreen: fs });
       menu.open();
-      expect(row(menu, 'fullscreen').hidden).toBe(true);
+      expect(row(menu, 'windowmode').hidden).toBe(true);
     });
 
-    it('the install hint shows only when installable (hosted build) and not already standalone', () => {
-      const hostedMenu = new Menu(parent, {}, { storage: null, installable: true, fullscreen: null });
-      hostedMenu.open();
-      expect(row(hostedMenu, 'install').hidden).toBe(false);
+    it('the install hint shows only when installable (hosted build)', () => {
+      const hosted = new Menu(parent, {}, { storage: null, installable: true, fullscreen: null });
+      hosted.open();
+      expect(row(hosted, 'install').hidden).toBe(false);
       const plain = document.createElement('div'); document.body.appendChild(plain);
       const artifact = new Menu(plain, {}, { storage: null, installable: false, fullscreen: null });
       artifact.open();
-      expect(artifact.root.querySelector<HTMLElement>('.gp-pane-settings .gp-opts [data-id="install"]')!.hidden).toBe(true);
+      expect(artifact.root.querySelector<HTMLElement>('.gp-pane-settings [data-id="install"]')!.hidden).toBe(true);
       plain.remove();
     });
 
-    it('Show FPS row toggles the counter', () => {
+    it('Show FPS toggles the counter once applied', () => {
       const menu = new Menu(parent, cbs(), { storage: null, fullscreen: null });
-      enter(menu, 'display');
+      menu.open();
       const counter = parent.querySelector<HTMLElement>('.fps-counter')!;
-      expect(counter.hidden).toBe(true);
       row(menu, 'g:showFps').click();
+      expect(counter.hidden).toBe(true);
+      act(menu, 'apply').click();
       expect(counter.hidden).toBe(false);
-      row(menu, 'g:showFps').click();
-      expect(counter.hidden).toBe(true);
     });
   });
 
@@ -429,31 +428,15 @@ describe('Menu (open-world pause layout)', () => {
     const desc = (m: Menu) => m.root.querySelector('.gp-pane-settings .gp-desc')!;
     it('describes the highlighted option and shows GPU load bars for graphics options only', () => {
       const menu = new Menu(parent, {}, { storage: null, initialQuality: 'high', fullscreen: null });
-      enter(menu, 'graphics');
-      press('ArrowDown'); // Shadows
+      enter(menu, 'g:shadows');
       expect(desc(menu).querySelector('.gp-desc-title')!.textContent).toBe('Shadows');
       expect(desc(menu).querySelector('.gp-desc-text')!.textContent).toContain('sun shadows');
       expect(desc(menu).querySelector<HTMLElement>('.gp-gpu')!.hidden).toBe(false);
       const own = () => parseInt(desc(menu).querySelector<HTMLElement>('.gp-meter.thin i')!.style.width, 10);
-      const total = () => parseInt(desc(menu).querySelector<HTMLElement>('.gp-meter:not(.thin) i')!.style.width, 10);
-      const before = total();
-      expect(own()).toBe(100); // high shadows: the heaviest value of this setting
-      press('ArrowLeft'); press('ArrowLeft'); press('ArrowLeft'); press('ArrowLeft'); // high -> off
-      expect(own()).toBe(0);
-      expect(total()).toBeLessThan(before);
-      cat(menu, 'audio').click();
+      expect(own()).toBe(100);
+      goto(menu, 'master');
       expect(desc(menu).querySelector<HTMLElement>('.gp-gpu')!.hidden).toBe(true);
-      expect(desc(menu).querySelector('.gp-desc-title')!.textContent).toBe('Master volume');
-    });
-
-    it('category rows describe the category (and graphics categories show the total load)', () => {
-      const menu = new Menu(parent, {}, { storage: null, fullscreen: null });
-      menu.open();
-      press('ArrowDown'); press('ArrowDown');
-      expect(desc(menu).querySelector('.gp-desc-title')!.textContent).toBe('Advanced Graphics');
-      expect(desc(menu).querySelector<HTMLElement>('.gp-gpu')!.hidden).toBe(false);
-      press('ArrowDown');
-      expect(desc(menu).querySelector<HTMLElement>('.gp-gpu')!.hidden).toBe(true);
+      expect(desc(menu).querySelector('.gp-desc-title')!.textContent).toBe('Master Volume');
     });
   });
 
@@ -556,17 +539,12 @@ describe('Menu (open-world pause layout)', () => {
     expect(desktop.pauseButton.hidden).toBe(true);
   });
 
-  it('on touch the settings are one column: tapping a category shows its options, the back arrow returns', () => {
+  it('on touch the list has 44 px arrows, the actions form a bar and the back arrow resumes', () => {
     const menu = new Menu(parent, {}, { storage: null, touch: true });
     menu.open();
-    const pane = menu.root.querySelector<HTMLElement>('.gp-pane-settings')!;
-    expect(pane.dataset.view).toBe('cats');
-    cat(menu, 'audio').click();
-    expect(pane.dataset.view).toBe('opts');
-    expect(menu.root.querySelector<HTMLElement>('.gp-back')!.dataset.mode).toBe('back');
-    menu.root.querySelector<HTMLButtonElement>('.gp-back')!.click();
-    expect(pane.dataset.view).toBe('cats');
-    expect(menu.isOpen).toBe(true);
+    expect(menu.root.dataset.input).toBe('touch');
+    expect(menu.root.querySelectorAll('.gp-act').length).toBe(3);
+    row(menu, 'master').querySelector<HTMLButtonElement>('.gp-arrow.r')!.click();
     menu.root.querySelector<HTMLButtonElement>('.gp-back')!.click();
     expect(menu.isOpen).toBe(false);
   });

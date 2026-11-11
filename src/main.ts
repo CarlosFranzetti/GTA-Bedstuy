@@ -52,6 +52,8 @@ import { getPlayerLook, setPlayerLook, randomPlayerLook, type PlayerLook as Rost
 import { LoadingScreen, nextPaint, withTimeout } from '@/render/Loading';
 import { PerfMonitor, PassCounter } from '@/render/Perf';
 import { MissionSystem } from '@/game/missions/MissionSystem';
+import { StoryDirector } from '@/game/story/StoryDirector';
+import { AmbientNotices } from '@/game/story/AmbientNotices';
 import { createPointerRouter } from '@/game/missions/PointerRoute';
 import { buildMissions } from '@/game/missions/content';
 import { MissionMarkerView } from '@/game/missions/MissionMarkerView';
@@ -249,6 +251,7 @@ const missions = new MissionSystem(buildMissions(grid, data, world.lots), {
   bus: events,
   raiseWanted: (stars) => wanted.raiseTo(stars),
   pay: (n) => { inventory.add(n); },
+  spend: (n) => inventory.spend(n),
   setFlag: (f) => { inventory.setFlag(f); },
 });
 missions.restore(loadMissionData());
@@ -332,6 +335,10 @@ const missionHudScratch = {} as MissionHudState;
 const cam = new ThirdPersonCamera(window.innerWidth / window.innerHeight);
 cam.attachLetterbox(overlay);
 events.on('mission:started', () => cam.setLetterbox(true, 2.5));
+// story ("Air Rights"): phone follow-ups, radio bulletins and ads, letterbox beats, flag-driven street notices, cargo damage
+const story = new StoryDirector(missions, phone, { onBeat: (sec) => cam.setLetterbox(true, sec), onBroadcast: (b) => audio.setBroadcast(b) });
+const storyNotices = new AmbientNotices(grid); scene.add(storyNotices.group);
+events.on('impact', (e) => { const v = player.vehicle; if (v && (e.a === v.body.id || e.b === v.body.id)) missions.notify({ type: 'impact', strength: e.strength }); });
 const pipeline = new RenderPipeline(renderer, scene, cam.camera, { quality });
 if (useProxies) proxies.attachToPipeline(pipeline);
 pipeline.setNight(dayNight.isNight);
@@ -572,7 +579,7 @@ const menu = new Menu(overlay, {
   onRadioVolume: (v) => audio.setRadioVolume(v),
   onRadioLibrary: () => radioUi.open(),
   onInvertLookY: (b) => { input.invertLookY = b; },
-  onReset: () => { clearMissionData(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++; if (interiors.inside) interiors.exit(); const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = SPAWN.x; b.pos.z = SPAWN.z; b.vel.x = 0; b.vel.z = 0; },
+  onReset: () => { clearMissionData(); missions.story.reset(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++; if (interiors.inside) interiors.exit(); const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = SPAWN.x; b.pos.z = SPAWN.z; b.vel.x = 0; b.vel.z = 0; },
 }, { touch: isTouch, initialQuality: quality, ignoreSavedQuality: params.has('q'), saves, canSave: () => interiors.state === 'outside' });
 input.onModeChange = (m) => { hud.setInputMode(m); menu.setInputMode(m); };
 hud.setInputMode(input.mode); menu.setInputMode(input.mode);
@@ -591,14 +598,14 @@ saves.bind({
   getStreet: () => streetName,
 }, {
   newGame: () => {
-    clearMissionData(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++;
+    clearMissionData(); missions.story.reset(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++;
     if (interiors.inside) interiors.exit(); if (player.inVehicle) player.exit();
     const b = player.body; b.pos.x = SPAWN.x; b.pos.z = SPAWN.z; b.vel.x = 0; b.vel.z = 0;
     dayNight.timeOfDay = 8; prevHour = 8; gameDay = 0; weather.setState('dry', true); wanted.stars = 0;
     pendingLook = randomPlayerLook(`${Math.random()}:${Date.now()}`);
   },
   // the player model is built once at boot, so a different look (new game, or a save with another look) is applied by autosaving and reloading
-  afterApply: () => { input.endFrame(); if (pendingLook) { saves.autosave(Date.now(), true, true); location.reload(); } },
+  afterApply: () => { input.endFrame(); story.resync(); if (pendingLook) { saves.autosave(Date.now(), true, true); location.reload(); } },
 });
 window.addEventListener('pagehide', () => saves.autosave(Date.now(), interiors.state === 'outside', true));
 
@@ -640,7 +647,8 @@ game.add({
     wanted.update(dt);
     {
       const pv = player.vehicle; const mb = (pv ?? player).body;
-      missions.update(uiOpen() ? 0 : dt, mb.pos, player.inVehicle, wanted.stars, pv ? Math.abs(pv.speed) : Math.hypot(mb.vel.x, mb.vel.z), dayNight.timeOfDay);
+      missions.update(uiOpen() ? 0 : dt, mb.pos, player.inVehicle, wanted.stars, pv ? Math.abs(pv.speed) : Math.hypot(mb.vel.x, mb.vel.z), dayNight.timeOfDay, pv?.spec.type ?? '');
+      storyNotices.sync(missions.story);
       if (input.consume('KeyR')) missions.retry(dayNight.timeOfDay);
       if (input.consume('KeyX')) missions.abandon();
     }
