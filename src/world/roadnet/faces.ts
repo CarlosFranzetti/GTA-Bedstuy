@@ -96,6 +96,7 @@ function facesOfBlock(net: RoadNet, d: Derived, bi: number): RealFace[] {
   const n = ring.length;
   // match every ring segment to the walk entry whose offset line it lies on
   const match: Array<{ w: number } | null> = [];
+  const wOf = (i: number): number => match[(i + n) % n]?.w ?? -1;
   for (let i = 0; i < n; i++) {
     const p = ring[i], q = ring[(i + 1) % n];
     const l = distance(p, q);
@@ -122,7 +123,7 @@ function facesOfBlock(net: RoadNet, d: Derived, bi: number): RealFace[] {
   // runs of consecutive matched segments on one walk entry
   const runs: Run[] = [];
   let start = 0;
-  while (start < n && match[start] && match[(start - 1 + n) % n]?.w === match[start]!.w) start++; // find a run start
+  while (start < n && match[start] && wOf(start - 1) === wOf(start)) start++; // find a run start
   if (start >= n) start = 0;
   for (let c = 0; c < n; c++) {
     const i = (start + c) % n;
@@ -165,6 +166,8 @@ function facesOfBlock(net: RoadNet, d: Derived, bi: number): RealFace[] {
     const cornerEnd = !(m > 1 && next.walk === f.walk && f.i1 % n === next.i0 % n && distance(f.q, next.p) < 0.05) && !f.join1;
     let pStart = f.p, qEnd = f.q;
     let angStart = 180, angEnd = 180;
+    const swOf = (wk: number): number => net.edges[walks[wk].e].sidewalk;
+    let curbQ: Vec2 | null = null, curbP: Vec2 | null = null;
     if (cornerEnd && m > 1) {
       const nd = unit(next.p, next.q);
       const cross = dir.x * nd.z - dir.z * nd.x;
@@ -173,7 +176,12 @@ function facesOfBlock(net: RoadNet, d: Derived, bi: number): RealFace[] {
       if (h) {
         const tF = h.t - distance(f.p, f.q); // beyond the run end
         const tG = h.u; // along next from its start (negative = behind)
-        if (tF >= -0.6 && tF <= MAX_EXTEND && tG <= 0.6 && tG >= -MAX_EXTEND) qEnd = { x: f.p.x + dir.x * h.t, z: f.p.z + dir.z * h.t };
+        if (tF >= -0.6 && tF <= MAX_EXTEND && tG <= 0.6 && tG >= -MAX_EXTEND) {
+          qEnd = { x: f.p.x + dir.x * h.t, z: f.p.z + dir.z * h.t };
+          const s1c = swOf(f.walk), s2c = swOf(next.walk);
+          const c = lineHit({ x: f.p.x + dir.z * s1c, z: f.p.z - dir.x * s1c }, dir, { x: next.p.x + nd.z * s2c, z: next.p.z - nd.x * s2c }, nd);
+          if (c) curbQ = { x: f.p.x + dir.z * s1c + dir.x * c.t, z: f.p.z - dir.x * s1c + dir.z * c.t };
+        }
       }
     }
     if (cornerStart && m > 1) {
@@ -184,7 +192,12 @@ function facesOfBlock(net: RoadNet, d: Derived, bi: number): RealFace[] {
       if (h) {
         const tF = h.t - distance(prev.p, prev.q);
         const tG = h.u;
-        if (tF >= -0.6 && tF <= MAX_EXTEND && tG <= 0.6 && tG >= -MAX_EXTEND) pStart = { x: f.p.x + dir.x * h.u, z: f.p.z + dir.z * h.u };
+        if (tF >= -0.6 && tF <= MAX_EXTEND && tG <= 0.6 && tG >= -MAX_EXTEND) {
+          pStart = { x: f.p.x + dir.x * h.u, z: f.p.z + dir.z * h.u };
+          const s1c = swOf(prev.walk), s2c = swOf(f.walk);
+          const c = lineHit({ x: prev.p.x + pd.z * s1c, z: prev.p.z - pd.x * s1c }, pd, { x: f.p.x + dir.z * s2c, z: f.p.z - dir.x * s2c }, dir);
+          if (c) curbP = { x: f.p.x + dir.z * s2c + dir.x * c.u, z: f.p.z - dir.x * s2c + dir.z * c.u };
+        }
       }
     }
     const outward = { x: dir.z, z: -dir.x };
@@ -199,8 +212,8 @@ function facesOfBlock(net: RoadNet, d: Derived, bi: number): RealFace[] {
       side: sideOf(outward),
       streetId: net.streetIdOf(w.e),
       a, b,
-      curbA: { x: a.x + outward.x * sw, z: a.z + outward.z * sw },
-      curbB: { x: b.x + outward.x * sw, z: b.z + outward.z * sw },
+      curbA: curbQ ?? { x: a.x + outward.x * sw, z: a.z + outward.z * sw },
+      curbB: curbP ?? { x: b.x + outward.x * sw, z: b.z + outward.z * sw },
       outward,
       block: bi,
       edge: w.e,

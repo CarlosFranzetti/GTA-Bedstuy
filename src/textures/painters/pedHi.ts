@@ -30,13 +30,15 @@ const lt = (c: string, t: number): string => mixHex(c, '#ffffff', t);
 
 /** Three layers drawn at once: albedo colour, height (grey, 128 = flat) and roughness (grey, 255 = rough). */
 class L {
-  constructor(readonly a: CanvasRenderingContext2D, readonly h: CanvasRenderingContext2D | null, readonly r: CanvasRenderingContext2D | null, readonly k: number, readonly ox = 0, readonly oy = 0, readonly bw = Infinity, readonly bh = Infinity) {}
-  at(r: PxRect): L { return new L(this.a, this.h, this.r, this.k, r.x, r.y, r.w, r.h); }
+  constructor(readonly a: CanvasRenderingContext2D, readonly h: CanvasRenderingContext2D | null, readonly r: CanvasRenderingContext2D | null, readonly k: number, readonly ox = 0, readonly oy = 0, readonly bw = Infinity, readonly bh = Infinity, readonly sy = 1, readonly yo = 0) {}
+  /** a tile; (sy, yo) maps the painter's design rows onto the tile's rows (row = y * sy + yo): the garment painters are drawn in a design space and fitted to where the body's UV puts the garment */
+  at(r: PxRect, sy = 1, yo = 0): L { return new L(this.a, this.h, this.r, this.k, r.x, r.y, r.w, r.h, sy, yo); }
   private fill(ctx: CanvasRenderingContext2D | null, c: string, al: number, f: (k: number) => void): void {
     if (!ctx) return;
     ctx.save(); ctx.globalAlpha = al; ctx.fillStyle = c; ctx.strokeStyle = c; f(this.k); ctx.restore();
   }
   rect(x: number, y: number, w: number, h: number, c: string, al = 1, hv?: number, rv?: number): void {
+    y = y * this.sy + this.yo; h *= this.sy;
     // clipped to the tile: nothing a painter draws may leak into a neighbouring tile
     const x1 = Math.min(this.bw, x + w), y1 = Math.min(this.bh, y + h); x = Math.max(0, x); y = Math.max(0, y); w = x1 - x; h = y1 - y;
     if (w <= 0 || h <= 0) return;
@@ -61,7 +63,7 @@ class L {
     return out;
   }
   poly(pts: ReadonlyArray<readonly [number, number]>, c: string, al = 1, hv?: number, rv?: number): void {
-    const k = this.k, q = this.clipPoly(pts);
+    const k = this.k, q = this.clipPoly(pts.map(([x, y]) => [x, y * this.sy + this.yo] as const));
     if (q.length < 3) return;
     const path = (ctx: CanvasRenderingContext2D): void => { ctx.beginPath(); q.forEach(([x, y], i) => (i === 0 ? ctx.moveTo((this.ox + x) * k, (this.oy + y) * k) : ctx.lineTo((this.ox + x) * k, (this.oy + y) * k))); ctx.closePath(); ctx.fill(); };
     this.fill(this.a, c, al, () => path(this.a));
@@ -69,6 +71,7 @@ class L {
     if (rv !== undefined) this.fill(this.r, gray(rv), al, () => path(this.r!));
   }
   disc(x: number, y: number, r: number, c: string, al = 1, hv?: number): void {
+    y = y * this.sy + this.yo;
     const k = this.k;
     const path = (ctx: CanvasRenderingContext2D): void => { ctx.beginPath(); ctx.arc((this.ox + x) * k, (this.oy + y) * k, r * k, 0, Math.PI * 2); ctx.fill(); };
     this.fill(this.a, c, al, () => path(this.a));
@@ -80,6 +83,7 @@ class L {
   }
   /** line segment clipped to the tile (Liang-Barsky) */
   line(x0: number, y0: number, x1: number, y1: number, c: string, w = 1, al = 1, hv?: number): void {
+    y0 = y0 * this.sy + this.yo; y1 = y1 * this.sy + this.yo;
     if (Number.isFinite(this.bw)) {
       let t0 = 0, t1 = 1; const dx = x1 - x0, dy = y1 - y0;
       for (const [p, q] of [[-dx, x0], [dx, this.bw - x0], [-dy, y0], [dy, this.bh - y0]] as const) {
@@ -94,6 +98,7 @@ class L {
     if (hv !== undefined) this.fill(this.h, gray(hv), al, () => path(this.h!));
   }
   curve(x0: number, y0: number, cx: number, cy: number, x1: number, y1: number, c: string, w = 1, al = 1): void {
+    y0 = y0 * this.sy + this.yo; cy = cy * this.sy + this.yo; y1 = y1 * this.sy + this.yo;
     const k = this.k;
     this.fill(this.a, c, al, () => { this.a.lineWidth = w * k; this.a.beginPath(); this.a.moveTo((this.ox + x0) * k, (this.oy + y0) * k); this.a.quadraticCurveTo((this.ox + cx) * k, (this.oy + cy) * k, (this.ox + x1) * k, (this.oy + y1) * k); this.a.stroke(); });
   }

@@ -29,6 +29,16 @@ export interface VitalsHudState {
   armour?: number;
 }
 
+/** Optional wanted cool-down flag: stars blink while the player is out of sight and the heat is draining. */
+export interface WantedHudState { wantedCooling?: boolean }
+
+/** Optional vehicle info: shown for a few seconds when the player gets in. */
+export interface VehicleHudState { vehicleName?: string; vehicleClass?: string }
+export const VEHICLE_CARD_MS = 3800;
+/** How long the street and area name stay up after a new street, and how long a gained star flashes. */
+export const PLACE_MS = 4500;
+export const STAR_FLASH_MS = 1600;
+
 /** Station banner: how long it stays after a tune, and how many stations the strip shows around the current one. */
 export const STATION_BANNER_MS = 2600;
 export const STATION_STRIP_SLOTS = 5;
@@ -83,6 +93,12 @@ export class Hud {
   private readonly speedValueEl: HTMLElement;
   private readonly streetEl: HTMLElement;
   private readonly areaEl: HTMLElement;
+  private readonly vehicleEl: HTMLElement;
+  private readonly vehicleNameEl: HTMLElement;
+  private readonly vehicleClassEl: HTMLElement;
+  private vehicleTimer: ReturnType<typeof setTimeout> | null = null;
+  private starTimer: ReturnType<typeof setTimeout> | null = null;
+  private wasInVehicle = false;
   private readonly locationEl: HTMLElement;
   private readonly barsEl: HTMLElement;
   private readonly bars = new Map<string, { row: HTMLElement; fill: HTMLElement }>();
@@ -94,6 +110,7 @@ export class Hud {
   private lastStation = '';
   private stationTimer: ReturnType<typeof setTimeout> | null = null;
   private lastStreet = '';
+  private readonly placeEl: HTMLElement;
   private readonly radioEl: HTMLElement;
   private readonly splashEl: HTMLElement;
   /** The title screen appeared (true: showSplash) or the player started (false: hideSplash). The host starts / fades the title theme here. */
@@ -145,7 +162,15 @@ export class Hud {
     this.areaEl = this.make('span', 'hud-area');
     this.areaEl.textContent = AREA_NAME;
     this.radioEl = this.make('span', 'hud-radio');
-    location.append(this.speedEl, this.streetEl, this.areaEl, this.radioEl); // the speed sits in the same column, so a long radio line can never overlap it
+    this.vehicleEl = this.make('div', 'hud-vehicle');
+    this.vehicleEl.hidden = true;
+    this.vehicleNameEl = this.make('span', 'hud-vehicle-name');
+    this.vehicleClassEl = this.make('span', 'hud-vehicle-class');
+    this.vehicleEl.append(this.vehicleNameEl, this.vehicleClassEl);
+    const place = this.make('div', 'hud-place');
+    place.append(this.streetEl, this.areaEl);
+    this.placeEl = place;
+    location.append(this.vehicleEl, this.speedEl, place, this.radioEl); // the speed sits in the same column, so a long radio line can never overlap it
 
     // Bars under the minimap (bottom-left).
     this.barsEl = this.make('div', 'hud-bars');
@@ -235,7 +260,7 @@ export class Hud {
     );
   }
 
-  update(state: HudState & RadioHudState & BlockedHudState & VitalsHudState): void {
+  update(state: HudState & RadioHudState & BlockedHudState & VitalsHudState & WantedHudState & VehicleHudState): void {
     const stars = Math.round(Math.min(MAX_STARS, Math.max(0, finite(state.stars))));
     this.starEls.forEach((el, i) => {
       const on = i < stars;
@@ -243,6 +268,8 @@ export class Hud {
       el.classList.toggle('on', on);
     });
     if (this.lastStars !== -1 && stars !== this.lastStars) this.pulseStars();
+    if (this.lastStars !== -1 && stars > this.lastStars) this.flashStars();
+    this.starsEl.classList.toggle('cooling', stars > 0 && state.wantedCooling === true);
     if (stars !== this.lastStars) this.starsEl.setAttribute('aria-label', `Wanted level ${stars} of ${MAX_STARS}`);
     this.lastStars = stars;
 
@@ -259,8 +286,12 @@ export class Hud {
     setText(this.streetEl, street);
     if (street !== this.lastStreet) {
       if (street !== '' && this.lastStreet !== '') this.restart(this.locationEl, 'fresh');
+      if (street !== '') this.restart(this.placeEl, 'show'); // fades in, holds PLACE_MS, fades out (CSS)
       this.lastStreet = street;
     }
+    if (state.inVehicle && !this.wasInVehicle && state.vehicleName) this.showVehicle(state.vehicleName, state.vehicleClass ?? '');
+    if (!state.inVehicle && this.wasInVehicle) this.vehicleEl.hidden = true;
+    this.wasInVehicle = state.inVehicle;
     this.locationEl.hidden = street === '' && !state.radioStation && !state.inVehicle;
     const radio = state.radioStation ?? '';
     if (radio !== this.lastStation) {
@@ -364,6 +395,23 @@ export class Hud {
       this.cardEl.classList.add('out');
       this.cardTimers.push(setTimeout(() => { this.cardEl.hidden = true; }, CARD_FADE_MS));
     }, CARD_HOLD_MS));
+  }
+
+  /** The vehicle name and class, a few seconds after getting in. */
+  showVehicle(name: string, cls = ''): void {
+    setText(this.vehicleNameEl, name);
+    setText(this.vehicleClassEl, cls);
+    this.vehicleClassEl.hidden = cls === '';
+    this.vehicleEl.hidden = false;
+    this.restart(this.vehicleEl, 'in');
+    if (this.vehicleTimer !== null) clearTimeout(this.vehicleTimer);
+    this.vehicleTimer = setTimeout(() => { this.vehicleEl.hidden = true; this.vehicleTimer = null; }, VEHICLE_CARD_MS);
+  }
+
+  private flashStars(): void {
+    this.restart(this.starsEl, 'gain');
+    if (this.starTimer !== null) clearTimeout(this.starTimer);
+    this.starTimer = setTimeout(() => { this.starsEl.classList.remove('gain'); this.starTimer = null; }, STAR_FLASH_MS);
   }
 
   private pulseStars(): void {

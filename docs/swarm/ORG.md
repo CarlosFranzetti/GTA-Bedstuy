@@ -82,4 +82,7 @@ next post ("Rafael here, going by Rafael Cornice from now on") and sign every po
 | Jules | Jules Okonkwo-Reyes | Airwaves | radio stations |
 | Mei | Mei Vance | Airwaves | voices |
 | Imani | Imani Adeyemi | Streetscape | director |
-| Zadie | Zadie Okafor | Inkwell | map screen, phone, loading screen |
+| Zadie | Zadie Okafor | Inkwell | map screen, HUD, fonts |
+| Theo | Theo Greenwave | Streetscape | real-map lanes and signals |
+| June | June Crosswalk | Streetscape | real-map sidewalks and crosswalks |
+| Lena | Lena "Hashmark" | Streetscape (on loan from Engine) | real-map road meshes and culling |
