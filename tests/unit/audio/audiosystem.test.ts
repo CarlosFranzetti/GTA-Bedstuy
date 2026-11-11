@@ -244,7 +244,7 @@ describe('AudioSystem radio', () => {
     const names = [audio.stationName];
     for (let i = 0; i < 14; i++) { audio.nextStation(); names.push(audio.stationName); }
     expect(names).toEqual([
-      'Boiler Room', 'Dekmantel Podcast', 'Resident Advisor', 'NTS Shows', 'FACT Mixes', 'Rinse FM', 'Soulection', 'The Lot Radio',
+      'Boiler Room', 'Dekmantel Podcast', 'Resident Advisor', 'Mixmag', 'FACT Mixes', 'Rinse FM', 'Soulection', 'The Lot Radio',
       'dublab', 'KEXP 90.3', 'Radio Paradise', 'WFMU 91.1', 'SomaFM Underground 80s',
       'WBSY Talk (voice unavailable on this device)', 'WNYC 93.9 FM',
     ]);

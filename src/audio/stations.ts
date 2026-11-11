@@ -52,23 +52,23 @@ export interface CatalogEntry {
 export const CATALOG: readonly CatalogEntry[] = [
   /* club / electronic */
   { id: 'bkhouse', name: 'Boiler Room', kind: 'sc-account', group: 'club', genre: 'club sets / house / techno', dj: 'deja', site: 'https://boilerroom.tv',
-    about: 'Filmed club sets from Boiler Room, streamed from their SoundCloud through the official player.', scUrls: ['https://soundcloud.com/boilerroomtv/tracks'] },
+    about: 'Filmed club sets from Boiler Room, streamed from their SoundCloud through the official player.', scUrls: ['https://soundcloud.com/platform/tracks'] },
   { id: 'dublab', name: 'Dekmantel Podcast', kind: 'sc-account', group: 'club', genre: 'techno / house / leftfield', dj: 'odell', site: 'https://www.dekmantel.com',
-    about: 'The Dekmantel podcast series (Amsterdam), streamed from their SoundCloud through the official player.', scUrls: ['https://soundcloud.com/dekmantel/tracks'] },
+    about: 'The Dekmantel podcast series (Amsterdam), streamed from their SoundCloud through the official player.', scUrls: ['https://soundcloud.com/dkmntl/tracks'] },
   { id: 'sc', name: 'Resident Advisor', kind: 'ra-pool', group: 'club', genre: 'RA NYC events + RA Podcast', dj: 'cass', site: 'https://ra.co',
     about: 'DJ sets by artists playing New York events (RA NYC) plus the RA Podcast, streamed through the official SoundCloud player.', scUrls: ['https://soundcloud.com/resident-advisor/tracks'] },
   /* eclectic / experimental */
-  { id: 'weird', name: 'NTS Shows', kind: 'sc-account', group: 'eclectic', genre: 'experimental / eclectic', dj: 'wren', site: 'https://www.nts.live',
-    about: 'Archived NTS Radio shows from the NTS SoundCloud, through the official player.', scUrls: ['https://soundcloud.com/nts-radio/tracks'] },
+  { id: 'weird', name: 'Mixmag', kind: 'sc-account', group: 'eclectic', genre: 'club / electronic mixes', dj: 'wren', site: 'https://mixmag.net',
+    about: 'Mixmag Lab and mix series from the Mixmag SoundCloud, through the official player.', scUrls: ['https://soundcloud.com/mixmag-1/tracks'] },
   { id: 'flashback', name: 'FACT Mixes', kind: 'sc-account', group: 'eclectic', genre: 'bass / electronic mixes', dj: 'tommy', site: 'https://www.factmag.com',
-    about: 'FACT magazine mixes from the FACT SoundCloud, through the official player.', scUrls: ['https://soundcloud.com/factmag/tracks'] },
+    about: 'FACT magazine mix series archive (180.Fact SoundCloud), through the official player.', scUrls: ['https://soundcloud.com/180fact/tracks'] },
   /* hip hop / soul / uk */
   { id: 'stoop', name: 'Rinse FM', kind: 'sc-account', group: 'urban', genre: 'UK club / grime / garage', dj: 'tayo', site: 'https://rinse.fm',
     about: 'Rinse FM shows from the Rinse SoundCloud, through the official player.', scUrls: ['https://soundcloud.com/rinsefm/tracks'] },
   { id: 'boogie', name: 'Soulection', kind: 'sc-account', group: 'urban', genre: 'soul / beats / future funk', dj: 'lou', site: 'https://soulection.com',
     about: 'Soulection Radio episodes from the Soulection SoundCloud, through the official player.', scUrls: ['https://soundcloud.com/soulection/tracks'] },
   { id: 'yard', name: 'The Lot Radio', kind: 'sc-account', group: 'urban', genre: 'Brooklyn: everything', dj: 'pearl', site: 'https://www.thelotradio.com',
-    about: 'Shows from The Lot Radio (Greenpoint, Brooklyn), from their SoundCloud through the official player.', scUrls: ['https://soundcloud.com/the-lot-radio/tracks'] },
+    about: 'Shows from The Lot Radio (Greenpoint, Brooklyn), from their SoundCloud through the official player.', scUrls: ['https://soundcloud.com/thelotradio/tracks'] },
   /* live music streams */
   { id: 'dublive', name: 'dublab', kind: 'live-stream', group: 'live', genre: 'LA: leftfield / ambient / beats', site: 'https://www.dublab.com',
     about: 'dublab, a listener-supported radio project from Los Angeles. Live public stream.', streams: ['https://dublab.out.airtime.pro/dublab_a'] },

@@ -123,3 +123,21 @@ eSpeak NG is GPL-3.0. We do not copy or redistribute it: the user's browser down
 Candidates not used, with the reason, are in `docs/reference/VOICES.md` (Piper: GPL-3.0 engine and per-voice dataset licences; Supertonic: OpenRAIL; KittenTTS: Apache-2.0 but fewer voices).
 
 All DJs, hosts, callers, shows and commercials (`src/audio/voice/**`) are original fiction written for this fan tribute. No real person, station or brand is named or imitated; a lint test (`tests/unit/audio/voice-content.test.ts`) enforces a deny-list of real brands, outlets and public figures.
+
+## Radio stations (RADIO15)
+Nothing is bundled. SoundCloud sets play only through SoundCloud's official widget; internet radio plays as each station's own public stream. Real set and artist names come from SoundCloud / the station and are shown as published.
+
+| Station | Type | Source | Site |
+|---|---|---|---|
+| Boiler Room | SoundCloud account | soundcloud.com/platform | https://boilerroom.tv |
+| Dekmantel Podcast | SoundCloud account | soundcloud.com/dkmntl | https://www.dekmantel.com |
+| Resident Advisor (RA NYC pool + RA Podcast) | RA pool + SoundCloud account | soundcloud.com/resident-advisor | https://ra.co |
+| Mixmag | SoundCloud account | soundcloud.com/mixmag-1 | https://mixmag.net |
+| FACT Mixes | SoundCloud account | soundcloud.com/180fact | https://www.factmag.com |
+| Rinse FM | SoundCloud account | soundcloud.com/rinsefm | https://rinse.fm |
+| Soulection | SoundCloud account | soundcloud.com/soulection | https://soulection.com |
+| The Lot Radio | SoundCloud account | soundcloud.com/thelotradio | https://www.thelotradio.com |
+| dublab, KEXP 90.3, Radio Paradise, WFMU 91.1, SomaFM Underground 80s, WNYC 93.9 FM | live public streams | each station's own stream URL (src/audio/stations.ts) | their sites |
+| WBSY Talk | scripted, synthesized voices | original fiction | n/a |
+
+KEXP's current-song line uses its open API; SomaFM's uses channels.json. Credit and link are shown in the Radio panel.

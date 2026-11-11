@@ -19,7 +19,7 @@ const stoop = scStationDef('stoop')!;
 
 describe('station table', () => {
   it('has the eight stations in dial order, Radio SC last', () => {
-    expect(SC_STATIONS.map((s) => s.name)).toEqual(['Boiler Room', 'Dekmantel Podcast', 'Rinse FM', 'Soulection', 'NTS Shows', 'The Lot Radio', 'FACT Mixes', 'Resident Advisor']);
+    expect(SC_STATIONS.map((s) => s.name)).toEqual(['Boiler Room', 'Dekmantel Podcast', 'Rinse FM', 'Soulection', 'Mixmag', 'The Lot Radio', 'FACT Mixes', 'Resident Advisor']);
     expect(SC_STATIONS.map((s) => s.id)).toEqual(['bkhouse', 'dublab', 'stoop', 'boogie', 'weird', 'yard', 'flashback', 'sc']);
   });
 
