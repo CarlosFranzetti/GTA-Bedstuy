@@ -13,6 +13,9 @@ import { updateShadowCamera, setupShadows } from '@/render/Shadows';
 import { CAMERA_NEAR, CAMERA_FAR, depthStepAt } from '@/render/DepthRange';
 import { ThirdPersonCamera } from '@/core/Camera';
 import { CAR_CLOSE_DIST } from '@/render/QualityTier';
+import { PerfMonitor } from '@/render/Perf';
+import { signBloomGate, QUALITY_ORDER } from '@/render/QualityTier';
+import type { Quality } from '@/render/Shadows';
 import { setCarPaintTier } from '@/render/CarPaintFx';
 import type { CarModel } from '@/entities/models/carModel';
 import type { IMaterialLibrary } from '@/world/types';
@@ -275,6 +278,49 @@ describe('clip planes', () => {
   it('near stays inside the camera wall margin (0.35 m) at 16:9 and 82 degrees', () => {
     const half = Math.tan((82 * Math.PI) / 360);
     expect(CAMERA_NEAR * half * (16 / 9)).toBeLessThan(0.35);
+  });
+});
+
+// ------------------------------------------------------------------ automatic quality
+
+describe('auto-quality cannot oscillate', () => {
+  it('only ever steps down, with at least the settle time (8 s) between steps, whatever the frame rate does', () => {
+    const r = rnd(11);
+    for (const touch of [false, true]) {
+      let q: Quality = 'medium'; const steps: Array<{ t: number; to: Quality }> = [];
+      const m = new PerfMonitor({ getQuality: () => q, setQuality: (x) => { q = x; steps.push({ t, to: x }); }, touch, log: () => {} });
+      let t = 0;
+      for (let f = 0; f < 60 * 300; f++) { // 5 minutes of frames that flap between 20 and 90 fps
+        const dt = (Math.floor(f / 45) % 2 ? 1 / 20 : 1 / 90) * (0.8 + r() * 0.4);
+        t += dt; m.frame(dt);
+      }
+      let prev = QUALITY_ORDER.indexOf('medium');
+      for (const s of steps) { const i = QUALITY_ORDER.indexOf(s.to); expect(i).toBeLessThan(prev); prev = i; }
+      for (let i = 1; i < steps.length; i++) expect(steps[i].t - steps[i - 1].t).toBeGreaterThanOrEqual(8);
+      expect(steps.length).toBeLessThanOrEqual(touch ? 2 : 1);
+    }
+  });
+
+  it('a steady 60 fps never changes the tier and a transient stall (one 0.5 s hitch) does not trigger a drop', () => {
+    let q: Quality = 'medium'; let n = 0;
+    const m = new PerfMonitor({ getQuality: () => q, setQuality: (x) => { q = x; n++; }, log: () => {} });
+    for (let f = 0; f < 3000; f++) m.frame(f === 1500 ? 0.5 : 1 / 60);
+    expect(n).toBe(0);
+  });
+
+  it('the phone sign-bloom gate flips once per crossing: on at >=45 fps, off below 38, nothing in between', () => {
+    let on = false, flips = 0; const r = rnd(2);
+    for (let f = 0; f < 2000; f++) {
+      const fps = 41 + Math.sin(f / 80) * 2.9 + (r() - 0.5) * 1.5; // wobbling 38..44, never reaching 45 nor under 38 for long
+      const n = signBloomGate('phone', true, fps, on);
+      if (n !== on) flips++;
+      on = n;
+    }
+    expect(flips).toBe(0);
+    on = false; flips = 0;
+    for (let f = 0; f <= 400; f++) { const fps = 30 + f * 0.05; const n = signBloomGate('phone', true, fps, on); if (n !== on) flips++; on = n; }
+    for (let f = 0; f <= 400; f++) { const fps = 50 - f * 0.05; const n = signBloomGate('phone', true, fps, on); if (n !== on) flips++; on = n; }
+    expect(flips).toBe(2);
   });
 });
 

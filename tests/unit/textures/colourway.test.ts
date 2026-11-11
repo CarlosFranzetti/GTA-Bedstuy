@@ -117,3 +117,41 @@ describe('ground detail patch', () => {
     expect(GROUND_DETAIL_KEYS.graniteCurb).toBe('curb');
   });
 });
+
+describe('detail atlas, wall signs and gate states', () => {
+  it('encodes every wall kind into one byte and gate / party walls carry their own kind', async () => {
+    const { KIND_STEP } = await import('@/world/buildings/colourway');
+    for (const k of Object.values(WallKind)) expect(k * KIND_STEP).toBeLessThanOrEqual(255);
+    const cw = lotColourway({ id: 'lot-g', type: 'rowhouse' });
+    expect(toneFor('rollGate:0', cw, true, false)!.style[0]).toBe(WallKind.gate * KIND_STEP);
+    expect(toneFor('brickRed:1', cw, false, false)!.style[0]).toBe(WallKind.party * KIND_STEP);
+    expect(toneFor('brickRed:1', cw, true, false)!.style[0]).toBe(cw.kind * KIND_STEP);
+  });
+
+  it('has a sign sheet with eight invented names that fits its grid, and the atlas file ships', async () => {
+    const { WALL_SIGNS, SIGN_COLS, SIGN_ROWS } = await import('@/textures/detailAtlas');
+    expect(WALL_SIGNS.length).toBeLessThanOrEqual(SIGN_COLS * SIGN_ROWS);
+    expect(new Set(WALL_SIGNS.map((s) => s.lines.join('|'))).size).toBe(WALL_SIGNS.length);
+    const atlases = Object.keys(import.meta.glob('/src/assets/textures/detail_atlas_*.jpg'));
+    expect(atlases.map((f) => f.split('/').pop()).sort()).toEqual(['detail_atlas_1k.jpg', 'detail_atlas_512.jpg']);
+    const lic = Object.keys(import.meta.glob('/src/assets/textures/cc0/detail_*/LICENSE.txt', { query: '?raw' }));
+    expect(lic).toHaveLength(4);
+  });
+
+  it('mixes plain, rusty and tagged gate states across the city (by lot seed, deterministic)', () => {
+    const states = { plain: 0, rusty: 0, tagged: 0 };
+    for (const l of lots.slice(0, 600)) {
+      const g = ((lotColourway(l).seed * 255 | 0) / 255 * 7.31 + 0.17) % 1;
+      states[g > 0.8 ? 'tagged' : g > 0.55 ? 'rusty' : 'plain']++;
+    }
+    expect(states.plain).toBeGreaterThan(150);
+    expect(states.rusty).toBeGreaterThan(80);
+    expect(states.tagged).toBeGreaterThan(60);
+  });
+
+  it('keeps the variety metric after the new kinds', () => {
+    const per: number[] = [];
+    for (let i = 0; i + 10 <= Math.min(lots.length, 1200); i += 10) per.push(distinctLooks(lots.slice(i, i + 10)));
+    expect(per.reduce((s, v) => s + v, 0) / per.length).toBeGreaterThanOrEqual(6);
+  });
+});

@@ -21,6 +21,10 @@ export interface Character {
   reveal: string;
   /** Speech-synthesis shaping (pitch 0.1..2, rate 0.1..10), applied by whatever voices the line. */
   voice: Voice;
+  /** Part of another character's entry (Bryce is half of the Stillwater couple): not counted as a separate recurring character. */
+  group?: string;
+  /** Heard (radio, billboards, texts), rarely seen. */
+  offstage?: boolean;
 }
 
 export const CAST: readonly Character[] = [
@@ -94,7 +98,7 @@ export const CAST: readonly Character[] = [
     id: 'bryce', name: 'Bryce', full: 'Bryce Lindqvist', role: 'Co-founder, Stillwater Collective',
     bio: 'White, 33, says "hold space" in conversation. Owns a van with a plant in it.',
     motive: 'To be liked by the block.', secret: 'He read the contract and signed it anyway because the font looked trustworthy.',
-    reveal: 'open-house', voice: { pitch: 0.9, rate: 1.1 },
+    reveal: 'open-house', voice: { pitch: 0.9, rate: 1.1 }, group: 'hallie',
   },
   {
     id: 'hobbs', name: 'Hobbs', full: 'Lyle Hobbs', role: 'Community Liaison, Parallax Living',
@@ -106,7 +110,7 @@ export const CAST: readonly Character[] = [
     id: 'pryce', name: 'Pryce', full: 'Declan Pryce', role: 'CEO, Parallax Living (voice and billboards)',
     bio: 'White, 38, speaks entirely in decks. Never appears in person until the last night.',
     motive: 'A shiny, frictionless block.', secret: 'He has never been below 14th Street after dark.',
-    reveal: 'last-call-on-throop', voice: { pitch: 1.0, rate: 1.3 },
+    reveal: 'last-call-on-throop', voice: { pitch: 1.0, rate: 1.3 }, offstage: true,
   },
 ];
 
@@ -115,6 +119,9 @@ export const EXTRA_SPEAKERS: readonly string[] = [
   'You', 'Phone', 'Radio', 'Crowd', 'Dispatch', 'Fare', 'Mrs. Okafor', 'Lorraine', 'Big Lou', 'Ms. Pearl', 'Tiana',
   'Kyle', 'Paramedic', 'Clerk', 'Marshal', 'Announcer', 'Hearing Officer', 'Train', 'Doorman', 'Neighbour', 'Passenger',
 ];
+
+/** The twelve recurring on-stage characters (Hallie and Bryce are one couple; Pryce is an off-stage voice). */
+export const RECURRING = CAST.filter((c) => !c.group && !c.offstage);
 
 const byName = new Map(CAST.map((c) => [c.name, c]));
 export const characterByName = (name: string): Character | undefined => byName.get(name);

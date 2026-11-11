@@ -199,11 +199,11 @@ export function crateExpectations(ctx: PlaceCtx): MissionDef {
   const crates = [facePoint(grid, 'r2c1', 'W', 0.28), facePoint(grid, 'r2c1', 'W', 0.62), facePoint(grid, 'r2c0', 'E', 0.5), facePoint(grid, 'r2c0', 'E', 0.15), facePoint(grid, 'r1c1', 'W', 0.8), facePoint(grid, 'r1c1', 'W', 0.45)];
   const storage = facePoint(grid, 'r0c1', 'E', 0.5);
   return {
-    id: 'crate-expectations', title: 'Crate Expectations', act: 2, requires: ['repo-the-repo'], availableHours: [8, 18],
+    id: 'crate-expectations', title: 'Crate Expectations', act: 2, requires: ['repo-the-repo'], availableHours: [8, 15],
     blurb: 'The marshal arrives at six to lock Odette out. Six crates of records are on the pavement. Get them into a truck and out of the block.',
     giverPoi: 'wax-deli', giver: odette, triggerRadius: 4, timeLimit: 330, deadlineHour: 18,
     phoneIntro: { from: 'Ms. Odette', text: 'The marshal comes at six. I would like my records on a truck by then, and I would like to be sitting on a milk crate looking dignified.' },
-    failJoke: { timeUp: 'The shutter closes with records still inside. A man puts a sticker over the lock. It says THANK YOU FOR PARTNERING.', tooFast: 'The crates slide into each other. Miles Davis is now touching Bunny Wailer. Odette is not ready.' },
+    failJoke: { timeUp: 'The shutter closes with records still inside. A man puts a sticker over the lock. It says THANK YOU FOR PARTNERING.', tooFast: 'The crates slide into each other. Jazz is now touching reggae. Odette is not ready.' },
     followUps: [
       { from: 'Ms. Odette', text: 'I am staying with Gloria. Thirty-eight years, and it fits in a milk crate. I am not going to look at it again.', delay: 80, ifFlag: F.ODETTE_PAID },
       { from: 'Hobbs', text: 'We have taken a keen interest in preserving Odette\'s legacy. The legacy will be on display in a vitrine. A vitrine is a nice box.', delay: 80, ifFlag: F.ODETTE_FIXER },

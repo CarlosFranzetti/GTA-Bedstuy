@@ -42,7 +42,7 @@ describe('party walls and roofs differ per lot', () => {
     res.group.traverse((o) => { if ((o as THREE.Mesh).isMesh) names.add(((o as THREE.Mesh).material as THREE.Material).name); });
     for (const v of [0, 1, 2]) expect(names.has(`tarRoof:${v}`), `tarRoof:${v}`).toBe(true);
     for (const v of [0, 1, 2, 3]) expect(names.has(`brickRed:${v}`), `brickRed:${v}`).toBe(true);
-  });
+  }, 120_000); // WBURG: the city has 45 blocks now; whole-city builds take longer under a loaded machine
 
   it('without a DOM canvas the decal atlas is skipped and the build still succeeds', () => {
     expect(wallDecalMaterial(new Stub() as unknown as IMaterialLibrary)).toBeNull();

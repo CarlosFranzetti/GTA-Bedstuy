@@ -21,8 +21,8 @@ export function nightOfTheNarcan(ctx: PlaceCtx): MissionDef {
     phoneIntro: { from: 'Dee', text: 'tay is on the ground at the club yard. hes breathing wrong. they said the kit is at the liquor store by the register. please. please come.' },
     failJoke: { timeUp: 'Seconds matter. You get another run at it. The hands are steadier the second time.' },
     followUps: [
-      { from: 'Mission Log', text: 'Tay is at Kings County. He is awake. He asked for his car.', delay: 60, ifFlag: F.TAY_SOLD },
-      { from: 'Mission Log', text: 'Tay is at Kings County. He is awake. He asked for you.', delay: 60, ifFlag: F.TAY_RETURNED },
+      { from: 'Mission Log', text: 'Tay is at the hospital. He is awake. He asked for his car.', delay: 60, ifFlag: F.TAY_SOLD },
+      { from: 'Mission Log', text: 'Tay is at the hospital. He is awake. He asked for you.', delay: 60, ifFlag: F.TAY_RETURNED },
     ],
     setFlags: [F.ACT3, F.TAY_ALIVE],
     objectives: [
@@ -32,7 +32,7 @@ export function nightOfTheNarcan(ctx: PlaceCtx): MissionDef {
         say: [{ who: 'Dee', text: 'Hurry. He is gray. He is gray, he is not moving right.' }],
         beat: { letterbox: 3 },
       },
-      { kind: 'goTo', at: yard, radius: 6, presence: 'any', timeLimit: 70, text: 'Get to the club yard, fast and in one piece', banter: ['Dee (text): "i can see the lights from the corner. hurry."'], doneMessage: 'You skid in. Dee is on her knees on the concrete, hands shaking.' },
+      { kind: 'goTo', at: yard, radius: 6, presence: 'any', timeLimit: 90, text: 'Get to the club yard, fast and in one piece', banter: ['Dee (text): "i can see the lights from the corner. hurry."'], doneMessage: 'You skid in. Dee is on her knees on the concrete, hands shaking.' },
       { kind: 'interact', at: yard, radius: 5, presence: 'onFoot', prompt: 'Give the dose', presses: 2, text: 'Give Tay the dose', say: [{ who: 'Dee', text: 'Tilt his head. Like the video. Like the video, like the video.' }] },
       { kind: 'interact', at: yard, radius: 5, presence: 'onFoot', prompt: 'Stay with him, keep him breathing', presses: 8, text: 'Stay with him: keep him breathing', banter: ['Dee: "Come on, Tay. Come on, come on."'] },
       {
@@ -124,7 +124,7 @@ export function boroughHallExpress(ctx: PlaceCtx): MissionDef {
   const press = offset(hall, -22, 10);
   const bay = offset(hall, -22, -14);
   return {
-    id: 'borough-hall-express', title: 'Borough Hall Express', act: 3, requires: ['smoke-signals'], availableHours: [6, 9], deadlineHour: 9,
+    id: 'borough-hall-express', title: 'Borough Hall Express', act: 3, requires: ['smoke-signals'], availableHours: [5, 7], deadlineHour: 9.5,
     blurb: 'The tenants\' hearing is at nine. Thirty-one neighbours need a ride. You have a bus, a schedule that does not exist, and one name that should not be on the list.',
     giverPoi: 'golden', giver, triggerRadius: 4,
     fragile: { label: 'Passengers', hp: 100, minImpact: 2, perImpact: 2.2 },

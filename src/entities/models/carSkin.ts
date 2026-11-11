@@ -166,9 +166,9 @@ if (uCond.w > 0.5) {
   diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.5, 0.46, 0.38), dl * 0.2 * (0.4 + n2));
   if (uCond.y > 0.5) {
     float rl = uCond.y / 3.0;
-    float lowEdge = 1.0 - smoothstep(0.0, 0.32, yN);
-    float m = smoothstep(0.7 - 0.28 * rl, 0.86 - 0.2 * rl, n1 * 0.55 + n2 * 0.45 + lowEdge * 0.5 * rl);
-    diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.4, 0.19, 0.07), vec3(0.64, 0.35, 0.14), n2), m);
+    float lowEdge = 1.0 - smoothstep(0.0, 0.3, yN);
+    float m = smoothstep(0.6, 0.9, n2 * 0.3 + n1 * 0.2 + lowEdge * 0.8 * rl) + smoothstep(0.93, 0.99, n1) * rl * 0.8;
+    diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.4, 0.19, 0.07), vec3(0.64, 0.35, 0.14), n2), clamp(m, 0.0, 0.9));
   }
   if (uCond.z > 0.5 && q.z > uPrimer.x && q.z < uPrimer.y && q.y > uPrimer.z && q.y < uPrimer.w && (uBox.z == 0.0 || q.x * uBox.z > 0.0)) {
     float edge = smoothstep(0.0, 0.015, min(min(q.z - uPrimer.x, uPrimer.y - q.z), min(q.y - uPrimer.z, uPrimer.w - q.y)));
@@ -221,7 +221,7 @@ export class SkinCarPaint extends THREE.MeshPhysicalMaterial {
     Object.defineProperty(this, 'envMap', { get: () => this.base?.envMap ?? null, set: () => { /* follows the base */ }, configurable: true });
     this.onBeforeCompile = (shader): void => {
       Object.assign(shader.uniforms, this.u);
-      shader.vertexShader = shader.vertexShader
+      if (shader.vertexShader) shader.vertexShader = shader.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec3 vOPos;\nuniform vec3 uOff;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOPos = position + uOff;');
       shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\n${COND_FUNCS}`).replace('#include <map_fragment>', PAINT_FRAG);

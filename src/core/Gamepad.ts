@@ -45,6 +45,8 @@ export interface GamepadOptions {
   onToast?: (message: string) => void;
   onStart?: () => void;
   onNav?: (dir: NavDir) => void;
+  /** LB (-1) / RB (+1) in menus. Return true when handled (the pause menu switches tabs); otherwise the bumper falls back to left / right. */
+  onBumper?: (dir: -1 | 1) => boolean;
 }
 
 export class GamepadInput {
@@ -57,6 +59,7 @@ export class GamepadInput {
   onToast: ((message: string) => void) | null;
   onStart: (() => void) | null;
   onNav: ((dir: NavDir) => void) | null;
+  onBumper: ((dir: -1 | 1) => boolean) | null;
 
   private readonly getPads: () => ArrayLike<globalThis.Gamepad | null>;
   private prev: boolean[] = [];
@@ -70,6 +73,7 @@ export class GamepadInput {
     this.onToast = opts.onToast ?? null;
     this.onStart = opts.onStart ?? null;
     this.onNav = opts.onNav ?? null;
+    this.onBumper = opts.onBumper ?? null;
   }
 
   private pad(): globalThis.Gamepad | null {
@@ -109,8 +113,8 @@ export class GamepadInput {
       if (edge(BTN.DOWN)) this.onNav('down');
       if (edge(BTN.LEFT)) this.onNav('left');
       if (edge(BTN.RIGHT)) this.onNav('right');
-      if (edge(BTN.LB)) this.onNav('left'); // bumpers switch tabs in the phone and shop
-      if (edge(BTN.RB)) this.onNav('right');
+      if (edge(BTN.LB) && !this.onBumper?.(-1)) this.onNav('left'); // bumpers switch tabs in the pause menu, phone and shop
+      if (edge(BTN.RB) && !this.onBumper?.(1)) this.onNav('right');
       if (edge(BTN.A)) this.onNav('confirm');
       if (edge(BTN.B)) this.onNav('back');
     }

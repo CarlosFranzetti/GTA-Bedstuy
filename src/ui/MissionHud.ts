@@ -95,6 +95,7 @@ export class MissionHud {
   private lastPointerAngle = Number.NaN;
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
   private seenToast = 0;
+  private seenSub = 0;
   private cashShown = 0;
   private cashTarget = 0;
   private lastTimer = -1;
@@ -204,6 +205,12 @@ export class MissionHud {
 
     this.updateCash(s.cash, dt);
 
+    // story dialogue: "Speaker  line" in the same bottom-centre bar as the objective subtitle
+    if (s.subSeq !== undefined && s.subSeq !== this.seenSub) {
+      this.seenSub = s.subSeq;
+      if (s.subText) this.showDialogue(s.subWho ?? '', s.subText, s.subMs);
+    }
+
     if (s.toastSeq !== this.seenToast) {
       this.seenToast = s.toastSeq;
       if (s.toast !== '') this.showToast(s.toast, s.toastKind);
@@ -272,6 +279,22 @@ export class MissionHud {
     if (this.subTimer !== null) clearTimeout(this.subTimer);
     this.subEl.textContent = '';
     this.subEl.append(...highlightKeywords(this.doc, text));
+    this.subEl.hidden = text === '';
+    this.subEl.classList.remove('in'); void this.subEl.offsetWidth; this.subEl.classList.add('in');
+    this.subTimer = setTimeout(() => { this.subEl.hidden = true; this.subTimer = null; }, ms);
+  }
+
+  /** A speaker-tagged dialogue line (plain text, no keyword highlight); replaces whatever the bar showed. */
+  showDialogue(who: string, text: string, ms = SUBTITLE_MS): void {
+    if (this.subTimer !== null) clearTimeout(this.subTimer);
+    this.subEl.textContent = '';
+    if (who) {
+      const w = this.doc.createElement('b');
+      w.className = 'msn-who';
+      w.textContent = who;
+      this.subEl.append(w, this.doc.createTextNode(' '));
+    }
+    this.subEl.append(this.doc.createTextNode(text));
     this.subEl.hidden = text === '';
     this.subEl.classList.remove('in'); void this.subEl.offsetWidth; this.subEl.classList.add('in');
     this.subTimer = setTimeout(() => { this.subEl.hidden = true; this.subTimer = null; }, ms);

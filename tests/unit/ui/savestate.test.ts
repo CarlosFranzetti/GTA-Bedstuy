@@ -68,7 +68,12 @@ describe('SaveState', () => {
     const onReset = vi.fn();
     const menu = new Menu(parent, { onReset }, { storage: null });
     menu.open();
-    [...parent.querySelectorAll<HTMLButtonElement>('.menu-btn')].find((b) => b.textContent === 'Reset position')!.click();
+    // Game category, Reset position row: the first press arms it, the second confirms
+    menu.root.querySelector<HTMLElement>('.gp-cats [data-id="cat:game"]')!.click();
+    const row = menu.root.querySelector<HTMLElement>('.gp-opts [data-id="reset"]')!;
+    row.click();
+    expect(onReset).not.toHaveBeenCalled();
+    row.click();
     expect(onReset).toHaveBeenCalled();
     expect(loadPosition()).toBeNull();
     parent.remove();

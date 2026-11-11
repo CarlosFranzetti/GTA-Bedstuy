@@ -25,8 +25,13 @@ export interface GameEvents {
   'mission:started': { id: string; title: string; blurb: string };
   'mission:objective': { id: string; index: number; total: number; text: string };
   'mission:completed': { id: string; title: string; cash: number; message: string; totalCash: number };
-  'mission:failed': { id: string; title: string; reason: 'timeUp' | 'clockUp' | 'leftVehicle'; message: string };
+  'mission:failed': { id: string; title: string; reason: string; message: string };
   'mission:twist': { id: string; text: string };
+  'mission:abandoned': { id: string };
+  /** Story delivery: a dialogue line (speaker + text), a letterbox beat, a fork decision. */
+  'mission:subtitle': { id: string; who: string; text: string };
+  'mission:beat': { id: string; seconds: number };
+  'mission:choice': { id: string; fork: string; flag: string; label: string };
   /** Interiors, record shop and DJ game (src/world/interiors, src/game/DjGame.ts, src/ui/ShopUi.ts). */
   'interior:entered': { id: string };   // 'wax-deli' | 'aftersloth' | 'home'
   'interior:exited': { id: string };

@@ -121,13 +121,13 @@ async function desktopPass(browser) {
   R.stages.push({ stage, shot: await shot('02-walk-throop'), ...(await D.st()) });
 
   // 2. vehicles: pick up to three types, bus and van first when present
-  const pickType = (types) => page.evaluate((want) => {
+  const pickType = (type) => page.evaluate((want) => {
     const g = window.__gtaDebug; const p = g.player.body.pos; let best = null, bd = 1e9;
     for (const v of g.traffic.vehicles) { if (v.spec.type !== want) continue; const d = Math.hypot(v.body.pos.x - p.x, v.body.pos.z - p.z); if (d < bd) { bd = d; best = v; } }
     if (!best) return null;
     g.teleport(best.body.pos.x + 1.8, best.body.pos.z + 0.3); g.step(2);
     return { type: best.spec.type, d: +bd.toFixed(0) };
-  }, types);
+  }, type);
   const presentTypes = await page.evaluate(() => [...new Set(window.__gtaDebug.traffic.vehicles.map((v) => v.spec.type))]);
   note(`vehicle types present in traffic: ${presentTypes.join(', ')}`);
   const order = ['bus', 'cargovan', 'sedan', 'suv', 'hatch', 'cab', 'beater', 'boxtruck'].filter((t) => presentTypes.includes(t));
@@ -139,7 +139,7 @@ async function desktopPass(browser) {
   for (let i = 0; i < chosen.length; i++) {
     const type = chosen[i];
     stage = `03${'abc'[i]}-${type}`;
-    const pick = await pickType([type]);
+    const pick = await pickType(type);
     if (!pick) { check(`find ${type}`, false, 'no vehicle of this type in traffic'); continue; }
     note(`teleported next to ${pick.type} (nearest was ${pick.d} m away)`);
     for (let k = 0; k < 8; k++) {
@@ -269,7 +269,7 @@ async function desktopPass(browser) {
   else {
     note(`door prompts found: ${[...new Set(doors.map((d) => d.t))].slice(0, 6).join(' | ')}`);
     await page.evaluate((d) => { const g = window.__gtaDebug; g.teleport(d.x, d.z); g.step(2); }, shopHit);
-    await D.tap('KeyF'); await D.sim(3);
+    for (let k = 0; k < 3; k++) { await D.tap('KeyF'); await D.sim(2); if ((await D.st()).inside || (await page.evaluate(() => !!window.__gtaDebug.shopUi?.isOpen))) break; }
     const insideNow = await D.st();
     check('enter interior/shop with F', insideNow.inside === true || (await page.evaluate(() => !!window.__gtaDebug.shopUi?.isOpen)), `prompt "${shopHit.t}"`);
     R.stages.push({ stage: '06-entered', shot: await shot('06-entered'), ...insideNow });
@@ -323,10 +323,18 @@ async function desktopPass(browser) {
   R.stages.push({ stage: '09-loaded', shot: await shot('09-loaded'), ...after });
 
   stage = '10-new-game';
-  await page.evaluate(() => window.__gtaDebug.saves.newGame()); await sleep(800); await D.sim(1);
-  const ng = await D.st();
-  check('new game runs and resets', !ng.inCar, `position (${ng.x}, ${ng.z})`);
-  R.stages.push({ stage, shot: await shot('10-new-game'), ...ng });
+  // newGame() may reload the page (the navigation destroys the context): treat that as the result
+  const ngRes = await page.evaluate(() => window.__gtaDebug.saves.newGame()).then(() => 'returned', (e) => 'navigated: ' + e.message.slice(0, 80));
+  note(`newGame: ${ngRes}`);
+  if (ngRes === 'returned') {
+    await sleep(800); await D.sim(1);
+    const ng = await D.st();
+    check('new game runs and resets', !ng.inCar, `position (${ng.x}, ${ng.z})`);
+    R.stages.push({ stage, shot: await shot('10-new-game'), ...ng });
+  } else {
+    await page.waitForFunction(() => !!window.__gtaDebug, null, { timeout: 600000 }).catch(() => {});
+    R.stages.push({ stage, shot: await shot('10-new-game-reloaded') });
+  }
   await ctx.close();
 }
 

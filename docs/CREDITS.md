@@ -49,6 +49,10 @@ author and licence. All are **CC0 1.0 Universal**. 1K JPEG albedo / OpenGL norma
 | car_paint_flake | ambientCG `Metal027` (powder-coat metal; closest found) | ambientCG.com | https://ambientcg.com/view?id=Metal027 |
 | tyre_rubber | ambientCG `Rubber001` | ambientCG.com | https://ambientcg.com/view?id=Rubber001 |
 | brushed_chrome | ambientCG `Metal009` (brushed steel; proxy) | ambientCG.com | https://ambientcg.com/view?id=Metal009 |
+| detail_stucco | ambientCG `Plaster007` | CC0 (see LICENSE.txt) | https://ambientcg.com/view?id=Plaster007 |
+| detail_tile | ambientCG `Tiles107` | CC0 (see LICENSE.txt) | https://ambientcg.com/view?id=Tiles107 |
+| detail_cobble | ambientCG `PavingStones046` | CC0 (see LICENSE.txt) | https://ambientcg.com/view?id=PavingStones046 |
+| detail_caststone | ambientCG `Concrete034` | CC0 (see LICENSE.txt) | https://ambientcg.com/view?id=Concrete034 |
 
 Everything else in the game (geometry, signage, awnings, audio) is procedural and
 original to this project.

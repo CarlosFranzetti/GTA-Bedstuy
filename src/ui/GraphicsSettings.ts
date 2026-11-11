@@ -286,3 +286,49 @@ export function effectivePixelRatio(tier: Quality, g: GraphicsSettings, env: Gfx
 
 /** Label for a multiplier / percentage value. */
 export const pct = (v: number): string => `${Math.round(v * 100)}%`;
+
+/* ---------- rough GPU cost, for the menu's "GPU load" bar ---------- */
+
+/** Weight of each setting in the total, and its own 0..1 cost for a value. Rough: it ranks settings, it is not a profiler. */
+const LOAD_TERMS: { [K in GraphicsKey]: { w: number; f: (g: GraphicsSettings) => number } } = {
+  resolution: { w: 30, f: (g) => g.resolution * g.resolution },
+  nativeDpr: { w: 5, f: (g) => (g.nativeDpr ? 1 : 0) },
+  shadows: { w: 14, f: (g) => ({ off: 0, blob: 0.07, low: 0.35, medium: 0.65, high: 1 })[g.shadows] },
+  drawDistance: { w: 10, f: (g) => (g.drawDistance - RANGES.drawDistance.min) / (RANGES.drawDistance.max - RANGES.drawDistance.min) },
+  treeRange: { w: 4, f: (g) => (g.treeRange - RANGES.treeRange.min) / (RANGES.treeRange.max - RANGES.treeRange.min) },
+  crowd: { w: 3, f: (g) => g.crowd / RANGES.crowd.max },
+  traffic: { w: 3, f: (g) => g.traffic / RANGES.traffic.max },
+  aa: { w: 4, f: (g) => (g.aa === 'smaa' ? 1 : 0) },
+  ao: { w: 8, f: (g) => (g.ao ? 1 : 0) },
+  bloom: { w: 4, f: (g) => (g.bloom ? 1 : 0) },
+  dof: { w: 5, f: (g) => (g.dof ? 1 : 0) },
+  vignette: { w: 0.5, f: (g) => (g.vignette ? 1 : 0) },
+  grain: { w: 1, f: (g) => (g.grain ? 1 : 0) },
+  textures: { w: 4, f: (g) => ({ low: 0.15, medium: 0.5, high: 1 })[g.textures] },
+  fpsCap: { w: 0, f: () => 0 },
+  fov: { w: 1, f: (g) => (g.fov - RANGES.fov.min) / (RANGES.fov.max - RANGES.fov.min) },
+  showFps: { w: 0, f: () => 0 },
+};
+
+/** How heavy one setting is at its current value, 0..1 of its own range (the per-option bar). */
+export function optionLoad(key: GraphicsKey, g: GraphicsSettings): number {
+  return Math.min(1, Math.max(0, LOAD_TERMS[key].f(g)));
+}
+
+/** Rough share of the GPU budget the whole set of settings asks for, 0..1. Only settings the tier honours count. */
+export function gpuLoad(g: GraphicsSettings, tier: Quality): number {
+  const sup = supports(tier).keys;
+  let sum = 0, max = 0;
+  for (const k of GRAPHICS_KEYS) {
+    if (!sup.has(k)) continue;
+    const t = LOAD_TERMS[k];
+    sum += t.w * optionLoad(k, g);
+    max += t.w;
+  }
+  return max > 0 ? sum / max : 0;
+}
+
+export type LoadLabel = 'Light' | 'Moderate' | 'Heavy' | 'Very heavy';
+export function loadLabel(load: number): LoadLabel {
+  return load < 0.3 ? 'Light' : load < 0.55 ? 'Moderate' : load < 0.8 ? 'Heavy' : 'Very heavy';
+}

@@ -1,7 +1,12 @@
 /**
- * Pause menu: Resume, graphics quality, master + radio volume, invert look Y, reset position,
- * and a controls reference for keyboard, touch and gamepad. Opens on Esc, gamepad Start (via `toggle()`),
- * the touch pause button, or when the browser releases pointer lock (Esc while locked is eaten by the browser).
+ * Pause menu in the layout of a console-era open-world pause screen (original art, no third-party assets):
+ * a dark translucent backdrop over the blurred game, a header (game title left, player info right), a tab bar
+ * (MAP, MISSIONS, STATS, SETTINGS, SAVE, RADIO) and a body. SETTINGS is three columns: categories, option rows
+ * with right-aligned values, and a description panel with a rough GPU load bar for graphics options.
+ *
+ * Opens on Esc, gamepad Start (via `toggle()`), the touch pause button, or when the browser releases pointer lock.
+ * Keyboard: Q / E (or PageUp / PageDown) tabs, arrows or WASD select and change, Enter accepts, Backspace goes back, Esc resumes.
+ * Gamepad: D-pad, A, B, LB / RB (`tab()`), Start. Mouse and touch: every row, arrow and bar is clickable / draggable.
  *
  * Settings persist to localStorage (wrapped; a blocked/absent store just means no persistence).
  * The root uses the `hidden` attribute and `data-ui-modal`, which `Input` uses to leave typing/focus keys alone.
@@ -11,11 +16,12 @@ import type { InputMode } from '@/core/Input';
 import type { NavDir } from '@/core/Gamepad';
 import { clearPosition } from './SaveState';
 import { MINIMAP_LEGEND } from './Minimap';
-import type { SaveManager } from './GameSave';
+import { formatClock, formatDay, type SaveManager } from './GameSave';
 import { SavePanel } from './SavePanel';
 import { FullscreenControl } from './Fullscreen';
+import { RowList, type RowSpec } from './menuRows';
 import {
-  GraphicsStore, supports, SHADOW_MODES, FPS_CAPS, RANGES,
+  GraphicsStore, supports, SHADOW_MODES, FPS_CAPS, RANGES, gpuLoad, optionLoad, loadLabel,
   type GraphicsKey, type GraphicsSettings, type ShadowMode,
 } from './GraphicsSettings';
 import type { Quality } from '@/render/Shadows';
@@ -24,9 +30,15 @@ export type MenuQuality = 'phone' | 'low' | 'medium' | 'high';
 export const QUALITIES: readonly MenuQuality[] = ['phone', 'low', 'medium', 'high'];
 export const SETTINGS_KEY = 'gta-bedstuy.settings.v1';
 
+export type MenuTab = 'map' | 'missions' | 'stats' | 'settings' | 'save' | 'radio';
+export const MENU_TABS: ReadonlyArray<{ id: MenuTab; label: string }> = [
+  { id: 'map', label: 'Map' }, { id: 'missions', label: 'Missions' }, { id: 'stats', label: 'Stats' },
+  { id: 'settings', label: 'Settings' }, { id: 'save', label: 'Save' }, { id: 'radio', label: 'Radio' },
+];
+
 export interface MenuSettings {
   quality: MenuQuality;
-  /** Auto preset: the device default tier, with the automatic drop when the frame rate is poor. A tier button turns it off. */
+  /** Auto preset: the device default tier, with the automatic drop when the frame rate is poor. A tier choice turns it off. */
   auto: boolean;
   /** 0..1 */
   master: number;
@@ -50,6 +62,39 @@ export interface MenuCallbacks {
   onReset?: () => void;
 }
 
+/** Live values for the header and the STATS / RADIO tabs. Every field is optional: a missing one is simply not shown. */
+export interface MenuInfo {
+  cash?: number;
+  /** 0..24 */
+  hour?: number;
+  /** 0-based game day */
+  day?: number;
+  street?: string;
+  station?: string;
+  /** Real counters, label / value. */
+  stats?: ReadonlyArray<readonly [string, string]>;
+}
+
+export interface MissionLogEntry {
+  id: string;
+  title: string;
+  state: 'active' | 'done' | 'failed' | 'open' | 'locked';
+  act?: number;
+  objective?: string;
+  /** 'story' | 'side' */
+  tag?: string;
+}
+
+/** The part of MapScreen the menu embeds (it reparents `root` into the MAP tab while the menu is open). */
+export interface MapEmbed {
+  readonly root: HTMLElement;
+  readonly isOpen: boolean;
+  open(): void;
+  close(): void;
+  onOpen: (() => void) | null;
+  onClose: (() => void) | null;
+}
+
 export interface MenuOptions {
   /** Show the on-screen pause button (top-right). */
   touch?: boolean;
@@ -61,7 +106,7 @@ export interface MenuOptions {
   storage?: Pick<Storage, 'getItem' | 'setItem'> | null;
   /** Open when the browser exits pointer lock. Default true. */
   openOnPointerUnlock?: boolean;
-  /** Adds "Save / Load game" (3 slots + autosave, export / import, new game). Omit and the menu has no save screen. */
+  /** Adds the SAVE tab (3 slots + autosave, export / import, new game). Omit and the tab is not shown. */
   saves?: SaveManager;
   /** false while a save would store a nonsense pose (inside a room). */
   canSave?: () => boolean;
@@ -75,6 +120,14 @@ export interface MenuOptions {
   auto?: boolean;
   /** Show a "Play full screen" button on the title screen (`.hud-splash`). Default true. */
   titleFullscreen?: boolean;
+  /** The existing MapScreen: it fills the MAP tab. Omit and the tab is not shown. */
+  map?: MapEmbed;
+  /** Header / stats values, read when the menu opens and once a second while it is open. */
+  info?: () => MenuInfo;
+  /** Mission log for the MISSIONS tab (feature-detected: without it the tab shows the active mission only). */
+  missionLog?: () => readonly MissionLogEntry[];
+  /** Show the "install as app" hint (hosted build only). Default: true when built with VITE_HOSTED=1. */
+  installable?: boolean;
 }
 
 const DEFAULTS: MenuSettings = { quality: 'medium', auto: false, master: 1, radio: 1, invertY: false };
@@ -82,11 +135,11 @@ const DEFAULTS: MenuSettings = { quality: 'medium', auto: false, master: 1, radi
 const CONTROLS: Record<InputMode, { title: string; rows: Array<[string, string]> }> = {
   keyboard: {
     title: 'Keyboard & mouse',
-    rows: [['WASD', 'Move / drive'], ['Mouse', 'Look'], ['Shift', 'Run / handbrake'], ['Space', 'Brake'], ['F', 'Enter / exit car'], ['H', 'Horn'], ['E', 'Next radio station'], ['N', 'Point at HOME / WAX DELI'], ['Esc', 'Pause']],
+    rows: [['WASD', 'Move / drive'], ['Mouse', 'Look'], ['Shift', 'Run / handbrake'], ['Space', 'Brake'], ['F', 'Enter / exit car'], ['H', 'Horn'], ['E', 'Next radio station'], ['P', 'Phone'], ['M', 'Map'], ['N', 'Point at HOME / WAX DELI'], ['Alt+Enter', 'Full screen'], ['Esc', 'Pause']],
   },
   touch: {
     title: 'Touch',
-    rows: [['Left stick', 'Move / drive'], ['Drag right side', 'Look'], ['CAR', 'Enter / exit car'], ['RUN / BRAKE', 'Run, brake'], ['HORN', 'Horn'], ['RADIO', 'Next station'], ['Tap Offer/Nav chip', 'Point at HOME / WAX DELI'], ['II', 'Pause']],
+    rows: [['Left stick', 'Move / drive'], ['Drag right side', 'Look'], ['CAR', 'Enter / exit car'], ['RUN / BRAKE', 'Run, brake'], ['HORN', 'Horn'], ['RADIO', 'Next station'], ['PHONE / MAP', 'Open the phone or the map'], ['Tap Offer/Nav chip', 'Point at HOME / WAX DELI'], ['II', 'Pause']],
   },
   gamepad: {
     title: 'Gamepad',
@@ -105,7 +158,7 @@ const asPct = (v: number): string => `${Math.round(v * 100)}%`;
 const frac = (r: { min: number; max: number; step: number }): AdvControl => ({ kind: 'range', min: Math.round(r.min * 100), max: Math.round(r.max * 100), step: Math.round(r.step * 100), scale: 100, fmt: asPct });
 const SHADOW_LABEL: Record<ShadowMode, string> = { off: 'Off', blob: 'Blob', low: 'Low', medium: 'Medium', high: 'High' };
 
-/** Advanced graphics rows, in menu order. A row shows only when GraphicsSettings.supports(tier) lists its key. */
+/** Graphics rows, in menu order. A row shows only when GraphicsSettings.supports(tier) lists its key. */
 export const ADVANCED_ROWS: readonly AdvSpec[] = [
   { key: 'resolution', label: 'Resolution scale', control: frac(RANGES.resolution) },
   { key: 'nativeDpr', label: 'Native display resolution', control: { kind: 'bool' } },
@@ -126,28 +179,57 @@ export const ADVANCED_ROWS: readonly AdvSpec[] = [
   { key: 'showFps', label: 'Show FPS', control: { kind: 'bool' } },
 ];
 
+const GFX_DESC: Record<GraphicsKey, string> = {
+  resolution: 'Renders the 3D view at a share of the screen resolution and scales it up. Lower is faster; the HUD stays sharp.',
+  nativeDpr: 'Ignores the preset’s pixel-ratio cap and renders at your display’s full density (up to 3x). Sharp on retina screens, much heavier.',
+  shadows: 'Off: none. Blob: soft dark spots under cars and people. Low to High: real sun shadows, sharper and farther as you go up.',
+  drawDistance: 'How far buildings, props, parked cars and people are drawn. Farther looks better and costs CPU and GPU.',
+  treeRange: 'How far street trees and street furniture are drawn.',
+  crowd: 'Pedestrian density. 0% empties the sidewalks.',
+  traffic: 'Moving traffic and police patrol density. Parked cars can only be thinned out, not added.',
+  aa: 'SMAA smooths jagged edges on buildings and wires. Costs a little GPU.',
+  ao: 'Ambient occlusion darkens creases, corners and the ground under cars. Medium and High presets only.',
+  bloom: 'Soft glow around bright lights, signs and the sun.',
+  dof: 'Depth of field blurs the far distance slightly. Medium and High presets only.',
+  vignette: 'Darkens the edges of the screen.',
+  grain: 'Fine film grain over the image.',
+  textures: 'Texture sharpness and surface detail. Low also turns normal maps off.',
+  fpsCap: 'Limits how many frames are drawn per second. A lower cap saves battery and heat on laptops and phones.',
+  fov: 'Vertical field of view on foot; the car view moves with it. 64° is the default.',
+  showFps: 'Shows a frames-per-second counter in the corner of the screen.',
+};
+
+interface Category { id: string; label: string; desc: string; gpu?: boolean }
+const CATEGORIES: readonly Category[] = [
+  { id: 'display', label: 'Display', desc: 'Full screen, frame rate and render resolution.', gpu: true },
+  { id: 'graphics', label: 'Graphics', desc: 'The quality preset, shadows, textures and anti-aliasing.', gpu: true },
+  { id: 'advanced', label: 'Advanced Graphics', desc: 'Draw distance, crowds, traffic and the post effects, one by one. Changed rows are marked on the left.', gpu: true },
+  { id: 'audio', label: 'Audio', desc: 'Master volume for the whole game.' },
+  { id: 'controls', label: 'Controls', desc: 'The controls for the device you are using now.' },
+  { id: 'camera', label: 'Camera', desc: 'Field of view and look direction.' },
+  { id: 'radio', label: 'Radio / Voices', desc: 'Radio volume and the radio library.' },
+  { id: 'game', label: 'Game', desc: 'Reset, and what the minimap symbols mean.' },
+];
+
+const GFX_ROW_LABEL = new Map<GraphicsKey, AdvSpec>(ADVANCED_ROWS.map((r) => [r.key, r]));
+
 function defaultStorage(): Pick<Storage, 'getItem' | 'setItem'> | null {
   try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; }
 }
 
+function hostedBuild(): boolean {
+  try { return (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_HOSTED === '1'; } catch { return false; }
+}
+
+const money = (n: number): string => `$${Math.round(n).toLocaleString('en-US')}`;
+
 export class Menu {
   readonly root: HTMLElement;
   readonly pauseButton: HTMLButtonElement;
+  readonly graphics: GraphicsStore;
+  readonly fullscreen: FullscreenControl | null;
   private readonly doc: Document;
-  private readonly panel: HTMLElement;
-  private readonly resumeBtn: HTMLButtonElement;
-  private readonly qualityBtns = new Map<MenuQuality, HTMLButtonElement>();
-  private readonly masterInput: HTMLInputElement;
-  private readonly masterOut: HTMLOutputElement;
-  private readonly radioInput: HTMLInputElement;
-  private readonly radioOut: HTMLOutputElement;
-  private readonly invertInput: HTMLInputElement;
-  private readonly resetBtn: HTMLButtonElement;
-  private readonly mainBox: HTMLElement;
-  private readonly saveBox: HTMLElement;
-  private readonly saveBtn: HTMLButtonElement;
-  private savePanel: SavePanel | null = null;
-  private readonly controlSections = new Map<InputMode, HTMLElement>();
+  private readonly shell: HTMLElement;
   private readonly storage: Pick<Storage, 'getItem' | 'setItem'> | null;
   private readonly cleanup: Array<() => void> = [];
   private state: MenuSettings;
@@ -155,18 +237,46 @@ export class Menu {
   private wasLocked = false;
   private restoreFocus: HTMLElement | null = null;
   private readonly touchEnabled: boolean;
-  readonly graphics: GraphicsStore;
-  readonly fullscreen: FullscreenControl | null;
-  private readonly advBox: HTMLElement;
-  private readonly advToggle: HTMLButtonElement;
-  private readonly advReset: HTMLButtonElement;
-  private readonly advSummary: HTMLElement;
-  private readonly advRows = new Map<GraphicsKey, { row: HTMLElement; spec: AdvSpec; input?: HTMLInputElement; out?: HTMLOutputElement; btns?: HTMLButtonElement[] }>();
-  private readonly autoBtn: HTMLButtonElement;
-  private readonly fsBtn: HTMLButtonElement;
+  private readonly opts: MenuOptions;
+
+  // shell
+  private readonly tabBtns = new Map<MenuTab, HTMLButtonElement>();
+  private readonly panes = new Map<MenuTab, HTMLElement>();
+  private readonly tabHintL: HTMLButtonElement;
+  private readonly tabHintR: HTMLButtonElement;
+  private readonly backBtn: HTMLButtonElement;
+  private readonly cashEl: HTMLElement;
+  private readonly whenEl: HTMLElement;
+  private readonly streetEl: HTMLElement;
+  private readonly footEl: HTMLElement;
+  private tabId: MenuTab = 'settings';
+  private col: 'cats' | 'opts' = 'cats';
+  private inputMode: InputMode = 'keyboard';
+  private infoTimer = 0;
+
+  // settings / lists
+  private readonly catList: RowList;
+  private readonly optList: RowList;
+  private readonly radioList: RowList;
+  private readonly missionList: RowList;
+  private readonly statList: RowList;
+  private readonly settingsPane: HTMLElement;
+  private readonly descs = new Map<string, DescPanel>();
+  private catId = 'display';
+  private readonly gfxRows = new Map<GraphicsKey, RowSpec>();
+  private readonly specs = new Map<string, RowSpec>();
+  private resetArmed = false;
+  private resetTimer = 0;
+
+  // embeds
+  private savePanel: SavePanel | null = null;
+  private readonly mapHost: HTMLElement;
+  private mapHome: Node | null = null;
+  private mapSwitching = false;
+
+  // title screen / fps
   private readonly fsCorner: HTMLButtonElement;
   private readonly fsTitle: HTMLButtonElement;
-  private readonly installNote: HTMLElement;
   private readonly fpsEl: HTMLElement;
   private fpsRaf = 0;
   /** the tier the game runs now (the automatic drop can differ from the chosen one) */
@@ -174,8 +284,15 @@ export class Menu {
   private readonly deviceTier: MenuQuality;
   private readonly getLive: (() => MenuQuality) | undefined;
 
+  // real counters
+  private readonly born: number;
+  private pausedMs = 0;
+  private openedAt = 0;
+  private pauses = 0;
+
   constructor(parent: HTMLElement, private readonly cb: MenuCallbacks = {}, opts: MenuOptions = {}) {
     this.doc = parent.ownerDocument;
+    this.opts = opts;
     this.touchEnabled = !!opts.touch;
     this.storage = opts.storage === undefined ? defaultStorage() : opts.storage;
     const saved = this.load();
@@ -186,151 +303,105 @@ export class Menu {
     this.getLive = opts.getQuality;
     this.graphics = opts.graphics ?? new GraphicsStore(this.storage);
     this.fullscreen = opts.fullscreen === undefined ? new FullscreenControl(this.doc, this.storage) : opts.fullscreen;
+    this.born = this.now();
 
-    // ---- DOM
+    // ---- DOM: root > shell > header, tab bar, body, footer
     this.root = this.el('div', 'menu-root');
     this.root.hidden = true;
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-modal', 'true');
     this.root.setAttribute('aria-labelledby', 'menu-title');
     this.root.setAttribute('data-ui-modal', '');
-    this.panel = this.el('div', 'menu-panel');
+    this.shell = this.el('div', 'gp-shell');
 
-    const title = this.el('h2', 'menu-title');
+    const head = this.el('header', 'gp-head');
+    this.backBtn = this.button('‹', 'gp-back');
+    this.backBtn.setAttribute('aria-label', 'Back');
+    this.backBtn.addEventListener('click', () => this.back());
+    const titleBox = this.el('div', 'gp-titlebox');
+    const title = this.el('h2', 'menu-title gp-title');
     title.id = 'menu-title';
     title.textContent = 'Paused';
+    const sub = this.el('span', 'gp-game');
+    sub.textContent = 'GTA Bed-Stuy';
+    titleBox.append(sub, title);
+    const player = this.el('div', 'gp-player');
+    this.cashEl = this.el('b', 'gp-cash');
+    this.whenEl = this.el('span', 'gp-when');
+    this.streetEl = this.el('span', 'gp-street');
+    player.append(this.cashEl, this.whenEl, this.streetEl);
+    head.append(this.backBtn, titleBox, player);
 
-    this.resumeBtn = this.button('Resume', 'menu-btn menu-primary');
-    this.resumeBtn.addEventListener('click', () => this.close());
-
-    // Quality radiogroup
-    const quality = this.el('div', 'menu-row');
-    const qLabel = this.el('span', 'menu-label');
-    qLabel.id = 'menu-quality-label';
-    qLabel.textContent = 'Graphics quality';
-    const group = this.el('div', 'menu-seg');
-    group.setAttribute('role', 'radiogroup');
-    group.setAttribute('aria-labelledby', 'menu-quality-label');
-    this.autoBtn = this.button('Auto', 'menu-seg-btn');
-    this.autoBtn.setAttribute('role', 'radio');
-    this.autoBtn.dataset.quality = 'auto';
-    this.autoBtn.addEventListener('click', () => this.setAuto(true));
-    group.appendChild(this.autoBtn);
-    for (const q of QUALITIES) {
-      const b = this.button(q[0].toUpperCase() + q.slice(1), 'menu-seg-btn');
-      b.setAttribute('role', 'radio');
-      b.dataset.quality = q;
-      b.addEventListener('click', () => this.setQuality(q));
-      this.qualityBtns.set(q, b);
-      group.appendChild(b);
+    const bar = this.el('div', 'gp-tabbar');
+    this.tabHintL = this.button('Q', 'gp-tabhint l');
+    this.tabHintR = this.button('E', 'gp-tabhint r');
+    this.tabHintL.setAttribute('aria-label', 'Previous tab');
+    this.tabHintR.setAttribute('aria-label', 'Next tab');
+    this.tabHintL.tabIndex = -1; this.tabHintR.tabIndex = -1;
+    this.tabHintL.addEventListener('click', () => this.tab(-1));
+    this.tabHintR.addEventListener('click', () => this.tab(1));
+    const nav = this.el('nav', 'menu-tabs');
+    nav.setAttribute('role', 'tablist');
+    nav.setAttribute('aria-label', 'Pause menu');
+    for (const t of MENU_TABS) {
+      const b = this.button(t.label, 'menu-tab');
+      b.setAttribute('role', 'tab');
+      b.dataset.tab = t.id;
+      b.tabIndex = -1;
+      b.addEventListener('click', () => this.showTab(t.id));
+      b.hidden = (t.id === 'save' && !opts.saves) || (t.id === 'map' && !opts.map);
+      this.tabBtns.set(t.id, b);
+      nav.appendChild(b);
     }
-    quality.append(qLabel, group);
+    bar.append(this.tabHintL, nav, this.tabHintR);
 
-    const [masterRow, masterInput, masterOut] = this.slider('Master volume', 'menu-master');
-    const [radioRow, radioInput, radioOut] = this.slider('Radio volume', 'menu-radio');
-    this.masterInput = masterInput; this.masterOut = masterOut;
-    this.radioInput = radioInput; this.radioOut = radioOut;
-    masterInput.addEventListener('input', () => this.setMaster(Number(masterInput.value) / 100));
-    radioInput.addEventListener('input', () => this.setRadio(Number(radioInput.value) / 100));
-    const libBtn = this.button('Radio library…', 'menu-btn');
-    libBtn.addEventListener('click', () => this.cb.onRadioLibrary?.());
-
-    const invertRow = this.el('label', 'menu-row menu-check');
-    this.invertInput = this.el('input', '');
-    this.invertInput.type = 'checkbox';
-    this.invertInput.id = 'menu-invert';
-    const invertText = this.el('span', 'menu-label');
-    invertText.textContent = 'Invert look Y';
-    invertRow.append(invertText, this.invertInput);
-    this.invertInput.addEventListener('change', () => this.setInvertY(this.invertInput.checked));
-
-    this.resetBtn = this.button('Reset position', 'menu-btn');
-    this.resetBtn.addEventListener('click', () => { clearPosition(); this.cb.onReset?.(); this.close(); });
-
-    // Controls reference
-    const controls = this.el('div', 'menu-controls');
-    const cTitle = this.el('h3', 'menu-subtitle');
-    cTitle.textContent = 'Controls';
-    controls.appendChild(cTitle);
-    const cols = this.el('div', 'menu-cols');
-    for (const mode of ['keyboard', 'touch', 'gamepad'] as const) {
-      const sec = this.el('section', 'menu-col');
-      sec.dataset.mode = mode;
-      const h = this.el('h4', 'menu-col-title');
-      h.textContent = CONTROLS[mode].title;
-      const dl = this.el('dl', 'menu-keys');
-      for (const [k, v] of CONTROLS[mode].rows) {
-        const dt = this.el('dt', ''); dt.textContent = k;
-        const dd = this.el('dd', ''); dd.textContent = v;
-        dl.append(dt, dd);
-      }
-      sec.append(h, dl);
-      cols.appendChild(sec);
-      this.controlSections.set(mode, sec);
+    const body = this.el('div', 'gp-body');
+    for (const t of MENU_TABS) {
+      const pane = this.el('section', `gp-pane gp-pane-${t.id}`);
+      pane.dataset.tab = t.id;
+      pane.setAttribute('role', 'tabpanel');
+      pane.hidden = true;
+      this.panes.set(t.id, pane);
+      body.appendChild(pane);
     }
-    controls.appendChild(cols);
 
-    // Minimap legend: what each dot on the map means
-    const legend = this.el('div', 'menu-legend');
-    const lTitle = this.el('h3', 'menu-subtitle');
-    lTitle.textContent = 'Minimap';
-    const lList = this.el('ul', 'menu-legend-list');
-    for (const item of MINIMAP_LEGEND) {
-      const li = this.el('li', '');
-      const sw = this.el('span', `menu-legend-sw ${item.shape}`);
-      sw.style.setProperty('--sw', item.swatch);
-      sw.setAttribute('aria-hidden', 'true');
-      const tx = this.el('span', '');
-      tx.textContent = item.text;
-      li.append(sw, tx);
-      lList.appendChild(li);
-    }
-    legend.append(lTitle, lList);
+    this.footEl = this.el('footer', 'gp-foot');
 
-    const hint = this.el('p', 'menu-hint');
-    hint.textContent = 'Esc / Start to resume';
+    // ---- lists
+    const mkList = (cls: string, label: string, onHi: (r: RowSpec | null) => void, which: 'cats' | 'opts' | 'single'): RowList => new RowList(this.doc, {
+      label,
+      canHover: () => which !== 'cats' || this.col === 'cats',
+      onHighlight: onHi,
+      onChange: () => { this.afterChange(); },
+      onPointer: () => { if (which === 'opts') this.focusCol('opts'); },
+    }, cls);
+    this.catList = mkList('gp-cats', 'Settings categories', (r) => { if (r) this.onCategory(r); }, 'cats');
+    this.optList = mkList('gp-opts', 'Options', (r) => this.showDesc('settings', r), 'opts');
+    this.radioList = mkList('gp-opts', 'Radio', (r) => this.showDesc('radio', r), 'single');
+    this.missionList = mkList('gp-opts gp-missions', 'Missions', (r) => this.showDesc('missions', r), 'single');
+    this.statList = mkList('gp-opts gp-stats', 'Stats', (r) => this.showDesc('stats', r), 'single');
 
-    this.mainBox = this.el('div', 'menu-main');
-    this.saveBtn = this.button('Save / Load game', 'menu-btn menu-save-btn');
-    this.saveBtn.hidden = !opts.saves;
-    this.saveBtn.addEventListener('click', () => this.showSave(true));
+    this.settingsPane = this.panes.get('settings')!;
+    this.settingsPane.dataset.view = 'cats';
+    const catsBox = this.column('gp-col gp-col-cats', this.catList.el);
+    const optsBox = this.column('gp-col gp-col-opts', this.optList.el);
+    this.settingsPane.append(catsBox, optsBox, this.descPanel('settings'));
 
-    // Display: full screen + install hint
-    const fsRow = this.el('div', 'menu-row menu-fs-row');
-    const fsLabel = this.el('span', 'menu-label');
-    fsLabel.textContent = 'Full screen';
-    this.fsBtn = this.button('', 'menu-btn menu-fs-btn');
-    this.fsBtn.addEventListener('click', () => { void this.fullscreen?.toggle(); });
-    fsRow.append(fsLabel, this.fsBtn);
-    this.installNote = this.el('p', 'menu-note menu-install');
-    this.installNote.textContent = 'Install as app: Chrome, menu > Cast, save and share > Install page as app. Safari, File > Add to Dock. It then opens in its own window with no browser bars.';
+    this.panes.get('radio')!.append(this.column('gp-col gp-col-opts', this.radioList.el), this.descPanel('radio'));
+    this.panes.get('missions')!.append(this.column('gp-col gp-col-opts', this.missionList.el), this.descPanel('missions'));
+    this.panes.get('stats')!.append(this.column('gp-col gp-col-opts', this.statList.el), this.descPanel('stats'));
 
-    // Advanced graphics (collapsed): individual settings over the tier
-    this.advToggle = this.button('Advanced graphics', 'menu-btn menu-adv-toggle');
-    this.advToggle.setAttribute('aria-expanded', 'false');
-    this.advToggle.setAttribute('aria-controls', 'menu-adv');
-    this.advToggle.addEventListener('click', () => this.setAdvOpen(this.advToggle.getAttribute('aria-expanded') !== 'true'));
-    this.advBox = this.el('div', 'menu-adv menu-section');
-    this.advBox.id = 'menu-adv';
-    this.advBox.hidden = true;
-    this.advSummary = this.el('p', 'menu-note menu-adv-summary');
-    this.advReset = this.button('Reset to preset', 'menu-btn menu-adv-reset');
-    this.advReset.addEventListener('click', () => this.graphics.reset());
-    this.advBox.appendChild(this.advSummary);
-    for (const spec of ADVANCED_ROWS) this.advBox.appendChild(this.buildAdvRow(spec));
-    this.advBox.appendChild(this.advReset);
-
-    this.mainBox.append(this.resumeBtn, this.saveBtn, quality, fsRow, this.installNote, masterRow, radioRow, libBtn, invertRow, this.advToggle, this.advBox, this.resetBtn, controls, legend, hint);
-    this.saveBox = this.el('div', 'menu-main menu-savebox');
-    this.saveBox.hidden = true;
+    this.mapHost = this.el('div', 'gp-maphost');
+    this.panes.get('map')!.appendChild(this.mapHost);
     if (opts.saves) {
-      const back = this.button('Back', 'menu-btn menu-save-back');
-      back.addEventListener('click', () => this.showSave(false));
       this.savePanel = new SavePanel(null, opts.saves, { canSave: opts.canSave, newGame: true, onDone: () => this.close() });
-      this.saveBox.append(back, this.savePanel.root);
+      const host = this.el('div', 'gp-savehost');
+      host.appendChild(this.savePanel.root);
+      this.panes.get('save')!.appendChild(host);
     }
-    this.panel.append(title, this.mainBox, this.saveBox);
-    this.root.appendChild(this.panel);
+
+    this.shell.append(head, bar, body, this.footEl);
+    this.root.appendChild(this.shell);
     parent.appendChild(this.root);
 
     // Touch pause button lives outside the modal root so it can show while the menu is closed.
@@ -352,31 +423,34 @@ export class Menu {
     this.fpsEl.hidden = true;
     this.fpsEl.setAttribute('aria-hidden', 'true');
     parent.appendChild(this.fpsEl);
-    this.installNote.hidden = this.isStandalone();
 
-    this.syncUi();
-    this.syncAdv();
+    this.buildSpecs();
+    this.catList.setRows(CATEGORIES.map((c) => this.catRow(c)));
+    this.loadCategory(this.catId);
+    this.radioList.setRows(this.rowsFor('radio-tab'));
+    this.statList.setRows([]);
+    this.missionList.setRows([]);
+
+    this.setInputMode(opts.touch ? 'touch' : 'keyboard');
+    this.showTab('settings', true);
     this.syncFs();
     this.syncFps();
-    this.setInputMode(opts.touch ? 'touch' : 'keyboard');
+    this.syncInfo();
 
     // ---- global listeners
     const win = this.doc.defaultView;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'Escape' && !e.repeat) { e.preventDefault(); if (this.opened && this.savingView) this.showSave(false); else this.toggle(); }
-    };
+    const onKey = (e: KeyboardEvent) => this.onWindowKey(e);
     win?.addEventListener('keydown', onKey);
     this.cleanup.push(() => win?.removeEventListener('keydown', onKey));
 
-    this.root.addEventListener('keydown', (e) => this.onPanelKey(e));
-
     // advanced graphics: any change (slider, toggle, reset) re-syncs the rows and tells the host
-    this.cleanup.push(this.graphics.onChange((changed) => { this.syncAdv(); this.syncFps(); this.cb.onGraphics?.(this.graphics.effective(this.liveTier), changed); }));
+    this.cleanup.push(this.graphics.onChange((changed) => { this.refreshAll(); this.syncFps(); this.cb.onGraphics?.(this.graphics.effective(this.liveTier), changed); }));
 
     // full screen: Esc (or the browser's own exit) leaves it, then the pause screen opens; a late resize event fixes Safari's stale size
     if (this.fullscreen) {
       this.cleanup.push(this.fullscreen.onChange((on, escaped) => {
         this.syncFs();
+        this.refreshAll();
         win?.setTimeout(() => win.dispatchEvent(new Event('resize')), 150);
         if (!on && escaped && !this.opened && !this.doc.body.classList.contains('ui-panel-open')) this.open();
       }));
@@ -395,6 +469,14 @@ export class Menu {
           this.cleanup.push(() => mo.disconnect());
         }
       }
+    }
+
+    // the embedded map: closing it (Esc / M inside the MAP tab) closes the menu; opening it elsewhere selects the tab
+    if (opts.map) {
+      const map = opts.map;
+      const prevClose = map.onClose;
+      map.onClose = () => { prevClose?.(); if (!this.mapSwitching && this.opened && this.tabId === 'map') this.close(); };
+      this.cleanup.push(() => { map.onClose = prevClose; });
     }
 
     if (opts.openOnPointerUnlock !== false) {
@@ -418,25 +500,39 @@ export class Menu {
 
   get isOpen(): boolean { return this.opened; }
   get settings(): MenuSettings { return { ...this.state }; }
+  get tabName(): MenuTab { return this.tabId; }
+  get category(): string { return this.catId; }
+  /** Which settings column has the focus. */
+  get focusColumn(): 'cats' | 'opts' { return this.col; }
 
   open(): void {
     if (this.opened) return;
     this.opened = true;
+    this.pauses++;
+    this.openedAt = this.now();
     this.restoreFocus = this.doc.activeElement instanceof HTMLElement ? this.doc.activeElement : null;
     this.root.hidden = false;
+    this.root.classList.remove('gp-in'); void this.root.offsetWidth; this.root.classList.add('gp-in');
     this.pauseButton.hidden = true;
     this.syncLiveTier();
+    this.syncInfo();
     try { this.doc.exitPointerLock?.(); } catch { /* not locked / unsupported */ }
     this.cb.onPause?.(true);
-    this.resumeBtn.focus();
+    const win = this.doc.defaultView;
+    if (win) this.infoTimer = win.setInterval(() => this.syncInfo(), 1000);
+    this.showTab(this.tabId, true);
+    this.focusList();
   }
 
   close(): void {
     if (!this.opened) return;
-    this.showSave(false);
+    this.leaveMap();
     this.opened = false;
+    this.pausedMs += this.now() - this.openedAt;
+    this.doc.defaultView?.clearInterval(this.infoTimer);
     this.root.hidden = true;
     this.pauseButton.hidden = !this.touchEnabled;
+    this.disarmReset();
     const prev = this.restoreFocus;
     this.restoreFocus = null;
     if (prev && prev.isConnected && prev.tagName !== 'CANVAS') prev.focus(); else (this.doc.activeElement as HTMLElement | null)?.blur?.();
@@ -445,59 +541,493 @@ export class Menu {
 
   toggle(): void { if (this.opened) this.close(); else this.open(); }
 
-  /** Swaps the settings for the save / load screen and back. No-op without `saves`. */
-  showSave(on: boolean): void {
-    if (!this.savePanel) return;
-    this.mainBox.hidden = on; this.saveBox.hidden = !on;
-    if (on) { this.savePanel.refresh(); this.saveBox.querySelector<HTMLElement>('.menu-save-back')?.focus(); }
-    else if (this.opened && this.doc.activeElement && this.saveBox.contains(this.doc.activeElement)) this.saveBtn.focus();
-  }
-  get savingView(): boolean { return !this.saveBox.hidden; }
-
-  /** Highlights the controls column for the device in use. */
-  setInputMode(mode: InputMode): void {
-    for (const [m, sec] of this.controlSections) {
-      sec.classList.toggle('current', m === mode);
-      if (m === mode) sec.setAttribute('aria-current', 'true'); else sec.removeAttribute('aria-current');
+  /** Selects a tab (the SAVE and MAP tabs exist only with `saves` / `map`). */
+  showTab(id: MenuTab, force = false): void {
+    if (this.tabBtns.get(id)?.hidden) return;
+    if (id === this.tabId && !force) { this.focusList(); return; }
+    if (this.tabId === 'map' && id !== 'map') this.leaveMap();
+    this.tabId = id;
+    for (const [k, b] of this.tabBtns) {
+      const on = k === id;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-selected', String(on));
+      b.tabIndex = on ? 0 : -1;
     }
+    for (const [k, p] of this.panes) p.hidden = k !== id;
+    const pane = this.panes.get(id)!;
+    pane.classList.remove('gp-swap'); void pane.offsetWidth; pane.classList.add('gp-swap');
+    this.root.dataset.tab = id;
+    if (id === 'settings') { this.col = 'cats'; this.settingsPane.dataset.view = 'cats'; }
+    if (this.opened) this.enterTab(id);
+    this.syncFoot();
+    this.syncBack();
+    this.syncLists();
+    if (this.opened) this.focusList();
+  }
+
+  /** Next / previous tab (Q / E, LB / RB), skipping tabs that are not shown. */
+  tab(delta: -1 | 1): void {
+    const ids = MENU_TABS.map((t) => t.id).filter((id) => !this.tabBtns.get(id)?.hidden);
+    const at = ids.indexOf(this.tabId);
+    this.showTab(ids[(at + delta + ids.length) % ids.length]);
+  }
+
+  /** Highlights the controls for the device in use. */
+  setInputMode(mode: InputMode): void {
+    this.inputMode = mode;
+    this.root.dataset.input = mode;
+    this.tabHintL.textContent = mode === 'gamepad' ? 'LB' : mode === 'touch' ? '‹' : 'Q';
+    this.tabHintR.textContent = mode === 'gamepad' ? 'RB' : mode === 'touch' ? '›' : 'E';
+    if (this.catId === 'controls') this.loadCategory('controls', true);
+    this.syncFoot();
   }
 
   /** Gamepad / programmatic navigation. No-op while closed. */
   navigate(dir: NavDir): void {
     if (!this.opened) return;
-    const items = this.focusables();
-    const active = this.doc.activeElement as HTMLElement | null;
-    const i = active ? items.indexOf(active) : -1;
     switch (dir) {
-      case 'up': items[(i <= 0 ? items.length : i) - 1]?.focus(); break;
-      case 'down': items[(i + 1) % items.length]?.focus(); break;
-      case 'left':
-      case 'right': this.adjust(active, dir === 'left' ? -1 : 1); break;
-      case 'confirm': if (active && items.includes(active)) active.click(); break;
-      case 'back': if (this.savingView) this.showSave(false); else this.close(); break;
+      case 'up': this.moveList(-1); break;
+      case 'down': this.moveList(1); break;
+      case 'left': this.sideways(-1); break;
+      case 'right': this.sideways(1); break;
+      case 'confirm': this.confirm(); break;
+      case 'back': this.back(); break;
     }
   }
 
   dispose(): void {
     this.cleanup.splice(0).forEach((fn) => fn());
     this.savePanel?.dispose();
-    this.doc.defaultView?.cancelAnimationFrame?.(this.fpsRaf);
+    this.leaveMap();
+    const win = this.doc.defaultView;
+    win?.cancelAnimationFrame?.(this.fpsRaf);
+    win?.clearInterval(this.infoTimer);
+    win?.clearTimeout(this.resetTimer);
     this.fullscreen?.dispose();
     this.root.remove();
     this.pauseButton.remove();
     this.fsCorner.remove(); this.fsTitle.remove(); this.fpsEl.remove();
   }
 
-  /* ---------- settings ---------- */
+  /* ---------- navigation ---------- */
 
-  /** A tier button: picks the tier and turns Auto off. */
+  private activeList(): RowList | null {
+    switch (this.tabId) {
+      case 'settings': return this.col === 'cats' ? this.catList : this.optList;
+      case 'radio': return this.radioList;
+      case 'missions': return this.missionList;
+      case 'stats': return this.statList;
+      default: return null;
+    }
+  }
+
+  private syncLists(): void {
+    const act = this.activeList();
+    for (const l of [this.catList, this.optList, this.radioList, this.missionList, this.statList]) l.setActive(l === act);
+    // the categories column stays "selected" (dim bar) while the options column has the focus
+    this.catList.el.classList.toggle('dim', this.tabId === 'settings' && this.col === 'opts');
+  }
+
+  private focusList(): void {
+    const l = this.activeList();
+    if (l && this.opened) l.highlight(l.index, true);
+    else if (this.opened) (this.tabBtns.get(this.tabId))?.focus();
+  }
+
+  private focusCol(c: 'cats' | 'opts'): void {
+    if (this.tabId !== 'settings') return;
+    this.col = c;
+    this.settingsPane.dataset.view = c;
+    this.syncLists();
+    this.syncBack();
+    this.syncFoot();
+    const l = this.activeList();
+    l?.highlight(l.index, true);
+    if (c === 'opts') this.showDesc('settings', this.optList.current);
+    else this.showDesc('settings', this.catList.current);
+  }
+
+  private moveList(d: 1 | -1): void {
+    const l = this.activeList();
+    if (!l) return;
+    l.move(d);
+    this.syncFoot();
+  }
+
+  private sideways(d: -1 | 1): void {
+    if (this.tabId === 'settings' && this.col === 'cats') { if (d > 0) this.focusCol('opts'); return; }
+    const l = this.activeList();
+    if (l?.adjust(d)) this.syncFoot();
+  }
+
+  private confirm(): void {
+    if (this.tabId === 'settings' && this.col === 'cats') { this.focusCol('opts'); return; }
+    this.activeList()?.activate();
+  }
+
+  /** B / Backspace / the back arrow: out of the options column, else resume. */
+  back(): void {
+    if (this.tabId === 'settings' && this.col === 'opts') { this.focusCol('cats'); return; }
+    this.close();
+  }
+
+  private onWindowKey(e: KeyboardEvent): void {
+    if (e.code === 'Escape' && !e.repeat) { e.preventDefault(); this.toggle(); return; }
+    if (!this.opened || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target as HTMLElement | null;
+    const typing = !!t && (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable || (t.tagName === 'INPUT' && (t as HTMLInputElement).type !== 'checkbox' && (t as HTMLInputElement).type !== 'range'));
+    if (typing) return;
+    if (e.code === 'KeyQ' || e.code === 'PageUp') { e.preventDefault(); this.tab(-1); return; }
+    if (e.code === 'KeyE' || e.code === 'PageDown') { e.preventDefault(); this.tab(1); return; }
+    const onBtn = t?.tagName === 'BUTTON' && !t.classList.contains('gp-arrow');
+    const lists = this.activeList();
+    if (!lists) {
+      if (e.code === 'Tab' && this.trapTab(e)) return;
+      if (e.code === 'Backspace' && this.tabId !== 'save') { e.preventDefault(); this.back(); }
+      return;
+    }
+    switch (e.code) {
+      case 'ArrowUp': case 'KeyW': e.preventDefault(); this.moveList(-1); break;
+      case 'ArrowDown': case 'KeyS': e.preventDefault(); this.moveList(1); break;
+      case 'ArrowLeft': case 'KeyA': e.preventDefault(); this.sideways(-1); break;
+      case 'ArrowRight': case 'KeyD': e.preventDefault(); this.sideways(1); break;
+      case 'Enter': case 'NumpadEnter': case 'Space':
+        if (onBtn && !t.classList.contains('menu-tab')) return; // a focused button handles its own Enter / Space
+        if (t?.classList.contains('menu-tab')) { e.preventDefault(); this.focusList(); return; }
+        e.preventDefault(); this.confirm(); break;
+      case 'Backspace': e.preventDefault(); this.back(); break;
+      case 'Tab': this.trapTab(e); break;
+      default: break;
+    }
+  }
+
+  /** Tab / Shift+Tab stay inside the dialog. */
+  private trapTab(e: KeyboardEvent): boolean {
+    const items = Array.from(this.root.querySelectorAll<HTMLElement>('button, input, select, textarea, [tabindex="0"]')).filter((n) => n.tabIndex >= 0 && !(n as HTMLButtonElement).disabled && !n.closest('[hidden]'));
+    if (!items.length) return false;
+    const first = items[0], last = items[items.length - 1];
+    const active = this.doc.activeElement as HTMLElement | null;
+    if (e.shiftKey && (active === first || !active || !this.root.contains(active))) { e.preventDefault(); last.focus(); return true; }
+    if (!e.shiftKey && (active === last || !active || !this.root.contains(active))) { e.preventDefault(); first.focus(); return true; }
+    return false;
+  }
+
+  /* ---------- tabs: content ---------- */
+
+  private enterTab(id: MenuTab): void {
+    if (id === 'map') this.enterMap();
+    else if (id === 'save') this.savePanel?.refresh();
+    else if (id === 'missions') this.fillMissions();
+    else if (id === 'stats') this.fillStats();
+    else if (id === 'radio') { this.radioList.refresh(); }
+    this.syncInfo();
+  }
+
+  private enterMap(): void {
+    const map = this.opts.map;
+    if (!map) return;
+    if (!this.mapHome) this.mapHome = map.root.parentNode;
+    this.mapHost.appendChild(map.root);
+    this.mapSwitching = true;
+    try { if (!map.isOpen) map.open(); } finally { this.mapSwitching = false; }
+  }
+
+  private leaveMap(): void {
+    const map = this.opts.map;
+    if (!map || !this.mapHome) return;
+    this.mapSwitching = true;
+    try { if (map.isOpen) map.close(); } finally { this.mapSwitching = false; }
+    if (map.root.parentNode === this.mapHost) this.mapHome.appendChild(map.root);
+  }
+
+  private fillMissions(): void {
+    const log = this.opts.missionLog?.();
+    const rows: RowSpec[] = [];
+    if (!log) {
+      rows.push({ id: 'm:none', label: 'No mission log in this build', kind: 'info', desc: 'The mission log lists every job with its act and state. It is not wired into this menu yet.', text: () => '' });
+    } else if (log.length === 0) {
+      rows.push({ id: 'm:empty', label: 'No missions yet', kind: 'info', desc: 'Walk up to a gold marker on the street to be offered a job.', text: () => '' });
+    } else {
+      const order: Record<MissionLogEntry['state'], number> = { active: 0, open: 1, failed: 2, done: 3, locked: 4 };
+      const sorted = [...log].sort((a, b) => (a.act ?? 9) - (b.act ?? 9) || order[a.state] - order[b.state]);
+      const label: Record<MissionLogEntry['state'], string> = { active: 'In progress', open: 'Available', failed: 'Failed', done: 'Done', locked: 'Locked' };
+      for (const m of sorted) {
+        rows.push({
+          id: `m:${m.id}`, label: m.title, kind: 'info',
+          desc: [m.act ? `Act ${m.act}` : '', m.tag === 'side' ? 'Side job' : '', label[m.state]].filter(Boolean).join(' · ') + (m.objective ? `\n${m.objective}` : ''),
+          text: () => label[m.state], state: () => m.state, dim: () => m.state === 'locked',
+        });
+      }
+    }
+    this.missionList.setRows(rows);
+    this.syncLists();
+  }
+
+  private fillStats(keep = false): void {
+    const info = this.opts.info?.() ?? {};
+    const played = Math.max(0, this.now() - this.born - this.pausedMs - (this.opened ? this.now() - this.openedAt : 0));
+    const rows: Array<readonly [string, string]> = [
+      ...(typeof info.cash === 'number' ? [['Cash', money(info.cash)] as const] : []),
+      ...(typeof info.day === 'number' ? [['Day', formatDay(info.day)] as const] : []),
+      ...(info.stats ?? []),
+      ['Time played', formatPlayed(played)],
+      ['Times paused', String(this.pauses)],
+    ];
+    this.statList.setRows(rows.map(([k, v]) => ({ id: `s:${k}`, label: k, kind: 'info' as const, desc: `${k}: ${v}`, text: () => v })), keep);
+    this.syncLists();
+  }
+
+  /* ---------- header / footer ---------- */
+
+  private syncInfo(): void {
+    const i = this.opts.info?.() ?? {};
+    const set = (el: HTMLElement, text: string): void => { el.hidden = text === ''; if (el.textContent !== text) el.textContent = text; };
+    set(this.cashEl, typeof i.cash === 'number' ? money(i.cash) : '');
+    set(this.whenEl, typeof i.hour === 'number' ? `${typeof i.day === 'number' ? `${formatDay(i.day)}  ` : ''}${formatClock(i.hour)}` : '');
+    set(this.streetEl, i.street ?? '');
+    if (this.opened && this.tabId === 'radio') this.radioList.refresh();
+    if (this.opened && this.tabId === 'stats') this.fillStats(true);
+  }
+
+  private syncBack(): void {
+    const inner = this.tabId === 'settings' && this.col === 'opts';
+    this.backBtn.setAttribute('aria-label', inner ? 'Back to categories' : 'Resume');
+    this.backBtn.dataset.mode = inner ? 'back' : 'resume';
+  }
+
+  private syncFoot(): void {
+    const m = this.inputMode;
+    const lists = this.activeList() !== null;
+    const opts = this.tabId !== 'settings' || this.col === 'opts';
+    const prompts: Array<[string, string]> = [];
+    if (m === 'keyboard') {
+      if (lists) prompts.push(['↑↓', 'Select']);
+      if (lists && opts && this.tabId !== 'missions' && this.tabId !== 'stats') prompts.push(['←→', 'Change']);
+      if (lists) prompts.push(['Enter', 'Accept']);
+      if (this.tabId === 'settings' && this.col === 'opts') prompts.push(['Backspace', 'Back']);
+      prompts.push(['Q E', 'Tabs'], ['Esc', 'Resume']);
+    } else if (m === 'gamepad') {
+      if (lists) prompts.push(['D-pad', 'Select']);
+      if (lists) prompts.push(['A', 'Accept']);
+      prompts.push(['B', this.tabId === 'settings' && this.col === 'opts' ? 'Back' : 'Resume'], ['LB RB', 'Tabs'], ['Start', 'Resume']);
+    } else {
+      prompts.push(['Tap', 'Select'], ['‹', 'Back']);
+    }
+    this.footEl.textContent = '';
+    for (const [k, t] of prompts) {
+      const s = this.el('span', 'gp-prompt');
+      const key = this.el('kbd', 'gp-key');
+      key.textContent = k;
+      s.append(key, this.doc.createTextNode(t));
+      this.footEl.appendChild(s);
+    }
+    const hint = this.el('span', 'gp-foot-fill');
+    this.footEl.insertBefore(hint, this.footEl.firstChild);
+  }
+
+  /* ---------- settings: specs ---------- */
+
+  private sup(): ReturnType<typeof supports> { return supports(this.liveTier as Quality); }
+  private eff(): GraphicsSettings { return this.graphics.effective(this.liveTier as Quality); }
+
+  private gfxRow(key: GraphicsKey): RowSpec {
+    const adv = GFX_ROW_LABEL.get(key)!;
+    const c = adv.control;
+    const base: RowSpec = {
+      id: `g:${key}`, label: adv.label, desc: GFX_DESC[key], gfx: key, kind: 'toggle',
+      visible: () => this.sup().keys.has(key),
+      custom: () => this.graphics.isOverridden(key),
+      get: () => this.eff()[key] as string | number | boolean,
+    };
+    if (c.kind === 'range') {
+      return { ...base, kind: 'slider', min: c.min, max: c.max, step: c.step, fmt: (v) => c.fmt(v / c.scale),
+        get: () => Math.round((this.eff()[key] as number) * c.scale),
+        set: ((v: number) => { this.graphics.set(key, (v / c.scale) as never); }) as RowSpec['set'] };
+    }
+    if (c.kind === 'bool') return { ...base, kind: 'toggle', set: ((v: boolean) => { this.graphics.set(key, v as never); }) as RowSpec['set'] };
+    return {
+      ...base, kind: 'seg',
+      options: () => c.options.map(([value, label]) => ({ value, label, hidden: key === 'shadows' && !this.sup().shadows.includes(value as ShadowMode) })),
+      set: ((v: string | number) => { this.graphics.set(key, v as never); }) as RowSpec['set'],
+    };
+  }
+
+  private buildSpecs(): void {
+    for (const r of ADVANCED_ROWS) this.gfxRows.set(r.key, this.gfxRow(r.key));
+    const fs = this.fullscreen;
+    const S = this.specs;
+    S.set('fullscreen', {
+      id: 'fullscreen', label: 'Full screen', kind: 'toggle', desc: 'Fills the whole screen with no browser bars. Alt+Enter also toggles it. Esc leaves full screen and opens this menu.',
+      visible: () => !!fs?.supported, get: () => !!fs?.active, set: (() => { void fs?.toggle(); }) as RowSpec['set'],
+    });
+    S.set('install', {
+      id: 'install', label: 'Install as app', kind: 'info', desc: 'Chrome: menu, Cast, save and share, Install page as app. Safari: File, Add to Dock. It then opens in its own window with no browser bars.',
+      visible: () => (this.opts.installable ?? hostedBuild()) && !this.isStandalone(), text: () => 'How to',
+    });
+    S.set('quality', {
+      id: 'quality', label: 'Quality preset', kind: 'seg', gfx: 'preset',
+      desc: 'A preset sets shadows, effects, draw distance and traffic together. Auto starts at your device’s default and steps down by itself when the frame rate drops. Changes you make in the rows below are kept on top of the preset.',
+      options: () => [{ value: 'auto', label: this.state.auto ? `Auto (${cap(this.liveTier)})` : 'Auto' }, ...QUALITIES.map((q) => ({ value: q, label: cap(q) }))],
+      get: () => (this.state.auto ? 'auto' : this.state.quality),
+      set: ((v: string) => { if (v === 'auto') this.setAuto(true); else this.setQuality(v as MenuQuality); }) as RowSpec['set'],
+    });
+    S.set('master', { id: 'master', label: 'Master volume', kind: 'slider', min: 0, max: 100, step: 5, desc: 'Volume of everything in the game.', fmt: (v) => `${v}%`, get: () => Math.round(this.state.master * 100), set: ((v: number) => this.setMaster(v / 100)) as RowSpec['set'] });
+    S.set('radiovol', { id: 'radiovol', label: 'Radio volume', kind: 'slider', min: 0, max: 100, step: 5, desc: 'Volume of the radio stations, relative to the master volume.', fmt: (v) => `${v}%`, get: () => Math.round(this.state.radio * 100), set: ((v: number) => this.setRadio(v / 100)) as RowSpec['set'] });
+    S.set('radiolib', { id: 'radiolib', label: 'Radio library', kind: 'action', desc: 'Opens the radio library: tracks, stations and the playlist.', press: () => { this.cb.onRadioLibrary?.(); } });
+    S.set('station', { id: 'station', label: 'Tuned to', kind: 'info', desc: 'The station playing now. Press E in the game (Y on a gamepad) to change it.', text: () => this.opts.info?.().station || 'Off' });
+    S.set('invert', { id: 'invert', label: 'Invert look Y', kind: 'toggle', desc: 'Inverts vertical look for the mouse, the right stick and touch drag.', get: () => this.state.invertY, set: ((v: boolean) => this.setInvertY(v)) as RowSpec['set'] });
+    S.set('reset', {
+      id: 'reset', label: 'Reset position', kind: 'action',
+      desc: 'Moves you back to the starting spot and clears missions, records, phone messages and cash. Press twice to confirm.',
+      text: () => (this.resetArmed ? 'PRESS AGAIN' : '›'),
+      press: () => {
+        if (!this.resetArmed) { this.resetArmed = true; this.refreshAll(); const w = this.doc.defaultView; if (w) this.resetTimer = w.setTimeout(() => this.disarmReset(), 3500); return; }
+        this.disarmReset(); clearPosition(); this.cb.onReset?.(); this.close();
+      },
+    });
+    S.set('gfxreset', {
+      id: 'gfxreset', label: 'Reset to preset', kind: 'action', desc: 'Drops every change below and follows the quality preset again.',
+      text: () => (this.graphics.hasOverrides ? `${Object.keys(this.graphics.raw).length} changed` : 'No changes'),
+      dim: () => !this.graphics.hasOverrides, press: () => { this.graphics.reset(); },
+    });
+  }
+
+  private isStandalone(): boolean {
+    try {
+      const mm = this.doc.defaultView?.matchMedia;
+      return !!mm && ['fullscreen', 'standalone'].some((m) => mm.call(this.doc.defaultView, `(display-mode: ${m})`).matches);
+    } catch { return false; }
+  }
+
+  private disarmReset(): void {
+    this.doc.defaultView?.clearTimeout(this.resetTimer);
+    if (this.resetArmed) { this.resetArmed = false; this.refreshAll(); }
+  }
+
+  private rowsFor(cat: string): RowSpec[] {
+    const S = this.specs, G = this.gfxRows;
+    const g = (...keys: GraphicsKey[]): RowSpec[] => keys.map((k) => G.get(k)!);
+    switch (cat) {
+      case 'display': return [S.get('fullscreen')!, S.get('install')!, ...g('fpsCap', 'showFps', 'resolution', 'nativeDpr')];
+      case 'graphics': return [S.get('quality')!, ...g('shadows', 'textures', 'aa')];
+      case 'advanced': return [...g('drawDistance', 'treeRange', 'crowd', 'traffic', 'ao', 'bloom', 'dof', 'vignette', 'grain'), S.get('gfxreset')!];
+      case 'audio': return [S.get('master')!];
+      case 'controls': return CONTROLS[this.inputMode].rows.map(([k, v]) => ({ id: `c:${k}`, label: k, kind: 'info' as const, desc: `${k}: ${v}. These are the ${CONTROLS[this.inputMode].title.toLowerCase()} controls; the list follows the device you are using.`, text: () => v }));
+      case 'camera': return [...g('fov'), S.get('invert')!];
+      case 'radio': case 'radio-tab': return [...(cat === 'radio-tab' ? [S.get('station')!] : []), S.get('radiovol')!, S.get('radiolib')!];
+      case 'game': return [S.get('reset')!, ...MINIMAP_LEGEND.map((item) => ({ id: `l:${item.text}`, label: item.text, kind: 'info' as const, desc: `On the minimap: ${item.text}.`, text: () => '', swatch: { color: item.swatch, shape: item.shape } }))];
+      default: return [];
+    }
+  }
+
+  private catRow(c: Category): RowSpec {
+    return { id: `cat:${c.id}`, label: c.label, kind: 'action', desc: c.desc, gfx: c.gpu ? 'cat' : undefined, text: () => '›', press: () => { this.focusCol('opts'); } };
+  }
+
+  private onCategory(r: RowSpec): void {
+    const id = r.id.slice(4);
+    if (id !== this.catId) this.loadCategory(id);
+    this.showDesc('settings', r);
+  }
+
+  private loadCategory(id: string, keep = false): void {
+    this.catId = id;
+    this.optList.setRows(this.rowsFor(id), keep);
+    this.optList.el.dataset.cat = id;
+    this.syncLists();
+  }
+
+  private afterChange(): void {
+    this.refreshAll();
+    this.syncFoot();
+  }
+
+  private refreshAll(): void {
+    this.optList.refresh(); this.radioList.refresh(); this.catList.refresh();
+    this.showDesc(this.tabId === 'settings' ? 'settings' : (this.tabId as string), (this.activeList() ?? this.optList).current);
+  }
+
+  /* ---------- description panel ---------- */
+
+  private column(cls: string, content: HTMLElement): HTMLElement {
+    const c = this.el('div', cls);
+    c.appendChild(content);
+    return c;
+  }
+
+  private descPanel(key: string): HTMLElement {
+    const root = this.el('aside', 'gp-desc');
+    const title = this.el('h3', 'gp-desc-title');
+    const text = this.el('p', 'gp-desc-text');
+    const meta = this.el('p', 'gp-desc-meta');
+    const gpu = this.el('div', 'gp-gpu');
+    gpu.hidden = true;
+    const h1 = this.el('div', 'gp-gpu-h');
+    const l1 = this.el('span', ''); l1.textContent = 'GPU load';
+    const v1 = this.el('b', '');
+    h1.append(l1, v1);
+    const m1 = this.el('div', 'gp-meter');
+    const f1 = this.el('i', '');
+    m1.appendChild(f1);
+    const h2 = this.el('div', 'gp-gpu-h sub');
+    const l2 = this.el('span', ''); l2.textContent = 'This setting';
+    const v2 = this.el('b', '');
+    h2.append(l2, v2);
+    const m2 = this.el('div', 'gp-meter thin');
+    const f2 = this.el('i', '');
+    m2.appendChild(f2);
+    const note = this.el('p', 'gp-gpu-note');
+    note.textContent = 'A rough guide for this device tier, not a benchmark.';
+    gpu.append(h1, m1, h2, m2, note);
+    root.append(title, text, meta, gpu);
+    this.descs.set(key, { root, title, text, meta, gpu, total: f1, totalLabel: v1, own: f2, ownLabel: v2, ownBox: [h2, m2] });
+    return root;
+  }
+
+  private showDesc(key: string, row: RowSpec | null): void {
+    const d = this.descs.get(key);
+    if (!d) return;
+    d.root.hidden = false;
+    if (!row) { d.title.textContent = ''; d.text.textContent = ''; d.meta.textContent = ''; d.gpu.hidden = true; return; }
+    d.title.textContent = row.label;
+    d.text.textContent = row.desc ?? '';
+    d.text.style.whiteSpace = row.desc?.includes('\n') ? 'pre-line' : '';
+    let meta = '';
+    if (row.kind === 'seg' || row.kind === 'toggle' || row.kind === 'slider') {
+      const v = row.get?.();
+      const shown = row.kind === 'toggle' ? (v ? 'On' : 'Off') : row.kind === 'slider' ? (row.fmt ? row.fmt(Number(v)) : String(v)) : row.options?.().find((o) => o.value === v)?.label ?? String(v);
+      meta = `Now: ${shown}`;
+      if (row.custom?.()) meta += '  ·  changed from the preset';
+    }
+    d.meta.textContent = meta;
+    const tier = this.liveTier as Quality;
+    const showGpu = !!row.gfx;
+    d.gpu.hidden = !showGpu;
+    if (showGpu) {
+      const load = gpuLoad(this.eff(), tier);
+      d.total.style.width = `${Math.round(load * 100)}%`;
+      d.totalLabel.textContent = loadLabel(load);
+      const key2 = row.gfx as GraphicsKey;
+      const own = row.gfx && row.gfx in GFX_DESC;
+      for (const n of d.ownBox) n.hidden = !own;
+      if (own) {
+        const o = optionLoad(key2, this.eff());
+        d.own.style.width = `${Math.round(o * 100)}%`;
+        d.ownLabel.textContent = loadLabel(o);
+      }
+    }
+  }
+
+  /* ---------- settings: state ---------- */
+
+  /** A tier choice: picks the tier and turns Auto off. */
   private setQuality(q: MenuQuality): void {
     const wasAuto = this.state.auto;
     this.state.auto = false;
     if (wasAuto) this.cb.onAuto?.(false);
     this.liveTier = q;
-    if (this.state.quality === q) { this.save(); this.syncUi(); this.syncAdv(); if (wasAuto) this.cb.onQuality?.(q); return; }
-    this.state.quality = q; this.save(); this.syncUi(); this.syncAdv(); this.cb.onQuality?.(q);
+    if (this.state.quality === q) { this.save(); this.afterTier(); if (wasAuto) this.cb.onQuality?.(q); return; }
+    this.state.quality = q; this.save(); this.afterTier(); this.cb.onQuality?.(q);
   }
 
   /** Auto preset: the device's default tier and the automatic drop. */
@@ -505,36 +1035,20 @@ export class Menu {
     if (!on) { this.setQuality(this.state.quality); return; }
     const was = this.state.auto, prevTier = this.liveTier;
     this.state.auto = true; this.state.quality = this.deviceTier; this.liveTier = this.deviceTier;
-    this.save(); this.syncUi(); this.syncAdv();
+    this.save(); this.afterTier();
     if (!was) this.cb.onAuto?.(true);
     if (prevTier !== this.deviceTier) this.cb.onQuality?.(this.deviceTier);
   }
 
+  private afterTier(): void { this.refreshAll(); this.syncFps(); }
+
   private syncLiveTier(): void {
     const q = this.getLive?.();
-    if (q && q !== this.liveTier) { this.liveTier = q; this.syncUi(); this.syncAdv(); }
+    if (q && q !== this.liveTier) { this.liveTier = q; this.afterTier(); }
   }
-  private setMaster(v: number): void { this.state.master = clamp01(v, 1); this.save(); this.syncUi(); this.cb.onMasterVolume?.(this.state.master); }
-  private setRadio(v: number): void { this.state.radio = clamp01(v, 1); this.save(); this.syncUi(); this.cb.onRadioVolume?.(this.state.radio); }
-  private setInvertY(b: boolean): void { this.state.invertY = b; this.save(); this.syncUi(); this.cb.onInvertLookY?.(b); }
-
-  private syncUi(): void {
-    const auto = this.state.auto;
-    this.autoBtn.setAttribute('aria-checked', String(auto));
-    this.autoBtn.classList.toggle('on', auto);
-    this.autoBtn.tabIndex = auto ? 0 : -1;
-    this.autoBtn.textContent = auto ? `Auto (${this.liveTier[0].toUpperCase()}${this.liveTier.slice(1)})` : 'Auto';
-    for (const [q, b] of this.qualityBtns) {
-      const on = !auto && q === this.state.quality;
-      b.setAttribute('aria-checked', String(on));
-      b.classList.toggle('on', on);
-      b.tabIndex = on ? 0 : -1;
-    }
-    const m = Math.round(this.state.master * 100), r = Math.round(this.state.radio * 100);
-    this.masterInput.value = String(m); this.masterOut.value = `${m}%`;
-    this.radioInput.value = String(r); this.radioOut.value = `${r}%`;
-    this.invertInput.checked = this.state.invertY;
-  }
+  private setMaster(v: number): void { this.state.master = clamp01(v, 1); this.save(); this.cb.onMasterVolume?.(this.state.master); }
+  private setRadio(v: number): void { this.state.radio = clamp01(v, 1); this.save(); this.cb.onRadioVolume?.(this.state.radio); }
+  private setInvertY(b: boolean): void { this.state.invertY = b; this.save(); this.cb.onInvertLookY?.(b); }
 
   private load(): Partial<MenuSettings> {
     if (!this.storage) return {};
@@ -556,86 +1070,7 @@ export class Menu {
     try { this.storage?.setItem(SETTINGS_KEY, JSON.stringify(this.state)); } catch { /* quota / blocked: settings just won't persist */ }
   }
 
-  /* ---------- advanced graphics ---------- */
-
-  private setAdvOpen(open: boolean): void {
-    this.advBox.hidden = !open;
-    this.advToggle.setAttribute('aria-expanded', String(open));
-    this.advToggle.classList.toggle('open', open);
-    if (open) this.syncAdv();
-  }
-
-  private buildAdvRow(spec: AdvSpec): HTMLElement {
-    const c = spec.control;
-    const id = `menu-adv-${spec.key}`;
-    const entry: { row: HTMLElement; spec: AdvSpec; input?: HTMLInputElement; out?: HTMLOutputElement; btns?: HTMLButtonElement[] } = { row: this.el('div', `menu-row menu-adv-row menu-adv-${spec.key}`), spec };
-    entry.row.dataset.key = spec.key;
-    if (c.kind === 'range') {
-      const [row, input, out] = this.slider(spec.label, id);
-      input.min = String(c.min); input.max = String(c.max); input.step = String(c.step);
-      input.addEventListener('input', () => this.graphics.set(spec.key, Number(input.value) / c.scale as never));
-      row.className = entry.row.className;
-      row.dataset.key = spec.key;
-      Object.assign(entry, { row, input, out });
-    } else if (c.kind === 'bool') {
-      const row = this.el('label', `menu-row menu-check menu-adv-row menu-adv-${spec.key}`);
-      row.dataset.key = spec.key;
-      const text = this.el('span', 'menu-label'); text.textContent = spec.label;
-      const input = this.el('input', ''); input.type = 'checkbox'; input.id = id;
-      input.addEventListener('change', () => this.graphics.set(spec.key, input.checked as never));
-      row.append(text, input);
-      Object.assign(entry, { row, input });
-    } else {
-      const label = this.el('span', 'menu-label'); label.id = `${id}-label`; label.textContent = spec.label;
-      const group = this.el('div', 'menu-seg');
-      group.setAttribute('role', 'radiogroup'); group.setAttribute('aria-labelledby', label.id);
-      const btns = c.options.map(([value, text]) => {
-        const b = this.button(text, 'menu-seg-btn');
-        b.setAttribute('role', 'radio'); b.dataset.value = String(value);
-        b.addEventListener('click', () => this.graphics.set(spec.key, value as never));
-        group.appendChild(b);
-        return b;
-      });
-      entry.row.append(label, group);
-      entry.btns = btns;
-    }
-    this.advRows.set(spec.key, entry);
-    return entry.row;
-  }
-
-  private syncAdv(): void {
-    const tier = this.liveTier as Quality;
-    const sup = supports(tier);
-    const eff = this.graphics.effective(tier);
-    for (const [key, e] of this.advRows) {
-      e.row.hidden = !sup.keys.has(key);
-      e.row.classList.toggle('is-custom', this.graphics.isOverridden(key));
-      const v = eff[key];
-      const c = e.spec.control;
-      if (c.kind === 'range' && e.input && e.out) { e.input.value = String(Math.round((v as number) * c.scale)); e.out.value = c.fmt(v as number); }
-      else if (c.kind === 'bool' && e.input) e.input.checked = v as boolean;
-      else if (c.kind === 'seg' && e.btns) {
-        for (const b of e.btns) {
-          const on = b.dataset.value === String(v);
-          b.setAttribute('aria-checked', String(on)); b.classList.toggle('on', on); b.tabIndex = on ? 0 : -1;
-          b.hidden = key === 'shadows' && !sup.shadows.includes(b.dataset.value as ShadowMode);
-        }
-      }
-    }
-    const n = Object.keys(this.graphics.raw).length;
-    const name = this.liveTier[0].toUpperCase() + this.liveTier.slice(1);
-    this.advSummary.textContent = n ? `${name} preset with ${n} change${n === 1 ? '' : 's'} (marked)` : `${name} preset, no changes`;
-    this.advReset.disabled = n === 0;
-  }
-
   /* ---------- full screen / FPS ---------- */
-
-  private isStandalone(): boolean {
-    try {
-      const mm = this.doc.defaultView?.matchMedia;
-      return !!mm && ['fullscreen', 'standalone'].some((m) => mm.call(this.doc.defaultView, `(display-mode: ${m})`).matches);
-    } catch { return false; }
-  }
 
   private splashShowing(): boolean {
     const el = this.root.parentElement?.querySelector<HTMLElement>('.hud-splash');
@@ -646,11 +1081,8 @@ export class Menu {
     const fs = this.fullscreen;
     const ok = !!fs?.supported;
     const on = !!fs?.active;
-    this.fsBtn.hidden = !ok;
-    this.fsBtn.textContent = on ? 'Exit full screen (Alt+Enter)' : 'Enter full screen (Alt+Enter)';
-    this.fsBtn.setAttribute('aria-pressed', String(on));
     this.fsCorner.hidden = this.touchEnabled || !ok;
-    this.fsCorner.textContent = on ? '\u2715' : '\u26F6';
+    this.fsCorner.textContent = on ? '✕' : '⛶';
     this.fsCorner.title = this.fsCorner.ariaLabel = on ? 'Exit full screen (Alt+Enter)' : 'Full screen (Alt+Enter)';
     this.fsTitle.hidden = !ok || on || !this.splashShowing() || this.opened;
     this.fsTitle.classList.toggle('remembered', !!fs?.preferred);
@@ -672,44 +1104,9 @@ export class Menu {
     this.fpsRaf = win.requestAnimationFrame(tick);
   }
 
-  /* ---------- keyboard ---------- */
+  /* ---------- helpers ---------- */
 
-  private focusables(): HTMLElement[] {
-    // Roving tabindex: only the selected quality button is a stop; arrows move within the group.
-    return Array.from(this.panel.querySelectorAll<HTMLElement>('button, input, select, textarea')).filter((n) => n.tabIndex >= 0 && !(n as HTMLButtonElement).disabled && !n.closest('[hidden]'));
-  }
-
-  private adjust(active: HTMLElement | null, delta: number): void {
-    if (!active) return;
-    if (active instanceof HTMLInputElement && active.type === 'range') {
-      const step = Number(active.step) || 5, lo = Number(active.min), hi = Number(active.max);
-      const v = Math.min(hi, Math.max(lo, Number(active.value) + delta * step));
-      active.value = String(v);
-      active.dispatchEvent(new Event('input', { bubbles: true }));
-    } else if (active.getAttribute('role') === 'radio') {
-      // any segmented group (quality, shadows, AA, ...): the neighbour in the direction pressed, skipping hidden options
-      const sibs = Array.from(active.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? []).filter((b) => !b.hidden);
-      const next = sibs[Math.min(sibs.length - 1, Math.max(0, sibs.indexOf(active as HTMLButtonElement) + delta))];
-      if (next && next !== active) { next.click(); next.focus(); }
-    }
-  }
-
-  private onPanelKey(e: KeyboardEvent): void {
-    const active = this.doc.activeElement as HTMLElement | null;
-    if (active?.tagName === 'TEXTAREA' || active?.tagName === 'SELECT') return;
-    const items = this.focusables();
-    if (e.code === 'Tab' && items.length) {
-      const first = items[0], last = items[items.length - 1];
-      if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
-    } else if (e.code === 'ArrowDown') { e.preventDefault(); this.navigate('down'); }
-    else if (e.code === 'ArrowUp') { e.preventDefault(); this.navigate('up'); }
-    else if ((e.code === 'ArrowLeft' || e.code === 'ArrowRight') && active && (active.getAttribute('role') === 'radio' || (active instanceof HTMLInputElement && active.type === 'range'))) {
-      e.preventDefault(); this.adjust(active, e.code === 'ArrowLeft' ? -1 : 1);
-    }
-  }
-
-  /* ---------- DOM helpers ---------- */
+  private now(): number { return this.doc.defaultView?.performance?.now() ?? Date.now(); }
 
   private el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string): HTMLElementTagNameMap[K] {
     const n = this.doc.createElement(tag);
@@ -723,19 +1120,32 @@ export class Menu {
     b.textContent = text;
     return b;
   }
+}
 
-  private slider(label: string, id: string): [HTMLElement, HTMLInputElement, HTMLOutputElement] {
-    const row = this.el('div', 'menu-row');
-    const lab = this.el('label', 'menu-label');
-    lab.htmlFor = id;
-    lab.textContent = label;
-    const wrap = this.el('div', 'menu-slider');
-    const input = this.el('input', '');
-    input.type = 'range'; input.id = id; input.min = '0'; input.max = '100'; input.step = '5';
-    const out = this.el('output', 'menu-value');
-    out.htmlFor = id;
-    wrap.append(input, out);
-    row.append(lab, wrap);
-    return [row, input, out];
-  }
+interface DescPanel {
+  root: HTMLElement; title: HTMLElement; text: HTMLElement; meta: HTMLElement; gpu: HTMLElement;
+  total: HTMLElement; totalLabel: HTMLElement; own: HTMLElement; ownLabel: HTMLElement; ownBox: HTMLElement[];
+}
+
+const cap = (s: string): string => s[0].toUpperCase() + s.slice(1);
+
+function formatPlayed(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return h > 0 ? `${h} h ${m} min` : m > 0 ? `${m} min ${s % 60} s` : `${s} s`;
+}
+
+/** Builds the MISSIONS entries from a MissionSystem (feature-detect the pieces: older builds lack `act` / `tag`). */
+export function missionLogOf(sys: {
+  missions: ReadonlyArray<{ id: string; title: string; act?: number; tag?: string; requires?: string[] }>;
+  statusOf(id: string): string | null;
+  isOffered?(id: string): boolean;
+  activeId?: string | null;
+}): MissionLogEntry[] {
+  return sys.missions.map((m) => {
+    const st = sys.statusOf(m.id);
+    const state: MissionLogEntry['state'] = st === 'active' ? 'active' : st === 'complete' ? 'done' : st === 'failed' ? 'failed'
+      : sys.isOffered ? (sys.isOffered(m.id) ? 'open' : 'locked') : 'open';
+    return { id: m.id, title: m.title, act: m.act, tag: m.tag, state };
+  });
 }

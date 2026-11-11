@@ -11,6 +11,7 @@ import { buildFurniture, type LampSpot } from '@/world/FurnitureGen';
 import { buildProps } from '@/world/PropsGen';
 import { buildSignals, signalColliders } from '@/world/props/signals';
 import { createSkyline } from '@/world/Skyline';
+import { TransitSystem } from '@/transit/TransitSystem';
 import { browserTier } from '@/render/StartTier';
 import type { Quality } from '@/render/Shadows';
 import { FINE_CELLS, chunkKeyOfCell, chunkLayout, splitMeshesIntoCells, type ChunkLayout, type SplitStats } from '@/render/Culling';
@@ -24,6 +25,8 @@ export interface BuiltWorld {
   /** Traffic-signal poles/heads; drive with updateSignalMeshes(signalsGroup, traffic.lights) each frame. */
   signalsGroup: THREE.Group;
   lamps: LampSpot[];
+  /** WBURG: the elevated line over Flushing Ave with its trains, stations and the lime-line entrances (already inside `group`; call `transit.update(dt, camera, night)` every frame). */
+  transit: TransitSystem;
   /** Per-cell prop meshes (candidates for distance culling). */
   propCells: THREE.Mesh[];
   /**
@@ -91,6 +94,11 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
   group.add(signals);
   colliders.push(...signalColliders(grid));
 
+  // WBURG: the el, its trains and the subway entrances (own culling, see TransitSystem); built after the generators so their random streams are unchanged
+  const transit = new TransitSystem(materials);
+  group.add(transit.group);
+  colliders.push(...transit.colliders);
+
   // The generators merge one geometry per material city-wide, which frustum culling can never reject. Re-bin the
   // triangles into per-cell meshes (same names/materials, so lamp lookup by name keeps working).
   const chunks = chunkLayout(grid.streets, FINE_CELLS[tier]);
@@ -110,5 +118,5 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
 
   let meshes = 0;
   group.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes++; });
-  return { grid, lots, group, colliders, furnitureGroup: furniture.group, signalsGroup: signals, lamps: furniture.lamps, propCells, chunkMeshes, chunks, stats: { meshes, lots: lots.length, colliders: colliders.length, cells } };
+  return { grid, lots, group, colliders, furnitureGroup: furniture.group, signalsGroup: signals, lamps: furniture.lamps, transit, propCells, chunkMeshes, chunks, stats: { meshes, lots: lots.length, colliders: colliders.length, cells } };
 }

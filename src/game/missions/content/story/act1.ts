@@ -20,7 +20,7 @@ export function noticeOfIntent(ctx: PlaceCtx): MissionDef {
     failJoke: { timeUp: 'A man in a fleece vest re-tapes the doors behind you. He has a lot of tape and a lot of time.' },
     followUps: [
       { from: 'Auntie G', text: 'That paper said INTENT. You know who writes INTENT? Somebody who already decided.', delay: 70 },
-      { from: 'Yossi', text: 'You do not know me. The name on that notice is an LLC, and the LLC\'s address is a UPS Store. Please read what you peeled and then read what it does not say.', delay: 140 },
+      { from: 'Yossi', text: 'You do not know me. The name on that notice is an LLC, and the LLC\'s address is a mailbox-rental place next to a nail salon. Please read what you peeled and then read what it does not say.', delay: 140 },
     ],
     setFlags: [F.ACT1],
     objectives: [
@@ -62,7 +62,7 @@ export function publicComment(ctx: PlaceCtx): MissionDef {
   const lap = [corner(grid, 'throop', 'lafayette'), corner(grid, 'garvey', 'lafayette'), corner(grid, 'garvey', 'pulaski'), corner(grid, 'throop', 'pulaski'), church];
   return {
     id: 'public-comment', title: 'Three Minutes of Public Comment', act: 1,
-    requires: ['notice-of-intent'], availableHours: [14, 19], deadlineHour: 19,
+    requires: ['notice-of-intent'], availableHours: [13, 17], deadlineHour: 19,
     blurb: 'The community board votes at 7. Mr. Alvin needs three signatures, a ride, and to beat the rival car to the church basement.',
     giverPoi: 'oxtail', giver: alvin, triggerRadius: 4,
     phoneIntro: { from: 'Mr. Alvin', text: 'The vote is at 7pm. I need three signatures, and I need a cab. The cab on the corner. Ignore the meter, the meter is a metaphor.' },
@@ -127,6 +127,7 @@ export function handleWithCare(ctx: PlaceCtx): MissionDef {
       {
         kind: 'deliver', at: plant, radius: 8, presence: 'inVehicle', items: ['test pressings'], cargo: true,
         text: 'Drive the pressings to the plant on Garvey Blvd (no hard hits)',
+        say: [{ who: 'Ms. Odette', text: 'Left on Garvey. Gently. Gently is a direction.', at: 4 }],
         banter: ['The first pothole is called Kevin. You hit Kevin. Kevin forgives you, once.', 'A bus honks. The records hold their breath.'],
         maxKmh: 85,
       },
@@ -185,7 +186,7 @@ export function backRent(ctx: PlaceCtx): MissionDef {
       },
       {
         kind: 'talkTo', when: { flag: F.ODETTE_PAID }, at: odette, radius: 5, presence: 'onFoot', npc: 'Ms. Odette', text: 'Hear Odette take it',
-        lines: ['That was your good crate, baby. The one with the first Black Uhuru pressing. You should not have.', 'I will keep a seat for you at the counter until the day they take the counter.'],
+        lines: ['That was your good crate, baby. The one with the first dub pressing. You should not have.', 'I will keep a seat for you at the counter until the day they take the counter.'],
       },
     ],
     reward: { cash: 150, message: 'It buys the shop a month. Odette says a month is a long time to a record.' },

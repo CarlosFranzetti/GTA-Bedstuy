@@ -11,6 +11,8 @@
  * the lot seed, so every tier shows the same walls.
  */
 import * as THREE from 'three';
+import { DETAIL_GLSL, SIGN_COLS, SIGN_ROWS, WALL_SIGNS, detailAtlasTexture, wallSignTexture } from '@/textures/detailAtlas';
+import { KIND_STEP } from '@/world/buildings/colourway';
 
 export const TONE_ATTRIBUTES = ['aTone', 'aStyle'] as const;
 
@@ -35,12 +37,16 @@ float ltNoise( vec2 p ) {
   vec2 i = floor( p ); vec2 f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
   return mix( mix( ltHash( i ), ltHash( i + vec2( 1.0, 0.0 ) ), f.x ), mix( ltHash( i + vec2( 0.0, 1.0 ) ), ltHash( i + vec2( 1.0, 1.0 ) ), f.x ), f.y );
 }
-float ltRect( vec2 pf, vec4 r ) { vec2 q = step( r.xy, pf ) * step( pf, r.xy + r.zw ); return q.x * q.y; }`;
+float ltRect( vec2 pf, vec4 r ) { vec2 q = step( r.xy, pf ) * step( pf, r.xy + r.zw ); return q.x * q.y; }
+uniform sampler2D tSigns;
+${DETAIL_GLSL}`;
 
 /** The block injected after `map_fragment`; `#USE_MAP` is the only conditional (flat-colour ironwork has no map). */
 const FRAG_MAIN = `
 if ( vLtTone.a > 0.01 ) {
-  float ltKind = floor( vLtStyle.x * 255.0 / 32.0 + 0.5 );
+  float ltKind = floor( vLtStyle.x * 255.0 / ${KIND_STEP}.0 + 0.5 );
+  float ltParty = step( 8.5, ltKind );
+  if ( ltParty > 0.5 ) ltKind = 0.0;
   float ltSeed = vLtStyle.z;
   float ltWx = vLtStyle.w;
   float ltPaint = vLtTone.a;
@@ -66,6 +72,8 @@ if ( vLtTone.a > 0.01 ) {
     // soot below the roof line, rain streaks, macro tint so long walls never tile
     float ltMac = ltNoise( ltP * vec2( 0.22, 0.16 ) + ltSeed * 40.0 ) * 0.6 + ltNoise( ltP * vec2( 0.9, 0.7 ) + ltSeed * 13.0 ) * 0.4;
     ltCol *= 1.0 + ( ltMac - 0.5 ) * 0.34;
+    // large-scale stains from the plaster photo (9 m repeat, per-lot offset) so a long wall never tiles
+    ltCol *= dtlGain( 0.0, ltP / vec2( 9.0, 7.0 ) + ltSeed * 3.7, 1.7 );
     ltCol *= mix( vec3( 1.04, 1.0, 0.95 ), vec3( 0.96, 1.0, 1.05 ), ltNoise( ltP * 0.08 + ltSeed * 9.0 ) );
     ltCol *= 1.0 - ltWx * smoothstep( 3.0, 16.0, ltY ) * 0.2;
     float ltSt = smoothstep( 0.58, 0.92, ltNoise( vec2( ltS * 3.1, ltY * 0.11 ) + ltSeed * 21.0 ) );
@@ -102,7 +110,7 @@ if ( vLtTone.a > 0.01 ) {
     gLtFlat = 0.85;
   } else if ( ltKind > 1.5 && ltKind < 2.5 ) {
     // stucco grain
-    ltCol = ltTarget * ( 0.88 + 0.24 * ltNoise( ltP * 18.0 ) ) * ( 0.95 + 0.1 * ltNoise( ltP * 4.0 ) );
+    ltCol = ltTarget * ( 0.9 + 0.2 * ltNoise( ltP * 18.0 ) ) * dtlGain( 0.0, ltP / 2.2 + ltSeed * 5.0, 2.4 ) * dtlGain( 0.0, ltP / 7.0, 1.4 );
     gLtFlat = 0.7;
   } else if ( ltKind > 2.5 && ltKind < 3.5 ) {
     // new-build panels: 1.2 x 0.6 m with dark seams and a per-panel tone
@@ -114,12 +122,55 @@ if ( vLtTone.a > 0.01 ) {
     ltCol = ltTarget * ( 1.0 - 0.5 * ltSeam ) * ( 1.0 + ( ltCell - 0.5 ) * 0.16 ) * ( ltCell > 0.93 ? 0.8 : 1.0 );
     gLtFlat = 0.95;
     gLtGloss = 0.45;
-  } else if ( ltKind > 6.5 ) {
+  } else if ( ltKind > 6.5 && ltKind < 7.5 ) {
     // striped shop awning: white stripes 12 cm wide
     ltCol = mix( ltCol, vec3( 0.7, 0.68, 0.62 ), step( 0.5, fract( ltS / 0.24 ) ) * 0.85 );
   } else if ( ltKind > 3.5 && ltKind < 4.5 ) {
+    // glazed brick / tile: small square tiles with grout lines from the tile photo
+    ltCol = ltTarget * dtlGain( 1.0, ltP / 1.0 + ltSeed * 3.0, 2.0 ) * ( 0.94 + 0.12 * ltNoise( ltP * 2.0 + ltSeed * 9.0 ) );
     gLtGloss = 0.6;
     gLtFlat = 0.4;
+  } else if ( ltKind > 4.5 && ltKind < 5.5 ) {
+    // limestone / cast stone trim, cornices, stoops
+    ltCol *= dtlGain( 3.0, ltP / 1.6 + ltSeed * 7.0, 2.6 ) * dtlGain( 3.0, ltP / 5.3, 1.8 );
+  } else if ( ltKind > 7.5 && ltKind < 8.5 ) {
+    // roll-down gate: plain / rusty / tagged, by lot seed
+    float ltGs = fract( ltSeed * 7.31 + 0.17 );
+    float ltLow = 1.0 - smoothstep( 0.0, 1.6, ltY );
+    float ltRust = ltGs > 0.55 ? ( ltGs > 0.8 ? 0.55 : 1.0 ) : 0.0;
+    float ltRn = ltNoise( vec2( ltS * 6.0, ltY * 1.5 ) + ltSeed * 17.0 );
+    float ltRm = ltRust * smoothstep( 0.35, 0.8, ltRn * 0.6 + ltLow * 0.7 + ltWx * 0.25 - 0.3 );
+    ltCol = mix( ltCol, vec3( 0.34, 0.15, 0.06 ) * ( 0.7 + 0.6 * ltNoise( ltP * 14.0 ) ), ltRm * 0.8 );
+    ltCol *= 0.92 + 0.16 * ltNoise( vec2( ltS * 40.0, ltY * 0.5 ) );
+    if ( ltGs > 0.8 ) {
+      // abstract tag: two looping marker strokes and a crown, in a per-lot colour
+      vec2 ltT = vec2( ltS * 0.8 + ltSeed * 11.0, ltY * 1.1 );
+      vec2 ltTc = fract( ltT * 0.5 ) * 2.0 - 1.0;
+      ltTc.y = ( ltTc.y - 0.1 ) * 1.4;
+      float ltWob = ltNoise( ltTc * 3.0 + ltSeed * 40.0 ) * 0.25;
+      float ltR1 = abs( length( ltTc * vec2( 0.9, 1.5 ) ) - 0.55 - ltWob );
+      float ltR2 = abs( length( ( ltTc - vec2( 0.55, -0.1 ) ) * vec2( 1.5, 1.0 ) ) - 0.3 - ltWob * 0.5 );
+      float ltStroke = 1.0 - smoothstep( 0.03, 0.075, min( ltR1, ltR2 ) );
+      ltStroke *= step( 0.0, ltTc.y + 0.5 ) * step( ltTc.y, 0.9 ) * step( ltY, 2.6 );
+      vec3 ltInk = ltSeed > 0.5 ? vec3( 0.04, 0.04, 0.05 ) : vec3( 0.55, 0.12, 0.45 );
+      ltCol = mix( ltCol, ltInk, ltStroke * 0.85 );
+    }
+    gLtFlat = 0.5;
+  }
+  if ( ltParty > 0.5 && ltY > 6.0 && ltY < 11.0 ) {
+    // faded painted wall sign on blank side walls: one 9 m cell in four, a 6.4 x 2 m board
+    float ltCell = floor( ltS / 9.0 + ltSeed * 4.0 );
+    float ltSh = ltHash( vec2( ltCell, ltSeed * 61.0 ) );
+    vec2 ltSp = vec2( -( ltS / 9.0 + ltSeed * 4.0 - ltCell ) * 9.0, ltY - 7.0 );
+    vec2 ltSu = vec2( ltSp.x / 6.4 - 0.1, ltSp.y / 2.0 );
+    if ( ltSh > 0.74 && ltSu.x > 0.0 && ltSu.x < 1.0 && ltSu.y > 0.0 && ltSu.y < 1.0 ) {
+      float ltIdx = floor( ltHash( vec2( ltCell + 3.0, ltSeed * 29.0 ) ) * ${WALL_SIGNS.length}.0 );
+      vec2 ltCellUv = vec2( mod( ltIdx, ${SIGN_COLS}.0 ), floor( ltIdx / ${SIGN_COLS}.0 ) );
+      vec4 ltSg = texture2D( tSigns, ( ltCellUv + vec2( ltSu.x, 1.0 - ltSu.y ) ) / vec2( ${SIGN_COLS}.0, ${SIGN_ROWS}.0 ) );
+      float ltFade = 0.35 + 0.4 * ltNoise( ltP * vec2( 1.3, 1.9 ) + ltSeed * 5.0 );
+      vec3 ltSc = pow( ltSg.rgb, vec3( 2.2 ) );
+      ltCol = mix( ltCol, ltSc * ( 0.5 + 0.5 * ltLr ) * 0.8 + ltCol * 0.15, ltSg.a * ltFade );
+    }
   }
   diffuseColor.rgb = ltCol;
 }`;
@@ -130,6 +181,8 @@ export function patchLotTone(m: THREE.MeshStandardMaterial): void {
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (shader, renderer) => {
     prev?.call(m, shader, renderer);
+    shader.uniforms.tDetail = { value: detailAtlasTexture() };
+    shader.uniforms.tSigns = { value: wallSignTexture() };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>\n${VERT_DECL}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -143,7 +196,7 @@ vLtN = normalize( mat3( modelMatrix ) * objectNormal );`);
       .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = normalize( mix( normal, nonPerturbedNormal, gLtFlat ) );');
   };
   const prevKey = m.customProgramCacheKey;
-  m.customProgramCacheKey = () => `${prevKey ? prevKey.call(m) : ''}|lottone1`;
+  m.customProgramCacheKey = () => `${prevKey ? prevKey.call(m) : ''}|lottone2`;
   m.needsUpdate = true;
 }
 

@@ -48,7 +48,18 @@ phone.text('Ms. Odette', 'Buy three records.');
 const phoneHud = new PhoneHud(overlay, phone, { saves, apps: { map: () => map.toggle(), radio: () => hud.showToast('Radio'), settings: () => menu.toggle() } });
 const map = new MapScreen(overlay, grid, { places: [...navPlaces(), ...placesFromPois(grid, data.pois)] });
 map.onOpen = () => { if (phoneHud.isOpen) phoneHud.toggle(); };
-const menu = new Menu(overlay, {}, { touch, saves, storage: null, openOnPointerUnlock: false });
+const missionLog = () => [
+  { id: 'a1', title: 'Wax for the Deli', state: 'done' as const, act: 1, tag: 'story' },
+  { id: 'a2', title: 'Stoop Sale', state: 'active' as const, act: 1, tag: 'story', objective: 'Bring the crate to the corner deli' },
+  { id: 'a3', title: 'Night Shift', state: 'open' as const, act: 1, tag: 'story' },
+  { id: 'b1', title: 'Air Rights', state: 'locked' as const, act: 2, tag: 'story' },
+  { id: 's1', title: 'Cab Fare', state: 'failed' as const, tag: 'side' },
+];
+const menu = new Menu(overlay, {}, {
+  touch, saves, storage: null, openOnPointerUnlock: false, map, missionLog, installable: true,
+  info: () => ({ cash: inventory.cash, hour: live.hour, day: live.day, street: grid.nearestStreet({ x: live.x, z: live.z }).signName, station: 'Static FM', stats: [['Records owned', '4'], ['Missions done', '1 / 5']] }),
+});
+if (q.has('bg')) for (const e of [document.documentElement, document.body]) e.style.background = "#2a3140 url('/playtests/p12/01-boot.png') center / cover";
 
 const markers = [
   { id: 'g', kind: 'giver' as const, x: 60, z: -40, radius: 3, color: '#f5c542', label: 'Ms. Odette' },
@@ -73,6 +84,7 @@ function frame(): void {
   requestAnimationFrame(frame);
 }
 frame();
+if (!q.has('splash') && !q.has('loading')) hud.hideSplash();
 const gui = { map, menu, phoneHud, saves, live, hud, mState, setStation: (i: number) => { station = STATIONS[i]!; }, loading: null as LoadingScreen | null };
 (window as unknown as { __gui: unknown }).__gui = gui;
 if (q.has('loading')) {
