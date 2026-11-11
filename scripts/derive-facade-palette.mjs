@@ -84,19 +84,34 @@ export function classify(c, tex, lot) {
 }
 
 // ---------------------------------------------------------------------------------------------- data
+const FRAME = { lat0: 40.691633, lon0: -73.942663, rot: 8.6 * RAD };
+const KX = (Math.PI / 180) * 6371008.8 * Math.cos(FRAME.lat0 * RAD), KY = (Math.PI / 180) * 6371008.8;
+/** lat/lon -> grid metres (same frame as src/world/roadnet/geom.ts REAL_FRAME) */
+const toGrid = (lat, lon) => { const e = (lon - FRAME.lon0) * KX, n = (lat - FRAME.lat0) * KY, c = Math.cos(FRAME.rot), s = Math.sin(FRAME.rot); return { x: e * c + n * s, z: e * s - n * c }; };
+/** compass bearing (radians clockwise from north) -> unit direction in grid metres */
+const dirGrid = (b) => { const e = Math.sin(b), n = Math.cos(b), c = Math.cos(FRAME.rot), s = Math.sin(FRAME.rot); return { x: e * c + n * s, z: e * s - n * c }; };
+
+/**
+ * Real-map lots (first and second ring, src/world/data/raw/lots-real-r1r2a.json: BBL, grid x/z, frontage, depth, floors, class).
+ * The facade direction of each lot comes from its neighbours: lots on the same street edge and side (lot.e, lot.sd) within 40 m
+ * along it are fitted with a line (principal axis); fewer than three neighbours fall back to the street name rule.
+ */
 function loadLots() {
-  const raw = path.join(ROOT, 'src/world/data/raw');
-  const lots = new Map();
-  for (const f of ['pluto-bedstuy.json', 'north-pluto.json', 'expansion-pluto.json']) {
-    for (const r of JSON.parse(fs.readFileSync(path.join(raw, f), 'utf8'))) {
-      if (!r.latitude || !r.address || !r.bbl) continue;
-      const bbl = String(Math.round(Number(r.bbl))).padStart(10, '0');
-      if (lots.has(bbl)) continue;
-      const ft = 0.3048;
-      lots.set(bbl, { bbl, address: r.address, lat: Number(r.latitude), lon: Number(r.longitude), front: (Number(r.lotfront) || 20) * ft, depth: (Number(r.lotdepth) || 90) * ft, yearbuilt: r.yearbuilt, cls: r.bldgclass ?? '', retail: Number(r.retailarea) > 0 || /^[KO]/.test(r.bldgclass ?? ''), floors: Number(r.numfloors) || 0, ew: EW_STREETS.test(r.address.toUpperCase()) });
-    }
+  const raw = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/world/data/raw/lots-real-r1r2a.json'), 'utf8')).lots;
+  const groups = new Map();
+  for (const l of raw) { if (l.e < 0) continue; const k = `${l.e}|${l.sd}`; (groups.get(k) ?? groups.set(k, []).get(k)).push(l); }
+  const out = [];
+  for (const l of raw) {
+    const nb = l.e >= 0 ? groups.get(`${l.e}|${l.sd}`).filter((o) => Math.abs(o.s - l.s) <= 40) : [];
+    let tx, tz;
+    if (nb.length >= 3) {
+      const mx = nb.reduce((a, o) => a + o.x, 0) / nb.length, mz = nb.reduce((a, o) => a + o.z, 0) / nb.length;
+      let sxx = 0, szz = 0, sxz = 0; for (const o of nb) { sxx += (o.x - mx) ** 2; szz += (o.z - mz) ** 2; sxz += (o.x - mx) * (o.z - mz); }
+      const th = 0.5 * Math.atan2(2 * sxz, sxx - szz); tx = Math.cos(th); tz = Math.sin(th);
+    } else { const ew = EW_STREETS.test((l.ad ?? '').toUpperCase()); const t = (ew ? 0 : 90) * RAD + 0; tx = ew ? 1 : 0; tz = ew ? 0 : 1; void t; }
+    out.push({ bbl: l.bbl, address: l.ad, x: l.x, z: l.z, tx, tz, front: l.lf || 6, depth: l.ld || 25, off: Math.max(0, (l.d ?? 20) - 11), yearbuilt: l.yr, cls: l.cls ?? '', retail: /^[KO]/.test(l.cls ?? '') || l.lu === '5' || l.lu === '4', floors: l.fl || 0 });
   }
-  return [...lots.values()];
+  return out;
 }
 
 // ---------------------------------------------------------------------------------------------- one photo
@@ -109,9 +124,9 @@ async function loadImage(file, W = 1000) {
 /** Subject photo: a frontal shot of one building whose geotag is the building itself (Commons CC0 series). The nearest lot within 30 m is the subject. */
 function observeSubject(img, pose, lots) {
   const { data, w, h } = img;
-  const kLat = 111320, kLon = 111320 * Math.cos(pose.lat * RAD);
+  const cam = toGrid(pose.lat, pose.lon);
   let best = null;
-  for (const l of lots) { const d = Math.hypot((l.lon - pose.lon) * kLon, (l.lat - pose.lat) * kLat); if (d < 30 && (!best || d < best.d)) best = { l, d }; }
+  for (const l of lots) { const d = Math.hypot(l.x - cam.x, l.z - cam.z); if (d < 30 && (!best || d < best.d)) best = { l, d }; }
   if (!best) return [];
   const bins = new Map();
   let kept = 0, edge = 0, edgeN = 0;
@@ -131,29 +146,29 @@ function observePhoto(img, pose, lots, dbg) {
   const { data, w, h } = img;
   const fov = (pose.fov ?? 78) * RAD;
   const f = (w / 2) / Math.tan(fov / 2);
-  const kLat = 111320, kLon = 111320 * Math.cos(pose.lat * RAD);
-  const hd = pose.heading * RAD;
+  const cam = toGrid(pose.lat, pose.lon);
+  const hv = dirGrid(pose.heading * RAD);
+  const ha = Math.atan2(hv.x, -hv.z);
+  const ang = (dx, dz) => { let r = Math.atan2(dx, -dz) - ha; while (r > Math.PI) r -= 2 * Math.PI; while (r < -Math.PI) r += 2 * Math.PI; return r; };
   const cands = [];
   for (const l of lots) {
-    let e = (l.lon - pose.lon) * kLon, n = (l.lat - pose.lat) * kLat;
-    let d = Math.hypot(e, n);
+    let dx = l.x - cam.x, dz = l.z - cam.z;
+    if (Math.abs(dx) > 90 || Math.abs(dz) > 90) continue;
+    // facade point: from the centroid toward the street (normal to the facade line, toward the camera) by its distance to the building line
+    let nx = -l.tz, nz = l.tx;
+    if (nx * -dx + nz * -dz < 0) { nx = -nx; nz = -nz; }
+    const pull = Math.min(l.off, 30);
+    dx += nx * pull; dz += nz * pull;
+    const d = Math.hypot(dx, dz);
     if (d < 10 || d > 80) continue;
-    // pull the centroid toward the camera: the facade is about half a lot depth in front of the centroid, but never past 40% of the way
-    const pull = Math.min(l.depth / 2, d * 0.4);
-    e -= (e / d) * pull; n -= (n / d) * pull; d -= pull;
-    const bearing = Math.atan2(e, n);
-    let rel = bearing - hd; while (rel > Math.PI) rel -= 2 * Math.PI; while (rel < -Math.PI) rel += 2 * Math.PI;
+    const rel = ang(dx, dz);
     if (Math.abs(rel) > fov / 2 * 0.98) continue;
-    // facade tangent: E-W streets run at bearing 90-GRID, N-S avenues at 180-GRID
-    const tb = (l.ew ? 90 - GRID_DEG : 180 - GRID_DEG) * RAD;
-    const te = Math.sin(tb), tn = Math.cos(tb);
     const hw = l.front / 2;
-    const col = (de, dn) => { let r = Math.atan2(e + de, n + dn) - hd; while (r > Math.PI) r -= 2 * Math.PI; while (r < -Math.PI) r += 2 * Math.PI; return Math.abs(r) >= Math.PI / 2 ? null : w / 2 + f * Math.tan(r); };
-    const c0 = col(-te * hw, -tn * hw), c1 = col(te * hw, tn * hw);
+    const col = (px, pz) => { const r = ang(px, pz); return Math.abs(r) >= Math.PI / 2 ? null : w / 2 + f * Math.tan(r); };
+    const c0 = col(dx - l.tx * hw, dz - l.tz * hw), c1 = col(dx + l.tx * hw, dz + l.tz * hw);
     if (c0 == null || c1 == null) continue;
     const x0 = Math.min(c0, c1), x1 = Math.max(c0, c1);
-    // frontal-ness: angle between the sight line and the facade normal
-    const cosInc = Math.abs((e / d) * -tn + (n / d) * te);
+    const cosInc = Math.abs((dx / d) * nx + (dz / d) * nz); // 1 = looking straight at the facade
     if (x1 - x0 < 24 || cosInc < 0.12) continue;
     cands.push({ l, d, x0, x1, cosInc });
   }
@@ -183,7 +198,7 @@ function observePhoto(img, pose, lots, dbg) {
         if (v < 0.18) continue; // windows and shadow
         if (v > 0.93 && s < 0.12) continue; // clipped sky or paint highlights
         if (hh > 70 && hh < 170 && s > 0.2) continue; // foliage
-        if (hh > 190 && hh < 250 && s < 0.35 && v > 0.55 && y < h * 0.4) continue; // sky
+        if (s < 0.3 && v > 0.55 && y < h * 0.5 && (hh > 170 || b > r)) continue; // sky, blue or overcast grey (a pale painted wall in the upper half is lost with it)
         kept++; lum += L; lumN++;
         const k = `${Math.floor(hh / 20)}:${Math.floor(v * 5)}:${s < 0.12 ? 0 : s < 0.35 ? 1 : 2}`;
         let b0 = bins.get(k); if (!b0) { b0 = []; bins.set(k, b0); }
@@ -249,7 +264,7 @@ async function main() {
     let group = [arr[0]];
     for (const a of arr) { const g = arr.filter((b) => dist(a.color, b.color) < 38); if (g.length > group.length) group = g; }
     const best = group[0];
-    const ok = group.length >= 2 ? (agreed++, group.reduce((s, o) => s + o.q, 0) / group.length >= MIN_Q) : (best.q >= 0.7 ? (single++, true) : false);
+    const ok = group.length >= 2 ? (agreed++, group.reduce((s, o) => s + o.q, 0) / group.length >= MIN_Q) : (best.q >= 0.75 ? (single++, true) : false);
     if (!ok) { rejected++; continue; }
     const col = [0, 1, 2].map((i) => median(group.map((o) => o.color[i])));
     const tex = median(group.map((o) => o.tex));

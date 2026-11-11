@@ -145,6 +145,8 @@ scene.add(world.group);
 const { grid } = world;
 
 const physics = new World2D(12);
+// real-map preview: buildings stream in and out around the player, so their colliders come and go at run time
+realWorld?.setColliderHost({ add: (cs) => { for (const c of cs) physics.addStatic(c.shape, c.pos, c.id); }, remove: (ids) => { for (const id of ids) physics.removeBody(id); } });
 for (const c of world.colliders) physics.addStatic(c.shape, c.pos, c.id);
 loading.done('world');
 await nextPaint();
@@ -542,6 +544,7 @@ function drawFrame(alpha: number, frameDt: number): void {
     // elevated line: trains on a timetable, station doors, rumble with distance falloff
     world.transit.attachAudio(audio.djHost?.ctx, audio.djHost?.dest);
     world.transit.update(frameDt, cam.camera.position, dayNight.isNight);
+    realWorld?.update(frameDt, player.body.pos.x, player.body.pos.z, cam.camera.position, dayNight.isNight); // building streamer and el trains
     weather.update(frameDt, cam.camera.position);
     pipeline.setWeather(weather.wetness, weather.rain);
     culler.update(cam.camera.position.x, cam.camera.position.z);

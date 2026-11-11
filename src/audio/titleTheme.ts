@@ -72,16 +72,13 @@ export const CHOP: Array<Array<[number, number, number]>> = [
   [[0, 15, 0.8]],
 ];
 export const KICKS: number[][] = [[0, 7, 10], [0, 3, 10], [0, 7, 10, 14], [0, 10], [0, 6, 10]];
-const HAT = [0.55, 0.16, 0.34, 0.14, 0.48, 0.18, 0.34, 0.16, 0.55, 0.14, 0.34, 0.18, 0.48, 0.16, 0.36, 0.22];
 /** Scratch gestures: [startStep, lenSteps, rateFrom, rateTo]. */
 export const SCRATCH: Array<Array<[number, number, number, number]>> = [
   [[12, 1, 0.5, 2.4], [13, 1, 2.4, 0.5], [14, 0.5, 0.6, 2.8], [14.5, 0.5, 2.8, 0.6], [15, 1, 0.6, 3.2]],
-  [[10, 2, 0.4, 2.5], [12, 1, 2.5, 0.4], [13, 1, 0.6, 2], [14, 0.75, 2, 0.3], [14.75, 1.25, 0.3, 3]],
-  [[8, 1.5, 0.5, 2.2], [10, 1, 2.2, 0.7], [12, 0.5, 0.7, 2.6], [12.5, 0.5, 2.6, 0.7], [13, 0.5, 0.7, 2.6], [13.5, 0.5, 2.6, 0.7], [14, 2, 0.5, 3.4]],
+  [[10, 2, 0.4, 2.5], [12, 1, 2.5, 0.4], [13, 1, 0.6, 2], [14, 2, 2, 0.3]],
+  [[8, 1.5, 0.5, 2.2], [10, 1, 2.2, 0.7], [12, 0.5, 0.7, 2.6], [12.5, 0.5, 2.6, 0.7], [14, 2, 0.5, 3.4]],
   [[8, 4, 0.3, 1], [12, 1, 1.4, 0.4], [13, 1, 0.4, 2.2], [14, 2, 2.2, 0.3]],
-  [[12, 1, 1.2, 0.3], [13, 1, 0.3, 2.5], [14, 2, 2.5, 0.2]],
 ];
-
 export interface BarPlan {
   kick: number[]; snare: boolean; ghost: boolean; clap: boolean;
   /** 0 none, 1 eighths, 2 swung sixteenths. */
@@ -114,7 +111,7 @@ export function planForBar(barIn: number): BarPlan {
   Object.assign(p, o[sec]);
   if (j === 3 && sec !== 4) { p.kick = KICKS[2]; if (p.bass === 1) p.bass = 2; }
   p.crash = j === 0 && (sec === 0 || sec === 3 || sec === 5 || sec === 7);
-  p.scratch = ({ 11: 0, 15: 1, 27: 2, 19: 3, 31: 4 } as Record<number, number>)[bar] ?? -1;
+  p.scratch = ({ 11: 0, 15: 1, 27: 2, 19: 3, 31: 3 } as Record<number, number>)[bar] ?? -1;
   if (bar === 19) p.roll = true;
   if (bar === 31) p.end = 12;
   return p;
@@ -143,7 +140,7 @@ export function makeVowel(sr: number, secs = 0.5, f0 = 160): Float32Array {
   const n = Math.floor(sr * secs), d = new Float32Array(n);
   for (let k = 1; k * f0 < Math.min(7000, sr / 2.2); k++) {
     const f = k * f0, g = (c: number, w: number) => Math.exp(-(((f - c) / w) ** 2));
-    const a = (g(700, 260) + 0.7 * g(1150, 300) + 0.25 * g(2600, 500) + 0.05) / Math.pow(k, 0.3), w = (2 * Math.PI * f) / sr;
+    const a = (g(700, 260) + 0.7 * g(1150, 300) + 0.05) / Math.pow(k, 0.3), w = (2 * Math.PI * f) / sr;
     for (let i = 0; i < n; i++) d[i] += a * Math.sin(w * i);
   }
   let pk = 1e-6;
@@ -190,7 +187,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
   const live = new Set<AudioNode>();
   const T = (t: number): number => Math.max(t, ctx.currentTime);
   let noiseBuf: AudioBuffer | null = null, vowelBuf: AudioBuffer | null = null, wave: PeriodicWave | null = null;
-  let wow: GainNode, bassOsc: OscillatorNode, bassAmp: GainNode, duckBass: GainNode, duckKeys: GainNode, keysLP: BiquadFilterNode, keysIn: GainNode, kickBus: GainNode, clickBp: BiquadFilterNode, snareIn: BiquadFilterNode, crackBp: BiquadFilterNode, snareBus: GainNode, clapBp: BiquadFilterNode, hatHp: BiquadFilterNode, crashHp: BiquadFilterNode, hookIn: GainNode, scrIn: GainNode, rev: GainNode, dly: GainNode;
+  let bassOsc: OscillatorNode, bassAmp: GainNode, duckBass: GainNode, duckKeys: GainNode, keysLP: BiquadFilterNode, keysIn: GainNode, kickBus: GainNode, clickBp: BiquadFilterNode, snareIn: BiquadFilterNode, crackBp: BiquadFilterNode, snareBus: GainNode, clapBp: BiquadFilterNode, hatHp: BiquadFilterNode, crashHp: BiquadFilterNode, hookIn: GainNode, scrIn: GainNode, rev: GainNode, dly: GainNode;
   let out: GainNode | null = null;
 
   const track = <A extends AudioNode>(x: A): A => { live.add(x); created++; return x; };
@@ -218,10 +215,6 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
   const noise = (tt: number, off: number, dur: number, to: AudioNode): AudioBufferSourceNode => {
     const s = bufSrc(noiseBuf, to); s.start(tt, ((off % 1.4) + 1.4) % 1.4); s.stop(tt + dur); return s;
   };
-  const env = (g: GainNode, tt: number, peak: number, attack: number, tc: number): void => {
-    g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(peak, tt + attack); g.gain.setTargetAtTime(0, tt + attack, tc);
-  };
-
   function buildChain(): void {
     const sr = ctx.sampleRate;
     noiseBuf = ctx.createBuffer(1, Math.floor(sr * 2), sr);
@@ -229,17 +222,14 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     vowelBuf = ctx.createBuffer(1, Math.floor(sr * 0.5), sr); vowelBuf.getChannelData(0).set(makeVowel(sr));
     const h = new Float32Array(10), im = new Float32Array(10);
     [0, 1, 0.2, 0.07, 0.025, 0.01, 0, 0, 0, 0].forEach((a, i) => { im[i] = a; });
-    wave = typeof ctx.createPeriodicWave === 'function' ? ctx.createPeriodicWave(h, im) : null;
+    wave = ctx.createPeriodicWave(h, im);
 
-    // master: sum -> tape saturation -> glue compressor -> limiter -> soft ceiling -> out(volume/fade) -> dest
+    // master: sum -> tape saturation -> limiter -> soft ceiling -> out(volume/fade) -> dest
     const o0 = out = track(ctx.createGain()); o0.gain.value = 0; o0.connect(dest);
     const lim = track(ctx.createDynamicsCompressor());
     lim.threshold.value = -3; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.003; lim.release.value = 0.12;
     lim.connect(shaper(ceilingCurve(), o0));
-    const glue = track(ctx.createDynamicsCompressor());
-    glue.threshold.value = -17; glue.knee.value = 10; glue.ratio.value = 3; glue.attack.value = 0.012; glue.release.value = 0.16;
-    glue.connect(lim);
-    const sum = gain(1, filt('lowpass', 10500, 0.5, shaper(satCurve(), glue, '2x')));
+    const sum = gain(1, filt('lowpass', 10500, 0.5, shaper(satCurve(), lim, '2x')));
     const part = (p: PartName, to: AudioNode = sum): GainNode => gain(mix[p], to);
     const pan = (p: number, from: AudioNode, to: AudioNode): void => { const sp = track(ctx.createStereoPanner()); sp.pan.value = p; from.connect(sp); sp.connect(to); };
 
@@ -262,7 +252,6 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     const keysBus = part('keys'); pan(-0.15, duckKeys, keysBus); send(keysBus, 0.16, 0.14);
     keysIn = gain(1), keysLP = filt('lowpass', 2300, 0.5, duckKeys);
     keysIn.connect(keysLP);
-    wow = gain(7); const wowO = osc('sine', 0.55, wow); // tape wow, +-7 cents, shared by every key voice
     // hook: bell -> low-pass -> bus
     hookIn = gain(1); const hookBus = part('hook'), hookLp = filt('lowpass', 3000, 0.5); hookIn.connect(hookLp); pan(0.2, hookLp, hookBus); send(hookBus, 0.28, 0.34);
     // drums
@@ -278,7 +267,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     const cb = ctx.createBuffer(1, Math.floor(sr * 6), sr); cb.getChannelData(0).set(makeCrackle(sr));
     const cs = bufSrc(cb, filt('highpass', 500, 0.7, filt('lowpass', 9000, 0.7, part('crackle')))); cs.loop = true;
 
-    for (const o of [bassOsc, wowO, cs]) o.start(ctx.currentTime);
+    for (const o of [bassOsc, cs]) o.start(ctx.currentTime);
   }
 
   // ---------------------------------------------------------------- voices
@@ -325,7 +314,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     a.setValueAtTime(0, tt); a.linearRampToValueAtTime(vel * 0.3, tt + 0.004); a.setTargetAtTime(vel * 0.14, tt + 0.004, 0.3); a.setTargetAtTime(0, end, 0.014);
     const srcs: Src[] = [];
     for (const m of chord.keys) {
-      const o = osc('sine', midiToHz(m), g); if (wave) o.setPeriodicWave(wave); wow.connect(o.detune);
+      const o = osc('sine', midiToHz(m), g); o.setPeriodicWave(wave!);
       o.start(tt); o.stop(end + 0.2); srcs.push(o);
     }
     release(srcs, [g]);
@@ -367,7 +356,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
       if (p.ghost && (step === 9 || step === 14) && rnd(gs) > 0.3) snare(ts, gs, 0.22, true);
       if (p.roll && step >= 8) snare(t, gs, 0.3 + (step - 8) * 0.08, false);
       if (p.hats > 0 && (p.hats === 2 || (step & 1) === 0) && !((step & 1) && rnd(gs + 7) > 0.84)) {
-        hat(ts + (rnd(gs + 3) - 0.5) * 0.006, gs, HAT[step] * (p.hats === 1 ? 0.75 : 1) * (0.9 + 0.2 * rnd(gs + 5)), step === p.open);
+        hat(ts + (rnd(gs + 3) - 0.5) * 0.006, gs, (step % 4 === 0 ? 0.52 : step % 2 === 0 ? 0.34 : 0.16) * (p.hats === 1 ? 0.75 : 1) * (0.9 + 0.2 * rnd(gs + 5)), step === p.open);
       }
       for (const [s, off, len, sl] of BASS[p.bass]) if (s === step) bassNote(ts, chord.root + off, len, sl === 1);
       for (const [s, gate, vel] of CHOP[p.chop]) if (s === step) keysHit(ts, chord, gate, vel);

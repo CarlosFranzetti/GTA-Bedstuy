@@ -15,6 +15,9 @@ import { VEHICLE_SPECS } from '@/entities/Vehicle';
 import { pickPaint } from '@/entities/models/carLook';
 import { TrafficLights, type SignalLights } from './TrafficLights';
 
+/** `ln:<segment>:<dir>:<i>` -> `ln:<segment>:<dir>` */
+const laneKey = (id: string): string => id.slice(0, id.lastIndexOf(':'));
+
 export type MakeVehicle = (type: VehicleType, pos: Vec2, heading: number, color: string) => IVehicle;
 export type MakePed = (id: string, node: GraphNode) => Pedestrian;
 
@@ -154,6 +157,9 @@ const DESPAWN = 190;
 const SPAWN_TICK = 0.25;
 /** spawn clearance: nobody within SPAWN_CLEAR m, no moving car within SPAWN_BEHIND m behind */
 const SPAWN_CLEAR = 6;
+/** a lane (one block, one direction) is fed only while the cars on it, bumper to bumper plus a queue gap, fill less than this share of its length */
+const LANE_FILL_MAX = 0.6;
+const QUEUE_GAP = 2.5;
 const SPAWN_BEHIND = 32;
 /** distance between parking slots along a face (m, centre to centre before jitter) */
 const PARK_SPACING = 13;
@@ -210,6 +216,8 @@ export class TrafficSystem {
 
   private readonly active: Active[] = [];
   private readonly laneNodes: LaneNode[];
+  /** lane key (`ln:<segment>:<dir>`) -> length of that block's lane, from its first to its last node */
+  private readonly laneLength = new Map<string, number>();
   private readonly speedCache = new Map<string, number>();
   private readonly offs: Array<() => void> = [];
   private readonly pedEnv: PedEnvironment;
@@ -250,6 +258,15 @@ export class TrafficSystem {
     this.parkedShare = this.density.parkOccupancy;
     this.lights = lights ?? new TrafficLights(grid);
     this.laneNodes = Object.values(grid.lanes.nodes);
+    const ends = new Map<string, { lo: number; hi: number; a: Vec2; b: Vec2 }>();
+    for (const n of this.laneNodes) {
+      const k = laneKey(n.id);
+      const i = Number(n.id.slice(n.id.lastIndexOf(':') + 1));
+      const e = ends.get(k);
+      if (!e) ends.set(k, { lo: i, hi: i, a: n.pos, b: n.pos });
+      else { if (i < e.lo) { e.lo = i; e.a = n.pos; } if (i > e.hi) { e.hi = i; e.b = n.pos; } }
+    }
+    for (const [k, e] of ends) this.laneLength.set(k, dist(e.a, e.b));
     this.pedEnv = {
       lights: this.lights,
       crossings: buildPedCrossings(grid),
@@ -594,6 +611,7 @@ export class TrafficSystem {
       if (++tried > 14) break;
       if (!this.spawnClear(n)) continue;
       const type = this.pickType(true);
+      if (!this.laneHasRoom(n, VEHICLE_SPECS[type].length)) continue;
       const v = this.makeVehicle(type, { x: n.pos.x, z: n.pos.z }, n.heading, this.paintFor(type));
       v.driver = 'traffic';
       this.register(v);
@@ -606,6 +624,24 @@ export class TrafficSystem {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Block storage: a lane holds about its length over (car length + queue gap) cars. Feeding one past LANE_FILL_MAX of that
+   * only builds a queue that backs through the box behind it, so the spawner skips full lanes. Works from the lane's real
+   * length and the real car lengths, so short and odd blocks get a small (possibly zero) share.
+   */
+  private laneHasRoom(n: LaneNode, newLength: number): boolean {
+    const key = laneKey(n.id);
+    const cap = (this.laneLength.get(key) ?? 0) * LANE_FILL_MAX;
+    let used = newLength + QUEUE_GAP;
+    for (let i = 0; i < this.active.length; i++) {
+      const a = this.active[i];
+      const t = a.agent.targetNodeId;
+      if (t === null || laneKey(t) !== key) continue;
+      used += a.vehicle.spec.length + QUEUE_GAP;
+    }
+    return used <= cap;
   }
 
   /**

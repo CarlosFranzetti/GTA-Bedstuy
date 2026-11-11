@@ -45,7 +45,9 @@ const DEAD_END_BACK = 3;
 /** turn angle (rad) beyond which a connection counts as a left / right turn rather than straight */
 const TURN_MIN = 0.5;
 /** sharper than this and the connection is a U-turn, only built when a lane would be stranded otherwise */
-const U_TURN = 2.9;
+const U_TURN = 2.95;
+/** turns sharper than this (~120 deg) are not built unless a lane would otherwise have no way on: a car cannot make them */
+const SHARP_TURN = 2.1;
 
 export type EndKind = 'junction' | 'through' | 'dead' | 'stub';
 
@@ -190,6 +192,8 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
         for (let q = 0; q < n; q++) params.push(marks[k] + (gap * q) / n);
       }
       params.push(t1);
+      // no room for an exit node ahead of the stop line: the lane is just the stop node (cars never spawn within metres of a line)
+      if (endKind === 'junction' && t1 - t0 < 4) params.splice(0, params.length, t1);
 
       for (let lane = 0; lane < count; lane++) {
         const off = ed.oneway === 0 ? o.laneOffset : (lane - (count - 1) / 2) * o.laneWidth;
@@ -262,7 +266,7 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
         for (const b of outs) {
           if (a.edge === b.edge) continue; // U-turn
           const th = turnOf(a, b);
-          if (Math.abs(th) > U_TURN) continue;
+          if (Math.abs(th) > SHARP_TURN) continue;
           if (th > TURN_MIN) { if (a.lane !== a.lanes - 1) continue; } // right: rightmost lane only
           else if (th < -TURN_MIN) { if (a.lane !== 0) continue; } // left: leftmost lane only
           else {
@@ -286,6 +290,9 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
           mark(a);
           continue;
         }
+        const sharp = outs.filter((b) => b.edge !== a.edge && Math.abs(turnOf(a, b)) <= U_TURN)
+          .sort((x, y) => Math.abs(turnOf(a, x)) - Math.abs(turnOf(a, y)));
+        if (sharp.length) { connect(a, sharp[0], name, false); mark(a); continue; }
         const back = outs.filter((b) => b.edge === a.edge)
           .sort((x, y) => Math.abs(x.lane - (a.lanes - 1 - a.lane)) - Math.abs(y.lane - (a.lanes - 1 - a.lane)));
         if (back.length) { connect(a, back[0], name, true); mark(a); }
@@ -293,6 +300,9 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
       // an exit lane nothing leads into: take the entering lane across the same edge, if any
       for (const b of outs) {
         if (hasIncoming.has(first(b).id)) continue;
+        const sharp = ins.filter((a) => a.edge !== b.edge && Math.abs(turnOf(a, b)) <= U_TURN)
+          .sort((x, y) => Math.abs(turnOf(x, b)) - Math.abs(turnOf(y, b)));
+        if (sharp.length) { connect(sharp[0], b, name, false); continue; }
         const across = ins.filter((a) => a.edge === b.edge);
         if (across.length) connect(across[Math.min(across.length - 1, Math.max(0, b.lanes - 1 - b.lane))], b, name, true);
       }

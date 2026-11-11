@@ -3,7 +3,7 @@
  * Fetch openly licensed street-level photos near the game's lots into a git-ignored cache, with a manifest.
  *
  *   NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt node scripts/fetch-street-photos.mjs [options]
- *     --points lat,lon;lat,lon   query points (default: a 250 m grid over the PLUTO lots in src/world/data/raw/pluto-bedstuy.json)
+ *     --points lat,lon;lat,lon   query points (default: one per ~300 m cell over the real-map lots, src/world/data/raw/lots-real-r1r2a.json)
  *     --radius 400               search radius in metres per point (Commons caps at 10000)
  *     --width 1280               thumbnail width to download
  *     --out cache/street-photos  cache folder (git-ignored)
@@ -66,12 +66,24 @@ async function getBuf(url) {
   return null;
 }
 
+/** grid metres (REAL_FRAME of src/world/roadnet/geom.ts) -> lat/lon */
+const FRAME = { lat0: 40.691633, lon0: -73.942663, rot: (8.6 * Math.PI) / 180 };
+export function gridToLatLon(x, z) {
+  const kx = (Math.PI / 180) * 6371008.8 * Math.cos((FRAME.lat0 * Math.PI) / 180), ky = (Math.PI / 180) * 6371008.8;
+  const c = Math.cos(FRAME.rot), s = Math.sin(FRAME.rot);
+  const e = x * c + z * s, n = x * s - z * c;
+  return [FRAME.lat0 + n / ky, FRAME.lon0 + e / kx];
+}
+
+/** query points: one per ~300 m cell over the real-map lots (src/world/data/raw/lots-real-r1r2a.json: first and second ring), else the PLUTO box */
 function queryPoints() {
   const given = opt('points', '');
   if (given) return given.split(';').map((p) => p.split(',').map(Number));
-  const rows = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/world/data/raw/pluto-bedstuy.json'), 'utf8'));
   const cells = new Map();
-  for (const r of rows) { const la = Number(r.latitude), lo = Number(r.longitude); if (la && lo) cells.set(`${Math.round(la / 0.0025)}:${Math.round(lo / 0.003)}`, [Math.round(la / 0.0025) * 0.0025, Math.round(lo / 0.003) * 0.003]); }
+  const add = (la, lo) => { const k = `${Math.round(la / 0.0028)}:${Math.round(lo / 0.0035)}`; cells.set(k, [Math.round(la / 0.0028) * 0.0028, Math.round(lo / 0.0035) * 0.0035]); };
+  const real = path.join(ROOT, 'src/world/data/raw/lots-real-r1r2a.json');
+  if (fs.existsSync(real)) for (const l of JSON.parse(fs.readFileSync(real, 'utf8')).lots) { const [la, lo] = gridToLatLon(l.x, l.z); add(la, lo); }
+  else for (const r of JSON.parse(fs.readFileSync(path.join(ROOT, 'src/world/data/raw/pluto-bedstuy.json'), 'utf8'))) { const la = Number(r.latitude), lo = Number(r.longitude); if (la && lo) add(la, lo); }
   return [...cells.values()];
 }
 

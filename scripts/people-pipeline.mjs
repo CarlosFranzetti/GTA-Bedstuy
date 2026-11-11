@@ -329,8 +329,22 @@ export function decimate(simplifier, body, targetTris, budget = null) {
       if (want <= 0) continue;
       const have = count(ix, r);
       if (have <= want) continue;
+      if (r === 1 && budget.skullKeep !== undefined && body.landmarks) {
+        // the back and top of the skull is hidden by hair, a hat or a scarf on nearly everybody and is smooth: thin it first so the triangles stay on the face
+        const lm = body.landmarks, back = new Uint8Array(nv);
+        let zs = 0, zn = 0;
+        for (let v = 0; v < nv; v++) if (region[v] === 1 && positions[v * 3 + 1] > lm.chinY) { zs += positions[v * 3 + 2]; zn++; }
+        const midZ = zn ? zs / zn : 0;
+        for (let v = 0; v < nv; v++) if (region[v] === 1 && positions[v * 3 + 1] > lm.chinY + 0.025 && positions[v * 3 + 2] > midZ + 0.012 && Math.abs(positions[v * 3]) < 0.074) back[v] = 1;
+        let nb = 0;
+        for (let t = 0; t < ix.length; t += 3) if (back[ix[t]] && back[ix[t + 1]] && back[ix[t + 2]]) nb++;
+        const lockBack = new Uint8Array(nv).map((_, v) => (back[v] ? 0 : 1));
+        [ix] = simplifier.simplifyWithAttributes(ix, positions, 3, attr, 12, wts, lockBack, (ix.length / 3 - Math.floor(nb * (1 - budget.skullKeep))) * 3, 1, []);
+      }
+      const have2 = count(ix, r);
+      if (have2 <= want) continue;
       const lock = new Uint8Array(nv).map((_, v) => (region[v] === r ? 0 : 1));
-      [ix] = simplifier.simplifyWithAttributes(ix, positions, 3, attr, 12, wts, lock, (ix.length / 3 - have + want) * 3, 1, []);
+      [ix] = simplifier.simplifyWithAttributes(ix, positions, 3, attr, 12, wts, lock, (ix.length / 3 - have2 + want) * 3, 1, []);
     }
     // the rest (neck, shoulders, torso, limbs) with head and hands locked, down to the body budget
     const keep = count(ix, 1) + count(ix, 2), lockKeep = new Uint8Array(nv).map((_, v) => (region[v] !== 0 ? 1 : 0));

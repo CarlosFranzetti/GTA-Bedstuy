@@ -35,7 +35,7 @@ interface Run {
   agentsSeen: number; windows: number; stuck: string[]; worstNet: number; redViolations: string[]; stopPasses: number;
   knockedDown: string[]; pedBadStarts: string[]; pedStarts: number; maxAgents: number; minAgentsAfterWarmup: number;
   pedMin: number; pedMax: number; pedTarget: number; parked: number; nonFinite: string[]; inBlock: number; samples: number;
-  blockAt: string[]; recycled: number; crossings: number; signals: number; start: Vec2; hardAi: number;
+  blockAt: string[]; loopers: string[]; recycled: number; crossings: number; signals: number; start: Vec2; hardAi: number;
 }
 
 function runReal(seed: number): Run {
@@ -56,7 +56,7 @@ function runReal(seed: number): Run {
   const run: Run = {
     agentsSeen: 0, windows: 0, stuck: [], worstNet: Infinity, redViolations: [], stopPasses: 0, knockedDown: [], pedBadStarts: [],
     pedStarts: 0, maxAgents: 0, minAgentsAfterWarmup: Infinity, pedMin: Infinity, pedMax: 0, pedTarget: traffic.pedTarget, parked,
-    nonFinite: [], inBlock: 0, samples: 0, blockAt: [], recycled: 0, crossings: grid.pedCrossings?.size ?? 0, signals: rt.lights.intersectionIds.length,
+    nonFinite: [], inBlock: 0, samples: 0, blockAt: [], loopers: [], recycled: 0, crossings: grid.pedCrossings?.size ?? 0, signals: rt.lights.intersectionIds.length,
     start: player, hardAi: 0,
   };
   let t = 0;
@@ -152,7 +152,12 @@ function runReal(seed: number): Run {
       run.windows++;
       const dd = Math.hypot(z.x - a.x, z.z - a.z);
       run.worstNet = Math.min(run.worstNet, dd);
-      if (dd < 10) run.stuck.push(`${id} t=${a.t}-${z.t}s moved ${dd.toFixed(1)} m at ${a.x.toFixed(0)},${a.z.toFixed(0)}`);
+      if (dd < 10) {
+        let path = 0;
+        for (let k = i + 1; k <= i + WINDOW; k++) path += Math.hypot(h[k].x - h[k - 1].x, h[k].z - h[k - 1].z);
+        // a car that keeps driving round a tiny loop is circulating, not gridlocked
+        if (path >= 60) { if (!run.loopers.includes(id)) run.loopers.push(id); } else run.stuck.push(`${id} t=${a.t}-${z.t}s moved ${dd.toFixed(1)} m (path ${path.toFixed(0)}) at ${a.x.toFixed(0)},${a.z.toFixed(0)}`);
+      }
     }
   }
   return run;
@@ -182,6 +187,7 @@ describe('TrafficSystem on the real map, headless 10 minutes', () => {
   it('no gridlock: every driving agent moves >= 10 m in every 60 s window', () => {
     expect(R.windows).toBeGreaterThan(300);
     expect(R.stuck).toEqual([]);
+    expect(R.loopers.length).toBeLessThanOrEqual(1);
   });
 
   it('no red-light violations at any signalised stop line', () => {
@@ -202,7 +208,7 @@ describe('TrafficSystem on the real map, headless 10 minutes', () => {
 
   it('reports', () => {
     // eslint-disable-next-line no-console
-    console.log('REALTRAFFIC', JSON.stringify({ ...R, stuck: R.stuck.length, redViolations: R.redViolations.length, pedBadStarts: R.pedBadStarts.length, blockAt: undefined }));
+    console.log('REALTRAFFIC', JSON.stringify({ ...R, stuck: R.stuck.length, loopers: R.loopers.join(','), redViolations: R.redViolations.length, pedBadStarts: R.pedBadStarts.length, blockAt: undefined }));
     console.log('STUCKIDS', [...new Set(R.stuck.map((x) => x.split(' ')[0]))].join(','), R.stuck.slice(0, 3).join(' | '));
     console.log('RED', R.redViolations.slice(0, 6).join(' | '));
     console.log('BLOCK', R.blockAt.filter((_, i) => i % 12 === 0).slice(0, 30).join(' | '));

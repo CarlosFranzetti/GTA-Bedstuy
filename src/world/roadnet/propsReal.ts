@@ -32,6 +32,7 @@ import type { Vec2 } from '@/core/Math2';
 import { Rng } from '@/core/Rng';
 import type { IMaterialLibrary, StaticCollider } from '@/world/types';
 import { chunkKeyOf, type ChunkLayout } from '@/render/Culling';
+import type { Quality } from '@/render/Shadows';
 import { treeStyleFor } from '@/world/data/streetTrees';
 import { LAMP_HEAD_NAME, placeMatrix, type LampSpot } from '@/world/FurnitureGen';
 import { SIGN_LAYOUT } from '@/world/signBlades';
@@ -84,6 +85,8 @@ export interface RealPropsOptions {
   layout: ChunkLayout;
   /** per node 'signal' | 'stop' (signalPhases.nodeControl(net, controlsJson)); default: the class rule alone */
   controls?: ControlTruth[];
+  /** 'phone' leaves out hydrants and bins (two draws per chunk less; the default path hides them there too) */
+  tier?: Quality;
   /** points to keep 1.5 m clear of (the el columns: allColumnSpots(...).map(s => s.p)) */
   avoid?: ReadonlyArray<Vec2>;
 }
@@ -315,8 +318,9 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
     return true;
   };
   const claim = (p: Vec2): void => taken.insertBox(p, p.x - 2, p.x + 2, p.z - 2, p.z + 2);
-  const ok = (p: Vec2, clear: number, cwClear = CROSSWALK_CLEAR): boolean => onSidewalk(p) && clearOfCrosswalks(p, cwClear) && free(p, clear);
+  const ok = (p: Vec2, clear: number, cwClear = CROSSWALK_CLEAR): boolean => onSidewalk(p) && !net.isOnRoad(p) && clearOfCrosswalks(p, cwClear) && free(p, clear);
 
+  const small = opts.tier !== 'phone';
   const items: Item[] = [];
   const poles: SignalPole[] = [];
   const counts = { trees: 0, lamps: 0, cornerPoles: 0, signs: 0, hydrants: 0, bins: 0, signalPoles: 0, stopSigns: 0 };
@@ -377,7 +381,7 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
         }
       }
       // hydrant and two bins per side
-      for (const side of [1, -1] as const) {
+      for (const side of small ? [1, -1] as const : []) {
         const h = at(lo + 2, side, 0.5);
         if (ok(h.p, SLOT_CLEARANCE) && rng.chance(0.6)) { claim(h.p); items.push({ kind: 'hydrant', x: h.p.x, y: 0, z: h.p.z, yaw: alignYaw(h.dir) }); }
         for (const f of [0.3, 0.7]) {
