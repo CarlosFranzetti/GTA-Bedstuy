@@ -62,6 +62,17 @@ for (const id of AVE) {
 const KINDS_AVENUE = [['bodega', 22], ['deli', 9], ['barber', 8], ['restaurant', 12], ['cellphone', 9], ['liquor', 5], ['laundromat', 6], ['pharmacy', 4], ['daycare', 3], ['generic', 22]];
 const KINDS_STREET = [['bodega', 40], ['deli', 15], ['generic', 30], ['barber', 15]];
 const KINDS_WBURG = [['deli', 30], ['bodega', 22], ['generic', 18], ['pharmacy', 8], ['pizza', 10], ['dollar', 12]];
+// parody shop names (invented; none is a real business). South Williamsburg shops are kosher groceries, bakeries and housewares, written with respect.
+const NAMES_WBURG = {
+  deli: ['SHALOM FRESH MARKET  ·  FRUIT, FISH & FRIDGE DEALS', 'BRIGHT STAR GLATT GROCERY  ·  CLOSED EARLY FRIDAY', 'KEHILA SUPERMARKET  ·  STROLLERS WELCOME', 'HAPPY HEN KOSHER POULTRY'],
+  bodega: ['LEE AV CORNER GROCERY  ·  OPEN SUN-FRI', 'ZION CORNER MARKET  ·  MILK, EGGS, CHALLAH', 'GOLDEN WHEAT BAKERY & BAGEL  ·  PAREVE'],
+  generic: ['JUDAICA & HOUSEWARES OUTLET  ·  EVERYTHING FOR THE TABLE', 'WIG & HAT SALON  ·  BY APPOINTMENT', 'SEFER & GIFT  ·  BOOKS, CANDLES, KIDDUSH CUPS'],
+  pizza: ['BRIGHT STAR PIZZA & FALAFEL  ·  KOSHER · CLOSED SAT', 'DAVID\'S SLICE  ·  FRESH OUT THE OVEN'],
+  pharmacy: ['LEE AV PHARMACY  ·  MEDS, WIGS & GIFTS'],
+  dollar: ['NICKEL & DIME PARTY STORE  ·  PLATES, BALLOONS, BULK'],
+};
+const NAMES_FLUSHING = ['FLUSHING AV AUTO BODY & TIRE  ·  WE FIX WHAT YOU HIT', 'ACME RESTAURANT SUPPLY  ·  PALLETS WELCOME', 'KINGS COUNTY STEEL & WELDING', 'METRO PAPER & PACKAGING  ·  WHOLESALE ONLY', 'DOCK 9 FREIGHT  ·  NO PARKING, WE MEAN IT'];
+const SHULS = ['CONGREGATION OHEL TIKVA', 'BETH ISRAEL OF THE HILL', 'YESHIVA BNEI ZION  ·  EST. 1962'];
 const worstOwner = /PARKS|GREEN|GARDEN|COMMUNITY|NYC DEPT OF PARKS/i;
 
 function mkLot(r, ctx) {
@@ -179,6 +190,13 @@ for (let br = 0; br < 4; br++) {
       const faceCtx = streetId === 'flushing' ? flushingCtx : ctx;
       for (const { r } of uniq) {
         const lot = mkLot(r, faceCtx);
+        // parody sign on the shops, shuls and Flushing Ave businesses of the PLUTO lots
+        if (!lot.sign) {
+          const h = hash(`${key}${r.bbl}sign`);
+          if (lot.use === 'mixed' && streetId !== 'flushing' && wburg) { const list = NAMES_WBURG[lot.storefront] ?? NAMES_WBURG.generic; lot.sign = list[Math.floor(h * list.length)]; }
+          else if ((lot.use === 'garage' || lot.use === 'mixed') && streetId === 'flushing') lot.sign = NAMES_FLUSHING[Math.floor(h * NAMES_FLUSHING.length)];
+          else if (lot.use === 'church' && wburg) lot.sign = SHULS[Math.floor(h * SHULS.length)];
+        }
         // very wide lots (plants, superblocks, parking) become equal pieces of at most 40 m
         const n = Math.max(1, Math.ceil(lot.widthM / 40));
         for (let k = 0; k < n; k++) { lots.push({ ...lot, widthM: round1(lot.widthM / n) }); total += lot.widthM / n; }

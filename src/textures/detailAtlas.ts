@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three';
 
-const HOSTED = (import.meta as { env?: Record<string, string> }).env?.VITE_HOSTED === '1';
+const HOSTED = import.meta.env.VITE_HOSTED === '1';
 const FILES = (HOSTED
   ? import.meta.glob('@/assets/textures/detail_atlas_1k.jpg', { eager: true, query: '?url', import: 'default' })
   : import.meta.glob('@/assets/textures/detail_atlas_512.jpg', { eager: true, query: '?url', import: 'default' })) as Record<string, string>;

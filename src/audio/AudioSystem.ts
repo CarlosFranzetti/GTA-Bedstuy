@@ -17,6 +17,11 @@ import type { RaFeed } from './sc/RaFeed';
 import type { BroadcastContext } from './announcer/Announcer';
 import { HtmlAudioDeck } from './decks';
 import { TalkPlayer, type SpeechLike, type UtteranceLike } from './talk/TalkPlayer';
+import { VoiceHub, looksLikePhone, type HdState } from './voice/VoiceHub';
+import { TalkStation, type TalkLike } from './voice/TalkStation';
+import { DjScheduler } from './voice/Scheduler';
+import type { TtsEngine } from './voice/types';
+import type { PersistentStore } from './voice/ClipCache';
 import { loadBundledScript, type TalkSegment } from './talk/script';
 
 /** Seconds of audio queued ahead of currentTime by the radio sequencer. */
@@ -81,6 +86,21 @@ export interface AudioSystemOptions {
   feed?: RaFeed | null;
   /** Extra environment for every SoundCloud station (tests: canLoad, loadApi, doc, timeoutMs). */
   scEnv?: Partial<ScEnv>;
+  /** VOX: HD voices. `hosted` defaults to the VITE_HOSTED build flag; `engine` and `store` are test seams. */
+  voice?: { hosted?: boolean; phone?: boolean; artifact?: boolean; storage?: Pick<Storage, 'getItem' | 'setItem'> | null; engine?: () => TtsEngine; store?: PersistentStore | null };
+}
+
+function hostedBuild(): boolean {
+  try { return (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_HOSTED === '1'; } catch { return false; }
+}
+function detectPhone(): boolean {
+  try {
+    const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+    return looksLikePhone(typeof navigator === 'undefined' ? undefined : navigator, coarse);
+  } catch { return false; }
+}
+function safeStorage(): Pick<Storage, 'getItem' | 'setItem'> | null {
+  try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; }
 }
 
 function browserSpeech(): SpeechLike | null {
@@ -92,6 +112,7 @@ function browserSpeech(): SpeechLike | null {
 
 export class AudioSystem {
   private g: Graph | null = null;
+  private readonly hub: VoiceHub;
   /** Radio dial, music library decks and the talk show. */
   readonly radio: RadioDirector;
   /** Folder picker / file import / reset for the player's library (used by RadioUi). */
@@ -129,7 +150,22 @@ export class AudioSystem {
     this.createContext = createContext ?? (() => new AudioContext());
     const library = opts.library ?? new Library(opts.storage === undefined ? localLibraryStorage() : opts.storage);
     const speech = opts.speech === undefined ? browserSpeech() : opts.speech;
-    const talk = new TalkPlayer({
+    const makeUtt = opts.makeUtterance ?? ((text: string) => new SpeechSynthesisUtterance(text) as unknown as UtteranceLike);
+    const vo = opts.voice ?? {};
+    this.hub = new VoiceHub({
+      ctx: () => this.g?.ctx ?? null,
+      dest: () => this.g?.musicBus ?? null,
+      speech,
+      makeUtterance: makeUtt,
+      volume: () => this.radioVolume,
+      hosted: vo.hosted ?? hostedBuild(),
+      phone: vo.phone ?? detectPhone(),
+      artifact: vo.artifact,
+      storage: vo.storage === undefined ? safeStorage() : vo.storage,
+      persist: vo.store,
+      engineFactory: vo.engine,
+    });
+    const talk: TalkLike = opts.script ? new TalkPlayer({
       speech,
       makeUtterance: opts.makeUtterance ?? ((text) => new SpeechSynthesisUtterance(text) as unknown as UtteranceLike),
       audio: {
@@ -137,11 +173,15 @@ export class AudioSystem {
         setBed: (level) => this.setBed(level),
         volume: () => this.radioVolume,
       },
-    }, opts.script ?? loadBundledScript());
+    }, opts.script) : new TalkStation({
+      hub: this.hub,
+      context: () => this.radio.broadcastContext,
+      setBed: (level) => this.setBed(level),
+    });
     this.radio = new RadioDirector(library, talk, undefined, opts.sc, {
       feed: opts.feed,
       scEnv: opts.scEnv,
-      voice: { speech, makeUtterance: opts.makeUtterance ?? ((text) => new SpeechSynthesisUtterance(text) as unknown as UtteranceLike), volume: () => this.radioVolume },
+      voice: { speech, makeUtterance: makeUtt, volume: () => this.radioVolume, dj: new DjScheduler(), hub: this.hub },
     });
     this.libraryController = new LibraryController(library, opts.controller);
     void this.libraryController.init().catch(() => undefined);
@@ -171,6 +211,7 @@ export class AudioSystem {
   async start(): Promise<void> {
     if (!this.g) {
       this.g = this.build(this.createContext());
+      this.hub.onGesture();
       // Built while paused (menu open, tab hidden): keep it quiet until every reason is released.
       if (this.pauseReasons.size > 0 && typeof this.g.ctx.suspend === 'function') void Promise.resolve(this.g.ctx.suspend()).catch(() => undefined);
     }
@@ -291,6 +332,13 @@ export class AudioSystem {
 
   /** Hour (0..24), weather ('dry' | 'rain' | 'wet' | 'drying'), rain 0..1 and street name for the announcers' time and weather lines. */
   setBroadcast(ctx: Partial<BroadcastContext>): void { this.radio.setBroadcast(ctx); }
+
+  /** HD voices (on-device neural TTS): toggle, state for the UI and the one-line size note. */
+  get hdVoices(): boolean { return this.hub.hdEnabled; }
+  get hdState(): HdState { return this.hub.state; }
+  get hdLabel(): string { return this.hub.label; }
+  setHdVoices(on: boolean): void { this.hub.setHd(on); }
+  onHdChange(f: () => void): () => void { return this.hub.onChange(f); }
 
   /** Text the announcer is saying (subtitle; also the only output on devices with no speech voices). */
   get announcerLine(): string { return this.radio.announcerLine; }

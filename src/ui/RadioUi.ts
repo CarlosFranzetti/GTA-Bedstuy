@@ -22,6 +22,12 @@ export interface RadioUiSource {
   scStations?: readonly ScStation[];
   /** AudioSystem's context + master bus (null until audio has started); the Loading theme row plays through it. */
   readonly djHost?: { ctx: AudioContext; dest: AudioNode } | null;
+  /** VOX: HD voices (on-device neural TTS). The row is left out when `setHdVoices` is absent. */
+  readonly hdVoices?: boolean;
+  readonly hdState?: 'off' | 'waiting' | 'loading' | 'ready' | 'slow' | 'failed';
+  readonly hdLabel?: string;
+  setHdVoices?(on: boolean): void;
+  onHdChange?(f: () => void): () => void;
 }
 
 interface ScSection { sc: ScStation; list: HTMLElement; msg: HTMLElement; ra: HTMLElement; pool: HTMLElement; count: HTMLElement; input: HTMLInputElement }
@@ -109,6 +115,7 @@ export class RadioUi {
     panel.append(head, note, actions, this.fileInput, this.status);
     if (this.scs.length > 0) panel.appendChild(this.buildScGroup());
     panel.appendChild(this.buildThemeRow());
+    if (this.host.setHdVoices) panel.appendChild(this.buildHdRow());
     panel.appendChild(this.body);
     this.root.appendChild(panel);
     parent.appendChild(this.root);
@@ -216,6 +223,33 @@ export class RadioUi {
       this.theme.start();
       btn.textContent = 'Stop loading theme';
     });
+    row.append(btn, label);
+    return row;
+  }
+
+  /** HD voices toggle: on-device neural TTS for the DJs and WBSY Talk; system voices stay the fallback. */
+  private buildHdRow(): HTMLElement {
+    const row = this.el('div', 'rl-actions rl-hd');
+    const btn = this.button('', 'rl-btn');
+    const label = this.el('span', 'rl-note');
+    const STATE: Record<string, string> = {
+      off: 'Off: the DJs and talk shows use your system voices.',
+      waiting: 'On: downloads once the radio starts.',
+      loading: 'Downloading the voice model, one time. Radio keeps working with system voices meanwhile.',
+      ready: 'On: DJs and talk shows are speaking with HD voices.',
+      slow: 'This device renders too slowly for HD voices; using system voices.',
+      failed: 'HD voices could not load; using system voices.',
+    };
+    const paint = () => {
+      const on = !!this.host.hdVoices;
+      btn.textContent = on ? 'HD voices: on' : 'HD voices: off';
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      label.textContent = `${this.host.hdLabel ?? 'HD voices'}. ${STATE[this.host.hdState ?? 'off'] ?? ''}`;
+    };
+    btn.addEventListener('click', () => { this.host.setHdVoices?.(!this.host.hdVoices); paint(); });
+    const off = this.host.onHdChange?.(paint);
+    if (off) this.cleanup.push(off);
+    paint();
     row.append(btn, label);
     return row;
   }

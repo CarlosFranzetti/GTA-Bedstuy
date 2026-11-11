@@ -72,6 +72,7 @@ function setText(node: Element, text: string): void {
  */
 export class Hud {
   private readonly doc: Document;
+  private readonly rootEl: HTMLElement;
   private readonly fpsEl: HTMLElement;
   private readonly starsEl: HTMLElement;
   private readonly starEls: HTMLElement[] = [];
@@ -108,6 +109,7 @@ export class Hud {
 
   constructor(root: HTMLElement) {
     this.doc = root.ownerDocument;
+    this.rootEl = root;
     root.classList.add('hud-root');
 
     this.fpsEl = this.make('div', 'hud-fps');
@@ -221,6 +223,7 @@ export class Hud {
     const prompt = blocked ? BLOCKED_HINT[this.inputMode] : state.prompt ?? '';
     this.setPrompt(prompt);
     this.promptEl.hidden = prompt.trim() === '';
+    this.rootEl.classList.toggle('has-help', !this.promptEl.hidden); // the objective box makes room for the help text above it
 
     const street = state.streetName ?? '';
     setText(this.streetEl, street);

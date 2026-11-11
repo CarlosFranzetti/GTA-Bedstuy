@@ -103,13 +103,19 @@ export function buildCarGeometries(): CarGeometries {
 
 export interface CarMaterials { body: THREE.Material; glass: THREE.MeshStandardMaterial; door: THREE.Material; lampFront: THREE.MeshStandardMaterial; lampRear: THREE.MeshStandardMaterial; far: THREE.Material; }
 
+/**
+ * alphaTest > 0 (every fragment here is opaque, so nothing is cut) keeps the moving cars out of AoProxy's static shadow/AO proxies,
+ * which bake the triangles of every depth-writing mesh under world.group once, at their position then.
+ */
+const MOVING = { alphaTest: 0.0001 } as const;
+
 export function makeCarMaterials(): CarMaterials {
-  const body = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.75, roughness: 0.38, name: 'train:body' });
-  const glass = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.1, roughness: 0.2, emissive: new THREE.Color(0xffe8b0), emissiveIntensity: 0.15, name: 'train:glass' });
-  const door = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.7, roughness: 0.4, name: 'train:door' });
-  const lampFront = new THREE.MeshStandardMaterial({ vertexColors: true, emissive: new THREE.Color(0xfff2c8), emissiveIntensity: 0.6, name: 'train:lamp-front' });
-  const lampRear = new THREE.MeshStandardMaterial({ vertexColors: true, emissive: new THREE.Color(0xff2a1a), emissiveIntensity: 0.6, name: 'train:lamp-rear' });
-  const far = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.5, roughness: 0.5, name: 'train:far' });
+  const body = new THREE.MeshStandardMaterial({ vertexColors: true, ...MOVING, metalness: 0.75, roughness: 0.38, name: 'train:body' });
+  const glass = new THREE.MeshStandardMaterial({ vertexColors: true, ...MOVING, metalness: 0.1, roughness: 0.2, emissive: new THREE.Color(0xffe8b0), emissiveIntensity: 0.15, name: 'train:glass' });
+  const door = new THREE.MeshStandardMaterial({ vertexColors: true, ...MOVING, metalness: 0.7, roughness: 0.4, name: 'train:door' });
+  const lampFront = new THREE.MeshStandardMaterial({ vertexColors: true, ...MOVING, emissive: new THREE.Color(0xfff2c8), emissiveIntensity: 0.6, name: 'train:lamp-front' });
+  const lampRear = new THREE.MeshStandardMaterial({ vertexColors: true, ...MOVING, emissive: new THREE.Color(0xff2a1a), emissiveIntensity: 0.6, name: 'train:lamp-rear' });
+  const far = new THREE.MeshStandardMaterial({ vertexColors: true, ...MOVING, metalness: 0.5, roughness: 0.5, name: 'train:far' });
   return { body, glass, door, lampFront, lampRear, far };
 }
 

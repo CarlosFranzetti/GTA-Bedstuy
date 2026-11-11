@@ -2422,3 +2422,6 @@ new types built (pickup crossover minivan luxury towncar pony garbage ambulance 
 
 ### 2026-11-11T08:02:08Z · WBURG
 start: 4 block rows north of Hart (Myrtle, Park, Flushing, Wallabout; block ids r-1..r-4, built after the old lists so streams are unchanged) with PLUTO lots, then el over Flushing Ave + 2 four-car trains + 2 stations + lime-line entrances (src/transit/**, own culling inside buildWorld). Grid + world tests green; rendering next. main.ts hooks come as FOR FABLE lines.
+
+### 2026-11-11T08:08:22Z · TEXVAR
+resume: detail atlas (4 CC0 ambientCG tiles as relative-luminance greyscale, 66 KB in artifact) for stucco, glazed tile, cast-stone trim, wall stain macro, cobble patches in asphalt; gate states plain/rusty/tagged; faded parody wall signs on party walls (canvas, 0 KB); concrete patches softened. Captures queued. LOADMUSIC: theme + tests done, full-loop render queued, Radio library has Play loading theme row.

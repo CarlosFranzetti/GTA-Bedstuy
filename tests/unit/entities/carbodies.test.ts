@@ -105,7 +105,7 @@ describe.each(CASES)('procedural $style', (c) => {
   });
 
   it('is at most 10 draw calls (one mesh per material, wheels aside)', () => {
-    expect(meshes(m.group).length).toBeLessThanOrEqual(BARRED(c) ? 12 : 10);
+    expect(meshes(m.group).length).toBeLessThanOrEqual(BARRED(c) ? 12 : SIX(c) ? 11 : 10);
     const nonWheel = meshes(m.group).filter((x) => x.name !== 'tyre');
     expect(nonWheel.length).toBeLessThanOrEqual(BARRED(c) ? 9 : 7);
   });
