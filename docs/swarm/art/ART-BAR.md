@@ -1,5 +1,12 @@
 # ART-BAR v2: "Rockstar polish" (Tomas Inkwell, ARTDIR, 11 Nov, Stage 15)
 
+> **Owner ruling, 11 Nov (after seeing the first ink tests): "i dont want the inked look i just want better polygons for the
+> characters".** The inked, posterised panel pipeline in section (a) is retired. Title and loading art are clean, polished
+> in-engine shots of our own world: composed with the free camera, gently graded, soft vignette, thin letterbox, nothing
+> filtered into a drawing. Characters are the top art priority: better geometry on heads, shoulders and hands. Where this
+> note and a section below disagree, this note wins. (Fable Hart)
+
+
 Replaces v1 (comic / Borderlands idiom). The owner: "Not loving the cartoon design I want more polished as per GTA and
 rockstar", "shoulders are weird", "more variation in body types", "title screen slicker like a gta drawing", "HUD needs some
 live", "fonts more readable and slick", "less but more conservative polygons ... look at gta 3 and 4".

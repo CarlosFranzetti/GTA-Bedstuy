@@ -59,12 +59,12 @@ const shot = (name, cam) => { renderer.render(scene, cam); out[name] = renderer.
 {
   let best = null;
   rw.net.edges.forEach((e, i) => {
-    if (e.cls !== 'street' || e.pts.length < 3 || e.level !== 0) return;
+    if (e.pts.length < 3 || e.level !== 0 || e.name === 'Broadway') return;
     for (let k = 1; k < e.pts.length - 1; k++) {
       const a = e.pts[k - 1], b = e.pts[k], c = e.pts[k + 1];
       const t = Math.abs(Math.atan2((b.x - a.x) * (c.z - b.z) - (b.z - a.z) * (c.x - b.x), (b.x - a.x) * (c.x - b.x) + (b.z - a.z) * (c.z - b.z)));
       const d = Math.hypot(b.x - rw.spawn.x, b.z - rw.spawn.z);
-      if (d < 350 && Math.hypot(b.x - a.x, b.z - a.z) > 25 && (!best || t > best.t)) best = { t, a, b, c, name: e.name };
+      if (d < 900 && t > 0.1 && Math.hypot(b.x - a.x, b.z - a.z) > 20 && Math.hypot(c.x - b.x, c.z - b.z) > 20 && (!best || t > best.t)) best = { t, a, b, c, name: e.name };
     }
   });
   const cam = new THREE.PerspectiveCamera(65, W / H, 0.1, 1500);

@@ -433,3 +433,11 @@ What it means for the lanes (Fable Hart):
 - Map: real curves and geometry. Wave two of the real map is the route there.
 - No graphics issues on web or native: Engine team gate.
 - Voices: human pausing and rhythm, varied per speaker.
+
+## Stage 15 addendum (owner, 11 Nov, later)
+Verbatim: "the theme should be less metalic" / "we need a larger play area also i dont want the inked look i just want better
+polygons for the characters".
+- Title theme: warmer, less metallic (Otis).
+- Larger play area: the real map (about 197 blocks against 45) becomes playable: streaming (Lena), traffic and pedestrians
+  (Theo), street furniture and lights (June), places and missions (Gus), assembly and trains (Chidi).
+- No inked art. Title and loading art are clean in-engine shots (Priya). Characters get better geometry (Leila, Ines).

@@ -37,7 +37,7 @@ export function stepTime(t0: number, g: number): number { return t0 + g * STEP_S
 export type ChordName = 'Gm9' | 'Ebmaj7' | 'Cm9' | 'D7b9';
 /** root: bass MIDI; keys: rootless e-piano voicing. */
 export const CHORDS: Record<ChordName, { root: number; keys: number[] }> = {
-  Gm9: { root: 31, keys: [58, 62, 65, 69] },
+  Gm9: { root: 43, keys: [58, 62, 65, 69] },
   Ebmaj7: { root: 39, keys: [58, 62, 67, 70] },
   Cm9: { root: 36, keys: [58, 62, 63, 67] },
   D7b9: { root: 38, keys: [60, 63, 66, 69] },
@@ -122,24 +122,13 @@ export function planForBar(barIn: number): BarPlan {
 export const BAR_PLANS: BarPlan[] = Array.from({ length: LOOP_BARS }, (_, i) => planForBar(i));
 
 // ---------------------------------------------------------------- pure DSP helpers
+const curve = (f: (x: number) => number): Float32Array => { const c = new Float32Array(1024); for (let i = 0; i < 1024; i++) c[i] = f((i * 2) / 1023 - 1); return c; };
 /** Soft ceiling: unity for small signals, never above 0.89 (-1 dBFS). */
-export function ceilingCurve(n = 2048): Float32Array {
-  const c = new Float32Array(n);
-  for (let i = 0; i < n; i++) c[i] = 0.89 * Math.tanh(((i * 2) / (n - 1) - 1) / 0.89);
-  return c;
-}
+export const ceilingCurve = (): Float32Array => curve((x) => 0.89 * Math.tanh(x / 0.89));
 /** Gentle tape-ish saturation (tanh), normalised so full scale stays full scale. */
-export function satCurve(k = 1.5, n = 1024): Float32Array {
-  const c = new Float32Array(n);
-  for (let i = 0; i < n; i++) c[i] = Math.tanh(k * ((i * 2) / (n - 1) - 1)) / Math.tanh(k);
-  return c;
-}
-/** 12-bit-sampler style staircase (quantises to `levels` steps). */
-export function gritCurve(levels = 48, n = 1024): Float32Array {
-  const c = new Float32Array(n);
-  for (let i = 0; i < n; i++) c[i] = Math.round(((i * 2) / (n - 1) - 1) * levels) / levels;
-  return c;
-}
+export const satCurve = (k = 1.5): Float32Array => curve((x) => Math.tanh(k * x) / Math.tanh(k));
+/** 12-bit-sampler style staircase. */
+export const gritCurve = (levels = 48): Float32Array => curve((x) => Math.round(x * levels) / levels);
 /** Vinyl dust: sparse pops of random size plus a faint hiss. Deterministic. */
 export function makeCrackle(sr: number, secs = 6, seed = 77): Float32Array {
   const r = mulberry32(seed), n = Math.floor(sr * secs), d = new Float32Array(n);
@@ -169,7 +158,7 @@ export function rnd(g: number): number { let x = Math.imul(g + 1, 0x9e3779b1) >>
 
 // ---------------------------------------------------------------- engine
 export type PartName = 'kick' | 'snare' | 'hats' | 'bass' | 'keys' | 'hook' | 'scratch' | 'crackle';
-export const DEFAULT_MIX: Record<PartName, number> = { kick: 0.95, snare: 0.7, hats: 0.42, bass: 0.55, keys: 0.4, hook: 0.3, scratch: 0.32, crackle: 1 };
+export const DEFAULT_MIX: Record<PartName, number> = { kick: 0.4, snare: 0.88, hats: 0.25, bass: 0.12, keys: 0.2, hook: 0.15, scratch: 0.32, crackle: 0.8 };
 
 export interface TitleThemeOptions {
   /** Output level 0..1 (default 0.85). */
@@ -288,7 +277,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     const hookBus = part('hook'), hookIn = gain(1), hookLp = filt('lowpass', 3000, 0.5); hookIn.connect(hookLp); pan(0.2, hookLp, hookBus); send(hookBus, 0.28, 0.34);
     // drums
     const kickBus = part('kick'), clickBp = filt('bandpass', 2600, 1, kickBus);
-    const snareBus = part('snare'); const snareIn = filt('highpass', 1300, 0.7, snareBus), crackBp = filt('bandpass', 3800, 0.5, snareBus), clapBp = filt('bandpass', 1700, 0.5, snareBus);
+    const snareBus = part('snare'); const snareIn = filt('highpass', 1300, 0.7, snareBus), crackBp = filt('bandpass', 3400, 0.6, snareBus), clapBp = filt('bandpass', 1700, 0.5, snareBus);
     send(snareBus, 0.2, 0);
     const hatBus = part('hats'), hatHp = filt('highpass', 6500, 0.6), hatLp = filt('lowpass', 13000, 0.5); hatHp.connect(hatLp); pan(0.25, hatLp, hatBus);
     const crashHp = filt('highpass', 5000, 0.7, hatBus), riserBp = filt('bandpass', 400, 0.8, hatBus);
@@ -308,43 +297,30 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     const c = n!, tt = T(t);
     for (const [g, d] of [[c.duckBass, depth], [c.duckKeys, 0.6 + 0.4 * depth]] as Array<[GainNode, number]>) { g.gain.setValueAtTime(d, tt); g.gain.setTargetAtTime(1, tt + 0.01, 0.07); }
   }
+  /** Noise burst(s) through `to`: n repeats `gap` apart, each decaying with time constant tc (the last one 3.7x longer). */
+  function hit(to: AudioNode, tt: number, off: number, dur: number, v: number, tc: number, nb = 1, gap = 0): void {
+    const g = gain(0, to);
+    for (let i = 0; i < nb; i++) { g.gain.setValueAtTime(v, tt + i * gap); g.gain.setTargetAtTime(0, tt + i * gap + 0.002, i === nb - 1 ? tc * (nb > 1 ? 3.7 : 1) : tc); }
+    release([noise(tt, off, dur, g)], [g]);
+  }
   function kick(t: number, v: number): void {
-    const c = n!, tt = T(t);
-    const g = gain(0, c.kickBus), o = osc('sine', 150, g);
-    o.frequency.setValueAtTime(150, tt); o.frequency.exponentialRampToValueAtTime(56, tt + 0.05);
+    const c = n!, tt = T(t), g = gain(0, c.kickBus), o = osc('sine', 160, g);
+    o.frequency.exponentialRampToValueAtTime(64, tt + 0.05);
     g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(v, tt + 0.002); g.gain.setTargetAtTime(0, tt + 0.012, 0.075);
-    o.start(tt); o.stop(tt + 0.45);
-    const kg = gain(0, c.clickBp); kg.gain.setValueAtTime(v * 0.6, tt); kg.gain.setTargetAtTime(0, tt + 0.001, 0.003);
-    const s = noise(tt, t * 3.7, 0.03, kg);
-    release([o, s], [g, kg]);
+    o.start(tt); o.stop(tt + 0.45); release([o], [g]);
+    hit(c.clickBp, tt, t * 3.7, 0.03, v * 0.6, 0.003);
   }
   function snare(t: number, g16: number, v: number, ghost: boolean): void {
-    const c = n!, tt = T(t);
-    const ng = gain(0, c.snareIn); ng.gain.setValueAtTime(v * 0.85, tt); ng.gain.setTargetAtTime(0, tt + 0.003, ghost ? 0.02 : 0.065);
-    const cg = gain(0, c.crackBp); cg.gain.setValueAtTime(v * 0.9, tt); cg.gain.setTargetAtTime(0, tt + 0.002, ghost ? 0.01 : 0.022);
-    const s1 = noise(tt, g16 * 0.173, 0.3, ng), s2 = noise(tt, g16 * 0.29 + 0.4, 0.15, cg);
-    const body = gain(0, c.snareBus), to = osc('triangle', 205, body);
+    const c = n!, tt = T(t), body = gain(0, c.snareBus), to = osc('triangle', 205, body), k = ghost ? 0.3 : 1;
+    hit(c.snareIn, tt, g16 * 0.173, 0.3, v * 0.7, 0.065 * k);
+    hit(c.crackBp, tt, g16 * 0.29 + 0.4, 0.15, v * 1.2, 0.022 * k);
     to.frequency.setValueAtTime(205, tt); to.frequency.exponentialRampToValueAtTime(165, tt + 0.05);
-    body.gain.setValueAtTime(v * 0.6, tt); body.gain.setTargetAtTime(0, tt + 0.003, ghost ? 0.02 : 0.04);
-    to.start(tt); to.stop(tt + 0.25);
-    release([s1, s2, to], [ng, cg, body]);
+    body.gain.setValueAtTime(v * 0.6, tt); body.gain.setTargetAtTime(0, tt + 0.003, 0.04 * k);
+    to.start(tt); to.stop(tt + 0.25); release([to], [body]);
   }
-  function clap(t: number, g16: number): void {
-    const c = n!, tt = T(t), g = gain(0, c.clapBp);
-    for (let i = 0; i < 3; i++) { g.gain.setValueAtTime(0.8, tt + i * 0.011); g.gain.setTargetAtTime(0, tt + i * 0.011 + 0.003, 0.012); }
-    g.gain.setValueAtTime(0.6, tt + 0.033); g.gain.setTargetAtTime(0, tt + 0.036, 0.045);
-    release([noise(tt, g16 * 0.31 + 0.5, 0.3, g)], [g]);
-  }
-  function hat(t: number, g16: number, v: number, open: boolean): void {
-    const c = n!, tt = T(t), g = gain(0, c.hatHp);
-    g.gain.setValueAtTime(v, tt); g.gain.setTargetAtTime(0, tt + 0.002, open ? 0.08 : 0.011);
-    release([noise(tt, g16 * 0.0917, open ? 0.4 : 0.07, g)], [g]);
-  }
-  function crash(t: number, g16: number): void {
-    const c = n!, tt = T(t), g = gain(0, c.crashHp);
-    g.gain.setValueAtTime(0.45, tt); g.gain.setTargetAtTime(0, tt + 0.01, 0.4);
-    release([noise(tt, g16 * 0.05, 1.8, g)], [g]);
-  }
+  const clap = (t: number, g16: number): void => hit(n!.clapBp, T(t), g16 * 0.31 + 0.5, 0.3, 0.8, 0.012, 4, 0.011);
+  const hat = (t: number, g16: number, v: number, open: boolean): void => hit(n!.hatHp, T(t), g16 * 0.0917, open ? 0.4 : 0.07, v, open ? 0.08 : 0.011);
+  const crash = (t: number, g16: number): void => hit(n!.crashHp, T(t), g16 * 0.05, 1.8, 0.45, 0.4);
   function riser(t: number, dur: number, g16: number): void {
     const c = n!, tt = T(t), g = gain(0, c.riserBp);
     g.gain.setValueAtTime(0.0001, tt); g.gain.exponentialRampToValueAtTime(0.8, tt + dur); g.gain.linearRampToValueAtTime(0, tt + dur + 0.04);

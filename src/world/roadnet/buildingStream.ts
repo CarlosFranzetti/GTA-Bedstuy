@@ -25,7 +25,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Vec2 } from '@/core/Math2';
-import type { Rng } from '@/core/Rng';
+import { Rng } from '@/core/Rng';
 import type { IMaterialLibrary, StaticCollider } from '@/world/types';
 import type { LotSpec } from '@/world/buildings/facade';
 import type { Quality } from '@/render/Shadows';
@@ -140,8 +140,16 @@ function hash01(s: string): number {
 /** one merged box-and-roof geometry for the lots of a chunk (null when none has a footprint). Built at BUILDING_BASE_Y local 0. */
 export function buildFarGeometry(lots: ReadonlyArray<RealLot>): THREE.BufferGeometry | null {
   const pos: number[] = [], nrm: number[] = [], col: number[] = [];
-  const quad = (a: number[], b: number[], c: number[], d: number[], n: number[], k: [number, number, number]): void => {
-    for (const p of [a, b, c, a, c, d]) { pos.push(p[0], p[1], p[2]); nrm.push(n[0], n[1], n[2]); col.push(k[0], k[1], k[2]); }
+  /** quad a-b-c-d (a loop), wound so that its normal points along `out` */
+  const quad = (a: number[], b: number[], c: number[], dd: number[], out: [number, number, number], k: [number, number, number]): void => {
+    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    const l = Math.hypot(nx, ny, nz) || 1;
+    nx /= l; ny /= l; nz /= l;
+    const flip = nx * out[0] + ny * out[1] + nz * out[2] < 0;
+    if (flip) { nx = -nx; ny = -ny; nz = -nz; }
+    const order = flip ? [a, c, b, a, dd, c] : [a, b, c, a, c, dd];
+    for (const p of order) { pos.push(p[0], p[1], p[2]); nrm.push(nx, ny, nz); col.push(k[0], k[1], k[2]); }
   };
   let boxes = 0;
   for (const lot of lots) {
@@ -155,35 +163,21 @@ export function buildFarGeometry(lots: ReadonlyArray<RealLot>): THREE.BufferGeom
     // the generator builds toward -outward from the front line
     const ox = lot.outward.x, oz = lot.outward.z;
     const P = (s: number, depth: number): [number, number] => [lot.frontA.x + ux * s - ox * depth, lot.frontA.z + uz * s - oz * depth];
-    const [ax, az] = P(fp.xl, 0), [bx, bz] = P(fp.xr, 0), [cx, cz] = P(fp.xr, fp.depth), [ex, ez] = P(fp.xl, fp.depth);
+    const c0 = [P(fp.xl, 0), P(fp.xr, 0), P(fp.xr, fp.depth), P(fp.xl, fp.depth)];
     const H = Math.max(1, spec.floors) * STOREY_M + FAR_EXTRA_H;
     const base = FAMILY_COLOUR[spec.family] ?? FAMILY_COLOUR.brick;
     const v = 0.9 + hash01(lot.bbl) * 0.2;
     const k: [number, number, number] = [base[0] * v, base[1] * v, base[2] * v];
-    const A0 = [ax, 0, az], B0 = [bx, 0, bz], C0 = [cx, 0, cz], D0 = [ex, 0, ez];
-    const A1 = [ax, H, az], B1 = [bx, H, bz], C1 = [cx, H, cz], D1 = [ex, H, ez];
-    // orientation-agnostic: the sides are wound by the sign of the footprint's area so faces point outward
-    const area = (bx - ax) * (ez - az) - (bz - az) * (ex - ax);
-    const s = area >= 0 ? 1 : -1;
-    const side = (p0: number[], p1: number[], q1: number[], q0: number[], nx: number, nz: number): void => {
-      if (s > 0) quad(p0, p1, q1, q0, [nx, 0, nz], k); else quad(p1, p0, q0, q1, [nx, 0, nz], k);
-    };
-    // outward normals of the four sides in the A,B,C,D loop
-    const nrm4 = (x0: number, z0: number, x1: number, z1: number): [number, number] => {
-      const lx = x1 - x0, lz = z1 - z0, l = Math.hypot(lx, lz) || 1;
-      return [(s * lz) / l, (-s * lx) / l];
-    };
-    // normals are computed so that they point away from the footprint centre
-    const mx = (ax + cx) / 2, mz = (az + cz) / 2;
-    const fix = (n: [number, number], x0: number, z0: number, x1: number, z1: number): [number, number] => {
-      const toward = (x0 + x1) / 2 - mx, toz = (z0 + z1) / 2 - mz;
-      return n[0] * toward + n[1] * toz >= 0 ? n : [-n[0], -n[1]];
-    };
-    side(A0, B0, B1, A1, ...fix(nrm4(ax, az, bx, bz), ax, az, bx, bz));
-    side(B0, C0, C1, B1, ...fix(nrm4(bx, bz, cx, cz), bx, bz, cx, cz));
-    side(C0, D0, D1, C1, ...fix(nrm4(cx, cz, ex, ez), cx, cz, ex, ez));
-    side(D0, A0, A1, D1, ...fix(nrm4(ex, ez, ax, az), ex, ez, ax, az));
-    if (s > 0) quad(A1, B1, C1, D1, [0, 1, 0], ROOF_COLOUR); else quad(B1, A1, D1, C1, [0, 1, 0], ROOF_COLOUR);
+    const cx = (c0[0][0] + c0[2][0]) / 2, cz = (c0[0][1] + c0[2][1]) / 2;
+    for (let i = 0; i < 4; i++) {
+      const p = c0[i], q = c0[(i + 1) % 4];
+      let nx = q[1] - p[1], nz = -(q[0] - p[0]);
+      const l = Math.hypot(nx, nz) || 1;
+      nx /= l; nz /= l;
+      if (nx * ((p[0] + q[0]) / 2 - cx) + nz * ((p[1] + q[1]) / 2 - cz) < 0) { nx = -nx; nz = -nz; }
+      quad([p[0], 0, p[1]], [q[0], 0, q[1]], [q[0], H, q[1]], [p[0], H, p[1]], [nx, 0, nz], k);
+    }
+    quad([c0[0][0], H, c0[0][1]], [c0[1][0], H, c0[1][1]], [c0[2][0], H, c0[2][1]], [c0[3][0], H, c0[3][1]], [0, 1, 0], ROOF_COLOUR);
     boxes++;
   }
   if (!boxes) return null;
@@ -209,6 +203,7 @@ export class RealBuildingStreamer {
   private readonly bigLayout: ChunkLayout;
   private readonly now: () => number;
   private readonly budgetMs: number;
+  private readonly seed: number;
   private colliderCount = 0;
   private builtChunks = 0;
   private disposedChunks = 0;
@@ -220,6 +215,8 @@ export class RealBuildingStreamer {
     this.budgetMs = o.budgetMs ?? DEFAULT_BUDGET_MS;
     this.now = o.now ?? ((): number => performance.now());
     this.bigLayout = { ...o.layout, cellX: 1e6, cellZ: 1e6, chunkX: 1e6, chunkZ: 1e6 };
+    // Rng.fork consumes its parent: draw the seed once, then give every lot a fresh generator so a rebuilt chunk is identical
+    this.seed = Math.floor(o.rng.next() * 0xffffffff) >>> 0;
     this.root.name = 'buildings-stream';
     this.farMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
     const map = new Map<string, Chunk>();
@@ -322,7 +319,7 @@ export class RealBuildingStreamer {
     if (!job) job = c.job = { next: 0, parts: [], colliders: [], names: null, mergeIdx: 0, buckets: null, merged: [] };
     if (job.next < c.lots.length) {
       const lot = c.lots[job.next++];
-      const res = buildRealBuildings([lot], this.o.materials, this.o.rng, { layout: this.bigLayout, looks: this.o.looks });
+      const res = buildRealBuildings([lot], this.o.materials, new Rng((Rng.hash(lot.id) ^ this.seed) >>> 0), { layout: this.bigLayout, looks: this.o.looks });
       job.parts.push(res.group);
       job.colliders.push(...res.colliders);
       return;

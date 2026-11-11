@@ -281,7 +281,28 @@ function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
       break;
     }
     case 'helmet': out.push(loft(dome(0.52, 1.13, 0.012, 0, 1.06), seg, hatR, 3, 'top')); break;
-    case 'hijab': if (!hiDetail) out.push(loft(dome(0.25, 1.1, 0.012, 0.5, 1.0), seg, hatR, 3, 'top')); break;
+    case 'hijab': {
+      // draped cloth, two styles: A a neat wrap with the cloth falling to a short point on the chest, B a loose shawl, fuller and longer, one end over the shoulder.
+      // The wrap is an ellipse a little narrower front to back than the head and shifted back, so the face stands out in front of it (no cut-out edges);
+      // the mantle widens from the throat to the shoulders and ends in a soft hem.
+      let hh2 = 2166136261; for (let i = 0; i < spec.id.length; i++) { hh2 ^= spec.id.charCodeAt(i); hh2 = Math.imul(hh2, 16777619); }
+      const loose = ((hh2 >>> 0) % 2) === 0, bt = bodyTypeOf(spec), shW = Math.abs(s.rig.shoulderL[0]) * (peopleMode() === 'skin' ? bt.shoulders : 1), shY = s.rig.shoulderL[1];
+      const wrap: R[] = [], hrAt = (y: number) => ringAt(s.headRings, Math.min(y, Y(0.985)));
+      for (const t of [-0.16, -0.04, 0.12, 0.3, 0.5, 0.7, 0.86, 0.97, 1.05]) {
+        const r = hrAt(Y(Math.max(0.02, t))), g = (loose ? 0.042 : 0.03) + 0.007 * Math.sin(t * 11) + (t < 0 ? 0.01 : 0), top = smooth(0.9, 1.06, t);
+        wrap.push({ y: Y(t), rx: (r.rx + g) * (1 - 0.5 * top), rz: (r.rz * 0.72 + g * 0.4) * (1 - 0.5 * top), cz: r.cz + r.rz * 0.3 + 0.012 });
+      }
+      out.push(loft(wrap, hiDetail ? 16 : 10, hatR, 3, 'top'));
+      const reach = loose ? 0.34 : 0.2, rows = hiDetail ? 8 : 5, mant: R[] = [], nk = ringAt(s.headRings, lm.chinY);
+      for (let i = 0; i <= rows; i++) {
+        const u = i / rows, y = lm.chinY - 0.03 - u * (lm.chinY - 0.03 - (shY - reach));
+        const tr = ringAt(s.torsoRings, y), open = smooth(0, 0.55, u), taper = 1 - (loose ? 0.15 : 0.4) * smooth(0.55, 1, u);
+        const wob = 0.008 * Math.sin(u * 7 + 1) + (loose ? 0.012 * Math.sin(u * 4.3) : 0);
+        mant.push({ y, rx: (nk.rx * 0.9 + 0.03 + (shW * 0.92 - nk.rx * 0.9) * open) * taper + wob, rz: (nk.rz * 0.75 + 0.022 + Math.max(0, tr.rz - nk.rz * 0.75) * open) + 0.02 + wob, cz: nk.cz + (tr.cz - nk.cz) * open + (loose ? 0.012 * open : 0), cx: loose ? 0.03 * open : 0 });
+      }
+      out.push(loft(mant, hiDetail ? 16 : 10, hatR, 3, 'bottom'));
+      break;
+    }
     case 'hardhat': { out.push(loft(dome(0.6, 1.15, 0.01, 0), seg, hatR, 3, 'top')); const r = ringAt(s.headRings, Y(0.6)); out.push(loft([{ y: Y(0.6), rx: 0.12, rz: 0.15, cz: r.cz - 0.03 }, { y: Y(0.6) + 0.012, rx: 0.12, rz: 0.15, cz: r.cz - 0.03 }], 14, hatR, 3, 'both')); break; }
   }
   // accessories picked by the person's id (not by group): headphones, a scarf

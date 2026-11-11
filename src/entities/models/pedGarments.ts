@@ -356,7 +356,7 @@ export function headShell(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec)
   };
   const hatR = HI_RECTS.hat, hairR = HI_RECTS.hair;
 
-  if (spec.hat === 'hijab') {
+  if (spec.hat === 'hijab' && peopleMode() === 'shells') {
     // cloth, not a hood: stands 2 to 3 cm off the skull, an underscarf line at the forehead, wraps under the chin and drapes in soft folds
     // over the shoulders and chest; a second, looser shawl style for some women
     let hh2 = 2166136261; for (let i = 0; i < spec.id.length; i++) { hh2 ^= spec.id.charCodeAt(i); hh2 = Math.imul(hh2, 16777619); }
