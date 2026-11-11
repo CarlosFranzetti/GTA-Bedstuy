@@ -25,7 +25,7 @@
   position: absolute;
   inset: 0;
   z-index: 35;
-  background: #0d1117;
+  background: #0f1115;
   color: #fff;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   pointer-events: auto;
@@ -83,11 +83,36 @@
   .map-title { font-size: 18px; }
 }
 
-.map-legend { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 4px 12px; font: 600 11px/1.2 Arial, Helvetica, sans-serif; color: rgba(255,255,255,0.85); text-shadow: 0 1px 3px #000; }
-.map-key { display: inline-flex; align-items: center; gap: 5px; }
-.map-sw { width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.6); display: inline-block; }
+.map-legend {
+  flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 2px 14px; padding: 6px 10px; max-width: 520px;
+  background: rgba(10,12,18,0.82); border: 1px solid rgba(255,255,255,0.18); border-radius: 8px;
+  font: 600 12px/1.2 Arial, Helvetica, sans-serif; color: rgba(255,255,255,0.9);
+}
+.map-legend[hidden] { display: none; }
+.map-key { display: inline-flex; align-items: center; gap: 4px; }
+.map-sw { width: 28px; height: 28px; display: inline-block; }
 .map-bottom { background: linear-gradient(transparent, rgba(13,17,23,0.85) 35%); padding-top: 14px; }
 .map-top { background: linear-gradient(rgba(13,17,23,0.85) 60%, transparent); padding-bottom: 12px; }
+.map-legendbtn.on { border-color: #f5c542; color: #f5c542; }
+
+/* name under the cursor (top centre, under the bar) and the selected-blip card */
+.map-street {
+  position: absolute; left: 50%; top: calc(max(6px, env(safe-area-inset-top, 0px)) + 52px); transform: translateX(-50%);
+  max-width: 70%; padding: 4px 12px; border-radius: 4px; background: rgba(10,12,18,0.82); color: #fff;
+  font: 700 13px/1.2 Arial, Helvetica, sans-serif; letter-spacing: 0.04em; text-transform: uppercase; pointer-events: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.map-street[hidden], .map-card[hidden] { display: none; }
+.map-card {
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(max(8px, env(safe-area-inset-bottom, 0px)) + 62px);
+  display: flex; align-items: center; gap: 12px; padding: 6px 8px 6px 14px; max-width: calc(100% - 24px);
+  background: rgba(10,12,18,0.92); border: 1px solid #38bdf8; border-radius: 8px;
+  font: 700 14px/1.2 Arial, Helvetica, sans-serif; color: #fff;
+}
+.map-card-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-cardbtn { border-color: #38bdf8; color: #38bdf8; white-space: nowrap; }
+.map-zlvl { text-align: center; font: 700 11px/1 Arial, Helvetica, sans-serif; color: rgba(255,255,255,0.85); text-shadow: 0 1px 3px #000; letter-spacing: 0.06em; }
+@media (max-height: 420px) { .map-street { display: none; } .map-sw { width: 22px; height: 22px; } .map-legend { padding: 3px 8px; } }
 
 /* HUD button icons: text label on desktop, icon on touch */
 .hb-ico { display: none; margin: auto; }

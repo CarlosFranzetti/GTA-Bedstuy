@@ -336,7 +336,11 @@ export class BarkDirector {
     }
     for (let i = this.pending.length - 1; i >= 0; i--) {
       const p = this.pending[i];
-      if (now >= p.at && !this.active.has(p.job.speakerId)) { this.pending.splice(i, 1); p.job.dueAt = now; this.run(p.job); }
+      if (now >= p.at && !this.active.has(p.job.speakerId)) {
+        this.pending.splice(i, 1);
+        if (this.activePeds >= LIMITS.maxPedVoices) { this.drop('busy'); continue; }
+        p.job.dueAt = now; this.run(p.job);
+      }
     }
     this.pump(now);
   }

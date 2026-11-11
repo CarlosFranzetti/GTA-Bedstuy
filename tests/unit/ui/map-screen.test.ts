@@ -21,53 +21,73 @@ const key = (code: string, target: EventTarget = document): KeyboardEvent => {
 beforeEach(() => { document.body.className = ''; document.body.innerHTML = ''; root = document.createElement('div'); document.body.appendChild(root); setWaypoint(null); setNavTarget(null); });
 afterEach(() => setWaypoint(null));
 
+const AREA = grid.bounds;
+const fitAt = (w: number, h: number, rt = 56, rb = 64): MapView => { const v = new MapView(); v.w = w; v.h = h; v.fit(AREA, 40, rt, rb); return v; };
+const corners = [{ x: AREA.minX, z: AREA.minZ }, { x: AREA.maxX, z: AREA.minZ }, { x: AREA.maxX, z: AREA.maxZ }, { x: AREA.minX, z: AREA.maxZ }];
+
 describe('MapView', () => {
-  it('fits the whole grid, including the east expansion', () => {
-    const v = new MapView(); v.w = 390; v.h = 844;
-    v.fit(grid.bounds, 40, 56, 64);
-    for (const p of [{ x: grid.bounds.minX, z: grid.bounds.minZ }, { x: grid.bounds.maxX, z: grid.bounds.maxZ }]) {
+  it.each([[1280, 720], [844, 390], [390, 844]])('fits the whole built area, east expansion included, at %ix%i, north up and centred', (w, h) => {
+    const rt = h < 500 ? 40 : 56, rb = h < 500 ? 40 : 64;
+    const v = fitAt(w, h, rt, rb);
+    for (const p of corners) {
       const s = v.toScreen(p.x, p.z);
-      expect(s.x).toBeGreaterThanOrEqual(0); expect(s.x).toBeLessThanOrEqual(390);
-      expect(s.y).toBeGreaterThanOrEqual(56); expect(s.y).toBeLessThanOrEqual(844 - 64);
+      expect(s.x).toBeGreaterThanOrEqual(-0.5); expect(s.x).toBeLessThanOrEqual(w + 0.5);
+      expect(s.y).toBeGreaterThanOrEqual(rt - 0.5); expect(s.y).toBeLessThanOrEqual(h - rb + 0.5);
     }
-    expect(grid.bounds.maxX).toBeGreaterThan(900); // east expansion // Malcolm X Blvd at x=1000 is on the map
-    expect(grid.streets.some((s) => s.id === 'malcolmx')).toBe(true);
+    const c = v.toScreen((AREA.minX + AREA.maxX) / 2, (AREA.minZ + AREA.maxZ) / 2);
+    expect(c.x).toBeCloseTo(w / 2); expect(c.y).toBeCloseTo((rt + h - rb) / 2);
+    expect(v.scale).toBe(v.fitScale);
+    expect(AREA.maxX).toBeGreaterThan(900);
   });
 
-  it('turns the map 90 degrees on a portrait screen so the wide grid fills it, and every transform stays consistent', () => {
-    const v = new MapView(); v.w = 390; v.h = 844;
-    v.fit(grid.bounds, 40, 60, 90);
-    expect(v.rot).toBe(1);
-    const flat = new MapView(); flat.w = 390; flat.h = 844; flat.rot = 0;
-    expect(v.scale).toBeGreaterThan(Math.min(390 / 1330, 700 / 910) * 1.2); // WBURG: the grid is 1330 x 910 m now, so the turned fit gains less
-    for (const p of [{ x: grid.bounds.minX, z: grid.bounds.minZ }, { x: grid.bounds.maxX, z: grid.bounds.maxZ }]) {
-      const s = v.toScreen(p.x, p.z);
-      expect(s.x).toBeGreaterThanOrEqual(0); expect(s.x).toBeLessThanOrEqual(390);
-      expect(s.y).toBeGreaterThanOrEqual(60); expect(s.y).toBeLessThanOrEqual(844 - 90);
-      const w = v.toWorld(s.x, s.y);
-      expect(w.x).toBeCloseTo(p.x); expect(w.z).toBeCloseTo(p.z);
-    }
-    const w = v.toWorld(100, 300); v.zoomAt(100, 300, 2);
-    expect(v.toScreen(w.x, w.z).x).toBeCloseTo(100); expect(v.toScreen(w.x, w.z).y).toBeCloseTo(300);
-    const before = v.toScreen(5, 5); v.panPx(30, -20);
-    const after = v.toScreen(5, 5);
-    expect(after.x - before.x).toBeCloseTo(30); expect(after.y - before.y).toBeCloseTo(-20);
-    const l = new MapView(); l.w = 1280; l.h = 720; l.fit(grid.bounds, 40, 56, 90);
-    expect(l.rot).toBe(0);
+  it('is north up: the grid is turned 8.6 degrees so +x (bearing 81.4) runs right and slightly up', () => {
+    const v = fitAt(1280, 720);
+    const o = v.toScreen(0, 0), e = v.toScreen(100, 0), so = v.toScreen(0, 100);
+    expect(e.x).toBeGreaterThan(o.x); expect(e.y).toBeLessThan(o.y);
+    expect(Math.atan2(o.y - e.y, e.x - o.x) * 180 / Math.PI).toBeCloseTo(8.6, 1);
+    expect(so.y).toBeGreaterThan(o.y); // south is down
   });
 
   it('round-trips screen and world and zooms about the cursor', () => {
-    const v = new MapView(); v.w = 400; v.h = 400; v.scale = 1; v.minScale = 0.1; v.cx = 100; v.cz = -50;
+    const v = fitAt(400, 400); v.scale = 1; v.cx = 100; v.cz = -50;
     const w = v.toWorld(300, 120);
-    expect(v.toScreen(w.x, w.z)).toEqual({ x: 300, y: 120 });
+    const s0 = v.toScreen(w.x, w.z);
+    expect(s0.x).toBeCloseTo(300); expect(s0.y).toBeCloseTo(120);
     v.zoomAt(300, 120, 2.5);
     const after = v.toScreen(w.x, w.z);
-    expect(after.x).toBeCloseTo(300); expect(after.y).toBeCloseTo(120);
+    expect(after.x).toBeCloseTo(300, 3); expect(after.y).toBeCloseTo(120, 3);
     expect(v.scale).toBeCloseTo(2.5);
     v.zoomAt(0, 0, 1e6); expect(v.scale).toBe(6);
-    v.zoomAt(0, 0, 1e-9); expect(v.scale).toBe(0.1);
+    v.zoomAt(0, 0, 1e-9); expect(v.scale).toBe(v.minScale);
+  });
+
+  it('clamps panning at normal zoom to the built area plus a small margin, and opens up only when zoomed out', () => {
+    const v = fitAt(1280, 720);
+    v.scale = v.fitScale * 2;
+    v.panPx(1e6, 1e6); // content far right/down: the centre goes north-west
+    expect(v.cx).toBeGreaterThanOrEqual(AREA.minX - 61); expect(v.cz).toBeGreaterThanOrEqual(AREA.minZ - 61);
+    v.panPx(-1e7, -1e7);
+    expect(v.cx).toBeLessThanOrEqual(AREA.maxX + 61); expect(v.cz).toBeLessThanOrEqual(AREA.maxZ + 61);
+    // zoomed out with a far region the centre may leave the built area
+    const far = { minX: -9000, maxX: 21000, minZ: -20000, maxZ: 16000 };
+    const o = fitAt(1280, 720); o.setFar(far);
+    o.scale = o.fitScale / 8; o.panPx(-1e7, 1e7);
+    expect(Math.abs(o.cx) > AREA.maxX + 500 || Math.abs(o.cz) > 2000).toBe(true);
+    // no overview: zoom-out stops just past the fit level
+    expect(v.minScale).toBeGreaterThan(v.fitScale * 0.8); expect(v.minScale).toBeLessThan(v.fitScale);
+  });
+
+  it('snaps to zoom levels around the fit scale', () => {
+    const v = fitAt(1280, 720); v.setFar({ minX: -9000, maxX: 21000, minZ: -20000, maxZ: 16000 });
+    const lv = v.levels();
+    expect(lv).toContain(v.fitScale);
+    expect(lv[0]).toBeLessThan(v.fitScale / 8);
+    expect(v.levelIndex(v.fitScale * 1.1)).toBe(lv.indexOf(v.fitScale));
+    expect(v.stepScale(1)).toBeCloseTo(v.fitScale * 2); expect(v.stepScale(-1)).toBeCloseTo(v.fitScale / 2);
   });
 });
+
+const flat = (map: MapScreen): void => { const v = map.view; v.w = 400; v.h = 800; v.ox = 200; v.oy = 400; v.ang = 0; v.scale = 1; v.cx = 0; v.cz = 0; };
 
 describe('MapScreen', () => {
   it('has an always-present MAP button that opens and closes it, plus key M and Escape', () => {
@@ -115,7 +135,7 @@ describe('MapScreen', () => {
   it('a tap sets the waypoint; a drag pans instead', () => {
     const map = new MapScreen(root, grid, { places: navPlaces() });
     map.open();
-    map.view.w = 400; map.view.h = 800; map.view.scale = 1; map.view.cx = 0; map.view.cz = 0;
+    flat(map);
     const p = map.tapAt(300, 500); // 100 m east, 100 m south of centre
     expect(p.x).toBeCloseTo(100); expect(p.z).toBeCloseTo(100);
     expect(getWaypoint()).toMatchObject({ x: 100, z: 100 });
@@ -138,7 +158,7 @@ describe('MapScreen', () => {
   it('pointer events: a still press-release taps, a moved one pans', () => {
     const map = new MapScreen(root, grid);
     map.open();
-    map.view.w = 400; map.view.h = 800; map.view.scale = 1; map.view.cx = 0; map.view.cz = 0;
+    flat(map);
     const canvas = map.root.querySelector('canvas')!;
     const fire = (type: string, id: number, x: number, y: number) => {
       const e = new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, cancelable: true });
@@ -156,7 +176,7 @@ describe('MapScreen', () => {
   it('two-finger pinch zooms', () => {
     const map = new MapScreen(root, grid);
     map.open();
-    map.view.w = 400; map.view.h = 800; map.view.scale = 1; map.view.minScale = 0.1;
+    flat(map); map.view.minScale = 0.1;
     const canvas = map.root.querySelector('canvas')!;
     const fire = (type: string, id: number, x: number, y: number) => {
       const e = new MouseEvent(type, { clientX: x, clientY: y, bubbles: true, cancelable: true });

@@ -28,6 +28,7 @@ Run it from the repo root before every publish. It prints one table and exits 0 
 | build | `npm run build` | single-file `dist/` builds |
 | artifact | `node scripts/make-artifact.mjs` | `dist/artifact.html` ≤ 12 MB |
 | hosted | `VITE_HOSTED=1 vite build --outDir dist-hosted` | hosted build (web and native payload) builds |
+| size | `scripts/artifact-breakdown.mjs` (source-mapped hosted build in the log dir) | informational: top three categories in the table, the full breakdown in `size.log` |
 | native | `npm --prefix native test` | Electron shell tests green |
 | smoke | `tests/e2e/smoke.mjs` on `dist/` (render lock) | WebGL2 up, `errors: []` |
 | gameplay | `scripts/playtest/live-gameplay.cjs` on `dist-hosted/` (render lock) | every check PASS, no crash |

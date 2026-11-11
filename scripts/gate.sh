@@ -10,6 +10,7 @@
 #   build      npm run build (single-file) -> dist/
 #   artifact   node scripts/make-artifact.mjs -> dist/artifact.html, <= 12 MB
 #   hosted     VITE_HOSTED=1 vite build -> dist-hosted/
+#   size       scripts/artifact-breakdown.mjs: artifact bytes by category (textures, people models, JSON data, code by area, story text); top 3 in the table, full list in size.log
 #   native     npm --prefix native test (Electron shell unit tests)
 #   smoke      tests/e2e/smoke.mjs on dist/: WebGL2 up and errors []
 #   gameplay   scripts/playtest/live-gameplay.cjs on dist-hosted/: every check PASS
@@ -51,6 +52,13 @@ else row build FAIL "see $LOGS/build.log"; row artifact SKIP "no build"; fi
 
 # 4 hosted build (web + native payload)
 if VITE_HOSTED=1 run hosted npx vite build --outDir dist-hosted --emptyOutDir; then row hosted PASS "dist-hosted/ ($(secs hosted))"; else row hosted FAIL "see $LOGS/hosted.log"; fi
+
+# 4b artifact size breakdown (informational row; FAILs only when the breakdown itself breaks). Needs a source-mapped hosted
+#    build to split the inline code by module; that one goes to the log dir, never to dist-hosted/ (no maps in the deploy).
+if [ -f dist/index.html ] && VITE_HOSTED=1 run sizemap npx vite build --outDir "$LOGS/hosted-map" --emptyOutDir --sourcemap \
+   && run size node scripts/artifact-breakdown.mjs --single dist --hosted "$LOGS/hosted-map" --json "$LOGS/size.json"; then
+  row size PASS "$(sed -n '3,5p' "$LOGS/size.log" | awk '{n=NF; printf "%s%s %s MB", (NR>1?", ":""), substr($0,1,index($0,$(n-1))-1), $(n-1)}' | tr -s ' ')"
+else row size FAIL "breakdown failed, see $LOGS/size.log"; fi
 
 # 5 native shell tests
 if [ -d native/node_modules ]; then

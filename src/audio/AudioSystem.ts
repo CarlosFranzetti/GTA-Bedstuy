@@ -460,6 +460,7 @@ export class AudioSystem {
   /** Unsubscribes from events and closes the context. */
   dispose(): void {
     this.unsubs.splice(0).forEach((fn) => fn());
+    this.peds.cancelAll();
     this.radio.dispose();
     this.vehicle.dispose();
     const g = this.g;

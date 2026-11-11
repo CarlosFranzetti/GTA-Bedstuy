@@ -3,6 +3,7 @@ import type { Vec2 } from '@/core/Math2';
 import type { GridModel, StreetDef } from '@/world/types';
 import { NAV_TARGETS, getNavTarget } from '@/game/missions/NavTargets';
 import { getWaypoint } from '@/game/missions/Waypoint';
+import { MAP_COLORS, drawIcon } from './map/palette';
 
 /** A world-space point drawn on the minimap as a coloured ring (mission markers etc.). */
 export interface MinimapBlip { x: number; z: number; color: string; kind?: 'giver' | 'objective' | string }
@@ -18,8 +19,8 @@ const PHONE_BLIP_SCALE = 1.45;
 const SIZE = 220;
 /** Pixels per metre on the minimap. */
 const SCALE = 1.1;
-const DISC_FILL = 'rgba(10, 12, 18, 0.78)';
-const ROAD_FILL = '#c9ced8';
+const DISC_FILL = 'rgba(31, 34, 39, 0.94)'; // the map screen's built-ground tone
+const ROAD_FILL = MAP_COLORS.street;
 const PLAYER_FILL = '#ffffff';
 const COP_FILL = '#3b82f6';
 const HALO = 'rgba(10, 12, 18, 0.85)';
@@ -33,8 +34,8 @@ const HEADING_SMOOTH = 9;
 const BLINK_HZ = 2.5;
 const COP_RED = '#ef4444';
 const NORTH_FILL = '#f5c542';
-const POI_HOME = '#7cd6a0';
-const POI_DELI = '#f5c542';
+const POI_HOME = MAP_COLORS.home;
+const POI_DELI = MAP_COLORS.gold;
 
 /** What the minimap marks mean, for the pause menu. */
 export const MINIMAP_LEGEND: ReadonlyArray<{ swatch: string; shape: 'arrow' | 'ring' | 'dot' | 'house' | 'letter'; text: string }> = [
@@ -335,29 +336,8 @@ export class Minimap {
         ctx.strokeStyle = `rgba(124, 214, 160, ${(0.9 * (1 - ph)).toFixed(3)})`;
         ctx.stroke();
       }
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.fillStyle = HALO;
-      ctx.fill();
-      ctx.lineWidth = (sel?.id === t.id ? 2.5 : 1.5) * k;
-      ctx.strokeStyle = sel?.id === t.id ? '#ffffff' : t.id === 'home' ? POI_HOME : POI_DELI;
-      ctx.stroke();
-      ctx.fillStyle = t.id === 'home' ? POI_HOME : POI_DELI;
-      if (t.id === 'home') {
-        // little house: roof triangle over a square
-        ctx.beginPath();
-        ctx.moveTo(cx - 4.2 * k, cy - 0.5 * k);
-        ctx.lineTo(cx, cy - 4.4 * k);
-        ctx.lineTo(cx + 4.2 * k, cy - 0.5 * k);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillRect(cx - 2.8 * k, cy - 0.5 * k, 5.6 * k, 4 * k);
-      } else {
-        ctx.font = `700 ${Math.round(10 * k)}px Arial, Helvetica, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('D', cx, cy + 0.5);
-      }
+      if (sel?.id === t.id) { ctx.beginPath(); ctx.arc(cx, cy, r + 3 * k, 0, Math.PI * 2); ctx.lineWidth = 2; ctx.strokeStyle = '#ffffff'; ctx.stroke(); }
+      drawIcon(ctx, t.id === 'home' ? 'home' : 'venue', cx, cy, { k: (r / 12) * (t.id === 'home' ? 1 : 12 / 11), letter: 'D' });
     }
   }
 

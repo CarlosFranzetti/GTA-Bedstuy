@@ -46,7 +46,9 @@ import { ContextGuard } from '@/render/ContextGuard';
 import { gfxDebugRequested, mountGfxDebug, flagToggle } from '@/render/GfxDebug';
 import { setNormalMaps, setAnisotropy } from '@/render/TierDetail';
 import { setPhoneDetailHidden } from '@/render/TierGeometry';
-import { Menu } from '@/ui/Menu';
+import { Menu, missionLogOf } from '@/ui/Menu';
+import { GraphicsStore, deriveGraphics } from '@/ui/GraphicsSettings';
+import { createLoadingMusic } from '@/render/LoadingMusic';
 import { RadioUi } from '@/ui/RadioUi';
 import { GamepadInput } from '@/core/Gamepad';
 import { SaveManager, SaveStore } from '@/ui/GameSave';
@@ -99,7 +101,11 @@ let quality: Quality = resolvedQuality.quality;
 // the scene is drawn into the composer's targets, so the canvas MSAA only multisamples the final full-screen quad: skip it on phones
 const renderer = new THREE.WebGLRenderer({ ...gpu.contextAttributes });
 const tier0 = tierConfig(quality);
-const ratioFor = (q: Quality): number => profilePixelRatio(pixelRatioFor(q, window.devicePixelRatio, window.innerWidth), gpu, window.innerWidth);
+// Advanced graphics settings (Menu > Settings): per-setting overrides on top of the tier, persisted
+const graphicsStore = new GraphicsStore();
+const deriveNow = (q: Quality) => deriveGraphics(q, graphicsStore.effective(q), { devicePixelRatio: window.devicePixelRatio, cssWidth: window.innerWidth });
+let gfx = deriveNow(quality);
+const ratioFor = (q: Quality): number => profilePixelRatio(deriveNow(q).pixelRatio, gpu, window.innerWidth);
 renderer.setPixelRatio(ratioFor(quality));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -112,7 +118,8 @@ app.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 
 // ---- loading screen (steps paint between the long synchronous build stages)
-const loading = new LoadingScreen(app);
+const loadMusic = createLoadingMusic(); // starts on the first click or key while the loading screen is up
+const loading = new LoadingScreen(app, undefined, document, { onFirstGesture: () => loadMusic.start() });
 await nextPaint();
 
 // ---- world
@@ -341,7 +348,7 @@ events.on('mission:twist', (e) => { if (e.id === 'aftersloth-residency') interio
 events.on('mission:objective', (e) => { if (e.id === 'aftersloth-residency' && e.index >= 5) interiors.setBlackout(false); });
 events.on('mission:completed', (e) => { if (e.id === 'aftersloth-residency') interiors.setBlackout(false); });
 events.on('mission:failed', (e) => { if (e.id === 'aftersloth-residency') interiors.setBlackout(false); });
-const phoneHud = new PhoneHud(overlay, phone, { saves, canSave: () => interiors.state === 'outside' });
+const phoneHud = new PhoneHud(overlay, phone, { saves, canSave: () => interiors.state === 'outside', apps: { map: () => map.toggle(), radio: () => radioUi.open(), settings: () => { menu.open(); menu.showTab('settings'); } } });
 map.onOpen = () => { if (phoneHud.isOpen) phoneHud.toggle(); };
 const missionHudScratch = {} as MissionHudState;
 const cam = new ThirdPersonCamera(window.innerWidth / window.innerHeight);
@@ -376,6 +383,7 @@ let prevHour = dayNight.timeOfDay;
 function applyQuality(q: Quality): void {
   const prev = quality;
   quality = q;
+  gfx = deriveNow(q);
   const t = tierConfig(q);
   syncSunCasters(q);
   ensureProxies(); // first switch up from the phone tier: build the shadow / AO stand-ins before the pipeline attaches to them
@@ -401,15 +409,26 @@ function applyQuality(q: Quality): void {
 }
 /** Material detail of a tier: normal / roughness maps and texture anisotropy (re-run after late texture loads). */
 function applyDetail(t = tierConfig(quality)): void {
-  setNormalMaps(scene, t.normalMaps);
+  setNormalMaps(scene, gfx.normalMaps);
   setPhoneDetailHidden(world.group, t.simpleGeometry);
-  setAnisotropy(scene, Math.min(t.anisotropy, renderer.capabilities.getMaxAnisotropy()));
+  setAnisotropy(scene, Math.min(gfx.anisotropy, renderer.capabilities.getMaxAnisotropy()));
   applyClutterState(world.group, quality, gameDay);
 }
+/** Applies the advanced graphics settings on top of the current tier (resolution, shadows, ranges, densities, post effects, fov, fps cap). */
+function applyGraphics(): void {
+  gfx = deriveNow(quality);
+  renderer.setPixelRatio(ratioFor(quality)); renderer.setSize(window.innerWidth, window.innerHeight); pipeline.setSize(window.innerWidth, window.innerHeight);
+  culler.setMaxDist(gfx.cullDistance); chunkCuller.setMaxDist(chunkRangeFor(quality) * gfx.chunkScale); instanceCuller?.setRange(gfx.instanceDistance);
+  traffic.setDensity(gfx.traffic); cops.setPatrolCount(gfx.traffic.cops); blobs.setEnabled(gfx.blobs);
+  if (gfx.shadowMap) setupShadows(renderer, dayNight.sun, gfx.shadowMap); else { renderer.shadowMap.enabled = false; dayNight.sun.castShadow = false; }
+  setNormalMaps(scene, gfx.normalMaps); setAnisotropy(scene, Math.min(gfx.anisotropy, renderer.capabilities.getMaxAnisotropy()));
+  pipeline.setPostOptions(gfx.post); cam.fovOffset = gfx.fovOffset; game.maxFps = gfx.maxFps;
+}
+const setTier = (q: Quality): void => { applyQuality(q); applyGraphics(); };
 // Explicit ?q= (review scripts, bug reports) or ?perf=0 keeps the requested quality for the whole session.
 const perf = new PerfMonitor({
   getQuality: () => quality,
-  setQuality: applyQuality,
+  setQuality: setTier,
   autoDrop: !params.has('q') && params.get('perf') !== '0',
   touch: isTouch,
 });
@@ -462,7 +481,7 @@ function placeInterpolated(e: Entity, alpha: number): BlendedPose {
   return blended;
 }
 function interpolateAll(alpha: number, refX: number, refY: number, refZ: number): void {
-  const pedRange = tierConfig(quality).pedDistance;
+  const pedRange = gfx.pedDistance;
   const veh = player.vehicle;
   carLod.setView(cam.camera);
   carLod.beginFrame();
@@ -594,17 +613,27 @@ const game = new Game(
 
 // pause menu, gamepad, settings (Menu fires its persisted-setting callbacks once at construction)
 let lastPad = performance.now();
-const gamepad = new GamepadInput(input, { onToast: (m) => hud.showToast(m), onStart: () => { if (shopUi?.isOpen) shopUi.close(); else if (djUi?.isOpen) djUi.leave(); else menu.toggle(); }, onNav: (d) => { if (phoneHud.isOpen) phoneHud.navigate(d); else if (shopUi?.isOpen) shopUi.navigate(d); else if (djUi?.isOpen) djUi.navigate(d); else menu.navigate(d); } });
+const gamepad = new GamepadInput(input, { onBumper: (d) => { if (phoneHud.isOpen || shopUi?.isOpen || djUi?.isOpen || !menu.isOpen) return false; menu.tab(d); return true; }, onToast: (m) => hud.showToast(m), onStart: () => { if (shopUi?.isOpen) shopUi.close(); else if (djUi?.isOpen) djUi.leave(); else menu.toggle(); }, onNav: (d) => { if (phoneHud.isOpen) phoneHud.navigate(d); else if (shopUi?.isOpen) shopUi.navigate(d); else if (djUi?.isOpen) djUi.navigate(d); else menu.navigate(d); } });
 const radioUi = new RadioUi(overlay, audio);
 const menu = new Menu(overlay, {
   onPause: (p) => { game.paused = p || document.hidden; gamepad.paused = p; audio.setPaused(p); if (!p) { input.endFrame(); input.requestLock(); } },
-  onQuality: (q) => applyQuality(q),
+  onQuality: (q) => setTier(q),
+  onAuto: (a) => perf.setAutoDrop(a),
+  onGraphics: () => applyGraphics(),
   onMasterVolume: (v) => audio.setMasterVolume(v),
   onRadioVolume: (v) => audio.setRadioVolume(v),
   onRadioLibrary: () => radioUi.open(),
   onInvertLookY: (b) => { input.invertLookY = b; },
   onReset: () => { clearMissionData(); missions.story.reset(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++; if (interiors.inside) interiors.exit(); const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = SPAWN.x; b.pos.z = SPAWN.z; b.vel.x = 0; b.vel.z = 0; },
-}, { touch: isTouch, initialQuality: quality, ignoreSavedQuality: params.has('q'), saves, canSave: () => interiors.state === 'outside' });
+}, {
+  touch: isTouch, initialQuality: quality, ignoreSavedQuality: params.has('q'), saves, canSave: () => interiors.state === 'outside',
+  graphics: graphicsStore, getQuality: () => quality, auto: !params.has('q') && params.get('perf') !== '0', map,
+  info: () => ({ cash: inventory.cash, hour: dayNight.timeOfDay, day: gameDay, street: streetName, station: audio.stationName, stats: [
+    ['Missions done', `${missions.missions.filter((m) => missions.isCompleted(m.id)).length} / ${missions.missions.length}`],
+    ['Records owned', String(inventory.records.length)], ['Wanted level', String(wanted.stars)]] }),
+  missionLog: () => missionLogOf(missions),
+  hdVoices: { get: () => audio.hdVoices, set: (v) => audio.setHdVoices(v), label: () => audio.hdLabel },
+});
 input.onModeChange = (m) => { hud.setInputMode(m); menu.setInputMode(m); };
 hud.setInputMode(input.mode); menu.setInputMode(input.mode);
 let pendingLook: RosterLook | null = null;
@@ -831,6 +860,8 @@ renderer.info.reset();
 loading.done('shaders');
 
 hud.showSplash();
+applyGraphics(); // saved advanced graphics settings take effect from the first frame
+loadMusic.stop(0.8);
 void loading.hide();
 window.__gtaReady = true;
 game.start();

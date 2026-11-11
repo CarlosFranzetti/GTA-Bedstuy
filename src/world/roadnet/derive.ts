@@ -256,7 +256,8 @@ export function deriveGeometry(net: RoadNet, options: DeriveOptions = {}): Deriv
     for (const I of legs) {
       const J = legs[I.next];
       const want = rOf(I, J);
-      calcs[I.id] = calcCorner(I.angle, J.angle, I.next === I.id, I.hw, J.hw, small[I.id] || small[J.id] ? Math.min(want, o.rMin) : want, o.maxCorner);
+      const lvl = Math.max(small[I.id], small[J.id]);
+      calcs[I.id] = calcCorner(I.angle, J.angle, I.next === I.id, I.hw, J.hw, lvl === 2 ? 0 : lvl === 1 ? Math.min(want, o.rMin) : want, o.maxCorner);
     }
   };
   const computeCuts = (): void => {
@@ -273,6 +274,12 @@ export function deriveGeometry(net: RoadNet, options: DeriveOptions = {}): Deriv
   computeCuts();
   for (let e = 0; e < E.length; e++) {
     if (legs[e * 2].cut + legs[e * 2 + 1].cut > net.lengths[e] - o.minRibbon) { small[e * 2] = 1; small[e * 2 + 1] = 1; }
+  }
+  computeAll();
+  computeCuts();
+  // still overlapping with the smallest radius: sharp corners (apex only)
+  for (let e = 0; e < E.length; e++) {
+    if (legs[e * 2].cut + legs[e * 2 + 1].cut > net.lengths[e] - o.minRibbon) { small[e * 2] = 2; small[e * 2 + 1] = 2; }
   }
   computeAll();
   computeCuts();
@@ -358,18 +365,25 @@ export function deriveGeometry(net: RoadNet, options: DeriveOptions = {}): Deriv
       const fwd = r > 0;
       return { e, fwd, start: legs[e * 2 + (fwd ? 0 : 1)], end: legs[e * 2 + (fwd ? 1 : 0)] };
     });
+    // an edge whose two ends overlap (cutA + cutB > length) has no kerb of its own: its two apexes merge into one vertex
+    const merged = walk.map((w) => w.start.cut + w.end.cut > net.lengths[w.e] + 1e-6);
+    const corners = walk.map((w, k) => cornerAt(w.start, walk[(k - 1 + n) % n].end, building));
+    const skip = new Array<boolean>(n).fill(false);
     for (let k = 0; k < n; k++) {
       const cur = walk[k];
-      const prev = walk[(k - 1 + n) % n];
-      // corner at cur.start's node: arriving along prev (leg prev.end), leaving along cur (leg cur.start)
-      const c = cornerAt(cur.start, prev.end, building);
-      ring.push(...c.pts);
+      const nk = (k + 1) % n;
+      if (!skip[k]) {
+        if (merged[k] && n > 2 && corners[k].pts.length === 1 && corners[nk].pts.length === 1) {
+          ring.push({ x: (corners[k].pts[0].x + corners[nk].pts[0].x) / 2, z: (corners[k].pts[0].z + corners[nk].pts[0].z) / 2 });
+          skip[nk] = true;
+        } else ring.push(...corners[k].pts);
+      }
+      if (merged[k]) continue;
       // interior vertices of the edge between the two corner tangent positions
       const edge = E[cur.e];
       const L = net.lengths[cur.e];
-      const startT = c.tposA;
-      const nextC = cornerAt(walk[(k + 1) % n].start, cur.end, building);
-      const endT = nextC.tposB;
+      const startT = corners[k].tposA;
+      const endT = corners[nk].tposB;
       const wpts = cur.fwd ? edge.pts : edge.pts.slice().reverse();
       const off = edge.width / 2 + (building ? edge.sidewalk : 0);
       let acc = 0;
