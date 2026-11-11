@@ -16,7 +16,7 @@ export interface CameraContext {
   /** Static geometry to keep the camera out of (defaults to `camera.world`). */
   world?: CameraWorld | null;
   /** The vehicle being driven: its `speed` widens the view and its `shakeRequested` is consumed (read, then zeroed). */
-  vehicle?: { readonly speed: number; shakeRequested?: number; readonly spec?: { readonly length: number; readonly height: number } } | null;
+  vehicle?: { readonly speed: number; shakeRequested?: number; readonly spec?: { readonly length: number; readonly height: number; readonly camDist?: number; readonly camHeight?: number } } | null;
   /** Speed in m/s when no vehicle object is at hand. */
   speed?: number;
 }
