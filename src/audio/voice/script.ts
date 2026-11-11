@@ -99,7 +99,7 @@ export const REAL_NAME_DENYLIST: readonly string[] = [
   'apple', 'google', 'microsoft', 'facebook', 'meta', 'instagram', 'tiktok', 'twitter', 'netflix', 'uber', 'lyft', 'airbnb', 'tesla', 'nike', 'adidas',
   'whole foods', 'trader joe', 'tinder', 'venmo', 'paypal', 'zillow', 'redfin', 'wework', 'goldman', 'blackrock', 'fox news', 'cnn', 'msnbc', 'nbc', 'new york times',
   'daily news', 'pfizer', 'peloton', 'soulcycle', 'lululemon', 'spotify', 'soundcloud', 'youtube', 'gta', 'rockstar', 'grand theft',
-  'trump', 'biden', 'obama', 'cuomo', 'de blasio', 'bloomberg', 'mamdani', 'hochul', 'musk', 'bezos', 'zuckerberg', 'jay-z', 'biggie', 'notorious',
+  'oatly', 'zelda', 'nintendo', 'trump', 'biden', 'obama', 'cuomo', 'de blasio', 'bloomberg', 'mamdani', 'hochul', 'musk', 'bezos', 'zuckerberg', 'jay-z', 'biggie', 'notorious',
   'nypd', 'mta', 'con ed', 'conedison', 'verizon', 'comcast', 'chase bank', 'citibank', 'wells fargo', 'bank of america',
 ];
 

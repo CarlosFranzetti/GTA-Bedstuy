@@ -502,13 +502,13 @@ function clothShader(mat: THREE.MeshPhysicalMaterial, spec: PedSpec): void {
     u.pedDetailAmt = { value: new THREE.Vector4(top[2] * (tT ? 1 : 0), bot[2] * (tB ? 1 : 0), top[1], bot[1]) };
     for (const [set, slot] of [[top[0], 'pedDetailTop'], [bot[0], 'pedDetailBot']] as const) { if (set === 'none') continue; const l = detailUsers.get(set) ?? []; l.push({ uniforms: u, slot }); detailUsers.set(set, l); }
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>
+      .replace('#include <common>', `#include <common>
 uniform sampler2D pedDetailTop;
 uniform sampler2D pedDetailBot;
 uniform vec4 pedDetailAmt;
-float pedCloth = 0.0;')
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>
-pedCloth = smoothstep(0.6, 0.68, roughnessFactor);')
+float pedCloth = 0.0;`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+pedCloth = smoothstep(0.6, 0.68, roughnessFactor);`)
       .replace('#include <normal_fragment_maps>', THREE.ShaderChunk.normal_fragment_maps.replace('mapN.xy *= normalScale;', `mapN.xy *= normalScale;
         {
           vec2 ap = vec2(vNormalMapUv.x * 512.0, (1.0 - vNormalMapUv.y) * 512.0);
@@ -518,10 +518,10 @@ pedCloth = smoothstep(0.6, 0.68, roughnessFactor);')
           vec2 db = (texture2D(pedDetailBot, vNormalMapUv * pedDetailAmt.w).xy * 2.0 - 1.0) * pedDetailAmt.y * zBot;
           mapN.xy += (dt + db) * pedCloth;
         }`))
-      .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>
+      .replace('#include <lights_physical_fragment>', `#include <lights_physical_fragment>
 #ifdef USE_SHEEN
  material.sheenColor *= pedCloth * (0.35 + diffuseColor.rgb);
-#endif');
+#endif`);
   };
   mat.customProgramCacheKey = () => 'pedcloth1';
 }

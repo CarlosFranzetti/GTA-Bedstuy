@@ -275,7 +275,9 @@ export interface VehicleInput {
 }
 
 export type VehicleType = 'sedan' | 'suv' | 'boxtruck' | 'cop' | 'cab' | 'cargovan' | 'hatch' | 'beater' | 'bus'
-  | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'garbage' | 'ambulance' | 'dollarvan';
+  | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'garbage' | 'ambulance' | 'dollarvan'
+  // CARS14: sports cars, an electric wedge pickup parody, an electric sedan
+  | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan';
 
 export interface VehicleSpec {
   type: VehicleType;
@@ -292,6 +294,13 @@ export interface VehicleSpec {
   /** Driving feel (all optional, default = the old sedan values): mass kg, tyre grip multiplier, steering-rate multiplier,
    *  engine note pitch multiplier (audio: pass to AudioSystem.setEngine as the 4th argument). */
   mass?: number; grip?: number; steerRate?: number; enginePitch?: number;
+  /** CARS14 (all optional; absent = the old behaviour): which axle(s) the engine drives. RWD rotates under power, FWD understeers
+   *  under power, AWD stays planted. */
+  drivetrain?: 'fwd' | 'rwd' | 'awd';
+  /** electric motor(s): torque stays flat from 0 to near top speed (audio: electric whine, no gears) */
+  electric?: boolean;
+  /** share of the drive torque on the rear axle, 0..1 (default from the drivetrain: rwd 1, awd 0.5, fwd 0) */
+  torqueBias?: number;
   /** extra chase-camera pull-back and lift (m) for big bodies, added to the camera's own length/height scaling (Camera.ts reads these) */
   camDist?: number; camHeight?: number;
 }

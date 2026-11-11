@@ -6,28 +6,28 @@ const ad = (id: string, title: string, lines: Array<[string, string]>): Show => 
 });
 
 export const ADS: readonly Show[] = [
-  ad('ad-oatly', 'Oat Barn Concentrate', [
-    ['trent', 'Tired of milk that came from an animal? [beat] Try Oat Barn Concentrate, the milk that came from a spreadsheet.'],
-    ['noelle', 'Oat Barn. Now with a mouthfeel. [pause 0.4] Ask your barista about your feelings.'],
-    ['trent', 'Oat Barn is not a milk. [beat] It is a lifestyle. Side effects include saying lifestyle.'],
+  ad('ad-silomilk', 'Silo Milk Concentrate', [
+    ['trent', 'Tired of milk that came from an animal? [beat] Try Silo, the milk that came from a pitch deck.'],
+    ['noelle', 'Silo. Eleven dollars a carton. [pause 0.4] Every sip comes with a lecture about your last carton.'],
+    ['trent', 'Silo is not milk. It is a lifestyle with a cap table.'],
   ]),
   ad('ad-flipco', 'FlipCo Instant Offers', [
     ['noelle', 'Your building is worth more than you think. [pause 0.4] Call FlipCo for an instant cash offer.'],
     ['trent', 'We buy houses in any condition. Even the condition of having tenants. [laugh]'],
-    ['noelle', 'FlipCo. We will be at your door before you finish this sentence. [sfx buzz]'],
+    ['noelle', 'FlipCo. We send flowers to the funeral. Then a contract. [sfx buzz]'],
   ]),
   ad('ad-kombucha', 'Kombucha Kingdom', [
     ['trent', 'Is your stomach full of bacteria? [beat] Good! Fill it with more of our bacteria!'],
-    ['noelle', 'Kombucha Kingdom. Fermented on Fulton, funky by design. [pause 0.3] Contains live cultures and one dead tradition.'],
+    ['noelle', 'Kombucha Kingdom. Nine dollars a bottle. [pause 0.3] The culture is live. The bodega it replaced is not.'],
   ]),
   ad('ad-coworking', 'Hustle Hive Cowork', [
-    ['noelle', 'Why work from home, when you can pay six hundred dollars to work next to strangers?'],
-    ['trent', 'Hustle Hive Cowork. Free beer on Fridays, free anxiety all week. [laugh]'],
-    ['noelle', 'Hustle Hive. Grind in good company.'],
+    ['noelle', 'Your landlord turned your apartment into four of our desks. So come rent one back! Six hundred a month. Bring your own chair.'],
+    ['trent', 'Hustle Hive Cowork. Free beer on Fridays, free panic all week. [laugh]'],
+    ['noelle', 'Hustle Hive. The hive is full. You are the honey.'],
   ]),
   ad('ad-lawfirm', 'Crane and Crane Tenant Solutions', [
     ['trent', 'Got tenants? [beat] Got a lease with a loophole? [beat] Call Crane and Crane.'],
-    ['noelle', 'Because every problem is a timeline. Crane and Crane. Per the lease.'],
+    ['noelle', 'We evicted one family so politely that they thanked us. Crane and Crane. Per the lease.'],
   ]),
   ad('ad-bank', 'First Neighbour Trust', [
     ['noelle', 'First Neighbour Trust. We care about your community. [pause 0.4] We care about it a lot. Please stop asking how much.'],
@@ -35,16 +35,16 @@ export const ADS: readonly Show[] = [
   ]),
   ad('ad-airhorn', 'Mighty Mouth Airhorns', [
     ['trent', 'Sick of being ignored at the community board? Get a Mighty Mouth Airhorn. [sfx airhorn]'],
-    ['noelle', 'Mighty Mouth. Procedure fears it. [pause 0.3] Not for use in church.'],
+    ['noelle', 'Mighty Mouth. Procedure fears it. Landlords fear it more. [pause 0.3] Not for use in church.'],
   ]),
   ad('ad-gym', 'Iron Brownstone Fitness', [
     ['trent', 'Iron Brownstone Fitness. Lift heavy. Think about rent. Lift heavier.'],
     ['noelle', 'First month free. Every month after, mysteriously not free.'],
     ['trent', 'Iron Brownstone. You do not have a gym, you have a membership.'],
   ]),
-  ad('ad-psychic', 'Madame Zelda Reads Your Lease', [
-    ['noelle', 'Madame Zelda sees your future. [pause 0.5] She sees a rent increase.'],
-    ['trent', 'Madame Zelda Reads Your Lease. Palm reading, tarot, and a fair interpretation of Clause Nine.'],
+  ad('ad-psychic', 'Madame Zenobia Reads Your Lease', [
+    ['noelle', 'Madame Zenobia sees your future. [pause 0.5] She sees a rent increase.'],
+    ['trent', 'Madame Zenobia Reads Your Lease. Palm reading, tarot, and a free reading of Clause Nine. It ends in March.'],
   ]),
   ad('ad-smartfridge', 'FridgeBuddy Premium', [
     ['trent', 'Introducing FridgeBuddy Premium! The refrigerator that judges you!'],
@@ -57,7 +57,7 @@ export const ADS: readonly Show[] = [
   ]),
   ad('ad-deli', 'Troop Deli', [
     ['trent', 'Troop Deli. Open twenty-five hours a day. [pause 0.3] Do not ask which hour is the extra one.'],
-    ['noelle', 'Bacon, egg and cheese. Loyalty program optional. Sheldon is not on shift. [laugh]'],
+    ['noelle', 'Bacon, egg and cheese, made by a man who knows your name and your order. The landlord wants us gone. [pause 0.3] The line out the door disagrees.'],
   ]),
   ad('ad-sleep', 'Dream Quota Mattresses', [
     ['noelle', 'Dream Quota. Sleep your way to productivity.'],
@@ -78,7 +78,7 @@ export const ADS: readonly Show[] = [
   ]),
   ad('ad-delivery', 'Zoomzoom Dinner Drop', [
     ['trent', 'Zoomzoom Dinner Drop. Dinner at your door in thirty minutes or less. [pause 0.3] Or more. We do not control the bridge.'],
-    ['noelle', 'Tip your courier. Tip them twice. Zoomzoom thanks you in advance.'],
+    ['noelle', 'Tip your courier. Tip them twice. We kept the first one.'],
   ]),
   ad('ad-consultant', 'Synergy Brownstone Partners', [
     ['noelle', 'Synergy Brownstone Partners. We pivot your block.'],
@@ -109,6 +109,11 @@ export const ADS: readonly Show[] = [
   ad('ad-vinyl', 'Groove Cellar Records', [
     ['trent', 'Groove Cellar Records. Dig through the crates, dig through your savings.'],
     ['noelle', 'We buy, sell and trade. Ask about the record you did not know you needed. It is nine hundred dollars.'],
+  ]),
+  ad('ad-permit', 'Permit Express', [
+    ['noelle', 'Need a permit for your permit? Permit Express will stand in line for you.'],
+    ['trent', 'Eleven years, if that is what it takes. Our people are patient. Your landlord is more patient. [laugh]'],
+    ['noelle', 'Permit Express. We hold your place. Somebody has to.'],
   ]),
   ad('ad-hotline', 'Neighbour Watch Plus', [
     ['trent', 'Neighbour Watch Plus. Because someone is always looking, and you should be the one.'],
