@@ -34,7 +34,7 @@ describe('creditsData', () => {
   it('credits every worker and alumnus of the reporting lines in ORG.md', () => {
     const lines = org.slice(org.indexOf('| Team (working title)'), org.indexOf('Alumni are finished lanes'));
     const first = new Set<string>();
-    for (const row of lines.split('\n').filter((l) => /^\| (WORLD|ART|SOUND|ENGINE)/.test(l))) {
+    for (const row of lines.split('\n').filter((l: string) => /^\| (WORLD|ART|SOUND|ENGINE)/.test(l))) {
       for (const m of row.matchAll(/(?:\*\*)?([A-Z][a-z]+)(?:\*\*)? \(/g)) first.add(m[1]);
       for (const m of row.matchAll(/\*\*([A-Z][a-z]+)\*\*/g)) first.add(m[1]);
     }

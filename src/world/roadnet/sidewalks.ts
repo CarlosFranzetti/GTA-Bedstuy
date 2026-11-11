@@ -105,7 +105,7 @@ function sideOf(dir: Vec2): Side {
 
 interface Pending { id: string; p: Vec2; ring: number; seg: number; t: number }
 
-export function buildSidewalkGraph(net: RoadNet, d: Derived, opts: { spacing?: number } = {}): SidewalkNet {
+export function buildSidewalkGraph(net: RoadNet, d: Derived, opts: { spacing?: number; onSkip?: (node: number, edge: number, missA: boolean, missB: boolean) => void } = {}): SidewalkNet {
   const spacing = opts.spacing ?? 25;
   const rings: Vec2[][] = net.blocks.map((blk, b) => walkingRing(d, b, blk.island));
   const graph: Graph = { nodes: {}, edges: [], adjacency: {} };
@@ -167,7 +167,7 @@ export function buildSidewalkGraph(net: RoadNet, d: Derived, opts: { spacing?: n
     const pa = { x: p.x - nrm.x * off, z: p.z - nrm.z * off };
     const pb = { x: p.x + nrm.x * off, z: p.z + nrm.z * off };
     const sa = snap(pa), sb = snap(pb);
-    if (!sa || !sb) { skipped++; continue; }
+    if (!sa || !sb) { skipped++; if (opts.onSkip) opts.onSkip(leg.node, leg.edge, !sa, !sb); continue; }
     const tag = `n${leg.node}:e${leg.edge}`;
     const ida = `cw:${tag}:a`, idb = `cw:${tag}:b`;
     const pda: Pending = { id: ida, p: sa.q, ring: sa.ring, seg: sa.seg, t: sa.t };

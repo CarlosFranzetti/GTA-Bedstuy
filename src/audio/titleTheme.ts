@@ -282,7 +282,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     const keysBus = part('keys'); pan(-0.15, duckKeys, keysBus); send(duckKeys, 0.16, 0.14);
     const keysIn = gain(1), keysLP = filt('lowpass', 3200, 0.7, duckKeys);
     keysIn.connect(keysLP);
-    const cd = track(ctx.createDelay(0.05)); cd.delayTime.value = 0.017; const lfoG = gain(0.0035, cd.delayTime), lfo = osc('sine', 0.37, lfoG);
+    const cd = track(ctx.createDelay(0.05)); cd.delayTime.value = 0.017; const lfoG = gain(0.0035), lfo = osc('sine', 0.37, lfoG); lfoG.connect(cd.delayTime);
     keysLP.connect(cd); cd.connect(gain(0.5, duckKeys)); keysLP.connect(shaper(gritCurve(), gain(0.18, duckKeys)));
     // hook: bell -> low-pass -> bus
     const hookBus = part('hook'), hookIn = gain(1), hookLp = filt('lowpass', 5200, 0.7, hookBus); hookIn.connect(hookLp); pan(0.2, hookLp, sum); hookLp.connect(hookBus); send(hookLp, 0.28, 0.34);
