@@ -2447,3 +2447,9 @@ progress: engine+scheduler+content+tests written (kokoro-js q8 92 MB, WASM verif
 
 ### 2026-11-11T08:24:40Z · FLICKER
 FINAL: code done, render gates queued (flick-pre/new.json, smoke.out in scratchpad); report to Fable
+
+### 2026-11-11T08:29:02Z · CARS12
+gates so far: tsc clean (src), entities/textures 100%, sim/render failures all identical on HEAD copy (pursuit, spawn-spread, vehicle-qa, enter-exit, traffic-5min seed7 'windows 220>300'); build 11.71 MB. Render queued (18 types x2 + street).
+
+### 2026-11-11T08:30:06Z · VOX
+FINAL: Kokoro-82M via kokoro-js 1.2.1 (code+weights Apache-2.0; eSpeak NG phonemizer GPL-3.0 loaded from CDN only). 28 EN voices, q8 92 MB, lazy, Web Worker, nothing bundled (+~45 kB). 35 cast, 7 talk shows (3.5-4.5 min), 23 ads, 8 DJs w/ real set names. E2E verified in headless Chromium WASM (3 WAVs) but 4-7x slower than real time here, so engine self-flags slow and falls back; WebGPU unverified. Gates: tsc clean for voice files, audio tests pass, build ok, artifact 11.72 MB. 2 HUD/map tests fail (not mine). FOR FABLE (src/main.ts ~l.538): add stars: wanted.stars to the audio.setBroadcast({...}) call; and events.on('mission:completed', (e) => { done++; audio.setBroadcast({ lastMission: e.title, missionsDone: done }); }). Nothing else needed. See docs/reference/VOICES.md.

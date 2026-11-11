@@ -343,6 +343,9 @@ events.on('mission:started', () => cam.setLetterbox(true, 2.5));
 // story ("Air Rights"): phone follow-ups, radio bulletins and ads, letterbox beats, flag-driven street notices, cargo damage
 const story = new StoryDirector(missions, phone, { onBeat: (sec) => cam.setLetterbox(true, sec), onBroadcast: (b) => audio.setBroadcast(b) });
 const storyNotices = new AmbientNotices(grid); scene.add(storyNotices.group);
+// talk radio news reacts to finished missions
+let missionsDone = 0;
+events.on('mission:completed', (e) => { missionsDone++; audio.setBroadcast({ lastMission: e.title, missionsDone }); });
 events.on('impact', (e) => { const v = player.vehicle; if (v && (e.a === v.body.id || e.b === v.body.id)) missions.notify({ type: 'impact', strength: e.strength }); });
 const pipeline = new RenderPipeline(renderer, scene, cam.camera, { quality });
 if (useProxies) proxies.attachToPipeline(pipeline);
@@ -540,7 +543,7 @@ const game = new Game(
     hudState.inVehicle = player.inVehicle;
     hudState.radioStation = audio.stationName;
     hudState.radioTrack = audio.trackName;
-    audio.setBroadcast({ weather: weather.state, rain: weather.rain, street: hudState.streetName });
+    audio.setBroadcast({ weather: weather.state, rain: weather.rain, street: hudState.streetName, stars: wanted.stars });
     hudState.talkProgress = audio.talkProgress;
     hudState.prompt = uiOpen() || interiors.locked ? '' : prompt;
     hudState.timeOfDay = dayNight.timeOfDay;
