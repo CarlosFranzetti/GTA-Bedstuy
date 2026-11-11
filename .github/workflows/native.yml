@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   push:
     tags: ['v*']
+    branches: [master]
+    paths:
+      - 'native/**'
+      - '.github/workflows/native.yml'
 
 permissions:
   contents: write

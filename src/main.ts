@@ -41,6 +41,9 @@ import { resolveQuality, startHostedTextures } from '@/textures/hosted';
 import { Weather } from '@/game/Weather';
 import { LIGHTING } from '@/render/LightingConfig';
 import { tierConfig, pixelRatioFor } from '@/render/QualityTier';
+import { classifyGpu, readGpuInfo, profilePixelRatio } from '@/render/GpuProfile';
+import { ContextGuard } from '@/render/ContextGuard';
+import { gfxDebugRequested, mountGfxDebug, flagToggle } from '@/render/GfxDebug';
 import { setNormalMaps, setAnisotropy } from '@/render/TierDetail';
 import { setPhoneDetailHidden } from '@/render/TierGeometry';
 import { Menu } from '@/ui/Menu';
@@ -89,12 +92,14 @@ const proxiesAllowed = params.get('proxies') !== '0';
 /** Render proxies (shadow / AO stand-ins) are only built for tiers that draw shadows or AO; the phone tier builds them on its first switch up. */
 let useProxies = false;
 const useCarLod = params.get('lod') !== '0';
-const resolvedQuality = resolveQuality(params.get('q'), isTouch); // ?q=ultra exists only in the hosted build: 'high' + ultra textures
+// device profile: Apple Silicon and capable Windows GPUs start on high, integrated GPUs lower, phones on the phone tier
+const gpu = classifyGpu(readGpuInfo());
+const resolvedQuality = params.get('q') ? resolveQuality(params.get('q'), isTouch) : { quality: gpu.tier, ultra: false }; // ?q=ultra exists only in the hosted build: 'high' + ultra textures
 let quality: Quality = resolvedQuality.quality;
 // the scene is drawn into the composer's targets, so the canvas MSAA only multisamples the final full-screen quad: skip it on phones
-const renderer = new THREE.WebGLRenderer({ antialias: quality !== 'phone', powerPreference: 'high-performance' });
+const renderer = new THREE.WebGLRenderer({ ...gpu.contextAttributes });
 const tier0 = tierConfig(quality);
-const ratioFor = (q: Quality): number => pixelRatioFor(q, window.devicePixelRatio, window.innerWidth);
+const ratioFor = (q: Quality): number => profilePixelRatio(pixelRatioFor(q, window.devicePixelRatio, window.innerWidth), gpu, window.innerWidth);
 renderer.setPixelRatio(ratioFor(quality));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -508,7 +513,7 @@ function drawFrame(alpha: number, frameDt: number): void {
     renderer.info.reset();
     passes.gbufferIndex = quality === 'low' || quality === 'phone' ? -1 : 1;
     passes.beginFrame();
-    pipeline.render();
+    if (!contextGuard.isLost) pipeline.render();
 }
 
 const game = new Game(
@@ -705,6 +710,20 @@ const applyResize = (): void => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   pipeline.setSize(window.innerWidth, window.innerHeight);
 };
+// a lost WebGL context (GPU reset, tab eviction) must not leave a black screen: skip drawing, then rebuild sizes on restore
+const contextGuard = new ContextGuard(renderer.domElement, { onRestored: applyResize });
+// moving the window between displays changes devicePixelRatio without a resize event
+{ let mq: MediaQueryList | null = null; const watchDpr = (): void => { mq?.removeEventListener('change', onDpr); mq = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`); mq.addEventListener('change', onDpr); }; const onDpr = (): void => { applyResize(); watchDpr(); }; if (typeof window.matchMedia === 'function') watchDpr(); }
+// ?debug=gfx: overlay with the renderer string, tier, DPR, active passes and switches to turn each effect off (for bug reports)
+if (gfxDebugRequested(location.search)) {
+  const po = (k: 'ao' | 'bloom' | 'dof' | 'aa' | 'vignette' | 'grain', label: string) => flagToggle(k, label, () => pipeline.postState[k], (on) => pipeline.setPostOptions({ [k]: on }));
+  mountGfxDebug(document.body, {
+    rendererString: gpu.reason, profile: gpu, tier: () => quality, pixelRatio: () => renderer.getPixelRatio(),
+    bufferSize: () => ({ w: renderer.domElement.width, h: renderer.domElement.height }),
+    activePasses: () => pipeline.activePassNames, contextLosses: () => contextGuard.lostCount,
+    toggles: [po('ao', 'Ambient occlusion'), po('bloom', 'Bloom'), po('dof', 'Depth of field'), po('aa', 'Anti-aliasing'), po('vignette', 'Vignette'), po('grain', 'Film grain')],
+  });
+}
 window.addEventListener('resize', () => {
   cam.setAspect(window.innerWidth / window.innerHeight);
   clearTimeout(resizeTimer);

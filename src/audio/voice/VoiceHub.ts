@@ -60,7 +60,7 @@ export class VoiceHub {
       ctx: opts.ctx, dest: opts.dest, speech: opts.speech, makeUtterance: opts.makeUtterance, volume: opts.volume, warn: opts.warn,
       engine: () => (this.enabled ? this._engine : null),
       cache: this.cache,
-      onEngineTrouble: () => this.refresh(),
+      onEngineTrouble: () => { this._engine?.demote?.(); this.refresh(); },
     });
   }
 

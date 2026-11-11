@@ -95,6 +95,8 @@ export interface TtsEngine {
   synth(req: TtsRequest, priority?: 0 | 1): Promise<Clip>;
   /** Drops queued requests (the one in flight finishes and is discarded). */
   cancelAll(): void;
+  /** Marks the engine unusable for live speech after a stall (kept loaded; the voice layer uses system voices). */
+  demote?(): void;
   dispose(): void;
 }
 

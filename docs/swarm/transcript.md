@@ -2444,3 +2444,6 @@ start->done: Electron shell in native/ (own package.json), CI .github/workflows/
 
 ### 2026-11-11T08:20:27Z · VOX
 progress: engine+scheduler+content+tests written (kokoro-js q8 92 MB, WASM verified in headless Chromium: load OK, rtf ~5-7x on this 4-vCPU box so engine self-flags slow and falls back; WebGPU path off by default, unverified). Adds optional Announcer env {dj,hub}, BroadcastContext {stars,missionsDone,lastMission}, RadioUi HD row, AudioSystem hub. Running e2e samples now.
+
+### 2026-11-11T08:24:40Z · FLICKER
+FINAL: code done, render gates queued (flick-pre/new.json, smoke.out in scratchpad); report to Fable

@@ -57,6 +57,8 @@ class FakeEngine implements TtsEngine {
   cancelled = 0;
   failOn: ((r: TtsRequest) => boolean) | null = null;
   hang = false;
+  demoted = 0;
+  demote(): void { this.demoted++; this.usable = false; }
   async load(): Promise<void> { /* ready */ }
   synth(req: TtsRequest): Promise<Clip> {
     this.calls.push(req);
@@ -379,6 +381,23 @@ describe('VoiceHub', () => {
     expect(made).toHaveLength(1);
     const art = new VoiceHub(base({ hosted: false, engineFactory: f }));
     expect(art.hdEnabled).toBe(false);
+  });
+
+  it('a render stall demotes the engine so the next segment goes straight to system voices', async () => {
+    const e = new FakeEngine();
+    const speech = new FakeSpeech();
+    const { ctx } = fakeCtx();
+    const hub = new VoiceHub(base({ hosted: true, speech, ctx: () => ctx, dest: () => ({}) as AudioNode, engineFactory: () => e }));
+    hub.onGesture();
+    await flush();
+    expect(hub.player.mode).toBe('neural');
+    e.hang = true;
+    (hub.player as unknown as { env: { stallSeconds: number } }).env.stallSeconds = 0.05;
+    const done = new Promise<void>((res) => hub.player.play([{ who: 'buck', text: 'Hello there.' }], { onEnd: () => res() }));
+    await done;
+    expect(e.demoted).toBe(1);
+    expect(hub.state).toBe('slow');
+    expect(hub.player.mode).toBe('system');
   });
 
   it('reports failed when the engine cannot load, and the player keeps using system voices', async () => {
