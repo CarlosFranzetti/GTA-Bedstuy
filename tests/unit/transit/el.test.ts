@@ -173,7 +173,7 @@ describe('structure, culling and the ride', () => {
     expect(t.tryBoard(ent.x, ent.z)).toBe(true);
     expect(t.ride).not.toBeNull();
     expect(t.ride!.to).toBe(STATIONS.findIndex((s) => s.id === 'myrtle'));
-    expect(Math.abs(t.ride!.x - STATIONS[1].x)).toBeLessThan(0.1);
+    expect(Math.abs(t.ride!.x - STATIONS[1].x)).toBeLessThan(20);
     // ride on: the standing point follows the train east, the camera is inside the car height band
     t.update(25, { x: 0, y: 2, z: 0 }, false);
     expect(t.ride).not.toBeNull();

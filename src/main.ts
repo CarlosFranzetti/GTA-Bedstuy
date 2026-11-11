@@ -434,6 +434,7 @@ const minimapPeriod = (): number => { const hz = tierConfig(quality).minimapHz; 
 let freeCam: { pos: THREE.Vector3; look: THREE.Vector3 } | null = null;
 function updateCamera(dt = 1 / 60): void {
   if (freeCam) { cam.camera.position.copy(freeCam.pos); cam.camera.lookAt(freeCam.look); }
+  else if (world.transit.ride) { const c = world.transit.ride.cam; cam.camera.position.set(c.px, c.py, c.pz); cam.camera.lookAt(c.lx, c.ly, c.lz); }
   else {
     camCtx.vehicle = player.vehicle;
     cam.update(dt, camTarget, camHeading, player.inVehicle ? 'vehicle' : 'foot', input, camCtx);
@@ -499,6 +500,9 @@ function drawFrame(alpha: number, frameDt: number): void {
     interpolateAll(alpha, cam.camera.position.x, cam.camera.position.y, cam.camera.position.z);
     updateCamera(frameDt);
     updateSignalMeshes(world.signalsGroup, lights);
+    // elevated line: trains on a timetable, station doors, rumble with distance falloff
+    world.transit.attachAudio(audio.djHost?.ctx, audio.djHost?.dest);
+    world.transit.update(frameDt, cam.camera.position, dayNight.isNight);
     weather.update(frameDt, cam.camera.position);
     pipeline.setWeather(weather.wetness, weather.rain);
     culler.update(cam.camera.position.x, cam.camera.position.z);
@@ -638,13 +642,18 @@ game.add({
     if (!away) { lastOutside.x = player.body.pos.x; lastOutside.z = player.body.pos.z; }
     if (blocked) { for (const k of ['KeyF', 'KeyE', 'KeyR', 'KeyX', 'KeyP']) input.consume(k); }
     else {
-      player.control(input, cam.yaw);
+      // riding the el: the player is carried by the train until the next stop
+      const ride = world.transit.ride;
+      if (ride) { player.body.pos.x = ride.x; player.body.pos.z = ride.z; player.body.vel.x = 0; player.body.vel.z = 0; } else player.control(input, cam.yaw);
+      const alight = world.transit.takeAlight(); if (alight) { player.body.pos.x = alight.x; player.body.pos.z = alight.z; }
+      const tm = world.transit.takeMessage(); if (tm) hud.showToast(tm);
       if (input.consume('KeyP') && !map.isOpen) phoneHud.toggle();
       if (input.consume('KeyF')) {
         const fpos = player.body.pos;
         if (!player.inVehicle && interiors.interact(fpos)) { /* door / shop / decks / bar handled */ }
         else if (missions.interact(fpos)) { /* mission talk / knock / crank handled */ }
         else if (player.inVehicle) player.exit();
+        else if (!away && world.transit.tryBoard(fpos.x, fpos.z)) { const m = world.transit.takeMessage(); if (m) hud.showToast(m); }
         else if (!away) player.tryEnter(allVehicles());
       }
     }
@@ -741,7 +750,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
 (window as unknown as { __gtaDebug: unknown }).__gtaDebug = {
   setFreeCam(x: number, y: number, z: number, lx: number, ly: number, lz: number) { freeCam = { pos: new THREE.Vector3(x, y, z), look: new THREE.Vector3(lx, ly, lz) }; },
   clearFreeCam() { freeCam = null; },
-  cam, saves, map, audio,
+  cam, saves, map, audio, transit: world.transit,
   /** Freeze/unfreeze the simulation and render loop (review scripts take deterministic A/B shots with renderOnce). */
   setPaused(p: boolean) { game.paused = p; },
   /** Stops the requestAnimationFrame loop (headless review scripts then draw frames by hand with renderOnce). */

@@ -1750,6 +1750,7 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
   // ---- cop gear / cab roof light
   const copBarU = secs[st.rails ? 3 : 5][0];
   const roofY = hull.P(hull.at(copBarU), 0).y;
+  const ambU = secs[3][0], ambY = hull.P(hull.at(ambU), 0).y; // the ambulance bar sits on the flat roof, not over the sloping windshield header
   const roofLamp = new Acc();
   if (type === 'cop' && !unmarked) {
     for (const s of [-1, 1]) trim.add(bx(0.05, 0.42, 0.05, s * 0.5, 0.52, -(L / 2 - 0.01)));
@@ -1759,7 +1760,7 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     // unmarked: a push bar only (no roof bar); the strobes sit in the grille and behind the windshield (lightbar lenses below)
     trim.add(bx(1.0, 0.05, 0.05, 0, 0.6, -(L / 2 - 0.01)));
   } else if (type === 'ambulance') {
-    trim.add(bx(1.5, 0.05, 0.34, 0, roofY + 0.03, -(ws[1] + 0.2))); // roof light bar base
+    trim.add(bx(1.5, 0.05, 0.34, 0, ambY + 0.03, -ambU)); // roof light bar base, on the flat of the roof
     for (const s2 of [-1, 1]) trim.add(bx(0.06, 0.06, 0.06, s2 * (st.dims!.W / 2 - 0.2), 1.9 * ky, -(doors[0][0] + 0.1))); // side warning lamps
   } else if (type === 'cab') {
     trim.add(bx(0.4, 0.03, 0.2, 0, roofY + 0.015, -copBarU));
@@ -1858,8 +1859,8 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     const yD = fyBelt(ws[0] - 0.4) + 0.03;
     parts.lightbar = { lens: new THREE.BoxGeometry(0.22, 0.045, 0.07), a: v3(-0.3, yD, -(ws[0] - 0.3)), b: v3(0.3, yD, -(ws[0] - 0.3)) };
   } else if (type === 'ambulance') {
-    const yB = roofY + 0.085;
-    parts.lightbar = { lens: new THREE.BoxGeometry(0.7, 0.1, 0.28), a: v3(-0.38, yB, -(ws[1] + 0.2)), b: v3(0.38, yB, -(ws[1] + 0.2)) };
+    const yB = ambY + 0.085;
+    parts.lightbar = { lens: new THREE.BoxGeometry(0.7, 0.1, 0.28), a: v3(-0.38, yB, -ambU), b: v3(0.38, yB, -ambU) };
   }
   // ---- anchors for per-car extras (carExtras.ts)
   {
@@ -2061,16 +2062,17 @@ export function buildTruckParts(spec: VehicleSpec, kind: 'box' | 'garbage' = 'bo
   const rz = -cargoBack + 0.006;
   if (G) {
     // rear loader: hopper mouth (dark), loading lip, packer blade slot, lift arms and comb, bumper step, side hatches, roof beacon
-    trim.add(bx(2 * Wg2 - 0.5, 0.9, 1.1, 0, 1.45, -(cargoBack + 0.55))); // hopper void
-    trim.add(bx(2 * Wg2 - 0.3, 0.14, 0.2, 0, 1.2, rz - 0.1)); // sill lip
-    trim.add(bx(2 * Wg2 - 0.7, 0.5, 0.03, 0, 2.2, -(cargoBack + 1.5))); // packer panel
+    // clean hopper: a dark opening panel just proud of the rear face, a loading sill, hinge pins and hydraulic rams on each side
+    trim.add(bx(2 * Wg2 - 0.7, 0.85, 0.05, 0, 1.78, rz + 0.012)); // hopper opening
+    trim.add(bx(2 * Wg2 - 0.4, 0.1, 0.2, 0, 1.3, rz - 0.07)); // loading sill
+    trim.add(bx(2 * Wg2 - 0.4, 0.06, 0.06, 0, 2.24, rz - 0.01)); // top lip of the opening
     for (const s2 of [-1, 1]) {
-      trim.add(bx(0.1, 0.9, 0.1, s2 * (Wg2 - 0.2), 1.9, rz - 0.06)); // lift-arm post
+      trim.add(bx(0.1, 0.9, 0.1, s2 * (Wg2 - 0.28), 1.78, rz - 0.03)); // lift-arm post
+      trim.add(new THREE.CylinderGeometry(0.04, 0.04, 0.75, 6).translate(s2 * (Wg2 - 0.14), 1.95, rz - 0.02)); // hydraulic ram
       trim.add(bx(0.08, 0.08, 0.7, s2 * (Wg2 - 0.03), 2.5, -(cargoBack + 0.9))); // side hatch hinge
-      for (const [dy, dz, h2, d2] of [[0.6, 0, 0.02, 2.0], [-0.6, 0, 0.02, 2.0], [0, 1.0, 1.2, 0.02], [0, -1.0, 1.2, 0.02]] as const) trim.add(bx(0.012, h2, d2, s2 * (Wg2 + 0.004), 2.35 + dy, -(cargoBack + 2.6) + dz)); // side panel hatch outline (thin lines)
     }
     trim.add(bx(2 * Wg2 - 0.2, 0.18, 0.3, 0, 0.82, L / 2 - 0.17)); // rear step platform
-    for (let k = -3; k <= 3; k++) chrome.add(bx(0.02, 0.5, 0.03, k * 0.3, 1.9, rz - 0.02)); // comb teeth
+    for (let k = -3; k <= 3; k++) chrome.add(bx(0.02, 0.4, 0.03, k * 0.3, 1.5, rz)); // comb teeth
   } else {
   for (let y = 1.4; y <= 3.12; y += 0.14) trim.add(decalZ(2 * Wg2 - 0.4, 0.016, 0, y, rz));
   trim.add(bx(2 * Wg2 - 0.36, 0.04, 0.03, 0, 1.3, rz + 0.01)); // bottom bar of the roll-up door

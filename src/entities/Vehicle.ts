@@ -129,6 +129,7 @@ const MAX_STEP = 1 / 30;
 const SIREN_FLIPS_PER_SEC = 8; // lightbar swaps colours 8 times/s = a 4 Hz red/blue cycle
 const RED = 0xff1010;
 const BLUE = 0x1030ff;
+const WHITE = 0xfff4e0;
 
 const NEUTRAL: VehicleInput = { throttle: 0, steer: 0, brake: false, handbrake: false, horn: false };
 
@@ -827,10 +828,12 @@ export class Vehicle implements IVehicle {
     if (bar) {
       const a = bar.red.material as THREE.MeshStandardMaterial;
       const b = bar.blue.material as THREE.MeshStandardMaterial;
-      if (this.siren) {
+      const ems = this.spec.type === 'ambulance' && (this.driver !== null || Math.abs(this.speed) > 0.5); // the parody ambulance runs red/white lights while it is driven
+      if (this.siren || ems) {
         const phase = Math.floor(this.time * SIREN_FLIPS_PER_SEC) % 2 === 0;
-        a.emissive.setHex(phase ? RED : BLUE);
-        b.emissive.setHex(phase ? BLUE : RED);
+        const c2 = ems && !this.siren ? WHITE : BLUE;
+        a.emissive.setHex(phase ? RED : c2);
+        b.emissive.setHex(phase ? c2 : RED);
         a.emissiveIntensity = b.emissiveIntensity = 2;
       } else {
         a.emissive.setHex(0x000000);

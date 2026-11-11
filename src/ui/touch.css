@@ -39,11 +39,11 @@
   /* sideways: stars under the cash, pause / phone / map in a row below them, so the button block (right, from y 160) stays clear */
   .touch .hud-stars { right: max(16px, env(safe-area-inset-right, 0px)); top: 44px; }
   .hud-root.touch .menu-pause-btn { top: 78px; right: max(16px, env(safe-area-inset-right, 0px)); }
-  .hud-root.touch .ph-button { top: 78px; right: calc(max(16px, env(safe-area-inset-right, 0px)) + 52px); }
-  .hud-root.touch .map-button { top: 78px; right: calc(max(16px, env(safe-area-inset-right, 0px)) + 132px); }
+  .hud-root.touch.hud-root .ph-button { top: 78px; right: calc(max(16px, env(safe-area-inset-right, 0px)) + 52px); }
+  .hud-root.touch.hud-root .map-button { top: 78px; right: calc(max(16px, env(safe-area-inset-right, 0px)) + 108px); }
   /* street / speed / radio sit right of the stick; prompt next to them; subtitles go to the top so they never meet the stack */
   .touch .hud-location { left: calc(max(22px, env(safe-area-inset-left, 0px)) + 130px); bottom: 14px; max-width: 200px; }
   .touch .hud-speed-value { font-size: 38px; }
   .touch .hud-prompt { left: calc(50% + 70px); right: auto; transform: translateX(-50%); bottom: 14px; max-width: 230px; }
-  .hud-root.touch .msn-sub { bottom: auto; top: 56px; left: 50%; max-width: calc(100% - 480px); font-size: 14px; }
+  .hud-root.touch .msn-sub { bottom: auto; top: 56px; left: calc(50% + 90px); max-width: calc(100% - 480px); font-size: 14px; }
 }

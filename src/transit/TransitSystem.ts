@@ -137,11 +137,11 @@ export class TransitSystem {
     const t = this.trains.find((q) => q.spec.id === r.train)!;
     const s = t.state;
     // stand at the middle of car 2 (the middle two cars share the centre); the camera looks along the train, a little off the window
-    const cx = s.x + s.dir * 0.0;
+    const cx = carCentres(s.x, s.dir)[1]; // the second car: the centre of the train is the gap between cars 2 and 3
     r.x = cx; r.z = trackZ(s.dir) + 0.0; r.y = RAIL_Y + FLOOR_ABOVE_RAIL;
     r.heading = s.dir === 1 ? Math.PI / 2 : -Math.PI / 2;
     const sway = Math.sin(this.time * 7.3) * 0.015 * Math.min(1, s.speed / 10);
-    r.cam = { px: cx - s.dir * 3.0, py: r.y + 1.62 + sway, pz: r.z + 0.35, lx: cx + s.dir * 20, ly: r.y + 1.45, lz: r.z - 0.25 + sway };
+    r.cam = { px: cx - s.dir * 5.0, py: r.y + 1.62 + sway, pz: r.z + 0.35, lx: cx + s.dir * 20, ly: r.y + 1.45, lz: r.z - 0.25 + sway };
     if (s.phase === 'dwell' && s.station === r.to && s.doors > 0.6) {
       const ent = this.el.entrances.find((e) => e.station === r.to);
       this.pendingAlight = ent ? { x: ent.x, z: ent.z } : null;
