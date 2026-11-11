@@ -249,9 +249,11 @@ ${DETAIL_GLSL}`)
       diffuseColor.rgb *= mix( vec3( 1.0 ), ptone, pm ) * ( 1.0 - 0.35 * pseam );
     }
     // old paving showing through: stone-block patches in the asphalt are in the asphalt branch
-    float crack = 1.0 - smoothstep( 0.0, 0.014, abs( gdNoise( gw * 1.7 + 4.0 ) - 0.5 ) );
-    crack *= smoothstep( 0.55, 0.7, gdNoise( gw * 0.25 ) );
-    diffuseColor.rgb *= 1.0 - crack * 0.45;
+    // hairline cracks: jagged (two octaves), short (gated by a slow field), faint
+    float cn = gdNoise( gw * 1.9 + 4.0 ) * 0.7 + gdNoise( gw * 8.3 ) * 0.3;
+    float crack = 1.0 - smoothstep( 0.0, 0.01, abs( cn - 0.5 ) );
+    crack *= smoothstep( 0.68, 0.82, gdNoise( gw * 0.31 ) );
+    diffuseColor.rgb *= 1.0 - crack * 0.28;
     vec2 gc = gw / 0.45; vec2 gi = floor( gc );
     if ( gdHash( gi + 41.0 ) > 0.982 ) {
       float gd = length( fract( gc ) - vec2( 0.5 ) );
