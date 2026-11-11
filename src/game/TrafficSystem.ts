@@ -132,7 +132,9 @@ const BASE_MIX: ReadonlyArray<readonly [VehicleType, number]> = [
 ];
 /** CARS14: share of all traffic per new type (sports cars about 6 % combined, the wedge pickup 0.5 %; set a share to 0 to keep a type parked/player-only). */
 export const CARS14_TRAFFIC_SHARE: Readonly<Record<string, number>> = {
-  coupe911: 0.012, hothatch: 0.015, jdmcoupe: 0.012, muscle: 0.012, evsedan: 0.015, exotic: 0.006, wedgetruck: 0.005,
+  // Held at 0 (parked / player-only) until the Engine team clears the traffic tests with these types: intended shares are
+  // coupe911 0.012, hothatch 0.015, jdmcoupe 0.012, muscle 0.012, evsedan 0.015, exotic 0.006, wedgetruck 0.005.
+  coupe911: 0, hothatch: 0, jdmcoupe: 0, muscle: 0, evsedan: 0, exotic: 0, wedgetruck: 0,
 };
 const TRAFFIC_MIX: ReadonlyArray<readonly [VehicleType, number]> = (() => {
   const extra = Object.values(CARS14_TRAFFIC_SHARE).reduce((a, b) => a + b, 0);

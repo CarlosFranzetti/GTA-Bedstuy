@@ -578,7 +578,7 @@ export class MapScreen {
   fitAll(): void {
     const top = this.topEl?.getBoundingClientRect().height || 56, bot = this.bottomEl?.getBoundingClientRect().height || 64;
     this.view.far = this.farRect();
-    this.view.fit(this.source.bounds, 40, top + 6, Math.min(bot, 64) + 6);
+    this.view.fit(this.source.bounds, 40, top + 6, bot + 6);
     this.atFit = true; this.zoomTo = null; this.vel = { x: 0, y: 0 };
     this.useCentreCursor();
     this.staticSig = '';
@@ -728,7 +728,8 @@ export class MapScreen {
     const out: Cand[] = [];
     if (this.overviewAlpha > 0.4) return out;
     const top = this.topEl?.getBoundingClientRect().height || 56, bot = this.bottomEl?.getBoundingClientRect().height || 64;
-    const clip = { x0: 0, x1: v.w, y0: top, y1: v.h - Math.min(bot, 64) };
+    const clip = { x0: 0, x1: v.w, y0: top, y1: v.h - bot };
+    const a = this.source.bounds;
     ctx.font = '700 11px Arial, Helvetica, sans-serif';
     for (const s of this.source.streets()) {
       const w = (ctx.measureText(s.name).width || s.name.length * 6.2) + 4;
@@ -746,10 +747,12 @@ export class MapScreen {
         let ang = Math.atan2(dy, dx);
         if (ang > Math.PI / 2) ang -= Math.PI; else if (ang <= -Math.PI / 2) ang += Math.PI;
         const mid = (t0 + t1) / 2;
+        const inArea = (t: number): boolean => { const q = v.toWorld(A.x + dx * t, A.y + dy * t); return q.x >= a.minX - 15 && q.x <= a.maxX + 15 && q.z >= a.minZ - 15 && q.z <= a.maxZ + 15; };
         const spacing = 300 / len;
         const n = Math.floor((vis - w) / 300);
         for (let k = -n; k <= n; k++) {
           const t = mid + k * spacing;
+          if (!inArea(t)) continue;
           out.push({ text: s.name, x: A.x + dx * t, y: A.y + dy * t, ang, size: 11, color: '#fff', pri: pri + (k === 0 ? 0 : 0.5), w });
         }
       }
@@ -777,12 +780,13 @@ export class MapScreen {
 
     const zoom = v.scale;
     const touch = this.doc.querySelector('.hud-root.touch') !== null;
-    const kk = touch ? 1.15 : 1;
+    const kk = (touch ? 1.15 : 1) * (this.overviewAlpha > 0.5 ? 0.8 : 1);
     // 1. blip label slots first so nothing else sits on a blip name
     type Slot = { b: MapBlip; s: { x: number; y: number }; label: Cand | null };
     const slots: Slot[] = [];
     const wants = (b: MapBlip): boolean => {
       if (b === this.hover || b === this.selected) return true;
+      if (this.overviewAlpha > 0.5) return false; // no labels out in the overview
       if (b.kind === 'home' || b.kind === 'venue' || b.kind === 'giver' || b.kind === 'goal') return true;
       if (b.kind === 'station') return zoom >= v.fitScale * 0.9;
       if (b.kind === 'shop') return zoom >= 0.8;
@@ -869,7 +873,7 @@ export class MapScreen {
 
   private drawScaleBar(ctx: CanvasRenderingContext2D): void {
     const v = this.view;
-    const bot = Math.min(this.bottomEl?.getBoundingClientRect().height || 64, 64);
+    const bot = this.bottomEl?.getBoundingClientRect().height || 64;
     const steps = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
     const m = steps.find((s) => s * v.scale >= 70) ?? steps[steps.length - 1];
     const px = m * v.scale;

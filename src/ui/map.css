@@ -78,13 +78,15 @@
   gap: 8px;
 }
 .map-zin, .map-zout { font-size: 22px; padding: 0; }
+@media (max-width: 600px) { .map-hint { display: none; } }
 @media (max-height: 420px) {
   .map-hint { display: none; }
   .map-title { font-size: 18px; }
 }
 
 .map-legend {
-  flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 2px 14px; padding: 6px 10px; max-width: 520px;
+  position: absolute; left: max(12px, env(safe-area-inset-left, 0px)); bottom: 100%; margin-bottom: 2px; pointer-events: none;
+  display: flex; flex-wrap: wrap; gap: 2px 14px; padding: 6px 10px; max-width: min(520px, calc(100% - 24px));
   background: rgba(10,12,18,0.82); border: 1px solid rgba(255,255,255,0.18); border-radius: 8px;
   font: 600 12px/1.2 Arial, Helvetica, sans-serif; color: rgba(255,255,255,0.9);
 }
@@ -111,7 +113,8 @@
 }
 .map-card-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .map-cardbtn { border-color: #38bdf8; color: #38bdf8; white-space: nowrap; }
-.map-zlvl { text-align: center; font: 700 11px/1 Arial, Helvetica, sans-serif; color: rgba(255,255,255,0.85); text-shadow: 0 1px 3px #000; letter-spacing: 0.06em; }
+.map-zlvl { text-align: center; padding: 3px 0; border-radius: 4px; background: rgba(10,12,18,0.82); font: 700 11px/1 Arial, Helvetica, sans-serif; color: rgba(255,255,255,0.85); text-shadow: 0 1px 3px #000; letter-spacing: 0.06em; }
+@media (max-width: 600px) { .map-hint { display: none; } }
 @media (max-height: 420px) { .map-street { display: none; } .map-sw { width: 22px; height: 22px; } .map-legend { padding: 3px 8px; } }
 
 /* HUD button icons: text label on desktop, icon on touch */

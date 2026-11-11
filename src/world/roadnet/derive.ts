@@ -197,14 +197,14 @@ export function isSimpleRing(ring: ReadonlyArray<Vec2>, eps = 1e-7): boolean {
   return true;
 }
 
-function dedupe(ring: Vec2[]): Vec2[] {
+function dedupe(ring: Vec2[], eps = 0.05): Vec2[] {
   const out: Vec2[] = [];
-  for (const p of ring) if (!out.length || distance(out[out.length - 1], p) > 0.05) out.push(p);
-  while (out.length > 1 && distance(out[0], out[out.length - 1]) <= 0.05) out.pop();
+  for (const p of ring) if (!out.length || distance(out[out.length - 1], p) > eps) out.push(p);
+  while (out.length > 1 && distance(out[0], out[out.length - 1]) <= eps) out.pop();
   return out;
 }
 
-function offsetVertex(prev: Vec2, cur: Vec2, next: Vec2, off: number): Vec2 {
+function offsetVertex(prev: Vec2, cur: Vec2, next: Vec2, off: number, minCos = 0.5): Vec2 {
   const d1 = { x: cur.x - prev.x, z: cur.z - prev.z };
   const d2 = { x: next.x - cur.x, z: next.z - cur.z };
   const l1 = Math.hypot(d1.x, d1.z) || 1;
@@ -216,7 +216,7 @@ function offsetVertex(prev: Vec2, cur: Vec2, next: Vec2, off: number): Vec2 {
   const al = Math.hypot(ax, az);
   if (al < 1e-6) return { x: cur.x + n1.x * off, z: cur.z + n1.z * off };
   ax /= al; az /= al;
-  const m = off / Math.max(ax * n1.x + az * n1.z, 0.5);
+  const m = off / Math.max(ax * n1.x + az * n1.z, minCos);
   return { x: cur.x + ax * m, z: cur.z + az * m };
 }
 
@@ -422,8 +422,14 @@ export function deriveGeometry(net: RoadNet, options: DeriveOptions = {}): Deriv
       // edge-wise construction failed (overlapping junctions on a very short edge): offset the kerb ring itself by the
       // block's narrowest sidewalk instead
       const sw = Math.min(...net.blocks[i].edges.map((r) => E[Math.abs(r) - 1].sidewalk));
-      br = dedupe(cr.map((p, k) => offsetVertex(cr[(k - 1 + cr.length) % cr.length], p, cr[(k + 1) % cr.length], sw)));
-      ok = br.length >= 3 && signedArea(br) > 0.5 && isSimpleRing(br);
+      // (nearby points are merged first, 3.5 m then 7 m then 12 m: a truncated acute tip would otherwise offset into a bow-tie)
+      for (const eps of [3.5, 7, 12]) {
+        const c2 = dedupe(cr, eps);
+        if (c2.length < 3) break;
+        br = dedupe(c2.map((p, k) => offsetVertex(c2[(k - 1 + c2.length) % c2.length], p, c2[(k + 1) % c2.length], sw, 0.1)));
+        ok = br.length >= 3 && signedArea(br) > 0.5 && isSimpleRing(br);
+        if (ok) break;
+      }
       if (ok) fallbackBuilding.push(i);
     }
     buildingRings.push(ok ? br : []);
