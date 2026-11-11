@@ -2,7 +2,7 @@
 # Serialise headless-browser jobs across swarm lanes: parallel swiftshader Chromiums starve each other
 # (OOM kills, 120 s screenshot timeouts).
 #
-#   scripts/swarm-render.sh <command...>                  heavy job (3D render, screenshots): two slots, first come first served
+#   scripts/swarm-render.sh <command...>                  heavy job (3D render, screenshots): one at a time, first come first served
 #   SWARM_LIGHT=1 scripts/swarm-render.sh <command...>    light job (offline audio render, network probe, no WebGL): its own slot
 #
 # Heavy jobs queue by ticket, oldest first, so a lane cannot be starved by luckier pollers. A ticket whose process
@@ -44,7 +44,7 @@ first_in_line() {
 
 while [ $SECONDS -lt $END ]; do
   if first_in_line; then
-    for L in "$BASE" "$BASE.2"; do
+    for L in "$BASE"; do  # one heavy job at a time: a single software-rendered game page can reach 4 GB here
       exec 9>"$L"
       if flock -n 9; then rm -f "$TICKET"; "$@"; exit $?; fi
       exec 9>&-

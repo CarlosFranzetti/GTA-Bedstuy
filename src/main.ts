@@ -96,7 +96,8 @@ const proxiesAllowed = params.get('proxies') !== '0';
 let useProxies = false;
 const useCarLod = params.get('lod') !== '0';
 // device profile: Apple Silicon and capable Windows GPUs start on high, integrated GPUs lower, phones on the phone tier
-const gpu = classifyGpu(readGpuInfo());
+const gpuInfo = readGpuInfo();
+const gpu = classifyGpu(gpuInfo);
 const resolvedQuality = params.get('q') ? resolveQuality(params.get('q'), isTouch) : { quality: gpu.tier, ultra: false }; // ?q=ultra exists only in the hosted build: 'high' + ultra textures
 let quality: Quality = resolvedQuality.quality;
 // the scene is drawn into the composer's targets, so the canvas MSAA only multisamples the final full-screen quad: skip it on phones
@@ -814,7 +815,7 @@ const contextGuard = new ContextGuard(renderer.domElement, { onRestored: applyRe
 if (gfxDebugRequested(location.search)) {
   const po = (k: 'ao' | 'bloom' | 'dof' | 'aa' | 'vignette' | 'grain', label: string) => flagToggle(k, label, () => pipeline.postState[k], (on) => pipeline.setPostOptions({ [k]: on }));
   mountGfxDebug(document.body, {
-    rendererString: gpu.reason, profile: gpu, tier: () => quality, pixelRatio: () => renderer.getPixelRatio(),
+    rendererString: gpuInfo.renderer, profile: gpu, tier: () => quality, pixelRatio: () => renderer.getPixelRatio(),
     bufferSize: () => ({ w: renderer.domElement.width, h: renderer.domElement.height }),
     activePasses: () => pipeline.activePassNames, contextLosses: () => contextGuard.lostCount,
     stats: () => blinkProbe?.report() ?? {},

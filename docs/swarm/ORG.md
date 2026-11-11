@@ -39,7 +39,7 @@ it here.
 | WORLD | **Streetscape** | Rafael proposed, Imani agreed (11 Nov) |
 | ART | **Inkwell** | Priya proposed, most votes, Tomas agreed (11 Nov) |
 | SOUND | **Airwaves** | Jules proposed, Andre second choice, Nia agreed (11 Nov) |
-| ENGINE | (voting) | |
+| ENGINE | **Foundry** | Greta announced (11 Nov) |
 
 ## Bringing someone back
 Agents do not survive a session restart, their work does. To bring an alumnus back, Fable starts a new agent under the same
