@@ -373,8 +373,9 @@ export function deriveGeometry(net: RoadNet, options: DeriveOptions = {}): Deriv
       const cur = walk[k];
       const nk = (k + 1) % n;
       if (!skip[k]) {
-        if (merged[k] && n > 2 && corners[k].pts.length === 1 && corners[nk].pts.length === 1) {
-          ring.push({ x: (corners[k].pts[0].x + corners[nk].pts[0].x) / 2, z: (corners[k].pts[0].z + corners[nk].pts[0].z) / 2 });
+        const singles = [corners[k], corners[nk]].filter((c) => c.pts.length === 1);
+        if (merged[k] && n > 2 && singles.length > 0) {
+          ring.push(singles.length === 2 ? { x: (singles[0].pts[0].x + singles[1].pts[0].x) / 2, z: (singles[0].pts[0].z + singles[1].pts[0].z) / 2 } : singles[0].pts[0]);
           skip[nk] = true;
         } else ring.push(...corners[k].pts);
       }

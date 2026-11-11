@@ -13,7 +13,7 @@ import { storyPresets, storyVoice } from '../StoryVoices';
 import type { FxPreset, KokoroVoice } from '../types';
 import { assignVoice, PedVoiceRegistry, playbackFor, systemFor, type PedVoice, seededRandom } from './assign';
 import type { AgeBand, Gender } from './groups';
-import type { BarkKind } from './barks';
+import { BARK_KINDS, type BarkKind } from './barks';
 import { BARK_BY_ID, BARK_LINES, linesFor, type BarkLine } from './lines';
 
 export type SpeechClass = 'ambient' | 'reaction' | 'story' | 'mission';
@@ -34,12 +34,17 @@ export const LIMITS = {
 } as const;
 
 const AMBIENT: ReadonlySet<BarkKind> = new Set(['greeting', 'chat', 'stoop', 'seller']);
-export function classOf(kind: BarkKind): SpeechClass { return AMBIENT.has(kind) ? 'ambient' : 'reaction'; }
+const EXT_REACTION: ReadonlySet<string> = new Set(['bumped', 'crash']);
+export function classOf(kind: string): SpeechClass { return AMBIENT.has(kind as BarkKind) ? 'ambient' : kind in EXT_AMBIENT || !EXT_REACTION.has(kind) && !(kind in REACTION_KINDS) ? 'ambient' : 'reaction'; }
+const EXT_AMBIENT: Record<string, true> = { chatReply: true, laugh: true, bye: true, excuse: true, phone: true };
+const REACTION_KINDS: Record<string, true> = { carClose: true, horn: true, nearMiss: true, knockedDown: true, gunshot: true, wanted: true, rain: true, playerRunning: true, playerDancing: true, complaint: true, bumped: true, crash: true };
 
 /** Leila's request (event `pedBark`): WHEN a ped speaks and to whom. */
 export interface PedBarkEvent {
   pedId: string;
-  kind: BarkKind;
+  kind: BarkKind | string;
+  /** Words chosen by the emitter for kinds this module has no table for (chatReply, laugh, bye, excuse, bumped, crash, phone). */
+  text?: string;
   pos?: { x: number; y: number };
   seed?: number;
   age?: AgeBand;
@@ -52,6 +57,28 @@ export interface PedBarkEvent {
   /** Optional hints; the voice assignment decides when absent. */
   pitch?: number;
   rate?: number;
+}
+
+/** Kinds of CHAR14's PedSocial that map onto this module's tables; the rest are spoken from the emitter's own text. */
+const KIND_MAP: Readonly<Record<string, BarkKind>> = { greet: 'greeting', greetMorning: 'greeting', greetEvening: 'greeting', stoopHello: 'stoop', stoopReply: 'stoop', nearMiss: 'nearMiss', horn: 'horn', sirens: 'wanted' };
+
+/**
+ * Accepts both shapes of `pedBark`: the agreed one ({ pedId, kind, pos {x,y}, seed, age, gender, with, dist ... }) and what
+ * PedSocial emits today ({ id, text, kind, pos {x,z}, sex 'm'|'f'|'x', age 'kid'|'teen'|'adult'|'old', loud }).
+ */
+export function normalizeBark(raw: unknown): PedBarkEvent | null {
+  const e = raw as Record<string, any> | null;
+  if (!e || typeof e !== 'object') return null;
+  const pedId = String(e.pedId ?? e.id ?? '');
+  if (!pedId || typeof e.kind !== 'string') return null;
+  const pos = e.pos ? { x: Number(e.pos.x), y: Number(e.pos.y ?? e.pos.z ?? 0) } : undefined;
+  const age = e.age === 'teen' ? 'young' : e.age === 'old' ? 'elder' : e.age;
+  const gender = e.gender ?? (e.sex === 'm' || e.sex === 'f' ? e.sex : undefined);
+  const mapped = KIND_MAP[e.kind];
+  return {
+    pedId, kind: mapped ?? e.kind, ...(mapped ? {} : { text: typeof e.text === 'string' ? e.text : undefined }), pos,
+    seed: typeof e.seed === 'number' ? e.seed : undefined, age, gender, with: e.with, toPlayer: !!e.toPlayer, dist: typeof e.dist === 'number' ? e.dist : undefined,
+  };
 }
 
 export type SubtitleMode = 'all' | 'story' | 'off';
@@ -169,10 +196,13 @@ export class BarkDirector {
       if (!s.hasPos || !ev.pos || Math.hypot(s.x - pos.x, s.y - pos.y) <= LIMITS.areaRadius) return this.drop('area');
     }
     if (ev.kind === 'chat' && ev.with) return this.requestChat(ev, now, dist, pos);
+    if (!(ev.kind in REACTION_KINDS) && !AMBIENT.has(ev.kind as BarkKind) && !ev.text) return this.drop('bad');
 
     const blocked = this.blockedPresets();
     const voice = this.registry.voiceFor(ev.pedId, { seed: ev.seed ?? hashId(ev.pedId), age: ev.age, gender: ev.gender }, pos, blocked);
-    const line = this.pick(ev.kind, voice, undefined, now);
+    const own = (BARK_KINDS as readonly string[]).includes(ev.kind);
+    const line: BarkLine | null = own ? this.pick(ev.kind as BarkKind, voice, undefined, now)
+      : ev.text && this.fresh(extId(ev.text), now) ? { id: extId(ev.text), text: ev.text, personas: [], kind: 'chat', baked: [] } : null;
     if (!line) return this.drop('recent');
     const job = this.makeJob(ev.pedId, line, voice, cls, dist, ev.pos, !!ev.toPlayer, now);
     return this.admit(job, now);
@@ -371,6 +401,8 @@ export class BarkDirector {
 
   cancelAll(): void { for (const id of [...this.active.keys()]) this.finish(id, true); this.pending.length = 0; }
 }
+
+function extId(text: string): string { return `ext:${hashStr(text)}`; }
 
 export function hashStr(s: string): number {
   let h = 0x811c9dc5;

@@ -23,7 +23,7 @@ import { DjScheduler } from './voice/Scheduler';
 import type { TtsEngine } from './voice/types';
 import type { PersistentStore } from './voice/ClipCache';
 import { VehicleAudio } from './vehicle/VehicleAudio';
-import { BarkDirector, type PedBarkEvent, type SpeechEventName } from './voice/peds/BarkDirector';
+import { BarkDirector, normalizeBark, type SpeechEventName } from './voice/peds/BarkDirector';
 import { PedVoicePlayer } from './voice/peds/PedVoicePlayer';
 import type { Surface } from './vehicle/fx';
 import type { Listener, TrafficCar } from './vehicle/nodes';
@@ -232,7 +232,7 @@ export class AudioSystem {
       events.on('enterVehicle', () => { this.inCar = true; this.setRadioOn(true); }),
       events.on('exitVehicle', () => { this.inCar = false; this.setRadioOn(false); }),
       // VOICE14: Leila's pedBark request and every mission / story subtitle line get a voice.
-      bus.on('pedBark', (e) => { this.peds.request(e as PedBarkEvent); }),
+      bus.on('pedBark', (e) => { const ev = normalizeBark(e); if (ev) this.peds.request(ev); }),
       events.on('mission:subtitle', (e) => { this.peds.speakStory(e.who, e.text, 'mission'); }),
       events.on('radioNext', () => this.nextStation()),
     );
