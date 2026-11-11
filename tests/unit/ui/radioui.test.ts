@@ -360,3 +360,43 @@ describe('RadioUi tap to start radio', () => {
     } finally { vi.useRealTimers(); }
   });
 });
+
+describe('RadioUi station list (15 stations)', () => {
+  it('lists every dial station with a type badge, marks the tuned one, shows its about line and site link, and tunes on click', async () => {
+    const { RadioDirector } = await import('@/audio/RadioDirector');
+    const { TalkPlayer } = await import('@/audio/talk/TalkPlayer');
+    document.body.innerHTML = '';
+    const parent = document.createElement('div');
+    document.body.appendChild(parent);
+    const library = new Library(memStorage());
+    const libraryController = new LibraryController(library, { handles: memoryHandleStore(), importDeps, win: {} });
+    const talk = new TalkPlayer({ speech: null, makeUtterance: () => { throw new Error('x'); }, audio: { sting: () => 0, setBed: () => undefined, volume: () => 1 } }, []);
+    const dir = new RadioDirector(library, talk, undefined, undefined, { feed: null, autoSkip: false, scEnv: { canLoad: () => false }, liveEnv: { canLoad: () => false } });
+    const ui = new RadioUi(parent, {
+      library, libraryController,
+      get radioStations() { return dir.stations; },
+      get radioCurrentId() { return dir.current.id; },
+      selectRadioStation: (id) => dir.selectById(id),
+      onRadioChange: (f) => dir.onChange(f),
+      radioFailed: (id) => dir.isFailed(id),
+    });
+    const items = qa(ui.root, '.rl-dial-item');
+    expect(items).toHaveLength(15);
+    const badges = items.map((li) => q(li, '.rl-badge').textContent);
+    expect(badges.filter((b) => b === 'SC')).toHaveLength(7);
+    expect(badges.filter((b) => b === 'RA')).toHaveLength(1);
+    expect(badges.filter((b) => b === 'LIVE')).toHaveLength(6);
+    expect(badges.filter((b) => b === 'TALK')).toHaveLength(1);
+    expect(q(ui.root, '.rl-dial-current')).toBe(items[0]);
+    expect(q(items[0], '.rl-dial-about').textContent).toMatch(/Boiler Room/);
+    const kexp = items.find((li) => (li as HTMLElement).dataset.station === 'kexp')!;
+    q<HTMLButtonElement>(kexp, 'button').click();
+    expect(dir.current.id).toBe('kexp');
+    const cur = q(ui.root, '.rl-dial-current');
+    expect((cur as HTMLElement).dataset.station).toBe('kexp');
+    const link = q<HTMLAnchorElement>(cur, 'a');
+    expect(link.href).toBe('https://www.kexp.org/');
+    expect(link.rel).toContain('noopener');
+    ui.dispose();
+  });
+});

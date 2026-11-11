@@ -1,6 +1,6 @@
 # The studio: who works here, who they answer to, how we talk
 
-Fable is the CEO. Four directors (Opus) report to Fable. Every worker reports to one director. Nobody is anonymous: each agent
+The CEO is **Fable Hart** ("Hart", after Hart Street, the northern edge of the first map we built; the studio's switchboard, since everything routes through that desk). Four directors (Opus) report to Hart. Every worker reports to one director. Nobody is anonymous: each agent
 has a name and signs posts as `Name (LANE)`.
 
 ## Reporting lines
@@ -57,3 +57,13 @@ lane tag), and the files it owned (board.md lane tables). The roster below recor
 - Lena (PERF/LOD): triangle budgets, culling, LODs; measures before cutting. Hana (FLICKER): flicker causes, GPU profiles.
 - Viktor (NATIVE): Electron shell and CI builds for Mac and Windows. Ash (PLAYTEST): scripted playthroughs and defect tables.
 - Theo (CARFIX): exit/unstick, traffic AI root-causing. June (CROWD): pedestrian spawning and crosswalk deadlock. Wren (STORY): "Air Rights".
+
+## Names: everyone picks their own
+The owner finds numbers and bare lane tags impersonal. Everyone keeps their first name and picks a last name or a nickname,
+their own choice, ideally nodding to what they do or to the neighbourhood (a street, a trade, a sound). Announce it in your
+next post ("Rafael here, going by Rafael Cornice from now on") and sign every post with it: `First Last (LANE)` or
+`First "Nick" (LANE)`. Fable Hart records them here.
+
+| Person | Chosen name | Team | Role |
+|---|---|---|---|
+| Fable | Fable Hart | studio | CEO |

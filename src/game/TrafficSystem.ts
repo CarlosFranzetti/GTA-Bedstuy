@@ -126,10 +126,21 @@ export const CAR_COLORS = [
 ] as const;
 
 /** Cumulative traffic mix (CARS12): [type, upper edge of its slice of 0..1]. Sedans and crossovers lead, the oddities are rare. */
-const TRAFFIC_MIX: ReadonlyArray<readonly [VehicleType, number]> = [
+const BASE_MIX: ReadonlyArray<readonly [VehicleType, number]> = [
   ['sedan', 0.21], ['cab', 0.28], ['crossover', 0.38], ['suv', 0.46], ['hatch', 0.53], ['beater', 0.6], ['pickup', 0.66], ['minivan', 0.71],
   ['luxury', 0.75], ['towncar', 0.79], ['pony', 0.81], ['cargovan', 0.86], ['dollarvan', 0.89], ['boxtruck', 0.93], ['bus', 0.97], ['garbage', 0.982], ['ambulance', 0.99],
 ];
+/** CARS14: share of all traffic per new type (sports cars about 6 % combined, the wedge pickup 0.5 %; set a share to 0 to keep a type parked/player-only). */
+export const CARS14_TRAFFIC_SHARE: Readonly<Record<string, number>> = {
+  coupe911: 0.012, hothatch: 0.015, jdmcoupe: 0.012, muscle: 0.012, evsedan: 0.015, exotic: 0.006, wedgetruck: 0.005,
+};
+const TRAFFIC_MIX: ReadonlyArray<readonly [VehicleType, number]> = (() => {
+  const extra = Object.values(CARS14_TRAFFIC_SHARE).reduce((a, b) => a + b, 0);
+  const out: [VehicleType, number][] = BASE_MIX.map(([t, e]) => [t, e * (1 - extra)]);
+  let edge = 1 - extra;
+  for (const [t, w] of Object.entries(CARS14_TRAFFIC_SHARE)) { if (w > 0) { edge += w; out.push([t as VehicleType, edge]); } }
+  return out;
+})();
 const PED_COUNT = 40;
 const MAX_TRAFFIC = 30;
 const DEFAULT_PARK_OCCUPANCY_SHARE = 0.65;

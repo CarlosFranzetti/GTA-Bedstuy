@@ -71,6 +71,16 @@ export function buildFx(ctx: AudioContext, preset: FxPreset, dest: AudioNode, ir
       return chain(ctx, [biquad(ctx, 'highpass', 550, 0.8), biquad(ctx, 'lowpass', 4200, 0.8), biquad(ctx, 'peaking', 1500, 1.2, 5), compressor(ctx, -20, 3), gain(1.0)], dest);
     case 'ad':
       return chain(ctx, [biquad(ctx, 'highpass', 90), biquad(ctx, 'highshelf', 5000, 0.7, 4), compressor(ctx, -28, 6), gain(1.35)], dest);
+    case 'street': {
+      // Pedestrians outdoors: no low end, a rolled-off top, light compression and a little room (distance filtering is per voice).
+      const makeup = gain(1.15);
+      const input = chain(ctx, [biquad(ctx, 'highpass', 140), biquad(ctx, 'lowpass', 4200, 0.7), compressor(ctx, -22, 3), makeup], dest);
+      const verb = ctx.createConvolver();
+      verb.buffer = ir ?? impulse(ctx, 0.5, 2.5);
+      const wet = gain(0.1);
+      makeup.connect(verb); verb.connect(wet); wet.connect(dest);
+      return input;
+    }
     case 'booth':
       return chain(ctx, [biquad(ctx, 'highpass', 120), biquad(ctx, 'lowpass', 7000), compressor(ctx, -24, 3), gain(1.2)], dest);
     default: {
@@ -89,7 +99,7 @@ export class FxBank {
   input(preset: FxPreset): AudioNode {
     let n = this.inputs.get(preset);
     if (!n) {
-      if (preset === 'studio' && !this.ir) this.ir = impulse(this.host.ctx, 0.35, 3);
+      if ((preset === 'studio' || preset === 'street') && !this.ir) this.ir = impulse(this.host.ctx, 0.35, 3);
       n = buildFx(this.host.ctx, preset, this.host.dest, this.ir);
       this.inputs.set(preset, n);
     }

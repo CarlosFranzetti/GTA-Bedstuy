@@ -65,7 +65,7 @@ async function loadPlan() {
     ssr: { noExternal: true },
   });
   const mod = await import(pathToFileURL(join(outDir, 'plan.mjs')).href + `?t=${Date.now()}`);
-  return { plan: await mod.buildPlan(join(here, 'stations.snapshot.json')), stats: mod.planStats };
+  return { plan: await mod.buildPlan(root, join(here, 'stations.snapshot.json')), stats: mod.planStats };
 }
 
 // ---- finished-clip store

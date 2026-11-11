@@ -1895,7 +1895,7 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
   const bumpW = (tip: number, dir: number): number => 2 * Math.min(Wb2 * 0.88, ring(tip - dir * 0.14).wMax * 0.97);
   const bDepth = isCars14(type) ? 0.13 : 0.2;
   trim.add(bumperGeo(bumpW(tipF, 1), bDepth, st.bumperH, st.bumperY, -(bumperZ - bDepth), false));
-  trim.add(bumperGeo(bumpW(tipR, 1), bDepth, st.bumperH, st.bumperY, bumperZ - bDepth, true));
+  trim.add(bumperGeo(bumpW(tipR, -1), bDepth, st.bumperH, st.bumperY, bumperZ - bDepth, true));
   // lower intake slot + fog lamps (front)
   const intakeW = st.grille === 'mesh' ? 0.74 : st.grille === 'wedge' ? 0.66 : st.grille === 'bars' ? 0.34 : 0.5;
   trim.add(bx(2 * Wb2 * intakeW, st.grille === 'mesh' ? 0.09 : 0.07, 0.02, 0, st.bumperY - 0.03, -(bumperZ + 0.004)));

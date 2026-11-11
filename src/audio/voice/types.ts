@@ -11,7 +11,7 @@ export type KokoroVoice =
   | 'bf_alice' | 'bf_emma' | 'bf_isabella' | 'bf_lily' | 'bm_daniel' | 'bm_fable' | 'bm_george' | 'bm_lewis';
 
 /** Post-processing preset (WebAudio chain, see fx.ts). */
-export type FxPreset = 'studio' | 'phone' | 'tinny' | 'ad' | 'booth' | 'dry';
+export type FxPreset = 'studio' | 'phone' | 'tinny' | 'ad' | 'booth' | 'dry' | 'street';
 
 export type CastKind = 'dj' | 'host' | 'caller' | 'guest' | 'announcer';
 
