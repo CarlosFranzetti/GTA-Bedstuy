@@ -25,7 +25,8 @@ fi
 
 QDIR=$ROOT/render.queue
 mkdir -p "$QDIR"
-TICKET="$QDIR/$(date +%s%N)-$$"
+# SWARM_PRIORITY=1 (Fable only: an owner-reported bug) jumps the queue
+TICKET="$QDIR/${SWARM_PRIORITY:+0}$(date +%s%N)-$$"
 echo $$ > "$TICKET"
 trap 'rm -f "$TICKET"' EXIT
 

@@ -21,7 +21,6 @@ describe('TitleMusic wrapper', () => {
     expect(load).toHaveBeenCalledTimes(1);
     expect(factory).toHaveBeenCalledTimes(1);
     expect(th.start).toHaveBeenCalledTimes(1);
-    expect(m.available).toBe(true);
   });
   it('stop fades the theme, closes the context after the fade, and the music can start again', async () => {
     vi.useFakeTimers();
@@ -74,11 +73,10 @@ describe('TitleMusic wrapper', () => {
     expect(ctx.resume).toHaveBeenCalledTimes(2);
     expect(handlers.size).toBe(0);
   });
-  it('forwards volume to the running theme', async () => {
-    const th = theme();
-    const m = createTitleMusic({ load: async () => ({ createTitleTheme: () => th }), makeContext: () => fakeCtx(), unlockTarget: null });
+  it('passes the volume option to the theme', async () => {
+    const th = theme(); const factory = vi.fn(() => th);
+    const m = createTitleMusic({ volume: 0.3, load: async () => ({ createTitleTheme: factory }), makeContext: () => fakeCtx(), unlockTarget: null });
     m.start(); await flush();
-    m.setVolume(0.3);
-    expect(th.setVolume).toHaveBeenCalledWith(0.3);
+    expect((factory.mock.calls[0] as unknown[])[2]).toMatchObject({ volume: 0.3 });
   });
 });

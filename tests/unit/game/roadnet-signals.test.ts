@@ -164,7 +164,7 @@ describe('RealTrafficLights', () => {
       const n = lights.groupCount(id);
       expect(n).toBeGreaterThanOrEqual(2);
       const cycle = lights.cycleLength(id);
-      expect(cycle).toBeGreaterThanOrEqual(n * (T.yellow + T.allRed + 25));
+      expect(cycle).toBeGreaterThanOrEqual(n * (T.yellow + T.allRed + 18));
       expect(cycle).toBeLessThanOrEqual(n * (T.yellow + T.allRed + 45));
       const l = new RealTrafficLights(realNet, realD, realControl, 0);
       const greens = new Array<number>(n).fill(0);

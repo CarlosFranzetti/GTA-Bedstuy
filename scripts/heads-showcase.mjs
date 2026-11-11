@@ -10,7 +10,7 @@ const a = process.argv.slice(2);
 let port = 4448, views = 'group-front,group-3q,faces', query = '', tag = ''; const rest = [];
 for (let i = 0; i < a.length; i++) { if (a[i] === '--port') port = Number(a[++i]); else if (a[i] === '--views') views = a[++i]; else if (a[i] === '--query') query = a[++i]; else if (a[i] === '--tag') tag = a[++i]; else rest.push(a[i]); }
 const out = resolve(rest[0] ?? 'heads-showcase'); mkdirSync(out, { recursive: true });
-const dev = spawn('node', ['node_modules/vite/bin/vite.js', '--port', String(port), '--strictPort'], { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'] });
+const dev = spawn('node', ['node_modules/vite/bin/vite.js', ...(process.env.HEADS_PATCH ? ['--config', 'scripts/heads-vite.config.ts'] : []), '--port', String(port), '--strictPort'], { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'] });
 for (let i = 0; i < 80; i++) { try { if ((await fetch(`http://localhost:${port}/`)).ok) break; } catch { /* wait */ } await new Promise((r) => setTimeout(r, 250)); }
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const errors = [];

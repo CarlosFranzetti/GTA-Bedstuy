@@ -4,7 +4,7 @@
  * `LaneNode.intersectionId`). Phases are groups of approach legs (signalPhases.ts) instead of "ns / ew".
  *
  * Plan per cluster: group 0 green, yellow (3 s), all red (1 s), group 1 green, ... one common structure, timing from
- * SIGNAL_TIMING (avenue x street 45 / 30, avenue x avenue 40 / 35, three-phase clusters 35 per avenue group, 30 per street
+ * SIGNAL_TIMING (avenue x street 45 / 30, avenue x avenue 40 / 35, three-phase clusters 24 per avenue group, 20 per street
  * group). Green wave exactly as the grid does it: group 0 starts `((x - minX) + (z - minZ)) / waveSpeed` s into the cycle,
  * x, z the cluster centroid, minima over all signalised clusters.
  *
@@ -81,7 +81,8 @@ export class RealTrafficLights {
           if (ave[0] !== ave[1]) return ave[i] ? T.avenueGreen : T.streetGreen;
           return T.streetGreen;
         }
-        return ave[i] ? T.ewAveGreen : T.streetGreen;
+        // three phases: shorter greens keep the cycle near the grid's 83 s so no approach waits more than a minute on red
+        return ave[i] ? 24 : 20;
       });
       const starts: number[] = [];
       let t = 0;

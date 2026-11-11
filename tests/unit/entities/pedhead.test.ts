@@ -70,3 +70,31 @@ describe('face traits and the face morph (pedHead.ts)', () => {
     expect(f.frontZ).toBeLessThan(f.midZ);
   });
 });
+
+describe('head gear (hair, hats, beard) on the scalp', () => {
+  it('builds every hair style and hat at hi and mid with finite, head-skinned geometry under a triangle cap', async () => {
+    const { headGear } = await import('@/entities/models/pedHead');
+    const b = (await nodeFs()).readFileSync(new URL('wh_m.glb', DIR));
+    const shape = await parseShape(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer);
+    const base = PED_SPECS[0];
+    const hairs = ['bald', 'short', 'fade', 'afro', 'braids', 'bun', 'puff', 'long', 'locs', 'peyot', 'curly', 'waves', 'crop', 'bob', 'ponytail', 'thinning', 'twists'] as const;
+    const hats = ['none', 'cap', 'beanie', 'headwrap', 'church', 'flat', 'cop', 'durag', 'hardhat', 'fedora', 'hijab', 'helmet', 'kufi', 'kippah'] as const;
+    const ao = (n: number): Float32Array => new Float32Array(n * 3).fill(1);
+    for (const detail of ['hi', 'mid'] as const) {
+      const L = faceMorph(shape, base, shape.lods[detail]);
+      for (const hair of hairs) for (const hat of hats) {
+        const spec = { ...base, hair, hat, face: { ...base.face, beard: hair === 'short' } } as PedSpec;
+        const parts = headGear(shape, L, ao(L.position.length / 3), spec, detail);
+        let tris = 0;
+        for (const g of parts) {
+          const p = g.getAttribute('position');
+          for (let i = 0; i < p.count * 3; i++) expect(Number.isFinite((p.array as Float32Array)[i]), `${hair}/${hat}`).toBe(true);
+          expect(g.getAttribute('skinIndex')).toBeTruthy(); expect(g.getAttribute('uv')).toBeTruthy();
+          tris += (g.index ? g.index.count : p.count) / 3;
+        }
+        if (process.env.HEADS_LOG && (hat === 'none' || hair === 'short')) console.log(`TRIS ${detail} ${hair}/${hat} ${tris}`);
+        expect(tris, `${detail} ${hair}/${hat}`).toBeLessThan(detail === 'hi' ? 2600 : 1100);
+      }
+    }
+  });
+});

@@ -43,8 +43,8 @@ export function pedTileRect(tile: PedTile, quadrant?: 0 | 1 | 2 | 3): PxRect {
 
 // ---------------------------------------------------------------- the variants
 
-export type HairStyle = 'bald' | 'short' | 'fade' | 'afro' | 'braids' | 'bun' | 'puff' | 'long' | 'locs' | 'peyot' | 'curly';
-export type HatStyle = 'none' | 'cap' | 'beanie' | 'headwrap' | 'church' | 'flat' | 'cop' | 'durag' | 'hardhat' | 'fedora' | 'hijab' | 'helmet';
+export type HairStyle = 'bald' | 'short' | 'fade' | 'afro' | 'braids' | 'bun' | 'puff' | 'long' | 'locs' | 'peyot' | 'curly' | 'waves' | 'crop' | 'bob' | 'ponytail' | 'thinning' | 'twists';
+export type HatStyle = 'none' | 'cap' | 'beanie' | 'headwrap' | 'church' | 'flat' | 'cop' | 'durag' | 'hardhat' | 'fedora' | 'hijab' | 'helmet' | 'kufi' | 'kippah';
 export type TopKind = 'tee' | 'hoodie' | 'puffer' | 'jersey' | 'vest' | 'jacket' | 'cardigan' | 'blouse' | 'uniform' | 'scrubs' | 'dress' | 'tracksuit' | 'apron';
 export type BottomKind = 'jeans' | 'trousers' | 'shorts' | 'skirt' | 'leggings' | 'sweats' | 'cargo';
 export type PedRole = 'civilian' | 'cop' | 'shopkeeper' | 'dj' | 'player';

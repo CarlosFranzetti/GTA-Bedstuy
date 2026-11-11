@@ -45,7 +45,9 @@ const shot = (name, cam) => { renderer.render(scene, cam); out[name] = renderer.
   shot('top-roads', cam);
   blds.forEach((o) => { o.visible = true; });
   shot('top-all', cam);
+  { let vis = 0, tot = 0; rw.streamer.root.traverse((o) => { if (o.isMesh) { tot++; if (o.visible) vis++; } }); out.topInfo = { vis, tot, tris: renderer.info.render.triangles, calls: renderer.info.render.calls, rootVisible: rw.streamer.root.visible, parentVisible: rw.group.visible }; }
 }
+if (params.get('only') === 'top') { window.__ready = { shots: out, top: out.topInfo, standIns: rw.standIns, stats: rw.stats, info: renderer.info.render }; throw new Error('only top'); }
 // 2. under the el on Broadway: on the JZ path between Myrtle and Kosciuszko, looking along it
 {
   const jz = rw.el.paths.find((p) => p.id === 'JZ');
@@ -104,5 +106,5 @@ const shot = (name, cam) => { renderer.render(scene, cam); out[name] = renderer.
     shot('wedge-corner', cam);
   }
 }
-window.__ready = { shots: out, standIns: rw.standIns, stats: rw.stats, bent: out.bentInfo, train: out.trainInfo, wedge: out.wedgeInfo, badBlocks: rw.badBlocks, streamer: rw.streamer.stats(), info: renderer.info.render };
+window.__ready = { shots: out, standIns: rw.standIns, stats: rw.stats, bent: out.bentInfo, top: out.topInfo, train: out.trainInfo, wedge: out.wedgeInfo, badBlocks: rw.badBlocks, streamer: rw.streamer.stats(), info: renderer.info.render };
 </script></body></html>

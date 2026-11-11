@@ -80,6 +80,7 @@ function runReal(seed: number): Run {
     return { ring, box: [a, b, c, e] as const };
   });
   const inBlock = (p: Vec2): boolean => !net.isOnRoad(p) && curbs.some((q) => q.ring.length > 2 && p.x >= q.box[0] && p.x <= q.box[2] && p.z >= q.box[1] && p.z <= q.box[3] && pointInPolygon(p, q.ring));
+  const hist = new Map<string, string[]>();
   const lastPedKey = new Map<string, string>();
   const known = new Set<string>();
 
@@ -103,6 +104,14 @@ function runReal(seed: number): Run {
     if (t > 60) run.minAgentsAfterWarmup = Math.min(run.minAgentsAfterWarmup, movers.length);
     if (t > 30 && step % 60 === 0) { run.pedMin = Math.min(run.pedMin, traffic.peds.length); run.pedMax = Math.max(run.pedMax, traffic.peds.length); }
 
+    if (step % 12 === 0) {
+      for (const v of movers) {
+        const ag = (traffic as unknown as { active: Array<{ agent: { state: string; target: { id: string } | null }; vehicle: IVehicle }> }).active.find((q) => q.vehicle === v)?.agent;
+        let l = hist.get(v.id); if (!l) hist.set(v.id, l = []);
+        l.push(`t${t.toFixed(1)} sp${v.speed.toFixed(1)} ${ag?.state} tgt=${ag?.target?.id}`);
+        if (l.length > 14) l.shift();
+      }
+    }
     if (step % 3 === 0) {
       for (const v of movers) {
         const p = v.body.pos;
@@ -118,7 +127,7 @@ function runReal(seed: number): Run {
           counted.add(key);
           run.stopPasses++;
           const since = redSince.get(`${n.intersectionId}|${n.streetId}`);
-          if (since !== undefined && t - since > 0.5) run.redViolations.push(`${v.id}@${t.toFixed(1)}s ${n.id} red for ${(t - since).toFixed(1)}s at ${v.speed.toFixed(1)} m/s`);
+          if (since !== undefined && t - since > 0.5) { const ag = (traffic as unknown as { active: Array<{ agent: Record<string, unknown>; vehicle: IVehicle }> }).active.find((q) => q.vehicle === v)?.agent; run.redViolations.push(`${v.id}@${t.toFixed(1)}s ${n.id} red for ${(t - since).toFixed(1)}s at ${v.speed.toFixed(1)} m/s state=${String(ag?.state)} goLatch=${String(ag?.goLatch)} stopLatch=${String(ag?.stopLatch)} ignore=${String(ag?.ignoreStop)} local=${traffic.lights && (rt.lights as unknown as { localTime(i: string): number }).localTime(n.intersectionId!).toFixed(1)} cyc=${rt.lights.cycleLength(n.intersectionId!)} groups=${rt.lights.groupCount(n.intersectionId!)} HIST ${(hist.get(v.id) ?? []).join(' ; ')}`); }
         }
       }
       // pedestrians step off a corner only on WALK
@@ -145,6 +154,17 @@ function runReal(seed: number): Run {
     }
   }
   run.agentsSeen = trail.size;
+  const dbg: string[] = [];
+  for (const a of (traffic as unknown as { active: Array<{ agent: { state: string; target: { id: string; stopLine: boolean; intersectionId?: string; streetId: string } | null; previousNodeId: string | null }; vehicle: IVehicle }> }).active) {
+    const h = trail.get(a.vehicle.id);
+    if (!h || h.length < 62) continue;
+    const z = h[h.length - 1], b0 = h[h.length - 61];
+    if (Math.hypot(z.x - b0.x, z.z - b0.z) < 10) {
+      const tg = a.agent.target;
+      dbg.push(`${a.vehicle.id} ${a.agent.state} tgt=${tg?.id} stop=${tg?.stopLine} cl=${tg?.intersectionId} ph=${tg?.intersectionId ? traffic.lights.phaseFor(tg.intersectionId, tg.streetId) : '-'} sig=${tg?.intersectionId ? traffic.lights.hasSignal(tg.intersectionId) : '-'} at ${a.vehicle.body.pos.x.toFixed(0)},${a.vehicle.body.pos.z.toFixed(0)} sp${a.vehicle.speed.toFixed(1)}`);
+    }
+  }
+  (run as unknown as { dbg: string[] }).dbg = dbg;
   for (const [id, h] of trail) {
     for (let i = 0; i + WINDOW < h.length; i++) {
       const a = h[i], z = h[i + WINDOW];
@@ -210,6 +230,7 @@ describe('TrafficSystem on the real map, headless 10 minutes', () => {
     // eslint-disable-next-line no-console
     console.log('REALTRAFFIC', JSON.stringify({ ...R, stuck: R.stuck.length, loopers: R.loopers.join(','), redViolations: R.redViolations.length, pedBadStarts: R.pedBadStarts.length, blockAt: undefined }));
     console.log('STUCKIDS', [...new Set(R.stuck.map((x) => x.split(' ')[0]))].join(','), R.stuck.slice(0, 3).join(' | '));
+    console.log('DBG', ((R as unknown as { dbg: string[] }).dbg).join('\n'));
     console.log('RED', R.redViolations.slice(0, 6).join(' | '));
     console.log('BLOCK', R.blockAt.filter((_, i) => i % 12 === 0).slice(0, 30).join(' | '));
   });

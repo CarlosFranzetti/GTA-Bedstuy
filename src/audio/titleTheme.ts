@@ -4,9 +4,9 @@
  *
  * Arrangement: 4-bar intro once (filtered e-piano chop opening up, drums drop in, scratch), then a 32-bar loop (about 85 s):
  *   0-3 groove | 4-7 groove + hook | 8-11 B-section (ghost snares, scratch) | 12-15 clap + hook (scratch) | 16-19 breakdown + snare roll |
- *   20-23 big (octave hook) | 24-27 B again (scratch) | 28-31 final hook, stop-time rewind into bar 0.
+ *   20-23 big (hook an octave up) | 24-27 B again (scratch) | 28-31 final hook, stop-time rewind into bar 0.
  * Parts: sine/sat 808 sub with slides, punchy kick with click, cracking snare + layered clap, dusty hats with ghosts, chopped
- * Rhodes-ish keys (periodic wave, chorus, 12-bit grit), bell hook, vowel-sample scratch, vinyl crackle, plate reverb, dotted delay.
+ * soft triangle-wave electric piano chops (low-passed), sine-partial hook, vowel-sample scratch, vinyl crackle, plate reverb.
  * Master: saturation, glue compressor, limiter (-3 dB, 20:1), soft ceiling at -1 dBFS.
  */
 import { driveCurve, midiToHz, mulberry32 } from '@/audio/loadingTheme';
@@ -84,20 +84,18 @@ export interface BarPlan {
   /** 0 none, 1 eighths, 2 swung sixteenths. */
   hats: 0 | 1 | 2; open: number;
   bass: number; chop: number;
-  /** 0 none, 1 hook, 2 hook + octave layer. */
+  /** 0 none, 1 hook, 2 hook an octave up. */
   hook: 0 | 1 | 2;
-  scratch: number; crash: boolean; roll: boolean;
+  scratch: number; roll: boolean;
   /** Steps >= end are silent for the band (stop-time). */
   end: number;
 }
-const blank = (): BarPlan => ({ kick: KICKS[0], snare: true, ghost: false, clap: false, hats: 2, open: 0, bass: 1, chop: 1, hook: 0, scratch: -1, crash: false, roll: false, end: 16 });
+const blank = (): BarPlan => ({ kick: KICKS[0], snare: true, ghost: false, clap: false, hats: 2, open: 0, bass: 1, chop: 1, hook: 0, scratch: -1, roll: false, end: 16 });
 
-export const INTRO_PLANS: BarPlan[] = [
-  { ...blank(), kick: [], snare: false, hats: 0, bass: 0, chop: 3 },
-  { ...blank(), kick: [], snare: false, hats: 1, bass: 0 },
-  { ...blank(), kick: [0, 10], snare: false, hats: 1, bass: 3 },
-  { ...blank(), bass: 0, scratch: 0 },
-];
+export const INTRO_PLANS: BarPlan[] = ([
+  { kick: [], snare: false, hats: 0, bass: 0, chop: 3 }, { kick: [], snare: false, hats: 1, bass: 0 },
+  { kick: [0, 10], snare: false, hats: 1, bass: 3 }, { bass: 0, scratch: 0 },
+] as Array<Partial<BarPlan>>).map((o) => ({ ...blank(), ...o }));
 
 export function planForBar(barIn: number): BarPlan {
   const bar = ((barIn % LOOP_BARS) + LOOP_BARS) % LOOP_BARS;
@@ -110,7 +108,6 @@ export function planForBar(barIn: number): BarPlan {
   ];
   Object.assign(p, o[sec]);
   if (j === 3 && sec !== 4) { p.kick = KICKS[2]; if (p.bass === 1) p.bass = 2; }
-  p.crash = j === 0 && (sec === 0 || sec === 3 || sec === 5 || sec === 7);
   p.scratch = ({ 11: 0, 15: 1, 27: 2, 19: 3, 31: 3 } as Record<number, number>)[bar] ?? -1;
   if (bar === 19) p.roll = true;
   if (bar === 31) p.end = 12;
@@ -123,7 +120,7 @@ const curve = (f: (x: number) => number): Float32Array => { const c = new Float3
 /** Soft ceiling: unity for small signals, never above 0.89 (-1 dBFS). */
 export const ceilingCurve = (): Float32Array => curve((x) => 0.89 * Math.tanh(x / 0.89));
 /** Gentle tape-ish saturation (tanh), normalised so full scale stays full scale. */
-export const satCurve = (k = 1.5): Float32Array => curve((x) => Math.tanh(k * x) / Math.tanh(k));
+export const satCurve = (): Float32Array => curve((x) => Math.tanh(1.5 * x) / Math.tanh(1.5));
 /** Vinyl dust: sparse pops of random size plus a faint hiss. Deterministic. */
 export function makeCrackle(sr: number, secs = 6, seed = 77): Float32Array {
   const r = mulberry32(seed), n = Math.floor(sr * secs), d = new Float32Array(n);
@@ -153,7 +150,7 @@ export const rnd = (g: number): number => mulberry32(g)();
 
 // ---------------------------------------------------------------- engine
 export type PartName = 'kick' | 'snare' | 'hats' | 'bass' | 'keys' | 'hook' | 'scratch' | 'crackle';
-export const DEFAULT_MIX: Record<PartName, number> = { kick: 0.4, snare: 0.88, hats: 0.25, bass: 0.12, keys: 0.2, hook: 0.15, scratch: 0.32, crackle: 0.8 };
+export const DEFAULT_MIX: Record<PartName, number> = { kick: 0.22, snare: 0.9, hats: 0.3, bass: 0.05, keys: 0.14, hook: 0.11, scratch: 0.3, crackle: 0.8 };
 
 export interface TitleThemeOptions {
   /** Output level 0..1 (default 0.85). */
@@ -186,8 +183,8 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
   let timer: ReturnType<typeof setInterval> | null = null, finalizeTimer: ReturnType<typeof setTimeout> | null = null;
   const live = new Set<AudioNode>();
   const T = (t: number): number => Math.max(t, ctx.currentTime);
-  let noiseBuf: AudioBuffer | null = null, vowelBuf: AudioBuffer | null = null, wave: PeriodicWave | null = null;
-  let bassOsc: OscillatorNode, bassAmp: GainNode, duckBass: GainNode, duckKeys: GainNode, keysLP: BiquadFilterNode, keysIn: GainNode, kickBus: GainNode, clickBp: BiquadFilterNode, snareIn: BiquadFilterNode, crackBp: BiquadFilterNode, snareBus: GainNode, clapBp: BiquadFilterNode, hatHp: BiquadFilterNode, crashHp: BiquadFilterNode, hookIn: GainNode, scrIn: GainNode, rev: GainNode, dly: GainNode;
+  let noiseBuf: AudioBuffer | null = null, vowelBuf: AudioBuffer | null = null;
+  let bassOsc: OscillatorNode, bassAmp: GainNode, duckBass: GainNode, duckKeys: GainNode, keysLP: BiquadFilterNode, keysIn: GainNode, kickBus: GainNode, snareIn: BiquadFilterNode, crackBp: BiquadFilterNode, snareBus: GainNode, clapBp: BiquadFilterNode, hatHp: BiquadFilterNode, hookIn: GainNode, scrIn: GainNode, rev: GainNode;
   let out: GainNode | null = null;
 
   const track = <A extends AudioNode>(x: A): A => { live.add(x); created++; return x; };
@@ -220,9 +217,6 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     noiseBuf = ctx.createBuffer(1, Math.floor(sr * 2), sr);
     { const d = noiseBuf.getChannelData(0), r = mulberry32(4321); for (let i = 0; i < d.length; i++) d[i] = r() * 2 - 1; }
     vowelBuf = ctx.createBuffer(1, Math.floor(sr * 0.5), sr); vowelBuf.getChannelData(0).set(makeVowel(sr));
-    const h = new Float32Array(10), im = new Float32Array(10);
-    [0, 1, 0.2, 0.07, 0.025, 0.01, 0, 0, 0, 0].forEach((a, i) => { im[i] = a; });
-    wave = ctx.createPeriodicWave(h, im);
 
     // master: sum -> tape saturation -> limiter -> soft ceiling -> out(volume/fade) -> dest
     const o0 = out = track(ctx.createGain()); o0.gain.value = 0; o0.connect(dest);
@@ -231,38 +225,33 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     lim.connect(shaper(ceilingCurve(), o0));
     const sum = gain(1, filt('lowpass', 10500, 0.5, shaper(satCurve(), lim, '2x')));
     const part = (p: PartName, to: AudioNode = sum): GainNode => gain(mix[p], to);
-    const pan = (p: number, from: AudioNode, to: AudioNode): void => { const sp = track(ctx.createStereoPanner()); sp.pan.value = p; from.connect(sp); sp.connect(to); };
 
-    // plate reverb (generated impulse) and dotted-eighth delay
-    const rl = Math.floor(sr * 1.5), imp = ctx.createBuffer(2, rl, sr);
-    for (let c = 0; c < 2; c++) { const d = imp.getChannelData(c), r = mulberry32(600 + c); let lp = 0; for (let i = 0; i < rl; i++) { lp += 0.5 * ((r() * 2 - 1) - lp); d[i] = lp * Math.pow(1 - i / rl, 2.8); } }
+    // plate reverb (generated impulse)
+    const rl = Math.floor(sr * 1.5), imp = ctx.createBuffer(1, rl, sr), d = imp.getChannelData(0), r = mulberry32(600);
+    for (let i = 0, lp = 0; i < rl; i++) { lp += 0.5 * ((r() * 2 - 1) - lp); d[i] = lp * Math.pow(1 - i / rl, 2.8); }
     const conv = track(ctx.createConvolver()); conv.buffer = imp;
     rev = gain(1, conv); conv.connect(gain(0.3, sum));
-    const dl = track(ctx.createDelay(1.5)); dl.delayTime.value = STEP_SEC * 3;
-    const fb = gain(0.3), dlp = filt('lowpass', 1500, 0.5); dly = gain(1, dl);
-    dl.connect(dlp); dlp.connect(fb); fb.connect(dl); dlp.connect(gain(0.5, sum));
-    const send = (from: AudioNode, r: number, d: number): void => { if (r > 0) from.connect(gain(r, rev)); if (d > 0) from.connect(gain(d, dly)); };
+    const send = (from: AudioNode, r: number): void => { if (r > 0) from.connect(gain(r, rev)); };
 
     // 808: sine -> amp -> drive -> low-pass -> duck -> bus
     duckBass = gain(1, part('bass')), duckKeys = gain(1);
     const bassLp = filt('lowpass', 800, 0.6, duckBass), bassSh = shaper(driveCurve(2.6), bassLp);
     bassAmp = gain(0, gain(2.2, bassSh));
     bassOsc = osc('sine', 49, bassAmp);
-    // keys: periodic-wave voices -> low-pass -> chorus + 12-bit grit -> bus
-    const keysBus = part('keys'); pan(-0.15, duckKeys, keysBus); send(keysBus, 0.16, 0.14);
+    // keys: triangle voices -> low-pass -> bus
+    const keysBus = part('keys'); duckKeys.connect(keysBus); send(keysBus, 0.16);
     keysIn = gain(1), keysLP = filt('lowpass', 2300, 0.5, duckKeys);
     keysIn.connect(keysLP);
     // hook: bell -> low-pass -> bus
-    hookIn = gain(1); const hookBus = part('hook'), hookLp = filt('lowpass', 3000, 0.5); hookIn.connect(hookLp); pan(0.2, hookLp, hookBus); send(hookBus, 0.28, 0.34);
+    hookIn = gain(1); const hookBus = part('hook'), hookLp = filt('lowpass', 3000, 0.5); hookIn.connect(hookLp); hookLp.connect(hookBus); send(hookBus, 0.28);
     // drums
-    kickBus = part('kick'), clickBp = filt('bandpass', 2600, 1, kickBus);
+    kickBus = part('kick');
     snareBus = part('snare'); snareIn = filt('highpass', 1300, 0.7, snareBus), crackBp = filt('bandpass', 3400, 0.6, snareBus), clapBp = filt('bandpass', 1700, 0.5, snareBus);
-    send(snareBus, 0.2, 0);
-    const hatBus = part('hats'), hatLp = filt('lowpass', 13000, 0.5); hatHp = filt('highpass', 6500, 0.6, hatLp); pan(0.25, hatLp, hatBus);
-    crashHp = filt('highpass', 5000, 0.7, hatBus);
+    send(snareBus, 0.2);
+    const hatBus = part('hats'), hatLp = filt('lowpass', 13000, 0.5); hatHp = filt('highpass', 6500, 0.6, hatLp); hatLp.connect(hatBus);
     // scratch: vowel record -> band -> grit -> bus
-    scrIn = gain(1); const scrBus = part('scratch'), scrHp = filt('highpass', 260, 0.7), scrLp = filt('lowpass', 4800, 0.6);
-    scrIn.connect(scrHp); scrHp.connect(shaper(driveCurve(1.6), scrLp)); pan(0.1, scrLp, scrBus); send(scrBus, 0.25, 0.1);
+    scrIn = gain(1); const scrBus = part('scratch'), scrLp = filt('lowpass', 4800, 0.6);
+    scrIn.connect(shaper(driveCurve(1.6), scrLp)); scrLp.connect(scrBus); send(scrBus, 0.25);
     // vinyl crackle, constant
     const cb = ctx.createBuffer(1, Math.floor(sr * 6), sr); cb.getChannelData(0).set(makeCrackle(sr));
     const cs = bufSrc(cb, filt('highpass', 500, 0.7, filt('lowpass', 9000, 0.7, part('crackle')))); cs.loop = true;
@@ -282,11 +271,10 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     release([noise(tt, off, dur, g)], [g]);
   }
   function kick(t: number, v: number): void {
-    const tt = T(t), g = gain(0, kickBus), o = osc('sine', 160, g);
-    o.frequency.exponentialRampToValueAtTime(64, tt + 0.05);
+    const tt = T(t), g = gain(0, kickBus), o = osc('sine', 230, g);
+    o.frequency.exponentialRampToValueAtTime(64, tt + 0.045);
     g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(v, tt + 0.002); g.gain.setTargetAtTime(0, tt + 0.012, 0.075);
     o.start(tt); o.stop(tt + 0.45); release([o], [g]);
-    hit(clickBp, tt, t * 3.7, 0.03, v * 0.6, 0.003);
   }
   function snare(t: number, g16: number, v: number, ghost: boolean): void {
     const tt = T(t), body = gain(0, snareBus), to = osc('triangle', 205, body), k = ghost ? 0.3 : 1;
@@ -298,7 +286,6 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
   }
   const clap = (t: number, g16: number): void => hit(clapBp, T(t), g16 * 0.31 + 0.5, 0.3, 0.8, 0.012, 4, 0.011);
   const hat = (t: number, g16: number, v: number, open: boolean): void => hit(hatHp, T(t), g16 * 0.0917, open ? 0.4 : 0.07, v, open ? 0.08 : 0.011);
-  const crash = (t: number, g16: number): void => hit(crashHp, T(t), g16 * 0.05, 1.8, 0.45, 0.4);
   function bassNote(t: number, midi: number, lenSteps: number, slide: boolean): void {
     const f = midiToHz(midi), tt = T(t), end = tt + Math.max(0.08, lenSteps * STEP_SEC * 0.94);
     bassOsc.frequency.setValueAtTime(slide ? prevBass : f, tt);
@@ -314,7 +301,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     a.setValueAtTime(0, tt); a.linearRampToValueAtTime(vel * 0.3, tt + 0.004); a.setTargetAtTime(vel * 0.14, tt + 0.004, 0.3); a.setTargetAtTime(0, end, 0.014);
     const srcs: Src[] = [];
     for (const m of chord.keys) {
-      const o = osc('sine', midiToHz(m), g); o.setPeriodicWave(wave!);
+      const o = osc('triangle', midiToHz(m), g);
       o.start(tt); o.stop(end + 0.2); srcs.push(o);
     }
     release(srcs, [g]);
@@ -348,22 +335,21 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
       if (bar === 16) keysLP.frequency.setTargetAtTime(900, T(t), 0.3);
       if (bar === 20) keysLP.frequency.setTargetAtTime(3200, T(t), 0.08);
     }
-    if (step === 0 && p.crash) crash(t, gs);
     if (step < p.end) {
       if (p.kick.includes(step)) { kick(ts, step === 0 ? 1 : 0.85); duck(ts, 0.3); }
       if (p.snare && (step === 4 || step === 12)) snare(t + 0.006, gs, 1, false);
       if (p.clap && (step === 4 || step === 12)) clap(t + 0.006, gs);
-      if (p.ghost && (step === 9 || step === 14) && rnd(gs) > 0.3) snare(ts, gs, 0.22, true);
+      if (p.ghost && (step === 9 || step === 14)) snare(ts, gs, 0.22, true);
       if (p.roll && step >= 8) snare(t, gs, 0.3 + (step - 8) * 0.08, false);
       if (p.hats > 0 && (p.hats === 2 || (step & 1) === 0) && !((step & 1) && rnd(gs + 7) > 0.84)) {
-        hat(ts + (rnd(gs + 3) - 0.5) * 0.006, gs, (step % 4 === 0 ? 0.52 : step % 2 === 0 ? 0.34 : 0.16) * (p.hats === 1 ? 0.75 : 1) * (0.9 + 0.2 * rnd(gs + 5)), step === p.open);
+        hat(ts, gs, (step % 4 === 0 ? 0.52 : step % 2 === 0 ? 0.34 : 0.16) * (p.hats === 1 ? 0.75 : 1) * (0.9 + 0.2 * rnd(gs + 5)), step === p.open);
       }
       for (const [s, off, len, sl] of BASS[p.bass]) if (s === step) bassNote(ts, chord.root + off, len, sl === 1);
       for (const [s, gate, vel] of CHOP[p.chop]) if (s === step) keysHit(ts, chord, gate, vel);
     }
     if (p.hook > 0) {
       const hb = pos.intro ? bar : bar & 3;
-      for (const [s, m, len] of HOOK[hb]) if (s === step) { hookNote(ts, m, len, 1); if (p.hook === 2) hookNote(ts, m + 12, len, 0.45); }
+      for (const [s, m, len] of HOOK[hb]) if (s === step) hookNote(ts, m + (p.hook === 2 ? 12 : 0), len, 1);
     }
     if (p.scratch >= 0 && step === 0) scratch(t, SCRATCH[p.scratch]);
   }
@@ -385,7 +371,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
       try { (x as unknown as { onended: unknown }).onended = null; } catch { /* ignore */ }
       try { x.disconnect(); } catch { /* already disconnected */ }
     }
-    live.clear(); noiseBuf = null; vowelBuf = null; wave = null; out = null;
+    live.clear(); noiseBuf = null; vowelBuf = null; out = null;
   }
 
   return {

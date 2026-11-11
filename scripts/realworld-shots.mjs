@@ -18,10 +18,10 @@ try {
   const page = await browser.newPage({ viewport: { width: w, height: h } });
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 300)); });
   page.on('pageerror', (e) => errors.push(String(e).slice(0, 300)));
-  await page.goto(`http://localhost:${port}/scripts/realworld-shots.html?w=${w}&h=${h}`, { waitUntil: 'load', timeout: 300000 });
+  await page.goto(`http://localhost:${port}/scripts/realworld-shots.html?w=${w}&h=${h}${process.env.ONLY ? '&only=' + process.env.ONLY : ''}`, { waitUntil: 'load', timeout: 300000 });
   await page.waitForFunction(() => window.__ready, null, { timeout: 900000 });
   const r = await page.evaluate(() => window.__ready);
   for (const [name, url] of Object.entries(r.shots)) { if (typeof url === 'string') { writeFileSync(`${out}/${name}.png`, Buffer.from(url.split(',')[1], 'base64')); console.log(`${out}/${name}.png`); } }
-  console.log(JSON.stringify({ standIns: r.standIns, stats: r.stats, bent: r.bent, train: r.train, wedge: r.wedge, badBlocks: r.badBlocks, streamer: r.streamer, lastFrame: r.info }));
+  console.log(JSON.stringify({ standIns: r.standIns, stats: r.stats, bent: r.bent, top: r.top, train: r.train, wedge: r.wedge, badBlocks: r.badBlocks, streamer: r.streamer, lastFrame: r.info }));
 } finally { await browser.close(); dev.kill(); }
 if (errors.length) console.error('errors', errors.slice(0, 6));

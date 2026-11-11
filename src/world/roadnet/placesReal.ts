@@ -18,7 +18,8 @@
  */
 import type { Vec2 } from '@/core/Math2';
 import type { PoiDef, Side } from '@/world/types';
-import { INTERIORS, type DoorDef, type InteriorId } from '@/world/interiors/defs';
+import { INTERIORS, doorTrigger, type DoorDef, type InteriorId } from '@/world/interiors/defs';
+import { NAV_TARGETS } from '@/game/missions/NavTargets';
 import type { Derived } from './derive';
 import type { RealFace } from './faces';
 import { fitFootprint } from './buildingsReal';
@@ -55,7 +56,7 @@ const lerp2 = (a: Vec2, b: Vec2, t: number): Vec2 => ({ x: a.x + (b.x - a.x) * t
 
 /** the real blocks (north to south) that make up a grid block, or null when the real map has no such block */
 export function matchGridBlock(net: RoadNet, d: Derived, faces: RealFace[][], names: { n: string; s: string; e: string; w: string }): number[] | null {
-  const has = (bi: number, street: string, side: Side): boolean => faces[bi].some((f) => f.streetId === slug(street) && f.side === side);
+  const has = (bi: number, street: string, side: Side): boolean => faces[bi].some((f) => slug(net.edges[f.edge].name) === slug(street) && f.side === side);
   const centre = (bi: number): Vec2 => {
     const r = d.buildingRings[bi];
     return { x: r.reduce((a, p) => a + p.x, 0) / r.length, z: r.reduce((a, p) => a + p.z, 0) / r.length };
@@ -123,7 +124,7 @@ export class RealPlaces {
     if (b && b.real.length) {
       const street = { N: b.n, S: b.s, E: b.e, W: b.w }[side];
       const found: Array<{ face: RealFace; block: number; index: number }> = [];
-      for (const bi of b.real) this.faces[bi].forEach((f, index) => { if (f.streetId === slug(street) && f.side === side) found.push({ face: f, block: bi, index }); });
+      for (const bi of b.real) this.faces[bi].forEach((f, index) => { if (slug(this.net.edges[f.edge].name) === slug(street) && f.side === side) found.push({ face: f, block: bi, index }); });
       if (found.length) {
         const lead = found.reduce((m, x) => (distance(x.face.a, x.face.b) > distance(m.face.a, m.face.b) ? x : m), found[0]).face;
         const dl = Math.hypot(lead.b.x - lead.a.x, lead.b.z - lead.a.z) || 1;
@@ -295,7 +296,34 @@ export class RealPlaces {
     return this.net.nodes[reached].p;
   }
 
+  /** the centreline point of a street (grid street id) nearest `near`: replaces the grid's literal `{ x: contractor.x, z: -100 }` style route ends */
+  onStreet(streetId: string, near: Vec2): Vec2 {
+    const name = slug(this.table.streets[streetId] ?? '');
+    const h = this.net.nearestEdge(near, 600, (e) => slug(this.net.edges[e].name) === name);
+    if (!h) throw new Error(`street ${streetId} is not on the real map near the point`);
+    return h.point;
+  }
+
   // ---- words for humans
+
+  /** "836 Dekalb Ave; fronts Throop Ave (east side), 14 m from Pulaski St" for a lot, from its own face */
+  describeLot(lot: RealLot, address = ''): string {
+    const f = this.faces[lot.block][lot.face];
+    const street = this.net.edges[f.edge].name;
+    const mid = { x: (lot.frontA.x + lot.frontB.x) / 2, z: (lot.frontA.z + lot.frontB.z) / 2 };
+    const sideWord = { N: 'south', S: 'north', E: 'west', W: 'east' }[f.side];
+    let best = { d: Infinity, cross: '' };
+    this.net.nodes.forEach((n, v) => {
+      if (this.net.incident[v].length < 3) return;
+      const names = this.net.incident[v].map((e) => this.net.edges[e].name);
+      if (!names.includes(street)) return;
+      const cross = names.find((x) => x !== street && x !== '');
+      const dd = Math.hypot(n.p.x - mid.x, n.p.z - mid.z);
+      if (cross && dd < best.d) best = { d: dd, cross };
+    });
+    const where = Number.isFinite(best.d) ? `, ${Math.round(best.d)} m from ${best.cross}` : '';
+    return `${address ? `${address.replace(/\b(\w)(\w*)/g, (_m, a: string, b: string) => a + b.toLowerCase())}; ` : ''}fronts ${street} (${sideWord} side)${where}`;
+  }
 
   /** "Throop Ave, west side, between Pulaski St and Kosciuszko St, 31 m from Kosciuszko St" for a point t along a grid face */
   describe(blockId: string, side: Side, t: number): string {
@@ -352,4 +380,31 @@ export function pickLotOnChain(places: RealPlaces, chain: FaceChain, t: number, 
     }
   }
   return best;
+}
+
+/** fallback: the best-fitting lot within `radius` m of a point (tier first, then distance), on any face */
+export function pickLotNear(places: RealPlaces, p: Vec2, kind: LotFit, used: ReadonlySet<string>, radius: number, blocks?: ReadonlySet<number>, street?: string, maxTier = 99): { lot: RealLot; tier: number; offsetM: number } | null {
+  let best: { lot: RealLot; tier: number; offsetM: number; score: number } | null = null;
+  for (const lot of places.lots) {
+    if (used.has(lot.bbl) || (blocks && !blocks.has(lot.block))) continue;
+    if (street && places.faces[lot.block][lot.face].streetId !== street) continue;
+    const mid = { x: (lot.frontA.x + lot.frontB.x) / 2, z: (lot.frontA.z + lot.frontB.z) / 2 };
+    const off = Math.hypot(mid.x - p.x, mid.z - p.z);
+    if (off > radius) continue;
+    const tier = fitTier(lot, kind);
+    if (tier === null || tier > maxTier) continue;
+    const score = tier * 10000 + off;
+    if (!best || score < best.score) best = { lot, tier, offsetM: off, score };
+  }
+  return best;
+}
+
+/**
+ * Moves the shared door table onto the real map: INTERIORS[id].door (read by Interiors, the door gaps, the night bounce and the
+ * DJ ids at call time) and the NAV_TARGETS entries (computed once at module load) are updated in place. Call once, before the
+ * interiors are built. No default-path file changes.
+ */
+export function applyRealDoors(places: RealPlaces): void {
+  for (const id of Object.keys(INTERIORS) as InteriorId[]) Object.assign(INTERIORS[id].door, places.interiorDoor(id));
+  for (const t of NAV_TARGETS) { const p = doorTrigger(INTERIORS[t.id]); t.x = p.x; t.z = p.z; }
 }

@@ -23,10 +23,7 @@ export interface TitleMusic {
   start(): void;
   /** Fade out and free everything. Safe before the module finished loading (the tune then never starts). */
   stop(fadeSec?: number): void;
-  setVolume(v: number): void;
   readonly playing: boolean;
-  /** true once a usable theme module was found */
-  readonly available: boolean;
 }
 
 const UNLOCK = ['pointerdown', 'keydown', 'touchstart'];
@@ -37,15 +34,13 @@ export function createTitleMusic(opts: TitleMusicOptions = {}): TitleMusic {
   const makeContext = opts.makeContext ?? ((): AudioContext | null => {
     try { const w = globalThis as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }; const C = w.AudioContext ?? w.webkitAudioContext; return C ? new C() : null; } catch { return null; }
   });
-  let volume = opts.volume ?? 0.8, ctx: AudioContext | null = null, theme: TitleThemeApi | null = null, gen = 0, busy = false, usable = false, unlock: (() => void) | null = null;
+  const volume = opts.volume ?? 0.8; let ctx: AudioContext | null = null, theme: TitleThemeApi | null = null, gen = 0, busy = false, unlock: (() => void) | null = null;
   const target = (): Hook => (opts.unlockTarget !== undefined ? opts.unlockTarget : typeof (globalThis as { addEventListener?: unknown }).addEventListener === 'function' ? (globalThis as unknown as Hook) : null);
   const unhook = (): void => { const t = target(), f = unlock; unlock = null; if (t && f) for (const e of UNLOCK) t.removeEventListener(e, f); };
   const free = (c: AudioContext | null, fade: number): void => { if (c) setTimeout(() => { try { void c.close(); } catch { /* already closed */ } }, Math.max(0, fade) * 1000 + 300); };
 
   return {
     get playing(): boolean { return !!theme?.playing; },
-    get available(): boolean { return usable; },
-    setVolume(v: number): void { volume = v; try { theme?.setVolume(v); } catch { /* ignore */ } },
     start(): void {
       if (busy || theme) return;
       busy = true;
@@ -54,7 +49,6 @@ export function createTitleMusic(opts: TitleMusicOptions = {}): TitleMusic {
         try {
           const factory = (await load()).createTitleTheme;
           if (typeof factory !== 'function') return;
-          usable = true;
           if (my !== gen) return; // stopped while loading
           const c = makeContext();
           if (!c) return;

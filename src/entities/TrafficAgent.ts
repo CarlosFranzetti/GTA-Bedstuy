@@ -126,6 +126,8 @@ const FLANK_RAY = 0.75;
 /** a car (slower than FLANK_PED_SPEED) waits while a pedestrian is within FLANK_PED_MARGIN of its body */
 const FLANK_PED_SPEED = 2.5;
 const FLANK_PED_MARGIN = 1;
+/** share of the half length that the tail swings sideways out of a turn */
+const FLANK_TAIL_SWING = 0.5;
 const FLANK_HOLD_MAX = 6;
 const FLANK_IGNORE_FOR = 5;
 /** do not block the box: a stop line is not entered while the exit lane is jammed this far past the box edge; a hopeless wait ends after BOX_JAM_MAX */
@@ -943,7 +945,10 @@ export class TrafficAgent {
     this.pedFlankMoving = false;
     const halfL = b.shape.kind === 'obb' ? b.shape.halfL : 2.2;
     const halfW = b.shape.kind === 'obb' ? b.shape.halfW : 1;
-    const list = this.world.queryCircle(b.pos, halfL + FLANK_PED_MARGIN + halfW);
+    // a car pulling out of a turn swings its tail out as it yaws (about halfL * sin(yaw) beyond the body): the walker beside the
+    // rear quarter is inside that sweep, not beside the body
+    const swing = Math.abs(this.legTurn) > TURN_MIN || Math.abs(this.preTurn) > TURN_MIN ? halfL * FLANK_TAIL_SWING : 0;
+    const list = this.world.queryCircle(b.pos, halfL + FLANK_PED_MARGIN + halfW + swing);
     for (let i = 0; i < list.length; i++) {
       const o = list[i];
       if (o.kind !== 'ped' && o.kind !== 'player') continue;
@@ -951,7 +956,7 @@ export class TrafficAgent {
       const rz = o.pos.z - b.pos.z;
       const along = rx * fx + rz * fz;
       if (along < -(halfL + FLANK_PED_MARGIN) || along > halfL + FLANK_PED_MARGIN) continue;
-      if (Math.abs(rx * -fz + rz * fx) <= halfW + FLANK_PED_MARGIN) {
+      if (Math.abs(rx * -fz + rz * fx) <= halfW + FLANK_PED_MARGIN + swing) {
         if (hyp(o.vel.x, o.vel.z) > 0.4) this.pedFlankMoving = true;
         return true;
       }

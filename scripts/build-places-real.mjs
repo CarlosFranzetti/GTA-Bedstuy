@@ -69,7 +69,7 @@ async function main() {
     }
     const places = new pr.RealPlaces({ net, derived: d, faces, lots, table, pois: data.pois });
     const used = new Set();
-    const entry = (lot, blockId, side, t, kind) => ({ bbl: lot.bbl, ad: adOf.get(lot.bbl) ?? '', at: places.describe(blockId, side, t), t: Math.round(t * 1000) / 1000, ...(kind ? { kind } : {}) });
+    const entry = (lot, blockId, side, t, kind) => ({ bbl: lot.bbl, ad: adOf.get(lot.bbl) ?? '', at: places.describeLot(lot, adOf.get(lot.bbl) ?? ''), t: Math.round(t * 1000) / 1000, ...(kind ? { kind } : {}) });
 
     // ---- interiors first (they need the best lots), then the shops
     const interiorSpec = {
@@ -80,7 +80,8 @@ async function main() {
     };
     for (const [id, s] of Object.entries(interiorSpec)) {
       const ch = places.chain(s.block, s.side);
-      const pick = ch && pr.pickLotOnChain(places, ch, s.t, s.fit, used);
+      let pick = ch && pr.pickLotOnChain(places, ch, s.t, s.fit, used);
+      if (!pick && ch) pick = pr.pickLotNear(places, places.frontage(s.block, s.side, s.t).p, s.fit, used, 400, undefined, pr.slug(ch.street), 1) ?? pr.pickLotNear(places, places.frontage(s.block, s.side, s.t).p, s.fit, used, 400);
       if (!pick) throw new Error(`no lot for interior ${id}`);
       used.add(pick.lot.bbl);
       table.interiors[id] = entry(pick.lot, s.block, s.side, s.t, `${s.fit} tier ${pick.tier}, ${Math.round(pick.offsetM)} m from the grid spot`);
@@ -88,10 +89,19 @@ async function main() {
     for (const p of data.pois) {
       const ch = places.chain(p.block, p.face);
       const fit = POI_FIT[p.archetype] ?? 'shop';
-      const pick = ch && pr.pickLotOnChain(places, ch, p.t, fit, used);
-      if (!pick) { console.warn(`poi ${p.id}: no lot on ${p.block}/${p.face}`); continue; }
+      let pick = ch && pr.pickLotOnChain(places, ch, p.t, fit, used);
+      let how = 'on the face';
+      if (!pick && ch) {
+        // the face carries no fitting lot (avenue ends have few): same street first, then the block, then the map
+        const pt = places.frontage(p.block, p.face, p.t).p;
+        pick = pr.pickLotNear(places, pt, fit, used, 400, undefined, pr.slug(ch.street), 1);
+        how = 'nearest fitting lot on the same street';
+        if (!pick) { pick = pr.pickLotNear(places, pt, fit, used, 400, new Set(table.blocks[p.block].real)); how = 'nearest fitting lot in the same real block(s)'; }
+        if (!pick) { pick = pr.pickLotNear(places, pt, fit, used, 600); how = 'nearest fitting lot on the map (none nearer)'; }
+      }
+      if (!pick) { console.warn(`poi ${p.id}: no lot near ${p.block}/${p.face}`); continue; }
       used.add(pick.lot.bbl);
-      table.pois[p.id] = entry(pick.lot, p.block, p.face, p.t, `${fit} tier ${pick.tier}, ${Math.round(pick.offsetM)} m from the grid spot`);
+      table.pois[p.id] = entry(pick.lot, p.block, p.face, p.t, `${fit} tier ${pick.tier}, ${how}, ${Math.round(pick.offsetM)} m from the grid spot`);
     }
 
     // ---- every spot the content uses
@@ -119,7 +129,17 @@ async function main() {
           const dd = Math.hypot(mid.x - p.x, mid.z - p.z);
           if (!best || dd < best.dd) best = { l, dd };
         }
-        words = places.describe(blockId, side, t);
+        if (!best) {
+          // the face itself carries no lot (an avenue end): the nearest lot anywhere
+          for (const l of places.lots) {
+            if (l.wedge || l.type === 'vacant') continue;
+            const mid = { x: (l.frontA.x + l.frontB.x) / 2, z: (l.frontA.z + l.frontB.z) / 2 };
+            const dd = Math.hypot(mid.x - p.x, mid.z - p.z);
+            if (!best || dd < best.dd) best = { l, dd };
+          }
+          if (best) words = 'face has no lot; ';
+        }
+        words = (words.startsWith('face has') ? words : '') + places.describe(blockId, side, t);
         if (best) { bbl = best.l.bbl; ad = adOf.get(bbl) ?? ''; }
       }
       table.anchors.push([blockId, side, t, bbl, ad, words]);
