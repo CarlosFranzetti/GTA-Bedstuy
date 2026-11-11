@@ -12,6 +12,8 @@ import { HD_VOICES, type TtsEngine } from './types';
 import type { SpeechLike, UtteranceLike } from '../talk/TalkPlayer';
 
 export const HD_STORAGE_KEY = 'wbsy.hdVoices';
+/** Set to '1' to try WebGPU (fp32, about 326 MB) instead of WASM q8. Off by default: not yet verified on real GPUs. */
+export const HD_GPU_KEY = 'wbsy.hdGpu';
 
 export interface StorageLike { getItem(k: string): string | null; setItem(k: string, v: string): void }
 
@@ -103,10 +105,14 @@ export class VoiceHub {
 
   private maybeLoad(): void {
     if (!this.enabled || !this.gesture || this._engine) return;
-    const eng = this.opts.engineFactory ? this.opts.engineFactory() : new NeuralTts({ warn: this.opts.warn });
+    const eng = this.opts.engineFactory ? this.opts.engineFactory() : new NeuralTts({ warn: this.opts.warn, device: this.gpuRequested() ? 'webgpu' : 'wasm' });
     this._engine = eng;
     this._state = 'loading';
     eng.load().then(() => this.refresh(), () => this.refresh());
+  }
+
+  private gpuRequested(): boolean {
+    try { return this.opts.storage?.getItem(HD_GPU_KEY) === '1'; } catch { return false; }
   }
 
   private refresh(): void {

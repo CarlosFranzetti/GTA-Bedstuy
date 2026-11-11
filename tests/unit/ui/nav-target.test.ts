@@ -69,8 +69,7 @@ describe('navigation targets (H6: HOME was invisible)', () => {
   it('the pause menu carries a minimap legend (you, offer, goal, HOME, deli, police, north)', () => {
     const menu = new Menu(root, {} as never, { storage: null });
     menu.open();
-    root.querySelector<HTMLElement>('.gp-cats [data-id="cat:game"]')!.click();
-    const items = [...root.querySelectorAll('.gp-pane-settings .gp-opts .gp-row')].filter((r) => (r as HTMLElement).dataset.id!.startsWith('l:')).map((r) => r.textContent);
+    const items = [...root.querySelectorAll('.gp-pane-settings .gp-list .gp-row')].filter((r) => (r as HTMLElement).dataset.id!.startsWith('l:')).map((r) => r.textContent);
     expect(items.length).toBe(MINIMAP_LEGEND.length);
     expect(items.join('|')).toMatch(/You.*offer.*goal.*HOME.*WAX DELI.*Police.*north/is);
     menu.dispose();

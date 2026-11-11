@@ -101,3 +101,8 @@ To look at the hosted build locally: `npm run build:hosted && npx vite preview -
 Two avenue-to-avenue columns (Tompkins Ave → Throop Ave → Marcus Garvey Blvd) by five
 street-to-street rows (Hart St, Pulaski St, Kosciuszko St, Lafayette Ave, Van Buren St,
 Greene Ave). Dimensions are approximate; corrections go in the data file.
+
+
+## Desktop apps (macOS Apple Silicon, Windows)
+
+Electron builds of the game live in `native/`; CI (`.github/workflows/native.yml`) produces a dmg/zip for Apple Silicon and an installer plus portable exe for Windows x64. Unsigned builds need a one-time "Open anyway" step. See [docs/NATIVE.md](docs/NATIVE.md).

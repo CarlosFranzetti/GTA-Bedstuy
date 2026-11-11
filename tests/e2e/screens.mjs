@@ -161,8 +161,8 @@ async function capture() {
     // (world.transit); the clock of the trains is set so the west-bound train stands at the Flushing Av platform with its doors open.
     const atStation = (id, station) => dbg(([id, station]) => { const t = window.__gtaDebug.transit; if (!t) return -1; for (let s = 0; s < 240; s += 0.5) { t.setTime(s); const st = t.stateOf(id); if (st.phase === 'dwell' && st.station === station && st.doors > 0.99) return s; } return -1; }, [id, station]);
     await moveTo(330, -470); await atStation('eb', 0);
-    await freeCam([285, 2.3, -486, 372, 9.6, -500]); await hour(12); await shot('11-flushing-el', 12);
-    await freeCam([352, 1.8, -488, 392, 10.2, -500]); await hour(19.3); await shot('12-el-train-dusk', 19.3);
+    await freeCam([300, 24, -455, 385, 9.5, -500]); await hour(12); await shot('11-flushing-el', 12);
+    await freeCam([222, 2.4, -497, 350, 9.2, -500]); await hour(19.3); await shot('12-el-train-dusk', 19.3);
     await moveTo(6, -520); await freeCam([6, 2.4, -515, 1, 6, -590]); await hour(12); await shot('13-wburg-row', 12);
     await moveTo(200, -300); await freeCam([205, 95, -215, 205, 0, -520]); await hour(17.5); await shot('14-north-aerial', 17.5);
   } finally {

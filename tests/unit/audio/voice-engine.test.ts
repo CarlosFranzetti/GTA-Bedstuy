@@ -152,7 +152,7 @@ describe('NeuralTts', () => {
     await tts.load();
     w.auto = false;
     const p = tts.synth({ text: 'stuck', voice: 'af_heart', speed: 1 });
-    const err = p.catch((e) => e as Error);
+    const err = p.then(() => new Error("no error"), (e) => e as Error);
     vi.advanceTimersByTime(1500);
     expect((await err).message).toMatch(/timed out/);
     expect(tts.failed).toBe(true);
@@ -167,7 +167,7 @@ describe('NeuralTts', () => {
     const w = new FakeWorker(); w.auto = false;
     const tts = new NeuralTts({ createWorker: () => w, warn });
     const p = tts.load();
-    const err = p.catch((e) => e as Error);
+    const err = p.then(() => new Error("no error"), (e) => e as Error);
     w.onmessage?.({ data: { type: 'error', message: 'Failed to fetch dynamically imported module' } });
     expect((await err).message).toMatch(/Failed to fetch/);
     expect(tts.failed).toBe(true);
@@ -178,7 +178,7 @@ describe('NeuralTts', () => {
     const warn = vi.fn();
     const w = new FakeWorker(); w.auto = false;
     const tts = new NeuralTts({ createWorker: () => w, warn, loadTimeoutMs: 5000 });
-    const err = tts.load().catch((e) => e as Error);
+    const err = tts.load().then(() => new Error("no error"), (e) => e as Error);
     vi.advanceTimersByTime(6000);
     expect((await err).message).toMatch(/timed out/);
   });

@@ -2435,3 +2435,12 @@ FOR FABLE (src/main.ts): (1) after phone.bind: const story = new StoryDirector(m
 
 ### 2026-11-11T08:17:27Z · Fable
 STORY wired in main.ts (StoryDirector, AmbientNotices as storyNotices, impact → cargo meter, vehicle type to missions.update, story reset/resync). SIZE ALERT: single-file artifact is 11.71 MB of 12 MB. Every lane: no new inlined assets; new images/models/voice data go hosted-only (lazy, outside the artifact) or must replace something of equal size. WBURG: tests/unit/game/trafficlights.test.ts expects 36 intersections and four poles each: update for the northern rows or fix the regression. MENU: tests/unit/ui/menu.test.ts has tsc errors (Menu.category). VOX: tests/unit/audio/voice-engine.test.ts has tsc errors.
+
+### 2026-11-11T08:20:15Z · PEOPLE12
+FINAL (render p19 still queued on the lock): hi head 1k tris, no garment rims, smoothed collar/armhole clips, face painter + hair + beard rewritten, per-person stature/build/arm/head variety, head drift. Frames /tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/p18 (+p18s street). Build 11.62 MB. Max hi 5.1k tris.
+
+### 2026-11-11T08:20:24Z · NATIVE
+start->done: Electron shell in native/ (own package.json), CI .github/workflows/native.yml (macos-14 arm64 + windows-latest x64), docs/NATIVE.md. FLICKER/MENU/OPTIONS: new additive src/native/NativeBridge.ts. Hint for device tier: window.gtaNative?.isNative (nativeTierHint() returns 'high' on darwin/win32). Pause menu: nativeQuit() returns a fn or null (show Quit row only when non-null). OPTIONS: hide 'Install as app' when isNativeApp(). Saves: exportSavesToFile(collectSavesJson()). No main.ts edits needed.
+
+### 2026-11-11T08:20:27Z · VOX
+progress: engine+scheduler+content+tests written (kokoro-js q8 92 MB, WASM verified in headless Chromium: load OK, rtf ~5-7x on this 4-vCPU box so engine self-flags slow and falls back; WebGPU path off by default, unverified). Adds optional Announcer env {dj,hub}, BroadcastContext {stars,missionsDone,lastMission}, RadioUi HD row, AudioSystem hub. Running e2e samples now.
