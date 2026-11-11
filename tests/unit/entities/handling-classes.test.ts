@@ -58,15 +58,17 @@ describe('CARS14 handling classes', () => {
     const rwd = turnRadius('jdmcoupe', 1), fwd = turnRadius('hothatch', 1);
     expect(rwd).toBeLessThan(fwd);
   });
-  it('electric cars hold their pull to higher speed: evsedan is quicker than muscle from 50% to 90% of top speed', () => {
-    const span = (type: VehicleType) => {
-      const v = make(type); v.setInput(input({ throttle: 1 })); let a = 0, b = 0;
-      for (let i = 1; i <= 60 * 40; i++) { v.update(1 / 60); const f = v.speed / v.spec.maxSpeed; if (!a && f >= 0.5) a = i / 60; if (f >= 0.9) { b = i / 60; break; } }
-      return b - a;
+  it('electric cars flag electric and keep torque flat: evsedan reaches 85% of top speed sooner after 50% than a combustion car would at the same A', () => {
+    const t = (type: VehicleType, a: number, b: number) => {
+      const v = make(type); v.setInput(input({ throttle: 1 })); let ta = 0;
+      for (let i = 1; i <= 60 * 40; i++) { v.update(1 / 60); const f = v.speed / v.spec.maxSpeed; if (!ta && f >= a) ta = i / 60; if (f >= b) return i / 60 - ta; }
+      return Infinity;
     };
-    const lin = (type: VehicleType) => span(type) / (make(type).spec.maxSpeed ? 1 : 1);
-    expect(lin('evsedan')).toBeLessThan(lin('muscle') * 1.0 + 1);
-    expect(VEHICLE_SPECS.evsedan.electric).toBe(true);
+    // flat torque: the 50%->85% stretch is a small multiple of 0->50%, while a squared drag curve stretches it much more
+    const ev = t('evsedan', 0.5, 0.85) / t('evsedan', 0, 0.5);
+    const ice = t('muscle', 0.5, 0.85) / t('muscle', 0, 0.5);
+    expect(VEHICLE_SPECS.evsedan.electric && VEHICLE_SPECS.wedgetruck.electric).toBe(true);
+    expect(ev).toBeLessThan(ice);
   });
   it('old types carry no drivetrain (behaviour unchanged)', () => {
     for (const k of ['sedan', 'pony', 'suv', 'cop'] as const) expect(VEHICLE_SPECS[k].drivetrain).toBeUndefined();

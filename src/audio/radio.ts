@@ -235,19 +235,32 @@ const SC_FREQ: Record<ScStationId, string> = {
 
 /** The eight SoundCloud stations are the catalog's sc-account / ra-pool entries (src/audio/stations.ts), in dial order.
  * Only the RA station draws on the RA NYC pool (keyword filter off: it plays any set); the others play their account through the widget. */
+/** Keyword hints per station id (used to filter the RA NYC pool when a station draws on it). */
+const SC_HINTS: Record<ScStationId, { keywords: readonly string[]; patterns: readonly RegExp[] }> = {
+  bkhouse: { keywords: ['house', 'garage', 'deep', 'soulful', 'chicago', 'jackin'], patterns: [kw('house|garage|deep|soulful|chicago|jackin|2[- ]?step')] },
+  dublab: { keywords: ['dub', 'techno', 'dubstep', 'bass', 'riddim'], patterns: [kw('dub|techno|dubstep|bass|minimal|industrial')] },
+  stoop: { keywords: ['hip hop', 'rap', 'trap', 'boom bap', 'drill', 'grime', 'r&b'], patterns: [kw('hip[- ]?hop|rap|trap|boom[- ]?bap|drill|grime|cypher|r&b|rnb')] },
+  boogie: { keywords: ['disco', 'boogie', 'funk', 'soul', 'italo', 'groove'], patterns: [kw('disco|boogie|funk|soul|italo|groove|nu[- ]?disco')] },
+  weird: { keywords: ['psych', 'jazz', 'experimental', 'ambient', 'avant', 'krautrock', 'leftfield'], patterns: [kw('psych(?:edelic)?|jazz|experimental|ambient|avant|noise|krautrock|leftfield|improv|weird|dream|idm')] },
+  yard: { keywords: ['reggae', 'dancehall', 'afrobeats', 'soca', 'amapiano', 'riddim'], patterns: [kw('reggae|dancehall|afro(?:beats?)?|soca|amapiano|kuduro|bashment|zouk|ragga|calypso|riddim|caribbean')] },
+  flashback: { keywords: ['80s', 'eighties', 'pop', 'new wave', 'synthpop', 'retro'], patterns: [kw('80\'?s|198\\d|eighties|pop|new[- ]?wave|synth[- ]?pop|retro|freestyle|hi[- ]?nrg')] },
+  sc: { keywords: [], patterns: [] },
+};
+
+const SC_ORDER = ['bkhouse', 'dublab', 'stoop', 'boogie', 'weird', 'yard', 'flashback', 'sc'];
 export const SC_STATIONS: readonly ScStationDef[] = CATALOG.filter((e) => e.kind === 'sc-account' || e.kind === 'ra-pool' || e.kind === 'sc-playlist').map((e): ScStationDef => ({
   id: e.id as ScStationId,
   name: e.name,
   freq: SC_FREQ[e.id as ScStationId],
   genre: e.genre,
   tagline: e.about,
-  keywords: [],
-  patterns: [],
+  keywords: SC_HINTS[e.id as ScStationId].keywords,
+  patterns: SC_HINTS[e.id as ScStationId].patterns,
   kind: e.kind,
   sources: e.scUrls ?? [],
   usesPool: e.kind === 'ra-pool',
   site: e.site,
-}));
+})).sort((a, b) => SC_ORDER.indexOf(a.id) - SC_ORDER.indexOf(b.id));
 
 export function scStationDef(id: string): ScStationDef | undefined {
   return SC_STATIONS.find((s) => s.id === id);

@@ -14,6 +14,7 @@ const o = (t: number, d: number, p: number, w: OscillatorType, hz: number, to?: 
 export type DoorClass = 'car' | 'van' | 'bus' | 'truck';
 export const DOOR_CLASS: Record<VehicleType, DoorClass> = {
   sedan: 'car', suv: 'car', cab: 'car', cop: 'car', hatch: 'car', beater: 'car', crossover: 'car', luxury: 'car', towncar: 'car', pony: 'car', pickup: 'truck',
+  coupe911: 'car', exotic: 'car', jdmcoupe: 'car', hothatch: 'car', muscle: 'car', evsedan: 'car', wedgetruck: 'truck',
   boxtruck: 'truck', garbage: 'truck', cargovan: 'van', minivan: 'van', ambulance: 'van', dollarvan: 'van', bus: 'bus',
 };
 
@@ -51,8 +52,8 @@ export const indicatorLayers = (on: boolean): Layer[] => [n(0, 0.018, 0.5, 'band
 export const beepLayers = (): Layer[] => [o(0, 0.3, 0.3, 'square', 1000, undefined, 2500)];
 /** Glass break and metal crunch, scaled by strength 0..1; glass above a threshold. */
 export function crashLayers(s: number): Layer[] {
-  const L: Layer[] = [n(0, 0.28, 0.6 * s, 'lowpass', 2600, 180), o(0, 0.18, 0.5 * s, 'sine', 110, 40), n(0.01, 0.35, 0.3 * s, 'bandpass', 900, 500, 3)];
-  if (s > 0.45) for (let i = 0; i < 6; i++) L.push(n(0.02 + i * 0.045, 0.1, 0.22 * s, 'highpass', 5200 + i * 600, 3500));
+  const L: Layer[] = [n(0, 0.28, 0.18 * s, 'lowpass', 2600, 180), o(0, 0.18, 0.2 * s, 'sine', 110, 40), n(0.01, 0.35, 0.12 * s, 'bandpass', 900, 500, 3)];
+  if (s > 0.45) for (let i = 0; i < 6; i++) L.push(n(0.02 + i * 0.045, 0.1, 0.08 * s, 'bandpass', 5200 + i * 600, undefined, 1.5));
   return L;
 }
 

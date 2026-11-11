@@ -9,6 +9,8 @@
 import { Rng } from '@/core/Rng';
 import type { Lot } from '@/world/types';
 import type { LotSpec, MaterialFamily } from './facade';
+import { observedFacade } from '@/world/data/facadeObserved';
+import type { ObservedMaterial } from '@/world/data/facadeObserved';
 
 export type RGB = [number, number, number];
 
@@ -140,7 +142,7 @@ export interface ColourwayInput {
   id: string;
   type?: Lot['type'];
   corner?: boolean;
-  spec?: Pick<LotSpec, 'family' | 'floors' | 'use' | 'stoop'> & { look?: LotSpec['look'] };
+  spec?: Pick<LotSpec, 'family' | 'floors' | 'use' | 'stoop'> & { look?: LotSpec['look']; bbl?: string };
 }
 
 const familyOf = (lot: ColourwayInput): MaterialFamily => {
@@ -197,7 +199,8 @@ export function lotColourway(lot: ColourwayInput): Colourway {
     jitter(hex(pickSwatch(r, [PAINTED[1], PAINTED[2], PAINTED[8]]).c), r, 0.05),
   ];
   const uv = { scale: 0.88 + r.next() * 0.28, ou: r.next() * 8, ov: r.next() * 8, flip: r.next() < 0.5 };
-  return {
+  const awning: [RGB, RGB] = [hex(pickSwatch(r, AWNING).c), hex(pickSwatch(r, AWNING).c)];
+  const cw: Colourway = {
     id: `${tag}:${sw.id}`,
     kind,
     front,
@@ -210,10 +213,30 @@ export function lotColourway(lot: ColourwayInput): Colourway {
     metal: hex(pickSwatch(r, METAL).c),
     gate: jitter(hex(pickSwatch(r, GATE).c), r, 0.06),
     trim: jitter(hex(pickSwatch(r, TRIM).c), r, 0.05),
-    awning: [hex(pickSwatch(r, AWNING).c), hex(pickSwatch(r, AWNING).c)],
+    awning,
     striped: r.next() < 0.3,
     uv,
   };
+  return applyObserved(cw, lot.spec?.bbl);
+}
+
+/** wall kind and paint amount for each observed material class (brick-like classes keep the texture's own brick spread) */
+const OBSERVED_KIND: Record<ObservedMaterial, { kind: WallKindValue; paint: number }> = {
+  brownstone: { kind: WallKind.brick, paint: 0.4 }, redBrick: { kind: WallKind.brick, paint: 0.4 }, tanBrick: { kind: WallKind.brick, paint: 0.4 },
+  paintedBrick: { kind: WallKind.brick, paint: 0.9 }, limestone: { kind: WallKind.brick, paint: 0.8 },
+  siding: { kind: WallKind.siding, paint: 1 }, stucco: { kind: WallKind.stucco, paint: 1 }, panel: { kind: WallKind.panel, paint: 1 },
+};
+
+/**
+ * Observed-facade override: when photo evidence exists for the lot's BBL (src/world/data/facade-observed.json) the wall colour,
+ * wall kind and shop awning come from it. Every procedural draw above has already happened, so a lot's other looks (cornice,
+ * metal, gate, party walls, weathering) and every other lot are unchanged by adding or removing observations.
+ */
+export function applyObserved(cw: Colourway, bbl: string | undefined, table?: Readonly<Record<string, string>>): Colourway {
+  const o = observedFacade(bbl, table);
+  if (!o) return cw;
+  const k = OBSERVED_KIND[o.material];
+  return { ...cw, id: `observed:${o.material}`, kind: k.kind, paint: k.paint, front: o.wall, awning: o.awning ? [o.awning, cw.awning[1]] : cw.awning };
 }
 
 // ---------------------------------------------------------------------------------------------- vertex tone encoding

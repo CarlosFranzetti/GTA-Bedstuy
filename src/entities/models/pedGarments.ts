@@ -252,7 +252,7 @@ export function garmentParts(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSp
     const long = !!top.long;
     const hem = long ? kneeY + 0.05 : lm.hemY - (['puffer', 'hoodie', 'jacket', 'cardigan'].includes(top.kind) ? 0.09 : top.kind === 'tee' || top.kind === 'blouse' ? 0.0 : 0.04);
     const wArm = (v: V): number => wsum(v, B.arms), wHead = (v: V): number => wsum(v, B.head), wLow = (v: V): number => wsum(v, B.legs);
-    const bodyF = smoothField(all, (v) => wsum(v, B.torso) + wsum(v, B.hips) + (long ? wLow(v) : 0) - wArm(v) - wHead(v) - (long ? 0 : wLow(v)) + 0.04);
+    const bodyF = smoothField(all, (v) => wsum(v, B.torso) + wsum(v, B.hips) + (long ? wLow(v) : 0) - wArm(v) - wHead(v) - (long ? 0 : wLow(v)) + 0.1);
     let body = clip(all, bodyF);
     body = clip(body, (v) => v.p[1] - hem);
     if (long) body = clip(body, (v) => (v.p[2] < torsoAxis(v.p).cz && v.p[1] < lm.hemY + 0.08 ? Math.abs(v.p[0]) - 0.011 : 1));   // split at the front
@@ -342,18 +342,23 @@ export function headShell(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec)
     // over the shoulders and chest; a second, looser shawl style for some women
     let hh2 = 2166136261; for (let i = 0; i < spec.id.length; i++) { hh2 ^= spec.id.charCodeAt(i); hh2 = Math.imul(hh2, 16777619); }
     const loose = ((hh2 >>> 0) % 2) === 0;
+    // two styles: A is a neat wrap (a smooth dome, the cloth tucked under the chin and falling to a point on the chest), B a loose shawl
+    // (a fuller dome, one end thrown over the shoulder, a longer wavy hem). Folds come from the thickness following the angle round the head.
+    const ang = (v: V): number => Math.atan2(v.p[0], v.p[2] - zc);
     const oval = (v: V): number => {
-      const x = v.p[0] / (rx * 0.72), y = (tOf(v.p[1]) - 0.4) / 0.35, z = (zc - v.p[2]) / (rz * 0.2);
+      const x = v.p[0] / (rx * (loose ? 0.8 : 0.74)), y = (tOf(v.p[1]) - 0.4) / 0.36, z = (zc - v.p[2]) / (rz * 0.2);
       return z < 0 ? 1 : Math.hypot(x, y) - 1;
     };
-    const volume = (v: V): number => 0.016 + 0.014 * smooth(0.35, 0.95, tOf(v.p[1])) + (loose ? 0.008 : 0) + 0.004 * Math.sin(v.p[0] * 70 + v.p[1] * 25);
-    fixSeam(finalize(clip(head, oval), { thick: volume, iterations: 5, normalIters: 14, rim: 0.007, uv: mapTo(hatR) }));
-    const shY = s.rig.shoulderL[1], reach = loose ? 0.34 : 0.22;
-    const neckField = smoothField(all, (v) => wsum(v, [1, 2, 3]) - wsum(v, B.arms) - 0.5 + (v.p[1] > lm.chinY - 0.2 ? 0 : -9), 5);
+    const volume = (v: V): number => 0.024 + 0.018 * smooth(0.3, 0.95, tOf(v.p[1])) + (loose ? 0.012 : 0) + 0.007 * Math.sin(ang(v) * 7 + tOf(v.p[1]) * 9) * smooth(0.4, 0.8, tOf(v.p[1]));
+    fixSeam(finalize(clip(head, oval), { thick: volume, iterations: 6, normalIters: 16, rim: 0.008, uv: mapTo(hatR) }));
+    const shY = s.rig.shoulderL[1], reach = loose ? 0.46 : 0.3;
+    const neckField = smoothField(all, (v) => wsum(v, [1, 2, 3]) - wsum(v, B.arms) - 0.5 + (v.p[1] > lm.chinY - 0.25 ? 0 : -9), 5);
     const neckDrape = clip(all, neckField);
-    const drape = clip(clip(neckDrape, (v) => v.p[1] - (shY - reach)), (v) => (v.p[2] < zc - rz * 0.5 && v.p[1] > lm.chinY - 0.01 ? -1 : 1));
-    const hatUV = (p: V3): [number, number] => { let a = Math.atan2(p[0], p[2] - zc); if (a < 0) a += Math.PI * 2; return tileUV(hatR, a / (Math.PI * 2), 0.3); };
-    fixSeam(finalize(drape, { thick: (v) => 0.02 + (loose ? 0.026 : 0.016) * smooth(lm.chinY, shY - reach, v.p[1]) + 0.006 * Math.sin(v.p[0] * 80), iterations: 6, normalIters: 14, rim: 0.007, uv: hatUV }));
+    const hem = (v: V): number => v.p[1] - (shY - reach + (loose ? 0.05 * Math.sin(v.p[0] * 26 + 1) + (v.p[0] > 0 ? 0.09 : 0) : 0.07 * Math.max(0, 1 - Math.abs(v.p[0]) / 0.06)) * -1);
+    const drape = clip(clip(neckDrape, (v) => hem(v)), (v) => (v.p[2] < zc - rz * 0.5 && v.p[1] > lm.chinY - 0.01 ? -1 : 1));
+    const hatUV = (p: V3): [number, number] => { let a = Math.atan2(p[0], p[2] - zc); if (a < 0) a += Math.PI * 2; return tileUV(hatR, a / (Math.PI * 2), 0.15 + 0.7 * smooth(lm.chinY, shY - reach, p[1])); };
+    const fold = (v: V): number => (loose ? 0.014 : 0.009) * Math.sin(ang(v) * 9 + v.p[1] * 30) + 0.006 * Math.sin(v.p[0] * 90 + v.p[1] * 14);
+    fixSeam(finalize(drape, { thick: (v) => 0.026 + (loose ? 0.034 : 0.02) * smooth(lm.chinY, shY - reach, v.p[1]) + fold(v), iterations: 6, normalIters: 16, rim: 0.008, uv: hatUV }));
     return out;
   }
 

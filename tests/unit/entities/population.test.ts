@@ -49,7 +49,7 @@ describe('street population (pedRoster)', () => {
     expect(woman.bottom.long).toBe(true); expect(woman.top.sleeves).toBe('long');
     expect(PED_SPECS[pedVariantIndex('me-hijabi')].hat).toBe('hijab');
     // no other variant wears religious dress
-    for (const s of PED_SPECS) if (!['hj-man', 'hj-woman', 'me-hijabi', 'sa-hijabi'].includes(s.id)) { expect(['fedora', 'hijab']).not.toContain(s.hat); expect(s.hair).not.toBe('peyot'); }
+    for (const s of PED_SPECS) if (!['hj-man', 'hj-woman', 'hj-boy', 'me-hijabi', 'sa-hijabi'].includes(s.id)) { expect(['fedora', 'hijab']).not.toContain(s.hat); expect(s.hair).not.toBe('peyot'); }
   });
 
   it('maps every person to a shape of their group, sex and age', () => {

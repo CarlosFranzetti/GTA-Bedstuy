@@ -36,7 +36,8 @@ export const SKIN_RECTS = {
 export type SkinRegion = keyof typeof SKIN_RECTS;
 
 /** `van` is the box truck's cab; `cargo` the Transit-type cargo van */
-export type SkinStyle = 'sedan' | 'coupe' | 'suv' | 'van' | 'cargo' | 'hatch' | 'beater' | 'bus' | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'dollar';
+export type SkinStyle = 'sedan' | 'coupe' | 'suv' | 'van' | 'cargo' | 'hatch' | 'beater' | 'bus' | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'dollar'
+  | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan';
 
 /** Everything the painter needs to know about the body (fractions of the paint's bounding box; length fractions run nose 0 -> tail 1). */
 export interface SkinLayout {
@@ -112,6 +113,13 @@ export const CAR_COLORWAYS: Record<SkinStyle, readonly Colorway[]> = {
   towncar: [{ name: 'black', color: '#0e0f12', pack: 0 }, { name: 'champagne', color: '#c8b896', pack: 0 }, { name: 'silver', color: '#a6aab0', pack: 0 }],
   pony: [{ name: 'candy', color: '#c8283a', pack: 1 }, { name: 'blue', color: '#1f5fb4', pack: 1 }, { name: 'black', color: '#15161a', pack: 0 }],
   dollar: [{ name: 'white', color: '#e8eaea', pack: 0 }, { name: 'silver', color: '#b4b8bd', pack: 0 }, { name: 'grey', color: '#8a9096', pack: 0 }],
+  coupe911: [{ name: 'guards red', color: '#b3202a', pack: 0 }, { name: 'silver', color: '#b7bbc0', pack: 0 }, { name: 'black', color: '#15161a', pack: 0 }],
+  exotic: [{ name: 'giallo', color: '#f2c200', pack: 1 }, { name: 'verde', color: '#2f8f4e', pack: 1 }, { name: 'nero', color: '#15161a', pack: 0 }],
+  jdmcoupe: [{ name: 'sapphire', color: '#2e6bd1', pack: 1 }, { name: 'white', color: '#eeeeea', pack: 1 }, { name: 'graphite', color: '#4a4e54', pack: 0 }],
+  hothatch: [{ name: 'championship', color: '#e8e8e4', pack: 1 }, { name: 'rally red', color: '#d6322a', pack: 0 }, { name: 'black', color: '#15161a', pack: 0 }],
+  muscle: [{ name: 'tor orange', color: '#e0621a', pack: 1 }, { name: 'plum', color: '#5a2a6a', pack: 1 }, { name: 'black', color: '#15161a', pack: 0 }],
+  wedgetruck: [{ name: 'steel', color: '#b8bcc2', pack: 0 }, { name: 'dark steel', color: '#6a6e74', pack: 0 }],
+  evsedan: [{ name: 'pearl', color: '#e8e8ea', pack: 0 }, { name: 'midnight', color: '#1a2230', pack: 0 }, { name: 'red', color: '#a8202a', pack: 0 }],
   van: [
     { name: 'work white', color: '#ebebe4', pack: 0 },
     { name: 'safety orange', color: '#e0701a', pack: 1 },
@@ -185,7 +193,7 @@ function ellipse(cx: number, cy: number, rx: number, ry: number, maxY: number, n
 }
 
 /** styles whose head and tail lamps are real geometry (no painted lamp patches on the end faces) */
-const GEO_LAMPS: ReadonlySet<SkinStyle> = new Set<SkinStyle>(['hatch', 'beater', 'cargo', 'bus', 'sedan', 'suv', 'coupe', 'pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'dollar']);
+const GEO_LAMPS: ReadonlySet<SkinStyle> = new Set<SkinStyle>(['hatch', 'beater', 'cargo', 'bus', 'sedan', 'suv', 'coupe', 'pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'dollar', 'coupe911', 'exotic', 'jdmcoupe', 'hothatch', 'muscle', 'wedgetruck', 'evsedan']);
 
 function paintFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): void {
   if (L.style === 'bus') { paintBusFlank(s, L, side, rng); return; }

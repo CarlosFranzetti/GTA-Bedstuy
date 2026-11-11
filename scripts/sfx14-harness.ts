@@ -100,10 +100,10 @@ async function renderFx() {
   };
   for (const [k, layers] of Object.entries(L)) {
     const ctx = new OfflineAudioContext(1, SR, SR);
-    FX.playLayers(ctx, noiseBuf(ctx), ctx.destination, layers, 0.05, 0.6, 1, lcg(3));
+    FX.playLayers(ctx, noiseBuf(ctx), ctx.destination, layers, 0.05, k === 'crash' ? 0.3 : 0.6, 1, lcg(3));
     out[k] = peakDb((await ctx.startRendering()).getChannelData(0));
   }
   return out;
 }
 
-(window as unknown as Record<string, unknown>).sfx14 = { renderEngine, renderHorn, renderFx, types: Object.keys(ENGINE_VOICES), hornTypes: Object.keys(HORNS), bands: BANDS };
+(window as unknown as Record<string, unknown>).sfx14 = { renderEngine, renderHorn, renderFx, FX, noiseBuf, types: Object.keys(ENGINE_VOICES), hornTypes: Object.keys(HORNS), bands: BANDS };

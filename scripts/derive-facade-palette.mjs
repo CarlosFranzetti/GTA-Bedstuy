@@ -52,6 +52,23 @@ const hex = (c) => c.map((v) => Math.round(v).toString(16).padStart(2, '0')).joi
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 const median = (v) => { const s = [...v].sort((a, b) => a - b); return s[Math.floor(s.length / 2)] ?? 0; };
 
+/**
+ * Dominant wall colour of a bag of pixels (flat [r,g,b,...]): the most populated hue family (low-saturation pixels form their own
+ * family), then the median of its lit half, so shadowed courses and dark joints do not drag a yellow brick to brown.
+ */
+function dominant(flat) {
+  const fam = new Map();
+  for (let i = 0; i < flat.length; i += 3) {
+    const [h, s, v] = rgb2hsv(flat[i], flat[i + 1], flat[i + 2]);
+    const k = s < 0.14 ? 'g' : Math.floor(((h + 15) % 360) / 30);
+    let a = fam.get(k); if (!a) { a = []; fam.set(k, a); } a.push([flat[i], flat[i + 1], flat[i + 2], v]);
+  }
+  let top = null; for (const a of fam.values()) if (!top || a.length > top.length) top = a;
+  const mv = median(top.map((p) => p[3]));
+  const lit = top.filter((p) => p[3] >= mv);
+  return [0, 1, 2].map((i) => median(lit.map((p) => p[i])));
+}
+
 /** classify the wall from colour, texture energy and what PLUTO says about the lot */
 export function classify(c, tex, lot) {
   const [h, s, v] = rgb2hsv(...c);
@@ -87,6 +104,27 @@ async function loadImage(file, W = 1000) {
   const im = sharp(file).rotate().resize({ width: W, withoutEnlargement: true });
   const { data, info } = await im.removeAlpha().raw().toBuffer({ resolveWithObject: true });
   return { data, w: info.width, h: info.height };
+}
+
+/** Subject photo: a frontal shot of one building whose geotag is the building itself (Commons CC0 series). The nearest lot within 30 m is the subject. */
+function observeSubject(img, pose, lots) {
+  const { data, w, h } = img;
+  const kLat = 111320, kLon = 111320 * Math.cos(pose.lat * RAD);
+  let best = null;
+  for (const l of lots) { const d = Math.hypot((l.lon - pose.lon) * kLon, (l.lat - pose.lat) * kLat); if (d < 30 && (!best || d < best.d)) best = { l, d }; }
+  if (!best) return [];
+  const bins = new Map();
+  let kept = 0, edge = 0, edgeN = 0;
+  for (let y = Math.round(h * 0.3); y < Math.round(h * 0.85); y += 2) for (let x = Math.round(w * 0.25); x < Math.round(w * 0.75); x += 2) {
+    const p = (y * w + x) * 3, r = data[p], g = data[p + 1], b = data[p + 2], [hh, s, v] = rgb2hsv(r, g, b);
+    if (x + 2 < w * 0.75) { const q = p + 6; edge += Math.abs(0.3 * r + 0.59 * g + 0.11 * b - (0.3 * data[q] + 0.59 * data[q + 1] + 0.11 * data[q + 2])); edgeN++; }
+    if (v < 0.18 || (v > 0.93 && s < 0.12) || (hh > 70 && hh < 170 && s > 0.2) || (hh > 190 && hh < 250 && s < 0.35 && v > 0.55 && y < h * 0.5)) continue;
+    kept++;
+    const k = `${Math.floor(hh / 20)}:${Math.floor(v * 5)}:${s < 0.12 ? 0 : s < 0.35 ? 1 : 2}`;
+    let a = bins.get(k); if (!a) { a = []; bins.set(k, a); } a.push(r, g, b);
+  }
+  if (kept < 800) return [];
+  return [{ bbl: best.l.bbl, color: dominant([...bins.values()].flat()), tex: edgeN ? edge / edgeN : 0, awning: null, q: 0.75, lot: best.l, span: [Math.round(w * 0.25), Math.round(w * 0.75)] }];
 }
 
 function observePhoto(img, pose, lots, dbg) {
@@ -153,11 +191,7 @@ function observePhoto(img, pose, lots, dbg) {
       }
     }
     if (kept < 120 || kept < total * 0.25) continue;
-    let best = null;
-    for (const arr of bins.values()) if (!best || arr.length > best.length) best = arr;
-    const rs = [], gs = [], bs = [];
-    for (let i = 0; i < best.length; i += 3) { rs.push(best[i]); gs.push(best[i + 1]); bs.push(best[i + 2]); }
-    const col = [median(rs), median(gs), median(bs)];
+    const col = dominant([...bins.values()].flat());
     const tex = edgeN ? edge / edgeN : 0;
     // shop band: awning colour = most saturated cluster that is not the wall
     let awning = null;
@@ -190,13 +224,13 @@ async function main() {
   let used = 0, skipped = 0;
   for (const p of man.photos) {
     const pose = { lat: p.lat, lon: p.lon, heading: p.heading, fov: p.source === 'kartaview' ? 78 : 70, ...(poses[`${p.source}:${p.id}`] ?? {}) };
-    if (!p.file || p.pano || pose.lat == null || pose.heading == null) { skipped++; continue; }
+    if (!p.file || p.pano || pose.lat == null || (pose.heading == null && !pose.subject)) { skipped++; continue; }
     let img;
     try { img = await loadImage(path.join(PHOTOS, p.file)); } catch { skipped++; continue; }
-    if (img.h > img.w) { skipped++; continue; } // portrait phone frames: the field of view is unknown
+    if (img.h > img.w && !pose.subject) { skipped++; continue; } // portrait phone frames: the field of view is unknown
     const meanL = (() => { let s = 0, n = 0; for (let i = 0; i < img.data.length; i += 300) { s += img.data[i]; n++; } return s / n; })();
     if (meanL < 45) { skipped++; continue; } // night / dark frames
-    const obs = observePhoto(img, pose, lots, null);
+    const obs = pose.subject ? observeSubject(img, pose, lots) : observePhoto(img, pose, lots, null);
     used++;
     for (const o of obs) { const a = per.get(o.bbl) ?? []; a.push({ ...o, photo: p }); per.set(o.bbl, a); }
     if (DEBUG) {

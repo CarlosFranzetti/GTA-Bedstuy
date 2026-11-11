@@ -52,7 +52,7 @@ export const KENNEY_PAINT_CELLS: Record<VehicleType, PaletteCell | null> = {
   hatch: null,
   beater: null,
   bus: null,
-  pickup: null, crossover: null, minivan: null, luxury: null, towncar: null, pony: null, garbage: null, ambulance: null, dollarvan: null, // CARS12: procedural only
+  pickup: null, crossover: null, minivan: null, luxury: null, towncar: null, pony: null, garbage: null, ambulance: null, dollarvan: null, coupe911: null, exotic: null, jdmcoupe: null, hothatch: null, muscle: null, wedgetruck: null, evsedan: null, // CARS12/14: procedural only
 };
 const KENNEY_MATERIAL = 'colormap';
 

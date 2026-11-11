@@ -71,7 +71,7 @@ export interface PedSpec {
     eyes: 'dot' | 'wide' | 'sleepy';
     brows: 'thick' | 'thin' | 'arched';
     mouth: 'smile' | 'flat' | 'grin' | 'frown';
-    stubble?: boolean; beard?: boolean; mustache?: boolean; lips?: string; lashes?: boolean; glasses?: string;
+    stubble?: boolean; beard?: boolean; mustache?: boolean; lips?: string; lashes?: boolean; glasses?: string; /** surgical mask over nose and mouth */ mask?: boolean;
   };
   top: {
     kind: TopKind; color: string; trim: string; sleeves: 'long' | 'short' | 'none'; /** coat / tunic to the knee */ long?: boolean;
@@ -83,7 +83,7 @@ export interface PedSpec {
   };
   bottom: { kind: BottomKind; color: string; trim: string; /** ankle-length skirt */ long?: boolean };
   shoes: { color: string; sole: string; accent: string; high?: boolean };
-  gear: 'none' | 'backpack' | 'bag';
+  gear: 'none' | 'backpack' | 'bag' | 'tote' | 'messenger';
   gearColor: string;
   build: Build;
   /** relative chance among the civilians (church clothes get extra weight on Sunday morning) */

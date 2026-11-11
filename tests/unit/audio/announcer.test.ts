@@ -67,8 +67,8 @@ describe('scripts', () => {
     }
   });
 
-  it('the BK House ID and intro read like the brief', () => {
-    expect(fillScript(SCRIPTS.bkhouse.ids[0], { station: 'BK House', freq: 'ninety point nine' })).toBe("You're locked to BK House, ninety point nine Bed-Stuy.");
+  it('the Boiler Room ID and intro read like the brief', () => {
+    expect(fillScript(SCRIPTS.bkhouse.ids[0], { station: 'Boiler Room', freq: 'ninety point nine' })).toBe("You're locked to Boiler Room, ninety point nine Bed-Stuy.");
     expect(fillScript('Up next, a set from {dj}: {title}.', { dj: 'Ana K', title: 'Dawn Chorus' })).toBe('Up next, a set from Ana K: Dawn Chorus.');
   });
 
@@ -101,7 +101,7 @@ describe('cadence', () => {
     expect(r.speech.spoken).toHaveLength(0);
     r.a.update(0.6);
     expect(r.speech.spoken).toHaveLength(1);
-    expect(r.speech.spoken[0].text).toContain('BK House');
+    expect(r.speech.spoken[0].text).toContain('Boiler Room');
     expect(r.speech.spoken[0].text).toContain('ninety point nine');
     expect(r.a.speaking).toBe(true);
     expect(r.a.name).toBe('Deja Fontaine');
@@ -310,7 +310,7 @@ describe('voices', () => {
     expect(r.speech.spoken).toHaveLength(0);
     expect(r.a.speaking).toBe(true);
     expect(r.a.name).toBe('Deja Fontaine');
-    expect(r.a.line).toContain('BK House');
+    expect(r.a.line).toContain('Boiler Room');
     expect(r.ducks.every((d) => d === 1)).toBe(true);
     run(r.a, 12);
     expect(r.a.speaking).toBe(false);
@@ -321,7 +321,7 @@ describe('voices', () => {
     r.a.tuneIn(house);
     run(r.a, 2);
     expect(r.a.voiceAvailable).toBe(false);
-    expect(r.a.line).toContain('BK House');
+    expect(r.a.line).toContain('Boiler Room');
     expect(r.speech.spoken).toHaveLength(0);
   });
 
@@ -345,10 +345,10 @@ describe('HUD strings', () => {
   it('shows "{station} — {announcer name}" while the announcer speaks', () => {
     const dir = dirWith(new FakeSpeech());
     dir.setOn(true);
-    expect(dir.stationName).toBe('BK House');
+    expect(dir.stationName).toBe('Boiler Room');
     dir.update(2.5);
     expect(dir.trackName).toBe('Deja Fontaine');
-    expect(`${dir.stationName} — ${dir.trackName}`).toBe('BK House — Deja Fontaine');
+    expect(`${dir.stationName} — ${dir.trackName}`).toBe('Boiler Room — Deja Fontaine');
   });
 
   it('shows "{station} — {set title} — {dj}" while a set plays', async () => {
@@ -360,7 +360,7 @@ describe('HUD strings', () => {
     Object.defineProperty(sc, 'notice', { get: () => '' });
     dir.setOn(true);
     dir.announcer.stop();
-    expect(`${dir.stationName} — ${dir.trackName}`).toBe('BK House — Dawn Chorus — Ana K');
+    expect(`${dir.stationName} — ${dir.trackName}`).toBe('Boiler Room — Dawn Chorus — Ana K');
   });
 
   it('with no voices the HUD still names the announcer while the line is up, and the text is available', () => {
@@ -368,7 +368,7 @@ describe('HUD strings', () => {
     dir.setOn(true);
     dir.update(2.5);
     expect(dir.trackName).toBe('Deja Fontaine');
-    expect(dir.announcerLine).toContain('BK House');
+    expect(dir.announcerLine).toContain('Boiler Room');
   });
 
   it('shows no announcer name once the line is over', () => {

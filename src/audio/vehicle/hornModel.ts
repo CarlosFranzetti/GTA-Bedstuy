@@ -34,6 +34,13 @@ export const HORNS: Record<VehicleType, HornSpec> = {
   pony:      { kind: 'car',   root: 370, ratios: [1, M3],        wave: 'sawtooth', lp: 4200, atk: 0.006, rel: 0.07, gain: 1.15 },
   garbage:   { kind: 'air',   root: 120, ratios: [1, 1.19, 1.5], wave: 'sawtooth', lp: 900,  atk: 0.16,  rel: 0.4,  gain: 1.2, beeper: true },
   ambulance: { kind: 'siren', root: 660, ratios: [1],            wave: 'square',   lp: 2800, atk: 0.02,  rel: 0.12, gain: 1, modes: ['wail', 'yelp', 'hilo', 'parody'] },
+  coupe911:  { kind: 'car',   root: 466, ratios: [1, M3],        wave: 'square',   lp: 3800, atk: 0.008, rel: 0.06, gain: 1 },
+  exotic:    { kind: 'car',   root: 523, ratios: [1, P4],        wave: 'sawtooth', lp: 5200, atk: 0.005, rel: 0.05, gain: 0.95 },
+  jdmcoupe:  { kind: 'beep',  root: 698, ratios: [1, 1.5],       wave: 'square',   lp: 4800, atk: 0.005, rel: 0.04, gain: 0.8 },
+  hothatch:  { kind: 'beep',  root: 784, ratios: [1],            wave: 'sawtooth', lp: 3600, atk: 0.005, rel: 0.05, gain: 0.85 },
+  muscle:    { kind: 'car',   root: 247, ratios: [1, M3],        wave: 'sawtooth', lp: 2400, atk: 0.012, rel: 0.1,  gain: 1.2 },
+  wedgetruck: { kind: 'car',  root: 277, ratios: [1, 1.414],     wave: 'square',   lp: 1500, atk: 0.01,  rel: 0.1,  gain: 1 },
+  evsedan:   { kind: 'car',   root: 554, ratios: [1, P4],        wave: 'triangle', lp: 2500, atk: 0.03,  rel: 0.15, gain: 0.9 },
   dollarvan: { kind: 'car',   root: 392, ratios: [1, 1.13],      wave: 'square',   lp: 2400, atk: 0.01,  rel: 0.07, gain: 1 },
 };
 

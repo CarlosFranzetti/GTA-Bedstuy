@@ -156,7 +156,7 @@ export class VehicleAudio {
   playJump(): void { this.fx(jumpLayers(), 0.5); }
   playLand(strength = 0.5): void { this.fx(landLayers(clamp01(strength)), 0.6); }
   playUi(kind: 'tick' | 'ok' | 'back' = 'tick'): void { this.fx(uiLayers(kind), 0.35); }
-  playCrash(strength: number): void { this.fx(crashLayers(clamp01(strength / 15)), 0.55); }
+  playCrash(strength: number): void { this.fx(crashLayers(clamp01(strength / 15)), 0.3); }
 
   /* ---------- horns ---------- */
 

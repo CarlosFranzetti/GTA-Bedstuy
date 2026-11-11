@@ -281,8 +281,12 @@ const uiOpen = (): boolean => !!(shopUi?.isOpen || djUi?.isOpen);
 
 events.on('enterVehicle', () => { physics.removeBody(player.body.id); if (player.vehicle) nightLights.attachHeadlights(player.vehicle.object3D, player.vehicle.spec.length); });
 events.on('exitVehicle', () => { physics.addBody(player.body); nightLights.attachHeadlights(null); });
-events.on('enterVehicle', () => touchControls?.setDriving(true));
-events.on('exitVehicle', () => touchControls?.setDriving(false));
+events.on('enterVehicle', () => { touchControls?.setDriving(true); audio.playDoor(false, player.vehicle?.spec.type ?? null); });
+events.on('exitVehicle', () => { touchControls?.setDriving(false); audio.playDoor(true, null); });
+// pooled scratch for the AI engine voices (no per-frame allocation)
+const NEAR_AUDIO_CARS = Array.from({ length: 12 }, () => ({ id: '', type: 'sedan', x: 0, z: 0, vx: 0, vz: 0, speed: 0, throttle: 0 }));
+const nearAudioList: typeof NEAR_AUDIO_CARS = [];
+const audioListener = { x: 0, z: 0, vx: 0, vz: 0, rx: 1, rz: 0 };
 player.onEnterStart = () => physics.removeBody(player.body.id); // the glide to the door crosses the car's box: no collisions while entering
 
 loading.done('entities');
@@ -716,7 +720,26 @@ game.add({
       for (const v of allVehicles()) v.headlights = lastNight;
     }
     nightLights.update(away ? lastOutside : player.body.pos, dayNight.isNight, dt);
-    audio.setEngine(player.vehicle ? Math.abs(player.vehicle.speed) : 0, player.vehicle ? Math.abs(player.lastVehicleInput.throttle) : 0, player.inVehicle, player.vehicle?.spec.enginePitch ?? 1);
+    // per-type engine voice, horn, reverse and brake sounds (SFX14); the nearest few AI cars get a cheap engine voice
+    audio.setEngine(player.vehicle ? Math.abs(player.vehicle.speed) : 0, player.vehicle ? Math.abs(player.lastVehicleInput.throttle) : 0, player.inVehicle, player.vehicle?.spec.enginePitch ?? 1, player.vehicle?.spec.type ?? null);
+    audio.setHornHeld(player.inVehicle && player.lastVehicleInput.horn);
+    audio.setReverse(!!player.vehicle && player.vehicle.speed < -0.3);
+    audio.setBraking(player.inVehicle && player.lastVehicleInput.brake);
+    {
+      const lp = (player.vehicle ?? player).body; let n = 0;
+      if (!away) for (const v of traffic.vehicles) {
+        if (n >= NEAR_AUDIO_CARS.length) break;
+        if (v === player.vehicle) continue;
+        const dx = v.body.pos.x - lp.pos.x, dz = v.body.pos.z - lp.pos.z;
+        if (dx * dx + dz * dz > 45 * 45) continue;
+        const c = NEAR_AUDIO_CARS[n++]!;
+        c.id = v.id; c.type = v.spec.type; c.x = v.body.pos.x; c.z = v.body.pos.z; c.vx = v.body.vel.x; c.vz = v.body.vel.z; c.speed = Math.abs(v.speed); c.throttle = c.speed > 1 ? 0.5 : 0.1;
+      }
+      nearAudioList.length = n; for (let i = 0; i < n; i++) nearAudioList[i] = NEAR_AUDIO_CARS[i]!;
+      audioListener.x = lp.pos.x; audioListener.z = lp.pos.z; audioListener.vx = lp.vel.x; audioListener.vz = lp.vel.z;
+      audioListener.rx = Math.cos(cam.yaw); audioListener.rz = -Math.sin(cam.yaw);
+      audio.setTraffic(audioListener, nearAudioList, dt);
+    }
     const pv = player.vehicle as ({ slip?: number } & IVehicle) | null;
     audio.setSlip(pv?.slip ?? 0); audio.setHandbrake(player.inVehicle && player.lastVehicleInput.handbrake);
     audio.update(dt);

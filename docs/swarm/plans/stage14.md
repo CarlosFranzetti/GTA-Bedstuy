@@ -18,6 +18,23 @@ Area: Bed-Stuy and Bushwick first; Williamsburg and a corner of Ridgewood later;
 - PERF2: low tier back to budget after the northern rows, trains and new cars (measure first).
 - Then full gate, publish web + artifact, tag a native build.
 
+### The release gate: `scripts/gate.sh` (ENGINE owns it)
+Run it from the repo root before every publish. It prints one table and exits 0 only when every row is PASS. It exits 1 on any FAIL, and 2 when steps were skipped (`--skip-render` is a quick pre-check and never a release). Each step writes a log to `--logs <dir>`; the default is a fresh temp dir, and the table prints the path.
+
+| Step | Command | Pass when |
+|---|---|---|
+| tsc | `npx tsc --noEmit` | no error under `src/` (errors under `tests/` are counted and shown, not failing) |
+| vitest | `npx vitest run --maxWorkers=2` | summary has no failed tests |
+| build | `npm run build` | single-file `dist/` builds |
+| artifact | `node scripts/make-artifact.mjs` | `dist/artifact.html` ≤ 12 MB |
+| hosted | `VITE_HOSTED=1 vite build --outDir dist-hosted` | hosted build (web and native payload) builds |
+| native | `npm --prefix native test` | Electron shell tests green |
+| smoke | `tests/e2e/smoke.mjs` on `dist/` (render lock) | WebGL2 up, `errors: []` |
+| gameplay | `scripts/playtest/live-gameplay.cjs` on `dist-hosted/` (render lock) | every check PASS, no crash |
+| perf | `scripts/perf-breakdown.mjs --dist dist --q phone,low,medium` (render lock) | triangles and draws ≤ `TIER_BUDGET` at views 1, 4 and 10 for each tier |
+
+The browser steps go through `scripts/swarm-render.sh` one at a time, so on a busy box the gate waits for a slot. Expect 20 to 40 minutes in total. To change tiers, pass `--tiers phone,low,medium,high`.
+
 ## Teams
 | Team | Lead model | Lanes | Scope |
 |---|---|---|---|

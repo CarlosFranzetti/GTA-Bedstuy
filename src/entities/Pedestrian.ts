@@ -6,15 +6,20 @@ import type { TrafficLights } from '@/game/TrafficLights';
 import { Rng } from '@/core/Rng';
 import { animateWalk, type HumanModel } from '@/entities/models/humanModel';
 import { buildPerson as buildPedModel, loadPeople } from '@/entities/models/pedMesh';
+import type { BarkKind } from '@/game/pedBarks';
+import { PED_SPECS } from '@/textures/painters/ped';
 import type { CharacterRig, CharacterSource } from '@/world/types';
 
 // start decoding the MakeHuman body shapes at once (browser only); until they are ready people use PEDHI's procedural bodies
 if (typeof window !== 'undefined') void loadPeople();
 import type { Body2D, Contact, Entity, Graph, GraphNode, IMaterialLibrary, IVehicle, IWorld2D } from '@/world/types';
 
-export type PedState = 'walking' | 'waiting' | 'down' | 'fleeing' | 'sitting';
+export type PedState = 'walking' | 'waiting' | 'down' | 'fleeing' | 'sitting' | 'meeting' | 'chatting';
 /** What the body language should look like (hook for animation / debugging). */
-export type PedPose = 'walk' | 'stand' | 'phone' | 'sit' | 'down';
+export type PedPose = 'walk' | 'stand' | 'phone' | 'sit' | 'down' | 'talk';
+/** A short body-language beat on top of the current pose (PedSocial and the ped itself start them). */
+export type PedReaction = 'glance' | 'wave' | 'nod' | 'startle' | 'laugh' | 'shout' | 'point';
+export const REACTION_TIME: Record<PedReaction, number> = { glance: 1.4, wave: 1.6, nod: 0.9, startle: 1.2, laugh: 1.8, shout: 1.3, point: 1.4 };
 
 /** A crosswalk edge of the sidewalk graph: which intersection it belongs to and which roadway it crosses. */
 export interface PedCrossing { intersectionId: string; crossedStreetId: string; }
@@ -75,6 +80,12 @@ const BLOCK_RADIUS = 4;
 const BLOCK_MAX_SPEED = 1.5;
 const BLOCK_LOOKAHEAD = 0.9;
 const BLOCK_MARGIN = 0.5;
+/** a meeting that has not become a conversation in this long is dropped (nobody is left walking to a ped that went elsewhere) */
+export const MEET_TIMEOUT = 7;
+/** a conversation never lasts longer than this */
+export const CHAT_MAX = 22;
+/** how close two people stand to talk (m) */
+export const CHAT_DISTANCE = 1.15;
 
 export class Pedestrian implements Entity {
   readonly object3D: THREE.Group;
@@ -112,6 +123,20 @@ export class Pedestrian implements Entity {
   private blockKey = '';
   private blockSign: 1 | -1 = 1;
   private readonly blockSlide: Vec2 = { x: 0, z: 0 };
+  // ---- social life (PedSocial schedules it; the ped plays it)
+  /** called when this person wants to say something; PedSocial checks distance / rate and emits the bark */
+  static socialHook: ((p: Pedestrian, kind: BarkKind) => void) | null = null;
+  chatPartner: Pedestrian | null = null;
+  private chatTimer = 0;
+  private chatSpeakIn = 0;
+  private chatLead = false;
+  private meetGoal: Vec2 = { x: 0, z: 0 };
+  private meetTimer = 0;
+  /** seconds before this person may be matched for another conversation / greeting */
+  socialCooldown = 4;
+  barkCooldown = 0;
+  private reaction: { kind: PedReaction; t: number; dur: number; delay: number; toward: Vec2 | null } | null = null;
+  private gesture = 0;
 
   constructor(
     readonly id: string,
@@ -159,6 +184,7 @@ export class Pedestrian implements Entity {
 
   get pose(): PedPose {
     if (this.state === 'down') return 'down';
+    if (this.state === 'chatting') return 'talk';
     if (this.state === 'sitting') return this.sitOnStoop ? 'sit' : this.phoneIdle ? 'phone' : 'stand';
     if (this.state === 'waiting') return this.phoneIdle ? 'phone' : 'stand';
     return this.movingNow ? 'walk' : 'stand';
@@ -186,6 +212,7 @@ export class Pedestrian implements Entity {
   /** Run away from a point for `seconds` (ignored while knocked down). */
   flee(from: Vec2, seconds = 5): void {
     if (this.state === 'down') return;
+    this.dropChat(false);
     this.fleeFrom.x = from.x;
     this.fleeFrom.z = from.z;
     this.fleeTimer = seconds;
@@ -209,9 +236,11 @@ export class Pedestrian implements Entity {
 
   onContact(_contact: Contact, other: Body2D): void {
     if (this.state === 'down') return;
+    if (other.kind === 'player') { this.bumpedBy(other); return; }
     if (other.kind !== 'vehicle' && other.kind !== 'cop') return;
     const sp = hyp(other.vel.x, other.vel.z);
     if (sp <= HIT_SPEED) return;
+    this.dropChat(false);
     this.state = 'down';
     this.waitCrossing = null;
     this.detour = null;
@@ -263,6 +292,18 @@ export class Pedestrian implements Entity {
         this.scanThreats(dt);
         break;
       }
+      case 'meeting': {
+        moving = this.meetStep(dt);
+        this.scanThreats(dt);
+        break;
+      }
+      case 'chatting': {
+        b.vel.x = 0;
+        b.vel.z = 0;
+        this.chatStep(dt);
+        this.scanThreats(dt);
+        break;
+      }
       case 'sitting': {
         b.vel.x = 0;
         b.vel.z = 0;
@@ -285,6 +326,10 @@ export class Pedestrian implements Entity {
       }
     }
     this.movingNow = moving;
+    this.socialCooldown -= dt;
+    this.barkCooldown -= dt;
+    this.gesture += dt;
+    if (this.reaction) { if (this.reaction.delay > 0) this.reaction.delay -= dt; else { this.reaction.t += dt; if (this.reaction.t >= this.reaction.dur) this.reaction = null; } }
     if (moving) this.phase += dt * (this.state === 'fleeing' ? 12 : 5);
     this.animate(dt, moving);
     this.applyPose();
@@ -293,6 +338,107 @@ export class Pedestrian implements Entity {
   dispose(): void {
     this.detach();
     this.object3D.removeFromParent();
+  }
+
+  // ------------------------------------------------------------------ social life
+
+  /** A free pedestrian on an ordinary pavement stretch: not in a group, not crossing or waiting at a curb, not sitting, not rattled. */
+  get canSocialize(): boolean {
+    if (this.state !== 'walking' || this.leader || this.followers > 0 || this.detour || this.socialCooldown > 0) return false;
+    if (this.isCrossingEdge(this.prevId, this.targetId)) return false;
+    // never stop on or beside a crosswalk: a pair parked there pinned head-on walkers once
+    for (const id of [this.prevId, this.targetId]) {
+      const n = id ? this.sidewalks.nodes[id] : undefined;
+      if (n && this.isCrosswalk(n.id) && hyp(n.pos.x - this.body.pos.x, n.pos.z - this.body.pos.z) < 6) return false;
+    }
+    return true;
+  }
+  get isSeatedOnStoop(): boolean { return this.state === 'sitting' && this.sitOnStoop; }
+  get isTalking(): boolean { return this.state === 'chatting' || this.state === 'meeting'; }
+  get currentReaction(): PedReaction | null { return this.reaction && this.reaction.delay <= 0 ? this.reaction.kind : null; }
+  /** the model's person (null for a rigged GLB character) */
+  get person(): { id: string; sex: 'm' | 'f' | 'x'; age: 'kid' | 'teen' | 'adult' | 'old' } | null {
+    const id = this.model?.group.userData.pedVariant as string | undefined;
+    const sp = id ? PED_SPECS.find((q) => q.id === id) : undefined;
+    return sp ? { id: sp.id, sex: sp.sex ?? 'm', age: sp.age ?? 'adult' } : { id: this.id, sex: 'm', age: 'adult' };
+  }
+
+  /** Walk over to `partner` (they walk over to us) and talk: meeting first, chatting once they stand face to face. */
+  meet(partner: Pedestrian, lead: boolean): void {
+    this.state = 'meeting';
+    this.chatPartner = partner;
+    this.chatLead = lead;
+    this.meetTimer = MEET_TIMEOUT;
+    this.meetGoal = { x: partner.body.pos.x, z: partner.body.pos.z };
+  }
+
+  private meetStep(dt: number): boolean {
+    const b = this.body, p = this.chatPartner;
+    this.meetTimer -= dt;
+    if (!p || p.state === 'down' || p.state === 'fleeing' || p.state === 'sitting' || p.state === 'waiting' || !p.isTalking || this.meetTimer <= 0) { this.dropChat(false, 12); return false; }
+    const dx = p.body.pos.x - b.pos.x, dz = p.body.pos.z - b.pos.z, d = hyp(dx, dz);
+    if (d <= CHAT_DISTANCE + 0.1) {
+      b.vel.x = 0; b.vel.z = 0;
+      this.state = 'chatting';
+      this.chatTimer = Math.min(CHAT_MAX, this.idleRng.range(8, 18));
+      this.chatSpeakIn = this.chatLead ? 0.4 : 2.4;
+      return false;
+    }
+    const sp = Math.min(WALK_SPEED * 0.9, Math.max(0.4, (d - CHAT_DISTANCE) * 2));
+    const gx = dx / d, gz = dz / d;
+    b.vel.x = gx * sp; b.vel.z = gz * sp;
+    b.pos.x += b.vel.x * dt; b.pos.z += b.vel.z * dt;
+    b.heading += angleDiff(b.heading, Math.atan2(gx, -gz)) * Math.min(1, dt * 8);
+    return true;
+  }
+
+  private chatStep(dt: number): void {
+    const b = this.body, p = this.chatPartner;
+    this.chatTimer -= dt;
+    if (!p || p.state === 'down' || p.state === 'fleeing' || !p.isTalking || this.chatTimer <= 0) { const end = !!p && p.isTalking && this.chatTimer <= 0 && this.chatLead; this.dropChat(end, 25); return; }
+    const want = Math.atan2(p.body.pos.x - b.pos.x, -(p.body.pos.z - b.pos.z));
+    b.heading += angleDiff(b.heading, want) * Math.min(1, dt * 5);
+    this.chatSpeakIn -= dt;
+    if (this.chatSpeakIn <= 0 && p.state === 'chatting') {
+      // take turns: one talks for a few seconds with gestures, the other nods and answers
+      this.chatSpeakIn = this.idleRng.range(4.5, 8);
+      if (this.idleRng.next() < 0.22) { this.react('laugh'); p.react('laugh', null, 0.2); this.say('laugh'); }
+      else { this.say(this.chatLead === (Math.floor(this.chatTimer / 7) % 2 === 0) ? 'chat' : 'chatReply'); p.react('nod', null, 0.8); }
+      p.chatSpeakIn = Math.max(p.chatSpeakIn, this.chatSpeakIn * 0.6);
+    }
+  }
+
+  /** End a conversation (or an approach). The partner ends too; `bye` says goodbye; `cooldown` keeps both from being matched again at once. */
+  dropChat(bye: boolean, cooldown = 15): void {
+    const p = this.chatPartner;
+    if (!this.isTalking && !p) return;
+    this.chatPartner = null;
+    if (this.state === 'chatting' || this.state === 'meeting') this.state = 'walking';
+    this.socialCooldown = cooldown + this.idleRng.range(0, 25);
+    if (bye) this.say('bye');
+    if (p && p.chatPartner === this) p.dropChat(false, cooldown);
+  }
+
+  /** Play a short body-language beat. A glance never replaces a beat that is already playing. */
+  react(kind: PedReaction, toward: Vec2 | null = null, delay = 0): void {
+    if (this.state === 'down') return;
+    if (this.reaction && this.reaction.delay <= 0 && kind === 'glance') return;
+    this.reaction = { kind, t: 0, dur: REACTION_TIME[kind], delay, toward: toward ? { x: toward.x, z: toward.z } : null };
+  }
+  /** Ask to say a line; PedSocial decides whether the player is near enough and the street quiet enough. */
+  say(kind: BarkKind): void {
+    if (this.barkCooldown > 0 || !Pedestrian.socialHook) return;
+    this.barkCooldown = 6;
+    Pedestrian.socialHook(this, kind);
+  }
+  /** The player walked into us: stagger back a step, look, complain. */
+  private bumpedBy(other: Body2D): void {
+    if (this.state === 'sitting' || this.state === 'waiting') { this.react('glance', other.pos); return; }
+    const dx = this.body.pos.x - other.pos.x, dz = this.body.pos.z - other.pos.z, d = hyp(dx, dz) || 1;
+    this.body.pos.x += (dx / d) * 0.12; this.body.pos.z += (dz / d) * 0.12;
+    this.react('startle', other.pos);
+    this.say('bumped');
+    if (this.isTalking) this.dropChat(false, 6);
   }
 
   // ------------------------------------------------------------------ internals
@@ -615,6 +761,7 @@ export class Pedestrian implements Entity {
       // on a crosswalk, ordinary traffic is expected to yield; only the player / runaways scare us there
       const driver = (o.userData as IVehicle | undefined)?.driver;
       if (crossing && this.state !== 'fleeing' && driver !== 'player') continue;
+      if (this.state !== 'fleeing') { this.react('shout', o.pos); this.say('nearMiss'); }
       this.flee(o.pos, 3.5);
       return;
     }
@@ -668,6 +815,8 @@ export class Pedestrian implements Entity {
   /** Procedural idle poses on top of the walk cycle: looking at a phone, sitting on a step. */
   private applyIdlePose(m: HumanModel): void {
     const pose = this.pose;
+    if (pose === 'talk') this.talkPose(m);
+    this.reactionPose(m);
     if (pose === 'phone') {
       m.head.rotation.x = -0.45;
       m.arms[1].rotation.x = 1.0;
@@ -683,6 +832,39 @@ export class Pedestrian implements Entity {
         m.arms[1].rotation.x = 1.0;
         m.elbows[1].rotation.x = 1.5;
       }
+    }
+  }
+
+  /** Gesturing while talking: the speaker's free arm rises and falls, the head nods a little, both turn slightly to each other. */
+  private talkPose(m: HumanModel): void {
+    const t = this.gesture, speaking = (Math.floor(t / 3.2) + (this.chatLead ? 0 : 1)) % 2 === 0;
+    const k = speaking ? 1 : 0.25;
+    m.arms[1].rotation.x = 0.55 + k * (0.55 + 0.3 * Math.sin(t * 2.6));
+    m.elbows[1].rotation.x = 0.9 + k * (0.5 + 0.4 * Math.sin(t * 2.6 + 1.2));
+    m.arms[1].rotation.z = -0.1 * k * Math.sin(t * 1.7);
+    m.arms[0].rotation.x = 0.1 + k * 0.25 * Math.max(0, Math.sin(t * 1.9 + 2));
+    m.elbows[0].rotation.x = 0.35 + k * 0.5 * Math.max(0, Math.sin(t * 1.9 + 2));
+    m.head.rotation.x = 0.04 * Math.sin(t * 3.1) * (speaking ? 1.5 : 0.6);
+    m.head.rotation.y = 0.12 * Math.sin(t * 0.8);
+    m.torso.rotation.y = 0.06 * Math.sin(t * 0.9);
+  }
+  private reactionPose(m: HumanModel): void {
+    const r = this.reaction;
+    if (this.pose !== 'talk') { m.arms[0].rotation.z = 0; m.arms[1].rotation.z = 0; }
+    if (!r || r.delay > 0) return;
+    const t = this.gesture, k = Math.sin((r.t / r.dur) * Math.PI);   // eases in and out
+    switch (r.kind) {
+      case 'glance': {
+        if (r.toward) { const want = Math.atan2(r.toward.x - this.body.pos.x, -(r.toward.z - this.body.pos.z)); m.head.rotation.y = Math.max(-1.1, Math.min(1.1, -angleDiff(this.body.heading, want))) * k; }
+        m.head.rotation.x += 0.05 * k;
+        break;
+      }
+      case 'wave': m.arms[1].rotation.x = 2.3 * k; m.elbows[1].rotation.x = (0.5 + 0.55 * Math.sin(t * 11)) * k; m.head.rotation.x = -0.08 * k; break;
+      case 'nod': m.head.rotation.x = 0.22 * k * Math.sin(t * 9); break;
+      case 'laugh': m.torso.rotation.x = (-0.14 + 0.06 * Math.sin(t * 15)) * k; m.head.rotation.x = -0.32 * k; m.arms[0].rotation.x = 0.35 * k; m.arms[1].rotation.x = 0.35 * k; m.elbows[0].rotation.x = 0.9 * k; m.elbows[1].rotation.x = 0.9 * k; break;
+      case 'startle': m.torso.rotation.x = -0.28 * k; m.head.rotation.x = -0.2 * k; m.arms[0].rotation.x = 1.3 * k; m.arms[1].rotation.x = 1.3 * k; m.elbows[0].rotation.x = 1.1 * k; m.elbows[1].rotation.x = 1.1 * k; m.arms[0].rotation.z = 0.35 * k; m.arms[1].rotation.z = -0.35 * k; break;
+      case 'shout': m.arms[1].rotation.x = 2.5 * k; m.elbows[1].rotation.x = 0.7 * k; m.head.rotation.x = -0.22 * k; m.torso.rotation.x = -0.08 * k; break;
+      case 'point': m.arms[1].rotation.x = 1.55 * k; m.elbows[1].rotation.x = 0.1 * k; break;
     }
   }
 

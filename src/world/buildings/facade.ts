@@ -14,6 +14,7 @@ import type { IMaterialLibrary, Lot } from '@/world/types';
 import type { Rng } from '@/core/Rng';
 import { lotLook, partyWallDetail, roofDetails } from './partyWall';
 import { toneFor, type Colourway } from './colourway';
+import { ENV14_ON } from '@/world/data/env14';
 
 /** Parlour (or ground) storey height and the storeys above it (real Bed-Stuy rows: tall parlour, shorter upper floors). */
 export const PARLOUR_H = 3.3;
@@ -1063,7 +1064,7 @@ export function buildUpperFloors(c: LotCtx, o: UpperFloorsOpts): UpperFloorsResu
   roofWithParapet(b, m, { x0: 0, x1: W, zBack: -D, zFront: z, y: topY, frontMat: o.wall, sideMat: look.party, coping: trim, exposeL: cs === 'left', exposeR: cs === 'right', roof: look.roof });
   roofClutter(b, m, rng, { x0: 0, x1: W, zBack: -D, zFront: z, y: topY, brick: look.party, chimney: 0.1, skylight: 0.3, bulkhead: 0.6, dishes: 0.45 });
   roofDetails(b, m, look, { x0: 0, x1: W, zBack: -D, zFront: z, y: topY });
-  if (n >= 3 && rng.chance(0.5)) waterTank(b, m, W * 0.5, topY, -D + 2.8);
+  if (n >= 3 && rng.chance(!ENV14_ON ? 0.5 : n >= 6 ? 0.9 : n >= 5 ? 0.45 : 0.06)) waterTank(b, m, W * 0.5, topY, -D + 2.8);
 
   const feWanted = o.fireEscape ?? rng.chance(n >= 3 && n <= 4 ? 0.85 : n === 2 ? 0.45 : 0.3);
   if (feWanted && xs.length >= 2) {

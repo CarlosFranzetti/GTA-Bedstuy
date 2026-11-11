@@ -126,9 +126,9 @@ export class EngineNodes {
     this.lopeD.gain.setTargetAtTime(v.lope * (0.55 - 0.35 * L) * f.level, t, 0.08);
     this.lp.frequency.setTargetAtTime(v.tone * (0.5 + rn) + v.open * L * (0.3 + rn), t, 0.05);
     this.ex.gain.setTargetAtTime(v.ex[2] * (0.5 + 0.5 * L), t, 0.08);
-    const dip = (f.shifting ? 0.6 : 1) * (f.cut ? 0.12 : 1) * (f.miss ? 0.15 : 1);
+    const dip = (v.ev ? 0.03 : 1) * (f.shifting ? 0.6 : 1) * (f.cut ? 0.12 : 1) * (f.miss ? 0.15 : 1);
     this.lim.gain.setTargetAtTime(dip, t, f.miss ? 0.008 : 0.01);
-    this.out.gain.setTargetAtTime(0.2 * v.g * f.level * (0.5 + 0.5 * (L * 0.7 + rn * 0.5)), t, 0.04);
+    this.out.gain.setTargetAtTime(0.4 * v.g * f.level * (0.5 + 0.5 * (L * 0.7 + rn * 0.5)), t, 0.04);
     this.bp.frequency.setTargetAtTime(350 + 2300 * rn, t, 0.08);
     this.gAir.gain.setTargetAtTime(v.air * 0.13 * (0.12 + 0.88 * L * (0.3 + rn)) * f.level, t, 0.08);
     if (this.tur) {
@@ -143,10 +143,10 @@ export class EngineNodes {
       this.clat.g.gain.setTargetAtTime(a, t, 0.05);
     }
     if (this.whn) {
-      const w = 320 + speed * 42 + rn * 500;
+      const w = v.ev ? 170 + f.rpm * 0.3 : 320 + speed * 42 + rn * 500;
       this.whn.o.frequency.setTargetAtTime(w, t, 0.05);
       this.whn.o2.frequency.setTargetAtTime(w * 2.01, t, 0.05);
-      this.whn.g.gain.setTargetAtTime((v.whine ?? 0) * 0.012 * (0.3 + 0.7 * L) * f.level, t, 0.06);
+      this.whn.g.gain.setTargetAtTime((v.whine ?? 0) * (v.ev ? 0.07 : 0.012) * (v.ev ? (0.15 + 0.85 * Math.min(1, rn * 4)) * (0.45 + 0.55 * L) : 0.3 + 0.7 * L) * f.level, t, 0.06);
     }
     if (this.rat) this.rat.g.gain.setTargetAtTime((v.rat ?? 0) * 0.05 * bump(f.rpm, 1900, 450) * f.level, t, 0.04);
     if (this.pop) {
@@ -254,13 +254,13 @@ export function playHorn(ctx: BaseAudioContext, dest: AudioNode, h: HornSpec, t:
   const amp = gain(ctx, 0.0001, dest);
   const lp = filt(ctx, 'lowpass', h.lp, 0.8, amp);
   const srcs: OscillatorNode[] = [];
-  const peak = 0.09 * g * h.gain;
+  const peak = 0.09 * g * h.gain * (h.kind === 'siren' ? 1.7 : 1);
   let doubleTap = h.kind === 'cab';
   if (h.kind === 'siren') {
     const o = osc(ctx, 'square', [1.3, 0.4, 10]);
     const mode = opts.mode ?? 'wail';
     for (let s = 0; s < 14; s += mode === 'yelp' ? 0.065 : mode === 'whoop' ? 0.04 : mode === 'wail' ? 0.1 : 0.5) {
-      const hz = sirenHz(mode, s);
+      const hz = sirenHz(mode, s) * h.root / 520;
       if (mode === 'wail' || mode === 'yelp') { if (s === 0) o.frequency.setValueAtTime(hz, t); else o.frequency.linearRampToValueAtTime(hz, t + s); }
       else o.frequency.setValueAtTime(hz > 0 ? hz : 380, t + s);
       if (mode === 'whoop' || mode === 'hilo' || mode === 'parody') amp.gain.setValueAtTime(hz > 0 ? peak : 0.0001, t + s);

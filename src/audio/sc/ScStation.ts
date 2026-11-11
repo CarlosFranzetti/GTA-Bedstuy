@@ -619,7 +619,7 @@ export class ScStation {
       for (let k = 0; k < n; k++) {
         const i = (start + k) % n;
         const u = this.list[i].url;
-        if (this.bad.has(u) || this.heard.has(u)) continue;
+        if (this.bad.has(u) || (this.heard.has(u) && !this.list[i].builtin)) continue;
         this.index = i;
         this.heard.add(u);
         this.lastLink = u;
@@ -631,6 +631,8 @@ export class ScStation {
     };
     const attempt = (): boolean => {
       if (nightLink && fromList()) return true;
+      // A station with both an account and the RA pool alternates between them.
+      if (usePool && this.lastWasPool === true && this.list.some((m) => m.builtin) && fromList()) return true;
       if (usePool && fromPool(match)) return true;
       if (fromList()) return true;
       return usePool && fromPool(null);

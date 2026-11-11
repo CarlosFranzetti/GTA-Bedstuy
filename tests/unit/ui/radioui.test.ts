@@ -307,10 +307,10 @@ describe('RadioUi SoundCloud stations', () => {
     expect(sections).toHaveLength(8);
     expect(sections.map((s) => (s as HTMLElement).dataset.station)).toEqual(['bkhouse', 'dublab', 'stoop', 'boogie', 'weird', 'yard', 'flashback', 'sc']);
     const houseSec = sections[0];
-    expect(q(houseSec, '.rl-station-name').textContent).toBe('BK House');
-    expect(q(houseSec, '.rl-sc-pool').textContent).toBe('Pool for BK House: 2 of 3 sets match, 2 not heard yet.');
+    expect(q(houseSec, '.rl-station-name').textContent).toBe('Boiler Room');
+    expect(q(houseSec, '.rl-sc-pool').textContent).toBe('Pool for Boiler Room: 2 of 3 sets match, 2 not heard yet.');
     expect(q(houseSec, '.rl-sc-keywords').textContent).toContain('house');
-    expect(q(sections[1], '.rl-sc-pool').textContent).toBe('Pool for Dub Lab: 1 of 3 sets match, 1 not heard yet.');
+    expect(q(sections[1], '.rl-sc-pool').textContent).toBe('Pool for Dekmantel Podcast: 1 of 3 sets match, 1 not heard yet.');
     expect(q(sections[7], '.rl-sc-pool').textContent).toContain('3 of 3 sets match');
     // links are per station
     const input = q<HTMLInputElement>(houseSec, '.rl-sc-input');

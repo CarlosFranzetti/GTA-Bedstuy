@@ -11,7 +11,7 @@ import { engineFrequency, gearForSpeed, gearShiftFactor, hornFrequencies, impact
 import { patternAt, stepSeconds, type Note } from './radio';
 import { Library, localLibraryStorage, type LibraryStorage } from './library/Library';
 import { LibraryController, type ControllerDeps } from './library/LibraryController';
-import { RadioDirector } from './RadioDirector';
+import { RadioDirector, localLastStation, type RadioStationEntry } from './RadioDirector';
 import { ScStation, type ScEnv } from './sc/ScStation';
 import type { RaFeed } from './sc/RaFeed';
 import type { BroadcastContext } from './announcer/Announcer';
@@ -83,6 +83,10 @@ export interface AudioSystemOptions {
   script?: TalkSegment[];
   /** Folder-handle store and importer overrides (tests). */
   controller?: ControllerDeps;
+  /** Live-stream environment (tests: fake audio element). */
+  liveEnv?: Partial<import('./live/LiveStation').LiveEnv>;
+  /** Where the last radio station is remembered (default localStorage; null = not persisted). */
+  lastStore?: import('./RadioDirector').LastStationStore | null;
   /** Radio SC station override (tests). Default: the real widget-backed station. */
   sc?: ScStation;
   /** Shared ra-nyc pool override (tests). Null disables the pool. */
@@ -188,6 +192,8 @@ export class AudioSystem {
     this.radio = new RadioDirector(library, talk, undefined, opts.sc, {
       feed: opts.feed,
       scEnv: opts.scEnv,
+      liveEnv: opts.liveEnv,
+      lastStore: opts.lastStore === undefined ? localLastStation() : opts.lastStore ?? undefined,
       voice: { speech, makeUtterance: makeUtt, volume: () => this.radioVolume, dj: new DjScheduler(), hub: this.hub },
     });
     this.libraryController = new LibraryController(library, opts.controller);
@@ -357,6 +363,15 @@ export class AudioSystem {
   private syncScVolume(): void {
     this.radio.setScVolume(this.masterVolume * this.radioVolume);
   }
+
+  /** The 15-station dial (id, name, type badge, about line, site) for the station list in the Radio panel. */
+  get radioStations(): readonly RadioStationEntry[] { return this.radio.stations; }
+  get radioCurrentId(): string { return this.radio.current.id; }
+  selectRadioStation(id: string): boolean { return this.radio.selectById(id); }
+  onRadioChange(fn: () => void): () => void { return this.radio.onChange(fn); }
+  get radioNeedsTap(): boolean { return this.radio.needsTap; }
+  radioUserStart(): void { this.radio.userStart(); }
+  radioFailed(id: string): boolean { return this.radio.isFailed(id); }
 
   /** Radio SC station (mix list, next mix, test) for the Radio library panel. */
   get sc(): ScStation { return this.radio.sc; }

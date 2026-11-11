@@ -40,7 +40,7 @@ describe('station list', () => {
   it('has the eight SoundCloud stations, then WBSY Talk, and no My Library while the library is empty', () => {
     const { dir } = setup();
     expect(dir.stations.map((s) => s.kind)).toEqual([...Array(8).fill('sc'), 'talk']);
-    expect(dir.stations.map((s) => s.name)).toEqual(['BK House', 'Dub Lab', 'Stoop Radio', 'Boogie Down', 'Weird Hours', 'Yard FM', 'Flashback 88', 'Radio SC', 'WBSY Talk']);
+    expect(dir.stations.map((s) => s.name)).toEqual(['Boiler Room', 'Dekmantel Podcast', 'Rinse FM', 'Soulection', 'NTS Shows', 'The Lot Radio', 'FACT Mixes', 'Radio SC', 'WBSY Talk']);
     expect(dir.libraryOnDial).toBe(false);
   });
 

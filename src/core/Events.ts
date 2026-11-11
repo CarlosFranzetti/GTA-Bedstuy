@@ -21,6 +21,8 @@ export interface GameEvents {
   /** Fired once when the player first interacts (needed to start WebAudio). */
   userGesture: Record<string, never>;
   pedKnockedDown: { id: string; pos: Vec2 };
+  /** A pedestrian says something short out loud (PedSocial). Speak it with PedVoice (src/audio/voice/PedVoice.ts) and show the subtitle. */
+  pedBark: { id: string; text: string; kind: string; pos: Vec2; pitch: number; rate: number; sex: 'm' | 'f' | 'x'; age: 'kid' | 'teen' | 'adult' | 'old'; /** 0..1 how loud: shouts are 1, small talk 0.6 */ loud: number };
   /** Mission framework (src/game/missions). */
   'mission:started': { id: string; title: string; blurb: string };
   'mission:objective': { id: string; index: number; total: number; text: string };

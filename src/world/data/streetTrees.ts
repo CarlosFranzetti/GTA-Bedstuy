@@ -5,6 +5,7 @@
  * street's real mix; the result scales the shared tree model (instance matrix only, no extra triangles).
  */
 import census from './raw/street-trees.json';
+import { ENV14_ON } from './env14';
 
 export interface StreetTreeStats { n: number; dbh: number[]; species: number[] }
 export interface TreeStyle {
@@ -39,7 +40,7 @@ const draw = (counts: readonly number[], u: number): number => {
 /** Style for a tree on `streetId`; u1..u3 are uniform randoms. Streets without census data get a mid-size tree of the default mix. */
 export function treeStyleFor(streetId: string, u1: number, u2: number, u3: number): TreeStyle {
   const st = STREET_TREE_STATS[streetId];
-  if (!st || st.n < 8) return { dbhIn: 10, species: 0, scale: 0.9, canopy: 1 };
+  if (!ENV14_ON || !st || st.n < 8) return { dbhIn: 10, species: 0, scale: 0.9, canopy: 1 };
   const bin = draw(st.dbh, u1);
   const lo = bin === 0 ? 1 : BIN_MID[bin - 1] + 3, hi = bin === 4 ? 34 : BIN_MID[bin] + 3;
   const dbhIn = Math.round(lo + (hi - lo) * u3);

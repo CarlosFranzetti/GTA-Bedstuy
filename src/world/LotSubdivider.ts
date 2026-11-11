@@ -16,13 +16,16 @@ import type { Rng } from '@/core/Rng';
 import type { BlockFace, GridModel, Lot, LotType, PoiDef, Side } from '@/world/types';
 import type { LotSpec, MaterialFamily } from '@/world/buildings/facade';
 import type { SpecLot } from '@/world/BuildingGen';
+import { FAMILY_FOR_OBSERVED, observedFacade } from '@/world/data/facadeObserved';
 import { STOREFRONT_TO_ARCHETYPE, faceFor, lotsForFace } from '@/world/data/schema';
 import type { StorefrontKind } from '@/world/data/schema';
 import type { FaceSet, LotSpec as DataLotSpec } from '@/world/data/schema';
 
 /** Schema-v2 lot -> the builder-facing spec (families, uses and cornices mapped onto what the generators can draw). */
 export function specFromData(d: DataLotSpec): LotSpec {
-  const family: MaterialFamily = ({
+  const obs = observedFacade(d.bbl);
+  const obsMap = obs ? FAMILY_FOR_OBSERVED[obs.material] : null;
+  const family: MaterialFamily = obsMap ? obsMap.family : ({
     brownstone: 'brownstone', brickRed: 'brick', brickTan: 'tanBrick', brickPainted: 'paintedBrick', limestone: 'limestone',
     frame: 'paintedBrick', church: 'limestone', vacant: 'brick', newBuild: 'paintedBrick',
   } as const)[d.family];
@@ -51,7 +54,7 @@ export function specFromData(d: DataLotSpec): LotSpec {
     scaffold: d.scaffold,
     facadeTexture: (d as { facadeTexture?: string }).facadeTexture,
     bbl: d.bbl,
-    look: d.family === 'frame' ? 'frame' : d.family === 'newBuild' ? 'newBuild' : undefined,
+    look: obsMap ? obsMap.look : d.family === 'frame' ? 'frame' : d.family === 'newBuild' ? 'newBuild' : undefined,
   };
 }
 

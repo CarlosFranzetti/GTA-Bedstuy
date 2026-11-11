@@ -451,8 +451,8 @@ export function fabricsFor(spec: PedSpec): Array<[HiTile, Fabric]> {
 // ---- cloth micro-normal: one tiled detail normal per fabric family, shared by every person (cloth only, at garment scale, not stretched over a tile)
 type DetailSet = 'denim' | 'cotton_knit' | 'nylon_puffer' | 'none';
 const DETAIL_OF: Record<string, [DetailSet, number, number]> = {   // fabric -> [CC0 set, repeats across the atlas, strength]
-  denim: ['denim', 34, 0.9], canvas: ['denim', 22, 0.8], knit: ['cotton_knit', 26, 1.0], jersey: ['cotton_knit', 42, 0.55], fleece: ['cotton_knit', 20, 0.8],
-  wool: ['cotton_knit', 30, 0.7], poplin: ['cotton_knit', 56, 0.4], nylon: ['nylon_puffer', 40, 0.7], leather: ['none', 1, 0], satin: ['none', 1, 0],
+  denim: ['denim', 90, 0.4], canvas: ['denim', 60, 0.35], knit: ['cotton_knit', 70, 0.45], jersey: ['cotton_knit', 110, 0.3], fleece: ['cotton_knit', 55, 0.35],
+  wool: ['cotton_knit', 80, 0.3], poplin: ['cotton_knit', 130, 0.22], nylon: ['nylon_puffer', 100, 0.3], leather: ['none', 1, 0], satin: ['none', 1, 0],
 };
 const detailTex = new Map<DetailSet, THREE.Texture>();
 /** a small tileable twill / weave normal, painted procedurally: the stand-in until a CC0 map has loaded (and on the hosted build, which ships none) */

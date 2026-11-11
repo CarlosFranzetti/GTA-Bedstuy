@@ -108,7 +108,7 @@ export class RoadNet {
   nearestEdge(p: Vec2, maxDist = 400, filter?: (edge: number) => boolean): EdgeHit | null {
     const cx = Math.floor(p.x / CELL);
     const cz = Math.floor(p.z / CELL);
-    let best: { e: number; k: number; t: number; d2: number; q: Vec2 } | null = null;
+    let best = null as { e: number; k: number; t: number; d2: number; q: Vec2 } | null;
     const maxR = Math.ceil(maxDist / CELL) + 1;
     for (let r = 0; r <= maxR; r++) {
       for (let x = cx - r; x <= cx + r; x++) for (let z = cz - r; z <= cz + r; z++) {

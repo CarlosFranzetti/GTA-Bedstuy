@@ -210,7 +210,8 @@
 <path d="M1192.9,1004.1L1236.1,961.8L1272.5,999.0L1188.3,1082.7L1172.2,1066.8L1151.2,1045.1Z" fill="#2f3540" stroke="none"/>
 <path d="M1188.3,1082.7L1272.5,999.0L1305.9,1032.8L1220.8,1116.9Z" fill="#2f3540" stroke="none"/>
 <path d="M40.6,199.4L350.6,198.7L839.4,689.4L832.6,995.5L40.0,995.5Z" fill="none" stroke="#4fc3f7" stroke-width="1.5" stroke-dasharray="6 4"><title>R1</title></path>
-<path d="M282.9,207.2L593.4,158.5L1047.1,31.6L1510.7,503.1L1942.2,510.0L1324.4,1052.5L1220.4,1155.0L1055.6,985.7L778.5,996.6L785.0,711.2Z" fill="none" stroke="#81c784" stroke-width="1.5" stroke-dasharray="6 4"><title>R2</title></path>
+<path d="M785.0,711.1L573.3,495.8L1510.6,503.0L1691.5,686.7L1220.5,1155.1L1055.6,985.7L778.5,996.6Z" fill="none" stroke="#81c784" stroke-width="1.5" stroke-dasharray="6 4"><title>R2</title></path>
+<path d="M40.6,199.4L337.2,198.7L593.4,158.5L1047.1,31.6L1510.7,503.1L1942.2,510.0L1324.4,1052.5L1220.4,1155.0L1055.6,985.7L806.7,995.5L40.0,995.5Z" fill="none" stroke="#888888" stroke-width="1.5" stroke-dasharray="6 4"><title>R1+R2+</title></path>
 <path d="M1039.2,62.0L1068.0,52.8" fill="none" stroke="#d9822b" stroke-opacity="0.85" stroke-width="5.9" stroke-linecap="round"><title>#0 Flushing Ave arterial w12.2 lanes2 ow0</title></path>
 <path d="M982.0,81.2L1039.2,62.0" fill="none" stroke="#d9822b" stroke-opacity="0.85" stroke-width="6.4" stroke-linecap="round"><title>#1 Flushing Ave arterial w13.4 lanes2 ow0</title></path>
 <path d="M1017.1,40.0L1039.2,62.0" fill="none" stroke="#e8c547" stroke-opacity="0.85" stroke-width="6.4" stroke-linecap="round"><title>#2 Knickerbocker Ave avenue w13.4 lanes1 ow-1</title></path>

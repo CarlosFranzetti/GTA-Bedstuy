@@ -219,6 +219,14 @@ function paintHead(t: L, s: PedSpec, rng: Rng): void {
     t.poly([[X(-0.027), my - 2], [X(0.027), my - 2], [X(0.021), my + 14], [X(-0.021), my + 14]], lipc, 0.95);
     t.rect(X(-0.026), my - 2, X(0.026) - X(-0.026), 2, '#2a1210', 0.4);
   }
+  // surgical mask: pleated, over nose and mouth, ear loops to the sides
+  if (f.mask) {
+    const mc = '#cfe0ea';
+    t.poly([[X(-0.066), Y(1.608)], [X(-0.03), Y(1.646)], [X(0.03), Y(1.646)], [X(0.066), Y(1.608)], [X(0.07), Y(1.566)], [X(0.04), Y(1.52)], [X(-0.04), Y(1.52)], [X(-0.07), Y(1.566)]], mc, 0.97, 138, 235);
+    for (let i = 1; i < 5; i++) { const yy = Y(1.64) + i * ((Y(1.527) - Y(1.64)) / 5); t.line(X(-0.066), yy, X(0.066), yy + 1.5, dk(mc, 0.22), 1.4, 0.55, 110); t.line(X(-0.066), yy + 2, X(0.066), yy + 3.5, '#ffffff', 1, 0.5, 150); }
+    t.line(X(-0.066), Y(1.608), X(-0.086), Y(1.6), '#e8eef2', 1.2, 0.9); t.line(X(0.066), Y(1.608), X(0.086), Y(1.6), '#e8eef2', 1.2, 0.9);
+    t.line(X(-0.03), Y(1.646), X(0.03), Y(1.646), '#8aa0b0', 1.6, 0.8, 120);
+  }
   // the outer columns of the planar map are stretched over the sides and back of the head: plain slightly darker skin (no ear colour there)
   t.rect(0, 0, 4, W, dk(skin, 0.12), 1, 128, 150); t.rect(W - 4, 0, 4, W, dk(skin, 0.12), 1, 128, 150);
   if (s.hair !== 'bald') { t.rect(0, 0, 4, Y(1.69), s.hairColor); t.rect(W - 4, 0, 4, Y(1.69), s.hairColor); }
@@ -373,7 +381,6 @@ function paintTorso(t: L, s: PedSpec, rng: Rng): void {
       t.poly([[cx - 52, 0], [cx + 52, 0], [cx + 30, 26], [cx, 34], [cx - 30, 26]], dk(c, 0.28), 1, 96, 250);
       for (let i = 0; i < 7; i++) t.line(cx - 44 + i * 14.5, 0, cx - 30 + i * 10, 26 + (i % 2) * 5, dk(c, 0.55), 2, 0.3, 88);
       t.curve(cx - 34, 24, cx, 40, cx + 34, 24, dk(c, 0.6), 2.4, 0.5);
-      neckHole(18, 14);
       for (const sx of [-1, 1]) { eyelet(t, cx + sx * 11, 30); t.line(cx + sx * 11, 32, cx + sx * 12.5, 60, '#d8d4c8', 1.6, 0.95, 148); t.rect(cx + sx * 12.5 - 1.2, 60, 2.4, 6, '#b8b8c0', 1, 170, 60); }
       if (p.zip) { zipper(t, cx, 34, H - 12, dk(c, 0.15)); }
       else {
@@ -388,7 +395,6 @@ function paintTorso(t: L, s: PedSpec, rng: Rng): void {
       baffles(t, W, H - 14, c, 20, 4);
       rib(t, 0, H - 11, W, 11, dk(c, 0.1));
       t.poly([[cx - 40, 0], [cx + 40, 0], [cx + 34, 16], [cx - 34, 16]], dk(c, 0.3), 1, 110, 190); t.rect(cx - 40, 14, 80, 2, '#000000', 0.3, 86);   // standing collar
-      neckHole(16, 10);
       t.rect(cx - 4.5, 0, 9, H - 11, lt(c, 0.06), 1, 138, 190); zipper(t, cx, 6, H - 11, dk(c, 0.2));                                                       // storm placket + zip
       for (const sx of [-1, 1]) { t.line(cx + sx * 64, 76, cx + sx * 54, 104, '#0a0a0a', 2, 0.55, 80); stitch(t, cx + sx * 66, 76, cx + sx * 56, 104, '#8a8a90', 0.5); }
       break;
@@ -398,7 +404,7 @@ function paintTorso(t: L, s: PedSpec, rng: Rng): void {
       t.poly([[0, 0], [58, 0], [70, H], [0, H]], p.trim, 0.95, 128, 236); t.poly([[W, 0], [W - 58, 0], [W - 70, H], [W, H]], p.trim, 0.95, 128, 236);
       if (p.pattern === 'block') { t.poly([[cx - 46, 0], [cx + 46, 0], [cx + 18, H - 20], [cx - 74, H - 20]], dk(c, 0.18), 0.9, 128); }
       for (let y = 4; y < H - 16; y += 5) for (let x = (y / 5) % 2 ? 2 : 0; x < W; x += 5) t.rect(x, y, 1.4, 1.4, '#000000', 0.22, 80);
-      neckHole(24, 14); rib(t, 0, 0, W, 8, p.trim, false); t.rect(0, H - 24, W, 3, p.trim, 0.9); t.rect(0, H - 19, W, 1.6, p.trim, 0.8); rib(t, 0, H - 13, W, 13, c, false);
+      rib(t, 0, 0, W, 8, p.trim, false); t.rect(0, H - 24, W, 3, p.trim, 0.9); t.rect(0, H - 19, W, 1.6, p.trim, 0.8); rib(t, 0, H - 13, W, 13, c, false);
       break;
     }
     case 'vest': {
@@ -413,7 +419,7 @@ function paintTorso(t: L, s: PedSpec, rng: Rng): void {
       for (const sx of [-1, 1]) tape(cx + sx * 34 - 4.5, 12, 9, 38);
       t.rect(cx - 2, 12, 4, H - 12, dk(c, 0.3), 0.6, 100); zipper(t, cx, 14, H - 4, dk(c, 0.1), false);
       for (const sx of [-1, 1]) { t.rect(cx + sx * 50 - 17, 100, 34, 22, dk(c, 0.1), 1, 118); stitch(t, cx + sx * 50 - 17, 101, cx + sx * 50 + 17, 101, '#7a7020', 0.6); t.rect(cx + sx * 50 - 17, 97, 34, 5, lt(c, 0.05), 1, 148); }
-      t.rect(0, 0, W, 12, '#1d2026', 1, 128, 232); neckHole(24, 12);                                                                                                       // collar of the dark shirt
+      t.rect(0, 0, W, 12, '#1d2026', 1, 128, 232);                                                                                                       // collar of the dark shirt
       t.rect(0, 0, W, 5, '#2b2f36', 1, 142, 236);
       break;
     }
@@ -424,7 +430,7 @@ function paintTorso(t: L, s: PedSpec, rng: Rng): void {
       if (p.open) {
         // worn open: the shirt (and its ribbed collar) shows down the front between the two jacket fronts
         t.rect(cx - 25, 0, 50, H, underC, 1, 128, 232); speck(t, cx - 25, 0, 50, H, underC, rng, 90, 0.14);
-        t.rect(cx - 25, 0, 50, 7, dk(underC, 0.12), 1, 120); neckHole(14, 8); crease(t, cx - 20, 60, cx, 70, cx + 20, 62, underC, 0.14);
+        t.rect(cx - 25, 0, 50, 7, dk(underC, 0.12), 1, 120); crease(t, cx - 20, 60, cx, 70, cx + 20, 62, underC, 0.14);
         for (const sx of [-1, 1]) { t.rect(cx + sx * 25 - (sx > 0 ? 0 : 5), 0, 5, H, dk(c, 0.14), 1, 168, 190); t.line(cx + sx * 25, 0, cx + sx * 25, H, '#000000', 1.6, 0.5, 86); stitch(t, cx + sx * 28, 0, cx + sx * 28, H, st, 0.6); }
       } else {
         t.rect(cx - 42, 0, 84, H, dk(c, 0.03), 1, 122);
@@ -478,7 +484,7 @@ function paintTorso(t: L, s: PedSpec, rng: Rng): void {
       break;
     }
     case 'scrubs': {
-      neckHole(30, 40); t.poly([[cx - 34, 0], [cx - 22, 0], [cx, 36]], dk(c, 0.15), 1, 150, 226); t.poly([[cx + 34, 0], [cx + 22, 0], [cx, 36]], dk(c, 0.15), 1, 150, 226);
+      neckHole(16, 30); t.poly([[cx - 34, 0], [cx - 22, 0], [cx, 36]], dk(c, 0.15), 1, 150, 226); t.poly([[cx + 34, 0], [cx + 22, 0], [cx, 36]], dk(c, 0.15), 1, 150, 226);
       t.line(cx - 28, 0, cx, 38, lt(c, 0.5), 1.6, 0.8); t.line(cx + 28, 0, cx, 38, lt(c, 0.5), 1.6, 0.8);
       t.rect(cx - 62, 66, 36, 30, dk(c, 0.1), 1, 134); t.rect(cx - 62, 66, 36, 2, dk(c, 0.5), 0.8, 92); stitch(t, cx - 60, 71, cx - 28, 71, lt(c, 0.3), 0.5); stitch(t, cx - 62, 94, cx - 26, 94, lt(c, 0.3), 0.4);
       t.rect(cx + 28, 90, 30, 28, dk(c, 0.1), 1, 134); stitch(t, cx + 28, 94, cx + 58, 94, lt(c, 0.3), 0.5);
@@ -486,7 +492,7 @@ function paintTorso(t: L, s: PedSpec, rng: Rng): void {
       break;
     }
     case 'blouse': case 'dress': {
-      neckHole(34, 26); t.poly([[cx - 36, 0], [cx - 18, 0], [cx - 8, 28]], dk(c, 0.12), 1, 154, 226); t.poly([[cx + 36, 0], [cx + 18, 0], [cx + 8, 28]], dk(c, 0.12), 1, 154, 226);
+      neckHole(18, 20); t.poly([[cx - 36, 0], [cx - 18, 0], [cx - 8, 28]], dk(c, 0.12), 1, 154, 226); t.poly([[cx + 36, 0], [cx + 18, 0], [cx + 8, 28]], dk(c, 0.12), 1, 154, 226);
       if (p.kind === 'dress') { t.rect(0, 70, W, 4, dk(c, 0.25), 1, 150); t.rect(0, 74, W, 2, '#000000', 0.12); }                                          // waist seam
       else { for (let y = 34; y < H - 10; y += 22) button(t, cx, y, lt(c, 0.3), 2.1); t.rect(cx - 1, 28, 2, H - 28, dk(c, 0.2), 0.6, 112); }               // button band
       for (const sx of [-1, 1]) { t.line(cx + sx * 40, 36, cx + sx * 44, 72, dk(c, 0.5), 1.2, 0.3, 100); }                                               // bust darts
@@ -496,7 +502,7 @@ function paintTorso(t: L, s: PedSpec, rng: Rng): void {
     }
     case 'tracksuit': {
       // zip-through track top: contrast collar stand, shoulder yoke, side stripes with piping, rib hem
-      t.poly([[cx - 36, 0], [cx + 36, 0], [cx + 28, 14], [cx - 28, 14]], p.trim, 1, 140, 200); neckHole(14, 8);
+      t.poly([[cx - 36, 0], [cx + 36, 0], [cx + 28, 14], [cx - 28, 14]], p.trim, 1, 140, 200);
       t.rect(0, 0, W, 22, dk(c, 0.1), 1, 130, 176);
       zipper(t, cx, 8, H - 12, p.trim);
       for (const sx of [64, W - 64]) { t.rect(sx - 8, 0, 16, H - 12, p.trim, 1, 134, 176); t.rect(sx - 9.5, 0, 1.4, H - 12, dk(p.trim, 0.3), 0.7); t.rect(sx + 8, 0, 1.4, H - 12, dk(p.trim, 0.3), 0.7); }
@@ -517,7 +523,7 @@ function paintTorso(t: L, s: PedSpec, rng: Rng): void {
     default: {
       // tee: ribbed round neck, side seams, double-stitched hem, optional breton stripes / colour block / abstract print
       if (p.pattern === 'stripe' || p.print === 'stripes') stripesH(t, W, H - 10, p.printColor, 16, 6);
-      neckHole(26, 22); t.curve(cx - 27, 0, cx, 30, cx + 27, 0, dk(c, 0.34), 4, 0.9); t.curve(cx - 24, 0, cx, 26, cx + 24, 0, lt(c, 0.14), 2, 0.5);
+      t.curve(cx - 27, 0, cx, 30, cx + 27, 0, dk(c, 0.34), 4, 0.9); t.curve(cx - 24, 0, cx, 26, cx + 24, 0, lt(c, 0.14), 2, 0.5);
       t.rect(0, H - 12, W, 12, dk(c, 0.04), 1, 120); stitch(t, 0, H - 10, W, H - 10, lt(c, 0.3), 0.55); stitch(t, 0, H - 6, W, H - 6, lt(c, 0.3), 0.45);
       if (p.pattern === 'block') { t.poly([[0, 0], [W, 0], [W, 44], [0, 44]], p.trim, 0.9, 130); }
     }
@@ -726,7 +732,7 @@ function paintHat(t: L, s: PedSpec, rng: Rng): void {
   if (s.hat === 'church') { t.rect(0, 80, W, 12, s.hatTrim, 1, 150, 150); t.rect(0, 80, W, 1.5, dk(s.hatTrim, 0.4), 0.7); t.rect(0, 91, W, 1.5, dk(s.hatTrim, 0.4), 0.7); t.poly([[56, 78], [74, 78], [80, 98], [50, 98]], lt(s.hatTrim, 0.2), 0.9, 160); }
   if (s.hat === 'fedora') { t.rect(0, 84, W, 12, s.hatTrim, 1, 150, 150); t.rect(0, 84, W, 1.5, dk(s.hatTrim, 0.4), 0.7); t.curve(8, 30, 64, 44, 120, 30, dk(c, 0.5), 3, 0.5); }
   if (s.hat === 'cop') { t.rect(0, 80, W, 10, s.hatTrim, 0.9, 150, 140); if (s.hatLogo === '*') { const pts: Array<[number, number]> = []; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5; pts.push([64 + Math.cos(a) * (i % 2 ? 4 : 9), 58 + Math.sin(a) * (i % 2 ? 4 : 9)]); } t.poly(pts, s.hatTrim, 1, 156, 90); } }
-  if (s.hat === 'hijab') { for (let i = 0; i < 9; i++) crease(t, 0, 14 + i * 12, 64, 8 + i * 12 + rng.range(-5, 5), 128, 16 + i * 12, c, 0.26); for (let x = 0; x < W; x += 2) t.rect(x, 0, 0.7, H, lt(c, 0.12), 0.07); }
+  if (s.hat === 'hijab') { for (let i = 0; i < 11; i++) { const x0 = i * 12 - 10; t.curve(x0, 0, x0 + 14 + rng.range(-6, 6), 60, x0 - 8, 128, dk(c, 0.5), 3.2, 0.2); t.curve(x0 + 4, 0, x0 + 18 + rng.range(-6, 6), 60, x0 - 4, 128, lt(c, 0.35), 2.2, 0.16); } for (let x = 0; x < W; x += 2) t.rect(x, 0, 0.7, H, lt(c, 0.1), 0.05); }
   t.rect(0, 112, W, 16, '#000000', 0.16);
 }
 

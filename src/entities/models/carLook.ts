@@ -32,6 +32,14 @@ export const PALETTES: Record<VehicleType, readonly PaintEntry[]> = {
   luxury: [P('black', '#14161a', 6), P('white', '#eeeeea', 4), P('grey', '#5a5f66', 4), P('silver', '#b4b8bd', 3), P('blue', '#1e3a6a', 2), P('burgundy', '#4a1c28', 1), P('brown', '#4a3828', 1), P('green', '#1f3a30', 1)],
   towncar: [P('black', '#0e0f12', 8), P('black cherry', '#2a1018', 1), P('midnight', '#141a2a', 1), P('white', '#ecebe4', 1), P('champagne', '#c8b896', 1), P('silver', '#a6aab0', 1), P('grey', '#555a60', 1), P('navy', '#1a2440', 1)],
   pony: [P('candy', '#c8283a', 3), P('blue', '#1f5fb4', 3), P('yellow', '#e8c21c', 2), P('orange', '#e0621a', 2), P('black', '#15161a', 3), P('white', '#eeeeea', 2), P('grey', '#6a7078', 2), P('green', '#1f6a3a', 1), P('purple', '#6a2a8a', 1), P('silver', '#b4b8bd', 1)],
+  // CARS14: 8 colourways each
+  coupe911: [P('guards red', '#b3202a', 3, 0), P('silver', '#b7bbc0', 3), P('black', '#15161a', 3), P('white', '#eeeeea', 2), P('racing yellow', '#e8c21c', 1), P('gentian blue', '#1f3f8a', 2), P('python green', '#2f5a42', 1), P('slate grey', '#5a5f66', 2)],
+  exotic: [P('giallo', '#f2c200', 3, 1), P('verde', '#2f8f4e', 2, 1), P('nero', '#15161a', 3), P('bianco', '#eeeeea', 2, 1), P('arancio', '#e0621a', 2, 1), P('rosso', '#c4182a', 3), P('blu', '#1c3f9a', 2), P('grigio', '#5a5f66', 2)],
+  jdmcoupe: [P('sapphire', '#2e6bd1', 3, 1), P('white', '#eeeeea', 3, 1), P('graphite', '#4a4e54', 2), P('black', '#15161a', 2), P('sunburst', '#e8a01c', 2), P('candy red', '#a8202a', 2), P('lime', '#8cc43a', 1), P('silver', '#b3b7bb', 2)],
+  hothatch: [P('championship white', '#e8e8e4', 3, 1), P('rally red', '#d6322a', 3), P('black', '#15161a', 2), P('sonic blue', '#2468c4', 2, 1), P('grey', '#5c6168', 2), P('yellow', '#e8c21c', 1), P('silver', '#b3b7bb', 2), P('tangerine', '#e8791c', 1)],
+  muscle: [P('tor orange', '#e0621a', 3, 1), P('plum', '#5a2a6a', 2, 1), P('black', '#15161a', 3), P('white', '#eeeeea', 2, 1), P('red', '#b8302a', 3), P('blue', '#1f5fb4', 2, 1), P('granite', '#5a5f66', 2), P('green', '#2a6a3a', 1)],
+  wedgetruck: [P('steel', '#b8bcc2', 5), P('dark steel', '#6a6e74', 3), P('gunmetal', '#3e4248', 2), P('bronze', '#8a7458', 1), P('sand', '#b8aa90', 1), P('black', '#1a1b1e', 2), P('frost', '#d4d8dc', 2), P('graphite', '#505459', 2)],
+  evsedan: [P('pearl', '#e8e8ea', 4), P('midnight', '#1a2230', 3), P('red multi-coat', '#a8202a', 2), P('silver', '#b3b7bb', 3), P('grey', '#5c6168', 3), P('blue', '#1f4f8a', 2), P('black', '#15161a', 3), P('teal', '#1f6f72', 1)],
   garbage: [P('sanitation white', '#eef1ec', 1)],
   ambulance: [P('white', '#f4f4f4', 1)],
   dollarvan: [P('white', '#e8eaea', 4), P('silver', '#b4b8bd', 2), P('grey', '#8a9096', 2), P('cream', '#e4dcc4', 1), P('blue', '#2a4f86', 1), P('maroon', '#6a2a30', 1), P('green', '#2f5a48', 1), P('red', '#a02a2a', 1)],
@@ -101,6 +109,14 @@ const WHEELS_BY_TYPE: Partial<Record<VehicleType, readonly WheelDesign[]>> = {
   cargovan: ['steel', 'steelBare'],
   dollarvan: ['steel', 'steelBare', 'alloy5'],
   ambulance: ['steel'],
+  // CARS14: big, low-profile rims on the sports cars, flat aero discs on the electrics
+  coupe911: ['alloy5', 'turbine', 'alloy6', 'deep'],
+  exotic: ['alloy5', 'turbine', 'deep', 'alloy6'],
+  jdmcoupe: ['mesh', 'alloy6', 'deep', 'alloy5'],
+  hothatch: ['alloy5', 'alloy6', 'mesh', 'turbine'],
+  muscle: ['deep', 'alloy5', 'turbine', 'mesh'],
+  wedgetruck: ['turbine', 'alloy6'],
+  evsedan: ['turbine', 'alloy5', 'turbine'],
 };
 
 /** Delivery livery counts: cargo van (skin packs 10..14), box truck (cargo livery canvases 1..11), cop (marked paints) */
@@ -112,8 +128,8 @@ export function lookFor(type: VehicleType, color: string, seed: number): CarLook
   const r = new Rng(`look:${type}:${seed >>> 0}`);
   const wheels = WHEELS_BY_TYPE[type];
   const wheel = wheels ? r.pick(wheels) : 'steel';
-  const sporty = type === 'pony' || type === 'luxury' || type === 'hatch' || type === 'sedan';
-  const lowered = sporty && r.chance(type === 'pony' ? 0.5 : 0.14) ? (r.chance(0.5) ? 0.04 : 0.07) : 0;
+  const sporty = type === 'pony' || type === 'luxury' || type === 'hatch' || type === 'sedan' || type === 'jdmcoupe' || type === 'hothatch' || type === 'muscle' || type === 'coupe911';
+  const lowered = sporty && r.chance(type === 'pony' || type === 'jdmcoupe' || type === 'hothatch' ? 0.5 : 0.14) ? (r.chance(0.5) ? 0.04 : 0.07) : 0;
   const fleet = type === 'cab' || type === 'cop' || type === 'bus' || type === 'garbage' || type === 'ambulance' || type === 'boxtruck';
   const tint: 0 | 1 | 2 = type === 'towncar' ? 2 : fleet || type === 'cargovan' ? 0 : r.chance(0.3) ? (r.chance(0.35) ? 2 : 1) : 0;
   let roof: RoofGear = 'none';
@@ -126,12 +142,12 @@ export function lookFor(type: VehicleType, color: string, seed: number): CarLook
   const nSt = fleet && type !== 'cab' ? 0 : r.chance(0.35) ? (r.chance(0.3) ? 2 : 1) : 0;
   const stickers: number[] = [];
   for (let i = 0; i < nSt; i++) stickers.push(r.int(0, STICKER_COUNT - 1));
-  const rideshare = (type === 'sedan' || type === 'hatch' || type === 'crossover' || type === 'luxury' || type === 'minivan' || type === 'towncar') && r.chance(type === 'towncar' ? 0.35 : 0.14) ? r.int(0, RIDESHARE.length - 1) : -1;
+  const rideshare = (type === 'sedan' || type === 'evsedan' || type === 'hatch' || type === 'crossover' || type === 'luxury' || type === 'minivan' || type === 'towncar') && r.chance(type === 'towncar' ? 0.35 : 0.14) ? r.int(0, RIDESHARE.length - 1) : -1;
   // wear: beaters carry it, fleet vans get dirty, luxury cars stay clean
   const tired = type === 'beater' ? 2 : type === 'luxury' ? -2 : type === 'cargovan' || type === 'boxtruck' || type === 'dollarvan' || type === 'garbage' ? 1 : 0;
   const lvl = (bias: number): number => Math.max(0, Math.min(3, Math.floor(r.next() * 2.6 + bias * 0.5 + (r.chance(0.25) ? 1 : 0) - 0.6)));
   const dirt = type === 'garbage' ? 3 : lvl(tired + 1);
-  const rust = type === 'luxury' || type === 'cop' || type === 'ambulance' ? 0 : lvl(tired - (type === 'cab' ? 1 : 0));
+  const rust = type === 'luxury' || type === 'cop' || type === 'ambulance' || type === 'exotic' || type === 'coupe911' || type === 'evsedan' ? 0 : lvl(tired - (type === 'cab' ? 1 : 0));
   const dents = r.chance(0.18 + 0.12 * Math.max(0, tired)) ? r.int(1, 3) : 0;
   const primer = (type === 'beater' ? r.chance(0.55) : type === 'luxury' || type === 'cop' || type === 'ambulance' ? false : r.chance(0.05)) ? r.int(1, 4) : 0;
   let livery = 0;

@@ -4,7 +4,7 @@
  * the boundary streets and their far sidewalks are inside and every street leaving the area keeps a short stub.
  */
 import type { Vec2 } from '@/core/Math2';
-import { signedArea } from './geom';
+import { pointInPolygon, signedArea } from './geom';
 
 export const EXTENT_MARGIN = 45;
 
@@ -19,19 +19,25 @@ export const R1_RING: Vec2[] = [
   P(-242, 247), // Tompkins Ave x Greene Ave
 ];
 
-/** R2: across Broadway into Bushwick: Flushing..Knickerbocker..Myrtle-Wyckoff, back along Gates (Bushwick leg) and Greene. */
+/**
+ * R2 (core, about 25 old-grid blocks of area): across Broadway into Bushwick between Myrtle Ave (with the M el) and the
+ * Bushwick leg of Gates Ave, out to Knickerbocker Ave, plus the Bed-Stuy triangle east of Malcolm X up to Broadway.
+ */
 export const R2_RING: Vec2[] = [
-  P(212, -991), // Broadway x Flushing Ave
-  P(645, -1059), // Bushwick Ave x Flushing Ave
-  P(1378, -1264), // Knickerbocker Ave x Flushing Ave
+  P(1000, -200), // Broadway x Malcolm X Blvd
+  P(710, -495), // Broadway x Myrtle Ave
   P(2145, -484), // Knickerbocker Ave x Myrtle Ave
-  P(2766, -474), // Myrtle Ave x Wyckoff Ave (Myrtle-Wyckoff station)
-  P(1823, 354), // Gates Ave x Bushwick Ave
+  P(2402, -223), // Knickerbocker Ave x Gates Ave (Bushwick leg; computed from the two centrelines)
   P(1681, 494), // Gates Ave x Broadway
   P(1424, 230), // Broadway x Greene Ave
   P(990, 247), // Malcolm X Blvd x Greene Ave
-  P(1000, -200), // Broadway x Malcolm X Blvd
 ];
+
+/**
+ * R2+ (optional, in roadnet-core.json but not built unless approved): the industrial triangle north of Myrtle between
+ * Broadway, Flushing and Knickerbocker, and the Myrtle-Wyckoff tail. Defined as "inside R1R2 but not in R1 or R2".
+ */
+export const R2PLUS_NOTE = 'R1R2 minus R1 minus R2';
 
 /** R1 + R2 outline (what roadnet-core.json is clipped to). */
 export const R1R2_RING: Vec2[] = [
@@ -69,4 +75,13 @@ export function offsetRing(ring: ReadonlyArray<Vec2>, d: number): Vec2[] {
 
 export const R1_EXTENT = offsetRing(R1_RING, EXTENT_MARGIN);
 export const R2_EXTENT = offsetRing(R2_RING, EXTENT_MARGIN);
+
+/** phase of a point: the first ring (un-grown) containing it, else 'R2+' when inside the R1R2 extent, else null */
+export function phaseOf(p: Vec2): 'R1' | 'R2' | 'R2+' | null {
+  if (pointInPolygon(p, R1_RING)) return 'R1';
+  if (pointInPolygon(p, R2_RING)) return 'R2';
+  if (pointInPolygon(p, R1_EXTENT)) return 'R1';
+  if (pointInPolygon(p, R2_EXTENT)) return 'R2';
+  return pointInPolygon(p, R1R2_EXTENT) ? 'R2+' : null;
+}
 export const R1R2_EXTENT = offsetRing(R1R2_RING, EXTENT_MARGIN);

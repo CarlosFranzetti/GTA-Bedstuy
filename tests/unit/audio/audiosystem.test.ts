@@ -235,7 +235,7 @@ describe('AudioSystem radio', () => {
   it('starts with the first station', async () => {
     const { audio } = setup();
     await audio.start();
-    expect(audio.stationName).toBe('BK House');
+    expect(audio.stationName).toBe('Boiler Room');
   });
 
   it('steps through the whole dial on nextStation() and wraps: 8 SoundCloud stations, WBSY Talk', async () => {
@@ -244,18 +244,18 @@ describe('AudioSystem radio', () => {
     const names = [audio.stationName];
     for (let i = 0; i < 8; i++) { audio.nextStation(); names.push(audio.stationName); }
     expect(names).toEqual([
-      'BK House', 'Dub Lab', 'Stoop Radio', 'Boogie Down', 'Weird Hours', 'Yard FM', 'Flashback 88', 'Radio SC',
+      'Boiler Room', 'Dekmantel Podcast', 'Rinse FM', 'Soulection', 'NTS Shows', 'The Lot Radio', 'FACT Mixes', 'Radio SC',
       'WBSY Talk (voice unavailable on this device)',
     ]);
     audio.nextStation();
-    expect(audio.stationName).toBe('BK House');
+    expect(audio.stationName).toBe('Boiler Room');
   });
 
   it('changes station on the radioNext event', async () => {
     const { events, audio } = setup();
     await audio.start();
     events.emit('radioNext', {});
-    expect(audio.stationName).toBe('Dub Lab');
+    expect(audio.stationName).toBe('Dekmantel Podcast');
   });
 
   it('never sequences synthesized music on a SoundCloud station, in a vehicle or not', async () => {

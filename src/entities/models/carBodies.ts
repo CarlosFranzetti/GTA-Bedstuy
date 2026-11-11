@@ -679,8 +679,10 @@ export interface Style {
   windowed?: boolean;
 }
 
-export type PassengerStyle = 'sedan' | 'coupe' | 'suv' | 'cop' | 'cab' | 'cargo' | 'hatch' | 'beater' | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'ambulance' | 'dollar';
-export type StyleKey = 'sedan' | 'coupe' | 'suv' | 'crown' | 'charger' | 'cargo' | 'hatch' | 'beater' | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'dollar';
+export type PassengerStyle = 'sedan' | 'coupe' | 'suv' | 'cop' | 'cab' | 'cargo' | 'hatch' | 'beater' | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'ambulance' | 'dollar'
+  | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan';
+export type StyleKey = 'sedan' | 'coupe' | 'suv' | 'crown' | 'charger' | 'cargo' | 'hatch' | 'beater' | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'dollar'
+  | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan';
 export const STYLES: Record<StyleKey, Style> = {
   // "Kamari": a mid-size front-drive sedan of the Toyota Camry type (XV70, 2018-): length 4,879-4,885 mm (192.1 in), wheelbase 2,825 mm
   // (111.2 in), width 1,840 mm (72.4 in), height 1,445-1,455 mm. VEHICLE_SPECS.sedan carries the same size.
@@ -1213,14 +1215,266 @@ export const STYLES: Record<StyleKey, Style> = {
     dims: { L: 5.98, W: 2.06, H: 2.78 },
     windowed: true,
   },
+  // ---- CARS14 (WebSearch, 11 Nov 2026). Parody names and shapes are our own; the real class is the size reference only.
+  // Sim feel (VEHICLE_SPECS in entities/Vehicle.ts) comes from the same numbers. Sim top speed is about half the real one.
+  // "Stuttgard 6": a rear-engine 2+2 sports coupe of the Porsche 911 Carrera (992) class. Facelift 2024 Carrera: length 4,542 mm, width 1,852 mm (without mirrors),
+  // wheelbase 2,450 mm, height about 1,300 mm, kerb weight 1,520 kg; 3.0 flat-six biturbo 283 kW (385 hp); 0-100 km/h 4.1-4.2 s; top speed 293-294 km/h; wheels 20/21 in.
+  // Sources: https://www.auto-data.net/en/porsche-911-992-facelift-2024-carrera-3.0-394hp-pdk-51872 , https://www.autohints.com/porsche-911-992-facelift-2024-carrera-3.0-394-hp-pdk-version-32194 , https://fastestlaps.com/models/porsche-911-carrera-s-992-facelift , https://www.ultimatecarpage.com/spec/7689/Porsche-911-Carrera.html
+  coupe911: {
+    Lref: 4.542, Href: 1.3,
+    sill: 0.13, wheelR: 0.345, wheelW: 0.27,
+    axle: 1.225,
+    secs: [
+      [-2.27, 0.84, 0.8, 0.9],
+      [-2.1, 0.96, 0.9, 0.9],
+      [-1.8, 1.06, 0.97, 0.88],
+      [-1.4, 1.14, 0.99, 0.8],
+      [-1.0, 1.22, 1.0, 0.74],
+      [-0.6, 1.28, 1.0, 0.72],
+      [-0.1, 1.3, 1.0, 0.72],
+      [0.35, 1.24, 1.0, 0.76],
+      [0.75, 1.08, 0.98, 0.88],
+      [1.1, 0.98, 0.94, 0.93],
+      [1.6, 0.9, 0.86, 0.93],
+      [2.0, 0.82, 0.78, 0.93],
+      [2.27, 0.74, 0.7, 0.91],
+    ],
+    windshield: [1.02, 0.3],
+    doorGlass: [[0.8, -0.5], [-0.58, -1.0]],
+    bPillar: [-0.5, -0.58],
+    rearGlass: [-1.02, -1.4],
+    seams: [0.84, -0.54, -1.0],
+    handles: [-0.15],
+    hoodBack: 1.02,
+    clad: 11,
+    rails: false, spoiler: false, maxGap: 0.3, archN: 6,
+    bumperY: 0.3, bumperH: 0.2,
+    plan: [[-2.27, 0.9], [-1.6, 0.99], [-0.9, 1], [0.9, 1], [1.7, 0.98], [2.27, 0.9]],
+    headLamp: 'round2', tailLamp: 'bar', grille: 'mesh', lampD: 0.0, tailD: 0.02, endF: 0.55, endR: 0.35, grilleW: 0.3,
+    dims: { L: 4.542, W: 1.852, H: 1.3 },
+  },
+  // "Veleno V10": a mid-engine V10 wedge exotic of the Lamborghini Huracan EVO class. Huracan EVO: length 4,520 mm, width 1,933 mm, height 1,165 mm, wheelbase 2,620 mm
+  // (published figures; the search returned the STO's 4,459 x 1,924 mm and the weights), dry weight 1,422 kg, 5.2 V10 470 kW (640 hp), 0-100 km/h 2.9 s (AWD) / 3.3 s (RWD), top speed 325 km/h.
+  // Sources: https://lamborghini.com/en-en/history/huracan-evo-rwd , https://lambocars.com/huracan-evo-rwd-specs-performance/ , https://www.ultimatecarpage.com/spec/7516/Lamborghini-Huracan-EVO.html , https://cars-data.com/en/lamborghini/huracan/2014/evo-5-2-v10--105298/specs
+  exotic: {
+    Lref: 4.52, Href: 1.165,
+    sill: 0.1, wheelR: 0.35, wheelW: 0.3,
+    axle: 1.31,
+    secs: [
+      [-2.26, 0.74, 0.7, 0.9],
+      [-2.1, 0.86, 0.8, 0.9],
+      [-1.7, 0.98, 0.9, 0.88],
+      [-1.2, 1.04, 0.92, 0.8],
+      [-0.8, 1.12, 0.94, 0.72],
+      [-0.3, 1.165, 0.96, 0.66],
+      [0.2, 1.14, 0.96, 0.66],
+      [0.65, 1.0, 0.95, 0.8],
+      [1.0, 0.88, 0.86, 0.9],
+      [1.5, 0.8, 0.78, 0.93],
+      [2.0, 0.72, 0.7, 0.93],
+      [2.26, 0.64, 0.58, 0.92],
+    ],
+    windshield: [1.0, 0.25],
+    doorGlass: [[0.8, -0.1], [-0.18, -0.62]],
+    bPillar: [-0.1, -0.18],
+    rearGlass: [-0.66, -0.95],
+    seams: [0.86, -0.12, -0.7],
+    handles: [0.3],
+    hoodBack: 1.0,
+    clad: 11,
+    rails: false, spoiler: false, maxGap: 0.3, archN: 6,
+    bumperY: 0.26, bumperH: 0.18,
+    plan: [[-2.26, 0.86], [-1.7, 0.98], [-0.9, 1], [0.9, 1], [1.7, 0.97], [2.26, 0.86]],
+    headLamp: 'angular', tailLamp: 'lshape', grille: 'wedge', lampD: 0.1, tailD: 0.05, endF: 0.45, endR: 0.2, grilleW: 0.55,
+    dims: { L: 4.52, W: 1.933, H: 1.165 },
+  },
+  // "Kaze RB": a JDM tuner coupe of the Toyota GR Supra (A90) class: length 4,380 mm, width 1,853-1,865 mm, height about 1,290-1,300 mm, wheelbase 2,470 mm,
+  // kerb weight 1,395-1,528 kg (3.0 about 1,495 kg), 3.0 turbo inline-six 250-320 kW, 0-100 km/h about 4.3-4.4 s (0-60 mph 4.1 s), top speed 250 km/h (limited; 270 on the Final Edition), 19 in wheels.
+  // Sources: https://auto-data.net/en/toyota-supra-v-a90-gr-3.0-382hp-automatic-46688 , https://parkers.co.uk/toyota/gr-supra/coupe-2019/specs , https://dimensions.com/element/toyota-gr-supra-a90-a91 , https://autotijd.be/en/dimensions/toyota/supra/a90-final-edition-manual-5038
+  jdmcoupe: {
+    Lref: 4.38, Href: 1.29,
+    sill: 0.14, wheelR: 0.345, wheelW: 0.275,
+    axle: 1.235,
+    secs: [
+      [-2.19, 0.9, 0.86, 0.9],
+      [-2.05, 0.98, 0.92, 0.9],
+      [-1.7, 1.06, 0.98, 0.86],
+      [-1.2, 1.16, 1.0, 0.78],
+      [-0.8, 1.24, 1.0, 0.74],
+      [-0.3, 1.29, 1.0, 0.7],
+      [0.15, 1.25, 1.0, 0.72],
+      [0.55, 1.12, 1.0, 0.82],
+      [0.95, 0.98, 0.96, 0.9],
+      [1.4, 0.92, 0.88, 0.93],
+      [1.85, 0.86, 0.82, 0.93],
+      [2.19, 0.78, 0.72, 0.9],
+    ],
+    windshield: [0.98, 0.3],
+    doorGlass: [[0.82, -0.2], [-0.28, -0.8]],
+    bPillar: [-0.2, -0.28],
+    rearGlass: [-0.82, -1.3],
+    seams: [0.84, -0.24, -0.84],
+    handles: [0.2],
+    hoodBack: 1.0,
+    clad: 11,
+    rails: false, spoiler: true, maxGap: 0.3, archN: 6,
+    bumperY: 0.3, bumperH: 0.2,
+    plan: [[-2.19, 0.9], [-1.6, 0.99], [-0.9, 1], [0.9, 1], [1.7, 0.98], [2.19, 0.9]],
+    headLamp: 'slit', tailLamp: 'bar', grille: 'mesh', lampD: 0.0, tailD: 0.03, endF: 0.5, endR: 0.3, grilleW: 0.5,
+    dims: { L: 4.38, W: 1.865, H: 1.29 },
+  },
+  // "Rallye GT": a hot hatch of the Honda Civic Type R (FL5) class, front-wheel drive: length 4,594 mm, width 1,890 mm, height 1,401 mm, wheelbase 2,734 mm,
+  // kerb weight 1,405-1,446 kg, 2.0 turbo four 243 kW (329 hp), 0-100 km/h 5.4 s, top speed 275 km/h, 265/30 R19 tyres.
+  // Sources: https://www.vehiclesizes.com/cars/honda/civic-type-r/civic-type-r-fl5-hatchback-2023 , https://www.dimensions.com/element/honda-civic-type-r-fl5-6th-gen , https://www.auto-data.net/en/honda-civic-type-r-fl5-2.0-329hp-48467 , https://www.honda.co.uk/cars/new/civic-type-r/specifications.html
+  hothatch: {
+    Lref: 4.594, Href: 1.401,
+    sill: 0.15, wheelR: 0.345, wheelW: 0.265,
+    axle: 1.367,
+    secs: [
+      [-2.3, 1.1, 1.02, 0.9],
+      [-2.2, 1.28, 1.08, 0.9],
+      [-2.0, 1.38, 1.1, 0.84],
+      [-1.5, 1.4, 1.1, 0.78],
+      [-0.8, 1.401, 1.1, 0.74],
+      [-0.1, 1.39, 1.1, 0.73],
+      [0.35, 1.3, 1.1, 0.78],
+      [0.75, 1.15, 1.08, 0.88],
+      [1.1, 1.05, 1.04, 0.93],
+      [1.6, 1.0, 0.98, 0.93],
+      [2.0, 0.94, 0.9, 0.93],
+      [2.3, 0.84, 0.8, 0.91],
+    ],
+    windshield: [1.05, 0.3],
+    doorGlass: [[0.9, -0.05], [-0.12, -0.9], [-0.98, -1.75]],
+    bPillar: [-0.05, -0.12],
+    rearGlass: [-1.8, -2.18],
+    seams: [0.9, -0.08, -0.95],
+    handles: [0.2, -0.6],
+    hoodBack: 1.05,
+    clad: 11,
+    rails: false, spoiler: true, hatchback: true, maxGap: 0.3, archN: 6, endT: [0, 1],
+    bumperY: 0.32, bumperH: 0.22,
+    plan: [[-2.3, 0.92], [-1.8, 0.99], [-0.9, 1], [0.9, 1], [1.8, 0.99], [2.3, 0.92]],
+    headLamp: 'blade', tailLamp: 'loop', grille: 'mesh', lampD: 0.08, tailD: 0.05, endF: 0.4, endR: 0.2, grilleW: 0.6,
+    dims: { L: 4.594, W: 1.89, H: 1.401 },
+  },
+  // "Brawler SRT": a modern muscle coupe of the Dodge Challenger SRT Hellcat class: length 197.5 in (5.016 m), width 75.7 in (1.923 m), height 57.2 in (1.453 m), wheelbase 116.2 in (2.952 m),
+  // curb weight about 4,415-4,430 lb (2,000 kg), supercharged 6.2 V8 527 kW (717 hp), 0-60 mph about 3.6-4.5 s (we use 3.8 s to 100 km/h), top speed 191-200 mph, 20 in wheels.
+  // Sources: https://specs2.auto123.com/en/specs/dodge/challenger/dodge-challenger-2022-srt-hellcat-pa-425272 , https://www.motormatchup.com/catalog/Dodge/Challenger/2021/SRT-Hellcat-RWD , https://news.dupontregistry.com/dodge/challenger-hellcat-specs-price-photos-review
+  muscle: {
+    Lref: 5.016, Href: 1.453,
+    sill: 0.17, wheelR: 0.36, wheelW: 0.295,
+    axle: 1.476,
+    secs: [
+      [-2.51, 1.0, 0.98, 0.92],
+      [-2.4, 1.12, 1.05, 0.92],
+      [-2.0, 1.2, 1.1, 0.88],
+      [-1.6, 1.28, 1.12, 0.82],
+      [-1.1, 1.4, 1.12, 0.76],
+      [-0.5, 1.453, 1.12, 0.72],
+      [0.1, 1.44, 1.12, 0.73],
+      [0.6, 1.3, 1.12, 0.8],
+      [1.0, 1.16, 1.1, 0.9],
+      [1.5, 1.12, 1.06, 0.94],
+      [2.0, 1.08, 1.02, 0.94],
+      [2.35, 1.0, 0.94, 0.93],
+      [2.51, 0.92, 0.86, 0.92],
+    ],
+    windshield: [1.0, 0.3],
+    doorGlass: [[0.9, -0.55], [-0.62, -1.15]],
+    bPillar: [-0.55, -0.62],
+    rearGlass: [-1.18, -1.7],
+    seams: [0.92, -0.6, -1.18],
+    handles: [-0.3],
+    hoodBack: 1.04,
+    clad: 11,
+    rails: false, spoiler: false, maxGap: 0.3, archN: 6,
+    bumperY: 0.36, bumperH: 0.24,
+    plan: [[-2.51, 0.93], [-1.9, 0.99], [-0.9, 1], [0.9, 1], [1.9, 0.99], [2.51, 0.94]],
+    headLamp: 'round2', tailLamp: 'bar', grille: 'bigbar', lampD: 0.0, tailD: 0.03, endF: 0.5, endR: 0.3, grilleW: 0.7,
+    dims: { L: 5.016, W: 1.923, H: 1.453 },
+  },
+  // "Slab 1": satire of an electric stainless wedge pickup (Tesla Cybertruck class, a deliberately blunt parody): length 223.7 in (5.683 m), width 80 in (2.03 m, without mirrors),
+  // height 70.5 in (1.79 m), wheelbase 143.1 in (3.635 m), curb weight 6,634 lb (3,010 kg), dual-motor AWD 4.1 s 0-60 mph (0-100 km/h about 4.5 s), 180 km/h (112 mph) limited.
+  // Sources: https://www.kbb.com/tesla/cybertruck/2026/specs/ , https://www.arenaev.com/tesla_cybertruck_all_wheel_drive-specs-55.php , https://www.evspecifications.com/en/model/f02c2d3 , https://www.basenor.com/pages/cybertruck-dimensions
+  wedgetruck: {
+    Lref: 5.683, Href: 1.79,
+    sill: 0.3, wheelR: 0.4, wheelW: 0.285,
+    axle: 1.8175,
+    secs: [
+      [-2.84, 1.2, 1.15, 0.95],
+      [-2.4, 1.24, 1.16, 0.95],
+      [-1.6, 1.3, 1.17, 0.94],
+      [-0.8, 1.5, 1.2, 0.88],
+      [-0.1, 1.76, 1.25, 0.76],
+      [0.5, 1.79, 1.25, 0.72],
+      [1.1, 1.58, 1.2, 0.8],
+      [1.7, 1.28, 1.15, 0.9],
+      [2.2, 1.06, 1.0, 0.94],
+      [2.6, 0.94, 0.9, 0.94],
+      [2.84, 0.88, 0.84, 0.92],
+    ],
+    windshield: [2.0, 0.45],
+    doorGlass: [[0.35, -0.4], [-0.46, -1.1]],
+    bPillar: [-0.4, -0.46],
+    rearGlass: null,
+    seams: [0.4, -0.43, -1.15],
+    handles: [-0.1],
+    hoodBack: 2.0,
+    clad: 11,
+    rails: false, spoiler: false, hatchback: true, maxGap: 0.9, archN: 5, endT: [0, 1],
+    bumperY: 0.46, bumperH: 0.26,
+    plan: [[-2.84, 0.97], [-2.0, 1], [2.0, 1], [2.84, 0.82]],
+    headLamp: 'blade', tailLamp: 'bar', grille: 'wedge', lampD: 0.02, tailD: 0.02, endF: 0.1, endR: 0.05, grilleW: 0.2,
+    dims: { L: 5.683, W: 2.03, H: 1.79 },
+  },
+  // "Volta E": an electric sedan of the Tesla Model 3 class (2025 Performance), dual-motor AWD: length 185.8 in (4.72 m), width 72.8 in (1.85 m, without mirrors), height 56.3 in (1.43 m),
+  // wheelbase 113.2 in (2.875 m), curb weight 4,054 lb (1,840 kg), 0-60 mph 2.9 s (0-100 km/h about 3.1 s), top speed 163 mph (260 km/h; sim figure 225 km/h class), 18-20 in wheels.
+  // Sources: https://www.tesla.com/model3 , https://www.evspecifications.com/en/model/fa873dc , https://greencarscompare.com/compare/cars/tesla-model-3-performance/ , https://www.evspecs.org/tech-specs/tesla/model-3-2017-2023/performance
+  evsedan: {
+    Lref: 4.72, Href: 1.43,
+    sill: 0.16, wheelR: 0.34, wheelW: 0.235,
+    axle: 1.4375,
+    secs: [
+      [-2.36, 0.96, 0.92, 0.92],
+      [-2.2, 1.1, 1.0, 0.92],
+      [-1.9, 1.2, 1.04, 0.88],
+      [-1.5, 1.3, 1.06, 0.82],
+      [-1.0, 1.4, 1.06, 0.76],
+      [-0.4, 1.43, 1.06, 0.74],
+      [0.2, 1.4, 1.06, 0.75],
+      [0.7, 1.28, 1.06, 0.82],
+      [1.1, 1.1, 1.04, 0.9],
+      [1.6, 0.98, 0.94, 0.93],
+      [2.1, 0.9, 0.86, 0.93],
+      [2.36, 0.82, 0.76, 0.91],
+    ],
+    windshield: [1.1, 0.45],
+    doorGlass: [[0.95, 0.2], [0.1, -0.95]],
+    bPillar: [0.2, 0.1],
+    rearGlass: [-1.0, -1.85],
+    seams: [0.96, 0.15, -0.98],
+    handles: [0.5, -0.5],
+    hoodBack: 1.1,
+    clad: 11,
+    rails: false, spoiler: false, maxGap: 0.3, archN: 6,
+    bumperY: 0.34, bumperH: 0.22,
+    plan: [[-2.36, 0.93], [-1.8, 0.99], [-0.9, 1], [0.9, 1], [1.8, 0.99], [2.36, 0.92]],
+    headLamp: 'blade', tailLamp: 'bar', grille: 'wedge', lampD: 0.1, tailD: 0.04, endF: 0.55, endR: 0.3, grilleW: 0.25,
+    dims: { L: 4.72, W: 1.85, H: 1.43 },
+  },
 };
+
+/** The CARS14 types: sports cars, the electric wedge pickup and the electric sedan (each has its own style of the same name). */
+export const CARS14_TYPES = ['coupe911', 'exotic', 'jdmcoupe', 'hothatch', 'muscle', 'wedgetruck', 'evsedan'] as const;
+export function isCars14(type: string): type is (typeof CARS14_TYPES)[number] { return (CARS14_TYPES as readonly string[]).includes(type); }
 
 export function wheelRadiusFor(type: VehicleType): number {
   if (type === 'boxtruck' || type === 'bus') return 0.5;
   if (type === 'garbage') return GARBAGE_R;
   if (type === 'cargovan' || type === 'ambulance') return STYLES.cargo.wheelR;
   if (type === 'dollarvan') return STYLES.dollar.wheelR;
-  if (type === 'hatch' || type === 'beater' || type === 'pickup' || type === 'crossover' || type === 'minivan' || type === 'luxury' || type === 'towncar' || type === 'pony') return STYLES[type].wheelR;
+  if (type === 'hatch' || type === 'beater' || type === 'pickup' || type === 'crossover' || type === 'minivan' || type === 'luxury' || type === 'towncar' || type === 'pony' || isCars14(type)) return STYLES[type].wheelR;
   return type === 'suv' ? STYLES.suv.wheelR : type === 'cop' ? STYLES.charger.wheelR : STYLES.sedan.wheelR;
 }
 
@@ -1228,7 +1482,7 @@ export function wheelRadiusFor(type: VehicleType): number {
 export function hullSectionCount(type: VehicleType): number {
   if (type === 'boxtruck' || type === 'garbage') return TRUCK_CAB_SECS.length;
   if (type === 'bus') return 12;
-  return STYLES[type === 'suv' ? 'suv' : type === 'cop' ? 'charger' : type === 'cargovan' || type === 'ambulance' ? 'cargo' : type === 'dollarvan' ? 'dollar' : type === 'cab' ? 'crown' : type === 'hatch' || type === 'beater' || type === 'pickup' || type === 'crossover' || type === 'minivan' || type === 'luxury' || type === 'towncar' || type === 'pony' ? type : 'sedan'].secs.length;
+  return STYLES[type === 'suv' ? 'suv' : type === 'cop' ? 'charger' : type === 'cargovan' || type === 'ambulance' ? 'cargo' : type === 'dollarvan' ? 'dollar' : type === 'cab' ? 'crown' : type === 'hatch' || type === 'beater' || type === 'pickup' || type === 'crossover' || type === 'minivan' || type === 'luxury' || type === 'towncar' || type === 'pony' || isCars14(type) ? type : 'sedan'].secs.length;
 }
 
 const inI = (u: number, r: V2): boolean => u <= r[0] + 1e-6 && u >= r[1] - 1e-6;

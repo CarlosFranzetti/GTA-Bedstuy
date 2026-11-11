@@ -170,3 +170,32 @@ describe('GridModel -> RoadNet adapter', () => {
     }
   });
 });
+
+describe('roadnet-core.json (R1+R2 import, NYC Centerline)', async () => {
+  const core = (await import('@/world/data/roadnet-core.json')).default as unknown as import('@/world/roadnet/codec').RoadNetJson;
+  const { phaseOf } = await import('@/world/roadnet/extents');
+  const net = RoadNet.fromJson(core);
+  it('has the real Bed-Stuy and Bushwick streets with sane counts', () => {
+    const names = new Set(net.edges.map((e) => e.name));
+    for (const n of ['Throop Ave', 'Kosciuszko St', 'Dekalb Ave', 'Broadway', 'Bushwick Ave', 'Knickerbocker Ave', 'Myrtle Ave', 'Flushing Ave', 'Malcolm X Blvd', 'Marcus Garvey Blvd']) {
+      expect(names.has(n), n).toBe(true);
+    }
+    expect(net.edges.length).toBeGreaterThan(450);
+    expect(net.blocks.filter((b) => !b.island).length).toBeGreaterThan(150);
+    expect(net.blocks.every((b) => b.area > 0)).toBe(true);
+  });
+  it('puts the origin on Throop x Kosciuszko and Broadway at 45 degrees to the grid', () => {
+    expect(net.streetNameAt(P(2, 40))).toBe('Throop Ave');
+    expect(net.streetNameAt(P(120, 1))).toBe('Kosciuszko St');
+    const b = net.edges.map((e, i) => ({ e, i })).filter(({ e }) => e.name === 'Broadway');
+    expect(b.every(({ e }) => e.cls === 'arterial')).toBe(true);
+    const longest = b.sort((x, y) => net.lengths[y.i] - net.lengths[x.i])[0];
+    const d = net.pointAt(longest.i, net.lengths[longest.i] / 2).dir;
+    expect(Math.abs(Math.abs(Math.atan2(d.z, d.x) * 180 / Math.PI) - 135) < 4 || Math.abs(Math.abs(Math.atan2(d.z, d.x) * 180 / Math.PI) - 45) < 4).toBe(true);
+  });
+  it('assigns phases: Throop/Kosciuszko is R1, Bushwick Ave/Central is R2', () => {
+    expect(phaseOf(P(0, 0))).toBe('R1');
+    expect(phaseOf(P(1600, -150))).toBe('R2');
+    expect(phaseOf(P(5000, 5000))).toBeNull();
+  });
+});

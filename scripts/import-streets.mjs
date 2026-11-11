@@ -146,29 +146,24 @@ async function main() {
     const gz = zlib.gzipSync(json, { level: 9 }).length;
     const net = new RoadNet(data);
 
-    // per-phase counts: an edge belongs to the first phase whose extent holds its midpoint, a block by its ring centroid
-    const phases = [['R1', ext.R1_EXTENT, ext.R1_RING], ['R2', ext.R2_EXTENT, ext.R2_RING]];
-    const counts = Object.fromEntries(phases.map(([n]) => [n, { edges: 0, km: 0, blocks: 0, islands: 0, signals: 0 }]));
+    // per-phase counts: edges by midpoint, blocks by ring centroid, signals by position (extents.ts phaseOf)
+    const counts = Object.fromEntries(['R1', 'R2', 'R2+'].map((n) => [n, { edges: 0, km: 0, blocks: 0, islands: 0, signals: 0, areaKm2: 0 }]));
     net.edges.forEach((e, i) => {
-      const m = net.pointAt(i, net.lengths[i] / 2).p;
-      const ph = phases.find(([, poly]) => geom.pointInPolygon(m, poly));
-      if (ph) { counts[ph[0]].edges++; counts[ph[0]].km += net.lengths[i] / 1000; }
+      const ph = ext.phaseOf(net.pointAt(i, net.lengths[i] / 2).p);
+      if (ph) { counts[ph].edges++; counts[ph].km += net.lengths[i] / 1000; }
     });
     net.blocks.forEach((bl, i) => {
       const r = net.blockRing(i);
       const c = r.reduce((a, p) => ({ x: a.x + p.x / r.length, z: a.z + p.z / r.length }), { x: 0, z: 0 });
-      const ph = phases.find(([, , ring]) => geom.pointInPolygon(c, ring)) ?? phases.find(([, poly]) => geom.pointInPolygon(c, poly));
-      if (ph) counts[ph[0]][bl.island ? 'islands' : 'blocks']++;
+      const ph = ext.phaseOf(c);
+      if (ph) { counts[ph][bl.island ? 'islands' : 'blocks']++; counts[ph].areaKm2 += bl.area / 1e6; }
     });
-    net.nodes.forEach((n) => {
-      if (n.control !== 'signal') return;
-      const ph = phases.find(([, poly]) => geom.pointInPolygon(n.p, poly));
-      if (ph) counts[ph[0]].signals++;
-    });
+    net.nodes.forEach((n) => { const ph = n.control === 'signal' && ext.phaseOf(n.p); if (ph) counts[ph].signals++; });
+    const phases = [['R1', ext.R1_EXTENT], ['R2', ext.R2_EXTENT]];
     const names = new Set(data.edges.map((e) => e.name));
     console.log('report', report);
     console.log(`nodes ${data.nodes.length} edges ${data.edges.length} blocks ${data.blocks.filter((b) => !b.island).length} islands ${data.blocks.filter((b) => b.island).length} streets ${names.size}`);
-    for (const [n, c] of Object.entries(counts)) console.log(`${n}: edges ${c.edges}, ${c.km.toFixed(1)} km, blocks ${c.blocks}, islands ${c.islands}, signals ${c.signals}`);
+    for (const [n, c] of Object.entries(counts)) console.log(`${n}: edges ${c.edges}, ${c.km.toFixed(1)} km, blocks ${c.blocks} (${c.areaKm2.toFixed(2)} km2 centreline area), islands ${c.islands}, signals ${c.signals}`);
     console.log(`classes`, data.edges.reduce((a, e) => ((a[e.cls] = (a[e.cls] ?? 0) + 1), a), {}));
     console.log(`controls`, data.nodes.reduce((a, n) => ((a[n.control] = (a[n.control] ?? 0) + 1), a), {}));
     console.log(`wrote ${path.relative(ROOT, OUT)}: ${(json.length / 1024).toFixed(1)} kB raw, ${(gz / 1024).toFixed(1)} kB gzip`);
@@ -176,7 +171,7 @@ async function main() {
     for (const [n, poly] of phases) console.log(`${n} extent lat,lon: ${ll(poly)}`);
 
     if (!args.has('--no-svg')) {
-      const svg = svgOf(net, [['R1', ext.R1_EXTENT, '#4fc3f7'], ['R2', ext.R2_EXTENT, '#81c784']], proj);
+      const svg = svgOf(net, [['R1', ext.R1_EXTENT, '#4fc3f7'], ['R2', ext.R2_EXTENT, '#81c784'], ['R1+R2+', ext.R1R2_EXTENT, '#888888']], proj);
       fs.writeFileSync(SVG, svg);
       console.log(`wrote ${path.relative(ROOT, SVG)}: ${(svg.length / 1024).toFixed(0)} kB`);
     }

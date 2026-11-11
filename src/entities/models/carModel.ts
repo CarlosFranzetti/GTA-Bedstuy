@@ -31,14 +31,15 @@ import { PALETTES, type CarLook, type WheelDesign } from './carLook';
 import { buildExtras } from './carExtras';
 import { CAR_COLORWAYS, type SkinLayout, type SkinStyle } from '@/textures/painters/vehicleSkin';
 import {
-  Acc, STYLES, isTaxiYellow, mirrorX, buildPassengerParts, buildTruckParts, buildBusParts, wheelRadiusFor, hullSectionCount,
+  Acc, STYLES, isTaxiYellow, mirrorX, buildPassengerParts, buildTruckParts, buildBusParts, wheelRadiusFor, hullSectionCount, isCars14,
   type CarParts, type PassengerStyle,
 } from './carBodies';
 export { wheelRadiusFor, hullSectionCount };
 
 /** `van` is the box truck (Isuzu NPR type); `cargo` is the Transit-type cargo van */
 export type CarStyle = 'sedan' | 'coupe' | 'suv' | 'van' | 'cab' | 'cop' | 'cargo' | 'hatch' | 'beater' | 'bus'
-  | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'garbage' | 'ambulance' | 'dollar' | 'unmarked';
+  | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'garbage' | 'ambulance' | 'dollar' | 'unmarked'
+  | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan';
 
 export interface CarModel {
   group: THREE.Group;
@@ -64,7 +65,7 @@ export interface CarModel {
 /** Body style of a car: type first, then taxi-yellow paint makes a cab, and plate variant 3 of the plain sedans is the coupe. */
 export function styleFor(type: VehicleType, color: string, variant = 0, unmarked = false): CarStyle {
   if (type === 'cop') return unmarked ? 'unmarked' : 'cop';
-  if (type === 'pickup' || type === 'crossover' || type === 'minivan' || type === 'luxury' || type === 'towncar' || type === 'pony') return type;
+  if (type === 'pickup' || type === 'crossover' || type === 'minivan' || type === 'luxury' || type === 'towncar' || type === 'pony' || isCars14(type)) return type;
   if (type === 'garbage' || type === 'ambulance') return type;
   if (type === 'dollarvan') return 'dollar';
   if (type === 'cab') return 'cab';
@@ -93,6 +94,13 @@ export const PAINT_VARIANTS: Record<VehicleType, readonly string[]> = {
   luxury: PALETTES.luxury.slice(0, 4).map((e) => e.color),
   towncar: PALETTES.towncar.slice(0, 4).map((e) => e.color),
   pony: PALETTES.pony.slice(0, 4).map((e) => e.color),
+  coupe911: PALETTES.coupe911.slice(0, 4).map((e) => e.color),
+  exotic: PALETTES.exotic.slice(0, 4).map((e) => e.color),
+  jdmcoupe: PALETTES.jdmcoupe.slice(0, 4).map((e) => e.color),
+  hothatch: PALETTES.hothatch.slice(0, 4).map((e) => e.color),
+  muscle: PALETTES.muscle.slice(0, 4).map((e) => e.color),
+  wedgetruck: PALETTES.wedgetruck.slice(0, 4).map((e) => e.color),
+  evsedan: PALETTES.evsedan.slice(0, 4).map((e) => e.color),
   garbage: ['#eef1ec', '#eef1ec'],
   ambulance: ['#f4f4f4', '#f4f4f4'],
   dollarvan: PALETTES.dollarvan.slice(0, 4).map((e) => e.color),
@@ -412,7 +420,7 @@ const partsCache = new Map<string, CarParts>();
 const layoutCache = new Map<string, SkinLayout>();
 
 /** The body styles that wear a baked skin (the cab and the cop car have their own livery maps on the regular UV set). */
-const SKINNED: ReadonlySet<CarStyle> = new Set<CarStyle>(['sedan', 'coupe', 'suv', 'van', 'cargo', 'hatch', 'beater', 'bus', 'pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'garbage', 'ambulance', 'dollar']);
+const SKINNED: ReadonlySet<CarStyle> = new Set<CarStyle>(['sedan', 'coupe', 'suv', 'van', 'cargo', 'hatch', 'beater', 'bus', 'pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'garbage', 'ambulance', 'dollar', 'coupe911', 'exotic', 'jdmcoupe', 'hothatch', 'muscle', 'wedgetruck', 'evsedan']);
 /** The skin layout family of a body: the garbage truck's cab is the box truck's cab, the ambulance is the cargo van. */
 const skinStyleOf = (st: CarStyle): SkinStyle => (st === 'garbage' ? 'van' : st === 'ambulance' ? 'cargo' : (st as SkinStyle));
 const boxCache = new Map<string, PaintBox>();

@@ -57,7 +57,8 @@ async function getJson(url, headers = {}) {
 }
 async function getBuf(url) {
   for (let attempt = 0; attempt < 4; attempt++) {
-    const res = await fetch(url, { headers: { 'User-Agent': UA } });
+    let res;
+    try { res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(40000) }); } catch { return null; }
     if (res.status === 429 || res.status >= 500) { await sleep(2000 * (attempt + 1)); continue; }
     if (!res.ok) return null;
     return Buffer.from(await res.arrayBuffer());
@@ -167,12 +168,14 @@ async function main() {
     if (flag('no-download')) { photos.push(p); continue; }
     if (downloaded >= MAX) break;
     if (!p.fileUrl) continue;
-    const buf = await getBuf(p.fileUrl);
+    const known = path.join(OUT, `${p.source}-${p.id}.jpg`);
+    const buf = fs.existsSync(known) ? fs.readFileSync(known) : await getBuf(p.fileUrl); // a file left by an interrupted run is reused
     if (!buf || buf.length < 4000 || buf[0] !== 0xff) { notes.push(`${p.source}:${p.id} not downloadable (${buf ? 'not a jpeg' : 'HTTP error'}), dropped`); continue; }
     p.file = `${p.source}-${p.id}.jpg`;
     fs.writeFileSync(path.join(OUT, p.file), buf);
     photos.push(p); downloaded++;
-    await sleep(600);
+    if (downloaded % 10 === 0) fs.writeFileSync(mfPath, JSON.stringify({ fetched: new Date().toISOString().slice(0, 10), radiusM: RADIUS, notes, photos }, null, 1)); // survive an interrupted run
+    await sleep(300);
   }
   fs.writeFileSync(mfPath, JSON.stringify({ fetched: new Date().toISOString().slice(0, 10), radiusM: RADIUS, notes, photos }, null, 1));
   const by = {};

@@ -8,6 +8,8 @@
  * clock. Time only advances through `update(dt)` (game time), so the radio pauses with the game.
  */
 import { SC_STATIONS, type ScStationDef, type Station } from './radio';
+import { CATALOG, SOURCE_BADGE, type CatalogEntry, type RadioSourceKind } from './stations';
+import { LiveStation, type LiveEnv } from './live/LiveStation';
 import { LIBRARY_STATIONS } from './library/genres';
 import type { Library } from './library/Library';
 import { buildLibraryTimeline, locate, type Timeline } from './library/timeline';
@@ -24,7 +26,20 @@ export const CROSSFADE_SECONDS = 0.5;
 export const MYLIB_ID = 'mylib';
 export const MYLIB_NAME = 'My Library';
 
-export type RadioKind = 'synth' | 'library' | 'talk' | 'sc';
+export type RadioKind = 'synth' | 'library' | 'talk' | 'sc' | 'live';
+
+export const LAST_STATION_KEY = 'gta-bedstuy.radio.last.v1';
+/** How long the "off the air" toast replaces the HUD track line (game seconds). */
+export const TOAST_SECONDS = 6;
+
+/** Where the last tuned station id is kept (localStorage by default; null in tests). */
+export interface LastStationStore { get(): string | null; set(id: string): void }
+export function localLastStation(key = LAST_STATION_KEY): LastStationStore {
+  return {
+    get() { try { return globalThis.localStorage?.getItem(key) ?? null; } catch { return null; } },
+    set(id) { try { globalThis.localStorage?.setItem(key, id); } catch { /* blocked */ } },
+  };
+}
 
 export interface RadioStationEntry {
   id: string;
@@ -34,6 +49,12 @@ export interface RadioStationEntry {
   synth?: Station;
   /** The SoundCloud station definition for kind 'sc'. */
   sc?: ScStationDef;
+  /** Source rule of the station (sc-account, sc-playlist, ra-pool, live-stream, scripted); undefined for synth and My Library. */
+  source?: RadioSourceKind;
+  /** Catalog row (about line, site link, genre) for the 15 dial stations. */
+  info?: CatalogEntry;
+  /** HUD / UI badge text: SC, RA, LIVE, TALK. */
+  badge?: string;
 }
 
 export interface SynthPlayback {
@@ -52,6 +73,10 @@ export interface DirectorOptions {
   voice?: { speech: SpeechLike | null; makeUtterance: (text: string) => UtteranceLike; volume: () => number; random?: () => number; /** VOX: DJ copy + HD/system voice hub. */ dj?: DjScheduler; hub?: VoiceHub };
   /** Ready-made announcer (tests). */
   announcer?: Announcer;
+  /** Live-stream environment (tests: fake audio element, clock). */
+  liveEnv?: Partial<LiveEnv>;
+  /** Remembers the last station across sessions. Absent = not persisted. */
+  lastStore?: LastStationStore;
 }
 
 function stationStorageKey(id: string): string {
@@ -83,7 +108,18 @@ export class RadioDirector {
   private readonly scMap = new Map<string, ScStation>();
   /** Radio SC itself (the last SoundCloud station). */
   readonly sc: ScStation;
+  /** Live internet-radio stations by id. */
+  readonly liveStations = new Map<string, LiveStation>();
   readonly announcer: Announcer;
+  /** Called with a short message when a station is off the air and the dial moves on. */
+  onToast: ((msg: string) => void) | null = null;
+  private toastText = '';
+  private toastLeft = 0;
+  /** Stations that failed in the current run of automatic skips (stops the dial from cycling forever offline). */
+  private readonly failWave = new Set<string>();
+  private readonly handledFail = new Set<string>();
+  private readonly lastStore: LastStationStore | null;
+  private readonly changeListeners = new Set<() => void>();
   /** Hour, weather and street that the announcers talk about. */
   private broadcast: BroadcastContext = { ...DEFAULT_BROADCAST };
   /** Called when the listener changes station (AudioSystem plays the station jingle). */
@@ -95,15 +131,19 @@ export class RadioDirector {
 
   constructor(readonly library: Library, readonly talk: TalkLike, synthStations: Station[] = [], sc?: ScStation, opts: DirectorOptions = {}) {
     this.feed = opts.feed !== undefined ? opts.feed : (sc?.feed ?? new RaFeed());
+    const classic = opts.feed !== undefined;
     for (const def of SC_STATIONS) {
       const match = matcherFor(def.patterns);
       const st = def.id === 'sc' && sc ? sc : new ScStation({
         ...opts.scEnv,
-        feed: this.feed,
-        config: { id: def.id, name: def.name, match, storageKey: stationStorageKey(def.id) },
+        // Production: only the RA station draws on the RA NYC pool and every other station plays its own account.
+        // An injected feed (tests) is shared by all stations as before, without catalog sources.
+        feed: def.usesPool || classic ? this.feed : null,
+        config: { id: def.id, name: def.name, match: def.usesPool || classic ? match : null, storageKey: stationStorageKey(def.id), sources: classic ? [] : def.sources, randomStart: !classic },
         storage: opts.scEnv?.storage,
       } as Partial<import('./sc/ScStation').ScEnv>);
       this.scStations.push(st);
+      st.onChange(() => this.emitChange());
       this.scMap.set(def.id, st);
       st.onBetweenMixes = (prev) => {
         if (!this.on || this.current.sc?.id !== def.id) return;
@@ -113,17 +153,29 @@ export class RadioDirector {
     }
     this.sc = this.scMap.get('sc')!;
     this.sc.onGameHour = (h) => { if (h !== null) this.broadcast.hour = h; };
+    this.lastStore = opts.lastStore ?? null;
+    for (const e of CATALOG) {
+      if (e.kind !== 'live-stream') continue;
+      const ls = new LiveStation(e, opts.liveEnv);
+      ls.onFail = () => this.onLiveFail(e.id);
+      ls.onChange(() => this.emitChange());
+      this.liveStations.set(e.id, ls);
+    }
     this.baseDial = [
       ...synthStations.map((s, i): RadioStationEntry => ({ id: `synth${i}`, kind: 'synth', name: s.name, synth: s })),
-      ...SC_STATIONS.map((d): RadioStationEntry => ({ id: d.id, kind: 'sc', name: d.name, sc: d })),
-      { id: 'talk', kind: 'talk', name: 'WBSY Talk' },
+      ...CATALOG.map((e): RadioStationEntry => {
+        const base = { id: e.id, name: e.name, source: e.kind, info: e, badge: SOURCE_BADGE[e.kind] };
+        if (e.kind === 'live-stream') return { ...base, kind: 'live' };
+        if (e.kind === 'scripted') return { ...base, kind: 'talk' };
+        return { ...base, kind: 'sc', sc: SC_STATIONS.find((d) => d.id === e.id)! };
+      }),
     ];
     const v = opts.voice;
     this.announcer = opts.announcer ?? new Announcer({
       speech: v?.speech ?? null,
       makeUtterance: v?.makeUtterance ?? (() => { throw new Error('no speech'); }),
       volume: v?.volume ?? (() => 1),
-      setDuck: (level) => { for (const s of this.scStations) s.setDuck(level); },
+      setDuck: (level) => { for (const s of this.scStations) s.setDuck(level); for (const l of this.liveStations.values()) l.setDuck(level); },
       talkBusy: () => this.current.kind === 'talk' || this.talk.isActive,
       context: () => this.broadcast,
       random: v?.random ?? Math.random,
@@ -131,6 +183,9 @@ export class RadioDirector {
       hub: v?.hub,
     });
     this.refreshDial();
+    const saved = this.lastStore?.get();
+    const si = saved ? this.dial.findIndex((e) => e.id === saved) : -1;
+    if (si >= 0) this.idx = si;
     this.unsubLib = library.onChange(() => {
       this.libTimeline = null;
       this.refreshDial();
@@ -189,7 +244,32 @@ export class RadioDirector {
   /** Game radio level (times master) for every SoundCloud widget. */
   setScVolume(v: number): void {
     for (const s of this.scStations) s.setVolume(v);
+    for (const l of this.liveStations.values()) l.setVolume(v);
   }
+
+  /** Fires when the tuned station, a station's state or the toast changes (the station list repaints). */
+  onChange(fn: () => void): () => void { this.changeListeners.add(fn); return () => { this.changeListeners.delete(fn); }; }
+  private emitChange(): void { this.changeListeners.forEach((fn) => fn()); }
+
+  /** Tunes to a station by id (false when it is not on the dial). */
+  selectById(id: string): boolean {
+    const i = this.dial.findIndex((e) => e.id === id);
+    if (i < 0) return false;
+    this.select(i);
+    return true;
+  }
+
+  /** The live stream that is tuned in, or null. */
+  get currentLive(): LiveStation | null {
+    const c = this.current;
+    return c.kind === 'live' ? this.liveStations.get(c.id) ?? null : null;
+  }
+
+  /** True when the browser blocked sound on the tuned-in SoundCloud or live station (the UI shows "Tap to start radio"). */
+  get needsTap(): boolean { return !!(this.currentSc?.needsTap || this.currentLive?.needsTap); }
+
+  /** Starts the tuned-in SoundCloud or live station from a user gesture. */
+  userStart(): void { this.currentSc?.userStart(); this.currentLive?.userStart(); }
 
   /* ---------- reading ---------- */
 
@@ -199,6 +279,7 @@ export class RadioDirector {
   get stationName(): string {
     const c = this.current;
     if (c.kind === 'sc') return this.currentSc!.stationName;
+    if (c.kind === 'live') return c.name;
     return c.kind === 'talk' ? this.talk.stationName : c.name;
   }
 
@@ -208,6 +289,11 @@ export class RadioDirector {
    */
   get trackName(): string {
     const c = this.current;
+    if (this.toastText && this.toastLeft > 0) return this.toastText;
+    if (c.kind === 'live') {
+      const l = this.currentLive!;
+      return l.notice && !l.needsTap ? l.notice : l.trackName;
+    }
     if (c.kind === 'talk') return this.talk.caption;
     if (c.kind === 'sc') {
       if (this.on && this.announcer.speaking) return this.announcer.name;
@@ -256,9 +342,11 @@ export class RadioDirector {
     const n = this.dial.length;
     const target = ((Math.round(i) % n) + n) % n;
     if (target === this.idx) return;
+    this.failWave.clear();
     // Our announcer lets go of the speech queue before WBSY Talk can take it.
     this.announcer.tuneAway();
     this.idx = target;
+    this.lastStore?.set(this.current.id);
     this.synthEpoch++;
     this.synthKey = '';
     this.synth = null;
@@ -268,6 +356,7 @@ export class RadioDirector {
     this.onTune?.(this.current);
     this.announcerTune();
     this.reconcile();
+    this.emitChange();
   }
 
   /** True while the player is in a car with the radio on. */
@@ -290,6 +379,7 @@ export class RadioDirector {
     this.talk.setPaused(p);
     this.announcer.setPaused(p);
     for (const s of this.scStations) s.setPaused(p);
+    for (const l of this.liveStations.values()) l.setPaused(p);
     this.decks?.forEach((d) => { if (p) d.pause(); else d.resume(); });
   }
 
@@ -300,6 +390,8 @@ export class RadioDirector {
     this.talk.update(dt);
     for (const s of this.scStations) s.update(dt);
     this.announcer.update(dt);
+    if (this.toastLeft > 0) { this.toastLeft -= dt; if (this.toastLeft <= 0) this.toastText = ''; }
+    this.checkFailures();
     for (let i = 0; i < 2; i++) {
       const r = this.retire[i];
       if (r !== null) {
@@ -315,6 +407,7 @@ export class RadioDirector {
     this.announcer.dispose();
     this.talk.dispose();
     for (const s of this.scStations) s.dispose();
+    for (const l of this.liveStations.values()) l.dispose();
     this.decks?.forEach((d) => { d.onEnded = null; d.onError = null; d.onDuration = null; d.stop(); });
     this.decks = null;
   }
@@ -325,6 +418,57 @@ export class RadioDirector {
     const c = this.current;
     this.talk.setActive(this.on && c.kind === 'talk');
     for (const s of this.scStations) s.setActive(this.on && c.kind === 'sc' && c.id === s.id);
+    for (const l of this.liveStations.values()) l.setActive(this.on && c.kind === 'live' && c.id === l.id);
+  }
+
+  /* ---------- failure: skip to the next station with a toast ---------- */
+
+  /** True when a station is known to be unreachable right now (skipped by automatic tuning). */
+  isFailed(id: string): boolean {
+    const l = this.liveStations.get(id);
+    if (l) return l.status === 'failed';
+    const sc = this.scMap.get(id);
+    return !!sc && sc.status === 'failed';
+  }
+
+  private checkFailures(): void {
+    const c = this.current;
+    if (!this.on || c.kind !== 'sc') return;
+    const sc = this.currentSc;
+    if (!sc) return;
+    if (sc.status !== 'failed') { this.handledFail.delete(c.id); if (sc.playState === 'playing') this.failWave.clear(); return; }
+    if (this.handledFail.has(c.id)) return;
+    this.handledFail.add(c.id);
+    this.skipFailed(c);
+  }
+
+  private onLiveFail(id: string): void {
+    const c = this.current;
+    if (!this.on || c.id !== id) return;
+    this.skipFailed(c);
+  }
+
+  /** Tunes to the next station that has not failed in this run, with a toast. Stops when every station has failed. */
+  private skipFailed(from: RadioStationEntry): void {
+    this.failWave.add(from.id);
+    const n = this.dial.length;
+    for (let k = 1; k < n; k++) {
+      const cand = this.dial[(this.idx + k) % n];
+      if (this.failWave.has(cand.id) || this.isFailed(cand.id) || cand.kind === 'library') continue;
+      const keep = new Set(this.failWave);
+      this.toast(`${from.name} is off the air. Tuning to ${cand.name}.`);
+      this.select((this.idx + k) % n);
+      keep.forEach((x) => this.failWave.add(x));
+      return;
+    }
+    this.toast(`${from.name} is off the air. No other station could be reached.`);
+  }
+
+  private toast(msg: string): void {
+    this.toastText = msg;
+    this.toastLeft = TOAST_SECONDS;
+    this.onToast?.(msg);
+    this.emitChange();
   }
 
   private announcerTune(): void {

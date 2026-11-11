@@ -1,7 +1,7 @@
 {
  "generated": "2026-11-11",
- "photosUsed": 39,
- "photosSkipped": 21,
+ "photosUsed": 52,
+ "photosSkipped": 68,
  "note": "CC BY-SA photos contribute facts (a wall colour), not pixels; attribution kept here and in docs/CREDITS.md.",
  "lots": {
   "3015910001": [
@@ -150,6 +150,13 @@
     "licence": "CC BY-SA 4.0",
     "url": "https://kartaview.org/details/1345473/2125/track-info",
     "taken": "2019-02-27 20:06:46.000"
+   },
+   {
+    "photo": "kartaview:365082133",
+    "author": "KartaView contributor (sequence 1345825)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345825/2948/track-info",
+    "taken": "2019-02-28 20:17:00.000"
    }
   ],
   "3015960001": [
@@ -222,6 +229,15 @@
     "licence": "CC BY-SA 4.0",
     "url": "https://kartaview.org/details/1345049/2899/track-info",
     "taken": "2019-02-26 21:51:16.000"
+   }
+  ],
+  "3016010002": [
+   {
+    "photo": "commons:18343398",
+    "author": "Jim.henderson",
+    "licence": "CC0",
+    "url": "https://commons.wikimedia.org/wiki/File:Nazarene_Baptist_Sumner_Dekalb_Avs_jeh.jpg",
+    "taken": "2012-02-02"
    }
   ],
   "3016010018": [
@@ -377,6 +393,15 @@
     "taken": "2018-10-28 17:42:08.000"
    }
   ],
+  "3016150065": [
+   {
+    "photo": "commons:6261989",
+    "author": "Jim.henderson",
+    "licence": "Public domain",
+    "url": "https://commons.wikimedia.org/wiki/File:Antioch_Baptist_Greene_jeh.JPG",
+    "taken": "2009-02-26"
+   }
+  ],
   "3017690037": [
    {
     "photo": "kartaview:321141766",
@@ -387,13 +412,6 @@
    }
   ],
   "3017690039": [
-   {
-    "photo": "kartaview:321141766",
-    "author": "KartaView contributor (sequence 1299644)",
-    "licence": "CC BY-SA 4.0",
-    "url": "https://kartaview.org/details/1299644/2340/track-info",
-    "taken": "2018-09-27 14:16:20.000"
-   },
    {
     "photo": "kartaview:364388579",
     "author": "KartaView contributor (sequence 1345049)",
@@ -416,13 +434,6 @@
     "licence": "CC BY-SA 4.0",
     "url": "https://kartaview.org/details/1299644/2340/track-info",
     "taken": "2018-09-27 14:16:20.000"
-   },
-   {
-    "photo": "kartaview:364388579",
-    "author": "KartaView contributor (sequence 1345049)",
-    "licence": "CC BY-SA 4.0",
-    "url": "https://kartaview.org/details/1345049/2663/track-info",
-    "taken": "2019-02-26 21:44:45.000"
    }
   ],
   "3017690041": [
@@ -434,27 +445,11 @@
     "taken": "2018-09-27 14:16:20.000"
    },
    {
-    "photo": "kartaview:364388579",
-    "author": "KartaView contributor (sequence 1345049)",
+    "photo": "kartaview:363495823",
+    "author": "KartaView contributor (sequence 1343889)",
     "licence": "CC BY-SA 4.0",
-    "url": "https://kartaview.org/details/1345049/2663/track-info",
-    "taken": "2019-02-26 21:44:45.000"
-   }
-  ],
-  "3017690042": [
-   {
-    "photo": "kartaview:364388579",
-    "author": "KartaView contributor (sequence 1345049)",
-    "licence": "CC BY-SA 4.0",
-    "url": "https://kartaview.org/details/1345049/2663/track-info",
-    "taken": "2019-02-26 21:44:45.000"
-   },
-   {
-    "photo": "kartaview:321141766",
-    "author": "KartaView contributor (sequence 1299644)",
-    "licence": "CC BY-SA 4.0",
-    "url": "https://kartaview.org/details/1299644/2340/track-info",
-    "taken": "2018-09-27 14:16:20.000"
+    "url": "https://kartaview.org/details/1343889/1153/track-info",
+    "taken": "2019-02-23 12:35:44.000"
    }
   ],
   "3017690046": [
@@ -655,6 +650,15 @@
     "taken": "2019-03-05 19:47:05.000"
    }
   ],
+  "3017850161": [
+   {
+    "photo": "commons:6262007",
+    "author": "Jim.henderson",
+    "licence": "Public domain",
+    "url": "https://commons.wikimedia.org/wiki/File:Magnolia_Tree_Center_Bk_jeh.JPG",
+    "taken": "Taken on 26 February 2009"
+   }
+  ],
   "3017870036": [
    {
     "photo": "kartaview:323680375",
@@ -682,6 +686,51 @@
     "taken": "2018-10-28 17:39:53.000"
    }
   ],
+  "3017920006": [
+   {
+    "photo": "commons:16048341",
+    "author": "Jim.henderson",
+    "licence": "CC0",
+    "url": "https://commons.wikimedia.org/wiki/File:Philip_Christian_Ch_765_Lafayette_Av_Throop_Av_jeh.jpg",
+    "taken": "2011-05-26"
+   }
+  ],
+  "3017920026": [
+   {
+    "photo": "commons:16414219",
+    "author": "Jim.henderson",
+    "licence": "CC0",
+    "url": "https://commons.wikimedia.org/wiki/File:PS25_Lafayette_Throop_Avs_jeh.jpg",
+    "taken": "Taken on 5 June 2011"
+   }
+  ],
+  "3018010001": [
+   {
+    "photo": "commons:16048340",
+    "author": "Jim.henderson",
+    "licence": "CC0",
+    "url": "https://commons.wikimedia.org/wiki/File:Brighter_Way_Baptist_Ch_417_Throop_Av_jeh.jpg",
+    "taken": "Taken on 26 May 2011"
+   }
+  ],
+  "3018110076": [
+   {
+    "photo": "commons:16048338",
+    "author": "Jim.henderson",
+    "licence": "CC0",
+    "url": "https://commons.wikimedia.org/wiki/File:Ebenezer_Gospel_Tabernacle_Throop_Av_jeh.jpg",
+    "taken": "Taken on 26 May 2011"
+   }
+  ],
+  "3018200043": [
+   {
+    "photo": "commons:16048337",
+    "author": "Jim.henderson",
+    "licence": "CC0",
+    "url": "https://commons.wikimedia.org/wiki/File:PS44_Garvey_Throop_Av_jeh.jpg",
+    "taken": "2011-05-26"
+   }
+  ],
   "3032040001": [
    {
     "photo": "kartaview:364838201",
@@ -698,13 +747,6 @@
     "licence": "CC BY-SA 4.0",
     "url": "https://kartaview.org/details/1345473/2125/track-info",
     "taken": "2019-02-27 20:06:46.000"
-   },
-   {
-    "photo": "kartaview:365082133",
-    "author": "KartaView contributor (sequence 1345825)",
-    "licence": "CC BY-SA 4.0",
-    "url": "https://kartaview.org/details/1345825/2948/track-info",
-    "taken": "2019-02-28 20:17:00.000"
    }
   ],
   "3032260001": [

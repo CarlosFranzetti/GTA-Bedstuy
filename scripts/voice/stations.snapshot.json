@@ -1,0 +1,42 @@
+[
+ {
+  "id": "bkhouse",
+  "name": "Boiler Room",
+  "freq": "ninety point nine"
+ },
+ {
+  "id": "dublab",
+  "name": "Dekmantel Podcast",
+  "freq": "ninety one point seven"
+ },
+ {
+  "id": "stoop",
+  "name": "Rinse FM",
+  "freq": "ninety three point five"
+ },
+ {
+  "id": "boogie",
+  "name": "Soulection",
+  "freq": "ninety five point three"
+ },
+ {
+  "id": "weird",
+  "name": "NTS Shows",
+  "freq": "ninety seven point one"
+ },
+ {
+  "id": "yard",
+  "name": "The Lot Radio",
+  "freq": "ninety eight point nine"
+ },
+ {
+  "id": "flashback",
+  "name": "FACT Mixes",
+  "freq": "eighty-eight point eight"
+ },
+ {
+  "id": "sc",
+  "name": "Resident Advisor",
+  "freq": "one hundred point one"
+ }
+]

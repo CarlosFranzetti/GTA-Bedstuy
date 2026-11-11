@@ -287,11 +287,15 @@ function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
   const roll = (h >>> 0) / 4294967296, grown = spec.age !== 'kid';
   if (grown && spec.hat === 'none' && spec.hair !== 'afro' && roll < 0.1) {
     const r = ringAt(s.headRings, Y(0.45)), gr = HI_RECTS.hair;
-    const puck = (cx: number, y: number, cz: number, rx: number, ry: number, rz: number, n: number): void => {
-      out.push(loft([{ y: y - ry, rx: rx * 0.5, rz: rz * 0.5, cx, cz }, { y, rx, rz, cx, cz }, { y: y + ry, rx: rx * 0.5, rz: rz * 0.5, cx, cz }], n, gr, 3, 'both'));
-    };
-    for (const sx of [-1, 1]) puck(sx * (r.rx + 0.012), Y(0.45), r.cz, 0.011, 0.026, 0.024, 8);
-    for (let i = 0; i <= 10; i++) { const a = -1.3 + (i / 10) * 2.6; puck(Math.sin(a) * (r.rx * 1.05 + 0.012), Y(0.62) + Math.cos(a) * H * 0.5, r.cz, 0.0045, 0.016, 0.0055, 5); }
+    // over-ear headphones: a band that rises from each ear cup over the crown (two lofts, each monotonic in height) and two padded cups
+    const R = r.rx + 0.014, ye = Y(0.45), yt = Y(1.0) + 0.03;
+    for (const sx of [-1, 1]) {
+      const rings: R[] = [];
+      for (let i = 0; i <= 8; i++) { const th = (i / 8) * (Math.PI / 2 - 0.05); rings.push({ y: ye + (yt - ye) * Math.sin(th), rx: 0.0055, rz: 0.011, cx: sx * R * Math.cos(th) * (1 + 0.04 * Math.sin(th)), cz: r.cz }); }
+      out.push(loft(rings, 6, hatR, 3, 'both'));
+      const k = [0.45, 0.85, 1, 0.85, 0.45], dy = [-0.036, -0.02, 0, 0.02, 0.036];
+      out.push(loft(k.map((kk, i) => ({ y: ye + dy[i], rx: 0.016 * kk + 0.002, rz: 0.034 * kk, cx: sx * (R + 0.006), cz: r.cz })), 12, hatR, 3, 'both'));
+    }
   } else if (grown && !covered && spec.hat !== 'hijab' && roll >= 0.1 && roll < 0.2) {
     const n = ringAt(s.headRings, lm.chinY);
     out.push(loft([{ y: lm.chinY - 0.07, rx: n.rx * 0.7 + 0.04, rz: n.rz * 0.7 + 0.04, cz: n.cz }, { y: lm.chinY - 0.02, rx: n.rx * 0.7 + 0.034, rz: n.rz * 0.7 + 0.034, cz: n.cz }, { y: lm.chinY + 0.015, rx: n.rx * 0.7 + 0.03, rz: n.rz * 0.7 + 0.03, cz: n.cz }], 14, hatR, 3, 'both'));
@@ -310,6 +314,26 @@ function bodyParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
   if (spec.gear === 'backpack') {
     const mid = tor[Math.floor(tor.length / 2)], k = spec.build === 'kid' ? 1.1 : 1, back = mid[2] + mid[3];
     out.push(loft([{ y: tor[1][0], rx: mid[1] * 0.65 * k, rz: 0.075, cz: back + 0.06 }, { y: mid[0], rx: mid[1] * 0.72 * k, rz: 0.085, cz: back + 0.07 }, { y: tor[tor.length - 2][0], rx: mid[1] * 0.65 * k, rz: 0.075, cz: back + 0.06 }], 8, HI_RECTS.gear, 2, 'both'));
+  }
+  // carried bags: a hand bag at the left hand, a tote hanging at the side from the shoulder, a messenger bag on the hip with a cross-body strap
+  const gr = HI_RECTS.gear, Rg = s.rig, hemY = s.landmarks.hemY;
+  if (spec.gear === 'bag') {
+    const wx = Rg.wristL[0], wy = Rg.wristL[1], wz = Rg.wristL[2];
+    out.push(loft([{ y: wy - 0.4, rx: 0.045, rz: 0.1, cx: wx, cz: wz - 0.02 }, { y: wy - 0.22, rx: 0.05, rz: 0.11, cx: wx, cz: wz - 0.02 }, { y: wy - 0.06, rx: 0.042, rz: 0.1, cx: wx, cz: wz - 0.02 }], 12, gr, 5, 'both'));
+    out.push(loft([{ y: wy - 0.06, rx: 0.011, rz: 0.03, cx: wx, cz: wz - 0.02 }, { y: wy + 0.02, rx: 0.011, rz: 0.012, cx: wx, cz: wz - 0.02 }], 6, gr, 5, 'both'));
+  } else if (spec.gear === 'tote') {
+    const sx = Rg.shoulderL[0], sy = Rg.shoulderL[1], cx = sx - 0.075, top = hemY + 0.12;
+    out.push(loft([{ y: hemY - 0.3, rx: 0.03, rz: 0.15, cx, cz: 0.02 }, { y: hemY - 0.1, rx: 0.035, rz: 0.165, cx, cz: 0.02 }, { y: top, rx: 0.03, rz: 0.15, cx, cz: 0.02 }], 12, gr, 4, 'both'));
+    out.push(loft([{ y: top, rx: 0.01, rz: 0.012, cx, cz: -0.1 }, { y: (top + sy) / 2, rx: 0.01, rz: 0.012, cx: (cx + sx) / 2, cz: -0.05 }, { y: sy + 0.025, rx: 0.012, rz: 0.012, cx: sx + 0.03, cz: 0 }], 5, gr, 4, 'both'));
+  } else if (spec.gear === 'messenger') {
+    const hx = Math.abs(Rg.shoulderL[0]) + 0.01, hy = hemY, sy = Rg.shoulderL[1];
+    out.push(loft([{ y: hy - 0.12, rx: 0.055, rz: 0.12, cx: hx + 0.03, cz: 0.04 }, { y: hy + 0.04, rx: 0.06, rz: 0.13, cx: hx + 0.03, cz: 0.04 }, { y: hy + 0.2, rx: 0.055, rz: 0.12, cx: hx + 0.03, cz: 0.04 }], 12, gr, 2, 'both'));
+    const rings: R[] = [];
+    for (let i = 0; i <= 8; i++) {
+      const u = i / 8, y = hy + 0.2 + (sy + 0.02 - hy - 0.2) * u, x = hx - (hx + Math.abs(Rg.shoulderL[0]) * 0.55) * u, rr = ringAt(tor as Ring[], y), k = Math.sqrt(Math.max(0, 1 - (x / (rr.rx || 0.2)) ** 2));
+      rings.push({ y, rx: 0.016, rz: 0.007, cx: x, cz: rr.cz - rr.rz * k - 0.045 + (1 - k) * rr.rz * 1.2 });
+    }
+    out.push(loft(rings, 5, gr, 2, 'both'));
   }
   return out;
 }

@@ -15,6 +15,7 @@ import {
 import { lotLook, partyWallDetail, roofDetails } from './partyWall';
 import type { Hole, LotCtx, LotOutput, MaterialFamily, Storeys, V3 } from './facade';
 import { DOOR_FENCE_GAP_HALF, doorLocalXs } from '../interiors/doorGaps';
+import { ENV14_ON } from '@/world/data/env14';
 /** Half width of the basement-entry gap in the areaway fence. 0.5 (a 1.0 m gate) let a wall-hugging player walk into the yard and not back out (H6 P1); 0.8 leaves 1.6 m. */
 const ENTRY_GAP_HALF = 0.8;
 
@@ -227,7 +228,8 @@ export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
   partyWallDetail(b, m, look, { W, D, y0: bh + PARLOUR_H, topY: H, zFront: -S, cornerSide: c.cornerSide });
   if (!lite) roofDetails(b, m, look, { x0: 0, x1: W, zBack: -D, zFront: -S, y: H });
   if (!lite) roofClutter(b, m, rng, { x0: 0, x1: W, zBack: -D, zFront: -S, y: H, brick: look.party, chimney: 0.45, skylight: 0.25, bulkhead: floors >= 4 ? 0.3 : 0.12, dishes: 0.3 });
-  if (floors >= 4 && rng.chance(0.6)) waterTank(b, m, W * 0.5, H, -D + 2.4);
+  // NYC water tanks stand on buildings of about six storeys and up (pressure); a four-storey flat rarely has one
+  if (floors >= 4 && rng.chance(!ENV14_ON ? 0.6 : floors >= 6 ? 0.9 : floors >= 5 ? 0.4 : 0.08)) waterTank(b, m, W * 0.5, H, -D + 2.4);
   const feChance = spec ? (floors >= 4 && bays >= 3 ? 0.3 : 0.08) : 0.25;
   if (floors >= 3 && bays >= 2 && rng.chance(feChance)) {
     const ys = floorY.slice(1).map((y) => y + 0.55);

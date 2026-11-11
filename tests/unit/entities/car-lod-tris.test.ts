@@ -41,6 +41,17 @@ describe('car detail levels', () => {
       expect(lite.tris, `${t} lite < full`).toBeLessThan(full.tris);
     }
   });
+  it('CARS14 types: near models stay <= 9 k triangles on high, <= 4.5 k on low, <= 6 draws', () => {
+    for (const t of ['coupe911', 'exotic', 'jdmcoupe', 'hothatch', 'muscle', 'wedgetruck', 'evsedan'] as VehicleType[]) {
+      setCarPaintTier('high'); const full = nearCost(t);
+      setCarPaintTier('medium'); const med = nearCost(t);
+      setCarPaintTier('low'); const lite = nearCost(t);
+      expect(full.tris, `${t} high`).toBeLessThanOrEqual(9000);
+      expect(med.tris, `${t} medium`).toBeLessThanOrEqual(9000);
+      expect(lite.tris, `${t} low`).toBeLessThanOrEqual(4500);
+      expect(full.draws, `${t} draws`).toBeLessThanOrEqual(6);
+    }
+  });
   it('far proxies are under 1.2 k triangles per car (paint + glass + dark + 8-gon wheels)', () => {
     for (const t of types) expect(farTris(t), t).toBeLessThanOrEqual(1200);
   });

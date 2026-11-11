@@ -31,7 +31,7 @@ export function paintBox(geo: THREE.BufferGeometry, offset: THREE.Vector3 = new 
   return { L: b.max.z - b.min.z, W: b.max.x - b.min.x, H: b.max.y - b.min.y, yMin: b.min.y, zMin: b.min.z, xMin: b.min.x };
 }
 
-const BADGE: Record<SkinStyle, string> = { sedan: 'AVENUE', coupe: 'MARCY', suv: 'KOSCI', van: 'HALSEY', cargo: 'TRANSOM', hatch: 'PACER', beater: 'MARLOW', bus: 'CITY', pickup: 'FORGE', crossover: 'TREKKER', minivan: 'VOYAGER', luxury: 'BAVARO', towncar: 'SOVEREIGN', pony: 'BRONCO', dollar: 'JITNEY' };
+const BADGE: Record<SkinStyle, string> = { sedan: 'AVENUE', coupe: 'MARCY', suv: 'KOSCI', van: 'HALSEY', cargo: 'TRANSOM', hatch: 'PACER', beater: 'MARLOW', bus: 'CITY', pickup: 'FORGE', crossover: 'TREKKER', minivan: 'VOYAGER', luxury: 'BAVARO', towncar: 'SOVEREIGN', pony: 'BRONCO', dollar: 'JITNEY', coupe911: 'STUTTGART', exotic: 'VELENO', jdmcoupe: 'KAZE', hothatch: 'RALLYE', muscle: 'BRAWLER', wedgetruck: 'SLAB', evsedan: 'VOLTA' };
 const clamp01 = (x: number): number => Math.min(1, Math.max(0, x));
 
 /** Layout of the skin for a body (pure numbers: unit-testable without a DOM). */
@@ -344,7 +344,7 @@ export function skinSizeNow(style?: SkinStyle): number {
   if (style && NEW_SKIN_STYLES.has(style)) return phone ? SKIN_W / 2 : SKIN_W;
   return phone ? SKIN_W / 2 : SKIN_W * 2; // 1024 x 512 off the phone tier
 }
-const NEW_SKIN_STYLES: ReadonlySet<SkinStyle> = new Set<SkinStyle>(['pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'dollar']);
+const NEW_SKIN_STYLES: ReadonlySet<SkinStyle> = new Set<SkinStyle>(['pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'dollar', 'coupe911', 'exotic', 'jdmcoupe', 'hothatch', 'muscle', 'wedgetruck', 'evsedan']);
 
 /**
  * The skinned paint for a body style and colour (cached per library), or the library's plain paint when there is no DOM (unit tests)

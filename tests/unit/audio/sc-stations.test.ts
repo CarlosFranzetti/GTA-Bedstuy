@@ -19,7 +19,7 @@ const stoop = scStationDef('stoop')!;
 
 describe('station table', () => {
   it('has the eight stations in dial order, Radio SC last', () => {
-    expect(SC_STATIONS.map((s) => s.name)).toEqual(['BK House', 'Dub Lab', 'Stoop Radio', 'Boogie Down', 'Weird Hours', 'Yard FM', 'Flashback 88', 'Radio SC']);
+    expect(SC_STATIONS.map((s) => s.name)).toEqual(['Boiler Room', 'Dekmantel Podcast', 'Rinse FM', 'Soulection', 'NTS Shows', 'The Lot Radio', 'FACT Mixes', 'Radio SC']);
     expect(SC_STATIONS.map((s) => s.id)).toEqual(['bkhouse', 'dublab', 'stoop', 'boogie', 'weird', 'yard', 'flashback', 'sc']);
   });
 
@@ -241,7 +241,7 @@ describe('RaFeed.topUp (keyword-aware, same rate rules)', () => {
   it('the station asks for a top-up when its matching queue runs dry', async () => {
     const srv = raServer({ titleFor: (n) => `Warehouse ${n}` });
     const feed = feedFor(srv);
-    const sc = new ScStation({ config: { id: 'bkhouse', name: 'BK House', match: houseMatch, storageKey: 'k' }, feed, canLoad: () => false, storage: null });
+    const sc = new ScStation({ config: { id: 'bkhouse', name: 'Boiler Room', match: houseMatch, storageKey: 'k' }, feed, canLoad: () => false, storage: null });
     await feed.ensure();
     const spy = vi.spyOn(feed, 'topUp');
     sc.next(); // no sources picked yet, but pickNext runs through the feed rules
