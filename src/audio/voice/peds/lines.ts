@@ -1,5 +1,7 @@
 /** Which bark lines are baked for which voice group (shared by the pack plan and the runtime picker). */
 import { clipKey, hash32 } from '../script';
+import { pedRhythmId, planSpeech } from '../prosody';
+import { rhythmFor } from '../rhythm';
 import { BARKS, BARK_KINDS, CHATS, norm, type BarkKind, type BarkText } from './barks';
 import { GROUP_BY_ID, PED_GROUPS, type PedVoiceGroup } from './groups';
 import type { PlanClip } from '../packPlan';
@@ -76,7 +78,7 @@ export function planBarks(): PlanClip[] {
     for (const gid of l.baked) {
       const g = GROUP_BY_ID.get(gid);
       if (!g) continue;
-      out.push({ key: clipKey(l.text, g.voice, g.speed), who: g.id, voice: g.voice, speed: g.speed, text: l.text, kind: 'bark', bank: `bark-${g.id}`, tier: 5 });
+      for (const p of planSpeech(l.text, pedRhythmId(g.voice), g.speed, rhythmFor(pedRhythmId(g.voice)))) out.push({ key: clipKey(p.text, g.voice, p.speed), who: g.id, voice: g.voice, speed: p.speed, text: p.text, kind: 'bark', bank: `bark-${g.id}`, tier: 5 });
     }
   }
   return out;
@@ -88,7 +90,7 @@ export function planExternalBarks(lines: readonly string[]): PlanClip[] {
   for (const text of new Set(lines)) {
     for (const gid of bakedGroups(`ext:${hash32(text)}`, [])) {
       const g = GROUP_BY_ID.get(gid)!;
-      out.push({ key: clipKey(text, g.voice, g.speed), who: g.id, voice: g.voice, speed: g.speed, text, kind: 'bark', bank: `bark-${g.id}`, tier: 5 });
+      for (const p of planSpeech(text, pedRhythmId(g.voice), g.speed, rhythmFor(pedRhythmId(g.voice)))) out.push({ key: clipKey(p.text, g.voice, p.speed), who: g.id, voice: g.voice, speed: p.speed, text: p.text, kind: 'bark', bank: `bark-${g.id}`, tier: 5 });
     }
   }
   return out;

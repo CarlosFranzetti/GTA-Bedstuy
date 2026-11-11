@@ -19,6 +19,17 @@ The same list is rolled in the game (Credits on the title screen and in Settings
 
 A fan tribute, not affiliated with Rockstar Games or Take-Two. Third-party sources are listed below.
 
+## Fonts (UI14)
+
+Hosted and native builds load subset woff2 files from `public/fonts/` (Latin only). All three families are
+**SIL Open Font License 1.1**; licence texts are in the same folder. The single-file artifact does not embed them.
+
+| Family | Use | Source | Licence text |
+|---|---|---|---|
+| Anton (Anton Project Authors) | display: banners, logo-level text | https://fonts.google.com/specimen/Anton | `public/fonts/OFL-Anton.txt` |
+| Barlow Condensed (Jeremy Tribby / Barlow Project Authors) | HUD labels and numbers | https://fonts.google.com/specimen/Barlow+Condensed | `public/fonts/OFL-Barlow.txt` |
+| Barlow (Jeremy Tribby / Barlow Project Authors) | body text, prompts | https://fonts.google.com/specimen/Barlow | `public/fonts/OFL-Barlow.txt` |
+
 ## Textures
 
 The photo-based PBR texture sets in `src/assets/textures/` are derived from

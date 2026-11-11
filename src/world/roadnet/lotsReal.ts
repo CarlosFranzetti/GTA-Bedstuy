@@ -7,7 +7,7 @@
  * Input is `raw/lots-real-r1r2a.json` (PLUTO centroid + frontage/depth, nearest edge `e`, arc length `s`, block `blk`).
  * Each lot is attached to a face of its block (same edge, nearest to the centroid; blk -1 lots go to the nearest face within
  * 25 m), the lots of a face are ordered along it, their frontages scaled so they fill the usable face exactly (clamped to
- * 0.6..1.6, the remainder becomes equal gaps; a face outside 0.85..1.15 is reported), depth = PLUTO lot depth clipped to the
+ * 0.6..1.6, the remainder becomes equal gaps; a face needing more than 1.6 keeps real widths and positions; a face outside 0.85..1.15 is reported), depth = PLUTO lot depth clipped to the
  * block (half of the way to the opposite building line on a through-lot). Corner lots (within 8 m of a face end) at a corner
  * of 70..180 degrees are cut by the bisector of the corner so the two lots that meet there do not overlap. At a wedge corner
  * (interior angle < 70 degrees, Broadway/Bushwick triangles) both faces stop short of the corner by depth/tan(angle) and the
@@ -272,20 +272,25 @@ export function placeLotsDetailed(net: RoadNet, d: Derived, faces: RealFace[][],
       for (let k = take; k < list.length; k++) drop(report, list[k].lot.ph ?? 'R?', 'overflow');
       if (take === 0 || L <= 0) continue;
       const exact = L / sum(take);
-      const sc = Math.min(SCALE_HI, Math.max(SCALE_LO, exact));
+      // a sparse face (parks, yards, lots that belong elsewhere): keep the real widths and the real positions
+      const sparse = exact > SCALE_HI;
+      const sc = sparse ? 1 : Math.min(SCALE_HI, Math.max(SCALE_LO, exact));
       scales.push(exact);
       report.facesWithLots++;
       if (exact < 0.85 || exact > 1.15) report.facesScaledOutside++;
       report.scaleRange[0] = Math.min(report.scaleRange[0], exact);
       report.scaleRange[1] = Math.max(report.scaleRange[1], exact);
-      const gap = Math.max(0, L - sum(take) * sc) / take;
-      let cursor = xs + gap / 2;
+      const gap = sparse ? 0 : Math.max(0, L - sum(take) * sc) / take;
+      let cursor = sparse ? xs : xs + gap / 2;
       for (let k = 0; k < take; k++) {
         const lot = list[k].lot;
         const ph = lot.ph ?? 'R?';
         const w = raw[k] * sc;
-        const x0 = cursor, x1 = cursor + w;
-        cursor += w + gap;
+        let x0 = cursor;
+        if (sparse) x0 = Math.min(Math.max(list[k].t - w / 2, cursor, xs), xe - w);
+        if (sparse && x0 < cursor - 1e-9) { drop(report, ph, 'overflow'); continue; }
+        const x1 = x0 + w;
+        cursor = x1 + (sparse ? 0 : gap);
         const fA = { x: F.a.x + e.x * x0, z: F.a.z + e.z * x0 };
         const fB = { x: F.a.x + e.x * x1, z: F.a.z + e.z * x1 };
         // depth: PLUTO depth clipped to the block (half way on a through-lot)

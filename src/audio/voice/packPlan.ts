@@ -10,6 +10,8 @@
  */
 import { CAST_MAP } from './cast';
 import { fillSlots, parseLine, clipKey, slotsIn } from './script';
+import { planSentence } from './prosody';
+import { rhythmFor } from './rhythm';
 import { ADS, DJ_COPY, HOODS, TALK_SHOWS } from './shows';
 import type { KokoroVoice, ScriptLine, Show } from './types';
 
@@ -54,7 +56,14 @@ export function baseDimensions(): Dimension[] {
  * fill them (open slots become a sentinel), split like the runtime does, keep the sentences without the sentinel.
  * Returns [] when the combination count exceeds `maxVariants`.
  */
+/** A sentence as the player will plan it: its words and whether an [em] or [punch] leans on it. */
+export interface Unit { text: string; em: boolean }
+
 export function bakeableSentences(template: string, dims: readonly Dimension[] = baseDimensions(), maxVariants = MAX_VARIANTS): string[] {
+  return [...new Set(bakeableUnits(template, dims, maxVariants).map((u) => u.text))];
+}
+
+export function bakeableUnits(template: string, dims: readonly Dimension[] = baseDimensions(), maxVariants = MAX_VARIANTS): Unit[] {
   const used = new Set(slotsIn(template));
   const picked = dims.filter((d) => Object.keys(d[0] ?? {}).some((k) => used.has(k)));
   let combos = 1;
@@ -62,15 +71,19 @@ export function bakeableSentences(template: string, dims: readonly Dimension[] =
   if (combos > maxVariants) return [];
   const open: Record<string, string> = {};
   for (const s of used) open[s] = OPEN;
-  const out: string[] = [];
+  const out: Unit[] = [];
   const seen = new Set<string>();
   const rec = (i: number, slots: Record<string, string>) => {
     if (i === picked.length) {
       const filled = fillSlots(template, slots);
       if (!filled) return;
+      let em = false;
       for (const d of parseLine(filled)) {
-        if (d.t !== 'say' || d.text.includes(OPEN)) continue;
-        if (!seen.has(d.text)) { seen.add(d.text); out.push(d.text); }
+        if (d.t === 'em' || d.t === 'punch') { em = true; continue; }
+        if (d.t !== 'say') continue;
+        const k = `${em ? 1 : 0}${d.text}`;
+        if (!d.text.includes(OPEN) && !seen.has(k)) { seen.add(k); out.push({ text: d.text, em }); }
+        em = false;
       }
       return;
     }
@@ -85,22 +98,19 @@ export interface StationFill { id: string; name: string; freq: string }
 /** Station dial entries the idents are filled for (name and spoken frequency come from the radio table). */
 export type StationTable = readonly StationFill[];
 
-function clip(who: string, text: string, kind: PackKind, bank: string, tier: number, voiceOverride?: { voice: KokoroVoice; speed: number }): PlanClip | null {
+/** The clips one sentence needs: one per phrase, each at its own speed (prosody.ts), exactly what SpeechPlayer will ask for. */
+function clips(who: string, u: Unit | string, kind: PackKind, bank: string, tier: number, voiceOverride?: { voice: KokoroVoice; speed: number }): PlanClip[] {
   const m = CAST_MAP.get(who);
   const voice = voiceOverride?.voice ?? m?.voice;
   const speed = voiceOverride?.speed ?? m?.speed;
-  if (!voice || speed === undefined) return null;
-  return { key: clipKey(text, voice, speed), who, voice, speed, text, kind, bank, tier };
+  if (!voice || speed === undefined) return [];
+  const unit = typeof u === 'string' ? { text: u, em: false } : u;
+  return planSentence(unit.text, who, speed, rhythmFor(who), { em: unit.em }).map((p) => ({ key: clipKey(p.text, voice, p.speed), who, voice, speed: p.speed, text: p.text, kind, bank, tier }));
 }
 
 function showClips(show: Show, kind: PackKind, bank: string, tier: number): PlanClip[] {
   const out: PlanClip[] = [];
-  for (const l of show.lines as readonly ScriptLine[]) {
-    for (const text of bakeableSentences(l.text)) {
-      const c = clip(l.who, text, kind, bank, tier);
-      if (c) out.push(c);
-    }
-  }
+  for (const l of show.lines as readonly ScriptLine[]) for (const u of bakeableUnits(l.text)) out.push(...clips(l.who, u, kind, bank, tier));
   return out;
 }
 
@@ -112,20 +122,19 @@ export function planDjs(stations: StationTable): PlanClip[] {
     if (!copy) continue;
     const dims: Dimension[] = [...baseDimensions(), [{ station: st.name, freq: st.freq }]];
     const bank = `dj-${copy.who}`;
-    for (const t of copy.idents) for (const s of bakeableSentences(t, dims)) { const c = clip(copy.who, s, 'dj', bank, 0); if (c) out.push(c); }
+    for (const t of copy.idents) for (const u of bakeableUnits(t, dims)) out.push(...clips(copy.who, u, 'dj', bank, 0));
     // Sentences without any slot first (tier 1); the finite-slot expansions (a neighbourhood shout-out for each of the
     // twelve hoods) are many clips and come last (tier 6).
     for (const cat of ['blind', 'intros', 'outros', 'shouts', 'hours', 'traffic'] as const) {
       for (const t of copy[cat]) {
         const expands = /\{(hood|weather|daypart|stars)\}/.test(t);
-        for (const s of bakeableSentences(t, dims)) { const c = clip(copy.who, s, 'dj', bank, expands && /[{]/.test(t) ? 6 : 1); if (c) out.push(c); }
+        for (const u of bakeableUnits(t, dims)) out.push(...clips(copy.who, u, 'dj', bank, expands && /[{]/.test(t) ? 6 : 1));
       }
     }
   }
   // The DJs' lead-in to a commercial.
   for (const who of new Set(Object.values(DJ_COPY).map((c) => c.who))) {
-    const c = clip(who, 'A word from our sponsors.', 'dj', `dj-${who}`, 1);
-    if (c) out.push(c);
+    out.push(...clips(who, 'A word from our sponsors.', 'dj', `dj-${who}`, 1));
   }
   return out;
 }

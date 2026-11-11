@@ -272,35 +272,55 @@ function curbSpot(p: ElPath, net: RoadNet, s: number, side: 1 | -1): { p: Vec2; 
 }
 
 /**
- * Column positions on both curb lines, every COLUMN_STEP metres along the path (spacing never above it). A column that would
- * stand inside a paved node polygon or a crosswalk band is not placed: the previous column is pulled up to the edge of the
- * blocked stretch (spacing not below MIN_SPACING) and the next one starts right after it, so the girders span the junction.
- * Each curb line is placed on its own (a diagonal Broadway meets a cross street at different s on its two kerbs). Returned in
- * order of s, left kerb then right kerb at equal s; `dir` is the travel direction of the path there.
+ * Column positions on both curb lines, every COLUMN_STEP metres along the path (spacing never above it on open street).
+ * Pass 1 sets pairs (one column per kerb at the same s, so a bent can join them) wherever both kerbs are clear. A column that
+ * would stand inside a paved node polygon or a crosswalk band is never placed; pass 2 then walks each kerb alone through the
+ * gaps pass 1 left: it pulls a single column up to the edge of the blocked stretch (spacing not below MIN_SPACING) and starts
+ * again right after it, so the girders only span the junction itself. Returned in order of s, left kerb before right at equal s;
+ * `dir` is the travel direction of the path there.
  */
 function columnSpotsS(p: ElPath, d: Derived, net: RoadNet): Array<{ s: number; spot: { p: Vec2; dir: Vec2 } }> {
-  const per: Array<Array<{ s: number; spot: { p: Vec2; dir: Vec2 } }>> = [[], []];
   const FINE = 0.5, MIN_SPACING = 6;
-  ([1, -1] as const).forEach((side, k) => {
-    const legal = (s: number): boolean => !blockedAt(curbSpot(p, net, s, side).p, d, net);
-    let last = -Infinity;
-    const put = (s: number): void => { per[k].push({ s, spot: curbSpot(p, net, s, side) }); last = s; };
-    const end = p.length - 3;
-    let target = COLUMN_STEP / 2;
-    while (target <= end) {
-      if (legal(target)) { put(target); target = last + COLUMN_STEP; continue; }
-      // blocked: pull the previous column's successor back to the edge of the blocked stretch, then jump past it
-      let back = target - FINE;
-      while (back > last + MIN_SPACING && !legal(back)) back -= FINE;
-      if (back > last + MIN_SPACING && back > last) put(back);
-      let fwd = target + FINE;
-      while (fwd <= end && !legal(fwd)) fwd += FINE;
-      if (fwd > end) break;
-      put(fwd);
-      target = last + COLUMN_STEP;
+  const sides = [1, -1] as const;
+  const legal = (s: number, side: 1 | -1): boolean => !blockedAt(curbSpot(p, net, s, side).p, d, net);
+  const per: number[][] = [[], []];
+  const end = p.length - 3;
+  for (let s = COLUMN_STEP / 2; s <= end; s += COLUMN_STEP) {
+    if (legal(s, 1) && legal(s, -1)) { per[0].push(s); per[1].push(s); }
+  }
+  sides.forEach((side, k) => {
+    const have = per[k].slice();
+    const marks = [-Infinity, ...have, Infinity];
+    const added: number[] = [];
+    for (let i = 0; i < marks.length - 1; i++) {
+      let last = marks[i];
+      const next = marks[i + 1];
+      if (last === -Infinity) last = COLUMN_STEP / 2 - COLUMN_STEP; // open start: first column at COLUMN_STEP / 2 or later
+      for (let guard = 0; guard < 400; guard++) {
+        const reach = Number.isFinite(next) ? next : end + COLUMN_STEP;
+        if (reach - last <= COLUMN_STEP + 1e-6) break;
+        let x = last + COLUMN_STEP;
+        if (x > end) break;
+        if (!legal(x, side)) {
+          let back = x - FINE;
+          while (back > last + MIN_SPACING && !legal(back, side)) back -= FINE;
+          if (back > last + MIN_SPACING) x = back;
+          else {
+            let fwd = x + FINE;
+            while (fwd < Math.min(next - MIN_SPACING, end) && !legal(fwd, side)) fwd += FINE;
+            if (fwd >= Math.min(next - MIN_SPACING, end)) break;
+            x = fwd;
+          }
+        }
+        added.push(x);
+        last = x;
+      }
     }
+    per[k] = [...have, ...added].sort((a, b) => a - b);
   });
-  return [...per[0], ...per[1]].sort((x, y) => x.s - y.s);
+  const out: Array<{ s: number; spot: { p: Vec2; dir: Vec2 } }> = [];
+  sides.forEach((side, k) => per[k].forEach((s) => out.push({ s, spot: curbSpot(p, net, s, side) })));
+  return out.sort((x, y) => x.s - y.s);
 }
 
 export function columnSpots(p: ElPath, d: Derived, net: RoadNet): Array<{ p: Vec2; dir: Vec2 }> {

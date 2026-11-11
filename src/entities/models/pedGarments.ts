@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { HI_RECTS, type HiTile } from '@/textures/painters/pedHi';
 import type { PedSpec, PxRect } from '@/textures/painters/ped';
 import type { MhLod, MhShape } from './pedMesh';
+import { peopleMode } from '@/textures/painters/pedMode';
 
 const ATLAS = 512;
 const TILES = Object.entries(HI_RECTS) as Array<[HiTile, PxRect]>;
@@ -381,7 +382,7 @@ export function headShell(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec)
   }
 
   // beard: a volume on the jaw and chin, open over the mouth
-  if (spec.face.beard) {
+  if (spec.face.beard && peopleMode() === 'shells') {
     let beard = clip(head, (v) => 0.4 - tOf(v.p[1]));
     beard = clip(beard, (v) => zc - 0.005 - v.p[2]);
     beard = clip(beard, (v) => rx * 0.97 - Math.abs(v.p[0]));

@@ -5,7 +5,8 @@
  * walk-on has to share one, the director reserves the preset against nearby peds while that character speaks.
  * `null` entries never speak (the player, the crowd): subtitle only.
  */
-import { splitSentences } from './script';
+import { planSpeech } from './prosody';
+import { rhythmFor } from './rhythm';
 import type { FxPreset, KokoroVoice } from './types';
 import { clipKey } from './script';
 import type { PlanClip } from './packPlan';
@@ -79,8 +80,8 @@ export function planStory(lines: readonly StoryLine[]): PlanClip[] {
   for (const l of lines) {
     const sv = STORY_VOICES[l.who];
     if (!sv) continue;
-    for (const s of splitSentences(l.text.replace(/\[[^\]]*\]/g, ' '))) {
-      out.push({ key: clipKey(s, sv.voice, sv.speed), who: l.who, voice: sv.voice, speed: sv.speed, text: s, kind: 'story', bank: 'story', tier: 4 });
+    for (const p of planSpeech(l.text.replace(/\[[^\]]*\]/g, ' '), l.who, sv.speed, rhythmFor(l.who))) {
+      out.push({ key: clipKey(p.text, sv.voice, p.speed), who: l.who, voice: sv.voice, speed: p.speed, text: p.text, kind: 'story', bank: 'story', tier: 4 });
     }
   }
   return out;

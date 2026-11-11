@@ -24,7 +24,7 @@ import { CROSSWALK_START, CROSSWALK_WIDTH, STOP_LINE } from './contract';
 import { chunkLayoutFromBounds, tagRoadChunks } from './chunksReal';
 import { isRibbonless, junctionClusters } from './clusters';
 import { buildSidewalkGraph } from './sidewalks';
-import { pointInPolygon, segmentIntersection, signedArea } from './geom';
+import { closestOnSegment, pointInPolygon, segmentIntersection, signedArea } from './geom';
 
 export type WorldMaterials = IMaterialLibrary;
 
@@ -200,6 +200,17 @@ export function unionPolygons(A: ReadonlyArray<Vec2>, B: ReadonlyArray<Vec2>): V
   const na = A.length, nb = B.length;
   const sa: Array<Array<{ t: number; q: Vec2 }>> = A.map(() => []);
   const sb: Array<Array<{ t: number; q: Vec2 }>> = B.map(() => []);
+  const TOL = 1e-7;
+  // vertices of one ring lying on an edge of the other (collinear overlaps, T touches) split that edge too
+  const touch = (R: ReadonlyArray<Vec2>, splits: typeof sa, V: ReadonlyArray<Vec2>): void => {
+    for (let i = 0; i < R.length; i++) {
+      const p = R[i], q = R[(i + 1) % R.length];
+      for (const v of V) {
+        const c = closestOnSegment(v, p, q);
+        if (c.d2 < TOL * TOL && c.t > 1e-9 && c.t < 1 - 1e-9) splits[i].push({ t: c.t, q: v });
+      }
+    }
+  };
   for (let i = 0; i < na; i++) {
     const a0 = A[i], a1 = A[(i + 1) % na];
     for (let j = 0; j < nb; j++) {
@@ -210,19 +221,29 @@ export function unionPolygons(A: ReadonlyArray<Vec2>, B: ReadonlyArray<Vec2>): V
       sa[i].push({ t: h.s, q }); sb[j].push({ t: h.u, q });
     }
   }
+  touch(A, sa, B);
+  touch(B, sb, A);
   const edges: Array<{ p: Vec2; q: Vec2 }> = [];
-  const collect = (R: ReadonlyArray<Vec2>, splits: typeof sa, other: ReadonlyArray<Vec2>): void => {
+  const collect = (R: ReadonlyArray<Vec2>, splits: typeof sa, other: ReadonlyArray<Vec2>, first: boolean): void => {
     for (let i = 0; i < R.length; i++) {
-      const chain: Vec2[] = [R[i], ...splits[i].sort((x, y) => x.t - y.t).map((s) => s.q), R[(i + 1) % R.length]];
+      const chain: Vec2[] = [R[i], ...splits[i].sort((x, y) => x.t - y.t).map((sp) => sp.q), R[(i + 1) % R.length]];
       for (let k = 0; k + 1 < chain.length; k++) {
         const p = chain[k], q = chain[k + 1];
         if (qkey(p) === qkey(q)) continue;
-        if (!pointInPolygon({ x: (p.x + q.x) / 2, z: (p.z + q.z) / 2 }, other)) edges.push({ p, q });
+        const m = { x: (p.x + q.x) / 2, z: (p.z + q.z) / 2 };
+        // on the other ring's boundary: a shared stretch. Same direction (outer kerb): keep it once, from the first ring.
+        // Opposite direction (the rings meet face to face): interior, drop it from both.
+        let shared = 0;
+        for (let j = 0; j < other.length && !shared; j++) {
+          const o0 = other[j], o1 = other[(j + 1) % other.length];
+          if (closestOnSegment(m, o0, o1).d2 < TOL * TOL) shared = (q.x - p.x) * (o1.x - o0.x) + (q.z - p.z) * (o1.z - o0.z) > 0 ? 1 : -1;
+        }
+        if (shared === 1) { if (first) edges.push({ p, q }); } else if (shared === 0 && !pointInPolygon(m, other)) edges.push({ p, q });
       }
     }
   };
-  collect(A, sa, B);
-  collect(B, sb, A);
+  collect(A, sa, B, true);
+  collect(B, sb, A, false);
   if (edges.length < 3) return null;
   const byStart = new Map<string, number[]>();
   edges.forEach((e, i) => { const k = qkey(e.p); const l = byStart.get(k); if (l) l.push(i); else byStart.set(k, [i]); });

@@ -35,6 +35,8 @@ export interface LaneOptions {
 
 export const DEFAULT_LANES: Required<LaneOptions> = { laneOffset: 2.0, laneWidth: 3.0, maxSpacing: 15, turnStep: 3 };
 
+/** lane nodes are spaced a little under maxSpacing so the offset lane on the outside of a bend still stays within it */
+const SPACING_MARGIN = 0.93;
 /** distance from the cut to the first node of an exiting lane (m) */
 const EXIT_DIST = 2.5;
 /** distance back from the end of a dead-end edge where lanes turn around (m) */
@@ -167,7 +169,7 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
       const params: number[] = [];
       for (let k = 0; k < marks.length - 1; k++) {
         const gap = marks[k + 1] - marks[k];
-        const n = Math.max(1, Math.ceil(gap / o.maxSpacing));
+        const n = Math.max(1, Math.ceil(gap / (o.maxSpacing * SPACING_MARGIN)));
         for (let q = 0; q < n; q++) params.push(marks[k] + (gap * q) / n);
       }
       params.push(t1);

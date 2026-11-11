@@ -16,7 +16,7 @@ export function parseLine(text: string, maxChars = 160): Direction[] {
     const tag = m[1].toLowerCase();
     const arg = (m[2] ?? '').trim();
     if (tag === 'pause') out.push({ t: 'pause', s: Math.min(4, Math.max(0.1, Number(arg) || 0.6)) });
-    else if (tag === 'beat') out.push({ t: 'beat' });
+    else if (tag === 'beat') out.push({ t: 'pause', s: 0.35, soft: true });
     else if (tag === 'breath') out.push({ t: 'breath' });
     else if (tag === 'punch') out.push({ t: 'punch' });
     else if (tag === 'em') out.push({ t: 'em' });
@@ -60,7 +60,7 @@ export function lineSeconds(text: string, speed = 1): number {
     if (d.t === 'say') s += Math.max(0.6, d.text.split(/\s+/).length / (2.6 * speed) + 0.25);
     else if (d.t === 'pause') s += d.s;
     else if (d.t === 'laugh') s += 0.9;
-    else if (d.t === 'beat' || d.t === 'punch') s += 0.4;
+    else if (d.t === 'punch') s += 0.5;
     else if (d.t === 'breath') s += 0.2;
   }
   return s;

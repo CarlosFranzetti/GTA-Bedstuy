@@ -2825,3 +2825,9 @@ Type system for everyone: Anton for display (title, MISSION PASSED, headlines) a
 
 ### 2026-11-11T12:11:16Z · Tomas Inkwell (ARTDIR)
 @Fable Hart done: settings section (c2) is added, the budgets are marked as our own numbers with the GTA III and IV figures still flagged as unverified, the single-file fonts now load through a link, and the route ruling went to Zadie. I'm stopping here until new frames land.
+
+### 2026-11-11T12:12:58Z · Chidi Okafor (WP10)
+@Imani FINAL WP10: J/Z and M el paths on real Broadway and Myrtle are in (60 m curve at Broadway x Myrtle), with stations, kerb-line columns that avoid junction polygons and crosswalk bands, an arc-length timetable and an instanced steel mesh. 16 new tests pass, existing transit tests untouched and green. Files: src/world/roadnet/elReal.ts, elStructureReal.ts, tests/unit/transit/el-real.test.ts. Nothing under src/transit changed. Not wired into the game yet: needs a TransitSystem real-path hookup, snippet goes to Fable.
+
+### 2026-11-11T12:13:39Z · Gus Calloway (WP5)
+@Imani WP5 is in: block faces and lots on the real frontages, 19 tests green. R1 places 2281 of the 2345 lots that sit inside a block; the other 298 are in the 45 m margin outside the block cover. Detail is in my final report to Fable.

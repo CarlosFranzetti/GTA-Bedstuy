@@ -4,7 +4,7 @@
  * (SpeechPlayer, PedVoicePlayer) and the offline bake (packPlan) ask for exactly the same clips. Only the clips are
  * baked; the silences are laid on the WebAudio timeline by the player, so pause lengths can change without a re-bake.
  */
-import { hash32, parseLine } from './script';
+import { hash32, parseLine, splitSentences } from './script';
 
 /** How one speaker paces speech. 1 = neutral. See rhythm.ts for the cast. */
 export interface Rhythm {
@@ -217,9 +217,8 @@ export function planLine(text: string, who: string, baseSpeed: number, r: Rhythm
     if (d.t === 'say') {
       for (const p of planSentence(d.text, who, baseSpeed, r, { em, whole })) { out.push({ k: 'say', text: p.text, speed: p.speed, gap: p.gap, first, em: p.em }); first = false; }
       em = false;
-    } else if (d.t === 'pause') { trim(0.05); out.push({ k: 'pause', s: jitterPause(d.s, r, seed, false) }); }
+    } else if (d.t === 'pause') { trim(0.05); out.push({ k: 'pause', s: jitterPause(d.s, r, seed, !!d.soft) }); }
     else if (d.t === 'breath') { trim(0.04); out.push({ k: 'pause', s: jitterPause(0.2, r, seed) }); }
-    else if (d.t === 'beat') { trim(0.05); out.push({ k: 'pause', s: jitterPause(0.35, r, seed) }); }
     else if (d.t === 'punch') { trim(0.05); out.push({ k: 'pause', s: jitterPause(0.55, r, seed) }); em = true; }
     else if (d.t === 'em') em = true;
     else if (d.t === 'laugh') { trim(0.06); out.push({ k: 'laugh' }); }
@@ -228,3 +227,11 @@ export function planLine(text: string, who: string, baseSpeed: number, r: Rhythm
   });
   return out;
 }
+
+/** Plain text with no directions (a bark, a story line) as phrases, sentence by sentence. `who` picks the rhythm profile. */
+export function planSpeech(text: string, who: string, baseSpeed: number, r: Rhythm): Phrase[] {
+  return splitSentences(text).flatMap((x) => planSentence(x, who, baseSpeed, r));
+}
+
+/** Rhythm id of a pedestrian voice (profiles are per voice preset; story characters use their own name). */
+export const pedRhythmId = (kokoroVoice: string): string => `ped:${kokoroVoice}`;

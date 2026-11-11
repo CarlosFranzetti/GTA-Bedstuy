@@ -58,8 +58,7 @@ export interface Show {
 
 export type Direction =
   | { t: 'say'; text: string }
-  | { t: 'pause'; s: number }
-  | { t: 'beat' }
+  | { t: 'pause'; s: number; soft?: boolean }
   | { t: 'breath' }
   | { t: 'punch' }
   | { t: 'em' }

@@ -9,8 +9,10 @@
 import { CAST_MAP } from './cast';
 import { ClipCache } from './ClipCache';
 import { FxBank, playLaugh, playSfx, type FxHost } from './fx';
-import { clipKey, lineSeconds, parseLine } from './script';
-import type { CastMember, Clip, Direction, TtsEngine } from './types';
+import { clipKey, lineSeconds } from './script';
+import { fadeEdges, planLine, trimClip, turnGap } from './prosody';
+import { rhythmFor } from './rhythm';
+import type { CastMember, Clip, TtsEngine } from './types';
 import { pickVoices, type SpeechLike, type UtteranceLike, type VoiceLike } from '../talk/TalkPlayer';
 import type { VoiceRole } from '../talk/script';
 import type { PackLookup } from './pack';
@@ -50,29 +52,35 @@ export interface SpeechPlayerEnv {
 export class ClipMiss extends Error {}
 
 type Item =
-  | { k: 'say'; cast: CastMember; text: string; line: number; first: boolean }
+  /** `speed` is the phrase's own Kokoro speed; `gap` the silence after it; `lead` the turn gap before a line (negative: a quick pickup). */
+  | { k: 'say'; cast: CastMember; text: string; line: number; first: boolean; speed: number; gap: number; lead: number }
   | { k: 'pause'; s: number }
   | { k: 'laugh' }
   | { k: 'sfx'; name: string }
   | { k: 'over' };
 
-const SENTENCE_GAP = 0.14;
 const AHEAD = 4;
 
-export function expand(lines: readonly ResolvedLine[], castMap: ReadonlyMap<string, CastMember> = CAST_MAP): Item[] {
+/** Script lines as phrases (prosody.ts) with pauses and turn gaps; `whole` keeps sentences whole for the system voices. */
+export function expand(lines: readonly ResolvedLine[], castMap: ReadonlyMap<string, CastMember> = CAST_MAP, whole = false): Item[] {
   const out: Item[] = [];
+  let prev: { who: string; text: string; laugh: boolean } | null = null;
   lines.forEach((l, li) => {
     const cast = castMap.get(l.who);
     if (!cast) return;
-    let first = true;
-    for (const d of parseLine(l.text) as Direction[]) {
-      if (d.t === 'say') { out.push({ k: 'say', cast, text: d.text, line: li, first }); first = false; }
-      else if (d.t === 'pause') out.push({ k: 'pause', s: d.s });
-      else if (d.t === 'laugh') out.push({ k: 'laugh' });
-      else if (d.t === 'over') out.push({ k: 'over' });
-      else out.push({ k: 'sfx', name: d.name });
+    const items = planLine(l.text, cast.id, cast.speed, rhythmFor(cast.id), whole);
+    const lead = prev ? turnGap({ text: prev.text, laugh: prev.laugh, same: prev.who === l.who }, l.text, rhythmFor(cast.id)) : 0;
+    const before = out.length;
+    for (const d of items) {
+      if (d.k === 'say') out.push({ k: 'say', cast, text: d.text, line: li, first: d.first, speed: d.speed, gap: d.gap, lead: d.first && !items.some((x) => x.k === 'over') ? lead : 0 });
+      else out.push(d);
+    }
+    if (out.length > before) {
+      for (let i = before - 1; i >= 0; i--) { const p = out[i]; if (p.k === 'say') { p.gap = 0; break; } }
+      prev = { who: l.who, text: l.text, laugh: items[items.length - 1]?.k === 'laugh' };
     }
   });
+  for (let i = out.length - 1; i >= 0; i--) { const p = out[i]; if (p.k === 'say') { p.gap = Math.min(p.gap, 0.05); break; } }
   return out;
 }
 
@@ -105,7 +113,7 @@ export class SpeechPlayer {
   /** Background pre-render of a segment's sentences (neural only; harmless otherwise). */
   prefetch(lines: readonly ResolvedLine[], max = 12): void {
     const pack = this.env.pack?.();
-    if (pack && pack.state === 'ready') pack.warm(expand(lines).filter((i): i is Extract<Item, { k: 'say' }> => i.k === 'say').map((i) => clipKey(i.text, i.cast.voice, i.cast.speed)));
+    if (pack && pack.state === 'ready') pack.warm(expand(lines).filter((i): i is Extract<Item, { k: 'say' }> => i.k === 'say').map((i) => clipKey(i.text, i.cast.voice, i.speed)));
     const e = this.env.engine();
     if (!e || !e.usable) return;
     let n = 0;
@@ -120,22 +128,23 @@ export class SpeechPlayer {
     this.cancel();
     const my = ++this.token;
     this.active = true;
-    const items = expand(lines);
     let mode = this.mode;
+    const items = expand(lines, CAST_MAP, mode !== 'neural');
     // Pack-only playback (no usable live engine): every sentence must be in the pack or the memory cache, otherwise the
     // whole segment is spoken by one system voice instead of switching voices in the middle of a line.
-    if (mode === 'neural' && !this.env.engine()?.usable && !this.covered(items)) mode = this.env.speech ? 'system' : 'silent';
+    let run = items;
+    if (mode === 'neural' && !this.env.engine()?.usable && !this.covered(items)) { mode = this.env.speech ? 'system' : 'silent'; run = expand(lines, CAST_MAP, true); }
     const finish = () => { if (my !== this.token) return; this.active = false; cb.onEnd?.(); };
-    if (items.length === 0) { queueMicrotask(finish); return { cancel: () => this.cancelIf(my), mode }; }
-    if (mode === 'neural') void this.runNeural(items, lines, cb, my, finish);
-    else if (mode === 'system') void this.runSystem(items, cb, my, finish);
-    else this.startSilent(items, lines, cb, my, finish);
+    if (run.length === 0) { queueMicrotask(finish); return { cancel: () => this.cancelIf(my), mode }; }
+    if (mode === 'neural') void this.runNeural(run, lines, cb, my, finish);
+    else if (mode === 'system') void this.runSystem(run, cb, my, finish);
+    else this.startSilent(run, lines, cb, my, finish);
     return { cancel: () => this.cancelIf(my), mode };
   }
 
   private covered(items: readonly Item[]): boolean {
     const pack = this.env.pack?.();
-    return items.every((i) => i.k !== 'say' || this.env.cache.has(clipKey(i.text, i.cast.voice, i.cast.speed)) || !!pack?.has(clipKey(i.text, i.cast.voice, i.cast.speed)));
+    return items.every((i) => i.k !== 'say' || this.env.cache.has(clipKey(i.text, i.cast.voice, i.speed)) || !!pack?.has(clipKey(i.text, i.cast.voice, i.speed)));
   }
 
   cancel(): void {
@@ -179,13 +188,13 @@ export class SpeechPlayer {
 
   private render(it: Extract<Item, { k: 'say' }>, priority: 0 | 1): Promise<Clip> {
     const e = this.env.engine();
-    const key = clipKey(it.text, it.cast.voice, it.cast.speed);
+    const key = clipKey(it.text, it.cast.voice, it.speed);
     const pack = this.env.pack?.();
     const fromPack: Promise<Clip | null> = pack && pack.has(key) ? pack.get(key) : Promise.resolve(null);
     return fromPack.then((baked) => baked ?? this.env.cache.get(key)).then((hit) => {
       if (hit) return hit;
       if (!e || !e.usable) throw new ClipMiss('clip not in the voice pack or cache');
-      return e.synth({ text: it.text, voice: it.cast.voice, speed: it.cast.speed }, priority).then((c) => { this.env.cache.put(key, c); return c; });
+      return e.synth({ text: it.text, voice: it.cast.voice, speed: it.speed }, priority).then((c) => { this.env.cache.put(key, c); return c; });
     }).then((c) => c, (err) => { throw err; }) as Promise<Clip>;
   }
 
@@ -202,6 +211,7 @@ export class SpeechPlayer {
     };
     request(AHEAD);
     let cursor = host.ctx.currentTime + 0.06;
+    let clipEnd = cursor;
     let overlap = false;
     let sayIndex = 0;
     let started = false;
@@ -228,18 +238,19 @@ export class SpeechPlayer {
       }
       if (my !== this.token) return;
       sayIndex++;
-      const buf = host.ctx.createBuffer(1, clip.samples.length, clip.sampleRate);
-      buf.copyToChannel(clip.samples as Float32Array<ArrayBuffer>, 0);
+      const pcm = fadeEdges(trimClip(clip.samples, clip.sampleRate), clip.sampleRate);
+      const buf = host.ctx.createBuffer(1, pcm.length, clip.sampleRate);
+      buf.copyToChannel(pcm as Float32Array<ArrayBuffer>, 0);
       const src = host.ctx.createBufferSource();
       src.buffer = buf;
       src.connect(this.fx(host, it.cast.fx));
       const now = host.ctx.currentTime + 0.03;
-      const startAt = Math.max(now, overlap ? cursor - 0.45 : cursor);
+      const startAt = Math.max(now, overlap ? clipEnd - 0.45 : cursor + it.lead);
       overlap = false;
       src.start(startAt);
       this.sources.push(src);
-      const dur = buf.duration;
-      cursor = startAt + dur + SENTENCE_GAP;
+      clipEnd = startAt + buf.duration;
+      cursor = clipEnd + it.gap;
       if (!started) { started = true; cb.onStart?.(); }
       if (it.first) {
         const wait = Math.max(0, (startAt - host.ctx.currentTime) * 1000);
@@ -278,6 +289,7 @@ export class SpeechPlayer {
       if (it.k === 'laugh') { if (host) playLaugh(host); await this.sleep(500, my); continue; }
       if (it.k === 'sfx') { if (host) { const d = playSfx(host, it.name); await this.sleep(d * 600, my); } continue; }
       if (it.k === 'over') continue;
+      if (it.lead > 0) await this.sleep(it.lead * 1000, my);
       if (!started) { started = true; cb.onStart?.(); }
       if (it.first && it.line !== announceLine) { announceLine = it.line; cb.onLine?.(it.cast, it.text); }
       await new Promise<void>((resolve) => {
@@ -287,7 +299,7 @@ export class SpeechPlayer {
         const fb = it.cast.fallback;
         u.voice = this.voices[fb.role] ?? this.voices.host ?? null;
         u.pitch = Math.min(2, Math.max(0.1, fb.pitch));
-        u.rate = Math.min(10, Math.max(0.1, fb.rate));
+        u.rate = Math.min(10, Math.max(0.1, fb.rate * it.speed / it.cast.speed));
         u.volume = Math.min(1, Math.max(0, this.env.volume()));
         u.lang = u.voice?.lang ?? 'en-US';
         let done = false;
@@ -297,6 +309,7 @@ export class SpeechPlayer {
         u.onerror = end;
         try { speech.speak(u); } catch { end(); }
       });
+      if (it.gap > 0) await this.sleep(it.gap * 1000, my);
     }
     finish();
   }
@@ -326,7 +339,7 @@ export class SpeechPlayer {
     const it = s.items[s.at++];
     if (it.k === 'say') {
       if (it.first) s.cb.onLine?.(it.cast, it.text);
-      s.left = Math.max(0.8, it.text.split(/\s+/).length / 2.6 + 0.3);
+      s.left = Math.max(0.8, it.text.split(/\s+/).length / 2.6 + 0.3) + Math.max(0, it.gap + it.lead);
     } else if (it.k === 'pause') s.left = it.s;
     else if (it.k === 'laugh') s.left = 0.6;
     else if (it.k === 'sfx') s.left = 0.5;

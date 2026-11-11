@@ -11,6 +11,7 @@
  *   thigh 0,384   shin 128,384   pelvis / skirt 256,384   shoe 384,384 (all 128x128; the sole is the bottom 22 % of the shoe)
  */
 import type { Rng } from '@/core/Rng';
+import { peopleMode } from './pedMode';
 import { PED_SPECS, mixHex, type PedSpec, type PxRect } from './ped';
 
 export const PEDHI_ATLAS = 512;
@@ -32,6 +33,7 @@ const lt = (c: string, t: number): string => mixHex(c, '#ffffff', t);
 class L {
   constructor(readonly a: CanvasRenderingContext2D, readonly h: CanvasRenderingContext2D | null, readonly r: CanvasRenderingContext2D | null, readonly k: number, readonly ox = 0, readonly oy = 0, readonly bw = Infinity, readonly bh = Infinity, readonly sy = 1, readonly yo = 0) {}
   /** a tile; (sy, yo) maps the painter's design rows onto the tile's rows (row = y * sy + yo): the garment painters are drawn in a design space and fitted to where the body's UV puts the garment */
+  get raw(): L { return new L(this.a, this.h, this.r, this.k, this.ox, this.oy, this.bw, this.bh); }
   at(r: PxRect, sy = 1, yo = 0): L { return new L(this.a, this.h, this.r, this.k, r.x, r.y, r.w, r.h, sy, yo); }
   private fill(ctx: CanvasRenderingContext2D | null, c: string, al: number, f: (k: number) => void): void {
     if (!ctx) return;
@@ -548,7 +550,7 @@ function sleeve(t: L, s: PedSpec, rng: Rng, lower: boolean): void {
   t.rect(0, 0, W, H, s.skin, 1, 128, 140);
   speck(t, 0, 0, W, H, s.skin, rng, 260, 0.1);
   t.rect(0, 0, 24, H, '#000000', 0.1); t.rect(W - 24, 0, 24, H, '#000000', 0.1);
-  const cover = p.sleeves === 'long' ? (lower ? 106 : 128) : p.sleeves === 'short' ? (lower ? 0 : 74) : p.kind === 'jersey' ? (lower ? 0 : 18) : 0;
+  const cover = p.sleeves === 'long' ? (lower ? (peopleMode() === 'skin' ? 124 : 106) : 128) : p.sleeves === 'short' ? (lower ? 0 : 74) : p.kind === 'jersey' ? (lower ? 0 : 18) : 0;
   if (cover > 0) {
     fabric(t, 0, 0, W, cover, c, p.kind === 'vest' || p.kind === 'apron' ? 'jersey' : fab, rng);
     if (p.pattern === 'heather' || p.kind === 'tee' || p.kind === 'hoodie') speck(t, 0, 0, W, cover, c, rng, 220, p.pattern === 'heather' ? 0.4 : 0.14);
@@ -741,6 +743,72 @@ function paintHat(t: L, s: PedSpec, rng: Rng): void {
   t.rect(0, 112, W, 16, '#000000', 0.16);
 }
 
+
+// ---------------------------------------------------------------- clothes on one clean body (skin mode)
+// The body's UV islands (scripts/people-pipeline.mjs) span fixed heights of the MakeHuman body: torso tile from y 1.56 (shoulder top) to 0.96,
+// upper arm 1.52 to 1.12, forearm 1.24 to 0.89, thigh 1.07 to 0.49, shin 0.58 to 0.08, pelvis 1.09 to 0.86 (male shape; the female one sits ~7 cm
+// lower, the fit is close enough at a hem line). The garment painters above draw in a "design" space (hem to neck, elbow to shoulder ...);
+// each tile gets an affine (rows = design * sy + yo) that lands the design on those heights, plus a pre-fill for the rows outside it.
+const NECK_BASE = 1.482, TORSO_TOP = 1.56, TORSO_H = 0.6, PELVIS_TOP = 1.093, PELVIS_H = 0.237, HEM_Y = 1.007;
+function hangOf(s: PedSpec): number {
+  const k = s.top.kind;
+  if (s.top.long) return 0.1;
+  return ['puffer', 'hoodie', 'jacket', 'cardigan'].includes(k) ? 0.09 : k === 'tee' || k === 'blouse' || k === 'jersey' ? 0 : 0.04;
+}
+function paintClothesOnSkin(T: (n: HiTile, sy?: number, yo?: number) => L, s: PedSpec, rng: Rng): void {
+  const p = s.top, b = s.bottom, tb = bottomFabric(s), fab = outerFabric(s);
+  const baseTop = p.kind === 'vest' ? (p.under ?? '#222') : p.kind === 'apron' ? (p.under ?? '#2d7a4a') : p.color;
+  const hemTop = HEM_Y - hangOf(s), sy = (NECK_BASE - hemTop) / TORSO_H, yo = ((TORSO_TOP - NECK_BASE) / TORSO_H) * 128;
+  // torso: the top's cloth everywhere first (collar and shoulder rows above the design), then the design
+  const tt = T('torso');
+  fabric(tt, 0, 0, 256, 128, baseTop, p.kind === 'vest' || p.kind === 'apron' ? 'jersey' : fab, rng);
+  paintTorso(T('torso', sy, yo), s, rng);
+  const hemRow = yo + 128 * sy;
+  if (hemRow < 126) {
+    // a short top ends above the bottom of the tile: the waistband and belt of the trousers show below it
+    fabric(tt, 0, hemRow, 256, 128 - hemRow, b.color, tb, rng);
+    if (b.kind !== 'skirt' && b.kind !== 'leggings') { tt.rect(0, hemRow + 2, 256, 5, b.kind === 'jeans' ? '#5a3c22' : '#161616', 1, 150, 120); tt.rect(120, hemRow + 2, 16, 5, '#c8b04a', 1, 172, 60); }
+    tt.rect(0, hemRow, 256, 3, '#000000', 0.3);
+  }
+  // arms: sleeves from the shoulder to the wrist (skin where short sleeves end)
+  const longSl = p.sleeves === 'long', clothC = baseTop;
+  for (const [tile, ssy, syo, lower] of [['upperArm', 0.759, 11.3, false], ['foreArm', 0.8, 22.6, true]] as const) {
+    const raw = T(tile);
+    if (longSl) fabric(raw, 0, 0, 128, 128, clothC, p.kind === 'vest' || p.kind === 'apron' ? 'jersey' : fab, rng); else raw.rect(0, 0, 128, 128, s.skin, 1, 128, 140);
+    sleeve(T(tile, ssy, syo), s, rng, lower);
+  }
+  paintHand(T('hand'), s, rng);
+  paintNeck(T('neck'), s, rng);
+  // legs
+  const kind = b.kind;
+  for (const [tile, ssy, syo, lower] of [['thigh', 0.766, 18.1, false], ['shin', 0.88, 7.4, true]] as const) {
+    const raw = T(tile);
+    raw.rect(0, 0, 128, 128, s.skin, 1, 128, 140);
+    if (kind !== 'skirt' && !(kind === 'shorts' && lower)) {
+      if (kind === 'shorts') fabric(raw, 0, 0, 128, 20, b.color, tb, rng); else fabric(raw, 0, 0, 128, 128, b.color, tb, rng);
+    }
+    paintLeg(T(tile, ssy, syo), s, rng, lower);
+  }
+  // pelvis: trousers or skirt, with the top's hem hanging over the first rows
+  const pr = T('pelvis');
+  fabric(pr, 0, 0, 128, 40, b.color, tb, rng);
+  paintPelvis(T('pelvis', 1.101, 35.6), s, rng);
+  const rows = Math.min(128, Math.max(0, ((PELVIS_TOP - hemTop) / PELVIS_H) * 128));
+  if (rows > 2 && !(p.long && p.kind !== 'dress' && false)) {
+    const hc = p.color, isRib = ['hoodie', 'puffer', 'jersey', 'tracksuit'].includes(p.kind);
+    fabric(pr, 0, 0, 128, rows, baseTop, p.kind === 'vest' || p.kind === 'apron' ? 'jersey' : fab, rng);
+    if (p.kind === 'puffer') baffles(pr.at({ x: HI_RECTS.pelvis.x, y: HI_RECTS.pelvis.y, w: 128, h: Math.max(1, Math.round(rows)) }), 128, rows, hc, 20, 2);
+    if (p.pattern === 'plaid') plaid(pr.at({ x: HI_RECTS.pelvis.x, y: HI_RECTS.pelvis.y, w: 128, h: Math.max(1, Math.round(rows)) }), 128, rows, hc);
+    if (isRib) rib(pr, 0, Math.max(0, rows - 11), 128, Math.min(11, rows), p.kind === 'tracksuit' ? p.trim : hc);
+    else { pr.rect(0, rows - 7, 128, 7, dk(hc, 0.08), 1, 124); stitch(pr, 0, rows - 5, 128, rows - 5, lt(hc, 0.3), 0.55); }
+    pr.rect(0, rows, 128, 4, '#000000', 0.3); pr.rect(0, rows + 4, 128, 3, '#000000', 0.12);
+  }
+  // a long coat carries on down the thighs
+  if (p.long && p.kind !== 'dress') {
+    for (const [tile] of [['thigh'], ['shin']] as const) { const th = T(tile); if (tile === 'thigh') { fabric(th, 0, 0, 128, 128, p.color, fab, rng); th.rect(0, 112, 128, 16, dk(p.color, 0.18), 1, 138); stitch(th, 0, 114, 128, 114, lt(p.color, 0.3), 0.5); th.rect(63, 0, 2, 112, '#000000', 0.3, 96); } }
+  }
+}
+
 // ---------------------------------------------------------------- the whole atlas
 
 export function pedHiSpec(variant: number): PedSpec {
@@ -754,7 +822,7 @@ export function paintPedHi(albedo: CanvasRenderingContext2D, height: CanvasRende
   const s = pedHiSpec(variant);
   const k = size / PEDHI_ATLAS;
   const root = new L(albedo, height, rough, k);
-  const T = (n: HiTile): L => root.at(HI_RECTS[n]);
+  const T = (n: HiTile, sy = 1, yo = 0): L => root.at(HI_RECTS[n], sy, yo);
   const full = PEDHI_ATLAS * k;
   if (height) { height.fillStyle = '#808080'; height.fillRect(0, 0, full, full); }
   if (rough) { rough.fillStyle = '#d8d8d8'; rough.fillRect(0, 0, full, full); }
@@ -763,13 +831,15 @@ export function paintPedHi(albedo: CanvasRenderingContext2D, height: CanvasRende
   paintGear(T('gear'), s, rng);
   paintHair(T('hair'), s, rng);
   paintHat(T('hat'), s, rng);
-  paintTorso(T('torso'), s, rng);
-  sleeve(T('upperArm'), s, rng, false);
-  sleeve(T('foreArm'), s, rng, true);
-  paintHand(T('hand'), s, rng);
-  paintNeck(T('neck'), s, rng);
-  paintLeg(T('thigh'), s, rng, false);
-  paintLeg(T('shin'), s, rng, true);
-  paintPelvis(T('pelvis'), s, rng);
+  if (peopleMode() === 'skin') paintClothesOnSkin(T, s, rng); else {
+    paintTorso(T('torso'), s, rng);
+    sleeve(T('upperArm'), s, rng, false);
+    sleeve(T('foreArm'), s, rng, true);
+    paintHand(T('hand'), s, rng);
+    paintNeck(T('neck'), s, rng);
+    paintLeg(T('thigh'), s, rng, false);
+    paintLeg(T('shin'), s, rng, true);
+    paintPelvis(T('pelvis'), s, rng);
+  }
   paintShoe(T('shoe'), s, rng);
 }

@@ -22,6 +22,8 @@ import { HI_RECTS, type HiTile } from '@/textures/painters/pedHi';
 import { PED_SPECS, PED_VARIANT_COUNT, pedVariantIndex, type PedSpec, type PxRect } from '@/textures/painters/ped';
 import { FAR_DIST, MID_DIST, PedLod, buildPedModel as buildProcedural, pedHiMaterial, pedPhone, type PedDetail } from './pedBodyHi';
 import { garmentParts, headShell, nonFootTriangles, shoeParts } from './pedGarments';
+import { peopleMode } from '@/textures/painters/pedMode';
+import { bodyTypeOf, type BodyType } from './pedBodyTypes';
 import { pickPedVariant, type PedModel, type PedOptions } from './pedBody';
 
 type Ring = [number, number, number, number, number?]; // y, rx, cz, rz, cx (half extents round the centre)
@@ -41,7 +43,7 @@ const shapes = new Map<string, MhShape>();
 export function peopleFlag(): boolean { return (import.meta.env?.VITE_PEOPLE ?? 'mh') !== 'hi'; }
 export function peopleReady(): boolean { return peopleFlag() && shapes.size > 0; }
 export function peopleShapes(): string[] { return [...shapes.keys()]; }
-export function clearPeople(): void { shapes.clear(); geoCache.clear(); }
+export function clearPeople(): void { shapes.clear(); geoCache.clear(); dressCache.clear(); }
 
 /** smooth normals; vertices at the same position (tile borders of the UV projection) share one normal */
 export function weldedNormals(pos: Float32Array, idx: Uint32Array): Float32Array {
@@ -309,14 +311,17 @@ function bodyParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
   const hip = s.hipRings, tor = s.torsoRings;
   if (spec.bottom.kind === 'skirt') {
     const top = hip[hip.length - 1], hem = s.landmarks.crownY * (spec.bottom.long ? 0.12 : spec.top.kind === 'dress' ? 0.25 : 0.31);
-    out.push(loft([{ y: hem, rx: top[1] + 0.1, rz: top[3] + 0.1, cz: top[2] }, { y: (hem + top[0]) / 2, rx: top[1] + 0.05, rz: top[3] + 0.05, cz: top[2] }, { y: top[0], rx: top[1] + 0.015, rz: top[3] + 0.015, cz: top[2] }], seg, HI_RECTS.pelvis, 1));
+    const hw = peopleMode() === 'skin' ? Math.max(0.95, bodyTypeOf(spec).hips) : 1;
+    out.push(loft([{ y: hem, rx: (top[1] + 0.1) * hw, rz: top[3] + 0.1, cz: top[2] }, { y: (hem + top[0]) / 2, rx: (top[1] + 0.05) * hw, rz: top[3] + 0.05, cz: top[2] }, { y: top[0], rx: (top[1] + 0.015) * hw, rz: top[3] + 0.015, cz: top[2] }], seg, HI_RECTS.pelvis, 1));
   }
   if (spec.gear === 'backpack') {
     const mid = tor[Math.floor(tor.length / 2)], k = spec.build === 'kid' ? 1.1 : 1, back = mid[2] + mid[3];
     out.push(loft([{ y: tor[1][0], rx: mid[1] * 0.65 * k, rz: 0.075, cz: back + 0.06 }, { y: mid[0], rx: mid[1] * 0.72 * k, rz: 0.085, cz: back + 0.07 }, { y: tor[tor.length - 2][0], rx: mid[1] * 0.65 * k, rz: 0.075, cz: back + 0.06 }], 8, HI_RECTS.gear, 2, 'both'));
   }
   // carried bags: a hand bag at the left hand, a tote hanging at the side from the shoulder, a messenger bag on the hip with a cross-body strap
-  const gr = HI_RECTS.gear, Rg = s.rig, hemY = s.landmarks.hemY;
+  const gr = HI_RECTS.gear, hemY = s.landmarks.hemY, btg = bodyTypeOf(spec), skinG = peopleMode() === 'skin';
+  const Rg: Record<string, number[]> = {};
+  for (const [k, v] of Object.entries(s.rig)) Rg[k] = skinG ? jointFor(k, v, btg) : v;
   if (spec.gear === 'bag') {
     const wx = Rg.wristL[0], wy = Rg.wristL[1], wz = Rg.wristL[2];
     out.push(loft([{ y: wy - 0.4, rx: 0.045, rz: 0.1, cx: wx, cz: wz - 0.02 }, { y: wy - 0.22, rx: 0.05, rz: 0.11, cx: wx, cz: wz - 0.02 }, { y: wy - 0.06, rx: 0.042, rz: 0.1, cx: wx, cz: wz - 0.02 }], 12, gr, 5, 'both'));
@@ -362,14 +367,141 @@ function bodyAo(s: MhShape, pos: Float32Array): Float32Array {
   return out;
 }
 
+// ---------------------------------------------------------------- body types and the dressed body (skin mode)
+
+const sstep = (a: number, b: number, x: number): number => { const t = Math.min(1, Math.max(0, (x - a) / (b - a || 1e-6))); return t * t * (3 - 2 * t); };
+const gauss = (d: number, w: number): number => Math.exp(-(d / w) * (d / w));
+const wsumAt = (L: MhLod, i: number, set: readonly number[]): number => { let t = 0; for (let k = 0; k < 4; k++) if (set.includes(L.joints[i * 4 + k])) t += L.weights[i * 4 + k]; return t; };
+const W_TORSO = [2], W_HIPS = [1], W_ARMS = [4, 5, 6, 7], W_LEGS = [8, 9, 10, 11];
+
+/** where the joints go for a body type: shoulders and arms follow the shoulder width, legs the hip width */
+export function jointFor(name: string, p: number[], bt: BodyType): number[] {
+  if (/^(shoulder|elbow|wrist)/.test(name)) return [p[0] * bt.shoulders, p[1], p[2]];
+  if (/^(hip[LR]|knee|ankle)/.test(name)) return [p[0] * legX(bt), p[1], p[2]];
+  return p;
+}
+const legX = (bt: BodyType): number => 1 + (bt.hips - 1) * 0.8;
+
+/** thickness of the clothes on the body (m): the volume of a puffer, the drop of a hoodie, the trouser leg; skin and hands get none */
+const THICK_SKIN: Partial<Record<PedSpec['top']['kind'], number>> = { puffer: 0.03, hoodie: 0.017, jacket: 0.014, cardigan: 0.013, uniform: 0.011, tracksuit: 0.01, vest: 0.01, apron: 0.008, jersey: 0.005, tee: 0.005, blouse: 0.005, scrubs: 0.006, dress: 0.005 };
+const THICK_BOT_SKIN: Partial<Record<PedSpec['bottom']['kind'], number>> = { jeans: 0.008, trousers: 0.009, cargo: 0.016, sweats: 0.014, shorts: 0.008, leggings: 0.002 };
+export function topHemY(s: MhShape, spec: PedSpec): number {
+  const k = spec.top.kind, hemY = s.landmarks.hemY;
+  if (spec.top.long) return s.rig.kneeL[1] + 0.05;
+  return hemY - (['puffer', 'hoodie', 'jacket', 'cardigan'].includes(k) ? 0.09 : k === 'tee' || k === 'blouse' || k === 'jersey' ? 0 : 0.04);
+}
+
+/**
+ * One continuous body: first the body type (shoulders, chest, belly, hips, limb thickness) then the clothes as a smooth offset along the
+ * normals, weighted by the skin weights so the neck, hands and bare legs stay bare and nothing can gap. Returns new positions and normals.
+ */
+export function dressLod(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): MhLod {
+  const bt = bodyTypeOf(spec), lm = s.landmarks, R = s.rig;
+  const shY = R.shoulderL[1], elY = R.elbowL[1], wrY = R.wristL[1], knY = R.kneeL[1], anY = lm.ankleY, hemY = lm.hemY;
+  const n = L.position.length / 3, pos = new Float32Array(L.position);
+  const tor = s.torsoRings, cz0 = tor[Math.floor(tor.length / 2)][2];
+  const armX = Math.abs(R.shoulderL[0]), hipX = Math.abs(R.hipL[0]), legK = legX(bt);
+  const wristX = Math.abs(R.wristL[0]);
+  for (let i = 0; i < n; i++) {
+    let x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
+    const wT = wsumAt(L, i, W_TORSO), wH = wsumAt(L, i, W_HIPS), wA = wsumAt(L, i, W_ARMS), wL = wsumAt(L, i, W_LEGS);
+    const sx = Math.sign(x) || 1;
+    // shoulders and chest: torso and arms widen together, fading out into the neck and the waist
+    const chestS = sstep(hemY + 0.06, shY - 0.02, y) * (1 - sstep(shY + 0.02, lm.chinY, y));
+    const torsoLike = Math.min(1, wT + wH * 0.5);
+    x *= 1 + (bt.shoulders - 1) * chestS * torsoLike;
+    z = cz0 + (z - cz0) * (1 + (bt.chest - 1) * chestS * torsoLike * (z < cz0 ? 1 : 0.6));
+    // belly and waist
+    const bel = gauss(y - (hemY + 0.08), 0.13) * Math.min(1, wT + wH);
+    if (z < cz0) z -= bt.belly * bel * (1 - Math.abs(x) / 0.25 * 0.5);
+    x *= 1 + Math.abs(bt.belly) * 1.4 * bel * (bt.belly > 0 ? 1 : -0.4);
+    // hips and upper thighs
+    const hipS = gauss(y - (hemY - 0.07), 0.14) * Math.min(1, wH + wL);
+    x *= 1 + (bt.hips - 1) * hipS * (1 - 0.3 * (wL > 0.5 ? 1 : 0));
+    // arms: the whole arm shifts out with the shoulder, thickness about the arm axis
+    if (wA > 0.01) {
+      const fx = 1 + (bt.shoulders - 1) * wA;
+      const t = sstep(shY, wrY, y), axX = sx * (armX + (wristX - armX) * (1 - t)) * bt.shoulders;
+      const dx = x * fx - axX, dz = z - cz0;
+      const k = 1 + (bt.arms / Math.max(0.8, bt.shoulders) - 1) * wA;
+      x = axX + dx * k; z = cz0 + dz * k;
+    }
+    // legs: out with the hips, thickness about the leg axis
+    if (wL > 0.01) {
+      const axX = sx * hipX * legK, k = 1 + (bt.legs - 1) * wL * sstep(anY, knY, y) * 0.9 + (bt.legs - 1) * wL * 0.1;
+      x = axX + (x * (1 + (legK - 1) * wL) - axX) * k;
+      z = cz0 + (z - cz0) * (1 + (bt.legs - 1) * wL * 0.9 * sstep(anY + 0.02, knY, y));
+    }
+    pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
+  }
+  let normal = weldedNormals(pos, L.index);
+  if (dress) {
+    const top = spec.top, bot = spec.bottom;
+    const tk = (THICK_SKIN[top.kind] ?? 0), tb = THICK_BOT_SKIN[bot.kind] ?? 0, hemTop = topHemY(s, spec);
+    const sleeveCut = top.sleeves === 'short' ? elY + (shY - elY) * 0.42 : top.sleeves === 'long' ? wrY + 0.06 : (top.kind === 'jersey' ? shY - 0.05 : 9);
+    const baggy = ['puffer', 'hoodie', 'jacket', 'cardigan', 'tracksuit'].includes(top.kind);
+    const shortsEnd = knY + 0.1;
+    const out = new Float32Array(pos);
+    for (let i = 0; i < n; i++) {
+      const y = pos[i * 3 + 1], x = pos[i * 3];
+      const wT = wsumAt(L, i, W_TORSO), wH = wsumAt(L, i, W_HIPS), wA = wsumAt(L, i, W_ARMS), wL = wsumAt(L, i, W_LEGS);
+      const cover = sstep(hemTop - 0.025, hemTop + 0.06, y), neck = sstep(shY + 0.09, shY + 0.02, y);
+      let t = 0;
+      if (top.kind !== 'vest' || true) t += tk * Math.min(1, wT + wH * 0.8) * cover * neck;
+      if (top.sleeves !== 'none' || top.kind === 'jersey') t += tk * 0.85 * wA * sstep(sleeveCut - 0.03, sleeveCut + 0.03, y) * sstep(wrY, wrY + 0.1, y);
+      if (baggy || top.long) t += tk * 0.8 * gauss(y - (hemY + 0.02), 0.12) * Math.min(1, wT + wH) * cover;           // the hem hangs off the hips
+      if (top.kind === 'puffer') t *= 0.8 + 0.28 * Math.sin(((shY + 0.1 - y) / 0.088) * Math.PI * 2);                  // baffles
+      const botW = bot.kind === 'shorts' ? sstep(shortsEnd - 0.03, shortsEnd + 0.03, y) : 1;
+      t += tb * Math.min(1, wL + wH * (1 - cover)) * sstep(anY + 0.02, anY + 0.14, y) * botW * (bot.kind === 'skirt' || bot.kind === 'leggings' && false ? 0 : 1);
+      if ((bot.kind === 'cargo' || bot.kind === 'sweats') && wL > 0.3) t += 0.008 * sstep(knY, knY - 0.2, y) * sstep(anY + 0.04, anY + 0.12, y);   // the leg breaks over the shoe
+      void x;
+      if (t > 0) { out[i * 3] += normal[i * 3] * t; out[i * 3 + 1] += normal[i * 3 + 1] * t * 0.3; out[i * 3 + 2] += normal[i * 3 + 2] * t; }
+    }
+    normal = weldedNormals(out, L.index);
+    return { ...L, position: out, normal };
+  }
+  return { ...L, position: pos, normal };
+}
+
+/** extra geometry the silhouette needs in skin mode: a hood roll round the neck, the flare of a long coat */
+function skinExtras(s: MhShape, spec: PedSpec, hi: boolean): THREE.BufferGeometry[] {
+  const out: THREE.BufferGeometry[] = [], lm = s.landmarks, R = s.rig, seg = hi ? 16 : 9;
+  const hr = s.headRings, bt = bodyTypeOf(spec);
+  if (spec.top.kind === 'hoodie') {
+    const nk = ringAt(hr, lm.chinY - 0.02), y0 = lm.chinY - 0.1, w = 1 + (bt.shoulders - 1) * 0.5;
+    out.push(loft([
+      { y: y0 - 0.05, rx: (nk.rx + 0.055) * w, rz: nk.rz + 0.05, cz: nk.cz + 0.05 },
+      { y: y0 + 0.01, rx: (nk.rx + 0.07) * w, rz: nk.rz + 0.06, cz: nk.cz + 0.06 },
+      { y: y0 + 0.07, rx: nk.rx + 0.045, rz: nk.rz + 0.045, cz: nk.cz + 0.045 },
+      { y: lm.chinY + 0.0, rx: nk.rx + 0.03, rz: nk.rz + 0.03, cz: nk.cz + 0.02 },
+    ], seg, HI_RECTS.torso, 2, 'bottom'));
+  }
+  if (spec.top.long && spec.top.kind !== 'dress') {
+    const hip = s.hipRings, top = hip[hip.length - 1], tor = s.torsoRings, waist = tor[0], kneeY = R.kneeL[1] + 0.05, w = Math.max(1, bt.hips);
+    out.push(loft([
+      { y: kneeY, rx: (top[1] + 0.1) * w, rz: top[3] + 0.08, cz: top[2] },
+      { y: (kneeY + top[0]) / 2 + 0.05, rx: (top[1] + 0.055) * w, rz: top[3] + 0.05, cz: top[2] },
+      { y: top[0] + 0.02, rx: (Math.max(top[1], waist[1]) + 0.03) * w, rz: top[3] + 0.03, cz: top[2] },
+    ], seg, HI_RECTS.torso, 1));
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------- geometry per shape, variant and LOD
 
 const geoCache = new Map<string, { geo: THREE.BufferGeometry; triangles: number }>();
+const dressCache = new Map<string, MhLod>();
 function geometryFor(s: MhShape, variant: number, detail: PedDetail): { geo: THREE.BufferGeometry; triangles: number } {
-  const key = `${s.name}:${variant}:${detail}`;
+  const skin = peopleMode() === 'skin';
+  const key = `${s.name}:${variant}:${detail}:${skin ? 's' : 'l'}`;
   let c = geoCache.get(key);
   if (c) return c;
-  const L = s.lods[detail], spec = PED_SPECS[variant];
+  const spec = PED_SPECS[variant];
+  let L = s.lods[detail];
+  const dk = `${key}:dress`;
+  let dl = dressCache.get(dk);
+  if (!dl) { dl = dressLod(s, spec, L, skin); dressCache.set(dk, dl); }
+  L = dl;
   const base = new THREE.BufferGeometry();
   base.setAttribute('position', new THREE.BufferAttribute(L.position, 3));
   base.setAttribute('normal', new THREE.BufferAttribute(L.normal, 3));
@@ -378,11 +510,16 @@ function geometryFor(s: MhShape, variant: number, detail: PedDetail): { geo: THR
   base.setAttribute('skinWeight', new THREE.BufferAttribute(L.weights, 4));
   base.setIndex(new THREE.BufferAttribute(L.index, 1));
   const ao = bodyAo(s, L.position);
-  const parts = detail === 'far' ? [] : [...headParts(s, spec, detail === 'hi'), ...bodyParts(s, spec, detail === 'hi')];
+  const parts = detail === 'far' ? [] : [...headParts(s, spec, detail === 'hi'), ...bodyParts(s, spec, detail === 'hi'), ...(skin ? skinExtras(s, spec, detail === 'hi') : [])];
   if (detail === 'hi') {
-    const gm = garmentParts(s, L, ao, spec);
-    parts.push(...gm.parts, ...headShell(s, L, ao, spec), ...shoeParts(s, L, spec));
-    base.setIndex(new THREE.BufferAttribute(nonFootTriangles(L, gm.hide), 1));
+    if (skin) {
+      parts.push(...headShell(s, L, ao, spec), ...shoeParts(s, L, spec));
+      base.setIndex(new THREE.BufferAttribute(nonFootTriangles(L), 1));
+    } else {
+      const gm = garmentParts(s, L, ao, spec);
+      parts.push(...gm.parts, ...headShell(s, L, ao, spec), ...shoeParts(s, L, spec));
+      base.setIndex(new THREE.BufferAttribute(nonFootTriangles(L, gm.hide), 1));
+    }
   }
   base.setAttribute('color', new THREE.BufferAttribute(ao, 3));
   for (const g of parts) if (!g.getAttribute('color')) g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(g.getAttribute('position').count * 3).fill(1), 3));
@@ -411,7 +548,8 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
   group.name = 'human';
   group.userData.pedVariant = spec.id;
   group.userData.pedShape = shape.name;
-  const R = shape.rig;
+  const bt = bodyTypeOf(spec), R: Record<string, number[]> = {};
+  for (const [k, v] of Object.entries(shape.rig)) R[k] = peopleMode() === 'skin' ? jointFor(k, v, bt) : v;
   const rig = new THREE.Bone(); rig.name = 'rig'; group.add(rig);
   const bone = (name: string, parent: THREE.Object3D, world: number[], pw: number[]): THREE.Bone => { const b = new THREE.Bone(); b.name = name; b.position.set(world[0] - pw[0], world[1] - pw[1], world[2] - pw[2]); parent.add(b); return b; };
   const O = [0, 0, 0];
@@ -441,20 +579,22 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
   group.add(lod);
   group.updateMatrixWorld(true);
   for (const lv of lod.levels) (lv.object as THREE.SkinnedMesh).bind(skeleton);
-  const [bw, bh] = BUILD_SCALE[spec.build];
   if (opts.heightScale !== undefined) group.scale.setScalar(opts.heightScale);
   else {
-    // a person of their own: stature 1.5 to 1.95 m (adults), build from slim to heavy, a longer arm, a bigger or smaller head, uneven shoulders
+    // a person of their own: the body type sets stature and build, a little personal variation on top (stature 1.5 to 1.95 m for adults)
     const age = spec.age ?? 'adult', grown = age === 'adult' || age === 'old';
     const tri = (): number => (rng.range(-1, 1) + rng.range(-1, 1)) * 0.5;
-    let target = shape.height * (bh + tri() * (grown ? 0.085 : 0.05)) * (age === 'old' ? 0.975 : 1);
+    const skinMode = peopleMode() === 'skin';
+    const bh = skinMode ? bt.h : BUILD_SCALE[spec.build][1], bw = skinMode ? 1 : BUILD_SCALE[spec.build][0];
+    let target = shape.height * (bh + tri() * (grown ? 0.04 : 0.03)) * (age === 'old' ? 0.985 : 1);
     if (grown) target = Math.min(1.95, Math.max(1.5, target));
-    const hs = target / shape.height, wide = bw * (1 + tri() * 0.12 + (rng.chance(0.14) ? 0.12 : 0)) * (hs > 1.05 ? 0.98 : 1);
-    group.scale.set(wide * (0.97 + 0.03 * hs), hs, wide * (0.97 + 0.03 * hs));
-    if (age === 'old') torso.userData.stoop = -rng.range(0.1, 0.2);
-    for (const k of [0, 1]) arms[k].scale.y = 1 + rng.range(-0.03, 0.03);
-    head.scale.setScalar((age === 'kid' ? 1.06 : 1) * rng.range(0.96, 1.05));
-    torso.scale.set(1 + rng.range(-0.025, 0.025), 1, 1 + rng.range(-0.04, 0.04));
+    const hs = target / shape.height, wide = bw * (1 + tri() * 0.04);
+    group.scale.set(wide * (0.98 + 0.02 * hs), hs, wide * (0.98 + 0.02 * hs));
+    const stoop = skinMode ? bt.stoop : (age === 'old' ? -0.15 : 0);
+    if (stoop !== 0) torso.userData.stoop = stoop - rng.range(0, 0.05);
+    for (const k of [0, 1]) arms[k].scale.y = 1 + rng.range(-0.02, 0.02);
+    head.scale.setScalar((skinMode ? bt.head * 1.05 : age === 'kid' ? 1.06 : 1) * rng.range(0.97, 1.03));
+    torso.scale.set(1 + rng.range(-0.015, 0.015), 1, 1 + rng.range(-0.02, 0.02));
   }
   return { group, legs, arms, head, knees, elbows, torso, rig, hips, spec, variant, triangles };
 }

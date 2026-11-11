@@ -74,7 +74,6 @@ describe('placeLots on the real network', () => {
     // lots that cannot sit on a face by the brief's own rules: no edge, zero frontage, condo duplicates, narrow blocks
     const excused = (droppedR1.noEdge ?? 0) + (droppedR1.zeroFrontage ?? 0) + (droppedR1.duplicateUnit ?? 0) + (droppedR1.narrowBlock ?? 0) + (droppedR1.noBlock ?? 0);
     const denom = r1.length - excused;
-    console.log('REPORT', JSON.stringify(report));
     expect(placed / denom).toBeGreaterThanOrEqual(0.95);
   });
   it('ids are the BBLs and unique', () => {
@@ -104,11 +103,12 @@ describe('placeLots on the real network', () => {
     }
     expect(pairs).toBeGreaterThan(1000);
   });
-  it('lots stay inside their block building line (back corners within 0.5 m)', () => {
-    for (const l of lots) {
-      const ring = d.buildingRings[l.block];
-      expect(ring.length).toBeGreaterThan(2);
-    }
+  it('reports counts per phase and wedge/vacant totals', () => {
+    expect(report.placed.R1).toBeGreaterThan(1500);
+    expect(report.placed.R2).toBeGreaterThan(1000);
+    expect(report.wedgeCorners).toBeGreaterThan(0);
+    expect(report.vacantTotal).toBeGreaterThanOrEqual(report.vacantFromWedge);
+    expect(lots.filter((l) => l.type === 'vacant').length).toBe(report.vacantTotal);
   });
   it('blocks that are narrow or fallback get no lots', () => {
     const fb = new Set(d.fallbackBuilding);
@@ -121,7 +121,24 @@ describe('placeLots on the real network', () => {
   });
 });
 
-describe('placeLots on the grid adapter (no PLUTO lots there)', () => {
+describe('placeLots on the grid adapter', () => {
+  it('fills a grid face exactly with synthetic lots and keeps them rectangular', () => {
+    const gf = blockFaces(gnet, gd);
+    const bi = gnet.blocks.findIndex((b) => b.ref === 'r2c2');
+    const bi2 = bi >= 0 ? bi : 5;
+    const f = gf[bi2].find((q) => q.side === 'N')!;
+    const len = Math.hypot(f.b.x - f.a.x, f.b.z - f.a.z);
+    const fake = { lots: [0, 1, 2, 3, 4].map((k) => {
+      const t = (len / 5) * (k + 0.5);
+      const mid = { x: f.a.x + ((f.b.x - f.a.x) / len) * t, z: f.a.z + ((f.b.z - f.a.z) / len) * t };
+      return { bbl: `300000000${k}`, ph: 'R1', x: mid.x - f.outward.x * 10, z: mid.z - f.outward.z * 10, lf: len / 5, ld: 25, e: f.edge, s: 0, sd: 1, blk: bi2, cls: 'B1', lu: '1', fl: 3, yr: 1910 };
+    }) };
+    const r = placeLotsDetailed(gnet, gd, gf, fake);
+    const mine = r.lots.filter((l) => !l.wedge && l.face === gf[bi2].indexOf(f));
+    expect(mine.length).toBe(5);
+    expect(mine.reduce((a, l) => a + l.width, 0)).toBeCloseTo(len, 3);
+    expect(r.report.wedgeCorners).toBe(0);
+  });
   it('places nothing and does not throw on an empty lot file', () => {
     const r = placeLotsDetailed(gnet, gd, blockFaces(gnet, gd), { lots: [] });
     expect(r.lots.length).toBe(0);

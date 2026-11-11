@@ -10,7 +10,9 @@
 import { ClipCache } from '../ClipCache';
 import { FxBank, type FxHost } from '../fx';
 import type { PackLookup } from '../pack';
-import { clipKey, lineSeconds, splitSentences } from '../script';
+import { clipKey, lineSeconds } from '../script';
+import { fadeEdges, pedRhythmId, planSpeech, trimClip, type Phrase } from '../prosody';
+import { rhythmFor } from '../rhythm';
 import type { Clip, TtsEngine } from '../types';
 import { pickVoices, type SpeechLike, type UtteranceLike, type VoiceLike } from '../../talk/TalkPlayer';
 import type { VoiceRole } from '../../talk/script';
@@ -68,21 +70,30 @@ export class PedVoicePlayer implements SpeechBackend {
     return this.bank.input(preset as never);
   }
 
-  private async fetchClips(job: SpeakJob): Promise<{ clips: Clip[]; mode: 'pack' | 'cache' } | null> {
+  /** Phrases of a job: the same plan the bake made (story speakers keep their own rhythm, peds share one per voice preset). */
+  private phrases(job: SpeakJob): Phrase[] {
+    const v = job.voice!;
+    const id = job.cls === 'story' || job.cls === 'mission' ? job.who : pedRhythmId(v.kokoro);
+    return planSpeech(job.text, id, v.speed, rhythmFor(id));
+  }
+
+  private async fetchClips(job: SpeakJob): Promise<{ clips: Clip[]; gaps: number[]; mode: 'pack' | 'cache' } | null> {
     const v = job.voice;
     if (!v) return null;
     const pack = this.env.pack();
     const out: Clip[] = [];
+    const gaps: number[] = [];
     let usedPack = false;
-    for (const s of splitSentences(job.text)) {
-      const key = clipKey(s, v.kokoro, v.speed);
+    for (const p of this.phrases(job)) {
+      const key = clipKey(p.text, v.kokoro, p.speed);
+      gaps.push(p.gap);
       let clip: Clip | null = null;
       if (pack && pack.has(key)) { clip = await pack.get(key); if (clip) usedPack = true; }
       if (!clip) clip = await this.env.cache.get(key);
       if (!clip) return null;
       out.push(clip);
     }
-    return out.length ? { clips: out, mode: usedPack ? 'pack' : 'cache' } : null;
+    return out.length ? { clips: out, gaps, mode: usedPack ? 'pack' : 'cache' } : null;
   }
 
   begin(job: SpeakJob, hooks: BackendHooks): { cancel(): void } {
@@ -144,12 +155,12 @@ export class PedVoicePlayer implements SpeechBackend {
       if (settled || dead) return;
       settled = true; clearTimeout(fallback);
       if (!res) { speakSystem(); return; }
-      this.playClips(host, job, res.clips, res.mode, hooks, sources, (n) => { nodes = n; }, timers, () => { if (!dead) { dead = true; cleanup(); hooks.ended(); } });
+      this.playClips(host, job, res.clips, res.gaps, res.mode, hooks, sources, (n) => { nodes = n; }, timers, () => { if (!dead) { dead = true; cleanup(); hooks.ended(); } });
     }, () => { if (!settled && !dead) { settled = true; speakSystem(); } });
     return { cancel };
   }
 
-  private playClips(host: FxHost, job: SpeakJob, clips: Clip[], mode: 'pack' | 'cache', hooks: BackendHooks, sources: AudioScheduledSourceNode[], keep: (n: AudioNode[]) => void, timers: Set<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval>>, done: () => void): void {
+  private playClips(host: FxHost, job: SpeakJob, clips: Clip[], gaps: number[], mode: 'pack' | 'cache', hooks: BackendHooks, sources: AudioScheduledSourceNode[], keep: (n: AudioNode[]) => void, timers: Set<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval>>, done: () => void): void {
     const { ctx } = host;
     const v = job.voice!;
     const tap = ctx.createGain();
@@ -161,9 +172,10 @@ export class PedVoicePlayer implements SpeechBackend {
     keep([tap, analyser, lp, g]);
     let at = ctx.currentTime + 0.03;
     const start = at;
-    for (const c of clips) {
-      const buf = ctx.createBuffer(1, c.samples.length, c.sampleRate);
-      buf.copyToChannel(c.samples as Float32Array<ArrayBuffer>, 0);
+    for (const [i, c] of clips.entries()) {
+      const pcm = fadeEdges(trimClip(c.samples, c.sampleRate), c.sampleRate);
+      const buf = ctx.createBuffer(1, pcm.length, c.sampleRate);
+      buf.copyToChannel(pcm as Float32Array<ArrayBuffer>, 0);
       const src = ctx.createBufferSource();
       src.buffer = buf;
       src.playbackRate.value = v.playbackRate;
@@ -171,9 +183,9 @@ export class PedVoicePlayer implements SpeechBackend {
       src.connect(tap);
       src.start(at);
       sources.push(src);
-      at += buf.duration / v.playbackRate + 0.1;
+      at += buf.duration / v.playbackRate + (gaps[i] ?? 0.1) / v.playbackRate;
     }
-    const total = at - start - 0.1;
+    const total = at - start - (gaps[clips.length - 1] ?? 0.1) / v.playbackRate;
     this.modes[mode]++;
     hooks.started(total, mode);
     const data = new Float32Array(analyser.fftSize);
@@ -184,7 +196,7 @@ export class PedVoicePlayer implements SpeechBackend {
       hooks.viseme(Math.max(0, ctx.currentTime - start), Math.max(0, Math.min(1, rms * 5)));
     }, 1000 / VISEME_HZ);
     timers.add(iv);
-    const end = setTimeout(done, Math.max(50, (at - ctx.currentTime) * 1000)); timers.add(end);
+    const end = setTimeout(done, Math.max(50, (at - ctx.currentTime - (gaps[clips.length - 1] ?? 0.1) / v.playbackRate) * 1000)); timers.add(end);
   }
 
   /** Idle-time live render into the cache (predicted story lines). */
@@ -193,10 +205,10 @@ export class PedVoicePlayer implements SpeechBackend {
     const v = job.voice;
     if (!e || !e.usable || !v) return;
     const pack = this.env.pack();
-    for (const s of splitSentences(job.text)) {
-      const key = clipKey(s, v.kokoro, v.speed);
+    for (const p of this.phrases(job)) {
+      const key = clipKey(p.text, v.kokoro, p.speed);
       if (pack?.has(key) || this.env.cache.has(key) || await this.env.cache.get(key)) continue;
-      const clip = await e.synth({ text: s, voice: v.kokoro, speed: v.speed }, 1);
+      const clip = await e.synth({ text: p.text, voice: v.kokoro, speed: p.speed }, 1);
       this.env.cache.put(key, clip);
       this.modes.live++;
     }
