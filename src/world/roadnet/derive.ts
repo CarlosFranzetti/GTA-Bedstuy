@@ -117,6 +117,8 @@ export interface Derived {
   curbRings: Vec2[][];
   /** per block: building line, [] when the block is too thin */
   buildingRings: Vec2[][];
+  /** blocks whose building line is the kerb ring offset by the narrowest sidewalk (very short edges); expect a slightly different sidewalk width there */
+  fallbackBuilding: number[];
 }
 
 const TWO_PI = Math.PI * 2;
@@ -407,15 +409,24 @@ export function deriveGeometry(net: RoadNet, options: DeriveOptions = {}): Deriv
   };
   const curbRings: Vec2[][] = [];
   const buildingRings: Vec2[][] = [];
+  const fallbackBuilding: number[] = [];
   for (let i = 0; i < net.blocks.length; i++) {
     const cr0 = ringOf(i, false);
     const cr = signedArea(cr0) < 0 ? cr0.reverse() : cr0;
     // a traffic island smaller than the roads around it has no kerb of its own once the roads are widened: []
     const crOk = cr.length >= 3 && signedArea(cr) > 0.05 && isSimpleRing(cr);
     curbRings.push(crOk ? cr : []);
-    const br = crOk ? ringOf(i, true) : [];
-    const ok = br.length >= 3 && signedArea(br) > 0.5 && isSimpleRing(br);
+    let br = crOk ? ringOf(i, true) : [];
+    let ok = br.length >= 3 && signedArea(br) > 0.5 && isSimpleRing(br);
+    if (!ok && crOk) {
+      // edge-wise construction failed (overlapping junctions on a very short edge): offset the kerb ring itself by the
+      // block's narrowest sidewalk instead
+      const sw = Math.min(...net.blocks[i].edges.map((r) => E[Math.abs(r) - 1].sidewalk));
+      br = dedupe(cr.map((p, k) => offsetVertex(cr[(k - 1 + cr.length) % cr.length], p, cr[(k + 1) % cr.length], sw)));
+      ok = br.length >= 3 && signedArea(br) > 0.5 && isSimpleRing(br);
+      if (ok) fallbackBuilding.push(i);
+    }
     buildingRings.push(ok ? br : []);
   }
-  return { opts: o, legs, legsAt, nodePolys, returns, cuts, curbRings, buildingRings };
+  return { opts: o, legs, legsAt, nodePolys, returns, cuts, curbRings, buildingRings, fallbackBuilding };
 }

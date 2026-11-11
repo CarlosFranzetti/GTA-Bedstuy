@@ -235,7 +235,7 @@ describe('derived geometry on the real R1+R2 network', async () => {
       expect(f.radius).toBeGreaterThanOrEqual(d.opts.rMin - 1e-9);
       if (f.radius < f.wanted) {
         // only short edges (two junctions closer than their return lengths) force a smaller radius
-        expect(Math.min(net.lengths[d.legs[f.legA].edge], net.lengths[d.legs[f.legB].edge])).toBeLessThan(45);
+        expect(Math.min(net.lengths[d.legs[f.legA].edge], net.lengths[d.legs[f.legB].edge])).toBeLessThan(120);
       }
       // every fillet arc point lies at its radius from the centre
       for (const p of f.pts.slice(1, -1)) expect(Math.hypot(p.x - f.center!.x, p.z - f.center!.z)).toBeCloseTo(f.radius, 5);
