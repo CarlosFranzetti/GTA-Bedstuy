@@ -184,15 +184,16 @@ describe('cargo box liveries', () => {
   };
   const texts = (ops: Op[]) => ops.filter((o) => o.name === 'fillText').map((o) => String(o.args[0]));
 
-  it('offers a plain white plus three local-business liveries', () => {
-    expect(CARGO_LIVERY_VARIANTS).toBe(4);
+  it('offers a plain white plus eleven invented liveries (ten local businesses and the sanitation truck)', () => {
+    expect(CARGO_LIVERY_VARIANTS).toBe(12);
+    expect(CARGO_LIVERY_TEXT).toHaveLength(CARGO_LIVERY_VARIANTS);
     expect(CARGO_LIVERY_TEXT[0]).toBeNull();
     expect(CARGO_LIVERY_TEXT.slice(1).every((t) => t && t[0].length > 8)).toBe(true);
   });
 
-  it('variant 0 carries no lettering; variants 1-3 print their invented business name and tagline', () => {
+  it('variant 0 carries no lettering; every other variant prints its invented business name and tagline', () => {
     expect(texts(paint(0))).toEqual([]);
-    for (let v = 1; v < 4; v++) {
+    for (let v = 1; v < CARGO_LIVERY_VARIANTS; v++) {
       const t = texts(paint(v));
       expect(t).toContain(CARGO_LIVERY_TEXT[v]![0]);
       expect(t).toContain(CARGO_LIVERY_TEXT[v]![1]);
@@ -207,11 +208,11 @@ describe('cargo box liveries', () => {
   it('is deterministic per seed and differs between variants', () => {
     const sig = (ops: Op[]) => JSON.stringify(ops);
     expect(sig(paint(2, 9))).toBe(sig(paint(2, 9)));
-    expect(new Set([0, 1, 2, 3].map((v) => sig(paint(v)))).size).toBe(4);
+    expect(new Set(Array.from({ length: CARGO_LIVERY_VARIANTS }, (_, v) => sig(paint(v)))).size).toBe(CARGO_LIVERY_VARIANTS);
   });
 
   it('keeps every rect inside the canvas and finishes by restoring the plain strip', () => {
-    for (let v = 0; v < 4; v++) {
+    for (let v = 0; v < CARGO_LIVERY_VARIANTS; v++) {
       const ops = paint(v);
       for (const o of ops) {
         if (o.name !== 'fillRect') continue;

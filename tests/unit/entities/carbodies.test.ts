@@ -26,10 +26,26 @@ const CASES: Case[] = [
   { style: 'hatch', type: 'hatch' },
   { style: 'beater', type: 'beater' },
   { style: 'bus', type: 'bus' },
+  { style: 'pickup', type: 'pickup' },
+  { style: 'crossover', type: 'crossover' },
+  { style: 'minivan', type: 'minivan' },
+  { style: 'luxury', type: 'luxury' },
+  { style: 'towncar', type: 'towncar' },
+  { style: 'pony', type: 'pony' },
+  { style: 'garbage', type: 'garbage' },
+  { style: 'ambulance', type: 'ambulance' },
+  { style: 'dollar', type: 'dollarvan' },
 ];
 const build = (c: Case) => buildCarModel(c.type, { ...VEHICLE_SPECS[c.type], color: c.color ?? VEHICLE_SPECS[c.type].color }, materials, c.variant ?? 0, undefined, true);
 /** the shipped near car: merged details + instanced wheels */
 const buildNear = (c: Case) => buildCarModel(c.type, { ...VEHICLE_SPECS[c.type], color: c.color ?? VEHICLE_SPECS[c.type].color }, materials, c.variant ?? 0);
+
+/** emergency roof bar with two separately lit lenses */
+const hasLightbar = (st: CarStyle): boolean => st === 'cop' || st === 'ambulance';
+/** rear tyres beyond one pair: dual rear tyres (box truck, bus) or a tandem rear axle (garbage truck) */
+const sixTyres = (st: CarStyle): boolean => st === 'van' || st === 'bus' || st === 'garbage';
+/** cab-forward bodies have no hood panel */
+const noHood = (st: CarStyle): boolean => st === 'van' || st === 'bus' || st === 'garbage';
 
 const triCount = (g: THREE.BufferGeometry) => (g.index ? g.index.count : g.attributes.position.count) / 3;
 const meshes = (o: THREE.Object3D): THREE.Mesh[] => { const out: THREE.Mesh[] = []; o.traverse((c) => { if ((c as THREE.Mesh).isMesh) out.push(c as THREE.Mesh); }); return out; };
@@ -49,6 +65,17 @@ describe('carBodies: style selection', () => {
     expect(styleFor('beater', '#fff', 3)).toBe('beater');
     expect(styleFor('bus', '#fff')).toBe('bus');
     expect(styleFor('cab', '#e0b01e', 0)).toBe('cab'); // the taxi is its own vehicle type
+  });
+  it('the newer roster types keep their own style whatever the colour or plate variant', () => {
+    for (const t of ['pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'garbage', 'ambulance'] as const) {
+      expect(styleFor(t, '#e0b01e', 3)).toBe(t);
+    }
+    expect(styleFor('dollarvan', '#e8eaea')).toBe('dollar');
+    expect(styleFor('cop', '#fff', 0, true)).toBe('unmarked'); // the unmarked cruiser is a look of the cop type
+    expect(styleFor('sedan', '#7f8c8d', 0, true)).toBe('sedan');
+  });
+  it('every vehicle type has a case below (the taxi body through the yellow sedan case)', () => {
+    expect([...new Set(CASES.map((c) => c.type))].sort()).toEqual((Object.keys(VEHICLE_SPECS) as VehicleType[]).filter((t) => t !== 'cab').sort());
   });
   it('taxi yellow is yellow, not red or grey', () => {
     expect(isTaxiYellow('#e0b01e')).toBe(true);
@@ -77,8 +104,10 @@ describe.each(CASES)('procedural $style', (c) => {
     const s = all.getSize(new THREE.Vector3());
     // roster bodies (cab, cruiser) carry their own spec-sheet size
     const dims = c.style === 'cab' ? STYLES.crown.dims! : c.style === 'cop' ? STYLES.charger.dims! : { L: spec.length, W: spec.width, H: spec.height };
-    expect(Math.abs(s.z - dims.L)).toBeLessThanOrEqual(0.05);
-    expect(Math.abs(s.x - dims.W)).toBeLessThanOrEqual(0.05);
+    // garbage truck: the mirrors and the rear loader step stand proud of its (estimated) spec box by up to 17 cm
+    const tol = c.style === 'garbage' ? 0.2 : 0.05;
+    expect(Math.abs(s.z - dims.L)).toBeLessThanOrEqual(tol);
+    expect(Math.abs(s.x - dims.W)).toBeLessThanOrEqual(tol);
     // the roof light / light bar / roof rails stand on the roof: the hull itself reaches the spec height
     expect(Math.abs(body.max.y - dims.H)).toBeLessThanOrEqual(c.style === 'cop' || c.style === 'cab' ? 0.2 : 0.05);
     expect(all.min.y).toBeGreaterThanOrEqual(-0.02);
@@ -90,14 +119,19 @@ describe.each(CASES)('procedural $style', (c) => {
     expect(totalTris(m.group)).toBeLessThanOrEqual(budget);
   });
 
-  it('is at most 10 draw calls (one mesh per material, wheels aside)', () => {
-    expect(meshes(m.group).length).toBeLessThanOrEqual(c.style === 'cop' ? 12 : 10);
-    const nonWheel = meshes(m.group).filter((x) => x.name !== 'tyre');
-    expect(nonWheel.length).toBeLessThanOrEqual(c.style === 'cop' ? 9 : 7);
+  it('is at most 10 draw calls (one mesh per material, wheels aside; a light bar adds two lenses)', () => {
+    const all = meshes(m.group);
+    const nonWheel = all.filter((x) => x.name !== 'tyre');
+    expect(nonWheel.length).toBeLessThanOrEqual(hasLightbar(c.style) ? 9 : 7);
+    // tyres: two fronts and one mesh for the rear pair, plus one for the inner dual pair or the second rear axle
+    expect(all.length - nonWheel.length).toBe(sixTyres(c.style) ? 4 : 3);
+    // the box truck and the garbage truck also carry the cargo body as its own livery mesh
+    expect(all.length).toBeLessThanOrEqual(hasLightbar(c.style) ? 12 : c.style === 'van' || c.style === 'garbage' ? 11 : 10);
   });
 
   it('wheels sit at the axles of the spec footprint', () => {
-    expect(m.wheels).toHaveLength(4);
+    const tandem = c.style === 'garbage'; // three axles: one steered, two rear
+    expect(m.wheels).toHaveLength(tandem ? 6 : 4);
     expect(m.steerPivots).toHaveLength(2);
     const pos = m.wheels.map((w) => new THREE.Vector3().setFromMatrixPosition((w.parent!.updateMatrixWorld(true), w.matrixWorld)));
     for (const p of pos) {
@@ -109,9 +143,9 @@ describe.each(CASES)('procedural $style', (c) => {
     const front = pos.filter((p) => p.z < 0);
     const rear = pos.filter((p) => p.z > 0);
     expect(front).toHaveLength(2);
-    expect(rear).toHaveLength(2);
+    expect(rear).toHaveLength(tandem ? 4 : 2);
     expect(Math.abs(front[0].x + front[1].x)).toBeLessThan(1e-6); // symmetric
-    const wheelbase = rear[0].z - front[0].z;
+    const wheelbase = Math.min(...rear.map((p) => p.z)) - front[0].z; // to the first rear axle
     expect(wheelbase).toBeGreaterThan(spec.length * 0.45);
     expect(wheelbase).toBeLessThan(spec.length * 0.75);
     // the wheel geometry (tyre + hubcap) fits the declared radius
@@ -120,14 +154,14 @@ describe.each(CASES)('procedural $style', (c) => {
     expect(box.max.y - box.min.y).toBeCloseTo(2 * m.wheelRadius, 1);
   });
 
-  it('keeps lights, plates and a hood (not on the van)', () => {
+  it('keeps lights, plates and a hood (not on the cab-forward trucks and the bus)', () => {
     expect(m.headlights.length).toBeGreaterThanOrEqual(1);
     expect(m.taillights.length).toBeGreaterThanOrEqual(1);
     expect(m.headlights[0].material).not.toBe(m.taillights[0].material);
     expect(m.group.getObjectByName('plate')).toBeTruthy();
     expect(m.group.getObjectByName('glass')).toBeTruthy();
     expect(m.group.getObjectByName('trim')).toBeTruthy();
-    expect(!!m.hood).toBe(c.style !== 'van' && c.style !== 'bus');
+    expect(!!m.hood).toBe(!noHood(c.style));
     expect(m.headlights[0].position.z).toBeCloseTo(0); // lamps are baked in car space
     const hb = new THREE.Box3().setFromObject(m.headlights[0]);
     const tb = new THREE.Box3().setFromObject(m.taillights[0]);
@@ -192,17 +226,17 @@ describe('carBodies: livery roles', () => {
 describe.each(CASES)('merged near $style', (c) => {
   const m = buildNear(c);
   const drawn = (): THREE.Mesh[] => meshes(m.group).filter((x) => x.visible);
-  it('draws in at most 6 meshes (cargo vans, cabs and cops included)', () => {
+  it('draws in at most 6 meshes (cargo vans, trucks, cabs, cops and the ambulance included)', () => {
     expect(drawn().length).toBeLessThanOrEqual(6);
     expect(drawn().filter((x) => x.name === 'tyre')).toHaveLength(1);
-    expect((drawn().find((x) => x.name === 'tyre') as THREE.InstancedMesh).count).toBe(c.style === 'van' || c.style === 'bus' ? 6 : 4); // dual rear tyres on the truck and the bus
+    expect((drawn().find((x) => x.name === 'tyre') as THREE.InstancedMesh).count).toBe(sixTyres(c.style) ? 6 : 4); // dual rear tyres on the truck and the bus, a tandem rear axle on the garbage truck
   });
   it('keeps the lamp and light-bar API as invisible handles with their own materials', () => {
     expect(m.headlights[0].visible).toBe(false);
     expect(m.headlights[0].material).not.toBe(m.taillights[0].material);
     expect(m.headlights[0].name).toBe('headlight');
     expect(m.taillights[0].name).toBe('taillight');
-    if (c.style === 'cop') { expect(m.lightbar!.red.material).not.toBe(m.lightbar!.blue.material); expect(m.lightbar!.red.visible).toBe(false); }
+    if (hasLightbar(c.style)) { expect(m.lightbar!.red.material).not.toBe(m.lightbar!.blue.material); expect(m.lightbar!.red.visible).toBe(false); }
     else expect(m.lightbar).toBeUndefined();
   });
   it('the trim mesh carries lamp kinds and lights them from the handle materials', () => {
@@ -210,7 +244,7 @@ describe.each(CASES)('merged near $style', (c) => {
     const kind = trim.geometry.getAttribute('carKind');
     const kinds = new Set<number>();
     for (let i = 0; i < kind.count; i++) kinds.add(kind.getX(i));
-    expect([...kinds].sort()).toEqual(c.style === 'cop' ? [0, 1, 2, 3, 4] : [0, 1, 2]);
+    expect([...kinds].sort()).toEqual(hasLightbar(c.style) ? [0, 1, 2, 3, 4] : [0, 1, 2]);
     const hm = m.headlights[0].material as THREE.MeshStandardMaterial;
     hm.emissiveIntensity = 2;
     const mat = trim.material as THREE.Material & { onBeforeCompile: (s: { uniforms: Record<string, { value: THREE.Color }>; vertexShader: string; fragmentShader: string }) => void };
@@ -241,7 +275,7 @@ describe.each(CASES)('merged near $style', (c) => {
     expect(mt.elements.every((v, i) => Math.abs(v - roll1.elements[i]) < 1e-5)).toBe(true);
     expect(new THREE.Vector3().setFromMatrixPosition(mt).y).toBeCloseTo(m.wheelRadius, 6);
     expect(set.boundingSphere).toBeTruthy();
-    set.getMatrixAt(3, mt);
+    set.getMatrixAt(m.wheels.length - 1, mt); // the last wheel is a rear one
     expect(new THREE.Vector3().setFromMatrixPosition(mt).z).toBeGreaterThan(0);
   });
   it('farSource rebuilds the split structure CarLod cuts the far proxies from', () => {
@@ -252,13 +286,19 @@ describe.each(CASES)('merged near $style', (c) => {
   });
 });
 
+/** one fixed livery, no paint choice: the table repeats the body colour */
+const LIVERY_TYPES: ReadonlySet<VehicleType> = new Set<VehicleType>(['cop', 'cab', 'garbage', 'ambulance']);
+
 describe('carBodies: paint variants', () => {
+  it('lists every vehicle type', () => {
+    expect(Object.keys(PAINT_VARIANTS).sort()).toEqual(Object.keys(VEHICLE_SPECS).sort());
+  });
   it('2 to 4 variants per type, all valid colours, distinct', () => {
     for (const t of Object.keys(PAINT_VARIANTS) as VehicleType[]) {
       const v = PAINT_VARIANTS[t];
       expect(v.length).toBeGreaterThanOrEqual(2);
       expect(v.length).toBeLessThanOrEqual(4);
-      if (t !== 'cop' && t !== 'cab') expect(new Set(v).size).toBe(v.length);
+      if (!LIVERY_TYPES.has(t)) expect(new Set(v).size, t).toBe(v.length);
       for (const c of v) expect(/^#[0-9a-f]{6}$/i.test(c)).toBe(true);
     }
   });

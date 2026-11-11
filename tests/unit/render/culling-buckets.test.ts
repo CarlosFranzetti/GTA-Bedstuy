@@ -45,7 +45,10 @@ describe('furniture instancing buckets (real map)', () => {
   it('city-wide draw budget: at most 8 + one per street sign text', () => {
     const signs = [...a.instanced.keys()].filter((k) => k.startsWith('sign:')).length;
     expect(a.group.children.length).toBeLessThanOrEqual(8 + signs);
-    expect(a.group.children.length).toBeLessThanOrEqual(20);
+    // one bucket per street name, however many corners carry it: the cap follows the map (16 streets since the rows north of Hart)
+    const streets = loadBedstuyData().streets.length;
+    expect(signs).toBeLessThanOrEqual(streets);
+    expect(a.group.children.length).toBeLessThanOrEqual(8 + streets);
   });
 
   it('one lamp and one lamp head per reported lamp spot; matrices are finite and sit inside the map', () => {
