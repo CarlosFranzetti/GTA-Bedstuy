@@ -311,7 +311,7 @@ export function placeLotsDetailed(net: RoadNet, d: Derived, faces: RealFace[][],
         const cornerB = F.angleB < 179.5 && len - x1 < CORNER_REACH + inset[fi][1] && k === take - 1;
         const cutAt = (dep: number): Vec2[] => {
           let poly: Vec2[] = [fA, fB, { x: fB.x + inward.x * dep, z: fB.z + inward.z * dep }, { x: fA.x + inward.x * dep, z: fA.z + inward.z * dep }];
-          if (cornerA && F.angleA >= WEDGE_DEG && F.angleA < 179.5 && F.angleA <= 180) poly = bisect(poly, F.a, e, inward, F.angleA, 1);
+          if (cornerA && F.angleA >= WEDGE_DEG && F.angleA < 179.5) poly = bisect(poly, F.a, e, inward, F.angleA, 1);
           if (cornerB && F.angleB >= WEDGE_DEG && F.angleB < 179.5) poly = bisect(poly, F.b, { x: -e.x, z: -e.z }, inward, F.angleB, 1);
           return poly;
         };
@@ -319,7 +319,6 @@ export function placeLotsDetailed(net: RoadNet, d: Derived, faces: RealFace[][],
           if (poly.length < 3) return false;
           for (const o of placed) if (penetration(poly, o) > 0.05) return false;
           for (const v of poly) {
-            if (Math.abs(dotp(sub(v, F.a), inward)) < 0.5 * 0 + 1e-6 && false) continue;
             const off = dotp(sub(v, fA), inward);
             if (off > 1 && !pointInPolygon(v, ring) && distToRing(v, ring) > 0.3) return false;
           }

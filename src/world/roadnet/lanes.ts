@@ -150,12 +150,11 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
       let t0: number;
       let t1: number;
       if (startKind === 'stub') t0 = 0;
-      else if (startKind === 'dead') t0 = Math.max(0, total - 0 - Math.min(DEAD_END_BACK, total * 0.3));
+      else if (startKind === 'dead') t0 = Math.min(DEAD_END_BACK, total * 0.3);
       else t0 = cutStart + Math.min(EXIT_DIST, room * 0.3);
       if (endKind === 'stub') t1 = total;
       else if (endKind === 'dead') t1 = total - Math.min(DEAD_END_BACK, total * 0.3);
       else t1 = total - cutEnd - Math.min(STOP_LINE, room * 0.6);
-      if (startKind === 'dead') t0 = Math.min(DEAD_END_BACK, total * 0.3); // the dead end is at the START of the travel line
       if (t1 - t0 < 0.3) { t0 = Math.min(t0, Math.max(0, t1 - 0.3)); if (t1 - t0 < 0.3) t1 = Math.min(total, t0 + 0.3); }
       // sample parameters: ends, interior shape points, then split gaps wider than maxSpacing
       const marks = [t0];
@@ -207,7 +206,7 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
     const key = `${from.id}>${to.id}`;
     if (linked.has(key)) return;
     linked.add(key);
-    const nodeIds = bezierConnector(from, to, o.turnStep, b.id, (n) => addNode(n), cluster);
+    const nodeIds = bezierConnector(from, to, o.turnStep, b.id, addNode);
     let prev = from.id;
     for (const nid of nodeIds) { addEdge(prev, nid, graph.nodes[to.id].streetId); prev = nid; }
     addEdge(prev, to.id, graph.nodes[to.id].streetId);
@@ -327,7 +326,7 @@ function sampleOffset(tp: readonly Vec2[], tc: Float64Array, tau: number, o: num
 }
 
 /** Bezier from lane node `from` to lane node `to` along their headings; returns the ids of the interior nodes it adds */
-function bezierConnector(from: LaneNode, to: LaneNode, step: number, tag: string, add: (n: LaneNode) => void, cluster: string): string[] {
+function bezierConnector(from: LaneNode, to: LaneNode, step: number, tag: string, add: (n: LaneNode) => void): string[] {
   const p0 = from.pos;
   const p3 = to.pos;
   const chord = Math.hypot(p3.x - p0.x, p3.z - p0.z);
@@ -360,6 +359,5 @@ function bezierConnector(from: LaneNode, to: LaneNode, step: number, tag: string
     add({ id, pos: at(t), streetId: to.streetId, heading: headingFromVec(tangent(t)), stopLine: false });
     ids.push(id);
   }
-  void cluster;
   return ids;
 }

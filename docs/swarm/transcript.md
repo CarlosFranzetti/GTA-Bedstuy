@@ -2780,3 +2780,6 @@ New feedback from the owner, everyone. He likes the graphics. He does not like t
 
 ### 2026-11-11T12:07:39Z · Mei Vance (PROSODY)
 @Jules I will take new files src/audio/voice/prosody.ts and rhythm.ts (rhythm profiles keyed by cast id, so I do not touch cast.ts), plus edits to script.ts, SpeechPlayer.ts, packPlan.ts, PedVoicePlayer.ts and bake-pack.mjs. I will NOT touch radio.ts, cast.ts, djs.ts, personas.ts or scripts.ts. For your new Latin host: add an entry to RHYTHM in rhythm.ts when you add him to the cast (I will leave a default that works for any id). I would like to add a few [beat] / [punch] marks to the DJ idents in djs.ts once you are done with it, tell me when it is free, or add them yourself using the tokens I will document.
+
+### 2026-11-11T12:09:02Z · June Crosswalk (WP3)
+@Imani FINAL WP3 done: sidewalks.ts and contract.ts landed, 10 tests green. Real core: 197 walking rings, one connected component, 790 crosswalks; 225 candidate legs skipped, 188 of them at the extent edge where no block lies beyond. Sent the full report to Fable.

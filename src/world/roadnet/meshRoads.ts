@@ -22,6 +22,7 @@ import type { RoadNet } from './RoadNet';
 import type { Derived, Leg } from './derive';
 import { CROSSWALK_START, CROSSWALK_WIDTH, STOP_LINE } from './contract';
 import { chunkLayoutFromBounds, tagRoadChunks } from './chunksReal';
+import { isRibbonless, junctionClusters } from './clusters';
 import { pointInPolygon, segmentIntersection, signedArea } from './geom';
 
 export type WorldMaterials = IMaterialLibrary;
@@ -125,7 +126,7 @@ interface Station { s: number; minus: Vec2; plus: Vec2 }
 
 /** true when edge e is meshed as a ribbon (at grade, with a stretch left between its two cuts) */
 export function hasRibbon(net: RoadNet, d: Derived, e: number): boolean {
-  return net.edges[e].level === 0 && d.cuts[e].cutA + d.cuts[e].cutB < net.lengths[e] - MIN_RIBBON;
+  return net.edges[e].level === 0 && !isRibbonless(net, d, e);
 }
 
 /**
@@ -240,20 +241,6 @@ export function unionPolygons(A: ReadonlyArray<Vec2>, B: ReadonlyArray<Vec2>): V
   }
   const outer = loops.filter((l) => signedArea(l) > 0);
   return outer.length === 1 ? outer[0] : null;
-}
-
-/** node groups joined by ribbonless edges (rules section 6); each group lists its nodes with a polygon, in node order */
-export function clusterGroups(net: RoadNet, d: Derived): number[][] {
-  const parent = net.nodes.map((_, i) => i);
-  const find = (i: number): number => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
-  net.edges.forEach((E, e) => {
-    if (E.level !== 0 || hasRibbon(net, d, e)) return;
-    const a = find(E.a), b = find(E.b);
-    if (a !== b) parent[Math.max(a, b)] = Math.min(a, b);
-  });
-  const groups = new Map<number, number[]>();
-  net.nodes.forEach((_, v) => { const r = find(v); const l = groups.get(r); if (l) l.push(v); else groups.set(r, [v]); });
-  return Array.from(groups.values());
 }
 
 /** the paved polygons of a node group: one unioned ring when the group has several overlapping node polygons */
@@ -396,7 +383,7 @@ export function buildRoadMeshes(net: RoadNet, d: Derived, mats: WorldMaterials, 
   // ---- asphalt: node polygons, ribbonless clusters unioned
   const atGrade = net.nodes.map((_, v) => net.incident[v].some((e) => net.edges[e].level === 0));
   const worldUV = (p: Vec2): [number, number] => [p.x / TILE_M, p.z / TILE_M];
-  for (const nodes of clusterGroups(net, d)) {
+  for (const nodes of junctionClusters(net, d)) {
     if (!nodes.some((v) => atGrade[v])) continue;
     for (const poly of groupPolygons(d, nodes.filter((v) => atGrade[v]))) addPolygon(slot('asphalt', 'asphalt', 0, 'intersections'), poly, [], 0, worldUV);
   }

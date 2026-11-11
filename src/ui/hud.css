@@ -1,4 +1,5 @@
-/* GTA Bed-Stuy HUD. Parody styling only: system fonts, no image assets. */
+@import './type.css';
+/* GTA Bed-Stuy HUD. Parody styling only. Fonts: see type.css (open licence files on hosted/native, system fallbacks in the artifact). */
 
 .hud-root {
   position: fixed;
@@ -8,7 +9,7 @@
   user-select: none;
   -webkit-user-select: none;
   color: #fff;
-  --gui-font: "Roboto Condensed", "Arial Narrow", "Helvetica Neue", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+  --gui-font: var(--font-hud);
   font-family: var(--gui-font);
   font-stretch: condensed;
   -webkit-font-smoothing: antialiased;
