@@ -2,7 +2,7 @@ import { hyp } from '@/core/Math2';
 import * as THREE from 'three';
 import type { EventBus } from '@/core/Events';
 import { angleDiff, type Vec2 } from '@/core/Math2';
-import type { TrafficLights } from '@/game/TrafficLights';
+import type { SignalLights } from '@/game/TrafficLights';
 import { Rng } from '@/core/Rng';
 import { animateWalk, type HumanModel } from '@/entities/models/humanModel';
 import { buildPerson as buildPedModel, loadPeople } from '@/entities/models/pedMesh';
@@ -31,7 +31,7 @@ export interface StoopSpot {
 }
 /** Extra world knowledge handed over after construction (TrafficSystem wires it; legacy callers can skip it). */
 export interface PedEnvironment {
-  lights?: TrafficLights;
+  lights?: SignalLights;
   /** key `${fromNodeId}>${toNodeId}` for both directions of every crosswalk edge */
   crossings?: ReadonlyMap<string, PedCrossing>;
   stoops?: ReadonlyArray<StoopSpot>;

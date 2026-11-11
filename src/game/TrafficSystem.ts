@@ -13,13 +13,14 @@ import { Pedestrian, type PedCrossing, type PedEnvironment, type StoopSpot } fro
 import { TrafficAgent } from '@/entities/TrafficAgent';
 import { VEHICLE_SPECS } from '@/entities/Vehicle';
 import { pickPaint } from '@/entities/models/carLook';
-import { TrafficLights } from './TrafficLights';
+import { TrafficLights, type SignalLights } from './TrafficLights';
 
 export type MakeVehicle = (type: VehicleType, pos: Vec2, heading: number, color: string) => IVehicle;
 export type MakePed = (id: string, node: GraphNode) => Pedestrian;
 
 /** Crosswalk edges of the sidewalk graph keyed `${from}>${to}` (both directions), for signal-aware pedestrians. */
 export function buildPedCrossings(grid: GridModel): Map<string, PedCrossing> {
+  if (grid.pedCrossings) return grid.pedCrossings as Map<string, PedCrossing>; // real map: built from the sidewalk graph
   const out = new Map<string, PedCrossing>();
   const crosswalks = grid.crosswalks ?? [];
   if (crosswalks.length === 0) return out;
@@ -205,7 +206,7 @@ export class TrafficSystem {
   readonly vehicles: IVehicle[] = [];
   readonly peds: Pedestrian[] = [];
   /** The signal controller. This system is its only clock: it calls `lights.update(dt)` once per `update`. */
-  readonly lights: TrafficLights;
+  readonly lights: SignalLights;
 
   private readonly active: Active[] = [];
   private readonly laneNodes: LaneNode[];
@@ -239,7 +240,7 @@ export class TrafficSystem {
     private readonly materials: IMaterialLibrary,
     private readonly makeVehicle: MakeVehicle,
     private readonly makePed?: MakePed,
-    lights?: TrafficLights,
+    lights?: SignalLights,
     lots?: readonly Lot[],
     density: Partial<TrafficDensity> = {},
     private readonly spawnPoint: Vec2 = PLAYER_SPAWN,
@@ -431,6 +432,9 @@ export class TrafficSystem {
         this.removeVehicle(a.vehicle);
         continue;
       }
+      // a lane that ends (a stub or dead end of the real map) has no successor: the car is recycled out of sight; never true on the grid
+      const tg = a.agent.target;
+      if (tg && this.grid.lanes.adjacency[tg.id]?.length === 0 && dist(tg.pos, p) < 6) { a.agent.release(); this.swapRemove(this.active, i); this.removeVehicle(a.vehicle); continue; }
       a.agent.update(dt);
     }
     // spawn: the budget is owed at each tick and paid out one car per step, so building meshes and agents never piles

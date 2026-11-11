@@ -279,13 +279,13 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     const bassAmp = gain(0, gain(2.2, bassSh));
     const bassOsc = osc('sine', 49, bassAmp);
     // keys: periodic-wave voices -> low-pass -> chorus + 12-bit grit -> bus
-    const keysBus = part('keys'); pan(-0.15, duckKeys, keysBus); send(duckKeys, 0.16, 0.14);
+    const keysBus = part('keys'); pan(-0.15, duckKeys, keysBus); send(keysBus, 0.16, 0.14);
     const keysIn = gain(1), keysLP = filt('lowpass', 2300, 0.5, duckKeys);
     keysIn.connect(keysLP);
     keysLP.connect(shaper(gritCurve(), filt('lowpass', 2200, 0.5, gain(0.1, duckKeys))));
     const wow = gain(7), wowO = osc('sine', 0.55, wow); // tape wow, +-7 cents, shared by every key voice
     // hook: bell -> low-pass -> bus
-    const hookBus = part('hook'), hookIn = gain(1), hookLp = filt('lowpass', 3000, 0.5, hookBus); hookIn.connect(hookLp); pan(0.2, hookLp, sum); hookLp.connect(hookBus); send(hookLp, 0.28, 0.34);
+    const hookBus = part('hook'), hookIn = gain(1), hookLp = filt('lowpass', 3000, 0.5); hookIn.connect(hookLp); pan(0.2, hookLp, hookBus); send(hookBus, 0.28, 0.34);
     // drums
     const kickBus = part('kick'), clickBp = filt('bandpass', 2600, 1, kickBus);
     const snareBus = part('snare'); const snareIn = filt('highpass', 1300, 0.7, snareBus), crackBp = filt('bandpass', 3800, 0.5, snareBus), clapBp = filt('bandpass', 1700, 0.5, snareBus);
@@ -294,7 +294,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     const crashHp = filt('highpass', 5000, 0.7, hatBus), riserBp = filt('bandpass', 400, 0.8, hatBus);
     // scratch: vowel record -> band -> grit -> bus
     const scrBus = part('scratch'), scrIn = gain(1), scrHp = filt('highpass', 260, 0.7), scrLp = filt('lowpass', 4800, 0.6);
-    scrIn.connect(scrHp); scrHp.connect(shaper(driveCurve(1.6), scrLp)); pan(0.1, scrLp, scrBus); send(scrLp, 0.25, 0.1);
+    scrIn.connect(scrHp); scrHp.connect(shaper(driveCurve(1.6), scrLp)); pan(0.1, scrLp, scrBus); send(scrBus, 0.25, 0.1);
     // vinyl crackle, constant
     const cb = ctx.createBuffer(1, Math.floor(sr * 6), sr); cb.getChannelData(0).set(makeCrackle(sr));
     const cs = bufSrc(cb, filt('highpass', 500, 0.7, filt('lowpass', 9000, 0.7, part('crackle')))); cs.loop = true;

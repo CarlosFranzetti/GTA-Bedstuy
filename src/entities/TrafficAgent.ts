@@ -1,7 +1,7 @@
 import { hyp } from '@/core/Math2';
 import { angleDiff, clamp, dist, type Vec2 } from '@/core/Math2';
 import { Rng } from '@/core/Rng';
-import type { TrafficLights } from '@/game/TrafficLights';
+import type { SignalLights } from '@/game/TrafficLights';
 import type { Body2D, IVehicle, IWorld2D, LaneGraph, LaneNode, VehicleInput } from '@/world/types';
 
 export type AgentState = 'driving' | 'waiting' | 'backing';
@@ -16,7 +16,7 @@ export interface TrafficAgentOptions {
   /** Fixed cruise speed, overrides speedForStreet (no per-driver variance). */
   cruiseSpeed?: number;
   /** Signal controller. Without it (or at an unsignalised intersection) stop lines behave as stop signs. */
-  lights?: TrafficLights;
+  lights?: SignalLights;
   /** Pass a stopped car by moving into the adjacent lane when it is clear. Default true. */
   overtake?: boolean;
 }
@@ -220,7 +220,7 @@ export class TrafficAgent {
   private readonly ignoreStop: boolean;
   private readonly speedForStreet?: (streetId: string) => number;
   private readonly fixedCruise?: number;
-  private readonly lights?: TrafficLights;
+  private readonly lights?: SignalLights;
   private readonly canOvertake: boolean;
   /** per-driver cruise factor, derived from the vehicle id so it never touches the shared rng stream */
   private readonly driverMul: number;

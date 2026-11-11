@@ -151,6 +151,8 @@ export interface GridModel {
   blockById(id: string): Block;
   /** nearest lane node to a point */
   nearestLaneNode(p: Vec2): LaneNode;
+  /** real map only: sidewalk crossing edges keyed `${from}>${to}` for signal-aware pedestrians (replaces the grid-derived table) */
+  pedCrossings?: ReadonlyMap<string, { intersectionId: string; crossedStreetId: string }>;
   nearestSidewalkNode(p: Vec2): GraphNode;
   /** nearest street (for the HUD location label) */
   nearestStreet(p: Vec2): StreetDef;

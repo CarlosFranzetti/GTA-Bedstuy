@@ -25,13 +25,29 @@ const webAppTags = {
   ],
 };
 
+/**
+ * Lite single-file artifact (ENGINE, 11 Nov; docs/swarm/plans/stage14.md Phase 0): the world normal maps
+ * (src/assets/textures/*_normal.jpg, ~3.5 MB as base64) are replaced by a 1x1 flat normal (128,128,255) in the single-file
+ * build only. Hosted and native builds keep every map. What the artifact loses: brick, asphalt and roof surface relief
+ * (the phone tier already strips normal maps at runtime).
+ */
+const FLAT_NORMAL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNoaPgPAAODAgAApfuJAAAAAElFTkSuQmCC';
+const liteArtifactTextures = {
+  name: 'gta-bedstuy-lite-artifact-textures',
+  enforce: 'pre' as const,
+  load(id: string) {
+    if (/[\\/]src[\\/]assets[\\/]textures[\\/][a-z_]+_normal\.jpg$/.test(id.split('?')[0])) return `export default ${JSON.stringify(FLAT_NORMAL)};`;
+    return null;
+  },
+};
+
 export default defineConfig({
   // ra-nyc DJ-set API: same-origin proxy in dev and `vite preview` (the hosted build has the same rewrite in vercel.json)
   server: { proxy: { '/ra-api': { target: 'https://ra-nyc.vercel.app', changeOrigin: true, rewrite: (p: string) => p.replace(/^\/ra-api/, '/api') } } },
   preview: { proxy: { '/ra-api': { target: 'https://ra-nyc.vercel.app', changeOrigin: true, rewrite: (p: string) => p.replace(/^\/ra-api/, '/api') } } },
   base: './',
   resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
-  plugins: hosted ? [webAppTags] : [viteSingleFile()],
+  plugins: hosted ? [webAppTags] : [liteArtifactTextures, viteSingleFile()],
   build: hosted
     ? {
         target: 'es2022',

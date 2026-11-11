@@ -1285,7 +1285,7 @@ export const STYLES: Record<StyleKey, Style> = {
     clad: 11,
     rails: false, spoiler: false, maxGap: 0.3, archN: 6,
     bumperY: 0.26, bumperH: 0.18,
-    plan: [[-2.26, 0.9], [-1.7, 1], [-0.9, 1], [0.9, 1], [1.7, 0.95], [2.26, 0.8]],
+    plan: [[-2.26, 0.9], [-1.7, 1], [-0.9, 1], [0.9, 1], [1.7, 0.95], [2.26, 0.84]],
     headLamp: 'angular', tailLamp: 'lshape', grille: 'wedge', lampD: 0.1, tailD: 0.05, endF: 0.45, endR: 0.2, grilleW: 0.55,
     dims: { L: 4.52, W: 1.933, H: 1.165 },
   },

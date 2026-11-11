@@ -19,6 +19,9 @@
 import type { Vec2 } from '@/core/Math2';
 import type { GridModel } from '@/world/types';
 
+/** What the traffic AI, cops and pedestrians read from a signal controller (the real-map controller provides the same). */
+export type SignalLights = Pick<TrafficLights, 'hasSignal' | 'phaseFor' | 'phaseTimeLeft' | 'walkFor' | 'walkStateFor' | 'secondsUntilGreen' | 'update'>;
+
 export type Phase = 'green' | 'yellow' | 'red';
 export type WalkState = 'walk' | 'flash' | 'dont';
 

@@ -5,7 +5,7 @@ import { dist, type Vec2 } from '@/core/Math2';
 import type { Rng } from '@/core/Rng';
 import type { Body2D, GridModel, IVehicle, IWorld2D, LaneNode, VehicleType } from '@/world/types';
 import { CopAgent, type CopTarget } from '@/entities/Cop';
-import type { TrafficLights } from './TrafficLights';
+import type { SignalLights } from './TrafficLights';
 import type { WantedSystem } from './WantedSystem';
 
 export type MakeCopVehicle = (type: VehicleType, pos: Vec2, heading: number, color: string) => IVehicle;
@@ -37,7 +37,7 @@ const SIDEWALK_MARGIN = 1.5;
 
 export interface CopSystemOptions {
   /** Signals obeyed by off-duty / patrolling cops (pursuing cops always ignore them). */
-  lights?: TrafficLights;
+  lights?: SignalLights;
   /** Cop cars that cruise the lanes like traffic while nobody is wanted (default 0). */
   patrolCount?: number;
 }
@@ -51,7 +51,7 @@ export class CopSystem {
   private readonly entries: CopEntry[] = [];
   private readonly laneNodes: LaneNode[];
   private readonly off: () => void;
-  private readonly lights?: TrafficLights;
+  private readonly lights?: SignalLights;
   private patrolCount: number;
   private patrolTimer = 0;
   private quarryTimer = 0;

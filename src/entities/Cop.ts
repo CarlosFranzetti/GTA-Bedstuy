@@ -1,7 +1,7 @@
 import { angleDiff, clamp, dist, forwardFromHeading, perpRight, type Vec2 } from '@/core/Math2';
 import { Rng } from '@/core/Rng';
 import type { GridModel, IVehicle, IWorld2D, VehicleInput } from '@/world/types';
-import type { TrafficLights } from '@/game/TrafficLights';
+import type { SignalLights } from '@/game/TrafficLights';
 import { TrafficAgent } from './TrafficAgent';
 
 const CHASE_SPEED = 20;
@@ -79,7 +79,7 @@ export class CopAgent {
   /**
    * `lights`: off-duty cops obey signals like any driver; a pursuing cop never does (siren on).
    */
-  constructor(readonly vehicle: IVehicle, private readonly grid: GridModel, world: IWorld2D, lights?: TrafficLights) {
+  constructor(readonly vehicle: IVehicle, private readonly grid: GridModel, world: IWorld2D, lights?: SignalLights) {
     const rng = new Rng(vehicle.id);
     this.lane = new TrafficAgent(vehicle, grid.lanes, world, rng, { ignoreStopLines: true, cruiseSpeed: CHASE_SPEED });
     this.offDuty = new TrafficAgent(vehicle, grid.lanes, world, rng, { cruiseSpeed: OFF_DUTY_SPEED, lights });

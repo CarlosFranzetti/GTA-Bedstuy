@@ -1,5 +1,4 @@
 import './credits.css';
-import { menuArtSvg } from './menuArt';
 import { AI_NOTE, DIRECTORS, DISCLAIMER, OWNER, STUDIO_LEAD, TEAMS, THANKS, type CreditPerson } from './creditsData';
 import type { NavDir } from '@/core/Gamepad';
 
@@ -133,7 +132,11 @@ export class Credits {
     const root = this.root;
     const art = this.el('div', 'cr-art', undefined, root);
     art.setAttribute('aria-hidden', 'true');
-    art.innerHTML = menuArtSvg('c');
+    const img = this.doc.createElement('img'); // same illustration as the title screen, very dark; absent in the single-file build
+    img.alt = '';
+    img.addEventListener('load', () => img.classList.add('on'));
+    img.addEventListener('error', () => img.remove());
+    try { img.src = new URL('art/title-1.webp', this.doc.baseURI).href; art.appendChild(img); } catch { /* no art */ }
     this.el('div', 'cr-shade', undefined, root);
     const x = this.el('button', 'cr-x', '✕', root);
     x.type = 'button';
