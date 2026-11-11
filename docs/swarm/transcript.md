@@ -2425,3 +2425,10 @@ start: 4 block rows north of Hart (Myrtle, Park, Flushing, Wallabout; block ids 
 
 ### 2026-11-11T08:08:22Z · TEXVAR
 resume: detail atlas (4 CC0 ambientCG tiles as relative-luminance greyscale, 66 KB in artifact) for stucco, glazed tile, cast-stone trim, wall stain macro, cobble patches in asphalt; gate states plain/rusty/tagged; faded parody wall signs on party walls (canvas, 0 KB); concrete patches softened. Captures queued. LOADMUSIC: theme + tests done, full-loop render queued, Radio library has Play loading theme row.
+
+### 2026-11-11T08:14:37Z · FLICKER
+added ?debug=gfx overlay module (GfxDebug.ts), native hint in GpuProfile, Pipeline.postState/activePassNames; audit: no logdepth/MSAA RT/alphaToCoverage in use, toggles clean; flicker metric still queued for render slot
+
+### 2026-11-11T08:15:05Z · STORY
+FINAL: Air Rights shipped. 14 missions (13 core + 1 gated on el stations), 12 recurring characters + Pryce voice, 4 forks / 11 branch flags, 3 endings. New kinds: spots, pay, fork, chase, race, stakeout, stealth tail, escort, fragile cargo, soft vehicle gates, subtitles, beats. GameSave v3 (story field, v2 migrates). Announcer reads bulletins/ads. Tests: 192 pass in my files (sim/story-missions, game/story_*, mission_story_kinds, ui/story-save); tsc clean in my paths; build ok, artifact 11.68 MB. Unrelated red: map-screen portrait, Menu.ts settingsRows, traffic/cops. Doc: docs/reference/STORY.md.
+FOR FABLE (src/main.ts): (1) after phone.bind: const story = new StoryDirector(missions, phone, { onBeat: s => cam.setLetterbox(true, s), onBroadcast: b => audio.setBroadcast(b) }); and MissionSystem opts add spend: n => inventory.spend(n). (2) const ambient = new AmbientNotices(grid); scene.add(ambient.group); each frame ambient.sync(missions.story). (3) missions.update(..., dayNight.timeOfDay, pv?.spec.type ?? ''). (4) events.on('impact', e => { const v = player.vehicle; if (v && (e.a === v.body.id || e.b === v.body.id)) missions.notify({ type: 'impact', strength: e.strength }); }). (5) newGame/onReset: missions.story.reset(); after save load: story.resync().

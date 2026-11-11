@@ -20,8 +20,9 @@ import { formatClock, formatDay, type SaveManager } from './GameSave';
 import { SavePanel } from './SavePanel';
 import { FullscreenControl } from './Fullscreen';
 import { RowList, type RowSpec } from './menuRows';
+import { menuArtSvg } from './menuArt';
 import {
-  GraphicsStore, supports, SHADOW_MODES, FPS_CAPS, RANGES, gpuLoad, optionLoad, loadLabel,
+  GraphicsStore, supports, presetFor, SHADOW_MODES, FPS_CAPS, RANGES, gpuLoad, optionLoad, loadLabel,
   type GraphicsKey, type GraphicsSettings, type ShadowMode,
 } from './GraphicsSettings';
 import type { Quality } from '@/render/Shadows';
@@ -199,18 +200,6 @@ const GFX_DESC: Record<GraphicsKey, string> = {
   showFps: 'Shows a frames-per-second counter in the corner of the screen.',
 };
 
-interface Category { id: string; label: string; desc: string; gpu?: boolean }
-const CATEGORIES: readonly Category[] = [
-  { id: 'display', label: 'Display', desc: 'Full screen, frame rate and render resolution.', gpu: true },
-  { id: 'graphics', label: 'Graphics', desc: 'The quality preset, shadows, textures and anti-aliasing.', gpu: true },
-  { id: 'advanced', label: 'Advanced Graphics', desc: 'Draw distance, crowds, traffic and the post effects, one by one. Changed rows are marked on the left.', gpu: true },
-  { id: 'audio', label: 'Audio', desc: 'Master volume for the whole game.' },
-  { id: 'controls', label: 'Controls', desc: 'The controls for the device you are using now.' },
-  { id: 'camera', label: 'Camera', desc: 'Field of view and look direction.' },
-  { id: 'radio', label: 'Radio / Voices', desc: 'Radio volume and the radio library.' },
-  { id: 'game', label: 'Game', desc: 'Reset, and what the minimap symbols mean.' },
-];
-
 const GFX_ROW_LABEL = new Map<GraphicsKey, AdvSpec>(ADVANCED_ROWS.map((r) => [r.key, r]));
 
 function defaultStorage(): Pick<Storage, 'getItem' | 'setItem'> | null {
@@ -250,19 +239,25 @@ export class Menu {
   private readonly streetEl: HTMLElement;
   private readonly footEl: HTMLElement;
   private tabId: MenuTab = 'settings';
-  private col: 'cats' | 'opts' = 'cats';
   private inputMode: InputMode = 'keyboard';
   private infoTimer = 0;
 
   // settings / lists
-  private readonly catList: RowList;
   private readonly optList: RowList;
   private readonly radioList: RowList;
   private readonly missionList: RowList;
   private readonly statList: RowList;
   private readonly settingsPane: HTMLElement;
+  private readonly pending = new Map<string, unknown>();
+  private readonly orig = new Map<string, RowSpec>();
+  private zone: 'list' | 'acts' = 'list';
+  private actIdx = 0;
+  private readonly actBtns: HTMLButtonElement[] = [];
+  private discardArmed = false;
+  private discardTimer = 0;
+  private readonly titleEl: HTMLElement;
+  private readonly statusEl: HTMLElement;
   private readonly descs = new Map<string, DescPanel>();
-  private catId = 'display';
   private readonly gfxRows = new Map<GraphicsKey, RowSpec>();
   private readonly specs = new Map<string, RowSpec>();
   private resetArmed = false;
@@ -308,6 +303,9 @@ export class Menu {
     // ---- DOM: root > shell > header, tab bar, body, footer
     this.root = this.el('div', 'menu-root');
     this.root.hidden = true;
+    const art = this.el('div', 'gp-art');
+    art.innerHTML = menuArtSvg();
+    this.root.appendChild(art);
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-modal', 'true');
     this.root.setAttribute('aria-labelledby', 'menu-title');
@@ -321,7 +319,8 @@ export class Menu {
     const titleBox = this.el('div', 'gp-titlebox');
     const title = this.el('h2', 'menu-title gp-title');
     title.id = 'menu-title';
-    title.textContent = 'Paused';
+    title.textContent = 'Settings';
+    this.titleEl = title;
     const sub = this.el('span', 'gp-game');
     sub.textContent = 'GTA Bed-Stuy';
     titleBox.append(sub, title);
@@ -330,7 +329,10 @@ export class Menu {
     this.whenEl = this.el('span', 'gp-when');
     this.streetEl = this.el('span', 'gp-street');
     player.append(this.cashEl, this.whenEl, this.streetEl);
-    head.append(this.backBtn, titleBox, player);
+    const xBtn = this.button('\u2715', 'gp-x');
+    xBtn.setAttribute('aria-label', 'Resume');
+    xBtn.addEventListener('click', () => this.close());
+    head.append(this.backBtn, titleBox, player, xBtn);
 
     const bar = this.el('div', 'gp-tabbar');
     this.tabHintL = this.button('Q', 'gp-tabhint l');
@@ -368,24 +370,33 @@ export class Menu {
     this.footEl = this.el('footer', 'gp-foot');
 
     // ---- lists
-    const mkList = (cls: string, label: string, onHi: (r: RowSpec | null) => void, which: 'cats' | 'opts' | 'single'): RowList => new RowList(this.doc, {
+    const mkList = (cls: string, label: string, onHi: (r: RowSpec | null) => void, which: 'opts' | 'single'): RowList => new RowList(this.doc, {
       label,
-      canHover: () => which !== 'cats' || this.col === 'cats',
+      canHover: () => which !== 'opts' || this.zone === 'list',
       onHighlight: onHi,
       onChange: () => { this.afterChange(); },
-      onPointer: () => { if (which === 'opts') this.focusCol('opts'); },
+      onPointer: () => { if (which === 'opts') this.setZone('list'); },
     }, cls);
-    this.catList = mkList('gp-cats', 'Settings categories', (r) => { if (r) this.onCategory(r); }, 'cats');
     this.optList = mkList('gp-opts', 'Options', (r) => this.showDesc('settings', r), 'opts');
     this.radioList = mkList('gp-opts', 'Radio', (r) => this.showDesc('radio', r), 'single');
     this.missionList = mkList('gp-opts gp-missions', 'Missions', (r) => this.showDesc('missions', r), 'single');
     this.statList = mkList('gp-opts gp-stats', 'Stats', (r) => this.showDesc('stats', r), 'single');
 
     this.settingsPane = this.panes.get('settings')!;
-    this.settingsPane.dataset.view = 'cats';
-    const catsBox = this.column('gp-col gp-col-cats', this.catList.el);
     const optsBox = this.column('gp-col gp-col-opts', this.optList.el);
-    this.settingsPane.append(catsBox, optsBox, this.descPanel('settings'));
+    const acts = this.el('div', 'gp-acts');
+    for (const [label, fn] of [['Apply', () => this.apply()], ['Defaults', () => this.defaults()], ['Back', () => this.back()]] as const) {
+      const b = this.button(label, `gp-act gp-act-${label.toLowerCase()}`);
+      b.addEventListener('click', () => { fn(); });
+      b.tabIndex = -1;
+      this.actBtns.push(b);
+      acts.appendChild(b);
+    }
+    this.statusEl = this.el('p', 'gp-status');
+    this.statusEl.setAttribute('role', 'status');
+    acts.appendChild(this.statusEl);
+    acts.appendChild(this.descPanel('settings'));
+    this.settingsPane.append(optsBox, acts);
 
     this.panes.get('radio')!.append(this.column('gp-col gp-col-opts', this.radioList.el), this.descPanel('radio'));
     this.panes.get('missions')!.append(this.column('gp-col gp-col-opts', this.missionList.el), this.descPanel('missions'));
@@ -425,9 +436,8 @@ export class Menu {
     parent.appendChild(this.fpsEl);
 
     this.buildSpecs();
-    this.catList.setRows(CATEGORIES.map((c) => this.catRow(c)));
-    this.loadCategory(this.catId);
-    this.radioList.setRows(this.rowsFor('radio-tab'));
+    this.optList.setRows(this.settingsRows());
+    this.radioList.setRows(this.radioRows());
     this.statList.setRows([]);
     this.missionList.setRows([]);
 
@@ -501,9 +511,10 @@ export class Menu {
   get isOpen(): boolean { return this.opened; }
   get settings(): MenuSettings { return { ...this.state }; }
   get tabName(): MenuTab { return this.tabId; }
-  get category(): string { return this.catId; }
-  /** Which settings column has the focus. */
-  get focusColumn(): 'cats' | 'opts' { return this.col; }
+  /** Settings changed with the arrows but not applied yet. */
+  get pendingCount(): number { return this.pending.size; }
+  /** 'list' while the option rows have the focus, 'acts' while APPLY / DEFAULTS / BACK do. */
+  get focusZone(): 'list' | 'acts' { return this.zone; }
 
   open(): void {
     if (this.opened) return;
@@ -533,6 +544,8 @@ export class Menu {
     this.root.hidden = true;
     this.pauseButton.hidden = !this.touchEnabled;
     this.disarmReset();
+    this.pending.clear(); this.disarmDiscard(); this.statusEl.textContent = ''; this.zone = 'list';
+    this.optList.refresh();
     const prev = this.restoreFocus;
     this.restoreFocus = null;
     if (prev && prev.isConnected && prev.tagName !== 'CANVAS') prev.focus(); else (this.doc.activeElement as HTMLElement | null)?.blur?.();
@@ -557,7 +570,8 @@ export class Menu {
     const pane = this.panes.get(id)!;
     pane.classList.remove('gp-swap'); void pane.offsetWidth; pane.classList.add('gp-swap');
     this.root.dataset.tab = id;
-    if (id === 'settings') { this.col = 'cats'; this.settingsPane.dataset.view = 'cats'; }
+    this.titleEl.textContent = MENU_TABS.find((t) => t.id === id)!.label;
+    if (id === 'settings') this.zone = 'list';
     if (this.opened) this.enterTab(id);
     this.syncFoot();
     this.syncBack();
@@ -578,7 +592,7 @@ export class Menu {
     this.root.dataset.input = mode;
     this.tabHintL.textContent = mode === 'gamepad' ? 'LB' : mode === 'touch' ? '‹' : 'Q';
     this.tabHintR.textContent = mode === 'gamepad' ? 'RB' : mode === 'touch' ? '›' : 'E';
-    if (this.catId === 'controls') this.loadCategory('controls', true);
+    this.optList.setRows(this.settingsRows(), true);
     this.syncFoot();
   }
 
@@ -613,7 +627,7 @@ export class Menu {
 
   private activeList(): RowList | null {
     switch (this.tabId) {
-      case 'settings': return this.col === 'cats' ? this.catList : this.optList;
+      case 'settings': return this.optList;
       case 'radio': return this.radioList;
       case 'missions': return this.missionList;
       case 'stats': return this.statList;
@@ -623,9 +637,8 @@ export class Menu {
 
   private syncLists(): void {
     const act = this.activeList();
-    for (const l of [this.catList, this.optList, this.radioList, this.missionList, this.statList]) l.setActive(l === act);
-    // the categories column stays "selected" (dim bar) while the options column has the focus
-    this.catList.el.classList.toggle('dim', this.tabId === 'settings' && this.col === 'opts');
+    for (const l of [this.optList, this.radioList, this.missionList, this.statList]) l.setActive(l === act && !(l === this.optList && this.zone === 'acts'));
+    this.syncActs();
   }
 
   private focusList(): void {
@@ -634,45 +647,103 @@ export class Menu {
     else if (this.opened) (this.tabBtns.get(this.tabId))?.focus();
   }
 
-  private focusCol(c: 'cats' | 'opts'): void {
+  /** Moves the focus between the option rows and the APPLY / DEFAULTS / BACK stack. */
+  private setZone(z: 'list' | 'acts'): void {
     if (this.tabId !== 'settings') return;
-    this.col = c;
-    this.settingsPane.dataset.view = c;
+    this.zone = z;
     this.syncLists();
-    this.syncBack();
+    if (z === 'list') { this.optList.highlight(this.optList.index, true); this.showDesc('settings', this.optList.current); }
+    else { this.actBtns[this.actIdx]?.focus(); this.showDesc('settings', null); }
     this.syncFoot();
-    const l = this.activeList();
-    l?.highlight(l.index, true);
-    if (c === 'opts') this.showDesc('settings', this.optList.current);
-    else this.showDesc('settings', this.catList.current);
   }
 
   private moveList(d: 1 | -1): void {
     const l = this.activeList();
     if (!l) return;
+    if (this.tabId === 'settings') {
+      if (this.zone === 'acts') {
+        if (d > 0) this.actIdx = Math.min(this.actBtns.length - 1, this.actIdx + 1);
+        else if (this.actIdx === 0) { this.setZone('list'); this.optList.highlightLast(true); return; }
+        else this.actIdx--;
+        this.syncActs(); this.actBtns[this.actIdx]?.focus();
+        return;
+      }
+      if (d > 0 && l.atEnd()) { this.actIdx = 0; this.setZone('acts'); return; }
+    }
     l.move(d);
     this.syncFoot();
   }
 
   private sideways(d: -1 | 1): void {
-    if (this.tabId === 'settings' && this.col === 'cats') { if (d > 0) this.focusCol('opts'); return; }
+    if (this.tabId === 'settings' && this.zone === 'acts') { if (d < 0) this.setZone('list'); return; }
     const l = this.activeList();
     if (l?.adjust(d)) this.syncFoot();
   }
 
   private confirm(): void {
-    if (this.tabId === 'settings' && this.col === 'cats') { this.focusCol('opts'); return; }
+    if (this.tabId === 'settings' && this.zone === 'acts') { [() => this.apply(), () => this.defaults(), () => this.back()][this.actIdx](); return; }
     this.activeList()?.activate();
   }
 
-  /** B / Backspace / the back arrow: out of the options column, else resume. */
+  private syncActs(): void {
+    const settings = this.tabId === 'settings';
+    this.actBtns.forEach((b, i) => {
+      b.classList.toggle('hi', settings && this.zone === 'acts' && i === this.actIdx);
+      b.classList.toggle('dim', i === 0 && this.pending.size === 0);
+    });
+    const back = this.actBtns[2];
+    if (back) back.textContent = this.discardArmed ? 'Discard?' : 'Back';
+    this.root.classList.toggle('has-pending', this.pending.size > 0);
+  }
+
+  /** APPLY: commits every pending value (preset and auto detect first, so the rest sit on top of the right tier). */
+  apply(): void {
+    if (this.pending.size === 0) { this.statusEl.textContent = 'Nothing to apply'; return; }
+    const ids = [...this.pending.keys()].sort((a, b) => (a === 'quality' ? -2 : a === 'autodetect' ? -1 : 0) - (b === 'quality' ? -2 : b === 'autodetect' ? -1 : 0));
+    const n = ids.length;
+    for (const id of ids) {
+      const v = this.pending.get(id);
+      this.pending.delete(id); // cleared first: the setter's own bookkeeping must not see it as pending
+      this.orig.get(id)?.set?.(v as never);
+    }
+    this.pending.clear();
+    this.disarmDiscard();
+    this.statusEl.textContent = `Applied ${n} change${n === 1 ? '' : 's'}`;
+    this.refreshAll();
+  }
+
+  /** DEFAULTS: every setting row goes back to its default as a pending change (APPLY commits it). */
+  defaults(): void {
+    for (const [id, spec] of this.orig) {
+      if (!spec.def || !spec.set) continue;
+      const want = spec.def(), cur = spec.get?.();
+      if (want === cur) this.pending.delete(id); else this.pending.set(id, want);
+    }
+    this.statusEl.textContent = this.pending.size ? 'Defaults ready: press Apply' : 'Already at defaults';
+    this.refreshAll();
+  }
+
+  private disarmDiscard(): void {
+    this.doc.defaultView?.clearTimeout(this.discardTimer);
+    this.discardArmed = false;
+    this.syncActs();
+  }
+
+  /** BACK / Esc / B / Backspace: with pending changes the first press asks (the button says DISCARD?), the second discards and resumes. */
   back(): void {
-    if (this.tabId === 'settings' && this.col === 'opts') { this.focusCol('cats'); return; }
+    if (this.tabId === 'settings' && this.pending.size > 0 && !this.discardArmed) {
+      this.discardArmed = true;
+      this.statusEl.textContent = `${this.pending.size} unapplied change${this.pending.size === 1 ? '' : 's'}. Back again to discard`;
+      this.syncActs();
+      const w = this.doc.defaultView;
+      if (w) this.discardTimer = w.setTimeout(() => { this.discardArmed = false; this.statusEl.textContent = ''; this.syncActs(); }, 4000);
+      return;
+    }
     this.close();
   }
 
   private onWindowKey(e: KeyboardEvent): void {
-    if (e.code === 'Escape' && !e.repeat) { e.preventDefault(); this.toggle(); return; }
+    if (e.code === 'Escape' && !e.repeat) { e.preventDefault(); if (this.opened) this.back(); else this.open(); return; }
     if (!this.opened || e.ctrlKey || e.metaKey || e.altKey) return;
     const t = e.target as HTMLElement | null;
     const typing = !!t && (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable || (t.tagName === 'INPUT' && (t as HTMLInputElement).type !== 'checkbox' && (t as HTMLInputElement).type !== 'range'));
@@ -790,26 +861,24 @@ export class Menu {
   }
 
   private syncBack(): void {
-    const inner = this.tabId === 'settings' && this.col === 'opts';
-    this.backBtn.setAttribute('aria-label', inner ? 'Back to categories' : 'Resume');
-    this.backBtn.dataset.mode = inner ? 'back' : 'resume';
+    this.backBtn.setAttribute('aria-label', 'Back');
+    this.backBtn.dataset.mode = 'resume';
   }
 
   private syncFoot(): void {
     const m = this.inputMode;
     const lists = this.activeList() !== null;
-    const opts = this.tabId !== 'settings' || this.col === 'opts';
+    const opts = true;
     const prompts: Array<[string, string]> = [];
     if (m === 'keyboard') {
       if (lists) prompts.push(['↑↓', 'Select']);
       if (lists && opts && this.tabId !== 'missions' && this.tabId !== 'stats') prompts.push(['←→', 'Change']);
       if (lists) prompts.push(['Enter', 'Accept']);
-      if (this.tabId === 'settings' && this.col === 'opts') prompts.push(['Backspace', 'Back']);
-      prompts.push(['Q E', 'Tabs'], ['Esc', 'Resume']);
+      prompts.push(['Q E', 'Tabs'], ['Esc', 'Back']);
     } else if (m === 'gamepad') {
       if (lists) prompts.push(['D-pad', 'Select']);
       if (lists) prompts.push(['A', 'Accept']);
-      prompts.push(['B', this.tabId === 'settings' && this.col === 'opts' ? 'Back' : 'Resume'], ['LB RB', 'Tabs'], ['Start', 'Resume']);
+      prompts.push(['B', 'Back'], ['LB RB', 'Tabs'], ['Start', 'Resume']);
     } else {
       prompts.push(['Tap', 'Select'], ['‹', 'Back']);
     }
@@ -838,17 +907,20 @@ export class Menu {
       visible: () => this.sup().keys.has(key),
       custom: () => this.graphics.isOverridden(key),
       get: () => this.eff()[key] as string | number | boolean,
+      def: () => presetFor(this.liveTier as Quality)[key] as string | number | boolean,
     };
+    const put = (v: unknown): void => { if (v === presetFor(this.liveTier as Quality)[key]) this.graphics.unset(key); else this.graphics.set(key, v as never); };
     if (c.kind === 'range') {
       return { ...base, kind: 'slider', min: c.min, max: c.max, step: c.step, fmt: (v) => c.fmt(v / c.scale),
         get: () => Math.round((this.eff()[key] as number) * c.scale),
-        set: ((v: number) => { this.graphics.set(key, (v / c.scale) as never); }) as RowSpec['set'] };
+        set: ((v: number) => { put(v / c.scale); }) as RowSpec['set'],
+        def: () => Math.round((presetFor(this.liveTier as Quality)[key] as number) * c.scale) };
     }
-    if (c.kind === 'bool') return { ...base, kind: 'toggle', set: ((v: boolean) => { this.graphics.set(key, v as never); }) as RowSpec['set'] };
+    if (c.kind === 'bool') return { ...base, kind: 'toggle', set: ((v: boolean) => { put(v); }) as RowSpec['set'] };
     return {
       ...base, kind: 'seg',
       options: () => c.options.map(([value, label]) => ({ value, label, hidden: key === 'shadows' && !this.sup().shadows.includes(value as ShadowMode) })),
-      set: ((v: string | number) => { this.graphics.set(key, v as never); }) as RowSpec['set'],
+      set: ((v: string | number) => { put(v); }) as RowSpec['set'],
     };
   }
 
@@ -856,26 +928,34 @@ export class Menu {
     for (const r of ADVANCED_ROWS) this.gfxRows.set(r.key, this.gfxRow(r.key));
     const fs = this.fullscreen;
     const S = this.specs;
-    S.set('fullscreen', {
-      id: 'fullscreen', label: 'Full screen', kind: 'toggle', desc: 'Fills the whole screen with no browser bars. Alt+Enter also toggles it. Esc leaves full screen and opens this menu.',
-      visible: () => !!fs?.supported, get: () => !!fs?.active, set: (() => { void fs?.toggle(); }) as RowSpec['set'],
+    S.set('windowmode', {
+      id: 'windowmode', label: 'Window Mode', kind: 'seg', desc: 'Windowed, or full screen with no browser bars. Alt+Enter also toggles it. Esc leaves full screen and opens this menu.',
+      visible: () => !!fs?.supported, options: () => [{ value: 'window', label: 'Windowed' }, { value: 'full', label: 'Full screen' }],
+      get: () => (fs?.active ? 'full' : 'window'), def: () => 'window',
+      set: ((v: string) => { if ((v === 'full') !== !!fs?.active) void fs?.toggle(); }) as RowSpec['set'],
     });
     S.set('install', {
       id: 'install', label: 'Install as app', kind: 'info', desc: 'Chrome: menu, Cast, save and share, Install page as app. Safari: File, Add to Dock. It then opens in its own window with no browser bars.',
       visible: () => (this.opts.installable ?? hostedBuild()) && !this.isStandalone(), text: () => 'How to',
     });
     S.set('quality', {
-      id: 'quality', label: 'Quality preset', kind: 'seg', gfx: 'preset',
-      desc: 'A preset sets shadows, effects, draw distance and traffic together. Auto starts at your device’s default and steps down by itself when the frame rate drops. Changes you make in the rows below are kept on top of the preset.',
-      options: () => [{ value: 'auto', label: this.state.auto ? `Auto (${cap(this.liveTier)})` : 'Auto' }, ...QUALITIES.map((q) => ({ value: q, label: cap(q) }))],
-      get: () => (this.state.auto ? 'auto' : this.state.quality),
-      set: ((v: string) => { if (v === 'auto') this.setAuto(true); else this.setQuality(v as MenuQuality); }) as RowSpec['set'],
+      id: 'quality', label: 'Quality Preset', kind: 'seg', gfx: 'preset',
+      desc: 'A preset sets shadows, effects, draw distance and traffic together. Your changes below stay on top of the preset.',
+      options: () => QUALITIES.map((q) => ({ value: q, label: cap(q) })),
+      get: () => this.state.quality, def: () => this.deviceTier,
+      set: ((v: string) => { this.setQuality(v as MenuQuality); }) as RowSpec['set'],
     });
-    S.set('master', { id: 'master', label: 'Master volume', kind: 'slider', min: 0, max: 100, step: 5, desc: 'Volume of everything in the game.', fmt: (v) => `${v}%`, get: () => Math.round(this.state.master * 100), set: ((v: number) => this.setMaster(v / 100)) as RowSpec['set'] });
-    S.set('radiovol', { id: 'radiovol', label: 'Radio volume', kind: 'slider', min: 0, max: 100, step: 5, desc: 'Volume of the radio stations, relative to the master volume.', fmt: (v) => `${v}%`, get: () => Math.round(this.state.radio * 100), set: ((v: number) => this.setRadio(v / 100)) as RowSpec['set'] });
+    S.set('autodetect', {
+      id: 'autodetect', label: 'Auto Detect Settings', kind: 'toggle',
+      desc: 'On: starts at your device\u2019s default preset and steps down by itself when the frame rate drops. Choosing a preset turns it off.',
+      get: () => this.state.auto, def: () => this.opts.auto ?? false,
+      set: ((v: boolean) => { if (v) this.setAuto(true); else this.setQuality(this.state.quality); }) as RowSpec['set'],
+    });
+    S.set('master', { id: 'master', label: 'Master Volume', kind: 'slider', min: 0, max: 100, step: 5, def: () => 100, desc: 'Volume of everything in the game.', fmt: (v) => `${v}%`, get: () => Math.round(this.state.master * 100), set: ((v: number) => this.setMaster(v / 100)) as RowSpec['set'] });
+    S.set('radiovol', { id: 'radiovol', label: 'Radio Volume', kind: 'slider', min: 0, max: 100, step: 5, def: () => 100, desc: 'Volume of the radio stations, relative to the master volume.', fmt: (v) => `${v}%`, get: () => Math.round(this.state.radio * 100), set: ((v: number) => this.setRadio(v / 100)) as RowSpec['set'] });
     S.set('radiolib', { id: 'radiolib', label: 'Radio library', kind: 'action', desc: 'Opens the radio library: tracks, stations and the playlist.', press: () => { this.cb.onRadioLibrary?.(); } });
     S.set('station', { id: 'station', label: 'Tuned to', kind: 'info', desc: 'The station playing now. Press E in the game (Y on a gamepad) to change it.', text: () => this.opts.info?.().station || 'Off' });
-    S.set('invert', { id: 'invert', label: 'Invert look Y', kind: 'toggle', desc: 'Inverts vertical look for the mouse, the right stick and touch drag.', get: () => this.state.invertY, set: ((v: boolean) => this.setInvertY(v)) as RowSpec['set'] });
+    S.set('invert', { id: 'invert', label: 'Invert Look Y', kind: 'toggle', def: () => false, desc: 'Inverts vertical look for the mouse, the right stick and touch drag.', get: () => this.state.invertY, set: ((v: boolean) => this.setInvertY(v)) as RowSpec['set'] });
     S.set('reset', {
       id: 'reset', label: 'Reset position', kind: 'action',
       desc: 'Moves you back to the starting spot and clears missions, records, phone messages and cash. Press twice to confirm.',
@@ -904,37 +984,47 @@ export class Menu {
     if (this.resetArmed) { this.resetArmed = false; this.refreshAll(); }
   }
 
-  private rowsFor(cat: string): RowSpec[] {
+  private radioRows(): RowSpec[] {
+    const S = this.specs;
+    return [S.get('station')!, S.get('radiovol')!, S.get('radiolib')!];
+  }
+
+  /** The one scrolling settings list: yellow sub-headers, rows changed with the arrows (held as pending until APPLY). */
+  private settingsRows(): RowSpec[] {
     const S = this.specs, G = this.gfxRows;
     const g = (...keys: GraphicsKey[]): RowSpec[] => keys.map((k) => G.get(k)!);
-    switch (cat) {
-      case 'display': return [S.get('fullscreen')!, S.get('install')!, ...g('fpsCap', 'showFps', 'resolution', 'nativeDpr')];
-      case 'graphics': return [S.get('quality')!, ...g('shadows', 'textures', 'aa')];
-      case 'advanced': return [...g('drawDistance', 'treeRange', 'crowd', 'traffic', 'ao', 'bloom', 'dof', 'vignette', 'grain'), S.get('gfxreset')!];
-      case 'audio': return [S.get('master')!];
-      case 'controls': return CONTROLS[this.inputMode].rows.map(([k, v]) => ({ id: `c:${k}`, label: k, kind: 'info' as const, desc: `${k}: ${v}. These are the ${CONTROLS[this.inputMode].title.toLowerCase()} controls; the list follows the device you are using.`, text: () => v }));
-      case 'camera': return [...g('fov'), S.get('invert')!];
-      case 'radio': case 'radio-tab': return [...(cat === 'radio-tab' ? [S.get('station')!] : []), S.get('radiovol')!, S.get('radiolib')!];
-      case 'game': return [S.get('reset')!, ...MINIMAP_LEGEND.map((item) => ({ id: `l:${item.text}`, label: item.text, kind: 'info' as const, desc: `On the minimap: ${item.text}.`, text: () => '', swatch: { color: item.swatch, shape: item.shape } }))];
-      default: return [];
+    const sections: Array<[string, RowSpec[]]> = [
+      ['Display', [S.get('windowmode')!, ...g('fpsCap', 'resolution', 'nativeDpr', 'showFps')]],
+      ['Graphics', [S.get('quality')!, S.get('autodetect')!, ...g('shadows', 'drawDistance', 'treeRange', 'crowd', 'traffic', 'aa', 'textures', 'ao', 'bloom', 'dof', 'vignette', 'grain', 'fov')]],
+      ['Audio', [S.get('master')!, S.get('radiovol')!]],
+      ['Controls', [S.get('invert')!]],
+      ['Game', [S.get('install')!, S.get('radiolib')!, S.get('reset')!]],
+      [`${CONTROLS[this.inputMode].title} controls`, CONTROLS[this.inputMode].rows.map(([k, v]) => ({ id: `c:${k}`, label: k, kind: 'info' as const, desc: `${k}: ${v}. The list follows the device you are using.`, text: () => v }))],
+      ['Minimap', MINIMAP_LEGEND.map((item) => ({ id: `l:${item.text}`, label: item.text, kind: 'info' as const, desc: `On the minimap: ${item.text}.`, text: () => '', swatch: { color: item.swatch, shape: item.shape } }))],
+    ];
+    const out: RowSpec[] = [];
+    for (const [name, rows] of sections) {
+      out.push({ id: `h:${name}`, label: name, kind: 'header' });
+      for (const r of rows) out.push(this.pend(r));
     }
+    return out;
   }
 
-  private catRow(c: Category): RowSpec {
-    return { id: `cat:${c.id}`, label: c.label, kind: 'action', desc: c.desc, gfx: c.gpu ? 'cat' : undefined, text: () => '›', press: () => { this.focusCol('opts'); } };
-  }
-
-  private onCategory(r: RowSpec): void {
-    const id = r.id.slice(4);
-    if (id !== this.catId) this.loadCategory(id);
-    this.showDesc('settings', r);
-  }
-
-  private loadCategory(id: string, keep = false): void {
-    this.catId = id;
-    this.optList.setRows(this.rowsFor(id), keep);
-    this.optList.el.dataset.cat = id;
-    this.syncLists();
+  /** Wraps an editable row: reads show the pending value, writes only go to the pending map. */
+  private pend(spec: RowSpec): RowSpec {
+    if (spec.kind !== 'seg' && spec.kind !== 'slider' && spec.kind !== 'toggle') return spec;
+    this.orig.set(spec.id, spec);
+    const id = spec.id;
+    return {
+      ...spec,
+      get: () => (this.pending.has(id) ? (this.pending.get(id) as string | number | boolean) : spec.get!()),
+      set: ((v: string | number | boolean) => {
+        if (v === spec.get!()) this.pending.delete(id); else this.pending.set(id, v);
+        this.disarmDiscard();
+        this.statusEl.textContent = '';
+      }) as RowSpec['set'],
+      custom: () => this.pending.has(id),
+    };
   }
 
   private afterChange(): void {
@@ -943,7 +1033,7 @@ export class Menu {
   }
 
   private refreshAll(): void {
-    this.optList.refresh(); this.radioList.refresh(); this.catList.refresh();
+    this.optList.refresh(); this.radioList.refresh(); this.syncActs();
     this.showDesc(this.tabId === 'settings' ? 'settings' : (this.tabId as string), (this.activeList() ?? this.optList).current);
   }
 

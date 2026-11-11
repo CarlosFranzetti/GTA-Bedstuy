@@ -334,6 +334,16 @@ export class RenderPipeline {
     return { ao: !!this.gtao, bloom: !!this.bloom, dof: !!this.dof, aa: !!this.smaa, vignette: !!this.grading, grain: !!this.grading };
   }
 
+  /** Current post switches (the debug overlay reads them). */
+  get postState(): Readonly<PostOptions> {
+    return this.post;
+  }
+
+  /** Names of the passes that run this frame (enabled ones only). */
+  get activePassNames(): string[] {
+    return this.passes.filter((p) => p.enabled).map((p) => p.constructor.name);
+  }
+
   /** Live switches for AO (G-buffer, contact/SSR and DoF share it), bloom, DoF, SMAA, vignette and film grain. */
   setPostOptions(o: Partial<PostOptions>): void {
     this.post = { ...this.post, ...o };

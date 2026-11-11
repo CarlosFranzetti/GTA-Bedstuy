@@ -27,6 +27,8 @@ export interface GpuInfo {
   cores?: number;
   /** navigator.deviceMemory (GB, Chromium only, capped at 8) */
   memoryGB?: number;
+  /** running inside the native wrapper (Electron / Tauri): always a desktop context, no phone fallback, high-performance GPU */
+  native?: boolean;
 }
 
 export type OsKind = 'ios' | 'android' | 'mac' | 'windows' | 'linux' | 'other';
@@ -47,6 +49,8 @@ export interface GpuProfile {
   smaa: boolean;
   /** WebGL context attributes to pass to the renderer */
   contextAttributes: { antialias: false; alpha: false; powerPreference: 'high-performance' | 'default' };
+  /** the native app hint was set */
+  native: boolean;
   /** why, for logs and the debug overlay */
   reason: string;
 }
@@ -55,7 +59,7 @@ export function detectOs(i: Pick<GpuInfo, 'userAgent' | 'platform' | 'maxTouchPo
   const ua = i.userAgent ?? '', pf = i.platform ?? '';
   if (/iPhone|iPad|iPod/i.test(ua)) return 'ios';
   // iPadOS 13+ reports a Macintosh UA and platform "MacIntel", but has touch points; no Mac does.
-  if (/Mac/i.test(pf + ua) && (i.maxTouchPoints ?? 0) > 1) return 'ios';
+  if (/Mac/i.test(pf + ua) && (i.maxTouchPoints ?? 0) > 1 && !/Electron\//.test(ua)) return 'ios';
   if (/Android/i.test(ua)) return 'android';
   if (/Win/i.test(pf) || /Windows/i.test(ua)) return 'windows';
   if (/Mac/i.test(pf) || /Macintosh|Mac OS X/i.test(ua)) return 'mac';
@@ -115,9 +119,10 @@ const STRONG: Pick<GpuProfile, 'maxBufferWidth'> = { maxBufferWidth: 3840 };
 
 export function classifyGpu(info: GpuInfo): GpuProfile {
   const os = detectOs(info);
-  const base = { os, smaa: true, contextAttributes: { antialias: false as const, alpha: false as const, powerPreference: 'high-performance' as const } };
+  const native = !!info.native || /Electron\//.test(info.userAgent ?? '');
+  const base = { os, native, smaa: true, contextAttributes: { antialias: false as const, alpha: false as const, powerPreference: 'high-performance' as const } };
 
-  if (os === 'ios' || os === 'android') {
+  if (!native && (os === 'ios' || os === 'android')) {
     return { ...base, gpu: /Apple/i.test(info.renderer) ? 'apple-mobile' : /Adreno/i.test(info.renderer) ? 'adreno' : 'mali', tier: 'phone', maxPixelRatio: 1, maxBufferWidth: 720, smaa: false,
       contextAttributes: { ...base.contextAttributes, powerPreference: 'default' }, reason: `${os} handheld: reduced world by design` };
   }
@@ -158,6 +163,7 @@ export function profilePixelRatio(tierRatio: number, p: Pick<GpuProfile, 'maxPix
 export function readGpuInfo(): GpuInfo {
   const nav = typeof navigator !== 'undefined' ? navigator : undefined;
   const info: GpuInfo = {
+    native: typeof window !== 'undefined' && !!(window as unknown as { gtaNative?: unknown }).gtaNative,
     renderer: '', userAgent: nav?.userAgent, platform: nav?.platform, maxTouchPoints: nav?.maxTouchPoints,
     cores: nav?.hardwareConcurrency, memoryGB: (nav as unknown as { deviceMemory?: number } | undefined)?.deviceMemory,
   };
