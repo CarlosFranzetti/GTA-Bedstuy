@@ -449,3 +449,15 @@ body.ui-panel-open .hud-card { display: none !important; }
     transition: none;
   }
 }
+
+/* ---- help text: top-left (keyboard / gamepad); the objective box slides down to make room. Touch keeps it above the buttons. */
+.hud-root:not(.touch) .hud-prompt {
+  left: max(16px, env(safe-area-inset-left, 0px));
+  top: calc(max(10px, env(safe-area-inset-top, 0px)) + 20px);
+  bottom: auto;
+  transform: none;
+  max-width: min(420px, calc(100% - 200px));
+  white-space: normal;
+  text-align: left;
+}
+.hud-root.has-help:not(.touch) .msn-col { top: calc(max(10px, env(safe-area-inset-top, 0px)) + 76px); }

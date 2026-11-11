@@ -103,8 +103,8 @@ export const REAL_NAME_DENYLIST: readonly string[] = [
   'nypd', 'mta', 'con ed', 'conedison', 'verizon', 'comcast', 'chase bank', 'citibank', 'wells fargo', 'bank of america',
 ];
 
-/** Words that must never appear (slurs and similar). Kept deliberately short and checked on word boundaries. */
-export const BLOCKED_WORDS: readonly string[] = ['nigg', 'fagg', 'retard', 'chink', 'spic', 'kike', 'tranny', 'wetback', 'coon'];
+/** Slurs and similar, matched on word starts (stems) or whole words so ordinary words like "suspicious" pass. */
+export const BLOCKED_PATTERNS: readonly RegExp[] = [/\bnigg/i, /\bfagg/i, /\bretard/i, /\bchink\b/i, /\bspics?\b/i, /\bkikes?\b/i, /\btranny/i, /\bwetback/i, /\bcoons?\b/i, /\bgooks?\b/i, /\bdykes?\b/i];
 
 export function findDenied(text: string): string[] {
   const t = ` ${text.toLowerCase().replace(/[^a-z0-9' -]+/g, ' ')} `;
@@ -112,8 +112,7 @@ export function findDenied(text: string): string[] {
 }
 
 export function findBlocked(text: string): string[] {
-  const t = text.toLowerCase();
-  return BLOCKED_WORDS.filter((w) => t.includes(w));
+  return BLOCKED_PATTERNS.filter((p) => p.test(text)).map((p) => p.source);
 }
 
 export interface LintIssue { where: string; problem: string }

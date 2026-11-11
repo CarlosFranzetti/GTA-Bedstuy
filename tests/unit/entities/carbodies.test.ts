@@ -91,10 +91,8 @@ describe.each(CASES)('procedural $style', (c) => {
     const s = all.getSize(new THREE.Vector3());
     // roster bodies (cab, cruiser) carry their own spec-sheet size
     const dims = c.style === 'cab' ? STYLES.crown.dims! : c.style === 'cop' ? STYLES.charger.dims! : { L: spec.length, W: spec.width, H: spec.height };
-    // garbage truck: the mirrors and the rear loader step stand proud of its (estimated) spec box by up to 17 cm
-    const tol = c.style === 'garbage' ? 0.2 : 0.05;
-    expect(Math.abs(s.z - dims.L)).toBeLessThanOrEqual(tol);
-    expect(Math.abs(s.x - dims.W)).toBeLessThanOrEqual(tol);
+    expect(Math.abs(s.z - dims.L)).toBeLessThanOrEqual(0.05);
+    expect(Math.abs(s.x - dims.W)).toBeLessThanOrEqual(0.05);
     // the roof light / light bar / roof rails stand on the roof: the hull itself reaches the spec height
     expect(Math.abs(body.max.y - dims.H)).toBeLessThanOrEqual(c.style === 'cop' || c.style === 'cab' ? 0.2 : 0.05);
     expect(all.min.y).toBeGreaterThanOrEqual(-0.02);
@@ -107,7 +105,6 @@ describe.each(CASES)('procedural $style', (c) => {
   });
 
   it('is at most 10 draw calls (one mesh per material, wheels aside)', () => {
-    // the garbage truck's second rear axle is one more tyre mesh (4 instead of 3) next to its packer body mesh
     expect(meshes(m.group).length).toBeLessThanOrEqual(BARRED(c) ? 12 : SIX(c) ? 11 : 10);
     const nonWheel = meshes(m.group).filter((x) => x.name !== 'tyre');
     expect(nonWheel.length).toBeLessThanOrEqual(BARRED(c) ? 9 : 7);
@@ -258,7 +255,7 @@ describe.each(CASES)('merged near $style', (c) => {
     expect(mt.elements.every((v, i) => Math.abs(v - roll1.elements[i]) < 1e-5)).toBe(true);
     expect(new THREE.Vector3().setFromMatrixPosition(mt).y).toBeCloseTo(m.wheelRadius, 6);
     expect(set.boundingSphere).toBeTruthy();
-    set.getMatrixAt(m.wheels.length - 1, mt); // the last wheel is a rear one (index 3 is the right front on the six-wheeler)
+    set.getMatrixAt(3, mt);
     expect(new THREE.Vector3().setFromMatrixPosition(mt).z).toBeGreaterThan(0);
   });
   it('farSource rebuilds the split structure CarLod cuts the far proxies from', () => {

@@ -12,7 +12,9 @@ import { LIBRARY_STATIONS } from './library/genres';
 import type { Library } from './library/Library';
 import { buildLibraryTimeline, locate, type Timeline } from './library/timeline';
 import type { Deck } from './decks';
-import type { TalkPlayer } from './talk/TalkPlayer';
+import type { TalkLike } from './voice/TalkStation';
+import type { DjScheduler } from './voice/Scheduler';
+import type { VoiceHub } from './voice/VoiceHub';
 import type { SpeechLike, UtteranceLike } from './talk/TalkPlayer';
 import { ScStation, SC_STORAGE_KEY } from './sc/ScStation';
 import { RaFeed, matcherFor } from './sc/RaFeed';
@@ -47,7 +49,7 @@ export interface DirectorOptions {
   /** Extra ScStation environment (tests: canLoad, loadApi, doc, timeoutMs, ...), applied to every SoundCloud station. */
   scEnv?: Partial<import('./sc/ScStation').ScEnv>;
   /** Speech used by the announcers. Absent = no voices (text-only HUD line). */
-  voice?: { speech: SpeechLike | null; makeUtterance: (text: string) => UtteranceLike; volume: () => number; random?: () => number };
+  voice?: { speech: SpeechLike | null; makeUtterance: (text: string) => UtteranceLike; volume: () => number; random?: () => number; /** VOX: DJ copy + HD/system voice hub. */ dj?: DjScheduler; hub?: VoiceHub };
   /** Ready-made announcer (tests). */
   announcer?: Announcer;
 }
@@ -91,7 +93,7 @@ export class RadioDirector {
   private naturalChanges = 0;
   private readonly unsubLib: () => void;
 
-  constructor(readonly library: Library, readonly talk: TalkPlayer, synthStations: Station[] = [], sc?: ScStation, opts: DirectorOptions = {}) {
+  constructor(readonly library: Library, readonly talk: TalkLike, synthStations: Station[] = [], sc?: ScStation, opts: DirectorOptions = {}) {
     this.feed = opts.feed !== undefined ? opts.feed : (sc?.feed ?? new RaFeed());
     for (const def of SC_STATIONS) {
       const match = matcherFor(def.patterns);
@@ -125,6 +127,8 @@ export class RadioDirector {
       talkBusy: () => this.current.kind === 'talk' || this.talk.isActive,
       context: () => this.broadcast,
       random: v?.random ?? Math.random,
+      dj: v?.dj,
+      hub: v?.hub,
     });
     this.refreshDial();
     this.unsubLib = library.onChange(() => {
@@ -173,6 +177,9 @@ export class RadioDirector {
     const c = this.current;
     return c.kind === 'sc' ? this.scMap.get(c.id) ?? null : null;
   }
+
+  /** Live broadcast state (hour, weather, street, wanted level ...) for the talk station. */
+  get broadcastContext(): BroadcastContext { return this.broadcast; }
 
   /** Feeds hour, weather and street to the announcers (hour 0..24, rain 0..1). */
   setBroadcast(ctx: Partial<BroadcastContext>): void {

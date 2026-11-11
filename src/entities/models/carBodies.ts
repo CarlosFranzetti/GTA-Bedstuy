@@ -2048,7 +2048,7 @@ export function buildTruckParts(spec: VehicleSpec, kind: 'box' | 'garbage' = 'bo
   // ---- chassis rails, fuel tank, rear bar, mudflaps, axles
   trim.add(bx(1.0, 0.22, L - 1.2, 0, 0.9, 0.0)); // frame rails under the box
   trim.add(bx(2 * Wg2 - 0.3, 0.14, 0.2, 0, 0.8, L / 2 - 0.1)); // rear underride bar
-  trim.add(cylX(0.2, 0.7, Wc2 - 0.1, 0.85, 0.3, 8));
+  trim.add(cylX(0.2, 0.7, G ? Wc2 - 0.3 : Wc2 - 0.1, 0.85, 0.3, 8));
   trim.add(cylX(0.07, 2 * wx, 0, R, -axleF, 6));
   trim.add(cylX(0.09, 2 * wx, 0, R, -axleR, 6));
   if (G) trim.add(cylX(0.09, 2 * wx, 0, R, -axleR2, 6));
@@ -2060,15 +2060,15 @@ export function buildTruckParts(spec: VehicleSpec, kind: 'box' | 'garbage' = 'bo
   if (G) {
     // rear loader: hopper mouth (dark), loading lip, packer blade slot, lift arms and comb, bumper step, side hatches, roof beacon
     trim.add(bx(2 * Wg2 - 0.5, 0.9, 1.1, 0, 1.45, -(cargoBack + 0.55))); // hopper void
-    trim.add(bx(2 * Wg2 - 0.3, 0.14, 0.2, 0, 1.2, rz + 0.1)); // sill lip
+    trim.add(bx(2 * Wg2 - 0.3, 0.14, 0.2, 0, 1.2, rz - 0.1)); // sill lip
     trim.add(bx(2 * Wg2 - 0.7, 0.5, 0.03, 0, 2.2, -(cargoBack + 1.5))); // packer panel
     for (const s2 of [-1, 1]) {
-      trim.add(bx(0.1, 0.9, 0.1, s2 * (Wg2 - 0.2), 1.9, rz + 0.04)); // lift-arm post
-      trim.add(bx(0.08, 0.08, 0.7, s2 * (Wg2 + 0.01), 2.5, -(cargoBack + 0.9))); // side hatch hinge
+      trim.add(bx(0.1, 0.9, 0.1, s2 * (Wg2 - 0.2), 1.9, rz - 0.06)); // lift-arm post
+      trim.add(bx(0.08, 0.08, 0.7, s2 * (Wg2 - 0.03), 2.5, -(cargoBack + 0.9))); // side hatch hinge
       trim.add(bx(0.03, 1.2, 2.0, s2 * (Wg2 + 0.006), 2.35, -(cargoBack + 2.6))); // side panel hatch outline
     }
-    trim.add(bx(2 * Wg2 - 0.2, 0.18, 0.3, 0, 0.82, L / 2 - 0.1)); // rear step platform
-    for (let k = -3; k <= 3; k++) chrome.add(bx(0.02, 0.5, 0.03, k * 0.3, 1.9, rz + 0.12)); // comb teeth
+    trim.add(bx(2 * Wg2 - 0.2, 0.18, 0.3, 0, 0.82, L / 2 - 0.17)); // rear step platform
+    for (let k = -3; k <= 3; k++) chrome.add(bx(0.02, 0.5, 0.03, k * 0.3, 1.9, rz - 0.02)); // comb teeth
   } else {
   for (let y = 1.4; y <= 3.12; y += 0.14) trim.add(decalZ(2 * Wg2 - 0.4, 0.016, 0, y, rz));
   trim.add(bx(2 * Wg2 - 0.36, 0.04, 0.03, 0, 1.3, rz + 0.01)); // bottom bar of the roll-up door
@@ -2097,8 +2097,8 @@ export function buildTruckParts(spec: VehicleSpec, kind: 'box' | 'garbage' = 'bo
   for (const s of [-1, 1]) {
     parts.wheels.push({ x: s * wx, z: -axleF, front: true });
     parts.wheels.push({ x: s * wx, z: -axleR, front: false });
-    if (G) parts.wheels.push({ x: s * wx, z: -axleR2, front: false });
   }
+  if (G) for (const s of [-1, 1]) parts.wheels.push({ x: s * wx, z: -axleR2, front: false }); // the tandem's second axle comes after the usual four
   return parts;
 }
 

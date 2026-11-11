@@ -117,3 +117,4 @@ Shared files via `FOR FABLE:` as before. Nobody commits. Ports: V1 4401, PT 4402
 | MENU | sonnet | merges OPTIONS + GUI (both stopped mid-work): GTA V style pause menu, HUD, phone, loading screen, fullscreen, graphics settings | 4462 |
 | TEXVAR (cont.) | sonnet | texture variety + finishing LOADMUSIC (src/audio/loadingTheme.ts) | 4464 |
 | FLICKER (cont.) | sonnet | flicker fixes + Mac M-series / Windows / iPhone platform defaults | 4461 |
+| NATIVE | sonnet | native/** (desktop shell), .github/workflows/native.yml, docs/NATIVE.md | 4477 |

@@ -6,7 +6,7 @@
  * Value kinds: seg (left / right steps through options), slider (thin segmented bar), toggle (ON / OFF text),
  * action (Enter runs it), info (read only, may still be highlighted for its description).
  */
-export type RowKind = 'seg' | 'slider' | 'toggle' | 'action' | 'info';
+export type RowKind = 'seg' | 'slider' | 'toggle' | 'action' | 'info' | 'header';
 
 export interface SegOption { value: string | number; label: string; hidden?: boolean }
 
@@ -33,6 +33,8 @@ export interface RowSpec {
   /** info rows: text on the right */
   text?: () => string;
   swatch?: { color: string; shape: string };
+  /** value the DEFAULTS button restores (settings rows) */
+  def?: () => string | number | boolean;
   /** muted row (locked mission, unavailable) */
   dim?: () => boolean;
   /** info row with a check / state glyph */
@@ -105,12 +107,12 @@ export class RowList {
   /** Re-reads every value and visibility. */
   refresh(): void {
     for (const r of this.rows) this.sync(r);
-    if (this.rows[this.idx]?.el.hidden) this.snapToVisible(1);
+    if (!this.ok(this.idx)) this.snapToVisible(1);
     this.paintHighlight(false);
   }
 
   highlight(i: number, focus = false): void {
-    if (i < 0 || i >= this.rows.length || this.rows[i].el.hidden) return;
+    if (i < 0 || i >= this.rows.length || !this.ok(i)) return;
     const changed = i !== this.idx;
     this.idx = i;
     this.paintHighlight(focus || (this.activeFlag && changed));
@@ -123,7 +125,7 @@ export class RowList {
     let i = this.idx;
     for (let k = 0; k < n; k++) {
       i = (i + dir + n) % n;
-      if (!this.rows[i].el.hidden) { this.highlight(i, true); return; }
+      if (this.ok(i)) { this.highlight(i, true); return; }
     }
   }
 
@@ -171,17 +173,24 @@ export class RowList {
 
   /* ---------- internals ---------- */
 
+  private ok(i: number): boolean { const r = this.rows[i]; return !!r && !r.el.hidden && r.spec.kind !== 'header'; }
+
+  /** true when no selectable row follows the highlighted one. */
+  atEnd(): boolean { for (let i = this.idx + 1; i < this.rows.length; i++) if (this.ok(i)) return false; return true; }
+  highlightLast(focus = false): void { for (let i = this.rows.length - 1; i >= 0; i--) if (this.ok(i)) { this.highlight(i, focus); return; } }
+
   private snapToVisible(dir: 1 | -1): void {
     const n = this.rows.length;
-    if (n === 0 || !this.rows[this.idx]?.el.hidden) return;
+    if (n === 0 || this.ok(this.idx)) return;
     for (let k = 1; k <= n; k++) {
       const i = (this.idx + dir * k + n * k) % n;
-      if (!this.rows[i].el.hidden) { this.idx = i; return; }
+      if (this.ok(i)) { this.idx = i; return; }
     }
   }
 
   private paintHighlight(focus: boolean): void {
     this.rows.forEach((r, i) => {
+      if (r.spec.kind === 'header') return;
       const on = i === this.idx;
       r.el.classList.toggle('hi', on);
       r.el.setAttribute('aria-selected', String(on));
@@ -198,6 +207,7 @@ export class RowList {
     const d = this.doc;
     const el = d.createElement('div');
     el.className = `gp-row k-${spec.kind}`;
+    if (spec.kind === 'header') { el.className = 'gp-sub'; el.textContent = spec.label; el.setAttribute('role', 'presentation'); return { spec, el, val: el }; }
     el.dataset.id = spec.id;
     el.setAttribute('role', 'option');
     el.tabIndex = -1;
@@ -240,7 +250,7 @@ export class RowList {
     else if (built.left && built.right) val.append(built.left, text, built.right);
     else val.append(text);
     el.append(lab, val);
-    el.addEventListener('mouseenter', () => { if (!el.hidden && (this.opts.canHover?.() ?? true)) this.highlight(this.rows.indexOf(built)); });
+    el.addEventListener('mouseenter', () => { if (this.ok(this.rows.indexOf(built)) && (this.opts.canHover?.() ?? true)) this.highlight(this.rows.indexOf(built)); });
     el.addEventListener('click', () => {
       this.pointerTo(built);
       if (spec.kind === 'slider') return; // the bar and arrows handle themselves
@@ -284,6 +294,7 @@ export class RowList {
     b.el.hidden = s.visible ? !s.visible() : false;
     b.el.classList.toggle('is-custom', !!s.custom?.());
     b.el.classList.toggle('dim', !!s.dim?.());
+    if (s.kind === 'header') return;
     const text = b.val.querySelector<HTMLElement>('.gp-text')!;
     let shown = '';
     if (s.kind === 'toggle') { const on = Boolean(s.get?.()); shown = on ? 'ON' : 'OFF'; b.el.classList.toggle('on', on); b.el.setAttribute('aria-checked', String(on)); }

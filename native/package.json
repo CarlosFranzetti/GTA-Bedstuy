@@ -1,0 +1,27 @@
+{
+  "name": "gta-bedstuy-native",
+  "productName": "GTA Bed-Stuy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop shell (Electron) for GTA Bed-Stuy, a non-commercial fan tribute. Not affiliated with Rockstar Games or Take-Two.",
+  "author": "GTA Bed-Stuy fan tribute",
+  "license": "UNLICENSED",
+  "main": "out/main.js",
+  "scripts": {
+    "compile": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "prep": "node scripts/prep.mjs",
+    "start": "npm run compile && electron .",
+    "dev": "npm run compile && electron . --dev",
+    "dist:mac": "npm run compile && npm run prep && electron-builder --mac --arm64 --config electron-builder.config.cjs",
+    "dist:win": "npm run compile && npm run prep && electron-builder --win --x64 --config electron-builder.config.cjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "electron": "^45.3.0",
+    "electron-builder": "^26.18.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

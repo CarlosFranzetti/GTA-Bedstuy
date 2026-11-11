@@ -405,3 +405,9 @@ The user's words: "I don't know what's up with the cartoonish models I currently
 5. A playtester agent.
 6. Runs well on a macOS M4 laptop and Windows; the iPhone version is limited by design.
 7. Keep going on textures, loading screens, GTA-style GUI, loading music. Many agents in parallel.
+
+## Stage 13 asks (user, 11 Nov, evening)
+1. Options screen in the style of the Borderlands 2 settings screen the user sent (comic ink look, big yellow SETTINGS title, one list of rows "label ◄ value ►", APPLY / DEFAULTS / BACK on the right). Supersedes the GTA V three-column layout for settings.
+2. Still graphics glitches in Chrome on the Mac: keep hunting; add a debug overlay to isolate passes.
+3. Native apps: macOS Apple Silicon and Windows x64, built in CI.
+4. Radio voices: free in-browser neural TTS (no ElevenLabs), GTA-style hosts, talk shows, interviews.

@@ -198,6 +198,15 @@ export class GraphicsStore {
     return true;
   }
 
+  /** Drop one override (the setting follows the tier again). */
+  unset(key: GraphicsKey): boolean {
+    if (!(key in this.overrides)) return false;
+    delete this.overrides[key];
+    this.persist();
+    this.emit([key]);
+    return true;
+  }
+
   /** "Reset to preset": drop every override. */
   reset(): void {
     const keys = Object.keys(this.overrides) as GraphicsKey[];

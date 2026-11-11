@@ -119,3 +119,28 @@ describe('mission subtitle', () => {
     expect(highlightKeywords(document, 'Go to Throop Ave').filter((n) => (n as HTMLElement).className === 'msn-kw').map((n) => n.textContent)).toEqual(['Throop Ave']);
   });
 });
+
+describe('HUD help text and wanted stars', () => {
+  it('shows the help prompt and flags the root so the objective box makes room', () => {
+    const hud = new Hud(root);
+    hud.update(hs);
+    expect(root.classList.contains('has-help')).toBe(false);
+    hud.update({ ...hs, prompt: 'F  Enter car' });
+    expect(q(root, '.hud-prompt').hidden).toBe(false);
+    expect(q(root, '.hud-prompt').textContent).toContain('Enter car');
+    expect(root.classList.contains('has-help')).toBe(true);
+    hud.update({ ...hs, prompt: '' });
+    expect(root.classList.contains('has-help')).toBe(false);
+  });
+
+  it('draws the wanted level as stars (on / off) with a pulse when it changes', () => {
+    const hud = new Hud(root);
+    hud.update({ ...hs, stars: 1 });
+    const stars = [...root.querySelectorAll('.hud-star')];
+    expect(stars.map((s) => s.classList.contains('on'))).toEqual([true, false, false]);
+    hud.update({ ...hs, stars: 3 });
+    expect(stars.map((s) => s.classList.contains('on'))).toEqual([true, true, true]);
+    expect(q(root, '.hud-stars').classList.contains('pulse')).toBe(true);
+    expect(q(root, '.hud-stars').getAttribute('aria-label')).toContain('3');
+  });
+});

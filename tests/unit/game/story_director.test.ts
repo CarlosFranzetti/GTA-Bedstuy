@@ -26,7 +26,7 @@ const lots = subdivideLots(grid, data.pois, new Rng(data.seed).fork('lots'));
 const defs = buildMissions(grid, data, lots, { el: { home: { x: 40, z: 60 }, north: { x: 120, z: -480 } } });
 const byId = (id: string) => defs.find((d) => d.id === id)!;
 
-function rig(opts: Parameters<typeof StoryDirector.prototype.constructor>[2] = {}) {
+function rig(opts: ConstructorParameters<typeof StoryDirector>[2] = {}) {
   const texts: Array<{ from: string; text: string; key?: string }> = [];
   const phone = { text: (from: string, text: string, o?: { key?: string }) => { texts.push({ from, text, key: o?.key }); return true; } };
   let bot!: Bot;
@@ -227,7 +227,7 @@ describe('ambient storytelling: signs follow the flags', () => {
     st.set(F.ACT1);
     amb.sync(st);
     expect(amb.group.children.filter((c) => c.visible).length).toBeGreaterThan(0);
-    expect(amb.group.children.filter((c) => (c as { userData: { ambient: string } }).userData.ambient.startsWith('notice-') && c.visible)).toHaveLength(0);
+    expect(amb.group.children.filter((c) => (c as unknown as { userData: { ambient: string } }).userData.ambient.startsWith('notice-') && c.visible)).toHaveLength(0);
     amb.dispose();
     expect(amb.group.children).toHaveLength(0);
   });

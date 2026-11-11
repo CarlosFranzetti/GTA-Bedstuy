@@ -17,6 +17,12 @@ import { estimateSeconds, chunkText } from '../talk/script';
 import { pickVoices, type SpeechLike, type UtteranceLike, type VoiceLike } from '../talk/TalkPlayer';
 import { personaFor, type Persona } from './personas';
 import { SCRIPTS, fillScript, shortStreet, spokenTime, weatherPhrase, type WeatherKind } from './scripts';
+import type { DjScheduler, DjOut } from '../voice/Scheduler';
+import type { VoiceHub } from '../voice/VoiceHub';
+import type { PlayHandle, ResolvedLine } from '../voice/SpeechPlayer';
+import type { VoiceContext } from '../voice/types';
+import { spokenText } from '../voice/script';
+import { DJ_COPY } from '../voice/shows/djs';
 
 /** At most one unprompted announcement per this many seconds. */
 export const ANNOUNCER_MIN_GAP_S = 8 * 60;
@@ -43,6 +49,10 @@ export interface BroadcastContext {
   bulletins?: readonly string[];
   /** Story ads that may replace a one-liner (`broadcast().ads`). */
   ads?: readonly string[];
+  /** VOX: live state for the police blotter and news bulletins. Wanted level 0..5, missions finished, title of the last one. */
+  stars?: number;
+  missionsDone?: number;
+  lastMission?: string;
 }
 
 export const DEFAULT_BROADCAST: BroadcastContext = { hour: -1, weather: 'dry', rain: 0, street: 'Throop Ave' };
@@ -58,6 +68,9 @@ export interface AnnouncerEnv {
   talkBusy: () => boolean;
   context: () => BroadcastContext;
   random: () => number;
+  /** VOX lane: in-character DJ copy (real set names, time, weather, traffic, shout-outs, ads) and the voice hub that speaks it (HD voices or system voices per character). Absent = the original SpeechSynthesis path. */
+  dj?: DjScheduler;
+  hub?: VoiceHub;
 }
 
 export interface SetInfo { title: string; user?: string; dj?: string }
@@ -66,7 +79,7 @@ export type AnnounceKind = 'id' | 'set' | 'ident' | 'hour';
 
 type Phase = 'idle' | 'speaking' | 'text';
 
-interface Pending { kind: AnnounceKind; lines: string[]; delay: number }
+interface Pending { kind: AnnounceKind; lines: string[]; delay: number; rlines?: ResolvedLine[] }
 
 /** Makes a SoundCloud title safe and short to read aloud. */
 export function speakable(text: string, max = 90): string {
@@ -101,6 +114,7 @@ export class Announcer {
   private duckTarget = 1;
   private voices: Record<string, VoiceLike | null> | null = null;
   private voiceCount = -1;
+  private handle: PlayHandle | null = null;
   private readonly bags = new Map<string, number[]>();
   private readonly newsHeard = new Set<string>();
   /** Everything that was announced, newest last (tests and the transcript). */
@@ -112,6 +126,7 @@ export class Announcer {
 
   /** True when this device has at least one SpeechSynthesis voice. */
   get voiceAvailable(): boolean {
+    if (this.env.hub) return this.env.hub.canSpeak;
     const sp = this.env.speech;
     if (!sp) return false;
     try { return sp.getVoices().length > 0; } catch { return false; }
@@ -137,10 +152,14 @@ export class Announcer {
     this.persona = personaFor(def.id) ?? null;
     this.pending = null;
     if (!this.persona || this.sinceTune < ANNOUNCER_TUNE_COOLDOWN_S) return;
+    this.sinceTune = 0;
+    if (this.env.dj) {
+      this.pending = { ...this.fromDj('id', this.env.dj.ident(def.id, def.name, def.freq, this.vctx())), delay: ANNOUNCER_JINGLE_DELAY_S };
+      return;
+    }
     const s = SCRIPTS[def.id];
     const line = fillScript(this.pick(s.ids), { station: def.name, freq: def.freq });
     this.pending = { kind: 'id', lines: [line], delay: ANNOUNCER_JINGLE_DELAY_S };
-    this.sinceTune = 0;
   }
 
   /** The listener left the music stations (talk show, radio off, out of the car). */
@@ -155,6 +174,12 @@ export class Announcer {
   betweenSets(prev: SetInfo | null, next: SetInfo | null): boolean {
     const def = this.def;
     if (!def || !this.persona || this.env.talkBusy()) return false;
+    if (this.env.dj) {
+      const nm = (x: SetInfo | null) => (x ? { dj: speakable(x.dj ?? x.user ?? '', 50) || undefined, title: speakable(x.title) || undefined } : null);
+      this.stopOwnSpeech();
+      this.pending = { ...this.fromDj('set', this.env.dj.betweenSets(def.id, def.name, def.freq, nm(prev), nm(next), this.vctx())), delay: ANNOUNCER_JINGLE_DELAY_S };
+      return true;
+    }
     const s = SCRIPTS[def.id];
     const lines: string[] = [];
     const pd = speakable(prev?.dj ?? prev?.user ?? '', 50);
@@ -190,13 +215,13 @@ export class Announcer {
     }
     if (this.pending) {
       this.pending.delay -= dt;
-      if (this.pending.delay <= 0) { const p = this.pending; this.pending = null; this.begin(p.kind, p.lines); }
+      if (this.pending.delay <= 0) { const p = this.pending; this.pending = null; this.begin(p.kind, p.lines, p.rlines); }
       return;
     }
     switch (this.phase) {
       case 'speaking':
         this.elapsed += dt;
-        if (this.elapsed > Math.max(25, estimateSeconds(this.text) * 2.5 + 10)) this.finish(); // speech stalled
+        if (this.elapsed > Math.max(this.env.hub ? 120 : 25, estimateSeconds(this.text) * 2.5 + 10)) this.finish(); // speech stalled
         break;
       case 'text':
         this.timer -= dt;
@@ -241,6 +266,13 @@ export class Announcer {
     if (this.nextBulletin() !== null) { this.speakBulletin(); return; }
     const ads = this.env.context().ads;
     if (ads && ads.length > 0 && this.env.random() < ANNOUNCER_AD_CHANCE) { this.begin('ident', [this.pick(ads)]); return; }
+    if (this.env.dj) {
+      const out = this.env.dj.idle(def.id, def.name, def.freq, this.vctx());
+      const k = out.label === 'hours' ? 'hour' : 'ident';
+      const f = this.fromDj(k, out);
+      this.begin(f.kind, f.lines, f.rlines);
+      return;
+    }
     const s = SCRIPTS[def.id];
     if (this.env.random() < 0.3) {
       const ctx = this.env.context();
@@ -254,7 +286,13 @@ export class Announcer {
     }
   }
 
-  private begin(kind: AnnounceKind, lines: string[]): void {
+  private vctx(): Partial<VoiceContext> { return this.env.context() as unknown as Partial<VoiceContext>; }
+
+  private fromDj(kind: AnnounceKind, out: DjOut): { kind: AnnounceKind; lines: string[]; rlines: ResolvedLine[] } {
+    return { kind, lines: out.lines.map((l) => spokenText(l.text)), rlines: out.lines };
+  }
+
+  private begin(kind: AnnounceKind, lines: string[], rlines?: ResolvedLine[]): void {
     const def = this.def;
     const persona = this.persona;
     if (!def || !persona || lines.length === 0 || this.env.talkBusy()) return;
@@ -274,6 +312,13 @@ export class Announcer {
     }
     this.phase = 'speaking';
     this.setDuckNow(ANNOUNCER_DUCK);
+    const hub = this.env.hub;
+    if (hub) {
+      const rl = rlines ?? lines.map((text) => ({ who: DJ_COPY[def.id].who, text }));
+      const my = this.token;
+      this.handle = hub.player.play(rl, { onEnd: () => { if (my === this.token && this.phase === 'speaking') this.finish(); } });
+      return;
+    }
     this.nextLine();
   }
 
@@ -309,6 +354,7 @@ export class Announcer {
   }
 
   private finish(): void {
+    this.handle = null;
     this.token++;
     this.phase = 'idle';
     this.duckTarget = 1;
@@ -317,6 +363,7 @@ export class Announcer {
   /** Cancels only our own speech: the shared synthesizer also carries WBSY Talk, so it is never cancelled otherwise. */
   private stopOwnSpeech(): void {
     const wasSpeaking = this.phase === 'speaking';
+    if (this.handle) { this.handle.cancel(); this.handle = null; }
     this.token++;
     this.phase = 'idle';
     if (wasSpeaking && !this.env.talkBusy()) { try { this.env.speech?.cancel(); } catch { /* ignore */ } }

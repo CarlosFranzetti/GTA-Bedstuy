@@ -125,3 +125,31 @@ describe('ContextGuard', () => {
     expect(fn).toBeNull(); expect(g.restoredCount).toBe(2);
   });
 });
+
+describe('native app hint', () => {
+  it('Electron on a Mac arm64 and on Windows is a desktop with the high-performance GPU, whatever the touch points', () => {
+    const el = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) gta/1.0 Chrome/130.0.0.0 Electron/33.0.0 Safari/537.36';
+    const p = classifyGpu({ renderer: 'ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Pro, Unspecified Version)', userAgent: el, platform: 'MacIntel', maxTouchPoints: 5, cores: 12 });
+    expect(p.native).toBe(true); expect(p.os).toBe('mac'); expect(p.tier).toBe('high'); expect(p.contextAttributes.powerPreference).toBe('high-performance');
+    const w = classifyGpu({ ...win('ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 Direct3D11 vs_5_0 ps_5_0, D3D11)'), native: true });
+    expect(w.native).toBe(true); expect(w.tier).toBe('high');
+    expect(classifyGpu(win('NVIDIA GeForce RTX 4060')).native).toBe(false);
+  });
+});
+
+import { describeGfx, gfxDebugRequested, flagToggle } from '@/render/GfxDebug';
+describe('gfx debug overlay model', () => {
+  it('?debug=gfx is the only trigger; the report lists renderer, tier, dpr, passes and what is switched off', () => {
+    expect(gfxDebugRequested('?debug=gfx')).toBe(true);
+    expect(gfxDebugRequested('?debug=1')).toBe(false);
+    let bloom = true;
+    const lines = describeGfx({
+      rendererString: 'ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)', profile: classifyGpu(mac('Apple M4')),
+      tier: () => 'high', pixelRatio: () => 1.75, bufferSize: () => ({ w: 2646, h: 1708 }), activePasses: () => ['RenderPass', 'GTAOPass'],
+      toggles: [flagToggle('bloom', 'Bloom', () => bloom, (o) => { bloom = o; })],
+    }).join('\n');
+    expect(lines).toContain('Apple M4'); expect(lines).toContain('dpr 1.75'); expect(lines).toContain('RenderPass > GTAOPass'); expect(lines).toContain('switched off: nothing');
+    bloom = false;
+    expect(describeGfx({ rendererString: '', profile: classifyGpu(mac('Apple M4')), tier: () => 'high', pixelRatio: () => 1, bufferSize: () => ({ w: 1, h: 1 }), activePasses: () => [], toggles: [flagToggle('bloom', 'Bloom', () => bloom, (o) => { bloom = o; })] }).join('\n')).toContain('switched off: bloom');
+  });
+});

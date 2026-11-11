@@ -115,3 +115,31 @@ describe('deriveGraphics', () => {
     expect(deriveGraphics('phone', presetFor('phone'), env).shadowMap).toBe('phone');
   });
 });
+
+describe('GPU load estimate', () => {
+  it('rises with heavier settings and stays within 0..1', async () => {
+    const { gpuLoad, optionLoad, loadLabel, presetFor, mergeGraphics } = await import('@/ui/GraphicsSettings');
+    const high = presetFor('high');
+    const heavy = gpuLoad(high, 'high');
+    expect(heavy).toBeGreaterThan(0);
+    expect(heavy).toBeLessThanOrEqual(1);
+    expect(gpuLoad({ ...high, shadows: 'off' }, 'high')).toBeLessThan(heavy);
+    expect(gpuLoad({ ...high, resolution: 0.5 }, 'high')).toBeLessThan(heavy);
+    expect(gpuLoad({ ...high, ao: false, dof: false, bloom: false }, 'high')).toBeLessThan(heavy);
+    expect(gpuLoad(presetFor('phone'), 'phone')).toBeLessThan(gpuLoad(presetFor('low'), 'low') + 0.3);
+    const max = mergeGraphics('high', { resolution: 1, nativeDpr: true, shadows: 'high', drawDistance: 1.5, treeRange: 2, crowd: 1.5, traffic: 1.5, textures: 'high' });
+    expect(gpuLoad(max, 'high')).toBeGreaterThan(0.85);
+    expect(optionLoad('shadows', { ...high, shadows: 'high' })).toBe(1);
+    expect(optionLoad('shadows', { ...high, shadows: 'off' })).toBe(0);
+    expect(optionLoad('fpsCap', high)).toBe(0);
+    expect(loadLabel(0.1)).toBe('Light');
+    expect(loadLabel(0.4)).toBe('Moderate');
+    expect(loadLabel(0.7)).toBe('Heavy');
+    expect(loadLabel(0.95)).toBe('Very heavy');
+  });
+  it('ignores settings the tier cannot honour (AO on the phone tier changes nothing)', async () => {
+    const { gpuLoad, presetFor } = await import('@/ui/GraphicsSettings');
+    const phone = presetFor('phone');
+    expect(gpuLoad({ ...phone, ao: true, dof: true }, 'phone')).toBe(gpuLoad(phone, 'phone'));
+  });
+});
