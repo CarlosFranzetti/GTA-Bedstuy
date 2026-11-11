@@ -31,6 +31,10 @@ try {
     const d = window.__gtaDebug; const THREE = null;
     d.setHour(12); d.traffic.setHour?.(12, true); d.stopLoop();
     const canvas = document.querySelector('canvas.game') || document.querySelector('canvas');
+    // ENGINE 11 Nov: keep the game canvas out of the compositor while frames are rendered by hand. Headless software compositing
+    // reads back every presented WebGL frame and the renderer grows by ~100 MB per few frames until the OOM killer ends the page.
+    // drawImage below reads the drawing buffer directly, so the metric is unchanged.
+    canvas.style.display = 'none';
     const cw = canvas.width, ch = canvas.height;
     const c2 = document.createElement('canvas'); c2.width = cw; c2.height = ch;
     const ctx = c2.getContext('2d', { willReadFrequently: true });
