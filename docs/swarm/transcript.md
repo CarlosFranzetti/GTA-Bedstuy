@@ -2477,3 +2477,9 @@ FINAL r3: frames p20/ (lineup, close-a/b, faces-b); in-game peds frame 17-peds q
 
 ### 2026-11-11T10:46:59Z · TEXVAR
 FINAL: per-lot colourways + 4-tile CC0 detail atlas (stucco, glazed tile, cast stone, cobble; +66 KB), gate states, parody wall signs, soft sidewalk patches, ashlar trim (D5 grey block = plain limestone trim face; now per-block tone and joints). Artifact 11.72 MB. Draw calls +0.0%, tris within 0.1% (frames 8,10). Frames texvar/final/low. LOADMUSIC: createLoadingTheme(ctx, dest, {volume}) -> start()/stop(fadeSec)/setVolume(v)/playing; peak -5.5 dBFS, no silent bars.
+
+### 2026-11-11T11:06:35Z · CHAR14
+start: reading ped painters; plan = strip lettering, fabric patterns, shader mats, hijab/seams, social scheduler
+
+### 2026-11-11T11:06:47Z · MAPLEAD
+started: reading grid consumers, probing NYC centerline dataset
