@@ -9,7 +9,7 @@ import { RoadNet, roadNetFromGrid } from '@/world/roadnet/RoadNet';
 import type { RoadNetJson } from '@/world/roadnet/codec';
 import { deriveGeometry } from '@/world/roadnet/derive';
 import {
-  COLUMN_STEP, ELBOW_R, buildElPaths, carArcLengths, columnSpots, periodOf, pointOnPath, schedulePath, sharedPrefix, trainStateReal,
+  COLUMN_STEP, ELBOW_R, buildElPaths, carArcLengths, columnSpots, periodOf, pointOnPath, projectOnPath, schedulePath, sharedPrefix, trainStateReal,
 } from '@/world/roadnet/elReal';
 import { buildElStructureReal } from '@/world/roadnet/elStructureReal';
 import { TRAIN_LENGTH, V_CRUISE } from '@/transit/ElLine';
@@ -141,7 +141,17 @@ describe('columns', () => {
   it('stand every 18 m on both curb lines, outside the roadway, and keep out of node polygons and crosswalk bands', () => {
     for (const p of paths) {
       const spots = columnSpots(p, derived, net);
-      expect(spots.length).toBeGreaterThan(p.length / COLUMN_STEP); // two curb lines, minus the skipped junction pairs
+      // two curb lines, minus the pairs skipped at junctions (Broadway has a cross street about every 60 m)
+      expect(spots.length).toBeGreaterThan(0.6 * (p.length / COLUMN_STEP));
+      expect(spots.length).toBeLessThanOrEqual(2 * Math.ceil(p.length / COLUMN_STEP));
+      let maxGap = 0, prevS = 0;
+      for (let i = 0; i < spots.length; i += 2) {
+        const s = projectOnPath(p, spots[i].p).s;
+        maxGap = Math.max(maxGap, s - prevS);
+        prevS = s;
+      }
+      console.log(`[el-real] ${p.id}: ${spots.length} columns, longest unsupported span ${maxGap.toFixed(0)} m`);
+      expect(maxGap).toBeLessThan(90);
       expect(spots.length % 2).toBe(0);
       for (const sp of spots) {
         const h = net.nearestEdge(sp.p, 40, (e) => net.edges[e].name === 'Broadway' || net.edges[e].name === 'Myrtle Ave')!;

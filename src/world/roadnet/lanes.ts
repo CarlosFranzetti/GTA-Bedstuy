@@ -78,6 +78,9 @@ export interface LaneBuild {
   strandedEnds: string[];
   /** lane starts nothing leads into that are not stubs (should be empty) */
   orphanStarts: string[];
+  /** lane ends / starts of junctions where every lane only leaves (sources) or only enters (sinks): data quirks, treated like stubs */
+  extraSinks: string[];
+  extraSources: string[];
   clusters: number[][];
 }
 
@@ -105,6 +108,7 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
 
   // ---- classify every leg's junction (cluster x level): 3+ legs junction, 2 through, 1 dead end or stub
   const kindOfLeg = new Map<number, EndKind>();
+  const groupOfLeg = new Map<number, string>();
   const legsOfGroup = new Map<string, number[]>();
   clusters.forEach((c, k) => {
     for (const id of outerLegs(net, d, c)) {
@@ -117,7 +121,7 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
     const k = Number(key.split(':')[0]);
     const kind: EndKind = ids.length >= 3 ? 'junction' : ids.length === 2 ? 'through'
       : clusters[k].some((v) => net.nodes[v].control === 'deadend') ? 'dead' : 'stub';
-    for (const id of ids) kindOfLeg.set(id, kind);
+    for (const id of ids) { kindOfLeg.set(id, kind); groupOfLeg.set(id, key); }
   }
 
   // ---- lane chains
@@ -285,13 +289,27 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
   // ---- audit
   const strandedEnds: string[] = [];
   const orphanStarts: string[] = [];
+  const extraSinks: string[] = [];
+  const extraSources: string[] = [];
+  const groupsIn = new Set<string>();
+  const groupsOut = new Set<string>();
+  for (const c of chains) {
+    const gi = groupOfLeg.get(c.enterLeg);
+    const go = groupOfLeg.get(c.exitLeg);
+    if (gi !== undefined) groupsIn.add(gi);
+    if (go !== undefined) groupsOut.add(go);
+  }
   for (const c of chains) {
     const l = last(c);
-    if (c.endKind !== 'stub' && graph.adjacency[l.id].length === 0) strandedEnds.push(l.id);
+    if (c.endKind !== 'stub' && graph.adjacency[l.id].length === 0) {
+      (groupsOut.has(groupOfLeg.get(c.enterLeg) ?? '') ? strandedEnds : extraSinks).push(l.id);
+    }
     const f = first(c);
-    if (c.startKind !== 'stub' && !hasIncoming.has(f.id)) orphanStarts.push(f.id);
+    if (c.startKind !== 'stub' && !hasIncoming.has(f.id)) {
+      (groupsIn.has(groupOfLeg.get(c.exitLeg) ?? '') ? orphanStarts : extraSources).push(f.id);
+    }
   }
-  return { graph, chains, connectors, strandedEnds, orphanStarts, clusters };
+  return { graph, chains, connectors, strandedEnds, orphanStarts, extraSinks, extraSources, clusters };
 }
 
 /** point `o` metres to the right of the travel polyline at arc length tau, with the travel tangent (mitred at shape points) */

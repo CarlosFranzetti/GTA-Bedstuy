@@ -23,6 +23,7 @@ import type { Derived, Leg } from './derive';
 import { CROSSWALK_START, CROSSWALK_WIDTH, STOP_LINE } from './contract';
 import { chunkLayoutFromBounds, tagRoadChunks } from './chunksReal';
 import { isRibbonless, junctionClusters } from './clusters';
+import { buildSidewalkGraph } from './sidewalks';
 import { pointInPolygon, segmentIntersection, signedArea } from './geom';
 
 export type WorldMaterials = IMaterialLibrary;
@@ -33,6 +34,8 @@ export interface RoadMeshOptions {
   markings?: boolean;
   /** render cell size in metres; default 128 m (roads are cheap in triangles, expensive in draws: see chunksReal.ts) */
   cellM?: number;
+  /** where a zebra is drawn: (edge, node) pairs of the pedestrian graph's crosswalks; default buildSidewalkGraph(net, d).crosswalks */
+  crosswalks?: ReadonlyArray<{ edge: number; node: number }>;
 }
 
 /** metres per texture repeat (RoadBuilder TILE_M) */
@@ -403,7 +406,10 @@ export function buildRoadMeshes(net: RoadNet, d: Derived, mats: WorldMaterials, 
   });
 
   // ---- markings
-  if (markings) addMarkings(net, d, tier, slot);
+  if (markings) {
+    const cws = opts.crosswalks ?? buildSidewalkGraph(net, d).crosswalks;
+    addMarkings(net, d, tier, slot, new Set(cws.map((c) => c.edge * 1e6 + c.node)));
+  }
 
   // ---- assemble, split into render cells, tag chunks
   const root = new THREE.Group();
@@ -427,7 +433,7 @@ export function buildRoadMeshes(net: RoadNet, d: Derived, mats: WorldMaterials, 
   return root;
 }
 
-function addMarkings(net: RoadNet, d: Derived, tier: Quality, slot: (part: Part, key: MaterialKey, variant: number, name: string) => Batch): void {
+function addMarkings(net: RoadNet, d: Derived, tier: Quality, slot: (part: Part, key: MaterialKey, variant: number, name: string) => Batch, zebraAt: Set<number>): void {
   const white = (): Batch => slot('markings', 'laneLine', 0, 'markings-white');
   const yellow = (): Batch => slot('markings', 'laneLine', 1, 'markings-yellow');
   const zebra = (): Batch => slot('markings', 'crosswalk', 0, 'crosswalks');
@@ -461,9 +467,11 @@ function addMarkings(net: RoadNet, d: Derived, tier: Quality, slot: (part: Part,
       const leg = d.legs[e * 2 + (end === 'b' ? 1 : 0)];
       const node = net.nodes[leg.node];
       if (d.nodePolys[leg.node].length < 3 || node.control === 'stub' || node.control === 'deadend') continue;
-      // zebra: bars run along the road, u across (one 1 m bar pitch per metre), v along the band
+      // zebra only where the pedestrian graph has a crosswalk (its a/b are walking-line ends, not kerbs: span is the roadway)
+      if (zebraAt.has(leg.edge * 1e6 + leg.node)) {
       const z0 = leg.cut + CROSSWALK_START, z1 = z0 + CROSSWALK_WIDTH;
       addLegRect(zebra(), net, leg, z0, z1, -hw, hw, Y_TOP, (s, l) => [(l + hw) / 4, (s - z0) / CROSSWALK_WIDTH]);
+      }
       // stop bar: vehicles arrive along -leg.dir; only where that direction is allowed and the node is controlled
       if (node.control !== 'signal' && node.control !== 'stop') continue;
       const arrives = E.oneway === 0 || (end === 'a' ? E.oneway === -1 : E.oneway === 1);

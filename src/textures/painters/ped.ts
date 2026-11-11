@@ -86,6 +86,8 @@ export interface PedSpec {
   gear: 'none' | 'backpack' | 'bag' | 'tote' | 'messenger';
   gearColor: string;
   build: Build;
+  /** explicit body type (entities/models/pedBodyTypes.ts); otherwise picked from age, build and id */
+  body?: 'avg' | 'slim' | 'athletic' | 'heavy' | 'tall-thin' | 'short-stocky' | 'broad' | 'pear' | 'petite' | 'elder' | 'teen' | 'kid';
   /** relative chance among the civilians (church clothes get extra weight on Sunday morning) */
   weight: number;
   sunday?: boolean;

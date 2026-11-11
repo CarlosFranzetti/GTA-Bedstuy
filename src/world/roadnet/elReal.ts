@@ -214,7 +214,15 @@ export function buildElPaths(net: RoadNet): { paths: ElPath[]; stations: ElStati
 export function sharedPrefix(a: ElPath, b: ElPath): number {
   let k = 0;
   while (k < a.pts.length && k < b.pts.length && distance(a.pts[k], b.pts[k]) < 1e-6) k++;
-  return k > 0 ? a.cum[k - 1] : 0;
+  if (k === 0) return 0;
+  // b's next vertex may lie on a's next segment (a fillet starting mid-segment): the paths still coincide up to it
+  if (k < a.pts.length && k < b.pts.length) {
+    const p0 = a.pts[k - 1], p1 = a.pts[k], q = b.pts[k];
+    const dx = p1.x - p0.x, dz = p1.z - p0.z, l2 = dx * dx + dz * dz || 1;
+    const t = ((q.x - p0.x) * dx + (q.z - p0.z) * dz) / l2;
+    if (t > 0 && t < 1 && Math.hypot(q.x - (p0.x + dx * t), q.z - (p0.z + dz * t)) < 1e-3) return a.cum[k - 1] + t * Math.sqrt(l2);
+  }
+  return a.cum[k - 1];
 }
 
 /** point and unit direction (travel direction of increasing s) at arc length s; s is clamped to the path */
