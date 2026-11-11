@@ -28,6 +28,8 @@ describe('voice content', () => {
     for (const show of [...TALK_SHOWS, ...ADS]) {
       expect(lintLines(show.id, show.lines, CAST_MAP), show.id).toEqual([]);
       expect(showVoices(show).length, show.id).toBeGreaterThanOrEqual(2);
+      // ids and titles count too (ids end up in filenames and manifests)
+      expect(findDenied(`${show.id.replace(/-/g, ' ')} ${show.title}`), `${show.id} id/title`).toEqual([]);
     }
   });
 
@@ -73,6 +75,8 @@ describe('voice content', () => {
     expect(findDenied('Order from Starbucks today')).toContain('starbucks');
     expect(findDenied('as seen on Fox News')).toContain('fox news');
     expect(findDenied('Oat Barn Concentrate')).toEqual([]);
+    expect(findDenied('ad oatly')).toContain('oatly');
+    expect(ADS.map((a) => a.id)).not.toContain('ad-oatly');
     expect(findBlocked('a perfectly clean sentence')).toEqual([]);
   });
 });

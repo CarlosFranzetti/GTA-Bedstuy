@@ -86,6 +86,12 @@ const HANDBRAKE_YAW_BOOST = 1.5;
 const OVERSTEER_SPEED_FRAC = 0.7;
 const OVERSTEER_REAR_FRAC = 0.62;
 // ---- parked cars (driver null)
+// CARS14 drivetrain feel (only for specs that set `drivetrain`; the older types are untouched)
+const DT_REAR_LOSS = 0.5;      // rear lateral grip lost at full drive demand with all torque on the rear axle
+const DT_ROTATE = 0.55;        // extra yaw (fraction) a rear-driven car gets under power while turning
+const DT_FRONT_LOSS = 0.45;    // front grip lost at full drive demand with all torque on the front axle (understeer)
+const DT_LIFTOFF = 0.8;        // rear grip factor when a rear-biased car lifts off while turned in at speed
+const ELECTRIC_EXP = 3;        // electric torque curve: a = A * (thr - (v/vmax)^3), flat until near top speed
 const PARKED_FRICTION = 3.0;
 const PARKED_DRAG = 0.35;
 /** A parked car slower than this snaps to rest (static friction), so a walking player cannot shove it. */
@@ -211,6 +217,8 @@ export class Vehicle implements IVehicle {
   private yawRate = 0;
   private brakePressure = 0;
   private rearGrip = MU_REAR;
+  /** CARS14: 0..1 how hard the engine is pulling this step (throttle minus the speed term) */
+  private driveLoad = 0;
   private wheelRoll = 0;
   private wheelRadius = 0.34;
   private slipAmt = 0;
@@ -480,8 +488,12 @@ export class Vehicle implements IVehicle {
       const vmD = d > 0 ? vm : REVERSE_MAX;
       const AD = d > 0 ? A : A * REVERSE_ACCEL_FRAC;
       const ratio = Math.min(1.5, u / vmD);
-      vLong += d * AD * (Math.abs(thr) - ratio * ratio) * h;
+      const curve = s.electric ? ratio ** ELECTRIC_EXP : ratio * ratio;
+      const demand = Math.abs(thr) - curve;
+      vLong += d * AD * demand * h;
+      this.driveLoad = d > 0 ? clamp(demand, 0, 1) : 0;
     } else {
+      this.driveLoad = 0;
       // coasting: aerodynamic drag + engine braking
       const drag = A * (vLong / vm) * Math.abs(vLong / vm);
       const eb = input.brake ? 0 : ENGINE_BRAKE * Math.min(1, Math.abs(vLong) / 2);
@@ -504,6 +516,9 @@ export class Vehicle implements IVehicle {
     this.steerNorm += clamp(dSteer, -sRate * h, sRate * h);
     const hb = input.handbrake;
     const wheelbase = 0.6 * s.length;
+    // CARS14 drivetrain: share of the pull on the rear axle (undefined = the old, neutral behaviour)
+    const dtBias = s.drivetrain ? (s.torqueBias ?? (s.drivetrain === 'rwd' ? 1 : s.drivetrain === 'fwd' ? 0 : 0.5)) : null;
+    const load = this.driveLoad;
     let lock = s.maxSteer * (1 - STEER_SPEED_SHRINK * Math.min(1, speedAbs / vm));
     // player-driven cars only: the traffic / cop AI is tuned against the raw lock
     if (Vehicle.calmSteering && this.driver === 'player' && !(hb && speedAbs > 3)) {
@@ -515,8 +530,14 @@ export class Vehicle implements IVehicle {
 
     // --- yaw: kinematic bicycle, clipped by front grip (understeer), boosted with the handbrake
     const kin = (vLong / wheelbase) * Math.tan(this.steerAngle) * (hb && speedAbs > 3 ? HANDBRAKE_YAW_BOOST : 1);
-    const yawMax = ((MU_FRONT * this.grip * this.tyreMu) / Math.max(speedAbs, 2)) * (hb ? 1.6 : 1);
-    const yawTarget = clamp(kin, -yawMax, yawMax);
+    let yawMax = ((MU_FRONT * this.grip * this.tyreMu) / Math.max(speedAbs, 2)) * (hb ? 1.6 : 1);
+    let kinD = kin;
+    if (dtBias !== null) {
+      yawMax *= 1 - DT_FRONT_LOSS * (1 - dtBias) * load;   // front-driven: the front tyres share grip with the pull, so it pushes wide
+      yawMax *= 1 + DT_ROTATE * dtBias * load * Math.min(1, Math.abs(this.steerNorm) * 1.5); // rear-driven: tail steps out, nose tucks in
+      kinD *= 1 + DT_ROTATE * dtBias * load * Math.min(1, Math.abs(this.steerNorm) * 1.5);
+    }
+    const yawTarget = clamp(kinD, -yawMax, yawMax);
     this.yawRate += clamp(yawTarget - this.yawRate, -YAW_ACCEL * h, YAW_ACCEL * h);
     // while crawling to a stop the car cannot keep rotating on the spot
     if (speedAbs < 0.3) this.yawRate *= Math.max(0, 1 - 10 * h);
@@ -536,6 +557,11 @@ export class Vehicle implements IVehicle {
     let rear = MU_REAR * this.grip * this.tyreMu;
     if (hb) rear *= HANDBRAKE_REAR_FRAC;
     else if (speedAbs > OVERSTEER_SPEED_FRAC * vm && thr > 0.6 && Math.abs(this.steerNorm) > 0.6) rear *= OVERSTEER_REAR_FRAC;
+    if (dtBias !== null && !hb) {
+      rear *= 1 - DT_REAR_LOSS * dtBias * load;
+      // lift-off oversteer: a rear-biased car that comes off the throttle mid-corner at speed loses some rear grip
+      if (dtBias > 0.55 && thr < 0.1 && speedAbs > 0.4 * vm && Math.abs(this.steerNorm) > 0.4) rear *= DT_LIFTOFF;
+    }
     this.rearGrip += (rear - this.rearGrip) * Math.min(1, 14 * h);
     const bleed = Math.min(Math.abs(vLat), Math.min(K_LAT * Math.abs(vLat), this.rearGrip) * h);
     vLat -= Math.sign(vLat) * bleed;

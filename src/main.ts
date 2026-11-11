@@ -281,6 +281,8 @@ const uiOpen = (): boolean => !!(shopUi?.isOpen || djUi?.isOpen);
 
 events.on('enterVehicle', () => { physics.removeBody(player.body.id); if (player.vehicle) nightLights.attachHeadlights(player.vehicle.object3D, player.vehicle.spec.length); });
 events.on('exitVehicle', () => { physics.addBody(player.body); nightLights.attachHeadlights(null); });
+events.on('enterVehicle', () => touchControls?.setDriving(true));
+events.on('exitVehicle', () => touchControls?.setDriving(false));
 player.onEnterStart = () => physics.removeBody(player.body.id); // the glide to the door crosses the car's box: no collisions while entering
 
 loading.done('entities');
@@ -340,6 +342,10 @@ const missionHudScratch = {} as MissionHudState;
 const cam = new ThirdPersonCamera(window.innerWidth / window.innerHeight);
 cam.attachLetterbox(overlay);
 events.on('mission:started', () => cam.setLetterbox(true, 2.5));
+// camera views and jump (CONTROLS14)
+cam.views.onChange = (label) => hud.showToast(label);
+player.onJump = () => audio.playJump?.();
+player.onLand = (st) => audio.playLand?.(st);
 // story ("Air Rights"): phone follow-ups, radio bulletins and ads, letterbox beats, flag-driven street notices, cargo damage
 const story = new StoryDirector(missions, phone, { onBeat: (sec) => cam.setLetterbox(true, sec), onBroadcast: (b) => audio.setBroadcast(b) });
 const storyNotices = new AmbientNotices(grid); scene.add(storyNotices.group);
@@ -355,7 +361,7 @@ setLampsLit(world.furnitureGroup, dayNight.isNight);
 input.onFirstGesture = () => { hud.hideSplash(); events.emit('userGesture', {}); };
 overlay.addEventListener('mousedown', () => input.notifyGesture());
 overlay.addEventListener('pointerdown', () => input.notifyGesture());
-if (isTouch) new TouchControls(overlay, input);
+const touchControls = isTouch ? new TouchControls(overlay, input) : null;
 
 /** Game day counter (0 = Monday; advances when the clock wraps past midnight) for the rotating trash-bag piles. */
 let gameDay = 0;
@@ -438,6 +444,7 @@ function updateCamera(dt = 1 / 60): void {
   else {
     camCtx.vehicle = player.vehicle;
     cam.update(dt, camTarget, camHeading, player.inVehicle ? 'vehicle' : 'foot', input, camCtx);
+    player.setFirstPerson(!player.inVehicle && cam.firstPersonAmount > 0.85);
     // consumed here: otherwise frames that run no fixed step (display > 60 Hz) would re-apply the same mouse delta
     input.mouseDX = 0; input.mouseDY = 0;
   }
@@ -476,7 +483,7 @@ function interpolateAll(alpha: number, refX: number, refY: number, refZ: number)
     const b = placeInterpolated(player, alpha);
     camTarget.x = b.x; camTarget.z = b.z; camHeading = b.h;
     proxies.addPed(b.x, b.z);
-    blobs.addPed(b.x, b.z);
+    blobs.addPed(b.x, b.z, player.shadowScale);
   }
   proxies.endFrame();
   blobs.endFrame();
@@ -640,8 +647,10 @@ game.add({
     const away = interiors.state !== 'outside'; // inside a room (3 km off the map) or fading: the street sim keeps watching the door
     const blocked = interiors.locked || uiOpen();
     if (!away) { lastOutside.x = player.body.pos.x; lastOutside.z = player.body.pos.z; }
+    player.jumpLocked = away || blocked;
     if (blocked) { for (const k of ['KeyF', 'KeyE', 'KeyR', 'KeyX', 'KeyP']) input.consume(k); }
     else {
+      cam.views.handleKeys(input, player.inVehicle ? 'vehicle' : 'foot'); // V cycles views, double-tap swaps, B swaps shoulder
       // riding the el: the player is carried by the train until the next stop
       const ride = world.transit.ride;
       if (ride) { player.body.pos.x = ride.x; player.body.pos.z = ride.z; player.body.vel.x = 0; player.body.vel.z = 0; } else player.control(input, cam.yaw);

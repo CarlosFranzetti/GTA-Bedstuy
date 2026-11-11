@@ -1,4 +1,5 @@
 /** Parody radio stations: pure pattern data. The AudioSystem turns notes into Web Audio. */
+import { CATALOG, type RadioSourceKind } from './stations';
 
 export type Voice = 'kick' | 'snare' | 'hat' | 'shaker' | 'bass' | 'arp' | 'mumble' | 'sub' | 'ride' | 'pluck' | 'wob';
 
@@ -215,29 +216,38 @@ export interface ScStationDef {
   keywords: readonly string[];
   /** Case-insensitive patterns matched against "set title + DJ name". Empty = every set. */
   patterns: readonly RegExp[];
+  kind: RadioSourceKind;
+  /** SoundCloud account / playlist URLs played through the widget. */
+  sources: readonly string[];
+  /** True when the shared RA NYC pool feeds the station. */
+  usesPool: boolean;
+  site: string;
 }
 
 /** Whole-word-ish match so "rap" does not hit "rapture". */
 const kw = (alts: string): RegExp => new RegExp(`(?:^|[^a-z0-9])(?:${alts})(?:$|[^a-z0-9])`, 'i');
 
-export const SC_STATIONS: readonly ScStationDef[] = [
-  { id: 'bkhouse', name: 'BK House', freq: 'ninety point nine', genre: 'house / garage', tagline: 'Deep, soulful, four on the floor',
-    keywords: ['house', 'garage', 'deep', 'soulful', 'chicago', 'jackin'], patterns: [kw('house|garage|deep|soulful|chicago|jackin|2[- ]?step')] },
-  { id: 'dublab', name: 'Dub Lab', freq: 'ninety one point seven', genre: 'techno / dub / dubstep', tagline: 'Low end under glass',
-    keywords: ['dub', 'techno', 'dubstep', 'bass', 'riddim'], patterns: [kw('dub|techno|dubstep|bass|minimal|industrial')] },
-  { id: 'stoop', name: 'Stoop Radio', freq: 'ninety three point five', genre: 'hip hop / trap', tagline: 'Straight off the stoop',
-    keywords: ['hip hop', 'rap', 'trap', 'boom bap', 'drill', 'grime', 'r&b'], patterns: [kw('hip[- ]?hop|rap|trap|boom[- ]?bap|drill|grime|cypher|r&b|rnb')] },
-  { id: 'boogie', name: 'Boogie Down', freq: 'ninety five point three', genre: 'disco / boogie / funk', tagline: 'Mirror balls and bass lines',
-    keywords: ['disco', 'boogie', 'funk', 'soul', 'italo', 'groove'], patterns: [kw('disco|boogie|funk|soul|italo|groove|nu[- ]?disco')] },
-  { id: 'weird', name: 'Weird Hours', freq: 'ninety seven point one', genre: 'psych / jazz / experimental', tagline: 'For the hours nobody else is awake',
-    keywords: ['psych', 'jazz', 'experimental', 'ambient', 'avant', 'krautrock', 'leftfield'], patterns: [kw('psych(?:edelic)?|jazz|experimental|ambient|avant|noise|krautrock|leftfield|improv|weird|dream|idm')] },
-  { id: 'yard', name: 'Yard FM', freq: 'ninety eight point nine', genre: 'reggae / dancehall / afrobeats', tagline: 'Sound system on the avenue',
-    keywords: ['reggae', 'dancehall', 'afrobeats', 'soca', 'amapiano', 'riddim'], patterns: [kw('reggae|dancehall|afro(?:beats?)?|soca|amapiano|kuduro|bashment|zouk|ragga|calypso|riddim|caribbean')] },
-  { id: 'flashback', name: 'Flashback 88', freq: 'eighty-eight point eight', genre: '80s / pop', tagline: 'Leg warmers and boom boxes',
-    keywords: ['80s', 'eighties', 'pop', 'new wave', 'synthpop', 'retro'], patterns: [kw('80\'?s|198\\d|eighties|pop|new[- ]?wave|synth[- ]?pop|retro|freestyle|hi[- ]?nrg')] },
-  { id: 'sc', name: 'Radio SC', freq: 'one hundred point one', genre: 'RA NYC, any set', tagline: 'Whatever the city played last night',
-    keywords: [], patterns: [] },
-];
+/** Dial text for the announcers, per SoundCloud station id. */
+const SC_FREQ: Record<ScStationId, string> = {
+  bkhouse: 'ninety point nine', dublab: 'ninety one point seven', stoop: 'ninety three point five', boogie: 'ninety five point three',
+  weird: 'ninety seven point one', yard: 'ninety eight point nine', flashback: 'eighty-eight point eight', sc: 'one hundred point one',
+};
+
+/** The eight SoundCloud stations are the catalog's sc-account / ra-pool entries (src/audio/stations.ts), in dial order.
+ * Only the RA station draws on the RA NYC pool (keyword filter off: it plays any set); the others play their account through the widget. */
+export const SC_STATIONS: readonly ScStationDef[] = CATALOG.filter((e) => e.kind === 'sc-account' || e.kind === 'ra-pool' || e.kind === 'sc-playlist').map((e): ScStationDef => ({
+  id: e.id as ScStationId,
+  name: e.name,
+  freq: SC_FREQ[e.id as ScStationId],
+  genre: e.genre,
+  tagline: e.about,
+  keywords: [],
+  patterns: [],
+  kind: e.kind,
+  sources: e.scUrls ?? [],
+  usesPool: e.kind === 'ra-pool',
+  site: e.site,
+}));
 
 export function scStationDef(id: string): ScStationDef | undefined {
   return SC_STATIONS.find((s) => s.id === id);

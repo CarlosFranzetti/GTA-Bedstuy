@@ -1,0 +1,720 @@
+{
+ "generated": "2026-11-11",
+ "photosUsed": 39,
+ "photosSkipped": 21,
+ "note": "CC BY-SA photos contribute facts (a wall colour), not pixels; attribution kept here and in docs/CREDITS.md.",
+ "lots": {
+  "3015910001": [
+   {
+    "photo": "kartaview:363495837",
+    "author": "KartaView contributor (sequence 1343889)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1343889/1157/track-info",
+    "taken": "2019-02-23 12:35:48.000"
+   }
+  ],
+  "3015910002": [
+   {
+    "photo": "kartaview:363495837",
+    "author": "KartaView contributor (sequence 1343889)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1343889/1157/track-info",
+    "taken": "2019-02-23 12:35:48.000"
+   }
+  ],
+  "3015910005": [
+   {
+    "photo": "kartaview:321141772",
+    "author": "KartaView contributor (sequence 1299644)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1299644/2343/track-info",
+    "taken": "2018-09-27 14:16:23.000"
+   },
+   {
+    "photo": "kartaview:321141766",
+    "author": "KartaView contributor (sequence 1299644)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1299644/2340/track-info",
+    "taken": "2018-09-27 14:16:20.000"
+   }
+  ],
+  "3015910007": [
+   {
+    "photo": "kartaview:321141772",
+    "author": "KartaView contributor (sequence 1299644)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1299644/2343/track-info",
+    "taken": "2018-09-27 14:16:23.000"
+   },
+   {
+    "photo": "kartaview:321141766",
+    "author": "KartaView contributor (sequence 1299644)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1299644/2340/track-info",
+    "taken": "2018-09-27 14:16:20.000"
+   }
+  ],
+  "3015910008": [
+   {
+    "photo": "kartaview:321141772",
+    "author": "KartaView contributor (sequence 1299644)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1299644/2343/track-info",
+    "taken": "2018-09-27 14:16:23.000"
+   },
+   {
+    "photo": "kartaview:321141766",
+    "author": "KartaView contributor (sequence 1299644)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1299644/2340/track-info",
+    "taken": "2018-09-27 14:16:20.000"
+   }
+  ],
+  "3015910009": [
+   {
+    "photo": "kartaview:363495823",
+    "author": "KartaView contributor (sequence 1343889)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1343889/1153/track-info",
+    "taken": "2019-02-23 12:35:44.000"
+   },
+   {
+    "photo": "kartaview:364388579",
+    "author": "KartaView contributor (sequence 1345049)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345049/2663/track-info",
+    "taken": "2019-02-26 21:44:45.000"
+   },
+   {
+    "photo": "kartaview:332589471",
+    "author": "KartaView contributor (sequence 1309915)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1309915/3416/track-info",
+    "taken": "2018-11-27 13:22:09.000"
+   }
+  ],
+  "3015910010": [
+   {
+    "photo": "kartaview:364388579",
+    "author": "KartaView contributor (sequence 1345049)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345049/2663/track-info",
+    "taken": "2019-02-26 21:44:45.000"
+   },
+   {
+    "photo": "kartaview:363495823",
+    "author": "KartaView contributor (sequence 1343889)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1343889/1153/track-info",
+    "taken": "2019-02-23 12:35:44.000"
+   },
+   {
+    "photo": "kartaview:332589471",
+    "author": "KartaView contributor (sequence 1309915)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1309915/3416/track-info",
+    "taken": "2018-11-27 13:22:09.000"
+   }
+  ],
+  "3015910012": [
+   {
+    "photo": "kartaview:332589471",
+    "author": "KartaView contributor (sequence 1309915)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1309915/3416/track-info",
+    "taken": "2018-11-27 13:22:09.000"
+   }
+  ],
+  "3015910013": [
+   {
+    "photo": "kartaview:321141772",
+    "author": "KartaView contributor (sequence 1299644)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1299644/2343/track-info",
+    "taken": "2018-09-27 14:16:23.000"
+   }
+  ],
+  "3015910015": [
+   {
+    "photo": "kartaview:321141772",
+    "author": "KartaView contributor (sequence 1299644)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1299644/2343/track-info",
+    "taken": "2018-09-27 14:16:23.000"
+   }
+  ],
+  "3015930039": [
+   {
+    "photo": "kartaview:364838201",
+    "author": "KartaView contributor (sequence 1345473)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345473/2125/track-info",
+    "taken": "2019-02-27 20:06:46.000"
+   }
+  ],
+  "3015960001": [
+   {
+    "photo": "kartaview:364389151",
+    "author": "KartaView contributor (sequence 1345049)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345049/2735/track-info",
+    "taken": "2019-02-26 21:46:14.000"
+   }
+  ],
+  "3015960011": [
+   {
+    "photo": "kartaview:365082967",
+    "author": "KartaView contributor (sequence 1345825)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345825/3119/track-info",
+    "taken": "2019-02-28 20:23:09.000"
+   }
+  ],
+  "3015960048": [
+   {
+    "photo": "kartaview:364390167",
+    "author": "KartaView contributor (sequence 1345049)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345049/2899/track-info",
+    "taken": "2019-02-26 21:51:16.000"
+   }
+  ],
+  "3015960049": [
+   {
+    "photo": "kartaview:364390167",
+    "author": "KartaView contributor (sequence 1345049)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345049/2899/track-info",
+    "taken": "2019-02-26 21:51:16.000"
+   }
+  ],
+  "3015960132": [
+   {
+    "photo": "kartaview:366634355",
+    "author": "KartaView contributor (sequence 1347979)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1347979/1051/track-info",
+    "taken": "2019-03-05 19:43:40.000"
+   }
+  ],
+  "3015960133": [
+   {
+    "photo": "kartaview:366634355",
+    "author": "KartaView contributor (sequence 1347979)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1347979/1051/track-info",
+    "taken": "2019-03-05 19:43:40.000"
+   }
+  ],
+  "3016000006": [
+   {
+    "photo": "kartaview:364390167",
+    "author": "KartaView contributor (sequence 1345049)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345049/2899/track-info",
+    "taken": "2019-02-26 21:51:16.000"
+   }
+  ],
+  "3016000007": [
+   {
+    "photo": "kartaview:364390167",
+    "author": "KartaView contributor (sequence 1345049)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345049/2899/track-info",
+    "taken": "2019-02-26 21:51:16.000"
+   }
+  ],
+  "3016010018": [
+   {
+    "photo": "kartaview:366634535",
+    "author": "KartaView contributor (sequence 1347979)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1347979/1141/track-info",
+    "taken": "2019-03-05 19:45:53.000"
+   }
+  ],
+  "3016010020": [
+   {
+    "photo": "kartaview:366634535",
+    "author": "KartaView contributor (sequence 1347979)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1347979/1141/track-info",
+    "taken": "2019-03-05 19:45:53.000"
+   }
+  ],
+  "3016010022": [
+   {
+    "photo": "kartaview:366634535",
+    "author": "KartaView contributor (sequence 1347979)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1347979/1141/track-info",
+    "taken": "2019-03-05 19:45:53.000"
+   }
+  ],
+  "3016010023": [
+   {
+    "photo": "kartaview:366634535",
+    "author": "KartaView contributor (sequence 1347979)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1347979/1141/track-info",
+    "taken": "2019-03-05 19:45:53.000"
+   }
+  ],
+  "3016020001": [
+   {
+    "photo": "kartaview:323680639",
+    "author": "KartaView contributor (sequence 1302729)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1302729/1361/track-info",
+    "taken": "2018-10-28 17:40:33.000"
+   }
+  ],
+  "3016020002": [
+   {
+    "photo": "kartaview:323680639",
+    "author": "KartaView contributor (sequence 1302729)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1302729/1361/track-info",
+    "taken": "2018-10-28 17:40:33.000"
+   }
+  ],
+  "3016030002": [
+   {
+    "photo": "kartaview:323680703",
+    "author": "KartaView contributor (sequence 1302729)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1302729/1391/track-info",
+    "taken": "2018-10-28 17:41:39.000"
+   }
+  ],
+  "3016030044": [
+   {
+    "photo": "kartaview:323680901",
+    "author": "KartaView contributor (sequence 1302729)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1302729/1420/track-info",
+    "taken": "2018-10-28 17:42:08.000"
+   }
+  ],
+  "3016037501": [
+   {
+    "photo": "kartaview:323680703",
+    "author": "KartaView contributor (sequence 1302729)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1302729/1391/track-info",
+    "taken": "2018-10-28 17:41:39.000"
+   }
+  ],
+  "3016040002": [
+   {
+    "photo": "kartaview:323680901",
+    "author": "KartaView contributor (sequence 1302729)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1302729/1420/track-info",
+    "taken": "2018-10-28 17:42:08.000"
+   }
+  ],
+  "3016050001": [
+   {
+    "photo": "kartaview:323680375",
+    "author": "KartaView contributor (sequence 1302729)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1302729/1326/track-info",
+    "taken": "2018-10-28 17:39:58.000"
+   }
+  ],
+  "3016050039": [
+   {
+    "photo": "kartaview:323680639",
+    "author": "KartaView contributor (sequence 1302729)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1302729/1361/track-info",
+    "taken": "2018-10-28 17:40:33.000"
+   }
+  ],
+  "3016060138": [
+   {
+    "photo": "kartaview:323680703",
+    "author": "KartaView contributor (sequence 1302729)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1302729/1391/track-info",
+    "taken": "2018-10-28 17:41:39.000"
+   }
+  ],
+  "3016060139": [
+   {
+    "photo": "kartaview:323680703",
+    "author": "KartaView contributor (sequence 1302729)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1302729/1391/track-info",
+    "taken": "2018-10-28 17:41:39.000"
+   }
+  ],
+  "3016070008": [
+   {
+    "photo": "kartaview:323680703",
+    "author": "KartaView contributor (sequence 1302729)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1302729/1391/track-info",
+    "taken": "2018-10-28 17:41:39.000"
+   }
+  ],
+  "3016070009": [
+   {
+    "photo": "kartaview:323680703",
+    "author": "KartaView contributor (sequence 1302729)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1302729/1391/track-info",
+    "taken": "2018-10-28 17:41:39.000"
+   }
+  ],
+  "3016070039": [
+   {
+    "photo": "kartaview:323680901",
+    "author": "KartaView contributor (sequence 1302729)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1302729/1420/track-info",
+    "taken": "2018-10-28 17:42:08.000"
+   }
+  ],
+  "3017690037": [
+   {
+    "photo": "kartaview:321141766",
+    "author": "KartaView contributor (sequence 1299644)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1299644/2340/track-info",
+    "taken": "2018-09-27 14:16:20.000"
+   }
+  ],
+  "3017690039": [
+   {
+    "photo": "kartaview:321141766",
+    "author": "KartaView contributor (sequence 1299644)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1299644/2340/track-info",
+    "taken": "2018-09-27 14:16:20.000"
+   },
+   {
+    "photo": "kartaview:364388579",
+    "author": "KartaView contributor (sequence 1345049)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345049/2663/track-info",
+    "taken": "2019-02-26 21:44:45.000"
+   },
+   {
+    "photo": "kartaview:363495823",
+    "author": "KartaView contributor (sequence 1343889)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1343889/1153/track-info",
+    "taken": "2019-02-23 12:35:44.000"
+   }
+  ],
+  "3017690040": [
+   {
+    "photo": "kartaview:321141766",
+    "author": "KartaView contributor (sequence 1299644)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1299644/2340/track-info",
+    "taken": "2018-09-27 14:16:20.000"
+   },
+   {
+    "photo": "kartaview:364388579",
+    "author": "KartaView contributor (sequence 1345049)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345049/2663/track-info",
+    "taken": "2019-02-26 21:44:45.000"
+   }
+  ],
+  "3017690041": [
+   {
+    "photo": "kartaview:321141766",
+    "author": "KartaView contributor (sequence 1299644)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1299644/2340/track-info",
+    "taken": "2018-09-27 14:16:20.000"
+   },
+   {
+    "photo": "kartaview:364388579",
+    "author": "KartaView contributor (sequence 1345049)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345049/2663/track-info",
+    "taken": "2019-02-26 21:44:45.000"
+   }
+  ],
+  "3017690042": [
+   {
+    "photo": "kartaview:364388579",
+    "author": "KartaView contributor (sequence 1345049)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345049/2663/track-info",
+    "taken": "2019-02-26 21:44:45.000"
+   },
+   {
+    "photo": "kartaview:321141766",
+    "author": "KartaView contributor (sequence 1299644)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1299644/2340/track-info",
+    "taken": "2018-09-27 14:16:20.000"
+   }
+  ],
+  "3017690046": [
+   {
+    "photo": "kartaview:363495837",
+    "author": "KartaView contributor (sequence 1343889)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1343889/1157/track-info",
+    "taken": "2019-02-23 12:35:48.000"
+   }
+  ],
+  "3017690047": [
+   {
+    "photo": "kartaview:363495837",
+    "author": "KartaView contributor (sequence 1343889)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1343889/1157/track-info",
+    "taken": "2019-02-23 12:35:48.000"
+   }
+  ],
+  "3017690048": [
+   {
+    "photo": "kartaview:363495837",
+    "author": "KartaView contributor (sequence 1343889)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1343889/1157/track-info",
+    "taken": "2019-02-23 12:35:48.000"
+   }
+  ],
+  "3017690049": [
+   {
+    "photo": "kartaview:363495837",
+    "author": "KartaView contributor (sequence 1343889)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1343889/1157/track-info",
+    "taken": "2019-02-23 12:35:48.000"
+   }
+  ],
+  "3017760046": [
+   {
+    "photo": "kartaview:359567881",
+    "author": "KartaView contributor (sequence 1339829)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1339829/3168/track-info",
+    "taken": "2019-02-11 13:48:46.000"
+   }
+  ],
+  "3017770001": [
+   {
+    "photo": "kartaview:359567881",
+    "author": "KartaView contributor (sequence 1339829)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1339829/3168/track-info",
+    "taken": "2019-02-11 13:48:46.000"
+   }
+  ],
+  "3017770003": [
+   {
+    "photo": "kartaview:359567881",
+    "author": "KartaView contributor (sequence 1339829)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1339829/3168/track-info",
+    "taken": "2019-02-11 13:48:46.000"
+   }
+  ],
+  "3017770039": [
+   {
+    "photo": "kartaview:365083325",
+    "author": "KartaView contributor (sequence 1345825)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345825/3204/track-info",
+    "taken": "2019-02-28 20:25:46.000"
+   }
+  ],
+  "3017770040": [
+   {
+    "photo": "kartaview:365083325",
+    "author": "KartaView contributor (sequence 1345825)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345825/3204/track-info",
+    "taken": "2019-02-28 20:25:46.000"
+   }
+  ],
+  "3017770042": [
+   {
+    "photo": "kartaview:365083325",
+    "author": "KartaView contributor (sequence 1345825)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345825/3204/track-info",
+    "taken": "2019-02-28 20:25:46.000"
+   }
+  ],
+  "3017770067": [
+   {
+    "photo": "kartaview:359567881",
+    "author": "KartaView contributor (sequence 1339829)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1339829/3168/track-info",
+    "taken": "2019-02-11 13:48:46.000"
+   }
+  ],
+  "3017770068": [
+   {
+    "photo": "kartaview:359567881",
+    "author": "KartaView contributor (sequence 1339829)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1339829/3168/track-info",
+    "taken": "2019-02-11 13:48:46.000"
+   }
+  ],
+  "3017770070": [
+   {
+    "photo": "kartaview:359567881",
+    "author": "KartaView contributor (sequence 1339829)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1339829/3168/track-info",
+    "taken": "2019-02-11 13:48:46.000"
+   }
+  ],
+  "3017770072": [
+   {
+    "photo": "kartaview:359567881",
+    "author": "KartaView contributor (sequence 1339829)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1339829/3168/track-info",
+    "taken": "2019-02-11 13:48:46.000"
+   }
+  ],
+  "3017820030": [
+   {
+    "photo": "kartaview:366635665",
+    "author": "KartaView contributor (sequence 1347979)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1347979/1165/track-info",
+    "taken": "2019-03-05 19:47:05.000"
+   }
+  ],
+  "3017820032": [
+   {
+    "photo": "kartaview:366635665",
+    "author": "KartaView contributor (sequence 1347979)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1347979/1165/track-info",
+    "taken": "2019-03-05 19:47:05.000"
+   }
+  ],
+  "3017820035": [
+   {
+    "photo": "kartaview:366635665",
+    "author": "KartaView contributor (sequence 1347979)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1347979/1165/track-info",
+    "taken": "2019-03-05 19:47:05.000"
+   }
+  ],
+  "3017820036": [
+   {
+    "photo": "kartaview:366635665",
+    "author": "KartaView contributor (sequence 1347979)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1347979/1165/track-info",
+    "taken": "2019-03-05 19:47:05.000"
+   }
+  ],
+  "3017820037": [
+   {
+    "photo": "kartaview:366635665",
+    "author": "KartaView contributor (sequence 1347979)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1347979/1165/track-info",
+    "taken": "2019-03-05 19:47:05.000"
+   }
+  ],
+  "3017820040": [
+   {
+    "photo": "kartaview:366635665",
+    "author": "KartaView contributor (sequence 1347979)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1347979/1165/track-info",
+    "taken": "2019-03-05 19:47:05.000"
+   }
+  ],
+  "3017820046": [
+   {
+    "photo": "kartaview:323680365",
+    "author": "KartaView contributor (sequence 1302729)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1302729/1321/track-info",
+    "taken": "2018-10-28 17:39:53.000"
+   }
+  ],
+  "3017820141": [
+   {
+    "photo": "kartaview:366635665",
+    "author": "KartaView contributor (sequence 1347979)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1347979/1165/track-info",
+    "taken": "2019-03-05 19:47:05.000"
+   }
+  ],
+  "3017870036": [
+   {
+    "photo": "kartaview:323680375",
+    "author": "KartaView contributor (sequence 1302729)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1302729/1326/track-info",
+    "taken": "2018-10-28 17:39:58.000"
+   }
+  ],
+  "3017870037": [
+   {
+    "photo": "kartaview:323680365",
+    "author": "KartaView contributor (sequence 1302729)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1302729/1321/track-info",
+    "taken": "2018-10-28 17:39:53.000"
+   }
+  ],
+  "3017870038": [
+   {
+    "photo": "kartaview:323680365",
+    "author": "KartaView contributor (sequence 1302729)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1302729/1321/track-info",
+    "taken": "2018-10-28 17:39:53.000"
+   }
+  ],
+  "3032040001": [
+   {
+    "photo": "kartaview:364838201",
+    "author": "KartaView contributor (sequence 1345473)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345473/2125/track-info",
+    "taken": "2019-02-27 20:06:46.000"
+   }
+  ],
+  "3032140047": [
+   {
+    "photo": "kartaview:364838201",
+    "author": "KartaView contributor (sequence 1345473)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345473/2125/track-info",
+    "taken": "2019-02-27 20:06:46.000"
+   },
+   {
+    "photo": "kartaview:365082133",
+    "author": "KartaView contributor (sequence 1345825)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1345825/2948/track-info",
+    "taken": "2019-02-28 20:17:00.000"
+   }
+  ],
+  "3032260001": [
+   {
+    "photo": "kartaview:327388095",
+    "author": "KartaView contributor (sequence 1306563)",
+    "licence": "CC BY-SA 4.0",
+    "url": "https://kartaview.org/details/1306563/973/track-info",
+    "taken": "2018-11-07 20:34:07.000"
+   }
+  ]
+ }
+}

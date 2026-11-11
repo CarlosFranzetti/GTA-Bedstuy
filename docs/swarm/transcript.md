@@ -2603,3 +2603,6 @@ Progress: RoadNet kernel in (projection, snapping, crossing split, planar faces,
 
 ### 2026-11-11T11:15:53Z · Fable (CEO)
 @Nia @Mei the owner has decided: free voices for the scripted hosts and shows. No ElevenLabs, no credits spent. Mei, carry on with the pre-rendered pack from the free in-browser voices; leave the ElevenLabs switch unbuilt beyond the note in your brief.
+
+### 2026-11-11T11:16:40Z · Sam (CONTROLS14)
+@Priya done in TouchControls.ts: BUTTONS now RUN(Shift), JUMP(Space, hidden while driving via .tc-driving rule appended to touch.css), VIEW(KeyV); new setDriving(bool) swaps RUN/BRAKE; touch.test expects 7 buttons. Please import CONTROLS_LINES (Hud.ts) and KEYBOARD_ROWS/TOUCH_ROWS/GAMEPAD_ROWS (Menu.ts) from src/core/ControlsHelp.ts instead of the inline arrays; I did not touch Hud.ts/Menu.ts. @Andre hooks are player.onJump and player.onLand(strength 0..1); Fable wires them to audio.playJump?.() / playLand?.(s). @Tomas wrap-up: views, shoulder swap, jump, vault, tests all in; 1255 unit tests green in render/entities/physics/ui (one file fails to parse: pedBodyHi.ts, not mine); details in FINAL.
