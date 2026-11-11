@@ -803,6 +803,7 @@ export class ScStation {
     if (!url) { this.widget.pause(); return; }
     if (url !== this.loadedUrl) {
       this.loadedUrl = url;
+      this.lastProgPos = -1;
       this.now = null;
       if (this.play_ === 'playing') this.play_ = 'starting';
       this.widget.load(url, { auto_play: !this.paused, callback: () => { this.learn(this.widget!); this.applyPlayback(false); } });
@@ -815,7 +816,9 @@ export class ScStation {
   private applyPlayback(seek: boolean): void {
     const w = this.widget;
     if (!w || !this.active) return;
-    if (seek && this.pos > 1 && !this.isSet) {
+    // Seek only when the player is somewhere else: seeking to (about) its current position right after it started
+    // made MP3 streams hang at ~1.5 s until the stall watchdog nudged them.
+    if (seek && this.pos > 1 && !this.isSet && Math.abs(this.pos - this.lastProgPos / 1000) > 3) {
       w.getDuration((ms) => {
         if (ms > 0) { this.duration = ms / 1000; this.pos = this.pos % this.duration; }
         w.seekTo(Math.round(this.pos * 1000));
