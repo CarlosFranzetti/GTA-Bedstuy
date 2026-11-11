@@ -21,6 +21,14 @@ const MAX_SUBSTEPS = 4;
 const SLEEP_AFTER = 3;
 /** Static bodies whose id starts with this never block vehicles (bins and bags get knocked over). */
 export const SOFT_PREFIX = 'soft-';
+/**
+ * Static colliders low enough to jump over: hydrants, planters, bollards, low fences ('<lot>-fence'), anything named 'low-...'.
+ * A body whose `height` is at least LOW_CLEAR_HEIGHT (an airborne player) passes over them; everything else still blocks.
+ */
+export const LOW_CLEAR_HEIGHT = 0.4;
+export function isLowCollider(id: string): boolean {
+  return /^(hydrant|planter|bollard|low)-/.test(id) || id.endsWith('-fence');
+}
 /** Dynamic hash is rebuilt once per step; bodies move after that, so queries between steps are padded. */
 const DYN_QUERY_PAD = 2;
 const RAY_LINEAR_FALLBACK_CELLS = 400;
@@ -45,6 +53,8 @@ interface Entry {
   processed: boolean;
   /** statics only: a prop (bin, bags) that cars and cops drive through; people and everything else still stop at it */
   soft: boolean;
+  /** statics only: a low prop an airborne body (height >= LOW_CLEAR_HEIGHT) passes over */
+  low: boolean;
   /** dynamics sleep: position at the end of the previous step, consecutive calm steps, and whether anything touched it this step */
   sx: number; sz: number; calm: number; touched: boolean;
 }
@@ -123,7 +133,7 @@ function newEntry(body: Body2D, idx: number, isStatic: boolean): Entry {
   return {
     body, idx, isStatic, stamp: 0, r: 0,
     minX: 0, minZ: 0, maxX: 0, maxZ: 0,
-    cx0: 0, cz0: 0, cx1: 0, cz1: 0, hashed: false, processed: false, soft: false,
+    cx0: 0, cz0: 0, cx1: 0, cz1: 0, hashed: false, processed: false, soft: false, low: false,
     sx: NaN, sz: NaN, calm: 0, touched: false,
   };
 }
@@ -233,6 +243,7 @@ export class World2D implements IWorld2D {
     this.removeBody(body.id);
     const e = newEntry(body, this.nextIdx++, true);
     e.soft = body.id.startsWith(SOFT_PREFIX);
+    e.low = isLowCollider(body.id);
     const s = body.shape;
     let minX: number, minZ: number, maxX: number, maxZ: number;
     if (s.kind === 'circle') {
@@ -337,6 +348,7 @@ export class World2D implements IWorld2D {
       if (c === e) continue;
       if (c.isStatic) {
         if (c.soft && (a.kind === 'vehicle' || a.kind === 'cop')) continue;
+        if (c.low && a.height !== undefined && a.height >= LOW_CLEAR_HEIGHT) continue;
         const px = a.pos.x, pz = a.pos.z, r = e.r;
         if (c.minX > px + r || c.maxX < px - r || c.minZ > pz + r || c.maxZ < pz - r) continue;
       } else {

@@ -74,9 +74,6 @@ export function gearForSpeedOf(v: EngineVoice, speed: number): number {
   const r = gearRatios(v);
   const s = Math.abs(fin(speed));
   let g = 1;
-  while (g < v.gears && s * r[g] < v.red * v.shift * 0.62 && s * r[g - 1] > v.red * v.shift * 0.9) g++;
-  // plain rule: upshift once the lower gear passes the shift point
-  g = 1;
   while (g < v.gears && s * r[g - 1] > v.red * v.shift) g++;
   return g;
 }

@@ -233,6 +233,8 @@ export interface Body2D {
   mass: number;
   /** optional back-reference to the owning entity */
   userData?: unknown;
+  /** optional visual height above the ground (m); an airborne player sets it so low props can be jumped over */
+  height?: number;
 }
 
 export interface Contact {
