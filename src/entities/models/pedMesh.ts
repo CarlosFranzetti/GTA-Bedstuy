@@ -334,9 +334,14 @@ function bodyParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
   const seg = hiDetail ? 16 : 9;
   const hip = s.hipRings, tor = s.torsoRings;
   if (spec.bottom.kind === 'skirt') {
-    const top = hip[hip.length - 1], hem = s.landmarks.crownY * (spec.bottom.long ? 0.12 : spec.top.kind === 'dress' ? 0.25 : 0.31);
+    const top = hip[hip.length - 1], hem = s.landmarks.crownY * (spec.bottom.long ? 0.12 : spec.top.kind === 'dress' ? 0.25 : 0.31), waist = tor[0];
     const hw = peopleMode() === 'skin' ? Math.max(0.95, bodyTypeOf(spec).hips) : 1;
-    out.push(loft([{ y: hem, rx: (top[1] + 0.1) * hw, rz: top[3] + 0.1, cz: top[2] }, { y: (hem + top[0]) / 2, rx: (top[1] + 0.05) * hw, rz: top[3] + 0.05, cz: top[2] }, { y: top[0], rx: (top[1] + 0.015) * hw, rz: top[3] + 0.015, cz: top[2] }], seg, HI_RECTS.pelvis, 1));
+    // the top ring sits inside the dressed waist so the skirt grows out of the body (no shelf); pleats and hem are the lower rows of the pelvis tile
+    const skirtRect = { x: HI_RECTS.pelvis.x, y: HI_RECTS.pelvis.y + 40, w: HI_RECTS.pelvis.w, h: HI_RECTS.pelvis.h - 40 };
+    out.push(loft([
+      { y: hem, rx: (top[1] + 0.1) * hw, rz: top[3] + 0.1, cz: top[2] }, { y: (hem + top[0]) / 2, rx: (top[1] + 0.05) * hw, rz: top[3] + 0.05, cz: top[2] },
+      { y: top[0] - 0.01, rx: (top[1] + 0.022) * hw, rz: top[3] + 0.022, cz: top[2] }, { y: waist[0] + 0.05, rx: waist[1] * 0.985, rz: waist[3] * 0.985, cz: waist[2] },
+    ], seg, peopleMode() === 'skin' ? skirtRect : HI_RECTS.pelvis, 1));
   }
   if (spec.gear === 'backpack') {
     const mid = tor[Math.floor(tor.length / 2)], k = spec.build === 'kid' ? 1.1 : 1, back = mid[2] + mid[3];
@@ -498,15 +503,18 @@ function skinExtras(s: MhShape, spec: PedSpec, hi: boolean): THREE.BufferGeometr
       { y: y0 - 0.0, rx: (nk.rx + 0.058) * w, rz: nk.rz + 0.048, cz: nk.cz + 0.05 },
       { y: y0 + 0.05, rx: nk.rx + 0.032, rz: nk.rz + 0.032, cz: nk.cz + 0.03 },
       { y: lm.chinY - 0.02, rx: nk.rx + 0.022, rz: nk.rz + 0.022, cz: nk.cz + 0.012 },
-    ], seg, HI_RECTS.torso, 2, 'bottom'));
+    ], seg, { x: HI_RECTS.torso.x, y: HI_RECTS.torso.y + 2, w: HI_RECTS.torso.w, h: 22 }, 2, 'bottom'));
   }
   if (spec.top.long && spec.top.kind !== 'dress') {
+    // a coat's lower half: narrower flare than before (the hands hang outside it), starts inside the dressed waist, textured with the bottom rows of the torso tile
     const hip = s.hipRings, top = hip[hip.length - 1], tor = s.torsoRings, waist = tor[0], kneeY = R.kneeL[1] + 0.05, w = Math.max(1, bt.hips);
+    const coatRect = { x: HI_RECTS.torso.x, y: HI_RECTS.torso.y + 96, w: HI_RECTS.torso.w, h: 32 };
     out.push(loft([
-      { y: kneeY, rx: (top[1] + 0.1) * w, rz: top[3] + 0.08, cz: top[2] },
-      { y: (kneeY + top[0]) / 2 + 0.05, rx: (top[1] + 0.055) * w, rz: top[3] + 0.05, cz: top[2] },
-      { y: top[0] + 0.02, rx: (Math.max(top[1], waist[1]) + 0.03) * w, rz: top[3] + 0.03, cz: top[2] },
-    ], seg, HI_RECTS.torso, 1));
+      { y: kneeY, rx: (top[1] + 0.062) * w, rz: top[3] + 0.05, cz: top[2] },
+      { y: (kneeY + top[0]) / 2 + 0.05, rx: (top[1] + 0.04) * w, rz: top[3] + 0.034, cz: top[2] },
+      { y: top[0] - 0.01, rx: (top[1] + 0.024) * w, rz: top[3] + 0.024, cz: top[2] },
+      { y: waist[0] + 0.05, rx: waist[1] * 0.985, rz: waist[3] * 0.985, cz: waist[2] },
+    ], seg, coatRect, 1));
   }
   return out;
 }
@@ -572,6 +580,8 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
   group.name = 'human';
   group.userData.pedVariant = spec.id;
   group.userData.pedShape = shape.name;
+  // arms hang a little out from a wide body or a flared coat: set on the arm pivots by the pedestrian animation (Pedestrian.reactionPose)
+  group.userData.splay = ((): number => { const b = bodyTypeOf(spec); return Math.min(0.2, Math.max(0.02, (spec.top.long ? 0.12 : 0) + (spec.top.kind === 'puffer' ? 0.07 : 0) + Math.max(0, (Math.max(b.hips, b.chest, 1) - 1)) * 0.3 + (spec.bottom.kind === 'skirt' ? 0.05 : 0) + 0.03)); })();
   const bt = bodyTypeOf(spec), R: Record<string, number[]> = {};
   for (const [k, v] of Object.entries(shape.rig)) R[k] = peopleMode() === 'skin' ? jointFor(k, v, bt) : v;
   const rig = new THREE.Bone(); rig.name = 'rig'; group.add(rig);

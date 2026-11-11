@@ -851,7 +851,8 @@ export class Pedestrian implements Entity {
   }
   private reactionPose(m: HumanModel): void {
     const r = this.reaction;
-    if (this.pose !== 'talk') { m.arms[0].rotation.z = 0; m.arms[1].rotation.z = 0; }
+    const splay = (m.group.userData.splay as number | undefined) ?? 0;
+    if (this.pose !== 'talk') { m.arms[0].rotation.z = -splay; m.arms[1].rotation.z = splay; }
     if (!r || r.delay > 0) return;
     const t = this.gesture, k = Math.sin((r.t / r.dur) * Math.PI);   // eases in and out
     switch (r.kind) {

@@ -53,6 +53,7 @@ const place = (ids, row, spacing, yaw) => {
     const m = buildPedModel(materials, new Rng(v + 1), { variant: v });
     m.group.position.set((i - (ids.length - 1) / 2) * spacing + row * spacing * 0.5, 0, -row * 1.6);
     m.group.rotation.y = Math.PI + yaw + 0.08 * ((i % 3) - 1);
+    { const sp = m.group.userData.splay ?? 0; m.arms[0].rotation.z = -sp; m.arms[1].rotation.z = sp; }
     if (POSE === 'stride') animateWalk(m, Math.PI / 2 + (i % 2) * Math.PI, 1);
     scene.add(m.group);
   });
