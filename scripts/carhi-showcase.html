@@ -10,6 +10,7 @@ import { Rng } from '@/core/Rng';
 import { MaterialLibrary } from '@/textures/MaterialLibrary';
 import { buildCarModel } from '@/entities/models/carModel';
 import { VEHICLE_SPECS } from '@/entities/Vehicle';
+import { lookFor } from '@/entities/models/carLook';
 
 const params = new URLSearchParams(location.search);
 const view = params.get('view') ?? 'peds';
@@ -38,7 +39,18 @@ const type = params.get('type') ?? 'sedan';
 const color = params.get('color') ?? VEHICLE_SPECS[type].color;
 const variant = Number(params.get('variant') ?? 0);
 const angle = params.get('angle') ?? 'front3q';
-const m = buildCarModel(type, { ...VEHICLE_SPECS[type], color }, materials, variant);
+// CARS12: ?seed=N derives the car's look (variants); ?ov=roof~cargo|wheel~deep|lowered~0.07 forces fields (numbers parsed, 'a.b' lists for stickers)
+const seedP = params.get('seed');
+let carLook;
+if (seedP !== null) {
+  carLook = lookFor(type, color, Number(seedP));
+  for (const kv of (params.get('ov') ?? '').split('|').filter(Boolean)) {
+    const [k, v] = kv.split('~');
+    carLook[k] = k === 'stickers' ? v.split('.').filter(Boolean).map(Number) : v === 'true' ? true : v === 'false' ? false : isNaN(Number(v)) ? v : Number(v);
+  }
+  carLook.key = JSON.stringify(carLook); carLook.condKey = `${carLook.dirt}.${carLook.rust}.${carLook.dents}.${carLook.primer}.${seedP & 7}`;
+}
+const m = buildCarModel(type, { ...VEHICLE_SPECS[type], color }, materials, variant, undefined, false, carLook, Number(seedP ?? 0));
 scene.add(m.group);
 // 4 m camera: distance from the car's centre to the camera ~4 m on the ground plane
 const dist = Number(params.get('dist') ?? 4);

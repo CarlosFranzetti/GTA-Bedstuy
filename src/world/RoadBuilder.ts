@@ -392,7 +392,7 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
     const cz = (minZ + maxZ) / 2;
     // odd block rows are the brownstone rows, where old bluestone flags survive; elsewhere poured concrete
     const origin = { x: minX, z: minZ };
-    if (bl.row % 2 === 1) {
+    if (Math.abs(bl.row) % 2 === 1) {
       std('bluestone', 0, 'sidewalks-bluestone').push(projectUV(
         box(cx, SIDEWALK_H / 2, cz, w, SIDEWALK_H, d), origin, WORLD_X, WORLD_Z, 1 / BLUESTONE_U, 1 / BLUESTONE_V));
     } else {
@@ -403,7 +403,7 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
     // Curbs sit on the roadway side of each block edge; the north and south runs extend by one
     // curb width so the corner squares are closed.
     // alternate T11's two stones (grey / warm pink-grey) block by block in a checkerboard
-    const curbVariant = (bl.row + bl.col) % 2;
+    const curbVariant = (Math.abs(bl.row) + bl.col) % 2;
     const curbs = std('graniteCurb', curbVariant, curbVariant === 0 ? 'curbs' : 'curbs-warm');
     const runs: CurbRun[] = [
       { axis: 'x', line: minZ, from: minX - CURB_W, to: maxX + CURB_W, outward: -1 },
@@ -417,7 +417,7 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
     // Tree pits were drawn as separate quads of the dark concrete variant, then as a cloned decal material: in the headless
     // renders both shaded to flat black squares on the spawn sidewalk (only a quad sharing the slab's own material rendered
     // right). Until the cause is found they share the sidewalk material, so a pit is a seamless slab, not a black hole.
-    const treePits = bl.row % 2 === 1 ? std('bluestone', 0, 'sidewalks-bluestone') : std('concrete', 0, 'sidewalks');
+    const treePits = Math.abs(bl.row) % 2 === 1 ? std('bluestone', 0, 'sidewalks-bluestone') : std('concrete', 0, 'sidewalks');
     // Cellar plates: a mid steel grey, not the near-black metalDark (#26282b rendered pure black in the building's shade).
     const plates = bucket('decal:cellarPlate', 'cellar-plates', () => {
       const pm = decalMaterial(materials.get('metalDark', 0)) as THREE.MeshStandardMaterial;

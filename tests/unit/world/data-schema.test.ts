@@ -27,11 +27,11 @@ describe('real bedstuy.json (schema v2)', () => {
     expect(validateAgainstGrid(grid, faces)).toEqual([]);
   });
 
-  it('has an entry for every one of the 100 block faces (40 original + 60 east placeholders), none unmatched', () => {
+  it('has an entry for every one of the 180 block faces (40 original + 60 east placeholders + 80 north, WBURG), none unmatched', () => {
     const res = checkAgainstGrid(grid, faces);
     expect(res.missing).toEqual([]);
     expect(res.unmatched).toEqual([]);
-    expect(faces.faces).toHaveLength(100);
+    expect(faces.faces).toHaveLength(180);
     for (const b of grid.blocks) for (const f of b.faces) expect(faceFor(faces, grid, f)).toBeDefined();
   });
 
@@ -400,7 +400,7 @@ describe('faces.ts entry point', () => {
   it('getBedstuyFaces caches the validated real data; faceSpecResolver yields rows or null', async () => {
     const { getBedstuyFaces, faceSpecResolver, allLots } = await import('@/world/data/faces');
     expect(getBedstuyFaces()).toBe(getBedstuyFaces());
-    expect(getBedstuyFaces().faces).toHaveLength(100);
+    expect(getBedstuyFaces().faces).toHaveLength(180);
     const resolve = faceSpecResolver(grid);
     const rows = resolve('r1c1', 'W')!;
     expect(rows.length).toBeGreaterThan(5);

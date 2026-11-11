@@ -12,9 +12,10 @@
  * `bus` (the game EventBus, once the mission:* keys exist in GameEvents). `update` allocates nothing in steady state.
  */
 import type { Vec2 } from '@/core/Math2';
+import { StoryState } from '@/game/story/StoryState';
 import type {
-  DjRequest, FailReason, MissionDef, MissionEventName, MissionEvents, MissionHudState, MissionMarker, MissionSave,
-  MissionSignal, ObjectiveDef,
+  DjRequest, FailReason, ForkOption, MissionDef, MissionEventName, MissionEvents, MissionHudState, MissionMarker, MissionSave,
+  MissionSignal, ObjectiveDef, SubLine,
 } from './types';
 
 export type MissionListener<K extends MissionEventName> = (payload: MissionEvents[K]) => void;
@@ -35,6 +36,10 @@ export interface MissionSystemOptions {
   /** Labels used in the retry prompt. */
   retryKey?: string;
   abandonKey?: string;
+  /** Spend `n` dollars from the wallet (Inventory.spend); false = cannot afford. Missing: every payment succeeds. */
+  spend?: (n: number) => boolean;
+  /** Share a StoryState with other systems (the director, the news). Default: the system makes its own (`missions.story`). */
+  story?: StoryState;
 }
 
 const COLOR_GIVER = '#f5c542';
@@ -52,6 +57,13 @@ const TOO_FAST_GRACE = 0.5;
 const TOO_FAST_LEAD_IN = 1.5;
 const DEFAULT_BANTER_EVERY = 11;
 const DEFAULT_TAIL_GRACE = 6;
+const DEFAULT_SPOT_GRACE = 2.5;
+const DEFAULT_STAKEOUT_SLACK = 6;
+const FRAGILE_HP = 100;
+const FRAGILE_MIN_IMPACT = 3;
+const FRAGILE_PER_IMPACT = 1.6;
+const SUB_MIN_S = 2.8;
+const SUB_PER_CHAR_S = 0.055;
 const CUSTOMER_OFFSETS: readonly (readonly [number, number])[] = [[4, 2], [-4, 3], [3, -4], [-3, -3]];
 
 const wrap24 = (h: number): number => ((h % 24) + 24) % 24;
@@ -78,6 +90,8 @@ export class MissionSystem {
     cash: 0, toastSeq: 0, toast: '', toastKind: 'info', retryPrompt: '', prompt: '', inside: false,
   };
 
+  /** Branch flags, fork choices and heard news. Embedded in `serialize()`; GameSave also carries it as `story`. */
+  readonly story: StoryState;
   private readonly defs: readonly MissionDef[];
   private readonly status: Statuses[];
   private readonly armed: boolean[];
@@ -125,10 +139,22 @@ export class MissionSystem {
   private pendingStart = -1;
   private stopHintedZone = -1;
   private giverKey = '';
+  private hostVehicle = '';
+  // fragile cargo, subtitles, chase / race / stakeout / spots scratch
+  private cargoHp = FRAGILE_HP;
+  private subQueue: Array<SubLine & { due: number }> = [];
+  private subHold = 0;
+  private spotsDone: boolean[] = [];
+  private forkOpts: ForkOption[] = [];
+  private spotted = 0;
+  private slackUsed = 0;
+  private stakeEvt = 0;
+  private rival = { x: 0, z: 0, leg: 0, moved: 0, total: 1, pause: 0, stumble: 0, done: false, cp: 0 };
 
   constructor(defs: readonly MissionDef[], opts: MissionSystemOptions = {}) {
     this.defs = defs;
     this.opts = opts;
+    this.story = opts.story ?? new StoryState();
     this.hoursPerSec = opts.gameHoursPerSecond ?? DEFAULT_GAME_HOURS_PER_SECOND;
     this.status = defs.map(() => 'available');
     this.armed = defs.map(() => false);
@@ -222,6 +248,36 @@ export class MissionSystem {
       this.done = true;
       return true;
     }
+    if (ob.kind === 'spots') {
+      for (let i = 0; i < ob.points.length; i++) {
+        if (this.spotsDone[i] || (ob.ordered && this.spotsDone.indexOf(false) !== i)) continue;
+        if (!this.reach(pos, ob.points[i], ob.radius, ob.presence ?? 'onFoot')) continue;
+        this.spotsDone[i] = true;
+        this.items.push(ob.item);
+        this.hud.carrying = this.items.join(', ');
+        this.toast(`${ob.item} ${this.spotsDone.filter(Boolean).length}/${ob.points.length}`, 'good');
+        this.rebuildMarkers();
+        return true;
+      }
+      return false;
+    }
+    if (ob.kind === 'pay') {
+      if (!this.reach(pos, ob.at, ob.radius, ob.presence ?? 'onFoot')) return false;
+      if (this.opts.spend && !this.opts.spend(ob.amount)) { this.toast(`Not enough cash: that is $${ob.amount}.`, 'bad'); return true; }
+      this.done = true;
+      return true;
+    }
+    if (ob.kind === 'fork') {
+      const o = this.forkOpts.find((f) => this.reach(pos, f.at, f.radius, ob.presence ?? 'onFoot'));
+      if (!o) return false;
+      this.story.choose(ob.id, o.flag);
+      this.opts.setFlag?.(o.flag);
+      if (o.cash) { if (o.cash > 0) this.opts.pay?.(o.cash); else if (!this.opts.spend?.(-o.cash)) this.opts.pay?.(o.cash); }
+      if (o.doneMessage) this.toast(o.doneMessage, 'info');
+      this.emit('mission:choice', { id: this.defs[this.cur].id, fork: ob.id, flag: o.flag, label: o.label });
+      this.done = true;
+      return true;
+    }
     if (ob.kind === 'sell' && this.custAt && Math.hypot(pos.x - this.custAt.x, pos.z - this.custAt.z) <= CUSTOMER_RANGE) {
       this.sellOne(ob.item);
       return true;
@@ -281,7 +337,10 @@ export class MissionSystem {
   serialize(): MissionSave {
     const completed: string[] = [];
     for (let i = 0; i < this.defs.length; i++) if (this.status[i] === 'complete') completed.push(this.defs[i].id);
-    return this.staked.size > 0 ? { v: 1, completed, cash: this.cash, staked: [...this.staked] } : { v: 1, completed, cash: this.cash };
+    const save: MissionSave = { v: 1, completed, cash: this.cash };
+    if (this.staked.size > 0) save.staked = [...this.staked];
+    if (!this.story.isEmpty) save.story = this.story.serialize();
+    return save;
   }
 
   /** Loads a save. Returns false (state untouched) when `data` is not a valid save. Unknown mission ids are ignored. */
@@ -297,7 +356,9 @@ export class MissionSystem {
     this.hud.cash = this.cash;
     this.staked.clear();
     if (Array.isArray(o.staked)) for (const id of o.staked) if (typeof id === 'string') this.staked.add(id);
-    for (let i = 0; i < this.defs.length; i++) if (this.status[i] === 'complete') for (const f of this.defs[i].setFlags ?? []) this.opts.setFlag?.(f);
+    this.story.reset();
+    if (o.story !== undefined) this.story.restore(o.story);
+    for (let i = 0; i < this.defs.length; i++) if (this.status[i] === 'complete') for (const f of this.defs[i].setFlags ?? []) { this.story.set(f); this.opts.setFlag?.(f); }
     this.giverKey = '';
     this.rebuildMarkers();
     return true;
@@ -311,8 +372,10 @@ export class MissionSystem {
    * @param speedMps current speed in m/s (holdSpeedBelow and maxKmh need it)
    * @param hour game hour 0..24, or -1 when unknown (disables hour windows and deadlines)
    */
-  update(dt: number, pos: Vec2, inVehicle: boolean, wantedStars: number, speedMps = 0, hour = -1): void {
+  update(dt: number, pos: Vec2, inVehicle: boolean, wantedStars: number, speedMps = 0, hour = -1, vehicleType = ''): void {
     this.hostInVehicle = inVehicle;
+    this.hostVehicle = inVehicle ? vehicleType : '';
+    this.tickSubtitles(dt);
     this.lastHour = hour;
     this.lastPos.x = pos.x; this.lastPos.z = pos.z; this.hasPos = true;
     if (this.cur < 0) { this.checkTriggers(pos, hour, dt, inVehicle, speedMps); return; }
@@ -345,6 +408,14 @@ export class MissionSystem {
     if (ob.maxKmh !== undefined && this.objElapsed > TOO_FAST_LEAD_IN) {
       if (speedMps * 3.6 > ob.maxKmh) { this.fastFor += dt; if (this.fastFor > TOO_FAST_GRACE) return this.fail('tooFast'); } else this.fastFor = 0;
     }
+    // fragile cargo (records, passengers): impacts wear it down while a `cargo` objective is active
+    const frag = this.defs[this.cur].fragile;
+    if (frag && ob.cargo) {
+      for (const s of this.sigs) if (s.type === 'impact') this.hitCargo(frag, s.strength);
+      if (this.status[this.cur] !== 'active') return;
+    }
+    // dialogue
+    this.playSubtitles();
     // banter
     if (ob.banter && this.banterIdx < ob.banter.length) {
       this.banterT -= dt;
@@ -372,9 +443,10 @@ export class MissionSystem {
   private hostInVehicle = false;
 
   private requiresMet(i: number): boolean {
-    const req = this.defs[i].requires;
-    if (!req) return true;
-    for (const id of req) if (this.statusOf(id) !== 'complete') return false;
+    const d = this.defs[i];
+    if (d.requires) for (const id of d.requires) if (this.statusOf(id) !== 'complete') return false;
+    if (d.requiresFlags) for (const f of d.requiresFlags) if (!this.story.has(f)) return false;
+    if (d.forbidFlags) for (const f of d.forbidFlags) if (this.story.has(f)) return false;
     return true;
   }
 
@@ -453,15 +525,26 @@ export class MissionSystem {
     this.hud.prompt = '';
     let advance = 0;
     if (d.stake && !this.staked.has(d.id)) { this.staked.add(d.id); this.opts.pay?.(d.stake); advance = d.stake; }
+    this.cargoHp = d.fragile?.hp ?? FRAGILE_HP;
+    this.obj = this.nextRunnable(0);
+    if (this.obj >= d.objectives.length) this.obj = d.objectives.length - 1;
     this.enterObjective();
     this.setObjectiveHud();
     this.rebuildMarkers();
     this.toast(advance > 0 ? `Mission started: ${d.title}  +$${advance} advance` : `Mission started: ${d.title}`, 'good');
     this.emit('mission:started', { id: d.id, title: d.title, blurb: d.blurb });
-    this.emit('mission:objective', { id: d.id, index: 0, total: d.objectives.length, text: d.objectives[0].text });
+    this.emit('mission:objective', { id: d.id, index: this.obj, total: d.objectives.length, text: d.objectives[this.obj].text });
     this.checkTwist();
     this.syncStatic();
     this.syncDynamic();
+  }
+
+  /** First objective at or after `from` whose `when` rule passes (objectives off the player's branch are skipped). */
+  private nextRunnable(from: number): number {
+    const obs = this.defs[this.cur].objectives;
+    let i = from;
+    while (i < obs.length && !this.story.test(obs[i].when)) i++;
+    return i;
   }
 
   private clearRun(): void {
@@ -479,7 +562,9 @@ export class MissionSystem {
   private resetObjective(): void {
     this.talkIdx = 0; this.presses = 0; this.done = false; this.fastFor = 0; this.banterIdx = 0; this.banterT = 0;
     this.collected = []; this.bought = new Set(); this.sold = 0; this.custT = 0; this.custStay = 0; this.custAt = null; this.custN = 0;
-    this.movingT = 0;
+    this.movingT = 0; this.spotsDone = []; this.forkOpts = []; this.spotted = 0; this.slackUsed = 0; this.stakeEvt = 0;
+    this.subQueue = []; this.subHold = 0;
+    this.rival = { x: 0, z: 0, leg: 0, moved: 0, total: 1, pause: 0, stumble: 0, done: false, cp: 0 };
     this.tail = { x: 0, z: 0, leg: 0, engaged: false, atEnd: false, lost: 0, dist: 0, total: 1, moved: 0 };
   }
 
@@ -491,10 +576,60 @@ export class MissionSystem {
     if (ob.kind === 'tail') {
       const r = ob.route;
       this.tail.x = r[0].x; this.tail.z = r[0].z; this.tail.leg = 0;
-      let len = 0;
-      for (let i = 1; i < r.length; i++) len += Math.hypot(r[i].x - r[i - 1].x, r[i].z - r[i - 1].z);
-      this.tail.total = Math.max(1, len);
+      this.tail.total = routeLength(r);
     }
+    if (ob.kind === 'spots') this.spotsDone = ob.points.map(() => false);
+    if (ob.kind === 'fork') this.forkOpts = ob.options.filter((o) => this.story.test(o.when));
+    if (ob.kind === 'chase' || ob.kind === 'race') {
+      const r = ob.route;
+      this.rival.x = r[0].x; this.rival.z = r[0].z;
+      this.rival.total = routeLength(r);
+    }
+    // dialogue and the camera beat start with the objective
+    if (ob.say) {
+      let t = 0;
+      for (const l of ob.say) {
+        const at = l.at ?? t;
+        this.subQueue.push({ ...l, due: at });
+        t = at + subtitleSeconds(l.text);
+      }
+    }
+    if (ob.beat) this.emit('mission:beat', { id: this.defs[this.cur].id, seconds: ob.beat.letterbox });
+  }
+
+  // ---- subtitles
+
+  /** Show a line now (also usable by the director for phone calls). */
+  say(who: string, text: string): void {
+    const h = this.hud;
+    h.subSeq = (h.subSeq ?? 0) + 1;
+    h.subWho = who; h.subText = text; h.subMs = Math.round(subtitleSeconds(text) * 1000);
+    this.subHold = subtitleSeconds(text);
+    this.emit('mission:subtitle', { id: this.cur >= 0 ? this.defs[this.cur].id : '', who, text });
+  }
+
+  private tickSubtitles(dt: number): void { if (this.subHold > 0) this.subHold = Math.max(0, this.subHold - dt); }
+
+  private playSubtitles(): void {
+    if (this.subQueue.length === 0 || this.subHold > 0) return;
+    const next = this.subQueue[0];
+    if (this.objElapsed < next.due) return;
+    this.subQueue.shift();
+    this.say(next.who, next.text);
+  }
+
+  // ---- fragile cargo
+
+  /** Remaining cargo health 0..100, or -1 when the mission carries nothing fragile. */
+  get cargoHealth(): number { return this.cur >= 0 && this.defs[this.cur].fragile ? Math.round(this.cargoHp) : -1; }
+
+  private hitCargo(f: NonNullable<MissionDef['fragile']>, strength: number): void {
+    const hit = strength - (f.minImpact ?? FRAGILE_MIN_IMPACT);
+    if (hit <= 0) return;
+    this.cargoHp = Math.max(0, this.cargoHp - hit * (f.perImpact ?? FRAGILE_PER_IMPACT));
+    this.hud.carrying = `${f.label} ${Math.round(this.cargoHp)}%`;
+    if (this.cargoHp <= 0) { this.fail('cargoBroken'); return; }
+    this.toast(`${f.label}: ${Math.round(this.cargoHp)}%`, this.cargoHp < 35 ? 'bad' : 'info');
   }
 
   private checkTwist(): void {
@@ -510,29 +645,81 @@ export class MissionSystem {
     if (ob.kind === 'interact') return this.reach(pos, ob.at, ob.radius, ob.presence ?? 'onFoot') ? `F  ${ob.prompt}` : '';
     if (ob.kind === 'pickUp' && ob.prompt !== undefined) return this.reach(pos, ob.at, ob.radius, ob.presence) ? `F  ${ob.prompt}` : '';
     if (ob.kind === 'sell' && this.custAt && Math.hypot(pos.x - this.custAt.x, pos.z - this.custAt.z) <= CUSTOMER_RANGE) return `F  Sell ${ob.item}`;
+    if (ob.kind === 'spots') {
+      for (let i = 0; i < ob.points.length; i++) {
+        if (this.spotsDone[i] || (ob.ordered && this.spotsDone.indexOf(false) !== i)) continue;
+        if (this.reach(pos, ob.points[i], ob.radius, ob.presence ?? 'onFoot')) return `F  ${ob.prompt}`;
+      }
+      return '';
+    }
+    if (ob.kind === 'pay') return this.reach(pos, ob.at, ob.radius, ob.presence ?? 'onFoot') ? `F  ${ob.prompt}  ($${ob.amount})` : '';
+    if (ob.kind === 'fork') {
+      const o = this.forkOpts.find((f) => this.reach(pos, f.at, f.radius, ob.presence ?? 'onFoot'));
+      return o ? `F  ${o.label}` : '';
+    }
     return '';
   }
 
   /** Failure rules that live inside objective kinds (losing a tail target). Returns the reason or null. */
   private evaluateFailing(ob: ObjectiveDef, pos: Vec2, dt: number): FailReason | null {
+    if (ob.kind === 'race') return this.evalRaceFail(ob, dt);
+    if (ob.kind === 'chase') return this.evalChaseFail(ob, pos, dt);
+    if (ob.kind === 'stakeout') return this.evalStakeoutFail(ob, pos, dt);
     if (ob.kind !== 'tail') return null;
     const t = this.tail;
     t.dist = Math.hypot(pos.x - t.x, pos.z - t.z);
     if (!t.engaged) { if (t.dist <= ob.maxDistance) t.engaged = true; return null; }
     if (t.atEnd) return null;
+    // stealth: too close for too long and the target makes you
+    if (ob.minDistance !== undefined) {
+      if (t.dist < ob.minDistance) { this.spotted += dt; if (this.spotted > (ob.spotGrace ?? DEFAULT_SPOT_GRACE)) return 'spotted'; } else this.spotted = Math.max(0, this.spotted - dt);
+    }
     if (t.dist > ob.maxDistance) { t.lost += dt; if (t.lost > (ob.grace ?? DEFAULT_TAIL_GRACE)) return 'lostTarget'; } else t.lost = 0;
     return null;
   }
 
+  private evalRaceFail(ob: Extract<ObjectiveDef, { kind: 'race' }>, dt: number): FailReason | null {
+    this.stepRival(ob.route, ob.rivalSpeed, dt, undefined);
+    return this.rival.done && this.rival.cp < ob.route.length - 1 ? 'lostRace' : null;
+  }
+
+  private evalChaseFail(ob: Extract<ObjectiveDef, { kind: 'chase' }>, pos: Vec2, dt: number): FailReason | null {
+    if (Math.hypot(pos.x - this.rival.x, pos.z - this.rival.z) <= ob.catchRadius) return null;
+    this.stepRival(ob.route, ob.speed, dt, ob.stumbles);
+    return this.rival.done ? 'lostTarget' : null;
+  }
+
+  private evalStakeoutFail(ob: Extract<ObjectiveDef, { kind: 'stakeout' }>, pos: Vec2, dt: number): FailReason | null {
+    if (inCircle(pos, ob.at, ob.radius)) return null;
+    this.slackUsed += dt;
+    return this.slackUsed > (ob.slack ?? DEFAULT_STAKEOUT_SLACK) ? 'blownCover' : null;
+  }
+
+  /** Advance the scripted runner / rival along `route`. `stumbles` pause it at fractions of the route. */
+  private stepRival(route: readonly Vec2[], speed: number, dt: number, stumbles: Array<{ at: number; pause: number }> | undefined): void {
+    const r = this.rival;
+    if (r.done) return;
+    if (r.pause > 0) { r.pause -= dt; return; }
+    if (stumbles && r.stumble < stumbles.length && r.moved / r.total >= stumbles[r.stumble].at) { r.pause = stumbles[r.stumble].pause; r.stumble++; return; }
+    let step = speed * dt;
+    while (step > 0 && r.leg < route.length - 1) {
+      const a = route[r.leg + 1];
+      const dx = a.x - r.x, dz = a.z - r.z, d = Math.hypot(dx, dz);
+      if (d <= step) { r.x = a.x; r.z = a.z; r.leg++; step -= d; r.moved += d; }
+      else { r.x += (dx / d) * step; r.z += (dz / d) * step; r.moved += step; step = 0; }
+    }
+    if (r.leg >= route.length - 1) r.done = true;
+  }
+
   private evaluate(ob: ObjectiveDef, pos: Vec2, inVehicle: boolean, stars: number, speedMps: number, dt: number): boolean {
     switch (ob.kind) {
-      case 'goTo': return inCircle(pos, ob.at, ob.radius) && presenceOk(ob.presence, inVehicle);
+      case 'goTo': return inCircle(pos, ob.at, ob.radius) && presenceOk(ob.presence, inVehicle) && this.vehOk(ob);
       case 'pickUp':
         if (ob.prompt !== undefined) return this.done;
-        return inCircle(pos, ob.at, ob.radius) && presenceOk(ob.presence, inVehicle);
+        return inCircle(pos, ob.at, ob.radius) && presenceOk(ob.presence, inVehicle) && this.vehOk(ob);
       case 'deliver':
-        return inCircle(pos, ob.at, ob.radius) && presenceOk(ob.presence, inVehicle) && this.hasAll(ob.items);
-      case 'enterVehicle': return inVehicle;
+        return inCircle(pos, ob.at, ob.radius) && presenceOk(ob.presence, inVehicle) && this.vehOk(ob) && this.hasAll(ob.items);
+      case 'enterVehicle': return inVehicle && this.vehOk(ob);
       case 'loseWanted': return stars <= 0;
       case 'surviveWanted':
         if (stars >= (ob.minStars ?? 1)) this.acc += dt;
@@ -565,7 +752,42 @@ export class MissionSystem {
       case 'djSet': return this.evalDj(ob);
       case 'buy': return this.evalBuy(ob);
       case 'sell': return this.evalSell(ob, pos, dt);
+      case 'spots': {
+        const n = this.spotsDone.filter(Boolean).length;
+        this.hud.progress = n / ob.points.length;
+        return n >= ob.points.length;
+      }
+      case 'pay': case 'fork': return this.done;
+      case 'chase': return Math.hypot(pos.x - this.rival.x, pos.z - this.rival.z) <= ob.catchRadius;
+      case 'race': return this.evalRace(ob, pos, inVehicle);
+      case 'stakeout': return this.evalStakeout(ob, pos, inVehicle, dt);
     }
+  }
+
+  /** The host's vehicle type satisfies the objective's `vehicle` list (waived when the host does not report types). */
+  private vehOk(ob: ObjectiveDef): boolean {
+    if (!ob.vehicle || this.hostVehicle === '' || !this.hostInVehicle) return true;
+    return ob.vehicle.includes(this.hostVehicle);
+  }
+
+  private evalRace(ob: Extract<ObjectiveDef, { kind: 'race' }>, pos: Vec2, inVehicle: boolean): boolean {
+    if (!presenceOk(ob.presence ?? 'inVehicle', inVehicle) || !this.vehOk(ob)) return false;
+    const cps = ob.route.length - 1; // route[0] is the start line, the rest are checkpoints
+    if (this.rival.cp < cps && inCircle(pos, ob.route[this.rival.cp + 1], ob.radius)) {
+      this.rival.cp++;
+      this.toast(`Checkpoint ${this.rival.cp}/${cps}`, 'good');
+      this.rebuildMarkers();
+    }
+    this.hud.progress = this.rival.cp / cps;
+    return this.rival.cp >= cps;
+  }
+
+  private evalStakeout(ob: Extract<ObjectiveDef, { kind: 'stakeout' }>, pos: Vec2, inVehicle: boolean, dt: number): boolean {
+    if (inCircle(pos, ob.at, ob.radius) && presenceOk(ob.presence ?? 'any', inVehicle)) this.acc += dt;
+    this.hud.progress = Math.min(1, this.acc / ob.seconds);
+    const ev = ob.events;
+    if (ev && this.stakeEvt < ev.length && this.acc >= ev[this.stakeEvt].at) this.toast(ev[this.stakeEvt++].text, 'info');
+    return this.acc >= ob.seconds;
   }
 
   private evalCollect(ob: Extract<ObjectiveDef, { kind: 'collect' }>, pos: Vec2, inVehicle: boolean): boolean {
@@ -590,7 +812,8 @@ export class MissionSystem {
 
   private evalTail(ob: Extract<ObjectiveDef, { kind: 'tail' }>, dt: number): boolean {
     const t = this.tail, r = ob.route;
-    if (t.engaged && !t.atEnd) {
+    const waiting = ob.waitDistance !== undefined && t.dist > ob.waitDistance;
+    if (t.engaged && !t.atEnd && !waiting) {
       let step = ob.speed * dt;
       while (step > 0 && t.leg < r.length - 1) {
         const a = r[t.leg + 1];
@@ -665,7 +888,11 @@ export class MissionSystem {
 
   /** Re-publish the markers a few times a second while a target is moving (the 3D view only redraws on a version bump). */
   private refreshMoving(dt: number): void {
-    if (this.defs[this.cur].objectives[this.obj].kind !== 'tail') return;
+    const k = this.defs[this.cur].objectives[this.obj].kind;
+    if (k === 'chase' || k === 'race') {
+      const m = this.markers.find((q) => q.id.endsWith('rival'));
+      if (m) { m.x = this.rival.x; m.z = this.rival.z; }
+    } else if (k !== 'tail') return;
     this.movingT += dt;
     if (this.movingT >= MOVING_MARKER_PERIOD) { this.movingT = 0; this.markersVersion++; }
   }
@@ -687,7 +914,7 @@ export class MissionSystem {
     if (done.raiseWantedTo !== undefined) this.opts.raiseWanted?.(Math.min(MAX_STARS, done.raiseWantedTo), pos);
     if (done.doneMessage) this.toast(done.doneMessage, 'info');
 
-    this.obj++;
+    this.obj = this.nextRunnable(this.obj + 1);
     this.objElapsed = 0; this.acc = 0; this.outOfCar = 0;
     this.hud.progress = -1;
     this.hud.prompt = '';
@@ -716,7 +943,7 @@ export class MissionSystem {
     this.rebuildMarkers();
     this.syncStatic();
     if (d.reward.cash > 0) this.opts.pay?.(d.reward.cash);
-    if (d.setFlags) for (const f of d.setFlags) this.opts.setFlag?.(f);
+    if (d.setFlags) for (const f of d.setFlags) { this.story.set(f); this.opts.setFlag?.(f); }
     this.emit('mission:completed', { id: d.id, title: d.title, cash: d.reward.cash, message: d.reward.message, totalCash: this.cash });
     this.opts.persist?.(this.serialize());
   }
@@ -742,6 +969,7 @@ export class MissionSystem {
     const d = this.defs[this.cur];
     this.hud.objective = d.objectives[this.obj].text;
     this.hud.step = this.obj + 1;
+    if (d.fragile && d.objectives[this.obj].cargo) this.hud.carrying = `${d.fragile.label} ${Math.round(this.cargoHp)}%`;
   }
 
   private syncStatic(): void {
@@ -809,6 +1037,22 @@ export class MissionSystem {
         }
         return;
       case 'tail': add(this.tail.x, this.tail.z, 4, 'tail', COLOR_TARGET); return;
+      case 'spots':
+        for (let i = 0; i < ob.points.length; i++) {
+          if (this.spotsDone[i] || (ob.ordered && this.spotsDone.indexOf(false) !== i)) continue;
+          add(ob.points[i].x, ob.points[i].z, ob.radius, `:${i}`);
+        }
+        return;
+      case 'fork':
+        this.forkOpts.forEach((o, i) => this.markers.push({ id: `${id}:${i}`, kind: 'objective', x: o.at.x, z: o.at.z, radius: o.radius, color: i % 2 === 0 ? COLOR_GOAL : COLOR_TARGET, label: o.label }));
+        return;
+      case 'chase': add(this.rival.x, this.rival.z, 2.5, 'rival', COLOR_TARGET); return;
+      case 'race':
+        if (this.rival.cp < ob.route.length - 1) { const c = ob.route[this.rival.cp + 1]; add(c.x, c.z, ob.radius); }
+        add(this.rival.x, this.rival.z, 3, 'rival', COLOR_TARGET);
+        return;
+      case 'stakeout': add(ob.at.x, ob.at.z, ob.radius); return;
+      case 'pay': add(ob.at.x, ob.at.z, ob.radius); return;
       case 'sell':
         add(ob.at.x, ob.at.z, ob.radius);
         if (this.custAt) add(this.custAt.x, this.custAt.z, 1.5, ':cust', COLOR_TARGET);
@@ -843,7 +1087,22 @@ const FAIL_TEXT: Record<FailReason, string> = {
   lowScore: 'The crowd was not feeling it.',
   copsCalled: 'The heat showed up.',
   tooFast: 'Too fast. Easy does it.',
+  cargoBroken: 'It did not survive the trip.',
+  spotted: 'They made you. Subtle you are not.',
+  blownCover: 'You left your post. So did the story.',
+  lostRace: 'Second place is first loser, as they say on the radio.',
 };
+
+function routeLength(r: readonly Vec2[]): number {
+  let len = 0;
+  for (let i = 1; i < r.length; i++) len += Math.hypot(r[i].x - r[i - 1].x, r[i].z - r[i - 1].z);
+  return Math.max(1, len);
+}
+
+/** How long a subtitle stays up: a floor, then a little per character. */
+export function subtitleSeconds(text: string): number {
+  return Math.max(SUB_MIN_S, text.length * SUB_PER_CHAR_S + 1.2);
+}
 
 function fmtHour(h: number): string {
   const hh = Math.floor(wrap24(h));

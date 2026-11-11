@@ -19,7 +19,9 @@ import {
   CAR_COLORWAYS, SKIN_H, SKIN_PAINT_BASE, SKIN_RECTS, SKIN_W, paintCarSkin, type SkinLayout, type SkinRegion, type SkinStyle,
 } from '@/textures/painters/vehicleSkin';
 import { carPaintConfigured, carPaintTier } from '@/render/CarPaintFx';
-import { STYLES, BUS_AXLES, BUS_BELT, BUS_SEAMS } from './carBodies';
+import { STYLES, BUS_AXLES, BUS_BELT, BUS_SEAMS, type StyleKey } from './carBodies';
+import { paletteEntry } from './carLook';
+import type { VehicleType } from '@/world/types';
 
 export interface PaintBox { L: number; W: number; H: number; yMin: number; zMin: number; xMin: number }
 
@@ -29,7 +31,7 @@ export function paintBox(geo: THREE.BufferGeometry, offset: THREE.Vector3 = new 
   return { L: b.max.z - b.min.z, W: b.max.x - b.min.x, H: b.max.y - b.min.y, yMin: b.min.y, zMin: b.min.z, xMin: b.min.x };
 }
 
-const BADGE: Record<SkinStyle, string> = { sedan: 'AVENUE', coupe: 'MARCY', suv: 'KOSCI', van: 'HALSEY', cargo: 'TRANSOM', hatch: 'PACER', beater: 'MARLOW', bus: 'CITY' };
+const BADGE: Record<SkinStyle, string> = { sedan: 'AVENUE', coupe: 'MARCY', suv: 'KOSCI', van: 'HALSEY', cargo: 'TRANSOM', hatch: 'PACER', beater: 'MARLOW', bus: 'CITY', pickup: 'FORGE', crossover: 'TREKKER', minivan: 'VOYAGER', luxury: 'BAVARO', towncar: 'SOVEREIGN', pony: 'BRONCO', dollar: 'JITNEY' };
 const clamp01 = (x: number): number => Math.min(1, Math.max(0, x));
 
 /** Layout of the skin for a body (pure numbers: unit-testable without a DOM). */
@@ -57,7 +59,7 @@ export function skinLayoutFor(style: SkinStyle, box: PaintBox, pack = 0): SkinLa
       headLamp: { x: 0.35, v: 0.2 }, tailLamp: { x: 0.35, v: 0.2 }, badge: BADGE.bus,
     };
   }
-  const st = STYLES[style];
+  const st = STYLES[style as StyleKey];
   const uMax = Math.abs(st.secs[0][0]);
   const n = (u: number): number => clamp01((uMax - u) / (2 * uMax));
   const v = (y: number): number => clamp01((y - box.yMin) / box.H);
@@ -132,6 +134,58 @@ export function assignSkinUV(geo: THREE.BufferGeometry, box: PaintBox, offset: T
 
 // ---------------------------------------------------------------- material
 
+/** Per-car condition of the paint (CARS12): dirt, rust 0..3, primer panel and up to three dents, drawn procedurally in the shader (no textures, no triangles). */
+export interface PaintCond {
+  dirt: number; rust: number;
+  /** primer panel in car space: z range, y range and side (+1 right, -1 left, 0 both), or null */
+  primer: { z0: number; z1: number; y0: number; y1: number; side: number } | null;
+  /** dent centres in car space (x, y, z, radius m) */
+  dents: Array<[number, number, number, number]>;
+  /** paint bounding box: yMin and height */
+  yMin: number; H: number;
+}
+export const NO_COND: PaintCond = { dirt: 0, rust: 0, primer: null, dents: [], yMin: 0, H: 1 };
+const hasCond = (c: PaintCond): boolean => c.dirt > 0 || c.rust > 0 || !!c.primer || c.dents.length > 0;
+
+const COND_FUNCS = /* glsl */ `
+varying vec3 vOPos;
+uniform vec4 uCond; uniform vec4 uPrimer; uniform vec4 uBox; uniform vec4 uDent[3];
+float h31(vec3 p){ p = fract(p*0.3183099+vec3(.1,.2,.3)); p*=17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+float vnoise(vec3 x){ vec3 i=floor(x); vec3 f=fract(x); f=f*f*(3.0-2.0*f);
+  return mix(mix(mix(h31(i),h31(i+vec3(1,0,0)),f.x),mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),f.x),f.y),
+             mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),f.x),mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),f.x),f.y),f.z); }
+`;
+const COND_FRAG = /* glsl */ `
+if (uCond.w > 0.5) {
+  vec3 q = vOPos;
+  float n1 = vnoise(q * 3.3), n2 = vnoise(q * 12.0);
+  float yN = clamp((q.y - uBox.x) / uBox.y, 0.0, 1.0);
+  float dl = uCond.x / 3.0;
+  float dirtAmt = dl * smoothstep(0.12 + 0.5 * dl, 0.0, yN) * (0.55 + 0.7 * n1);
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.2, 0.17, 0.12), clamp(dirtAmt * 0.85, 0.0, 0.8));
+  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.5, 0.46, 0.38), dl * 0.2 * (0.4 + n2));
+  if (uCond.y > 0.5) {
+    float rl = uCond.y / 3.0;
+    float lowEdge = 1.0 - smoothstep(0.0, 0.32, yN);
+    float m = smoothstep(0.7 - 0.28 * rl, 0.86 - 0.2 * rl, n1 * 0.55 + n2 * 0.45 + lowEdge * 0.5 * rl);
+    diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.4, 0.19, 0.07), vec3(0.64, 0.35, 0.14), n2), m);
+  }
+  if (uCond.z > 0.5 && q.z > uPrimer.x && q.z < uPrimer.y && q.y > uPrimer.z && q.y < uPrimer.w && (uBox.z == 0.0 || q.x * uBox.z > 0.0)) {
+    float edge = smoothstep(0.0, 0.015, min(min(q.z - uPrimer.x, uPrimer.y - q.z), min(q.y - uPrimer.z, uPrimer.w - q.y)));
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.43, 0.46, 0.42) * (0.85 + 0.3 * n2), edge);
+  }
+  for (int i = 0; i < 3; i++) {
+    if (uDent[i].w > 0.0) {
+      float d = length(q - uDent[i].xyz) / uDent[i].w;
+      if (d < 1.0) {
+        float ring = smoothstep(0.5, 0.82, d) * (1.0 - smoothstep(0.82, 1.0, d));
+        diffuseColor.rgb *= 1.0 - 0.4 * ring + 0.14 * (1.0 - smoothstep(0.0, 0.5, d));
+      }
+    }
+  }
+}
+`;
+
 const PAINT_FRAG = /* glsl */ `
 float cpMask = 0.0;
 #ifdef USE_MAP
@@ -140,6 +194,9 @@ float cpMask = 0.0;
   vec3 skinPaint = diffuse * min( skinS.rgb * ${(1 / SKIN_PAINT_BASE).toFixed(4)}, vec3( 1.25 ) );
   diffuseColor.rgb = mix( skinS.rgb, skinPaint, skinS.a );
   cpMask = skinS.a; // clear coat (render/CarPaintFx) only on paint pixels
+  if (skinS.a > 0.5) {
+  ${COND_FRAG}
+  }
 #endif
 `;
 
@@ -152,29 +209,54 @@ export class SkinCarPaint extends THREE.MeshPhysicalMaterial {
   readonly isSkinCarPaint = true;
   /** the library's plain paint of this colour: envMap and envMapIntensity follow it, so the sky reflections update as for every car */
   base: THREE.MeshStandardMaterial | null = null;
+  /** condition overlay uniforms (values are per material; all materials share one program) */
+  readonly u = {
+    uCond: { value: new THREE.Vector4() }, uPrimer: { value: new THREE.Vector4() }, uBox: { value: new THREE.Vector4(0, 1, 0, 0) },
+    uDent: { value: [new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4()] }, uOff: { value: new THREE.Vector3() },
+  };
 
   constructor(base?: THREE.MeshStandardMaterial) {
     super();
     this.base = base ?? null;
     Object.defineProperty(this, 'envMap', { get: () => this.base?.envMap ?? null, set: () => { /* follows the base */ }, configurable: true });
     this.onBeforeCompile = (shader): void => {
-      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', PAINT_FRAG);
+      Object.assign(shader.uniforms, this.u);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vOPos;\nuniform vec3 uOff;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOPos = position + uOff;');
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\n${COND_FUNCS}`).replace('#include <map_fragment>', PAINT_FRAG);
       installCarPaintCoat(shader);
       for (const h of skinHooks) h(shader, this);
     };
-    this.customProgramCacheKey = (): string => `skinCarPaint1:${skinHooks.length}`;
+    this.customProgramCacheKey = (): string => `skinCarPaint2:${skinHooks.length}`;
+  }
+
+  /** Sets the condition overlay (CARS12). */
+  setCond(c: PaintCond): this {
+    const on = hasCond(c);
+    this.u.uCond.value.set(c.dirt, c.rust, c.primer ? 1 : 0, on ? 1 : 0);
+    if (c.primer) this.u.uPrimer.value.set(c.primer.z0, c.primer.z1, c.primer.y0, c.primer.y1);
+    this.u.uBox.value.set(c.yMin, c.H, c.primer ? c.primer.side : 0, 0);
+    for (let i = 0; i < 3; i++) { const d = c.dents[i]; this.u.uDent.value[i].set(d ? d[0] : 0, d ? d[1] : 0, d ? d[2] : 0, d ? d[3] : 0); }
+    return this;
   }
 
   copy(source: THREE.Material): this {
     super.copy(source as THREE.MeshPhysicalMaterial);
     const s = source as SkinCarPaint;
-    if (s.isSkinCarPaint) this.base = s.base;
+    if (s.isSkinCarPaint) {
+      this.base = s.base;
+      this.u.uCond.value.copy(s.u.uCond.value); this.u.uPrimer.value.copy(s.u.uPrimer.value); this.u.uBox.value.copy(s.u.uBox.value); this.u.uOff.value.copy(s.u.uOff.value);
+      for (let i = 0; i < 3; i++) this.u.uDent.value[i].copy(s.u.uDent.value[i]);
+    }
     return this;
   }
 }
 
 /** Trim pack of a colour for a style: the colourway's own pack when the colour is one of its solids, else a stable hash. */
-export function packFor(style: SkinStyle, color: string): number {
+export function packFor(style: SkinStyle, color: string, type?: VehicleType): number {
+  const pe = type ? paletteEntry(type, color) : undefined;
+  if (pe) return pe.pack;
   const ways = CAR_COLORWAYS[style];
   const hit = ways.find((w) => w.color.toLowerCase() === color.toLowerCase());
   if (hit) return hit.pack;
@@ -256,22 +338,29 @@ export function buildSkinTexture(layout: SkinLayout, size = SKIN_W, make: (w: nu
 }
 
 /** Texture width by tier: the phone tier paints half-size skins (decided when a skin is first needed). */
-export function skinSizeNow(): number { return carPaintConfigured() && carPaintTier() === 'phone' ? SKIN_W / 2 : SKIN_W * 2; } // 1024 x 512 off the phone tier
+export function skinSizeNow(style?: SkinStyle): number {
+  const phone = carPaintConfigured() && carPaintTier() === 'phone';
+  // the CARS12 bodies get half-size atlases (512 x 256, 256 x 128 on the phone): 12 more atlases at full size would cost ~65 MB of texture memory
+  if (style && NEW_SKIN_STYLES.has(style)) return phone ? SKIN_W / 2 : SKIN_W;
+  return phone ? SKIN_W / 2 : SKIN_W * 2; // 1024 x 512 off the phone tier
+}
+const NEW_SKIN_STYLES: ReadonlySet<SkinStyle> = new Set<SkinStyle>(['pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'dollar']);
 
 /**
  * The skinned paint for a body style and colour (cached per library), or the library's plain paint when there is no DOM (unit tests)
  * or the canvases cannot be read. `layout` must be the body's own (it decides the pack's geometry cues).
  */
-export function carSkinMaterial(materials: IMaterialLibrary, style: SkinStyle, color: string, layout: SkinLayout): THREE.Material {
+export interface SkinOpts { pack?: number; cond?: PaintCond; condKey?: string; type?: VehicleType }
+export function carSkinMaterial(materials: IMaterialLibrary, style: SkinStyle, color: string, layout: SkinLayout, opts: SkinOpts = {}): THREE.Material {
   const base = materials.carPaint(color);
   if (typeof document === 'undefined') return base;
   let set = sets.get(materials);
   if (!set) { set = { tex: new Map(), mats: new Map() }; sets.set(materials, set); }
-  const pack = packFor(style, color);
-  const mk = `${style}|${color.toLowerCase()}`;
+  const pack = opts.pack ?? packFor(style, color, opts.type);
+  const mk = `${style}|${color.toLowerCase()}|${pack}|${opts.cond && hasCond(opts.cond) ? opts.condKey ?? '' : ''}`;
   const cached = set.mats.get(mk);
   if (cached) return cached;
-  const size = skinSizeNow();
+  const size = skinSizeNow(style);
   const tk = `${style}|${pack}|${size}`;
   let tex = set.tex.get(tk);
   if (!tex) {
@@ -287,6 +376,7 @@ export function carSkinMaterial(materials: IMaterialLibrary, style: SkinStyle, c
   const nm = tex.userData.normal as THREE.DataTexture | undefined;
   if (nm) { m.normalMap = nm; m.normalScale.set(0.7, 0.7); m.roughnessMap = null; } // panel lines (uv1); the paint's flake maps sat on the unused uv0
   m.name = `carSkin:${style}:${color}`;
+  m.setCond(opts.cond ?? NO_COND);
   m.needsUpdate = true;
   set.mats.set(mk, m);
   return m;

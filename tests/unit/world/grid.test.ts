@@ -22,10 +22,10 @@ function bfs(g: Graph, start: string, reverse = false): Set<string> {
 }
 
 describe('Grid counts', () => {
-  it('has 25 blocks, 36 intersections, 60 segments (B1: three avenues east of the original ten blocks, see grid-east.test.ts)', () => {
-    expect(grid.blocks).toHaveLength(25);
-    expect(grid.intersections).toHaveLength(36);
-    expect(grid.segments).toHaveLength(60);
+  it('has 45 blocks, 60 intersections, 104 segments (WBURG: four rows north of Hart; B1: three avenues east of the original ten blocks, see grid-east.test.ts)', () => {
+    expect(grid.blocks).toHaveLength(45);
+    expect(grid.intersections).toHaveLength(60);
+    expect(grid.segments).toHaveLength(104);
     expect(grid.seed).toBe(1988);
   });
 
@@ -53,8 +53,8 @@ describe('Grid counts', () => {
   });
 
   it('has one crosswalk per intersection approach, 3 m wide', () => {
-    // 60 segments x 2 ends
-    expect(grid.crosswalks).toHaveLength(120);
+    // 104 segments x 2 ends
+    expect(grid.crosswalks).toHaveLength(208);
     for (const c of grid.crosswalks) expect(c.width).toBe(3);
     const c = grid.crosswalks.find((x) => x.intersectionId === 'throop|kosciuszko' && x.side === 'E')!;
     // crosses the ew street east of the intersection, spanning its roadway (z -5..5)

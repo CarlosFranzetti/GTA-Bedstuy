@@ -27,7 +27,22 @@ interface ObjectiveBase {
   failIfStars?: number;
   /** Fail ('tooFast') if the player moves faster than this (km/h) for more than half a second, after a 1.5 s lead-in (a couch on the roof). */
   maxKmh?: number;
+  /** Dialogue shown as speaker-tagged subtitles while this objective runs (see `SubLine`). */
+  say?: SubLine[];
+  /** Cutscene-lite: when this objective starts the host letterboxes the camera for `letterbox` seconds ('mission:beat'). */
+  beat?: { letterbox: number };
+  /** Branch gate: the objective is skipped unless the story flag `flag` is set (and `not` is not). */
+  when?: FlagRule;
+  /** Vehicle types accepted where `presence` is 'inVehicle' (e.g. ['bus']). Waived when the host does not report the type. */
+  vehicle?: string[];
+  /** The mission's fragile cargo (def.fragile) takes damage from impacts while this objective is active. */
+  cargo?: boolean;
 }
+
+/** A line of dialogue as a subtitle. `who` must be a cast name (see story/cast.ts); `at` = seconds after the objective starts. */
+export interface SubLine { who: string; text: string; at?: number }
+/** Story flag test: `flag` must be set, `not` must be clear. */
+export interface FlagRule { flag?: string; not?: string }
 
 /** Be inside the circle (`radius` m around `at`) with the right presence. */
 export interface GoToObjective extends ObjectiveBase { kind: 'goTo'; at: Vec2; radius: number; presence: Presence }
@@ -63,7 +78,13 @@ export interface InteractObjective extends ObjectiveBase { kind: 'interact'; at:
  * The target waits until you are close, then moves; leave the range for more than `grace` seconds (default 6) and the
  * mission fails with 'lostTarget'. Completes when the target is at the end of the route and you are still near it.
  */
-export interface TailObjective extends ObjectiveBase { kind: 'tail'; route: Vec2[]; speed: number; maxDistance: number; grace?: number; target: string }
+export interface TailObjective extends ObjectiveBase {
+  kind: 'tail'; route: Vec2[]; speed: number; maxDistance: number; grace?: number; target: string;
+  /** Stealth tail: closer than this for more than `spotGrace` seconds (default 2.5) and you are made ('spotted'). */
+  minDistance?: number; spotGrace?: number;
+  /** Escort: the target waits for you when you drop behind `waitDistance`; you fail only if you abandon it (grace, then 'lostTarget'). */
+  waitDistance?: number;
+}
 /** Visit every point in `points` (any order unless `ordered`); each visit adds `item` to what you carry. */
 export interface CollectObjective extends ObjectiveBase { kind: 'collect'; points: Vec2[]; radius: number; presence: Presence; item: string; ordered?: boolean }
 /** Wait until the game hour is inside [from, to) (wraps midnight), optionally standing in the circle. */
@@ -82,11 +103,29 @@ export interface BuyObjective extends ObjectiveBase { kind: 'buy'; shop: string;
  */
 export interface SellObjective extends ObjectiveBase { kind: 'sell'; item: string; count: number; at: Vec2; radius: number; every?: number }
 
+/** Go to each point and press F there (peel a notice, take a photo, hand over a flyer, tag a wall); each press adds `item`. */
+export interface SpotsObjective extends ObjectiveBase { kind: 'spots'; points: Vec2[]; radius: number; presence?: Presence; prompt: string; item: string; ordered?: boolean }
+/** Press F at `at` to pay `amount` dollars (a shop errand). Not enough cash: the press is refused with a toast. */
+export interface PayObjective extends ObjectiveBase { kind: 'pay'; at: Vec2; radius: number; presence?: Presence; amount: number; prompt: string }
+/**
+ * A choice made in the world: one ring per option, press F inside the ring you want. The option's `flag` is set (story
+ * state, saved), `cash` is added to the wallet (negative = pay), and the mission goes on. Options whose `when` fails are hidden.
+ */
+export interface ForkOption { label: string; at: Vec2; radius: number; flag: string; cash?: number; doneMessage?: string; when?: FlagRule }
+export interface ForkObjective extends ObjectiveBase { kind: 'fork'; id: string; presence?: Presence; options: ForkOption[] }
+/** Chase a runner on foot: catch up within `catchRadius` before the target reaches the end of `route` ('lostTarget'). `stumbles` pause it (fraction of the route, seconds). */
+export interface ChaseObjective extends ObjectiveBase { kind: 'chase'; route: Vec2[]; speed: number; catchRadius: number; target: string; stumbles?: Array<{ at: number; pause: number }> }
+/** Race: pass every checkpoint of `route` in order before the rival (moving at `rivalSpeed` m/s) finishes ('lostRace'). */
+export interface RaceObjective extends ObjectiveBase { kind: 'race'; route: Vec2[]; radius: number; rivalSpeed: number; rival: string; presence?: Presence }
+/** Park up and watch: stay inside the circle for `seconds` ('blownCover' if you are out for more than `slack` seconds in total). `events` fire toasts at a time. */
+export interface StakeoutObjective extends ObjectiveBase { kind: 'stakeout'; at: Vec2; radius: number; seconds: number; slack?: number; presence?: Presence; events?: Array<{ at: number; text: string }> }
+
 export type ObjectiveDef =
   | TalkToObjective | InteractObjective | TailObjective | CollectObjective | WaitUntilHourObjective
   | EnterInteriorObjective | ExitInteriorObjective | DjSetObjective | BuyObjective | SellObjective
   | GoToObjective | PickUpObjective | DeliverObjective | SurviveWantedObjective | LoseWantedObjective
-  | TimerObjective | HoldSpeedBelowObjective | EscapeRadiusObjective | EnterVehicleObjective;
+  | TimerObjective | HoldSpeedBelowObjective | EscapeRadiusObjective | EnterVehicleObjective
+  | SpotsObjective | PayObjective | ForkObjective | ChaseObjective | RaceObjective | StakeoutObjective;
 
 export type ObjectiveKind = ObjectiveDef['kind'];
 
@@ -118,6 +157,15 @@ export interface MissionDef {
   stake?: number;
   /** Progress flags set on completion (e.g. 'aftersloth.unlocked'). */
   setFlags?: string[];
+  /** Story act (1..3) for the mission log and the news. */
+  act?: 1 | 2 | 3;
+  /** Story flags that must be set / clear before the mission is offered (branches). */
+  requiresFlags?: string[];
+  forbidFlags?: string[];
+  /** Fragile cargo (records, a cake, passengers): impacts during `cargo` objectives wear `hp` down; at 0 the mission fails ('cargoBroken'). */
+  fragile?: { label: string; hp?: number; minImpact?: number; perImpact?: number };
+  /** Texts after the reward that depend on branch flags; sent in addition to `followUp`. */
+  followUps?: Array<PhoneLine & { delay: number; ifFlag?: string; unlessFlag?: string }>;
   /** One-line pitch, shown when the trigger fires. */
   blurb: string;
   /** POI id of the person who gives the job (for maps/debug; the trigger position is `giver`). */
@@ -141,7 +189,8 @@ export interface MissionDef {
 
 export type MissionStatus = 'available' | 'active' | 'complete' | 'failed';
 
-export type FailReason = 'timeUp' | 'clockUp' | 'leftVehicle' | 'lostTarget' | 'lowScore' | 'copsCalled' | 'tooFast';
+export type FailReason = 'timeUp' | 'clockUp' | 'leftVehicle' | 'lostTarget' | 'lowScore' | 'copsCalled' | 'tooFast'
+  | 'cargoBroken' | 'spotted' | 'blownCover' | 'lostRace';
 
 export interface MissionEvents {
   'mission:started': { id: string; title: string; blurb: string };
@@ -151,6 +200,12 @@ export interface MissionEvents {
   'mission:twist': { id: string; text: string };
   /** The player gave up a failed or running mission (no penalty). Late mission texts are dropped on this. */
   'mission:abandoned': { id: string };
+  /** A dialogue line for the subtitle bar (and speech synthesis, if the host voices it). */
+  'mission:subtitle': { id: string; who: string; text: string };
+  /** Cutscene-lite: letterbox the camera for `seconds`. */
+  'mission:beat': { id: string; seconds: number };
+  /** The player committed to a fork option. */
+  'mission:choice': { id: string; fork: string; flag: string; label: string };
 }
 
 export type MissionEventName = keyof MissionEvents;
@@ -191,6 +246,11 @@ export interface MissionHudState {
   prompt: string;
   /** True while the player is inside an interior (built 3 km off the map): the Goal/Offer distance is meaningless then. */
   inside?: boolean;
+  /** Dialogue subtitle: `subSeq` bumps for every new line (speaker `subWho`, `subMs` = how long to hold it). */
+  subSeq?: number;
+  subWho?: string;
+  subText?: string;
+  subMs?: number;
 }
 
 /** Signals the host forwards from other systems (interiors, shop, DJ game, peds). */
@@ -199,7 +259,9 @@ export type MissionSignal =
   | { type: 'interior:exited'; id: string }
   | { type: 'shop:bought'; recordId: string; shop?: string; price?: number }
   | { type: 'dj:setFinished'; venue: string; score: number; minutes?: number }
-  | { type: 'sold'; item: string };
+  | { type: 'sold'; item: string }
+  /** The player's vehicle hit something; `strength` is the engine's closing impulse (Vehicle 'impact'). */
+  | { type: 'impact'; strength: number };
 
 /** What the DJ game should run while a djSet objective is active. */
 export interface DjRequest { venue: string; minutes: number; minScore: number; at: Vec2 | null; radius: number }
@@ -211,4 +273,6 @@ export interface MissionSave {
   cash: number;
   /** Missions whose start-up stake was already paid (no double payout on retry or reload). */
   staked?: string[];
+  /** Story flags and fork choices (StoryState.serialize()). Additive: older saves have none. */
+  story?: unknown;
 }

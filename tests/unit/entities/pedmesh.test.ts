@@ -134,7 +134,7 @@ describe('shipped people glbs', () => {
 
   it('every shape has hi ~4k, mid ~1.5k, far ~400 triangles, stands on y = 0 at its height, front at -z, weights sum to 1', () => {
     for (const s of shapes) {
-      expect(s.lods.hi.index.length / 3, s.name).toBeGreaterThan(2000); expect(s.lods.hi.index.length / 3).toBeLessThanOrEqual(2500);
+      expect(s.lods.hi.index.length / 3, s.name).toBeGreaterThan(2000); expect(s.lods.hi.index.length / 3).toBeLessThanOrEqual(2800);   // 2.7k, ~1k of them in the head
       expect(s.lods.mid.index.length / 3).toBeGreaterThan(1100); expect(s.lods.mid.index.length / 3).toBeLessThanOrEqual(1600);
       expect(s.lods.far.index.length / 3).toBeGreaterThan(250); expect(s.lods.far.index.length / 3).toBeLessThanOrEqual(450);
       const b = new THREE.Box3().setFromArray(s.lods.hi.position);

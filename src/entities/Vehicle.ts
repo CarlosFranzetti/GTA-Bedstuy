@@ -1,6 +1,7 @@
 import { hyp } from '@/core/Math2';
 import * as THREE from 'three';
 import { buildCarModel, type CarModel } from '@/entities/models/carModel';
+import { lookFor } from '@/entities/models/carLook';
 import { plateText } from '@/textures/painters/vehicle';
 import type { VehicleSources } from '@/entities/models/gltf/VehicleSource';
 import {
@@ -14,16 +15,26 @@ import type {
 export const VEHICLE_SPECS: Record<VehicleType, VehicleSpec> = {
   // accel is the launch acceleration; the thrust curve a = accel * (throttle - (v/maxSpeed)^2) makes
   // 0 -> 0.93*maxSpeed take ~6 s for the sedan (= 0-100 km/h) and ~12 s for the box truck.
-  sedan: { type: 'sedan', name: 'Sedan', length: 4.88, width: 1.84, height: 1.45, maxSpeed: 30, accel: 8, brakeDecel: 14, maxSteer: 0.6, color: '#8a8f98' },
-  suv: { type: 'suv', name: 'SUV', length: 5.05, width: 2.0, height: 1.78, maxSpeed: 27, accel: 7, brakeDecel: 14, maxSteer: 0.6, color: '#2c3e50' },
+  sedan: { type: 'sedan', name: 'Sedan', length: 4.88, width: 1.84, height: 1.45, maxSpeed: 30, accel: 8, brakeDecel: 14, maxSteer: 0.6, color: '#8a8f98', mass: 1550, grip: 1.0, steerRate: 1.0, enginePitch: 1.0 },
+  suv: { type: 'suv', name: 'SUV', length: 5.05, width: 2.0, height: 1.78, maxSpeed: 27, accel: 7, brakeDecel: 14, maxSteer: 0.6, color: '#2c3e50', mass: 2100, grip: 0.95, steerRate: 0.92, enginePitch: 0.9 },
   // ROSTER: sizes follow the real class, see the style comments in models/carBodies.ts (box truck: Isuzu NPR 16 ft box, bus: 40 ft transit bus)
-  boxtruck: { type: 'boxtruck', name: 'Box truck', length: 7, width: 2.44, height: 3.3, maxSpeed: 20, accel: 2.7, brakeDecel: 12, maxSteer: 0.6, color: '#e8e8e8' },
-  cargovan: { type: 'cargovan', name: 'Cargo van', length: 5.98, width: 2.06, height: 2.78, maxSpeed: 25, accel: 5, brakeDecel: 12, maxSteer: 0.6, color: '#ecf0f1' },
-  hatch: { type: 'hatch', name: 'Hatchback', length: 4.06, width: 1.7, height: 1.52, maxSpeed: 29, accel: 7, brakeDecel: 14, maxSteer: 0.6, color: '#d6322a' },
-  beater: { type: 'beater', name: 'Old sedan', length: 4.83, width: 1.77, height: 1.37, maxSpeed: 26, accel: 5, brakeDecel: 11, maxSteer: 0.6, color: '#8c7a5a' },
-  bus: { type: 'bus', name: 'Bus', length: 12.5, width: 2.59, height: 3.2, maxSpeed: 17, accel: 1.6, brakeDecel: 9, maxSteer: 0.5, color: '#f0f0ec' },
-  cop: { type: 'cop', name: 'Police car', length: 5.04, width: 1.91, height: 1.48, maxSpeed: 33, accel: 9, brakeDecel: 14, maxSteer: 0.6, color: '#f2f2f2' },
-  cab: { type: 'cab', name: 'Taxi', length: 5.39, width: 1.99, height: 1.44, maxSpeed: 30, accel: 8, brakeDecel: 14, maxSteer: 0.6, color: '#e0b01e' },
+  boxtruck: { type: 'boxtruck', name: 'Box truck', length: 7, width: 2.44, height: 3.3, maxSpeed: 20, accel: 2.7, brakeDecel: 12, maxSteer: 0.6, color: '#e8e8e8', mass: 3500, grip: 0.9, steerRate: 0.8, enginePitch: 0.7 },
+  cargovan: { type: 'cargovan', name: 'Cargo van', length: 5.98, width: 2.06, height: 2.78, maxSpeed: 25, accel: 5, brakeDecel: 12, maxSteer: 0.6, color: '#ecf0f1', mass: 2400, grip: 0.9, steerRate: 0.88, enginePitch: 0.82 },
+  hatch: { type: 'hatch', name: 'Hatchback', length: 4.06, width: 1.7, height: 1.52, maxSpeed: 29, accel: 7, brakeDecel: 14, maxSteer: 0.6, color: '#d6322a', mass: 1150, grip: 1.04, steerRate: 1.12, enginePitch: 1.3 },
+  beater: { type: 'beater', name: 'Old sedan', length: 4.83, width: 1.77, height: 1.37, maxSpeed: 26, accel: 5, brakeDecel: 11, maxSteer: 0.6, color: '#8c7a5a', mass: 1400, grip: 0.9, steerRate: 0.95, enginePitch: 0.92 },
+  bus: { type: 'bus', name: 'Bus', length: 12.5, width: 2.59, height: 3.2, maxSpeed: 17, accel: 1.6, brakeDecel: 9, maxSteer: 0.5, color: '#f0f0ec', mass: 12000, grip: 0.88, steerRate: 0.6, enginePitch: 0.55 },
+  cop: { type: 'cop', name: 'Police car', length: 5.04, width: 1.91, height: 1.48, maxSpeed: 33, accel: 9, brakeDecel: 14, maxSteer: 0.6, color: '#f2f2f2', mass: 1850, grip: 1.04, enginePitch: 0.9 },
+  cab: { type: 'cab', name: 'Taxi', length: 5.39, width: 1.99, height: 1.44, maxSpeed: 30, accel: 8, brakeDecel: 14, maxSteer: 0.6, color: '#e0b01e', mass: 1700, grip: 0.97, steerRate: 0.92, enginePitch: 0.85 },
+  // CARS12 new types. Sizes: published specs (see the style comments in models/carBodies.ts). Feel: mass kg, grip x, steer-rate x, engine pitch x.
+  pickup: { type: 'pickup', name: 'Pickup', length: 5.885, width: 2.03, height: 1.96, maxSpeed: 29, accel: 6.5, brakeDecel: 13, maxSteer: 0.52, color: '#34495e', mass: 2400, grip: 0.93, steerRate: 0.85, enginePitch: 0.78 },
+  crossover: { type: 'crossover', name: 'Crossover', length: 4.694, width: 1.867, height: 1.68, maxSpeed: 29, accel: 7, brakeDecel: 14, maxSteer: 0.58, color: '#a9b0b8', mass: 1600, grip: 1.0, steerRate: 1.0, enginePitch: 1.0 },
+  minivan: { type: 'minivan', name: 'Minivan', length: 5.175, width: 1.994, height: 1.77, maxSpeed: 27, accel: 6, brakeDecel: 13, maxSteer: 0.56, color: '#c9ccd0', mass: 2050, grip: 0.95, steerRate: 0.9, enginePitch: 0.88 },
+  luxury: { type: 'luxury', name: 'Luxury sedan', length: 4.963, width: 1.868, height: 1.48, maxSpeed: 36, accel: 10, brakeDecel: 15, maxSteer: 0.6, color: '#1b1d22', mass: 1850, grip: 1.12, steerRate: 1.05, enginePitch: 1.12 },
+  towncar: { type: 'towncar', name: 'Town car', length: 5.47, width: 1.99, height: 1.5, maxSpeed: 29, accel: 6.5, brakeDecel: 13, maxSteer: 0.56, color: '#101114', mass: 2000, grip: 0.92, steerRate: 0.85, enginePitch: 0.8 },
+  pony: { type: 'pony', name: 'Muscle car', length: 4.783, width: 1.915, height: 1.382, maxSpeed: 38, accel: 11, brakeDecel: 15, maxSteer: 0.6, color: '#c8283a', mass: 1750, grip: 1.1, steerRate: 1.12, enginePitch: 1.25 },
+  garbage: { type: 'garbage', name: 'Garbage truck', length: 9.2, width: 2.5, height: 3.6, maxSpeed: 15, accel: 1.8, brakeDecel: 9, maxSteer: 0.45, color: '#eef1ec', mass: 14000, grip: 0.9, steerRate: 0.7, enginePitch: 0.6 },
+  ambulance: { type: 'ambulance', name: 'Ambulance', length: 5.98, width: 2.06, height: 2.78, maxSpeed: 31, accel: 6, brakeDecel: 13, maxSteer: 0.56, color: '#f4f4f4', mass: 3100, grip: 0.95, steerRate: 0.9, enginePitch: 0.95 },
+  dollarvan: { type: 'dollarvan', name: 'Dollar van', length: 5.98, width: 2.06, height: 2.78, maxSpeed: 25, accel: 4.5, brakeDecel: 12, maxSteer: 0.56, color: '#e8eaea', mass: 2900, grip: 0.9, steerRate: 0.88, enginePitch: 0.82 },
 };
 
 // ---- longitudinal
@@ -157,6 +168,8 @@ export class Vehicle implements IVehicle {
   siren = false;
   /** Tyre grip multiplier (1 = dry asphalt). Lower it for wet / ice: understeer and easier drifts. */
   grip = 1;
+  /** per-type tyre grip (VehicleSpec.grip) */
+  private readonly tyreMu: number;
   /**
    * Impact strength 0..1 asked of the camera. ThirdPersonCamera consumes (reads and zeroes) it for the
    * player's vehicle; for every other vehicle it decays on its own so it never goes stale.
@@ -230,6 +243,7 @@ export class Vehicle implements IVehicle {
   ) {
     this.spec = spec;
     this.seed = seedOf(id);
+    this.tyreMu = spec.grip ?? 1;
     this.body = {
       id,
       kind: spec.type === 'cop' ? 'cop' : 'vehicle',
@@ -237,7 +251,7 @@ export class Vehicle implements IVehicle {
       pos: { x: pos.x, z: pos.z },
       vel: { x: 0, z: 0 },
       heading,
-      mass: spec.type === 'bus' ? 12000 : spec.type === 'boxtruck' ? 3500 : spec.type === 'cargovan' ? 2400 : spec.type === 'hatch' ? 1150 : 1400,
+      mass: spec.mass ?? 1400,
       userData: this,
     };
     this.prevPos = { x: pos.x, z: pos.z };
@@ -254,6 +268,8 @@ export class Vehicle implements IVehicle {
     const style = (this.model?.group.userData as { carStyle?: string } | undefined)?.carStyle;
     if (style === 'coupe') return 'Coupe';
     if (style === 'cab') return 'Taxi';
+    if (style === 'unmarked') return 'Police car';
+    if (style === 'dollar') return 'Dollar van';
     return this.spec.name ?? this.spec.type;
   }
 
@@ -441,7 +457,7 @@ export class Vehicle implements IVehicle {
     if (this.brakePressure > 0) {
       // ABS-like: pedal force is capped by tyre grip and eased off near standstill
       const ease = 0.35 + 0.65 * Math.min(1, Math.abs(vLong) / 2.5);
-      shed(s.brakeDecel * Math.min(1, this.grip) * this.brakePressure * ease);
+      shed(s.brakeDecel * Math.min(1, this.grip * this.tyreMu) * this.brakePressure * ease);
     }
     if (input.handbrake) shed(s.brakeDecel * HANDBRAKE_DECEL_FRAC);
 
@@ -472,7 +488,7 @@ export class Vehicle implements IVehicle {
     // --- steering: rate limited, speed sensitive, returns to centre
     const steerIn = clamp(input.steer, -1, 1);
     const returning = Math.abs(steerIn) < Math.abs(this.steerNorm) && steerIn * this.steerNorm >= 0;
-    const sRate = (STEER_RATE / (1 + speedAbs / STEER_SPEED_REF)) * (returning ? STEER_RETURN_MULT : 1);
+    const sRate = (STEER_RATE * (s.steerRate ?? 1) / (1 + speedAbs / STEER_SPEED_REF)) * (returning ? STEER_RETURN_MULT : 1);
     const dSteer = steerIn - this.steerNorm;
     this.steerNorm += clamp(dSteer, -sRate * h, sRate * h);
     const hb = input.handbrake;
@@ -488,7 +504,7 @@ export class Vehicle implements IVehicle {
 
     // --- yaw: kinematic bicycle, clipped by front grip (understeer), boosted with the handbrake
     const kin = (vLong / wheelbase) * Math.tan(this.steerAngle) * (hb && speedAbs > 3 ? HANDBRAKE_YAW_BOOST : 1);
-    const yawMax = ((MU_FRONT * this.grip) / Math.max(speedAbs, 2)) * (hb ? 1.6 : 1);
+    const yawMax = ((MU_FRONT * this.grip * this.tyreMu) / Math.max(speedAbs, 2)) * (hb ? 1.6 : 1);
     const yawTarget = clamp(kin, -yawMax, yawMax);
     this.yawRate += clamp(yawTarget - this.yawRate, -YAW_ACCEL * h, YAW_ACCEL * h);
     // while crawling to a stop the car cannot keep rotating on the spot
@@ -506,7 +522,7 @@ export class Vehicle implements IVehicle {
     const vLatBefore = vLat;
 
     // --- rear tyres: lateral grip. Handbrake locks them, high-speed throttle + lock gives power oversteer.
-    let rear = MU_REAR * this.grip;
+    let rear = MU_REAR * this.grip * this.tyreMu;
     if (hb) rear *= HANDBRAKE_REAR_FRAC;
     else if (speedAbs > OVERSTEER_SPEED_FRAC * vm && thr > 0.6 && Math.abs(this.steerNorm) > 0.6) rear *= OVERSTEER_REAR_FRAC;
     this.rearGrip += (rear - this.rearGrip) * Math.min(1, 14 * h);
@@ -681,7 +697,7 @@ export class Vehicle implements IVehicle {
   // ------------------------------------------------------------------ mesh
 
   private buildMesh(): void {
-    this.model = Vehicle.sources[this.spec.type]?.instantiate(this.spec) ?? buildCarModel(this.spec.type, this.spec, this.materials, (this.seed >>> 0) % 4);
+    this.model = Vehicle.sources[this.spec.type]?.instantiate(this.spec) ?? buildCarModel(this.spec.type, this.spec, this.materials, (this.seed >>> 0) % 4, undefined, false, lookFor(this.spec.type, this.spec.color, this.seed), this.seed >>> 0);
     this.wheelRadius = this.model.wheelRadius;
     this.ownMaterials.push(...this.model.ownMaterials);
     this.chassis.add(this.model.group);

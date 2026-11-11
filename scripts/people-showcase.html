@@ -11,6 +11,7 @@ import { MaterialLibrary } from '@/textures/MaterialLibrary';
 import { PED_SPECS } from '@/entities/models/pedBody';
 import { buildPerson as buildPedModel, loadPeople } from '@/entities/models/pedMesh';
 import { pedVariantIndex } from '@/textures/painters/ped';
+import { paintPedHi } from '@/textures/painters/pedHi';
 await loadPeople();
 import { animateWalk } from '@/entities/models/humanModel';
 import { buildCarModel } from '@/entities/models/carModel';
@@ -56,8 +57,15 @@ else if (view === 'lineup-3q') { place(LINE_A, 0, 0.9, 0.7); place(LINE_B, 1, 0.
 else if (view === 'faces-a') { place(LINE_A, 0, 0.62, 0); cam.position.set(0, 1.62, 2.6); look.set(0, 1.5, 0); cam.fov = 30; }
 else if (view === 'faces-b') { place(LINE_B, 0, 0.62, 0); cam.position.set(0, 1.62, 2.6); look.set(0, 1.5, 0); cam.fov = 30; }
 else if (view === 'faces-c') { place(LINE_C, 0, 0.62, 0); cam.position.set(0, 1.62, 2.6); look.set(0, 1.5, 0); cam.fov = 30; }
+else if (view === 'close-a') { place(['ba-hoodie-fade', 'ea-nurse', 'wh-elder'], 0, 0.5, 0); cam.position.set(0, 1.64, 1.25); look.set(0, 1.6, 0); cam.fov = 30; }
+else if (view === 'close-b') { place(['ba-church-man', 'me-hijabi', 'wh-office'], 0, 0.5, 0.0); cam.position.set(0, 1.64, 1.25); look.set(0, 1.6, 0); cam.fov = 30; }
 else if (view === 'full-c') { place(LINE_C, 0, 0.8, 0.3); cam.position.set(0, 1.4, 4.2); look.set(0, 0.95, 0); cam.fov = 36; }
 else if (view === 'near4m') { place(LINE_A.slice(0, 3), 0, 1.0, 0.4); cam.position.set(1.7, 1.5, 3.6); look.set(0, 1.0, 0); cam.fov = 38; }
+if (view === 'atlas') {
+  const c = document.createElement('canvas'); c.width = c.height = 1024; document.body.prepend(c);
+  const ctx = c.getContext('2d'); const v = pedVariantIndex(params.get('v') ?? 'ba-hoodie-fade');
+  paintPedHi(ctx, null, null, 1024, new Rng(`pedhi:${v}`), v);
+}
 cam.updateProjectionMatrix(); cam.lookAt(look);
 for (let i = 0; i < 3; i++) renderer.render(scene, cam);
 window.__ready = { tris: renderer.info.render.triangles, calls: renderer.info.render.calls };

@@ -42,7 +42,7 @@ function bfs(g: Graph, start: string): Set<string> {
 
 describe('B1 streets and bounds', () => {
   it('has twelve streets: Lewis, Stuyvesant and Malcolm X added as two-way avenues like Marcus Garvey', () => {
-    expect(grid.streets).toHaveLength(12);
+    expect(grid.streets).toHaveLength(16);
     const garvey = grid.streetById('garvey');
     for (const [id, name, x] of [['lewis', 'Lewis Ave', 500], ['stuyvesant', 'Stuyvesant Ave', 750], ['malcolmx', 'Malcolm X Blvd', 1000]] as const) {
       const s = grid.streetById(id);
@@ -56,23 +56,23 @@ describe('B1 streets and bounds', () => {
       expect(s.sidewalkWidth).toBe(garvey.sidewalkWidth);
     }
     expect(grid.streets.filter((s) => s.axis === 'ns')).toHaveLength(6);
-    expect(grid.streets.filter((s) => s.axis === 'ew')).toHaveLength(6);
+    expect(grid.streets.filter((s) => s.axis === 'ew')).toHaveLength(10);
     expect(CORE_NS_STREETS).toBe(3);
   });
 
   it('bounds run from Tompkins to the outer edge of Malcolm X (+ sidewalk is outside the road edge)', () => {
-    expect(grid.bounds).toEqual({ minX: -257, maxX: 1007, minZ: -205, maxZ: 306.5 });
+    expect(grid.bounds).toEqual({ minX: -257, maxX: 1007, minZ: -605, maxZ: 306.5 });
   });
 
-  it('has 25 blocks, 36 intersections, 60 segments and one crosswalk per approach', () => {
-    expect(grid.blocks).toHaveLength(25);
-    expect(grid.intersections).toHaveLength(36);
-    expect(grid.segments).toHaveLength(60);
-    expect(grid.crosswalks).toHaveLength(120);
+  it('has 45 blocks, 60 intersections, 104 segments and one crosswalk per approach (25 + 20 north, WBURG)', () => {
+    expect(grid.blocks).toHaveLength(45);
+    expect(grid.intersections).toHaveLength(60);
+    expect(grid.segments).toHaveLength(104);
+    expect(grid.crosswalks).toHaveLength(208);
   });
 
   it('adds 15 new blocks r0..r4 x c2..c4 east of the original ten', () => {
-    const fresh = grid.blocks.filter((b) => !isOriginal(b.id));
+    const fresh = grid.blocks.filter((b) => !isOriginal(b.id) && b.row >= 0);
     expect(fresh).toHaveLength(15);
     for (const b of fresh) { expect(b.col).toBeGreaterThanOrEqual(2); expect(b.row).toBeLessThanOrEqual(4); }
     // the original ten come first in build order, so every sequential random stream over them is unchanged
@@ -109,7 +109,7 @@ describe('B1 streets and bounds', () => {
     const { unmatched, missing } = checkAgainstGrid(grid, getBedstuyFaces());
     expect(unmatched).toEqual([]);
     expect(missing).toEqual([]);
-    expect(getBedstuyFaces().faces).toHaveLength(100);
+    expect(getBedstuyFaces().faces).toHaveLength(180);
   });
 });
 
@@ -204,7 +204,7 @@ describe('B1 chunks', () => {
   const layout = chunkLayout(grid.streets);
 
   it('are 2 x 2 blocks (two 250 x 200 m render cells), anchored at the north-west street corner so chunk edges are street centrelines', () => {
-    expect(layout).toEqual({ cellX: 250, cellZ: 200, chunkX: 500, chunkZ: 200, originX: -250, originZ: -200 });
+    expect(layout).toEqual({ cellX: 250, cellZ: 200, chunkX: 500, chunkZ: 200, originX: -250, originZ: -600 });
   });
 
   it('give every block exactly one chunk and no chunk more than 2 x 2 blocks', () => {
@@ -222,10 +222,11 @@ describe('B1 chunks', () => {
       expect(cols.size).toBeLessThanOrEqual(2);
     }
     // r0c0 r0c1 r1c0 r1c1 share chunk 0_0; the Malcolm X column (c4) starts chunk column 2
-    expect(byChunk.get('0_0')!.sort()).toEqual(['r0c0', 'r0c1', 'r1c0', 'r1c1']);
-    expect(byChunk.get('1_0')!.sort()).toEqual(['r0c2', 'r0c3', 'r1c2', 'r1c3']);
-    expect(byChunk.get('2_2')).toEqual(['r4c4']);
-    expect(byChunk.size).toBe(9);
+    expect(byChunk.get('0_2')!.sort()).toEqual(['r0c0', 'r0c1', 'r1c0', 'r1c1']);
+    expect(byChunk.get('1_2')!.sort()).toEqual(['r0c2', 'r0c3', 'r1c2', 'r1c3']);
+    expect(byChunk.get('2_4')).toEqual(['r4c4']);
+    expect(byChunk.get('0_0')!.sort()).toEqual(['r-3c0', 'r-3c1', 'r-4c0', 'r-4c1']);
+    expect(byChunk.size).toBe(15);
   });
 
   it('are hidden by distance per tier: phone about a block beyond the fog, low two, medium three', () => {

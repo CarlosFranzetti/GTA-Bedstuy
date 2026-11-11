@@ -16,14 +16,14 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const errors = [];
 try {
   for (const c of cars.split(',')) {
-    const [type, color, variant, angle, dist = '4', hs = '1', fov = '48'] = c.split(':');
+    const [type, color, variant, angle, dist = '4', hs = '1', fov = '48', seed = '', ov = ''] = c.split(':');
     const page = await browser.newPage({ viewport: { width: w, height: h } });
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 300)); });
     page.on('pageerror', (e) => errors.push(String(e).slice(0, 300)));
-    await page.goto(`http://localhost:${port}/scripts/carhi-showcase.html?type=${type}&color=${color}&variant=${variant}&angle=${angle}&w=${w}&h=${h}&dist=${dist}&hs=${hs}&fov=${fov}`, { waitUntil: 'load', timeout: 120000 });
+    await page.goto(`http://localhost:${port}/scripts/carhi-showcase.html?type=${type}&color=${color}&variant=${variant}&angle=${angle}&w=${w}&h=${h}&dist=${dist}&hs=${hs}&fov=${fov}${seed !== '' ? `&seed=${seed}&ov=${ov}` : ''}`, { waitUntil: 'load', timeout: 120000 });
     await page.waitForFunction(() => window.__ready, null, { timeout: 120000 });
     const r = await page.evaluate(() => ({ info: window.__ready, data: document.querySelector('canvas').toDataURL('image/png') }));
-    const name = `${type}-${color.replace('%23','')}-${angle}`;
+    const name = `${type}-${color.replace('%23','')}-${angle}${seed !== '' ? `-s${seed}` : ''}`;
     writeFileSync(`${out}/${name}.png`, Buffer.from(r.data.split(',')[1], 'base64'));
     console.log(name, JSON.stringify(r.info));
     await page.close();

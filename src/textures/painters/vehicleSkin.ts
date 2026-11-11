@@ -36,7 +36,7 @@ export const SKIN_RECTS = {
 export type SkinRegion = keyof typeof SKIN_RECTS;
 
 /** `van` is the box truck's cab; `cargo` the Transit-type cargo van */
-export type SkinStyle = 'sedan' | 'coupe' | 'suv' | 'van' | 'cargo' | 'hatch' | 'beater' | 'bus';
+export type SkinStyle = 'sedan' | 'coupe' | 'suv' | 'van' | 'cargo' | 'hatch' | 'beater' | 'bus' | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'dollar';
 
 /** Everything the painter needs to know about the body (fractions of the paint's bounding box; length fractions run nose 0 -> tail 1). */
 export interface SkinLayout {
@@ -60,7 +60,7 @@ export interface SkinLayout {
   headLamp: { x: number; v: number }; tailLamp: { x: number; v: number };
   /** invented model badge */
   badge: string;
-  /** 0 plain, 1 cream double stripe, 2 two-tone silver lower body */
+  /** 0 plain, 1 cream double stripe, 2 two-tone silver lower body; vans: 10 parcel, 11 bakery, 12 plumber, 13 telecom, 14 laundry, 20 ambulance, 21 dollar van; bus: 1..3 ad wraps */
   pack?: number;
 }
 
@@ -105,6 +105,13 @@ export const CAR_COLORWAYS: Record<SkinStyle, readonly Colorway[]> = {
     { name: 'depot grey', color: '#8d9298', pack: 0 },
   ],
   bus: [{ name: 'transit white', color: '#f0f0ec', pack: 0 }, { name: 'airport grey', color: '#d7dde3', pack: 0 }],
+  pickup: [{ name: 'work white', color: '#eceae4', pack: 0 }, { name: 'black', color: '#16181b', pack: 0 }, { name: 'blue', color: '#2a4f8a', pack: 0 }],
+  crossover: [{ name: 'silver', color: '#b5bac0', pack: 0 }, { name: 'white', color: '#eeeeea', pack: 0 }, { name: 'grey', color: '#5c6168', pack: 0 }],
+  minivan: [{ name: 'silver', color: '#b9bdc2', pack: 0 }, { name: 'white', color: '#eeeeea', pack: 0 }, { name: 'maroon', color: '#6a2830', pack: 0 }],
+  luxury: [{ name: 'black', color: '#14161a', pack: 0 }, { name: 'white', color: '#eeeeea', pack: 0 }, { name: 'grey', color: '#5a5f66', pack: 0 }],
+  towncar: [{ name: 'black', color: '#0e0f12', pack: 0 }, { name: 'champagne', color: '#c8b896', pack: 0 }, { name: 'silver', color: '#a6aab0', pack: 0 }],
+  pony: [{ name: 'candy', color: '#c8283a', pack: 1 }, { name: 'blue', color: '#1f5fb4', pack: 1 }, { name: 'black', color: '#15161a', pack: 0 }],
+  dollar: [{ name: 'white', color: '#e8eaea', pack: 0 }, { name: 'silver', color: '#b4b8bd', pack: 0 }, { name: 'grey', color: '#8a9096', pack: 0 }],
   van: [
     { name: 'work white', color: '#ebebe4', pack: 0 },
     { name: 'safety orange', color: '#e0701a', pack: 1 },
@@ -178,7 +185,7 @@ function ellipse(cx: number, cy: number, rx: number, ry: number, maxY: number, n
 }
 
 /** styles whose head and tail lamps are real geometry (no painted lamp patches on the end faces) */
-const GEO_LAMPS: ReadonlySet<SkinStyle> = new Set<SkinStyle>(['hatch', 'beater', 'cargo', 'bus']);
+const GEO_LAMPS: ReadonlySet<SkinStyle> = new Set<SkinStyle>(['hatch', 'beater', 'cargo', 'bus', 'sedan', 'suv', 'coupe', 'pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'dollar']);
 
 function paintFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): void {
   if (L.style === 'bus') { paintBusFlank(s, L, side, rng); return; }
@@ -295,6 +302,28 @@ function paintFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): voi
     s.solid((x0 + x1) / 2 - 9, beltY + 9, 7, 3, '#2a2c30'); s.solid((x0 + x1) / 2 - 8.4, beltY + 9.6, 5.8, 1.8, '#c5cad0');
   }
   if (L.style === 'beater') weatherFlank(s, L, side, rng);
+  if (pack >= 10) paintLivery(s, L, side, pack, rng);
+}
+
+/** Van liveries (invented businesses): colour blocks and pixel lettering on the box part of a flank (n from the nose, v up). */
+function paintLivery(s: Sk, L: SkinLayout, side: 'left' | 'right', pack: number, rng: Rng): void {
+  const r = SKIN_RECTS[side];
+  const X = (n: number): number => (side === 'right' ? r.x + (1 - n) * r.w : r.x + n * r.w);
+  const Y = (v: number): number => r.y + (1 - v) * r.h;
+  const nA = 0.36, nB = 0.96, nc = (nA + nB) / 2;
+  const band = (v0: number, v1: number, c: string): void => { const x0 = Math.min(X(nA), X(nB)), x1 = Math.max(X(nA), X(nB)); s.solid(x0, Y(v1), x1 - x0, Y(v0) - Y(v1), c); };
+  const txt = (str: string, v: number, sc: number, c: string, n = nc): void => s.text(str, X(n) - (str.length * 4 * sc) / 2, Y(v), sc, c);
+  const def: Record<number, () => void> = {
+    10: () => { band(0.3, 0.37, '#e0b030'); band(0.37, 0.39, '#2a1a0a'); txt('PARCEL PAL', 0.74, 2, '#f4f0e4'); txt('EXPRESS DELIVERY', 0.58, 1, '#e0b030'); s.solid(X(nA + 0.04) - 5, Y(0.78) - 5, 10, 10, '#e0b030'); },
+    11: () => { band(0.5, 0.86, '#f2e4c8'); band(0.5, 0.52, '#d97a9a'); txt('CRUMB BROS', 0.8, 2, '#6a3a20'); txt('BAKERY - BK', 0.62, 1, '#a0527a'); for (let k = 0; k < 5; k++) s.solid(X(nA + 0.06 + k * 0.012), Y(0.54), 2, 2, '#c08a4a'); },
+    12: () => { band(0.55, 0.6, '#1b4f93'); band(0.3, 0.34, '#1b4f93'); txt('DRIP & SON', 0.84, 2, '#1b4f93'); txt('PLUMBING & HEAT', 0.7, 1, '#2a2d31'); txt('24 HR - BK 5-0188', 0.42, 1, '#2a2d31'); },
+    13: () => { band(0.4, 0.48, '#2f8a4a'); txt('WIRE-IT', 0.8, 2, '#2f8a4a'); txt('CABLE & FIBER', 0.64, 1, '#2a2d31'); s.solid(X(nA + 0.05) - 4, Y(0.82) - 4, 8, 8, '#2f8a4a'); },
+    14: () => { band(0.45, 0.8, '#bfe0f6'); band(0.45, 0.47, '#1d5fa8'); txt('FOLD & GO', 0.75, 2, '#1d5fa8'); txt('LAUNDRY', 0.6, 1, '#1d5fa8'); },
+    20: () => { band(0.3, 0.4, '#c8202a'); band(0.4, 0.43, '#e07a1a'); band(0.62, 0.9, '#f4f4f4'); txt('AMBULANCE', 0.8, 2, '#c8202a'); txt('BORO EMS 4', 0.67, 1, '#1b2a4a'); s.solid(X(nc) - 7, Y(0.94) - 3, 14, 3, '#c8202a'); s.solid(X(nc) - 2, Y(0.97) - 8, 4, 12, '#c8202a'); },
+    21: () => { band(0.34, 0.42, '#1b4f93'); band(0.42, 0.45, '#f2b705'); txt('JITNEY', 0.78, 2, '#1b4f93'); txt('$2.50 FLATBUSH - DOWNTOWN', 0.6, 1, '#2a2d31'); },
+  };
+  (def[pack] ?? (() => { /* plain */ }))();
+  void rng;
 }
 
 /** Tired-car dressing on one flank: sun-chalked upper paint, one mismatched primer panel, rust at the arch lips, sills and door bottoms. */
@@ -341,6 +370,16 @@ function paintBusFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): 
   s.solid(r.x, Y(0.292), r.w, Y(0.275) - Y(0.292), '#f2b705');
   s.solid(r.x, Y(0.1), r.w, Y(0.06) - Y(0.1), '#7d848c');
   s.text('BKLYN TRANSIT', side === 'right' ? X(0.3) - 52 : X(0.3), Y(0.23), 1, '#ffffff');
+  const ad = L.pack ?? 0;
+  if (ad > 0) {
+    // ad wrap between the wheels: three invented advertisers (colour block, big lettering)
+    const x0 = Math.min(X(0.3), X(0.7)), x1 = Math.max(X(0.3), X(0.7));
+    const cols = ['', '#d8352a', '#6a3fb0', '#1b4f93'], inks = ['', '#f6d23a', '#ffffff', '#ffffff'], t1 = ['', 'SLICE KING', 'ZIPLINE', 'HURT? CALL'], t2 = ['', 'PIZZA', 'WIRELESS', 'FINN & FINN'];
+    s.solid(x0, Y(0.34), x1 - x0, Y(0.04) - Y(0.34), cols[ad]);
+    const cx = (x0 + x1) / 2;
+    s.text(t1[ad], cx - (t1[ad].length * 8) / 2, Y(0.3), 2, inks[ad]);
+    s.text(t2[ad], cx - (t2[ad].length * 8) / 2, Y(0.2), 2, '#ffffff');
+  }
   // door seams (front door and middle door, curb side) and panel seams
   for (const n of L.seams) {
     const x = Math.floor(X(n));

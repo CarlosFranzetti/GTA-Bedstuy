@@ -10,7 +10,7 @@ import { Bot, startHourFor } from './missionBot';
 const data = loadBedstuyData();
 const grid = buildGrid(data);
 const lots = subdivideLots(grid, data.pois, new Rng(data.seed).fork('lots'));
-const defs = buildMissions(grid, data, lots);
+const defs = buildMissions(grid, data, lots).filter((d) => d.act === undefined); // the story missions are covered in tests/unit/sim/story-*.test.ts
 
 /** Missions that need earlier chapters done first, in the order they unlock. */
 const prerequisitesOf = (def: MissionDef): string[] => {

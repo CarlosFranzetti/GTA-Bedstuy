@@ -113,3 +113,4 @@ Shared files via `FOR FABLE:` as before. Nobody commits. Ports: V1 4401, PT 4402
 | STORY | sonnet | src/game/missions/**, characters, dialogue, phone messages | 4473 |
 | CARS12 | sonnet | src/entities/models/car*.ts, vehicleSkin painters, traffic mix | 4474 |
 | PLAYTEST | haiku | read-only; scripts/playtest/**, playtests/** reports | 4475 |
+| VOX | sonnet | src/audio/voice/** (in-browser neural TTS, free/open; radio hosts, talk shows, interviews, ads) | 4476 |

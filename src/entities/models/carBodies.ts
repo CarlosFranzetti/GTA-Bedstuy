@@ -543,6 +543,23 @@ export interface CarParts {
   lightbar?: { lens: THREE.BufferGeometry; a: THREE.Vector3; b: THREE.Vector3 };
   /** number of cross-sections of the main hull */
   sections: number;
+  /** where per-car extras (roof gear, stickers, decals) attach, car space (carExtras.ts) */
+  anchors?: CarAnchors;
+}
+
+export interface CarAnchors {
+  /** flat roof: height, front / rear u (car space: +u forward, z = -u) and half width at the roof edge */
+  roof: { y: number; u0: number; u1: number; hw: number };
+  /** rear bumper: z (+ = back), y and half width */
+  rear: { z: number; y: number; hw: number };
+  /** quads on the windshield / rear glass (4 corners each, 0.006 off the surface) */
+  wsQuad: THREE.Vector3[] | null; rgQuad: THREE.Vector3[] | null;
+  /** hood front centre (medallion), bumper top y */
+  hoodFront: THREE.Vector3;
+  /** bus: destination sign centre; trucks: unused */
+  sign?: THREE.Vector3;
+  /** exhaust tip x */
+  exX: number;
 }
 
 
@@ -641,9 +658,9 @@ export interface Style {
   /** real overall size (m) of a roster body; without it the vehicle spec's size is used */
   dims?: { L: number; W: number; H: number };
   /** lamp and grille character of the real type */
-  headLamp?: 'quad' | 'slit' | 'wedge' | 'c' | 'swept' | 'box' | 'angular';
-  tailLamp?: 'bar' | 'loop' | 'tall' | 'box2';
-  grille?: 'bars' | 'mesh' | 'wedge' | 'slats';
+  headLamp?: 'quad' | 'slit' | 'wedge' | 'c' | 'swept' | 'box' | 'angular' | 'blade' | 'round2';
+  tailLamp?: 'bar' | 'loop' | 'tall' | 'box2' | 'camryT' | 'tri' | 'lshape';
+  grille?: 'bars' | 'mesh' | 'wedge' | 'slats' | 'kidney' | 'bigbar';
   /** tailgate body (hatch, van, SUV): no boot lid, no rear bench, a tailgate cut line instead */
   hatchback?: boolean;
   /** vans: height of the top of the side glass (m); the wall above it is paint */
@@ -656,10 +673,14 @@ export interface Style {
   endF?: number; endR?: number; grilleW?: number;
   /** big upright van mirrors on the A pillar */
   mirror?: 'van';
+  /** open pickup bed (ref m): front wall u0, tailgate u1 (u1 < u0), floor height; the loft's top slots are left open there */
+  bed?: { u0: number; u1: number; floor: number };
+  /** passenger vans: more side windows (the dollar van) */
+  windowed?: boolean;
 }
 
-export type PassengerStyle = 'sedan' | 'coupe' | 'suv' | 'cop' | 'cab' | 'cargo' | 'hatch' | 'beater';
-export type StyleKey = 'sedan' | 'coupe' | 'suv' | 'crown' | 'charger' | 'cargo' | 'hatch' | 'beater';
+export type PassengerStyle = 'sedan' | 'coupe' | 'suv' | 'cop' | 'cab' | 'cargo' | 'hatch' | 'beater' | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'ambulance' | 'dollar';
+export type StyleKey = 'sedan' | 'coupe' | 'suv' | 'crown' | 'charger' | 'cargo' | 'hatch' | 'beater' | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'dollar';
 export const STYLES: Record<StyleKey, Style> = {
   // "Kamari": a mid-size front-drive sedan of the Toyota Camry type (XV70, 2018-): length 4,879-4,885 mm (192.1 in), wheelbase 2,825 mm
   // (111.2 in), width 1,840 mm (72.4 in), height 1,445-1,455 mm. VEHICLE_SPECS.sedan carries the same size.
@@ -944,20 +965,269 @@ export const STYLES: Record<StyleKey, Style> = {
     headLamp: 'angular', tailLamp: 'tall', grille: 'wedge', lampD: 0.12, tailD: 0.05, endF: 0.3, endR: 0.12, grilleW: 0.55, lampInset: 0.17,
     dims: { L: 5.98, W: 2.06, H: 2.78 },
   },
+  // ---- CARS12 new types (WebSearch, 11 Nov 2026; sources in each comment)
+  // "Forge 150": a full-size crew-cab pickup of the Ford F-150 SuperCrew type (2021-), 5.5 ft bed: wheelbase 145 in (3.68 m, https://epicvin.com/questions/what-are-the-dimensions-of-the-truck-bed-on-the-ford-f-150-supercrew-with-a-145-inch-wheelbase),
+  // bed 67.1 in x 50.6 in x 21.4 in (https://www.truckranch.com/2021-ford-f-150-bed-size/); overall 231.7 x 79.9 x 77.2 in (5.885 x 2.03 x 1.96 m) are from Ford's spec sheet as remembered, the search did not return them.
+  pickup: {
+    Lref: 5.885, Href: 1.96,
+    sill: 0.3, wheelR: 0.39, wheelW: 0.275,
+    axle: 1.84,
+    secs: [
+      [-2.94, 1.43, 1.4, 0.95],
+      [-2.5, 1.44, 1.42, 0.95],
+      [-1.8, 1.44, 1.42, 0.95],
+      [-1.12, 1.44, 1.42, 0.95],
+      [-0.96, 1.94, 1.5, 0.8],
+      [-0.4, 1.96, 1.5, 0.74],
+      [0.35, 1.95, 1.5, 0.74],
+      [0.62, 1.88, 1.5, 0.78],
+      [0.95, 1.68, 1.5, 0.88],
+      [1.15, 1.54, 1.49, 0.92],
+      [1.6, 1.5, 1.46, 0.93],
+      [2.2, 1.47, 1.42, 0.93],
+      [2.7, 1.42, 1.35, 0.93],
+      [2.94, 1.38, 1.28, 0.92],
+    ],
+    windshield: [1.1, 0.55],
+    doorGlass: [[0.95, 0.04], [-0.04, -0.93]],
+    bPillar: [0.04, -0.04],
+    rearGlass: [-0.94, -1.1],
+    seams: [0.98, 0.02, -0.96],
+    handles: [0.1, -0.78],
+    hoodBack: 1.2,
+    clad: 10,
+    rails: false, spoiler: false, hatchback: true, maxGap: 0.5, archN: 6, endT: [0, 1],
+    bumperY: 0.5, bumperH: 0.28,
+    plan: [[-2.95, 0.95], [-2.5, 0.99], [-1, 1], [1, 1], [2.3, 0.99], [2.95, 0.95]],
+    headLamp: 'quad', tailLamp: 'tall', grille: 'bigbar', lampD: 0.1, tailD: 0.05, endF: 0.3, endR: 0.2, grilleW: 0.78,
+    dims: { L: 5.885, W: 2.03, H: 1.96 },
+    bed: { u0: -1.12, u1: -2.94, floor: 0.95 },
+  },
+  // "Trekker V": a compact crossover of the Honda CR-V type (2023-): length 184.8 in (4.694 m), width 73.5 in (1.867 m), height 66.2 in (1.68 m), wheelbase 106.3 in (2.70 m).
+  // Sources: https://hondanews.com/en-US/honda-automobiles/releases/release-1503019bd8a757ea08267d7944234840-2023-honda-cr-v-specs-features , https://www.motor1.com/news/702711/honda-crv-2023-dimensions-boot-space/
+  crossover: {
+    Lref: 4.694, Href: 1.68,
+    sill: 0.24, wheelR: 0.36, wheelW: 0.235,
+    axle: 1.35,
+    secs: [
+      [-2.35, 1.05, 0.98, 0.9],
+      [-2.28, 1.2, 1.05, 0.9],
+      [-2.1, 1.5, 1.1, 0.84],
+      [-1.85, 1.65, 1.12, 0.78],
+      [-1.4, 1.68, 1.12, 0.75],
+      [-0.4, 1.68, 1.12, 0.74],
+      [0.2, 1.66, 1.12, 0.75],
+      [0.6, 1.56, 1.12, 0.8],
+      [1.0, 1.22, 1.1, 0.9],
+      [1.35, 1.12, 1.07, 0.93],
+      [1.9, 1.07, 1.02, 0.93],
+      [2.2, 1.0, 0.96, 0.93],
+      [2.35, 0.95, 0.88, 0.92],
+    ],
+    windshield: [1.0, 0.25],
+    doorGlass: [[0.9, 0.02], [-0.06, -1.1], [-1.14, -1.85]],
+    bPillar: [0.02, -0.06],
+    rearGlass: [-1.9, -2.28],
+    seams: [0.86, -0.03, -1.12],
+    handles: [0.08, -0.9],
+    hoodBack: 1.04,
+    clad: 10,
+    rails: false, spoiler: false, hatchback: true, maxGap: 0.3, archN: 6,
+    bumperY: 0.4, bumperH: 0.24,
+    plan: [[-2.37, 0.9], [-1.9, 0.97], [-0.9, 1], [0.9, 1], [1.9, 0.99], [2.37, 0.93]],
+    headLamp: 'swept', tailLamp: 'tall', grille: 'bars', lampD: 0.18, tailD: 0.06, endF: 0.4, endR: 0.2, grilleW: 0.55,
+    dims: { L: 4.694, W: 1.867, H: 1.68 },
+  },
+  // "Voyager Eight": a minivan of the Toyota Sienna type (2021-): wheelbase 120.5 in (3.06 m), length 203.7 in (5.175 m), width 78.5 in (1.994 m), height 68.5 in without rails (1.74 m) / 69.7 in with (1.77 m).
+  // Source: https://pressroom.toyota.com/toyota-sienna-2021/ (via search summary), https://www.kbb.com/toyota/sienna/2021/specs
+  minivan: {
+    Lref: 5.175, Href: 1.77,
+    sill: 0.22, wheelR: 0.345, wheelW: 0.235,
+    axle: 1.53,
+    secs: [
+      [-2.59, 1.15, 1.1, 0.9],
+      [-2.52, 1.4, 1.16, 0.9],
+      [-2.35, 1.72, 1.18, 0.84],
+      [-2.1, 1.77, 1.18, 0.8],
+      [-1.0, 1.78, 1.18, 0.76],
+      [0.5, 1.76, 1.18, 0.76],
+      [0.98, 1.62, 1.17, 0.82],
+      [1.4, 1.3, 1.15, 0.9],
+      [1.75, 1.18, 1.12, 0.93],
+      [2.25, 1.1, 1.05, 0.93],
+      [2.59, 1.0, 0.95, 0.92],
+    ],
+    windshield: [1.38, 0.5],
+    doorGlass: [[1.1, 0.12], [0.06, -1.0], [-1.04, -2.22]],
+    bPillar: [0.12, 0.06],
+    rearGlass: [-2.25, -2.5],
+    seams: [1.14, 0.1, -1.02],
+    handles: [0.55, -0.4],
+    hoodBack: 1.42,
+    clad: 10,
+    rails: false, spoiler: false, hatchback: true, maxGap: 0.5, archN: 6,
+    bumperY: 0.42, bumperH: 0.26,
+    plan: [[-2.6, 0.9], [-2.1, 0.97], [-1, 1], [1, 1], [2.1, 0.99], [2.6, 0.92]],
+    headLamp: 'swept', tailLamp: 'tall', grille: 'wedge', lampD: 0.2, tailD: 0.06, endF: 0.45, endR: 0.2, grilleW: 0.5,
+    dims: { L: 5.175, W: 1.994, H: 1.77 },
+  },
+  // "Bavaro 540": an executive sedan of the BMW 5 Series (G30) type: length 4,963 mm, width 1,868 mm, height ~1,480-1,498 mm, wheelbase 2,975 mm.
+  // Sources: https://cararac.com/spec/bmw/5-series/sedan-2017/ , https://Www.Wikipedia.org/wiki/BMW_5_Series_(G30)
+  luxury: {
+    Lref: 4.963, Href: 1.48,
+    sill: 0.17, wheelR: 0.35, wheelW: 0.245,
+    axle: 1.49,
+    secs: [
+      [-2.48, 0.98, 0.93, 0.9],
+      [-2.2, 1.04, 0.99, 0.9],
+      [-1.8, 1.1, 1.02, 0.86],
+      [-1.35, 1.28, 1.02, 0.78],
+      [-0.95, 1.44, 1.02, 0.73],
+      [-0.3, 1.48, 1.02, 0.72],
+      [0.25, 1.44, 1.02, 0.73],
+      [0.65, 1.28, 1.02, 0.78],
+      [1.0, 1.1, 1.0, 0.87],
+      [1.5, 1.05, 0.98, 0.93],
+      [2.1, 1.0, 0.95, 0.93],
+      [2.4, 0.93, 0.88, 0.93],
+      [2.48, 0.88, 0.84, 0.92],
+    ],
+    windshield: [1.0, 0.3],
+    doorGlass: [[0.86, -0.04], [-0.1, -1.05]],
+    bPillar: [-0.04, -0.1],
+    rearGlass: [-1.1, -1.65],
+    seams: [0.9, -0.07, -1.08],
+    handles: [0.06, -0.85],
+    hoodBack: 1.0,
+    clad: 11,
+    rails: false, spoiler: false, maxGap: 0.3, archN: 6,
+    bumperY: 0.33, bumperH: 0.22,
+    plan: [[-2.5, 0.9], [-2, 0.98], [-1, 1], [1, 1], [2, 0.98], [2.5, 0.92]],
+    headLamp: 'blade', tailLamp: 'lshape', grille: 'kidney', lampD: 0.12, endF: 0.45, endR: 0.35, grilleW: 0.45,
+    dims: { L: 4.963, W: 1.868, H: 1.48 },
+  },
+  // "Sovereign Livery": a full-size rear-drive livery sedan of the Lincoln Town Car type (2003-2011): length 215.4 in (5.47 m), width 78.2 in (1.99 m), height 59 in (1.50 m), wheelbase 117.7 in (2.99 m).
+  // Sources: https://www.iseecars.com/car/2003-lincoln-town_car-dimensions , https://www.truedelta.com/Lincoln-Town-Car/specs-169-2011&r=2
+  towncar: {
+    Lref: 5.39, Href: 1.44,
+    sill: 0.2, wheelR: 0.34, wheelW: 0.235,
+    axle: 1.455,
+    secs: [
+      [-2.69, 1.02, 0.94, 0.93],
+      [-2.35, 1.07, 1.0, 0.93],
+      [-1.9, 1.1, 1.02, 0.92],
+      [-1.5, 1.14, 1.02, 0.88],
+      [-1.25, 1.3, 1.02, 0.8],
+      [-0.95, 1.42, 1.02, 0.75],
+      [-0.35, 1.44, 1.02, 0.74],
+      [0.2, 1.43, 1.02, 0.75],
+      [0.5, 1.33, 1.02, 0.78],
+      [0.9, 1.1, 1.0, 0.88],
+      [1.4, 1.03, 0.97, 0.93],
+      [2.0, 0.99, 0.93, 0.93],
+      [2.45, 0.94, 0.87, 0.92],
+      [2.69, 0.89, 0.82, 0.92],
+    ],
+    windshield: [0.92, 0.2],
+    doorGlass: [[0.8, 0.0], [-0.035, -0.97]],
+    bPillar: [0.0, -0.035],
+    rearGlass: [-1.02, -1.5],
+    seams: [0.86, -0.08, -1.05],
+    handles: [0.08, -0.82],
+    hoodBack: 0.96,
+    clad: 11,
+    rails: false, spoiler: false, maxGap: 0.3, archN: 6,
+    bumperY: 0.36, bumperH: 0.24,
+    plan: [[-2.7, 0.9], [-2.1, 0.97], [-1, 1], [1, 1], [2.1, 0.98], [2.7, 0.92]],
+    dims: { L: 5.47, W: 1.99, H: 1.5 },
+    headLamp: 'quad', tailLamp: 'box2', grille: 'bars', lampD: 0.1, tailD: 0.08, endF: 0.4, endR: 0.3, grilleW: 0.6,
+  },
+  // "Bronco Pony": a two-door pony car of the Ford Mustang GT type (2015-): length 188.3 in (4.783 m), width 75.4 in (1.915 m), height 54.4 in (1.382 m), wheelbase 107.1 in (2.72 m).
+  // Sources: https://www.carspecs.us/cars/2015/ford/mustang/37991 , https://dimensions.com/element/ford-mustang-gt-2015
+  pony: {
+    Lref: 4.783, Href: 1.382,
+    sill: 0.17, wheelR: 0.35, wheelW: 0.255,
+    axle: 1.36,
+    secs: [
+      [-2.39, 1.0, 0.96, 0.9],
+      [-2.2, 1.05, 1.0, 0.9],
+      [-1.9, 1.1, 1.02, 0.87],
+      [-1.5, 1.24, 1.02, 0.8],
+      [-1.0, 1.35, 1.02, 0.75],
+      [-0.4, 1.38, 1.02, 0.72],
+      [0.1, 1.36, 1.02, 0.73],
+      [0.55, 1.24, 1.02, 0.8],
+      [0.95, 1.07, 1.0, 0.88],
+      [1.4, 1.03, 0.98, 0.93],
+      [1.9, 0.98, 0.93, 0.93],
+      [2.2, 0.92, 0.87, 0.93],
+      [2.39, 0.86, 0.8, 0.92],
+    ],
+    windshield: [0.95, 0.3],
+    doorGlass: [[0.86, -0.5], [-0.58, -1.05]],
+    bPillar: [-0.5, -0.58],
+    rearGlass: [-1.08, -1.55],
+    seams: [0.88, -0.56, -1.1],
+    handles: [-0.25],
+    hoodBack: 0.98,
+    clad: 11,
+    rails: false, spoiler: true, maxGap: 0.3, archN: 6,
+    bumperY: 0.32, bumperH: 0.21,
+    plan: [[-2.4, 0.9], [-1.8, 0.98], [-0.9, 1], [0.9, 1], [1.8, 0.98], [2.4, 0.92]],
+    headLamp: 'slit', tailLamp: 'tri', grille: 'mesh', lampD: 0.0, endF: 0.5, endR: 0.3, grilleW: 0.5,
+    dims: { L: 4.783, W: 1.915, H: 1.382 },
+  },
+  // "Jitney 15": a passenger van of the dollar-van type (Transit-class 15-seat high roof): the cargo van body with side windows down its length.
+  dollar: {
+    Lref: 5.98, Href: 2.78,
+    sill: 0.36, wheelR: 0.37, wheelW: 0.235,
+    axle: 1.875,
+    secs: [
+      [-2.95, 2.55, 1.28, 0.93],
+      [-2.8, 2.72, 1.3, 0.95],
+      [-2.3, 2.78, 1.3, 0.95],
+      [-0.5, 2.78, 1.3, 0.95],
+      [0.4, 2.76, 1.3, 0.95],
+      [0.7, 2.62, 1.3, 0.94],
+      [1.0, 2.1, 1.3, 0.92],
+      [1.8, 1.45, 1.3, 0.93],
+      [1.98, 1.28, 1.25, 0.93],
+      [2.4, 1.2, 1.12, 0.93],
+      [2.8, 1.08, 0.95, 0.93],
+      [2.95, 0.98, 0.85, 0.93],
+    ],
+    windshield: [1.8, 1.0],
+    doorGlass: [[1.6, 0.55], [0.4, -0.5], [-0.62, -1.6], [-1.72, -2.6]],
+    bPillar: [0.55, 0.4],
+    rearGlass: [-2.6, -2.75],
+    seams: [1.62, 0.48, -0.56, -1.66],
+    handles: [1.2, -0.1],
+    hoodBack: 1.98,
+    clad: 11,
+    rails: false, spoiler: false, hatchback: true, maxGap: 0.9, archN: 5, endT: [0, 1],
+    glassTop: 2.1, headY: 0.86, tailY: 1.2, mirror: 'van',
+    bumperY: 0.5, bumperH: 0.3,
+    plan: [[-2.95, 0.96], [-2.2, 0.99], [-1, 1], [1, 1], [2.3, 0.98], [2.95, 0.92]],
+    headLamp: 'angular', tailLamp: 'tall', grille: 'wedge', lampD: 0.12, tailD: 0.05, endF: 0.3, endR: 0.12, grilleW: 0.55, lampInset: 0.17,
+    dims: { L: 5.98, W: 2.06, H: 2.78 },
+    windowed: true,
+  },
 };
 
 export function wheelRadiusFor(type: VehicleType): number {
   if (type === 'boxtruck' || type === 'bus') return 0.5;
-  if (type === 'cargovan') return STYLES.cargo.wheelR;
-  if (type === 'hatch' || type === 'beater') return STYLES[type].wheelR;
+  if (type === 'garbage') return GARBAGE_R;
+  if (type === 'cargovan' || type === 'ambulance') return STYLES.cargo.wheelR;
+  if (type === 'dollarvan') return STYLES.dollar.wheelR;
+  if (type === 'hatch' || type === 'beater' || type === 'pickup' || type === 'crossover' || type === 'minivan' || type === 'luxury' || type === 'towncar' || type === 'pony') return STYLES[type].wheelR;
   return type === 'suv' ? STYLES.suv.wheelR : type === 'cop' ? STYLES.charger.wheelR : STYLES.sedan.wheelR;
 }
 
 /** Number of cross-sections that define a type's hull (before smoothing). */
 export function hullSectionCount(type: VehicleType): number {
-  if (type === 'boxtruck') return TRUCK_CAB_SECS.length;
+  if (type === 'boxtruck' || type === 'garbage') return TRUCK_CAB_SECS.length;
   if (type === 'bus') return 12;
-  return STYLES[type === 'suv' ? 'suv' : type === 'cop' ? 'charger' : type === 'cargovan' ? 'cargo' : type === 'hatch' ? 'hatch' : type === 'beater' ? 'beater' : 'sedan'].secs.length;
+  return STYLES[type === 'suv' ? 'suv' : type === 'cop' ? 'charger' : type === 'cargovan' || type === 'ambulance' ? 'cargo' : type === 'dollarvan' ? 'dollar' : type === 'cab' ? 'crown' : type === 'hatch' || type === 'beater' || type === 'pickup' || type === 'crossover' || type === 'minivan' || type === 'luxury' || type === 'towncar' || type === 'pony' ? type : 'sedan'].secs.length;
 }
 
 const inI = (u: number, r: V2): boolean => u <= r[0] + 1e-6 && u >= r[1] - 1e-6;
@@ -1057,7 +1327,11 @@ function lampPieces(kind: string, front: boolean, pos: THREE.Vector3, yaw: numbe
   let lensHoles: [number, number][][][] = [];
   let hous: [number, number][] = rect(0, 0, 0.3, 0.14);
   switch (kind) {
-    case 'quad': lens = [rect(0, 0.04, 0.24, 0.07), rect(0, -0.04, 0.24, 0.035)]; hous = rect(0, 0, 0.29, 0.15); break; // Crown-type rectangular composite lamp
+    case 'quad': lens = [rect(0, 0.026, 0.25, 0.05), rect(0, -0.03, 0.25, 0.022)]; hous = rect(0, 0, 0.28, 0.11); break; // Crown-type rectangular composite lamp (slim: a clear lens over a dark reflector, no thick frame)
+    case 'blade': lens = [[[-0.18, -0.02], [0.18, 0.012], [0.18, 0.03], [-0.18, 0.0]], [[-0.18, -0.045], [0.16, -0.015], [0.16, -0.003], [-0.18, -0.033]]]; hous = [[-0.2, -0.06], [0.2, -0.02], [0.2, 0.05], [-0.2, 0.02]]; break; // narrow executive-sedan blade with an LED line
+    case 'round2': lens = [rect(-0.1, 0, 0.12, 0.12), rect(0.1, 0, 0.12, 0.12)]; hous = rect(0, 0, 0.34, 0.16); break;
+    case 'tri': lens = [rect(-0.15, 0, 0.07, 0.15), rect(-0.05, 0, 0.07, 0.15), rect(0.05, 0, 0.07, 0.15)]; hous = rect(-0.05, 0, 0.36, 0.19); break; // three-bar pony tail lamp
+    case 'lshape': { const o: [number, number][] = [[-0.2, -0.05], [0.2, -0.05], [0.2, -0.02], [-0.17, -0.02], [-0.17, 0.12], [-0.2, 0.12]]; lens = [o]; hous = rect(0, 0.03, 0.44, 0.2); break; } // L-shaped lamp
     case 'slit': lens = [[[-0.17, -0.012], [0.17, 0.016], [0.17, 0.046], [-0.17, 0.014]], [[-0.17, -0.03], [0.17, -0.003], [0.17, 0.004], [-0.17, -0.023]]]; hous = [[-0.19, -0.04], [0.19, -0.006], [0.19, 0.06], [-0.19, 0.03]]; break; // narrow scowl + DRL
     case 'wedge': lens = [[[-0.19, -0.04], [0.19, 0.035], [0.19, 0.075], [-0.19, 0.0]], [[-0.17, -0.07], [0.17, 0.0], [0.17, 0.012], [-0.17, -0.058]]]; hous = [[-0.2, -0.08], [0.2, 0.0], [0.2, 0.09], [-0.2, 0.015]]; break; // swept-back
     case 'c': lens = [rect(0, 0.06, 0.26, 0.026), rect(0, -0.06, 0.26, 0.026), rect(0.118, 0, 0.026, 0.146)]; hous = rect(0, 0, 0.3, 0.19); break; // C-shape DRL signature
@@ -1090,10 +1364,18 @@ const WRAP_LAMPS: Record<string, { lens: LampStrip[]; housing: LampStrip }> = {
   // Camry-type swept-back lamp: tall at the inner end, a long tapered tail that rises along the fender, a DRL strip below
   swept: {
     lens: [
-      { s: [0, 0.16, 0.34, 0.52], lo: [-0.05, -0.055, -0.02, 0.04], hi: [0.055, 0.06, 0.07, 0.085] },
-      { s: [0.02, 0.18, 0.34, 0.46], lo: [-0.085, -0.085, -0.055, -0.02], hi: [-0.065, -0.065, -0.037, 0.0] },
+      { s: [0, 0.12, 0.26, 0.4, 0.55], lo: [-0.055, -0.06, -0.05, -0.012, 0.035], hi: [0.065, 0.075, 0.085, 0.092, 0.095] },
+      { s: [0.02, 0.16, 0.3, 0.46], lo: [-0.105, -0.105, -0.08, -0.04], hi: [-0.062, -0.062, -0.04, -0.006] },
     ],
     housing: { s: [-0.02, 0.16, 0.34, 0.54], lo: [-0.1, -0.1, -0.075, 0.02], hi: [0.075, 0.08, 0.09, 0.105] },
+  },
+  // Camry-type rear lamp: a wide swept wedge along the deck edge that turns the corner and runs up the quarter, amber / reverse strip below
+  camryT: {
+    lens: [
+      { s: [0, 0.2, 0.4, 0.58, 0.72], lo: [-0.04, -0.05, -0.05, -0.035, -0.01], hi: [0.055, 0.075, 0.09, 0.1, 0.1] },
+      { s: [0.04, 0.3, 0.56], lo: [-0.085, -0.085, -0.07], hi: [-0.055, -0.055, -0.04] },
+    ],
+    housing: { s: [-0.02, 0.2, 0.4, 0.58, 0.76], lo: [-0.1, -0.1, -0.1, -0.08, -0.04], hi: [0.075, 0.095, 0.11, 0.12, 0.12] },
   },
   box: { lens: [rectStrip(0, 0.27, -0.05, 0.05), rectStrip(0.31, 0.39, -0.04, 0.03)], housing: rectStrip(-0.02, 0.41, -0.07, 0.07) },
   angular: {
@@ -1150,8 +1432,10 @@ function wrapLamp(kind: string, front: boolean, tipU: number, plan: (d: number) 
   return { lens: spec.lens.map((l) => build(l, 0.02)), housing: [build(spec.housing, 0.01)] };
 }
 
-export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec, refine: 1 | 2 = 2): CarParts {
-  const st = STYLES[type === 'cab' ? 'crown' : type === 'cop' ? 'charger' : type];
+export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: VehicleSpec, refine: 1 | 2 = 2): CarParts {
+  const unmarked = typeIn === 'unmarked';
+  const type: PassengerStyle = typeIn === 'unmarked' ? 'cop' : typeIn;
+  const st = STYLES[type === 'cab' ? 'crown' : type === 'cop' ? 'charger' : type === 'ambulance' ? 'cargo' : type];
   const hatchy = st.rails || !!st.hatchback; // tailgate bodies: no boot lid, no rear bench
   const planAt = monotone(st.plan.map((p) => p[0]), st.plan.map((p) => p[1]));
   const { length: L, width: W, height: H } = st.dims ? { length: st.dims.L, width: st.dims.W, height: st.dims.H } : spec;
@@ -1203,9 +1487,11 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec, ref
   const hoodBackU = st.hoodBack * kx;
   const hoodFrontU = tipF - 0.16 * drF;
   const quarter = axleF - arch.halfChord - 0.03; // cladding between the arches
+  const bed = st.bed ? { u0: st.bed.u0 * kx, u1: st.bed.u1 * kx, floor: st.bed.floor * ky } : null;
 
   const cls = (um: number, j: number): Kind => {
     if (um <= hoodFrontU && um >= hoodBackU && j <= 5) return 'none'; // under the hood panel (a flat dark box fills the bay)
+    if (bed && um <= bed.u0 && j <= 5) return 'none'; // pickup: the open bed
     const inW = inI(um, ws);
     if ((inW || (rg && inI(um, rg))) && j <= 1) return 'glass';
     if (inI(um, bp) && j >= 3 && j <= 5) return 'dark';
@@ -1224,7 +1510,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec, ref
     return 'paint';
   };
 
-  const must: number[] = [tipF, tipR, ...ws, ...doors.flat(), ...bp, ...(rg ?? []), hoodBackU, hoodFrontU]; // seams snap to the nearest station
+  const must: number[] = [tipF, tipR, ...ws, ...doors.flat(), ...bp, ...(rg ?? []), hoodBackU, hoodFrontU, ...(bed ? [bed.u0] : [])]; // seams snap to the nearest station
   const want: number[] = [];
   for (const t of st.endT ?? END_T) { want.push(tipF - t * drF, tipR + t * drR); }
   for (const ax of [axleF, axleR]) want.push(...archStations(arch, ax, st.archN ?? 4));
@@ -1287,7 +1573,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec, ref
       for (const sl of [18, 6]) trim.add(rib(seq(iT0, iT1).map((i) => [i, sl] as [number, number]), 0.009, 0.011));
       trim.add(rib(across(iT0), 0.009, 0.011));
       trim.add(rib(across(iT1), 0.009, 0.011));
-    } else if (rg) {
+    } else if (rg && !bed) {
       const iT0 = hull.at(rg[1] + 0.02 * kx);
       trim.add(rib(across(iT0), 0.009, 0.011)); // tailgate cut line
     }
@@ -1298,6 +1584,23 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec, ref
   const wx = Wb2 - 0.03 - 0.52 * wTyre;
   for (const ax of [axleF, axleR]) {
     trim.addBoth(wheelLiner(arch, wx - 0.52 * wTyre - 0.03, Wb2 - 0.01, -ax));
+  }
+
+  // ---- pickup bed: liner floor, inner walls, cab back wall, wheel-well humps, rim caps, tailgate handle
+  if (bed) {
+    const len = bed.u0 - bed.u1 - 0.1, mid = -(bed.u0 + bed.u1) / 2;
+    const yRail = fyBelt(bed.u0 - 0.2) - 0.01;
+    const hw = Wb2 - 0.07;
+    trim.add(bx(2 * hw, 0.05, len, 0, bed.floor, mid)); // liner floor
+    for (const s2 of [-1, 1]) {
+      trim.add(bx(0.05, yRail - bed.floor, len, s2 * hw, (yRail + bed.floor) / 2, mid)); // inner wall
+      trim.add(bx(0.2, 0.26, 0.64, s2 * (hw - 0.1), bed.floor + 0.15, -axleR)); // wheel-well hump
+      chrome.add(bx(0.06, 0.016, len, s2 * (hw + 0.01), yRail + 0.004, mid)); // rail cap
+    }
+    trim.add(bx(2 * hw, yRail - bed.floor + 0.35, 0.06, 0, (yRail + bed.floor) / 2 + 0.17, -(bed.u0 - 0.03))); // cab back wall (bed side)
+    trim.add(bx(2 * hw, 0.05, 0.04, 0, bed.floor + 0.2, -(bed.u1 + 0.08))); // tailgate inner lip
+    trim.add(bx(0.32, 0.04, 0.025, 0, yRail - 0.12, -(bed.u1 - 0.003))); // tailgate handle
+    for (let k = 0; k < 5; k++) trim.add(bx(2 * hw - 0.1, 0.012, 0.05, 0, bed.floor + 0.03, mid + (k - 2) * 0.32)); // liner ribs
   }
 
   // ---- mirrors (paint housing + dark face), tips stay within W / 2 + 0.02
@@ -1351,6 +1654,18 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec, ref
     for (let k = -4; k <= 4; k++) chrome.add(bx(0.012, gH - 0.02, 0.014, k * (gW * 0.22), gY, gZ - 0.01)); // upright chrome bars
   } else if (st.grille === 'mesh') {
     chrome.add(bx(2 * gW - 0.04, 0.02, 0.014, 0, gY, gZ - 0.01)); // one bar across a black mesh
+  } else if (st.grille === 'kidney') {
+    for (const sx2 of [-1, 1]) { // twin kidney grilles: a chrome frame with vertical dark slats
+      const cx2 = sx2 * gW * 0.5;
+      chrome.add(bx(gW * 0.9, 0.014, 0.016, cx2, gY + gH / 2 - 0.01, gZ - 0.01));
+      chrome.add(bx(gW * 0.9, 0.014, 0.016, cx2, gY - gH / 2 + 0.01, gZ - 0.01));
+      chrome.add(bx(0.014, gH - 0.02, 0.016, cx2 + sx2 * gW * 0.45, gY, gZ - 0.01));
+      chrome.add(bx(0.014, gH - 0.02, 0.016, cx2 - sx2 * gW * 0.45, gY, gZ - 0.01));
+      for (let k = -1; k <= 1; k++) chrome.add(bx(0.01, gH - 0.05, 0.012, cx2 + k * gW * 0.24, gY, gZ - 0.008));
+    }
+  } else if (st.grille === 'bigbar') {
+    for (let k = -1; k <= 1; k += 2) chrome.add(bx(2 * gW, 0.05, 0.02, 0, gY + k * 0.06, gZ - 0.012)); // two fat chrome bars on a black grid
+    chrome.add(bx(2 * gW + 0.06, 0.03, 0.02, 0, gY - 0.17, gZ - 0.008));
   } else if (st.grille === 'slats') {
     for (let k = -1; k <= 1; k++) chrome.add(bx(2 * gW - 0.04, 0.02, 0.014, 0, gY + k * (gH / 3), gZ - 0.01)); // three thick slats
   } else {
@@ -1362,6 +1677,7 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec, ref
   // rear: chrome strip over the bumper, exhaust tip
   const exX = Wb2 - 0.34;
   if (!st.mirror) chrome.add(cylZ(0.04, 0.16, exX, 0.16, bumperZ - 0.14, 8));
+  if (type === 'pony' || type === 'luxury') chrome.add(cylZ(0.04, 0.16, -exX, 0.16, bumperZ - 0.14, 8)); // dual exhaust
   // underbody pan so the sky never shows under the car, and a dark box filling the engine bay under the hood panel
   trim.add(bx(2 * (Wb2 - 0.14), 0.04, L - 0.5, 0, st.sill + 0.04, 0));
   trim.add(bx(2 * (Wb2 - 0.2), 0.04, hoodFrontU - hoodBackU, 0, fyBelt((hoodBackU + hoodFrontU) / 2) - 0.1, -(hoodBackU + hoodFrontU) / 2));
@@ -1391,6 +1707,17 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec, ref
     trim.add(bx(2 * Wb2 * 0.72, 0.1, 0.5, 0, seatY + 0.0, -(rg[0] + 0.45))); // rear cushion
     for (const s of [-1, 0, 1]) trim.add(bx(0.16, 0.1, 0.07, s * 0.4, seatY + 0.58, -(rg[0] + 0.2))); // rear headrests
     trim.add(bx(2 * Wb2 * 0.8, 0.03, 0.34, 0, fyBelt(rg[1]) + 0.03, -(rg[1] + 0.2))); // parcel shelf
+  }
+  if (hatchy && st.glassTop === undefined) {
+    // tailgate bodies: a bench or captain's chairs under every rear side window
+    for (let d = 1; d < doors.length; d++) {
+      const uc = (doors[d][0] + doors[d][1]) / 2;
+      for (const s2 of st.rails || st.windowed ? [] : st.doorGlass.length >= 3 && d === 1 ? [-1, 1] : [-1, 0, 1]) {
+        const w2 = st.doorGlass.length >= 3 && d === 1 ? 0.46 : 0.34;
+        trim.add(bx(w2, 0.5, 0.12, s2 * (w2 + 0.04), seatY + 0.26, -(uc + 0.24)));
+        trim.add(bx(w2, 0.1, 0.46, s2 * (w2 + 0.04), seatY, -uc));
+      }
+    }
   }
 
   // ---- roof rails (SUV)
@@ -1422,10 +1749,16 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec, ref
   const copBarU = secs[st.rails ? 3 : 5][0];
   const roofY = hull.P(hull.at(copBarU), 0).y;
   const roofLamp = new Acc();
-  if (type === 'cop') {
+  if (type === 'cop' && !unmarked) {
     for (const s of [-1, 1]) trim.add(bx(0.05, 0.42, 0.05, s * 0.5, 0.52, -(L / 2 - 0.01)));
     trim.add(bx(1.05, 0.05, 0.05, 0, 0.7, -(L / 2 - 0.01)));
     trim.add(bx(1.1, 0.05, 0.34, 0, roofY + 0.03, -copBarU));
+  } else if (type === 'cop') {
+    // unmarked: a push bar only (no roof bar); the strobes sit in the grille and behind the windshield (lightbar lenses below)
+    trim.add(bx(1.0, 0.05, 0.05, 0, 0.6, -(L / 2 - 0.01)));
+  } else if (type === 'ambulance') {
+    trim.add(bx(1.5, 0.05, 0.34, 0, roofY + 0.03, -(ws[1] + 0.2))); // roof light bar base
+    for (const s2 of [-1, 1]) trim.add(bx(0.06, 0.06, 0.06, s2 * (st.dims!.W / 2 - 0.2), 1.9 * ky, -(doors[0][0] + 0.1))); // side warning lamps
   } else if (type === 'cab') {
     trim.add(bx(0.4, 0.03, 0.2, 0, roofY + 0.015, -copBarU));
     roofLamp.add(bx(0.38, 0.1, 0.17, 0, roofY + 0.08, -copBarU));
@@ -1513,11 +1846,36 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec, ref
     liveryUV(parts.paint, L);
     liveryUV(parts.hood!.geo, L);
   }
-  if (type === 'cop') {
+  if (type === 'cop' && !unmarked) {
     parts.lightbar = {
       lens: new THREE.BoxGeometry(0.52, 0.1, 0.28),
       a: v3(-0.29, roofY + 0.085, -copBarU),
       b: v3(0.29, roofY + 0.085, -copBarU),
+    };
+  } else if (type === 'cop') {
+    const yD = fyBelt(ws[0] - 0.4) + 0.03;
+    parts.lightbar = { lens: new THREE.BoxGeometry(0.22, 0.045, 0.07), a: v3(-0.3, yD, -(ws[0] - 0.3)), b: v3(0.3, yD, -(ws[0] - 0.3)) };
+  } else if (type === 'ambulance') {
+    const yB = roofY + 0.085;
+    parts.lightbar = { lens: new THREE.BoxGeometry(0.7, 0.1, 0.28), a: v3(-0.38, yB, -(ws[1] + 0.2)), b: v3(0.38, yB, -(ws[1] + 0.2)) };
+  }
+  // ---- anchors for per-car extras (carExtras.ts)
+  {
+    const top = Math.max(...secs.map((q) => q[1]));
+    const flat = secs.filter((q) => q[1] >= top - 0.05).map((q) => q[0]);
+    const uA = Math.max(...flat), uB = Math.min(...flat);
+    const iMid = hull.at((uA + uB) / 2);
+    const quad = (u0: number, u1: number, s0: number, s1: number): THREE.Vector3[] => {
+      const i0 = hull.at(u0), i1 = hull.at(u1);
+      return [[i0, s0], [i0, s1], [i1, s1], [i1, s0]].map(([i, sl]) => hull.P(i, sl).addScaledVector(hull.N(i, sl), 0.008));
+    };
+    parts.anchors = {
+      roof: { y: hull.P(iMid, 0).y, u0: uA, u1: uB, hw: Math.abs(hull.P(iMid, 3).x) },
+      rear: { z: L / 2, y: st.bumperY, hw: Wb2 * 0.88 },
+      wsQuad: st.glassTop === undefined ? quad(ws[0] - 0.05, ws[0] - 0.2, 1, 2) : null,
+      rgQuad: rg && st.glassTop === undefined && !bed && !hatchy ? quad(rg[1] + 0.2, rg[1] + 0.06, 1, 2) : null,
+      hoodFront: v3(0, ring(hoodFrontU - 0.05).yT + 0.012, -(hoodFrontU - 0.05)),
+      exX,
     };
   }
   return parts;
@@ -1531,6 +1889,8 @@ export function buildPassengerParts(type: PassengerStyle, spec: VehicleSpec, ref
 // (https://xr793.com/wp-content/uploads/2020/02/2020-Isuzu-N-Series.pdf, https://www.lynchtruckcenter.com/p/2025-isuzu-npr-npr-hd).
 // 19.5 in wheels (225/70R19.5, R 0.405 m), dual rear tyres, roll-up rear door.
 const TRUCK_R = 0.405;
+/** garbage truck: 22.5 in tyres */
+export const GARBAGE_R = 0.5;
 const TRUCK_AXLES: [number, number] = [2.45, -1.36];
 
 /** [u, roof height, belt height, roof half-width fraction] for the cab, metres. */
@@ -1544,20 +1904,30 @@ const TRUCK_CAB_SECS: [number, number, number, number][] = [
   [3.4, 1.58, 1.45, 0.92],
 ];
 
-export function buildTruckParts(spec: VehicleSpec): CarParts {
+/**
+ * `kind = 'garbage'` ("Boro Sanitation"): a low cab-forward refuse truck of the Mack LR type with a rear-loader packer body on a tandem rear axle.
+ * Wheelbase 186-221 in (4.7-5.6 m) per https://www.truckinginfo.com/301074/driving-macks-low-ride-refuse-hauler and https://www.truckpaper.com/listing/for-sale/257093773/2026-mack-lr64-packer-garbage-trucks ;
+ * overall 9.2 x 2.5 x 3.6 m is an estimate (the searches returned no overall dimensions).
+ */
+export function buildTruckParts(spec: VehicleSpec, kind: 'box' | 'garbage' = 'box'): CarParts {
   const { length: L, width: W, height: H } = spec;
-  const R = TRUCK_R;
-  const ww = 0.23;
-  const sill = 0.62;
+  const G = kind === 'garbage';
+  const R = G ? GARBAGE_R : TRUCK_R;
+  const ww = G ? 0.3 : 0.23;
+  const sill = G ? 0.7 : 0.62;
   const arch = archOf(R, sill);
-  const Wc2 = 1.03;                // cab half-width (2.06 m cab)
+  const dU = G ? (L - 7) / 2 : 0;
+  const CAB = TRUCK_CAB_SECS.map(([u, yT, yB, wr]) => [u + dU, G ? yT * 1.08 : yT, yB, wr] as [number, number, number, number]);
+  const Wc2 = G ? 1.12 : 1.03;     // cab half-width (2.06 m cab; the refuse cab is 2.24)
   const Wg2 = W / 2 - 0.025;       // box half-width
   const uF = L / 2 - 0.1;          // cab nominal front
-  const uB = TRUCK_CAB_SECS[0][0]; // cab back
-  const [axleF, axleR] = TRUCK_AXLES;
+  const uB = CAB[0][0]; // cab back
+  const axleF = G ? uF - 0.95 : TRUCK_AXLES[0];
+  const axleR = G ? axleF - 4.9 : TRUCK_AXLES[1];
+  const axleR2 = axleR - 1.32; // garbage: tandem rear
 
   // ---- cab hull
-  const secs = TRUCK_CAB_SECS.map(([u, yT, yB, wr], i, a) => [i === 0 ? uB : i === a.length - 1 ? uF : u, yT, yB, wr] as const);
+  const secs = CAB.map(([u, yT, yB, wr], i, a) => [i === 0 ? uB : i === a.length - 1 ? uF : u, yT, yB, wr] as const);
   const su = secs.map((s) => s[0]);
   const fyT = monotone(su, secs.map((s) => s[1]));
   const fyBelt = monotone(su, secs.map((s) => s[2]));
@@ -1580,10 +1950,10 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
     const wMax = Wc2 * (0.88 + 0.12 * g);
     return { yT: fyT(u) - drop, yBelt, yBot, wMax, wR: fwR(u) * wMax };
   };
-  const ws: V2 = [3.33, 2.88];
-  const doors: V2[] = [[3.08, 2.15]];
-  const bp: V2 = [2.15, 2.03];
-  const seams = [3.12, 2.0];
+  const ws: V2 = [3.33 + dU, 2.88 + dU];
+  const doors: V2[] = [[3.08 + dU, 2.15 + dU]];
+  const bp: V2 = [2.15 + dU, 2.03 + dU];
+  const seams = [3.12 + dU, 2.0 + dU];
   const cabCls = (um: number, j: number): Kind => {
     if (inI(um, ws) && j <= 1) return 'glass';
     if (inI(um, bp) && j >= 3 && j <= 5) return 'dark';
@@ -1606,9 +1976,14 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
     const d = Math.min(cargoFront - u, u - cargoBack);
     const g = endG(d, 0.1);
     const s = 1 - 0.06 * (1 - g);
+    if (G) {
+      // packer body: a rounded barrel, full height forward of the hopper, a lower loading lip over the last 1.5 m
+      const top = u < cargoBack + 1.5 ? H - 0.9 - 0.05 * (1 - g) + 0.9 * Math.max(0, (u - cargoBack - 0.9) / 0.6) : H - 0.02 - 0.05 * (1 - g);
+      return boxHalf(Wg2 * s, 1.2 + 0.05 * (1 - g), Math.min(H - 0.02, top), 0.42);
+    }
     return boxHalf(Wg2 * s, 1.05 + 0.05 * (1 - g), H - 0.02 - 0.05 * (1 - g), 0.07);
   };
-  const boxUs = stationList([cargoBack, cargoFront], END_T.flatMap((t) => [cargoBack + t * 0.1, cargoFront - t * 0.1]), 8);
+  const boxUs = stationList([cargoBack, cargoFront, ...(G ? [cargoBack + 0.9, cargoBack + 1.5] : [])], END_T.flatMap((t) => [cargoBack + t * 0.1, cargoFront - t * 0.1]), G ? 1.4 : 8);
   const box = buildLoft({ us: boxUs, half: boxRing, creases: [], cls: () => 'paint' });
 
   const paint = new Acc().add(cab.paint);
@@ -1628,13 +2003,13 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
     }
     return h[9][0];
   };
-  for (const hu of [2.3]) {
+  for (const hu of [2.3 + dU]) {
     const yH = 1.5;
     chrome.addBoth(bx(0.016, 0.03, 0.16, sideX(hu, yH) + 0.012, yH, -hu));
   }
 
   // ---- wheel liners and interior
-  const wx = 0.86;
+  const wx = G ? 0.98 : 0.86;
   trim.addBoth(wheelLiner(arch, wx - 0.52 * ww - 0.03, Wc2 - 0.01, -axleF));
   trim.add(bx(2 * Wc2 * 0.8, 0.3, 0.4, 0, 1.28, -(ws[0] - 0.3)));
   for (const s of [-1, 1]) {
@@ -1650,11 +2025,11 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
     chrome.add(bx(0.09, 0.022, 0.16, s * (Wc2 + 0.03), yMc + 0.18, -(doors[0][0] - 0.02)));
     trim.add(bx(0.12, 0.03, 0.03, s * (Wc2 + 0.0), yMc + 0.1, -(doors[0][0] - 0.02)));
     trim.add(bx(0.12, 0.03, 0.03, s * (Wc2 + 0.0), yMc - 0.1, -(doors[0][0] - 0.02)));
-    trim.add(bx(0.14, 0.04, 0.45, s * (Wc2 - 0.01), 0.58, -2.62)); // door step
+    trim.add(bx(0.14, 0.04, 0.45, s * (Wc2 - 0.01), sill - 0.04, -(2.62 + dU))); // door step
   }
 
   // ---- fascia: bumper, grille, lamps
-  trim.add(bumperGeo(2 * Wc2, 0.26, 0.28, 0.48, -(L / 2 - 0.26), false));
+  trim.add(bumperGeo(2 * Wc2, 0.26, 0.28, G ? 0.55 : 0.48, -(L / 2 - 0.26), false));
   trim.add(bx(2 * Wc2 * 0.62, 0.36, 0.02, 0, trF.yBot + 0.32, -(uF + 0.006)));
   for (let k = 0; k < 3; k++) chrome.add(bx(2 * Wc2 * 0.6, 0.014, 0.016, 0, trF.yBot + 0.2 + k * 0.1, -(uF + 0.018)));
   chrome.add(cylZ(0.045, 0.014, 0, trF.yBot + 0.5, -(uF + 0.022), 8));
@@ -1676,11 +2051,25 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
   trim.add(cylX(0.2, 0.7, Wc2 - 0.1, 0.85, 0.3, 8));
   trim.add(cylX(0.07, 2 * wx, 0, R, -axleF, 6));
   trim.add(cylX(0.09, 2 * wx, 0, R, -axleR, 6));
+  if (G) trim.add(cylX(0.09, 2 * wx, 0, R, -axleR2, 6));
   for (const s of [-1, 1]) trim.add(bx(0.02, 0.36, 0.34, s * (wx + 0.2), 0.32, -axleR + 0.6));
   chrome.add(cylZ(0.045, 0.1, Wc2 - 0.3, 0.7, L / 2 - 0.02, 8));
 
   // ---- cargo box details: roll-up door lines (rear), side ribs, lock bar
   const rz = -cargoBack + 0.006;
+  if (G) {
+    // rear loader: hopper mouth (dark), loading lip, packer blade slot, lift arms and comb, bumper step, side hatches, roof beacon
+    trim.add(bx(2 * Wg2 - 0.5, 0.9, 1.1, 0, 1.45, -(cargoBack + 0.55))); // hopper void
+    trim.add(bx(2 * Wg2 - 0.3, 0.14, 0.2, 0, 1.2, rz + 0.1)); // sill lip
+    trim.add(bx(2 * Wg2 - 0.7, 0.5, 0.03, 0, 2.2, -(cargoBack + 1.5))); // packer panel
+    for (const s2 of [-1, 1]) {
+      trim.add(bx(0.1, 0.9, 0.1, s2 * (Wg2 - 0.2), 1.9, rz + 0.04)); // lift-arm post
+      trim.add(bx(0.08, 0.08, 0.7, s2 * (Wg2 + 0.01), 2.5, -(cargoBack + 0.9))); // side hatch hinge
+      trim.add(bx(0.03, 1.2, 2.0, s2 * (Wg2 + 0.006), 2.35, -(cargoBack + 2.6))); // side panel hatch outline
+    }
+    trim.add(bx(2 * Wg2 - 0.2, 0.18, 0.3, 0, 0.82, L / 2 - 0.1)); // rear step platform
+    for (let k = -3; k <= 3; k++) chrome.add(bx(0.02, 0.5, 0.03, k * 0.3, 1.9, rz + 0.12)); // comb teeth
+  } else {
   for (let y = 1.4; y <= 3.12; y += 0.14) trim.add(decalZ(2 * Wg2 - 0.4, 0.016, 0, y, rz));
   trim.add(bx(2 * Wg2 - 0.36, 0.04, 0.03, 0, 1.3, rz + 0.01)); // bottom bar of the roll-up door
   for (const s of [-1, 1]) {
@@ -1689,6 +2078,7 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
     trim.add(decalX(4.5, 0.03, s, Wg2 + 0.004, 1.25, -1.0));
   }
   trim.add(decalZ(0.34, 0.07, 0, 1.55, rz));
+  }
 
   const parts: CarParts = {
     paint: paint.merge(),
@@ -1697,16 +2087,17 @@ export function buildTruckParts(spec: VehicleSpec): CarParts {
     trim: mergeTrim(trim, chrome),
     lampHead: head.merge(),
     lampTail: tail.merge(),
-    plate: platesGeo([v3(0, 0.48, -(L / 2 + 0.003)), v3(0, 0.8, L / 2 + 0.003)]),
+    plate: platesGeo([v3(0, G ? 0.55 : 0.48, -(L / 2 + 0.003)), v3(0, 0.8, L / 2 + 0.003)]),
     wheels: [],
     wheelR: R,
     wheelW: ww,
-    dualRear: true,
+    dualRear: !G,
     sections: TRUCK_CAB_SECS.length,
   };
   for (const s of [-1, 1]) {
     parts.wheels.push({ x: s * wx, z: -axleF, front: true });
     parts.wheels.push({ x: s * wx, z: -axleR, front: false });
+    if (G) parts.wheels.push({ x: s * wx, z: -axleR2, front: false });
   }
   return parts;
 }
@@ -1880,6 +2271,7 @@ export function buildBusParts(spec: VehicleSpec): CarParts {
     wheelW: ww,
     dualRear: true,
     sections: 12,
+    anchors: { roof: { y: H, u0: -1, u1: -1.5, hw: 1 }, rear: { z: tipF, y: 0.46, hw: 1 }, wsQuad: null, rgQuad: null, hoodFront: v3(0, 0, 0), exX: 0, sign: v3(0, H - 0.2, -(uScr - 0.02)) },
   };
   for (const s of [-1, 1]) {
     parts.wheels.push({ x: s * wx, z: -axF, front: true });

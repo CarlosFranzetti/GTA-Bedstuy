@@ -465,7 +465,9 @@ export function animateWalk(model: HumanModel, phase: number, amplitude: number)
   model.torso.rotation.y = -s * 0.13 * a;
   model.torso.rotation.z = -c * 0.02 * a;
   model.torso.rotation.x = -0.04 * a;
-  model.head.rotation.y = s * 0.05 * a;
+  // the head drifts a little (looking about), a slight nod on each footfall
+  model.head.rotation.y = s * 0.05 * a + Math.sin(phase * 0.23) * 0.1 * a;
+  model.head.rotation.x = Math.abs(c) * 0.025 * a - 0.01 * a;
   model.rig.position.x = c * 0.01 * a;
   // the hips dip as the legs spread (keeps the feet planted)
   model.rig.position.y = -LEG * (1 - Math.cos(swing * s));

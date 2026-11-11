@@ -11,6 +11,7 @@ import { PedSpawnScheduler, LOCAL_RADIUS, NEAR_SHARE, RECYCLE_DIST, RECYCLE_DIST
 import { Pedestrian, type PedCrossing, type PedEnvironment, type StoopSpot } from '@/entities/Pedestrian';
 import { TrafficAgent } from '@/entities/TrafficAgent';
 import { VEHICLE_SPECS } from '@/entities/Vehicle';
+import { pickPaint } from '@/entities/models/carLook';
 import { TrafficLights } from './TrafficLights';
 
 export type MakeVehicle = (type: VehicleType, pos: Vec2, heading: number, color: string) => IVehicle;
@@ -123,6 +124,11 @@ export const CAR_COLORS = [
   '#27ae60', '#8e44ad', '#111111', '#d35400', '#5d4037', '#95a5a6',
 ] as const;
 
+/** Cumulative traffic mix (CARS12): [type, upper edge of its slice of 0..1]. Sedans and crossovers lead, the oddities are rare. */
+const TRAFFIC_MIX: ReadonlyArray<readonly [VehicleType, number]> = [
+  ['sedan', 0.21], ['cab', 0.28], ['crossover', 0.38], ['suv', 0.46], ['hatch', 0.53], ['beater', 0.6], ['pickup', 0.66], ['minivan', 0.71],
+  ['luxury', 0.75], ['towncar', 0.79], ['pony', 0.81], ['cargovan', 0.86], ['dollarvan', 0.89], ['boxtruck', 0.94], ['bus', 0.965], ['garbage', 0.98], ['ambulance', 0.99],
+];
 const PED_COUNT = 40;
 const MAX_TRAFFIC = 30;
 const DEFAULT_PARK_OCCUPANCY_SHARE = 0.65;
@@ -470,7 +476,7 @@ export class TrafficSystem {
               z: seg.a.z + dir.z * along + right.z * curbOffset * side,
             },
             h,
-            color: this.rng.pick(CAR_COLORS),
+            color: this.paintFor(type),
           });
         }
       }
@@ -479,7 +485,7 @@ export class TrafficSystem {
     for (const sl of slots) if (!spawnCar || dist(sl.pos, this.spawnPoint) < dist(spawnCar.pos, this.spawnPoint)) spawnCar = sl;
     for (const sl of slots) {
       if (spawnCar && sl !== spawnCar && dist(sl.pos, spawnCar.pos) < SPAWN_CAR_CLEAR) continue;
-      const v = this.makeVehicle(sl.type, sl.pos, sl.h, sl.type === 'cab' ? '#e0b01e' : sl.color);
+      const v = this.makeVehicle(sl.type, sl.pos, sl.h, sl.color);
       v.driver = null;
       this.register(v);
     }
@@ -558,7 +564,7 @@ export class TrafficSystem {
       if (d < SPAWN_MIN || d > SPAWN_MAX) continue;
       if (!this.spawnClear(n)) continue;
       const type = this.pickType(true);
-      const v = this.makeVehicle(type, { x: n.pos.x, z: n.pos.z }, n.heading, type === 'cab' ? '#e0b01e' : type === 'bus' ? '#f0f0ec' : this.rng.pick(CAR_COLORS));
+      const v = this.makeVehicle(type, { x: n.pos.x, z: n.pos.z }, n.heading, this.paintFor(type));
       v.driver = 'traffic';
       this.register(v);
       const agent = new TrafficAgent(v, this.grid.lanes, this.world, this.rng.fork(v.id), {
@@ -604,14 +610,21 @@ export class TrafficSystem {
   /** Traffic mix (a cab is its own type, always taxi yellow); the bus only drives, it is never parked at a kerb. */
   private pickType(moving = false): VehicleType {
     const r = this.rng.next();
-    if (r < 0.34) return 'sedan';
-    if (r < 0.41) return 'cab';
-    if (r < 0.54) return 'suv';
-    if (r < 0.66) return 'hatch';
-    if (r < 0.77) return 'beater';
-    if (r < 0.86) return 'cargovan';
-    if (r < 0.96) return 'boxtruck';
-    return moving ? 'bus' : 'hatch';
+    for (const [t, edge] of TRAFFIC_MIX) {
+      if (r >= edge) continue;
+      // buses, refuse trucks and ambulances only drive, they are never parked at a kerb
+      return !moving && (t === 'bus' || t === 'garbage' || t === 'ambulance') ? 'hatch' : t;
+    }
+    return 'sedan';
+  }
+
+  /** Paint of a new car: its type's era palette (taxis, buses and the fleet vehicles keep their fixed colour). */
+  private paintFor(type: VehicleType): string {
+    if (type === 'cab') return '#e0b01e';
+    if (type === 'bus') return '#f0f0ec';
+    if (type === 'garbage') return '#eef1ec';
+    if (type === 'ambulance') return '#f4f4f4';
+    return pickPaint(type, this.rng).color;
   }
 
   private register(v: IVehicle): void {

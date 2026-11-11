@@ -14,6 +14,7 @@ import { lotColourway } from '@/world/buildings/colourway';
 import type { LocalRect, LotCtx, LotOutput } from '@/world/buildings/facade';
 import { buildBrownstone } from '@/world/buildings/brownstone';
 import { buildMixedUse } from '@/world/buildings/mixeduse';
+import { buildWarehouse } from '@/world/buildings/warehouse';
 import { buildChurch } from '@/world/buildings/church';
 import { buildApartment } from '@/world/buildings/apartment';
 import { buildVacant } from '@/world/buildings/vacant';
@@ -81,7 +82,7 @@ export function buildBuildings(
     switch (lot.type) {
       case 'brownstone': out = buildBrownstone(ctx, { style: 'brownstone' }); break;
       case 'rowhouse': out = buildBrownstone(ctx, { style: 'rowhouse' }); break;
-      case 'mixeduse': out = buildMixedUse(ctx); break;
+      case 'mixeduse': out = (lot.spec as { storefront?: string } | undefined)?.storefront === 'warehouse' ? buildWarehouse(ctx) : buildMixedUse(ctx); break;
       case 'church': out = buildChurch(ctx); break;
       case 'apartment': out = buildApartment(ctx); break;
       case 'scaffold': out = buildScaffold(ctx); break;

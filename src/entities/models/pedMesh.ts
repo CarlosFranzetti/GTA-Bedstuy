@@ -203,8 +203,14 @@ function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
   };
   const covered = spec.hat !== 'none';
   const hairCap = (): void => { if (!hiDetail) out.push(loft(dome(0.42, 1.045, 0.006, 0.34), seg, hairR, 3, 'top')); };
-  const ball = (cx: number, y: number, cz: number, rr: number, rect: PxRect): void => {
-    out.push(loft([{ y: y - rr, rx: rr * 0.3, rz: rr * 0.3, cx, cz }, { y: y - rr * 0.6, rx: rr * 0.85, rz: rr * 0.85, cx, cz }, { y, rx: rr, rz: rr, cx, cz }, { y: y + rr * 0.6, rx: rr * 0.85, rz: rr * 0.85, cx, cz }, { y: y + rr, rx: rr * 0.3, rz: rr * 0.3, cx, cz }], 10, rect, 3, 'both'));
+  const ball = (cx: number, y: number, cz: number, rr: number, rect: PxRect, squash = 1): void => {
+    // a round volume (afro, puff, bun): a sphere profile, denser at the hi level so the silhouette is smooth, slightly lumpy
+    const n = hiDetail ? 9 : 5, rings: R[] = [];
+    for (let i = 0; i <= n; i++) {
+      const a = -Math.PI / 2 + (i / n) * Math.PI, k = Math.max(0.12, Math.cos(a)), lump = 1 + (hiDetail ? 0.035 * Math.sin(i * 2.3 + cx * 90) : 0);
+      rings.push({ y: y + Math.sin(a) * rr * squash, rx: rr * k * lump, rz: rr * k * lump, cx, cz });
+    }
+    out.push(loft(rings, hiDetail ? 18 : 10, rect, 3, 'both'));
   };
   const top = ringAt(s.headRings, Y(0.9)), backZ = top.cz + top.rz;
   switch (spec.hair) {
@@ -215,8 +221,14 @@ function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
     case 'bun': if (!covered) hairCap(); ball(0, Y(1.0), backZ - 0.01, H * 0.14, hairR); break;
     case 'long': {
       if (!covered) hairCap();
-      const r = ringAt(s.headRings, Y(0.55));
-      out.push(loft([{ y: Y(-1.25), rx: r.rx * 0.75, rz: 0.04, cz: r.cz + r.rz * 0.95 }, { y: Y(-0.75), rx: r.rx * 0.9, rz: 0.045, cz: r.cz + r.rz * 0.98 }, { y: Y(-0.3), rx: r.rx * 1.0, rz: 0.05, cz: r.cz + r.rz * 1.0 }, { y: Y(0.1), rx: r.rx * 1.12, rz: r.rz * 0.55, cz: r.cz + r.rz * 0.72 }, { y: Y(0.5), rx: r.rx * 1.1, rz: r.rz * 0.8, cz: r.cz + r.rz * 0.3 }], 14, hairR, 3, 'bottom'));
+      const r = ringAt(s.headRings, Y(0.55)), rows = hiDetail ? 8 : 5, rings: R[] = [];
+      for (let i = 0; i <= rows; i++) {
+        const u = i / rows, y = Y(0.5) - u * H * 1.75, wave = Math.sin(u * 5.2) * 0.008;
+        // from the skull down the back of the neck to the shoulder blades, wider at the temples, tapering to the tips
+        const rx = r.rx * (1.1 - 0.18 * smooth(0.25, 1, u)), rz = r.rz * (0.8 - 0.55 * smooth(0, 0.45, u)) + 0.018;
+        rings.push({ y, rx: rx + wave, rz, cz: r.cz + r.rz * (0.3 + 0.7 * smooth(0, 0.5, u)) + 0.006 * u });
+      }
+      out.push(loft(rings, hiDetail ? 18 : 12, hairR, 3, 'bottom'));
       break;
     }
     case 'peyot': {
@@ -355,7 +367,6 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
   const spec = PED_SPECS[variant];
   const shape = shapes.get(shapeFor(spec)) ?? shapes.values().next().value as MhShape;
   const phone = pedPhone();
-  const jitter = rng.range(0.97, 1.03);
   const mat = pedHiMaterial(materials, variant, phone);
 
   const group = new THREE.Group();
@@ -393,7 +404,19 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
   group.updateMatrixWorld(true);
   for (const lv of lod.levels) (lv.object as THREE.SkinnedMesh).bind(skeleton);
   const [bw, bh] = BUILD_SCALE[spec.build];
-  if (opts.heightScale !== undefined) group.scale.setScalar(opts.heightScale); else group.scale.set(bw * jitter, bh * jitter, bw * jitter);
+  if (opts.heightScale !== undefined) group.scale.setScalar(opts.heightScale);
+  else {
+    // a person of their own: stature 1.5 to 1.95 m (adults), build from slim to heavy, a longer arm, a bigger or smaller head, uneven shoulders
+    const age = spec.age ?? 'adult', grown = age === 'adult' || age === 'old';
+    const tri = (): number => (rng.range(-1, 1) + rng.range(-1, 1)) * 0.5;
+    let target = shape.height * (bh + tri() * (grown ? 0.085 : 0.05)) * (age === 'old' ? 0.975 : 1);
+    if (grown) target = Math.min(1.95, Math.max(1.5, target));
+    const hs = target / shape.height, wide = bw * (1 + tri() * 0.12 + (rng.chance(0.14) ? 0.12 : 0)) * (hs > 1.05 ? 0.98 : 1);
+    group.scale.set(wide * (0.97 + 0.03 * hs), hs, wide * (0.97 + 0.03 * hs));
+    for (const k of [0, 1]) arms[k].scale.y = 1 + rng.range(-0.03, 0.03);
+    head.scale.setScalar((age === 'kid' ? 1.06 : 1) * rng.range(0.96, 1.05));
+    torso.scale.set(1 + rng.range(-0.025, 0.025), 1, 1 + rng.range(-0.04, 0.04));
+  }
   return { group, legs, arms, head, knees, elbows, torso, rig, hips, spec, variant, triangles };
 }
 

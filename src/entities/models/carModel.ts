@@ -26,16 +26,19 @@ import { Rng } from '@/core/Rng';
 import { createCanvas } from '@/textures/canvas';
 import { carPaintConfigured, carPaintTier } from '@/render/CarPaintFx';
 import { CARGO_LIVERY_H, CARGO_LIVERY_VARIANTS, CARGO_LIVERY_W, cargoLiveryPainter } from '@/textures/painters/vehicle';
-import { assignSkinUV, buildSkinNormal, carSkinMaterial, paintBox, skinLayoutFor } from './carSkin';
+import { assignSkinUV, buildSkinNormal, carSkinMaterial, paintBox, skinLayoutFor, SkinCarPaint, type PaintBox, type PaintCond } from './carSkin';
+import { PALETTES, type CarLook, type WheelDesign } from './carLook';
+import { buildExtras } from './carExtras';
 import { CAR_COLORWAYS, type SkinLayout, type SkinStyle } from '@/textures/painters/vehicleSkin';
 import {
   Acc, STYLES, isTaxiYellow, mirrorX, buildPassengerParts, buildTruckParts, buildBusParts, wheelRadiusFor, hullSectionCount,
-  type CarParts,
+  type CarParts, type PassengerStyle,
 } from './carBodies';
 export { wheelRadiusFor, hullSectionCount };
 
 /** `van` is the box truck (Isuzu NPR type); `cargo` is the Transit-type cargo van */
-export type CarStyle = 'sedan' | 'coupe' | 'suv' | 'van' | 'cab' | 'cop' | 'cargo' | 'hatch' | 'beater' | 'bus';
+export type CarStyle = 'sedan' | 'coupe' | 'suv' | 'van' | 'cab' | 'cop' | 'cargo' | 'hatch' | 'beater' | 'bus'
+  | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'garbage' | 'ambulance' | 'dollar' | 'unmarked';
 
 export interface CarModel {
   group: THREE.Group;
@@ -59,8 +62,11 @@ export interface CarModel {
 }
 
 /** Body style of a car: type first, then taxi-yellow paint makes a cab, and plate variant 3 of the plain sedans is the coupe. */
-export function styleFor(type: VehicleType, color: string, variant = 0): CarStyle {
-  if (type === 'cop') return 'cop';
+export function styleFor(type: VehicleType, color: string, variant = 0, unmarked = false): CarStyle {
+  if (type === 'cop') return unmarked ? 'unmarked' : 'cop';
+  if (type === 'pickup' || type === 'crossover' || type === 'minivan' || type === 'luxury' || type === 'towncar' || type === 'pony') return type;
+  if (type === 'garbage' || type === 'ambulance') return type;
+  if (type === 'dollarvan') return 'dollar';
   if (type === 'cab') return 'cab';
   if (type === 'suv') return 'suv';
   if (type === 'boxtruck') return 'van';
@@ -81,6 +87,15 @@ export const PAINT_VARIANTS: Record<VehicleType, readonly string[]> = {
   bus: CAR_COLORWAYS.bus.map((c) => c.color),
   cop: ['#f2f2f2', '#f2f2f2'],
   cab: ['#e0b01e', '#e0b01e'],
+  pickup: PALETTES.pickup.slice(0, 4).map((e) => e.color),
+  crossover: PALETTES.crossover.slice(0, 4).map((e) => e.color),
+  minivan: PALETTES.minivan.slice(0, 4).map((e) => e.color),
+  luxury: PALETTES.luxury.slice(0, 4).map((e) => e.color),
+  towncar: PALETTES.towncar.slice(0, 4).map((e) => e.color),
+  pony: PALETTES.pony.slice(0, 4).map((e) => e.color),
+  garbage: ['#eef1ec', '#eef1ec'],
+  ambulance: ['#f4f4f4', '#f4f4f4'],
+  dollarvan: PALETTES.dollarvan.slice(0, 4).map((e) => e.color),
 };
 
 // ---------------------------------------------------------------- materials owned by the model
@@ -89,6 +104,56 @@ let trimMat: THREE.MeshStandardMaterial | null = null;
 /** Black plastic and chrome share one material; the colour comes from the geometry's vertex colours. */
 const trimMaterial = (): THREE.MeshStandardMaterial =>
   (trimMat ??= new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 0.38, metalness: 0.55, name: 'carTrim' }));
+
+// ---------------------------------------------------------------- glass tint (CARS12)
+
+const tintMats = new WeakMap<IMaterialLibrary, Map<number, THREE.Material>>();
+/** The shared car glass, or a darker clone for privacy-tinted (1) and limo-dark (2) cars. Cached per library. */
+function glassFor(materials: IMaterialLibrary, tint: number): THREE.Material {
+  const base = materials.get('carGlass');
+  if (!tint) return base;
+  let by = tintMats.get(materials);
+  if (!by) { by = new Map(); tintMats.set(materials, by); }
+  let m = by.get(tint);
+  if (!m) {
+    m = base.clone();
+    const c = (m as THREE.MeshStandardMaterial).color;
+    if (c) c.multiplyScalar(tint === 1 ? 0.45 : 0.18);
+    if ('opacity' in m) { m.transparent = true; m.opacity = tint === 1 ? 0.93 : 0.98; }
+    m.name = `carGlass:tint${tint}`;
+    by.set(tint, m);
+  }
+  return m;
+}
+
+/** Paint overlay of one car: dirt, rust, one primer panel and dents, positioned on the body's paint box. */
+function condFor(box: PaintBox, lay: SkinLayout, look: CarLook, seed: number): PaintCond {
+  const r = new Rng(`cond:${seed}`);
+  const sm = lay.seams;
+  const belt = box.yMin + box.H * lay.belt;
+  const nz = (n: number): number => box.zMin + n * box.L;
+  let primer: PaintCond['primer'] = null;
+  if (look.primer === 1) primer = { z0: nz(0), z1: nz(sm[0] ?? 0.2), y0: box.yMin + box.H * 0.2, y1: belt + 0.05, side: -1 };
+  else if (look.primer === 2) primer = { z0: nz(sm[1] ?? 0.4), z1: nz(sm[2] ?? 0.6), y0: box.yMin + box.H * 0.2, y1: belt + 0.05, side: 1 };
+  else if (look.primer === 3) primer = { z0: nz(0.01), z1: nz(lay.hoodEnd), y0: belt - 0.2, y1: box.yMin + box.H, side: 0 };
+  else if (look.primer === 4) primer = { z0: nz(lay.bootStart), z1: nz(0.995), y0: belt - 0.2, y1: box.yMin + box.H, side: 0 };
+  const dents: PaintCond['dents'] = [];
+  for (let i = 0; i < look.dents; i++) {
+    const sd = r.chance(0.5) ? 1 : -1;
+    dents.push([sd * box.W * 0.5, box.yMin + box.H * r.range(0.3, 0.5), nz(r.range(0.1, 0.9)), r.range(0.16, 0.3)]);
+  }
+  return { dirt: look.dirt, rust: look.rust, primer, dents, yMin: box.yMin, H: box.H };
+}
+
+const hoodMats = new WeakMap<THREE.Material, THREE.Material>();
+/** The hood is built around its own pivot: a clone of a condition-painted skin whose overlay is offset back into car space. */
+function hoodMaterial(mat: THREE.Material, pivot: THREE.Vector3): THREE.Material {
+  const sm = mat as SkinCarPaint;
+  if (!sm.isSkinCarPaint || sm.u.uCond.value.w < 0.5) return mat;
+  let h = hoodMats.get(mat);
+  if (!h) { h = mat.clone(); (h as SkinCarPaint).u.uOff.value.copy(pivot); hoodMats.set(mat, h); }
+  return h;
+}
 
 // ---------------------------------------------------------------- cargo box liveries
 
@@ -191,7 +256,7 @@ const segFor = (R: number, lv: CarLevel = 'full'): number => (lv === 'full' ? (R
 /** Tyre profile, outer half, from the tread centre outwards: [radius / R, axial / w, texture v]: tread, shoulder, bulging sidewall, bead. */
 const TYRE_PROFILE: [number, number, number][] = [[1, 0, 0.5], [1, 0.3, 0.46], [0.975, 0.41, 0.38], [0.9, 0.5, 0.26], [0.78, 0.49, 0.12], [0.68, 0.43, 0.06]];
 
-export type WheelKind = 'alloy' | 'steel';
+export type WheelKind = WheelDesign;
 /** Texture spots on the tireSidewall map (see tireSidewallPainter's hubcap band): bright wheel metal, dark recess / brake disc. */
 const UV_METAL: [number, number] = [0.07, 0.025]; // inside a spoke wedge of the band (bright aluminium)
 const UV_CAP: [number, number] = [0.5, 0.005]; // the band's centre-cap row (brighter)
@@ -204,8 +269,14 @@ const UV_DARK: [number, number] = [0.02, 0.03];
  */
 function buildWheel(R: number, w: number, kind: WheelKind, lv: CarLevel = 'full'): THREE.BufferGeometry {
   const SEG = segFor(R, lv);
+  const alloy = kind !== 'steel' && kind !== 'steelBare';
+  const deep = kind === 'deep';
+  // spoke count / width per design (lite and far models draw fewer spokes)
+  const spokes = ({ alloy6: [6, 0.24], alloy5: [5, 0.3], mesh: [lv === 'full' ? 12 : 8, 0.1], turbine: [lv === 'full' ? 8 : 6, 0.16], deep: [5, 0.26] } as Record<string, [number, number]>)[kind] ?? [6, 0.24];
   const rings: { a: number; r: number; v: number; nr: number; na: number }[] = [];
-  const profile = lv === 'full' ? TYRE_PROFILE : TYRE_PROFILE.filter((_, i) => i !== 1 && i !== 4); // lite / far: no tread shoulder, no lower sidewall ring
+  let profile = lv === 'full' ? TYRE_PROFILE : TYRE_PROFILE.filter((_, i) => i !== 1 && i !== 4); // lite / far: no tread shoulder, no lower sidewall ring
+  // aftermarket 'deep' rims: a bigger rim inside a low-profile tyre (the inner rings climb toward the tread)
+  if (deep) profile = profile.map(([r, a, v]) => [r >= 0.9 ? r : 0.8 + (r - 0.68) * (0.1 / 0.22), a, v] as [number, number, number]);
   const prof = [...profile.slice(1).reverse().map(([r, a, v]) => ({ r, a: -a, v: 1 - v })), ...profile.map(([r, a, v]) => ({ r, a, v }))];
   for (let k = 0; k < prof.length; k++) {
     const p = prof[k];
@@ -239,11 +310,19 @@ function buildWheel(R: number, w: number, kind: WheelKind, lv: CarLevel = 'full'
   let ringCount = 0;
   rings.forEach((rg, k) => { addRing(rg.a, rg.r, null, rg.v, rg.na, rg.nr); ringCount++; if (k > 0) stitch(k - 1); });
   // rim face, rings in order; uv [u, v] constant per ring (flat colour from the texture's wheel band)
-  const face: { a: number; r: number; uvc: [number, number]; na: number; nr: number }[] = kind === 'alloy'
+  const fs = deep ? 1.17 : 1;
+  const face: { a: number; r: number; uvc: [number, number]; na: number; nr: number }[] = kind === 'steelBare'
+    ? [ // plain pressed steel wheel: flat disc, dark centre with lug ring, no cap
+      { a: 0.42 * w, r: 0.68 * R, uvc: UV_METAL, na: 1, nr: 0 },
+      { a: 0.42 * w, r: 0.3 * R, uvc: UV_DARK, na: 1, nr: 0 },
+      { a: 0.44 * w, r: 0.16 * R, uvc: UV_CAP, na: 1, nr: 0 },
+      { a: 0.44 * w, r: 0, uvc: UV_DARK, na: 1, nr: 0 },
+    ]
+    : alloy
     ? [
-      { a: 0.43 * w, r: 0.68 * R, uvc: UV_CAP, na: 1, nr: 0 },
-      { a: 0.43 * w, r: 0.54 * R, uvc: UV_CAP, na: 1, nr: 0 },
-      { a: 0.3 * w, r: 0.5 * R, uvc: UV_DARK, na: 1, nr: 0 },
+      { a: 0.43 * w, r: Math.min(0.9, 0.68 * fs) * R, uvc: UV_CAP, na: 1, nr: 0 },
+      { a: 0.43 * w, r: 0.54 * fs * R, uvc: UV_CAP, na: 1, nr: 0 },
+      { a: 0.3 * w, r: 0.5 * fs * R, uvc: UV_DARK, na: 1, nr: 0 },
       { a: 0.28 * w, r: 0, uvc: UV_DARK, na: 1, nr: 0 },
     ]
     : [
@@ -267,13 +346,14 @@ function buildWheel(R: number, w: number, kind: WheelKind, lv: CarLevel = 'full'
     geo.setAttribute('uv', new THREE.BufferAttribute(arr, 2));
     return geo;
   };
-  if (kind === 'alloy') {
-    const N = 6;
+  if (alloy) {
+    const [N, sw] = spokes;
     for (let i = 0; i < N; i++) {
       // a spoke: 7 cm deep, tapering by being a plain bar, from the cap out to the rim lip
-      const spoke = new THREE.BoxGeometry(0.1 * w, 0.5 * R, 0.24 * R);
-      spoke.translate(0.36 * w, 0.36 * R, 0);
-      spoke.rotateX((i / N) * Math.PI * 2 + 0.26);
+      const spoke = new THREE.BoxGeometry(0.1 * w, (deep ? 0.58 : 0.5) * R, sw * R);
+      spoke.translate(0.36 * w, (deep ? 0.4 : 0.36) * R, 0);
+      spoke.rotateX((i / N) * Math.PI * 2 + (kind === 'turbine' ? 0.5 : 0.26));
+      if (kind === 'turbine') spoke.rotateZ(0);
       acc.add(flat(spoke, UV_METAL));
     }
     acc.add(flat(new THREE.CylinderGeometry(0.15 * R, 0.15 * R, 0.1 * w, lv === 'full' ? 12 : 8).rotateZ(-Math.PI / 2).translate(0.36 * w, 0, 0), UV_CAP)); // centre cap
@@ -313,26 +393,43 @@ function rearPair(R: number, w: number, span: number, kind: WheelKind, lv: CarLe
   return g;
 }
 
+/** Inner (dual) rear tyres of both sides as one geometry, for the far proxies: the same layout as `rearPair`, each tyre `d` inboard. */
+const rearDualCache = new Map<string, THREE.BufferGeometry>();
+function rearDualPair(R: number, w: number, span: number, kind: WheelKind, lv: CarLevel): THREE.BufferGeometry {
+  const key = `${R.toFixed(3)}|${w.toFixed(3)}|${span.toFixed(3)}|${kind}|${lv}`;
+  let g = rearDualCache.get(key);
+  if (!g) {
+    const wg = wheelGeos(R, w, kind, lv), d = 1.12 * w;
+    g = new Acc().add(wg.left.clone().translate(d, 0, 0)).add(wg.right.clone().translate(span - d, 0, 0)).merge();
+    rearDualCache.set(key, g);
+  }
+  return g;
+}
+
 // ---------------------------------------------------------------- per-style parts (cached)
 
 const partsCache = new Map<string, CarParts>();
 const layoutCache = new Map<string, SkinLayout>();
 
 /** The body styles that wear a baked skin (the cab and the cop car have their own livery maps on the regular UV set). */
-const SKINNED: ReadonlySet<CarStyle> = new Set<CarStyle>(['sedan', 'coupe', 'suv', 'van', 'cargo', 'hatch', 'beater', 'bus']);
+const SKINNED: ReadonlySet<CarStyle> = new Set<CarStyle>(['sedan', 'coupe', 'suv', 'van', 'cargo', 'hatch', 'beater', 'bus', 'pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'garbage', 'ambulance', 'dollar']);
+/** The skin layout family of a body: the garbage truck's cab is the box truck's cab, the ambulance is the cargo van. */
+const skinStyleOf = (st: CarStyle): SkinStyle => (st === 'garbage' ? 'van' : st === 'ambulance' ? 'cargo' : (st as SkinStyle));
+const boxCache = new Map<string, PaintBox>();
 
 const layoutKey = (style: CarStyle, spec: VehicleSpec, lv: CarLevel): string => `${style}|${spec.length}|${spec.width}|${spec.height}|${lv}`;
 function partsFor(style: CarStyle, spec: VehicleSpec, lv: CarLevel = 'full'): CarParts {
   const key = layoutKey(style, spec, lv);
   let p = partsCache.get(key);
   if (!p) {
-    p = style === 'van' ? buildTruckParts(spec) : style === 'bus' ? buildBusParts(spec) : buildPassengerParts(style, spec, lv === 'full' ? 2 : 1);
+    p = style === 'van' ? buildTruckParts(spec) : style === 'garbage' ? buildTruckParts(spec, 'garbage') : style === 'bus' ? buildBusParts(spec) : buildPassengerParts(style as PassengerStyle | 'unmarked', spec, lv === 'full' ? 2 : 1);
     if (SKINNED.has(style)) {
       // second UV set for the skin atlas (the regular uv stays untouched: dirt-map fallback, far-car proxies)
       const box = paintBox(p.paint);
       assignSkinUV(p.paint, box);
       if (p.hood) assignSkinUV(p.hood.geo, box, p.hood.pivot);
-      layoutCache.set(key, skinLayoutFor(style as SkinStyle, box));
+      layoutCache.set(key, skinLayoutFor(skinStyleOf(style), box));
+      boxCache.set(key, box);
     }
     partsCache.set(key, p);
   }
@@ -344,7 +441,7 @@ function partsFor(style: CarStyle, spec: VehicleSpec, lv: CarLevel = 'full'): Ca
 /** `carKind` vertex attribute of the details mesh. */
 const KIND_TRIM = 0, KIND_HEAD = 1, KIND_TAIL = 2, KIND_BAR_A = 3, KIND_BAR_B = 4;
 
-const detailsCache = new WeakMap<CarParts, THREE.BufferGeometry>();
+const detailsCache = new WeakMap<CarParts, Map<string, THREE.BufferGeometry>>();
 /** Trim triangles kept on the lite near model (the smallest ones go first: handle slits, grille slats, badge relief). */
 export const LITE_TRIM_TRIS = 1180;
 
@@ -370,11 +467,14 @@ export function pruneSmallTriangles(g: THREE.BufferGeometry, max: number): THREE
   return out;
 }
 /** Trim + head lamps + tail lamps + light-bar lenses as ONE geometry: position, normal, uv, colour and a `carKind` tag. */
-function detailsGeo(parts: CarParts, lv: CarLevel = 'full'): THREE.BufferGeometry {
-  let out = detailsCache.get(parts);
+function detailsGeo(parts: CarParts, lv: CarLevel = 'full', look?: CarLook, style = ''): THREE.BufferGeometry {
+  let byLook = detailsCache.get(parts);
+  if (!byLook) { byLook = new Map(); detailsCache.set(parts, byLook); }
+  const lk = look ? `${look.roof}|${look.stickers.join('.')}|${look.rideshare}` : '';
+  let out = byLook.get(lk);
   if (out) return out;
   const list: THREE.BufferGeometry[] = [];
-  const prep = (src: THREE.BufferGeometry, kind: number, color?: number, at?: THREE.Vector3): void => {
+  const prep = (src: THREE.BufferGeometry, kind: number, color?: number, at?: THREE.Vector3, cap = LITE_TRIM_TRIS): void => {
     const g = src.index ? src.toNonIndexed() : src.clone();
     for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal' && k !== 'uv' && k !== 'color') g.deleteAttribute(k);
     if (at) g.translate(at.x, at.y, at.z);
@@ -387,9 +487,11 @@ function detailsGeo(parts: CarParts, lv: CarLevel = 'full'): THREE.BufferGeometr
       g.setAttribute('color', new THREE.BufferAttribute(a, 3));
     }
     g.setAttribute('carKind', new THREE.BufferAttribute(new Float32Array(n).fill(kind), 1));
-    list.push(kind === KIND_TRIM && lv === 'lite' ? pruneSmallTriangles(g, LITE_TRIM_TRIS) : g);
+    list.push(kind === KIND_TRIM && lv === 'lite' ? pruneSmallTriangles(g, cap) : g);
   };
   prep(parts.trim, KIND_TRIM);
+  const ex = look ? buildExtras(parts, look, style, lv === 'full') : (style === 'bus' ? buildExtras(parts, NEUTRAL_LOOK, style, lv === 'full') : null);
+  if (ex) prep(ex, KIND_TRIM, undefined, undefined, 150);
   prep(parts.lampHead, KIND_HEAD, 0xaab4be); // lens glass: grey-clear when dark, lit by the emissive mask at night
   prep(parts.lampTail, KIND_TAIL, 0x7a1010);
   if (parts.lightbar) {
@@ -399,7 +501,7 @@ function detailsGeo(parts: CarParts, lv: CarLevel = 'full'): THREE.BufferGeometr
   const merged = mergeGeometries(list, false);
   for (const g of list) g.dispose();
   if (!merged) throw new Error('carModel: details merge failed');
-  detailsCache.set(parts, out = merged);
+  byLook.set(lk, out = merged);
   return out;
 }
 
@@ -464,6 +566,7 @@ class WheelSet extends THREE.InstancedMesh {
 }
 
 const NO_GEO = new THREE.BufferGeometry();
+const NEUTRAL_LOOK: CarLook = { wheel: 'steel', lowered: 0, tint: 0, roof: 'none', stickers: [], rideshare: -1, dirt: 0, rust: 0, dents: 0, primer: 0, livery: 0, unmarked: false, key: 'n', condKey: 'n' };
 
 // ---------------------------------------------------------------- public
 
@@ -471,22 +574,32 @@ const NO_GEO = new THREE.BufferGeometry();
  * `variant` (0..3) picks the licence plate text so not every car wears BK-STUY, and turns plain sedans into coupes at 3.
  * `style` overrides the automatic choice (the far-car proxies use it to rebuild the exact style).
  */
-export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: IMaterialLibrary, variant = 0, style?: CarStyle, split = false): CarModel {
-  const st = style ?? styleFor(type, spec.color, variant);
+export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: IMaterialLibrary, variant = 0, style?: CarStyle, split = false, look?: CarLook, seed = 0): CarModel {
+  const st = style ?? styleFor(type, spec.color, variant, look?.unmarked);
   const lv: CarLevel = split ? 'far' : carNearLevel();
   const parts = partsFor(st, spec, lv);
   const group = new THREE.Group();
   group.name = `car:${type}`;
   group.userData.carStyle = st;
   group.userData.carVariant = variant;
-  group.userData.buildLodModel = (): CarModel => buildCarModel(type, spec, materials, variant, st, true);
+  group.userData.buildLodModel = (): CarModel => buildCarModel(type, spec, materials, variant, st, true, look, seed);
   const own: THREE.Material[] = [];
   const paintMeshes: THREE.Mesh[] = [];
 
-  const layout = layoutCache.get(layoutKey(st, spec, lv));
+  const lkey = layoutKey(st, spec, lv);
+  const layout = layoutCache.get(lkey);
+  const box = boxCache.get(lkey);
+  // livery pack (vans, ambulance, dollar van, bus ads) and the paint overlay of this car's wear
+  let pack: number | undefined;
+  if (look) {
+    if (st === 'cargo' && look.livery > 0) pack = 9 + look.livery;
+    else if (st === 'bus') pack = look.livery % 4;
+  }
+  if (st === 'ambulance') pack = 20; else if (st === 'dollar') pack = 21;
+  const cond = layout && box && look ? condFor(box, layout, look, seed) : undefined;
   const paintMat = st === 'cop' ? liveryWithGaps(materials, materials.get('copLivery'), 'cop') : st === 'cab' ? liveryWithGaps(materials, materials.get('taxiLivery'), 'cab')
-    : layout ? carSkinMaterial(materials, st as SkinStyle, spec.color, layout) : materials.carPaint(spec.color);
-  const glassMat = materials.get('carGlass');
+    : layout ? carSkinMaterial(materials, skinStyleOf(st), spec.color, layout, { pack, cond, condKey: look?.condKey, type }) : materials.carPaint(spec.color);
+  const glassMat = glassFor(materials, look?.tint ?? 0);
   const tyreMat = materials.get('tireSidewall');
 
   const mesh = (geo: THREE.BufferGeometry, mat: THREE.Material, name: string, parent: THREE.Object3D = group): THREE.Mesh => {
@@ -497,7 +610,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   };
 
   paintMeshes.push(mesh(parts.paint, paintMat, 'body'));
-  if (parts.paint2) paintMeshes.push(mesh(parts.paint2, cargoLiveryMaterial(materials, variant), 'cargo'));
+  if (parts.paint2) paintMeshes.push(mesh(parts.paint2, cargoLiveryMaterial(materials, st === 'garbage' ? 11 : look ? look.livery : variant), 'cargo'));
   mesh(parts.glass, glassMat, 'glass');
   if (split) mesh(parts.trim, trimMaterial(), 'trim');
 
@@ -507,7 +620,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
     pivot.name = 'hoodPivot';
     pivot.position.copy(parts.hood.pivot);
     group.add(pivot);
-    paintMeshes.push(mesh(parts.hood.geo, paintMat, 'hood', pivot));
+    paintMeshes.push(mesh(parts.hood.geo, hoodMaterial(paintMat, parts.hood.pivot), 'hood', pivot));
     hood = pivot;
   }
 
@@ -535,7 +648,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   mesh(parts.plate, materials.get('plate', variant), 'plate');
 
   // wheels: steer pivot (front only) -> roll pivot -> (split) tyre + hubcap; the rear pair is one mesh under the left roll pivot
-  const wkind: WheelKind = st === 'cab' || st === 'cop' || st === 'beater' || st === 'cargo' || st === 'van' || st === 'bus' ? 'steel' : 'alloy'; // hubcap steelies on the taxi, cruiser, beater and the work vehicles
+  const wkind: WheelKind = look?.wheel ?? (st === 'cab' || st === 'cop' || st === 'unmarked' || st === 'beater' || st === 'cargo' || st === 'van' || st === 'bus' || st === 'garbage' || st === 'ambulance' || st === 'dollar' ? 'steel' : 'alloy6'); // hubcap steelies on the taxi, cruiser, beater and the work vehicles
   const wg = wheelGeos(parts.wheelR, parts.wheelW, wkind, lv);
   const wheels: THREE.Object3D[] = [];
   const steerPivots: THREE.Object3D[] = [];
@@ -549,7 +662,10 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
     roll.name = 'wheel';
     if (split) {
       if (w.front) mesh(w.x < 0 ? wg.left : wg.right, tyreMat, 'tyre', roll);
-      else if (w.x < 0) mesh(rearPair(parts.wheelR, parts.wheelW, -2 * w.x, wkind, lv), tyreMat, 'tyre', roll);
+      else if (w.x < 0) {
+        mesh(rearPair(parts.wheelR, parts.wheelW, -2 * w.x, wkind, lv), tyreMat, 'tyre', roll);
+        if (parts.dualRear) mesh(rearDualPair(parts.wheelR, parts.wheelW, -2 * w.x, wkind, lv), tyreMat, 'tyre', roll); // the far proxies keep the dual rear tyres
+      }
     }
     steer.add(roll);
     group.add(steer);
@@ -582,7 +698,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
     const u: LampUniforms = { uHead: { value: new THREE.Color(0, 0, 0) }, uTail: { value: new THREE.Color(0, 0, 0) }, uBarA: { value: new THREE.Color(0, 0, 0) }, uBarB: { value: new THREE.Color(0, 0, 0) } };
     const dm = detailsMaterial(u);
     own.push(dm);
-    const details = mesh(detailsGeo(parts, lv), dm, 'trim');
+    const details = mesh(detailsGeo(parts, lv, look, st), dm, 'trim');
     const barA = lightbar ? (lightbar.red.material as THREE.MeshStandardMaterial) : null;
     const barB = lightbar ? (lightbar.blue.material as THREE.MeshStandardMaterial) : null;
     const lit = (m: THREE.MeshStandardMaterial, out: THREE.Color): void => {
@@ -593,8 +709,16 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
       if (barA && barB) { lit(barA, u.uBarA.value); lit(barB, u.uBarB.value); }
     };
     group.add(new WheelSet(wg.right, tyreMat, [...rigs, ...duals]));
-    farSource = () => buildCarModel(type, spec, materials, variant, st, true);
+    farSource = () => buildCarModel(type, spec, materials, variant, st, true, look, seed);
   }
 
+  // aftermarket stance: the whole body (not the wheels) sits lower over the tyres
+  if (look && look.lowered > 0 && !split) {
+    for (const o of group.children) {
+      if (o instanceof THREE.InstancedMesh || o.name === 'steerPivot' || o.name === 'wheelMount' || o.name === 'tyre') continue;
+      o.position.y -= look.lowered;
+    }
+  }
+  if (split && farSource === undefined && look) void look;
   return { group, wheels, steerPivots, lightbar, headlights, taillights, hood, paintMeshes, wheelRadius: parts.wheelR, ownMaterials: own, style: st, farSource };
 }

@@ -2404,3 +2404,6 @@ Per-lot colourways baked as vertex attrs (aTone/aStyle) read by shared wall/trim
 
 ### 2026-11-11T07:30:03Z · CARS12
 start: reading car stack; plan = authenticity fixes to nine, seeded variants, new types pickup/crossover/minivan/luxury/towncar/pony/garbage/ambulance/dollarvan, per-type handling
+
+### 2026-11-11T07:35:38Z · STORY
+start: 'Air Rights' arc (3 acts, 13 missions + 1 gated north/el). New: src/game/story/** (cast, StoryState, StoryDirector, news, ambient), mission kinds spots/pay/fork/chase/race/stakeout + tail stealth/escort + fragile cargo + subtitles (say) + when-flags in MissionSystem/types, content/story/*, GameSave v3 (story field), additive Announcer news/ads hook, MissionHud dialogue subtitle. Will not touch src/main.ts; FOR FABLE lines at the end. WBURG: north/el detection = data.transit?.stations (>=2 {id,x,z}) and grid.bounds.minZ < -400; tell me if your data shape differs.

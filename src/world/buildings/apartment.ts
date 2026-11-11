@@ -99,7 +99,22 @@ export function buildApartment(c: LotCtx): LotOutput {
     }
     // fire escapes are the signature of the 4-5 storey fronts
     const fe = spec ? (floors >= 4 && floors <= 5 ? rng.chance(0.9) : floors >= 6 ? rng.chance(0.5) : rng.chance(0.1)) : floors <= 5 ? rng.chance(0.75) : rng.chance(0.3);
-    buildUpperFloors(c, { y0: GROUND, floors: floors - 1, wall: brick, bays, fireEscape: fe, cornice: spec ? spec.cornice : 'bracket' });
+    // WBURG: the South Williamsburg row (r-4) is walk-up apartment houses with a small balcony on most upper floors
+    const balconies = lot.blockId.startsWith('r-4') && floors >= 3 && W >= 7;
+    buildUpperFloors(c, { y0: GROUND, floors: floors - 1, wall: brick, bays, fireEscape: balconies ? false : fe, cornice: spec ? spec.cornice : 'bracket' });
+    if (balconies) {
+      for (let k = 1; k < floors; k++) {
+        if (rng.chance(0.25)) continue;
+        const y = GROUND + (k - 1) * 2.9 + 0.55;
+        const bx = xs[Math.min(xs.length - 1, Math.max(0, Math.floor(rng.next() * xs.length)))];
+        const x0 = Math.max(0.2, bx - 0.9), x1 = Math.min(W - 0.2, bx + 0.9), z1 = 1.1;
+        b.box(m.limestone, x0, y, 0, x1, y + 0.14, z1, 'frlufd');
+        b.bar(m.metal, [x0, y + 1.05, z1 - 0.03], [x1, y + 1.05, z1 - 0.03], 0.04);
+        b.bar(m.metal, [x0 + 0.03, y + 1.05, z1 - 0.03], [x0 + 0.03, y + 1.05, 0], 0.04);
+        b.bar(m.metal, [x1 - 0.03, y + 1.05, z1 - 0.03], [x1 - 0.03, y + 1.05, 0], 0.04);
+        for (let i = 0; i <= 4; i++) { const x = x0 + ((x1 - x0) * i) / 4; b.bar(m.metal, [x, y + 0.14, z1 - 0.03], [x, y + 1.05, z1 - 0.03], 0.03); }
+      }
+    }
   }
 
   if (cs && condo) {

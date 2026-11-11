@@ -41,6 +41,8 @@ export const STOREFRONTS = [
   'bodega', 'laundromat', 'barber', 'deli', 'liquor', 'pharmacy', 'church', 'daycare', 'restaurant', 'cellphone', 'generic',
   // additions that keep 1:1 parity with the 15 POI archetypes in types.ts
   'braiding', 'pizza', 'chinese', 'caribbean', 'dollar', 'funeral', 'autorepair',
+  // WBURG: Flushing Ave warehouses and workshops (built by buildings/warehouse.ts through the mixed-use entry)
+  'warehouse',
 ] as const;
 export const CONFIDENCES = ['H', 'M', 'L'] as const;
 export const TYPOLOGY_NAMES = ['streetRow', 'avenueMixed', 'avenueRow'] as const;
@@ -57,7 +59,7 @@ export const STOREFRONT_TO_ARCHETYPE: Record<StorefrontKind, Archetype> = {
   bodega: 'bodega', laundromat: 'laundromat', barber: 'barbershop', deli: 'bodega', liquor: 'liquor', pharmacy: 'pharmacy',
   church: 'church', daycare: 'daycare', restaurant: 'caribbean', cellphone: 'dollar', generic: 'dollar',
   braiding: 'braiding', pizza: 'pizza', chinese: 'chinese', caribbean: 'caribbean', dollar: 'dollar', funeral: 'funeral',
-  autorepair: 'autorepair',
+  autorepair: 'autorepair', warehouse: 'autorepair',
 };
 
 // ---------------------------------------------------------------- types
@@ -613,8 +615,9 @@ function topologyOf(grid: GridModel, face: BlockFace): FaceTopology {
   const nss = sortedStreets(grid, 'ns');
   const ews = sortedStreets(grid, 'ew');
   if (!block || !nss.length || !ews.length) return topo;
+  const base = Math.max(0, ews.findIndex((e) => e.id === 'hart')); // rows count from Hart (Grid.ROW_ZERO_STREET): north rows are negative
   const west = nss[block.col]; const east = nss[block.col + 1];
-  const north = ews[block.row]; const south = ews[block.row + 1];
+  const north = ews[block.row + base]; const south = ews[block.row + base + 1];
   if (!west || !east || !north || !south) return topo;
   if (face.side === 'N' || face.side === 'S') {
     topo.from = west.id; topo.to = east.id;

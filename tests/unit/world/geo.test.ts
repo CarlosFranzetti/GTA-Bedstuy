@@ -81,8 +81,8 @@ describe('bearing fit', () => {
 });
 
 describe('face frames', () => {
-  it('derive the same 100 faces the data file describes (40 original + 60 east, B1)', () => {
-    expect(frames).toHaveLength(100);
+  it('derive the same 180 faces the data file describes (40 original + 60 east, B1 + 80 north, WBURG)', () => {
+    expect(frames).toHaveLength(180);
     const dataKeys = json.faces.map((f) => `${String(f.street)}|${String(f.side)}|${String(f.from)}|${String(f.to)}`).sort();
     expect(frames.map((f) => f.key).sort()).toEqual(dataKeys);
   });

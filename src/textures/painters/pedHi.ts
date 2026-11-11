@@ -84,63 +84,124 @@ const gray = (v: number): string => { const h = Math.max(0, Math.min(255, Math.r
 
 // ---------------------------------------------------------------- face
 
+const hashStr = (s: string): number => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; };
+
+/** iris colour: mostly brown, a spread of hazel / green / blue / grey where the group makes them plausible; deterministic per person */
+function irisColor(s: PedSpec): string {
+  const r = hashStr(s.id + ':iris'), g = s.group ?? 'wh';
+  if (g === 'wh' || g === 'hj') return r < 0.3 ? '#4a3220' : r < 0.55 ? '#3f6f9a' : r < 0.72 ? '#5b7f4e' : r < 0.88 ? '#7a5a2e' : '#6f7f88';
+  if (g === 'me' || g === 'la' || g === 'mx') return r < 0.72 ? '#43291a' : r < 0.9 ? '#7a5a2e' : '#5b7f4e';
+  return r < 0.9 ? '#2e1c12' : '#43291a';
+}
+
 function paintHead(t: L, s: PedSpec, rng: Rng): void {
   const f = s.face, W = 256;
   const X = (m: number): number => 128 + (m / HEAD_MAP.halfW) * 128;
   const Y = (m: number): number => (1 - (m - HEAD_MAP.yMin) / (HEAD_MAP.yMax - HEAD_MAP.yMin)) * 256;
-  const skin = s.skin;
+  const skin = s.skin, age = s.age ?? 'adult', fem = s.sex === 'f', old = age === 'old';
+  const shade = (x: number, y: number, r: number, c: string, al: number): void => t.soft(x, y, r, c, al, 12);
   t.rect(0, 0, W, W, skin, 1, 128, 140);
-  // form shading: darker toward the sides and under the jaw, light on the forehead, cheek bones and nose bridge
-  for (let i = 0; i < 18; i++) { const a = 0.016; t.rect(0, 0, 40 - i * 2.2, W, '#000000', a); t.rect(W - (40 - i * 2.2), 0, 40 - i * 2.2, W, '#000000', a); }
-  for (let i = 0; i < 24; i++) t.rect(0, Y(1.56) + i * 2, W, 256, '#000000', 0.022);
-  t.soft(128, Y(1.725), 70, lt(skin, 0.32), 0.16);
-  t.soft(X(-0.05), Y(1.62), 26, lt(skin, 0.25), 0.14); t.soft(X(0.05), Y(1.62), 26, lt(skin, 0.25), 0.14);
-  t.soft(X(-0.052), Y(1.6), 22, '#c04848', 0.24); t.soft(X(0.052), Y(1.6), 22, '#c04848', 0.24); t.soft(128, Y(1.628), 10, '#c05048', 0.22);
-  // pores and fine grain
-  t.noise(W, W, rng, 1400, [dk(skin, 0.22), lt(skin, 0.15)], 0.16, 1);
-  // hairline: the hair cap covers the top, this keeps a believable edge under caps and for fades
-  if (s.hair !== 'bald') { t.rect(0, 0, W, Y(1.738), s.hairColor); for (let i = 0; i < 14; i++) t.rect(X(-0.07) + i * 9, Y(1.738) - 2 + rng.range(-3, 5), 8, 8, s.hairColor, 0.7); }
+  // smooth tone: a cool/warm gradient from forehead to chin, darker at the sides and under the jaw, light on forehead, cheek bones, nose bridge
+  const side = mixHex(skin, '#1c1816', 0.62);   // a neutral shade: darkening the saturated tone itself turns dark skin maroon
+  for (let i = 0; i < 26; i++) { const a = 0.007, w = 54 - i * 2; t.rect(0, 0, w, W, side, a); t.rect(W - w, 0, w, W, side, a); }
+  for (let i = 0; i < 40; i++) t.rect(0, Y(1.57) + i * 1.6, W, 256, side, 0.009);
+  shade(128, Y(1.73), 80, lt(skin, 0.3), 0.16);
+  for (const sx of [-1, 1]) {
+    shade(X(sx * 0.054), Y(1.62), 34, lt(skin, 0.18), 0.12);                                                    // cheekbone light
+    shade(X(sx * 0.07), Y(1.6), 30, mixHex(skin, '#1c1816', 0.4), 0.1);                                                        // hollow under it
+    shade(X(sx * 0.046), Y(1.595), 28, mixHex(skin, '#c4605a', 0.55), fem ? 0.18 : 0.1);                       // warm cheek, makeup blush on some faces
+    shade(X(sx * 0.028), Y(1.545), 22, mixHex(skin, '#1c1816', 0.4), 0.07);                                                    // jaw line
+  }
+  shade(128, Y(1.628), 14, mixHex(skin, '#c4605a', 0.5), 0.12);                                                 // nose tip warmth
+  // pores and fine grain, freckles on some
+  t.noise(W, W, rng, 900, [dk(skin, 0.2), lt(skin, 0.14)], 0.1, 1);
+  if (hashStr(s.id + ':frk') < 0.18 && (s.group === 'wh' || s.group === 'hj' || s.group === 'la')) for (let i = 0; i < 70; i++) shade(X(rng.range(-0.05, 0.05)), Y(rng.range(1.61, 1.645)), rng.range(0.8, 1.7), mixHex(skin, '#6a3a20', 0.6), 0.3);
+  // hairline: the hair shell covers the top; this keeps a feathered edge under caps and for fades
+  if (s.hair !== 'bald') {
+    const hl = Y(1.738);
+    t.rect(0, 0, W, hl - 8, s.hairColor, 1, 150);
+    for (let i = 0; i < 12; i++) t.rect(0, hl - 8 + i, W, 1, s.hairColor, 0.9 - i * 0.075);
+    for (let i = 0; i < 160; i++) t.line(rng.range(20, 236), hl - 6 + rng.range(0, 8), rng.range(20, 236), hl - 2 + rng.range(2, 10), s.hairColor, 0.8, 0.5);
+  }
   // eye sockets, lids and eyes
-  const ey = Y(1.664);
+  const ey = Y(1.664), iris = irisColor(s), shadow = fem && hashStr(s.id + ':mk') < 0.55 ? mixHex(skin, hashStr(s.id + ':mk2') < 0.5 ? '#7a5a7a' : '#8a6a4a', 0.55) : dk(skin, 0.35);
   for (const sx of [-1, 1]) {
     const cx = X(sx * 0.034);
-    t.soft(cx, ey - 2, 30, dk(skin, 0.3), 0.16, 8);
-    const ew = f.eyes === 'wide' ? 22 : 20, eh = f.eyes === 'sleepy' ? 6 : f.eyes === 'wide' ? 11 : 9;
-    t.poly([[cx - ew, ey], [cx - ew * 0.4, ey - eh], [cx + ew * 0.4, ey - eh], [cx + ew, ey], [cx + ew * 0.4, ey + eh * 0.6], [cx - ew * 0.4, ey + eh * 0.6]], '#efe9e2');
-    t.disc(cx - sx * 1.5, ey - 0.5, eh * 0.62, '#4a3220'); t.disc(cx - sx * 1.5, ey - 0.5, eh * 0.4, '#16100c'); t.disc(cx - sx * 1.5 - 2, ey - 3, 1.8, '#ffffff', 0.9);
-    t.curve(cx - ew, ey, cx, ey - eh - 4, cx + ew, ey, '#1a1210', 2.4, 0.9);                 // upper lid line
-    t.curve(cx - ew * 0.8, ey + 2, cx, ey + eh * 0.7, cx + ew * 0.8, ey + 2, dk(skin, 0.4), 1.3, 0.55);
-    t.poly([[cx - ew, ey], [cx - ew * 0.4, ey - eh], [cx + ew * 0.4, ey - eh], [cx + ew, ey], [cx + ew * 0.55, ey - eh * 0.3], [cx - ew * 0.55, ey - eh * 0.3]], skin, 0.85);   // upper lid over the eye
-    t.soft(cx, ey - eh - 3, 18, dk(skin, 0.4), 0.22);                                                                                                  // lid shadow
-    if (f.lashes) t.curve(cx - ew, ey - 1, cx, ey - eh - 6, cx + ew, ey - 1, '#0c0806', 3, 0.9);
-    // brows: many fine strokes
-    const by = Y(1.682) - (f.brows === 'arched' ? 3 : 0), bw = f.brows === 'thin' ? 3 : 5;
-    const bc = mixHex(s.hair === 'bald' ? '#2a1e16' : dk(s.hairColor, 0.1), skin, 0.28);
-    for (let i = 0; i < 26; i++) { const x = cx - 22 + i * 1.75; const yy = by + (f.brows === 'arched' ? -Math.sin((i / 26) * Math.PI) * 6 : -((i / 26) * 3 * -sx)) + rng.range(-1, 1); t.line(x, yy + bw / 2, x + 2 * sx, yy - bw / 2, bc, 1.6, 0.55); }
-    if (f.glasses) { t.rect(cx - 26, ey - 15, 52, 30, f.glasses, 0.0); t.line(cx - 26, ey - 15, cx + 26, ey - 15, f.glasses, 2.4); t.line(cx - 26, ey + 15, cx + 26, ey + 15, f.glasses, 2.4); t.line(cx - 26, ey - 15, cx - 26, ey + 15, f.glasses, 2.4); t.line(cx + 26, ey - 15, cx + 26, ey + 15, f.glasses, 2.4); t.rect(cx - 25, ey - 14, 50, 28, '#cfe3ee', 0.14); }
+    shade(cx, ey - 1, 34, dk(skin, 0.4), 0.14);                                                                 // socket
+    shade(cx, ey - 7, 22, shadow, fem ? 0.26 : 0.1);                                                            // lid colour
+    const ew = f.eyes === 'wide' ? 22 : 20, eh = f.eyes === 'sleepy' ? 6.5 : f.eyes === 'wide' ? 11 : 9;
+    const eye = [[cx - ew, ey + 0.5], [cx - ew * 0.55, ey - eh * 0.85], [cx, ey - eh], [cx + ew * 0.55, ey - eh * 0.85], [cx + ew, ey + 0.5], [cx + ew * 0.55, ey + eh * 0.65], [cx, ey + eh * 0.75], [cx - ew * 0.55, ey + eh * 0.65]] as Array<[number, number]>;
+    t.poly(eye, dk('#efe9e2', 0.1));
+    t.poly(eye.map(([x, y]) => [cx + (x - cx) * 0.98, y + 0.5] as [number, number]), '#f6f1ea', 0.9);
+    for (const k of [0.34, 0.42]) t.rect(cx - ew, ey - eh, ew * 2, eh * k, '#000000', 0.07);                         // upper lid shadow on the white
+    t.rect(cx + (sx > 0 ? ew * 0.45 : -ew), ey - eh * 0.4, ew * 0.55, eh * 1.2, '#d86a62', 0.06);                  // caruncle side
+    const ix = cx - sx * 1.2, ir = eh * 0.74;
+    t.disc(ix, ey - 0.3, ir, dk(iris, 0.55));                                                                   // limbal ring
+    t.disc(ix, ey - 0.3, ir * 0.86, iris);
+    t.disc(ix, ey + 0.8, ir * 0.62, lt(iris, 0.28), 0.5);                                                        // lighter lower iris
+    for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; t.line(ix + Math.cos(a) * ir * 0.35, ey - 0.3 + Math.sin(a) * ir * 0.35, ix + Math.cos(a) * ir * 0.8, ey - 0.3 + Math.sin(a) * ir * 0.8, dk(iris, 0.4), 0.7, 0.35); }
+    t.disc(ix, ey - 0.3, ir * 0.42, '#0c0806');                                                                  // pupil
+    t.disc(ix + 2.2, ey - 3, 1.9, '#ffffff', 0.95); t.disc(ix - 1.8, ey + 2, 1, '#ffffff', 0.5);                  // specular
+    t.poly([[cx - ew - 1, ey + 1], [cx - ew * 0.55, ey - eh * 0.9], [cx, ey - eh - 1.2], [cx + ew * 0.55, ey - eh * 0.9], [cx + ew + 1, ey + 1], [cx + ew * 0.55, ey - eh * 0.4], [cx, ey - eh * 0.55], [cx - ew * 0.55, ey - eh * 0.4]], skin, 0.9);   // upper lid over the eye
+    t.curve(cx - ew, ey + 0.5, cx, ey - eh * 2 - 1, cx + ew, ey + 0.5, '#1a1210', 2.1, 0.82);                    // lash line
+    if (f.lashes || fem) t.curve(cx - ew, ey - 0.5, cx, ey - eh * 2 - 3.5, cx + ew, ey - 0.5, '#0c0806', 2.8, 0.85);
+    t.curve(cx - ew * 0.9, ey + 2.5, cx, ey + eh * 0.9 + 1, cx + ew * 0.9, ey + 2.5, dk(skin, 0.4), 1.2, 0.4);   // lower lid
+    t.curve(cx - ew * 0.9, ey - eh * 1.9, cx, ey - eh * 2.7, cx + ew * 0.9, ey - eh * 1.9, dk(skin, 0.5), 1.2, 0.3);  // lid crease
+    if (old) { for (let i = 0; i < 3; i++) t.line(cx + sx * (ew + 2), ey - 2 + i * 3.5, cx + sx * (ew + 12), ey - 5 + i * 6, dk(skin, 0.5), 0.9, 0.3); t.soft(cx, ey + 8, 14, dk(skin, 0.4), 0.14, 6); }
+    // brows: tapered strokes, thicker towards the nose
+    const arch = f.brows === 'arched', by = Y(1.682) - (arch ? 3 : 0), bw = f.brows === 'thin' ? 2.6 : f.brows === 'thick' ? 6 : 4.2;
+    const bc = mixHex(s.hair === 'bald' ? '#2a1e16' : dk(s.hairColor, 0.1), skin, old ? 0.45 : 0.22);
+    for (let i = 0; i < 38; i++) {
+      const u = i / 37, x = cx - sx * 0 + (-22 + u * 44) * 1, rise = arch ? -Math.sin(u * Math.PI) * 6 - 0 : -u * 3 * sx * -1 * 0 - Math.sin(u * Math.PI) * 2.5;
+      const thick = bw * (1 - Math.pow(Math.abs(u - (sx < 0 ? 0.75 : 0.25)) * 1.2, 2) * 0.7);
+      const yy = by + rise + (sx < 0 ? u * 2.2 - 1.1 : (1 - u) * 2.2 - 1.1) * (arch ? 0 : 1) + rng.range(-0.6, 0.6);
+      t.line(x, yy + thick / 2, x + 2.4 * sx * -1, yy - thick / 2, bc, 1.3, 0.5);
+    }
+    if (f.glasses) { const gc = f.glasses; for (const [a, b, c2, d] of [[-27, -15, 27, -15], [-27, 15, 27, 15], [-27, -15, -27, 15], [27, -15, 27, 15]]) t.line(cx + a, ey + b, cx + c2, ey + d, gc, 2.2); t.rect(cx - 26, ey - 14, 52, 28, '#cfe3ee', 0.12); t.line(cx - 22, ey - 12, cx - 8, ey + 4, '#ffffff', 1.6, 0.25); }
   }
-  if (f.glasses) t.line(X(-0.01), ey - 6, X(0.01), ey - 6, f.glasses, 2.4);
-  // nose: bridge light, shaded side planes, nostrils, tip
-  t.rect(X(-0.004), Y(1.69), 8, Y(1.63) - Y(1.69), lt(skin, 0.3), 0.35);
-  t.poly([[X(-0.024), Y(1.632)], [X(-0.008), Y(1.675)], [X(-0.012), Y(1.635)]], dk(skin, 0.25), 0.18);
-  t.poly([[X(0.024), Y(1.632)], [X(0.008), Y(1.675)], [X(0.012), Y(1.635)]], dk(skin, 0.25), 0.18);
-  t.soft(X(-0.013), Y(1.627), 6, '#20100c', 0.55); t.soft(X(0.013), Y(1.627), 6, '#20100c', 0.55);
-  t.soft(128, Y(1.628), 9, lt(skin, 0.4), 0.3); t.rect(X(-0.014), Y(1.62), 36, 3, dk(skin, 0.5), 0.3);
-  // mouth: upper and lower lip, dark line, small highlight
-  const my = Y(1.585), lipc = f.lips ?? mixHex(skin, rng.chance(0.5) ? '#8a3a3a' : '#9a4a4a', 0.4 + rng.range(-0.08, 0.14));
+  if (f.glasses) t.line(X(-0.01), ey - 6, X(0.01), ey - 6, f.glasses, 2.2);
+  // nose: bridge light, shaded side planes, alar creases, nostrils, tip
+  t.rect(X(-0.004), Y(1.69), 8, Y(1.63) - Y(1.69), lt(skin, 0.3), 0.28);
+  for (const sx of [-1, 1]) {
+    t.poly([[X(sx * 0.026), Y(1.628)], [X(sx * 0.008), Y(1.678)], [X(sx * 0.013), Y(1.634)]], dk(skin, 0.3), 0.12);
+    shade(X(sx * 0.014), Y(1.627), 5.5, '#2a120e', 0.5);
+    t.curve(X(sx * 0.018), Y(1.634), X(sx * 0.03), Y(1.628), X(sx * 0.024), Y(1.619), dk(skin, 0.45), 1.3, 0.35);
+    t.curve(X(sx * 0.03), Y(1.612), X(sx * 0.036), Y(1.59), X(sx * 0.034), Y(1.572), dk(skin, 0.4), old ? 1.8 : 1.1, old ? 0.34 : 0.14);   // nasolabial fold
+  }
+  shade(128, Y(1.628), 9, lt(skin, 0.4), 0.22);
+  // mouth: shaded upper lip, fuller lower lip with a highlight, corners, philtrum
+  const my = Y(1.585), lipc = f.lips ?? mixHex(skin, rng.chance(0.5) ? '#8a3a3a' : '#9a4a4a', 0.38 + rng.range(-0.08, 0.14));
   const grin = f.mouth === 'grin' ? 9 : f.mouth === 'smile' ? 5 : f.mouth === 'frown' ? -5 : 0;
-  t.poly([[X(-0.026), my + grin * 0.2], [X(-0.01), my - 8], [128, my - 5], [X(0.01), my - 8], [X(0.026), my + grin * 0.2], [128, my + 1]], dk(lipc, 0.1));
-  t.poly([[X(-0.026), my + grin * 0.2], [128, my + 1], [X(0.026), my + grin * 0.2], [X(0.017), my + 12], [128, my + 15], [X(-0.017), my + 12]], lipc);
-  t.soft(128, my + 9, 8, lt(lipc, 0.45), 0.35);
-  if (f.mouth === 'grin') t.rect(X(-0.02), my + 1, 40, 5, '#efe9e2', 0.9);
-  t.curve(X(-0.028), my + grin * 0.2, 128, my + 2 - grin * 0.4, X(0.028), my + grin * 0.2, '#2a1210', 2, 0.85);
-  t.soft(128, my + 22, 11, dk(skin, 0.45), 0.2);   // chin dimple shadow
-  if (f.mustache) for (let i = 0; i < 90; i++) t.line(X(rng.range(-0.03, 0.03)), my - rng.range(6, 14), X(rng.range(-0.03, 0.03)), my - rng.range(3, 9), s.hair === 'bald' ? '#241a14' : dk(s.hairColor, 0.15), 1.4, 0.6);
-  if (f.stubble) t.noise(W, W, rng, 900, ['#000000'], 0.25, 1.3);
-  if (f.stubble) t.rect(0, 0, W, Y(1.6), s.skin, 0.0);
-  if (f.beard) { const bc = s.hair === 'bald' ? '#1e1610' : s.hairColor; t.poly([[X(-0.085), Y(1.64)], [X(-0.07), Y(1.58)], [X(-0.04), Y(1.535)], [X(0.04), Y(1.535)], [X(0.07), Y(1.58)], [X(0.085), Y(1.64)], [X(0.06), Y(1.57)], [X(0.03), my + 18], [X(-0.03), my + 18], [X(-0.06), Y(1.57)]], bc, 0.92); for (let i = 0; i < 400; i++) t.rect(rng.range(30, 226), rng.range(Y(1.6), Y(1.535)), 1.5, 3, lt(bc, 0.2), 0.3); t.poly([[X(-0.026), my - 2], [X(0.026), my - 2], [X(0.02), my + 14], [X(-0.02), my + 14]], lipc); }
-  // ear hints on the side (the planar map stretches the sides)
-  t.soft(4, Y(1.65), 14, mixHex(skin, '#b03838', 0.5), 0.4); t.soft(W - 4, Y(1.65), 14, mixHex(skin, '#b03838', 0.5), 0.4);
+  shade(128, my - 12, 12, dk(skin, 0.3), 0.09);                                                                  // philtrum
+  t.poly([[X(-0.027), my + grin * 0.2], [X(-0.012), my - 8], [X(-0.004), my - 6.5], [128, my - 5], [X(0.004), my - 6.5], [X(0.012), my - 8], [X(0.027), my + grin * 0.2], [128, my + 1]], dk(lipc, 0.14));
+  t.poly([[X(-0.027), my + grin * 0.2], [128, my + 1], [X(0.027), my + grin * 0.2], [X(0.018), my + 11], [X(0.008), my + 14], [128, my + 14.5], [X(-0.008), my + 14], [X(-0.018), my + 11]], lipc);
+  shade(128, my + 8, 9, lt(lipc, 0.5), 0.3);
+  t.curve(X(-0.028), my + grin * 0.2, 128, my + 2 - grin * 0.4, X(0.028), my + grin * 0.2, '#2a1210', 1.7, 0.75);
+  if (f.mouth === 'grin') { t.rect(X(-0.02), my + 0.5, 40, 5, '#efe9e2', 0.9); t.rect(X(-0.02), my + 0.5, 40, 1.4, '#000000', 0.15); }
+  shade(128, my + 21, 12, dk(skin, 0.4), 0.14);                                                                  // under the lip
+  for (const sx of [-1, 1]) shade(X(sx * 0.03), my + grin * 0.2, 4, dk(skin, 0.5), 0.2);                         // mouth corners
+  if (old) for (let i = 0; i < 4; i++) t.line(X(-0.05), Y(1.742) + i * 4.5, X(0.05), Y(1.742) + i * 4.5 + rng.range(-1, 1), dk(skin, 0.45), 1.1, 0.16);   // forehead lines
+  if (age === 'adult' && hashStr(s.id + ':ln') < 0.5) t.line(X(-0.012), Y(1.7), X(-0.012), Y(1.712), dk(skin, 0.4), 1, 0.16);
+  const hairc = s.hair === 'bald' ? '#241a14' : dk(s.hairColor, 0.12);
+  if (f.mustache) for (let i = 0; i < 120; i++) { const x = rng.range(-0.034, 0.034); t.line(X(x), my - rng.range(6, 15), X(x * 1.1 + rng.range(-0.004, 0.004)), my - rng.range(1, 8), hairc, 1.2, 0.55); }
+  // stubble: a shadow that fades out upwards from the jaw, chin and upper lip, plus single hairs
+  if (f.stubble) {
+    for (let i = 0; i < 16; i++) { const y0 = Y(1.536) - 6 + i * 4.4; t.rect(X(-0.07) + i * 1.2, y0, 2 * (X(0.07) - X(-0.07) - i * 2.4) / 2, 4.4, '#1a1410', 0.008 + 0.01 * (1 - i / 16)); }
+    for (let i = 0; i < 1100; i++) { const x = rng.range(-0.075, 0.075), y = rng.range(1.53, 1.618), fall = (y - 1.53) / 0.088; if (rng.next() < fall * 0.85) continue; t.rect(X(x), Y(y), 1.1, 1.8, hairc, 0.4); }
+  }
+  // beard: feathered, three layers (soft fill, lighter edge, strands), the lips and a skin gap stay clear
+  if (f.beard) {
+    const bc = s.hair === 'bald' ? '#241a14' : s.hairColor;
+    const outline = (k: number): Array<[number, number]> => [[X(-0.083 * k), Y(1.645)], [X(-0.074 * k), Y(1.585)], [X(-0.042 * k), Y(1.53 - (k - 1) * 0.1)], [X(0.042 * k), Y(1.53 - (k - 1) * 0.1)], [X(0.074 * k), Y(1.585)], [X(0.083 * k), Y(1.645)], [X(0.062 * k), Y(1.572)], [X(0.032), my + 19], [X(-0.032), my + 19], [X(-0.062 * k), Y(1.572)]];
+    for (const [k, a] of [[1.06, 0.22], [1.03, 0.3], [1, 0.38]] as const) t.poly(outline(k), bc, a);
+    for (let i = 0; i < 700; i++) { const x = rng.range(-0.08, 0.08), y = rng.range(1.535, 1.64), e = Math.abs(x) / 0.08; if (y > 1.6 && e < 0.45) continue; if (y > 1.572 && Math.abs(x) < 0.03) continue; t.line(X(x), Y(y), X(x * 1.01), Y(y) + rng.range(2, 4.5), rng.chance(0.2) ? lt(bc, 0.25) : bc, 1.1, 0.35); }
+    t.poly([[X(-0.027), my - 2], [X(0.027), my - 2], [X(0.021), my + 14], [X(-0.021), my + 14]], lipc, 0.95);
+    t.rect(X(-0.026), my - 2, X(0.026) - X(-0.026), 2, '#2a1210', 0.4);
+  }
+  // the outer columns of the planar map are stretched over the sides and back of the head: plain slightly darker skin (no ear colour there)
+  t.rect(0, 0, 4, W, mixHex(skin, '#1c1816', 0.2), 1, 128, 150); t.rect(W - 4, 0, 4, W, mixHex(skin, '#1c1816', 0.2), 1, 128, 150);
+  if (s.hair !== 'bald') { t.rect(0, 0, 4, Y(1.69), s.hairColor); t.rect(W - 4, 0, 4, Y(1.69), s.hairColor); }
+  // earrings / studs
 }
 
 // ---------------------------------------------------------------- cloth helpers
@@ -190,7 +251,7 @@ function paintTorso(t: L, s: PedSpec, rng: Rng): void {
     case 'vest': t.rect(30, 0, 70, H, c); t.rect(W - 100, 0, 70, H, c); for (const y of [50, 92]) { t.rect(30, y, 70, 9, '#dadada', 1, 160, 130); t.rect(W - 100, y, 70, 9, '#dadada', 1, 160, 130); } t.rect(cx - 2, 0, 4, H, '#444'); break;
     case 'jacket': case 'cardigan': {
       // closed coat: the shirt shows only in the V above the top button, the fronts meet in a placket below it
-      const vEnd = p.kind === 'cardigan' ? 70 : 56;
+      const vEnd = p.long ? 22 : p.kind === 'cardigan' ? 70 : 56;   // a knee-length coat stretches the tile over twice the height: a short V
       t.rect(cx - 42, 0, 84, H, dk(c, 0.04), 1, 122);
       t.poly([[cx - 22, 0], [cx + 22, 0], [cx + 2, vEnd], [cx - 2, vEnd]], p.under ?? '#f4f4f4', 1, 128);
       t.poly([[cx - 42, 0], [cx - 18, 0], [cx - 3, vEnd - 8], [cx - 26, 30]], lt(c, 0.12), 1, 150); t.poly([[cx + 42, 0], [cx + 18, 0], [cx + 3, vEnd - 8], [cx + 26, 30]], lt(c, 0.12), 1, 150);
@@ -321,11 +382,25 @@ function paintGear(t: L, s: PedSpec, rng: Rng): void {
 }
 
 function paintHair(t: L, s: PedSpec, rng: Rng): void {
-  const c = s.hairColor;
-  t.rect(0, 0, 128, 128, c, 1, 140, 150);
-  for (let i = 0; i < 150; i++) { const x = rng.range(0, 128); t.line(x, 0, x + rng.range(-2, 2), 128, rng.chance(0.5) ? dk(c, 0.45) : lt(c, 0.28), rng.range(0.7, 1.6), 0.4, rng.chance(0.5) ? 100 : 170); }
-  t.soft(64, 20, 50, lt(c, 0.4), 0.18);
-  t.rect(0, 100, 128, 28, '#000000', 0.12);
+  const c = s.hairColor, curly = s.hair === 'afro' || s.hair === 'puff' || s.hair === 'locs' || s.hair === 'braids', old = s.age === 'old';
+  const base = old ? mixHex(c, '#b8b8b4', 0.45) : c;
+  t.rect(0, 0, 128, 128, base, 1, 140, 130);
+  // root to tip: darker at the roots, lighter / warmer at the ends
+  for (let i = 0; i < 16; i++) t.rect(0, i * 8, 128, 8, i < 4 ? dk(base, 0.25) : lt(base, 0.02 * i), 0.18);
+  if (curly) {
+    for (let i = 0; i < 420; i++) { const x = rng.range(0, 128), y = rng.range(0, 128); t.disc(x, y, rng.range(1.2, 3), rng.chance(0.5) ? dk(base, 0.5) : lt(base, 0.18), 0.35, rng.chance(0.5) ? 100 : 175); }
+    for (let i = 0; i < 40; i++) t.soft(rng.range(0, 128), rng.range(10, 90), rng.range(8, 16), lt(base, 0.25), 0.1, 4);
+  } else {
+    // flowing strands, slightly wavy, with a few grey / lighter ones
+    for (let i = 0; i < 240; i++) {
+      const x = rng.range(0, 128), dx = rng.range(-6, 6), mid = x + dx * 0.5 + rng.range(-3, 3), col = rng.chance(0.55) ? dk(base, 0.4) : lt(base, rng.chance(0.15) ? 0.5 : 0.25);
+      t.curve(x, 0, mid, 64, x + dx, 128, col, rng.range(0.6, 1.4), 0.34);
+    }
+    // anisotropic sheen: a bright band across the strands (where the light slides along them) and a soft second one
+    t.rect(0, 22, 128, 11, lt(base, 0.55), 0.2); t.rect(0, 26, 128, 4, lt(base, 0.7), 0.16); t.rect(0, 62, 128, 7, lt(base, 0.35), 0.1);
+    for (let i = 0; i < 90; i++) t.line(rng.range(0, 128), 20, rng.range(0, 128), 36, lt(base, 0.6), 0.6, 0.12);
+  }
+  t.rect(0, 104, 128, 24, '#000000', 0.12);
 }
 function paintHat(t: L, s: PedSpec, rng: Rng): void {
   const c = s.hatColor, W = 128, H = 128;

@@ -78,6 +78,23 @@ export function clip(tris: Tri[], f: (v: V) => number): Tri[] {
   return out;
 }
 
+/**
+ * Laplacian smoothing of a scalar field over the soup's vertex graph: the decimated body has irregular bone weights, so an iso-line of
+ * the raw field (collar, armhole, waist) zig-zags from triangle to triangle; smoothed, it is a clean curve. Vertices made later by
+ * clipping fall back to the raw field.
+ */
+export function smoothField(tris: Tri[], f: (v: V) => number, iters = 4): (v: V) => number {
+  const nb = new Map<V, Set<V>>(), val = new Map<V, number>();
+  for (const t of tris) for (let k = 0; k < 3; k++) { const a = t[k], b = t[(k + 1) % 3]; if (!nb.has(a)) nb.set(a, new Set()); if (!nb.has(b)) nb.set(b, new Set()); nb.get(a)!.add(b); nb.get(b)!.add(a); }
+  for (const v of nb.keys()) val.set(v, f(v));
+  for (let it = 0; it < iters; it++) {
+    const next = new Map<V, number>();
+    for (const [v, ns] of nb) { let s = 0; for (const n of ns) s += val.get(n)!; next.set(v, val.get(v)! * 0.5 + (s / Math.max(1, ns.size)) * 0.5); }
+    for (const [v, x] of next) val.set(v, x);
+  }
+  return (v) => val.get(v) ?? f(v);
+}
+
 /** summed bone weight of a vertex over a set of rig bones */
 export const wsum = (v: V, set: readonly number[]): number => { let s = 0; for (let k = 0; k < 4; k++) if (set.includes(v.j[k])) s += v.w[k]; return s; };
 const B = { hips: [1], torso: [2], head: [3], armL: [4, 5], armR: [6, 7], arms: [4, 5, 6, 7], legs: [8, 9, 10, 11], upperBody: [1, 2, 4, 5, 6, 7], lower: [1, 8, 9, 10, 11] } as const;
@@ -235,7 +252,8 @@ export function garmentParts(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSp
     const long = !!top.long;
     const hem = long ? kneeY + 0.05 : lm.hemY - (['puffer', 'hoodie', 'jacket', 'cardigan'].includes(top.kind) ? 0.09 : top.kind === 'tee' || top.kind === 'blouse' ? 0.0 : 0.04);
     const wArm = (v: V): number => wsum(v, B.arms), wHead = (v: V): number => wsum(v, B.head), wLow = (v: V): number => wsum(v, B.legs);
-    let body = clip(all, (v) => wsum(v, B.torso) + wsum(v, B.hips) + (long ? wLow(v) : 0) - wArm(v) - wHead(v) - (long ? 0 : wLow(v)) - 0.03);
+    const bodyF = smoothField(all, (v) => wsum(v, B.torso) + wsum(v, B.hips) + (long ? wLow(v) : 0) - wArm(v) - wHead(v) - (long ? 0 : wLow(v)) + 0.015);
+    let body = clip(all, bodyF);
     body = clip(body, (v) => v.p[1] - hem);
     if (long) body = clip(body, (v) => (v.p[2] < torsoAxis(v.p).cz && v.p[1] < lm.hemY + 0.08 ? Math.abs(v.p[0]) - 0.011 : 1));   // split at the front
     const chest = tr.slice(0, Math.max(2, Math.floor(tr.length * 0.8))).reduce((b, r) => (r[1] * r[3] > b[1] * b[3] ? r : b));
@@ -253,7 +271,7 @@ export function garmentParts(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSp
     });
     if (top.kind !== 'vest' && top.kind !== 'apron' && top.sleeves !== 'none') {
       const sleeveCut = top.sleeves === 'short' ? elbowY + (shoulderY - elbowY) * 0.42 : -9;
-      const arm = clip(all, (v) => wArm(v) - wsum(v, B.torso) - wsum(v, B.hips) - wHead(v) - 0.03);
+      const arm = clip(all, smoothField(all, (v) => wArm(v) - wsum(v, B.torso) - wsum(v, B.hips) - wHead(v) + 0.015));
       const upper = clip(clip(arm, (v) => v.p[1] - Math.max(elbowY, sleeveCut)), (v) => v.p[1] < shoulderY + 0.08 ? 1 : -1);
       const fore = top.sleeves === 'long' ? clip(clip(arm, (v) => elbowY - v.p[1]), (v) => v.p[1] - (wristY + 0.012)) : [];
       const uvU = cyl(HI_RECTS.upperArm, elbowY, neckBase, limbAxis(armRings)), uvF = cyl(HI_RECTS.foreArm, wristY, elbowY, limbAxis(armRings));
@@ -279,16 +297,17 @@ export function garmentParts(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSp
       const sc = 1 + Math.max(0, target / cur - 1) * Math.min(1, w + 0.4 * (p[1] < kneeY ? 1 : 0));
       p[0] = cx + (p[0] - cx) * sc; p[2] = r.cz + (p[2] - r.cz) * sc;
     };
+    const legF = smoothField(all, (v) => wL(v) - wH(v) + 0.015);
     const covered = top.long && tk > 0;   // a long coat hides the hips and thighs
     if (!covered) {
-      const pelvis = clip(clip(all, (v) => wH(v) - wL(v) - wsum(v, B.arms) - wsum(v, B.head) - 0.03), (v) => waist - v.p[1]);
+      const pelvis = clip(clip(all, smoothField(all, (v) => wH(v) - wL(v) - wsum(v, B.arms) - wsum(v, B.head) + 0.015)), (v) => waist - v.p[1]);
       emit(clip(pelvis, (v) => v.p[1] - (R.hipL[1] - 0.2)), { thick: thickOf, iterations: 3, rim: 0.006, uv: cyl(HI_RECTS.pelvis, R.hipL[1] - 0.2, waist, torsoAxis), tile: HI_RECTS.pelvis });
-      const legs = clip(all, (v) => wL(v) - wH(v) - 0.03);
+      const legs = clip(all, legF);
       const thigh = clip(clip(legs, (v) => v.p[1] - (bk === 'shorts' ? shortsEnd : kneeY)), (v) => hipTop - v.p[1] + 0.4);
       emit(thigh, { thick: thickOf, hang, iterations: 3, rim: 0.006, uv: cyl(HI_RECTS.thigh, kneeY, hipTop, limbAxis(legRings)), tile: HI_RECTS.thigh });
     }
     if (bk !== 'shorts') {
-      const legs = clip(all, (v) => wL(v) - wH(v) - 0.03);
+      const legs = clip(all, legF);
       const shin = clip(clip(legs, (v) => kneeY - v.p[1]), (v) => v.p[1] - cuff);
       emit(shin, { thick: thickOf, hang, iterations: 3, rim: 0.006, uv: cyl(HI_RECTS.shin, lm.ankleY + 0.03, kneeY, limbAxis(legRings)), tile: HI_RECTS.shin });
     }
@@ -305,7 +324,7 @@ export function headShell(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec)
   const tOf = (y: number): number => (y - lm.chinY) / hh;
   const out: THREE.BufferGeometry[] = [];
   const all = soupOf(L, ao);
-  const head = clip(all, (v) => wsum(v, B.head) - 0.55);
+  const head = clip(all, smoothField(all, (v) => wsum(v, B.head) - 0.55, 2));
   const mapTo = (r: PxRect) => (p: V3): [number, number] => {
     let a = Math.atan2(p[0], p[2] - zc); if (a < 0) a += Math.PI * 2;
     return tileUV(r, a / (Math.PI * 2), tOf(p[1]) * 0.9 + 0.05);
@@ -338,7 +357,7 @@ export function headShell(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec)
     beard = clip(beard, (v) => zc - 0.005 - v.p[2]);
     beard = clip(beard, (v) => rx * 0.97 - Math.abs(v.p[0]));
     beard = clip(beard, (v) => Math.max(Math.abs(v.p[0]) - rx * 0.36, Math.max(0.12 - tOf(v.p[1]), tOf(v.p[1]) - 0.3)));
-    fixSeam(finalize(beard, { thick: (v) => 0.013 + 0.012 * smooth(0.3, 0.05, tOf(v.p[1])), iterations: 3, rim: 0.005, uv: mapTo(hairR) }));
+    fixSeam(finalize(beard, { thick: (v) => 0.005 + 0.008 * smooth(0.3, 0.05, tOf(v.p[1])) * smooth(rx * 0.97, rx * 0.5, Math.abs(v.p[0])), iterations: 4, rim: 0.005, uv: mapTo(hairR) }));
   }
   if (spec.hat !== 'none' || spec.hair === 'bald') return out;
 

@@ -262,9 +262,11 @@ export function buildFaceFrames(streets: readonly StreetLite[]): FaceFrame[] {
   const nss = streets.filter((s) => s.axis === 'ns').sort((a, b) => a.offset - b.offset);
   const ews = streets.filter((s) => s.axis === 'ew').sort((a, b) => a.offset - b.offset);
   const out: FaceFrame[] = [];
-  for (let row = 0; row < ews.length - 1; row++) {
+  const base = Math.max(0, ews.findIndex((e) => e.id === 'hart')); // block rows count from Hart, north rows are negative (Grid.ROW_ZERO_STREET)
+  for (let ri = 0; ri < ews.length - 1; ri++) {
+    const row = ri - base;
     for (let col = 0; col < nss.length - 1; col++) {
-      const north = ews[row], south = ews[row + 1], west = nss[col], east = nss[col + 1];
+      const north = ews[ri], south = ews[ri + 1], west = nss[col], east = nss[col + 1];
       const minX = west.offset + west.roadWidth / 2;
       const maxX = east.offset - east.roadWidth / 2;
       const minZ = north.offset + north.roadWidth / 2;

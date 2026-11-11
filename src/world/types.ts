@@ -270,7 +270,8 @@ export interface VehicleInput {
   horn: boolean;
 }
 
-export type VehicleType = 'sedan' | 'suv' | 'boxtruck' | 'cop' | 'cab' | 'cargovan' | 'hatch' | 'beater' | 'bus';
+export type VehicleType = 'sedan' | 'suv' | 'boxtruck' | 'cop' | 'cab' | 'cargovan' | 'hatch' | 'beater' | 'bus'
+  | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'garbage' | 'ambulance' | 'dollarvan';
 
 export interface VehicleSpec {
   type: VehicleType;
@@ -284,6 +285,9 @@ export interface VehicleSpec {
   color: string;       // CSS colour
   /** Display name for the HUD and tools ("Sedan"); a car's body style can refine it (Coupe, Taxi). */
   name?: string;
+  /** Driving feel (all optional, default = the old sedan values): mass kg, tyre grip multiplier, steering-rate multiplier,
+   *  engine note pitch multiplier (audio: pass to AudioSystem.setEngine as the 4th argument). */
+  mass?: number; grip?: number; steerRate?: number; enginePitch?: number;
 }
 
 export interface IVehicle extends Entity {

@@ -416,17 +416,29 @@ export const platePainter: Painter = (ctx, w, h, rng, variant, aux) => {
 export const CARGO_LIVERY_W = 1024;
 export const CARGO_LIVERY_H = 512;
 /** 0 plain white, 1 produce wholesaler, 2 laundry service, 3 movers. The car's plate variant (seed % 4) picks one. */
-export const CARGO_LIVERY_VARIANTS = 4;
+export const CARGO_LIVERY_VARIANTS = 12;
 /** Invented local businesses (no real brands): [name, tagline]. */
 export const CARGO_LIVERY_TEXT: readonly (readonly [string, string] | null)[] = [
   null,
   ['STOOP & SPROUT PRODUCE', 'FRESH TO THE DOOR - WHOLESALE'],
   ['SUDS & SONS LAUNDRY', 'WASH - FOLD - DELIVER'],
   ['STEADY HANDS MOVING', 'LOCAL & LONG HAUL - BK 5-5019'],
+  ['PARCEL PAL EXPRESS', 'NEXT-STOOP DELIVERY'],
+  ['CRUMB BROS BAKERY', 'FRESH BREAD DAILY'],
+  ['DRIP & SON PLUMBING', '24 HOUR SERVICE - BK 5-0188'],
+  ['BIG CHILL ICE & BEVERAGE', 'COLD DELIVERED'],
+  ['WIRE-IT CABLE & FIBER', 'WE COME TO YOU'],
+  ['BODEGA BEVERAGE CO', 'SODA - JUICE - WATER'],
+  ['LUCKY DRAGON FOODS', 'WHOLESALE - FROZEN'],
+  ['BORO SANITATION DEPT', "CLEAN STREETS - EVERYONE'S JOB"], // 11: the garbage truck
 ];
+/** [base, band, accent, ink] of the table-driven liveries (variants 4..11) */
+const CARGO_GENERIC: readonly (readonly [string, string, string, string] | null)[] = [null, null, null, null,
+  ['#f1e6d0', '#6a4a2a', '#e0b030', '#5a3a1a'], ['#f6efe0', '#d97a9a', '#f6d36a', '#7a3a20'], ['#f0f3f6', '#1b4f93', '#f2b705', '#1b4f93'], ['#eaf3f8', '#2a8ad0', '#ffffff', '#1b5a90'],
+  ['#eef3ee', '#2f8a4a', '#e8e8e0', '#1f6a38'], ['#f3eadc', '#d8352a', '#f6d36a', '#a02a20'], ['#f2ece0', '#c8202a', '#e0b030', '#8a1a20'], ['#eef1ec', '#2f7a4a', '#ffffff', '#1f5a34']];
 /** v fraction (from the top of the canvas) of the strip that stays the plain base colour; roof, ends and underside sample it. */
 export const CARGO_PLAIN_STRIP = 0.03;
-const CARGO_BASE = ['#f4f4f4', '#f1ead3', '#eef3f7', '#f3efe4'] as const;
+const CARGO_BASE = ['#f4f4f4', '#f1ead3', '#eef3f7', '#f3efe4', ...CARGO_GENERIC.slice(4).map((g) => g![0])] as const;
 
 /**
  * 1024x512 livery for the cargo box sides (2:1, box length x height). Layout in canvas rows: the top 3 % is plain base colour
@@ -465,6 +477,18 @@ export const cargoLiveryPainter: Painter = (ctx, w, h, rng, variant) => {
       ctx.fillStyle = '#ffffff'; ctx.fillText(name, w * 0.5, h * 0.34);
       fitFont(ctx, tag, w * 0.6, h * 0.08, 'bold', 'Arial, Helvetica, sans-serif', 8);
       ctx.fillStyle = '#d6ecfa'; ctx.fillText(tag, w * 0.5, h * 0.48);
+    } else if (v >= 4) {
+      // table-driven livery: lower band with an accent line, a round mark on the left, big name and tagline
+      const [, band, accent, ink] = CARGO_GENERIC[v]!;
+      ctx.fillStyle = band; ctx.fillRect(0, h * 0.7, w, h * 0.2);
+      ctx.fillStyle = accent; ctx.fillRect(0, h * 0.68, w, h * 0.02);
+      ctx.fillStyle = band; ctx.beginPath(); ctx.arc(w * 0.12, h * 0.38, h * 0.15, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = accent; ctx.beginPath(); ctx.arc(w * 0.12, h * 0.38, h * 0.07, 0, Math.PI * 2); ctx.fill();
+      fitFont(ctx, name, w * 0.66, h * 0.14, 'bold', 'Arial Black, Arial, Helvetica, sans-serif', 10);
+      ctx.fillStyle = ink; ctx.fillText(name, w * 0.58, h * 0.34);
+      fitFont(ctx, tag, w * 0.62, h * 0.07, 'bold', 'Arial, Helvetica, sans-serif', 8);
+      ctx.fillStyle = ink; ctx.fillText(tag, w * 0.58, h * 0.5);
+      ctx.fillStyle = '#ffffff'; ctx.fillText('BK - NY', w * 0.5, h * 0.8);
     } else {
       // movers: deep red lower half-band, arrow-on-a-box mark, big name
       ctx.fillStyle = '#9c2b27'; ctx.fillRect(0, h * 0.66, w, h * 0.24);

@@ -12,7 +12,9 @@ import { CRATE_RECORDS, INTERIOR_CLUB, INTERIOR_DELI, FLAG_CLUB_SLOT, FLAG_CLUB_
 const data = loadBedstuyData();
 const grid = buildGrid(data);
 const lots = subdivideLots(grid, data.pois, new Rng(data.seed).fork('lots'));
-const defs = buildMissions(grid, data, lots);
+// The original sixteen (the 'Air Rights' story missions have act set and live in tests/unit/sim/story-*.test.ts).
+const legacyOnly = (all: MissionDef[]): MissionDef[] => all.filter((d) => d.act === undefined);
+const defs = legacyOnly(buildMissions(grid, data, lots));
 const byId = (id: string): MissionDef => defs.find((d) => d.id === id)!;
 
 const DT = 1 / 60;
@@ -166,13 +168,13 @@ describe('mission content integrity', () => {
   });
 
   it('resolves the same without built lots (falls back to the POI t)', () => {
-    const noLots = buildMissions(grid, data);
+    const noLots = legacyOnly(buildMissions(grid, data));
     expect(noLots.map((d) => d.id)).toEqual(defs.map((d) => d.id));
     for (let i = 0; i < defs.length; i++) expect(Math.hypot(noLots[i].giver.x - defs[i].giver.x, noLots[i].giver.z - defs[i].giver.z)).toBeLessThan(25);
   });
 
   it('is deterministic and non-violent (no wanted-raising except the laundromat bag)', () => {
-    expect(JSON.stringify(buildMissions(grid, data, lots))).toBe(JSON.stringify(defs));
+    expect(JSON.stringify(legacyOnly(buildMissions(grid, data, lots)))).toBe(JSON.stringify(defs));
     for (const d of defs) for (const o of d.objectives) if (o.raiseWantedTo !== undefined) expect(d.id).toBe('laundromat-getaway');
     // the only way stars appear in the new jobs is as a failure rule (a noise complaint, a pulled-over van)
     const text = JSON.stringify(defs).toLowerCase();
