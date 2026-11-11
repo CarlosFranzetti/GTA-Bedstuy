@@ -86,7 +86,9 @@ export const SHAPES = {
   teen_a: shape('mx', 'male', 'teen'), teen_b: shape('ea', 'female', 'teen'),
   mx_x: shape('mx', 'x', 'young', {}, 1.72),
 };
-export const LOD_TRIS = { hi: 2400, mid: 1500, far: 400 };
+export const LOD_TRIS = { hi: 2700, mid: 1500, far: 400 };
+/** extra triangles the hi LOD keeps in the head (a smooth face and skull) */
+export const HEAD_TRIS = { hi: 1000, mid: 0, far: 0 };
 
 // ------------------------------------------------------------------ parsing
 
@@ -296,12 +298,26 @@ export function smoothFeet(pos, w12, indices, topY, iterations = 8) {
 // ------------------------------------------------------------------ decimation
 
 /** Simplify to ~targetTris triangles keeping the bone weights; returns a compact mesh. */
-export function decimate(simplifier, body, targetTris) {
+export function decimate(simplifier, body, targetTris, headTris = 0) {
   const { positions, w12, indices } = body;
   if (indices.length / 3 <= targetTris) return compact(body, indices);
   const attr = new Float32Array(w12.length);
   for (let i = 0; i < w12.length; i++) attr[i] = w12[i];
-  const [out] = simplifier.simplifyWithAttributes(indices, positions, 3, attr, 12, new Array(12).fill(0.05), null, targetTris * 3, 1, []);
+  const wts = new Array(12).fill(0.05), nv = positions.length / 3;
+  if (headTris > 0) {
+    // the head keeps more triangles than the body: pass A collapses only head vertices (everything else locked) down to headTris,
+    // pass B locks the head and decimates the rest to the target total
+    const isHead = new Uint8Array(nv);
+    for (let v = 0; v < nv; v++) isHead[v] = w12[v * 12 + 3] >= 0.5 ? 1 : 0;
+    let headT = 0;
+    for (let t = 0; t < indices.length; t += 3) if (isHead[indices[t]] || isHead[indices[t + 1]] || isHead[indices[t + 2]]) headT++;
+    const lockBody = new Uint8Array(nv).map((_, v) => (isHead[v] ? 0 : 1));
+    const [a] = simplifier.simplifyWithAttributes(indices, positions, 3, attr, 12, wts, lockBody, (indices.length / 3 - headT + headTris) * 3, 1, []);
+    const lockHead = new Uint8Array(nv).map((_, v) => (isHead[v] ? 1 : 0));
+    const [b] = simplifier.simplifyWithAttributes(a, positions, 3, attr, 12, wts, lockHead, targetTris * 3, 1, []);
+    return compact(body, b);
+  }
+  const [out] = simplifier.simplifyWithAttributes(indices, positions, 3, attr, 12, wts, null, targetTris * 3, 1, []);
   return compact(body, out);
 }
 
@@ -503,7 +519,7 @@ export function buildShape(src, simplifier, name) {
   const body = buildBody(src, shape);
   const lods = {};
   for (const [lod, tris] of Object.entries(LOD_TRIS)) {
-    const m = decimate(simplifier, body, tris);
+    const m = decimate(simplifier, body, tris, HEAD_TRIS[lod] ?? 0);
     lods[lod] = { ...projectUVs(m, body.landmarks), triangles: m.indices.length / 3, mesh: m };
   }
   const hiMesh = lods.hi.mesh, lm = body.landmarks;

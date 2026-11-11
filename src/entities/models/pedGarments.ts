@@ -118,6 +118,10 @@ function finalize(tris: Tri[], o: ShellOpts): THREE.BufferGeometry | null {
     edge.set(ek(a, b), (edge.get(ek(a, b)) ?? 0) + 1);
     nb[a].add(b); nb[b].add(a);
   }
+  // no rim quads (they cost ~25 % of a garment's triangles): the shell tapers towards its border instead and ends on the skin
+  const borderV = new Set<number>();
+  for (const [k, c] of edge) if (c === 1) { const [a, b] = k.split('_').map(Number); borderV.add(a); borderV.add(b); }
+  for (const i of borderV) T[i] = Math.max(0.0035, T[i] * 0.45);
   // the decimated mesh has irregular normals: smooth them first so the offset does not shear the texture sideways
   for (let it = 0; it < (o.normalIters ?? 6); it++) {
     const next = N.map((n, i) => {
@@ -165,23 +169,6 @@ function finalize(tris: Tri[], o: ShellOpts): THREE.BufferGeometry | null {
       if (Math.max(...fu) - Math.min(...fu) > 0.5) for (const u of us) u[0] = (o.tile.x + 0.5 + 0.01 * (o.tile.w - 1)) / ATLAS;   // crosses the back seam
     }
     for (let k = 0; k < 3; k++) { const i = corner[t * 3 + k]; push(Q[i], FN[i], tris[t][k], us[k]); }
-  }
-  const rim = o.rim ?? 0.004;
-  for (let t = 0; t < tris.length; t++) for (let k = 0; k < 3; k++) {
-    const a = corner[t * 3 + k], b = corner[t * 3 + (k + 1) % 3];
-    if (edge.get(ek(a, b)) !== 1) continue;
-    const c = corner[t * 3 + (k + 2) % 3];
-    const ia: V3 = [Q[a][0] - FN[a][0] * rim, Q[a][1] - FN[a][1] * rim, Q[a][2] - FN[a][2] * rim], ib: V3 = [Q[b][0] - FN[b][0] * rim, Q[b][1] - FN[b][1] * rim, Q[b][2] - FN[b][2] * rim];
-    // the rim faces away from the interior of the triangle (the direction from the edge towards the third vertex)
-    const mx = (Q[a][0] + Q[b][0]) / 2, my = (Q[a][1] + Q[b][1]) / 2, mz = (Q[a][2] + Q[b][2]) / 2;
-    const dx = Q[c][0] - mx, dy = Q[c][1] - my, dz = Q[c][2] - mz;
-    const e = [Q[b][0] - Q[a][0], Q[b][1] - Q[a][1], Q[b][2] - Q[a][2]], d2 = [ia[0] - Q[a][0], ia[1] - Q[a][1], ia[2] - Q[a][2]];
-    const nx = e[1] * d2[2] - e[2] * d2[1], ny = e[2] * d2[0] - e[0] * d2[2], nz = e[0] * d2[1] - e[1] * d2[0];
-    const flip = nx * dx + ny * dy + nz * dz > 0;
-    const L = Math.hypot(nx, ny, nz) || 1, rn: V3 = flip ? [-nx / L, -ny / L, -nz / L] : [nx / L, ny / L, nz / L];
-    const va = tris[t][k], vb = tris[t][(k + 1) % 3];
-    const quad: Array<[V3, V]> = flip ? [[Q[a], va], [ia, va], [ib, vb], [Q[a], va], [ib, vb], [Q[b], vb]] : [[Q[a], va], [ib, vb], [ia, va], [Q[a], va], [Q[b], vb], [ib, vb]];
-    for (const [p, v] of quad) push(p, rn, v, o.uv ? o.uv(p, v) : undefined);
   }
   const n = pos.length / 3;
   const g = new THREE.BufferGeometry();
