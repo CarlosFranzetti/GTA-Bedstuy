@@ -35,7 +35,7 @@ try {
     const dismiss = async () => { const b = page.getByRole('button', { name: 'Resume' }); if (await b.isVisible().catch(() => false)) { await b.click(); await page.waitForTimeout(300); } };
     await dismiss();
     const dbg = (fn, x) => page.evaluate(fn, x);
-    await dbg(() => { window.__gtaDebug.stopLoop(); window.__gtaChunkCuller.buildsPerUpdate = 1e9; }); // far building geometry is built a few per frame in play; build it all at once here
+    await dbg(() => { window.__gtaDebug.stopLoop(); window.__gtaChunkCuller.buildsPerUpdate = 1e9; const c = document.querySelector('canvas.game'); if (c) c.style.display = 'none'; }); // counts only: keep the canvas out of the headless software compositor (it reads back every frame and the page OOMs) // far building geometry is built a few per frame in play; build it all at once here
     const hour = (h) => dbg((h) => { const d = window.__gtaDebug; d.setHour(h); d.step(5); }, h);
     const shot = async (name) => {
       if (results.some((r) => r.tier === q && r.view === name)) return;

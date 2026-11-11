@@ -38,7 +38,7 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 try {
   const page = await browser.newPage({ viewport: { width: W, height: H } });
   page.on('pageerror', (e) => console.error(String(e).slice(0, 300)));
-  await page.goto(`${base}/?q=high&perf=0`, { waitUntil: 'load', timeout: 600_000 });
+  await page.goto(`${base}/?q=${arg('--q', 'medium')}&perf=0`, { waitUntil: 'load', timeout: 600_000 });
   await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 1_200_000 });
   await page.mouse.click(W / 2, H / 2); await page.waitForTimeout(800);
   const b = page.getByRole('button', { name: 'Resume' }); if (await b.isVisible().catch(() => false)) { await b.click(); await page.waitForTimeout(300); }

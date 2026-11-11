@@ -178,7 +178,20 @@ Facts only (a wall colour, material class and shop-awning colour per lot) derive
 
 | Source | Author | Licence | Photos used |
 |---|---|---|---|
-| Wikimedia Commons | Jim.henderson | CC0 | 6 |
-| KartaView (OpenStreetCam) | 13 contributor sequences (names in the sidecar) | CC BY-SA 4.0 | 119 |
+| Wikimedia Commons | Jim.henderson | CC0 | 5 |
+| KartaView (OpenStreetCam) | 15 contributors (names in the sidecar) | CC BY-SA 4.0 | 215 |
 
-NYC Parks 2015 Street Tree Census (`uvpi-gqnh`) and NYC Department of City Planning MapPLUTO / Building Footprints via NYC Open Data: public data, no restriction; credited as in 'Map data (GEO2)'.
+NYC Parks 2015 Street Tree Census (`uvpi-gqnh`) and NYC DCP MapPLUTO / Building Footprints via NYC Open Data: public data, no restriction.
+
+## Real-map street furniture positions (ENV14, hosted and native only)
+
+`public/data/realmap-furniture.json`, built by `scripts/fetch-real-furniture.mjs`; fetched at run time on the real-map path, never inside the single-file artifact.
+
+| Data | Source | Licence / terms |
+|---|---|---|
+| Hydrants | NYC DEP Hydrants (`5bgh-vtsn`), NYC Open Data | public data |
+| Litter baskets | DSNY Litter Basket Inventory (`8znf-7b2c`), NYC Open Data | public data |
+| LinkNYC kiosks | NYC OTI LinkNYC Kiosk Locations (`s4kf-3yrf`), NYC Open Data | public data |
+| Street trees (positions, trunk size, species) | NYC Parks 2015 Street Tree Census (`uvpi-gqnh`) | public data |
+| Bus stops | MTA New York City Transit Brooklyn bus GTFS `stops.txt` | MTA developer data terms (free use; credit MTA) |
+| Bike docks | Citi Bike GBFS `station_information` (NYC Bike Share / Lyft) | published open data under the NYC Bike Share data licence (attribution; no endorsement implied) |

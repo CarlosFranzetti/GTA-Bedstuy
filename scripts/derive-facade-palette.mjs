@@ -75,12 +75,12 @@ export function classify(c, tex, lot) {
   const year = Number(lot.yearbuilt) || 0;
   const newer = year >= 1985;
   if (newer && s < 0.25) return 7; // new-build panel / smooth cladding in greys
-  if (s < 0.13) return v > 0.62 ? (tex > 9 ? 3 : 4) : (tex > 9 ? 1 : 7);
+  if (s < 0.13) return v > 0.62 ? (tex > 9 ? 3 : 4) : (tex > 9 ? 1 : newer ? 7 : 3);
   if (h >= 5 && h <= 30 && s >= 0.2 && v < 0.5 && tex <= 14) return 0; // dark warm smooth: brownstone
   if (h >= 345 || h < 22) return s > 0.4 && tex > 8 ? 1 : (tex > 8 ? 0 : 6); // reds: brick (busy) vs stucco (smooth)
   if (h >= 22 && h < 55) return s < 0.3 ? (v > 0.6 ? 4 : 2) : v > 0.55 ? 2 : 0;
-  if (h >= 55 && h < 170) return 5; // greens and yellow-greens: siding
-  return 5; // blues and the rest: siding or painted
+  // greens, blues and the rest: vinyl or aluminium siding only on 1-2 family classes (A, B); elsewhere it is painted brick or stucco
+  return /^[AB]/.test(lot.cls ?? '') ? 5 : (tex > 9 ? 3 : 6);
 }
 
 // ---------------------------------------------------------------------------------------------- data

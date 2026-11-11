@@ -1,7 +1,7 @@
 {
  "generated": "2026-11-11",
- "photosUsed": 448,
- "photosSkipped": 165,
+ "photosUsed": 451,
+ "photosSkipped": 242,
  "note": "CC BY-SA photos contribute facts (a wall colour), not pixels; attribution kept here and in docs/CREDITS.md.",
  "lots": {
   "3014780008": [
@@ -214,6 +214,15 @@
     "licence": "CC BY-SA 4.0",
     "url": "https://kartaview.org/details/1311337/145/track-info",
     "taken": "2018-12-03 20:14:18.000"
+   }
+  ],
+  "3015840022": [
+   {
+    "photo": "commons:4542042",
+    "author": "Jim.henderson",
+    "licence": "Public domain",
+    "url": "https://commons.wikimedia.org/wiki/File:Myrtle_J_BMT_patform_jeh.JPG",
+    "taken": "Taken on 2 August 2008"
    }
   ],
   "3015840023": [
@@ -3220,6 +3229,15 @@
     "licence": "CC BY-SA 4.0",
     "url": "https://kartaview.org/details/1343889/1242/track-info",
     "taken": "2019-02-23 12:37:13.000"
+   }
+  ],
+  "3022760028": [
+   {
+    "photo": "commons:4842117",
+    "author": "Jim.henderson",
+    "licence": "Public domain",
+    "url": "https://commons.wikimedia.org/wiki/File:Flushing_Av_BMT_J_sta_jeh.JPG",
+    "taken": "2008-09"
    }
   ],
   "3022760029": [
