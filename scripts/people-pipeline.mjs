@@ -95,9 +95,9 @@ export const SHAPES = {
  * The far LOD ignores regions (one global pass to `body`).
  */
 export const REGION_BUDGET = {
-  hi: { head: 1350, hands: 560, body: 1550 },
-  mid: { head: 380, hands: 100, body: 640 },
-  far: { head: 0, hands: 0, body: 400 },
+  hi: { head: 1350, hands: 560, feet: 260, body: 1350 },
+  mid: { head: 380, hands: 100, feet: 60, body: 580 },
+  far: { head: 0, hands: 0, feet: 0, body: 400 },
 };
 export const LOD_TRIS = { hi: 3500, mid: 1100, far: 400 };
 
@@ -328,17 +328,19 @@ export function decimate(simplifier, body, targetTris, budget = null) {
   const attr = new Float32Array(w12.length);
   for (let i = 0; i < w12.length; i++) attr[i] = w12[i];
   const wts = new Array(12).fill(0.05);
-  if (budget && (budget.head > 0 || budget.hands > 0)) {
+  if (budget && (budget.head > 0 || budget.hands > 0 || budget.feet > 0)) {
     const wristY = body.landmarks?.wristY ?? 0.9;
-    const region = new Uint8Array(nv);   // 0 body, 1 head, 2 hands
+    const region = new Uint8Array(nv);   // 0 body, 1 head, 2 hands, 3 feet
+    const ankleY = body.landmarks?.ankleY ?? 0.08;
     for (let v = 0; v < nv; v++) {
       if (w12[v * 12 + I.head] >= 0.5) region[v] = 1;
       else if ((w12[v * 12 + I.elbowL] >= 0.5 || w12[v * 12 + I.elbowR] >= 0.5) && positions[v * 3 + 1] < wristY) region[v] = 2;
+      else if ((w12[v * 12 + I.kneeL] >= 0.5 || w12[v * 12 + I.kneeR] >= 0.5) && positions[v * 3 + 1] < ankleY + 0.03) region[v] = 3;
     }
-    const triRegion = (ix, t) => Math.max(region[ix[t]], region[ix[t + 1]], region[ix[t + 2]]) === 0 ? 0 : (region[ix[t]] === 1 || region[ix[t + 1]] === 1 || region[ix[t + 2]] === 1 ? 1 : 2);
+    const triRegion = (ix, t) => { const a = region[ix[t]], b = region[ix[t + 1]], c = region[ix[t + 2]]; return a === 1 || b === 1 || c === 1 ? 1 : a === 2 || b === 2 || c === 2 ? 2 : a === 3 || b === 3 || c === 3 ? 3 : 0; };
     const count = (ix, r) => { let n = 0; for (let t = 0; t < ix.length; t += 3) if (triRegion(ix, t) === r) n++; return n; };
     let ix = indices;
-    for (const [r, want] of [[1, budget.head], [2, budget.hands]]) {
+    for (const [r, want] of [[1, budget.head], [2, budget.hands], [3, budget.feet ?? 0]]) {
       if (want <= 0) continue;
       const have = count(ix, r);
       if (have <= want) continue;
@@ -346,7 +348,7 @@ export function decimate(simplifier, body, targetTris, budget = null) {
       [ix] = simplifier.simplifyWithAttributes(ix, positions, 3, attr, AW, wts, lock, (ix.length / 3 - have + want) * 3, 1, []);
     }
     // the rest (neck, shoulders, torso, limbs) with head and hands locked, down to the body budget
-    const keep = count(ix, 1) + count(ix, 2), lockKeep = new Uint8Array(nv).map((_, v) => (region[v] !== 0 ? 1 : 0));
+    const keep = count(ix, 1) + count(ix, 2) + count(ix, 3), lockKeep = new Uint8Array(nv).map((_, v) => (region[v] !== 0 ? 1 : 0));
     [ix] = simplifier.simplifyWithAttributes(ix, positions, 3, attr, AW, wts, lockKeep, (keep + budget.body) * 3, 1, []);
     return compact(body, ix);
   }
@@ -392,8 +394,6 @@ export const TILES = {
   upperArm: { x: 0, y: 256, w: 128, h: 128 }, foreArm: { x: 128, y: 256, w: 128, h: 128 }, hand: { x: 256, y: 256, w: 128, h: 64 }, neck: { x: 384, y: 256, w: 128, h: 64 },
   thigh: { x: 0, y: 384, w: 128, h: 128 }, shin: { x: 128, y: 384, w: 128, h: 128 }, pelvis: { x: 256, y: 384, w: 128, h: 128 }, shoe: { x: 384, y: 384, w: 128, h: 128 },
 };
-/** how much of a cylinder tile's width is kept free past the seam, so a triangle that straddles the seam is unwrapped whole instead of cut */
-export const SEAM_MARGIN = 0.2;
 const FACE_T = { chin: 0, mouth: 0.255, nose: 0.42, eye: 0.565, crown: 1 };
 
 export function tileUV(rect, fu, ft) {
@@ -470,17 +470,23 @@ export function unwrapUVs(mesh, lm) {
     let u = ((a - phi) % TAU + TAU) % TAU / TAU;
     return [u, ft];
   };
-  const M = SEAM_MARGIN, keyMap = new Map(), outSrc = [], outUv = [], outIdx = [];
+  // pass 1: unwrap every triangle (a straddling one goes whole past u = 1), pass 2: scale each part's tile to its own overhang
+  const triUv = [], maxU = new Map();
   for (let t = 0; t < tris; t++) {
-    const g = groups.get(key(t)), tile = TILES[g.tile];
+    const g = groups.get(key(t));
     const uv3 = [0, 1, 2].map((k) => uOf(g, ix[t * 3 + k]));
-    const us = uv3.map((u) => u[0]);
-    if (Math.max(...us) - Math.min(...us) > 0.5) for (const u of uv3) if (u[0] < 0.5) u[0] += 1;
-    if (Math.max(...uv3.map((u) => u[0])) - Math.min(...uv3.map((u) => u[0])) > M + 0.04 && g.tile !== 'head') { const m = uv3.reduce((s2, u) => s2 + u[0], 0) / 3; for (const u of uv3) u[0] = m; }   // a pole triangle: collapse
+    if (Math.max(...uv3.map((u) => u[0])) - Math.min(...uv3.map((u) => u[0])) > 0.5) for (const u of uv3) if (u[0] < 0.5) u[0] += 1;
+    if (Math.max(...uv3.map((u) => u[0])) - Math.min(...uv3.map((u) => u[0])) > 0.62) { const m = uv3.reduce((s2, u) => s2 + u[0], 0) / 3; for (const u of uv3) u[0] = m; }   // a pole triangle: collapse
+    triUv.push(uv3);
+    if (g.tile !== 'head') maxU.set(key(t), Math.max(maxU.get(key(t)) ?? 1, ...uv3.map((u) => u[0])));
+  }
+  const keyMap = new Map(), outSrc = [], outUv = [], outIdx = [];
+  for (let t = 0; t < tris; t++) {
+    const g = groups.get(key(t)), tile = TILES[g.tile], uv3 = triUv[t], span = g.tile === 'head' ? 1 : maxU.get(key(t));
     for (let k = 0; k < 3; k++) {
       const v = ix[t * 3 + k];
       const [u, ft] = uv3[k];
-      const [tu, tv] = tileUV(tile, Math.min(1, u / (g.tile === 'head' ? 1 : 1 + M)), ft);
+      const [tu, tv] = tileUV(tile, Math.min(1, u / span), ft);
       const kk = `${v}|${g.tile}|${g.side}|${Math.round(tu * 4096)}|${Math.round(tv * 4096)}`;
       let o = keyMap.get(kk);
       if (o === undefined) { o = outSrc.length; keyMap.set(kk, o); outSrc.push(v); outUv.push(tu, tv); }

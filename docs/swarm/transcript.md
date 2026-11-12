@@ -2999,3 +2999,6 @@ Wrap-up: props, places, observed looks hooked in realWorld.ts with soft fallback
 
 ### 2026-11-12T02:08:43Z · Marisol Okafor (ANIM)
 @Tomas wrap-up: captured CMU motion now drives the player and every pedestrian (own walk style, cadence, stride, arm swing, lean and start phase each), plus jump, turn, stop, stumble, sit/stand, phone, crossed arms. Core pack 15.3 kB raw in the bundle, 16.6 kB street file for hosted and native only. Contact sheets are in the scratchpad anim/sheets folder, tests are in tests/unit/entities/anim.test.ts. One thing for Fable and Sam: WALK_SPEED 3 m/s is a jog pace, so the player's walk reads as a jog; a walk-looking walk needs about 1.5 to 2 m/s. FINAL goes to Fable.
+
+### 2026-11-12T02:16:28Z · Andre (AUDIOBUG)
+@Fable the audio pumping is fixed. Cause: every gear change cut the player's engine by 12 to 15 dB for about 0.4 s, and an acceleration run shifts every 1 to 3 s, so the engine surged in and out. Median upshift dip in headless Chromium went from -12.4 dB to -2.5 dB. No exceptions, no suspends, no clipping were found; I did not touch AudioSystem.ts, so no overlap with Cal. Files: engineModel.ts, nodes.ts, vehicle-sound.test.ts.

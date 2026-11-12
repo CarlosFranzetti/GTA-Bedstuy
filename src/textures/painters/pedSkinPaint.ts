@@ -142,7 +142,7 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
             if (ir < 0.42) c = [14, 12, 12];
             if (Math.hypot(dx + 0.0016, dy - 0.0022) < 0.0012) c = [250, 250, 250];
           }
-          c = mix(c, [24, 18, 16], 0.82 * (1 - lid) * sst(0.62, 1.0, ey) + (dy > 0 ? 0.5 * g2(ey - 1, 0.35) : 0.2 * g2(ey - 1, 0.3)) + (face.lashes && dy > 0 ? 0.25 * g2(ey - 1.25, 0.4) : 0));
+          c = mix(c, [24, 18, 16], 0.7 * (1 - lid) * sst(0.84, 1.0, ey) + (dy > 0 ? 0.5 * g2(ey - 1, 0.35) : 0.2 * g2(ey - 1, 0.3)) + (face.lashes && dy > 0 ? 0.25 * g2(ey - 1.25, 0.4) : 0));
         }
         // eyebrows
         const bx = (ex + 0.002) / 0.0185, by0 = lm.eyeY + 0.0235 * hs + arch * hs * (1 - (bx - 0.2) * (bx - 0.2)) * (bx > -1 && bx < 1 ? 1 : 0) - (face.brows === 'arched' ? 0.002 : 0);
@@ -194,7 +194,7 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
       if (s.hair !== 'bald' || s.hat === 'cap') {
         const back = sst(0.1, -0.35, fz), side2 = sst(0.05, 0.085, ax);
         const hairline = lm.chinY + (lm.crownY - lm.chinY) * (0.77 - 0.2 * side2 - 0.45 * back);
-        const hl = hairline + 0.006 * Math.sin(x * 220) + 0.004 * Math.sin(x * 570 + 1);
+        const hl = hairline + 0.005 * Math.sin(x * 90 + 1);
         const stylelift = s.hair === 'fade' ? 0.06 * (side2 + back * 0.8) : 0;
         if (s.hair !== 'bald' && y > hl + stylelift) {
           const strand = 0.5 + 0.5 * Math.sin(x * 330 + z * 260 + y * 40);
@@ -322,7 +322,8 @@ export interface BakeResult { canvas: HTMLCanvasElement | OffscreenCanvas }
 export function bakeSkin(b: BakeInput, size = SK_ATLAS): HTMLCanvasElement {
   rasterise(b, size);
   const shader = makeShader(b);
-  const img = new Uint8ClampedArray(size * size * 4), filled = new Uint8Array(size * size);
+  const img = new Uint8ClampedArray(size * size * 4), filled = new Uint8Array(size * size), sk = rgb(b.spec.skin);
+  for (let q = 0; q < size * size; q++) { img[q * 4] = sk[0]; img[q * 4 + 1] = sk[1]; img[q * 4 + 2] = sk[2]; img[q * 4 + 3] = 255; }
   for (let q = 0; q < size * size; q++) {
     if (!cover[q]) continue;
     const c = shader(posMap[q * 3], posMap[q * 3 + 1], posMap[q * 3 + 2], nrmMap[q * 3], nrmMap[q * 3 + 1], nrmMap[q * 3 + 2], wMap[q * 4], wMap[q * 4 + 1], wMap[q * 4 + 2], wMap[q * 4 + 3], q);

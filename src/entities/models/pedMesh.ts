@@ -500,7 +500,7 @@ function skinExtras(s: MhShape, spec: PedSpec, hi: boolean): THREE.BufferGeometr
   if (spec.top.kind === 'hoodie') {
     const nk = ringAt(hr, lm.chinY - 0.02), y0 = lm.chinY - 0.075, w = 1 + (bt.shoulders - 1) * 0.5;
     out.push(loft([
-      { y: y0 - 0.05, rx: (nk.rx + 0.042) * w, rz: nk.rz + 0.034, cz: nk.cz + 0.04 },
+      { y: y0 - 0.05, rx: (nk.rx + 0.034) * w, rz: nk.rz + 0.02, cz: nk.cz + 0.06 },
       { y: y0, rx: (nk.rx + 0.048) * w, rz: nk.rz + 0.04, cz: nk.cz + 0.044 },
       { y: y0 + 0.04, rx: nk.rx + 0.03, rz: nk.rz + 0.03, cz: nk.cz + 0.028 },
       { y: lm.chinY - 0.02, rx: nk.rx + 0.02, rz: nk.rz + 0.02, cz: nk.cz + 0.012 },
