@@ -3011,3 +3011,30 @@ Wrap-up: props, places, observed looks hooked in realWorld.ts with soft fallback
 
 ### 2026-11-12T02:56:04Z · Leila Seamstress (PEOPLE)
 FINAL @Fable people rebuilt as one closed skin per person, clothes/face/shoes painted into one 512 px map, no shells. Bone names and hierarchy unchanged; the old-age stoop is now in the rest pose (torso.userData.stoopBaked) instead of an extra lean, @ANIM please do not add it again. Frames in scratchpad/people/final.
+
+### 2026-11-12T05:42:27Z · Sam Okafor (CAMERA)
+Starting CAMERA: keeping the lens out of cars, buildings and pedestrians. Taking src/core/Camera.ts, src/core/CameraViews.ts, a new tests/unit/core/camera-clearance.test.ts, and the glare fade (looking for where headlight and roof-light sprites live). Not touching Player.ts or input.
+
+### 2026-11-12T05:42:28Z · Lena Hashmark (PERF3)
+Start: PERF3 draw-call pass. Taking src/render/Culling.ts, CarLod/far-car code, night post, src/world/roadnet/propsReal.ts + realWorld.ts streaming hooks, perf scripts. Tell me if you are in these.
+
+### 2026-11-12T05:42:29Z · Omar Quill (GREEN)
+Starting GREEN: full unit suite run, triage of every red test, then seed 21 gridlock (traffic-5min), Q10-D3 pedestrian, tsc errors under tests/. Will post before touching a test in an active lane's file.
+
+### 2026-11-12T05:42:30Z · Theo Greenwave (REALTRAFFIC)
+Starting REALTRAFFIC: real-map traffic/peds. Taking src/world/roadnet/{lanes,lightsReal,trafficReal}.ts, new roadnet/realTrafficAdapter.ts, tests/unit/world/roadnet-lanes.test.ts and new tests/unit/world/roadnet-traffic-sim.test.ts. Possible tiny additive type-only edits to TrafficSystem/Pedestrian files, will report.
+
+### 2026-11-12T05:42:31Z · Jules Okonkwo-Reyes (RADIO2)
+Starting RADIO2: measuring the radio on the deployed site, then fixing src/audio/sc/ScStation.ts, src/audio/live/LiveStation.ts, src/audio/stations.ts, scripts/playtest/live-radio.cjs, docs/RADIO.md, CREDITS rows and tests in tests/unit/audio.
+
+### 2026-11-12T05:42:35Z · Dmitri Volkov (CARS2)
+Starting CARS2: carBodies.ts, carModel.ts, carLook.ts, carSkin.ts, carExtras.ts, scripts/cars12-sheet.mjs. Plan: taxi close-up artifact diagnosis, then distinct hulls for the seven sports/special types, detail pass (bumpers, grilles, lamps, rims).
+
+### 2026-11-12T05:42:37Z · Priya Ink (SHOTS)
+Starting SHOTS: five backdrop shots in public/art, title and loading screens using them (Hud.ts splash, hud.css, Loading.ts, loadingArt.ts, loading.css), pause menu restyle (Menu.ts, menu.css, menuArt.ts). Tests under tests/unit/ui and render/loading*.
+
+### 2026-11-12T05:42:46Z · Zadie Okafor (HUD2)
+Starting HUD2: taking src/ui/Hud.ts, hud.css, MissionHud.ts, mission.css, type.css, Minimap.ts, MapScreen.ts, map.css, src/ui/map/**, tests/unit/ui. Will run the game via swarm-render for before/after frames.
+
+### 2026-11-12T05:43:53Z · Fable Hart (CEO)
+The owner looked at the new people and said the bodies are blocky and bubbly, he wants the motion capture properly in, and he wants us to do as much as we can now, with plenty of lanes in parallel. So eighteen lanes are live. Read docs/swarm/RULES.md first, everyone: the full game gets two render slots and you must hide the canvas, standalone pages use SWARM_SMALL=1. People: Leila. Movement: Marisol. Playtest: Ash. Real map: Theo on traffic, Gus on missions and saves, Lena on culling. Screens: Priya on shots and menus, Zadie on the HUD. Cars: Dmitri. Camera: Sam. Sound: Andre on effects, Jules on radio, Mei on voices. Also Wren on story, Bea on roads, Viktor on the native apps, Omar on the test suite. Say which files you take before you edit.
