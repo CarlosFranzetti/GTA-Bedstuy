@@ -118,13 +118,16 @@ describe('Player on foot', () => {
   it('swings legs while moving and rests when idle', () => {
     const { player } = setup();
     player.control(fakeInput(['KeyW']), 0);
-    for (let i = 0; i < 10; i++) player.update(1 / 30);
     const legs = [player.object3D.getObjectByName('legL')!, player.object3D.getObjectByName('legR')!];
-    expect(Math.abs(legs[0].rotation.x)).toBeGreaterThan(0.05);
-    expect(legs[0].rotation.x).toBeCloseTo(-legs[1].rotation.x);
+    let spread = 0;
+    for (let i = 0; i < 30; i++) { player.update(1 / 30); spread = Math.max(spread, Math.abs(legs[0].rotation.x - legs[1].rotation.x)); }
+    expect(spread).toBeGreaterThan(0.2);               // captured gait: the legs are well apart at some point of the stride
     player.control(fakeInput([]), 0);
-    for (let i = 0; i < 60; i++) player.update(1 / 30);
-    expect(Math.abs(legs[0].rotation.x)).toBeLessThan(0.01);
+    for (let i = 0; i < 90; i++) player.update(1 / 30); // stop clip plays out, then the standing idle
+    const before = [legs[0].rotation.x, legs[1].rotation.x];
+    player.update(1 / 30);
+    expect(Math.abs(legs[0].rotation.x - before[0]) + Math.abs(legs[1].rotation.x - before[1])).toBeLessThan(0.02); // at rest
+    expect(Math.abs(legs[0].rotation.x)).toBeLessThan(0.4);
   });
 });
 

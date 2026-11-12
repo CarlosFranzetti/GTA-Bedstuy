@@ -48,8 +48,8 @@ export interface StreamRanges {
  * the tier's chunk range (Culling.chunkRangeFor: 420 / 520 m) is the far range. See the REALSTREAM report for the numbers.
  */
 export const STREAM_RANGES: Record<Quality, StreamRanges> = {
-  phone: { detail: 0, near: 100, far: 140 },
-  low: { detail: 90, near: 190, far: 420 },
+  phone: { detail: 0, near: 80, far: 120 },
+  low: { detail: 80, near: 160, far: 380 },
   medium: { detail: 140, near: 260, far: 520 },
   high: { detail: 260, near: 330, far: 520 },
 };

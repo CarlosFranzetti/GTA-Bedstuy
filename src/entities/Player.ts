@@ -6,6 +6,8 @@ import type { EventBus } from '@/core/Events';
 import type { Input } from '@/core/Input';
 import { animateWalk, type HumanModel } from '@/entities/models/humanModel';
 import { animateJump } from '@/entities/models/jumpPose';
+import { AnimController } from '@/entities/anim/controller';
+import { PLAYER_GAIT } from '@/entities/anim/gait';
 import { JumpState } from '@/entities/Jump';
 import { buildPerson as buildPedModel } from '@/entities/models/pedMesh';
 import type { CharacterRig, CharacterSource } from '@/world/types';
@@ -125,6 +127,8 @@ export class Player implements Entity {
   get shadowScale(): number { return this.jump.shadowScale; }
   private walkPhase = Math.PI / 2;
   private walkAmp = 0;
+  private anim: AnimController | null = null;
+  private animHeading = 0;
   private model: HumanModel | null = null;
   private rig: CharacterRig | null = null;
   /** Optional rigged character source (GLB) for the player; set once at boot before constructing the Player. */
@@ -362,6 +366,7 @@ export class Player implements Entity {
     this.pinT = 0; this.pinTarget = null; this.pinLast.x = spotX; this.pinLast.z = spotZ;
     this.vehicleInput = { ...NEUTRAL };
     this.object3D.visible = true;
+    this.anim?.playOnce('standUp', { from: 0.4, rate: 1.8, fadeIn: 0.05, fadeOut: 0.25 }); // rise out of the seat (captured stand-up)
     this.prevPos.x = this.body.pos.x; this.prevPos.z = this.body.pos.z; this.prevHeading = this.body.heading;
     this.events.emit('exitVehicle', { vehicleId: v.id });
   }
@@ -459,6 +464,8 @@ export class Player implements Entity {
       b.heading = wrapAngle(b.heading + angleDiff(b.heading, headingFromVec(toCar)) * (1 - Math.exp(-TURN_SMOOTH * dt)));
     }
     this.animateFoot(dt);
+    // sink into the seat as the body reaches the door (captured sit-down; needs the street pack, otherwise just the walk)
+    if (e.t > 0.45 && this.anim && !this.anim.busy) this.anim.playOnce('sitDown', { from: 0.2, to: 0.7, rate: 2.6, fadeIn: 0.12, fadeOut: 0.05 });
     if (e.t >= 1) this.completeEnter();
   }
 
@@ -491,8 +498,14 @@ export class Player implements Entity {
     }
     if (this.rig) { this.rig.setSpeed(sp); this.rig.update(dt); }
     else if (this.model) {
-      if (this.jump.busy) animateJump(this.model, this.jump.phase, this.jump.t, this.jump.vy);
-      else animateWalk(this.model, this.walkPhase, this.walkAmp);
+      // captured-motion clips (src/entities/anim); the hand-keyed poses stay as the fallback when no clip pack decoded
+      this.anim ??= new AnimController(this.model, PLAYER_GAIT);
+      const yawRate = dt > 0 ? -angleDiff(this.animHeading, b.heading) / dt : 0;
+      this.animHeading = b.heading;
+      if (!this.anim.update(dt, { speed: sp, yawRate, jump: { phase: this.jump.phase, t: this.jump.t, vy: this.jump.vy } })) {
+        if (this.jump.busy) animateJump(this.model, this.jump.phase, this.jump.t, this.jump.vy);
+        else animateWalk(this.model, this.walkPhase, this.walkAmp);
+      }
     }
     applyPose(this.object3D, b.pos, b.heading, this.jump.y);
   }

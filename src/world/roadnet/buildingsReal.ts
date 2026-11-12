@@ -198,11 +198,16 @@ export function buildRealBuildings(lots: ReadonlyArray<RealLot>, materials: IMat
     let fb: Vec2 = { x: lot.frontA.x + dir.x * fp.xr, z: lot.frontA.z + dir.z * fp.xr };
     const corner = lot.corner && lot.type !== 'vacant';
     if (corner && cornersByFace.get(`${lot.block}:${lot.face}`) === 1 && lot.cornerEnd === 'b') { const t = fa; fa = fb; fb = t; }
-    const spec = { ...specForRealLot(lot), ...(opts.looks?.(lot.bbl) ?? {}) };
+    let spec = { ...specForRealLot(lot), ...(opts.looks?.(lot.bbl) ?? {}) };
+    if (lot.poi) {
+      // a shop from the places table: same re-purposing as LotSubdivider (keep floors / family, drop what no longer applies)
+      const use = lot.poi.archetype === 'church' ? 'church' : lot.poi.archetype === 'condo' ? 'apartment' : 'mixed';
+      if (spec.use !== use) spec = { ...spec, use, scaffold: false, stoop: use === 'church' ? spec.stoop : { present: false, heightM: 0 } };
+    }
     spec.widthM = fp.xr - fp.xl;
     specLots.push({
       id: lot.id, blockId: lot.blockId, side: lot.side, frontA: fa, frontB: fb, width: fp.xr - fp.xl, depth: fp.depth,
-      outward: lot.outward, type: lot.type, corner, spec,
+      outward: lot.outward, type: lot.type, corner, spec, poi: lot.poi,
     });
   }
   const built = buildBuildings(specLots, materials, rng);

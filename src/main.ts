@@ -144,7 +144,8 @@ const world = buildWorld(data, materials, rng);
 const realWorld = import.meta.env?.VITE_HOSTED === '1' && params.get('map') === 'real'
   ? await (await import('@/world/roadnet/realWorld')).buildRealWorld({ materials, rng: rng.fork('real'), tier: quality })
   : null;
-if (realWorld) Object.assign(world, { group: realWorld.group, colliders: realWorld.colliders, chunkMeshes: realWorld.chunkMeshes, propCells: [], lamps: [], lots: realWorld.lots, furnitureGroup: new THREE.Group() });
+if (realWorld) Object.assign(world, { group: realWorld.group, colliders: realWorld.colliders, chunkMeshes: realWorld.chunkMeshes, propCells: [], lamps: realWorld.lamps, lots: realWorld.lots, furnitureGroup: realWorld.furnitureGroup });
+realWorld?.applyDoors(); // home, deli and club doors move to their real lots; must run before the interiors are built
 scene.add(world.group);
 const { grid } = world;
 
@@ -259,9 +260,9 @@ const saved = realWorld ? null : saves.bootSave(); // the preview never reads or
 const bootLook = getPlayerLook();
 const spawn = saved
   ? { x: clamp(saved.pose.x, grid.bounds.minX - 25, grid.bounds.maxX + 25), z: clamp(saved.pose.z, grid.bounds.minZ - 25, grid.bounds.maxZ + 25) }
-  : (realWorld ? realWorld.spawn : SPAWN);
+  : (realWorld ? realWorld.homeSpawn : SPAWN);
 const player = new Player('player', spawn, materials, events);
-if (realWorld) player.body.heading = realWorld.spawnHeading;
+if (realWorld) player.body.heading = realWorld.homeSpawn.heading;
 player.blockedAt = (p, r, ignoreId) => physics.overlapsSolid(p, r, ignoreId);
 if (saved) { player.body.heading = saved.pose.heading; dayNight.timeOfDay = saved.hour; }
 scene.add(player.object3D);

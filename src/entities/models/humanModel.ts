@@ -34,6 +34,8 @@ export interface HumanModel {
   rig: THREE.Object3D;
   /** pelvis (twists against the torso while walking) */
   hips: THREE.Object3D;
+  /** optional ankle pivots [left, right], children of the knees (ANIM drives them when a body has them) */
+  ankles?: THREE.Object3D[];
 }
 
 export interface HumanOptions {

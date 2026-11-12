@@ -1,13 +1,13 @@
 /**
  * People from a real humanoid base mesh (MakeHuman base mesh, CC0 data; see scripts/people-pipeline.mjs and
- * src/assets/models/people/src/LICENSE.txt). The pipeline ships one meshopt glb per body shape with three LODs (hi ~4k, mid ~1.5k,
- * far ~400 triangles), skinned to the same 12-bone rig as pedBodyHi.ts, and with UVs already projected into the tiles of PEDHI's
- * 512 px atlas (HI_RECTS in textures/painters/pedHi.ts). So the clothing, skin and face of every variant are PEDHI's own painted
- * albedo / normal / roughness maps (pedHiMaterial), now landing on real anatomy; the face is painted on the real face geometry
- * (planar projection fitted to chin / mouth / nose / eye landmarks of each shape).
+ * src/assets/models/people/src/LICENSE.txt). The pipeline ships one meshopt glb per body shape with three LODs (hi ~3.4k, mid ~1.1k,
+ * far ~400 triangles), skinned to the same 12-bone rig as pedBodyHi.ts, unwrapped per body part (cylinder tiles).
+ * One clean closed skin mesh per person, the way GTA III and IV did it: the clothes, face, shoes and soft shading are painted into
+ * one 512 px colour map baked by position (textures/painters/pedSkinPaint.ts), so there are no garment shells, gaps or shards.
+ * The body type (silhouette) and the thickness of puffers and coats are a smooth deformation of the skin (dressLod).
  *
- * Hair, hats, skirts and packs are caps lofted around the shape's measured head / torso / hip rings and merged into the body
- * geometry, so a person is ONE SkinnedMesh per LOD (one draw), with one shared material per variant.
+ * Hair, hats, skirts, hoods and packs are the only extra volumes: caps lofted around the shape's measured head / torso / hip rings
+ * and merged into the body geometry, so a person is ONE SkinnedMesh per LOD (one draw), with one material per variant.
  *
  * Feature flag: VITE_PEOPLE=mh (default) uses these bodies once `loadPeople()` has finished; VITE_PEOPLE=hi, or any failure to
  * load, keeps PEDHI's procedural people (buildPedModel of pedBodyHi.ts) as the fallback.
@@ -18,10 +18,11 @@ import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { Rng } from '@/core/Rng';
 import type { IMaterialLibrary } from '@/world/types';
 import { createGltfLoader, warnOnce } from './gltf/loader';
-import { HI_RECTS, type HiTile } from '@/textures/painters/pedHi';
+import type { HiTile } from '@/textures/painters/pedHi';
+import { SK_RECTS, bakeSkin } from '@/textures/painters/pedSkinPaint';
 import { PED_SPECS, PED_VARIANT_COUNT, pedVariantIndex, type PedSpec, type PxRect } from '@/textures/painters/ped';
-import { FAR_DIST, MID_DIST, PedLod, buildPedModel as buildProcedural, pedHiMaterial, pedPhone, type PedDetail } from './pedBodyHi';
-import { garmentParts, headShell, nonFootTriangles, shoeParts } from './pedGarments';
+import { FAR_DIST, MID_DIST, PedLod, buildPedModel as buildProcedural, pedPhone, type PedDetail } from './pedBodyHi';
+import { headShell } from './pedGarments';
 import { peopleMode } from '@/textures/painters/pedMode';
 import { bodyTypeOf, type BodyType } from './pedBodyTypes';
 import { pickPedVariant, type PedModel, type PedOptions } from './pedBody';
@@ -191,7 +192,7 @@ function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
   // at the hi level short hair and scarves are volumes made from the skull surface (pedGarments.headShell); the rest is lofted here
   const lm = s.landmarks, H = lm.crownY - lm.chinY, Y = (t: number): number => lm.chinY + t * H;
   const seg = hiDetail ? 18 : 10;
-  const hairR = HI_RECTS.hair, hatR = HI_RECTS.hat;
+  const hairR = SK_RECTS.hair, hatR = SK_RECTS.hat;
   const out: THREE.BufferGeometry[] = [];
   /** dome around the head from height t0 up: inflate k (+ pad), front pulled back by `pull` * rz at the lowest ring */
   const dome = (t0: number, k: number, pad: number, pull: number, topT = 1.02): R[] => {
@@ -312,7 +313,7 @@ function headParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
   let h = 2166136261; for (let i = 0; i < spec.id.length; i++) { h ^= spec.id.charCodeAt(i); h = Math.imul(h, 16777619); }
   const roll = (h >>> 0) / 4294967296, grown = spec.age !== 'kid';
   if (grown && spec.hat === 'none' && spec.hair !== 'afro' && roll < 0.1) {
-    const r = ringAt(s.headRings, Y(0.45)), gr = HI_RECTS.hair;
+    const r = ringAt(s.headRings, Y(0.45)), gr = SK_RECTS.hair;
     // over-ear headphones: a band that rises from each ear cup over the crown (two lofts, each monotonic in height) and two padded cups
     const R = r.rx + 0.014, ye = Y(0.45), yt = Y(1.0) + 0.03;
     const nr = hiDetail ? 6 : 4, ks = hiDetail ? [0.5, 1, 0.5] : [0.6, 1, 0.6], kd = hiDetail ? [-0.036, 0, 0.036] : [-0.03, 0, 0.03];
@@ -337,18 +338,18 @@ function bodyParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
     const top = hip[hip.length - 1], hem = s.landmarks.crownY * (spec.bottom.long ? 0.12 : spec.top.kind === 'dress' ? 0.25 : 0.31), waist = tor[0];
     const hw = peopleMode() === 'skin' ? Math.max(0.95, bodyTypeOf(spec).hips) : 1;
     // the top ring sits inside the dressed waist so the skirt grows out of the body (no shelf); pleats and hem are the lower rows of the pelvis tile
-    const skirtRect = { x: HI_RECTS.pelvis.x, y: HI_RECTS.pelvis.y + 40, w: HI_RECTS.pelvis.w, h: HI_RECTS.pelvis.h - 40 };
+    const skirtRect = SK_RECTS.pelvis;
     out.push(loft([
       { y: hem, rx: (top[1] + 0.1) * hw, rz: top[3] + 0.1, cz: top[2] }, { y: (hem + top[0]) / 2, rx: (top[1] + 0.05) * hw, rz: top[3] + 0.05, cz: top[2] },
       { y: top[0] - 0.01, rx: (top[1] + 0.022) * hw, rz: top[3] + 0.022, cz: top[2] }, { y: waist[0] + 0.05, rx: waist[1] * 0.985, rz: waist[3] * 0.985, cz: waist[2] },
-    ], seg, peopleMode() === 'skin' ? skirtRect : HI_RECTS.pelvis, 1));
+    ], seg, skirtRect, 1));
   }
   if (spec.gear === 'backpack') {
     const mid = tor[Math.floor(tor.length / 2)], k = spec.build === 'kid' ? 1.1 : 1, back = mid[2] + mid[3];
-    out.push(loft([{ y: tor[1][0], rx: mid[1] * 0.65 * k, rz: 0.075, cz: back + 0.06 }, { y: mid[0], rx: mid[1] * 0.72 * k, rz: 0.085, cz: back + 0.07 }, { y: tor[tor.length - 2][0], rx: mid[1] * 0.65 * k, rz: 0.075, cz: back + 0.06 }], 8, HI_RECTS.gear, 2, 'both'));
+    out.push(loft([{ y: tor[1][0], rx: mid[1] * 0.65 * k, rz: 0.075, cz: back + 0.06 }, { y: mid[0], rx: mid[1] * 0.72 * k, rz: 0.085, cz: back + 0.07 }, { y: tor[tor.length - 2][0], rx: mid[1] * 0.65 * k, rz: 0.075, cz: back + 0.06 }], 8, SK_RECTS.gear, 2, 'both'));
   }
   // carried bags: a hand bag at the left hand, a tote hanging at the side from the shoulder, a messenger bag on the hip with a cross-body strap
-  const gr = HI_RECTS.gear, hemY = s.landmarks.hemY, btg = bodyTypeOf(spec), skinG = peopleMode() === 'skin';
+  const gr = SK_RECTS.gear, hemY = s.landmarks.hemY, btg = bodyTypeOf(spec), skinG = peopleMode() === 'skin';
   const Rg: Record<string, number[]> = {};
   for (const [k, v] of Object.entries(s.rig)) Rg[k] = skinG ? jointFor(k, v, btg) : v;
   if (spec.gear === 'bag') {
@@ -497,18 +498,18 @@ function skinExtras(s: MhShape, spec: PedSpec, hi: boolean): THREE.BufferGeometr
   const out: THREE.BufferGeometry[] = [], lm = s.landmarks, R = s.rig, seg = hi ? 16 : 9;
   const hr = s.headRings, bt = bodyTypeOf(spec);
   if (spec.top.kind === 'hoodie') {
-    const nk = ringAt(hr, lm.chinY - 0.02), y0 = lm.chinY - 0.1, w = 1 + (bt.shoulders - 1) * 0.5;
+    const nk = ringAt(hr, lm.chinY - 0.02), y0 = lm.chinY - 0.075, w = 1 + (bt.shoulders - 1) * 0.5;
     out.push(loft([
-      { y: y0 - 0.06, rx: (nk.rx + 0.05) * w, rz: nk.rz + 0.04, cz: nk.cz + 0.045 },
-      { y: y0 - 0.0, rx: (nk.rx + 0.058) * w, rz: nk.rz + 0.048, cz: nk.cz + 0.05 },
-      { y: y0 + 0.05, rx: nk.rx + 0.032, rz: nk.rz + 0.032, cz: nk.cz + 0.03 },
-      { y: lm.chinY - 0.02, rx: nk.rx + 0.022, rz: nk.rz + 0.022, cz: nk.cz + 0.012 },
-    ], seg, { x: HI_RECTS.torso.x, y: HI_RECTS.torso.y + 2, w: HI_RECTS.torso.w, h: 22 }, 2, 'bottom'));
+      { y: y0 - 0.05, rx: (nk.rx + 0.042) * w, rz: nk.rz + 0.034, cz: nk.cz + 0.04 },
+      { y: y0, rx: (nk.rx + 0.048) * w, rz: nk.rz + 0.04, cz: nk.cz + 0.044 },
+      { y: y0 + 0.04, rx: nk.rx + 0.03, rz: nk.rz + 0.03, cz: nk.cz + 0.028 },
+      { y: lm.chinY - 0.02, rx: nk.rx + 0.02, rz: nk.rz + 0.02, cz: nk.cz + 0.012 },
+    ], seg, SK_RECTS.torso, 2, 'bottom'));
   }
   if (spec.top.long && spec.top.kind !== 'dress') {
     // a coat's lower half: narrower flare than before (the hands hang outside it), starts inside the dressed waist, textured with the bottom rows of the torso tile
     const hip = s.hipRings, top = hip[hip.length - 1], tor = s.torsoRings, waist = tor[0], kneeY = R.kneeL[1] + 0.05, w = Math.max(1, bt.hips);
-    const coatRect = { x: HI_RECTS.torso.x, y: HI_RECTS.torso.y + 96, w: HI_RECTS.torso.w, h: 32 };
+    const coatRect = SK_RECTS.torso;
     out.push(loft([
       { y: kneeY, rx: (top[1] + 0.062) * w, rz: top[3] + 0.05, cz: top[2] },
       { y: (kneeY + top[0]) / 2 + 0.05, rx: (top[1] + 0.04) * w, rz: top[3] + 0.034, cz: top[2] },
@@ -523,17 +524,19 @@ function skinExtras(s: MhShape, spec: PedSpec, hi: boolean): THREE.BufferGeometr
 
 const geoCache = new Map<string, { geo: THREE.BufferGeometry; triangles: number }>();
 const dressCache = new Map<string, MhLod>();
+/** the body of a variant at a LOD: body type and clothing thickness applied to the shape's skin (shared by the geometry and the texture bake) */
+function dressedFor(s: MhShape, variant: number, detail: PedDetail): MhLod {
+  const key = `${s.name}:${variant}:${detail}`;
+  let dl = dressCache.get(key);
+  if (!dl) { dl = dressLod(s, PED_SPECS[variant], s.lods[detail], true); dressCache.set(key, dl); }
+  return dl;
+}
 function geometryFor(s: MhShape, variant: number, detail: PedDetail): { geo: THREE.BufferGeometry; triangles: number } {
-  const skin = peopleMode() === 'skin';
-  const key = `${s.name}:${variant}:${detail}:${skin ? 's' : 'l'}`;
+  const key = `${s.name}:${variant}:${detail}`;
   let c = geoCache.get(key);
   if (c) return c;
   const spec = PED_SPECS[variant];
-  let L = s.lods[detail];
-  const dk = `${key}:dress`;
-  let dl = dressCache.get(dk);
-  if (!dl) { dl = dressLod(s, spec, L, skin); dressCache.set(dk, dl); }
-  L = dl;
+  const L = dressedFor(s, variant, detail);
   const base = new THREE.BufferGeometry();
   base.setAttribute('position', new THREE.BufferAttribute(L.position, 3));
   base.setAttribute('normal', new THREE.BufferAttribute(L.normal, 3));
@@ -542,17 +545,8 @@ function geometryFor(s: MhShape, variant: number, detail: PedDetail): { geo: THR
   base.setAttribute('skinWeight', new THREE.BufferAttribute(L.weights, 4));
   base.setIndex(new THREE.BufferAttribute(L.index, 1));
   const ao = bodyAo(s, L.position);
-  const parts = detail === 'far' ? [] : [...headParts(s, spec, detail === 'hi'), ...bodyParts(s, spec, detail === 'hi'), ...(skin ? skinExtras(s, spec, detail === 'hi') : [])];
-  if (detail === 'hi') {
-    if (skin) {
-      parts.push(...headShell(s, L, ao, spec), ...shoeParts(s, L, spec));
-      base.setIndex(new THREE.BufferAttribute(nonFootTriangles(L), 1));
-    } else {
-      const gm = garmentParts(s, L, ao, spec);
-      parts.push(...gm.parts, ...headShell(s, L, ao, spec), ...shoeParts(s, L, spec));
-      base.setIndex(new THREE.BufferAttribute(nonFootTriangles(L, gm.hide), 1));
-    }
-  }
+  const parts = detail === 'far' ? [] : [...headParts(s, spec, detail === 'hi'), ...bodyParts(s, spec, detail === 'hi'), ...skinExtras(s, spec, detail === 'hi')];
+  if (detail === 'hi') parts.push(...headShell(s, L, ao, spec));
   base.setAttribute('color', new THREE.BufferAttribute(ao, 3));
   for (const g of parts) if (!g.getAttribute('color')) g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(g.getAttribute('position').count * 3).fill(1), 3));
   const geo = parts.length ? mergeGeometries([base, ...parts], false) : base;
@@ -561,6 +555,36 @@ function geometryFor(s: MhShape, variant: number, detail: PedDetail): { geo: THR
   c = { geo, triangles: geo.index!.count / 3 };
   geoCache.set(key, c);
   return c;
+}
+
+// ---------------------------------------------------------------- the painted material (clothes, face, shoes: one colour map per person)
+
+const matCache = new WeakMap<object, Map<string, THREE.Material>>();
+function skinMaterial(materials: IMaterialLibrary, s: MhShape, variant: number, phone: boolean): THREE.Material {
+  let byV = matCache.get(materials);
+  if (!byV) { byV = new Map(); matCache.set(materials, byV); }
+  const key = `${variant}:${phone ? 'p' : 'n'}`;
+  let m = byV.get(key);
+  if (m) return m;
+  const spec = PED_SPECS[variant];
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.88, metalness: 0, vertexColors: true, name: `ped:${spec.id}` });
+  if (typeof document !== 'undefined') {
+    try {
+      const L = dressedFor(s, variant, 'hi');
+      const canvas = bakeSkin({ position: L.position, normal: L.normal, uv: L.uv, index: L.index, joints: L.joints, weights: L.weights, landmarks: s.landmarks, rig: peopleRig(s, spec), headRings: s.headRings as number[][], topHem: topHemY(s, spec), spec }, phone ? 256 : 512);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; tex.name = `ped:${spec.id}`;
+      mat.map = tex;
+    } catch (e) { warnOnce(`pedbake:${spec.id}`, 'ped texture bake failed, flat colour', e); }
+  }
+  if (!mat.map) mat.color.set(spec.top.color);
+  byV.set(key, mat);
+  return mat;
+}
+function peopleRig(s: MhShape, spec: PedSpec): Record<string, number[]> {
+  const bt = bodyTypeOf(spec), R: Record<string, number[]> = {};
+  for (const [k, v] of Object.entries(s.rig)) R[k] = jointFor(k, v, bt);
+  return R;
 }
 
 // ---------------------------------------------------------------- the model
@@ -574,7 +598,7 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
   const spec = PED_SPECS[variant];
   const shape = shapes.get(shapeFor(spec)) ?? shapes.values().next().value as MhShape;
   const phone = pedPhone();
-  const mat = pedHiMaterial(materials, variant, phone);
+  const mat = skinMaterial(materials, shape, variant, phone);
 
   const group = new THREE.Group();
   group.name = 'human';
@@ -583,7 +607,7 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
   // arms hang a little out from a wide body or a flared coat: set on the arm pivots by the pedestrian animation (Pedestrian.reactionPose)
   group.userData.splay = ((): number => { const b = bodyTypeOf(spec); return Math.min(0.2, Math.max(0.02, (spec.top.long ? 0.12 : 0) + (spec.top.kind === 'puffer' ? 0.07 : 0) + Math.max(0, (Math.max(b.hips, b.chest, 1) - 1)) * 0.3 + (spec.bottom.kind === 'skirt' ? 0.05 : 0) + 0.03)); })();
   const bt = bodyTypeOf(spec), R: Record<string, number[]> = {};
-  for (const [k, v] of Object.entries(shape.rig)) R[k] = peopleMode() === 'skin' ? jointFor(k, v, bt) : v;
+  for (const [k, v] of Object.entries(shape.rig)) R[k] = jointFor(k, v, bt);
   const rig = new THREE.Bone(); rig.name = 'rig'; group.add(rig);
   const bone = (name: string, parent: THREE.Object3D, world: number[], pw: number[]): THREE.Bone => { const b = new THREE.Bone(); b.name = name; b.position.set(world[0] - pw[0], world[1] - pw[1], world[2] - pw[2]); parent.add(b); return b; };
   const O = [0, 0, 0];

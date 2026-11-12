@@ -45,7 +45,12 @@ export const MIN_SPLIT_TRIANGLES = 12_000;
  * triangles in every view. Measured at 6 k: medium 1.13-1.25 M -> 0.88-1.02 M triangles (its 1.2 M budget) for 341-380 -> 469-557
  * draws; low would go 871 k -> 700 k triangles for 288 -> 399 draws, so it and phone (150-draw budget) keep the default.
  */
-export const SMALL_MESH_SPLIT_TRIANGLES: Partial<Record<Quality, number>> = { medium: 6_000 };
+export const SMALL_MESH_SPLIT_TRIANGLES: Partial<Record<Quality, number>> = { phone: 15_000, low: 15_000, medium: 6_000 };
+/**
+ * Phone and low also split a mesh below the threshold when it occupies at most this many cells (shop signs, graffiti, roll gates:
+ * 54 one-off meshes of 2 to 2 k triangles, each an always-drawn draw call in every view before). Dense small groups stay whole.
+ */
+export const SPARSE_SPLIT_CELLS: Partial<Record<Quality, number>> = { phone: 4, low: 4 };
 
 /** Sidewalk slabs are 0.15 m tall; buildings and furniture sit on top of them. */
 export const SIDEWALK_HEIGHT = 0.15;
@@ -89,7 +94,8 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
   group.add(props.group);
   colliders.push(...props.colliders);
 
-  const signals = buildSignals(grid, materials);
+  const chunks = chunkLayout(grid.streets, FINE_CELLS[tier]);
+  const signals = buildSignals(grid, materials, chunks); // binned per render cell so the cullers can drop the far ones
   signals.position.y = SIDEWALK_HEIGHT;
   group.add(signals);
   colliders.push(...signalColliders(grid));
@@ -101,15 +107,22 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
 
   // The generators merge one geometry per material city-wide, which frustum culling can never reject. Re-bin the
   // triangles into per-cell meshes (same names/materials, so lamp lookup by name keeps working).
-  const chunks = chunkLayout(grid.streets, FINE_CELLS[tier]);
   const cells: SplitStats = { meshesBefore: 0, meshesAfter: 0, trianglesAfter: 0 };
   // the split threshold grows with the city (it was set for ten blocks): a material group that was not worth splitting then still is not
   const minSplit = SMALL_MESH_SPLIT_TRIANGLES[tier] ?? Math.round(MIN_SPLIT_TRIANGLES * (grid.blocks.length / 10));
-  const split = (g: THREE.Object3D): THREE.Mesh[] => splitMeshesIntoCells(g, chunks.cellX, chunks.cellZ, cells, minSplit, chunks.originX, chunks.originZ);
+  const split = (g: THREE.Object3D): THREE.Mesh[] => splitMeshesIntoCells(g, chunks.cellX, chunks.cellZ, cells, minSplit, chunks.originX, chunks.originZ, SPARSE_SPLIT_CELLS[tier] ?? 0);
   // meshes that were too small to split stay city-wide (no cell key) and are never chunk-culled
   const chunkMeshes = [...split(buildings.group), ...split(furniture.group)].filter((m) => typeof m.userData.cell === 'string'); // instanced kinds are skipped
   // fine-cell tiers cull per cell (a cell is drawn whole, so a 500 x 200 m chunk would draw its far half too); coarse tiers cull per 2 x 2 block chunk
   for (const m of chunkMeshes) m.userData.chunk = FINE_CELLS[tier] ? (m.userData.cell as string) : chunkKeyOfCell(chunks, m.userData.cell as string);
+  // signal poles and lamps were binned by cell in buildSignals: same chunk rule
+  signals.traverse((o) => {
+    const cell = o.userData.chunk as string | undefined;
+    if (!(o as THREE.Mesh).isMesh || cell === undefined) return;
+    o.userData.cell = cell;
+    o.userData.chunk = FINE_CELLS[tier] ? cell : chunkKeyOfCell(chunks, cell);
+    chunkMeshes.push(o as THREE.Mesh);
+  });
   const propCells = split(props.group);
 
   // the far skyline ring: forked last so the streams of everything above are unchanged

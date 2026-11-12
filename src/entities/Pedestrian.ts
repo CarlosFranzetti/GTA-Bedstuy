@@ -5,6 +5,8 @@ import { angleDiff, type Vec2 } from '@/core/Math2';
 import type { SignalLights } from '@/game/TrafficLights';
 import { Rng } from '@/core/Rng';
 import { animateWalk, type HumanModel } from '@/entities/models/humanModel';
+import { AnimController } from '@/entities/anim/controller';
+import { makeGait, type Gait } from '@/entities/anim/gait';
 import { buildPerson as buildPedModel, loadPeople } from '@/entities/models/pedMesh';
 import type { BarkKind } from '@/game/pedBarks';
 import { PED_SPECS } from '@/textures/painters/ped';
@@ -97,6 +99,10 @@ export class Pedestrian implements Entity {
   /** Optional rigged character source (GLB); when set, peds use it instead of the procedural model. */
   static characterSource: CharacterSource | null = null;
   private amp = 0;
+  /** this person's own walk (style, cadence, stride, arm swing, posture) and the clip player that uses it */
+  private gait: Gait | null = null;
+  private anim: AnimController | null = null;
+  private animHeading = 0;
   private targetId: string | null = null;
   private prevId: string | null = null;
   private downTimer = 0;
@@ -474,7 +480,7 @@ export class Pedestrian implements Entity {
     const dx = goal.x - b.pos.x;
     const dz = goal.z - b.pos.z;
     const d = hyp(dx, dz);
-    const speed = this.state === 'fleeing' ? FLEE_SPEED : WALK_SPEED;
+    const speed = this.state === 'fleeing' ? FLEE_SPEED : WALK_SPEED * this.walkGait().speedScale;
     if (d <= Math.max(det ? 0.15 : ARRIVE, speed * dt)) {
       if (det) this.advanceDetour(det);
       else this.arrive(this.sidewalks.nodes[this.targetId!]);
@@ -808,17 +814,30 @@ export class Pedestrian implements Entity {
     if (this.amp < 0.01) this.amp = 0;
     if (this.rig) { this.rig.setSpeed(this.amp * (this.state === 'fleeing' ? 4 : 1.2)); this.rig.update(dt); }
     else if (this.model) {
-      animateWalk(this.model, this.phase, this.amp);
+      // captured-motion clips, each person with their own gait; the hand-keyed walk is the fallback if no clip pack decoded
+      this.anim ??= new AnimController(this.model, this.walkGait());
+      const b = this.body;
+      const yawRate = dt > 0 ? -angleDiff(this.animHeading, b.heading) / dt : 0;
+      this.animHeading = b.heading;
+      if (this.pose === 'phone') this.anim.setIdle('phone', this.gait!.idleOffset > 2.5);
+      else this.anim.setIdle(this.gait!.idleOffset > 3.6 ? 'idle2' : null);
+      const speed = moving ? Math.hypot(b.vel.x, b.vel.z) : 0;
+      if (!this.anim.update(dt, { speed, yawRate })) animateWalk(this.model, this.phase, this.amp);
       this.applyIdlePose(this.model);
     }
   }
+
+  /** This person's gait, from their id and age (deterministic, no random draws). */
+  private walkGait(): Gait { return this.gait ??= makeGait(Rng.hash(`${this.id}:gait`), this.person?.age ?? 'adult'); }
 
   /** Procedural idle poses on top of the walk cycle: looking at a phone, sitting on a step. */
   private applyIdlePose(m: HumanModel): void {
     const pose = this.pose;
     if (pose === 'talk') this.talkPose(m);
     this.reactionPose(m);
-    if (pose === 'phone') {
+    if (pose === 'phone' && this.anim?.idleClipName === 'phone') {
+      // the captured phone-to-ear idle is already playing
+    } else if (pose === 'phone') {
       m.head.rotation.x = -0.45;
       m.arms[1].rotation.x = 1.0;
       m.elbows[1].rotation.x = 1.5;

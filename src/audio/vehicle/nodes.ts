@@ -2,7 +2,7 @@
  * Web Audio side of the vehicle sound model. Works on a live or offline context: everything is AudioParam
  * automation at an explicit time, no node creation per frame. Horn one-shots build nodes per press (rare).
  */
-import { EngineSim, distanceGain, dopplerRatio, pickNearest, engineVoiceFor, type EngineFrame, type EngineVoice } from './engineModel';
+import { EngineSim, engineMix, distanceGain, dopplerRatio, pickNearest, engineVoiceFor, type EngineFrame, type EngineVoice } from './engineModel';
 import { hornTones, sirenHz, type HornSpec, type SirenMode } from './hornModel';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -123,14 +123,14 @@ export class EngineNodes {
     this.A.detune.setTargetAtTime(cents, t, tc);
     this.S.frequency.setTargetAtTime(Math.max(3, f.fire / 2), t, tc);
     this.lope.frequency.setTargetAtTime(Math.max(1, f.rev / 2), t, tc);
-    this.lopeD.gain.setTargetAtTime(v.lope * (0.55 - 0.35 * L) * f.level, t, 0.08);
-    this.lp.frequency.setTargetAtTime(v.tone * (0.5 + rn) + v.open * L * (0.3 + rn), t, 0.05);
-    this.ex.gain.setTargetAtTime(v.ex[2] * (0.5 + 0.5 * L), t, 0.08);
-    const dip = (v.ev ? 0.03 : 1) * (f.shifting ? 0.6 : 1) * (f.cut ? 0.12 : 1) * (f.miss ? 0.15 : 1);
-    this.lim.gain.setTargetAtTime(dip, t, f.miss ? 0.008 : 0.01);
-    this.out.gain.setTargetAtTime(0.4 * v.g * f.level * (0.5 + 0.5 * (L * 0.7 + rn * 0.5)), t, 0.04);
+    const mix = engineMix(v, f);
+    this.lopeD.gain.setTargetAtTime(mix.lope, t, 0.08);
+    this.lp.frequency.setTargetAtTime(mix.lpHz, t, 0.05);
+    this.ex.gain.setTargetAtTime(mix.ex, t, 0.08);
+    this.lim.gain.setTargetAtTime(mix.lim, t, f.miss ? 0.008 : 0.01);
+    this.out.gain.setTargetAtTime(mix.out, t, 0.04);
     this.bp.frequency.setTargetAtTime(350 + 2300 * rn, t, 0.08);
-    this.gAir.gain.setTargetAtTime(v.air * 0.13 * (0.12 + 0.88 * L * (0.3 + rn)) * f.level, t, 0.08);
+    this.gAir.gain.setTargetAtTime(mix.air, t, 0.08);
     if (this.tur) {
       this.spool += (L * rn - this.spool) * 0.05;
       this.tur.o.frequency.setTargetAtTime(2200 + 7000 * this.spool, t, 0.06);

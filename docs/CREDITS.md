@@ -195,3 +195,23 @@ NYC Parks 2015 Street Tree Census (`uvpi-gqnh`) and NYC DCP MapPLUTO / Building 
 | Street trees (positions, trunk size, species) | NYC Parks 2015 Street Tree Census (`uvpi-gqnh`) | public data |
 | Bus stops | MTA New York City Transit Brooklyn bus GTFS `stops.txt` | MTA developer data terms (free use; credit MTA) |
 | Bike docks | Citi Bike GBFS `station_information` (NYC Bike Share / Lyft) | published open data under the NYC Bike Share data licence (attribution; no endorsement implied) |
+
+## Body motion (ANIM): captured walk, jog, run, idles, turn, jump, stumble, sit
+
+`src/entities/anim/corePack.ts` (bundled, generated) and `public/anim/core.bin`, `public/anim/street.bin` (the larger pack, fetched on the hosted and native builds only),
+built by `scripts/anim/build-clips.mjs` from the trials listed in `scripts/anim/catalog.mjs`. The source files are parsed as text and never executed.
+
+- **Source: Carnegie Mellon University Graphics Lab Motion Capture Database** (http://mocap.cs.cmu.edu), subjects 1, 5, 7, 8, 13, 16, 17, 22, 40, 80 (trial numbers in the catalog).
+  The BVH versions are the conversion by Bruce Hahne (cgspeed, 2010 release), fetched from the public mirror
+  https://github.com/una-dinosauria/cmu-mocap (`data/<subject>/<subject>_<trial>.bvh`, master at commit 09a07f54f3bbb58797325f009282d0b2048a2871).
+- **Licence, verified on 12 Nov 2026 from the database's own home page** (https://mocap.cs.cmu.edu/): "This dataset of motions is free for all uses." and
+  "This data is free for use in research projects. You may include this data in commercially-sold products, but you may not resell this data directly, even in converted form."
+  We ship a few kilobytes of derived joint angles inside a game, we do not sell or redistribute the data as data. Requested acknowledgement:
+  *The data used in this project was obtained from mocap.cs.cmu.edu. The database was created with funding from NSF EIA-0196217.* The credits roll should carry that line.
+- **Modified**: retargeted from the CMU skeleton to our 12-bone person (angles re-derived from bone directions, rest pose and proportions replaced), one gait cycle cut and
+  loop-closed per walk or run, resampled to 15 to 24 frames per second, 8-bit quantised. Nothing is ripped from any game.
+- **Checked and not used**: Quaternius Universal Animation Library (CC0 per https://quaternius.com/packs/universalanimationlibrary.html, "License CC0"; the download is behind an itch.io page, not fetched, its rig is also not ours);
+  Kenney animated characters (CC0 as far as known; kenney.nl returned 403 from this machine, not verified);
+  Ubisoft LaFAN1 (CC BY-NC-ND 4.0 per the README at https://github.com/ubisoft/ubisoft-laforge-animation-dataset: non-commercial and no derivatives, ruled out);
+  Bandai Namco Research Motion Dataset (CC BY-NC 4.0 per its README https://github.com/BandaiNamcoResearchInc/Bandai-Namco-Research-Motiondataset, ND on part of it per press coverage: non-commercial, ruled out);
+  100STYLE (CC BY 4.0 per its Zenodo record https://zenodo.org/records/8127870; not needed, CMU covered the list). Mixamo is excluded (its licence does not allow passing the files on).

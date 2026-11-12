@@ -5,9 +5,10 @@
  * approach carries a mast arm reaching over that approach's lane with a 3-lamp vehicle head facing the driver;
  * every pole also carries two pedestrian heads (hand / walking man) facing the pedestrians who cross toward it.
  *
- * Draw calls: 2. One merged mesh holds every pole, arm and housing; one InstancedMesh holds every lamp and is
- * lit/unlit through its per-instance colour (unlit-glass dark vs. lit HDR colour on an unlit material), which is
- * what `updateSignalMeshes` flips whenever a phase changes.
+ * Draw calls: 2 per cell (2 in all without a `cells` layout). One merged mesh holds every pole, arm and housing of the cell; one
+ * InstancedMesh holds every lamp of it and is lit/unlit through its per-instance colour (unlit-glass dark vs. lit HDR colour on an
+ * unlit material), which is what `updateSignalMeshes` flips whenever a phase changes. With a `cells` layout the meshes are binned per
+ * render cell (`userData.chunk` = the cell key, for ChunkCuller) so frustum and distance culling can drop the far ones.
  *
  * Wiring (orchestrator): `group.add(buildSignals(grid, materials))` once, then every frame
  * `updateSignalMeshes(signalGroup, lights)`. Add `signalColliders(grid)` to the static colliders if wanted.
@@ -54,8 +55,10 @@ const DARK: Record<keyof typeof LIT, THREE.Color> = {
 
 interface VehHead { ns: boolean; base: number; }
 interface PedHead { acrossNs: boolean; base: number; }
-interface Rig { id: string; veh: VehHead[]; ped: PedHead[]; key: number; }
-interface SignalRig { lamps: THREE.InstancedMesh; rigs: Rig[]; }
+interface Rig { id: string; veh: VehHead[]; ped: PedHead[]; key: number; lamps: THREE.InstancedMesh | null; }
+type LampMat = { m: THREE.Matrix4; kind: keyof typeof LIT };
+interface Bin { solid: THREE.BufferGeometry[]; lampMats: LampMat[]; rigs: Rig[]; }
+interface SignalRig { lamps: THREE.InstancedMesh[]; rigs: Rig[]; }
 
 interface Corner { sx: number; sz: number; pole: Vec2; }
 
@@ -96,19 +99,23 @@ export function signalColliders(grid: GridModel): StaticCollider[] {
   return out;
 }
 
-export function buildSignals(grid: GridModel, materials: IMaterialLibrary): THREE.Group {
+export function buildSignals(grid: GridModel, materials: IMaterialLibrary, cells?: { cellX: number; cellZ: number; originX: number; originZ: number }): THREE.Group {
   const group = new THREE.Group();
   group.name = 'signals';
-  const solid: THREE.BufferGeometry[] = [];
-  const lampMats: Array<{ m: THREE.Matrix4; kind: keyof typeof LIT }> = [];
+  const bins = new Map<string, Bin>();
   const rigs: Rig[] = [];
 
   for (const it of grid.intersections) {
     if (!signalised(grid, it)) continue;
     const ns = grid.streetById(it.nsStreetId);
     const ew = grid.streetById(it.ewStreetId);
-    const rig: Rig = { id: it.id, veh: [], ped: [], key: -1 };
+    const rig: Rig = { id: it.id, veh: [], ped: [], key: -1, lamps: null };
     rigs.push(rig);
+    const bk = cells ? `${Math.floor((it.center.x - cells.originX) / cells.cellX)}_${Math.floor((it.center.z - cells.originZ) / cells.cellZ)}` : 'all';
+    let bin = bins.get(bk);
+    if (!bin) { bin = { solid: [], lampMats: [], rigs: [] }; bins.set(bk, bin); }
+    bin.rigs.push(rig);
+    const { solid, lampMats } = bin;
 
     for (const c of cornersOf(it)) {
       // pole
@@ -143,39 +150,47 @@ export function buildSignals(grid: GridModel, materials: IMaterialLibrary): THRE
     }
   }
 
-  if (solid.length > 0) {
-    const merged = mergeGeometries(solid, false);
-    for (const g of solid) g.dispose();
-    if (merged) {
-      const poles = new THREE.Mesh(merged, materials.get('metalDark'));
-      poles.name = 'signal-poles';
-      poles.castShadow = true;
-      group.add(poles);
-    }
-  }
-
   const lampGeo = new THREE.CircleGeometry(1, 14);
   const lampMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
-  const lamps = new THREE.InstancedMesh(lampGeo, lampMat, Math.max(1, lampMats.length));
-  lamps.name = 'signal-lamps';
-  lamps.frustumCulled = false;
-  for (let i = 0; i < lampMats.length; i++) {
-    lamps.setMatrixAt(i, lampMats[i].m);
-    lamps.setColorAt(i, DARK[lampMats[i].kind]);
+  const lampMeshes: THREE.InstancedMesh[] = [];
+  for (const [key, bin] of bins) {
+    const { solid, lampMats } = bin;
+    if (solid.length > 0) {
+      const merged = mergeGeometries(solid, false);
+      for (const g of solid) g.dispose();
+      if (merged) {
+        merged.computeBoundingSphere();
+        const poles = new THREE.Mesh(merged, materials.get('metalDark'));
+        poles.name = 'signal-poles';
+        poles.castShadow = true;
+        if (cells) poles.userData.chunk = key;
+        group.add(poles);
+      }
+    }
+    const lamps = new THREE.InstancedMesh(lampGeo, lampMat, Math.max(1, lampMats.length));
+    lamps.name = 'signal-lamps';
+    for (let i = 0; i < lampMats.length; i++) {
+      lamps.setMatrixAt(i, lampMats[i].m);
+      lamps.setColorAt(i, DARK[lampMats[i].kind]);
+    }
+    lamps.count = lampMats.length;
+    lamps.instanceMatrix.needsUpdate = true;
+    if (lamps.instanceColor) lamps.instanceColor.needsUpdate = true;
+    lamps.computeBoundingSphere(); // frustum culling needs it: the instances span the cell, not the unit disc
+    if (cells) lamps.userData.chunk = key;
+    for (const r of bin.rigs) r.lamps = lamps;
+    lampMeshes.push(lamps);
+    group.add(lamps);
   }
-  lamps.count = lampMats.length;
-  lamps.instanceMatrix.needsUpdate = true;
-  if (lamps.instanceColor) lamps.instanceColor.needsUpdate = true;
-  group.add(lamps);
 
-  const sig: SignalRig = { lamps, rigs };
+  const sig: SignalRig = { lamps: lampMeshes, rigs };
   group.userData.signals = sig;
   return group;
 }
 
 function addVehHead(
   solid: THREE.BufferGeometry[],
-  lampMats: Array<{ m: THREE.Matrix4; kind: keyof typeof LIT }>,
+  lampMats: LampMat[],
   rig: Rig,
   ns: boolean,
   headXZ: Vec2,
@@ -211,7 +226,7 @@ function addVehHead(
 
 function addPedHead(
   solid: THREE.BufferGeometry[],
-  lampMats: Array<{ m: THREE.Matrix4; kind: keyof typeof LIT }>,
+  lampMats: LampMat[],
   rig: Rig,
   acrossNs: boolean,
   pole: Vec2,
@@ -240,8 +255,9 @@ export function updateSignalMeshes(group: THREE.Object3D, lights: TrafficLights)
   if (!sig) return;
   const blink = Math.floor(lights.clock * 2) & 1;
   let dirty = false;
-  const lamps = sig.lamps;
   for (const rig of sig.rigs) {
+    const lamps = rig.lamps;
+    if (!lamps) continue;
     const st = lights.stateOf(rig.id);
     if (!st) continue;
     const wNs = WALK_CODE[st.walkAcrossNs];
@@ -264,5 +280,5 @@ export function updateSignalMeshes(group: THREE.Object3D, lights: TrafficLights)
       lamps.setColorAt(h.base + 1, w === 'walk' ? LIT.walk : DARK.walk);
     }
   }
-  if (dirty && lamps.instanceColor) lamps.instanceColor.needsUpdate = true;
+  if (dirty) for (const l of sig.lamps) if (l.instanceColor) l.instanceColor.needsUpdate = true;
 }

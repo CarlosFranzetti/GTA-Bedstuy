@@ -69,8 +69,9 @@ if (params.get('only') === 'top') { window.__ready = { shots: out, top: out.topI
   const s = (st.find((x) => x.id === 'myrtle').s + st.find((x) => x.id === 'kosciuszko').s) / 2 - 120;
   const c = pointOnPath(jz, s);
   const cam = new THREE.PerspectiveCamera(70, W / H, 0.1, 1500);
-  cam.position.set(c.p.x - c.dir.x * 20, 1.7, c.p.z - c.dir.z * 20);
-  cam.lookAt(c.p.x + c.dir.x * 60, 5.5, c.p.z + c.dir.z * 60);
+  const lat = { x: -c.dir.z, z: c.dir.x };
+  cam.position.set(c.p.x - c.dir.x * 34 + lat.x * 9, 1.7, c.p.z - c.dir.z * 34 + lat.z * 9);
+  cam.lookAt(c.p.x + lat.x * 1, 9, c.p.z + lat.z * 1);
   settle(cam);
   let bestT = 0, bestD = 1e9;
   for (let t = 0; t < 700; t += 2) {
@@ -81,35 +82,36 @@ if (params.get('only') === 'top') { window.__ready = { shots: out, top: out.topI
     }
   }
   rw.trains.time = bestT; rw.trains.update(0, cam.position, true);
+  { const car = rw.trains.trains.flatMap((tr) => tr.cars).find((k) => k.group.visible && Math.hypot(k.group.position.x - c.p.x, k.group.position.z - c.p.z) < 12); if (car) { const q = car.group.position; cam.lookAt(q.x, q.y, q.z); } }
   out.trainInfo = { t: bestT, dist: Math.round(bestD) };
   dusk(true, cam);
   shot('under-el-broadway', cam);
   dusk(false);
 }
-// 3. a bent residential street near the spawn: the node where two edges of one street meet at the sharpest angle within 900 m
+// 3. a residential street: a straight side street 90-200 m long within 500 m of the spawn and at least 80 m from the el
 {
   const net = rw.net;
-  const outDir = (e, v) => { const E = net.edges[e]; const fwd = E.a === v; const p0 = fwd ? E.pts[0] : E.pts[E.pts.length - 1]; const p1 = fwd ? E.pts[1] : E.pts[E.pts.length - 2]; const l = Math.hypot(p1.x - p0.x, p1.z - p0.z) || 1; return { x: (p1.x - p0.x) / l, z: (p1.z - p0.z) / l }; };
+  const elPts = []; for (const pth of rw.el.paths) for (let q = 0; q < pth.length; q += 25) elPts.push(pointOnPath(pth, q).p);
   let best = null;
-  net.nodes.forEach((n, v) => {
-    if (Math.hypot(n.p.x - rw.spawn.x, n.p.z - rw.spawn.z) > 900) return;
-    const inc = net.incident[v];
-    for (let i = 0; i < inc.length; i++) for (let j = i + 1; j < inc.length; j++) {
-      const A = net.edges[inc[i]], B = net.edges[inc[j]];
-      if (A.name !== B.name || A.name === 'Broadway' || A.level !== 0 || net.lengths[inc[i]] < 40 || net.lengths[inc[j]] < 40) continue;
-      const d1 = outDir(inc[i], v), d2 = outDir(inc[j], v);
-      const defl = Math.PI - Math.acos(Math.max(-1, Math.min(1, d1.x * d2.x + d1.z * d2.z)));
-      if (defl > 0.12 && (!best || defl > best.defl)) best = { defl, v, d1, d2, name: A.name };
-    }
+  net.edges.forEach((E, e) => {
+    const L = net.lengths[e];
+    if (E.level !== 0 || L < 90 || L > 200 || E.width > 14 || /broadway|myrtle|flushing/i.test(E.name)) return;
+    const m = { x: (E.pts[0].x + E.pts[1].x) / 2, z: (E.pts[0].z + E.pts[1].z) / 2 };
+    if (Math.hypot(E.pts[1].x - E.pts[0].x, E.pts[1].z - E.pts[0].z) < 60) return;
+    const d = Math.hypot(m.x - rw.spawn.x, m.z - rw.spawn.z);
+    if (d > 700 || elPts.some((p) => Math.hypot(p.x - m.x, p.z - m.z) < 40)) return;
+    if (!best || d < best.d) best = { d, e, m, E };
   });
-  const n = net.nodes[best.v].p;
+  const E = best.E, dx = E.pts[1].x - E.pts[0].x, dz = E.pts[1].z - E.pts[0].z, l = Math.hypot(dx, dz);
+  const dir = { x: dx / l, z: dz / l };
   const cam = new THREE.PerspectiveCamera(65, W / H, 0.1, 1500);
-  cam.position.set(n.x + best.d1.x * 35, 1.7, n.z + best.d1.z * 35);
-  cam.lookAt(n.x + best.d2.x * 30, 3, n.z + best.d2.z * 30);
-  out.bentInfo = { name: best.name, deg: Math.round((best.defl * 180) / Math.PI) };
+  const lat = { x: -dir.z, z: dir.x };
+  cam.position.set(E.pts[0].x + dir.x * 22 + lat.x * (E.width / 2 - 1.5), 1.7, E.pts[0].z + dir.z * 22 + lat.z * (E.width / 2 - 1.5));
+  cam.lookAt(E.pts[0].x + dir.x * 70 - lat.x * 3, 3, E.pts[0].z + dir.z * 70 - lat.z * 3);
+  out.bentInfo = { name: E.name, len: Math.round(l) };
   settle(cam);
   dusk(false);
-  shot('bent-street', cam);
+  shot('residential-street', cam);
 }
 {
   // a shop sign: the POI lot nearest the spawn, seen from the street 16 m out, a little to the side

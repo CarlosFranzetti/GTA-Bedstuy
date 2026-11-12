@@ -104,7 +104,7 @@ export function retarget(b, f0, f1, opts = {}) {
       const fd = toe.clone().sub(an).applyQuaternion(shinWorld.clone().invert());
       footDir[s] = fd;
     }
-    out.push({ row, legQ, kneeQ, footDir, hipsY: hipsPos[i].y * k, ankleY: { L: toOurs(fr.pos[I.LeftFoot]).y * k, R: toOurs(fr.pos[I.RightFoot]).y * k }, hipsXZ: [hipsPos[i].x * k, hipsPos[i].z * k], Rh });
+    out.push({ row, legQ, kneeQ, footDir, hipsY: hipsPos[i].y * k, ankleY: { L: toOurs(fr.pos[I.LeftFoot]).y * k, R: toOurs(fr.pos[I.RightFoot]).y * k }, hipsXZ: [(hipsPos[i].x - hipsPos[0].x) * k, (hipsPos[i].z - hipsPos[0].z) * k], Rh });
   }
   // rest foot direction in the shin frame (rest pose has straight legs)
   const restFoot = {};
@@ -138,6 +138,7 @@ export function retarget(b, f0, f1, opts = {}) {
       dy = lowM - Math.min(ours.L, ours.R); // keep the lower (stance) foot where the mocap has it
     }
     o.dy = dy;
+    o.lowM = lowM;
   }
   return { out, k, netYaw, n, yaw0, yaw1 };
 }

@@ -10,9 +10,9 @@
  * 2 blend macro targets (ethnic x gender x age, weight, muscle) into body shapes;
  * 3 map the 163 MakeHuman bones to the game's 12-bone rig (PEDHI: rig hips torso head armL elbowL armR elbowR legL kneeL legR kneeR),
  *   lower the arms of the A pose with those weights, triangulate;
- * 4 decimate with meshoptimizer (hi ~4000, mid ~1500, far ~400 triangles; the 12 bone weights are simplifier attributes so skinning
- *   survives), then give every triangle UVs in the matching tile of PEDHI's 512 px atlas (pedHi.ts HI_RECTS): the painted skin, face
- *   and clothes land on the real geometry. The original MakeHuman UVs are parsed but not shipped (the painters work per body part);
+ * 4 decimate with meshoptimizer (hi ~3400, mid ~1100, far ~400 triangles, the triangles spent on the head, hands and shoulders; the 12 bone
+ *   weights are simplifier attributes so skinning survives), then unwrap every body part with a uniform cylinder map into its tile of the
+ *   512 px atlas (unwrapUVs; SK_TILES in textures/painters/pedSkinPaint.ts). The original MakeHuman UVs are parsed but not shipped;
  * 5 export per shape one meshopt-compressed glb with the meshes hi / mid / far, a 12-joint skin and the rig / head / torso data in
  *   scene.extras.people.
  * Units: metres, feet at y = 0, front at -z, the character's left at -x (the game's convention).
@@ -95,11 +95,11 @@ export const SHAPES = {
  * The far LOD ignores regions (one global pass to `body`).
  */
 export const REGION_BUDGET = {
-  hi: { head: 2000, hands: 700, body: 3700 },
-  mid: { head: 450, hands: 120, body: 930 },
+  hi: { head: 1350, hands: 560, body: 1550 },
+  mid: { head: 380, hands: 100, body: 640 },
   far: { head: 0, hands: 0, body: 400 },
 };
-export const LOD_TRIS = { hi: 6400, mid: 1500, far: 400 };
+export const LOD_TRIS = { hi: 3500, mid: 1100, far: 400 };
 
 // ------------------------------------------------------------------ parsing
 
@@ -196,6 +196,18 @@ export function triangulate(quads, positions) {
     if (d(a, c) <= d(b, e)) out.push(a, b, c, a, c, e); else out.push(a, b, e, b, c, e);
   }
   return Uint32Array.from(out);
+}
+
+/** same triangles as triangulate(), plus the MakeHuman UV index of every corner (the original unwrap is kept: one chart per body part, left and right apart) */
+export function triangulateUv(quads, quadUv, positions) {
+  const out = [], uo = [];
+  const d = (a, b) => Math.hypot(positions[a * 3] - positions[b * 3], positions[a * 3 + 1] - positions[b * 3 + 1], positions[a * 3 + 2] - positions[b * 3 + 2]);
+  for (let q = 0; q < quads.length; q += 4) {
+    const a = quads[q], b = quads[q + 1], c = quads[q + 2], e = quads[q + 3], ua = quadUv[q], ub = quadUv[q + 1], uc = quadUv[q + 2], ue = quadUv[q + 3];
+    if (c === e) { out.push(a, b, c); uo.push(ua, ub, uc); continue; }
+    if (d(a, c) <= d(b, e)) { out.push(a, b, c, a, c, e); uo.push(ua, ub, uc, ua, uc, ue); } else { out.push(a, b, e, b, c, e); uo.push(ua, ub, ue, ub, uc, ue); }
+  }
+  return { indices: Uint32Array.from(out), uvIdx: Uint32Array.from(uo) };
 }
 
 // ------------------------------------------------------------------ the shape
@@ -312,9 +324,10 @@ export function smoothFeet(pos, w12, indices, topY, iterations = 8) {
 export function decimate(simplifier, body, targetTris, budget = null) {
   const { positions, w12, indices } = body;
   if (indices.length / 3 <= targetTris) return compact(body, indices);
+  const nv = positions.length / 3, AW = 12;
   const attr = new Float32Array(w12.length);
   for (let i = 0; i < w12.length; i++) attr[i] = w12[i];
-  const wts = new Array(12).fill(0.05), nv = positions.length / 3;
+  const wts = new Array(12).fill(0.05);
   if (budget && (budget.head > 0 || budget.hands > 0)) {
     const wristY = body.landmarks?.wristY ?? 0.9;
     const region = new Uint8Array(nv);   // 0 body, 1 head, 2 hands
@@ -330,14 +343,14 @@ export function decimate(simplifier, body, targetTris, budget = null) {
       const have = count(ix, r);
       if (have <= want) continue;
       const lock = new Uint8Array(nv).map((_, v) => (region[v] === r ? 0 : 1));
-      [ix] = simplifier.simplifyWithAttributes(ix, positions, 3, attr, 12, wts, lock, (ix.length / 3 - have + want) * 3, 1, []);
+      [ix] = simplifier.simplifyWithAttributes(ix, positions, 3, attr, AW, wts, lock, (ix.length / 3 - have + want) * 3, 1, []);
     }
     // the rest (neck, shoulders, torso, limbs) with head and hands locked, down to the body budget
     const keep = count(ix, 1) + count(ix, 2), lockKeep = new Uint8Array(nv).map((_, v) => (region[v] !== 0 ? 1 : 0));
-    [ix] = simplifier.simplifyWithAttributes(ix, positions, 3, attr, 12, wts, lockKeep, (keep + budget.body) * 3, 1, []);
+    [ix] = simplifier.simplifyWithAttributes(ix, positions, 3, attr, AW, wts, lockKeep, (keep + budget.body) * 3, 1, []);
     return compact(body, ix);
   }
-  const [out] = simplifier.simplifyWithAttributes(indices, positions, 3, attr, 12, wts, null, targetTris * 3, 1, []);
+  const [out] = simplifier.simplifyWithAttributes(indices, positions, 3, attr, AW, wts, null, targetTris * 3, 1, []);
   return compact(body, out);
 }
 
@@ -371,16 +384,17 @@ export function vertexNormals(pos, idx) {
 
 // ------------------------------------------------------------------ UVs into PEDHI's atlas
 
-/** Must equal HI_RECTS / HEAD_MAP / PEDHI_ATLAS in src/textures/painters/pedHi.ts (a unit test checks it). */
+/** Must equal SK_TILES in src/textures/painters/pedSkinPaint.ts (a unit test checks it). The extras (hair, hat, hood, skirt, bag swatches) live in the free block at the top right. */
 export const ATLAS = 512;
 export const TILES = {
-  head: { x: 0, y: 0, w: 256, h: 256 }, hair: { x: 256, y: 0, w: 128, h: 128 }, hat: { x: 384, y: 0, w: 128, h: 128 },
-  torso: { x: 256, y: 128, w: 256, h: 128 }, gear: { x: 256, y: 320, w: 256, h: 64 },
+  head: { x: 0, y: 0, w: 256, h: 256 },
+  torso: { x: 256, y: 128, w: 256, h: 128 },
   upperArm: { x: 0, y: 256, w: 128, h: 128 }, foreArm: { x: 128, y: 256, w: 128, h: 128 }, hand: { x: 256, y: 256, w: 128, h: 64 }, neck: { x: 384, y: 256, w: 128, h: 64 },
   thigh: { x: 0, y: 384, w: 128, h: 128 }, shin: { x: 128, y: 384, w: 128, h: 128 }, pelvis: { x: 256, y: 384, w: 128, h: 128 }, shoe: { x: 384, y: 384, w: 128, h: 128 },
 };
-/** the painter puts the eyes at +-0.034 m of 0.09 m half width, and chin / mouth / nose base / eyes / crown at these fractions of the tile height */
-export const FACE = { eyeFrac: 0.189, t: { chin: 0, mouth: 0.255, nose: 0.42, eye: 0.565, crown: 1 } };
+/** how much of a cylinder tile's width is kept free past the seam, so a triangle that straddles the seam is unwrapped whole instead of cut */
+export const SEAM_MARGIN = 0.2;
+const FACE_T = { chin: 0, mouth: 0.255, nose: 0.42, eye: 0.565, crown: 1 };
 
 export function tileUV(rect, fu, ft) {
   const px = rect.x + 0.5 + Math.min(1, Math.max(0, fu)) * (rect.w - 1), py = rect.y + 0.5 + (1 - Math.min(1, Math.max(0, ft))) * (rect.h - 1);
@@ -404,85 +418,84 @@ export function regionOf(w, cy, lm) {
 }
 
 /**
- * Per-triangle UV projection. Returns a new indexed mesh whose vertices are duplicated per (vertex, tile): attributes
- * position / normal / uv / joints (4) / weights (4). Cylinder tiles wrap the angle around the part's axis with the FRONT at u = 0.5.
+ * Uniform cylinder unwrap per body part (the old per-triangle projection made thin strips of the limbs). Every part is wrapped round its own
+ * axis: u = angle (the seam is put where nobody looks: inside the arm, between the legs, under the arm on the torso, the back of the head),
+ * v = height (the foot: along its length). Left and right limbs share one tile, MIRRORED, so a clothing design is the same on both sides.
+ * A triangle that straddles the seam is unwrapped whole into the margin past u = 1 (vertices are duplicated per shift).
  */
-export function projectUVs(mesh, lm) {
+export function unwrapUVs(mesh, lm) {
   const { positions: P, w12: W, indices: ix } = mesh;
-  const tris = ix.length / 3;
-  const region = new Array(tris);
+  const tris = ix.length / 3, region = new Array(tris), side = new Int8Array(tris);
+  const LIMB = new Set(['upperArm', 'foreArm', 'hand', 'thigh', 'shin', 'shoe']);
   for (let t = 0; t < tris; t++) {
     const w = new Float32Array(12);
-    let cy = 0;
-    for (let k = 0; k < 3; k++) { const v = ix[t * 3 + k]; cy += P[v * 3 + 1] / 3; for (let j = 0; j < 12; j++) w[j] += W[v * 12 + j] / 3; }
+    let cy = 0, cx = 0;
+    for (let k = 0; k < 3; k++) { const v = ix[t * 3 + k]; cy += P[v * 3 + 1] / 3; cx += P[v * 3] / 3; for (let j = 0; j < 12; j++) w[j] += W[v * 12 + j] / 3; }
     region[t] = regionOf(w, cy, lm);
+    side[t] = LIMB.has(region[t]) ? (cx < 0 ? -1 : 1) : 0;
   }
-  // per-tile extents and axis centres (mean x,z of the lowest and the highest fifth)
-  const ext = {};
-  for (let t = 0; t < tris; t++) {
-    const e = (ext[region[t]] ??= { vs: new Set() });
-    for (let k = 0; k < 3; k++) e.vs.add(ix[t * 3 + k]);
-  }
-  for (const e of Object.values(ext)) {
-    const vs = [...e.vs];
+  // per group extents and axis centres
+  const groups = new Map(), key = (t) => `${region[t]}|${side[t]}`;
+  for (let t = 0; t < tris; t++) { const g = groups.get(key(t)) ?? { vs: new Set(), tile: region[t], side: side[t] }; for (let k = 0; k < 3; k++) g.vs.add(ix[t * 3 + k]); groups.set(key(t), g); }
+  for (const g of groups.values()) {
+    const vs = [...g.vs], long = g.tile === 'shoe' ? 2 : 1, a1 = g.tile === 'shoe' ? 1 : 2;      // axis: y (z for a foot); the angle is taken in the plane of the other two
     let lo = Infinity, hi = -Infinity;
-    for (const v of vs) { lo = Math.min(lo, P[v * 3 + 1]); hi = Math.max(hi, P[v * 3 + 1]); }
+    for (const v of vs) { lo = Math.min(lo, P[v * 3 + long]); hi = Math.max(hi, P[v * 3 + long]); }
     const span = Math.max(1e-4, hi - lo);
-    const mean = (f) => { let x = 0, z = 0, c = 0; for (const v of vs) if (f((P[v * 3 + 1] - lo) / span)) { x += P[v * 3]; z += P[v * 3 + 2]; c++; } return c ? [x / c, z / c] : [0, 0]; };
-    e.lo = lo; e.hi = hi; e.cb = mean((q) => q < 0.2); e.ct = mean((q) => q > 0.8);
+    const mean = (f) => { let x = 0, z = 0, c = 0; for (const v of vs) if (f((P[v * 3 + long] - lo) / span)) { x += P[v * 3]; z += P[v * 3 + a1]; c += 1; } return c ? [x / c, z / c] : [0, 0]; };
+    g.lo = lo; g.hi = hi; g.long = long; g.a1 = a1; g.cb = mean((q) => q < 0.2); g.ct = mean((q) => q > 0.8);
   }
-  const eyeX = Math.max(1e-3, lm.eyeX);
+  const head = [...groups.values()].find((g) => g.tile === 'head');
+  let headCz = 0;
+  if (head) { for (const v of head.vs) headCz += P[v * 3 + 2]; headCz /= head.vs.size; }
   const ys = [lm.chinY, lm.chinY + 0.41 * (lm.eyeY - lm.chinY), lm.chinY + 0.68 * (lm.eyeY - lm.chinY), lm.eyeY, lm.crownY];
-  const ts = [FACE.t.chin, FACE.t.mouth, FACE.t.nose, FACE.t.eye, FACE.t.crown];
-  const headT = (y) => {
-    if (y <= ys[0]) return 0;
-    for (let k = 1; k < ys.length; k++) if (y <= ys[k]) return ts[k - 1] + ((y - ys[k - 1]) / (ys[k] - ys[k - 1])) * (ts[k] - ts[k - 1]);
-    return 1;
-  };
-  let headCz = 0, headN = 0;
-  for (const v of ext.head?.vs ?? []) { headCz += P[v * 3 + 2]; headN++; }
-  headCz = headN ? headCz / headN : 0;
-  const uvOf = (tile, v) => {
-    const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
-    if (tile === 'head') {
-      const fu = z > headCz + 0.015 ? (x >= 0 ? 0.992 : 0.008) : 0.5 + FACE.eyeFrac * (x / eyeX);
-      return [Math.min(0.992, Math.max(0.008, fu)), headT(y)];
+  const ts = [FACE_T.chin, FACE_T.mouth, FACE_T.nose, FACE_T.eye, FACE_T.crown];
+  const headT = (y) => { if (y <= ys[0]) return 0; for (let k = 1; k < ys.length; k++) if (y <= ys[k]) return ts[k - 1] + ((y - ys[k - 1]) / (ys[k] - ys[k - 1])) * (ts[k] - ts[k - 1]); return 1; };
+  const TAU = Math.PI * 2;
+  const uOf = (g, v) => {
+    const x = P[v * 3], yy = P[v * 3 + g.long], zz = P[v * 3 + g.a1], ft = (yy - g.lo) / Math.max(1e-4, g.hi - g.lo);
+    const cx = g.cb[0] + (g.ct[0] - g.cb[0]) * ft, cz = g.cb[1] + (g.ct[1] - g.cb[1]) * ft;
+    if (g.tile === 'head') {
+      // front at the middle of the tile, the front half weighted twice as dense as the back; the seam is the back of the skull
+      let a = Math.atan2(x - 0, -(zz - headCz));            // 0 = straight ahead (-z), +- pi = behind
+      const sgn = a < 0 ? -1 : 1, s0 = Math.min(1, Math.abs(a) / Math.PI);
+      return [0.5 + 0.5 * sgn * (2 * s0 - s0 * s0), headT(yy)];
     }
-    const e = ext[tile];
-    const ft = (y - e.lo) / Math.max(1e-4, e.hi - e.lo);
-    const cx = e.cb[0] + (e.ct[0] - e.cb[0]) * ft, cz = e.cb[1] + (e.ct[1] - e.cb[1]) * ft;
-    let a = Math.atan2(x - cx, z - cz);
-    if (a < 0) a += Math.PI * 2;
-    return [a / (Math.PI * 2), ft];
+    const mir = g.side > 0 ? -1 : 1;                          // right limbs are mirrored
+    let a;
+    if (g.tile === 'shoe') a = Math.atan2(mir * (x - cx), yy === undefined ? 0 : P[v * 3 + 1] - cz);
+    else a = Math.atan2(mir * (x - cx), zz - cz);
+    // seam: 0 at the back for the neck; inside the arm for arms and hands; between the legs; under the left arm on the torso and hips
+    const phi = g.tile === 'neck' ? 0 : g.tile === 'torso' || g.tile === 'pelvis' ? -Math.PI / 2 : Math.PI / 2;
+    let u = ((a - phi) % TAU + TAU) % TAU / TAU;
+    return [u, ft];
   };
-  const keyMap = new Map();
-  const outPos = [], outUv = [], outSrc = [], outIdx = [];
+  const M = SEAM_MARGIN, keyMap = new Map(), outSrc = [], outUv = [], outIdx = [];
   for (let t = 0; t < tris; t++) {
-    const tile = region[t];
-    const uv3 = [0, 1, 2].map((k) => uvOf(tile, ix[t * 3 + k]));
+    const g = groups.get(key(t)), tile = TILES[g.tile];
+    const uv3 = [0, 1, 2].map((k) => uOf(g, ix[t * 3 + k]));
     const us = uv3.map((u) => u[0]);
-    if (tile !== 'head' && Math.max(...us) - Math.min(...us) > 0.5) for (const u of uv3) u[0] = 0.01; // crosses the back seam
-    if (tile === 'head' && Math.max(...us) - Math.min(...us) > 0.5) for (const u of uv3) u[0] = us.reduce((a, b) => a + b, 0) / 3 < 0.5 ? 0.008 : 0.992;
+    if (Math.max(...us) - Math.min(...us) > 0.5) for (const u of uv3) if (u[0] < 0.5) u[0] += 1;
+    if (Math.max(...uv3.map((u) => u[0])) - Math.min(...uv3.map((u) => u[0])) > M + 0.04 && g.tile !== 'head') { const m = uv3.reduce((s2, u) => s2 + u[0], 0) / 3; for (const u of uv3) u[0] = m; }   // a pole triangle: collapse
     for (let k = 0; k < 3; k++) {
       const v = ix[t * 3 + k];
       const [u, ft] = uv3[k];
-      const [tu, tv] = tileUV(TILES[tile], u, ft);
-      const key = `${v}|${tile}|${Math.round(tu * 4096)}|${Math.round(tv * 4096)}`;
-      let o = keyMap.get(key);
-      if (o === undefined) { o = outSrc.length; keyMap.set(key, o); outSrc.push(v); outUv.push(tu, tv); }
+      const [tu, tv] = tileUV(tile, Math.min(1, u / (g.tile === 'head' ? 1 : 1 + M)), ft);
+      const kk = `${v}|${g.tile}|${g.side}|${Math.round(tu * 4096)}|${Math.round(tv * 4096)}`;
+      let o = keyMap.get(kk);
+      if (o === undefined) { o = outSrc.length; keyMap.set(kk, o); outSrc.push(v); outUv.push(tu, tv); }
       outIdx.push(o);
     }
   }
-  const n = outSrc.length;
-  const normals = vertexNormals(P, ix);
+  const n = outSrc.length, normals = vertexNormals(P, ix);
   const position = new Float32Array(n * 3), normal = new Float32Array(n * 3), joints = new Uint8Array(n * 4), weights = new Float32Array(n * 4);
   outSrc.forEach((v, i) => {
     position.set(P.subarray(v * 3, v * 3 + 3), i * 3);
     normal.set(normals.subarray(v * 3, v * 3 + 3), i * 3);
     const order = [...Array(12).keys()].sort((a, b) => W[v * 12 + b] - W[v * 12 + a]).slice(0, 4);
-    let s = 0;
-    for (const j of order) s += W[v * 12 + j];
-    order.forEach((j, k) => { joints[i * 4 + k] = j; weights[i * 4 + k] = W[v * 12 + j] / s; });
+    let sum = 0;
+    for (const j of order) sum += W[v * 12 + j];
+    order.forEach((j, k2) => { joints[i * 4 + k2] = j; weights[i * 4 + k2] = W[v * 12 + j] / sum; });
   });
   return { position, normal, uv: Float32Array.from(outUv), joints, weights, indices: Uint32Array.from(outIdx), regions: region };
 }
@@ -540,7 +553,7 @@ export function buildShape(src, simplifier, name) {
   const lods = {};
   for (const [lod, tris] of Object.entries(LOD_TRIS)) {
     const m = decimate(simplifier, body, tris, REGION_BUDGET[lod]);
-    lods[lod] = { ...projectUVs(m, body.landmarks), triangles: m.indices.length / 3, mesh: m };
+    lods[lod] = { ...unwrapUVs(m, body.landmarks), triangles: m.indices.length / 3, mesh: m };
   }
   const hiMesh = lods.hi.mesh, lm = body.landmarks;
   const r = (v) => Math.round(v * 1e4) / 1e4;

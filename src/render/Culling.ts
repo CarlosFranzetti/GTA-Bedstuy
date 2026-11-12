@@ -217,7 +217,7 @@ export class ChunkCuller {
     else { c.minX = Math.min(c.minX, this.box.min.x); c.maxX = Math.max(c.maxX, this.box.max.x); c.minZ = Math.min(c.minZ, this.box.min.z); c.maxZ = Math.max(c.maxZ, this.box.max.z); }
     c.meshes.push(mesh);
     if (PHONE_HIDDEN_MESH.test(mesh.name)) c.detail.push(mesh);
-    else if (mesh.name.startsWith('buildings:') && mesh.geometry.getAttribute('normal')) c.far.push(mesh);
+    else if (mesh.name.startsWith('buildings:') && !mesh.userData.sparse && mesh.geometry.getAttribute('normal')) c.far.push(mesh);
   }
   private farDist(): number {
     if (this.farOverride !== null) return this.farOverride;
@@ -296,13 +296,17 @@ export interface SplitStats { meshesBefore: number; meshesAfter: number; triangl
  * userData are kept (names must stay identical: e.g. setLampsLit finds the lamp heads by name). `userData.cell`
  * holds the cell key. Returns the new cell meshes.
  */
-export function splitMeshesIntoCells(group: THREE.Object3D, cellX: number, cellZ: number, stats?: SplitStats, minTris = 0, originX = 0, originZ = 0): THREE.Mesh[] {
+export function splitMeshesIntoCells(group: THREE.Object3D, cellX: number, cellZ: number, stats?: SplitStats, minTris = 0, originX = 0, originZ = 0, sparseMaxCells = 0): THREE.Mesh[] {
   const result: THREE.Mesh[] = [];
   // InstancedMesh geometry is a local template shared by every instance: never re-bin it
   const originals = group.children.filter((o): o is THREE.Mesh => (o as THREE.Mesh).isMesh === true && !(o as THREE.InstancedMesh).isInstancedMesh);
   for (const mesh of originals) {
     if (stats) stats.meshesBefore++;
-    const parts = Array.isArray(mesh.material) || triangleCount(mesh.geometry) < minTris ? null : splitGeometryByCell(mesh.geometry, cellX, cellZ, originX, originZ);
+    // A mesh under `minTris` stays whole (one always-drawn city-wide draw) unless it is sparse: at most `sparseMaxCells` occupied cells
+    // (the one-off shop signs, graffiti, roll gates). Split, only the cells in view are drawn instead of every such mesh of the city.
+    const small = triangleCount(mesh.geometry) < minTris;
+    let parts = Array.isArray(mesh.material) || (small && sparseMaxCells <= 0) ? null : splitGeometryByCell(mesh.geometry, cellX, cellZ, originX, originZ);
+    if (parts && small && parts.size > sparseMaxCells) { for (const g of parts.values()) g.dispose(); parts = null; }
     if (!parts || parts.size <= 1) { result.push(mesh); if (stats) { stats.meshesAfter++; } continue; }
     for (const [key, g] of parts) {
       const m = new THREE.Mesh(g, mesh.material);
@@ -312,6 +316,7 @@ export function splitMeshesIntoCells(group: THREE.Object3D, cellX: number, cellZ
       m.renderOrder = mesh.renderOrder;
       m.position.copy(mesh.position); m.quaternion.copy(mesh.quaternion); m.scale.copy(mesh.scale);
       m.userData = { ...mesh.userData, cell: key };
+      if (small) m.userData.sparse = true; // too small to be worth a clustered far geometry
       group.add(m);
       result.push(m);
       if (stats) { stats.meshesAfter++; stats.trianglesAfter += g.index ? g.index.count / 3 : 0; }

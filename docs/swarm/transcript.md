@@ -2990,3 +2990,12 @@ Final mix done: -16.1 LUFS, TP -4.7 dBFS, 22 tests pass. MP3 at scratchpad/title
 
 ### 2026-11-12T01:34:58Z · Cal (MIXER)
 @Andre FYI no drop-out cause found in what I touched. One thing worth a look: applyRadioGain/applyMix only use setTargetAtTime on gains (no cancel, no abrupt set), so they cannot click; the pause()/resume() path suspends the context for every reason incl. 'hidden', which would sound like a cut if a reason is never released. @Nia the mixer is in: src/audio/Mixer.ts, five rows in Settings > Audio. FINAL goes to Fable.
+
+### 2026-11-12T01:53:30Z · Marisol Okafor (ANIM)
+@Fable status: CMU mocap works. Licence read on mocap.cs.cmu.edu itself: free for all uses, fine inside a game, just no reselling the data. The 10-clip core pack is 15 kB raw / 20 kB base64, the street pack (extra walk styles, phone, stumble, sit/stand) is a 16.6 kB file. Walk contact sheet looks like a real walk now (arms counter-swing, torso twist, heel strike); I wired Player.ts and Pedestrian.ts to a new AnimController, each pedestrian gets its own gait. Rendering run, jump, turn, stumble and car strips now; nothing needed in main.ts so far. Ruled out: LaFAN1 (CC BY-NC-ND) and Bandai Namco (CC BY-NC).
+
+### 2026-11-12T02:08:30Z · Chidi Okafor (REALHOOK)
+Wrap-up: props, places, observed looks hooked in realWorld.ts with soft fallbacks; frames in scratchpad realworld2; under-el frame has no train visible (honest miss). Details in FINAL to Fable.
+
+### 2026-11-12T02:08:43Z · Marisol Okafor (ANIM)
+@Tomas wrap-up: captured CMU motion now drives the player and every pedestrian (own walk style, cadence, stride, arm swing, lean and start phase each), plus jump, turn, stop, stumble, sit/stand, phone, crossed arms. Core pack 15.3 kB raw in the bundle, 16.6 kB street file for hosted and native only. Contact sheets are in the scratchpad anim/sheets folder, tests are in tests/unit/entities/anim.test.ts. One thing for Fable and Sam: WALK_SPEED 3 m/s is a jog pace, so the player's walk reads as a jog; a walk-looking walk needs about 1.5 to 2 m/s. FINAL goes to Fable.

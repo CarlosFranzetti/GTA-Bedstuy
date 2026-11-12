@@ -1,0 +1,105 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>anim sheet</title>
+<style>html,body{margin:0;background:#789;overflow:hidden}</style></head>
+<body><script type="module">
+// ANIM review harness: side-view contact sheets of one cycle (8 poses), before (hand-keyed sine walk) and after (captured clips).
+// Dev server only: vite --port N, then /scripts/anim-sheet.html?mode=walk|run|jog|car|stumble|turn|jump&when=before|after
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Rng } from '@/core/Rng';
+import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { buildPerson as buildPedModel, loadPeople } from '@/entities/models/pedMesh';
+import { pedVariantIndex } from '@/textures/painters/ped';
+import { animateWalk } from '@/entities/models/humanModel';
+import { AnimController } from '@/entities/anim/controller';
+import { clipLibrary } from '@/entities/anim/library';
+import { sampleClip, NCH } from '@/entities/anim/clipPack';
+import { PLAYER_GAIT } from '@/entities/anim/gait';
+import { cycleFrequency, chainBlend } from '@/entities/anim/locomotion';
+await loadPeople();
+const params = new URLSearchParams(location.search);
+const mode = params.get('mode') ?? 'walk', when = params.get('when') ?? 'after';
+const W = Number(params.get('w') ?? 1600), H = Number(params.get('h') ?? 520);
+const lib = clipLibrary();
+await lib.loadStreet('/anim/street.bin', fetch);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xc9d3dc);
+const pm = new THREE.PMREMGenerator(renderer);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.6;
+const sun = new THREE.DirectionalLight(0xfff2dc, 2.4); sun.position.set(8, 10, 3); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x6a5a48, 0.8));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({ color: 0x8a8d92, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const materials = new MaterialLibrary(new Rng(7));
+materials.carPaintDetail();
+materials.setEnvironment(scene.environment);
+
+const N = 8;
+const FRONT = params.get('view') === 'front';
+const SP = mode === 'car' || mode === 'stumble' || mode === 'turn' || mode === 'jump' ? 1.15 : 0.95;
+const v = pedVariantIndex('ba-hoodie-fade');
+const speeds = { walk: 1.3, jog: 2.6, run: 6.5 };
+const oldAmp = { walk: 1.0, jog: 1.0, run: 1.6 };
+const models = [];
+for (let i = 0; i < N; i++) {
+  const m = buildPedModel(materials, new Rng(v + 1), { variant: v });
+  m.group.rotation.y = 0; // faces -z; the camera looks along -x, so forward is screen-right
+  if (FRONT) m.group.position.set((i - (N - 1) / 2) * SP, 0, 0); else m.group.position.set(0, 0, -(i - (N - 1) / 2) * SP);
+  scene.add(m.group); models.push(m);
+}
+if (mode === 'walk' || mode === 'jog' || mode === 'run') {
+  models.forEach((m, i) => {
+    if (when === 'before') animateWalk(m, Math.PI / 2 + (i / N) * Math.PI * 2, oldAmp[mode]);
+    else {
+      const c = new AnimController(m, PLAYER_GAIT, lib);
+      const sp = speeds[mode];
+      const chain = [lib.get('walk'), lib.get('jog'), lib.get('run')];
+      const f = cycleFrequency(sp, chain, chainBlend(sp, chain), 1);
+      c.update((i / N) / f + 1e-6, { speed: sp });
+    }
+  });
+} else if (mode === 'idles') {
+  const names = [null, 'phone', 'crossed', 'lean', 'idle2', null, 'phone', 'crossed'];
+  models.forEach((m, i) => {
+    const c = new AnimController(m, PLAYER_GAIT, lib);
+    c.setIdle(names[i], i >= 5);
+    for (let k = 0; k < 90; k++) c.update(1 / 30, { speed: 0 });
+  });
+} else if (mode === 'car') {
+  const clip = lib.get('sitDown');
+  models.forEach((m, i) => {
+    const c = new AnimController(m, PLAYER_GAIT, lib);
+    c.playOnce('sitDown', { fadeIn: 0.001, fadeOut: 0.001 });
+    c.update((i / (N - 1)) * clip.duration * 0.999, { speed: 0 });
+    if (i === N - 1) { // a seat under the last pose
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.6), new THREE.MeshStandardMaterial({ color: 0x333a44 }));
+      seat.position.set(0, 0.58, -(i - (N - 1) / 2) * SP + 0.12); scene.add(seat);
+    }
+  });
+} else {
+  const name = mode === 'stumble' ? 'stumble' : mode === 'turn' ? 'turn' : 'jump';
+  const clip = lib.get(name);
+  models.forEach((m, i) => {
+    const c = new AnimController(m, PLAYER_GAIT, lib);
+    if (name === 'jump') {
+      const ph = i < 2 ? ['takeoff', 0.035 * (i + 1)] : i < 6 ? ['air', ((i - 1.5) / 4.5) * 0.55] : ['land', 0.05 * (i - 5)];
+      c.update(0.001, { speed: 0, jump: { phase: ph[0], t: ph[1], vy: 4.6 } });
+      for (let k = 0; k < 8; k++) c.update(0.02, { speed: 0, jump: { phase: ph[0], t: ph[1], vy: 4.6 } });
+    } else {
+      c.playOnce(name, { fadeIn: 0.001, fadeOut: 0.001 });
+      c.update((i / (N - 1)) * clip.duration * 0.999, { speed: 0 });
+    }
+  });
+}
+const span = (N - 1) * SP + 1.1;
+const aspect = W / H, halfH = Math.max(1.05, span / aspect / 2);
+const cam = new THREE.OrthographicCamera(-span / 2 * 1.02, span / 2 * 1.02, halfH + 0.45, -halfH + 0.45, 0.1, 100);
+if (FRONT) { cam.position.set(0, 0.9, -12); cam.lookAt(0, 0.9, 0); } else { cam.position.set(12, 0.9, 0); cam.lookAt(0, 0.9, 0); }
+cam.top = 1.0 + (halfH - 1.0) + 0.2 + 0.0; cam.bottom = cam.top - 2 * halfH; cam.updateProjectionMatrix();
+for (let i = 0; i < 3; i++) renderer.render(scene, cam);
+window.__ready = { tris: renderer.info.render.triangles, mode, when, clips: lib.names.length };
+</script></body></html>

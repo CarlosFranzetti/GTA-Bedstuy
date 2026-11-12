@@ -108,6 +108,23 @@ export interface EngineFrame {
 }
 
 const SHIFT_TIME = 0.26;
+/** Share of the throttle load the engine keeps while a gear change is in progress (a shift is a dip, not a cut-out). */
+export const SHIFT_LOAD = 0.7;
+/** Limiter-gain multiplier during a gear change. */
+export const SHIFT_LIM = 0.85;
+
+/** Per-frame engine mix targets (gain / cutoff values) that EngineNodes.apply schedules; pure so the shift dip can be tested. */
+export function engineMix(v: EngineVoice, f: EngineFrame): { lope: number; lpHz: number; ex: number; lim: number; out: number; air: number } {
+  const rn = clamp(f.rpm / v.red, 0, 1), L = f.load;
+  return {
+    lope: v.lope * (0.55 - 0.35 * L) * f.level,
+    lpHz: v.tone * (0.5 + rn) + v.open * L * (0.3 + rn),
+    ex: v.ex[2] * (0.5 + 0.5 * L),
+    lim: (v.ev ? 0.03 : 1) * (f.shifting ? SHIFT_LIM : 1) * (f.cut ? 0.12 : 1) * (f.miss ? 0.15 : 1),
+    out: 0.4 * v.g * f.level * (0.5 + 0.5 * (L * 0.7 + rn * 0.5)),
+    air: v.air * 0.13 * (0.12 + 0.88 * L * (0.3 + rn)) * f.level,
+  };
+}
 const CRANK_TIME = 0.85;
 const STOP_TIME = 0.7;
 
@@ -196,7 +213,7 @@ export class EngineSim {
     const wob = this.phase === 'run' ? v.wob * (Math.sin(this.t * 10.7) * 0.6 + Math.sin(this.t * 19.3 + 1) * 0.4) * idleW() : 0;
     return {
       rpm: this.rpm, gear: this.gear, fire: firingHz(this.rpm, v.cyl), rev: this.rpm / 60,
-      level, load: this.shiftT > 0 ? 0 : th, shifting: this.shiftDir, cut, starter, wob, pops, blowoff, miss,
+      level, load: this.shiftT > 0 ? th * SHIFT_LOAD : th, shifting: this.shiftDir, cut, starter, wob, pops, blowoff, miss,
       running: this.phase === 'run',
     };
   }

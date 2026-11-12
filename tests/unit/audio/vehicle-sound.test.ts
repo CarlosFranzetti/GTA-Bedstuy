@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { VEHICLE_SPECS } from '@/entities/Vehicle';
-import { ENGINE_VOICES, EngineSim, engineVoiceFor, firingHz, gearRatios, gearForSpeedOf, pickNearest, rpmAt, distanceGain, dopplerRatio } from '@/audio/vehicle/engineModel';
+import { ENGINE_VOICES, EngineSim, engineMix, engineVoiceFor, firingHz, gearRatios, gearForSpeedOf, pickNearest, rpmAt, distanceGain, dopplerRatio } from '@/audio/vehicle/engineModel';
 import { HORNS, HonkLimiter, sirenHz, sirenModeFor } from '@/audio/vehicle/hornModel';
 import { DOOR_CLASS, SURFACES, footstepLayers, tyreRoll, crashLayers } from '@/audio/vehicle/fx';
 import { TrafficEngines, EngineNodes, playHorn, type TrafficCar } from '@/audio/vehicle/nodes';
@@ -146,6 +146,28 @@ describe('picking, falloff, honks', () => {
     expect(pickNearest(['a'], [{ id: 'a', d: 10 }, { id: 'b', d: 9 }], 1)).toEqual(['a']);
     expect(pickNearest(['a'], [{ id: 'a', d: 10 }, { id: 'b', d: 5 }], 1)).toEqual(['b']);
   });
+  it('a gear change is a dip, not a cut-out: no mix target falls far below its pre-shift value (AUDIOBUG)', () => {
+    // measured in the browser: shifts every 1 to 3 s while accelerating dropped the master by 12 to 15 dB for 0.4 s each
+    for (const [t, v] of Object.entries(ENGINE_VOICES)) {
+      if (v.gears < 2 || v.ev) continue;
+      const sim = new EngineSim(v, () => 0.5); sim.startNow();
+      let speed = 0, before = engineMix(v, sim.update(1 / 60, 0, 1)), shifts = 0;
+      for (let i = 0; i < 60 * 20; i++) {
+        speed = Math.min(v.vmax, speed + v.vmax / 14 / 60);
+        const f = sim.update(1 / 60, speed, 1);
+        const m = engineMix(v, f);
+        if (f.shifting > 0) {
+          shifts++;
+          expect(m.out / before.out, `${t} out`).toBeGreaterThan(0.8);
+          expect(m.lim / before.lim, `${t} limiter`).toBeGreaterThan(0.8);
+          expect(m.lpHz / before.lpHz, `${t} cutoff`).toBeGreaterThan(0.6);
+          expect(m.ex / before.ex, `${t} exhaust`).toBeGreaterThan(0.75);
+        } else before = m;
+      }
+      expect(shifts, t).toBeGreaterThan(0);
+    }
+  });
+
   it('distance gain falls off and doppler shifts up when approaching', () => {
     expect(distanceGain(1)).toBeGreaterThan(distanceGain(20));
     expect(distanceGain(70)).toBe(0);
