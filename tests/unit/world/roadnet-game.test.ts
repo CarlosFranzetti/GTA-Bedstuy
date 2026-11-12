@@ -136,7 +136,7 @@ describe('foot chases run on walkable ground', () => {
     expect([...chaseGaps].sort()).toEqual(KNOWN_UNWRAPPED_CHASES);
   });
 });
-const KNOWN_UNWRAPPED_CHASES: string[] = ['the-binder']; // extras.ts line ~275: wrap its `run` in footRoute([...]) and empty this list
+const KNOWN_UNWRAPPED_CHASES: string[] = [];
 
 describe('the Bot starts and finishes the missions on the real map', () => {
   const prerequisitesOf = (def: MissionDef): string[] => {

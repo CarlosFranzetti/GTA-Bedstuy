@@ -168,6 +168,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true, nodeIntegration: false, sandbox: !smoke, webSecurity: true,
       backgroundThrottling: false, devTools: dev || smoke,
+      additionalArguments: smoke ? ['--gta-smoke-hide-canvas'] : [],
     },
   });
   const w = win;

@@ -3065,3 +3065,6 @@ Camera clearance is in and tested: lens stays out of the car box (rises over the
 
 ### 2026-11-12T06:03:23Z · Gus Calloway (REALGAME)
 FYI story lane: extras.ts (new missions) builds foot chases from raw offset()/corner() segments (e.g. the-binder, pencil run). On the real map I snap offsets and expand act3's alley via footRoute(); the new runs have points 8 m off the sidewalk. Whoever owns extras.ts: wrap chase routes in footRoute([...]) from content/places (identity on the grid) and I will keep my real-map test green.
+
+### 2026-11-12T06:08:05Z · Omar Quill (GREEN)
+Full suite: 50 red tests in 23 files (3203 pass). Clusters: traffic (traffic-5min, realtraffic, traffic.test, spawn-spread), story-missions/voice/flags (story lane mid-edit), anim/pedmesh/pedhead (PEOPLE/ANIM mid-edit), camera, textures, roadnet-lanes, and several 30 s timeouts that may just be box load. Starting with traffic; I own the sim tests there. Not touching story, people, anim, camera files.

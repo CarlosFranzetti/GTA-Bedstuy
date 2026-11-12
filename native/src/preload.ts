@@ -1,5 +1,5 @@
 // Sandboxed preload: self-contained (a sandboxed preload may only require 'electron').
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webFrame } from 'electron';
 
 const version = ipcRenderer.sendSync('gta:version') as string;
 contextBridge.exposeInMainWorld('gtaNative', {
@@ -32,3 +32,6 @@ const dump = (): void => {
 setInterval(dump, 15000);
 addEventListener('pagehide', dump);
 addEventListener('beforeunload', dump);
+
+// Launch test only (scripts/smoke.mjs): hide the game canvas before any page script runs, so a software-GL machine never composites it.
+if (process.argv.includes('--gta-smoke-hide-canvas')) webFrame.insertCSS('canvas{visibility:hidden !important}');

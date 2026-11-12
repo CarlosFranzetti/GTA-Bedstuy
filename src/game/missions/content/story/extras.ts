@@ -13,7 +13,7 @@
 import type { Vec2 } from '@/core/Math2';
 import { F } from '@/game/story/flags';
 import type { MissionDef } from '../../types';
-import { corner, facePoint, offset, poiSpot, streetMid, type PlaceCtx } from '../places';
+import { corner, facePoint, footRoute, offset, poiSpot, streetMid, type PlaceCtx } from '../places';
 import { VENUE_BLOCKPARTY } from '../djIds';
 import type { StoryFeatures } from './north';
 
@@ -196,7 +196,7 @@ export function carbonCopy(ctx: PlaceCtx): MissionDef {
   const meet = facePoint(grid, 'r3c1', 'E', 0.5);
   const tags = [facePoint(grid, 'r3c1', 'E', 0.18), facePoint(grid, 'r3c1', 'E', 0.85), facePoint(grid, 'r4c1', 'E', 0.2)];
   const flat = facePoint(grid, 'r4c1', 'E', 0.55);
-  const run = [facePoint(grid, 'r4c1', 'E', 0.62), facePoint(grid, 'r4c1', 'N', 0.12), facePoint(grid, 'r3c1', 'S', 0.1)];
+  const run = footRoute([facePoint(grid, 'r4c1', 'E', 0.62), facePoint(grid, 'r4c1', 'N', 0.12), facePoint(grid, 'r3c1', 'S', 0.1)]);
   return {
     id: 'carbon-copy', title: 'Carbon Copy', act: 2, tag: 'side', requires: ['fleece-vest'], availableHours: [20, 4],
     blurb: 'Priya, a building inspector with a route of 61 addresses, needs a witness and a camera tonight. Three boilers have been "inspected" by the same pencil.',
@@ -272,7 +272,7 @@ export function theBinder(ctx: PlaceCtx, features: StoryFeatures = {}): MissionD
   const { home, north, hasEl } = trainPoints(ctx, features);
   const meet = hasEl ? offset(home, -14, 6) : home;
   const desk = offset(north, 18, -8);
-  const run = [offset(north, 26, -10), offset(north, 52, -26), offset(north, 80, -14), offset(north, 92, 6)];
+  const run = footRoute([offset(north, 26, -10), offset(north, 52, -26), offset(north, 80, -14), offset(north, 92, 6)]);
   return {
     id: 'the-binder', title: 'The Binder', act: 2, tag: 'side', requires: ['open-house'], availableHours: [9, 21],
     blurb: 'Miss Cordy left her Binder on the el: forty-six years of landlord letters, dated and cross-referenced. She needs it before the board meets.',
@@ -467,7 +467,7 @@ export function vanMan(ctx: PlaceCtx): MissionDef {
   const spot = facePoint(grid, 'r4c0', 'S', 0.5);
   const park = streetMid(grid, 'lafayette', 'throop', 'garvey');
   const route = [spot, corner(grid, 'throop', 'greene'), corner(grid, 'throop', 'vanburen'), corner(grid, 'throop', 'lafayette'), park];
-  const run = [park, offset(park, 62, 0), corner(grid, 'garvey', 'lafayette'), offset(corner(grid, 'garvey', 'lafayette'), 0, -40)];
+  const run = footRoute([park, offset(park, 62, 0), corner(grid, 'garvey', 'lafayette'), offset(corner(grid, 'garvey', 'lafayette'), 0, -40)]);
   const priya = facePoint(grid, 'r3c1', 'E', 0.5);
   const copy = facePoint(grid, 'r3c1', 'W', 0.65);
   return {
@@ -544,7 +544,7 @@ export function silentRetreat(ctx: PlaceCtx): MissionDef {
   const van = facePoint(grid, 'r2c1', 'S', 0.5);
   const door = facePoint(grid, 'r2c1', 'E', 0.6);
   const yard = facePoint(grid, 'r2c1', 'E', 0.85);
-  const way = [yard, facePoint(grid, 'r2c1', 'S', 0.95), facePoint(grid, 'r2c1', 'S', 0.75), van];
+  const way = footRoute([yard, facePoint(grid, 'r2c1', 'S', 0.95), facePoint(grid, 'r2c1', 'S', 0.75), van]);
   return {
     id: 'silent-retreat', title: 'Silent Retreat', act: 2, tag: 'side', requires: ['open-house'], availableHours: [19, 4],
     blurb: 'Bryce went to a 72-hour silent retreat in a basement and it has been four days. He left his phone charger. He has never left his charger.',

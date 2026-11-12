@@ -69,12 +69,7 @@ const ev = async (expression, awaitPromise = false) => {
   if (r.result?.exceptionDetails) return { __error: r.result.exceptionDetails.exception?.description ?? r.result.exceptionDetails.text };
   return r.result?.result?.value;
 };
-// The game canvas is hidden for good before any script of the page runs (rules: a visible software-GL canvas piles up gigabytes).
-await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `
-  { const st = document.createElement('style'); st.textContent = 'canvas{visibility:hidden !important}'; document.documentElement.appendChild(st); }
-  window.__violations = [];
-  addEventListener('securitypolicyviolation', (e) => window.__violations.push(e.effectiveDirective + ' ' + e.blockedURI));` });
-await c.send('Page.reload');
+// (The game canvas is hidden from the first byte by the app itself in smoke mode: preload.ts inserts the rule before any page script runs.)
 
 const t0 = Date.now();
 let boot = null;
@@ -135,12 +130,15 @@ const feat = await ev(`(async () => {
   out.url = location.href;
   return out;
 })()`, true);
-const seenReq = (re) => [...reqs.values()].some((r) => re.test(r.url) && r.status >= 200 && r.status < 400);
-feat.gameFetchedStreet = seenReq(/anim\/street\.bin/);
-feat.gameFetchedVoiceManifest = seenReq(/voice\/manifest\.json/);
+const timed = await ev(`performance.getEntriesByType('resource').map((e) => e.name + ' ' + (e.responseStatus || 0))`);
+feat.gameFetchedStreet = (timed || []).some((n) => /anim\/street\.bin 200/.test(n));
+feat.gameFetchedVoiceManifest = (timed || []).some((n) => /voice\/manifest\.json 200/.test(n));
+feat.gameFetchedPeopleGlb = (timed || []).some((n) => /assets\/ba_[a-z_]+-[\w-]+\.glb 200/.test(n));
 
 // ---- content security policy probes (no network needed: a block is reported before any request is made)
 const csp = await ev(`(async () => {
+  window.__violations = window.__violations || [];
+  addEventListener('securitypolicyviolation', (e) => window.__violations.push(e.effectiveDirective + ' ' + e.blockedURI));
   const hit = async (label, fn, allowed) => {
     const before = window.__violations.length;
     try { await fn(); } catch {}
@@ -192,6 +190,7 @@ else if (frame.colours < 3 || frame.lit < 5) problems.push(`the frame looks empt
 if (frame?.glError) problems.push(`gl error ${frame.glError}`);
 for (const k of ['street', 'core', 'voiceManifest', 'voiceBank', 'overview', 'furniture', 'fontFile']) if (!feat[k]?.ok || !(feat[k].bytes > 0)) problems.push(`${k} not served: ${JSON.stringify(feat[k])}`);
 if (!feat.gameFetchedStreet) problems.push('the game itself never fetched anim/street.bin');
+if (!feat.gameFetchedPeopleGlb) problems.push('the game never loaded a people .glb through app://');
 if (!feat.native?.isNative) problems.push('window.gtaNative missing');
 if (!feat.overlay) problems.push('--debug-gfx did not open the graphics overlay');
 if (!feat.antonUsable) problems.push('Anton font not usable');
