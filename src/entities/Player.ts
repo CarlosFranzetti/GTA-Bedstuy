@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {
   angleDiff, applyPose, clamp, dist, forwardFromHeading, headingFromVec, perpRight, wrapAngle, type Vec2,
 } from '@/core/Math2';
+import { easeGround, groundAt } from '@/world/Ground';
 import type { EventBus } from '@/core/Events';
 import type { Input } from '@/core/Input';
 import { animateWalk, type HumanModel } from '@/entities/models/humanModel';
@@ -89,6 +90,8 @@ const NEUTRAL: VehicleInput = { throttle: 0, steer: 0, brake: false, handbrake: 
 export class Player implements Entity {
   readonly body: Body2D & { shape: { kind: 'circle'; r: number } };
   readonly object3D = new THREE.Group();
+  /** drawn height of the surface under the feet (NaN until first placed) */
+  private groundY = NaN;
   vehicle: IVehicle | null = null;
   /** State at the END of the previous step (captured at the start of update()), for render interpolation. */
   readonly prevPos: Vec2 = { x: 0, z: 0 };
@@ -538,10 +541,12 @@ export class Player implements Entity {
     const ex = this.exitVis;
     const k = ex ? ex.t : this.seatK;
     const tgt = ex ?? this.enterSeat;
-    if (k <= 0.001 || !tgt) { applyPose(o, pos, heading, y); return; }
+    // on a sidewalk the slab is 0.15 m above the roadway: draw the figure on it (the seat of a car is measured from the road)
+    this.groundY = easeGround(this.groundY, groundAt(pos.x, pos.z), 1 / 60);
+    if (k <= 0.001 || !tgt) { applyPose(o, pos, heading, y + this.groundY); return; }
     const e = k * k * (3 - 2 * k);
     const h = heading + angleDiff(heading, tgt.heading) * e;
-    applyPose(o, { x: pos.x + (tgt.seat.x - pos.x) * e, z: pos.z + (tgt.seat.z - pos.z) * e }, h, y + tgt.dy * e);
+    applyPose(o, { x: pos.x + (tgt.seat.x - pos.x) * e, z: pos.z + (tgt.seat.z - pos.z) * e }, h, y + tgt.dy * e + this.groundY * (1 - e));
   }
 
   private animateFoot(dt: number): void {

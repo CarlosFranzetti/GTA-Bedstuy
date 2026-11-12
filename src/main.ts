@@ -7,7 +7,8 @@ import { ThirdPersonCamera } from '@/core/Camera';
 import { clamp, type Vec2 } from '@/core/Math2';
 import type { Entity, IVehicle, VehicleType, GraphNode, HudState } from '@/world/types';
 import { loadBedstuyData } from '@/world/Grid';
-import { buildWorld } from '@/world/WorldBuilder';
+import { buildWorld, SIDEWALK_HEIGHT } from '@/world/WorldBuilder';
+import { ringGround, setGround, slabGround } from '@/world/Ground';
 import { loadPeople } from '@/entities/models/pedMesh';
 import { updateSignalMeshes } from '@/world/props/signals';
 import { TrafficLights } from '@/game/TrafficLights';
@@ -154,6 +155,8 @@ if (import.meta.env?.VITE_HOSTED === '1' && realWorld) {
 const mapName: 'grid' | 'real' = realWorld ? 'real' : 'grid';
 scene.add(world.group);
 const { grid } = world;
+// characters are drawn on the walking surface: a sidewalk slab is 0.15 m above the roadway (their shoes used to be inside it)
+setGround(realWorld ? ringGround(realWorld.derived.curbRings, (p) => realWorld.net.isOnRoad(p), SIDEWALK_HEIGHT) : slabGround(grid.blocks.map((b) => b.curb), SIDEWALK_HEIGHT));
 
 const physics = new World2D(12);
 // real-map preview: buildings stream in and out around the player, so their colliders come and go at run time

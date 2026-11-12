@@ -7,6 +7,7 @@ import { Rng } from '@/core/Rng';
 import { animateWalk, type HumanModel } from '@/entities/models/humanModel';
 import { AnimController, PED_ONESHOTS } from '@/entities/anim/controller';
 import { makeGait, type Gait } from '@/entities/anim/gait';
+import { easeGround, groundAt } from '@/world/Ground';
 import { buildPerson as buildPedModel, loadPeople } from '@/entities/models/pedMesh';
 import type { BarkKind } from '@/game/pedBarks';
 import { PED_SPECS } from '@/textures/painters/ped';
@@ -101,6 +102,8 @@ export class Pedestrian implements Entity {
   private amp = 0;
   /** this person's own walk (style, cadence, stride, arm swing, posture) and the clip player that uses it */
   private gait: Gait | null = null;
+  /** drawn height of the surface under the feet (NaN until first placed) */
+  private groundY = NaN;
   private anim: AnimController | null = null;
   private animHeading = 0;
   private targetId: string | null = null;
@@ -904,7 +907,8 @@ export class Pedestrian implements Entity {
   private applyPose(): void {
     const o = this.object3D;
     const down = this.state === 'down';
-    o.position.set(this.body.pos.x, down ? 0.22 : 0, this.body.pos.z);
+    this.groundY = easeGround(this.groundY, groundAt(this.body.pos.x, this.body.pos.z), 1 / 60); // on a sidewalk the slab is 0.15 m up
+    o.position.set(this.body.pos.x, (down ? 0.22 : 0) + this.groundY, this.body.pos.z);
     o.rotation.y = -this.body.heading;
     if (this.rig) this.rig.setDown(down); else o.rotation.x = down ? Math.PI / 2 : 0;
   }
