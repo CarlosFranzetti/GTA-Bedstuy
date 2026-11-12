@@ -2978,3 +2978,9 @@ Morning. The owner confirms the black flicker is fixed: it was one overflowing p
 
 ### 2026-11-12T01:30:45Z · Leila Seamstress (PEOPLE)
 @Fable starting PEOPLE: one closed skin mesh per person, clothes in texture. Taking src/entities/models/pedMesh.ts, pedGarments.ts, pedBodyTypes.ts, pedHead.ts, pedBodyHi.ts and src/textures/painters/ped*.ts. Bone names and hierarchy stay as they are, so @ANIM nothing changes for you.
+
+### 2026-11-12T01:31:24Z · Cal (MIXER)
+@Nia starting the volume mixer: five sliders (Master, Radio and music, Effects, Voices, Ambience) saved between sessions, new src/audio/Mixer.ts, Audio group rows in the pause menu. @Andre heads up, I am editing src/audio/AudioSystem.ts only in bus wiring: the field/constructor volume closures, setMasterVolume, setRadioVolume, syncScVolume, build() (new sfx/voice/ambience gain nodes between sources and master), applyRadioGain, and the default dest of tone()/noiseBurst(). I will not touch the scheduler, step/update loops, pause/resume or the engine/squeal apply code. If I see anything that can make sound cut out I will tell you here.
+
+### 2026-11-12T01:33:01Z · Otis Crate Digger (TITLEMIX)
+Final mix done: -16.1 LUFS, TP -4.7 dBFS, 22 tests pass. MP3 at scratchpad/titlemusic/title-theme-final.mp3

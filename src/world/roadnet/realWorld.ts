@@ -37,6 +37,9 @@ import { RealTrains } from './elTrainsReal';
 import { RealBuildingStreamer, type ColliderHost, type StreamRanges } from './buildingStream';
 import type { RealLot } from './lotsReal';
 import { pointInPolygon, signedArea } from './geom';
+import type { LampSpot } from '@/world/FurnitureGen';
+import type { RealProps } from './propsReal';
+import type { RealPlaces, PlacesTable } from './placesReal';
 
 export interface RealWorld {
   net: RoadNet;
@@ -66,6 +69,14 @@ export interface RealWorld {
   standIns: string[];
   /** the el: station list for the timetable hook-up later */
   el: ReturnType<typeof buildElPaths>;
+  /** street furniture (lamps, signals, signs, trees, hydrants); null when it fell back. main: world.lamps = rw.lamps, world.furnitureGroup = rw.furnitureGroup */
+  props: RealProps | null;
+  lamps: LampSpot[];
+  furnitureGroup: THREE.Group;
+  /** the places table over the real lots; null when it fell back */
+  places: RealPlaces | null;
+  /** player start outside HOME's door (equals spawn / spawnHeading when places fell back) */
+  homeSpawn: { x: number; z: number; heading: number };
   stats: { meshes: number; triangles: number; lots: number; colliders: number; ms: Record<string, number> };
 }
 
@@ -250,13 +261,15 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   group.add(roads);
   t('roads', t0);
 
-  const { spawn, heading } = spawnNear(net, sidewalks, { x: 0, z: 0 });
+  let { spawn, heading } = spawnNear(net, sidewalks, { x: 0, z: 0 });
 
   const bad = badBlocks(net, derived);
 
   // buildings: streamed by 128 m chunk around the player (WP4 buildingStream), far boxes beyond; stand-in boxes if it throws
   t0 = performance.now();
   let lots: Lot[] = [];
+  let places: RealPlaces | null = null;
+  let homeSpawn = { x: spawn.x, z: spawn.z, heading };
   let streamer: RealBuildingStreamer | null = null;
   const held = new Map<string, StaticCollider>();
   let host: ColliderHost | undefined = opts.colliders;
@@ -267,8 +280,23 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   try {
     if (opts.forceStandIns) throw new Error('forced');
     const lotsJson = (await import('@/world/data/raw/lots-real-r1r2a.json')).default as unknown;
-    lots = (placeLots(net, derived, blockFaces(net, derived), lotsJson) as Array<Lot & { block?: number }>).filter((l) => !bad.has(l.block ?? -1));
-    streamer = new RealBuildingStreamer({ lots: lots as RealLot[], materials: mats, rng: rng.fork('buildings'), layout: chunks, tier, colliders: proxyHost, ranges: opts.streamRanges });
+    const faces = blockFaces(net, derived);
+    lots = (placeLots(net, derived, faces, lotsJson) as Array<Lot & { block?: number }>).filter((l) => !bad.has(l.block ?? -1));
+    // places (Gus): the POI lots carry their shop sign; the home door gives the spawn. Soft: without it the lots stay plain.
+    try {
+      if (opts.forceStandIns) throw new Error('forced');
+      const { RealPlaces } = await import('./placesReal');
+      const table = (await import('@/world/data/places-real.json')).default as unknown as PlacesTable;
+      const { loadBedstuyData } = await import('@/world/Grid');
+      const pl = new RealPlaces({ net, derived, faces, lots: lots as RealLot[], table, pois: loadBedstuyData().pois });
+      const withPois = pl.lotsWithPois();
+      const hs = pl.homeSpawn();
+      if (![hs.x, hs.z, hs.heading].every(Number.isFinite)) throw new Error('home spawn not finite');
+      places = pl; lots = withPois; homeSpawn = hs; spawn = { x: hs.x, z: hs.z }; heading = hs.heading;
+    } catch (e) { standIns.push(`places: ${(e as Error).message}`); }
+    let looks: ((bbl: string) => never) | undefined;
+    try { looks = (await import('@/world/data/facadeObserved')).observedLook as never; } catch (e) { standIns.push(`looks: ${(e as Error).message}`); }
+    streamer = new RealBuildingStreamer({ lots: lots as RealLot[], materials: mats, rng: rng.fork('buildings'), layout: chunks, tier, colliders: proxyHost, ranges: opts.streamRanges, looks });
     group.add(streamer.root);
     const end = performance.now() + (opts.warmMs ?? 2500);
     while (performance.now() < end) {
@@ -288,8 +316,10 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   // the el
   t0 = performance.now();
   const el = buildElPaths(net);
+  let elSpots: Array<{ p: Vec2 }> = [];
   try {
     const spots = allColumnSpots(el.paths, derived, net);
+    elSpots = spots;
     group.add(buildElStructureReal(el.paths, spots, mats, el.stations));
     spots.forEach((s, i) => colliders.push({ shape: { kind: 'circle', r: 0.4 }, pos: { x: s.p.x, z: s.p.z }, id: `el-real-col-${i}` }));
   } catch (e) {
@@ -299,11 +329,27 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
 
   let trains: RealTrains | null = null;
   try { trains = new RealTrains(el.paths, el.stations); group.add(trains.group); } catch (e) { standIns.push(`trains: ${(e as Error).message}`); }
+  // street furniture (June): lamps, signals, signs, trees, hydrants, bins
+  let props: RealProps | null = null;
+  const furnitureGroup = new THREE.Group();
+  t0 = performance.now();
+  try {
+    if (opts.forceStandIns) throw new Error('forced');
+    const { buildRealProps } = await import('./propsReal');
+    const { nodeControl } = await import('./signalPhases');
+    const controlsJson = (await import('@/world/data/roadnet-controls.json')).default as unknown;
+    props = buildRealProps({ net, derived, sidewalks, materials: mats, rng: rng.fork('props'), layout: chunks, tier, controls: nodeControl(net, controlsJson), avoid: elSpots.map((s) => s.p) });
+    group.add(props.group);
+    colliders.push(...props.colliders);
+    chunkMeshes.push(...props.chunkMeshes);
+  } catch (e) { standIns.push(`props: ${(e as Error).message}`); props = null; }
+  t('props', t0);
+
   const update: RealWorld['update'] = (dt, px, pz, cam, night) => { streamer?.update(px, pz, cam.y); trains?.update(dt, cam, night); };
   const setColliderHost = (h: ColliderHost): void => { host = h; if (held.size) h.add([...held.values()]); };
   const stats = { ...measureWorld(group), lots: lots.length, colliders: colliders.length, ms };
   void ROAD_CHUNK_PREFIX;
-  return { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, badBlocks: [...bad].sort((a, b) => a - b), streamer, setColliderHost, update, trains, notice: REAL_NOTICE, standIns, el, stats };
+  return { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, badBlocks: [...bad].sort((a, b) => a - b), streamer, setColliderHost, update, trains, notice: REAL_NOTICE, standIns, el, props, lamps: props?.lamps ?? [], furnitureGroup: props?.group ?? furnitureGroup, places, homeSpawn, stats };
 }
 
 /** WP2 lane graph of a built real world (async only to keep lanes.ts out of the first chunk). */

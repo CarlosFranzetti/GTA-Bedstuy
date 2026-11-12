@@ -21,6 +21,7 @@ import { SavePanel } from './SavePanel';
 import { FullscreenControl } from './Fullscreen';
 import { RowList, type RowSpec } from './menuRows';
 import { menuArtSvg } from './menuArt';
+import { MIX_LABELS, MIX_DESC, type MixKey } from '@/audio/Mixer';
 import { isNativeApp, nativeQuit, nativeShell } from '@/native/NativeBridge';
 import {
   GraphicsStore, supports, presetFor, SHADOW_MODES, FPS_CAPS, RANGES, gpuLoad, optionLoad, loadLabel,
@@ -132,6 +133,8 @@ export interface MenuOptions {
   missionLog?: () => readonly MissionLogEntry[];
   /** HD voices switch (the host's AudioSystem: hdVoices / setHdVoices / hdLabel). Omit and the row is not shown. */
   hdVoices?: { get(): boolean; set(on: boolean): void; label?(): string };
+  /** The audio mixer (AudioSystem.mixer): five volume sliders in the Audio group, saved by the mixer. Omit and only Master and Radio show, on the menu's own settings. */
+  mixer?: { get(k: MixKey): number; set(k: MixKey, v: number): void; onChange?(fn: (k: MixKey) => void): () => void };
   /** Show the "install as app" hint (hosted build only). Default: true when built with VITE_HOSTED=1. */
   installable?: boolean;
 }
@@ -509,8 +512,8 @@ export class Menu {
     // ---- push persisted values into the game
     if (this.graphics.hasOverrides) this.cb.onGraphics?.(this.graphics.effective(this.liveTier), Object.keys(this.graphics.raw) as GraphicsKey[]);
     if (this.state.auto !== (opts.auto ?? false)) this.cb.onAuto?.(this.state.auto);
-    if (saved.master !== undefined) this.cb.onMasterVolume?.(this.state.master);
-    if (saved.radio !== undefined) this.cb.onRadioVolume?.(this.state.radio);
+    if (!opts.mixer && saved.master !== undefined) this.cb.onMasterVolume?.(this.state.master);
+    if (!opts.mixer && saved.radio !== undefined) this.cb.onRadioVolume?.(this.state.radio);
     if (saved.invertY !== undefined) this.cb.onInvertLookY?.(this.state.invertY);
     if (saved.quality !== undefined && !opts.ignoreSavedQuality && saved.quality !== opts.initialQuality) this.cb.onQuality?.(this.state.quality);
   }
@@ -963,8 +966,16 @@ export class Menu {
       get: () => this.state.auto, def: () => this.opts.auto ?? false,
       set: ((v: boolean) => { if (v) this.setAuto(true); else this.setQuality(this.state.quality); }) as RowSpec['set'],
     });
-    S.set('master', { id: 'master', label: 'Master Volume', kind: 'slider', min: 0, max: 100, step: 5, def: () => 100, desc: 'Volume of everything in the game.', fmt: (v) => `${v}%`, get: () => Math.round(this.state.master * 100), set: ((v: number) => this.setMaster(v / 100)) as RowSpec['set'] });
-    S.set('radiovol', { id: 'radiovol', label: 'Radio Volume', kind: 'slider', min: 0, max: 100, step: 5, def: () => 100, desc: 'Volume of the radio stations, relative to the master volume.', fmt: (v) => `${v}%`, get: () => Math.round(this.state.radio * 100), set: ((v: number) => this.setRadio(v / 100)) as RowSpec['set'] });
+    const mx = this.opts.mixer;
+    const mixRow = (id: string, k: MixKey, legacy?: { get(): number; set(v: number): void }): void => {
+      S.set(id, { id, label: MIX_LABELS[k], kind: 'slider', min: 0, max: 100, step: 5, def: () => 100, desc: MIX_DESC[k], fmt: (v) => `${v}%`,
+        visible: legacy || mx ? undefined : () => false,
+        get: () => Math.round((mx ? mx.get(k) : legacy!.get()) * 100),
+        set: ((v: number) => { if (mx) mx.set(k, v / 100); else legacy?.set(v / 100); }) as RowSpec['set'] });
+    };
+    mixRow('master', 'master', { get: () => this.state.master, set: (v) => this.setMaster(v) });
+    mixRow('radiovol', 'radio', { get: () => this.state.radio, set: (v) => this.setRadio(v) });
+    mixRow('sfxvol', 'sfx'); mixRow('voicevol', 'voices'); mixRow('ambvol', 'ambience');
     S.set('radiolib', { id: 'radiolib', label: 'Radio library', kind: 'action', desc: 'Opens the radio library: tracks, stations and the playlist.', press: () => { this.cb.onRadioLibrary?.(); } });
     S.set('credits', { id: 'credits', label: 'Credits', kind: 'action', desc: 'Who made the game, and who we thank.', visible: () => !!this.cb.onCredits, press: () => { this.cb.onCredits?.(); } });
     S.set('quit', {
@@ -1021,7 +1032,7 @@ export class Menu {
     const sections: Array<[string, RowSpec[]]> = [
       ['Display', [S.get('windowmode')!, ...g('fpsCap', 'resolution', 'nativeDpr', 'showFps')]],
       ['Graphics', [S.get('quality')!, S.get('autodetect')!, ...g('shadows', 'drawDistance', 'treeRange', 'crowd', 'traffic', 'aa', 'textures', 'ao', 'bloom', 'dof', 'vignette', 'grain', 'fov')]],
-      ['Audio', [S.get('master')!, S.get('radiovol')!, S.get('hdvoices')!]],
+      ['Audio', [S.get('master')!, S.get('radiovol')!, S.get('sfxvol')!, S.get('voicevol')!, S.get('ambvol')!, S.get('hdvoices')!]],
       ['Controls', [S.get('invert')!]],
       ['Game', [S.get('install')!, S.get('radiolib')!, S.get('reset')!, S.get('credits')!, S.get('quit')!]],
       [`${CONTROLS[this.inputMode].title} controls`, CONTROLS[this.inputMode].rows.map(([k, v]) => ({ id: `c:${k}`, label: k, kind: 'info' as const, desc: `${k}: ${v}. The list follows the device you are using.`, text: () => v }))],

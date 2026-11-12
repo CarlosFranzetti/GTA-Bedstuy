@@ -161,9 +161,9 @@ describe('AudioSystem ambience and radio volume', () => {
     const bus = made.gain.find((g) => g.gain.targets.length && g.gain.last()! > 0 && Math.abs(g.gain.last()! - 0.25) < 1e-9)!.gain;
     expect(bus.last()).toBeCloseTo(0.25);
     audio.setRadioVolume(0.4);
-    expect(bus.last()).toBeCloseTo(0.1);
+    expect(bus.last()).toBeCloseTo(0.04);
     audio.setMasterVolume(0.5);
-    expect(bus.last()).toBeCloseTo(0.1);
+    expect(bus.last()).toBeCloseTo(0.04);
     audio.setRadioVolume(5);
     expect(bus.last()).toBeCloseTo(0.25);
   });

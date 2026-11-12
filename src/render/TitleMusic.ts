@@ -6,6 +6,8 @@
  * Safe when the browser keeps the context locked: start() never throws, the theme simply waits (its clock does not run
  * while suspended) and a one-time pointer/key listener resumes it on the first gesture. The theme is imported lazily.
  */
+import { storedMusicGain } from '@/audio/Mixer';
+
 export interface TitleThemeApi { start(): void; stop(fadeSec?: number): void; setVolume(v: number): void; readonly playing: boolean }
 export type TitleThemeFactory = (ctx: BaseAudioContext, dest: AudioNode, opts?: { volume?: number; lookAhead?: number }) => TitleThemeApi;
 
@@ -57,7 +59,7 @@ export function createTitleMusic(opts: TitleMusicOptions = {}): TitleMusic {
           if (my !== gen) { if (ctx === c) ctx = null; free(c, 0); return; }
           const t = c.state === 'suspended' ? target() : null;
           if (t) { unlock = () => { void c.resume(); if (c.state !== 'suspended') unhook(); }; for (const e of UNLOCK) t.addEventListener(e, unlock); }
-          theme = (factory as TitleThemeFactory)(c, c.destination, { volume, lookAhead: 0.4 });
+          theme = (factory as TitleThemeFactory)(c, c.destination, { volume: volume * storedMusicGain(), lookAhead: 0.4 });
           theme.start();
         } catch { theme = null; unhook(); free(ctx, 0); ctx = null; } finally { busy = false; }
       })();

@@ -9,6 +9,8 @@ import { Rng } from '@/core/Rng';
 import { MaterialLibrary } from '@/textures/MaterialLibrary';
 import { buildRealWorld, measureWorld } from '@/world/roadnet/realWorld';
 import { pointOnPath } from '@/world/roadnet/elReal';
+import { setLampsLit } from '@/world/FurnitureGen';
+import { NightLights } from '@/render/NightLights';
 
 const params = new URLSearchParams(location.search);
 const W = Number(params.get('w') ?? 1280), H = Number(params.get('h') ?? 720);
@@ -26,11 +28,23 @@ scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x6a5a48, 0.8));
 const materials = new MaterialLibrary(new Rng(7));
 materials.setEnvironment(scene.environment);
 
-const rw = await buildRealWorld({ materials, rng: new Rng(7), tier: 'high', warmMs: 0, streamRanges: { near: 200, far: 1e5 } });
+const rw = await buildRealWorld({ materials, rng: new Rng(7), tier: params.get('tier') ?? 'high', warmMs: 0, streamRanges: { near: 200, far: 1e5 } });
 scene.add(rw.group);
 const out = {};
+const hemi = scene.children.find((c) => c.isHemisphereLight);
+const night = new NightLights(scene, rw.lamps);
+// dusk(true): dim sky and sun, lamps lit, night light pool around the camera; dusk(false): the day look
+const dusk = (on, cam) => {
+  scene.background = new THREE.Color(on ? 0x1b2338 : 0x9db7cf);
+  sun.intensity = on ? 0.35 : 2.4; hemi.intensity = on ? 0.22 : 0.8; scene.environmentIntensity = on ? 0.12 : 0.5;
+  setLampsLit(rw.furnitureGroup, on);
+  if (cam) night.update({ x: cam.position.x, z: cam.position.z }, on, 1);
+};
+// triangles and draws of one street frame (info is reset by each render call)
+const info = {};
+const frameInfo = (name) => { info[name] = { triangles: renderer.info.render.triangles, calls: renderer.info.render.calls }; };
 const settle = (cam) => { rw.streamer.settle(cam.position.x, cam.position.z, cam.position.y); rw.update(0, cam.position.x, cam.position.z, cam.position, false); };
-const shot = (name, cam) => { renderer.render(scene, cam); out[name] = renderer.domElement.toDataURL('image/png'); };
+const shot = (name, cam) => { renderer.render(scene, cam); frameInfo(name); out[name] = renderer.domElement.toDataURL('image/png'); };
 
 // 1. top-down of the whole network (orthographic), with buildings and with roads only
 {
@@ -66,9 +80,11 @@ if (params.get('only') === 'top') { window.__ready = { shots: out, top: out.topI
       if (d < bestD) { bestD = d; bestT = t; }
     }
   }
-  rw.trains.time = bestT; rw.trains.update(0, cam.position, false);
+  rw.trains.time = bestT; rw.trains.update(0, cam.position, true);
   out.trainInfo = { t: bestT, dist: Math.round(bestD) };
+  dusk(true, cam);
   shot('under-el-broadway', cam);
+  dusk(false);
 }
 // 3. a bent residential street near the spawn: the node where two edges of one street meet at the sharpest angle within 900 m
 {
@@ -92,19 +108,24 @@ if (params.get('only') === 'top') { window.__ready = { shots: out, top: out.topI
   cam.lookAt(n.x + best.d2.x * 30, 3, n.z + best.d2.z * 30);
   out.bentInfo = { name: best.name, deg: Math.round((best.defl * 180) / Math.PI) };
   settle(cam);
+  dusk(false);
   shot('bent-street', cam);
 }
 {
-  const w = rw.lots.filter((l) => l.wedge).sort((a, b) => Math.hypot(a.frontA.x - rw.spawn.x, a.frontA.z - rw.spawn.z) - Math.hypot(b.frontA.x - rw.spawn.x, b.frontA.z - rw.spawn.z))[0];
+  // a shop sign: the POI lot nearest the spawn, seen from the street 16 m out, a little to the side
+  const pl = rw.lots.filter((l) => l.poi).sort((p, q) => Math.hypot(p.frontA.x - rw.spawn.x, p.frontA.z - rw.spawn.z) - Math.hypot(q.frontA.x - rw.spawn.x, q.frontA.z - rw.spawn.z));
+  const w = pl[0];
   if (w) {
     const cx = (w.frontA.x + w.frontB.x) / 2, cz = (w.frontA.z + w.frontB.z) / 2;
     const cam = new THREE.PerspectiveCamera(65, W / H, 0.1, 1500);
-    cam.position.set(cx + w.outward.x * 38, 1.7, cz + w.outward.z * 38);
-    cam.lookAt(cx, 4, cz);
+    const al = { x: w.frontB.x - w.frontA.x, z: w.frontB.z - w.frontA.z }; const l = Math.hypot(al.x, al.z) || 1;
+    cam.position.set(cx + w.outward.x * 16 + (al.x / l) * 8, 1.7, cz + w.outward.z * 16 + (al.z / l) * 8);
+    cam.lookAt(cx, 3.2, cz);
     settle(cam);
-    out.wedgeInfo = { id: w.id, at: [Math.round(cx), Math.round(cz)] };
-    shot('wedge-corner', cam);
+    out.shopInfo = { id: w.id, poi: w.poi.id, sign: w.poi.sign, at: [Math.round(cx), Math.round(cz)], poiLots: pl.length };
+    dusk(false);
+    shot('shop-corner', cam);
   }
 }
-window.__ready = { shots: out, standIns: rw.standIns, stats: rw.stats, bent: out.bentInfo, top: out.topInfo, train: out.trainInfo, wedge: out.wedgeInfo, badBlocks: rw.badBlocks, streamer: rw.streamer.stats(), info: renderer.info.render };
+window.__ready = { shots: out, standIns: rw.standIns, stats: rw.stats, bent: out.bentInfo, top: out.topInfo, train: out.trainInfo, shop: out.shopInfo, frames: info, tier: params.get('tier') ?? 'high', home: rw.homeSpawn, lamps: rw.lamps.length, props: rw.props && rw.props.stats, badBlocks: rw.badBlocks, streamer: rw.streamer.stats(), info: renderer.info.render };
 </script></body></html>

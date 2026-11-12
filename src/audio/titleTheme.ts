@@ -150,10 +150,10 @@ export const rnd = (g: number): number => mulberry32(g)();
 
 // ---------------------------------------------------------------- engine
 export type PartName = 'kick' | 'snare' | 'hats' | 'bass' | 'keys' | 'hook' | 'scratch' | 'crackle';
-export const DEFAULT_MIX: Record<PartName, number> = { kick: 0.22, snare: 0.9, hats: 0.3, bass: 0.05, keys: 0.14, hook: 0.11, scratch: 0.3, crackle: 0.8 };
+export const DEFAULT_MIX: Record<PartName, number> = { kick: 0.22, snare: 0.9, hats: 0.22, bass: 0.045, keys: 0.13, hook: 0.11, scratch: 0.3, crackle: 0.8 };
 
 export interface TitleThemeOptions {
-  /** Output level 0..1 (default 0.85). */
+  /** Output level 0..1 (default 0.76). */
   volume?: number;
   /** Seconds scheduled ahead of ctx.currentTime (default 0.1). */
   lookAhead?: number;
@@ -178,7 +178,7 @@ const clamp01 = (v: number): number => (Number.isFinite(v) ? Math.max(0, Math.mi
 export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: TitleThemeOptions = {}): TitleTheme {
   const lookAhead = opts.lookAhead ?? 0.1, intervalMs = opts.intervalMs ?? 25;
   const mix: Record<PartName, number> = { ...DEFAULT_MIX, ...(opts.mix ?? {}) };
-  let volume = clamp01(opts.volume ?? 0.85);
+  let volume = clamp01(opts.volume ?? 0.76);
   let running = false, t0 = 0, nextStep = 0, created = 0, prevBass = 98;
   let timer: ReturnType<typeof setInterval> | null = null, finalizeTimer: ReturnType<typeof setTimeout> | null = null;
   const live = new Set<AudioNode>();
@@ -223,7 +223,7 @@ export function createTitleTheme(ctx: BaseAudioContext, dest: AudioNode, opts: T
     const lim = track(ctx.createDynamicsCompressor());
     lim.threshold.value = -3; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.003; lim.release.value = 0.12;
     lim.connect(shaper(ceilingCurve(), o0));
-    const sum = gain(1, filt('lowpass', 10500, 0.5, shaper(satCurve(), lim, '2x')));
+    const sum = gain(1, filt('lowpass', 8500, 0.5, shaper(satCurve(), lim, '2x')));
     const part = (p: PartName, to: AudioNode = sum): GainNode => gain(mix[p], to);
 
     // plate reverb (generated impulse)

@@ -50,6 +50,8 @@ import { setPhoneDetailHidden } from '@/render/TierGeometry';
 import { Menu, missionLogOf } from '@/ui/Menu';
 import { GraphicsStore, deriveGraphics } from '@/ui/GraphicsSettings';
 import { createLoadingMusic } from '@/render/LoadingMusic';
+import { createTitleMusic } from '@/render/TitleMusic';
+import { Credits } from '@/ui/Credits';
 import { RadioUi } from '@/ui/RadioUi';
 import { GamepadInput } from '@/core/Gamepad';
 import { SaveManager, SaveStore } from '@/ui/GameSave';
@@ -315,6 +317,13 @@ const overlay = document.createElement('div');
 overlay.id = 'overlay';
 app.appendChild(overlay);
 const hud = new Hud(overlay);
+// Title theme: plays on the title screen once the browser lets audio start (a click during loading, or the native app),
+// fades out a few seconds after the player presses start, and plays again under the credits roll.
+const titleMusic = createTitleMusic({ volume: 0.7 });
+let splashUp = false;
+const credits = new Credits(overlay, { onOpen: () => titleMusic.start(), onClose: () => { if (!splashUp) titleMusic.stop(1.5); } });
+hud.onSplash = (shown) => { splashUp = shown; if (shown) titleMusic.start(); else if (!credits.isOpen) titleMusic.stop(3); };
+hud.onCredits = () => credits.open();
 if (realWorld) { const n = document.createElement('div'); n.textContent = realWorld.notice; n.style.cssText = 'position:fixed;left:8px;bottom:6px;font:11px monospace;color:#fff;opacity:.75;z-index:50;pointer-events:none'; document.body.appendChild(n); }
 const missionHud = new MissionHud(overlay);
 missionHud.setRouter(createPointerRouter(grid));
@@ -642,6 +651,7 @@ const menu = new Menu(overlay, {
   onQuality: (q) => setTier(q),
   onAuto: (a) => perf.setAutoDrop(a),
   onGraphics: () => applyGraphics(),
+  onCredits: () => credits.open(),
   onMasterVolume: (v) => audio.setMasterVolume(v),
   onRadioVolume: (v) => audio.setRadioVolume(v),
   onRadioLibrary: () => radioUi.open(),
@@ -888,9 +898,9 @@ try {
 renderer.info.reset();
 loading.done('shaders');
 
-hud.showSplash();
-applyGraphics(); // saved advanced graphics settings take effect from the first frame
 loadMusic.stop(0.8);
+hud.showSplash(); // starts the title theme (hud.onSplash)
+applyGraphics(); // saved advanced graphics settings take effect from the first frame
 void loading.hide();
 window.__gtaReady = true;
 game.start();

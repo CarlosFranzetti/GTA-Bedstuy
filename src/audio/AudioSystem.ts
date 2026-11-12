@@ -25,6 +25,7 @@ import type { PersistentStore } from './voice/ClipCache';
 import { VehicleAudio } from './vehicle/VehicleAudio';
 import { BarkDirector, normalizeBark, type SpeechEventName } from './voice/peds/BarkDirector';
 import { PedVoicePlayer } from './voice/peds/PedVoicePlayer';
+import { Mixer, type MixKey } from './Mixer';
 import type { Surface } from './vehicle/fx';
 import type { Listener, TrafficCar } from './vehicle/nodes';
 import { loadBundledScript, type TalkSegment } from './talk/script';
@@ -51,6 +52,11 @@ const clamp01 = (v: number) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v))
 interface Graph {
   ctx: AudioContext;
   master: GainNode;
+  /** Mixer buses (each into master): effects, voices (+ hubBus for the radio hosts at their old level) and ambience. */
+  sfxBus: GainNode;
+  voiceBus: GainNode;
+  hubBus: GainNode;
+  ambBus: GainNode;
   saw: OscillatorNode;
   sq: OscillatorNode;
   engineFilter: BiquadFilterNode;
@@ -74,6 +80,8 @@ function shape(p: AudioParam, t: number, peak: number, dur: number): void {
 }
 
 export interface AudioSystemOptions {
+  /** Player volume mixer (default: a new one on localStorage). */
+  mixer?: Mixer;
   /** Library of the player's own files. Default: persisted in localStorage. */
   library?: Library;
   /** Storage for the default library (ignored when `library` is given). Null disables persistence. */
@@ -139,7 +147,10 @@ export class AudioSystem {
   private readonly unsubs: Array<() => void> = [];
 
   // State. Recorded even before start(), applied once the graph exists.
-  private masterVolume = 1;
+  readonly mixer: Mixer;
+  private lastSc = -1;
+  private get masterVolume(): number { return this.mixer.gain('master'); }
+  private get radioVolume(): number { return this.mixer.gain('radio'); }
   private engineSpeed = 0;
   /** engine note multiplier of the vehicle type (VehicleSpec.enginePitch: a bus rumbles low, a hatchback revs high); 1 = the old sedan note */
   private enginePitch = 1;
@@ -148,7 +159,6 @@ export class AudioSystem {
   private night = false;
   private sirenIn = 0;
   private radioOn = false;
-  private radioVolume = 1;
   private slip = 0;
   private handbrake = false;
   /** 1 = steady; <1 right after an upshift, >1 after a downshift. Decays back to 1. */
@@ -163,6 +173,7 @@ export class AudioSystem {
   private nextNoteTime = 0;
 
   constructor(events: EventBus, createContext?: () => AudioContext, opts: AudioSystemOptions = {}) {
+    this.mixer = opts.mixer ?? new Mixer();
     this.createContext = createContext ?? (() => new AudioContext());
     const library = opts.library ?? new Library(opts.storage === undefined ? localLibraryStorage() : opts.storage);
     const speech = opts.speech === undefined ? browserSpeech() : opts.speech;
@@ -170,10 +181,10 @@ export class AudioSystem {
     const vo = opts.voice ?? {};
     this.hub = new VoiceHub({
       ctx: () => this.g?.ctx ?? null,
-      dest: () => this.g?.musicBus ?? null,
+      dest: () => this.g?.hubBus ?? null,
       speech,
       makeUtterance: makeUtt,
-      volume: () => this.radioVolume,
+      volume: () => this.mixer.level('voices'),
       hosted: vo.hosted ?? hostedBuild(),
       packBase: (vo.hosted ?? hostedBuild()) ? './voice/' : null,
       phone: vo.phone ?? detectPhone(),
@@ -191,8 +202,8 @@ export class AudioSystem {
       radioSpeechInCar: () => this.inCar && this.radioOn && this.hub.player.busy,
       idle: () => !this.hub.player.busy,
       backend: new PedVoicePlayer({
-        ctx: () => this.g?.ctx ?? null, dest: () => this.g?.master ?? null, pack: () => this.hub.pack, cache: this.hub.cache,
-        engine: () => this.hub.engine, speech, makeUtterance: makeUtt, volume: () => this.radioVolume,
+        ctx: () => this.g?.ctx ?? null, dest: () => this.g?.voiceBus ?? null, pack: () => this.hub.pack, cache: this.hub.cache,
+        engine: () => this.hub.engine, speech, makeUtterance: makeUtt, volume: () => this.mixer.level('voices'),
       }),
     });
     const talk: TalkLike = opts.script ? new TalkPlayer({
@@ -201,7 +212,7 @@ export class AudioSystem {
       audio: {
         sting: (kind) => this.playSting(talkSting(kind), kind),
         setBed: (level) => this.setBed(level),
-        volume: () => this.radioVolume,
+        volume: () => this.mixer.level('voices'),
       },
     }, opts.script) : new TalkStation({
       hub: this.hub,
@@ -213,8 +224,10 @@ export class AudioSystem {
       scEnv: opts.scEnv,
       liveEnv: opts.liveEnv,
       lastStore: opts.lastStore === undefined ? localLastStation() : opts.lastStore ?? undefined,
-      voice: { speech, makeUtterance: makeUtt, volume: () => this.radioVolume, dj: new DjScheduler(), hub: this.hub },
+      voice: { speech, makeUtterance: makeUtt, volume: () => this.mixer.level('voices'), dj: new DjScheduler(), hub: this.hub },
     });
+    this.unsubs.push(this.mixer.onChange((k) => this.applyMix(k)));
+    this.syncScVolume();
     this.libraryController = new LibraryController(library, opts.controller);
     void this.libraryController.init().catch(() => undefined);
     this.radio.onTune = (entry) => {
@@ -350,10 +363,7 @@ export class AudioSystem {
 
   /** Radio level, independent of the master volume. 0..1. */
   setRadioVolume(v: number): void {
-    this.radioVolume = clamp01(v);
-    this.syncScVolume();
-    const g = this.g;
-    if (g) this.applyRadioGain(g, 0.05);
+    this.mixer.set('radio', v);
   }
 
   /**
@@ -384,7 +394,20 @@ export class AudioSystem {
 
   /** The SoundCloud widget has its own output, so the game's master x radio level is mapped onto it. */
   private syncScVolume(): void {
-    this.radio.setScVolume(this.masterVolume * this.radioVolume);
+    const v = Math.round(this.masterVolume * this.radioVolume * 100);
+    if (v === this.lastSc) return; // only on a change, never per frame
+    this.lastSc = v;
+    this.radio.setScVolume(v / 100);
+  }
+
+  /** One slider changed: ramp that bus over ~50 ms (time constant 17 ms), once per change. */
+  private applyMix(k: MixKey): void {
+    this.syncScVolume();
+    const g = this.g;
+    if (!g) return;
+    const t = g.ctx.currentTime, tc = 0.017;
+    if (k === 'radio') this.applyRadioGain(g, tc);
+    else (k === 'master' ? g.master : k === 'sfx' ? g.sfxBus : k === 'voices' ? g.voiceBus : g.ambBus).gain.setTargetAtTime(this.mixer.gain(k), t, tc);
   }
 
   /** The 15-station dial (id, name, type badge, about line, site) for the station list in the Radio panel. */
@@ -445,16 +468,17 @@ export class AudioSystem {
 
   /** Audio context + master bus for the DJ decks and interior ambience (null until the first user gesture started audio). */
   get djHost(): { ctx: AudioContext; dest: AudioNode } | null { return this.g ? { ctx: this.g.ctx, dest: this.g.master } : null; }
+  /** Same host, but the output goes through the Sound Effects slider (trains). */
+  get sfxHost(): { ctx: AudioContext; dest: AudioNode } | null { return this.g ? { ctx: this.g.ctx, dest: this.g.sfxBus } : null; }
+  /** Same host, but the output goes through the Ambience slider (interior beds, birds, rain). */
+  get ambienceHost(): { ctx: AudioContext; dest: AudioNode } | null { return this.g ? { ctx: this.g.ctx, dest: this.g.ambBus } : null; }
   /** The player's radio library (for the Radio library panel). */
   get library(): Library {
     return this.radio.library;
   }
 
   setMasterVolume(v: number): void {
-    this.masterVolume = clamp01(v);
-    this.syncScVolume();
-    const g = this.g;
-    if (g) g.master.gain.setTargetAtTime(this.masterVolume, g.ctx.currentTime, 0.05);
+    this.mixer.set('master', v);
   }
 
   /** Unsubscribes from events and closes the context. */
@@ -478,6 +502,11 @@ export class AudioSystem {
     const master = ctx.createGain();
     master.gain.value = this.masterVolume;
     master.connect(ctx.destination);
+    const bus = (to: AudioNode, v: number): GainNode => { const b = ctx.createGain(); b.gain.value = v; b.connect(to); return b; };
+    const sfxBus = bus(master, this.mixer.gain('sfx'));
+    const voiceBus = bus(master, this.mixer.gain('voices'));
+    const hubBus = bus(voiceBus, MUSIC_GAIN); // radio hosts keep the level they had on the music bus
+    const ambBus = bus(master, this.mixer.gain('ambience'));
 
     // White noise for drums, impacts and radio mumble.
     const noise = ctx.createBuffer(1, sr, sr);
@@ -491,7 +520,7 @@ export class AudioSystem {
     const engineGain = ctx.createGain();
     engineGain.gain.value = 0;
     engineFilter.connect(engineGain);
-    engineGain.connect(master);
+    engineGain.connect(sfxBus);
     const f0 = engineFrequency(0, 0);
     const saw = ctx.createOscillator();
     saw.type = 'sawtooth';
@@ -517,7 +546,7 @@ export class AudioSystem {
     humGain.gain.value = HUM_GAIN;
     hum.connect(humFilter);
     humFilter.connect(humGain);
-    humGain.connect(master);
+    humGain.connect(ambBus);
     hum.start(now);
 
     // Day bed: brighter traffic hiss. Night bed: darker rumble plus faint crickets.
@@ -528,7 +557,7 @@ export class AudioSystem {
     dayGain.gain.value = this.night ? 0 : DAY_BED_GAIN;
     hum.connect(dayFilter);
     dayFilter.connect(dayGain);
-    dayGain.connect(master);
+    dayGain.connect(ambBus);
 
     const nightFilter = ctx.createBiquadFilter();
     nightFilter.type = 'lowpass';
@@ -537,7 +566,7 @@ export class AudioSystem {
     nightGain.gain.value = this.night ? NIGHT_BED_GAIN : 0;
     hum.connect(nightFilter);
     nightFilter.connect(nightGain);
-    nightGain.connect(master);
+    nightGain.connect(ambBus);
     const cricket = ctx.createOscillator();
     cricket.type = 'sine';
     cricket.frequency.value = 4300;
@@ -567,7 +596,7 @@ export class AudioSystem {
     squealGain.gain.value = 0;
     squealSrc.connect(squealFilter);
     squealFilter.connect(squealGain);
-    squealGain.connect(master);
+    squealGain.connect(sfxBus);
     squealSrc.start(now);
 
     // Radio bus: sequencer output, faded in and out with the vehicle state.
@@ -579,8 +608,8 @@ export class AudioSystem {
     musicBus.gain.value = this.radioOn ? MUSIC_GAIN * this.radioVolume : 0;
     musicBus.connect(master);
 
-    const g: Graph = { ctx, master, saw, sq, engineFilter, engineGain, radioBus, musicBus, dayGain, nightGain, squealGain, squealFilter, noise };
-    this.vehicle.attach(ctx, master, noise);
+    const g: Graph = { ctx, master, sfxBus, voiceBus, hubBus, ambBus, saw, sq, engineFilter, engineGain, radioBus, musicBus, dayGain, nightGain, squealGain, squealFilter, noise };
+    this.vehicle.attach(ctx, sfxBus, noise);
     this.applyEngine(g);
     this.applySqueal(g);
     // The user's files play through two media elements. Unlocking them here is inside the first user gesture (iOS).
@@ -622,7 +651,7 @@ export class AudioSystem {
     if (!g) return;
     const t = g.ctx.currentTime;
     for (const f of hornFrequencies()) {
-      this.tone(g, { type: 'square', freq: f, t, dur: 0.4, peak: 0.06, dest: g.master });
+      this.tone(g, { type: 'square', freq: f, t, dur: 0.4, peak: 0.06, dest: g.sfxBus });
     }
   }
 
@@ -632,7 +661,7 @@ export class AudioSystem {
     const peak = impactGain(strength) * 0.6;
     if (peak < 0.01) return;
     const t = g.ctx.currentTime;
-    this.noiseBurst(g, { t, dur: 0.25, type: 'lowpass', hz: 2400, sweepTo: 200, peak, dest: g.master });
+    this.noiseBurst(g, { t, dur: 0.25, type: 'lowpass', hz: 2400, sweepTo: 200, peak, dest: g.sfxBus });
   }
 
   private playSiren(g: Graph, t: number): void {
@@ -649,7 +678,7 @@ export class AudioSystem {
     shape(amp.gain, t, 0.02, 2.7);
     osc.connect(muffle);
     muffle.connect(amp);
-    amp.connect(g.master);
+    amp.connect(g.sfxBus);
     osc.start(t);
     osc.stop(t + 2.7);
   }

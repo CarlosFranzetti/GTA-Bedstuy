@@ -6,6 +6,8 @@
  * Feature-detected: if the theme module is missing or incomplete, if the browser has no Web Audio, or if anything throws,
  * start() quietly does nothing. The theme is imported lazily, so it never delays the first paint.
  */
+import { storedMusicGain } from '@/audio/Mixer';
+
 export interface ThemeApi {
   start(): void;
   stop(fadeSec?: number): void;
@@ -74,7 +76,7 @@ export function createLoadingMusic(opts: LoadingMusicOptions = {}): LoadingMusic
           try { await ctx.resume(); } catch { /* resumes with the gesture anyway */ }
           if (stopped) { free(0); return; }
           // a long lookahead rides out the short main-thread stalls of the synchronous build stages
-          theme = (factory as ThemeFactory)(ctx, ctx.destination, { volume: opts.volume ?? 0.8, lookAhead: 0.6 });
+          theme = (factory as ThemeFactory)(ctx, ctx.destination, { volume: (opts.volume ?? 0.8) * storedMusicGain(), lookAhead: 0.6 });
           theme.start();
         } catch { theme = null; free(0); }
       })();
