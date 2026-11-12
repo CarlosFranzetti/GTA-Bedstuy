@@ -18,7 +18,7 @@ export const isCoveredLeg = (k: PedSpec['bottom']['kind']): boolean => COVERED_L
 /** what the shoes need to know about the trouser legs they stand under (per shape, spec and LOD) */
 export interface LegTube {
   /** axis x of the left leg (negative) and right leg (positive); z of the axis at the hem; hem half extents; height of the hem's lower edge */
-  xL: number; xR: number; cz: number; rx: number; rz: number; yHem: number;
+  xL: number; xR: number; cz: number; rx: number; rz: number; yHem: number; /** the seat fold (crotch) and the knee: the stations the leg's taper is measured between */ ySeat: number; yKnee: number;
 }
 
 const TAU = Math.PI * 2, U_SCALE = 0.9;
@@ -117,12 +117,15 @@ export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array,
   const th = ringAt(ySeat - 0.08 * K), an = ringAt(anY + 0.06);
   // the hip half width of the shape (its own pelvis rings) with the body type's hips: the heavier builds carry that mass in the seat, not in the thigh
   const hipHalf = Math.max(...s.hipRings.map((r) => r[1])) * Math.max(1, bt.hips) * 1.12;
-  const cx = hipX * 0.9, gapMin = 0.0165;
+  // one straight taper from the seat to the hem, gentler on a short leg so the knee stays within 8 % of the seat
+  const taper = Math.min(cut.taper, 0.066 / ((ySeat - kneeY) / (ySeat - yh)));
+  const cx = hipX, gapMin = 0.0175;
   let rxS = ((th[1] + th[3] * 0.9) / 2) * cut.size * (1 + (bt.legs - 1) * 0.7);
-  rxS = Math.min(rxS, cx - gapMin, hipHalf > 0 ? THIGH_OF_HIP * hipHalf : 9);
+  // the legs part at the crotch and are 3.5 cm apart by the knee (the straight taper does the rest down to the hem)
+  rxS = Math.min(rxS, (cx - gapMin) / (1 - taper * 0.34), THIGH_OF_HIP * hipHalf);
   const rzS = Math.max(rxS * 1.06, Math.min(th[3] * 0.95 * cut.size, rxS * 1.22));
   const czS = th[2], czA = an[2];
-  const radius = (y: number): number => 1 - cut.taper * Math.min(1, Math.max(0, (ySeat - y) / (ySeat - yh)));
+  const radius = (y: number): number => 1 - taper * Math.min(1, Math.max(0, (ySeat - y) / (ySeat - yh)));
   const czAt = (y: number): number => lerp(czS, czA, Math.min(1, Math.max(0, (ySeat - y) / (ySeat - anY))));
   // cut: every triangle with a leg vertex below the seat goes (a foot triangle stays: the shoes' own cut removes it, the far LOD keeps it)
   const footCut = anY + 0.035, yDrop = ySeat + 0.045, drop = new Uint8Array(n);
@@ -136,21 +139,22 @@ export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array,
   }
   for (const v of removed) if (!drop[v]) yBoundary = Math.max(yBoundary, pos[v * 3 + 1]);
   const yTop = yBoundary + 0.006, chartTop = hipY + 0.08;
-  // the kept vertices of the thigh above the cut follow the tube (blending out into the hip) so the join is a small step, not a gap
+  // the pelvis above the cut is wider than the leg: from the seat up the tube flares OUTWARD (the inner edge stays put, so the gap between the legs is kept) to meet the
+  // old surface at the cut, so the leg grows out of the hip instead of the hip hanging over the leg like a skirt
   const P = new Float32Array(pos), N = new Float32Array(nrm);
+  let flareX = 0, flareZ = 0;
   for (let i = 0; i < n; i++) {
     if (drop[i] || legWeight(L, i) < 0.5) continue;
-    const y = P[i * 3 + 1], f = 1 - sstep(yDrop, yDrop + 0.05, y);
-    if (f <= 0) continue;
-    const sd = P[i * 3] < 0 ? -1 : 1, ax = sd * cx, k = radius(Math.min(y, ySeat)), c0 = czAt(Math.min(y, ySeat));
-    const dx = P[i * 3] - ax, dz = P[i * 3 + 2] - c0, ex = rxS * k, ez = rzS * k, t = Math.hypot(dx / ex, dz / ez) || 1;
-    const dOld = Math.hypot(dx, dz), dEll = dOld / t + 0.004, want = lerp(dOld, dEll, f), d = y < yTop + 0.01 ? Math.max(want, dEll - 0.001) : want, sc = dOld > 1e-6 ? d / dOld : 1;
-    P[i * 3] = ax + dx * sc; P[i * 3 + 2] = c0 + dz * sc;
+    const y = P[i * 3 + 1];
+    if (y < yBoundary - 0.07 || y > yBoundary + 0.04) continue;
+    const sd = P[i * 3] < 0 ? -1 : 1;
+    flareX = Math.max(flareX, sd * (P[i * 3] - sd * cx) - rxS); flareZ = Math.max(flareZ, Math.abs(P[i * 3 + 2] - czS) - rzS);
   }
+  flareX = Math.min(0.05, Math.max(0, flareX)); flareZ = Math.min(0.03, Math.max(0, flareZ));
   // rows of the tubes
-  const seg = detail === 'hi' ? 12 : detail === 'mid' ? 8 : 6, cuffTop = yh + CUFF_H;
-  const thighY = detail === 'hi' ? [yTop, lerp(yTop, kneeY, 0.45), kneeY + 0.055, kneeY] : detail === 'mid' ? [yTop, kneeY + 0.05, kneeY] : [yTop, kneeY];
-  const shinY = detail === 'hi' ? [kneeY, kneeY - 0.055, lerp(kneeY, cuffTop, 0.55), cuffTop] : detail === 'mid' ? [kneeY, kneeY - 0.05, cuffTop] : [kneeY, cuffTop];
+  const seg = detail === 'hi' ? 12 : detail === 'mid' ? 8 : 5, cuffTop = yh + CUFF_H;
+  const ySt = ySeat - 0.02, thighY = detail === 'hi' ? [yTop, lerp(yTop, ySt, 0.5), ySt, lerp(ySt, kneeY, 0.5), kneeY + 0.055, kneeY] : detail === 'mid' ? [yTop, ySt, kneeY + 0.05, kneeY] : [yTop, ySt, kneeY];
+  const shinY = detail === 'hi' ? [kneeY, kneeY - 0.055, lerp(kneeY, cuffTop, 0.55), cuffTop] : detail === 'mid' ? [kneeY, kneeY - 0.05, cuffTop] : [kneeY, yh];
   const out = new StripMesh();
   const hemR = radius(yh);
   for (const side of [-1, 1] as const) {
@@ -159,14 +163,18 @@ export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array,
       const w1 = sstep(kneeY + 0.05, kneeY - 0.05, y), wh = 0.4 * sstep(ySeat - 0.02, ySeat + 0.12, y), top = 1 - wh;
       return { j: [b0, b1, 1, 0], w: [top * (1 - w1), top * w1, wh, 0] };
     };
-    const row = (y: number, grow = 0, up = 0): Row => { const k = radius(y); return { y, rx: rxS * k + grow, rz: rzS * k + grow, cx: ax, cz: czAt(y), up }; };
+    const row = (y: number, grow = 0, up = 0): Row => {
+      const k = radius(y), fl = sstep(ySt, yTop, y), dx = flareX * fl;
+      return { y, rx: rxS * k + grow + dx, rz: rzS * k + grow + flareZ * fl, cx: ax + side * dx, cz: czAt(y), up };
+    };
     // slope of the wall: a tapering leg leans its normal down a little
-    const slope = cut.taper * rxS / (ySeat - yh);
+    const slope = taper * rxS / (ySeat - yh);
     const wall = (ys: number[], grow = 0): Row[] => ys.map((y) => ({ ...row(y, grow), up: slope }));
     addStrip(out, wall(thighY), { seg, mir, skin, uv: (u, i) => tileUv(SK_TILES.thigh, u, (thighY[i] - kneeY) / (chartTop - kneeY)) });
     const shinFt = (y: number): number => (y - yh) / (kneeY - yh);
     addStrip(out, wall(shinY), { seg, mir, skin, uv: (u, i) => tileUv(SK_TILES.shin, u, shinFt(shinY[i])) });
     // the hem: a flat step out to the cuff lip, the lip's wall, and its underside, each its own strip so the edges are hard
+    if (detail === 'far') continue;
     const flat = (g0: number, g1: number, up: number): Row[] => [{ ...row(cuffTop, g0), up }, { ...row(cuffTop, g1), up }];
     addStrip(out, flat(0, CUFF_OUT, 1), { seg, mir, skin, uv: (u) => tileUv(SK_TILES.shin, u, shinFt(cuffTop)) });
     addStrip(out, [{ ...row(cuffTop, CUFF_OUT), up: 0 }, { ...row(yh, CUFF_OUT), up: 0 }], { seg, mir, skin, uv: (u, i) => tileUv(SK_TILES.shin, u, i ? 0 : shinFt(cuffTop)) });
@@ -206,5 +214,5 @@ export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array,
   const idx = new Uint32Array(rest.length + out.idx.length);
   idx.set(rest); for (let i = 0; i < out.idx.length; i++) idx[rest.length + i] = out.idx[i] + n;
   const lod = compact(pos2, nrm2, uv2, j2, w2, idx);
-  return { lod, tube: { xL: -cx, xR: cx, cz: czAt(yh + 0.05), rx: rxS * hemR, rz: rzS * hemR, yHem: yh } };
+  return { lod, tube: { xL: -cx, xR: cx, cz: czAt(yh + 0.05), rx: rxS * hemR, rz: rzS * hemR, yHem: yh, ySeat, yKnee: kneeY } };
 }

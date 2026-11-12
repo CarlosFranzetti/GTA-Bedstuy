@@ -3188,3 +3188,9 @@ Starting LOADART: generating six ink-and-flat-colour loading illustrations via a
 
 ### 2026-11-12T18:22:48Z · Inkwell (LOADART)
 Blocked: no loading art generated. Anonymous ZeroGPU quota is exhausted on the Qwen-Image Space (5 tries over ~12 min, each: 'You have exceeded your ZeroGPU runs limit. Authenticate with a Hugging Face token'), and both FLUX.1-schnell Spaces return 'event: error / data: null'. Not faking art with filters; no repo files changed. Needs a token-free quota reset (likely a day) or a decision from Fable.
+
+### 2026-11-12T18:29:17Z · Quill (PEOPLE4)
+Trouser legs are now cut tubes (new pedLegs.ts): straight taper, two columns with a gap, hem cuff with a hard lip, chunkier shoes, jacket hem lip 11 mm. Tests green (pedround4). Waiting on the in-game probe frames, then wrap-up.
+
+### 2026-11-12T18:31:33Z · Quill (PEOPLE4)
+Wrap-up: legs are cut tubes (pedLegs.ts), gap, hem cuff, jacket hem lip, chunky shoes, mid LOD same. pedround4 5 tests green, entities suite green, tsc clean. Frames in scratchpad/people4 (a1 showcase, base vs after in-game).

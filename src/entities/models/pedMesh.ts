@@ -661,17 +661,17 @@ function clothExtras(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.Bu
   const out: THREE.BufferGeometry[] = [], seg = hi ? 18 : 10, k = spec.top.kind, hemTop = topHemY(s, spec), anY = s.landmarks.ankleY;
   if (['jacket', 'hoodie', 'puffer', 'cardigan', 'tracksuit', 'uniform'].includes(k) && !spec.top.long) {
     const notArm = (i: number): boolean => wsumAt(L, i, W_ARMS) < 0.3;
-    const r = bodyRing(L, hemTop - 0.02, hemTop + 0.03, notArm), r2 = bodyRing(L, hemTop + 0.1, hemTop + 0.16, notArm);
+    const r = bodyRing(L, hemTop - 0.06, hemTop + 0.1, notArm), r2 = bodyRing(L, hemTop + 0.1, hemTop + 0.16, notArm);
     if (r && r2) {
       // the hem of a top is a layer of its own: a wall standing 10 mm proud of the trousers (hard-shaded lip, flat underside), then a soft return into the body
-      const o = k === 'puffer' ? 0.012 : k === 'jacket' || k === 'hoodie' ? 0.01 : 0.008;
+      const o = k === 'puffer' ? 0.012 : k === 'jacket' || k === 'hoodie' ? 0.011 : 0.009;
       const ell = (y: number, g: number, up: number, q = r): Row => ({ y, rx: q.rx + g, rz: q.rz + g, cx: q.cx, cz: q.cz, up });
       const m = new StripMesh(), uvT = (u: number, v: number): [number, number] => { const q = SK_RECTS.torso; return [(q.x + 3 + u * (q.w - 6)) / ATLAS, 1 - (q.y + 3 + (1 - v) * (q.h - 6)) / ATLAS]; };
       const skin = (): { j: number[]; w: number[] } => ({ j: [2, 0, 0, 0], w: [1, 0, 0, 0] });
       const mid = { rx: Math.max(r.rx, r2.rx), rz: Math.max(r.rz, r2.rz), cx: (r.cx + r2.cx) / 2, cz: (r.cz + r2.cz) / 2 };
       addStrip(m, [ell(hemTop, o, -1), ell(hemTop, -0.006, -1)], { seg, mir: 1, skin, uv: (u) => uvT(u, 0.5) });
       addStrip(m, [ell(hemTop, o, 0), ell(hemTop + 0.012, o, 0)], { seg, mir: 1, skin, uv: (u) => uvT(u, 0.5) });
-      addStrip(m, [ell(hemTop + 0.012, o, 0.1), ell(hemTop + 0.05, o * 0.55, 0, mid), ell(hemTop + 0.13, 0.006, 0, r2)], { seg, mir: 1, skin, uv: (u) => uvT(u, 0.5) });
+      addStrip(m, [ell(hemTop + 0.012, o, 0.1), ell(hemTop + 0.05, o, 0, mid), ell(hemTop + 0.13, 0.012, 0, r2)], { seg, mir: 1, skin, uv: (u) => uvT(u, 0.5) });
       out.push(stripGeometry(m));
       if (k === 'hoodie') {
         const zf = r.cz - r.rz;      // the pocket: a soft pad on the front of the belly
@@ -729,7 +729,7 @@ function shoeParts(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.Buff
   const bt = bodyTypeOf(spec), K = Math.min(1.15, Math.max(0.85, (s.landmarks.crownY / 1.78) * (0.9 + 0.1 * bt.legs)));
   const T = [0, 0.03, 0.1, 0.24, 0.42, 0.6, 0.78, 0.92, 1];
   const W = [0.014, 0.034, 0.046, 0.053, 0.051, 0.047, 0.043, 0.041, 0.039], H = [0.028, 0.05, 0.065, 0.072, 0.082, 0.105, 0.125, 0.13, 0.126];
-  const flat = spec.sex === 'f' && !spec.shoes.high && !/#f|#e/i.test(spec.shoes.color), len = 0.272 * K;
+  const flat = spec.sex === 'f' && !spec.shoes.high && !/#f|#e/i.test(spec.shoes.color), len = 0.272 * Math.max(0.93, K);
   for (const side of ['L', 'R']) {
     const a = R['ankle' + side], bone = side === 'L' ? 9 : 11;
     let cx: number, zHeel: number;
