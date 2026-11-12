@@ -2,7 +2,8 @@
 # Serialise headless-browser jobs across swarm lanes: parallel swiftshader Chromiums starve each other
 # (OOM kills, 120 s screenshot timeouts).
 #
-#   scripts/swarm-render.sh <command...>                  heavy job (3D render, screenshots): one at a time, first come first served
+#   scripts/swarm-render.sh <command...>                  heavy job (the full game in a browser): two at a time, oldest first
+#   SWARM_SMALL=1 scripts/swarm-render.sh <command...>    small job (a standalone showcase page, not the full game): two slots
 #   SWARM_LIGHT=1 scripts/swarm-render.sh <command...>    light job (offline audio render, network probe, no WebGL): its own slot
 #
 # Heavy jobs queue by ticket, oldest first, so a lane cannot be starved by luckier pollers. A ticket whose process
@@ -12,6 +13,18 @@ ROOT=/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/s
 BASE=$ROOT/render.lock
 mkdir -p "$ROOT"
 END=$((SECONDS + 7200))
+
+if [ -n "$SWARM_SMALL" ]; then  # standalone showcase pages (one character, one car, an icon sheet): never the full game
+  while [ $SECONDS -lt $END ]; do
+    for L in "$BASE.small" "$BASE.small2"; do
+      exec 9>"$L"
+      if flock -n 9; then "$@"; exit $?; fi
+      exec 9>&-
+    done
+    sleep $((1 + RANDOM % 3))
+  done
+  echo "swarm-render: no free small slot in 2 h" >&2; exit 75
+fi
 
 if [ -n "$SWARM_LIGHT" ]; then
   while [ $SECONDS -lt $END ]; do
@@ -44,7 +57,7 @@ first_in_line() {
 
 while [ $SECONDS -lt $END ]; do
   if first_in_line; then
-    for L in "$BASE"; do  # one heavy job at a time: a single software-rendered game page can reach 4 GB here
+    for L in "$BASE" "$BASE.2"; do  # two full-game pages at once: each MUST hide the game canvas (see docs/swarm/RULES.md) or it reaches 4 GB+
       exec 9>"$L"
       if flock -n 9; then rm -f "$TICKET"; "$@"; exit $?; fi
       exec 9>&-
