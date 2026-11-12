@@ -23,10 +23,10 @@ float gdSeed = 0.37; float gdCls = 0.0; bool gdRoad = false; vec4 gdRd = vec4( 0
 #ifdef USE_COLOR_ALPHA
   gdRd = vColor; gdCls = floor( gdRd.y ); gdSeed = fract( gdRd.y ); gdRoad = gdRd.x > 1.5 && gdRd.w > gdRd.z;
 #endif
-float gdTone = ( gdCls > 0.5 ? 0.8 : 1.0 ) * ( 0.92 + 0.16 * gdSeed );
+float gdTone = ( gdCls > 0.5 ? 0.86 : 1.12 ) * ( 0.92 + 0.16 * gdSeed );
 float gdM1 = gdFbm( gw / 31.0 + gdSeed * 13.0 );
 float gdM2 = gdFbm( gw / 6.5 + gdSeed * 5.0 );
-gdTone *= 1.0 + ( gdM1 - 0.5 ) * 0.36 + ( gdM2 - 0.5 ) * 0.18;
+gdTone *= 1.0 + ( gdM1 - 0.5 ) * 0.5 + ( gdM2 - 0.5 ) * 0.22;
 gdCol *= mix( vec3( 1.03, 1.0, 0.96 ), vec3( 0.96, 1.0, 1.05 ), gdM1 );
 if ( gdCls > 0.5 ) gdCol *= vec3( 0.95, 0.97, 1.03 );
 if ( gdRoad ) {
@@ -41,7 +41,7 @@ if ( gdRoad ) {
   // worn lighter wheel paths and the dark oil line between them, patchy along the lane
   float wp = exp( -pow( ( abs( cl ) - 0.85 ) / 0.3, 2.0 ) ) * smoothstep( 1.0, 1.8, rk );
   float wn = 0.35 + 0.65 * gdNoise( vec2( rs * 0.13, rc * 0.2 + gdSeed * 9.0 ) );
-  gdTone *= 1.0 + wp * wn * 0.11 * traffic;
+  gdTone *= 1.0 + wp * wn * 0.16 * traffic;
   float mid = exp( -pow( cl / 0.24, 2.0 ) ) * smoothstep( 1.0, 1.8, rk );
   gdTone *= 1.0 - mid * 0.14 * smoothstep( 0.5, 0.85, gdNoise( vec2( rs * 0.6, gdSeed * 50.0 ) ) );
   // stop lines and junction approaches: brake dust, oil drips in the lane centres
@@ -54,7 +54,7 @@ if ( gdRoad ) {
   float gwid = 0.35 + 0.5 * gdNoise( vec2( rs * 0.3, gdSeed * 30.0 ) );
   float gut = 1.0 - smoothstep( gwid * 0.35, gwid + 0.3, rk + ( gdNoise( vec2( rs * 2.0, rk * 3.0 ) ) - 0.5 ) * 0.3 );
   gdCol = mix( gdCol, gdCol * vec3( 0.64, 0.6, 0.54 ), gut * 0.8 );
-  float grit = gdHash( floor( vec2( rs, rc ) * 24.0 ) );
+  float grit = gdHash( floor( vec2( rs, rc ) * 9.0 ) );
   gdTone *= 1.0 + gut * ( grit > 0.93 ? 0.55 : -0.1 * grit );
   // tar-snake crack sealing along the road (rare, wavy, drawn in 16 m cells and faded at both ends)
   float tc = rs / 16.0 + gdSeed * 17.0; float ti = floor( tc ); float tf = fract( tc );
@@ -116,7 +116,7 @@ if ( gdRoad ) {
     float qsd = gdBoxSd( vec2( qf, rc ) - qctr, vec2( 1.22, 0.61 ) );
     float qin = 1.0 - smoothstep( -0.005, 0.01, qsd );
     float qrim = 1.0 - smoothstep( 0.0, 0.07, -qsd );
-    vec3 qcol = vec3( 0.2, 0.205, 0.215 ) * ( 0.82 + 0.3 * gdNoise( gw * 11.0 ) ) * ( 1.0 + 0.7 * qrim * qin ) * ( 1.0 + 0.06 * step( 0.5, fract( ( qf + rc ) * 9.0 ) ) );
+    vec3 qcol = vec3( 0.2, 0.205, 0.215 ) * ( 0.82 + 0.3 * gdNoise( gw * 4.0 ) ) * ( 1.0 + 0.7 * qrim * qin ) * ( 1.0 + 0.06 * step( 0.5, fract( ( qf + rc ) * 9.0 ) ) );
     gdCol = mix( gdCol, qcol / max( gdTone, 0.3 ), qin );
     gdTone *= 1.0 - ( 1.0 - smoothstep( 0.0, 0.14, qsd ) ) * ( 1.0 - qin ) * 0.3;
   }
@@ -129,7 +129,7 @@ if ( gdRoad ) {
     float hring = smoothstep( 0.34, 0.37, hr ) * hin;
     float hang = atan( hq.y, hq.x );
     float hgrid = step( 0.5, fract( hr * 9.0 ) ) * 0.25 + step( 0.82, abs( sin( hang * 6.0 ) ) ) * 0.2;
-    vec3 hcol = vec3( 0.07, 0.065, 0.062 ) * ( 0.7 + 0.6 * gdNoise( gw * 14.0 ) ) * ( 1.0 + hgrid + hring * 0.6 );
+    vec3 hcol = vec3( 0.07, 0.065, 0.062 ) * ( 0.7 + 0.6 * gdNoise( gw * 4.0 ) ) * ( 1.0 + hgrid + hring * 0.6 );
     gdCol = mix( gdCol, hcol / max( gdTone, 0.3 ), hin );
     gdTone *= 1.0 - ( 1.0 - smoothstep( 0.46, 0.62, hr ) ) * ( 1.0 - hin ) * 0.25;
   }
@@ -173,10 +173,10 @@ float sd2 = gdHash( sc * 1.7 + gdSeed * 53.0 + 9.0 );
 float gdTone = 1.0 + ( sd - 0.5 ) * 0.24;
 #ifdef GD_FLAG
   // quarried flags: each its own blue-grey or buff, bedding lines, ragged lighter edges, and the odd replaced concrete patch
-  gdCol *= mix( vec3( 0.95, 0.99, 1.06 ), vec3( 1.08, 1.0, 0.9 ), sd2 );
-  gdTone *= 0.9 + 0.2 * gdNoise( sg * vec2( 3.0, 11.0 ) + sc * 2.3 );
+  gdCol *= mix( vec3( 0.97, 0.99, 1.03 ), vec3( 1.04, 1.0, 0.95 ), sd2 );
+  gdTone *= 0.94 + 0.12 * gdNoise( sg * vec2( 2.0, 5.0 ) + sc * 2.3 );
   gdTone *= 1.0 - 0.14 * smoothstep( 0.55, 0.85, gdNoise( sg * 6.0 + sc * 5.0 ) );
-  if ( sd > 0.95 ) gdCol = mix( gdCol, vec3( 0.5, 0.5, 0.48 ) * ( 0.9 + 0.2 * gdNoise( gw * 20.0 ) ), 0.85 );
+  if ( sd > 0.95 ) gdCol = mix( gdCol, vec3( 0.5, 0.5, 0.48 ) * ( 0.94 + 0.12 * gdNoise( gw * 3.0 ) ), 0.8 );
   float flagEdge = min( min( sf.x, 1.0 - sf.x ) * 0.9, min( sf.y, 1.0 - sf.y ) * 1.5 );
   gdTone *= 1.0 - 0.3 * ( 1.0 - smoothstep( 0.0, 0.035, flagEdge ) );
   gdTone *= 1.0 + 0.05 * smoothstep( 0.03, 0.09, flagEdge ) * ( 1.0 - smoothstep( 0.09, 0.2, flagEdge ) );

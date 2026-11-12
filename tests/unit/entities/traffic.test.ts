@@ -266,11 +266,11 @@ function fakeGrid(): GridModel {
   const edges: Array<[string, string]> = [];
   for (let i = 0; i <= 20; i++) {
     const x = -200 + i * 20;
-    ln.push(node(`e${i}`, x, 2, Math.PI / 2, { streetId: 'main' }));
-    ln.push(node(`w${i}`, x, -2, -Math.PI / 2, { streetId: 'main' }));
-    if (i < 20) { edges.push([`e${i}`, `e${i + 1}`]); edges.push([`w${i + 1}`, `w${i}`]); }
+    ln.push(node(`e:${i}`, x, 2, Math.PI / 2, { streetId: 'main' }));
+    ln.push(node(`w:${i}`, x, -2, -Math.PI / 2, { streetId: 'main' }));
+    if (i < 20) { edges.push([`e:${i}`, `e:${i + 1}`]); edges.push([`w:${i + 1}`, `w:${i}`]); }
   }
-  edges.push(['e20', 'w20'], ['w0', 'e0']);
+  edges.push(['e:20', 'w:20'], ['w:0', 'e:0']);
   const lanes = buildGraph(ln, edges) as LaneGraph;
   const sn = [
     { id: 'sw0', pos: { x: 0, z: 9 } }, { id: 'sw1', pos: { x: 20, z: 9 } },

@@ -1458,7 +1458,7 @@ export const STYLES: Record<StyleKey, Style> = {
     clad: 11,
     rails: false, spoiler: true, wing: 'lip', maxGap: 0.3, archN: 6,
     bumperY: 0.36, bumperH: 0.24,
-    plan: [[-2.508, 0.95], [-1.9, 1.03], [-1.3, 1.03], [-0.9, 1], [0.9, 1], [1.9, 0.99], [2.508, 0.94]],
+    plan: [[-2.508, 0.93], [-1.9, 1], [-1.3, 1], [-0.9, 0.975], [0.9, 0.975], [1.9, 0.98], [2.508, 0.93]],
     headLamp: 'round2', tailLamp: 'bar', grille: 'bigbar', lampD: 0.0, tailD: 0.03, endF: 0.35, endR: 0.3, grilleW: 0.75,
     dims: { L: 5.016, W: 1.923, H: 1.453 },
   },
