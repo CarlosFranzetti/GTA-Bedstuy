@@ -11,13 +11,14 @@ const stubMaterials: IMaterialLibrary = {
   get: () => mat(), awning: () => mat(), sign: () => mat(), carPaint: () => mat(), setNight: () => {},
 };
 
-function fakeInput(down: string[] = [], pressed: string[] = []): Input {
-  const d = new Set(down), p = new Set(pressed);
+function fakeInput(down: string[] = [], pressed: string[] = [], opts: { push?: number; caps?: boolean } = {}): Input {
+  const d = new Set(down), p = new Set(pressed), push = opts.push ?? 1;
   return {
     isDown: (c: string) => d.has(c),
     pressed: (c: string) => p.has(c),
     consume: (c: string) => p.delete(c),
-    axis: (neg: string[], pos: string[]) => (pos.some((c) => d.has(c)) ? 1 : 0) - (neg.some((c) => d.has(c)) ? 1 : 0),
+    axis: (neg: string[], pos: string[]) => ((pos.some((c) => d.has(c)) ? 1 : 0) - (neg.some((c) => d.has(c)) ? 1 : 0)) * push,
+    caps: opts.caps ?? false,
     mouseDX: 0, mouseDY: 0, wheel: 0,
   } as unknown as Input;
 }
@@ -85,6 +86,16 @@ describe('Player on foot', () => {
     expect(player.body.vel.z).toBeCloseTo(3, 1);
     expect(player.body.vel.x).toBeCloseTo(0, 1);
     expect(player.body.heading).toBeCloseTo(Math.PI, 1);
+  });
+
+  it('the default pace on foot is a 3 m/s jog; Alt, Caps Lock or a half-pushed stick walk at 1.6 m/s; Shift still sprints over either', () => {
+    const speedOf = (input: Input): number => { const { player } = setup(); player.control(input, 0); stepFor(player, 3); return Math.hypot(player.body.vel.x, player.body.vel.z); };
+    expect(speedOf(fakeInput(['KeyW']))).toBeCloseTo(3, 1);
+    expect(speedOf(fakeInput(['KeyW', 'AltLeft']))).toBeCloseTo(1.6, 1);
+    expect(speedOf(fakeInput(['KeyW'], [], { caps: true }))).toBeCloseTo(1.6, 1);
+    expect(speedOf(fakeInput(['KeyW'], [], { push: 0.5 }))).toBeCloseTo(1.6, 1);
+    expect(speedOf(fakeInput(['KeyW'], [], { push: 0.81 }))).toBeGreaterThan(2);
+    expect(speedOf(fakeInput(['KeyW', 'ShiftLeft', 'AltLeft']))).toBeGreaterThan(6);
   });
 
   it('shift sprints with a short ramp; diagonals are not faster', () => {

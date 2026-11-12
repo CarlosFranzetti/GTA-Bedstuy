@@ -81,7 +81,7 @@ export function makeLook(b: BakeInput) {
   const eyeRing = b.headRings.reduce((bb, r) => (Math.abs(r[0] - lm.eyeY) < Math.abs(bb[0] - lm.eyeY) ? r : bb));
   const grp = s.group ?? 'wh';
   const eh = hash(id + 'ex');
-  let expr: Expr = eh < 0.5 ? 'neutral' : eh < 0.78 ? 'tired' : 'amused';
+  let expr: Expr = eh < 0.55 ? 'neutral' : eh < 0.78 ? 'tired' : 'amused';
   if (face.mouth === 'smile' || face.mouth === 'grin') expr = hash(id + 'sm') < 0.85 ? 'amused' : 'neutral';
   if (face.mouth === 'frown' || face.eyes === 'sleepy') expr = 'tired';
   if (kidish && expr === 'tired') expr = 'neutral';

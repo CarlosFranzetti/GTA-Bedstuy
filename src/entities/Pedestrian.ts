@@ -825,7 +825,11 @@ export class Pedestrian implements Entity {
       else if (this.pose === 'talk' && this.anim.hasClip('talk')) {
         const speaking = (Math.floor(this.gesture / 3.2) + (this.chatLead ? 0 : 1)) % 2 === 0; // the same turn-taking as the procedural talk pose
         this.anim.setIdle(speaking ? (this.chatLead ? 'talk' : 'talk2') : null);
-      } else this.anim.setIdle(this.gait!.idleOffset > 3.6 ? 'idle2' : null);
+      } else {
+        // people standing about each have their own way of doing it: plain, a second captured stance, arms crossed, or leaning (hand-keyed)
+        const io = this.gait!.idleOffset;
+        this.anim.setIdle(io > 4.3 ? 'crossed' : io > 3.6 ? 'idle2' : io < 0.6 && this.state === 'waiting' ? 'lean' : null, io > 2.5);
+      }
       const speed = moving ? Math.hypot(b.vel.x, b.vel.z) : 0;
       if (!this.anim.update(dt, { speed, yawRate })) animateWalk(this.model, this.phase, this.amp);
       this.applyIdlePose(this.model);

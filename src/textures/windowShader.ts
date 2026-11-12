@@ -36,11 +36,12 @@ vec3 wnLampCol( float h ) {
 const WIN_MAIN = `
 if ( vWinSeed.z > 0.002 ) {
   vec2 wnT = floor( vMapUv );
-  float wnA = wnHash( vWinSeed.xy * 17.0 + wnT * vec2( 1.7, 3.1 ) + 0.13 );
-  float wnB = wnHash( vWinSeed.yx * 23.0 + wnT * vec2( 2.9, 1.3 ) + 0.57 );
-  float wnC = wnHash( vWinSeed.xy * 31.0 + wnT * vec2( 4.1, 2.3 ) + 0.91 );
-  float wnD = wnHash( vWinSeed.yx * 41.0 + wnT * vec2( 3.3, 5.1 ) + 0.29 );
-  float wnE = wnHash( vWinSeed.xy * 53.0 + wnT * vec2( 5.3, 2.7 ) + 0.71 );
+  vec3 wnS = floor( vWinSeed * 255.0 + 0.5 ); // snap the interpolated byte: hashing a varying with ulp noise would speckle every pixel
+  float wnA = wnHash( wnS.xy * 0.0713 + wnT * vec2( 1.7, 3.1 ) + 0.13 );
+  float wnB = wnHash( wnS.yx * 0.0571 + wnT * vec2( 2.9, 1.3 ) + 0.57 );
+  float wnC = wnHash( wnS.xy * 0.0437 + wnT * vec2( 4.1, 2.3 ) + 0.91 );
+  float wnD = wnHash( wnS.yx * 0.0319 + wnT * vec2( 3.3, 5.1 ) + 0.29 );
+  float wnE = wnHash( wnS.xy * 0.0233 + wnT * vec2( 5.3, 2.7 ) + 0.71 );
   float wnMask = texture2D( emissiveMap, vEmissiveMapUv ).r;
   vec2 wf = fract( vMapUv );
   vec2 gp = clamp( vec2( ( wf.x - 0.09 ) / 0.82, ( wf.y - 0.17 ) / 0.74 ), 0.0, 1.0 );
@@ -91,12 +92,12 @@ if ( vWinSeed.z > 0.002 ) {
   }
   float wnDepth = max( smoothstep( 0.86, 1.0, gp.y ) * 0.55, max( smoothstep( 0.12, 0.0, gp.x ) * 0.4, smoothstep( 0.9, 1.0, gp.x ) * 0.15 ) );
   wnIn *= 1.0 - wnDepth;
-  vec3 wnGlass = mix( wnIn, wnRefl, wnReflK * 0.8 + 0.1 );
+  vec3 wnGlass = mix( wnIn, wnRefl, wnReflK * 0.5 + 0.06 );
   diffuseColor.rgb = mix( diffuseColor.rgb, wnGlass, wnMask );
   float wnLit = step( wnD, wnLitP );
   vec3 wnTone = wnLampCol( wnE );
   float wnTv = step( 0.78, wnE ) * step( wnE, 0.9 );
-  float wnPool = wnLamp * ( 0.45 + 0.55 * smoothstep( 0.9, 0.0, length( ( gp - vec2( 0.3 + 0.4 * wnC, 0.82 ) ) * vec2( 1.0, 1.4 ) ) ) );
+  float wnPool = wnLamp * ( 0.45 + 0.55 * ( 1.0 - smoothstep( 0.0, 0.9, length( ( gp - vec2( 0.3 + 0.4 * wnC, 0.82 ) ) * vec2( 1.0, 1.4 ) ) ) ) );
   vec3 wnFab = mix( wnTone, wnTone * pow( wnPal( wnC ) * 2.2, vec3( 0.7 ) ), 0.6 ) * 0.95;
   vec3 wnG = wnTone * wnPool * 0.8 + wnFab * wnFabric;
   wnG *= 1.0 - wnDepth * 0.5;
@@ -140,10 +141,11 @@ vWinSeed = aStyle.xyz;`);
 const SHOP_MAIN = `
 if ( vWinSeed.z > 0.002 ) {
   vec2 wnT = floor( vMapUv );
-  float wnA = wnHash( vWinSeed.xy * 17.0 + wnT * vec2( 1.7, 3.1 ) + 0.13 );
-  float wnB = wnHash( vWinSeed.yx * 23.0 + wnT * vec2( 2.9, 1.3 ) + 0.57 );
-  float wnC = wnHash( vWinSeed.xy * 31.0 + wnT * vec2( 4.1, 2.3 ) + 0.91 );
-  float wnD = wnHash( vWinSeed.yx * 41.0 + wnT * vec2( 3.3, 5.1 ) + 0.29 );
+  vec3 wnS = floor( vWinSeed * 255.0 + 0.5 );
+  float wnA = wnHash( wnS.xy * 0.0713 + wnT * vec2( 1.7, 3.1 ) + 0.13 );
+  float wnB = wnHash( wnS.yx * 0.0571 + wnT * vec2( 2.9, 1.3 ) + 0.57 );
+  float wnC = wnHash( wnS.xy * 0.0437 + wnT * vec2( 4.1, 2.3 ) + 0.91 );
+  float wnD = wnHash( wnS.yx * 0.0319 + wnT * vec2( 3.3, 5.1 ) + 0.29 );
   float wnMask = texture2D( emissiveMap, vEmissiveMapUv ).r;
   vec2 wf = fract( vMapUv );
   vec2 gp = clamp( vec2( ( wf.x - 0.0195 ) / 0.9609, ( wf.y - 0.2 ) / 0.761 ), 0.0, 1.0 );
@@ -225,7 +227,7 @@ if ( vWinSeed.z > 0.002 ) {
   }
   float wnDepth = max( smoothstep( 0.9, 1.0, gp.y ) * 0.35, smoothstep( 0.04, 0.0, gp.x ) * 0.25 );
   wnIn *= 1.0 - wnDepth;
-  vec3 wnGlass = mix( wnIn, wnRefl, wnReflK * 0.8 + 0.08 );
+  vec3 wnGlass = mix( wnIn, wnRefl, wnReflK * 0.5 + 0.05 );
   diffuseColor.rgb = mix( diffuseColor.rgb, wnGlass, wnMask );
   float wnLit = step( wnD, wnLitP );
   gWinGlow = wnMask * wnLit;

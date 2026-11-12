@@ -90,8 +90,9 @@ export function accessoryIdsFor(spec: Pick<PedSpec, 'id' | 'face' | 'age' | 'sex
     default: break;
   }
   const hasBag = spec.gear !== 'none';
-  if (grown && !hat && spec.hair !== 'afro' && roll < 0.1) out.push('headphones');
-  else if (grown && !hat && roll < 0.17) out.push('earbuds');
+  const adult = spec.age === 'adult' || spec.age === 'teen';
+  if (adult && !hat && spec.hair !== 'afro' && spec.hair !== 'afroL' && roll < 0.1) out.push('headphones');
+  else if (adult && !hat && roll < 0.17) out.push('earbuds');
   else if (grown && roll >= 0.17 && roll < 0.24 && hat !== 'hijab' && hat !== 'hoodUp') out.push('scarf');
   else if (grown && roll >= 0.24 && roll < 0.3 && spec.sex !== 'f') out.push('chain');
   if (spec.age === 'old' && rnd(spec.id, 13) < 0.5 && !(hasBag && spec.gear === 'bag')) out.push('cane');

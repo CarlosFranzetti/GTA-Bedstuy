@@ -110,6 +110,7 @@ if (view === 'atlas') {
 }
 
 // ---- PEDTEX views: flat maps, four faces, the player's looks, street distance
+if (params.get('grid') === '1') globalThis.__pedGrid = true;
 const MAPS = ['ba-hoodie-fade', 'hj-man', 'me-hijabi', 'ba-elder', 'la-site', 'player-wh-1'];
 const mapOf = (m) => { let img = null; m.group.traverse((o) => { if (o.isMesh && !img) img = o.material.map?.image; }); return img; };
 if (view === 'maps') {
@@ -118,9 +119,16 @@ if (view === 'maps') {
   const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false; ctx.fillStyle = '#f0f'; ctx.fillRect(0, 0, c.width, c.height);
   ids.forEach((id, i) => { const v = pedVariantIndex(id), m = buildPedModel(materials, new Rng(v + 1), { variant: v }); const img = mapOf(m); if (img) ctx.drawImage(img, (i % cols) * sz, Math.floor(i / cols) * sz, sz, sz); });
 }
-if (view === 'faces4') { place((params.get('ids') ?? 'ba-hoodie-fade,wh-elder,me-hijabi,hj-man').split(','), 0, 0.36, Number(params.get('yaw') ?? 0)); cam.position.set(0, 1.62, 1.05); look.set(0, 1.6, 0); cam.fov = 26; }
+if (view === 'faces4') { place((params.get('ids') ?? 'ba-hoodie-fade,wh-elder,me-hijabi,hj-man').split(','), 0, 0.36, Number(params.get('yaw') ?? 0)); cam.position.set(0, 1.5, 1.0); look.set(0, 1.5, 0); cam.fov = 26; }
 if (view === 'player') { const ids = ['ba', 'la', 'wh', 'ea', 'sa', 'mx'].flatMap((g) => [`player-${g}-0`, `player-${g}-1`, `player-${g}-2`]).slice(0, 12); place(ids.slice(0, 6), 0, 0.8, 0.45); place(ids.slice(6), 1, 0.8, 0.45); cam.position.set(2.6, 1.45, 6.2); look.set(0, 0.95, -0.8); cam.fov = 36; }
 if (view === 'street10') { place(BODIES.slice(0, 10), 0, 1.4, 0.5); cam.position.set(2.5, 1.7, 16); look.set(0, 1.0, 0); cam.fov = 28; }
+// PEOPLE3 views: all twelve body types at any yaw (front 0, side 1.57, back 3.14), and the player at the on-foot game camera (3.2 m behind, 1.55 m up, fov 64)
+if (view === 'bodies12') { const yaw = Number(params.get('yaw') ?? 0), part = Number(params.get('part') ?? 0); place(BODIES.slice(part * 6, part * 6 + 6), 0, 1.0, yaw); cam.position.set(0, 1.3, 6.3); look.set(0, 0.95, 0); cam.fov = 36; }
+if (view === 'playerback') {
+  const id = params.get('id') ?? 'player-ba-0', v = pedVariantIndex(id), m = buildPedModel(materials, new Rng(v + 1), { variant: v });
+  m.group.rotation.y = 0; scene.add(m.group); TRIS[id] = m.triangles;
+  cam.position.set(0.35, 1.55, 3.2); look.set(0, 1.4, 0); cam.fov = 64;   // the player's back is toward the camera at +z: the model faces -z
+}
 if (SIL) { scene.background = new THREE.Color(0xffffff); scene.environment = null; ground.visible = false; scene.traverse((o) => { if (o.isMesh && o !== ground) o.material = new THREE.MeshBasicMaterial({ color: 0x000000 }); }); }
 cam.updateProjectionMatrix(); cam.lookAt(look);
 for (let i = 0; i < 3; i++) renderer.render(scene, cam);

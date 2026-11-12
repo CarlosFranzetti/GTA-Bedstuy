@@ -4,7 +4,7 @@
  * church hat. No letters, no logos. A hat is a dome (a patch of the skull plus a thickness), a brim (two thin sheets, so its upper face and
  * its underside shade differently) and, where it has one, a trim row that takes the person's trim colour from the swatch.
  */
-import { BONE, MeshBuilder, SWATCH, add, basisOf, bodyRingAt, clamp, done, dirOf, lerp, loftY, mul, norm, one, patch, ringPoint, rimAtHeight, sstep, skullR, tube, type Ctx, type Piece, type V3, type Wfn } from './pedPiecesKit';
+import { BONE, MeshBuilder, clearAny, SWATCH, add, basisOf, bodyRingAt, clamp, done, relax, dirOf, lerp, loftY, mul, norm, one, patch, ringDist, ringPoint, rimAtHeight, sstep, skullR, tube, type Ctx, type Piece, type V3, type Wfn } from './pedPiecesKit';
 
 export const HAT_IDS = ['fitted', 'snapback', 'beanie', 'bucket', 'flatCap', 'kufi', 'kippah', 'fedora', 'headscarf', 'hijab', 'durag', 'hoodUp', 'hoodDown', 'hardHat', 'bikeHelmet', 'policeCap', 'churchHat'] as const;
 export type HatId = typeof HAT_IDS[number];
@@ -51,7 +51,7 @@ function brim(ctx: Ctx, mb: MeshBuilder, rim: (be: number) => number, o: { t: nu
     return P;
   };
   const centre: V3 = [0, ctx.C[1] + 0.02, ctx.C[2]];
-  mb.grid(mk(0.002), { rect: HAT, wrap: !open, center: open ? undefined : [0, ctx.C[1] - 0.2, ctx.C[2]], flip: open ? false : undefined, uv: (i, j, R, C) => [j / (C - 1), 0.5 + 0.25 * (i / (R - 1))], shade: (i) => 1 - 0.05 * i });
+  mb.grid(mk(0.002), { rect: HAT, wrap: !open, center: open ? undefined : [0, ctx.C[1] - 0.2, ctx.C[2]], flip: open ? false : undefined, uv: (i, j, R, C) => [j / (C - 1), 0.5], shade: (i) => 1 - 0.04 * i });
   mb.grid(mk(-0.0035), { rect: HAT, wrap: !open, center: open ? undefined : [0, ctx.C[1] + 0.5, ctx.C[2]], flip: open ? true : undefined, uv: (i, j, R, C) => [j / (C - 1), 0.3], shade: () => 0.58 });
   void centre;
 }
@@ -63,7 +63,7 @@ const seams = (n: number) => (u: number, be: number): number => 0.82 + 0.18 * (1
 
 function cap(ctx: Ctx, mb: MeshBuilder, snap: boolean): void {
   const rim = dome(ctx, mb, { line: CAP_LINE, thick: (_be, u) => (snap ? 0.011 + 0.02 * sstep(0.35, 0.75, u) : 0.0085 + 0.007 * sstep(0, 0.5, u)) + 0.004 * sstep(0.88, 1, u), rows: rowsOf(ctx, 5, 3), shade: seams(6) });
-  brim(ctx, mb, rim, { t: 0.0085, arc: 0.95, cols: ctx.detail === 'hi' ? 7 : 5, rows: 3, width: (be) => 0.1 * Math.cos(be * 0.95) + 0.012, droop: () => (snap ? 0.012 : 0.026) });
+  brim(ctx, mb, rim, { t: 0.0085, arc: 0.95, cols: ctx.detail === 'hi' ? 7 : 5, rows: 3, width: (be) => 0.062 * Math.cos(be * 0.95) + 0.01, droop: () => (snap ? 0.01 : 0.022) });
 }
 
 // ---------------------------------------------------------------- drapes: hijab, hood, over the neck and shoulders
@@ -73,11 +73,15 @@ interface DrapeOpts { yBot: number; top: (be: number) => number; rows: number; c
 function drape(ctx: Ctx, mb: MeshBuilder, o: DrapeOpts): void {
   const P: V3[][] = [];
   for (let i = 0; i < o.rows; i++) {
-    const s = i / (o.rows - 1), row: V3[] = [];
+    const s = i / (o.rows - 1), ys: number[] = [], ts: number[] = [];
+    for (let j = 0; j < o.cols; j++) { const be = (j / o.cols) * Math.PI * 2, y = lerp(o.top(be), o.yBot, s); ys.push(y); ts.push(ringDist(ctx, y, be)); }
+    // the rays jump between chest, shoulder and arm: blur the radii round the ring, never below the surface
+    let sm = ts;
+    for (let it = 0; it < 2; it++) sm = sm.map((t, j) => (sm[(j + o.cols - 1) % o.cols] + 2 * t + sm[(j + 1) % o.cols]) / 4);
+    const row: V3[] = [];
     for (let j = 0; j < o.cols; j++) {
-      const be = (j / o.cols) * Math.PI * 2, y = lerp(o.top(be), o.yBot, s);
-      const off = lerp(o.off0, o.off1, sstep(0, 1, s)) + (o.bulge ? o.bulge(be, s) : 0) + (o.fold ?? 0) * Math.sin(Math.min(1, s * 2.4) * Math.PI) * (0.5 + 0.5 * Math.cos(be * 3));
-      row.push(ringPoint(ctx, y, be, off));
+      const be = (j / o.cols) * Math.PI * 2, off = lerp(o.off0, o.off1, sstep(0, 1, s)) + (o.bulge ? o.bulge(be, s) : 0) + (o.fold ?? 0) * Math.sin(Math.min(1, s * 2.4) * Math.PI) * (0.5 + 0.5 * Math.cos(be * 3)), r = Math.max(sm[j], ts[j] - 0.004) + off;
+      row.push([Math.sin(be) * r, ys[j], ctx.C[2] - Math.cos(be) * r]);
     }
     P.push(row);
   }
@@ -86,10 +90,10 @@ function drape(ctx: Ctx, mb: MeshBuilder, o: DrapeOpts): void {
 const toTorso = (ctx: Ctx): Wfn => (p) => { const t = sstep(ctx.lm.chinY - 0.02, ctx.lm.chinY - 0.12, p[1]); return [BONE.head, 1 - t, BONE.torso, t]; };
 
 function hijab(ctx: Ctx, mb: MeshBuilder, hood: boolean): void {
-  const line: Knots = hood ? [[0, 0.8], [0.45, 0.74], [0.8, 0.44], [1.1, 0.2], [1.57, 0.14], [Math.PI, 0.1]] : [[0, 0.74], [0.5, 0.66], [0.78, 0.4], [1.05, 0.21], [1.57, 0.17], [Math.PI, 0.12]];
+  const line: Knots = hood ? [[0, 0.8], [0.45, 0.74], [0.8, 0.46], [1.1, 0.3], [1.57, 0.27], [Math.PI, 0.25]] : [[0, 0.74], [0.5, 0.66], [0.78, 0.42], [1.05, 0.3], [1.57, 0.28], [Math.PI, 0.26]];
   const tf = knots(line);
   const th = hood ? 0.024 : 0.012;
-  dome(ctx, mb, { line, thick: (be, u) => th + (hood ? 0.014 * sstep(0, 0.5, u) + 0.022 * back(be) * sstep(0.3, 1, u) : 0.006 * sstep(0, 0.5, u) + 0.014 * back(be) * sstep(0.2, 1, u)), rows: rowsOf(ctx, 5, 3), shade: (u) => 0.85 + 0.15 * sstep(0, 0.6, u), W: hood ? headW : headW, uvv: [0.4, 0.9] });
+  dome(ctx, mb, { line, thick: (be, u) => th + (hood ? 0.012 * sstep(0, 0.5, u) + 0.02 * back(be) * Math.sin(Math.min(1, u * 1.15) * Math.PI * 0.8) : 0.006 * sstep(0, 0.5, u) + 0.012 * back(be) * Math.sin(Math.min(1, u * 1.15) * Math.PI * 0.8)), rows: rowsOf(ctx, 5, 3), shade: (u) => 0.85 + 0.15 * sstep(0, 0.6, u), W: hood ? headW : headW, uvv: [0.4, 0.9] });
   const sh = ctx.rig.shoulderL[1];
   drape(ctx, mb, {
     yBot: sh - (hood ? 0.07 : 0.17), rows: rowsOf(ctx, 6, 4), cols: ctx.detail === 'hi' ? 14 : 8,
@@ -116,7 +120,7 @@ const BUILD: Record<HatId, (ctx: Ctx, mb: MeshBuilder) => void> = {
   },
   flatCap: (ctx, mb) => {
     const rim = dome(ctx, mb, { line: [[0, 0.62], [0.9, 0.61], [1.57, 0.6], [2.4, 0.55], [Math.PI, 0.52]], thick: (be, u) => 0.0105 + (0.012 + 0.014 * front(be)) * sstep(0.15, 0.7, u) + 0.004 * sstep(0.75, 1, u), rows: rowsOf(ctx, 5, 3), shade: (u, be) => 0.85 + 0.15 * sstep(0, 0.6, u) + 0.05 * Math.sin(be * 9) });
-    brim(ctx, mb, rim, { t: 0.0105, arc: 0.8, cols: ctx.detail === 'hi' ? 6 : 4, rows: 3, width: (be) => 0.055 * Math.cos(be * 1.0) + 0.008, droop: () => 0.01 });
+    brim(ctx, mb, rim, { t: 0.0105, arc: 0.8, cols: ctx.detail === 'hi' ? 6 : 4, rows: 3, width: (be) => 0.04 * Math.cos(be * 1.0) + 0.008, droop: () => 0.008 });
   },
   kufi: (ctx, mb) => dome(ctx, mb, { line: [[0, 0.76], [1.57, 0.74], [Math.PI, 0.7]], thick: (_be, u) => 0.0075 + 0.003 * u, rows: rowsOf(ctx, 3, 3), shade: (u) => 0.92 + 0.08 * u, uvv: [0.4, 0.85] }),
   kippah: (ctx, mb) => {
@@ -152,7 +156,7 @@ const BUILD: Record<HatId, (ctx: Ctx, mb: MeshBuilder) => void> = {
   durag: (ctx, mb) => {
     dome(ctx, mb, { line: [[0, 0.7], [0.9, 0.6], [1.57, 0.5], [2.4, 0.4], [Math.PI, 0.38]], thick: (_be, u) => 0.0055 + 0.003 * sstep(0, 0.5, u), rows: rowsOf(ctx, 4, 3), shade: (u) => 0.9 + 0.1 * u });
     const rz = ctx.C[2] + skullR(ctx, dirOf(Math.PI * 0.68, Math.PI)) + 0.004, ry = ctx.Y(0.4);
-    for (const sx of [-1, 1]) tube(mb, [0, 1, 2, 3].map((k) => [sx * (0.008 + 0.012 * k), ry - 0.075 * k, rz + 0.012 + 0.012 * Math.sin(k * 0.9)] as V3), (_i, t) => [0.011 * (1 - t * 0.35), 0.0035], 4, { rect: HAT, W: toTorso(ctx), capEnd: true, uv: (i, j, R, C) => [j / (C - 1), 0.55] });
+    for (const sx of [-1, 1]) tube(mb, [0, 1, 2, 3].map((k) => clearAny(ctx, [sx * (0.008 + 0.012 * k), ry - 0.075 * k, rz + 0.012 + 0.012 * Math.sin(k * 0.9)], 0.008)), (_i, t) => [0.011 * (1 - t * 0.35), 0.0035], 4, { rect: HAT, W: toTorso(ctx), capEnd: true, uv: (i, j, R, C) => [j / (C - 1), 0.55] });
   },
   hardHat: (ctx, mb) => {
     const rim = dome(ctx, mb, { line: [[0, 0.62], [1.57, 0.6], [Math.PI, 0.56]], thick: (_be, u) => 0.016 + 0.014 * sstep(0.1, 0.6, u) + 0.008 * Math.exp(-((u - 1) * (u - 1)) / 0.03) * 0, rows: rowsOf(ctx, 5, 3), shade: (u, be) => 0.9 + 0.1 * u - 0.1 * Math.exp(-(Math.sin(be * 2) ** 2) * 6) * sstep(0.7, 1, u) });
@@ -169,7 +173,7 @@ const BUILD: Record<HatId, (ctx: Ctx, mb: MeshBuilder) => void> = {
   },
   policeCap: (ctx, mb) => {
     const rim = dome(ctx, mb, { line: CAP_LINE, thick: (be, u) => 0.0095 + 0.026 * sstep(0.35, 0.62, u) + 0.006 * front(be) * sstep(0.4, 0.9, u), rows: rowsOf(ctx, 6, 4), shade: (u) => 0.9 + 0.1 * sstep(0.5, 1, u) });
-    brim(ctx, mb, rim, { t: 0.0095, arc: 0.9, cols: ctx.detail === 'hi' ? 7 : 5, rows: 3, width: (be) => 0.085 * Math.cos(be * 1.0) + 0.012, droop: () => 0.016 });
+    brim(ctx, mb, rim, { t: 0.0095, arc: 0.9, cols: ctx.detail === 'hi' ? 7 : 5, rows: 3, width: (be) => 0.06 * Math.cos(be * 1.0) + 0.01, droop: () => 0.014 });
   },
   churchHat: (ctx, mb) => {
     const rim = dome(ctx, mb, { line: [[0, 0.64], [1.57, 0.62], [Math.PI, 0.58]], thick: (_be, u) => 0.013 + 0.015 * sstep(0.2, 0.8, u), rows: rowsOf(ctx, 5, 3), shade: (u) => 0.9 + 0.1 * u });
@@ -185,6 +189,7 @@ function headRingAtSafe(ctx: Ctx, y: number): { cx: number; cz: number; rx: numb
 export function buildHat(id: HatId, ctx: Ctx): Piece {
   const mb = new MeshBuilder(headW);
   BUILD[id](ctx, mb);
-  return done('hat:' + id, 'hat', mb);
+  const lifted = relax(ctx, mb);
+  return done('hat:' + id, 'hat', mb, lifted);
 }
 void clamp; void basisOf; void bodyRingAt;

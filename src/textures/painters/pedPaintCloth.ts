@@ -29,7 +29,7 @@ function limbPhi(K: Look, t: Tex, arm: boolean): number {
 function weave(K: Look, U: number, y: number, c: Px, t: Tex): void {
   switch (K.fabric) {
     case 'jersey': c.mul(1 + 0.022 * Math.sin(U * 560) + 0.05 * (vn2(U * 60, y * 60, 41) - 0.5)); break;
-    case 'fleece': c.mul(1 + 0.11 * (vn2(U * 48, y * 48, 42) - 0.5) + 0.05 * (vn2(U * 120, y * 120, 43) - 0.5)); break;
+    case 'fleece': c.mul(1 + 0.06 * (vn2(U * 36, y * 36, 42) - 0.5) + 0.025 * (vn2(U * 110, y * 110, 43) - 0.5)); break;
     case 'knit': { const col = Math.sin(U * 520), row = Math.sin(y * 560 + (col > 0 ? 1.3 : 0)); c.mul(1 + 0.05 * col + 0.035 * row + 0.05 * (vn2(U * 50, y * 50, 44) - 0.5)); break; }
     case 'denim': c.mul(1 + 0.03 * Math.sin((U + y) * 700) + 0.09 * (vn2(U * 40, y * 90, 45) - 0.5)); break;
     case 'leather': c.mul(1 + 0.07 * (vn2(U * 26, y * 26, 46) - 0.5)).lite(0.16 * sst(0.55, 0.95, t.ny) + 0.06 * sst(0.2, 0.9, -t.nz * 0.7 + t.nx * 0.4)); break;
@@ -120,11 +120,11 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
   if (denim) {
     c.mul(1 + 0.03 * Math.sin((U + y) * 760) + 0.1 * (vn2(U * 38, y * 90, 71) - 0.5));
     // fades: thighs, knees, a lighter seat and whiskers at the crotch, honeycomb behind the knee
-    const fade = 0.34 * g2(y - (K.knY + 0.16), 0.085) * sst(1.9, 0.4, Math.abs(phi)) + 0.3 * g2(y - K.knY, 0.04) * sst(1.2, 0.0, Math.abs(phi)) + 0.18 * g2(y - (K.hipY - 0.1), 0.05) * (leg ? 1 : 0);
-    c.mix([188, 204, 226], Math.min(0.5, fade * (0.7 + 0.6 * vn2(U * 60, y * 60, 72))));
+    const fade = 0.2 * g2(y - (K.knY + 0.16), 0.085) * sst(1.9, 0.4, Math.abs(phi)) + 0.16 * g2(y - K.knY, 0.04) * sst(1.2, 0.0, Math.abs(phi)) + 0.1 * g2(y - (K.hipY - 0.1), 0.05) * (leg ? 1 : 0);
+    c.mix([180, 198, 222], Math.min(0.3, fade * (0.85 + 0.3 * vn2(U * 30, y * 30, 72))));
     if (leg) {
       const wh = 0.07 * Math.max(0, Math.sin((y - K.hipY + 0.1) * 90 - (ax * 20))) * g2(y - (K.hipY - 0.08), 0.06) * sst(1.5, 0.3, Math.abs(phi));
-      c.lite(wh);
+      c.lite(wh * 0.6);
       c.mul(1 - 0.12 * Math.max(0, Math.sin(y * 260 + phi * 3)) * g2(y - K.knY + 0.03, 0.03) * sst(2.4, 3.1, Math.abs(phi)));       // honeycomb behind the knee
     }
   } else if (kind === 'trousers') {
@@ -226,7 +226,7 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
       c.mix([226, 222, 210], 0.85 * g2(Math.hypot(ax - 0.014, (y - (K.hemTop - 0.03)) * 1.2), 0.0055) * fr);
     }
     // crotch and seat: shadow between the legs, soft folds at the hip
-    c.mul(1 - 0.32 * g2(ax, 0.025) * sst(K.hipY - 0.02, K.hipY - 0.1, y) * 1);
+    c.mul(1 - 0.2 * g2(ax, 0.03) * sst(K.hipY - 0.02, K.hipY - 0.1, y));
     c.mul(1 - 0.1 * g2(y - (K.hipY + 0.02), 0.05) * sst(0.1, 0.17, ax));
   }
   c.mul(0.93 + 0.1 * (t.nx * LIGHT.x + t.ny * LIGHT.y + t.nz * LIGHT.z));
@@ -255,13 +255,13 @@ export function paintTop(K: Look, t: Tex, c: Px, arm: boolean, leg: boolean, nec
     c.mix(trimC, 0.32 * a * a + 0.28 * b2 * b2).mul(1 - 0.22 * a * b2).mix([232, 226, 210], 0.07 * (0.5 + 0.5 * Math.cos(U * TAU / 0.1 + 1)));
   } else if (p === 'stripe') c.mix(trimC, 0.82 * sst(0.45, 0.55, 0.5 + 0.5 * Math.sin(y * TAU / 0.04)));
   else if (p === 'check') c.mix(trimC, 0.6 * (((Math.floor(U / 0.026) + Math.floor(y / 0.026)) & 1)));
-  else if (p === 'heather') c.mix(mixc(fabric, [255, 255, 255], 0.3), 0.55 * vn2(U * 90, y * 90, 81));
+  else if (p === 'heather') c.mix(mixc(fabric, [255, 255, 255], 0.14), 0.5 * vn2(U * 40, y * 40, 81));
   else if (p === 'block') { if (!(y > shY - 0.11 || (arm && y > elY + 0.02))) c.mix(trimC, 1); }
   else if (p === 'print') {
     // small flowers on a staggered grid
     const gu = U / 0.05, gv = y / 0.05, row = Math.floor(gv), cu = (gu + (row & 1) * 0.5) % 1 - 0.5, cv = gv - row - 0.5, d = Math.hypot(cu, cv);
     const petal = 0.5 + 0.5 * Math.cos(Math.atan2(cv, cu) * 5 + hash(K.id) * 6);
-    c.mix(rgbOf(top.printColor), 0.82 * sst(0.22 + 0.06 * petal, 0.16 + 0.04 * petal, d)).mix(BRASS, 0.7 * sst(0.07, 0.04, d));
+    c.mix(rgbOf(top.printColor), 0.62 * sst(0.2 + 0.05 * petal, 0.14 + 0.03 * petal, d)).mix(BRASS, 0.7 * sst(0.07, 0.04, d));
   }
   if (top.print === 'stripes' && !arm && Math.abs(y - (shY - 0.19)) < 0.012) c.mix(rgbOf(top.printColor), 0.95);
   if (top.print === 'bars' && !arm && Math.abs(y - (shY - 0.17)) < 0.009 + 0.011 * (Math.sin(U * 40) > 0 ? 1 : 0)) c.mix(rgbOf(top.printColor), 0.95);
@@ -283,7 +283,7 @@ export function paintTop(K: Look, t: Tex, c: Px, arm: boolean, leg: boolean, nec
     c.mix(SILVER, 0.92 * tp).mul(1 - 0.1 * tp * (0.5 + 0.5 * Math.sin((U + y) * 380)));
     c.mul(1 - 0.28 * ln(Math.abs(y - (hemTop + 0.12)) - 0.02, 0.0025));
   }
-  if (k === 'uniform' && !arm) {
+  if (k === 'uniform' && tor) {
     if (y > shY - 0.025 && ax > shX * 0.55 && ax < shX + 0.01 && tor) c.mix(trimC, 0.65);                                       // epaulettes
     if (top.tie && ax < 0.011 * (1 + 0.5 * sst(shY - 0.1, shY - 0.25, y)) && y < shY + 0.02 && y > shY - 0.3 && front > 0.5) c.mix(rgbOf(top.tie), 0.95);
     // chest pockets with a flap
@@ -313,7 +313,7 @@ export function paintTop(K: Look, t: Tex, c: Px, arm: boolean, leg: boolean, nec
       if (Math.abs(cy - 0.135) < 0.007) c.mix(METAL, 0.85 * sst(0.0045, 0.0025, Math.abs(cx)));
     }
   }
-  if (k === 'puffer' || k === 'jacket' && K.fabric === 'nylon') {
+  if ((k === 'puffer' || k === 'jacket' && K.fabric === 'nylon') && !leg) {
     // quilted channels: a stitched line and a lit puff between each pair; pockets with a zip
     const pitch = tor ? 0.078 : 0.07, yy = (tor ? hemD : arm ? y - sleeveEnd : y - hemTop), ph = ((yy / pitch) % 1 + 1) % 1;
     const puff = Math.sin(ph * Math.PI);
@@ -457,17 +457,17 @@ export function paintTop(K: Look, t: Tex, c: Px, arm: boolean, leg: boolean, nec
   const jointsArm = g2(y - elY, 0.05) + g2(y - (shY - 0.06), 0.05), jointsLeg = g2(y - K.knY, 0.06) + g2(y - (K.hipY - 0.04), 0.06);
   const stiff = K.fabric === 'nylon' ? 0.45 : K.fabric === 'leather' ? 0.6 : K.fabric === 'denim' ? 0.8 : K.fabric === 'wool' ? 0.7 : 1;
   if (arm) {
-    const fo = Math.max(0, Math.sin((y - elY) * 160 + Math.sin(U * 120) * 1.4 + phi));
+    const fo = Math.max(0, Math.sin((y - elY) * 160 + Math.sin(U * 40) * 0.8 + phi));
     c.mul(1 - 0.17 * fo * Math.min(1, jointsArm) * stiff);
     // inside of the elbow: a V of creases, a bunch at the back
-    c.mul(1 - 0.3 * g2(y - elY + 0.012 * Math.sin(x * 140), 0.0065) * sst(1.6, 0.3, Math.abs(phi)) * stiff).mul(1 - 0.18 * g2(y - elY - 0.03, 0.006) * sst(1.3, 0.2, Math.abs(phi)) * stiff);
+    c.mul(1 - 0.3 * g2(y - elY + 0.006 * Math.sin(phi * 2.2), 0.0065) * sst(1.6, 0.3, Math.abs(phi)) * stiff).mul(1 - 0.18 * g2(y - elY - 0.03, 0.006) * sst(1.3, 0.2, Math.abs(phi)) * stiff);
     c.mul(1 - 0.16 * g2(y - elY + 0.03 + 0.4 * Math.abs(phi) * 0.045, 0.0055) * sst(2.0, 0.6, Math.abs(phi)) * stiff).mul(1 - 0.12 * g2(y - elY + 0.01, 0.007) * sst(2.3, 3.0, Math.abs(phi)) * stiff);
     // under the arm: ambient shade down the inside of the sleeve and the armpit
     c.mul(1 - 0.3 * sst(0.0, -1.55, phi) * sst(shY - 0.2, shY - 0.04, y) - 0.1 * sst(-0.4, -1.6, phi));
   } else if (leg) {
-    c.mul(1 - 0.12 * Math.max(0, Math.sin(y * 110 + Math.sin(U * 11) * 1.8)) * Math.min(1, jointsLeg) * stiff);
+    c.mul(1 - 0.04 * Math.min(1, jointsLeg) * stiff);
   } else {
-    c.mul(1 - 0.35 * g2(ax - (shX * 0.9), 0.04) * g2(y - (shY - 0.11), 0.07));                                       // armpit
+    c.mul(1 - 0.24 * g2(ax - (shX * 0.9), 0.04) * g2(y - (shY - 0.11), 0.07));                                       // armpit
     c.mul(1 - 0.12 * g2(y - (shY - 0.25), 0.03) * front * (K.s.sex === 'f' ? 1.0 : 0.25) * sst(0.0, 0.07, ax));          // under the bust or chest
     c.mul(1 - 0.12 * Math.max(0, Math.sin((y - hemTop) * 90 + Math.sin(U * 24) * 2.2)) * g2(y - (hemTop + 0.07), 0.09) * stiff * front);   // folds over the belly
     c.mul(1 - 0.13 * g2(y - (hemTop + 0.02) + 0.25 * ax, 0.012) * stiff);

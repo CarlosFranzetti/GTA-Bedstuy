@@ -279,7 +279,7 @@ export function makeCtx(shape: Pick<MhShape, 'landmarks' | 'headRings'>, spec: P
   let cz = hr[0][2];
   for (let i = 1; i < hr.length; i++) if (hr[i][0] >= yc) { const a = hr[i - 1], b = hr[i], t = (yc - a[0]) / (b[0] - a[0] || 1); cz = a[2] + (b[2] - a[2]) * t; break; }
   const head = new RayMesh(dressed, lm.chinY - 0.12, lm.crownY + 0.02, (i) => wsumAt(dressed, i, [3]) > 0.5 || (dressed.position[i * 3 + 1] > lm.chinY - 0.05 && wsumAt(dressed, i, [3]) > 0.15));
-  const torso = new RayMesh(dressed, lm.chinY - 0.5, lm.chinY + 0.02, (i) => wsumAt(dressed, i, W_ARMS) < 0.5);
+  const torso = new RayMesh(dressed, lm.hemY - 0.25, lm.chinY + 0.02, (i) => wsumAt(dressed, i, W_ARMS) < 0.5);
   const ank = (side: 'L' | 'R'): { cx: number; cz: number; rx: number; rz: number } => {
     const a = rig['ankle' + side], anY = lm.ankleY;
     let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
@@ -289,7 +289,7 @@ export function makeCtx(shape: Pick<MhShape, 'landmarks' | 'headRings'>, spec: P
     }
     return isFinite(x0) ? { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, rx: (x1 - x0) / 2, rz: (z1 - z0) / 2 } : { cx: a[0], cz: a[2], rx: 0.04, rz: 0.04 };
   };
-  return { detail, spec, bt, lm, H, Y, C: [0, yc, cz], rig, head, torso, skin: dressed, ankle: { L: ank('L'), R: ank('R') }, seed: spec.id, cols: detail === 'hi' ? 18 : 10 };
+  return { detail, spec, bt, lm, H, Y, C: [0, yc, cz], rig, head, torso, skin: dressed, ankle: { L: ank('L'), R: ank('R') }, seed: spec.id, cols: detail === 'hi' ? 16 : 10 };
 }
 
 /** unit direction from the head centre: theta from straight up, phi from the front (0) round towards +x */
@@ -350,14 +350,17 @@ export function basisOf(axis: V3): { a: V3; u: V3; v: V3 } {
 export function patch(ctx: Ctx, mb: MeshBuilder, o: PatchOpts): void {
   const C = o.cols ?? ctx.cols, R = o.rows, B = basisOf(o.axis ?? [0, 1, 0]), ease = o.ease ?? ((x: number) => x);
   const dirAt = (al: number, be: number): V3 => add(mul(B.a, Math.cos(al)), mul(add(mul(B.u, Math.cos(be)), mul(B.v, Math.sin(be))), Math.sin(al)));
-  const rad = o.radius ?? ((d: V3): number => skullR(ctx, d));
+  const rad0 = o.radius ?? ((d: V3): number => skullR(ctx, d));
+  // the radius is the envelope of the surface over the cell (centre and four neighbours), so a coarse grid never dips under a bump of the skull
+  const dA = Math.max(0.05, o.rim(0) / (o.rows - 1) * 0.6), dB = (Math.PI * 2 / C) * 0.6;
+  const rad = (d: V3, al: number, be: number): number => (al < 1e-4 ? rad0(d) : Math.max(rad0(d), rad0(dirAt(al + dA, be)), rad0(dirAt(Math.max(0, al - dA), be)), rad0(dirAt(al, be + dB)), rad0(dirAt(al, be - dB))));
   const D: V3[][] = [], Rr: number[][] = [], Th: number[][] = [];
   const rimJ = Array.from({ length: C }, (_, j) => o.rim((j / C) * Math.PI * 2)), innerJ = Array.from({ length: C }, (_, j) => (o.inner ? o.inner((j / C) * Math.PI * 2) : 0));
   for (let i = 0; i < R; i++) {
     D.push([]); Rr.push([]); Th.push([]);
     for (let j = 0; j < C; j++) {
       const be = (j / C) * Math.PI * 2, u = ease(i / (R - 1)), al = rimJ[j] + (innerJ[j] - rimJ[j]) * u, d = dirAt(al, be);
-      D[i].push(d); Rr[i].push(rad(d)); Th[i].push(o.thick(be, u));
+      D[i].push(d); Rr[i].push(rad(d, al, be)); Th[i].push(o.thick(be, u));
     }
   }
   const raw = Rr.map((r) => [...r]);
@@ -388,8 +391,8 @@ export function rimAtHeight(ctx: Ctx, y: number, beta: number): number {
 }
 
 /** how a finished piece reports itself */
-export interface Piece { id: string; slot: 'hair' | 'hat' | 'accessory' | 'shoe' | 'bag'; geo: THREE.BufferGeometry; tris: number }
-export function done(id: string, slot: Piece['slot'], mb: MeshBuilder): Piece { const geo = mb.build(); return { id, slot, geo, tris: mb.tris }; }
+export interface Piece { id: string; slot: 'hair' | 'hat' | 'accessory' | 'shoe' | 'bag'; geo: THREE.BufferGeometry; tris: number; /** vertices the safety pass had to lift out of the body (a fit report, should stay small) */ lifted: number }
+export function done(id: string, slot: Piece['slot'], mb: MeshBuilder, lifted = 0): Piece { const geo = mb.build(); return { id, slot, geo, tris: mb.tris, lifted }; }
 
 /** push a point out of the dressed torso (neck, shoulders, back) by a margin, along the horizontal line from the body axis */
 export function clearBody(ctx: Ctx, p: V3, margin: number): V3 {
@@ -411,10 +414,14 @@ export function clearAny(ctx: Ctx, p: V3, margin: number): V3 {
 }
 
 /** the point on the head or the torso at height y, azimuth beta (0 front, round towards +x), by a horizontal ray from the axis, +off */
-export function ringPoint(ctx: Ctx, y: number, beta: number, off: number): V3 {
+export function ringDist(ctx: Ctx, y: number, beta: number): number {
   const o: V3 = [0, y, ctx.C[2]], d: V3 = [Math.sin(beta), 0, -Math.cos(beta)];
-  const t1 = ctx.head.hit(o, d, 0.8), t2 = ctx.torso.hit(o, d, 0.8), t = Math.max(isFinite(t1) ? t1 : 0, isFinite(t2) ? t2 : 0) || 0.07;
-  return [o[0] + d[0] * (t + off), y, o[2] + d[2] * (t + off)];
+  const t1 = ctx.head.hit(o, d, 0.8), t2 = ctx.torso.hit(o, d, 0.8);
+  return Math.max(isFinite(t1) ? t1 : 0, isFinite(t2) ? t2 : 0) || 0.07;
+}
+export function ringPoint(ctx: Ctx, y: number, beta: number, off: number): V3 {
+  const t = ringDist(ctx, y, beta), d: V3 = [Math.sin(beta), 0, -Math.cos(beta)];
+  return [d[0] * (t + off), y, ctx.C[2] + d[2] * (t + off)];
 }
 
 /** a colour string (#rgb or #rrggbb) as a linear vertex tint */
@@ -451,4 +458,45 @@ export function topY(ctx: Ctx, x: number, z: number, off: number): number {
 export function ribbon(mb: MeshBuilder, pts: V3[], widths: V3[], half: number, o: { rect: PxRect; centre: V3; W?: Wfn; tint?: V3; uvt?: [number, number]; shade?: number }): void {
   const P: V3[][] = pts.map((p, i) => [add(p, mul(widths[i], -half)), add(p, mul(widths[i], half))]);
   mb.grid(P, { rect: o.rect, center: o.centre, W: o.W, tint: o.tint, uv: (i, j, R, C) => [o.uvt ? o.uvt[0] : j / (C - 1), o.uvt ? o.uvt[1] : 0.5], shade: () => o.shade ?? 1 });
+}
+
+function depthIn(mesh: RayMesh, axis: V3, p: V3): number {
+  const dx = p[0] - axis[0], dz = p[2] - axis[2], l = Math.hypot(dx, dz);
+  let dr = Infinity, dv = Infinity, radialInside = l < 1e-4;
+  if (l >= 1e-4) { const t = mesh.hit(axis, [dx / l, 0, dz / l], 0.9); if (isFinite(t) && l < t) { radialInside = true; dr = t - l; } }
+  if (!radialInside) return 0;
+  const tv = mesh.hit([p[0], p[1] + 0.7, p[2]], [0, -1, 0], 1.6);
+  if (!isFinite(tv)) return 0;
+  const ytop = p[1] + 0.7 - tv;
+  if (p[1] >= ytop) return 0;
+  dv = ytop - p[1];
+  return Math.min(dr, dv);
+}
+/** how far (m) a point lies inside the head or the dressed torso (0 when outside): the smaller of the depth along the radial and along the vertical */
+export function penetration(ctx: Ctx, p: V3): number {
+  const axis: V3 = [0, p[1], ctx.C[2]];
+  let d = 0;
+  if (p[1] > ctx.lm.chinY - 0.06) d = Math.max(d, depthIn(ctx.head, axis, p));
+  if (p[1] < ctx.lm.chinY + 0.03) d = Math.max(d, depthIn(ctx.torso, axis, p));
+  return d;
+}
+
+/**
+ * Safety pass: any vertex more than 7 mm inside the head or the dressed torso is lifted out along the line from the centre of the head
+ * (or from the body axis, below the chin) until it is within 4 mm of the surface. Returns how many vertices had to move.
+ */
+export function relax(ctx: Ctx, mb: MeshBuilder): number {
+  let moved = 0;
+  for (let i = 0; i < mb.pos.length; i += 3) {
+    let p: V3 = [mb.pos[i], mb.pos[i + 1], mb.pos[i + 2]], hit = false;
+    for (let k = 0; k < 3; k++) {
+      const d = penetration(ctx, p);
+      if (d < 0.007) break;
+      hit = true;
+      const c: V3 = p[1] > ctx.lm.chinY - 0.03 ? ctx.C : [0, p[1], ctx.C[2]], v = sub(p, c), l = len(v) || 1;
+      p = add(p, mul(v, (d - 0.004) / l));
+    }
+    if (hit) { moved++; mb.pos[i] = p[0]; mb.pos[i + 1] = p[1]; mb.pos[i + 2] = p[2]; }
+  }
+  return moved;
 }

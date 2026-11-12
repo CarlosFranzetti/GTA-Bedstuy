@@ -1,88 +1,88 @@
 {
  "ba_m": {
   "height": 1.79,
-  "bytes": 71228,
+  "bytes": 70916,
   "tris": {
-   "hi": 3916,
-   "mid": 1140,
-   "far": 398
+   "hi": 3918,
+   "mid": 1134,
+   "far": 400
   }
  },
  "ba_f": {
   "height": 1.67,
-  "bytes": 70732,
+  "bytes": 70688,
   "tris": {
-   "hi": 3896,
+   "hi": 3894,
    "mid": 1126,
    "far": 400
   }
  },
  "ca_m": {
   "height": 1.79,
-  "bytes": 71088,
+  "bytes": 71016,
   "tris": {
-   "hi": 3924,
+   "hi": 3926,
    "mid": 1136,
-   "far": 398
+   "far": 400
   }
  },
  "ca_f": {
   "height": 1.67,
-  "bytes": 70280,
+  "bytes": 70400,
   "tris": {
-   "hi": 3916,
+   "hi": 3918,
    "mid": 1132,
    "far": 400
   }
  },
  "la_m": {
   "height": 1.78,
-  "bytes": 71204,
+  "bytes": 71068,
   "tris": {
-   "hi": 3922,
-   "mid": 1142,
-   "far": 398
+   "hi": 3926,
+   "mid": 1138,
+   "far": 400
   }
  },
  "la_f": {
   "height": 1.66,
-  "bytes": 69776,
+  "bytes": 70088,
   "tris": {
    "hi": 3896,
-   "mid": 1118,
-   "far": 396
+   "mid": 1122,
+   "far": 400
   }
  },
  "wh_m": {
   "height": 1.78,
-  "bytes": 71664,
+  "bytes": 71516,
   "tris": {
-   "hi": 3926,
-   "mid": 1146,
+   "hi": 3930,
+   "mid": 1142,
    "far": 400
   }
  },
  "wh_f": {
   "height": 1.66,
-  "bytes": 70628,
+  "bytes": 70616,
   "tris": {
-   "hi": 3908,
+   "hi": 3904,
    "mid": 1118,
-   "far": 398
+   "far": 400
   }
  },
  "ea_m": {
   "height": 1.74,
-  "bytes": 72052,
+  "bytes": 71888,
   "tris": {
-   "hi": 3922,
-   "mid": 1140,
+   "hi": 3924,
+   "mid": 1132,
    "far": 396
   }
  },
  "ea_f": {
   "height": 1.62,
-  "bytes": 71032,
+  "bytes": 71016,
   "tris": {
    "hi": 3902,
    "mid": 1116,
@@ -91,119 +91,119 @@
  },
  "sa_m": {
   "height": 1.78,
-  "bytes": 71380,
+  "bytes": 71844,
   "tris": {
-   "hi": 3928,
+   "hi": 3932,
    "mid": 1146,
-   "far": 394
+   "far": 398
   }
  },
  "sa_f": {
   "height": 1.66,
-  "bytes": 70332,
+  "bytes": 70344,
   "tris": {
-   "hi": 3912,
+   "hi": 3910,
    "mid": 1126,
-   "far": 396
+   "far": 398
   }
  },
  "me_m": {
   "height": 1.78,
-  "bytes": 71448,
+  "bytes": 71688,
   "tris": {
-   "hi": 3924,
-   "mid": 1136,
-   "far": 396
+   "hi": 3928,
+   "mid": 1138,
+   "far": 398
   }
  },
  "me_f": {
   "height": 1.66,
-  "bytes": 70408,
+  "bytes": 70352,
   "tris": {
-   "hi": 3904,
+   "hi": 3902,
    "mid": 1124,
-   "far": 396
+   "far": 400
   }
  },
  "mx_m": {
   "height": 1.78,
-  "bytes": 71388,
+  "bytes": 71332,
   "tris": {
-   "hi": 3938,
+   "hi": 3940,
    "mid": 1152,
-   "far": 400
+   "far": 396
   }
  },
  "mx_f": {
   "height": 1.66,
-  "bytes": 70672,
+  "bytes": 70584,
   "tris": {
-   "hi": 3912,
-   "mid": 1134,
-   "far": 398
+   "hi": 3914,
+   "mid": 1136,
+   "far": 400
   }
  },
  "ba_m_old": {
   "height": 1.73,
-  "bytes": 71356,
+  "bytes": 71300,
   "tris": {
-   "hi": 3920,
-   "mid": 1150,
+   "hi": 3922,
+   "mid": 1152,
    "far": 398
   }
  },
  "ba_f_old": {
   "height": 1.61,
-  "bytes": 72660,
+  "bytes": 71668,
   "tris": {
-   "hi": 3924,
-   "mid": 1150,
-   "far": 396
+   "hi": 3918,
+   "mid": 1142,
+   "far": 400
   }
  },
  "wh_m_old": {
   "height": 1.72,
-  "bytes": 72060,
+  "bytes": 71828,
   "tris": {
    "hi": 3938,
    "mid": 1160,
-   "far": 398
+   "far": 400
   }
  },
  "wh_f_old": {
   "height": 1.6,
-  "bytes": 72500,
+  "bytes": 71904,
   "tris": {
-   "hi": 3922,
-   "mid": 1134,
-   "far": 396
+   "hi": 3924,
+   "mid": 1142,
+   "far": 400
   }
  },
  "teen_a": {
   "height": 1.6,
-  "bytes": 71356,
+  "bytes": 71420,
   "tris": {
-   "hi": 3916,
-   "mid": 1132,
+   "hi": 3920,
+   "mid": 1134,
    "far": 398
   }
  },
  "teen_b": {
   "height": 1.46,
-  "bytes": 70816,
+  "bytes": 70672,
   "tris": {
-   "hi": 3902,
-   "mid": 1102,
-   "far": 396
+   "hi": 3900,
+   "mid": 1100,
+   "far": 400
   }
  },
  "mx_x": {
   "height": 1.72,
-  "bytes": 71844,
+  "bytes": 71412,
   "tris": {
-   "hi": 3900,
-   "mid": 1124,
-   "far": 396
+   "hi": 3902,
+   "mid": 1126,
+   "far": 398
   }
  }
 }

@@ -138,7 +138,7 @@ describe('MaterialLibrary', () => {
     lib.setNight(true);
     expect(w.emissiveIntensity).toBe(0.9);
     expect(s.emissiveIntensity).toBe(0.35); // L10: big flat shop glazing is capped (windows keep 0.9)
-    expect(w.emissive.getHexString()).toBe('ffd27a');
+    expect(w.emissive.getHexString()).toBe('ffffff'); // the lamp tone is per window, in windowShader.ts
     const late = lib.get('window', 2) as THREE.MeshStandardMaterial;
     expect(late.emissiveIntensity).toBe(0.9);
     lib.setNight(false);
@@ -464,7 +464,7 @@ describe('PBR materials', () => {
     const win = lib.get('window', 1) as THREE.MeshStandardMaterial;
     expect(win.map).toBe(wmap);
     expect(win.emissiveIntensity).toBe(0.9);
-    expect(win.emissive.getHexString()).toBe('ffd27a');
+    expect(win.emissive.getHexString()).toBe('ffffff');
     expect(win.metalness).toBeCloseTo(0);
     lib.setNight(false);
     expect(win.emissiveIntensity).toBe(0);

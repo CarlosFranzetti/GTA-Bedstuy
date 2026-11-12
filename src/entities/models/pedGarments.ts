@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { SK_RECTS } from '@/textures/painters/pedSkinPaint';
 import type { PedSpec, PxRect } from '@/textures/painters/ped';
 import type { MhLod, MhShape } from './pedMesh';
+import { bodyTypeOf } from './pedBodyTypes';
 
 const ATLAS = 512;
 const tileUV = (r: PxRect, fu: number, ft: number): [number, number] => {
@@ -230,3 +231,65 @@ export function headShell(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec)
   return out;
 }
 
+
+// ---------------------------------------------------------------- hijab: a cloth shell from the head, neck and shoulders
+
+/** FNV hash of a person's id, to pick the wrap style the same way every time */
+const idHash = (id: string): number => { let h = 2166136261; for (let i = 0; i < id.length; i++) { h ^= id.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+
+/**
+ * The hijab as ONE smooth drape: the head, neck and shoulder triangles of the person are copied, clipped to everything outside an oval opening
+ * round the face (the face inside is the normal head, nothing is pasted over it), and pushed out along the normals by the thickness of the
+ * cloth, which fades to nothing at the opening and at a soft hem on the chest, so there is no cut edge and no facet. Style A (neat wrap, short
+ * hem on the chest) or B (loose shawl, fuller and longer) is picked from the person's id. Returns the shell and the base triangles it hides
+ * (those well inside it), so the person does not pay for the same surface twice.
+ */
+export function hijabShell(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec): { shell: THREE.BufferGeometry[]; hide: Set<number> } {
+  const lm = s.landmarks, hh = lm.crownY - lm.chinY, shY = s.rig.shoulderL[1];
+  const ring = s.headRings[Math.min(s.headRings.length - 1, Math.round(0.7 * (s.headRings.length - 1)))] as number[];
+  const zc = ring[2], rx = ring[1], rz = ring[3];
+  const loose = idHash(spec.id) % 2 === 0;
+  const reach = loose ? 0.3 : 0.2, yc = lm.chinY + 0.4 * hh, ay = 0.43 * hh, ax = rx * 0.82, xs = Math.abs(s.rig.shoulderL[0]) * bodyTypeOf(spec).shoulders * 1.02;
+  const all = soupOf(L, ao);
+  const cover = smoothField(all, (v) => (wsum(v, B.head) + wsum(v, B.torso) + wsum(v, B.arms) * smooth(shY - 0.2, shY - 0.04, v.p[1])) - 0.55, 3);
+  const region = (v: V): number => {
+    const x = v.p[0], y = v.p[1], z = v.p[2];
+    // the face opening: an oval on the front of the head, from the chin to the hairline
+    const e = Math.sqrt((x / ax) ** 2 + ((y - yc) / ay) ** 2) - 1;
+    const behind = Math.max(0, (z - (zc - 0.25 * rz)) / rz);
+    const aperture = e * Math.min(ax, ay) * 1.2 + 0.2 * behind;
+    // a soft U shaped hem: lowest at the middle of the chest, higher at the sides and at the back
+    const hemY = shY - reach - 0.06 * (1 - smooth(0, 0.17, Math.abs(x))) * (1 - Math.min(1, behind * 1.3)) + 0.04 * Math.min(1, behind);
+    const hem = (y - hemY) * 0.9;
+    // the cloth ends on the shoulder line, it does not wrap the arms
+    const side = (xs - Math.abs(x)) * 1.1;
+    return Math.min(aperture, hem, side, cover(v) * 0.6);
+  };
+  const mantle = (v: V): number => smooth(lm.chinY + 0.01, lm.chinY - 0.1, v.p[1]);
+  const thick = (v: V): number => {
+    const r = region(v);
+    const ear = 0.016 * smooth(0.78 * rx, 1.0 * rx, Math.abs(v.p[0])) * Math.exp(-(((v.p[1] - (lm.chinY + 0.5 * hh)) / 0.05) ** 2)) * smooth(zc + 0.9 * rz, zc - 0.5 * rz, v.p[2]);   // the ears are covered
+    const base = 0.021 + 0.006 * mantle(v) + ear + (loose ? 0.01 * smooth(shY - 0.04, shY - reach, v.p[1]) : 0);
+    return base * (0.12 + 0.88 * smooth(0, 0.05, r));
+  };
+  const inside = clip(all, region);
+  const hide = new Set<number>();
+  for (const t of inside) { const id = wholeId(t); if (id !== undefined && region(t[0]) > 0.004 && region(t[1]) > 0.004 && region(t[2]) > 0.004) hide.add(id); }
+  const hatR = SK_RECTS.hat;
+  const mapTo = (p: V3): [number, number] => {
+    let a = Math.atan2(p[0], p[2] - zc); if (a < 0) a += Math.PI * 2;
+    return tileUV(hatR, a / (Math.PI * 2), 0.1 + 0.8 * smooth(shY - reach, lm.crownY, p[1]));
+  };
+  // the cloth passes over the ears instead of following them: the side of the head is held to the width of the skull
+  const hang = (p: V3, v: V): void => {
+    const band = Math.exp(-(((v.p[1] - (lm.chinY + 0.5 * hh)) / (0.2 * hh)) ** 2)) * smooth(zc + rz, zc - 0.4 * rz, v.p[2]) * wsum(v, B.head);
+    const lim = rx * 1.04 + 0.02, ax2 = Math.abs(p[0]);
+    if (ax2 > lim) p[0] = Math.sign(p[0]) * (ax2 + (lim - ax2) * band);
+  };
+  const g = finalize(inside, { thick, hang, iterations: 3, normalIters: 10, uv: mapTo });
+  if (g) {
+    const uv = g.getAttribute('uv') as THREE.BufferAttribute;
+    for (let i = 0; i + 2 < uv.count; i += 3) { const us = [uv.getX(i), uv.getX(i + 1), uv.getX(i + 2)]; if (Math.max(...us) - Math.min(...us) > 0.12) for (let k = 0; k < 3; k++) uv.setX(i + k, Math.min(...us)); }
+  }
+  return { shell: g ? [g] : [], hide };
+}

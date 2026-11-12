@@ -3,7 +3,7 @@
  * shopping bag in hand, a handbag, a cane, a scarf and a chain (no pendant, no lettering). Bags hug the dressed body of the body type they are
  * on (their straps follow the shoulder ridge), the hand pieces take the wrist of the shifted rig.
  */
-import { BONE, MeshBuilder, NEUTRAL, SWATCH, add, blend, clearAny, cross, done, hexLin, lerp, loftY, mul, norm, one, outerX, ribbon, ringPoint, sstep, sub, surfPt, topY, tube, type Ctx, type Piece, type V3, type Wfn } from './pedPiecesKit';
+import { BONE, MeshBuilder, NEUTRAL, SWATCH, add, blend, clearAny, cross, done, relax, hexLin, lerp, loftY, mul, norm, one, outerX, ribbon, ringPoint, sstep, sub, surfPt, topY, tube, type Ctx, type Piece, type V3, type Wfn } from './pedPiecesKit';
 
 export const ACCESSORY_IDS = ['glasses', 'sunglasses', 'headphones', 'earbuds', 'backpack', 'tote', 'messenger', 'shoppingBag', 'handbag', 'cane', 'scarf', 'chain'] as const;
 export type AccessoryId = typeof ACCESSORY_IDS[number];
@@ -19,7 +19,7 @@ const widthsAlong = (pts: V3[], normals: V3[]): V3[] => pts.map((_p, i) => { con
 function glasses(ctx: Ctx, mb: MeshBuilder, sun: boolean): void {
   const lm = ctx.lm, tint = hexLin(ctx.spec.face.glasses ?? '#1a1a1a', 1), y = lm.eyeY + 0.001, ex = Math.max(0.03, lm.eyeX);
   const w = sun ? 0.027 : 0.024, h = sun ? 0.021 : 0.018;
-  const t0 = ctx.head.hit([ex, y, ctx.C[2]], [0, 0, -1], 0.4), zf = ctx.C[2] - (isFinite(t0) ? t0 : 0.1) - 0.006;
+  const t0 = ctx.head.hit([0, y, ctx.C[2]], [0, 0, -1], 0.4), zf = ctx.C[2] - (isFinite(t0) ? t0 : 0.1) - 0.002;
   const n = 8;
   for (const sx of [-1, 1]) {
     const cx = sx * ex, outer: V3[] = [], inner: V3[] = [];
@@ -41,14 +41,14 @@ function headphones(ctx: Ctx, mb: MeshBuilder): void {
   tube(mb, band, (_i, t) => [0.0055, 0.011 + 0.002 * Math.sin(t * Math.PI)], 4, { rect: NEUTRAL, W: headW, tint, uv: () => [0.5, 0.5], capStart: true, capEnd: true, ref: [0, 0, 1] });
   for (const sx of [-1, 1]) {
     const x0 = sx * (R - 0.006), x1 = sx * (R + 0.032);
-    tube(mb, [[x0, ye, z], [(x0 + x1) / 2, ye, z], [x1, ye, z]], (i) => (i === 1 ? [0.039, 0.046] : [0.03, 0.037]), ctx.detail === 'hi' ? 8 : 6, { rect: NEUTRAL, W: headW, tint: gt, uv: () => [0.5, 0.5], capStart: true, capEnd: true, ref: [0, 1, 0] });
+    tube(mb, [[x0, ye, z], [(x0 + x1) / 2, ye, z], [x1, ye, z]], (i) => (i === 1 ? [0.039, 0.046] : [0.03, 0.037]), 6, { rect: NEUTRAL, W: headW, tint: gt, uv: () => [0.5, 0.5], capStart: true, capEnd: true, ref: [0, 1, 0] });
   }
 }
 
 function earbuds(ctx: Ctx, mb: MeshBuilder): void {
   const ye = ctx.Y(0.46), z = ctx.C[2] + 0.004, W = blend(BONE.head, BONE.torso, (p) => sstep(ctx.lm.chinY, ctx.lm.chinY - 0.1, p[1])), white: V3 = [0.9, 0.9, 0.92];
   for (const sx of [-1, 1]) {
-    const t = ctx.head.hit([0, ye, z], [sx, 0, 0], 0.3), xs = sx * ((isFinite(t) ? t : 0.085) - 0.004);
+    const t = ctx.head.hit([0, ye, z], [sx, 0, 0], 0.3), xs = sx * ((isFinite(t) ? t : 0.085) + 0.006);
     tube(mb, [[xs, ye, z], [xs + sx * 0.011, ye, z]], () => [0.0075, 0.0075], 5, { rect: NEUTRAL, W: headW, tint: white, uv: () => [0.5, 0.5], capEnd: true });
     // the cable down the neck to the chest
     const path: V3[] = [[xs + sx * 0.011, ye, z], [xs + sx * 0.014, ye - 0.05, z + 0.004], ...[0, 1, 2].map((k): V3 => { const y = ctx.lm.chinY - 0.04 - k * 0.07; return ringPoint(ctx, y, sx * (1.0 - k * 0.25) + (sx < 0 ? Math.PI * 2 : 0), 0.007); })];
@@ -113,18 +113,18 @@ function messenger(ctx: Ctx, mb: MeshBuilder): void {
 
 function shoppingBag(ctx: Ctx, mb: MeshBuilder): void {
   const w = ctx.rig.wristL, W = one(BONE.elbowL), wy = w[1], wx = w[0], wz = w[2];
-  const rings = [[wy - 0.36, 0.045, 0.1], [wy - 0.22, 0.056, 0.115], [wy - 0.09, 0.052, 0.11]].map(([y, rx, rz]) => ({ y, rx, rz, cx: wx, cz: wz - 0.012, e: 4 }));
+  const hip = Math.max(...[wy - 0.36, wy - 0.22, wy - 0.09].map((y) => { const t = ctx.torso.hit([0, y, ctx.C[2]], [-1, 0, 0], 0.6); return isFinite(t) ? t : 0; })), cxb = -Math.max(Math.abs(wx), hip + 0.062), rings = [[wy - 0.36, 0.045, 0.1], [wy - 0.22, 0.056, 0.115], [wy - 0.09, 0.052, 0.11]].map(([y, rx, rz]) => ({ y, rx, rz, cx: cxb, cz: wz - 0.012, e: 4 }));
   loftY(mb, rings, ctx.detail === 'hi' ? 8 : 6, { rect: GEAR, capBottom: true, capTop: true, liftBottom: 0, lift: -0.004, W, uv: (i, j, R, C) => [j / (C - 1), 0.35 + 0.5 * (i / (R - 1))], shade: (i) => 0.86 + 0.14 * (i / 4) });
-  const arch: V3[] = [0, 1, 2, 3, 4].map((k) => { const a = (k / 4) * Math.PI; return [wx, wy - 0.09 + 0.1 * Math.sin(a) + 0.0, wz - 0.012 - 0.06 * Math.cos(a)]; });
+  const arch: V3[] = [0, 1, 2, 3, 4].map((k) => { const a = (k / 4) * Math.PI; return [cxb, wy - 0.09 + 0.1 * Math.sin(a) + 0.0, wz - 0.012 - 0.06 * Math.cos(a)]; });
   tube(mb, arch, () => [0.0055, 0.0055], 3, { rect: GEAR, W, tint: [0.8, 0.8, 0.8], uv: () => [0.5, 0.25], capStart: true, capEnd: true });
 }
 
 function cane(ctx: Ctx, mb: MeshBuilder): void {
   const w = ctx.rig.wristR, hand: V3 = [w[0] - 0.003, w[1] - 0.012, w[2] - 0.02], W: Wfn = blend(BONE.elbowR, BONE.rig, (p) => sstep(hand[1] - 0.05, 0.25, 1 - p[1] + 0.0) * 0 + sstep(hand[1] - 0.08, 0.4, hand[1] - p[1]));
   const wood: V3 = [0.2, 0.1, 0.04];
-  tube(mb, [hand, [hand[0], 0.38, hand[2] - 0.05], [hand[0], 0.0, hand[2] - 0.1]], (_i, t) => [0.0105 - 0.002 * t, 0.0105 - 0.002 * t], 5, { rect: NEUTRAL, W, tint: wood, uv: () => [0.5, 0.5], capEnd: true });
+  tube(mb, [hand, [hand[0], 0.38, hand[2] - 0.05], [hand[0], 0.0, hand[2] - 0.1]].map((p) => clearAny(ctx, p as V3, 0.014)), (_i, t) => [0.0105 - 0.002 * t, 0.0105 - 0.002 * t], 5, { rect: NEUTRAL, W, tint: wood, uv: () => [0.5, 0.5], capEnd: true });
   // the crook: a short curved handle above the hand
-  const hook: V3[] = [0, 1, 2, 3, 4].map((k) => { const a = (k / 4) * Math.PI * 0.9; return [hand[0], hand[1] + 0.045 * Math.sin(a), hand[2] + 0.045 - 0.045 * Math.cos(a)]; });
+  const hook: V3[] = [0, 1, 2, 3, 4].map((k) => { const a = (k / 4) * Math.PI * 0.9; return clearAny(ctx, [hand[0], hand[1] + 0.045 * Math.sin(a), hand[2] + 0.045 - 0.045 * Math.cos(a)], 0.014); });
   tube(mb, hook, (_i, t) => [0.0125 - 0.003 * t, 0.0125 - 0.003 * t], 5, { rect: NEUTRAL, W: one(BONE.elbowR), tint: wood, uv: () => [0.5, 0.5], capEnd: true });
 }
 
@@ -157,6 +157,7 @@ const BONE_OF: Record<AccessoryId, 'accessory' | 'bag'> = { glasses: 'accessory'
 export function buildAccessory(id: AccessoryId, ctx: Ctx): Piece {
   const mb = new MeshBuilder(torsoW);
   BUILD[id](ctx, mb);
-  return done('acc:' + id, BONE_OF[id], mb);
+  const lifted = relax(ctx, mb);
+  return done('acc:' + id, BONE_OF[id], mb, lifted);
 }
 void clearAny;

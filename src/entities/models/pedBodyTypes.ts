@@ -15,6 +15,8 @@ export interface BodyType {
   chest: number;
   /** belly bulge forward (m) at the waist, and its width factor */
   belly: number;
+  /** waist width (1 = the base shape; men get another 5 % off in dressLod, women 1.5 %) */
+  waist: number;
   /** hip and upper-thigh width */
   hips: number;
   /** arm thickness, leg thickness */
@@ -26,15 +28,15 @@ export interface BodyType {
   /** MakeHuman weight shape strength (negative = thinner) and muscle shape strength: the body is shaped by the base mesh's own targets, not inflated */
   weight: number; muscle: number;
 }
-const T = (o: Partial<BodyType>): BodyType => ({ h: 1, shoulders: 1, chest: 1, belly: 0, hips: 1, arms: 1, legs: 1, head: 1, stoop: 0, weight: 0, muscle: 0, ...o });
+const T = (o: Partial<BodyType>): BodyType => ({ h: 1, shoulders: 1, chest: 1, belly: 0, waist: 1, hips: 1, arms: 1, legs: 1, head: 1, stoop: 0, weight: 0, muscle: 0, ...o });
 export const BODY_TYPES: Record<BodyTypeId, BodyType> = {
   avg: T({}),
   slim: T({ h: 1.02, weight: -0.8, shoulders: 0.97 }),
   athletic: T({ h: 1.03, muscle: 1.0, weight: -0.2, shoulders: 1.06 }),
-  heavy: T({ h: 0.98, weight: 1.5, belly: 0.03, shoulders: 1.03 }),
+  heavy: T({ h: 0.98, weight: 1.2, belly: 0.03, shoulders: 1.0 }),
   'tall-thin': T({ h: 1.11, weight: -1.0, shoulders: 0.96 }),
-  'short-stocky': T({ h: 0.88, weight: 0.9, muscle: 0.6, shoulders: 1.05, head: 1.05 }),
-  broad: T({ h: 1.05, muscle: 1.2, weight: 0.4, shoulders: 1.12 }),
+  'short-stocky': T({ h: 0.88, weight: 0.8, muscle: 0.6, shoulders: 1.02, head: 1.05 }),
+  broad: T({ h: 1.05, muscle: 1.0, weight: 0.3, shoulders: 1.06 }),
   pear: T({ h: 0.99, weight: 0.9, hips: 1.08, shoulders: 0.97 }),
   petite: T({ h: 0.92, weight: -0.5, shoulders: 0.95, head: 1.03 }),
   elder: T({ h: 0.96, weight: 0.5, shoulders: 0.96, stoop: -0.22 }),
@@ -62,4 +64,16 @@ export function bodyTypeId(spec: Pick<PedSpec, 'id' | 'build' | 'sex' | 'age' | 
   const list = spec.sex === 'f' ? FEMALE_TYPES : MALE_TYPES;
   return list[Math.floor(hash(spec.id + ':body') * list.length) % list.length];
 }
-export function bodyTypeOf(spec: Parameters<typeof bodyTypeId>[0]): BodyType { return BODY_TYPES[bodyTypeId(spec)]; }
+/** per sex adjustment on top of the body type: men carry the wedge (narrower waist and hips), women a softer taper */
+const SEX_ADJ: Record<'m' | 'f' | 'x', Partial<BodyType>> = { m: { hips: 0.95, waist: 0.95 }, f: { waist: 0.985 }, x: { hips: 0.975, waist: 0.97 } };
+const adjusted = new Map<string, BodyType>();
+export function bodyTypeOf(spec: Parameters<typeof bodyTypeId>[0]): BodyType {
+  const id = bodyTypeId(spec), sx = spec.sex === 'f' ? 'f' : spec.sex === 'x' ? 'x' : 'm', k = id + sx;
+  let b = adjusted.get(k);
+  if (!b) {
+    const base = BODY_TYPES[id], a = SEX_ADJ[sx];
+    b = { ...base, hips: base.hips * (a.hips ?? 1), waist: base.waist * (a.waist ?? 1) };
+    adjusted.set(k, b);
+  }
+  return b;
+}

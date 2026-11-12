@@ -148,6 +148,67 @@ export function applyTargets(positions, list) {
   return out;
 }
 
+/**
+ * Relax a hand from MakeHuman's A pose (splayed fingers, flat palm facing the floor) into a resting hand: the four fingers lie together and
+ * curl a little toward the palm, the thumb comes in against the index finger. Done in the A pose, before the arm is hung, so the arm rotation
+ * carries it. `at(name)` gives a joint position (already in game space); `side` 'L' | 'R'. Skinned by the finger weights of MakeHuman's skeleton,
+ * so the knuckles bend smoothly. The finger bones all belong to the forearm bone of the game rig (rigIndexOf), nothing in the rig changes.
+ */
+export function relaxHand(pos, src, at, side, opts = {}) {
+  const { curl = [0.14, 0.3, 0.24], thumbCurl = [0.05, 0.1, 0.08], close = 0.72, thumbIn = 0.7 } = opts;
+  const wj = src.weightsJson.weights, n = pos.length / 3;
+  // per finger: vertices and their weight on segment 1 / 2 / 3
+  const F = {};
+  for (let f = 1; f <= 5; f++) {
+    const seg = [1, 2, 3].map((k) => new Map(wj[`finger${f}-${k}.${side}`] ?? []));
+    F[f] = seg;
+  }
+  const H = (f, k) => at(`finger${f}-${k}.${side}____head`), T = (f) => at(`finger${f}-3.${side}____tail`);
+  const mid = H(3, 1), tip3 = T(3), dir = [tip3[0] - mid[0], tip3[1] - mid[1]], dl = Math.hypot(dir[0], dir[1]) || 1;
+  const sgn = Math.sign(dir[0]) || 1;                      // the hand points out along +-x in the A pose
+  const z0 = (H(3, 1)[2] + H(4, 1)[2]) / 2;               // the axis the fingers close toward: between the middle and the ring finger
+  const wsum = (f, v) => F[f][0].get(v) ?? 0 + 0;
+  const rotAbout = (p, o, a) => { const x = p[0] - o[0], y = p[1] - o[1], c = Math.cos(a), sn = Math.sin(a); return [o[0] + x * c - y * sn, o[1] + x * sn + y * c, p[2]]; };
+  const touched = new Set();
+  for (const f of [2, 3, 4, 5]) for (const k of [0, 1, 2]) for (const v of F[f][k].keys()) touched.add(v);
+  // 1 close the fan: every finger vertex moves toward z0 in proportion to its weight and its distance out along the finger
+  for (const v of touched) {
+    let wt = 0, f0 = 0, wmax = 0;
+    for (const f of [2, 3, 4, 5]) { let wf = 0; for (let k = 0; k < 3; k++) wf += F[f][k].get(v) ?? 0; wt += wf; if (wf > wmax) { wmax = wf; f0 = f; } }
+    if (wt <= 0) continue;
+    const t = Math.min(1, Math.max(0, ((pos[v * 3] - mid[0]) * dir[0] + (pos[v * 3 + 1] - mid[1]) * dir[1]) / (dl * dl)));
+    const k = Math.min(1, wt) * close * (0.35 + 0.65 * Math.min(1, t * 1.4));
+    pos[v * 3 + 2] += (z0 - pos[v * 3 + 2]) * k;
+  }
+  // 2 curl: each segment bends about its joint; the joints ride along with the segments before them
+  const bend = (f, angles) => {
+    const piv = [1, 2, 3].map((k) => H(f, k)), flex = (a) => -sgn * a;
+    for (let s = 0; s < 3; s++) {
+      const a = flex(angles[s]);
+      for (let v = 0; v < n; v++) {
+        let w = 0; for (let k = s; k < 3; k++) w += F[f][k].get(v) ?? 0;
+        if (w <= 0) continue;
+        const q = rotAbout([pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]], piv[s], a);
+        pos[v * 3] += (q[0] - pos[v * 3]) * Math.min(1, w); pos[v * 3 + 1] += (q[1] - pos[v * 3 + 1]) * Math.min(1, w);
+      }
+      for (let k = s + 1; k < 3; k++) { const q = rotAbout(piv[k], piv[s], a); piv[k][0] = q[0]; piv[k][1] = q[1]; }
+    }
+  };
+  for (const f of [2, 3, 4, 5]) bend(f, curl.map((c, i) => c * (f === 5 ? 1.15 : f === 3 ? 0.95 : 1)));
+  // 3 the thumb: swing in toward the index finger about the y axis (in the plane of the palm), then a slight curl
+  const b1 = H(1, 1), tip1 = T(1), tdir = [tip1[0] - b1[0], tip1[2] - b1[2]], fdir = [tip3[0] - mid[0], 0];
+  const ang = Math.atan2(fdir[1], fdir[0]) - Math.atan2(tdir[1], tdir[0]);
+  const yaw = ((ang + Math.PI * 3) % (Math.PI * 2) - Math.PI) * thumbIn, c = Math.cos(yaw), sn = Math.sin(yaw);
+  for (let v = 0; v < n; v++) {
+    let w = 0; for (let k = 0; k < 3; k++) w += F[1][k].get(v) ?? 0;
+    if (w <= 0) continue;
+    const x = pos[v * 3] - b1[0], z = pos[v * 3 + 2] - b1[2];
+    pos[v * 3] += (b1[0] + x * c - z * sn - pos[v * 3]) * Math.min(1, w); pos[v * 3 + 2] += (b1[2] + x * sn + z * c - pos[v * 3 + 2]) * Math.min(1, w);
+  }
+  void wsum;
+  bend(1, thumbCurl);
+}
+
 /** mean position of a joint's vertex group in a (morphed) mesh. */
 export function jointPos(skel, name, positions) {
   const v = skel.joints[name];
@@ -237,6 +298,8 @@ export function buildBody(src, shape) {
     pelvis: J('spine05____head'), waist: J('spine04____head'), neckTop: J('head____head'), chin: J('jaw____tail'), eyeL: J('eye.L____head'),
   };
   const w12 = src.w12;
+  // resting hands (fingers together, a slight curl, the thumb in) while the arm is still in the A pose
+  if (src.weightsJson) for (const side of ['L', 'R']) relaxHand(pos, src, (nm) => J(nm), side);
   // hang the A pose straight: rotate every arm / leg weighted vertex about the shoulder / hip (z axis) until the upper arm / the leg is vertical
   const OUT = 0.012; // keeps the upper arm clear of the ribs
   const rig = {};
@@ -556,7 +619,7 @@ export function loadSources(dir = SRC) {
   const weightsJson = JSON.parse(gunzipSync(readFileSync(join(dir, 'default_weights.mhw.gz'))).toString());
   const targets = new Map();
   for (const t of TARGETS) targets.set(t, parseTarget(gunzipSync(readFileSync(join(dir, 'targets', `${t}.target.gz`))).toString()));
-  return { obj, skel, w12: rigWeights(weightsJson, BODY_VERTS), targets };
+  return { obj, skel, w12: rigWeights(weightsJson, BODY_VERTS), targets, weightsJson };
 }
 
 export async function fetchSources(dir = SRC) {

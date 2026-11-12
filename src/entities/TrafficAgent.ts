@@ -104,6 +104,13 @@ const PASS_LANE_LINES = [2.4, 3.1, 3.9] as const;
 const TURN_SPEED = 6;
 const TURN_SPEED_FAST = 13;
 const TURN_MIN = 0.6;
+/** vehicles longer than this (m) take corners proportionally slower, never below this share of the turn speed */
+const TURN_LEN_REF = 6;
+const TURN_LEN_MIN_SCALE = 0.4;
+/** Vehicle wheelbase as a share of its length (as Vehicle.ts), turning circles below this radius (m) never limit a turn, slack on the needed arc */
+const TURN_WHEELBASE_SHARE = 0.6;
+const TURN_RADIUS_FREE = 6;
+const TURN_RADIUS_SLACK = 1.2;
 /** left turns yield to oncoming traffic that reaches the middle of the box within this many seconds */
 const LEFT_YIELD_TTC = 3.5;
 const LEFT_YIELD_WIDTH = 7;
@@ -433,7 +440,8 @@ export class TrafficAgent {
       if (along > -(halfL + myHalfL) && side < halfW + myHalfW + PASS_CLEARANCE) desired = Math.min(desired, PASS_CREEP);
     }
     // cops and runaways ignore the lines but still have to get round the corner: a faster limit than civilians use
-    const turnSpeed = (this.ignoreStop ? TURN_SPEED_FAST : TURN_SPEED);
+    // a long wheelbase swings wide: the longer the vehicle, the slower it takes a corner (a 12.5 m bus overshot a 14 m box onto the kerb at 6 m/s)
+    const turnSpeed = (this.ignoreStop ? TURN_SPEED_FAST : TURN_SPEED) * clamp(TURN_LEN_REF / v.spec.length, TURN_LEN_MIN_SCALE, 1);
     if (node.stopLine) {
       const room = Math.max(0, dNode - STOP_POINT);
       if (!this.ignoreStop && (this.mustStopAt(node, dNode, speed) || (dNode < 45 && (this.turnConflict(node, false) || this.exitJammed(node, false))))) {
@@ -1138,8 +1146,32 @@ export class TrafficAgent {
 
   private chooseEdge(from: LaneNode, adj: number[]): number {
     if (adj.length === 1) return adj[0];
+    adj = this.edgesItCanTurn(from, adj);
+    if (adj.length === 1) return adj[0];
     if (this.goal) return this.bestEdgeToGoal(adj, this.goal);
     return this.weightedEdge(from, adj);
+  }
+
+  /**
+   * The successors this vehicle can actually drive: a turn whose arc (chord from the stop line to the first node of the new
+   * lane, over the turn angle) is tighter than the vehicle's smallest turning circle is dropped when anything else is left.
+   * A 12.5 m bus (circle ~13.7 m) cannot make a 90 degree turn in a 14 m box (needs ~9 m): it ends 3-4 m wide of the lane,
+   * beside the kerb, behind a parked car, and sits there (traffic-5min seeds 7 and 21).
+   */
+  private edgesItCanTurn(from: LaneNode, adj: number[]): number[] {
+    const spec = this.vehicle.spec;
+    const minR = (TURN_WHEELBASE_SHARE * spec.length) / Math.tan(spec.maxSteer);
+    if (minR <= TURN_RADIUS_FREE) return adj;
+    const ok: number[] = [];
+    for (let i = 0; i < adj.length; i++) {
+      const to = this.lanes.nodes[this.lanes.edges[adj[i]].to];
+      if (!to) { ok.push(adj[i]); continue; }
+      const turn = Math.abs(angleDiff(from.heading, to.heading));
+      if (turn < TURN_MIN) { ok.push(adj[i]); continue; }
+      const need = dist(from.pos, to.pos) / (2 * Math.sin(Math.min(turn, Math.PI - 0.1) / 2));
+      if (minR <= need * TURN_RADIUS_SLACK) ok.push(adj[i]);
+    }
+    return ok.length > 0 ? ok : adj;
   }
 
   /** Choose the next target among the successors of `from` (never anything else, so edges are never reversed). */

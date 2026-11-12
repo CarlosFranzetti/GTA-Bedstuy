@@ -603,7 +603,9 @@ export class LotBatch {
       if (i + 6 <= count) {
         const uniq = new Set<string>();
         for (let k = i; k < i + 6; k++) uniq.add(`${r.p[k * 3].toFixed(3)},${r.p[k * 3 + 1].toFixed(3)},${r.p[k * 3 + 2].toFixed(3)}`);
-        if (uniq.size === 4) {
+        const same = (a: number, b: number): boolean => r.p[a * 3] === r.p[b * 3] && r.p[a * 3 + 1] === r.p[b * 3 + 1] && r.p[a * 3 + 2] === r.p[b * 3 + 2];
+        // a rect is (p0 p1 p2)(p0 p2 p3); two neighbouring arch-fan triangles also have 4 distinct points but share their centre and an edge differently
+        if (uniq.size === 4 && same(i, i + 3) && same(i + 2, i + 4)) {
           n = 6;
           let mx = Infinity, my = Infinity, mz = Infinity;
           for (let k = i; k < i + 6; k++) { mx = Math.min(mx, r.p[k * 3]); my = Math.min(my, r.p[k * 3 + 1]); mz = Math.min(mz, r.p[k * 3 + 2]); }

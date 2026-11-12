@@ -18,6 +18,7 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
   const tt = (y - lm.chinY) / (lm.crownY - lm.chinY);
   const old = K.old, expr = K.expr, tired = expr === 'tired', amused = expr === 'amused';
   o.set(K.skin);
+  if ((globalThis as { __pedGrid?: boolean }).__pedGrid) { const gx = Math.floor(xm / 0.005 + 0.5) & 1, gy = Math.floor(ym / 0.005 + 0.5) & 1; o.set(gx ^ gy ? [230, 230, 230] : [40, 40, 90]); if (Math.abs(xm - 0.029) < 0.0006) o.set([255, 0, 0]); if (Math.abs(ym) < 0.0006) o.set([0, 255, 0]); return; }
   // ---------------------------------------------------------------- large form: forehead catches light, the sides of the head fall into shade
   o.mix(K.skinHi, 0.26 * sst(0.5, 0.78, tt) * sst(0.0, 0.6, fz));
   o.tint(K.skinSh, 0.55 * sst(0.55, -0.1, fz) * sst(0.02, 0.4, tt));
@@ -55,8 +56,8 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
     const tilt = 0.0009 + 0.0004 * hash(K.id + 'tl');
     if (Math.abs(u) < 1.5) {
       const shp = u * u < 1 ? Math.pow(1 - u * u, 0.62) : 0;
-      const bUp = 0.0046 * (tired ? 0.76 : amused ? 0.92 : 1) * (K.kidish ? 1.1 : 1) * (face.eyes === 'wide' ? 1.1 : face.eyes === 'sleepy' ? 0.8 : 1);
-      const bLo = 0.0030 * (amused ? 0.68 : 1);
+      const bUp = 0.0056 * (tired ? 0.76 : amused ? 0.92 : 1) * (K.kidish ? 1.1 : 1) * (face.eyes === 'wide' ? 1.1 : face.eyes === 'sleepy' ? 0.8 : 1);
+      const bLo = 0.0036 * (amused ? 0.68 : 1);
       const yu = bUp * shp * (u < 0 ? 0.92 : 1) + tilt * u, yl = -bLo * Math.pow(Math.max(0, 1 - u * u), 0.8) + tilt * u;
       const dUp = yu - ym, dLo = ym - yl;
       const lashT = (face.lashes ? 0.0012 : 0.00085) * (1 + 0.5 * sst(0.0, 1.0, u));
@@ -65,7 +66,7 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
         const shade = 0.6 * sst(0.0045, 0.0, dUp) + 0.2 * sst(0.55, 1.0, Math.abs(u));
         o.set(SCLERA).mix(SCLERA_SH, shade);
         o.mix(CARUNCLE, 0.4 * sst(-0.7, -0.95, u) * sst(0.0, 0.002, dLo));
-        const ri = 0.0056 * (K.kidish ? 1.08 : 1), gx = 0.0005 * (hash(K.id + 'gz') - 0.5), dIr = Math.hypot(exm - gx, ym - 0.0001) / ri;
+        const ri = 0.0063 * (K.kidish ? 1.08 : 1), gx = 0.0005 * (hash(K.id + 'gz') - 0.5), dIr = Math.hypot(exm - gx, ym - 0.0001) / ri;
         if (dIr < 1.05) {
           const e = sst(1.05, 0.93, dIr);
           const ic = dIr < 0.7 ? mixc(K.irisC, [150, 118, 78], 0.28 * sst(0.38, 0.62, dIr)) : mulc(K.irisC, 0.55 + 0.45 * sst(1.0, 0.72, dIr));
@@ -75,14 +76,14 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
         }
         o.tint(K.skinSh, 0.35 * sst(0.0012, 0.0, dUp));                                                                            // the lid's shadow on the eye
         // lash line on the upper lid, a hair line under the lower
-        o.mix(mixc(K.hairC, [26, 20, 18], 0.5), 0.8 * sst(lashT, 0.0, dUp));
+        o.mix(mixc(K.hairC, [26, 20, 18], 0.5), 0.92 * sst(lashT, 0.0, dUp));
         o.mix(mixc(K.skinSh, [40, 24, 22], 0.4), 0.3 * sst(0.0007, 0.0, dLo));
       } else {
         // outside: the lid skin, its crease above, the lower lid and a flick of lashes
         const lidAbove = ym - yu, lidBelow = yl - ym;
         if (lidAbove > 0 && lidAbove < 0.0075 && shp > 0) {
           o.mix(mixc(K.skin, K.skinHi, 0.5), 0.18 * sst(0.0006, 0.002, lidAbove) * sst(0.0058, 0.0035, lidAbove));
-          o.tint(K.skinSh, 0.26 * g2(lidAbove - 0.0058, 0.0013) * (tired ? 1.3 : 1));                                            // lid crease
+          o.tint(K.skinSh, 0.34 * g2(lidAbove - 0.0058, 0.0014) * (tired ? 1.3 : 1));                                            // lid crease
           o.mix(mixc(K.hairC, [26, 20, 18], 0.5), 0.78 * sst(lashT, 0.0, lidAbove));
         }
         if (lidBelow > 0 && lidBelow < 0.0035 && shp > 0) o.tint(K.skinSh, 0.1 * sst(0.0, 0.0008, lidBelow) * sst(0.0035, 0.0012, lidBelow));
@@ -90,8 +91,8 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
       }
     }
     // crow's feet and under-eye lines
-    if (old || amused) {
-      const cf = old ? 0.16 : 0.06;
+    if (old) {
+      const cf = 0.14;
       for (let i = 0; i < 3; i++) {
         const ang = -0.45 + i * 0.4, dxr = exm - 0.0145, dyr = ym - 0.001;
         const d = (dxr * Math.sin(ang) - dyr * Math.cos(ang)), r = dxr * Math.cos(ang) + dyr * Math.sin(ang);
@@ -120,7 +121,7 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
         const strands = 0.55 + 0.45 * vn2(xm * 520, ym * 90 + 3, 7);
         const edge = sst(1.25, 0.35, Math.abs(d)) * strands;
         const body = edge * sst(1.12, 0.78, bt) * sst(-0.12, 0.08, bt) * (0.7 + 0.3 * sst(1.0, 0.0, bt));
-        o.mix(mixc(mulc(K.hairC, 0.85), K.skin, old ? 0.45 : 0.22), Math.min(0.9, body * 1.1));
+        o.mix(mixc(mulc(K.hairC, 0.8), K.skin, old ? 0.4 : 0.16), Math.min(0.95, body * 1.2));
       }
     }
 
@@ -164,11 +165,11 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
       const strand = vn2(sx * 330 + 11, ym * 120, 13), grainN = vn2(sx * 700, ym * 700, 14);
       let dens = 0;
       if (face.beard) dens = Math.max(inJaw * lipHole, stache * lipHole);
-      else if (face.stubble) dens = 0.55 * Math.max(inJaw * sst(0.0, 0.03, -ym + 0.035 - 0.04 * sst(0.03, 0.07, xm)), stache) * lipHole;
+      else if (face.stubble) dens = 0.38 * Math.max(inJaw * sst(0.0, 0.03, -ym + 0.035 - 0.04 * sst(0.03, 0.07, xm)), stache) * lipHole;
       else if (face.mustache) dens = stache * lipHole;
       if (dens > 0) {
         const thresh = face.beard || face.mustache ? 0.5 : 0.62;
-        const a = Math.min(0.95, Math.max(0, (dens - 0.25 + (grainN - 0.5) * 0.5) * 2.0));
+        const a = Math.min(0.95, Math.max(0, (dens - 0.18 + (grainN - 0.5) * 0.5) * (face.beard || face.mustache ? 2.0 : 1.3)));
         const hc = mixc(mulc(K.hairC, 0.8 + 0.4 * strand), K.skin, face.beard || face.mustache ? (K.old ? 0.1 : 0.18) * (1 - strand) : 0.5);
         o.mix(hc, a * (dens > thresh ? 1 : 0.8) * (face.beard || face.mustache ? 1 : 0.7));
       }
@@ -194,12 +195,12 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
     const lift = s.hair === 'fade' ? 0.06 * (side2 + back * 0.8) : s.hair === 'recede' || s.hair === 'thinning' ? 0.018 * (1 - side2) : 0;
     const hl = hl0 + lift;
     if (y > hl - 0.004) {
-      const n = vn2(x * 300, y * 300, 22), strand = vn2(x * 200 + z * 160, y * 36, 23);
-      const root = clampStep((y - hl) / 0.016 + (n - 0.5) * 0.95);
+      const n = vn2(x * 170, y * 170, 22), strand = vn2(x * 200 + z * 160, y * 36, 23);
+      const root = clampStep((y - hl) / 0.02 + (n - 0.5) * 0.55);
       let hc = mixc(mulc(K.hairC, 0.72 + 0.4 * strand), mixc(K.hairC, [255, 255, 255], 0.2), 0.35 * sst(0.4, 1, t.ny) * (1 - strand));
       if (bald) { hc = mixc(K.skin, K.hairC, 0.2); }
       o.mix(hc, root * (bald ? 0.5 : 0.96));
-      if (s.hair === 'fade' && y < hl + 0.02) o.mix(K.hairC, 0.5 * (1 - root) * (n > 0.4 ? 1 : 0.4));
+      if (s.hair === 'fade' && y < hl + 0.025) o.mix(K.hairC, 0.34 * (1 - root) * sst(0.25, 0.7, n));
     }
   }
 

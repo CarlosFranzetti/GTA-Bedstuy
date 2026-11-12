@@ -69,7 +69,7 @@ if ( vLtTone.a > 0.01 ) {
   #endif
   float ltParty = step( 8.5, ltKind ) * step( ltKind, 9.5 );
   if ( ltParty > 0.5 ) ltKind = 0.0;
-  float ltSeed = vLtStyle.z;
+  float ltSeed = floor( vLtStyle.z * 255.0 + 0.5 ) / 255.0; // snapped: hashing an interpolated byte would speckle
   float ltWx = vLtStyle.w;
   float ltPaint = vLtTone.a;
   vec2 ltDir = normalize( vLtN.xz + vec2( 1e-4 ) );
@@ -140,9 +140,9 @@ if ( vLtTone.a > 0.01 ) {
       float ltPm2 = 1.0 - smoothstep( ltEdgeY - 0.012, ltEdgeY + 0.012, ltY );
       float ltPick2 = fract( ltSeed * 29.3 + 0.7 );
       vec3 ltCoat = ltPick2 < 0.3 ? vec3( 0.2, 0.19, 0.18 ) : ltPick2 < 0.55 ? vec3( 0.46, 0.43, 0.38 ) : ltPick2 < 0.8 ? vec3( 0.36, 0.16, 0.12 ) : vec3( 0.34, 0.37, 0.31 );
-      float ltPeel = smoothstep( 0.55, 0.8, ltNoise( ltP * vec2( 7.0, 6.0 ) + ltSeed * 19.0 ) + ( 1.0 - smoothstep( 0.0, 0.7, ltY ) ) * 0.3 );
+      float ltPeel = smoothstep( 0.78, 0.9, ltNoise( ltP * vec2( 7.0, 6.0 ) + ltSeed * 19.0 ) * 0.8 + ( 1.0 - smoothstep( 0.0, 0.6, ltY ) ) * 0.3 );
       vec3 ltCoatCol = ltCoat * ( 0.9 + 0.2 * ltNoise( ltP * 14.0 ) );
-      ltCol = mix( ltCol, mix( ltCoatCol, ltCol * 0.85, ltPeel * 0.7 ), ltPm2 * 0.92 );
+      ltCol = mix( ltCol, mix( ltCoatCol, ltCol * 0.85, ltPeel * 0.6 ), ltPm2 * 0.92 );
       gLtFlat = max( gLtFlat, ltPm2 * 0.45 );
     }
     // painted-over graffiti: hand-rolled patches in a near-match paint on the lower wall, wobbly edges (blobs, not boxes)
@@ -297,7 +297,7 @@ if ( vLtTone.a > 0.01 ) {
   if ( ltKind > 9.5 ) {
     // panelled front door: two tall lower panels, two upper panels behind the glass, stiles and rails, kick plate, knob, number plate
     vec2 dq = vec2( vLtStyle.y, vLtStyle.z );
-    float dSeed = vLtStyle.w;
+    float dSeed = floor( vLtStyle.w * 255.0 + 0.5 ) / 255.0;
     vec2 a1 = abs( dq - vec2( 0.29, 0.27 ) ) / vec2( 0.15, 0.2 );
     vec2 a2 = abs( dq - vec2( 0.71, 0.27 ) ) / vec2( 0.15, 0.2 );
     vec2 a3 = abs( dq - vec2( 0.29, 0.76 ) ) / vec2( 0.15, 0.16 );

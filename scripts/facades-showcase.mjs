@@ -20,8 +20,15 @@ try {
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(m.text().slice(0, 900)); });
   page.on('pageerror', (e) => errors.push(String(e).slice(0, 900)));
   await page.goto(`http://localhost:${port}/scripts/facades-showcase.html?hour=${hour}&views=${views}&w=${w}&h=${h}`, { waitUntil: 'load', timeout: 180000 });
-  await page.waitForFunction(() => window.__ready, null, { timeout: 240000 });
-  const r = await page.evaluate(() => window.__ready);
+  // the dev server may re-optimise dependencies on the first load and reload the page: wait again (up to 4 times)
+  let r = null;
+  for (let attempt = 0; attempt < 4 && !r; attempt++) {
+    try {
+      await page.waitForFunction(() => window.__ready, null, { timeout: 240000 });
+      r = await page.evaluate(() => window.__ready);
+    } catch (e) { if (!/navigation|destroyed|closed/i.test(String(e))) throw e; await page.waitForTimeout(1500); }
+  }
+  if (!r) throw new Error('showcase page never became ready');
   for (const [name, url] of Object.entries(r.shots)) { writeFileSync(`${out}/${name}-${hour}${tag ? '-' + tag : ''}.png`, Buffer.from(url.split(',')[1], 'base64')); console.log(`${out}/${name}-${hour}${tag ? '-' + tag : ''}.png`); }
   console.log(JSON.stringify({ tris: r.tris, calls: r.calls, programs: r.programs }));
 } finally { await browser.close(); dev.kill(); }

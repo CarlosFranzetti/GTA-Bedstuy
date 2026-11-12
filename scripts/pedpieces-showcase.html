@@ -95,18 +95,18 @@ if (view === 'hair') {
   const ids = PP.HAIR_IDS, cols = grid(ids.length, 6); let k = 0;
   const base = params.get('who') ?? 'wh-office';
   for (const id of ids) {
-    const spec = spec0(base, { hair: 'bald', hat: 'none', hairColor: COLORS[HAIR_COL[id]], gear: 'none' });
+    const spec = spec0(base, { hair: 'short', hat: 'none', hairColor: COLORS[HAIR_COL[id]], gear: 'none' });
     const who = person(spec);
     tile(id, who, [PP.hairPiece(id, who.ctx)], headCam(yawView), k % cols, Math.floor(k / cols)); k++;
   }
 }
 if (view === 'hair-back') {
   const ids = PP.HAIR_IDS, cols = grid(ids.length, 6); let k = 0;
-  for (const id of ids) { const who = person(spec0(params.get('who') ?? 'ba-office', { hair: 'bald', hat: 'none', hairColor: COLORS[HAIR_COL[id]] })); tile(id, who, [PP.hairPiece(id, who.ctx)], headCam(Math.PI - 0.5, 0.9), k % cols, Math.floor(k / cols)); k++; }
+  for (const id of ids) { const who = person(spec0(params.get('who') ?? 'ea-office', { hair: 'short', hat: 'none', hairColor: COLORS[HAIR_COL[id]] })); tile(id, who, [PP.hairPiece(id, who.ctx)], headCam(Math.PI - 0.5, 0.9), k % cols, Math.floor(k / cols)); k++; }
 }
 if (view === 'beards') {
   const ids = PP.BEARD_IDS, cols = grid(ids.length * 2, 3); let k = 0;
-  for (const id of ids) for (const yaw of [0.3, 1.0]) { const who = person(spec0('ba-church-man', { hair: 'bald', hat: 'none', hairColor: '#1b1612' })); tile(id + ' ' + yaw, who, [PP.beardPiece(id, who.ctx)], headCam(yaw, 0.7), k % cols, Math.floor(k / cols)); k++; }
+  for (const id of ids) for (const yaw of [0.3, 1.0]) { const who = person(spec0('ba-church-man', { hair: 'short', hat: 'none', hairColor: '#1b1612' })); tile(id + ' ' + yaw, who, [PP.beardPiece(id, who.ctx)], headCam(yaw, 0.7), k % cols, Math.floor(k / cols)); k++; }
 }
 if (view === 'hats') {
   const ids = PP.HAT_IDS, cols = grid(ids.length, 6); let k = 0;

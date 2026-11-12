@@ -40,7 +40,7 @@ materials.setEnvironment(scene.environment);
 
 const N = 8;
 const FRONT = params.get('view') === 'front';
-const SP = mode === 'car' || mode === 'stumble' || mode === 'turn' || mode === 'jump' ? 1.15 : 0.95;
+const SP = ['walk', 'jog', 'run'].includes(mode) ? 0.95 : 1.15;
 const v = pedVariantIndex('ba-hoodie-fade');
 const speeds = { walk: 1.3, jog: 2.6, run: 6.5 };
 const oldAmp = { walk: 1.0, jog: 1.0, run: 1.6 };
@@ -81,7 +81,7 @@ if (mode === 'walk' || mode === 'jog' || mode === 'run') {
     }
   });
 } else {
-  const name = mode === 'stumble' ? 'stumble' : mode === 'turn' ? 'turn' : 'jump';
+  const name = lib.has(mode) ? mode : 'jump'; // any clip by name: getUp, flinch, walkTurn, talk, stumble, ...
   const clip = lib.get(name);
   models.forEach((m, i) => {
     const c = new AnimController(m, PLAYER_GAIT, lib);

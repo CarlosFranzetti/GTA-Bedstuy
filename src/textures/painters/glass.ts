@@ -78,10 +78,10 @@ export const windowPainter: Painter = (ctx, w, h, rng, variant) => {
 
   for (const [x, y, pw, ph] of panes) {
     // glass: a sky reflection, bright toward the top, cooler and darker toward the floor, with a soft diagonal streak
-    const steps = 12;
+    const steps = 48; // fine, jitter-free bands: a visible quantisation would read as blind slats
     for (let i = 0; i < steps; i++) {
       const t = i / (steps - 1);
-      ctx.fillStyle = hsl(208 + rng.range(-2, 2), 30 - t * 8, 70 - t * 30);
+      ctx.fillStyle = hsl(208, 30 - t * 8, 70 - t * 30);
       ctx.fillRect(x, y + (ph * i) / steps, pw, ph / steps + 1);
     }
     withAlpha(ctx, 0.22, () => {
@@ -161,10 +161,10 @@ export const storefrontPainter: Painter = (ctx, w, h, rng, variant) => {
   const m = 10;
   const gx = m, gy = m, gw = w - 2 * m, gh = h - bulk - m;
   // glass: sky reflection, bright at the top, deeper toward the floor
-  const steps = 16;
+  const steps = 48;
   for (let i = 0; i < steps; i++) {
     const t = i / (steps - 1);
-    ctx.fillStyle = hsl(204 + rng.range(-3, 3), 28 - t * 10, 66 - t * 32);
+    ctx.fillStyle = hsl(204, 28 - t * 10, 66 - t * 32);
     ctx.fillRect(gx, gy + (gh * i) / steps, gw, gh / steps + 1);
   }
   // diagonal reflections over everything inside the glass
