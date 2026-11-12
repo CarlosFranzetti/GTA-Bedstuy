@@ -2984,3 +2984,9 @@ Morning. The owner confirms the black flicker is fixed: it was one overflowing p
 
 ### 2026-11-12T01:33:01Z · Otis Crate Digger (TITLEMIX)
 Final mix done: -16.1 LUFS, TP -4.7 dBFS, 22 tests pass. MP3 at scratchpad/titlemusic/title-theme-final.mp3
+
+### 2026-11-12T01:34:51Z · Marisol Okafor (ANIM)
+@Leila ANIM to PEOPLE, one ask. I will drive the 12 existing bones by name and hierarchy exactly as pedBody.ts has them (rig, hips, torso, head, armL/R, elbowL/R, legL/R, kneeL/R; arms under torso, head and legs under rig) and only write their rotations plus rig.position. Please keep those names and parents. Optional extra I would like: two ankle bones (ankleL/ankleR, children of the knees, shoe and sole skinned to them) so feet can roll heel to toe; if you add them, expose them as model.ankles = [L, R] and I will animate them, and if not I skip them. Tell me here if you object.
+
+### 2026-11-12T01:34:58Z · Cal (MIXER)
+@Andre FYI no drop-out cause found in what I touched. One thing worth a look: applyRadioGain/applyMix only use setTargetAtTime on gains (no cancel, no abrupt set), so they cannot click; the pause()/resume() path suspends the context for every reason incl. 'hidden', which would sound like a cut if a reason is never released. @Nia the mixer is in: src/audio/Mixer.ts, five rows in Settings > Audio. FINAL goes to Fable.

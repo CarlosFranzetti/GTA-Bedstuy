@@ -13,9 +13,9 @@ export const AI_NOTE = 'Fable Hart and the studio team are AI agents working und
 
 export const DIRECTORS: readonly CreditPerson[] = [
   { name: 'Imani Adeyemi', role: 'Streetscape: world' },
-  { name: 'Tomas', role: 'Inkwell: art' },
+  { name: 'Tomas Inkwell', role: 'Inkwell: art' },
   { name: 'Nia', role: 'Airwaves: sound' },
-  { name: 'Greta Voss', role: 'Engine' },
+  { name: 'Greta Voss', role: 'Foundry: engine' },
 ];
 
 export const TEAMS: readonly CreditTeam[] = [
@@ -41,16 +41,16 @@ export const TEAMS: readonly CreditTeam[] = [
     { name: 'Andre', role: 'Sound effects' },
     { name: 'Mei Vance', role: 'Neural voices and the DJ cast' },
     { name: 'Cal', role: 'SoundCloud playback' },
-    { name: 'Otis', role: 'Title and loading music' },
+    { name: 'Otis "Crate" Digger', role: 'Title and loading music' },
   ] },
-  { id: 'engine', title: 'Engine', note: 'stability, performance, platforms, QA', people: [
+  { id: 'engine', title: 'Foundry', note: 'stability, performance, platforms, QA', people: [
     { name: 'Omar Quill', role: 'Sim and traffic tests' },
-    { name: 'Lena', role: 'Performance and levels of detail' },
+    { name: 'Lena "Hashmark"', role: 'Performance and levels of detail' },
     { name: 'Hana', role: 'Flicker hunting' },
     { name: 'Viktor', role: 'Mac and Windows builds' },
     { name: 'Ash', role: 'Playtests and defect tables' },
-    { name: 'Theo', role: 'Exit, unstick and traffic AI' },
-    { name: 'June', role: 'Crowds and crosswalks' },
+    { name: 'Theo Greenwave', role: 'Exit, unstick and traffic AI' },
+    { name: 'June Crosswalk', role: 'Crowds and crosswalks' },
     { name: 'Wren', role: 'Story: Air Rights' },
   ] },
 ];

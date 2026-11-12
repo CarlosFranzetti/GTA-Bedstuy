@@ -297,7 +297,7 @@ phone.bind(missions);
 let djAudio: WebDjAudio | null = null, preview: RecordPreview | null = null, recSource: RecordSource | null = null;
 let dj: DjGame | null = null, shopUi: ShopUi | null = null, djUi: DjUi | null = null;
 const fade = new FadeOverlay(document.body);
-const ambient = new WebAmbient(() => audio.djHost, () => recSource);
+const ambient = new WebAmbient(() => audio.ambienceHost, () => recSource); // interior beds, birds, rain: on the Ambience slider
 const uiOpen = (): boolean => !!(shopUi?.isOpen || djUi?.isOpen);
 
 events.on('enterVehicle', () => { physics.removeBody(player.body.id); if (player.vehicle) nightLights.attachHeadlights(player.vehicle.object3D, player.vehicle.spec.length); });
@@ -558,7 +558,7 @@ function drawFrame(alpha: number, frameDt: number): void {
     updateCamera(frameDt);
     updateSignalMeshes(world.signalsGroup, lights);
     // elevated line: trains on a timetable, station doors, rumble with distance falloff
-    world.transit.attachAudio(audio.djHost?.ctx, audio.djHost?.dest);
+    world.transit.attachAudio(audio.sfxHost?.ctx, audio.sfxHost?.dest); // trains: on the Sound effects slider
     world.transit.update(frameDt, cam.camera.position, dayNight.isNight);
     realWorld?.update(frameDt, player.body.pos.x, player.body.pos.z, cam.camera.position, dayNight.isNight); // building streamer and el trains
     weather.update(frameDt, cam.camera.position);
@@ -659,7 +659,7 @@ const menu = new Menu(overlay, {
   onReset: () => { clearMissionData(); missions.story.reset(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++; if (interiors.inside) interiors.exit(); const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = SPAWN.x; b.pos.z = SPAWN.z; b.vel.x = 0; b.vel.z = 0; },
 }, {
   touch: isTouch, initialQuality: quality, ignoreSavedQuality: params.has('q'), saves, canSave: () => interiors.state === 'outside',
-  graphics: graphicsStore, getQuality: () => quality, auto: !params.has('q') && params.get('perf') !== '0', map,
+  mixer: audio.mixer, graphics: graphicsStore, getQuality: () => quality, auto: !params.has('q') && params.get('perf') !== '0', map,
   info: () => ({ cash: inventory.cash, hour: dayNight.timeOfDay, day: gameDay, street: streetName, station: audio.stationName, stats: [
     ['Missions done', `${missions.missions.filter((m) => missions.isCompleted(m.id)).length} / ${missions.missions.length}`],
     ['Records owned', String(inventory.records.length)], ['Wanted level', String(wanted.stars)]] }),
