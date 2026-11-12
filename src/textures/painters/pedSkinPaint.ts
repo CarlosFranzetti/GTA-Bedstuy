@@ -92,7 +92,7 @@ function rasterise(b: BakeInput, size: number): void {
       const q = py * size + px, c1 = Math.min(1.2, Math.max(-0.2, l1)), c2 = Math.min(1.2, Math.max(-0.2, l2)), c3 = 1 - c1 - c2;
       // where charts fold over each other (lids, nostrils, lips) the surface nearest the front owns the texel
       const zz = b.position[ia * 3 + 2] * c1 + b.position[ib * 3 + 2] * c2 + b.position[ic * 3 + 2] * c3;
-      if (cover[q] && zz > depthMap[q] + 0.003) continue;
+      if (cover[q] && zz > depthMap[q] + 0.01) continue;
       depthMap[q] = zz;
       for (let k = 0; k < 3; k++) {
         posMap[q * 3 + k] = b.position[ia * 3 + k] * c1 + b.position[ib * 3 + k] * c2 + b.position[ic * 3 + k] * c3;
@@ -172,11 +172,11 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
         const mx = ax / ((0.0205 + 0.004 * hash(s.id + 'mw')) * wsx), mm = face.mouth, lift = (mm === 'smile' ? 0.0022 : mm === 'grin' ? 0.004 : mm === 'frown' ? -0.002 : 0) * mx * mx * hs;
         const my = (y - mouthY - lift) / hs;
         if (mx < 1.08) {
-          const upper = my > 0 && my < 0.0085 * (1 - 0.35 * mx) * (1 - 0.25 * g2(mx, 0.15)), lower = my <= 0 && my > -0.0125 * (1 - 0.55 * mx * mx);
+          const upper = my > 0 && my < 0.0085 * (1 - 0.35 * mx) * (1 - 0.25 * g2(mx, 0.15)), lower = my <= 0 && my > -0.009 * (1 - 0.55 * mx * mx);
           if (upper || lower) {
             let lc = mix(faceLips, skinDark, my > 0 ? 0.1 : 0);
             lc = mix(lc, mul(faceLips, 1.25), my < 0 ? 0.4 * g2(my + 0.005, 0.004) : 0);
-            c = mix(c, lc, 0.94 * (1 - sst(0.88, 1.08, mx)));
+            c = mix(c, lc, 0.82 * (1 - sst(0.85, 1.08, mx)));
           }
           if (mm === 'grin' && Math.abs(my) < 0.0035 * (1 - mx * mx) && mx < 0.8) c = [238, 234, 226];
           c = mix(c, lipDark, 0.34 * g2(my, 0.0011) * (1 - sst(0.8, 1.05, mx)));
@@ -223,6 +223,13 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
           if (s.hair === 'fade') c = mix(c, hairC, 0.55 * (1 - edge));
         }
       }
+      if (s.hat === 'hijab') {
+        // cloth framing the face: everything outside an oval from brow to chin is the scarf
+        const ox = x / (0.064 * wsx), oy = (y - (lm.chinY + 0.092 * hs)) / (0.108 * hs), inside = ox * ox + oy * oy < 1 && fz > 0.15;
+        const cloth = mix(rgb(s.hatColor), mul(rgb(s.hatColor), 0.8), 0.5 + 0.5 * Math.sin(x * 160 + y * 90));
+        c = mix(cloth, c, inside ? sst(0.82, 0.96, 1 - Math.hypot(ox, oy) + 0.12) : 0);
+        if (!inside) return mul(cloth, 1 + nz2 * 0.04);
+      }
       if (hatSkullOnly && y > lm.crownY - 0.05 && ax < 0.075) c = mix(c, rgb(s.hatColor), 0.95 * sst(lm.crownY - 0.05, lm.crownY - 0.042, y));
       return mul(c, 1 + nz2 * 0.03);
     }
@@ -242,6 +249,7 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
       const aNeck = sst(neckY + eps, neckY - eps, y);
       aTop = aNeck * sst(hemTop - eps, hemTop + eps, y) * (sleeves === 'none' && k !== 'jersey' ? 1 - sst(shX * 0.8 - 0.004, shX * 0.8 + 0.004, ax) * sst(shY - 0.03, shY - 0.012, y) : 1);
       aBot = aNeck;
+      if (s.hat === 'hijab' && y >= neckY - 0.005) return mul(mix(rgb(s.hatColor), mul(rgb(s.hatColor), 0.8), 0.5 + 0.5 * Math.sin(x * 160 + y * 90)), 1 + nz2 * 0.04);   // the scarf drapes over the neck
     }
     const clothCol = (cloth: number, fabric: RGB, kindTop: boolean): RGB => {
     // ------------------------------------------------------------------ cloth: fabric, pattern, details, folds
@@ -427,7 +435,7 @@ function paintBand(ctx: CanvasRenderingContext2D, s: PedSpec, k: number): void {
     ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(x + w * 0.15, y + h * 0.88, w * 0.7, h * 0.12); }
   // top fabric (hood roll, coat hem) and bottom fabric (skirt)
   const topC = rgb(s.top.color), botC = rgb(s.bottom.color);
-  grad(SK_RECTS.torso, mul(topC, 0.86), mul(topC, 0.8));
+  grad(SK_RECTS.torso, mul(topC, 0.95), mul(topC, 0.9));
   streaks(SK_RECTS.torso, topC, 10, s.id + 't', 0.3, 0.1);
   grad(SK_RECTS.pelvis, mul(botC, 0.86), mul(botC, 0.8));
   { const [x, y, w, h] = R(SK_RECTS.pelvis); for (let i = 0; i < 6; i++) { ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.fillRect(x + (i + 0.5) * w / 6, y, Math.max(1, k), h); } }

@@ -269,7 +269,7 @@ export type WheelKind = WheelDesign;
 const UV_METAL: [number, number] = [0.07, 0.025]; // inside a spoke wedge of the band (gunmetal / aluminium)
 const UV_CAP: [number, number] = [0.5, 0.005]; // the band's centre-cap row (silver)
 const UV_DARK: [number, number] = [0.02, 0.03];
-const UV_ROTOR: [number, number] = [0.07, 0.016]; // the spokes' lit edge strip: mid grey
+const UV_ROTOR: [number, number] = [0.07, 0.036]; // the spokes' edge strip: dark steel grey
 
 /**
  * One wheel (axle along x, face on the +x side): a bulged-sidewall tyre with a tread shoulder, a dished rim with a silver lip, a dark

@@ -578,13 +578,15 @@ function bodyRing(L: MhLod, y0: number, y1: number, keep: (i: number) => boolean
 function clothExtras(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.BufferGeometry[] {
   const out: THREE.BufferGeometry[] = [], seg = hi ? 18 : 10, k = spec.top.kind, hemTop = topHemY(s, spec), anY = s.landmarks.ankleY;
   if (['jacket', 'hoodie', 'puffer', 'cardigan', 'tracksuit', 'uniform'].includes(k) && !spec.top.long) {
-    const r = bodyRing(L, hemTop - 0.02, hemTop + 0.03, (i) => wsumAt(L, i, W_ARMS) < 0.3);
-    if (r) {
+    const notArm = (i: number): boolean => wsumAt(L, i, W_ARMS) < 0.3;
+    const r = bodyRing(L, hemTop - 0.02, hemTop + 0.03, notArm), r2 = bodyRing(L, hemTop + 0.1, hemTop + 0.16, notArm);
+    if (r && r2) {
       const o = k === 'puffer' ? 0.022 : k === 'jacket' || k === 'hoodie' ? 0.022 : 0.016;
+      // the rings are never smaller than the body at their height (the seat and the belly would poke through)
       out.push(loft([
         { y: hemTop, rx: r.rx + o, rz: r.rz + o, cx: r.cx, cz: r.cz },
-        { y: hemTop + 0.05, rx: r.rx + o * 0.55, rz: r.rz + o * 0.55, cx: r.cx, cz: r.cz },
-        { y: hemTop + 0.13, rx: r.rx + 0.002, rz: r.rz + 0.002, cx: r.cx, cz: r.cz },
+        { y: hemTop + 0.05, rx: Math.max(r.rx, r2.rx) + o * 0.55, rz: Math.max(r.rz, r2.rz) + o * 0.55, cx: (r.cx + r2.cx) / 2, cz: (r.cz + r2.cz) / 2 },
+        { y: hemTop + 0.13, rx: r2.rx + 0.006, rz: r2.rz + 0.006, cx: r2.cx, cz: r2.cz },
       ], seg, SK_RECTS.torso, 2));
       if (k === 'hoodie') {
         const zf = r.cz - r.rz;      // the pocket: a soft pad on the front of the belly

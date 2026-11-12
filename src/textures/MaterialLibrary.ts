@@ -16,6 +16,7 @@ import { awningPainter, copLiveryPainter, signPainter, taxiLiveryPainter } from 
 import { CLOTH_COLORS, LEAF_VARIANTS, SKIN_TONES, treeLeavesPainter, treeTrunkPainter } from './painters/organic';
 import { gray, wrapVariant } from './painters/util';
 import { LOT_TONE_KEYS, patchLotTone } from './lotTone';
+import { patchTreeTint } from './treeTint';
 import { GROUND_DETAIL_KEYS, patchGroundDetail, GROUND_VARIATION, disposeVariationTexture, patchGroundVariation } from './groundVariation';
 import { CAR_FLAKE_NORMAL_SCALE, PLATE_VARIANTS, carPaintMaps, platePainter, tireSidewallPainter, type CarPaintMaps } from './painters/vehicle';
 import {
@@ -138,6 +139,7 @@ export class MaterialLibrary implements IMaterialLibrary {
       const gv = GROUND_VARIATION_KEYS[key];
       if (gv && m instanceof THREE.MeshStandardMaterial) patchGroundVariation(m, GROUND_VARIATION[gv]);
       if (m instanceof THREE.MeshStandardMaterial && LOT_TONE_KEYS.includes(key)) patchLotTone(m);
+      if (m instanceof THREE.MeshStandardMaterial && (key === 'treeLeaves' || key === 'treeTrunk')) patchTreeTint(m, key === 'treeLeaves' ? 'leaves' : 'trunk');
       const gd = GROUND_DETAIL_KEYS[key];
       if (gd && m instanceof THREE.MeshStandardMaterial) patchGroundDetail(m, gd);
       const ov = this.overrides.get(id);

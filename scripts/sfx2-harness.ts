@@ -128,14 +128,14 @@ function longScript(type: string) {
     else if (t < 9) { c.inCar = true; c.th = 0; if (t < 4.1) c.marker = 'enter'; }
     else if (t < 17) { c.inCar = true; c.th = 1; }
     else if (t < 27) { c.inCar = true; c.th = gov(cruise); }
-    else if (t < 33) { c.inCar = true; c.th = 0; if (t < 27.1) c.marker = 'lift'; }
+    else if (t < 33) { c.inCar = true; c.th = 0; }
     else if (t < 38) { c.inCar = true; c.th = 0; c.brake = true; c.slip = t > 33.5 && t < 35.5 ? 0.7 : 0; }
     else if (t < 44) { c.inCar = true; c.th = 0; }
     else if (t < 60) { c.inCar = true; c.th = t < 52 ? 0.55 : gov(cruise * 1.1); }
     else if (t < 80) { c.inCar = true; const ph = (t - 60) % 10; c.th = ph < 4 ? 0.9 : ph < 6.5 ? 0 : 0; c.brake = ph >= 6.5 && st.speed > 0.5; c.yaw = t > 70 ? 1.57 : 0; }
     else if (t < 92) { c.inCar = true; c.th = gov(cruise); c.weather = [1, 1]; c.surface = 'asphalt'; }
-    else if (t < 96) { c.inCar = true; c.th = gov(cruise); c.horn = t > 92 && t < 93.5; c.marker = t > 92 && t < 92.1 ? 'horn' : undefined; }
-    else if (t < 106) { c.inCar = true; const ph = (t - 96); c.th = ph < 4 ? 1 : ph < 5.5 ? 0 : ph < 8.5 ? 1 : 0; if (ph > 8.4 && ph < 8.5) c.marker = 'lift2'; }
+    else if (t < 96) { c.inCar = true; c.th = gov(cruise); c.horn = t > 92 && t < 93.5; if (t > 92 && t < 94.2) c.marker = 'horn'; }
+    else if (t < 106) { c.inCar = true; const ph = (t - 96); c.th = ph < 4 ? 1 : ph < 5.5 ? 0 : ph < 8.5 ? 1 : 0; }
     else if (t < 111) { c.inCar = true; c.th = 0; c.brake = st.speed > 0.4; }
     else if (t < 111.2) { c.inCar = false; c.th = 0; c.release = true; c.marker = 'exit'; }
     else { c.inCar = false; c.footSpeed = t < 116 ? 1.6 : 5.5; c.footRun = t < 116 ? 0 : 1; c.hour = 12 + (t - 111) * 0.1; }
