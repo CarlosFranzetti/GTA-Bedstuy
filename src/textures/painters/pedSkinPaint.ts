@@ -344,7 +344,7 @@ export function bakeSkin(b: BakeInput, size = SK_ATLAS): HTMLCanvasElement {
     img[q * 4] = c[0]; img[q * 4 + 1] = c[1]; img[q * 4 + 2] = c[2]; img[q * 4 + 3] = 255; filled[q] = 1;
   }
   // pad the charts outward so filtering and mip levels never pull in the background
-  for (let pass = 0; pass < 4; pass++) {
+  for (let pass = 0; pass < 3; pass++) {
     const add: number[] = [];
     for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
       const q = y * size + x;
@@ -359,6 +359,21 @@ export function bakeSkin(b: BakeInput, size = SK_ATLAS): HTMLCanvasElement {
     }
     for (let i = 0; i < add.length; i += 4) { const q = add[i]; img[q * 4] = add[i + 1]; img[q * 4 + 1] = add[i + 2]; img[q * 4 + 2] = add[i + 3]; img[q * 4 + 3] = 255; filled[q] = 1; }
   }
+  // whatever is still empty (the holes the pole triangles leave, the unused corners) takes the colour of the nearest painted texel along its row, then its column,
+  // so a coarser LOD that lands there never samples a stray colour
+  const nearest = (n: number, at: (i: number) => number): void => {
+    const left = new Int32Array(n).fill(-1), right = new Int32Array(n).fill(-1);
+    let last = -1;
+    for (let i = 0; i < n; i++) { if (filled[at(i)]) last = i; left[i] = last; }
+    last = -1;
+    for (let i = n - 1; i >= 0; i--) { if (filled[at(i)]) last = i; right[i] = last; }
+    const todo: number[] = [];
+    for (let i = 0; i < n; i++) { const q = at(i); if (filled[q]) continue; const l = left[i], r = right[i]; const pick = l < 0 ? r : r < 0 ? l : i - l <= r - i ? l : r; if (pick >= 0) todo.push(q, at(pick)); }
+    for (let k = 0; k < todo.length; k += 2) { const q = todo[k], f = todo[k + 1]; img[q * 4] = img[f * 4]; img[q * 4 + 1] = img[f * 4 + 1]; img[q * 4 + 2] = img[f * 4 + 2]; }
+    for (let k = 0; k < todo.length; k += 2) filled[todo[k]] = 1;
+  };
+  for (let y = 0; y < size; y++) nearest(size, (x) => y * size + x);
+  for (let x = 0; x < size; x++) nearest(size, (y) => y * size + x);
   const canvas = createCanvas(size, size) as HTMLCanvasElement, ctx = canvas.getContext('2d')!;
   ctx.putImageData(new ImageData(img, size, size), 0, 0);
   paintBand(ctx, b.spec, size / SK_ATLAS);

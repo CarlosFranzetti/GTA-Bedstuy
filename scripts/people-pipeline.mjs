@@ -425,7 +425,7 @@ export function regionOf(w, cy, lm) {
  * v = height (the foot: along its length). Left and right limbs share one tile, MIRRORED, so a clothing design is the same on both sides.
  * A triangle that straddles the seam is unwrapped whole into the margin past u = 1 (vertices are duplicated per shift).
  */
-export function unwrapUVs(mesh, lm) {
+export function unwrapUVs(mesh, lm, shared = null) {
   const { positions: P, w12: W, indices: ix } = mesh;
   const tris = ix.length / 3, region = new Array(tris), side = new Int8Array(tris);
   const LIMB = new Set(['upperArm', 'foreArm', 'hand', 'thigh', 'shin', 'shoe']);
@@ -447,9 +447,12 @@ export function unwrapUVs(mesh, lm) {
     const mean = (f) => { let x = 0, z = 0, c = 0; for (const v of vs) if (f((P[v * 3 + long] - lo) / span)) { x += P[v * 3]; z += P[v * 3 + a1]; c += 1; } return c ? [x / c, z / c] : [0, 0]; };
     g.lo = lo; g.hi = hi; g.long = long; g.a1 = a1; g.cb = mean((q) => q < 0.2); g.ct = mean((q) => q > 0.8);
   }
+  // the coarser LODs reuse the hi LOD's axes, extents and tile scales, so one baked map fits all three
+  if (shared) for (const [k, g] of groups) { const sg = shared.groups[k]; if (sg) Object.assign(g, sg); }
   const head = [...groups.values()].find((g) => g.tile === 'head');
   let headCz = 0;
   if (head) { for (const v of head.vs) headCz += P[v * 3 + 2]; headCz /= head.vs.size; }
+  if (shared) headCz = shared.headCz;
   const ys = [lm.chinY, lm.chinY + 0.41 * (lm.eyeY - lm.chinY), lm.chinY + 0.68 * (lm.eyeY - lm.chinY), lm.eyeY, lm.crownY];
   const ts = [FACE_T.chin, FACE_T.mouth, FACE_T.nose, FACE_T.eye, FACE_T.crown];
   const headT = (y) => { if (y <= ys[0]) return 0; for (let k = 1; k < ys.length; k++) if (y <= ys[k]) return ts[k - 1] + ((y - ys[k - 1]) / (ys[k] - ys[k - 1])) * (ts[k] - ts[k - 1]); return 1; };
@@ -481,11 +484,12 @@ export function unwrapUVs(mesh, lm) {
     const g = groups.get(key(t));
     const uv3 = [0, 1, 2].map((k) => uOf(g, ix[t * 3 + k]));
     const range = wrap(uv3);
-    if (range > 0.55 && g.tile !== 'head' && pole.size < 128 * 32) pole.add(t);
+    if (range > 0.55 && g.tile !== 'head' && !shared && pole.size < 128 * 32) pole.add(t);
     else if (range > 0.62) { const m = uv3.reduce((s2, u) => s2 + u[0], 0) / 3; for (const u of uv3) u[0] = m; }
     triUv.push(uv3); triG.push(g);
     if (g.tile !== 'head' && !pole.has(t)) maxU.set(gk(g), Math.max(maxU.get(gk(g)) ?? 1, ...uv3.map((u) => u[0])));
   }
+  if (shared) for (const [k, m] of Object.entries(shared.maxU)) maxU.set(k, m);
   const keyMap = new Map(), outSrc = [], outUv = [], outIdx = [];
   let slot = 0;
   for (let t = 0; t < tris; t++) {
@@ -515,7 +519,9 @@ export function unwrapUVs(mesh, lm) {
     for (const j of order) sum += W[v * 12 + j];
     order.forEach((j, k2) => { joints[i * 4 + k2] = j; weights[i * 4 + k2] = W[v * 12 + j] / sum; });
   });
-  return { position, normal, uv: Float32Array.from(outUv), joints, weights, indices: Uint32Array.from(outIdx), regions: region };
+  const out = { groups: {}, headCz, maxU: Object.fromEntries(maxU) };
+  for (const [k, g] of groups) out.groups[k] = { lo: g.lo, hi: g.hi, long: g.long, a1: g.a1, cb: g.cb, ct: g.ct, tile: g.tile, side: g.side };
+  return { position, normal, uv: Float32Array.from(outUv), joints, weights, indices: Uint32Array.from(outIdx), regions: region, shared: out };
 }
 
 /**
@@ -569,9 +575,12 @@ export function buildShape(src, simplifier, name) {
   const shape = SHAPES[name];
   const body = buildBody(src, shape);
   const lods = {};
+  let shared = null;
   for (const [lod, tris] of Object.entries(LOD_TRIS)) {
     const m = decimate(simplifier, body, tris, REGION_BUDGET[lod]);
-    lods[lod] = { ...unwrapUVs(m, body.landmarks), triangles: m.indices.length / 3, mesh: m };
+    const u = unwrapUVs(m, body.landmarks, shared);
+    if (lod === 'hi') shared = u.shared;
+    lods[lod] = { ...u, triangles: m.indices.length / 3, mesh: m };
   }
   const hiMesh = lods.hi.mesh, lm = body.landmarks;
   const r = (v) => Math.round(v * 1e4) / 1e4;

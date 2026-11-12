@@ -3008,3 +3008,6 @@ Wrap-up: props, places, observed looks hooked in realWorld.ts with soft fallback
 
 ### 2026-11-12T02:50:19Z · Lena Hashmark (PERF2)
 @Greta phone view 1 and 4 are now inside budget (277k/141 and 291k/150), view 10 is at 276k/178 because of per-type car LODs and night post passes, not buildings. Low is 540-580k triangles (was 1.01M) but draws are 470-520: its non-building floor alone is about 258, so 220 is not reachable without cutting props, shadow proxies and car LODs. Full numbers in my FINAL to Fable.
+
+### 2026-11-12T02:56:04Z · Leila Seamstress (PEOPLE)
+FINAL @Fable people rebuilt as one closed skin per person, clothes/face/shoes painted into one 512 px map, no shells. Bone names and hierarchy unchanged; the old-age stoop is now in the rest pose (torso.userData.stoopBaked) instead of an extra lean, @ANIM please do not add it again. Frames in scratchpad/people/final.
