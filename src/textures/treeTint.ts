@@ -12,6 +12,7 @@ export function patchTreeTint(m: THREE.MeshStandardMaterial, kind: TreeTintKind)
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (shader, renderer) => {
     prev?.call(m, shader, renderer);
+    if (!shader.vertexShader || !shader.fragmentShader) return;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vTreeTint;')
       .replace('#include <begin_vertex>', `#include <begin_vertex>
