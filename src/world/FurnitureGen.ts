@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Block, BlockFace, GridModel, IMaterialLibrary, Lot, Side, StaticCollider, StreetDef } from '@/world/types';
 import { Rng } from '@/core/Rng';
-import { treeStyleFor } from '@/world/data/streetTrees';
+import { treePartsFor, treeStyleFor } from '@/world/data/streetTrees';
 type V3 = [number, number, number];
 import type { Vec2 } from '@/core/Math2';
 import { planSignBlades, SIGN_LAYOUT } from '@/world/signBlades';
@@ -200,14 +200,11 @@ export function buildFurniture(
     const style = treeStyleFor(streetId, tr.next(), tr.next(), tr.next());
     const R = rng.range(1.2, 1.6) * style.canopy;
     const tree = placeMatrix(new THREE.Matrix4(), base.x, 0, base.z, yaw, lean).scale(_p.set(style.scale, style.scale, style.scale));
-    putInst('treeTrunk', M.treeTrunk, trunkGeo, tree);
-    const canopy: [number, number, number, number][] = [
-      [0, 4.0, 0, R],
-      [0.7, 3.6, 0.5, R * 0.8],
-    ];
-    if (rng.chance(0.6)) canopy.push([-0.6, 3.7, -0.6, R * 0.75]);
-    for (const [ox, oy, oz, r] of canopy) {
-      _local.compose(_p.set(ox, oy, oz), _q.identity(), _s.set(r, r, r));
+    rng.chance(0.6); // (kept: the layout stream draws what it always drew; the form below uses the tree's own hash stream)
+    const parts = treePartsFor(style, R, tr.next(), tr.next());
+    putInst('treeTrunk', M.treeTrunk, trunkGeo, _m.multiplyMatrices(tree, _local.makeScale(parts.trunk[0], parts.trunk[1], parts.trunk[2])));
+    for (const [ox, oy, oz, r, sq] of parts.clouds) {
+      _local.compose(_p.set(ox, oy, oz), _q.identity(), _s.set(r, r * sq, r));
       putInst('treeLeaves', M.treeLeaves, blobGeo, _m.multiplyMatrices(tree, _local));
     }
     circle(base, TREE_COLLIDER_R);

@@ -33,7 +33,7 @@ import { Rng } from '@/core/Rng';
 import type { IMaterialLibrary, StaticCollider } from '@/world/types';
 import { chunkKeyOf, type ChunkLayout } from '@/render/Culling';
 import type { Quality } from '@/render/Shadows';
-import { treeStyleFor } from '@/world/data/streetTrees';
+import { treePartsFor, treeStyleFor } from '@/world/data/streetTrees';
 import { LAMP_HEAD_NAME, placeMatrix, type LampSpot } from '@/world/FurnitureGen';
 import { SIGN_LAYOUT } from '@/world/signBlades';
 import { alignYaw, box, cyl, frameMatrix, xform } from '@/world/props/common';
@@ -527,11 +527,10 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
       const style = treeStyleFor(t.streetId ?? '', tr.next(), tr.next(), tr.next());
       const R = (1.2 + 0.4 * tr.next()) * style.canopy;
       placeMatrix(mat, t.x, 0, t.z, t.yaw, [(tr.next() - 0.5) * 0.1, (tr.next() - 0.5) * 0.1]).scale(sc.set(style.scale, style.scale, style.scale));
-      push(trunkM, mat);
-      const canopy: Array<[number, number, number, number]> = [[0, 4.0, 0, R], [0.7, 3.6, 0.5, R * 0.8]];
-      if (tr.chance(0.6)) canopy.push([-0.6, 3.7, -0.6, R * 0.75]);
-      for (const [ox, oy, oz, r] of canopy) {
-        tmp.compose(new THREE.Vector3(ox, oy, oz), id4, sc.set(r, r, r));
+      const parts = treePartsFor(style, R, tr.next(), tr.next());
+      push(trunkM, tmp.makeScale(parts.trunk[0], parts.trunk[1], parts.trunk[2]).premultiply(mat));
+      for (const [ox, oy, oz, r, sq] of parts.clouds) {
+        tmp.compose(new THREE.Vector3(ox, oy, oz), id4, sc.set(r, r * sq, r));
         push(leafM, cloud.multiplyMatrices(mat, tmp));
       }
       circle(t.x, t.z, TREE_COLLIDER_R, 'tree');

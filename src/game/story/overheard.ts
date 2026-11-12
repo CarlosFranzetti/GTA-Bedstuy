@@ -68,7 +68,7 @@ export const OVERHEARD: readonly OverheardGroupInfo[] = [
       'Mama says a landlord is only a landlord until you cook for him. Then he is a problem.',
       'We were here before the bakery had a hashtag.',
       'Grandmother says the hurricane was not that bad. It only took the roof.',
-      'I am not late. I am on island time. The island is in Flatbush.',
+      'I am not late. The bus is late, and I am loyal to the bus.',
       'He said he would be here at two. It is four. He is a man of his word, just not that word.',
       'The barber and the pastor talk for two hours and nobody is sure who is cutting.',
       'A good soup takes all day. A bad soup takes all day too, but you pretend.',

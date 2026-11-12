@@ -327,17 +327,17 @@ export const tireSidewallPainter: Painter = (ctx, w, h, rng, _variant, aux) => {
   for (const flip of [false, true]) {
     const y0 = flip ? h * 0.96 : 0;
     const bandH = h * 0.04;
-    ctx.fillStyle = '#1c1d20';
+    ctx.fillStyle = '#131417';
     ctx.fillRect(0, y0, w, bandH);
     const capY = flip ? h - h * 0.012 : 0;
-    ctx.fillStyle = '#c9cdd2';
+    ctx.fillStyle = '#a9aeb5';
     ctx.fillRect(0, capY, w, h * 0.012);
     const spokeY = flip ? y0 : h * 0.012;
     const spokeH = bandH - h * 0.012;
     const period = w / 5;
-    ctx.fillStyle = '#aab0b8';
+    ctx.fillStyle = '#6f757d';
     for (let k = 0; k < 5; k++) ctx.fillRect(k * period + period * 0.12, spokeY, period * 0.5, spokeH);
-    ctx.fillStyle = '#8c929a';
+    ctx.fillStyle = '#4f545b';
     for (let k = 0; k < 5; k++) ctx.fillRect(k * period + period * 0.12, spokeY, period * 0.5, 2);
   }
   if (hc) { hc.fillStyle = gray(128); hc.fillRect(0, 0, w, h * 0.04); hc.fillRect(0, h * 0.96, w, h * 0.04); }
