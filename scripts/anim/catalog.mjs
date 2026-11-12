@@ -28,7 +28,6 @@ export const CLIPS = [
   { name: 'walkDrunk',   pack: 'street', file: '105_09', cycle: true, from: 1.0, to: 99, frames: 24, speed: 0.7 },
   { name: 'walkLimp',    pack: 'street', file: '105_16', cycle: true, from: 1.0, to: 99, frames: 24 },
   { name: 'walkTurn',    pack: 'street', file: '16_17', t0: 1.9, t1: 3.5, fps: 20, heading: 'ramp', detrend: 'smooth' },
-  { big: true, name: 'getUp',       pack: 'street', file: '77_18', t0: 2.3, t1: 5.4, fps: 20, heading: 'face', rigY: 'abs', detrend: 'mean' },
   { big: true, name: 'flinch',      pack: 'street', file: '77_09', t0: 1.8, t1: 4.1, fps: 20, heading: 'none', detrend: 'mean' },
   { name: 'talk',        pack: 'street', file: '18_08', t0: 3.0, t1: 11.0, loop: true, fps: 15, heading: 'none', detrend: 'mean' },
   { name: 'talk2',       pack: 'street', file: '19_08', t0: 3.0, t1: 11.0, loop: true, fps: 15, heading: 'none', detrend: 'mean' },

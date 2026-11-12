@@ -27,7 +27,7 @@ export interface AnimInput {
   jump?: { phase: 'ground' | 'takeoff' | 'air' | 'land'; t: number; vy: number };
 }
 
-interface OneShot { clip: Clip; t: number; end: number; rate: number; mirror: boolean; fadeIn: number; fadeOut: number }
+interface OneShot { amp: number; clip: Clip; t: number; end: number; rate: number; mirror: boolean; fadeIn: number; fadeOut: number }
 
 /**
  * Hand-keyed street idles layered on the captured standing idle (the data we may use has no arms-crossed or leaning take).
@@ -55,6 +55,13 @@ export function keyIdle(p: Float32Array, kind: 'crossed' | 'lean', side: number)
 /** the skeleton the clips were cut for (scripts/anim/retarget.mjs OUR) and the ankle's height above the sole */
 const REF = { thigh: 0.4, shin: 0.345 };
 const ANKLE_H = 0.075;
+
+/**
+ * One-shots the pedestrians play, with the amounts that suit a person on the pavement. The flinch is captured from someone ducking a
+ * thrown object (a deep crouch, spine bent past 70 degrees): played whole on a startled walker it bent them double, so it is only a
+ * fraction. The get-up clip is a lying-down take and is NOT used on pedestrians (they are not lying down when it would play).
+ */
+export const PED_ONESHOTS = { flinch: { amp: 0.3, from: 0.12, to: 0.75, rate: 1.7, fadeIn: 0.06, fadeOut: 0.2 } } as const;
 
 export const JUMP_TIMES = { takeoff: 0.07, land: 0.2, gravity: 17 };
 
@@ -127,10 +134,10 @@ export class AnimController {
   get idleClipName(): string { return this.idleName; }
 
   /** Play a one-shot clip over whatever is going on. Returns false when the clip is not loaded. */
-  playOnce(name: string, o: { rate?: number; mirror?: boolean; from?: number; to?: number; fadeIn?: number; fadeOut?: number } = {}): boolean {
+  playOnce(name: string, o: { amp?: number; rate?: number; mirror?: boolean; from?: number; to?: number; fadeIn?: number; fadeOut?: number } = {}): boolean {
     const clip = this.lib.get(name);
     if (!clip) return false;
-    this.shot = { clip, t: (o.from ?? 0) * clip.duration, end: (o.to ?? 1) * clip.duration, rate: o.rate ?? 1, mirror: o.mirror ?? false, fadeIn: o.fadeIn ?? 0.12, fadeOut: o.fadeOut ?? 0.2 };
+    this.shot = { amp: o.amp ?? 1, clip, t: (o.from ?? 0) * clip.duration, end: (o.to ?? 1) * clip.duration, rate: o.rate ?? 1, mirror: o.mirror ?? false, fadeIn: o.fadeIn ?? 0.12, fadeOut: o.fadeOut ?? 0.2 };
     return true;
   }
   cancelOnce(fade = 0.15): void { if (this.shot) { this.shot.end = Math.min(this.shot.end, this.shot.t + fade); this.shot.fadeOut = fade; } }
@@ -215,7 +222,7 @@ export class AnimController {
       s.t += dt * s.rate;
       const w = Math.min(1, s.t / Math.max(0.001, s.fadeIn), (s.end - s.t) / Math.max(0.001, s.fadeOut));
       if (s.t >= s.end) this.shot = null;
-      else { sampleClip(s.clip, s.t, this.tmp2); if (s.mirror) mirrorPose(this.tmp2); this.mix(this.base, this.tmp2, Math.max(0, w)); }
+      else { sampleClip(s.clip, s.t, this.tmp2); if (s.mirror) mirrorPose(this.tmp2); this.mix(this.base, this.tmp2, Math.max(0, w) * s.amp); }
     }
 
     // jump

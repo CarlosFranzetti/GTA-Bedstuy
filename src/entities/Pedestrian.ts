@@ -5,7 +5,7 @@ import { angleDiff, type Vec2 } from '@/core/Math2';
 import type { SignalLights } from '@/game/TrafficLights';
 import { Rng } from '@/core/Rng';
 import { animateWalk, type HumanModel } from '@/entities/models/humanModel';
-import { AnimController } from '@/entities/anim/controller';
+import { AnimController, PED_ONESHOTS } from '@/entities/anim/controller';
 import { makeGait, type Gait } from '@/entities/anim/gait';
 import { buildPerson as buildPedModel, loadPeople } from '@/entities/models/pedMesh';
 import type { BarkKind } from '@/game/pedBarks';
@@ -274,7 +274,6 @@ export class Pedestrian implements Entity {
         b.vel.x *= damp;
         b.vel.z *= damp;
         if (this.downTimer <= 0) {
-          this.anim?.playOnce('getUp', { rate: 1.3, fadeIn: 0.05, fadeOut: 0.25 }); // captured get-up (street pack)
           this.state = 'walking';
           b.vel.x = 0;
           b.vel.z = 0;
@@ -893,7 +892,7 @@ export class Pedestrian implements Entity {
       case 'nod': m.head.rotation.x = 0.22 * k * Math.sin(t * 9); break;
       case 'laugh': m.torso.rotation.x = (-0.14 + 0.06 * Math.sin(t * 15)) * k; m.head.rotation.x = -0.32 * k; m.arms[0].rotation.x = 0.35 * k; m.arms[1].rotation.x = 0.35 * k; m.elbows[0].rotation.x = 0.9 * k; m.elbows[1].rotation.x = 0.9 * k; break;
       case 'startle': if (this.anim?.hasClip('flinch')) {
-        if (this.reactionSeen !== r) { this.reactionSeen = r; this.anim.playOnce('flinch', { from: 0.12, to: 0.75, rate: 1.7, fadeIn: 0.06, fadeOut: 0.2 }); }
+        if (this.reactionSeen !== r) { this.reactionSeen = r; this.anim.playOnce('flinch', PED_ONESHOTS.flinch); }
         break;
       }
         m.torso.rotation.x = -0.28 * k; m.head.rotation.x = -0.2 * k; m.arms[0].rotation.x = 1.3 * k; m.arms[1].rotation.x = 1.3 * k; m.elbows[0].rotation.x = 1.1 * k; m.elbows[1].rotation.x = 1.1 * k; m.arms[0].rotation.z = 0.35 * k; m.arms[1].rotation.z = -0.35 * k; break;
