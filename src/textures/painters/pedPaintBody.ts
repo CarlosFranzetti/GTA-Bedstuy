@@ -31,7 +31,7 @@ export function paintBody(K: Look, t: Tex, o: Px): void {
     aBot = bot.kind === 'skirt' ? 0 : sst(hemBot - eps, hemBot + eps, y) * sst(shoeTop - 0.03, shoeTop - 0.012, y);
     aShoe = sst(shoeTop + eps, shoeTop - eps, y);
   } else {
-    const aNeck = sst(neckY + eps, neckY - eps, y);
+    const aNeck = sst(neckY + 0.0045, neckY - 0.0045, y);
     aTop = aNeck * sst(hemTop - eps, hemTop + eps, y) * (sleeves === 'none' && k !== 'jersey' ? 1 - sst(shX * 0.8 - 0.004, shX * 0.8 + 0.004, ax) * sst(shY - 0.03, shY - 0.012, y) : 1);
     aBot = aNeck;
     if (s.hat === 'hijab' && y >= neckY - 0.005) { o.copy(hijabCloth(K, t, rgb(s.hatColor))); return; }

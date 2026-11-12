@@ -34,6 +34,7 @@ import type { IMaterialLibrary, StaticCollider } from '@/world/types';
 import { chunkKeyOf, type ChunkLayout } from '@/render/Culling';
 import type { Quality } from '@/render/Shadows';
 import { treePartsFor, treeStyleFor } from '@/world/data/streetTrees';
+import { buildCloudGeometry } from '@/world/props/treeCloud';
 import { LAMP_HEAD_NAME, placeMatrix, type LampSpot } from '@/world/FurnitureGen';
 import { SIGN_LAYOUT } from '@/world/signBlades';
 import { alignYaw, box, cyl, frameMatrix, xform } from '@/world/props/common';
@@ -169,24 +170,7 @@ function buildGeometries(): Record<'trunk' | 'leaves' | 'lamp' | 'lampHead' | 'h
     limb([0, 2.7, 0], [0.7, 3.6, 0.5], 0.1, 0.05),
     limb([0, 2.7, 0], [-0.6, 3.7, -0.6], 0.1, 0.05),
   ]);
-  // canopy cloud: 24 leaf cards in a unit ball, normals out of the ball centre (same recipe as FurnitureGen)
-  const cr = new Rng('tree-cloud');
-  const pos: number[] = [], nor: number[] = [], uv: number[] = [];
-  const q = new THREE.Quaternion(), e = new THREE.Euler();
-  for (let i = 0; i < 24; i++) {
-    const dir = new THREE.Vector3(cr.range(-1, 1), cr.range(-0.6, 1), cr.range(-1, 1)).normalize().multiplyScalar(0.8 * Math.cbrt(cr.next()));
-    const size = cr.range(0.85, 1.25);
-    q.setFromEuler(e.set(cr.range(0, Math.PI), cr.range(0, Math.PI * 2), cr.range(0, Math.PI)));
-    const corners = [[-1, -1, 0, 0], [1, -1, 1, 0], [1, 1, 1, 1], [-1, 1, 0, 1]].map(([x, y, u, v]) => {
-      const p = new THREE.Vector3(x * size * 0.5, y * size * 0.5, 0).applyQuaternion(q).add(dir);
-      return { p, n: p.clone().normalize(), u, v };
-    });
-    for (const tri of [[0, 1, 2], [0, 2, 3]]) for (const k of tri) { const o = corners[k]; pos.push(o.p.x, o.p.y, o.p.z); nor.push(o.n.x, o.n.y, o.n.z); uv.push(o.u, o.v); }
-  }
-  const leaves = new THREE.BufferGeometry();
-  leaves.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  leaves.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-  leaves.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  const leaves = buildCloudGeometry(); // 48 triangle leaf cards (same triangles as the old 24 quads), shared with FurnitureGen
   return {
     trunk, leaves,
     lamp: merge([cyl(0.07, 0.09, LAMP_HEIGHT, 6).translate(0, LAMP_HEIGHT / 2, 0), box(LAMP_ARM, 0.08, 0.1).translate(LAMP_ARM / 2, 7.9, 0)]),

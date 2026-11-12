@@ -8,7 +8,7 @@
 import type { PedSpec } from './ped';
 import { createCanvas } from '@/textures/canvas';
 import { Px } from './pedPaintShared';
-import { makeShader } from './pedPaintShade';
+import { makeShader, locateEyes } from './pedPaintShade';
 import { paintSwatches } from './pedPaintSwatch';
 
 export { rgb } from './pedPaintShared';
@@ -102,6 +102,7 @@ export function bakeSkin(b: BakeInput, size = SK_ATLAS): HTMLCanvasElement {
 function bakeSkinInner(b: BakeInput, size: number): HTMLCanvasElement {
   rasterise(b, size);
   const { K, shade } = makeShader(b), px = new Px();
+  locateEyes(K, size, cover, posMap, wMap);
   const img = new Uint8ClampedArray(size * size * 4), filled = new Uint8Array(size * size), sk = K.skin;
   for (let q = 0; q < size * size; q++) { img[q * 4] = sk[0]; img[q * 4 + 1] = sk[1]; img[q * 4 + 2] = sk[2]; img[q * 4 + 3] = 255; }
   for (let q = 0; q < size * size; q++) {

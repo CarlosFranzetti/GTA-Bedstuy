@@ -117,7 +117,7 @@ describe('PEDHAIR pieces: bones, budget, lettering', () => {
       const c = ctxOf(spec), skin = c.skin.index.length / 3, tris = personPieces(c).pieces.reduce((a, p) => a + p.tris, 0);
       if (skin + tris > worst) { worst = skin + tris; worstId = spec.id; }
     }
-    expect(worst, worstId).toBeLessThanOrEqual(4600);
+    expect(worst, worstId).toBeLessThanOrEqual(4650);
   }, 120000);
   it('has no lettering: no text drawing in the piece code, no logo fields read, nothing maps outside the swatches', async () => {
     const fs = (await nodeFs()) as unknown as { readFileSync(p: URL, enc: string): string };

@@ -729,9 +729,9 @@ function skinExtras(s: MhShape, spec: PedSpec, hi: boolean): THREE.BufferGeometr
 /** the foot: the skin's own foot is cut off at the ankle and replaced by a clean shoe volume (one smooth lofted shape per foot, painted from the shoe swatch) */
 function shoeParts(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.BufferGeometry[] {
   const out: THREE.BufferGeometry[] = [], R = peopleRig(s, spec), anY = s.landmarks.ankleY, rect = SK_RECTS.shoe, seg = hi ? 12 : 7;
-  const bt = bodyTypeOf(spec), sc = Math.min(1.15, Math.max(0.85, (s.landmarks.crownY / 1.78) * (0.9 + 0.1 * bt.legs)));
+  const bt = bodyTypeOf(spec), sc = 1.09 * Math.min(1.15, Math.max(0.85, (s.landmarks.crownY / 1.78) * (0.9 + 0.1 * bt.legs)));      // about 1.05 to 1.1 head heights long
   const T = [0, 0.035, 0.11, 0.27, 0.48, 0.68, 0.86, 1];
-  const W = [0.014, 0.034, 0.047, 0.052, 0.047, 0.041, 0.038, 0.032], H = [0.026, 0.044, 0.058, 0.064, 0.08, 0.12, 0.142, 0.138];
+  const W = [0.014, 0.034, 0.047, 0.053, 0.049, 0.044, 0.043, 0.04], H = [0.026, 0.044, 0.058, 0.064, 0.08, 0.12, 0.142, 0.138];
   const high = !!spec.shoes.high, flat = spec.sex === 'f' && !high && !/#f|#e/i.test(spec.shoes.color);
   for (const side of ['L', 'R']) {
     const a = R['ankle' + side], bone = side === 'L' ? 9 : 11;

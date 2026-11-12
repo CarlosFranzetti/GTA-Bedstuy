@@ -107,8 +107,8 @@ describe('ground painters', () => {
 
   it('bluestone flags show lichen spots and chipped corners', () => {
     const run = paint(bluestonePainter, 512, 512, 21, 0);
-    const lichenFills = run.main.filter((o) => o.name === 'set:fillStyle' && /^rgb\((176,184,120|202,204,178|150,170,116|214,208,150)\)$/.test(String(o.args[0])));
-    expect(lichenFills.length).toBeGreaterThan(3);
+    const lichenFills = run.main.filter((o) => o.name === 'set:fillStyle' && /^rgb\((168,172,170|196,198,194|150,156,156|184,188,184)\)$/.test(String(o.args[0])));
+    expect(lichenFills.length).toBeGreaterThan(0); // a few faint pale spots, no yellow
     expect(run.main.filter((o) => o.name === 'closePath').length).toBeGreaterThan(2); // chipped corner polygons
   });
 

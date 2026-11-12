@@ -11,6 +11,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Block, BlockFace, GridModel, IMaterialLibrary, Lot, Side, StaticCollider, StreetDef } from '@/world/types';
 import { Rng } from '@/core/Rng';
 import { treePartsFor, treeStyleFor } from '@/world/data/streetTrees';
+import { buildCloudGeometry } from '@/world/props/treeCloud';
 type V3 = [number, number, number];
 import type { Vec2 } from '@/core/Math2';
 import { planSignBlades, SIGN_LAYOUT } from '@/world/signBlades';
@@ -168,29 +169,7 @@ export function buildFurniture(
    * cloud shades like a soft volume, not like flat cards) and the double-sided material lights the back the
    * same (no flipped normal). Alpha-tested leaf sprite; 48 triangles, shared by every instance (scale = cloud radius).
    */
-  const blobGeo = (): THREE.BufferGeometry[] => {
-    const cr = new Rng('tree-cloud');
-    const pos: number[] = [], nor: number[] = [], uv: number[] = [];
-    const q = new THREE.Quaternion(), e = new THREE.Euler();
-    for (let i = 0; i < 24; i++) {
-      const dir = new THREE.Vector3(cr.range(-1, 1), cr.range(-0.6, 1), cr.range(-1, 1)).normalize().multiplyScalar(0.8 * Math.cbrt(cr.next()));
-      const size = cr.range(0.85, 1.25);
-      q.setFromEuler(e.set(cr.range(0, Math.PI), cr.range(0, Math.PI * 2), cr.range(0, Math.PI)));
-      const corners = [[-1, -1, 0, 0], [1, -1, 1, 0], [1, 1, 1, 1], [-1, 1, 0, 1]].map(([x, y, u, v]) => {
-        const p = new THREE.Vector3(x * size * 0.5, y * size * 0.5, 0).applyQuaternion(q).add(dir);
-        return { p, n: p.clone().normalize(), u, v };
-      });
-      const tri = (a: number, b: number, c: number): void => {
-        for (const k of [a, b, c]) { const o = corners[k]; pos.push(o.p.x, o.p.y, o.p.z); nor.push(o.n.x, o.n.y, o.n.z); uv.push(o.u, o.v); }
-      };
-      tri(0, 1, 2); tri(0, 2, 3); // one winding: the treeLeaves material is double-sided (MaterialLibrary), so the back face costs no triangles
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-    return [g];
-  };
+  const blobGeo = (): THREE.BufferGeometry[] => [buildCloudGeometry()];
 
   function addTree(base: Vec2, streetId: string): void {
     const yaw = rng.range(0, Math.PI * 2);

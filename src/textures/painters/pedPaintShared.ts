@@ -135,6 +135,9 @@ export function makeLook(b: BakeInput) {
     shoeTop: lm.ankleY + (s.shoes.high ? 0.13 : 0.045),
     // hand extent (filled by the bake from the mesh)
     handTipY: R.wristL[1] - 0.17, handAxis: 0 as 0 | 1,
+    // where each eye sits in the map (found from the mesh, so the eye is drawn in map space and survives the folded lids): [left, right]
+    size: 512, eyes: [null, null] as Array<EyeSlot | null>,
   };
 }
+export interface EyeSlot { cx: number; cy: number; dirx: number; sx: number; sy: number }
 export type Look = ReturnType<typeof makeLook>;

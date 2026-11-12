@@ -42,7 +42,8 @@ describe('body types', () => {
       if (y > 1.2 && y < 1.35 && Math.abs(L.position[i * 3]) < 0.1 && L.joints[i * 4] === 2) { torsoN++; torsoOut += d; }
     }
     expect(headMoved).toBe(0); expect(handMoved).toBe(0);
-    expect(torsoOut / Math.max(1, torsoN)).toBeGreaterThan(0.012);
+    // round 3: the puffer's geometry baffles are a trace (they read as muscle ridges) and the trunk is flattened under cloth, so the mean swell is the cloth thickness only
+    expect(torsoOut / Math.max(1, torsoN)).toBeGreaterThan(0.006);
     expect(D.index).toBe(L.index);
   });
 });

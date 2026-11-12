@@ -504,9 +504,9 @@ export const roofPainter: Painter = (ctx, w, h, rng, _variant, aux) => {
 
 // ---------------------------------------------------------------------------------------------- bluestone
 
-const SLATE: RGB = [92, 104, 120];
-const WARM_GREY: RGB = [108, 114, 122]; // a close grey-blue, not a warm brown: neighbouring flags differ by a few percent
-const LICHEN = ['rgb(176,184,120)', 'rgb(202,204,178)', 'rgb(150,170,116)', 'rgb(214,208,150)'];
+const SLATE: RGB = [118, 124, 131]; // mid grey with only a slight blue cast (about #7c8288 in sun)
+const WARM_GREY: RGB = [126, 129, 132]; // a close grey-blue, not a warm brown: neighbouring flags differ by a few percent
+const LICHEN = ['rgb(168,172,170)', 'rgb(196,198,194)', 'rgb(150,156,156)', 'rgb(184,188,184)']; // faint pale grey-white, no yellow
 const FLAG_JOINT = '#303230';
 
 interface FlagOpts { heave: 0 | 1 | 2 | 3 | -1; cracked: boolean }
@@ -599,7 +599,7 @@ function paintFlag(
   }
 
   // lichen: pale yellow-green and grey-white clusters of tiny discs
-  const clusters = fr.int(0, heaved ? 4 : 3);
+  const clusters = fr.int(0, heaved ? 2 : 1);
   for (let c = 0; c < clusters; c++) {
     const lx = ix + fr.range(0.08, 0.92) * iw;
     const ly = iy + fr.range(0.08, 0.92) * ih;
@@ -654,7 +654,7 @@ function paintFlag(
 }
 
 /**
- * 512px = 2.7 m (u) x 3 m (v): three 1 m courses of three ~0.9 m flags in a staggered bond. Each flag is a blend between
+ * 512px = 2.7 m (u) x 3 m (v): four 0.75 m courses of four ~0.675 m flags in a staggered bond. Each flag is a blend between
  * slate blue and warm grey with cleft-face ridges, bevelled edges, chipped corners and lichen spots.
  * Variant 1: heaved flags (raised edges, gaping joints), cracked flags and a replaced concrete patch.
  */
@@ -669,13 +669,13 @@ export const bluestonePainter: Painter = (ctx, w, h, rng, variant, aux) => {
     H.fillRect(0, 0, w, h);
   }
   const auxRng = aux?.rng ?? new Rng(0);
-  const rows = 3; // three ~1 m courses of ~0.9 m flags: near-square flags, not planks
+  const rows = 4; // four 0.75 m courses of four ~0.675 m flags
   const rh = h / rows;
   for (let r = 0; r < rows; r++) {
-    const ws = [rng.range(0.82, 1.18), rng.range(0.82, 1.18), rng.range(0.82, 1.18)];
-    const total = ws[0] + ws[1] + ws[2];
+    const ws = [rng.range(0.85, 1.15), rng.range(0.85, 1.15), rng.range(0.85, 1.15), rng.range(0.85, 1.15)];
+    const total = ws[0] + ws[1] + ws[2] + ws[3];
     let x = rng.range(0, w);
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       const fw = (ws[i] / total) * w;
       const seed = Math.floor(rng.next() * 0xffffffff);
       const opts: FlagOpts = {

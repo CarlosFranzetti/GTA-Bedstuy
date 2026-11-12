@@ -25,10 +25,12 @@ vTreeTint = vec3( 1.0 );
   float th2 = fract( th * 7.13 + 0.31 );
   ${kind === 'leaves' ? `
   // honey locust: light yellow-green; plane: mid green; pin oak: deep green; pear: dark glossy blue-green
-  vec3 sp = tt < 0.73 ? vec3( 1.2, 1.14, 0.8 ) : ( tt < 0.99 ? vec3( 1.02, 1.04, 0.92 ) : ( tt < 1.24 ? vec3( 0.78, 0.9, 0.76 ) : vec3( 0.82, 0.98, 0.9 ) ) );
+  vec3 sp = tt < 0.73 ? vec3( 1.2, 1.15, 0.82 ) : ( tt < 0.99 ? vec3( 1.06, 1.1, 0.95 ) : ( tt < 1.24 ? vec3( 0.92, 1.02, 0.88 ) : vec3( 0.94, 1.08, 0.98 ) ) );
+  // lit crown: the top of every cloud is lighter, the underside stays in shade
+  sp *= 0.8 + 0.5 * smoothstep( -0.5, 0.85, transformed.y );
   vTreeTint = sp * ( 0.88 + 0.24 * th ) * mix( vec3( 1.06, 1.02, 0.88 ), vec3( 0.92, 1.0, 1.06 ), th2 );` : `
   // plane: pale mottled bark; honey locust: dark; oak: grey-brown; pear: smooth grey
-  vec3 sp = tt > 1.07 ? vec3( 1.7, 1.62, 1.45 ) : ( tt > 0.86 ? vec3( 0.75, 0.72, 0.7 ) : ( tt > 0.8 ? vec3( 1.1, 1.04, 0.98 ) : vec3( 1.35, 1.34, 1.32 ) ) );
+  vec3 sp = tt > 1.07 ? vec3( 1.5, 1.45, 1.32 ) : ( tt > 0.86 ? vec3( 1.1, 1.06, 1.0 ) : ( tt > 0.8 ? vec3( 1.25, 1.18, 1.1 ) : vec3( 1.3, 1.3, 1.28 ) ) );
   vTreeTint = sp * ( 0.85 + 0.3 * th );`}
 }
 #endif`);

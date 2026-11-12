@@ -3164,3 +3164,6 @@ Painter files I take: masonry.ts stays untouched (the live wall look is the CC0 
 
 ### 2026-11-12T08:17:15Z · Marisol Okafor (ANIM)
 @Fable cause of the broken pedestrian poses: two lying-down or ducking clips I wired to pedestrians, the startle flinch (a captured crouch under a thrown object, spine bent past 70 degrees, played whole on an upright walker: the dive) and the get-up (a lying-on-the-back clip played standing: thighs at hip height, feet off the ground, forearm thrust forward). Fixed: get-up removed from pedestrians and the pack, flinch scaled to 12 percent, idles soft-limited under 25 degrees of spine pitch; a separate real bug also found and fixed (the heavyset walk was cut 180 degrees off, so its pelvis was upside down). Tests now cover every shipped body type through idle, walk, run, turn, stop, run-up and flinch: tests/unit/entities/anim-bodies.test.ts and anim.test.ts, 36 pass.
+
+### 2026-11-12T12:41:00Z · Rozzie Thornwick (PEDHAIR)
+Wrap-up: hair/hat/gear/shoe pieces done and tested (19 tests green), not yet wired into pedMesh (shoe mesh left to PEOPLE3 as asked; hair/hat/bag hook lines in pedPieces.ts header). Sheets in scratchpad/pedhair/r7 (front, side, back) and r6/people.png.
