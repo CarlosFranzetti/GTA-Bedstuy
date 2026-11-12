@@ -13,6 +13,7 @@ import { StoryDirector } from '@/game/story/StoryDirector';
 import { AmbientNotices, ambientItems } from '@/game/story/AmbientNotices';
 import { StoryState } from '@/game/story/StoryState';
 import { ADS, BULLETINS, adsFor, currentAct, unlockedBulletins } from '@/game/story/news';
+import { signageItems } from '@/game/story/signage';
 import { F } from '@/game/story/flags';
 import { Phone } from '@/game/Phone';
 import { MissionHud } from '@/ui/MissionHud';
@@ -221,7 +222,9 @@ describe('ambient storytelling: signs follow the flags', () => {
     const st = new StoryState();
     amb.sync(st);
     const n0 = amb.group.children.length;
-    expect(n0).toBe(5); // the four notices and the Stillwater poster
+    // the four notices and the Stillwater poster, plus the STORY2 signs that are always up (or up before Act III)
+    const always = signageItems(grid).filter((i) => st.test(i.show)).length;
+    expect(n0).toBe(5 + always);
     amb.sync(st);
     expect(amb.group.children.length).toBe(n0);
     st.set(F.ACT1);

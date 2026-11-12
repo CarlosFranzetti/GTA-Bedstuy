@@ -132,6 +132,47 @@ describe('speed blending', () => {
   });
 });
 
+describe('spine posture (a pedestrian once bent double like a dive; a clip heading 180 degrees off had flipped its pelvis)', () => {
+  const LIMIT = 0.65; // 37 degrees
+  const SPINE = ['torso', 'hips'] as const;
+  it('no upright clip pitches or rolls the spine or pelvis more than 37 degrees', () => {
+    const lib = fullLib();
+    const big = new Set(['jump', 'stumble', 'sitDown', 'standUp', 'getUp', 'flinch', 'startRun']);
+    for (const n of lib.names) {
+      if (big.has(n)) continue;
+      const c = lib.get(n)!;
+      for (let f = 0; f < c.frames; f++) for (const b of SPINE) for (const ax of [0, 2]) {
+        const v = c.data[f * NCH + boneChannel(b) + ax];
+        expect(Math.abs(v), `${n} ${b} axis ${ax} frame ${f}`).toBeLessThan(LIMIT);
+      }
+    }
+  });
+  it('no pedestrian (any age, any style, any idle) bends its spine past that while walking, jogging or standing', () => {
+    const lib = fullLib();
+    let worst = 0;
+    for (const age of ['kid', 'teen', 'adult', 'old'] as const) {
+      for (let seed = 0; seed < 70; seed++) {
+        for (const [speed, idle] of [[1.2, null], [0, null], [0, 'idle2'], [0, 'phone'], [0, 'talk'], [0, 'talk2'], [0, 'crossed'], [0, 'lean'], [4.5, null]] as const) {
+          const m = fakeModel();
+          const c = new AnimController(m, makeGait(seed * 17 + 3, age), lib);
+          c.setIdle(idle, seed % 2 === 1);
+          for (let i = 0; i < 150; i++) {
+            c.update(1 / 30, { speed });
+            // the stop and start one-shots are real motion too: they are covered by the loop, nothing is skipped
+            for (const b of [m.torso, m.hips]) worst = Math.max(worst, Math.abs(b.rotation.x), Math.abs(b.rotation.z));
+          }
+        }
+      }
+    }
+    expect(worst).toBeLessThan(LIMIT);
+  });
+  it('a forward lean tips the torso forward (negative x), as the captured run does', () => {
+    const lib = fullLib();
+    const lean = (l: number): number => { const m = fakeModel(); const c = new AnimController(m, { ...PLAYER_GAIT, lean: l }, lib); for (let i = 0; i < 60; i++) c.update(1 / 30, { speed: 1.4 }); return m.torso.rotation.x; };
+    expect(lean(0.2)).toBeLessThan(lean(0));
+  });
+});
+
 describe('per-person gait', () => {
   it('is deterministic for a seed and different between seeds', () => {
     expect(makeGait(42, 'adult')).toEqual(makeGait(42, 'adult'));

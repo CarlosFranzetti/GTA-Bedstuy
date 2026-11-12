@@ -24,6 +24,7 @@ import { useRealPlaces } from '@/game/missions/content/places';
 import type { MissionDef, ObjectiveDef } from '@/game/missions/types';
 import { AmbientNotices, ambientItems } from '@/game/story/AmbientNotices';
 import { F } from '@/game/story/flags';
+import { signageItems } from '@/game/story/signage';
 import { Inventory } from '@/game/Inventory';
 import { PROCEDURAL_RECORDS } from '@/game/records';
 import { SaveManager, SaveStore, poseOnMap, type SaveParts, type SavePose } from '@/ui/GameSave';
@@ -223,8 +224,8 @@ describe('the pointer router guides a walker along real streets', () => {
 
 describe('ambient notices and the minimap on the real map', () => {
   it('every notice sits on a real frontage, facing the street, finite and near a building line', () => {
-    const items = ambientItems(grid, rg.frontage);
-    expect(items.length).toBe(ambientItems(grid).length);
+    const items = [...ambientItems(grid, rg.frontage), ...signageItems(grid, rg.frontage)]; // the arc's signs and STORY2's
+    expect(items.length).toBe(ambientItems(grid).length + signageItems(grid).length);
     for (const i of items) {
       expect(Number.isFinite(i.x) && Number.isFinite(i.z) && Number.isFinite(i.nx) && Number.isFinite(i.nz), i.id).toBe(true);
       expect(Math.hypot(i.nx, i.nz)).toBeCloseTo(1, 1);
