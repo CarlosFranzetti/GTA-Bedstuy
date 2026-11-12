@@ -625,7 +625,7 @@ export function dressLod(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): M
       pos[i * 3] = cx + (pos[i * 3] - cx) * f; pos[i * 3 + 2] = c.cz + (pos[i * 3 + 2] - c.cz) * f;
     }
   }
-  flattenTorso(L, pos, hipY + 0.02, shY + 0.01, cz0, spec.sex === 'f' ? 0.8 : 1);
+  flattenTorso(L, pos, hipY + 0.02, shY + 0.01, cz0, 1);
   let normal = shadeNormals(L, pos);
   if (dress) {
     const top = spec.top, bot = spec.bottom;

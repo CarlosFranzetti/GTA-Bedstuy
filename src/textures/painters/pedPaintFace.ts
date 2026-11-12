@@ -175,8 +175,9 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
       if (dens > 0) {
         const thresh = face.beard || face.mustache ? 0.5 : 0.62;
         const a = Math.min(0.95, Math.max(0, (dens - 0.18 + (grainN - 0.5) * 0.5) * (face.beard || face.mustache ? 2.0 : 1.3)));
-        const hc = mixc(mulc(K.hairC, 0.8 + 0.4 * strand), K.skin, face.beard || face.mustache ? (K.old ? 0.1 : 0.18) * (1 - strand) : 0.5);
-        o.mix(hc, a * (dens > thresh ? 1 : 0.8) * (face.beard || face.mustache ? 1 : 0.7));
+        const full = !!(face.beard || face.mustache);
+        const hc = full ? mixc(mulc(K.hairC, K.old ? 0.8 + 0.16 * strand : 0.8 + 0.4 * strand), K.skin, (K.old ? 0.1 : 0.18) * (1 - strand)) : mixc(mulc(K.skin, 0.58), K.hairC, 0.4);
+        o.mix(hc, a * (full ? (dens > thresh ? 1 : 0.8) * (K.old ? 0.85 : 1) : 0.42));
       }
     }
   } else {

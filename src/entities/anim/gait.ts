@@ -36,12 +36,14 @@ function rng(seed: number): () => number {
   };
 }
 
-/** Walk styles by age band: [clip name, weight, speed factor]. Names are resolved against the library at play time. */
+/** Walk styles by age band: [clip name, weight, speed factor]. Names are resolved against the library at play time.
+ * The captured 'walkHeavy' take is not handed out: its thighs never pass behind the hip and both knees stay deeply bent, which on a
+ * pedestrian reads as creeping along in a crouch (owner, 12 Nov: people looked hunched). The clip stays in the pack. */
 const STYLES: Record<AgeBand, ReadonlyArray<readonly [string, number, number]>> = {
-  adult: [['walk', 30, 1], ['walkBrisk', 14, 1.12], ['walkHeavy', 14, 0.92], ['walkStroll', 10, 0.82], ['walkFast', 12, 1.08], ['walkJaunty', 8, 0.95], ['walkAngry', 6, 0.88], ['walkHobble', 2, 0.7], ['walkSad', 5, 0.8], ['walkLimp', 2, 0.9], ['walkDrunk', 1, 0.7]],
+  adult: [['walk', 38, 1], ['walkBrisk', 14, 1.12], ['walkStroll', 16, 0.82], ['walkFast', 12, 1.08], ['walkJaunty', 8, 0.95], ['walkAngry', 6, 0.88], ['walkHobble', 2, 0.7], ['walkSad', 5, 0.8], ['walkLimp', 2, 0.9], ['walkDrunk', 1, 0.7]],
   teen: [['walk', 18, 1], ['walkBrisk', 26, 1.12], ['walkFast', 20, 1.1], ['walkJaunty', 18, 0.98], ['walkStroll', 10, 0.85], ['walkAngry', 8, 0.9]],
   kid: [['walkBrisk', 40, 1.1], ['walkFast', 30, 1.12], ['walkJaunty', 20, 1], ['walk', 10, 1]],
-  old: [['walkHobble', 30, 0.7], ['walkStroll', 26, 0.8], ['walkHeavy', 14, 0.78], ['walkLimp', 12, 0.8], ['walkSad', 8, 0.75], ['walk', 10, 0.9]],
+  old: [['walkHobble', 30, 0.7], ['walkStroll', 40, 0.8], ['walkLimp', 12, 0.8], ['walkSad', 8, 0.75], ['walk', 10, 0.9]],
 };
 
 export function makeGait(seed: number, age: AgeBand = 'adult'): Gait {

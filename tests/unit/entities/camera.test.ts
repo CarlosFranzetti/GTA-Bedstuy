@@ -173,8 +173,9 @@ describe('ThirdPersonCamera', () => {
       expect(c.camera.position.z).toBeCloseTo(26.8, 0);
     });
 
-    it('ignores vehicles and pedestrians (dynamic bodies) between target and camera', () => {
+    it('never puts the lens inside a vehicle on the view line: it stops at the car and rises over it (it used to ignore dynamic bodies)', () => {
       const w = new World2D();
+      // body spans z 10.7..13.7; the lens wants z = 10.8, which is inside it
       const car: Body2D = {
         id: 'car', kind: 'vehicle', shape: { kind: 'obb', halfW: 1, halfL: 1.5 }, pos: { x: 0, z: 12.2 },
         vel: { x: 0, z: 0 }, heading: 0, mass: 1400,
@@ -183,13 +184,21 @@ describe('ThirdPersonCamera', () => {
       const c = new ThirdPersonCamera();
       c.yaw = Math.PI; c.pitch = 0;
       c.update(1 / 60, { x: 0, z: 14 }, Math.PI, 'foot', fake(), { world: w });
-      expect(c.camera.position.z).toBeCloseTo(10.8, 1);
+      expect(c.camera.position.z).toBeGreaterThan(13.4);   // on this side of the car's face
+      expect(c.camera.position.y).toBeGreaterThan(2.2);    // high over the player, looking down
+      // a car that is behind the lens position is still ignored (lens at its full 3.2 m)
+      const far = new World2D();
+      far.addBody({ ...car, id: 'far', pos: { x: 0, z: 8 } });
+      const f = new ThirdPersonCamera();
+      f.yaw = Math.PI; f.pitch = 0;
+      f.update(1 / 60, { x: 0, z: 14 }, Math.PI, 'foot', fake(), { world: far });
+      expect(f.camera.position.z).toBeCloseTo(10.8, 1);
       // same via the generic raycast fallback (a world without raycastStatic)
       const generic = { raycast: w.raycast.bind(w) };
       const d = new ThirdPersonCamera();
       d.yaw = Math.PI; d.pitch = 0;
       d.update(1 / 60, { x: 0, z: 14 }, Math.PI, 'foot', fake(), { world: generic });
-      expect(d.camera.position.z).toBeCloseTo(10.8, 1);
+      expect(d.camera.position.z).toBeGreaterThan(13.4);
       // and the fallback still finds a wall behind that car
       w.addStatic(wallBody() as never, undefined, 'wall');
       const e = new ThirdPersonCamera();

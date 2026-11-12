@@ -305,7 +305,6 @@ export function paintTop(K: Look, t: Tex, c: Px, arm: boolean, leg: boolean, nec
     const sideE = 0.118 - 0.02 * sst(0.05, 0.15, py);
     c.mul(1 - 0.08 * band(0.012, 0.145, py, 0.004) * sst(sideE + 0.004, sideE - 0.004, ax)).mul(1 - 0.22 * ln(py - 0.145, 0.003) * sst(sideE, sideE - 0.01, ax)).mul(1 - 0.2 * ln(ax - sideE, 0.003) * band(0.012, 0.145, py, 0.004));
     void inP;
-    c.mul(1 - 0.22 * ln(py - (0.145 - 0.0) - 0.0, 0.0) );
     // cords
     for (const sd of [-1, 1]) {
       const cx = x * sd - 0.034, cy = neckY - y;

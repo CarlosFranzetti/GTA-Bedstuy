@@ -92,17 +92,17 @@ const HAIR_COL = { lowFade: 'black', highTop: 'black', crop: 'darkbrown', short:
 const yawView = Number(params.get('yaw') ?? 0.75);
 
 if (view === 'hair') {
-  const ids = PP.HAIR_IDS, cols = grid(ids.length, 6); let k = 0;
+  const ids = params.get('only') ? params.get('only').split(',') : PP.HAIR_IDS, cols = grid(ids.length, Number(params.get('cols') ?? 6)); let k = 0;
   const base = params.get('who') ?? 'wh-office';
   for (const id of ids) {
     const spec = spec0(base, { hair: 'short', hat: 'none', hairColor: COLORS[HAIR_COL[id]], gear: 'none' });
     const who = person(spec);
-    tile(id, who, [PP.hairPiece(id, who.ctx)], headCam(yawView), k % cols, Math.floor(k / cols)); k++;
+    tile(id, who, [PP.hairPiece(id, who.ctx)], headCam(yawView, Number(params.get('dist') ?? 0.78)), k % cols, Math.floor(k / cols)); k++;
   }
 }
 if (view === 'hair-back') {
-  const ids = PP.HAIR_IDS, cols = grid(ids.length, 6); let k = 0;
-  for (const id of ids) { const who = person(spec0(params.get('who') ?? 'ea-office', { hair: 'short', hat: 'none', hairColor: COLORS[HAIR_COL[id]] })); tile(id, who, [PP.hairPiece(id, who.ctx)], headCam(Math.PI - 0.5, 0.9), k % cols, Math.floor(k / cols)); k++; }
+  const ids = params.get('only') ? params.get('only').split(',') : PP.HAIR_IDS, cols = grid(ids.length, Number(params.get('cols') ?? 6)); let k = 0;
+  for (const id of ids) { const who = person(spec0(params.get('who') ?? 'ea-office', { hair: 'short', hat: 'none', hairColor: COLORS[HAIR_COL[id]] })); tile(id, who, [PP.hairPiece(id, who.ctx)], headCam(Number(params.get('yawb') ?? Math.PI - 0.5), Number(params.get('dist') ?? 0.9)), k % cols, Math.floor(k / cols)); k++; }
 }
 if (view === 'beards') {
   const ids = PP.BEARD_IDS, cols = grid(ids.length * 2, 3); let k = 0;

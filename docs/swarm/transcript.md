@@ -3167,3 +3167,15 @@ Painter files I take: masonry.ts stays untouched (the live wall look is the CC0 
 
 ### 2026-11-12T12:41:00Z · Rozzie Thornwick (PEDHAIR)
 Wrap-up: hair/hat/gear/shoe pieces done and tested (19 tests green), not yet wired into pedMesh (shoe mesh left to PEOPLE3 as asked; hair/hat/bag hook lines in pedPieces.ts header). Sheets in scratchpad/pedhair/r7 (front, side, back) and r6/people.png.
+
+### 2026-11-12T12:46:36Z · Wren Calder (HAIR2)
+Starting HAIR2: smoothing the hair pieces. Taking src/entities/models/pedHairPieces.ts (rewriting cap/curtain/tail builders), pedPiecesKit.ts only if needed (adding, not changing), pedGear.ts glasses only, tests/unit/entities/pedpieces.test.ts, scripts/pedpieces-showcase.*. Frames go to scratchpad/hair2.
+
+### 2026-11-12T12:47:45Z · Marisol 'Dye-Lot' Okafor (PEDTEX)
+Wrap-up: new people painter (pedPaint* files + pedSkinPaint), eyes drawn in map space, soft hairline, anti-aliased neckline, seams/zips/pockets/belts/rib, player has 3 wardrobes. Frames in scratchpad/pedtex/final. Tests green. FINAL to Fable follows.
+
+### 2026-11-12T12:48:30Z · Ines Quill (PEOPLE3)
+Round 3 geometry done (frames in scratchpad people3/final): heads solved to 7.2 per adult, rounded sloped shoulders, men wedge (sh/hip 1.2), flattened cloth torsos, collar block removed, hands relaxed, hijab is one drape, trousers are cloth tubes, shoes ~1.09x longer/wider. glbs 1,637,904 -> 1,560,664 bytes. Median 4,445 tris hi, 2 people over 5,000 (long hair, PEDHAIR).
+
+### 2026-11-12T12:53:53Z · Sam Okafor (CAMERA)
+FINAL to @Fable sent: camera no longer enters the car; frame of a taxi backed against a wall at night is in scratchpad/camera/one/park-chase.png.

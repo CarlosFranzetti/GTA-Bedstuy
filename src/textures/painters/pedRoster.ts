@@ -247,6 +247,14 @@ const PLAYER_HAIR: Record<PopGroup, Array<PedSpec['hair']>> = {
   ba: ['fade', 'locs', 'afro'], ca: ['short', 'locs', 'fade'], la: ['short', 'fade', 'short'], wh: ['short', 'long', 'fade'], ea: ['short', 'fade', 'long'],
   sa: ['short', 'fade', 'short'], me: ['short', 'fade', 'short'], mx: ['afro', 'short', 'puff'], hj: ['short', 'short', 'short'],
 };
+/** the player's three wardrobes (variant 0 keeps the red hoodie of the base spec): a denim jacket over a tee, a leather bomber over a grey tee */
+const PLAYER_LOOKS: Array<Partial<PedSpec>> = [
+  {},
+  { hat: 'none', top: { kind: 'jacket', color: '#4d6c98', trim: '#364f74', sleeves: 'long', print: 'none', printColor: '#ffffff', under: '#e8e6e0', open: true, fabric: 'denim' },
+    bottom: { kind: 'jeans', color: '#232b3b', trim: '#161c28' }, shoes: { color: '#d8d4cc', sole: '#bcb8b0', accent: '#3a3a40' } },
+  { hat: 'none', top: { kind: 'jacket', color: '#2b2622', trim: '#1a1612', sleeves: 'long', print: 'none', printColor: '#ffffff', under: '#8c9098', open: true, fabric: 'leather' },
+    bottom: { kind: 'cargo', color: '#4a4a40', trim: '#323228' }, shoes: { color: '#5b3a24', sole: '#2a1a10', accent: '#c9a36a', high: true } },
+];
 const playerId = (l: PlayerLook): string => `player-${l.group}-${l.variant}`;
 /** a fresh random look per page load / new game (fixed under test); UI10's save / load restores it with setPlayerLook */
 let look: PlayerLook = { group: 'ba', variant: 0 };
@@ -323,6 +331,7 @@ export function buildRoster(baseSpecs: readonly PedSpec[]): PedSpec[] {
         ...out, id: playerId(l), group: g, sex: 'm', age: 'adult',
         skin: pal.skin[(hash(g + v) + v) % pal.skin.length], hair: PLAYER_HAIR[g][v], hairColor: pal.hair[v % pal.hair.length],
         face: { ...out.face, stubble: v === 1 }, weight: 0,
+        ...PLAYER_LOOKS[v],
       });
     }
   }
