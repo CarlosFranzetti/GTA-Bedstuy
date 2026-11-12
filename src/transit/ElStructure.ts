@@ -6,6 +6,7 @@
  */
 import * as THREE from 'three';
 import type { StaticCollider, IMaterialLibrary } from '@/world/types';
+import { patchElSteel } from '@/textures/elSteel';
 import { GeoBuilder, rgb, type RGB } from './GeoBuilder';
 import { EL_X_EAST, EL_X_WEST, EL_Z, FLOOR_ABOVE_RAIL, OPERATOR, RAIL_Y, STATIONS, TRACK_OFFSET, type Station } from './ElLine';
 
@@ -66,6 +67,7 @@ function column(b: GeoBuilder, x: number, z: number, top: number): void {
 export function buildEl(lib: IMaterialLibrary): ElBuild {
   const out: ElBuild = { sections: [], props: [], colliders: [], entrances: [], subway: [], night: [] };
   const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.25, name: 'el:steel' });
+  patchElSteel(mat); // riveted plates, chalked paint and rust runs in the shader (FACADES)
   const sectionCount = Math.ceil((EL_X_EAST - EL_X_WEST) / SECTION_M);
   const xsAll = columnXs();
 

@@ -112,7 +112,7 @@ const STYLES: Record<HairId, (ctx: Ctx, mb: MeshBuilder) => void> = {
   twists: (ctx, mb) => {
     cap(ctx, mb, T_SHORT, (_be, u) => edge(u, 0.005, 0.012, 0.25));
     const n = ctx.detail === 'hi' ? 14 : 7, list: Strand[] = [];
-    for (let i = 0; i < n; i++) list.push({ be: (i / n) * Math.PI * 2 + rnd(ctx.seed, i) * 0.3, th: 0.3 + (i % 3) * 0.3 + (rnd(ctx.seed, i + 40) - 0.5) * 0.15, len: -0.012, r0: 0.0095, r1: 0.0075, out: 0.045, down: 0 });
+    for (let i = 0; i < n; i++) list.push({ be: (i / n) * Math.PI * 2 + rnd(ctx.seed, i) * 0.3, th: 0.3 + (i % 3) * 0.3 + (rnd(ctx.seed, i + 40) - 0.5) * 0.15, len: -0.004, r0: 0.0115, r1: 0.0085, out: 0.036, down: 0 });
     strands(ctx, mb, list, 4, 3, headW);
   },
   locs: (ctx, mb) => {
@@ -154,13 +154,13 @@ const STYLES: Record<HairId, (ctx: Ctx, mb: MeshBuilder) => void> = {
   },
   baldFringe: (ctx, mb) => {
     // bald on top, a horseshoe of short hair round the sides and the back (the front of the band closes to nothing)
-    cap(ctx, mb, [[0, 0.62], [0.8, 0.62], [1.57, 0.58], [2.4, 0.46], [Math.PI, 0.36]], (_be, u) => 0.005 + 0.006 * Math.sin(u * Math.PI), { rows: rowsOf(ctx, 3, 3), inner: (be, rim) => lerp(rim, Math.min(rim, 1.0), 0) + (1 - rim) * 0 + lerp(0, Math.max(0, 1.18 - rim), sstep(0.7, 1.9, Math.min(be, Math.PI * 2 - be))) });
+    cap(ctx, mb, [[0, 0.62], [0.8, 0.62], [1.57, 0.58], [2.4, 0.46], [Math.PI, 0.36]], (_be, u) => 0.005 + 0.006 * Math.sin(u * Math.PI), { rows: rowsOf(ctx, 3, 3), inner: (be, rim) => rim - lerp(0, 0.42, sstep(0.6, 1.9, Math.min(be, Math.PI * 2 - be))) });
   },
   peyos: (ctx, mb) => {
     // curled side locks in front of each ear (the head wears a kippah or a hat)
     for (const sx of [-1, 1]) {
-      const path: V3[] = [];
-      for (let k = 0; k < 8; k++) { const t = k / 7, th = t * Math.PI * 2.1 + 0.4, rad = 0.0085 * (1 - t * 0.2); path.push([sx * (0.083 + 0.006 + rad * Math.cos(th)), ctx.Y(0.6) - t * ctx.H * 0.3, ctx.C[2] - 0.055 + rad * Math.sin(th)]); }
+      const d = dirOf(1.42, sx * 1.9 + (sx < 0 ? Math.PI * 2 : 0)), r = skullR(ctx, d), root = add(ctx.C, mul(d, r - 0.002)), path: V3[] = [];
+      for (let k = 0; k < 8; k++) { const t = k / 7, th = t * Math.PI * 2.2 + 0.3, rad = 0.0085 * (1 - t * 0.2); path.push([root[0] + sx * (0.007 + rad * Math.cos(th) * 0.8), root[1] - t * ctx.H * 0.3, root[2] + rad * Math.sin(th)]); }
       tube(mb, path, (_i, t) => { const r = 0.0058 * (1 - t * 0.3); return [r, r]; }, 5, { rect: SWATCH.hair, W: headW, capEnd: true, uv: (i, j, R, C) => [j / (C - 1), lerp(0.25, 0.8, i / (R - 1))] });
     }
   },

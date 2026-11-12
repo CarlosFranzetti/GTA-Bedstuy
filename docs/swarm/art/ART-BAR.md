@@ -257,11 +257,14 @@ deck, stripes or vents drawn as geometry steps, chrome outline on every edge.
 | Lane | Round | Verdict |
 |---|---|---|
 | PEOPLE (Leila) | 12 Nov r1, people/final | FAIL: pinheads on four men, balloon heavy bodies, A-pose arms |
+| PEOPLE (Leila) | 12 Nov r2, people/v2/c | FAIL (big step): arms down, heavy bodies and leg taper pass; heads still 8.0 to 8.5 on four men, boxy square shoulders, anatomy under white top and puffer. Round 3 needed |
 | PEDTEX (Marisol) | 12 Nov r1, same frames (pre-lane baseline) | FAIL: cartoon eyes and lips, noise knits, flat hoodies |
 | PEDHAIR (Rozzie) | 12 Nov r1, same frames (pre-lane baseline) | FAIL: faceted helmet hair, blob shoes, faceted hijab |
 | CARS2 (Dmitri) | 12 Nov r1, cars14/hi_after | FAIL (better): cowl slot fixed on 3 of 4; wedge truck slot, mottled paint, white disc rims |
 | ROADS (Bea) | 12 Nov r1, realworld2 + smoke | FAIL: stamped asphalt, coloured plank sidewalks, cube trees |
+| ROADS (Bea) | 12 Nov r2, smoke2 | FAIL (better): grey flags and quiet asphalt pass on start street; bluestone stretch still brown/blue planks, cube trees, broken dashed power lines, faceted bags |
 | FACADES (Noor) | 12 Nov r1, realworld2 + smoke | FAIL: brick scale and repeat, no base grime |
+| FACADES (Noor) | 12 Nov r2, smoke2 | FAIL: brick still rubble-scale and high contrast on the rowhouses; no change seen yet |
 | SHOTS (Priya) | none yet | waiting |
 | HUD2 (Zadie) | none yet | waiting |
 

@@ -96,6 +96,7 @@ export function buildElStructureReal(paths: ElPath[], spots: Array<{ p: Vec2; di
   const group = new THREE.Group();
   group.name = 'el:real';
   const steel = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.25, name: 'el:steel' });
+  patchElSteel(steel); // riveted plates, chalked paint and rust runs in the shader (FACADES)
   const signLib = mats as SignLib | undefined;
   const signFn = signLib?.sign ? (text: string, bg: string, fg: string): THREE.Material => signLib.sign!(text, bg, fg) : undefined;
   const signQuads = new Map<THREE.Material, number[]>();
