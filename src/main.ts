@@ -54,7 +54,7 @@ import { createTitleMusic } from '@/render/TitleMusic';
 import { Credits } from '@/ui/Credits';
 import { RadioUi } from '@/ui/RadioUi';
 import { GamepadInput } from '@/core/Gamepad';
-import { SaveManager, SaveStore } from '@/ui/GameSave';
+import { SaveManager, SaveStore, poseOnMap } from '@/ui/GameSave';
 import { MapScreen, navPlaces, placesFromLots } from '@/ui/MapScreen';
 import { getPlayerLook, setPlayerLook, randomPlayerLook, type PlayerLook as RosterLook } from '@/textures/painters/pedRoster';
 import { LoadingScreen, nextPaint, withTimeout } from '@/render/Loading';
@@ -146,6 +146,12 @@ const realWorld = import.meta.env?.VITE_HOSTED === '1' && params.get('map') === 
   : null;
 if (realWorld) Object.assign(world, { group: realWorld.group, colliders: realWorld.colliders, chunkMeshes: realWorld.chunkMeshes, propCells: [], lamps: realWorld.lamps, lots: realWorld.lots, furnitureGroup: realWorld.furnitureGroup });
 realWorld?.applyDoors(); // home, deli and club doors move to their real lots; must run before the interiors are built
+// Real map as a game (missions, pointer, minimap, saves). If its places table fell back the preview stays walk-only.
+let realGame: Awaited<ReturnType<typeof import('@/world/roadnet/gameReal')['buildRealGame']>> | null = null;
+if (import.meta.env?.VITE_HOSTED === '1' && realWorld) {
+  try { realGame = (await import('@/world/roadnet/gameReal')).buildRealGame(realWorld); } catch (e) { console.warn('[real map] missions and saves are off:', e); }
+}
+const mapName: 'grid' | 'real' = realWorld ? 'real' : 'grid';
 scene.add(world.group);
 const { grid } = world;
 
@@ -254,17 +260,20 @@ const makePed = (id: string, node: GraphNode) =>
 // spawn on foot at the saved position (clamped to the map), else at the default spot
 const SPAWN = { x: 9, z: 20 };
 const saves = new SaveManager(new SaveStore());
-const saved = realWorld ? null : saves.bootSave(); // the preview never reads or writes the grid save
+// home and bounds of the map in play; a save made on the other map loads with the player at home (GameSave.poseOnMap)
+const HOME = realGame ? realGame.home : realWorld ? realWorld.homeSpawn : { ...SPAWN, heading: 0 };
+const BOUNDS = realGame ? realGame.bounds : realWorld ? realWorld.net.bounds : grid.bounds;
+const canSaveHere = !realWorld || !!realGame; // real map without its places table: walk-only, no saving
+const saved = canSaveHere ? saves.bootSave() : null;
+const bootPose = saved ? poseOnMap(saved.pose, mapName, HOME, BOUNDS) : null;
 // player look: restored from the save, else a fresh random one (new game)
 { const l = saved?.playerLook as unknown as Partial<RosterLook> | null | undefined; if (l && typeof l.group === 'string' && typeof l.variant === 'number') setPlayerLook(l as RosterLook); }
 const bootLook = getPlayerLook();
-const spawn = saved
-  ? { x: clamp(saved.pose.x, grid.bounds.minX - 25, grid.bounds.maxX + 25), z: clamp(saved.pose.z, grid.bounds.minZ - 25, grid.bounds.maxZ + 25) }
-  : (realWorld ? realWorld.homeSpawn : SPAWN);
+const spawn = bootPose ? { x: bootPose.x, z: bootPose.z } : { x: HOME.x, z: HOME.z };
 const player = new Player('player', spawn, materials, events);
-if (realWorld) player.body.heading = realWorld.homeSpawn.heading;
+if (realWorld) player.body.heading = HOME.heading;
 player.blockedAt = (p, r, ignoreId) => physics.overlapsSolid(p, r, ignoreId);
-if (saved) { player.body.heading = saved.pose.heading; dayNight.timeOfDay = saved.hour; }
+if (saved && bootPose) { player.body.heading = bootPose.heading; dayNight.timeOfDay = saved.hour; }
 scene.add(player.object3D);
 physics.addBody(player.body);
 
@@ -272,7 +281,7 @@ const wanted = new WantedSystem(events);
 wanted.onStarAdded = (m) => hud.showToast(m); // name the crime whenever a star is added (H8)
 const drop = bundledDropRecords();
 const inventory = new Inventory(PROCEDURAL_RECORDS);
-const missions = new MissionSystem(buildMissions(grid, data, world.lots), {
+const missions = new MissionSystem(buildMissions(grid, data, world.lots, realGame?.features), {
   persist: saveMissionData,
   bus: events,
   raiseWanted: (stars) => wanted.raiseTo(stars),
@@ -327,13 +336,13 @@ hud.onSplash = (shown) => { splashUp = shown; if (shown) titleMusic.start(); els
 hud.onCredits = () => credits.open();
 if (realWorld) { const n = document.createElement('div'); n.textContent = realWorld.notice; n.style.cssText = 'position:fixed;left:8px;bottom:6px;font:11px monospace;color:#fff;opacity:.75;z-index:50;pointer-events:none'; document.body.appendChild(n); }
 const missionHud = new MissionHud(overlay);
-missionHud.setRouter(createPointerRouter(grid));
+missionHud.setRouter(realGame ? realGame.router : createPointerRouter(grid));
 setTimeout(() => missionHud.showHomeHint(), 2500); // one-time 'your place is the green awning' toast at first spawn
-const minimap = new Minimap(overlay, grid);
-const map = new MapScreen(overlay, grid, { places: [...navPlaces(), ...placesFromLots(world.lots)] });
+const minimap = new Minimap(overlay, grid, realGame?.minimapRoads);
+const map = new MapScreen(overlay, grid, realGame ? { places: realGame.mapPlaces, streets: realGame.streetSource, router: realGame.router } : { places: [...navPlaces(), ...placesFromLots(world.lots)] });
 
 const input = new Input(renderer.domElement);
-let lastOutside: Vec2 = { x: SPAWN.x, z: SPAWN.z };
+let lastOutside: Vec2 = { x: HOME.x, z: HOME.z };
 function ensureAudio(): boolean {
   if (recSource) return true;
   const h = audio.djHost;
@@ -382,7 +391,7 @@ player.onJump = () => audio.playJump?.();
 player.onLand = (st) => audio.playLand?.(st);
 // story ("Air Rights"): phone follow-ups, radio bulletins and ads, letterbox beats, flag-driven street notices, cargo damage
 const story = new StoryDirector(missions, phone, { onBeat: (sec) => cam.setLetterbox(true, sec), onBroadcast: (b) => audio.setBroadcast(b) });
-const storyNotices = new AmbientNotices(grid); scene.add(storyNotices.group);
+const storyNotices = new AmbientNotices(grid, realGame?.frontage); scene.add(storyNotices.group);
 // talk radio news reacts to finished missions
 let missionsDone = 0;
 events.on('mission:completed', (e) => { missionsDone++; audio.setBroadcast({ lastMission: e.title, missionsDone }); });
@@ -598,7 +607,7 @@ const game = new Game(
 
     // street name and the enter/exit prompt change slowly: refresh ~15 times per second
     if (slowTick++ % 4 === 0) {
-      streetName = grid.nearestStreet(pos).signName;
+      streetName = realGame ? realGame.streetName(pos) : grid.nearestStreet(pos).signName;
       prompt = '';
       if (player.inVehicle) prompt = PROMPT_EXIT;
       else { for (const v of allVehicles()) if (nearDoor(v, pos)) { prompt = PROMPT_ENTER; break; } }
@@ -657,7 +666,7 @@ const menu = new Menu(overlay, {
   onRadioVolume: (v) => audio.setRadioVolume(v),
   onRadioLibrary: () => radioUi.open(),
   onInvertLookY: (b) => { input.invertLookY = b; },
-  onReset: () => { clearMissionData(); missions.story.reset(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++; if (interiors.inside) interiors.exit(); const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = SPAWN.x; b.pos.z = SPAWN.z; b.vel.x = 0; b.vel.z = 0; },
+  onReset: () => { clearMissionData(); missions.story.reset(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++; if (interiors.inside) interiors.exit(); const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = HOME.x; b.pos.z = HOME.z; b.vel.x = 0; b.vel.z = 0; },
 }, {
   touch: isTouch, initialQuality: quality, ignoreSavedQuality: params.has('q'), saves, canSave: () => interiors.state === 'outside',
   mixer: audio.mixer, graphics: graphicsStore, getQuality: () => quality, auto: !params.has('q') && params.get('perf') !== '0', map,
@@ -671,8 +680,8 @@ input.onModeChange = (m) => { hud.setInputMode(m); menu.setInputMode(m); };
 hud.setInputMode(input.mode); menu.setInputMode(input.mode);
 let pendingLook: RosterLook | null = null;
 saves.bind({
-  getPose: () => { const b = player.vehicle ? player.vehicle.body : player.body; return { x: b.pos.x, z: b.pos.z, heading: b.heading, inCar: player.inVehicle, vehicleType: player.vehicle?.spec.type }; },
-  setPose: (p) => { if (interiors.inside) interiors.exit(); if (player.inVehicle) player.exit(); const b = player.body; b.pos.x = p.x; b.pos.z = p.z; b.vel.x = 0; b.vel.z = 0; b.heading = p.heading; player.prevPos.x = p.x; player.prevPos.z = p.z; lastOutside.x = p.x; lastOutside.z = p.z; if (p.inCar) player.tryEnter(allVehicles()); },
+  getPose: () => { const b = player.vehicle ? player.vehicle.body : player.body; return { x: b.pos.x, z: b.pos.z, heading: b.heading, inCar: player.inVehicle, vehicleType: player.vehicle?.spec.type, map: mapName }; },
+  setPose: (p0) => { const p = poseOnMap(p0, mapName, HOME, BOUNDS); if (interiors.inside) interiors.exit(); if (player.inVehicle) player.exit(); const b = player.body; b.pos.x = p.x; b.pos.z = p.z; b.vel.x = 0; b.vel.z = 0; b.heading = p.heading; player.prevPos.x = p.x; player.prevPos.z = p.z; lastOutside.x = p.x; lastOutside.z = p.z; if (p.inCar) player.tryEnter(allVehicles()); },
   getHour: () => dayNight.timeOfDay, setHour: (h) => { dayNight.timeOfDay = h; prevHour = h; dayNight.update(0); },
   getDay: () => gameDay, setDay: (d) => { gameDay = d; applyClutterState(world.group, quality, gameDay); },
   inventory, missions, phone,
@@ -686,14 +695,14 @@ saves.bind({
   newGame: () => {
     clearMissionData(); missions.story.reset(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++;
     if (interiors.inside) interiors.exit(); if (player.inVehicle) player.exit();
-    const b = player.body; b.pos.x = SPAWN.x; b.pos.z = SPAWN.z; b.vel.x = 0; b.vel.z = 0;
+    const b = player.body; b.pos.x = HOME.x; b.pos.z = HOME.z; b.vel.x = 0; b.vel.z = 0;
     dayNight.timeOfDay = 8; prevHour = 8; gameDay = 0; weather.setState('dry', true); wanted.stars = 0;
     pendingLook = randomPlayerLook(`${Math.random()}:${Date.now()}`);
   },
   // the player model is built once at boot, so a different look (new game, or a save with another look) is applied by autosaving and reloading
   afterApply: () => { input.endFrame(); story.resync(); if (pendingLook) { saves.autosave(Date.now(), true, true); location.reload(); } },
 });
-window.addEventListener('pagehide', () => { if (!realWorld) saves.autosave(Date.now(), interiors.state === 'outside', true); });
+window.addEventListener('pagehide', () => { if (canSaveHere) saves.autosave(Date.now(), interiors.state === 'outside', true); });
 
 // 1) first system: snapshot every dynamic body's pose before the step moves it (render lerps prev -> current)
 game.add({
@@ -806,7 +815,7 @@ game.add({
     const pv = player.vehicle as ({ slip?: number } & IVehicle) | null;
     audio.setSlip(pv?.slip ?? 0); audio.setHandbrake(player.inVehicle && player.lastVehicleInput.handbrake);
     audio.update(dt);
-    if (++saveTick >= 120 && !away && !realWorld) { saveTick = 0; saves.autosave(Date.now(), true); }
+    if (++saveTick >= 120 && !away && canSaveHere) { saveTick = 0; saves.autosave(Date.now(), true); }
   },
 });
 

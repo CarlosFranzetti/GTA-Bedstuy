@@ -18,30 +18,30 @@ const m3 = 1.189, M3 = 1.26, P4 = 1.335;
 
 export const HORNS: Record<VehicleType, HornSpec> = {
   sedan:     { kind: 'car',   root: 415, ratios: [1, M3],        wave: 'square',   lp: 2600, atk: 0.012, rel: 0.09, gain: 1 },
-  suv:       { kind: 'car',   root: 349, ratios: [1, m3],        wave: 'square',   lp: 2200, atk: 0.015, rel: 0.1,  gain: 1 },
-  cab:       { kind: 'cab',   root: 440, ratios: [1, P4],        wave: 'sawtooth', lp: 3000, atk: 0.008, rel: 0.06, gain: 1.1 },
+  suv:       { kind: 'car',   root: 351, ratios: [1, m3],        wave: 'square',   lp: 2200, atk: 0.015, rel: 0.1,  gain: 1 },
+  cab:       { kind: 'cab',   root: 430, ratios: [1, P4],        wave: 'sawtooth', lp: 3000, atk: 0.008, rel: 0.06, gain: 1.1 },
   cop:       { kind: 'siren', root: 400, ratios: [1, M3],        wave: 'square',   lp: 2600, atk: 0.01,  rel: 0.1,  gain: 1, modes: ['wail', 'whoop', 'yelp'] },
-  boxtruck:  { kind: 'air',   root: 140, ratios: [1, 1.26, 1.5], wave: 'sawtooth', lp: 1100, atk: 0.11,  rel: 0.28, gain: 1.1 },
-  cargovan:  { kind: 'car',   root: 370, ratios: [1, P4],        wave: 'sawtooth', lp: 2000, atk: 0.02,  rel: 0.12, gain: 1 },
-  hatch:     { kind: 'beep',  root: 880, ratios: [1],            wave: 'square',   lp: 4200, atk: 0.005, rel: 0.04, gain: 0.8 },
-  beater:    { kind: 'weak',  root: 330, ratios: [1, m3],        wave: 'sawtooth', lp: 1400, atk: 0.03,  rel: 0.2,  gain: 0.75 },
-  bus:       { kind: 'air',   root: 165, ratios: [1, 1.19, 1.5], wave: 'sawtooth', lp: 1300, atk: 0.14,  rel: 0.35, gain: 1.2 },
-  pickup:    { kind: 'car',   root: 294, ratios: [1, M3],        wave: 'square',   lp: 1800, atk: 0.02,  rel: 0.12, gain: 1.1 },
-  crossover: { kind: 'car',   root: 466, ratios: [1, m3],        wave: 'square',   lp: 3000, atk: 0.01,  rel: 0.08, gain: 0.95 },
+  boxtruck:  { kind: 'air',   root: 274, ratios: [1, 1.26, 1.5], wave: 'sawtooth', lp: 1100, atk: 0.08,  rel: 0.28, gain: 1.1 },
+  cargovan:  { kind: 'car',   root: 399, ratios: [1, P4],        wave: 'sawtooth', lp: 2000, atk: 0.02,  rel: 0.12, gain: 1 },
+  hatch:     { kind: 'beep',  root: 458, ratios: [1],            wave: 'square',   lp: 3200, atk: 0.005, rel: 0.04, gain: 0.8 },
+  beater:    { kind: 'weak',  root: 374, ratios: [1, m3],        wave: 'sawtooth', lp: 1400, atk: 0.03,  rel: 0.2,  gain: 0.75 },
+  bus:       { kind: 'air',   root: 246, ratios: [1, 1.19, 1.5], wave: 'sawtooth', lp: 1300, atk: 0.08,  rel: 0.35, gain: 1.2 },
+  pickup:    { kind: 'car',   root: 291, ratios: [1, M3],        wave: 'square',   lp: 1800, atk: 0.02,  rel: 0.12, gain: 1.1 },
+  crossover: { kind: 'car',   root: 430, ratios: [1, m3],        wave: 'square',   lp: 3000, atk: 0.01,  rel: 0.08, gain: 0.95 },
   minivan:   { kind: 'car',   root: 523, ratios: [1, P4],        wave: 'triangle', lp: 3400, atk: 0.015, rel: 0.08, gain: 1.1 },
-  luxury:    { kind: 'car',   root: 349, ratios: [1, P4],        wave: 'triangle', lp: 1500, atk: 0.04,  rel: 0.2,  gain: 1 },
-  towncar:   { kind: 'car',   root: 330, ratios: [1, P4, 1.68],  wave: 'sawtooth', lp: 1700, atk: 0.03,  rel: 0.18, gain: 1 },
-  pony:      { kind: 'car',   root: 370, ratios: [1, M3],        wave: 'sawtooth', lp: 4200, atk: 0.006, rel: 0.07, gain: 1.15 },
-  garbage:   { kind: 'air',   root: 120, ratios: [1, 1.19, 1.5], wave: 'sawtooth', lp: 900,  atk: 0.16,  rel: 0.4,  gain: 1.2, beeper: true },
+  luxury:    { kind: 'car',   root: 330, ratios: [1, P4],        wave: 'triangle', lp: 1500, atk: 0.04,  rel: 0.2,  gain: 1 },
+  towncar:   { kind: 'car',   root: 208, ratios: [1, P4, 1.68],  wave: 'sawtooth', lp: 1700, atk: 0.03,  rel: 0.18, gain: 1 },
+  pony:      { kind: 'car',   root: 399, ratios: [1, M3],        wave: 'sawtooth', lp: 4200, atk: 0.006, rel: 0.07, gain: 1.15 },
+  garbage:   { kind: 'air',   root: 310, ratios: [1, 1.19, 1.5], wave: 'sawtooth', lp: 900,  atk: 0.09,  rel: 0.4,  gain: 1.2, beeper: true },
   ambulance: { kind: 'siren', root: 660, ratios: [1],            wave: 'square',   lp: 2800, atk: 0.02,  rel: 0.12, gain: 1, modes: ['wail', 'yelp', 'hilo', 'parody'] },
-  coupe911:  { kind: 'car',   root: 466, ratios: [1, M3],        wave: 'square',   lp: 3800, atk: 0.008, rel: 0.06, gain: 1 },
-  exotic:    { kind: 'car',   root: 523, ratios: [1, P4],        wave: 'sawtooth', lp: 5200, atk: 0.005, rel: 0.05, gain: 0.95 },
-  jdmcoupe:  { kind: 'beep',  root: 698, ratios: [1, 1.5],       wave: 'square',   lp: 4800, atk: 0.005, rel: 0.04, gain: 0.8 },
-  hothatch:  { kind: 'beep',  root: 784, ratios: [1],            wave: 'sawtooth', lp: 3600, atk: 0.005, rel: 0.05, gain: 0.85 },
-  muscle:    { kind: 'car',   root: 247, ratios: [1, M3],        wave: 'sawtooth', lp: 2400, atk: 0.012, rel: 0.1,  gain: 1.2 },
-  wedgetruck: { kind: 'car',  root: 277, ratios: [1, 1.414],     wave: 'square',   lp: 1500, atk: 0.01,  rel: 0.1,  gain: 1 },
-  evsedan:   { kind: 'car',   root: 554, ratios: [1, P4],        wave: 'triangle', lp: 2500, atk: 0.03,  rel: 0.15, gain: 0.9 },
-  dollarvan: { kind: 'car',   root: 392, ratios: [1, 1.13],      wave: 'square',   lp: 2400, atk: 0.01,  rel: 0.07, gain: 1 },
+  coupe911:  { kind: 'car',   root: 515, ratios: [1, M3],        wave: 'square',   lp: 3800, atk: 0.008, rel: 0.06, gain: 1 },
+  exotic:    { kind: 'car',   root: 584, ratios: [1, P4],        wave: 'sawtooth', lp: 5200, atk: 0.005, rel: 0.05, gain: 0.95 },
+  jdmcoupe:  { kind: 'beep',  root: 554, ratios: [1, 1.5],       wave: 'square',   lp: 4800, atk: 0.005, rel: 0.04, gain: 0.8 },
+  hothatch:  { kind: 'beep',  root: 483, ratios: [1],            wave: 'sawtooth', lp: 3600, atk: 0.005, rel: 0.05, gain: 0.85 },
+  muscle:    { kind: 'car',   root: 230, ratios: [1, M3],        wave: 'sawtooth', lp: 2400, atk: 0.012, rel: 0.1,  gain: 1.2 },
+  wedgetruck: { kind: 'car',  root: 291, ratios: [1, 1.414],     wave: 'square',   lp: 1500, atk: 0.01,  rel: 0.1,  gain: 1 },
+  evsedan:   { kind: 'car',   root: 622, ratios: [1, P4],        wave: 'triangle', lp: 2500, atk: 0.03,  rel: 0.15, gain: 0.9 },
+  dollarvan: { kind: 'car',   root: 291, ratios: [1, 1.13],      wave: 'square',   lp: 2400, atk: 0.01,  rel: 0.07, gain: 1 },
 };
 
 export function hornFor(type: string | null | undefined): HornSpec {
@@ -52,6 +52,13 @@ export function hornFor(type: string | null | undefined): HornSpec {
 export const hornTones = (h: HornSpec): number[] => h.ratios.map((r) => h.root * r);
 
 /** Instantaneous siren pitch in Hz at time t seconds since the siren started. */
+/** Duration (s) of the pitch path scheduled for a siren; a held siren keeps sweeping this long (the handle releases at the button). */
+export const SIREN_SPAN = 45;
+
+/** Beating pair spread (cents) for the twin discs of a car horn, and the air-horn start flatness. */
+export const HORN_BEAT_CENTS = 5;
+export const AIR_BEND = 0.96;
+
 export function sirenHz(mode: SirenMode, t: number): number {
   const ph = (p: number) => ((t / p) % 1 + 1) % 1;
   switch (mode) {

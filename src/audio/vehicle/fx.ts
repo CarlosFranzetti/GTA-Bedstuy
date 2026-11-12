@@ -50,10 +50,15 @@ export const brakeSquealLayers = (hz = 2900): Layer[] => [n(0, 0.45, 0.28, 'band
 export const indicatorLayers = (on: boolean): Layer[] => [n(0, 0.018, 0.5, 'bandpass', on ? 2600 : 1900, undefined, 4), o(0, 0.02, 0.15, 'square', on ? 1400 : 1000)];
 /** Reverse beeper pulse (garbage truck, 1 kHz). */
 export const beepLayers = (): Layer[] => [o(0, 0.3, 0.3, 'square', 1000, undefined, 2500)];
-/** Glass break and metal crunch, scaled by strength 0..1; glass above a threshold. */
+/**
+ * Impact, strength 0..1 (the hit speed over about 15 m/s): a body thump and a metal crunch that grow with the hit, a crumple tail,
+ * and above 0.45 a spray of glass (the harder the hit the more and the longer). A tap is a dull thud with no ring.
+ */
 export function crashLayers(s: number): Layer[] {
-  const L: Layer[] = [n(0, 0.28, 0.18 * s, 'lowpass', 2600, 180), o(0, 0.18, 0.2 * s, 'sine', 110, 40), n(0.01, 0.35, 0.12 * s, 'bandpass', 900, 500, 3)];
-  if (s > 0.45) for (let i = 0; i < 6; i++) L.push(n(0.02 + i * 0.045, 0.1, 0.08 * s, 'bandpass', 5200 + i * 600, undefined, 1.5));
+  const k = s ** 1.3;
+  const L: Layer[] = [n(0, 0.1 + 0.2 * s, 0.2 * k, 'lowpass', 2600, 180), o(0, 0.1 + 0.12 * s, 0.22 * k, 'sine', 110, 38), n(0.01, 0.15 + 0.25 * s, 0.12 * k, 'bandpass', 900, 500, 3)];
+  if (s > 0.25) L.push(o(0.01, 0.3, 0.05 * k, 'square', 420 + 160 * s, 300, 1800), o(0.02, 0.26, 0.035 * k, 'square', 733 + 120 * s, 520, 2200));
+  if (s > 0.45) { const g = Math.round(4 + 8 * s); for (let i = 0; i < g; i++) L.push(n(0.02 + i * (0.4 / g) * (0.6 + (i * 37 % 7) / 9), 0.09, 0.08 * s, 'bandpass', 4800 + ((i * 53) % 9) * 450, undefined, 2)); }
   return L;
 }
 
@@ -63,13 +68,17 @@ const STEP: Record<Surface, [BiquadFilterType, number, number, number]> = {
   asphalt: ['lowpass', 1500, 0.05, 0.3], concrete: ['bandpass', 1900, 0.04, 0.35], grass: ['lowpass', 650, 0.09, 0.2], gravel: ['highpass', 2600, 0.09, 0.3],
   wood: ['bandpass', 750, 0.06, 0.4], metal: ['bandpass', 2300, 0.07, 0.35], puddle: ['bandpass', 1200, 0.14, 0.35], cobble: ['bandpass', 1300, 0.05, 0.4],
 };
-/** Footstep on a surface; `run` is louder and shorter. */
-export function footstepLayers(s: Surface, run = false): Layer[] {
+/**
+ * Footstep on a surface: heel strike, then the toe tap a beat later (sooner when running). `side` alternates the feet (a slightly
+ * different pitch each), `wet` adds a splash on a soaked street. `run` is louder and shorter.
+ */
+export function footstepLayers(s: Surface, run = false, side: 0 | 1 = 0, wet = false): Layer[] {
   const [f, hz, d, p] = STEP[s] ?? STEP.asphalt;
-  const k = run ? 1.3 : 1;
-  const L: Layer[] = [n(0, d, p * k, f, hz, hz * 0.5, 1.2), o(0, 0.07, 0.25 * k, 'sine', 120, 60)];
-  if (s === 'metal') L.push(o(0, 0.2, 0.06, 'sine', 780));
+  const k = run ? 1.3 : 1, j = side ? 1.07 : 0.94;
+  const L: Layer[] = [n(0, d, p * k, f, hz * j, hz * 0.5, 1.2), o(0, 0.07, 0.25 * k, 'sine', 120 * j, 60), n(run ? 0.045 : 0.085, d * 0.7, p * 0.45 * k, 'bandpass', hz * 1.5 * j, undefined, 1.6)];
+  if (s === 'metal') L.push(o(0, 0.2, 0.06, 'sine', 780 * j));
   if (s === 'gravel') for (let i = 1; i < 4; i++) L.push(n(i * 0.02, 0.03, 0.12, 'highpass', 4000));
+  if (s === 'puddle' || wet) L.push(n(0.01, 0.18, s === 'puddle' ? 0.3 : 0.14, 'highpass', 3200, 1600));
   return L;
 }
 /** Jump: a short cloth whoosh with a push-off thud. */
@@ -81,6 +90,21 @@ export function uiLayers(kind: 'tick' | 'ok' | 'back'): Layer[] {
   if (kind === 'tick') return [o(0, 0.03, 0.2, 'square', 1800, undefined, 4000)];
   if (kind === 'ok') return [o(0, 0.08, 0.2, 'triangle', 880), o(0.07, 0.14, 0.2, 'triangle', 1320)];
   return [o(0, 0.1, 0.2, 'triangle', 660, 440)];
+}
+
+/** Accessible pedestrian signal: a locator tick, the WALK chirp (a two-note cuckoo) and the flashing-hand tick. */
+export function crosswalkLayers(state: 'walk' | 'flash' | 'dont', beat = 0): Layer[] {
+  if (state === 'walk') return beat % 2 ? [o(0, 0.07, 0.5, 'sine', 1200, 1000, 3200)] : [o(0, 0.07, 0.5, 'sine', 1650, 1380, 3200)];
+  if (state === 'flash') return [n(0, 0.02, 0.45, 'bandpass', 2300, undefined, 5), o(0, 0.025, 0.2, 'square', 1500, undefined, 3000)];
+  return [n(0, 0.035, 0.4, 'bandpass', 1500, undefined, 4), o(0, 0.04, 0.2, 'square', 900, undefined, 2200)];
+}
+/** A bird: a few quick rising or falling chirps; `kind` picks the voice so a dawn chorus is not one bird. */
+export function birdLayers(kind: number): Layer[] {
+  const base = 2600 + (kind % 5) * 520, up = kind % 2 === 0, m = 2 + (kind % 3);
+  const L: Layer[] = [];
+  for (let i = 0; i < m; i++) L.push(o(i * 0.11, 0.08, 0.5, 'sine', up ? base : base * 1.5, up ? base * 1.5 : base, 6000));
+  if (kind % 4 === 0) L.push(o(m * 0.11 + 0.05, 0.22, 0.4, 'sine', base * 1.3, base * 0.9, 6000));
+  return L;
 }
 
 /** Per-district background mix: traffic wash, kids, leaking music, distant sirens (all 0..1). */

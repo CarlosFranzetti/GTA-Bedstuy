@@ -137,7 +137,7 @@ describe('StoryDirector: phone, log, radio, subtitles', () => {
     done(r, ['bodega-run', 'notice-of-intent', 'public-comment', 'handle-with-care']);
     r.run('back-rent', { 'back-rent': F.ODETTE_PAID });
     const log = r.dir.log();
-    expect(log).toHaveLength(14);
+    expect(log).toHaveLength(24); // 14 of the arc + the 10 STORY2 side jobs
     const row = (id: string) => log.find((l) => l.id === id)!;
     expect(row('back-rent').status).toBe('complete');
     expect(row('back-rent').choice).toContain('own pocket');

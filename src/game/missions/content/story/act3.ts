@@ -6,7 +6,7 @@
 import type { MissionDef } from '../../types';
 import { F } from '@/game/story/flags';
 import { clubDoor, INTERIOR_CLUB, VENUE_CLUB } from '../djIds';
-import { corner, facePoint, offset, poiSpot, streetMid, type PlaceCtx } from '../places';
+import { corner, facePoint, footRoute, offset, poiSpot, streetMid, type PlaceCtx } from '../places';
 
 export function nightOfTheNarcan(ctx: PlaceCtx): MissionDef {
   const { grid } = ctx;
@@ -62,7 +62,7 @@ export function smokeSignals(ctx: PlaceCtx): MissionDef {
   const giver = facePoint(grid, 'r2c0', 'E', 0.62);
   const doors = [0.5, 0.62, 0.74, 0.86, 0.96].map((t) => facePoint(grid, 'r2c1', 'W', t));
   const cat = facePoint(grid, 'r2c1', 'W', 0.44);
-  const alley = [offset(facePoint(grid, 'r2c1', 'W', 0.98), 3, 8), offset(facePoint(grid, 'r2c1', 'S', 0.04), 20, 25), offset(facePoint(grid, 'r2c1', 'S', 0.04), 60, 50), offset(facePoint(grid, 'r2c1', 'S', 0.04), 90, 20)];
+  const alley = footRoute([offset(facePoint(grid, 'r2c1', 'W', 0.98), 3, 8), offset(facePoint(grid, 'r2c1', 'S', 0.04), 20, 25), offset(facePoint(grid, 'r2c1', 'S', 0.04), 60, 50), offset(facePoint(grid, 'r2c1', 'S', 0.04), 90, 20)]);
   const kowalski = facePoint(grid, 'r3c0', 'E', 0.85);
   return {
     id: 'smoke-signals', title: 'Smoke Signals', act: 3, requires: ['night-of-the-narcan'], availableHours: [0, 6],

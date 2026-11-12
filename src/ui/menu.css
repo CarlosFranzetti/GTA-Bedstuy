@@ -236,8 +236,9 @@
   .gp-act { flex: 1; padding: 0 6px; font-size: 17px; letter-spacing: 0.1em; }
   .gp-status { display: none; }
   .gp-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; font-size: 17px; padding: 0 2px 0 14px; }
-  .gp-val { justify-content: flex-end; min-width: 150px; }
-  .gp-arrow { width: 40px; }
+  .gp-val { justify-content: flex-end; min-width: 0; gap: 2px; }
+  .gp-arrow, .menu-root[data-input="touch"] .gp-arrow { width: 36px; }
+  .k-slider .gp-text { min-width: 2.9em; }
   .gp-lab { white-space: normal; line-height: 1.05; }
   .gp-sub { padding-left: 14px; }
   .gp-bar { gap: 2px; }

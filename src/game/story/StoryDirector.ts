@@ -14,6 +14,7 @@ import type { MissionDef } from '@/game/missions/types';
 import { characterByName, type Voice } from './cast';
 import { F } from './flags';
 import { adsFor, currentAct, unlockedBulletins } from './news';
+import { threadsFor } from './threads';
 
 /** What the director needs from the phone (Phone satisfies it). */
 export interface StoryPhone { text(from: string, text: string, opts?: { delay?: number; key?: string; mission?: string }): boolean }
@@ -54,6 +55,17 @@ const CHAPTER_LINES: Record<string, string> = {
   'borough-hall-express': 'Borough Hall Express: thirty-one neighbours, one bus, one name that should not have been on the list.',
   'last-call-on-throop': 'Last Call on Throop: the room, the billboard, the check. You chose the ending.',
   'last-stop-north': 'Last Stop, North: the other end of the line has a model unit of your block.',
+  // STORY2 side jobs
+  'moisture-event': 'A Moisture Event: three doors, one stoop, one woman in a coat indoors. The heat is "under review".',
+  'founder-mode': 'Founder Mode: the cards said FOUNDING NEIGHBOUR. Then DOG WELLNESS. Then casserole.',
+  'red-tape-relay': 'Red Tape Relay: three stamps for Ms. Odette. The process works. The process does not.',
+  'carbon-copy': 'Carbon Copy: one pencil, eleven inspections, one detector with no battery. The family has a new boiler and a spoon.',
+  'the-binder': 'The Binder: forty-six years of landlord letters came home. Miss Cordy wrote down who brought it.',
+  'gavel-to-gavel': 'Gavel to Gavel: the board kept its quorum for a kick drum. The chair recused herself in pen.',
+  'pigeon-post': 'Pigeon Post: forty birds, one billboard, one tagged amenity. Mrs. Abernathy came home.',
+  'van-man': 'Van Man: a van scored every stoop. You chose who read the list.',
+  'silent-retreat': 'Silent Retreat: Bryce is home and eating toast. The plant is named Gerald.',
+  'slow-roll': 'Slow Roll: twelve miles an hour, on purpose. Mrs. Hollis had a procession the block paid for.',
 };
 
 export class StoryDirector {
@@ -87,7 +99,9 @@ export class StoryDirector {
     const story = m.story;
     return m.missions
       .filter((d) => d.act !== undefined)
-      .map((d): LogEntry => {
+      .map((d, i) => ({ d, i }))
+      .sort((a, b) => (a.d.act ?? 0) - (b.d.act ?? 0) || a.i - b.i) // grouped by act, definition order inside an act (the side jobs follow the core)
+      .map(({ d }): LogEntry => {
         const st = m.statusOf(d.id);
         const status: LogEntry['status'] = st === 'complete' ? 'complete' : st === 'active' ? 'active' : st === 'failed' ? 'failed' : m.isOffered(d.id) ? 'available' : 'locked';
         return { id: d.id, title: d.title, act: d.act ?? 0, status, blurb: d.blurb, choice: forkChoice(d, story.choiceOf.bind(story)) };
@@ -106,6 +120,12 @@ export class StoryDirector {
       if (f.unlessFlag !== undefined && story.has(f.unlessFlag)) return;
       this.phone?.text(f.from, f.text, { delay: f.delay, key: `fu:${id}:${i}` });
     });
+    // running threads (landlord notices, the founder's pivots, Auntie's forwards, the board chat, invitations to the side jobs)
+    for (const t of threadsFor(id)) {
+      if (t.ifFlag !== undefined && !story.has(t.ifFlag)) continue;
+      if (t.unlessFlag !== undefined && story.has(t.unlessFlag)) continue;
+      this.phone?.text(t.from, t.text, { delay: t.delay, key: `th:${t.id}` });
+    }
     const line = CHAPTER_LINES[id];
     if (line) this.phone?.text('Mission Log', line, { delay: 2, key: `log:${id}` });
     this.refresh(true);

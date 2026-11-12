@@ -22,6 +22,7 @@ import type { BedstuyData, GridModel } from '@/world/types';
 import { pointOnPath, type ElPath, type ElStationReal } from './elReal';
 import { realMinimapRoads } from './minimapReal';
 import { createRealPointerRouter } from './pointerReal';
+import { createWalker } from './walkReal';
 import type { RealPlaces } from './placesReal';
 import type { RealWorld } from './realWorld';
 
@@ -38,11 +39,12 @@ export interface RealGame {
   home: { x: number; z: number; heading: number };
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   streetName(p: Vec2): string;
-  /** back to the grid's places (tests) */
+  /** back to the grid's places, and on again (tests) */
   release(): void;
+  reapply(): void;
 }
 
-type Needs = Pick<RealWorld, 'net' | 'derived' | 'sidewalks' | 'places' | 'el' | 'lots' | 'homeSpawn' | 'spawn' | 'spawnHeading'>;
+type Needs = Pick<RealWorld, 'net' | 'derived' | 'sidewalks' | 'places' | 'el' | 'lots' | 'homeSpawn'>;
 
 export function elStations(el: { paths: readonly ElPath[]; stations: readonly ElStationReal[] }): RealGame['stations'] {
   const out: RealGame['stations'] = [];
@@ -59,7 +61,8 @@ export function elStations(el: { paths: readonly ElPath[]; stations: readonly El
 export function buildRealGame(rw: Needs): RealGame {
   if (!rw.places) throw new Error('the real map has no places table (it fell back); missions cannot be placed');
   const places = rw.places;
-  useRealPlaces(places);
+  const walker = createWalker(rw.derived.buildingRings, rw.sidewalks.graph);
+  useRealPlaces(places, walker);
   const streetSource = roadNetStreetSource(rw.net);
   const stations = elStations(rw.el);
   // north.ts looks for `data.transit.stations`; hand it the real ones
@@ -78,9 +81,10 @@ export function buildRealGame(rw: Needs): RealGame {
       ...placesFromLots(rw.lots),
       ...stations.map((s) => ({ id: `station:${s.id}`, kind: 'station' as const, label: s.name, x: s.x, z: s.z })),
     ],
-    home: rw.homeSpawn ?? { x: rw.spawn.x, z: rw.spawn.z, heading: rw.spawnHeading },
+    home: { x: rw.homeSpawn.x, z: rw.homeSpawn.z, heading: rw.homeSpawn.heading },
     bounds: { minX: b.minX, maxX: b.maxX, minZ: b.minZ, maxZ: b.maxZ },
     streetName: (p) => rw.net.streetNameAt(p),
     release: () => useRealPlaces(null),
+    reapply: () => useRealPlaces(places, walker),
   };
 }

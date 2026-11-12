@@ -16,7 +16,7 @@ const data = loadBedstuyData();
 const grid = buildGrid(data);
 const lots = subdivideLots(grid, data.pois, new Rng(data.seed).fork('lots'));
 const defs = buildMissions(grid, data, lots, { el: { home: { x: 40, z: 60 }, north: { x: 120, z: -480 } } });
-const story = defs.filter((d) => d.act !== undefined);
+const story = defs.filter((d) => d.act !== undefined); // the arc (14) and the ten STORY2 side jobs (24)
 
 /** Real brands, institutions and people the game must not name (parody names only). Lower case, matched on word edges. */
 const DENY_BRANDS = [
@@ -59,7 +59,7 @@ const allStrings = story.flatMap(strings);
 
 describe('story content lint', () => {
   it('has strings to lint', () => {
-    expect(story.length).toBe(14);
+    expect(story.length).toBe(24);
     expect(allStrings.length).toBeGreaterThan(300);
   });
 
@@ -145,9 +145,9 @@ describe('story content lint', () => {
 });
 
 describe('the cast', () => {
-  it('has twelve recurring on-stage characters, each with a voice, motive, secret and a mission that reveals it', () => {
-    expect(RECURRING).toHaveLength(12);
-    expect(CAST).toHaveLength(14); // + Bryce (half of Hallie's couple) and Pryce (off-stage)
+  it('has eighteen recurring on-stage characters (twelve + six from STORY2), each with a voice, motive, secret and a mission that reveals it', () => {
+    expect(RECURRING).toHaveLength(18);
+    expect(CAST).toHaveLength(21); // + Bryce (half of Hallie's couple), Pryce and Pemberton (off-stage voices)
     const ids = new Set(defs.map((d) => d.id));
     for (const c of CAST) {
       expect(c.motive.length, c.id).toBeGreaterThan(15);

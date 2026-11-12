@@ -17,6 +17,11 @@ export const F = {
   END_TRUST: 'ending.trust', END_LANDLORD: 'ending.landlord', END_BUYOUT: 'ending.buyout',
   /** Side-effects the radio and the posters read. */
   ODETTE_EVICTED: 'odette.evicted', AUNTIE_BURNED: 'auntie.burned',
+  /** STORY2 side jobs: one milestone flag each (the signs, the radio and the texts read them). None of them gates the arc or an ending. */
+  S_NOTICES_DELIVERED: 'side.noticesDelivered', S_NOTICES_BINNED: 'side.noticesBinned',
+  S_PIVOT: 'side.founderMode', S_CARBON: 'side.carbonCopy', S_BINDER: 'side.binder', S_QUORUM: 'side.gavel',
+  S_BIRDS: 'side.pigeons', S_VAN: 'side.vanMan', S_VAN_PRIYA: 'side.vanPriya', S_VAN_RIVKA: 'side.vanRivka',
+  S_SLOW: 'side.slowRoll', S_STAMPS: 'side.redTape', S_RETREAT: 'side.silentRetreat',
 } as const;
 
 /** Which way each choice leans: the epilogue and the news read the totals. */

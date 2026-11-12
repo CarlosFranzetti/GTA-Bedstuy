@@ -241,7 +241,7 @@ export class AudioSystem {
     this.unsubs.push(
       events.on('userGesture', () => { void this.start(); void this.libraryController.autoReconnect().catch(() => undefined); }),
       events.on('horn', (e) => { if (this.vehicle.typed) this.vehicle.hornEvent(e.pos); else this.playHorn(); }),
-      events.on('impact', (e) => { this.playImpact(e.strength); if (this.vehicle.typed) this.vehicle.playCrash(e.strength); }),
+      events.on('impact', (e) => { if (this.vehicle.typed) this.vehicle.playCrash(e.strength); else this.playImpact(e.strength); }),
       events.on('enterVehicle', () => { this.inCar = true; this.setRadioOn(true); }),
       events.on('exitVehicle', () => { this.inCar = false; this.setRadioOn(false); }),
       // VOICE14: Leila's pedBark request and every mission / story subtitle line get a voice.
@@ -344,12 +344,14 @@ export class AudioSystem {
   /** Lateral tyre slip 0..1 (drift / skid). Ask the vehicle for it; without one, use `setHandbrake`. */
   setSlip(slip: number): void {
     this.slip = clamp01(slip);
+    this.vehicle.setSlip(Math.max(this.slip, this.handbrake ? 0.7 : 0));
     if (this.g) this.applySqueal(this.g);
   }
 
   /** Fallback squeal trigger when the vehicle exposes no slip value. */
   setHandbrake(on: boolean): void {
     this.handbrake = on;
+    this.vehicle.setSlip(Math.max(this.slip, on ? 0.7 : 0));
     if (this.g) this.applySqueal(this.g);
   }
 
@@ -435,7 +437,24 @@ export class AudioSystem {
   /** Debug panel text for the voice pack. */
   get voicePackLabel(): string { return this.hub.packLabel; }
 
-  setBroadcast(ctx: Partial<BroadcastContext>): void { this.radio.setBroadcast(ctx); }
+  setBroadcast(ctx: Partial<BroadcastContext>): void {
+    this.radio.setBroadcast(ctx);
+    // SFX2: the road hisses in rain and while the street is still wet
+    if (ctx.rain !== undefined || ctx.weather !== undefined) {
+      const w = ctx.weather ?? this.weatherState;
+      if (ctx.weather !== undefined) this.weatherState = ctx.weather;
+      this.vehicle.setWeather(ctx.rain ?? this.rainNow, w === 'rain' ? 1 : w === 'wet' ? 0.9 : w === 'drying' ? 0.5 : 0);
+      if (ctx.rain !== undefined) this.rainNow = ctx.rain;
+    }
+  }
+  private weatherState: BroadcastContext['weather'] = 'dry';
+  private rainNow = 0;
+  /** SFX2: hour of day (0..24) for the city bed; call when it changes (or every frame). */
+  setHour(h: number): void { this.vehicle.setHour(h); }
+  /** SFX2: on-foot footsteps from the player's ground speed (m/s), sprint ramp 0..1 and grounded flag; call every frame. */
+  setFoot(speed: number, run = 0, grounded = true): void { this.vehicle.setFoot(speed, run, grounded); }
+  /** SFX2: nearest pedestrian signal (distance m, state), or null when none is near. */
+  setCrosswalk(dist: number | null, state: 'walk' | 'flash' | 'dont' = 'dont'): void { this.vehicle.setCrosswalk(dist, state); }
 
   /** HD voices (on-device neural TTS): toggle, state for the UI and the one-line size note. */
   get hdVoices(): boolean { return this.hub.hdEnabled; }
@@ -499,9 +518,17 @@ export class AudioSystem {
     const now = ctx.currentTime;
     const sr = ctx.sampleRate || 44100;
 
+    // SFX2: a limiter ahead of the speakers (-3 dB, hard knee) so no mix of engine, horn, crash and radio can clip
+    let out: AudioNode = ctx.destination;
+    if (typeof ctx.createDynamicsCompressor === 'function') {
+      const limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.value = -3; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = 0.003; limiter.release.value = 0.12;
+      limiter.connect(ctx.destination);
+      out = limiter;
+    }
     const master = ctx.createGain();
     master.gain.value = this.masterVolume;
-    master.connect(ctx.destination);
+    master.connect(out);
     const bus = (to: AudioNode, v: number): GainNode => { const b = ctx.createGain(); b.gain.value = v; b.connect(to); return b; };
     const sfxBus = bus(master, this.mixer.gain('sfx'));
     const voiceBus = bus(master, this.mixer.gain('voices'));
@@ -609,7 +636,7 @@ export class AudioSystem {
     musicBus.connect(master);
 
     const g: Graph = { ctx, master, sfxBus, voiceBus, hubBus, ambBus, saw, sq, engineFilter, engineGain, radioBus, musicBus, dayGain, nightGain, squealGain, squealFilter, noise };
-    this.vehicle.attach(ctx, sfxBus, noise);
+    this.vehicle.attach(ctx, sfxBus, noise, ambBus);
     this.applyEngine(g);
     this.applySqueal(g);
     // The user's files play through two media elements. Unlocking them here is inside the first user gesture (iOS).
@@ -633,7 +660,8 @@ export class AudioSystem {
   private applySqueal(g: Graph): void {
     const now = g.ctx.currentTime;
     const slip = Math.max(this.slip, this.handbrake ? 0.7 : 0);
-    const level = this.engineOn ? squealLevel(slip, this.engineSpeed) : 0;
+    // the vehicle layer (road.ts) owns the squeal once a type is set; this older voice stays for the untyped legacy engine
+    const level = this.engineOn && !this.vehicle.typed ? squealLevel(slip, this.engineSpeed) : 0;
     g.squealGain.gain.setTargetAtTime(level * SQUEAL_GAIN, now, 0.05);
     g.squealFilter.frequency.setTargetAtTime(1500 + Math.min(1, this.engineSpeed / 30) * 1200, now, 0.1);
   }
@@ -689,7 +717,7 @@ export class AudioSystem {
     this.radioOn = on;
     const g = this.g;
     if (!g) return;
-    this.applyRadioGain(g, 0.1);
+    this.applyRadioGain(g, 0.25); // SFX2: a quarter-second glide, so getting in or out of a car does not step the radio level
     if (on) this.nextNoteTime = g.ctx.currentTime + 0.02;
     this.syncRadioOn();
   }

@@ -9,6 +9,7 @@ import { buildGrid, loadBedstuyData } from '@/world/Grid';
 import { subdivideLots } from '@/world/LotSubdivider';
 import { MissionSystem } from '@/game/missions/MissionSystem';
 import { buildMissions } from '@/game/missions/content';
+import { STORY2_IDS } from '@/game/missions/content/story';
 import type { MissionDef } from '@/game/missions/types';
 import { F } from '@/game/story/flags';
 import { Bot, startHourFor } from '../game/missionBot';
@@ -18,7 +19,9 @@ const grid = buildGrid(data);
 const lots = subdivideLots(grid, data.pois, new Rng(data.seed).fork('lots'));
 // the real map publishes data.transit.stations, so the el mission comes from auto-detection (the positive case)
 const all = buildMissions(grid, data, lots);
-const story = all.filter((d) => d.act !== undefined);
+// the ten STORY2 side jobs have their own file (story2-missions.test.ts); this one is the core arc
+const isCore = (d: MissionDef): boolean => d.act !== undefined && !(STORY2_IDS as readonly string[]).includes(d.id);
+const story = all.filter(isCore);
 const byId = (id: string): MissionDef => all.find((d) => d.id === id)!;
 const LEGACY_PREREQ = ['crate-digger', 'open-decks', 'the-password', 'aftersloth-residency'];
 
@@ -106,7 +109,7 @@ describe('story missions: every one completes, pays and plays its beats', () => 
       'fleece-vest', 'open-house', 'walk-dee-home', 'repo-the-repo', 'crate-expectations', 'last-stop-north',
       'night-of-the-narcan', 'smoke-signals', 'borough-hall-express', 'last-call-on-throop',
     ]);
-    expect(buildMissions(grid, data, lots, {}).filter((d) => d.act !== undefined)).toHaveLength(13);
+    expect(buildMissions(grid, data, lots, {}).filter(isCore)).toHaveLength(13);
   });
 
   for (const def of story) {

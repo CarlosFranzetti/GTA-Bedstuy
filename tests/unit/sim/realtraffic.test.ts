@@ -5,6 +5,7 @@
  * and the population holds near its target. Real Vehicle physics and pedestrians, no buildings (colliders need the
  * GPU-side world build), real RealTrafficLights. Cops stay off on this map.
  */
+import { writeFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { EventBus } from '@/core/Events';
@@ -26,6 +27,14 @@ import { DT, proxyMaterials, stubMaterials } from './harness';
 
 const SIM_SECONDS = Number((globalThis as unknown as { process?: { env?: Record<string, string> } }).process?.env?.RT_SECONDS ?? 600);
 const WINDOW = 60;
+const env = (k: string): string | undefined => (globalThis as unknown as { process?: { env?: Record<string, string> } }).process?.env?.[k];
+const DIAG = !!env('RT_OUT');
+const SEED = Number(env('RT_SEED') ?? 7);
+const diag: string[] = [];
+const watch: string[] = [];
+const WATCH = new Set((env('RT_WATCH') ?? '').split(',').filter(Boolean));
+const WATCH_FROM = Number(env('RT_WFROM') ?? 0);
+const WATCH_TO = Number(env('RT_WTO') ?? 1e9);
 
 const net = RoadNet.fromJson(core as unknown as RoadNetJson);
 const d = deriveGeometry(net);
@@ -145,6 +154,31 @@ function runReal(seed: number): Run {
         }
       }
     }
+    if (WATCH.size && step % 60 === 0) {
+      const act = (traffic as unknown as { active: Array<{ agent: Record<string, unknown> & { state: string; target: { id: string; stopLine: boolean; intersectionId?: string; streetId: string; pos: Vec2 } | null }; vehicle: IVehicle }> }).active;
+      for (const a of act) {
+        if (!WATCH.has(a.vehicle.id) || t < WATCH_FROM || t > WATCH_TO) continue;
+        const v = a.vehicle, tg = a.agent.target;
+        const others = traffic.vehicles.filter((o) => o !== v && Math.hypot(o.body.pos.x - v.body.pos.x, o.body.pos.z - v.body.pos.z) < 12).map((o) => `${o.id}(${(o.body.pos.x - v.body.pos.x).toFixed(1)},${(o.body.pos.z - v.body.pos.z).toFixed(1)} sp${o.speed.toFixed(1)} ${o.driver ?? 'park'})`);
+        const pe = a.agent.preEdge as number; const exitN = grid.lanes.nodes[grid.lanes.edges[pe]?.to ?? ''];
+        const exitInfo = exitN ? `exit=${exitN.id}(${exitN.pos.x.toFixed(1)},${exitN.pos.z.toFixed(1)}) occ=[${traffic.vehicles.filter((o) => Math.hypot(o.body.pos.x - exitN.pos.x, o.body.pos.z - exitN.pos.z) < 14).map((o) => `${o.id}(${(o.body.pos.x - exitN.pos.x).toFixed(1)},${(o.body.pos.z - exitN.pos.z).toFixed(1)} sp${o.speed.toFixed(1)} ${o.driver ?? 'park'})`).join(' ')}]` : '';
+        watch.push(`${exitInfo} t${t.toFixed(0)} ${v.id} ${v.body.pos.x.toFixed(1)},${v.body.pos.z.toFixed(1)} h${v.body.heading.toFixed(2)} sp${v.speed.toFixed(1)} ${a.agent.state} tgt=${tg?.id} d=${tg ? Math.hypot(tg.pos.x - v.body.pos.x, tg.pos.z - v.body.pos.z).toFixed(1) : ''} ph=${tg?.intersectionId ? traffic.lights.phaseFor(tg.intersectionId, tg.streetId) : '-'} wait=${(a.agent.waitTimer as number)?.toFixed?.(1)} extra=${(a.agent.extraWait as number)?.toFixed?.(1)} turnW=${(a.agent.turnWait as number)?.toFixed?.(1)} jamW=${(a.agent.jamWait as number)?.toFixed?.(1)} blk=${(a.agent.blockedTime as number)?.toFixed?.(1)} stuck=${(a.agent.stuckTime as number)?.toFixed?.(1)} pedGap=${(a.agent.pedGap as number)?.toFixed?.(1)} yield=${(a.agent.yieldHold as number)?.toFixed?.(1)} near=[${others.join(' ')}]`);
+      }
+    }
+    if (DIAG && step % 600 === 0 && t >= 60) {
+      // who is standing still, and what are they looking at
+      const act = (traffic as unknown as { active: Array<{ agent: { state: string; target: { id: string; stopLine: boolean; intersectionId?: string; streetId: string; pos: Vec2 } | null }; vehicle: IVehicle }> }).active;
+      for (const a of act) {
+        const h = trail.get(a.vehicle.id);
+        if (!h || h.length < 40) continue;
+        const z = h[h.length - 1], b0 = h[h.length - 40];
+        if (Math.hypot(z.x - b0.x, z.z - b0.z) > 8) continue;
+        const v = a.vehicle, tg = a.agent.target;
+        const others = [...traffic.vehicles, ...traffic.peds as unknown as IVehicle[]].filter((o) => o !== v && Math.hypot(o.body.pos.x - v.body.pos.x, o.body.pos.z - v.body.pos.z) < 9)
+          .map((o) => `${o.id}(${(o.body.pos.x - v.body.pos.x).toFixed(1)},${(o.body.pos.z - v.body.pos.z).toFixed(1)} h${(o.body.heading ?? 0).toFixed(1)} d=${(o as IVehicle).driver ?? 'ped'} sp${((o as IVehicle).speed ?? 0).toFixed(1)})`);
+        diag.push(`t${t.toFixed(0)} ${v.id} at ${v.body.pos.x.toFixed(1)},${v.body.pos.z.toFixed(1)} h${v.body.heading.toFixed(2)} sp${v.speed.toFixed(1)} ${a.agent.state} tgt=${tg?.id} (${tg ? `${tg.pos.x.toFixed(1)},${tg.pos.z.toFixed(1)}` : ''}) stop=${tg?.stopLine} ph=${tg?.intersectionId ? traffic.lights.phaseFor(tg.intersectionId, tg.streetId) : '-'} street=${net.streetNameAt(v.body.pos)} near=[${others.join(' ')}]`);
+      }
+    }
     if (step % 60 === 0) {
       for (const v of movers) {
         let h = trail.get(v.id); if (!h) trail.set(v.id, h = []);
@@ -186,7 +220,7 @@ function runReal(seed: number): Run {
 let R: Run;
 
 describe('TrafficSystem on the real map, headless 10 minutes', () => {
-  beforeAll(() => { R = runReal(7); }, 900_000);
+  beforeAll(() => { R = runReal(SEED); }, 900_000);
 
   it('builds the adapter: real crossings, signals and parked cars', () => {
     expect(R.crossings).toBeGreaterThan(100);
@@ -227,6 +261,7 @@ describe('TrafficSystem on the real map, headless 10 minutes', () => {
   });
 
   it('reports', () => {
+    if (DIAG) writeFileSync(env('RT_OUT')!, JSON.stringify({ R: { ...R, blockAt: R.blockAt.slice(0, 60) }, diag, watch }, null, 1));
     // eslint-disable-next-line no-console
     console.log('REALTRAFFIC', JSON.stringify({ ...R, stuck: R.stuck.length, loopers: R.loopers.join(','), redViolations: R.redViolations.length, pedBadStarts: R.pedBadStarts.length, blockAt: undefined }));
     console.log('STUCKIDS', [...new Set(R.stuck.map((x) => x.split(' ')[0]))].join(','), R.stuck.slice(0, 3).join(' | '));

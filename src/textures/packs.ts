@@ -106,7 +106,8 @@ const BASE_PACKS: PackEntry[] = [
 export const TEXTURE_PACKS: PackEntry[] = (() => {
   const cc0 = cc0Entries();
   const ids = new Set(cc0.map((e) => `${e.key}:${e.variant}`));
-  return [...BASE_PACKS.filter((e) => !ids.has(`${e.key}:${e.variant}`)), ...cc0];
+  // concrete variant 0 (the sidewalk) keeps its painted slabs: the ground shader draws slab tone and cracks on the same grid
+  return [...BASE_PACKS.filter((e) => !ids.has(`${e.key}:${e.variant}`) && !(e.key === 'concrete' && e.variant === 0)), ...cc0];
 })();
 
 /** Defaults for user photo packs (docs/PHOTO-TEXTURES.md), keyed by material. Unknown keys get repeat 1.5. */

@@ -214,7 +214,7 @@ export function headShell(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec)
   // hair: a close volume on the skull whose thickness fades to nothing at an irregular hairline (higher at the temples)
   const style = spec.hair, old = spec.age === 'old';
   if (style === 'afro') return out;
-  const base = style === 'fade' ? 0.006 : style === 'curly' ? 0.026 : old ? 0.007 : style === 'puff' ? 0.012 : 0.016;
+  const base = style === 'fade' ? 0.005 : style === 'curly' ? 0.02 : old ? 0.006 : style === 'puff' ? 0.01 : 0.011;
   const topT = style === 'fade' ? 0.8 : old ? 0.78 : 0.7, sideT = style === 'fade' ? 0.52 : old ? 0.55 : 0.4;
   const bump = (v: V): number => 0.03 * Math.sin(v.p[0] * 160 + 1.3) + 0.018 * Math.sin(v.p[0] * 410 + 0.4) + (style === 'short' ? 0.05 * (v.p[0] / rx) : 0);   // irregular, a side part slants it
   const region = (v: V): number => {

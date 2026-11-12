@@ -4,6 +4,7 @@
  * `trainSoundParams` is pure (tested); `TrainAudio` wires it to nodes once an AudioContext exists.
  */
 import { DOOR_TIME, V_CRUISE, type TrainState } from './ElLine';
+import { underElMix } from '../audio/vehicle/world';
 
 /** Beyond this distance (m) a train is silent; the falloff is smooth so it fades in from the fog. */
 export const HEAR_RANGE = 380;
@@ -51,12 +52,31 @@ export function trainSoundParams(st: TrainState, distance: number, prev?: TrainS
 export const CHIME_NOTES = [{ hz: 988, at: 0, len: 0.32 }, { hz: 784, at: 0.34, len: 0.5 }] as const;
 export const CHIME_LENGTH = 0.9 + DOOR_TIME * 0;
 
+/** SFX2: impulse response of the space under the elevated structure (steel deck overhead, hard street below): a dense, bright, fast-decaying tail. */
+export function underElImpulse(sr: number, seconds = 2.2): Float32Array {
+  const n = Math.floor(sr * seconds), out = new Float32Array(n);
+  let seed = 12345, lp = 0;
+  for (let i = 0; i < n; i++) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    const r = seed / 2147483648 - 1, t = i / sr;
+    lp += (r - lp) * Math.max(0.12, 0.85 - t * 0.5); // darker as it decays
+    out[i] = lp * Math.exp(-t / 0.55) * (i < 40 ? i / 40 : 1);
+  }
+  // the girders ring: a few early reflections from the deck, 9 to 31 ms
+  for (const [ms, g] of [[9, 0.6], [17, 0.45], [31, 0.35]] as const) { const k = Math.floor((ms / 1000) * sr); if (k < n) out[k] += g; }
+  return out;
+}
+
 interface Voice { rumbleGain: GainNode; rumbleFilter: BiquadFilterNode; clackGain: GainNode; clackLfo: OscillatorNode; squealGain: GainNode; squealOsc: OscillatorNode; chimeGain: GainNode; prev?: TrainState; }
 
 export class TrainAudio {
   private voices = new Map<string, Voice>();
   private master: GainNode | null = null;
   private noise: AudioBuffer | null = null;
+  /** under-the-el reverb: the dry path and a convolver send; the mix follows the nearest train's distance */
+  private dry: GainNode | null = null;
+  private wet: GainNode | null = null;
+  private readonly dists = new Map<string, number>();
   constructor(private readonly ctx: AudioContext, private readonly dest: AudioNode) {}
 
   private ensure(): void {
@@ -64,7 +84,17 @@ export class TrainAudio {
     const ctx = this.ctx;
     this.master = ctx.createGain();
     this.master.gain.value = 0.9;
-    this.master.connect(this.dest);
+    if (typeof ctx.createConvolver === 'function') {
+      const conv = ctx.createConvolver();
+      const ir = underElImpulse(ctx.sampleRate);
+      const buf = ctx.createBuffer(1, ir.length, ctx.sampleRate);
+      buf.getChannelData(0).set(ir);
+      conv.buffer = buf;
+      this.dry = ctx.createGain(); this.wet = ctx.createGain();
+      this.wet.gain.value = 0.15;
+      this.master.connect(this.dry); this.dry.connect(this.dest);
+      this.master.connect(conv); conv.connect(this.wet); this.wet.connect(this.dest);
+    } else this.master.connect(this.dest);
     const n = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
     const d = n.getChannelData(0);
     let a = 0, b = 0;
@@ -105,6 +135,13 @@ export class TrainAudio {
     const v = this.voice(id);
     const p = trainSoundParams(st, distance, v.prev);
     const t = this.ctx.currentTime;
+    if (this.wet && this.dry) {
+      this.dists.set(id, st.active ? distance : 1e9);
+      let near = 1e9; for (const d of this.dists.values()) near = Math.min(near, d);
+      const m = underElMix(near);
+      this.wet.gain.setTargetAtTime(m.wet * 0.5, t, 0.3);
+      this.dry.gain.setTargetAtTime(m.dry, t, 0.3);
+    }
     v.rumbleGain.gain.setTargetAtTime(p.rumble, t, 0.15);
     v.rumbleFilter.frequency.setTargetAtTime(p.rumbleHz, t, 0.2);
     v.clackLfo.frequency.setTargetAtTime(Math.max(0.2, p.clackHz), t, 0.2);
@@ -130,8 +167,8 @@ export class TrainAudio {
 
   dispose(): void {
     for (const v of this.voices.values()) { try { v.clackLfo.stop(); v.squealOsc.stop(); } catch { /* already stopped */ } }
-    this.voices.clear();
-    this.master?.disconnect();
+    this.voices.clear(); this.dists.clear();
+    this.master?.disconnect(); this.dry?.disconnect(); this.wet?.disconnect(); this.dry = null; this.wet = null;
     this.master = null;
   }
 }

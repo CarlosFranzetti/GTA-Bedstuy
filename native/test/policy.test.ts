@@ -88,3 +88,74 @@ describe('appQueryFromArgs', () => {
     expect(appQueryFromArgs(['x', '--q=ultra', '--q=<script>', '--url=evil'])).toBe('');
   });
 });
+
+describe('launch choices', () => {
+  it('starts in full screen unless told otherwise', async () => {
+    const { wantsFullscreenAtLaunch } = await import('../src/policy');
+    expect(wantsFullscreenAtLaunch({}, ['app'], false)).toBe(true);
+    expect(wantsFullscreenAtLaunch({ startFullscreen: true }, ['app'], false)).toBe(true);
+    expect(wantsFullscreenAtLaunch({ startFullscreen: false }, ['app'], false)).toBe(false);
+    expect(wantsFullscreenAtLaunch({}, ['app', '--windowed'], false)).toBe(false);
+    expect(wantsFullscreenAtLaunch({ startFullscreen: false }, ['app', '--fullscreen'], false)).toBe(true);
+    expect(wantsFullscreenAtLaunch({}, ['app'], true)).toBe(false); // smoke test is windowed
+  });
+  it('picks the ANGLE backend per platform and honours --angle', async () => {
+    const { chooseAngle } = await import('../src/policy');
+    expect(chooseAngle('darwin', [])).toBe('metal');
+    expect(chooseAngle('win32', [])).toBe('d3d11');
+    expect(chooseAngle('linux', [])).toBeUndefined();
+    expect(chooseAngle('darwin', ['--angle=gl'])).toBe('gl');
+    expect(chooseAngle('win32', ['--angle=vulkan'])).toBe('vulkan');
+    expect(chooseAngle('win32', ['--angle=evil;rm'])).toBe('d3d11');
+    expect(chooseAngle('darwin', ['--angle=metal ', '--angle=nope'])).toBe('metal');
+  });
+});
+
+describe('csp for radio and voice', () => {
+  it('lets live radio streams through and keeps scripts on the short list', () => {
+    const c = buildCsp();
+    expect(c).toMatch(/media-src [^;]*\bhttps:(;|$)/);
+    expect(c).toMatch(/connect-src [^;]*https:\/\/api\.kexp\.org/);
+    expect(c).toMatch(/connect-src [^;]*https:\/\/api\.somafm\.com/);
+    const script = c.split('; ').find((d) => d.startsWith('script-src'))!;
+    expect(script).toContain('https://w.soundcloud.com');
+    expect(script).toContain('https://cdn.jsdelivr.net');
+    expect(script).not.toMatch(/unpkg|esm\.sh|https:(\s|$)/);
+    expect(c).toContain("worker-src 'self' blob:");
+  });
+});
+
+describe('saved-game backup', () => {
+  it('keeps strings only and caps the size', async () => {
+    const { sanitizeStorageSnapshot, STORAGE_BACKUP_MAX_BYTES } = await import('../src/policy');
+    expect(sanitizeStorageSnapshot(null)).toBeNull();
+    expect(sanitizeStorageSnapshot([1, 2])).toBeNull();
+    expect(sanitizeStorageSnapshot({ a: '1', b: 2, c: { x: 1 } })).toEqual({ a: '1' });
+    const big = sanitizeStorageSnapshot({ a: 'x'.repeat(900_000), b: 'y'.repeat(900_000), c: 'z'.repeat(900_000), d: 'w'.repeat(900_000), e: 'v'.repeat(900_000), f: 'u'.repeat(900_000) })!;
+    expect(JSON.stringify(big).length).toBeLessThanOrEqual(STORAGE_BACKUP_MAX_BYTES + 100);
+    expect(sanitizeStorageSnapshot({ a: 'x'.repeat(1_000_001) })).toEqual({});
+  });
+});
+
+describe('graphics report', () => {
+  it('names the renderer, the backend and what is not enabled', async () => {
+    const { formatGraphicsReport } = await import('../src/report');
+    const t = formatGraphicsReport({
+      app: 'GTA Bed-Stuy 0.1.0', versions: { electron: '45.3.0' }, platform: 'darwin', arch: 'arm64', angle: 'metal', switches: ['--debug-gfx'], fullscreen: true,
+      displays: [{ w: 3024, h: 1964, scale: 2, hz: 120 }], gpuDevices: [{ vendorId: 0x106b, deviceId: 0x1, active: true, deviceString: 'Apple M4' }],
+      featureStatus: { webgl2: 'enabled', gpu_compositing: 'disabled_software' },
+      page: { renderer: 'ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)', vendor: 'Google Inc. (Apple)', version: 'WebGL 2.0', overlay: 'tier now: high', dpr: 2, innerWidth: 1512, innerHeight: 982 },
+    });
+    expect(t).toContain('angle backend: metal');
+    expect(t).toContain('Apple M4');
+    expect(t).toContain('gpu_compositing=disabled_software');
+    expect(t).toContain('tier now: high');
+    expect(t).toContain('3024x1964 @2x 120Hz');
+  });
+  it('says so when the page cannot be read', async () => {
+    const { formatGraphicsReport } = await import('../src/report');
+    const t = formatGraphicsReport({ app: 'x', versions: {}, platform: 'win32', arch: 'x64', angle: 'd3d11', switches: [], fullscreen: false, displays: [], gpuDevices: [], featureStatus: {}, page: { error: 'boom' } });
+    expect(t).toContain('could not read (boom)');
+    expect(t).toContain('gpu features not plainly enabled: none');
+  });
+});

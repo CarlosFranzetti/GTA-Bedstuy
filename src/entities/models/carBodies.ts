@@ -58,9 +58,12 @@ export class Acc {
 /** Dark plastic and bright chrome merged into ONE vertex-coloured geometry (one draw call instead of two). */
 export const TRIM_DARK = 0x16181b;
 export const TRIM_CHROME = 0xd2d7dd;
-export function mergeTrim(dark: Acc, chrome: Acc): THREE.BufferGeometry {
+/** CARS2: a third trim colour, mid grey, for grille mesh, louvres and brake calipers' neighbours */
+export const TRIM_GREY = 0x5e646b;
+export function mergeTrim(dark: Acc, chrome: Acc, grey?: Acc): THREE.BufferGeometry {
   const parts = [dark.merge(TRIM_DARK)];
   if (chrome.size > 0) parts.push(chrome.merge(TRIM_CHROME));
+  if (grey && grey.size > 0) parts.push(grey.merge(TRIM_GREY));
   const m = parts.length === 1 ? parts[0] : mergeGeometries(parts, false);
   if (!m) throw new Error('carBodies: trim merge failed');
   if (parts.length > 1) for (const g of parts) g.dispose();
@@ -251,6 +254,8 @@ export interface LoftSpec {
   cls: (um: number, j: number, left: boolean) => Kind;
   /** rings at both ends are closed with a flat cap */
   caps?: boolean;
+  /** CARS2: end caps below this height (rear, front) are dark (the valance of an integral bumper); the cap above stays paint */
+  capCut?: [number, number];
   /** 2 = every ring segment is split in two with a smooth 4-point scheme (crease corners stay sharp); P/N/cls keep the original slot numbering */
   refine?: 1 | 2;
 }
@@ -425,21 +430,28 @@ export function buildLoft(spec: LoftSpec): Hull {
   const darkGeo = new Acc().add(sub(byKind.dark));
   const glassGeo = new Acc().add(sub(byKind.glass, GLASS_INSET));
 
-  // flat end caps (own vertices so the cap stays flat)
+  // flat end caps (own vertices so the cap stays flat); with `capCut` the part below the cut height is dark (it is clipped off the ring polygon)
   if (spec.caps !== false) {
-    for (const [i, outward] of [[0, 1], [S - 1, -1]] as const) {
-      const ring: THREE.Vector3[] = [];
-      const centre = new THREE.Vector3();
-      for (let s = 0; s < M; s++) {
-        const o = (i * C + cu[s]) * 3;
-        ring.push(v3(pos[o], pos[o + 1], pos[o + 2]));
-        centre.add(ring[s]);
+    const clip = (poly: THREE.Vector3[], cut: number, above: boolean): THREE.Vector3[] => {
+      const out: THREE.Vector3[] = [];
+      const inside = (q: THREE.Vector3): boolean => (above ? q.y >= cut : q.y <= cut);
+      for (let k = 0; k < poly.length; k++) {
+        const a = poly[k], b = poly[(k + 1) % poly.length];
+        const ia = inside(a), ib = inside(b);
+        if (ia) out.push(a);
+        if (ia !== ib) out.push(a.clone().lerp(b, (cut - a.y) / (b.y - a.y)));
       }
-      centre.multiplyScalar(1 / M);
+      return out;
+    };
+    const fan = (poly: THREE.Vector3[], outward: number): THREE.BufferGeometry | null => {
+      if (poly.length < 3) return null;
+      const centre = new THREE.Vector3();
+      for (const q of poly) centre.add(q);
+      centre.multiplyScalar(1 / poly.length);
       const p: number[] = [];
-      for (let s = 0; s < M; s++) {
-        const a = ring[s];
-        const b = ring[(s + 1) % M];
+      for (let k = 0; k < poly.length; k++) {
+        const a = poly[k];
+        const b = poly[(k + 1) % poly.length];
         const tri = [centre, a, b];
         const nz = new THREE.Vector3().subVectors(a, centre).cross(new THREE.Vector3().subVectors(b, centre)).z;
         if (nz * outward < 0) { tri[1] = b; tri[2] = a; }
@@ -451,7 +463,20 @@ export function buildLoft(spec: LoftSpec): Hull {
       for (let k = 0; k < p.length / 3; k++) nn.push(0, 0, outward);
       g.setAttribute('normal', new THREE.Float32BufferAttribute(nn, 3));
       g.setAttribute('uv', new THREE.Float32BufferAttribute(new Array((p.length / 3) * 2).fill(0), 2));
-      paintGeo.add(g);
+      return g;
+    };
+    for (const [i, outward] of [[0, 1], [S - 1, -1]] as const) {
+      const ring: THREE.Vector3[] = [];
+      for (let s = 0; s < M; s++) {
+        const o = (i * C + cu[s]) * 3;
+        ring.push(v3(pos[o], pos[o + 1], pos[o + 2]));
+      }
+      const cut = spec.capCut ? spec.capCut[i === 0 ? 0 : 1] : undefined;
+      if (cut === undefined) { const g = fan(ring, outward); if (g) paintGeo.add(g); continue; }
+      const up = fan(clip(ring, cut, true), outward);
+      const lo = fan(clip(ring, cut, false), outward);
+      if (up) paintGeo.add(up);
+      if (lo) darkGeo.add(lo);
     }
   }
 
@@ -499,15 +524,17 @@ export interface CarRing {
   yT: number; yBelt: number; yBot: number; wMax: number; wR: number;
   /** vans: top of the side glass (the band between it and the belt is the only glass); the wall above is paint */
   yGl?: number;
+  /** slab-sided: no crown on the roof, no bulge on the glass flank */
+  flat?: boolean;
 }
 const CAR_CREASE = 6;
 export function carHalf(r: CarRing): V2[] {
   const wG0 = r.wMax - 0.08;
   const yG0 = r.yBelt + 0.012;
-  const crown = clamp((r.yT - r.yBelt - 0.012) * 0.5, 0.01, 0.032);
+  const crown = r.flat ? 0.008 : clamp((r.yT - r.yBelt - 0.012) * 0.5, 0.01, 0.032);
   const yR = r.yT - crown;
   const wR = Math.min(r.wR, wG0 - 0.015);
-  const bulge = 0.018;
+  const bulge = r.flat ? 0 : 0.018;
   const wl = (t: number): number => lerp(wG0, wR, t) + bulge * Math.sin(Math.PI * t);
   const yl = (t: number): number => lerp(yG0, yR, t);
   const h = r.yBelt - r.yBot;
@@ -685,6 +712,16 @@ export interface Style {
   /** lowest half-ring segment index that is black plastic cladding (SUV skirts) */
   clad: number;
   rails: boolean; spoiler: boolean;
+  /** rear aero: 'lip' ducktail, 'gt' tall wing on uprights, 'hatch' roof spoiler (CARS2); needs `spoiler` */
+  wing?: 'lip' | 'gt' | 'hatch';
+  /** slab-sided cross-section: no crown or flank bulge (the wedge pickup) */
+  flat?: boolean;
+  /** how far (m) the nose / tail face stands above the sill line (default 0.2 / 0.12); sports cars run their noses close to the road */
+  noseLift?: number; tailLift?: number;
+  /** an older chrome bumper bar across the end faces (the valance is dark either way) */
+  chromeBumper?: boolean;
+  /** the roof between the windshield header and the rear glass is glass (the electric sedan) */
+  glassRoof?: boolean;
   /** longest gap (ref m) between hull stations; boxy styles (SUV) tolerate more, which is where their triangle budget comes from */
   maxGap?: number;
   /** hull stations across each wheel arch (default 4) */
@@ -1254,252 +1291,242 @@ export const STYLES: Record<StyleKey, Style> = {
     dims: { L: 5.98, W: 2.06, H: 2.78 },
     windowed: true,
   },
-  // ---- CARS14 (WebSearch, 11 Nov 2026). Parody names and shapes are our own; the real class is the size reference only.
-  // Sim feel (VEHICLE_SPECS in entities/Vehicle.ts) comes from the same numbers. Sim top speed is about half the real one.
-  // "Stuttgard 6": a rear-engine 2+2 sports coupe of the Porsche 911 Carrera (992) class. Facelift 2024 Carrera: length 4,542 mm, width 1,852 mm (without mirrors),
-  // wheelbase 2,450 mm, height about 1,300 mm, kerb weight 1,520 kg; 3.0 flat-six biturbo 283 kW (385 hp); 0-100 km/h 4.1-4.2 s; top speed 293-294 km/h; wheels 20/21 in.
-  // Sources: https://www.auto-data.net/en/porsche-911-992-facelift-2024-carrera-3.0-394hp-pdk-51872 , https://www.autohints.com/porsche-911-992-facelift-2024-carrera-3.0-394-hp-pdk-version-32194 , https://fastestlaps.com/models/porsche-911-carrera-s-992-facelift , https://www.ultimatecarpage.com/spec/7689/Porsche-911-Carrera.html
+  // "Stuttgart GT": a long-hood rear-drive fastback coupe (a 2+2 grand tourer): long, low bonnet, cabin pushed back, one unbroken roof line
+  // running down to a high ducktail. 4.78 m long, 1.85 m wide, 1.28 m high, wheelbase 2.76 m.
   coupe911: {
-    Lref: 4.542, Href: 1.3,
+    Lref: 4.78, Href: 1.28,
     sill: 0.13, wheelR: 0.345, wheelW: 0.27,
-    axle: 1.225,
+    axle: 1.38,
     secs: [
-      [-2.27, 0.8, 0.76, 0.9],
-      [-2.1, 0.88, 0.84, 0.9],
-      [-1.9, 0.96, 0.92, 0.88],
-      [-1.5, 1.08, 0.98, 0.82],
-      [-1.0, 1.2, 1.0, 0.76],
-      [-0.5, 1.28, 1.0, 0.72],
-      [-0.05, 1.3, 1.0, 0.72],
-      [0.35, 1.25, 1.0, 0.76],
-      [0.75, 1.08, 0.98, 0.88],
-      [1.1, 0.96, 0.92, 0.93],
-      [1.6, 0.86, 0.82, 0.93],
-      [2.0, 0.78, 0.74, 0.92],
-      [2.27, 0.7, 0.66, 0.9],
+      [-2.39, 0.93, 0.89, 0.9],
+      [-2.27, 0.98, 0.94, 0.9],
+      [-2.0, 0.99, 0.95, 0.88],
+      [-1.75, 1.01, 0.96, 0.84],
+      [-1.2, 1.14, 0.97, 0.78],
+      [-0.55, 1.26, 0.98, 0.73],
+      [-0.1, 1.28, 0.98, 0.72],
+      [0.2, 1.22, 0.98, 0.76],
+      [0.8, 0.97, 0.95, 0.92],
+      [1.3, 0.89, 0.87, 0.94],
+      [1.9, 0.8, 0.77, 0.94],
+      [2.39, 0.68, 0.64, 0.9],
     ],
-    windshield: [1.02, 0.3],
-    doorGlass: [[0.8, -0.5], [-0.58, -1.3]],
-    bPillar: [-0.5, -0.58],
-    rearGlass: [-0.95, -1.75],
-    seams: [0.84, -0.54, -1.0],
-    handles: [-0.15],
-    hoodBack: 1.02,
+    windshield: [0.8, 0.2],
+    doorGlass: [[0.6, -0.4], [-0.46, -1.3]],
+    bPillar: [-0.4, -0.46],
+    rearGlass: [-0.55, -1.75],
+    seams: [0.62, -0.43, -1.0],
+    handles: [-0.1],
+    hoodBack: 0.8,
     clad: 11,
-    rails: false, spoiler: false, maxGap: 0.3, archN: 6,
+    rails: false, spoiler: true, wing: 'lip', maxGap: 0.3, archN: 6,
     bumperY: 0.3, bumperH: 0.2,
-    plan: [[-2.27, 0.93], [-1.6, 1], [-0.9, 1], [0.9, 0.99], [1.7, 0.94], [2.27, 0.86]],
+    plan: [[-2.39, 0.93], [-1.7, 1], [-0.9, 1], [0.9, 0.99], [1.9, 0.94], [2.39, 0.86]],
     headLamp: 'round2', tailLamp: 'bar', grille: 'mesh', lampD: 0.0, tailD: 0.02, endF: 0.7, endR: 0.35, grilleW: 0.14,
-    dims: { L: 4.542, W: 1.852, H: 1.3 },
+    dims: { L: 4.78, W: 1.852, H: 1.28 },
   },
-  // "Veleno V10": a mid-engine V10 wedge exotic of the Lamborghini Huracan EVO class. Huracan EVO: length 4,520 mm, width 1,933 mm, height 1,165 mm, wheelbase 2,620 mm
-  // (published figures; the search returned the STO's 4,459 x 1,924 mm and the weights), dry weight 1,422 kg, 5.2 V10 470 kW (640 hp), 0-100 km/h 2.9 s (AWD) / 3.3 s (RWD), top speed 325 km/h.
-  // Sources: https://lamborghini.com/en-en/history/huracan-evo-rwd , https://lambocars.com/huracan-evo-rwd-specs-performance/ , https://www.ultimatecarpage.com/spec/7516/Lamborghini-Huracan-EVO.html , https://cars-data.com/en/lamborghini/huracan/2014/evo-5-2-v10--105298/specs
+  // "Veleno V10": a mid-engine wedge exotic: a nose barely knee high, a windshield that runs from the bumper to the roof, side intakes behind the
+  // door and a high, flat tail with a wing. 4.52 m long, 1.93 m wide, 1.165 m high, wheelbase 2.62 m.
   exotic: {
     Lref: 4.52, Href: 1.165,
     sill: 0.1, wheelR: 0.35, wheelW: 0.3,
     axle: 1.31,
     secs: [
-      [-2.26, 0.76, 0.72, 0.9],
-      [-2.1, 0.88, 0.8, 0.9],
-      [-1.8, 0.94, 0.84, 0.88],
-      [-1.3, 0.97, 0.86, 0.84],
-      [-0.8, 1.0, 0.88, 0.8],
-      [-0.35, 1.1, 0.92, 0.72],
-      [0.05, 1.165, 0.96, 0.66],
-      [0.45, 1.14, 0.96, 0.68],
-      [0.85, 0.98, 0.9, 0.84],
-      [1.25, 0.8, 0.78, 0.92],
-      [1.7, 0.74, 0.72, 0.93],
-      [2.0, 0.68, 0.66, 0.92],
-      [2.26, 0.62, 0.58, 0.88],
+      [-2.26, 0.93, 0.89, 0.9],
+      [-2.1, 0.97, 0.92, 0.9],
+      [-1.7, 0.99, 0.93, 0.86],
+      [-1.2, 1.02, 0.94, 0.8],
+      [-0.7, 1.1, 0.95, 0.72],
+      [-0.3, 1.14, 0.96, 0.66],
+      [0.1, 1.16, 0.97, 0.64],
+      [0.5, 1.06, 0.96, 0.72],
+      [1.15, 0.74, 0.72, 0.9],
+      [1.5, 0.62, 0.6, 0.93],
+      [1.9, 0.53, 0.5, 0.94],
+      [2.26, 0.45, 0.41, 0.9],
     ],
-    windshield: [1.2, 0.4],
-    doorGlass: [[0.9, -0.1], [-0.18, -0.6]],
-    bPillar: [-0.1, -0.18],
-    rearGlass: [-0.65, -0.9],
-    seams: [0.86, -0.12, -0.7],
-    handles: [0.3],
-    hoodBack: 1.2,
+    windshield: [1.15, 0.2],
+    doorGlass: [[0.8, -0.2]],
+    bPillar: [-0.2, -0.3],
+    rearGlass: [-0.35, -1.3],
+    seams: [0.84, -0.25, -0.8],
+    handles: [0.15],
+    hoodBack: 1.15,
     clad: 11,
-    rails: false, spoiler: false, maxGap: 0.3, archN: 6,
+    rails: false, spoiler: true, wing: 'gt', hatchback: true, maxGap: 0.3, archN: 6,
     bumperY: 0.26, bumperH: 0.18,
     plan: [[-2.26, 0.9], [-1.7, 1], [-0.9, 1], [0.9, 1], [1.7, 0.95], [2.26, 0.84]],
     headLamp: 'angular', tailLamp: 'lshape', grille: 'wedge', lampD: 0.1, tailD: 0.05, endF: 0.45, endR: 0.2, grilleW: 0.55,
     dims: { L: 4.52, W: 1.933, H: 1.165 },
   },
-  // "Kaze RB": a JDM tuner coupe of the Toyota GR Supra (A90) class: length 4,380 mm, width 1,853-1,865 mm, height about 1,290-1,300 mm, wheelbase 2,470 mm,
-  // kerb weight 1,395-1,528 kg (3.0 about 1,495 kg), 3.0 turbo inline-six 250-320 kW, 0-100 km/h about 4.3-4.4 s (0-60 mph 4.1 s), top speed 250 km/h (limited; 270 on the Final Edition), 19 in wheels.
-  // Sources: https://auto-data.net/en/toyota-supra-v-a90-gr-3.0-382hp-automatic-46688 , https://parkers.co.uk/toyota/gr-supra/coupe-2019/specs , https://dimensions.com/element/toyota-gr-supra-a90-a91 , https://autotijd.be/en/dimensions/toyota/supra/a90-final-edition-manual-5038
+  // "Kaze RB": a boxy 90s Japanese tuner coupe: flat low bonnet, a long flat roof, a steep liftback and a tall wing on a flat high tail.
+  // 4.38 m long, 1.87 m wide, 1.29 m high, wheelbase 2.47 m.
   jdmcoupe: {
     Lref: 4.38, Href: 1.29,
     sill: 0.14, wheelR: 0.345, wheelW: 0.275,
     axle: 1.235,
     secs: [
-      [-2.19, 0.9, 0.86, 0.9],
-      [-2.05, 0.98, 0.92, 0.9],
-      [-1.8, 1.02, 0.96, 0.86],
-      [-1.4, 1.14, 1.0, 0.8],
-      [-0.9, 1.27, 1.0, 0.74],
-      [-0.35, 1.29, 1.0, 0.7],
-      [0.1, 1.24, 1.0, 0.72],
-      [0.45, 1.12, 1.0, 0.82],
-      [0.75, 1.02, 0.98, 0.9],
-      [1.1, 0.96, 0.92, 0.93],
-      [1.5, 0.92, 0.88, 0.93],
-      [1.85, 0.86, 0.82, 0.93],
-      [2.19, 0.78, 0.72, 0.9],
+      [-2.19, 0.98, 0.94, 0.9],
+      [-2.05, 1.03, 0.99, 0.88],
+      [-1.7, 1.04, 1.0, 0.84],
+      [-1.45, 1.04, 1.0, 0.82],
+      [-1.0, 1.26, 1.0, 0.76],
+      [-0.5, 1.29, 1.0, 0.73],
+      [0.0, 1.285, 1.0, 0.74],
+      [0.15, 1.25, 1.0, 0.78],
+      [0.7, 0.94, 0.92, 0.9],
+      [0.85, 0.9, 0.88, 0.92],
+      [1.3, 0.84, 0.82, 0.94],
+      [1.85, 0.78, 0.74, 0.94],
+      [2.19, 0.68, 0.64, 0.9],
     ],
-    windshield: [0.75, 0.05],
-    doorGlass: [[0.62, -0.3], [-0.38, -0.95]],
+    windshield: [0.75, 0.1],
+    doorGlass: [[0.55, -0.3], [-0.38, -0.95]],
     bPillar: [-0.3, -0.38],
-    rearGlass: [-1.0, -1.7],
-    seams: [0.64, -0.34, -1.0],
+    rearGlass: [-1.0, -1.45],
+    seams: [0.6, -0.34, -1.0],
     handles: [0.2],
-    hoodBack: 0.78,
+    hoodBack: 0.75,
     clad: 11,
-    rails: false, spoiler: true, hatchback: true, maxGap: 0.3, archN: 6,
+    rails: false, spoiler: true, wing: 'gt', hatchback: true, maxGap: 0.3, archN: 6,
     bumperY: 0.3, bumperH: 0.2,
-    plan: [[-2.19, 0.9], [-1.6, 0.99], [-0.9, 1], [0.9, 1], [1.7, 0.98], [2.19, 0.9]],
-    headLamp: 'slit', tailLamp: 'loop', grille: 'mesh', lampD: 0.0, tailD: 0.03, endF: 0.5, endR: 0.3, grilleW: 0.5,
+    plan: [[-2.19, 0.94], [-1.6, 1], [-0.9, 1], [0.9, 1], [1.8, 0.99], [2.19, 0.94]],
+    headLamp: 'slit', tailLamp: 'loop', grille: 'mesh', lampD: 0.0, tailD: 0.03, endF: 0.35, endR: 0.15, grilleW: 0.5,
     dims: { L: 4.38, W: 1.865, H: 1.29 },
   },
-  // "Rallye GT": a hot hatch of the Honda Civic Type R (FL5) class, front-wheel drive: length 4,594 mm, width 1,890 mm, height 1,401 mm, wheelbase 2,734 mm,
-  // kerb weight 1,405-1,446 kg, 2.0 turbo four 243 kW (329 hp), 0-100 km/h 5.4 s, top speed 275 km/h, 265/30 R19 tyres.
-  // Sources: https://www.vehiclesizes.com/cars/honda/civic-type-r/civic-type-r-fl5-hatchback-2023 , https://www.dimensions.com/element/honda-civic-type-r-fl5-6th-gen , https://www.auto-data.net/en/honda-civic-type-r-fl5-2.0-329hp-48467 , https://www.honda.co.uk/cars/new/civic-type-r/specifications.html
+  // "Rallye GT": an upright, short hot hatch: tall roof, short bonnet, near-vertical tailgate with a roof spoiler. 4.2 m long, 1.89 m wide, 1.46 m high, wheelbase 2.5 m.
   hothatch: {
-    Lref: 4.594, Href: 1.401,
+    Lref: 4.2, Href: 1.46,
     sill: 0.15, wheelR: 0.355, wheelW: 0.265,
-    axle: 1.367,
+    axle: 1.25,
     secs: [
-      [-2.3, 1.0, 0.94, 0.9],
-      [-2.15, 1.1, 1.04, 0.9],
-      [-1.95, 1.22, 1.08, 0.86],
-      [-1.55, 1.37, 1.1, 0.8],
-      [-1.2, 1.4, 1.1, 0.76],
-      [-0.5, 1.401, 1.1, 0.74],
-      [0.1, 1.385, 1.1, 0.74],
-      [0.5, 1.28, 1.1, 0.8],
-      [0.85, 1.12, 1.06, 0.9],
-      [1.2, 1.03, 1.0, 0.93],
-      [1.7, 0.98, 0.94, 0.93],
-      [2.0, 0.92, 0.88, 0.93],
-      [2.3, 0.82, 0.78, 0.9],
+      [-2.1, 1.12, 1.06, 0.92],
+      [-2.0, 1.24, 1.1, 0.9],
+      [-1.9, 1.26, 1.1, 0.88],
+      [-1.65, 1.44, 1.1, 0.8],
+      [-1.3, 1.46, 1.1, 0.76],
+      [-0.5, 1.46, 1.1, 0.74],
+      [0.2, 1.45, 1.1, 0.74],
+      [0.4, 1.38, 1.1, 0.78],
+      [0.95, 1.04, 1.02, 0.9],
+      [1.3, 0.97, 0.94, 0.93],
+      [1.7, 0.9, 0.86, 0.94],
+      [2.1, 0.76, 0.72, 0.9],
     ],
-    windshield: [0.9, 0.25],
-    doorGlass: [[0.75, -0.1], [-0.18, -0.95], [-1.02, -1.45]],
-    bPillar: [-0.1, -0.18],
-    rearGlass: [-1.6, -2.12],
-    seams: [0.78, -0.14, -1.0],
-    handles: [0.2, -0.6],
-    hoodBack: 0.92,
+    windshield: [0.95, 0.35],
+    doorGlass: [[0.8, -0.05], [-0.12, -0.95], [-1.0, -1.5]],
+    bPillar: [-0.05, -0.12],
+    rearGlass: [-1.65, -1.9],
+    seams: [0.84, -0.08, -1.0],
+    handles: [0.25, -0.5],
+    hoodBack: 0.95,
     clad: 11,
-    rails: false, spoiler: true, hatchback: true, maxGap: 0.3, archN: 6, endT: [0, 1],
+    rails: false, spoiler: true, wing: 'hatch', hatchback: true, maxGap: 0.3, archN: 6, endT: [0, 1],
     bumperY: 0.32, bumperH: 0.22,
-    plan: [[-2.3, 0.92], [-1.8, 0.99], [-0.9, 1], [0.9, 1], [1.8, 0.99], [2.3, 0.92]],
-    headLamp: 'blade', tailLamp: 'loop', grille: 'mesh', lampD: 0.08, tailD: 0.05, endF: 0.4, endR: 0.2, grilleW: 0.6,
-    dims: { L: 4.594, W: 1.89, H: 1.401 },
+    plan: [[-2.1, 0.94], [-1.7, 1], [-0.9, 1], [0.9, 1], [1.7, 0.99], [2.1, 0.94]],
+    headLamp: 'blade', tailLamp: 'loop', grille: 'mesh', lampD: 0.08, tailD: 0.05, endF: 0.4, endR: 0.12, grilleW: 0.6,
+    dims: { L: 4.2, W: 1.89, H: 1.46 },
   },
-  // "Brawler SRT": a modern muscle coupe of the Dodge Challenger SRT Hellcat class: length 197.5 in (5.016 m), width 75.7 in (1.923 m), height 57.2 in (1.453 m), wheelbase 116.2 in (2.952 m),
-  // curb weight about 4,415-4,430 lb (2,000 kg), supercharged 6.2 V8 527 kW (717 hp), 0-60 mph about 3.6-4.5 s (we use 3.8 s to 100 km/h), top speed 191-200 mph, 20 in wheels.
-  // Sources: https://specs2.auto123.com/en/specs/dodge/challenger/dodge-challenger-2022-srt-hellcat-pa-425272 , https://www.motormatchup.com/catalog/Dodge/Challenger/2021/SRT-Hellcat-RWD , https://news.dupontregistry.com/dodge/challenger-hellcat-specs-price-photos-review
+  // "Brawler SRT": a muscle coupe: tall, blunt, flat bonnet, a short glasshouse set far back, a short high deck and a kicked-up rear haunch.
+  // 5.02 m long, 1.92 m wide, 1.45 m high, wheelbase 2.95 m.
   muscle: {
     Lref: 5.016, Href: 1.453,
     sill: 0.17, wheelR: 0.36, wheelW: 0.295,
     axle: 1.476,
     secs: [
-      [-2.51, 1.02, 1.0, 0.92],
-      [-2.4, 1.12, 1.06, 0.92],
-      [-2.0, 1.2, 1.12, 0.88],
-      [-1.55, 1.28, 1.12, 0.82],
-      [-1.2, 1.4, 1.12, 0.76],
-      [-0.5, 1.453, 1.12, 0.72],
-      [0.0, 1.44, 1.12, 0.73],
-      [0.45, 1.3, 1.12, 0.8],
-      [0.85, 1.14, 1.1, 0.9],
-      [1.3, 1.1, 1.06, 0.95],
-      [1.9, 1.1, 1.04, 0.96],
-      [2.3, 1.04, 0.98, 0.95],
-      [2.51, 0.96, 0.9, 0.94],
+      [-2.508, 1.16, 1.12, 0.93],
+      [-2.38, 1.24, 1.2, 0.93],
+      [-2.0, 1.27, 1.22, 0.9],
+      [-1.5, 1.25, 1.2, 0.84],
+      [-1.35, 1.26, 1.2, 0.82],
+      [-0.85, 1.4, 1.17, 0.78],
+      [-0.4, 1.44, 1.14, 0.73],
+      [0.2, 1.42, 1.12, 0.73],
+      [0.5, 1.32, 1.12, 0.8],
+      [0.9, 1.15, 1.12, 0.92],
+      [1.4, 1.14, 1.1, 0.96],
+      [2.0, 1.12, 1.06, 0.96],
+      [2.508, 1.0, 0.94, 0.94],
     ],
-    windshield: [0.85, 0.2],
-    doorGlass: [[0.7, -0.5], [-0.58, -1.1]],
-    bPillar: [-0.55, -0.62],
-    rearGlass: [-1.12, -1.6],
-    seams: [0.92, -0.6, -1.18],
+    windshield: [0.9, 0.2],
+    doorGlass: [[0.7, -0.45], [-0.52, -1.05]],
+    bPillar: [-0.45, -0.52],
+    rearGlass: [-0.85, -1.35],
+    seams: [0.92, -0.48, -1.1],
     handles: [-0.3],
-    hoodBack: 0.88,
+    hoodBack: 0.9,
     clad: 11,
-    rails: false, spoiler: false, maxGap: 0.3, archN: 6,
+    rails: false, spoiler: true, wing: 'lip', maxGap: 0.3, archN: 6,
     bumperY: 0.36, bumperH: 0.24,
-    plan: [[-2.51, 0.93], [-1.9, 0.99], [-0.9, 1], [0.9, 1], [1.9, 0.99], [2.51, 0.94]],
+    plan: [[-2.508, 0.95], [-1.9, 1.03], [-1.3, 1.03], [-0.9, 1], [0.9, 1], [1.9, 0.99], [2.508, 0.94]],
     headLamp: 'round2', tailLamp: 'bar', grille: 'bigbar', lampD: 0.0, tailD: 0.03, endF: 0.35, endR: 0.3, grilleW: 0.75,
     dims: { L: 5.016, W: 1.923, H: 1.453 },
   },
-  // "Slab 1": satire of an electric stainless wedge pickup (Tesla Cybertruck class, a deliberately blunt parody): length 223.7 in (5.683 m), width 80 in (2.03 m, without mirrors),
-  // height 70.5 in (1.79 m), wheelbase 143.1 in (3.635 m), curb weight 6,634 lb (3,010 kg), dual-motor AWD 4.1 s 0-60 mph (0-100 km/h about 4.5 s), 180 km/h (112 mph) limited.
-  // Sources: https://www.kbb.com/tesla/cybertruck/2026/specs/ , https://www.arenaev.com/tesla_cybertruck_all_wheel_drive-specs-55.php , https://www.evspecifications.com/en/model/f02c2d3 , https://www.basenor.com/pages/cybertruck-dimensions
+  // "Slab 1": satire of an electric stainless wedge pickup: flat panels, one straight line from the nose to the roof peak, one straight line down
+  // to the bed. 5.68 m long, 2.03 m wide, 1.79 m high, wheelbase 3.64 m.
   wedgetruck: {
     Lref: 5.683, Href: 1.79,
     sill: 0.3, wheelR: 0.4, wheelW: 0.285,
     axle: 1.8175,
     secs: [
-      [-2.84, 1.2, 1.15, 0.97],
-      [-2.4, 1.24, 1.16, 0.96],
-      [-1.6, 1.32, 1.17, 0.95],
-      [-1.0, 1.5, 1.2, 0.9],
-      [-0.4, 1.7, 1.24, 0.8],
-      [0.3, 1.79, 1.25, 0.72],
-      [1.1, 1.58, 1.2, 0.8],
-      [1.7, 1.3, 1.15, 0.9],
-      [2.2, 1.1, 1.0, 0.94],
-      [2.6, 0.96, 0.9, 0.94],
+      [-2.84, 1.22, 1.17, 0.97],
+      [-2.0, 1.27, 1.21, 0.96],
+      [-1.3, 1.3, 1.24, 0.94],
+      [-1.1, 1.33, 1.26, 0.92],
+      [-0.9, 1.4, 1.27, 0.88],
+      [-0.5, 1.534, 1.27, 0.84],
+      [-0.1, 1.67, 1.26, 0.78],
+      [0.25, 1.79, 1.25, 0.72],
+      [0.6, 1.668, 1.22, 0.78],
+      [1.0, 1.527, 1.2, 0.84],
+      [1.5, 1.351, 1.17, 0.9],
+      [2.0, 1.176, 1.12, 0.95],
+      [2.4, 1.035, 0.99, 0.96],
       [2.84, 0.88, 0.84, 0.92],
     ],
     windshield: [2.0, 0.45],
-    doorGlass: [[0.35, -0.4], [-0.46, -1.1]],
-    bPillar: [-0.4, -0.46],
+    doorGlass: [[1.4, -0.3], [-0.4, -1.1]],
+    bPillar: [-0.3, -0.4],
     rearGlass: null,
-    seams: [0.4, -0.43, -1.15],
-    handles: [-0.1],
+    seams: [1.45, -0.35, -1.15],
+    handles: [0.5, -0.7],
     hoodBack: 2.0,
     clad: 11,
-    rails: false, spoiler: false, hatchback: true, maxGap: 0.9, archN: 5, endT: [0, 1],
+    rails: false, spoiler: false, flat: true, hatchback: true, maxGap: 0.5, archN: 5, endT: [0, 1],
     bumperY: 0.46, bumperH: 0.26,
     plan: [[-2.84, 0.97], [-2.0, 1], [2.0, 1], [2.84, 0.82]],
     headLamp: 'blade', tailLamp: 'bar', grille: 'wedge', lampD: 0.02, tailD: 0.02, endF: 0.1, endR: 0.05, grilleW: 0.2,
     dims: { L: 5.683, W: 2.03, H: 1.79 },
   },
-  // "Volta E": an electric sedan of the Tesla Model 3 class (2025 Performance), dual-motor AWD: length 185.8 in (4.72 m), width 72.8 in (1.85 m, without mirrors), height 56.3 in (1.43 m),
-  // wheelbase 113.2 in (2.875 m), curb weight 4,054 lb (1,840 kg), 0-60 mph 2.9 s (0-100 km/h about 3.1 s), top speed 163 mph (260 km/h; sim figure 225 km/h class), 18-20 in wheels.
-  // Sources: https://www.tesla.com/model3 , https://www.evspecifications.com/en/model/fa873dc , https://greencarscompare.com/compare/cars/tesla-model-3-performance/ , https://www.evspecs.org/tech-specs/tesla/model-3-2017-2023/performance
+  // "Volta E": a smooth electric sedan: one flowing arc from the low nose over a glass roof to a short fastback tail. 4.72 m long, 1.85 m wide, 1.43 m high, wheelbase 2.88 m.
   evsedan: {
     Lref: 4.72, Href: 1.43,
     sill: 0.16, wheelR: 0.34, wheelW: 0.235,
     axle: 1.4375,
     secs: [
       [-2.36, 0.98, 0.94, 0.92],
-      [-2.2, 1.1, 1.0, 0.92],
-      [-1.9, 1.2, 1.04, 0.88],
-      [-1.5, 1.32, 1.06, 0.82],
-      [-1.0, 1.4, 1.06, 0.76],
-      [-0.4, 1.43, 1.06, 0.74],
-      [0.2, 1.4, 1.06, 0.75],
-      [0.7, 1.26, 1.06, 0.82],
-      [1.1, 1.08, 1.04, 0.9],
-      [1.6, 0.96, 0.92, 0.93],
-      [2.1, 0.86, 0.82, 0.93],
-      [2.36, 0.78, 0.74, 0.9],
+      [-2.2, 1.0, 0.95, 0.92],
+      [-1.85, 1.03, 0.96, 0.9],
+      [-1.4, 1.14, 0.97, 0.84],
+      [-0.8, 1.32, 1.0, 0.78],
+      [-0.25, 1.41, 1.02, 0.74],
+      [0.15, 1.43, 1.04, 0.73],
+      [0.5, 1.36, 1.04, 0.77],
+      [1.0, 1.1, 1.04, 0.88],
+      [1.3, 0.95, 0.92, 0.92],
+      [1.8, 0.84, 0.8, 0.94],
+      [2.1, 0.74, 0.7, 0.93],
+      [2.36, 0.62, 0.58, 0.9],
     ],
-    windshield: [1.1, 0.45],
+    windshield: [1.0, 0.25],
     doorGlass: [[0.95, 0.2], [0.1, -0.95]],
     bPillar: [0.2, 0.1],
-    rearGlass: [-1.0, -1.85],
+    rearGlass: [-0.8, -1.9],
     seams: [0.96, 0.15, -0.98],
     handles: [0.5, -0.5],
-    hoodBack: 1.1,
+    hoodBack: 1.0,
     clad: 11,
-    rails: false, spoiler: false, maxGap: 0.3, archN: 6,
+    rails: false, spoiler: true, wing: 'lip', glassRoof: true, maxGap: 0.3, archN: 6,
     bumperY: 0.34, bumperH: 0.22,
     plan: [[-2.36, 0.93], [-1.8, 0.99], [-0.9, 1], [0.9, 1], [1.8, 0.99], [2.36, 0.92]],
     headLamp: 'blade', tailLamp: 'bar', grille: 'wedge', lampD: 0.1, tailD: 0.04, endF: 0.8, endR: 0.3, grilleW: 0.12,
@@ -1619,7 +1646,7 @@ const rect = (cx: number, cy: number, w: number, h: number): [number, number][] 
  * One lamp of a pair, right-hand side, ready to `addBoth`: lens shapes (emissive mesh) and the dark housing behind (trim).
  * Faces forward (front = true, -z) or back (+z) at `pos` on the fascia, turned by `yaw`. Local shapes are centred on the lamp.
  */
-function lampPieces(kind: string, front: boolean, pos: THREE.Vector3, yaw: number, k = 1): { lens: THREE.BufferGeometry[]; housing: THREE.BufferGeometry[] } {
+function lampPieces(kind: string, front: boolean, pos: THREE.Vector3, yaw: number, k = 1): { lens: THREE.BufferGeometry[]; housing: THREE.BufferGeometry[]; rim: THREE.BufferGeometry[] } {
   const D = 0.03;
   let lens: [number, number][][] = [];
   let lensHoles: [number, number][][][] = [];
@@ -1648,9 +1675,11 @@ function lampPieces(kind: string, front: boolean, pos: THREE.Vector3, yaw: numbe
     g.rotateY(yaw);
     return g.translate(pos.x, pos.y, pos.z);
   };
+  const rimPts = hous.map(([x, y]) => [x * 1.08, y * 1.12] as [number, number]);
   return {
     lens: lens.map((pts, k) => place(shapeGeo(pts, D, lensHoles[k] ?? []), 0.01)),
-    housing: [place(shapeGeo(hous, 0.012), 0.002)],
+    housing: [place(shapeGeo(hous, 0.012), 0.004)],
+    rim: [place(shapeGeo(rimPts, 0.008), -0.002)],
   };
 }
 
@@ -1688,7 +1717,7 @@ const WRAP_LAMPS: Record<string, { lens: LampStrip[]; housing: LampStrip }> = {
  * Builds a wrapped lamp. `plan(d)` is the body half-width d metres from the tip; the lamp starts at half-width `xIn` on the end face, runs
  * out to the corner and back along the side. `yc` is the lamp centre height, `k` stretches it vertically (tall lamps).
  */
-function wrapLamp(kind: string, front: boolean, tipU: number, plan: (d: number) => number, xIn: number, yc: number, k = 1): { lens: THREE.BufferGeometry[]; housing: THREE.BufferGeometry[] } {
+function wrapLamp(kind: string, front: boolean, tipU: number, plan: (d: number) => number, xIn: number, yc: number, k = 1): { lens: THREE.BufferGeometry[]; housing: THREE.BufferGeometry[]; rim: THREE.BufferGeometry[] } {
   const spec = WRAP_LAMPS[kind];
   // plan polyline in (x, d): along the end face to the corner, then the curve
   const pl: [number, number][] = [[xIn, 0]];
@@ -1696,7 +1725,8 @@ function wrapLamp(kind: string, front: boolean, tipU: number, plan: (d: number) 
   for (let d = 0.02; d <= 1.2; d += 0.02) if (plan(d) > pl[pl.length - 1][0] - 1e-6) pl.push([plan(d), d]);
   const cum = [0];
   for (let i = 1; i < pl.length; i++) cum.push(cum[i - 1] + Math.hypot(pl[i][0] - pl[i - 1][0], pl[i][1] - pl[i - 1][1]));
-  const build = (st: LampStrip, off: number): THREE.BufferGeometry => {
+  const build = (st0: LampStrip, off: number, grow = 0): THREE.BufferGeometry => {
+    const st: LampStrip = grow === 0 ? st0 : { s: st0.s.map((v, i) => (i === 0 ? v - grow : i === st0.s.length - 1 ? v + grow : v)), lo: st0.lo.map((v) => v - grow * k), hi: st0.hi.map((v) => v + grow * k) };
     const pos: number[] = [];
     const pt = (sKnot: number, y: number): [number, number, number] => {
       const sa = clamp(sKnot, 0, cum[cum.length - 1]);
@@ -1727,7 +1757,7 @@ function wrapLamp(kind: string, front: boolean, tipU: number, plan: (d: number) 
     }
     return g;
   };
-  return { lens: spec.lens.map((l) => build(l, 0.02)), housing: [build(spec.housing, 0.01)] };
+  return { lens: spec.lens.map((l) => build(l, 0.02)), housing: [build(spec.housing, 0.012)], rim: [build(spec.housing, 0.005, 0.01)] };
 }
 
 export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: VehicleSpec, refine: 1 | 2 = 2): CarParts {
@@ -1766,7 +1796,7 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     const drop = 0.05 * (1 - g);
     let yBot = st.sill;
     for (const ax of [axleF, axleR]) yBot = Math.max(yBot, archY(arch, u - ax));
-    yBot = Math.max(yBot, st.sill + (front ? 0.2 : 0.12) * (1 - t) * (1 - t));
+    yBot = Math.max(yBot, st.sill + (front ? st.noseLift ?? 0.2 : st.tailLift ?? 0.12) * (1 - t) * (1 - t));
     const yBelt = fyBelt(u) - drop;
     // greenhouse: the windshield and the rear window are each one planar, raked surface (straight line between the cowl and the header),
     // so the glass is a flat pane with crisp edges instead of a bent, rounded-over sheet
@@ -1780,7 +1810,7 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     const yT = yTu - drop;
     yBot = Math.min(yBot, yBelt - 0.13);
     const wMax = Wb2 * (0.6 + 0.4 * g) * planAt(u / kx);
-    return { yT, yBelt, yBot, wMax, wR: fwR(u) * wMax, yGl: st.glassTop === undefined ? undefined : st.glassTop * ky };
+    return { yT, yBelt, yBot, wMax, wR: fwR(u) * wMax, yGl: st.glassTop === undefined ? undefined : st.glassTop * ky, flat: st.flat };
   };
 
   // ---- window layout in real metres
@@ -1801,6 +1831,7 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     if (bed && um <= bed.u0 && j <= 5) return 'none'; // pickup: the open bed
     const inW = inI(um, ws);
     if ((inW || (rg && inI(um, rg))) && j <= 1) return 'glass';
+    if (st.glassRoof && rg && um < ws[1] && um > rg[0] && j <= 1) return 'glass'; // electric sedan: the roof panel is glass
     if (inI(um, bp) && j >= 3 && j <= 5) return 'dark';
     if (j >= 3 && j <= 5) {
       if (doors.some((d) => inI(um, d))) {
@@ -1809,6 +1840,12 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
       }
     }
     if (j === 11) return 'none'; // underside, covered by the pan
+    // integral bumpers (CARS2): the lowest side quads of the nose and tail are the dark valance (as many as the ring is low enough to take)
+    if (j >= 9 && (um >= tipF - 0.42 || um <= tipR + 0.34)) {
+      const rr = ring(um);
+      const hh = rr.yBelt - rr.yBot;
+      if (j >= (hh * 0.58 <= 0.3 ? 9 : hh * 0.2 <= 0.22 ? 10 : 11)) return 'dark';
+    }
     if (j === 10) {
       if (Math.abs(um - axleF) < arch.halfChord + 0.05 || Math.abs(um - axleR) < arch.halfChord + 0.05) return 'dark';
       if (Math.abs(um) < axleF) return 'dark';
@@ -1823,7 +1860,14 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
   for (const ax of [axleF, axleR]) want.push(...archStations(arch, ax, st.archN ?? 4));
   const us = stationList(must, want, (st.maxGap ?? 0.7) * kx);
 
-  const hull = buildLoft({ us, half: (u) => carHalf(ring(u)), creases: [CAR_CREASE], cls, refine });
+  // valance height on the end caps: the lower part of the face (a fraction of its height, 10 to 22 cm) is dark, the rest is body paint
+  const capEnd = (u: number): { yBot: number; yTop: number; cut: number } => {
+    const r = ring(u);
+    const ht = r.yT - r.yBot;
+    return { yBot: r.yBot, yTop: r.yT, cut: r.yBot + clamp(0.45 * ht, 0.1, 0.22) };
+  };
+  const endF = capEnd(tipF), endR = capEnd(tipR);
+  const hull = buildLoft({ us, half: (u) => carHalf(ring(u)), creases: [CAR_CREASE], cls, refine, capCut: [endR.cut, endF.cut] });
   const sideX = (u: number, y: number): number => {
     const h = carHalf(ring(u));
     for (let j = 7; j < 11; j++) {
@@ -1937,67 +1981,96 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     trim.add(bx(2 * rw.wR * 0.9, 0.01, 0.03, 0, rw.yT + 0.006, -(ws[0] + 0.015))); // cowl strip: windshield width, thin
   }
 
-  // ---- front / rear fascia
+  // ---- front / rear fascia (CARS2)
+  // The bumpers are part of the body: a body-colour upper cover and a dark lower valance cut into the end caps and the lowest side quads
+  // (see `cls` and `capCut`), so nothing stands off the car. Older cars (`chromeBumper`) add a chrome bar that hugs the face at the cut line.
   const trF = ring(tipF);
   const trR = ring(tipR);
   const bumperZ = L / 2;
-  // CARS14: the bumper blends into the body corners instead of standing off as a plank: its width follows the hull's own width a
-  // little behind the tip (the nose / tail taper), and it is shallower; the front-most point stays where the old block ended.
-  // Existing types keep the old plank unless their hull is clearly narrower there (then it shrinks to the hull).
-  const bumpW = (tip: number, dir: number): number => 2 * Math.min(Wb2 * 0.88, ring(tip - dir * 0.14).wMax * 0.97);
-  const bDepth = isCars14(type) ? 0.13 : 0.2;
-  trim.add(bumperGeo(bumpW(tipF, 1), bDepth, st.bumperH, st.bumperY, -(bumperZ - bDepth), false));
-  trim.add(bumperGeo(bumpW(tipR, -1), bDepth, st.bumperH, st.bumperY, bumperZ - bDepth, true));
-  // lower intake slot + fog lamps (front)
-  const intakeW = st.grille === 'mesh' ? 0.74 : st.grille === 'wedge' ? 0.66 : st.grille === 'bars' ? 0.34 : 0.5;
-  trim.add(bx(2 * Wb2 * intakeW, st.grille === 'mesh' ? 0.09 : 0.07, 0.02, 0, st.bumperY - 0.03, -(bumperZ + 0.004)));
-  if (st.grille === 'mesh') chrome.add(bx(2 * Wb2 * intakeW + 0.04, 0.012, 0.016, 0, st.bumperY + 0.03, -(bumperZ + 0.012))); // splitter lip line
-  if (st.grille === 'wedge') trim.add(bx(2 * Wb2 * 0.4, 0.05, 0.02, 0, st.bumperY + 0.07, -(bumperZ + 0.004))); // stepped trapezoid intake
-  for (const s of st.rails || st.mirror ? [] : [-1, 1]) { // the SUV's tall bumper carries no fog lamps (triangle budget)
-    chrome.add(new THREE.CircleGeometry(0.045, 8).rotateY(Math.PI).translate(s * (Wb2 * 0.78), st.bumperY - 0.02, -(bumperZ + 0.004)));
-  }
-  // grille: dark panel, two chrome slats, chrome surround, badge
-  const gW = trF.wMax * (st.grilleW ?? 0.8);
-  const gH = 0.17;
-  const gY = trF.yT - 0.13;
-  const gZ = -(tipF + 0.006);
-  trim.add(bx(2 * gW, gH, 0.016, 0, gY, gZ));
-  if (st.grille === 'bars') {
-    for (let k = -4; k <= 4; k++) chrome.add(bx(0.012, gH - 0.02, 0.014, k * (gW * 0.22), gY, gZ - 0.01)); // upright chrome bars
-  } else if (st.grille === 'mesh') {
-    chrome.add(bx(2 * gW - 0.04, 0.02, 0.014, 0, gY, gZ - 0.01)); // one bar across a black mesh
-  } else if (st.grille === 'kidney') {
-    for (const sx2 of [-1, 1]) { // twin kidney grilles: a chrome frame with vertical dark slats
-      const cx2 = sx2 * gW * 0.5;
-      chrome.add(bx(gW * 0.9, 0.014, 0.016, cx2, gY + gH / 2 - 0.01, gZ - 0.01));
-      chrome.add(bx(gW * 0.9, 0.014, 0.016, cx2, gY - gH / 2 + 0.01, gZ - 0.01));
-      chrome.add(bx(0.014, gH - 0.02, 0.016, cx2 + sx2 * gW * 0.45, gY, gZ - 0.01));
-      chrome.add(bx(0.014, gH - 0.02, 0.016, cx2 - sx2 * gW * 0.45, gY, gZ - 0.01));
-      for (let k = -1; k <= 1; k++) chrome.add(bx(0.01, gH - 0.05, 0.012, cx2 + k * gW * 0.24, gY, gZ - 0.008));
+  const grey = new Acc();
+  /** half width of the end cap at height y (the widest point of the ring polygon there) */
+  const capHalf = (i: number, y: number): number => {
+    const h = hull.halves[i];
+    let w = 0;
+    for (let j = 0; j < h.length - 1; j++) {
+      const [x0, y0] = h[j], [x1, y1] = h[j + 1];
+      if ((y0 - y) * (y1 - y) <= 0 && y0 !== y1) w = Math.max(w, lerp(x0, x1, (y - y0) / (y1 - y0)));
     }
-  } else if (st.grille === 'bigbar') {
-    for (let k = -1; k <= 1; k += 2) chrome.add(bx(2 * gW, 0.05, 0.02, 0, gY + k * 0.06, gZ - 0.012)); // two fat chrome bars on a black grid
-    chrome.add(bx(2 * gW + 0.06, 0.03, 0.02, 0, gY - 0.17, gZ - 0.008));
-  } else if (st.grille === 'slats') {
-    for (let k = -1; k <= 1; k++) chrome.add(bx(2 * gW - 0.04, 0.02, 0.014, 0, gY + k * (gH / 3), gZ - 0.01)); // three thick slats
-  } else {
-    for (let k = 0; k < 2; k++) chrome.add(bx(2 * gW - 0.04, 0.014, 0.014, 0, gY - gH / 4 + k * (gH / 2), gZ - 0.01));
+    return w;
+  };
+  const front = (w: number, h: number, x: number, y: number, z: number): THREE.BufferGeometry => new THREE.PlaneGeometry(w, h).rotateY(Math.PI).translate(x, y, z);
+  const wF = capHalf(hull.us.length - 1, endF.cut);
+  const wR = capHalf(0, endR.cut);
+  const cutRibbon = (tipZ: number, half: number, cut: number, dirZ: number): void => {
+    if (st.chromeBumper) {
+      // chrome bumper bar: across the face at the cut line, wrapping a little way round each corner
+      chrome.add(bx(2 * half, 0.05, 0.03, 0, cut - 0.02, tipZ + dirZ * 0.014));
+      for (const sg of [-1, 1]) chrome.add(bx(0.03, 0.05, 0.14, sg * (half - 0.005), cut - 0.02, tipZ - dirZ * 0.05));
+    } else {
+      chrome.add(bx(2 * half - 0.02, 0.008, 0.01, 0, cut, tipZ + dirZ * 0.006)); // a thin shut line between the cover and the valance
+    }
+  };
+  cutRibbon(-tipF, wF, endF.cut, -1);
+  cutRibbon(-tipR, wR, endR.cut, 1);
+  // fog lamps in the valance corners
+  const fogOK = !st.rails && !st.mirror && endF.cut - endF.yBot >= 0.12;
+  for (const sg of fogOK ? [-1, 1] : []) {
+    chrome.add(new THREE.CircleGeometry(0.04, 8).rotateY(Math.PI).translate(sg * wF * 0.72, (endF.yBot + endF.cut) / 2 - 0.004, -(tipF + 0.004)));
   }
-  chrome.add(bx(2 * gW + 0.03, 0.014, 0.018, 0, gY + gH / 2 + 0.005, gZ - 0.004));
-  chrome.add(bx(2 * gW + 0.03, 0.014, 0.018, 0, gY - gH / 2 - 0.005, gZ - 0.004));
-  chrome.add(cylZ(0.028, 0.012, 0, gY, gZ - 0.012, 8));
-  // rear: chrome strip over the bumper, exhaust tip
+  // grille: a raised bezel round a dark panel, with the pattern standing 1 cm in front of the panel (flat strips, so the depth costs no triangles)
+  {
+    const capTop = endF.yTop;
+    const gH = clamp(capTop - endF.cut - 0.05, 0.06, 0.17);
+    const gW = trF.wMax * (st.grilleW ?? 0.8);
+    const gY = capTop - 0.03 - gH / 2;
+    const gZ = -tipF;
+    const bz = gZ - 0.008, fw = 0.016;
+    const frame = st.chromeBumper || st.grille === 'bigbar' || st.grille === 'kidney' ? chrome : trim;
+    trim.add(bx(2 * gW, gH, 0.01, 0, gY, gZ - 0.004)); // the dark panel (recessed behind the bezel and the pattern)
+    frame.add(bx(2 * gW + 2 * fw, fw, 0.022, 0, gY + gH / 2 + fw / 2, bz));
+    frame.add(bx(2 * gW + 2 * fw, fw, 0.022, 0, gY - gH / 2 - fw / 2, bz));
+    for (const sg of [-1, 1]) frame.add(bx(fw, gH, 0.022, sg * (gW + fw / 2), gY, bz));
+    const pz = gZ - 0.016;
+    const kind = st.grille ?? 'slats';
+    if (kind === 'mesh') {
+      for (const f of [-0.28, 0.28]) grey.add(front(2 * gW - 0.02, 0.012, 0, gY + f * gH, pz));
+      const n = Math.max(3, Math.round(gW / 0.07));
+      for (let k = -n; k <= n; k++) grey.add(front(0.01, gH - 0.01, (k / n) * (gW - 0.02), gY, pz));
+    } else if (kind === 'bars') {
+      for (let k = -4; k <= 4; k++) chrome.add(front(0.014, gH - 0.012, k * (gW * 0.22), gY, pz));
+    } else if (kind === 'kidney') {
+      for (const sg of [-1, 1]) {
+        for (let k = -2; k <= 2; k++) chrome.add(front(0.012, gH - 0.03, sg * gW * 0.5 + k * gW * 0.17, gY, pz));
+        chrome.add(front(gW * 0.82, 0.012, sg * gW * 0.5, gY, pz));
+      }
+      chrome.add(bx(0.03, gH + 0.02, 0.022, 0, gY, bz)); // centre divider
+    } else if (kind === 'bigbar') {
+      for (const k of [-1, 1]) chrome.add(bx(2 * gW - 0.03, gH * 0.28, 0.018, 0, gY + k * gH * 0.26, pz));
+    } else if (kind === 'wedge') {
+      // an almost closed panel with one fin (the electric look)
+      grey.add(front(2 * gW - 0.04, 0.014, 0, gY - gH * 0.1, pz));
+    } else {
+      for (let k = -1; k <= 1; k++) chrome.add(front(2 * gW - 0.03, gH * 0.16, 0, gY + k * gH * 0.3, pz));
+    }
+    chrome.add(cylZ(0.026, 0.01, 0, gY, pz - 0.004, 8)); // badge
+  }
+  // rear: exhaust tips tucked under the valance (a tip hanging behind the bumper reads as a detached pipe)
   const exX = Wb2 - 0.34;
-  // exhaust tips tucked under the valance (a tip hanging behind the bumper reads as a detached pipe)
-  if (!st.mirror) chrome.add(cylZ(0.04, 0.12, exX, st.bumperY - st.bumperH / 2 + 0.01, bumperZ - 0.24, 8));
-  if (type === 'pony' || type === 'luxury') chrome.add(cylZ(0.04, 0.12, -exX, st.bumperY - st.bumperH / 2 + 0.01, bumperZ - 0.24, 8)); // dual exhaust
-  // CARS14 exotic: big dark side intakes behind the doors (ahead of the rear wheel) and a rear diffuser with fins
+  if (!st.mirror) chrome.add(cylZ(0.04, 0.12, exX, endR.yBot + 0.04, bumperZ - 0.24, 8));
+  if (type === 'pony' || type === 'luxury') chrome.add(cylZ(0.04, 0.12, -exX, endR.yBot + 0.04, bumperZ - 0.24, 8)); // dual exhaust
+  // exotic: a vented side intake behind the door, and a rear diffuser with fins
   if (type === 'exotic') {
     for (const sg of [-1, 1]) {
-      for (const [u0, u1] of [[-0.4, -0.85]] as [number, number][]) {
-        const um = (u0 + u1) / 2;
-        const x = sideX(um, 0.6) * sg + sg * 0.004;
-        trim.add(bx(0.03, 0.2, Math.abs(u1 - u0), x, 0.6, -um));
+      const pts: [number, number][] = [[-0.42, 0.8], [-1.05, 0.72], [-1.05, 0.55], [-0.42, 0.5]];
+      const poly = pts.map(([u, y]) => v3(sideX(u, y) * sg + sg * 0.006, y, -u));
+      const tris = [[poly[0], poly[1], poly[2]], [poly[0], poly[2], poly[3]]].map(([a, b, c]) => (new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a)).x * sg > 0 ? [a, b, c] : [a, c, b])).flat();
+      const g = new THREE.BufferGeometry().setFromPoints(tris);
+      g.computeVertexNormals();
+      trim.add(g);
+      for (let k = 0; k < 4; k++) {
+        const f = 0.2 + k * 0.2;
+        const a = v3(sideX(-0.46, lerp(0.76, 0.54, f)) * sg + sg * 0.012, lerp(0.76, 0.54, f), 0.46), b = v3(sideX(-1.0, lerp(0.7, 0.57, f)) * sg + sg * 0.012, lerp(0.7, 0.57, f), 1.0);
+        grey.add(bx(0.012, 0.016, Math.abs(b.z - a.z), (a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2));
       }
     }
     trim.add(bx(2 * (Wb2 - 0.35), 0.1, 0.22, 0, st.sill + 0.08, bumperZ - 0.16));
@@ -2063,12 +2136,36 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     }
   }
   if (st.spoiler && type !== 'cop' && type !== 'cab') {
-    const uS = tipR + 0.2;
-    const rr = ring(uS);
-    const sp = new THREE.BoxGeometry(2 * (rr.wMax - 0.17), 0.022, 0.13);
-    sp.rotateX(-0.22);
-    sp.translate(0, rr.yT + 0.012, -uS);
-    paint.add(sp);
+    const kind = st.wing ?? 'lip';
+    if (kind === 'lip') {
+      const uS = tipR + 0.2;
+      const rr = ring(uS);
+      const sp = new THREE.BoxGeometry(2 * (rr.wMax - 0.17), 0.022, 0.13);
+      sp.rotateX(-0.22);
+      sp.translate(0, rr.yT + 0.012, -uS);
+      paint.add(sp);
+    } else if (kind === 'gt') {
+      // tall wing: a plate on two uprights above the deck, with end plates (the plate is body colour, the rest black)
+      const uS = tipR + 0.34;
+      const rr = ring(uS);
+      const span = rr.wMax - 0.08, yW = rr.yT + 0.2;
+      const plate = new THREE.BoxGeometry(2 * span, 0.026, 0.24);
+      plate.rotateX(-0.12);
+      plate.translate(0, yW, -uS);
+      paint.add(plate);
+      for (const sg of [-1, 1]) {
+        trim.add(bx(0.03, 0.2, 0.07, sg * (span - 0.22), rr.yT + 0.1, -uS)); // upright
+        trim.add(bx(0.014, 0.09, 0.26, sg * (span + 0.008), yW + 0.02, -uS)); // end plate
+      }
+    } else {
+      // roof spoiler: a short lip off the roof's trailing edge over the tailgate glass
+      const uS = (rg ? rg[0] : tipR + 0.3) - 0.08;
+      const rr = ring(uS);
+      const sp = new THREE.BoxGeometry(2 * (rr.wR - 0.06), 0.026, 0.16);
+      sp.rotateX(-0.3);
+      sp.translate(0, rr.yT + 0.02, -uS);
+      paint.add(sp);
+    }
   }
 
   // ---- cop gear / cab roof light
@@ -2131,10 +2228,12 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     const hp = wrapLamp(st.headLamp, true, tipF, (d) => ring(tipF - d).wMax - 0.012, trF.wMax * (st.grilleW ?? 0.8) + 0.04, st.headY ?? ring(tipF - 0.15).yBelt - 0.14);
     for (const g of hp.lens) head.addBoth(g);
     for (const g of hp.housing) trim.addBoth(g);
+    for (const g of hp.rim) chrome.addBoth(g);
   } else if (st.headLamp) {
     const hp = lampPieces(st.headLamp, true, v3(lx, st.headY ?? lampHeadY, -tipF), -0.22);
     for (const g of hp.lens) head.addBoth(g);
     for (const g of hp.housing) trim.addBoth(g);
+    for (const g of hp.rim) chrome.addBoth(g);
   } else {
     for (const [sx2, yaw] of [[-1, 0.25], [1, -0.25]] as const) head.add(placeLamp(lensGeo(0.14, 0.05, 0.045, true), v3(sx2 * lx, lampHeadY, -tipF), yaw));
   }
@@ -2143,10 +2242,12 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     const tp = wrapLamp(st.tailLamp, false, tipR, (d) => ring(tipR + d).wMax - 0.012, ring(tipR).wMax - (wide ? 0.36 : 0.03), st.tailY ?? (wide ? ring(tipR + 0.1).yT - 0.17 : ring(tipR + 0.1).yT - 0.2), st.glassTop !== undefined ? 2 : 1);
     for (const g of tp.lens) tail.addBoth(g);
     for (const g of tp.housing) trim.addBoth(g);
+    for (const g of tp.rim) grey.addBoth(g);
   } else if (st.tailLamp) {
     const tp = lampPieces(st.tailLamp, false, v3(ltx - 0.1, st.tailY ?? lampTailY, -tipR), 0.2);
     for (const g of tp.lens) tail.addBoth(g);
     for (const g of tp.housing) trim.addBoth(g);
+    for (const g of tp.rim) grey.addBoth(g);
   } else {
     for (const [sx2, yaw] of [[-1, -0.2], [1, 0.2]] as const) tail.add(placeLamp(lensGeo(0.16, 0.045, 0.04, false), v3(sx2 * ltx, lampTailY, -tipR), yaw));
   }
@@ -2155,11 +2256,11 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
   const parts: CarParts = {
     paint: paint.merge(),
     glass: glass.merge(),
-    trim: mergeTrim(trim, chrome),
+    trim: mergeTrim(trim, chrome, grey),
     hood: { geo: hoodGeo, pivot: v3(0, yc, -hoodBackU) },
     lampHead: head.merge(),
     lampTail: tail.merge(),
-    plate: platesGeo([v3(0, st.bumperY, -(bumperZ + 0.003)), v3(0, st.bumperY, bumperZ + 0.003)]),
+    plate: platesGeo([v3(0, (endF.yBot + endF.cut) / 2, -(bumperZ + 0.003)), v3(0, (endR.yBot + endR.cut) / 2, bumperZ + 0.003)]),
     wheels: [],
     wheelR: R,
     wheelW: wTyre,

@@ -137,7 +137,7 @@ describe('shipped people glbs', () => {
 
   it('every shape has hi ~4k, mid ~1.5k, far ~400 triangles, stands on y = 0 at its height, front at -z, weights sum to 1', () => {
     for (const s of shapes) {
-      expect(s.lods.hi.index.length / 3, s.name).toBeGreaterThan(2800); expect(s.lods.hi.index.length / 3).toBeLessThanOrEqual(3700);   // about 3.2k: head 1.3k, hands 0.5k, the rest 1.4k (REGION_BUDGET): GTA III / IV era bodies
+      expect(s.lods.hi.index.length / 3, s.name).toBeGreaterThan(2800); expect(s.lods.hi.index.length / 3).toBeLessThanOrEqual(4000);   // about 3.9k: head 1.5k, hands 0.7k, shoulders 0.4k, the rest 1.25k (REGION_BUDGET): GTA III / IV era bodies
       expect(s.lods.mid.index.length / 3).toBeGreaterThan(800); expect(s.lods.mid.index.length / 3).toBeLessThanOrEqual(1250);
       expect(s.lods.far.index.length / 3).toBeGreaterThan(250); expect(s.lods.far.index.length / 3).toBeLessThanOrEqual(450);
       const b = new THREE.Box3().setFromArray(s.lods.hi.position);
@@ -171,7 +171,7 @@ describe('shipped people glbs', () => {
       expect(new Set(meshes.map((x) => x.material)).size).toBe(1);
       expect(meshes[0].skeleton.bones.length).toBe(12);
       expect(m.triangles).toBeGreaterThan(2500);
-      expect(m.triangles).toBeLessThan(5200); // ~3.2k skin (head 1.3k, hands 0.5k, rest 1.4k) + shoes + hair / hat / hood volumes
+      expect(m.triangles).toBeLessThan(5600); // ~3.9k skin (head 1.5k, hands 0.7k, shoulders 0.4k, rest 1.25k) + shoes, hems, cuffs + hair / hat / hood volumes
       const box = new THREE.Box3().setFromObject(m.group);
       expect(box.max.y).toBeGreaterThan(1.4); expect(box.max.y).toBeLessThan(2.1);
     }

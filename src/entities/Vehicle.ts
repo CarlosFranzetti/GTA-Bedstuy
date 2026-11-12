@@ -1,4 +1,5 @@
 import { hyp } from '@/core/Math2';
+import { lensGlareFactor } from '@/core/CameraClearance';
 import * as THREE from 'three';
 import { buildCarModel, type CarModel } from '@/entities/models/carModel';
 import { lookFor } from '@/entities/models/carLook';
@@ -38,10 +39,10 @@ export const VEHICLE_SPECS: Record<VehicleType, VehicleSpec> = {
   // CARS14 (sources and numbers in the style comments in models/carBodies.ts). Sim top speed is about half the real one, as for the older types;
   // accel is solved so the full-throttle launch to 0.93 x maxSpeed takes 1.3 x the real 0-100 km/h time (electric: flat torque, exponent 3).
   // Drivetrain/torqueBias/electric: see VehicleSpec. Real 0-100 (s): exotic 2.9, evsedan 3.1, muscle 3.8, coupe911 4.2, jdmcoupe 4.4, wedgetruck 4.5, hothatch 5.4.
-  coupe911: { type: 'coupe911', name: 'Sports coupe', length: 4.542, width: 1.852, height: 1.30, maxSpeed: 40.5, accel: 12.3, brakeDecel: 16, maxSteer: 0.6, color: '#c9ccd0', mass: 1520, grip: 1.16, steerRate: 1.2, enginePitch: 1.2, drivetrain: 'rwd', torqueBias: 0.8 },
+  coupe911: { type: 'coupe911', name: 'Sports coupe', length: 4.78, width: 1.852, height: 1.28, maxSpeed: 40.5, accel: 12.3, brakeDecel: 16, maxSteer: 0.6, color: '#c9ccd0', mass: 1520, grip: 1.16, steerRate: 1.2, enginePitch: 1.2, drivetrain: 'rwd', torqueBias: 0.8 },
   exotic: { type: 'exotic', name: 'Supercar', length: 4.52, width: 1.933, height: 1.165, maxSpeed: 45, accel: 19.8, brakeDecel: 19, maxSteer: 0.58, color: '#f2c200', mass: 1500, grip: 1.28, steerRate: 1.2, enginePitch: 1.4, drivetrain: 'awd', torqueBias: 0.65 },
   jdmcoupe: { type: 'jdmcoupe', name: 'Tuner coupe', length: 4.38, width: 1.865, height: 1.29, maxSpeed: 37.5, accel: 10.9, brakeDecel: 15, maxSteer: 0.6, color: '#2e6bd1', mass: 1500, grip: 1.06, steerRate: 1.15, enginePitch: 1.35, drivetrain: 'rwd', torqueBias: 1 },
-  hothatch: { type: 'hothatch', name: 'Hot hatch', length: 4.594, width: 1.89, height: 1.401, maxSpeed: 38, accel: 9.0, brakeDecel: 14.5, maxSteer: 0.64, color: '#d6322a', mass: 1430, grip: 1.09, steerRate: 1.28, enginePitch: 1.3, drivetrain: 'fwd', torqueBias: 0 },
+  hothatch: { type: 'hothatch', name: 'Hot hatch', length: 4.2, width: 1.89, height: 1.46, maxSpeed: 38, accel: 9.0, brakeDecel: 14.5, maxSteer: 0.64, color: '#d6322a', mass: 1430, grip: 1.09, steerRate: 1.28, enginePitch: 1.3, drivetrain: 'fwd', torqueBias: 0 },
   muscle: { type: 'muscle', name: 'Muscle coupe', length: 5.016, width: 1.923, height: 1.453, maxSpeed: 39.5, accel: 14.1, brakeDecel: 15, maxSteer: 0.55, color: '#e0621a', mass: 2000, grip: 0.97, steerRate: 0.86, enginePitch: 0.8, drivetrain: 'rwd', torqueBias: 1 },
   wedgetruck: { type: 'wedgetruck', name: 'Wedge pickup', length: 5.683, width: 2.03, height: 1.79, maxSpeed: 25, accel: 5.8, brakeDecel: 12, maxSteer: 0.5, color: '#b8bcc2', mass: 3000, grip: 0.84, steerRate: 0.72, enginePitch: 0.9, camDist: 0.8, camHeight: 0.4, drivetrain: 'awd', torqueBias: 0.5, electric: true },
   evsedan: { type: 'evsedan', name: 'Electric sedan', length: 4.72, width: 1.85, height: 1.43, maxSpeed: 36, accel: 12.0, brakeDecel: 15, maxSteer: 0.6, color: '#e8e8ea', mass: 1840, grip: 1.12, steerRate: 1.05, enginePitch: 1.0, drivetrain: 'awd', torqueBias: 0.5, electric: true },
@@ -741,12 +742,15 @@ export class Vehicle implements IVehicle {
     this.applyLights();
   }
 
+  /** 0..1: lamps dim when the camera's lens is within a metre of the body (CameraClearance.lensGlare). */
+  private glare = 1;
+
   private applyLights(): void {
     const m = this.model;
     if (!m) return;
     const on = this._headlights;
-    const head = on ? HEAD_ON : 0;
-    const tail = this.braking ? TAIL_BRAKE : on ? TAIL_ON : 0;
+    const head = (on ? HEAD_ON : 0) * this.glare;
+    const tail = (this.braking ? TAIL_BRAKE : on ? TAIL_ON : 0) * this.glare;
     for (const l of m.headlights) (l.material as THREE.MeshStandardMaterial).emissiveIntensity = head;
     for (const l of m.taillights) (l.material as THREE.MeshStandardMaterial).emissiveIntensity = tail;
   }
@@ -860,6 +864,9 @@ export class Vehicle implements IVehicle {
 
     this.updateDamageVisual();
 
+    const g = lensGlareFactor(this.body.pos.x, this.body.pos.z, this.body.heading, this.spec.length, this.spec.width, this.spec.height);
+    if (Math.abs(g - this.glare) > 0.01 || (g !== this.glare && (g === 0 || g === 1))) { this.glare = g; this.applyLights(); }
+
     const bar = this.model.lightbar;
     if (bar) {
       const a = bar.red.material as THREE.MeshStandardMaterial;
@@ -870,7 +877,7 @@ export class Vehicle implements IVehicle {
         const c2 = ems && !this.siren ? WHITE : BLUE;
         a.emissive.setHex(phase ? RED : c2);
         b.emissive.setHex(phase ? c2 : RED);
-        a.emissiveIntensity = b.emissiveIntensity = 2;
+        a.emissiveIntensity = b.emissiveIntensity = 2 * this.glare;
       } else {
         a.emissive.setHex(0x000000);
         b.emissive.setHex(0x000000);

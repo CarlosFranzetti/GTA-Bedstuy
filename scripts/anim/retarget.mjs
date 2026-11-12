@@ -68,7 +68,9 @@ export function retarget(b, f0, f1, opts = {}) {
 
   const out = [];
   const ankleMin = [], pelvisRel = [];
-  const ankleRestM = (rest.pos[I.LeftFoot].y + rest.pos[I.RightFoot].y) * 0.5;
+  // the floor: the lowest ankles of the segment (a planted foot), not the T pose, whose feet are posed differently from a walk
+  const lows = frames.map((fr) => Math.min(fr.pos[I.LeftFoot].y, fr.pos[I.RightFoot].y)).sort((a, b) => a - b);
+  const ankleRestM = lows[Math.floor(lows.length * 0.04)];
   const hipsRestY = rest.pos[I.Hips].y;
   for (let i = 0; i < n; i++) {
     const fr = frames[i];

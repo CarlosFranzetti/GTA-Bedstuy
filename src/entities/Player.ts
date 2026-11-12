@@ -49,6 +49,13 @@ const SPRINT_RAMP_DOWN = 0.25;
 const TURN_SMOOTH = 16;
 /** Walk to the car door before getting in. */
 const ENTER_TIME = 0.4;
+/** Share of the entering time spent sinking into the seat (the rest is the walk to the door), and the exit slide (s). */
+const SEAT_SHARE = 0.5;
+/** The seated figure stays visible this long after the car is claimed, finishing the sit-down (s). */
+const SEAT_TAIL = 0.3;
+const EXIT_SLIDE = 0.5;
+/** Pelvis height of the captured sit-down at its end (stool), for matching the seat of each vehicle. */
+const SIT_PELVIS = 0.67;
 /** Standing clearance outside the body flank after exiting, beyond the foot radius. */
 const EXIT_GAP = 0.15;
 /** Extra metres tried beyond the usual exit spot when a wall or prop blocks every side of the car. */
@@ -132,6 +139,11 @@ export class Player implements Entity {
   private walkPhase = Math.PI / 2;
   private walkAmp = 0;
   private anim: AnimController | null = null;
+  /** Visual only (gameplay stays where it was): how far the figure has slid into the driver's seat, 0 on foot .. 1 seated, and the seat it is going to or from. */
+  private seatK = 0;
+  private seatTail = 0;
+  private exitVis: { t: number; seat: Vec2; heading: number; dy: number } | null = null;
+  private enterSeat: { seat: Vec2; heading: number; dy: number } | null = null;
   private animHeading = 0;
   private model: HumanModel | null = null;
   private rig: CharacterRig | null = null;
@@ -357,9 +369,11 @@ export class Player implements Entity {
       pick = { side: { x: (spotX - v.body.pos.x) / len, z: (spotZ - v.body.pos.z) / len }, d: len };
     }
     const away = pick.side;
+    const exitSeat = this.seatOf(v);
     v.driver = null;
     v.setInput(NEUTRAL);
     this.vehicle = null;
+    this.seatTail = 0;
     this.body.pos.x = spotX;
     this.body.pos.z = spotZ;
     this.body.vel.x = 0;
@@ -372,7 +386,8 @@ export class Player implements Entity {
     this.pinT = 0; this.pinTarget = null; this.pinLast.x = spotX; this.pinLast.z = spotZ;
     this.vehicleInput = { ...NEUTRAL };
     this.object3D.visible = true;
-    this.anim?.playOnce('standUp', { from: 0.4, rate: 1.8, fadeIn: 0.05, fadeOut: 0.25 }); // rise out of the seat (captured stand-up)
+    this.anim?.playOnce('standUp', { from: 0.4, rate: 2.3, fadeIn: 0.05, fadeOut: 0.25 }); // rise out of the seat (captured stand-up)
+    this.exitVis = { t: 1, ...exitSeat }; this.seatK = 0; this.enterSeat = null;                 // and slide out of the seat to the spot beside the door
     this.prevPos.x = this.body.pos.x; this.prevPos.z = this.body.pos.z; this.prevHeading = this.body.heading;
     this.events.emit('exitVehicle', { vehicleId: v.id });
   }
@@ -382,10 +397,18 @@ export class Player implements Entity {
     this.prevPos.x = b.pos.x; this.prevPos.z = b.pos.z; this.prevHeading = b.heading;
     if (this.vehicle) {
       this.syncToVehicle();
+      if (this.seatTail > 0) { // finish the sit-down before the figure disappears into the car
+        this.seatTail -= dt;
+        this.seatK = 1; this.enterSeat = this.seatOf(this.vehicle);
+        if (this.anim && !this.anim.busy) this.anim.playOnce('sitDown', { from: 0.75, fadeIn: 0.05, fadeOut: 0.1 });
+        this.animateFoot(dt);
+        if (this.seatTail <= 0) { this.object3D.visible = false; this.seatK = 0; this.enterSeat = null; }
+      }
       return;
     }
     if (!(dt > 0)) return;
     if (this.entering) { this.updateEntering(dt); return; }
+    if (this.exitVis) { this.exitVis.t -= dt / EXIT_SLIDE; if (this.exitVis.t <= 0) this.exitVis = null; }
 
     // jump: advance the arc first so the physics pass of this step sees the new height
     this.prevY = this.jump.y;
@@ -440,12 +463,12 @@ export class Player implements Entity {
   /** Mesh pose between the previous and current simulation state (alpha 0..1); teleports snap. */
   applyInterpolated(alpha: number): void {
     const b = this.body;
-    if (this.vehicle) { applyPose(this.object3D, b.pos, b.heading, 0); return; }
+    if (this.vehicle) { this.pose3D(b.pos, b.heading, 0); return; }
     const a = clamp(alpha, 0, 1);
     const y = this.prevY + (this.jump.y - this.prevY) * a;
-    if (Math.hypot(b.pos.x - this.prevPos.x, b.pos.z - this.prevPos.z) > 8) { applyPose(this.object3D, b.pos, b.heading, y); return; }
+    if (Math.hypot(b.pos.x - this.prevPos.x, b.pos.z - this.prevPos.z) > 8) { this.pose3D(b.pos, b.heading, y); return; }
     const pos = { x: this.prevPos.x + (b.pos.x - this.prevPos.x) * a, z: this.prevPos.z + (b.pos.z - this.prevPos.z) * a };
-    applyPose(this.object3D, pos, this.prevHeading + angleDiff(this.prevHeading, b.heading) * a, y);
+    this.pose3D(pos, this.prevHeading + angleDiff(this.prevHeading, b.heading) * a, y);
   }
 
   /** First-person view: hide the head (and hat/hair with it) so the lens inside it sees nothing; the body keeps casting its shadow. */
@@ -472,18 +495,24 @@ export class Player implements Entity {
     if (Math.hypot(toCar.x, toCar.z) > 0.05) {
       b.heading = wrapAngle(b.heading + angleDiff(b.heading, headingFromVec(toCar)) * (1 - Math.exp(-TURN_SMOOTH * dt)));
     }
+    // the last part of the walk is the sit-down: the figure slides into this vehicle's driver seat (captured sit-down; needs the street pack)
+    const seating = e.t > 1 - SEAT_SHARE;
+    this.enterSeat = seating ? this.seatOf(e.vehicle) : null;
+    this.seatK = seating ? (e.t - (1 - SEAT_SHARE)) / SEAT_SHARE : 0;
     this.animateFoot(dt);
-    // sink into the seat as the body reaches the door (captured sit-down; needs the street pack, otherwise just the walk)
-    if (e.t > 0.45 && this.anim && !this.anim.busy) this.anim.playOnce('sitDown', { from: 0.2, to: 0.7, rate: 2.6, fadeIn: 0.12, fadeOut: 0.05 });
+    if (seating && this.anim && !this.anim.busy) this.anim.playOnce('sitDown', { from: 0.35, to: 0.75, rate: 2.2, fadeIn: 0.1, fadeOut: 0.0 });
     if (e.t >= 1) this.completeEnter();
   }
 
   private completeEnter(): void {
     const e = this.entering!;
     this.entering = null;
+    this.seatK = 0; this.enterSeat = null;
     const best = e.vehicle;
     this.vehicle = best;
-    this.object3D.visible = false;
+    this.seatTail = this.anim?.hasClip('sitDown') ? SEAT_TAIL : 0;
+    this.object3D.visible = this.seatTail > 0;
+    if (this.seatTail <= 0) { this.seatK = 0; this.enterSeat = null; }
     this.body.shape.r = SEATED_RADIUS;
     this.syncToVehicle();
     this.prevPos.x = this.body.pos.x; this.prevPos.z = this.body.pos.z; this.prevHeading = this.body.heading;
@@ -492,6 +521,27 @@ export class Player implements Entity {
       this.events.emit('crime', { type: 'carjack', pos: { x: best.body.pos.x, z: best.body.pos.z } });
     }
     if (this.exitQueued) { this.exitQueued = false; this.exit(); }
+  }
+
+
+  /** The driver's seat of `v`: world position, the car's heading, and how far the figure sits above or below its standing pose (seat height by vehicle type). */
+  private seatOf(v: IVehicle): { seat: Vec2; heading: number; dy: number } {
+    const f = forwardFromHeading(v.body.heading), r = perpRight(f);
+    const side = -v.spec.width * 0.24, fore = v.spec.length * 0.04;
+    const pelvis = clamp(0.28 + v.spec.height * 0.14, 0.42, 0.85); // pelvis height of the seated driver: low coupe ~0.46, sedan ~0.5, van and truck higher
+    return { seat: { x: v.body.pos.x + r.x * side + f.x * fore, z: v.body.pos.z + r.z * side + f.z * fore }, heading: v.body.heading, dy: pelvis - SIT_PELVIS };
+  }
+
+  /** applyPose plus the visual slide into or out of the seat (the physics body stays at the door). */
+  private pose3D(pos: Vec2, heading: number, y: number): void {
+    const o = this.object3D;
+    const ex = this.exitVis;
+    const k = ex ? ex.t : this.seatK;
+    const tgt = ex ?? this.enterSeat;
+    if (k <= 0.001 || !tgt) { applyPose(o, pos, heading, y); return; }
+    const e = k * k * (3 - 2 * k);
+    const h = heading + angleDiff(heading, tgt.heading) * e;
+    applyPose(o, { x: pos.x + (tgt.seat.x - pos.x) * e, z: pos.z + (tgt.seat.z - pos.z) * e }, h, y + tgt.dy * e);
   }
 
   private animateFoot(dt: number): void {
@@ -516,7 +566,7 @@ export class Player implements Entity {
         else animateWalk(this.model, this.walkPhase, this.walkAmp);
       }
     }
-    applyPose(this.object3D, b.pos, b.heading, this.jump.y);
+    this.pose3D(b.pos, b.heading, this.jump.y);
   }
 
   dispose(): void {

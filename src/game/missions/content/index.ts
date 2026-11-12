@@ -30,5 +30,6 @@ export function buildMissions(grid: GridModel, data: BedstuyData, lots?: readonl
     ...acts.act2, ...acts.act3,
     alternateSideShuffle(ctx), soundclash(ctx), senatorTheCat(ctx), dollarVanLastRun(ctx), movingDay(ctx), permitPending(ctx),
     lostCat(ctx), dollarVanFare(ctx), stoopSale(ctx),
+    ...acts.extras,
   ];
 }

@@ -409,6 +409,7 @@ export class InstanceCuller {
 
   /** Registers an InstancedMesh (its current matrices are the full set). */
   add(mesh: THREE.InstancedMesh): void {
+    if (mesh.userData.noInstanceCull) return; // instance index means something (signal lamps): stays whole, ChunkCuller still owns it
     const n = mesh.count;
     const matrices = Float32Array.from((mesh.instanceMatrix.array as Float32Array).subarray(0, n * 16));
     const colors = mesh.instanceColor ? Float32Array.from((mesh.instanceColor.array as Float32Array).subarray(0, n * 3)) : null;

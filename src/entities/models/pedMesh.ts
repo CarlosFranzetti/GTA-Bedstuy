@@ -144,7 +144,7 @@ function loft(rings: R[], seg: number, rect: PxRect, bone: number, cap: 'top' | 
   const rs = [...rings].sort((a, b) => a.y - b.y);
   const ymin = rs[0].y, dy = Math.max(1e-6, rs[rs.length - 1].y - ymin);
   const pos: number[] = [], uv: number[] = [], idx: number[] = [];
-  const uvAt = (fu: number, ft: number): void => { const px = rect.x + 0.5 + fu * (rect.w - 1), py = rect.y + 0.5 + (1 - ft) * (rect.h - 1); uv.push(px / ATLAS, 1 - py / ATLAS); };
+  const uvAt = (fu: number, ft: number): void => { const px = rect.x + 3 + fu * (rect.w - 6), py = rect.y + 3 + (1 - ft) * (rect.h - 6); uv.push(px / ATLAS, 1 - py / ATLAS); };
   for (const r of rs) for (let j = 0; j <= seg; j++) {
     const a = (j / seg) * Math.PI * 2;
     pos.push((r.cx ?? 0) + r.rx * Math.sin(a), r.y, (r.cz ?? 0) + r.rz * Math.cos(a));
@@ -465,10 +465,14 @@ function weldOf(L: MhLod): Weld {
 function smoothChest(L: MhLod, pos: Float32Array, yChest: number, cz0: number): void {
   const w = weldOf(L), sel: number[] = [];
   for (const [c] of w.members) if (pos[c * 3 + 1] > yChest - 0.14 && pos[c * 3 + 1] < yChest + 0.1 && pos[c * 3 + 2] < cz0 + 0.02 && wsumAt(L, c, W_TORSO) > 0.6) sel.push(c);
-  for (let it = 0; it < 4; it++) {
+  for (let it = 0; it < 12; it++) {
     const next = sel.map((i) => { let z = 0, c = 0; for (const j of w.adj.get(i) ?? []) { z += pos[j * 3 + 2]; c++; } return c ? pos[i * 3 + 2] * 0.4 + (z / c) * 0.6 : pos[i * 3 + 2]; });
     sel.forEach((i, k) => { for (const m of w.members.get(i)!) pos[m * 3 + 2] = next[k]; });
   }
+  // then pull what still protrudes (a bust, a nipple) back toward the mean chest surface at that height
+  const zs = sel.map((i) => [pos[i * 3 + 1], pos[i * 3], pos[i * 3 + 2]]);
+  const mean = zs.map(([y, , z0]) => { let t = 0, c = 0; for (const [y2, x2, z2] of zs) if (Math.abs(y2 - y) < 0.04 && Math.abs(x2) < 0.13) { t += z2; c++; } return c ? t / c : z0; });
+  sel.forEach((i, k) => { const z = pos[i * 3 + 2], zm = mean[k]; if (z < zm - 0.004) for (const m of w.members.get(i)!) pos[m * 3 + 2] = z + (zm - 0.004 - z) * 0.8; });
 }
 
 /** thickness of the clothes on the body (m): the volume of a puffer, the drop of a hoodie, the trouser leg; skin and hands get none */
@@ -576,7 +580,7 @@ function clothExtras(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.Bu
   if (['jacket', 'hoodie', 'puffer', 'cardigan', 'tracksuit', 'uniform'].includes(k) && !spec.top.long) {
     const r = bodyRing(L, hemTop - 0.02, hemTop + 0.03, (i) => wsumAt(L, i, W_ARMS) < 0.3);
     if (r) {
-      const o = k === 'puffer' ? 0.036 : k === 'jacket' || k === 'hoodie' ? 0.026 : 0.018;
+      const o = k === 'puffer' ? 0.022 : k === 'jacket' || k === 'hoodie' ? 0.022 : 0.016;
       out.push(loft([
         { y: hemTop, rx: r.rx + o, rz: r.rz + o, cx: r.cx, cz: r.cz },
         { y: hemTop + 0.05, rx: r.rx + o * 0.55, rz: r.rz + o * 0.55, cx: r.cx, cz: r.cz },
@@ -598,7 +602,7 @@ function clothExtras(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.Bu
       const a = R['ankle' + side], bone = side === 'L' ? 9 : 11;
       const r = bodyRing(L, anY + 0.03, anY + 0.075, (i) => Math.abs(L.position[i * 3] - a[0]) < 0.07 && wsumAt(L, i, W_LEGS) > 0.5);
       if (!r) continue;
-      const f = spec.bottom.kind === 'trousers' ? 0.016 : spec.bottom.kind === 'cargo' ? 0.024 : 0.012;
+      const f = spec.bottom.kind === 'trousers' ? 0.012 : spec.bottom.kind === 'cargo' ? 0.018 : 0.008;
       out.push(loft([
         { y: anY + 0.012, rx: r.rx + f + 0.006, rz: r.rz + f + 0.008, cx: r.cx, cz: r.cz - 0.008 },
         { y: anY + 0.05, rx: r.rx + f * 0.7 + 0.004, rz: r.rz + f * 0.7 + 0.004, cx: r.cx, cz: r.cz - 0.004 },

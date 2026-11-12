@@ -2,6 +2,8 @@
 // the mac build is ad-hoc signed (scripts/adhoc-sign.cjs) and the Windows build is unsigned.
 const haveMacCert = !!(process.env.CSC_LINK || process.env.CSC_NAME);
 const haveNotary = !!(process.env.APPLE_ID && process.env.APPLE_APP_SPECIFIC_PASSWORD && process.env.APPLE_TEAM_ID);
+// Installer names carry the commit (CI sets GTA_BUILD_ID to the short sha): GTA-Bed-Stuy-0.1.0-ab12cd3-mac-arm64.dmg
+const id = /^[\w.-]+$/.test(process.env.GTA_BUILD_ID || '') ? `-${process.env.GTA_BUILD_ID}` : '';
 module.exports = {
   appId: 'org.gtabedstuy.fantribute',
   productName: 'GTA Bed-Stuy',
@@ -26,7 +28,7 @@ module.exports = {
     target: [{ target: 'nsis', arch: ['x64'] }, { target: 'portable', arch: ['x64'] }],
     icon: 'build/icon.png',
   },
-  nsis: { oneClick: false, allowToChangeInstallationDirectory: true, perMachine: false, artifactName: 'GTA-Bed-Stuy-Setup-${version}-win-${arch}.${ext}' },
-  portable: { artifactName: 'GTA-Bed-Stuy-Portable-${version}-win-${arch}.${ext}' },
-  artifactName: 'GTA-Bed-Stuy-${version}-mac-${arch}.${ext}',
+  nsis: { oneClick: false, allowToChangeInstallationDirectory: true, perMachine: false, artifactName: 'GTA-Bed-Stuy-Setup-${version}' + id + '-win-${arch}.${ext}' },
+  portable: { artifactName: 'GTA-Bed-Stuy-Portable-${version}' + id + '-win-${arch}.${ext}' },
+  artifactName: 'GTA-Bed-Stuy-${version}' + id + '-mac-${arch}.${ext}',
 };

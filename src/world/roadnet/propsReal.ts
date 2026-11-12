@@ -69,6 +69,9 @@ const TREE_CLEARANCE = 1.5;
 const MIN_EDGE_RANGE = 8;
 const CELL = 32;
 
+/** Street trees kept per tier: 1 in `n` along each side of an edge (phone 1 in 3, low 1 in 2; medium and high keep every tree). */
+export const TREE_THIN: Record<Quality, number> = { phone: 3, low: 2, medium: 1, high: 1 };
+
 const SIGN_BG = '#0a5a2f';
 const SIGN_FG = '#ffffff';
 
@@ -321,6 +324,7 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
   const ok = (p: Vec2, clear: number, cwClear = CROSSWALK_CLEAR): boolean => onSidewalk(p) && !net.isOnRoad(p) && clearOfCrosswalks(p, cwClear) && free(p, clear);
 
   const small = opts.tier !== 'phone';
+  const thin = TREE_THIN[opts.tier ?? 'high'] ?? 1;
   const items: Item[] = [];
   const poles: SignalPole[] = [];
   const counts = { trees: 0, lamps: 0, cornerPoles: 0, signs: 0, hydrants: 0, bins: 0, signalPoles: 0, stopSigns: 0 };
@@ -371,8 +375,10 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
       // trees
       if (E.sidewalk >= 2.8) {
         for (const side of [1, -1] as const) {
+          let ti = 0;
           for (let s = lo; s <= hi + 1e-6; s += TREE_SPACING) {
             const sj = Math.min(hi, Math.max(lo, s + rng.range(-0.5, 0.5)));
+            if (ti++ % thin !== 0) continue; // thinned tiers keep every `thin`-th tree of the row (the random draw above is spent either way)
             const a = at(sj, side, TREE_CURB_INSET);
             if (!ok(a.p, TREE_CLEARANCE, 1.5)) continue;
             claim(a.p);
@@ -571,7 +577,8 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
       if (g) add(new THREE.Mesh(g, materials.sign(text, SIGN_BG, SIGN_FG)), `props:sign:${text}`, trisOf(g));
     }
 
-    // stop signs: pole + two-sided octagon-sized plane, merged into two meshes per chunk
+    // stop signs: pole + two-sided octagon-sized plane; the poles join the signal masts below (one metal mesh per chunk), the boards are one mesh
+    const metalG: THREE.BufferGeometry[] = [];
     if (b.stop.length) {
       const polesG: THREE.BufferGeometry[] = [], boards: THREE.BufferGeometry[] = [];
       for (const s of b.stop) {
@@ -582,15 +589,15 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
         boards.push(new THREE.PlaneGeometry(0.62, 0.62).rotateY(Math.PI).translate(0, 0, 0.04).applyMatrix4(fm));
         circle(s.x, s.z, 0.1, 'stopsign');
       }
-      const pg = mergeGeometries(polesG, false), bg = mergeGeometries(boards, false);
-      polesG.forEach((g) => g.dispose()); boards.forEach((g) => g.dispose());
-      if (pg) add(new THREE.Mesh(pg, M.metal), 'props:stoppoles', trisOf(pg));
+      const bg = mergeGeometries(boards, false);
+      boards.forEach((g) => g.dispose());
+      metalG.push(...polesG);
       if (bg) add(new THREE.Mesh(bg, M.stop), 'props:stopsigns', trisOf(bg));
     }
 
-    // signals: one merged metal mesh and one instanced lamp mesh per chunk
-    if (b.poles.length) {
-      const solid: THREE.BufferGeometry[] = [];
+    // signals: one merged metal mesh (masts and stop-sign poles) and one instanced lamp mesh per chunk
+    if (b.poles.length || metalG.length) {
+      const solid: THREE.BufferGeometry[] = metalG;
       const lampMats: THREE.Matrix4[] = [];
       const rigs: Rig[] = [];
       for (const p of b.poles) {
@@ -602,13 +609,16 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
       const merged = mergeGeometries(solid, false);
       solid.forEach((g) => g.dispose());
       if (merged) { const m = new THREE.Mesh(merged, M.metal); m.castShadow = true; add(m, 'props:signal-poles', trisOf(merged)); }
+      if (lampMats.length) {
       const lm = new THREE.InstancedMesh(geo.signLampDisc, M.signalLamp, lampMats.length);
       lampMats.forEach((m4, i) => { lm.setMatrixAt(i, m4); lm.setColorAt(i, i % 5 < 3 ? DARK[VEH_KINDS[i % 5]] : (i % 5 === 3 ? DARK.hand : DARK.walk)); });
       lm.instanceMatrix.needsUpdate = true;
       if (lm.instanceColor) lm.instanceColor.needsUpdate = true;
       lm.computeBoundingSphere();
       lm.userData.realSignals = { lamps: lm, rigs } satisfies SignalSet;
+      lm.userData.noInstanceCull = true; // the signal controller recolours lamps by instance index: the InstanceCuller's compaction would shift them
       add(lm, 'props:signal-lamps', trisOf(geo.signLampDisc) * lampMats.length);
+      }
     }
     byChunk.set(key, meshes);
     triangles += chunkTris;

@@ -38,3 +38,32 @@ it('dbg', () => {
   }
   require('fs').writeFileSync('/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/theo1.txt', ['right', n, 'viol', viol, ex.join('\n')].join(' '));
 });
+import controls from '@/world/data/roadnet-controls.json';
+import { RealTrafficLights } from '@/world/roadnet/lightsReal';
+import { nodeControl } from '@/world/roadnet/signalPhases';
+it('dbg3', () => {
+  const net = RoadNet.fromJson(core as any); const d = deriveGeometry(net);
+  const L = new RealTrafficLights(net, d, nodeControl(net, controls));
+  const h: Record<string, number> = {};
+  for (const id of L.intersectionIds) { const k = `groups${L.groupCount(id)} cyc${Math.round(L.cycleLength(id))}`; h[k] = (h[k] ?? 0) + 1; }
+  require('fs').writeFileSync('/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/theo4.txt', JSON.stringify(h, null, 1));
+});
+import { buildSidewalkGraph } from '@/world/roadnet/sidewalks';
+import { makeRealTraffic } from '@/world/roadnet/trafficReal';
+it('dbg4', () => {
+  const net = RoadNet.fromJson(core as any); const d = deriveGeometry(net);
+  const rt = makeRealTraffic(net, d, buildSidewalkGraph(net, d), controls);
+  const out: string[] = [];
+  for (const nid of ['ln:351:r:0:9', 'ln:298:r:0:10', 'ln:297:r:0:3']) {
+    const n = rt.lanes.nodes[nid]; const row: string[] = [];
+    for (let t = 0; t <= 200; t += 5) { const L = new (rt.lights.constructor as any)(net, d, nodeControl(net, controls), t); row.push(`${t}:${L.phaseFor(n.intersectionId!, n.streetId)[0]}`); }
+    out.push(nid + ' ' + n.intersectionId + ' cyc' + rt.lights.cycleLength(n.intersectionId!) + ' ' + row.join(' '));
+  }
+  require('fs').writeFileSync('/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/theo5.txt', out.join('\n'));
+});
+it('dbg5', () => {
+  const net = RoadNet.fromJson(core as any);
+  const h: Record<string, number> = {};
+  net.edges.forEach((e, i) => { if (e.level !== 0 || e.a === e.b || e.cls === 'ped') return; const k = `${e.cls} ow${e.oneway} lanes${e.lanes} w${Math.round(e.width)}`; h[k] = (h[k] ?? 0) + 1; });
+  require('fs').writeFileSync('/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/theo6.txt', Object.entries(h).sort().map(([k, v]) => `${k}: ${v}`).join('\n'));
+});

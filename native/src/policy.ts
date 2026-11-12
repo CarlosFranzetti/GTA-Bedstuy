@@ -20,6 +20,8 @@ export const REMOTE_ALLOWLIST: readonly string[] = [
   '*.huggingface.co',
   '*.hf.co',
   'ra-nyc.vercel.app',
+  'api.kexp.org', // live-station "now playing" lines (src/audio/stations.ts)
+  'api.somafm.com',
 ];
 
 export function hostAllowed(host: string, list: readonly string[] = REMOTE_ALLOWLIST): boolean {
@@ -85,7 +87,8 @@ export function buildCsp(list: readonly string[] = REMOTE_ALLOWLIST): string {
     `worker-src 'self' blob:`,
     `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' data: blob: https:`,
-    `media-src 'self' data: blob: ${hosts}`,
+    // Internet-radio streams (src/audio/stations.ts) redirect between CDN hosts we cannot list; a media element cannot run code.
+    `media-src 'self' data: blob: https:`,
     `font-src 'self' data:`,
     `connect-src 'self' data: blob: ${hosts}`,
     `frame-src https://w.soundcloud.com`,
@@ -141,4 +144,49 @@ export function appQueryFromArgs(argv: readonly string[]): string {
   const q = argv.map((a) => /^--q=(phone|low|medium|high)$/.exec(a)?.[1]).find(Boolean);
   if (q) p.push(`q=${q}`);
   return p.length ? `?${p.join('&')}` : '';
+}
+
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// Start-up choices: fullscreen, graphics backend, saved-game backup, graphics report. All pure so they are unit tested.
+
+export interface Prefs { startFullscreen?: boolean }
+
+/** True fullscreen on launch (the owner's wish). Off with `--windowed`, with the "Start in Full Screen" menu switch, and in the smoke test. */
+export function wantsFullscreenAtLaunch(prefs: Prefs, argv: readonly string[], smoke: boolean): boolean {
+  if (smoke || argv.includes('--windowed')) return false;
+  if (argv.includes('--fullscreen')) return true;
+  return prefs.startFullscreen !== false;
+}
+
+export type AngleBackend = 'metal' | 'd3d11' | 'd3d9' | 'gl' | 'vulkan' | 'swiftshader';
+const ANGLE_CHOICES: readonly AngleBackend[] = ['metal', 'd3d11', 'd3d9', 'gl', 'vulkan', 'swiftshader'];
+
+/**
+ * ANGLE backend for the WebGL layer. Apple Silicon: Metal. Windows: Direct3D 11. Elsewhere Chromium picks. `--angle=<name>` overrides it
+ * on any platform so a glitch can be tried on another backend (docs/PLATFORM-CHECK.md step 5); unknown names are ignored.
+ */
+export function chooseAngle(platform: string, argv: readonly string[]): AngleBackend | undefined {
+  const asked = argv.map((a) => /^--angle=([a-z0-9]+)$/.exec(a)?.[1]).find(Boolean);
+  const hit = ANGLE_CHOICES.find((c) => c === asked);
+  if (hit) return hit;
+  if (platform === 'darwin') return 'metal';
+  if (platform === 'win32') return 'd3d11';
+  return undefined;
+}
+
+/** Saved-game backup: the game keeps its saves in localStorage; a copy lives in a plain JSON file in the user data folder. */
+export const STORAGE_BACKUP_MAX_BYTES = 4_000_000;
+export const STORAGE_BACKUP_MAX_VALUE = 1_000_000;
+export function sanitizeStorageSnapshot(raw: unknown): Record<string, string> | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const out: Record<string, string> = {};
+  let bytes = 0;
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v !== 'string' || k.length > 200 || v.length > STORAGE_BACKUP_MAX_VALUE) continue;
+    bytes += k.length + v.length;
+    if (bytes > STORAGE_BACKUP_MAX_BYTES || Object.keys(out).length >= 600) break;
+    out[k] = v;
+  }
+  return out;
 }

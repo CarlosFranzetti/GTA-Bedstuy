@@ -167,6 +167,18 @@ describe('per-person gait', () => {
   });
 });
 
+describe('street pack on the native app', () => {
+  it('is served by the app:// protocol handler (a file under the web root) and fetched with the page-relative url the loader builds', async () => {
+    const { resolveAppPath } = await import('../../../native/src/policy');
+    const { APP_ORIGIN } = await import('../../../native/src/policy');
+    const web = '/opt/app/web';
+    // the page is app://host/index.html and the loader fetches './anim/street.bin'
+    const url = new URL('./anim/street.bin', `${APP_ORIGIN}/index.html`).href;
+    expect(resolveAppPath(url, web)).toBe('/opt/app/web/anim/street.bin');
+    const esc = resolveAppPath(`${APP_ORIGIN}/anim/../../etc/passwd`, web); expect(esc === null || esc.startsWith(web + '/')).toBe(true); // never outside the web root
+  });
+});
+
 describe('foot planting', () => {
   const ankleY = (m: PoseTarget, leg: number): number => {
     m.rig.updateMatrixWorld(true);
@@ -181,16 +193,18 @@ describe('foot planting', () => {
       m.legs.forEach((l) => l.position.set(0, hip, 0)); m.knees.forEach((k) => k.position.set(0, -thigh, 0));
       const c = new AnimController(m, PLAYER_GAIT, lib);
       const shin = hip - thigh - 0.075;
-      let worst = 0;
+      let worst = 0, lowest = 9, sunk = 0;
       for (let i = 0; i < 180; i++) {
         c.update(1 / 60, { speed });
         if (i < 60) continue;
         // lowest ankle height against its rest height (0.075)
         const lo = Math.min(...[0, 1].map((l) => { const v = new THREE.Vector3(0, -shin, 0); m.rig.updateMatrixWorld(true); m.knees[l].localToWorld(v); return v.y; }));
-        worst = Math.max(worst, Math.abs(lo - 0.075));
+        worst = Math.max(worst, Math.abs(lo - 0.075)); lowest = Math.min(lowest, lo); sunk = Math.max(sunk, 0.075 - lo);
       }
       void ankleY;
-      expect(worst).toBeLessThan(0.035);
+      expect(sunk).toBeLessThan(0.03);              // never through the floor
+      expect(lowest).toBeLessThan(0.075 + 0.03);    // and the planted foot does touch it
+      if (speed < 2) expect(worst).toBeLessThan(0.035); // walking: always one foot down
     });
   }
   it('walking speed (Alt) plays the walk and the default jog plays the jog at the speeds the game uses', async () => {

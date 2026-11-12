@@ -41,9 +41,12 @@ backend" to **OpenGL**, relaunch and repeat step 2. Then set it back to **Defaul
 (Metal) backend, it is a Metal driver difference and we know where to look. Also open `chrome://gpu`, scroll to
 "Driver Information" and copy the `GL_RENDERER` line.
 
-**6. Native app.** Quit the app, then start it from Terminal with the overlay:
-`open -a "GTA Bed-Stuy" --args --debug-gfx` (add `--q=low` to force a tier). On Windows, run
-`"GTA Bed-Stuy.exe" --debug-gfx`. Repeat steps 1 to 3. Tell us whether the glitch also shows up in the app or only in Chrome.
+**6. Native app.** Easiest: start the app, press `Ctrl/Cmd+Shift+G` (menu Game, **Copy Graphics Report**) and paste. It
+holds the WebGL renderer string, the ANGLE backend, the display scale and refresh rate, and the GPU feature status. For the
+game overlay as well, quit and start from a terminal with `--debug-gfx` (add `--q=low` to force a tier):
+`open -a "GTA Bed-Stuy" --args --debug-gfx` on the Mac, `"GTA Bed-Stuy.exe" --debug-gfx` on Windows. Repeat steps 1 to 3. To try
+another graphics backend like step 5 does in Chrome, add `--angle=gl` (the app uses Metal on the Mac and Direct3D 11 on Windows by
+default). Tell us whether the glitch also shows up in the app or only in Chrome.
 
 ## What to send us (copy this)
 ```

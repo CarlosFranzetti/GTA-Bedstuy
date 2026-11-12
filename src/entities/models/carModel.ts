@@ -253,27 +253,28 @@ const SRGB = THREE.SRGBColorSpace;
 
 // ---------------------------------------------------------------- wheels
 
-/** Tyre sides: 20 reads round at the 1.6 cm sagitta it leaves on a 0.34 m radius even with the bulged sidewall. */
-const WHEEL_SEG = 20;
+/** Tyre sides: 16 reads round at the 6 mm sagitta it leaves on a 0.34 m radius with the bulged sidewall (CARS2: was 20). */
+const WHEEL_SEG = 16;
 /** Model detail: 'full' (medium / high tiers), 'lite' (phone / low: refine level 1, 12-sided wheels), 'far' (the instanced far proxies: coarsest). */
 export type CarLevel = 'full' | 'lite' | 'far';
 /** The near-model level of the current tier (CarPaintFx's tier; before it is configured, full detail). */
 export function carNearLevel(): CarLevel { return carPaintConfigured() && (carPaintTier() === 'phone' || carPaintTier() === 'low') ? 'lite' : 'full'; }
-/** the van's 0.5 m tyres get 26 sides (full), 12 / 16 (lite) */
-const segFor = (R: number, lv: CarLevel = 'full'): number => (lv === 'full' ? (R > 0.45 ? 26 : WHEEL_SEG) : lv === 'lite' ? (R > 0.45 ? 16 : 12) : 8);
-/** Tyre profile, outer half, from the tread centre outwards: [radius / R, axial / w, texture v]: tread, shoulder, bulging sidewall, bead. */
-const TYRE_PROFILE: [number, number, number][] = [[1, 0, 0.5], [1, 0.3, 0.46], [0.975, 0.41, 0.38], [0.9, 0.5, 0.26], [0.78, 0.49, 0.12], [0.68, 0.43, 0.06]];
+/** the van's 0.5 m tyres get 24 sides (full), 12 / 16 (lite) */
+const segFor = (R: number, lv: CarLevel = 'full'): number => (lv === 'full' ? (R > 0.45 ? 24 : WHEEL_SEG) : lv === 'lite' ? (R > 0.45 ? 16 : 12) : 8);
+/** Tyre profile, outer half, from the tread edge outwards: [radius / R, axial / w, texture v]: tread shoulder, bulging sidewall, lower sidewall, bead. The tread is one band between the two shoulders. */
+const TYRE_PROFILE: [number, number, number][] = [[1, 0.32, 0.44], [0.93, 0.48, 0.3], [0.78, 0.49, 0.12], [0.68, 0.43, 0.06]];
 
 export type WheelKind = WheelDesign;
-/** Texture spots on the tireSidewall map (see tireSidewallPainter's hubcap band): bright wheel metal, dark recess / brake disc. */
-const UV_METAL: [number, number] = [0.07, 0.025]; // inside a spoke wedge of the band (bright aluminium)
-const UV_CAP: [number, number] = [0.5, 0.005]; // the band's centre-cap row (brighter)
+/** Texture spots on the tireSidewall map (see tireSidewallPainter's hubcap band): silver rim lip, gunmetal spokes, dark barrel / recess, brake rotor grey. */
+const UV_METAL: [number, number] = [0.07, 0.025]; // inside a spoke wedge of the band (gunmetal / aluminium)
+const UV_CAP: [number, number] = [0.5, 0.005]; // the band's centre-cap row (silver)
 const UV_DARK: [number, number] = [0.02, 0.03];
+const UV_ROTOR: [number, number] = [0.07, 0.016]; // the spokes' lit edge strip: mid grey
 
 /**
- * One wheel (axle along x, face on the +x side): a bulged-sidewall tyre with a tread shoulder, a dished rim, and either six
- * alloy spokes with real depth over a recessed disc with a brake disc behind it, or (steel) a domed hubcap. Tyre, rim and brake
- * are ONE mesh with the tyre material (the texture's bands supply the colours), so a wheel costs no extra draw.
+ * One wheel (axle along x, face on the +x side): a bulged-sidewall tyre with a tread shoulder, a dished rim with a silver lip, a dark
+ * barrel, a brake rotor and (alloy) flat spokes standing proud of the dish, or (steel) a domed hubcap. Tyre, rim and brake are ONE
+ * mesh with the tyre material (the texture's bands supply the colours), so a wheel costs no extra draw. About 370 triangles on full detail.
  */
 function buildWheel(R: number, w: number, kind: WheelKind, lv: CarLevel = 'full'): THREE.BufferGeometry {
   const SEG = segFor(R, lv);
@@ -282,10 +283,10 @@ function buildWheel(R: number, w: number, kind: WheelKind, lv: CarLevel = 'full'
   // spoke count / width per design (lite and far models draw fewer spokes)
   const spokes = ({ alloy6: [6, 0.24], alloy5: [5, 0.3], mesh: [lv === 'full' ? 12 : 8, 0.1], turbine: [lv === 'full' ? 8 : 6, 0.16], deep: [5, 0.26] } as Record<string, [number, number]>)[kind] ?? [6, 0.24];
   const rings: { a: number; r: number; v: number; nr: number; na: number }[] = [];
-  let profile = lv === 'full' ? TYRE_PROFILE : TYRE_PROFILE.filter((_, i) => i !== 1 && i !== 4); // lite / far: no tread shoulder, no lower sidewall ring
+  let profile = lv === 'full' ? TYRE_PROFILE : TYRE_PROFILE.filter((_, i) => i !== 1); // lite / far: no separate bulge ring
   // aftermarket 'deep' rims: a bigger rim inside a low-profile tyre (the inner rings climb toward the tread)
   if (deep) profile = profile.map(([r, a, v]) => [r >= 0.9 ? r : 0.8 + (r - 0.68) * (0.1 / 0.22), a, v] as [number, number, number]);
-  const prof = [...profile.slice(1).reverse().map(([r, a, v]) => ({ r, a: -a, v: 1 - v })), ...profile.map(([r, a, v]) => ({ r, a, v }))];
+  const prof = [...profile.slice().reverse().map(([r, a, v]) => ({ r, a: -a, v: 1 - v })), ...profile.map(([r, a, v]) => ({ r, a, v }))];
   for (let k = 0; k < prof.length; k++) {
     const p = prof[k];
     const p0 = prof[Math.max(0, k - 1)];
@@ -323,20 +324,19 @@ function buildWheel(R: number, w: number, kind: WheelKind, lv: CarLevel = 'full'
     ? [ // plain pressed steel wheel: flat disc, dark centre with lug ring, no cap
       { a: 0.42 * w, r: 0.68 * R, uvc: UV_METAL, na: 1, nr: 0 },
       { a: 0.42 * w, r: 0.3 * R, uvc: UV_DARK, na: 1, nr: 0 },
-      { a: 0.44 * w, r: 0.16 * R, uvc: UV_CAP, na: 1, nr: 0 },
       { a: 0.44 * w, r: 0, uvc: UV_DARK, na: 1, nr: 0 },
     ]
     : alloy
-    ? [
-      { a: 0.43 * w, r: Math.min(0.9, 0.68 * fs) * R, uvc: UV_CAP, na: 1, nr: 0 },
-      { a: 0.43 * w, r: 0.54 * fs * R, uvc: UV_CAP, na: 1, nr: 0 },
-      { a: 0.3 * w, r: 0.5 * fs * R, uvc: UV_DARK, na: 1, nr: 0 },
-      { a: 0.28 * w, r: 0, uvc: UV_DARK, na: 1, nr: 0 },
+    ? [ // silver lip, a dark barrel dropping into the dish, the dish floor (spokes stand in front of it, the rotor sits behind them)
+      { a: 0.43 * w, r: Math.min(0.9, 0.69 * fs) * R, uvc: UV_CAP, na: 0.6, nr: 0.8 },
+      { a: 0.43 * w, r: 0.6 * fs * R, uvc: UV_DARK, na: 0.2, nr: -0.98 },
+      { a: 0.22 * w, r: 0.56 * fs * R, uvc: UV_DARK, na: 1, nr: 0 },
+      { a: 0.22 * w, r: 0, uvc: UV_DARK, na: 1, nr: 0 },
     ]
     : [
       { a: 0.43 * w, r: 0.68 * R, uvc: UV_CAP, na: 0.6, nr: 0.8 },
-      { a: 0.45 * w, r: 0.58 * R, uvc: UV_METAL, na: 0.85, nr: 0.5 },
-      { a: 0.5 * w, r: 0.3 * R, uvc: UV_METAL, na: 1, nr: 0.15 },
+      { a: 0.46 * w, r: 0.5 * R, uvc: UV_METAL, na: 0.85, nr: 0.5 },
+      { a: 0.5 * w, r: 0.26 * R, uvc: UV_METAL, na: 1, nr: 0.15 },
       { a: 0.52 * w, r: 0, uvc: UV_CAP, na: 1, nr: 0 },
     ];
   const base = ringCount;
@@ -347,7 +347,7 @@ function buildWheel(R: number, w: number, kind: WheelKind, lv: CarLevel = 'full'
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(idx);
   const acc = new Acc().add(g);
-  const flat = (geo: THREE.BufferGeometry, [u, v]: [number, number]): THREE.BufferGeometry => {
+  const flatUV = (geo: THREE.BufferGeometry, [u, v]: [number, number]): THREE.BufferGeometry => {
     const n = geo.attributes.position.count;
     const arr = new Float32Array(n * 2);
     for (let i = 0; i < n; i++) { arr[i * 2] = u; arr[i * 2 + 1] = v; }
@@ -356,16 +356,29 @@ function buildWheel(R: number, w: number, kind: WheelKind, lv: CarLevel = 'full'
   };
   if (alloy) {
     const [N, sw] = spokes;
+    const aS = 0.4 * w; // the spokes stand 1.8 cm in front of the dish floor, a little behind the lip
+    const r0 = 0.12 * R, r1 = (deep ? 0.66 * fs : 0.64) * R;
+    const w0 = sw * R * 0.28, w1 = sw * R * 0.42;
+    const sp: number[] = [];
     for (let i = 0; i < N; i++) {
-      // a spoke: 7 cm deep, tapering by being a plain bar, from the cap out to the rim lip
-      const spoke = new THREE.BoxGeometry(0.1 * w, (deep ? 0.58 : 0.5) * R, sw * R);
-      spoke.translate(0.36 * w, (deep ? 0.4 : 0.36) * R, 0);
-      spoke.rotateX((i / N) * Math.PI * 2 + (kind === 'turbine' ? 0.5 : 0.26));
-      if (kind === 'turbine') spoke.rotateZ(0);
-      acc.add(flat(spoke, UV_METAL));
+      const phi = (i / N) * Math.PI * 2 + (kind === 'turbine' ? 0.5 : 0.26);
+      const c = Math.cos(phi), s = Math.sin(phi);
+      const pt = (r: number, lat: number): [number, number, number] => [aS, r * c - lat * s, r * s + lat * c];
+      const A = pt(r0, -w0), B = pt(r0, w0), C = pt(r1, w1), D = pt(r1, -w1);
+      // lit side faces +x; wind so the normal's x is positive
+      const nx = (B[1] - A[1]) * (C[2] - A[2]) - (B[2] - A[2]) * (C[1] - A[1]);
+      if (nx > 0) sp.push(...A, ...B, ...C, ...A, ...C, ...D); else sp.push(...A, ...C, ...B, ...A, ...D, ...C);
     }
-    acc.add(flat(new THREE.CylinderGeometry(0.15 * R, 0.15 * R, 0.1 * w, lv === 'full' ? 12 : 8).rotateZ(-Math.PI / 2).translate(0.36 * w, 0, 0), UV_CAP)); // centre cap
-    if (lv === 'full') acc.add(flat(new THREE.CylinderGeometry(0.5 * R, 0.5 * R, 0.05 * w, SEG).rotateZ(-Math.PI / 2).translate(0.2 * w, 0, 0), UV_DARK)); // brake disc behind the spokes
+    const sg = new THREE.BufferGeometry();
+    sg.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
+    sg.setAttribute('normal', new THREE.Float32BufferAttribute(new Array(sp.length).fill(0).map((_, i) => (i % 3 === 0 ? 1 : 0)), 3));
+    acc.add(flatUV(sg, UV_METAL));
+    // centre cap, and (full detail) the brake rotor behind the spokes: a grey annulus on the dish floor
+    acc.add(flatUV(new THREE.CircleGeometry(0.15 * R, lv === 'full' ? 10 : 6).rotateY(Math.PI / 2).translate(aS + 0.01 * w, 0, 0), UV_CAP));
+    if (lv === 'full') {
+      const rot = new THREE.RingGeometry(0.3 * R, 0.52 * R, SEG, 1).rotateY(Math.PI / 2).translate(0.23 * w, 0, 0);
+      acc.add(flatUV(rot, UV_ROTOR));
+    }
   }
   return acc.merge();
 }

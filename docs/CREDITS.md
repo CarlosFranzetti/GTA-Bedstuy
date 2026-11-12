@@ -201,13 +201,17 @@ NYC Parks 2015 Street Tree Census (`uvpi-gqnh`) and NYC DCP MapPLUTO / Building 
 `src/entities/anim/corePack.ts` (bundled, generated) and `public/anim/core.bin`, `public/anim/street.bin` (the larger pack, fetched on the hosted and native builds only),
 built by `scripts/anim/build-clips.mjs` from the trials listed in `scripts/anim/catalog.mjs`. The source files are parsed as text and never executed.
 
-- **Source: Carnegie Mellon University Graphics Lab Motion Capture Database** (http://mocap.cs.cmu.edu), subjects 1, 5, 7, 8, 13, 16, 17, 22, 40, 80 (trial numbers in the catalog).
+- **Source: Carnegie Mellon University Graphics Lab Motion Capture Database** (http://mocap.cs.cmu.edu), subjects 1, 5, 7, 8, 13, 16, 17, 18, 19, 22, 40, 77, 79, 80, 105 (trial numbers below and in `scripts/anim/catalog.mjs`).
   The BVH versions are the conversion by Bruce Hahne (cgspeed, 2010 release), fetched from the public mirror
   https://github.com/una-dinosauria/cmu-mocap (`data/<subject>/<subject>_<trial>.bvh`, master at commit 09a07f54f3bbb58797325f009282d0b2048a2871).
 - **Licence, verified on 12 Nov 2026 from the database's own home page** (https://mocap.cs.cmu.edu/): "This dataset of motions is free for all uses." and
   "This data is free for use in research projects. You may include this data in commercially-sold products, but you may not resell this data directly, even in converted form."
   We ship a few kilobytes of derived joint angles inside a game, we do not sell or redistribute the data as data. Requested acknowledgement:
   *The data used in this project was obtained from mocap.cs.cmu.edu. The database was created with funding from NSF EIA-0196217.* The credits roll should carry that line.
+- **Trials used** (subject_trial; CMU's own descriptions): walk 07_01, brisk walk 07_12, fast walk 08_01, slow walk 08_04, heavyset walk 17_08, angry walk 17_01, jaunty walk 17_06, hobble 17_05, sad walk 105_13, drunk walk 105_09, limp 105_16, scared walk 105_32;
+  jog 16_36, run 16_46, run start 16_55, stops 16_33 and 16_57, 180-degree turn 01_01, walking 90-degree turn 16_17, forward jump 16_05, stumble 22_12, sit down and stand up 13_01,
+  waiting idles 40_10 and 40_11, answering a phone 80_25, getting up from lying on the back 77_18, ducking a flying object (flinch) 77_09, conversation with hand gestures 18_08 and 19_08, eating dinner 79_12.
+  Not in CMU's data, so not captured: smoking, a real sprint (the fastest run is about 4 m/s), a child's run, strafing for a game that turns to face its direction of travel; arms crossed and leaning are hand-keyed.
 - **Modified**: retargeted from the CMU skeleton to our 12-bone person (angles re-derived from bone directions, rest pose and proportions replaced), one gait cycle cut and
   loop-closed per walk or run, resampled to 15 to 24 frames per second, 8-bit quantised. Nothing is ripped from any game.
 - **Checked and not used**: Quaternius Universal Animation Library (CC0 per https://quaternius.com/packs/universalanimationlibrary.html, "License CC0"; the download is behind an itch.io page, not fetched, its rig is also not ours);
@@ -215,3 +219,21 @@ built by `scripts/anim/build-clips.mjs` from the trials listed in `scripts/anim/
   Ubisoft LaFAN1 (CC BY-NC-ND 4.0 per the README at https://github.com/ubisoft/ubisoft-laforge-animation-dataset: non-commercial and no derivatives, ruled out);
   Bandai Namco Research Motion Dataset (CC BY-NC 4.0 per its README https://github.com/BandaiNamcoResearchInc/Bandai-Namco-Research-Motiondataset, ND on part of it per press coverage: non-commercial, ruled out);
   100STYLE (CC BY 4.0 per its Zenodo record https://zenodo.org/records/8127870; not needed, CMU covered the list). Mixamo is excluded (its licence does not allow passing the files on).
+
+## Desktop apps (NATIVE2): what the installers contain
+
+The macOS (Apple Silicon) and Windows (x64) apps are the hosted web build inside Electron. Full list with the run-time downloads: `docs/NATIVE.md`.
+
+| Component | Where it is in the installer | Licence | Source |
+|---|---|---|---|
+| Electron 45 (shell, Node.js, V8) | the app itself | MIT (`LICENSE` in the app folder) | https://github.com/electron/electron |
+| Chromium and its third-party libraries, including FFmpeg (LGPL-2.1 build, a separate `ffmpeg` library file) | the app itself | BSD-3-Clause and many others, listed in `LICENSES.chromium.html` shipped inside the app | https://www.chromium.org/ |
+| three.js (bundled in the game code) | `resources/web/assets/three-*.js` | MIT | https://github.com/mrdoob/three.js |
+| The game code, procedural audio, title theme, credits | `resources/web/assets/index-*.js` | original to this project | n/a |
+| Fonts Anton, Barlow, Barlow Condensed | `resources/web/fonts/` | SIL OFL 1.1 (texts beside the fonts) | see Fonts above |
+| Textures, car and character models, MakeHuman base mesh | inside the game files | CC0 1.0 | see Textures, Models, People above |
+| Captured body motion (CMU) | `resources/web/anim/*.bin` | CMU mocap terms (free for all uses) | see Body motion above |
+| Baked DJ and talk-show voice clips (Kokoro-82M output, 8 MP3 banks plus `manifest.json`) | `resources/web/voice/` | the model is Apache-2.0; the clips are audio rendered by it. eSpeak NG ran only on the machine that rendered them; its code is not in the clips or the installer. | see HD voices above |
+| Brooklyn overview map layer (street centrelines `inkn-q76z`, borough boundaries `gthc-hcne`, neighbourhood label points `9nt8-h7nd`) and real-map street furniture | `resources/web/data/*.json` | NYC Open Data public datasets (credit: City of New York). The terms page was not re-read by NATIVE2; the rows above treat these datasets the same way. | https://opendata.cityofnewyork.us |
+
+Not in the installer, fetched by the player's machine at run time (never bundled): the SoundCloud player, the live radio streams, the radio schedule API, and (opt-in "HD voices") kokoro-js with its eSpeak NG phonemizer from jsDelivr and the Kokoro model from Hugging Face. Where each comes from is listed in `docs/NATIVE.md`.

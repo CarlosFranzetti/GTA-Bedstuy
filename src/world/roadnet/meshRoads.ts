@@ -24,6 +24,7 @@ import { CROSSWALK_START, CROSSWALK_WIDTH, STOP_LINE } from './contract';
 import { chunkLayoutFromBounds, tagRoadChunks } from './chunksReal';
 import { isRibbonless, junctionClusters } from './clusters';
 import { buildSidewalkGraph } from './sidewalks';
+import { junctionVertexInfo, roadClassCode, roadVertexInfo, seedOf, sidewalkVertexInfo } from '@/textures/roadInfo';
 import { closestOnSegment, pointInPolygon, segmentIntersection, signedArea } from './geom';
 
 export type WorldMaterials = IMaterialLibrary;
@@ -95,10 +96,13 @@ class Batch {
   readonly nrm: number[] = [];
   readonly uv: number[] = [];
   readonly idx: number[] = [];
-  vert(p: V3, u: number, v: number, n: V3): number {
+  /** per-vertex street info (roadInfo.ts) in the `color` attribute; only written when every vertex of the batch carries it */
+  readonly col: number[] = [];
+  vert(p: V3, u: number, v: number, n: V3, info?: readonly [number, number, number, number]): number {
     this.pos.push(p[0], p[1], p[2]);
     this.nrm.push(n[0], n[1], n[2]);
     this.uv.push(u, v);
+    if (info) this.col.push(info[0], info[1], info[2], info[3]);
     return this.pos.length / 3 - 1;
   }
   /** triangle whose winding is flipped when its geometric normal points against `n` */
@@ -120,6 +124,7 @@ class Batch {
     g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(this.nrm, 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2));
+    if (this.col.length > 0 && this.col.length === (this.pos.length / 3) * 4) g.setAttribute('color', new THREE.Float32BufferAttribute(this.col, 4));
     g.setIndex(this.idx.length && this.pos.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(this.idx, 1) : new THREE.Uint16BufferAttribute(this.idx, 1));
     g.computeBoundingBox();
     g.computeBoundingSphere();
@@ -165,12 +170,13 @@ export function ribbonStations(net: RoadNet, d: Derived, e: number): Station[] {
   return out;
 }
 
-function addRibbon(b: Batch, st: Station[], hw: number): void {
+function addRibbon(b: Batch, st: Station[], hw: number, cls: number, seed: number): void {
   const uPlus = (2 * hw) / TILE_M;
+  const info = roadVertexInfo(hw, cls, seed, st[0].s, st[st.length - 1].s);
   let prevM = -1, prevP = -1;
   for (const s of st) {
-    const m = b.vert([s.minus.x, 0, s.minus.z], 0, s.s / TILE_M, UP);
-    const p = b.vert([s.plus.x, 0, s.plus.z], uPlus, s.s / TILE_M, UP);
+    const m = b.vert([s.minus.x, 0, s.minus.z], 0, s.s / TILE_M, UP, info);
+    const p = b.vert([s.plus.x, 0, s.plus.z], uPlus, s.s / TILE_M, UP, info);
     if (prevM >= 0) b.quad(prevM, prevP, m, p, UP);
     prevM = m; prevP = p;
   }
@@ -179,7 +185,7 @@ function addRibbon(b: Batch, st: Station[], hw: number): void {
 // ---------------------------------------------------------------- polygons
 
 /** triangulates a simple polygon (holes allowed) with THREE.ShapeUtils and writes it as a flat horizontal surface at y */
-function addPolygon(b: Batch, ring: ReadonlyArray<Vec2>, holes: ReadonlyArray<ReadonlyArray<Vec2>>, y: number, uvOf: (p: Vec2) => [number, number]): void {
+function addPolygon(b: Batch, ring: ReadonlyArray<Vec2>, holes: ReadonlyArray<ReadonlyArray<Vec2>>, y: number, uvOf: (p: Vec2) => [number, number], infoOf?: (isHole: boolean) => readonly [number, number, number, number]): void {
   const open = (r: ReadonlyArray<Vec2>): Vec2[] => (r.length > 1 && r[0].x === r[r.length - 1].x && r[0].z === r[r.length - 1].z ? r.slice(0, -1) : r.slice());
   const outer = open(ring);
   if (outer.length < 3) return;
@@ -190,7 +196,7 @@ function addPolygon(b: Batch, ring: ReadonlyArray<Vec2>, holes: ReadonlyArray<Re
   const ids = new Map<number, number>();
   const vertex = (i: number): number => {
     let v = ids.get(i);
-    if (v === undefined) { const p = all[i]; const uv = uvOf(p); v = b.vert([p.x, y, p.z], uv[0], uv[1], UP); ids.set(i, v); }
+    if (v === undefined) { const p = all[i]; const uv = uvOf(p); v = b.vert([p.x, y, p.z], uv[0], uv[1], UP, infoOf?.(i >= outer.length)); ids.set(i, v); }
     return v;
   };
   for (const t of tris) b.tri(vertex(t[0]), vertex(t[1]), vertex(t[2]), UP);
@@ -408,14 +414,17 @@ export function buildRoadMeshes(net: RoadNet, d: Derived, mats: WorldMaterials, 
   const roadway = (): Batch => slot('asphalt', 'asphalt', 1, 'roadway');
   net.edges.forEach((E, e) => {
     if (!hasRibbon(net, d, e)) return;
-    addRibbon(roadway(), ribbonStations(net, d, e), E.width / 2);
+    addRibbon(roadway(), ribbonStations(net, d, e), E.width / 2, roadClassCode(E.cls), seedOf(`${net.streetIdOf(e)}:${e}`));
   });
   // ---- asphalt: node polygons, ribbonless clusters unioned
   const atGrade = net.nodes.map((_, v) => net.incident[v].some((e) => net.edges[e].level === 0));
   const worldUV = (p: Vec2): [number, number] => [p.x / TILE_M, p.z / TILE_M];
   for (const nodes of junctionClusters(net, d)) {
     if (!nodes.some((v) => atGrade[v])) continue;
-    for (const poly of groupPolygons(d, nodes.filter((v) => atGrade[v]))) addPolygon(slot('asphalt', 'asphalt', 0, 'intersections'), poly, [], 0, worldUV);
+    let jcls = 0;
+    for (const v of nodes) for (const e of net.incident[v]) jcls = Math.max(jcls, roadClassCode(net.edges[e].cls));
+    const jinfo = junctionVertexInfo(jcls, seedOf(`j${nodes[0]}`));
+    for (const poly of groupPolygons(d, nodes.filter((v) => atGrade[v]))) addPolygon(slot('asphalt', 'asphalt', 0, 'intersections'), poly, [], 0, worldUV, () => jinfo);
   }
 
   // ---- sidewalks and curbs per block
@@ -427,7 +436,8 @@ export function buildRoadMeshes(net: RoadNet, d: Derived, mats: WorldMaterials, 
     const blue = fnv(blk.ref ?? String(i)) % 2 === 1;
     const sw = blue ? slot('sidewalk', 'bluestone', 0, 'sidewalks-bluestone') : slot('sidewalk', 'concrete', 0, 'sidewalks');
     const uvOf = (p: Vec2): [number, number] => (blue ? [p.x / BLUESTONE_U, p.z / BLUESTONE_V] : [p.x / TILE_M, p.z / TILE_M]);
-    addPolygon(sw, curb, building && building.length >= 3 ? [building] : [], SIDEWALK_H, uvOf);
+    const bseed = seedOf(blk.ref ?? String(i));
+    addPolygon(sw, curb, building && building.length >= 3 ? [building] : [], SIDEWALK_H, uvOf, (isHole) => sidewalkVertexInfo(isHole ? 1 : 0, bseed));
     const warm = (fnv(blk.ref ?? String(i)) >>> 1) % 2;
     addCurbRing(slot('curb', 'graniteCurb', warm, warm === 0 ? 'curbs' : 'curbs-warm'), curb, chamfer);
   });

@@ -15,7 +15,7 @@ export interface CreditsOptions {
 const SPEED = 46;
 
 /**
- * GTA-style credits roll over a dark comic backdrop. Opens from the title screen and the pause menu (`open()`), closes with
+ * GTA-style credits roll over a dark backdrop. Opens from the title screen and the pause menu (`open()`), closes with
  * Esc, Backspace, gamepad B (`navigate('back')`) or the close button. Scrolls by itself unless the player asks for reduced
  * motion or touches / wheels / keys the list, then it is a plain scrollable list. Lives inside the overlay, above the menu.
  */

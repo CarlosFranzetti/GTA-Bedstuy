@@ -38,11 +38,11 @@ import { TEXTURE_PACKS as PACKS } from '@/textures/packs';
 describe('CC0 world sets', () => {
   const ids = (k: string): number[] => PACKS.filter((e) => e.key === k).map((e) => e.variant);
   it('cover the world materials and replace the older photo entries', () => {
-    for (const k of ['brickRed', 'brickPainted', 'brownstone', 'asphalt', 'asphaltWorn', 'concrete', 'corrugatedSteel', 'tarRoof', 'rollGate', 'castIronFence', 'waterTank']) {
+    for (const k of ['brickRed', 'brickPainted', 'brownstone', 'asphalt', 'asphaltWorn', 'corrugatedSteel', 'tarRoof', 'rollGate', 'castIronFence', 'waterTank']) {
       expect(ids(k).length, k).toBeGreaterThan(0);
     }
     expect(PACKS.some((e) => e.key === 'bluestone')).toBe(false); // procedural flags stay
-    expect(PACKS.find((e) => e.key === 'concrete' && e.variant === 0)!.color).toMatch(/concrete_pavement/); // grey slabs, not brick pavers
+    expect(PACKS.some((e) => e.key === 'concrete' && e.variant === 0)).toBe(false); // painted 1.5 m slabs: the ground shader shares their grid
     expect(PACKS.find((e) => e.key === 'asphalt' && e.variant === 0)!.color).toMatch(/cc0\/asphalt\//);
   });
   it('use the 512 px files in the artifact build and keep the painted colour for metals', () => {

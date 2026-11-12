@@ -211,7 +211,7 @@ export const asphaltPainter: Painter = (ctx, w, h, rng, variant, aux) => {
   }
 
   // cracks (drawn under patches)
-  const cracks = worn ? 12 : 4;
+  const cracks = worn ? 5 : 2;
   for (let i = 0; i < cracks; i++) {
     const cw = worn ? rng.range(1, 2.2) : rng.range(0.7, 1.3);
     const mirrors = [
@@ -224,16 +224,17 @@ export const asphaltPainter: Painter = (ctx, w, h, rng, variant, aux) => {
 
   // patches: crisp-edged rectangles, raised 1-2 cm; the worn tile also gets a long narrow utility trench
   const patches: { x: number; y: number; pw: number; ph: number }[] = [];
-  const nPatches = worn ? 4 : 1;
+  const nPatches = worn ? 1 : 0;
   for (let i = 0; i < nPatches; i++) {
     const pw = rng.range(50, 140);
     const ph = rng.range(30, 90);
     patches.push({ x: rng.range(0, w - pw), y: rng.range(0, h - ph), pw, ph });
   }
   if (worn) {
-    const tw = rng.range(24, 34);
-    const th = rng.range(190, 280);
-    patches.push({ x: rng.range(0, w - tw), y: rng.range(0, h - th), pw: tw, ph: th });
+    // one narrow utility strip along the lane, kept off the tile border so it does not read as a tile edge
+    const tw = rng.range(14, 22);
+    const th = rng.range(260, 400);
+    patches.push({ x: rng.range(w * 0.1, w * 0.9 - tw), y: rng.range(0, h - th), pw: tw, ph: th });
   }
   for (const { x: px, y: py, pw, ph } of patches) {
     ctx.fillStyle = hsl(220, 4, worn ? rng.range(23, 31) : rng.range(15, 20));
@@ -261,7 +262,7 @@ export const asphaltPainter: Painter = (ctx, w, h, rng, variant, aux) => {
   }
 
   // oil drips: dark soft ovals stacked down the lane centre
-  const stains = worn ? 8 : 2;
+  const stains = worn ? 3 : 1;
   for (let i = 0; i < stains; i++) {
     const sx = w * 0.5 + rng.range(-0.045, 0.045) * w;
     const sy = rng.range(0, h);
@@ -347,19 +348,8 @@ export const concretePainter: Painter = (ctx, w, h, rng, variant, aux) => {
         }
       }
     }
-    // rust drips near the top edge (a tree guard / railing foot sat here)
-    const rx = rng.range(0.12, 0.38) * w;
-    withAlpha(ctx, 0.35, () => {
-      ctx.fillStyle = '#8a4a24';
-      oval(ctx, rx + 4 * k, 7 * k, 11 * k, 4 * k);
-      ctx.fillStyle = '#5c2f16';
-      oval(ctx, rx + 4 * k, 7 * k, 5 * k, 2 * k);
-    });
-    for (let i = 0; i < 5; i++) {
-      sootStreak(ctx, rx + rng.range(-8, 16) * k, 5 * k, rng.range(1.2, 3) * k, rng.range(28, 90) * k, 0.5, '#8a4a24');
-    }
-    // gum spots: ~10 small dark grey discs with a pale halo
-    for (let i = 0; i < 10; i++) {
+    // a few gum spots (the ground shader scatters the rest across world space, so the tile does not repeat them)
+    for (let i = 0; i < 4; i++) {
       const gx = rng.range(0.04, 0.96) * w;
       const gy = rng.range(0.04, 0.96) * h;
       const gr = rng.range(1.2, 2.6) * k;
@@ -430,19 +420,7 @@ export const concretePainter: Painter = (ctx, w, h, rng, variant, aux) => {
     else ctx.fillRect((i % 2 === 0 ? slab : 0) + rng.range(-1, 3) * k, along, rng.range(1.5, 3.5) * k, rng.range(3, 9) * k);
   }
 
-  if (!dark) {
-    // a crack repaired with tar (smooth, slightly sunken) plus a couple of hairline cracks
-    const tarW = 2 * k;
-    crack(ctx, rng, rng.range(0.58, 0.8) * w, rng.range(0.1, 0.3) * h, 20, 7 * k, 'rgba(22,20,18,0.9)', tarW, [
-      { ctx, color: 'rgba(80,76,70,0.45)', width: 0.7 * k },
-      ...(H ? [{ ctx: H, color: gray(104), width: tarW * 1.2 }] : []),
-      ...(R ? [{ ctx: R, color: gray(120), width: tarW * 1.2 }] : []),
-    ]);
-    for (let i = 0; i < 2; i++) {
-      crack(ctx, rng, rng.range(0, w), rng.range(0, h), 8, 6 * k, 'rgba(48,45,40,0.55)', 0.7 * k,
-        H ? [{ ctx: H, color: gray(92), width: k }] : undefined);
-    }
-  } else {
+  if (dark) {
     for (let i = 0; i < 3; i++) {
       crack(ctx, rng, rng.range(0, w), rng.range(0, h), 14, 8 * k, 'rgba(10,10,8,0.7)', 1.2 * k,
         H ? [{ ctx: H, color: gray(60), width: 2 * k }] : undefined);

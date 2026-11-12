@@ -34,7 +34,21 @@ export const BULLETINS: readonly Bulletin[] = [
   { id: 'n-trust', after: 'last-call-on-throop', flag: F.END_TRUST, text: 'A billboard on Throop Avenue showed tenants\' faces instead of an advertisement for eleven minutes last night. Parallax Living called it "unauthorised content". The block called it the news.' },
   { id: 'n-landlord', after: 'last-call-on-throop', flag: F.END_LANDLORD, text: 'A new owner has taken over three buildings on Throop Avenue. Tenants say the new owner is "a familiar face". Tenants also say the heat is on. Both are being monitored.' },
   { id: 'n-buyout', after: 'last-call-on-throop', flag: F.END_BUYOUT, text: 'Parallax Living completed its acquisition of the Throop Avenue block today and thanked "every neighbour who chose to move forward". Several neighbours were reached by phone. They are moving forward, in different directions.' },
+  // ---- STORY2: the side jobs on the radio (each reads once the job is done)
+  { id: 'n-moisture-a', after: 'moisture-event', flag: F.S_NOTICES_DELIVERED, text: 'A Throop Avenue landlord informed tenants that the heat is provided "on a seasonal basis". The season, a spokesperson said, is "under review". A thermometer in apartment 2A offered a different review.' },
+  { id: 'n-moisture-b', after: 'moisture-event', flag: F.S_NOTICES_BINNED, text: 'Residents of a Throop Avenue building report paper boats in a planter. The landlord\'s portal called them "unsanctioned wayfinding". Residents called them seaworthy.' },
+  { id: 'n-founder', after: 'founder-mode', text: 'A local start-up announced its fourth pivot in eleven days, from stoop liquidity to dog wellness. The dogs, reached for comment, were asleep. The investors were also asleep, in a different position.' },
+  { id: 'n-redtape', after: 'red-tape-relay', text: 'A Throop Avenue record shop has received a Certificate of Continued Existence after three offices, three stamps and a lunch break that began in March. The shop said it "had a feeling".' },
+  { id: 'n-carbon', after: 'carbon-copy', text: 'Carbon monoxide detectors on Garvey Avenue were found without batteries after three boilers were marked inspected by the same pencil. A family got out. The city has opened a review of the pencil.' },
+  { id: 'n-binder', after: 'the-binder', text: 'A binder lost on the el was returned to its owner, a retired union steward, with forty-six years of landlord letters intact. A founder on the platform called it "an under-monetised data layer". The platform called security.' },
+  { id: 'n-gavel', after: 'gavel-to-gavel', text: 'Community Board Three kept its quorum for ninety minutes after a one-minute DJ set in a lot on Van Buren. The chair recused herself in pen. The board called it the most productive meeting since the invention of chairs.' },
+  { id: 'n-pigeons', after: 'pigeon-post', text: 'Forty pigeons were found roosting on a development billboard, on the word "frictionless". Their keeper says the city had tagged them as amenities. Parallax Living says the birds are welcome and not on the lease.' },
+  { id: 'n-van-a', after: 'van-man', flag: F.S_VAN_PRIYA, text: 'An unmarked van that rated every stoop on the block for "likelihood of vacating" has been reported to the Bureau of Buildings, which promises to review it in triplicate by the end of the decade.' },
+  { id: 'n-van-b', after: 'van-man', flag: F.S_VAN_RIVKA, text: 'Four thousand pages of a stoop-rating spreadsheet were posted on a church door, a board-room window and the lamp post outside Parallax Living. Parallax Living called it "unlicensed transparency".' },
+  { id: 'n-retreat', after: 'silent-retreat', text: 'A basement retreat on Garvey Avenue refunded a participant in tokens after he left early. The tokens are worth less than the toast he ate on the way home. The toast was excellent.' },
+  { id: 'n-slow', after: 'slow-roll', text: 'A funeral procession on Throop Avenue drove at twelve miles an hour with forty people walking behind it. Traffic stopped. Nobody honked. A food truck moved. The city called it a rare example of coordination.' },
 ];
+
 
 /** Parody ads. `act` is the earliest act in which the spot runs. */
 export interface RadioAd { id: string; act: 0 | 1 | 2 | 3; text: string }
@@ -52,6 +66,15 @@ export const ADS: readonly RadioAd[] = [
   { id: 'a-grief', act: 3, text: 'Parallax Living. We heard you. We are listening. We have been listening since March. Please stop calling the number on the notice.' },
   { id: 'a-compost', act: 2, text: 'Throop Row Residences. Studios from three-nine, and a compost bin with a view. Lottery application closes the moment we say it does.' },
   { id: 'a-wake', act: 3, text: 'Bright Hereafter Funeral Home reminds you that a plan made now costs less than a plan made later. Parking in the rear. Ask about our Sunday rates.' },
+  // ---- STORY2
+  { id: 'a-copy', act: 0, text: 'Gold\'s Copy and Print. Copies, ten cents. Originals, priceless. Forms: ask. We open at six and we argue at six-oh-five.' },
+  { id: 'a-pemberton', act: 1, text: 'Pemberton Property Partners. Where moisture is a feeling. Available by appointment. The appointment is a state of mind.' },
+  { id: 'a-blockblock', act: 1, text: 'BlockBlock. Own your block. You do not own your block. Own the feeling of owning your block. Seed stage, seeking a Series A and a stoop.' },
+  { id: 'a-bureau', act: 2, text: 'The Bureau of Buildings and Occasional Inspection reminds residents that the form to report a missing form is Form 61-B. Form 61-A is the form to request Form 61-B.' },
+  { id: 'a-humane', act: 2, text: 'Humane Edge Solutions. We remove what you did not ask for, discreetly, in a van with no name. Pests, pigeons, precedent.' },
+  { id: 'a-ascension', act: 2, text: 'The Ascension Circle. Four thousand nine hundred ninety-nine dollars for silence. The silence is yours. The breath is ours.' },
+  { id: 'a-grief', act: 3, text: 'Brother Kale. Grief Bowl, fourteen dollars, oat. Remembrance Smoothie, eleven. Condolences are extra, and they are oat.' },
+  { id: 'a-stoopscore', act: 3, text: 'Stoopable Insights. Know your block\'s resilience index. Somebody already does.' },
 ];
 
 /** The act the story is in right now, from the flags. 0 = before the story starts. */

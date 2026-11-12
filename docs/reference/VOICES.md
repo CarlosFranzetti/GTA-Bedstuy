@@ -128,5 +128,10 @@ One line per cast id: tempo, pause scale, energy (rushing, interrupting, leaning
 ## Keeping the pack honest
 A clip key is `k1:<voice>:<speed>:<hash of the phrase text>`, so changing a phrase's text, speed or speaker changes its key and a stale baked clip is never served; the player asks only for the new keys. If you ever change the bake DSP (trim, loudness, encoder) bump the `model` argument of `clipKey` ('k1') so cached and baked clips from the old processing are dropped. `bake-pack.mjs` ignores clips of an older plan when it assembles, and does not count them against the budget.
 
+## Bake order, pruning and the driver (PROSODY2)
+`packPlan.planPack` sorts by `BAKE_RANK`: 0 station idents, 1 other DJ lines, 4 story and mission lines, the everyday barks (greeting, chat, car close, horn, near miss, running; `prio` 3), then commercials (2), talk shows (3), the remaining barks (5), and the per-neighbourhood shout-out expansions (6) last. The 25 MB budget in `bake-pack.mjs` drops from the end. `--prune` deletes finished clips that are no longer in the plan (after a script or rhythm edit) and re-assembles. `scripts/voice/bake-driver.sh` runs the bake as a series of short light jobs (two shards, 40 clips each, about nine minutes) through `SWARM_LIGHT=1 scripts/swarm-render.sh`, so other lanes' light jobs can interleave; `touch cache/voice-bake/STOP` ends it after the current chunk, `node scripts/voice/bake-pack.mjs --status` shows progress.
+
+Editor's pass on the scripts: beats (`[beat]`, `[breath]`, `[pause]`) where a person would draw breath or let a joke land, `[em]` on the word that carries the joke, `[punch]` before a reveal, an `[over]` cut-in where one speaker would jump the other. Any text change changes that phrase's clip key, so edit, `--prune`, bake again.
+
 ## Evidence
 `node scripts/voice/prosody-demo.mjs --out <dir>` renders the same lines the old way and the new way with the free Kokoro voices (no effect chain) and writes before/after MP3s plus `numbers.json` (speech rate, pause count and spread read back from the audio, and the planned pauses per speaker over every line in the shows, ads and DJ copy).

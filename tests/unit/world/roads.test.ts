@@ -131,10 +131,11 @@ describe('buildRoads', () => {
     expect(box.max.z).toBeGreaterThanOrEqual(grid.bounds.maxZ);
   });
 
-  it('requests asphalt, concrete, laneLine, crosswalk, graniteCurb, manhole, grate, bluestone and metalDark materials', () => {
+  it('requests asphalt, concrete, laneLine, crosswalk, graniteCurb, grate, bluestone and metalDark materials', () => {
     const lib = stubLib();
     buildRoads(fakeGrid(), lib);
-    for (const k of ['asphalt', 'concrete', 'laneLine', 'crosswalk', 'graniteCurb', 'manhole', 'grate', 'bluestone', 'metalDark', 'asphaltWorn'] as MaterialKey[]) {
+    // (gutters and most manholes moved into the asphalt shader: no separate gutter decal, manholes are rare geometry)
+    for (const k of ['asphalt', 'concrete', 'laneLine', 'crosswalk', 'graniteCurb', 'grate', 'bluestone', 'metalDark'] as MaterialKey[]) {
       expect(lib.keys.has(k)).toBe(true);
     }
     // the flat curb colour is gone: curbs are graniteCurb now

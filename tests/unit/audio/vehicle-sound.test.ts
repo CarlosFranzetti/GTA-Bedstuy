@@ -18,7 +18,7 @@ function makeCtx() {
   const ctx = {
     currentTime: 0, sampleRate: 44100, destination: node(),
     createGain: () => node(), createOscillator: () => { made.oscillators++; return node(); }, createBiquadFilter: () => node(), createBufferSource: () => node({ buffer: null, loop: false }),
-    createStereoPanner: () => node(), createPeriodicWave: () => ({}), createBuffer: () => ({ getChannelData: () => new Float32Array(10) }),
+    createStereoPanner: () => node(), createWaveShaper: () => node({ curve: null }), createPeriodicWave: () => ({}), createBuffer: () => ({ getChannelData: () => new Float32Array(10) }),
   };
   return { ctx: ctx as unknown as AudioContext, made };
 }
@@ -92,7 +92,7 @@ describe('rpm and gear model', () => {
     let f = sim.update(1 / 60, 0, 0);
     for (let i = 0; i < 120; i++) f = sim.update(1 / 60, 0, 0);
     expect(f.rpm).toBeCloseTo(v.idle, -1);
-    expect(f.fire).toBeCloseTo(firingHz(v.idle, 8));
+    expect(f.fire).toBeCloseTo(firingHz(v.idle, v.cyl));
     expect(firingHz(1200, 8)).toBe(80);
   });
   it('neutral revving hits the limiter and cuts', () => {
@@ -251,11 +251,11 @@ describe('VehicleAudio', () => {
     v.setTraffic({ x: 0, z: 0 }, [car(1, 20)]);
     const o = made.oscillators;
     v.hornEvent({ x: 0, z: 0 });
-    expect(made.oscillators - o).toBe(3); // bus air horn chord
+    expect(made.oscillators - o).toBe(6); // bus air horn chord, twin discs per tone
     const o2 = made.oscillators;
     v.hornEvent({ x: 20, z: 0 });
     v.hornEvent({ x: 20, z: 0 });
-    expect(made.oscillators - o2).toBe(3); // one honk only, from the bus at that position
+    expect(made.oscillators - o2).toBe(6); // one honk only, from the bus at that position
   });
   it('one-shots and update create a bounded number of nodes', () => {
     const { ctx, made } = makeCtx();

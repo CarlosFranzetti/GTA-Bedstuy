@@ -38,10 +38,10 @@ function rng(seed: number): () => number {
 
 /** Walk styles by age band: [clip name, weight, speed factor]. Names are resolved against the library at play time. */
 const STYLES: Record<AgeBand, ReadonlyArray<readonly [string, number, number]>> = {
-  adult: [['walk', 30, 1], ['walkBrisk', 14, 1.12], ['walkHeavy', 14, 0.92], ['walkStroll', 10, 0.82], ['walkFast', 12, 1.08], ['walkJaunty', 8, 0.95], ['walkAngry', 6, 0.88], ['walkHobble', 2, 0.7]],
+  adult: [['walk', 30, 1], ['walkBrisk', 14, 1.12], ['walkHeavy', 14, 0.92], ['walkStroll', 10, 0.82], ['walkFast', 12, 1.08], ['walkJaunty', 8, 0.95], ['walkAngry', 6, 0.88], ['walkHobble', 2, 0.7], ['walkSad', 5, 0.8], ['walkLimp', 2, 0.9], ['walkDrunk', 1, 0.7]],
   teen: [['walk', 18, 1], ['walkBrisk', 26, 1.12], ['walkFast', 20, 1.1], ['walkJaunty', 18, 0.98], ['walkStroll', 10, 0.85], ['walkAngry', 8, 0.9]],
   kid: [['walkBrisk', 40, 1.1], ['walkFast', 30, 1.12], ['walkJaunty', 20, 1], ['walk', 10, 1]],
-  old: [['walkHobble', 34, 0.7], ['walkStroll', 30, 0.8], ['walkHeavy', 16, 0.78], ['walk', 20, 0.9]],
+  old: [['walkHobble', 30, 0.7], ['walkStroll', 26, 0.8], ['walkHeavy', 14, 0.78], ['walkLimp', 12, 0.8], ['walkSad', 8, 0.75], ['walk', 10, 0.9]],
 };
 
 export function makeGait(seed: number, age: AgeBand = 'adult'): Gait {
@@ -59,8 +59,8 @@ export function makeGait(seed: number, age: AgeBand = 'adult'): Gait {
     cadence: spread(0.9, 1.12) * (age === 'kid' ? 1.1 : elder ? 0.93 : 1),
     stride: spread(0.9, 1.1) * (elder ? 0.9 : 1),
     armSwing: spread(0.45, 1.35) * (elder ? 0.7 : 1),
-    lean: spread(-0.03, 0.07) + (elder ? 0.1 : 0),
-    headDrop: spread(-0.04, 0.1) + (elder ? 0.08 : 0),
+    lean: spread(-0.03, 0.07) + (elder ? 0.06 : 0),
+    headDrop: spread(-0.04, 0.1) + (elder ? 0.04 : 0),
     sway: spread(0.75, 1.35),
     phase: r(),
     idleOffset: spread(0, 5),
@@ -69,4 +69,4 @@ export function makeGait(seed: number, age: AgeBand = 'adult'): Gait {
 }
 
 /** The player's own walk: the plain clip, neutral settings. */
-export const PLAYER_GAIT: Gait = { walkClip: 'walk', cadence: 1, stride: 1, armSwing: 1, lean: 0, headDrop: 0, sway: 1, phase: 0, idleOffset: 0, speedScale: 1 };
+export const PLAYER_GAIT: Gait = { walkClip: 'walkBrisk', cadence: 1, stride: 1, armSwing: 1, lean: 0, headDrop: 0, sway: 1, phase: 0, idleOffset: 0, speedScale: 1 };

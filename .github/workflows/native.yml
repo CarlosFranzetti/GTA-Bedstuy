@@ -1,5 +1,8 @@
 name: native
 
+# Desktop apps: macOS Apple Silicon (dmg + zip) and Windows x64 (installer + portable exe).
+# Runs on a push to master that touches the shell (native/**), this file, or anything the hosted web build is made from, and by hand
+# (Actions, "native", Run workflow). A v* tag also attaches the installers to a GitHub Release. See docs/NATIVE.md.
 on:
   workflow_dispatch:
   push:
@@ -8,11 +11,59 @@ on:
     paths:
       - 'native/**'
       - '.github/workflows/native.yml'
+      # inputs of the hosted web build that gets packaged
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig*.json'
+
+# A newer push replaces a build that is still running for the same branch (macOS minutes are the expensive ones).
+concurrency:
+  group: native-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
 
+env:
+  VITE_HOSTED: '1'
+
 jobs:
+  # Boots the real Electron app on Linux under a virtual display and checks title screen, start, one frame, fonts, street animations,
+  # voice pack, map data, radio hosts and the content security policy. Software rendering: it proves the app boots, not how it looks.
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            native/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm --prefix native ci
+      - run: npm --prefix native test
+      - run: npm --prefix native run compile
+      - run: npm --prefix native run prep
+      - name: Install virtual display and GL libraries
+        run: sudo apt-get update && sudo apt-get install -y xvfb libgbm1 libasound2t64 libnss3 libgtk-3-0t64 || sudo apt-get install -y xvfb libgbm1 libasound2 libnss3 libgtk-3-0
+      - name: Boot smoke test (title screen, start, one frame)
+        run: xvfb-run -a -s "-screen 0 1280x720x24" node native/scripts/smoke.mjs --json smoke.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-report
+          path: smoke.json
+          if-no-files-found: ignore
+          retention-days: 7
+
   build:
     strategy:
       fail-fast: false
@@ -30,6 +81,10 @@ jobs:
             paths: |
               native/release/*.exe
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
 
@@ -40,6 +95,9 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             native/package-lock.json
+
+      - name: Name this build after the commit
+        run: echo "GTA_BUILD_ID=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_ENV"
 
       - name: Cache Electron and electron-builder downloads
         uses: actions/cache@v4
@@ -56,10 +114,8 @@ jobs:
       - name: Install web dependencies
         run: npm ci
 
-      - name: Build hosted web bundle
+      - name: Build hosted web bundle (fonts, art, voice pack, animation pack, map data come with it)
         run: npm run build
-        env:
-          VITE_HOSTED: '1'
 
       - name: Install native dependencies
         run: npm --prefix native ci
@@ -67,6 +123,8 @@ jobs:
       - name: Test native shell
         run: npm --prefix native test
 
+      # prep.mjs (inside dist:*) stops the build, naming what is missing, if the web build is absent, is the single-file artifact,
+      # lacks fonts / voice / street.bin / map data, or contains the GPL phonemizer.
       - name: Build desktop app (signing/notarization only if secrets are set)
         run: npm --prefix native run ${{ matrix.script }}
         env:
@@ -79,11 +137,15 @@ jobs:
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
           WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
 
+      - name: Look inside the finished app for the web build
+        run: node native/scripts/verify-package.mjs
+
       - uses: actions/upload-artifact@v4
         with:
-          name: gta-bedstuy-${{ matrix.name }}
+          name: gta-bedstuy-${{ matrix.name }}-${{ env.GTA_BUILD_ID }}
           path: ${{ matrix.paths }}
           if-no-files-found: error
+          retention-days: 30
 
       - name: Attach to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')

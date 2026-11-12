@@ -20,9 +20,12 @@ export interface RealPlacesApi {
   corner(nsId: string, ewId: string): Vec2;
   onStreet(streetId: string, near: Vec2): Vec2;
 }
+/** Real-map ground rules: hand-placed offsets and foot routes must not end up inside a building (a block interior is open yard on the grid only). */
+export interface RealWalk { snap(p: Vec2): Vec2; path(pts: readonly Vec2[]): Vec2[] }
 let real: RealPlacesApi | null = null;
-/** Switch the four lookups below to the real map (`null` back to the grid). Call before `buildMissions`. */
-export const useRealPlaces = (r: RealPlacesApi | null): void => { real = r; };
+let walk: RealWalk | null = null;
+/** Switch the lookups below to the real map (`null` back to the grid). Call before `buildMissions`. */
+export const useRealPlaces = (r: RealPlacesApi | null, w: RealWalk | null = null): void => { real = r; walk = w; };
 
 const lerp = (a: Vec2, b: Vec2, t: number): Vec2 => ({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
 
@@ -75,5 +78,11 @@ export function streetAt(grid: GridModel, streetId: string, along: number): Vec2
 
 /** Walkable point `d` metres from `p` along the direction (ux, uz), for yards and alleys. */
 export function offset(p: Vec2, dx: number, dz: number): Vec2 {
-  return { x: p.x + dx, z: p.z + dz };
+  const q = { x: p.x + dx, z: p.z + dz };
+  return walk ? walk.snap(q) : q;
+}
+
+/** A route a person can run along: as given on the grid; on the real map it follows the sidewalks between the points. */
+export function footRoute(pts: Vec2[]): Vec2[] {
+  return walk ? walk.path(pts) : pts;
 }

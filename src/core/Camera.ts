@@ -87,6 +87,8 @@ const SHAKE_ROLL = 0.025; // radians at amplitude 1
 /** Keep the lens this far off a wall, and never closer than this to the target (horizontally). */
 const WALL_MARGIN = 0.35;
 const MIN_HORIZ = 0.9;
+/** The lens may come in this close (horizontally) when it is raised over the body; tilt makes up for it. */
+const MIN_REACH = 0.3;
 const WALL_OUT_RATE = 3;
 const FALLBACK_RAY_STEPS = 4;
 /** Mission letterbox: bar height as a share of the viewport and the slide rate. */
@@ -452,7 +454,7 @@ export class ThirdPersonCamera {
         else if (limitNow < this.reach) this.reach += (limitNow - this.reach) * (1 - Math.exp(-WALL_IN_RATE * dt));
         else if (limitNow - this.reach > REACH_DEAD) this.reach += (limitNow - this.reach) * (1 - Math.exp(-WALL_OUT_RATE * dt));
         this.initReach = true;
-        const h = Math.max(MIN_HORIZ, Math.min(d, this.reach));
+        const h = Math.max(MIN_REACH, Math.min(d, this.reach));
         if (h < d) {
           const sc = h / d;
           this.pos.x = targetPos.x + dxp * sc;

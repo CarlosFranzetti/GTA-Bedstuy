@@ -112,7 +112,7 @@ describe('ground painters', () => {
     expect(run.main.filter((o) => o.name === 'closePath').length).toBeGreaterThan(2); // chipped corner polygons
   });
 
-  it('sidewalk concrete v0 draws at least 8 gum discs; the backyard variant draws none', () => {
+  it('sidewalk concrete v0 draws a few gum discs; the backyard variant draws none', () => {
     const gumDiscs = (ops: Op[]): number => {
       let fill = '';
       let n = 0;
@@ -122,18 +122,17 @@ describe('ground painters', () => {
       }
       return n;
     };
-    expect(gumDiscs(paint(concretePainter, 512, 512, 4, 0).main)).toBeGreaterThanOrEqual(8);
+    expect(gumDiscs(paint(concretePainter, 512, 512, 4, 0).main)).toBeGreaterThanOrEqual(3);
     expect(gumDiscs(paint(concretePainter, 512, 512, 4, 1).main)).toBe(0);
     // size-independent: the 256px layout draws the same discs
-    expect(gumDiscs(paint(concretePainter, 256, 256, 4, 0).main)).toBeGreaterThanOrEqual(8);
+    expect(gumDiscs(paint(concretePainter, 256, 256, 4, 0).main)).toBeGreaterThanOrEqual(3);
   });
 
-  it('sidewalk concrete v0 has a 2x2 slab layout with an expansion joint and tar-sealed crack; v1 is algae-green', () => {
+  it('sidewalk concrete v0 has a 2x2 slab layout with an expansion joint (no repeated tar crack or rust: the shader draws those); v1 is algae-green', () => {
     const v0 = paint(concretePainter, 512, 512, 4, 0, true);
     const fills = (ops: Op[]) => ops.filter((o) => o.name === 'set:fillStyle').map((o) => String(o.args[0]));
     expect(fills(v0.main)).toContain('#34312d'); // asphalt-filled expansion joint
-    expect(v0.main.some((o) => o.name === 'set:strokeStyle' && o.args[0] === 'rgba(22,20,18,0.9)')).toBe(true); // tar
-    expect(fills(v0.main).some((f) => /^rgb\(\d+,\d+,\d+\)$/.test(f) || f.startsWith('#8a4a24'))).toBe(true); // rust
+    expect(v0.main.some((o) => o.name === 'set:strokeStyle' && o.args[0] === 'rgba(22,20,18,0.9)')).toBe(false); // the tile no longer carries one tar crack
     const v1 = paint(concretePainter, 512, 512, 4, 1);
     expect(fills(v1.main).filter((f) => /^hsl\((8\d|9\d|10\d|11\d)/.test(f)).length).toBeGreaterThan(10);
   });

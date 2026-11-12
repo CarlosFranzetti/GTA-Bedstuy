@@ -19,6 +19,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { norm, sub, perpRight, len, lerp2 } from '@/core/Math2';
 import type { Vec2 } from '@/core/Math2';
 import { Rng } from '@/core/Rng';
+import { junctionVertexInfo, roadClassCode, roadVertexInfo, seedOf, setUniformRoadInfo, sidewalkVertexInfo } from '@/textures/roadInfo';
 import type {
   Crosswalk, GridModel, IMaterialLibrary, MaterialKey, Segment, Side, StaticCollider,
 } from '@/world/types';
@@ -47,7 +48,6 @@ const DASH_PERIOD = 9;
 const DASH_W = 0.15;
 const EDGE_W = 0.12;
 const EDGE_INSET = 0.35;
-const GUTTER_W = 0.28;
 const DOUBLE_OFFSET = 0.075;
 const DOUBLE_W = 0.08;
 const DOUBLE_TRIM = 3.5;
@@ -365,16 +365,18 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
     if (L < 1e-6) continue;
     const dir = norm(d);
     // u runs across the road from its left edge (one 3 m lane per repeat), v along it
-    std('asphalt', 1, 'roadway').push(projectUV(
+    const rcls = roadClassCode(grid.streetById(s.streetId).class);
+    std('asphalt', 1, 'roadway').push(setUniformRoadInfo(projectUV(
       flatQuad((s.a.x + s.b.x) / 2, (s.a.z + s.b.z) / 2, dir, L, s.width, 0),
       s.a, perpRight(dir), dir, 1 / TILE_M, 1 / TILE_M, s.width / 2 / TILE_M, 0,
-    ));
+    ), roadVertexInfo(s.width / 2, rcls, seedOf(`${s.streetId}:${Math.round(s.a.x)}:${Math.round(s.a.z)}`), 0, L)));
   }
   for (const i of grid.intersections) {
-    std('asphalt', 0, 'intersections').push(projectUV(
+    const icls = Math.max(roadClassCode(grid.streetById(i.nsStreetId).class), roadClassCode(grid.streetById(i.ewStreetId).class));
+    std('asphalt', 0, 'intersections').push(setUniformRoadInfo(projectUV(
       flatQuad(i.center.x, i.center.z, WORLD_X, i.halfX * 2, i.halfZ * 2, 0),
       { x: 0, z: 0 }, WORLD_X, WORLD_Z, 1 / TILE_M, 1 / TILE_M,
-    ));
+    ), junctionVertexInfo(icls, seedOf(`${i.nsStreetId}|${i.ewStreetId}`))));
   }
 
   // Sidewalk slabs (top at SIDEWALK_H) and curbs along each block outline
@@ -392,12 +394,13 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
     const cz = (minZ + maxZ) / 2;
     // odd block rows are the brownstone rows, where old bluestone flags survive; elsewhere poured concrete
     const origin = { x: minX, z: minZ };
+    const bseed = seedOf(`${bl.row}:${bl.col}`);
     if (Math.abs(bl.row) % 2 === 1) {
-      std('bluestone', 0, 'sidewalks-bluestone').push(projectUV(
-        box(cx, SIDEWALK_H / 2, cz, w, SIDEWALK_H, d), origin, WORLD_X, WORLD_Z, 1 / BLUESTONE_U, 1 / BLUESTONE_V));
+      std('bluestone', 0, 'sidewalks-bluestone').push(setUniformRoadInfo(projectUV(
+        box(cx, SIDEWALK_H / 2, cz, w, SIDEWALK_H, d), origin, WORLD_X, WORLD_Z, 1 / BLUESTONE_U, 1 / BLUESTONE_V), [0, bseed, w, d]));
     } else {
-      std('concrete', 0, 'sidewalks').push(projectUV(
-        box(cx, SIDEWALK_H / 2, cz, w, SIDEWALK_H, d), origin, WORLD_X, WORLD_Z, 1 / TILE_M, 1 / TILE_M));
+      std('concrete', 0, 'sidewalks').push(setUniformRoadInfo(projectUV(
+        box(cx, SIDEWALK_H / 2, cz, w, SIDEWALK_H, d), origin, WORLD_X, WORLD_Z, 1 / TILE_M, 1 / TILE_M), [0, bseed, w, d]));
     }
 
     // Curbs sit on the roadway side of each block edge; the north and south runs extend by one
@@ -439,8 +442,8 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
         // UV origin on the tile lattice next to the pit (same phase as the world-origin projection, but |uv| < 1.5): with
         // |uv| ~ 100 the normal-mapped slab shaded to black (the derivative-based tangent frame loses its precision)
         const org = { x: Math.round(c.x / TILE_M) * TILE_M, z: Math.round(c.z / TILE_M) * TILE_M };
-        treePits.push(projectUV(
-          flatQuad(c.x, c.z, faceDir, TREE_PIT, TREE_PIT, Y_PIT), org, WORLD_X, WORLD_Z, 1 / TILE_M, 1 / TILE_M));
+        treePits.push(setUniformRoadInfo(projectUV(
+          flatQuad(c.x, c.z, faceDir, TREE_PIT, TREE_PIT, Y_PIT), org, WORLD_X, WORLD_Z, 1 / TILE_M, 1 / TILE_M), sidewalkVertexInfo(0.5, bseed)));
       }
       if (street.class !== 'avenue') continue;
       for (let t = 4; t <= faceLen - 4; t += 9) {
@@ -467,15 +470,7 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
     const right = perpRight(dir);
     const mid = { x: (s.a.x + s.b.x) / 2, z: (s.a.z + s.b.z) / 2 };
 
-    // gutter: darker worn asphalt strip along each curb
-    const gutters = decal('asphaltWorn', 1, 'gutters');
-    for (const sgn of [-1, 1]) {
-      const off = s.width / 2 - GUTTER_W / 2;
-      gutters.push(projectUV(
-        flatQuad(mid.x + right.x * off * sgn, mid.z + right.z * off * sgn, dir, L, GUTTER_W, Y_DECAL),
-        s.a, right, dir, 1 / TILE_M, 1 / TILE_M, s.width / 2 / TILE_M, 0,
-      ));
-    }
+    // (gutter silt, wheel paths, cracks, utility cuts and plates are drawn by the asphalt shader from the roadway's vertex info)
 
     // solid white edge lines
     const edgeOff = s.width / 2 - EDGE_INSET;
@@ -526,8 +521,8 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
     if (usable <= 0) continue;
     const latMax = Math.max(0, s.width / 2 - 1.2);
 
-    // road patches: darker repaired asphalt
-    if (rng.chance(0.3)) {
+    // road patches: darker repaired asphalt (rare; the shader draws the long utility cuts and big irregular patches)
+    if (rng.chance(0.05)) {
       const t = rng.range(SEG_MARGIN, L - SEG_MARGIN);
       const lat = rng.range(-latMax, latMax);
       const c = { x: s.a.x + dir.x * t + right.x * lat, z: s.a.z + dir.z * t + right.z * lat };
@@ -552,7 +547,7 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
     }
 
     // manhole covers along the centre lane: round cast-iron discs, lettering aligned with the street
-    const holes = rng.int(2, 3);
+    const holes = rng.chance(0.45) ? 1 : 0; // the shader adds the rest, on the lanes
     for (let k = 0; k < holes; k++) {
       const t = rng.range(SEG_MARGIN, L - SEG_MARGIN);
       const variant = rng.chance(MANHOLE_V1_CHANCE) ? 1 : 0;

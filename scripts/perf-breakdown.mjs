@@ -30,7 +30,7 @@ try {
     const page = await browser.newPage({ viewport: { width: W, height: H } });
     page.on('pageerror', (e) => errors.push(String(e).slice(0, 300)));
     await page.goto(`${base}/?q=${q}&perf=0`, { waitUntil: 'load', timeout: 120_000 });
-    await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 180_000 });
+    await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 540_000 });
     await page.mouse.click(W / 2, H / 2); await page.waitForTimeout(800);
     const dismiss = async () => { const b = page.getByRole('button', { name: 'Resume' }); if (await b.isVisible().catch(() => false)) { await b.click(); await page.waitForTimeout(300); } };
     await dismiss();

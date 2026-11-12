@@ -82,7 +82,7 @@ describe('pause model', () => {
     const speeds = new Set<number>();
     for (let i = 0; i < 60; i++) for (const p of planSentence(`Number ${i}, a thing happened here, and then another thing happened there.`, 'tommy', 1.14, rhythmFor('tommy'))) {
       speeds.add(p.speed);
-      expect(p.speed).toBeGreaterThanOrEqual(1.14 * 0.8 - 0.01); expect(p.speed).toBeLessThanOrEqual(1.45 + 1e-9);
+      expect(p.speed).toBeGreaterThanOrEqual(1.14 * 0.84 - 0.01); expect(p.speed).toBeLessThanOrEqual(1.45 + 1e-9);
       expect(Math.abs(p.speed * 50 - Math.round(p.speed * 50))).toBeLessThan(1e-6);
     }
     expect(speeds.size).toBeGreaterThan(6);

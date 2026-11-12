@@ -52,12 +52,12 @@ export interface BakeInput {
 }
 
 const N = SK_ATLAS;
-const posMap = new Float32Array(N * N * 3), nrmMap = new Float32Array(N * N * 3), wMap = new Float32Array(N * N * 4), cover = new Uint8Array(N * N);
+const depthMap = new Float32Array(N * N), posMap = new Float32Array(N * N * 3), nrmMap = new Float32Array(N * N * 3), wMap = new Float32Array(N * N * 4), cover = new Uint8Array(N * N);
 
 /** rasterise the chart: for every covered texel the 3D position, normal and the weights of head / torso+hips / arms / legs */
 function rasterise(b: BakeInput, size: number): void {
   const n = size * size;
-  cover.fill(0, 0, n); wMap.fill(0, 0, n * 4);
+  cover.fill(0, 0, n); wMap.fill(0, 0, n * 4); depthMap.fill(1e9, 0, n);
   const grp = (v: number, out: Float32Array | number[]): void => {
     out[0] = out[1] = out[2] = out[3] = 0;
     for (let k = 0; k < 4; k++) { const j = b.joints[v * 4 + k], w = b.weights[v * 4 + k]; if (j === 3) out[0] += w; else if (j <= 2) out[1] += w; else if (j <= 7) out[2] += w; else out[3] += w; }
@@ -90,6 +90,10 @@ function rasterise(b: BakeInput, size: number): void {
       const e = -0.04;
       if (l1 < e || l2 < e || l3 < e) continue;
       const q = py * size + px, c1 = Math.min(1.2, Math.max(-0.2, l1)), c2 = Math.min(1.2, Math.max(-0.2, l2)), c3 = 1 - c1 - c2;
+      // where charts fold over each other (lids, nostrils, lips) the surface nearest the front owns the texel
+      const zz = b.position[ia * 3 + 2] * c1 + b.position[ib * 3 + 2] * c2 + b.position[ic * 3 + 2] * c3;
+      if (cover[q] && zz > depthMap[q] + 0.003) continue;
+      depthMap[q] = zz;
       for (let k = 0; k < 3; k++) {
         posMap[q * 3 + k] = b.position[ia * 3 + k] * c1 + b.position[ib * 3 + k] * c2 + b.position[ic * 3 + k] * c3;
         nrmMap[q * 3 + k] = b.normal[ia * 3 + k] * c1 + b.normal[ib * 3 + k] * c2 + b.normal[ic * 3 + k] * c3;
@@ -180,7 +184,7 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
         }
         // beard, moustache, stubble
         const beardZone = (face.beard ? 1 : 0) * sst(0.075, 0.062, ax) * sst(mouthY + 0.05, mouthY + 0.02, y) * sst(lm.chinY - 0.04, lm.chinY + 0.008, y) * (1 - 0.95 * (my > -0.011 && my < 0.012 && mx < 0.95 ? 1 : 0));
-        const stach = ((face.mustache || face.beard) ? 1 : 0) * sst(0.036, 0.025, ax) * sst(mouthY + 0.004, mouthY + 0.014, y) * sst(noseY - 0.004, noseY - 0.016, y);
+        const stach = ((face.mustache || face.beard) ? 0.75 : 0) * sst(0.03, 0.018, ax) * sst(mouthY + 0.004, mouthY + 0.012, y) * sst(noseY - 0.006, noseY - 0.014, y);
         const stub = face.stubble ? 0.4 * sst(0.07, 0.055, ax) * sst(mouthY + 0.045, mouthY + 0.01, y) * (0.6 + 0.8 * rnd(q * 3 + 1)) : 0;
         c = mix(c, mul(hairC, 0.9), Math.min(0.93, Math.max(beardZone * 0.9, stach * 0.9, stub)));
         // age: forehead lines, crow's feet
@@ -227,7 +231,7 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
     const hand = arm && y < wrY - 0.002;
     const front = (zz: number): number => sst(-0.045, -0.11, zz);
     const fr0 = front(z), cdip = k === 'scrubs' ? 0.075 : k === 'blouse' ? 0.04 : k === 'dress' ? 0.045 : k === 'uniform' ? 0.02 : k === 'jersey' ? 0.04 : k === 'tee' ? 0.032 : 0.008;
-    const neckY = (k === 'hoodie' || k === 'puffer' || k === 'tracksuit' || k === 'jacket' ? 1.512 : 1.498) - cdip * fr0 * (1 - sst(0.04, 0.1, ax)) + (open && fr0 > 0.3 ? -0.05 * (1 - sst(0.0, 0.09, ax)) : 0) + 0.03 * sst(0.05, 0.1, ax) + 0.004 * Math.sin(x * 60);
+    const neckY = (k === 'hoodie' || k === 'puffer' || k === 'tracksuit' || k === 'jacket' ? 1.512 : 1.498) - cdip * fr0 * (1 - sst(0.04, 0.1, ax)) + (open && fr0 > 0.3 ? -0.05 * (1 - sst(0.0, 0.09, ax)) : 0) + 0.03 * sst(0.05, 0.1, ax)  ;
     let aTop = 0, aBot = 0, aShoe = 0;
     if (arm) { aTop = sleeves === 'none' || outerArms === null || hand ? 0 : sst(sleeveEnd - eps, sleeveEnd + eps, y); }
     else if (leg) {
@@ -295,7 +299,7 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
       if (!arm && !leg && dn < 0.014 && y > hemTop + 0.2) f = mix(f, k === 'tee' || k === 'jersey' ? mul(f, 0.8) : mul(trimC, 0.9), 0.75 * sst(0.018, 0.004, dn) * (k === 'hoodie' ? 0.4 : 1));
     }
     // folds, creases and soft shading, baked
-    const joints = g2(y - elY, 0.05) * (arm ? 1 : 0) + g2(y - hemTop, 0.08) * (arm || leg ? 0 : 1) + g2(y - knY, 0.06) * (leg ? 1 : 0) + g2(y - (shY - 0.06), 0.05) * (arm ? 1 : 0.3) + g2(y - (hipX * 0 + b.rig.hipL[1] - 0.04), 0.06) * (leg ? 1 : 0);
+    const joints = g2(y - elY, 0.05) * (arm ? 1 : 0) + g2(y - hemTop, 0.08) * (arm || leg ? 0 : 1) + g2(y - knY, 0.06) * (leg ? 1 : 0) + g2(y - (shY - 0.06), 0.05) * (arm ? 1 : 0) + g2(y - (hipX * 0 + b.rig.hipL[1] - 0.04), 0.06) * (leg ? 1 : 0);
     const fold = (0.5 + 0.5 * Math.sin(y * 110 + Math.sin(U * 11) * 1.8 + (leg ? Math.sin(z * 30) : 0))) * Math.min(1, joints);
     f = mul(f, 1 - 0.16 * fold * (k === 'puffer' ? 0.5 : 1));
     // painted creases where cloth bends: inside of the elbow, back of the knee, the crotch, the armpit
@@ -303,7 +307,7 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
     let crease = 0;
     if (arm) crease = Math.max(cr(y - elY + 0.012 * Math.sin(x * 140), 0.006) * 0.6, cr(y - elY - 0.025, 0.005) * 0.4, cr(y - elY + 0.03 - 0.5 * ax, 0.006) * 0.3) * sst(0.1, 0.5, Math.abs(nz) + Math.abs(ny) * 0.3);
     else if (leg) crease = Math.max(cr(y - knY - 0.01 * Math.sin(z * 120), 0.006) * 0.5, cr(y - (R.hipL[1] - 0.06) - 0.4 * (ax - hipX * 0.5), 0.006) * 0.55 * sst(0.0, 0.5, ax > 0 ? 1 : 0));
-    else crease = cr(y - (shY - 0.1) + 3 * (ax - shX * 0.7) * 0, 0.0) * 0 + cr(y - (hemTop + 0.1) - 0.2 * ax, 0.005) * 0.3;
+    else crease = cr(y - (hemTop + 0.02) - 0.25 * ax, 0.005) * 0.35;
     f = mul(f, 1 - 0.22 * crease);
     if (k === 'puffer' && cloth === 1) f = mul(f, 0.86 + 0.14 * Math.sin(y * 82 + 1.3) * 0.5 + 0.07);
     f = mul(f, 1 + nz2 * fabNoise);
@@ -423,8 +427,8 @@ function paintBand(ctx: CanvasRenderingContext2D, s: PedSpec, k: number): void {
     ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(x + w * 0.15, y + h * 0.88, w * 0.7, h * 0.12); }
   // top fabric (hood roll, coat hem) and bottom fabric (skirt)
   const topC = rgb(s.top.color), botC = rgb(s.bottom.color);
-  grad(SK_RECTS.torso, mix(topC, [255, 255, 255], 0.04), mul(topC, 0.92));
+  grad(SK_RECTS.torso, mul(topC, 0.86), mul(topC, 0.8));
   streaks(SK_RECTS.torso, topC, 10, s.id + 't', 0.3, 0.1);
-  grad(SK_RECTS.pelvis, mix(botC, [255, 255, 255], 0.06), mul(botC, 0.8));
+  grad(SK_RECTS.pelvis, mul(botC, 0.86), mul(botC, 0.8));
   { const [x, y, w, h] = R(SK_RECTS.pelvis); for (let i = 0; i < 6; i++) { ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.fillRect(x + (i + 0.5) * w / 6, y, Math.max(1, k), h); } }
 }

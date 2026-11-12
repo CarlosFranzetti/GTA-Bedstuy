@@ -20,7 +20,7 @@ import type { Vec2 } from '@/core/Math2';
 import type { Rng } from '@/core/Rng';
 import type { IMaterialLibrary, LaneGraph, Lot, StaticCollider } from '@/world/types';
 import type { Quality } from '@/render/Shadows';
-import { FINE_CELLS, chunkKeyOfCell, splitMeshesIntoCells, type ChunkLayout } from '@/render/Culling';
+import { FINE_CELLS, chunkKeyOf, chunkKeyOfCell, splitMeshesIntoCells, type ChunkLayout } from '@/render/Culling';
 import { buildBuildings } from '@/world/BuildingGen';
 import { SIDEWALK_HEIGHT } from '@/world/WorldBuilder';
 import { loadRoadNet } from './MapSource';
@@ -324,7 +324,9 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   try {
     const spots = allColumnSpots(el.paths, derived, net);
     elSpots = spots;
-    group.add(buildElStructureReal(el.paths, spots, mats, el.stations));
+    const elGroup = buildElStructureReal(el.paths, spots, mats, el.stations);
+    group.add(elGroup);
+    chunkMeshes.push(...tagElChunks(elGroup, chunks));
     spots.forEach((s, i) => colliders.push({ shape: { kind: 'circle', r: 0.4 }, pos: { x: s.p.x, z: s.p.z }, id: `el-real-col-${i}` }));
   } catch (e) {
     standIns.push(`el: ${(e as Error).message}`);
@@ -361,6 +363,29 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   if (typeof window !== 'undefined') (window as unknown as { __gtaRealWorld?: () => RealWorld }).__gtaRealWorld = () => rwOut;
   return rwOut;
 }
+
+/**
+ * The el's deck sections and name boards are 80 to 125 m long and were never culled (each a draw whenever the frustum touched
+ * its sphere: 80 draws on a side street 40 m from the line). They get the key of the chunk holding their centre, prefixed so the
+ * el's boxes do not stretch the chunk bounds of the props and roads sharing the grid cell, and join `chunkMeshes` for the
+ * game's ChunkCuller (per-tier range, hysteresis). The station deck, canopy and columns are single whole-line draws and stay as they are.
+ */
+export function tagElChunks(el: THREE.Object3D, layout: ChunkLayout): THREE.Mesh[] {
+  const tagged: THREE.Mesh[] = [];
+  const box = new THREE.Box3(), c = new THREE.Vector3();
+  el.updateWorldMatrix(true, true);
+  el.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || (m as THREE.InstancedMesh).isInstancedMesh || !/^el:(section|sign)/.test(m.name)) return;
+    box.setFromObject(m).getCenter(c);
+    m.userData.chunk = EL_CHUNK_PREFIX + chunkKeyOf(layout, c.x, c.z);
+    tagged.push(m);
+  });
+  return tagged;
+}
+
+/** Chunk key prefix of the el's culling chunks (see tagElChunks). */
+export const EL_CHUNK_PREFIX = 'el_';
 
 /** WP2 lane graph of a built real world (async only to keep lanes.ts out of the first chunk). */
 export async function buildRealLanes(rw: RealWorld): Promise<LaneGraph> {

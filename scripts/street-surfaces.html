@@ -1,0 +1,98 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>street surfaces</title>
+<style>html,body{margin:0;background:#789;overflow:hidden}</style></head>
+<body><script type="module">
+// ROADS review harness: a straight street with sidewalks, kerbs and lane paint built from the real MaterialLibrary + CC0 packs
+// and the road vertex info (no game, no world). Dev server only: vite --port N, then /scripts/street-surfaces.html?view=street|close|top&hw=6&cls=0&hour=day|night
+import * as THREE from 'three';
+import { Rng } from '@/core/Rng';
+import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { loadTexturePacks } from '@/textures/packs';
+import { roadVertexInfo, seedOf, setUniformRoadInfo, junctionVertexInfo } from '@/textures/roadInfo';
+
+const q = new URLSearchParams(location.search);
+const view = q.get('view') ?? 'street';
+const hw = Number(q.get('hw') ?? 6);
+const cls = Number(q.get('cls') ?? 0);
+const night = q.get('hour') === 'night';
+const W = Number(q.get('w') ?? 960), H = Number(q.get('h') ?? 540);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H);
+renderer.shadowMap.enabled = false;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = night ? 1.2 : 0.95;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(night ? '#0a0e1a' : '#a9c4de');
+scene.fog = new THREE.Fog(night ? '#0a0e1a' : '#b9cde0', 60, 260);
+const sun = new THREE.DirectionalLight(night ? '#9bb0ff' : '#fff1dc', night ? 0.5 : 2.4);
+sun.position.set(-40, 60, 25);
+scene.add(sun, new THREE.HemisphereLight(night ? '#334466' : '#cfe3ff', '#3a342e', night ? 0.5 : 0.9));
+
+const mats = new MaterialLibrary(new Rng('street-surfaces'), undefined, { maxAnisotropy: 8 });
+await loadTexturePacks(mats, 8).catch((e) => console.warn('packs', e));
+
+const L = 240, TILE = 3;
+// roadway ribbon along +z from z=0..L, centred on x=0; u across from the left edge, v along (as RoadBuilder / meshRoads)
+function ribbon(hw, cls, seed, z0, z1) {
+  const g = new THREE.PlaneGeometry(2 * hw, z1 - z0);
+  g.rotateX(-Math.PI / 2);
+  g.translate(0, 0, (z0 + z1) / 2);
+  const pos = g.getAttribute('position'); const uv = new Float32Array(pos.count * 2);
+  for (let i = 0; i < pos.count; i++) { uv[i * 2] = (pos.getX(i) + hw) / TILE; uv[i * 2 + 1] = (pos.getZ(i) - z0) / TILE; }
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  return setUniformRoadInfo(g, roadVertexInfo(hw, cls, seed, 0, z1 - z0));
+}
+const road = new THREE.Mesh(ribbon(hw, cls, seedOf('road:' + hw), 0, L), mats.get('asphalt', 1));
+road.receiveShadow = true; scene.add(road);
+// junction polygon at the far end and one near
+const J = new THREE.PlaneGeometry(2 * hw + 24, 2 * hw); J.rotateX(-Math.PI / 2); J.translate(0, 0.0, L + hw);
+const ju = J.getAttribute('position'); const juv = new Float32Array(ju.count * 2);
+for (let i = 0; i < ju.count; i++) { juv[i * 2] = ju.getX(i) / TILE; juv[i * 2 + 1] = ju.getZ(i) / TILE; }
+J.setAttribute('uv', new THREE.Float32BufferAttribute(juv, 2));
+scene.add(new THREE.Mesh(setUniformRoadInfo(J, junctionVertexInfo(cls, 0.4)), mats.get('asphalt', 0)));
+// sidewalks: boxes per side with the sidewalk info (kerbT is 0 at the kerb, 1 at the building line)
+function sidewalk(side, bluestone) {
+  const w = 3.4, h = 0.15;
+  const g = new THREE.BoxGeometry(w, h, L);
+  const x0 = side * (hw + w / 2);
+  g.translate(x0, h / 2, L / 2);
+  const pos = g.getAttribute('position'); const uv = new Float32Array(pos.count * 2); const col = new Float32Array(pos.count * 4);
+  for (let i = 0; i < pos.count; i++) {
+    const lx = pos.getX(i) - (side > 0 ? hw : -hw - w), lz = pos.getZ(i);
+    uv[i * 2] = bluestone ? lx / 2.7 : lx / TILE; uv[i * 2 + 1] = bluestone ? lz / 3 : lz / TILE;
+    const t = side > 0 ? lx / w : 1 - (lx + 0) / w; // 0 at kerb
+    col.set([Math.min(1, Math.max(0, (side > 0 ? (pos.getX(i) - hw) : (-hw - pos.getX(i))) / w)), 0.31 + 0.2 * (side > 0 ? 1 : 0), 0, 0], i * 4);
+  }
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4));
+  return new THREE.Mesh(g, bluestone ? mats.get('bluestone', 0) : mats.get('concrete', 0));
+}
+scene.add(sidewalk(1, false), sidewalk(-1, true));
+// kerbs
+for (const side of [-1, 1]) { const k = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, L), mats.get('graniteCurb', 0)); k.position.set(side * (hw + 0.1 * side * -1 + 0.0), 0.075, L / 2); scene.add(k); }
+// lane lines: double yellow on avenues, dashes on streets, edge lines
+const yellow = mats.get('laneLine', 1), white = mats.get('laneLine', 0);
+const mk = (m, x, z, w, l) => { const g = new THREE.PlaneGeometry(w, l); g.rotateX(-Math.PI / 2); g.translate(x, 0.016, z); const me = new THREE.Mesh(g, m); me.material.polygonOffset = true; me.material.polygonOffsetFactor = -2; scene.add(me); };
+if (cls > 0) { mk(yellow, -0.075, L / 2, 0.08, L - 8); mk(yellow, 0.075, L / 2, 0.08, L - 8); } else for (let z = 3; z < L - 6; z += 9) mk(yellow, 0, z + 1.5, 0.15, 3);
+mk(white, -hw + 0.4, L / 2, 0.12, L); mk(white, hw - 0.4, L / 2, 0.12, L);
+// stop bar and crosswalk near the junction
+mk(white, -hw / 2, L - 3.5, hw - 0.6, 0.4);
+const cw = mats.get('crosswalk', 0); for (let k = -hw; k < hw; k += 1) mk(cw, k + 0.5, L - 1.2, 0.5, 2.6);
+// dark building wall stand-ins
+for (const side of [-1, 1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(1, 14, L), new THREE.MeshStandardMaterial({ color: '#6a5047', roughness: 1 })); b.position.set(side * (hw + 3.4 + 0.5), 7, L / 2); scene.add(b); }
+const cam = new THREE.PerspectiveCamera(55, W / H, 0.1, 400);
+const views = {
+  street: [[0.5, 2.4, 2], [0.5, 0.2, 80]],
+  close: [[1.5, 1.7, 40], [0, 0, 56]],
+  low: [[-hw + 1.2, 1.2, 10], [-hw + 2, 0, 50]],
+  top: [[0, 38, 60], [0, 0, 66]],
+  walk: [[hw + 1.6, 1.7, 50], [hw + 1.6, 0.1, 76]],
+  junction: [[3, 3.2, L - 40], [0, 0, L + 4]],
+};
+const [p, t] = views[view] ?? views.street; cam.position.set(...p); cam.lookAt(...t);
+renderer.compile(scene, cam);
+renderer.render(scene, cam); renderer.render(scene, cam);
+window.__ready = { view, hw, cls, night };
+</script></body></html>

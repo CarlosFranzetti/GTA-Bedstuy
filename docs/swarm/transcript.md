@@ -3056,3 +3056,12 @@ Starting STORY2: ten side missions, six new characters, phone threads, overheard
 
 ### 2026-11-12T05:48:58Z · Mei Vance (PROSODY2)
 Fable: restarting the prosody work. Taking src/audio/voice/** (prosody, rhythm, packPlan, shows/*, peds/barks+lines), scripts/voice/bake-pack.mjs and prosody-demo, tests/unit/audio/voice-*. Script editorial pass is in; next I prune the stale clips and start the bake in the background through the light slot (chunks of about 9 min so other light jobs can interleave).
+
+### 2026-11-12T06:02:23Z · Gus Calloway (REALGAME)
+Real-map game hooks are in: useRealPlaces setter, notices, route ends, pointer router, minimap roads, pose+map saves, el stations; new src/world/roadnet/{gameReal,pointerReal,minimapReal,walkReal}.ts and tests. No realWorld.ts hook needed. Running the wider suite now, FINAL to Fable follows.
+
+### 2026-11-12T06:03:22Z · Sam Okafor (CAMERA)
+Camera clearance is in and tested: lens stays out of the car box (rises over the roof and tilts down when a wall is behind), other cars and peds are avoided in every view, jitter is absorbed by a slack band, lamps dim near the lens. 31 new tests green. Waiting in the render queue for the night wall-parking frames. Small additive edit in src/entities/Vehicle.ts (lamp glare multiplier in applyLights/animate) - @Dmitri/@CARS2 FYI, nothing else touched there.
+
+### 2026-11-12T06:03:23Z · Gus Calloway (REALGAME)
+FYI story lane: extras.ts (new missions) builds foot chases from raw offset()/corner() segments (e.g. the-binder, pencil run). On the real map I snap offsets and expand act3's alley via footRoute(); the new runs have points 8 m off the sidewalk. Whoever owns extras.ts: wrap chase routes in footRoute([...]) from content/places (identity on the grid) and I will keep my real-map test green.

@@ -143,6 +143,7 @@ export class Pedestrian implements Entity {
   barkCooldown = 0;
   private reaction: { kind: PedReaction; t: number; dur: number; delay: number; toward: Vec2 | null } | null = null;
   private gesture = 0;
+  private reactionSeen: object | null = null;
 
   constructor(
     readonly id: string,
@@ -273,6 +274,7 @@ export class Pedestrian implements Entity {
         b.vel.x *= damp;
         b.vel.z *= damp;
         if (this.downTimer <= 0) {
+          this.anim?.playOnce('getUp', { rate: 1.3, fadeIn: 0.05, fadeOut: 0.25 }); // captured get-up (street pack)
           this.state = 'walking';
           b.vel.x = 0;
           b.vel.z = 0;
@@ -820,7 +822,10 @@ export class Pedestrian implements Entity {
       const yawRate = dt > 0 ? -angleDiff(this.animHeading, b.heading) / dt : 0;
       this.animHeading = b.heading;
       if (this.pose === 'phone') this.anim.setIdle('phone', this.gait!.idleOffset > 2.5);
-      else this.anim.setIdle(this.gait!.idleOffset > 3.6 ? 'idle2' : null);
+      else if (this.pose === 'talk' && this.anim.hasClip('talk')) {
+        const speaking = (Math.floor(this.gesture / 3.2) + (this.chatLead ? 0 : 1)) % 2 === 0; // the same turn-taking as the procedural talk pose
+        this.anim.setIdle(speaking ? (this.chatLead ? 'talk' : 'talk2') : null);
+      } else this.anim.setIdle(this.gait!.idleOffset > 3.6 ? 'idle2' : null);
       const speed = moving ? Math.hypot(b.vel.x, b.vel.z) : 0;
       if (!this.anim.update(dt, { speed, yawRate })) animateWalk(this.model, this.phase, this.amp);
       this.applyIdlePose(this.model);
@@ -833,7 +838,7 @@ export class Pedestrian implements Entity {
   /** Procedural idle poses on top of the walk cycle: looking at a phone, sitting on a step. */
   private applyIdlePose(m: HumanModel): void {
     const pose = this.pose;
-    if (pose === 'talk') this.talkPose(m);
+    if (pose === 'talk' && !(this.anim?.idleClipName.startsWith('talk') ?? false)) this.talkPose(m); // the captured conversation gestures replace it when loaded
     this.reactionPose(m);
     if (pose === 'phone' && this.anim?.idleClipName === 'phone') {
       // the captured phone-to-ear idle is already playing
@@ -883,7 +888,11 @@ export class Pedestrian implements Entity {
       case 'wave': m.arms[1].rotation.x = 2.3 * k; m.elbows[1].rotation.x = (0.5 + 0.55 * Math.sin(t * 11)) * k; m.head.rotation.x = -0.08 * k; break;
       case 'nod': m.head.rotation.x = 0.22 * k * Math.sin(t * 9); break;
       case 'laugh': m.torso.rotation.x = (-0.14 + 0.06 * Math.sin(t * 15)) * k; m.head.rotation.x = -0.32 * k; m.arms[0].rotation.x = 0.35 * k; m.arms[1].rotation.x = 0.35 * k; m.elbows[0].rotation.x = 0.9 * k; m.elbows[1].rotation.x = 0.9 * k; break;
-      case 'startle': m.torso.rotation.x = -0.28 * k; m.head.rotation.x = -0.2 * k; m.arms[0].rotation.x = 1.3 * k; m.arms[1].rotation.x = 1.3 * k; m.elbows[0].rotation.x = 1.1 * k; m.elbows[1].rotation.x = 1.1 * k; m.arms[0].rotation.z = 0.35 * k; m.arms[1].rotation.z = -0.35 * k; break;
+      case 'startle': if (this.anim?.hasClip('flinch')) {
+        if (this.reactionSeen !== r) { this.reactionSeen = r; this.anim.playOnce('flinch', { from: 0.12, to: 0.75, rate: 1.7, fadeIn: 0.06, fadeOut: 0.2 }); }
+        break;
+      }
+        m.torso.rotation.x = -0.28 * k; m.head.rotation.x = -0.2 * k; m.arms[0].rotation.x = 1.3 * k; m.arms[1].rotation.x = 1.3 * k; m.elbows[0].rotation.x = 1.1 * k; m.elbows[1].rotation.x = 1.1 * k; m.arms[0].rotation.z = 0.35 * k; m.arms[1].rotation.z = -0.35 * k; break;
       case 'shout': m.arms[1].rotation.x = 2.5 * k; m.elbows[1].rotation.x = 0.7 * k; m.head.rotation.x = -0.22 * k; m.torso.rotation.x = -0.08 * k; break;
       case 'point': m.arms[1].rotation.x = 1.55 * k; m.elbows[1].rotation.x = 0.1 * k; break;
     }

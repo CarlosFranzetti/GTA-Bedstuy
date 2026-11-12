@@ -102,7 +102,7 @@ describe('tone baking', () => {
 describe('ground detail patch', () => {
   it('adds a distinct program per kind and chains the previous hook', () => {
     const keys = new Set<string>();
-    for (const kind of ['asphalt', 'concrete', 'paint', 'curb'] as const) {
+    for (const kind of ['asphalt', 'concrete', 'paint', 'curb', 'bluestone'] as const) {
       const m = new THREE.MeshStandardMaterial();
       let hooked = 0;
       m.onBeforeCompile = () => { hooked++; };
@@ -110,10 +110,14 @@ describe('ground detail patch', () => {
       const shader = { vertexShader: '#include <common>\n#include <begin_vertex>', fragmentShader: '#include <common>\n#include <map_fragment>', uniforms: {} } as unknown as THREE.WebGLProgramParametersWithUniforms;
       m.onBeforeCompile(shader, {} as THREE.WebGLRenderer);
       expect(hooked).toBe(1);
-      expect(shader.fragmentShader).toContain(`#if ${{ asphalt: 1, concrete: 2, paint: 3, curb: 4 }[kind]} ==`);
+      expect(shader.fragmentShader).toContain(({ asphalt: 'gdRoad', concrete: 'kerbG', paint: 'chip', curb: 'chh', bluestone: 'GD_FLAG' } as const)[kind]);
+      expect(shader.vertexShader).toContain('vGdUv = uv;');
+      // asphalt and sidewalks read the road info from vColor, so the stock vertex-colour multiply is dropped for them
+      expect(m.vertexColors).toBe(kind === 'asphalt' || kind === 'concrete' || kind === 'bluestone');
+      expect(shader.fragmentShader).not.toContain('#include <color_fragment>');
       keys.add(m.customProgramCacheKey());
     }
-    expect(keys.size).toBe(4);
+    expect(keys.size).toBe(5);
     expect(GROUND_DETAIL_KEYS.graniteCurb).toBe('curb');
   });
 });

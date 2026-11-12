@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
 import { DETAIL_GLSL, detailAtlasTexture } from '@/textures/detailAtlas';
+import { ASPHALT_GLSL, PAINT_GLSL, SIDEWALK_GLSL, STREET_HELPERS_GLSL } from '@/textures/streetShader';
 
 export const VARIATION_SIZE = 256;
 /** world metres covered by one repeat of the field at the large / small scale */
@@ -165,116 +166,57 @@ export function patchWallGrime(m: THREE.MeshStandardMaterial, grime: THREE.Textu
 
 // ---------------------------------------------------------------------------------------------- ground detail (TEXVAR)
 
-export type GroundDetail = 'asphalt' | 'concrete' | 'paint' | 'curb';
+export type GroundDetail = 'asphalt' | 'concrete' | 'paint' | 'curb' | 'bluestone';
 
 /**
- * Hard-edged, world-space features on top of the soft field: concrete slabs poured at different times, patches,
- * cracks and gum spots on sidewalks; asphalt repair patches, utility trench cuts and oil stains; faded vs fresh lane
- * paint; yellow and red painted curb sections. A pure function of world position, so every tier shows the same streets.
+ * Hard-edged, world-space and road-space features on top of the soft field (TEXVAR, reworked by ROADS): asphalt with quiet
+ * tone, wheel paths, gutter silt, utility cuts, sealed cracks, stop-line oil, plates and manholes; slab-by-slab sidewalks
+ * (and bluestone flags) with cracks, gum and kerb silt; chipped and repainted lane paint; yellow and red painted curb
+ * sections. Asphalt and sidewalks read the per-vertex info of roadInfo.ts. A pure function of position, so every tier shows
+ * the same streets. The block bodies live in streetShader.ts.
  */
 export function patchGroundDetail(m: THREE.MeshStandardMaterial, kind: GroundDetail): void {
   if ((import.meta as { env?: Record<string, string> }).env?.VITE_TEXVAR === '0') return;
-  const id = { asphalt: 1, concrete: 2, paint: 3, curb: 4 }[kind];
+  const id = { asphalt: 1, concrete: 2, paint: 3, curb: 4, bluestone: 5 }[kind];
+  // the road / sidewalk info rides in the `color` attribute: take it over (the shader reads vColor, nothing multiplies it in)
+  if (id === 1 || id === 2 || id === 5) m.vertexColors = true;
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (shader, renderer) => {
     prev?.call(m, shader, renderer);
     shader.uniforms.tDetail = { value: detailAtlasTexture() };
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vGdW;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGdW = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;');
+      .replace('#include <common>', '#include <common>\nvarying vec3 vGdW;\nvarying vec2 vGdUv;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGdW = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;\nvGdUv = uv;');
+    const body = id === 1 ? ASPHALT_GLSL : id === 2 || id === 5 ? SIDEWALK_GLSL : id === 3 ? PAINT_GLSL : `
+float cs = floor( ( gw.x + gw.y ) / 11.0 ); float chh = gdHash( vec2( cs, 61.0 ) );
+vec3 cp = chh < 0.12 ? vec3( 0.62, 0.45, 0.04 ) : chh < 0.17 ? vec3( 0.5, 0.06, 0.05 ) : vec3( 0.0 );
+if ( cp.r > 0.0 ) diffuseColor.rgb = mix( diffuseColor.rgb, cp * ( 0.6 + gdLum * 1.2 ), 0.88 );`;
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
 varying vec3 vGdW;
+varying vec2 vGdUv;
 float gdHash( vec2 p ) { p = fract( p * vec2( 123.34, 456.21 ) ); p += dot( p, p + 45.32 ); return fract( p.x * p.y ); }
 float gdNoise( vec2 p ) {
   vec2 i = floor( p ); vec2 f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
   return mix( mix( gdHash( i ), gdHash( i + vec2( 1.0, 0.0 ) ), f.x ), mix( gdHash( i + vec2( 0.0, 1.0 ) ), gdHash( i + vec2( 1.0, 1.0 ) ), f.x ), f.y );
 }
-float gdRect( vec2 pf, vec4 r ) { vec2 q = step( r.xy, pf ) * step( pf, r.xy + r.zw ); return q.x * q.y; }
-${DETAIL_GLSL}`)
+${STREET_HELPERS_GLSL}
+${DETAIL_GLSL}
+${id === 5 ? '#define GD_FLAG\n#define GD_UVM_X 2.7\n#define GD_UVM_Y 3.0' : '#define GD_UVM_X 3.0\n#define GD_UVM_Y 3.0'}`)
+      // the road info is read from vColor, so the stock vertex-colour multiply must not run
+      .replace('#include <color_fragment>', '')
       .replace('#include <map_fragment>', `#include <map_fragment>
 {
   vec2 gw = vGdW.xz;
   float gdLum = dot( diffuseColor.rgb, vec3( 0.3333 ) );
-  #if ${id} == 1
-    vec2 pc = gw / 7.0; vec2 pi = floor( pc ); float ph = gdHash( pi + 11.0 );
-    if ( ph > 0.86 ) {
-      vec4 r = vec4( gdHash( pi + 1.3 ) * 0.3, gdHash( pi + 2.9 ) * 0.3, 0.3 + gdHash( pi + 4.1 ) * 0.4, 0.2 + gdHash( pi + 5.7 ) * 0.3 );
-      diffuseColor.rgb *= mix( 1.0, ph > 0.93 ? 0.6 : 1.22, gdRect( fract( pc ), r ) );
-    }
-    vec2 tc = gw / 41.0; vec2 ti = floor( tc ); float th = gdHash( ti + 3.0 );
-    if ( th > 0.8 ) {
-      bool alongX = gdHash( ti + 8.0 ) > 0.5;
-      float across = alongX ? fract( tc.y ) * 41.0 : fract( tc.x ) * 41.0;
-      float along = alongX ? fract( tc.x ) * 41.0 : fract( tc.y ) * 41.0;
-      float c0 = 6.0 + gdHash( ti + 9.0 ) * 28.0; float a0 = gdHash( ti + 10.0 ) * 18.0;
-      float d = abs( across - c0 );
-      float run = step( a0, along ) * step( along, a0 + 8.0 + gdHash( ti + 12.0 ) * 12.0 );
-      diffuseColor.rgb *= 1.0 - run * ( 1.0 - smoothstep( 0.38, 0.42, d ) ) * 0.4;
-      diffuseColor.rgb *= 1.0 + run * ( smoothstep( 0.38, 0.42, d ) - smoothstep( 0.5, 0.56, d ) ) * 0.28;
-    }
-    vec2 kc = gw / 29.0; vec2 ki = floor( kc ); float kh = gdHash( ki + 71.0 );
-    if ( kh > 0.82 ) {
-      // Belgian block showing through worn asphalt
-      vec4 kr = vec4( 0.15 + gdHash( ki + 1.1 ) * 0.3, 0.15 + gdHash( ki + 2.2 ) * 0.3, 0.2 + gdHash( ki + 3.3 ) * 0.25, 0.1 + gdHash( ki + 4.4 ) * 0.12 );
-      vec2 kf = fract( kc ) + ( vec2( gdNoise( gw * 1.3 ), gdNoise( gw * 1.3 + 3.1 ) ) - 0.5 ) * 0.03;
-      vec2 ke = min( kf - kr.xy, kr.xy + kr.zw - kf );
-      float kedge = min( ke.x, ke.y );
-      float km = smoothstep( 0.0, 0.01, kedge );
-      vec3 kcol = vec3( 0.42, 0.4, 0.37 ) * dtlGain( 2.0, gw / 2.4, 1.5 ) * ( 0.75 + 0.5 * gdNoise( gw * 0.7 ) );
-      diffuseColor.rgb = mix( diffuseColor.rgb, kcol, km * 0.9 );
-    }
-    vec2 oc = gw / 4.5; vec2 oi = floor( oc ); float oh = gdHash( oi + 21.0 );
-    if ( oh > 0.84 ) {
-      vec2 ctr = vec2( 0.3 + gdHash( oi + 1.0 ) * 0.4, 0.3 + gdHash( oi + 2.0 ) * 0.4 );
-      float rad = 0.12 + gdHash( oi + 3.0 ) * 0.14;
-      float ob = length( fract( oc ) - ctr ) + ( gdNoise( gw * 5.0 ) - 0.5 ) * 0.08;
-      diffuseColor.rgb *= 1.0 - ( 1.0 - smoothstep( rad * 0.6, rad, ob ) ) * 0.5;
-    }
-  #elif ${id} == 2
-    vec2 sc = gw / 1.5; vec2 si = floor( sc ); float sh = gdHash( si + 5.0 );
-    diffuseColor.rgb *= 1.0 + ( sh - 0.5 ) * 0.2;
-    if ( sh > 0.9 ) diffuseColor.rgb *= vec3( 1.1, 1.12, 1.15 );
-    if ( sh < 0.1 ) diffuseColor.rgb *= vec3( 0.86, 0.82, 0.76 );
-    vec2 pc = gw / 6.0; vec2 pi = floor( pc ); float ph = gdHash( pi + 31.0 );
-    if ( ph > 0.88 ) {
-      // re-poured slab section: warped soft edge, a tone shift that keeps the slab texture, a dark joint line at the edge
-      vec4 r = vec4( gdHash( pi + 1.3 ) * 0.3, gdHash( pi + 2.9 ) * 0.3, 0.3 + gdHash( pi + 4.1 ) * 0.4, 0.3 + gdHash( pi + 5.7 ) * 0.5 );
-      vec2 pf = fract( pc ) + ( vec2( gdNoise( gw * 1.1 ), gdNoise( gw * 1.1 + 7.3 ) ) - 0.5 ) * 0.012;
-      vec2 pe = min( pf - r.xy, r.xy + r.zw - pf );
-      float pedge = min( pe.x, pe.y );
-      float pm = smoothstep( 0.0, 0.015, pedge );
-      float pseam = step( 0.0, pedge ) * ( 1.0 - smoothstep( 0.004, 0.014, pedge ) );
-      vec3 ptone = ph > 0.95 ? vec3( 0.84, 0.82, 0.78 ) : vec3( 1.1, 1.1, 1.12 );
-      diffuseColor.rgb *= mix( vec3( 1.0 ), ptone, pm ) * ( 1.0 - 0.35 * pseam );
-    }
-    // old paving showing through: stone-block patches in the asphalt are in the asphalt branch
-    // hairline cracks: jagged (two octaves), short (gated by a slow field), faint
-    float cn = gdNoise( gw * 1.9 + 4.0 ) * 0.7 + gdNoise( gw * 8.3 ) * 0.3;
-    float crack = 1.0 - smoothstep( 0.0, 0.01, abs( cn - 0.5 ) );
-    crack *= smoothstep( 0.68, 0.82, gdNoise( gw * 0.31 ) );
-    diffuseColor.rgb *= 1.0 - crack * 0.28;
-    vec2 gc = gw / 0.45; vec2 gi = floor( gc );
-    if ( gdHash( gi + 41.0 ) > 0.982 ) {
-      float gd = length( fract( gc ) - vec2( 0.5 ) );
-      diffuseColor.rgb *= 1.0 - ( 1.0 - smoothstep( 0.05, 0.1, gd ) ) * 0.5;
-    }
-  #elif ${id} == 3
-    vec2 fc = floor( gw / 11.0 ); float fh = gdHash( fc + 51.0 );
-    if ( fh > 0.82 ) diffuseColor.rgb *= 1.28;
-    else if ( fh < 0.3 ) diffuseColor.rgb *= 0.62 + 0.3 * gdNoise( gw * 3.0 );
-  #else
-    float cs = floor( ( gw.x + gw.y ) / 11.0 ); float chh = gdHash( vec2( cs, 61.0 ) );
-    vec3 cp = chh < 0.12 ? vec3( 0.62, 0.45, 0.04 ) : chh < 0.17 ? vec3( 0.5, 0.06, 0.05 ) : vec3( 0.0 );
-    if ( cp.r > 0.0 ) diffuseColor.rgb = mix( diffuseColor.rgb, cp * ( 0.6 + gdLum * 1.2 ), 0.88 );
-  #endif
+  ${body}
 }`);
   };
   const prevKey = m.customProgramCacheKey;
-  m.customProgramCacheKey = () => `${prevKey ? prevKey.call(m) : ''}|gdetail2-${id}`;
+  m.customProgramCacheKey = () => `${prevKey ? prevKey.call(m) : ''}|gdetail3-${id}`;
   m.needsUpdate = true;
 }
 
 export const GROUND_DETAIL_KEYS: Readonly<Record<string, GroundDetail>> = {
-  asphalt: 'asphalt', asphaltWorn: 'asphalt', concrete: 'concrete', bluestone: 'concrete', laneLine: 'paint', crosswalk: 'paint', graniteCurb: 'curb',
+  asphalt: 'asphalt', asphaltWorn: 'asphalt', concrete: 'concrete', bluestone: 'bluestone', laneLine: 'paint', crosswalk: 'paint', graniteCurb: 'curb',
 };

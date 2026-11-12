@@ -64,6 +64,11 @@ export class AnimController {
   private idleName = 'idle';
   private idleMirror = false;
   private keyed: 'crossed' | 'lean' | null = null;
+  private prevIdle = 'idle';
+  private prevIdleMirror = false;
+  private prevIdleT = 0;
+  private idleFade = 0;
+  private walkTurnCool = 0;
   private shot: OneShot | null = null;
   private turnT = 0;
   private turnW = 0;
@@ -114,7 +119,9 @@ export class AnimController {
   /** Street idle: 'idle' | 'idle2' | 'phone' (clips) or null for the default standing idle. `mirror` swaps the hand. */
   setIdle(name: string | null, mirror = false): void {
     this.keyed = name === 'crossed' || name === 'lean' ? name : null; // hand-keyed street poses, no capture of these exists in the data we may use
-    this.idleName = name && !this.keyed && this.lib.has(name) ? name : 'idle';
+    const next = name && !this.keyed && this.lib.has(name) ? name : 'idle';
+    if (next !== this.idleName || mirror !== this.idleMirror) { this.prevIdle = this.idleName; this.prevIdleMirror = this.idleMirror; this.prevIdleT = this.idleT; this.idleFade = 1; }
+    this.idleName = next;
     this.idleMirror = mirror;
   }
   get idleClipName(): string { return this.idleName; }
@@ -147,6 +154,12 @@ export class AnimController {
     this.idleT += dt;
     sampleClip(idle, this.idleT, this.base);
     if (this.idleMirror) mirrorPose(this.base);
+    if (this.idleFade > 0.01) { // changing idles: cross-fade from the old one
+      const old = this.lib.get(this.prevIdle);
+      this.prevIdleT += dt;
+      this.idleFade = Math.max(0, this.idleFade - dt / 0.35);
+      if (old) { sampleClip(old, this.prevIdleT, this.tmp); if (this.prevIdleMirror) mirrorPose(this.tmp); this.mix(this.base, this.tmp, this.idleFade * this.idleFade); }
+    }
     if (this.keyed) keyIdle(this.base, this.keyed, this.idleMirror ? -1 : 1);
 
     // locomotion layer
@@ -186,6 +199,15 @@ export class AnimController {
       if ((yaw > 0) !== (turn.turn > 0)) mirrorPose(this.tmp);
       this.mix(this.base, this.tmp, this.turnW);
     } else this.turnT = 0;
+
+    // a corner while walking: the captured walking turn, mirrored for the other way
+    this.walkTurnCool -= dt;
+    const wt = this.lib.get('walkTurn');
+    if (wt && !this.shot && this.walkTurnCool <= 0 && speed > 0.7 && speed < 2.4 && Math.abs(inp.yawRate ?? 0) > 1.8) {
+      const yaw = inp.yawRate ?? 0;
+      this.playOnce('walkTurn', { mirror: (yaw > 0) !== (wt.turn > 0), rate: Math.min(2, Math.max(0.8, Math.abs(yaw) / (Math.abs(wt.turn) / wt.duration))), from: 0.2, to: 0.9, fadeIn: 0.15, fadeOut: 0.25 });
+      this.walkTurnCool = 1.2;
+    }
 
     // one-shots
     if (this.shot) {

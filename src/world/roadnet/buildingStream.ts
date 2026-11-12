@@ -12,6 +12,8 @@
  *                         update), then merged into ONE mesh per material for the whole chunk (<= ~26 draws, was 74)
  *          d <= detail    ... including the small-detail classes (fire escapes, tanks, fences: PHONE_HIDDEN_MESH names);
  *                         between `detail` and `near` those meshes are hidden (phone never builds them)
+ *          d <= trim      ... including the facade trim (windows, awnings, cornice, stoop, roll gates, shop glass: TRIM_MESH names,
+ *                         a draw each per chunk); between `trim` and `near` those meshes are hidden (low and phone only)
  *   far    d <= far       one merged box-and-roof mesh per chunk in the facade colour, 1 draw, ~10 triangles per building
  *   none   beyond         nothing is held
  * Chunks that leave `near + STREAM_MARGIN` are disposed (geometry and colliders), far meshes beyond `far + STREAM_MARGIN`.
@@ -30,13 +32,15 @@ import type { IMaterialLibrary, StaticCollider } from '@/world/types';
 import type { LotSpec } from '@/world/buildings/facade';
 import type { Quality } from '@/render/Shadows';
 import { CHUNK_RANGE_PER_M_HEIGHT, chunkKeyOf, type ChunkLayout } from '@/render/Culling';
-import { PHONE_HIDDEN_MESH } from '@/render/TierGeometry';
+import { PHONE_HIDDEN_MESH, TRIM_MESH } from '@/render/TierGeometry';
 import type { RealLot } from './lotsReal';
 import { BUILDING_BASE_Y, STOREY_M, buildRealBuildings, fitFootprint, specForRealLot } from './buildingsReal';
 
 export interface StreamRanges {
   /** small-detail meshes (fire escapes, tanks, fences, wires) are drawn inside this distance; 0 = never built */
   detail: number;
+  /** facade trim meshes (TRIM_MESH) are drawn inside this distance; Infinity = with the whole near chunk */
+  trim: number;
   /** full-detail buildings inside this distance (m, to the chunk square) */
   near: number;
   /** box-and-roof silhouettes inside this distance */
@@ -48,10 +52,10 @@ export interface StreamRanges {
  * the tier's chunk range (Culling.chunkRangeFor: 420 / 520 m) is the far range. See the REALSTREAM report for the numbers.
  */
 export const STREAM_RANGES: Record<Quality, StreamRanges> = {
-  phone: { detail: 0, near: 80, far: 120 },
-  low: { detail: 80, near: 160, far: 380 },
-  medium: { detail: 140, near: 260, far: 520 },
-  high: { detail: 260, near: 330, far: 520 },
+  phone: { detail: 0, trim: 40, near: 80, far: 120 },
+  low: { detail: 80, trim: 100, near: 160, far: 380 },
+  medium: { detail: 140, trim: Infinity, near: 260, far: 520 },
+  high: { detail: 260, trim: Infinity, near: 330, far: 520 },
 };
 
 /** a chunk keeps its level this much farther out than it was granted (no flapping at the border) */
@@ -276,6 +280,11 @@ export class RealBuildingStreamer {
             c.near.userData.detailOn = showDetail;
             for (const m of c.near.children) if (PHONE_HIDDEN_MESH.test(m.name)) m.visible = showDetail;
           }
+          const showTrim = c.dist <= r.trim + (c.near.userData.trimOn ? STREAM_MARGIN : 0);
+          if (c.near.userData.trimOn !== showTrim) {
+            c.near.userData.trimOn = showTrim;
+            for (const m of c.near.children) if (TRIM_MESH.test(m.name)) m.visible = showTrim;
+          }
         }
       }
       if (c.far) c.far.visible = !nearShown;
@@ -366,11 +375,14 @@ export class RealBuildingStreamer {
     g.position.y = BUILDING_BASE_Y;
     g.userData.chunk = c.key;
     g.userData.detailOn = true;
+    g.userData.trimOn = true;
     for (const m of job.merged) {
       g.add(m);
       if (this.ranges.detail > 0 && PHONE_HIDDEN_MESH.test(m.name) && c.dist > this.ranges.detail) m.visible = false;
+      if (TRIM_MESH.test(m.name) && c.dist > this.ranges.trim) m.visible = false;
     }
     if (c.dist > this.ranges.detail) g.userData.detailOn = false;
+    if (c.dist > this.ranges.trim) g.userData.trimOn = false;
     const cs = job.colliders;
     c.colliderIds = cs.map((col, i) => (col.id = `rs:${c.key}:${i}`));
     this.colliderCount += cs.length;

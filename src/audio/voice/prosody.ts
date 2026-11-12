@@ -138,14 +138,15 @@ export function planSentence(sentence: string, who: string, baseSpeed: number, r
   const out: Phrase[] = raw.map((p, i) => {
     let f = r.rate * (1 + r.spread * gauss(rng));
     const roll = rng();
-    const rush = roll < r.rush; const drag = !rush && roll < r.rush + r.drag;
-    if (rush) f *= 1.07; else if (drag) f *= 0.92;
     const last = i === n - 1;
+    // The last phrase of a sentence already slows by finalSlow; a dragged flag on top would stack into a crawl.
+    const rush = roll < r.rush; const drag = !rush && !last && roll < r.rush + r.drag;
+    if (rush) f *= 1.07; else if (drag) f *= 0.92;
     if (last && (p.brk === 'stop' || p.brk === 'excl')) f *= 1 - r.finalSlow;
     const em = i === lean;
     if (em) f *= o.em ? 0.88 : 0.9;
     const base = BREAK_GAP[p.brk] * r.pause * (1 + r.pauseSpread * gauss(rng)) * (rush ? 0.8 : drag ? 1.25 : 1) * (last && words(p.text) > 14 ? 1.2 : 1);
-    return { text: p.text, speed: q2(clamp(baseSpeed * f, baseSpeed * 0.8, Math.min(1.45, baseSpeed * 1.25))), gap: clamp(base, 0.03, 1.4), brk: p.brk, em };
+    return { text: p.text, speed: q2(clamp(baseSpeed * f, baseSpeed * 0.84, Math.min(1.45, baseSpeed * 1.25))), gap: clamp(base, 0.03, 1.4), brk: p.brk, em };
   });
   // A beat before the phrase that is leaned on.
   for (let i = 1; i < out.length; i++) if (out[i].em) out[i - 1].gap += 0.07 * r.pause;

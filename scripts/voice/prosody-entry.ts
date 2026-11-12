@@ -29,6 +29,7 @@ export function scenes(): Scene[] {
     { id: 'host-tommy', title: 'Morning-zoo DJ (Tommy Tapedeck): ident, time check, shout-out', lines: dj('tommy', tommy.idents[0], tommy.hours[0], tommy.shouts[0]) },
     { id: 'host-lou', title: 'Late-night soul DJ (Velvet Lou): ident, time check, traffic', lines: dj('lou', lou.idents[1], lou.hours[0], lou.traffic[0]) },
     { id: 'talk-buck-dev', title: 'Talk show: Buck Mercer, Boards and a nervous caller (Dev)', lines: [...show('mercer-morning', 1, 5), ...show('mercer-morning', 21, 4)] },
+    { id: 'talk-lorraine', title: 'Late-night call-in: Lorraine Static and a lonely-hearts caller (Rosa)', lines: show('dead-air', 12, 9) },
     { id: 'ad-silo', title: 'Ad read: Trent and Noelle, Silo Milk', lines: ad('ad-silomilk') },
   ];
 }
