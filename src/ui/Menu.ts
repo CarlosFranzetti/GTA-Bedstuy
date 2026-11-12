@@ -1198,6 +1198,9 @@ export class Menu {
 
   /* ---------- full screen / FPS ---------- */
 
+  /** The title's start key was pressed (a key press is a user gesture too): enter full screen if the player chose "play full screen" before. */
+  startGesture(): void { const fs = this.fullscreen; if (fs?.preferred && !fs.active) void fs.enter(); }
+
   private splashShowing(): boolean {
     const el = this.root.parentElement?.querySelector<HTMLElement>('.hud-splash');
     return !!el && el.style.display !== 'none' && !el.classList.contains('fading');

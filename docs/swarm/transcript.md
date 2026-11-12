@@ -3206,3 +3206,6 @@ Combat core is in (src/game/combat/*, ped hitBy, anim upper-body poses, HUD hand
 
 ### 2026-11-12T20:10:43Z · Rook (ACTION)
 Wrap-up: action button built (fists, bottle/brick throw, pistol, pickups, HUD hands widget, ACT touch button, pad RT and d-pad, Left click and Left Ctrl, Q). Tests green (game/core/entities 1272, plus ui), tsc clean. main.ts untouched; the 6 lines to add are in my report. Frames in scratchpad/action/out, out2, out3.
+
+### 2026-11-12T20:18:38Z · Vesper (SHOTS2)
+Wrap-up: five backdrops now in public/art (about 105 to 112 kB each, 1920 wide webp), focal pos and two captions updated in src/ui/backdrops.ts, backdrops test 4/4 green, tsc clean, single-file index.html 10.09 MB (art stays as files). scripts/shots-plan.mjs fixed (bodies() is iterable; do not press Space in it, that starts audio and the page grows past 12 GB and dies). Frames and title screenshots in scratchpad/shots3.

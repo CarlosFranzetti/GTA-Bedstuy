@@ -343,7 +343,7 @@ hud.onCycleHands = () => combat.cycle(1);
 const titleMusic = createTitleMusic({ volume: 0.7 });
 let splashUp = false;
 const credits = new Credits(overlay, { onOpen: () => titleMusic.start(), onClose: () => { if (!splashUp) titleMusic.stop(1.5); } });
-hud.onSplash = (shown) => { splashUp = shown; if (shown) titleMusic.start(); else if (!credits.isOpen) titleMusic.stop(3); };
+hud.onSplash = (shown) => { splashUp = shown; document.body.classList.toggle('title-up', shown); if (shown) titleMusic.start(); else if (!credits.isOpen) titleMusic.stop(3); }; // title-up: the game's interface is hidden behind the title (hud.css)
 hud.onCredits = () => credits.open();
 if (realWorld) { const n = document.createElement('div'); n.textContent = realWorld.notice; n.style.cssText = 'position:fixed;left:8px;bottom:6px;font:11px monospace;color:#fff;opacity:.75;z-index:50;pointer-events:none'; document.body.appendChild(n); }
 const missionHud = new MissionHud(overlay);
@@ -414,7 +414,7 @@ pipeline.setExposure(LIGHTING.exposure);
 setLampsLit(world.furnitureGroup, dayNight.isNight);
 // Title screen: SPACE is the start button (Enter too; a tap on a touch screen; A or Start on a gamepad; a click on the prompt).
 // Any other key or click only wakes the audio, so the title theme plays while the title stays up.
-const startGame = (): void => { if (!splashUp) return; hud.hideSplash(); input.consume('Space'); input.consume('KeyF'); input.requestLock(); };
+const startGame = (): void => { if (!splashUp) return; menu.startGesture(); hud.hideSplash(); input.consume('Space'); input.consume('KeyF'); input.requestLock(); };
 hud.onStart = startGame;
 input.onFirstGesture = () => { events.emit('userGesture', {}); if (splashUp) titleMusic.start(); };
 window.addEventListener('keydown', (e) => {

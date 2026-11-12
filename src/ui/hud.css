@@ -574,3 +574,9 @@ body.ui-panel-open .hud-card { display: none !important; }
 .hud-hands-count:empty { display: none; }
 .hud-hands.empty { color: #f08a7a; }
 .hud-hands.reloading { color: #f2c230; }
+
+/* ---- title screen up (body.title-up, set by the host): none of the game's interface shows over it.
+   The HUD layer rises above the minimap, the mission chip, the phone and map buttons and the touch controls (all z-index 15 or
+   less) and stays below the pause menu (20), the credits roll (30) and the full-screen button (40); its own widgets are hidden. */
+.title-up .hud-root { z-index: 19; }
+.title-up .hud-root > :not(.hud-splash) { visibility: hidden !important; }

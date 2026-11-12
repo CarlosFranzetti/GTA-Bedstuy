@@ -238,14 +238,17 @@ export class Hud {
     const subtitle = this.make('p', 'hud-subtitle');
     subtitle.textContent = DISCLAIMER;
     const start = this.make('p', 'hud-start');
-    start.textContent = 'press space to start';
+    // a phone has no space bar: there the prompt says what works
+    let coarse = false;
+    try { coarse = !!this.doc.defaultView?.matchMedia?.('(pointer: coarse)').matches; } catch { /* no matchMedia */ }
+    start.textContent = coarse ? 'tap to start' : 'press space to start';
     // the prompt itself is a button for a mouse; a tap anywhere starts on a touch screen (the host decides, see onStart)
     for (const t of ['pointerdown', 'mousedown', 'touchstart']) start.addEventListener(t, (e) => e.stopPropagation());
     start.addEventListener('click', (e) => { e.stopPropagation(); this.onStart?.(); });
     start.style.cursor = 'pointer';
     start.style.pointerEvents = 'auto';
     const startSub = this.make('p', 'hud-start-sub');
-    startSub.textContent = 'tap on a phone · A on a gamepad';
+    startSub.textContent = coarse ? 'A on a gamepad' : 'A on a gamepad · tap on a phone';
     const credits = this.make('button', 'hud-credits');
     credits.type = 'button';
     credits.textContent = 'Credits';
