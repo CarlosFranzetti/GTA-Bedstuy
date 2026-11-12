@@ -219,6 +219,24 @@ if ( vLtTone.a > 0.01 ) {
     gLtFlat = 0.4;
   } else if ( ltKind > 4.5 && ltKind < 5.5 ) {
     // limestone / cast stone trim, cornices, stoops
+    #ifdef LT_CORNICE
+    {
+      // painted cornice: stacked mouldings (a lit top edge, a shadowed underside, an ogee bump), a dentil band, weathering
+      float ltCf = fract( ltY / 0.16 );
+      float ltMould = smoothstep( 0.0, 0.3, ltCf ) * ( 1.0 - smoothstep( 0.55, 1.0, ltCf ) );
+      float ltDentY = step( 0.32, fract( ltY / 0.64 ) ) * step( fract( ltY / 0.64 ), 0.5 );
+      float ltDent = ltDentY * step( 0.5, fract( ltS / 0.17 + ltSeed * 3.0 ) );
+      vec3 ltPaintC = ltTarget * ( 0.96 + 0.08 * ltNoise( ltP * vec2( 1.1, 2.0 ) + ltSeed * 5.0 ) );
+      ltPaintC *= 1.0 + 0.16 * ( 1.0 - smoothstep( 0.0, 0.14, ltCf ) ) - 0.2 * smoothstep( 0.8, 1.0, ltCf ) - 0.2 * ltDent * ltDentY;
+      float ltDrip = smoothstep( 0.5, 0.85, ltNoise( vec2( ltS * 6.0, ltY * 0.8 ) + ltSeed * 9.0 ) ) * ltWx;
+      ltPaintC *= 1.0 - 0.22 * ltDrip;
+      ltPaintC = mix( ltPaintC, ltPaintC * vec3( 1.2, 1.12, 0.95 ) + 0.02, smoothstep( 0.68, 0.84, ltNoise( ltP * 6.0 + ltSeed * 2.0 ) ) * ltWx * 0.45 ); // flaking paint shows older coats
+      ltCol = ltPaintC;
+      gLtH = 0.014 * ltMould - 0.012 * ltDent * ltDentY;
+      gLtBump = 1.0;
+      gLtFlat = 0.85;
+    }
+    #else
     ltCol *= dtlGain( 3.0, ltP / 1.6 + ltSeed * 7.0, 2.6 ) * dtlGain( 3.0, ltP / 5.3, 1.8 );
     // ashlar courses: per-block tone and a joint line, so a big plain limestone face (pier, stoop wing) never reads as a flat grey slab
     vec2 ltBk = vec2( ltS / 0.9 + ltSeed * 9.0, ltY / 0.42 );
@@ -227,6 +245,7 @@ if ( vLtTone.a > 0.01 ) {
     float ltJ = 1.0 - smoothstep( 0.0, 0.045, min( min( ltBf.x, 1.0 - ltBf.x ) * 0.9, min( ltBf.y, 1.0 - ltBf.y ) * 0.42 ) * 2.4 );
     ltCol *= ( 0.86 + 0.28 * ltHash( ltBi + ltSeed * 13.0 ) ) * ( 1.0 - 0.32 * ltJ );
     ltCol *= mix( vec3( 1.04, 1.0, 0.94 ), vec3( 0.95, 0.99, 1.05 ), ltNoise( ltP * 0.35 + ltSeed * 3.0 ) );
+    #endif
   } else if ( ltKind > 7.5 && ltKind < 8.5 ) {
     // roll-down gate: plain / rusty / tagged, by lot seed
     float ltGs = fract( ltSeed * 7.31 + 0.17 );
@@ -251,6 +270,17 @@ if ( vLtTone.a > 0.01 ) {
     }
     gLtFlat = 0.5;
   }
+  if ( ltKind > 5.5 && ltKind < 7.5 ) {
+    // shop and window awnings: sun-bleached patches, panel seams every 62 cm, dirt, mildew in the folds
+    float ltFade = smoothstep( 0.25, 0.85, ltNoise( ltP * vec2( 0.35, 0.6 ) + ltSeed * 14.0 ) ) * ltWx;
+    float ltLum = dot( ltCol, vec3( 0.3333 ) );
+    ltCol = mix( ltCol, vec3( ltLum * 1.1 ), ltFade * 0.4 ) * ( 1.0 + 0.16 * ltFade );
+    float ltSd = abs( fract( ltS / 0.62 + ltSeed * 3.0 ) - 0.5 ) * 0.62;
+    ltCol *= 1.0 - 0.14 * ( 1.0 - smoothstep( 0.002, 0.008, ltSd ) );
+    ltCol *= 1.0 - 0.28 * smoothstep( 0.55, 0.9, ltNoise( ltP * vec2( 5.0, 1.5 ) + ltSeed * 3.0 ) ) * ( 0.3 + 0.7 * ltWx );
+    ltCol = mix( ltCol, ltCol * vec3( 0.82, 0.92, 0.8 ), smoothstep( 0.7, 0.9, ltNoise( ltP * 8.0 + ltSeed * 6.0 ) ) * ltWx * 0.5 );
+    gLtFlat = max( gLtFlat, 0.4 );
+  }
   if ( ltParty > 0.5 && ltY > 6.0 && ltY < 11.0 ) {
     // faded painted wall sign on blank side walls: one 9 m cell in four, a 6.4 x 2 m board
     float ltCell = floor( ltS / 9.0 + ltSeed * 4.0 );
@@ -270,7 +300,8 @@ if ( vLtTone.a > 0.01 ) {
 }`;
 
 /** Patch a standard material so it follows the per-vertex tone. Chains with other onBeforeCompile patches. */
-export function patchLotTone(m: THREE.MeshStandardMaterial, stone = false): void {
+export function patchLotTone(m: THREE.MeshStandardMaterial, mode: 'stone' | 'cornice' | '' = ''): void {
+  const stone = mode === 'stone';
   if (!TEXVAR_ON) return;
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (shader, renderer) => {
@@ -284,7 +315,7 @@ vLtTone = aTone; vLtStyle = aStyle;
 vLtW = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;
 vLtN = normalize( mat3( modelMatrix ) * objectNormal );`);
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', `#include <common>\n${stone ? '#define LT_STONE\n' : ''}${FRAG_DECL}`)
+      .replace('#include <common>', `#include <common>\n${stone ? '#define LT_STONE\n' : ''}${mode === 'cornice' ? '#define LT_CORNICE\n' : ''}${FRAG_DECL}`)
       .replace('#include <map_fragment>', `#include <map_fragment>\n${FRAG_MAIN}`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix( roughnessFactor, 0.3, gLtGloss );')
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
@@ -299,7 +330,7 @@ if ( gLtBump > 0.5 ) {
 }`);
   };
   const prevKey = m.customProgramCacheKey;
-  m.customProgramCacheKey = () => `${prevKey ? prevKey.call(m) : ''}|lottone3${stone ? 's' : ''}`;
+  m.customProgramCacheKey = () => `${prevKey ? prevKey.call(m) : ''}|lottone3${mode}`;
   m.needsUpdate = true;
 }
 

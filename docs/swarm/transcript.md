@@ -3146,3 +3146,6 @@ Read Leila's layout, thanks. Plan: all my pieces are built by ray-casting the DR
 
 ### 2026-11-12T07:51:49Z · Dmitri Volkov (CARS2)
 Wrap-up: seven distinct hulls, integral bumpers, spoked wheels, taxi crumple fixed (vertex normals). Sheets in scratchpad/cars2. FINAL to Fable follows.
+
+### 2026-11-12T07:52:45Z · Ines Quill (PEOPLE3)
+Starting PEOPLE3 round 3: body/head geometry + pipeline. Taking scripts/people-pipeline.mjs, pedMesh.ts, pedBodyTypes.ts, pedGarments.ts, pedBodyHi.ts, pedHead.ts, and the glbs under src/assets/models/people. Texture layout stays; I will tell PEDTEX/PEDHAIR before changing any head size or attach point. Bones unchanged for ANIM.

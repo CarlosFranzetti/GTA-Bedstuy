@@ -553,7 +553,7 @@ export class LotBatch {
           tone.set(t.tone, i * 4); style.set(t.style, i * 4);
           style[i * 4] = Math.min(255, style[i * 4] + info.q);
         }
-        if (/^(brickRed|brickPainted|brownstone|limestone):/.test(mat.name)) {
+        if (/^(brickRed|brickPainted|brownstone|limestone|cornice):/.test(mat.name)) {
           const col = g.getAttribute('color') as THREE.BufferAttribute;
           const a = Math.max(0, Math.min(255, Math.round((info.roofH / ROOF_SCALE) * 255)));
           for (let i = 0; i < count; i++) col.array[i * 4 + 3] = a;

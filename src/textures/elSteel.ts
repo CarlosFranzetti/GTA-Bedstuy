@@ -68,8 +68,14 @@ export function patchElSteel(m: THREE.MeshStandardMaterial): void {
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>\n${VERT}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
-vElW = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;
-vElN = normalize( mat3( modelMatrix ) * objectNormal );`);
+vec4 elWp = vec4( transformed, 1.0 );
+vec3 elWn = objectNormal;
+#ifdef USE_INSTANCING
+  elWp = instanceMatrix * elWp;
+  elWn = mat3( instanceMatrix ) * elWn;
+#endif
+vElW = ( modelMatrix * elWp ).xyz;
+vElN = normalize( mat3( modelMatrix ) * elWn );`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${FRAG_DECL}`)
       .replace('#include <color_fragment>', `#include <color_fragment>\n${MAIN}`)

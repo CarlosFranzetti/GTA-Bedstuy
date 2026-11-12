@@ -21,7 +21,10 @@ const fs = require('fs');
       const d = window.__gtaDebug; d.stopLoop(); d.setHour(15);
       const shot = () => { d.renderOnce(); return d.renderer.domElement.toDataURL('image/jpeg', 0.85); };
       const peds = d.traffic.peds;
-      const stats = { peds: peds.length, street: !!(peds[0] && peds[0].anim && peds[0].anim.lib.has('stumble')), withAnim: peds.filter((p) => p.anim).length, worst: { pitch: 0 }, byClip: {} };
+      const diag = { fetchStatus: null, loadStreet: null, urlTried: './anim/street.bin', hosted: null };
+      try { diag.fetchStatus = (await fetch('./anim/street.bin')).status; } catch (e) { diag.fetchStatus = String(e).slice(0, 100); }
+      try { const an = peds.find((p) => p.anim).anim; diag.hosted = an.lib.streetLoaded; diag.loadStreet = await an.lib.loadStreet(); diag.after = an.lib.has('stumble'); } catch (e) { diag.loadStreet = 'throw ' + String(e).slice(0, 120); }
+      const stats = { diag, peds: peds.length, street: !!(peds[0] && peds[0].anim && peds[0].anim.lib.has('stumble')), withAnim: peds.filter((p) => p.anim).length, worst: { pitch: 0 }, byClip: {} };
       const frames = {};
       for (let s = 0; s < secs * 2; s++) {
         d.step(30);

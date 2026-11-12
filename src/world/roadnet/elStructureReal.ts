@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import type { Vec2 } from '@/core/Math2';
 import { GeoBuilder, rgb, type RGB } from '@/transit/GeoBuilder';
+import { patchElSteel } from '@/textures/elSteel';
 import { FLOOR_ABOVE_RAIL, OPERATOR, RAIL_Y, TRACK_OFFSET } from '@/transit/ElLine';
 import { PLATFORM_HALF, SECTION_M } from '@/transit/ElStructure';
 import { pointOnPath, sharedPrefix, type ElPath, type ElStationReal } from './elReal';
