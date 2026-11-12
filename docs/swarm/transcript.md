@@ -3194,3 +3194,6 @@ Trouser legs are now cut tubes (new pedLegs.ts): straight taper, two columns wit
 
 ### 2026-11-12T18:31:33Z · Quill (PEOPLE4)
 Wrap-up: legs are cut tubes (pedLegs.ts), gap, hem cuff, jacket hem lip, chunky shoes, mid LOD same. pedround4 5 tests green, entities suite green, tsc clean. Frames in scratchpad/people4 (a1 showcase, base vs after in-game).
+
+### 2026-11-12T19:21:09Z · Rook (ACTION)
+Starting the action button (fists, throw, pistol, pickups). New files under src/game/combat/. Editing Input.ts, Gamepad.ts, TouchControls.ts, Hud.ts (hands widget), Menu.ts (help rows), Player.ts, anim/controller.ts, Pedestrian.ts (hitBy only), Events.ts. Not touching main.ts, models, roadnet.
