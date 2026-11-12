@@ -47,10 +47,13 @@ const look = new THREE.Vector3();
 const LINE_A = ['ba-hoodie-fade', 'ba-jersey-teen', 'ca-tracksuit', 'ea-nurse', 'wh-office', 'mx-office'];
 const LINE_B = ['ea-office', 'me-tracksuit', 'hj-man', 'me-hijabi', 'ba-puffer-braids', 'wh-elder'];
 const LINE_C = ['la-construction', 'ca-headwrap', 'wh-elder', 'ea-nurse', 'ba-church-man', 'sa-hijabi'];
+let buildMs = 0; const TRIS = {};
 const place = (ids, row, spacing, yaw) => {
   ids.forEach((id, i) => {
     const v = pedVariantIndex(id);
+    const t0 = performance.now();
     const m = buildPedModel(materials, new Rng(v + 1), { variant: v });
+    buildMs += performance.now() - t0; TRIS[id] = m.triangles;
     m.group.position.set((i - (ids.length - 1) / 2) * spacing + row * spacing * 0.5, 0, -row * 1.6);
     m.group.rotation.y = Math.PI + yaw + 0.08 * ((i % 3) - 1);
     { const sp = m.group.userData.splay ?? 0; m.arms[0].rotation.z = -sp; m.arms[1].rotation.z = sp; }
@@ -74,6 +77,8 @@ const TYPE_ORDER = ['slim', 'athletic', 'heavy', 'tall-thin', 'short-stocky', 'b
 const byType = {}; for (const sp of SPECS) if (sp.role === 'civilian') { const t = bodyTypeId(sp); (byType[t] ??= []).push(sp.id); }
 const BODIES = TYPE_ORDER.map((t, i) => (byType[t] ?? [])[i % 2] ?? (byType[t] ?? [])[0]).filter(Boolean);
 if (view === 'bodies') { place(BODIES.slice(0, 6), 0, 1.1, 0.0); place(BODIES.slice(6), 1, 1.1, 0.0); cam.position.set(0, 2.6, 8.4); look.set(0, 0.95, -0.8); cam.fov = 38; }
+if (view === 'line10') { place(BODIES.slice(0, 10), 0, 0.98, 0.0); cam.position.set(0, 1.35, 10.8); look.set(0, 0.95, 0); cam.fov = 30; }
+if (view === 'line10-3q') { place(BODIES.slice(0, 10), 0, 0.98, 0.5); cam.position.set(3.0, 1.35, 10.6); look.set(0, 0.95, 0); cam.fov = 30; }
 if (view === 'street') { place(BODIES.slice(0, 6), 0, 0.9, 0.5); place(BODIES.slice(6), 1, 0.9, 0.5); cam.position.set(2.5, 1.7, 15); look.set(0, 1.0, -0.8); cam.fov = 28; }
 if (view === 'bodies-3q') { place(BODIES.slice(0, 6), 0, 1.0, 0.7); place(BODIES.slice(6), 1, 1.0, 0.7); cam.position.set(3.2, 1.5, 7.0); look.set(0, 0.95, -0.8); cam.fov = 38; }
 const OUT_A = ['ba-transit', 'la-site', 'ba-denim-open', 'sa-bomber', 'wh-coat', 'ba-sundress'];
@@ -100,5 +105,5 @@ if (view === 'atlas') {
 if (SIL) { scene.background = new THREE.Color(0xffffff); scene.environment = null; ground.visible = false; scene.traverse((o) => { if (o.isMesh && o !== ground) o.material = new THREE.MeshBasicMaterial({ color: 0x000000 }); }); }
 cam.updateProjectionMatrix(); cam.lookAt(look);
 for (let i = 0; i < 3; i++) renderer.render(scene, cam);
-window.__ready = { tris: renderer.info.render.triangles, calls: renderer.info.render.calls, bodies: BODIES };
+window.__ready = { buildMs: Math.round(buildMs), perPerson: TRIS, tris: renderer.info.render.triangles, calls: renderer.info.render.calls, bodies: BODIES };
 </script></body></html>

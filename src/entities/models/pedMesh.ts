@@ -405,12 +405,40 @@ const wsumAt = (L: MhLod, i: number, set: readonly number[]): number => { let t 
 const W_TORSO = [2], W_HIPS = [1], W_ARMS = [4, 5, 6, 7], W_LEGS = [8, 9, 10, 11];
 
 /** where the joints go for a body type: shoulders and arms follow the shoulder width, legs the hip width */
-export function jointFor(name: string, p: number[], bt: BodyType): number[] {
-  if (/^(shoulder|elbow|wrist)/.test(name)) return [p[0] * bt.shoulders, p[1], p[2]];
+export function jointFor(name: string, p: number[], bt: BodyType, pivot?: number[]): number[] {
+  if (/^(shoulder|elbow|wrist)/.test(name)) return leanPoint([p[0] * bt.shoulders, p[1], p[2]], bt, pivot);
+  if (name === 'head') return leanPoint(p, bt, pivot);
   if (/^(hip[LR]|knee|ankle)/.test(name)) return [p[0] * legX(bt), p[1], p[2]];
   return p;
 }
 const legX = (bt: BodyType): number => 1 + (bt.hips - 1) * 0.8;
+/** forward lean of the upper body about the waist (rad): the stoop of an older person is part of the body, so it shows in any pose */
+export const leanOf = (bt: BodyType): number => -bt.stoop * 0.85;
+function leanPoint(p: number[], bt: BodyType, pivot?: number[]): number[] {
+  const phi = leanOf(bt);
+  if (!pivot || phi === 0) return p;
+  const dy = p[1] - pivot[1], dz = p[2] - pivot[2], c = Math.cos(phi), sn = Math.sin(phi);
+  return [p[0], pivot[1] + dy * c + dz * sn, pivot[2] + dz * c - dy * sn];
+}
+/** lean the vertices of upper-body bones (torso 2, head 3, arms 4 to 7) about the waist; hips and legs stay; the lean fades in over the waist */
+function leanGeometry(pos: Float32Array, nrm: Float32Array | null, jx: ArrayLike<number>, wx: ArrayLike<number>, bt: BodyType, pivot: number[]): void {
+  const phi = leanOf(bt);
+  if (phi === 0) return;
+  const py = pivot[1], pz = pivot[2], c = Math.cos(phi), sn = Math.sin(phi);
+  for (let i = 0; i < pos.length / 3; i++) {
+    let u = 0;
+    for (let k = 0; k < 4; k++) { const j = jx[i * 4 + k]; if (j >= 2 && j <= 7) u += wx[i * 4 + k]; }
+    u = Math.min(1, u) * sstep(py - 0.14, py + 0.1, pos[i * 3 + 1]);
+    if (u <= 0) continue;
+    const dy = pos[i * 3 + 1] - py, dz = pos[i * 3 + 2] - pz;
+    pos[i * 3 + 1] = py + dy + (dy * c + dz * sn - dy) * u; pos[i * 3 + 2] = pz + dz + (dz * c - dy * sn - dz) * u;
+    if (nrm) {
+      const ny = nrm[i * 3 + 1], nz = nrm[i * 3 + 2], qy = ny * c + nz * sn, qz = nz * c - ny * sn;
+      nrm[i * 3 + 1] = ny + (qy - ny) * u; nrm[i * 3 + 2] = nz + (qz - nz) * u;
+      const l = Math.hypot(nrm[i * 3], nrm[i * 3 + 1], nrm[i * 3 + 2]) || 1; nrm[i * 3] /= l; nrm[i * 3 + 1] /= l; nrm[i * 3 + 2] /= l;
+    }
+  }
+}
 
 /** thickness of the clothes on the body (m): the volume of a puffer, the drop of a hoodie, the trouser leg; skin and hands get none */
 const THICK_SKIN: Partial<Record<PedSpec['top']['kind'], number>> = { puffer: 0.03, hoodie: 0.017, jacket: 0.014, cardigan: 0.013, uniform: 0.011, tracksuit: 0.01, vest: 0.01, apron: 0.008, jersey: 0.005, tee: 0.005, blouse: 0.005, scrubs: 0.006, dress: 0.005 };
@@ -522,6 +550,57 @@ function skinExtras(s: MhShape, spec: PedSpec, hi: boolean): THREE.BufferGeometr
 
 // ---------------------------------------------------------------- geometry per shape, variant and LOD
 
+/** the foot: the skin's own foot is cut off at the ankle and replaced by a clean shoe volume (one smooth lofted shape per foot, painted from the shoe swatch) */
+function shoeParts(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.BufferGeometry[] {
+  const out: THREE.BufferGeometry[] = [], R = peopleRig(s, spec), anY = s.landmarks.ankleY, rect = SK_RECTS.shoe, seg = hi ? 12 : 7;
+  const bt = bodyTypeOf(spec), sc = Math.min(1.15, Math.max(0.85, (s.landmarks.crownY / 1.78) * (0.9 + 0.1 * bt.legs)));
+  const T = [0, 0.035, 0.11, 0.27, 0.48, 0.68, 0.86, 1];
+  const W = [0.012, 0.03, 0.043, 0.047, 0.042, 0.037, 0.035, 0.03], H = [0.026, 0.044, 0.058, 0.064, 0.08, 0.12, 0.142, 0.138];
+  const high = !!spec.shoes.high, flat = spec.sex === 'f' && !high && !/#f|#e/i.test(spec.shoes.color);
+  for (const side of ['L', 'R']) {
+    const a = R['ankle' + side], bone = side === 'L' ? 9 : 11;
+    // the leg's own radius at the ankle, from the dressed skin, so the shoe collar swallows it
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (let i = 0; i < L.position.length / 3; i++) {
+      const y = L.position[i * 3 + 1], x = L.position[i * 3];
+      if (y > anY + 0.03 && y < anY + 0.075 && Math.abs(x - a[0]) < 0.07) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, L.position[i * 3 + 2]); z1 = Math.max(z1, L.position[i * 3 + 2]); }
+    }
+    if (!isFinite(x0)) continue;
+    const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, lrx = (x1 - x0) / 2 + 0.004, lrz = (z1 - z0) / 2 + 0.004;
+    const zToe = cz - 0.2 * sc, zHeel = cz + (lrz + 0.012);
+    const pos: number[] = [], uv: number[] = [], idx: number[] = [];
+    const row = seg + 1;
+    for (let i = 0; i < T.length; i++) {
+      const z = zToe + T[i] * (zHeel - zToe), w = Math.max(W[i] * sc, i === T.length - 1 ? lrx : 0), h = (flat ? H[i] * 0.8 : H[i]) * sc;
+      const collar = i >= T.length - 2 ? 1 : 0;
+      for (let j = 0; j <= seg; j++) {
+        const th = (j / seg) * Math.PI * 2, c = Math.cos(th), sn = Math.sin(th);
+        const rx = collar ? Math.max(w, lrx + 0.003) : w;
+        pos.push(cx + rx * sn, Math.max(0, h * (1 - c) / 2) + (collar && c < 0 ? 0 : 0), z);
+        uv.push(0, 0);
+        const px = rect.x + 0.5 + (j / seg) * (rect.w - 1), py = rect.y + 0.5 + T[i] * (rect.h - 1);
+        uv[uv.length - 2] = px / 512; uv[uv.length - 1] = 1 - py / 512;
+      }
+    }
+    for (let i = 0; i + 1 < T.length; i++) for (let j = 0; j < seg; j++) { const p = i * row + j, q = p + 1, r = p + row, t = r + 1; idx.push(p, r, q, q, r, t); }
+    // heel cap (closes the back of the shoe) and the toe point
+    for (const [ri, up] of [[T.length - 1, true], [0, false]] as const) {
+      const base = pos.length / 3; let sy = 0;
+      for (let j = 0; j < seg; j++) sy += pos[(ri * row + j) * 3 + 1]; sy /= seg;
+      pos.push(cx, sy, pos[(ri * row) * 3 + 2]); uv.push(uv[(ri * row) * 2], uv[(ri * row) * 2 + 1]);
+      for (let j = 0; j < seg; j++) { const p = ri * row + j; if (up) idx.push(base, p + 1, p); else idx.push(base, p, p + 1); }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
+    g.computeVertexNormals();
+    const n = pos.length / 3, si = new Uint16Array(n * 4), sw = new Float32Array(n * 4);
+    for (let k = 0; k < n; k++) { si[k * 4] = bone; sw[k * 4] = 1; }
+    g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(si, 4)); g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
+    out.push(g);
+  }
+  return out;
+}
+
 const geoCache = new Map<string, { geo: THREE.BufferGeometry; triangles: number }>();
 const dressCache = new Map<string, MhLod>();
 /** the body of a variant at a LOD: body type and clothing thickness applied to the shape's skin (shared by the geometry and the texture bake) */
@@ -531,22 +610,35 @@ function dressedFor(s: MhShape, variant: number, detail: PedDetail): MhLod {
   if (!dl) { dl = dressLod(s, PED_SPECS[variant], s.lods[detail], true); dressCache.set(key, dl); }
   return dl;
 }
+/** the skin without its own feet (the shoes replace them) */
+function noFoot(s: MhShape, L: MhLod): Uint32Array {
+  const cut = s.landmarks.ankleY + 0.035, keep: number[] = [];
+  for (let t = 0; t < L.index.length; t += 3) {
+    let foot = true;
+    for (let k = 0; k < 3; k++) { const v = L.index[t + k]; if (!(L.position[v * 3 + 1] < cut && (wsumAt(L, v, [9]) + wsumAt(L, v, [11])) > 0.5)) foot = false; }
+    if (!foot) keep.push(L.index[t], L.index[t + 1], L.index[t + 2]);
+  }
+  return Uint32Array.from(keep);
+}
 function geometryFor(s: MhShape, variant: number, detail: PedDetail): { geo: THREE.BufferGeometry; triangles: number } {
   const key = `${s.name}:${variant}:${detail}`;
   let c = geoCache.get(key);
   if (c) return c;
   const spec = PED_SPECS[variant];
-  const L = dressedFor(s, variant, detail);
+  const L0 = dressedFor(s, variant, detail), bt = bodyTypeOf(spec), pivot = s.rig.torso;
+  const L = { ...L0, position: new Float32Array(L0.position), normal: new Float32Array(L0.normal) };
+  leanGeometry(L.position, L.normal, L.joints, L.weights, bt, pivot);
   const base = new THREE.BufferGeometry();
   base.setAttribute('position', new THREE.BufferAttribute(L.position, 3));
   base.setAttribute('normal', new THREE.BufferAttribute(L.normal, 3));
   base.setAttribute('uv', new THREE.BufferAttribute(L.uv, 2));
   base.setAttribute('skinIndex', new THREE.BufferAttribute(L.joints, 4));
   base.setAttribute('skinWeight', new THREE.BufferAttribute(L.weights, 4));
-  base.setIndex(new THREE.BufferAttribute(L.index, 1));
-  const ao = bodyAo(s, L.position);
-  const parts = detail === 'far' ? [] : [...headParts(s, spec, detail === 'hi'), ...bodyParts(s, spec, detail === 'hi'), ...skinExtras(s, spec, detail === 'hi')];
-  if (detail === 'hi') parts.push(...headShell(s, L, ao, spec));
+  base.setIndex(new THREE.BufferAttribute(detail === 'far' ? L.index : noFoot(s, L), 1));
+  const ao = bodyAo(s, L0.position);
+  const parts = detail === 'far' ? [] : [...headParts(s, spec, detail === 'hi'), ...bodyParts(s, spec, detail === 'hi'), ...skinExtras(s, spec, detail === 'hi'), ...shoeParts(s, spec, L, detail === 'hi')];
+  if (detail === 'hi') parts.push(...headShell(s, L0, ao, spec));
+  for (const g of parts) leanGeometry(g.getAttribute('position').array as Float32Array, (g.getAttribute('normal')?.array as Float32Array) ?? null, g.getAttribute('skinIndex').array, g.getAttribute('skinWeight').array, bt, pivot);
   base.setAttribute('color', new THREE.BufferAttribute(ao, 3));
   for (const g of parts) if (!g.getAttribute('color')) g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(g.getAttribute('position').count * 3).fill(1), 3));
   const geo = parts.length ? mergeGeometries([base, ...parts], false) : base;
@@ -607,7 +699,7 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
   // arms hang a little out from a wide body or a flared coat: set on the arm pivots by the pedestrian animation (Pedestrian.reactionPose)
   group.userData.splay = ((): number => { const b = bodyTypeOf(spec); return Math.min(0.2, Math.max(0.02, (spec.top.long ? 0.12 : 0) + (spec.top.kind === 'puffer' ? 0.07 : 0) + Math.max(0, (Math.max(b.hips, b.chest, 1) - 1)) * 0.3 + (spec.bottom.kind === 'skirt' ? 0.05 : 0) + 0.03)); })();
   const bt = bodyTypeOf(spec), R: Record<string, number[]> = {};
-  for (const [k, v] of Object.entries(shape.rig)) R[k] = jointFor(k, v, bt);
+  for (const [k, v] of Object.entries(shape.rig)) R[k] = jointFor(k, v, bt, shape.rig.torso);
   const rig = new THREE.Bone(); rig.name = 'rig'; group.add(rig);
   const bone = (name: string, parent: THREE.Object3D, world: number[], pw: number[]): THREE.Bone => { const b = new THREE.Bone(); b.name = name; b.position.set(world[0] - pw[0], world[1] - pw[1], world[2] - pw[2]); parent.add(b); return b; };
   const O = [0, 0, 0];
@@ -648,8 +740,7 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
     if (grown) target = Math.min(1.95, Math.max(1.5, target));
     const hs = target / shape.height, wide = bw * (1 + tri() * 0.04);
     group.scale.set(wide * (0.98 + 0.02 * hs), hs, wide * (0.98 + 0.02 * hs));
-    const stoop = skinMode ? bt.stoop : (age === 'old' ? -0.15 : 0);
-    if (stoop !== 0) torso.userData.stoop = stoop - rng.range(0, 0.05);
+    if (leanOf(bt) !== 0) torso.userData.stoopBaked = leanOf(bt);      // the lean is in the rest pose of the skin and the rig (not an extra pose)
     for (const k of [0, 1]) arms[k].scale.y = 1 + rng.range(-0.02, 0.02);
     head.scale.setScalar((skinMode ? bt.head * 1.05 : age === 'kid' ? 1.06 : 1) * rng.range(0.97, 1.03));
     torso.scale.set(1 + rng.range(-0.015, 0.015), 1, 1 + rng.range(-0.02, 0.02));

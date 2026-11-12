@@ -11,7 +11,9 @@ export interface TriBreakdown {
   scene: Record<string, TriRow>;
   shadow: Record<string, TriRow>;
   sceneTotal: number; shadowTotal: number; sceneDraws: number; shadowDraws: number;
-  top: Array<{ pass: string; name: string; cat: string; tris: number; inst: number }>;
+  /** the 25 names with the most draw calls (summed over the meshes sharing the path) */
+  byDraws?: TriBreakdown['top'];
+  top: Array<{ pass: string; name: string; cat: string; tris: number; inst: number; draws: number }>;
 }
 
 /** Category of a mesh from its own and its ancestors' names. Order matters. */
@@ -46,7 +48,7 @@ function drawTris(m: THREE.Mesh): number {
 
 export function triBreakdown(scene: THREE.Object3D, render: () => void): TriBreakdown {
   const out: TriBreakdown = { scene: {}, shadow: {}, sceneTotal: 0, shadowTotal: 0, sceneDraws: 0, shadowDraws: 0, top: [] };
-  const per = new Map<string, { pass: string; name: string; cat: string; tris: number; inst: number }>();
+  const per = new Map<string, { pass: string; name: string; cat: string; tris: number; inst: number; draws: number }>();
   const saved: Array<[THREE.Object3D, THREE.Object3D['onBeforeRender'], THREE.Object3D['onBeforeShadow']]> = [];
   const paths = new Map<THREE.Object3D, string>();
   const walk = (o: THREE.Object3D, path: string): void => { const here = path + '/' + (o.name || o.type); paths.set(o, here); for (const c of o.children) walk(c, here); };
@@ -59,7 +61,7 @@ export function triBreakdown(scene: THREE.Object3D, render: () => void): TriBrea
     r.tris += tris; r.draws++; r.meshes++;
     if (pass === 'scene') { out.sceneTotal += tris; out.sceneDraws++; } else { out.shadowTotal += tris; out.shadowDraws++; }
     const k = pass + path; const e = per.get(k);
-    if (e) e.tris += tris; else per.set(k, { pass, name: path.slice(-90), cat, tris, inst: inst ? (m as THREE.InstancedMesh).count : 1 });
+    if (e) { e.tris += tris; e.draws++; } else per.set(k, { pass, name: path.slice(-90), cat, tris, inst: inst ? (m as THREE.InstancedMesh).count : 1, draws: 1 });
   };
   scene.traverse((o) => {
     const m = o as THREE.Mesh;
@@ -79,6 +81,7 @@ export function triBreakdown(scene: THREE.Object3D, render: () => void): TriBrea
   });
   try { render(); } finally { for (const [o, r, s] of saved) { o.onBeforeRender = r; o.onBeforeShadow = s; } }
   out.top = [...per.values()].sort((a, b) => b.tris - a.tris).slice(0, 40);
+  out.byDraws = [...per.values()].sort((a, b) => b.draws - a.draws).slice(0, 25);
   return out;
 }
 

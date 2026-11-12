@@ -198,7 +198,7 @@ export const BASE_SPECS: readonly PedSpec[] = [
     bottom: { kind: 'jeans', color: '#3a4a60', trim: '#28344a' }, shoes: { color: '#8a6a2a', sole: '#3a2a10', accent: '#c9a36a' }, build: 'stocky', weight: 0.8,
   }),
   base({ // 15 street cop
-    id: 'cop', role: 'cop', skin: '#a8734a', hair: 'short', hairColor: '#2a1c12', hat: 'cop', hatColor: '#0e1630', hatTrim: '#d8c060', hatLogo: '*',
+    id: 'cop', role: 'cop', skin: '#a8734a', hair: 'short', hairColor: '#2a1c12', hat: 'cop', hatColor: '#0e1630', hatTrim: '#d8c060', hatLogo: '',
     face: { eyes: 'dot', brows: 'thick', mouth: 'flat', mustache: true },
     top: { kind: 'uniform', color: '#1c2f5c', trim: '#0e1630', sleeves: 'long', print: 'badge', printColor: '#d8c060', tie: '#16213a' },
     bottom: { kind: 'trousers', color: '#16213a', trim: '#0c1426' }, shoes: { color: '#101010', sole: '#050505', accent: '#303030' }, build: 'stocky', weight: 0,

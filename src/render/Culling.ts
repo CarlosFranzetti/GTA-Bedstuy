@@ -10,7 +10,7 @@ import type { Quality } from './Shadows';
 import { TIER_CONFIG, tierConfig } from './QualityTier';
 import { carPaintConfigured, carPaintTier } from './CarPaintFx';
 import { clusterGeometry } from './FarGeometry';
-import { PHONE_HIDDEN_MESH } from './TierGeometry';
+import { PHONE_HIDDEN_MESH, TRIM_MESH } from './TierGeometry';
 import './TriBreakdown'; // debug: window.__gtaTriBreakdown
 
 /** Beyond this distance (m) from the player props, parked cars and peds are hidden. */
@@ -195,7 +195,7 @@ export function chunkKeyOfCell(l: ChunkLayout, cellKey: string): string {
  * hysteresis as DistanceCuller: a hidden chunk reappears only once its nearest edge is `margin` m inside the range.
  */
 export class ChunkCuller {
-  private readonly chunks = new Map<string, { meshes: THREE.Mesh[]; detail: THREE.Mesh[]; far: THREE.Mesh[]; minX: number; maxX: number; minZ: number; maxZ: number; hidden: boolean; detailHidden: boolean; isFar: boolean }>();
+  private readonly chunks = new Map<string, { meshes: THREE.Mesh[]; detail: THREE.Mesh[]; trim: THREE.Mesh[]; far: THREE.Mesh[]; minX: number; maxX: number; minZ: number; maxZ: number; hidden: boolean; detailHidden: boolean; trimHidden: boolean; isFar: boolean }>();
   /** Far representation range (m) for building cells; null = the tier's `buildingFarDist` (read from CarPaintFx's tier). */
   farOverride: number | null = null;
   /** far geometries built per update call at most (each is a one-off clustering of one cell mesh, ~2 ms); review scripts raise it through window.__gtaChunkCuller */
@@ -213,11 +213,18 @@ export class ChunkCuller {
     mesh.updateWorldMatrix(true, false);
     this.box.setFromObject(mesh);
     let c = this.chunks.get(key);
-    if (!c) { c = { meshes: [], detail: [], far: [], minX: this.box.min.x, maxX: this.box.max.x, minZ: this.box.min.z, maxZ: this.box.max.z, hidden: false, detailHidden: false, isFar: false }; this.chunks.set(key, c); }
+    if (!c) { c = { meshes: [], detail: [], trim: [], far: [], minX: this.box.min.x, maxX: this.box.max.x, minZ: this.box.min.z, maxZ: this.box.max.z, hidden: false, detailHidden: false, trimHidden: false, isFar: false }; this.chunks.set(key, c); }
     else { c.minX = Math.min(c.minX, this.box.min.x); c.maxX = Math.max(c.maxX, this.box.max.x); c.minZ = Math.min(c.minZ, this.box.min.z); c.maxZ = Math.max(c.maxZ, this.box.max.z); }
     c.meshes.push(mesh);
+    if (TRIM_MESH.test(mesh.name)) c.trim.push(mesh);
     if (PHONE_HIDDEN_MESH.test(mesh.name)) c.detail.push(mesh);
     else if (mesh.name.startsWith('buildings:') && !mesh.userData.sparse && mesh.geometry.getAttribute('normal')) c.far.push(mesh);
+  }
+  /** Facade-trim range (m): null = the tier's `buildingTrimDist` (read from CarPaintFx's tier). */
+  trimOverride: number | null = null;
+  private trimDist(): number {
+    if (this.trimOverride !== null) return this.trimOverride;
+    return carPaintConfigured() ? tierConfig(carPaintTier()).buildingTrimDist : Infinity;
   }
   private farDist(): number {
     if (this.farOverride !== null) return this.farOverride;
@@ -232,6 +239,7 @@ export class ChunkCuller {
     const base = this.maxDist + Math.max(0, py - 3) * CHUNK_RANGE_PER_M_HEIGHT;
     const farDist = this.farDist();
     const detailDist = Math.min(this.detailDist, farDist);
+    const trimDist = this.trimDist();
     let builds = ChunkCuller.buildsPerUpdate;
     for (const c of this.chunks.values()) {
       const dx = Math.max(c.minX - px, 0, px - c.maxX), dz = Math.max(c.minZ - pz, 0, pz - c.maxZ);
@@ -240,10 +248,13 @@ export class ChunkCuller {
       const hide = d2 > limit * limit;
       const dlimit = Math.min(base, detailDist) - (c.detailHidden ? this.margin : 0);
       const dHide = hide || d2 > dlimit * dlimit;
-      if (hide !== c.hidden || dHide !== c.detailHidden) {
-        c.hidden = hide; c.detailHidden = dHide;
+      const tlimit = Math.min(base, trimDist) - (c.trimHidden ? this.margin : 0);
+      const tHide = hide || d2 > tlimit * tlimit;
+      if (hide !== c.hidden || dHide !== c.detailHidden || tHide !== c.trimHidden) {
+        c.hidden = hide; c.detailHidden = dHide; c.trimHidden = tHide;
         for (const m of c.meshes) m.visible = !hide;
         for (const m of c.detail) m.visible = !dHide; // dHide includes hide
+        for (const m of c.trim) m.visible = !tHide && !(c.detail.includes(m) && dHide);
       }
       // far representation: the cell's building meshes swap to their clustered geometry beyond farDist (3D distance, so aerials stay sharp)
       const flimit = farDist - (c.isFar ? this.margin : 0);

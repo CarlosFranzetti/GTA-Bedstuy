@@ -143,14 +143,24 @@ describe('leaks', () => {
     let B = A, best = 0;
     for (const [k] of chunkList) { const q = centreOf(k); const dd = Math.hypot(q.x - A.x, q.z - A.z); if (dd > best) { best = dd; B = q; } }
     s.settle(A.x, A.z, 2);
-    const before = { st: s.stats(), held: s.held(), ids: host.ids.size, live: liveGeometries(s.root) };
-    expect(before.st.near).toBeGreaterThan(0);
+    const fresh = s.held();
+    const snap = (): { st: ReturnType<typeof s.stats>; held: ReturnType<typeof s.held>; ids: number; live: number } => ({ st: s.stats(), held: s.held(), ids: host.ids.size, live: liveGeometries(s.root) });
+    expect(s.stats().near).toBeGreaterThan(0);
     const steps = Math.ceil(best / 40);
     const at = (t: number): { x: number; z: number } => ({ x: A.x + (B.x - A.x) * t, z: A.z + (B.z - A.z) * t });
     let peakGeoms = 0;
-    for (let i = 1; i <= steps; i++) { const p = at(i / steps); s.settle(p.x, p.z, 2); peakGeoms = Math.max(peakGeoms, s.stats().geometries); }
-    for (let i = steps - 1; i >= 0; i--) { const p = at(i / steps); s.settle(p.x, p.z, 2); peakGeoms = Math.max(peakGeoms, s.stats().geometries); }
-    const after = { st: s.stats(), held: s.held(), ids: host.ids.size, live: liveGeometries(s.root) };
+    const trip = (): void => {
+      for (let i = 1; i <= steps; i++) { const p = at(i / steps); s.settle(p.x, p.z, 2); peakGeoms = Math.max(peakGeoms, s.stats().geometries); }
+      for (let i = steps - 1; i >= 0; i--) { const p = at(i / steps); s.settle(p.x, p.z, 2); peakGeoms = Math.max(peakGeoms, s.stats().geometries); }
+    };
+    // A chunk granted on the way keeps its level STREAM_MARGIN m past `near` (hysteresis), so coming back holds that ring on top of a fresh
+    // start. The leak check is therefore the second round trip against the first: nothing may accumulate; the first only has to hold what a fresh start does.
+    trip();
+    const before = snap();
+    for (const k of fresh.near) expect(before.held.near).toContain(k);
+    expect(before.st.near).toBeGreaterThan(0);
+    trip();
+    const after = snap();
     expect(after.held).toEqual(before.held);
     expect(after.st.geometries).toBe(before.st.geometries);
     expect(after.st.colliders).toBe(before.st.colliders);

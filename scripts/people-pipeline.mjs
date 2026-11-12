@@ -95,8 +95,8 @@ export const SHAPES = {
  * The far LOD ignores regions (one global pass to `body`).
  */
 export const REGION_BUDGET = {
-  hi: { head: 1350, hands: 560, feet: 260, body: 1350 },
-  mid: { head: 380, hands: 100, feet: 60, body: 580 },
+  hi: { head: 1300, hands: 500, feet: 30, body: 1400 },
+  mid: { head: 360, hands: 90, feet: 20, body: 560 },
   far: { head: 0, hands: 0, feet: 0, body: 400 },
 };
 export const LOD_TRIS = { hi: 3500, mid: 1100, far: 400 };
@@ -297,7 +297,7 @@ export function buildBody(src, shape) {
   const crown = highest - lowest;
   const landmarks = { chinY: joints.chin[1], eyeY: joints.eyeL[1], eyeX: Math.abs(joints.eyeL[0]), crownY: crown, hemY: crown * 0.56, ankleY: rig.ankleL[1], wristY: rig.wristL[1] };
   const indices = triangulate(src.obj.quads, pos);
-  smoothFeet(pos, w12, indices, rig.ankleY + 0.03);
+  smoothFeet(pos, w12, indices, rig.ankleY + 0.03, 22);
   return { positions: pos, w12, indices, rig, landmarks, height: crown };
 }
 
@@ -388,6 +388,8 @@ export function vertexNormals(pos, idx) {
 
 /** Must equal SK_TILES in src/textures/painters/pedSkinPaint.ts (a unit test checks it). The extras (hair, hat, hood, skirt, bag swatches) live in the free block at the top right. */
 export const ATLAS = 512;
+/** pole triangles: one 2 x 2 texel block each, 128 x 32 of them */
+export const POLES = { x: 256, y: 320, w: 256, h: 64 };
 export const TILES = {
   head: { x: 0, y: 0, w: 256, h: 256 },
   torso: { x: 256, y: 128, w: 256, h: 128 },
@@ -471,22 +473,32 @@ export function unwrapUVs(mesh, lm) {
     return [u, ft];
   };
   // pass 1: unwrap every triangle (a straddling one goes whole past u = 1), pass 2: scale each part's tile to its own overhang
-  const triUv = [], maxU = new Map();
+  const triUv = [], triG = [], maxU = new Map(), gk = (g) => `${g.tile}|${g.side}`, pole = new Set();
+  const wrap = (uv3) => { if (Math.max(...uv3.map((u) => u[0])) - Math.min(...uv3.map((u) => u[0])) > 0.5) for (const u of uv3) if (u[0] < 0.5) u[0] += 1; return Math.max(...uv3.map((u) => u[0])) - Math.min(...uv3.map((u) => u[0])); };
+  // a triangle at a pole of its part (the top of the shoulder, the crotch, the tip of a toe) has no clean angle: it gets ONE texel of the pole block (a flat
+  // colour the painter evaluates at its centre) instead of a smear
   for (let t = 0; t < tris; t++) {
     const g = groups.get(key(t));
     const uv3 = [0, 1, 2].map((k) => uOf(g, ix[t * 3 + k]));
-    if (Math.max(...uv3.map((u) => u[0])) - Math.min(...uv3.map((u) => u[0])) > 0.5) for (const u of uv3) if (u[0] < 0.5) u[0] += 1;
-    if (Math.max(...uv3.map((u) => u[0])) - Math.min(...uv3.map((u) => u[0])) > 0.62) { const m = uv3.reduce((s2, u) => s2 + u[0], 0) / 3; for (const u of uv3) u[0] = m; }   // a pole triangle: collapse
-    triUv.push(uv3);
-    if (g.tile !== 'head') maxU.set(key(t), Math.max(maxU.get(key(t)) ?? 1, ...uv3.map((u) => u[0])));
+    const range = wrap(uv3);
+    if (range > 0.55 && g.tile !== 'head' && pole.size < 128 * 32) pole.add(t);
+    else if (range > 0.62) { const m = uv3.reduce((s2, u) => s2 + u[0], 0) / 3; for (const u of uv3) u[0] = m; }
+    triUv.push(uv3); triG.push(g);
+    if (g.tile !== 'head' && !pole.has(t)) maxU.set(gk(g), Math.max(maxU.get(gk(g)) ?? 1, ...uv3.map((u) => u[0])));
   }
   const keyMap = new Map(), outSrc = [], outUv = [], outIdx = [];
+  let slot = 0;
   for (let t = 0; t < tris; t++) {
-    const g = groups.get(key(t)), tile = TILES[g.tile], uv3 = triUv[t], span = g.tile === 'head' ? 1 : maxU.get(key(t));
+    const g = triG[t], tile = TILES[g.tile], uv3 = triUv[t], span = g.tile === 'head' ? 1 : maxU.get(gk(g));
+    if (pole.has(t)) {
+      const bx = POLES.x + (slot % 128) * 2, by = POLES.y + Math.floor(slot / 128) * 2; slot++;
+      for (let k = 0; k < 3; k++) { outSrc.push(ix[t * 3 + k]); outUv.push((bx + 1) / ATLAS, 1 - (by + 1) / ATLAS); outIdx.push(outSrc.length - 1); }
+      continue;
+    }
     for (let k = 0; k < 3; k++) {
       const v = ix[t * 3 + k];
       const [u, ft] = uv3[k];
-      const [tu, tv] = tileUV(tile, Math.min(1, u / span), ft);
+      const [tu, tv] = tileUV(tile, Math.min(1, u / span), Math.min(1, Math.max(0, ft)));
       const kk = `${v}|${g.tile}|${g.side}|${Math.round(tu * 4096)}|${Math.round(tv * 4096)}`;
       let o = keyMap.get(kk);
       if (o === undefined) { o = outSrc.length; keyMap.set(kk, o); outSrc.push(v); outUv.push(tu, tv); }

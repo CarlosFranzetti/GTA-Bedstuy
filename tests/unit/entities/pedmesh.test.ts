@@ -2,7 +2,7 @@ import { describe, expect, it, beforeAll } from 'vitest';
 import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
 import { PED_VARIANT_COUNT } from '@/entities/models/pedBody';
-import { HEAD_MAP, HI_RECTS, PEDHI_ATLAS } from '@/textures/painters/pedHi';
+import { SK_ATLAS, SK_RECTS, SK_TILES } from '@/textures/painters/pedSkinPaint';
 import { clearPeople, buildMhPedModel, buildPerson, parseShape, peopleReady, registerShape, shapeFor, type MhShape } from '@/entities/models/pedMesh';
 import { PED_SPECS } from '@/textures/painters/ped';
 import type { IMaterialLibrary } from '@/world/types';
@@ -87,16 +87,19 @@ describe('people pipeline (scripts/people-pipeline.mjs)', () => {
     }
   });
 
-  it('projects UVs into PEDHI atlas tiles (same rects as the painters)', () => {
-    for (const [k, r] of Object.entries(P.TILES) as Array<[string, { x: number; y: number; w: number; h: number }]>) {
-      if (k === 'gear' || k in HI_RECTS) expect(HI_RECTS[k as keyof typeof HI_RECTS], k).toEqual(r);
+  it('unwraps every part into its own tile (same rects as the painter) and keeps the pole block clear of them', () => {
+    for (const [k, r] of Object.entries(P.TILES) as Array<[string, { x: number; y: number; w: number; h: number }]>) expect(SK_TILES[k as keyof typeof SK_TILES], k).toEqual(r);
+    expect(P.ATLAS).toBe(SK_ATLAS);
+    const rects = Object.values(P.TILES) as Array<{ x: number; y: number; w: number; h: number }>;
+    const hit = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): boolean => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+    for (const r of rects) expect(hit(r, P.POLES)).toBe(false);
+    // the swatch rects of the extras (hair, hat, bag, hood, skirt) overlap neither a body tile nor the pole block; the shoe swatch reuses the shoe tile (the skin's own feet are cut off)
+    for (const [k, r] of Object.entries(SK_RECTS)) {
+      expect(hit(r, P.POLES), k).toBe(false);
+      for (const [tk, t] of Object.entries(SK_TILES)) if (!(k === 'shoe' && tk === 'shoe')) expect(hit(r, t), `${k} on ${tk}`).toBe(false);
     }
-    expect(P.ATLAS).toBe(PEDHI_ATLAS);
-    // the painter's eye line is 0.034 m of the 0.09 m half width, and its landmark heights are fractions of the tile
-    expect(P.FACE.eyeFrac).toBeCloseTo(0.034 / HEAD_MAP.halfW / 2, 2);
-    expect(P.FACE.t.eye).toBeCloseTo((1.664 - HEAD_MAP.yMin) / (HEAD_MAP.yMax - HEAD_MAP.yMin), 2);
     const [u, v] = P.tileUV(P.TILES.torso, 0.5, 1);
-    expect(u).toBeGreaterThan(P.TILES.torso.x / PEDHI_ATLAS); expect(v).toBeLessThan(1 - P.TILES.torso.y / PEDHI_ATLAS);
+    expect(u).toBeGreaterThan(P.TILES.torso.x / SK_ATLAS); expect(v).toBeLessThan(1 - P.TILES.torso.y / SK_ATLAS);
   });
 
   it('classifies triangles by bone weights and height', () => {
@@ -134,11 +137,11 @@ describe('shipped people glbs', () => {
 
   it('every shape has hi ~4k, mid ~1.5k, far ~400 triangles, stands on y = 0 at its height, front at -z, weights sum to 1', () => {
     for (const s of shapes) {
-      expect(s.lods.hi.index.length / 3, s.name).toBeGreaterThan(5800); expect(s.lods.hi.index.length / 3).toBeLessThanOrEqual(6600);   // 6.4k: head 2k, hands 0.7k, the rest 3.7k (REGION_BUDGET)
-      expect(s.lods.mid.index.length / 3).toBeGreaterThan(1100); expect(s.lods.mid.index.length / 3).toBeLessThanOrEqual(1600);
+      expect(s.lods.hi.index.length / 3, s.name).toBeGreaterThan(2800); expect(s.lods.hi.index.length / 3).toBeLessThanOrEqual(3700);   // about 3.2k: head 1.3k, hands 0.5k, the rest 1.4k (REGION_BUDGET): GTA III / IV era bodies
+      expect(s.lods.mid.index.length / 3).toBeGreaterThan(800); expect(s.lods.mid.index.length / 3).toBeLessThanOrEqual(1250);
       expect(s.lods.far.index.length / 3).toBeGreaterThan(250); expect(s.lods.far.index.length / 3).toBeLessThanOrEqual(450);
       const b = new THREE.Box3().setFromArray(s.lods.hi.position);
-      expect(b.min.y, s.name).toBeGreaterThan(-0.02); expect(b.min.y).toBeLessThan(0.02);
+      expect(b.min.y, s.name).toBeGreaterThan(-0.02); expect(b.min.y).toBeLessThan(0.04);   // the skin's own feet are decimated to almost nothing (the shoes replace them)
       expect(b.max.y, s.name).toBeCloseTo(s.height, 1);
       // the nose / toes point to -z: the front extends further than the back at head height
       let zmin = 0;
@@ -168,7 +171,7 @@ describe('shipped people glbs', () => {
       expect(new Set(meshes.map((x) => x.material)).size).toBe(1);
       expect(meshes[0].skeleton.bones.length).toBe(12);
       expect(m.triangles).toBeGreaterThan(2500);
-      expect(m.triangles).toBeLessThan(9000); // ~6.4k body (head 2k, hands 0.7k, rest 3.7k) + hair / hat caps + shoes
+      expect(m.triangles).toBeLessThan(5200); // ~3.2k skin (head 1.3k, hands 0.5k, rest 1.4k) + shoes + hair / hat / hood volumes
       const box = new THREE.Box3().setFromObject(m.group);
       expect(box.max.y).toBeGreaterThan(1.4); expect(box.max.y).toBeLessThan(2.1);
     }

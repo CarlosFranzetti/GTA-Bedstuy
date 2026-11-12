@@ -11,6 +11,9 @@ import * as THREE from 'three';
 /** Mesh names (see the generators: `buildings:<material>:<variant>`, `props:<kind>`, ...) that the phone tier does not draw. */
 export const PHONE_HIDDEN_MESH = /^(buildings:(metalDark|waterTank|scaffold|corrugatedSteel|sf:stickers|sf:flat|castIronFence|chainlinkFence|party-wall-decal)|props:(bags|wires|metalDark|scaffold|cone)|furniture:(trash|hydrant)|cellar-plates|manholes|storm-grates|skid-marks|gutters|metal-details)/;
 
+/** Facade trim meshes of the building cells: thin material groups that ChunkCuller stops drawing beyond the tier's `buildingTrimDist` (a draw call per cell each, a few pixels wide out there). */
+export const TRIM_MESH = /^buildings:(window|awning|sf:awning|cornice|stoop|rollGate|storefrontGlass|sf:sign|sf:board|sign:|graffiti|chainlinkRail)/;
+
 /** Layer the hidden meshes live on (the cameras only draw layer 0). */
 export const HIDDEN_LAYER = 5;
 

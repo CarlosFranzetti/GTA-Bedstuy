@@ -41,11 +41,12 @@ export interface BuiltWorld {
 /** Meshes below this many triangles are not split per cell: one city-wide draw is cheaper than one per visible cell. */
 export const MIN_SPLIT_TRIANGLES = 12_000;
 /**
- * Medium splits smaller meshes too (awnings, signs, decals...): left city-wide they are drawn unculled, 54 draws / 147 k
- * triangles in every view. Measured at 6 k: medium 1.13-1.25 M -> 0.88-1.02 M triangles (its 1.2 M budget) for 341-380 -> 469-557
- * draws; low would go 871 k -> 700 k triangles for 288 -> 399 draws, so it and phone (150-draw budget) keep the default.
+ * Per-tier split threshold, replacing the default (12 k x blocks / 10, which grew to 54 k on the 45-block map and left 1.4 of 1.6 M
+ * building triangles city-wide and unculled on phone and low: PERF2). Medium 6 k: 1.13-1.25 M -> 0.88-1.02 M triangles (its budget)
+ * for 341-380 -> 469-557 draws. Phone 20 k and low 10 k trade the other way: phone has triangles to spare and 150 draws to hold;
+ * every group below the threshold stays one always-drawn city-wide mesh, every group above it costs one draw per visible cell.
  */
-export const SMALL_MESH_SPLIT_TRIANGLES: Partial<Record<Quality, number>> = { phone: 15_000, low: 15_000, medium: 6_000 };
+export const SMALL_MESH_SPLIT_TRIANGLES: Partial<Record<Quality, number>> = { phone: 20_000, low: 10_000, medium: 6_000 };
 /**
  * Phone and low also split a mesh below the threshold when it occupies at most this many cells (shop signs, graffiti, roll gates:
  * 54 one-off meshes of 2 to 2 k triangles, each an always-drawn draw call in every view before). Dense small groups stay whole.

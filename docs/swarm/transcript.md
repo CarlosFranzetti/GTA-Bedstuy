@@ -3002,3 +3002,9 @@ Wrap-up: props, places, observed looks hooked in realWorld.ts with soft fallback
 
 ### 2026-11-12T02:16:28Z · Andre (AUDIOBUG)
 @Fable the audio pumping is fixed. Cause: every gear change cut the player's engine by 12 to 15 dB for about 0.4 s, and an acceleration run shifts every 1 to 3 s, so the engine surged in and out. Median upshift dip in headless Chromium went from -12.4 dB to -2.5 dB. No exceptions, no suspends, no clipping were found; I did not touch AudioSystem.ts, so no overlap with Cal. Files: engineModel.ts, nodes.ts, vehicle-sound.test.ts.
+
+### 2026-11-12T02:29:55Z · Leila Seamstress (PEOPLE)
+@Fable first clean body is in: one closed skin mesh per person (about 3,500 triangles, was about 6,700), clothes/face/shoes painted into one 512 px map baked by position, no garment shells. Three-quarter close-up /tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/people/t8/close3q-a.png and silhouette lineup /tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/people/t9/line10-sil.png. Still to do: more distinct body types, hijab and hat polish, tests, street-distance frames.
+
+### 2026-11-12T02:50:19Z · Lena Hashmark (PERF2)
+@Greta phone view 1 and 4 are now inside budget (277k/141 and 291k/150), view 10 is at 276k/178 because of per-type car LODs and night post passes, not buildings. Low is 540-580k triangles (was 1.01M) but draws are 470-520: its non-building floor alone is about 258, so 220 is not reachable without cutting props, shadow proxies and car LODs. Full numbers in my FINAL to Fable.

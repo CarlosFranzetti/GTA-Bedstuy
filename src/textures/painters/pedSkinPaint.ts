@@ -17,7 +17,8 @@ export const SK_TILES: Record<'head' | 'torso' | 'upperArm' | 'foreArm' | 'hand'
   thigh: { x: 0, y: 384, w: 128, h: 128 }, shin: { x: 128, y: 384, w: 128, h: 128 }, pelvis: { x: 256, y: 384, w: 128, h: 128 }, shoe: { x: 384, y: 384, w: 128, h: 128 },
 };
 /** swatches for the few extra volumes: hair, hat, a bag, the top's fabric (hood, coat hem) and the bottom's (skirt) */
-export const SK_RECTS: Record<'hair' | 'hat' | 'gear' | 'torso' | 'pelvis', PxRect> = {
+export const SK_RECTS: Record<'hair' | 'hat' | 'gear' | 'torso' | 'pelvis' | 'shoe', PxRect> = {
+  shoe: { x: 384, y: 384, w: 128, h: 128 },
   hair: { x: 256, y: 0, w: 128, h: 64 }, hat: { x: 384, y: 0, w: 128, h: 64 }, torso: { x: 256, y: 64, w: 64, h: 64 }, pelvis: { x: 320, y: 64, w: 64, h: 64 }, gear: { x: 384, y: 64, w: 128, h: 64 },
 };
 
@@ -66,7 +67,20 @@ function rasterise(b: BakeInput, size: number): void {
     const ia = b.index[t], ib = b.index[t + 1], ic = b.index[t + 2];
     const ax = b.uv[ia * 2] * size, ay = (1 - b.uv[ia * 2 + 1]) * size, bx = b.uv[ib * 2] * size, by = (1 - b.uv[ib * 2 + 1]) * size, cx = b.uv[ic * 2] * size, cy = (1 - b.uv[ic * 2 + 1]) * size;
     const den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
-    if (Math.abs(den) < 1e-9) continue;
+    if (Math.abs(den) < 1e-9) {
+      // a pole triangle: its three corners share one point of the pole block, the colour of the triangle's centre goes into that 2 x 2 texel block
+      if (Math.abs(ax - bx) < 1e-3 && Math.abs(ay - by) < 1e-3 && Math.abs(ax - cx) < 1e-3) {
+        grp(ia, ga); grp(ib, gb); grp(ic, gc);
+        const tx = Math.round(ax) - (size > 256 ? 1 : 0), ty = Math.round(ay) - (size > 256 ? 1 : 0), w = size > 256 ? 2 : 1;
+        for (let yy = 0; yy < w; yy++) for (let xx = 0; xx < w; xx++) {
+          const q = (ty + yy) * size + tx + xx;
+          for (let k = 0; k < 3; k++) { posMap[q * 3 + k] = (b.position[ia * 3 + k] + b.position[ib * 3 + k] + b.position[ic * 3 + k]) / 3; nrmMap[q * 3 + k] = (b.normal[ia * 3 + k] + b.normal[ib * 3 + k] + b.normal[ic * 3 + k]) / 3; }
+          for (let k = 0; k < 4; k++) wMap[q * 4 + k] = (ga[k] + gb[k] + gc[k]) / 3;
+          cover[q] = 1;
+        }
+      }
+      continue;
+    }
     grp(ia, ga); grp(ib, gb); grp(ic, gc);
     const x0 = Math.max(0, Math.floor(Math.min(ax, bx, cx) - 1)), x1 = Math.min(size - 1, Math.ceil(Math.max(ax, bx, cx) + 1));
     const y0 = Math.max(0, Math.floor(Math.min(ay, by, cy) - 1)), y1 = Math.min(size - 1, Math.ceil(Math.max(ay, by, cy) + 1));
@@ -142,7 +156,7 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
             if (ir < 0.42) c = [14, 12, 12];
             if (Math.hypot(dx + 0.0016, dy - 0.0022) < 0.0012) c = [250, 250, 250];
           }
-          c = mix(c, [24, 18, 16], 0.7 * (1 - lid) * sst(0.84, 1.0, ey) + (dy > 0 ? 0.5 * g2(ey - 1, 0.35) : 0.2 * g2(ey - 1, 0.3)) + (face.lashes && dy > 0 ? 0.25 * g2(ey - 1.25, 0.4) : 0));
+          c = mix(c, [24, 18, 16], 0.7 * (1 - lid) * sst(0.84, 1.0, ey) + (dy > 0 ? 0.38 * g2(ey - 1, 0.2) : 0.1 * g2(ey - 1, 0.2)) + (face.lashes && dy > 0 ? 0.2 * g2(ey - 1.2, 0.25) : 0));
         }
         // eyebrows
         const bx = (ex + 0.002) / 0.0185, by0 = lm.eyeY + 0.0235 * hs + arch * hs * (1 - (bx - 0.2) * (bx - 0.2)) * (bx > -1 && bx < 1 ? 1 : 0) - (face.brows === 'arched' ? 0.002 : 0);
@@ -213,11 +227,11 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
     const hand = arm && y < wrY - 0.002;
     const front = (zz: number): number => sst(-0.045, -0.11, zz);
     const fr0 = front(z), cdip = k === 'scrubs' ? 0.075 : k === 'blouse' ? 0.04 : k === 'dress' ? 0.045 : k === 'uniform' ? 0.02 : k === 'jersey' ? 0.04 : k === 'tee' ? 0.032 : 0.008;
-    const neckY = (k === 'hoodie' || k === 'puffer' || k === 'tracksuit' || k === 'jacket' ? 1.512 : 1.498) - cdip * fr0 * (1 - sst(0.04, 0.1, ax)) + (open && fr0 > 0.3 ? -0.05 * (1 - sst(0.0, 0.09, ax)) : 0) + 0.004 * Math.sin(x * 60);
+    const neckY = (k === 'hoodie' || k === 'puffer' || k === 'tracksuit' || k === 'jacket' ? 1.512 : 1.498) - cdip * fr0 * (1 - sst(0.04, 0.1, ax)) + (open && fr0 > 0.3 ? -0.05 * (1 - sst(0.0, 0.09, ax)) : 0) + 0.03 * sst(0.05, 0.1, ax) + 0.004 * Math.sin(x * 60);
     let aTop = 0, aBot = 0, aShoe = 0;
     if (arm) { aTop = sleeves === 'none' || outerArms === null || hand ? 0 : sst(sleeveEnd - eps, sleeveEnd + eps, y); }
     else if (leg) {
-      if (top.long && k !== 'dress') aTop = sst(hemTop - eps, hemTop + eps, y);
+      if (k !== 'dress') aTop = sst(hemTop - eps, hemTop + eps, y);               // a jacket or hoodie hem hangs over the top of the thighs: one level line whatever the bone weights say
       aBot = bot.kind === 'skirt' ? 0 : sst(hemBot - eps, hemBot + eps, y) * sst(shoeTop - 0.03, shoeTop - 0.012, y);
       aShoe = sst(shoeTop + eps, shoeTop - eps, y);
     } else {
@@ -242,11 +256,11 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
       if (k === 'vest') {                                    // hi-vis: reflective bands round the waist and over each shoulder
         if (!arm && (Math.abs(y - (hemTop + 0.12)) < 0.018 || (ax > 0.03 && ax < 0.06 && y > hemTop + 0.17 && front(z) > 0.5))) f = rgb(top.trim);
       }
-      if (k === 'uniform' && y > shY - 0.025 && ax > shX * 0.55 && ax < shX + 0.01 && !arm) f = mix(f, trimC, 0.9);   // epaulettes
+      if (k === 'uniform' && y > shY - 0.025 && ax > shX * 0.55 && ax < shX + 0.01 && !arm) f = mix(f, trimC, 0.6);   // epaulettes
       if (k === 'apron' && !arm && (z > torsoZ + 0.02 || y > shY - 0.1 && false)) f = underC ?? f;
       if (open && underC && !arm && front(z) > 0.15) {
         const w = 0.052 - 0.1 * Math.max(0, hemTop + 0.3 - y) * 0.15;
-        if (ax < w) f = y > shY - 0.02 ? mix(skin, skinDark, 0.1) : underC;
+        if (ax < w) f = y > shY - 0.02 ? mix(skin, skinDark, 0.1) : y > hemTop + 0.08 ? underC : botC;   // the shirt under an open jacket ends at the waist
         else if (ax < w + 0.007) f = mul(f, 0.62);        // lapel edge
       }
       if (zipped && !arm && ax < 0.0034 && front(z) > 0.3) f = mix(f, [210, 205, 196], 0.7);
@@ -261,12 +275,12 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
       const outer = Math.abs(nx) > 0.7 && (nx * side) > 0;
       if (bot.kind === 'jeans') {
         f = mix(f, mul(f, 1.25), 0.3 * Math.max(0, Math.sin((y + U * 0.05) * 420 + x * 280)) * 0.5);                        // twill
-        f = mix(f, mix(f, [220, 230, 245], 0.35), 0.35 * g2(y - (knY + 0.12), 0.08) * sst(-0.2, -0.9, nz));              // worn thigh
-        if (outer || (!leg && ax > hipX + 0.03)) f = mix(f, [200, 168, 90], 0.45 * g2((Math.abs(nx) - 0.98) * 6, 0.35));      // top stitching
+        f = mix(f, mix(f, [220, 230, 245], 0.3), 0.3 * g2(y - (knY + 0.14), 0.1));              // worn thigh
+        if (outer || (!leg && ax > hipX + 0.03)) f = mix(f, [190, 160, 96], 0.3 * g2((Math.abs(nx) - 0.985) * 16, 0.5));      // top stitching
         if (!leg && y < hemTop - 0.005 && front(z) > 0.2 && Math.abs(ax - 0.08) < 0.012 && y > hemTop - 0.1) f = mul(f, 0.75);   // pocket edge
       }
       if (bot.kind === 'trousers' && leg && nz < -0.5 && ax > hipX - 0.012 && ax < hipX + 0.012) f = mix(f, mul(f, 0.8), 0.5);   // crease
-      if (bot.kind === 'cargo' && leg && outer && y > knY - 0.14 && y < knY + 0.12) f = mul(f, 0.82);                            // pocket flap
+      if (bot.kind === 'cargo' && leg && outer && y > knY + 0.1 && y < knY + 0.25) f = mul(f, 0.88 + 0.12 * sst(0.1, 0.12, Math.min(y - knY - 0.1, knY + 0.25 - y)));                            // pocket flap
       if (bot.kind === 'sweats' || bot.kind === 'cargo') if (leg && y < anY + 0.1) f = mix(f, botTrim, 0.85 * sst(anY + 0.1, anY + 0.07, y));
       if (bot.kind === 'sweats' && Math.abs(nx * side) > 0.8 && !hand) f = mix(f, botTrim, 0.55 * sst(0.78, 0.86, Math.abs(nx * side)));
       if (!leg && y > hemTop - 0.025 && y < hemTop + 0.003) f = mul(botTrim, 0.7);                                               // belt / waistband under the top
@@ -376,6 +390,15 @@ function paintBand(ctx: CanvasRenderingContext2D, s: PedSpec, k: number): void {
   const gear = rgb(s.gearColor);
   grad(SK_RECTS.gear, mix(gear, [255, 255, 255], 0.1), mul(gear, 0.75));
   { const [x, y, w, h] = R(SK_RECTS.gear); ctx.strokeStyle = css(mul(gear, 0.6)); ctx.lineWidth = 1.2 * k; ctx.setLineDash([3 * k, 2 * k]); ctx.strokeRect(x + 4 * k, y + 4 * k, w - 8 * k, h - 8 * k); ctx.setLineDash([]); }
+  // shoe: u runs round the cross-section (0 = middle of the sole, 0.5 = the top), v along the foot from the toe to the heel
+  { const [x, y, w, h] = R(SK_RECTS.shoe), up = rgb(s.shoes.color), so = rgb(s.shoes.sole), ac = rgb(s.shoes.accent);
+    const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, css(mix(up, [255, 255, 255], 0.16))); g.addColorStop(0.7, css(up)); g.addColorStop(1, css(mul(up, 0.82))); ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = css(so); ctx.fillRect(x, y, w * 0.13, h); ctx.fillRect(x + w * 0.87, y, w * 0.13, h);                                    // the sole, both sides of u = 0
+    ctx.fillStyle = css(mul(so, 0.8)); ctx.fillRect(x + w * 0.13, y, w * 0.02, h); ctx.fillRect(x + w * 0.85, y, w * 0.02, h);
+    ctx.fillStyle = css(ac); for (const u of [0.26, 0.74]) ctx.fillRect(x + w * (u - 0.025), y + h * 0.36, w * 0.05, h * 0.34);               // accent stripe on the sides
+    ctx.fillStyle = 'rgba(255,255,255,0.75)'; for (let i = 0; i < 5; i++) ctx.fillRect(x + w * 0.42, y + h * (0.3 + i * 0.09), w * 0.16, Math.max(1, 2 * k)); // laces over the instep
+    ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.fillRect(x + w * 0.15, y, w * 0.7, h * 0.22);                                                // toe cap
+    ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(x + w * 0.15, y + h * 0.88, w * 0.7, h * 0.12); }
   // top fabric (hood roll, coat hem) and bottom fabric (skirt)
   const topC = rgb(s.top.color), botC = rgb(s.bottom.color);
   grad(SK_RECTS.torso, mix(topC, [255, 255, 255], 0.04), mul(topC, 0.92));

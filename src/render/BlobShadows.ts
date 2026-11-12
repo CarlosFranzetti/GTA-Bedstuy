@@ -13,6 +13,8 @@
  */
 import * as THREE from 'three';
 import { phoneSunCasters } from './Shadows';
+import { splitGeometryByCell } from './Culling';
+import { browserTier } from './StartTier';
 
 export const BLOB_CAR_CAPACITY = 96;
 export const BLOB_PED_CAPACITY = 96;
@@ -136,6 +138,9 @@ function casterBox(width: number, height: number, depth: number, sx: number, sz:
   return g;
 }
 
+/** Cell size (m) of the building shadow-caster prisms. */
+const CASTER_CELL_M = 100;
+
 export class BlobShadows {
   /** Add this to the scene. */
   readonly group = new THREE.Group();
@@ -175,7 +180,7 @@ export class BlobShadows {
   private casterOn = false;
   /** tiers with a real sun shadow draw the (inset, low) building prisms for the geometry beyond the detailed proxies' reach */
   farBuildings = false;
-  private buildingCaster: THREE.Mesh | null = null;
+  private buildingCaster: THREE.Group | null = null;
   private casterTriangles = 0;
 
   /**
@@ -195,9 +200,20 @@ export class BlobShadows {
     make(this.cars, casterBox(1, CAR_CASTER_HEIGHT, 1, CAR_BLOB_SCALE_W, CAR_BLOB_SCALE_L), 'caster:cars');
     make(this.peds, casterBox(PED_CASTER.w, PED_CASTER.h, PED_CASTER.d, PED_BLOB_SIZE, PED_BLOB_SIZE), 'caster:peds');
     const b = buildLotCasterGeometry(lots);
-    this.buildingCaster = new THREE.Mesh(b.geometry, this.casterMat);
-    this.buildingCaster.castShadow = true; this.buildingCaster.receiveShadow = false; this.buildingCaster.name = 'caster:buildings';
+    // one prism mesh per 100 m cell: the shadow pass culls each against the sun's box, so only the few cells around the player draw
+    // (the city-wide mesh was 31 k triangles in every shadow pass whatever the box covered)
+    this.buildingCaster = new THREE.Group();
+    this.buildingCaster.name = 'caster:buildings';
     this.buildingCaster.matrixAutoUpdate = false;
+    // phone keeps the single mesh: its budget is draws (3 shadow draws), and 31 k triangles fit; low and up are the other way round
+    const cells = browserTier() === 'phone' ? null : splitGeometryByCell(b.geometry, CASTER_CELL_M, CASTER_CELL_M);
+    for (const g of cells ? cells.values() : [b.geometry]) {
+      g.computeBoundingSphere();
+      const m = new THREE.Mesh(g, this.casterMat);
+      m.castShadow = true; m.receiveShadow = false; m.name = 'caster:buildings:cell'; m.matrixAutoUpdate = false;
+      this.buildingCaster.add(m);
+    }
+    if (cells) b.geometry.dispose();
     this.casterGroup.add(this.buildingCaster);
     this.casterTriangles = (b.geometry.index?.count ?? 0) / 3 + 12 + 12;
     return { triangles: this.casterTriangles, lots: b.lots };
@@ -307,7 +323,7 @@ export class BlobShadows {
     this.carMat.dispose(); this.pedMat.dispose();
     this.cars.mesh.dispose(); this.peds.mesh.dispose();
     this.casterMat.dispose();
-    this.cars.caster?.geometry.dispose(); this.peds.caster?.geometry.dispose(); this.buildingCaster?.geometry.dispose();
+    this.cars.caster?.geometry.dispose(); this.peds.caster?.geometry.dispose(); this.buildingCaster?.children.forEach((c) => (c as THREE.Mesh).geometry.dispose());
     this.casterGroup.removeFromParent();
     for (const t of this.textures) t.dispose();
     this.group.removeFromParent();

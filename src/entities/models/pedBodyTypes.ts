@@ -27,16 +27,16 @@ export interface BodyType {
 const T = (o: Partial<BodyType>): BodyType => ({ h: 1, shoulders: 1, chest: 1, belly: 0, hips: 1, arms: 1, legs: 1, head: 1, stoop: 0, ...o });
 export const BODY_TYPES: Record<BodyTypeId, BodyType> = {
   avg: T({}),
-  slim: T({ h: 1.02, shoulders: 0.9, chest: 0.88, hips: 0.92, arms: 0.84, legs: 0.86 }),
-  athletic: T({ h: 1.02, shoulders: 1.14, chest: 1.1, belly: -0.012, hips: 0.97, arms: 1.2, legs: 1.14 }),
-  heavy: T({ h: 0.98, shoulders: 1.12, chest: 1.16, belly: 0.1, hips: 1.2, arms: 1.34, legs: 1.28, head: 1.0 }),
-  'tall-thin': T({ h: 1.09, shoulders: 0.92, chest: 0.84, hips: 0.88, arms: 0.8, legs: 0.82 }),
-  'short-stocky': T({ h: 0.91, shoulders: 1.1, chest: 1.14, belly: 0.05, hips: 1.1, arms: 1.22, legs: 1.2, head: 1.04 }),
-  broad: T({ h: 1.04, shoulders: 1.24, chest: 1.1, belly: 0.015, hips: 0.96, arms: 1.22, legs: 1.06 }),
-  pear: T({ h: 0.99, shoulders: 0.92, chest: 0.94, belly: 0.02, hips: 1.26, arms: 1.0, legs: 1.2 }),
-  petite: T({ h: 0.93, shoulders: 0.9, chest: 0.9, hips: 0.94, arms: 0.86, legs: 0.88, head: 1.03 }),
-  elder: T({ h: 0.96, shoulders: 0.94, chest: 1.02, belly: 0.045, hips: 1.0, arms: 0.9, legs: 0.88, stoop: -0.16 }),
-  teen: T({ h: 0.96, shoulders: 0.92, chest: 0.9, hips: 0.92, arms: 0.88, legs: 0.9, head: 1.06 }),
+  slim: T({ h: 1.02, shoulders: 0.88, chest: 0.84, hips: 0.9, arms: 0.8, legs: 0.82 }),
+  athletic: T({ h: 1.03, shoulders: 1.18, chest: 1.12, belly: -0.02, hips: 0.95, arms: 1.28, legs: 1.16 }),
+  heavy: T({ h: 0.98, shoulders: 1.16, chest: 1.22, belly: 0.14, hips: 1.26, arms: 1.45, legs: 1.36, head: 1.0 }),
+  'tall-thin': T({ h: 1.12, shoulders: 0.9, chest: 0.8, hips: 0.86, arms: 0.76, legs: 0.78 }),
+  'short-stocky': T({ h: 0.87, shoulders: 1.14, chest: 1.18, belly: 0.06, hips: 1.14, arms: 1.3, legs: 1.28, head: 1.06 }),
+  broad: T({ h: 1.05, shoulders: 1.34, chest: 1.16, belly: 0.02, hips: 0.98, arms: 1.32, legs: 1.12 }),
+  pear: T({ h: 0.99, shoulders: 0.9, chest: 0.92, belly: 0.025, hips: 1.34, arms: 1.0, legs: 1.28 }),
+  petite: T({ h: 0.92, shoulders: 0.86, chest: 0.86, hips: 0.92, arms: 0.8, legs: 0.82, head: 1.04 }),
+  elder: T({ h: 0.96, shoulders: 0.92, chest: 1.0, belly: 0.06, hips: 1.0, arms: 0.88, legs: 0.84, stoop: -0.22 }),
+  teen: T({ h: 0.95, shoulders: 0.88, chest: 0.86, hips: 0.9, arms: 0.84, legs: 0.86, head: 1.08 }),
   kid: T({ h: 0.78, shoulders: 0.88, chest: 0.92, hips: 0.92, arms: 0.9, legs: 0.9, head: 1.22 }),
 };
 

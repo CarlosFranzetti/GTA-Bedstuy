@@ -74,8 +74,7 @@ export class MissionMarkerView {
     const colMat = mat(), ringMat = mat();
     const column = new THREE.Mesh(this.colGeo, colMat);
     const ring = new THREE.Mesh(this.ringGeo, ringMat);
-    column.renderOrder = 5; ring.renderOrder = 5;
-    column.frustumCulled = false; ring.frustumCulled = false;
+    column.renderOrder = 5; ring.renderOrder = 5; // frustum culled: far-off markers (up to 8 draws) were drawn in every view
     this.group.add(column, ring);
     const slot = { column, ring, colMat, ringMat };
     this.slots.push(slot);
