@@ -130,3 +130,123 @@ vWinSeed = aStyle.xyz;`);
   m.customProgramCacheKey = () => `${prevKey ? prevKey.call(m) : ''}|window1`;
   m.needsUpdate = true;
 }
+
+/**
+ * Shop glass: one tile = one 1.6 m bay (the `ru` repeats of the glass quads), so every bay gets its own interior from the seed:
+ * crowded bodega shelves (product shapes in a dozen colours, a cooler door), empty paper-covered glass, a barber or salon (mirror,
+ * chairs), a cafe (pendant lamps, tables), a laundromat (rows of round-doored machines), or a plain dim shop with ceiling lights;
+ * plus taped flyers, a window sticker or two, and the sky reflection from the painted map. No lettering, only shapes.
+ */
+const SHOP_MAIN = `
+if ( vWinSeed.z > 0.002 ) {
+  vec2 wnT = floor( vMapUv );
+  float wnA = wnHash( vWinSeed.xy * 17.0 + wnT * vec2( 1.7, 3.1 ) + 0.13 );
+  float wnB = wnHash( vWinSeed.yx * 23.0 + wnT * vec2( 2.9, 1.3 ) + 0.57 );
+  float wnC = wnHash( vWinSeed.xy * 31.0 + wnT * vec2( 4.1, 2.3 ) + 0.91 );
+  float wnD = wnHash( vWinSeed.yx * 41.0 + wnT * vec2( 3.3, 5.1 ) + 0.29 );
+  float wnMask = texture2D( emissiveMap, vEmissiveMapUv ).r;
+  vec2 wf = fract( vMapUv );
+  vec2 gp = clamp( vec2( ( wf.x - 0.0195 ) / 0.9609, ( wf.y - 0.2 ) / 0.761 ), 0.0, 1.0 );
+  vec3 wnRefl = diffuseColor.rgb;
+  vec3 wnIn = pow( vec3( 0.1, 0.105, 0.11 ), vec3( 2.2 ) ) * ( 0.7 + 0.6 * wnNoise( gp * vec2( 6.0, 4.0 ) + wnB * 9.0 ) );
+  vec3 wnLight = vec3( 1.0, 0.85, 0.62 );
+  float wnGl = 0.0;       // 0..1 how much of the interior emits at night
+  float wnLitP = 0.85;
+  float wnBack = smoothstep( 0.42, 0.5, gp.y );
+  wnIn += vec3( 0.04, 0.036, 0.03 ) * wnBack; // the back wall and ceiling are a little lighter than the floor
+  float wnReflK = 0.35;
+  if ( wnA < 0.3 ) {
+    // bodega: shelves of product shapes
+    float wnRows = 5.0;
+    float wnR = floor( gp.y * wnRows );
+    float wnRy = fract( gp.y * wnRows );
+    float wnCols = 26.0;
+    float wnX = gp.x * wnCols + wnR * 3.7;
+    float wnI = floor( wnX );
+    float wnH = wnHash( vec2( wnI, wnR + wnB * 40.0 ) );
+    float wnPh = 0.45 + 0.5 * wnHash( vec2( wnI + 7.0, wnR + wnC * 30.0 ) );
+    float wnBodyX = abs( fract( wnX ) - 0.5 ) * 2.0;
+    float wnTaper = 1.0 - 0.5 * smoothstep( 0.6, 1.0, wnRy / wnPh );
+    float wnProd = step( 0.12, wnH ) * step( wnRy, wnPh ) * step( wnBodyX, 0.82 * wnTaper ) * step( 0.07, wnRy );
+    vec3 wnPc = wnH < 0.3 ? vec3( 0.8, 0.12, 0.1 ) : wnH < 0.45 ? vec3( 0.95, 0.78, 0.1 ) : wnH < 0.58 ? vec3( 0.12, 0.35, 0.75 ) : wnH < 0.7 ? vec3( 0.15, 0.6, 0.3 ) : wnH < 0.8 ? vec3( 0.92, 0.9, 0.85 ) : wnH < 0.9 ? vec3( 0.9, 0.4, 0.1 ) : vec3( 0.3, 0.2, 0.45 );
+    wnPc = pow( wnPc, vec3( 2.2 ) ) * ( 0.7 + 0.5 * wnBodyX * 0.0 + 0.3 * ( 1.0 - wnBodyX ) );
+    float wnShelf = step( wnRy, 0.07 );
+    wnIn = mix( wnIn, wnPc * 0.8, wnProd );
+    wnIn = mix( wnIn, pow( vec3( 0.55, 0.52, 0.46 ), vec3( 2.2 ) ), wnShelf );
+    // a cooler door on the right with a pale glow
+    float wnCool = step( 0.82, gp.x ) * step( gp.y, 0.82 ) * step( 0.06, gp.y );
+    wnIn = mix( wnIn, pow( vec3( 0.55, 0.65, 0.75 ), vec3( 2.2 ) ) * ( 0.7 + 0.5 * step( 0.5, fract( gp.y * 6.0 ) ) ), wnCool * 0.8 );
+    wnGl = wnProd * 0.9 + wnShelf * 0.5 + wnCool * 1.1 + 0.18; wnLight = wnC < 0.5 ? vec3( 1.0, 0.95, 0.78 ) : vec3( 0.9, 0.97, 1.0 ); wnLitP = 0.92; wnReflK = 0.28;
+  } else if ( wnA < 0.38 ) {
+    // empty: brown paper over the glass, taped
+    wnIn = pow( vec3( 0.55, 0.45, 0.32 ), vec3( 2.2 ) ) * ( 0.85 + 0.3 * wnNoise( gp * vec2( 8.0, 3.0 ) ) );
+    wnIn = mix( wnIn, pow( vec3( 0.8, 0.78, 0.72 ), vec3( 2.2 ) ), step( 0.5, wnNoise( gp * vec2( 2.0, 1.0 ) + wnB * 7.0 ) ) * 0.5 );
+    wnLitP = 0.05; wnReflK = 0.15;
+  } else if ( wnA < 0.5 ) {
+    // barber / salon: a wall mirror, two chairs, pink-white light
+    float wnMir = step( 0.12, gp.x ) * step( gp.x, 0.88 ) * step( 0.42, gp.y ) * step( gp.y, 0.9 );
+    wnIn = mix( wnIn, pow( vec3( 0.55, 0.6, 0.65 ), vec3( 2.2 ) ), wnMir * 0.8 );
+    float wnCh = step( 0.1, gp.y ) * step( gp.y, 0.42 ) * ( step( abs( gp.x - 0.3 ), 0.06 ) + step( abs( gp.x - 0.65 ), 0.06 ) );
+    wnIn = mix( wnIn, pow( vec3( 0.12, 0.1, 0.1 ), vec3( 2.2 ) ), clamp( wnCh, 0.0, 1.0 ) );
+    wnGl = wnMir * 1.0 + 0.2; wnLight = vec3( 1.0, 0.88, 0.92 ); wnLitP = 0.88; wnReflK = 0.45;
+  } else if ( wnA < 0.64 ) {
+    // cafe: pendant lamps, tables
+    float wnL = 0.0;
+    for ( int k = 0; k < 3; k++ ) { float fk = float( k ); wnL += smoothstep( 0.09, 0.0, length( ( gp - vec2( 0.2 + 0.3 * fk, 0.8 ) ) * vec2( 1.0, 1.4 ) ) ); }
+    float wnTb = step( 0.28, gp.y ) * step( gp.y, 0.36 ) * step( 0.5, fract( gp.x * 3.0 + wnB ) );
+    wnIn = mix( wnIn, pow( vec3( 0.28, 0.2, 0.12 ), vec3( 2.2 ) ), wnTb );
+    wnIn += vec3( 1.0, 0.8, 0.5 ) * 0.35 * wnL;
+    wnGl = 0.4 + wnL * 1.2 - wnTb * 0.25; wnLight = vec3( 1.0, 0.72, 0.4 ); wnLitP = 0.9; wnReflK = 0.3;
+  } else if ( wnA < 0.76 ) {
+    // laundromat: a row of round-doored machines under tube light
+    vec2 wnM = vec2( fract( gp.x * 4.0 ) - 0.5, gp.y - 0.34 );
+    float wnBody = step( abs( wnM.x ), 0.4 ) * step( 0.03, gp.y ) * step( gp.y, 0.66 );
+    float wnDoor = 1.0 - smoothstep( 0.17, 0.19, length( wnM * vec2( 1.0, 1.0 ) ) );
+    wnIn = mix( wnIn, pow( vec3( 0.82, 0.84, 0.86 ), vec3( 2.2 ) ), wnBody );
+    wnIn = mix( wnIn, pow( vec3( 0.12, 0.16, 0.2 ), vec3( 2.2 ) ), wnDoor * wnBody );
+    wnGl = 0.55 + wnBody * 0.4 - wnDoor * 0.3; wnLight = vec3( 0.88, 1.0, 0.96 ); wnLitP = 0.95; wnReflK = 0.25;
+  } else {
+    // plain dim shop: ceiling tubes, a counter
+    float wnTube = step( 0.9, gp.y ) * step( 0.15, fract( gp.x * 2.0 + wnB ) ) * step( fract( gp.x * 2.0 + wnB ), 0.85 );
+    float wnCnt = step( 0.1, gp.y ) * step( gp.y, 0.3 ) * step( 0.15, gp.x ) * step( gp.x, 0.6 );
+    wnIn = mix( wnIn, pow( vec3( 0.3, 0.25, 0.2 ), vec3( 2.2 ) ), wnCnt );
+    wnIn += vec3( 0.7 ) * wnTube;
+    wnGl = 0.3 + wnTube * 1.3; wnLight = vec3( 0.95, 0.96, 1.0 ); wnLitP = 0.75; wnReflK = 0.4;
+  }
+  // taped flyers and a sticker, in shapes only
+  for ( int k = 0; k < 3; k++ ) {
+    float fk = float( k );
+    vec2 pc = vec2( 0.06 + 0.88 * wnHash( vec2( wnC * 9.0 + fk, 1.0 + wnT.x ) ), 0.35 + 0.55 * wnHash( vec2( wnD * 7.0 + fk, 3.0 ) ) );
+    vec2 pd = abs( gp - pc ) / vec2( 0.032 + 0.02 * wnHash( vec2( fk, wnB * 5.0 ) ), 0.07 + 0.04 * wnHash( vec2( fk + 3.0, wnA * 5.0 ) ) );
+    float pm = step( max( pd.x, pd.y ), 1.0 ) * step( 0.55, wnHash( vec2( wnA * 13.0 + fk * 5.0, wnD * 3.0 ) ) );
+    vec3 pcol = fk < 0.5 ? vec3( 0.9, 0.82, 0.2 ) : fk < 1.5 ? vec3( 0.92, 0.92, 0.9 ) : vec3( 0.85, 0.3, 0.3 );
+    wnIn = mix( wnIn, pow( pcol, vec3( 2.2 ) ) * ( 0.8 + 0.3 * pd.y ), pm * 0.9 );
+    wnGl = mix( wnGl, 0.7, pm );
+  }
+  float wnDepth = max( smoothstep( 0.9, 1.0, gp.y ) * 0.35, smoothstep( 0.04, 0.0, gp.x ) * 0.25 );
+  wnIn *= 1.0 - wnDepth;
+  vec3 wnGlass = mix( wnIn, wnRefl, wnReflK * 0.8 + 0.08 );
+  diffuseColor.rgb = mix( diffuseColor.rgb, wnGlass, wnMask );
+  float wnLit = step( wnD, wnLitP );
+  gWinGlow = wnMask * wnLit;
+  gWinTone = wnLight * clamp( wnGl, 0.0, 1.3 );
+}`;
+
+export function patchShopGlass(m: THREE.MeshStandardMaterial): void {
+  if ((import.meta as { env?: Record<string, string> }).env?.VITE_TEXVAR === '0') return;
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (shader, renderer) => {
+    prev?.call(m, shader, renderer);
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>\n${WIN_VERT}`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+vWinSeed = aStyle.xyz;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>\n${WIN_FRAG_DECL}`)
+      .replace('#include <map_fragment>', `#include <map_fragment>\n${SHOP_MAIN}`)
+      .replace('#include <emissivemap_fragment>', WIN_EMISSIVE);
+  };
+  const prevKey = m.customProgramCacheKey;
+  m.customProgramCacheKey = () => `${prevKey ? prevKey.call(m) : ''}|shop1`;
+  m.needsUpdate = true;
+}

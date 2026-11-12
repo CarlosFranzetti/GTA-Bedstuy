@@ -568,7 +568,7 @@ export class LotBatch {
         }
       }
     }
-    if (mat.name.startsWith('window:')) this.bakeWindowSeeds(r, count, tone, style);
+    if (mat.name.startsWith('window:') || mat.name.startsWith('storefrontGlass:')) this.bakeWindowSeeds(r, count, style);
     g.setAttribute('aTone', new THREE.BufferAttribute(tone, 4, true));
     g.setAttribute('aStyle', new THREE.BufferAttribute(style, 4, true));
   }
@@ -578,7 +578,7 @@ export class LotBatch {
    * seed, the same on all of one window's vertices. A glass pane is a quad (6 vertices, 4 distinct points); arch fans (3-vertex
    * triangles) take the seed of the quad before them.
    */
-  private bakeWindowSeeds(r: Raw, count: number, tone: Uint8Array, style: Uint8Array): void {
+  private bakeWindowSeeds(r: Raw, count: number, style: Uint8Array): void {
     const lotSeed = this.cw ? Math.floor(this.cw.cw.seed * 65535) : 0;
     const hashAt = (x: number, y: number, z: number): [number, number, number] => {
       let h = Math.imul(Math.round(x * 50) + 7919, 2654435761) ^ Math.imul(Math.round(y * 50) + 104729, 40503) ^ Math.imul(Math.round(z * 50) + 1299709, 2246822519) ^ Math.imul(lotSeed + 17, 668265263);
@@ -599,7 +599,7 @@ export class LotBatch {
           last = hashAt(mx, my, mz);
         }
       }
-      for (let k = i; k < Math.min(count, i + n); k++) { style[k * 4] = last[0]; style[k * 4 + 1] = last[1]; style[k * 4 + 2] = last[2]; tone[k * 4 + 3] = 255; }
+      for (let k = i; k < Math.min(count, i + n); k++) { style[k * 4] = last[0]; style[k * 4 + 1] = last[1]; style[k * 4 + 2] = last[2]; }
       i += n;
     }
   }

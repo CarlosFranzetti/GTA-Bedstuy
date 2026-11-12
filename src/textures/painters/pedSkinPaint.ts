@@ -351,8 +351,14 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
 
 export interface BakeResult { canvas: HTMLCanvasElement | OffscreenCanvas }
 
+/** bake time of the maps so far (ms, count): the showcase prints it */
+export const bakeStats = { ms: 0, count: 0, last: 0 };
 /** bake the whole colour map of a person */
 export function bakeSkin(b: BakeInput, size = SK_ATLAS): HTMLCanvasElement {
+  const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
+  try { return bakeSkinInner(b, size); } finally { if (t0) { bakeStats.last = performance.now() - t0; bakeStats.ms += bakeStats.last; bakeStats.count++; } }
+}
+function bakeSkinInner(b: BakeInput, size: number): HTMLCanvasElement {
   rasterise(b, size);
   const shader = makeShader(b);
   const img = new Uint8ClampedArray(size * size * 4), filled = new Uint8Array(size * size), sk = rgb(b.spec.skin);

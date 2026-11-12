@@ -2055,7 +2055,7 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     for (let k = -2; k <= 2; k++) trim.add(bx(0.02, 0.1, 0.24, k * 0.2, st.sill + 0.1, bumperZ - 0.14));
   }
   // underbody pan so the sky never shows under the car, and a dark box filling the engine bay under the hood panel
-  trim.add(bx(2 * (Wb2 - 0.16), 0.04, L - 0.7, 0, st.sill + 0.04, 0));
+  trim.add(bx(2 * (Wb2 - 0.2), 0.04, L - 1.5, 0, st.sill + 0.04, 0));
   const bayY = Math.min(fyBelt((hoodBackU + hoodFrontU) / 2) - 0.1, ring(hoodFrontU).yT - 0.08, ring(hoodBackU).yT - 0.08);
   trim.add(bx(2 * (Wb2 - 0.2), 0.04, hoodFrontU - hoodBackU, 0, bayY, -(hoodBackU + hoodFrontU) / 2));
 

@@ -13,6 +13,7 @@ import { buildPerson as buildPedModel, loadPeople } from '@/entities/models/pedM
 import { pedVariantIndex, PED_SPECS as SPECS } from '@/textures/painters/ped';
 import { setPeopleMode } from '@/textures/painters/pedMode';
 import { bodyTypeId } from '@/entities/models/pedBodyTypes';
+import { bakeStats } from '@/textures/painters/pedSkinPaint';
 import { paintPedHi } from '@/textures/painters/pedHi';
 await loadPeople();
 import { animateWalk } from '@/entities/models/humanModel';
@@ -107,8 +108,21 @@ if (view === 'atlas') {
   const ctx = c.getContext('2d'); const v = pedVariantIndex(params.get('v') ?? 'ba-hoodie-fade');
   paintPedHi(ctx, null, null, 1024, new Rng(`pedhi:${v}`), v);
 }
+
+// ---- PEDTEX views: flat maps, four faces, the player's looks, street distance
+const MAPS = ['ba-hoodie-fade', 'hj-man', 'me-hijabi', 'ba-elder', 'la-site', 'player-wh-1'];
+const mapOf = (m) => { let img = null; m.group.traverse((o) => { if (o.isMesh && !img) img = o.material.map?.image; }); return img; };
+if (view === 'maps') {
+  const ids = (params.get('ids') ?? MAPS.join(',')).split(','), cols = 3, sz = Number(params.get('sz') ?? 512);
+  const c = document.createElement('canvas'); c.width = cols * sz; c.height = Math.ceil(ids.length / cols) * sz; document.body.prepend(c);
+  const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false; ctx.fillStyle = '#f0f'; ctx.fillRect(0, 0, c.width, c.height);
+  ids.forEach((id, i) => { const v = pedVariantIndex(id), m = buildPedModel(materials, new Rng(v + 1), { variant: v }); const img = mapOf(m); if (img) ctx.drawImage(img, (i % cols) * sz, Math.floor(i / cols) * sz, sz, sz); });
+}
+if (view === 'faces4') { place((params.get('ids') ?? 'ba-hoodie-fade,wh-elder,me-hijabi,hj-man').split(','), 0, 0.36, Number(params.get('yaw') ?? 0)); cam.position.set(0, 1.62, 1.05); look.set(0, 1.6, 0); cam.fov = 26; }
+if (view === 'player') { const ids = ['ba', 'la', 'wh', 'ea', 'sa', 'mx'].flatMap((g) => [`player-${g}-0`, `player-${g}-1`, `player-${g}-2`]).slice(0, 12); place(ids.slice(0, 6), 0, 0.8, 0.45); place(ids.slice(6), 1, 0.8, 0.45); cam.position.set(2.6, 1.45, 6.2); look.set(0, 0.95, -0.8); cam.fov = 36; }
+if (view === 'street10') { place(BODIES.slice(0, 10), 0, 1.4, 0.5); cam.position.set(2.5, 1.7, 16); look.set(0, 1.0, 0); cam.fov = 28; }
 if (SIL) { scene.background = new THREE.Color(0xffffff); scene.environment = null; ground.visible = false; scene.traverse((o) => { if (o.isMesh && o !== ground) o.material = new THREE.MeshBasicMaterial({ color: 0x000000 }); }); }
 cam.updateProjectionMatrix(); cam.lookAt(look);
 for (let i = 0; i < 3; i++) renderer.render(scene, cam);
-window.__ready = { buildMs: Math.round(buildMs), perPerson: TRIS, tris: renderer.info.render.triangles, calls: renderer.info.render.calls, bodies: BODIES };
+window.__ready = { bakeMs: Math.round(bakeStats.ms), bakes: bakeStats.count, buildMs: Math.round(buildMs), perPerson: TRIS, tris: renderer.info.render.triangles, calls: renderer.info.render.calls, bodies: BODIES };
 </script></body></html>

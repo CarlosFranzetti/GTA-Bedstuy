@@ -148,39 +148,11 @@ export const windowEmissivePainter: Painter = (ctx, w, h, _rng, variant) => {
   for (const [x, y, pw, ph] of muntinRects(w, panes, FRAMES[v].muntins)) ctx.fillRect(x, y, pw, ph);
 };
 
-const POSTER_COLORS = ['#e8d34a', '#e9edf0', '#d94a4a', '#4aa3d9', '#58b86a', '#f08a2e'] as const;
-
-interface PosterSpec { fx: number; fy: number; fw: number; fh: number; color: number }
-
-/** Fixed poster layouts (fractions of the glass), so the emissive map can mirror them without sharing an rng. */
-const POSTERS: readonly (readonly PosterSpec[])[] = [
-  [
-    { fx: 0.06, fy: 0.12, fw: 0.09, fh: 0.24, color: 0 },
-    { fx: 0.3, fy: 0.5, fw: 0.1, fh: 0.2, color: 2 },
-    { fx: 0.63, fy: 0.1, fw: 0.08, fh: 0.18, color: 3 },
-  ],
-  [
-    { fx: 0.05, fy: 0.1, fw: 0.09, fh: 0.26, color: 0 },
-    { fx: 0.16, fy: 0.4, fw: 0.07, fh: 0.18, color: 1 },
-    { fx: 0.3, fy: 0.12, fw: 0.1, fh: 0.2, color: 2 },
-    { fx: 0.54, fy: 0.5, fw: 0.09, fh: 0.22, color: 4 },
-    { fx: 0.66, fy: 0.1, fw: 0.1, fh: 0.24, color: 3 },
-    { fx: 0.84, fy: 0.46, fw: 0.08, fh: 0.2, color: 5 },
-  ],
-];
-
-/** Abstract "we accept EBT" style notice: small white card, blue header strip, two grey text-line bars. No lettering. */
-function notice(ctx: CanvasRenderingContext2D, x: number, y: number, emissive: boolean): void {
-  ctx.fillStyle = emissive ? gray(255) : '#f1f3f4';
-  ctx.fillRect(x, y, 34, 22);
-  ctx.fillStyle = emissive ? gray(170) : '#1f4e8c';
-  ctx.fillRect(x, y, 34, 6);
-  ctx.fillStyle = emissive ? gray(190) : '#9aa0a6';
-  ctx.fillRect(x + 4, y + 10, 26, 2);
-  ctx.fillRect(x + 4, y + 15, 18, 2);
-}
-
-/** 512x256: aluminium mullions, lighter glass with diagonal reflections, taped posters, dark bulkhead; variant 1 adds grille shadows. */
+/**
+ * 512x256 shop glass: aluminium frame with a bevel, sky reflection on the glass (the interior behind it is drawn per bay by
+ * windowShader.ts from a seed: shelves, mirror, tables, machines, paper), mullions, dark bulkhead. Variant 1 adds the shadow
+ * of a security grille. The glass mask is the emissive map's R channel.
+ */
 export const storefrontPainter: Painter = (ctx, w, h, rng, variant) => {
   const v = wrapVariant(variant, STOREFRONT_VARIANTS);
   ctx.fillStyle = '#b9bec2';
@@ -188,35 +160,15 @@ export const storefrontPainter: Painter = (ctx, w, h, rng, variant) => {
   const bulk = h * 0.2;
   const m = 10;
   const gx = m, gy = m, gw = w - 2 * m, gh = h - bulk - m;
-  ctx.fillStyle = hsl(200 + rng.range(-5, 5), 24, 43);
-  ctx.fillRect(gx, gy, gw, gh);
-  // a darker interior toward the floor, stepped
-  for (let i = 0; i < 4; i++) {
-    withAlpha(ctx, 0.05, () => {
-      ctx.fillStyle = '#10161a';
-      ctx.fillRect(gx, gy + gh * (0.55 + i * 0.1), gw, gh * (0.45 - i * 0.1));
-    });
+  // glass: sky reflection, bright at the top, deeper toward the floor
+  const steps = 16;
+  for (let i = 0; i < steps; i++) {
+    const t = i / (steps - 1);
+    ctx.fillStyle = hsl(204 + rng.range(-3, 3), 28 - t * 10, 66 - t * 32);
+    ctx.fillRect(gx, gy + (gh * i) / steps, gw, gh / steps + 1);
   }
-  // posters taped to the inside of the glass: plain rectangles, a darker inner band, two tape bits
-  for (const p of POSTERS[v]) {
-    const px = gx + gw * p.fx, py = gy + gh * p.fy, pw = gw * p.fw, ph = gh * p.fh;
-    withAlpha(ctx, 0.92, () => {
-      ctx.fillStyle = POSTER_COLORS[p.color];
-      ctx.fillRect(px, py, pw, ph);
-    });
-    withAlpha(ctx, 0.25, () => {
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(px + pw * 0.1, py + ph * 0.55, pw * 0.8, ph * 0.3);
-    });
-    withAlpha(ctx, 0.7, () => {
-      ctx.fillStyle = '#e9e2c8';
-      ctx.fillRect(px - 2, py - 1, 6, 4);
-      ctx.fillRect(px + pw - 4, py - 1, 6, 4);
-    });
-  }
-  notice(ctx, gx + gw * 0.46, gy + gh * 0.08, false);
   // diagonal reflections over everything inside the glass
-  withAlpha(ctx, 0.16, () => {
+  withAlpha(ctx, 0.2, () => {
     ctx.fillStyle = '#ffffff';
     for (let i = 0; i < 3; i++) {
       const x = gx + gw * (0.1 + i * 0.33);
@@ -229,7 +181,7 @@ export const storefrontPainter: Painter = (ctx, w, h, rng, variant) => {
       ctx.fill();
     }
   });
-  withAlpha(ctx, 0.08, () => {
+  withAlpha(ctx, 0.1, () => {
     ctx.fillStyle = '#ffffff';
     for (let i = 0; i < 2; i++) {
       const x = gx + gw * (0.24 + i * 0.4);
@@ -242,6 +194,12 @@ export const storefrontPainter: Painter = (ctx, w, h, rng, variant) => {
       ctx.fill();
     }
   });
+  // reveal bevel
+  withAlpha(ctx, 0.35, () => {
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(gx, gy, gw, 5);
+    ctx.fillRect(gx, gy, 4, gh);
+  });
   if (v === 1) {
     // security grille shadow: vertical links, horizontal rods, and a soft offset copy
     for (const [dx, dy, a] of [[0, 0, 0.26], [4, 3, 0.1]] as const) {
@@ -252,12 +210,20 @@ export const storefrontPainter: Painter = (ctx, w, h, rng, variant) => {
       });
     }
   }
-  // mullions
+  // mullions with a light edge
   ctx.fillStyle = '#9da2a6';
   for (let i = 1; i < 4; i++) ctx.fillRect(gx + (gw * i) / 4 - 3, gy, 6, gh);
-  // bulkhead
+  withAlpha(ctx, 0.4, () => {
+    ctx.fillStyle = '#ffffff';
+    for (let i = 1; i < 4; i++) ctx.fillRect(gx + (gw * i) / 4 - 3, gy, 1.5, gh);
+  });
+  // bulkhead (kick panel), brushed
   ctx.fillStyle = '#2a2b2e';
   ctx.fillRect(gx, gy + gh + 4, gw, bulk - 4 - 2);
+  withAlpha(ctx, 0.12, () => {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(gx, gy + gh + 6, gw, 2);
+  });
   ctx.strokeStyle = '#6c7074';
   ctx.lineWidth = 2;
   ctx.strokeRect(gx, gy, gw, gh);
@@ -272,12 +238,6 @@ export const storefrontEmissivePainter: Painter = (ctx, w, h, _rng, variant) => 
   const gx = m, gy = m, gw = w - 2 * m, gh = h - bulk - m;
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(gx, gy, gw, gh);
-  // paper posters are lit from behind but dimmer than open glass
-  for (const p of POSTERS[v]) {
-    ctx.fillStyle = gray(170);
-    ctx.fillRect(gx + gw * p.fx, gy + gh * p.fy, gw * p.fw, gh * p.fh);
-  }
-  notice(ctx, gx + gw * 0.46, gy + gh * 0.08, true);
   if (v === 1) {
     ctx.fillStyle = gray(70);
     for (let x = gx + 6; x < gx + gw; x += 24) ctx.fillRect(x, gy, 2, gh);

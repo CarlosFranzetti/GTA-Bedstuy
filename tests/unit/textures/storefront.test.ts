@@ -157,24 +157,20 @@ describe('storefront and street-metal painters', () => {
     expect(o.filter((x) => x.name === 'fillRect' && Number(x.args[2]) <= 17 && Number(x.args[3]) === 256).length).toBeGreaterThanOrEqual(16);
   });
 
-  it('window emissive: only variants 0 and 3 glow', () => {
-    const peak = (v: number): number => {
+  it('window emissive carries the glass mask (R) for every variant: lit state is chosen per window in the shader, not per variant', () => {
+    for (let v = 0; v < WINDOW_VARIANTS; v++) {
       const o = run(windowEmissivePainter, 256, 256, 1, v);
-      let fill = '';
-      let max = 0;
-      for (const x of o) {
-        if (x.name === 'set:fillStyle') fill = String(x.args[0]);
-        if (x.name === 'fillRect') {
-          const m = /rgb\((\d+)/.exec(fill);
-          if (m) max = Math.max(max, Number(m[1]));
-        }
-      }
-      return max;
-    };
-    expect(peak(0)).toBeGreaterThan(150);
-    expect(peak(3)).toBeGreaterThan(150);
-    expect(peak(1)).toBe(0);
-    expect(peak(2)).toBe(0);
+      const whites = o.filter((x) => x.name === 'set:fillStyle' && /^#ffffff$/i.test(String(x.args[0]))).length;
+      expect(whites, `variant ${v}`).toBeGreaterThanOrEqual(1);
+      // every window keeps a black frame: the full-canvas black fill comes first
+      expect(o.find((x) => x.name === 'fillRect')?.args.slice(2, 4)).toEqual([256, 256]);
+    }
+  });
+
+  it('the four window variants are four different frame treatments', () => {
+    const seen = new Set<string>();
+    for (let v = 0; v < WINDOW_VARIANTS; v++) seen.add(json(run(windowPainter, 256, 256, 2, v)));
+    expect(seen.size).toBe(WINDOW_VARIANTS);
   });
 
   it('storefront variant 1 adds grille shadow lines; posters and notice are plain rectangles', () => {

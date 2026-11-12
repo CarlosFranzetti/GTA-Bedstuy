@@ -287,7 +287,7 @@ export function makeCtx(shape: Pick<MhShape, 'landmarks' | 'headRings'>, spec: P
     }
     return isFinite(x0) ? { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, rx: (x1 - x0) / 2, rz: (z1 - z0) / 2 } : { cx: a[0], cz: a[2], rx: 0.04, rz: 0.04 };
   };
-  return { detail, spec, bt, lm, H, Y, C: [0, yc, cz], rig, head, torso, skin: dressed, ankle: { L: ank('L'), R: ank('R') }, seed: spec.id, cols: detail === 'hi' ? 20 : 12 };
+  return { detail, spec, bt, lm, H, Y, C: [0, yc, cz], rig, head, torso, skin: dressed, ankle: { L: ank('L'), R: ank('R') }, seed: spec.id, cols: detail === 'hi' ? 18 : 10 };
 }
 
 /** unit direction from the head centre: theta from straight up, phi from the front (0) round towards +x */
@@ -358,10 +358,12 @@ export function patch(ctx: Ctx, mb: MeshBuilder, o: PatchOpts): void {
       D[i].push(d); Rr[i].push(rad(d)); Th[i].push(o.thick(be, u));
     }
   }
+  const raw = Rr.map((r) => [...r]);
   for (let it = 0; it < (o.smooth ?? 1); it++) {
     const nx = Rr.map((row, i) => row.map((r, j) => (i === R - 1 && !o.inner ? r : r * 0.5 + 0.25 * (row[(j + 1) % C] + row[(j + C - 1) % C]))));
     for (let i = 0; i < R; i++) Rr[i] = nx[i];
   }
+  for (let i = 0; i < R; i++) for (let j = 0; j < C; j++) Rr[i][j] = Math.max(Rr[i][j], raw[i][j] * 0.998);
   const P: V3[][] = D.map((row, i) => row.map((d, j) => add(ctx.C, mul(d, Rr[i][j]))));
   // offset along the normal of the bare surface, so thickness reads as thickness on a slope too
   const { N } = gridNormals(P, true, ctx.C);
@@ -373,7 +375,7 @@ export function patch(ctx: Ctx, mb: MeshBuilder, o: PatchOpts): void {
   }));
   mb.grid(Q, { rect: o.rect ?? SWATCH.hair, wrap: true, center: ctx.C, W: o.W, tint: o.tint,
     uv: (i, j, RR, CC) => [j / (CC - 1), o.uvv ? lerp(o.uvv[0], o.uvv[1], i / (RR - 1)) : lerp(0.18, 0.85, i / (RR - 1))],
-    shade: (i, _j, _p) => (o.shade ? o.shade(ease(i / (R - 1)), 0) : 0.8 + 0.2 * sstep(0, 0.45, ease(i / (R - 1)))) });
+    shade: (i, j, _p) => (o.shade ? o.shade(ease(i / (R - 1)), (j / C) * Math.PI * 2) : 0.8 + 0.2 * sstep(0, 0.45, ease(i / (R - 1)))) });
 }
 /** polar angle of the rim at azimuth beta so that the rim lies at height y (found by a few ray casts) */
 export function rimAtHeight(ctx: Ctx, y: number, beta: number): number {
@@ -394,5 +396,14 @@ export function clearBody(ctx: Ctx, p: V3, margin: number): V3 {
   if (l < 1e-4) return p;
   const u: V3 = [d[0] / l, 0, d[2] / l], t = ctx.torso.hit(o, u, 0.8);
   if (!isFinite(t) || l >= t + margin) return p;
+  return [o[0] + u[0] * (t + margin), p[1], o[2] + u[2] * (t + margin)];
+}
+
+/** like clearBody but for any height: pushes a point out of the head or the torso, radially from the vertical axis */
+export function clearAny(ctx: Ctx, p: V3, margin: number): V3 {
+  const o: V3 = [0, p[1], ctx.C[2]], dx = p[0], dz = p[2] - o[2], l = Math.hypot(dx, dz);
+  if (l < 1e-4) return p;
+  const u: V3 = [dx / l, 0, dz / l], t1 = ctx.head.hit(o, u, 0.8), t2 = ctx.torso.hit(o, u, 0.8), t = Math.max(isFinite(t1) ? t1 : 0, isFinite(t2) ? t2 : 0);
+  if (t <= 0 || l >= t + margin) return p;
   return [o[0] + u[0] * (t + margin), p[1], o[2] + u[2] * (t + margin)];
 }
