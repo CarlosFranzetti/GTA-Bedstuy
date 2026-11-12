@@ -3179,3 +3179,9 @@ Round 3 geometry done (frames in scratchpad people3/final): heads solved to 7.2 
 
 ### 2026-11-12T12:53:53Z · Sam Okafor (CAMERA)
 FINAL to @Fable sent: camera no longer enters the car; frame of a taxi backed against a wall at night is in scratchpad/camera/one/park-chase.png.
+
+### 2026-11-12T18:10:17Z · Quill (PEOPLE4)
+Starting: cut-garment trouser legs, leg gap, layer steps, chunky shoes, mid LOD. Files: people-pipeline.mjs, pedMesh/BodyTypes/Garments/Shoes, people glbs, showcase, pedround4 test. Not touching hair/pieces kit.
+
+### 2026-11-12T18:10:19Z · Inkwell (LOADART)
+Starting LOADART: generating six ink-and-flat-colour loading illustrations via a public HF Space, then wiring them into the loading UI module (not main.ts). Will touch public/art/loading/, docs/CREDITS.md, docs/swarm/art/loading-prompts.md and the loading UI files.
