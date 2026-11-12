@@ -28,9 +28,21 @@ export interface PlanClip {
   kind: PackKind;
   /** Bank (one lazily fetched file) this clip lives in. */
   bank: string;
-  /** Lower bakes first: 0 idents, 1 other DJ lines, 2 ads, 3 shows, 4 story, 5 barks, 6 DJ slot expansions. */
+  /** Which kind of line it is: 0 idents, 1 other DJ lines, 2 ads, 3 shows, 4 story, 5 barks, 6 DJ slot expansions. Also picks the bitrate and the `--tiers` filter. */
   tier: number;
+  /** Bake and budget order, lower first. Defaults to BAKE_RANK[tier]; barks that are heard in the first minutes of play set their own. */
+  prio?: number;
 }
+
+/**
+ * Bake order. A player's first ten minutes: the station ident, the DJ's own lines, the first missions' dialogue and the
+ * everyday street barks (greetings, small talk, horns, near misses); then commercials and the talk shows; then the rest
+ * of the barks; the per-neighbourhood DJ shout-outs last. The pack budget drops from the end.
+ */
+export const BAKE_RANK: Readonly<Record<number, number>> = { 0: 0, 1: 1, 4: 2, 2: 4, 3: 5, 5: 7, 6: 8 };
+/** Rank of the street barks heard in the first minutes (between the story lines and the commercials). */
+export const EARLY_BARK_RANK = 3;
+export const rankOf = (c: Pick<PlanClip, 'tier' | 'prio'>): number => c.prio ?? BAKE_RANK[c.tier] ?? c.tier;
 
 export const MAX_VARIANTS = 16;
 /** Open-valued slots: never baked. */
@@ -148,13 +160,13 @@ export interface PlanOptions {
   extra?: readonly PlanClip[];
 }
 
-/** The whole plan, deduplicated by key (first occurrence wins), stable order: tier, then declaration order. */
+/** The whole plan, deduplicated by key (first occurrence wins), stable order: bake rank (see BAKE_RANK), then declaration order. */
 export function planPack(opts: PlanOptions): PlanClip[] {
   const all = [...planDjs(opts.stations), ...planAds(), ...planShows(), ...(opts.extra ?? [])];
   const seen = new Set<string>();
   const out: PlanClip[] = [];
   for (const c of all) { if (!seen.has(c.key)) { seen.add(c.key); out.push(c); } }
-  return out.map((c, i) => ({ c, i })).sort((a, b) => a.c.tier - b.c.tier || a.i - b.i).map((x) => x.c);
+  return out.map((c, i) => ({ c, i })).sort((a, b) => rankOf(a.c) - rankOf(b.c) || a.i - b.i).map((x) => x.c);
 }
 
 /** Rough speech seconds and characters of a plan (for budgets before rendering). */

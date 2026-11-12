@@ -3,13 +3,15 @@
  * the same again for every shadow / G-buffer pass, which made parked traffic ~60 % of all draw calls.
  *
  * Beyond `nearDist` metres from the camera a car is hidden and drawn as an instance of a per-type LOD model instead:
- *   paint (instanceColor = body colour, the shared white car-paint material so the flake/dirt maps still show),
- *   glass, one merged dark mesh (trim, chrome, tyres, plates), and lit head / tail lamps (only cars whose lamps are on).
- * That is 3 to 5 draw calls per car TYPE for all far cars together. Near cars keep their full model.
+ *   paint (instanceColor = body colour, the shared white car-paint material so the flake/dirt maps still show; a van's cargo box
+ *   is part of it), one merged dark mesh (glass, trim, chrome, tyres, plates), and ONE lamp mesh (head and tail lamps share a
+ *   geometry; their colours are baked into vertex colours and the instance colour only carries the brightness).
+ * That is 2 to 3 draw calls per car TYPE for all far cars together (was 3 to 6): the lamp mesh is drawn only while a far car
+ * has its head lamps lit. Near cars keep their full model.
  *
  * glTF cars (src/entities/models/gltf/VehicleSource.ts) have their own far model: body + wheels merged into one geometry drawn
- * with the palette paint material (instanceColor = body colour) plus lit lamps, 1 to 3 draw calls per type. Models that cannot
- * be instanced that way (no palette paint) simply keep the full model.
+ * with the palette paint material (instanceColor = body colour) plus the shared lamp mesh, 1 to 2 draw calls per type. Models that
+ * cannot be instanced that way (no palette paint) simply keep the full model.
  *
  * Pure helpers (`writeYawMatrix`, `hysteresisFar`, `lampColor`) are exported for tests.
  */
@@ -75,18 +77,55 @@ const _c = new THREE.Vector3();
 
 interface TypeLod {
   paint: THREE.InstancedMesh;
-  cargo: THREE.InstancedMesh | null;
-  glass: THREE.InstancedMesh | null;
+  /** glass, trim, chrome, tyres, plates in one mesh (null for glTF cars: their wheels are part of `paint`) */
   dark: THREE.InstancedMesh | null;
-  head: THREE.InstancedMesh | null;
-  tail: THREE.InstancedMesh | null;
-  /** matrices shared by paint / glass / dark / cargo (every far car of the type) */
+  /** head and tail lamps in one vertex-coloured mesh; instanced only for cars whose head lamps are lit */
+  lamp: THREE.InstancedMesh | null;
+  /** matrices shared by paint / dark (every far car of the type) */
   matrices: THREE.InstancedBufferAttribute;
-  headMatrices: THREE.InstancedBufferAttribute | null;
-  tailMatrices: THREE.InstancedBufferAttribute | null;
+  lampMatrices: THREE.InstancedBufferAttribute | null;
   /** position + normal only, all parts together: stand-in for the shadow pass and the AO G-buffer */
   hull: THREE.BufferGeometry;
-  n: number; nHead: number; nTail: number;
+  n: number; nLamp: number;
+}
+
+/** Linear colours of the lamp lenses when lit (carModel.ts: head 0xfff4d6, tail 0xff2020), baked into the lamp mesh's vertex colours. */
+export const HEAD_LAMP_RGB = new THREE.Color(0xfff4d6);
+export const TAIL_LAMP_RGB = new THREE.Color(0xff2020);
+
+/** Sets a constant vertex colour attribute on a geometry. */
+export function paintVertices(g: THREE.BufferGeometry, c: THREE.Color): THREE.BufferGeometry {
+  const n = g.getAttribute('position').count;
+  const a = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
+  g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+  return g;
+}
+
+/**
+ * One lamp geometry from the head and tail lamps (either may be missing): the pieces carry their lit colour as vertex colours, so
+ * a single instanced draw lights both. Attributes are reduced to position + normal + colour so the pieces merge.
+ */
+export function mergeLamps(head: THREE.BufferGeometry | null, tail: THREE.BufferGeometry | null): THREE.BufferGeometry | null {
+  const parts: THREE.BufferGeometry[] = [];
+  const prep = (src: THREE.BufferGeometry, c: THREE.Color): void => {
+    const g = src.index ? src.toNonIndexed() : src.clone();
+    for (const name of Object.keys(g.attributes)) if (name !== 'position') g.deleteAttribute(name);
+    g.groups.length = 0;
+    paintVertices(g, c);
+    parts.push(g);
+  };
+  if (head) prep(head, HEAD_LAMP_RGB);
+  if (tail) prep(tail, TAIL_LAMP_RGB);
+  if (!parts.length) return null;
+  const out = mergeGeometries(parts, false);
+  for (const p of parts) p.dispose();
+  return out;
+}
+
+/** Brightness of a far car's lamp instance: the head lamps decide whether it is drawn at all, the brighter of the two sets the level. */
+export function lampLevel(headI: number, tailI: number): number {
+  return headI > 0.05 ? Math.max(headI, tailI) : 0;
 }
 
 interface CarInfo {
@@ -131,8 +170,6 @@ export class CarLod {
   private readonly margin: number;
   private readonly maxDamage: number;
   private readonly paintMat: THREE.Material;
-  private readonly cargoMat: THREE.Material;
-  private readonly glassMat: THREE.Material;
   private readonly darkMat: THREE.Material;
   private readonly lampMat: THREE.MeshBasicMaterial;
   /** number of cars drawn as instances in the last frame (for stats) */
@@ -159,10 +196,8 @@ export class CarLod {
     this.margin = opts.margin ?? 4;
     this.maxDamage = opts.maxDamage ?? 0.15;
     this.paintMat = materials.carPaint('#ffffff');
-    this.cargoMat = materials.carPaint('#f4f4f4');
-    this.glassMat = materials.get('carGlass');
     this.darkMat = materials.get('metalDark');
-    this.lampMat = new THREE.MeshBasicMaterial({ color: 0xffffff, name: 'car-lod-lamp' });
+    this.lampMat = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, name: 'car-lod-lamp' });
     setGltfMaterials(materials); // licence plates of glTF cars use the game's plate material
     for (const t of opts.exclude ?? []) this.types.set(t, null);
   }
@@ -179,7 +214,7 @@ export class CarLod {
 
   /** Call once per frame before any `place`. */
   beginFrame(): void {
-    for (const t of this.types.values()) if (t) { t.n = 0; t.nHead = 0; t.nTail = 0; }
+    for (const t of this.types.values()) if (t) { t.n = 0; t.nLamp = 0; }
     this.farCount = 0;
     this.pendingHolders = this.nearCount; // last frame's holders keep their slots; newcomers only fill what is left (no re-sort, no reshuffle)
     this.nearCount = 0;
@@ -217,15 +252,13 @@ export class CarLod {
     const yaw = -heading;
     writeYawMatrix(lod.matrices.array as Float32Array, i * 16, x, z, yaw);
     lod.paint.setColorAt(i, info.color);
-    if (lod.head && info.head && info.head.emissiveIntensity > 0.05 && lod.nHead < CAPACITY) {
-      const k = lod.nHead++;
-      writeYawMatrix(lod.headMatrices!.array as Float32Array, k * 16, x, z, yaw);
-      lod.head.setColorAt(k, lampColor(info.head.emissive, info.head.emissiveIntensity, this.scratch));
-    }
-    if (lod.tail && info.tail && info.tail.emissiveIntensity > 0.05 && lod.nTail < CAPACITY) {
-      const k = lod.nTail++;
-      writeYawMatrix(lod.tailMatrices!.array as Float32Array, k * 16, x, z, yaw);
-      lod.tail.setColorAt(k, lampColor(info.tail.emissive, info.tail.emissiveIntensity, this.scratch));
+    // one lamp instance per car with lit head lamps (the tail lamps ride along in the same mesh; a car with only its tail lamps
+    // lit, i.e. braking by day, shows none at this distance)
+    const level = lampLevel(info.head ? info.head.emissiveIntensity : 0, info.tail ? info.tail.emissiveIntensity : 0);
+    if (lod.lamp && level > 0 && lod.nLamp < CAPACITY) {
+      const k = lod.nLamp++;
+      writeYawMatrix(lod.lampMatrices!.array as Float32Array, k * 16, x, z, yaw);
+      lod.lamp.setColorAt(k, this.scratch.setRGB(level, level, level));
     }
     this.farCount++;
     return true;
@@ -242,11 +275,8 @@ export class CarLod {
     for (const t of this.types.values()) {
       if (!t) continue;
       this.commit(t.paint, t.n, t.matrices, true);
-      if (t.cargo) this.commit(t.cargo, t.n, t.matrices, false);
-      if (t.glass) this.commit(t.glass, t.n, t.matrices, false);
       if (t.dark) this.commit(t.dark, t.n, t.matrices, false);
-      if (t.head && t.headMatrices) this.commit(t.head, t.nHead, t.headMatrices, true);
-      if (t.tail && t.tailMatrices) this.commit(t.tail, t.nTail, t.tailMatrices, true);
+      if (t.lamp && t.lampMatrices) this.commit(t.lamp, t.nLamp, t.lampMatrices, true);
     }
   }
 
@@ -328,10 +358,11 @@ export class CarLod {
       return g;
     };
     // far proxy budget (about 1.1 k triangles per car): each part is vertex-clustered down to its share, the wheels are 8-gon discs
-    const paintG = shrinkTo(merge(parts.paint), FAR_TRIS.paint)!, cargoG = shrinkTo(merge(parts.cargo), FAR_TRIS.cargo), glassG = shrinkTo(merge(parts.glass), FAR_TRIS.glass);
-    const darkG = merge([...(parts.dark.length ? [shrinkTo(merge(parts.dark), FAR_TRIS.dark)!] : []), ...tyres]);
+    const bodyG = shrinkTo(merge(parts.paint), FAR_TRIS.paint)!, cargoG = shrinkTo(merge(parts.cargo), FAR_TRIS.cargo), glassG = shrinkTo(merge(parts.glass), FAR_TRIS.glass);
+    const darkOnly = merge([...(parts.dark.length ? [shrinkTo(merge(parts.dark), FAR_TRIS.dark)!] : []), ...tyres]);
     const headG = merge(parts.head), tailG = merge(parts.tail);
-    const hullSrc = [paintG, cargoG, glassG, darkG].filter((g): g is THREE.BufferGeometry => !!g).map((g) => {
+    // draw-call merge: the cargo box rides in the paint draw, the glass in the dark draw (the hull below keeps the pieces apart: it needs no materials)
+    const hullSrc = [bodyG, cargoG, glassG, darkOnly].filter((g): g is THREE.BufferGeometry => !!g).map((g) => {
       const h = new THREE.BufferGeometry();
       h.setAttribute('position', g.getAttribute('position'));
       h.setAttribute('normal', g.getAttribute('normal'));
@@ -339,7 +370,15 @@ export class CarLod {
     });
     const hull = hullSrc.length ? mergeGeometries(hullSrc, false) : null;
     disposeModel(model);
-    if (!glassG || !darkG || !hull) return null;
+    if (!glassG || !darkOnly || !hull) return null;
+    const slim3 = (g: THREE.BufferGeometry): THREE.BufferGeometry => { // same attribute set so the pieces merge
+      const o = g.index ? g.toNonIndexed() : g;
+      for (const name of Object.keys(o.attributes)) if (name !== 'position' && name !== 'normal' && name !== 'uv') o.deleteAttribute(name);
+      return o;
+    };
+    const paintG = cargoG ? mergeGeometries([slim3(bodyG), slim3(cargoG)], false)! : bodyG;
+    const darkG = mergeGeometries([slim3(darkOnly), slim3(glassG)], false)!;
+    const lampG = mergeLamps(headG, tailG);
 
     const matrices = new THREE.InstancedBufferAttribute(new Float32Array(CAPACITY * 16), 16);
     matrices.setUsage(THREE.DynamicDrawUsage);
@@ -354,15 +393,12 @@ export class CarLod {
       return m;
     };
     const lampAttr = (): THREE.InstancedBufferAttribute => { const a = new THREE.InstancedBufferAttribute(new Float32Array(CAPACITY * 16), 16); a.setUsage(THREE.DynamicDrawUsage); return a; };
-    const headMatrices = headG ? lampAttr() : null, tailMatrices = tailG ? lampAttr() : null;
+    const lampMatrices = lampG ? lampAttr() : null;
     return {
       paint: make(paintG, this.paintMat, matrices, false, true),
-      cargo: cargoG ? make(cargoG, this.cargoMat, matrices, false, false) : null,
-      glass: make(glassG, this.glassMat, matrices, false, false),
       dark: make(darkG, this.darkMat, matrices, false, false),
-      head: headG && headMatrices ? make(headG, this.lampMat, headMatrices, false, true) : null,
-      tail: tailG && tailMatrices ? make(tailG, this.lampMat, tailMatrices, false, true) : null,
-      hull, matrices, headMatrices, tailMatrices, n: 0, nHead: 0, nTail: 0,
+      lamp: lampG && lampMatrices ? make(lampG, this.lampMat, lampMatrices, false, true) : null,
+      hull, matrices, lampMatrices, n: 0, nLamp: 0,
     };
   }
 
@@ -381,13 +417,13 @@ export class CarLod {
       return m;
     };
     const lampAttr = (): THREE.InstancedBufferAttribute => { const a = new THREE.InstancedBufferAttribute(new Float32Array(CAPACITY * 16), 16); a.setUsage(THREE.DynamicDrawUsage); return a; };
-    const headMatrices = parts.head ? lampAttr() : null, tailMatrices = parts.tail ? lampAttr() : null;
+    const lampG = mergeLamps(parts.head, parts.tail);
+    const lampMatrices = lampG ? lampAttr() : null;
     return {
       paint: make(parts.body, parts.material, matrices, true),
-      cargo: null, glass: null, dark: null,
-      head: parts.head && headMatrices ? make(parts.head, this.lampMat, headMatrices, true) : null,
-      tail: parts.tail && tailMatrices ? make(parts.tail, this.lampMat, tailMatrices, true) : null,
-      hull: parts.hull, matrices, headMatrices, tailMatrices, n: 0, nHead: 0, nTail: 0,
+      dark: null,
+      lamp: lampG && lampMatrices ? make(lampG, this.lampMat, lampMatrices, true) : null,
+      hull: parts.hull, matrices, lampMatrices, n: 0, nLamp: 0,
     };
   }
 
@@ -400,7 +436,7 @@ export class CarLod {
     this.group.removeFromParent();
     for (const t of this.types.values()) {
       if (!t) continue;
-      for (const m of [t.paint, t.cargo, t.glass, t.dark, t.head, t.tail]) { if (m) m.geometry.dispose(); }
+      for (const m of [t.paint, t.dark, t.lamp]) { if (m) m.geometry.dispose(); }
     }
     this.lampMat.dispose();
     this.types.clear();

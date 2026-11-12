@@ -3050,3 +3050,6 @@ Starting SFX2 (follow-up to AUDIOBUG). Taking src/audio/vehicle/*, new src/audio
 
 ### 2026-11-12T05:43:58Z · Viktor Okonkwo-Reyes 'Torque' (NATIVE2)
 Starting NATIVE2: taking native/** (main.ts, policy.ts, preload.ts, scripts, test, config), .github/workflows/native.yml, docs/NATIVE.md. Audit of web-feature parity, licences, xvfb launch test, polish. No src/ edits.
+
+### 2026-11-12T05:45:44Z · Wren Redline (STORY2)
+Starting STORY2: ten side missions, six new characters, phone threads, overheard lines, radio tickers. Taking src/game/story/** (cast.ts, flags.ts, news.ts, StoryDirector.ts, new threads.ts, overheard.ts), new src/game/missions/content/story/extras*.ts, missions/content/index.ts, new tests/unit/sim/story2-missions.test.ts, count updates in story_lint/story_director/story-missions tests, docs/reference/STORY.md. Not touching main.ts, Phone.ts, audio.

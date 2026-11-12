@@ -23,6 +23,8 @@ export interface Clip {
   turn: number;
   /** event times as fractions of the clip (jump: [feet leave the ground, feet land]) */
   marks: number[];
+  /** rig.y is an absolute pelvis offset (jump, lying), not a foot-contact height */
+  absY: boolean;
   frames: number;
   /** frames x NCH */
   data: Float32Array;
@@ -52,7 +54,7 @@ export function decodePack(bytes: Uint8Array): Clip[] {
       if (ranges[k] === 0) { for (let f = 0; f < frames; f++) data[f * NCH + k] = mins[k]; continue; }
       for (let f = 0; f < frames; f++) data[f * NCH + k] = mins[k] + (u8() / 255) * ranges[k];
     }
-    clips.push({ name, loop: (flags & 1) !== 0, duration: durationMs / 1000, speed: speed100 / 100, turn: turn1000 / 1000, marks, frames, data });
+    clips.push({ name, loop: (flags & 1) !== 0, absY: (flags & 2) !== 0, duration: durationMs / 1000, speed: speed100 / 100, turn: turn1000 / 1000, marks, frames, data });
   }
   return clips;
 }

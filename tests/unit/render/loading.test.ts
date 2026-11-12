@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { LoadingScreen, BOOT_STEPS, PANEL_MS, TIP_MS, LOADING_TIPS } from '@/render/Loading';
-import { PANELS } from '@/render/loadingArt';
+import { BACKDROPS } from '@/ui/backdrops';
 
 let parent: HTMLElement;
-beforeEach(() => { vi.useFakeTimers(); vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null); parent = document.createElement('div'); document.body.appendChild(parent); });
-afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); parent.remove(); });
+/** Stand-in for window.Image: every file whose name is in `okFiles` fires onload (async, like a real load), the rest fire onerror. */
+let okFiles: Set<string>;
+class FakeImage {
+  onload: (() => void) | null = null; onerror: (() => void) | null = null;
+  set src(url: string) { const ok = [...okFiles].some((f) => url.endsWith(`art/${f}`)); setTimeout(() => (ok ? this.onload : this.onerror)?.(), 10); }
+}
+beforeEach(() => { vi.useFakeTimers(); okFiles = new Set(); vi.stubGlobal('Image', FakeImage); (window as unknown as { Image: unknown }).Image = FakeImage; parent = document.createElement('div'); document.body.appendChild(parent); });
+afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); parent.remove(); });
 
 describe('LoadingScreen stages', () => {
   it('shows the active stage with n/total and tracks progress', () => {
@@ -33,19 +39,47 @@ describe('LoadingScreen stages', () => {
 });
 
 describe('LoadingScreen panels and tips', () => {
-  it('shows three distinct diagonal panels and swaps one slot at a time', () => {
+  const shownFile = (ld: LoadingScreen): string | undefined => BACKDROPS[ld.shotIndex]?.file;
+  const front = (): HTMLImageElement | null => parent.querySelector('.ld-shot.on');
+
+  it('has no cartoon panels or diagonal slots', () => {
+    new LoadingScreen(parent);
+    expect(parent.querySelector('canvas')).toBeNull();
+    expect(parent.querySelector('.ld-slot, .ld-slotwrap, .ld-caption')).toBeNull();
+    expect(BACKDROPS.length).toBe(5);
+  });
+  it('with no art files (single-file build) shows the dark backdrop and keeps working', () => {
     const ld = new LoadingScreen(parent);
-    expect(PANELS.length).toBeGreaterThanOrEqual(4);
-    expect(PANELS.length).toBeLessThanOrEqual(6);
-    expect(ld.drawnPanels).toBe(3);
-    expect(new Set(ld.visiblePanels).size).toBe(3);
-    vi.advanceTimersByTime(PANEL_MS / 3);
-    expect(ld.visiblePanels).toEqual([3, 1, 2]);
-    const on = [...parent.querySelectorAll('.ld-panel.on')];
-    expect(on.length).toBe(3); // one front canvas per slot
+    vi.advanceTimersByTime(50);
+    expect(ld.loadedShots).toBe(0);
+    expect(ld.shotIndex).toBe(-1);
+    expect(front()).toBeNull();
     vi.advanceTimersByTime(PANEL_MS * 3);
-    expect(new Set(ld.visiblePanels).size).toBe(3);
-    expect(ld.percent).toBe(0);
+    expect(ld.shotIndex).toBe(-1);
+    expect(parent.querySelector('.ld-logo-b')?.textContent).toBe('BED-STUY');
+    expect(parent.querySelector('.ld-fill')).not.toBeNull();
+  });
+  it('shows the first shot that loads at once, then crossfades through the loaded ones in order', () => {
+    okFiles = new Set(BACKDROPS.slice(0, 3).map((b) => b.file));
+    const ld = new LoadingScreen(parent);
+    vi.advanceTimersByTime(20);
+    expect(ld.loadedShots).toBe(3);
+    expect(shownFile(ld)).toBe(BACKDROPS[0]!.file);
+    const first = front()!;
+    expect(first.src).toContain(`art/${BACKDROPS[0]!.file}`);
+    vi.advanceTimersByTime(PANEL_MS);
+    expect(shownFile(ld)).toBe(BACKDROPS[1]!.file);
+    const second = front()!;
+    expect(second).not.toBe(first); // the other layer fades in over the first
+    expect(first.classList.contains('on')).toBe(false);
+    vi.advanceTimersByTime(PANEL_MS * 2);
+    expect(shownFile(ld)).toBe(BACKDROPS[0]!.file); // wraps
+  });
+  it('one shot alone never swaps', () => {
+    okFiles = new Set([BACKDROPS[2]!.file]);
+    const ld = new LoadingScreen(parent);
+    vi.advanceTimersByTime(PANEL_MS * 3);
+    expect(ld.shotIndex).toBe(2);
   });
   it('rotates tips', () => {
     const ld = new LoadingScreen(parent);
@@ -80,7 +114,7 @@ describe('LoadingScreen hooks', () => {
     expect(document.getElementById('loading')).toBeNull();
     // timers stopped: nothing throws or rotates after removal
     vi.advanceTimersByTime(PANEL_MS * 3);
-    expect(ld.panelIndex).toBe(0);
+    expect(ld.shotIndex).toBe(-1);
   });
   it('clicking the chip counts as the gesture', () => {
     const onFirstGesture = vi.fn();

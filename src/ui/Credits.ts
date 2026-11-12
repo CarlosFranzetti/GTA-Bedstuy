@@ -1,5 +1,6 @@
 import './credits.css';
 import { AI_NOTE, DIRECTORS, DISCLAIMER, OWNER, STUDIO_LEAD, TEAMS, THANKS, type CreditPerson } from './creditsData';
+import { BACKDROPS, backdropUrl } from './backdrops';
 import type { NavDir } from '@/core/Gamepad';
 
 export interface CreditsOptions {
@@ -132,11 +133,13 @@ export class Credits {
     const root = this.root;
     const art = this.el('div', 'cr-art', undefined, root);
     art.setAttribute('aria-hidden', 'true');
-    const img = this.doc.createElement('img'); // same illustration as the title screen, very dark; absent in the single-file build
+    const img = this.doc.createElement('img'); // the last backdrop shot, very dark; absent in the single-file build
     img.alt = '';
     img.addEventListener('load', () => img.classList.add('on'));
     img.addEventListener('error', () => img.remove());
-    try { img.src = new URL('art/title-1.webp', this.doc.baseURI).href; art.appendChild(img); } catch { /* no art */ }
+    const shot = BACKDROPS[BACKDROPS.length - 1];
+    const url = shot ? backdropUrl(this.doc, shot.file) : null;
+    if (shot && url) { img.style.objectPosition = shot.pos; img.src = url; art.appendChild(img); }
     this.el('div', 'cr-shade', undefined, root);
     const x = this.el('button', 'cr-x', '✕', root);
     x.type = 'button';

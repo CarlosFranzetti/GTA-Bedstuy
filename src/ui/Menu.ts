@@ -144,15 +144,15 @@ const DEFAULTS: MenuSettings = { quality: 'medium', auto: false, master: 1, radi
 const CONTROLS: Record<InputMode, { title: string; rows: Array<[string, string]> }> = {
   keyboard: {
     title: 'Keyboard & mouse',
-    rows: [['WASD', 'Move / drive'], ['Mouse', 'Look'], ['Shift', 'Run / handbrake'], ['Space', 'Brake'], ['F', 'Enter / exit car'], ['H', 'Horn'], ['E', 'Next radio station'], ['P', 'Phone'], ['M', 'Map'], ['N', 'Point at HOME / WAX DELI'], ['Alt+Enter', 'Full screen'], ['Esc', 'Pause']],
+    rows: [['WASD', 'Move / drive'], ['Mouse', 'Look'], ['Shift', 'Sprint / handbrake'], ['Alt or Caps Lock', 'Walk (half-tilt a stick)'], ['Space', 'Brake'], ['F', 'Enter / exit car'], ['H', 'Horn'], ['E', 'Next radio station'], ['P', 'Phone'], ['M', 'Map'], ['N', 'Point at HOME / WAX DELI'], ['Alt+Enter', 'Full screen'], ['Esc', 'Pause']],
   },
   touch: {
     title: 'Touch',
-    rows: [['Left stick', 'Move / drive'], ['Drag right side', 'Look'], ['CAR', 'Enter / exit car'], ['RUN / BRAKE', 'Run, brake'], ['HORN', 'Horn'], ['RADIO', 'Next station'], ['PHONE / MAP', 'Open the phone or the map'], ['Tap Offer/Nav chip', 'Point at HOME / WAX DELI'], ['II', 'Pause']],
+    rows: [['Left stick', 'Move / drive'], ['Drag right side', 'Look'], ['CAR', 'Enter / exit car'], ['RUN / BRAKE', 'Sprint, brake (half-push the stick to walk)'], ['HORN', 'Horn'], ['RADIO', 'Next station'], ['PHONE / MAP', 'Open the phone or the map'], ['Tap Offer/Nav chip', 'Point at HOME / WAX DELI'], ['II', 'Pause']],
   },
   gamepad: {
     title: 'Gamepad',
-    rows: [['Left stick', 'Move / steer'], ['Right stick', 'Look'], ['RT', 'Throttle'], ['LT', 'Brake'], ['X', 'Run / handbrake'], ['A', 'Enter / exit car'], ['LB', 'Horn'], ['Y', 'Next station'], ['Start', 'Pause']],
+    rows: [['Left stick', 'Move / steer'], ['Right stick', 'Look'], ['RT', 'Throttle'], ['LT', 'Brake'], ['X', 'Sprint / handbrake'], ['Half-tilt stick', 'Walk'], ['A', 'Enter / exit car'], ['LB', 'Horn'], ['Y', 'Next station'], ['Start', 'Pause']],
   },
 };
 
@@ -405,8 +405,7 @@ export class Menu {
     this.statusEl = this.el('p', 'gp-status');
     this.statusEl.setAttribute('role', 'status');
     acts.appendChild(this.statusEl);
-    acts.appendChild(this.descPanel('settings'));
-    this.settingsPane.append(optsBox, acts);
+    this.settingsPane.append(optsBox, this.descPanel('settings'), acts);
 
     this.panes.get('radio')!.append(this.column('gp-col gp-col-opts', this.radioList.el), this.descPanel('radio'));
     this.panes.get('missions')!.append(this.column('gp-col gp-col-opts', this.missionList.el), this.descPanel('missions'));

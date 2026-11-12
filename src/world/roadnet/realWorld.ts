@@ -353,7 +353,13 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   const setColliderHost = (h: ColliderHost): void => { host = h; if (held.size) h.add([...held.values()]); };
   const stats = { ...measureWorld(group), lots: lots.length, colliders: colliders.length, ms };
   void ROAD_CHUNK_PREFIX;
-  return { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, badBlocks: [...bad].sort((a, b) => a - b), streamer, setColliderHost, update, trains, notice: REAL_NOTICE, standIns, el, props, lamps: props?.lamps ?? [], furnitureGroup: props?.group ?? furnitureGroup, places, homeSpawn, applyDoors, stats };
+  if (typeof window !== 'undefined') { // debug: scripts/perf-real.mjs reads the world and the review frames from the page
+    const w = window as unknown as { __gtaRealWorld?: () => RealWorld; __gtaRealFrames?: () => Promise<unknown> };
+    w.__gtaRealFrames = async () => (await import('./reviewFrames')).reviewFrames(w.__gtaRealWorld!());
+  }
+  const rwOut: RealWorld = { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, badBlocks: [...bad].sort((a, b) => a - b), streamer, setColliderHost, update, trains, notice: REAL_NOTICE, standIns, el, props, lamps: props?.lamps ?? [], furnitureGroup: props?.group ?? furnitureGroup, places, homeSpawn, applyDoors, stats };
+  if (typeof window !== 'undefined') (window as unknown as { __gtaRealWorld?: () => RealWorld }).__gtaRealWorld = () => rwOut;
+  return rwOut;
 }
 
 /** WP2 lane graph of a built real world (async only to keep lanes.ts out of the first chunk). */

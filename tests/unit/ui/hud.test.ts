@@ -110,7 +110,7 @@ describe('Hud', () => {
     expect(splash.textContent).toContain('GTA BED-STUY');
     expect(splash.textContent).toContain('a fan tribute · not affiliated with Rockstar Games or Take-Two');
     expect(splash.textContent).toContain('WASD move');
-    expect(splash.textContent).toContain('Shift run');
+    expect(splash.textContent).toContain('Shift sprint');
     expect(splash.textContent).toContain('F enter/exit car');
     expect(splash.textContent).toContain('Space brake');
     expect(splash.textContent).toContain('H horn');

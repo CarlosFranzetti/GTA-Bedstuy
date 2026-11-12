@@ -366,6 +366,45 @@ export function buildLoft(spec: LoftSpec): Hull {
   full.computeVertexNormals();
   const nor = full.attributes.normal.array as Float32Array;
   full.dispose();
+  // CARS2: the area-weighted normals above are skewed wherever a long quad (a hood, a roof between sparse stations) sits next to a
+  // short one (an arch lip): under the clear coat that shows as creased, wobbling highlights. Replace them with normals taken from
+  // the surface itself (cross product of the along-car and around-ring tangents, spacing-aware), keeping the old ones only as the
+  // sign reference and as the fallback for a degenerate vertex. Crease columns use one-sided ring tangents, so edges stay hard.
+  {
+    const colInSeg = (slot: number, k: number): number => colFor(slot, segJ(k), crease);
+    const P = (i: number, c: number): THREE.Vector3 => new THREE.Vector3(pos[(i * C + c) * 3], pos[(i * C + c) * 3 + 1], pos[(i * C + c) * 3 + 2]);
+    for (let i = 0; i < S; i++) {
+      for (let c = 0; c < C; c++) {
+        const sl = slotCol[c];
+        const sp = (sl - 1 + M) % M;
+        const sn = (sl + 1) % M;
+        const hasPrev = colInSeg(sl, sp) === c;
+        const hasNext = colInSeg(sl, sl) === c;
+        const p0 = P(i, c);
+        const cPrev = colInSeg(sp, sp), cNext = colInSeg(sn, sl);
+        let tr: THREE.Vector3;
+        if (hasPrev && hasNext) tr = P(i, cNext).sub(P(i, cPrev));
+        else if (hasPrev) tr = p0.clone().sub(P(i, cPrev));
+        else tr = P(i, cNext).sub(p0);
+        let tu: THREE.Vector3;
+        if (i === 0) tu = P(1, c).sub(p0);
+        else if (i === S - 1) tu = p0.clone().sub(P(S - 2, c));
+        else {
+          const a = P(i - 1, c), b = P(i + 1, c);
+          const h0 = us[i] - us[i - 1], h1 = us[i + 1] - us[i];
+          // spacing-aware central difference (exact for a parabola through the three stations)
+          tu = p0.clone().sub(a).multiplyScalar(h1 / (h0 * (h0 + h1))).add(b.sub(p0).multiplyScalar(h0 / (h1 * (h0 + h1))));
+        }
+        const nv = new THREE.Vector3().crossVectors(tu, tr);
+        const o = (i * C + c) * 3;
+        const old = new THREE.Vector3(nor[o], nor[o + 1], nor[o + 2]);
+        if (nv.lengthSq() < 1e-14) continue;
+        nv.normalize();
+        if (nv.dot(old) < 0) nv.negate();
+        nor[o] = nv.x; nor[o + 1] = nv.y; nor[o + 2] = nv.z;
+      }
+    }
+  }
 
   const uvs = new Float32Array(S * C * 2);
   const sub = (index: number[], offset = 0): THREE.BufferGeometry => {
@@ -2060,8 +2099,9 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     const rows = iHF - iHB + 1;
     const cols = hoodSlots.length;
     const p: number[] = [];
+    const nn: number[] = [];
     for (let r = iHB; r <= iHF; r++) {
-      for (const s of hoodSlots) { const v = hull.P(r, s); p.push(v.x, v.y + lift, v.z); }
+      for (const s of hoodSlots) { const v = hull.P(r, s); p.push(v.x, v.y + lift, v.z); const n = hull.N(r, s); nn.push(n.x, n.y, n.z); }
     }
     const ix: number[] = [];
     for (let r = 0; r < rows - 1; r++) {
@@ -2072,8 +2112,8 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(nn, 3)); // the hull's own normals: the hood shades as one surface with the fenders
     g.setIndex(ix);
-    g.computeVertexNormals();
     return g;
   };
   const yc = hull.P(iHB, 0).y + 0.006;

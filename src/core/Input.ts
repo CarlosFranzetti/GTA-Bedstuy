@@ -17,6 +17,8 @@ export class Input {
   wheel = 0;
   pointerLocked = false;
   private firstGesture = false;
+  /** Caps Lock is on (a walk toggle on the keyboard). */
+  caps = false;
   onFirstGesture: (() => void) | null = null;
   /** Virtual (touch) input merged into the keyboard state. x: -1 left..1 right, y: -1 back..1 forward. */
   readonly touchAxis = { x: 0, y: 0 };
@@ -34,10 +36,11 @@ export class Input {
       this.setMode('keyboard');
       if (!this.down.has(e.code)) this.justPressed.add(e.code);
       this.down.add(e.code);
-      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'AltLeft'].includes(e.code)) e.preventDefault(); // Alt is the walk key: keep the browser menu bar out of it
+      this.caps = e.getModifierState?.('CapsLock') ?? this.caps;
       this.gesture();
     });
-    window.addEventListener('keyup', (e) => this.down.delete(e.code));
+    window.addEventListener('keyup', (e) => { this.down.delete(e.code); this.caps = e.getModifierState?.('CapsLock') ?? this.caps; });
     window.addEventListener('blur', () => this.down.clear());
     el.addEventListener('mousemove', (e) => { if (this.pointerLocked) { this.mouseDX += e.movementX; this.mouseDY += this.invertLookY ? -e.movementY : e.movementY; this.setMode('keyboard'); } });
     el.addEventListener('mousedown', (e) => {

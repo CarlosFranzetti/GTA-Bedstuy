@@ -4,7 +4,7 @@
  * It only writes rotations and rig.position of the existing bones (rig, hips, torso, head, arms, elbows, legs, knees and,
  * where a body has them, ankles). Heading and travel belong to the entity.
  */
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import { BONES, NCH, RIG_CH, boneChannel, mirrorPose, sampleClip, type Clip } from './clipPack';
 import { chainBlend, cycleFrequency, idleWeight, jumpTime, rateFor, smooth, type Blend } from './locomotion';
 import type { Gait } from './gait';
@@ -14,6 +14,8 @@ export interface PoseTarget {
   hips: THREE.Object3D; torso: THREE.Object3D; head: THREE.Object3D; rig: THREE.Object3D;
   arms: THREE.Object3D[]; elbows: THREE.Object3D[]; legs: THREE.Object3D[]; knees: THREE.Object3D[];
   ankles?: THREE.Object3D[];
+  /** the figure's root (its scale gives the body size) */
+  group?: THREE.Object3D;
 }
 
 export interface AnimInput {
@@ -50,6 +52,10 @@ export function keyIdle(p: Float32Array, kind: 'crossed' | 'lean', side: number)
   }
 }
 
+/** the skeleton the clips were cut for (scripts/anim/retarget.mjs OUR) and the ankle's height above the sole */
+const REF = { thigh: 0.4, shin: 0.345 };
+const ANKLE_H = 0.075;
+
 export const JUMP_TIMES = { takeoff: 0.07, land: 0.2, gravity: 17 };
 
 export class AnimController {
@@ -72,11 +78,32 @@ export class AnimController {
   private readonly bones: Array<THREE.Object3D | undefined>;
   /** the speed ratio of the last frame, for stride length */
   private lastRatio = 1;
+  private readonly dims: { thigh: number; shin: number };
+  /** this body's leg length over the reference skeleton's (the clips are cut to the reference): stride and speed scale with it */
+  private readonly legScale: number;
+  private readonly fp: number;
+  private readonly torsoRest = new THREE.Vector3();
+  private readonly headRel = new THREE.Vector3();
+  private readonly stoopBaked: number;
+  private readonly qA = new THREE.Quaternion();
+  private readonly qB = new THREE.Quaternion();
+  private readonly eul = new THREE.Euler();
+  private readonly v3 = new THREE.Vector3();
+  private yawLead = 0;
 
   constructor(private readonly target: PoseTarget, private gait: Gait, private readonly lib: ClipLibrary = clipLibrary()) {
     this.phase = gait.phase;
     this.idleT = gait.idleOffset;
     const t = target;
+    // this body's own proportions (the bind pose of the rig): hip height, thigh, shin to the ankle, and where the head sits against the torso
+    const hipY = t.legs[0].position.y, thigh = Math.max(0.2, -t.knees[0].position.y);
+    this.dims = { thigh, shin: Math.max(0.2, hipY - thigh - ANKLE_H) };
+    const sy = t.group?.scale.y ?? 1;
+    this.legScale = ((this.dims.thigh + this.dims.shin) * sy) / (REF.thigh + REF.shin);
+    this.fp = this.dims.thigh + this.dims.shin;
+    this.torsoRest.copy(t.torso.position);
+    this.headRel.copy(t.head.position).sub(t.torso.position);
+    this.stoopBaked = (t.torso.userData.stoopBaked as number | undefined) ?? 0;
     this.bones = [t.hips, t.torso, t.head, t.arms[0], t.elbows[0], t.arms[1], t.elbows[1], t.legs[0], t.knees[0], t.legs[1], t.knees[1], t.ankles?.[0], t.ankles?.[1]];
   }
 
@@ -113,7 +140,7 @@ export class AnimController {
     const chain = this.chain();
     const idle = this.lib.get(this.idleName) ?? this.lib.get('idle');
     if (!chain || !idle) return false;
-    const speed = Math.max(0, inp.speed);
+    const speed = Math.max(0, inp.speed) / this.legScale; // in the clips' proportions
     const g = this.gait;
 
     // idle layer
@@ -182,7 +209,7 @@ export class AnimController {
       this.mix(this.base, this.tmp, this.jumpW);
     }
 
-    this.write(this.base);
+    this.write(this.base, inp.yawRate ?? 0, speed);
     return true;
   }
 
@@ -196,18 +223,47 @@ export class AnimController {
     p[boneChannel('armL')] *= g.armSwing; p[boneChannel('armR')] *= g.armSwing;
     p[boneChannel('elbowL')] *= 0.6 + 0.4 * g.armSwing; p[boneChannel('elbowR')] *= 0.6 + 0.4 * g.armSwing;
     const walkiness = 1 - smooth(1.6, 3.0, speed); // posture quirks fade out when running
-    p[boneChannel('torso')] += g.lean * walkiness;
-    p[boneChannel('head')] += g.headDrop * walkiness - g.lean * 0.4 * walkiness;
+    const own = this.stoopBaked > 0.02 ? 0.3 : 1; // a stoop already baked into this body's rest pose is not added again
+    p[boneChannel('torso')] += g.lean * walkiness * own;
+    p[boneChannel('head')] += (g.headDrop * walkiness - g.lean * 0.4 * walkiness) * own;
     p[RIG_CH] *= g.sway; p[RIG_CH + 2] *= g.sway; p[RIG_CH + 1] *= 0.8 + 0.2 * g.sway;
   }
 
   private mix(into: Float32Array, over: Float32Array, w: number): void { for (let k = 0; k < NCH; k++) into[k] += (over[k] - into[k]) * w; }
 
-  private write(p: Float32Array): void {
+  /** Ankle height above its rest height for a pose, the lower of the two feet, for legs of the given proportions. */
+  private lowFoot(p: Float32Array, thigh: number, shin: number): number {
+    let low = 9;
+    for (const [lc, kc] of [[boneChannel('legL'), boneChannel('kneeL')], [boneChannel('legR'), boneChannel('kneeR')]]) {
+      this.qA.setFromEuler(this.eul.set(p[lc], p[lc + 1], p[lc + 2]));
+      this.qB.setFromEuler(this.eul.set(p[kc], p[kc + 1], p[kc + 2])).premultiply(this.qA);
+      const y = -thigh * (1 - 2 * (this.qA.x * this.qA.x + this.qA.z * this.qA.z)) - shin * (1 - 2 * (this.qB.x * this.qB.x + this.qB.z * this.qB.z));
+      // y of the rotated (0, -len, 0) vectors: -len * (1 - 2(x^2 + z^2))
+      low = Math.min(low, y + thigh + shin);
+    }
+    return low;
+  }
+
+  private write(p: Float32Array, yawRate: number, speed: number): void {
+    // walking turns: the head and shoulders lead the body round a corner, the body leans into it
+    const lead = Math.min(1, speed / 1.2) * Math.max(-3, Math.min(3, yawRate));
+    this.yawLead += (lead - this.yawLead) * 0.2;
+    p[boneChannel('head')] += 0; p[boneChannel('head') + 1] += this.yawLead * 0.13;
+    p[boneChannel('torso') + 1] += this.yawLead * 0.07; p[boneChannel('torso') + 2] += -this.yawLead * 0.02 * Math.min(1.5, speed / 2);
+    // feet on the ground for THIS body: lowest ankle at the height the capture says, in this body's proportions
+    const ref = this.lowFoot(p, REF.thigh, REF.shin);
+    const real = this.lowFoot(p, this.dims.thigh, this.dims.shin);
+    const dyRef = p[RIG_CH + 1];
+    p[RIG_CH + 1] = (dyRef + ref) * (this.fp / (REF.thigh + REF.shin)) - real;
     for (let b = 0; b < BONES.length; b++) {
       const o = this.bones[b];
       if (o) o.rotation.set(p[b * 3], p[b * 3 + 1], p[b * 3 + 2]);
     }
-    this.target.rig.position.set(p[RIG_CH], p[RIG_CH + 1], p[RIG_CH + 2]);
+    const sc = this.fp / (REF.thigh + REF.shin);
+    this.target.rig.position.set(p[RIG_CH] * sc, p[RIG_CH + 1], p[RIG_CH + 2] * sc);
+    // the head rides on the torso (it is a child of the rig here): lean, duck and lie down take it along
+    const th = boneChannel('torso');
+    this.qA.setFromEuler(this.eul.set(p[th], p[th + 1], p[th + 2]));
+    this.target.head.position.copy(this.headRel).applyQuaternion(this.qA).add(this.torsoRest);
   }
 }

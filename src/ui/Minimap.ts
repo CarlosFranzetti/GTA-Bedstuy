@@ -73,6 +73,8 @@ export function northMarkerPos(mapHeading: number, size: number, inset: number):
 
 type MapPoint = { x: number; y: number };
 type ToMap = (p: Vec2) => MapPoint;
+/** `?map=real`: draws the street layer (and its labels) in place of the grid's; made by roadnet/minimapReal.ts from `roadNetStreetSource`. */
+export type MinimapRoads = (ctx: CanvasRenderingContext2D, toMap: ToMap, player: Vec2, scale: number, size: number) => void;
 
 /**
  * Pure world -> minimap pixel transform. The map is rotated so the player's heading points up
@@ -129,9 +131,9 @@ export class Minimap {
   /** 1 on desktop, PHONE_BLIP_SCALE when the primary pointer is coarse (touch). Settable for tests. */
   blipScale = 1;
 
-  constructor(root: HTMLElement, grid: GridModel) {
+  constructor(root: HTMLElement, grid: GridModel, private readonly roads?: MinimapRoads) {
     this.grid = grid;
-    this.avenues = grid.streets.filter((s) => s.class === 'avenue');
+    this.avenues = roads ? [] : grid.streets.filter((s) => s.class === 'avenue');
 
     const canvas = root.ownerDocument.createElement('canvas');
     canvas.width = SIZE;
@@ -179,7 +181,7 @@ export class Minimap {
     ctx.clip();
     ctx.fillStyle = DISC_FILL;
     ctx.fillRect(0, 0, SIZE, SIZE);
-    this.drawRoads(ctx, toMap);
+    if (this.roads) this.roads(ctx, toMap, playerPos, SCALE, SIZE); else this.drawRoads(ctx, toMap);
     this.drawAvenueLabels(ctx, playerPos, toMap);
     this.drawPois(ctx, toMap, half);
     if (blips && blips.length > 0) this.drawBlips(ctx, blips, toMap, half);

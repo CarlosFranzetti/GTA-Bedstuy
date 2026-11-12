@@ -11,7 +11,9 @@ import { AnimController, type PoseTarget } from '@/entities/anim/controller';
 const streetBytes = (): Uint8Array => new Uint8Array(readFileSync('public/anim/street.bin'));
 const fakeModel = (): PoseTarget => {
   const o = (): THREE.Object3D => new THREE.Object3D();
-  return { hips: o(), torso: o(), head: o(), rig: o(), arms: [o(), o()], elbows: [o(), o()], legs: [o(), o()], knees: [o(), o()], ankles: [o(), o()] };
+  const m = { hips: o(), torso: o(), head: o(), rig: o(), arms: [o(), o()], elbows: [o(), o()], legs: [o(), o()], knees: [o(), o()], ankles: [o(), o()] };
+  m.legs.forEach((l) => l.position.set(0, 0.82, 0)); m.knees.forEach((k) => k.position.set(0, -0.4, 0)); m.torso.position.set(0, 0.84, 0); m.head.position.set(0, 1.67, 0);
+  return m;
 };
 const fullLib = (): ClipLibrary => { const l = ClipLibrary.fromCore(); l.add(decodePack(streetBytes())); return l; };
 
@@ -161,6 +163,45 @@ describe('per-person gait', () => {
     for (let i = 0; i < 40; i++) { ca.update(1 / 60, { speed: 1.2 }); cb.update(1 / 60, { speed: 1.2 }); }
     const d = Math.abs(a.legs[0].rotation.x - b.legs[0].rotation.x) + Math.abs(a.arms[0].rotation.x - b.arms[0].rotation.x);
     expect(d).toBeGreaterThan(0.05);
+  });
+});
+
+describe('foot planting', () => {
+  const ankleY = (m: PoseTarget, leg: number): number => {
+    m.rig.updateMatrixWorld(true);
+    const v = new THREE.Vector3(0, -0.345, 0); // ankle: 0.345 below the knee in this fake body
+    m.knees[leg].localToWorld(v);
+    return v.y;
+  };
+  for (const [name, hip, thigh, speed] of [['average adult walking', 0.82, 0.4, 1.3], ['tall body jogging', 1.0, 0.5, 2.8], ['short body walking', 0.66, 0.32, 1.1]] as const) {
+    it(`the stance foot stays on the ground: ${name}`, () => {
+      const lib = fullLib();
+      const m = fakeModel();
+      m.legs.forEach((l) => l.position.set(0, hip, 0)); m.knees.forEach((k) => k.position.set(0, -thigh, 0));
+      const c = new AnimController(m, PLAYER_GAIT, lib);
+      const shin = hip - thigh - 0.075;
+      let worst = 0;
+      for (let i = 0; i < 180; i++) {
+        c.update(1 / 60, { speed });
+        if (i < 60) continue;
+        // lowest ankle height against its rest height (0.075)
+        const lo = Math.min(...[0, 1].map((l) => { const v = new THREE.Vector3(0, -shin, 0); m.rig.updateMatrixWorld(true); m.knees[l].localToWorld(v); return v.y; }));
+        worst = Math.max(worst, Math.abs(lo - 0.075));
+      }
+      void ankleY;
+      expect(worst).toBeLessThan(0.035);
+    });
+  }
+  it('walking speed (Alt) plays the walk and the default jog plays the jog at the speeds the game uses', async () => {
+    const { STROLL_SPEED, WALK_SPEED, RUN_SPEED } = await import('@/entities/Player');
+    expect(STROLL_SPEED).toBeCloseTo(1.6);
+    expect(WALK_SPEED).toBe(3);
+    expect(RUN_SPEED).toBeGreaterThan(WALK_SPEED);
+    const lib = fullLib();
+    const ch = [lib.get('walkBrisk')!, lib.get('jog')!, lib.get('run')!];
+    expect(chainBlend(STROLL_SPEED / 1.05, ch).t).toBe(0);                 // walking: the walk clip alone
+    const jog = chainBlend(WALK_SPEED / 1.05, ch);                          // jogging: between the jog and the run, nearer the jog
+    expect(jog.lo).toBe(1);
   });
 });
 

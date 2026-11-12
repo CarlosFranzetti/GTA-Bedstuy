@@ -3,7 +3,7 @@
  * that happens is a noise complaint. Coordinates come from the world data (places.ts).
  */
 import type { MissionDef } from '../types';
-import { corner, facePoint, poiSpot, streetMid, type PlaceCtx } from './places';
+import { corner, facePoint, poiSpot, streetAt, streetMid, type PlaceCtx } from './places';
 
 /** Mr. Alvin's double-parked Buick, a street sweeper at 09:30 and five cars that were already circling. */
 export function alternateSideShuffle(ctx: PlaceCtx): MissionDef {
@@ -37,7 +37,7 @@ export function alternateSideShuffle(ctx: PlaceCtx): MissionDef {
       },
       { kind: 'talkTo', at: owner, radius: 4, presence: 'onFoot', npc: 'Mrs. Okafor', text: 'Wake the owner of the last car', lines: ['Five more minutes.', 'Oh. The sweeper. Why did nobody say?', 'Move the car yourself, baby. I am in the middle of a dream about Barbados.'] },
       {
-        kind: 'tail', route: [corner(grid, 'throop', 'pulaski'), corner(grid, 'throop', 'kosciuszko'), corner(grid, 'throop', 'lafayette'), { x: 0, z: 190 }],
+        kind: 'tail', route: [corner(grid, 'throop', 'pulaski'), corner(grid, 'throop', 'kosciuszko'), corner(grid, 'throop', 'lafayette'), streetAt(grid, 'throop', 190)],
         speed: 6.5, maxDistance: 45, target: 'street sweeper', text: 'Follow the sweeper and grab the spots it frees',
         banter: ['Alvin: "It does not even sweep! It just threatens."'],
       },
@@ -213,7 +213,7 @@ export function permitPending(ctx: PlaceCtx): MissionDef {
     followUp: { from: 'Rico', text: 'The shed stays. It is part of the block now.', delay: 80 },
     objectives: [
       {
-        kind: 'tail', route: [{ x: contractor.x, z: -100 }, corner(grid, 'garvey', 'pulaski'), corner(grid, 'garvey', 'kosciuszko'), { x: office.x, z: 0 }],
+        kind: 'tail', route: [streetAt(grid, 'pulaski', contractor.x), corner(grid, 'garvey', 'pulaski'), corner(grid, 'garvey', 'kosciuszko'), streetAt(grid, 'kosciuszko', office.x)],
         speed: 8, maxDistance: 45, target: "inspector's sedan", text: "Tail the inspector's gray sedan to the permits office",
         banter: ['Rico (text): "Do not get close. He can smell a clipboard."'],
       },

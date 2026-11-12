@@ -37,6 +37,8 @@ for (const spec of (params.get('cars') ?? '').split(';').filter(Boolean)) {
     lk.condKey = `${lk.dirt}.${lk.rust}.${lk.dents}.${lk.primer}.${seed & 7}`;
   }
   const m = buildCarModel(type, { ...VEHICLE_SPECS[type], color }, materials, 0, undefined, false, lk, seed);
+  const dbg = (params.get('dbg') ?? '').split(',');
+  if (dbg[0]) m.group.traverse((o) => { if (o.isMesh && o.name !== 'tyre') { const mt = o.material; if (dbg.includes('nonormal')) mt.normalMap = null; if (dbg.includes('nomap')) mt.map = null; if (dbg.includes('noclear')) mt.clearcoat = 0; if (dbg.includes('matte')) { mt.roughness = 0.9; mt.clearcoat = 0; mt.normalMap = null; } mt.needsUpdate = true; } });
   scene.add(m.group);
   const sp = VEHICLE_SPECS[type];
   const dist = distS !== '' ? Number(distS) : Math.max(5, sp.length * 1.05 + sp.height * 0.6);

@@ -57,6 +57,9 @@ const EXIT_SEARCH_EXTRA = [0, 0.6, 1.2, 1.8, 2.4, 3];
 const SEATED_RADIUS = 0.01;
 /** Share of full speed at the smallest stick deflection (just past the dead zone), rising linearly to 1 at full deflection. */
 const STICK_MIN_SPEED = 0.35;
+/** Walking pace (m/s): hold Alt, switch Caps Lock on, or push a stick only part way (below STICK_WALK_MAG). The default on foot is the jog, WALK_SPEED. */
+export const STROLL_SPEED = 1.6;
+const STICK_WALK_MAG = 0.62;
 /** Exit ring search: rings added beyond the body, their spacing (m) and samples per ring. */
 const RING_COUNT = 6;
 const RING_STEP = 0.5;
@@ -88,6 +91,7 @@ export class Player implements Entity {
   private desiredVel: Vec2 = { x: 0, z: 0 };
   private moveDir: Vec2 | null = null;
   private wantRun = false;
+  private wantStroll = false;
   /** 0..1 stick deflection of the current move input (1 for keys). */
   private moveMag = 1;
   private sprintBlend = 0;
@@ -194,9 +198,11 @@ export class Player implements Entity {
       this.moveDir = { x: dx / l, z: dz / l };
       this.moveMag = Math.min(1, l); // a half-pushed touch stick walks slower; keys and a full stick are 1
       this.wantRun = input.isDown('ShiftLeft') || input.isDown('ShiftRight');
+      this.wantStroll = input.isDown('AltLeft') || input.isDown('AltRight') || input.caps;
     } else {
       this.moveDir = null;
       this.wantRun = false;
+      this.wantStroll = false;
     }
   }
 
@@ -405,7 +411,10 @@ export class Player implements Entity {
     this.sprintBlend = clamp(this.sprintBlend + ramp * dt, 0, 1);
     if (this.moveDir) {
       const k = this.sprintBlend;
-      const sp = (WALK_SPEED + (RUN_SPEED - WALK_SPEED) * (k * k * (3 - 2 * k))) * (STICK_MIN_SPEED + (1 - STICK_MIN_SPEED) * this.moveMag) * this.jump.speedScale;
+      // base pace: a jog (WALK_SPEED); Alt / Caps Lock or a half-pushed stick: a walk; Shift: sprint. A full key press is moveMag 1.
+      const walkish = !this.wantRun && (this.wantStroll || this.moveMag < STICK_WALK_MAG);
+      const base = walkish ? STROLL_SPEED : this.moveMag < 1 ? STROLL_SPEED + (WALK_SPEED - STROLL_SPEED) * ((this.moveMag - STICK_WALK_MAG) / (1 - STICK_WALK_MAG)) : WALK_SPEED;
+      const sp = (base + (RUN_SPEED - base) * (k * k * (3 - 2 * k))) * this.jump.speedScale;
       this.desiredVel = { x: this.moveDir.x * sp, z: this.moveDir.z * sp };
       const want = headingFromVec(this.moveDir);
       b.heading = wrapAngle(b.heading + angleDiff(b.heading, want) * (1 - Math.exp(-TURN_SMOOTH * this.jump.accelScale * dt)));

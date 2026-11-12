@@ -26,7 +26,18 @@ export const MANUAL_SLOTS: readonly SlotId[] = ['slot1', 'slot2', 'slot3'];
 /** The player's appearance. PEOPLE10 owns the meaning of the fields; the save only carries them. `seed` drives the roll. */
 export interface PlayerLook { seed: number; ethnicity?: string; [k: string]: unknown }
 
-export interface SavePose { x: number; z: number; heading: number; inCar: boolean; vehicleType?: string }
+/** `map` says which map the pose is on (`?map=real` is the real Brooklyn net); absent means the grid (every save before it existed). */
+export interface SavePose { x: number; z: number; heading: number; inCar: boolean; vehicleType?: string; map?: 'grid' | 'real' }
+
+/**
+ * The pose to apply on map `here`: a pose saved on the other map goes home on foot (its metres mean nothing here); otherwise the
+ * position is clamped to `bounds` grown by `slack` m. `home` is where a new player appears on this map.
+ */
+export function poseOnMap(pose: SavePose, here: 'grid' | 'real', home: { x: number; z: number; heading: number }, bounds: { minX: number; maxX: number; minZ: number; maxZ: number }, slack = 25): SavePose {
+  if ((pose.map ?? 'grid') !== here) return { x: home.x, z: home.z, heading: home.heading, inCar: false, map: here };
+  const c = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));
+  return { ...pose, x: c(pose.x, bounds.minX - slack, bounds.maxX + slack), z: c(pose.z, bounds.minZ - slack, bounds.maxZ + slack), map: here };
+}
 
 export interface SaveInventory { records: RecordDef[]; items: Record<string, number>; flags: string[] }
 
@@ -125,6 +136,7 @@ export function migrateSave(raw: unknown, now: number = Date.now()): SaveData | 
       hour: ((raw.hour % 24) + 24) % 24,
     };
     if (typeof p.vehicleType === 'string') out.pose.vehicleType = p.vehicleType;
+    if (p.map === 'grid' || p.map === 'real') out.pose.map = p.map;
     if (finite(raw.day) && raw.day >= 0) out.day = Math.floor(raw.day);
     if (finite(raw.cash) && raw.cash >= 0) out.cash = Math.round(raw.cash);
     const inv = cleanInventory(raw.inventory);

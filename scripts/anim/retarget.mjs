@@ -131,7 +131,9 @@ export function retarget(b, f0, f1, opts = {}) {
     // ours.* = our ankle height against rest with the pelvis in place; rig.y = dy lifts or lowers everything
     let dy;
     const lowM = Math.min(m.L, m.R);
-    if (opts.rigY === 'air') {
+    if (opts.rigY === 'abs') {
+      dy = o.hipsY - hipsRestY * k; // lying down, getting up: the pelvis height itself
+    } else if (opts.rigY === 'air') {
       // the game supplies the jump altitude: keep the pelvis where the mocap has it relative to the lowest foot
       dy = (o.hipsY - hipsRestY * k) - Math.max(lowM, 0);
     } else {

@@ -3,7 +3,7 @@ import { BREAK_GAP, jitterPause, planLine, planSentence, planSpeech, rngFor, sha
 import { RHYTHMS, rhythmFor } from '@/audio/voice/rhythm';
 import { CAST, CAST_MAP } from '@/audio/voice/cast';
 import { expand } from '@/audio/voice/SpeechPlayer';
-import { bakeableUnits, planPack } from '@/audio/voice/packPlan';
+import { bakeableUnits, planPack, rankOf } from '@/audio/voice/packPlan';
 import { ADS, DJ_COPY, TALK_SHOWS } from '@/audio/voice/shows';
 import { clipKey, lintLines, parseLine, spokenText } from '@/audio/voice/script';
 import { planBarks } from '@/audio/voice/peds/lines';
@@ -196,5 +196,22 @@ describe('clip edges', () => {
     expect(Math.abs(f[0])).toBeLessThan(1e-6); expect(Math.abs(f[f.length - 1])).toBeLessThan(1e-6);
     expect(x[6000]).toBeCloseTo(0.5 * Math.sin(6000 / 7), 6); // the source is not modified
     expect(shapeClip(f, 24000).length).toBe(f.length);
+  });
+});
+
+describe('bake order', () => {
+  it('idents first, then the DJ lines, story and everyday barks, then commercials and talk shows, the shout-out expansions last', () => {
+    const stations = [{ id: 'flashback', name: 'Flashback 88', freq: 'eighty-eight point one' }];
+    const bark = planBarks().filter((b) => b.prio !== undefined)[0];
+    const external = { ...bark, key: 'x', prio: 3 };
+    const plan = planPack({ stations, extra: [...planBarks().slice(0, 400), external] });
+    const ranks = plan.map(rankOf);
+    expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
+    expect(plan[0].tier).toBe(0);
+    expect(Math.max(...plan.filter((c) => c.tier === 0).map(rankOf))).toBeLessThan(Math.min(...plan.filter((c) => c.tier === 1).map(rankOf)));
+    const early = plan.filter((c) => c.tier === 5 && rankOf(c) < 4); const ads = plan.filter((c) => c.tier === 2);
+    expect(early.length).toBeGreaterThan(0);
+    expect(rankOf(early[0])).toBeLessThan(rankOf(ads[0]));
+    expect(plan.filter((c) => c.tier === 6).every((c) => rankOf(c) === 8)).toBe(true);
   });
 });

@@ -39,9 +39,12 @@ function frontage(grid: GridModel, blockId: string, side: Side, t: number): { p:
   return { p: { x: face.a.x + (face.b.x - face.a.x) * k, z: face.a.z + (face.b.z - face.a.z) * k }, n: { x: face.outward.x, z: face.outward.z } };
 }
 
-export function ambientItems(grid: GridModel): AmbientItem[] {
+/** `?map=real`: where the frontage is on the real lots (roadnet/placesReal.ts `RealPlaces.frontage`). */
+export type RealFrontage = (blockId: string, side: Side, t: number) => { p: Vec2; n: Vec2 };
+
+export function ambientItems(grid: GridModel, real?: RealFrontage): AmbientItem[] {
   const at = (blockId: string, side: Side, t: number, base: Omit<AmbientItem, 'x' | 'z' | 'nx' | 'nz'>): AmbientItem => {
-    const f = frontage(grid, blockId, side, t);
+    const f = real ? real(blockId, side, t) : frontage(grid, blockId, side, t);
     return { ...base, x: f.p.x + f.n.x * 0.08, z: f.p.z + f.n.z * 0.08, nx: f.n.x, nz: f.n.z };
   };
   const base = (id: string, kind: AmbientKind, y: number, w: number, h: number, title: string, body: string, show: FlagRule, hideWhen?: string[]) => ({ id, kind, y, w, h, title, body, show, hideWhen });
@@ -75,8 +78,8 @@ export class AmbientNotices {
   private lastVersion = -1;
   private readonly items: AmbientItem[];
 
-  constructor(grid: GridModel) {
-    this.items = ambientItems(grid);
+  constructor(grid: GridModel, real?: RealFrontage) {
+    this.items = ambientItems(grid, real);
     this.group.name = 'ambient-notices';
   }
 

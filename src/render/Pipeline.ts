@@ -6,6 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { trimBloomMips } from '@/render/BloomTrim';
 import { BLOOM_INPUT_CAP, HDR_CAP, HDR_SAFE_GLSL, guardBloomInput } from '@/render/HdrGuard';
 import type { Pass } from 'three/addons/postprocessing/Pass.js';
 import type { Quality } from './Shadows';
@@ -663,7 +664,10 @@ export class RenderPipeline {
     );
     // one Inf or NaN pixel in the scene buffer must not be blurred into a screen-filling black block (see HdrGuard)
     if (!guardBloomInput(this.bloom as unknown as Parameters<typeof guardBloomInput>[0], BLOOM_INPUT_CAP)) console.warn('[gfx] bloom input guard not applied: three.js shader changed');
-    if (this.q === 'phone') this.bloom.enabled = false; // switched on by updateSignBloom (night + >= 45 fps)
+    if (this.q === 'phone') {
+      this.bloom.enabled = false; // switched on by updateSignBloom (night + >= 45 fps)
+      if (!trimBloomMips(this.bloom as unknown as Parameters<typeof trimBloomMips>[0])) console.warn('[gfx] phone bloom not trimmed: three.js pass changed');
+    }
 
     // Grading: per-hour 3D LUT on WebGL2 (every tier incl. phone); analytic grade (no sampler3D in the shader) otherwise.
     const useLut = this.lutSupported;

@@ -18,6 +18,7 @@
 //   node scripts/voice/bake-pack.mjs --status              progress, speed, eta, bytes, coverage per tier
 //   node scripts/voice/bake-pack.mjs --count-chars          characters an ElevenLabs bake of this plan would bill (no API call)
 //   node scripts/voice/bake-pack.mjs --assemble             rebuild public/voice from the finished clips and exit
+//   node scripts/voice/bake-pack.mjs --prune                delete finished clips (and index lines) that are no longer in the plan, then assemble
 //
 // Options: --out public/voice  --tiers 0,1,2  --shard 0/2 (run two processes on different cores)  --limit N
 //          --budget-mb 25  --voice af_heart (only this voice, for tests)  --dtype q8
@@ -35,7 +36,7 @@ const opt = (n, d) => { const i = args.indexOf(`--${n}`); return i >= 0 && args[
 const flag = (n) => args.includes(`--${n}`);
 
 // ---- proxy re-launch (Node only honours these at start-up)
-if ((process.env.HTTPS_PROXY || process.env.https_proxy) && !process.env.NODE_USE_ENV_PROXY && !flag('no-relaunch') && !flag('assemble') && !flag('plan') && !flag('status') && !flag('count-chars')) {
+if ((process.env.HTTPS_PROXY || process.env.https_proxy) && !process.env.NODE_USE_ENV_PROXY && !flag('no-relaunch') && !flag('assemble') && !flag('prune') && !flag('plan') && !flag('status') && !flag('count-chars')) {
   const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...args, '--no-relaunch'], {
     stdio: 'inherit',
     env: { ...process.env, NODE_USE_ENV_PROXY: '1', NODE_EXTRA_CA_CERTS: process.env.NODE_EXTRA_CA_CERTS || '/root/.ccr/ca-bundle.crt' },
@@ -163,7 +164,19 @@ if (flag('count-chars')) {
 }
 
 const index = readIndex();
-if (flag('assemble') || flag('status')) {
+if (flag('prune')) {
+  // Clips of an older plan (a script or rhythm edit changed their text or speed): remove the files and rewrite the index files without them.
+  const keys = new Set(plan.map((c) => c.key));
+  let removed = 0, bytes = 0;
+  for (const [k] of index) if (!keys.has(k)) { bytes += statSync(clipFile(k)).size; rmSync(clipFile(k)); index.delete(k); removed++; }
+  for (const f of readdirSync(WORK)) {
+    if (!/^index-\d+\.jsonl$/.test(f)) continue;
+    const kept = readFileSync(join(WORK, f), 'utf8').split('\n').filter((l) => { try { return l.trim() && keys.has(JSON.parse(l).key) && index.has(JSON.parse(l).key); } catch { return false; } });
+    atomicWrite(join(WORK, f), kept.length ? kept.join('\n') + '\n' : '');
+  }
+  console.log(`[prune] removed ${removed} stale clips (${(bytes / 1e6).toFixed(2)} MB); ${index.size} kept`);
+}
+if (flag('assemble') || flag('prune') || flag('status')) {
   const m = assemble(plan, index);
   const progFiles = readdirSync(WORK).filter((f) => /^progress-\d+\.json$/.test(f)).map((f) => JSON.parse(readFileSync(join(WORK, f), 'utf8')));
   console.log(JSON.stringify({ clips: m.clips, planned: m.planned, mb: +(m.bytes / 1e6).toFixed(2), lufs: m.lufs, peakMaxDb: m.peakMax, coverage: m.coverage, workers: progFiles }, null, 2));

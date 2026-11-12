@@ -95,9 +95,9 @@ export const SHAPES = {
  * The far LOD ignores regions (one global pass to `body`).
  */
 export const REGION_BUDGET = {
-  hi: { head: 1300, hands: 500, feet: 30, body: 1400 },
-  mid: { head: 360, hands: 90, feet: 20, body: 560 },
-  far: { head: 0, hands: 0, feet: 0, body: 400 },
+  hi: { head: 1500, hands: 700, feet: 30, shoulders: 420, body: 1250 },
+  mid: { head: 400, hands: 110, feet: 20, shoulders: 110, body: 480 },
+  far: { head: 0, hands: 0, feet: 0, shoulders: 0, body: 400 },
 };
 export const LOD_TRIS = { hi: 3500, mid: 1100, far: 400 };
 
@@ -328,19 +328,20 @@ export function decimate(simplifier, body, targetTris, budget = null) {
   const attr = new Float32Array(w12.length);
   for (let i = 0; i < w12.length; i++) attr[i] = w12[i];
   const wts = new Array(12).fill(0.05);
-  if (budget && (budget.head > 0 || budget.hands > 0 || budget.feet > 0)) {
+  if (budget && (budget.head > 0 || budget.hands > 0 || budget.feet > 0 || budget.shoulders > 0)) {
     const wristY = body.landmarks?.wristY ?? 0.9;
-    const region = new Uint8Array(nv);   // 0 body, 1 head, 2 hands, 3 feet
-    const ankleY = body.landmarks?.ankleY ?? 0.08;
+    const region = new Uint8Array(nv);   // 0 body, 1 head, 2 hands, 3 feet, 4 shoulders (upper chest, trapezius, deltoids)
+    const ankleY = body.landmarks?.ankleY ?? 0.08, shoulderY = body.rig?.shoulderL?.[1] ?? 1.44, neckY = (body.landmarks?.chinY ?? 1.57) - 0.02;
     for (let v = 0; v < nv; v++) {
       if (w12[v * 12 + I.head] >= 0.5) region[v] = 1;
       else if ((w12[v * 12 + I.elbowL] >= 0.5 || w12[v * 12 + I.elbowR] >= 0.5) && positions[v * 3 + 1] < wristY) region[v] = 2;
       else if ((w12[v * 12 + I.kneeL] >= 0.5 || w12[v * 12 + I.kneeR] >= 0.5) && positions[v * 3 + 1] < ankleY + 0.03) region[v] = 3;
+      else if (w12[v * 12 + I.head] < 0.5 && positions[v * 3 + 1] > shoulderY - 0.13 && positions[v * 3 + 1] < neckY && (w12[v * 12 + I.torso] + w12[v * 12 + I.armL] + w12[v * 12 + I.armR] + w12[v * 12 + I.elbowL] * 0 > 0.5)) region[v] = 4;
     }
-    const triRegion = (ix, t) => { const a = region[ix[t]], b = region[ix[t + 1]], c = region[ix[t + 2]]; return a === 1 || b === 1 || c === 1 ? 1 : a === 2 || b === 2 || c === 2 ? 2 : a === 3 || b === 3 || c === 3 ? 3 : 0; };
+    const triRegion = (ix, t) => { const a = region[ix[t]], b = region[ix[t + 1]], c = region[ix[t + 2]]; return a === 1 || b === 1 || c === 1 ? 1 : a === 2 || b === 2 || c === 2 ? 2 : a === 3 || b === 3 || c === 3 ? 3 : a === 4 && b === 4 && c === 4 ? 4 : 0; };
     const count = (ix, r) => { let n = 0; for (let t = 0; t < ix.length; t += 3) if (triRegion(ix, t) === r) n++; return n; };
     let ix = indices;
-    for (const [r, want] of [[1, budget.head], [2, budget.hands], [3, budget.feet ?? 0]]) {
+    for (const [r, want] of [[1, budget.head], [2, budget.hands], [3, budget.feet ?? 0], [4, budget.shoulders ?? 0]]) {
       if (want <= 0) continue;
       const have = count(ix, r);
       if (have <= want) continue;
@@ -348,7 +349,7 @@ export function decimate(simplifier, body, targetTris, budget = null) {
       [ix] = simplifier.simplifyWithAttributes(ix, positions, 3, attr, AW, wts, lock, (ix.length / 3 - have + want) * 3, 1, []);
     }
     // the rest (neck, shoulders, torso, limbs) with head and hands locked, down to the body budget
-    const keep = count(ix, 1) + count(ix, 2) + count(ix, 3), lockKeep = new Uint8Array(nv).map((_, v) => (region[v] !== 0 ? 1 : 0));
+    const keep = count(ix, 1) + count(ix, 2) + count(ix, 3) + count(ix, 4), lockKeep = new Uint8Array(nv).map((_, v) => (region[v] !== 0 ? 1 : 0));
     [ix] = simplifier.simplifyWithAttributes(ix, positions, 3, attr, AW, wts, lockKeep, (keep + budget.body) * 3, 1, []);
     return compact(body, ix);
   }

@@ -4,6 +4,7 @@ import { angleDiff, clamp, wrapAngle, type Vec2 } from './Math2';
 import { LOOK_BACK_KEY, type Input } from './Input';
 import type { IWorld2D } from '@/world/types';
 import { CameraViews } from './CameraViews';
+import { FOOT_BOX, ROOF_MARGIN_CAR, ROOF_MARGIN_FOOT, CLEAR_IN, boxExit, lensGlare, raiseAmount, slackFollow, smoothstep, type BodyBox } from './CameraClearance';
 
 export type CameraMode = 'foot' | 'vehicle';
 
@@ -17,7 +18,7 @@ export interface CameraContext {
   /** Static geometry to keep the camera out of (defaults to `camera.world`). */
   world?: CameraWorld | null;
   /** The vehicle being driven: its `speed` widens the view and its `shakeRequested` is consumed (read, then zeroed). */
-  vehicle?: { readonly speed: number; shakeRequested?: number; readonly spec?: { readonly length: number; readonly height: number; readonly camDist?: number; readonly camHeight?: number } } | null;
+  vehicle?: { readonly id?: string; readonly speed: number; shakeRequested?: number; readonly spec?: { readonly length: number; readonly height: number; readonly width?: number; readonly camDist?: number; readonly camHeight?: number } } | null;
   /** Speed in m/s when no vehicle object is at hand. */
   speed?: number;
 }
@@ -42,7 +43,7 @@ const MIN_CAM_Y = 0.4;
 /** Pivot offsets: the camera orbits a point `look` m above the ground at the car's roof centre / the player's head. */
 export const CAM_FOOT = { distance: 3.2, height: 1.55, look: 1.4, fov: 64, shoulder: 0.35 };
 export const CAM_VEHICLE = { distance: 4.6, height: 1.7, look: 1.3, fov: 70, fovTop: 82 };
-const SEDAN = { length: 4.6, height: 1.45 };
+const SEDAN = { length: 4.6, height: 1.45, width: 1.9 };
 /** Extra pull-back (m) at top speed, so the road ahead opens up. */
 const SPEED_DISTANCE = 0.9;
 const SPEED_FULL = 30;
@@ -51,8 +52,23 @@ const LOOKBACK_OMEGA = 11;
 /** Reversing: the rig flips to the look-back side (camera ahead of the car, watching the way it is going) above this speed (m/s), and flips back below the exit speed. */
 const REVERSE_ENTER = 1.5;
 const REVERSE_EXIT = 0.5;
-/** Metres kept between the lens and another car when the rig is trimmed to clear it. */
+/** Metres kept between the lens and another car, or a pedestrian, when the rig is trimmed to clear it. */
 const CAR_MARGIN = 0.6;
+const PED_MARGIN = 0.45;
+/** Half width (m) of the lens "sphere": the view line is cast three times, centre and this far to each side, so a corner cannot slip past. */
+const LENS_RADIUS = 0.35;
+/** A ray that reports a hit closer than this started inside the body (a car pressed into a wall, a player against one). */
+const INSIDE_EPS = 0.02;
+/** Hysteresis on the trimmed reach: it only recovers once the free distance exceeds it by this much (m). */
+const REACH_DEAD = 0.05;
+/** Slack band (m) of the pivot while the view is trimmed: physics jitter inside it does not move the lens. Scaled by the blocked amount. */
+const SLACK_BAND = 0.1;
+const BLOCK_RATE = 6;
+/** On foot: a side swap needs the other side this much freer (m), is held this long (s), and is undone after the original side has been free this long (s). */
+const SLIDE_GAIN = 0.8;
+const SLIDE_HOLD = 1;
+const SLIDE_RELEASE = 0.8;
+const FAR = 1e3;
 /** Idle cinematic: seconds of stillness, ramp-in/out rates, drift speed, zoom-out factor. */
 export const IDLE_CINEMATIC_AFTER = 8;
 const CINE_IN = 0.45;     // 1/s (~2.2 s ramp)
@@ -117,7 +133,6 @@ export class ThirdPersonCamera {
   /** 0..1: the lens is pressed against / inside another car; the host dims the sun flare and bloom by this. */
   flareSuppress = 0;
   private reversing = false;
-  private carScale = 1;
   private backBlend = 0;   // 0 = behind, 1 = in front looking back
   private backVel = 0;
   private cineBlend = 0;
@@ -127,7 +142,17 @@ export class ThirdPersonCamera {
   private prevHeading = 0;
   private prevX = 0;
   private prevZ = 0;
-  private wallScale = 1;
+  /** Trimmed horizontal reach of the lens (m), smoothed: fast in, slow out, with a dead band. */
+  private reach = FAR;
+  private initReach = false;
+  private heldStatic = FAR;
+  private blockAmt = 0;
+  private slkX = 0;
+  private slkZ = 0;
+  /** On foot: the shoulder side was swapped because the preferred side is walled in. */
+  private slide = false;
+  private slideTimer = 0;
+  private slideFree = 0;
   private lbTarget = false;
   private lbHold = 0;
   private lbAmount = 0;
@@ -246,7 +271,18 @@ export class ThirdPersonCamera {
       if (Math.abs(this.offX) < 1e-3 && Math.abs(this.offZ) < 1e-3) { this.offX = 0; this.offZ = 0; }
     }
     const rawTarget = targetPos;
-    this.tgt.x = targetPos.x + this.offX; this.tgt.z = targetPos.z + this.offZ;
+    // The pivot follows the target through a slack band that only opens while the view is trimmed by something behind it:
+    // a car jammed against a wall jitters by centimetres every physics step, and the lens must not shiver with it.
+    {
+      const ux = targetPos.x + this.offX, uz = targetPos.z + this.offZ;
+      if (first) { this.slkX = ux; this.slkZ = uz; }
+      else {
+        const band = SLACK_BAND * this.blockAmt;
+        this.slkX = slackFollow(this.slkX, ux, band);
+        this.slkZ = slackFollow(this.slkZ, uz, band);
+      }
+      this.tgt.x = this.slkX; this.tgt.z = this.slkZ;
+    }
     targetPos = this.tgt;
     if (first) { this.prevHeading = targetHeading; this.prevX = targetPos.x; this.prevZ = targetPos.z; }
     const safeDt = Math.max(dt, 1e-5);
@@ -350,7 +386,7 @@ export class ThirdPersonCamera {
     this.height += (rig.height - this.height) * k;
     this.lookY += (rig.look - this.lookY) * k;
     this.forward += (rig.forward - this.forward) * k;
-    this.shoulder += ((vehicleMode ? 0 : vrig.shoulder * this.views.side) - this.shoulder) * k;
+    this.shoulder += ((vehicleMode ? 0 : vrig.shoulder * this.views.side * (this.slide ? -1 : 1)) - this.shoulder) * k;
     this.cineShotYaw = cine ? cine.yaw : 0;
 
     const fov = vehicleMode
@@ -396,28 +432,53 @@ export class ThirdPersonCamera {
     this.initialised = true;
 
     const world = ctx?.world ?? this.world;
-    let want = world && this.firstAmt < 0.5 ? this.wallFraction(world, targetPos) : 1;
-    // Reversing / looking back: never put the lens inside (or behind) another car; trim the rig to stop short of it.
-    let carBlocked = 0;
-    if (world && vehicleMode && this.backBlend > 0.3) {
-      const cs = this.carFraction(world, targetPos);
-      carBlocked = cs < 1 ? 1 : 0;
-      this.carScale = cs < this.carScale || first ? cs : this.carScale + (cs - this.carScale) * (1 - Math.exp(-WALL_OUT_RATE * dt));
+    let dynBlocked = 0;
+    if (world && this.firstAmt < 0.5) {
+      const dxp = this.pos.x - targetPos.x, dzp = this.pos.z - targetPos.z;
+      const d = Math.hypot(dxp, dzp);
+      if (d >= MIN_HORIZ) {
+        const ux = dxp / d, uz = dzp / d;
+        const box: BodyBox = vehicleMode
+          ? { halfL: vlen / 2, halfW: (veh?.spec?.width ?? SEDAN.width) / 2, top: vh }
+          : FOOT_BOX;
+        // free distance along the view line: static walls (with the inside-collider hold) and other bodies
+        const stat = this.staticLimit(world, targetPos, this.pos.x, this.pos.z, true);
+        const dyn = this.dynamicLimit(world, targetPos, this.pos.x, this.pos.z, veh?.id);
+        // on foot, walled in behind: swap to the shoulder side that is free (undone once the first side is free again)
+        if (!vehicleMode && Math.abs(vrig.shoulder) > 0.1) this.updateSlide(world, targetPos, stat, d, dt);
+        else { this.slide = false; this.slideTimer = 0; this.slideFree = 0; }
+        const limitNow = Math.min(stat, dyn, d + 0.5);
+        if (first || !this.initReach) this.reach = limitNow;
+        else if (limitNow < this.reach) this.reach += (limitNow - this.reach) * (1 - Math.exp(-WALL_IN_RATE * dt));
+        else if (limitNow - this.reach > REACH_DEAD) this.reach += (limitNow - this.reach) * (1 - Math.exp(-WALL_OUT_RATE * dt));
+        this.initReach = true;
+        const h = Math.max(MIN_HORIZ, Math.min(d, this.reach));
+        if (h < d) {
+          const sc = h / d;
+          this.pos.x = targetPos.x + dxp * sc;
+          this.pos.z = targetPos.z + dzp * sc;
+        }
+        this.blockAmt += ((d - h > 0.05 ? 1 : 0) - this.blockAmt) * (1 - Math.exp(-BLOCK_RATE * dt));
+        dynBlocked = dyn < d - 0.05 ? 1 : 0;
+        // Too little room behind: do not come closer than the body's own box. Rise over the roof and tilt down onto it instead
+        // (the look target stays on the body), and never lower than the roof while the lens is within reach of the box.
+        const rb = boxExit(ux, uz, targetHeading, box);
+        const trimmed = smoothstep(0, 0.15, d - h);
+        const near = 1 - smoothstep(rb + CLEAR_IN, rb + CLEAR_IN + 0.25, h);
+        const f = Math.max(raiseAmount(h, rb) * trimmed, near);
+        if (f > 0) {
+          const roofY = box.top + (vehicleMode ? ROOF_MARGIN_CAR : ROOF_MARGIN_FOOT);
+          if (this.pos.y < roofY) this.pos.y += (roofY - this.pos.y) * f;
+        }
+      }
     } else {
-      this.carScale += (1 - this.carScale) * (1 - Math.exp(-WALL_OUT_RATE * dt));
+      this.blockAmt += (0 - this.blockAmt) * (1 - Math.exp(-BLOCK_RATE * dt));
+      this.reach = FAR;
+      this.initReach = false;
+      this.slide = false;
     }
-    want = Math.min(want, this.carScale);
-    this.flareSuppress += (Math.max(carBlocked, this.carScale < 0.97 ? 1 : 0) - this.flareSuppress) * (1 - Math.exp(-8 * dt));
-    this.wallScale = first ? want
-      : want < this.wallScale ? this.wallScale + (want - this.wallScale) * (1 - Math.exp(-WALL_IN_RATE * dt))
-      : this.wallScale + (want - this.wallScale) * (1 - Math.exp(-WALL_OUT_RATE * dt));
-    if (this.wallScale < 1) {
-      const s = this.wallScale;
-      this.pos.x = targetPos.x + (this.pos.x - targetPos.x) * s;
-      this.pos.z = targetPos.z + (this.pos.z - targetPos.z) * s;
-      // keep the viewing angle: bring the height in with the distance (never below the ground clamp)
-      this.pos.y = Math.max(MIN_CAM_Y, this.look.y + (this.pos.y - this.look.y) * s);
-    }
+    this.flareSuppress += (dynBlocked - this.flareSuppress) * (1 - Math.exp(-8 * dt));
+    lensGlare.x = this.pos.x; lensGlare.y = this.pos.y; lensGlare.z = this.pos.z; lensGlare.active = true;
 
     this.camera.position.copy(this.pos);
     this.camera.lookAt(this.look);
@@ -439,28 +500,73 @@ export class ThirdPersonCamera {
     this.paintBars();
   }
 
-  /** Fraction (0..1] of the target -> camera horizontal distance that stays clear of static walls. */
-  private wallFraction(world: CameraWorld, target: Vec2): number {
-    const dx = this.pos.x - target.x, dz = this.pos.z - target.z;
+  /**
+   * Horizontal distance (m) from `target` toward the lens at (lx, lz) that stays clear of static walls, a wall margin short of the
+   * first one. Three rays (centre and one lens radius to each side) so a corner cannot slip between them. A centre ray that starts
+   * inside a collider (the car pressed into a wall, physics jitter across a face) reports nothing new: the last good value is held.
+   */
+  private staticLimit(world: CameraWorld, target: Vec2, lx: number, lz: number, remember: boolean): number {
+    const dx = lx - target.x, dz = lz - target.z;
     const d = Math.hypot(dx, dz);
-    if (d < MIN_HORIZ) return 1;
-    this.rayDir.x = dx / d; this.rayDir.z = dz / d;
-    const hitDist = this.firstStaticHit(world, target, d + WALL_MARGIN); // look a margin past the lens
-    if (hitDist === null) return 1;
-    const nd = Math.max(MIN_HORIZ, hitDist - WALL_MARGIN);
-    return nd >= d ? 1 : nd / d;
+    if (d < 1e-3) return FAR;
+    const px = -dz / d, pz = dx / d;
+    let best = FAR;
+    let inside = false;
+    for (let i = 0; i < 3; i++) {
+      const a = (i - 1) * LENS_RADIUS;
+      const ex = dx + px * a, ez = dz + pz * a;
+      const len = Math.hypot(ex, ez);
+      this.rayDir.x = ex / len; this.rayDir.z = ez / len;
+      const hit = this.firstStaticHit(world, target, len + WALL_MARGIN);
+      if (hit === null) continue;
+      if (i === 1 && hit < INSIDE_EPS) inside = true;
+      best = Math.min(best, hit * (d / len) - WALL_MARGIN);
+    }
+    best = Math.max(0, best);
+    if (!remember) return best;
+    if (inside) return this.heldStatic === FAR ? 0 : this.heldStatic;
+    this.heldStatic = best;
+    return best;
   }
 
-  /** Fraction (0..1] of the target -> camera distance that stays clear of other vehicles (only used while reversing / looking back). */
-  private carFraction(world: CameraWorld, target: Vec2): number {
-    const dx = this.pos.x - target.x, dz = this.pos.z - target.z;
+  /** Horizontal distance (m) toward the lens that stays clear of other cars and pedestrians (the body being followed is skipped). */
+  private dynamicLimit(world: CameraWorld, target: Vec2, lx: number, lz: number, selfId: string | undefined): number {
+    const dx = lx - target.x, dz = lz - target.z;
     const d = Math.hypot(dx, dz);
-    if (d < MIN_HORIZ) return 1;
-    this.rayDir.x = dx / d; this.rayDir.z = dz / d;
-    const h = world.raycast(target, this.rayDir, d + CAR_MARGIN) as { dist: number; body?: { kind?: string } } | null;
-    if (!h || !h.body || (h.body.kind !== 'vehicle' && h.body.kind !== 'cop')) return 1;
-    const nd = Math.max(MIN_HORIZ, h.dist - CAR_MARGIN);
-    return nd >= d ? 1 : nd / d;
+    if (d < 1e-3) return FAR;
+    const px = -dz / d, pz = dx / d;
+    let best = FAR;
+    for (let i = 0; i < 3; i++) {
+      const a = (i - 1) * LENS_RADIUS;
+      const ex = dx + px * a, ez = dz + pz * a;
+      const len = Math.hypot(ex, ez);
+      this.rayDir.x = ex / len; this.rayDir.z = ez / len;
+      const reachLen = len + CAR_MARGIN;
+      let h = world.raycast(target, this.rayDir, reachLen, selfId) as { dist: number; body: { id: string; kind: string } } | null;
+      // a ray that starts inside a body (our own car, the player's capsule) hits it at 0: look past it
+      if (h && h.dist < INSIDE_EPS && h.body.kind !== 'static') h = world.raycast(target, this.rayDir, reachLen, h.body.id) as typeof h;
+      if (!h) continue;
+      const k = h.body.kind;
+      if (k !== 'vehicle' && k !== 'cop' && k !== 'ped') continue;
+      best = Math.min(best, h.dist * (d / len) - (k === 'ped' ? PED_MARGIN : CAR_MARGIN));
+    }
+    return Math.max(0, best);
+  }
+
+  /** On foot with a wall behind: swap the shoulder side when the other side is clearly freer; swap back once the first side is free again. */
+  private updateSlide(world: CameraWorld, target: Vec2, curLimit: number, d: number, dt: number): void {
+    this.slideTimer = Math.max(0, this.slideTimer - dt);
+    const blocked = curLimit < d - 0.5;
+    if (!blocked && !this.slide) { this.slideFree = 0; return; }
+    // the same lens on the mirrored shoulder: pos - 2 * (shoulder offset), measured from the (unshifted) pivot
+    const sx = this.look.x - target.x, sz = this.look.z - target.z;
+    const alt = this.staticLimit(world, target, this.pos.x - 2 * sx, this.pos.z - 2 * sz, false);
+    if (blocked && alt > curLimit + SLIDE_GAIN && this.slideTimer <= 0) {
+      this.slide = !this.slide; this.slideTimer = SLIDE_HOLD; this.slideFree = 0;
+    } else if (this.slide && !blocked && alt >= d - 0.05) {
+      this.slideFree += dt;
+      if (this.slideFree > SLIDE_RELEASE && this.slideTimer <= 0) { this.slide = false; this.slideFree = 0; }
+    } else this.slideFree = 0;
   }
 
   /** Distance along `rayDir` to the first STATIC body within maxDist, or null. Vehicles and peds are ignored. */

@@ -2,6 +2,7 @@ import './hud.css';
 import type { HudState } from '@/world/types';
 import type { InputMode } from '@/core/Input';
 import { DISCLAIMER } from './creditsData';
+import { BACKDROPS, backdropUrl } from './backdrops';
 
 /** Optional radio extras next to `HudState.radioStation`: the now-playing file/speaker and the talk-show loop position. */
 export interface RadioHudState {
@@ -47,11 +48,12 @@ const SPEED_BAR_MAX = 140;
 
 const FADE_MS = 400;
 const MAX_STARS = 3;
-/** Title panels, tried in order (only the first one that loads is shown full bleed for now). */
-const TITLE_ART = ['title-1.webp'];
+/** Title backdrop: the first in-engine shot (src/ui/backdrops.ts). Missing in the single-file build, which keeps the graded dark backdrop. */
+const TITLE_ART = BACKDROPS.slice(0, 1);
 const CONTROLS = [
   'WASD move',
-  'Shift run',
+  'Shift sprint',
+  'Alt or Caps Lock walk',
   'F enter/exit car',
   'Space brake',
   'H horn',
@@ -460,14 +462,16 @@ export class Hud {
 
   /** Title illustration (public/art, hosted and native builds). Missing files (the single-file artifact) leave the graded dark backdrop. */
   private loadArt(host: HTMLElement): void {
-    const base = this.doc.baseURI;
-    for (const name of TITLE_ART) {
+    for (const shot of TITLE_ART) {
       const img = this.doc.createElement('img');
       img.alt = '';
+      img.style.objectPosition = shot.pos;
       img.decoding = 'async';
       img.addEventListener('load', () => img.classList.add('on'));
       img.addEventListener('error', () => img.remove());
-      try { img.src = new URL(`art/${name}`, base).href; } catch { continue; }
+      const url = backdropUrl(this.doc, shot.file);
+      if (!url) continue;
+      img.src = url;
       host.appendChild(img);
     }
   }

@@ -78,7 +78,7 @@ function buildClip(spec) {
       const first = r.out[0].row, last = r.out[r.n - 1].row;
       let err = 0;
       for (let c = 0; c < BONES.length * 3; c++) err += (first[c] - last[c]) ** 2;
-      if (T < 0.55 || T > 1.5) continue;
+      if (T < 0.55 || T > 2.0) continue;
       const mid = Math.abs(j - (cr.length - 2) / 2);
       const score = err + mid * 0.002;
       if (!best || score < best.score) best = { score, j, r, T, err };
@@ -157,7 +157,7 @@ function buildClip(spec) {
     const a = air.indexOf(true), z = air.lastIndexOf(true);
     marks = [a / (n - 1), (z + 1) / (n - 1)];
   }
-  return { marks, name: spec.name, pack: spec.pack, loop: !!(spec.cycle || spec.loop), duration, speed, turn: r.netYaw, rows: outRows, k, meta: { file: spec.file, f0, f1, srcDur: T, netYaw: r.netYaw } };
+  return { marks, absY: spec.rigY === 'air' || spec.rigY === 'abs', name: spec.name, pack: spec.pack, loop: !!(spec.cycle || spec.loop), duration, speed, turn: r.netYaw, rows: outRows, k, meta: { file: spec.file, f0, f1, srcDur: T, netYaw: r.netYaw } };
 }
 
 export function mirrorRow(row) {
@@ -171,7 +171,7 @@ export function mirrorRow(row) {
 }
 
 // ---------------------------------------------------------------- pack format (little endian)
-// u8 version(1) u8 clipCount; per clip: u8 nameLen, name, u8 flags(bit0 loop), u16 frames, u16 durationMs, u16 speed*100, i16 turn*1000 (rad), u8 nMarks + marks (0..255 of the clip),
+// u8 version(1) u8 clipCount; per clip: u8 nameLen, name, u8 flags(bit0 loop, bit1 rig.y is an absolute pelvis offset), u16 frames, u16 durationMs, u16 speed*100, i16 turn*1000 (rad), u8 nMarks + marks (0..255 of the clip),
 //   NCH x (i16 min*4096, u16 range*8192), then per channel with range>0: frames x u8
 export function packClips(clips) {
   const parts = [];
@@ -180,7 +180,7 @@ export function packClips(clips) {
   for (const c of clips) {
     const nm = Buffer.from(c.name, 'ascii');
     push(nm.length); parts.push(nm);
-    push(c.loop ? 1 : 0);
+    push((c.loop ? 1 : 0) | (c.absY ? 2 : 0));
     const n = c.rows.length;
     const hdr = Buffer.alloc(8);
     const marks = c.marks ?? [];

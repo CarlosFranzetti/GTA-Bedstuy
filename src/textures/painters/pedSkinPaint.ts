@@ -120,9 +120,9 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
   const fabNoise = k === 'puffer' ? 0.03 : k === 'tee' || k === 'jersey' || k === 'blouse' ? 0.035 : 0.045;
   const longBot = bot.kind === 'skirt' || bot.kind === 'shorts';
   const hemBot = bot.kind === 'shorts' ? knY + 0.09 : bot.kind === 'skirt' ? 9 : -9;     // bare legs below a short bottom
-  const faceLips = face.lips ? rgb(face.lips) : mix(skin, female ? [168, 72, 78] : [140, 70, 66], female ? 0.62 : 0.5);
-  const lipDark = mul(faceLips, 0.62);
-  const browW = (face.brows === 'thick' ? 0.0042 : face.brows === 'thin' ? 0.0022 : 0.003) * hs, arch = face.brows === 'arched' ? 0.0075 : 0.0035;
+  const faceLips = face.lips ? rgb(face.lips) : mix(skin, female ? [168, 72, 78] : [140, 70, 66], female ? 0.5 : 0.32);
+  const lipDark = mul(faceLips, 0.7);
+  const eyeK = 0.9 + 0.2 * hash(s.id + 'ek'), browW = (face.brows === 'thick' ? 0.0036 : face.brows === 'thin' ? 0.002 : 0.0027) * hs * (0.85 + 0.3 * hash(s.id + 'bw')), arch = face.brows === 'arched' ? 0.005 : 0.002;
   const irisC: RGB = hash(s.id + 'eye') < 0.7 ? [60, 38, 24] : hash(s.id + 'eye2') < 0.5 ? [70, 84, 60] : [48, 64, 88];
   const shape = (v: number): number => v;
   void shape;
@@ -146,12 +146,12 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
         c = mix(c, skinDark, 0.12 * g2(ax - 0.03 * wsx, 0.006) * sst(noseY + 0.01, noseY - 0.01, y) * sst(mouthY - 0.026, mouthY + 0.004, y) * (old ? 2.2 : 1));
         // eyes: sclera, iris, pupil, lid line, lashes
         const dy = (y - lm.eyeY) / hs, dx = ex / 1;
-        const ey = (dx / 0.0142) ** 2 + (dy / (face.eyes === 'wide' ? 0.0066 : face.eyes === 'sleepy' ? 0.0038 : 0.0052)) ** 2;
+        const ey = (dx / (0.0108 * eyeK)) ** 2 + (dy / ((face.eyes === 'wide' ? 0.0052 : face.eyes === 'sleepy' ? 0.0031 : 0.0042) * eyeK)) ** 2;
         if (ey < 1.9) {
           const lid = sst(1.0, 1.9, ey);
           if (ey < 1) {
             c = mix([232, 226, 216], [178, 156, 146], 0.55 * sst(0.3, 1, ey) + (dy > 0 ? 0.25 : 0));
-            const ir = Math.hypot(dx, dy - 0.0004) / 0.0064;
+            const ir = Math.hypot(dx, dy - 0.0003) / (0.0047 * eyeK);
             if (ir < 1) c = mix(irisC, mul(irisC, 0.55), sst(0.7, 1, ir));
             if (ir < 0.42) c = [14, 12, 12];
             if (Math.hypot(dx + 0.0016, dy - 0.0022) < 0.0012) c = [250, 250, 250];
@@ -159,13 +159,13 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
           c = mix(c, [24, 18, 16], 0.7 * (1 - lid) * sst(0.84, 1.0, ey) + (dy > 0 ? 0.38 * g2(ey - 1, 0.2) : 0.1 * g2(ey - 1, 0.2)) + (face.lashes && dy > 0 ? 0.2 * g2(ey - 1.2, 0.25) : 0));
         }
         // eyebrows
-        const bx = (ex + 0.002) / 0.0185, by0 = lm.eyeY + 0.0235 * hs + arch * hs * (1 - (bx - 0.2) * (bx - 0.2)) * (bx > -1 && bx < 1 ? 1 : 0) - (face.brows === 'arched' ? 0.002 : 0);
+        const bx = (ex + 0.002) / 0.0185, by0 = lm.eyeY + 0.0205 * hs + arch * hs * (1 - (bx - 0.2) * (bx - 0.2)) * (bx > -1 && bx < 1 ? 1 : 0) - (face.brows === 'arched' ? 0.002 : 0);
         if (bx > -1.15 && bx < 1.1) {
           const a = Math.max(0, 1 - Math.abs(y - by0) / (browW * (1.15 - 0.55 * Math.max(0, bx)))) * (1 - sst(0.85, 1.12, bx)) * (0.6 + 0.4 * (1 - sst(-1.1, -0.6, bx)));
           if (a > 0) c = mix(c, mul(hairC, 0.75), Math.min(0.92, a * (old ? 0.6 : 0.95)));
         }
         // mouth: lips, corners, line, teeth
-        const mx = ax / (0.0235 * wsx), mm = face.mouth, lift = (mm === 'smile' ? 0.0055 : mm === 'grin' ? 0.007 : mm === 'frown' ? -0.005 : 0) * mx * mx * hs;
+        const mx = ax / ((0.0205 + 0.004 * hash(s.id + 'mw')) * wsx), mm = face.mouth, lift = (mm === 'smile' ? 0.0022 : mm === 'grin' ? 0.004 : mm === 'frown' ? -0.002 : 0) * mx * mx * hs;
         const my = (y - mouthY - lift) / hs;
         if (mx < 1.08) {
           const upper = my > 0 && my < 0.0085 * (1 - 0.35 * mx) * (1 - 0.25 * g2(mx, 0.15)), lower = my <= 0 && my > -0.0125 * (1 - 0.55 * mx * mx);
@@ -175,7 +175,7 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
             c = mix(c, lc, 0.94 * (1 - sst(0.88, 1.08, mx)));
           }
           if (mm === 'grin' && Math.abs(my) < 0.0035 * (1 - mx * mx) && mx < 0.8) c = [238, 234, 226];
-          c = mix(c, lipDark, 0.8 * g2(my, 0.0014) * (1 - sst(0.92, 1.08, mx)));
+          c = mix(c, lipDark, 0.34 * g2(my, 0.0011) * (1 - sst(0.8, 1.05, mx)));
           c = mix(c, skinDark, 0.18 * g2(my + 0.017, 0.006) * (1 - mx));                                                     // chin shadow under the lip
         }
         // beard, moustache, stubble
@@ -298,12 +298,19 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
     const joints = g2(y - elY, 0.05) * (arm ? 1 : 0) + g2(y - hemTop, 0.08) * (arm || leg ? 0 : 1) + g2(y - knY, 0.06) * (leg ? 1 : 0) + g2(y - (shY - 0.06), 0.05) * (arm ? 1 : 0.3) + g2(y - (hipX * 0 + b.rig.hipL[1] - 0.04), 0.06) * (leg ? 1 : 0);
     const fold = (0.5 + 0.5 * Math.sin(y * 110 + Math.sin(U * 11) * 1.8 + (leg ? Math.sin(z * 30) : 0))) * Math.min(1, joints);
     f = mul(f, 1 - 0.16 * fold * (k === 'puffer' ? 0.5 : 1));
+    // painted creases where cloth bends: inside of the elbow, back of the knee, the crotch, the armpit
+    const cr = (d: number, w: number): number => Math.max(0, 1 - Math.abs(d) / w);
+    let crease = 0;
+    if (arm) crease = Math.max(cr(y - elY + 0.012 * Math.sin(x * 140), 0.006) * 0.6, cr(y - elY - 0.025, 0.005) * 0.4, cr(y - elY + 0.03 - 0.5 * ax, 0.006) * 0.3) * sst(0.1, 0.5, Math.abs(nz) + Math.abs(ny) * 0.3);
+    else if (leg) crease = Math.max(cr(y - knY - 0.01 * Math.sin(z * 120), 0.006) * 0.5, cr(y - (hipY - 0.06) - 0.4 * (ax - hipX * 0.5), 0.006) * 0.55 * sst(0.0, 0.5, ax > 0 ? 1 : 0));
+    else crease = cr(y - (shY - 0.1) + 3 * (ax - shX * 0.7) * 0, 0.0) * 0 + cr(y - (hemTop + 0.1) - 0.2 * ax, 0.005) * 0.3;
+    f = mul(f, 1 - 0.22 * crease);
     if (k === 'puffer' && cloth === 1) f = mul(f, 0.86 + 0.14 * Math.sin(y * 82 + 1.3) * 0.5 + 0.07);
-    f = mul(f, (0.9 + 0.1 * ny) * (1 + nz2 * fabNoise));
+    f = mul(f, 1 + nz2 * fabNoise);
     return f;
     };
     const skinCol = (): RGB => {
-      const shade = 1 - 0.12 * sst(0.2, -0.9, ny);
+      const shade = 1;
       let c = mix(skin, skinDark, 0.12 * g2(y - (lm.chinY - 0.045), 0.03) * sst(0.0, -0.2, nz));
       if (hand && y < wrY - 0.045) c = mix(c, skinDark, 0.2 * Math.max(0, Math.sin((x * side) * 340 + 0.5)) * sst(wrY - 0.05, wrY - 0.09, y));   // finger separation on the back of the hand
       if (leg && y < shoeTop + 0.035 && y > shoeTop - 0.02) c = mix(c, [236, 236, 236], 0.9 * sst(shoeTop - 0.02, shoeTop - 0.012, y));          // sock

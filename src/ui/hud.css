@@ -355,8 +355,9 @@ body.ui-panel-open .hud-card { display: none !important; }
   .hud-station { top: calc(max(12px, env(safe-area-inset-top, 0px)) + 4px); width: calc(100% - 32px); }
 }
 
-/* ---- title screen: an inked illustration of our own street (public/art/title-*.webp, hosted and native only; the single-file
-   artifact has no art and shows the graded dark backdrop), thin letterbox, heavy condensed logo lockup low left, small tidy type. */
+/* ---- title screen: a clean in-engine shot of our own street (public/art/shot-*.webp, hosted and native only; the single-file
+   artifact has no art and shows the graded dark backdrop), slow drift, a soft dark gradient under the type, thin letterbox,
+   condensed logo lockup low left, small tidy type. */
 .hud-splash {
   --ink: #0a0910; --gold: #f2c230;
   position: absolute;
@@ -377,15 +378,16 @@ body.ui-panel-open .hud-card { display: none !important; }
 .hud-art { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .hud-art img {
   position: absolute; inset: -3%; width: 106%; height: 106%; object-fit: cover; opacity: 0;
-  transition: opacity 900ms ease; animation: hud-drift 26s ease-in-out infinite alternate;
+  transition: opacity 1400ms ease; animation: hud-drift 30s ease-in-out infinite alternate;
 }
 .hud-art img.on { opacity: 1; }
 @keyframes hud-drift { from { transform: scale(1) translate3d(0, 0, 0); } to { transform: scale(1.045) translate3d(-1.2%, -0.6%, 0); } }
 .hud-shade {
   position: absolute; inset: 0; pointer-events: none;
   background:
-    linear-gradient(to top, rgba(6, 6, 10, 0.92) 0%, rgba(6, 6, 10, 0.55) 22%, rgba(6, 6, 10, 0) 48%),
-    linear-gradient(to right, rgba(6, 6, 10, 0.7) 0%, rgba(6, 6, 10, 0) 46%);
+    linear-gradient(to top, rgba(6, 6, 10, 0.94) 0%, rgba(6, 6, 10, 0.6) 24%, rgba(6, 6, 10, 0) 52%),
+    linear-gradient(to bottom, rgba(6, 6, 10, 0.5) 0%, rgba(6, 6, 10, 0) 22%),
+    linear-gradient(to right, rgba(6, 6, 10, 0.62) 0%, rgba(6, 6, 10, 0) 48%);
 }
 .hud-bar { position: absolute; left: 0; right: 0; height: clamp(18px, 6.5vh, 64px); background: #000; z-index: 2; pointer-events: none; }
 .hud-bar.top { top: 0; }
@@ -399,10 +401,10 @@ body.ui-panel-open .hud-card { display: none !important; }
   position: absolute; z-index: 3; left: max(5vw, env(safe-area-inset-left, 0px)); bottom: calc(clamp(18px, 6.5vh, 64px) + clamp(16px, 5vh, 54px));
   display: flex; flex-direction: column; align-items: flex-start; gap: 0;
 }
-.hud-title { margin: 0; display: flex; flex-direction: column; align-items: flex-start; text-transform: uppercase; font-family: var(--font-display); font-weight: 400; color: #fff; -webkit-text-stroke: 2px rgba(0, 0, 0, 0.85); paint-order: stroke fill; text-shadow: 0 4px 0 rgba(0, 0, 0, 0.55), 0 8px 28px rgba(0, 0, 0, 0.6); }
+.hud-title { margin: 0; display: flex; flex-direction: column; align-items: flex-start; text-transform: uppercase; font-family: var(--font-display); font-weight: 400; color: #fff; text-shadow: 0 3px 22px rgba(0, 0, 0, 0.55); }
 .hud-title-a { font-size: clamp(30px, 6.4vh, 70px); line-height: 1; letter-spacing: 0.34em; color: var(--gold); }
 .hud-title-b { font-size: clamp(54px, 17vh, 190px); line-height: 0.92; letter-spacing: 0.01em; }
-.hud-rule { width: 100%; height: 5px; margin: 8px 0 12px; background: var(--gold); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.55); }
+.hud-rule { width: 100%; height: 4px; margin: 10px 0 14px; background: var(--gold); }
 .hud-start { margin: 0; font: 700 clamp(18px, 3vh, 28px)/1 var(--font-hud); letter-spacing: 0.3em; text-transform: uppercase; color: #fff; text-shadow: var(--text-shadow); animation: hud-pulse 1.6s ease-in-out infinite; }
 .hud-start-sub { margin: 6px 0 0; font: 600 clamp(11px, 1.6vh, 14px)/1 var(--font-hud); letter-spacing: 0.22em; text-transform: uppercase; color: rgba(255, 255, 255, 0.66); text-shadow: var(--text-shadow); }
 .hud-title-menu { display: contents; }

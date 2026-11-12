@@ -440,6 +440,37 @@ function leanGeometry(pos: Float32Array, nrm: Float32Array | null, jx: ArrayLike
   }
 }
 
+interface Weld { canon: Int32Array; members: Map<number, number[]>; adj: Map<number, number[]> }
+const weldCache = new WeakMap<Uint32Array, Weld>();
+/** vertices at the same place (the UV seams) welded, with their neighbours */
+function weldOf(L: MhLod): Weld {
+  let w = weldCache.get(L.index);
+  if (w) return w;
+  const n = L.position.length / 3, canon = new Int32Array(n), first = new Map<string, number>(), members = new Map<number, number[]>();
+  for (let i = 0; i < n; i++) {
+    const k = `${Math.round(L.position[i * 3] * 1e4)},${Math.round(L.position[i * 3 + 1] * 1e4)},${Math.round(L.position[i * 3 + 2] * 1e4)}`;
+    const f = first.get(k) ?? i; first.set(k, f); canon[i] = f;
+    const m = members.get(f); if (m) m.push(i); else members.set(f, [i]);
+  }
+  const sets = new Map<number, Set<number>>();
+  for (let t = 0; t < L.index.length; t += 3) for (let k = 0; k < 3; k++) {
+    const a = canon[L.index[t + k]], b = canon[L.index[t + (k + 1) % 3]], c = canon[L.index[t + (k + 2) % 3]];
+    let s = sets.get(a); if (!s) { s = new Set(); sets.set(a, s); } s.add(b); s.add(c);
+  }
+  const adj = new Map<number, number[]>(); for (const [k, v] of sets) adj.set(k, [...v]);
+  w = { canon, members, adj }; weldCache.set(L.index, w);
+  return w;
+}
+/** a clothed chest is one soft form: relax the front of the chest so the bust and nipples of the base mesh do not read as drawn-on anatomy under a shirt */
+function smoothChest(L: MhLod, pos: Float32Array, yChest: number, cz0: number): void {
+  const w = weldOf(L), sel: number[] = [];
+  for (const [c] of w.members) if (pos[c * 3 + 1] > yChest - 0.14 && pos[c * 3 + 1] < yChest + 0.1 && pos[c * 3 + 2] < cz0 + 0.02 && wsumAt(L, c, W_TORSO) > 0.6) sel.push(c);
+  for (let it = 0; it < 4; it++) {
+    const next = sel.map((i) => { let z = 0, c = 0; for (const j of w.adj.get(i) ?? []) { z += pos[j * 3 + 2]; c++; } return c ? pos[i * 3 + 2] * 0.4 + (z / c) * 0.6 : pos[i * 3 + 2]; });
+    sel.forEach((i, k) => { for (const m of w.members.get(i)!) pos[m * 3 + 2] = next[k]; });
+  }
+}
+
 /** thickness of the clothes on the body (m): the volume of a puffer, the drop of a hoodie, the trouser leg; skin and hands get none */
 const THICK_SKIN: Partial<Record<PedSpec['top']['kind'], number>> = { puffer: 0.03, hoodie: 0.017, jacket: 0.014, cardigan: 0.013, uniform: 0.011, tracksuit: 0.01, vest: 0.01, apron: 0.008, jersey: 0.005, tee: 0.005, blouse: 0.005, scrubs: 0.006, dress: 0.005 };
 const THICK_BOT_SKIN: Partial<Record<PedSpec['bottom']['kind'], number>> = { jeans: 0.008, trousers: 0.009, cargo: 0.016, sweats: 0.014, shorts: 0.008, leggings: 0.002 };
@@ -457,41 +488,48 @@ export function dressLod(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): M
   const bt = bodyTypeOf(spec), lm = s.landmarks, R = s.rig;
   const shY = R.shoulderL[1], elY = R.elbowL[1], wrY = R.wristL[1], knY = R.kneeL[1], anY = lm.ankleY, hemY = lm.hemY;
   const n = L.position.length / 3, pos = new Float32Array(L.position);
-  const tor = s.torsoRings, cz0 = tor[Math.floor(tor.length / 2)][2];
-  const armX = Math.abs(R.shoulderL[0]), hipX = Math.abs(R.hipL[0]), legK = legX(bt);
-  const wristX = Math.abs(R.wristL[0]);
+  const tor = s.torsoRings, cz0 = tor[Math.floor(tor.length / 2)][2], K = lm.crownY / 1.78;
+  const armX = Math.abs(R.shoulderL[0]), hipX = Math.abs(R.hipL[0]), legK = legX(bt), wristX = Math.abs(R.wristL[0]), hipY = R.hipL[1];
+  const yBelly = hipY + 0.09 * K, yWaist = hipY + 0.14 * K, yChest = shY - 0.13 * K, neckY = lm.chinY - 0.03;
+  const fWaist = 1 + Math.max(0, bt.belly) * 1.1 + Math.max(0, bt.hips - 1) * 0.3 + Math.min(0, bt.belly) * 2;
+  const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+  // a leg's thickness along its length: thigh full, knee slimmer, calf a little fuller than the ankle, then the ankle (a heavy leg is a solid leg, not a sausage)
+  const legProfile = (t: number): number => {
+    const L2 = bt.legs, a = [1, 1 + (L2 - 1) * 0.5, 1 + (L2 - 1) * 0.25, L2, L2 * 0.97], at = [0, 0.28, 0.5, 0.75, 1];
+    for (let i = 1; i < at.length; i++) if (t <= at[i]) return lerp(a[i - 1], a[i], sstep(at[i - 1], at[i], t));
+    return a[a.length - 1];
+  };
   for (let i = 0; i < n; i++) {
     let x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
     const wT = wsumAt(L, i, W_TORSO), wH = wsumAt(L, i, W_HIPS), wA = wsumAt(L, i, W_ARMS), wL = wsumAt(L, i, W_LEGS);
-    const sx = Math.sign(x) || 1;
-    // shoulders and chest: torso and arms widen together, fading out into the neck and the waist
-    const chestS = sstep(hemY + 0.06, shY - 0.02, y) * (1 - sstep(shY + 0.02, lm.chinY, y));
-    const torsoLike = Math.min(1, wT + wH * 0.5);
-    x *= 1 + (bt.shoulders - 1) * chestS * torsoLike;
-    z = cz0 + (z - cz0) * (1 + (bt.chest - 1) * chestS * torsoLike * (z < cz0 ? 1 : 0.6));
-    // belly and waist
-    const bel = gauss(y - (hemY + 0.08), 0.13) * Math.min(1, wT + wH);
-    if (z < cz0) z -= bt.belly * bel * (1 - Math.abs(x) / 0.25 * 0.5);
-    x *= 1 + Math.abs(bt.belly) * 1.4 * bel * (bt.belly > 0 ? 1 : -0.4);
-    // hips and upper thighs
-    const hipS = gauss(y - (hemY - 0.07), 0.14) * Math.min(1, wH + wL);
-    x *= 1 + (bt.hips - 1) * hipS * (1 - 0.3 * (wL > 0.5 ? 1 : 0));
-    // arms: the whole arm shifts out with the shoulder, thickness about the arm axis
+    const sx = Math.sign(x) || 1, torsoLike = Math.min(1, wT + wH * 0.9);
+    // torso: one continuous width profile (hips, waist, chest, shoulders) so nothing pinches; weight sits at the belly, the chest and the back
+    const sum = (bt.hips - 1) * gauss(y - (hipY + 0.02), 0.16) + (fWaist - 1) * gauss(y - yWaist, 0.13) + (bt.chest - 1) * 0.8 * gauss(y - yChest, 0.12)
+      + (bt.shoulders - 1) * sstep(yChest - 0.02, shY, y) * (1 - sstep(shY + 0.02, neckY, y));
+    x *= 1 + sum * torsoLike;
+    const front = z < cz0;
+    z = cz0 + (z - cz0) * (1 + (bt.chest - 1) * (front ? 0.9 : 0.5) * gauss(y - yChest, 0.13) * torsoLike);
+    if (front) z -= bt.belly * gauss(y - yBelly, 0.12) * Math.min(1, wT + wH) * Math.max(0, 1 - (Math.abs(x) / 0.25) ** 2);
+    else z += Math.max(0, bt.hips - 1) * 0.1 * gauss(y - (hipY - 0.03), 0.1) * Math.min(1, wH + wL) + Math.max(0, bt.belly) * 0.25 * gauss(y - (yChest - 0.05), 0.12) * torsoLike;   // back and seat
+    // the hips and the top of the thigh follow the hips
+    if (wL > 0.01) x *= 1 + (bt.hips - 1) * 0.6 * gauss(y - (hipY - 0.04), 0.1) * wL;
+    // arms: the whole arm shifts out with the shoulder; the upper arm carries the thickness, the forearm tapers
     if (wA > 0.01) {
       const fx = 1 + (bt.shoulders - 1) * wA;
       const t = sstep(shY, wrY, y), axX = sx * (armX + (wristX - armX) * (1 - t)) * bt.shoulders;
       const dx = x * fx - axX, dz = z - cz0;
-      const k = 1 + (bt.arms / Math.max(0.8, bt.shoulders) - 1) * wA;
+      const kUp = bt.arms / Math.max(0.8, bt.shoulders), k = 1 + (lerp(kUp, 1 + (kUp - 1) * 0.5, sstep(elY + 0.02, elY - 0.1, y)) - 1) * wA;
       x = axX + dx * k; z = cz0 + dz * k;
     }
-    // legs: out with the hips, thickness about the leg axis
+    // legs: out with the hips, thickness about the leg axis following the profile
     if (wL > 0.01) {
-      const axX = sx * hipX * legK, k = 1 + (bt.legs - 1) * wL * sstep(anY, knY, y) * 0.9 + (bt.legs - 1) * wL * 0.1;
-      x = axX + (x * (1 + (legK - 1) * wL) - axX) * k;
-      z = cz0 + (z - cz0) * (1 + (bt.legs - 1) * wL * 0.9 * sstep(anY + 0.02, knY, y));
+      const axX = sx * hipX * legK, kk = 1 + (legProfile(Math.min(1, Math.max(0, (y - anY) / (hipY - anY))) ) - 1) * wL, zc = R.kneeL[2];
+      x = axX + (x * (1 + (legK - 1) * wL) - axX) * kk;
+      z = zc + (z - zc) * kk;
     }
     pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
   }
+  smoothChest(L, pos, yChest, cz0);
   let normal = weldedNormals(pos, L.index);
   if (dress) {
     const top = spec.top, bot = spec.bottom;
@@ -522,6 +560,54 @@ export function dressLod(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): M
 }
 
 /** extra geometry the silhouette needs in skin mode: a hood roll round the neck, the flare of a long coat */
+/** x / z extents of the dressed body in a height band, from the vertices that pass `keep` */
+function bodyRing(L: MhLod, y0: number, y1: number, keep: (i: number) => boolean): { cx: number; cz: number; rx: number; rz: number } | null {
+  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (let i = 0; i < L.position.length / 3; i++) {
+    const y = L.position[i * 3 + 1];
+    if (y < y0 || y > y1 || !keep(i)) continue;
+    x0 = Math.min(x0, L.position[i * 3]); x1 = Math.max(x1, L.position[i * 3]); z0 = Math.min(z0, L.position[i * 3 + 2]); z1 = Math.max(z1, L.position[i * 3 + 2]);
+  }
+  return isFinite(x0) ? { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, rx: (x1 - x0) / 2, rz: (z1 - z0) / 2 } : null;
+}
+/** the cloth shapes the skin cannot hold: the standing hem of a jacket or hoodie, a kangaroo pocket, the break of a trouser leg over the shoe */
+function clothExtras(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.BufferGeometry[] {
+  const out: THREE.BufferGeometry[] = [], seg = hi ? 18 : 10, k = spec.top.kind, hemTop = topHemY(s, spec), anY = s.landmarks.ankleY;
+  if (['jacket', 'hoodie', 'puffer', 'cardigan', 'tracksuit', 'uniform'].includes(k) && !spec.top.long) {
+    const r = bodyRing(L, hemTop - 0.02, hemTop + 0.03, (i) => wsumAt(L, i, W_ARMS) < 0.3);
+    if (r) {
+      const o = k === 'puffer' ? 0.036 : k === 'jacket' || k === 'hoodie' ? 0.026 : 0.018;
+      out.push(loft([
+        { y: hemTop, rx: r.rx + o, rz: r.rz + o, cx: r.cx, cz: r.cz },
+        { y: hemTop + 0.05, rx: r.rx + o * 0.55, rz: r.rz + o * 0.55, cx: r.cx, cz: r.cz },
+        { y: hemTop + 0.13, rx: r.rx + 0.002, rz: r.rz + 0.002, cx: r.cx, cz: r.cz },
+      ], seg, SK_RECTS.torso, 2));
+      if (k === 'hoodie') {
+        const zf = r.cz - r.rz;      // the pocket: a soft pad on the front of the belly
+        out.push(loft([
+          { y: hemTop + 0.03, rx: r.rx * 0.62, rz: 0.012, cx: r.cx, cz: zf + 0.008 },
+          { y: hemTop + 0.09, rx: r.rx * 0.7, rz: 0.03, cx: r.cx, cz: zf + 0.002 },
+          { y: hemTop + 0.17, rx: r.rx * 0.5, rz: 0.012, cx: r.cx, cz: zf + 0.012 },
+        ], hi ? 12 : 8, SK_RECTS.torso, 2, 'both'));
+      }
+    }
+  }
+  if (['jeans', 'trousers', 'cargo', 'sweats'].includes(spec.bottom.kind)) {
+    const R = peopleRig(s, spec);
+    for (const side of ['L', 'R']) {
+      const a = R['ankle' + side], bone = side === 'L' ? 9 : 11;
+      const r = bodyRing(L, anY + 0.03, anY + 0.075, (i) => Math.abs(L.position[i * 3] - a[0]) < 0.07 && wsumAt(L, i, W_LEGS) > 0.5);
+      if (!r) continue;
+      const f = spec.bottom.kind === 'trousers' ? 0.016 : spec.bottom.kind === 'cargo' ? 0.024 : 0.012;
+      out.push(loft([
+        { y: anY + 0.012, rx: r.rx + f + 0.006, rz: r.rz + f + 0.008, cx: r.cx, cz: r.cz - 0.008 },
+        { y: anY + 0.05, rx: r.rx + f * 0.7 + 0.004, rz: r.rz + f * 0.7 + 0.004, cx: r.cx, cz: r.cz - 0.004 },
+        { y: anY + 0.13, rx: r.rx + 0.002, rz: r.rz + 0.002, cx: r.cx, cz: r.cz },
+      ], hi ? 12 : 8, SK_RECTS.pelvis, bone));
+    }
+  }
+  return out;
+}
 function skinExtras(s: MhShape, spec: PedSpec, hi: boolean): THREE.BufferGeometry[] {
   const out: THREE.BufferGeometry[] = [], lm = s.landmarks, R = s.rig, seg = hi ? 16 : 9;
   const hr = s.headRings, bt = bodyTypeOf(spec);
@@ -636,7 +722,7 @@ function geometryFor(s: MhShape, variant: number, detail: PedDetail): { geo: THR
   base.setAttribute('skinWeight', new THREE.BufferAttribute(L.weights, 4));
   base.setIndex(new THREE.BufferAttribute(detail === 'far' ? L.index : noFoot(s, L), 1));
   const ao = bodyAo(s, L0.position);
-  const parts = detail === 'far' ? [] : [...headParts(s, spec, detail === 'hi'), ...bodyParts(s, spec, detail === 'hi'), ...skinExtras(s, spec, detail === 'hi'), ...shoeParts(s, spec, L, detail === 'hi')];
+  const parts = detail === 'far' ? [] : [...headParts(s, spec, detail === 'hi'), ...bodyParts(s, spec, detail === 'hi'), ...skinExtras(s, spec, detail === 'hi'), ...clothExtras(s, spec, L0, detail === 'hi'), ...shoeParts(s, spec, L, detail === 'hi')];
   if (detail === 'hi') parts.push(...headShell(s, L0, ao, spec));
   for (const g of parts) leanGeometry(g.getAttribute('position').array as Float32Array, (g.getAttribute('normal')?.array as Float32Array) ?? null, g.getAttribute('skinIndex').array, g.getAttribute('skinWeight').array, bt, pivot);
   base.setAttribute('color', new THREE.BufferAttribute(ao, 3));
