@@ -34,3 +34,10 @@ vitest). The owner is Carlos Franzetti. Fable Hart (the CEO, the session that st
 9. **Honesty.** Say what you did not verify. If a test is red, say so. If you could not see or hear the result, say so.
 10. **Final report** to Fable: what landed, what is not verified, main.ts lines if any, byte delta, evidence paths, decisions
     you need. 250 words at most plus a file list.
+
+## Deployments (12 Nov)
+Vercel builds a production deployment for every push to master unless the commit message says otherwise (`ignoreCommand` in
+vercel.json). A commit whose message contains "work in progress", starts with "WIP", or contains "[skip deploy]" is not built.
+So: lanes' in-flight snapshots use "Lanes' work in progress"; a commit Fable has checked uses a plain description and goes live.
+The deployment source leaves out playtests, docs, tests, scripts, native and cache (.vercelignore). Playtest videos are not
+tracked in git.
