@@ -15,9 +15,9 @@ import type { ObservedMaterial } from '@/world/data/facadeObserved';
 export type RGB = [number, number, number];
 
 /** Wall surface kinds; the value is what the shader branches on (`kind * KIND_STEP` is stored in `aStyle.x`). */
-export const WallKind = { brick: 0, siding: 1, stucco: 2, panel: 3, glazed: 4, trim: 5, awning: 6, stripedAwning: 7, gate: 8, party: 9 } as const;
-/** `kind * KIND_STEP` is the byte stored in `aStyle.x` (kinds 0..10 fit). */
-export const KIND_STEP = 24;
+export const WallKind = { brick: 0, siding: 1, stucco: 2, panel: 3, glazed: 4, trim: 5, awning: 6, stripedAwning: 7, gate: 8, party: 9, door: 10 } as const;
+/** `kind * KIND_STEP` is the byte stored in `aStyle.x` (kinds 0..10 fit; `q` 0..20 = the storey phase rides in the remainder, 21 = none). */
+export const KIND_STEP = 22;
 /** the lot's roof-line height / ROOF_SCALE rides in the alpha of the `color` vertex attribute of its wall materials (stain placement in lotTone.ts) */
 export const ROOF_SCALE = 64;
 export type WallKindValue = (typeof WallKind)[keyof typeof WallKind];
@@ -47,6 +47,8 @@ export interface Colourway {
   /** plain shop awning and window awning fabric colours; `striped` = white-stripe pattern on the shop awning */
   awning: [RGB, RGB];
   striped: boolean;
+  /** front door paint */
+  door: RGB;
   /** texture UV jitter applied to this lot's wall materials */
   uv: { scale: number; ou: number; ov: number; flip: boolean };
 }
@@ -118,6 +120,11 @@ const AWNING: Swatch[] = [
   { id: 'green', c: '#2f6f4f', w: 14 }, { id: 'burgundy', c: '#7a2a34', w: 10 }, { id: 'navy', c: '#26354f', w: 12 }, { id: 'black', c: '#25272a', w: 8 },
   { id: 'tan', c: '#b9a37a', w: 8 }, { id: 'cream', c: '#d8ceb4', w: 8 }, { id: 'royal', c: '#2c5a9a', w: 8 }, { id: 'teal', c: '#2f7a7a', w: 6 },
   { id: 'orange', c: '#c8672a', w: 6 }, { id: 'red', c: '#b02a2a', w: 10 }, { id: 'mustard', c: '#c79b2a', w: 5 }, { id: 'grey', c: '#6e7378', w: 5 },
+];
+const DOOR: Swatch[] = [
+  { id: 'black', c: '#1c1c1e', w: 18 }, { id: 'brown', c: '#4b2f20', w: 16 }, { id: 'green', c: '#2b4a3a', w: 14 }, { id: 'red', c: '#8e2a24', w: 12 },
+  { id: 'navy', c: '#1f3354', w: 10 }, { id: 'oxblood', c: '#5a1f26', w: 8 }, { id: 'white', c: '#d9d5c8', w: 8 }, { id: 'grey', c: '#6e7378', w: 6 },
+  { id: 'mustard', c: '#b8912e', w: 4 }, { id: 'teal', c: '#2f6f6a', w: 4 },
 ];
 const TRIM: Swatch[] = [
   { id: 'cream', c: '#cfc6ae', w: 30 }, { id: 'grey', c: '#a9a7a1', w: 25 }, { id: 'white', c: '#dad7cd', w: 20 },
@@ -217,8 +224,10 @@ export function lotColourway(lot: ColourwayInput): Colourway {
     trim: jitter(hex(pickSwatch(r, TRIM).c), r, 0.05),
     awning,
     striped: r.next() < 0.3,
+    door: [0, 0, 0],
     uv,
   };
+  cw.door = hex(pickSwatch(r, DOOR).c); // drawn last: every colour above is unchanged by it
   return applyObserved(cw, lot.spec?.bbl);
 }
 
@@ -273,12 +282,20 @@ export function toneFor(name: string, cw: Colourway, frontFace: boolean, limesto
     const s: RGB = [b(f[0] * 0.78 + 20), b(f[1] * 0.78 + 20), b(f[2] * 0.78 + 20)];
     return { tone: [...s, 235], style: flatStyle(cw) };
   }
-  if (name === 'awning:#8a3b2e|') return { tone: [...cw.awning[0], 250], style: [b((cw.striped ? WallKind.stripedAwning : WallKind.awning) * KIND_STEP), 128, b(cw.seed * 255), 0] };
-  if (name === 'awning:#27303a|') return { tone: [...cw.awning[1], 250], style: [b(WallKind.awning * KIND_STEP), 128, b(cw.seed * 255), 0] };
+  if (name === 'awning:#8a3b2e|') return { tone: [...cw.awning[0], 250], style: [b((cw.striped ? WallKind.stripedAwning : WallKind.awning) * KIND_STEP), 128, b(cw.seed * 255), b(cw.weather * 230)] };
+  if (name === 'awning:#27303a|') return { tone: [...cw.awning[1], 250], style: [b(WallKind.awning * KIND_STEP), 128, b(cw.seed * 255), b(cw.weather * 230)] };
   if (name.startsWith('cornice:')) return { tone: [...cw.cornice, 235], style: flatStyle(cw) };
   if (name.startsWith('rollGate:')) return { tone: [...cw.gate, 235], style: [b(WallKind.gate * KIND_STEP), 128, b(cw.seed * 255), b(cw.weather * 255)] };
   if (name.startsWith('metalDark:') || name.startsWith('castIronFence:')) return { tone: [...cw.metal, 245], style: flatStyle(cw) };
   return null;
+}
+
+/**
+ * Tone of a panelled front door leaf (`LotBatch.doorLeaf`): the door paint, kind `door`; the quad's own 0..1 coordinates ride in
+ * `aStyle.yz` (the flat metal material has no UVs) and a number seed in `aStyle.w`.
+ */
+export function doorTone(cw: Colourway): ToneBytes {
+  return { tone: [...cw.door, 250], style: [b(WallKind.door * KIND_STEP), 0, 0, b(cw.seed * 255)] };
 }
 
 /** Number of distinct looks among `lots` (the variety metric used by the tests). */

@@ -86,7 +86,7 @@ export function buildApartment(c: LotCtx): LotOutput {
     const door: Hole = { x0: doorX - 0.6, x1: doorX + 0.6, y0: 0, y1: 2.4 };
     holes.push(door);
     revealFaces(b, brick, door, 0, 0.3, false);
-    b.rect(m.metal, [door.x0, 0, -0.28], [1.2, 0, 0], [0, 2.4, 0], { ru: 0.4, rv: 0.8 });
+    b.doorLeaf(m.metal, door.x0, 0, -0.28, 1.2, 2.4);
     b.rect(m.window, [door.x0 + 0.15, 0.5, -0.26], [0.9, 0, 0], [0, 1.6, 0], { ru: 1, rv: 1, uvRect: [0.1, 0.55, 0.9, 0.9] });
     b.box(m.limestone, doorX - 1.2, 2.55, 0, doorX + 1.2, 2.75, 1.3, 'frlufd');
     b.box(m.limestone, doorX - 0.8, 0, 0, doorX - 0.6, 2.4, 0.1, 'fl');

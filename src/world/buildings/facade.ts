@@ -13,7 +13,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { IMaterialLibrary, Lot } from '@/world/types';
 import type { Rng } from '@/core/Rng';
 import { lotLook, partyWallDetail, roofDetails } from './partyWall';
-import { toneFor, ROOF_SCALE, type Colourway } from './colourway';
+import { toneFor, doorTone, ROOF_SCALE, type Colourway } from './colourway';
 import { ENV14_ON } from '@/world/data/env14';
 
 /** Parlour (or ground) storey height and the storeys above it (real Bed-Stuy rows: tall parlour, shorter upper floors). */
@@ -315,6 +315,8 @@ export class LotBatch {
   private cw: { cw: Colourway; front: ReadonlySet<THREE.Material> | null; corner: boolean; limestoneFront: boolean } | null = null;
   /** wall openings of the lot being built (lot-local boxes), used by the baked vertex AO in `flush` */
   private openings: AoOpening[] = [];
+  /** door leaves of the lot being built (lot-local boxes): their metal quads are painted as panelled doors by the wall shader */
+  private doors: Array<{ lo: V3; hi: V3 }> = [];
 
   /** Registers a wall opening (called by `revealFaces`) so `flush` can darken its reveals and the wall around it. */
   addOpening(h: Hole, z: number, d: number): void {
@@ -328,6 +330,13 @@ export class LotBatch {
     const hi: V3 = [Math.max(a[0], c[0]), Math.max(a[1], c[1]), Math.max(a[2], c[2])];
     const plane = sign > 0 ? hi[ax] : lo[ax];
     this.openings.push({ lo, hi, ax, sign, plane, depth: Math.max(0.05, d) });
+  }
+
+  /** A front door leaf: a flat-metal quad that `flush` marks so lotTone.ts paints it as a six-panel door in the lot's door colour, with a brass number plate. */
+  doorLeaf(mat: THREE.Material, x0: number, y0: number, z: number, w: number, h: number): void {
+    this.rect(mat, [x0, y0, z], [w, 0, 0], [0, h, 0], { ru: 0.4, rv: 0.8 });
+    const a = this.tp([x0, y0, z]), c = this.tp([x0 + w, y0 + h, z]);
+    this.doors.push({ lo: [Math.min(a[0], c[0]), Math.min(a[1], c[1]), Math.min(a[2], c[2])], hi: [Math.max(a[0], c[0]), Math.max(a[1], c[1]), Math.max(a[2], c[2])] });
   }
 
   /** Planar front-wall quads/triangles (constant z, outside any `with` frame) of `mat` take their UVs from `fn(x, y)` instead of tiling. */
@@ -520,12 +529,13 @@ export class LotBatch {
       r.p = []; r.n = []; r.uv = [];
     }
     this.openings = [];
+    this.doors = [];
   }
 
   /** `aTone` (target sRGB + paint amount) and `aStyle` (kind, mortar, seed, weather) for the shared wall materials; jitters wall UVs per lot. */
   /**
    * Stain placement for the wall shader (lotTone.ts): the roof-line height of the lot's masonry and the phase of its upper-storey
-   * sill line (sill height mod the storey height, 0..22; 23 = no upper window found). Windows sit on the same line on every floor.
+   * sill line (sill height mod the storey height, 0..20; 21 = no upper window found). Windows sit on the same line on every floor.
    */
   private lotInfo(): { roofH: number; q: number } {
     let roofH = 0;
@@ -534,7 +544,7 @@ export class LotBatch {
       for (let i = 1; i < r.p.length; i += 3) if (r.p[i] > roofH) roofH = r.p[i];
     }
     const sills = this.openings.map((o) => o.lo[1]).filter((y) => y > 2.4).sort((a, b) => a - b);
-    const q = sills.length ? Math.max(0, Math.min(22, Math.round(((sills[sills.length >> 1] % UPPER_H) / UPPER_H) * 22))) : 23;
+    const q = sills.length ? Math.max(0, Math.min(20, Math.round(((sills[sills.length >> 1] % UPPER_H) / UPPER_H) * 20))) : 21;
     return { roofH, q };
   }
 
@@ -568,6 +578,7 @@ export class LotBatch {
         }
       }
     }
+    if (c && this.doors.length && mat.name.startsWith('metalDark:')) this.bakeDoors(r, count, tone, style, c.cw, info.q);
     if (mat.name.startsWith('window:') || mat.name.startsWith('storefrontGlass:')) this.bakeWindowSeeds(r, count, style);
     g.setAttribute('aTone', new THREE.BufferAttribute(tone, 4, true));
     g.setAttribute('aStyle', new THREE.BufferAttribute(style, 4, true));
@@ -601,6 +612,21 @@ export class LotBatch {
       }
       for (let k = i; k < Math.min(count, i + n); k++) { style[k * 4] = last[0]; style[k * 4 + 1] = last[1]; style[k * 4 + 2] = last[2]; }
       i += n;
+    }
+  }
+
+  /** Door leaves: vertices inside a registered door box take the door colour, kind `door` and their own (u, v) in the box. */
+  private bakeDoors(r: Raw, count: number, tone: Uint8Array, style: Uint8Array, cw: Colourway, q: number): void {
+    const t = doorTone(cw);
+    const eps = 0.03;
+    for (let i = 0; i < count; i++) {
+      const x = r.p[i * 3], y = r.p[i * 3 + 1], z = r.p[i * 3 + 2];
+      const d = this.doors.find((o) => x >= o.lo[0] - eps && x <= o.hi[0] + eps && y >= o.lo[1] - eps && y <= o.hi[1] + eps && z >= o.lo[2] - eps && z <= o.hi[2] + eps);
+      if (!d) continue;
+      const u = d.hi[0] > d.lo[0] + 1e-6 ? (x - d.lo[0]) / (d.hi[0] - d.lo[0]) : (z - d.lo[2]) / Math.max(1e-6, d.hi[2] - d.lo[2]);
+      const v = (y - d.lo[1]) / Math.max(1e-6, d.hi[1] - d.lo[1]);
+      tone.set(t.tone, i * 4);
+      style.set([t.style[0] + q, Math.round(Math.max(0, Math.min(1, u)) * 255), Math.round(Math.max(0, Math.min(1, v)) * 255), t.style[3]], i * 4);
     }
   }
 

@@ -40,6 +40,19 @@ float ltNoise( vec2 p ) {
   vec2 i = floor( p ); vec2 f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
   return mix( mix( ltHash( i ), ltHash( i + vec2( 1.0, 0.0 ) ), f.x ), mix( ltHash( i + vec2( 0.0, 1.0 ) ), ltHash( i + vec2( 1.0, 1.0 ) ), f.x ), f.y );
 }
+float ltSeg( float dg, vec2 p ) {
+  int d = int( dg );
+  int m = d == 0 ? 63 : d == 1 ? 6 : d == 2 ? 91 : d == 3 ? 79 : d == 4 ? 102 : d == 5 ? 109 : d == 6 ? 125 : d == 7 ? 7 : d == 8 ? 127 : 111;
+  float t = 0.07, r = 0.0;
+  r = max( r, float( ( m & 1 ) != 0 ) * step( abs( p.y - 0.94 ), t ) * step( abs( p.x - 0.5 ), 0.36 ) );
+  r = max( r, float( ( m & 2 ) != 0 ) * step( abs( p.x - 0.9 ), t ) * step( abs( p.y - 0.73 ), 0.2 ) );
+  r = max( r, float( ( m & 4 ) != 0 ) * step( abs( p.x - 0.9 ), t ) * step( abs( p.y - 0.27 ), 0.2 ) );
+  r = max( r, float( ( m & 8 ) != 0 ) * step( abs( p.y - 0.06 ), t ) * step( abs( p.x - 0.5 ), 0.36 ) );
+  r = max( r, float( ( m & 16 ) != 0 ) * step( abs( p.x - 0.1 ), t ) * step( abs( p.y - 0.27 ), 0.2 ) );
+  r = max( r, float( ( m & 32 ) != 0 ) * step( abs( p.x - 0.1 ), t ) * step( abs( p.y - 0.73 ), 0.2 ) );
+  r = max( r, float( ( m & 64 ) != 0 ) * step( abs( p.y - 0.5 ), t ) * step( abs( p.x - 0.5 ), 0.36 ) );
+  return r;
+}
 float ltRect( vec2 pf, vec4 r ) { vec2 q = step( r.xy, pf ) * step( pf, r.xy + r.zw ); return q.x * q.y; }
 uniform sampler2D tSigns;
 ${DETAIL_GLSL}`;
@@ -49,12 +62,12 @@ const FRAG_MAIN = `
 if ( vLtTone.a > 0.01 ) {
   float ltXb = floor( vLtStyle.x * 255.0 + 0.5 );
   float ltKind = floor( ltXb / ${KIND_STEP}.0 );
-  float ltPhq = ltXb - ltKind * ${KIND_STEP}.0; // storey phase 0..22, 23 = unknown
-  float ltSillPhase = ltPhq > 22.5 ? -1.0 : ltPhq / 22.0 * 2.9;
+  float ltPhq = ltXb - ltKind * ${KIND_STEP}.0; // storey phase 0..20, 21 = unknown
+  float ltSillPhase = ltPhq > 20.5 ? -1.0 : ltPhq / 20.0 * 2.9;
   #ifdef USE_COLOR_ALPHA
     gLtRoof = vColor.a * ${ROOF_SCALE}.0;
   #endif
-  float ltParty = step( 8.5, ltKind );
+  float ltParty = step( 8.5, ltKind ) * step( ltKind, 9.5 );
   if ( ltParty > 0.5 ) ltKind = 0.0;
   float ltSeed = vLtStyle.z;
   float ltWx = vLtStyle.w;
@@ -280,6 +293,42 @@ if ( vLtTone.a > 0.01 ) {
     ltCol *= 1.0 - 0.28 * smoothstep( 0.55, 0.9, ltNoise( ltP * vec2( 5.0, 1.5 ) + ltSeed * 3.0 ) ) * ( 0.3 + 0.7 * ltWx );
     ltCol = mix( ltCol, ltCol * vec3( 0.82, 0.92, 0.8 ), smoothstep( 0.7, 0.9, ltNoise( ltP * 8.0 + ltSeed * 6.0 ) ) * ltWx * 0.5 );
     gLtFlat = max( gLtFlat, 0.4 );
+  }
+  if ( ltKind > 9.5 ) {
+    // panelled front door: two tall lower panels, two upper panels behind the glass, stiles and rails, kick plate, knob, number plate
+    vec2 dq = vec2( vLtStyle.y, vLtStyle.z );
+    float dSeed = vLtStyle.w;
+    vec2 a1 = abs( dq - vec2( 0.29, 0.27 ) ) / vec2( 0.15, 0.2 );
+    vec2 a2 = abs( dq - vec2( 0.71, 0.27 ) ) / vec2( 0.15, 0.2 );
+    vec2 a3 = abs( dq - vec2( 0.29, 0.76 ) ) / vec2( 0.15, 0.16 );
+    vec2 a4 = abs( dq - vec2( 0.71, 0.76 ) ) / vec2( 0.15, 0.16 );
+    float e1 = 1.0 - max( a1.x, a1.y ), e2 = 1.0 - max( a2.x, a2.y ), e3 = 1.0 - max( a3.x, a3.y ), e4 = 1.0 - max( a4.x, a4.y );
+    float dE = max( max( e1, e2 ), max( e3, e4 ) );
+    float dIn = step( 0.0, dE );
+    vec2 dC = e1 > 0.0 ? dq - vec2( 0.29, 0.27 ) : e2 > 0.0 ? dq - vec2( 0.71, 0.27 ) : e3 > 0.0 ? dq - vec2( 0.29, 0.76 ) : dq - vec2( 0.71, 0.76 );
+    float dRing = dIn * ( 1.0 - smoothstep( 0.0, 0.22, dE ) );
+    vec3 dCol = ltTarget * ( 0.92 + 0.16 * ltNoise( ltP * vec2( 3.0, 1.5 ) + dSeed * 9.0 ) );
+    dCol *= 1.0 + dRing * 0.3 * dot( normalize( dC + vec2( 1e-4 ) ), vec2( -0.5, 0.85 ) ) - dIn * 0.06;
+    vec3 dBrass = vec3( 0.58, 0.43, 0.16 ) * ( 0.8 + 0.4 * ltNoise( ltP * 30.0 ) );
+    float dKick = step( dq.y, 0.075 ) * step( 0.07, dq.x ) * step( dq.x, 0.93 );
+    dCol = mix( dCol, dBrass * 0.8, dKick );
+    vec2 dKn = ( dq - vec2( 0.88, 0.46 ) ) * vec2( 1.1, 2.2 );
+    dCol = mix( dCol, dBrass * 1.25, 1.0 - smoothstep( 0.035, 0.045, length( dKn ) ) );
+    // brass number plate on the middle rail: three seven-segment numerals
+    vec2 dPl = ( dq - vec2( 0.5, 0.535 ) ) * vec2( 1.1, 2.2 );
+    float dPlate = step( abs( dPl.x ), 0.17 ) * step( abs( dPl.y ), 0.05 );
+    dCol = mix( dCol, dBrass * 1.1, dPlate );
+    float dNum = 0.0;
+    for ( int k = 0; k < 3; k++ ) {
+      float fk = float( k );
+      vec2 dp = vec2( ( dPl.x + 0.15 - fk * 0.1 ) / 0.08, ( dPl.y + 0.04 ) / 0.08 );
+      if ( dp.x > 0.0 && dp.x < 1.0 && dp.y > 0.0 && dp.y < 1.0 ) dNum = max( dNum, ltSeg( floor( fract( dSeed * 7.13 + fk * 0.377 ) * 10.0 ), dp ) );
+    }
+    dCol = mix( dCol, vec3( 0.03 ), dNum * dPlate );
+    dCol *= 1.0 - 0.3 * smoothstep( 0.0, 0.3, 0.3 - dq.y ) * ( 0.4 + 0.6 * ltNoise( ltP * vec2( 9.0, 3.0 ) ) ); // scuffed at the foot
+    ltCol = dCol;
+    gLtH = -0.012 * dIn + 0.006 * dRing;
+    gLtBump = 1.0; gLtFlat = 0.6; gLtGloss = 0.2;
   }
   if ( ltParty > 0.5 && ltY > 6.0 && ltY < 11.0 ) {
     // faded painted wall sign on blank side walls: one 9 m cell in four, a 6.4 x 2 m board

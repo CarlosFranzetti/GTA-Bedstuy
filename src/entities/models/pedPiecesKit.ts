@@ -407,3 +407,10 @@ export function clearAny(ctx: Ctx, p: V3, margin: number): V3 {
   if (t <= 0 || l >= t + margin) return p;
   return [o[0] + u[0] * (t + margin), p[1], o[2] + u[2] * (t + margin)];
 }
+
+/** the point on the head or the torso at height y, azimuth beta (0 front, round towards +x), by a horizontal ray from the axis, +off */
+export function ringPoint(ctx: Ctx, y: number, beta: number, off: number): V3 {
+  const o: V3 = [0, y, ctx.C[2]], d: V3 = [Math.sin(beta), 0, -Math.cos(beta)];
+  const t1 = ctx.head.hit(o, d, 0.8), t2 = ctx.torso.hit(o, d, 0.8), t = Math.max(isFinite(t1) ? t1 : 0, isFinite(t2) ? t2 : 0) || 0.07;
+  return [o[0] + d[0] * (t + off), y, o[2] + d[2] * (t + off)];
+}

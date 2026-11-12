@@ -127,7 +127,7 @@ export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
   const door: Hole = { x0: doorX - 0.55, x1: doorX + 0.55, y0: parlourY, y1: parlourY + dh };
   upHoles.push(door);
   revealFaces(b, frontMat, door, -S, 0.3, false);
-  b.rect(m.metal, [door.x0, door.y0, -S - 0.28], [1.1, 0, 0], [0, dh, 0], { ru: 0.4, rv: 0.8 });
+  b.doorLeaf(m.metal, door.x0, door.y0, -S - 0.28, 1.1, dh);
   b.rect(m.window, [door.x0 + 0.2, door.y0 + 1.25, -S - 0.26], [0.7, 0, 0], [0, 0.85, 0], { ru: 1, rv: 1, uvRect: [0.1, 0.55, 0.9, 0.9] });
   b.box(trim, doorX - 0.75, parlourY, -S, doorX - 0.55, parlourY + dh, -S + 0.12, 'fl');
   b.box(trim, doorX + 0.55, parlourY, -S, doorX + 0.75, parlourY + dh, -S + 0.12, 'fr');
