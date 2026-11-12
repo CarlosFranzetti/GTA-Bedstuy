@@ -118,6 +118,8 @@ export class Hud {
   private readonly splashEl: HTMLElement;
   /** The title screen appeared (true: showSplash) or the player started (false: hideSplash). The host starts / fades the title theme here. */
   onSplash: ((shown: boolean) => void) | null = null;
+  /** The START prompt on the title screen was clicked: the host starts the game. */
+  onStart: (() => void) | null = null;
   /** The CREDITS button on the title screen was pressed: the host opens the roll. */
   onCredits: (() => void) | null = null;
   private readonly cardEl: HTMLElement;
@@ -228,9 +230,14 @@ export class Hud {
     const subtitle = this.make('p', 'hud-subtitle');
     subtitle.textContent = DISCLAIMER;
     const start = this.make('p', 'hud-start');
-    start.textContent = 'press start';
+    start.textContent = 'press space to start';
+    // the prompt itself is a button for a mouse; a tap anywhere starts on a touch screen (the host decides, see onStart)
+    for (const t of ['pointerdown', 'mousedown', 'touchstart']) start.addEventListener(t, (e) => e.stopPropagation());
+    start.addEventListener('click', (e) => { e.stopPropagation(); this.onStart?.(); });
+    start.style.cursor = 'pointer';
+    start.style.pointerEvents = 'auto';
     const startSub = this.make('p', 'hud-start-sub');
-    startSub.textContent = 'click, tap or press any key';
+    startSub.textContent = 'tap on a phone · A on a gamepad';
     const credits = this.make('button', 'hud-credits');
     credits.type = 'button';
     credits.textContent = 'Credits';

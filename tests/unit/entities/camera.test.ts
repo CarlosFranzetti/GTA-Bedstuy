@@ -45,16 +45,18 @@ describe('ThirdPersonCamera', () => {
     expect(Math.abs(angleDiff(c.yaw, Math.PI / 2))).toBeLessThan(0.02);
   });
 
-  it('does not recentre while the mouse moves, nor on foot, and waits a beat after the last mouse input', () => {
-    const c = new ThirdPersonCamera();
-    for (let t = 0; t < 0.25; t += 1 / 60) c.update(1 / 60, { x: 0, z: 0 }, Math.PI / 2, 'vehicle', fake());
-    expect(c.yaw).toBeCloseTo(0);
+  it('does not recentre while the mouse moves, and waits two seconds after the last mouse input', () => {
     const d = new ThirdPersonCamera();
     for (let t = 0; t < 4; t += 1 / 60) d.update(1 / 60, { x: 0, z: 0 }, Math.PI / 2, 'vehicle', fake(0.0001, 0));
     expect(Math.abs(d.yaw - 0.0000025 * 240)).toBeLessThan(0.01);
+    const c = new ThirdPersonCamera();
+    c.update(1 / 60, { x: 0, z: 0 }, Math.PI / 2, 'vehicle', fake(0.0001, 0)); // a look
+    const y = c.yaw;
+    for (let t = 0; t < 1.9; t += 1 / 60) c.update(1 / 60, { x: 0, z: 0 }, Math.PI / 2, 'vehicle', fake());
+    expect(c.yaw).toBeCloseTo(y, 6);
     const e = new ThirdPersonCamera();
-    for (let t = 0; t < 4; t += 1 / 60) e.update(1 / 60, { x: 0, z: 0 }, Math.PI / 2, 'foot', fake());
-    expect(e.yaw).toBeCloseTo(0);
+    for (let t = 0; t < 6; t += 1 / 60) e.update(1 / 60, { x: 0, z: 0 }, Math.PI / 2, 'foot', fake());
+    expect(Math.abs(angleDiff(e.yaw, Math.PI / 2))).toBeLessThan(0.02); // on foot the camera comes round behind the player too
   });
 
   it('recentres the short way round', () => {
@@ -85,7 +87,7 @@ describe('ThirdPersonCamera', () => {
   it('on foot the view is shifted 0.35 m to the right and the look target follows it', () => {
     const c = new ThirdPersonCamera();
     c.yaw = Math.PI / 2; c.pitch = 0; // looking east: right is +z
-    c.update(1 / 60, { x: 0, z: 0 }, 0, 'foot', fake());
+    c.update(1 / 60, { x: 0, z: 0 }, Math.PI / 2, 'foot', fake()); // the player faces east too, so the camera is already behind
     expect(c.camera.position.z).toBeCloseTo(0.35);
     expect(c.camera.position.x).toBeCloseTo(-3.2);
     const v = new ThirdPersonCamera();

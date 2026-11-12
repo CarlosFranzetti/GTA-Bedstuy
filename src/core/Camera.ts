@@ -32,10 +32,23 @@ const PITCH_FIRST = { min: -1.15, max: 1.15 };
 /** Distance (m) below which the rig counts as first person: the look target blends from the pivot to straight ahead. */
 const FIRST_BLEND_DIST = 1.2;
 const DEFAULT_PITCH = 0;
-/** Seconds after the last mouse/stick input before the car view starts swinging back behind the car. */
-const RECENTRE_DELAY = 0.3;
-/** Natural frequency (rad/s) of the critically damped yaw spring: ~95 % of the way back in 3/omega. */
+/**
+ * Seconds a view the player chose with the mouse, stick or a touch drag is left alone before the camera starts back to its place
+ * behind the body (owner, 12 Nov: hold for two seconds, then return, slowly at first and gathering pace).
+ */
+export const RECENTRE_DELAY = 2.0;
+/** Seconds over which the return gathers pace once it starts (the spring's stiffness ramps from zero to full). */
+export const RECENTRE_RAMP = 1.4;
+/** Natural frequency (rad/s) of the critically damped yaw spring at full pace: ~95 % of the way back in 3/omega. */
 const YAW_OMEGA = 4.6;
+/** On foot the return is gentler: the body turns on the spot and a fast swing would be dizzying. */
+const YAW_OMEGA_FOOT = 3.2;
+/**
+ * On foot the keys move the player relative to the view, so a camera that chases the body turns "left" into a circle and "back"
+ * into a spin. While the player is moving the return is therefore scaled by how far ahead of the view they are heading: full pace
+ * straight ahead, about a third when walking sideways (a wide arc), nothing when running towards the lens.
+ */
+export function footFollow(off: number): number { return clamp(0.35 + 0.65 * Math.cos(off), 0, 1); }
 const SMOOTH_VEH = 10;   // exponential smoothing rate of distance/height/shoulder, 1/s
 const SMOOTH_FOOT = 5.5; // slower on foot
 const SPEED_SMOOTH = 2.5;
@@ -118,11 +131,13 @@ export class ThirdPersonCamera {
   readonly camera: THREE.PerspectiveCamera;
   /** Heading (radians, clockwise from north) the camera looks toward. Walk "forward" = this. Never includes look-back or cinematic offsets. */
   yaw = 0;
+  /** While true the camera never returns behind the body on its own (aiming, a cutscene). */
+  holdView = false;
   pitch = DEFAULT_PITCH;
   /** Static world used for wall avoidance when `update` is not handed one. */
   world: CameraWorld | null = null;
 
-  private idle = 0;        // seconds since mouse/stick look input
+  private idle = 99;       // seconds since mouse/stick look input (a camera nobody has turned follows at full pace from the start)
   private still = 0;       // seconds with no input and a stationary target
   private yawVel = 0;
   private distance = CAM_FOOT.distance;
@@ -317,14 +332,21 @@ export class ThirdPersonCamera {
     this.pitch = clamp(this.pitch, lim.min, lim.max);
     if (anyInput || moveSpeed > MOVE_EPS) this.still = 0; else this.still += dt;
 
-    // ---- yaw: critically damped swing back behind the car --------------------------------------------------
-    if (vehicleMode && this.idle > RECENTRE_DELAY) {
-      const st = dampStep(angleDiff(targetHeading, this.yaw), this.yawVel, YAW_OMEGA, dt);
-      // st.x is (yaw - heading); keep it on the short arc
+    // ---- yaw: back behind the body ---------------------------------------------------------------------------
+    // A view chosen by hand is held for RECENTRE_DELAY, then a critically damped spring takes it back behind the car or the
+    // player. The spring's stiffness ramps up from zero, so the return starts slowly and gathers pace; while nobody touches
+    // the look controls it stays at full pace and the camera simply follows the body round corners.
+    const off = angleDiff(targetHeading, this.yaw); // yaw - heading, short arc
+    const follow = vehicleMode || moveSpeed <= MOVE_EPS ? 1 : footFollow(off);
+    if (!this.holdView && !(vrig.first && !vehicleMode) && follow > 0 && this.idle > RECENTRE_DELAY) {
+      const u = Math.min(1, (this.idle - RECENTRE_DELAY) / RECENTRE_RAMP);
+      const pace = u * u * (3 - 2 * u);
+      const omega = (vehicleMode ? YAW_OMEGA : YAW_OMEGA_FOOT) * Math.max(0.04, pace) * follow;
+      const st = dampStep(off, this.yawVel, omega, dt);
       this.yaw = wrapAngle(targetHeading + st.x);
       this.yawVel = st.v;
       // pitch eases back to the default chase angle at the same pace
-      this.pitch += (DEFAULT_PITCH - this.pitch) * (1 - Math.exp(-YAW_OMEGA * 0.6 * dt));
+      this.pitch += (DEFAULT_PITCH - this.pitch) * (1 - Math.exp(-omega * 0.6 * dt));
     } else {
       this.yawVel = 0;
     }

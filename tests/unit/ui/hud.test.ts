@@ -116,7 +116,7 @@ describe('Hud', () => {
     expect(splash.textContent).toContain('H horn');
     expect(splash.textContent).toContain('E radio');
     expect(splash.textContent).toContain('mouse look');
-    expect(splash.textContent).toContain('press start')
+    expect(splash.textContent).toContain('press space to start')
     expect(splash.textContent).toContain('Carlos Franzetti presents');
   });
 

@@ -405,9 +405,17 @@ if (useProxies) proxies.attachToPipeline(pipeline);
 pipeline.setNight(dayNight.isNight);
 pipeline.setExposure(LIGHTING.exposure);
 setLampsLit(world.furnitureGroup, dayNight.isNight);
-input.onFirstGesture = () => { hud.hideSplash(); events.emit('userGesture', {}); };
+// Title screen: SPACE is the start button (Enter too; a tap on a touch screen; A or Start on a gamepad; a click on the prompt).
+// Any other key or click only wakes the audio, so the title theme plays while the title stays up.
+const startGame = (): void => { if (!splashUp) return; hud.hideSplash(); input.consume('Space'); input.consume('KeyF'); input.requestLock(); };
+hud.onStart = startGame;
+input.onFirstGesture = () => { events.emit('userGesture', {}); if (splashUp) titleMusic.start(); };
+window.addEventListener('keydown', (e) => {
+  if (!splashUp || credits.isOpen || e.repeat) return;
+  if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') { e.preventDefault(); startGame(); }
+});
 overlay.addEventListener('mousedown', () => input.notifyGesture());
-overlay.addEventListener('pointerdown', () => input.notifyGesture());
+overlay.addEventListener('pointerdown', (e) => { input.notifyGesture(); if (e.pointerType === 'touch' || e.pointerType === 'pen') startGame(); });
 const touchControls = isTouch ? new TouchControls(overlay, input) : null;
 
 /** Game day counter (0 = Monday; advances when the clock wraps past midnight) for the rotating trash-bag piles. */
@@ -658,7 +666,7 @@ const game = new Game(
 
 // pause menu, gamepad, settings (Menu fires its persisted-setting callbacks once at construction)
 let lastPad = performance.now();
-const gamepad = new GamepadInput(input, { onBumper: (d) => { if (phoneHud.isOpen || shopUi?.isOpen || djUi?.isOpen || !menu.isOpen) return false; menu.tab(d); return true; }, onToast: (m) => hud.showToast(m), onStart: () => { if (shopUi?.isOpen) shopUi.close(); else if (djUi?.isOpen) djUi.leave(); else menu.toggle(); }, onNav: (d) => { if (phoneHud.isOpen) phoneHud.navigate(d); else if (shopUi?.isOpen) shopUi.navigate(d); else if (djUi?.isOpen) djUi.navigate(d); else menu.navigate(d); } });
+const gamepad = new GamepadInput(input, { onBumper: (d) => { if (phoneHud.isOpen || shopUi?.isOpen || djUi?.isOpen || !menu.isOpen) return false; menu.tab(d); return true; }, onToast: (m) => hud.showToast(m), onStart: () => { if (splashUp) { startGame(); return; } if (shopUi?.isOpen) shopUi.close(); else if (djUi?.isOpen) djUi.leave(); else menu.toggle(); }, onNav: (d) => { if (phoneHud.isOpen) phoneHud.navigate(d); else if (shopUi?.isOpen) shopUi.navigate(d); else if (djUi?.isOpen) djUi.navigate(d); else menu.navigate(d); } });
 const radioUi = new RadioUi(overlay, audio);
 const menu = new Menu(overlay, {
   onPause: (p) => { game.paused = p || document.hidden; gamepad.paused = p; audio.setPaused(p); if (!p) { input.endFrame(); input.requestLock(); } },
@@ -725,7 +733,8 @@ game.add({
   update(dt) {
     // input
     const away = interiors.state !== 'outside'; // inside a room (3 km off the map) or fading: the street sim keeps watching the door
-    const blocked = interiors.locked || uiOpen();
+    if (splashUp && input.mode === 'gamepad' && input.pressed('KeyF')) startGame(); // A on the title screen
+    const blocked = interiors.locked || uiOpen() || splashUp; // nothing moves behind the title screen
     if (!away) { lastOutside.x = player.body.pos.x; lastOutside.z = player.body.pos.z; }
     player.jumpLocked = away || blocked;
     if (blocked) { for (const k of ['KeyF', 'KeyE', 'KeyR', 'KeyX', 'KeyP']) input.consume(k); }

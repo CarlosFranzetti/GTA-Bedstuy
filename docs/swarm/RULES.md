@@ -41,3 +41,8 @@ vercel.json). A commit whose message contains "work in progress", starts with "W
 So: lanes' in-flight snapshots use "Lanes' work in progress"; a commit Fable has checked uses a plain description and goes live.
 The deployment source leaves out playtests, docs, tests, scripts, native and cache (.vercelignore). Playtest videos are not
 tracked in git.
+
+## Starting the game in scripts (12 Nov)
+The title screen is dismissed with SPACE (or Enter, a tap on a touch screen, A or Start on a gamepad, a click on the prompt).
+Other keys and clicks no longer start the game, and the player cannot move while the title is up. A script that drives the
+player must `page.keyboard.press('Space')` first. Frame captures with `__gtaDebug` do not need it.

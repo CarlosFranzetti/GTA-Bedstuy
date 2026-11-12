@@ -37,7 +37,7 @@ describe('backdrop shots', () => {
     expect(img.style.objectPosition).toBe(BACKDROPS[0]!.pos);
     img.dispatchEvent(new Event('error')); // single-file build: the file is missing, the dark backdrop stays
     expect(parent.querySelector('.hud-art img')).toBeNull();
-    expect(parent.querySelector('.hud-start')?.textContent).toBe('press start');
+    expect(parent.querySelector('.hud-start')?.textContent).toBe('press space to start');
     void hud;
     const cr = new Credits(parent);
     cr.open();

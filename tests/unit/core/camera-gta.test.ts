@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ThirdPersonCamera, dampStep, vehicleFov, IDLE_CINEMATIC_AFTER } from '@/core/Camera';
+import { ThirdPersonCamera, dampStep, vehicleFov, IDLE_CINEMATIC_AFTER, RECENTRE_DELAY, footFollow } from '@/core/Camera';
 import type { Input } from '@/core/Input';
 import { angleDiff } from '@/core/Math2';
 
@@ -41,13 +41,61 @@ describe('car yaw auto-centre', () => {
     expect(worst).toBeLessThan(0.05);
     expect(Math.abs(c.yaw)).toBeLessThan(0.01);
   });
-  it('does nothing while the mouse is moving and does not touch yaw on foot', () => {
+  it('does nothing while the mouse is moving', () => {
     const c = new ThirdPersonCamera(); c.yaw = 1;
     for (let i = 0; i < 120; i++) c.update(DT, T, 0, 'vehicle', fake({ dx: 0.0001 }));
     expect(c.yaw).toBeGreaterThan(0.9);
-    const f = new ThirdPersonCamera(); f.yaw = 1;
-    for (let i = 0; i < 240; i++) f.update(DT, T, 0, 'foot', fake());
-    expect(f.yaw).toBeCloseTo(1);
+  });
+});
+
+// Owner, 12 Nov: a view turned by hand stays for two seconds, then returns behind you, slowly at first and gathering pace.
+describe('return behind the body after a look', () => {
+  const lookThenWait = (mode: 'foot' | 'vehicle', seconds: number): { c: ThirdPersonCamera; trace: number[] } => {
+    const c = new ThirdPersonCamera();
+    c.update(DT, T, 0, mode, fake({ dx: 500 })); // one hand-turned frame: the view is now well off to one side
+    const trace: number[] = [];
+    for (let t = 0; t < seconds; t += DT) { c.update(DT, T, 0, mode, fake()); trace.push(Math.abs(angleDiff(c.yaw, 0))); }
+    return { c, trace };
+  };
+  for (const mode of ['foot', 'vehicle'] as const) {
+    it(`${mode}: holds the chosen view for ${RECENTRE_DELAY} s`, () => {
+      const { trace } = lookThenWait(mode, RECENTRE_DELAY - 0.05);
+      expect(trace[trace.length - 1]).toBeCloseTo(trace[0], 6);
+      expect(trace[0]).toBeGreaterThan(0.5);
+    });
+    it(`${mode}: then returns, slowly at first and faster after, and ends behind the body without overshoot`, () => {
+      const { c, trace } = lookThenWait(mode, RECENTRE_DELAY + 6);
+      const at = (s: number): number => trace[Math.round(s / DT)];
+      const first = at(RECENTRE_DELAY) - at(RECENTRE_DELAY + 0.4);       // moved in the first 0.4 s of the return
+      const later = at(RECENTRE_DELAY + 0.8) - at(RECENTRE_DELAY + 1.2); // moved in a later 0.4 s
+      expect(first).toBeGreaterThan(0);
+      expect(later).toBeGreaterThan(first * 2);
+      expect(Math.abs(angleDiff(c.yaw, 0))).toBeLessThan(0.02);
+      for (let i = 1; i < trace.length; i++) expect(trace[i]).toBeLessThanOrEqual(trace[i - 1] + 1e-9); // never swings away or past
+    });
+  }
+  it('a new look during the return stops it and starts the two seconds again', () => {
+    const { c } = lookThenWait('foot', RECENTRE_DELAY + 0.6);
+    c.update(DT, T, 0, 'foot', fake({ dx: 1 }));
+    const y = c.yaw;
+    for (let t = 0; t < 1.5; t += DT) c.update(DT, T, 0, 'foot', fake());
+    expect(c.yaw).toBeCloseTo(y, 6);
+  });
+  it('on foot, running towards the lens does not pull the camera round (it would turn "back" into a circle)', () => {
+    const c = new ThirdPersonCamera();
+    let x = 0;
+    for (let t = 0; t < 4; t += DT) { x += 3 * DT; c.update(DT, { x, z: 0 }, Math.PI, 'foot', fake()); }
+    expect(Math.abs(angleDiff(c.yaw, 0))).toBeLessThan(0.01);
+  });
+  it('on foot, walking sideways brings the camera round at about a third of the pace (a wide arc, not a tight circle)', () => {
+    expect(footFollow(0)).toBe(1);
+    expect(footFollow(Math.PI / 2)).toBeCloseTo(0.35, 2);
+    expect(footFollow(Math.PI)).toBe(0);
+  });
+  it('holdView keeps the view where it is (aiming, cutscenes)', () => {
+    const c = new ThirdPersonCamera(); c.yaw = 1; c.holdView = true;
+    for (let t = 0; t < 5; t += DT) c.update(DT, T, 0, 'foot', fake());
+    expect(c.yaw).toBeCloseTo(1, 6);
   });
 });
 
