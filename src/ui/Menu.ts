@@ -970,7 +970,7 @@ export class Menu {
     const mixRow = (id: string, k: MixKey, legacy?: { get(): number; set(v: number): void }): void => {
       S.set(id, { id, label: MIX_LABELS[k], kind: 'slider', min: 0, max: 100, step: 5, def: () => 100, desc: MIX_DESC[k], fmt: (v) => `${v}%`,
         visible: legacy || mx ? undefined : () => false,
-        get: () => Math.round((mx ? mx.get(k) : legacy!.get()) * 100),
+        get: () => Math.round((mx ? mx.get(k) : legacy ? legacy.get() : 1) * 100),
         set: ((v: number) => { if (mx) mx.set(k, v / 100); else legacy?.set(v / 100); }) as RowSpec['set'] });
     };
     mixRow('master', 'master', { get: () => this.state.master, set: (v) => this.setMaster(v) });
