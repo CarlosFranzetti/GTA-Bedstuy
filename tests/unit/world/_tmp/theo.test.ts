@@ -20,6 +20,9 @@ it('dbg2', () => {
   for(const id of Object.keys(g.nodes)){ if(comp.get(id)!==giant){const sid=g.nodes[id].streetId;byStreet.set(sid,(byStreet.get(sid)??0)+1);} }
   const top=[...byStreet.entries()].sort((a,b)=>b[1]-a[1]).slice(0,15);
   const stubNodes=b.chains.filter(c=>c.startKind==='stub'||c.endKind==='stub');
+  const out=new Map<string,any>();
+  for(const c of b.chains){const n=c.nodeIds.filter(id=>comp.get(id)!==giant).length; if(n){const e=net.edges[c.edge];const k=c.edge;const o=out.get(String(k))??{edge:k,name:e.name,cls:e.cls,level:e.level,oneway:e.oneway,lanes:e.lanes,len:Math.round(net.lengths[k]),chains:[]};o.chains.push(`${c.dir}${c.lane}:${n}/${c.nodeIds.length}:${c.startKind}>${c.endKind}`);out.set(String(k),o);}}
+  require('fs').writeFileSync('/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/theo3.txt',[...out.values()].map(o=>JSON.stringify(o)).join('\n'));
   require('fs').writeFileSync('/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/theo2.txt', JSON.stringify({top3:sorted.slice(0,5),hist,top,stubChains:stubNodes.length,stubChainNodes:stubNodes.reduce((a,c)=>a+c.nodeIds.length,0),conn:b.connectors.length,connNodes:b.connectors.reduce((a,c)=>a+c.nodeIds.length,0)},null,1));
 });
 it('dbg', () => {
