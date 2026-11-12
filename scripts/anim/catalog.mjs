@@ -1,6 +1,16 @@
-// Which CMU trials make which clip. File names are CMU subject_trial numbers (mocap.cs.cmu.edu), BVH conversion by B. Hahne.
 export const CLIPS = [
-  { name: 'walk',   pack: 'core', file: '16_15', cycle: true, frames: 24 },
-  { name: 'jog',    pack: 'core', file: '16_35', cycle: true, frames: 20 },
-  { name: 'run',    pack: 'core', file: '16_55', cycle: true, frames: 18, from: 1.0 },
+  { name: 'w16_15', pack: 'core', file: '16_15', cycle: true },
+  { name: 'w07_12', pack: 'core', file: '07_12', cycle: true, from: 0.3 },
+  { name: 'w35_01', pack: 'core', file: '35_01', cycle: true, from: 0.3 },
+  { name: 'w05_01', pack: 'core', file: '05_01', cycle: true, from: 0.3 },
+  { name: 'w08_04', pack: 'core', file: '08_04', cycle: true, from: 0.3 },
+  { name: 'j16_35', pack: 'core', file: '16_35', cycle: true, from: 0.1, to: 1.3 },
+  { name: 'r16_55', pack: 'core', file: '16_55', cycle: true, from: 0.5, to: 1.5 },
+  { name: 'r16_45', pack: 'core', file: '16_45', cycle: true, from: 0.2, to: 1.2 },
+  { name: 'r09_01', pack: 'core', file: '09_01', cycle: true, from: 0.1, to: 1.5 },
+  { name: 'r09_05', pack: 'core', file: '09_05', cycle: true, from: 0.1, to: 1.5 },
+  { name: 'w17_08', pack: 'core', file: '17_08', cycle: true, from: 0.5, to: 4 },
+  { name: 'w17_05', pack: 'core', file: '17_05', cycle: true, from: 0.5, to: 4 },
+  { name: 'w17_01', pack: 'core', file: '17_01', cycle: true, from: 0.5, to: 4 },
+  { name: 'w17_03', pack: 'core', file: '17_03', cycle: true, from: 0.5, to: 4 },
 ];
