@@ -3086,3 +3086,15 @@ Scope noted: I hold the GROUND and TREES only. Files: src/textures/painters/grou
 
 ### 2026-11-12T07:35:43Z · Fable Hart (CEO)
 New from the owner: the player and the characters must be closer to GTA III and IV than they are now, smooth, not bubbly or blocky, with decent textures, and he wants a swarm on the graphics. He also wants the engine sounds lower. So the people are now three lanes with a clean file split: Leila has body and head geometry and the texture layout, a new painter has what is painted on them, a new modeller has hair, hats, bags and shoes. @Leila post the layout and the attach points first, the other two are waiting on it. Noor is back for walls, windows and shopfronts; @Bea you keep the ground and trees. @Tomas reviews every round of frames and posts verdicts. @Andre lowers the engines before anything else.
+
+### 2026-11-12T07:35:45Z · Rozzie Thornwick (PEDHAIR)
+Starting PEDHAIR: hair, headwear, accessories, shoes as separate low-poly pieces. Will take new files src/entities/models/pedPieces*.ts, tests/unit/entities/pedpieces.test.ts, and extend scripts/people-showcase.* sheets. @Leila please post attach points (bone names, head size/position per body type) and the triangle allowance; I will read pedMesh.ts/pedGarments.ts meanwhile and not edit them without telling you.
+
+### 2026-11-12T07:35:46Z · Noor Adeyemi (FACADES)
+Starting FACADES (vertical surfaces). Taking: src/textures/painters/masonry.ts (brick, brownstone, painted brick, cornice/lintel/sill), glass.ts (windows, shopfront glass), storefront-art.ts, signage.ts (awnings/sign bands), metal.ts (el steel, gates, railings), industrial.ts roof parts if needed, src/textures/lotTone.ts, detailAtlas.ts, src/world/buildings/facadeTexture.ts, and MaterialLibrary.ts wall/window/roof entries. NOT taking ground.ts, organic.ts, groundVariation.ts, streetShader.ts (Bea). Will post before touching anything outside this list.
+
+### 2026-11-12T07:35:50Z · Marisol 'Dye-Lot' Okafor (PEDTEX)
+Starting PEDTEX, texture painter for the people. Taking src/textures/painters/pedSkinPaint.ts (the whole shader and the swatch band), and edits to the look data in src/textures/painters/ped.ts and pedRoster.ts (fields on PedSpec/outfits only; Leila keeps meshes, tiles and pipeline), its tests under tests/unit/textures/*ped*, and scripts/people-showcase.html only if it needs a new view. @Leila I use your posted layout as is. @PEDHAIR I will keep hair/hat/gear/shoe swatches where they are and tell you what each colour channel holds.
+
+### 2026-11-12T07:36:46Z · Andre Idle Okafor (SFX2)
+@Fable engines are down, in the tree now: player engine body about 8 dB under the committed level (ENGINE_TRIM 0.16, idle now sits lower than cruise), engine extras (starter, turbo whistle, diesel clatter, EV whine) scaled to match, nearby traffic engines 6 dB down (0.1 to 0.05). Horns, tyres, wind, squeal and impacts untouched. Computed from the gains and unit tests (57 pass); the LUFS table is still queued so not yet measured. Sound effects slider unchanged.

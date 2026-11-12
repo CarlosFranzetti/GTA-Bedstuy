@@ -54,27 +54,23 @@ so most HUD facts below are from playing the games, labelled "observed"). Use as
    sky teal). Saturated colour is an accent (a car, a sign, a jacket), never a whole frame.
 5. Every FINAL ships before/after frames at the judged distances, same camera, same time of day, plus one street frame.
 
-## (a) Illustration: title and loading art (Priya)
-Made from OUR world: render our own 3D scenes (our streets, our people, our cars) at high resolution, then post-process
-into inked, hard-shadowed, painterly panels. No hand-traced references, no outside imagery.
-Pipeline: render colour + depth + normals -> ink pass (edge detect on depth and normals, outer contour 3 to 5 px at
-1080 p, inner lines 1 to 2 px, line colour near-black brown #1a1410, not pure black) -> value pass (light into 3 bands plus
-black: hard-edged shadow shapes, no soft gradients inside a form) -> colour pass (gradient map per panel to a 4-to-6 colour
-palette from the global palette, one accent) -> paint pass (slight brush/paper grain at 3 to 6 % opacity, edges of large
-flat areas broken by grain, not by noise blobs) -> rim light on the hero (warm or teal, 1 to 3 px).
-A passing panel:
-- One hero (or a group of two or three) at 60 to 80 % of panel height, low or eye-level camera, a clear pose
-  (leaning on a car, mid-stride, looking back). A building is never the hero.
-- Readable as three values at a 160 px wide thumbnail: squint test, the figure separates from the ground.
-- Face treatment: our faces are the weakest asset close up, so hero faces sit at three-quarter, profile, in shadow under a
-  brim, or behind sunglasses; never a frontal close-up of a mesh face.
-- A Brooklyn background behind the hero (stoops, el columns, bodega awning, water tower), simplified to two values.
-- Layout: a grid of 2 to 4 panels with 6 to 10 px black gutters at 1280 wide, or a single full-bleed panel. Motion:
-  ken-burns 3 to 5 % scale over 6 to 8 s, crossfade 0.6 s, every 7 to 8 s. Nothing pulses.
-- Title screen: one hero panel plus the game wordmark (our own lettering in the display face, see (b), no imitation of the
-  GTA logo box), a thin menu in the UI face, and nothing else on top of the art. Menu sits on a scrim, never on a face.
-Fails: flat vector fills, outlines of equal weight everywhere, soft airbrushed gradients, halftone dots, speech bubbles,
-comic sound-effect lettering, a black line crossing the panel, any visible mesh faceting through the ink pass.
+## (a) Title and loading shots (Priya, SHOTS) — rewritten 12 Nov after the owner rejected the inked look
+Clean, polished in-engine shots of our own world. No ink pass, no posterising, no paper grain, no halftone, nothing filtered
+into a drawing. Composed with the free camera, rendered at the highest tier, then only: a gentle grade (lift shadows a touch,
+warm highlights, saturation -5 to -10 %), a soft vignette (corners 15 to 25 % darker), an optional thin letterbox
+(about 8 % of height top and bottom). No outside imagery, no traced references.
+A passing shot:
+- A subject: one or two people, a car, or a person with a car, at 40 to 70 % of frame height, eye-level or low camera,
+  a clear pose (leaning on a car, mid-stride, looking back). A building is a background, not the subject.
+- Golden hour, dusk or night with lit windows and street lamps: a key light from one side and a separate rim light on the
+  subject. No flat noon light, no grey sky.
+- Faces: three-quarter, profile, under a brim or in shadow, until the people lanes pass (d2) at 3 m. Never a frontal close-up.
+- Nothing in frame that fails another section: no seams, no z-fighting, no floating props, no camera inside a mesh,
+  no visibly tiled ground.
+- Depth: the background a little softer or hazier than the subject (fog or a light depth of field), never a blur filter.
+- Loading: 3 to 5 shots, slow push 3 to 5 % over 6 to 8 s, crossfade 0.6 s, every 7 to 8 s. Title: one shot, the wordmark
+  in Anton (our own lettering, no GTA logo box), a thin menu on a scrim, never on a face.
+Fails: any drawing filter, a shot where the subject is a mannequin in A-pose, empty streets at noon, text on the art.
 
 ## (b) Type system (Zadie owns the tokens, everyone uses them)
 Two families, both SIL OFL 1.1, verified 11 Nov from the OFL.txt in github.com/google/fonts (ofl/anton, ofl/barlowcondensed,

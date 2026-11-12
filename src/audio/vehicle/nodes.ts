@@ -60,7 +60,7 @@ export function gritCurve(ctx: BaseAudioContext, drive: number): Float32Array {
 }
 
 /** Absolute levels (linear, before the vehicle bus) of the accessory layers; they do not follow the body gain, so a starter or a whistle is heard on its own terms. */
-export const ACC = { starter: 0.06, turbo: 0.03, clat: 0.07, whine: 0.016, ev: 0.05, ped: 0.014, rat: 0.04, pop: 0.2, bov: 0.14, rev: 0.02 } as const;
+export const ACC = { starter: 0.03, turbo: 0.012, clat: 0.028, whine: 0.0065, ev: 0.025, ped: 0.007, rat: 0.016, pop: 0.08, bov: 0.08, rev: 0.008 } as const;
 
 /** Full-quality engine for the player's car. */
 export class EngineNodes {
@@ -278,7 +278,7 @@ export class CheapVoice {
     if (t < this.holdUntil) return;
     this.o.frequency.setTargetAtTime(Math.max(5, f.fire * doppler), t, 0.05);
     this.lp.frequency.setTargetAtTime((v.tone * (0.5 + f.rpm / v.red) + v.open * f.load * 0.4) * clamp(level * 3, 0.35, 1), t, 0.08);
-    this.g.gain.setTargetAtTime(0.1 * v.g * level * (0.6 + 0.4 * f.load) * f.level * (0.15 + 0.85 * f.elec), t, 0.1);
+    this.g.gain.setTargetAtTime(0.05 * v.g * level * (0.6 + 0.4 * f.load) * f.level * (0.15 + 0.85 * f.elec), t, 0.1);
     if (this.pan) this.pan.pan.setTargetAtTime(clamp(pan, -1, 1), t, 0.18);
   }
   dispose(): void { try { this.o.stop(); } catch { /* not started */ } try { this.g.disconnect(); } catch { /* gone */ } }

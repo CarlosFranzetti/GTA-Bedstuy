@@ -37,7 +37,7 @@ const RACES = ['african', 'asian', 'caucasian'], SEXES = ['male', 'female'], AGE
 export const TARGETS = [
   ...RACES.flatMap((r) => SEXES.flatMap((g) => AGES.map((a) => `${r}-${g}-${a}`))),
   ...SEXES.flatMap((g) => ['minweight', 'maxweight'].map((w) => `universal-${g}-young-averagemuscle-${w}`)),
-  'universal-male-young-maxmuscle-averageweight',
+  'universal-male-young-maxmuscle-averageweight', 'universal-female-young-maxmuscle-averageweight',
 ];
 
 /**
@@ -368,7 +368,7 @@ function compact(body, indices) {
   }
   const positions = new Float32Array(keep.length * 3), w12 = new Float32Array(keep.length * 12);
   keep.forEach((v, i) => { positions.set(body.positions.subarray(v * 3, v * 3 + 3), i * 3); w12.set(body.w12.subarray(v * 12, v * 12 + 12), i * 12); });
-  return { positions, w12, indices: idx };
+  return { positions, w12, indices: idx, src: Uint32Array.from(keep) };
 }
 
 /** area weighted vertex normals */
@@ -522,7 +522,7 @@ export function unwrapUVs(mesh, lm, shared = null) {
   });
   const out = { groups: {}, headCz, maxU: Object.fromEntries(maxU) };
   for (const [k, g] of groups) out.groups[k] = { lo: g.lo, hi: g.hi, long: g.long, a1: g.a1, cb: g.cb, ct: g.ct, tile: g.tile, side: g.side };
-  return { position, normal, uv: Float32Array.from(outUv), joints, weights, indices: Uint32Array.from(outIdx), regions: region, shared: out };
+  return { position, normal, uv: Float32Array.from(outUv), joints, weights, indices: Uint32Array.from(outIdx), regions: region, shared: out, srcVertex: Int32Array.from(outSrc) };
 }
 
 /**
@@ -572,22 +572,45 @@ export async function fetchSources(dir = SRC) {
 }
 
 /** build the three LODs of a shape (not yet written) */
+/** morph targets that make a body heavier / more muscular (MakeHuman's own weight and muscle shapes, used at moderate strength at run time instead of inflating the skin) */
+const BODY_DELTA = { w: ['universal-%s-young-averagemuscle-maxweight'], m: ['universal-%s-young-maxmuscle-averageweight'] };
+function deltaTargets(shape, kind) {
+  const out = {};
+  const sexes = shape.sex === 'x' ? { male: 0.5, female: 0.5 } : { [shape.sex === 'f' ? 'female' : 'male']: 1 };
+  for (const [sx, w] of Object.entries(sexes)) for (const t of BODY_DELTA[kind]) out[t.replace('%s', sx)] = w;
+  return out;
+}
+
 export function buildShape(src, simplifier, name) {
   const shape = SHAPES[name];
   const body = buildBody(src, shape);
+  const fullN = vertexNormals(body.positions, body.indices);          // the smooth normals of the full MakeHuman surface: the low-poly mesh shades like the original
+  const deltas = {};
+  for (const kind of ['w', 'm']) {
+    const alt = buildBody(src, { ...shape, targets: { ...shape.targets, ...deltaTargets(shape, kind) } });
+    const d = new Float32Array(body.positions.length);
+    for (let i = 0; i < d.length; i++) d[i] = alt.positions[i] - body.positions[i];
+    deltas[kind] = d;
+  }
   const lods = {};
   let shared = null;
   for (const [lod, tris] of Object.entries(LOD_TRIS)) {
     const m = decimate(simplifier, body, tris, REGION_BUDGET[lod]);
     const u = unwrapUVs(m, body.landmarks, shared);
     if (lod === 'hi') shared = u.shared;
+    const n = u.position.length / 3, orig = new Uint32Array(n);
+    for (let i = 0; i < n; i++) orig[i] = u.srcVertex[i] < 0 ? 0 : m.src[u.srcVertex[i]];
+    for (let i = 0; i < n; i++) u.normal.set(fullN.subarray(orig[i] * 3, orig[i] * 3 + 3), i * 3);
+    if (lod === 'hi') for (const kind of ['w', 'm']) { const d = new Float32Array(n * 3); for (let i = 0; i < n; i++) d.set(deltas[kind].subarray(orig[i] * 3, orig[i] * 3 + 3), i * 3); u['d' + kind] = d; }
     lods[lod] = { ...u, triangles: m.indices.length / 3, mesh: m };
   }
   const hiMesh = lods.hi.mesh, lm = body.landmarks;
   const r = (v) => Math.round(v * 1e4) / 1e4;
   const rings = (arr) => arr.map((a) => a.map(r));
   const R = body.rig;
+  const maxAbs = (a) => a.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
   const people = {
+    deltaScale: { w: maxAbs(lods.hi.dw) || 1e-6, m: maxAbs(lods.hi.dm) || 1e-6 },
     shape: name, group: shape.group, sex: shape.sex, age: shape.age, height: r(body.height),
     rig: Object.fromEntries(Object.entries(R).map(([k, v]) => [k, Array.isArray(v) ? v.map(r) : r(v)])),
     landmarks: Object.fromEntries(Object.entries(lm).map(([k, v]) => [k, r(v)])),
@@ -637,12 +660,16 @@ export async function writeGlb(built, path) {
     const acc = (nm, arr, type) => doc.createAccessor(nm).setArray(arr).setType(type).setBuffer(buffer);
     const prim = doc.createPrimitive()
       .setAttribute('POSITION', acc('pos', g.position, 'VEC3'))
-      // no NORMAL: the loader welds by position and computes them (saves 13 % of the file)
+      .setAttribute('NORMAL', acc('nrm', g.normal, 'VEC3'))      // the full-resolution MakeHuman surface's smooth normals
       .setAttribute('TEXCOORD_0', acc('uv', g.uv, 'VEC2'))
       .setAttribute('JOINTS_0', acc('j', g.joints, 'VEC4'))
       .setAttribute('WEIGHTS_0', acc('w', g.weights, 'VEC4'))
       .setIndices(acc('idx', g.indices, 'SCALAR'))
       .setMaterial(mat);
+    if (g.dw) for (const [nm, d, sc] of [['_WGT', g.dw, built.people.deltaScale.w], ['_MUS', g.dm, built.people.deltaScale.m]]) {
+      const q = Int8Array.from(d, (v) => Math.round((v / sc) * 127));
+      prim.setAttribute(nm, doc.createAccessor(nm).setArray(q).setType('VEC3').setNormalized(true).setBuffer(buffer));
+    }
     const mesh = doc.createMesh(lod).addPrimitive(prim);
     scene.addChild(doc.createNode(lod).setMesh(mesh));
   }

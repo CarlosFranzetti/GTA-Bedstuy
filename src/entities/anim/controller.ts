@@ -246,8 +246,9 @@ export class AnimController {
     p[boneChannel('elbowL')] *= 0.6 + 0.4 * g.armSwing; p[boneChannel('elbowR')] *= 0.6 + 0.4 * g.armSwing;
     const walkiness = 1 - smooth(1.6, 3.0, speed); // posture quirks fade out when running
     const own = this.stoopBaked > 0.02 ? 0.3 : 1; // a stoop already baked into this body's rest pose is not added again
-    p[boneChannel('torso')] += g.lean * walkiness * own;
-    p[boneChannel('head')] += (g.headDrop * walkiness - g.lean * 0.4 * walkiness) * own;
+    // forward is negative x (a captured run leans to about -12 degrees), so a forward lean subtracts
+    p[boneChannel('torso')] -= g.lean * walkiness * own;
+    p[boneChannel('head')] -= (g.headDrop * walkiness - g.lean * 0.4 * walkiness) * own;
     p[RIG_CH] *= g.sway; p[RIG_CH + 2] *= g.sway; p[RIG_CH + 1] *= 0.8 + 0.2 * g.sway;
   }
 

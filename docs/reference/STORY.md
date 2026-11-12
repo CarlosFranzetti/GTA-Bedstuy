@@ -78,6 +78,64 @@ retry that starts the whole mission again. "Needs F" means the ring only offers 
 
 Mission 14 exists only when the world has el stations (`detectStoryFeatures`, see below). Nothing else depends on it.
 
+## STORY2: ten side jobs, six new people, a phone that never stops
+
+Owner: STORY2 lane. Code: `src/game/missions/content/story/extras.ts` (ids in `STORY2_IDS`), `src/game/story/{threads,overheard,signage}.ts`,
+more copy in `cast.ts`, `news.ts`, `flags.ts`. Tests: `tests/unit/sim/story2-missions.test.ts`, `tests/unit/game/story2-content.test.ts`.
+All ten are `tag: 'side'` (never the phone's story pointer), carry an `act` (so the Mission Log lists them under their act), gate on
+`requires` only, set a `side.*` flag that nothing in the arc reads, and leave the three endings untouched. They use only existing objective kinds.
+
+| # | Id | Title | Act / hours | Starts | Needs | Mechanics | Twist | Dark? | Fails |
+|---|---|---|---|---|---|---|---|---|---|
+| 15 | `moisture-event` | A Moisture Event | 1 / 8-19 | street (Pemberton's milk crate; email invite) | notice-of-intent | foot deliveries, talk, **fork** (deliver the last notice +$60, or float it as a paper boat) | the last door is Miss Cordy, in a coat indoors | heat "under review" | timeUp |
+| 16 | `founder-mode` | Founder Mode | 1 / 10-19 | phone (Garrett's pitch) | public-comment | talk, drive, 3 stoops, **pay** a pivot surcharge at the copy shop, deliver | he pivots mid-delivery to dog wellness | | timeUp |
+| 17 | `red-tape-relay` | Red Tape Relay | 1 / 9-17 | street (Rivka's counter; text) | handle-with-care | ordered **spots** (offices), a queue timer, **pay** exact change, interact | the stamps were printed by Rivka in 2011; she wanted to test the process | | timeUp |
+| 18 | `carbon-copy` | Carbon Copy | 2 / 20-4 | phone (Priya's voicemail) | fleece-vest | **night**, photo spots under 1 star, knock a door, **stakeout** on a stoop, **foot chase** | a detector reading 41 with no battery | yes | copsCalled, lostTarget, timeUp |
+| 19 | `the-binder` | The Binder | 2 / 9-21 | phone (Miss Cordy's voicemail) | open-house | **the el** (ride to the last stop; two corners on a world without el), lost property, **foot chase** | the thief is Garrett, "indexing" a 79-year-old's memory | yes (memory) | lostTarget, timeUp |
+| 20 | `gavel-to-gavel` | Gavel to Gavel | 2 / 17-23 | street (Chair Tate on the church steps; text) | open-decks | **DJ decks** (one-minute set holds the quorum), Alvin's mic | the chair recuses herself, in pen | | lowScore, timeUp |
+| 21 | `pigeon-post` | Pigeon Post | 2 / 16-20 (dusk) | street (Tito at the roof ladder) | walk-dee-home | bodega errand, **stealth tail** of a flock, stakeout under the billboard, slow walk home | a leg band: STOOPABLE ASSET 4417 | a little | spotted, tooFast, lostTarget, timeUp |
+| 22 | `van-man` | Van Man | 2 / 10-18 | phone (Auntie G's forward) | walk-dee-home | **drive**, tail, stakeout, photograph, **foot chase** under 2 stars, **fork** (Priya or Rivka gets the tablet) | the van scores every stoop "likelihood of vacating" | yes (data) | lostTarget, copsCalled, timeUp |
+| 23 | `silent-retreat` | Silent Retreat | 2 / 19-4 | phone (Hallie's text) | open-house | **night**, stakeout through breathwork, pick up a plant, **escort** Bryce | the facilitator is Garrett again | | blownCover, lostTarget, timeUp |
+| 24 | `slow-roll` | Slow Roll | 3 / 10-16 | street (the funeral director; Auntie's text) | night-of-the-narcan | slow **tail** of a hearse, hold still outside her building, ask a food truck to move, speed cap | the banner reads NOW LEASING, ORIGINAL CHARACTER | yes (a funeral) | lostTarget, tooFast, timeUp |
+
+Phone-started = a thread text (below) names the place and the ring is there; street-started = a person stands at the ring. Both end the same way.
+
+### Six new recurring characters (plus one voice)
+
+| Speaker | Who | Wants | Secret (revealed in) |
+|---|---|---|---|
+| Miss Cordy | Cordelia Baptiste, 79, Haitian-born retired union steward, 2A | the Binder (46 years of landlord letters) before the board | she is losing her memory; the Binder is how she knows who she is (`the-binder`) |
+| Chair Tate | Roslyn Tate, 58, Community Board Three chair | one honest vote with a quorum | her pension holds Parallax's debt; she stretches quorums to recuse in public (`gavel-to-gavel`) |
+| Garrett | Garrett Pell, 29, founder of BlockBlock | to build the thing that fixes the block | runway eleven days; every pivot is panic in a new font (`silent-retreat`) |
+| Rivka | Rivka Gold, 61, Hasidic, Gold's Copy & Print, Yossi's aunt | the block's paperwork right and on time | prints the city's forms herself, accepted by three agencies; tops up Yossi's repair fund (`red-tape-relay`) |
+| Priya | Priya Raman, 34, Tamil-American building inspector | one violation the system cannot lose | keeps real findings in a paper notebook after a fire in her backlog (`carbon-copy`) |
+| Tito | Héctor Ramírez, 63, Puerto Rican, retired elevator mechanic, pigeon keeper | the coop stays | every bird is named for a neighbour who moved out (`pigeon-post`) |
+| Pemberton | the landlord of record (emails only, off-stage) | rent without presence | there is no Mr. Pemberton: a template named TENANT_NUDGE_v7 (`moisture-event`) |
+
+Women: Miss Cordy, Chair Tate, Rivka, Priya. Elders who drive plots: Miss Cordy (79) and Tito (63). `RECURRING` is now 18, `CAST` 21.
+
+### Phone threads (`threads.ts`, 46 texts, each with a sender and an `after` trigger mission)
+
+Sent by `StoryDirector.onCompleted` through `Phone.text` with key `th:<id>` (never twice). Pemberton: NOTICE 01 to 10 (three endings, three NOTICE 10s).
+Garrett: six pivots, a bad week after the fire, a quiet goodbye. Auntie G: ALL-CAPS forwards, then the one she types herself. CB3 Neighbors:
+the board's group chat ("do not reply all"), branch-aware after Borough Hall. Invitations: Rivka, Priya, Miss Cordy, Tito, Chair Tate, Hallie, Pemberton.
+Voicemails and emails are texts with a prefix ("Voicemail (0:48):", "Subject:"); the phone has no audio. Saves from before STORY2 do not back-fill
+threads for missions already done (it would flood the phone).
+
+### Ambient writing
+
+- **Overheard** (`overheard.ts`): nine groups x 20 lines: stoop elders, Caribbean families, Latino neighbours, Hasidic neighbours, South Asian shopkeepers,
+  newcomers, young people, workers (riders, nurses, drivers), children; plus 16 reactive lines that start once a mission is done. `pickOverheard(rnd, {done, has}, group?)`.
+  Lines are people being people; the groups only choose which voice reads them, never an accent or a punchline.
+- **Signage** (`signage.ts`): 29 signs merged into `AmbientNotices` (shop jokes, stoop rules, taped notices, the leftovers of each job).
+- **Radio** (`news.ts`): 12 new bulletins (one per job, branch variants for the two forks) and 8 ads, through the existing `audio.setBroadcast` path.
+
+### Host wiring still to do (FOR FABLE, main.ts and PedSocial are not mine)
+
+Overheard: where a ped would say a `chat` bark, emit `pedBark` with `text: pickOverheard(() => rng.next(), { done, has: (f) => missions.story.has(f) }).text` and
+`kind: 'chat'`. `done` = the ids of completed missions (`new Set(missions.missions.filter((d) => missions.isCompleted(d.id)).map((d) => d.id))`).
+Everything else (threads, signs, bulletins, the Mission Log lines) is live through `StoryDirector` and `AmbientNotices` with no main.ts change.
+
 ## Branches (4 forks, 11 flags)
 
 A fork is a pair of rings in the world (not a menu): walk into the one you want and press F. The flag is saved.

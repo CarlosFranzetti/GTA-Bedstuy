@@ -814,6 +814,9 @@ game.add({
     }
     const pv = player.vehicle as ({ slip?: number } & IVehicle) | null;
     audio.setSlip(pv?.slip ?? 0); audio.setHandbrake(player.inVehicle && player.lastVehicleInput.handbrake);
+    // city bed by hour, and footsteps that follow the player's speed and gait (silent in a car or indoors)
+    audio.setHour(dayNight.timeOfDay);
+    audio.setFoot(player.inVehicle || away ? 0 : Math.hypot(player.body.vel.x, player.body.vel.z), player.sprint, !player.inVehicle && !away);
     audio.update(dt);
     if (++saveTick >= 120 && !away && canSaveHere) { saveTick = 0; saves.autosave(Date.now(), true); }
   },

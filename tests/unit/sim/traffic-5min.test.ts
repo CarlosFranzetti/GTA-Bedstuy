@@ -135,10 +135,6 @@ function runTraffic(seed: number): Run {
         if (!Number.isFinite(p.body.pos.x) || !Number.isFinite(p.body.pos.z)) run.nonFinite.push(`${p.id}@${t.toFixed(1)}`);
       }
     }
-    if (seed === 21 && step % 300 === 0 && t > 100 && t < 180) {
-      const near = traffic.vehicles.filter((v) => Math.abs(v.body.pos.z) < 8 && v.body.pos.x > -70 && v.body.pos.x < 0).map((v) => `${v.id}:${v.driver}:${v.body.pos.x.toFixed(1)},${v.body.pos.z.toFixed(1)} v${v.speed.toFixed(1)} h${v.body.heading.toFixed(2)}`);
-      (globalThis as any).__dbg = ((globalThis as any).__dbg ?? '') + `t=${t.toFixed(0)} ${near.join(' | ')}\n`;
-    }
     if (step % 60 === 0) {
       for (const v of movers) {
         let h = trail.get(v.id); if (!h) trail.set(v.id, h = []);
@@ -172,7 +168,6 @@ function runTraffic(seed: number): Run {
       if (Math.hypot(z.x - a.x, z.z - a.z) < 10) run.pedStill++;
     }
   }
-  if (seed === 21) { const fs = (globalThis as any).process.getBuiltinModule('node:fs'); fs.writeFileSync('/tmp/dbg21.txt', (globalThis as any).__dbg ?? ''); }
   return run;
 }
 
@@ -235,7 +230,7 @@ describe('full-density traffic, 5 simulated minutes on the real map (PRD 5.2)', 
 
   // Q10-D3: AI cars knock pedestrians down (3 times in seed 7, once in seed 21).
   it('Q10-D3 (fixed by F12): no AI car knocks a pedestrian down in 5 minutes (seeds 7 + 21)', () => {
-    for (const seed of SEEDS) { console.log('DBGK', seed, JSON.stringify(runs.get(seed)!.knockedDown), JSON.stringify(runs.get(seed)!.impacts.filter((i) => runs.get(seed)!.knockedDown.some((k) => (i.a === k.id || i.b === k.id) && Math.abs(i.t - k.t) < 1.5)))); expect(runs.get(seed)!.knockedDown).toEqual([]); }
+    for (const seed of SEEDS) expect(runs.get(seed)!.knockedDown, `seed ${seed}`).toEqual([]);
   });
 
   // Q10-D2 (fixed): 'impact' events fired every frame while a pedestrian stayed pressed against a car (unit repro in

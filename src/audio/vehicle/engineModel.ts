@@ -134,8 +134,8 @@ export const OVERRUN_LOAD = 0.42;
 /** Shift duration (s): a 7 or 8 speed box changes quickly, so the many shifts of a pull-away stay short and soft. */
 export const shiftTime = (v: EngineVoice): number => SHIFT_TIME * Math.min(1, 5 / Math.max(1, v.gears) + 0.25);
 
-/** Overall engine body level (linear); calibrated so the own engine reads about -24 LUFS at cruise (SOUND-BAR). */
-export const ENGINE_TRIM = 0.2;
+/** Overall engine body level (linear); 8 dB under the old level (owner, 12 Nov: engines too loud); idle is a quiet presence, full throttle rises. */
+export const ENGINE_TRIM = 0.16;
 
 /** Per-frame engine mix targets (gain / cutoff values) that EngineNodes.apply schedules; pure so the shift dip can be tested. */
 export function engineMix(v: EngineVoice, f: EngineFrame): { lope: number; lpHz: number; ex: number; lim: number; out: number; air: number } {
@@ -146,7 +146,7 @@ export function engineMix(v: EngineVoice, f: EngineFrame): { lope: number; lpHz:
     lpHz: v.tone * (0.75 + 0.5 * rn) + v.open * L * (0.45 + 0.45 * rn),
     ex: v.ex[2] * (0.5 + 0.5 * L),
     lim: (v.ev ? 0.03 : 1) * (f.shifting ? SHIFT_LIM : 1) * (f.cut ? LIMITER_CUT : 1) * (f.miss ? MISFIRE_CUT : 1) * (0.04 + 0.96 * f.elec),
-    out: ENGINE_TRIM * v.g * f.level * (0.6 + 0.4 * (L * 0.8 + rn * 0.2)),
+    out: ENGINE_TRIM * v.g * f.level * (0.45 + 0.55 * (L * 0.8 + rn * 0.2)),
     air: v.air * 0.13 * (0.3 + 0.7 * L * (0.5 + 0.5 * rn)) * f.level,
   };
 }

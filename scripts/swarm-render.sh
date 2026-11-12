@@ -28,9 +28,11 @@ fi
 
 if [ -n "$SWARM_LIGHT" ]; then
   while [ $SECONDS -lt $END ]; do
-    exec 9>"$BASE.light"
-    if flock -n 9; then "$@"; exit $?; fi
-    exec 9>&-
+    for L in "$BASE.light" "$BASE.light2" "$BASE.light3"; do
+      exec 9>"$L"
+      if flock -n 9; then "$@"; exit $?; fi
+      exec 9>&-
+    done
     sleep $((1 + RANDOM % 3))
   done
   echo "swarm-render: no free light slot in 2 h" >&2; exit 75
