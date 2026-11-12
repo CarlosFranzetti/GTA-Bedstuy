@@ -28,7 +28,8 @@ import { bodyTypeOf, type BodyType } from './pedBodyTypes';
 import { pickPedVariant, type PedModel, type PedOptions } from './pedBody';
 
 type Ring = [number, number, number, number, number?]; // y, rx, cz, rz, cx (half extents round the centre)
-export interface MhLod { position: Float32Array; normal: Float32Array; uv: Float32Array; joints: Uint16Array; weights: Float32Array; index: Uint32Array }
+/** `normal` = smooth normals of the low-poly mesh itself; `normal0` = the normals of the full-resolution MakeHuman surface it was reduced from; `dw` / `dm` = MakeHuman's weight and muscle shapes as position deltas (normalised by deltaScale, hi LOD only) */
+export interface MhLod { position: Float32Array; normal: Float32Array; uv: Float32Array; joints: Uint16Array; weights: Float32Array; index: Uint32Array; normal0?: Float32Array; dw?: Float32Array; dm?: Float32Array }
 export interface MhShape {
   name: string;
   height: number;
@@ -38,6 +39,7 @@ export interface MhShape {
   /** left limbs (x < 0), ascending in y */
   armRings: { upper: Ring[]; fore: Ring[] }; legRings: { thigh: Ring[]; shin: Ring[] };
   lods: Record<PedDetail, MhLod>;
+  deltaScale?: { w: number; m: number };
 }
 
 const shapes = new Map<string, MhShape>();
@@ -93,11 +95,15 @@ function shapeFromGltf(gltf: GLTF): MhShape {
     }
     const ix = g.index!, index = new Uint32Array(ix.count);
     for (let i = 0; i < ix.count; i++) index[i] = ix.getX(i);
-    lods[o.name as PedDetail] = { position, normal: weldedNormals(position, index), uv, joints, weights, index };
+    const na = g.getAttribute('normal'), wa2 = g.getAttribute('_wgt'), ma = g.getAttribute('_mus');
+    let normal0: Float32Array | undefined, dw: Float32Array | undefined, dm: Float32Array | undefined;
+    if (na) { normal0 = new Float32Array(n * 3); for (let i = 0; i < n; i++) { const x = na.getX(i), y = na.getY(i), z = na.getZ(i), l = Math.hypot(x, y, z) || 1; normal0[i * 3] = x / l; normal0[i * 3 + 1] = y / l; normal0[i * 3 + 2] = z / l; } }
+    if (wa2 && ma) { dw = new Float32Array(n * 3); dm = new Float32Array(n * 3); for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) { dw[i * 3 + k] = wa2.getComponent(i, k); dm[i * 3 + k] = ma.getComponent(i, k); } }
+    lods[o.name as PedDetail] = { position, normal: weldedNormals(position, index), uv, joints, weights, index, normal0, dw, dm };
   });
   if (!lods.hi || !lods.mid || !lods.far) throw new Error('people glb needs meshes hi, mid and far');
   const p = meta as Omit<MhShape, 'name' | 'lods'> & { shape: string };
-  return { name: p.shape, height: p.height, rig: p.rig, landmarks: p.landmarks, headRings: p.headRings, torsoRings: p.torsoRings, hipRings: p.hipRings, armRings: p.armRings, legRings: p.legRings, lods };
+  return { deltaScale: (p as { deltaScale?: { w: number; m: number } }).deltaScale, name: p.shape, height: p.height, rig: p.rig, landmarks: p.landmarks, headRings: p.headRings, torsoRings: p.torsoRings, hipRings: p.hipRings, armRings: p.armRings, legRings: p.legRings, lods };
 }
 
 const FILES = peopleFlag() ? import.meta.glob('@/assets/models/people/*.glb', { eager: true, query: '?url', import: 'default' }) as Record<string, string> : {};
@@ -440,6 +446,40 @@ function leanGeometry(pos: Float32Array, nrm: Float32Array | null, jx: ArrayLike
   }
 }
 
+/** weight and muscle deltas of a LOD: shipped for the hi LOD, taken from the nearest hi vertex for the coarser ones */
+const deltaCache = new WeakMap<MhLod, { dw: Float32Array; dm: Float32Array } | null>();
+function deltasFor(s: MhShape, L: MhLod): { dw: Float32Array; dm: Float32Array } | null {
+  if (L.dw && L.dm) return { dw: L.dw, dm: L.dm };
+  let c = deltaCache.get(L);
+  if (c !== undefined) return c;
+  const H = s.lods.hi;
+  if (!H.dw || !H.dm) { deltaCache.set(L, null); return null; }
+  const cell = 0.04, grid = new Map<string, number[]>(), key = (x: number, y: number, z: number): string => `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`;
+  for (let i = 0; i < H.position.length / 3; i++) { const k = key(H.position[i * 3], H.position[i * 3 + 1], H.position[i * 3 + 2]); const a = grid.get(k); if (a) a.push(i); else grid.set(k, [i]); }
+  const n = L.position.length / 3, dw = new Float32Array(n * 3), dm = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const x = L.position[i * 3], y = L.position[i * 3 + 1], z = L.position[i * 3 + 2];
+    let best = -1, bd = Infinity;
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) for (const j of grid.get(`${Math.floor(x / cell) + dx},${Math.floor(y / cell) + dy},${Math.floor(z / cell) + dz}`) ?? []) {
+      const d = (H.position[j * 3] - x) ** 2 + (H.position[j * 3 + 1] - y) ** 2 + (H.position[j * 3 + 2] - z) ** 2;
+      if (d < bd) { bd = d; best = j; }
+    }
+    if (best >= 0) for (let k = 0; k < 3; k++) { dw[i * 3 + k] = H.dw[best * 3 + k]; dm[i * 3 + k] = H.dm[best * 3 + k]; }
+  }
+  c = { dw, dm }; deltaCache.set(L, c);
+  return c;
+}
+/** normals of a deformed low-poly mesh: the smooth normals of the full MakeHuman surface, turned by however much the deformation turned the low-poly surface */
+function shadeNormals(L: MhLod, pos: Float32Array): Float32Array {
+  const now = weldedNormals(pos, L.index);
+  if (!L.normal0) return now;
+  const out = new Float32Array(now.length);
+  for (let i = 0; i < now.length; i += 3) {
+    const x = L.normal0[i] + now[i] - L.normal[i], y = L.normal0[i + 1] + now[i + 1] - L.normal[i + 1], z = L.normal0[i + 2] + now[i + 2] - L.normal[i + 2], l = Math.hypot(x, y, z) || 1;
+    out[i] = x / l; out[i + 1] = y / l; out[i + 2] = z / l;
+  }
+  return out;
+}
 interface Weld { canon: Int32Array; members: Map<number, number[]>; adj: Map<number, number[]> }
 const weldCache = new WeakMap<Uint32Array, Weld>();
 /** vertices at the same place (the UV seams) welded, with their neighbours */
@@ -492,6 +532,11 @@ export function dressLod(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): M
   const bt = bodyTypeOf(spec), lm = s.landmarks, R = s.rig;
   const shY = R.shoulderL[1], elY = R.elbowL[1], wrY = R.wristL[1], knY = R.kneeL[1], anY = lm.ankleY, hemY = lm.hemY;
   const n = L.position.length / 3, pos = new Float32Array(L.position);
+  // MakeHuman's own weight and muscle shapes, at the strength of the body type (no inflating)
+  if ((bt.weight || bt.muscle) && s.deltaScale) {
+    const D = deltasFor(s, L);
+    if (D) for (let i = 0; i < n * 3; i++) pos[i] += bt.weight * D.dw[i] * s.deltaScale.w + bt.muscle * D.dm[i] * s.deltaScale.m;
+  }
   const tor = s.torsoRings, cz0 = tor[Math.floor(tor.length / 2)][2], K = lm.crownY / 1.78;
   const armX = Math.abs(R.shoulderL[0]), hipX = Math.abs(R.hipL[0]), legK = legX(bt), wristX = Math.abs(R.wristL[0]), hipY = R.hipL[1];
   const yBelly = hipY + 0.09 * K, yWaist = hipY + 0.14 * K, yChest = shY - 0.13 * K, neckY = lm.chinY - 0.03;
@@ -534,7 +579,7 @@ export function dressLod(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): M
     pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
   }
   smoothChest(L, pos, yChest, cz0);
-  let normal = weldedNormals(pos, L.index);
+  let normal = shadeNormals(L, pos);
   if (dress) {
     const top = spec.top, bot = spec.bottom;
     const tk = (THICK_SKIN[top.kind] ?? 0), tb = THICK_BOT_SKIN[bot.kind] ?? 0, hemTop = topHemY(s, spec);
@@ -557,7 +602,7 @@ export function dressLod(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): M
       void x;
       if (t > 0) { out[i * 3] += normal[i * 3] * t; out[i * 3 + 1] += normal[i * 3 + 1] * t * 0.3; out[i * 3 + 2] += normal[i * 3 + 2] * t; }
     }
-    normal = weldedNormals(out, L.index);
+    normal = shadeNormals(L, out);
     return { ...L, position: out, normal };
   }
   return { ...L, position: pos, normal };

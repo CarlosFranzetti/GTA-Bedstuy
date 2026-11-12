@@ -168,6 +168,52 @@ Clothes: texture first (fabric grain, seams, pockets, zips painted with a normal
 needs it: hood, long coat hem, skirt, puffer bulk, cap brim, hijab drape over the shoulders.
 Faces: semi-realistic painted, GTA IV direction: real proportions, warm skin, no cartoon eyes or mouths.
 
+## (d2) People checklist: what separates ours from a GTA III / IV pedestrian (round 1, 12 Nov)
+Measured on people/final/line10-sil.png (1280x720, about 190 to 250 px per figure) and read from close3q-a/-b, street.png
+and smoke/smoke-player.jpg. GTA III / IV reference is observed from the games, no numbers copied. Tick every box at 3 m and
+12 m before posting a round. Owner's words: "smooth not bubbly or blocky".
+Proportion (Leila, PEOPLE)
+- [ ] Adults 7.0 to 7.5 heads tall. NOW: four men measure 8.0 to 8.5 heads (ba-hoodie-fade 8.1, ba-work 8.0, la-delivery 8.3,
+      wh-flannel 8.5): pinheads. Heavy bodies keep a normal head; do not scale the head down with height.
+- [ ] Head width 0.65 to 0.75 of head height; skull back and jaw corner visible in profile, not an egg.
+- [ ] Neck 0.5 to 0.6 head widths on men, 0.45 on women, visible length 0.3 to 0.4 head heights; jaw overhangs the neck in
+      profile. NOW: the black ring collar on la-hoodie-cap reads as a neck brace; the yellow-vest man's neck is a long stalk.
+- [ ] Shoulders 2.0 to 2.3 head widths (men), 1.6 to 1.9 (women), one round deltoid each side. NOW: slim bodies pass;
+      heavy bodies hit 3.1 to 3.5 head widths: balloons.
+- [ ] Torso wedge: shoulder to waist 1.25 to 1.35 on men, waist to hip 0.75 to 0.8 on women. NOW: most torsos are tubes,
+      shoulder roughly equals hip (ratio 0.92 to 1.08).
+- [ ] Heavy bodies carry the mass IN FRONT (belly 15 to 20 cm forward in profile) and in the upper arms and neck; hips at
+      most 1.15 x shoulders on heavy men, 1.3 x on curvy women. NOW: the orange puffer woman is 1.4 x with bowed sausage
+      thighs; the red-check man is a pear. That is the "bubbly" the owner means.
+- [ ] Arms rest 5 to 8 degrees off the body, elbows slightly bent, palms facing the thighs. NOW: 15 to 20 degree A-pose on
+      every figure, player included; it makes all of them read as mannequins. (Also an animation idle fix.)
+- [ ] Arm taper: forearm 0.8 of upper arm, wrist 0.55 of upper arm. Leg taper: calf 0.65 of thigh, ankle 0.4, a knee
+      bump at the side view, a gap between the thighs down to the knee. NOW: tubes of one thickness, no knee.
+- [ ] Hands 0.7 to 0.75 head heights long, mitten plus separate thumb, fingers slightly curled. NOW: small flat paddles.
+- [ ] Shoes 1.0 to 1.1 head heights long, flat sole on the ground, toe slightly up, pointing forward (10 degrees out at most).
+      NOW: white pointed blobs splayed out, several float.
+Shading (Leila geometry, Rozzie pieces)
+- [ ] Smooth normals across the body, but split normals (a crisp edge) at collar, cuffs, hem, waistband, shoe welt and hat
+      brim. NOW: the body is balloon-smooth everywhere, so garments do not read as cloth over a body.
+- [ ] No facets visible at 3 m on jaw, cheekbone, skull, hair, hijab or bun. NOW: hair shells, the bun and the hijab
+      opening are faceted, and the face reads as a flat card pasted on a sphere (hijab case: a bald patch shows above it).
+- [ ] Clothes hide anatomy: a coat or puffer hangs straight from the chest; no breasts or nipples modelled or painted
+      through cardigans, puffers or tops. NOW: visible on ba-elder, ba-puffer-braids and the blue top in close3q-a. Defect.
+Texture (Marisol, PEDTEX; Rozzie for hair, hats, shoes)
+- [ ] Face at 3 m: small dark eyes with light-grey (not white) sclera, no eyeliner, soft broad brows, lips only a little
+      darker than skin, value shadow under brow, nose and lower lip, stubble as a soft value. NOW: graphic eyeliner, glossy
+      white sclera with a sideways glance, thin plucked brows, red lipstick on almost everyone: it reads as cartoon.
+- [ ] Skin: two or three gentle value zones (forehead lighter, cheeks warmer, jaw darker), same colour across the face,
+      neck and hands, no seam at the neck.
+- [ ] Hoodie / sweater / jacket: low-contrast knit or twill, painted seams, hem and cuff rib, pocket, drawstrings, baked
+      shadow under collar, at armpits and at elbow folds. NOW: grey knits are high-frequency noise (shag rug); the player's
+      red hoodie and the blue top are flat colour.
+- [ ] Jeans: indigo with lighter fades on thighs and knees, outer seam, pocket shapes, a darker crotch and knee-back crease,
+      a cuff at the hem.
+- [ ] Shoes: a sole band, a darker upper, a lace area; trainers off-white, never pure white.
+- [ ] Hair: strand direction painted, a broken hairline painted onto the scalp, not a hard helmet edge.
+- [ ] Baked ambient occlusion: under chin, under arms, between legs, under hat brims.
+
 ## (e) Vehicles (Dmitri, Kenji)
 - Body: one clean low-poly hull, LOD0 traffic 4,000 to 7,000 tris, sports and player-focus cars up to 10,000, LOD1 1,000 to
   1,500 beyond 40 m. Smoothing groups: smooth across panels, hard edges only at real creases (shoulder line, hood edge,
@@ -194,7 +240,32 @@ deck, stripes or vents drawn as geometry steps, chrome outline on every edge.
 - Any Rockstar or other game asset, logo, font or traced image; Pricedown or lookalikes; non-open-licence fonts.
 - Outline and stroke used to fix contrast outside the HUD.
 
-## Honest read, 11 Nov midday (frames in c14b/, cars14/hi_before/, ui14/)
+## (g) World surfaces (Bea, ROADS: ground and trees; Noor, FACADES: walls, windows, shopfronts)
+- [ ] Asphalt: patches and cracks are rare (one patch per 15 to 25 m of lane), irregular, low contrast; no cobble or
+      rectangle stamps repeating across the frame. NOW (realworld2/medium/shop-corner.png): stamp patches and cartoon
+      crack lines everywhere; the road reads as a pattern.
+- [ ] Sidewalk: grey concrete flags, about 1.5 m, value variation of 5 to 10 %, joints as thin darker lines. NOW
+      (smoke-ped.jpg): flags in blue, brown and slate like planks; dotted moiré patches (decal or shadow acne).
+- [ ] Trees: a soft canopy of leaf clusters, no cube or voxel leaves (smoke-player.jpg), trunks taper and branch.
+- [ ] Bags and small props: smooth low-poly, not faceted icospheres.
+- [ ] Brick at true scale: 20 x 6.5 cm courses, so about 9 to 10 courses per metre; no rubble-sized bricks (smoke-ped.jpg),
+      no visible tile repeat across a facade (shop-corner.png), mortar a little lighter than brick.
+- [ ] Facades: grime and darkening at the base and under sills, lintel and sill shadows, slight variation per window
+      (blinds, curtains, lights at night); no grid-aligned rectangles from lotTone.
+
+## Scoreboard (lane, round, verdict)
+| Lane | Round | Verdict |
+|---|---|---|
+| PEOPLE (Leila) | 12 Nov r1, people/final | FAIL: pinheads on four men, balloon heavy bodies, A-pose arms |
+| PEDTEX (Marisol) | 12 Nov r1, same frames (pre-lane baseline) | FAIL: cartoon eyes and lips, noise knits, flat hoodies |
+| PEDHAIR (Rozzie) | 12 Nov r1, same frames (pre-lane baseline) | FAIL: faceted helmet hair, blob shoes, faceted hijab |
+| CARS2 (Dmitri) | 12 Nov r1, cars14/hi_after | FAIL (better): cowl slot fixed on 3 of 4; wedge truck slot, mottled paint, white disc rims |
+| ROADS (Bea) | 12 Nov r1, realworld2 + smoke | FAIL: stamped asphalt, coloured plank sidewalks, cube trees |
+| FACADES (Noor) | 12 Nov r1, realworld2 + smoke | FAIL: brick scale and repeat, no base grime |
+| SHOTS (Priya) | none yet | waiting |
+| HUD2 (Zadie) | none yet | waiting |
+
+## Earlier read, 11 Nov midday (frames in c14b/, cars14/hi_before/, ui14/)
 - People: shoulders peak at the collar with zigzag shirt shards at neck, hem and cuffs; one body for everyone; the hijab is
   still a diving hood (tight to the face, ruffle at the neck, no drape). The flat-shaded faces facet at 3 m.
 - Cars: paint and wheels hold up. The tops are the problem: a dark slot at the windshield base, the glass sits proud of the
