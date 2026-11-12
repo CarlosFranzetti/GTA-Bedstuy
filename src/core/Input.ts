@@ -4,6 +4,16 @@ export const LOOK_BACK_KEY = 'KeyC';
 /** Edge-only pseudo key raised by a middle mouse click. */
 export const MIDDLE_MOUSE = 'MouseMiddle';
 
+/** Left mouse button while the pointer is locked (the action button). The click that locks the pointer is not an action. */
+export const ACTION_MOUSE = 'MouseLeft';
+/** G, the keyboard action button. Not Left Ctrl as in GTA III: in a browser Ctrl+W closes the tab while you run forward. */
+export const ACTION_KEY = 'KeyG';
+/** Virtual action button: the gamepad's right trigger on foot and the touch ACT button hold this. */
+export const ACTION_VIRTUAL = 'ActionButton';
+/** Cycle the held item: Q and the pad's d-pad right step forward; the d-pad left (virtual) steps back. */
+export const CYCLE_NEXT_KEY = 'KeyQ';
+export const CYCLE_PREV_VIRTUAL = 'ItemPrev';
+
 export type InputMode = 'keyboard' | 'touch' | 'gamepad';
 
 /** Keyboard + mouse state. Poll `isDown` for held keys, `pressed` for edge-triggered actions (consumed per frame). */
@@ -42,9 +52,12 @@ export class Input {
     });
     window.addEventListener('keyup', (e) => { this.down.delete(e.code); this.caps = e.getModifierState?.('CapsLock') ?? this.caps; });
     window.addEventListener('blur', () => this.down.clear());
+    window.addEventListener('mouseup', (e) => { if (e.button === 0) this.down.delete(ACTION_MOUSE); });
     el.addEventListener('mousemove', (e) => { if (this.pointerLocked) { this.mouseDX += e.movementX; this.mouseDY += this.invertLookY ? -e.movementY : e.movementY; this.setMode('keyboard'); } });
     el.addEventListener('mousedown', (e) => {
+      const wasLocked = this.pointerLocked; // the click that takes the lock is not an action
       this.gesture(); this.requestLock();
+      if (e.button === 0 && wasLocked) { if (!this.down.has(ACTION_MOUSE)) this.justPressed.add(ACTION_MOUSE); this.down.add(ACTION_MOUSE); }
       if (e.button === 1) { e.preventDefault(); this.justPressed.add(MIDDLE_MOUSE); } // middle click: swap camera shoulder
     });
     el.addEventListener('wheel', (e) => { this.wheel += Math.sign(e.deltaY); }, { passive: true });
@@ -88,6 +101,18 @@ export class Input {
   /** True while any key, virtual button, touch stick or look delta is active (the camera's idle detector). */
   anyInput(): boolean {
     return this.down.size > 0 || this.virtualDown.size > 0 || this.justPressed.size > 0 || this.touchAxis.x !== 0 || this.touchAxis.y !== 0 || this.mouseDX !== 0 || this.mouseDY !== 0;
+  }
+  /** The action button is held (left mouse while locked, G, pad right trigger on foot, touch ACT). */
+  actionHeld(): boolean { return this.isDown(ACTION_MOUSE) || this.isDown(ACTION_KEY) || this.isDown(ACTION_VIRTUAL); }
+  /** Take the action button's press edge from any device (true once per press). */
+  consumeAction(): boolean {
+    const a = this.consume(ACTION_MOUSE), b = this.consume(ACTION_KEY), c = this.consume(ACTION_VIRTUAL);
+    return a || b || c;
+  }
+  /** Take a held-item cycle request: +1 (Q, d-pad right), -1 (d-pad left) or 0. */
+  consumeCycle(): number {
+    const n = this.consume(CYCLE_NEXT_KEY), p = this.consume(CYCLE_PREV_VIRTUAL);
+    return n ? 1 : p ? -1 : 0;
   }
   /** True while the look-back key is held. */
   get lookBack(): boolean { return this.isDown(LOOK_BACK_KEY); }

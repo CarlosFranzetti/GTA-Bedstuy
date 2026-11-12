@@ -559,3 +559,18 @@ body.ui-panel-open .hud-card { display: none !important; }
   .hud-vehicle { margin-bottom: 4px; }
   .hud-stars { font-size: 20px; }
 }
+
+/* ---- hands widget: the held item (a drawn icon) and its count, top right just left of the money (the phone and map buttons sit under the stars) */
+.hud-hands {
+  position: absolute; top: max(8px, env(safe-area-inset-top, 0px)); right: calc(max(16px, env(safe-area-inset-right, 0px)) + 150px);
+  display: flex; align-items: center; gap: 8px; padding: 3px 8px 3px 6px; min-height: 40px;
+  color: #f4efe2; background: rgba(12, 12, 16, 0.42); border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 6px;
+  text-shadow: var(--text-shadow, 0 1px 3px rgba(0, 0, 0, 0.8)); pointer-events: auto; touch-action: manipulation; user-select: none;
+}
+.hud-hands[hidden] { display: none; }
+.hud-hands-icon { display: inline-flex; width: 40px; height: 40px; }
+.hud-hands-icon svg { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7)); }
+.hud-hands-count { font: 600 20px/1 var(--font-hud, system-ui, sans-serif); letter-spacing: 0.04em; font-variant-numeric: tabular-nums; min-width: 0; }
+.hud-hands-count:empty { display: none; }
+.hud-hands.empty { color: #f08a7a; }
+.hud-hands.reloading { color: #f2c230; }

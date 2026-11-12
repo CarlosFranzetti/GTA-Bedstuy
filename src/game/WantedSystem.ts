@@ -15,12 +15,18 @@ const CRIME_STARS: Record<CrimeType, number> = {
   hitParked: 1,
   sidewalkDriving: 1,
   hitVehicle: 0,
+  assault: 1,
+  thrownHit: 1,
+  gunshot: 2,
 };
 
 /** Petty crimes never push the level above this many stars on their own. */
 const CRIME_CAP: Partial<Record<CrimeType, number>> = {
   hitParked: 1,
   sidewalkDriving: 1,
+  // on foot: a brawl alone never goes past one star, a thrown hit past two; a gunshot is the full ladder
+  assault: 1,
+  thrownHit: 2,
 };
 
 /** One-line names for the toast shown whenever a crime adds a star. */
@@ -31,6 +37,9 @@ export const CRIME_LABEL: Record<CrimeType, string> = {
   hitParked: 'Ramming cars',
   sidewalkDriving: 'Driving on the pavement',
   hitVehicle: 'Hit a vehicle',
+  assault: 'Assault',
+  thrownHit: 'Throwing things at people',
+  gunshot: 'Shots fired',
 };
 
 export class WantedSystem {

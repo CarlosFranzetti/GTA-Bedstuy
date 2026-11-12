@@ -3,6 +3,8 @@ import type { HudState } from '@/world/types';
 import type { InputMode } from '@/core/Input';
 import { DISCLAIMER } from './creditsData';
 import { BACKDROPS, backdropUrl } from './backdrops';
+import { HAND_ICONS } from '@/game/combat/icons';
+import type { HandsHudState } from '@/game/combat/items';
 
 /** Optional radio extras next to `HudState.radioStation`: the now-playing file/speaker and the talk-show loop position. */
 export interface RadioHudState {
@@ -134,6 +136,12 @@ export class Hud {
   private lastSpeedText = '';
   private lastPrompt = '';
   private inputMode: InputMode = 'keyboard';
+  /** The hands widget (top right, under the money): what the action button does now. Tapping it steps to the next item (phones). */
+  onCycleHands: (() => void) | null = null;
+  private readonly handsEl: HTMLElement;
+  private readonly handsIconEl: HTMLElement;
+  private readonly handsCountEl: HTMLElement;
+  private handsKey = '';
 
   constructor(root: HTMLElement) {
     this.doc = root.ownerDocument;
@@ -259,9 +267,18 @@ export class Hud {
     lock.append(title, rule, start, startSub, credits);
     this.splashEl.append(art, shade, barT, barB, by, lock, subtitle, fold);
 
+    // hands widget: a drawn icon of what is in hand and its count (hidden in a car, where the action button does nothing yet)
+    this.handsEl = this.make('div', 'hud-hands');
+    this.handsEl.hidden = true;
+    this.handsIconEl = this.make('span', 'hud-hands-icon');
+    this.handsCountEl = this.make('span', 'hud-hands-count');
+    this.handsEl.append(this.handsIconEl, this.handsCountEl);
+    this.handsEl.addEventListener('pointerdown', (e) => { e.stopPropagation(); this.onCycleHands?.(); });
+
     root.append(
       this.fpsEl,
       this.starsEl,
+      this.handsEl,
       this.promptEl,
       this.barsEl,
       location,
@@ -270,6 +287,20 @@ export class Hud {
       this.toastEl,
       this.splashEl,
     );
+  }
+
+  /** Show what is in the player's hands (null hides the widget: in a car, indoors, nothing to show). Cheap to call every frame. */
+  setHands(s: HandsHudState | null): void {
+    const key = s ? `${s.item}|${s.count}|${s.reserve}|${s.reloading}` : '';
+    if (key === this.handsKey) return;
+    this.handsKey = key;
+    this.handsEl.hidden = !s;
+    if (!s) return;
+    this.handsEl.dataset.item = s.item;
+    this.handsEl.classList.toggle('empty', s.count === 0);
+    this.handsEl.classList.toggle('reloading', s.reloading);
+    this.handsIconEl.innerHTML = HAND_ICONS[s.item];
+    this.handsCountEl.textContent = s.reloading ? '...' : s.count === null ? '' : s.reserve === null ? String(s.count) : `${s.count}/${s.reserve}`;
   }
 
   update(state: HudState & RadioHudState & BlockedHudState & VitalsHudState & WantedHudState & VehicleHudState): void {

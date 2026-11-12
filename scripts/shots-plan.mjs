@@ -21,20 +21,20 @@ for (let i = 0; i < 80; i++) { try { if ((await fetch(`${base}/`)).ok) break; } 
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 try {
   const page = await browser.newPage({ viewport: { width: W, height: H } });
+  await page.route((u) => !/^(http:\/\/localhost|data:|blob:)/.test(u.href), (r) => r.abort()); // no CDN speech models etc.: they cost memory
   page.on('pageerror', (e) => console.error(String(e).slice(0, 300)));
   await page.goto(`${base}/?q=${arg('--q', 'medium')}&perf=0`, { waitUntil: 'load', timeout: 600_000 });
   await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 1_200_000 });
   console.log('booted', Date.now() - T0, 'ms');
   await page.evaluate(() => { window.__gtaDebug.renderer.domElement.style.visibility = 'hidden'; });
-  await page.mouse.click(W / 2, H / 2); await page.waitForTimeout(500);
-  const b = page.getByRole('button', { name: 'Resume' }); if (await b.isVisible().catch(() => false)) { await b.click(); await page.waitForTimeout(300); }
+  // Do NOT press Space to dismiss the title: that starts the game's audio and the page then grows past 12 GB and is killed. The frames come from the hidden canvas via __gtaDebug and do not need the title dismissed.
   for (const s of plan) {
     const res = await page.evaluate((s) => {
       const d = window.__gtaDebug; d.stopLoop(); d.setHour(s.hour); d.traffic.setHour?.(s.hour, true);
       d.setWeather?.(s.wet ? 'wet' : 'dry', true);
       d.teleport(s.at[0], s.at[1], 0); d.step(s.steps ?? 240);
       if (s.el !== undefined && d.transit) d.transit.time = s.el;
-      const cars = d.physics.bodies().filter((b) => b.shape.kind === 'obb' && Math.hypot(b.pos.x - s.at[0], b.pos.z - s.at[1]) < 45)
+      const cars = Array.from(d.physics.bodies()).filter((b) => b.shape.kind === 'obb' && Math.hypot(b.pos.x - s.at[0], b.pos.z - s.at[1]) < 45)
         .map((b) => ({ id: b.id, x: +b.pos.x.toFixed(1), z: +b.pos.z.toFixed(1), h: +b.heading.toFixed(2), kind: b.kind, d: +Math.hypot(b.pos.x - s.at[0], b.pos.z - s.at[1]).toFixed(1) }))
         .sort((a, b) => a.d - b.d);
       let cam = s.cam;
@@ -46,10 +46,12 @@ try {
           cam = [c.x + fx * k.fwd + rx * k.side, k.h, c.z + fz * k.fwd + rz * k.side, c.x + fx * (k.lookFwd ?? 0) + rx * (k.lookSide ?? 0), k.lookH ?? 0.8, c.z + fz * (k.lookFwd ?? 0) + rz * (k.lookSide ?? 0)];
         }
       }
+      if (!cam) return { skip: true, cars: cars.slice(0, 8) };
       d.setFreeCam(...cam);
       d.settle(20); let info; for (let i = 0; i < 5; i++) info = d.renderOnce(1, 1 / 60);
       return { data: d.renderer.domElement.toDataURL('image/png'), calls: info.total, tris: info.triangles, cars: cars.slice(0, 6), cam };
     }, s);
+    if (res.skip) { console.log(s.name, 'SKIPPED (no vehicle near)', JSON.stringify(res.cars)); continue; }
     writeFileSync(`${out}/${s.name}.png`, Buffer.from(res.data.split(',')[1], 'base64'));
     console.log(s.name, 'calls', res.calls, 'tris', res.tris, 'cam', JSON.stringify(res.cam.map((v) => +v.toFixed(1))), 'cars', JSON.stringify(res.cars));
   }

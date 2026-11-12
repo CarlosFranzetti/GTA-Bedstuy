@@ -23,6 +23,10 @@ import { resolveVehicleSources } from '@/entities/models/gltf/VehicleSource';
 import { TrafficSystem } from '@/game/TrafficSystem';
 import { CopSystem } from '@/game/CopSystem';
 import { WantedSystem } from '@/game/WantedSystem';
+import { Combat } from '@/game/combat/Combat';
+import { CombatSfx } from '@/game/combat/sfx';
+import { CombatView } from '@/game/combat/view';
+import { placePickups } from '@/game/combat/pickups';
 import { DayNight } from '@/game/DayNight';
 import { Hud, type RadioHudState, type BlockedHudState } from '@/ui/Hud';
 import { Minimap } from '@/ui/Minimap';
@@ -331,6 +335,9 @@ const overlay = document.createElement('div');
 overlay.id = 'overlay';
 app.appendChild(overlay);
 const hud = new Hud(overlay);
+// the action button on foot: fists, thrown bottles and bricks, a pistol (pickups on the grid map only for now)
+const combat = new Combat({ events, world: physics, peds: () => traffic.peds, player, fx: new CombatView(scene), sfx: new CombatSfx(() => audio.sfxHost), pickups: realWorld ? [] : placePickups(world.lots, HOME, (p, r) => physics.overlapsSolid(p, r)), onHands: (s) => hud.setHands(s) });
+hud.onCycleHands = () => combat.cycle(1);
 // Title theme: plays on the title screen once the browser lets audio start (a click during loading, or the native app),
 // fades out a few seconds after the player presses start, and plays again under the credits roll.
 const titleMusic = createTitleMusic({ volume: 0.7 });
@@ -515,6 +522,7 @@ function updateCamera(dt = 1 / 60): void {
   else if (world.transit.ride) { const c = world.transit.ride.cam; cam.camera.position.set(c.px, c.py, c.pz); cam.camera.lookAt(c.lx, c.ly, c.lz); }
   else {
     camCtx.vehicle = player.vehicle;
+    cam.holdView = combat.holdView; // aiming: the view stays where the player put it
     cam.update(dt, camTarget, camHeading, player.inVehicle ? 'vehicle' : 'foot', input, camCtx);
     player.setFirstPerson(!player.inVehicle && cam.firstPersonAmount > 0.85);
     // consumed here: otherwise frames that run no fixed step (display > 60 Hz) would re-apply the same mouse delta
@@ -760,6 +768,7 @@ game.add({
     traffic.update(dt, away ? lastOutside : player.body.pos);
     cops.update(dt, away ? lastOutside : player.body.pos, player.vehicle ? player.vehicle.body : player.body);
     wanted.update(dt);
+    combat.update(dt, { viewYaw: cam.yaw, blocked: blocked || away || phoneHud.isOpen || map.isOpen, input });
     {
       const pv = player.vehicle; const mb = (pv ?? player).body;
       missions.update(uiOpen() ? 0 : dt, mb.pos, player.inVehicle, wanted.stars, pv ? Math.abs(pv.speed) : Math.hypot(mb.vel.x, mb.vel.z), dayNight.timeOfDay, pv?.spec.type ?? '');
@@ -902,7 +911,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
     camHeading = (veh ? veh.body : player.body).heading;
     for (let i = 0; i < n; i++) updateCamera();
   },
-  interiors, inventory, phone, get dj() { return dj; }, get shopUi() { return shopUi; }, get djUi() { return djUi; }, ensureAudio, missions,
+  interiors, inventory, phone, combat, get dj() { return dj; }, get shopUi() { return shopUi; }, get djUi() { return djUi; }, ensureAudio, missions,
   player, cops, traffic, wanted, physics, grid, events, scene, sky, pipeline, blobs, nightLights, dayNight, renderer, materials, perf, culler, carLod, proxies, weather,
   nearby(r: number) { const p = player.body.pos; const out: unknown[] = []; for (const b of physics.bodies()) { const d = Math.hypot(b.pos.x - p.x, b.pos.z - p.z); if (b.shape.kind === 'circle' && d < r) out.push({ id: b.id, kind: b.kind, d: +d.toFixed(2) }); } return out; },
 };

@@ -3197,3 +3197,12 @@ Wrap-up: legs are cut tubes (pedLegs.ts), gap, hem cuff, jacket hem lip, chunky 
 
 ### 2026-11-12T19:21:09Z · Rook (ACTION)
 Starting the action button (fists, throw, pistol, pickups). New files under src/game/combat/. Editing Input.ts, Gamepad.ts, TouchControls.ts, Hud.ts (hands widget), Menu.ts (help rows), Player.ts, anim/controller.ts, Pedestrian.ts (hitBy only), Events.ts. Not touching main.ts, models, roadnet.
+
+### 2026-11-12T19:21:43Z · Vesper (SHOTS2)
+Starting SHOTS2: producing the five title/loading backdrops (public/art/shot-*.webp). Touching public/art/, src/ui/backdrops.ts, scripts/shots-plan.mjs (bodies() iterable fix, Space to start). Not main.ts.
+
+### 2026-11-12T19:47:30Z · Rook (ACTION)
+Combat core is in (src/game/combat/*, ped hitBy, anim upper-body poses, HUD hands widget, Input/Gamepad/Touch ACT, help rows). game/core/entities suites green (1272), tsc clean. First in-game frame shows the right jab landing. Capturing the rest now; main.ts untouched, I am testing the wiring in a scratch copy of the tree.
+
+### 2026-11-12T20:10:43Z · Rook (ACTION)
+Wrap-up: action button built (fists, bottle/brick throw, pistol, pickups, HUD hands widget, ACT touch button, pad RT and d-pad, Left click and Left Ctrl, Q). Tests green (game/core/entities 1272, plus ui), tsc clean. main.ts untouched; the 6 lines to add are in my report. Frames in scratchpad/action/out, out2, out3.

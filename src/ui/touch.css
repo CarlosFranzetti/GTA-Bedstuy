@@ -50,3 +50,10 @@
 
 /* JUMP is an on-foot button; it hides while driving (setDriving) */
 .tc-driving .tc-btn-jump { display: none; }
+
+/* ACT is the on-foot action button (punch / throw / shoot): a big round button just left of the grid; it hides while driving */
+.tc-btn-act { position: absolute; right: calc(100% + 14px); bottom: 0; width: 96px; height: 96px; font-size: 14px; border-color: rgba(255, 120, 90, 0.85); }
+.tc-driving .tc-btn-act { display: none; }
+@media (max-height: 420px) { .tc-btn-act { width: 76px; height: 76px; right: calc(100% + 10px); } }
+/* phones: the pause / phone / map buttons own the top-right corner, so the hands widget sits left of the stars */
+.touch .hud-hands { top: 44px; right: calc(max(16px, env(safe-area-inset-right, 0px)) + 150px); }

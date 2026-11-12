@@ -47,6 +47,8 @@ export interface PedEnvironment {
 const WALK_SPEED = 1.2;
 const FLEE_SPEED = 4;
 const DOWN_TIME = 6;
+/** A second blow within this many seconds of the first puts a pedestrian down (hitBy). */
+const HIT_MEMORY = 6;
 const HIT_SPEED = 2;
 const CROSSWALK_SCAN_RADIUS = 12;
 const WAIT_RECHECK = 0.3;
@@ -146,6 +148,8 @@ export class Pedestrian implements Entity {
   barkCooldown = 0;
   private reaction: { kind: PedReaction; t: number; dur: number; delay: number; toward: Vec2 | null } | null = null;
   private gesture = 0;
+  /** `gesture` clock at the last hitBy */
+  private hitStamp = -1e9;
   private reactionSeen: object | null = null;
 
   constructor(
@@ -242,6 +246,37 @@ export class Pedestrian implements Entity {
         this.targetId = back;
       }
     }
+  }
+
+  /**
+   * The player hit this pedestrian (src/game/combat). A first light blow staggers them: a startle, a step back, then they run. A
+   * second blow inside HIT_MEMORY seconds, or a heavy / thrown / shot hit, puts them on the ground (the same 'down' state a car
+   * leaves them in; they get up on their own). No blood, nobody dies. Returns what happened; a pedestrian already down is left alone.
+   */
+  hitBy(from: Vec2, force: 'light' | 'heavy' | 'thrown' | 'shot' = 'light'): 'staggered' | 'knockedDown' | 'ignored' {
+    if (this.state === 'down') return 'ignored';
+    const knock = force !== 'light' || this.gesture - this.hitStamp < HIT_MEMORY;
+    this.hitStamp = this.gesture;
+    this.dropChat(false);
+    const dx = this.body.pos.x - from.x, dz = this.body.pos.z - from.z, d = hyp(dx, dz) || 1;
+    if (!knock) {
+      this.body.pos.x += (dx / d) * 0.25; this.body.pos.z += (dz / d) * 0.25;
+      this.react('startle', from);
+      this.say('bumped');
+      this.flee(from, 5);
+      return 'staggered';
+    }
+    this.state = 'down';
+    this.waitCrossing = null;
+    this.detour = null;
+    this.reaction = null;
+    this.detach();
+    this.downTimer = DOWN_TIME;
+    const push = force === 'heavy' ? 3.4 : 2.4;
+    this.body.vel.x = (dx / d) * push;
+    this.body.vel.z = (dz / d) * push;
+    this.events.emit('pedKnockedDown', { id: this.id, pos: { x: this.body.pos.x, z: this.body.pos.z } });
+    return 'knockedDown';
   }
 
   onContact(_contact: Contact, other: Body2D): void {

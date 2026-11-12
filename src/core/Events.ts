@@ -4,8 +4,10 @@ import type { Vec2 } from './Math2';
 /**
  * hitParked: repeated ramming of parked / civilian cars. sidewalkDriving: driving on the pavement near pedestrians.
  * (hitVehicle is a single bump: it adds no stars but resets the decay timer.)
+ * On foot (src/game/combat): assault = a punch that put someone down in view of others (a little heat), thrownHit = a bottle or
+ * brick that put someone down (more), gunshot = a pistol shot anyone could hear (a lot).
  */
-export type CrimeType = 'hitPed' | 'hitCop' | 'hitVehicle' | 'carjack' | 'hitParked' | 'sidewalkDriving';
+export type CrimeType = 'hitPed' | 'hitCop' | 'hitVehicle' | 'carjack' | 'hitParked' | 'sidewalkDriving' | 'assault' | 'thrownHit' | 'gunshot';
 
 export interface GameEvents {
   /** Something the cops care about. */
@@ -21,6 +23,10 @@ export interface GameEvents {
   /** Fired once when the player first interacts (needed to start WebAudio). */
   userGesture: Record<string, never>;
   pedKnockedDown: { id: string; pos: Vec2 };
+  /** On-foot combat (src/game/combat): the player hit a pedestrian. `down` is true when it put them on the ground. */
+  pedHit: { id: string; pos: Vec2; by: 'fist' | 'thrown' | 'shot'; down: boolean };
+  /** A pistol shot was fired (the muzzle position). */
+  gunshot: { pos: Vec2 };
   /** A pedestrian says something short out loud (PedSocial). Speak it with PedVoice (src/audio/voice/PedVoice.ts) and show the subtitle. */
   pedBark: { id: string; text: string; kind: string; pos: Vec2; pitch: number; rate: number; sex: 'm' | 'f' | 'x'; age: 'kid' | 'teen' | 'adult' | 'old'; /** 0..1 how loud: shouts are 1, small talk 0.6 */ loud: number };
   /** Mission framework (src/game/missions). */

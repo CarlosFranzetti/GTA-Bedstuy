@@ -7,7 +7,7 @@ import type { EventBus } from '@/core/Events';
 import type { Input } from '@/core/Input';
 import { animateWalk, type HumanModel } from '@/entities/models/humanModel';
 import { animateJump } from '@/entities/models/jumpPose';
-import { AnimController } from '@/entities/anim/controller';
+import { AnimController, type ActionPose } from '@/entities/anim/controller';
 import { PLAYER_GAIT } from '@/entities/anim/gait';
 import { JumpState } from '@/entities/Jump';
 import { buildPerson as buildPedModel } from '@/entities/models/pedMesh';
@@ -134,6 +134,10 @@ export class Player implements Entity {
   onLand: ((strength: number) => void) | null = null;
   private prevY = 0;
   private landCheck = false;
+  /** On-foot action pose (punch, throw, aim) the combat system sets each step; layered over the upper body by the anim controller. */
+  actionPose: ActionPose | null = null;
+  /** While set, the body turns to face this heading (rad) instead of its move direction: aiming a pistol, the throw. */
+  aimYaw: number | null = null;
   private firstPerson = false;
   /** Height above the ground (m); also on `body.height` so World2D lets the player over low props. */
   get jumpHeight(): number { return this.jump.y; }
@@ -443,9 +447,11 @@ export class Player implements Entity {
       const sp = (base + (RUN_SPEED - base) * (k * k * (3 - 2 * k))) * this.jump.speedScale;
       this.desiredVel = { x: this.moveDir.x * sp, z: this.moveDir.z * sp };
       const want = headingFromVec(this.moveDir);
-      b.heading = wrapAngle(b.heading + angleDiff(b.heading, want) * (1 - Math.exp(-TURN_SMOOTH * this.jump.accelScale * dt)));
+      const face = this.aimYaw ?? want;
+      b.heading = wrapAngle(b.heading + angleDiff(b.heading, face) * (1 - Math.exp(-TURN_SMOOTH * this.jump.accelScale * dt)));
     } else {
       this.desiredVel = { x: 0, z: 0 };
+      if (this.aimYaw !== null) b.heading = wrapAngle(b.heading + angleDiff(b.heading, this.aimYaw) * (1 - Math.exp(-TURN_SMOOTH * dt)));
     }
     const ex = this.desiredVel.x - b.vel.x, ez = this.desiredVel.z - b.vel.z;
     const el = Math.hypot(ex, ez);
@@ -473,6 +479,9 @@ export class Player implements Entity {
     const pos = { x: this.prevPos.x + (b.pos.x - this.prevPos.x) * a, z: this.prevPos.z + (b.pos.z - this.prevPos.z) * a };
     this.pose3D(pos, this.prevHeading + angleDiff(this.prevHeading, b.heading) * a, y);
   }
+
+  /** The right forearm bone of the procedural figure (the hand is at its far end): held items attach here. Null for a glTF character. */
+  handAnchor(): THREE.Object3D | null { return this.model ? this.model.elbows[1] : null; }
 
   /** First-person view: hide the head (and hat/hair with it) so the lens inside it sees nothing; the body keeps casting its shadow. */
   setFirstPerson(on: boolean): void {
@@ -566,7 +575,7 @@ export class Player implements Entity {
       this.anim ??= new AnimController(this.model, PLAYER_GAIT);
       const yawRate = dt > 0 ? -angleDiff(this.animHeading, b.heading) / dt : 0;
       this.animHeading = b.heading;
-      if (!this.anim.update(dt, { speed: sp, yawRate, jump: { phase: this.jump.phase, t: this.jump.t, vy: this.jump.vy } })) {
+      if (!this.anim.update(dt, { speed: sp, yawRate, jump: { phase: this.jump.phase, t: this.jump.t, vy: this.jump.vy }, action: this.actionPose })) {
         if (this.jump.busy) animateJump(this.model, this.jump.phase, this.jump.t, this.jump.vy);
         else animateWalk(this.model, this.walkPhase, this.walkAmp);
       }

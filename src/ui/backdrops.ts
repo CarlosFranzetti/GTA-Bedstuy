@@ -14,11 +14,11 @@ export interface Backdrop {
 }
 
 export const BACKDROPS: readonly Backdrop[] = [
-  { file: 'shot-car.webp', caption: 'A car on a brownstone block at golden hour', pos: '38% 60%' },
-  { file: 'shot-el.webp', caption: 'The elevated line at dusk', pos: '60% 50%' },
-  { file: 'shot-stoop.webp', caption: 'A stoop row in warm evening light', pos: '45% 60%' },
-  { file: 'shot-wet.webp', caption: 'A wet night street', pos: '50% 60%' },
-  { file: 'shot-avenue.webp', caption: 'An avenue at blue hour', pos: '50% 55%' },
+  { file: 'shot-car.webp', caption: 'A car on a brownstone block at golden hour', pos: '46% 55%' },
+  { file: 'shot-el.webp', caption: 'Under the elevated line at dusk', pos: '47% 50%' },
+  { file: 'shot-stoop.webp', caption: 'A stoop row in warm evening light', pos: '34% 55%' },
+  { file: 'shot-wet.webp', caption: 'A wet night street under the elevated line', pos: '57% 55%' },
+  { file: 'shot-avenue.webp', caption: 'An avenue at blue hour', pos: '50% 50%' },
 ];
 
 /** URL of a backdrop file next to the page (relative, so it works from a sub-path and from the native shell). */

@@ -4,6 +4,7 @@
  *   left stick  -> input.touchAxis (move / steer)           RT -> throttle (adds to touchAxis.y in a car)
  *   right stick -> input.addLook (scaled by dt)             LT -> brake (Space)
  *   A -> KeyF (enter/exit)   X -> ShiftLeft (run / handbrake)   LB -> KeyH (horn)   Y -> KeyE (radio)
+ *   RT on foot -> the action button (punch / throw / shoot, see src/game/combat); d-pad right / left on foot -> next / previous held item
  *   R3 (right-stick click) -> KeyC held (look back)
  *   Select/Back -> KeyV (camera view)   RB -> KeyB (shoulder swap)   B on foot -> Space (jump)
  *   Start -> onStart (pause menu)   D-pad / A / B -> onNav (menu navigation)
@@ -11,7 +12,7 @@
  * Call `update(dt)` once per rendered frame (also while paused, so Start can resume).
  * Touch coexistence: the stick only writes `touchAxis` while it is deflected (and once to zero on release).
  */
-import { LOOK_BACK_KEY, type Input } from './Input';
+import { ACTION_VIRTUAL, CYCLE_NEXT_KEY, CYCLE_PREV_VIRTUAL, LOOK_BACK_KEY, type Input } from './Input';
 
 /** Radial dead zone. */
 export const DEAD_ZONE = 0.15;
@@ -159,6 +160,12 @@ export class GamepadInput {
     this.hold('KeyH', down(BTN.LB));
     this.hold(LOOK_BACK_KEY, down(BTN.RS)); // right-stick click: look back
     this.hold('Space', this.inVehicle && lt > TRIGGER_ON);
+    // on foot the right trigger is the action button (in a car it is the throttle); the d-pad steps through the held items
+    this.hold(ACTION_VIRTUAL, !this.inVehicle && rt > TRIGGER_ON);
+    if (!this.inVehicle) {
+      if (edge(BTN.RIGHT)) this.pulse(CYCLE_NEXT_KEY);
+      if (edge(BTN.LEFT)) this.pulse(CYCLE_PREV_VIRTUAL);
+    }
   }
 
   private pulse(code: string): void { this.input.pulse(code); }

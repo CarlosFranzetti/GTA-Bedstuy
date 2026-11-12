@@ -25,6 +25,8 @@ export interface AnimInput {
   yawRate?: number;
   /** the entity's jump state, when it has one */
   jump?: { phase: 'ground' | 'takeoff' | 'air' | 'land'; t: number; vy: number };
+  /** an on-foot action (punch, throw, aim) layered over the upper body; null or absent for none */
+  action?: ActionPose | null;
 }
 
 interface OneShot { amp: number; clip: Clip; t: number; end: number; rate: number; mirror: boolean; fadeIn: number; fadeOut: number }
@@ -49,6 +51,64 @@ export function keyIdle(p: Float32Array, kind: 'crossed' | 'lean', side: number)
     set(side > 0 ? 'kneeR' : 'kneeL', -0.45, 0, 0); set(side > 0 ? 'kneeL' : 'kneeR', -0.06, 0, 0);
     set('armL', -0.1, 0, 0.1); set('armR', -0.1, 0, -0.1); set('elbowL', 0.45, 0, 0); set('elbowR', 0.45, 0, 0);
     p[RIG_CH] += 0.03 * side; p[RIG_CH + 1] -= 0.03; p[RIG_CH + 2] += 0.1;
+  }
+}
+
+/**
+ * An on-foot action layered on the upper body (the captured clips have no punch, throw or aim). `k` is the progress 0..1 through the
+ * move; for 'aim' it is how far the arms are up (0 hanging, 1 levelled) and `recoil` (0..1) kicks the gun arm back after a shot.
+ * Only torso, head, shoulders and elbows are touched, so the legs keep walking underneath.
+ */
+export interface ActionPose { kind: 'punchL' | 'punchR' | 'heavy' | 'throw' | 'aim'; k: number; recoil?: number }
+
+const UPPER_CH = ['torso', 'head', 'armL', 'elbowL', 'armR', 'elbowR'] as const;
+const sstep = (a: number, b: number, x: number): number => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+/** 0 -> 1 over [a, b], then back to 0 over [b, c]: a hump. */
+const hump = (a: number, b: number, c: number, x: number): number => sstep(a, b, x) * (1 - sstep(b, c, x));
+
+/**
+ * Hand-keyed upper-body poses, written over a standing/walking pose. Forward is -z in the figure's space, so a positive shoulder x
+ * swings the arm forward and up; a positive elbow x folds the forearm up; a negative torso x leans forward; a positive torso y turns
+ * to the figure's left.
+ */
+export function keyAction(p: Float32Array, a: ActionPose): void {
+  const set = (b: Parameters<typeof boneChannel>[0], x: number, y: number, z: number): void => { const o = boneChannel(b); p[o] = x; p[o + 1] = y; p[o + 2] = z; };
+  const add = (b: Parameters<typeof boneChannel>[0], x: number, y: number, z: number): void => { const o = boneChannel(b); p[o] += x; p[o + 1] += y; p[o + 2] += z; };
+  const k = Math.min(1, Math.max(0, a.k));
+  if (a.kind === 'punchL' || a.kind === 'punchR' || a.kind === 'heavy') {
+    const heavy = a.kind === 'heavy';
+    const right = a.kind !== 'punchL'; // a heavy hit is a right
+    const hit = heavy ? 0.5 : 0.4;                                                   // the blow lands this far through the move
+    const cock = sstep(0, hit * 0.5, k) * (1 - sstep(hit * 0.5, hit, k));            // fist drawn back
+    const strike = sstep(hit * 0.5, hit, k) * (1 - sstep(hit + 0.15, 1, k));         // arm driven out, held through the hit, recovered
+    const hitter = right ? 'armR' : 'armL', hitterEl = right ? 'elbowR' : 'elbowL';
+    const guard = right ? 'armL' : 'armR', guardEl = right ? 'elbowL' : 'elbowR';
+    const side = right ? 1 : -1;
+    // the striking arm: cocked back and bent, then straight out at chest height
+    set(hitter, 0.15 - (heavy ? 0.9 : 0.55) * cock + 1.3 * strike, -0.1 * side * strike, 0.1 * side);
+    set(hitterEl, (0.4 + (heavy ? 1.5 : 1.2) * cock) * (1 - strike) + 0.1 * strike, 0, 0);
+    // the guard hand up by the chin
+    set(guard, 0.9, 0.35 * side, -0.1 * side); set(guardEl, 1.9, 0, 0);
+    // the body turns into the blow (a right punch turns left) and dips forward on a heavy one
+    add('torso', (heavy ? -0.28 : -0.12) * strike + 0.1 * cock, side * (0.55 * strike - 0.3 * cock) * (heavy ? 1.25 : 1), 0);
+    add('head', 0.03, -side * 0.25 * strike, 0);
+  } else if (a.kind === 'throw') {
+    // overhand with the right: arm cocked up and back, torso arched, then whipped through and down
+    const cock = hump(0, 0.38, 0.5, k);
+    const whip = sstep(0.38, 0.55, k) * (1 - sstep(0.62, 1, k));
+    set('armR', 2.9 * cock + 1.5 * whip + 0.2, -0.1, -0.35 * cock);
+    set('elbowR', 1.9 * cock + 0.25 * whip, 0, 0);
+    set('armL', 0.9 * cock + 0.4, 0.2, 0.2 * cock); set('elbowL', 0.5 * cock + 0.3, 0, 0);
+    add('torso', 0.2 * cock - 0.3 * whip, 0.5 * whip - 0.35 * cock, 0);
+    add('head', 0.04 - 0.08 * whip, 0, 0);
+  } else {
+    // pistol held out at arm's length in both hands; the shot kicks the gun arm up and back
+    const up = sstep(0, 1, k), r = Math.min(1, Math.max(0, a.recoil ?? 0));
+    set('armR', 0.1 + 1.38 * up + 0.2 * r, -0.04 * up, 0.04 * up);
+    set('elbowR', 0.15 * up + 0.4 * r, 0, 0);
+    set('armL', 0.1 + 1.12 * up + 0.1 * r, 0.5 * up, -0.08 * up); set('elbowL', 0.2 + 0.85 * up, 0, 0);
+    add('torso', -0.04 * up + 0.07 * r, -0.2 * up, 0);
+    add('head', 0.02 * up - 0.03 * r, 0.12 * up, 0);
   }
 }
 
@@ -81,6 +141,8 @@ export class AnimController {
   private turnT = 0;
   private turnW = 0;
   private jumpW = 0;
+  private actionW = 0;
+  private lastAction: ActionPose | null = null;
   private recentMax = 0;
   private sinceStill = 9;
   private startedRun = false;
@@ -242,6 +304,15 @@ export class AnimController {
       sampleClip(jumpClip, t, this.tmp);
       this.mix(this.base, this.tmp, this.jumpW);
     }
+
+    // an on-foot action (punch, throw, aim): the hand-keyed upper body, faded in and out so the arms never snap
+    if (inp.action) this.lastAction = inp.action;
+    this.actionW += ((inp.action ? 1 : 0) - this.actionW) * Math.min(1, dt * (inp.action?.kind === 'aim' ? 12 : 26));
+    if (this.lastAction && this.actionW > 0.01) {
+      this.tmp.set(this.base);
+      keyAction(this.tmp, this.lastAction);
+      for (const name of UPPER_CH) { const o = boneChannel(name); for (let c = 0; c < 3; c++) this.base[o + c] += (this.tmp[o + c] - this.base[o + c]) * this.actionW; }
+    } else if (!inp.action) this.lastAction = null;
 
     this.write(this.base, inp.yawRate ?? 0, speed);
     return true;
