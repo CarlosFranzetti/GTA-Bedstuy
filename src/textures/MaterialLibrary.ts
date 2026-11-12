@@ -138,7 +138,7 @@ export class MaterialLibrary implements IMaterialLibrary {
       if (ei !== undefined && m instanceof THREE.MeshStandardMaterial) this.registerEnv(m, ei);
       const gv = GROUND_VARIATION_KEYS[key];
       if (gv && m instanceof THREE.MeshStandardMaterial) patchGroundVariation(m, GROUND_VARIATION[gv]);
-      if (m instanceof THREE.MeshStandardMaterial && LOT_TONE_KEYS.includes(key)) patchLotTone(m);
+      if (m instanceof THREE.MeshStandardMaterial && LOT_TONE_KEYS.includes(key)) patchLotTone(m, key === 'brownstone');
       if (m instanceof THREE.MeshStandardMaterial && (key === 'treeLeaves' || key === 'treeTrunk')) patchTreeTint(m, key === 'treeLeaves' ? 'leaves' : 'trunk');
       const gd = GROUND_DETAIL_KEYS[key];
       if (gd && m instanceof THREE.MeshStandardMaterial) patchGroundDetail(m, gd);

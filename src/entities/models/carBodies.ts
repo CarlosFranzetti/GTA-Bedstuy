@@ -1828,10 +1828,10 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     }
     if (j === 11) return 'none'; // underside, covered by the pan
     // integral bumpers (CARS2): the lowest side quads of the nose and tail are the dark valance (as many as the ring is low enough to take)
-    if (j >= 9 && (um >= tipF - 0.42 || um <= tipR + 0.34)) {
+    if (j >= 9 && (um >= Math.max(tipF - 0.42, axleF + arch.halfChord + 0.03) || um <= Math.min(tipR + 0.34, axleR - arch.halfChord - 0.03))) {
       const rr = ring(um);
       const hh = rr.yBelt - rr.yBot;
-      if (j >= (hh * 0.58 <= 0.3 ? 9 : hh * 0.2 <= 0.22 ? 10 : 11)) return 'dark';
+      if (j >= (hh * 0.58 <= 0.2 ? 9 : hh * 0.2 <= 0.22 ? 10 : 11)) return 'dark';
     }
     if (j === 10) {
       if (Math.abs(um - axleF) < arch.halfChord + 0.05 || Math.abs(um - axleR) < arch.halfChord + 0.05) return 'dark';
@@ -1992,7 +1992,6 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     if (st.chromeBumper) {
       // chrome bumper bar: across the face at the cut line, wrapping a little way round each corner
       chrome.add(bx(2 * half, 0.05, 0.03, 0, cut - 0.02, tipZ + dirZ * 0.014));
-      for (const sg of [-1, 1]) chrome.add(bx(0.03, 0.05, 0.14, sg * (half - 0.005), cut - 0.02, tipZ - dirZ * 0.05));
     } else {
       chrome.add(bx(2 * half - 0.02, 0.008, 0.01, 0, cut, tipZ + dirZ * 0.006)); // a thin shut line between the cover and the valance
     }
@@ -2064,12 +2063,14 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     for (let k = -2; k <= 2; k++) trim.add(bx(0.02, 0.1, 0.24, k * 0.2, st.sill + 0.1, bumperZ - 0.14));
   }
   // underbody pan so the sky never shows under the car, and a dark box filling the engine bay under the hood panel
-  trim.add(bx(2 * (Wb2 - 0.14), 0.04, L - 0.5, 0, st.sill + 0.04, 0));
-  trim.add(bx(2 * (Wb2 - 0.2), 0.04, hoodFrontU - hoodBackU, 0, fyBelt((hoodBackU + hoodFrontU) / 2) - 0.1, -(hoodBackU + hoodFrontU) / 2));
+  trim.add(bx(2 * (Wb2 - 0.16), 0.04, L - 0.7, 0, st.sill + 0.04, 0));
+  const bayY = Math.min(fyBelt((hoodBackU + hoodFrontU) / 2) - 0.1, ring(hoodFrontU).yT - 0.08, ring(hoodBackU).yT - 0.08);
+  trim.add(bx(2 * (Wb2 - 0.2), 0.04, hoodFrontU - hoodBackU, 0, bayY, -(hoodBackU + hoodFrontU) / 2));
 
   // ---- interior (seen through the glass): dash with a cluster hood, steering wheel, console, two front seats with
   // headrests, a rear bench, door cards and parcel shelf. All dark/chrome trim, so the extra detail costs no draw call.
-  const yBeltC = fyBelt(0);
+  // the dash must sit under the cowl: on a wedge the belt at the car's middle is well above the hood at the windshield base
+  const yBeltC = Math.min(fyBelt(0), ring(ws[0] - 0.2).yT + 0.04);
   // low roofs (sports cars): sink the seats so the headrests stay under the roof; bodies at 1.35 m and above are unchanged
   const seatY = st.sill + 0.5 * ky - (H < 1.35 ? (1.35 - H) * 1.7 : 0);
   const iw = Wb2 * 0.78;
@@ -2215,12 +2216,12 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     const hp = wrapLamp(st.headLamp, true, tipF, (d) => ring(tipF - d).wMax - 0.012, trF.wMax * (st.grilleW ?? 0.8) + 0.04, st.headY ?? ring(tipF - 0.15).yBelt - 0.14);
     for (const g of hp.lens) head.addBoth(g);
     for (const g of hp.housing) trim.addBoth(g);
-    for (const g of hp.rim) chrome.addBoth(g);
+    for (const g of hp.rim) grey.addBoth(g);
   } else if (st.headLamp) {
-    const hp = lampPieces(st.headLamp, true, v3(lx, st.headY ?? lampHeadY, -tipF), -0.22);
+    const hp = lampPieces(st.headLamp, true, v3(lx, st.headY ?? lampHeadY, -tipF), 0);
     for (const g of hp.lens) head.addBoth(g);
     for (const g of hp.housing) trim.addBoth(g);
-    for (const g of hp.rim) chrome.addBoth(g);
+    for (const g of hp.rim) grey.addBoth(g);
   } else {
     for (const [sx2, yaw] of [[-1, 0.25], [1, -0.25]] as const) head.add(placeLamp(lensGeo(0.14, 0.05, 0.045, true), v3(sx2 * lx, lampHeadY, -tipF), yaw));
   }
@@ -2231,7 +2232,7 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     for (const g of tp.housing) trim.addBoth(g);
     for (const g of tp.rim) grey.addBoth(g);
   } else if (st.tailLamp) {
-    const tp = lampPieces(st.tailLamp, false, v3(ltx - 0.1, st.tailY ?? lampTailY, -tipR), 0.2);
+    const tp = lampPieces(st.tailLamp, false, v3(ltx - 0.1, st.tailY ?? lampTailY, -tipR), 0);
     for (const g of tp.lens) tail.addBoth(g);
     for (const g of tp.housing) trim.addBoth(g);
     for (const g of tp.rim) grey.addBoth(g);

@@ -18,6 +18,8 @@ export type RGB = [number, number, number];
 export const WallKind = { brick: 0, siding: 1, stucco: 2, panel: 3, glazed: 4, trim: 5, awning: 6, stripedAwning: 7, gate: 8, party: 9 } as const;
 /** `kind * KIND_STEP` is the byte stored in `aStyle.x` (kinds 0..10 fit). */
 export const KIND_STEP = 24;
+/** the lot's roof-line height / ROOF_SCALE rides in the alpha of the `color` vertex attribute of its wall materials (stain placement in lotTone.ts) */
+export const ROOF_SCALE = 64;
 export type WallKindValue = (typeof WallKind)[keyof typeof WallKind];
 
 export interface Colourway {

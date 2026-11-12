@@ -13,7 +13,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { IMaterialLibrary, Lot } from '@/world/types';
 import type { Rng } from '@/core/Rng';
 import { lotLook, partyWallDetail, roofDetails } from './partyWall';
-import { toneFor, type Colourway } from './colourway';
+import { toneFor, ROOF_SCALE, type Colourway } from './colourway';
 import { ENV14_ON } from '@/world/data/env14';
 
 /** Parlour (or ground) storey height and the storeys above it (real Bed-Stuy rows: tall parlour, shorter upper floors). */
@@ -504,13 +504,14 @@ export class LotBatch {
   /** Close the current lot: bake the collected geometry into per-material BufferGeometries moved by `m`. */
   flush(m: THREE.Matrix4): void {
     const overhangs = collectOverhangs(this.raw);
+    const info = this.lotInfo();
     for (const [mat, r] of this.raw) {
       if (!r.p.length) continue;
       const g = new THREE.BufferGeometry();
       g.setAttribute('color', new THREE.BufferAttribute(bakeVertexAo(r.p, r.n, this.openings, overhangs), 4, true));
       g.setAttribute('position', new THREE.Float32BufferAttribute(r.p, 3));
       g.setAttribute('normal', new THREE.Float32BufferAttribute(r.n, 3));
-      this.bakeTone(g, mat, r);
+      this.bakeTone(g, mat, r, info);
       g.setAttribute('uv', new THREE.Float32BufferAttribute(r.uv, 2));
       g.applyMatrix4(m);
       let list = this.out.get(mat);
@@ -522,7 +523,22 @@ export class LotBatch {
   }
 
   /** `aTone` (target sRGB + paint amount) and `aStyle` (kind, mortar, seed, weather) for the shared wall materials; jitters wall UVs per lot. */
-  private bakeTone(g: THREE.BufferGeometry, mat: THREE.Material, r: Raw): void {
+  /**
+   * Stain placement for the wall shader (lotTone.ts): the roof-line height of the lot's masonry and the phase of its upper-storey
+   * sill line (sill height mod the storey height, 0..22; 23 = no upper window found). Windows sit on the same line on every floor.
+   */
+  private lotInfo(): { roofH: number; q: number } {
+    let roofH = 0;
+    for (const [mat, r] of this.raw) {
+      if (!/^(brickRed|brickPainted|brownstone|limestone):/.test(mat.name)) continue;
+      for (let i = 1; i < r.p.length; i += 3) if (r.p[i] > roofH) roofH = r.p[i];
+    }
+    const sills = this.openings.map((o) => o.lo[1]).filter((y) => y > 2.4).sort((a, b) => a - b);
+    const q = sills.length ? Math.max(0, Math.min(22, Math.round(((sills[sills.length >> 1] % UPPER_H) / UPPER_H) * 22))) : 23;
+    return { roofH, q };
+  }
+
+  private bakeTone(g: THREE.BufferGeometry, mat: THREE.Material, r: Raw, info: { roofH: number; q: number }): void {
     const count = r.p.length / 3;
     const tone = new Uint8Array(count * 4), style = new Uint8Array(count * 4);
     const c = this.cw;
@@ -535,6 +551,12 @@ export class LotBatch {
           const t = (isFront || c.limestoneFront) && (r.n[i * 3 + 2] > 0.7 || c.corner) ? frontT : sideT;
           if (!t) continue;
           tone.set(t.tone, i * 4); style.set(t.style, i * 4);
+          style[i * 4] = Math.min(255, style[i * 4] + info.q);
+        }
+        if (/^(brickRed|brickPainted|brownstone|limestone):/.test(mat.name)) {
+          const col = g.getAttribute('color') as THREE.BufferAttribute;
+          const a = Math.max(0, Math.min(255, Math.round((info.roofH / ROOF_SCALE) * 255)));
+          for (let i = 0; i < count; i++) col.array[i * 4 + 3] = a;
         }
         if (/^(brickRed|brickPainted|brownstone|limestone|stoop):/.test(mat.name)) {
           const { scale, ou, ov, flip } = c.cw.uv;

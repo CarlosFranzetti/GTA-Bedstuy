@@ -435,8 +435,7 @@ function paintBand(ctx: CanvasRenderingContext2D, s: PedSpec, k: number): void {
     ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(x + w * 0.15, y + h * 0.88, w * 0.7, h * 0.12); }
   // top fabric (hood roll, coat hem) and bottom fabric (skirt)
   const topC = rgb(s.top.color), botC = rgb(s.bottom.color);
-  grad(SK_RECTS.torso, mul(topC, 1.0), mul(topC, 0.95));
-  { const [x, y, w, h] = R(SK_RECTS.torso); for (let i = 0; i < 700; i++) { ctx.fillStyle = hash(s.id + 'n' + i) < 0.5 ? 'rgba(0,0,0,0.16)' : 'rgba(255,255,255,0.12)'; ctx.fillRect(x + hash(s.id + 'x' + i) * w, y + hash(s.id + 'y' + i) * h, 2 * k, 2 * k); } }
+  grad(SK_RECTS.torso, mul(topC, 0.98), mul(topC, 0.94));
   streaks(SK_RECTS.torso, topC, 10, s.id + 't', 0.3, 0.1);
   grad(SK_RECTS.pelvis, mul(botC, 0.86), mul(botC, 0.8));
   { const [x, y, w, h] = R(SK_RECTS.pelvis); for (let i = 0; i < 6; i++) { ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.fillRect(x + (i + 0.5) * w / 6, y, Math.max(1, k), h); } }

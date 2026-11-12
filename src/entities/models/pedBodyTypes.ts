@@ -29,15 +29,15 @@ export interface BodyType {
 const T = (o: Partial<BodyType>): BodyType => ({ h: 1, shoulders: 1, chest: 1, belly: 0, hips: 1, arms: 1, legs: 1, head: 1, stoop: 0, weight: 0, muscle: 0, ...o });
 export const BODY_TYPES: Record<BodyTypeId, BodyType> = {
   avg: T({}),
-  slim: T({ h: 1.02, weight: -0.5, shoulders: 0.97 }),
-  athletic: T({ h: 1.03, muscle: 0.75, weight: -0.1, shoulders: 1.05 }),
-  heavy: T({ h: 0.98, weight: 0.7, belly: 0.025, shoulders: 1.03 }),
-  'tall-thin': T({ h: 1.11, weight: -0.6, shoulders: 0.96 }),
-  'short-stocky': T({ h: 0.88, weight: 0.35, muscle: 0.4, shoulders: 1.05, head: 1.05 }),
-  broad: T({ h: 1.05, muscle: 0.5, weight: 0.15, shoulders: 1.12 }),
-  pear: T({ h: 0.99, weight: 0.35, hips: 1.08, shoulders: 0.97 }),
-  petite: T({ h: 0.92, weight: -0.3, shoulders: 0.95, head: 1.03 }),
-  elder: T({ h: 0.96, weight: 0.2, shoulders: 0.96, stoop: -0.22 }),
+  slim: T({ h: 1.02, weight: -0.8, shoulders: 0.97 }),
+  athletic: T({ h: 1.03, muscle: 1.0, weight: -0.2, shoulders: 1.06 }),
+  heavy: T({ h: 0.98, weight: 1.5, belly: 0.03, shoulders: 1.03 }),
+  'tall-thin': T({ h: 1.11, weight: -1.0, shoulders: 0.96 }),
+  'short-stocky': T({ h: 0.88, weight: 0.9, muscle: 0.6, shoulders: 1.05, head: 1.05 }),
+  broad: T({ h: 1.05, muscle: 1.2, weight: 0.4, shoulders: 1.12 }),
+  pear: T({ h: 0.99, weight: 0.9, hips: 1.08, shoulders: 0.97 }),
+  petite: T({ h: 0.92, weight: -0.5, shoulders: 0.95, head: 1.03 }),
+  elder: T({ h: 0.96, weight: 0.5, shoulders: 0.96, stoop: -0.22 }),
   teen: T({ h: 0.95, weight: -0.2, shoulders: 0.95, head: 1.07 }),
   kid: T({ h: 0.78, head: 1.22 }),
 };
@@ -50,6 +50,7 @@ const FEMALE_TYPES: BodyTypeId[] = ['avg', 'slim', 'pear', 'athletic', 'petite',
 export function bodyTypeId(spec: Pick<PedSpec, 'id' | 'build' | 'sex' | 'age' | 'role'> & { body?: BodyTypeId }): BodyTypeId {
   if (spec.body) return spec.body;
   const age = spec.age ?? 'adult';
+  if (spec.role === 'player' && age !== 'kid') return spec.sex === 'f' ? 'avg' : 'athletic';      // the player is the model the camera sits behind: a fit build
   if (age === 'kid' || spec.build === 'kid') return 'kid';
   if (age === 'teen') return 'teen';
   if (age === 'old') return 'elder';

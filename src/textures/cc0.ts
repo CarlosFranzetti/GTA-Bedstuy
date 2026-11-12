@@ -45,12 +45,14 @@ export function cc0Entries(files?: Record<string, string>): PackEntry[] {
     return { key, variant, color: colorless ? '' : url.color, normal: url.normal, rough: url.rough, roughness: 1, envMapIntensity: 0.1, ...p };
   };
   const out: PackEntry[] = [
-    e('brickRed', 0, 'brick_red_common', { repeat: 2, normalScale: 0.9 }),
-    e('brickRed', 1, 'brick_brownstone', { repeat: 2, normalScale: 0.9 }),
-    e('brickRed', 2, 'brick_painted', { repeat: 2, normalScale: 0.6, tint: '#f1e7cf' }),
-    e('brickRed', 3, 'brick_painted', { repeat: 2, normalScale: 0.6, tint: '#aab4c2' }),
-    e('brickPainted', 0, 'brick_painted', { repeat: 2, normalScale: 0.6, tint: '#f1e7cf' }),
-    e('brickPainted', 1, 'brick_painted', { repeat: 2, normalScale: 0.6, tint: '#aab4c2' }),
+    // brick_red_common: 5 stretchers across a tile, so 2.8 repeats per 3 m puts a stretcher at 215 mm (real size); it was 2 (bricks a third too big)
+    e('brickRed', 0, 'brick_red_common', { repeat: 2.8, normalScale: 0.9 }),
+    // variant 1 (tan brick, apartment fronts) was the rubble-stone set at brick scale; it now reuses the common brick, the lot colourway tints it
+    e('brickRed', 1, 'brick_red_common', { repeat: 2.8, normalScale: 0.9 }),
+    e('brickRed', 2, 'brick_painted', { repeat: 1.35, normalScale: 0.6, tint: '#f1e7cf' }),
+    e('brickRed', 3, 'brick_painted', { repeat: 1.35, normalScale: 0.6, tint: '#aab4c2' }),
+    e('brickPainted', 0, 'brick_painted', { repeat: 1.35, normalScale: 0.6, tint: '#f1e7cf' }),
+    e('brickPainted', 1, 'brick_painted', { repeat: 1.35, normalScale: 0.6, tint: '#aab4c2' }),
     e('brownstone', 0, 'brick_brownstone', { repeat: 1.5, normalScale: 1.0 }),
     e('brownstone', 1, 'brick_brownstone', { repeat: 1.5, normalScale: 1.0, tint: '#d9c4b4' }),
     e('stoop', 0, 'brick_brownstone', { repeat: 1.5, normalScale: 0.8, tint: '#c9b8a8' }),

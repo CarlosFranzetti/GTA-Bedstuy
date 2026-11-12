@@ -12,7 +12,7 @@
  */
 import * as THREE from 'three';
 import { DETAIL_GLSL, SIGN_COLS, SIGN_ROWS, WALL_SIGNS, detailAtlasTexture, wallSignTexture } from '@/textures/detailAtlas';
-import { KIND_STEP } from '@/world/buildings/colourway';
+import { KIND_STEP, ROOF_SCALE } from '@/world/buildings/colourway';
 
 export const TONE_ATTRIBUTES = ['aTone', 'aStyle'] as const;
 
@@ -32,6 +32,9 @@ varying vec3 vLtW;
 varying vec3 vLtN;
 float gLtGloss = 0.0;
 float gLtFlat = 0.0;
+float gLtRoof = 0.0;
+float gLtH = 0.0;
+float gLtBump = 0.0;
 float ltHash( vec2 p ) { p = fract( p * vec2( 123.34, 456.21 ) ); p += dot( p, p + 45.32 ); return fract( p.x * p.y ); }
 float ltNoise( vec2 p ) {
   vec2 i = floor( p ); vec2 f = fract( p ); f = f * f * ( 3.0 - 2.0 * f );
@@ -44,7 +47,13 @@ ${DETAIL_GLSL}`;
 /** The block injected after `map_fragment`; `#USE_MAP` is the only conditional (flat-colour ironwork has no map). */
 const FRAG_MAIN = `
 if ( vLtTone.a > 0.01 ) {
-  float ltKind = floor( vLtStyle.x * 255.0 / ${KIND_STEP}.0 + 0.5 );
+  float ltXb = floor( vLtStyle.x * 255.0 + 0.5 );
+  float ltKind = floor( ltXb / ${KIND_STEP}.0 );
+  float ltPhq = ltXb - ltKind * ${KIND_STEP}.0; // storey phase 0..22, 23 = unknown
+  float ltSillPhase = ltPhq > 22.5 ? -1.0 : ltPhq / 22.0 * 2.9;
+  #ifdef USE_COLOR_ALPHA
+    gLtRoof = vColor.a * ${ROOF_SCALE}.0;
+  #endif
   float ltParty = step( 8.5, ltKind );
   if ( ltParty > 0.5 ) ltKind = 0.0;
   float ltSeed = vLtStyle.z;
@@ -61,6 +70,9 @@ if ( vLtTone.a > 0.01 ) {
   #else
     vec3 ltRel = vec3( 1.0 );
   #endif
+  #ifdef LT_STONE
+    ltRel = mix( vec3( 1.0 ), ltRel, ltParty > 0.5 ? 1.0 : 0.28 ); // the rubble photo only whispers: the carving is drawn below
+  #endif
   float ltLr = dot( ltRel, vec3( 0.3333 ) );
   vec3 ltChroma = mix( ltRel, vec3( ltLr ), ltPaint * 0.85 );
   ltChroma = vec3( 1.0 ) + ( ltChroma - 1.0 ) * mix( 1.0, 0.7, ltPaint );
@@ -69,39 +81,114 @@ if ( vLtTone.a > 0.01 ) {
   ltChroma *= mix( 1.0, 0.55 + vLtStyle.y * 0.9, ltMortar * step( ltKind, 0.5 ) );
   vec3 ltCol = ltTarget * ltChroma;
   if ( ltKind < 4.5 ) {
-    // soot below the roof line, rain streaks, macro tint so long walls never tile
-    float ltMac = ltNoise( ltP * vec2( 0.22, 0.16 ) + ltSeed * 40.0 ) * 0.6 + ltNoise( ltP * vec2( 0.9, 0.7 ) + ltSeed * 13.0 ) * 0.4;
-    ltCol *= 1.0 + ( ltMac - 0.5 ) * 0.34;
+    // ---- shared by every masonry-like wall: layered macro variation so a five-storey wall never shows its tile
+    // two noise octaves, warped so the blotches are not axis aligned, plus a slow hue drift (kiln batches / old repairs)
+    vec2 ltWarp = vec2( ltNoise( ltP * 0.31 + ltSeed * 11.0 ), ltNoise( ltP * 0.27 + ltSeed * 23.0 ) ) * 2.2;
+    float ltMac = ltNoise( ( ltP + ltWarp ) * vec2( 0.22, 0.16 ) + ltSeed * 40.0 ) * 0.55 + ltNoise( ( ltP + ltWarp ) * vec2( 0.9, 0.7 ) + ltSeed * 13.0 ) * 0.45;
+    ltCol *= 1.0 + ( ltMac - 0.5 ) * 0.4;
+    float ltBatch = ltNoise( ( ltP + ltWarp ) * vec2( 0.55, 1.15 ) + ltSeed * 77.0 );
+    ltCol *= mix( vec3( 1.05, 1.0, 0.94 ), vec3( 0.95, 1.0, 1.06 ), ltBatch ) * ( 0.94 + 0.12 * ltBatch );
     // large-scale stains from the plaster photo (9 m repeat, per-lot offset) so a long wall never tiles
     ltCol *= dtlGain( 0.0, ltP / vec2( 9.0, 7.0 ) + ltSeed * 3.7, 1.7 );
+    ltCol *= dtlGain( 0.0, ltP / vec2( 5.3, 4.1 ) + ltSeed * 9.1 + 0.37, 1.1 );
     ltCol *= mix( vec3( 1.04, 1.0, 0.95 ), vec3( 0.96, 1.0, 1.05 ), ltNoise( ltP * 0.08 + ltSeed * 9.0 ) );
-    ltCol *= 1.0 - ltWx * smoothstep( 3.0, 16.0, ltY ) * 0.2;
-    float ltSt = smoothstep( 0.58, 0.92, ltNoise( vec2( ltS * 3.1, ltY * 0.11 ) + ltSeed * 21.0 ) );
-    ltCol *= 1.0 - ltSt * ltWx * 0.2 * ( 0.4 + 0.6 * smoothstep( 1.0, 9.0, ltY ) );
+    // ---- staining: soot under the cornice, rain runs below the sill line of every storey, damp and salt at the foot
+    float ltRoofH = gLtRoof;
+    float ltDTop = ltRoofH - ltY;
+    float ltSootTop = ltRoofH > 1.0 ? ( 1.0 - smoothstep( 0.0, 2.4 + 2.0 * ltWx, ltDTop ) ) * smoothstep( -0.2, 0.15, ltDTop ) : 0.0;
+    float ltRun = ltNoise( vec2( ltS * 4.3, ltY * 0.22 ) + ltSeed * 21.0 ) * 0.6 + ltNoise( vec2( ltS * 11.0, ltY * 0.5 ) + ltSeed * 5.0 ) * 0.4;
+    float ltBelowSill = ltSillPhase >= 0.0 ? mod( ltSillPhase - ltY + 2.9 * 8.0, 2.9 ) : 3.0;
+    float ltSillRun = ( 1.0 - smoothstep( 0.0, 1.5, ltBelowSill ) ) * smoothstep( 0.46, 0.8, ltRun ) * smoothstep( 1.4, 3.0, ltY );
+    float ltStain = clamp( ltSootTop * ( 0.35 + 0.65 * ltRun ) * ( 0.35 + 0.65 * ltWx ) + ltSillRun * ( 0.25 + 0.5 * ltWx ), 0.0, 1.0 );
+    ltCol *= 1.0 - ltStain * 0.34;
+    ltCol = mix( ltCol, ltCol * vec3( 0.9, 0.94, 1.0 ), ltSillRun * 0.4 ); // runs are cool and grey, not just dark
+    ltCol *= 1.0 - ltWx * smoothstep( 3.0, 16.0, ltY ) * 0.12;
+    float ltFoot = 1.0 - smoothstep( 0.2, 1.1 + 0.5 * ltNoise( vec2( ltS * 1.7, 3.0 ) + ltSeed * 8.0 ), ltY );
+    ltCol *= 1.0 - ltFoot * ltWx * 0.22; // rising damp darkens the first metre
+    float ltSalt = smoothstep( 0.6, 0.85, ltNoise( vec2( ltS * 2.3, ltY * 5.5 ) + ltSeed * 31.0 ) ) * ( 1.0 - smoothstep( 0.1, 0.9, ltY ) );
+    ltCol = mix( ltCol, ltCol * 0.6 + vec3( 0.34, 0.33, 0.3 ) * 0.4, ltSalt * 0.55 * ltWx ); // efflorescence
     if ( ltKind < 0.5 || ltKind > 3.5 ) {
-      // repointed / patched areas: lighter, flatter masonry in a rectangle of the wall grid
-      vec2 ltPc = vec2( ltS / 2.1 + ltSeed * 5.0, ltY / 1.3 );
-      vec2 ltPi = floor( ltPc );
-      float ltPh = ltHash( ltPi + ltSeed * 31.0 );
-      if ( ltPh > 0.94 - 0.06 * ltWx ) {
-        vec4 ltR = vec4( ltHash( ltPi + 1.7 ) * 0.3, ltHash( ltPi + 3.1 ) * 0.3, 0.5 + ltHash( ltPi + 5.3 ) * 0.45, 0.4 + ltHash( ltPi + 7.7 ) * 0.5 );
-        float ltM = ltRect( fract( ltPc ), ltR );
-        vec3 ltFresh = ltTarget * mix( vec3( 1.0 ), ltChroma, 0.35 ) * ( ltPh > 0.97 ? 0.8 : 1.2 );
-        ltCol = mix( ltCol, ltFresh, ltM * 0.75 );
-      }
+      // repointed and patched areas: irregular blobs (a noise threshold, not a grid), lighter and flatter
+      float ltPn = ltNoise( ( ltP + ltWarp ) * vec2( 0.38, 0.5 ) + ltSeed * 51.0 );
+      float ltPm = smoothstep( 0.69 - 0.05 * ltWx, 0.71 - 0.05 * ltWx, ltPn ) * ( 1.0 - smoothstep( 0.78, 0.8, ltPn ) );
+      float ltPe = ltNoise( ltP * 9.0 + ltSeed * 3.0 ); // ragged edge
+      ltPm *= smoothstep( 0.25, 0.5, ltPe );
+      vec3 ltFresh = ltTarget * mix( vec3( 1.0 ), ltChroma, 0.3 ) * ( ltPn > 0.74 ? 0.82 : 1.16 );
+      ltCol = mix( ltCol, ltFresh, ltPm * 0.7 );
+      gLtFlat = max( gLtFlat, ltPm * 0.5 );
     }
-    // painted-over graffiti: flat rectangles in a near-match paint on the lower wall
+    // a painted lower storey on some lots: a flat coat to about the parlour sill, a hand-cut top edge, peeling at the foot
+    float ltPaintedLow = step( 0.8, fract( ltSeed * 13.7 + 0.31 ) );
+    #ifdef LT_STONE
+      ltPaintedLow = 0.0;
+    #endif
+    if ( ltPaintedLow > 0.5 && ltKind < 0.5 && ltParty < 0.5 ) {
+      float ltEdgeY = 1.85 + 0.06 * ltNoise( vec2( ltS * 3.0, 0.5 ) + ltSeed * 5.0 );
+      float ltPm2 = 1.0 - smoothstep( ltEdgeY - 0.012, ltEdgeY + 0.012, ltY );
+      float ltPick2 = fract( ltSeed * 29.3 + 0.7 );
+      vec3 ltCoat = ltPick2 < 0.3 ? vec3( 0.2, 0.19, 0.18 ) : ltPick2 < 0.55 ? vec3( 0.46, 0.43, 0.38 ) : ltPick2 < 0.8 ? vec3( 0.36, 0.16, 0.12 ) : vec3( 0.34, 0.37, 0.31 );
+      float ltPeel = smoothstep( 0.55, 0.8, ltNoise( ltP * vec2( 7.0, 6.0 ) + ltSeed * 19.0 ) + ( 1.0 - smoothstep( 0.0, 0.7, ltY ) ) * 0.3 );
+      vec3 ltCoatCol = ltCoat * ( 0.9 + 0.2 * ltNoise( ltP * 14.0 ) );
+      ltCol = mix( ltCol, mix( ltCoatCol, ltCol * 0.85, ltPeel * 0.7 ), ltPm2 * 0.92 );
+      gLtFlat = max( gLtFlat, ltPm2 * 0.45 );
+    }
+    // painted-over graffiti: hand-rolled patches in a near-match paint on the lower wall, wobbly edges (blobs, not boxes)
     vec2 ltGc = vec2( ltS / 2.6 + ltSeed * 3.0, ltY / 1.45 );
     vec2 ltGi = floor( ltGc );
     float ltGh = ltHash( ltGi + ltSeed * 57.0 );
     if ( ltY < 3.0 && ltGh > 0.955 - 0.045 * ltWx ) {
-      vec4 ltR = vec4( ltHash( ltGi + 2.3 ) * 0.2, ltHash( ltGi + 4.1 ) * 0.2, 0.55 + ltHash( ltGi + 6.7 ) * 0.4, 0.5 + ltHash( ltGi + 8.9 ) * 0.45 );
-      float ltM = ltRect( fract( ltGc ), ltR );
+      vec2 ltGq = fract( ltGc ) - vec2( 0.5 + ( ltHash( ltGi + 2.3 ) - 0.5 ) * 0.2, 0.5 + ( ltHash( ltGi + 4.1 ) - 0.5 ) * 0.2 );
+      float ltWob = ltNoise( ltGc * 5.0 + ltSeed * 9.0 ) * 0.2;
+      float ltM = 1.0 - smoothstep( 0.2, 0.26, length( ltGq * vec2( 0.8 + 0.5 * ltHash( ltGi + 6.7 ), 1.15 ) ) + ltWob - 0.06 );
       float ltPick = ltHash( ltGi + 9.1 );
       vec3 ltPaintCol = ltPick < 0.25 ? vec3( 0.22 ) : ltPick < 0.5 ? vec3( 0.3, 0.24, 0.16 ) : ltPick < 0.75 ? vec3( 0.2, 0.07, 0.06 ) : vec3( 0.26, 0.3, 0.24 );
-      ltCol = mix( ltCol, ltPaintCol * ( 0.85 + 0.3 * ltNoise( ltP * 6.0 ) ), ltM * 0.9 );
+      ltCol = mix( ltCol, ltPaintCol * ( 0.85 + 0.3 * ltNoise( ltP * 6.0 ) ), ltM * 0.85 );
     }
   }
+  #ifdef LT_STONE
+  if ( ltParty < 0.5 && ltKind < 0.5 ) {
+    // ---- brownstone as carved stone: smooth ashlar courses with hairline joints and fine tooling, a rusticated base, spalling
+    float ltPix = max( max( fwidth( ltS ), fwidth( ltY ) ), 1e-4 ); // metres per pixel
+    float ltPy = max( fwidth( ltY ), 1e-4 );
+    float ltBaseM = 1.0 - smoothstep( 1.55, 1.75, ltY );
+    float ltCh = mix( 0.43, 0.5, ltBaseM );
+    float ltRowF = ltY / ltCh + ltSeed * 4.0;
+    float ltRow = floor( ltRowF );
+    float ltBl = mix( 0.95, 0.72, ltBaseM ) * ( 0.85 + 0.3 * ltHash( vec2( ltRow, ltSeed * 9.0 ) ) );
+    float ltBx = ltS / ltBl + ltHash( vec2( ltRow, ltSeed * 5.0 ) ) * 3.0;
+    float ltBi = floor( ltBx );
+    vec2 ltBf = vec2( fract( ltBx ), fract( ltRowF ) );
+    float ltDx = min( ltBf.x, 1.0 - ltBf.x ) * ltBl;
+    float ltDy = min( ltBf.y, 1.0 - ltBf.y ) * ltCh;
+    float ltJw = mix( 0.004, 0.026, ltBaseM );
+    float ltJ = 1.0 - smoothstep( ltJw * 0.5, ltJw + ltPix, min( ltDx, ltDy ) );
+    ltJ *= mix( 0.65, 1.0, step( ltDy, ltDx ) );
+    float ltBh = ltHash( vec2( ltBi, ltRow + ltSeed * 17.0 ) );
+    vec3 ltStone = ltTarget * ( 0.91 + 0.18 * ltBh ) * ( 0.97 + 0.06 * ltHash( vec2( ltRow, 4.0 ) ) );
+    float ltBed = ltNoise( vec2( ltS * 0.7 + ltBi * 3.1, ltY * 22.0 ) );
+    ltStone *= 0.95 + 0.1 * ltBed; // faint sedimentary banding
+    float ltTf = 1.0 - smoothstep( 0.007, 0.016, ltPy ); // tooling is only drawn while a pixel is smaller than a line
+    float ltTl = abs( fract( ltY / 0.026 + ltBh * 7.0 ) - 0.5 ) * 2.0;
+    float ltTool = ( 1.0 - smoothstep( 0.0, 0.35, ltTl ) ) * ( 0.4 + 0.6 * ltNoise( vec2( ltS * 3.0, ltY * 40.0 ) + ltBi ) );
+    ltStone *= 1.0 - ltTool * ltTf * 0.08 * ( 1.0 - ltBaseM );
+    float ltPit = ltNoise( ltP * 38.0 + ltBi * 7.0 ) * 0.6 + ltNoise( ltP * 15.0 ) * 0.4;
+    ltStone *= 1.0 - ltBaseM * ( 0.2 * ltPit * ltTf + 0.07 ); // vermiculated, pitted rusticated faces
+    ltStone = mix( ltStone, ltStone * vec3( 0.5, 0.48, 0.46 ), ltJ * 0.85 );
+    // spalling: rawer, lighter stone where the face has flaked, with a dark chipped rim; commoner low down and on weathered lots
+    float ltSp = ltNoise( ltP * vec2( 2.6, 3.4 ) + ltSeed * 23.0 ) * 0.65 + ltNoise( ltP * 9.0 + 3.0 ) * 0.35;
+    float ltSpT = 0.67 - ltWx * 0.12 + smoothstep( 0.4, 2.4, ltY ) * 0.26;
+    float ltSpM = smoothstep( ltSpT, ltSpT + 0.035, ltSp );
+    float ltSpRim = smoothstep( ltSpT - 0.03, ltSpT, ltSp ) * ( 1.0 - ltSpM );
+    ltStone = mix( ltStone, ltTarget * vec3( 1.26, 1.1, 0.9 ) * ( 0.9 + 0.2 * ltNoise( ltP * 25.0 ) ), ltSpM * 0.7 );
+    ltStone *= 1.0 - ltSpRim * 0.3;
+    // the weathering already applied to ltCol (macro tone, soot, runs, damp), relative to the flat target, rides on the carved colour
+    vec3 ltWea = clamp( ltCol / max( ltTarget * ltChroma, vec3( 0.02 ) ), vec3( 0.35 ), vec3( 1.7 ) );
+    ltCol = ltStone * ltWea;
+    gLtFlat = max( gLtFlat, 0.9 );
+    gLtH = -0.012 * ltJ + 0.0007 * ltTool * ltTf * ( 1.0 - ltBaseM ) + 0.004 * ltPit * ltBaseM * ltTf - 0.009 * ltSpM;
+    gLtBump = 1.0;
+  }
+  #endif
   if ( ltKind > 0.5 && ltKind < 1.5 ) {
     // siding boards
     float ltBf = fract( ltY / 0.17 + ltSeed * 3.0 );
@@ -183,7 +270,7 @@ if ( vLtTone.a > 0.01 ) {
 }`;
 
 /** Patch a standard material so it follows the per-vertex tone. Chains with other onBeforeCompile patches. */
-export function patchLotTone(m: THREE.MeshStandardMaterial): void {
+export function patchLotTone(m: THREE.MeshStandardMaterial, stone = false): void {
   if (!TEXVAR_ON) return;
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (shader, renderer) => {
@@ -197,13 +284,22 @@ vLtTone = aTone; vLtStyle = aStyle;
 vLtW = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;
 vLtN = normalize( mat3( modelMatrix ) * objectNormal );`);
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', `#include <common>\n${FRAG_DECL}`)
+      .replace('#include <common>', `#include <common>\n${stone ? '#define LT_STONE\n' : ''}${FRAG_DECL}`)
       .replace('#include <map_fragment>', `#include <map_fragment>\n${FRAG_MAIN}`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix( roughnessFactor, 0.3, gLtGloss );')
-      .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = normalize( mix( normal, nonPerturbedNormal, gLtFlat ) );');
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+normal = normalize( mix( normal, nonPerturbedNormal, gLtFlat ) );
+if ( gLtBump > 0.5 ) {
+  vec2 ltDh = vec2( dFdx( gLtH ), dFdy( gLtH ) );
+  vec3 ltSx = dFdx( - vViewPosition ), ltSy = dFdy( - vViewPosition );
+  vec3 ltR1 = cross( ltSy, normal ), ltR2 = cross( normal, ltSx );
+  float ltDet = dot( ltSx, ltR1 ) * faceDirection;
+  vec3 ltGrad = sign( ltDet ) * ( ltDh.x * ltR1 + ltDh.y * ltR2 );
+  normal = normalize( abs( ltDet ) * normal - ltGrad );
+}`);
   };
   const prevKey = m.customProgramCacheKey;
-  m.customProgramCacheKey = () => `${prevKey ? prevKey.call(m) : ''}|lottone2`;
+  m.customProgramCacheKey = () => `${prevKey ? prevKey.call(m) : ''}|lottone3${stone ? 's' : ''}`;
   m.needsUpdate = true;
 }
 
