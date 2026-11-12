@@ -441,3 +441,15 @@ polygons for the characters".
 - Larger play area: the real map (about 197 blocks against 45) becomes playable: streaming (Lena), traffic and pedestrians
   (Theo), street furniture and lights (June), places and missions (Gus), assembly and trains (Chidi).
 - No inked art. Title and loading art are clean in-engine shots (Priya). Characters get better geometry (Leila, Ines).
+
+## Stage 16 asks (owner, 12 Nov)
+Verbatim: "the flickering seems to be fixed i want options to lower adjust sound effects vs radio etc. also theres some sound
+bug doing the audio version of the flickering we had earlier. set a few subagents to fix that and run em in parralell and also
+continue the other subagents and hierarchy we were doing earlier also in parallel. finally be conservative with usage were
+trying to make some leeway. one last thing the body movements of characters isnt great again study some videos of gta 3-5 and
+use that kind of motion capture if you can find some data online, make asure the textures and bodies are more like gta 3 or IV"
+
+Lanes started (Fable Hart directs, directors on call to save usage; all workers on the cheaper model, fresh and tightly scoped):
+AUDIOBUG (Andre), MIXER (Cal), ANIM (new animator), PEOPLE (Leila), PERF2 (Lena), REALHOOK (Chidi), TITLEMIX (Otis).
+Held back for later: title and loading shots and settings restyle (Priya), HUD finish (Zadie), speech rhythm finish and rebake
+(Mei), real-map traffic (Theo), queue cap and pedestrian knock-down (Omar), sports-car silhouettes (Dmitri).
