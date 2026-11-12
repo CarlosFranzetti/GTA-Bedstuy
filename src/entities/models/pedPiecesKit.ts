@@ -266,6 +266,8 @@ export interface Ctx {
   seed: string;
   /** the number of columns round a head for caps (fewer at the mid LOD) */
   cols: number;
+  /** a hat covers the crown: hair keeps only what hangs out from under it */
+  underHat?: boolean;
 }
 const W_TORSO = [2], W_HIPS = [1], W_ARMS = [4, 5, 6, 7], W_LEGS = [8, 9, 10, 11];
 const wsumAt = (L: MhLod, i: number, set: readonly number[]): number => { let t = 0; for (let k = 0; k < 4; k++) if (set.includes(L.joints[i * 4 + k])) t += L.weights[i * 4 + k]; return t; };
@@ -413,4 +415,40 @@ export function ringPoint(ctx: Ctx, y: number, beta: number, off: number): V3 {
   const o: V3 = [0, y, ctx.C[2]], d: V3 = [Math.sin(beta), 0, -Math.cos(beta)];
   const t1 = ctx.head.hit(o, d, 0.8), t2 = ctx.torso.hit(o, d, 0.8), t = Math.max(isFinite(t1) ? t1 : 0, isFinite(t2) ? t2 : 0) || 0.07;
   return [o[0] + d[0] * (t + off), y, o[2] + d[2] * (t + off)];
+}
+
+/** a colour string (#rgb or #rrggbb) as a linear vertex tint */
+export function hexLin(hex: string, k = 1): V3 {
+  const h = hex.replace('#', ''), f = h.length === 3 ? h.split('').map((x) => x + x).join('') : h.padEnd(6, '0');
+  const c = (i: number): number => Math.pow(parseInt(f.slice(i, i + 2), 16) / 255, 2.2) * k;
+  return [c(0), c(2), c(4)];
+}
+/** horizontal extent of the dressed skin (all bones) at a height band on one side (-1 left, +1 right): the outermost x */
+export function outerX(ctx: Ctx, y0: number, y1: number, side: -1 | 1): number {
+  const p = ctx.skin.position; let m = 0;
+  for (let i = 0; i < p.length / 3; i++) { const y = p[i * 3 + 1]; if (y >= y0 && y <= y1 && p[i * 3] * side > m) m = p[i * 3] * side; }
+  return m * side;
+}
+/** the horizontal extent of one leg of the dressed skin at height y: centre x, centre z, half widths */
+export function legAt(ctx: Ctx, side: 'L' | 'R', y: number): { cx: number; cz: number; rx: number; rz: number } {
+  const p = ctx.skin.position, a = ctx.rig['ankle' + side], sg = side === 'L' ? -1 : 1;
+  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (let i = 0; i < p.length / 3; i++) { const yy = p[i * 3 + 1], x = p[i * 3]; if (Math.abs(yy - y) < 0.012 && x * sg > 0.02 && Math.abs(x - a[0]) < 0.08) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, p[i * 3 + 2]); z1 = Math.max(z1, p[i * 3 + 2]); } }
+  return isFinite(x0) ? { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, rx: (x1 - x0) / 2, rz: (z1 - z0) / 2 } : { cx: a[0], cz: a[2], rx: 0.045, rz: 0.045 };
+}
+/** a point on the front, back or top of the torso at (x, y): rays from outside against the dressed body, +off */
+export function surfPt(ctx: Ctx, x: number, y: number, side: 'front' | 'back', off: number): V3 {
+  const o: V3 = [x, y, side === 'front' ? -0.7 : 0.7], d: V3 = [0, 0, side === 'front' ? 1 : -1], t = ctx.torso.hit(o, d, 1.5);
+  const z = isFinite(t) ? o[2] + d[2] * t : ctx.C[2];
+  return [x, y, z - d[2] * off];
+}
+/** height of the torso's upper surface at x, z (shoulder ridge) by a ray from above, +off */
+export function topY(ctx: Ctx, x: number, z: number, off: number): number {
+  const t = ctx.torso.hit([x, ctx.lm.chinY + 0.3, z], [0, -1, 0], 1);
+  return isFinite(t) ? ctx.lm.chinY + 0.3 - t + off : ctx.lm.chinY - 0.08;
+}
+/** a flat ribbon along 3D points with the width direction given per point (one sided: faces away from `centre`) */
+export function ribbon(mb: MeshBuilder, pts: V3[], widths: V3[], half: number, o: { rect: PxRect; centre: V3; W?: Wfn; tint?: V3; uvt?: [number, number]; shade?: number }): void {
+  const P: V3[][] = pts.map((p, i) => [add(p, mul(widths[i], -half)), add(p, mul(widths[i], half))]);
+  mb.grid(P, { rect: o.rect, center: o.centre, W: o.W, tint: o.tint, uv: (i, j, R, C) => [o.uvt ? o.uvt[0] : j / (C - 1), o.uvt ? o.uvt[1] : 0.5], shade: () => o.shade ?? 1 });
 }

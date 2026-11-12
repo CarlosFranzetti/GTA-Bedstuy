@@ -3149,3 +3149,6 @@ Wrap-up: seven distinct hulls, integral bumpers, spoked wheels, taxi crumple fix
 
 ### 2026-11-12T07:52:45Z · Ines Quill (PEOPLE3)
 Starting PEOPLE3 round 3: body/head geometry + pipeline. Taking scripts/people-pipeline.mjs, pedMesh.ts, pedBodyTypes.ts, pedGarments.ts, pedBodyHi.ts, pedHead.ts, and the glbs under src/assets/models/people. Texture layout stays; I will tell PEDTEX/PEDHAIR before changing any head size or attach point. Bones unchanged for ANIM.
+
+### 2026-11-12T07:59:16Z · Omar Quill (GREEN)
+Found the traffic-5min gridlock cause: the new long vehicles (bus 12.5 m, refuse truck 9.2 m) now in moving traffic cannot make the 90 degree left Kosciuszko to Throop turn at the 6 m/s turn speed, overshoot to x=6.5 (lane is x=2), and wedge beside a kerb-parked car, on both seeds (seed 7 refuse truck veh1076, seed 21 bus veh1072). Editing src/entities/TrafficAgent.ts (turn speed / feasibility for long vehicles) only; shout if CARS is in that file.

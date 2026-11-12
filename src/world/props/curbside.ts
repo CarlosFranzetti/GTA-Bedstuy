@@ -3,6 +3,7 @@
  * (collection night, always for now) and traffic cones near one intersection of every avenue.
  */
 import * as THREE from 'three';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Block, GridModel, IMaterialLibrary, Lot } from '@/world/types';
 import type { Rng } from '@/core/Rng';
 import type { Vec2 } from '@/core/Math2';
@@ -35,7 +36,7 @@ export function buildCurbside(
 ): void {
   const green = materials.get('metalGreen');
   const metal = materials.get('metalDark');
-  const bagMat = pb.material('bags', () => new THREE.MeshStandardMaterial({ name: 'trash-bags', vertexColors: true, roughness: 0.32, metalness: 0.08 }));
+  const bagMat = pb.material('bags', () => new THREE.MeshStandardMaterial({ name: 'trash-bags', vertexColors: true, roughness: 0.24, metalness: 0.04 }));
   const coneMat = pb.material('cone', () => new THREE.MeshStandardMaterial({ name: 'traffic-cone', color: '#ff6a13', roughness: 0.6, metalness: 0 }));
 
   // ---- dumpsters + bag piles, per face
@@ -114,7 +115,7 @@ function addDumpster(pb: PropsBuilder, green: THREE.Material, metal: THREE.Mater
 }
 
 /** Black-grey contractor bags with the odd clear / white recycling bag. */
-const BAG_COLORS = ['#3a3e46', '#2d3036', '#2d3036', '#454952', '#c9ced2', '#e6e8e4'];
+const BAG_COLORS = ['#25282d', '#1c1e22', '#1c1e22', '#2e3138', '#202226', '#b9bec2'];
 
 /**
  * One real-size (60 to 80 cm) trash bag: a squashed, faceted blob with a creased, slightly lumpy surface and a gathered knot
@@ -128,10 +129,14 @@ function bagGeo(r: number, hex: string, rng: Rng): THREE.BufferGeometry[] {
     const k = 1 + rng.range(-0.1, 0.07);
     pos.setXYZ(i, pos.getX(i) * k, pos.getY(i) * (1 + rng.range(-0.06, 0.04)), pos.getZ(i) * k);
   }
-  const flat = body.toNonIndexed(); // facets: one normal per triangle
+  // soft, smooth-shaded bag: weld the sphere seam so the normals run round it (same triangle count as before)
+  body.deleteAttribute('uv'); body.deleteAttribute('normal');
+  const welded = mergeVertices(body, 1e-4);
   body.dispose();
-  flat.computeVertexNormals();
-  const knot = new THREE.ConeGeometry(0.022, 0.05, 3).rotateY(rng.range(0, 3)).rotateZ(rng.range(-0.6, 0.6)).translate(rng.range(-0.02, 0.02), r * 0.68 + 0.01, rng.range(-0.02, 0.02)).toNonIndexed();
+  welded.computeVertexNormals();
+  const flat = welded.toNonIndexed(); // smooth normals kept; non-indexed like the knot so they merge
+  welded.dispose();
+  const knot = new THREE.ConeGeometry(0.03, 0.075, 3).rotateY(rng.range(0, 3)).rotateZ(rng.range(-0.6, 0.6)).translate(rng.range(-0.02, 0.02), r * 0.68 + 0.02, rng.range(-0.02, 0.02)).toNonIndexed();
   knot.computeVertexNormals();
   return [flat, knot].map((g) => {
     const n = g.getAttribute('position').count;
@@ -146,7 +151,7 @@ function bagGeo(r: number, hex: string, rng: Rng): THREE.BufferGeometry[] {
 function addBagPile(pb: PropsBuilder, mat: THREE.Material, p: Vec2, rng: Rng): void {
   const n = rng.int(3, 6);
   for (let i = 0; i < n; i++) {
-    const r = rng.range(0.2, 0.28); // 40 to 56 cm wide, ~30 cm tall: real bags
+    const r = rng.chance(0.2) ? rng.range(0.29, 0.36) : rng.range(0.17, 0.27); // 35 to 70 cm wide: a few big contractor bags among smaller ones
     const a = rng.range(0, Math.PI * 2);
     const d = i === 0 ? 0 : rng.range(0.18, 0.4);
     const stacked = i >= 4;

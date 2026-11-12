@@ -504,8 +504,8 @@ export const roofPainter: Painter = (ctx, w, h, rng, _variant, aux) => {
 
 // ---------------------------------------------------------------------------------------------- bluestone
 
-const SLATE: RGB = [84, 99, 120];
-const WARM_GREY: RGB = [126, 119, 110];
+const SLATE: RGB = [92, 104, 120];
+const WARM_GREY: RGB = [108, 114, 122]; // a close grey-blue, not a warm brown: neighbouring flags differ by a few percent
 const LICHEN = ['rgb(176,184,120)', 'rgb(202,204,178)', 'rgb(150,170,116)', 'rgb(214,208,150)'];
 const FLAG_JOINT = '#303230';
 
@@ -517,10 +517,10 @@ function paintFlag(
   opts: FlagOpts, heaved: boolean, ar: Rng,
 ): void {
   const fr = new Rng(seed);
-  const j = 2 * k + 1;
+  const j = 1 * k + 0.5; // fine joints
   const ix = x + j, iy = y + j, iw = fw - 2 * j, ih = fh - 2 * j;
   const t = fr.next();
-  const tone = fr.range(-7, 7);
+  const tone = fr.range(-4, 4);
   const tilt = fr.range(-6, 6);
   ctx.fillStyle = mixRgb(SLATE, WARM_GREY, t * t, tone);
   ctx.fillRect(ix, iy, iw, ih);
@@ -543,16 +543,16 @@ function paintFlag(
 
   // cleft face: fine ridges along the bedding direction, light / dark pairs
   const horiz = fr.chance(0.68);
-  const ridges = Math.round((iw * ih) / 420);
+  const ridges = Math.round((iw * ih) / 1100);
   for (let i = 0; i < ridges; i++) {
     const len = Math.min(fr.range(10, 56), horiz ? iw : ih);
     const rx = ix + fr.range(0, (horiz ? iw - len : iw - 1));
     const ry = iy + fr.range(0, (horiz ? ih - 1 : ih - len));
     const rw = horiz ? len : Math.max(1, 0.6 * k);
     const rh = horiz ? Math.max(1, 0.6 * k) : len;
-    ctx.fillStyle = 'rgba(8,10,16,0.17)';
+    ctx.fillStyle = 'rgba(8,10,16,0.06)';
     ctx.fillRect(rx, ry, rw, rh);
-    ctx.fillStyle = 'rgba(214,224,236,0.13)';
+    ctx.fillStyle = 'rgba(214,224,236,0.05)';
     ctx.fillRect(horiz ? rx : rx + 1, horiz ? ry + 1 : ry, rw, rh);
     if (H && i % 2 === 0) {
       H.fillStyle = gray(i % 4 === 0 ? 108 : 150);
@@ -654,7 +654,7 @@ function paintFlag(
 }
 
 /**
- * 512px = 2.7 m (u) x 3 m (v): two 1.5 m courses of three ~0.9 m flags in a staggered bond. Each flag is a blend between
+ * 512px = 2.7 m (u) x 3 m (v): three 1 m courses of three ~0.9 m flags in a staggered bond. Each flag is a blend between
  * slate blue and warm grey with cleft-face ridges, bevelled edges, chipped corners and lichen spots.
  * Variant 1: heaved flags (raised edges, gaping joints), cracked flags and a replaced concrete patch.
  */
@@ -669,7 +669,7 @@ export const bluestonePainter: Painter = (ctx, w, h, rng, variant, aux) => {
     H.fillRect(0, 0, w, h);
   }
   const auxRng = aux?.rng ?? new Rng(0);
-  const rows = 2;
+  const rows = 3; // three ~1 m courses of ~0.9 m flags: near-square flags, not planks
   const rh = h / rows;
   for (let r = 0; r < rows; r++) {
     const ws = [rng.range(0.82, 1.18), rng.range(0.82, 1.18), rng.range(0.82, 1.18)];

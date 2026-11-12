@@ -164,7 +164,7 @@ function buildGeometries(): Record<'trunk' | 'leaves' | 'lamp' | 'lampHead' | 'h
     return g;
   };
   const trunk = merge([
-    new THREE.CylinderGeometry(0.2, 0.3, 3, 6, 1, true).translate(0, 1.5, 0),
+    new THREE.CylinderGeometry(0.19, 0.37, 3, 6, 1, true).translate(0, 1.5, 0),
     limb([0, 2.5, 0], [0, 4.0, 0], 0.14, 0.06),
     limb([0, 2.7, 0], [0.7, 3.6, 0.5], 0.1, 0.05),
     limb([0, 2.7, 0], [-0.6, 3.7, -0.6], 0.1, 0.05),

@@ -161,7 +161,7 @@ float gdSeed = 0.0; bool gdSw = false; vec4 gdRd = vec4( 0.0 );
   gdRd = vColor; gdSeed = gdRd.y; gdSw = true;
 #endif
 #ifdef GD_FLAG
-  vec2 sg = vec2( vGdUv.x * 3.0, vGdUv.y * 2.0 );
+  vec2 sg = vec2( vGdUv.x * 3.0, vGdUv.y * 3.0 );
   float slabM = 0.9;
 #else
   vec2 sg = vGdUv * 2.0;
@@ -172,26 +172,34 @@ float sd = gdHash( sc + gdSeed * 97.0 + 5.0 );
 float sd2 = gdHash( sc * 1.7 + gdSeed * 53.0 + 9.0 );
 float gdTone = 1.0 + ( sd - 0.5 ) * 0.24;
 #ifdef GD_FLAG
-  // quarried flags: each its own blue-grey or buff, bedding lines, ragged lighter edges, and the odd replaced concrete patch
-  gdCol *= mix( vec3( 0.97, 0.99, 1.03 ), vec3( 1.04, 1.0, 0.95 ), sd2 );
-  gdTone *= 0.94 + 0.12 * gdNoise( sg * vec2( 2.0, 5.0 ) + sc * 2.3 );
-  gdTone *= 1.0 - 0.14 * smoothstep( 0.55, 0.85, gdNoise( sg * 6.0 + sc * 5.0 ) );
-  if ( sd > 0.95 ) gdCol = mix( gdCol, vec3( 0.5, 0.5, 0.48 ) * ( 0.94 + 0.12 * gdNoise( gw * 3.0 ) ), 0.8 );
-  float flagEdge = min( min( sf.x, 1.0 - sf.x ) * 0.9, min( sf.y, 1.0 - sf.y ) * 1.5 );
-  gdTone *= 1.0 - 0.3 * ( 1.0 - smoothstep( 0.0, 0.035, flagEdge ) );
-  gdTone *= 1.0 + 0.05 * smoothstep( 0.03, 0.09, flagEdge ) * ( 1.0 - smoothstep( 0.09, 0.2, flagEdge ) );
+gdTone = 1.0 + ( sd - 0.5 ) * 0.08;
+#endif
+#ifdef GD_FLAG
+  // the painted flags are staggered and uneven, so only slow world noise goes on top (a per-cell tone would cut across them)
+  gdTone = 1.0;
 #else
   if ( sd > 0.93 ) { gdTone *= 1.13; gdCol = mix( gdCol, vec3( dot( gdCol, vec3( 0.3333 ) ) ), 0.4 ); }
   else if ( sd < 0.07 ) { gdTone *= 0.8; gdCol *= vec3( 1.05, 1.0, 0.9 ); }
   gdCol *= mix( vec3( 1.03, 1.01, 0.97 ), vec3( 0.97, 1.0, 1.04 ), sd2 );
 #endif
+#ifdef GD_FLAG
+gdTone *= 1.0 + ( gdNoise( sg * 0.6 ) - 0.5 ) * 0.1;
+#else
 gdTone *= 1.0 + ( gdNoise( sg * 1.6 + sc * 3.1 ) - 0.5 ) * 0.2;
+#endif
 gdTone *= 1.0 + ( gdFbm( gw / 17.0 + gdSeed * 11.0 ) - 0.5 ) * 0.2;
 // water pooling and drips: a grimy low corner on some slabs
+#ifdef GD_FLAG
+float stainAmt = 0.0;
+#else
 float stainAmt = smoothstep( 0.62, 0.9, gdHash( sc + gdSeed * 13.0 + 31.0 ) ) * ( 0.3 + 0.7 * gdNoise( sg * 3.0 + sc ) );
+#endif
 gdCol *= mix( vec3( 1.0 ), vec3( 0.8, 0.77, 0.72 ), stainAmt * smoothstep( 0.2, 1.0, sf.y ) * 0.8 );
 // cracks: a few slabs, wandering from a corner, tar-sealed hairline
 float ch = gdHash( sc + gdSeed * 31.0 + 2.0 );
+#ifdef GD_FLAG
+ch = 0.0;
+#endif
 if ( ch > 0.78 ) {
   vec2 cp = sf - vec2( step( 0.5, sd2 ), step( 0.5, fract( sd2 * 7.0 ) ) );
   float ca = 0.5 + ch * 2.4 + sd2 * 1.2;
@@ -221,6 +229,20 @@ float kerbM = 9.0; float bldT = 0.0;
 float kerbG = 1.0 - smoothstep( 0.0, 0.35 + 0.25 * gdNoise( gw * 1.7 ), kerbM );
 gdCol *= mix( vec3( 1.0 ), vec3( 0.78, 0.75, 0.7 ), kerbG * 0.8 );
 gdTone *= 1.0 - bldT * ( 0.14 + 0.16 * gdNoise( gw * 2.1 ) ) - 0.05 * smoothstep( 0.5, 0.0, kerbM );
+#ifdef USE_COLOR_ALPHA
+if ( gdRd.w > 0.5 && gdRd.z <= 0.0 ) {
+  // tree pit: uv is metres / 3 from the pit centre. Dark soil and mulch inside, a heaved concrete ring, roots cracking the slab outwards
+  vec2 pp = vGdUv * 3.0; float pr = length( pp ); float pa = atan( pp.y, pp.x );
+  float soil = 1.0 - smoothstep( 0.4, 0.46, max( abs( pp.x ), abs( pp.y ) ) + ( gdNoise( pp * 9.0 ) - 0.5 ) * 0.05 );
+  vec3 soilCol = vec3( 0.075, 0.055, 0.04 ) * ( 0.6 + 0.8 * gdNoise( pp * 14.0 ) );
+  gdCol = mix( gdCol, soilCol / max( gdTone, 0.3 ), soil );
+  float ring = smoothstep( 0.46, 0.5, max( abs( pp.x ), abs( pp.y ) ) ) * ( 1.0 - smoothstep( 0.5, 0.56, max( abs( pp.x ), abs( pp.y ) ) ) );
+  gdTone *= 1.0 - ring * 0.35;
+  float spokes = abs( sin( pa * 3.5 + gdNoise( pp * 5.0 ) * 2.5 ) );
+  float rcrack = ( 1.0 - smoothstep( 0.02, 0.07, spokes ) ) * smoothstep( 0.5, 0.56, pr ) * ( 1.0 - smoothstep( 0.62, 0.9, pr ) ) * step( 0.45, gdHash( vec2( floor( pa * 3.5 / 3.14159 ), 7.0 ) ) );
+  gdTone *= 1.0 - rcrack * 0.6;
+}
+#endif
 diffuseColor.rgb = gdCol * gdTone;
 `;
 

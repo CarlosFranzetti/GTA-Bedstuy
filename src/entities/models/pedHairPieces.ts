@@ -27,6 +27,7 @@ const headW = one(BONE.head);
 
 /** the skull cap of most styles */
 function cap(ctx: Ctx, mb: MeshBuilder, line: Knots, thick: (be: number, u: number) => number, o: { rows?: number; ease?: (x: number) => number; cols?: number; inner?: (be: number, rim: number) => number; smooth?: number; shade?: (u: number, be: number) => number } = {}): void {
+  if (ctx.underHat) return;
   const rim = rimFn(ctx, line);
   patch(ctx, mb, { rows: o.rows ?? rowsOf(ctx, 4, 3), cols: o.cols, rim, thick, ease: o.ease, inner: o.inner ? (be) => o.inner!(be, rim(be)) : undefined, smooth: o.smooth, shade: o.shade, rect: SWATCH.hair, W: headW });
 }
@@ -34,6 +35,7 @@ const edge = (u: number, t0: number, t1: number, w = 0.2): number => lerp(t0, t1
 
 // ---- a round volume (bun, puff): a squashed sphere of three rings
 function ball(ctx: Ctx, mb: MeshBuilder, c: V3, r: number, squash = 1, lump = 0, W: Wfn = headW): void {
+  if (ctx.underHat) return;
   const n = ctx.detail === 'hi' ? 5 : 3, rings = [];
   for (let i = 0; i <= n; i++) { const a = -Math.PI / 2 + 0.28 + (i / n) * (Math.PI - 0.56), k = Math.cos(a); rings.push({ y: c[1] + Math.sin(a) * r * squash, rx: r * k * (1 + lump * Math.sin(i * 2.1)), rz: r * k * (1 + lump * Math.cos(i * 1.7)), cx: c[0], cz: c[2] }); }
   loftY(mb, rings, ctx.detail === 'hi' ? 9 : 6, { rect: SWATCH.hair, capTop: true, capBottom: true, lift: r * 0.12, liftBottom: r * 0.12, center: c, W, uv: (i, j, R, C) => [j / (C - 1), 0.3 + 0.6 * (i / (R - 1))] });

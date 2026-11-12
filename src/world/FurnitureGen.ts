@@ -158,7 +158,7 @@ export function buildFurniture(
   };
   // tapered trunk plus three limbs reaching the canopy clouds (see addTree)
   const trunkGeo = (): THREE.BufferGeometry[] => [
-    new THREE.CylinderGeometry(0.2, 0.3, TREE_TRUNK_H, 6, 1, true).translate(0, TREE_TRUNK_H / 2, 0), // open-ended: ground below, limbs and canopy above
+    new THREE.CylinderGeometry(0.19, 0.37, TREE_TRUNK_H, 6, 1, true).translate(0, TREE_TRUNK_H / 2, 0), // open-ended: ground below, limbs and canopy above
     limb([0, 2.5, 0], [0, 4.0, 0], 0.14, 0.06),
     limb([0, 2.7, 0], [0.7, 3.6, 0.5], 0.1, 0.05),
     limb([0, 2.7, 0], [-0.6, 3.7, -0.6], 0.1, 0.05),

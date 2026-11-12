@@ -189,8 +189,11 @@ export function patchGroundDetail(m: THREE.MeshStandardMaterial, kind: GroundDet
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvGdW = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;\nvGdUv = uv;');
     const body = id === 1 ? ASPHALT_GLSL : id === 2 || id === 5 ? SIDEWALK_GLSL : id === 3 ? PAINT_GLSL : `
 float cs = floor( ( gw.x + gw.y ) / 11.0 ); float chh = gdHash( vec2( cs, 61.0 ) );
-vec3 cp = chh < 0.12 ? vec3( 0.62, 0.45, 0.04 ) : chh < 0.17 ? vec3( 0.5, 0.06, 0.05 ) : vec3( 0.0 );
-if ( cp.r > 0.0 ) diffuseColor.rgb = mix( diffuseColor.rgb, cp * ( 0.6 + gdLum * 1.2 ), 0.88 );`;
+// worn, chalky kerb paint: dusty yellow and a faded brick red, chipped and thin where wheels and boots hit it
+vec3 cp = chh < 0.12 ? vec3( 0.5, 0.42, 0.17 ) : chh < 0.17 ? vec3( 0.4, 0.17, 0.14 ) : vec3( 0.0 );
+float cchip = smoothstep( 0.45, 0.72, gdNoise( gw * 5.0 ) * 0.6 + gdNoise( gw * 17.0 ) * 0.4 );
+float cwear = 0.78 * ( 1.0 - 0.8 * cchip ) * ( 0.75 + 0.25 * gdNoise( gw * 0.8 ) );
+if ( cp.r > 0.0 ) diffuseColor.rgb = mix( diffuseColor.rgb, cp * ( 0.7 + gdLum * 1.0 ), cwear );`;
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
 varying vec3 vGdW;

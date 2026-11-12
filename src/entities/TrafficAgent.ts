@@ -433,7 +433,7 @@ export class TrafficAgent {
       if (along > -(halfL + myHalfL) && side < halfW + myHalfW + PASS_CLEARANCE) desired = Math.min(desired, PASS_CREEP);
     }
     // cops and runaways ignore the lines but still have to get round the corner: a faster limit than civilians use
-    const turnSpeed = this.ignoreStop ? TURN_SPEED_FAST : TURN_SPEED;
+    const turnSpeed = (this.ignoreStop ? TURN_SPEED_FAST : TURN_SPEED);
     if (node.stopLine) {
       const room = Math.max(0, dNode - STOP_POINT);
       if (!this.ignoreStop && (this.mustStopAt(node, dNode, speed) || (dNode < 45 && (this.turnConflict(node, false) || this.exitJammed(node, false))))) {

@@ -30,12 +30,28 @@ export const treeLeavesPainter: Painter = (ctx, w, h, rng, variant) => {
     ctx.lineTo(tx, ty);
     ctx.stroke();
   };
-  for (let i = 0; i < 230; i++) {
-    const a = rng.range(0, Math.PI * 2), d = Math.sqrt(rng.next()) * R;
-    const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d * 0.92;
-    const top = 1 - (y / h); // lighter toward the top of the sprite
-    const l = (i < 90 ? 13 : 20) + top * 20 + rng.range(-4, 6);
-    leaf(x, y, rng.range(13, 24), rng.range(0, Math.PI * 2), hsl(hue + rng.range(-14, 14), rng.range(34, 58), l), hsl(hue + 6, 30, l + 12));
+  // foliage as clustered masses with a broken outline: 9 to 12 lobes (each a few dozen small leaves, darker inside, lit on top),
+  // thin gaps between them, and loose single leaves around the rim, so the alpha cut reads as leafy, not as a disc or a cube
+  const lobes = 9 + Math.floor(rng.next() * 4);
+  for (let lb = 0; lb < lobes; lb++) {
+    const la = rng.range(0, Math.PI * 2), ld = Math.sqrt(rng.next()) * R * 0.62;
+    const lx = cx + Math.cos(la) * ld, ly = cy + Math.sin(la) * ld * 0.9;
+    const lr = rng.range(0.2, 0.34) * R;
+    const n = 70;
+    for (let i = 0; i < n; i++) {
+      const a = rng.range(0, Math.PI * 2), d = Math.sqrt(rng.next()) * lr;
+      const x = lx + Math.cos(a) * d, y = ly + Math.sin(a) * d * 0.85;
+      const top = 1 - y / h;
+      const inner = 1 - d / lr; // darker toward the lobe's core, brighter at its lit rim
+      const l = 11 + top * 18 + (1 - inner) * 9 + rng.range(-3, 5);
+      leaf(x, y, rng.range(8, 15), rng.range(0, Math.PI * 2), hsl(hue + rng.range(-12, 12), rng.range(36, 58), l), hsl(hue + 6, 30, l + 10));
+    }
+  }
+  for (let i = 0; i < 40; i++) { // loose leaves on the rim
+    const a = rng.range(0, Math.PI * 2), d = R * rng.range(0.7, 1.02);
+    const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d * 0.9;
+    const l = 20 + (1 - y / h) * 18 + rng.range(-3, 5);
+    leaf(x, y, rng.range(8, 14), rng.range(0, Math.PI * 2), hsl(hue + rng.range(-12, 12), rng.range(40, 60), l), hsl(hue + 6, 30, l + 10));
   }
 };
 

@@ -1,0 +1,75 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>facades showcase</title>
+<style>html,body{margin:0;background:#789;overflow:hidden}</style></head>
+<body><script type="module">
+// FACADES review harness: a straight row of real lots (brownstones, a rowhouse, an apartment block, shops) built with the real
+// BuildingGen + MaterialLibrary + CC0 packs, no world and no game. Dev server only:
+//   vite --port N, then /scripts/facades-showcase.html?hour=day|night&views=row,close,shop,block,door,el&w=1280&h=720
+import * as THREE from 'three';
+import { Rng } from '@/core/Rng';
+import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { loadTexturePacks } from '@/textures/packs';
+import { buildBuildings } from '@/world/BuildingGen';
+import { buildEl } from '@/transit/ElStructure';
+
+const q = new URLSearchParams(location.search);
+const night = q.get('hour') === 'night';
+const views = (q.get('views') ?? 'row').split(',');
+const W = Number(q.get('w') ?? 1280), H = Number(q.get('h') ?? 720);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = night ? 1.5 : 0.95;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(night ? '#0b1020' : '#a9c4de');
+scene.fog = new THREE.Fog(night ? '#0b1020' : '#b9cde0', 70, 300);
+const sun = new THREE.DirectionalLight(night ? '#8fa6ff' : '#fff1dc', night ? 0.35 : 2.4);
+sun.position.set(-30, 45, 40);
+scene.add(sun, new THREE.HemisphereLight(night ? '#2a3a66' : '#cfe3ff', '#3a342e', night ? 0.45 : 0.9));
+
+const mats = new MaterialLibrary(new Rng('facades-showcase'), undefined, { maxAnisotropy: 8 });
+await loadTexturePacks(mats, 8).catch((e) => console.warn('packs', e));
+// a small sky for reflections on glass
+const sky = new THREE.Scene(); sky.background = new THREE.Color(night ? '#10182c' : '#9ec0e4');
+const pm = new THREE.PMREMGenerator(renderer); mats.setEnvironment(pm.fromScene(sky, 0.04).texture);
+mats.setNight(night);
+
+const specs = [
+  ['brownstone', 5.2, 3, 'brownstone', true, 'plain'], ['brownstone', 5.6, 4, 'brownstone', true, 'bracket'], ['brownstone', 5.0, 3, 'brownstone', true, 'dentil'],
+  ['brownstone', 5.4, 3, 'brownstone', true, 'plain'], ['rowhouse', 5.8, 3, 'brick', true, 'plain'], ['rowhouse', 5.2, 3, 'brick', false, 'none'],
+  ['apartment', 16, 5, 'tanBrick', false, 'bracket'], ['apartment', 14, 5, 'brick', false, 'plain'],
+  ['mixeduse', 8, 3, 'brick', false, 'plain', 'bodega'], ['mixeduse', 7, 3, 'brick', false, 'plain', 'laundromat'], ['mixeduse', 7.5, 3, 'tanBrick', false, 'bracket', 'barber'],
+  ['brownstone', 5.2, 3, 'brownstone', true, 'plain'], ['brownstone', 5.2, 4, 'brownstone', true, 'bracket'],
+];
+let x = -40; const lots = [];
+specs.forEach((s, i) => {
+  const [type, w, floors, family, stoop, cornice, storefront] = s;
+  lots.push({
+    id: `showcase-${i}`, blockId: 'b0', side: 'N', frontA: { x, z: 0 }, frontB: { x: x + w, z: 0 }, width: w, depth: 18, outward: { x: 0, z: 1 }, type, corner: false,
+    spec: { floors, widthM: w, family, stoop: { present: stoop, heightM: stoop ? 1.6 : 0 }, cornice, use: type === 'mixeduse' ? 'mixed' : type === 'apartment' ? 'apartment' : 'residential', storefront, bays: Math.max(2, Math.round(w / 2.2)) },
+  });
+  x += w + 0.05;
+});
+const { group } = buildBuildings(lots, mats, new Rng('showcase-world'));
+scene.add(group);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 80), mats.get('concrete', 0)); ground.rotation.x = -Math.PI / 2; ground.position.set(0, 0, 30); scene.add(ground);
+if (views.includes('el')) {
+  const el = buildEl(mats);
+  for (const s of el.sections) { s.mesh.position.set(0, 0, 500 + 8); scene.add(s.mesh); }
+}
+const cam = new THREE.PerspectiveCamera(58, W / H, 0.1, 500);
+const poses = {
+  row: [-30, 1.7, 14, -10, 4.2, 0], row2: [10, 1.7, 14, 30, 4.2, 0], close: [-26, 1.7, 8, -26, 4, 0], door: [-34.5, 1.6, 5.5, -34.5, 2.2, 0], block: [34, 2, 16, 40, 7, 0], shop: [24, 1.8, 10, 24, 3.2, 0],
+  shop2: [14, 1.8, 11, 12, 3.2, 0], up: [-22, 1.5, 9, -22, 9, 0], el: [24, 1.7, 8.7 + 0.01, 30, 7, 5],
+};
+const out = {};
+for (const v of views) {
+  const p = poses[v] ?? poses.row;
+  cam.position.set(p[0], p[1], p[2]); cam.lookAt(p[3], p[4], p[5]);
+  for (let i = 0; i < 3; i++) renderer.render(scene, cam);
+  out[v] = renderer.domElement.toDataURL('image/png');
+}
+window.__ready = { shots: out, tris: renderer.info.render.triangles, calls: renderer.info.render.calls, programs: renderer.info.programs?.length };
+</script></body></html>

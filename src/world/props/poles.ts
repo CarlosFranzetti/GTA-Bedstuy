@@ -17,7 +17,17 @@ const ATTACH_Y = 8.62;
 const SPAN = 36;
 const GRID_STEP = 12; // poles snap to multiples of this so they fall between FurnitureGen's street trees
 const MAX_SPAN = 75;
-const WIRE_RADIUS = 0.015;
+// a 3 cm cable is under a pixel beyond ~40 m and drew as dashes in the sky: thicker, and faded out by distance so it is a continuous line or nothing
+const WIRE_RADIUS = 0.04;
+function wireMaterial(): THREE.Material {
+  const m = new THREE.MeshBasicMaterial({ name: 'pole-wire', color: '#1d1f22', transparent: true, depthWrite: false });
+  m.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', '#include <common>\nvarying float vWireD;').replace('#include <project_vertex>', '#include <project_vertex>\nvWireD = length( mvPosition.xyz );');
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vWireD;').replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.a *= 1.0 - smoothstep( 28.0, 62.0, vWireD );');
+  };
+  m.customProgramCacheKey = () => 'pole-wire-fade';
+  return m;
+}
 
 interface Pole {
   base: Vec2;
@@ -78,6 +88,7 @@ export function buildPoles(
 ): void {
   const trunk = materials.get('treeTrunk');
   const metal = materials.get('metalDark');
+  const wire = wireMaterial();
   const lotsByFace = new Map<string, Lot[]>();
   for (const l of lots) {
     const k = `${l.blockId}|${l.side}`;
@@ -159,7 +170,7 @@ export function buildPoles(
       if (q && Math.hypot(q.base.x - p.base.x, q.base.z - p.base.z) <= MAX_SPAN) {
         const sag = rng.range(0.5, 0.7);
         for (const off of offsets) {
-          pb.put('wires', metal, tube(sagPoints(attach(p, off), attach(q, off), sag, 10), WIRE_RADIUS, 10));
+          pb.put('wires', wire, tube(sagPoints(attach(p, off), attach(q, off), sag, 10), WIRE_RADIUS, 10));
           pb.count('wires');
         }
       }
@@ -176,7 +187,7 @@ export function buildPoles(
       if (best) {
         const from = attach(p, 0, 8.0, 0.1);
         const to = new THREE.Vector3(best.x - o.x * 0.05, 6, best.z - o.z * 0.05);
-        pb.put('wires', metal, tube(sagPoints(from, to, 0.25, 6), WIRE_RADIUS, 6));
+        pb.put('wires', wire, tube(sagPoints(from, to, 0.25, 6), WIRE_RADIUS, 6));
         pb.count('serviceDrops');
       }
     }

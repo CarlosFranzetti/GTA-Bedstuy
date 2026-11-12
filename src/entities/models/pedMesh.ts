@@ -818,6 +818,19 @@ function peopleRig(s: MhShape, spec: PedSpec): Record<string, number[]> {
 
 // ---------------------------------------------------------------- the model
 
+/** stature in head heights (chin to crown) by age: 7.2 for an adult, the GTA IV figure; a bigger head on a body type (short, petite, teen, kid) takes a share of it */
+export const HEADS_OF_STATURE: Record<'adult' | 'old' | 'teen' | 'kid', number> = { adult: 7.2, old: 7.3, teen: 6.9, kid: 6.2 };
+export function headsOf(spec: PedSpec, bt: BodyType): number {
+  const age = spec.age ?? 'adult';
+  return HEADS_OF_STATURE[age === 'old' ? 'old' : age === 'teen' ? 'teen' : age === 'kid' ? 'kid' : 'adult'] / Math.sqrt(bt.head);
+}
+/** scale of the head bone that gives a person `headsOf` head heights of stature (the head grows about the neck joint, so the crown rises with it) */
+export function headScaleFor(s: MhShape, spec: PedSpec, bt: BodyType): number {
+  const lm = s.landmarks, head = lm.crownY - lm.chinY, c = lm.crownY - s.rig.head[1], T = headsOf(spec, bt);
+  const k = (s.height - c) / (T * head - c);
+  return Math.min(1.35, Math.max(0.95, k));
+}
+
 export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: PedOptions = {}): PedModel | null {
   if (!peopleReady()) return null;
   let variant: number;
@@ -875,11 +888,14 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
     const bh = skinMode ? bt.h : BUILD_SCALE[spec.build][1], bw = skinMode ? 1 : BUILD_SCALE[spec.build][0];
     let target = shape.height * (bh + tri() * (grown ? 0.04 : 0.03)) * (age === 'old' ? 0.985 : 1);
     if (grown) target = Math.min(1.95, Math.max(1.5, target));
-    const hs = target / shape.height, wide = bw * (1 + tri() * 0.04);
+    // the head is sized by HEADS OF STATURE (adults 7.2, GTA IV proportion), not by a factor on the MakeHuman head (which is a small head: 7.9 heads);
+    // the taller head lifts the crown, so the stature is brought back to the target
+    const headK = headScaleFor(shape, spec, bt), crownRise = 1 + ((headK - 1) * (shape.landmarks.crownY - shape.rig.head[1])) / shape.height;
+    const hs = target / shape.height / crownRise, wide = bw * (1 + tri() * 0.04);
     group.scale.set(wide * (0.98 + 0.02 * hs), hs, wide * (0.98 + 0.02 * hs));
     if (leanOf(bt) !== 0) torso.userData.stoopBaked = leanOf(bt);      // the lean is in the rest pose of the skin and the rig (not an extra pose)
     for (const k of [0, 1]) arms[k].scale.y = 1 + rng.range(-0.02, 0.02);
-    head.scale.setScalar((skinMode ? bt.head * 1.05 : age === 'kid' ? 1.06 : 1) * rng.range(0.97, 1.03));
+    head.scale.setScalar((skinMode ? headK : age === 'kid' ? 1.06 : 1) * rng.range(0.985, 1.015));
     torso.scale.set(1 + rng.range(-0.015, 0.015), 1, 1 + rng.range(-0.02, 0.02));
   }
   return { group, legs, arms, head, knees, elbows, torso, rig, hips, spec, variant, triangles };

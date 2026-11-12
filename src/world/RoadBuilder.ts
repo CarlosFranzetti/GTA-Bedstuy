@@ -441,9 +441,9 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
         const c = lerp2(bp, cp, 0.55);
         // UV origin on the tile lattice next to the pit (same phase as the world-origin projection, but |uv| < 1.5): with
         // |uv| ~ 100 the normal-mapped slab shaded to black (the derivative-based tangent frame loses its precision)
-        const org = { x: Math.round(c.x / TILE_M) * TILE_M, z: Math.round(c.z / TILE_M) * TILE_M };
+        // the pit's UV origin is its own centre (|uv| < 0.3), so the shader draws the soil, the heave ring and the radial cracks around it
         treePits.push(setUniformRoadInfo(projectUV(
-          flatQuad(c.x, c.z, faceDir, TREE_PIT, TREE_PIT, Y_PIT), org, WORLD_X, WORLD_Z, 1 / TILE_M, 1 / TILE_M), sidewalkVertexInfo(0.5, bseed)));
+          flatQuad(c.x, c.z, faceDir, TREE_PIT, TREE_PIT, Y_PIT), c, WORLD_X, WORLD_Z, 1 / TILE_M, 1 / TILE_M), [0.5, bseed, 0, 1]));
       }
       if (street.class !== 'avenue') continue;
       for (let t = 4; t <= faceLen - 4; t += 9) {

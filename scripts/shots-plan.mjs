@@ -14,6 +14,7 @@ const plan = JSON.parse(readFileSync(resolve(process.argv[2]), 'utf8'));
 const out = resolve(process.argv[3]); mkdirSync(out, { recursive: true });
 const port = Number(arg('--port', 4471)); const dist = resolve(arg('--dist', 'dist'));
 const W = Number(arg('--w', 1920)), H = Number(arg('--h', 1080));
+const T0 = Date.now();
 const preview = spawn('node', ['node_modules/vite/bin/vite.js', 'preview', '--outDir', dist, '--port', String(port), '--strictPort'], { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'] });
 const base = `http://localhost:${port}`;
 for (let i = 0; i < 80; i++) { try { if ((await fetch(`${base}/`)).ok) break; } catch { /* wait */ } await new Promise((r) => setTimeout(r, 250)); }
@@ -23,6 +24,7 @@ try {
   page.on('pageerror', (e) => console.error(String(e).slice(0, 300)));
   await page.goto(`${base}/?q=${arg('--q', 'medium')}&perf=0`, { waitUntil: 'load', timeout: 600_000 });
   await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 1_200_000 });
+  console.log('booted', Date.now() - T0, 'ms');
   await page.evaluate(() => { window.__gtaDebug.renderer.domElement.style.visibility = 'hidden'; });
   await page.mouse.click(W / 2, H / 2); await page.waitForTimeout(500);
   const b = page.getByRole('button', { name: 'Resume' }); if (await b.isVisible().catch(() => false)) { await b.click(); await page.waitForTimeout(300); }
