@@ -25,3 +25,6 @@ playtests/h8d/playtest.mp4
 tests/unit/_scratch/
 tests/unit/tmp/
 cache/
+
+# playtest videos are sent to the owner directly and kept out of the repository (they made every checkout 140 MB larger)
+playtests/*/playtest.mp4

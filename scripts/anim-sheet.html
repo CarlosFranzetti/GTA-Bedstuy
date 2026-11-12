@@ -62,6 +62,20 @@ if (mode === 'walk' || mode === 'jog' || mode === 'run') {
       c.update((i / N) / f + 1e-6, { speed: sp });
     }
   });
+} else if (mode === 'styles' || mode === 'styles2') {
+  // one pedestrian per walk style, all at the same point of the stride (styles2: the rarer walks, then the standing clips)
+  const names = mode === 'styles' ? ['walk', 'walkBrisk', 'walkHeavy', 'walkStroll', 'walkFast', 'walkJaunty', 'walkAngry', 'walkSad'] : ['walkHobble', 'walkLimp', 'walkDrunk', 'idle', 'idle2', 'talk', 'eat', 'phone'];
+  models.forEach((m, i) => {
+    const n = names[i];
+    if (n.startsWith('walk')) {
+      const c = new AnimController(m, { ...PLAYER_GAIT, walkClip: n, phase: Number(params.get('phase') ?? 0.3) }, lib);
+      c.update(1e-6, { speed: (lib.get(n)?.speed ?? 1.2) });
+    } else {
+      const c = new AnimController(m, PLAYER_GAIT, lib);
+      c.setIdle(n === 'idle' ? null : n, false);
+      for (let k = 0; k < 60; k++) c.update(1 / 30, { speed: 0 });
+    }
+  });
 } else if (mode === 'idles') {
   const names = [null, 'phone', 'crossed', 'lean', 'idle2', null, 'phone', 'crossed'];
   models.forEach((m, i) => {

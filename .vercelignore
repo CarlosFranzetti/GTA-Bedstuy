@@ -1,0 +1,11 @@
+# Not needed to build the hosted game (src, public, index.html and the config files are). Keeps each deployment's source small.
+/playtests
+/docs
+/tests
+/native
+/scripts
+/cache
+/dist
+/dist-hosted
+*.mp4
+*.webm

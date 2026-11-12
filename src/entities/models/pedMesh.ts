@@ -607,29 +607,22 @@ export function dressLod(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): M
   // the knee pinch, the calf and the ankle of the base mesh do not read through the cloth; the seat and the crotch keep their own shape
   const bk = spec.bottom.kind;
   if (bk === 'jeans' || bk === 'trousers' || bk === 'cargo' || bk === 'sweats' || bk === 'leggings') {
-    const hemK = bk === 'jeans' ? 0.66 : bk === 'trousers' ? 0.72 : bk === 'leggings' ? 0.6 : 0.8, yTop = hipY - 0.12 * K, yHem = anY + 0.03, BIN = 0.03;
-    const stat = new Map<string, { x: number; z: number; r: number; n: number }>(), kb = (sd: number, y: number): string => `${sd}|${Math.round(y / BIN)}`;
+    const hemK = bk === 'jeans' ? 0.66 : bk === 'trousers' ? 0.72 : bk === 'leggings' ? 0.6 : 0.8, yTop = hipY - 0.12 * K, yHem = anY + 0.03;
+    // the measured section of the (left) leg at a height: mean radius, centre; from the shape's own rings (robust on a sparse mesh)
+    const rs = [...s.legRings.shin, ...s.legRings.thigh].filter((r) => r).sort((p, q) => p[0] - q[0]);
+    const sec = (y: number): { r: number; cx: number; cz: number } => {
+      let i = 1; while (i < rs.length - 1 && rs[i][0] < y) i++;
+      const A = rs[i - 1], B2 = rs[i], t = Math.min(1, Math.max(0, (y - A[0]) / Math.max(1e-6, B2[0] - A[0])));
+      return { r: ((A[1] + A[3]) / 2) * (1 - t) + ((B2[1] + B2[3]) / 2) * t, cx: (A[4] ?? 0) * (1 - t) + (B2[4] ?? 0) * t, cz: A[2] * (1 - t) + B2[2] * t };
+    };
+    const rTop = sec(yTop).r;
     for (let i = 0; i < n; i++) {
-      const wl = wsumAt(L, i, W_LEGS); if (wl < 0.6 || pos[i * 3 + 1] > yTop + 0.1 || pos[i * 3 + 1] < yHem - 0.02) continue;
-      const k = kb(Math.sign(pos[i * 3]) || 1, pos[i * 3 + 1]), e = stat.get(k) ?? { x: 0, z: 0, r: 0, n: 0 };
-      e.x += pos[i * 3]; e.z += pos[i * 3 + 2]; e.n++; stat.set(k, e);
-    }
-    for (const e of stat.values()) { e.x /= e.n; e.z /= e.n; }
-    for (let i = 0; i < n; i++) {
-      const wl = wsumAt(L, i, W_LEGS); if (wl < 0.6 || pos[i * 3 + 1] > yTop + 0.1 || pos[i * 3 + 1] < yHem - 0.02) continue;
-      const e = stat.get(kb(Math.sign(pos[i * 3]) || 1, pos[i * 3 + 1]))!; e.r += Math.hypot(pos[i * 3] - e.x, pos[i * 3 + 2] - e.z) / e.n;
-    }
-    // radius of the upper thigh per side, the target taper, and the scale of every vertex about its section centre
-    for (const sd of [-1, 1]) {
-      const rTop = stat.get(kb(sd, yTop))?.r ?? stat.get(kb(sd, yTop + BIN))?.r;
-      if (!rTop) continue;
-      for (let i = 0; i < n; i++) {
-        const wl = wsumAt(L, i, W_LEGS); const y = pos[i * 3 + 1];
-        if (wl < 0.6 || (Math.sign(pos[i * 3]) || 1) !== sd || y > yTop + 0.1 || y < yHem - 0.02) continue;
-        const e = stat.get(kb(sd, y))!; if (e.r < 1e-4) continue;
-        const u = Math.min(1, Math.max(0, (yTop - y) / (yTop - yHem))), rt = rTop * (1 + (hemK - 1) * (0.25 * u + 0.75 * u * u * (3 - 2 * u))) , f = 1 + (rt / e.r - 1) * sstep(yTop + 0.1, yTop, y) * Math.min(1, (wl - 0.6) / 0.3);
-        pos[i * 3] = e.x + (pos[i * 3] - e.x) * f; pos[i * 3 + 2] = e.z + (pos[i * 3 + 2] - e.z) * f;
-      }
+      const wl = wsumAt(L, i, W_LEGS), y = pos[i * 3 + 1];
+      if (wl < 0.5 || y > yTop + 0.1 || y < yHem - 0.02) continue;
+      const sd = Math.sign(pos[i * 3]) || 1, c = sec(Math.max(yHem, y)), cx = sd * Math.abs(c.cx) * legK;
+      const u = Math.min(1, Math.max(0, (yTop - y) / (yTop - yHem))), rt = rTop * (1 + (hemK - 1) * (0.25 * u + 0.75 * u * u * (3 - 2 * u)));
+      const f = 1 + (rt / Math.max(1e-3, c.r) - 1) * sstep(yTop + 0.1, yTop, y) * Math.min(1, (wl - 0.5) / 0.3);
+      pos[i * 3] = cx + (pos[i * 3] - cx) * f; pos[i * 3 + 2] = c.cz + (pos[i * 3 + 2] - c.cz) * f;
     }
   }
   flattenTorso(L, pos, hipY + 0.02, shY + 0.01, cz0, spec.sex === 'f' ? 0.8 : 1);

@@ -6,7 +6,7 @@ import { PED_SPECS } from '@/textures/painters/ped';
 import { ClipLibrary } from '@/entities/anim/library';
 import { decodePack } from '@/entities/anim/clipPack';
 import { makeGait } from '@/entities/anim/gait';
-import { AnimController } from '@/entities/anim/controller';
+import { AnimController, PED_ONESHOTS } from '@/entities/anim/controller';
 import type { IMaterialLibrary } from '@/world/types';
 
 // Every shipped person (all body types and ages), posed by the real controller: feet on the ground, thighs and spine within walking range.
@@ -61,11 +61,57 @@ describe('every body type through idle, walk, run and turn', () => {
           expect(hips.y, `${spec.id} ${sc.name} hip height`).toBeGreaterThan(hipY * 0.8);
           expect(hips.y, `${spec.id} ${sc.name} hip height`).toBeLessThan(hipY * 1.08);
           for (const l of m.legs) expect(Math.abs(l.rotation.x), `${spec.id} ${sc.name} thigh pitch`).toBeLessThan(sc.thigh);
-          expect(Math.abs(m.torso.rotation.x), `${spec.id} ${sc.name} spine`).toBeLessThan(0.65);
+          expect(Math.abs(m.torso.rotation.x), `${spec.id} ${sc.name} spine`).toBeLessThan(sc.name === 'idle' ? 0.2 : sc.name === 'walk' ? 0.3 : 0.65); // upright: 11 degrees standing, 17 walking
           expect(Math.abs(m.hips.rotation.x), `${spec.id} ${sc.name} pelvis`).toBeLessThan(0.65);
         }
       }
       expect(tested).toBeGreaterThan(20);
     });
   }
+
+  it('the one-shots pedestrians play (startle flinch, corner turns, stops, run starts) never bend or lift any body type out of its walking range', () => {
+    let tested = 0;
+    for (const spec of PED_SPECS) {
+      const m = buildMhPedModel(materials, new Rng(9), { variant: spec.id });
+      if (!m) continue;
+      tested++;
+      const ctl = new AnimController(m, makeGait(tested * 7, spec.age ?? 'adult'), lib);
+      const hipY = m.legs[0].position.y * m.group.scale.y;
+      const kneeRest = (m.legs[0].position.y - Math.abs(m.knees[0].position.y)) * m.group.scale.y;
+      const script: Array<{ t: number; speed: number; yaw?: number; shot?: boolean }> = [];
+      for (let i = 0; i < 30; i++) script.push({ t: i, speed: 0 });
+      script.push({ t: 30, speed: 0, shot: true });
+      for (let i = 31; i < 70; i++) script.push({ t: i, speed: 0 });
+      for (let i = 70; i < 130; i++) script.push({ t: i, speed: 1.2, yaw: i % 25 < 6 ? 3 : 0 });
+      for (let i = 130; i < 170; i++) script.push({ t: i, speed: 0 }); // stop
+      for (let i = 170; i < 230; i++) script.push({ t: i, speed: Math.min(4.5, (i - 170) * 0.3) }); // run-up
+      for (const st of script) {
+        if (st.shot) expect(ctl.playOnce('flinch', PED_ONESHOTS.flinch)).toBe(true); // the captured duck, at the strength pedestrians get
+        ctl.update(1 / 30, { speed: st.speed, yawRate: st.yaw ?? 0 });
+        m.group.updateMatrixWorld(true);
+        const k1 = new THREE.Vector3(), k2 = new THREE.Vector3(), h = new THREE.Vector3();
+        m.knees[0].getWorldPosition(k1); m.knees[1].getWorldPosition(k2); m.legs[0].getWorldPosition(h);
+        const low = Math.min(k1.y, k2.y);
+        const where = `${spec.id} t${st.t}`;
+        expect(Math.abs(m.torso.rotation.x), where + ' spine').toBeLessThan(0.65);
+        expect(Math.abs(m.hips.rotation.x), where + ' pelvis').toBeLessThan(0.65);
+        expect(low - kneeRest, where + ' lifted').toBeLessThan(0.34);
+        expect(low - kneeRest, where + ' sunk').toBeGreaterThan(-0.3);
+        expect(h.y, where + ' hips').toBeGreaterThan(hipY * 0.8);
+        expect(h.y, where + ' hips').toBeLessThan(hipY * 1.08);
+        for (const l of m.legs) expect(Math.abs(l.rotation.x), where + ' thigh').toBeLessThan(1.15);
+      }
+    }
+    expect(tested).toBeGreaterThan(20);
+  });
+
+  it('and the whole captured duck would have bent a pedestrian double (why the flinch is scaled down)', () => {
+    const spec = PED_SPECS[0];
+    const m = buildMhPedModel(materials, new Rng(9), { variant: spec.id })!;
+    const ctl = new AnimController(m, makeGait(1), lib);
+    ctl.playOnce('flinch', { amp: 1, from: 0.12, to: 0.75, rate: 1.7 });
+    let worst = 0;
+    for (let i = 0; i < 40; i++) { ctl.update(1 / 30, { speed: 0 }); worst = Math.max(worst, Math.abs(m.torso.rotation.x)); }
+    expect(worst).toBeGreaterThan(0.9);
+  });
 });

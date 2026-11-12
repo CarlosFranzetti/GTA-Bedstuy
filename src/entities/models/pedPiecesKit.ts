@@ -431,9 +431,14 @@ export function hexLin(hex: string, k = 1): V3 {
   return [c(0), c(2), c(4)];
 }
 /** horizontal extent of the dressed skin (all bones) at a height band on one side (-1 left, +1 right): the outermost x */
-export function outerX(ctx: Ctx, y0: number, y1: number, side: -1 | 1): number {
-  const p = ctx.skin.position; let m = 0;
-  for (let i = 0; i < p.length / 3; i++) { const y = p[i * 3 + 1]; if (y >= y0 && y <= y1 && p[i * 3] * side > m) m = p[i * 3] * side; }
+export function outerX(ctx: Ctx, y0: number, y1: number, side: -1 | 1, noArms = false): number {
+  const p = ctx.skin.position, L = ctx.skin; let m = 0;
+  for (let i = 0; i < p.length / 3; i++) {
+    const y = p[i * 3 + 1];
+    if (y < y0 || y > y1 || p[i * 3] * side <= m) continue;
+    if (noArms && wsumAt(L, i, W_ARMS) > 0.3) continue;
+    m = p[i * 3] * side;
+  }
   return m * side;
 }
 /** the horizontal extent of one leg of the dressed skin at height y: centre x, centre z, half widths */

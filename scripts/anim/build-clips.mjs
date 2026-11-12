@@ -150,6 +150,8 @@ function buildClip(spec) {
       duration = T;
     }
   }
+  // a soft limit on spine and pelvis pitch and roll for upright clips (a waiting subject bending to look at his shoes is not an idle for a crowd)
+  if (!spec.big) for (const row of outRows) for (const bn of ['hips', 'torso']) for (const ax of [0, 2]) { const c = BONES.indexOf(bn) * 3 + ax; row[c] = 0.42 * Math.tanh(row[c] / 0.42); }
   // sanity: an upright clip never pitches or rolls the spine far; a big one must say so in the catalog (big: true)
   if (!spec.big) {
     const mean = (c) => outRows.reduce((s, r) => s + Math.abs(r[c]), 0) / outRows.length;

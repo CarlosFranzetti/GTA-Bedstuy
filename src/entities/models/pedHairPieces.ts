@@ -135,7 +135,7 @@ const STYLES: Record<HairId, (ctx: Ctx, mb: MeshBuilder) => void> = {
   },
   boxBraids: (ctx, mb) => {
     cap(ctx, mb, T_SHORT, (_be, u) => edge(u, 0.004, 0.011, 0.25));
-    const n = ctx.detail === 'hi' ? 9 : 5, W = toTorso(ctx), bes = around(n, 0.55, Math.PI * 2 - 0.55, 0.12, ctx.seed), list: Strand[] = [];
+    const n = ctx.detail === 'hi' ? 8 : 5, W = toTorso(ctx), bes = around(n, 0.55, Math.PI * 2 - 0.55, 0.12, ctx.seed), list: Strand[] = [];
     for (let i = 0; i < n; i++) { const sideEnd = Math.abs(Math.sin(bes[i])) > 0.85; list.push({ be: bes[i], th: 1.45 + (i % 2) * 0.16, len: sideEnd ? 0.17 : 0.3, r0: 0.0095, r1: 0.0065, out: 0.025, down: 0.0 }); }
     strands(ctx, mb, list, 4, 3, W);
   },
@@ -189,13 +189,13 @@ export function buildHair(id: HairId, ctx: Ctx): Piece {
 
 export function buildBeard(id: BeardId, ctx: Ctx): Piece {
   const mb = new MeshBuilder(headW);
-  const jawAxis = ((): V3 => { const d = Math.hypot(0.5, 0.86); return [0, -0.5 / d, -0.86 / d]; })();
+  const jawAxis = ((): V3 => { const d = Math.hypot(0.3, 0.95); return [0, -0.3 / d, -0.95 / d]; })();
   if (id === 'stache') {
     const ax: V3 = [0, -0.07, -0.997];
     patch(ctx, mb, { axis: ax, rows: 3, cols: ctx.detail === 'hi' ? 10 : 6, rim: (be) => 0.2 + 0.16 * Math.abs(Math.sin(be)) * Math.abs(Math.sin(be)) * 0 + 0.14 * Math.abs(Math.sin(be)) - 0.05 * Math.max(0, Math.cos(be)), thick: (_be, u) => 0.0025 + 0.006 * sstep(0, 0.5, u), rect: SWATCH.hair, W: headW });
   } else {
     const full = id === 'beard';
-    patch(ctx, mb, { axis: jawAxis, rows: rowsOf(ctx, 3, 3), rim: (be) => (full ? 0.42 + 0.42 * Math.abs(Math.sin(be)) * (Math.cos(be) < 0.3 ? 1 : 0.85) - 0.15 * Math.max(0, Math.cos(be)) : 0.34 + 0.06 * Math.abs(Math.sin(be)) - 0.05 * Math.max(0, Math.cos(be))), thick: (_be, u) => edge(u, 0.0025, full ? 0.012 : 0.01, 0.4) + (full ? 0.006 : 0.004) * sstep(0.6, 1, u), rect: SWATCH.hair, W: headW });
+    patch(ctx, mb, { axis: jawAxis, rows: rowsOf(ctx, 3, 3), rim: (be) => (full ? 0.46 + 0.5 * Math.abs(Math.sin(be)) * (Math.cos(be) < 0.3 ? 1 : 0.85) - 0.18 * Math.max(0, Math.cos(be)) - 0.14 * Math.max(0, -Math.cos(be)) : 0.34 + 0.06 * Math.abs(Math.sin(be)) - 0.05 * Math.max(0, Math.cos(be))), thick: (_be, u) => edge(u, 0.0025, full ? 0.012 : 0.01, 0.4) + (full ? 0.006 : 0.004) * sstep(0.6, 1, u), rect: SWATCH.hair, W: headW });
   }
   const lifted = relax(ctx, mb);
   return done('beard:' + id, 'hair', mb, lifted);

@@ -61,7 +61,7 @@ const ANKLE_H = 0.075;
  * thrown object (a deep crouch, spine bent past 70 degrees): played whole on a startled walker it bent them double, so it is only a
  * fraction. The get-up clip is a lying-down take and is NOT used on pedestrians (they are not lying down when it would play).
  */
-export const PED_ONESHOTS = { flinch: { amp: 0.3, from: 0.12, to: 0.75, rate: 1.7, fadeIn: 0.06, fadeOut: 0.2 } } as const;
+export const PED_ONESHOTS = { flinch: { amp: 0.12, from: 0.12, to: 0.75, rate: 1.7, fadeIn: 0.06, fadeOut: 0.2 } } as const;
 
 export const JUMP_TIMES = { takeoff: 0.07, land: 0.2, gravity: 17 };
 
@@ -69,6 +69,7 @@ export class AnimController {
   private phase: number;
   private idleT: number;
   private idleName = 'idle';
+  private idleW = -1;
   private idleMirror = false;
   private keyed: 'crossed' | 'lean' | null = null;
   private prevIdle = 'idle';
@@ -170,7 +171,11 @@ export class AnimController {
     if (this.keyed) keyIdle(this.base, this.keyed, this.idleMirror ? -1 : 1);
 
     // locomotion layer
-    const iw = idleWeight(speed);
+    // the stand is upright and the walk has bent knees, so the change between them is spread over a fifth of a second even when the
+    // speed snaps (a first frame takes the weight as it is)
+    const iwT = idleWeight(speed);
+    this.idleW = this.idleW < 0 ? iwT : this.idleW + Math.max(-dt / 0.2, Math.min(dt / 0.2, iwT - this.idleW));
+    const iw = this.idleW;
     if (iw < 1) {
       const b: Blend = chainBlend(speed, chain);
       this.phase = (this.phase + cycleFrequency(speed, chain, b, g.cadence) * dt) % 1;

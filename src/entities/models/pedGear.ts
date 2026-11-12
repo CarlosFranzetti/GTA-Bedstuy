@@ -65,7 +65,7 @@ function backpack(ctx: Ctx, mb: MeshBuilder): void {
     const o: V3 = [0, y, 0.5], tL = ctx.torso.hit(o, [-1, 0, 0], 0.6), half = Math.min(0.14 * K, (isFinite(tL) ? tL : 0.2) * 0.7), d = depth * (i === 0 ? 0.8 : 1) * (i === ys.length - 1 ? 0.85 : 1);
     rings.push({ y, rx: half, rz: d / 2, cx: 0, cz: zb + 0.012 + d / 2, e: 3 });
   }
-  loftY(mb, rings, ctx.detail === 'hi' ? 10 : 7, { rect: GEAR, capTop: true, capBottom: true, lift: -0.004, liftBottom: 0.0, W: torsoW, uv: (i, j, R, C) => [j / (C - 1), 0.3 + 0.55 * (i / (R - 1))], shade: (i) => 0.82 + 0.18 * (i / (rings.length + 1)) });
+  loftY(mb, rings, ctx.detail === 'hi' ? 8 : 6, { rect: GEAR, capTop: true, capBottom: true, lift: -0.004, liftBottom: 0.0, W: torsoW, uv: (i, j, R, C) => [j / (C - 1), 0.3 + 0.55 * (i / (R - 1))], shade: (i) => 0.82 + 0.18 * (i / (rings.length + 1)) });
   // the front pocket on the back of the pack
   const r1 = rings[1], r2 = rings[2];
   loftY(mb, [{ y: r1.y, rx: r1.rx * 0.78, rz: 0.03, cx: 0, cz: r1.cz + r1.rz * 0.9, e: 3 }, { y: lerp(r1.y, r2.y, 0.85), rx: r2.rx * 0.78, rz: 0.032, cx: 0, cz: r2.cz + r2.rz * 0.92, e: 3 }], 8, { rect: GEAR, capTop: true, capBottom: true, W: torsoW, lift: 0.0, liftBottom: 0.0, shade: () => 0.92, uv: () => [0.5, 0.45] });
@@ -113,7 +113,7 @@ function messenger(ctx: Ctx, mb: MeshBuilder): void {
 
 function shoppingBag(ctx: Ctx, mb: MeshBuilder): void {
   const w = ctx.rig.wristL, W = one(BONE.elbowL), wy = w[1], wx = w[0], wz = w[2];
-  const hip = Math.max(...[wy - 0.36, wy - 0.22, wy - 0.09].map((y) => { const t = ctx.torso.hit([0, y, ctx.C[2]], [-1, 0, 0], 0.6); return isFinite(t) ? t : 0; })), cxb = -Math.max(Math.abs(wx), hip + 0.062), rings = [[wy - 0.36, 0.045, 0.1], [wy - 0.22, 0.056, 0.115], [wy - 0.09, 0.052, 0.11]].map(([y, rx, rz]) => ({ y, rx, rz, cx: cxb, cz: wz - 0.012, e: 4 }));
+  const hip = Math.abs(outerX(ctx, wy - 0.4, wy - 0.05, -1, true)), cxb = -Math.max(Math.abs(wx), hip + 0.062), rings = [[wy - 0.36, 0.045, 0.1], [wy - 0.22, 0.056, 0.115], [wy - 0.09, 0.052, 0.11]].map(([y, rx, rz]) => ({ y, rx, rz, cx: cxb, cz: wz - 0.012, e: 4 }));
   loftY(mb, rings, ctx.detail === 'hi' ? 8 : 6, { rect: GEAR, capBottom: true, capTop: true, liftBottom: 0, lift: -0.004, W, uv: (i, j, R, C) => [j / (C - 1), 0.35 + 0.5 * (i / (R - 1))], shade: (i) => 0.86 + 0.14 * (i / 4) });
   const arch: V3[] = [0, 1, 2, 3, 4].map((k) => { const a = (k / 4) * Math.PI; return [cxb, wy - 0.09 + 0.1 * Math.sin(a) + 0.0, wz - 0.012 - 0.06 * Math.cos(a)]; });
   tube(mb, arch, () => [0.0055, 0.0055], 3, { rect: GEAR, W, tint: [0.8, 0.8, 0.8], uv: () => [0.5, 0.25], capStart: true, capEnd: true });

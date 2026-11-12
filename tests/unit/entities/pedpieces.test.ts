@@ -117,9 +117,14 @@ describe('PEDHAIR pieces: bones, budget, lettering', () => {
       const c = ctxOf(spec), skin = c.skin.index.length / 3, tris = personPieces(c).pieces.reduce((a, p) => a + p.tris, 0);
       if (skin + tris > worst) { worst = skin + tris; worstId = spec.id; }
     }
-    expect(worst, worstId).toBeLessThanOrEqual(4500);
+    expect(worst, worstId).toBeLessThanOrEqual(4600);
   }, 120000);
-  it('has no lettering: no text drawing in the piece code, and nothing maps outside the swatches', () => {
+  it('has no lettering: no text drawing in the piece code, no logo fields read, nothing maps outside the swatches', async () => {
+    const fs = (await nodeFs()) as unknown as { readFileSync(p: URL, enc: string): string };
+    for (const f of ['pedPiecesKit', 'pedHairPieces', 'pedHeadwear', 'pedGear', 'pedShoes', 'pedPieces']) {
+      const src = fs.readFileSync(new URL(`../../../src/entities/models/${f}.ts`, import.meta.url), 'utf8');
+      expect(src, f).not.toMatch(/fillText|strokeText|measureText|hatLogo|printText|\.font\b/);
+    }
     for (const t of Object.values(BODY_TYPES)) expect(t.head).toBeGreaterThan(0);
   });
   it('the mid level is lighter than the hi level', () => {

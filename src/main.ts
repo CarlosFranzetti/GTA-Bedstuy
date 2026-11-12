@@ -188,6 +188,8 @@ applyShadowFlags(world.group, true, true);
 // Shadow pass + AO G-buffer draw merged position-only stand-ins instead of every material mesh (see AoProxy.ts)
 const proxies = new RenderProxies();
 let carLodReady = false;
+/** vehicles whose shadow flags are already set; declared before ensureProxies(), which resets it at boot */
+let shadowFlagged = new WeakSet<object>();
 let instanceCuller: InstanceCuller | null = null;
 function ensureProxies(): void {
   if (useProxies || !proxiesAllowed || !SHADOWS_ENABLED[quality]) return;
@@ -249,7 +251,6 @@ function registerHulls(): void {
 carLodReady = true;
 if (useProxies) registerHulls();
 const hullKey = (t: string): string => (t === 'cop' || t === 'cab' ? 'sedan' : t);
-let shadowFlagged = new WeakSet<object>();
 const crosswalkNodes = new Set<string>();
 for (const cw of grid.crosswalks) {
   for (const p of [cw.a, cw.b]) crosswalkNodes.add(grid.nearestSidewalkNode(p).id);
