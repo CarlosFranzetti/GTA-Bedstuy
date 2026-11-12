@@ -129,6 +129,7 @@ if (view === 'playerback') {
   m.group.rotation.y = 0; scene.add(m.group); TRIS[id] = m.triangles;
   cam.position.set(0.35, 1.55, 3.2); look.set(0, 1.4, 0); cam.fov = 64;   // the player's back is toward the camera at +z: the model faces -z
 }
+if (view === 'feet') { const yaw = Number(params.get('yaw') ?? 0); place(['ba-hoodie-fade', 'wh-office', 'ba-puffer-braids', 'ea-nurse'], 0, 0.7, yaw); cam.position.set(0, 0.5, 3.3); look.set(0, 0.35, 0); cam.fov = 30; }
 if (SIL) { scene.background = new THREE.Color(0xffffff); scene.environment = null; ground.visible = false; scene.traverse((o) => { if (o.isMesh && o !== ground) o.material = new THREE.MeshBasicMaterial({ color: 0x000000 }); }); }
 cam.updateProjectionMatrix(); cam.lookAt(look);
 for (let i = 0; i < 3; i++) renderer.render(scene, cam);

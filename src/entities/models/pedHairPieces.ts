@@ -30,7 +30,7 @@ const headW = one(BONE.head);
 function cap(ctx: Ctx, mb: MeshBuilder, line: Knots, thick: (be: number, u: number) => number, o: { rows?: number; ease?: (x: number) => number; cols?: number; inner?: (be: number, rim: number) => number; smooth?: number; shade?: (u: number, be: number) => number } = {}): void {
   if (ctx.underHat) return;
   const rim = rimFn(ctx, line);
-  patch(ctx, mb, { rows: o.rows ?? rowsOf(ctx, 4, 3), cols: o.cols, rim, thick, ease: o.ease, inner: o.inner ? (be) => o.inner!(be, rim(be)) : undefined, smooth: o.smooth, shade: o.shade, rect: SWATCH.hair, W: headW });
+  patch(ctx, mb, { rows: o.rows ?? rowsOf(ctx, 5, 3), cols: o.cols, rim, thick: (be, u) => thick(be, u) + 0.007 * Math.pow(sstep(0.35, 1, u), 1.5), ease: o.ease, inner: o.inner ? (be) => o.inner!(be, rim(be)) : undefined, smooth: o.smooth, shade: o.shade, rect: SWATCH.hair, W: headW });
 }
 const edge = (u: number, t0: number, t1: number, w = 0.2): number => lerp(t0, t1, sstep(0, w, u));
 

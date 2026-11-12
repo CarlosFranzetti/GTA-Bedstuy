@@ -741,7 +741,8 @@ function shoeParts(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.Buff
       const y = L.position[i * 3 + 1], x = L.position[i * 3];
       if (y > anY + 0.03 && y < anY + 0.075 && Math.abs(x - a[0]) < 0.07) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, L.position[i * 3 + 2]); z1 = Math.max(z1, L.position[i * 3 + 2]); }
     }
-    if (!isFinite(x0)) continue;
+    // a coarse LOD may have no vertex in the ankle band: then the shin ring measured on the shape stands in (a shoe is always built, never a bare cone)
+    if (!isFinite(x0)) { const r0 = s.legRings.shin.find((q) => q) ?? [anY + 0.03, 0.04, 0, 0.04, a[0]]; x0 = a[0] - r0[1]; x1 = a[0] + r0[1]; z0 = r0[2] - r0[3]; z1 = r0[2] + r0[3]; }
     const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, lrx = (x1 - x0) / 2 + 0.004, lrz = (z1 - z0) / 2 + 0.004;
     const zToe = cz - 0.225 * sc, zHeel = cz + (lrz + 0.012);
     const pos: number[] = [], uv: number[] = [], idx: number[] = [];
