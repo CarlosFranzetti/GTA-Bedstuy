@@ -302,7 +302,7 @@ function makeShader(b: BakeInput): (x: number, y: number, z: number, nx: number,
     const cr = (d: number, w: number): number => Math.max(0, 1 - Math.abs(d) / w);
     let crease = 0;
     if (arm) crease = Math.max(cr(y - elY + 0.012 * Math.sin(x * 140), 0.006) * 0.6, cr(y - elY - 0.025, 0.005) * 0.4, cr(y - elY + 0.03 - 0.5 * ax, 0.006) * 0.3) * sst(0.1, 0.5, Math.abs(nz) + Math.abs(ny) * 0.3);
-    else if (leg) crease = Math.max(cr(y - knY - 0.01 * Math.sin(z * 120), 0.006) * 0.5, cr(y - (hipY - 0.06) - 0.4 * (ax - hipX * 0.5), 0.006) * 0.55 * sst(0.0, 0.5, ax > 0 ? 1 : 0));
+    else if (leg) crease = Math.max(cr(y - knY - 0.01 * Math.sin(z * 120), 0.006) * 0.5, cr(y - (R.hipL[1] - 0.06) - 0.4 * (ax - hipX * 0.5), 0.006) * 0.55 * sst(0.0, 0.5, ax > 0 ? 1 : 0));
     else crease = cr(y - (shY - 0.1) + 3 * (ax - shX * 0.7) * 0, 0.0) * 0 + cr(y - (hemTop + 0.1) - 0.2 * ax, 0.005) * 0.3;
     f = mul(f, 1 - 0.22 * crease);
     if (k === 'puffer' && cloth === 1) f = mul(f, 0.86 + 0.14 * Math.sin(y * 82 + 1.3) * 0.5 + 0.07);

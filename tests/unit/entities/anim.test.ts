@@ -13,6 +13,7 @@ const fakeModel = (): PoseTarget => {
   const o = (): THREE.Object3D => new THREE.Object3D();
   const m = { hips: o(), torso: o(), head: o(), rig: o(), arms: [o(), o()], elbows: [o(), o()], legs: [o(), o()], knees: [o(), o()], ankles: [o(), o()] };
   m.legs.forEach((l) => l.position.set(0, 0.82, 0)); m.knees.forEach((k) => k.position.set(0, -0.4, 0)); m.torso.position.set(0, 0.84, 0); m.head.position.set(0, 1.67, 0);
+  m.rig.add(m.hips, m.torso, m.head, m.legs[0], m.legs[1]); m.legs.forEach((l, i) => l.add(m.knees[i])); m.arms.forEach((a, i) => { m.torso.add(a); a.add(m.elbows[i]); });
   return m;
 };
 const fullLib = (): ClipLibrary => { const l = ClipLibrary.fromCore(); l.add(decodePack(streetBytes())); return l; };

@@ -3053,3 +3053,6 @@ Starting NATIVE2: taking native/** (main.ts, policy.ts, preload.ts, scripts, tes
 
 ### 2026-11-12T05:45:44Z · Wren Redline (STORY2)
 Starting STORY2: ten side missions, six new characters, phone threads, overheard lines, radio tickers. Taking src/game/story/** (cast.ts, flags.ts, news.ts, StoryDirector.ts, new threads.ts, overheard.ts), new src/game/missions/content/story/extras*.ts, missions/content/index.ts, new tests/unit/sim/story2-missions.test.ts, count updates in story_lint/story_director/story-missions tests, docs/reference/STORY.md. Not touching main.ts, Phone.ts, audio.
+
+### 2026-11-12T05:48:58Z · Mei Vance (PROSODY2)
+Fable: restarting the prosody work. Taking src/audio/voice/** (prosody, rhythm, packPlan, shows/*, peds/barks+lines), scripts/voice/bake-pack.mjs and prosody-demo, tests/unit/audio/voice-*. Script editorial pass is in; next I prune the stale clips and start the bake in the background through the light slot (chunks of about 9 min so other light jobs can interleave).
