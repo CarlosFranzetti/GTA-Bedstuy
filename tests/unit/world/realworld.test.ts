@@ -24,11 +24,16 @@ describe('buildRealWorld', () => {
     expect(rw.colliders.length).toBeGreaterThan(100);
     expect(rw.sidewalks.graph.nodes).toBeTruthy();
     expect(Number.isFinite(rw.spawn.x)).toBe(true);
+    expect(rw.standIns).toEqual([]);
+    expect(rw.lamps.length).toBeGreaterThan(100);
+    expect(rw.furnitureGroup).toBe(rw.props!.group);
+    expect(rw.spawn).toEqual({ x: rw.homeSpawn.x, z: rw.homeSpawn.z });
+    expect(rw.lots.some((l) => (l as { poi?: unknown }).poi)).toBe(true);
   }, 900000);
 
   it('falls back to stand-ins when asked and still builds', async () => {
     const rw = await buildRealWorld({ materials: stubLib(), rng: new Rng(7), forceStandIns: true });
-    expect(rw.standIns.length).toBe(2);
+    expect(rw.standIns.length).toBe(3);
     expect(rw.group.getObjectByName('roads-standin')).toBeTruthy();
     expect(rw.colliders.length).toBeGreaterThan(100);
   }, 900000);
