@@ -740,9 +740,9 @@ describe('TrafficAgent driving behaviour', () => {
 describe('TrafficSystem with signals', () => {
   it('owns the lights clock and exposes the controller', () => {
     const { sys } = makeSystem();
-    const t0 = sys.lights.clock;
+    const t0 = (sys.lights as TrafficLights).clock;
     sys.update(0.5, { x: 0, z: 0 });
-    expect(sys.lights.clock).toBeCloseTo(t0 + 0.5, 5);
+    expect((sys.lights as TrafficLights).clock).toBeCloseTo(t0 + 0.5, 5);
   });
 
   it('uses a supplied controller', () => {

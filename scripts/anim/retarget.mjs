@@ -63,7 +63,13 @@ export function retarget(b, f0, f1, opts = {}) {
   if (opts.heading === 'ramp') { yaw0 = facing(frames[0]); yaw1 = facing(frames[n - 1]); while (yaw1 - yaw0 > Math.PI) yaw1 -= 2 * Math.PI; while (yaw1 - yaw0 < -Math.PI) yaw1 += 2 * Math.PI; }
   else if (opts.heading === 'face') { yaw0 = yaw1 = facing(frames[0]); }
   else if (opts.heading === 'none' || Math.hypot(dxz.x, dxz.z) < 3) { yaw0 = yaw1 = facing(frames[Math.floor(n / 2)]); }
-  else { yaw0 = yaw1 = pathYaw; }
+  else if (opts.heading === 'path') {
+    // the way the body faces over the segment (circular mean), not the direction of travel: an acting walk that curves or side-steps
+    // has a displacement that can point anywhere, and a heading 180 degrees off turns the whole pose upside down
+    let sx = 0, sz = 0;
+    for (const fr of frames) { const y = facing(fr); sx += Math.sin(y); sz += Math.cos(y); }
+    yaw0 = yaw1 = Math.atan2(sx, sz);
+  } else { yaw0 = yaw1 = pathYaw; }
   const netYaw = yaw1 - yaw0;
 
   const out = [];

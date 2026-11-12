@@ -453,3 +453,14 @@ Lanes started (Fable Hart directs, directors on call to save usage; all workers 
 AUDIOBUG (Andre), MIXER (Cal), ANIM (new animator), PEOPLE (Leila), PERF2 (Lena), REALHOOK (Chidi), TITLEMIX (Otis).
 Held back for later: title and loading shots and settings restyle (Priya), HUD finish (Zadie), speech rhythm finish and rebake
 (Mei), real-map traffic (Theo), queue cap and pedestrian knock-down (Omar), sports-car silhouettes (Dmitri).
+
+## Stage 17 asks (owner, 12 Nov, after the limit reset)
+Verbatim: "bodies polygons more like GTA theyre all blocky and bubbly and lets get that motion capture in lets do as much as
+possible", then: "Make sure the player and characters are closer to gta 3 or 4 than now smooth not bubbly or blocky and get some
+decent textures run a swarm on those graphics and lower the engine sounds".
+
+Swarm on the graphics (Tomas reviews every round against the GTA III and IV look):
+people geometry (Leila), people textures (PEDTEX), hair, hats, bags and shoes (PEDHAIR), movement (Marisol), ground and trees
+(Bea), walls, windows and shopfronts (Noor), cars (Dmitri), title and loading shots and menus (Priya), HUD (Zadie).
+Engine sounds lowered first by Andre. Also running: playtest (Ash), camera (Sam), story (Wren), test suite (Omar).
+Held: real-map traffic (Theo), real-map culling (Lena), native apps (Viktor), radio stalls (Jules), voice rebake (Mei).

@@ -9,7 +9,7 @@
  */
 import type { GridModel, Side } from '@/world/types';
 import { F } from './flags';
-import type { AmbientItem, AmbientKind } from './AmbientNotices';
+import type { AmbientItem, AmbientKind, RealFrontage } from './AmbientNotices';
 import type { FlagRule } from '@/game/missions/types';
 
 function frontage(grid: GridModel, blockId: string, side: Side, t: number) {
@@ -56,9 +56,10 @@ const SPECS: readonly Spec[] = [
 ];
 
 /** The STORY2 signs for this grid, in the shape AmbientNotices takes. */
-export function signageItems(grid: GridModel): AmbientItem[] {
+export function signageItems(grid: GridModel, real?: RealFrontage): AmbientItem[] {
   return SPECS.map((s): AmbientItem => {
-    const f = frontage(grid, s.at[0], s.at[1], s.at[2]);
+    const r = real ? real(s.at[0], s.at[1], s.at[2]) : null;
+    const f = r ? { x: r.p.x, z: r.p.z, nx: r.n.x, nz: r.n.z } : frontage(grid, s.at[0], s.at[1], s.at[2]);
     return {
       id: s.id, kind: s.kind, x: f.x + f.nx * 0.08, z: f.z + f.nz * 0.08, nx: f.nx, nz: f.nz,
       y: s.y, w: s.w, h: s.h, title: s.title, body: s.body, show: s.show ?? {},

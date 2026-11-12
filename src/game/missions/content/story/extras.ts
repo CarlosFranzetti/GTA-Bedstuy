@@ -13,7 +13,7 @@
 import type { Vec2 } from '@/core/Math2';
 import { F } from '@/game/story/flags';
 import type { MissionDef } from '../../types';
-import { corner, facePoint, footRoute, offset, poiSpot, streetMid, type PlaceCtx } from '../places';
+import { corner, facePoint, footRoute, offset, poiSpot, streetAt, streetMid, type PlaceCtx } from '../places';
 import { VENUE_BLOCKPARTY } from '../djIds';
 import type { StoryFeatures } from './north';
 
@@ -272,7 +272,8 @@ export function theBinder(ctx: PlaceCtx, features: StoryFeatures = {}): MissionD
   const { home, north, hasEl } = trainPoints(ctx, features);
   const meet = hasEl ? offset(home, -14, 6) : home;
   const desk = offset(north, 18, -8);
-  const run = footRoute([offset(north, 26, -10), offset(north, 52, -26), offset(north, 80, -14), offset(north, 92, 6)]);
+  const lane = hasEl ? 'flushing' : 'hart'; // the street under the el, or the corner street when the world has no el
+  const run = footRoute([26, 52, 80, 92].map((dx) => streetAt(ctx.grid, lane, north.x + dx)));
   return {
     id: 'the-binder', title: 'The Binder', act: 2, tag: 'side', requires: ['open-house'], availableHours: [9, 21],
     blurb: 'Miss Cordy left her Binder on the el: forty-six years of landlord letters, dated and cross-referenced. She needs it before the board meets.',

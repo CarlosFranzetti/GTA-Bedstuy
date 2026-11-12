@@ -371,43 +371,30 @@ export function buildLoft(spec: LoftSpec): Hull {
   full.computeVertexNormals();
   const nor = full.attributes.normal.array as Float32Array;
   full.dispose();
-  // CARS2: the area-weighted normals above are skewed wherever a long quad (a hood, a roof between sparse stations) sits next to a
-  // short one (an arch lip): under the clear coat that shows as creased, wobbling highlights. Replace them with normals taken from
-  // the surface itself (cross product of the along-car and around-ring tangents, spacing-aware), keeping the old ones only as the
-  // sign reference and as the fallback for a degenerate vertex. Crease columns use one-sided ring tangents, so edges stay hard.
+  // CARS2: three's computeVertexNormals weights by face AREA, so a long quad (a hood or roof between sparse stations) swamps the short
+  // quads beside it and the clear coat shows creased, wobbling highlights. Re-accumulate with ANGLE weights (the corner angle of each
+  // triangle at the vertex): flat panels stay exactly flat and a lip next to a long panel no longer drags it. Crease columns are separate
+  // vertices already, so hard edges stay hard.
   {
-    const colInSeg = (slot: number, k: number): number => colFor(slot, segJ(k), crease);
-    const P = (i: number, c: number): THREE.Vector3 => new THREE.Vector3(pos[(i * C + c) * 3], pos[(i * C + c) * 3 + 1], pos[(i * C + c) * 3 + 2]);
-    for (let i = 0; i < S; i++) {
-      for (let c = 0; c < C; c++) {
-        const sl = slotCol[c];
-        const sp = (sl - 1 + M) % M;
-        const sn = (sl + 1) % M;
-        const hasPrev = colInSeg(sl, sp) === c;
-        const hasNext = colInSeg(sl, sl) === c;
-        const p0 = P(i, c);
-        const cPrev = colInSeg(sp, sp), cNext = colInSeg(sn, sl);
-        let tr: THREE.Vector3;
-        if (hasPrev && hasNext) tr = P(i, cNext).sub(P(i, cPrev));
-        else if (hasPrev) tr = p0.clone().sub(P(i, cPrev));
-        else tr = P(i, cNext).sub(p0);
-        let tu: THREE.Vector3;
-        if (i === 0) tu = P(1, c).sub(p0);
-        else if (i === S - 1) tu = p0.clone().sub(P(S - 2, c));
-        else {
-          const a = P(i - 1, c), b = P(i + 1, c);
-          const h0 = us[i] - us[i - 1], h1 = us[i + 1] - us[i];
-          // spacing-aware central difference (exact for a parabola through the three stations)
-          tu = p0.clone().sub(a).multiplyScalar(h1 / (h0 * (h0 + h1))).add(b.sub(p0).multiplyScalar(h0 / (h1 * (h0 + h1))));
-        }
-        const nv = new THREE.Vector3().crossVectors(tu, tr);
-        const o = (i * C + c) * 3;
-        const old = new THREE.Vector3(nor[o], nor[o + 1], nor[o + 2]);
-        if (nv.lengthSq() < 1e-14) continue;
-        nv.normalize();
-        if (nv.dot(old) < 0) nv.negate();
-        nor[o] = nv.x; nor[o + 1] = nv.y; nor[o + 2] = nv.z;
+    const acc = new Float32Array(nor.length);
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), e1 = new THREE.Vector3(), e2 = new THREE.Vector3(), fn = new THREE.Vector3();
+    const ver = (i: number, out: THREE.Vector3): THREE.Vector3 => out.set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);
+    for (let t = 0; t < all.length; t += 3) {
+      const ia = all[t], ib = all[t + 1], ic = all[t + 2];
+      ver(ia, a); ver(ib, b); ver(ic, c);
+      fn.crossVectors(e1.subVectors(b, a), e2.subVectors(c, a));
+      if (fn.lengthSq() < 1e-16) continue;
+      fn.normalize();
+      const corners: [number, THREE.Vector3, THREE.Vector3, THREE.Vector3][] = [[ia, a, b, c], [ib, b, c, a], [ic, c, a, b]];
+      for (const [vi, p0, p1, p2] of corners) {
+        e1.subVectors(p1, p0).normalize(); e2.subVectors(p2, p0).normalize();
+        const ang = Math.acos(clamp(e1.dot(e2), -1, 1));
+        acc[vi * 3] += fn.x * ang; acc[vi * 3 + 1] += fn.y * ang; acc[vi * 3 + 2] += fn.z * ang;
       }
+    }
+    for (let i = 0; i < acc.length; i += 3) {
+      const l = Math.hypot(acc[i], acc[i + 1], acc[i + 2]);
+      if (l > 1e-9) { nor[i] = acc[i] / l; nor[i + 1] = acc[i + 1] / l; nor[i + 2] = acc[i + 2] / l; }
     }
   }
 

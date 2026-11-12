@@ -11,6 +11,7 @@ import type { Vec2 } from '@/core/Math2';
 import type { FlagRule } from '@/game/missions/types';
 import type { GridModel, Side } from '@/world/types';
 import { F } from './flags';
+import { signageItems } from './signage';
 import type { StoryState } from './StoryState';
 
 export type AmbientKind = 'poster' | 'notice' | 'billboard' | 'decal' | 'sign';
@@ -79,7 +80,7 @@ export class AmbientNotices {
   private readonly items: AmbientItem[];
 
   constructor(grid: GridModel, real?: RealFrontage) {
-    this.items = ambientItems(grid, real);
+    this.items = [...ambientItems(grid, real), ...signageItems(grid, real)]; // + STORY2 shop signs and side-job leftovers
     this.group.name = 'ambient-notices';
   }
 

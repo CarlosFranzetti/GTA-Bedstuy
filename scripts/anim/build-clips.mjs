@@ -150,6 +150,15 @@ function buildClip(spec) {
       duration = T;
     }
   }
+  // sanity: an upright clip never pitches or rolls the spine far; a big one must say so in the catalog (big: true)
+  if (!spec.big) {
+    const mean = (c) => outRows.reduce((s, r) => s + Math.abs(r[c]), 0) / outRows.length;
+    const peak = (c) => Math.max(...outRows.map((r) => Math.abs(r[c])));
+    for (const bn of ['hips', 'torso']) for (const ax of [0, 2]) {
+      const c = BONES.indexOf(bn) * 3 + ax;
+      if (peak(c) > 0.7 || mean(c) > 0.45) throw new Error(`${spec.name}: ${bn} axis ${ax} reaches ${(peak(c) * 57.3).toFixed(0)} degrees (heading or rest-pose problem; mark big: true only if the motion really is that big)`);
+    }
+  }
   if (spec.mirror) outRows = outRows.map(mirrorRow);
   let marks = [];
   if (spec.marks === 'jump') { // fractions of the clip where the feet leave the ground and land again
