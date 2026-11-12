@@ -36,7 +36,7 @@ import {
 } from './carBodies';
 export { wheelRadiusFor, hullSectionCount };
 
-/** `van` is the box truck (Isuzu NPR type); `cargo` is the Transit-type cargo van */
+/** `van` is the box truck (a real type); `cargo` is the a real-type cargo van */
 export type CarStyle = 'sedan' | 'coupe' | 'suv' | 'van' | 'cab' | 'cop' | 'cargo' | 'hatch' | 'beater' | 'bus'
   | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'garbage' | 'ambulance' | 'dollar' | 'unmarked'
   | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan';

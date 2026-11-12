@@ -17,6 +17,7 @@ import { CLOTH_COLORS, LEAF_VARIANTS, SKIN_TONES, treeLeavesPainter, treeTrunkPa
 import { gray, wrapVariant } from './painters/util';
 import { LOT_TONE_KEYS, patchLotTone } from './lotTone';
 import { patchTreeTint } from './treeTint';
+import { patchWindow } from './windowShader';
 import { GROUND_DETAIL_KEYS, patchGroundDetail, GROUND_VARIATION, disposeVariationTexture, patchGroundVariation } from './groundVariation';
 import { CAR_FLAKE_NORMAL_SCALE, PLATE_VARIANTS, carPaintMaps, platePainter, tireSidewallPainter, type CarPaintMaps } from './painters/vehicle';
 import {
@@ -435,7 +436,7 @@ export class MaterialLibrary implements IMaterialLibrary {
       build: (v) => {
         const m = this.std({
           map: this.texture(`${key}:${v}`, w, h, paint, v),
-          emissive: new THREE.Color(NIGHT_EMISSIVE),
+          emissive: new THREE.Color(key === 'window' ? '#ffffff' : NIGHT_EMISSIVE), // windows carry the lamp tone in windowShader.ts
           emissiveMap: this.texture(`${key}:em:${v}`, w, h, emissive, v),
           emissiveIntensity: this.night ? glassNightIntensity(key, v) : 0,
           roughness: 0.08,
@@ -444,6 +445,7 @@ export class MaterialLibrary implements IMaterialLibrary {
           opacity: 0.9,
         });
         m.userData.nightIntensity = glassNightIntensity(key, v);
+        if (key === 'window') patchWindow(m);
         this.glowing.push(m);
         return m;
       },

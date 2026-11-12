@@ -1,6 +1,6 @@
 // ANIM: boots the real game (dev server, low tier), hides the canvas, and renders short side-view strips of the player (stand, walk, jog,
 // sprint, turn, jump, car in and out) and of pedestrians. Usage (through the queue):
-//   scripts/swarm-render.sh node scripts/anim-game.mjs <outDir> [--only walk,jog] [--port 4466] [--w 640] [--h 360] [--street 1]
+//   scripts/swarm-render.sh node scripts/anim-game.mjs <outDir> [--only walk,jog] [--port 4466] [--w 640] [--h 360] --dist <built game dir>
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -14,13 +14,15 @@ const out = resolve(a[0]);
 mkdirSync(out, { recursive: true });
 const port = Number(arg('port', 4466)), W = Number(arg('w', 640)), H = Number(arg('h', 360));
 const only = arg('only', 'stand,walk,jog,sprint,turn,jump,car,peds').split(',');
-const dev = spawn('node', ['node_modules/vite/bin/vite.js', '--port', String(port), '--strictPort'], { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'] });
+const dist = resolve(arg('dist', 'dist'));
+const dev = spawn('node', ['node_modules/vite/bin/vite.js', 'preview', '--outDir', dist, '--port', String(port), '--strictPort'], { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'] });
 for (let i = 0; i < 120; i++) { try { if ((await fetch(`http://localhost:${port}/`)).ok) break; } catch { /* wait */ } await new Promise((r) => setTimeout(r, 250)); }
 const hard = setTimeout(() => { dev.kill(); process.exit(2); }, 9 * 60_000);
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const errors = [];
 try {
   const page = await browser.newPage({ viewport: { width: W, height: H } });
+  await page.route('**/ra-api/**', (r) => r.abort());
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 240)); });
   page.on('pageerror', (e) => errors.push(String(e).slice(0, 240)));
   await page.goto(`http://localhost:${port}/?q=low&perf=0`, { waitUntil: 'load', timeout: 180_000 });

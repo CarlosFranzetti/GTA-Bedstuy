@@ -1,0 +1,147 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>ped pieces showcase</title>
+<style>html,body{margin:0;background:#667;overflow:hidden}canvas{display:block}</style></head>
+<body><script type="module">
+// Review sheets for PEDHAIR: hair, beards, headwear, accessories, shoes, and complete people, built from the dressed hi skin of a shape
+// plus the separate pieces of src/entities/models/pedPieces.ts. Dev server only: vite --port N, then
+// /scripts/pedpieces-showcase.html?view=hair|beards|hats|acc|shoes|people|budget
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { parseShape, dressLod, jointFor, leanOf, topHemY, shapeFor } from '@/entities/models/pedMesh';
+import { PED_SPECS, pedVariantIndex } from '@/textures/painters/ped';
+import { bakeSkin } from '@/textures/painters/pedSkinPaint';
+import { bodyTypeOf, bodyTypeId } from '@/entities/models/pedBodyTypes';
+import { makeCtx } from '@/entities/models/pedPiecesKit';
+import * as PP from '@/entities/models/pedPieces';
+
+const params = new URLSearchParams(location.search);
+const view = params.get('view') ?? 'hair';
+const files = import.meta.glob('/src/assets/models/people/*.glb', { eager: true, query: '?url', import: 'default' });
+const SH = {};
+for (const [path, url] of Object.entries(files)) SH[path.split('/').pop().replace('.glb', '')] = await parseShape(await (await fetch(url)).arrayBuffer());
+
+const W = 1, TILE = Number(params.get('tile') ?? 300);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(TILE, TILE); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x8aa4bc);
+const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.5;
+const sun = new THREE.DirectionalLight(0xfff2dc, 2.6); sun.position.set(-4, 7, 5); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x6a5a48, 0.7));
+const cam = new THREE.PerspectiveCamera(30, 1, 0.05, 50);
+
+function lean(pos, joints, weights, bt, pivot) {
+  const phi = leanOf(bt); if (phi === 0) return;
+  const sst = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a || 1e-6))); return t * t * (3 - 2 * t); };
+  const py = pivot[1], pz = pivot[2], c = Math.cos(phi), sn = Math.sin(phi);
+  for (let i = 0; i < pos.length / 3; i++) {
+    let u = 0; for (let k = 0; k < 4; k++) { const j = joints[i * 4 + k]; if (j >= 2 && j <= 7) u += weights[i * 4 + k]; }
+    u = Math.min(1, u) * sst(py - 0.14, py + 0.1, pos[i * 3 + 1]); if (u <= 0) continue;
+    const dy = pos[i * 3 + 1] - py, dz = pos[i * 3 + 2] - pz;
+    pos[i * 3 + 1] = py + dy + (dy * c + dz * sn - dy) * u; pos[i * 3 + 2] = pz + dz + (dz * c - dy * sn - dz) * u;
+  }
+}
+function person(spec) {
+  const s = SH[shapeFor(spec)], bt = bodyTypeOf(spec);
+  const L0 = dressLod(s, spec, s.lods.hi, true);
+  const rig = {}; for (const [k, v] of Object.entries(s.rig)) rig[k] = jointFor(k, v, bt);
+  const canvas = bakeSkin({ position: L0.position, normal: L0.normal, uv: L0.uv, index: L0.index, joints: L0.joints, weights: L0.weights, landmarks: s.landmarks, rig, headRings: s.headRings, topHem: topHemY(s, spec), spec }, 512);
+  const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const ctx = makeCtx(s, spec, bt, L0, rig, 'hi');
+  // body without its own feet
+  const cut = s.landmarks.ankleY + 0.035, keep = [];
+  const ws = (i, set) => { let t = 0; for (let k = 0; k < 4; k++) if (set.includes(L0.joints[i * 4 + k])) t += L0.weights[i * 4 + k]; return t; };
+  for (let t = 0; t < L0.index.length; t += 3) { let foot = true; for (let k = 0; k < 3; k++) { const v = L0.index[t + k]; if (!(L0.position[v * 3 + 1] < cut && (ws(v, [9]) + ws(v, [11])) > 0.5)) foot = false; } if (!foot) keep.push(L0.index[t], L0.index[t + 1], L0.index[t + 2]); }
+  const g = new THREE.BufferGeometry();
+  const pos = new Float32Array(L0.position); lean(pos, L0.joints, L0.weights, bt, s.rig.torso);
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(L0.normal, 3)); g.setAttribute('uv', new THREE.BufferAttribute(L0.uv, 2)); g.setIndex(keep);
+  const body = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.88 }));
+  return { s, bt, ctx, tex, body, spec };
+}
+function pieceMesh(p, who) {
+  const g = p.geo.clone(), pos = g.getAttribute('position').array;
+  lean(pos, g.getAttribute('skinIndex').array, g.getAttribute('skinWeight').array, who.bt, who.s.rig.torso);
+  g.computeBoundingSphere();
+  return new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: who.tex, vertexColors: true, roughness: 0.85, side: THREE.DoubleSide }));
+}
+const spec0 = (id, o = {}) => ({ ...PED_SPECS[pedVariantIndex(id)], ...o });
+
+const sheet = document.createElement('canvas'); document.body.appendChild(sheet);
+const info = { tiles: [] };
+function tile(label, who, pieces, camSetup, col, row) {
+  const group = new THREE.Group(); group.add(who.body);
+  const meshes = pieces.map((p) => pieceMesh(p, who)); for (const m of meshes) group.add(m);
+  scene.add(group); camSetup(cam, who);
+  renderer.render(scene, cam);
+  const c2 = sheet.getContext('2d'); c2.drawImage(renderer.domElement, col * TILE, row * TILE);
+  c2.fillStyle = 'rgba(0,0,0,0.55)'; c2.fillRect(col * TILE, row * TILE, TILE, 34);
+  c2.fillStyle = '#fff'; c2.font = '15px sans-serif'; c2.fillText(label, col * TILE + 6, row * TILE + 15);
+  const tris = pieces.reduce((s, p) => s + p.tris, 0);
+  c2.fillStyle = '#ffd'; c2.font = '12px sans-serif'; c2.fillText(pieces.map((p) => p.tris).join(' + ') + ' = ' + tris + ' tris', col * TILE + 6, row * TILE + 29);
+  info.tiles.push({ label, tris: pieces.map((p) => p.tris) });
+  scene.remove(group);
+  for (const m of meshes) m.geometry.dispose();
+}
+const headCam = (yaw, dist = 0.78, fov = 30) => (c, who) => { const lm = who.s.landmarks, y = lm.chinY + (lm.crownY - lm.chinY) * 0.52; const z = who.ctx.C[2]; c.fov = fov; c.position.set(Math.sin(yaw) * dist, y + 0.05, z - Math.cos(yaw) * dist); c.lookAt(0, y, z); c.updateProjectionMatrix(); };
+const upperCam = (yaw, dist = 1.9) => (c, who) => { const y = who.s.rig.shoulderL[1] - 0.08; c.fov = 30; c.position.set(Math.sin(yaw) * dist, y + 0.1, -Math.cos(yaw) * dist); c.lookAt(0, y, 0); c.updateProjectionMatrix(); };
+const footCam = (yaw) => (c, who) => { c.fov = 30; c.position.set(Math.sin(yaw) * 0.9, 0.3, -Math.cos(yaw) * 0.9); c.lookAt(0, 0.08, -0.04); c.updateProjectionMatrix(); };
+const fullCam = (yaw) => (c, who) => { const h = who.s.landmarks.crownY; c.fov = 32; c.position.set(Math.sin(yaw) * 4.4, h * 0.55, -Math.cos(yaw) * 4.4); c.lookAt(0, h * 0.5, 0); c.updateProjectionMatrix(); };
+
+function grid(n, cols) { const rows = Math.ceil(n / cols); sheet.width = cols * TILE; sheet.height = rows * TILE; const c2 = sheet.getContext('2d'); c2.fillStyle = '#556'; c2.fillRect(0, 0, sheet.width, sheet.height); return cols; }
+const COLORS = { black: '#15110e', brown: '#4a3020', auburn: '#6a2f1c', blond: '#c9a45c', grey: '#8d8d90', white: '#e6e4de', darkbrown: '#2a1b12' };
+const HAIR_COL = { lowFade: 'black', highTop: 'black', crop: 'darkbrown', short: 'brown', curls: 'black', afro: 'black', afroLarge: 'darkbrown', puff: 'black', bun: 'auburn', ponytail: 'blond', locsShort: 'black', locs: 'darkbrown', boxBraids: 'black', cornrows: 'black', twists: 'darkbrown', bob: 'black', long: 'brown', wavy: 'auburn', receding: 'grey', baldFringe: 'white', peyos: 'black' };
+const yawView = Number(params.get('yaw') ?? 0.75);
+
+if (view === 'hair') {
+  const ids = PP.HAIR_IDS, cols = grid(ids.length, 6); let k = 0;
+  const base = params.get('who') ?? 'wh-office';
+  for (const id of ids) {
+    const spec = spec0(base, { hair: 'bald', hat: 'none', hairColor: COLORS[HAIR_COL[id]], gear: 'none' });
+    const who = person(spec);
+    tile(id, who, [PP.hairPiece(id, who.ctx)], headCam(yawView), k % cols, Math.floor(k / cols)); k++;
+  }
+}
+if (view === 'hair-back') {
+  const ids = PP.HAIR_IDS, cols = grid(ids.length, 6); let k = 0;
+  for (const id of ids) { const who = person(spec0(params.get('who') ?? 'ba-office', { hair: 'bald', hat: 'none', hairColor: COLORS[HAIR_COL[id]] })); tile(id, who, [PP.hairPiece(id, who.ctx)], headCam(Math.PI - 0.5, 0.9), k % cols, Math.floor(k / cols)); k++; }
+}
+if (view === 'beards') {
+  const ids = PP.BEARD_IDS, cols = grid(ids.length * 2, 3); let k = 0;
+  for (const id of ids) for (const yaw of [0.3, 1.0]) { const who = person(spec0('ba-church-man', { hair: 'bald', hat: 'none', hairColor: '#1b1612' })); tile(id + ' ' + yaw, who, [PP.beardPiece(id, who.ctx)], headCam(yaw, 0.7), k % cols, Math.floor(k / cols)); k++; }
+}
+if (view === 'hats') {
+  const ids = PP.HAT_IDS, cols = grid(ids.length, 6); let k = 0;
+  const HC = { fitted: '#1c2a4a', snapback: '#7a1f24', beanie: '#8a3a1a', bucket: '#4a5a3a', flatCap: '#555555', kufi: '#e8e4d8', kippah: '#16161a', fedora: '#111111', headscarf: '#a02f48', hijab: '#2e3a5c', durag: '#1a1a2a', hoodUp: '#2b2f36', hoodDown: '#2b2f36', hardHat: '#e0a418', bikeHelmet: '#1d6fa5', policeCap: '#14213d', churchHat: '#6a2f6a' };
+  for (const id of ids) {
+    const who = person(spec0(params.get('who') ?? 'wh-office', { hair: 'short', hat: 'none', hatColor: HC[id] ?? '#333', hatTrim: '#d8d8d8', hairColor: '#3a2618' }));
+    tile(id, who, [PP.hatPiece(id, who.ctx)], headCam(yawView, 0.95, 32), k % cols, Math.floor(k / cols)); k++;
+  }
+}
+if (view === 'acc') {
+  const ids = PP.ACCESSORY_IDS, cols = grid(ids.length, 5); let k = 0;
+  for (const id of ids) {
+    const who = person(spec0(params.get('who') ?? 'wh-office', { gearColor: '#7a4a2a', hat: 'none' }));
+    const head = PP.ACC_HEAD.includes(id);
+    tile(id, who, [PP.accessoryPiece(id, who.ctx)], head ? headCam(yawView, 0.7) : upperCam(yawView + (id === 'backpack' ? 2.4 : 0), 2.3), k % cols, Math.floor(k / cols)); k++;
+  }
+}
+if (view === 'shoes') {
+  const ids = PP.SHOE_IDS, cols = grid(ids.length, 6); let k = 0;
+  const SC = { sneakerLow: ['#f4f4f4', '#d8d8d8', '#c0392b'], sneakerHigh: ['#1c1c20', '#e8e8e8', '#c0392b'], workBoot: ['#8a5a2c', '#2a1a10', '#c9a36a'], dressShoe: ['#201814', '#120c08', '#201814'], flat: ['#7a1f2c', '#3a1018', '#7a1f2c'], sandal: ['#a07a4a', '#3a2a1a', '#a07a4a'] };
+  for (const id of ids) {
+    const c = SC[id] ?? ['#888', '#444', '#c00'];
+    const who = person(spec0(params.get('who') ?? 'wh-office', { shoes: { color: c[0], sole: c[1], accent: c[2] } }));
+    tile(id, who, PP.shoePieces(id, who.ctx), footCam(yawView + 0.2), k % cols, Math.floor(k / cols)); k++;
+  }
+}
+if (view === 'people') {
+  const ids = (params.get('ids') ?? '').split(',').filter(Boolean);
+  const list = ids.length ? ids : PP.SHOWCASE_PEOPLE;
+  const cols = grid(list.length, 5); let k = 0;
+  for (const id of list) {
+    const who = person(spec0(id));
+    const ps = PP.piecesFor(who.ctx);
+    tile(id + ' [' + bodyTypeId(who.spec) + ']', who, ps.map((p) => p), fullCam(Number(params.get('yaw') ?? 0.5)), k % cols, Math.floor(k / cols)); k++;
+  }
+}
+window.__ready = { ...info, view };
+</script></body></html>

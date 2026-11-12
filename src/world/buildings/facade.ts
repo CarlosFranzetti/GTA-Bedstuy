@@ -568,8 +568,40 @@ export class LotBatch {
         }
       }
     }
+    if (mat.name.startsWith('window:')) this.bakeWindowSeeds(r, count, tone, style);
     g.setAttribute('aTone', new THREE.BufferAttribute(tone, 4, true));
     g.setAttribute('aStyle', new THREE.BufferAttribute(style, 4, true));
+  }
+
+  /**
+   * Per-window seed for the window glass shader (windowShader.ts): `aStyle.xyz` = a hash of the window's lowest corner and the lot
+   * seed, the same on all of one window's vertices. A glass pane is a quad (6 vertices, 4 distinct points); arch fans (3-vertex
+   * triangles) take the seed of the quad before them.
+   */
+  private bakeWindowSeeds(r: Raw, count: number, tone: Uint8Array, style: Uint8Array): void {
+    const lotSeed = this.cw ? Math.floor(this.cw.cw.seed * 65535) : 0;
+    const hashAt = (x: number, y: number, z: number): [number, number, number] => {
+      let h = Math.imul(Math.round(x * 50) + 7919, 2654435761) ^ Math.imul(Math.round(y * 50) + 104729, 40503) ^ Math.imul(Math.round(z * 50) + 1299709, 2246822519) ^ Math.imul(lotSeed + 17, 668265263);
+      h = Math.imul(h ^ (h >>> 15), 2246822519); h ^= h >>> 13; h = Math.imul(h, 3266489917); h ^= h >>> 16;
+      return [h & 255, (h >>> 8) & 255, Math.max(1, (h >>> 16) & 255)];
+    };
+    let last: [number, number, number] = [1, 1, 1];
+    let i = 0;
+    while (i < count) {
+      let n = 3;
+      if (i + 6 <= count) {
+        const uniq = new Set<string>();
+        for (let k = i; k < i + 6; k++) uniq.add(`${r.p[k * 3].toFixed(3)},${r.p[k * 3 + 1].toFixed(3)},${r.p[k * 3 + 2].toFixed(3)}`);
+        if (uniq.size === 4) {
+          n = 6;
+          let mx = Infinity, my = Infinity, mz = Infinity;
+          for (let k = i; k < i + 6; k++) { mx = Math.min(mx, r.p[k * 3]); my = Math.min(my, r.p[k * 3 + 1]); mz = Math.min(mz, r.p[k * 3 + 2]); }
+          last = hashAt(mx, my, mz);
+        }
+      }
+      for (let k = i; k < Math.min(count, i + n); k++) { style[k * 4] = last[0]; style[k * 4 + 1] = last[1]; style[k * 4 + 2] = last[2]; tone[k * 4 + 3] = 255; }
+      i += n;
+    }
   }
 
   /** One merged geometry per material. */

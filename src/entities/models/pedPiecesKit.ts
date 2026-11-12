@@ -321,6 +321,8 @@ export interface PatchOpts {
   cols?: number;
   /** polar angle (rad) of the rim at azimuth beta */
   rim: (beta: number) => number;
+  /** polar angle of the inner boundary (default 0 = a pole); with an inner boundary the patch is an open band */
+  inner?: (beta: number) => number;
   /** offset along the surface (m) at azimuth beta and u = 0 at the rim .. 1 at the pole */
   thick: (beta: number, u: number) => number;
   /** row spacing: u(i/(rows-1)) */
@@ -348,15 +350,16 @@ export function patch(ctx: Ctx, mb: MeshBuilder, o: PatchOpts): void {
   const dirAt = (al: number, be: number): V3 => add(mul(B.a, Math.cos(al)), mul(add(mul(B.u, Math.cos(be)), mul(B.v, Math.sin(be))), Math.sin(al)));
   const rad = o.radius ?? ((d: V3): number => skullR(ctx, d));
   const D: V3[][] = [], Rr: number[][] = [], Th: number[][] = [];
+  const rimJ = Array.from({ length: C }, (_, j) => o.rim((j / C) * Math.PI * 2)), innerJ = Array.from({ length: C }, (_, j) => (o.inner ? o.inner((j / C) * Math.PI * 2) : 0));
   for (let i = 0; i < R; i++) {
     D.push([]); Rr.push([]); Th.push([]);
     for (let j = 0; j < C; j++) {
-      const be = (j / C) * Math.PI * 2, u = ease(i / (R - 1)), al = o.rim(be) * (1 - u), d = dirAt(al, be);
+      const be = (j / C) * Math.PI * 2, u = ease(i / (R - 1)), al = rimJ[j] + (innerJ[j] - rimJ[j]) * u, d = dirAt(al, be);
       D[i].push(d); Rr[i].push(rad(d)); Th[i].push(o.thick(be, u));
     }
   }
   for (let it = 0; it < (o.smooth ?? 1); it++) {
-    const nx = Rr.map((row, i) => row.map((r, j) => (i === R - 1 ? r : r * 0.5 + 0.25 * (row[(j + 1) % C] + row[(j + C - 1) % C]))));
+    const nx = Rr.map((row, i) => row.map((r, j) => (i === R - 1 && !o.inner ? r : r * 0.5 + 0.25 * (row[(j + 1) % C] + row[(j + C - 1) % C]))));
     for (let i = 0; i < R; i++) Rr[i] = nx[i];
   }
   const P: V3[][] = D.map((row, i) => row.map((d, j) => add(ctx.C, mul(d, Rr[i][j]))));
@@ -383,3 +386,13 @@ export function rimAtHeight(ctx: Ctx, y: number, beta: number): number {
 /** how a finished piece reports itself */
 export interface Piece { id: string; slot: 'hair' | 'hat' | 'accessory' | 'shoe' | 'bag'; geo: THREE.BufferGeometry; tris: number }
 export function done(id: string, slot: Piece['slot'], mb: MeshBuilder): Piece { const geo = mb.build(); return { id, slot, geo, tris: mb.tris }; }
+
+/** push a point out of the dressed torso (neck, shoulders, back) by a margin, along the horizontal line from the body axis */
+export function clearBody(ctx: Ctx, p: V3, margin: number): V3 {
+  if (p[1] > ctx.lm.chinY + 0.01) return p;
+  const o: V3 = [0, p[1], ctx.C[2]], d: V3 = [p[0], 0, p[2] - o[2]], l = Math.hypot(d[0], d[2]);
+  if (l < 1e-4) return p;
+  const u: V3 = [d[0] / l, 0, d[2] / l], t = ctx.torso.hit(o, u, 0.8);
+  if (!isFinite(t) || l >= t + margin) return p;
+  return [o[0] + u[0] * (t + margin), p[1], o[2] + u[2] * (t + margin)];
+}

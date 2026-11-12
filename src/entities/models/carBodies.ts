@@ -747,9 +747,8 @@ export type PassengerStyle = 'sedan' | 'coupe' | 'suv' | 'cop' | 'cab' | 'cargo'
 export type StyleKey = 'sedan' | 'coupe' | 'suv' | 'crown' | 'charger' | 'cargo' | 'hatch' | 'beater' | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'dollar'
   | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan';
 export const STYLES: Record<StyleKey, Style> = {
-  // "Kamari": a mid-size front-drive sedan of the Toyota Camry type (XV70, 2018-): length 4,879-4,885 mm (192.1 in), wheelbase 2,825 mm
+  // "Kamari": a mid-size front-drive sedan of the a real type (XV70, 2018-): length 4,879-4,885 mm (192.1 in), wheelbase 2,825 mm
   // (111.2 in), width 1,840 mm (72.4 in), height 1,445-1,455 mm. VEHICLE_SPECS.sedan carries the same size.
-  // Sources: https://www.vehiclesizes.com/cars/toyota/camry/camry-viii-xv70-sedan-2018/combined-view , https://auto-data.net/en/toyota-camry-viii-xv70-2.5-181hp-automatic-39090
   sedan: {
     Lref: 4.6, Href: 1.4,
     sill: 0.2, wheelR: 0.34, wheelW: 0.225,
@@ -783,9 +782,8 @@ export const STYLES: Record<StyleKey, Style> = {
     plan: [[-2.3, 0.9], [-1.7, 0.97], [-0.9, 1], [0.9, 1], [1.7, 0.98], [2.3, 0.92]],
   },
   // ROSTER (CARHI step 2). Proportions checked against public spec listings (WebSearch, 9 Nov 2026):
-  // "Crown Regent": a full-size body-on-frame 3-box sedan of the Ford Crown Victoria type (2003-2011): length 212.0 in (5.39 m),
+  // "Crown Regent": a full-size body-on-frame 3-box sedan of the a real type (2003-2011): length 212.0 in (5.39 m),
   // wheelbase 114.7 in (2.91 m), width 78.2 in (1.99 m, no mirrors), height 56.8 in (1.44 m). Upright greenhouse, long trunk, tall belt.
-  // Sources: https://www.edmunds.com/ford/crown-victoria/2003/features-specs/?sub=sedan , https://www.autopadre.com/vehicle-dimensions/ford-crown-victoria/2011-s-22335
   crown: {
     Lref: 5.39, Href: 1.44,
     sill: 0.2, wheelR: 0.34, wheelW: 0.235,
@@ -820,9 +818,8 @@ export const STYLES: Record<StyleKey, Style> = {
     dims: { L: 5.39, W: 1.99, H: 1.44 },
     headLamp: 'quad', tailLamp: 'bar', grille: 'bars',
   },
-  // "Charge-R": a current-generation large rear-drive sedan of the Dodge Charger type (2015-): length 198.4 in (5.04 m), wheelbase
+  // "Charge-R": a current-generation large rear-drive sedan of the a real type (2015-): length 198.4 in (5.04 m), wheelbase
   // 120.2 in (3.05 m), width 75.0 in (1.91 m), height 58.2 in (1.48 m). Long hood, high belt line, short deck, fast C pillar.
-  // Sources: https://www.autopadre.com/vehicle-dimensions/dodge-charger/2015-police-18449 , https://www.autoblog.com/buy/2015-Dodge-Charger-R_T__4dr_Rear_wheel_Drive_Sedan/specs/
   charger: {
     Lref: 5.04, Href: 1.48,
     sill: 0.2, wheelR: 0.35, wheelW: 0.245,
@@ -888,9 +885,8 @@ export const STYLES: Record<StyleKey, Style> = {
     bumperY: 0.33, bumperH: 0.21,
     plan: [[-2.3, 0.9], [-1.7, 0.98], [-0.9, 1], [0.9, 1], [1.8, 0.97], [2.3, 0.9]],
   },
-  // "Expedio": a mid-size three-row SUV of the Ford Explorer type (2020-): length 5,049 mm (198.8 in), wheelbase 3,025 mm (119.1 in),
+  // "Expedio": a mid-size three-row SUV of the a real type (2020-): length 5,049 mm (198.8 in), wheelbase 3,025 mm (119.1 in),
   // width 2,004 mm (78.9 in, without mirrors), height 1,778 mm (70 in). VEHICLE_SPECS.suv carries the same size.
-  // Sources: https://cars-data.com/en/ford/explorer/dimensions , https://www.autopadre.com/vehicle-dimensions/ford-explorer/2020-base-19934
   suv: {
     Lref: 4.9, Href: 1.8,
     sill: 0.26, wheelR: 0.38, wheelW: 0.25,
@@ -921,9 +917,9 @@ export const STYLES: Record<StyleKey, Style> = {
     bumperY: 0.45, bumperH: 0.28,
     plan: [[-2.45, 0.94], [-2.0, 0.99], [-1.0, 1], [1.0, 1], [2.0, 0.99], [2.45, 0.95]],
   },
-  // ROSTER. "Pacer Hop": a subcompact five-door hatchback of the Honda Fit type (GK, 2015-2020): length 4,064 mm (160 in), wheelbase
+  // ROSTER. "Pacer Hop": a subcompact five-door hatchback of the a real type (GK, 2015-2020): length 4,064 mm (160 in), wheelbase
   // 2,530 mm (99.6 in), width 1,702 mm (67 in), height 1,524 mm (60 in). Cab-forward: short hood, long raked windshield, near-vertical tailgate.
-  // Source: https://www.truedelta.com/Honda-Fit/specs-99-2015&r=4 (4dr hatch)
+  // Source:  (4dr hatch)
   hatch: {
     Lref: 4.06, Href: 1.52,
     sill: 0.2, wheelR: 0.3, wheelW: 0.195,
@@ -960,7 +956,7 @@ export const STYLES: Record<StyleKey, Style> = {
   },
   // ROSTER. "Marlow Sixty": a 1990s mid-size front-drive notchback of the Oldsmobile Cutlass Ciera type (1982-1996): length 190.3 in (4.83 m),
   // wheelbase 104.9 in (2.66 m), width 69.5 in (1.77 m), height 54.1 in (1.37 m). Boxy: flat hood, upright pillars, flat deck.
-  // Source: https://en.wikipedia.org/wiki/Oldsmobile_Cutlass_Ciera (1994 sedan figures, also Edmunds / Consumer Guide)
+  // Source:  (1994 sedan figures, also Edmunds / Consumer Guide)
   beater: {
     Lref: 4.83, Href: 1.37,
     sill: 0.2, wheelR: 0.3, wheelW: 0.185,
@@ -995,9 +991,9 @@ export const STYLES: Record<StyleKey, Style> = {
     headLamp: 'box', tailLamp: 'box2', grille: 'slats', lampD: 0.1, tailD: 0.06, endF: 0.3, endR: 0.25, grilleW: 0.6,
     dims: { L: 4.83, W: 1.77, H: 1.37 },
   },
-  // ROSTER. "Transom 350": a full-size high-roof long-wheelbase cargo van of the Ford Transit type (US 2020-): length 235.5 in (5.98 m),
+  // ROSTER. "Transom 350": a full-size high-roof long-wheelbase cargo van of the a real type (US 2020-): length 235.5 in (5.98 m),
   // wheelbase 148 in (3.75 m), width 81.3 in (2.06 m, no mirrors), height 109.6 in (2.78 m). Short nose, steep raked screen, slab sides.
-  // Sources: https://vandimensions.com/database/ford/transit-2014 , https://www.vanguide.co.uk/?p=1480 (L3 H3: 5,931 x 2,059 x 2,780, WB 3,750)
+  // Sources:  ,  (L3 H3: 5,931 x 2,059 x 2,780, WB 3,750)
   cargo: {
     Lref: 5.98, Href: 2.78,
     sill: 0.36, wheelR: 0.37, wheelW: 0.235,
@@ -1032,8 +1028,8 @@ export const STYLES: Record<StyleKey, Style> = {
     dims: { L: 5.98, W: 2.06, H: 2.78 },
   },
   // ---- CARS12 new types (WebSearch, 11 Nov 2026; sources in each comment)
-  // "Forge 150": a full-size crew-cab pickup of the Ford F-150 SuperCrew type (2021-), 5.5 ft bed: wheelbase 145 in (3.68 m, https://epicvin.com/questions/what-are-the-dimensions-of-the-truck-bed-on-the-ford-f-150-supercrew-with-a-145-inch-wheelbase),
-  // bed 67.1 in x 50.6 in x 21.4 in (https://www.truckranch.com/2021-ford-f-150-bed-size/); overall 231.7 x 79.9 x 77.2 in (5.885 x 2.03 x 1.96 m) are from Ford's spec sheet as remembered, the search did not return them.
+  // "Forge 150": a full-size crew-cab pickup of the a real type (2021-), 5.5 ft bed: wheelbase 145 in (3.68 m, 
+  // bed 67.1 in x 50.6 in x 21.4 in ( overall 231.7 x 79.9 x 77.2 in (5.885 x 2.03 x 1.96 m) are from a real's spec sheet as remembered, the search did not return them.
   pickup: {
     Lref: 5.885, Href: 1.96,
     sill: 0.3, wheelR: 0.39, wheelW: 0.275,
@@ -1069,8 +1065,7 @@ export const STYLES: Record<StyleKey, Style> = {
     dims: { L: 5.885, W: 2.03, H: 1.96 },
     bed: { u0: -1.12, u1: -2.94, floor: 0.95 },
   },
-  // "Trekker V": a compact crossover of the Honda CR-V type (2023-): length 184.8 in (4.694 m), width 73.5 in (1.867 m), height 66.2 in (1.68 m), wheelbase 106.3 in (2.70 m).
-  // Sources: https://hondanews.com/en-US/honda-automobiles/releases/release-1503019bd8a757ea08267d7944234840-2023-honda-cr-v-specs-features , https://www.motor1.com/news/702711/honda-crv-2023-dimensions-boot-space/
+  // "Trekker V": a compact crossover of the a real type (2023-): length 184.8 in (4.694 m), width 73.5 in (1.867 m), height 66.2 in (1.68 m), wheelbase 106.3 in (2.70 m).
   crossover: {
     Lref: 4.694, Href: 1.68,
     sill: 0.24, wheelR: 0.36, wheelW: 0.235,
@@ -1104,8 +1099,8 @@ export const STYLES: Record<StyleKey, Style> = {
     headLamp: 'swept', tailLamp: 'tall', grille: 'bars', lampD: 0.18, tailD: 0.06, endF: 0.4, endR: 0.2, grilleW: 0.55,
     dims: { L: 4.694, W: 1.867, H: 1.68 },
   },
-  // "Voyager Eight": a minivan of the Toyota Sienna type (2021-): wheelbase 120.5 in (3.06 m), length 203.7 in (5.175 m), width 78.5 in (1.994 m), height 68.5 in without rails (1.74 m) / 69.7 in with (1.77 m).
-  // Source: https://pressroom.toyota.com/toyota-sienna-2021/ (via search summary), https://www.kbb.com/toyota/sienna/2021/specs
+  // "Voyager Eight": a minivan of the a real type (2021-): wheelbase 120.5 in (3.06 m), length 203.7 in (5.175 m), width 78.5 in (1.994 m), height 68.5 in without rails (1.74 m) / 69.7 in with (1.77 m).
+  // Source:  (via search summary), 
   minivan: {
     Lref: 5.175, Href: 1.77,
     sill: 0.22, wheelR: 0.345, wheelW: 0.235,
@@ -1137,8 +1132,7 @@ export const STYLES: Record<StyleKey, Style> = {
     headLamp: 'swept', tailLamp: 'tall', grille: 'wedge', lampD: 0.2, tailD: 0.06, endF: 0.45, endR: 0.2, grilleW: 0.5,
     dims: { L: 5.175, W: 1.994, H: 1.77 },
   },
-  // "Bavaro 540": an executive sedan of the BMW 5 Series (G30) type: length 4,963 mm, width 1,868 mm, height ~1,480-1,498 mm, wheelbase 2,975 mm.
-  // Sources: https://cararac.com/spec/bmw/5-series/sedan-2017/ , https://Www.Wikipedia.org/wiki/BMW_5_Series_(G30)
+  // "Bavaro 540": an executive sedan of the a real type: length 4,963 mm, width 1,868 mm, height ~1,480-1,498 mm, wheelbase 2,975 mm.
   luxury: {
     Lref: 4.963, Href: 1.48,
     sill: 0.17, wheelR: 0.35, wheelW: 0.245,
@@ -1173,7 +1167,6 @@ export const STYLES: Record<StyleKey, Style> = {
     dims: { L: 4.963, W: 1.868, H: 1.48 },
   },
   // "Sovereign Livery": a full-size rear-drive livery sedan of the Lincoln Town Car type (2003-2011): length 215.4 in (5.47 m), width 78.2 in (1.99 m), height 59 in (1.50 m), wheelbase 117.7 in (2.99 m).
-  // Sources: https://www.iseecars.com/car/2003-lincoln-town_car-dimensions , https://www.truedelta.com/Lincoln-Town-Car/specs-169-2011&r=2
   towncar: {
     Lref: 5.39, Href: 1.44,
     sill: 0.2, wheelR: 0.34, wheelW: 0.235,
@@ -1208,8 +1201,7 @@ export const STYLES: Record<StyleKey, Style> = {
     dims: { L: 5.47, W: 1.99, H: 1.5 },
     headLamp: 'quad', tailLamp: 'box2', grille: 'bars', lampD: 0.1, tailD: 0.08, endF: 0.4, endR: 0.3, grilleW: 0.6,
   },
-  // "Bronco Pony": a two-door pony car of the Ford Mustang GT type (2015-): length 188.3 in (4.783 m), width 75.4 in (1.915 m), height 54.4 in (1.382 m), wheelbase 107.1 in (2.72 m).
-  // Sources: https://www.carspecs.us/cars/2015/ford/mustang/37991 , https://dimensions.com/element/ford-mustang-gt-2015
+  // "Bronco Pony": a two-door pony car of the a real type (2015-): length 188.3 in (4.783 m), width 75.4 in (1.915 m), height 54.4 in (1.382 m), wheelbase 107.1 in (2.72 m).
   pony: {
     Lref: 4.783, Href: 1.382,
     sill: 0.17, wheelR: 0.35, wheelW: 0.255,
@@ -1243,7 +1235,7 @@ export const STYLES: Record<StyleKey, Style> = {
     headLamp: 'slit', tailLamp: 'tri', grille: 'mesh', lampD: 0.0, endF: 0.5, endR: 0.3, grilleW: 0.5,
     dims: { L: 4.783, W: 1.915, H: 1.382 },
   },
-  // "Jitney 15": a passenger van of the dollar-van type (Transit-class 15-seat high roof): the cargo van body with side windows down its length.
+  // "Jitney 15": a passenger van of the dollar-van type (a real 15-seat high roof): the cargo van body with side windows down its length.
   dollar: {
     Lref: 5.98, Href: 2.78,
     sill: 0.36, wheelR: 0.37, wheelW: 0.235,
@@ -1647,7 +1639,7 @@ function lampPieces(kind: string, front: boolean, pos: THREE.Vector3, yaw: numbe
     case 'slit': lens = [[[-0.17, -0.012], [0.17, 0.016], [0.17, 0.046], [-0.17, 0.014]], [[-0.17, -0.03], [0.17, -0.003], [0.17, 0.004], [-0.17, -0.023]]]; hous = [[-0.19, -0.04], [0.19, -0.006], [0.19, 0.06], [-0.19, 0.03]]; break; // narrow scowl + DRL
     case 'wedge': lens = [[[-0.19, -0.04], [0.19, 0.035], [0.19, 0.075], [-0.19, 0.0]], [[-0.17, -0.07], [0.17, 0.0], [0.17, 0.012], [-0.17, -0.058]]]; hous = [[-0.2, -0.08], [0.2, 0.0], [0.2, 0.09], [-0.2, 0.015]]; break; // swept-back
     case 'c': lens = [rect(0, 0.06, 0.26, 0.026), rect(0, -0.06, 0.26, 0.026), rect(0.118, 0, 0.026, 0.146)]; hous = rect(0, 0, 0.3, 0.19); break; // C-shape DRL signature
-    // Camry-type swept-back lamp: tall at the inner end, a long tapered tail that rises and runs back along the fender, DRL strip below
+    // a real swept-back lamp: tall at the inner end, a long tapered tail that rises and runs back along the fender, DRL strip below
     case 'swept': lens = [[[-0.2, -0.04], [-0.1, -0.055], [0.12, -0.005], [0.27, 0.07], [0.28, 0.1], [0.1, 0.082], [-0.2, 0.045]], [[-0.17, -0.075], [0.08, -0.05], [0.2, -0.01], [0.2, 0.002], [0.08, -0.038], [-0.17, -0.063]]]; hous = [[-0.22, -0.07], [0.1, -0.08], [0.3, 0.045], [0.31, 0.13], [-0.22, 0.08]]; break;
     case 'box': lens = [rect(-0.02, 0.0, 0.25, 0.1), rect(0.16, -0.02, 0.07, 0.06)]; hous = rect(0.02, 0, 0.36, 0.14); break; // sealed composite rectangle + side marker
     case 'angular': lens = [[[-0.15, -0.09], [0.17, -0.07], [0.19, 0.08], [-0.15, 0.1]], [[-0.15, -0.115], [0.16, -0.095], [0.16, -0.085], [-0.15, -0.105]]]; hous = [[-0.17, -0.12], [0.21, -0.09], [0.22, 0.1], [-0.17, 0.12]]; break; // tall slanted van lamp
@@ -1675,7 +1667,7 @@ interface LampStrip { s: number[]; lo: number[]; hi: number[] }
 const rectStrip = (s0: number, s1: number, y0: number, y1: number): LampStrip => ({ s: [s0, s0 + (s1 - s0) / 3, s0 + (2 * (s1 - s0)) / 3, s1], lo: [y0, y0, y0, y0], hi: [y1, y1, y1, y1] });
 /** Wrapped lamps (lens strips + a dark housing) that follow the body's plan curve round the corner; lengths in metres along the curve. */
 const WRAP_LAMPS: Record<string, { lens: LampStrip[]; housing: LampStrip }> = {
-  // Camry-type swept-back lamp: tall at the inner end, a long tapered tail that rises along the fender, a DRL strip below
+  // a real swept-back lamp: tall at the inner end, a long tapered tail that rises along the fender, a DRL strip below
   swept: {
     lens: [
       { s: [0, 0.12, 0.26, 0.4, 0.55], lo: [-0.055, -0.06, -0.05, -0.012, 0.035], hi: [0.065, 0.075, 0.085, 0.092, 0.095] },
@@ -1683,7 +1675,7 @@ const WRAP_LAMPS: Record<string, { lens: LampStrip[]; housing: LampStrip }> = {
     ],
     housing: { s: [-0.02, 0.16, 0.34, 0.54], lo: [-0.1, -0.1, -0.075, 0.02], hi: [0.075, 0.08, 0.09, 0.105] },
   },
-  // Camry-type rear lamp: a wide swept wedge along the deck edge that turns the corner and runs up the quarter, amber / reverse strip below
+  // a real rear lamp: a wide swept wedge along the deck edge that turns the corner and runs up the quarter, amber / reverse strip below
   camryT: {
     lens: [
       { s: [0, 0.2, 0.4, 0.58, 0.72], lo: [-0.04, -0.05, -0.05, -0.035, -0.01], hi: [0.055, 0.075, 0.09, 0.1, 0.1] },
@@ -2300,10 +2292,10 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
 
 // ---------------------------------------------------------------- box truck
 
-// ROSTER. "Hauler 150": a light-duty cab-over box truck of the Isuzu NPR type with a 16 ft box body. Sources (WebSearch, 10 Nov 2026):
-// wheelbase 150 in (3.81 m) on the 16-18 ft chassis (https://isuzucv.com/pdfs/diesel_measurements.pdf), cab width 81.3 in (2.06 m),
+// ROSTER. "Hauler 150": a light-duty cab-over box truck of the a real type with a 16 ft box body. Sources (WebSearch, 10 Nov 2026):
+// wheelbase 150 in (3.81 m) on the 16-18 ft chassis ( cab width 81.3 in (2.06 m),
 // cab height ~90 in (2.3 m), body width 96 in (2.44 m), overall height with the box ~3.3 m, overall length of a 16 ft box truck ~7.0 m
-// (https://xr793.com/wp-content/uploads/2020/02/2020-Isuzu-N-Series.pdf, https://www.lynchtruckcenter.com/p/2025-isuzu-npr-npr-hd).
+// ( 
 // 19.5 in wheels (225/70R19.5, R 0.405 m), dual rear tyres, roll-up rear door.
 const TRUCK_R = 0.405;
 /** garbage truck: 22.5 in tyres */
@@ -2323,7 +2315,7 @@ const TRUCK_CAB_SECS: [number, number, number, number][] = [
 
 /**
  * `kind = 'garbage'` ("Boro Sanitation"): a low cab-forward refuse truck of the Mack LR type with a rear-loader packer body on a tandem rear axle.
- * Wheelbase 186-221 in (4.7-5.6 m) per https://www.truckinginfo.com/301074/driving-macks-low-ride-refuse-hauler and https://www.truckpaper.com/listing/for-sale/257093773/2026-mack-lr64-packer-garbage-trucks ;
+ * Wheelbase 186-221 in (4.7-5.6 m) per  and  ;
  * overall 9.2 x 2.5 x 3.6 m is an estimate (the searches returned no overall dimensions).
  */
 export function buildTruckParts(spec: VehicleSpec, kind: 'box' | 'garbage' = 'box'): CarParts {
@@ -2522,10 +2514,9 @@ export function buildTruckParts(spec: VehicleSpec, kind: 'box' | 'garbage' = 'bo
 
 // ---------------------------------------------------------------- city bus
 
-// ROSTER. "Metro 40": a 40 ft low-floor city transit bus of the New Flyer Xcelsior type: length 40-41 ft (12.2-12.5 m), width 102 in (2.59 m),
+// ROSTER. "Metro 40": a 40 ft low-floor city transit bus of the a real type: length 40-41 ft (12.2-12.5 m), width 102 in (2.59 m),
 // height 10 ft 6 in (3.2 m), wheelbase 283.8 in (7.21 m), 22.5 in wheels (275/70R22.5, R ~0.5 m) with dual rears. Front door ahead of the
 // front axle, middle door ahead of the rear axle, both on the curb (right) side; continuous window band; destination sign over the screen.
-// Sources: https://en.wikipedia.org/wiki/New_Flyer_Xcelsior , https://nfiportal.nfigroup.com/site-content/uploads/2017/10/Xcelsior-CHARGE-Competetive-Comparison.pdf
 export const BUS_AXLES: [number, number] = [3.65, -3.56];
 export const BUS_BELT = 1.2;
 /** door leaf edges (u, m): front door, middle door */
