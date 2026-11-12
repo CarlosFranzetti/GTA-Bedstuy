@@ -59,6 +59,8 @@ const place = (ids, row, spacing, yaw) => {
     m.group.rotation.y = Math.PI + yaw + 0.08 * ((i % 3) - 1);
     { const sp = m.group.userData.splay ?? 0; m.arms[0].rotation.z = -sp; m.arms[1].rotation.z = sp; }
     if (POSE === 'stride') animateWalk(m, Math.PI / 2 + (i % 2) * Math.PI, 1);
+    const forced = params.get('lod');
+    if (forced) { const k = { hi: 0, mid: 1, far: 2 }[forced]; m.group.traverse((o) => { if (o.isLOD) { o.update = () => {}; o.levels.forEach((l, q) => { l.object.visible = q === k; }); } }); }
     scene.add(m.group);
   });
 };
@@ -130,6 +132,16 @@ if (view === 'playerback') {
   cam.position.set(0.35, 1.55, 3.2); look.set(0, 1.4, 0); cam.fov = 64;   // the player's back is toward the camera at +z: the model faces -z
 }
 if (view === 'feet') { const yaw = Number(params.get('yaw') ?? 0); place(['ba-hoodie-fade', 'wh-office', 'ba-puffer-braids', 'ea-nurse'], 0, 0.7, yaw); cam.position.set(0, 0.5, 3.3); look.set(0, 0.35, 0); cam.fov = 30; }
+// PEOPLE4 views: the legs from the front, the side, the back and from above and behind (the game camera), six people in trousers, both LODs (query lod=mid forces the mid mesh)
+const LEGS4 = ['ba-transit', 'ba-hoodie-fade', 'la-delivery', 'wh-office', 'ba-puffer-braids', 'ca-tracksuit'];
+if (view.startsWith('legs4')) {
+  const yaw = { front: 0, side: 1.57, back: Math.PI, '3q': 0.8, above: Math.PI, above3q: Math.PI + 0.6 }[view.slice(6)] ?? 0, ids = (params.get('ids') ?? LEGS4.join(',')).split(',');
+  place(ids, 0, 0.75, yaw);
+  const above = view.includes('above');
+  const dz = Number(params.get('dist') ?? (above ? 3.4 : 3.6)), ly = Number(params.get('ly') ?? (above ? 0.35 : 0.5)); cam.position.set(above ? 0.4 : 0, above ? 2.4 : ly + 0.25, dz); look.set(0, ly, 0); cam.fov = above ? 48 : 34;
+  if (above) { scene.traverse((o) => { if (o.isMesh && o !== ground) { /* keep */ } }); }
+}
+if (view === 'legs4-feet') { place(params.get('ids') ? params.get('ids').split(',') : LEGS4.slice(0, 4), 0, 0.5, Number(params.get('yaw') ?? 2.6)); cam.position.set(0.6, 0.45, 1.9); look.set(0, 0.15, 0); cam.fov = 30; }
 if (SIL) { scene.background = new THREE.Color(0xffffff); scene.environment = null; ground.visible = false; scene.traverse((o) => { if (o.isMesh && o !== ground) o.material = new THREE.MeshBasicMaterial({ color: 0x000000 }); }); }
 cam.updateProjectionMatrix(); cam.lookAt(look);
 for (let i = 0; i < 3; i++) renderer.render(scene, cam);

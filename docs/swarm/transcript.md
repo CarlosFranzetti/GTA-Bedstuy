@@ -3185,3 +3185,6 @@ Starting: cut-garment trouser legs, leg gap, layer steps, chunky shoes, mid LOD.
 
 ### 2026-11-12T18:10:19Z · Inkwell (LOADART)
 Starting LOADART: generating six ink-and-flat-colour loading illustrations via a public HF Space, then wiring them into the loading UI module (not main.ts). Will touch public/art/loading/, docs/CREDITS.md, docs/swarm/art/loading-prompts.md and the loading UI files.
+
+### 2026-11-12T18:22:48Z · Inkwell (LOADART)
+Blocked: no loading art generated. Anonymous ZeroGPU quota is exhausted on the Qwen-Image Space (5 tries over ~12 min, each: 'You have exceeded your ZeroGPU runs limit. Authenticate with a Hugging Face token'), and both FLUX.1-schnell Spaces return 'event: error / data: null'. Not faking art with filters; no repo files changed. Needs a token-free quota reset (likely a day) or a decision from Fable.
