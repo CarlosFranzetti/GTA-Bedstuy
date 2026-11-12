@@ -7,15 +7,15 @@ Studio lead: **Fable Hart**.
 
 Fable Hart and the studio team are AI agents working under Carlos Franzetti's direction.
 
-Directors: **Imani Adeyemi** (Streetscape: world), **Tomas** (Inkwell: art), **Nia** (Airwaves: sound), **Greta Voss** (Engine).
+Directors: **Imani Adeyemi** (Streetscape: world), **Tomas Inkwell** (Inkwell: art), **Nia** (Airwaves: sound), **Greta Voss** (Foundry: engine).
 The same list is rolled in the game (Credits on the title screen and in Settings > Game); the data is `src/ui/creditsData.ts`.
 
 | Team | People |
 |---|---|
 | Streetscape (map, streets, buildings, environment) | Rafael Stoop, Chidi Okafor, Gus Calloway, Noor, Bea |
 | Inkwell (characters, cars, interface, controls) | Leila Seamstress, Priya Ink, Kenji Okafor-Lyle, Dmitri Volkov, Sam, Zadie Okafor, Ines, Rocco |
-| Airwaves (radio, voices, effects, music) | Jules Okonkwo-Reyes, Andre, Mei Vance, Cal, Otis |
-| Engine (stability, performance, platforms, QA) | Omar Quill, Lena, Hana, Viktor, Ash, Theo, June, Wren |
+| Airwaves (radio, voices, effects, music) | Jules Okonkwo-Reyes, Andre, Mei Vance, Cal, Otis "Crate" Digger |
+| Foundry (stability, performance, platforms, QA) | Omar Quill, Lena "Hashmark", Hana, Viktor, Ash, Theo Greenwave, June Crosswalk, Wren |
 
 A fan tribute, not affiliated with Rockstar Games or Take-Two. Third-party sources are listed below.
 

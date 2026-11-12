@@ -49,6 +49,17 @@ describe('Mixer', () => {
   });
 });
 
+describe('Mixer migration', () => {
+  it('starts from the old menu Master and Radio once', () => {
+    const s = mem({ 'gta-bedstuy.settings.v1': JSON.stringify({ master: 0.25, radio: 0.64 }) });
+    const m = new Mixer(s);
+    expect(m.get('master')).toBeCloseTo(0.5); expect(m.gain('master')).toBeCloseTo(0.25); expect(m.get('radio')).toBeCloseTo(0.8);
+    expect(s.d[MIX_KEY]).toBeDefined();
+    s.d['gta-bedstuy.settings.v1'] = JSON.stringify({ master: 1 });
+    expect(new Mixer(s).get('master')).toBeCloseTo(0.5); // mixer value wins
+  });
+});
+
 describe('Mixer reaches the buses', () => {
   it('each slider ramps its own bus once per change', async () => {
     const { audio, mixer, master, buses } = rig();

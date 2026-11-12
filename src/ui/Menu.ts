@@ -728,7 +728,7 @@ export class Menu {
     for (const [id, spec] of this.orig) {
       if (!spec.def || !spec.set) continue;
       const want = spec.def(), cur = spec.get?.();
-      if (want === cur) this.pending.delete(id); else this.pending.set(id, want);
+      if (spec.live) { if (want !== cur) spec.set(want as never); } else if (want === cur) this.pending.delete(id); else this.pending.set(id, want);
     }
     this.statusEl.textContent = this.pending.size ? 'Defaults ready: press Apply' : 'Already at defaults';
     this.refreshAll();
@@ -968,7 +968,7 @@ export class Menu {
     });
     const mx = this.opts.mixer;
     const mixRow = (id: string, k: MixKey, legacy?: { get(): number; set(v: number): void }): void => {
-      S.set(id, { id, label: MIX_LABELS[k], kind: 'slider', min: 0, max: 100, step: 5, def: () => 100, desc: MIX_DESC[k], fmt: (v) => `${v}%`,
+      S.set(id, { id, label: MIX_LABELS[k], kind: 'slider', live: !!mx, min: 0, max: 100, step: 5, def: () => 100, desc: MIX_DESC[k], fmt: (v) => `${v}%`,
         visible: legacy || mx ? undefined : () => false,
         get: () => Math.round((mx ? mx.get(k) : legacy ? legacy.get() : 1) * 100),
         set: ((v: number) => { if (mx) mx.set(k, v / 100); else legacy?.set(v / 100); }) as RowSpec['set'] });
@@ -1051,6 +1051,7 @@ export class Menu {
     if (spec.kind !== 'seg' && spec.kind !== 'slider' && spec.kind !== 'toggle') return spec;
     this.orig.set(spec.id, spec);
     const id = spec.id;
+    if (spec.live) return spec;
     return {
       ...spec,
       get: () => (this.pending.has(id) ? (this.pending.get(id) as string | number | boolean) : spec.get!()),

@@ -14,6 +14,7 @@ export const MIX_DESC: Record<MixKey, string> = {
   ambience: 'The city bed, birds, crickets and rain.',
 };
 export const MIX_KEY = 'wbsy.mixer';
+const LEGACY_KEY = 'gta-bedstuy.settings.v1';
 
 /** Slider position 0..1 to linear gain. */
 export const taper = (v: number): number => { const x = Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0; return x * x; };
@@ -38,7 +39,17 @@ export class Mixer {
   private v: Record<MixKey, number> = { master: 1, radio: 1, sfx: 1, voices: 1, ambience: 1 };
   private readonly subs = new Set<(k: MixKey) => void>();
 
-  constructor(private readonly store: Store | null = defaultStore()) { Object.assign(this.v, storedMix(store)); }
+  constructor(private readonly store: Store | null = defaultStore()) {
+    Object.assign(this.v, storedMix(store));
+    // One-time migration: the menu used to save linear Master and Radio gains; the same loudness is sqrt through the taper.
+    try {
+      if (store && store.getItem(MIX_KEY) === null) {
+        const o = JSON.parse(store.getItem(LEGACY_KEY) ?? 'null') as Record<string, unknown> | null;
+        for (const k of ['master', 'radio'] as const) { const g = o?.[k]; if (typeof g === 'number' && Number.isFinite(g)) this.v[k] = Math.sqrt(Math.min(1, Math.max(0, g))); }
+        if (o && (typeof o.master === 'number' || typeof o.radio === 'number')) store.setItem(MIX_KEY, JSON.stringify(this.v));
+      }
+    } catch { /* no migration */ }
+  }
 
   /** Slider position 0..1. */
   get(k: MixKey): number { return this.v[k]; }

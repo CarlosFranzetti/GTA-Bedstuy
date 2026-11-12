@@ -19,8 +19,8 @@ describe('Menu Audio group', () => {
     for (let i = 0; i < 80 && menu.root.querySelector<HTMLElement>('.gp-pane-settings .gp-row.hi')?.dataset.id !== 'voicevol'; i++) menu.navigate('down');
     menu.navigate('left');
     expect(val(menu, 'voicevol')).toContain('95%');
-    menu.root.querySelector<HTMLButtonElement>('.gp-act-apply')!.click();
-    expect(mixer.get('voices')).toBeCloseTo(0.95);
+    expect(mixer.get('voices')).toBeCloseTo(0.95); // live, before any Apply
+    expect(menu.pendingCount).toBe(0);
     expect(cb.onMasterVolume).not.toHaveBeenCalled();
   });
   it('without a mixer only Master and Radio show', () => {

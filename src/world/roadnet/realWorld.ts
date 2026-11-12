@@ -77,6 +77,8 @@ export interface RealWorld {
   places: RealPlaces | null;
   /** player start outside HOME's door (equals spawn / spawnHeading when places fell back) */
   homeSpawn: { x: number; z: number; heading: number };
+  /** moves HOME / deli / club doors and nav targets onto the real lots; call once before the interiors are built (no-op without places) */
+  applyDoors: () => void;
   stats: { meshes: number; triangles: number; lots: number; colliders: number; ms: Record<string, number> };
 }
 
@@ -269,6 +271,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   t0 = performance.now();
   let lots: Lot[] = [];
   let places: RealPlaces | null = null;
+  let applyDoors: () => void = () => undefined;
   let homeSpawn = { x: spawn.x, z: spawn.z, heading };
   let streamer: RealBuildingStreamer | null = null;
   const held = new Map<string, StaticCollider>();
@@ -285,13 +288,14 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
     // places (Gus): the POI lots carry their shop sign; the home door gives the spawn. Soft: without it the lots stay plain.
     try {
       if (opts.forceStandIns) throw new Error('forced');
-      const { RealPlaces } = await import('./placesReal');
+      const { RealPlaces, applyRealDoors } = await import('./placesReal');
       const table = (await import('@/world/data/places-real.json')).default as unknown as PlacesTable;
       const { loadBedstuyData } = await import('@/world/Grid');
       const pl = new RealPlaces({ net, derived, faces, lots: lots as RealLot[], table, pois: loadBedstuyData().pois });
       const withPois = pl.lotsWithPois();
       const hs = pl.homeSpawn();
       if (![hs.x, hs.z, hs.heading].every(Number.isFinite)) throw new Error('home spawn not finite');
+      applyDoors = () => applyRealDoors(pl);
       places = pl; lots = withPois; homeSpawn = hs; spawn = { x: hs.x, z: hs.z }; heading = hs.heading;
     } catch (e) { standIns.push(`places: ${(e as Error).message}`); }
     let looks: ((bbl: string) => never) | undefined;
@@ -349,7 +353,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   const setColliderHost = (h: ColliderHost): void => { host = h; if (held.size) h.add([...held.values()]); };
   const stats = { ...measureWorld(group), lots: lots.length, colliders: colliders.length, ms };
   void ROAD_CHUNK_PREFIX;
-  return { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, badBlocks: [...bad].sort((a, b) => a - b), streamer, setColliderHost, update, trains, notice: REAL_NOTICE, standIns, el, props, lamps: props?.lamps ?? [], furnitureGroup: props?.group ?? furnitureGroup, places, homeSpawn, stats };
+  return { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, badBlocks: [...bad].sort((a, b) => a - b), streamer, setColliderHost, update, trains, notice: REAL_NOTICE, standIns, el, props, lamps: props?.lamps ?? [], furnitureGroup: props?.group ?? furnitureGroup, places, homeSpawn, applyDoors, stats };
 }
 
 /** WP2 lane graph of a built real world (async only to keep lanes.ts out of the first chunk). */

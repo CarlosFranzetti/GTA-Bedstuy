@@ -128,25 +128,14 @@ export function retarget(b, f0, f1, opts = {}) {
     // mocap ankle height above the rest ankle height, in our metres
     const m = { L: o.ankleY.L - ankleRestM * k, R: o.ankleY.R - ankleRestM * k };
     const ours = { L: ourAnkleDrop(o.legQ.L, o.kneeQ.L) - restDrop, R: ourAnkleDrop(o.legQ.R, o.kneeQ.R) - restDrop };
-    // ours.* is the ankle height relative to rest with the pelvis in place; the pelvis moves by dy so that
-    // (ours + dy) = mocap for the stance foot (the lower one), or follows the pelvis-to-feet distance in the air
+    // ours.* = our ankle height against rest with the pelvis in place; rig.y = dy lifts or lowers everything
     let dy;
+    const lowM = Math.min(m.L, m.R);
     if (opts.rigY === 'air') {
-      const feetMocap = 0.5 * (m.L + m.R), feetOurs = 0.5 * (ours.L + ours.R);
-      const pelvisMocap = o.hipsY - hipsRestY * k;
-      dy = (pelvisMocap - feetMocap) - (-feetOurs) - 0; // hips height above feet, mocap versus ours
-      dy = (pelvisMocap - feetMocap) + feetOurs * -1;
-      dy = ((o.hipsY - hipsRestY * k) - feetMocap) - 0 + (0 - (-feetOurs));
-      dy = (pelvisMocap - feetMocap) - (0 - feetOurs) * 0 + feetOurs * 0;
-      dy = (pelvisMocap - feetMocap) + feetOurs; // ours.* is negative when the leg lifts the ankle? see below
-      dy = (pelvisMocap - feetMocap) - 0;
-      // ankle height relative to rest with the pelvis in place is  +drop change; pelvis must move by (mocapAnkle - oursAnkle) to match feet
-      dy = feetMocap - feetOurs; // the feet match the mocap feet height ...
-      dy = dy - (feetMocap - pelvisMocap) + (feetMocap - pelvisMocap); // ... and then the vertical offset of pelvis against feet is the leg pose itself
-      dy = pelvisMocap - feetMocap + (feetMocap - feetOurs) - 0;
+      // the game supplies the jump altitude: keep the pelvis where the mocap has it relative to the lowest foot
+      dy = (o.hipsY - hipsRestY * k) - Math.max(lowM, 0);
     } else {
-      const lowM = Math.min(m.L, m.R), lowO = Math.min(ours.L, ours.R);
-      dy = lowM - lowO; // keep the lower foot where the mocap has it
+      dy = lowM - Math.min(ours.L, ours.R); // keep the lower (stance) foot where the mocap has it
     }
     o.dy = dy;
   }

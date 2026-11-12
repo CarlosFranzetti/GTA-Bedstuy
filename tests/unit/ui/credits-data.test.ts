@@ -15,7 +15,7 @@ describe('creditsData', () => {
   });
 
   it('lists the four directors in order', () => {
-    expect(DIRECTORS.map((d) => d.name)).toEqual(['Imani Adeyemi', 'Tomas', 'Nia', 'Greta Voss']);
+    expect(DIRECTORS.map((d) => d.name)).toEqual(['Imani Adeyemi', 'Tomas Inkwell', 'Nia', 'Greta Voss']);
   });
 
   it('has no duplicate names and no empty roles', () => {
@@ -45,7 +45,7 @@ describe('creditsData', () => {
   it('keeps the honest AI line and the title-screen disclaimer', () => {
     expect(AI_NOTE).toBe('Fable Hart and the studio team are AI agents working under Carlos Franzetti’s direction.');
     expect(DISCLAIMER).toBe('a fan tribute · not affiliated with Rockstar Games or Take-Two');
-    expect(TEAMS.map((t) => t.title)).toEqual(['Streetscape', 'Inkwell', 'Airwaves', 'Engine']);
+    expect(TEAMS.map((t) => t.title)).toEqual(['Streetscape', 'Inkwell', 'Airwaves', 'Foundry']);
   });
 
   it('names only third-party sources that docs/CREDITS.md names', () => {

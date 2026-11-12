@@ -35,6 +35,8 @@ export interface RowSpec {
   swatch?: { color: string; shape: string };
   /** value the DEFAULTS button restores (settings rows) */
   def?: () => string | number | boolean;
+  /** applies on every change (no APPLY step): used by the audio sliders */
+  live?: boolean;
   /** muted row (locked mission, unavailable) */
   dim?: () => boolean;
   /** info row with a check / state glyph */
