@@ -10,10 +10,10 @@ import { Rng } from '@/core/Rng';
 import type { VehicleType } from '@/world/types';
 
 export type WheelDesign = 'steel' | 'steelBare' | 'alloy6' | 'alloy5' | 'mesh' | 'deep' | 'turbine';
-export type RoofGear = 'none' | 'rack' | 'bars' | 'cargo' | 'ladder' | 'topperPlain' | 'topperAd' | 'topperHail';
+export type RoofGear = 'none' | 'rack' | 'bars' | 'cargo' | 'ladder' | 'topperPlain' | 'topperAd' | 'topperHail' | 'cone';
 
-export interface PaintEntry { name: string; color: string; /** trim pack: 0 plain, 1 cream double stripe, 2 two-tone */ pack: 0 | 1 | 2; /** relative frequency */ w: number }
-const P = (name: string, color: string, w = 1, pack: 0 | 1 | 2 = 0): PaintEntry => ({ name, color, pack, w });
+export interface PaintEntry { name: string; color: string; /** trim pack: 0 plain, 1 cream double stripe, 2 two-tone silver lower body, 3 woodgrain side panels, 4 vinyl roof; 22..25 step-van and ice-cream liveries, 30 taxi, 40 police (see painters/vehicleSkin.ts) */ pack: number; /** relative frequency */ w: number }
+const P = (name: string, color: string, w = 1, pack = 0): PaintEntry => ({ name, color, pack, w });
 
 /** 8 or more paints per type. Whites, silvers, greys and blacks dominate real traffic; the colours are the garnish. */
 export const PALETTES: Record<VehicleType, readonly PaintEntry[]> = {
@@ -42,6 +42,19 @@ export const PALETTES: Record<VehicleType, readonly PaintEntry[]> = {
   evsedan: [P('pearl', '#e8e8ea', 4), P('midnight', '#1a2230', 3), P('red multi-coat', '#a8202a', 2), P('silver', '#b3b7bb', 3), P('grey', '#5c6168', 3), P('blue', '#1f4f8a', 2), P('black', '#15161a', 3), P('teal', '#1f6f72', 1)],
   garbage: [P('sanitation white', '#eef1ec', 1)],
   ambulance: [P('white', '#f4f4f4', 1)],
+  // CARS2: era Brooklyn street types, 5 to 8 colourways each (the pack is the trim: 2 two-tone, 3 woodgrain, 4 vinyl roof)
+  wagon: [P('white', '#e6e4dc', 3), P('silver', '#b0b4b8', 3), P('teal 93', '#2f6f6a', 2, 3), P('burgundy', '#6a2430', 2, 3), P('forest', '#2f5a42', 2), P('navy', '#243a66', 2), P('champagne', '#c4b490', 2, 2), P('slate', '#5c6168', 2)],
+  bigsuv: [P('black', '#15171a', 4), P('white', '#ecebe4', 3), P('forest two-tone', '#24503a', 2, 2), P('maroon two-tone', '#5a1e2a', 2, 2), P('navy two-tone', '#1f2f58', 2, 2), P('tan two-tone', '#b09a76', 2, 2), P('silver', '#b0b5ba', 3), P('teal', '#2a6a62', 1)],
+  minitruck: [P('red', '#b83a28', 3, 1), P('white', '#e8e6de', 3), P('blue', '#2a5a9a', 2), P('black', '#17181b', 2), P('silver', '#aeb2b6', 2), P('green', '#2c6a4a', 2), P('yellow', '#e0b81c', 1), P('teal', '#2a7a80', 1)],
+  panelvan: [P('white', '#ebebe4', 6), P('silver', '#b4b8bc', 2), P('tan', '#bfae88', 2), P('blue', '#2a4f86', 1), P('green', '#2c5a46', 1), P('maroon', '#6a2a30', 1), P('red', '#a8302c', 1), P('yellow', '#e0b81c', 1)],
+  taxivan: [P('taxi yellow', '#e0b01e', 1, 30)],
+  limo: [P('black', '#0e0f12', 8), P('white', '#ecebe6', 3), P('silver', '#a6aab0', 1), P('midnight', '#141a2a', 1), P('champagne', '#c8b896', 1), P('grey', '#55595f', 1), P('hot pink', '#d0508a', 0.4)],
+  classic: [P('gold vinyl roof', '#a8863a', 3, 4), P('avocado', '#6a7a3a', 2, 4), P('harvest orange', '#b0642a', 2, 4), P('sky', '#6a9ac0', 2, 1), P('ivory', '#e8e4d4', 2, 4), P('maroon', '#6a2a30', 2, 4), P('brown', '#5a4030', 2), P('blue', '#2a4f86', 2, 1)],
+  donk: [P('candy purple', '#7a2a8a', 3), P('candy apple', '#b0182a', 3), P('lime', '#6ac43a', 2), P('candy blue', '#1f5fb4', 2), P('orange', '#e0621a', 2), P('white', '#eeeeea', 2), P('black', '#15161a', 2), P('teal', '#1b8f8a', 1)],
+  copsuv: [P('white', '#f2f2f2', 1, 40)],
+  convertible: [P('red', '#c8283a', 3), P('yellow', '#e8c21c', 2), P('blue', '#2468c4', 2), P('white', '#eeeeea', 3), P('silver', '#b3b7bb', 2), P('black', '#16181b', 2), P('teal', '#1b8f8a', 1), P('tangerine', '#e8791c', 1)],
+  stepvan: [P('mail white', '#f2f2ee', 3, 22), P('parcel brown', '#5e4126', 3, 23), P('bakery cream', '#efe2c0', 1, 24), P('plain white', '#ecebe6', 1), P('depot grey', '#8d9298', 1)],
+  icecream: [P('cream', '#f4efe0', 3, 25), P('strawberry', '#f2b6c8', 2, 25), P('mint', '#b8e0cc', 2, 25), P('sky', '#a8d0ee', 2, 25), P('lemon', '#f2e08a', 1, 25), P('white', '#f6f6f2', 1, 25)],
   dollarvan: [P('white', '#e8eaea', 4), P('silver', '#b4b8bd', 2), P('grey', '#8a9096', 2), P('cream', '#e4dcc4', 1), P('blue', '#2a4f86', 1), P('maroon', '#6a2a30', 1), P('green', '#2f5a48', 1), P('red', '#a02a2a', 1)],
 };
 
@@ -117,6 +130,19 @@ const WHEELS_BY_TYPE: Partial<Record<VehicleType, readonly WheelDesign[]>> = {
   muscle: ['deep', 'alloy5', 'turbine', 'mesh'],
   wedgetruck: ['turbine', 'alloy6'],
   evsedan: ['turbine', 'alloy5', 'turbine'],
+  // CARS2: pressed steel on the work and old cars, alloys on the newer ones, big aftermarket rims on the donk
+  wagon: ['steel', 'alloy5', 'steel', 'mesh'],
+  bigsuv: ['alloy6', 'steel', 'mesh', 'alloy5'],
+  minitruck: ['steelBare', 'steel', 'alloy5', 'steelBare'],
+  panelvan: ['steel', 'steelBare'],
+  taxivan: ['steel', 'steel', 'alloy5'],
+  limo: ['mesh', 'turbine', 'steel'],
+  classic: ['steel', 'mesh', 'steel', 'deep'],
+  donk: ['deep', 'deep', 'turbine'],
+  copsuv: ['steel', 'steelBare'],
+  convertible: ['alloy5', 'mesh', 'turbine', 'alloy6'],
+  stepvan: ['steel', 'steelBare'],
+  icecream: ['steel', 'steelBare'],
 };
 
 /** Delivery livery counts: cargo van (skin packs 10..14), box truck (cargo livery canvases 1..11), cop (marked paints) */
