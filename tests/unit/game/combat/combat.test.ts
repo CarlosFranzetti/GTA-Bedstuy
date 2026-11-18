@@ -71,11 +71,12 @@ describe('punching', () => {
     expect(r.log.filter((l) => l.type === 'pedHit')).toHaveLength(0);
   });
 
-  it('punching a car makes a thud and nothing else', () => {
+  it('punching a car makes a hollow car thud and nothing else', () => {
     const r = rig();
     makeCar(r.world, 'car', 0, -2.2);
     r.input.press(); r.step(30);
-    expect(r.sfx.log).toContain('thud');
+    expect(r.sfx.log).toContain('carThud');
+    expect(r.sfx.log).not.toContain('thud');
     expect(r.log).toHaveLength(0);
   });
 

@@ -1,5 +1,6 @@
 // SOUNDCHECK: 60 s street scene through the real AudioSystem, offline, with per-bus stems and a loudness report.
 //   SWARM_LIGHT=1 scripts/swarm-render.sh node scripts/soundcheck-render.mjs street [--out dir] [--tag name] [--car sedan] [--no-standin]
+// --src <dir>  bundle the audio code of another checkout (a `git archive` of an older commit) instead of src/, for a before.
 // Speech stand-ins are real baked clips of the voice pack (public/voice): a DJ line and two pedestrian barks.
 import { createRequire } from 'node:module';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
@@ -28,7 +29,7 @@ const b2 = pick((e) => /^g0[0-4]$/.test(e.who) && e.file.includes('bark') && e.d
 console.log('speech stand-ins:', JSON.stringify([dj, b1, b2].map((e) => e && { who: e.who, text: e.text, dur: e.dur, lufs: e.lufs })));
 const speech = mode !== 'street' ? null : { dj: decode(dj.file, dj.off, dj.len), bark1: decode(b1.file, b1.off, b1.len), bark2: decode(b2.file, b2.off, b2.len) };
 
-const js = execFileSync('npx', ['--no-install', 'esbuild', mode === 'stutter' ? 'scripts/soundcheck-stutter.ts' : 'scripts/soundcheck-harness.ts', '--bundle', '--format=iife', '--target=es2022', `--alias:@=${resolve('src')}`, '--log-level=error'], { maxBuffer: 1 << 28 }).toString();
+const js = execFileSync('npx', ['--no-install', 'esbuild', mode === 'stutter' ? 'scripts/soundcheck-stutter.ts' : 'scripts/soundcheck-harness.ts', '--bundle', '--format=iife', '--target=es2022', `--alias:@=${resolve(arg('src', 'src'))}`, '--log-level=error'], { maxBuffer: 1 << 28 }).toString();
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 const page = await browser.newPage();
 page.on('pageerror', (e) => console.log('PAGEERR', e.message.slice(0, 400)));

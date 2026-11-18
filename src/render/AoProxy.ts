@@ -196,6 +196,40 @@ function concatChunks(list: Chunk[]): THREE.BufferGeometry {
 }
 
 export interface StaticProxy { geometry: THREE.BufferGeometry; side: THREE.Side; cell: string; }
+
+/** Copy of an indexed position+normal geometry with every triangle's winding reversed. */
+function windingFlipped(g: THREE.BufferGeometry): THREE.BufferGeometry {
+  const c = g.clone();
+  const idx = c.index!; const a = idx.array as Uint16Array | Uint32Array;
+  for (let i = 0; i < a.length; i += 3) { const t = a[i + 1]; a[i + 1] = a[i + 2]; a[i + 2] = t; }
+  idx.needsUpdate = true;
+  return c;
+}
+
+/**
+ * One front-side mesh per cell instead of one per cell and side class (front, back, double): the shadow pass draws back faces of
+ * front-side meshes and front faces of back-side ones, so a back-side class is the same triangles with the winding reversed and a
+ * double-sided class is both. Same depth in the map, up to three times fewer shadow draws. Only for tiers without the AO
+ * G-buffer, which reads the normals of the shared geometry (low).
+ */
+export function mergeSideClasses(proxies: StaticProxy[]): StaticProxy[] {
+  const byCell = new Map<string, StaticProxy[]>();
+  for (const p of proxies) { const l = byCell.get(p.cell); if (l) l.push(p); else byCell.set(p.cell, [p]); }
+  const out: StaticProxy[] = [];
+  for (const [cell, list] of byCell) {
+    if (list.length === 1 && list[0].side === THREE.FrontSide) { out.push(list[0]); continue; }
+    const parts: THREE.BufferGeometry[] = [];
+    for (const p of list) {
+      if (p.side !== THREE.BackSide) parts.push(p.geometry);
+      if (p.side !== THREE.FrontSide) parts.push(windingFlipped(p.geometry));
+    }
+    const geometry = concatIndexed(parts);
+    geometry.computeBoundingBox(); geometry.computeBoundingSphere();
+    for (const p of list) p.geometry.dispose();
+    out.push({ geometry, side: THREE.FrontSide, cell });
+  }
+  return out;
+}
 export interface ProxyBuild { proxies: StaticProxy[]; covered: THREE.Mesh[]; skipped: THREE.Mesh[]; vertices: number; triangles: number; }
 
 /**
@@ -243,6 +277,8 @@ const _sphere = new THREE.Sphere();
 export const SHADOW_DETAIL_MARGIN = 15;
 /** ...but never farther than this from the player: a cornice or stoop 45 m away is a few shadow texels wide, the building prism carries the mass. */
 export const SHADOW_DETAIL_MAX = 45;
+/** Low draws the detailed cell proxies only this close (m): each 50 m cell and side class is a shadow-pass draw (PERF3b). */
+export const SHADOW_DETAIL_MAX_LOW = 36;
 /** Metres from the camera within which the AO G-buffer draws the static cell proxies. */
 export const AO_REACH = 70;
 /** A cell proxy that is already drawn stays drawn until it is this much (m) beyond its reach (hysteresis: no blinking at the edge while the camera sways or the shadow box steps). */
@@ -264,6 +300,8 @@ export class RenderProxies {
   /** Real meshes now covered by proxies (their castShadow is switched off). */
   covered: THREE.Mesh[] = [];
   triangles = 0;
+  /** reach (m) of the detailed shadow cell proxies around the player; set by addStatic from the tier */
+  detailMax = SHADOW_DETAIL_MAX;
   private readonly mats: Record<number, THREE.MeshBasicMaterial> = {};
   private readonly hulls = new Map<string, HullSet>();
   private capsule: HullSet | null = null;
@@ -303,10 +341,12 @@ export class RenderProxies {
   addStatic(roots: THREE.Object3D[], cellX: number, cellZ: number): ProxyBuild {
     // low has no AO pass, so its proxies can be small cells: the shadow box then draws ~1/3 of the triangles (the cell AABB test is tighter)
     const t = browserTier();
+    this.detailMax = t === 'low' || t === 'phone' ? SHADOW_DETAIL_MAX_LOW : SHADOW_DETAIL_MAX;
     const cell = t ? Math.min(cellX, SHADOW_PROXY_CELL[t]) : cellX;
     const build = buildStaticProxies(roots, cell, Math.min(cellZ, cell));
     // low has no AO pass and a ~4 cm shadow texel: collapsing the sub-30 cm relief (stoop steps, cornice, window reveals) of the cell proxies saves a third of the shadow triangles
     if (t === 'low') for (const p of build.proxies) { const g = clusterGeometry(p.geometry, SHADOW_PROXY_CLUSTER_M, true); p.geometry.dispose(); p.geometry = g; }
+    if (t === 'low') build.proxies = mergeSideClasses(build.proxies);
     for (const p of build.proxies) {
       let aoMesh: THREE.Mesh;
       const a = new THREE.Mesh(p.geometry, this.mats[p.side]);
@@ -404,7 +444,7 @@ export class RenderProxies {
     const sc = sun.shadow.camera;
     this.shadowFrustum.setFromProjectionMatrix(this.projScreen.multiplyMatrices(sc.projectionMatrix, sc.matrixWorldInverse));
     // detailed cell proxies only near the player (the shadow box half-size + 15 m, at most 45 m); farther buildings cast through BlobShadows' prisms
-    const reach = Math.min(sc.right + SHADOW_DETAIL_MARGIN, SHADOW_DETAIL_MAX), tx = sun.target.position.x, tz = sun.target.position.z;
+    const reach = Math.min(sc.right + SHADOW_DETAIL_MARGIN, this.detailMax), tx = sun.target.position.x, tz = sun.target.position.z;
     let cells = 0;
     for (const c of this.cellBoxes) {
       const v = cellInReach(c.mesh.visible, c.box.min.x, c.box.max.x, c.box.min.z, c.box.max.z, tx, tz, reach) && this.shadowFrustum.intersectsBox(c.box);

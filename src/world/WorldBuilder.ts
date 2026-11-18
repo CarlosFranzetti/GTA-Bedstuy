@@ -127,7 +127,7 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
   const propCells = split(props.group);
 
   // the far skyline ring: forked last so the streams of everything above are unchanged
-  const skyline = createSkyline(grid.bounds, materials, rng.fork('skyline'));
+  const skyline = createSkyline(grid.bounds, materials, rng.fork('skyline'), tier === 'low'); // low: walls and roofs only (a third of the triangles)
   if (skyline) group.add(skyline);
 
   let meshes = 0;

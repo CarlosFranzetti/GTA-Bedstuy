@@ -31,6 +31,8 @@ export function makeShader(b: BakeInput): Shader {
     T.x = x; T.y = y; T.z = z; T.nx = nx / l; T.ny = ny / l; T.nz = nz / l; T.wh = wh; T.wt = wt; T.wa = wa; T.wl = wl; T.q = q;
     if (y > lm.chinY - 0.012 && wh > 0.55) { paintHead(K, T, o); return; }
     paintBody(K, T, o);
+    // the cheek and jaw below the ear carry mixed bone weights: blend head and body skin softly so there is no block of different tone
+    if (y > lm.chinY - 0.012 && wh > 0.08) { const m = sst(0.08, 0.5, wh); paintHead(K, T, B); o.mixP(B, m); return; }
     // the neck / jaw boundary follows the bone weights: blend over a band so it is not a staircase
     if (y > lm.chinY - 0.04 && y > K.shY + 0.06 && wh > 0.15) { const m = sst(0.15, 0.55, wh) * sst(lm.chinY - 0.04, lm.chinY - 0.01, y); if (m > 0) { paintHead(K, T, B); o.mixP(B, m); } }
   };

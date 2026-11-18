@@ -148,7 +148,11 @@ const t0 = Date.now();
 const { plan: fullPlan, stats } = await loadPlan();
 let plan = fullPlan;
 if (ONLY_VOICE) plan = plan.filter((c) => c.voice === ONLY_VOICE);
-if (MATCH) { const re = new RegExp(MATCH, 'i'); plan = plan.filter((c) => re.test(c.text)); }
+if (MATCH) {
+  // the pack is assembled from the filtered plan, so a match against the real pack folder would cut the pack down to the match
+  if (OUT === resolve(root, 'public/voice')) { console.error('[bake] --match needs --out (and --work) pointing at scratch folders; refusing to assemble a partial pack into public/voice'); process.exit(2); }
+  const re = new RegExp(MATCH, 'i'); plan = plan.filter((c) => re.test(c.text));
+}
 
 if (flag('plan')) {
   const s = stats(plan);

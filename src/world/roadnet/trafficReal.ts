@@ -14,11 +14,12 @@
  */
 import type { Vec2 } from '@/core/Math2';
 import type { PedCrossing } from '@/entities/Pedestrian';
-import type { GridModel, Graph, GraphEdge, GraphNode, LaneGraph, RoadSegment, StreetDef } from '@/world/types';
+import { VEHICLE_SPECS } from '@/entities/Vehicle';
+import type { GridModel, Graph, GraphEdge, GraphNode, IVehicle, LaneGraph, RoadSegment, StreetDef, VehicleType } from '@/world/types';
 import { clusterId, clusterIndexOfNode, junctionClusters } from './clusters';
 import type { Derived } from './derive';
 import { pointInPolygon } from './geom';
-import { buildLaneGraph } from './lanes';
+import { buildLaneGraphDetailed, type LaneBuild } from './lanes';
 import { RealTrafficLights } from './lightsReal';
 import type { RoadNet } from './RoadNet';
 import { buildPedCrossingsReal, type SidewalkNet } from './sidewalks';
@@ -87,6 +88,17 @@ export function walkableGraph(g: Graph, net: RoadNet, d: Derived): { graph: Grap
   return { graph, removedEdges: g.edges.length - graph.edges.length, removedNodes: Object.keys(g.nodes).length - Object.keys(graph.nodes).length };
 }
 
+/** what TrafficSystem calls to make a car */
+export type MakeVehicleFn = (type: VehicleType, pos: Vec2, heading: number, color: string) => IVehicle;
+
+/**
+ * Vehicles longer than this (m) are not put on the real map. The agent's turn filter (`TrafficAgent.edgesItCanTurn`) lets a vehicle
+ * take any turn whose chord is within 1.2 of its turning circle; the real junctions are wider than the grid's, so a 12.5 m bus or a
+ * 9.2 m refuse truck passes that filter on many corners and then cannot physically follow them (measured, tests/unit/sim/
+ * realtraffic-turns.test.ts: a bus makes 11 of 443 connectors, a refuse truck 33, a 7 m box truck 440). They run as box trucks.
+ */
+export const MAX_REAL_VEHICLE_LENGTH = 8;
+
 export interface RealTraffic {
   /** hand this to TrafficSystem (and the pedestrian factory) in place of the grid */
   grid: GridModel;
@@ -95,6 +107,10 @@ export interface RealTraffic {
   sidewalks: SidewalkNet;
   /** ids of the sidewalk nodes at crosswalk ends (Pedestrian's `crosswalkNodes`) */
   crosswalkNodes: Set<string>;
+  /** the lane graph builder's full result (chains, connectors) */
+  laneBuild: LaneBuild;
+  /** wraps TrafficSystem's car factory: vehicles longer than MAX_REAL_VEHICLE_LENGTH (buses, refuse trucks) are made as box trucks */
+  fitVehicles: (make: MakeVehicleFn) => MakeVehicleFn;
   /** the walking graph pedestrians use (`sidewalks.graph` minus ring edges over a roadway or a building) */
   walk: Graph;
 }
@@ -115,7 +131,8 @@ function nearestOf<T extends GraphNode>(list: readonly T[], p: Vec2): T {
 }
 
 export function makeRealTraffic(net: RoadNet, d: Derived, sidewalks: SidewalkNet, controlsJson: unknown, startTime = 0): RealTraffic {
-  const lanes = buildLaneGraph(net, d);
+  const laneBuild = buildLaneGraphDetailed(net, d);
+  const lanes = laneBuild.graph;
   const control = nodeControl(net, controlsJson);
   const lights = new RealTrafficLights(net, d, control, startTime);
 
@@ -185,7 +202,9 @@ export function makeRealTraffic(net: RoadNet, d: Derived, sidewalks: SidewalkNet
     isOnRoad: (p: Vec2) => net.isOnRoad(p),
   } as unknown as GridModel;
 
-  return { grid, lights, lanes, sidewalks, crosswalkNodes: sidewalks.crosswalkNodes, walk };
+  const fitVehicles = (make: MakeVehicleFn): MakeVehicleFn => (type, pos, heading, color) =>
+    make(VEHICLE_SPECS[type].length > MAX_REAL_VEHICLE_LENGTH ? 'boxtruck' : type, pos, heading, color);
+  return { grid, lights, lanes, sidewalks, crosswalkNodes: sidewalks.crosswalkNodes, laneBuild, fitVehicles, walk };
 }
 
 /** Async loader for the preview branch: pulls in the controls data only when the real map is on. */

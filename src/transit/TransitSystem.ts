@@ -14,6 +14,8 @@ import type { IMaterialLibrary, StaticCollider } from '@/world/types';
 import { buildEl, type ElBuild, type StationEntrance } from './ElStructure';
 import { buildCarGeometries, makeCar, makeCarMaterials, type CarGeometries, type CarMaterials, type TrainCar } from './TrainCar';
 import { TrainAudio } from './TrainAudio';
+import { carPaintConfigured, carPaintTier } from '@/render/CarPaintFx';
+import { tierConfig } from '@/render/QualityTier';
 import { CAR_COUNT, FLOOR_ABOVE_RAIL, RAIL_Y, STATIONS, TRAINS, carCentres, nextArrival, nextStop, trackZ, trainState, type TrainSpec, type TrainState } from './ElLine';
 
 /** Distance (m) within which a stair foot counts as "at the station" for boarding. */
@@ -153,7 +155,7 @@ export class TransitSystem {
   /** Per frame. `cam` is the camera position; `night` switches the lamps; `force` updates even when nothing is near. */
   update(dt: number, cam: { x: number; y: number; z: number }, night: boolean, force = false): void {
     this.time += dt;
-    const range = TRANSIT_RANGE + Math.max(0, cam.y - 3) * 25;
+    const range = (carPaintConfigured() ? tierConfig(carPaintTier()).transitRange : TRANSIT_RANGE) + Math.max(0, cam.y - 3) * 25; // per tier: the phone's fog and the low tier's chunk range end well before 520 m
     this.night = night;
     // structure sections
     this.el.sections.forEach((s, i) => {

@@ -28,11 +28,14 @@ export function parseLine(text: string, maxChars = 160): Direction[] {
   return out;
 }
 
+const TITLES = /\b(Mr|Mrs|Ms|Dr|St|Sgt|Jr|Sr|Rev|Mt|Lt|Capt|Prof|Fr|vs)\./g;
+
 /** Splits into sentences of at most `max` characters (commas, then spaces, when a sentence is too long). */
 export function splitSentences(text: string, max = 160): string[] {
-  const flat = text.replace(/\s+/g, ' ').trim();
+  // A title's full stop is not a sentence end: "Mrs. Delacroix" was cut into an orphan "Mrs." (spoken as a sentence of its own, falling) and the rest.
+  const flat = text.replace(/\s+/g, ' ').trim().replace(TITLES, '$1\uE000');
   if (!flat) return [];
-  const parts = flat.match(/[^.!?…]+[.!?…]*["')\]]*\s*/g) ?? [flat];
+  const parts = (flat.match(/[^.!?…]+[.!?…]*["')\]]*\s*/g) ?? [flat]).map((p) => p.replace(/\uE000/g, '.'));
   const out: string[] = [];
   for (const raw of parts) {
     let s = raw.trim();

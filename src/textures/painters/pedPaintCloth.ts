@@ -169,7 +169,7 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
     if (denim) { c.mix(GOLD_STITCH, 0.55 * stitch(outer * 0.075 - 0.0055, 0.0018, y) + 0.55 * stitch(outer * 0.075 + 0.0055, 0.0018, y)); }
     if (kind === 'sweats' || kind === 'leggings') { }
     // cuff or hem
-    const hemY = kind === 'shorts' ? K.knY + 0.09 : K.anY + 0.015, d = y - hemY;
+    const hemY = kind === 'shorts' ? K.knY + 0.09 : 0.07, d = y - hemY;      // 0.07 = HEM_Y in pedLegs.ts, the geometric cuff's lower edge (the cuff is 3 cm tall)
     if (kind === 'sweats' || kind === 'cargo' && false) {
       if (d < 0.1) { const rib = 0.5 + 0.5 * Math.sin(U * 520); c.mix(K.botTrim, 0.85 * sst(0.095, 0.07, d)); c.mul(0.9 + 0.12 * rib * sst(0.095, 0.07, d)); }
       c.mul(1 - 0.16 * g2(d - 0.108, 0.01) * (kind === 'sweats' ? 1 : 0));

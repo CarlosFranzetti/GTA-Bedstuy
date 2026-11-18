@@ -130,6 +130,8 @@ export interface LaneNode extends GraphNode {
   /** true if this node is where a lane enters an intersection (vehicles yield here) */
   stopLine: boolean;
   intersectionId?: string;
+  /** optional speed cap (m/s) while this node is the target (the real map slows a turn's last stretch, which crosses the exit crosswalk) */
+  maxSpeed?: number;
 }
 export interface LaneGraph extends Graph { nodes: Record<string, LaneNode>; }
 

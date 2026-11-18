@@ -14,6 +14,9 @@ export const PHONE_HIDDEN_MESH = /^(buildings:(metalDark|waterTank|scaffold|corr
 /** Facade trim meshes of the building cells (and, on the real map, its street-name blades, stop signs and signal heads: a draw per chunk each, unreadable past ~150 m): thin material groups that ChunkCuller stops drawing beyond the tier's `buildingTrimDist` (a draw call per cell each, a few pixels wide out there). */
 export const TRIM_MESH = /^(buildings:(window|awning|sf:awning|cornice|stoop|rollGate|storefrontGlass|sf:sign|sf:board|sign:|graffiti|chainlinkRail)|props:(sign:|stopsigns|signal-)|signal-(poles|lamps)|lime:globe)/;
 
+/** The smallest trim classes (shop signs, signboards, tags: a draw per sign and per cell, a few pixels high past 60 m): ChunkCuller drops them at `TRIM_SMALL_FRACTION` of the trim range. */
+export const TRIM_SMALL_MESH = /^buildings:(sf:sign|sf:board|sign:|graffiti)/;
+
 /** Layer the hidden meshes live on (the cameras only draw layer 0). */
 export const HIDDEN_LAYER = 5;
 
@@ -29,3 +32,10 @@ export function setPhoneDetailHidden(root: THREE.Object3D, hidden: boolean): num
   });
   return n;
 }
+
+/**
+ * Thin decal and alpha-cut classes that are not in the shadow-proxy stand-ins (they cannot be: alpha test) and are a draw call
+ * each in the shadow pass for a shadow nobody can see at a 10 cm texel: graffiti, party-wall decals, shop stickers, wires, chain
+ * link, skid marks. (Iron railings keep casting: their shadow on a stoop is part of the street.) applyShadowFlags (Shadows.ts) applies it.
+ */
+export const NO_SHADOW_MESH = /^(props:(graffiti|wires|wiresClutter|chainlink)|buildings:(graffiti|party-wall-decal|sf:stickers|chainlinkRail|chainlinkFence)|skid-marks)/;

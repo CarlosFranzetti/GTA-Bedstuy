@@ -103,7 +103,8 @@ function box4(buf: Buf, x0: number, z0: number, x1: number, z1: number, y0: numb
   buf.quad([x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], uvOf(z1 - z0, y1 - y0), colour);
 }
 
-export function buildSkylineGeometry(blocks: readonly SkylineBlock[], bounds: GridBounds): THREE.BufferGeometry {
+/** `lite` (the low tier): walls and roofs only. The cornice band, parapet lip, tanks and masts are under a pixel at 400 m and more, and are two thirds of the triangles. */
+export function buildSkylineGeometry(blocks: readonly SkylineBlock[], bounds: GridBounds, lite = false): THREE.BufferGeometry {
   const buf = new Buf();
   const rng = new Rng('skyline-uv');
   for (const b of blocks) {
@@ -120,6 +121,10 @@ export function buildSkylineGeometry(blocks: readonly SkylineBlock[], bounds: Gr
       k++;
       return [u0, v0, u0 + bays / TILES, v0 + floors / TILES] as const;
     }, wall);
+    if (lite) { // the wall runs to the roof: no band, lip, tank or mast
+      buf.quad([x0, hw, z1], [x1, hw, z1], [x1, hw, z0], [x0, hw, z0], SOLID, roof);
+      continue;
+    }
     // cornice band, slightly proud
     const o = 0.4;
     box4(buf, x0 - o, z0 - o, x1 + o, z1 + o, hw, b.h, () => SOLID, band);
@@ -219,9 +224,9 @@ export class SkylineMesh extends THREE.Mesh {
 }
 
 /** Builds the skyline mesh, or null without a DOM canvas (unit tests build the geometry directly). */
-export function createSkyline(bounds: GridBounds, materials: IMaterialLibrary, rng: Rng): THREE.Mesh | null {
+export function createSkyline(bounds: GridBounds, materials: IMaterialLibrary, rng: Rng, lite = false): THREE.Mesh | null {
   const blocks = planSkyline(bounds, rng.fork('plan'));
-  const geometry = buildSkylineGeometry(blocks, bounds);
+  const geometry = buildSkylineGeometry(blocks, bounds, lite);
   let map: THREE.Texture, emissiveMap: THREE.Texture;
   if (typeof document !== 'undefined') {
     const c = paintSkylineAtlas((w, h) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; return cv; }, rng.fork('atlas'));

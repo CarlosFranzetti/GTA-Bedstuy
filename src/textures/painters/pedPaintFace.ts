@@ -220,23 +220,11 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
     o.mix(K.skinWarm, 0.18 * earM * g2(ym + 0.052, 0.008));
   }
 
-  // ---------------------------------------------------------------- hair on the skull, under the hair pieces: a broken hairline, strands, a darker fringe at the roots
-  const bald = s.hair === 'bald';
-  if (!bald || s.hat === 'cap') {
-    const back = sst(0.1, -0.35, fz), side2 = sst(0.05, 0.085, ax);
-    const hl0 = lm.chinY + (lm.crownY - lm.chinY) * (0.77 - 0.2 * side2 - 0.45 * back) + 0.0035 * (vn2(x * 45, 1, 21) - 0.5) * 2 + 0.0015 * (vn2(x * 130, 2, 24) - 0.5) * 2;
-    const lift = s.hair === 'fade' ? 0.06 * (side2 + back * 0.8) : s.hair === 'recede' || s.hair === 'thinning' ? 0.018 * (1 - side2) : 0;
-    const hl = hl0 + lift, feather = 0.008;
-    if (y > hl - 0.012) {
-      const strand = vn2(x * 200 + z * 160, y * 36, 23);
-      // a soft irregular edge, with a few stray strands that reach down into the skin
-      const stray = Math.max(0, vn2(x * 520, y * 26, 25) - 0.7) * 3.3 * sst(hl - 0.012, hl - 0.004, y) * (1 - sst(hl - 0.004, hl + 0.006, y));
-      const root = Math.min(1, sst(hl - 0.002, hl + feather, y) + stray * 0.7);
-      let hc = mixc(mulc(K.hairC, 0.72 + 0.4 * strand), mixc(K.hairC, [255, 255, 255], 0.2), 0.35 * sst(0.4, 1, t.ny) * (1 - strand));
-      if (bald) { hc = mixc(K.skin, K.hairC, 0.2); }
-      o.mix(hc, root * (bald ? 0.5 : 0.96));
-      if (s.hair === 'fade') o.mix(mixc(K.skin, K.hairC, 0.55), 0.4 * sst(hl - 0.03, hl + 0.0, y) * (1 - root));
-    }
+  // ---------------------------------------------------------------- the scalp under the hair meshes: plain skin, a little darker toward the hair colour above the brow line (no painted hairline, strokes or edge)
+  if (s.hair !== 'bald') {
+    const side2 = sst(0.05, 0.085, ax), back = sst(0.1, -0.35, fz);
+    const hl = lm.chinY + (lm.crownY - lm.chinY) * (0.8 - 0.1 * side2 - 0.4 * back);
+    o.mix(mixc(K.skin, K.hairC, 0.3), 0.7 * sst(hl - 0.02, hl + 0.03, y));
   }
 
   // ---------------------------------------------------------------- hats that show on the skull

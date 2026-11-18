@@ -105,7 +105,7 @@ const TURN_SPEED = 6;
 const TURN_SPEED_FAST = 13;
 const TURN_MIN = 0.6;
 /** how far past a node (m) the lane's turn is read from, so a curved connector counts as the turn it makes (see turnLook) */
-const TURN_LOOK = 10;
+const TURN_LOOK = 0;
 /** vehicles longer than this (m) take corners proportionally slower, never below this share of the turn speed */
 const TURN_LEN_REF = 6;
 const TURN_LEN_MIN_SCALE = 0.4;
@@ -455,6 +455,7 @@ export class TrafficAgent {
       }
     }
     if (Math.abs(this.legTurn) > TURN_MIN) desired = Math.min(desired, turnSpeed);
+    if (node.maxSpeed !== undefined) desired = Math.min(desired, node.maxSpeed);
 
     // ---- inside the box: do not pull out in front of cross traffic released by the new phase, and give way when two
     // cars turn into the same lane (the later arrival yields; equal arrival: the lower id hash goes first)

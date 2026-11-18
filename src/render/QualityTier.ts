@@ -35,6 +35,8 @@ export interface TierConfig {
   buildingTrimDist: number;
   /** ChunkCuller far merge: groups of FAR_MERGE_GROUP x FAR_MERGE_GROUP building cells whose every cell is farther than this (m, 3D) draw one coarser mesh per material instead of a mesh per cell and material (PERF3b: the draw budget). Never below the trim distance. Infinity = off */
   buildingMergeDist: number;
+  /** ...and blocks of 4 x 4 cells whose every cell is farther than this draw one coarser mesh per material. Infinity = off. Trim and small-detail classes stay per cell to their own ranges */
+  buildingMergeDist2: number;
   /** CarLod: most full-detail cars drawn at once; the next ones beyond CAR_CLOSE_DIST use the far model (cars within it always keep the full model) */
   carNearMax: number;
   /** InstancedMesh furniture (trees, lamps...) is thinned beyond this (m). Never Infinity: a frustum test on an InstancedMesh is all or nothing, so Infinity draws every tree of the whole city (3 k clouds, 400 k triangles, twice with the shadow pass) */
@@ -59,6 +61,8 @@ export interface TierConfig {
   blobShadows: boolean;
   /** night-time quarter-resolution bloom on emissive signs: frame rate (fps) the device must reach to get it; null = this tier has its own bloom / none */
   signBloomFps: number | null;
+  /** TransitSystem: the elevated line, its props and trains are drawn within this range (m) of the camera (the draw range that was 520 m everywhere) */
+  transitRange: number;
   traffic: TierTraffic;
 }
 
@@ -68,23 +72,27 @@ export const SIGN_BLOOM_OFF_FPS = 38;
 
 export const TIER_CONFIG: Record<Quality, TierConfig> = {
   phone: {
-    maxPixelRatio: 1, maxBufferWidth: 720, cullDistance: 110, carNearDist: 14, carNearMax: 3, buildingFarDist: 50, buildingTrimDist: 40, buildingMergeDist: 80, instanceDistance: 80, pedDistance: 55,
+    maxPixelRatio: 1, maxBufferWidth: 720, cullDistance: 110, carNearDist: 14, carNearMax: 3, buildingFarDist: 50, buildingTrimDist: 40, buildingMergeDist: 80, buildingMergeDist2: Infinity, instanceDistance: 80, pedDistance: 55,
     fog: { near: 30, far: 100 }, rainStreaks: 200, anisotropy: 2, normalMaps: false, simpleGeometry: true, stars: false, minimapHz: 30, blobShadows: true, signBloomFps: SIGN_BLOOM_ON_FPS,
+    transitRange: 140,
     traffic: { maxMoving: 10, peds: 14, parkOccupancy: 0.3, cops: 1 },
   },
   low: {
-    maxPixelRatio: 1.25, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 40, carNearMax: 8, buildingFarDist: 60, buildingTrimDist: 150, buildingMergeDist: 150, instanceDistance: 160, pedDistance: 220,
+    maxPixelRatio: 1.25, maxBufferWidth: Infinity, cullDistance: 190, carNearDist: 40, carNearMax: 8, buildingFarDist: 48, buildingTrimDist: 110, buildingMergeDist: 60, buildingMergeDist2: 190, instanceDistance: 160, pedDistance: 220,
     fog: null, rainStreaks: 600, anisotropy: 16, normalMaps: true, simpleGeometry: false, stars: true, minimapHz: 0, blobShadows: false, signBloomFps: null,
+    transitRange: 380,
     traffic: { maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 },
   },
   medium: {
-    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 52, carNearMax: 14, buildingFarDist: Infinity, buildingTrimDist: Infinity, buildingMergeDist: Infinity, instanceDistance: 170, pedDistance: 220,
+    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 52, carNearMax: 14, buildingFarDist: Infinity, buildingTrimDist: Infinity, buildingMergeDist: Infinity, buildingMergeDist2: Infinity, instanceDistance: 170, pedDistance: 220,
     fog: null, rainStreaks: 1200, anisotropy: 16, normalMaps: true, simpleGeometry: false, stars: true, minimapHz: 0, blobShadows: false, signBloomFps: null,
+    transitRange: 520,
     traffic: { maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 },
   },
   high: {
-    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 72, carNearMax: 24, buildingFarDist: Infinity, buildingTrimDist: Infinity, buildingMergeDist: Infinity, instanceDistance: 320, pedDistance: 220,
+    maxPixelRatio: 1.75, maxBufferWidth: Infinity, cullDistance: 220, carNearDist: 72, carNearMax: 24, buildingFarDist: Infinity, buildingTrimDist: Infinity, buildingMergeDist: Infinity, buildingMergeDist2: Infinity, instanceDistance: 320, pedDistance: 220,
     fog: null, rainStreaks: 2000, anisotropy: 16, normalMaps: true, simpleGeometry: false, stars: true, minimapHz: 0, blobShadows: false, signBloomFps: null,
+    transitRange: 520,
     traffic: { maxMoving: 30, peds: 40, parkOccupancy: 0.65, cops: 2 },
   },
 };

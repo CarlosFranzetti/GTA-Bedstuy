@@ -8,6 +8,10 @@ import { playHorn, aim, unaim, EngineNodes, ENGINE_TUNING } from '@/audio/vehicl
 import { sirenGateOpen, sirenHz, HORNS } from '@/audio/vehicle/hornModel';
 import { ENGINE_VOICES, EngineSim, engineMix, SHIFT_LOAD } from '@/audio/vehicle/engineModel';
 import type { Clip, TtsEngine } from '@/audio/voice/types';
+import { PedVoicePlayer } from '@/audio/voice/peds/PedVoicePlayer';
+import { planSpeech, pedRhythmId } from '@/audio/voice/prosody';
+import { rhythmFor } from '@/audio/voice/rhythm';
+import { clipKey, splitSentences } from '@/audio/voice/script';
 
 /* ---------- a recording fake of the Web Audio pieces these tests touch ---------- */
 
@@ -185,5 +189,44 @@ describe('per-speaker tuning', () => {
     expect(new Set(rates.map((r) => r.toFixed(3))).size).toBe(3); // dev, lucho and garrett all use am_eric
     expect(Math.max(...rates)).toBeLessThan(1.13);
     expect(Math.min(...rates)).toBeGreaterThan(0.89);
+  });
+});
+
+describe('pedestrian speech timeline', () => {
+  it('places the next phrase by the length the clip really has on the timeline: playbackRate times 2^(detune/1200), not playbackRate alone', async () => {
+    const proxyNode = (): unknown => new Proxy(function () { /* node */ } as unknown as Record<string, unknown>, { get: (t, k: string) => (k in t ? t[k] : (t[k] = proxyNode())), set: (t, k: string, v: unknown) => { t[k] = v; return true; }, apply: () => proxyNode() });
+    const recs: Array<{ at: number; dur: number; rate: number; detune: number }> = [];
+    const ctx = {
+      currentTime: 0, sampleRate: 24000,
+      createBuffer: (_c: number, len: number, sr: number) => ({ duration: len / sr, copyToChannel: () => undefined, getChannelData: () => new Float32Array(len) }),
+      createBufferSource: () => { const r = { at: -1, dur: 0, rate: 1, detune: 0 }; recs.push(r); const n = { connect: () => undefined, disconnect: () => undefined, start: (t: number) => { r.at = t; }, stop: () => undefined, set buffer(b: { duration: number }) { r.dur = b.duration; }, playbackRate: { set value(v: number) { r.rate = v; } }, detune: { set value(v: number) { r.detune = v; } } }; return n; },
+      createGain: proxyNode, createBiquadFilter: proxyNode, createAnalyser: proxyNode, createConvolver: proxyNode, createDynamicsCompressor: proxyNode, createWaveShaper: proxyNode, createOscillator: proxyNode, createStereoPanner: proxyNode, createDelay: proxyNode,
+    };
+    const voice = { kokoro: 'am_eric' as const, speed: 1, fx: 'dry' as const, playbackRate: 1, detune: 200, sys: { role: 'host' as const, pitch: 1, rate: 1 } };
+    const text = 'Sorry, sorry, coming through, bike on your left!';
+    const phrases = planSpeech(text, pedRhythmId(voice.kokoro), voice.speed, rhythmFor(pedRhythmId(voice.kokoro)));
+    expect(phrases.length).toBeGreaterThan(1);
+    const keys = new Set(phrases.map((p) => clipKey(p.text, voice.kokoro, p.speed)));
+    const player = new PedVoicePlayer({
+      ctx: () => ctx as unknown as AudioContext, dest: () => ({}) as AudioNode, pack: () => ({ has: (k: string) => keys.has(k), get: async () => clip(1) }) as never,
+      cache: new ClipCache(null), engine: () => null, speech: null, makeUtterance: () => ({}) as never, volume: () => 1,
+    });
+    const h = player.begin({ speakerId: 'p', lineId: 'l', text, who: 'Passerby', cls: 'ambient', priority: 1, dist: 3, toPlayer: false, voice, dueAt: 0 }, { started: () => undefined, viseme: () => undefined, ended: () => undefined } as never);
+    for (let i = 0; i < 80; i++) await Promise.resolve();
+    expect(recs.length).toBe(phrases.length);
+    const real = 2 ** (200 / 1200); // +200 cents: the clip plays 12 % faster, so a 1 s clip is 0.89 s long
+    for (let i = 0; i + 1 < recs.length; i++) {
+      const spacing = recs[i + 1].at - recs[i].at;
+      expect(spacing).toBeCloseTo(recs[i].dur / real + phrases[i].gap, 3);
+    }
+    h.cancel();
+  });
+});
+
+describe('sentence splitting', () => {
+  it('a title is not a sentence end: "Mrs. Delacroix, you have ninety seconds." stays one sentence (it used to leave an orphan "Mrs.")', () => {
+    expect(splitSentences('Mrs. Delacroix, you have ninety seconds.')).toEqual(['Mrs. Delacroix, you have ninety seconds.']);
+    expect(splitSentences('Thank you, Mr. Abernathy. Dr. Okafor will speak. That is all.')).toEqual(['Thank you, Mr. Abernathy.', 'Dr. Okafor will speak.', 'That is all.']);
+    expect(splitSentences('Good morning. Fulton Street is closed.')).toEqual(['Good morning.', 'Fulton Street is closed.']);
   });
 });

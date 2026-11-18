@@ -4,12 +4,15 @@
  * structure that makes them (far building merge, small-prop range, instanced pickups, trim classes) from silently regressing.
  */
 import { describe, it, expect } from 'vitest';
+import { appendFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { TIER_BUDGET, TIER_CONFIG } from '@/render/QualityTier';
-import { ChunkCuller, DistanceCuller, FAR_MERGE_GROUP, SMALL_PROP_FRACTION, SMALL_PROP_MESH, chunkRangeFor, cullDistanceFor } from '@/render/Culling';
+import { ChunkCuller, DistanceCuller, FAR_MERGE_GROUP, SMALL_PROP_FRACTION, SMALL_PROP_MESH, TINY_PROP_FRACTION, TRIM_SMALL_FRACTION, chunkRangeFor, cullDistanceFor } from '@/render/Culling';
 import { TRIM_MESH } from '@/render/TierGeometry';
 import { PickupInstances, MAX_PICKUP_INSTANCES } from '@/game/combat/pickupView';
 import type { PickupDef } from '@/game/combat/pickups';
+import { mergeSideClasses, type StaticProxy } from '@/render/AoProxy';
+import { buildSkylineGeometry, planSkyline } from '@/world/Skyline';
 import { buildWorld } from '@/world/WorldBuilder';
 import { loadBedstuyData } from '@/world/Grid';
 import { Rng } from '@/core/Rng';
@@ -98,10 +101,35 @@ describe('far building merge (ChunkCuller)', () => {
     });
   });
 
+  it('the 4 x 4 block replaces its 2 x 2 blocks far out: fewer draws again, and no cell is drawn twice', () => {
+    withBuilds(() => {
+      const draw = (two: number): { n: number; levels: Set<number>; double: number } => {
+        const { group, cells } = cityBlock(8, 8);
+        const cc = new ChunkCuller(5000); cc.farOverride = 60; cc.trimOverride = 150; cc.mergeOverride = 150; cc.mergeOverride2 = two;
+        for (const m of cells) cc.add(m);
+        cc.update(20, 20, 2); cc.update(20, 20, 2);
+        const shown = drawn(group, null);
+        const merged = shown.filter((m) => m.userData.farMerged);
+        let double = 0;
+        for (const c of shown.filter((m) => !m.userData.farMerged)) {
+          const centre = new THREE.Box3().setFromObject(c).getCenter(new THREE.Vector3());
+          for (const m of merged) if (new THREE.Box3().setFromObject(m).containsPoint(centre)) double++;
+        }
+        return { n: shown.length, levels: new Set(merged.map((m) => m.userData.mergeLevel as number)), double };
+      };
+      const one = draw(Infinity), both = draw(300);
+      expect(one.levels).toEqual(new Set([0]));
+      expect(both.levels.has(1)).toBe(true);
+      expect(both.n).toBeLessThan(one.n);
+      expect(one.double + both.double).toBe(0);
+    });
+  });
+
   it('is off for tiers without a merge range and cleans up its meshes', () => {
     withBuilds(() => {
-      expect(TIER_CONFIG.medium.buildingMergeDist).toBe(Infinity);
-      expect(TIER_CONFIG.high.buildingMergeDist).toBe(Infinity);
+      for (const q of ['medium', 'high'] as const) { expect(TIER_CONFIG[q].buildingMergeDist).toBe(Infinity); expect(TIER_CONFIG[q].buildingMergeDist2).toBe(Infinity); }
+      expect(TIER_CONFIG.low.buildingMergeDist2).toBeGreaterThan(TIER_CONFIG.low.buildingMergeDist);
+      expect(TIER_CONFIG.low.buildingMergeDist).toBeGreaterThanOrEqual(TIER_CONFIG.low.buildingFarDist + 12);
       const { group, cells } = cityBlock(4, 4);
       const cc = new ChunkCuller(5000); cc.farOverride = 60; cc.trimOverride = 150; cc.mergeOverride = 150;
       for (const m of cells) cc.add(m);
@@ -124,13 +152,52 @@ describe('small prop classes use a shorter range', () => {
     dc.update(0, 0);
     expect(wires.visible).toBe(false); expect(bags.visible).toBe(false);
     expect(poles.visible).toBe(true); expect(trunk.visible).toBe(true); expect(nearWires.visible).toBe(true);
-    expect(SMALL_PROP_FRACTION).toBeLessThan(0.7);
+    expect(SMALL_PROP_FRACTION).toBeLessThan(0.7); expect(TINY_PROP_FRACTION).toBeLessThan(SMALL_PROP_FRACTION);
     for (const n of ['props:wires', 'props:bags', 'props:wiresClutter', 'props:graffiti:0', 'props:clutter-flat-r2', 'props:metalDark', 'props:cone']) expect(SMALL_PROP_MESH.test(n)).toBe(true);
     for (const n of ['props:poles', 'props:treeTrunk', 'props:fences', 'props:billboards']) expect(SMALL_PROP_MESH.test(n)).toBe(false);
   });
   it('signal poles and lamps and the lime-line globes are trim classes (dropped beyond the trim range, a draw per cell each)', () => {
     for (const n of ['signal-poles', 'signal-lamps', 'lime:globe']) expect(TRIM_MESH.test(n)).toBe(true);
     expect(TRIM_MESH.test('el:section-3')).toBe(false);
+  });
+});
+
+describe('shadow and skyline stand-ins', () => {
+  const tri = (a: number): THREE.BufferGeometry => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([a, 0, 0, a + 1, 0, 0, a, 1, 0], 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1], 3)); g.setIndex([0, 1, 2]); return g; };
+  it('the three side classes of a shadow cell become one front-side mesh (a back-side class is the same triangles reversed, a double-sided one is both)', () => {
+    const proxies: StaticProxy[] = [
+      { geometry: tri(0), side: THREE.FrontSide, cell: '1_1' }, { geometry: tri(2), side: THREE.BackSide, cell: '1_1' }, { geometry: tri(4), side: THREE.DoubleSide, cell: '1_1' },
+      { geometry: tri(6), side: THREE.FrontSide, cell: '2_1' },
+    ];
+    const out = mergeSideClasses(proxies);
+    expect(out.length).toBe(2);
+    expect(out.every((p) => p.side === THREE.FrontSide)).toBe(true);
+    const cell = out.find((p) => p.cell === '1_1')!;
+    expect(cell.geometry.index!.count / 3).toBe(1 + 1 + 2);
+    // the back-side triangle's winding is reversed in the merged index
+    const idx = Array.from(cell.geometry.index!.array);
+    expect(idx.slice(3, 6)).toEqual([3, 5, 4]);
+  });
+  it('the low tier skyline is walls and roofs only: less than half the triangles of the full ring', () => {
+    const bounds = { minX: -300, maxX: 300, minZ: -300, maxZ: 300 } as never;
+    const blocks = planSkyline(bounds, new Rng('perf3b'));
+    const count = (g: THREE.BufferGeometry): number => g.index!.count / 3;
+    const full = buildSkylineGeometry(blocks, bounds), lite = buildSkylineGeometry(blocks, bounds, true);
+    expect(blocks.length).toBeGreaterThan(200);
+    expect(count(lite)).toBeLessThan(count(full) * 0.5);
+  });
+  it('signs and tags drop at a share of the trim range, windows at all of it', () => {
+    const mk = (name: string): THREE.Mesh => { const m = new THREE.Mesh(new THREE.BoxGeometry(100, 20, 80).translate(0, 10, 0), new THREE.MeshBasicMaterial()); m.name = name; m.userData = { cell: '0_0', chunk: '0_0' }; m.updateMatrixWorld(true); return m; };
+    const win = mk('buildings:window:0'), sign = mk('buildings:sign:TEST|#fff'), wall = mk('buildings:brickRed:0');
+    const cc = new ChunkCuller(5000); cc.farOverride = Infinity; cc.trimOverride = 110; cc.mergeOverride = Infinity;
+    for (const m of [win, sign, wall]) cc.add(m);
+    cc.update(0, 100, 2); // 60 m from the cell edge
+    expect(win.visible).toBe(true); expect(sign.visible).toBe(true);
+    const d = 110 * TRIM_SMALL_FRACTION + 10;
+    cc.update(0, 40 + d, 2);
+    expect(sign.visible).toBe(false); expect(win.visible).toBe(true); expect(wall.visible).toBe(true);
+    cc.update(0, 40 + 130, 2);
+    expect(win.visible).toBe(false); expect(wall.visible).toBe(true);
   });
 });
 
@@ -199,7 +266,7 @@ describe('the city meshes at the home spawn stay inside their share of the tier 
   it.each(['phone', 'low'] as const)('%s: buildings, props and signals', (tier) => {
     const w = worldAtSpawn(tier);
     // eslint-disable-next-line no-console
-    if (process.env.PERF3B_PRINT) require("node:fs").appendFileSync(process.env.PERF3B_PRINT, tier + " " + JSON.stringify(w) + "\n");
+    if (process.env.PERF3B_PRINT) appendFileSync(process.env.PERF3B_PRINT, tier + " " + JSON.stringify(w) + "\n");
     const limit = LIMITS[tier];
     expect(w.draws.buildings ?? 0).toBeLessThanOrEqual(limit.buildings);
     expect(w.draws.props ?? 0).toBeLessThanOrEqual(limit.props);

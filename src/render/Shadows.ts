@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { NO_SHADOW_MESH } from './TierGeometry';
 
 /** `phone` is the tier below `low` (touch devices): see src/render/QualityTier.ts for every per-tier number. */
 export type Quality = 'phone' | 'low' | 'medium' | 'high';
@@ -160,11 +161,11 @@ export function updateShadowCamera(sun: THREE.DirectionalLight, target: { x: num
   ud._shadowDir.copy(_dir);
 }
 
-/** Sets castShadow / receiveShadow on every Mesh under (and including) `root`. */
+/** Sets castShadow / receiveShadow on every Mesh under (and including) `root`; decal and alpha-cut classes (TierGeometry.NO_SHADOW_MESH) never cast. */
 export function applyShadowFlags(root: THREE.Object3D, cast: boolean, receive: boolean): void {
   root.traverse((o) => {
     if ((o as THREE.Mesh).isMesh) {
-      o.castShadow = cast;
+      o.castShadow = cast && !NO_SHADOW_MESH.test(o.name);
       o.receiveShadow = receive;
     }
   });

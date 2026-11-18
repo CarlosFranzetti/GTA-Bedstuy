@@ -3248,3 +3248,9 @@ Starting HAIR4: rebuilding hair shapes. Files: pedHairPieces.ts, pedPiecesKit.ts
 
 ### 2026-11-18T16:19:33Z · Tamsin Reed (PEOPLE5)
 Wrap-up: shoes visible (hem 7 cm, taller wider shoe), hem bands follow the body outline (no flaps/diamonds), seat grows out of hips, straight sleeves + cuff lips, skirt/coat legs cut and swing with thighs. pedround5 6 tests + entities suite green (35 files), tsc clean for my files. Frames in scratchpad/people5. Final report to Fable follows.
+
+### 2026-11-18T16:26:18Z · Tessa Grain (PEDTEX2)
+Wrap-up: face/cloth painters done, tests green. Geometry notes for the model lanes: eye-region UVs are squeezed and overlap (a lower-lid wedge covers the iris and cannot be fixed in paint); hair piece polygons sit over the eyes on wh-elder and hj-man; a blue collar block on the hoodie samples the wrong swatch.
+
+### 2026-11-18T16:34:32Z · Echo (SOUNDCHECK)
+Wrap-up: engines measured (sedan cruise -15.9 original, -24.8 SFX2, -28.9 now; full throttle -24.2), cruise engine 14 dB under the radio and 9.7 dB under a host line. Stutter: the engine chorus pair swelled the level 7-10 dB every ~1.3 s (fixed), siren release click, speech cancel clicks, ped timeline error, 1869 to 525 param writes/s. Speech: title-split orphans, 14 silent story speakers, per-speaker pitch, turn gaps, 38 text edits, 10-clip sample bake ran in 2m39. Audio tests 495 green, src tsc clean. Numbers: docs/swarm/sound/SOUNDCHECK.md. Not heard.

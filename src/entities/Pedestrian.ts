@@ -519,7 +519,12 @@ export class Pedestrian implements Entity {
   private pos2(): Vec2 { return this.body.pos; }
 
   private detach(): void {
-    if (this.leader) { this.leader.followers = Math.max(0, this.leader.followers - 1); this.leader.followerBodies.delete(this.body); this.leader = null; }
+    if (this.leader) {
+      this.leader.followers = Math.max(0, this.leader.followers - 1);
+      this.leader.followerBodies.delete(this.body);
+      this.leader = null;
+      this.snapToGraph(); // a follower's own route is where it was dealt out, not where it walks now (it would cross the map in a line)
+    }
   }
 
   private faceTarget(dt: number): void {
