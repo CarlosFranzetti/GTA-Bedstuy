@@ -45,8 +45,8 @@ const DEAD_END_BACK = 3;
 /** turn angle (rad) beyond which a connection counts as a left / right turn rather than straight */
 const TURN_MIN = 0.5;
 /** speed caps (m/s) on a turn connector: 8 on the first half (a pursuit car otherwise takes a 8 m arc at 13), 3.5 on the second half, where it crosses the exit crosswalk */
-const TURN_ENTRY_SPEED = 99;
-const TURN_EXIT_SPEED = 99;
+const TURN_ENTRY_SPEED = 8;
+const TURN_EXIT_SPEED = 3.5;
 /** sharper than this and the connection is a U-turn, only built when a lane would be stranded otherwise */
 const U_TURN = 2.95;
 /** turns sharper than this (~120 deg) are not built unless a lane would otherwise have no way on: a car cannot make them */
