@@ -6,7 +6,7 @@ import type { IMaterialLibrary, MaterialKey } from '@/world/types';
 import { EL_X_EAST, EL_X_WEST, EL_Z } from '@/transit/ElLine';
 import { Forecast, KIND_PARAMS, fogHourFactor, newKindParams, targetsAt, type WeatherKind } from '@/game/WeatherForecast';
 import { newWeatherAudioState, type WeatherAudioSink } from '@/audio/weather/mix';
-import type { Quality } from '@/render/QualityTier';
+import type { Quality } from '@/render/Shadows';
 
 export type { WeatherKind } from '@/game/WeatherForecast';
 export { WEATHER_KINDS } from '@/game/WeatherForecast';
