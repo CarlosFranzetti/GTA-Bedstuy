@@ -7,7 +7,7 @@
  * moment browsers allow audio, so the loading tune can start), onHide when it starts to fade.
  */
 import './loading.css';
-import { BACKDROPS, backdropUrl, type Backdrop } from '@/ui/backdrops';
+import { LOADING_ART, artPool, backdropUrl, isPoster, type Backdrop } from '@/ui/backdrops';
 
 export type StepState = 'pending' | 'active' | 'done' | 'skipped';
 
@@ -197,7 +197,7 @@ export class LoadingScreen {
   private probe(): void {
     const Img = this.doc.defaultView?.Image;
     if (!Img) return;
-    BACKDROPS.forEach((b, i) => {
+    LOADING_ART.forEach((b, i) => {
       const url = backdropUrl(this.doc, b.file);
       if (!url) return;
       const im = new Img();
@@ -205,7 +205,8 @@ export class LoadingScreen {
         if (this.hidden) return;
         this.ready.push(i);
         this.ready.sort((x, y) => x - y);
-        if (this.current < 0) this.show(i);
+        // the first picture to arrive is shown at once; a poster replaces an in-engine shot as soon as it arrives
+        if (this.current < 0 || (isPoster(i) && !isPoster(this.current))) this.show(i);
       };
       im.onerror = (): void => { /* no art in this build: the dark backdrop stays */ };
       im.src = url;
@@ -214,7 +215,7 @@ export class LoadingScreen {
 
   /** Brings shot `i` to the front over the other layer. */
   private show(i: number): void {
-    const b: Backdrop | undefined = BACKDROPS[i];
+    const b: Backdrop | undefined = LOADING_ART[i];
     const url = b ? backdropUrl(this.doc, b.file) : null;
     if (!b || !url) return;
     const next = (this.current < 0 ? this.front : 1 - this.front) as 0 | 1;
@@ -230,9 +231,10 @@ export class LoadingScreen {
   }
 
   private swap(): void {
-    if (this.hidden || this.ready.length < 2) return;
-    const at = this.ready.indexOf(this.current);
-    this.show(this.ready[(at + 1) % this.ready.length]!);
+    const pool = artPool(this.ready);
+    if (this.hidden || pool.length < 2) return;
+    const at = pool.indexOf(this.current);
+    this.show(pool[(at + 1) % pool.length]!);
   }
 
   private nextTip(): void {

@@ -3209,3 +3209,24 @@ Wrap-up: action button built (fists, bottle/brick throw, pistol, pickups, HUD ha
 
 ### 2026-11-12T20:18:38Z · Vesper (SHOTS2)
 Wrap-up: five backdrops now in public/art (about 105 to 112 kB each, 1920 wide webp), focal pos and two captions updated in src/ui/backdrops.ts, backdrops test 4/4 green, tsc clean, single-file index.html 10.09 MB (art stays as files). scripts/shots-plan.mjs fixed (bodies() is iterable; do not press Space in it, that starts audio and the page grows past 12 GB and dies). Frames and title screenshots in scratchpad/shots3.
+
+### 2026-11-18T15:29:41Z · Tessa Grain (PEDTEX2)
+Starting PEDTEX2: face and cloth painters. Files: src/textures/painters/pedSkinPaint.ts, pedPaint{Shared,Face,Cloth,Body,Shade,Swatch}.ts, tests/unit/textures/ped-skin-paint.test.ts + ped-painter.test.ts, scripts/people-showcase.*. Not touching src/entities/models/**.
+
+### 2026-11-18T15:29:43Z · Echo (SOUNDCHECK)
+Starting SOUNDCHECK: measuring engines (steady + 2 min drives), street mix balance, stutter hunt, speech rhythm. Files: src/audio/**, tests/unit/audio, scripts/sfx2-*, new measuring scripts, docs/swarm/sound/SOUNDCHECK.md. Not combat/sfx.ts, not main.ts.
+
+### 2026-11-18T15:29:46Z · Mara Voss (HAIR3)
+Starting HAIR3: finishing the hair shapes (pedHairPieces.ts, pedGear.ts glasses, pedpieces test and showcase) and wiring pieces into pedMesh.geometryFor (small exact edits only; PEOPLE5 owns the other functions). Frames in scratchpad/hair3.
+
+### 2026-11-18T15:29:50Z · Tamsin Reed (PEOPLE5)
+Starting PEOPLE5: shoes visible from chase cam, hem band rings, seat/leg blend, sleeve cuts. Files: pedLegs.ts, pedBodyTypes.ts, pedGarments.ts, pedMesh.ts (body/sleeve/hem/shoe code only), pedround5 test, people-showcase.
+
+### 2026-11-18T15:29:52Z · Dara Quint (PERF3b)
+Start: PERF3b budget pass (phone/low triangles+draws at 4 viewpoints). Taking src/render/Culling.ts, CarLod.ts, TierConfig/QualityTier.ts, PedLod constants in pedBodyHi.ts, src/game/combat/view.ts (instancing only), a new scripts/perf3-breakdown.cjs and tests/unit/render/perf3-budget.test.ts. Not touching pedMesh/pedLegs/hair/lanes/trafficReal/main.ts.
+
+### 2026-11-18T15:29:57Z · Mara Quill (PLAYTEST17)
+Starting QA pass. Building current tree into scratch dir; writing only playtests/p17/ and scratch. No src edits.
+
+### 2026-11-18T15:30:44Z · Wren (ACTION2)
+Starting ACTION2: punch animation (anim/controller.ts keyAction), muzzle flash/tracer + reticle + aimBias (combat/view.ts, Combat.ts, core/Camera.ts aimBias hook only), hands persistence (ui/GameSave.ts + combat/items.ts), car HUD dim (Hud.ts), real-map pickups (combat/pickups.ts), combat sfx levels (combat/sfx.ts), ped face-then-flee (Pedestrian.ts flee/hitBy). Not touching main.ts, models, roadnet lanes/trafficReal.

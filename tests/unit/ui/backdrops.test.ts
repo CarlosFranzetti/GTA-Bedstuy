@@ -45,4 +45,15 @@ describe('backdrop shots', () => {
     void cr;
     parent.remove();
   });
+
+  it('the loading screen cycles posters only once one has loaded, and the shots until then', async () => {
+    const { BACKDROPS, POSTERS, LOADING_ART, artPool, isPoster } = await import('@/ui/backdrops');
+    expect(LOADING_ART.length).toBe(BACKDROPS.length + POSTERS.length);
+    expect(LOADING_ART.slice(0, BACKDROPS.length)).toEqual([...BACKDROPS]); // shot indexes are unchanged
+    expect(artPool([0, 2, 3])).toEqual([0, 2, 3]);
+    const p0 = BACKDROPS.length;
+    expect(isPoster(p0)).toBe(true);
+    expect(artPool([0, 2, p0, p0 + 3])).toEqual([p0, p0 + 3]);
+    for (const p of POSTERS) expect(p.file).toMatch(/^loading\/poster-[a-z]+\.webp$/);
+  });
 });

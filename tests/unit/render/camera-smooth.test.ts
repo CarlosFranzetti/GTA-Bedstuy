@@ -77,8 +77,10 @@ describe('follow camera smoothness', () => {
 
   it('pulls in against a wall over a few frames instead of one pop, and never ends inside it', () => {
     const wall = { raycast: () => null, raycastStatic: () => ({ dist: 2 }) };
+    const open = { raycast: () => null, raycastStatic: () => null };
     const cam = new ThirdPersonCamera(); const input = fake();
-    for (let i = 0; i < 60; i++) cam.update(1 / 60, { x: 0, z: 0 }, 0, 'foot', input);
+    // the game always passes the world; a wall then comes into range (a first frame with a world snaps, as a spawn should)
+    for (let i = 0; i < 60; i++) cam.update(1 / 60, { x: 0, z: 0 }, 0, 'foot', input, { world: open });
     const d0 = Math.abs(cam.camera.position.z);
     cam.update(1 / 60, { x: 0, z: 0 }, 0, 'foot', input, { world: wall });
     const d1 = Math.abs(cam.camera.position.z);

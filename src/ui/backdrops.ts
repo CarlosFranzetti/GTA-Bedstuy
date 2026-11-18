@@ -21,6 +21,29 @@ export const BACKDROPS: readonly Backdrop[] = [
   { file: 'shot-avenue.webp', caption: 'An avenue at blue hour', pos: '50% 50%' },
 ];
 
+/**
+ * Illustrated loading posters (public/art/loading/*.webp): original graphic-novel style pictures, one character and one place
+ * each. The loading screen prefers them: as soon as one has loaded it shows posters only; until then, and in a build without
+ * them, the in-engine shots above stand in. The prompts they are made from are in docs/swarm/art/loading-prompts.md.
+ */
+export const POSTERS: readonly Backdrop[] = [
+  { file: 'loading/poster-taxi.webp', caption: 'A woman leaning on a yellow taxi at sunset', pos: '50% 40%' },
+  { file: 'loading/poster-grocer.webp', caption: 'A grocer outside his corner shop in the morning', pos: '50% 40%' },
+  { file: 'loading/poster-rider.webp', caption: 'A delivery rider under the elevated line at night', pos: '50% 45%' },
+  { file: 'loading/poster-dj.webp', caption: 'A radio DJ at the decks at dusk', pos: '50% 40%' },
+  { file: 'loading/poster-stoop.webp', caption: 'Two friends on a stoop on a summer afternoon', pos: '50% 45%' },
+  { file: 'loading/poster-detective.webp', caption: 'A detective by an unmarked car in the rain', pos: '50% 40%' },
+];
+
+/** Everything the loading screen may show: the shots first (their indexes are those of BACKDROPS), then the posters. */
+export const LOADING_ART: readonly Backdrop[] = [...BACKDROPS, ...POSTERS];
+export const isPoster = (i: number): boolean => i >= BACKDROPS.length;
+/** The pictures to cycle through, given the indexes (into LOADING_ART) that have loaded: posters only once any poster is in. */
+export function artPool(ready: readonly number[]): number[] {
+  const posters = ready.filter(isPoster);
+  return posters.length > 0 ? posters : [...ready];
+}
+
 /** URL of a backdrop file next to the page (relative, so it works from a sub-path and from the native shell). */
 export function backdropUrl(doc: Document, file: string): string | null {
   try { return new URL(`art/${file}`, doc.baseURI).href; } catch { return null; }
