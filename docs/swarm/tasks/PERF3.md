@@ -47,3 +47,6 @@ Scratch `.../scratchpad/perf3b/before/t0-grid-low-{home,junction,el,row}.png` an
 
 ## Tests
 `tests/unit/render/perf3b-budget.test.ts` (far merge incl. no double draw, small-prop range, trim classes, shadow side merge, lite skyline, instanced pickups, buildings/props/signals draws and skyline triangles at the home spawn computed in node for phone and low). Existing quality-tier test updated for low cull distance 190.
+
+## Medium (not worked on; the page now loads on this box)
+home 1,076k / 794, junction 1,322k / 881, el 783k / 655, row 495k / 292 against 1,200k / 320: draws are far over at three views and the junction is over on triangles. Medium and high keep full per-cell building draws to 520 m by design; the far merge could be switched on for medium with `buildingMergeDist: 150, buildingMergeDist2: 300` in QualityTier.ts (not measured).

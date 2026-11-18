@@ -2,6 +2,7 @@
  * Layering of the body below the head: which of skin, shoe, trousers and top covers a texel, with soft edges. The hem of a top,
  * the neckline, the sleeve end and the top of the shoe are each one level line round the body whatever the bone weights say.
  */
+import { shortsLen } from './ped';
 import { Px, sst } from './pedPaintShared';
 import type { Look, Tex } from './pedPaintShared';
 import { paintSkinBody, paintShoeSkin, paintBottom, paintTop } from './pedPaintCloth';
@@ -23,7 +24,7 @@ export function paintBody(K: Look, t: Tex, o: Px): void {
   const neckY = (k === 'hoodie' || k === 'puffer' || k === 'tracksuit' || k === 'jacket' ? 1.512 : 1.498) - cdip * fr0 * (1 - sst(0.04, 0.1, ax))
     + (K.open && fr0 > 0.3 ? -0.05 * (1 - sst(0.0, 0.09, ax)) : 0) + 0.03 * sst(0.05, 0.1, ax);
   const shoeTop = K.shoeTop;
-  const hemBot = bot.kind === 'shorts' ? K.knY + 0.09 : bot.kind === 'skirt' ? 9 : -9;
+  const hemBot = bot.kind === 'shorts' ? K.knY + shortsLen(bot.cut) : bot.kind === 'skirt' ? 9 : -9;
   let aTop = 0, aBot = 0, aShoe = 0;
   if (arm) { aTop = sleeves === 'none' || outerArms === null || hand ? 0 : sst(sleeveEnd - eps, sleeveEnd + eps, y); }
   else if (leg) {

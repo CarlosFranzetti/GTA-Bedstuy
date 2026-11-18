@@ -20,7 +20,7 @@ import type { IMaterialLibrary } from '@/world/types';
 import { createGltfLoader, warnOnce } from './gltf/loader';
 import type { HiTile } from '@/textures/painters/pedHi';
 import { SK_RECTS, bakeSkin } from '@/textures/painters/pedSkinPaint';
-import { PED_SPECS, pedVariantIndex, type PedSpec, type PxRect } from '@/textures/painters/ped';
+import { PED_SPECS, pedVariantIndex, shortsLen, skirtShape, type PedSpec, type PxRect } from '@/textures/painters/ped';
 import { pickWardrobeVariant } from '@/textures/painters/pedWardrobe';
 import { FAR_DIST, MID_DIST, PedLod, buildPedModel as buildProcedural, pedPhone, type PedDetail } from './pedBodyHi';
 import { hijabShell } from './pedGarments';
@@ -204,12 +204,12 @@ function bodyParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
   const seg = hiDetail ? 16 : 9;
   const hip = s.hipRings, tor = s.torsoRings;
   if (spec.bottom.kind === 'skirt') {
-    const top = hip[hip.length - 1], hem = s.landmarks.crownY * (spec.bottom.long ? 0.12 : spec.top.kind === 'dress' ? 0.25 : 0.31), waist = tor[0];
+    const sk = skirtShape(spec.bottom, spec.top.kind === 'dress'), top = hip[hip.length - 1], hem = s.landmarks.crownY * sk.hem, waist = tor[0];
     const hw = peopleMode() === 'skin' ? Math.max(0.95, bodyTypeOf(spec).hips) : 1;
     // the top ring sits inside the dressed waist so the skirt grows out of the body (no shelf); pleats and hem are the lower rows of the pelvis tile
     const skirtRect = SK_RECTS.pelvis;
     out.push(swingSkirt(loft([
-      { y: hem, rx: (top[1] + 0.1) * hw, rz: top[3] + 0.1, cz: top[2] }, { y: (hem + top[0]) / 2, rx: (top[1] + 0.05) * hw, rz: top[3] + 0.05, cz: top[2] },
+      { y: hem, rx: (top[1] + sk.o1) * hw, rz: top[3] + sk.o1, cz: top[2] }, { y: (hem + top[0]) / 2, rx: (top[1] + sk.o2) * hw, rz: top[3] + sk.o2, cz: top[2] },
       { y: top[0] - 0.01, rx: (top[1] + 0.022) * hw, rz: top[3] + 0.022, cz: top[2] }, { y: waist[0] + 0.05, rx: waist[1] * 0.985, rz: waist[3] * 0.985, cz: waist[2] },
     ], seg, skirtRect, 1), waist[0] + 0.05, hem));      // PEOPLE5: the hem follows the thighs, so a leg never walks out of the front of a skirt
   }
@@ -451,7 +451,7 @@ export function dressLod(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): M
     const tk = (THICK_SKIN[top.kind] ?? 0), tb = THICK_BOT_SKIN[bot.kind] ?? 0, hemTop = topHemY(s, spec);
     const sleeveCut = top.sleeves === 'short' ? elY + (shY - elY) * 0.42 : top.sleeves === 'long' ? wrY + 0.06 : (top.kind === 'jersey' ? shY - 0.05 : 9);
     const baggy = ['puffer', 'hoodie', 'jacket', 'cardigan', 'tracksuit'].includes(top.kind);
-    const shortsEnd = knY + 0.1;
+    const shortsEnd = knY + shortsLen(bot.cut) + 0.01;
     const out = new Float32Array(pos);
     for (let i = 0; i < n; i++) {
       const y = pos[i * 3 + 1], x = pos[i * 3];
@@ -636,7 +636,7 @@ function dressedFor(s: MhShape, variant: number, detail: PedDetail): MhLod {
 /** the skin without its own feet (the shoes replace them) */
 /** PEOPLE5: under a skirt, a dress or a long coat the legs are cut away above this height (just above the hem), so no thigh can walk out of the front of the garment; undefined = no cut */
 export function legCutY(s: MhShape, spec: PedSpec): number | undefined {
-  if (spec.bottom.kind === 'skirt') return s.landmarks.crownY * (spec.bottom.long ? 0.12 : spec.top.kind === 'dress' ? 0.25 : 0.31) + 0.035;
+  if (spec.bottom.kind === 'skirt') return s.landmarks.crownY * skirtShape(spec.bottom, spec.top.kind === 'dress').hem + 0.035;
   if (spec.top.long && spec.top.kind !== 'dress') return s.rig.kneeL[1] + 0.05 + 0.035;
   return undefined;
 }

@@ -28,6 +28,10 @@ const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 /** per garment: total taper seat to hem (one straight line), and the leg's size against the measured thigh */
 const CUT: Record<string, { taper: number; size: number }> = {
   jeans: { taper: 0.15, size: 1.04 }, trousers: { taper: 0.15, size: 1.06 }, cargo: { taper: 0.08, size: 1.14 }, sweats: { taper: 0.08, size: 1.12 }, leggings: { taper: 0.12, size: 0.92 },
+  // PEOPLE6: the cuts inside a kind (kind:cut): slim jeans are narrow all the way, baggy ones wide with a short taper, a flare opens below the knee, a crop is a slim leg
+  'jeans:slim': { taper: 0.2, size: 0.95 }, 'jeans:baggy': { taper: 0.02, size: 1.2 }, 'jeans:crop': { taper: 0.18, size: 0.97 }, 'jeans:flare': { taper: -0.09, size: 1.0 },
+  'trousers:slim': { taper: 0.19, size: 0.97 }, 'trousers:straight': { taper: 0.1, size: 1.08 }, 'trousers:patch': { taper: 0.1, size: 1.1 }, 'trousers:flare': { taper: -0.08, size: 1.0 },
+  'sweats:cuffed': { taper: 0.14, size: 1.1 }, 'sweats:stripe': { taper: 0.1, size: 1.08 }, 'cargo:pocket': { taper: 0.07, size: 1.15 }, 'cargo:patch': { taper: 0.07, size: 1.14 },
 };
 /** the hem's lower edge above the ground (7 cm: the shoe shows 6 to 8 cm below it from the game camera), the cuff lip's height and how far it stands proud of the leg */
 export const HEM_Y = 0.07, CUFF_H = 0.03, CUFF_OUT = 0.008;
@@ -105,7 +109,7 @@ function tileUv(rect: { x: number; y: number; w: number; h: number }, u: number,
  * The seat is the crotch: nothing below it is wider than the tube there.
  */
 export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array, nrm: Float32Array, bt: BodyType, legK: number, detail: LegDetail): { lod: MhLod; tube: LegTube } {
-  const R = s.rig, lm = s.landmarks, K = lm.crownY / 1.78, kind = spec.bottom.kind, cut = CUT[kind] ?? CUT.jeans;
+  const R = s.rig, lm = s.landmarks, K = lm.crownY / 1.78, kind = spec.bottom.kind, cut = CUT[`${kind}:${spec.bottom.cut}`] ?? CUT[kind] ?? CUT.jeans;
   const hipX = Math.abs(R.hipL[0]) * legK, kneeY = R.kneeL[1], anY = lm.ankleY, hipY = R.hipL[1], n = pos.length / 3;
   // the seat fold: the lowest point between the legs of the base mesh (where the thighs part)
   let crotchY = Infinity;

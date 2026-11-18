@@ -5,6 +5,8 @@
  * mesh keeps), trousers, top, each with a soft edge. Fabric texture is low-contrast weave and mottling, never per-texel noise.
  * No letters, logos or brand marks anywhere: the "badge" is a plain plate, a hi-vis band is a plain reflective strip.
  */
+import { HEM_Y } from '@/entities/models/pedLegs';
+import { shortsLen } from './ped';
 import { Px, g2, ln, sst, band, hash, vn2, rnd, mixc, mulc, type Look, type Tex, type RGB } from './pedPaintShared';
 
 const TAU = Math.PI * 2;
@@ -169,12 +171,12 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
     if (denim) { c.mix(GOLD_STITCH, 0.55 * stitch(outer * 0.075 - 0.0055, 0.0018, y) + 0.55 * stitch(outer * 0.075 + 0.0055, 0.0018, y)); }
     if (kind === 'sweats' || kind === 'leggings') { }
     // cuff or hem
-    const hemY = kind === 'shorts' ? K.knY + 0.09 : 0.07, d = y - hemY;      // 0.07 = HEM_Y in pedLegs.ts, the geometric cuff's lower edge (the cuff is 3 cm tall)
+    const hemY = kind === 'shorts' ? K.knY + shortsLen(bot.cut) : HEM_Y, d = y - hemY;      // 0.07 = HEM_Y in pedLegs.ts, the geometric cuff's lower edge (the cuff is 3 cm tall)
     if (kind === 'sweats' || kind === 'cargo' && false) {
       if (d < 0.1) { const rib = 0.5 + 0.5 * Math.sin(U * 520); c.mix(K.botTrim, 0.85 * sst(0.095, 0.07, d)); c.mul(0.9 + 0.12 * rib * sst(0.095, 0.07, d)); }
       c.mul(1 - 0.16 * g2(d - 0.108, 0.01) * (kind === 'sweats' ? 1 : 0));
     } else if (d < 0.07) {
-      c.mul(1 - 0.12 * ln(d - 0.03, 0.004)).mix(GOLD_STITCH, denim ? 0.3 * ln(d - 0.027, 0.0015) : 0);                       // turned hem with a stitch line
+      c.mul(1 - 0.12 * ln(d - (HEM_Y - 0.04), 0.004)).mix(GOLD_STITCH, denim ? 0.3 * ln(d - (HEM_Y - 0.043), 0.0015) : 0);                       // turned hem with a stitch line
       c.mul(1 - 0.07 * sst(0.03, 0.026, d));                                                                               // the cuff itself a shade darker
       c.mul(1 - 0.18 * g2(d + 0.01, 0.02));                                                                                // dark where it meets the shoe
       if (kind !== 'shorts') c.mul(1 - 0.12 * Math.max(0, Math.sin(d * 240 + phi * 2)) * sst(0.07, 0.0, d));                // a little bunching above the shoe

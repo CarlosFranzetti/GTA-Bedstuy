@@ -236,6 +236,13 @@ export const PED_SPECS: PedSpec[] = buildRoster(BASE_SPECS);
 export const PED_VARIANT_COUNT = PED_SPECS.length;
 /** variants 0..CIVILIAN_COUNT-1 are the street civilians */
 export const CIVILIAN_COUNT = PED_SPECS.filter((s) => s.role === 'civilian').length;
+/** metres above the knee where shorts end (negative = below it): basketball shorts reach the knee, running shorts and denim shorts ride high */
+export const shortsLen = (cut?: BottomCut): number => (cut === 'long' ? -0.03 : cut === 'pocket' ? 0.03 : cut === 'short' ? 0.2 : cut === 'run' ? 0.24 : 0.09);
+/** a skirt's hem (a share of the stature) and how far it stands off the hips at the hem and half way up: pencil is narrow, pleated and maxi flare, a mini is short */
+export function skirtShape(b: PedSpec['bottom'], dress: boolean): { hem: number; o1: number; o2: number } {
+  const hem = b.long ? 0.12 : b.cut === 'mini' ? 0.38 : b.cut === 'pencil' ? 0.27 : b.cut === 'pleated' ? 0.29 : b.cut === 'wrap' ? 0.25 : dress ? 0.25 : 0.31;
+  return b.cut === 'pencil' ? { hem, o1: 0.03, o2: 0.025 } : b.cut === 'pleated' ? { hem, o1: 0.13, o2: 0.06 } : b.cut === 'mini' ? { hem, o1: 0.07, o2: 0.04 } : b.long ? { hem, o1: 0.11, o2: 0.05 } : { hem, o1: 0.1, o2: 0.05 };
+}
 /** Append a generated person (pedWardrobe.ts) and return its variant index; the same id is registered once. The named roster before it never moves. */
 export function registerSpec(spec: PedSpec): number {
   const i = PED_SPECS.findIndex((s, k) => k >= PED_VARIANT_COUNT && s.id === spec.id);

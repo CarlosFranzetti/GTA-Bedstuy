@@ -9,7 +9,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Rng } from '@/core/Rng';
 import { MaterialLibrary } from '@/textures/MaterialLibrary';
 import { PED_SPECS, pickPedVariant } from '@/entities/models/pedBody';
-import { pickWardrobeVariant, composeSpec, setWardrobeSeason, setWardrobeCap, LOOKS } from '@/textures/painters/pedWardrobe';
+import { pickWardrobeVariant, composeSpec, setWardrobeSeason, setWardrobeCap, dress, BASE_TOPS, LAYERS, BOTTOMS, SHOES, ONE_PIECE, COLOURWAYS, LOOKS } from '@/textures/painters/pedWardrobe';
 import { registerSpec } from '@/textures/painters/ped';
 import { buildPerson as buildPedModel, loadPeople } from '@/entities/models/pedMesh';
 import { pedVariantIndex, PED_SPECS as SPECS } from '@/textures/painters/ped';
@@ -138,6 +138,23 @@ if (view === 'newbodies-side') { const yaw = Number(params.get('yaw') ?? 1.45); 
 // a child of about ten with an adult, and a pregnant woman beside her partner
 if (view === 'pair') { const a = typed('big-tall', 'm', 'adult', 8), k = typed('kid', 'm', 'kid', 21), b = typed('pregnant', 'f', 'adult', 6), c = typed('avg', 'f', 'adult', 22); place([a, k, b, c], 0, 0.8, 0.3); cam.position.set(0, 1.3, 4.2); look.set(0, 0.85, 0); cam.fov = 36; }
 // the garments: every top, layer, bottom and one-piece worn by one person, row by row (garments=tops|layers|bottoms|shoes)
+
+// garments=tops|layers|bottoms|shoes|onepiece: one fixed person (m or f, sex=) in each garment of the catalogue, 8 to a row
+if (view === 'garments') {
+  const set = params.get('set') ?? 'tops', sex = params.get('sex') ?? 'm', yaw = Number(params.get('yaw') ?? 0.25), per = Number(params.get('per') ?? 6), from = Number(params.get('from') ?? 0);
+  const baseSpec = composeSpec(7, { group: sex === 'm' ? 'la' : 'ea', sex, age: 'adult' }, { look: 'street', season: 'mild' });
+  const jeans = ['jeansStraight', '#34506f'], white = ['sneakerLow', '#f4f4f4'], nohat = { hat: 'none' };
+  const entries = [];
+  const pc = (g, i = 0) => COLOURWAYS[g.c][(i * 3 + 1 + entries.length * 2) % COLOURWAYS[g.c].length];
+  if (set === 'tops') for (const [id, g] of Object.entries(BASE_TOPS)) { if (g.sx && g.sx !== sex) continue; entries.push([id, { top: [id, pc(g)], bottom: jeans, shoes: white, hat: g.hat }]); }
+  if (set === 'layers') for (const [id, g] of Object.entries(LAYERS)) entries.push([id, { top: ['tee', '#e8e6e0'], layer: [id, pc(g, 1), '#e8e6e0'], bottom: jeans, shoes: white, hat: g.hat }]);
+  if (set === 'bottoms') for (const [id, g] of Object.entries(BOTTOMS)) { if (g.sx && g.sx !== sex) continue; entries.push([id, { top: ['tee', '#c8c6c0'], bottom: [id, pc(g)], shoes: ['sneakerLow', '#f4f4f4'] }]); }
+  if (set === 'shoes') for (const [id, g] of Object.entries(SHOES)) { if (g.sx && g.sx !== sex) continue; entries.push([id, { top: ['tee', '#c8c6c0'], bottom: id === 'tallBoot' || id === 'heel' || id === 'flat' ? ['jeansSlim', '#2e3848'] : ['jeansStraight', '#34506f'], shoes: [id, pc(g)] }]); }
+  const ids = entries.slice(from, from + per).map(([id, e], i) => { const sp = { ...baseSpec, hat: 'none', ...dress(e) }; sp.id = `${baseSpec.id}-${set}-${id}`; registerSpec(sp); console.log(set, i + from, id); return sp.id; });
+  if (set === 'onepiece') for (const [id, o] of Object.entries(ONE_PIECE)) { const sp = composeSpec(30 + ids.length, { group: 'ba', sex: o.sx ?? 'f', age: 'adult' }, { look: 'street' }); sp.id += '-op-' + id; ids.push(sp.id); registerSpec(sp); }
+  place(ids, 0, 1.0, yaw);
+  { const d = Number(params.get('dist') ?? 5.6), ly = Number(params.get('ly') ?? 0.9); cam.position.set(0, ly + 0.3, d); look.set(0, ly, 0); cam.fov = Number(params.get('fov') ?? 34); }
+}
 
 // ---- PEDTEX views: flat maps, four faces, the player's looks, street distance
 if (params.get('grid') === '1') globalThis.__pedGrid = true;

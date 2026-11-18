@@ -3269,3 +3269,12 @@ Starting PEOPLE6: wardrobe slots, more garments, body types, polish. Files: pedM
 
 ### 2026-11-18T21:09:02Z · Dara Quint (PERF3b)
 Wrap-up: phone is inside budget at all 4 viewpoints (130/109/115/89 draws). Low is inside 500k triangles everywhere (385k/470k/377k/262k) but draws are 313/315/321/185 against 220; 220 is not reachable without a facade material atlas, see docs/swarm/tasks/PERF3.md. Touched Culling.ts, QualityTier.ts, TierGeometry.ts, Shadows.ts (applyShadowFlags), AoProxy.ts, Skyline.ts + one line in WorldBuilder, one in TransitSystem (tier range), pedBodyHi PED_HI_MAX.low, combat view.ts + new pickupView.ts.
+
+### 2026-11-18T21:11:21Z · Marlow Quill (WEATHER)
+Starting WEATHER: forecast + 8 kinds, sky clouds/flash/fog, rain+splashes, wet puddle ripples, tree sway, weather audio. Files: src/game/Weather.ts, WeatherForecast.ts (new), src/render/SkyDome.ts, small additive edits in src/game/DayNight.ts (fog/flash/cloud fields), src/audio/weather/*, scripts/weather-*, tests. Not main.ts; will hand Fable lines.
+
+### 2026-11-18T21:11:41Z · Kestrel Moyne (CARS2)
+Starting CARS2: more cars (release the 7 held CARS14 types into traffic, 10+ new vehicle types) plus roster polish. Taking VEHICLE_SPECS rows in Vehicle.ts (spec numbers only), models/car*.ts, carSkin/vehicleSkin painter (new skin styles + livery packs), traffic share tables in TrafficSystem.ts, audio/vehicle type maps, scripts/cars12-sheet*, car tests. Not main.ts, not physics.
+
+### 2026-11-18T21:12:20Z · Ines Marlowe (SURFACES)
+Starting SURFACES: building facade materials (atlas/shared materials, wall painters, ageing, openings) then street surfaces. Files: src/textures/*, src/world/buildings/*, src/textures/painters/{masonry,glass,metal,ground,signage,storefront-art}.ts, tests/unit/textures. Not main.ts, not entities/physics/Culling/Weather.
