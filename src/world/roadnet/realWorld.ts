@@ -20,7 +20,7 @@ import type { Vec2 } from '@/core/Math2';
 import type { Rng } from '@/core/Rng';
 import type { IMaterialLibrary, LaneGraph, Lot, StaticCollider } from '@/world/types';
 import type { Quality } from '@/render/Shadows';
-import { FINE_CELLS, chunkKeyOf, chunkKeyOfCell, splitMeshesIntoCells, type ChunkLayout } from '@/render/Culling';
+import { CHUNK_RANGE_PER_M_HEIGHT, FINE_CELLS, chunkKeyOf, chunkKeyOfCell, splitMeshesIntoCells, type ChunkLayout } from '@/render/Culling';
 import { buildBuildings } from '@/world/BuildingGen';
 import { SIDEWALK_HEIGHT } from '@/world/WorldBuilder';
 import { loadRoadNet } from './MapSource';
@@ -41,6 +41,8 @@ import type { LampSpot } from '@/world/FurnitureGen';
 import type { RealProps } from './propsReal';
 import type { RealTraffic } from './trafficReal';
 import type { RealPlaces, PlacesTable } from './placesReal';
+import type { RealLotTiles, LotSource } from './lotStreamReal';
+import { R1R2_EXTENT } from './extents';
 
 export interface RealWorld {
   net: RoadNet;
@@ -79,6 +81,8 @@ export interface RealWorld {
    * unchanged TrafficSystem / CopSystem (see main.ts lines in docs). null when it fell back. `update` flips the signal heads from it.
    */
   traffic: RealTraffic | null;
+  /** the lot tiles (512 m files placed as the player nears them); null when the buildings fell back to boxes */
+  lotTiles: RealLotTiles | null;
   /** the places table over the real lots; null when it fell back */
   places: RealPlaces | null;
   /** player start outside HOME's door (equals spawn / spawnHeading when places fell back) */
@@ -98,6 +102,8 @@ export interface RealWorldOptions {
   streamRanges?: Partial<StreamRanges>;
   /** build the near ring around the spawn for up to this many ms before returning (default 2500); the rest streams in `update` */
   warmMs?: number;
+  /** where the lot tiles come from (default: fetch public/data/real/); tests pass a reader of the files */
+  lotSource?: LotSource;
   /** force the stand-ins (tests, and to compare against the real pieces) */
   forceStandIns?: boolean;
 }
@@ -206,6 +212,14 @@ export function badBlocks(net: RoadNet, d: Derived): Set<number> {
   return bad;
 }
 
+/** a lot tile's box (minX, minZ, maxX, maxZ) touches the polygon: some point of a 5 x 5 sample of the box is inside it */
+export function boxTouchesPolygon(b: readonly [number, number, number, number], poly: ReadonlyArray<Vec2>): boolean {
+  for (let i = 0; i <= 4; i++) for (let j = 0; j <= 4; j++) {
+    if (pointInPolygon({ x: b[0] + ((b[2] - b[0]) * i) / 4, z: b[1] + ((b[3] - b[1]) * j) / 4 }, poly)) return true;
+  }
+  return false;
+}
+
 /** nearest sidewalk-graph node to p, and the heading of the nearest street there */
 function spawnNear(net: RoadNet, sw: SidewalkNet, p: Vec2): { spawn: Vec2; heading: number } {
   let best: Vec2 | null = null, bd = Infinity;
@@ -280,6 +294,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   let applyDoors: () => void = () => undefined;
   let homeSpawn = { x: spawn.x, z: spawn.z, heading };
   let streamer: RealBuildingStreamer | null = null;
+  let lotTiles: RealLotTiles | null = null;
   const held = new Map<string, StaticCollider>();
   let host: ColliderHost | undefined = opts.colliders;
   const proxyHost: ColliderHost = {
@@ -288,14 +303,18 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   };
   try {
     if (opts.forceStandIns) throw new Error('forced');
-    const lotsJson = (await import('@/world/data/raw/lots-real-r1r2a.json')).default as unknown;
     const faces = blockFaces(net, derived);
-    lots = (placeLots(net, derived, faces, lotsJson) as Array<Lot & { block?: number }>).filter((l) => !bad.has(l.block ?? -1));
+    // lots come as 512 m tiles (public/data/real/): the tiles over the first two rings are placed now (places, the home door and the
+    // missions need them), the rest as the player comes near (RealLotTiles.update in `update`)
+    const { RealLotTiles: Tiles, fetchLotSource } = await import('./lotStreamReal');
+    lotTiles = new Tiles({ net, derived, faces, bad, source: opts.lotSource ?? fetchLotSource(), concurrency: 2, onLots: (ls) => { (lots as RealLot[]).push(...ls); streamer?.addLots(ls); } });
+    await lotTiles.init();
+    lots = await lotTiles.loadWhere((b) => boxTouchesPolygon(b, R1R2_EXTENT));
     // places (Gus): the POI lots carry their shop sign; the home door gives the spawn. Soft: without it the lots stay plain.
     try {
       if (opts.forceStandIns) throw new Error('forced');
       const { RealPlaces, applyRealDoors } = await import('./placesReal');
-      const table = (await import('@/world/data/places-real.json')).default as unknown as PlacesTable;
+      const table = (await import('@/world/data/places-real-r123.json')).default as unknown as PlacesTable;
       const { loadBedstuyData } = await import('@/world/Grid');
       const pl = new RealPlaces({ net, derived, faces, lots: lots as RealLot[], table, pois: loadBedstuyData().pois });
       const withPois = pl.lotsWithPois();
@@ -349,7 +368,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
     if (opts.forceStandIns) throw new Error('forced');
     const { buildRealProps } = await import('./propsReal');
     const { nodeControl } = await import('./signalPhases');
-    const controlsJson = (await import('@/world/data/roadnet-controls.json')).default as unknown;
+    const controlsJson = (await import('@/world/data/roadnet-controls-r123.json')).default as unknown;
     props = buildRealProps({ net, derived, sidewalks, materials: mats, rng: rng.fork('props'), layout: chunks, tier, controls: nodeControl(net, controlsJson), avoid: elSpots.map((s) => s.p) });
     group.add(props.group);
     colliders.push(...props.colliders);
@@ -362,7 +381,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   t0 = performance.now();
   try {
     if (opts.forceStandIns) throw new Error('forced');
-    traffic = (await import('./trafficReal')).makeRealTraffic(net, derived, sidewalks, (await import('@/world/data/roadnet-controls.json')).default as unknown);
+    traffic = (await import('./trafficReal')).makeRealTraffic(net, derived, sidewalks, (await import('@/world/data/roadnet-controls-r123.json')).default as unknown);
   } catch (e) { standIns.push(`traffic: ${(e as Error).message}`); traffic = null; }
   t('traffic', t0);
   let signalHeads: ((g: THREE.Object3D, l: RealTraffic['lights']) => void) | null = null;
@@ -370,6 +389,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
 
   const update: RealWorld['update'] = (dt, px, pz, cam, night) => {
     streamer?.update(px, pz, cam.y); trains?.update(dt, cam, night);
+    if (lotTiles && streamer) lotTiles.update(px, pz, streamer.ranges.far + Math.max(0, cam.y - 3) * CHUNK_RANGE_PER_M_HEIGHT + 160);
     if (traffic && props && signalHeads) signalHeads(props.group, traffic.lights);
   };
   const setColliderHost = (h: ColliderHost): void => { host = h; if (held.size) h.add([...held.values()]); };
@@ -379,7 +399,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
     const w = window as unknown as { __gtaRealWorld?: () => RealWorld; __gtaRealFrames?: () => Promise<unknown> };
     w.__gtaRealFrames = async () => (await import('./reviewFrames')).reviewFrames(w.__gtaRealWorld!());
   }
-  const rwOut: RealWorld = { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, badBlocks: [...bad].sort((a, b) => a - b), streamer, setColliderHost, update, trains, notice: REAL_NOTICE, standIns, el, props, traffic, lamps: props?.lamps ?? [], furnitureGroup: props?.group ?? furnitureGroup, places, homeSpawn, applyDoors, stats };
+  const rwOut: RealWorld = { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, badBlocks: [...bad].sort((a, b) => a - b), streamer, setColliderHost, update, trains, notice: REAL_NOTICE, standIns, el, props, traffic, lamps: props?.lamps ?? [], furnitureGroup: props?.group ?? furnitureGroup, places, homeSpawn, applyDoors, lotTiles, stats };
   if (typeof window !== 'undefined') (window as unknown as { __gtaRealWorld?: () => RealWorld }).__gtaRealWorld = () => rwOut;
   return rwOut;
 }

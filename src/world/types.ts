@@ -283,7 +283,9 @@ export interface VehicleInput {
 export type VehicleType = 'sedan' | 'suv' | 'boxtruck' | 'cop' | 'cab' | 'cargovan' | 'hatch' | 'beater' | 'bus'
   | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'garbage' | 'ambulance' | 'dollarvan'
   // CARS14: sports cars, an electric wedge pickup parody, an electric sedan
-  | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan';
+  | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan'
+  // CARS2: era Brooklyn street types (wagon, big SUV, small pickup, panel van, minivan taxi, stretch limo, 1970s sedan and its donk, police SUV, convertible, step van, ice-cream truck)
+  | 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'taxivan' | 'limo' | 'classic' | 'donk' | 'copsuv' | 'convertible' | 'stepvan' | 'icecream';
 
 export interface VehicleSpec {
   type: VehicleType;

@@ -46,6 +46,19 @@ export const VEHICLE_SPECS: Record<VehicleType, VehicleSpec> = {
   muscle: { type: 'muscle', name: 'Muscle coupe', length: 5.016, width: 1.923, height: 1.453, maxSpeed: 39.5, accel: 14.1, brakeDecel: 15, maxSteer: 0.55, color: '#e0621a', mass: 2000, grip: 0.97, steerRate: 0.86, enginePitch: 0.8, drivetrain: 'rwd', torqueBias: 1 },
   wedgetruck: { type: 'wedgetruck', name: 'Wedge pickup', length: 5.683, width: 2.03, height: 1.79, maxSpeed: 25, accel: 5.8, brakeDecel: 12, maxSteer: 0.5, color: '#b8bcc2', mass: 3000, grip: 0.84, steerRate: 0.72, enginePitch: 0.9, camDist: 0.8, camHeight: 0.4, drivetrain: 'awd', torqueBias: 0.5, electric: true },
   evsedan: { type: 'evsedan', name: 'Electric sedan', length: 4.72, width: 1.85, height: 1.43, maxSpeed: 36, accel: 12.0, brakeDecel: 15, maxSteer: 0.6, color: '#e8e8ea', mass: 1840, grip: 1.12, steerRate: 1.05, enginePitch: 1.0, drivetrain: 'awd', torqueBias: 0.5, electric: true },
+  // CARS2 (era Brooklyn street types; sizes follow the real class, see the style comments in models/carBodies.ts). Same sim-scale numbers as the older types.
+  wagon: { type: 'wagon', name: 'Station wagon', length: 4.95, width: 1.84, height: 1.5, maxSpeed: 28, accel: 6.8, brakeDecel: 13.5, maxSteer: 0.6, color: '#7a8f9a', mass: 1650, grip: 0.98, steerRate: 0.95, enginePitch: 0.95 },
+  bigsuv: { type: 'bigsuv', name: 'Big SUV', length: 5.55, width: 2.0, height: 1.95, maxSpeed: 26, accel: 6, brakeDecel: 13, maxSteer: 0.55, color: '#1f2b3a', mass: 2650, grip: 0.9, steerRate: 0.85, enginePitch: 0.8, camDist: 0.6, camHeight: 0.3 },
+  minitruck: { type: 'minitruck', name: 'Small pickup', length: 4.75, width: 1.7, height: 1.6, maxSpeed: 27, accel: 6, brakeDecel: 13, maxSteer: 0.62, color: '#c2452d', mass: 1300, grip: 0.96, steerRate: 1.02, enginePitch: 1.1 },
+  panelvan: { type: 'panelvan', name: 'Panel van', length: 5.3, width: 2.0, height: 2.1, maxSpeed: 25, accel: 5, brakeDecel: 12, maxSteer: 0.58, color: '#e9e9e4', mass: 2300, grip: 0.9, steerRate: 0.88, enginePitch: 0.85, camDist: 1.0, camHeight: 0.5 },
+  taxivan: { type: 'taxivan', name: 'Taxi minivan', length: 5.175, width: 1.994, height: 1.77, maxSpeed: 26, accel: 5.8, brakeDecel: 13, maxSteer: 0.56, color: '#e0b01e', mass: 2150, grip: 0.95, steerRate: 0.9, enginePitch: 0.88, camDist: 0.8, camHeight: 0.3 },
+  limo: { type: 'limo', name: 'Stretch limo', length: 7.8, width: 2.0, height: 1.5, maxSpeed: 27, accel: 5, brakeDecel: 11.5, maxSteer: 0.42, color: '#0e0f12', mass: 3100, grip: 0.86, steerRate: 0.62, enginePitch: 0.75, camDist: 3.0, camHeight: 0.7 },
+  classic: { type: 'classic', name: 'Classic sedan', length: 5.7, width: 2.0, height: 1.38, maxSpeed: 30, accel: 7.2, brakeDecel: 11, maxSteer: 0.55, color: '#a8863a', mass: 2150, grip: 0.86, steerRate: 0.8, enginePitch: 0.72 },
+  donk: { type: 'donk', name: 'Donk', length: 5.7, width: 2.0, height: 1.52, maxSpeed: 29, accel: 7, brakeDecel: 11, maxSteer: 0.52, color: '#7a2a8a', mass: 2250, grip: 0.82, steerRate: 0.76, enginePitch: 0.7 },
+  copsuv: { type: 'copsuv', name: 'Police SUV', length: 5.05, width: 2.0, height: 1.78, maxSpeed: 34, accel: 8.5, brakeDecel: 14.5, maxSteer: 0.6, color: '#f2f2f2', mass: 2400, grip: 1.0, steerRate: 0.95, enginePitch: 0.9 },
+  convertible: { type: 'convertible', name: 'Convertible', length: 4.55, width: 1.83, height: 1.3, maxSpeed: 33, accel: 9, brakeDecel: 14.5, maxSteer: 0.6, color: '#c8283a', mass: 1450, grip: 1.06, steerRate: 1.12, enginePitch: 1.15 },
+  stepvan: { type: 'stepvan', name: 'Step van', length: 6.4, width: 2.15, height: 2.7, maxSpeed: 20, accel: 3.2, brakeDecel: 11, maxSteer: 0.5, color: '#f2f0e8', mass: 4200, grip: 0.88, steerRate: 0.72, enginePitch: 0.65, camDist: 3.0, camHeight: 0.8 },
+  icecream: { type: 'icecream', name: 'Ice-cream truck', length: 5.6, width: 2.1, height: 2.7, maxSpeed: 20, accel: 3.6, brakeDecel: 11, maxSteer: 0.52, color: '#f4efe0', mass: 3300, grip: 0.9, steerRate: 0.78, enginePitch: 0.7, camDist: 2.2, camHeight: 0.7 },
 };
 
 // ---- longitudinal
@@ -126,7 +139,6 @@ const PROP_FRICTION_SCALE = 0.25;
 const IMPACT_MIN = 0.5;
 const WALL_FRICTION = 0.22;
 const WALL_ALIGN = 0.1;
-/** Scrub per m/s of closing speed on a wall (was 0.35: a 60 degree scrape at 20 m/s lost 40% of its speed in 1.5 s). */
 /** Share of the physical yaw impulse a collision gives (arcade: spins read, nothing pirouettes), its cap (rad/s) and decay (1/s, tyres grip the spin out). */
 const IMPACT_YAW_SCALE = 0.4;
 const IMPACT_YAW_MAX = 2.4;
@@ -726,7 +738,13 @@ export class Vehicle implements IVehicle {
     const rx = contact.point.x - b.pos.x, rz = contact.point.z - b.pos.z;
     const I = b.mass * (this.spec.length * this.spec.length + this.spec.width * this.spec.width) / 12;
     // the push on this car points away from the other body: F = -n * J; torque = r.x F.z - r.z F.x
-    const dw = (-J * (rx * nz - rz * nx)) / I * IMPACT_YAW_SCALE;
+    let dw = (-J * (rx * nz - rz * nx)) / I * IMPACT_YAW_SCALE;
+    // A flat wall met nose-first touches both corners at once; the single contact point World2D reports is only one of them, so the
+    // lever would be a coin toss. Fade the spin out as the hit gets square-on (full beyond ~35 degrees off the heading).
+    if ((other.kind === 'static' || other.mass === Infinity) && other.shape.kind !== 'circle') {
+      const f = forwardFromHeading(b.heading);
+      dw *= clamp((1 - Math.abs(nx * f.x + nz * f.z)) * 6, 0, 1);
+    }
     this.impactYaw = clamp(this.impactYaw + dw, -IMPACT_YAW_MAX, IMPACT_YAW_MAX);
   }
 

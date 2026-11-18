@@ -16,6 +16,7 @@ export const DOOR_CLASS: Record<VehicleType, DoorClass> = {
   sedan: 'car', suv: 'car', cab: 'car', cop: 'car', hatch: 'car', beater: 'car', crossover: 'car', luxury: 'car', towncar: 'car', pony: 'car', pickup: 'truck',
   coupe911: 'car', exotic: 'car', jdmcoupe: 'car', hothatch: 'car', muscle: 'car', evsedan: 'car', wedgetruck: 'truck',
   boxtruck: 'truck', garbage: 'truck', cargovan: 'van', minivan: 'van', ambulance: 'van', dollarvan: 'van', bus: 'bus',
+  wagon: 'car', bigsuv: 'car', minitruck: 'truck', panelvan: 'van', taxivan: 'van', limo: 'car', classic: 'car', donk: 'car', copsuv: 'car', convertible: 'car', stepvan: 'truck', icecream: 'truck',
 };
 
 /** Door open (latch click, hinge) or close (clunk) by body class; luxury closes softer, the beater rattles. */

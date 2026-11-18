@@ -797,7 +797,7 @@ export class Weather {
   // ---------------------------------------------------------------- internals
 
   private trackCamera(d: number, cameraPos?: THREE.Vector3): void {
-    if (!cameraPos) return;
+    if (!cameraPos || !Number.isFinite(cameraPos.x + cameraPos.y + cameraPos.z)) return;
     if (this.hasCam && d > 0) {
       const k = 1 - Math.exp(-d / 0.12);
       const cl = (v: number): number => Math.max(-45, Math.min(45, v));

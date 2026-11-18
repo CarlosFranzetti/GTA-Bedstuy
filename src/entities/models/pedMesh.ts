@@ -655,7 +655,7 @@ function noFoot(s: MhShape, L: MhLod, hide?: Set<number>, legCut?: number): Uint
 const MID_SKIP = new Set(['earbuds', 'chain', 'glasses', 'sunglasses']);
 function separatePieces(s: MhShape, spec: PedSpec, bt: BodyType, L0: MhLod, detail: PedDetail, veil: boolean): THREE.BufferGeometry[] {
   const ps = personPieces(makeCtx(s, spec, bt, L0, peopleRig(s, spec), detail as 'hi' | 'mid')).pieces;
-  return ps.filter((p) => p.slot !== 'shoe' && !(veil && p.slot === 'hat') && !(detail !== 'hi' && p.slot === 'accessory' && MID_SKIP.has(p.id.split(':')[1] ?? p.id))).map((p) => p.geo);
+  return ps.filter((p) => !(veil && p.slot === 'hat') && !(detail !== 'hi' && p.slot === 'accessory' && MID_SKIP.has(p.id.split(':')[1] ?? p.id))).map((p) => p.geo);
 }
 function geometryFor(s: MhShape, variant: number, detail: PedDetail): { geo: THREE.BufferGeometry; triangles: number } {
   const key = `${s.name}:${variant}:${detail}`;
@@ -674,7 +674,7 @@ function geometryFor(s: MhShape, variant: number, detail: PedDetail): { geo: THR
   const ao = bodyAo(s, L0.position);
   const veil = detail === 'hi' && spec.hat === 'hijab' ? hijabShell(s, L0, ao, spec) : null;      // the hijab at the hi level is a drape made from the head and shoulders
   base.setIndex(new THREE.BufferAttribute(detail === 'far' ? L.index : noFoot(s, L, veil?.hide, legCutY(s, spec)), 1));
-  const parts = detail === 'far' ? [] : [...separatePieces(s, spec, bt, L0, detail, !!veil), ...bodyParts(s, spec, detail === 'hi'), ...skinExtras(s, spec, detail === 'hi'), ...clothExtras(s, spec, L0, detail === 'hi'), ...shoeParts(s, spec, L, detail === 'hi')];
+  const parts = detail === 'far' ? [] : [...separatePieces(s, spec, bt, L0, detail, !!veil), ...bodyParts(s, spec, detail === 'hi'), ...skinExtras(s, spec, detail === 'hi'), ...clothExtras(s, spec, L0, detail === 'hi')];
   if (detail === 'hi' && veil) parts.push(...veil.shell);
   for (const g of parts) leanGeometry(g.getAttribute('position').array as Float32Array, (g.getAttribute('normal')?.array as Float32Array) ?? null, g.getAttribute('skinIndex').array, g.getAttribute('skinWeight').array, bt, pivot);
   base.setAttribute('color', new THREE.BufferAttribute(ao, 3));

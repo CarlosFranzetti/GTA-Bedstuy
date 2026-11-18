@@ -1,0 +1,11 @@
+{
+  "source": "NYC Building Footprints (5zhs-2jue) via NYC Open Data",
+  "url": "https://data.cityofnewyork.us/resource/5zhs-2jue.json",
+  "select": "base_bbl,bin,height_roof,construction_year,shape_area",
+  "where": "within_box(the_geom, 40.711995, -73.960081, 40.681169, -73.904506)",
+  "order": "bin",
+  "pages": "2500 rows, 1.5 s apart",
+  "fetched": "2026-11-18",
+  "rows": 34642,
+  "note": "polygons not fetched: height_roof (ft), construction_year and shape_area (sq ft) per BIN only"
+}

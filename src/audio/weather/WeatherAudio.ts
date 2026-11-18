@@ -1,0 +1,179 @@
+/**
+ * The weather sounds on the ambience bus (`audio.ambienceHost`): rain in three intensities, a roof-drum layer for the car and
+ * for rain under a deck, wind with gusts, and thunder. All synthesised (synth.ts); every level and corner frequency moves with
+ * setTargetAtTime ramps, so changing weather, getting into a car or stepping into a room never steps the sound.
+ *
+ * Nodes are created when there is something to hear and torn down again after ten quiet seconds.
+ */
+import { newWeatherMix, thunderLevel, weatherMix, type WeatherAudioSink, type WeatherAudioState, type WeatherMix } from './mix';
+import { rainLayer, roofLayer, thunderClap, windLayer, type ThunderKind } from './synth';
+
+export interface WeatherAudioHost { ctx: BaseAudioContext; dest: AudioNode }
+
+/** Ramp time constants (s): levels move slowly, the filter corner quicker (a car door closing). */
+export const RAMP = { level: 0.9, rainLayers: 0.7, wind: 1.1, corner: 0.18 } as const;
+/** Seconds of silence before the nodes are released. */
+export const IDLE_SECONDS = 10;
+
+interface Nodes {
+  sources: AudioBufferSourceNode[];
+  oscs: OscillatorNode[];
+  light: GainNode; steady: GainNode; heavy: GainNode; roof: GainNode;
+  rainLp: BiquadFilterNode; rainGain: GainNode;
+  windBp: BiquadFilterNode; windGust: GainNode; windGain: GainNode; gustDepth: GainNode;
+  thunderLp: BiquadFilterNode; thunderBus: GainNode;
+}
+
+export class WeatherAudio implements WeatherAudioSink {
+  private n: Nodes | null = null;
+  private readonly mix: WeatherMix = newWeatherMix();
+  private quiet = 0;
+  private readonly bufs = new Map<string, AudioBuffer>();
+  private clapN = 0;
+
+  constructor(private readonly host: () => WeatherAudioHost | null) {}
+
+  get active(): boolean { return this.n !== null; }
+
+  update(dt: number, s: WeatherAudioState): void {
+    const m = weatherMix(s, this.mix);
+    const audible = m.rainGain > 0.004 || m.windGain > 0.004 || s.storm > 0.5;
+    if (!this.n) {
+      if (!audible) return;
+      const h = this.host();
+      if (!h) return;
+      this.build(h);
+    }
+    if (!this.n) return;
+    this.quiet = audible ? 0 : this.quiet + (Number.isFinite(dt) ? dt : 0);
+    this.apply(m);
+    if (this.quiet > IDLE_SECONDS) this.teardown();
+  }
+
+  /** A clap reaching the listener now (Weather has already waited out the speed of sound). */
+  thunder(distanceM: number, strength: number): void {
+    const h = this.host();
+    if (!h) return;
+    const ctx = h.ctx;
+    if (!this.n) this.build(h);
+    const n = this.n;
+    if (!n) return;
+    const kind: ThunderKind = distanceM < 1400 ? 'close' : 'far';
+    const variant = this.clapN++ % 3;
+    const buf = this.buffer(ctx, `thunder:${kind}:${variant}`, () => thunderClap(kind, ctx.sampleRate, 1 + variant));
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    const t = ctx.currentTime;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(thunderLevel(distanceM, strength) * 0.9, t + 0.02);
+    src.connect(g);
+    g.connect(n.thunderLp);
+    src.onended = () => { try { src.disconnect(); g.disconnect(); } catch { /* already gone */ } };
+    src.start(t);
+    this.quiet = 0;
+  }
+
+  dispose(): void { this.teardown(); this.bufs.clear(); }
+
+  // ---------------------------------------------------------------- graph
+
+  private buffer(ctx: BaseAudioContext, id: string, make: () => Float32Array): AudioBuffer {
+    let b = this.bufs.get(id);
+    if (!b) {
+      const data = make();
+      b = ctx.createBuffer(1, data.length, ctx.sampleRate);
+      b.getChannelData(0).set(data);
+      this.bufs.set(id, b);
+    }
+    return b;
+  }
+
+  private build(h: WeatherAudioHost): void {
+    const { ctx, dest } = h;
+    const sr = ctx.sampleRate;
+    const sources: AudioBufferSourceNode[] = [];
+    const oscs: OscillatorNode[] = [];
+    const loop = (id: string, make: () => Float32Array, out: AudioNode): void => {
+      const s = ctx.createBufferSource();
+      s.buffer = this.buffer(ctx, id, make);
+      s.loop = true;
+      s.connect(out);
+      sources.push(s);
+    };
+    const gain = (v: number): GainNode => { const g = ctx.createGain(); g.gain.value = v; return g; };
+
+    // rain: three layers -> sum -> low-pass (open air / car / room) -> bed gain -> bus; the roof layer joins after the filter
+    const rainGain = gain(0);
+    rainGain.connect(dest);
+    const rainLp = ctx.createBiquadFilter();
+    rainLp.type = 'lowpass'; rainLp.frequency.value = 16000; rainLp.Q.value = 0.5;
+    rainLp.connect(rainGain);
+    const light = gain(0), steady = gain(0), heavy = gain(0), roof = gain(0);
+    light.connect(rainLp); steady.connect(rainLp); heavy.connect(rainLp); roof.connect(rainGain);
+    loop('rain:light', () => rainLayer('light', sr), light);
+    loop('rain:steady', () => rainLayer('steady', sr), steady);
+    loop('rain:heavy', () => rainLayer('heavy', sr), heavy);
+    loop('roof', () => roofLayer(sr), roof);
+
+    // wind: noise -> band-pass -> gust (two slow LFOs ride on it) -> level -> bus
+    const windGain = gain(0);
+    windGain.connect(dest);
+    const windGust = gain(0.75);
+    windGust.connect(windGain);
+    const windBp = ctx.createBiquadFilter();
+    windBp.type = 'bandpass'; windBp.frequency.value = 300; windBp.Q.value = 0.6;
+    windBp.connect(windGust);
+    loop('wind', () => windLayer(sr), windBp);
+    const gustDepth = gain(0);
+    gustDepth.connect(windGust.gain);
+    for (const f of [0.11, 0.29]) {
+      const o = ctx.createOscillator();
+      o.type = 'sine'; o.frequency.value = f;
+      o.connect(gustDepth);
+      oscs.push(o);
+    }
+
+    // thunder: one-shots -> low-pass (a car or a room muffles it) -> bus gain -> bus
+    const thunderBus = gain(1);
+    thunderBus.connect(dest);
+    const thunderLp = ctx.createBiquadFilter();
+    thunderLp.type = 'lowpass'; thunderLp.frequency.value = 16000;
+    thunderLp.connect(thunderBus);
+
+    const t0 = ctx.currentTime;
+    let k = 0;
+    for (const s of sources) s.start(t0, (k++ * 1.3) % 3);
+    for (const o of oscs) o.start(t0);
+    this.n = { sources, oscs, light, steady, heavy, roof, rainLp, rainGain, windBp, windGust, windGain, gustDepth, thunderLp, thunderBus };
+    this.quiet = 0;
+  }
+
+  private teardown(): void {
+    const n = this.n;
+    if (!n) return;
+    this.n = null;
+    for (const s of n.sources) { try { s.stop(); s.disconnect(); } catch { /* not started */ } }
+    for (const o of n.oscs) { try { o.stop(); o.disconnect(); } catch { /* not started */ } }
+    for (const g of [n.light, n.steady, n.heavy, n.roof, n.rainLp, n.rainGain, n.windBp, n.windGust, n.windGain, n.gustDepth, n.thunderLp, n.thunderBus]) { try { g.disconnect(); } catch { /* ok */ } }
+  }
+
+  private apply(m: WeatherMix): void {
+    const n = this.n;
+    const h = this.host();
+    if (!n || !h) return;
+    const t = h.ctx.currentTime;
+    const aim = (p: AudioParam, v: number, tc: number): void => { p.setTargetAtTime(v, t, tc); };
+    aim(n.light.gain, m.light, RAMP.rainLayers);
+    aim(n.steady.gain, m.steady, RAMP.rainLayers);
+    aim(n.heavy.gain, m.heavy, RAMP.rainLayers);
+    aim(n.roof.gain, m.roof, RAMP.rainLayers);
+    aim(n.rainGain.gain, m.rainGain, RAMP.level);
+    aim(n.rainLp.frequency, m.rainCutoff, RAMP.corner);
+    aim(n.windGain.gain, m.windGain, RAMP.wind);
+    aim(n.windBp.frequency, m.windHz, RAMP.wind);
+    aim(n.gustDepth.gain, m.windGust * 0.3, RAMP.wind);
+    aim(n.thunderLp.frequency, m.thunderCutoff, RAMP.corner);
+    aim(n.thunderBus.gain, m.thunderGain, RAMP.corner);
+  }
+}

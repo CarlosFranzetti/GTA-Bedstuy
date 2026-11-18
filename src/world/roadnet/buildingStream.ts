@@ -201,6 +201,7 @@ export class RealBuildingStreamer {
   readonly root = new THREE.Group();
   readonly ranges: StreamRanges;
   readonly chunks: ReadonlyMap<string, Chunk>;
+  private readonly map = new Map<string, Chunk>();
   private readonly all: Chunk[] = [];
   private readonly farMaterial: THREE.MeshStandardMaterial;
   private readonly geoms = new Set<THREE.BufferGeometry>();
@@ -223,8 +224,14 @@ export class RealBuildingStreamer {
     this.seed = Math.floor(o.rng.next() * 0xffffffff) >>> 0;
     this.root.name = 'buildings-stream';
     this.farMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
-    const map = new Map<string, Chunk>();
-    for (const lot of o.lots) {
+    this.chunks = this.map;
+    this.addLots(o.lots);
+  }
+
+  /** Adds lots after construction (MAP7: lot tiles stream in as the player nears them). Chunks are keyed as at construction. */
+  addLots(lots: ReadonlyArray<RealLot>): void {
+    const o = this.o, map = this.map;
+    for (const lot of lots) {
       const mx = (lot.frontA.x + lot.frontB.x) / 2, mz = (lot.frontA.z + lot.frontB.z) / 2;
       const key = chunkKeyOf(o.layout, mx, mz);
       let c = map.get(key);
@@ -236,8 +243,10 @@ export class RealBuildingStreamer {
         this.all.push(c);
       }
       c.lots.push(lot);
+      // the chunk gained a lot after it was built (a block's lots can straddle two tiles' chunks): drop what it holds, it rebuilds
+      if (c.far) { this.disposeFar(c); c.farTried = false; }
+      if (c.near || c.job) this.disposeNear(c);
     }
-    this.chunks = map;
   }
 
   // ------------------------------------------------------------ per frame

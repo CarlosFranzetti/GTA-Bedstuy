@@ -5,7 +5,7 @@
  */
 import { BONE, MeshBuilder, NEUTRAL, SWATCH, add, blend, clearAny, cross, done, relax, hexLin, lerp, loftY, mul, norm, one, outerX, ribbon, ringPoint, sstep, sub, surfPt, topY, tube, type Ctx, type Piece, type V3, type Wfn } from './pedPiecesKit';
 
-export const ACCESSORY_IDS = ['glasses', 'sunglasses', 'headphones', 'earbuds', 'backpack', 'tote', 'messenger', 'shoppingBag', 'handbag', 'cane', 'scarf', 'chain'] as const;
+export const ACCESSORY_IDS = ['glasses', 'sunglasses', 'headphones', 'earbuds', 'backpack', 'tote', 'messenger', 'shoppingBag', 'handbag', 'cane', 'scarf', 'chain', 'collar'] as const;
 export type AccessoryId = typeof ACCESSORY_IDS[number];
 export const ACC_HEAD: readonly string[] = ['glasses', 'sunglasses', 'headphones', 'earbuds'];
 
@@ -141,6 +141,38 @@ function scarf(ctx: Ctx, mb: MeshBuilder): void {
   ribbon(mb, pts, widthsAlong(pts, nrm), 0.026, { rect: GEAR, centre: [0, y0 - 0.1, ctx.C[2] + 0.2], W: torsoW, shade: 0.9, uvt: [0.5, 0.5] });
 }
 
+/** collar shapes by garment style: stand height, how far it flares out, the half angle of the front opening (rad), the points / lapels hanging down the chest (length, 0 = none), fur */
+const COLLARS: Record<string, { h: number; flare: number; gap: number; pt: number; fur?: boolean }> = {
+  shirt: { h: 0.02, flare: 0.012, gap: 0.3, pt: 0.05 }, shirtdress: { h: 0.02, flare: 0.012, gap: 0.3, pt: 0.05 }, workshirt: { h: 0.02, flare: 0.012, gap: 0.3, pt: 0.05 }, polo: { h: 0.016, flare: 0.008, gap: 0.2, pt: 0.032 },
+  denim: { h: 0.022, flare: 0.012, gap: 0.3, pt: 0.05 }, blazer: { h: 0.026, flare: 0.022, gap: 0.5, pt: 0.14 }, overcoat: { h: 0.034, flare: 0.026, gap: 0.55, pt: 0.17 }, trench: { h: 0.04, flare: 0.03, gap: 0.55, pt: 0.17 },
+  bomber: { h: 0.03, flare: 0.002, gap: 0.12, pt: 0 }, track: { h: 0.034, flare: 0.002, gap: 0.14, pt: 0 }, boiler: { h: 0.024, flare: 0.012, gap: 0.3, pt: 0.04 }, sweater: { h: 0.014, flare: 0.002, gap: 0, pt: 0 },
+  parka: { h: 0.05, flare: 0.012, gap: 0.12, pt: 0, fur: true },
+};
+/** the stand of a shirt, polo, jacket or coat collar (a band round the neck open at the front) with its points or lapels; takes the colour of the garment (or of the shirt under an open one) */
+function collar(ctx: Ctx, mb: MeshBuilder): void {
+  const t = ctx.spec.top, c = COLLARS[t.style ?? ''];
+  if (!c) return;
+  const tint = hexLin(c.fur ? '#e8e4dc' : t.under && (t.style === 'denim' || t.style === 'bomber' || t.style === 'workshirt') ? t.color : t.under && t.style === 'blazer' ? t.color : t.color);
+  const y0 = ctx.lm.chinY - 0.066, cols = ctx.detail === 'hi' ? 14 : 9, A = Math.PI - c.gap;
+  const P: V3[][] = [];
+  const rows: Array<[number, number]> = c.fur ? [[0, 0.012], [0.45, 0.034], [1, 0.03]] : [[0, 0.01], [1, 0.01 + c.flare]];
+  for (const [u, off] of rows) {
+    const row: V3[] = [];
+    for (let j = 0; j < cols; j++) { const be = c.gap + (j / (cols - 1)) * (2 * A); row.push(ringPoint(ctx, y0 + u * c.h, be, off + (c.fur ? 0.004 * Math.sin(be * 5) : 0))); }
+    P.push(row);
+  }
+  mb.grid(P, { rect: NEUTRAL, tint, center: [0, y0, ctx.C[2]], W: torsoW, uv: () => [0.5, 0.5], shade: (i, j) => (c.fur ? 0.9 + 0.1 * Math.sin(j * 2.1) : 0.92 + 0.08 * i) });
+  if (c.pt > 0) {
+    // points / lapels: a ribbon from the corner of the opening down and out over the chest
+    for (const sd of [-1, 1] as const) {
+      const n = c.pt > 0.1 ? 4 : 2, pts: V3[] = [];
+      for (let k = 0; k <= n; k++) { const f = k / n; pts.push(surfPt(ctx, sd * (0.016 + 0.03 * f * (c.pt > 0.1 ? 1.3 : 1)), y0 + 0.012 - c.pt * f, 'front', 0.012 + 0.004 * f)); }
+      const nrm = pts.map((): V3 => [0, 0.3, -1]);
+      ribbon(mb, pts, widthsAlong(pts, nrm), c.pt > 0.1 ? 0.017 : 0.012, { rect: NEUTRAL, centre: [0, y0 - 0.1, ctx.C[2] + 0.2], W: torsoW, tint, shade: 0.96, uvt: [0.5, 0.5] });
+    }
+  }
+}
+
 function chain(ctx: Ctx, mb: MeshBuilder): void {
   const path: V3[] = [], n = ctx.detail === 'hi' ? 10 : 7, y0 = ctx.lm.chinY - 0.05;
   for (let k = 0; k <= n; k++) { const be = Math.PI * 0.1 + (k / n) * (Math.PI * 2 - Math.PI * 0.2) + Math.PI; const b = be % (Math.PI * 2); path.push(ringPoint(ctx, y0 - 0.12 * Math.pow(front(b), 1.5), b, 0.009 + 0.0 * front(b))); }
@@ -148,12 +180,12 @@ function chain(ctx: Ctx, mb: MeshBuilder): void {
 }
 
 const BUILD: Record<AccessoryId, (ctx: Ctx, mb: MeshBuilder) => void> = {
-  glasses: (c, m) => glasses(c, m, false), sunglasses: (c, m) => glasses(c, m, true), headphones, earbuds, backpack, scarf, chain, cane,
+  glasses: (c, m) => glasses(c, m, false), sunglasses: (c, m) => glasses(c, m, true), headphones, earbuds, backpack, scarf, chain, cane, collar,
   tote: (c, m) => sideBag(c, m, { sx: -1, yTop: c.lm.hemY + 0.12, h: 0.36, hw: 0.15, d: 0.06, strap: false, handles: true }),
   handbag: (c, m) => sideBag(c, m, { sx: 1, yTop: c.lm.hemY + 0.06, h: 0.2, hw: 0.1, d: 0.07, strap: true, handles: false, z: c.C[2] + 0.02 }),
   messenger, shoppingBag,
 };
-const BONE_OF: Record<AccessoryId, 'accessory' | 'bag'> = { glasses: 'accessory', sunglasses: 'accessory', headphones: 'accessory', earbuds: 'accessory', backpack: 'bag', tote: 'bag', messenger: 'bag', shoppingBag: 'bag', handbag: 'bag', cane: 'accessory', scarf: 'accessory', chain: 'accessory' };
+const BONE_OF: Record<AccessoryId, 'accessory' | 'bag'> = { glasses: 'accessory', sunglasses: 'accessory', headphones: 'accessory', earbuds: 'accessory', backpack: 'bag', tote: 'bag', messenger: 'bag', shoppingBag: 'bag', handbag: 'bag', cane: 'accessory', scarf: 'accessory', chain: 'accessory', collar: 'accessory' };
 export function buildAccessory(id: AccessoryId, ctx: Ctx): Piece {
   const mb = new MeshBuilder(torsoW);
   BUILD[id](ctx, mb);

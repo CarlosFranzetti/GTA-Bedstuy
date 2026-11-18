@@ -74,9 +74,10 @@ describe('World2D.step resolution', () => {
   it('splits positional correction by inverse mass', () => {
     const w = new World2D();
     const heavy = dyn('vehicle', { kind: 'circle', r: 1 }, 0, 0, 3000);
-    const light = dyn('ped', { kind: 'circle', r: 1 }, 1.5, 0, 1000);
+    const light = dyn('vehicle', { kind: 'circle', r: 1 }, 1.5, 0, 1000);
     w.addBody(heavy); w.addBody(light);
-    w.step(DT);
+    // PHYSICS: a deep overlap between two bodies that are not closing is eased apart over several steps (0.05 m each), not popped out
+    for (let i = 0; i < 12; i++) w.step(DT);
     const dh = Math.abs(heavy.pos.x - 0);
     const dl = Math.abs(light.pos.x - 1.5);
     expect(dh + dl).toBeGreaterThanOrEqual(0.5);

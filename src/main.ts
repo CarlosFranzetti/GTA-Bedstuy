@@ -44,6 +44,7 @@ import { loadTexturePacks } from '@/textures/packs';
 import { setStorefrontHour } from '@/world/buildings/mixeduse';
 import { resolveQuality, startHostedTextures } from '@/textures/hosted';
 import { Weather } from '@/game/Weather';
+import { WeatherAudio } from '@/audio/weather/WeatherAudio';
 import { LIGHTING } from '@/render/LightingConfig';
 import { tierConfig, pixelRatioFor } from '@/render/QualityTier';
 import { classifyGpu, readGpuInfo, profilePixelRatio } from '@/render/GpuProfile';
@@ -221,7 +222,9 @@ const sunFlare = new SunFlare(scene);
 // wet-street / rain state: patches the ground materials in place, so it is built before the shader warm-up compile
 const weather = new Weather(scene, materials, { rainStreaks: 2000 }); // streak pool; the tier sets how many are drawn
 weather.setRainStreaks(tier0.rainStreaks);
-weather.attach({ dayNight });
+weather.attach({ dayNight, audio: new WeatherAudio(() => audio.ambienceHost) });
+weather.setTier(quality);
+weather.startForecast(data.seed);
 loading.done('lights');
 await nextPaint();
 
@@ -451,6 +454,7 @@ function applyQuality(q: Quality): void {
   instanceCuller?.setRange(t.instanceDistance);
   carLod.setNearDist(useCarLod ? t.carNearDist : Infinity);
   weather.setRainStreaks(t.rainStreaks);
+  weather.setTier(q);
   sky.starsEnabled = t.stars;
   nightLights.setPoolSize(LIGHTING.lampPool[q]);
   traffic.setDensity(t.traffic);
@@ -592,8 +596,10 @@ function drawFrame(alpha: number, frameDt: number): void {
     world.transit.attachAudio(audio.sfxHost?.ctx, audio.sfxHost?.dest); // trains: on the Sound effects slider
     world.transit.update(frameDt, cam.camera.position, dayNight.isNight);
     realWorld?.update(frameDt, player.body.pos.x, player.body.pos.z, cam.camera.position, dayNight.isNight); // building streamer and el trains
+    weather.inVehicle = player.inVehicle;
     weather.update(frameDt, cam.camera.position);
-    pipeline.setWeather(weather.wetness, weather.rain);
+    Vehicle.roadGrip = weather.roadGrip;
+    pipeline.setWeather(weather.wetness, weather.hazeRain);
     culler.update(cam.camera.position.x, cam.camera.position.z);
     chunkCuller.update(cam.camera.position.x, cam.camera.position.z, cam.camera.position.y); // range grows with camera height so aerials see every chunk
     instanceCuller?.update(cam.camera.position.x, cam.camera.position.z);

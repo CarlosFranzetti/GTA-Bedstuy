@@ -30,14 +30,15 @@ export function mapKindFromSearch(search: string): MapKind {
   } catch { return 'grid'; }
 }
 
-/** 'r123' is the game's map (R1+R2 plus the seven-block ring R3, roadnet-r123.json); 'r1r2' is the first two rings only (roadnet-core.json, kept for the tests that pin its counts). */
-export type RealExtent = 'r123' | 'r1r2';
-const realNets: Partial<Record<RealExtent, Promise<RoadNet>>> = {};
+let realNet: Promise<RoadNet> | null = null;
 
-/** Decode a shipped network (default: the whole real map). Cached; safe to call twice. */
-export function loadRoadNet(extent: RealExtent = 'r123'): Promise<RoadNet> {
-  return (realNets[extent] ??= (extent === 'r123' ? import('@/world/data/roadnet-r123.json') : import('@/world/data/roadnet-core.json'))
-    .then((m) => RoadNet.fromJson((m.default ?? m) as unknown as RoadNetJson)));
+/**
+ * Decode the shipped real-map network: R1 + R2 + the seven-block ring R3 (roadnet-r123.json, 78 kB raw, 23 kB gzip). Cached; safe to
+ * call twice. (roadnet-core.json, the first two rings only, is no longer loaded by the game; tests import it directly.)
+ */
+export function loadRoadNet(): Promise<RoadNet> {
+  realNet ??= import('@/world/data/roadnet-r123.json').then((m) => RoadNet.fromJson((m.default ?? m) as unknown as RoadNetJson));
+  return realNet;
 }
 
 /** The grid as a MapSource; the RoadNet adapter is built on first use of `.net`. */

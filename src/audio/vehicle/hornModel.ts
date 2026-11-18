@@ -16,7 +16,8 @@ export type SirenMode = 'wail' | 'yelp' | 'whoop' | 'hilo' | 'parody';
 
 const m3 = 1.189, M3 = 1.26, P4 = 1.335;
 
-export const HORNS: Record<VehicleType, HornSpec> = {
+type Cars2Horn = 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'taxivan' | 'limo' | 'classic' | 'donk' | 'copsuv' | 'convertible' | 'stepvan' | 'icecream';
+const BASE_HORNS: Record<Exclude<VehicleType, Cars2Horn>, HornSpec> = {
   sedan:     { kind: 'car',   root: 415, ratios: [1, M3],        wave: 'square',   lp: 2600, atk: 0.012, rel: 0.09, gain: 1 },
   suv:       { kind: 'car',   root: 351, ratios: [1, m3],        wave: 'square',   lp: 2200, atk: 0.015, rel: 0.1,  gain: 1 },
   cab:       { kind: 'cab',   root: 430, ratios: [1, P4],        wave: 'sawtooth', lp: 3000, atk: 0.008, rel: 0.06, gain: 1.1 },
@@ -42,6 +43,23 @@ export const HORNS: Record<VehicleType, HornSpec> = {
   wedgetruck: { kind: 'car',  root: 291, ratios: [1, 1.414],     wave: 'square',   lp: 1500, atk: 0.01,  rel: 0.1,  gain: 1 },
   evsedan:   { kind: 'car',   root: 622, ratios: [1, P4],        wave: 'triangle', lp: 2500, atk: 0.03,  rel: 0.15, gain: 0.9 },
   dollarvan: { kind: 'car',   root: 291, ratios: [1, 1.13],      wave: 'square',   lp: 2400, atk: 0.01,  rel: 0.07, gain: 1 },
+};
+
+/** CARS2: horns borrowed from the nearest class, pitched to the vehicle (big and old cars lower, small ones higher). */
+export const HORNS: Record<VehicleType, HornSpec> = {
+  ...BASE_HORNS,
+  wagon: { ...BASE_HORNS.sedan, root: 392 },
+  bigsuv: { ...BASE_HORNS.suv, root: 330 },
+  minitruck: { ...BASE_HORNS.hatch, kind: 'car', root: 440, gain: 0.9 },
+  panelvan: { ...BASE_HORNS.cargovan, root: 370 },
+  taxivan: { ...BASE_HORNS.cab, root: 466 },
+  limo: { ...BASE_HORNS.towncar, root: 196 },
+  classic: { ...BASE_HORNS.towncar, root: 220, wave: 'square', lp: 1900 },
+  donk: { ...BASE_HORNS.towncar, root: 185, wave: 'square', lp: 1600, gain: 1.15 },
+  copsuv: { ...BASE_HORNS.cop, root: 380 },
+  convertible: { ...BASE_HORNS.pony, root: 415, lp: 3600 },
+  stepvan: { ...BASE_HORNS.boxtruck, root: 262 },
+  icecream: { ...BASE_HORNS.boxtruck, root: 300, lp: 1500 },
 };
 
 export function hornFor(type: string | null | undefined): HornSpec {

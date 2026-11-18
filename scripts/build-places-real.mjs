@@ -15,9 +15,12 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const CORE = path.join(ROOT, 'src/world/data/roadnet-core.json');
-const LOTS = path.join(ROOT, 'src/world/data/raw/lots-real-r1r2a.json');
-const OUT = path.join(ROOT, 'src/world/data/places-real.json');
+// --r3 (MAP7): the same table for the whole real map (roadnet-r123.json; lots from the cache of import-lots-real.mjs --r3,
+// which keeps the PLUTO addresses the shipped lot tiles leave out) -> places-real-r123.json
+const R3 = process.argv.includes('--r3');
+const CORE = path.join(ROOT, R3 ? 'src/world/data/roadnet-r123.json' : 'src/world/data/roadnet-core.json');
+const LOTS = R3 ? path.join(ROOT, 'cache/real-r3/lots-r3-all.json') : path.join(ROOT, 'src/world/data/raw/lots-real-r1r2a.json');
+const OUT = path.join(ROOT, R3 ? 'src/world/data/places-real-r123.json' : 'src/world/data/places-real.json');
 
 function walk(dir, out = []) {
   for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -50,7 +53,7 @@ async function main() {
     const grid = gridMod.buildGrid(data);
     const coreRaw = fs.readFileSync(CORE);
     const net = RoadNet.fromJson(JSON.parse(coreRaw.toString('utf8')));
-    const lotsJson = JSON.parse(fs.readFileSync(LOTS, 'utf8'));
+    const lotsJson = R3 ? { lots: JSON.parse(fs.readFileSync(LOTS, 'utf8')) } : JSON.parse(fs.readFileSync(LOTS, 'utf8'));
     const d = deriveGeometry(net);
     const faces = blockFaces(net, d);
     const lots = placeLots(net, d, faces, lotsJson);

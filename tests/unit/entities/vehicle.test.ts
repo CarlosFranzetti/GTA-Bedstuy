@@ -345,7 +345,7 @@ describe('Vehicle', () => {
     expect(v.object3D.position.x).toBe(500);
   });
 
-  it('onContact raises damage by impulse/40 and emits impact', () => {
+  it('onContact raises damage by (impulse - 2)/34 and emits impact', () => {
     const events = new EventBus();
     const seen: unknown[] = [];
     events.on('impact', (e) => seen.push(e));
@@ -353,7 +353,7 @@ describe('Vehicle', () => {
     const other = { id: 'wall', kind: 'static', shape: { kind: 'circle', r: 1 }, pos: { x: 0, z: -3 }, vel: { x: 0, z: 0 }, heading: 0, mass: Infinity } as const;
     const c: Contact = { a: v.body, b: other as never, normal: { x: 0, z: -1 }, depth: 0.1, point: { x: 0, z: -2 }, impulse: 10 };
     v.onContact(c, other as never);
-    expect(v.damage).toBeCloseTo(0.25);
+    expect(v.damage).toBeCloseTo(8 / 34); // PHYSICS: impacts under 2 m/s closing are free, so holding the throttle against a wall cannot wreck the car
     expect(seen).toHaveLength(1);
     expect(seen[0]).toMatchObject({ a: 'v1', b: 'wall', strength: 10 });
     v.onContact({ ...c, impulse: 1000 }, other as never);
@@ -370,7 +370,7 @@ describe('Vehicle', () => {
     v1.onContact(c, v2.body);
     v2.onContact(c, v1.body);
     expect(n).toBe(1);
-    expect(v2.damage).toBeCloseTo(0.15);
+    expect(v2.damage).toBeCloseTo(4 / 34);
   });
 
   it('emits horn on rising edge only', () => {
@@ -459,7 +459,7 @@ describe('Vehicle', () => {
     const hit = (impulse: number): Contact => ({ a: v.body, b: wall, normal: { x: 1, z: 0 }, depth: 0.05, point: { x: 1, z: 0 }, impulse });
     v.onContact(hit(8), wall);
     const first = v.damage;
-    expect(first).toBeCloseTo(0.2);
+    expect(first).toBeCloseTo(6 / 34);
     for (let i = 0; i < 30; i++) { v.update(1 / 60); v.onContact(hit(2), wall); }
     expect(n).toBe(1);
     expect(v.damage - first).toBeLessThan(0.2); // 30 scrape frames, not 30 full hits
@@ -467,7 +467,7 @@ describe('Vehicle', () => {
     v.update(1 / 60);
     const before = v.damage;
     v.onContact(hit(16), wall); // above 8 * 1.5 + 1 (the SCRAPE_ESCALATE rule), so it is a new hit
-    expect(v.damage - before).toBeCloseTo(0.4);
+    expect(v.damage - before).toBeCloseTo(14 / 34);
     expect(n).toBe(2);
   });
 

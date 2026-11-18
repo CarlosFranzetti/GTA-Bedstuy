@@ -2,6 +2,7 @@
  * Layering of the body below the head: which of skin, shoe, trousers and top covers a texel, with soft edges. The hem of a top,
  * the neckline, the sleeve end and the top of the shoe are each one level line round the body whatever the bone weights say.
  */
+import { HEM_Y } from '@/entities/models/pedLegs';
 import { shortsLen } from './ped';
 import { Px, sst } from './pedPaintShared';
 import type { Look, Tex } from './pedPaintShared';
@@ -29,8 +30,10 @@ export function paintBody(K: Look, t: Tex, o: Px): void {
   if (arm) { aTop = sleeves === 'none' || outerArms === null || hand ? 0 : sst(sleeveEnd - eps, sleeveEnd + eps, y); }
   else if (leg) {
     if (k !== 'dress') aTop = sst(hemTop - eps, hemTop + eps, y);
-    aBot = bot.kind === 'skirt' ? 0 : sst(hemBot - eps, hemBot + eps, y) * sst(shoeTop - 0.03, shoeTop - 0.012, y);
-    aShoe = sst(shoeTop + eps, shoeTop - eps, y);
+    // PEOPLE6: under cut trouser tubes the shoe is its own geometry and the whole tube down to its hem's lower edge is cloth (the cuff lip is not shoe)
+    const covered = bot.kind === 'jeans' || bot.kind === 'trousers' || bot.kind === 'cargo' || bot.kind === 'sweats' || bot.kind === 'leggings', stTop = covered ? HEM_Y - 0.012 : shoeTop;
+    aBot = bot.kind === 'skirt' ? 0 : sst(hemBot - eps, hemBot + eps, y) * (covered ? sst(stTop - 0.012, stTop - 0.002, y) : sst(shoeTop - 0.03, shoeTop - 0.012, y));
+    aShoe = sst(stTop + eps, stTop - eps, y);
   } else {
     const aNeck = sst(neckY + 0.0045, neckY - 0.0045, y);
     aTop = aNeck * sst(hemTop - eps, hemTop + eps, y) * (sleeves === 'none' && k !== 'jersey' ? 1 - sst(shX * 0.8 - 0.004, shX * 0.8 + 0.004, ax) * sst(shY - 0.03, shY - 0.012, y) : 1);

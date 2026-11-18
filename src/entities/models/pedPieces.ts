@@ -79,7 +79,7 @@ export function beardIdsFor(spec: Pick<PedSpec, 'id' | 'face' | 'age'>): BeardId
   else if (spec.face.mustache) out.push('stache');
   return out;
 }
-export function accessoryIdsFor(spec: Pick<PedSpec, 'id' | 'face' | 'age' | 'sex' | 'gear' | 'hat' | 'hair' | 'role'>): AccessoryId[] {
+export function accessoryIdsFor(spec: Pick<PedSpec, 'id' | 'face' | 'age' | 'sex' | 'gear' | 'hat' | 'hair' | 'role' | 'top'>): AccessoryId[] {
   const out: AccessoryId[] = [], roll = rnd(spec.id, 1), grown = spec.age !== 'kid', hat = hatIdFor(spec);
   if (spec.face.glasses) out.push(spec.role === 'dj' || /^#1[0-9a-f]{5}$/i.test(spec.face.glasses) && rnd(spec.id, 5) < 0.5 ? 'sunglasses' : 'glasses');
   switch (spec.gear) {
@@ -89,6 +89,7 @@ export function accessoryIdsFor(spec: Pick<PedSpec, 'id' | 'face' | 'age' | 'sex
     case 'bag': out.push(spec.sex === 'f' ? 'handbag' : rnd(spec.id, 9) < 0.5 ? 'shoppingBag' : 'handbag'); break;
     default: break;
   }
+  if (spec.top.style && ['shirt', 'shirtdress', 'workshirt', 'polo', 'denim', 'blazer', 'overcoat', 'trench', 'bomber', 'track', 'boiler', 'sweater', 'parka'].includes(spec.top.style)) out.push('collar');
   const hasBag = spec.gear !== 'none';
   const adult = spec.age === 'adult' || spec.age === 'teen';
   if (adult && !hat && spec.hair !== 'afro' && spec.hair !== 'afroL' && roll < 0.1) out.push('headphones');

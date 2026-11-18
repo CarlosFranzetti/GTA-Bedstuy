@@ -39,7 +39,8 @@ export interface EngineVoice {
  * Characters: V6 smooth, V8 lopes (cab/cop/pickup/pony/towncar/luxury), diesel clatter + turbo (trucks, bus, vans),
  * small fours (hatch, beater with misfire + heat-shield rattle), hybrid whine (minivan).
  */
-export const ENGINE_VOICES: Record<VehicleType, EngineVoice> = {
+type Cars2Voice = 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'taxivan' | 'limo' | 'classic' | 'donk' | 'copsuv' | 'convertible' | 'stepvan' | 'icecream';
+const BASE_VOICES: Record<Exclude<VehicleType, Cars2Voice>, EngineVoice> = {
   sedan:     { cyl: 6, vmax: 30, idle: 750, red: 6200, gears: 6, step: 1.32, top: 0.72, shift: 0.8,  inr: 1,   h: [1.2, 1, 18],  tone: 700,  open: 1800, ex: [180, 2, 6],  sub: 0.15, lope: 0.05, det: 7,  wob: 6,  air: 0.25, g: 1, sh: [[1.5, 0.1]] },
   suv:       { cyl: 6, vmax: 27, idle: 690, red: 5600, gears: 6, step: 1.36, top: 0.7,  shift: 0.78, inr: 1.4, h: [1.0, 1.2, 20], tone: 560,  open: 1500, ex: [140, 3, 8],  sub: 0.3,  lope: 0.08, det: 5,  wob: 8,  air: 0.35, g: 1.15, sh: [[1.5, 0.12]], road: 1.2 },
   cab:       { cyl: 4, vmax: 30, idle: 700, red: 5800, gears: 6, step: 1.36, top: 0.7,  shift: 0.76, inr: 1.1, h: [1.5, 1.0, 14], tone: 620,  open: 1500, ex: [200, 2, 5],  sub: 0.04, lope: 0.0,  det: 8,  wob: 7,  air: 0.2,  g: 1, whine: 0.7, hyb: 4.2, sh: [[1, 0.14]] },
@@ -65,6 +66,23 @@ export const ENGINE_VOICES: Record<VehicleType, EngineVoice> = {
   muscle:    { cyl: 8, vmax: 41, idle: 740, red: 6400, gears: 4, step: 1.4, top: 0.78, shift: 0.88, inr: 0.9, h: [0.8, 1.7, 26], tone: 880, open: 2800, ex: [86, 5, 11], sub: 0.55, lope: 0.55, det: 14, wob: 26, air: 0.4, g: 0.7, crack: 1, sh: [[0.5, 0.36], [2.5, 0.12]], drv: 0.35 },
   wedgetruck: { cyl: 4, vmax: 25, idle: 0, red: 9000, gears: 1, step: 1, top: 0.8, shift: 9, inr: 2, h: [2.5, 0.2, 6], tone: 900, open: 1400, ex: [260, 1, 2], sub: 0, lope: 0, det: 3, wob: 0, air: 0.12, g: 1, whine: 1.7, ev: true, ped: 1, road: 1.8 },
   evsedan:   { cyl: 4, vmax: 36, idle: 0, red: 12000, gears: 1, step: 1, top: 0.8, shift: 9, inr: 0.8, h: [2.5, 0.2, 6], tone: 1000, open: 1800, ex: [300, 1, 2], sub: 0, lope: 0, det: 3, wob: 0, air: 0.1, g: 1, whine: 1.3, ev: true, ped: 1, road: 2.1 },
+};
+
+/** CARS2: each new type borrows the voice of its nearest class and moves the parts that make it its own (size of the engine, pitch, lope). */
+export const ENGINE_VOICES: Record<VehicleType, EngineVoice> = {
+  ...BASE_VOICES,
+  wagon: { ...BASE_VOICES.sedan, vmax: 28, idle: 720, tone: 620, lope: 0.08, g: 0.9, road: 1.1 },
+  bigsuv: { ...BASE_VOICES.suv, cyl: 8, vmax: 26, idle: 640, tone: 460, ex: [100, 3, 8], lope: 0.2, sub: 0.4 },
+  minitruck: { ...BASE_VOICES.hatch, vmax: 27, idle: 800, red: 5800, tone: 900, ex: [200, 4, 8], det: 16, wob: 12, g: 0.8, drv: 0.3 },
+  panelvan: { ...BASE_VOICES.cargovan, cyl: 8, vmax: 25, idle: 640, red: 4400, tone: 480, ex: [105, 3, 8], lope: 0.16, sub: 0.3 },
+  taxivan: { ...BASE_VOICES.minivan, vmax: 26, whine: 0.7, hyb: 4.2, h: [1.7, 0.7, 12] },
+  limo: { ...BASE_VOICES.towncar, vmax: 27, idle: 580, tone: 340, inr: 1.7, road: 1.5 },
+  classic: { ...BASE_VOICES.towncar, vmax: 30, idle: 560, red: 4600, tone: 340, ex: [80, 3, 9], lope: 0.34, sub: 0.45, det: 10, wob: 16, g: 0.9, drv: 0.2 },
+  donk: { ...BASE_VOICES.towncar, vmax: 29, idle: 560, red: 4600, tone: 300, ex: [74, 4, 10], lope: 0.4, sub: 0.7, det: 12, wob: 20, g: 1.1, drv: 0.3 },
+  copsuv: { ...BASE_VOICES.cop, vmax: 34, tone: 720, ex: [118, 3, 9] },
+  convertible: { ...BASE_VOICES.pony, cyl: 6, vmax: 33, idle: 820, red: 6600, tone: 1100, lope: 0.06, crack: 0.5, g: 0.8 },
+  stepvan: { ...BASE_VOICES.boxtruck, vmax: 20, tone: 400, clat: 0.8, wob: 12 },
+  icecream: { ...BASE_VOICES.boxtruck, vmax: 20, idle: 700, tone: 470, clat: 0.55, turbo: 0.1, g: 0.9 },
 };
 
 /** Voice for a type; a type the table does not know yet falls back to the sedan so a new car is never silent. */

@@ -21,7 +21,7 @@ export interface WeatherAudioState {
 /** Duck-typed so Weather can be tested with a stub. */
 export interface WeatherAudioSink {
   update(dt: number, s: WeatherAudioState): void;
-  /** a lightning strike `distanceM` away has just flashed; the sink delays the sound itself if it wants the real delay */
+  /** a thunder clap from a strike `distanceM` away reaches the listener now (Weather has already waited out the speed of sound) */
   thunder(distanceM: number, strength: number): void;
 }
 

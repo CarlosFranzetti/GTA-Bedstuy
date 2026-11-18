@@ -4,7 +4,7 @@
  * church hat. No letters, no logos. A hat is a dome (a patch of the skull plus a thickness), a brim (two thin sheets, so its upper face and
  * its underside shade differently) and, where it has one, a trim row that takes the person's trim colour from the swatch.
  */
-import { BONE, MeshBuilder, clearAny, SWATCH, add, basisOf, bodyRingAt, clamp, done, relax, dirOf, lerp, loftY, mul, norm, one, patch, ringDist, ringPoint, rimAtHeight, sstep, skullR, tube, type Ctx, type Piece, type V3, type Wfn } from './pedPiecesKit';
+import { BONE, MeshBuilder, NEUTRAL, hexLin, clearAny, SWATCH, add, basisOf, bodyRingAt, clamp, done, relax, dirOf, lerp, loftY, mul, norm, one, patch, ringDist, ringPoint, rimAtHeight, sstep, skullR, tube, type Ctx, type Piece, type V3, type Wfn } from './pedPiecesKit';
 
 export const HAT_IDS = ['fitted', 'snapback', 'beanie', 'bucket', 'flatCap', 'kufi', 'kippah', 'fedora', 'headscarf', 'hijab', 'durag', 'hoodUp', 'hoodDown', 'hardHat', 'bikeHelmet', 'policeCap', 'churchHat'] as const;
 export type HatId = typeof HAT_IDS[number];
@@ -32,6 +32,7 @@ function dome(ctx: Ctx, mb: MeshBuilder, o: DomeOpts): (be: number) => number {
   return rim;
 }
 /** the point on the rim of a dome at azimuth beta (on the skull, pushed out by the thickness) */
+const rimPointOut = (ctx: Ctx, rim: (be: number) => number, be: number, t: number): V3 => rimPoint(ctx, rim, be, t);
 const rimPoint = (ctx: Ctx, rim: (be: number) => number, be: number, t: number): V3 => { const d = dirOf(rim(be), be); return add(ctx.C, mul(d, skullR(ctx, d) + t)); };
 
 /** a brim: two thin sheets (top and underside) from a rim running out and down; open arc for a visor */
@@ -93,7 +94,13 @@ function hijab(ctx: Ctx, mb: MeshBuilder, hood: boolean): void {
   const line: Knots = hood ? [[0, 0.8], [0.45, 0.74], [0.8, 0.46], [1.1, 0.3], [1.57, 0.27], [Math.PI, 0.25]] : [[0, 0.74], [0.5, 0.66], [0.78, 0.42], [1.05, 0.3], [1.57, 0.28], [Math.PI, 0.26]];
   const tf = knots(line);
   const th = hood ? 0.024 : 0.012;
-  dome(ctx, mb, { line, thick: (be, u) => th + (hood ? 0.012 * sstep(0, 0.5, u) + 0.02 * back(be) * Math.sin(Math.min(1, u * 1.15) * Math.PI * 0.8) : 0.006 * sstep(0, 0.5, u) + 0.012 * back(be) * Math.sin(Math.min(1, u * 1.15) * Math.PI * 0.8)), rows: rowsOf(ctx, 5, 3), shade: (u) => 0.85 + 0.15 * sstep(0, 0.6, u), W: hood ? headW : headW, uvv: [0.4, 0.9] });
+  const rim = dome(ctx, mb, { line, thick: (be, u) => th + (hood ? 0.012 * sstep(0, 0.5, u) + 0.02 * back(be) * Math.sin(Math.min(1, u * 1.15) * Math.PI * 0.8) : 0.006 * sstep(0, 0.5, u) + 0.012 * back(be) * Math.sin(Math.min(1, u * 1.15) * Math.PI * 0.8)), rows: rowsOf(ctx, 5, 3), shade: (u) => 0.85 + 0.15 * sstep(0, 0.6, u), W: hood ? headW : headW, uvv: [0.4, 0.9] });
+  if (hood && ctx.spec.top.style === 'parka') {
+    // a fur trim round the face opening: a fat soft tube along the rim over the forehead and down both sides
+    const path: V3[] = [];
+    for (let k = 0; k <= 10; k++) { const be = -1.35 + (2.7 * k) / 10; path.push(rimPointOut(ctx, rim, be, th + 0.012)); }
+    tube(mb, path, (_i, t) => [0.017 + 0.004 * Math.sin(t * Math.PI), 0.017 + 0.004 * Math.sin(t * Math.PI)], 5, { rect: NEUTRAL, W: headW, tint: hexLin(ctx.spec.hatTrim || '#e8e4dc'), uv: () => [0.5, 0.5], capStart: true, capEnd: true });
+  }
   const sh = ctx.rig.shoulderL[1];
   drape(ctx, mb, {
     yBot: sh - (hood ? 0.07 : 0.17), rows: rowsOf(ctx, 6, 4), cols: ctx.detail === 'hi' ? 14 : 8,

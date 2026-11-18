@@ -54,10 +54,10 @@ const MIN_HOLD_HOURS: Readonly<Record<WeatherKind, number>> = {
 /** Which kind follows which (relative weights). Cloud always builds before rain; a storm clears to light rain or broken cloud. */
 const NEXT: Readonly<Record<WeatherKind, ReadonlyArray<readonly [WeatherKind, number]>>> = {
   clear: [['partlyCloudy', 0.6], ['windy', 0.28], ['overcast', 0.12]],
-  partlyCloudy: [['clear', 0.3], ['windy', 0.15], ['overcast', 0.55]],
-  overcast: [['lightRain', 0.5], ['partlyCloudy', 0.38], ['windy', 0.07], ['clear', 0.05]],
-  lightRain: [['heavyRain', 0.3], ['overcast', 0.3], ['partlyCloudy', 0.34], ['clear', 0.06]],
-  heavyRain: [['thunderstorm', 0.3], ['lightRain', 0.7]],
+  partlyCloudy: [['clear', 0.28], ['windy', 0.12], ['overcast', 0.6]],
+  overcast: [['lightRain', 0.62], ['partlyCloudy', 0.26], ['windy', 0.07], ['clear', 0.05]],
+  lightRain: [['heavyRain', 0.42], ['overcast', 0.22], ['partlyCloudy', 0.3], ['clear', 0.06]],
+  heavyRain: [['thunderstorm', 0.5], ['lightRain', 0.5]],
   thunderstorm: [['lightRain', 0.55], ['partlyCloudy', 0.45]],
   fog: [['partlyCloudy', 0.6], ['clear', 0.4]],
   windy: [['clear', 0.35], ['partlyCloudy', 0.4], ['overcast', 0.25]],
@@ -134,7 +134,7 @@ export class Forecast {
     const h = hourOfDay(t);
     const calmBefore = last.kind === 'clear' || last.kind === 'partlyCloudy' || last.kind === 'lightRain' || last.kind === 'windy';
     // mist: a calm night can end in fog that forms before dawn
-    if (calmBefore && h >= FOG_START_WINDOW[0] && h <= FOG_START_WINDOW[1] && this.rng.chance(0.4)) { this.push('fog', t); return; }
+    if (calmBefore && h >= FOG_START_WINDOW[0] && h <= FOG_START_WINDOW[1] && this.rng.chance(0.55)) { this.push('fog', t); return; }
     // a chain segment that would end in the fog window gets a chance to continue into it; otherwise the usual table
     const table = NEXT[last.kind];
     const eve = smooth(11, 15, h) * (1 - smooth(21, 23.5, h)); // storms favour the afternoon and evening

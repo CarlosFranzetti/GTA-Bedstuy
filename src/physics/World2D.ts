@@ -37,15 +37,22 @@ export const YIELD_PREFIX = /^(hydrant|bollard)-/;
 /** Fraction of speed a car keeps after driving through a yielding prop, plus the flat loss (m/s). */
 const YIELD_KEEP = 0.92;
 const YIELD_LOSS = 0.6;
+/** The impact strength reported (share of speed): sounds a thud and dents a little, nothing like hitting a wall. */
+const YIELD_IMPACT = 0.4;
 /**
  * Soft personal space between people: pairs closer than PERSONAL_SPACE (centres, m) drift apart at up to PERSONAL_PUSH m/s, and
  * head-on pairs each lean to their own right so they step round each other. The hard collision stays at the body radii.
  */
 export const PERSONAL_SPACE = 0.85;
 const PERSONAL_PUSH = 0.9;
+/** Approaching pairs start leaning aside at this distance (m) and move sideways at this speed (m/s) each. */
+const STEP_ASIDE_RANGE = 2.2;
+const STEP_ASIDE_SPEED = 0.9;
 /** Overlaps deeper than this between two dynamic bodies that are not moving into each other (spawns, teleports) are eased apart. */
 const GENTLE_DEPTH = 0.15;
 const GENTLE_STEP = 0.05;
+/** A vehicle slower than this (m/s) is immovable for people leaning on it. */
+const PARKED_SPEED2 = 0.6 * 0.6;
 /** Dynamic hash is rebuilt once per step; bodies move after that, so queries between steps are padded. */
 const DYN_QUERY_PAD = 2;
 const RAY_LINEAR_FALLBACK_CELLS = 400;
@@ -396,7 +403,7 @@ export class World2D implements IWorld2D {
         const d2 = dx * dx + dz * dz;
         if (d2 > rr * rr) {
           // people give each other room: a soft push inside PERSONAL_SPACE, before the bodies touch
-          if ((a.kind === 'ped' || a.kind === 'player') && (cb.kind === 'ped' || cb.kind === 'player') && d2 < PERSONAL_SPACE * PERSONAL_SPACE + 0.5) this.personalSpace(e, c, dx, dz, d2);
+          if ((a.kind === 'ped' || a.kind === 'player') && (cb.kind === 'ped' || cb.kind === 'player') && d2 < STEP_ASIDE_RANGE * STEP_ASIDE_RANGE) this.personalSpace(e, c, dx, dz, d2);
           continue;
         }
       }
@@ -410,7 +417,11 @@ export class World2D implements IWorld2D {
 
   private resolve(ea: Entry, eb: Entry, nx: number, nz: number, depth: number, px: number, pz: number): void {
     const a = ea.body, b = eb.body;
-    const ia = invMass(a), ib = invMass(b);
+    let ia = invMass(a), ib = invMass(b);
+    // a person cannot shove a parked or crawling car out of its place (the car's inverse mass is 0 for the push), so squeezing
+    // through a gap narrower than the body stays blocked instead of wedging the cars apart a few millimetres a second
+    if (a.kind === 'vehicle' || a.kind === 'cop') { if ((b.kind === 'ped' || b.kind === 'player') && a.vel.x * a.vel.x + a.vel.z * a.vel.z < PARKED_SPEED2) ia = 0; }
+    else if (b.kind === 'vehicle' || b.kind === 'cop') { if ((a.kind === 'ped' || a.kind === 'player') && b.vel.x * b.vel.x + b.vel.z * b.vel.z < PARKED_SPEED2) ib = 0; }
     const total = ia + ib;
     const key = pairKey(ea, eb);
     let contact = this.pairContacts.get(key);
@@ -439,7 +450,7 @@ export class World2D implements IWorld2D {
     // positional correction split by inverse mass (statics have inverse mass 0 and never move). Two bodies that were put on top of each
     // other (a spawn, a teleport) and are not closing are eased apart over several steps instead of popping out in one.
     let push = depth + SLOP;
-    if (depth > GENTLE_DEPTH && ia > 0 && ib > 0 && closing < 0.5) push = GENTLE_STEP;
+    if (depth > GENTLE_DEPTH && invMass(a) > 0 && invMass(b) > 0 && closing < 0.5) push = GENTLE_STEP;
     const fa = push * ia / total, fb = push * ib / total;
     a.pos.x -= nx * fa; a.pos.z -= nz * fa;
     b.pos.x += nx * fb; b.pos.z += nz * fb;
@@ -463,35 +474,41 @@ export class World2D implements IWorld2D {
     const sp = hyp(a.vel.x, a.vel.z);
     if (sp < 0.3) return;
     // the prop is on the far side of the car's motion: closing speed is what the car carries into it
-    const impulse = sp;
+    const impulse = sp * YIELD_IMPACT;
     const k = Math.max(0, sp - YIELD_LOSS) * YIELD_KEEP / sp;
     a.vel.x *= k; a.vel.z *= k;
     e.touched = true;
     this.contacts.push({ a, b: prop.body, normal: { x: nx, z: nz }, depth: 0.01, point: { x: px, z: pz }, impulse });
   }
 
-  /** Soft separation between two people (see PERSONAL_SPACE). `dx,dz` runs from `ea` to `eb`. */
+  /**
+   * Soft room between two people (see PERSONAL_SPACE). `dx,dz` runs from `ea` to `eb`. Anyone standing still is not nudged; a mover is.
+   * Pairs walking at each other lean to their own right from STEP_ASIDE_RANGE out, so they pass instead of pressing chest to chest.
+   */
   private personalSpace(ea: Entry, eb: Entry, dx: number, dz: number, d2: number): void {
     const a = ea.body, b = eb.body;
-    if (d2 >= PERSONAL_SPACE * PERSONAL_SPACE || d2 < 1e-8) return;
-    // a standing, waiting or knocked-down person is not nudged; someone sitting or chatting stays where they are
+    if (d2 < 1e-8) return;
     const d = Math.sqrt(d2);
     const nx = dx / d, nz = dz / d;
-    const room = (PERSONAL_SPACE - d) / (PERSONAL_SPACE - (ea.r + eb.r) + 1e-6);
-    const s = PERSONAL_PUSH * Math.min(1, room) * this.lastDt;
-    const moveA = a.vel.x !== 0 || a.vel.z !== 0;
-    const moveB = b.vel.x !== 0 || b.vel.z !== 0;
+    const sa = hyp(a.vel.x, a.vel.z), sb = hyp(b.vel.x, b.vel.z);
+    const moveA = sa > 0.05, moveB = sb > 0.05;
+    if (!moveA && !moveB) return;
+    const dt = this.lastDt;
     const fa = moveA ? (moveB ? 0.5 : 1) : 0, fb = moveB ? (moveA ? 0.5 : 1) : 0;
-    // head-on pairs: each also leans to its own right (right of travel = (-vz, vx) in x east / z south), so they pass instead of pressing
-    const closingV = (b.vel.x - a.vel.x) * nx + (b.vel.z - a.vel.z) * nz;
-    let ax = -nx * fa, az = -nz * fa, bx = nx * fb, bz = nz * fb;
-    if (closingV < -0.5) {
-      const sa = hyp(a.vel.x, a.vel.z), sb = hyp(b.vel.x, b.vel.z);
-      if (sa > 0.3 && fa > 0) { ax += (-a.vel.z / sa) * 0.8 * fa; az += (a.vel.x / sa) * 0.8 * fa; }
-      if (sb > 0.3 && fb > 0) { bx += (-b.vel.z / sb) * 0.8 * fb; bz += (b.vel.x / sb) * 0.8 * fb; }
+    let ax = 0, az = 0, bx = 0, bz = 0;
+    if (d < PERSONAL_SPACE) {
+      const room = Math.min(1, (PERSONAL_SPACE - d) / (PERSONAL_SPACE - (ea.r + eb.r) + 1e-6));
+      const s = PERSONAL_PUSH * room;
+      ax -= nx * s * fa; az -= nz * s * fa; bx += nx * s * fb; bz += nz * s * fb;
     }
-    a.pos.x += ax * s; a.pos.z += az * s;
-    b.pos.x += bx * s; b.pos.z += bz * s;
+    // head-on (closing faster than 0.5 m/s): each leans to its own right, (-vz, vx) in x east / z south
+    const closingV = (a.vel.x - b.vel.x) * nx + (a.vel.z - b.vel.z) * nz;
+    if (closingV > 0.5 && d < STEP_ASIDE_RANGE) {
+      if (sa > 0.3 && fa > 0) { ax += (-a.vel.z / sa) * STEP_ASIDE_SPEED; az += (a.vel.x / sa) * STEP_ASIDE_SPEED; }
+      if (sb > 0.3 && fb > 0) { bx += (-b.vel.z / sb) * STEP_ASIDE_SPEED; bz += (b.vel.x / sb) * STEP_ASIDE_SPEED; }
+    }
+    a.pos.x += ax * dt; a.pos.z += az * dt;
+    b.pos.x += bx * dt; b.pos.z += bz * dt;
   }
 
   // ------------------------------------------------------------ queries

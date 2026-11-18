@@ -740,13 +740,18 @@ export interface Style {
   bed?: { u0: number; u1: number; floor: number };
   /** passenger vans: more side windows (the dollar van) */
   windowed?: boolean;
+  /** convertible: [front u, rear u] of the open cockpit (roof down): the top and the window band there are left out and a tub is built inside */
+  open?: [number, number];
 }
 
 export type PassengerStyle = 'sedan' | 'coupe' | 'suv' | 'cop' | 'cab' | 'cargo' | 'hatch' | 'beater' | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'ambulance' | 'dollar'
-  | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan';
+  | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan'
+  | 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'limo' | 'classic' | 'donk' | 'copsuv' | 'convertible' | 'stepvan' | 'icecream';
+type DerivedKey = 'donk' | 'copsuv' | 'icecream';
 export type StyleKey = 'sedan' | 'coupe' | 'suv' | 'crown' | 'charger' | 'cargo' | 'hatch' | 'beater' | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'dollar'
-  | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan';
-export const STYLES: Record<StyleKey, Style> = {
+  | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan'
+  | 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'limo' | 'classic' | 'convertible' | 'stepvan' | DerivedKey;
+const BASE_STYLES: Record<Exclude<StyleKey, DerivedKey>, Style> = {
   // "Kamari": a mid-size front-drive sedan of the a real type (XV70, 2018-): length 4,879-4,885 mm (192.1 in), wheelbase 2,825 mm
   // (111.2 in), width 1,840 mm (72.4 in), height 1,445-1,455 mm. VEHICLE_SPECS.sedan carries the same size.
   sedan: {
@@ -1511,26 +1516,301 @@ export const STYLES: Record<StyleKey, Style> = {
     headLamp: 'blade', tailLamp: 'bar', grille: 'wedge', lampD: 0.1, tailD: 0.04, endF: 0.8, endR: 0.3, grilleW: 0.12,
     dims: { L: 4.72, W: 1.85, H: 1.43 },
   },
+  // ---- CARS2: era Brooklyn street types (original designs; the sizes follow the real class, no make or model is copied)
+  // "Haverly Estate": a mid-size five-door station wagon of the early 1990s: 4.95 x 1.84 x 1.5 m, wheelbase 2.84 m. Long flat roof, near-upright tailgate glass.
+  wagon: {
+    Lref: 4.95, Href: 1.5,
+    sill: 0.2, wheelR: 0.33, wheelW: 0.215,
+    axle: 1.42,
+    secs: [
+      [-2.475, 0.99, 0.95, 0.92],
+      [-2.42, 1.12, 0.97, 0.9],
+      [-2.1, 1.49, 0.98, 0.76],
+      [-1.2, 1.5, 0.98, 0.74],
+      [0.35, 1.49, 0.98, 0.74],
+      [1.05, 1.04, 0.97, 0.9],
+      [1.45, 1.0, 0.95, 0.93],
+      [2.0, 0.95, 0.9, 0.93],
+      [2.3, 0.9, 0.85, 0.92],
+      [2.475, 0.86, 0.8, 0.92],
+    ],
+    windshield: [1.05, 0.35],
+    doorGlass: [[0.95, 0.3], [0.24, -0.72], [-0.78, -2.0]],
+    bPillar: [0.3, 0.24],
+    rearGlass: [-2.1, -2.4],
+    seams: [0.9, 0.27, -0.75],
+    handles: [0.38, -0.55],
+    hoodBack: 1.12,
+    clad: 11,
+    rails: false, spoiler: false, hatchback: true, maxGap: 0.3, archN: 6,
+    bumperY: 0.34, bumperH: 0.22,
+    plan: [[-2.5, 0.91], [-1.9, 0.98], [-0.9, 1], [0.9, 1], [1.8, 0.98], [2.5, 0.91]],
+    headLamp: 'quad', tailLamp: 'tall', grille: 'mesh', lampD: 0.1, tailD: 0.06, endF: 0.4, endR: 0.2, grilleW: 0.6,
+    dims: { L: 4.95, W: 1.84, H: 1.5 },
+  },
+  // "Bruiser 2500": a full-size body-on-frame SUV of the 1990s: 5.55 x 2.0 x 1.95 m, wheelbase 3.3 m. Slab sides, upright glass, roof rails.
+  bigsuv: {
+    Lref: 5.55, Href: 1.95,
+    sill: 0.3, wheelR: 0.4, wheelW: 0.265,
+    axle: 1.65,
+    secs: [
+      [-2.775, 1.45, 1.2, 0.85],
+      [-2.7, 1.72, 1.24, 0.82],
+      [-2.55, 1.93, 1.25, 0.78],
+      [-1.0, 1.95, 1.25, 0.76],
+      [0.35, 1.93, 1.25, 0.76],
+      [1.2, 1.34, 1.2, 0.9],
+      [1.55, 1.3, 1.16, 0.92],
+      [2.2, 1.22, 1.1, 0.93],
+      [2.6, 1.16, 1.05, 0.93],
+      [2.775, 1.1, 1.0, 0.92],
+    ],
+    windshield: [1.2, 0.35],
+    doorGlass: [[1.08, 0.2], [0.14, -0.95], [-1.0, -2.05]],
+    bPillar: [0.2, 0.14],
+    rearGlass: [-2.55, -2.72],
+    seams: [1.0, 0.17, -0.97],
+    handles: [0.5, -0.6],
+    hoodBack: 1.3,
+    clad: 10,
+    rails: true, spoiler: false, maxGap: 0.45, archN: 6, endT: [0, 1],
+    bumperY: 0.48, bumperH: 0.3,
+    plan: [[-2.8, 0.95], [-2.3, 0.99], [-1.0, 1], [1.0, 1], [2.3, 0.99], [2.8, 0.95]],
+    headLamp: 'box', tailLamp: 'box2', grille: 'bigbar', lampD: 0.1, tailD: 0.05, endF: 0.3, endR: 0.2, grilleW: 0.7, chromeBumper: true,
+    dims: { L: 5.55, W: 2.0, H: 1.95 },
+  },
+  // "Scamper": a compact regular-cab pickup of the 1990s, 6 ft bed: 4.75 x 1.7 x 1.6 m, wheelbase 2.75 m.
+  minitruck: {
+    Lref: 4.75, Href: 1.6,
+    sill: 0.25, wheelR: 0.33, wheelW: 0.2,
+    axle: 1.375,
+    secs: [
+      [-2.375, 1.08, 1.04, 0.95],
+      [-2.0, 1.09, 1.05, 0.95],
+      [-1.2, 1.09, 1.05, 0.95],
+      [-0.55, 1.09, 1.05, 0.95],
+      [-0.4, 1.58, 1.14, 0.8],
+      [0.0, 1.6, 1.14, 0.74],
+      [0.5, 1.59, 1.14, 0.74],
+      [1.05, 1.12, 1.1, 0.9],
+      [1.4, 1.07, 1.03, 0.93],
+      [2.0, 1.01, 0.97, 0.93],
+      [2.375, 0.95, 0.9, 0.92],
+    ],
+    windshield: [1.05, 0.5],
+    doorGlass: [[0.95, -0.32]],
+    bPillar: [-0.32, -0.36],
+    rearGlass: [-0.4, -0.55],
+    seams: [0.9, -0.34],
+    handles: [-0.2],
+    hoodBack: 1.1,
+    clad: 10,
+    rails: false, spoiler: false, hatchback: true, maxGap: 0.5, archN: 6, endT: [0, 1],
+    bumperY: 0.42, bumperH: 0.24,
+    plan: [[-2.4, 0.95], [-1.9, 0.99], [-1, 1], [1, 1], [2.0, 0.99], [2.4, 0.94]],
+    headLamp: 'box', tailLamp: 'box2', grille: 'slats', lampD: 0.1, tailD: 0.06, endF: 0.3, endR: 0.2, grilleW: 0.6, chromeBumper: true,
+    dims: { L: 4.75, W: 1.7, H: 1.6 },
+    bed: { u0: -0.55, u1: -2.375, floor: 0.72 },
+  },
+  // "Ranger Van": a full-size panel van of the 1990s with a short bonnet: 5.3 x 2.0 x 2.1 m, wheelbase 3.2 m. Front-door glass only, slab sides.
+  panelvan: {
+    Lref: 5.3, Href: 2.1,
+    sill: 0.3, wheelR: 0.36, wheelW: 0.235,
+    axle: 1.6,
+    secs: [
+      [-2.65, 1.9, 1.1, 0.93],
+      [-2.55, 2.06, 1.12, 0.95],
+      [-2.2, 2.1, 1.12, 0.95],
+      [0.55, 2.09, 1.12, 0.95],
+      [0.8, 2.05, 1.12, 0.95],
+      [1.55, 1.4, 1.12, 0.93],
+      [1.8, 1.3, 1.12, 0.93],
+      [2.2, 1.22, 1.08, 0.93],
+      [2.5, 1.15, 1.0, 0.93],
+      [2.65, 1.08, 0.95, 0.92],
+    ],
+    windshield: [1.55, 0.8],
+    doorGlass: [[1.4, 0.3]],
+    bPillar: [0.3, 0.26],
+    rearGlass: null,
+    seams: [1.42, 0.3, -2.2],
+    handles: [0.45],
+    hoodBack: 1.75,
+    clad: 11,
+    rails: false, spoiler: false, hatchback: true, maxGap: 0.7, archN: 5, endT: [0, 1],
+    glassTop: 1.78, headY: 0.82, tailY: 1.2, mirror: 'van',
+    bumperY: 0.46, bumperH: 0.28,
+    plan: [[-2.65, 0.96], [-2.0, 0.99], [-1, 1], [1, 1], [2.1, 0.98], [2.65, 0.92]],
+    headLamp: 'box', tailLamp: 'tall', grille: 'slats', lampD: 0.1, tailD: 0.05, endF: 0.3, endR: 0.12, grilleW: 0.6, chromeBumper: true,
+    dims: { L: 5.3, W: 2.0, H: 2.1 },
+  },
+  // "Regent Stretch": a stretched executive sedan (a limousine): the town car body with 2.4 m added between the axles. 7.8 x 2.0 x 1.5 m.
+  limo: {
+    Lref: 7.8, Href: 1.5,
+    sill: 0.2, wheelR: 0.34, wheelW: 0.235,
+    axle: 2.5,
+    secs: [
+      [-3.9, 1.06, 0.98, 0.93],
+      [-3.55, 1.12, 1.04, 0.93],
+      [-3.1, 1.15, 1.06, 0.92],
+      [-2.7, 1.19, 1.06, 0.88],
+      [-2.2, 1.42, 1.06, 0.76],
+      [-1.55, 1.5, 1.06, 0.74],
+      [1.4, 1.49, 1.06, 0.74],
+      [2.12, 1.15, 1.04, 0.88],
+      [2.6, 1.07, 1.0, 0.93],
+      [3.2, 1.03, 0.97, 0.93],
+      [3.65, 0.98, 0.91, 0.92],
+      [3.9, 0.93, 0.86, 0.92],
+    ],
+    windshield: [2.12, 1.4],
+    doorGlass: [[2.0, 1.2], [1.16, 0.2], [0.12, -0.9], [-0.98, -1.75]],
+    bPillar: [1.2, 1.16],
+    rearGlass: [-2.2, -2.7],
+    seams: [2.06, 1.17, 0.12, -2.25],
+    handles: [1.3, 0.3],
+    hoodBack: 2.18,
+    clad: 11,
+    rails: false, spoiler: false, maxGap: 0.45, archN: 6,
+    bumperY: 0.36, bumperH: 0.24,
+    plan: [[-3.9, 0.9], [-3.1, 0.97], [-1, 1], [1, 1], [3.1, 0.98], [3.9, 0.92]],
+    dims: { L: 7.8, W: 2.0, H: 1.5 },
+    headLamp: 'quad', tailLamp: 'box2', grille: 'bars', lampD: 0.1, tailD: 0.08, endF: 0.4, endR: 0.3, grilleW: 0.6,
+  },
+  // "Marquis Eight": a 1970s full-size land-yacht sedan: 5.7 x 2.0 x 1.38 m, wheelbase 3.05 m. Flat bonnet and deck, thin pillars, chrome bumpers.
+  classic: {
+    Lref: 5.7, Href: 1.38,
+    sill: 0.2, wheelR: 0.35, wheelW: 0.2,
+    axle: 1.52,
+    secs: [
+      [-2.85, 0.95, 0.9, 0.93],
+      [-2.7, 1.0, 0.94, 0.93],
+      [-2.2, 1.03, 0.96, 0.92],
+      [-1.65, 1.06, 0.97, 0.9],
+      [-0.85, 1.38, 0.97, 0.74],
+      [0.1, 1.38, 0.97, 0.74],
+      [0.95, 1.07, 0.97, 0.9],
+      [1.5, 1.04, 0.95, 0.93],
+      [2.2, 1.02, 0.93, 0.93],
+      [2.6, 0.98, 0.9, 0.93],
+      [2.85, 0.94, 0.86, 0.92],
+    ],
+    windshield: [0.95, 0.1],
+    doorGlass: [[0.82, -0.02], [-0.07, -0.8]],
+    bPillar: [-0.02, -0.07],
+    rearGlass: [-0.85, -1.65],
+    seams: [0.7, -0.05, -0.9],
+    handles: [0.0, -0.8],
+    hoodBack: 0.97,
+    clad: 11,
+    rails: false, spoiler: false, maxGap: 0.3, archN: 6,
+    bumperY: 0.34, bumperH: 0.22,
+    plan: [[-2.85, 0.93], [-2.2, 0.98], [-1, 1], [1, 1], [2.2, 0.99], [2.85, 0.94]],
+    dims: { L: 5.7, W: 2.0, H: 1.38 },
+    headLamp: 'round2', tailLamp: 'box2', grille: 'bars', lampD: 0.1, tailD: 0.06, endF: 0.35, endR: 0.3, grilleW: 0.62, chromeBumper: true,
+  },
+  // "Calypso Drop": a two-door convertible with the roof down: 4.55 x 1.83 x 1.3 m, wheelbase 2.6 m. A low raked screen, an open cockpit, a closed rear deck.
+  convertible: {
+    Lref: 4.55, Href: 1.3,
+    sill: 0.17, wheelR: 0.32, wheelW: 0.215,
+    axle: 1.3,
+    secs: [
+      [-2.275, 0.94, 0.9, 0.93],
+      [-2.2, 0.97, 0.93, 0.93],
+      [-1.9, 1.0, 0.95, 0.92],
+      [-1.2, 1.0, 0.95, 0.9],
+      [0.22, 0.99, 0.95, 0.9],
+      [0.3, 1.28, 0.95, 0.8],
+      [0.75, 1.02, 0.94, 0.9],
+      [1.2, 0.97, 0.92, 0.93],
+      [1.75, 0.92, 0.87, 0.93],
+      [2.05, 0.87, 0.82, 0.93],
+      [2.275, 0.82, 0.77, 0.93],
+    ],
+    windshield: [0.75, 0.3],
+    doorGlass: [[0.62, -0.62]],
+    bPillar: [-0.62, -0.66],
+    rearGlass: null,
+    seams: [0.6, -0.64],
+    handles: [-0.4],
+    hoodBack: 0.82,
+    clad: 11,
+    rails: false, spoiler: false, maxGap: 0.25, archN: 6, open: [0.3, -0.95],
+    bumperY: 0.32, bumperH: 0.21,
+    plan: [[-2.3, 0.9], [-1.7, 0.98], [-0.9, 1], [0.9, 1], [1.7, 0.98], [2.3, 0.91]],
+    headLamp: 'swept', tailLamp: 'camryT', grille: 'wedge', lampD: 0.2, tailD: 0.1, endF: 0.5, endR: 0.4, grilleW: 0.5,
+    dims: { L: 4.55, W: 1.83, H: 1.3 },
+  },
+  // "Depot Step": a walk-in step van (parcel / mail body) on a truck chassis: 6.4 x 2.15 x 2.7 m, wheelbase 4.0 m. Cab-forward, near-upright screen, box body.
+  stepvan: {
+    Lref: 6.4, Href: 2.7,
+    sill: 0.45, wheelR: 0.4, wheelW: 0.26,
+    axle: 2.0,
+    secs: [
+      [-3.2, 2.3, 1.3, 0.95],
+      [-3.1, 2.62, 1.32, 0.97],
+      [-2.9, 2.7, 1.32, 0.97],
+      [1.95, 2.7, 1.32, 0.97],
+      [2.35, 2.55, 1.35, 0.95],
+      [2.75, 1.45, 1.35, 0.93],
+      [3.0, 1.38, 1.3, 0.93],
+      [3.2, 1.3, 1.25, 0.92],
+    ],
+    windshield: [2.75, 2.35],
+    doorGlass: [[2.62, 2.05]],
+    bPillar: [2.05, 2.0],
+    rearGlass: null,
+    seams: [2.66, 2.0],
+    handles: [2.1],
+    hoodBack: 2.95,
+    clad: 11,
+    rails: false, spoiler: false, hatchback: true, maxGap: 0.9, archN: 5, endT: [0, 1],
+    glassTop: 2.1, headY: 0.82, tailY: 1.25, mirror: 'van',
+    bumperY: 0.5, bumperH: 0.3,
+    plan: [[-3.2, 0.96], [-2.4, 0.99], [-1, 1], [1, 1], [2.6, 0.97], [3.2, 0.9]],
+    headLamp: 'box', tailLamp: 'tall', grille: 'slats', lampD: 0.1, tailD: 0.05, endF: 0.3, endR: 0.12, grilleW: 0.6, chromeBumper: true,
+    dims: { L: 6.4, W: 2.15, H: 2.7 },
+  },
+};
+
+/** CARS2 variants of a base body: the donk (the 1970s sedan raised on 26 inch rims), the police SUV and the ice-cream truck (a shorter step van). */
+export const STYLES: Record<StyleKey, Style> = {
+  ...BASE_STYLES,
+  donk: { ...BASE_STYLES.classic, sill: 0.3, wheelR: 0.43, wheelW: 0.27, bumperY: 0.42, dims: { L: 5.7, W: 2.0, H: 1.52 }, grille: 'bigbar' },
+  copsuv: { ...BASE_STYLES.suv, dims: { L: 5.05, W: 2.0, H: 1.78 }, grille: 'bigbar', chromeBumper: false },
+  icecream: { ...BASE_STYLES.stepvan, dims: { L: 5.6, W: 2.1, H: 2.7 }, glassTop: 2.1 },
 };
 
 /** The CARS14 types: sports cars, the electric wedge pickup and the electric sedan (each has its own style of the same name). */
 export const CARS14_TYPES = ['coupe911', 'exotic', 'jdmcoupe', 'hothatch', 'muscle', 'wedgetruck', 'evsedan'] as const;
 export function isCars14(type: string): type is (typeof CARS14_TYPES)[number] { return (CARS14_TYPES as readonly string[]).includes(type); }
+/** The CARS2 types that are built from a STYLES entry of their own name (the minivan taxi shares the minivan body). */
+export const CARS2_TYPES = ['wagon', 'bigsuv', 'minitruck', 'panelvan', 'limo', 'classic', 'donk', 'copsuv', 'convertible', 'stepvan', 'icecream'] as const;
+export function isCars2(type: string): type is (typeof CARS2_TYPES)[number] { return (CARS2_TYPES as readonly string[]).includes(type); }
+
+/** The STYLES entry a passenger-body vehicle type is built from (the minivan taxi shares the minivan body, the cab the Regent body). */
+export function styleKeyOf(type: VehicleType): StyleKey {
+  switch (type) {
+    case 'cop': return 'charger';
+    case 'cab': return 'crown';
+    case 'cargovan': case 'ambulance': return 'cargo';
+    case 'dollarvan': return 'dollar';
+    case 'taxivan': return 'minivan';
+    default: return type in STYLES ? (type as StyleKey) : 'sedan';
+  }
+}
 
 export function wheelRadiusFor(type: VehicleType): number {
   if (type === 'boxtruck' || type === 'bus') return 0.5;
   if (type === 'garbage') return GARBAGE_R;
-  if (type === 'cargovan' || type === 'ambulance') return STYLES.cargo.wheelR;
-  if (type === 'dollarvan') return STYLES.dollar.wheelR;
-  if (type === 'hatch' || type === 'beater' || type === 'pickup' || type === 'crossover' || type === 'minivan' || type === 'luxury' || type === 'towncar' || type === 'pony' || isCars14(type)) return STYLES[type].wheelR;
-  return type === 'suv' ? STYLES.suv.wheelR : type === 'cop' ? STYLES.charger.wheelR : STYLES.sedan.wheelR;
+  return STYLES[styleKeyOf(type)].wheelR;
 }
 
 /** Number of cross-sections that define a type's hull (before smoothing). */
 export function hullSectionCount(type: VehicleType): number {
   if (type === 'boxtruck' || type === 'garbage') return TRUCK_CAB_SECS.length;
   if (type === 'bus') return 12;
-  return STYLES[type === 'suv' ? 'suv' : type === 'cop' ? 'charger' : type === 'cargovan' || type === 'ambulance' ? 'cargo' : type === 'dollarvan' ? 'dollar' : type === 'cab' ? 'crown' : type === 'hatch' || type === 'beater' || type === 'pickup' || type === 'crossover' || type === 'minivan' || type === 'luxury' || type === 'towncar' || type === 'pony' || isCars14(type) ? type : 'sedan'].secs.length;
+  return STYLES[styleKeyOf(type)].secs.length;
 }
 
 const inI = (u: number, r: V2): boolean => u <= r[0] + 1e-6 && u >= r[1] - 1e-6;
@@ -1743,6 +2023,7 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
   const unmarked = typeIn === 'unmarked';
   const type: PassengerStyle = typeIn === 'unmarked' ? 'cop' : typeIn;
   const st = STYLES[type === 'cab' ? 'crown' : type === 'cop' ? 'charger' : type === 'ambulance' ? 'cargo' : type];
+  const copish = type === 'cop' || type === 'copsuv';
   const hatchy = st.rails || !!st.hatchback; // tailgate bodies: no boot lid, no rear bench
   const planAt = monotone(st.plan.map((p) => p[0]), st.plan.map((p) => p[1]));
   const { length: L, width: W, height: H } = st.dims ? { length: st.dims.L, width: st.dims.W, height: st.dims.H } : spec;
@@ -1804,9 +2085,11 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
   const hoodFrontU = tipF - 0.16 * drF;
   const quarter = axleF - arch.halfChord - 0.03; // cladding between the arches
   const bed = st.bed ? { u0: st.bed.u0 * kx, u1: st.bed.u1 * kx, floor: st.bed.floor * ky } : null;
+  const open = st.open ? ([st.open[0] * kx, st.open[1] * kx] as V2) : null;
 
   const cls = (um: number, j: number): Kind => {
     if (um <= hoodFrontU && um >= hoodBackU && j <= 5) return 'none'; // under the hood panel (a flat dark box fills the bay)
+    if (open && um <= open[0] && um >= open[1] && j <= 5) return 'none'; // convertible: the open cockpit
     if (bed && um <= bed.u0 && j <= 5) return 'none'; // pickup: the open bed
     const inW = inI(um, ws);
     if ((inW || (rg && inI(um, rg))) && j <= 1) return 'glass';
@@ -2059,6 +2342,15 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
   const bayY = Math.min(fyBelt((hoodBackU + hoodFrontU) / 2) - 0.1, ring(hoodFrontU).yT - 0.08, ring(hoodBackU).yT - 0.08);
   trim.add(bx(2 * (Wb2 - 0.2), 0.04, hoodFrontU - hoodBackU, 0, bayY, -(hoodBackU + hoodFrontU) / 2));
 
+  // convertible: the open cockpit gets a dark tub (inner walls, floor, rear wall) so a view from above shows seats and dash, not the road
+  if (open) {
+    const len = open[0] - open[1] - 0.06, mid = -(open[0] + open[1]) / 2;
+    const yTop = fyBelt(0) - 0.04;
+    for (const s2 of [-1, 1]) trim.add(bx(0.05, yTop - 0.4, len, s2 * (Wb2 - 0.06), (yTop + 0.4) / 2, mid));
+    trim.add(bx(2 * (Wb2 - 0.08), 0.03, len, 0, 0.42, mid));
+    trim.add(bx(2 * (Wb2 - 0.06), yTop - 0.4, 0.05, 0, (yTop + 0.4) / 2, -(open[1] + 0.02)));
+  }
+
   // ---- interior (seen through the glass): dash with a cluster hood, steering wheel, console, two front seats with
   // headrests, a rear bench, door cards and parcel shelf. All dark/chrome trim, so the extra detail costs no draw call.
   // the dash must sit under the cowl: on a wedge the belt at the car's middle is well above the hood at the windshield base
@@ -2153,7 +2445,7 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
   const roofY = hull.P(hull.at(copBarU), 0).y;
   const ambU = secs[3][0], ambY = hull.P(hull.at(ambU), 0).y; // the ambulance bar sits on the flat roof, not over the sloping windshield header
   const roofLamp = new Acc();
-  if (type === 'cop' && !unmarked) {
+  if (copish && !unmarked) {
     for (const s of [-1, 1]) trim.add(bx(0.05, 0.42, 0.05, s * 0.5, 0.52, -(L / 2 - 0.01)));
     trim.add(bx(1.05, 0.05, 0.05, 0, 0.7, -(L / 2 - 0.01)));
     trim.add(bx(1.1, 0.05, 0.34, 0, roofY + 0.03, -copBarU));
@@ -2255,7 +2547,7 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     liveryUV(parts.paint, L);
     liveryUV(parts.hood!.geo, L);
   }
-  if (type === 'cop' && !unmarked) {
+  if (copish && !unmarked) {
     parts.lightbar = {
       lens: new THREE.BoxGeometry(0.52, 0.1, 0.28),
       a: v3(-0.29, roofY + 0.085, -copBarU),
