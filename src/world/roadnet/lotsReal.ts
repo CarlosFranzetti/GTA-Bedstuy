@@ -165,18 +165,19 @@ const newReport = (): LotReport => ({
 const bump = (m: Record<string, number>, k: string): void => { m[k] = (m[k] ?? 0) + 1; };
 const drop = (r: LotReport, ph: string, why: string): void => { (r.dropped[ph] ??= {}); bump(r.dropped[ph], why); };
 
-export function placeLots(net: RoadNet, d: Derived, faces: RealFace[][], lotsJson: unknown): Lot[] {
-  return placeLotsDetailed(net, d, faces, lotsJson).lots;
+export function placeLots(net: RoadNet, d: Derived, faces: RealFace[][], lotsJson: unknown, blocks?: ReadonlySet<number>): Lot[] {
+  return placeLotsDetailed(net, d, faces, lotsJson, blocks).lots;
 }
 
-export function placeLotsDetailed(net: RoadNet, d: Derived, faces: RealFace[][], lotsJson: unknown): { lots: RealLot[]; report: LotReport } {
+/** `blocks`: place only the lots of these blocks (one area tile at a time; MAP7). */
+export function placeLotsDetailed(net: RoadNet, d: Derived, faces: RealFace[][], lotsJson: unknown, blocks?: ReadonlySet<number>): { lots: RealLot[]; report: LotReport } {
   const input = ((lotsJson as { lots?: PlutoLot[] }).lots ?? []) as PlutoLot[];
   const report = newReport();
   const out: RealLot[] = [];
   const fallback = new Set(d.fallbackBuilding);
   const usable: boolean[] = faces.map((fs, bi) => {
     const ring = d.buildingRings[bi];
-    return fs.length > 0 && !!ring && ring.length >= 3 && !fallback.has(bi) && minWidth(ring) >= MIN_BLOCK_WIDTH;
+    return (!blocks || blocks.has(bi)) && fs.length > 0 && !!ring && ring.length >= 3 && !fallback.has(bi) && minWidth(ring) >= MIN_BLOCK_WIDTH;
   });
   report.narrowOrFallbackBlocks = faces.filter((_, bi) => !usable[bi]).length;
 

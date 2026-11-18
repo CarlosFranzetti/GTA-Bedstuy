@@ -29,6 +29,23 @@ export const LOW_CLEAR_HEIGHT = 0.4;
 export function isLowCollider(id: string): boolean {
   return /^(hydrant|planter|bollard|low)-/.test(id) || id.endsWith('-fence');
 }
+/**
+ * Small street props a vehicle bowls through instead of stopping dead against (GTA III: hydrants and bollards go flying; poles,
+ * trees and walls stop you). The car keeps its way, loses a little speed and reports one contact per prop it drives over.
+ */
+export const YIELD_PREFIX = /^(hydrant|bollard)-/;
+/** Fraction of speed a car keeps after driving through a yielding prop, plus the flat loss (m/s). */
+const YIELD_KEEP = 0.92;
+const YIELD_LOSS = 0.6;
+/**
+ * Soft personal space between people: pairs closer than PERSONAL_SPACE (centres, m) drift apart at up to PERSONAL_PUSH m/s, and
+ * head-on pairs each lean to their own right so they step round each other. The hard collision stays at the body radii.
+ */
+export const PERSONAL_SPACE = 0.85;
+const PERSONAL_PUSH = 0.9;
+/** Overlaps deeper than this between two dynamic bodies that are not moving into each other (spawns, teleports) are eased apart. */
+const GENTLE_DEPTH = 0.15;
+const GENTLE_STEP = 0.05;
 /** Dynamic hash is rebuilt once per step; bodies move after that, so queries between steps are padded. */
 const DYN_QUERY_PAD = 2;
 const RAY_LINEAR_FALLBACK_CELLS = 400;
@@ -55,6 +72,10 @@ interface Entry {
   soft: boolean;
   /** statics only: a low prop an airborne body (height >= LOW_CLEAR_HEIGHT) passes over */
   low: boolean;
+  /** statics only: a prop vehicles drive through (see YIELD_PREFIX) */
+  yields: boolean;
+  /** dynamics: yielding props this body is currently overlapping (already reported), so each is hit once per pass */
+  yielded: Entry[] | null;
   /** dynamics sleep: position at the end of the previous step, consecutive calm steps, and whether anything touched it this step */
   sx: number; sz: number; calm: number; touched: boolean;
 }
@@ -133,7 +154,7 @@ function newEntry(body: Body2D, idx: number, isStatic: boolean): Entry {
   return {
     body, idx, isStatic, stamp: 0, r: 0,
     minX: 0, minZ: 0, maxX: 0, maxZ: 0,
-    cx0: 0, cz0: 0, cx1: 0, cz1: 0, hashed: false, processed: false, soft: false, low: false,
+    cx0: 0, cz0: 0, cx1: 0, cz1: 0, hashed: false, processed: false, soft: false, low: false, yields: false, yielded: null,
     sx: NaN, sz: NaN, calm: 0, touched: false,
   };
 }
@@ -182,6 +203,7 @@ export class World2D implements IWorld2D {
   private nextAuto = 1;
   private stamp = 0;
   private readonly cand: Entry[] = [];
+  private readonly seenYield: Entry[] = [];
   private readonly pairContacts = new Map<number, Contact>();
   private contacts: Contact[] = [];
   private readonly probe: Body2D = {
@@ -244,6 +266,7 @@ export class World2D implements IWorld2D {
     const e = newEntry(body, this.nextIdx++, true);
     e.soft = body.id.startsWith(SOFT_PREFIX);
     e.low = isLowCollider(body.id);
+    e.yields = YIELD_PREFIX.test(body.id);
     const s = body.shape;
     let minX: number, minZ: number, maxX: number, maxZ: number;
     if (s.kind === 'circle') {
@@ -272,7 +295,10 @@ export class World2D implements IWorld2D {
 
   // ------------------------------------------------------------ step
 
+  private lastDt = 1 / 60;
+
   step(dt: number): Contact[] {
+    this.lastDt = dt;
     this.contacts = [];
     this.pairContacts.clear();
     const dyn = this.dynamics;
@@ -321,6 +347,7 @@ export class World2D implements IWorld2D {
     this.staticHash.query(minX, minZ, maxX, maxZ, stamp, cand);
     this.dynHash.query(minX, minZ, maxX, maxZ, stamp, cand);
 
+    this.seenYield.length = 0;
     let touched = false;
     if (n > 1) {
       // probe positions along the motion; stop at the first one that touches something
@@ -335,6 +362,9 @@ export class World2D implements IWorld2D {
     if (!touched) touched = this.testCandidates(e, false);
     // a second look at statics only, to settle corners where fixing one wall pushed into another
     if (touched) this.testCandidates(e, true);
+    if (e.yielded !== null) {
+      for (let i = e.yielded.length - 1; i >= 0; i--) if (this.seenYield.indexOf(e.yielded[i]) < 0) e.yielded.splice(i, 1);
+    }
     e.processed = true;
   }
 
@@ -351,11 +381,24 @@ export class World2D implements IWorld2D {
         if (c.low && a.height !== undefined && a.height >= LOW_CLEAR_HEIGHT) continue;
         const px = a.pos.x, pz = a.pos.z, r = e.r;
         if (c.minX > px + r || c.maxX < px - r || c.minZ > pz + r || c.maxZ < pz - r) continue;
+        if (c.yields && (a.kind === 'vehicle' || a.kind === 'cop')) {
+          const hy = overlapRaw(a, c.body);
+          if (hy) this.yieldThrough(e, c, hy.nx, hy.nz, hy.px, hy.pz);
+          continue;
+        }
       } else {
         if (staticsOnly || c.processed) continue;
+        const ab = a, cb = c.body;
+        // a knocked-down person flying clear: cars do not plough the body along
+        if ((ab.vehiclePass && (cb.kind === 'vehicle' || cb.kind === 'cop')) || (cb.vehiclePass && (ab.kind === 'vehicle' || ab.kind === 'cop'))) continue;
         const rr = e.r + c.r;
         const dx = c.body.pos.x - a.pos.x, dz = c.body.pos.z - a.pos.z;
-        if (dx * dx + dz * dz > rr * rr) continue;
+        const d2 = dx * dx + dz * dz;
+        if (d2 > rr * rr) {
+          // people give each other room: a soft push inside PERSONAL_SPACE, before the bodies touch
+          if ((a.kind === 'ped' || a.kind === 'player') && (cb.kind === 'ped' || cb.kind === 'player') && d2 < PERSONAL_SPACE * PERSONAL_SPACE + 0.5) this.personalSpace(e, c, dx, dz, d2);
+          continue;
+        }
       }
       const h = overlapRaw(a, c.body);
       if (!h) continue;
@@ -393,8 +436,10 @@ export class World2D implements IWorld2D {
     ea.touched = true; eb.touched = true;
     if (total === 0) return;
 
-    // positional correction split by inverse mass (statics have inverse mass 0 and never move)
-    const push = depth + SLOP;
+    // positional correction split by inverse mass (statics have inverse mass 0 and never move). Two bodies that were put on top of each
+    // other (a spawn, a teleport) and are not closing are eased apart over several steps instead of popping out in one.
+    let push = depth + SLOP;
+    if (depth > GENTLE_DEPTH && ia > 0 && ib > 0 && closing < 0.5) push = GENTLE_STEP;
     const fa = push * ia / total, fb = push * ib / total;
     a.pos.x -= nx * fa; a.pos.z -= nz * fa;
     b.pos.x += nx * fb; b.pos.z += nz * fb;
@@ -406,6 +451,47 @@ export class World2D implements IWorld2D {
       a.vel.x -= nx * j * ia; a.vel.z -= nz * j * ia;
       b.vel.x += nx * j * ib; b.vel.z += nz * j * ib;
     }
+  }
+
+  /** A vehicle driving over a yielding prop (hydrant, bollard): one contact per pass, a little speed lost, no stopping. */
+  private yieldThrough(e: Entry, prop: Entry, nx: number, nz: number, px: number, pz: number): void {
+    const a = e.body;
+    this.seenYield.push(prop);
+    if (e.yielded === null) e.yielded = [];
+    if (e.yielded.indexOf(prop) >= 0) return;
+    e.yielded.push(prop);
+    const sp = hyp(a.vel.x, a.vel.z);
+    if (sp < 0.3) return;
+    // the prop is on the far side of the car's motion: closing speed is what the car carries into it
+    const impulse = sp;
+    const k = Math.max(0, sp - YIELD_LOSS) * YIELD_KEEP / sp;
+    a.vel.x *= k; a.vel.z *= k;
+    e.touched = true;
+    this.contacts.push({ a, b: prop.body, normal: { x: nx, z: nz }, depth: 0.01, point: { x: px, z: pz }, impulse });
+  }
+
+  /** Soft separation between two people (see PERSONAL_SPACE). `dx,dz` runs from `ea` to `eb`. */
+  private personalSpace(ea: Entry, eb: Entry, dx: number, dz: number, d2: number): void {
+    const a = ea.body, b = eb.body;
+    if (d2 >= PERSONAL_SPACE * PERSONAL_SPACE || d2 < 1e-8) return;
+    // a standing, waiting or knocked-down person is not nudged; someone sitting or chatting stays where they are
+    const d = Math.sqrt(d2);
+    const nx = dx / d, nz = dz / d;
+    const room = (PERSONAL_SPACE - d) / (PERSONAL_SPACE - (ea.r + eb.r) + 1e-6);
+    const s = PERSONAL_PUSH * Math.min(1, room) * this.lastDt;
+    const moveA = a.vel.x !== 0 || a.vel.z !== 0;
+    const moveB = b.vel.x !== 0 || b.vel.z !== 0;
+    const fa = moveA ? (moveB ? 0.5 : 1) : 0, fb = moveB ? (moveA ? 0.5 : 1) : 0;
+    // head-on pairs: each also leans to its own right (right of travel = (-vz, vx) in x east / z south), so they pass instead of pressing
+    const closingV = (b.vel.x - a.vel.x) * nx + (b.vel.z - a.vel.z) * nz;
+    let ax = -nx * fa, az = -nz * fa, bx = nx * fb, bz = nz * fb;
+    if (closingV < -0.5) {
+      const sa = hyp(a.vel.x, a.vel.z), sb = hyp(b.vel.x, b.vel.z);
+      if (sa > 0.3 && fa > 0) { ax += (-a.vel.z / sa) * 0.8 * fa; az += (a.vel.x / sa) * 0.8 * fa; }
+      if (sb > 0.3 && fb > 0) { bx += (-b.vel.z / sb) * 0.8 * fb; bz += (b.vel.x / sb) * 0.8 * fb; }
+    }
+    a.pos.x += ax * s; a.pos.z += az * s;
+    b.pos.x += bx * s; b.pos.z += bz * s;
   }
 
   // ------------------------------------------------------------ queries

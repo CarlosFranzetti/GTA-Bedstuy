@@ -44,8 +44,7 @@ const EXIT_DIST = 2.5;
 const DEAD_END_BACK = 3;
 /** turn angle (rad) beyond which a connection counts as a left / right turn rather than straight */
 const TURN_MIN = 0.5;
-/** speed caps (m/s) on a turn connector: 8 on the first half (a pursuit car otherwise takes a 8 m arc at 13), 3.5 on the second half, where it crosses the exit crosswalk */
-const TURN_ENTRY_SPEED = 8;
+/** speed cap (m/s) on the second half of a turn connector, where it crosses the exit crosswalk */
 const TURN_EXIT_SPEED = 3.5;
 /** sharper than this and the connection is a U-turn, only built when a lane would be stranded otherwise */
 const U_TURN = 2.95;
@@ -233,7 +232,7 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
   const linked = new Set<string>();
 
   /** `allowBad` false: a connector with samples that cannot be kept on the pavement is not built (the lane's other turns, or the fallback passes below, serve it) */
-  const connect = (a: LaneChain, b: LaneChain, cluster: string, uturn: boolean, allowBad = true): boolean => {
+  const connect = (a: LaneChain, b: LaneChain, cluster: string, uturn: boolean, allowBad = false): boolean => {
     const from = last(a);
     const to = first(b);
     const key = `${from.id}>${to.id}`;
@@ -247,7 +246,7 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
     const turning = Math.abs(angleDiff(from.heading, to.heading)) > TURN_MIN;
     curve.pts.forEach((q, i) => {
       const id = `cx:${from.id}>${b.id}:${i + 1}`;
-      addNode({ id, pos: q, streetId: to.streetId, heading: headingFromVec(curve.tans[i]), stopLine: false, ...(turning ? { maxSpeed: i >= (curve.pts.length - 1) / 2 ? TURN_EXIT_SPEED : TURN_ENTRY_SPEED } : {}) });
+      addNode({ id, pos: q, streetId: to.streetId, heading: headingFromVec(curve.tans[i]), stopLine: false, ...(turning && i >= (curve.pts.length - 1) / 2 ? { maxSpeed: TURN_EXIT_SPEED } : {}) });
       nodeIds.push(id);
     });
     let prev = from.id;

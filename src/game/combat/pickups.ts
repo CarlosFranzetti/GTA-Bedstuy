@@ -1,6 +1,6 @@
 /**
  * World pickups for the hands: glass bottles by trash and outside the shops, bricks at the scaffold fences, a pistol with two
- * magazines in the areaway of the brownstone nearest home and a few more around the map. Positions come from the lots the grid
+ * magazines on the pavement outside the brownstone nearest home and a few more around the map. Positions come from the lots the grid
  * already has (deterministic: no random numbers), and an optional `blocked` probe nudges each one off props and walls.
  * A collected pickup comes back after a few minutes. A thrown brick that lands becomes a dropped pickup for a while.
  */
@@ -67,14 +67,15 @@ export function placePickups(lots: readonly Lot[], home: Vec2, blocked?: Blocked
     if (p) { add(`bottle:trash:${l.id}`, 'bottle', p); trash++; }
   }
 
-  // the pistol with two magazines near home: the areaway of the nearest brownstone 5 to 40 m away (the back lots are solid brick in this city)
+  // the pistol with two magazines near home: on the pavement in front of the nearest brownstone 5 to 40 m away. It used to sit in
+  // that house's areaway, which is fenced: the playtest of 18 Nov could not walk to it (it stopped 3.4 m short at the railing)
   let bestHome: Lot | null = null, bestD = Infinity;
   for (const l of lots) {
     if (l.type !== 'brownstone' && l.type !== 'rowhouse') continue;
     const d = dist(mid(l), home);
     if (d >= 5 && d <= 40 && d < bestD) { bestD = d; bestHome = l; }
   }
-  if (bestHome) add('pistol:home', 'pistol', findFree(bestHome, mid(bestHome), [-1.5, -1.1, -2.0, 1.4], [0, 1, -1, 2, -2], blocked));
+  if (bestHome) add('pistol:home', 'pistol', findFree(bestHome, mid(bestHome), [1.7, 2.2, 2.7], [0, 1, -1, 2, -2], blocked));
 
   // a few more around the map: at the auto repair, the liquor store and the dollar store, a few metres along the frontage from the bottle
   for (const arch of ['autorepair', 'liquor', 'dollar'] as const) {

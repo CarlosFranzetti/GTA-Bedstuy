@@ -464,3 +464,14 @@ people geometry (Leila), people textures (PEDTEX), hair, hats, bags and shoes (P
 (Bea), walls, windows and shopfronts (Noor), cars (Dmitri), title and loading shots and menus (Priya), HUD (Zadie).
 Engine sounds lowered first by Andre. Also running: playtest (Ash), camera (Sam), story (Wren), test suite (Omar).
 Held: real-map traffic (Theo), real-map culling (Lena), native apps (Viktor), radio stalls (Jules), voice rebake (Mei).
+
+## Stage 18 asks (owner, 18 Nov)
+Verbatim: "continue with the swarm fixing physics and more varied body types and many more clothing options make it more
+polished also weather and more cars and more accurate maps and lets grow the play area by 7 blocks in each direction also
+textures for the streets and buildings and finally lets have more locations looking like the real locations run sub agents
+in parallel economize usage and send me transcripts and updates periodically go".
+Fable's reading: (1) physics defects fixed; (2) more body types and a much larger wardrobe, polished; (3) a weather system;
+(4) more car types; (5) the real street map becomes the main map and grows by seven blocks in every direction; (6) better
+street and building textures; (7) recognisable real places; (8) lanes in parallel but sparing with usage; (9) periodic
+transcripts and updates to the owner. Earlier the same day: Space starts the game, one action button, camera returns behind
+the player two seconds after a look, illustrated loading posters (blocked on an image generator).

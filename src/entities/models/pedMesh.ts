@@ -20,7 +20,8 @@ import type { IMaterialLibrary } from '@/world/types';
 import { createGltfLoader, warnOnce } from './gltf/loader';
 import type { HiTile } from '@/textures/painters/pedHi';
 import { SK_RECTS, bakeSkin } from '@/textures/painters/pedSkinPaint';
-import { PED_SPECS, PED_VARIANT_COUNT, pedVariantIndex, type PedSpec, type PxRect } from '@/textures/painters/ped';
+import { PED_SPECS, pedVariantIndex, type PedSpec, type PxRect } from '@/textures/painters/ped';
+import { pickWardrobeVariant } from '@/textures/painters/pedWardrobe';
 import { FAR_DIST, MID_DIST, PedLod, buildPedModel as buildProcedural, pedPhone, type PedDetail } from './pedBodyHi';
 import { hijabShell } from './pedGarments';
 import { peopleMode } from '@/textures/painters/pedMode';
@@ -734,9 +735,9 @@ export function headScaleFor(s: MhShape, spec: PedSpec, bt: BodyType): number {
 export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: PedOptions = {}): PedModel | null {
   if (!peopleReady()) return null;
   let variant: number;
-  if (opts.variant === undefined) variant = pickPedVariant(rng);
+  if (opts.variant === undefined) variant = pickWardrobeVariant(rng, pickPedVariant(rng), pedPhone());      // PEOPLE6: the street mix picks who, the wardrobe dresses them from the pedestrian's own stream
   else if (typeof opts.variant === 'string') variant = pedVariantIndex(opts.variant);
-  else variant = ((Math.floor(opts.variant) % PED_VARIANT_COUNT) + PED_VARIANT_COUNT) % PED_VARIANT_COUNT;
+  else variant = ((Math.floor(opts.variant) % PED_SPECS.length) + PED_SPECS.length) % PED_SPECS.length;
   const spec = PED_SPECS[variant];
   const shape = shapes.get(shapeFor(spec)) ?? shapes.values().next().value as MhShape;
   const phone = pedPhone();

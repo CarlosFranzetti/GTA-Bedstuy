@@ -26,7 +26,7 @@ export type PedDetail = 'hi' | 'mid' | 'far';
 export const MID_DIST = 12;
 export const FAR_DIST = 40;
 /** most people drawn at the hi level at once, by tier (the rest of those inside MID_DIST drop to mid); the player is exempt */
-export const PED_HI_MAX: Record<string, number> = { phone: 0, low: 6, medium: 8, high: 12 };
+export const PED_HI_MAX: Record<string, number> = { phone: 0, low: 4, medium: 8, high: 12 };
 
 /** Share of a level's switch distance a person must move back inside before the nearer level returns (no flip-flop at 12 m / 40 m). */
 export const PED_LOD_HYSTERESIS = 0.15;

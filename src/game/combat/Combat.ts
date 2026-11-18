@@ -14,7 +14,7 @@ import type { EventBus } from '@/core/Events';
 import type { Pedestrian } from '@/entities/Pedestrian';
 import type { ActionPose } from '@/entities/anim/controller';
 import type { Body2D, IWorld2D } from '@/world/types';
-import { FistCombo, fistTip, inFistArc, type FistImpact } from './fists';
+import { FIST, FistCombo, fistTip, inFistArc, type FistImpact } from './fists';
 import { Hands, PISTOL, actionFor, type HandsHudState } from './items';
 import { PickupSet, type PickupDef } from './pickups';
 import { bounce, impactOutcome, launch, stepProjectile, type FlightHit, type Projectile, type ThrowKind } from './projectile';
@@ -227,7 +227,11 @@ export class Combat {
     let best: Pedestrian | null = null, bestD = Infinity;
     for (const ped of this.deps.peds()) {
       if (ped.state === 'down') continue;
-      if (!inFistArc(origin, p.body.heading, ped.body.pos)) continue;
+      // judged where the target is NOW or where it was when the swing began: a person walking away from a jab that was aimed
+      // at them still takes it (the blow lands 0.14 s into the swing, the target moves 0.2 m in that time)
+      const lag = FIST.swing * FIST.impactAt;
+      const was = { x: ped.body.pos.x - ped.body.vel.x * lag, z: ped.body.pos.z - ped.body.vel.z * lag };
+      if (!inFistArc(origin, p.body.heading, ped.body.pos) && !inFistArc(origin, p.body.heading, was)) continue;
       const d = Math.hypot(ped.body.pos.x - origin.x, ped.body.pos.z - origin.z);
       if (d < bestD) { bestD = d; best = ped; }
     }

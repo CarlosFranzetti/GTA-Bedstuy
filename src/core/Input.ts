@@ -66,10 +66,12 @@ export class Input {
   private gesture() { if (!this.firstGesture) { this.firstGesture = true; this.onFirstGesture?.(); } }
   /** Must be called from inside a user-gesture handler. Failures (phones, some embedded views) are silent. */
   requestLock(): void {
-    if (this.pointerLocked) return;
+    if (this.pointerLocked || this.lockBlocked) return;
     try { const r = (this.el.requestPointerLock as undefined | (() => unknown))?.call(this.el); (r as Promise<void> | undefined)?.catch?.(() => {}); } catch { /* unsupported */ }
   }
   /** External trigger for the first gesture (e.g. a click on the splash overlay). */
+  /** While true the pointer is not captured on a click (the title screen: its prompt and buttons must stay clickable). */
+  lockBlocked = false;
   notifyGesture(): void { this.gesture(); this.requestLock(); }
   isDown(code: string): boolean { return this.down.has(code) || this.virtualDown.has(code); }
   /** Press/release a key from an on-screen control. A press also counts as an edge for `pressed()`. */

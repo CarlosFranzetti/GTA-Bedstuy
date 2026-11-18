@@ -50,8 +50,9 @@ const SPEED_BAR_MAX = 140;
 
 const FADE_MS = 400;
 const MAX_STARS = 3;
-/** Title backdrop: the first in-engine shot (src/ui/backdrops.ts). Missing in the single-file build, which keeps the graded dark backdrop. */
-const TITLE_ART = BACKDROPS.slice(0, 1);
+/** Title backdrops: the in-engine shots (src/ui/backdrops.ts), one at a time, changing every TITLE_ART_MS. Missing in the single-file build, which keeps the graded dark backdrop. */
+const TITLE_ART = BACKDROPS;
+export const TITLE_ART_MS = 9000;
 const CONTROLS = [
   'WASD move',
   'Shift sprint',
@@ -528,7 +529,8 @@ export class Hud {
       img.alt = '';
       img.style.objectPosition = shot.pos;
       img.decoding = 'async';
-      img.addEventListener('load', () => img.classList.add('on'));
+      // the first picture to arrive shows at once; the others join the rotation (see cycleArt)
+      img.addEventListener('load', () => { this.artReady.push(img); if (this.artReady.length === 1) img.classList.add('on'); });
       img.addEventListener('error', () => img.remove());
       const url = backdropUrl(this.doc, shot.file);
       if (!url) continue;
@@ -537,15 +539,29 @@ export class Hud {
     }
   }
 
+  /** Title pictures that have loaded, and which one is up. */
+  private readonly artReady: HTMLImageElement[] = [];
+  private artAt = 0;
+  private artTimer: ReturnType<typeof setInterval> | null = null;
+  /** Brings the next loaded title picture up (the CSS cross-fades `.on`). */
+  private cycleArt(): void {
+    if (this.artReady.length < 2) return;
+    this.artReady[this.artAt % this.artReady.length]?.classList.remove('on');
+    this.artAt = (this.artAt + 1) % this.artReady.length;
+    this.artReady[this.artAt]?.classList.add('on');
+  }
+
   showSplash(): void {
     this.clearFadeTimer();
     this.splashEl.classList.remove('fading');
     this.splashEl.style.display = '';
+    if (this.artTimer === null) this.artTimer = setInterval(() => this.cycleArt(), TITLE_ART_MS);
     this.onSplash?.(true);
   }
 
   hideSplash(): void {
     this.clearFadeTimer();
+    if (this.artTimer !== null) { clearInterval(this.artTimer); this.artTimer = null; }
     this.splashEl.classList.add('fading');
     this.fadeTimer = setTimeout(() => {
       this.fadeTimer = null;

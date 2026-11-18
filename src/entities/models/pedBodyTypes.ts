@@ -5,7 +5,9 @@
  */
 import type { PedSpec } from '@/textures/painters/ped';
 
-export type BodyTypeId = 'avg' | 'slim' | 'athletic' | 'heavy' | 'tall-thin' | 'short-stocky' | 'broad' | 'pear' | 'petite' | 'elder' | 'teen' | 'kid';
+export type BodyTypeId = 'avg' | 'slim' | 'athletic' | 'heavy' | 'tall-thin' | 'short-stocky' | 'broad' | 'pear' | 'petite' | 'elder' | 'teen' | 'kid'
+  /** PEOPLE6: lanky (very tall, long thin limbs), swimmer (broad-shouldered athletic woman), stoop-slim (slim older man, stooped), elder-heavy (heavy older woman), big-tall (large tall man), pregnant, lean-teen, stout (short, round), slight (very small, light woman) */
+  | 'lanky' | 'swimmer' | 'stoop-slim' | 'elder-heavy' | 'big-tall' | 'pregnant' | 'lean-teen' | 'stout' | 'slight';
 export interface BodyType {
   /** stature factor on the shape's own height */
   h: number;
@@ -42,6 +44,28 @@ export const BODY_TYPES: Record<BodyTypeId, BodyType> = {
   elder: T({ h: 0.96, weight: 0.5, shoulders: 0.96, stoop: -0.22 }),
   teen: T({ h: 0.95, weight: -0.2, shoulders: 0.95, head: 1.07 }),
   kid: T({ h: 0.78, head: 1.22 }),
+  lanky: T({ h: 1.15, weight: -1.0, shoulders: 0.93, arms: 0.9, legs: 0.9, head: 0.97, waist: 0.97, stoop: -0.06 }),
+  swimmer: T({ h: 1.04, muscle: 0.9, weight: -0.3, shoulders: 1.11, chest: 1.02, hips: 0.97, waist: 0.97, arms: 1.06 }),
+  'stoop-slim': T({ h: 1.0, weight: -0.7, shoulders: 0.94, stoop: -0.3, arms: 0.93, legs: 0.93, waist: 1.02 }),
+  'elder-heavy': T({ h: 0.94, weight: 1.3, belly: 0.05, shoulders: 0.98, hips: 1.1, stoop: -0.14, chest: 1.06 }),
+  'big-tall': T({ h: 1.09, weight: 1.1, muscle: 0.6, shoulders: 1.1, belly: 0.045, chest: 1.08, arms: 1.1, legs: 1.04 }),
+  pregnant: T({ h: 0.98, weight: 0.15, belly: 0.1, waist: 1.04, shoulders: 0.97, hips: 1.03, chest: 1.04, stoop: 0.06 }),
+  'lean-teen': T({ h: 1.0, weight: -0.9, shoulders: 0.92, arms: 0.9, legs: 0.92, head: 1.05, waist: 1.0 }),
+  stout: T({ h: 0.9, weight: 1.0, belly: 0.05, shoulders: 1.03, head: 1.05, hips: 1.05, legs: 1.04 }),
+  slight: T({ h: 0.88, weight: -0.9, shoulders: 0.92, arms: 0.9, legs: 0.92, head: 1.05, hips: 0.97 }),
+};
+/** the types a generated person may have, by age and sex, with weights (pedWardrobe.ts) */
+export const BODY_POOLS: Record<string, Array<[BodyTypeId, number]>> = {
+  'adult-m': [['avg', 3], ['athletic', 2], ['heavy', 1.2], ['lanky', 1.1], ['tall-thin', 0.8], ['short-stocky', 1], ['broad', 1], ['slim', 1.5], ['big-tall', 1.2], ['stout', 0.9]],
+  'adult-f': [['avg', 3], ['slim', 1.5], ['pear', 2], ['swimmer', 1], ['petite', 1.1], ['slight', 0.9], ['heavy', 1.4], ['tall-thin', 0.9], ['pregnant', 0.55]],
+  'adult-x': [['avg', 3], ['slim', 2], ['lanky', 1], ['athletic', 1], ['petite', 1]],
+  'old-m': [['elder', 2], ['stoop-slim', 1.6], ['heavy', 0.8], ['stout', 0.8]],
+  'old-f': [['elder', 2], ['elder-heavy', 1.6], ['petite', 0.7], ['slight', 0.8]],
+  'old-x': [['elder', 1]],
+  'teen-m': [['teen', 2], ['lean-teen', 1.6], ['athletic', 0.5]],
+  'teen-f': [['teen', 2], ['lean-teen', 1.2], ['petite', 0.5]],
+  'teen-x': [['teen', 1], ['lean-teen', 1]],
+  'kid-m': [['kid', 1]], 'kid-f': [['kid', 1]], 'kid-x': [['kid', 1]],
 };
 
 const hash = (s: string): number => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; };

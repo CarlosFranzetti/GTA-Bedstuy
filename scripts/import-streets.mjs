@@ -8,6 +8,11 @@
  * Without --refresh it rebuilds from the cached download (src/world/data/raw/centerline-r1r2.json). All geometry work is
  * in src/world/roadnet/*.ts (loaded through Vite SSR, like import-osm.mjs) so the unit tests cover it.
  * Data: NYC Open Data, NYC DoITT/OTI CSCL. No Google data.
+ *
+ * --r3 (MAP7, 18 Nov 2026): the whole real map, R1+R2+R3 (extents.ts R3_EXTENT, seven blocks beyond the old edge on every side).
+ *   Raw rows are cached in cache/real-r3/centerline-r3.json (git-ignored; the query, the row count and the fetch date are in the
+ *   tracked src/world/data/raw/centerline-r3.query.json) and the network is written to src/world/data/roadnet-r123.json.
+ *   The default mode (R1+R2 only, roadnet-core.json) is unchanged and still used by the tests that pin its counts.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -16,8 +21,10 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const RAW = path.join(ROOT, 'src/world/data/raw/centerline-r1r2.json');
-const OUT = path.join(ROOT, 'src/world/data/roadnet-core.json');
+const R3 = process.argv.includes('--r3');
+const RAW = R3 ? path.join(ROOT, 'cache/real-r3/centerline-r3.json') : path.join(ROOT, 'src/world/data/raw/centerline-r1r2.json');
+const OUT = path.join(ROOT, R3 ? 'src/world/data/roadnet-r123.json' : 'src/world/data/roadnet-core.json');
+const QUERY_OUT = path.join(ROOT, 'src/world/data/raw/centerline-r3.query.json');
 const SVG = path.join(ROOT, 'docs/reference/realmap-r1r2.svg');
 const DATASET = 'https://data.cityofnewyork.us/resource/inkn-q76z.json';
 const FIELDS = [
@@ -39,9 +46,15 @@ async function fetchExtent(proj, ring) {
   });
   const url = `${DATASET}?${q}`;
   console.log(`fetching ${url.slice(0, 160)}...`);
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${await res.text()}`);
-  const rows = await res.json();
+  const rows = [];
+  for (let off = 0; ; off += 5000) { // 5,000 rows a page, a pause between pages (a few requests only)
+    const res = await fetch(`${url}&$offset=${off}`.replace('$limit=50000', '$limit=5000'));
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${await res.text()}`);
+    const page = await res.json();
+    rows.push(...page);
+    if (page.length < 5000) break;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
   return { query: url, bbox: { n, s, w, e }, fetched: new Date().toISOString(), rows };
 }
 
@@ -132,33 +145,35 @@ async function main() {
 
     let raw;
     if (args.has('--refresh') || !fs.existsSync(RAW)) {
-      raw = await fetchExtent(proj, ext.R1R2_EXTENT);
+      raw = await fetchExtent(proj, R3 ? ext.R3_EXTENT : ext.R1R2_EXTENT);
+      fs.mkdirSync(path.dirname(RAW), { recursive: true });
       fs.writeFileSync(RAW, JSON.stringify(raw));
+      if (R3) fs.writeFileSync(QUERY_OUT, JSON.stringify({ source: 'NYC Centerline (CSCL) inkn-q76z via NYC Open Data', url: raw.query, bbox: raw.bbox, filter: "boroughcode in ('3','4'); pages of 5000 rows", fetched: raw.fetched.slice(0, 10), rows: raw.rows.length, note: 'raw rows cached in cache/real-r3/ (git-ignored); roadnet-r123.json is the derived network' }, null, 2) + '\n');
       console.log(`wrote ${path.relative(ROOT, RAW)}: ${raw.rows.length} rows, ${(fs.statSync(RAW).size / 1024).toFixed(0)} kB`);
     } else {
       raw = JSON.parse(fs.readFileSync(RAW, 'utf8'));
       console.log(`cached ${path.relative(ROOT, RAW)}: ${raw.rows.length} rows (fetched ${raw.fetched}); --refresh to re-download`);
     }
 
-    const { data, report } = build.buildRoadNet(raw.rows, { frame: geom.REAL_FRAME, extent: ext.R1R2_EXTENT });
+    const { data, report } = build.buildRoadNet(raw.rows, { frame: geom.REAL_FRAME, extent: R3 ? ext.R3_EXTENT : ext.R1R2_EXTENT });
     const json = JSON.stringify(codec.encodeRoadNet(data));
     fs.writeFileSync(OUT, json + '\n');
     const gz = zlib.gzipSync(json, { level: 9 }).length;
     const net = new RoadNet(data);
 
     // per-phase counts: edges by midpoint, blocks by ring centroid, signals by position (extents.ts phaseOf)
-    const counts = Object.fromEntries(['R1', 'R2', 'R2+'].map((n) => [n, { edges: 0, km: 0, blocks: 0, islands: 0, signals: 0, areaKm2: 0 }]));
+    const counts = Object.fromEntries(['R1', 'R2', 'R2+', 'R3'].map((n) => [n, { edges: 0, km: 0, blocks: 0, islands: 0, signals: 0, areaKm2: 0 }]));
     net.edges.forEach((e, i) => {
-      const ph = ext.phaseOf(net.pointAt(i, net.lengths[i] / 2).p);
+      const ph = ext.phaseOf(net.pointAt(i, net.lengths[i] / 2).p) ?? (ext.inR3Ring(net.pointAt(i, net.lengths[i] / 2).p) ? 'R3' : null);
       if (ph) { counts[ph].edges++; counts[ph].km += net.lengths[i] / 1000; }
     });
     net.blocks.forEach((bl, i) => {
       const r = net.blockRing(i);
       const c = r.reduce((a, p) => ({ x: a.x + p.x / r.length, z: a.z + p.z / r.length }), { x: 0, z: 0 });
-      const ph = ext.phaseOf(c);
+      const ph = ext.phaseOf(c) ?? (ext.inR3Ring(c) ? 'R3' : null);
       if (ph) { counts[ph][bl.island ? 'islands' : 'blocks']++; counts[ph].areaKm2 += bl.area / 1e6; }
     });
-    net.nodes.forEach((n) => { const ph = n.control === 'signal' && ext.phaseOf(n.p); if (ph) counts[ph].signals++; });
+    net.nodes.forEach((n) => { const ph = n.control === 'signal' && (ext.phaseOf(n.p) ?? (ext.inR3Ring(n.p) ? 'R3' : null)); if (ph) counts[ph].signals++; });
     const phases = [['R1', ext.R1_EXTENT], ['R2', ext.R2_EXTENT]];
     const names = new Set(data.edges.map((e) => e.name));
     console.log('report', report);
@@ -170,7 +185,7 @@ async function main() {
     const ll = (ring) => ring.map((p) => proj.toLonLat(p)).map(([lon, lat]) => `${lat.toFixed(5)},${lon.toFixed(5)}`).join(' ');
     for (const [n, poly] of phases) console.log(`${n} extent lat,lon: ${ll(poly)}`);
 
-    if (!args.has('--no-svg')) {
+    if (!args.has('--no-svg') && !R3) {
       const svg = svgOf(net, [['R1', ext.R1_EXTENT, '#4fc3f7'], ['R2', ext.R2_EXTENT, '#81c784'], ['R1+R2+', ext.R1R2_EXTENT, '#888888']], proj);
       fs.writeFileSync(SVG, svg);
       console.log(`wrote ${path.relative(ROOT, SVG)}: ${(svg.length / 1024).toFixed(0)} kB`);

@@ -12,6 +12,12 @@
  * Data: NYC DCP MapPLUTO (64uk-42ks) and NYC Building Footprints (5zhs-2jue) via NYC Open Data. No Google data.
  *
  * MapPLUTO has no geometry column on Socrata, so a lot is its centroid (latitude/longitude), not its polygon.
+ *
+ * --r3 (MAP7, 18 Nov 2026): the whole real map (R1+R2+R3, extents.ts R3_EXTENT) against src/world/data/roadnet-r123.json.
+ *   Caches: cache/real-r3/pluto-r3.json and cache/real-r3/footprints-r3.json (git-ignored; the queries, row counts and fetch
+ *   dates are in the tracked src/world/data/raw/pluto-r3.query.json and footprints-r3.query.json). Footprints are fetched
+ *   without their polygons (the game places lots by PLUTO frontage and depth; it needs only each building's roof height, year and
+ *   footprint area). Output: public/data/real/lots-index.json and one lots-<tx>_<tz>.json per 512 m tile (src/world/roadnet/lotTiles.ts).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -70,6 +76,7 @@ function outerRings(geom) {
 }
 
 async function main() {
+  if (process.argv.includes('--r3')) return mainR3();
   const refresh = process.argv.includes('--refresh');
   const vite = await createServer({
     configFile: false, root: ROOT, appType: 'custom', logLevel: 'silent',
@@ -242,6 +249,167 @@ async function main() {
     console.log(`anomalies: duplicate BBL ${a.duplicateBbl.length} (${a.duplicateBbl.slice(0, 8).join(', ')}); zero frontage ${a.zeroFrontage.length}; no street within ${ANOMALY_M} m ${a.noStreet60.length}; no coordinates ${a.noCoordinates.length}; outside extents ${a.outsideExtents}`);
     console.log(`footprints: ${outBuildings.length} kept (on ${new Set(outBuildings.map((b) => b.bbl)).size} lots) of ${foot.rows.length} in the box; the rest lie outside the extents or have no kept lot`);
     console.log(`roadnet-core sha1 ${coreSha.slice(0, 12)}, ${net.edges.length} edges`);
+  } finally {
+    await vite.close();
+  }
+}
+
+// ------------------------------------------------------------------------------------------------ --r3
+const R3_DIR = path.join(ROOT, 'cache/real-r3');
+const R3_PLUTO_FIELDS = [...PLUTO_FIELDS, 'ownername', 'unitsres', 'unitstotal', 'numbldgs', 'zonedist1', 'schooldist'];
+const R3_FOOT_FIELDS = ['base_bbl', 'bin', 'height_roof', 'construction_year', 'shape_area'];
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function pagedFetchSlow(base, select, where, order, label) {
+  const rows = [];
+  const page = 5000;
+  for (let off = 0; ; off += page) {
+    const q = new URLSearchParams({ $select: select, $where: where, $order: order, $limit: String(page), $offset: String(off) });
+    let rowsPage = null;
+    for (let attempt = 0; attempt < 4 && !rowsPage; attempt++) {
+      const res = await fetch(`${base}?${q}`);
+      if (res.ok) rowsPage = await res.json(); else { console.log(`  ${label} HTTP ${res.status}, retrying`); await pause(4000 * (attempt + 1)); }
+    }
+    if (!rowsPage) throw new Error(`${label}: HTTP failures at offset ${off}`);
+    rows.push(...rowsPage);
+    console.log(`  ${label} offset ${off}: ${rowsPage.length} rows`);
+    if (rowsPage.length < page) break;
+    await pause(1500);
+  }
+  return rows;
+}
+
+async function mainR3() {
+  const refresh = process.argv.includes('--refresh');
+  const vite = await createServer({
+    configFile: false, root: ROOT, appType: 'custom', logLevel: 'silent',
+    resolve: { alias: { '@': path.join(ROOT, 'src') } },
+    server: { middlewareMode: true, ws: false }, optimizeDeps: { noDiscovery: true },
+  });
+  try {
+    const geom = await vite.ssrLoadModule('/src/world/roadnet/geom.ts');
+    const ext = await vite.ssrLoadModule('/src/world/roadnet/extents.ts');
+    const tiles = await vite.ssrLoadModule('/src/world/roadnet/lotTiles.ts');
+    const { RoadNet } = await vite.ssrLoadModule('/src/world/roadnet/RoadNet.ts');
+    const proj = geom.makeFrameProjection(geom.REAL_FRAME);
+    fs.mkdirSync(R3_DIR, { recursive: true });
+    const ll = ext.R3_EXTENT.map((p) => proj.toLonLat(p));
+    const lats = ll.map((p) => p[1]), lons = ll.map((p) => p[0]);
+    const N = Math.max(...lats) + 0.0005, S = Math.min(...lats) - 0.0005, W = Math.min(...lons) - 0.0005, E = Math.max(...lons) + 0.0005;
+    const bbox = { n: N, s: S, w: W, e: E };
+    const plutoFile = path.join(R3_DIR, 'pluto-r3.json'), footFile = path.join(R3_DIR, 'footprints-r3.json');
+
+    let pluto;
+    if (refresh || !fs.existsSync(plutoFile)) {
+      const where = `borough='BK' AND latitude::number between ${S.toFixed(6)} and ${N.toFixed(6)} AND longitude::number between ${W.toFixed(6)} and ${E.toFixed(6)}`;
+      const rows = await pagedFetchSlow(PLUTO, R3_PLUTO_FIELDS.join(','), where, 'bbl', 'pluto');
+      pluto = { source: 'NYC DCP MapPLUTO (64uk-42ks) via NYC Open Data', url: PLUTO, select: R3_PLUTO_FIELDS.join(','), where, bbox, fetched: new Date().toISOString(), rows };
+      fs.writeFileSync(plutoFile, JSON.stringify(pluto));
+      fs.writeFileSync(path.join(ROOT, 'src/world/data/raw/pluto-r3.query.json'), JSON.stringify({ source: pluto.source, url: PLUTO, select: pluto.select, where, order: 'bbl', pages: '5000 rows, 1.5 s apart', fetched: pluto.fetched.slice(0, 10), rows: rows.length, note: 'raw rows cached in cache/real-r3/ (git-ignored); the shipped lots are public/data/real/lots-*.json' }, null, 2) + '\n');
+    } else pluto = JSON.parse(fs.readFileSync(plutoFile, 'utf8'));
+    console.log(`MapPLUTO rows: ${pluto.rows.length} (fetched ${pluto.fetched})`);
+
+    let foot;
+    if (refresh || !fs.existsSync(footFile)) {
+      const where = `within_box(the_geom, ${N.toFixed(6)}, ${W.toFixed(6)}, ${S.toFixed(6)}, ${E.toFixed(6)})`;
+      const rows = await pagedFetchSlow(FOOT, R3_FOOT_FIELDS.join(','), where, 'bin', 'footprints');
+      foot = { source: 'NYC Building Footprints (5zhs-2jue) via NYC Open Data', url: FOOT, select: R3_FOOT_FIELDS.join(','), where, bbox, fetched: new Date().toISOString(), rows };
+      fs.writeFileSync(footFile, JSON.stringify(foot));
+      fs.writeFileSync(path.join(ROOT, 'src/world/data/raw/footprints-r3.query.json'), JSON.stringify({ source: foot.source, url: FOOT, select: foot.select, where, order: 'bin', pages: '5000 rows, 1.5 s apart', fetched: foot.fetched.slice(0, 10), rows: rows.length, note: 'polygons not fetched: height_roof (ft), construction_year and shape_area (sq ft) per BIN only' }, null, 2) + '\n');
+    } else foot = JSON.parse(fs.readFileSync(footFile, 'utf8'));
+    console.log(`footprint rows: ${foot.rows.length} (fetched ${foot.fetched})`);
+
+    const coreText = fs.readFileSync(path.join(ROOT, 'src/world/data/roadnet-r123.json'), 'utf8');
+    const net = RoadNet.fromJson(JSON.parse(coreText));
+    const netSha = crypto.createHash('sha1').update(coreText).digest('hex').slice(0, 12);
+
+    const anomalies = { noCoordinates: 0, outsideExtents: 0, duplicateBbl: 0, zeroFrontage: 0, noStreet60: 0, duplicateUnit: 0, blkFixed: 0 };
+    const lots = new Map();
+    for (const row of [...pluto.rows].sort((a, b) => String(a.bbl).localeCompare(String(b.bbl)))) {
+      const lat = num(row.latitude), lon = num(row.longitude);
+      if (lat === null || lon === null) { anomalies.noCoordinates++; continue; }
+      const p = proj.toGrid(lon, lat);
+      if (!geom.pointInPolygon(p, ext.R3_EXTENT)) { anomalies.outsideExtents++; continue; }
+      const bbl = String(row.bbl).replace(/\.0+$/, '');
+      if (lots.has(bbl)) { anomalies.duplicateBbl++; continue; }
+      const lf = num(row.lotfront), ld = num(row.lotdepth);
+      if (!lf) anomalies.zeroFrontage++;
+      lots.set(bbl, {
+        bbl, ph: ext.phaseOf(p) ?? 'R3', x: r1(p.x), z: r1(p.z), lf: lf === null ? null : r1(lf * FT), ld: ld === null ? null : r1(ld * FT),
+        bf: num(row.bldgfront) === null ? null : r1(num(row.bldgfront) * FT), bd: num(row.bldgdepth) === null ? null : r1(num(row.bldgdepth) * FT),
+        fl: num(row.numfloors), yr: num(row.yearbuilt), cls: row.bldgclass ?? '', lu: row.landuse ?? '', ad: row.address ?? '', nb: 0, rf: null, _p: p,
+        own: row.ownername ?? '', ur: num(row.unitsres), la: num(row.lotarea),
+      });
+    }
+    const seenBin = new Set();
+    for (const row of foot.rows) {
+      const bbl = String(row.base_bbl ?? '').replace(/\.0+$/, '');
+      const lot = lots.get(bbl);
+      if (!lot || !row.bin || seenBin.has(row.bin)) continue;
+      seenBin.add(row.bin);
+      lot.nb++;
+      const h = num(row.height_roof);
+      if (h !== null) lot.rf = Math.max(lot.rf ?? 0, r1(h * FT)) || null;
+    }
+    const frontage = (e) => net.edges[e].level === 0 && net.edges[e].cls !== 'highway' && net.edges[e].cls !== 'ramp';
+    const rings = net.blocks.map((_, i) => net.blockRing(i));
+    for (const lot of lots.values()) {
+      const p = lot._p;
+      const hit = net.nearestEdge(p, 400, frontage);
+      if (!hit || hit.dist > ANOMALY_M) anomalies.noStreet60++;
+      if (hit) {
+        const cross = hit.dir.x * (p.z - hit.point.z) - hit.dir.z * (p.x - hit.point.x);
+        lot.e = hit.edge; lot.s = r1(hit.s); lot.sd = cross >= 0 ? 1 : -1;
+      } else { lot.e = -1; lot.s = null; lot.sd = 0; }
+      lot.blk = net.blockAt(p);
+      if (lot.blk < 0) {
+        let best = -1, bd = 30;
+        rings.forEach((ring, bi) => {
+          if (net.blocks[bi].island) return;
+          let mnx = Infinity, mxx = -Infinity, mnz = Infinity, mxz = -Infinity;
+          for (const v of ring) { mnx = Math.min(mnx, v.x); mxx = Math.max(mxx, v.x); mnz = Math.min(mnz, v.z); mxz = Math.max(mxz, v.z); }
+          if (p.x < mnx - 30 || p.x > mxx + 30 || p.z < mnz - 30 || p.z > mxz + 30) return;
+          for (let i = 0; i < ring.length; i++) { const d = Math.sqrt(geom.closestOnSegment(p, ring[i], ring[(i + 1) % ring.length]).d2); if (d < bd) { bd = d; best = bi; } }
+        });
+        if (best >= 0) { lot.blk = best; anomalies.blkFixed++; }
+      }
+    }
+    const seenUnit = new Set();
+    const kept = [];
+    for (const lot of lots.values()) {
+      if (!lot.lf || lot.lf <= 0 || lot.e < 0) continue;
+      const uk = `${lot.ad}|${lot.x}|${lot.z}|${lot.lf}`;
+      if (seenUnit.has(uk)) { anomalies.duplicateUnit++; continue; }
+      seenUnit.add(uk);
+      kept.push(lot);
+    }
+    const bt = tiles.blockTiles(rings);
+    const tileOfBlock = new Map();
+    for (const [k, list] of bt) for (const b of list) tileOfBlock.set(b, k);
+    const byTile = new Map();
+    for (const lot of kept) {
+      const k = lot.blk >= 0 ? tileOfBlock.get(lot.blk) : tiles.tileKeyOf(lot.x, lot.z);
+      const l = byTile.get(k); if (l) l.push(lot); else byTile.set(k, [lot]);
+    }
+    const outDir = path.join(ROOT, 'public/data/real');
+    fs.mkdirSync(outDir, { recursive: true });
+    for (const f of fs.readdirSync(outDir)) if (/^lots-.*\.json$/.test(f)) fs.unlinkSync(path.join(outDir, f));
+    const index = { v: 2, tile: tiles.LOT_TILE_M, net: netSha, tiles: {}, total: 0 };
+    let rawBytes = 0;
+    for (const [k, list] of [...byTile].sort((a, b) => a[0].localeCompare(b[0]))) {
+      list.sort((a, b) => a.bbl.localeCompare(b.bbl));
+      const json = JSON.stringify(tiles.encodeLotTile(k, list));
+      fs.writeFileSync(path.join(outDir, `lots-${k}.json`), json);
+      rawBytes += json.length;
+      let b = [Infinity, Infinity, -Infinity, -Infinity];
+      for (const l of list) b = [Math.min(b[0], l.x), Math.min(b[1], l.z), Math.max(b[2], l.x), Math.max(b[3], l.z)];
+      index.tiles[k] = { n: list.length, b: b.map(Math.round) };
+      index.total += list.length;
+    }
+    fs.writeFileSync(path.join(outDir, 'lots-index.json'), JSON.stringify(index));
+    fs.writeFileSync(path.join(R3_DIR, 'lots-r3-all.json'), JSON.stringify([...lots.values()].map(({ _p, ...r }) => r)));
+    console.log(`lots: ${lots.size} in extent, ${kept.length} written in ${byTile.size} tiles, ${rawBytes} bytes raw; footprints with a lot ${seenBin.size}; anomalies ${JSON.stringify(anomalies)}; net sha ${netSha}`);
+    console.log('by phase', kept.reduce((a, l) => ((a[l.ph] = (a[l.ph] ?? 0) + 1), a), {}));
   } finally {
     await vite.close();
   }

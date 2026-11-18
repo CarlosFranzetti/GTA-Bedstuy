@@ -26,7 +26,7 @@ import { WantedSystem } from '@/game/WantedSystem';
 import { Combat } from '@/game/combat/Combat';
 import { CombatSfx } from '@/game/combat/sfx';
 import { CombatView } from '@/game/combat/view';
-import { placePickups } from '@/game/combat/pickups';
+import { placePickups, placeRealPickups } from '@/game/combat/pickups';
 import { DayNight } from '@/game/DayNight';
 import { Hud, type RadioHudState, type BlockedHudState } from '@/ui/Hud';
 import { Minimap } from '@/ui/Minimap';
@@ -336,14 +336,14 @@ overlay.id = 'overlay';
 app.appendChild(overlay);
 const hud = new Hud(overlay);
 // the action button on foot: fists, thrown bottles and bricks, a pistol (pickups on the grid map only for now)
-const combat = new Combat({ events, world: physics, peds: () => traffic.peds, player, fx: new CombatView(scene), sfx: new CombatSfx(() => audio.sfxHost), pickups: realWorld ? [] : placePickups(world.lots, HOME, (p, r) => physics.overlapsSolid(p, r)), onHands: (s) => hud.setHands(s) });
+const combat = new Combat({ events, world: physics, peds: () => traffic.peds, player, fx: new CombatView(scene), sfx: new CombatSfx(() => audio.sfxHost), pickups: realWorld ? placeRealPickups({ home: HOME, shops: (realGame?.mapPlaces ?? []).filter((m) => m.kind === 'shop'), lots: world.lots }, (p, r) => physics.overlapsSolid(p, r)) : placePickups(world.lots, HOME, (p, r) => physics.overlapsSolid(p, r)), onHands: (s) => hud.setHands(s) });
 hud.onCycleHands = () => combat.cycle(1);
 // Title theme: plays on the title screen once the browser lets audio start (a click during loading, or the native app),
 // fades out a few seconds after the player presses start, and plays again under the credits roll.
 const titleMusic = createTitleMusic({ volume: 0.7 });
 let splashUp = false;
 const credits = new Credits(overlay, { onOpen: () => titleMusic.start(), onClose: () => { if (!splashUp) titleMusic.stop(1.5); } });
-hud.onSplash = (shown) => { splashUp = shown; document.body.classList.toggle('title-up', shown); if (shown) titleMusic.start(); else if (!credits.isOpen) titleMusic.stop(3); }; // title-up: the game's interface is hidden behind the title (hud.css)
+hud.onSplash = (shown) => { splashUp = shown; input.lockBlocked = shown; document.body.classList.toggle('title-up', shown); if (shown) titleMusic.start(); else if (!credits.isOpen) titleMusic.stop(3); }; // title-up: the game's interface is hidden behind the title (hud.css)
 hud.onCredits = () => credits.open();
 if (realWorld) { const n = document.createElement('div'); n.textContent = realWorld.notice; n.style.cssText = 'position:fixed;left:8px;bottom:6px;font:11px monospace;color:#fff;opacity:.75;z-index:50;pointer-events:none'; document.body.appendChild(n); }
 const missionHud = new MissionHud(overlay);
@@ -523,6 +523,7 @@ function updateCamera(dt = 1 / 60): void {
   else {
     camCtx.vehicle = player.vehicle;
     cam.holdView = combat.holdView; // aiming: the view stays where the player put it
+    cam.aimBias = combat.aimBias; // over the shoulder while the action button is held with something to aim
     cam.update(dt, camTarget, camHeading, player.inVehicle ? 'vehicle' : 'foot', input, camCtx);
     player.setFirstPerson(!player.inVehicle && cam.firstPersonAmount > 0.85);
     // consumed here: otherwise frames that run no fixed step (display > 60 Hz) would re-apply the same mouse delta
@@ -711,6 +712,7 @@ saves.bind({
   getLook: () => ({ seed: 0, ...(pendingLook ?? bootLook) }),
   setLook: (l) => { const r = l as unknown as Partial<RosterLook> | null; if (r && typeof r.group === 'string' && typeof r.variant === 'number' && (r.group !== bootLook.group || r.variant !== bootLook.variant)) pendingLook = r as RosterLook; },
   getStreet: () => streetName,
+  hands: combat,
 }, {
   newGame: () => {
     clearMissionData(); missions.story.reset(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++;

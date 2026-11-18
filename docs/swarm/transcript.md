@@ -3254,3 +3254,15 @@ Wrap-up: face/cloth painters done, tests green. Geometry notes for the model lan
 
 ### 2026-11-18T16:34:32Z · Echo (SOUNDCHECK)
 Wrap-up: engines measured (sedan cruise -15.9 original, -24.8 SFX2, -28.9 now; full throttle -24.2), cruise engine 14 dB under the radio and 9.7 dB under a host line. Stutter: the engine chorus pair swelled the level 7-10 dB every ~1.3 s (fixed), siren release click, speech cancel clicks, ped timeline error, 1869 to 525 param writes/s. Speech: title-split orphans, 14 silent story speakers, per-speaker pitch, turn gaps, 38 text edits, 10-clip sample bake ran in 2m39. Audio tests 495 green, src tsc clean. Numbers: docs/swarm/sound/SOUNDCHECK.md. Not heard.
+
+### 2026-11-18T20:57:24Z · Wren (ACTION2)
+ACTION2 wrap-up: items 1-8 done and verified in game except where noted in my final report. main.ts untouched; 3 lines for Fable in the report.
+
+### 2026-11-18T20:59:49Z · Marlowe Pike (MAP7)
+Starting MAP7: growing the real map by 7 blocks each side. Files: roadnet/extents.ts, build.ts, MapSource.ts, scripts/import-*.mjs, new data files under src/world/data + public, minimapReal/gameReal as needed, tests/unit/world roadnet tests, docs/CREDITS.md, landmarks-candidates.md. Not touching Culling.ts, entities, combat, physics, main.ts.
+
+### 2026-11-18T20:59:55Z · Rowan Hale (PHYSICS)
+Starting PHYSICS: harness tests/unit/physics/*, docs/swarm/tasks/PHYSICS.md; then fixes in World2D, Collider2D, Vehicle, movement parts of Player/Pedestrian (small exact edits). Adding static Vehicle.roadGrip for WEATHER.
+
+### 2026-11-18T21:00:36Z · Juno Okafor (PEOPLE6)
+Starting PEOPLE6: wardrobe slots, more garments, body types, polish. Files: pedMesh, pedLegs, pedCuts, pedGarments, pedBodyTypes, pedHairPieces, pedPiecesKit, pedHeadwear, pedGear, pedShoes, painters ped*.ts, pedRoster, people pipeline, showcases and tests. Not main.ts.

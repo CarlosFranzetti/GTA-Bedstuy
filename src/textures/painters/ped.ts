@@ -50,6 +50,11 @@ export type TopKind = 'tee' | 'hoodie' | 'puffer' | 'jersey' | 'vest' | 'jacket'
 export type BottomKind = 'jeans' | 'trousers' | 'shorts' | 'skirt' | 'leggings' | 'sweats' | 'cargo';
 export type PedRole = 'civilian' | 'cop' | 'shopkeeper' | 'dj' | 'player';
 export type Build = 'avg' | 'slim' | 'stocky' | 'kid' | 'tall';
+/** how a garment is cut inside its kind (pedWardrobe.ts picks these; the geometry and the painters read them): collars, pockets, lengths */
+export type TopStyle = 'pocket' | 'polo' | 'crew' | 'shirt' | 'trench' | 'parka' | 'bomber' | 'track' | 'blazer' | 'boiler' | 'football' | 'wrap' | 'shirtdress' | 'kaftan' | 'overcoat' | 'denim' | 'sweater' | 'workshirt';
+/** the shape of the legs / skirt: trouser cuts (pedLegs CUT), skirt shapes, short lengths */
+export type BottomCut = 'straight' | 'slim' | 'baggy' | 'crop' | 'flare' | 'pleated' | 'pencil' | 'mini' | 'maxi' | 'knee' | 'long' | 'short' | 'run' | 'wrap' | 'patch' | 'stripe' | 'pocket' | 'cuffed';
+export type ShoeKind = 'sneakerLow' | 'sneakerHigh' | 'workBoot' | 'dressShoe' | 'flat' | 'sandal' | 'runner' | 'tallBoot' | 'loafer' | 'heel' | 'slide';
 export type PrintKind = 'none' | 'star' | 'stripes' | 'bolt' | 'bars' | 'badge' | 'heart';
 
 /** crowd groups of the street population (see pedRoster.ts): Black American, Caribbean, Latino, white, East Asian, South Asian, Middle Eastern, mixed, Hasidic Jewish */
@@ -81,14 +86,15 @@ export interface PedSpec {
     under?: string; tie?: string; zip?: boolean; pattern?: 'none' | 'print' | 'plaid' | 'heather' | 'stripe' | 'check' | 'block';
     /** jacket worn open over `under` (a tee or hoodie shows) */ open?: boolean;
     /** what the outer layer is made of (default by garment) */ fabric?: 'canvas' | 'denim' | 'leather' | 'wool' | 'fleece' | 'knit';
+    /** the cut inside the kind (collar, pocket, belt ...), see TopStyle */ style?: TopStyle;
   };
-  bottom: { kind: BottomKind; color: string; trim: string; /** ankle-length skirt */ long?: boolean };
-  shoes: { color: string; sole: string; accent: string; high?: boolean };
+  bottom: { kind: BottomKind; color: string; trim: string; /** ankle-length skirt */ long?: boolean; /** the cut inside the kind, see BottomCut */ cut?: BottomCut; /** denim shorts / skirt (painted like jeans) */ denim?: boolean };
+  shoes: { color: string; sole: string; accent: string; high?: boolean; /** explicit shoe (else picked from the outfit) */ kind?: ShoeKind; /** sock colour where it shows (slides, cropped legs) */ sock?: string };
   gear: 'none' | 'backpack' | 'bag' | 'tote' | 'messenger';
   gearColor: string;
   build: Build;
   /** explicit body type (entities/models/pedBodyTypes.ts); otherwise picked from age, build and id */
-  body?: 'avg' | 'slim' | 'athletic' | 'heavy' | 'tall-thin' | 'short-stocky' | 'broad' | 'pear' | 'petite' | 'elder' | 'teen' | 'kid';
+  body?: import('@/entities/models/pedBodyTypes').BodyTypeId;
   /** relative chance among the civilians (church clothes get extra weight on Sunday morning) */
   weight: number;
   sunday?: boolean;
@@ -225,10 +231,18 @@ export const BASE_SPECS: readonly PedSpec[] = [
 ];
 
 /** the street population: BASE_SPECS' outfits worn by a mix of people, new outfits, and the player's random looks (pedRoster.ts) */
-export const PED_SPECS: readonly PedSpec[] = buildRoster(BASE_SPECS);
+export const PED_SPECS: PedSpec[] = buildRoster(BASE_SPECS);
+/** the named roster (generated wardrobe people are appended after it, see registerSpec) */
 export const PED_VARIANT_COUNT = PED_SPECS.length;
 /** variants 0..CIVILIAN_COUNT-1 are the street civilians */
 export const CIVILIAN_COUNT = PED_SPECS.filter((s) => s.role === 'civilian').length;
+/** Append a generated person (pedWardrobe.ts) and return its variant index; the same id is registered once. The named roster before it never moves. */
+export function registerSpec(spec: PedSpec): number {
+  const i = PED_SPECS.findIndex((s, k) => k >= PED_VARIANT_COUNT && s.id === spec.id);
+  if (i >= 0) return i;
+  PED_SPECS.push(spec);
+  return PED_SPECS.length - 1;
+}
 
 export function pedVariantIndex(id: string): number {
   const i = PED_SPECS.findIndex((s) => s.id === (id === 'player' ? playerSpecId() : id));

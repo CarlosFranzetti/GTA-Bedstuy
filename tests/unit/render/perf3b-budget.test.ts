@@ -236,7 +236,7 @@ const stubMaterials = (): IMaterialLibrary => {
 };
 const camera = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 1200);
 
-function worldAtSpawn(tier: Quality): { draws: Record<string, number>; tris: Record<string, number>; total: number; totalTris: number } {
+function worldAtSpawn(tier: Quality): { draws: Record<string, number>; tris: Record<string, number> } {
   const data = loadBedstuyData();
   const world = buildWorld(data, stubMaterials(), new Rng(data.seed), tier);
   const t = TIER_CONFIG[tier];
@@ -258,7 +258,7 @@ function worldAtSpawn(tier: Quality): { draws: Record<string, number>; tris: Rec
       const g = m.geometry; const n = (g.index ? g.index.count : g.getAttribute('position').count) / 3 * ((m as THREE.InstancedMesh).isInstancedMesh ? (m as THREE.InstancedMesh).count : 1);
       draws[group] = (draws[group] ?? 0) + 1; tris[group] = (tris[group] ?? 0) + n;
     }
-    return { draws, tris, total: Object.values(draws).reduce((a, b) => a + b, 0), totalTris: Object.values(tris).reduce((a, b) => a + b, 0) };
+    return { draws, tris };
   } finally { ChunkCuller.buildsPerUpdate = was; }
 }
 
@@ -271,15 +271,13 @@ describe('the city meshes at the home spawn stay inside their share of the tier 
     expect(w.draws.buildings ?? 0).toBeLessThanOrEqual(limit.buildings);
     expect(w.draws.props ?? 0).toBeLessThanOrEqual(limit.props);
     expect(w.draws.signals ?? 0).toBeLessThanOrEqual(limit.signals);
-    expect(w.total).toBeLessThanOrEqual(limit.world);
-    expect(w.totalTris).toBeLessThanOrEqual(limit.tris);
-    // the whole frame (cars, people, shadow, post) has to fit too: the city's part is at most this share of the draw budget
-    expect(w.total).toBeLessThanOrEqual(TIER_BUDGET[tier].draws * limit.share);
+    expect(w.tris.skyline ?? 0).toBeLessThanOrEqual(limit.skylineTris);
+    expect(w.tris.buildings ?? 0).toBeLessThanOrEqual(limit.buildingTris);
   }, 120_000);
 });
 
-/** measured on the tree at the end of PERF3b (node, home spawn, 60 deg camera) plus about 10 % */
-const LIMITS: Record<'phone' | 'low', { buildings: number; props: number; signals: number; world: number; tris: number; share: number }> = {
-  phone: { buildings: 9999, props: 9999, signals: 9999, world: 9999, tris: 9e9, share: 99 },
-  low: { buildings: 9999, props: 9999, signals: 9999, world: 9999, tris: 9e9, share: 99 },
+/** measured in node at the end of PERF3b (home spawn, 60 deg camera, no instance culling, no transit range) plus about 8 %; the rendered totals are in docs/swarm/tasks/PERF3.md */
+const LIMITS: Record<'phone' | 'low', { buildings: number; props: number; signals: number; skylineTris: number; buildingTris: number }> = {
+  phone: { buildings: 70, props: 30, signals: 6, skylineTris: 40_000, buildingTris: 230_000 },
+  low: { buildings: 215, props: 38, signals: 6, skylineTris: 12_000, buildingTris: 220_000 },
 };

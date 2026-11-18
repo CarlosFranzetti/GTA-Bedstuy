@@ -239,6 +239,8 @@ export interface Body2D {
   userData?: unknown;
   /** optional visual height above the ground (m); an airborne player sets it so low props can be jumped over */
   height?: number;
+  /** a person who is knocked down and flying: vehicles pass over the body instead of ploughing it along (set by Pedestrian / Player) */
+  vehiclePass?: boolean;
 }
 
 export interface Contact {

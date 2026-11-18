@@ -39,6 +39,7 @@ import type { RealLot } from './lotsReal';
 import { pointInPolygon, signedArea } from './geom';
 import type { LampSpot } from '@/world/FurnitureGen';
 import type { RealProps } from './propsReal';
+import type { RealTraffic } from './trafficReal';
 import type { RealPlaces, PlacesTable } from './placesReal';
 
 export interface RealWorld {
@@ -73,6 +74,11 @@ export interface RealWorld {
   props: RealProps | null;
   lamps: LampSpot[];
   furnitureGroup: THREE.Group;
+  /**
+   * Traffic adapter: the grid-shaped model of the real lanes, sidewalks and crosswalks plus the real signal controller, for the
+   * unchanged TrafficSystem / CopSystem (see main.ts lines in docs). null when it fell back. `update` flips the signal heads from it.
+   */
+  traffic: RealTraffic | null;
   /** the places table over the real lots; null when it fell back */
   places: RealPlaces | null;
   /** player start outside HOME's door (equals spawn / spawnHeading when places fell back) */
@@ -96,7 +102,7 @@ export interface RealWorldOptions {
   forceStandIns?: boolean;
 }
 
-export const REAL_NOTICE = 'Real-map preview: walk only. No traffic, missions or saving yet.';
+export const REAL_NOTICE = 'Real-map preview: traffic, pedestrians, missions and saving are on; expect rough edges.';
 
 const triCount = (m: THREE.Mesh): number => {
   const g = m.geometry;
@@ -351,7 +357,21 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   } catch (e) { standIns.push(`props: ${(e as Error).message}`); props = null; }
   t('props', t0);
 
-  const update: RealWorld['update'] = (dt, px, pz, cam, night) => { streamer?.update(px, pz, cam.y); trains?.update(dt, cam, night); };
+  // traffic: lanes, walking graph, crossings and the signal controller in the shape TrafficSystem reads (trafficReal.ts)
+  let traffic: RealTraffic | null = null;
+  t0 = performance.now();
+  try {
+    if (opts.forceStandIns) throw new Error('forced');
+    traffic = (await import('./trafficReal')).makeRealTraffic(net, derived, sidewalks, (await import('@/world/data/roadnet-controls.json')).default as unknown);
+  } catch (e) { standIns.push(`traffic: ${(e as Error).message}`); traffic = null; }
+  t('traffic', t0);
+  let signalHeads: ((g: THREE.Object3D, l: RealTraffic['lights']) => void) | null = null;
+  if (props && traffic) void import('./propsReal').then((m) => { signalHeads = m.updateRealSignals; });
+
+  const update: RealWorld['update'] = (dt, px, pz, cam, night) => {
+    streamer?.update(px, pz, cam.y); trains?.update(dt, cam, night);
+    if (traffic && props && signalHeads) signalHeads(props.group, traffic.lights);
+  };
   const setColliderHost = (h: ColliderHost): void => { host = h; if (held.size) h.add([...held.values()]); };
   const stats = { ...measureWorld(group), lots: lots.length, colliders: colliders.length, ms };
   void ROAD_CHUNK_PREFIX;
@@ -359,7 +379,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
     const w = window as unknown as { __gtaRealWorld?: () => RealWorld; __gtaRealFrames?: () => Promise<unknown> };
     w.__gtaRealFrames = async () => (await import('./reviewFrames')).reviewFrames(w.__gtaRealWorld!());
   }
-  const rwOut: RealWorld = { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, badBlocks: [...bad].sort((a, b) => a - b), streamer, setColliderHost, update, trains, notice: REAL_NOTICE, standIns, el, props, lamps: props?.lamps ?? [], furnitureGroup: props?.group ?? furnitureGroup, places, homeSpawn, applyDoors, stats };
+  const rwOut: RealWorld = { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, badBlocks: [...bad].sort((a, b) => a - b), streamer, setColliderHost, update, trains, notice: REAL_NOTICE, standIns, el, props, traffic, lamps: props?.lamps ?? [], furnitureGroup: props?.group ?? furnitureGroup, places, homeSpawn, applyDoors, stats };
   if (typeof window !== 'undefined') (window as unknown as { __gtaRealWorld?: () => RealWorld }).__gtaRealWorld = () => rwOut;
   return rwOut;
 }

@@ -119,13 +119,23 @@ const PROP_MAX_R = 0.5;
 const PROP_SLIDE_SPEED = 1.6;
 const PROP_SLIDE_YAW = 0.9;
 /** Above this speed (m/s) the normal wall response is left alone (a real crash). */
-const PROP_SLIDE_MAX_SPEED = 7;
+const PROP_SLIDE_MAX_SPEED = 12;
 /** Wall friction is scaled by this against a prop, so a glancing hit keeps its speed. */
 const PROP_FRICTION_SCALE = 0.25;
 // ---- impacts
 const IMPACT_MIN = 0.5;
-const WALL_FRICTION = 0.35;
-const WALL_ALIGN = 0.18;
+const WALL_FRICTION = 0.22;
+const WALL_ALIGN = 0.1;
+/** Scrub per m/s of closing speed on a wall (was 0.35: a 60 degree scrape at 20 m/s lost 40% of its speed in 1.5 s). */
+/** Share of the physical yaw impulse a collision gives (arcade: spins read, nothing pirouettes), its cap (rad/s) and decay (1/s, tyres grip the spin out). */
+const IMPACT_YAW_SCALE = 0.4;
+const IMPACT_YAW_MAX = 2.4;
+const IMPACT_YAW_DECAY = 2.6;
+/** Closing speed below which a touch gives no spin (a scrape, a nudge). */
+const IMPACT_YAW_MIN_CLOSING = 1.5;
+/** Impacts below this closing speed (m/s) cost nothing: pressing the throttle into a wall must not wreck the car. */
+const DAMAGE_FREE_CLOSING = 2;
+const DAMAGE_DIVISOR = 34;
 const SHAKE_MIN_CLOSING = 2;
 const SHAKE_FULL_CLOSING = 14;
 const SCRAPE_WINDOW = 0.15;
@@ -176,6 +186,12 @@ export class Vehicle implements IVehicle {
   static sources: VehicleSources = {};
   /** Speed-dependent steering cap for player-driven cars (see LOW_YAW_CAP). Off only for before/after measurements. */
   static calmSteering = true;
+  /**
+   * Road surface grip, 1 = dry asphalt, lower when wet or icy (the weather system sets it, e.g. `Vehicle.roadGrip = 0.7`).
+   * It multiplies the tyre grip of every car (front and rear lateral grip, and the braking force), so wet roads brake longer and
+   * slide earlier without touching any per-type number. Engine thrust is unchanged.
+   */
+  static roadGrip = 1;
   /** Wedge push-out for the player's car (see updateWedge). Off only for tests that assert a car held against an obstacle rests. */
   static wedgeAssist = true;
   readonly spec: VehicleSpec;
@@ -247,6 +263,8 @@ export class Vehicle implements IVehicle {
   private pitch = 0; private pitchV = 0;
   private bounce = 0; private bounceV = 0;
   private aLongF = 0; private aLatF = 0;
+  /** yaw rate (rad/s, + = nose to the right) a collision gave the car; bleeds off at IMPACT_YAW_DECAY, whatever the driver does */
+  private impactYaw = 0;
   // dents
   private readonly seed: number;
   private dentGeos: { mesh: THREE.Mesh; orig: THREE.BufferGeometry; base: Float32Array }[] = [];
@@ -389,7 +407,7 @@ export class Vehicle implements IVehicle {
     const rest = this.driver === null && b.vel.x === 0 && b.vel.z === 0 && !this.siren && this.shakeRequested === 0 &&
       Math.abs(this.roll) < E && Math.abs(this.pitch) < E && Math.abs(this.bounce) < E &&
       Math.abs(this.rollV) < E && Math.abs(this.pitchV) < E && Math.abs(this.bounceV) < E &&
-      Math.abs(this.aLongF) < E && Math.abs(this.aLatF) < E && Math.abs(this.steerNorm) < E && this.yawRate === 0 && !this.braking;
+      Math.abs(this.aLongF) < E && Math.abs(this.aLatF) < E && Math.abs(this.steerNorm) < E && this.yawRate === 0 && this.impactYaw === 0 && !this.braking;
     if (!rest) { this.settleCount = 0; return; }
     if (++this.settleCount < 5) return;
     this.settled = true; this.setX = b.pos.x; this.setZ = b.pos.z; this.setH = b.heading; this.setDamage = this.damage;
@@ -412,10 +430,8 @@ export class Vehicle implements IVehicle {
 
   onContact(contact: Contact, other: Body2D): void {
     if (other.kind === 'static' || other.mass === Infinity) { this.staticContact = other; this.staticContactTime = this.time; }
-    if (this.driver === 'player') {
-      this.noteContact(contact);
-      this.slideOffProp(contact, other);
-    }
+    if (this.driver === 'player') this.noteContact(contact);
+    if (this.driver !== null) this.slideOffProp(contact, other);
     if (contact.impulse < IMPACT_MIN) return;
     // A car sliding along a wall (or a pedestrian pressed against it) re-touches it every frame with a slowly
     // changing impulse: a repeat within SCRAPE_WINDOW is a scrape (5% of the damage, no new impact event) unless
@@ -425,7 +441,7 @@ export class Vehicle implements IVehicle {
       contact.impulse <= this.lastHitImpulse * SCRAPE_ESCALATE + SCRAPE_ESCALATE_ADD;
     this.lastHitTime = this.time;
     this.lastHitImpulse = scrape ? this.lastHitImpulse : contact.impulse;
-    this.damage = clamp(this.damage + (contact.impulse / 40) * (scrape ? SCRAPE_DAMAGE : 1), 0, 1);
+    this.damage = clamp(this.damage + (Math.max(0, contact.impulse - DAMAGE_FREE_CLOSING) / DAMAGE_DIVISOR) * (scrape ? SCRAPE_DAMAGE : 1), 0, 1);
     this.reactToImpact(contact, other);
     if (scrape) return;
     // Two Vehicles both get onContact for the same contact: only the `a` side reports it.
@@ -477,7 +493,7 @@ export class Vehicle implements IVehicle {
     if (this.brakePressure > 0) {
       // ABS-like: pedal force is capped by tyre grip and eased off near standstill
       const ease = 0.35 + 0.65 * Math.min(1, Math.abs(vLong) / 2.5);
-      shed(s.brakeDecel * Math.min(1, this.grip * this.tyreMu) * this.brakePressure * ease);
+      shed(s.brakeDecel * Math.min(1, this.grip * this.tyreMu * Vehicle.roadGrip) * this.brakePressure * ease);
     }
     if (input.handbrake) shed(s.brakeDecel * HANDBRAKE_DECEL_FRAC);
 
@@ -531,7 +547,7 @@ export class Vehicle implements IVehicle {
 
     // --- yaw: kinematic bicycle, clipped by front grip (understeer), boosted with the handbrake
     const kin = (vLong / wheelbase) * Math.tan(this.steerAngle) * (hb && speedAbs > 3 ? HANDBRAKE_YAW_BOOST : 1);
-    let yawMax = ((MU_FRONT * this.grip * this.tyreMu) / Math.max(speedAbs, 2)) * (hb ? 1.6 : 1);
+    let yawMax = ((MU_FRONT * this.grip * this.tyreMu * Vehicle.roadGrip) / Math.max(speedAbs, 2)) * (hb ? 1.6 : 1);
     let kinD = kin;
     if (dtBias !== null) {
       yawMax *= 1 - DT_FRONT_LOSS * (1 - dtBias) * load;   // front-driven: the front tyres share grip with the pull, so it pushes wide
@@ -547,7 +563,8 @@ export class Vehicle implements IVehicle {
     const vLat0 = dot(b.vel, r0);
     const wx = f0.x * vLong + r0.x * vLat0;
     const wz = f0.z * vLong + r0.z * vLat0;
-    b.heading = wrapAngle(b.heading + this.yawRate * h);
+    b.heading = wrapAngle(b.heading + (this.yawRate + this.impactYaw) * h);
+    this.decayImpactYaw(h);
     const f1 = forwardFromHeading(b.heading);
     const r1 = perpRight(f1);
     const vLongN = wx * f1.x + wz * f1.z;
@@ -555,7 +572,7 @@ export class Vehicle implements IVehicle {
     const vLatBefore = vLat;
 
     // --- rear tyres: lateral grip. Handbrake locks them, high-speed throttle + lock gives power oversteer.
-    let rear = MU_REAR * this.grip * this.tyreMu;
+    let rear = MU_REAR * this.grip * this.tyreMu * Vehicle.roadGrip;
     if (hb) rear *= HANDBRAKE_REAR_FRAC;
     else if (speedAbs > OVERSTEER_SPEED_FRAC * vm && thr > 0.6 && Math.abs(this.steerNorm) > 0.6) rear *= OVERSTEER_REAR_FRAC;
     if (dtBias !== null && !hb) {
@@ -684,6 +701,33 @@ export class Vehicle implements IVehicle {
     }
     b.pos.x += b.vel.x * h;
     b.pos.z += b.vel.z * h;
+    if (this.impactYaw !== 0) { b.heading = wrapAngle(b.heading + this.impactYaw * h); this.decayImpactYaw(h); }
+  }
+
+  private decayImpactYaw(h: number): void {
+    this.impactYaw *= Math.max(0, 1 - IMPACT_YAW_DECAY * h);
+    if (Math.abs(this.impactYaw) < 0.01) this.impactYaw = 0;
+  }
+
+  /**
+   * A collision spins the car by the torque of the push at the contact point: the impulse the other body gave (closing speed times the
+   * pair's reduced mass) acting at a lever arm from the centre, over the car's yaw inertia, scaled down for the arcade feel.
+   * Nose hits dead centre give nothing; a corner hit or a glancing blow swings the car round, away from what it hit.
+   */
+  private spinFromImpact(contact: Contact, other: Body2D, closing: number): void {
+    if (closing < IMPACT_YAW_MIN_CLOSING) return;
+    const b = this.body;
+    const sgn = contact.a === b ? 1 : -1;
+    const nx = contact.normal.x * sgn, nz = contact.normal.z * sgn; // toward the other body
+    const inv = (m: number) => (m > 0 && m < Infinity ? 1 / m : 0);
+    const total = inv(b.mass) + inv(other.mass);
+    if (total === 0) return;
+    const J = (1.1 * closing) / total; // impulse magnitude, kg m/s
+    const rx = contact.point.x - b.pos.x, rz = contact.point.z - b.pos.z;
+    const I = b.mass * (this.spec.length * this.spec.length + this.spec.width * this.spec.width) / 12;
+    // the push on this car points away from the other body: F = -n * J; torque = r.x F.z - r.z F.x
+    const dw = (-J * (rx * nz - rz * nx)) / I * IMPACT_YAW_SCALE;
+    this.impactYaw = clamp(this.impactYaw + dw, -IMPACT_YAW_MAX, IMPACT_YAW_MAX);
   }
 
   /** Wall scrub, alignment with the wall, camera shake and suspension kick. */
@@ -725,6 +769,9 @@ export class Vehicle implements IVehicle {
     this.bounceV -= kick;
     const f = forwardFromHeading(b.heading);
     this.pitchV += clamp(closing * 0.05, 0, 0.5) * (nx * f.x + nz * f.z > 0 ? -1 : 1);
+    // and the body rolls away from a hit on the flank (a nose hit mostly pitches)
+    this.rollV += clamp(closing * 0.045, 0, 0.45) * (nx * perpRight(f).x + nz * perpRight(f).z > 0 ? -1 : 1) * Math.min(1, 0.4 + Math.abs(nx * perpRight(f).x + nz * perpRight(f).z));
+    this.spinFromImpact(contact, other, closing);
 
     // remember where it hurt (car-local) for dent weighting
     const dx = contact.point.x - b.pos.x, dz = contact.point.z - b.pos.z;

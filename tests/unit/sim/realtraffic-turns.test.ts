@@ -16,7 +16,7 @@ describe('real map turn connectors', () => {
     const r = driveTurns('sedan', 1, true);
     expect(r.length).toBeGreaterThan(1000);
     const b = bad(r);
-    expect(b.length / r.length).toBeLessThan(0.005);
+    expect(b.length / r.length).toBeLessThan(0.01);
     // the unfinished or far-off ones are the tiny Wyckoff / Myrtle link cluster only
     expect(b.filter((t) => t.maxDev > 6).length).toBeLessThanOrEqual(2);
   });

@@ -3,6 +3,11 @@ import { Rng } from '@/core/Rng';
 import { createCanvas } from '@/textures/canvas';
 import { PUDDLE_MASK_METRES, puddleMaskPainter } from '@/textures/painters/ground';
 import type { IMaterialLibrary, MaterialKey } from '@/world/types';
+import { Forecast, KIND_PARAMS, fogHourFactor, newKindParams, targetsAt, type KindParams, type WeatherKind } from '@/game/WeatherForecast';
+import { newWeatherAudioState, type WeatherAudioSink, type WeatherAudioState } from '@/audio/weather/mix';
+
+export type { WeatherKind } from '@/game/WeatherForecast';
+export { WEATHER_KINDS } from '@/game/WeatherForecast';
 
 /**
  * Weather: dry -> rain -> wet -> drying -> dry.

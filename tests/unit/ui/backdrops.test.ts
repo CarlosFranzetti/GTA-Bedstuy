@@ -28,14 +28,22 @@ describe('backdrop shots', () => {
       expect(kb, b.file).toBeLessThan(160);
     }
   });
-  it('the title screen uses the first shot as a full-bleed picture and the credits use the last, both optional', () => {
+  it('the title screen cycles the shots as full-bleed pictures and the credits use the last, all optional', () => {
     const parent = document.createElement('div');
     document.body.appendChild(parent);
     const hud = new Hud(parent);
-    const img = parent.querySelector<HTMLImageElement>('.hud-art img')!;
-    expect(img.src).toContain(`art/${BACKDROPS[0]!.file}`);
-    expect(img.style.objectPosition).toBe(BACKDROPS[0]!.pos);
-    img.dispatchEvent(new Event('error')); // single-file build: the file is missing, the dark backdrop stays
+    const imgs = [...parent.querySelectorAll<HTMLImageElement>('.hud-art img')];
+    expect(imgs.length).toBe(BACKDROPS.length);
+    expect(imgs[0]!.src).toContain(`art/${BACKDROPS[0]!.file}`);
+    expect(imgs[0]!.style.objectPosition).toBe(BACKDROPS[0]!.pos);
+    // the first to load is shown, a later one waits its turn (the playtest of 18 Nov saw only one picture, ever)
+    imgs[1]!.dispatchEvent(new Event('load'));
+    imgs[0]!.dispatchEvent(new Event('load'));
+    expect(imgs[1]!.classList.contains('on')).toBe(true);
+    expect(imgs[0]!.classList.contains('on')).toBe(false);
+    for (const im of imgs.slice(2)) im.dispatchEvent(new Event('error')); // a missing file is dropped
+    expect(parent.querySelectorAll('.hud-art img').length).toBe(2);
+    for (const im of imgs.slice(0, 2)) im.dispatchEvent(new Event('error')); // single-file build: none exists, the dark backdrop stays
     expect(parent.querySelector('.hud-art img')).toBeNull();
     expect(parent.querySelector('.hud-start')?.textContent).toBe('press space to start');
     void hud;

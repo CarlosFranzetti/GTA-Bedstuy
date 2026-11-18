@@ -99,6 +99,9 @@ export type MakeVehicleFn = (type: VehicleType, pos: Vec2, heading: number, colo
  */
 export const MAX_REAL_VEHICLE_LENGTH = 8;
 
+/** share of the tier's parked-car occupancy used on the real map: 0.65 x 2.7 times the kerb length is ~2,500 bodies, the grid's ~930 is the budget */
+export const REAL_PARK_SHARE = 0.4;
+
 export interface RealTraffic {
   /** hand this to TrafficSystem (and the pedestrian factory) in place of the grid */
   grid: GridModel;
@@ -111,6 +114,8 @@ export interface RealTraffic {
   laneBuild: LaneBuild;
   /** wraps TrafficSystem's car factory: vehicles longer than MAX_REAL_VEHICLE_LENGTH (buses, refuse trucks) are made as box trucks */
   fitVehicles: (make: MakeVehicleFn) => MakeVehicleFn;
+  /** the quality tier's traffic numbers for this map: the same, with parked cars thinned to REAL_PARK_SHARE (the map is about 2.7 times the grid's kerb length) */
+  density: <T extends { parkOccupancy: number }>(d: T) => T;
   /** the walking graph pedestrians use (`sidewalks.graph` minus ring edges over a roadway or a building) */
   walk: Graph;
 }
@@ -204,7 +209,7 @@ export function makeRealTraffic(net: RoadNet, d: Derived, sidewalks: SidewalkNet
 
   const fitVehicles = (make: MakeVehicleFn): MakeVehicleFn => (type, pos, heading, color) =>
     make(VEHICLE_SPECS[type].length > MAX_REAL_VEHICLE_LENGTH ? 'boxtruck' : type, pos, heading, color);
-  return { grid, lights, lanes, sidewalks, crosswalkNodes: sidewalks.crosswalkNodes, laneBuild, fitVehicles, walk };
+  return { grid, lights, lanes, sidewalks, crosswalkNodes: sidewalks.crosswalkNodes, laneBuild, fitVehicles, density: (d) => ({ ...d, parkOccupancy: d.parkOccupancy * REAL_PARK_SHARE }), walk };
 }
 
 /** Async loader for the preview branch: pulls in the controls data only when the real map is on. */

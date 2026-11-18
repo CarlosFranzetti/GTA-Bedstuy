@@ -279,6 +279,8 @@ export const SHADOW_DETAIL_MARGIN = 15;
 export const SHADOW_DETAIL_MAX = 45;
 /** Low draws the detailed cell proxies only this close (m): each 50 m cell and side class is a shadow-pass draw (PERF3b). */
 export const SHADOW_DETAIL_MAX_LOW = 36;
+/** Metres of slack around a cell footprint for the reach test (low). */
+const NOMINAL_PAD = 6;
 /** Metres from the camera within which the AO G-buffer draws the static cell proxies. */
 export const AO_REACH = 70;
 /** A cell proxy that is already drawn stays drawn until it is this much (m) beyond its reach (hysteresis: no blinking at the edge while the camera sways or the shadow box steps). */
@@ -302,13 +304,15 @@ export class RenderProxies {
   triangles = 0;
   /** reach (m) of the detailed shadow cell proxies around the player; set by addStatic from the tier */
   detailMax = SHADOW_DETAIL_MAX;
+  /** low: the reach test uses each cell's footprint instead of its (stretched) geometry box */
+  reachOnFootprint = false;
   private readonly mats: Record<number, THREE.MeshBasicMaterial> = {};
   private readonly hulls = new Map<string, HullSet>();
   private capsule: HullSet | null = null;
   private readonly hullMatrices = new Map<string, THREE.InstancedBufferAttribute>();
   /** shadow-pass copy of the hull matrices: only the instances inside the sun's shadow box (wrapShadowRender) */
   private readonly shadowMatrices = new Map<string, THREE.InstancedBufferAttribute>();
-  private readonly cellBoxes: Array<{ mesh: THREE.Mesh; ao: THREE.Mesh; box: THREE.Box3 }> = [];
+  private readonly cellBoxes: Array<{ mesh: THREE.Mesh; ao: THREE.Mesh; box: THREE.Box3; nominal: THREE.Box3 }> = [];
   /** cell proxies the last AO G-buffer render drew (tests, stats) */
   aoCellsDrawn = 0;
   private readonly shadowFrustum = new THREE.Frustum();
@@ -342,6 +346,7 @@ export class RenderProxies {
     // low has no AO pass, so its proxies can be small cells: the shadow box then draws ~1/3 of the triangles (the cell AABB test is tighter)
     const t = browserTier();
     this.detailMax = t === 'low' || t === 'phone' ? SHADOW_DETAIL_MAX_LOW : SHADOW_DETAIL_MAX;
+    this.reachOnFootprint = t === 'low';
     const cell = t ? Math.min(cellX, SHADOW_PROXY_CELL[t]) : cellX;
     const build = buildStaticProxies(roots, cell, Math.min(cellZ, cell));
     // low has no AO pass and a ~4 cm shadow texel: collapsing the sub-30 cm relief (stoop steps, cornice, window reveals) of the cell proxies saves a third of the shadow triangles
@@ -358,7 +363,11 @@ export class RenderProxies {
       // a cell is 100 x 100 m: three's bounding-sphere test keeps ~4x more cells than the shadow box needs, so wrapShadowRender tests the box
       p.geometry.computeBoundingBox();
       s.frustumCulled = false;
-      this.cellBoxes.push({ mesh: s, ao: aoMesh, box: p.geometry.boundingBox! });
+      // reach is tested on the cell's own footprint (+ NOMINAL_PAD): curbs, sidewalks and ground strips put 100 m triangles into a cell and
+      // stretch its bounding box to 240 m, which kept ~28 cells in reach where 6 belong
+      const [ix, iz] = p.cell.split('_').map(Number);
+      const nominal = new THREE.Box3(new THREE.Vector3(ix * cell - NOMINAL_PAD, -1e3, iz * Math.min(cellZ, cell) - NOMINAL_PAD), new THREE.Vector3((ix + 1) * cell + NOMINAL_PAD, 1e3, (iz + 1) * Math.min(cellZ, cell) + NOMINAL_PAD));
+      this.cellBoxes.push({ mesh: s, ao: aoMesh, box: p.geometry.boundingBox!, nominal });
       this.shadowGroup.add(s);
     }
     for (const m of build.covered) m.castShadow = false;
@@ -447,7 +456,8 @@ export class RenderProxies {
     const reach = Math.min(sc.right + SHADOW_DETAIL_MARGIN, this.detailMax), tx = sun.target.position.x, tz = sun.target.position.z;
     let cells = 0;
     for (const c of this.cellBoxes) {
-      const v = cellInReach(c.mesh.visible, c.box.min.x, c.box.max.x, c.box.min.z, c.box.max.z, tx, tz, reach) && this.shadowFrustum.intersectsBox(c.box);
+      const nb = this.reachOnFootprint ? c.nominal : c.box;
+      const v = cellInReach(c.mesh.visible, nb.min.x, nb.max.x, nb.min.z, nb.max.z, tx, tz, reach) && this.shadowFrustum.intersectsBox(c.box);
       c.mesh.visible = v; if (v) cells++;
     }
     this.shadowCellsDrawn = cells;
