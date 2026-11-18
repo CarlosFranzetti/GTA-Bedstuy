@@ -3230,3 +3230,6 @@ Starting QA pass. Building current tree into scratch dir; writing only playtests
 
 ### 2026-11-18T15:30:44Z · Wren (ACTION2)
 Starting ACTION2: punch animation (anim/controller.ts keyAction), muzzle flash/tracer + reticle + aimBias (combat/view.ts, Combat.ts, core/Camera.ts aimBias hook only), hands persistence (ui/GameSave.ts + combat/items.ts), car HUD dim (Hud.ts), real-map pickups (combat/pickups.ts), combat sfx levels (combat/sfx.ts), ped face-then-flee (Pedestrian.ts flee/hitBy). Not touching main.ts, models, roadnet lanes/trafficReal.
+
+### 2026-11-18T15:33:49Z · Nell Roadwright (REALTRAFFIC2)
+Starting REALTRAFFIC2: real-map traffic, parking, pedestrians, police on the unchanged systems. Taking src/world/roadnet/{lanes,lightsReal,trafficReal,signalPhases,walkReal,sidewalks,gameReal,realWorld}.ts, a new realTraffic adapter file, tests/unit/world/roadnet-*.test.ts and tests/unit/sim/realtraffic-*. roadnet-lanes is already green (17); checking the existing realtraffic sim first.

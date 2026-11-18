@@ -142,6 +142,8 @@ if (view.startsWith('legs4')) {
   if (above) { scene.traverse((o) => { if (o.isMesh && o !== ground) { /* keep */ } }); }
 }
 if (view === 'legs4-feet') { place(params.get('ids') ? params.get('ids').split(',') : LEGS4.slice(0, 4), 0, 0.5, Number(params.get('yaw') ?? 2.6)); cam.position.set(0.6, 0.45, 1.9); look.set(0, 0.15, 0); cam.fov = 30; }
+if (params.get('unlit') === '1') scene.traverse((o) => { if (o.isMesh && o !== ground && o.material?.map) o.material = new THREE.MeshBasicMaterial({ map: o.material.map }); });
+if (params.get('cam')) { const c = params.get('cam').split(',').map(Number); cam.position.set(c[0], c[1], c[2]); look.set(c[3], c[4], c[5]); if (c[6]) cam.fov = c[6]; }
 if (SIL) { scene.background = new THREE.Color(0xffffff); scene.environment = null; ground.visible = false; scene.traverse((o) => { if (o.isMesh && o !== ground) o.material = new THREE.MeshBasicMaterial({ color: 0x000000 }); }); }
 cam.updateProjectionMatrix(); cam.lookAt(look);
 for (let i = 0; i < 3; i++) renderer.render(scene, cam);

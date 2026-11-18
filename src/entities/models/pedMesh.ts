@@ -22,7 +22,7 @@ import type { HiTile } from '@/textures/painters/pedHi';
 import { SK_RECTS, bakeSkin } from '@/textures/painters/pedSkinPaint';
 import { PED_SPECS, PED_VARIANT_COUNT, pedVariantIndex, type PedSpec, type PxRect } from '@/textures/painters/ped';
 import { FAR_DIST, MID_DIST, PedLod, buildPedModel as buildProcedural, pedPhone, type PedDetail } from './pedBodyHi';
-import { headShell, hijabShell } from './pedGarments';
+import { hijabShell } from './pedGarments';
 import { peopleMode } from '@/textures/painters/pedMode';
 import { legTubes, isCoveredLeg, StripMesh, addStrip, type Row, type LegTube, type LegDetail } from './pedLegs';
 import { bodyTypeOf, type BodyType } from './pedBodyTypes';
