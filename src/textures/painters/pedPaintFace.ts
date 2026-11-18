@@ -162,10 +162,10 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
     o.tint(K.skinSh, 0.14 * g2(xm, 0.006) * g2(ym - yChin * 0.86, 0.006));
 
     // ---------------------------------------------------------------- reading the face from 5 to 15 m, where it is a few pixels: broad dark shapes in the places a face keeps them
-    o.tint(K.skinSh, 0.2 * g2(xm - 0.031, 0.025) * g2(ym - 0.005, 0.012) * fm);                                                // the eye band
-    o.tint(K.skinSh, 0.2 * g2(xm - 0.034, 0.03) * g2(ym - 0.021, 0.0055) * fm);                                                // under the brow
-    o.mix(mulc(K.lipDark, 0.8), 0.32 * g2(my, 0.0024) * sst(1.2, 0.7, mx) * (mx < 1.2 ? 1 : 0));                              // the mouth line, wider
-    o.tint(K.skinSh, 0.16 * g2(xm, 0.012) * g2(ym - (yN - 0.004), 0.0055) * fm);                                              // the nose underside
+    o.tint(K.skinSh, 0.32 * g2(xm - 0.031, 0.03) * g2(ym - 0.006, 0.016) * fm);                                                // the eye band
+    o.tint(K.skinSh, 0.26 * g2(xm - 0.034, 0.032) * g2(ym - 0.022, 0.0075) * fm);                                                // under the brow
+    o.mix(mulc(K.lipDark, 0.8), 0.42 * g2(my, 0.0030) * sst(1.2, 0.7, mx) * (mx < 1.2 ? 1 : 0));                              // the mouth line, wider
+    o.tint(K.skinSh, 0.22 * g2(xm, 0.014) * g2(ym - (yN - 0.004), 0.0065) * fm);                                              // the nose underside
 
     // ---------------------------------------------------------------- freckles and a mole, a few people
     if (K.grp === 'wh' || K.grp === 'hj' || K.grp === 'mx' || K.grp === 'la') if (K.h.fr < 0.22) {

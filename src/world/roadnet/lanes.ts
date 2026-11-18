@@ -34,7 +34,7 @@ export interface LaneOptions {
   turnStep?: number;
 }
 
-export const DEFAULT_LANES: Required<LaneOptions> = { laneOffset: 2.0, laneWidth: 3.0, maxSpacing: 15, turnStep: 6 };
+export const DEFAULT_LANES: Required<LaneOptions> = { laneOffset: 2.0, laneWidth: 3.0, maxSpacing: 15, turnStep: 3 };
 
 /** lane nodes are spaced a little under maxSpacing so the offset lane on the outside of a bend still stays within it */
 const SPACING_MARGIN = 0.93;

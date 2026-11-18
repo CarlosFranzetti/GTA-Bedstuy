@@ -94,9 +94,18 @@ const categorize = (p) => { for (const [n, re] of CATS) if (re.test(p)) return n
             if (grp) n = grp.count; else n = Math.max(0, Math.min(total - g.drawRange.start, g.drawRange.count));
             return Math.floor(n / 3) * (m.isInstancedMesh ? m.count : 1);
           };
+          const cam = d.cam.camera.position; const cpos = [cam.x, cam.y, cam.z];
+          const bucketOf = (m) => { // ground distance from the camera to the nearest point of the mesh's bounding sphere, in 50 m steps (buildings, props, signals only)
+            const g = m.geometry; if (!g.boundingSphere) g.computeBoundingSphere(); if (!g.boundingSphere || m.isInstancedMesh) return -1;
+            const c = g.boundingSphere.center.clone().applyMatrix4(m.matrixWorld);
+            return Math.max(0, Math.floor((Math.hypot(c.x - cpos[0], c.z - cpos[2]) - g.boundingSphere.radius) / 50)) * 50;
+          };
           const add = (pass, m, grp) => {
-            const key = pass + '|' + pathOf(m) + '|' + (m.isInstancedMesh ? 'I' : 'M') + (m.isSkinnedMesh ? 'S' : '');
-            let e = rows.get(key); if (!e) { e = { pass, path: pathOf(m), inst: !!m.isInstancedMesh, tris: 0, draws: 0 }; rows.set(key, e); }
+            const p0 = pathOf(m);
+            const bk = pass === 'scene' && /\/(buildings|props|signals)\//.test(p0) ? bucketOf(m) : -1;
+            const farGeo = m.userData && m.userData.farGeo && m.geometry === m.userData.farGeo ? 'F' : '';
+            const key = pass + '|' + p0 + '|' + (m.isInstancedMesh ? 'I' : 'M') + (m.isSkinnedMesh ? 'S' : '') + '|' + bk + farGeo;
+            let e = rows.get(key); if (!e) { e = { pass, path: p0, inst: !!m.isInstancedMesh, tris: 0, draws: 0, bucket: bk, far: !!farGeo, merged: !!(m.userData && m.userData.farMerged) }; rows.set(key, e); }
             e.tris += triOf(m, grp); e.draws++;
           };
           d.scene.traverse((o) => {
@@ -121,9 +130,12 @@ const categorize = (p) => { for (const [n, re] of CATS) if (re.test(p)) return n
         }
         const hookedDraws = r.rows.reduce((a, x) => a + x.draws, 0);
         cats['post/other passes'] = { tris: Math.max(0, r.tris - r.rows.reduce((a, x) => a + x.tris, 0)), draws: Math.max(0, r.calls - hookedDraws) };
-        results.push({ tier: q, view: name, tris: r.tris, calls: r.calls, info: r.info, vehicles: r.vehicles, peds: r.peds, meshes: r.meshes, visibleMeshes: r.visibleMeshes, cats, rows: r.rows.sort((a, b) => b.tris - a.tris).slice(0, 80) });
+        const byBucket = {};
+        for (const row of r.rows) if (row.pass === 'scene' && row.bucket >= 0) { const k = row.cat + ' ' + String(row.bucket).padStart(3) + (row.merged ? ' merged' : row.far ? ' far' : ' full'); const e = (byBucket[k] ??= { tris: 0, draws: 0 }); e.tris += row.tris; e.draws += row.draws; }
+        results.push({ byBucket, tier: q, view: name, tris: r.tris, calls: r.calls, info: r.info, vehicles: r.vehicles, peds: r.peds, meshes: r.meshes, visibleMeshes: r.visibleMeshes, cats, rows: r.rows.sort((a, b) => b.tris - a.tris).slice(0, 400) });
         save();
         console.log(`${q} ${name}: ${r.tris} tris, ${r.calls} draws (vehicles ${r.vehicles}, peds ${r.peds})`);
+        if (flag('detail')) for (const k of Object.keys(byBucket).sort()) console.log('   ' + k.padEnd(28) + String(byBucket[k].draws).padStart(4) + ' draws ' + String(Math.round(byBucket[k].tris / 1000)).padStart(4) + 'k');
       }
       await page.close();
     }

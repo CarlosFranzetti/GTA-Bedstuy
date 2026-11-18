@@ -22,6 +22,7 @@
 //
 // Options: --out public/voice  --tiers 0,1,2  --shard 0/2 (run two processes on different cores)  --limit N
 //          --budget-mb 25  --voice af_heart (only this voice, for tests)  --dtype q8
+//          --match 'regex'  only plan clips whose text matches (case-insensitive): a sample bake of edited lines. Point --work and --out at scratch folders for a trial so public/voice is untouched.
 // Behind the sandbox proxy the script re-launches itself with NODE_USE_ENV_PROXY=1 and the CA bundle.
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -51,6 +52,7 @@ const TIERS = opt('tiers', '') ? opt('tiers', '').split(',').map(Number) : null;
 const [SHARD, SHARDS] = opt('shard', '0/1').split('/').map(Number);
 const LIMIT = Number(opt('limit', '0')) || Infinity;
 const ONLY_VOICE = opt('voice', '');
+const MATCH = opt('match', '');
 const DTYPE = opt('dtype', 'q8');
 const SAMPLE_RATE = 24000;
 const ENGINE = `kokoro-82m-v1.0-${DTYPE}`;
@@ -146,6 +148,7 @@ const t0 = Date.now();
 const { plan: fullPlan, stats } = await loadPlan();
 let plan = fullPlan;
 if (ONLY_VOICE) plan = plan.filter((c) => c.voice === ONLY_VOICE);
+if (MATCH) { const re = new RegExp(MATCH, 'i'); plan = plan.filter((c) => re.test(c.text)); }
 
 if (flag('plan')) {
   const s = stats(plan);
