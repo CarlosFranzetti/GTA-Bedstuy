@@ -22,7 +22,7 @@ export const FLIP_THAT_BROWNSTONE: Show = {
     ['candace', `How does that work?`],
     ['garrett', `You get a lease. The lease says stabilized. [beat] The price says market. [pause 0.5] Both are technically true.`],
     ['candace', `[laugh] Brilliant! We have a caller. Tanya, you are on Flip That Brownstone!`],
-    ['tanya', `Hi Candace. I rent from a man who says he is fixing the boiler. [pause 0.5] It has been three winters.`],
+    ['tanya', `Hi Candace. I rent from a man, who says he is fixing the boiler. [pause 0.5] It has been three winters.`],
     ['garrett', `Tanya, I would want to understand the boiler's journey. [beat] Often a boiler that does not heat [breath] is just a boiler that wants to be a lobby.`],
     ['tanya', `[beat] I want heat, [breath] not a lobby.`],
     ['garrett', `Heat is a legacy amenity. [beat] We offer ambient warmth [breath] through brand storytelling.`],

@@ -25,7 +25,7 @@ import { FAR_DIST, MID_DIST, PedLod, buildPedModel as buildProcedural, pedPhone,
 import { hijabShell } from './pedGarments';
 import { peopleMode } from '@/textures/painters/pedMode';
 import { legTubes, isCoveredLeg, StripMesh, addStrip, type Row, type LegTube, type LegDetail } from './pedLegs';
-import { addPolarStrip, cuffRows, hemRows, straightenArms } from './pedCuts';
+import { addPolarStrip, cuffRows, hemRows, straightenArms, swingSkirt } from './pedCuts';
 import { bodyTypeOf, type BodyType } from './pedBodyTypes';
 import { makeCtx, personPieces } from './pedPieces';
 import { pickPedVariant, type PedModel, type PedOptions } from './pedBody';
@@ -207,10 +207,10 @@ function bodyParts(s: MhShape, spec: PedSpec, hiDetail: boolean): THREE.BufferGe
     const hw = peopleMode() === 'skin' ? Math.max(0.95, bodyTypeOf(spec).hips) : 1;
     // the top ring sits inside the dressed waist so the skirt grows out of the body (no shelf); pleats and hem are the lower rows of the pelvis tile
     const skirtRect = SK_RECTS.pelvis;
-    out.push(loft([
+    out.push(swingSkirt(loft([
       { y: hem, rx: (top[1] + 0.1) * hw, rz: top[3] + 0.1, cz: top[2] }, { y: (hem + top[0]) / 2, rx: (top[1] + 0.05) * hw, rz: top[3] + 0.05, cz: top[2] },
       { y: top[0] - 0.01, rx: (top[1] + 0.022) * hw, rz: top[3] + 0.022, cz: top[2] }, { y: waist[0] + 0.05, rx: waist[1] * 0.985, rz: waist[3] * 0.985, cz: waist[2] },
-    ], seg, skirtRect, 1));
+    ], seg, skirtRect, 1), waist[0] + 0.05, hem));      // PEOPLE5: the hem follows the thighs, so a leg never walks out of the front of a skirt
   }
   return out;
 }
@@ -468,7 +468,7 @@ export function dressLod(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): M
       if (t > 0) { out[i * 3] += normal[i * 3] * t; out[i * 3 + 1] += normal[i * 3 + 1] * t * 0.3; out[i * 3 + 2] += normal[i * 3 + 2] * t; }
     }
     // the clothed arm is a straight cut: its radius never grows from the shoulder down to the cuff (pedCuts.straightenArms)
-    if (top.sleeves === 'long' || top.sleeves === 'short') straightenArms(L, out, shY - 0.08 * K, (top.sleeves === 'long' ? wrY + 0.03 : sleeveCut + 0.01), 0.85);
+    if (top.sleeves === 'long' || top.sleeves === 'short') straightenArms(L, out, shY - 0.08 * K, (top.sleeves === 'long' ? wrY + 0.03 : sleeveCut + 0.01), 1);
     normal = shadeNormals(L, out);
     return covered ? withTubes(s, spec, L, out, normal, bt, legK, detail) : { ...L, position: out, normal };
   }
@@ -555,12 +555,12 @@ function skinExtras(s: MhShape, spec: PedSpec, hi: boolean): THREE.BufferGeometr
     // a coat's lower half: narrower flare than before (the hands hang outside it), starts inside the dressed waist, textured with the bottom rows of the torso tile
     const hip = s.hipRings, top = hip[hip.length - 1], tor = s.torsoRings, waist = tor[0], kneeY = R.kneeL[1] + 0.05, w = Math.max(1, bt.hips);
     const coatRect = SK_RECTS.torso;
-    out.push(loft([
+    out.push(swingSkirt(loft([
       { y: kneeY, rx: (top[1] + 0.062) * w, rz: top[3] + 0.05, cz: top[2] },
       { y: (kneeY + top[0]) / 2 + 0.05, rx: (top[1] + 0.04) * w, rz: top[3] + 0.034, cz: top[2] },
       { y: top[0] - 0.01, rx: (top[1] + 0.024) * w, rz: top[3] + 0.024, cz: top[2] },
       { y: waist[0] + 0.05, rx: waist[1] * 0.985, rz: waist[3] * 0.985, cz: waist[2] },
-    ], seg, coatRect, 1));
+    ], seg, coatRect, 1), waist[0] + 0.05, kneeY));
   }
   return out;
 }
@@ -633,10 +633,17 @@ function dressedFor(s: MhShape, variant: number, detail: PedDetail): MhLod {
   return dl;
 }
 /** the skin without its own feet (the shoes replace them) */
-function noFoot(s: MhShape, L: MhLod, hide?: Set<number>): Uint32Array {
+/** PEOPLE5: under a skirt, a dress or a long coat the legs are cut away above this height (just above the hem), so no thigh can walk out of the front of the garment; undefined = no cut */
+export function legCutY(s: MhShape, spec: PedSpec): number | undefined {
+  if (spec.bottom.kind === 'skirt') return s.landmarks.crownY * (spec.bottom.long ? 0.12 : spec.top.kind === 'dress' ? 0.25 : 0.31) + 0.035;
+  if (spec.top.long && spec.top.kind !== 'dress') return s.rig.kneeL[1] + 0.05 + 0.035;
+  return undefined;
+}
+function noFoot(s: MhShape, L: MhLod, hide?: Set<number>, legCut?: number): Uint32Array {
   const cut = s.landmarks.ankleY + 0.035, keep: number[] = [];
   for (let t = 0; t < L.index.length; t += 3) {
     if (hide?.has(t / 3)) continue;
+    if (legCut !== undefined && [0, 1, 2].every((k) => L.position[L.index[t + k] * 3 + 1] > legCut && wsumAt(L, L.index[t + k], W_LEGS) >= 0.5)) continue;
     let foot = true;
     for (let k = 0; k < 3; k++) { const v = L.index[t + k]; if (!(L.position[v * 3 + 1] < cut && (wsumAt(L, v, [9]) + wsumAt(L, v, [11])) > 0.5)) foot = false; }
     if (!foot) keep.push(L.index[t], L.index[t + 1], L.index[t + 2]);
@@ -665,7 +672,7 @@ function geometryFor(s: MhShape, variant: number, detail: PedDetail): { geo: THR
   base.setAttribute('skinWeight', new THREE.BufferAttribute(L.weights, 4));
   const ao = bodyAo(s, L0.position);
   const veil = detail === 'hi' && spec.hat === 'hijab' ? hijabShell(s, L0, ao, spec) : null;      // the hijab at the hi level is a drape made from the head and shoulders
-  base.setIndex(new THREE.BufferAttribute(detail === 'far' ? L.index : noFoot(s, L, veil?.hide), 1));
+  base.setIndex(new THREE.BufferAttribute(detail === 'far' ? L.index : noFoot(s, L, veil?.hide, legCutY(s, spec)), 1));
   const parts = detail === 'far' ? [] : [...separatePieces(s, spec, bt, L0, detail, !!veil), ...bodyParts(s, spec, detail === 'hi'), ...skinExtras(s, spec, detail === 'hi'), ...clothExtras(s, spec, L0, detail === 'hi'), ...shoeParts(s, spec, L, detail === 'hi')];
   if (detail === 'hi' && veil) parts.push(...veil.shell);
   for (const g of parts) leanGeometry(g.getAttribute('position').array as Float32Array, (g.getAttribute('normal')?.array as Float32Array) ?? null, g.getAttribute('skinIndex').array, g.getAttribute('skinWeight').array, bt, pivot);

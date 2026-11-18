@@ -3,9 +3,25 @@
  * automation at an explicit time, no node creation per frame. Horn one-shots build nodes per press (rare).
  */
 import { EngineSim, engineMix, distanceGain, dopplerRatio, pickNearest, engineVoiceFor, type EngineFrame, type EngineVoice } from './engineModel';
-import { hornTones, sirenHz, SIREN_SPAN, HORN_BEAT_CENTS, AIR_BEND, type HornSpec, type SirenMode } from './hornModel';
+import { hornTones, sirenHz, sirenGateOpen, SIREN_SPAN, HORN_BEAT_CENTS, AIR_BEND, type HornSpec, type SirenMode } from './hornModel';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+const aimed = new WeakMap<AudioParam, number>();
+/**
+ * setTargetAtTime that is skipped when the target has not moved: re-aiming at the same target with the same time constant
+ * traces the same curve, so a still parameter needs no event. The vehicle layer writes about 30 parameters per frame at 60 fps;
+ * every write takes the timeline lock the audio thread also wants, so quiet parameters are left alone.
+ * `rel` is the relative change that still counts as a move (frequencies 0.0015 = under 3 cents, gains 0.01 = 0.09 dB).
+ */
+export function aim(p: AudioParam, v: number, t: number, tc: number, rel = 0.01): void {
+  const prev = aimed.get(p);
+  if (prev !== undefined && Math.abs(v - prev) <= Math.max(1e-6, Math.abs(prev) * rel)) return;
+  aimed.set(p, v);
+  p.setTargetAtTime(v, t, tc);
+}
+/** Forget the last aim of a parameter that was written some other way (cancelled, set directly), so the next aim always goes through. */
+export function unaim(p: AudioParam): void { aimed.delete(p); }
 const bump = (x: number, c: number, w: number) => Math.exp(-(((x - c) / w) ** 2));
 
 const waves = new WeakMap<BaseAudioContext, Map<string, PeriodicWave>>();
@@ -62,6 +78,9 @@ export function gritCurve(ctx: BaseAudioContext, drive: number): Float32Array {
 /** Absolute levels (linear, before the vehicle bus) of the accessory layers; they do not follow the body gain, so a starter or a whistle is heard on its own terms. */
 export const ACC = { starter: 0.03, turbo: 0.012, clat: 0.028, whine: 0.0065, ev: 0.025, ped: 0.007, rat: 0.016, pop: 0.08, bov: 0.08, rev: 0.008 } as const;
 
+/** Mix of the two detuned firing oscillators of the player's engine (the chorus pair beats at rate = detune x pitch, so its level sets how deep the swell is). */
+export const ENGINE_TUNING = { a: 0.55, chorus: 0.2 };
+
 /** Full-quality engine for the player's car. */
 export class EngineNodes {
   /** engine body; `acc` carries the accessories (starter, whistle, clatter, whine, pops) at their own level */
@@ -100,7 +119,7 @@ export class EngineNodes {
     } else this.mix.connect(this.lp);
     this.A = osc(ctx, 'sawtooth', v.h); this.B = osc(ctx, 'sawtooth', v.h); this.S = osc(ctx, 'sine');
     this.B.detune.value = v.det;
-    const gA = gain(ctx, 0.55, this.mix), gB = gain(ctx, 0.4, this.mix);
+    const gA = gain(ctx, ENGINE_TUNING.a, this.mix), gB = gain(ctx, ENGINE_TUNING.chorus, this.mix);
     this.gS = gain(ctx, v.sub * 0.8, this.mix);
     this.A.connect(gA); this.B.connect(gB); this.S.connect(this.gS);
     for (const [order, level] of v.sh ?? []) {
@@ -164,48 +183,48 @@ export class EngineNodes {
     const rn = clamp(f.rpm / v.red, 0, 1), L = f.load;
     const cents = f.wob;
     const el = f.elec;
-    this.A.frequency.setTargetAtTime(Math.max(5, f.fire), t, tc);
-    this.B.frequency.setTargetAtTime(Math.max(5, f.fire), t, tc);
-    this.A.detune.setTargetAtTime(cents, t, tc);
-    this.S.frequency.setTargetAtTime(Math.max(3, f.fire / 2), t, tc);
-    this.lope.frequency.setTargetAtTime(Math.max(1, f.rev / 2), t, tc);
+    aim(this.A.frequency, Math.max(5, f.fire), t, tc, 0.0015);
+    aim(this.B.frequency, Math.max(5, f.fire), t, tc, 0.0015);
+    aim(this.A.detune, cents, t, tc, 0.02);
+    aim(this.S.frequency, Math.max(3, f.fire / 2), t, tc, 0.0015);
+    aim(this.lope.frequency, Math.max(1, f.rev / 2), t, tc, 0.0015);
     for (const h of this.sh) {
-      h.o.frequency.setTargetAtTime(Math.max(1, f.rev * h.order), t, tc);
-      h.g.gain.setTargetAtTime(h.level * 0.5 * (0.6 + 0.4 * L), t, 0.08);
+      aim(h.o.frequency, Math.max(1, f.rev * h.order), t, tc, 0.0015);
+      aim(h.g.gain, h.level * 0.5 * (0.6 + 0.4 * L), t, 0.08);
     }
     const mix = engineMix(v, f);
-    this.lopeD.gain.setTargetAtTime(mix.lope, t, 0.08);
-    this.lp.frequency.setTargetAtTime(mix.lpHz, t, 0.05);
-    this.ex.gain.setTargetAtTime(mix.ex, t, 0.08);
+    aim(this.lopeD.gain, mix.lope, t, 0.08);
+    aim(this.lp.frequency, mix.lpHz, t, 0.05, 0.0015);
+    aim(this.ex.gain, mix.ex, t, 0.08);
     this.lim.gain.setTargetAtTime(mix.lim, t, f.miss ? 0.008 : 0.01);
-    this.out.gain.setTargetAtTime(mix.out, t, 0.04);
-    this.bp.frequency.setTargetAtTime(350 + 2300 * rn, t, 0.08);
-    this.gAir.gain.setTargetAtTime(mix.air * el, t, 0.08);
+    aim(this.out.gain, mix.out, t, 0.04);
+    aim(this.bp.frequency, 350 + 2300 * rn, t, 0.08, 0.0015);
+    aim(this.gAir.gain, mix.air * el, t, 0.08);
     if (this.tur) {
       this.spool += (L * rn - this.spool) * 0.05;
-      this.tur.o.frequency.setTargetAtTime(2200 + 7000 * this.spool, t, 0.06);
-      this.tur.g.gain.setTargetAtTime((v.turbo ?? 0) * ACC.turbo * this.spool * f.level * el, t, 0.08);
+      aim(this.tur.o.frequency, 2200 + 7000 * this.spool, t, 0.06, 0.0015);
+      aim(this.tur.g.gain, (v.turbo ?? 0) * ACC.turbo * this.spool * f.level * el, t, 0.08);
     }
     if (this.clat) {
       const a = (v.clat ?? 0) * ACC.clat * (0.5 + 0.5 * L) * f.level * el;
-      this.clat.sq.frequency.setTargetAtTime(Math.max(5, f.fire), t, tc);
-      this.clat.d.gain.setTargetAtTime(a * 0.5, t, 0.05);
-      this.clat.g.gain.setTargetAtTime(a * 0.5, t, 0.05);
+      aim(this.clat.sq.frequency, Math.max(5, f.fire), t, tc, 0.0015);
+      aim(this.clat.d.gain, a * 0.5, t, 0.05);
+      aim(this.clat.g.gain, a * 0.5, t, 0.05);
     }
     if (this.whn) {
       const sf = Math.min(1, Math.abs(speed) / v.vmax);
       // electric: inverter whine 1 to 8 kHz with speed; hybrid: a light motor whine that carries the car while the engine is off
       const w = v.ev ? 1000 + 7000 * sf : 320 + speed * 42 + rn * 500;
-      this.whn.o.frequency.setTargetAtTime(w, t, 0.05);
-      this.whn.o2.frequency.setTargetAtTime(w * 2.01, t, 0.05);
+      aim(this.whn.o.frequency, w, t, 0.05, 0.0015);
+      aim(this.whn.o2.frequency, w * 2.01, t, 0.05, 0.0015);
       const lvl = v.ev ? ACC.ev * (v.whine ?? 1) * 0.5 * Math.min(1, sf * 6) * (0.5 + 0.5 * L) : ACC.whine * (v.whine ?? 0) * (0.3 + 0.7 * L) * (1 + 2.5 * (1 - el)) * Math.min(1, Math.abs(speed) / 2);
-      this.whn.g.gain.setTargetAtTime(lvl * (v.ev ? 1 : f.level), t, 0.06);
+      aim(this.whn.g.gain, lvl * (v.ev ? 1 : f.level), t, 0.06);
     }
     if (this.ped) {
       const sp = Math.abs(speed);
-      this.ped.g.gain.setTargetAtTime((v.ped ?? 0) * ACC.ped * clamp(1 - sp / 8.3, 0, 1) * clamp((sp - 0.15) / 0.5, 0, 1) * (f.running ? 1 : 0), t, 0.1);
+      aim(this.ped.g.gain, (v.ped ?? 0) * ACC.ped * clamp(1 - sp / 8.3, 0, 1) * clamp((sp - 0.15) / 0.5, 0, 1) * (f.running ? 1 : 0), t, 0.1);
     }
-    if (this.rat) this.rat.g.gain.setTargetAtTime((v.rat ?? 0) * ACC.rat * bump(f.rpm, 1900, 450) * f.level * el, t, 0.04);
+    if (this.rat) aim(this.rat.g.gain, (v.rat ?? 0) * ACC.rat * bump(f.rpm, 1900, 450) * f.level * el, t, 0.04);
     if (this.pop) {
       for (let i = 0; i < f.pops; i++) {
         const at = t + 0.03 + i * (0.05 + (i * 37 % 7) * 0.025);
@@ -225,17 +244,18 @@ export class EngineNodes {
       }
     }
     if (this.st) {
-      this.st.o.frequency.setTargetAtTime(60 + f.rpm * 0.25, t, 0.03);
-      this.st.g.gain.setTargetAtTime(f.starter * ACC.starter, t, 0.03);
+      aim(this.st.o.frequency, 60 + f.rpm * 0.25, t, 0.03, 0.0015);
+      aim(this.st.g.gain, f.starter * ACC.starter, t, 0.03);
     }
     if (this.rev) {
-      this.rev.o.frequency.setTargetAtTime(380 + speed * 38, t, 0.05);
-      this.rev.g.gain.setTargetAtTime(reverse && f.running && speed > 0.4 ? ACC.rev : 0, t, 0.08);
+      aim(this.rev.o.frequency, 380 + speed * 38, t, 0.05, 0.0015);
+      aim(this.rev.g.gain, reverse && f.running && speed > 0.4 ? ACC.rev : 0, t, 0.08);
     }
   }
 
   /** Fades everything out over `tail` seconds (the engine of a car the player has left) and then silences the graph. */
   retire(t = this.ctx.currentTime, tail = 0.5): void {
+    unaim(this.out.gain); unaim(this.acc.gain);
     this.out.gain.cancelScheduledValues(t); this.out.gain.setTargetAtTime(0, t, tail / 4);
     this.acc.gain.cancelScheduledValues(t); this.acc.gain.setTargetAtTime(0, t, tail / 4);
   }
@@ -271,15 +291,19 @@ export class CheapVoice {
   }
   release(t: number): void {
     this.id = null; this.sim = null;
+    unaim(this.g.gain);
     this.g.gain.setTargetAtTime(0, t, 0.08);
   }
   apply(t: number, f: EngineFrame, v: EngineVoice, level: number, doppler: number, pan: number): void {
-    if (this.fresh) { this.g.gain.cancelScheduledValues(t); this.g.gain.setTargetAtTime(0, t, 0.025); this.o.frequency.setValueAtTime(Math.max(5, f.fire * doppler), t + 0.1); this.fresh = false; }
+    if (this.fresh) {
+      unaim(this.g.gain); unaim(this.o.frequency);
+      this.g.gain.cancelScheduledValues(t); this.g.gain.setTargetAtTime(0, t, 0.025); this.o.frequency.setValueAtTime(Math.max(5, f.fire * doppler), t + 0.1); this.fresh = false;
+    }
     if (t < this.holdUntil) return;
-    this.o.frequency.setTargetAtTime(Math.max(5, f.fire * doppler), t, 0.05);
-    this.lp.frequency.setTargetAtTime((v.tone * (0.5 + f.rpm / v.red) + v.open * f.load * 0.4) * clamp(level * 3, 0.35, 1), t, 0.08);
-    this.g.gain.setTargetAtTime(0.05 * v.g * level * (0.6 + 0.4 * f.load) * f.level * (0.15 + 0.85 * f.elec), t, 0.1);
-    if (this.pan) this.pan.pan.setTargetAtTime(clamp(pan, -1, 1), t, 0.18);
+    aim(this.o.frequency, Math.max(5, f.fire * doppler), t, 0.05, 0.0015);
+    aim(this.lp.frequency, (v.tone * (0.5 + f.rpm / v.red) + v.open * f.load * 0.4) * clamp(level * 3, 0.35, 1), t, 0.08, 0.0015);
+    aim(this.g.gain, 0.05 * v.g * level * (0.6 + 0.4 * f.load) * f.level * (0.15 + 0.85 * f.elec), t, 0.1);
+    if (this.pan) aim(this.pan.pan, clamp(pan, -1, 1), t, 0.18, 0.02);
   }
   dispose(): void { try { this.o.stop(); } catch { /* not started */ } try { this.g.disconnect(); } catch { /* gone */ } }
 }
@@ -367,10 +391,13 @@ export function playHorn(ctx: BaseAudioContext, dest: AudioNode, h: HornSpec, t:
   let done = false;
   let tapEnd = t + h.atk + 0.15;
   if (doubleTap) { tapEnd = t + 0.5; amp.gain.setValueAtTime(peak, t + 0.14); amp.gain.linearRampToValueAtTime(0.0001, t + 0.16); amp.gain.linearRampToValueAtTime(peak, t + 0.24); }
+  const sirenMode = h.kind === 'siren' ? (opts.mode ?? 'wail') : null;
   const stop = (at: number) => {
     done = true;
     amp.gain.cancelScheduledValues(at);
-    amp.gain.setValueAtTime(Math.max(0.0001, peak), at);
+    // a siren released while its gate is closed stays closed (writing the open level here is a full-level click)
+    const open = sirenMode === null || sirenGateOpen(sirenMode, at - t);
+    amp.gain.setValueAtTime(open ? Math.max(0.0001, peak) : 0.0001, at);
     amp.gain.exponentialRampToValueAtTime(0.0001, at + h.rel);
     for (const o of srcs) o.stop(at + h.rel + 0.03);
   };

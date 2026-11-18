@@ -9,6 +9,8 @@
  * (the backend already prefers the system voice over waiting), so speech is never late by more than 400 ms.
  */
 import { spokenText } from '../script';
+import { pedRhythmId, turnGap } from '../prosody';
+import { rhythmFor } from '../rhythm';
 import { storyPresets, storyVoice } from '../StoryVoices';
 import type { FxPreset, KokoroVoice } from '../types';
 import { assignVoice, PedVoiceRegistry, playbackFor, systemFor, type PedVoice, seededRandom } from './assign';
@@ -340,7 +342,12 @@ export class BarkDirector {
     if (!cancelled) {
       // a chat partner answers 0.4 s after the opener ends
       const i = this.pending.findIndex((p) => p.job.speakerId !== id && p.at === Number.POSITIVE_INFINITY && p.job.lineId !== a.job.lineId && BARK_BY_ID.get(p.job.lineId)?.pair === BARK_BY_ID.get(a.job.lineId)?.pair && BARK_BY_ID.get(a.job.lineId)?.side === 'a');
-      if (i >= 0) this.pending[i].at = this.env.now() + LIMITS.pairGapSec;
+      if (i >= 0) {
+        // the reply comes after a beat that depends on what was said (a question takes a moment to answer, an exclamation is met quickly); an overlap cannot be asked of a reply that starts only after the opener ended
+        const r = this.pending[i].job;
+        const gap = turnGap({ text: a.job.text, laugh: false, same: false }, r.text, rhythmFor(r.voice ? pedRhythmId(r.voice.kokoro) : r.who));
+        this.pending[i].at = this.env.now() + Math.max(0.2, gap);
+      }
     } else {
       const pr = BARK_BY_ID.get(a.job.lineId);
       if (pr?.side === 'a') { const i = this.pending.findIndex((p) => BARK_BY_ID.get(p.job.lineId)?.pair === pr.pair); if (i >= 0) this.pending.splice(i, 1); }

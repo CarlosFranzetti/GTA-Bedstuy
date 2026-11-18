@@ -81,7 +81,7 @@ function tile(label, who, pieces, camSetup, col, row) {
   scene.remove(group);
   for (const m of meshes) m.geometry.dispose();
 }
-const headCam = (yaw, dist = 0.78, fov = 30) => (c, who) => { const lm = who.s.landmarks, y = lm.chinY + (lm.crownY - lm.chinY) * 0.52; const z = who.ctx.C[2]; c.fov = fov; c.position.set(Math.sin(yaw) * dist, y + 0.05, z - Math.cos(yaw) * dist); c.lookAt(0, y, z); c.updateProjectionMatrix(); };
+const headCam = (yaw, dist = 0.78, fov = 30) => (c, who) => { const lm = who.s.landmarks, y = lm.chinY + (lm.crownY - lm.chinY) * 0.52; const z = who.ctx.C[2]; c.fov = fov; c.position.set(Math.sin(yaw) * dist, y + 0.05 + Number(params.get("up") ?? 0), z - Math.cos(yaw) * dist); c.lookAt(0, y, z); c.updateProjectionMatrix(); };
 const upperCam = (yaw, dist = 1.9) => (c, who) => { const y = who.s.rig.shoulderL[1] - 0.08; c.fov = 30; c.position.set(Math.sin(yaw) * dist, y + 0.1, -Math.cos(yaw) * dist); c.lookAt(0, y, 0); c.updateProjectionMatrix(); };
 const footCam = (yaw) => (c, who) => { c.fov = 30; c.position.set(Math.sin(yaw) * 0.9, 0.3, -Math.cos(yaw) * 0.9); c.lookAt(0, 0.08, -0.04); c.updateProjectionMatrix(); };
 const fullCam = (yaw) => (c, who) => { const h = who.s.landmarks.crownY; c.fov = 32; c.position.set(Math.sin(yaw) * 4.4, h * 0.55, -Math.cos(yaw) * 4.4); c.lookAt(0, h * 0.5, 0); c.updateProjectionMatrix(); };

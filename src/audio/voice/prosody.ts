@@ -160,18 +160,25 @@ export function jitterPause(seconds: number, r: Rhythm, seed: string, scaled = t
 }
 
 /**
- * Gap between the end of one speaker's line and the start of the next: shorter after a question, longer after a joke,
- * sometimes negative (a quick pickup: the next voice starts up to 0.2 s before the last one has finished).
+ * Gap between the end of one speaker's line and the start of the next. A reply after a statement is a short beat; after a
+ * question it takes a little longer (the answerer thinks, more so after a long question); an exclamation or a one-word
+ * answer is met quickly; a laugh is let land; a line that trails off or is cut short ("..." or a dash) is talked over:
+ * the next voice starts up to 0.22 s before it has finished. Sometimes negative otherwise too (a quick pickup, up to 0.2 s).
  */
 export function turnGap(prev: { text: string; laugh: boolean; same: boolean }, nextText: string, next: Rhythm): number {
   const rng = rngFor(`${prev.text}>${nextText}`);
-  const tail = terminal(prev.text.replace(/\[[^\]]*\]/g, ' ').trim());
+  const raw = prev.text.replace(/\[[^\]]*\]/g, ' ').trim();
+  const tail = terminal(raw);
+  const cutOff = /(?:\u2014|--|\u2026|\.\.\.)["')\]]*$/.test(raw);
   let g = 0.3 * next.turn * (1 + 0.35 * gauss(rng));
   if (prev.same) g = 0.55 * next.pause * (1 + 0.25 * gauss(rng));
-  else if (tail === 'q') g *= 0.8;
+  else if (cutOff) g = -(0.08 + 0.14 * rng());
+  else if (tail === 'q') g = g * 1.25 + 0.1 + Math.min(0.12, words(raw) * 0.008);
+  else if (tail === 'excl') g *= 0.8;
+  else if (words(nextText) <= 3) g *= 0.85;
   if (prev.laugh) g += 0.3 + 0.2 * rng();
-  else if (!prev.same && rng() < next.pickup * (tail === 'q' || tail === 'excl' ? 1 : 0.5)) g = -(0.06 + 0.14 * rng());
-  return clamp(g, -0.2, 1.3);
+  else if (!prev.same && !cutOff && rng() < next.pickup * (tail === 'q' || tail === 'excl' ? 1 : 0.5)) g = -(0.06 + 0.14 * rng());
+  return clamp(g, -0.22, 1.3);
 }
 
 /* ---------- clip edges ---------- */

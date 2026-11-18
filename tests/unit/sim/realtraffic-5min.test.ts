@@ -14,7 +14,7 @@ const env = (k: string): string | undefined => (globalThis as unknown as { proce
 const SECONDS = Number(env('RT_SECONDS') ?? 300);
 const SEEDS = [7, 4242];
 
-describe.each(SEEDS)('real map traffic, seed %i, %i s', (seed) => {
+describe.each(SEEDS)('real map traffic, seed %i', (seed) => {
   let R: RealRun;
   beforeAll(() => { R = runReal(seed, SECONDS); if (env('RT_OUT')) writeFileSync(`${env('RT_OUT')}.${seed}.json`, JSON.stringify(R, null, 1)); }, 900_000);
 

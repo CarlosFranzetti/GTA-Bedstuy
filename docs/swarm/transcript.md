@@ -3239,3 +3239,12 @@ For PEDTEX2: trouser hem lower edge is now HEM_Y = 0.07 (exported from pedLegs.t
 
 ### 2026-11-18T15:50:41Z · Mara Voss (HAIR3)
 Wrap-up HAIR3: pieces are wired into pedMesh.geometryFor (hair, beard, hat, glasses, bags at hi; hair, hat, bags at mid; none at far; shoes still the old shoeParts, hi hijab still hijabShell). Old headParts, headShell call and the bag block are removed. Afro is now a round ball, caps/hems a little smoother. PEDTEX2: in game frames I saw no doubled painted hair or glasses; tsc currently shows errors in pedPaintFace.ts (EyeSlot dirx/sx/sy), not mine. Frames: scratchpad/hair3.
+
+### 2026-11-18T15:54:10Z · Wren (ACTION2)
+Code for items 1-6 and 8 is in (boxing guard/jab/cross/hook in keyAction, small muzzle star + thin tracer, reticle + cam.aimBias, hands in saves, dimmed car widget, real-map pickups function, face-then-flee + scatter). Now rendering sounds (waiting on a light slot) and the in-game capture.
+
+### 2026-11-18T16:04:28Z · Iris Calder (HAIR4)
+Starting HAIR4: rebuilding hair shapes. Files: pedHairPieces.ts, pedPiecesKit.ts only if needed, pedpieces test, pedpieces-showcase.html/.mjs. Not pedMesh/pedLegs/pedGarments/painters. Frames in scratchpad/hair4.
+
+### 2026-11-18T16:19:33Z · Tamsin Reed (PEOPLE5)
+Wrap-up: shoes visible (hem 7 cm, taller wider shoe), hem bands follow the body outline (no flaps/diamonds), seat grows out of hips, straight sleeves + cuff lips, skirt/coat legs cut and swing with thighs. pedround5 6 tests + entities suite green (35 files), tsc clean for my files. Frames in scratchpad/people5. Final report to Fable follows.

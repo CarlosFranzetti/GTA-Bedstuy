@@ -96,6 +96,8 @@ export function paintSwatches(img: Uint8ClampedArray, size: number, K: Look, R: 
     o.set(topC).mul((K.k === 'hoodie' ? 1.06 : 0.98) + 0.08 * (vn2(u * 20, v * 20, 131) - 0.5) + 0.02 * Math.sin(u * 64 * 2.2)).mul(0.9 + 0.12 * (1 - v));
     if (K.k === 'puffer') { const ph = (v * 4) % 1; o.mul(0.8 + 0.26 * Math.sin(ph * Math.PI)).mul(1 - 0.3 * (g2(ph * 0.25, 0.012) + g2((1 - ph) * 0.25, 0.012))); }
     if (K.k === 'hoodie') o.mul(0.9 + 0.14 * (0.5 + 0.5 * Math.sin(u * 64 * 0.9)));
+    if (K.k === 'hoodie' || K.k === 'tracksuit' || K.k === 'jacket') o.mul(0.94 + 0.1 * (0.5 + 0.5 * Math.sin(u * 16 * Math.PI * 2)) * sst(0.5, 0.8, v));         // a ribbed hem band
+    o.mul(1 - 0.16 * ln(v - 0.5, 0.03) * 0 - 0.18 * ln(v - 0.46, 0.025) * (K.k === 'hoodie' || K.k === 'tracksuit' ? 1 : 0.4));                       // the seam above it
     if (v > 0.9) o.mul(1 - 0.12 * sst(0.9, 1.0, v));
   });
   fill(img, size, R.pelvis, (u, v, o) => {

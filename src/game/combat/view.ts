@@ -6,7 +6,8 @@
 import * as THREE from 'three';
 import { groundAt } from '@/world/Ground';
 import type { HandItem } from './items';
-import type { PickupDef, PickupKind } from './pickups';
+import type { PickupDef } from './pickups';
+import { PickupInstances } from './pickupView';
 import type { ThrowKind } from './projectile';
 
 export type Burst = 'glass' | 'dust' | 'spark' | 'puff';
@@ -66,7 +67,7 @@ function starTexture(): THREE.Texture {
 /** The shot's streak: how fast it flies (m/s), how long it is (m) and how thin (m). Thin and quick, not a beam. */
 export const TRACER = { speed: 420, length: 3.2, width: 0.011 } as const;
 /** The muzzle star's size (m) and how long it shows (s): a frame or two; and the width of the faint warm pool it throws on the ground (m). */
-export const MUZZLE = { size: 0.17, life: 0.036, groundGlow: 2.4 } as const;
+export const MUZZLE = { size: 0.17, life: 0.03, groundGlow: 2.4 } as const;
 
 interface TracerState { m: THREE.Mesh; ax: number; ay: number; az: number; dx: number; dy: number; dz: number; len: number; head: number; on: boolean }
 
@@ -86,7 +87,7 @@ export class CombatView implements CombatFx {
   private readonly flashGlow: THREE.Mesh;
   private flashLife = 0;
   private readonly flyingMeshes: Array<{ bottle: THREE.Object3D; brick: THREE.Object3D }> = [];
-  private readonly pickupMeshes = new Map<string, { g: THREE.Group; glow: THREE.Sprite; phase: number }>();
+  private readonly pickupView: PickupInstances;
   private readonly geo = {
     bottleBody: new THREE.CylinderGeometry(0.036, 0.038, 0.17, 10), bottleNeck: new THREE.CylinderGeometry(0.014, 0.024, 0.1, 8),
     brick: new THREE.BoxGeometry(0.21, 0.065, 0.1), pistolSlide: new THREE.BoxGeometry(0.034, 0.034, 0.19), pistolGrip: new THREE.BoxGeometry(0.03, 0.09, 0.045),
@@ -130,6 +131,9 @@ export class CombatView implements CombatFx {
       this.root.add(bottle, brick);
       this.flyingMeshes.push({ bottle, brick });
     }
+    // world pickups: instanced (one draw per kind plus one for every glow), however many are in view
+    this.pickupView = new PickupInstances(this.geo, this.mat, this.glow);
+    this.root.add(this.pickupView.group);
   }
 
   private makeBottle(): THREE.Group {
@@ -231,38 +235,7 @@ export class CombatView implements CombatFx {
   }
 
   pickups(list: Iterable<PickupDef>, px: number, pz: number, t: number): void {
-    const seen = new Set<string>();
-    for (const d of list) {
-      const dx = d.x - px, dz = d.z - pz;
-      if (dx * dx + dz * dz > SHOW_RADIUS * SHOW_RADIUS) continue;
-      seen.add(d.id);
-      let e = this.pickupMeshes.get(d.id);
-      if (!e) { e = this.makePickup(d.kind, d.id); this.pickupMeshes.set(d.id, e); this.root.add(e.g); }
-      const base = groundAt(d.x, d.z) + 0.62;
-      e.g.position.set(d.x, base + Math.sin(t * 2.2 + e.phase) * 0.07, d.z);
-      e.g.children[0].rotation.y = t * 1.3 + e.phase;
-      e.glow.material.opacity = 0.5 + 0.2 * Math.sin(t * 3 + e.phase);
-    }
-    for (const [id, e] of this.pickupMeshes) {
-      if (!seen.has(id)) { e.g.removeFromParent(); e.glow.material.dispose(); this.pickupMeshes.delete(id); }
-    }
-  }
-
-  private makePickup(kind: PickupKind, id: string): { g: THREE.Group; glow: THREE.Sprite; phase: number } {
-    const g = new THREE.Group();
-    const item = kind === 'pistol' ? this.makePistol() : kind === 'bottle' ? this.makeBottle() : new THREE.Mesh(this.geo.brick, this.mat.brick);
-    const holder = new THREE.Group();
-    if (kind === 'pistol') { item.rotation.set(0, 0, Math.PI / 2); item.scale.setScalar(1.7); item.position.set(0.17, 0, 0); }
-    else if (kind === 'bottle') { item.scale.setScalar(1.6); item.rotation.z = 0.5; }
-    else { item.scale.setScalar(1.8); }
-    holder.add(item);
-    g.add(holder);
-    const color = kind === 'bottle' ? 0x9fe8c0 : kind === 'brick' ? 0xffc08a : 0xfff0a0;
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.glow, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
-    glow.scale.setScalar(1.15); glow.renderOrder = 4;
-    g.add(glow);
-    let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-    return { g, glow, phase: (h % 628) / 100 };
+    this.pickupView.update(list, px, pz, t, SHOW_RADIUS, groundAt);
   }
 
   update(dt: number): void {
@@ -294,6 +267,7 @@ export class CombatView implements CombatFx {
 
   dispose(): void {
     this.root.removeFromParent();
+    this.pickupView.dispose();
     this.held?.removeFromParent();
     this.glow.dispose(); this.star.dispose();
     for (const g of Object.values(this.geo)) g.dispose();

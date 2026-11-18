@@ -5,7 +5,7 @@
  */
 import { EngineSim, engineVoiceFor, distanceGain } from './engineModel';
 import { HonkLimiter, hornFor, sirenModeFor, type HornSpec } from './hornModel';
-import { EngineNodes, TrafficEngines, playHorn, type HornHandle, type Listener, type TrafficCar } from './nodes';
+import { EngineNodes, TrafficEngines, aim, playHorn, type HornHandle, type Listener, type TrafficCar } from './nodes';
 import {
   airBrakeLayers, beepLayers, birdLayers, brakeSquealLayers, crashLayers, crosswalkLayers, districtBed, doorLayers, footstepLayers, indicatorLayers, jumpLayers,
   kerbLayers, landLayers, playLayers, tyreRoll, uiLayers, type DistrictBed, type Layer, type Surface,
@@ -26,6 +26,7 @@ export class VehicleAudio {
   private type: string | null = null;
   private sim: EngineSim | null = null;
   private eng: EngineNodes | null = null;
+  private engineRetired = false;
   private traffic: TrafficEngines | null = null;
   /** engines of cars the player left or swapped: they play out their shutdown, then go */
   private ghosts: { sim: EngineSim; eng: EngineNodes; until: number }[] = [];
@@ -96,6 +97,7 @@ export class VehicleAudio {
   private ensureEngine(): void {
     if (!this.ctx || !this.master || !this.noise || !this.type || this.eng) return;
     this.eng = new EngineNodes(this.ctx, engineVoiceFor(this.type), this.noise, this.master);
+    this.engineRetired = false;
   }
 
   /** Per-frame vehicle state (speed in m/s, throttle 0..1). Entering starts the engine, leaving shuts it down. */
@@ -133,8 +135,10 @@ export class VehicleAudio {
     const t = ctx.currentTime;
     if (this.sim && this.eng) {
       const f = this.sim.update(dt, this.speed, this.inVehicle ? this.throttle : 0);
-      this.eng.apply(f, t, this.speed, this.reverse);
-      if (!this.inVehicle && this.sim.phase === 'off') this.eng.retire(t, 0.2);
+      if (!this.inVehicle && this.sim.phase === 'off') {
+        // the engine of a car the player has left is silent: retire it once instead of writing 30 parameters and cancelling them every frame
+        if (!this.engineRetired) { this.eng.apply(f, t, this.speed, this.reverse); this.eng.retire(t, 0.2); this.engineRetired = true; }
+      } else { this.engineRetired = false; this.eng.apply(f, t, this.speed, this.reverse); }
     }
     for (let i = this.ghosts.length - 1; i >= 0; i--) {
       const g = this.ghosts[i];
@@ -207,22 +211,22 @@ export class VehicleAudio {
     const inside = this.inVehicle ? 1 : 0;
     const quiet = v.road ?? 1;
     const wob = r.bump ? 0.75 + 0.25 * Math.sin(this.clock * (6 + Math.abs(this.speed) * 1.7)) : 1;
-    this.roll!.bp.frequency.setTargetAtTime(r.hz, t, 0.1);
-    this.roll!.g.gain.setTargetAtTime(r.level * 0.08 * quiet * wob * inside, t, 0.08);
+    aim(this.roll!.bp.frequency, r.hz, t, 0.1, 0.0015);
+    aim(this.roll!.g.gain, r.level * 0.08 * quiet * wob * inside, t, 0.08, 0.01);
     const w = windBed(this.speed, quiet);
-    this.wind!.lp.frequency.setTargetAtTime(w.hz, t, 0.15);
-    this.wind!.g.gain.setTargetAtTime(w.level * 0.09 * inside, t, 0.12);
+    aim(this.wind!.lp.frequency, w.hz, t, 0.15, 0.0015);
+    aim(this.wind!.g.gain, w.level * 0.09 * inside, t, 0.12, 0.01);
     const h = wetRoadHiss(this.surface === 'wet' || this.surface === 'puddle' ? 1 : this.wet, this.rain, this.speed);
-    this.wetN!.bp.frequency.setTargetAtTime(h.hz, t, 0.15);
-    this.wetN!.g.gain.setTargetAtTime(h.level * 0.07 * (0.5 + 0.5 * quiet) * inside, t, 0.15);
+    aim(this.wetN!.bp.frequency, h.hz, t, 0.15, 0.0015);
+    aim(this.wetN!.g.gain, h.level * 0.07 * (0.5 + 0.5 * quiet) * inside, t, 0.15, 0.01);
     const q = tyreSqueal(this.slip, this.speed, this.surface === 'asphalt' && this.wet > 0.5 ? 'wet' : this.surface, this.clock);
     const sq = this.sq!;
-    sq.bp.frequency.setTargetAtTime(q.hz, t, 0.05);
-    sq.ob.frequency.setTargetAtTime(q.hz * 1.01, t, 0.05);
-    sq.o.frequency.setTargetAtTime(q.hz, t, 0.05);
-    sq.g.gain.setTargetAtTime(q.level * 0.16 * inside, t, 0.05);
-    sq.scrub.gain.setTargetAtTime(q.scrub * 0.07 * inside, t, 0.06);
-    if (this.rainN) this.rainN.g.gain.setTargetAtTime(this.rain * 0.03 * inside * (0.8 + 0.2 * Math.sin(this.clock * 37)), t, 0.2);
+    aim(sq.bp.frequency, q.hz, t, 0.05, 0.0015);
+    aim(sq.ob.frequency, q.hz * 1.01, t, 0.05, 0.0015);
+    aim(sq.o.frequency, q.hz, t, 0.05, 0.0015);
+    aim(sq.g.gain, q.level * 0.16 * inside, t, 0.05, 0.01);
+    aim(sq.scrub.gain, q.scrub * 0.07 * inside, t, 0.06, 0.01);
+    if (this.rainN) aim(this.rainN.g.gain, this.rain * 0.03 * inside * (0.8 + 0.2 * Math.sin(this.clock * 37)), t, 0.2, 0.01);
   }
 
   /** Footsteps from the stride of the walk and run gait; on foot only. */
@@ -348,8 +352,8 @@ export class VehicleAudio {
     this.ensureWash();
     if (!this.wash) return;
     const t = ctx.currentTime;
-    this.wash.g.gain.setTargetAtTime(0.045 * hb.traffic * (0.5 + b.traffic) * (this.inVehicle ? 0.6 : 1), t, 1.5);
-    this.wash.lp.frequency.setTargetAtTime(this.inVehicle ? 380 : 620 + 300 * hb.traffic, t, 1.5);
+    aim(this.wash.g.gain, 0.045 * hb.traffic * (0.5 + b.traffic) * (this.inVehicle ? 0.6 : 1), t, 1.5);
+    aim(this.wash.lp.frequency, this.inVehicle ? 380 : 620 + 300 * hb.traffic, t, 1.5, 0.0015);
     if (this.bed && (this.kidsIn -= dt) <= 0) {
       this.kidsIn = (8 + this.rnd() * 25) / (0.2 + b.kids * (hb.traffic > 0.3 ? 1 : 0.2));
       const base = 650 + this.rnd() * 500;

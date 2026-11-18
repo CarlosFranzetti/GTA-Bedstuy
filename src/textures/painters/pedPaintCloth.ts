@@ -26,19 +26,26 @@ function limbPhi(K: Look, t: Tex, arm: boolean): number {
 }
 
 // ------------------------------------------------------------------------------------------------ fabrics
+/** where the sheen strip stops low on a garment (just above the hem): a fixed height under the shoulder is enough for a soft strip */
+const sleeveEnd0 = (K: Look): number => K.hemTop;
+
 function weave(K: Look, U: number, y: number, c: Px, t: Tex): void {
   switch (K.fabric) {
-    case 'jersey': c.mul(1 + 0.022 * Math.sin(U * 560) + 0.05 * (vn2(U * 60, y * 60, 41) - 0.5)); break;
-    case 'fleece': c.mul(1 + 0.06 * (vn2(U * 36, y * 36, 42) - 0.5) + 0.025 * (vn2(U * 110, y * 110, 43) - 0.5)); break;
-    case 'knit': { const col = Math.sin(U * 520), row = Math.sin(y * 560 + (col > 0 ? 1.3 : 0)); c.mul(1 + 0.05 * col + 0.035 * row + 0.05 * (vn2(U * 50, y * 50, 44) - 0.5)); break; }
-    case 'denim': c.mul(1 + 0.03 * Math.sin((U + y) * 700) + 0.09 * (vn2(U * 40, y * 90, 45) - 0.5)); break;
-    case 'leather': c.mul(1 + 0.07 * (vn2(U * 26, y * 26, 46) - 0.5)).lite(0.16 * sst(0.55, 0.95, t.ny) + 0.06 * sst(0.2, 0.9, -t.nz * 0.7 + t.nx * 0.4)); break;
-    case 'wool': c.mul(1 + 0.03 * Math.sin((U - y) * 520) + 0.07 * (vn2(U * 55, y * 55, 47) - 0.5)); break;
-    case 'nylon': c.mul(1 + 0.04 * (vn2(U * 40, y * 40, 48) - 0.5)).lite(0.1 * sst(0.6, 0.95, t.ny)); break;
-    case 'canvas': c.mul(1 + 0.028 * Math.sin(U * 640) * Math.sin(y * 640) + 0.09 * (vn2(U * 45, y * 45, 49) - 0.5)); break;
-    case 'poplin': c.mul(1 + 0.014 * Math.sin(U * 700) + 0.05 * (vn2(U * 45, y * 45, 50) - 0.5)); break;
-    case 'tricot': c.mul(1 + 0.02 * Math.sin(y * 480) + 0.04 * (vn2(U * 40, y * 40, 51) - 0.5)).lite(0.1 * sst(0.5, 0.95, t.ny)); break;
-    case 'mesh': c.mul(1 + 0.03 * Math.sin(U * 560) * Math.sin(y * 560) + 0.04 * (vn2(U * 40, y * 40, 52) - 0.5)); break;
+    // cotton jersey: matte, a fine vertical knit rib, soft mottling, nothing shiny
+    case 'jersey': c.mul(1 + 0.022 * Math.sin(U * 430) + 0.05 * (vn2(U * 45, y * 45, 41) - 0.5)); break;
+    case 'fleece': c.mul(1 + 0.07 * (vn2(U * 34, y * 34, 42) - 0.5) + 0.025 * (vn2(U * 90, y * 90, 43) - 0.5)); break;
+    case 'knit': { const col = Math.sin(U * 400), row = Math.sin(y * 420 + (col > 0 ? 1.3 : 0)); c.mul(1 + 0.05 * col + 0.035 * row + 0.05 * (vn2(U * 50, y * 50, 44) - 0.5)); break; }
+    // denim: a diagonal twill (period about 12 mm), indigo mottling, vertical warp streaks
+    case 'denim': c.mul(1 + 0.05 * Math.sin((U + y) * 520) + 0.05 * Math.sin(U * 260) * 0.5 + 0.1 * (vn2(U * 36, y * 80, 45) - 0.5)); break;
+    // leather: smooth with broad grain, a lit shoulder and front
+    case 'leather': c.mul(1 + 0.05 * (vn2(U * 26, y * 26, 46) - 0.5)).lite(0.12 * sst(0.55, 0.95, t.ny) + 0.05 * sst(0.2, 0.9, -t.nz * 0.7 + t.nx * 0.4)); break;
+    // wool: a coarse twill with a fuzzy heather
+    case 'wool': c.mul(1 + 0.035 * Math.sin((U - y) * 420) + 0.07 * (vn2(U * 50, y * 50, 47) - 0.5) + 0.04 * (vn2(U * 120, y * 120, 53) - 0.5)); break;
+    case 'nylon': c.mul(1 + 0.025 * (vn2(U * 40, y * 40, 48) - 0.5)); break;
+    case 'canvas': c.mul(1 + 0.03 * Math.sin(U * 480) * Math.sin(y * 480) + 0.09 * (vn2(U * 45, y * 45, 49) - 0.5)); break;
+    case 'poplin': c.mul(1 + 0.014 * Math.sin(U * 500) + 0.05 * (vn2(U * 45, y * 45, 50) - 0.5)); break;
+    case 'tricot': c.mul(1 + 0.02 * Math.sin(y * 420) + 0.04 * (vn2(U * 40, y * 40, 51) - 0.5)); break;
+    case 'mesh': c.mul(1 + 0.03 * Math.sin(U * 440) * Math.sin(y * 440) + 0.04 * (vn2(U * 40, y * 40, 52) - 0.5)); break;
   }
 }
 
@@ -129,7 +136,7 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
     }
   } else if (kind === 'trousers') {
     c.mul(1 + 0.03 * Math.sin((U - y) * 640) + 0.06 * (vn2(U * 50, y * 50, 73) - 0.5));
-    if (leg) c.mul(1 - 0.2 * g2(Math.abs(phi) - 0.0, 0.035) * sst(K.hipY - 0.05, K.hipY - 0.3, y) * sst(K.anY + 0.02, K.anY + 0.1, y)).lite(0.05 * g2(Math.abs(phi) - 0.1, 0.04));   // front crease
+    if (leg) c.mul(1 - 0.22 * g2(Math.abs(phi) - 0.0, 0.03) * sst(K.hipY - 0.05, K.hipY - 0.3, y) * sst(K.anY + 0.02, K.anY + 0.1, y)).lite(0.06 * g2(Math.abs(phi) - 0.16, 0.05) * sst(K.hipY - 0.05, K.hipY - 0.3, y));   // a pressed front crease with a lit edge beside it
   } else if (kind === 'cargo') {
     c.mul(1 + 0.035 * Math.sin(U * 650) * Math.sin(y * 650) + 0.1 * (vn2(U * 42, y * 42, 74) - 0.5));
   } else if (kind === 'leggings') {
@@ -145,8 +152,20 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
   if (leg) {
     const outer = Math.abs(phi - 1.5708), inner = Math.abs(phi + 1.5708);
     // outseam and inseam
-    const seamK = (denim ? 0.1 : 0.06) + (kind === 'leggings' ? 0.02 : 0);
-    c.mul(1 - seamK * ln(outer * 0.075, 0.004)).mul(1 - 0.07 * ln(inner * 0.075, 0.003));
+    const seamK = (denim ? 0.14 : 0.09) + (kind === 'leggings' ? 0.02 : 0);
+    c.mul(1 - seamK * ln(outer * 0.075, 0.0042)).mul(1 - 0.09 * ln(inner * 0.075, 0.0032)).lite(0.03 * ln(outer * 0.075 - 0.007, 0.004));
+    if (kind === 'jeans' || kind === 'cargo') c.mul(1 - 0.05 * g2(Math.abs(phi), 0.03) * sst(K.hipY - 0.1, K.hipY - 0.3, y) * sst(K.anY + 0.02, K.anY + 0.1, y));      // a soft front fold
+    if (denim) {
+      // worn knees: a pale patch with a few broken threads across it
+      const kn = g2(y - (K.knY + 0.005), 0.034) * sst(1.1, 0.35, Math.abs(phi));
+      c.mix([172, 190, 214], 0.2 * kn).lite(0.06 * kn * sst(0.45, 0.7, Math.sin((y - K.knY) * 420 + vn2(U * 90, y * 30, 79) * 4)));
+    }
+    if (kind === 'jeans' || kind === 'trousers' || kind === 'cargo') {
+      // the front pocket's slanted mouth on the upper thigh, stitched on denim
+      const sl = phi * 0.075 - 0.03 + (y - (K.hipY - 0.02)) * 0.9, inPk = band(K.hipY - 0.15, K.hipY + 0.02, y, 0.004) * sst(0.5, 0.35, Math.abs(phi - 0.95) - 0.5 + 0.5) * sst(1.3, 1.0, phi) * sst(0.1, 0.3, phi);
+      c.mul(1 - (denim ? 0.2 : 0.16) * ln(sl, 0.0028) * inPk);
+      if (denim) c.mix(GOLD_STITCH, 0.4 * stitch(sl - 0.005, 0.0012, y) * inPk);
+    }
     if (denim) { c.mix(GOLD_STITCH, 0.55 * stitch(outer * 0.075 - 0.0055, 0.0018, y) + 0.55 * stitch(outer * 0.075 + 0.0055, 0.0018, y)); }
     if (kind === 'sweats' || kind === 'leggings') { }
     // cuff or hem
@@ -155,13 +174,13 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
       if (d < 0.1) { const rib = 0.5 + 0.5 * Math.sin(U * 520); c.mix(K.botTrim, 0.85 * sst(0.095, 0.07, d)); c.mul(0.9 + 0.12 * rib * sst(0.095, 0.07, d)); }
       c.mul(1 - 0.16 * g2(d - 0.108, 0.01) * (kind === 'sweats' ? 1 : 0));
     } else if (d < 0.07) {
-      c.mul(1 - 0.1 * ln(d - 0.03, 0.004)).mix(GOLD_STITCH, denim ? 0.3 * ln(d - 0.027, 0.0015) : 0);                       // turned hem with a stitch line
+      c.mul(1 - 0.12 * ln(d - 0.03, 0.004)).mix(GOLD_STITCH, denim ? 0.3 * ln(d - 0.027, 0.0015) : 0);                       // turned hem with a stitch line
+      c.mul(1 - 0.07 * sst(0.03, 0.026, d));                                                                               // the cuff itself a shade darker
       c.mul(1 - 0.18 * g2(d + 0.01, 0.02));                                                                                // dark where it meets the shoe
       if (kind !== 'shorts') c.mul(1 - 0.12 * Math.max(0, Math.sin(d * 240 + phi * 2)) * sst(0.07, 0.0, d));                // a little bunching above the shoe
     }
     if (kind === 'shorts' && d < 0.05) c.mul(1 - 0.12 * ln(d - 0.025, 0.004));
-    if (kind === 'sweats') c.mix(K.botTrim, 0.5 * sst(0.8, 0.9, Math.abs(Math.cos(phi - 1.5708) * 1.0 === 0 ? 0 : Math.abs(Math.sin(phi)))) * 0);
-    if (kind === 'sweats' && Math.abs(Math.sin(phi)) > 0.97 && phi > 0) c.mix(K.botTrim, 0.5 * sst(0.97, 0.995, Math.abs(Math.sin(phi))));          // a side stripe
+    if (kind === 'sweats') c.mix(K.botTrim, Math.min(0.92, ln(outer * 0.075, 0.0105) + 0.8 * ln(outer * 0.075 - 0.019, 0.0028)));          // a side stripe, two fingers wide, with a thin line beside it
     if (kind === 'cargo') {
       // thigh pockets: flap with stitch and a button, on the outer side
       const py = K.knY + 0.2, inP = sst(0.55, 0.4, Math.abs(phi - 1.1)) * band(py - 0.075, py + 0.075, y, 0.004);
@@ -258,22 +277,33 @@ export function paintTop(K: Look, t: Tex, c: Px, arm: boolean, leg: boolean, nec
   else if (p === 'heather') c.mix(mixc(fabric, [255, 255, 255], 0.14), 0.5 * vn2(U * 40, y * 40, 81));
   else if (p === 'block') { if (!(y > shY - 0.11 || (arm && y > elY + 0.02))) c.mix(trimC, 1); }
   else if (p === 'print') {
-    // small flowers on a staggered grid
-    const gu = U / 0.05, gv = y / 0.05, row = Math.floor(gv), cu = (gu + (row & 1) * 0.5) % 1 - 0.5, cv = gv - row - 0.5, d = Math.hypot(cu, cv);
-    const petal = 0.5 + 0.5 * Math.cos(Math.atan2(cv, cu) * 5 + hash(K.id) * 6);
-    c.mix(rgbOf(top.printColor), 0.62 * sst(0.2 + 0.05 * petal, 0.14 + 0.03 * petal, d)).mix(BRASS, 0.7 * sst(0.07, 0.04, d));
+    // a small ditsy print: staggered round dots with a lit centre (about 27 mm across, six or seven texels), laid on world coordinates and blended by which way the cloth faces so they stay round on any side
+    const wf = Math.pow(Math.abs(t.nz), 3), ws = Math.pow(Math.abs(t.nx), 3), wsum = wf + ws + 1e-4;
+    const dotAt = (sv: number, yy: number): number => {
+      const gv = yy / 0.046, row = Math.floor(gv), cu = (((sv / 0.046 + (row & 1) * 0.5) % 1) + 1) % 1 - 0.5, cv = gv - row - 0.5;
+      return Math.hypot(cu, cv) * 0.046;
+    };
+    const d = (wf * dotAt(x, y) + ws * dotAt(t.z, y)) / wsum;
+    c.mix(rgbOf(top.printColor), 0.86 * sst(0.0138, 0.0116, d)).mix(mulc(rgbOf(top.printColor), 0.9), 0.4 * sst(0.0046, 0.0032, d));
   }
   if (top.print === 'stripes' && !arm && Math.abs(y - (shY - 0.19)) < 0.012) c.mix(rgbOf(top.printColor), 0.95);
   if (top.print === 'bars' && !arm && Math.abs(y - (shY - 0.17)) < 0.009 + 0.011 * (Math.sin(U * 40) > 0 ? 1 : 0)) c.mix(rgbOf(top.printColor), 0.95);
+
+  // slick fabrics throw a soft strip of light along the shoulder line and down the front and the arms; cotton, wool and denim stay matte
+  if (!leg) {
+    const sheen = K.fabric === 'leather' ? 0.17 : K.fabric === 'nylon' ? 0.15 : K.fabric === 'tricot' ? 0.09 : 0;
+    if (sheen > 0) c.lite(sheen * g2(Math.abs(phi) - 0.85, 0.24) * (arm ? sst(wrY - 0.02, shY - 0.14, y) : sst(sleeveEnd0(K) + 0.02, shY - 0.1, y)));
+  }
 
   // ------------------------------------------------------------ construction by kind
   const hemD = y - hemTop, yn = shY - y;           // distance above the hem; below the shoulder line
   const frontish = tor && front > 0.3;
   const stitchL = (d: number, w: number, s: number): number => ln(d, w) * (0.5 + 0.5 * sst(0.0, 0.5, Math.sin(s * 560)));
   if (k === 'tracksuit') {
-    const sideBand = sst(0.72, 0.8, Math.abs(Math.sin(phi))) * (tor ? sst(shY - 0.04, shY - 0.1, y) * 0 + 1 : 1);
-    c.mix(trimC, 0.92 * sst(0.78, 0.86, Math.abs(Math.sin(phi))) * (tor ? 1 : 1) * (arm || tor ? 1 : 0));
-    void sideBand;
+    // a side stripe (two fingers wide) down the body and along the outside of each sleeve, with a thin second line beside it
+    const dd = Math.abs(Math.abs(phi) - 1.5708) * (arm ? 0.045 : 0.17);
+    const stripe = ln(dd, 0.0105) + 0.8 * ln(dd - 0.019, 0.0028), fade = tor ? sst(shY - 0.02, shY - 0.07, y) : arm ? sst(shY - 0.01, shY - 0.05, y) : 0;
+    c.mix(trimC, Math.min(0.94, stripe) * fade);
   }
   if (k === 'vest' && tor) {
     // hi-vis: reflective tape round the waist and over each shoulder, a plain strip with segment lines
@@ -405,7 +435,7 @@ export function paintTop(K: Look, t: Tex, c: Px, arm: boolean, leg: boolean, nec
 
   // ------------------------------------------------------------ collar, neckline, rib
   const ribLike = k === 'hoodie' || k === 'puffer' || k === 'tracksuit' || (k === 'jacket' && K.fabric !== 'wool' && K.fabric !== 'denim' && K.fabric !== 'canvas' && K.fabric !== 'leather') || k === 'cardigan';
-  const ribC = mixc(k === 'cardigan' ? K.trimC : K.trimC, fabric, 0.2);
+  const ribC = mixc(K.trimC, fabric, k === 'tracksuit' ? 0.5 : 0.3);
   const rib = (period: number, s: number): number => 0.5 + 0.5 * Math.sin(s * TAU / period);
   if (tor) {
     const dn = neckY - y;
@@ -431,8 +461,8 @@ export function paintTop(K: Look, t: Tex, c: Px, arm: boolean, leg: boolean, nec
   const rib2 = ribLike && k !== 'jacket' || (k === 'jacket' && ribLike && open);
   if (arm && sleeves !== 'none') {
     const d = y - sleeveEnd;
-    if (sleeves === 'long' && d < 0.075) {
-      if (rib2) { const r = rib(0.009, phi * 0.045), e = sst(0.066, 0.058, d); c.mix(ribC, 0.9 * e).mul(0.82 + 0.2 * r * e + 0.18 * (1 - e)).mul(1 - 0.22 * ln(d - 0.062, 0.004)); }
+    if (sleeves === 'long' && d < 0.055) {
+      if (rib2) { const r = rib(0.012, phi * 0.045), e = sst(0.05, 0.043, d); c.mix(ribC, 0.85 * e).mul(0.9 + 0.1 * r * e + 0.08 * (1 - e)).mul(1 - 0.2 * ln(d - 0.047, 0.003)); }
       else { c.mul(1 - 0.12 * ln(d - 0.022, 0.0035)).mix(mulc(fabric, 0.55), (K.fabric === 'denim' ? 0.45 : 0.2) * stitchL(d - 0.021, 0.0013, phi)).mul(1 - 0.1 * sst(0.024, 0.0, d)); if (k === 'jacket' && K.fabric === 'wool') c.mix(mulc(fabric, 0.5), 0.8 * g2(Math.hypot((phi - 1.3) * 0.045, d - 0.04), 0.004) + 0.8 * g2(Math.hypot((phi - 1.3) * 0.045, d - 0.058), 0.004)); }
     } else if (sleeves === 'short' && d < 0.03) {
       c.mul(1 - 0.12 * ln(d - 0.016, 0.0035)).mix(mulc(fabric, 0.65), 0.3 * stitchL(d - 0.015, 0.0012, phi));
@@ -441,8 +471,8 @@ export function paintTop(K: Look, t: Tex, c: Px, arm: boolean, leg: boolean, nec
   }
   if (tor || leg) {
     const d = y - hemTop;
-    if (d < 0.065 && k !== 'dress') {
-      if (rib2) { const r = rib(0.009, U), e = sst(0.058, 0.05, d); c.mix(ribC, 0.9 * e).mul(0.82 + 0.2 * r * e + 0.18 * (1 - e)).mul(1 - 0.2 * ln(d - 0.054, 0.004)); }
+    if (d < 0.05 && k !== 'dress') {
+      if (rib2) { const r = rib(0.012, U), e = sst(0.044, 0.037, d); c.mix(ribC, 0.85 * e).mul(0.9 + 0.1 * r * e + 0.08 * (1 - e)).mul(1 - 0.2 * ln(d - 0.041, 0.003)); }
       else c.mul(1 - 0.1 * ln(d - 0.024, 0.004)).mix(mulc(fabric, 0.6), 0.3 * stitchL(d - 0.024, 0.0014, U)).mul(1 - 0.1 * sst(0.026, 0.0, d));
     }
   }

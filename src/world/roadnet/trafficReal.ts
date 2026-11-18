@@ -14,14 +14,78 @@
  */
 import type { Vec2 } from '@/core/Math2';
 import type { PedCrossing } from '@/entities/Pedestrian';
-import type { GridModel, GraphNode, LaneGraph, RoadSegment, StreetDef } from '@/world/types';
+import type { GridModel, Graph, GraphEdge, GraphNode, LaneGraph, RoadSegment, StreetDef } from '@/world/types';
 import { clusterId, clusterIndexOfNode, junctionClusters } from './clusters';
 import type { Derived } from './derive';
+import { pointInPolygon } from './geom';
 import { buildLaneGraph } from './lanes';
 import { RealTrafficLights } from './lightsReal';
 import type { RoadNet } from './RoadNet';
 import { buildPedCrossingsReal, type SidewalkNet } from './sidewalks';
 import { nodeControl } from './signalPhases';
+
+/** ring edges (sidewalk to sidewalk) are sampled this often when the walking graph is checked against roadway and buildings (m) */
+const WALK_SAMPLE = 1.5;
+/** a piece of the walking graph smaller than this (nodes) is left out: nobody should be spawned on a scrap */
+const WALK_MIN_PIECE = 8;
+
+/**
+ * The sidewalk graph as the pedestrians use it: a few blocks of the real network have a degenerate kerb ring (a sliver or a
+ * wedge), and their walking ring then runs over the roadway or through the building line. Ring edges that do are dropped
+ * (crosswalk edges are meant to cross the road and are kept; a link into a crosswalk is only checked against buildings), and
+ * pieces left with fewer than WALK_MIN_PIECE nodes go with them. Everything else is passed through unchanged.
+ */
+export function walkableGraph(g: Graph, net: RoadNet, d: Derived): { graph: Graph; removedEdges: number; removedNodes: number } {
+  const rings = d.buildingRings.filter((r) => r.length > 2).map((ring) => {
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const q of ring) { x0 = Math.min(x0, q.x); z0 = Math.min(z0, q.z); x1 = Math.max(x1, q.x); z1 = Math.max(z1, q.z); }
+    return { ring, x0, z0, x1, z1 };
+  });
+  const inBuilding = (p: Vec2): boolean => rings.some((r) => p.x >= r.x0 && p.x <= r.x1 && p.z >= r.z0 && p.z <= r.z1 && pointInPolygon(p, r.ring));
+  const isCross = (id: string): boolean => id.startsWith('cw:');
+  const good: GraphEdge[] = [];
+  for (const e of g.edges) {
+    const a = g.nodes[e.from], b = g.nodes[e.to];
+    if (!a || !b) continue;
+    if (isCross(e.from) && isCross(e.to)) { good.push(e); continue; }
+    const ring = !isCross(e.from) && !isCross(e.to);
+    const n = Math.max(1, Math.ceil(Math.hypot(a.pos.x - b.pos.x, a.pos.z - b.pos.z) / WALK_SAMPLE));
+    let bad = false;
+    for (let i = 0; i <= n && !bad; i++) {
+      const p = { x: a.pos.x + ((b.pos.x - a.pos.x) * i) / n, z: a.pos.z + ((b.pos.z - a.pos.z) * i) / n };
+      bad = inBuilding(p) || (ring && net.isOnRoad(p));
+    }
+    if (!bad) good.push(e);
+  }
+  // connected pieces (undirected)
+  const nbr = new Map<string, string[]>();
+  const link = (a: string, b: string): void => { const l = nbr.get(a); if (l) l.push(b); else nbr.set(a, [b]); };
+  for (const e of good) { link(e.from, e.to); link(e.to, e.from); }
+  const piece = new Map<string, number>();
+  const sizes: number[] = [];
+  for (const id of nbr.keys()) {
+    if (piece.has(id)) continue;
+    const k = sizes.length;
+    let size = 0;
+    const stack = [id];
+    piece.set(id, k);
+    while (stack.length) {
+      const c = stack.pop()!;
+      size++;
+      for (const o of nbr.get(c) ?? []) if (!piece.has(o)) { piece.set(o, k); stack.push(o); }
+    }
+    sizes.push(size);
+  }
+  const keep = (id: string): boolean => (sizes[piece.get(id) ?? -1] ?? 0) >= WALK_MIN_PIECE;
+  const graph: Graph = { nodes: {}, edges: [], adjacency: {} };
+  for (const id in g.nodes) if (keep(id)) { graph.nodes[id] = g.nodes[id]; graph.adjacency[id] = []; }
+  for (const e of good) {
+    if (!graph.nodes[e.from] || !graph.nodes[e.to]) continue;
+    graph.adjacency[e.from].push(graph.edges.length);
+    graph.edges.push(e);
+  }
+  return { graph, removedEdges: g.edges.length - graph.edges.length, removedNodes: Object.keys(g.nodes).length - Object.keys(graph.nodes).length };
+}
 
 export interface RealTraffic {
   /** hand this to TrafficSystem (and the pedestrian factory) in place of the grid */
@@ -31,9 +95,13 @@ export interface RealTraffic {
   sidewalks: SidewalkNet;
   /** ids of the sidewalk nodes at crosswalk ends (Pedestrian's `crosswalkNodes`) */
   crosswalkNodes: Set<string>;
+  /** the walking graph pedestrians use (`sidewalks.graph` minus ring edges over a roadway or a building) */
+  walk: Graph;
 }
 
 const PARK_MIN_LENGTH = 25;
+/** TrafficSystem parks a car (width / 2 - 1) m from the centreline; reporting the street this much wider puts parked wheels at the kerb, so a one-lane street keeps its lane clear (m) */
+const PARK_KERB_SLACK = 0.6;
 const STRAIGHT_TOL = 1;
 
 function nearestOf<T extends GraphNode>(list: readonly T[], p: Vec2): T {
@@ -88,11 +156,12 @@ export function makeRealTraffic(net: RoadNet, d: Derived, sidewalks: SidewalkNet
     const a = net.pointAt(i, cutA).p, b = net.pointAt(i, L - cutB).p;
     const dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1;
     for (const p of e.pts) if (Math.abs((p.x - a.x) * -dz + (p.z - a.z) * dx) / l > STRAIGHT_TOL && Math.hypot(p.x - a.x, p.z - a.z) > cutA + 1 && Math.hypot(p.x - b.x, p.z - b.z) > cutB + 1) return;
-    segments.push({ id: `rs${i}`, streetId: net.streetIdOf(i), fromIntersection: `n${e.a}`, toIntersection: `n${e.b}`, a, b, width: e.width });
+    segments.push({ id: `rs${i}`, streetId: net.streetIdOf(i), fromIntersection: `n${e.a}`, toIntersection: `n${e.b}`, a, b, width: e.width + PARK_KERB_SLACK });
   });
 
   const laneList = Object.values(lanes.nodes);
-  const swList = Object.values(sidewalks.graph.nodes);
+  const walk = walkableGraph(sidewalks.graph, net, d).graph;
+  const swList = Object.values(walk.nodes);
   const b = net.bounds;
   const grid = {
     seed: 0,
@@ -104,7 +173,7 @@ export function makeRealTraffic(net: RoadNet, d: Derived, sidewalks: SidewalkNet
     pedCrossings,
     blocks: [],
     lanes,
-    sidewalks: sidewalks.graph,
+    sidewalks: walk,
     streetById,
     blockById: () => { throw new Error('real map: no grid blocks'); },
     nearestLaneNode: (p: Vec2) => nearestOf(laneList, p),
@@ -116,7 +185,7 @@ export function makeRealTraffic(net: RoadNet, d: Derived, sidewalks: SidewalkNet
     isOnRoad: (p: Vec2) => net.isOnRoad(p),
   } as unknown as GridModel;
 
-  return { grid, lights, lanes, sidewalks, crosswalkNodes: sidewalks.crosswalkNodes };
+  return { grid, lights, lanes, sidewalks, crosswalkNodes: sidewalks.crosswalkNodes, walk };
 }
 
 /** Async loader for the preview branch: pulls in the controls data only when the real map is on. */

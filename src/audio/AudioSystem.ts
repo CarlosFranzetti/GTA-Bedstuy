@@ -174,7 +174,8 @@ export class AudioSystem {
 
   constructor(events: EventBus, createContext?: () => AudioContext, opts: AudioSystemOptions = {}) {
     this.mixer = opts.mixer ?? new Mixer();
-    this.createContext = createContext ?? (() => new AudioContext());
+    // 'balanced' asks for a larger output buffer than the default 'interactive': a game whose main thread and CPU are busy with rendering starves a tiny buffer (dropouts), and 10 to 30 ms more delay is not noticeable for these sounds
+    this.createContext = createContext ?? (() => { try { return new AudioContext({ latencyHint: 'balanced' }); } catch { return new AudioContext(); } });
     const library = opts.library ?? new Library(opts.storage === undefined ? localLibraryStorage() : opts.storage);
     const speech = opts.speech === undefined ? browserSpeech() : opts.speech;
     const makeUtt = opts.makeUtterance ?? ((text: string) => new SpeechSynthesisUtterance(text) as unknown as UtteranceLike);

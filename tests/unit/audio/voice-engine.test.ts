@@ -43,7 +43,7 @@ function fakeCtx() {
     createBufferSource: () => {
       const rec = { at: -1, dur: 0, stopped: false };
       sources.push(rec);
-      return { set buffer(b: { duration: number }) { rec.dur = b.duration; }, connect: () => undefined, disconnect: () => undefined, start: (t: number) => { rec.at = t; }, stop: () => { rec.stopped = true; } };
+      return { playbackRate: { value: 1 }, detune: { value: 0 }, set buffer(b: { duration: number }) { rec.dur = b.duration; }, connect: () => undefined, disconnect: () => undefined, start: (t: number) => { rec.at = t; }, stop: () => { rec.stopped = true; } };
     },
     createGain: node, createBiquadFilter: node, createDynamicsCompressor: node, createConvolver: node, createWaveShaper: node, createOscillator: node,
   };

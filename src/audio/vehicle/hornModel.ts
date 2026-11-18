@@ -70,6 +70,12 @@ export function sirenHz(mode: SirenMode, t: number): number {
   }
 }
 
+/**
+ * Whether the siren's on/off gate is open `sec` seconds into the siren (only the whoop has a gap, written as one gain step every 0.04 s).
+ * A release has to ramp down from what the gate is doing, not from the open level, or it reopens a closed gate with a click.
+ */
+export const sirenGateOpen = (mode: SirenMode, sec: number): boolean => mode !== 'whoop' || sirenHz(mode, Math.floor(Math.max(0, sec) / 0.04) * 0.04) > 0;
+
 /** Mode used on the nth press of a siren vehicle's horn. */
 export const sirenModeFor = (h: HornSpec, press: number): SirenMode => {
   const m = h.modes ?? ['wail'];

@@ -94,6 +94,8 @@ export function makeLook(b: BakeInput) {
     if (er < pBrown + (1 - pBrown) * 0.72) return [70, 86, 60];            // green
     return [62, 84, 112];                                                  // blue-grey
   })();
+  // per-person constants the face painter would otherwise hash per texel
+  const h = { tl: hash(id + 'tl'), gz: hash(id + 'gz'), bw: hash(id + 'bw'), fr: hash(id + 'fr'), mol: hash(id + 'mol'), mxp: hash(id + 'mxp'), myp: hash(id + 'myp'), f5: hash(id + 'f5') };
   const hairC = rgb(s.hairColor);
   const lipBase = face.lips ? mixc(skin, rgb(face.lips), 0.3) : mixc(skin, [150, 66, 66], female ? 0.4 : 0.32);
   const topC = rgb(top.color), botC = rgb(bot.color), underC = top.under ? rgb(top.under) : null;
@@ -119,7 +121,7 @@ export function makeLook(b: BakeInput) {
   const grime = 0.25 + 0.5 * hash(id + 'gr') + (k === 'vest' || bot.kind === 'cargo' ? 0.25 : 0);
   const sh = skin;
   return {
-    s, lm, R, top, bot, face, id, k, hs, wsx, edm, zc: eyeRing[2], rzH: eyeRing[3], hemTop: b.topHem,
+    s, lm, R, top, bot, face, id, k, h, hs, wsx, edm, zc: eyeRing[2], rzH: eyeRing[3], hemTop: b.topHem,
     female, old, kid, teen, kidish, expr, grp, open, underC, fabric, shoeStyle, grime,
     skin, hairC, topC, botC,
     trimC: rgb(top.trim), botTrim: rgb(bot.trim), irisC,
@@ -134,11 +136,11 @@ export function makeLook(b: BakeInput) {
     torsoZ: -0.035,
     shoeTop: lm.ankleY + (s.shoes.high ? 0.13 : 0.045),
     // hand extent (filled by the bake from the mesh)
+    // where each eye sits in the map (found from the mesh, so the eye is drawn in map space and survives the folded lids): [left, right]
+    size: 512, eyes: [null, null] as Array<EyeSlot | null>,
     handTipY: R.wristL[1] - 0.17, handAxis: 0 as 0 | 1,
-    // where each eyeball sits (found from the mesh, so the eye is painted on the eyeball itself and the lids cut it out exactly as the geometry does): [left, right]; eyeTex marks the eyeball texels
-    size: 512, eyes: [null, null] as Array<EyeSlot | null>, eyeTex: null as Uint8Array | null,
+    
   };
 }
-/** one eye as found in the mesh: the eyeball (the part of the head that lies deeper than the face skin round the eye) with its middle in metres, and the texel box and middle it covers in the map */
-export interface EyeSlot { cx: number; cy: number; zf: number; x0: number; y0: number; x1: number; y1: number; px: number; py: number }
 export type Look = ReturnType<typeof makeLook>;
+export interface EyeSlot { cx: number; cy: number; dirx: number; sx: number; sy: number }

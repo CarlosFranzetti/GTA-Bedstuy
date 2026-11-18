@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import type { Quality } from './Shadows';
 import { TIER_CONFIG, tierConfig } from './QualityTier';
 import { carPaintConfigured, carPaintTier } from './CarPaintFx';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { clusterGeometry } from './FarGeometry';
 import { PHONE_HIDDEN_MESH, TRIM_MESH } from './TierGeometry';
 import './TriBreakdown'; // debug: window.__gtaTriBreakdown
@@ -194,8 +195,19 @@ export function chunkKeyOfCell(l: ChunkLayout, cellKey: string): string {
  * meshes' world bounding boxes on the XZ plane) lies entirely beyond a range from a reference point, with the same
  * hysteresis as DistanceCuller: a hidden chunk reappears only once its nearest edge is `margin` m inside the range.
  */
+/** Far merge: building cells beyond a tier's `buildingMergeDist` are drawn as one coarser mesh per material per group of FAR_MERGE_GROUP x FAR_MERGE_GROUP cells (a draw per cell and material class is what fills the draw budget out there). */
+export const FAR_MERGE_GROUP = 2;
+/** Vertex-clustering grid (m) of a merged far group: coarser than FAR_CELL_M, nothing of the facade relief can be seen from there. */
+export const FAR_MERGE_CELL_M = 1.6;
+
+interface ChunkRec { meshes: THREE.Mesh[]; detail: THREE.Mesh[]; trim: THREE.Mesh[]; far: THREE.Mesh[]; minX: number; maxX: number; minZ: number; maxZ: number; hidden: boolean; detailHidden: boolean; trimHidden: boolean; isFar: boolean; group: MergeGroup | null; merged: boolean }
+interface MergeGroup { members: ChunkRec[]; merged: boolean; built: boolean; failed: boolean; meshes: THREE.Mesh[] }
+
 export class ChunkCuller {
-  private readonly chunks = new Map<string, { meshes: THREE.Mesh[]; detail: THREE.Mesh[]; trim: THREE.Mesh[]; far: THREE.Mesh[]; minX: number; maxX: number; minZ: number; maxZ: number; hidden: boolean; detailHidden: boolean; trimHidden: boolean; isFar: boolean }>();
+  private readonly chunks = new Map<string, ChunkRec>();
+  private readonly groups = new Map<string, MergeGroup>();
+  /** Far-merge range (m); null = the tier's `buildingMergeDist` (read from CarPaintFx's tier). Infinity = off. */
+  mergeOverride: number | null = null;
   /** Far representation range (m) for building cells; null = the tier's `buildingFarDist` (read from CarPaintFx's tier). */
   farOverride: number | null = null;
   /** far geometries built per update call at most (each is a one-off clustering of one cell mesh, ~2 ms); review scripts raise it through window.__gtaChunkCuller */
@@ -213,13 +225,28 @@ export class ChunkCuller {
     mesh.updateWorldMatrix(true, false);
     this.box.setFromObject(mesh);
     let c = this.chunks.get(key);
-    if (!c) { c = { meshes: [], detail: [], trim: [], far: [], minX: this.box.min.x, maxX: this.box.max.x, minZ: this.box.min.z, maxZ: this.box.max.z, hidden: false, detailHidden: false, trimHidden: false, isFar: false }; this.chunks.set(key, c); }
+    if (!c) { c = { meshes: [], detail: [], trim: [], far: [], minX: this.box.min.x, maxX: this.box.max.x, minZ: this.box.min.z, maxZ: this.box.max.z, hidden: false, detailHidden: false, trimHidden: false, isFar: false, group: null, merged: false }; this.chunks.set(key, c); this.joinGroup(key, c); }
     else { c.minX = Math.min(c.minX, this.box.min.x); c.maxX = Math.max(c.maxX, this.box.max.x); c.minZ = Math.min(c.minZ, this.box.min.z); c.maxZ = Math.max(c.maxZ, this.box.max.z); }
     c.meshes.push(mesh);
     if (TRIM_MESH.test(mesh.name)) c.trim.push(mesh);
     if (PHONE_HIDDEN_MESH.test(mesh.name)) c.detail.push(mesh);
     else if (mesh.name.startsWith('buildings:') && !mesh.userData.sparse && mesh.geometry.getAttribute('normal')) c.far.push(mesh);
   }
+  /** Chunks keyed `ix_iz` (grid cells) join the merge group of their FAR_MERGE_GROUP x FAR_MERGE_GROUP block of cells. */
+  private joinGroup(key: string, c: ChunkRec): void {
+    const m = /^(-?\d+)_(-?\d+)$/.exec(key);
+    if (!m) return;
+    const gk = `${Math.floor(Number(m[1]) / FAR_MERGE_GROUP)}_${Math.floor(Number(m[2]) / FAR_MERGE_GROUP)}`;
+    let g = this.groups.get(gk);
+    if (!g) { g = { members: [], merged: false, built: false, failed: false, meshes: [] }; this.groups.set(gk, g); }
+    g.members.push(c); c.group = g;
+  }
+  private mergeDist(): number {
+    if (this.mergeOverride !== null) return this.mergeOverride;
+    return carPaintConfigured() ? tierConfig(carPaintTier()).buildingMergeDist : Infinity;
+  }
+  /** Number of merge groups currently drawn as merged meshes (tests, stats). */
+  get mergedGroups(): number { let n = 0; for (const g of this.groups.values()) if (g.merged) n++; return n; }
   /** Facade-trim range (m): null = the tier's `buildingTrimDist` (read from CarPaintFx's tier). */
   trimOverride: number | null = null;
   private trimDist(): number {
@@ -238,7 +265,8 @@ export class ChunkCuller {
   update(px: number, pz: number, py = 0): void {
     const base = this.maxDist + Math.max(0, py - 3) * CHUNK_RANGE_PER_M_HEIGHT;
     const farDist = this.farDist();
-    const detailDist = Math.min(this.detailDist, farDist);
+    const mergeDist0 = this.mergeDist();
+    const detailDist = Math.min(this.detailDist, farDist, mergeDist0);
     const trimDist = this.trimDist();
     let builds = ChunkCuller.buildsPerUpdate;
     for (const c of this.chunks.values()) {
@@ -255,6 +283,7 @@ export class ChunkCuller {
         for (const m of c.meshes) m.visible = !hide;
         for (const m of c.detail) m.visible = !dHide; // dHide includes hide
         for (const m of c.trim) m.visible = !tHide && !(c.detail.includes(m) && dHide);
+        if (c.merged) for (const m of c.far) if (!c.trim.includes(m)) m.visible = false; // drawn by the group's merged mesh
       }
       // far representation: the cell's building meshes swap to their clustered geometry beyond farDist (3D distance, so aerials stay sharp)
       const flimit = farDist - (c.isFar ? this.margin : 0);
@@ -268,9 +297,69 @@ export class ChunkCuller {
         for (const m of c.far) swapFarGeometry(m, wantFar);
       }
     }
+    if (Number.isFinite(mergeDist0)) this.updateMerges(px, pz, py, Math.max(mergeDist0, trimDist, farDist + 2 * this.margin), builds);
+    else if (this.groups.size) for (const g of this.groups.values()) if (g.merged) this.setMerged(g, false);
+  }
+
+  /** Switches whole groups of far cells to their merged meshes (and back). A group merges only when every one of its cells is drawn, far and beyond `dist`. */
+  private updateMerges(px: number, pz: number, py: number, dist: number, builds: number): void {
+    for (const g of this.groups.values()) {
+      if (g.failed) continue;
+      const lim = g.merged ? dist - this.margin : dist + this.margin;
+      let all = g.members.length > 0;
+      for (const c of g.members) {
+        const dx = Math.max(c.minX - px, 0, px - c.maxX), dz = Math.max(c.minZ - pz, 0, pz - c.maxZ);
+        if (c.hidden || !c.isFar || dx * dx + dz * dz + py * py <= lim * lim) { all = false; break; }
+      }
+      if (all === g.merged) continue;
+      if (all && !g.built) { if (builds <= 0) continue; builds--; this.buildMerged(g); if (g.failed) continue; }
+      this.setMerged(g, all);
+    }
+  }
+
+  private setMerged(g: MergeGroup, on: boolean): void {
+    g.merged = on;
+    for (const m of g.meshes) m.visible = on;
+    for (const c of g.members) {
+      c.merged = on;
+      for (const m of c.far) if (!c.trim.includes(m)) m.visible = !on && !c.hidden;
+    }
+  }
+
+  /** One mesh per material from the clustered far geometries of the group's cells; fails (group never merges) when attributes do not line up. */
+  private buildMerged(g: MergeGroup): void {
+    const byMat = new Map<THREE.Material, { geos: THREE.BufferGeometry[]; first: THREE.Mesh }>();
+    for (const c of g.members) for (const m of c.far) {
+      if (c.trim.includes(m) || Array.isArray(m.material)) continue;
+      const geo = (m.userData as { farGeo?: THREE.BufferGeometry }).farGeo;
+      if (!geo) { g.failed = true; return; }
+      const e = byMat.get(m.material) ?? { geos: [], first: m }; e.geos.push(geo); byMat.set(m.material, e);
+    }
+    const made: THREE.Mesh[] = [];
+    for (const [mat, e] of byMat) {
+      const parent = e.first.parent;
+      let ok = !!parent;
+      for (const c of g.members) for (const m of c.far) if (ok && m.material === mat && !(m.position.equals(e.first.position) && m.scale.equals(e.first.scale) && m.quaternion.equals(e.first.quaternion))) ok = false; // geometry lives in the mesh's own space: same transform for all
+      const merged = ok && e.geos.length ? (e.geos.length === 1 ? e.geos[0].clone() : mergeGeometries(e.geos, false)) : null;
+      if (!merged || !parent) { for (const m of made) { m.removeFromParent(); m.geometry.dispose(); } g.failed = true; return; }
+      const geo = clusterGeometry(merged, FAR_MERGE_CELL_M, true); merged.dispose();
+      geo.computeBoundingSphere(); geo.computeBoundingBox();
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.name = `far-merged:${e.first.name}`;
+      mesh.position.copy(e.first.position); mesh.quaternion.copy(e.first.quaternion); mesh.scale.copy(e.first.scale);
+      mesh.castShadow = false; mesh.receiveShadow = e.first.receiveShadow; mesh.renderOrder = e.first.renderOrder;
+      mesh.visible = false; mesh.userData = { farMerged: true };
+      parent.add(mesh); made.push(mesh);
+    }
+    g.meshes = made; g.built = true;
   }
   /** Shows everything again and forgets all chunks. */
-  clear(): void { for (const c of this.chunks.values()) { for (const m of c.meshes) m.visible = true; if (c.isFar) for (const m of c.far) swapFarGeometry(m, false); } this.chunks.clear(); }
+  clear(): void {
+    for (const g of this.groups.values()) for (const m of g.meshes) { m.removeFromParent(); m.geometry.dispose(); }
+    this.groups.clear();
+    for (const c of this.chunks.values()) { for (const m of c.meshes) m.visible = true; if (c.isFar) for (const m of c.far) swapFarGeometry(m, false); }
+    this.chunks.clear();
+  }
 }
 
 /** Grid size (m) of the far building geometry: window reveals, cornices and stoop steps collapse into the wall plane. */
@@ -338,7 +427,11 @@ export function splitMeshesIntoCells(group: THREE.Object3D, cellX: number, cellZ
   return result;
 }
 
-interface Entry { obj: THREE.Object3D; cx: number; cz: number; r: number; hidden: boolean; }
+interface Entry { obj: THREE.Object3D; cx: number; cz: number; r: number; hidden: boolean; k: number; }
+
+/** Small prop classes (wires, bags, clutter, graffiti, bollards...): a draw per cell each and a few pixels wide far out, so they use `SMALL_PROP_FRACTION` of the prop range. */
+export const SMALL_PROP_MESH = /^props:(wires|wiresClutter|bags|clutter|graffiti|chainlink|metalDark|metalGreen|cone|scaffold)/;
+export const SMALL_PROP_FRACTION = 0.55;
 
 /**
  * Hides objects beyond `maxDist` of a reference point. Static entries (prop cells) cache their bounding sphere;
@@ -358,7 +451,7 @@ export class DistanceCuller {
     if (!g.boundingSphere) g.computeBoundingSphere();
     mesh.updateWorldMatrix(true, false);
     this.sphere.copy(g.boundingSphere!).applyMatrix4(mesh.matrixWorld);
-    this.entries.push({ obj: mesh, cx: this.sphere.center.x, cz: this.sphere.center.z, r: this.sphere.radius, hidden: false });
+    this.entries.push({ obj: mesh, cx: this.sphere.center.x, cz: this.sphere.center.z, r: this.sphere.radius, hidden: false, k: SMALL_PROP_MESH.test(mesh.name) ? SMALL_PROP_FRACTION : 1 });
   }
   get count(): number { return this.entries.length; }
   get hiddenCount(): number { let n = this.hiddenDyn.size; for (const e of this.entries) if (e.hidden) n++; return n; }
@@ -366,7 +459,7 @@ export class DistanceCuller {
   update(px: number, pz: number): void {
     for (let i = 0; i < this.entries.length; i++) {
       const e = this.entries[i];
-      const hide = shouldHide(e.hidden, e.cx, e.cz, e.r, px, pz, this.maxDist);
+      const hide = shouldHide(e.hidden, e.cx, e.cz, e.r, px, pz, this.maxDist * e.k);
       if (hide !== e.hidden) { e.hidden = hide; e.obj.visible = !hide; }
     }
   }

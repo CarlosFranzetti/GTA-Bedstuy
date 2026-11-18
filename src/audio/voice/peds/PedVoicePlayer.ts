@@ -9,6 +9,7 @@
  */
 import { ClipCache } from '../ClipCache';
 import { FxBank, type FxHost } from '../fx';
+import { fadeOutAndStop, gate, type Gated } from '../fade';
 import type { PackLookup } from '../pack';
 import { clipKey, lineSeconds } from '../script';
 import { pedRhythmId, planSpeech, shapeClip, type Phrase } from '../prosody';
@@ -99,15 +100,18 @@ export class PedVoicePlayer implements SpeechBackend {
   begin(job: SpeakJob, hooks: BackendHooks): { cancel(): void } {
     let dead = false;
     const timers = new Set<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval>>();
-    const sources: AudioScheduledSourceNode[] = [];
+    const sources: Gated[] = [];
     let nodes: AudioNode[] = [];
     let utter: UtteranceLike | null = null;
     const cleanup = () => {
       for (const t of timers) { clearTimeout(t as never); clearInterval(t as never); }
       timers.clear();
-      for (const s of sources) { try { s.stop(); s.disconnect(); } catch { /* ended */ } }
-      for (const n of nodes) { try { n.disconnect(); } catch { /* ignore */ } }
+      // fade the clips over 25 ms and only then take the chain apart: a cut at a non-zero sample is a click
+      const live = [...sources], chain = nodes, fadeCtx = this.host()?.ctx;
       sources.length = 0; nodes = [];
+      const drop = () => { for (const n of chain) { try { n.disconnect(); } catch { /* ignore */ } } };
+      if (live.length && fadeCtx) fadeOutAndStop(fadeCtx, live, undefined, (fn, ms) => setTimeout(() => { fn(); drop(); }, ms));
+      else { for (const s of live) { try { s.src.stop(); s.src.disconnect(); } catch { /* ended */ } } drop(); }
       if (utter) { try { this.env.speech?.cancel(); } catch { /* ignore */ } utter = null; }
     };
     const cancel = () => { dead = true; cleanup(); };
@@ -160,7 +164,7 @@ export class PedVoicePlayer implements SpeechBackend {
     return { cancel };
   }
 
-  private playClips(host: FxHost, job: SpeakJob, clips: Clip[], gaps: number[], mode: 'pack' | 'cache', hooks: BackendHooks, sources: AudioScheduledSourceNode[], keep: (n: AudioNode[]) => void, timers: Set<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval>>, done: () => void): void {
+  private playClips(host: FxHost, job: SpeakJob, clips: Clip[], gaps: number[], mode: 'pack' | 'cache', hooks: BackendHooks, sources: Gated[], keep: (n: AudioNode[]) => void, timers: Set<ReturnType<typeof setTimeout> | ReturnType<typeof setInterval>>, done: () => void): void {
     const { ctx } = host;
     const v = job.voice!;
     const tap = ctx.createGain();
@@ -170,6 +174,8 @@ export class PedVoicePlayer implements SpeechBackend {
     const g = ctx.createGain(); g.gain.value = distanceGain(job.dist);
     tap.connect(analyser); analyser.connect(lp); lp.connect(g); g.connect(this.fx(host, v.fx));
     keep([tap, analyser, lp, g]);
+    // the buffer plays at playbackRate x 2^(detune/1200): that product is what sets how long a clip is on the timeline
+    const real = v.playbackRate * 2 ** (v.detune / 1200);
     let at = ctx.currentTime + 0.03;
     const start = at;
     for (const [i, c] of clips.entries()) {
@@ -180,12 +186,12 @@ export class PedVoicePlayer implements SpeechBackend {
       src.buffer = buf;
       src.playbackRate.value = v.playbackRate;
       src.detune.value = v.detune;
-      src.connect(tap);
+      const gt = gate(ctx, src, tap);
       src.start(at);
-      sources.push(src);
-      at += buf.duration / v.playbackRate + (gaps[i] ?? 0.1) / v.playbackRate;
+      sources.push({ src, gate: gt });
+      at += buf.duration / real + (gaps[i] ?? 0.1);
     }
-    const total = at - start - (gaps[clips.length - 1] ?? 0.1) / v.playbackRate;
+    const total = at - start - (gaps[clips.length - 1] ?? 0.1);
     this.modes[mode]++;
     hooks.started(total, mode);
     const data = new Float32Array(analyser.fftSize);
@@ -196,7 +202,7 @@ export class PedVoicePlayer implements SpeechBackend {
       hooks.viseme(Math.max(0, ctx.currentTime - start), Math.max(0, Math.min(1, rms * 5)));
     }, 1000 / VISEME_HZ);
     timers.add(iv);
-    const end = setTimeout(done, Math.max(50, (at - ctx.currentTime - (gaps[clips.length - 1] ?? 0.1) / v.playbackRate) * 1000)); timers.add(end);
+    const end = setTimeout(done, Math.max(50, (at - ctx.currentTime - (gaps[clips.length - 1] ?? 0.1)) * 1000)); timers.add(end);
   }
 
   /** Idle-time live render into the cache (predicted story lines). */

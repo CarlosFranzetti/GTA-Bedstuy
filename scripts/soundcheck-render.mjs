@@ -37,17 +37,19 @@ await page.setContent('<html><body></body></html>');
 await page.addScriptTag({ content: js });
 if (mode === 'stutter') {
   const R = [];
-  for (const [fn, ...args] of [['voiceSteal'], ['sirenRelease', 'whoop'], ['sirenRelease', 'hilo'], ['engineSwap'], ['hardCut'], ['limiter'], ['gearDip', 'sedan'], ['gearDip', 'bus'], ['gearDip', 'boxtruck'], ['gearDip', 'coupe911'], ['gearDip', 'cab']]) {
+  const only = arg('only', '');
+  for (const [fn, ...args] of [['voiceSteal'], ['sirenRelease', 'whoop'], ['sirenRelease', 'hilo'], ['engineSwap'], ['hardCut'], ['limiter'], ['eventFlood'], ['cruiseSwell', 'sedan', 0.4], ['cruiseSwell', 'sedan', 0.4, 0], ['cruiseSwell', 'sedan', 0.25], ['cruiseSwell', 'sedan', 0.15], ['cruiseSwell', 'boxtruck', 0.4], ['cruiseSwell', 'boxtruck', 0.2], ['gearDip', 'sedan'], ['gearDip', 'bus'], ['gearDip', 'boxtruck'], ['gearDip', 'coupe911'], ['gearDip', 'cab']].filter(([fn]) => !only || only.split(',').includes(fn))) {
     const r = await page.evaluate(([fn, args]) => window.stutter[fn](...args), [fn, args]);
     for (const x of [r].flat()) { R.push(x); console.log(JSON.stringify(x)); }
   }
   writeFileSync(`${out}/stutter_${tag}.json`, JSON.stringify(R, null, 1));
 }
 if (mode === 'street') {
-  const r = await page.evaluate(([speech, standIn, car]) => window.soundcheck.street({ speech, standInRadio: standIn, carType: car }), [speech, !a.includes('--no-standin'), arg('car', 'sedan')]);
+  const r = await page.evaluate(([speech, standIn, car, secs, stall, synth]) => window.soundcheck.street({ speech, standInRadio: standIn, carType: car, secs: +secs || undefined, stall, synthRadio: synth }), [speech, !a.includes('--no-standin'), arg('car', 'sedan'), arg('secs', ''), arg('stall', '') ? arg('stall', '').split(',').map(Number) : undefined, a.includes('--synth')]);
   for (const [s, b64] of Object.entries(r.files)) writeFileSync(`${out}/${tag}_${s}.wav`, Buffer.from(b64, 'base64'));
   delete r.files;
   writeFileSync(`${out}/${tag}.json`, JSON.stringify(r, null, 1));
+  console.log('radio holes', JSON.stringify(r.radioHole));
   console.log('peaks dBFS', JSON.stringify(r.peaks));
   for (const [w, v] of Object.entries(r.report)) console.log(w.padEnd(15), Object.entries(v).map(([k, x]) => `${k} ${x}`).join('  '));
 }

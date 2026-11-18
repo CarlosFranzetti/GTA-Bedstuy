@@ -8,7 +8,7 @@ const ad = (id: string, title: string, lines: Array<[string, string]>): Show => 
 export const ADS: readonly Show[] = [
   ad('ad-silomilk', 'Silo Milk Concentrate', [
     ['trent', 'Tired of milk that came from an animal? [pause 0.5] Try Silo, [punch] the milk that came from a pitch deck.'],
-    ['noelle', 'Silo. [beat] Eleven dollars a carton. [pause 0.5] Every sip comes with a lecture about your last carton.'],
+    ['noelle', 'Silo. [beat] Eleven dollars a carton. [pause 0.5] Every sip comes with a lecture, about your last carton.'],
     ['trent', 'Silo is not milk. [beat] It is a lifestyle with a cap table.'],
   ]),
   ad('ad-flipco', 'FlipCo Instant Offers', [
@@ -21,7 +21,7 @@ export const ADS: readonly Show[] = [
     ['noelle', 'Kombucha Kingdom. [beat] Nine dollars a bottle. [pause 0.4] The culture is live. [punch] The bodega it replaced is not.'],
   ]),
   ad('ad-coworking', 'Hustle Hive Cowork', [
-    ['noelle', 'Your landlord turned your apartment into four of our desks. So come rent one back! [beat] Six hundred a month. [pause 0.4] Bring your own chair.'],
+    ['noelle', 'Your landlord turned your apartment into... four of our desks. So come rent one back! [beat] Six hundred a month. [pause 0.4] Bring your own chair.'],
     ['trent', 'Hustle Hive Cowork. Free beer on Fridays, [pause 0.5] free panic all week. [laugh]'],
     ['noelle', 'Hustle Hive. The hive is full. [punch] You are the honey.'],
   ]),
@@ -48,16 +48,16 @@ export const ADS: readonly Show[] = [
   ]),
   ad('ad-smartfridge', 'FridgeBuddy Premium', [
     ['trent', 'Introducing FridgeBuddy Premium! [beat] The refrigerator that [em] judges you!'],
-    ['smartspeaker', 'I notice you have eaten cheese at three in the morning. [pause 0.7] I have told your insurance company.'],
+    ['smartspeaker', 'I notice you have eaten cheese, at three in the morning. [pause 0.7] I have told your insurance company.'],
     ['trent', 'FridgeBuddy. Now with [em] shame, for the whole family.'],
   ]),
   ad('ad-moving', 'Quick Quit Movers', [
-    ['trent', 'Got a notice of intent? [pause 0.5] Quick Quit Movers will have you out in under an hour!'],
+    ['trent', 'Got a notice of intent? [pause 0.5] Quick Quit Movers will have you out, in under an hour!'],
     ['noelle', 'We pack. [beat] We haul. [beat] We say we are sorry. Quick Quit Movers. No judgement. [breath] Only boxes.'],
   ]),
   ad('ad-deli', 'Troop Deli', [
     ['trent', 'Troop Deli. Open twenty-five hours a day. [pause 0.5] Do not ask which hour is the extra one.'],
-    ['noelle', 'Bacon, egg and cheese, made by a man who knows your name and your order. The landlord wants us gone. [pause 0.3] The line out the door [em] disagrees.'],
+    ['noelle', 'Bacon, egg and cheese, made by a man who knows your name... and your order. The landlord wants us gone. [pause 0.3] The line out the door [em] disagrees.'],
   ]),
   ad('ad-sleep', 'Dream Quota Mattresses', [
     ['noelle', 'Dream Quota. [beat] Sleep your way to productivity.'],
@@ -82,11 +82,11 @@ export const ADS: readonly Show[] = [
   ]),
   ad('ad-consultant', 'Synergy Brownstone Partners', [
     ['noelle', 'Synergy Brownstone Partners. [beat] We pivot your block.'],
-    ['trent', 'Paper napkins to a mixed-use destination in only seven quarters! Your neighbours will be curated.'],
+    ['trent', 'Paper napkins to a mixed-use destination, in only seven quarters! Your neighbours will be curated.'],
     ['noelle', 'Synergy. [beat] Because change is only scary [punch] if you are still here.'],
   ]),
   ad('ad-lottery', 'Lucky Throop Scratchers', [
-    ['trent', 'Feeling lucky? [pause 0.5] Scratch your way to a better Tuesday with Lucky Throop Scratchers!'],
+    ['trent', 'Feeling lucky? [pause 0.5] Scratch your way to a better Tuesday, with Lucky Throop Scratchers!'],
     ['noelle', 'Play responsibly. Or irresponsibly, [breath] but quietly. [laugh]'],
   ]),
   ad('ad-car', 'Barely Better Used Cars', [
@@ -108,7 +108,7 @@ export const ADS: readonly Show[] = [
   ]),
   ad('ad-vinyl', 'Groove Cellar Records', [
     ['trent', 'Groove Cellar Records. Dig through the crates, [beat] dig through your savings.'],
-    ['noelle', 'We buy, sell and trade. Ask about the record you did not know you needed. [pause 0.5] [punch] It is nine hundred dollars.'],
+    ['noelle', 'We buy, sell and trade. Ask about the record... you did not know you needed. [pause 0.5] [punch] It is nine hundred dollars.'],
   ]),
   ad('ad-permit', 'Permit Express', [
     ['noelle', 'Need a permit for your permit? [beat] Permit Express will stand in line for you.'],

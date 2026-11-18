@@ -68,6 +68,7 @@ export interface RealRun {
   pedBadStarts: string[];
   knockedDown: string[];
   hardAi: number;
+  traceLog: string[];
 }
 
 interface ActiveAgent {
@@ -75,7 +76,7 @@ interface ActiveAgent {
   vehicle: IVehicle;
 }
 
-export function runReal(seed: number, seconds: number): RealRun {
+export function runReal(seed: number, seconds: number, trace?: ReadonlySet<string>, traceFrom = 0, traceTo = Infinity): RealRun {
   const rt = makeRealTraffic(net, derived, sidewalks, controls);
   const grid = rt.grid;
   const physics = new World2D(12);
@@ -93,7 +94,7 @@ export function runReal(seed: number, seconds: number): RealRun {
     seed, seconds, agentsSeen: 0, maxAgents: 0, minAgentsAfterWarmup: Infinity, pedTarget: traffic.pedTarget, pedMin: Infinity, pedMax: 0,
     parked: traffic.vehicles.filter((v) => v.driver === null).length, crossings: grid.pedCrossings?.size ?? 0, signals: rt.lights.intersectionIds.length,
     stuck: [], worstStill: 0, stopPasses: 0, redViolations: [], nonFinite: [], carSamples: 0, carOnKerb: 0, carInBuilding: 0, carDetail: [],
-    pedSamples: 0, pedOnRoad: 0, pedInBuilding: 0, pedDetail: [], pedStarts: 0, pedBadStarts: [], knockedDown: [], hardAi: 0,
+    pedSamples: 0, pedOnRoad: 0, pedInBuilding: 0, pedDetail: [], pedStarts: 0, pedBadStarts: [], knockedDown: [], hardAi: 0, traceLog: [],
   };
   let t = 0;
   const driverOf = new Map<string, string | null>();
@@ -187,6 +188,7 @@ export function runReal(seed: number, seconds: number): RealRun {
       seen.add(v.id);
       if (!Number.isFinite(p.x) || !Number.isFinite(p.z)) { run.nonFinite.push(`${v.id}@${t.toFixed(1)}`); continue; }
       const ag = agentOf.get(v);
+      if (trace && trace.has(v.id) && step % 15 === 0 && t >= traceFrom && t <= traceTo) run.traceLog.push(`${v.id} t${t.toFixed(1)} ${p.x.toFixed(1)},${p.z.toFixed(1)} h${v.body.heading.toFixed(2)} sp${v.speed.toFixed(1)} ${ag?.agent.state} tgt=${ag?.agent.target?.id} (${ag?.agent.target ? `${ag.agent.target.pos.x.toFixed(1)},${ag.agent.target.pos.z.toFixed(1)}` : ''}) near=[${traffic.vehicles.filter((o) => o !== v && Math.hypot(o.body.pos.x - p.x, o.body.pos.z - p.z) < 8).map((o) => `${o.id}(${(o.body.pos.x - p.x).toFixed(1)},${(o.body.pos.z - p.z).toFixed(1)} h${o.body.heading.toFixed(2)} sp${o.speed.toFixed(1)} ${o.driver ?? 'parked'})`).join(' ')}]`);
       // stuck: standing still with nothing but a green (or no signal) ahead
       if (v.speed < 0.3 && !(ag && redAhead(ag.agent.target))) {
         const s = (stillFor.get(v.id) ?? 0) + dt3;
@@ -205,16 +207,15 @@ export function runReal(seed: number, seconds: number): RealRun {
         const i = n.intersectionId!;
         const phase = rt.lights.phaseFor(i, n.streetId);
         const dd = Math.hypot(n.pos.x - p.x, n.pos.z - p.z);
-        if (phase !== 'red') { armed.set(key, t); continue; }
+        if (phase !== 'red') armed.set(key, t);
         if (dd > 1.5 || counted.has(key)) continue;
         if (Math.abs(angleDiff(v.body.heading, n.heading)) > 0.8 || v.speed < 1) continue;
         counted.add(key);
         run.stopPasses++;
-        const rk = `${i}|${n.streetId}`;
-        if (!redSince.has(rk)) continue;
-        const since = redSince.get(rk)!;
+        if (phase !== 'red') continue;
+        const since = redSince.get(`${i}|${n.streetId}`);
         const lastOk = armed.get(key);
-        if (t - since > 0.5 && !(lastOk !== undefined && t - lastOk < 8)) run.redViolations.push(`${v.id}@${t.toFixed(1)}s ${n.id} red for ${(t - since).toFixed(1)}s at ${v.speed.toFixed(1)} m/s`);
+        if (since !== undefined && t - since > 0.5 && !(lastOk !== undefined && t - lastOk < 8)) run.redViolations.push(`${v.id}@${t.toFixed(1)}s ${n.id} red for ${(t - since).toFixed(1)}s at ${v.speed.toFixed(1)} m/s`);
       }
       if (step % 30 === 0) {
         run.carSamples++;
@@ -229,6 +230,10 @@ export function runReal(seed: number, seconds: number): RealRun {
     }
     // pedestrians
     for (const p of traffic.peds) {
+      if (trace && trace.has(p.id) && step % 15 === 0 && t >= traceFrom && t <= traceTo) {
+        const pn = p.previousNodeId ? grid.sidewalks.nodes[p.previousNodeId] : undefined, tn = p.targetNodeId ? grid.sidewalks.nodes[p.targetNodeId] : undefined;
+        run.traceLog.push(`${p.id} t${t.toFixed(1)} ${p.body.pos.x.toFixed(1)},${p.body.pos.z.toFixed(1)} ${p.state} prev=${p.previousNodeId}(${pn ? `${pn.pos.x.toFixed(1)},${pn.pos.z.toFixed(1)}` : ''}) tgt=${p.targetNodeId}(${tn ? `${tn.pos.x.toFixed(1)},${tn.pos.z.toFixed(1)}` : ''})`);
+      }
       if (step % 30 === 0 && p.state === 'walking') {
         run.pedSamples++;
         const q = p.body.pos;

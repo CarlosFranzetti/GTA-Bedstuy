@@ -3,13 +3,14 @@
  * measured per angle (a polar profile cut from its triangles), widened a little and smoothed, and the band is lofted along that outline. So the band always stands outside the body (no
  * chips, no diamonds where a bbox ellipse used to sink into a hip) and has the same language everywhere: a flat underside, a hard wall 5 to 11 mm proud of the body, a soft return.
  */
+import { BufferAttribute, type BufferGeometry } from 'three';
 import type { MhLod } from './pedMesh';
 import { StripMesh } from './pedLegs';
 
 const TAU = Math.PI * 2;
 
 /** the hit distance of the ray (cx, cz) + t (dx, dz) with the segment P to Q, or -1 */
-function rayHit(cx: number, cz: number, dx: number, dz: number, px: number, pz: number, qx: number, qz: number): number {
+export function rayHit(cx: number, cz: number, dx: number, dz: number, px: number, pz: number, qx: number, qz: number): number {
   const ex = qx - px, ez = qz - pz, den = dx * ez - dz * ex;
   if (Math.abs(den) < 1e-12) return -1;
   const wx = px - cx, wz = pz - cz, t = (wx * ez - wz * ex) / den, u = (wx * dz - wz * dx) / den;
@@ -56,6 +57,16 @@ export function polarRadii(segs: number[], cx: number, cz: number, seg: number):
 export function outerRadii(L: MhLod, pos: ArrayLike<number>, ys: number[], c: { cx: number; cz: number }, seg: number, use: (v: number) => boolean): number[] {
   const r = new Array<number>(seg).fill(0);
   for (const y of ys) { const p = polarRadii(cutSegments(L, pos, y, use), c.cx, c.cz, seg); for (let j = 0; j < seg; j++) r[j] = Math.max(r[j], p[j]); }
+  // the vertices themselves too: a corner of the coarse mesh between two rays would stick out of a chord, so its two neighbouring samples are raised until the chord clears it
+  const yLo = Math.min(...ys), yHi = Math.max(...ys), half = Math.cos(Math.PI / seg);
+  for (let i = 0; i < pos.length / 3; i++) {
+    const y = pos[i * 3 + 1];
+    if (y < yLo || y > yHi || !use(i)) continue;
+    const dx = pos[i * 3] - c.cx, dz = pos[i * 3 + 2] - c.cz, rv = Math.hypot(dx, dz);
+    if (rv < 1e-4) continue;
+    const f = (((Math.atan2(-dz, dx) / TAU) % 1) + 1) % 1 * seg, j0 = Math.floor(f) % seg, j1 = (j0 + 1) % seg, need = rv / half;
+    r[j0] = Math.max(r[j0], need); r[j1] = Math.max(r[j1], need);
+  }
   // a ray that missed (a thin sliver) takes its neighbours' value
   for (let j = 0; j < seg; j++) if (r[j] <= 0) r[j] = Math.max(r[(j + seg - 1) % seg], r[(j + 1) % seg]);
   const m = r.map((_, j) => Math.max(r[(j + seg - 1) % seg], r[j], r[(j + 1) % seg]));
@@ -151,26 +162,20 @@ export function straightenArms(L: MhLod, pos: Float32Array, yTop: number, yBot: 
   if (!(yTop > yBot + 0.06)) return;
   const BIN = 0.02, nb = Math.ceil((yTop - yBot) / BIN) + 1, n = pos.length / 3;
   for (const side of [-1, 1] as const) {
-    const use = armOf(L, side), sum = new Float64Array(nb), cxs = new Float64Array(nb), czs = new Float64Array(nb), cnt = new Float64Array(nb), r = new Float64Array(nb);
+    const use = armOf(L, side), cxs = new Float64Array(nb), czs = new Float64Array(nb), r = new Float64Array(nb);
     const bin = (y: number): number => (yTop - y) / BIN;
-    for (let i = 0; i < n; i++) {
-      const y = pos[i * 3 + 1];
-      if (y > yTop || y < yBot || !use(i) || pos[i * 3] * side < 0) continue;
-      const b = Math.min(nb - 1, Math.round(bin(y)));
-      cxs[b] += pos[i * 3]; czs[b] += pos[i * 3 + 2]; cnt[b]++;
-    }
-    for (let b = 0; b < nb; b++) if (cnt[b]) { cxs[b] /= cnt[b]; czs[b] /= cnt[b]; }
-    for (let i = 0; i < n; i++) {
-      const y = pos[i * 3 + 1];
-      if (y > yTop || y < yBot || !use(i) || pos[i * 3] * side < 0) continue;
-      const b = Math.min(nb - 1, Math.round(bin(y)));
-      sum[b] += Math.hypot(pos[i * 3] - cxs[b], pos[i * 3 + 2] - czs[b]);
-    }
     let have = 0;
-    for (let b = 0; b < nb; b++) { r[b] = cnt[b] ? sum[b] / cnt[b] : 0; if (r[b] > 0) have++; }
+    for (let b = 0; b < nb; b++) {
+      // the section of the arm at this height: centre = middle of its bounding box, radius = mean of the half extents
+      const sg = cutSegments(L, pos, yTop - b * BIN, use);
+      let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+      for (let i = 0; i < sg.length; i += 2) { x0 = Math.min(x0, sg[i]); x1 = Math.max(x1, sg[i]); z0 = Math.min(z0, sg[i + 1]); z1 = Math.max(z1, sg[i + 1]); }
+      if (x1 > x0) { cxs[b] = (x0 + x1) / 2; czs[b] = (z0 + z1) / 2; r[b] = (x1 - x0 + z1 - z0) / 4; have++; }
+    }
     if (have < 3) continue;
     // empty bands take the value above them, then the running minimum from the top
-    for (let b = 0; b < nb; b++) if (r[b] <= 0) r[b] = b ? r[b - 1] : r[(r.findIndex((v) => v > 0))];
+    const first = r.findIndex((v) => v > 0);
+    for (let b = 0; b < nb; b++) if (r[b] <= 0) { const q = b ? b - 1 : first; r[b] = r[q]; cxs[b] = cxs[q]; czs[b] = czs[q]; }
     const e = new Float64Array(nb);
     e[0] = r[0];
     for (let b = 1; b < nb; b++) e[b] = Math.min(r[b], e[b - 1]);
@@ -186,4 +191,19 @@ export function straightenArms(L: MhLod, pos: Float32Array, yTop: number, yBot: 
       pos[i * 3] = cx + (pos[i * 3] - cx) * f; pos[i * 3 + 2] = cz + (pos[i * 3 + 2] - cz) * f;
     }
   }
+}
+
+/**
+ * A skirt or a coat's lower half is one loft that used to follow the hips only, so the thigh that swings forward in the stride walked out of its front. Its vertices now share their weights
+ * between the hips and the two thigh bones (8 and 10) in proportion to their depth below the waist, split by the side they hang on, so the hem swings with the leading thigh.
+ */
+export function swingSkirt(g: BufferGeometry, yTop: number, yHem: number): BufferGeometry {
+  const P = g.getAttribute('position'), n = P.count, si = new Uint16Array(n * 4), sw = new Float32Array(n * 4);
+  for (let i = 0; i < n; i++) {
+    const t0 = Math.min(1, Math.max(0, (yTop - P.getY(i)) / Math.max(1e-6, yTop - yHem))), t = t0 * t0 * (3 - 2 * t0), share = 0.95 * t;
+    const u0 = Math.min(1, Math.max(0, (0.04 - P.getX(i)) / 0.08)), u = u0 * u0 * (3 - 2 * u0);
+    si[i * 4] = 1; sw[i * 4] = 1 - share; si[i * 4 + 1] = 8; sw[i * 4 + 1] = share * u; si[i * 4 + 2] = 10; sw[i * 4 + 2] = share * (1 - u);
+  }
+  g.setAttribute('skinIndex', new BufferAttribute(si, 4)); g.setAttribute('skinWeight', new BufferAttribute(sw, 4));
+  return g;
 }

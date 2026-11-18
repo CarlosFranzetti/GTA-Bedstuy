@@ -61,7 +61,7 @@ function musicStandIn(secs: number, target: number): Float32Array {
   return x;
 }
 
-export interface Scene { secs?: number; speech?: { dj?: string; bark1?: string; bark2?: string }; standInRadio?: boolean; carType?: string; synthRadio?: boolean }
+export interface Scene { stall?: [number, number]; secs?: number; speech?: { dj?: string; bark1?: string; bark2?: string }; standInRadio?: boolean; carType?: string; synthRadio?: boolean }
 
 async function street(o: Scene) {
   const secs = o.secs ?? 60, carType = o.carType ?? 'sedan';
@@ -115,10 +115,11 @@ async function street(o: Scene) {
   let prevIn = false;
   const tick = () => {
     const t = k * DT;
+    if (o.stall && t >= o.stall[0] && t < o.stall[0] + o.stall[1]) { k++; return; } // a frame hitch: the main thread does not run, the audio thread does
     let th = 0, brake = false, want = false;
     if (t < 6) want = false;
     else if (t < 48) want = true;
-    if (want && !prevIn) { events.emit('enterVehicle', { vehicleId: 'v' }); sys.playDoor(false, carType); }
+    if (want && !prevIn) { events.emit('enterVehicle', { vehicleId: 'v' }); sys.playDoor(false, carType); if (o.synthRadio) sys.selectRadioStation('synth0'); }
     if (!want && prevIn) { events.emit('exitVehicle', { vehicleId: 'v' }); sys.playDoor(true, carType); }
     prevIn = want; inCar = want;
     if (inCar) {
@@ -145,11 +146,13 @@ async function street(o: Scene) {
     k++;
   };
   const steps = n / STEP;
+  const first = ctx.suspend(DT); // registered before rendering starts, so the render cannot run past it
+  const rendering = ctx.startRendering(); // suspend() promises only settle while the context renders
   await new Promise<void>((resolve) => {
     const next = () => { if (k >= steps) { resolve(); return; } tick(); if (k < steps) ctx.suspend(k * DT).then(() => { next(); ctx.resume(); }); else resolve(); };
-    ctx.suspend(DT).then(() => { next(); ctx.resume(); }); tick();
+    first.then(() => { next(); ctx.resume(); }); tick();
   });
-  const buf = await ctx.startRendering();
+  const buf = await rendering;
   const stems: Record<string, Float32Array> = {};
   STEMS.forEach((s, i) => { stems[s] = buf.getChannelData(i); });
   // loudness per window (BS.1770 K-weighted, ungated mean power over the window)
@@ -162,9 +165,19 @@ async function street(o: Scene) {
   // short-term (3 s) series every 1 s, for the engine, radio, voices
   const series: Record<string, number[]> = {};
   for (const s of STEMS) { series[s] = []; for (let t = 0; t + 3 <= secs; t += 1) series[s].push(+lufs(K[s], t, t + 3).toFixed(1)); }
+  // radio holes: the longest run of 25 ms blocks 25 dB under the radio's own median level (dropped notes after a frame hitch)
+  let radioHole: { medianDb: number; longestHoleMs: number; at: number } | null = null;
+  {
+    const hop = Math.round(0.025 * SR), db: number[] = [];
+    for (let i = 0; i + hop <= stems.radio.length; i += hop) { let e = 0; for (let j = 0; j < hop; j++) e += stems.radio[i + j] ** 2; db.push(10 * Math.log10(e / hop + 1e-12)); }
+    const sorted = [...db].filter((v) => v > -90).sort((a, b) => a - b), med = sorted[Math.floor(sorted.length / 2)] ?? -90;
+    let run = 0, best = 0, at = 0;
+    for (let i = 0; i < db.length; i++) { if (db[i] < med - 25 && db[i] > -200 && i * 0.025 > 8) { run++; if (run > best) { best = run; at = (i - run + 1) * 0.025; } } else run = 0; }
+    radioHole = { medianDb: +med.toFixed(1), longestHoleMs: Math.round(best * 25), at: +at.toFixed(2) };
+  }
   const files: Record<string, string> = {};
   for (const s of STEMS) files[s] = b64wav(stems[s]);
-  return { report, peaks, series, files, secs };
+  return { report, peaks, series, files, secs, radioHole };
 }
 
 (window as any).soundcheck = { street };

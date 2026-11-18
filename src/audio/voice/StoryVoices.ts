@@ -58,7 +58,22 @@ export const STORY_VOICES: Readonly<Record<string, StoryVoice | null>> = {
   'Dispatch': v('af_alloy', 0.98, 'phone', 'announcer', 1.0, 1.05),
   'Phone': v('bf_lily', 1.04, 'phone', 'caller', 1.1, 1.05),
   'Radio': v('bm_lewis', 1.06, 'tinny', 'announcer', 1.0, 1.15),
+  /* STORY2: the second wave (side jobs, texts, the community board) */
+  'Miss Cordy': v('bf_isabella', 0.84, 'dry', 'caller', 0.85, 0.82),
+  'Chair Tate': v('af_nicole', 0.96, 'dry', 'announcer', 0.95, 1.05),
+  'Garrett': v('am_adam', 1.18, 'dry', 'caller', 1.05, 1.3),
+  'Rivka': v('af_heart', 1.14, 'dry', 'caller', 1.0, 1.15),
+  'Priya': v('bf_lily', 1.12, 'dry', 'sidekick', 1.12, 1.15),
+  'Tito': v('bm_george', 0.8, 'dry', 'host', 0.75, 0.88),
+  'Technician': v('am_adam', 0.92, 'dry', 'caller', 0.9, 0.98),
+  'Funeral Director': v('bm_lewis', 0.85, 'dry', 'host', 0.8, 0.88),
+  'Receptionist': v('bf_lily', 1.04, 'dry', 'sidekick', 1.1, 1.05),
+  'Facilitator': v('af_alloy', 0.98, 'dry', 'caller', 1.05, 1.0),
+  'Mourner': v('bf_alice', 0.9, 'dry', 'caller', 0.95, 0.92),
+  'Pencil': v('am_echo', 1.22, 'dry', 'caller', 1.1, 1.25),
   /* never spoken */
+  'Pemberton': null,
+  'CB3 Neighbors': null,
   'You': null,
   'Crowd': null,
 };

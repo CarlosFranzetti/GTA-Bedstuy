@@ -2,7 +2,7 @@
 // Each experiment renders a short passage with the REAL classes and reports the largest sample-to-sample step and a click
 // score (the loudest 1.5 ms block of the first difference over the median block of the reference stretch).
 // Bundled by scripts/soundcheck-render.mjs (mode `stutter`).
-import { EngineNodes, TrafficEngines, playHorn, CheapVoice } from '@/audio/vehicle/nodes';
+import { EngineNodes, TrafficEngines, playHorn, CheapVoice, ENGINE_TUNING } from '@/audio/vehicle/nodes';
 import { ENGINE_VOICES, EngineSim } from '@/audio/vehicle/engineModel';
 import { HORNS } from '@/audio/vehicle/hornModel';
 import { VehicleAudio } from '@/audio/vehicle/VehicleAudio';
@@ -31,11 +31,13 @@ function metrics(x: Float32Array, t0: number, t1: number, r0: number, r1: number
 async function stepped(ctx: OfflineAudioContext, secs: number, tick: (k: number, t: number) => void): Promise<Float32Array> {
   const steps = Math.ceil(secs * SR / STEP);
   let k = 0;
+  const first = ctx.suspend(DT); // registered before rendering starts, so the render cannot run past it
+  const rendering = ctx.startRendering(); // suspend() promises only settle while the context renders
   await new Promise<void>((resolve) => {
     const next = () => { if (k >= steps) { resolve(); return; } tick(k, k * DT); k++; if (k < steps) ctx.suspend(k * DT).then(() => { next(); ctx.resume(); }); else resolve(); };
-    ctx.suspend(DT).then(() => { next(); ctx.resume(); }); tick(0, 0); k = 1;
+    first.then(() => { next(); ctx.resume(); }); tick(0, 0); k = 1;
   });
-  return (await ctx.startRendering()).getChannelData(0);
+  return (await rendering).getChannelData(0);
 }
 
 /** 1. A traffic voice slot is stolen by a closer car (the old car leaves the 70 m range at the same moment). */
@@ -149,4 +151,51 @@ async function limiter() {
   return out;
 }
 
-(window as any).stutter = { voiceSteal, sirenRelease, engineSwap, gearDip, hardCut, limiter, CheapVoice };
+/** 7. Automation events written per second by the vehicle layer (player engine, road, 4 traffic voices, bed) at the game's frame rate. */
+async function eventFlood() {
+  const ctx = new OfflineAudioContext(1, SR, SR);
+  const P = AudioParam.prototype as any;
+  const names = ['setTargetAtTime', 'setValueAtTime', 'linearRampToValueAtTime', 'exponentialRampToValueAtTime', 'cancelScheduledValues'];
+  const counts: Record<string, number> = {}, orig: Record<string, any> = {};
+  for (const n of names) { counts[n] = 0; orig[n] = P[n]; P[n] = function (...a: any[]) { counts[n]++; return orig[n].apply(this, a); }; }
+  let secs = 0;
+  try {
+    const va = new VehicleAudio(lcg(5));
+    (va as any).attach(ctx, ctx.destination, noiseBuf(ctx), ctx.destination);
+    va.setType('sedan');
+    for (const n of names) counts[n] = 0;
+    const cars = Array.from({ length: 6 }, (_, i) => ({ id: 'c' + i, type: ['sedan', 'bus', 'cab', 'pickup', 'hatch', 'muscle'][i], x: -30 + i * 12, z: i % 2 ? 5 : -5, vx: 8 + i, vz: 0, speed: 8 + i, throttle: 0.4 }));
+    const frames = 120; // two seconds at 60 fps
+    for (let k = 0; k < frames; k++) {
+      va.setDrive(13, 0.25, true);
+      for (const q of cars) q.x += q.vx / 60;
+      va.setTraffic({ x: 0, z: 0, vx: 0, vz: 0, rx: 1, rz: 0 }, cars.map((q) => ({ ...q })), 1 / 60);
+      va.update(1 / 60);
+    }
+    secs = frames / 60;
+  } finally { for (const n of names) P[n] = orig[n]; }
+  const per = Object.fromEntries(Object.entries(counts).map(([k, v]) => [k, Math.round(v / secs)]));
+  return { name: 'automation events per second, 60 fps, player engine + 4 traffic voices', ...per, total: Object.values(per).reduce((a, b) => a + b, 0) };
+}
+
+/** 8. Level swell at a held cruise: the two detuned firing oscillators beat, which swells and dips the whole engine. Longest-window dip against the previous 0.5 s, and the level's spread. */
+async function cruiseSwell(type: string, chorus: number, det?: number) {
+  const base = ENGINE_VOICES[type as keyof typeof ENGINE_VOICES];
+  const v = { ...base, det: det ?? base.det };
+  const keep = ENGINE_TUNING.chorus; ENGINE_TUNING.chorus = chorus;
+  try {
+    const secs = 24;
+    const ctx = new OfflineAudioContext(1, SR * secs, SR);
+    const eng = new EngineNodes(ctx, v, noiseBuf(ctx), ctx.destination, 0);
+    const sim = new EngineSim(v, lcg(11)); sim.startNow();
+    const x = await stepped(ctx, secs, (_k, t) => { const f = sim.update(DT, 0.55 * v.vmax, 0.22); eng.apply(f, t, 0.55 * v.vmax, false); });
+    const hop = Math.round(0.025 * SR), win = Math.round(0.05 * SR), L: number[] = [];
+    for (let s = 4 * SR; s + win <= x.length; s += hop) { let e = 0; for (let i = 0; i < win; i++) e += x[s + i] ** 2; L.push(10 * Math.log10(e / win + 1e-12)); }
+    let worst = 0, n6 = 0; const mean = L.reduce((a, b) => a + b, 0) / L.length;
+    for (let i = 20; i < L.length; i++) { let ref = -200; for (let j = i - 20; j < i; j++) ref = Math.max(ref, L[j]); const d = ref - L[i]; if (d > worst) worst = d; if (d > 6) n6++; }
+    const sd = Math.sqrt(L.reduce((a, b) => a + (b - mean) ** 2, 0) / L.length);
+    return { name: `cruise swell ${type} chorus ${chorus} det ${v.det}`, maxDipDb: +worst.toFixed(1), framesOver6dB: n6, levelSdDb: +sd.toFixed(2), meanDb: +mean.toFixed(1) };
+  } finally { ENGINE_TUNING.chorus = keep; }
+}
+
+(window as any).stutter = { cruiseSwell, eventFlood, voiceSteal, sirenRelease, engineSwap, gearDip, hardCut, limiter, CheapVoice };

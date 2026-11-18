@@ -173,12 +173,15 @@ async function steady(type: string) {
     va.setType(type);
     const frames = Math.floor(8 * SR / STEP);
     let k = 0;
+    // start rendering first: suspend() promises only settle while the context renders (awaiting them before startRendering never returns)
+    const first = ctx.suspend(DT); // registered before rendering starts, so the render cannot run past it
+    const rendered = ctx.startRendering();
     await new Promise<void>((resolve) => {
       const tick = () => { va.setDrive(speedF * v.vmax, th, true); va.update(DT); k++; };
       const next = () => { tick(); if (k < frames) ctx.suspend(k * DT).then(() => { next(); ctx.resume(); }); else resolve(); };
-      ctx.suspend(DT).then(() => { next(); ctx.resume(); }); tick();
-    }).catch(() => {});
-    out['all_' + name] = lufs(kFilter((await ctx.startRendering()).getChannelData(0)), 4, 8);
+      first.then(() => { next(); ctx.resume(); }); tick();
+    });
+    out['all_' + name] = lufs(kFilter((await rendered).getChannelData(0)), 4, 8);
   }
   return { type, ...out };
 }

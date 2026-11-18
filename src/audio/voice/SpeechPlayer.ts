@@ -13,6 +13,7 @@ import { fadeOutAndStop, gate, type Gated } from './fade';
 import { clipKey, lineSeconds } from './script';
 import { planLine, shapeClip, turnGap } from './prosody';
 import { rhythmFor } from './rhythm';
+import { playbackRateFor, tuneFor } from './tune';
 import type { CastMember, Clip, TtsEngine } from './types';
 import { pickVoices, type SpeechLike, type UtteranceLike, type VoiceLike } from '../talk/TalkPlayer';
 import type { VoiceRole } from '../talk/script';
@@ -246,6 +247,9 @@ export class SpeechPlayer {
       buf.copyToChannel(pcm as Float32Array<ArrayBuffer>, 0);
       const src = host.ctx.createBufferSource();
       src.buffer = buf;
+      // per-speaker tempo and pitch offset (tune.ts): speakers on one neural preset still sound like different people
+      const rate = playbackRateFor(tuneFor(it.cast.id));
+      src.playbackRate.value = rate;
       const gt = gate(host.ctx, src, this.fx(host, it.cast.fx));
       this.fadeCtx = host.ctx;
       const now = host.ctx.currentTime + 0.03;
@@ -253,7 +257,7 @@ export class SpeechPlayer {
       overlap = false;
       src.start(startAt);
       this.sources.push({ src, gate: gt });
-      clipEnd = startAt + buf.duration;
+      clipEnd = startAt + buf.duration / rate;
       cursor = clipEnd + it.gap;
       if (!started) { started = true; cb.onStart?.(); }
       if (it.first) {

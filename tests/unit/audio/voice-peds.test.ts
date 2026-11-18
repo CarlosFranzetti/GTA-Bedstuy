@@ -193,13 +193,15 @@ describe('BarkDirector limits', () => {
     advance(sim, 30);
     expect(sim.dir.request({ pedId: 'c', kind: 'greeting', dist: 5, pos: { x: 0, y: 0 } })).toBe(true);
   });
-  it('chat pair: B answers about 0.4 s after A ends, with its own voice', () => {
+  it('chat pair: B answers after a beat (0.2 to 1 s) once A ends, with its own voice', () => {
     const sim = makeSim();
     expect(sim.dir.request({ pedId: 'a', kind: 'chat', with: 'b', dist: 5, pos: { x: 0, y: 0 }, seed: 3 })).toBe(true);
     const endA = sim.ends[0].at;
     advance(sim, endA);
     expect(sim.begun.length).toBe(1);
-    advance(sim, endA + 0.45);
+    advance(sim, endA + 0.15);
+    expect(sim.begun.length).toBe(1); // never an instant reply
+    advance(sim, endA + 1.0);
     expect(sim.begun.length).toBe(2);
     expect(sim.begun[1].speakerId).toBe('b');
     expect(sim.begun[0].voice!.kokoro + sim.begun[0].voice!.speed).not.toBe(sim.begun[1].voice!.kokoro + sim.begun[1].voice!.speed);

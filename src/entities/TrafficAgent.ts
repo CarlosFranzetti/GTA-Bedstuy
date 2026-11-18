@@ -104,6 +104,8 @@ const PASS_LANE_LINES = [2.4, 3.1, 3.9] as const;
 const TURN_SPEED = 6;
 const TURN_SPEED_FAST = 13;
 const TURN_MIN = 0.6;
+/** how far past a node (m) the lane's turn is read from, so a curved connector counts as the turn it makes (see turnLook) */
+const TURN_LOOK = 10;
 /** vehicles longer than this (m) take corners proportionally slower, never below this share of the turn speed */
 const TURN_LEN_REF = 6;
 const TURN_LEN_MIN_SCALE = 0.4;
@@ -1131,6 +1133,23 @@ export class TrafficAgent {
     return true;
   }
 
+  /**
+   * The node that shows how far the lane turns after `from`: `to` itself, or, when `to` is less than TURN_LOOK m away and has a single
+   * successor (a curved connector sampled every few metres, as on the real map), the node TURN_LOOK m along that chain. A connector
+   * that is one edge from the stop line to the exit lane (the grid) is returned unchanged, so the grid behaves exactly as before.
+   */
+  private turnLook(from: LaneNode, to: LaneNode): LaneNode {
+    let n = to;
+    for (let g = 0; g < 8 && dist(from.pos, n.pos) < TURN_LOOK; g++) {
+      const adj = this.lanes.adjacency[n.id];
+      if (!adj || adj.length !== 1) break;
+      const next = this.lanes.nodes[this.lanes.edges[adj[0]].to];
+      if (!next || next.stopLine) break;
+      n = next;
+    }
+    return n;
+  }
+
   /** Decide the turn to make at stop line `from` before reaching it, so a left turn can yield and every turn can slow. */
   private previewTurn(from: LaneNode): void {
     if (this.preFrom === from.id) return;
@@ -1139,7 +1158,7 @@ export class TrafficAgent {
     this.preEdge = this.chooseEdge(from, adj);
     this.preFrom = from.id;
     const to = this.lanes.nodes[this.lanes.edges[this.preEdge].to];
-    this.preTurn = to ? angleDiff(from.heading, to.heading) : 0;
+    this.preTurn = to ? angleDiff(from.heading, this.turnLook(from, to).heading) : 0;
     this.turnTimer = 0;
     this.turnBlocked = false;
   }
@@ -1166,9 +1185,10 @@ export class TrafficAgent {
     for (let i = 0; i < adj.length; i++) {
       const to = this.lanes.nodes[this.lanes.edges[adj[i]].to];
       if (!to) { ok.push(adj[i]); continue; }
-      const turn = Math.abs(angleDiff(from.heading, to.heading));
+      const end = this.turnLook(from, to);
+      const turn = Math.abs(angleDiff(from.heading, end.heading));
       if (turn < TURN_MIN) { ok.push(adj[i]); continue; }
-      const need = dist(from.pos, to.pos) / (2 * Math.sin(Math.min(turn, Math.PI - 0.1) / 2));
+      const need = dist(from.pos, end.pos) / (2 * Math.sin(Math.min(turn, Math.PI - 0.1) / 2));
       if (minR <= need * TURN_RADIUS_SLACK) ok.push(adj[i]);
     }
     return ok.length > 0 ? ok : adj;
@@ -1182,7 +1202,7 @@ export class TrafficAgent {
     this.preFrom = null;
     const e = this.lanes.edges[edgeIdx];
     const to = this.lanes.nodes[e.to];
-    this.legTurn = to ? angleDiff(from.heading, to.heading) : 0;
+    this.legTurn = to ? angleDiff(from.heading, this.turnLook(from, to).heading) : 0;
     this.prevId = from.id;
     this.targetId = e.to;
     this.stopLatch = null;

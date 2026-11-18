@@ -5,10 +5,10 @@
  */
 /**
  * How loud each sound is, as a multiplier on the gains below. Measured offline (scripts/combat-sfx-render.mjs: an OfflineAudioContext,
- * ffmpeg ebur128): the gunshot is the loudest and peaks at about -1.5 dBFS; the rest sit 7 to 14 dB under it (momentary loudness).
+ * ffmpeg ebur128): the gunshot is the loudest and peaks at about -2.5 dBFS (the noise bursts start at a random offset, so a run varies by about 1 dB); the rest sit 7 to 13 dB under it (momentary loudness).
  */
 export const LEVELS = {
-  whoosh: 4.7, punch: 0.51, punchHeavy: 0.39, thud: 0.54, carThud: 0.39, glass: 0.4, crack: 0.61, tick: 0.76, click: 2.3, reload: 1.7, pickup: 0.8, throwAway: 6.3,
+  whoosh: 5.1, punch: 0.43, punchHeavy: 0.33, thud: 0.46, carThud: 0.33, glass: 0.34, crack: 0.52, tick: 0.65, click: 2.55, reload: 1.87, pickup: 0.75, throwAway: 6.7,
 } as const;
 
 export interface SfxHost { ctx: AudioContext; dest: AudioNode }

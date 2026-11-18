@@ -9,7 +9,6 @@ import type { PedSpec } from './ped';
 import { createCanvas } from '@/textures/canvas';
 import { Px } from './pedPaintShared';
 import { makeShader, locateEyes } from './pedPaintShade';
-import { mixc } from './pedPaintShared';
 import { paintSwatches } from './pedPaintSwatch';
 
 export { rgb } from './pedPaintShared';
@@ -94,29 +93,6 @@ function rasterise(b: BakeInput, size: number): void {
   }
 }
 
-/** the lids on the edge of each eyeball: a soft lash line on the skin right next to the opening (heavier above, light below) and the shade the lids throw onto the eye */
-function paintLids(img: Uint8ClampedArray, size: number, mask: Uint8Array, K: ReturnType<typeof makeShader>['K']): void {
-  const lash: [number, number, number] = [mixc(K.hairC, [20, 14, 14], 0.6)[0], mixc(K.hairC, [20, 14, 14], 0.6)[1], mixc(K.hairC, [20, 14, 14], 0.6)[2]];
-  for (const e of K.eyes) {
-    if (!e) continue;
-    for (let y = Math.max(2, e.y0 - 5); y <= Math.min(size - 3, e.y1 + 5); y++) for (let x = Math.max(2, e.x0 - 5); x <= Math.min(size - 3, e.x1 + 5); x++) {
-      const q = y * size + x;
-      let m3 = 0, m5 = 0;
-      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const v = mask[(y + dy) * size + x + dx]; m5 += v; if (dy >= -1 && dy <= 1 && dx >= -1 && dx <= 1) m3 += v; }
-      const upper = y < e.py;
-      if (mask[q]) {
-        // eyeball: darker toward the lids, most under the upper one
-        const open = 1 - m5 / 25, sh = open * open * (upper ? 1.0 : 0.6);
-        const k = 1 - Math.min(0.62, 0.8 * sh);
-        img[q * 4] *= k; img[q * 4 + 1] *= k; img[q * 4 + 2] *= k;
-      } else if (m5 > 0) {
-        const w = Math.min(1, m3 / 3.2 + (upper ? m5 / 18 : m5 / 40)) * (upper ? 0.95 : 0.5);
-        for (let c = 0; c < 3; c++) img[q * 4 + c] += (lash[c] - img[q * 4 + c]) * w;
-      }
-    }
-  }
-}
-
 export interface BakeResult { canvas: HTMLCanvasElement | OffscreenCanvas }
 
 /** bake time of the maps so far (ms, count): the showcase prints it */
@@ -138,7 +114,6 @@ function bakeSkinInner(b: BakeInput, size: number): HTMLCanvasElement {
     shade(posMap[q * 3], posMap[q * 3 + 1], posMap[q * 3 + 2], nrmMap[q * 3], nrmMap[q * 3 + 1], nrmMap[q * 3 + 2], wMap[q * 4], wMap[q * 4 + 1], wMap[q * 4 + 2], wMap[q * 4 + 3], q, px);
     img[q * 4] = px.r; img[q * 4 + 1] = px.g; img[q * 4 + 2] = px.b; img[q * 4 + 3] = 255; filled[q] = 1;
   }
-  paintLids(img, size, K.eyeTex!, K);
   // pad the charts outward so filtering and mip levels never pull in the background
   for (let pass = 0; pass < 3; pass++) {
     const add: number[] = [];

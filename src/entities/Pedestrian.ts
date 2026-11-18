@@ -135,6 +135,8 @@ export class Pedestrian implements Entity {
   private leader: Pedestrian | null = null;
   private slot = 0;
   private followers = 0;
+  /** bodies of this leader's followers: the head-on jam rule must not mistake one's own group for a pedestrian in the way */
+  private readonly followerBodies = new Set<Body2D>();
   private movingNow = false;
   private blockTimer = 0;
   private blockKey = '';
@@ -218,6 +220,7 @@ export class Pedestrian implements Entity {
     this.leader = leader;
     this.slot = slot;
     leader.followers++;
+    leader.followerBodies.add(this.body);
     this.state = 'walking';
     this.waitCrossing = null;
     this.detour = null;
@@ -516,7 +519,7 @@ export class Pedestrian implements Entity {
   private pos2(): Vec2 { return this.body.pos; }
 
   private detach(): void {
-    if (this.leader) { this.leader.followers = Math.max(0, this.leader.followers - 1); this.leader = null; }
+    if (this.leader) { this.leader.followers = Math.max(0, this.leader.followers - 1); this.leader.followerBodies.delete(this.body); this.leader = null; }
   }
 
   private faceTarget(dt: number): void {
@@ -624,7 +627,7 @@ export class Pedestrian implements Entity {
     if (hyp(b.vel.x, b.vel.z) < PED_JAM_SPEED) {
       for (let i = 0; i < list.length; i++) {
         const o = list[i];
-        if (o.kind !== 'ped' || o === b) continue;
+        if (o.kind !== 'ped' || o === b || this.followerBodies.has(o) || (this.leader !== null && (o === this.leader.body || this.leader.followerBodies.has(o)))) continue; // own group is no jam
         const ox = o.pos.x - b.pos.x, oz = o.pos.z - b.pos.z, od = hyp(ox, oz);
         if (od > PED_JAM_RADIUS || od < 1e-4 || (ox * gx + oz * gz) / od < 0.6) continue;
         this.blockSlide.x = gx * 0.35 - gz * 0.94;

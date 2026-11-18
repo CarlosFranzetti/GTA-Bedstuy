@@ -33,7 +33,7 @@ export const DJ_COPY: Record<ScStationId, DjCopy> = {
     blind: ['No name on this one, family, [breath] only a groove. [beat] Trust it.', 'The next set came with no label. We dance anyway on {station}.'],
     hours: ['It is {time} on {street}, and {weather}. Perfect for a long blend.', 'Quick check: {time}, {weather}. [beat] The rent is still due, [breath] the floor is still open.', '{time} on the clock. {weather}. Stay on the floor.'],
     traffic: ['Traffic on {street} is a slow jam. [beat] The tow truck is the only one getting paid.', 'If you are on {street} right now, ease off the gas. The groove will wait for you.', 'Drivers on {street}: honking never made a kick drum come faster.'],
-    shouts: ['Shout-out to everybody on {hood} who turned this up. I can feel you.', 'Big love to {hood}. Family, you are the reason the speakers are warm.', 'To the dancers on {hood}: your neighbours say hello, and also, a little quieter after midnight.'],
+    shouts: ['Shout-out to everybody on {hood}, who turned this up. I can feel you.', 'Big love to {hood}. Family, you are the reason the speakers are warm.', 'To the dancers on {hood}: your neighbours say hello, and also, a little quieter after midnight.'],
   },
   dublab: {
     who: 'odell',
@@ -63,7 +63,7 @@ export const DJ_COPY: Record<ScStationId, DjCopy> = {
     blind: ['No name on this set, baby, but the groove has a fine reputation.', 'An unlabeled set on {station}. A gentleman never asks.'],
     hours: ['It is {time}, {weather}, and the night is young enough. {street}, look sharp.', '{time} on the clock. {weather}. Perfect for a slow walk down {street}.', 'The time is {time}. {weather}. The groove does not care about the hour, and neither do I.'],
     traffic: ['Traffic on {street} is slow, baby. [pause 0.5] Slow is a tempo. [pause 0.5] The pothole has the lead.', 'If {street} has you stuck, you have the best seat in the house.', 'Easy on {street}. Nobody ever got to the party by honking at a bus.'],
-    shouts: ['Shout-out to {hood}. You bring the funk, I bring the jacket.', 'Love to everybody on {hood}. May your bass lines be thick and your landlord be vague.', 'To {hood}: stay sharp, stay smooth, stay out of the potholes.'],
+    shouts: ['Shout-out to {hood}. You bring the funk, I bring the jacket.', 'Love to everybody on {hood}. May your bass lines be thick, and your landlord be vague.', 'To {hood}: stay sharp, stay smooth, stay out of the potholes.'],
   },
   weird: {
     who: 'wren',
@@ -71,9 +71,9 @@ export const DJ_COPY: Record<ScStationId, DjCopy> = {
     intros: ['Next, {dj}. [pause 0.5] The set is called {title}. [pause 0.4] It sounds like a room [breath] remembering something.', '{title}. [pause 0.5] {dj} made it. I have no further information.', 'Listen to {dj} now. [pause 0.5] {title}. [pause 0.4] Shapes will happen.', 'Here is {title}, by {dj}. [pause 0.5] It does not begin so much as it arrives.'],
     outros: ['That was {prevDj}. [pause 0.5] {prevTitle}. I am still somewhere in the middle of it.', '{prevTitle}, from {prevDj}. [pause 0.5] The ceiling is quiet. That is a compliment.', '{prevDj} and {prevTitle}. [pause 0.5] Thank you for the strange, kind noise.'],
     blind: ['No name for this one. [pause 0.5] Names are overrated at this hour.', 'An unlabeled set. [pause 0.5] The weirdest kind, and the best.'],
-    hours: ['It is {time}, [pause 0.4] which does not matter. [pause 0.4] {weather}, if you are keeping track.', 'The clock says {time} on {street}. [pause 0.5] {weather}. [pause 0.4] The clock is guessing.', '{time}. [pause 0.5] {weather}. [pause 0.4] I only mention it so you know where you are not.'],
+    hours: ['It is {time}, [pause 0.4] which does not matter. [pause 0.4] {weather}, if you are keeping track.', 'The clock says {time} on {street}. [pause 0.5] {weather}. [pause 0.4] The clock is guessing.', '{time}. [pause 0.5] {weather}. [pause 0.4] I only mention it, so you know where you are not.'],
     traffic: ['There is traffic on {street}. [pause 0.5] The cars are all dreaming of the same direction.', '{street} is slow tonight. [pause 0.5] A river of tail lights. Good listening conditions.', 'If you are on {street}, [pause 0.4] you are already in the middle of a composition.'],
-    shouts: ['Hello to everyone near {hood}. [pause 0.5] I am glad you are awake too.', 'A small wave to {hood}. [pause 0.5] You are not alone in the dark. The radio is on.', 'To {hood}: [pause 0.5] the lamp in your window is a kind of music.'],
+    shouts: ['Hello to everyone near {hood}. [pause 0.5] I am glad you are awake too.', 'A small wave to {hood}. [pause 0.5] You are not alone in the dark. The radio is on.', 'To {hood}: [pause 0.5] the lamp in your window... is a kind of music.'],
   },
   yard: {
     who: 'pearl',
@@ -83,7 +83,7 @@ export const DJ_COPY: Record<ScStationId, DjCopy> = {
     blind: ['No name on this one, but I know a good riddim when I hear one!', 'A set with no label on {station}! Auntie says trust it!'],
     hours: ['It is {time} and {weather} on {street}! [beat] Have you eaten? [pause 0.3] I am asking as a professional!', '{time} on the clock! {weather}! The sound system does not stop for weather!', 'Time check, baby: {time}. {weather}. [pause 0.5] Call your mother.'],
     traffic: ['{street} is backed up! A delivery van is parked in the lane like it owns the deed!', 'Traffic on {street}! Nobody is moving, so you might as well wine your waist and curse the mayor!', 'If you are stuck on {street}, eat something and turn me up!'],
-    shouts: ['Big hello to {hood}! [beat] I smell the curry from here!', 'Shout-out to {hood}! Who is cooking? Somebody is always cooking!', 'To everybody on {hood}: turn it up and tell your neighbours to come out!'],
+    shouts: ['Big hello to {hood}! [beat] I smell the curry from here!', 'Shout-out to {hood}! Who is cooking? Somebody is always cooking!', 'To everybody on {hood}: turn it up, and tell your neighbours to come out!'],
   },
   flashback: {
     who: 'tommy',
@@ -93,7 +93,7 @@ export const DJ_COPY: Record<ScStationId, DjCopy> = {
     blind: ['No name on this set! Mystery show! Press play and see what happens!', 'An unlabeled set on {station}! Someone forgot the sticker, and I love them for it!'],
     hours: ['It is {time}, {weather}, and the bass is rolling on {street}! Rewind that, I mean carry on!', '{time} on the clock! {weather}! The sub does not care about time!', 'Time check, {time}! {weather}! [beat] Volume up, windows shut!'],
     traffic: ['Traffic on {street} is a two-step in a jam! Wait for the drop!', '{street} is slow! Fast forward! [beat] Oh, you cannot. [beat] Welcome to the city, pal!', 'If you are on {street}, crank me up! It is a pirate signal in there!'],
-    shouts: ['Shout-out to {hood}! You are the B-side of Brooklyn and I love it!', 'Big hello to {hood}! Somebody wheel it up for me!', 'To {hood}: stay loud, stay low-end, stay out of the way of the street sweeper!'],
+    shouts: ['Shout-out to {hood}! You are the B-side of Brooklyn, and I love it!', 'Big hello to {hood}! Somebody wheel it up for me!', 'To {hood}: stay loud, stay low-end, stay out of the way of the street sweeper!'],
   },
   latin: {
     who: 'lucho',

@@ -94,11 +94,14 @@ describe('pause model', () => {
     const em = planSentence('That is the point.', 'z', 1, { ...slow, finalSlow: 0 }, { em: true });
     expect(em[0].em).toBe(true); expect(em[0].speed).toBeLessThan(0.9);
   });
-  it('turn gaps: shorter after a question, longer after a laugh, sometimes a quick pickup, always the same for the same pair', () => {
+  it('turn gaps: a beat longer after a question, quicker after an exclamation, longer after a laugh, talked over when a line trails off, sometimes a quick pickup, always the same for the same pair', () => {
     const hot = { ...rhythmFor('gus'), pickup: 1 };
     const cool = { ...rhythmFor('gus'), pickup: 0 };
     const q = (text: string, laugh = false) => turnGap({ text, laugh, same: false }, 'Next line here.', cool);
-    expect(q('Is that so?')).toBeLessThan(q('That is so.') + 0.1);
+    expect(q('Is that so?')).toBeGreaterThan(q('That is so.'));
+    expect(q('Is that really so, after all this time?')).toBeGreaterThan(q('Is it?')); // a longer question takes longer to answer
+    expect(q('That is so!')).toBeLessThan(q('That is so.'));
+    for (const cut of ['I was only going to say\u2014', 'Well, I mean...', 'No wait --']) { const g = q(cut); expect(g).toBeLessThan(0); expect(g).toBeGreaterThanOrEqual(-0.22); }
     expect(q('That is so.', true)).toBeGreaterThan(q('That is so.') + 0.2);
     expect(turnGap({ text: 'A', laugh: false, same: false }, 'B', cool)).toBe(turnGap({ text: 'A', laugh: false, same: false }, 'B', cool));
     const picks = Array.from({ length: 40 }, (_, i) => turnGap({ text: `What was that number ${i}?`, laugh: false, same: false }, `It was ${i}.`, hot));
