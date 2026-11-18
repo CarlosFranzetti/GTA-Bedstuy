@@ -79,7 +79,29 @@ export function buildExtras(parts: CarParts, look: CarLook, style: string, near:
         }
         break;
       }
+      case 'cone': {
+        // ice-cream truck: an upside-down waffle cone with two pink / cream scoops on a small plinth, standing on the roof ahead of the middle
+        const z = -(u0 - 0.15 * (u0 - u1)), r = Math.min(0.24, hw * 0.28);
+        out.push(colored(bx(r * 2.6, 0.05, r * 2.6, 0, y + 0.025, z), 0x2a2d31));
+        out.push(colored(new THREE.ConeGeometry(r, r * 2.6, near ? 10 : 6).rotateX(Math.PI).translate(0, y + 0.05 + r * 1.3, z), 0xc89a5a));
+        out.push(colored(new THREE.SphereGeometry(r * 1.05, near ? 10 : 6, near ? 6 : 4).translate(0, y + 0.05 + r * 2.8, z), 0xf2a6c0));
+        out.push(colored(new THREE.SphereGeometry(r * 0.75, near ? 8 : 6, near ? 5 : 4).translate(0, y + 0.05 + r * 3.9, z), 0xf6efdc));
+        break;
+      }
       default: break;
+    }
+    const add = look.add ?? 0;
+    if ((add & 1) && a.deck) {
+      // aftermarket lip spoiler on the deck or roof edge, two small posts
+      const d = a.deck;
+      out.push(colored(bx(2 * d.hw, 0.026, 0.15, 0, d.y + 0.05, d.z), 0x1d2025));
+      for (const s of [-1, 1]) out.push(colored(bx(0.03, 0.05, 0.05, s * d.hw * 0.7, d.y + 0.02, d.z), 0x1d2025));
+    }
+    if ((add & 2) && a.nose) {
+      // grille guard: a bar frame standing 8 cm off the nose
+      const n = a.nose, zz = n.z - 0.08, hh = n.y1 - n.y0, hw2 = n.hw * 0.62;
+      for (const s of [-1, 0, 1]) out.push(colored(bx(0.045, hh, 0.045, s * hw2, n.y0 + hh / 2, zz), 0x1a1c20));
+      for (const f of [0.1, 0.9]) out.push(colored(bx(2 * hw2, 0.05, 0.05, 0, n.y0 + hh * f, zz), 0x1a1c20));
     }
     if (style === 'cab') out.push(colored(bx(0.12, 0.012, 0.075, 0, a.hoodFront.y + 0.004, a.hoodFront.z), 0xcfd4d9)); // medallion plate on the hood
     // bumper stickers on the rear face

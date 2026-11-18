@@ -5,7 +5,7 @@
  * mesh keeps), trousers, top, each with a soft edge. Fabric texture is low-contrast weave and mottling, never per-texel noise.
  * No letters, logos or brand marks anywhere: the "badge" is a plain plate, a hi-vis band is a plain reflective strip.
  */
-import { HEM_Y } from '@/entities/models/pedLegs';
+import { CROP_UP, HEM_Y } from '@/entities/models/pedLegs';
 import { shortsLen } from './ped';
 import { Px, g2, ln, sst, band, hash, vn2, rnd, mixc, mulc, type Look, type Tex, type RGB } from './pedPaintShared';
 
@@ -124,7 +124,7 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
   const phi = leg ? limbPhi(K, t, false) : Math.atan2(x, -(t.z - K.torsoZ));
   const U = phi * (leg ? 0.075 : 0.17);
   c.set(K.botC);
-  const denim = kind === 'jeans';
+  const denim = kind === 'jeans' || !!bot.denim, cut = bot.cut, sports = kind === 'shorts' && (cut === 'long' || cut === 'run');
   // fabric
   if (denim) {
     c.mul(1 + 0.03 * Math.sin((U + y) * 760) + 0.1 * (vn2(U * 38, y * 90, 71) - 0.5));
@@ -137,8 +137,8 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
       c.mul(1 - 0.12 * Math.max(0, Math.sin(y * 260 + phi * 3)) * g2(y - K.knY + 0.03, 0.03) * sst(2.4, 3.1, Math.abs(phi)));       // honeycomb behind the knee
     }
   } else if (kind === 'trousers') {
-    c.mul(1 + 0.03 * Math.sin((U - y) * 640) + 0.06 * (vn2(U * 50, y * 50, 73) - 0.5));
-    if (leg) c.mul(1 - 0.22 * g2(Math.abs(phi) - 0.0, 0.03) * sst(K.hipY - 0.05, K.hipY - 0.3, y) * sst(K.anY + 0.02, K.anY + 0.1, y)).lite(0.06 * g2(Math.abs(phi) - 0.16, 0.05) * sst(K.hipY - 0.05, K.hipY - 0.3, y));   // a pressed front crease with a lit edge beside it
+    c.mul(1 + (cut === 'cuffed' ? 0.02 : 0.03) * Math.sin((U - y) * 640) + 0.06 * (vn2(U * 50, y * 50, 73) - 0.5));
+    if (leg && cut !== 'cuffed') c.mul(1 - 0.22 * g2(Math.abs(phi) - 0.0, 0.03) * sst(K.hipY - 0.05, K.hipY - 0.3, y) * sst(K.anY + 0.02, K.anY + 0.1, y)).lite(0.06 * g2(Math.abs(phi) - 0.16, 0.05) * sst(K.hipY - 0.05, K.hipY - 0.3, y));   // a pressed front crease with a lit edge beside it
   } else if (kind === 'cargo') {
     c.mul(1 + 0.035 * Math.sin(U * 650) * Math.sin(y * 650) + 0.1 * (vn2(U * 42, y * 42, 74) - 0.5));
   } else if (kind === 'leggings') {
@@ -150,6 +150,7 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
   } else {
     c.mul(1 + 0.04 * (vn2(U * 40, y * 40, 77) - 0.5));       // skirt
   }
+  if (sports) c.mul(1 + 0.05 * Math.sin(U * 900) * Math.sin(y * 500));              // a slick sports mesh
   const stitch = (d: number, w: number, s: number): number => ln(d, w) * (0.45 + 0.55 * sst(0.1, 0.5, Math.sin(s * 520)));
   if (leg) {
     const outer = Math.abs(phi - 1.5708), inner = Math.abs(phi + 1.5708);
@@ -162,7 +163,7 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
       const kn = g2(y - (K.knY + 0.005), 0.034) * sst(1.1, 0.35, Math.abs(phi));
       c.mix([172, 190, 214], 0.2 * kn).lite(0.06 * kn * sst(0.45, 0.7, Math.sin((y - K.knY) * 420 + vn2(U * 90, y * 30, 79) * 4)));
     }
-    if (kind === 'jeans' || kind === 'trousers' || kind === 'cargo') {
+    if (kind === 'jeans' || kind === 'trousers' || kind === 'cargo' || (kind === 'shorts' && !sports)) {
       // the front pocket's slanted mouth on the upper thigh, stitched on denim
       const sl = phi * 0.075 - 0.03 + (y - (K.hipY - 0.02)) * 0.9, inPk = band(K.hipY - 0.15, K.hipY + 0.02, y, 0.004) * sst(0.5, 0.35, Math.abs(phi - 0.95) - 0.5 + 0.5) * sst(1.3, 1.0, phi) * sst(0.1, 0.3, phi);
       c.mul(1 - (denim ? 0.2 : 0.16) * ln(sl, 0.0028) * inPk);
@@ -171,7 +172,7 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
     if (denim) { c.mix(GOLD_STITCH, 0.55 * stitch(outer * 0.075 - 0.0055, 0.0018, y) + 0.55 * stitch(outer * 0.075 + 0.0055, 0.0018, y)); }
     if (kind === 'sweats' || kind === 'leggings') { }
     // cuff or hem
-    const hemY = kind === 'shorts' ? K.knY + shortsLen(bot.cut) : HEM_Y, d = y - hemY;      // 0.07 = HEM_Y in pedLegs.ts, the geometric cuff's lower edge (the cuff is 3 cm tall)
+    const hemY = kind === 'shorts' ? K.knY + shortsLen(bot.cut) : HEM_Y + (cut === 'crop' ? CROP_UP : 0), d = y - hemY;      // 0.07 = HEM_Y in pedLegs.ts, the geometric cuff's lower edge (the cuff is 3 cm tall)
     if (kind === 'sweats' || kind === 'cargo' && false) {
       if (d < 0.1) { const rib = 0.5 + 0.5 * Math.sin(U * 520); c.mix(K.botTrim, 0.85 * sst(0.095, 0.07, d)); c.mul(0.9 + 0.12 * rib * sst(0.095, 0.07, d)); }
       c.mul(1 - 0.16 * g2(d - 0.108, 0.01) * (kind === 'sweats' ? 1 : 0));
@@ -182,13 +183,23 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
       if (kind !== 'shorts') c.mul(1 - 0.12 * Math.max(0, Math.sin(d * 240 + phi * 2)) * sst(0.07, 0.0, d));                // a little bunching above the shoe
     }
     if (kind === 'shorts' && d < 0.05) c.mul(1 - 0.12 * ln(d - 0.025, 0.004));
-    if (kind === 'sweats') c.mix(K.botTrim, Math.min(0.92, ln(outer * 0.075, 0.0105) + 0.8 * ln(outer * 0.075 - 0.019, 0.0028)));          // a side stripe, two fingers wide, with a thin line beside it
-    if (kind === 'cargo') {
+    if ((kind === 'sweats' && cut !== 'cuffed') || sports) c.mix(K.botTrim, Math.min(0.92, ln(outer * 0.075, 0.0105) + 0.8 * ln(outer * 0.075 - 0.019, 0.0028)));          // a side stripe, two fingers wide, with a thin line beside it
+    if (cut === 'patch') {
+      // work trousers: a double-stitched patch over each knee
+      const kp = band(K.knY - 0.07, K.knY + 0.09, y, 0.004) * sst(1.05, 0.9, Math.abs(phi)), edge = Math.min(y - (K.knY - 0.07), K.knY + 0.09 - y, (1.0 - Math.abs(phi)) * 0.075);
+      c.mul(1 - 0.12 * kp).mix(mulc(K.botC, 0.62), 0.28 * kp).mix(GOLD_STITCH, 0.5 * ln(edge - 0.006, 0.0014) * kp);
+    }
+    if (kind === 'cargo' || (kind === 'shorts' && cut === 'pocket')) {
       // thigh pockets: flap with stitch and a button, on the outer side
       const py = K.knY + 0.2, inP = sst(0.55, 0.4, Math.abs(phi - 1.1)) * band(py - 0.075, py + 0.075, y, 0.004);
       c.mul(1 - 0.1 * inP);
       c.mul(1 - 0.22 * ln(y - (py + 0.012), 0.004) * sst(0.6, 0.3, Math.abs(phi - 1.1))).mix(GOLD_STITCH, 0.25 * stitch(y - (py + 0.03), 0.0015, phi) * sst(0.5, 0.3, Math.abs(phi - 1.1)));
       c.mix(METAL, 0.8 * g2(Math.hypot((phi - 1.1) * 0.075, y - (py + 0.012)), 0.004));
+    }
+    if (cut === 'crop' && d < 0.004) {
+      // a cropped leg ends above the ankle: sock or bare skin below the cuff
+      const sk = K.s.shoes.sock ? rgbOf(K.s.shoes.sock) : K.skin;
+      c.set(sk as RGB).mul(0.93 + 0.12 * sst(-0.02, 0.0, d)).mul(1 - 0.22 * g2(d + 0.001, 0.012));
     }
     // knees: soft folds and the front kneecap bunch
     c.mul(1 - 0.12 * Math.max(0, Math.sin((y - K.knY) * 190 + phi * 2)) * g2(y - K.knY, 0.05) * sst(1.4, 0.4, Math.abs(phi)) * (denim || kind === 'trousers' || kind === 'sweats' ? 1 : 0.5));
@@ -202,7 +213,7 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
     // waist and hips (the part of the trousers the top does not cover)
     const wy = K.hemTop - 0.012;
     if (kind === 'skirt') { c.mul(1 + 0.03 * Math.sin(phi * 40)); return; }
-    const beltOn = kind === 'jeans' || kind === 'trousers' || kind === 'cargo' || kind === 'shorts';
+    const beltOn = kind === 'jeans' || kind === 'trousers' || kind === 'cargo' || (kind === 'shorts' && !sports);
     const fr = sst(-0.045, -0.11, t.z);
     if (beltOn) {
       const bandD = y - wy;
@@ -241,7 +252,7 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
         }
       }
     }
-    if (kind === 'sweats' && y > K.hemTop - 0.04) {
+    if ((kind === 'sweats' || sports) && y > K.hemTop - 0.04) {
       // elastic waist with a drawstring and its knot
       c.mix(K.botTrim, 0.4 * sst(K.hemTop - 0.045, K.hemTop - 0.02, y)).mul(1 - 0.12 * ln(y - (K.hemTop - 0.03), 0.004));
       c.mix([226, 222, 210], 0.85 * g2(Math.hypot(ax - 0.014, (y - (K.hemTop - 0.03)) * 1.2), 0.0055) * fr);
@@ -266,7 +277,7 @@ export function paintTop(K: Look, t: Tex, c: Px, arm: boolean, leg: boolean, nec
   const front = fr0;
   const fabric = (arm ? (outerArms ?? K.topC) : K.topC);
   const trimC = K.trimC, open = K.open, underC = K.underC;
-  const zipped = !open && (k === 'hoodie' || k === 'jacket' && top.zip || k === 'puffer' || k === 'tracksuit' || k === 'cardigan' && false);
+  const sty = top.style, zipped = !open && (k === 'hoodie' && top.zip !== false || k === 'jacket' && top.zip || k === 'puffer' || k === 'tracksuit' || k === 'uniform' && !!top.zip);
   c.set(fabric);
   weave(K, U, y, c, t);
   // ------------------------------------------------------------ patterns that follow the body
@@ -316,7 +327,7 @@ export function paintTop(K: Look, t: Tex, c: Px, arm: boolean, leg: boolean, nec
     c.mul(1 - 0.28 * ln(Math.abs(y - (hemTop + 0.12)) - 0.02, 0.0025));
   }
   if (k === 'uniform' && tor) {
-    if (y > shY - 0.025 && ax > shX * 0.55 && ax < shX + 0.01 && tor) c.mix(trimC, 0.65);                                       // epaulettes
+    if (sty !== 'boiler' && y > shY - 0.025 && ax > shX * 0.55 && ax < shX + 0.01 && tor) c.mix(trimC, 0.65);                                       // epaulettes
     if (top.tie && ax < 0.011 * (1 + 0.5 * sst(shY - 0.1, shY - 0.25, y)) && y < shY + 0.02 && y > shY - 0.3 && front > 0.5) c.mix(rgbOf(top.tie), 0.95);
     // chest pockets with a flap
     if (frontish) for (const sd of [-1, 1]) {
@@ -325,7 +336,7 @@ export function paintTop(K: Look, t: Tex, c: Px, arm: boolean, leg: boolean, nec
       c.mul(1 - 0.18 * ln(py + 0.04, 0.0025) * band(-0.034, 0.034, px, 0.003)).mul(1 - 0.18 * ln(Math.abs(px) - 0.034, 0.0025) * band(-0.04, 0.032, py, 0.003));
     }
     const bx = x + 0.075, by = y - (shY - 0.14);
-    if (bx * bx + by * by * 1.4 < 0.0004 && front > 0.5) c.mix([208, 184, 96], 0.95).mul(1 - 0.12 * g2(Math.hypot(bx, by) - 0.017, 0.003));      // a plain badge plate
+    if (sty !== 'boiler' && bx * bx + by * by * 1.4 < 0.0004 && front > 0.5) c.mix([208, 184, 96], 0.95).mul(1 - 0.12 * g2(Math.hypot(bx, by) - 0.017, 0.003));      // a plain badge plate
   }
   if (k === 'scrubs' && frontish) {
     const px = x + 0.085, py = y - (shY - 0.25), inP = band(-0.032, 0.032, px, 0.003) * band(-0.04, 0.03, py, 0.003);
@@ -407,7 +418,7 @@ export function paintTop(K: Look, t: Tex, c: Px, arm: boolean, leg: boolean, nec
     c.mul(1 - 0.12 * inP).mul(1 - 0.3 * ln(py - 0.016, 0.0024) * band(-0.035, 0.035, px, 0.003)).mul(1 + 0.04 * ln(py + 0.016, 0.003) * band(-0.035, 0.035, px, 0.003));
     void w;
   }
-  if ((k === 'blouse' || k === 'cardigan' || k === 'uniform' || k === 'scrubs') && tor && front > 0.3 && !open) {
+  if ((k === 'blouse' || k === 'cardigan' || k === 'uniform' && sty !== 'boiler' || k === 'scrubs' || (k === 'dress' && sty === 'shirtdress')) && tor && front > 0.3 && !open) {
     // a placket and its buttons (cardigan: a knit band)
     const pw = k === 'cardigan' ? 0.021 : 0.014;
     const cardi = k === 'cardigan';
@@ -435,6 +446,48 @@ export function paintTop(K: Look, t: Tex, c: Px, arm: boolean, leg: boolean, nec
     c.mix(trimC, 0.9 * ln(Math.abs(ax - (shX * 0.8)) - 0.0, 0.004) * sst(shY - 0.03, shY - 0.2, y) * 0);          // armhole piping
   }
 
+  // ------------------------------------------------------------ PEOPLE6: the cut inside the kind (pocket, placket, tie, belt, rib, trim bands)
+  if (sty && tor) {
+    const dnS = neckY - y, wy2 = K.hipY + 0.1;
+    if (sty === 'pocket' && frontish) {
+      const px = x - 0.07, py = y - (shY - 0.2), inP = band(-0.032, 0.032, px, 0.003) * band(-0.034, 0.03, py, 0.003);
+      c.mul(1 - 0.07 * inP).mul(1 - 0.2 * ln(py + 0.034, 0.0025) * band(-0.032, 0.032, px, 0.003)).mul(1 - 0.16 * ln(Math.abs(px) - 0.032, 0.0025) * band(-0.034, 0.03, py, 0.003)).mix(mulc(fabric, 0.6), 0.25 * stitchL(py - 0.03, 0.0012, px) * band(-0.03, 0.03, px, 0.003));
+    }
+    if (sty === 'polo' && front > 0.4 && ax < 0.02 && dnS < 0.11 && dnS > -0.01) {
+      const pl = sst(0.0175, 0.0155, ax);
+      c.mix(mulc(fabric, 0.9), 0.5 * pl).mul(1 - 0.2 * ln(ax - 0.0166, 0.0018));
+      for (const by of [neckY - 0.034, neckY - 0.07]) c.mix(mulc(fabric, 0.45), 0.9 * g2(Math.hypot(ax, y - by), 0.0036));
+    }
+    if (top.tie && k === 'blouse' && front > 0.5 && y < neckY + 0.005 && y > hemTop + 0.1) {
+      const tw = 0.0058 * (0.9 + 0.5 * sst(neckY - 0.04, hemTop + 0.36, y));
+      c.mix(rgbOf(top.tie), 0.96 * sst(tw, tw - 0.002, ax)).mul(1 - 0.2 * g2(y - (neckY - 0.03), 0.004) * sst(tw, 0, ax));
+    }
+    if (sty === 'trench') {
+      const belt = band(wy2 - 0.022, wy2 + 0.022, y, 0.004);
+      c.mix(mulc(fabric, 0.78), 0.9 * belt).mul(1 - 0.22 * ln(Math.abs(y - wy2) - 0.022, 0.003)).mix(METAL, 0.9 * g2(Math.hypot(ax - 0.0, (y - wy2) * 0.9), 0.007) * (frontish ? 1 : 0));
+      if (frontish) for (const by of [shY - 0.2, shY - 0.3, shY - 0.4]) c.mix(mulc(fabric, 0.5), 0.9 * g2(Math.hypot(ax - 0.048, y - by), 0.0045));
+      if (y > shY - 0.03 && ax > shX * 0.5 && ax < shX + 0.01) c.mix(mulc(fabric, 1.12), 0.5).mul(1 - 0.2 * ln(Math.abs(y - (shY - 0.03)) - 0.0, 0.003));
+    }
+    if (sty === 'boiler') {
+      c.mul(1 - 0.18 * ln(y - wy2, 0.0035)).mix(mulc(fabric, 0.8), 0.4 * band(wy2 - 0.02, wy2 + 0.02, y, 0.003));
+      if (frontish) for (const sd of [-1, 1]) { const px = x * sd - 0.08, py = y - (shY - 0.19), inP = band(-0.034, 0.034, px, 0.003) * band(-0.036, 0.03, py, 0.003); c.mul(1 - 0.08 * inP).mul(1 - 0.22 * ln(py + 0.036, 0.0025) * band(-0.034, 0.034, px, 0.003)); }
+    }
+    if (sty === 'kaftan') {
+      // an embroidered band at the neck and down the front, a plain band at the hem
+      const nb = sst(0.06, 0.054, dnS) * sst(-0.006, 0.0, dnS), fb = front > 0.3 && ax < 0.03 && dnS > 0 && dnS < 0.42 ? sst(0.03, 0.026, ax) : 0;
+      c.mix(trimC, 0.85 * Math.max(nb, fb)).mul(1 + 0.08 * Math.sin(y * 500) * Math.max(nb, fb));
+    }
+    if (sty === 'wrap') {
+      // a crossing front: the facing runs from the shoulder down to the opposite hip
+      const dg = (x * 0.9 + (y - neckY) * 0.35) * (front > 0.2 ? 1 : 0.0);
+      c.mul(1 - 0.3 * ln(dg - 0.0, 0.0035) * sst(neckY - 0.3, neckY, y) * sst(0.2, 0.5, front)).mix(mulc(fabric, 0.82), 0.15 * sst(0.0, 0.1, dg) * sst(0.2, 0.5, front) * sst(neckY - 0.3, neckY, y));
+      c.mix(trimC, 0.8 * band(wy2 + 0.04 - 0.012, wy2 + 0.04 + 0.012, y, 0.003));
+    }
+  }
+  if (sty === 'kaftan' && arm && sleeves !== 'none') c.mix(trimC, 0.8 * sst(0.045, 0.038, y - sleeveEnd) * sst(-0.01, 0.0, y - sleeveEnd));
+  if (sty === 'football' && arm) c.mix(trimC, 0.9 * ln(Math.abs(phi - 1.5708) * 0.045, 0.012) * sst(shY - 0.15, shY - 0.05, y));
+  if (sty === 'blazer' && tor && front > 0.3) c.mul(1 - 0.04 * g2(ax - 0.12, 0.02));
+
   // ------------------------------------------------------------ collar, neckline, rib
   const ribLike = k === 'hoodie' || k === 'puffer' || k === 'tracksuit' || (k === 'jacket' && K.fabric !== 'wool' && K.fabric !== 'denim' && K.fabric !== 'canvas' && K.fabric !== 'leather') || k === 'cardigan';
   const ribC = mixc(K.trimC, fabric, k === 'tracksuit' ? 0.5 : 0.3);
@@ -460,7 +513,7 @@ export function paintTop(K: Look, t: Tex, c: Px, arm: boolean, leg: boolean, nec
     }
   }
   // sleeve ends, hems: ribbed on sweatshirts and puffers, turned and stitched elsewhere
-  const rib2 = ribLike && k !== 'jacket' || (k === 'jacket' && ribLike && open);
+  const rib2 = ribLike && k !== 'jacket' || (k === 'jacket' && ribLike && open) || sty === 'bomber' || sty === 'sweater' || sty === 'track';
   if (arm && sleeves !== 'none') {
     const d = y - sleeveEnd;
     if (sleeves === 'long' && d < 0.055) {

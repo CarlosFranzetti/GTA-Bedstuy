@@ -613,6 +613,9 @@ export interface CarAnchors {
   sign?: THREE.Vector3;
   /** exhaust tip x */
   exX: number;
+  /** CARS2: where a deck / roof-edge spoiler sits (y of the surface, z, half width) and the nose face (z of its plane, lowest and highest y, half width) for a grille guard */
+  deck?: { y: number; z: number; hw: number };
+  nose?: { z: number; y0: number; y1: number; hw: number };
 }
 
 
@@ -2577,6 +2580,8 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
       rgQuad: rg && st.glassTop === undefined && !bed && !hatchy ? quad(rg[1] + 0.2, rg[1] + 0.06, 1, 2) : null,
       hoodFront: v3(0, ring(hoodFrontU - 0.05).yT + 0.012, -(hoodFrontU - 0.05)),
       exX,
+      deck: ((u) => ({ y: ring(u).yT + 0.01, z: -u, hw: (hatchy && rg ? ring(u).wR - 0.06 : ring(u).wMax - 0.17) }))(hatchy && rg ? rg[0] - 0.08 : tipR + 0.2),
+      nose: { z: -tipF, y0: endF.yBot + 0.05, y1: endF.yTop - 0.04, hw: trF.wMax },
     };
   }
   return parts;

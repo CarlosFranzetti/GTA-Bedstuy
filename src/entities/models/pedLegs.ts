@@ -35,6 +35,8 @@ const CUT: Record<string, { taper: number; size: number }> = {
 };
 /** the hem's lower edge above the ground (7 cm: the shoe shows 6 to 8 cm below it from the game camera), the cuff lip's height and how far it stands proud of the leg */
 export const HEM_Y = 0.07, CUFF_H = 0.03, CUFF_OUT = 0.008;
+/** a cropped leg's cloth ends this far above HEM_Y; below it an ankle tube (sock or skin, painted) runs down to the shoe */
+export const CROP_UP = 0.085;
 /** the thigh never exceeds this share of the hip width (the extra mass of a heavy build goes to the seat and the belly) */
 export const THIGH_OF_HIP = 0.55;
 
@@ -115,7 +117,7 @@ export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array,
   let crotchY = Infinity;
   for (let i = 0; i < n; i++) { const y = L.position[i * 3 + 1]; if (y > kneeY + 0.12 * K && y < hipY && Math.abs(L.position[i * 3]) < 0.016 && legWeight(L, i) > 0.4) crotchY = Math.min(crotchY, y); }
   if (!isFinite(crotchY)) crotchY = hipY - 0.17 * K;
-  const ySeat = crotchY, yh = HEM_Y;
+  const ySeat = crotchY, crop = spec.bottom.cut === 'crop' ? CROP_UP : 0, yh = HEM_Y + crop;
   // measured thigh of the base shape near the seat (its own rings), the hip width of the dressed body
   const rs = [...s.legRings.thigh, ...s.legRings.shin].filter((r) => r).sort((p, q) => p[0] - q[0]);
   const ringAt = (y: number): number[] => { let i = 1; while (i < rs.length - 1 && rs[i][0] < y) i++; const A = rs[i - 1], B = rs[i], t = Math.min(1, Math.max(0, (y - A[0]) / Math.max(1e-6, B[0] - A[0]))); return [0, 1, 2, 3, 4].map((k) => (A[k] ?? 0) * (1 - t) + (B[k] ?? 0) * t); };
@@ -184,14 +186,18 @@ export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array,
     const slope = taper * rxS / (ySeat - yh);
     const wall = (ys: number[], grow = 0): Row[] => ys.map((y) => ({ ...row(y, grow), up: slope }));
     addStrip(out, wall(thighY), { seg, mir, skin, uv: (u, i) => tileUv(SK_TILES.thigh, u, (thighY[i] - kneeY) / (chartTop - kneeY)) });
-    const shinFt = (y: number): number => (y - yh) / (kneeY - yh);
+    const shinFt = (y: number): number => (y - HEM_Y) / (kneeY - HEM_Y);
     addStrip(out, wall(shinY), { seg, mir, skin, uv: (u, i) => tileUv(SK_TILES.shin, u, shinFt(shinY[i])) });
+    if (crop > 0) {
+      const ra = Math.max(0.022, an[1] * 0.92), rza = Math.max(0.026, an[3] * 0.92), arow = (y: number): Row => ({ y, rx: ra, rz: rza, cx: side * cx, cz: czA, up: 0 });
+      addStrip(out, [arow(yh - 0.004), arow(HEM_Y)], { seg, mir, skin, uv: (u, i) => tileUv(SK_TILES.shin, u, shinFt(i ? HEM_Y : yh - 0.004)) });
+    }
     // the hem: a flat step out to the cuff lip, the lip's wall, and its underside, each its own strip so the edges are hard
     if (detail === 'far') continue;
     const flat = (g0: number, g1: number, up: number): Row[] => [{ ...row(cuffTop, g0), up }, { ...row(cuffTop, g1), up }];
     addStrip(out, flat(0, CUFF_OUT, 1), { seg, mir, skin, uv: (u) => tileUv(SK_TILES.shin, u, shinFt(cuffTop)) });
-    addStrip(out, [{ ...row(cuffTop, CUFF_OUT), up: 0 }, { ...row(yh, CUFF_OUT), up: 0 }], { seg, mir, skin, uv: (u, i) => tileUv(SK_TILES.shin, u, i ? 0 : shinFt(cuffTop)) });
-    addStrip(out, [{ ...row(yh, CUFF_OUT), up: -1 }, { ...row(yh, -0.004), up: -1 }], { seg, mir, skin, uv: (u) => tileUv(SK_TILES.shin, u, 0) });
+    addStrip(out, [{ ...row(cuffTop, CUFF_OUT), up: 0 }, { ...row(yh, CUFF_OUT), up: 0 }], { seg, mir, skin, uv: (u, i) => tileUv(SK_TILES.shin, u, i ? shinFt(yh) : shinFt(cuffTop)) });
+    addStrip(out, [{ ...row(yh, CUFF_OUT), up: -1 }, { ...row(yh, -0.004), up: -1 }], { seg, mir, skin, uv: (u) => tileUv(SK_TILES.shin, u, shinFt(yh)) });
   }
   // the thigh triangles that stay above the cut (the top of the old leg, in the old chart of the thigh tile) are re-charted with the tube's own mapping, so the two never overlap
   const reloc: number[] = [], rest: number[] = [];

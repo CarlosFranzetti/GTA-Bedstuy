@@ -3,7 +3,7 @@
  * shopping bag in hand, a handbag, a cane, a scarf and a chain (no pendant, no lettering). Bags hug the dressed body of the body type they are
  * on (their straps follow the shoulder ridge), the hand pieces take the wrist of the shifted rig.
  */
-import { BONE, MeshBuilder, NEUTRAL, SWATCH, add, blend, clearAny, cross, done, relax, hexLin, lerp, loftY, mul, norm, one, outerX, ribbon, ringPoint, sstep, sub, surfPt, topY, tube, type Ctx, type Piece, type V3, type Wfn } from './pedPiecesKit';
+import { BONE, MeshBuilder, NEUTRAL, SWATCH, rnd, add, blend, clearAny, cross, done, relax, hexLin, lerp, loftY, mul, norm, one, outerX, ribbon, ringPoint, sstep, sub, surfPt, topY, tube, type Ctx, type Piece, type V3, type Wfn } from './pedPiecesKit';
 
 export const ACCESSORY_IDS = ['glasses', 'sunglasses', 'headphones', 'earbuds', 'backpack', 'tote', 'messenger', 'shoppingBag', 'handbag', 'cane', 'scarf', 'chain', 'collar'] as const;
 export type AccessoryId = typeof ACCESSORY_IDS[number];
@@ -135,10 +135,12 @@ function scarf(ctx: Ctx, mb: MeshBuilder): void {
     for (let j = 0; j < cols; j++) { const be = (j / cols) * Math.PI * 2; row.push(ringPoint(ctx, lerp(y0, y1, t), be, off + 0.008 * Math.sin(be * 2 + t * 3) + 0.01 * (1 - front(be)) * t)); }
     P.push(row);
   }
-  mb.grid(P, { rect: GEAR, wrap: true, center: [0, lerp(y0, y1, 0.5), ctx.C[2]], W: torsoW, uv: (i, j, R, C) => [j / (C - 1), 0.3 + 0.4 * (i / (R - 1))], shade: (i, j) => 0.8 + 0.2 * (i / 2) + 0.05 * Math.sin(j * 1.7) });
+  // its own colour from the person (the gear swatch carries the bag's colour, which made a blue block on a hoodie)
+  const tint = hexLin(['#8a2a3a', '#2f3a58', '#c8a04a', '#4a5a3a', '#d8d4cc', '#6a4a6a', '#8a5a2a'][Math.floor(rnd(ctx.spec.id, 17) * 7)]);
+  mb.grid(P, { rect: NEUTRAL, tint, wrap: true, center: [0, lerp(y0, y1, 0.5), ctx.C[2]], W: torsoW, uv: () => [0.5, 0.5], shade: (i, j) => 0.8 + 0.2 * (i / 2) + 0.05 * Math.sin(j * 1.7) });
   // a tail hanging down the chest
   const tx = 0.03, pts = [0, 1, 2, 3].map((k) => surfPt(ctx, tx + 0.006 * k, y0 + 0.01 - 0.075 * k, 'front', 0.03 - 0.005 * k)), nrm = pts.map((): V3 => [0, 0, -1]);
-  ribbon(mb, pts, widthsAlong(pts, nrm), 0.026, { rect: GEAR, centre: [0, y0 - 0.1, ctx.C[2] + 0.2], W: torsoW, shade: 0.9, uvt: [0.5, 0.5] });
+  ribbon(mb, pts, widthsAlong(pts, nrm), 0.02, { rect: NEUTRAL, tint, centre: [0, y0 - 0.1, ctx.C[2] + 0.2], W: torsoW, shade: 0.9, uvt: [0.5, 0.5] });
 }
 
 /** collar shapes by garment style: stand height, how far it flares out, the half angle of the front opening (rad), the points / lapels hanging down the chest (length, 0 = none), fur */

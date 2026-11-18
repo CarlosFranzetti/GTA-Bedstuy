@@ -103,7 +103,10 @@ export function paintSwatches(img: Uint8ClampedArray, size: number, K: Look, R: 
   fill(img, size, R.pelvis, (u, v, o) => {
     o.set(botC).mul(0.9 + 0.1 * (vn2(u * 18, v * 18, 141) - 0.5));
     const pl = 0.5 + 0.5 * Math.sin(u * Math.PI * 2 * 9 + 0.7 * vn2(u * 6, v * 6, 142)), dp = K.bot.kind === 'skirt';
-    o.mul(dp ? 0.8 + 0.28 * pl : 0.9).mul(1 - 0.16 * g2(v - 0.04, 0.03));
+    const cut = K.bot.cut, pl2 = 0.5 + 0.5 * Math.sin(u * Math.PI * 2 * 19 + 0.5 * vn2(u * 6, v * 6, 143));
+    o.mul(dp ? (cut === 'pleated' ? 0.7 + 0.42 * pl2 : cut === 'pencil' || cut === 'wrap' ? 0.96 : 0.8 + 0.28 * pl) : 0.9).mul(1 - 0.16 * g2(v - 0.04, 0.03));
+    if (K.bot.denim) o.mul(1 + 0.03 * Math.sin(v * 760) + 0.08 * (vn2(u * 38, v * 90, 144) - 0.5));
+    if (cut === 'pencil' && v > 0.55) o.mul(1 - 0.28 * ln(u - 0.5, 0.006));
     if (v > 0.9) o.mul(1 - 0.18 * ln(v - 0.92, 0.02)).mul(1 - 0.1 * sst(0.9, 1.0, v));
   });
   // ---------------------------------------------------------------- the shoe

@@ -58,7 +58,7 @@ export const R3_OFFSETS = [588, 600, 610, 603, 590, 597, 555, 590, 586, 577, 912
 /** The R3 outline (grid metres, REAL_FRAME), computed once from R1R2_RING + R3_OFFSETS (sharp corners bevelled). Everything inside is the real map. */
 export const R3_RING: Vec2[] = [
   P(-1152.5, -1576), P(87, -1578.7), P(432.5, -1633), P(1552.8, -1946.3), P(2414.7, -1069.7), P(2775.5, -1063.9),
-  P(3159.9, -25.4), P(1683.1, 1271.3), P(1648, 1305.9), P(1180.8, 826), P(1231.2, 824), P(-1154.5, 824),
+  P(3159.9, -25.4), P(1683.1, 1271.3), P(1648, 1305.9), P(1178.9, 824), P(-1154.5, 824),
 ];
 
 /** Grow a simple polygon outward by d metres (miter joins, clamped to 3 d at sharp corners). */

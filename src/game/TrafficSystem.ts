@@ -134,19 +134,29 @@ const BASE_MIX: ReadonlyArray<readonly [VehicleType, number]> = [
   ['sedan', 0.21], ['cab', 0.28], ['crossover', 0.38], ['suv', 0.46], ['hatch', 0.53], ['beater', 0.6], ['pickup', 0.66], ['minivan', 0.71],
   ['luxury', 0.75], ['towncar', 0.79], ['pony', 0.81], ['cargovan', 0.86], ['dollarvan', 0.89], ['boxtruck', 0.93], ['bus', 0.97], ['garbage', 0.982], ['ambulance', 0.99],
 ];
-/** CARS14: share of all traffic per new type (sports cars about 6 % combined, the wedge pickup 0.5 %; set a share to 0 to keep a type parked/player-only). */
+/** CARS14: share of all traffic per sports / electric type (released in CARS2 after the traffic suites passed with them: about 7.7 % together). */
 export const CARS14_TRAFFIC_SHARE: Readonly<Record<string, number>> = {
-  // Held at 0 (parked / player-only) until the Engine team clears the traffic tests with these types: intended shares are
-  // coupe911 0.012, hothatch 0.015, jdmcoupe 0.012, muscle 0.012, evsedan 0.015, exotic 0.006, wedgetruck 0.005.
-  coupe911: 0, hothatch: 0, jdmcoupe: 0, muscle: 0, evsedan: 0, exotic: 0, wedgetruck: 0,
+  coupe911: 0.012, hothatch: 0.015, jdmcoupe: 0.012, muscle: 0.012, evsedan: 0.015, exotic: 0.006, wedgetruck: 0.005,
 };
-const TRAFFIC_MIX: ReadonlyArray<readonly [VehicleType, number]> = (() => {
-  const extra = Object.values(CARS14_TRAFFIC_SHARE).reduce((a, b) => a + b, 0);
-  const out: [VehicleType, number][] = BASE_MIX.map(([t, e]) => [t, e * (1 - extra)]);
-  let edge = 1 - extra;
-  for (const [t, w] of Object.entries(CARS14_TRAFFIC_SHARE)) { if (w > 0) { edge += w; out.push([t as VehicleType, edge]); } }
-  return out;
-})();
+/** CARS2: share of all traffic per era street type (15 % together; the long ones, limo 7.8 m and step van 6.4 m, stay under 1 % and 1 %). */
+export const CARS2_TRAFFIC_SHARE: Readonly<Record<string, number>> = {
+  wagon: 0.025, bigsuv: 0.02, minitruck: 0.018, panelvan: 0.015, taxivan: 0.02, limo: 0.006, classic: 0.012, donk: 0.008, copsuv: 0.004, convertible: 0.01, stepvan: 0.01, icecream: 0.004,
+};
+/** Parked-car multiplier on a type's share (default 1): old cars and wagons are kerb cars, a limo or a police SUV is rarely left on a street. */
+export const PARK_WEIGHT: Readonly<Record<string, number>> = { classic: 2.5, donk: 2.5, wagon: 1.6, minitruck: 1.4, taxivan: 0.4, limo: 0.5, copsuv: 0.4, exotic: 0.5, icecream: 1.5, convertible: 1.3 };
+function cumulative(parked: boolean): ReadonlyArray<readonly [VehicleType, number]> {
+  const extra: [string, number][] = [...Object.entries(CARS14_TRAFFIC_SHARE), ...Object.entries(CARS2_TRAFFIC_SHARE)];
+  const baseShare = BASE_MIX.map(([t, e], k) => [t, e - (k ? BASE_MIX[k - 1][1] : 0)] as [VehicleType, number]);
+  const baseTotal = BASE_MIX[BASE_MIX.length - 1][1];
+  const scale = (1 - extra.reduce((a, [, w]) => a + w, 0)) / baseTotal;
+  const list: [VehicleType, number][] = [...baseShare.map(([t, w]) => [t, w * scale] as [VehicleType, number]), ...extra.map(([t, w]) => [t as VehicleType, w] as [VehicleType, number])];
+  const weighted = list.map(([t, w]) => [t, w * (parked ? PARK_WEIGHT[t] ?? 1 : 1)] as [VehicleType, number]);
+  const tot = weighted.reduce((a, [, w]) => a + w, 0);
+  let edge = 0;
+  return weighted.map(([t, w]) => [t, (edge += w / tot)] as const);
+}
+const TRAFFIC_MIX = cumulative(false);
+const PARKED_MIX = cumulative(true);
 const PED_COUNT = 40;
 const MAX_TRAFFIC = 30;
 const DEFAULT_PARK_OCCUPANCY_SHARE = 0.65;
@@ -676,7 +686,7 @@ export class TrafficSystem {
   /** Traffic mix (a cab is its own type, always taxi yellow); the bus only drives, it is never parked at a kerb. */
   private pickType(moving = false): VehicleType {
     const r = this.rng.next();
-    for (const [t, edge] of TRAFFIC_MIX) {
+    for (const [t, edge] of moving ? TRAFFIC_MIX : PARKED_MIX) {
       if (r >= edge) continue;
       // buses, refuse trucks and ambulances only drive, they are never parked at a kerb
       return !moving && (t === 'bus' || t === 'garbage' || t === 'ambulance') ? 'hatch' : t;

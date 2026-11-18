@@ -448,7 +448,7 @@ export function dressLod(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): M
   const covered = isCoveredLeg(spec.bottom.kind), detail: LegDetail = L === s.lods.hi ? 'hi' : L === s.lods.mid ? 'mid' : L === s.lods.far ? 'far' : L.index.length / 3 > 2200 ? 'hi' : L.index.length / 3 > 700 ? 'mid' : 'far';
   if (dress) {
     const top = spec.top, bot = spec.bottom;
-    const tk = (THICK_SKIN[top.kind] ?? 0), tb = THICK_BOT_SKIN[bot.kind] ?? 0, hemTop = topHemY(s, spec);
+    const tk = (THICK_SKIN[top.kind] ?? 0), tb = (THICK_BOT_SKIN[bot.kind] ?? 0) + (bot.kind === 'shorts' ? (bot.cut === 'long' ? 0.024 : bot.cut === 'pocket' ? 0.012 : 0) : 0), hemTop = topHemY(s, spec);
     const sleeveCut = top.sleeves === 'short' ? elY + (shY - elY) * 0.42 : top.sleeves === 'long' ? wrY + 0.06 : (top.kind === 'jersey' ? shY - 0.05 : 9);
     const baggy = ['puffer', 'hoodie', 'jacket', 'cardigan', 'tracksuit'].includes(top.kind);
     const shortsEnd = knY + shortsLen(bot.cut) + 0.01;

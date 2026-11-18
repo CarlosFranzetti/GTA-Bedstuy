@@ -108,11 +108,11 @@ export const PAINT_VARIANTS: Record<VehicleType, readonly string[]> = {
   bigsuv: PALETTES.bigsuv.slice(0, 4).map((e) => e.color),
   minitruck: PALETTES.minitruck.slice(0, 4).map((e) => e.color),
   panelvan: PALETTES.panelvan.slice(0, 4).map((e) => e.color),
-  taxivan: PALETTES.taxivan.slice(0, 4).map((e) => e.color),
+  taxivan: ['#e0b01e', '#e0b01e'],
   limo: PALETTES.limo.slice(0, 4).map((e) => e.color),
   classic: PALETTES.classic.slice(0, 4).map((e) => e.color),
   donk: PALETTES.donk.slice(0, 4).map((e) => e.color),
-  copsuv: PALETTES.copsuv.slice(0, 4).map((e) => e.color),
+  copsuv: ['#f2f2f2', '#f2f2f2'],
   convertible: PALETTES.convertible.slice(0, 4).map((e) => e.color),
   stepvan: PALETTES.stepvan.slice(0, 4).map((e) => e.color),
   icecream: PALETTES.icecream.slice(0, 4).map((e) => e.color),
@@ -506,7 +506,7 @@ export function pruneSmallTriangles(g: THREE.BufferGeometry, max: number): THREE
 function detailsGeo(parts: CarParts, lv: CarLevel = 'full', look?: CarLook, style = ''): THREE.BufferGeometry {
   let byLook = detailsCache.get(parts);
   if (!byLook) { byLook = new Map(); detailsCache.set(parts, byLook); }
-  const lk = look ? `${look.roof}|${look.stickers.join('.')}|${look.rideshare}` : '';
+  const lk = look ? `${look.roof}|${look.stickers.join('.')}|${look.rideshare}|${look.add ?? 0}` : '';
   let out = byLook.get(lk);
   if (out) return out;
   const list: THREE.BufferGeometry[] = [];
@@ -628,7 +628,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   // livery pack (vans, ambulance, dollar van, bus ads) and the paint overlay of this car's wear
   let pack: number | undefined;
   if (look) {
-    if (st === 'cargo' && look.livery > 0) pack = 9 + look.livery;
+    if ((st === 'cargo' || st === 'panelvan') && look.livery > 0) pack = 9 + look.livery;
     else if (st === 'bus') pack = look.livery % 4;
   }
   if (st === 'ambulance') pack = 20; else if (st === 'dollar') pack = 21;

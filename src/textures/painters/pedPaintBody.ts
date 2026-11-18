@@ -21,7 +21,7 @@ export function paintBody(K: Look, t: Tex, o: Px): void {
   const sleeveEnd = sleeves === 'short' ? K.elY + (shY - K.elY) * 0.42 : sleeves === 'long' ? K.wrY + 0.012 : k === 'jersey' ? shY - 0.05 : 9;
   const front = (zz: number): number => sst(-0.045, -0.11, zz);
   const fr0 = front(z);
-  const cdip = k === 'scrubs' ? 0.075 : k === 'blouse' ? 0.04 : k === 'dress' ? 0.045 : k === 'uniform' ? 0.02 : k === 'jersey' ? 0.04 : k === 'tee' ? 0.032 : 0.008;
+  const cdip = k === 'scrubs' ? 0.075 : k === 'blouse' ? 0.04 : k === 'dress' ? (top.style === 'wrap' ? 0.1 : 0.045) : k === 'uniform' ? 0.02 : k === 'jersey' ? 0.04 : k === 'tee' ? 0.032 : 0.008;
   const neckY = (k === 'hoodie' || k === 'puffer' || k === 'tracksuit' || k === 'jacket' ? 1.512 : 1.498) - cdip * fr0 * (1 - sst(0.04, 0.1, ax))
     + (K.open && fr0 > 0.3 ? -0.05 * (1 - sst(0.0, 0.09, ax)) : 0) + 0.03 * sst(0.05, 0.1, ax);
   const shoeTop = K.shoeTop;

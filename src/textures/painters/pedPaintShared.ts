@@ -116,7 +116,7 @@ export function makeLook(b: BakeInput) {
       case 'vest': case 'apron': return 'canvas';
     }
   })();
-  const shoeStyle: ShoeStyle = s.shoes.high ? 'boot' : ((k === 'jacket' || k === 'uniform' || k === 'blouse') && bot.kind === 'trousers' && rgb(s.shoes.color)[0] < 60) ? 'dress' : 'sneaker';
+  const sk = s.shoes.kind, shoeStyle: ShoeStyle = sk ? (sk === 'workBoot' || sk === 'tallBoot' ? 'boot' : sk === 'dressShoe' || sk === 'loafer' || sk === 'heel' || sk === 'flat' ? 'dress' : 'sneaker') : s.shoes.high ? 'boot' : ((k === 'jacket' || k === 'uniform' || k === 'blouse') && bot.kind === 'trousers' && rgb(s.shoes.color)[0] < 60) ? 'dress' : 'sneaker';
   // how worn the clothes are (work outfits more than office ones)
   const grime = 0.25 + 0.5 * hash(id + 'gr') + (k === 'vest' || bot.kind === 'cargo' ? 0.25 : 0);
   const sh = skin;

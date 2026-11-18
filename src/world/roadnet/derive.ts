@@ -29,7 +29,7 @@
  * Stubs, dead ends and pass-through nodes get no node polygon ([]); their ribbon simply ends at the node (cut 0).
  */
 import type { Vec2 } from '@/core/Math2';
-import { distance, segmentIntersection, signedArea } from './geom';
+import { distance, pointInPolygon, segmentIntersection, signedArea } from './geom';
 import type { RoadNet } from './RoadNet';
 import type { RoadClass } from './types';
 
@@ -195,6 +195,58 @@ export function isSimpleRing(ring: ReadonlyArray<Vec2>, eps = 1e-7): boolean {
     }
   }
   return true;
+}
+
+/**
+ * `ring` with its (at most two) vertices outside `outer` repaired: moved toward the ring's centroid (or to the nearest kerb point) until
+ * they are inside by 0.3 m, else dropped (a needle: the ring doubles back on itself). null when no variant is a simple ring inside `outer`.
+ */
+export function pullInside(ring: ReadonlyArray<Vec2>, outer: ReadonlyArray<Vec2>): Vec2[] | null {
+  const n = ring.length;
+  if (n < 4) return null; // a triangle with a vertex outside is a wedge: no building line
+  let cx = 0, cz = 0;
+  for (const p of ring) { cx += p.x; cz += p.z; }
+  cx /= n; cz /= n;
+  const bad = ring.map((p) => !pointInPolygon(p, outer));
+  if (bad.filter(Boolean).length > 2) return null;
+  const nearestKerb = (p: Vec2): Vec2 => {
+    let best = outer[0], bd = Infinity;
+    for (let k = 0; k < outer.length; k++) {
+      const a = outer[k], b = outer[(k + 1) % outer.length];
+      const dx = b.x - a.x, dz = b.z - a.z, l2 = dx * dx + dz * dz || 1;
+      const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / l2));
+      const c = { x: a.x + dx * t, z: a.z + dz * t };
+      const dd = (c.x - p.x) ** 2 + (c.z - p.z) ** 2;
+      if (dd < bd) { bd = dd; best = c; }
+    }
+    return best;
+  };
+  const variants: Array<(i: number) => Vec2 | null> = [
+    (i) => { // toward the centroid
+      let q = ring[i];
+      for (let k = 0; k < 60 && !pointInPolygon(q, outer); k++) q = { x: q.x + (cx - q.x) * 0.04, z: q.z + (cz - q.z) * 0.04 };
+      if (!pointInPolygon(q, outer)) return null;
+      for (let k = 0; k < 6; k++) q = { x: q.x + (cx - q.x) * 0.01, z: q.z + (cz - q.z) * 0.01 };
+      return pointInPolygon(q, outer) ? q : null;
+    },
+    () => null, // drop the vertex
+    (i) => { // nearest kerb point, 0.5 m toward the middle of the neighbours
+      const best = nearestKerb(ring[i]);
+      const pr = ring[(i - 1 + n) % n], nx = ring[(i + 1) % n];
+      const mx = (pr.x + nx.x) / 2 - best.x, mz = (pr.z + nx.z) / 2 - best.z, ml = Math.hypot(mx, mz) || 1;
+      for (const step of [0.5, 1, 2]) {
+        const q = { x: best.x + (mx / ml) * step, z: best.z + (mz / ml) * step };
+        if (pointInPolygon(q, outer)) return q;
+      }
+      return null;
+    },
+  ];
+  for (const fix of variants) {
+    const out: Vec2[] = [];
+    for (let i = 0; i < n; i++) { if (!bad[i]) out.push(ring[i]); else { const q = fix(i); if (q) out.push(q); } }
+    if (out.length >= 3 && signedArea(out) > 0.5 && isSimpleRing(out) && out.every((p) => pointInPolygon(p, outer))) return out;
+  }
+  return null;
 }
 
 function dedupe(ring: Vec2[], eps = 0.05): Vec2[] {
@@ -431,6 +483,12 @@ export function deriveGeometry(net: RoadNet, options: DeriveOptions = {}): Deriv
         if (ok) break;
       }
       if (ok) fallbackBuilding.push(i);
+    }
+    // MAP7: the edge-wise ring can leave the kerb ring at one or two vertices (a junction cluster on a very short edge, a Broadway wedge
+    // beside a big block). Pull such vertices toward the block's centre until they are inside; keep the result only if it is still simple.
+    if (ok && crOk && br.some((p) => !pointInPolygon(p, cr))) {
+      const pulled = pullInside(br, cr);
+      if (pulled) br = pulled;
     }
     buildingRings.push(ok ? br : []);
   }

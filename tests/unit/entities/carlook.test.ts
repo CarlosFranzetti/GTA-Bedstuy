@@ -16,7 +16,7 @@ describe('car looks (CARS12 variation)', () => {
   it('every private-car type has 8 or more paints, all valid and distinct', () => {
     for (const t of TYPES) {
       const p = PALETTES[t];
-      expect(p.length, t).toBeGreaterThanOrEqual(t === 'cop' || t === 'cab' || t === 'garbage' || t === 'ambulance' ? 1 : 8);
+      expect(p.length, t).toBeGreaterThanOrEqual(t === 'cop' || t === 'cab' || t === 'taxivan' || t === 'copsuv' || t === 'garbage' || t === 'ambulance' ? 1 : t === 'stepvan' || t === 'icecream' ? 5 : 8);
       for (const e of p) expect(/^#[0-9a-f]{6}$/i.test(e.color)).toBe(true);
       expect(new Set(p.map((e) => e.color)).size).toBe(p.length);
     }

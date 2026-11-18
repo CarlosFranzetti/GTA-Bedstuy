@@ -21,9 +21,14 @@ try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 300)); });
     page.on('pageerror', (e) => errors.push(String(e).slice(0, 300)));
-    await page.goto(`http://localhost:${port}/scripts/people-showcase.html?view=${v}${query ? '&' + query : ''}${vq ? '&' + vq : ''}`, { waitUntil: 'load', timeout: 120000 });
-    await page.waitForFunction(() => window.__ready, null, { timeout: 120000 });
-    const r = await page.evaluate(() => ({ info: window.__ready, data: document.querySelector('canvas').toDataURL('image/png') }));
+    let r = null;
+    for (let attempt = 0; attempt < 3 && !r; attempt++) {      // a dev server that re-optimises its dependencies reloads the page once
+      try {
+        await page.goto(`http://localhost:${port}/scripts/people-showcase.html?view=${v}${query ? '&' + query : ''}${vq ? '&' + vq : ''}`, { waitUntil: 'load', timeout: 120000 });
+        await page.waitForFunction(() => window.__ready, null, { timeout: 120000 });
+        r = await page.evaluate(() => ({ info: window.__ready, data: document.querySelector('canvas').toDataURL('image/png') }));
+      } catch (e) { if (attempt === 2) throw e; await new Promise((q) => setTimeout(q, 3000)); }
+    }
     writeFileSync(`${out}/${fname}${tag ? '-' + tag : ''}.png`, Buffer.from(r.data.split(',')[1], 'base64'));
     console.log(entry, JSON.stringify({ ...r.info, perPerson: undefined, bodies: undefined, maxTris: Math.max(0, ...Object.values(r.info.perPerson ?? {})) }));
     await page.close();

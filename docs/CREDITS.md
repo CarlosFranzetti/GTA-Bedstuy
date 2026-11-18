@@ -129,6 +129,19 @@ No recorded music is bundled in the repo. Candidate source checked by MUSIC on 2
 - NYC MapPLUTO, NYC Department of City Planning, via NYC Open Data, and NYC Building Footprints (DoITT/OTI), via NYC Open Data: the lots in `src/world/data/bedstuy.json` (width, storeys, class, year built, roof height) come from them via `scripts/fetch-pluto.mjs` and `scripts/import-pluto.mjs`; raw rows in `src/world/data/raw/`. Public data; credit kept.
 - Block descriptions in `docs/reference/BLOCKS.md` come from the public web pages named inline there (Brownstoner, New York YIMBY, GrowNYC, MTA Bus Time, Wikipedia, CityLand, listing sites). Facts only; no text or images copied. No Google Maps, Street View or Earth data is used anywhere.
 
+## Real map, R1 + R2 + R3 (`?map=real`, hosted and native builds only; MAP7, fetched 18 Nov 2026)
+
+All of it is NYC Open Data (City of New York), public datasets, fetched over the open Socrata endpoints without a token, a few pages of 2,500 to 5,000 rows 1.5 s apart, cached on disk under `cache/real-r3/` (git-ignored). No Google Maps or Street View data, and no OpenStreetMap data: `scripts/import-osm.mjs` and its ODbL credit above belong to the stylised grid map and are not used by the real map. Queries and row counts are in `src/world/data/raw/*-r3.query.json`.
+
+| Data | Dataset (data.cityofnewyork.us) | Query (what the import scripts send) | Used for |
+|---|---|---|---|
+| Street centrelines | NYC Centerline (CSCL) `inkn-q76z` | `within_box(the_geom, <R3 extent box>) AND boroughcode in ('3','4')`, fields physicalid, full_street_name, rw_type, status, trafdir, streetwidth, number_travel_lanes, level codes, truck route, carto level, posted_speed (`scripts/import-streets.mjs --r3`; first two rings fetched 11 Nov 2026 by the same script) | `src/world/data/roadnet-r123.json` (streets, widths, one-way, lanes, diagonals, blocks) |
+| Tax lots | NYC DCP MapPLUTO `64uk-42ks` | `borough='BK' AND latitude/longitude between <R3 extent box>` (`scripts/import-lots-real.mjs --r3`): address, bbl, bldgclass, landuse, lotarea, lotfront, lotdepth, bldgfront, bldgdepth, numfloors, yearbuilt, ownername, unitsres | `public/data/real/lots-*.json` (lot frontage, depth, floors, class, year; PLUTO has no polygons, so a lot is its centroid) |
+| Building footprints | NYC Building Footprints `5zhs-2jue` | `within_box(the_geom, <R3 extent box>)`, fields base_bbl, bin, height_roof, construction_year, shape_area (no polygons) | roof height and building count per lot |
+| Pedestrian signal points | VZV Leading Pedestrian Interval Signals `xc4v-ntf4`, Accessible Pedestrian Signal Locations `de3m-c5p4`, Exclusive Pedestrian Signal (Barnes Dance) `8kuj-2n3u` | `within_box(the_geom, <R3 extent box>)` (`scripts/import-signals.mjs --r3`) | `src/world/data/roadnet-controls-r123.json` (which junctions are signalised; the city publishes no full signal inventory) |
+
+R3 is the R1+R2 area pushed out seven city blocks on every side (`src/world/roadnet/extents.ts`).
+
 ## People base mesh (HUMAN)
 
 | Asset | Source | Licence | Where |

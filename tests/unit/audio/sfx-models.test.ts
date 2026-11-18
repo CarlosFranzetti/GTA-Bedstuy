@@ -156,11 +156,11 @@ describe('vehicle character', () => {
 
 describe('horns and sirens', () => {
   const classOf = (t: VT) => {
-    if (['bus', 'boxtruck', 'garbage'].includes(t)) return 'air';
+    if (['bus', 'boxtruck', 'garbage', 'stepvan', 'icecream'].includes(t)) return 'air';
     if (['hatch', 'hothatch'].includes(t)) return 'compact';
     if (['luxury', 'towncar', 'evsedan'].includes(t)) return 'luxury';
     if (t === 'beater') return 'beater';
-    if (t === 'cop' || t === 'ambulance') return 'siren';
+    if (t === 'cop' || t === 'ambulance' || t === 'copsuv') return 'siren';
     return 'dual';
   };
   it('fundamentals differ by at least 6% between classes', () => {

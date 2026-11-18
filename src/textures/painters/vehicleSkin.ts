@@ -37,7 +37,8 @@ export type SkinRegion = keyof typeof SKIN_RECTS;
 
 /** `van` is the box truck's cab; `cargo` the Transit-type cargo van */
 export type SkinStyle = 'sedan' | 'coupe' | 'suv' | 'van' | 'cargo' | 'hatch' | 'beater' | 'bus' | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'dollar'
-  | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan';
+  | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan'
+  | 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'limo' | 'classic' | 'donk' | 'copsuv' | 'convertible' | 'stepvan' | 'icecream';
 
 /** Everything the painter needs to know about the body (fractions of the paint's bounding box; length fractions run nose 0 -> tail 1). */
 export interface SkinLayout {
@@ -61,11 +62,11 @@ export interface SkinLayout {
   headLamp: { x: number; v: number }; tailLamp: { x: number; v: number };
   /** invented model badge */
   badge: string;
-  /** 0 plain, 1 cream double stripe, 2 two-tone silver lower body; vans: 10 parcel, 11 bakery, 12 plumber, 13 telecom, 14 laundry, 20 ambulance, 21 dollar van; bus: 1..3 ad wraps */
+  /** 0 plain, 1 cream double stripe, 2 two-tone silver lower body, 3 woodgrain side panels, 4 vinyl roof; 22 mail, 23 parcel, 24 bakery (step van), 25 ice cream, 30 taxi, 40 police; vans: 10 parcel, 11 bakery, 12 plumber, 13 telecom, 14 laundry, 20 ambulance, 21 dollar van; bus: 1..3 ad wraps */
   pack?: number;
 }
 
-export interface Colorway { name: string; color: string; pack: 0 | 1 | 2 }
+export interface Colorway { name: string; color: string; pack: number }
 
 /** Saturated GTA3-style solids, 4 per body (the pack is the trim package of that colourway). */
 export const CAR_COLORWAYS: Record<SkinStyle, readonly Colorway[]> = {
@@ -120,6 +121,17 @@ export const CAR_COLORWAYS: Record<SkinStyle, readonly Colorway[]> = {
   muscle: [{ name: 'tor orange', color: '#e0621a', pack: 1 }, { name: 'plum', color: '#5a2a6a', pack: 1 }, { name: 'black', color: '#15161a', pack: 0 }],
   wedgetruck: [{ name: 'steel', color: '#b8bcc2', pack: 0 }, { name: 'dark steel', color: '#6a6e74', pack: 0 }],
   evsedan: [{ name: 'pearl', color: '#e8e8ea', pack: 0 }, { name: 'midnight', color: '#1a2230', pack: 0 }, { name: 'red', color: '#a8202a', pack: 0 }],
+  wagon: [{ name: 'white', color: '#e6e4dc', pack: 0 }, { name: 'teal', color: '#2f6f6a', pack: 3 }, { name: 'burgundy', color: '#6a2430', pack: 3 }],
+  bigsuv: [{ name: 'black', color: '#15171a', pack: 0 }, { name: 'forest', color: '#24503a', pack: 2 }, { name: 'maroon', color: '#5a1e2a', pack: 2 }],
+  minitruck: [{ name: 'red', color: '#b83a28', pack: 1 }, { name: 'white', color: '#e8e6de', pack: 0 }, { name: 'blue', color: '#2a5a9a', pack: 0 }],
+  panelvan: [{ name: 'white', color: '#ebebe4', pack: 0 }, { name: 'silver', color: '#b4b8bc', pack: 0 }, { name: 'tan', color: '#bfae88', pack: 0 }],
+  limo: [{ name: 'black', color: '#0e0f12', pack: 0 }, { name: 'white', color: '#ecebe6', pack: 0 }, { name: 'silver', color: '#a6aab0', pack: 0 }],
+  classic: [{ name: 'gold', color: '#a8863a', pack: 4 }, { name: 'avocado', color: '#6a7a3a', pack: 4 }, { name: 'sky', color: '#6a9ac0', pack: 1 }],
+  donk: [{ name: 'candy purple', color: '#7a2a8a', pack: 0 }, { name: 'candy apple', color: '#b0182a', pack: 0 }, { name: 'lime', color: '#6ac43a', pack: 0 }],
+  copsuv: [{ name: 'white', color: '#f2f2f2', pack: 40 }],
+  convertible: [{ name: 'red', color: '#c8283a', pack: 0 }, { name: 'yellow', color: '#e8c21c', pack: 0 }, { name: 'blue', color: '#2468c4', pack: 0 }],
+  stepvan: [{ name: 'mail white', color: '#f2f2ee', pack: 22 }, { name: 'parcel brown', color: '#5e4126', pack: 23 }, { name: 'bakery cream', color: '#efe2c0', pack: 24 }],
+  icecream: [{ name: 'cream', color: '#f4efe0', pack: 25 }, { name: 'strawberry', color: '#f2b6c8', pack: 25 }, { name: 'mint', color: '#b8e0cc', pack: 25 }],
   van: [
     { name: 'work white', color: '#ebebe4', pack: 0 },
     { name: 'safety orange', color: '#e0701a', pack: 1 },
@@ -193,7 +205,7 @@ function ellipse(cx: number, cy: number, rx: number, ry: number, maxY: number, n
 }
 
 /** styles whose head and tail lamps are real geometry (no painted lamp patches on the end faces) */
-const GEO_LAMPS: ReadonlySet<SkinStyle> = new Set<SkinStyle>(['hatch', 'beater', 'cargo', 'bus', 'sedan', 'suv', 'coupe', 'pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'dollar', 'coupe911', 'exotic', 'jdmcoupe', 'hothatch', 'muscle', 'wedgetruck', 'evsedan']);
+const GEO_LAMPS: ReadonlySet<SkinStyle> = new Set<SkinStyle>(['hatch', 'beater', 'cargo', 'bus', 'sedan', 'suv', 'coupe', 'pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'dollar', 'coupe911', 'exotic', 'jdmcoupe', 'hothatch', 'muscle', 'wedgetruck', 'evsedan', 'wagon', 'bigsuv', 'minitruck', 'panelvan', 'limo', 'classic', 'donk', 'copsuv', 'convertible', 'stepvan', 'icecream']);
 
 function paintFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): void {
   if (L.style === 'bus') { paintBusFlank(s, L, side, rng); return; }
@@ -220,6 +232,12 @@ function paintFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): voi
     // side moulding
     s.shade(r.x, Y(0.37), r.w, 2.5, '#000000', 0.22);
     s.shade(r.x, Y(0.37) + 2.5, r.w, 1, '#ffffff', 0.4);
+  }
+  // woodgrain side panels (pack 3): a brown panel with a cream keyline between the belt moulding and the sill, grain lines in two browns
+  if (pack === 3) {
+    s.solid(r.x + 4, Y(0.52), r.w - 8, Y(0.2) - Y(0.52), '#d6c8a2');
+    s.solid(r.x + 5.5, Y(0.52) + 1.5, r.w - 11, Y(0.2) - Y(0.52) - 3, '#6a4426');
+    for (let i = 0; i < 26; i++) s.solid(r.x + 6 + rng.range(0, r.w - 24), rng.range(Y(0.52) + 2.5, Y(0.2) - 3), rng.range(10, 36), 0.9, rng.chance(0.5) ? '#4e3018' : '#85583a');
   }
   // cream double stripe (pack 1): outlined so it reads on any paint
   if (pack === 1) {
@@ -279,6 +297,7 @@ function paintFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): voi
     s.shade(x - 4, beltY + 10, 8, 8, '#000000', 0.35);
     s.shade(x - 3, beltY + 11, 6, 6, '#ffffff', 0.18);
   }
+  if (pack >= 10) paintLivery(s, L, side, pack, rng); // before the wheel wells, so the arches cut through the colour blocks
   // wheel arches: black well, dark lip, spray above it
   for (const n of L.axles) {
     const cx = X(n), cy = Y(L.archV);
@@ -310,7 +329,6 @@ function paintFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): voi
     s.solid((x0 + x1) / 2 - 9, beltY + 9, 7, 3, '#2a2c30'); s.solid((x0 + x1) / 2 - 8.4, beltY + 9.6, 5.8, 1.8, '#c5cad0');
   }
   if (L.style === 'beater') weatherFlank(s, L, side, rng);
-  if (pack >= 10) paintLivery(s, L, side, pack, rng);
 }
 
 /** Van liveries (invented businesses): colour blocks and pixel lettering on the box part of a flank (n from the nose, v up). */
@@ -318,7 +336,7 @@ function paintLivery(s: Sk, L: SkinLayout, side: 'left' | 'right', pack: number,
   const r = SKIN_RECTS[side];
   const X = (n: number): number => (side === 'right' ? r.x + (1 - n) * r.w : r.x + n * r.w);
   const Y = (v: number): number => r.y + (1 - v) * r.h;
-  const nA = 0.36, nB = 0.96, nc = (nA + nB) / 2;
+  const [nA, nB] = pack >= 40 ? [0.04, 0.92] : pack >= 30 ? [0.12, 0.9] : pack >= 22 ? [0.3, 0.97] : [0.36, 0.96], nc = (nA + nB) / 2;
   const band = (v0: number, v1: number, c: string): void => { const x0 = Math.min(X(nA), X(nB)), x1 = Math.max(X(nA), X(nB)); s.solid(x0, Y(v1), x1 - x0, Y(v0) - Y(v1), c); };
   const txt = (str: string, v: number, sc: number, c: string, n = nc): void => s.text(str, X(n) - (str.length * 4 * sc) / 2, Y(v), sc, c);
   const def: Record<number, () => void> = {
@@ -330,6 +348,22 @@ function paintLivery(s: Sk, L: SkinLayout, side: 'left' | 'right', pack: number,
     20: () => { band(0.3, 0.4, '#c8202a'); band(0.4, 0.43, '#e07a1a'); band(0.62, 0.9, '#f4f4f4'); txt('AMBULANCE', 0.8, 2, '#c8202a'); txt('BORO EMS 4', 0.67, 1, '#1b2a4a'); s.solid(X(nc) - 7, Y(0.94) - 3, 14, 3, '#c8202a'); s.solid(X(nc) - 2, Y(0.97) - 8, 4, 12, '#c8202a'); },
     21: () => { band(0.34, 0.42, '#1b4f93'); band(0.42, 0.45, '#f2b705'); txt('JITNEY', 0.27, 2, '#1b4f93'); txt('$2.50 FLATBUSH - DOWNTOWN', 0.17, 1, '#2a2d31'); },
   };
+  // CARS2 (invented businesses and services, no real names or marks)
+  def[22] = () => { band(0.3, 0.36, '#2f7a4a'); band(0.36, 0.375, '#f4f4f0'); band(0.5, 0.52, '#2f7a4a'); txt('BORO MAIL', 0.82, 2, '#2f7a4a'); txt('FIRST CLASS - BK 112', 0.68, 1, '#2a2d31'); s.solid(X(nA + 0.05) - 6, Y(0.92) - 3, 12, 6, '#2f7a4a'); };
+  def[23] = () => { band(0.32, 0.4, '#e8d8a8'); band(0.4, 0.415, '#2a1a0a'); txt('TRI-BORO', 0.8, 2, '#e8d8a8'); txt('PARCEL AND FREIGHT', 0.64, 1, '#d8c08a'); s.solid(X(nA + 0.05) - 5, Y(0.84) - 5, 10, 10, '#e8d8a8'); s.solid(X(nA + 0.05) - 3, Y(0.84) - 3, 6, 6, '#5e4126'); };
+  def[24] = () => { band(0.5, 0.86, '#c8862a'); band(0.5, 0.52, '#6a3a14'); txt('GOLDEN LOAF', 0.8, 2, '#fbf0d0'); txt('BAKERY - FRESH DAILY', 0.64, 1, '#fbf0d0'); for (let k = 0; k < 6; k++) s.solid(X(nA + 0.04 + k * 0.012), Y(0.54), 2, 3, '#f4e2a0'); };
+  def[25] = () => {
+    band(0.32, 0.88, '#fbf5e6'); band(0.32, 0.345, '#5aa8a0'); band(0.865, 0.88, '#d96a8c');
+    txt('COOL CONE', 0.8, 2, '#d96a8c'); txt('ICE CREAM - TREATS', 0.63, 1, '#2f6a66');
+    const cx = X(nA + 0.1);
+    s.polySolid([[cx - 7, Y(0.62)], [cx + 7, Y(0.62)], [cx, Y(0.44)]], '#c89a5a'); s.solid(cx - 6, Y(0.7), 12, 8, '#f2a6c0'); s.solid(cx - 4, Y(0.78), 8, 6, '#f6efdc');
+  };
+  def[30] = () => {
+    const x0 = Math.min(X(nA), X(nB)), x1 = Math.max(X(nA), X(nB));
+    for (let x = x0, i = 0; x < x1; x += 4, i++) { s.solid(x, Y(0.5), 4, 3.3, i % 2 ? '#f4f4f0' : '#17181b'); s.solid(x, Y(0.5) + 3.3, 4, 3.4, i % 2 ? '#17181b' : '#f4f4f0'); }
+    txt('CITY TAXI', 0.38, 1, '#17181b', 0.62); txt('BK 4471', 0.3, 1, '#17181b', 0.62);
+  };
+  def[40] = () => { band(0.1, 0.4, '#15171b'); band(0.4, 0.43, '#f4f4f0'); band(0.43, 0.455, '#1b4f93'); txt('POLICE', 0.3, 2, '#f4f4f0', 0.5); txt('BORO PD 14', 0.2, 1, '#f4f4f0', 0.5); };
   (def[pack] ?? (() => { /* plain */ }))();
   void rng;
 }
@@ -426,6 +460,13 @@ function paintTop(s: Sk, L: SkinLayout, rng: Rng): void {
     }
   } else if (pack === 2) {
     for (let i = 0; i < 4; i++) s.shade(hx - 30 + i * 6, r.y + 18, 3, r.h - 36, '#000000', 0.55);
+  }
+  if (pack === 4 && L.rearGlass[0] > L.windshield[1]) {
+    // vinyl roof: a dark padded-grain panel between the windshield header and the rear window, with a light edge line
+    const x0 = X(L.windshield[1]) + 1, x1 = X(L.rearGlass[0]) - 1;
+    s.solid(x0, r.y + 4, x1 - x0, r.h - 8, '#26211b');
+    s.solid(x0, r.y + 4, x1 - x0, 1, '#4a4034'); s.solid(x0, r.y + r.h - 5, x1 - x0, 1, '#4a4034');
+    for (let i = 0; i < 40; i++) s.solid(rng.range(x0, x1 - 2), rng.range(r.y + 6, r.y + r.h - 8), 2, 1, '#322b23');
   }
   // dust on the roof
   for (let i = 0; i < 90; i++) s.shade(rng.range(r.x, r.x + r.w), rng.range(r.y, r.y + r.h), rng.range(1, 2.5), 1, rng.chance(0.5) ? '#d8d2c0' : '#8a8472', 0.22);

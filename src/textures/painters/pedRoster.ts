@@ -8,6 +8,7 @@
  * options and the body shape; outfits are everyday dress, with religious dress only on the people who wear it.
  */
 import type { PedSpec, PopGroup } from './ped';
+import { dress, type WardrobeEntry } from './pedWardrobe';
 
 export const GROUP_SHARE: Record<PopGroup, number> = { ba: 0.22, ca: 0.09, la: 0.15, wh: 0.18, ea: 0.09, sa: 0.07, me: 0.05, mx: 0.08, hj: 0.07 };
 export const GROUPS = Object.keys(GROUP_SHARE) as PopGroup[];
@@ -242,19 +243,22 @@ const PEOPLE: Person[] = [
 // ---------------------------------------------------------------- the player's looks
 
 export interface PlayerLook { group: PopGroup; variant: number }
-const PLAYER_VARIANTS = 3;
 const PLAYER_HAIR: Record<PopGroup, Array<PedSpec['hair']>> = {
-  ba: ['fade', 'locs', 'afro'], ca: ['short', 'locs', 'fade'], la: ['short', 'fade', 'short'], wh: ['short', 'long', 'fade'], ea: ['short', 'fade', 'long'],
-  sa: ['short', 'fade', 'short'], me: ['short', 'fade', 'short'], mx: ['afro', 'short', 'puff'], hj: ['short', 'short', 'short'],
+  ba: ['fade', 'locs', 'afro', 'short', 'fade'], ca: ['short', 'locs', 'fade', 'fade', 'short'], la: ['short', 'fade', 'short', 'crop', 'fade'], wh: ['short', 'long', 'fade', 'crop', 'short'], ea: ['short', 'fade', 'long', 'crop', 'short'],
+  sa: ['short', 'fade', 'short', 'crop', 'fade'], me: ['short', 'fade', 'short', 'crop', 'short'], mx: ['afro', 'short', 'puff', 'fade', 'short'], hj: ['short', 'short', 'short', 'short', 'short'],
 };
-/** the player's three wardrobes (variant 0 keeps the red hoodie of the base spec): a denim jacket over a tee, a leather bomber over a grey tee */
-const PLAYER_LOOKS: Array<Partial<PedSpec>> = [
+/**
+ * The player's wardrobes as DATA (PEOPLE6): garment ids from the wardrobe pools (pedWardrobe.ts) and the colours worn, one entry per look. Variant 0 keeps the red
+ * hoodie of the base spec. A shop could later sell an entry or a single slot of one; nothing else here knows what the player wears.
+ */
+export const PLAYER_LOOKS: WardrobeEntry[] = [
   {},
-  { hat: 'none', top: { kind: 'jacket', color: '#4d6c98', trim: '#364f74', sleeves: 'long', print: 'none', printColor: '#ffffff', under: '#e8e6e0', open: true, fabric: 'denim' },
-    bottom: { kind: 'jeans', color: '#232b3b', trim: '#161c28' }, shoes: { color: '#d8d4cc', sole: '#bcb8b0', accent: '#3a3a40' } },
-  { hat: 'none', top: { kind: 'jacket', color: '#2b2622', trim: '#1a1612', sleeves: 'long', print: 'none', printColor: '#ffffff', under: '#8c9098', open: true, fabric: 'leather' },
-    bottom: { kind: 'cargo', color: '#4a4a40', trim: '#323228' }, shoes: { color: '#5b3a24', sole: '#2a1a10', accent: '#c9a36a', high: true } },
+  { layer: ['denimJacket', '#4d6c98', '#e8e6e0', '#364f74'], bottom: ['jeansStraight', '#232b3b', '#161c28'], shoes: ['sneakerLow', '#d8d4cc', '#bcb8b0', '#3a3a40'], hat: 'none' },
+  { layer: ['bomber', '#2b2622', '#8c9098', '#1a1612'], bottom: ['cargo', '#4a4a40', '#323228'], shoes: ['workBoot', '#5b3a24', '#2a1a10', '#c9a36a'], hat: 'none' },
+  { layer: ['trackJacket', '#1c2a4a', '#e8e6e0', '#e8e8ec'], bottom: ['trackPants', '#1c2a4a', '#e8e8ec'], shoes: ['runner', '#e8e8ec', '#bdbdbd', '#d63a2a'], hat: 'none' },
+  { layer: ['pufferShort', '#2f3a58', '#e8e6e0', '#232c44'], bottom: ['jeansSlim', '#1f2a3a', '#141c28'], shoes: ['sneakerHigh', '#e8e4dc', '#c8c4bc', '#c0392b'], hat: 'beanie', hatColor: '#2f3a58' },
 ];
+const PLAYER_VARIANTS = PLAYER_LOOKS.length;
 const playerId = (l: PlayerLook): string => `player-${l.group}-${l.variant}`;
 /** a fresh random look per page load / new game (fixed under test); UI10's save / load restores it with setPlayerLook */
 let look: PlayerLook = { group: 'ba', variant: 0 };
@@ -331,7 +335,7 @@ export function buildRoster(baseSpecs: readonly PedSpec[]): PedSpec[] {
         ...out, id: playerId(l), group: g, sex: 'm', age: 'adult',
         skin: pal.skin[(hash(g + v) + v) % pal.skin.length], hair: PLAYER_HAIR[g][v], hairColor: pal.hair[v % pal.hair.length],
         face: { ...out.face, stubble: v === 1 }, weight: 0,
-        ...PLAYER_LOOKS[v],
+        ...dress(PLAYER_LOOKS[v]),
       });
     }
   }

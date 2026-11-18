@@ -48,18 +48,18 @@ const BASE_HORNS: Record<Exclude<VehicleType, Cars2Horn>, HornSpec> = {
 /** CARS2: horns borrowed from the nearest class, pitched to the vehicle (big and old cars lower, small ones higher). */
 export const HORNS: Record<VehicleType, HornSpec> = {
   ...BASE_HORNS,
-  wagon: { ...BASE_HORNS.sedan, root: 392 },
-  bigsuv: { ...BASE_HORNS.suv, root: 330 },
-  minitruck: { ...BASE_HORNS.hatch, kind: 'car', root: 440, gain: 0.9 },
-  panelvan: { ...BASE_HORNS.cargovan, root: 370 },
-  taxivan: { ...BASE_HORNS.cab, root: 466 },
-  limo: { ...BASE_HORNS.towncar, root: 196 },
-  classic: { ...BASE_HORNS.towncar, root: 220, wave: 'square', lp: 1900 },
-  donk: { ...BASE_HORNS.towncar, root: 185, wave: 'square', lp: 1600, gain: 1.15 },
+  wagon: { ...BASE_HORNS.sedan, root: 405 },
+  bigsuv: { ...BASE_HORNS.suv, root: 351 },
+  minitruck: { ...BASE_HORNS.hatch, kind: 'car', root: 400, gain: 0.9 },
+  panelvan: { ...BASE_HORNS.cargovan, root: 399 },
+  taxivan: { ...BASE_HORNS.cab, root: 430 },
+  limo: { ...BASE_HORNS.towncar, root: 185 },
+  classic: { ...BASE_HORNS.towncar, root: 225, wave: 'square', lp: 1900 },
+  donk: { ...BASE_HORNS.towncar, root: 175, wave: 'square', lp: 1600, gain: 1.15 },
   copsuv: { ...BASE_HORNS.cop, root: 380 },
   convertible: { ...BASE_HORNS.pony, root: 415, lp: 3600 },
   stepvan: { ...BASE_HORNS.boxtruck, root: 262 },
-  icecream: { ...BASE_HORNS.boxtruck, root: 300, lp: 1500 },
+  icecream: { ...BASE_HORNS.boxtruck, root: 252, lp: 1500 },
 };
 
 export function hornFor(type: string | null | undefined): HornSpec {

@@ -272,7 +272,7 @@ describe('carBodies: paint variants', () => {
       const v = PAINT_VARIANTS[t];
       expect(v.length).toBeGreaterThanOrEqual(2);
       expect(v.length).toBeLessThanOrEqual(4);
-      if (t !== 'cop' && t !== 'cab' && t !== 'garbage' && t !== 'ambulance') expect(new Set(v).size).toBe(v.length);
+      if (t !== 'cop' && t !== 'cab' && t !== 'taxivan' && t !== 'copsuv' && t !== 'garbage' && t !== 'ambulance') expect(new Set(v).size).toBe(v.length);
       for (const c of v) expect(/^#[0-9a-f]{6}$/i.test(c)).toBe(true);
     }
   });

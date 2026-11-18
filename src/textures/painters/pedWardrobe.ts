@@ -487,7 +487,7 @@ export function dress(e: WardrobeEntry): Partial<PedSpec> {
   if (e.layer) { const g = LAYERS[e.layer[0]], under = e.layer[2] ?? out.top?.color; out.top = { kind: 'jacket', color: e.layer[1], trim: e.layer[3] ?? shade(e.layer[1], 0.72), sleeves: 'long', print: 'none', printColor: '#ffffff', ...g.p, under } as Top; }
   if (e.bottom) { const g = BOTTOMS[e.bottom[0]]; out.bottom = { kind: 'jeans', color: e.bottom[1], trim: e.bottom[2] ?? shade(e.bottom[1], 0.72), ...g.p } as Bottom; }
   if (e.shoes) { const g = SHOES[e.shoes[0]]; out.shoes = { color: e.shoes[1], sole: e.shoes[2] ?? shade(e.shoes[1], 0.8), accent: e.shoes[3] ?? shade(e.shoes[1], 0.7), ...g.p, ...(g.p.kind === 'sneakerHigh' || g.p.kind === 'workBoot' || g.p.kind === 'tallBoot' ? { high: true } : {}) }; }
-  if (e.hat) { out.hat = e.hat; out.hatColor = e.hatColor ?? '#222222'; out.hatTrim = shade(out.hatColor, 0.7); }
+  if (e.hat) { const hood = e.hat === 'hood' || e.hat === 'hoodDown'; out.hat = e.hat; out.hatColor = e.hatColor ?? (hood && out.top ? out.top.color : '#222222'); out.hatTrim = shade(out.hatColor, 0.7); }
   return out;
 }
 /** counts for the report and the tests */

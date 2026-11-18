@@ -48,7 +48,7 @@ export const PALETTES: Record<VehicleType, readonly PaintEntry[]> = {
   minitruck: [P('red', '#b83a28', 3, 1), P('white', '#e8e6de', 3), P('blue', '#2a5a9a', 2), P('black', '#17181b', 2), P('silver', '#aeb2b6', 2), P('green', '#2c6a4a', 2), P('yellow', '#e0b81c', 1), P('teal', '#2a7a80', 1)],
   panelvan: [P('white', '#ebebe4', 6), P('silver', '#b4b8bc', 2), P('tan', '#bfae88', 2), P('blue', '#2a4f86', 1), P('green', '#2c5a46', 1), P('maroon', '#6a2a30', 1), P('red', '#a8302c', 1), P('yellow', '#e0b81c', 1)],
   taxivan: [P('taxi yellow', '#e0b01e', 1, 30)],
-  limo: [P('black', '#0e0f12', 8), P('white', '#ecebe6', 3), P('silver', '#a6aab0', 1), P('midnight', '#141a2a', 1), P('champagne', '#c8b896', 1), P('grey', '#55595f', 1), P('hot pink', '#d0508a', 0.4)],
+  limo: [P('black', '#0e0f12', 8), P('white', '#ecebe6', 3), P('silver', '#a6aab0', 1), P('midnight', '#141a2a', 1), P('champagne', '#c8b896', 1), P('grey', '#55595f', 1), P('bordeaux', '#3a1420', 1), P('hot pink', '#d0508a', 0.4)],
   classic: [P('gold vinyl roof', '#a8863a', 3, 4), P('avocado', '#6a7a3a', 2, 4), P('harvest orange', '#b0642a', 2, 4), P('sky', '#6a9ac0', 2, 1), P('ivory', '#e8e4d4', 2, 4), P('maroon', '#6a2a30', 2, 4), P('brown', '#5a4030', 2), P('blue', '#2a4f86', 2, 1)],
   donk: [P('candy purple', '#7a2a8a', 3), P('candy apple', '#b0182a', 3), P('lime', '#6ac43a', 2), P('candy blue', '#1f5fb4', 2), P('orange', '#e0621a', 2), P('white', '#eeeeea', 2), P('black', '#15161a', 2), P('teal', '#1b8f8a', 1)],
   copsuv: [P('white', '#f2f2f2', 1, 40)],
@@ -100,6 +100,8 @@ export interface CarLook {
   livery: number;
   /** unmarked police car (no roof bar, dash and grille strobes) */
   unmarked: boolean;
+  /** CARS2 bolt-ons that cost no draw call (merged into the trim): bit 1 deck / roof spoiler, bit 2 grille guard (see carExtras.ts) */
+  add?: number;
   /** stable key of everything that changes the merged geometry (wheel, roof, stickers, rideshare, tint, unmarked) */
   key: string;
   /** stable key of the paint overlay (dirt, rust, dents, primer) */
@@ -154,35 +156,44 @@ export function lookFor(type: VehicleType, color: string, seed: number): CarLook
   const r = new Rng(`look:${type}:${seed >>> 0}`);
   const wheels = WHEELS_BY_TYPE[type];
   const wheel = wheels ? r.pick(wheels) : 'steel';
-  const sporty = type === 'pony' || type === 'luxury' || type === 'hatch' || type === 'sedan' || type === 'jdmcoupe' || type === 'hothatch' || type === 'muscle' || type === 'coupe911';
+  const sporty = type === 'convertible' || type === 'pony' || type === 'luxury' || type === 'hatch' || type === 'sedan' || type === 'jdmcoupe' || type === 'hothatch' || type === 'muscle' || type === 'coupe911';
   const lowered = sporty && r.chance(type === 'pony' || type === 'jdmcoupe' || type === 'hothatch' ? 0.5 : 0.14) ? (r.chance(0.5) ? 0.04 : 0.07) : 0;
-  const fleet = type === 'cab' || type === 'cop' || type === 'bus' || type === 'garbage' || type === 'ambulance' || type === 'boxtruck';
-  const tint: 0 | 1 | 2 = type === 'towncar' ? 2 : fleet || type === 'cargovan' ? 0 : r.chance(0.3) ? (r.chance(0.35) ? 2 : 1) : 0;
+  const fleet = type === 'cab' || type === 'taxivan' || type === 'copsuv' || type === 'stepvan' || type === 'icecream' || type === 'cop' || type === 'bus' || type === 'garbage' || type === 'ambulance' || type === 'boxtruck';
+  const tint: 0 | 1 | 2 = type === 'towncar' || type === 'limo' ? 2 : fleet || type === 'cargovan' || type === 'panelvan' ? 0 : r.chance(0.3) ? (r.chance(0.35) ? 2 : 1) : 0;
   let roof: RoofGear = 'none';
-  if (type === 'cab') roof = r.pick(['topperPlain', 'topperAd', 'topperAd', 'topperHail'] as const);
+  if (type === 'cab' || type === 'taxivan') roof = r.pick(['topperPlain', 'topperAd', 'topperAd', 'topperHail'] as const);
+  else if (type === 'icecream') roof = 'cone';
+  else if (type === 'bigsuv') roof = r.chance(0.4) ? r.pick(['rack', 'bars', 'cargo'] as const) : 'none';
+  else if (type === 'wagon') roof = r.chance(0.35) ? r.pick(['rack', 'bars'] as const) : 'none';
+  else if (type === 'minitruck') roof = r.chance(0.15) ? 'bars' : 'none';
+  else if (type === 'panelvan') roof = r.chance(0.35) ? 'ladder' : 'none';
   else if (type === 'suv' || type === 'crossover') roof = r.chance(0.3) ? r.pick(['rack', 'bars', 'cargo'] as const) : 'none';
   else if (type === 'minivan') roof = r.chance(0.2) ? r.pick(['bars', 'cargo'] as const) : 'none';
   else if (type === 'cargovan' || type === 'dollarvan') roof = r.chance(type === 'cargovan' ? 0.4 : 0.1) ? 'ladder' : 'none';
   else if (type === 'pickup') roof = r.chance(0.2) ? 'bars' : 'none';
   else if (type === 'sedan' || type === 'hatch' || type === 'beater') roof = r.chance(0.07) ? 'bars' : 'none';
-  const nSt = fleet && type !== 'cab' ? 0 : r.chance(0.35) ? (r.chance(0.3) ? 2 : 1) : 0;
+  const nSt = fleet && type !== 'cab' && type !== 'taxivan' ? 0 : r.chance(0.35) ? (r.chance(0.3) ? 2 : 1) : 0;
   const stickers: number[] = [];
   for (let i = 0; i < nSt; i++) stickers.push(r.int(0, STICKER_COUNT - 1));
   const rideshare = (type === 'sedan' || type === 'evsedan' || type === 'hatch' || type === 'crossover' || type === 'luxury' || type === 'minivan' || type === 'towncar') && r.chance(type === 'towncar' ? 0.35 : 0.14) ? r.int(0, RIDESHARE.length - 1) : -1;
   // wear: beaters carry it, fleet vans get dirty, luxury cars stay clean
-  const tired = type === 'beater' ? 2 : type === 'luxury' ? -2 : type === 'cargovan' || type === 'boxtruck' || type === 'dollarvan' || type === 'garbage' ? 1 : 0;
+  const tired = type === 'beater' ? 2 : type === 'luxury' || type === 'limo' || type === 'copsuv' ? -2 : type === 'classic' || type === 'minitruck' || type === 'panelvan' || type === 'stepvan' || type === 'icecream' || type === 'cargovan' || type === 'boxtruck' || type === 'dollarvan' || type === 'garbage' ? 1 : 0;
   const lvl = (bias: number): number => Math.max(0, Math.min(3, Math.floor(r.next() * 2.6 + bias * 0.5 + (r.chance(0.25) ? 1 : 0) - 0.6)));
   const dirt = type === 'garbage' ? 3 : lvl(tired + 1);
-  const rust = type === 'luxury' || type === 'cop' || type === 'ambulance' || type === 'exotic' || type === 'coupe911' || type === 'evsedan' ? 0 : lvl(tired - (type === 'cab' ? 1 : 0));
+  const rust = type === 'luxury' || type === 'limo' || type === 'copsuv' || type === 'convertible' || type === 'cop' || type === 'ambulance' || type === 'exotic' || type === 'coupe911' || type === 'evsedan' ? 0 : lvl(tired - (type === 'cab' ? 1 : 0));
   const dents = r.chance(0.18 + 0.12 * Math.max(0, tired)) ? r.int(1, 3) : 0;
-  const primer = (type === 'beater' ? r.chance(0.55) : type === 'luxury' || type === 'cop' || type === 'ambulance' ? false : r.chance(0.05)) ? r.int(1, 4) : 0;
+  const primer = (type === 'beater' ? r.chance(0.55) : type === 'luxury' || type === 'limo' || type === 'copsuv' || type === 'cop' || type === 'ambulance' ? false : r.chance(0.05)) ? r.int(1, 4) : 0;
   let livery = 0;
-  if (type === 'cargovan') livery = r.int(0, CARGO_VAN_LIVERIES - 1);
+  if (type === 'cargovan' || type === 'panelvan') livery = r.int(0, CARGO_VAN_LIVERIES - 1);
   else if (type === 'boxtruck') livery = r.int(0, BOX_LIVERY_VARIANTS - 2); // the last variant is the garbage truck's
   else if (type === 'bus') livery = r.int(0, 3); // 0 plain, 1..3 ad wraps
   const unmarked = type === 'cop' && r.chance(0.22);
   void color;
-  const key = [wheel, lowered, tint, roof, stickers.join('.'), rideshare, unmarked ? 'u' : 'm'].join('|');
+  // CARS2 bolt-ons: spoilers on some small sedans and hatches, grille guards on the trucks and big SUVs
+  let add = 0;
+  if ((type === 'sedan' || type === 'hatch' || type === 'wagon' || type === 'minivan' || type === 'crossover') && r.chance(0.1)) add |= 1;
+  if ((type === 'bigsuv' || type === 'minitruck' || type === 'pickup' || type === 'panelvan') && r.chance(0.25)) add |= 2;
+  const key = [wheel, lowered, tint, roof, stickers.join('.'), rideshare, unmarked ? 'u' : 'm', add].join('|');
   const condKey = `${dirt}.${rust}.${dents}.${primer}.${(seed >>> 0) & 7}`;
-  return { wheel, lowered, tint, roof, stickers, rideshare, dirt, rust, dents, primer, livery, unmarked, key, condKey };
+  return { wheel, lowered, tint, roof, stickers, rideshare, dirt, rust, dents, primer, livery, unmarked, add, key, condKey };
 }
