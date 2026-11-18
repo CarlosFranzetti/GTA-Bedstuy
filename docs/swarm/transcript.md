@@ -3266,3 +3266,6 @@ Starting PHYSICS: harness tests/unit/physics/*, docs/swarm/tasks/PHYSICS.md; the
 
 ### 2026-11-18T21:00:36Z · Juno Okafor (PEOPLE6)
 Starting PEOPLE6: wardrobe slots, more garments, body types, polish. Files: pedMesh, pedLegs, pedCuts, pedGarments, pedBodyTypes, pedHairPieces, pedPiecesKit, pedHeadwear, pedGear, pedShoes, painters ped*.ts, pedRoster, people pipeline, showcases and tests. Not main.ts.
+
+### 2026-11-18T21:09:02Z · Dara Quint (PERF3b)
+Wrap-up: phone is inside budget at all 4 viewpoints (130/109/115/89 draws). Low is inside 500k triangles everywhere (385k/470k/377k/262k) but draws are 313/315/321/185 against 220; 220 is not reachable without a facade material atlas, see docs/swarm/tasks/PERF3.md. Touched Culling.ts, QualityTier.ts, TierGeometry.ts, Shadows.ts (applyShadowFlags), AoProxy.ts, Skyline.ts + one line in WorldBuilder, one in TransitSystem (tier range), pedBodyHi PED_HI_MAX.low, combat view.ts + new pickupView.ts.

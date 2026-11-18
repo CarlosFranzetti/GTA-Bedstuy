@@ -13,7 +13,7 @@ import { JumpState } from '@/entities/Jump';
 import { buildPerson as buildPedModel } from '@/entities/models/pedMesh';
 import type { CharacterRig, CharacterSource } from '@/world/types';
 import { Rng } from '@/core/Rng';
-import type { Body2D, Entity, IMaterialLibrary, IVehicle, VehicleInput } from '@/world/types';
+import type { Body2D, Contact, Entity, IMaterialLibrary, IVehicle, VehicleInput } from '@/world/types';
 
 export const WALK_SPEED = 3;
 export const RUN_SPEED = 6.5;
@@ -77,6 +77,14 @@ const PIN_AFTER = 0.6;
 const PIN_SEARCH = 2.5;
 const PIN_SPEED = 5;
 
+/** A car moving faster than this (m/s) that runs into the player knocks them down. */
+const KNOCK_SPEED = 3;
+/** Seconds the player lies and slides before getting up, the share of the car's speed they are thrown at, the cap (m/s) and the ground drag (1/s). */
+const KNOCK_TIME = 1.3;
+const KNOCK_THROW = 0.8;
+const KNOCK_MAX = 11;
+const KNOCK_DRAG = 3.2;
+
 const NEUTRAL: VehicleInput = { throttle: 0, steer: 0, brake: false, handbrake: false, horn: false };
 
 /**
@@ -124,6 +132,8 @@ export class Player implements Entity {
   /** A second F press arrived during the walk to the door (long on slow machines): exit right after sitting down. */
   private exitQueued = false;
   private pinT = 0;
+  /** seconds left lying after being run down (0 = on their feet). Input is ignored and cars pass over the body meanwhile. */
+  private downT = 0;
   private readonly pinLast: Vec2 = { x: 0, z: 0 };
   private pinTarget: Vec2 | null = null;
   /** Jump state (visual arc only). The host sets `jumpLocked` while a menu is open or the player is inside an interior. */
@@ -174,6 +184,30 @@ export class Player implements Entity {
   }
 
   get inVehicle(): boolean { return this.vehicle !== null; }
+  /** True while knocked down by a car (about KNOCK_TIME seconds). */
+  get isDown(): boolean { return this.downT > 0; }
+
+  /**
+   * A car at speed runs the player down: thrown along its path (a little to the side, away from its centreline), controls dead
+   * for KNOCK_TIME seconds, vehicles pass over the body while it slides, then the player gets up. A slow bump just shoves.
+   */
+  onContact(_contact: Contact, other: Body2D): void {
+    if (this.vehicle || this.entering || this.downT > 0) return;
+    if (other.kind !== 'vehicle' && other.kind !== 'cop') return;
+    const sp = Math.hypot(other.vel.x, other.vel.z);
+    if (sp < KNOCK_SPEED) return;
+    const b = this.body;
+    let ax = b.pos.x - other.pos.x, az = b.pos.z - other.pos.z;
+    const al = Math.hypot(ax, az) || 1; ax /= al; az /= al;
+    let dx = other.vel.x / sp + ax * 0.45, dz = other.vel.z / sp + az * 0.45;
+    const dl = Math.hypot(dx, dz) || 1; dx /= dl; dz /= dl;
+    const v = Math.min(KNOCK_MAX, sp * KNOCK_THROW) + 1;
+    b.vel.x = dx * v; b.vel.z = dz * v;
+    b.vehiclePass = true;
+    this.downT = KNOCK_TIME;
+    this.jump.reset(); b.height = 0; this.prevY = 0;
+    this.moveDir = null; this.wantRun = false; this.sprintBlend = 0; this.actionPose = null;
+  }
   /** True during the short walk to the door that precedes getting into a car (see tryEnter). */
   get isEntering(): boolean { return this.entering !== null; }
   /** 0..1 sprint ramp (0 = walking, 1 = full run). */
@@ -203,7 +237,7 @@ export class Player implements Entity {
     }
 
     this.vehicleInput = { ...NEUTRAL };
-    if (this.entering) { this.moveDir = null; this.wantRun = false; return; }
+    if (this.entering || this.downT > 0) { this.moveDir = null; this.wantRun = false; return; }
     // Space on foot is jump (in a vehicle it is the brake, handled above); a press while locked is swallowed
     if (input.consume('Space') && !this.jumpLocked) this.jump.tryJump(true, Math.hypot(this.body.vel.x, this.body.vel.z));
     const fwd = input.axis(['KeyS', 'ArrowDown'], ['KeyW', 'ArrowUp']);
@@ -232,7 +266,7 @@ export class Player implements Entity {
    */
   tryEnter(vehicles: IVehicle[]): IVehicle | null {
     if (this.entering) { this.exitQueued = true; return null; } // F again while walking to the door: "never mind", leave as soon as seated
-    if (this.vehicle) return null;
+    if (this.vehicle || this.downT > 0) return null;
     let best: IVehicle | null = null;
     let bestD = ENTER_RANGE;
     for (const v of vehicles) {
@@ -332,6 +366,13 @@ export class Player implements Entity {
     if (this.pinT < PIN_AFTER || !this.blockedAt) return;
     this.pinT = 0;
     const blocked = this.blockedAt;
+    // Leaning on a wall or into a corner is not being trapped: the body is separated from it and can walk back out. Only glide when the
+    // foot circle really overlaps something (a prop landed in, a car parked onto the player) or is boxed in on nearly every side.
+    if (!blocked(b.pos, FOOT_RADIUS * 0.85)) {
+      let shut = 0;
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; if (blocked({ x: b.pos.x + Math.cos(a) * 0.45, z: b.pos.z + Math.sin(a) * 0.45 }, FOOT_RADIUS * 0.7)) shut++; }
+      if (shut < 6) return;
+    }
     this.pinTarget = Player.findFreeSpot(b.pos, (p, r) => blocked(p, r), this.moveDir);
   }
 
@@ -415,6 +456,16 @@ export class Player implements Entity {
     }
     if (!(dt > 0)) return;
     if (this.entering) { this.updateEntering(dt); return; }
+    if (this.downT > 0) { // run down: slide along the ground, then get up
+      this.downT -= dt;
+      const damp = Math.exp(-KNOCK_DRAG * dt);
+      b.vel.x *= damp; b.vel.z *= damp;
+      b.pos.x += b.vel.x * dt; b.pos.z += b.vel.z * dt;
+      this.desiredVel = { x: 0, z: 0 };
+      if (this.downT <= 0) { this.downT = 0; b.vehiclePass = false; b.vel.x = 0; b.vel.z = 0; }
+      this.animateFoot(dt);
+      return;
+    }
     if (this.exitVis) { this.exitVis.t -= dt / EXIT_SLIDE; if (this.exitVis.t <= 0) this.exitVis = null; }
 
     // jump: advance the arc first so the physics pass of this step sees the new height

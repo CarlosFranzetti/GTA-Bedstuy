@@ -8,7 +8,9 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Rng } from '@/core/Rng';
 import { MaterialLibrary } from '@/textures/MaterialLibrary';
-import { PED_SPECS } from '@/entities/models/pedBody';
+import { PED_SPECS, pickPedVariant } from '@/entities/models/pedBody';
+import { pickWardrobeVariant, composeSpec, setWardrobeSeason, setWardrobeCap, LOOKS } from '@/textures/painters/pedWardrobe';
+import { registerSpec } from '@/textures/painters/ped';
 import { buildPerson as buildPedModel, loadPeople } from '@/entities/models/pedMesh';
 import { pedVariantIndex, PED_SPECS as SPECS } from '@/textures/painters/ped';
 import { setPeopleMode } from '@/textures/painters/pedMode';
@@ -110,6 +112,32 @@ if (view === 'atlas') {
   const ctx = c.getContext('2d'); const v = pedVariantIndex(params.get('v') ?? 'ba-hoodie-fade');
   paintPedHi(ctx, null, null, 1024, new Rng(`pedhi:${v}`), v);
 }
+
+
+// ---- PEOPLE6 views: the wardrobe. wardrobe40 = forty pedestrians drawn the way the game draws them (each from its own stream); seed=N shifts the draw; season=cold|mild|warm
+setWardrobeSeason(params.get('season') ?? 'mild'); setWardrobeCap(Number(params.get('cap') ?? 200));
+const SEED = Number(params.get('seed') ?? 1);
+const streetIds = (n, off = 0) => { const out = []; for (let i = 0; i < n; i++) { const rng = new Rng(Rng.hash(`ped-${SEED}-${i + off}`)); out.push(PED_SPECS[pickWardrobeVariant(rng, pickPedVariant(rng), false)].id); } return out; };
+if (view === 'wardrobe40') {
+  const ids = streetIds(40, Number(params.get('off') ?? 0)), cols = 10;
+  for (let r = 0; r < 4; r++) place(ids.slice(r * cols, r * cols + cols), r, 0.98, 0.12 - 0.04 * r);
+  cam.position.set(0, 2.6, 8.2); look.set(0, 0.85, -2.2); cam.fov = 50;
+}
+if (view === 'wardrobe20') { const ids = streetIds(20, Number(params.get('off') ?? 0)); place(ids.slice(0, 10), 0, 0.98, 0.1); place(ids.slice(10), 1, 0.98, -0.1); cam.position.set(0, 1.5, 7.4); look.set(0, 0.92, -0.8); cam.fov = 46; }
+if (view === 'wardrobe10') { const ids = streetIds(10, Number(params.get('off') ?? 0)); place(ids, 0, 0.98, Number(params.get('yaw') ?? 0.15)); cam.position.set(0, 1.3, 6.2); look.set(0, 0.92, 0); cam.fov = 40; }
+// one person per new body type: men on the first row, women behind; type=<id> shows one type in six looks
+const NEWT = ['lanky', 'swimmer', 'stoop-slim', 'elder-heavy', 'big-tall', 'pregnant', 'lean-teen', 'stout', 'slight'];
+const typed = (t, sex, age, seed) => { const sp = composeSpec(seed, { group: ['ba', 'wh', 'la', 'ea', 'sa'][seed % 5], sex, age }, { look: age === 'old' ? 'elder' : 'street' }); sp.body = t; sp.id = `${sp.id}-${t}`; registerSpec(sp); return sp.id; };
+if (view === 'newbodies') {
+  const yaw = Number(params.get('yaw') ?? 0.2);
+  const row0 = [typed('lanky', 'm', 'adult', 3), typed('big-tall', 'm', 'adult', 8), typed('stout', 'm', 'adult', 9), typed('stoop-slim', 'm', 'old', 12), typed('lean-teen', 'm', 'teen', 14)];
+  const row1 = [typed('swimmer', 'f', 'adult', 5), typed('pregnant', 'f', 'adult', 6), typed('slight', 'f', 'adult', 11), typed('elder-heavy', 'f', 'old', 13), typed('lean-teen', 'f', 'teen', 15)];
+  place(row0, 0, 1.15, yaw); place(row1, 1, 1.15, yaw); cam.position.set(0, 2.2, 7.4); look.set(0, 0.9, -0.8); cam.fov = 38;
+}
+if (view === 'newbodies-side') { const yaw = Number(params.get('yaw') ?? 1.45); const row = [typed('lanky', 'm', 'adult', 3), typed('big-tall', 'm', 'adult', 8), typed('stoop-slim', 'm', 'old', 12), typed('swimmer', 'f', 'adult', 5), typed('pregnant', 'f', 'adult', 6), typed('elder-heavy', 'f', 'old', 13)]; place(row, 0, 0.9, yaw); cam.position.set(0, 1.3, 6.0); look.set(0, 0.92, 0); cam.fov = 36; }
+// a child of about ten with an adult, and a pregnant woman beside her partner
+if (view === 'pair') { const a = typed('big-tall', 'm', 'adult', 8), k = typed('kid', 'm', 'kid', 21), b = typed('pregnant', 'f', 'adult', 6), c = typed('avg', 'f', 'adult', 22); place([a, k, b, c], 0, 0.8, 0.3); cam.position.set(0, 1.3, 4.2); look.set(0, 0.85, 0); cam.fov = 36; }
+// the garments: every top, layer, bottom and one-piece worn by one person, row by row (garments=tops|layers|bottoms|shoes)
 
 // ---- PEDTEX views: flat maps, four faces, the player's looks, street distance
 if (params.get('grid') === '1') globalThis.__pedGrid = true;

@@ -81,6 +81,16 @@ const OVERCAST_MOON_CUT = 0.35;
 const OVERCAST_HEMI_GAIN = 0.2;
 const OVERCAST_FOG_CUT = 0.55;
 const OVERCAST_FOG_GREY = 0.55;
+/** Weather fog (Weather.fog 0..1): the fog line closes to these at full strength. */
+const WEATHER_FOG_NEAR = 4;
+const WEATHER_FOG_FAR = 140;
+const WEATHER_FOG_GREY = 0.5;
+/** Lightning (Weather.flash 0..1): fraction of the skylight and sun added at the peak of a flash, and its cool tint. */
+const FLASH_HEMI_GAIN = 1.0;
+const FLASH_HEMI_ADD = 0.45;
+const FLASH_SUN_ADD = 1.1;
+const FLASH_TINT = 0.55;
+const _flashTint = new Color(0.78, 0.86, 1);
 const _grey = new Color();
 const _tc = newTimeCycle();
 const _moonDir = new Vector3();
@@ -136,6 +146,13 @@ export class DayNight implements Clock {
    * and greys it, and thickens the SkyDome clouds. 0 = the clear-sky numbers of TIME_CYCLE exactly.
    */
   overcast = 0;
+  /** Weather look, written by Weather each frame: sky cloud cover (-1 = the old overcast-derived cover), wind 0..1, distance fog 0..1. */
+  cloudCover = -1;
+  windSpeed = 0.2;
+  fogAmount = 0;
+  /** Lightning flash 0..1 (bounded: the bloom threshold of the time cycle keeps it from blowing out) and whether the key light (shadows) joins in. */
+  flash = 0;
+  flashKey = 1;
 
   private readonly scene: Scene;
   private readonly materials: IMaterialLibrary;
@@ -208,6 +225,8 @@ export class DayNight implements Clock {
     this.sun.intensity = total;
     this.sun.color.copy(tc.sunColor);
     if (total > 1e-5) this.sun.color.lerp(MOON_RGB, (tc.moonI * (1 - OVERCAST_MOON_CUT * o)) / total);
+    const fl = clamp(this.flash, 0, 1);
+    if (fl > 0 && this.flashKey > 0) this.sun.intensity += FLASH_SUN_ADD * fl;
     this.skyDome?.setOvercast(o);
 
     // Fog takes the dome's horizon colour (from the TRUE sun elevation), else the plain sky colour.
@@ -221,12 +240,26 @@ export class DayNight implements Clock {
         c.lerp(_grey.setRGB(lum, lum, lum * 1.04), OVERCAST_FOG_GREY * o);
       }
       const fog = this.scene.fog as Fog;
-      if (fog.isFog) { fog.near = tc.fogNear * (1 - 0.4 * o); fog.far = tc.fogFar * (1 - OVERCAST_FOG_CUT * o); }
-    }
+      const wf = clamp(this.fogAmount, 0, 1);
+      if (wf > 0) {
+        // weather fog (mist, dawn fog): greyer toward the horizon colour's own luminance, so a warm dawn gives a warm mist
+        const c = this.scene.fog.color;
+        const lum = c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722;
+        c.lerp(_grey.setRGB(lum * 1.02, lum * 1.02, lum * 1.06), WEATHER_FOG_GREY * wf);
+      }
+      if (fog.isFog) {
+        const near = tc.fogNear * (1 - 0.4 * o);
+        const far = tc.fogFar * (1 - OVERCAST_FOG_CUT * o);
+        fog.near = near + (WEATHER_FOG_NEAR - near) * wf;
+        fog.far = far + (Math.min(far, WEATHER_FOG_FAR) - far) * wf;
+      }
+      this.skyDome?.setWeatherSky(this.cloudCover, this.windSpeed, fl, wf, this.scene.fog.color);
+    } else this.skyDome?.setWeatherSky(this.cloudCover, this.windSpeed, fl, 0, null);
 
     // Skylight fill: cool zenith colour (blue even at dusk, so shadows stay cool), sunlit-street bounce below.
     this.hemi.color.copy(tc.hemiSky);
     this.hemi.groundColor.copy(tc.hemiGround);
-    this.hemi.intensity = tc.hemiI * (1 + OVERCAST_HEMI_GAIN * o);
+    this.hemi.intensity = tc.hemiI * (1 + OVERCAST_HEMI_GAIN * o) * (1 + FLASH_HEMI_GAIN * fl) + FLASH_HEMI_ADD * fl;
+    if (fl > 0) this.hemi.color.lerp(_flashTint, FLASH_TINT * fl);
   }
 }

@@ -311,8 +311,17 @@ export class Pedestrian implements Entity {
     this.detour = null;
     this.detach();
     this.downTimer = DOWN_TIME;
-    this.body.vel.x = other.vel.x * 0.5;
-    this.body.vel.z = other.vel.z * 0.5;
+    // thrown clear of the bumper: along the car's path with a push away from its centreline; cars pass over the body while it slides
+    {
+      const cs = hyp(other.vel.x, other.vel.z) || 1;
+      let ax = this.body.pos.x - other.pos.x, az = this.body.pos.z - other.pos.z;
+      const al = hyp(ax, az) || 1; ax /= al; az /= al;
+      let dx = other.vel.x / cs + ax * 0.5, dz = other.vel.z / cs + az * 0.5;
+      const dl = hyp(dx, dz) || 1;
+      const v = Math.min(11, cs * 0.75) + 1;
+      this.body.vel.x = (dx / dl) * v; this.body.vel.z = (dz / dl) * v;
+      this.body.vehiclePass = true;
+    }
     const pos = { x: this.body.pos.x, z: this.body.pos.z };
     this.events.emit('pedKnockedDown', { id: this.id, pos });
     if ((other.userData as IVehicle | undefined)?.driver === 'player') {
@@ -331,8 +340,10 @@ export class Pedestrian implements Entity {
         const damp = Math.exp(-4 * dt);
         b.vel.x *= damp;
         b.vel.z *= damp;
+        if (this.downTimer < DOWN_TIME - 1.2) b.vehiclePass = false; // the slide is over after ~1.2 s: from then on they are an obstacle on the ground again
         if (this.downTimer <= 0) {
           this.state = 'walking';
+          b.vehiclePass = false;
           b.vel.x = 0;
           b.vel.z = 0;
         }

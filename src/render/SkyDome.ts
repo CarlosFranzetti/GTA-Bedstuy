@@ -137,15 +137,18 @@ export interface CloudParams {
  * tests can bound it. `sunRgb` is the key-light colour (linear 0..1) from the time cycle; clouds catch it, so they go amber
  * and pink at golden hour and grey-blue in the rain.
  */
-export function cloudParamsAt(sunElevation: number, overcast: number, sunRgb: readonly [number, number, number] = [1, 0.93, 0.87], out?: CloudParams): CloudParams {
+export function cloudParamsAt(sunElevation: number, overcast: number, sunRgb: readonly [number, number, number] = [1, 0.93, 0.87], out?: CloudParams, cloud = -1): CloudParams {
   const e = clamp(sunElevation, -1, 1);
   const o = clamp(overcast, 0, 1);
   const up = smooth(-0.06, 0.28, e);
   const dusk = smooth(-0.2, -0.02, e) * (1 - smooth(0.02, 0.3, e));
   const night = 1 - smooth(-0.2, 0.0, e);
   const r = out ?? { cover: 0, density: 0, lit: [0, 0, 0], shade: [0, 0, 0], sunDisc: 0, haze: 0, dusk: 0 };
-  r.cover = clamp(0.4 + 0.1 * (1 - up) + 0.5 * o, 0.25, 0.95);
-  r.density = clamp(0.62 + 0.1 * up + 0.28 * o, 0.5, 1);
+  // `cloud` (0..1, from Weather) sets the cover on its own: a clear sky is nearly empty, overcast is wall to wall. Negative = the old
+  // behaviour where the rain gloom alone decides the cover.
+  const c = cloud >= 0 ? clamp(cloud, 0, 1) : -1;
+  r.cover = c >= 0 ? clamp(0.1 + 0.08 * (1 - up) + 0.82 * c, 0.08, 0.96) : clamp(0.4 + 0.1 * (1 - up) + 0.5 * o, 0.25, 0.95);
+  r.density = c >= 0 ? clamp(0.5 + 0.1 * up + 0.3 * c + 0.12 * o, 0.45, 1) : clamp(0.62 + 0.1 * up + 0.28 * o, 0.5, 1);
   const gloom = 1 - 0.32 * o;
   const nl = Math.max(sunRgb[0], sunRgb[1], sunRgb[2], 1e-3);
   const dim = (0.008 + 0.992 * up) * gloom;
@@ -174,6 +177,8 @@ const ART_GLSL_DECL = /* glsl */ `
 		uniform float artSun;
 		uniform float artHaze;
 		uniform float artDusk;
+		uniform float artFlash;
+		uniform float artFogW;
 		uniform vec3 artLit;
 		uniform vec3 artShade;
 		uniform vec3 artSunCol;
@@ -202,7 +207,7 @@ const ART_GLSL_BODY = /* glsl */ `
 				texColor = mix( texColor, ramp, artDusk * ( 0.3 + 0.7 * artAz ) * ( 1.0 - 0.45 * vv ) );
 			}
 			// horizon haze band (matches the fog colour so the skyline dissolves into the sky)
-			float artHz = 1.0 - smoothstep( 0.0, 0.34, artUp );
+			float artHz = 1.0 - smoothstep( 0.0, 0.34 + 0.9 * artFogW, artUp );
 			texColor = mix( texColor, artHazeCol, artHz * artHz * artHaze );
 			// clouds
 			float artAlpha = 0.0;
@@ -222,10 +227,14 @@ const ART_GLSL_BODY = /* glsl */ `
 				float core = smoothstep( thr + 0.05, thr + 0.5, n );
 				vec3 ccol = mix( artShade, artLit, lit * ( 1.0 - 0.55 * core ) + 0.12 );
 				ccol += artLit * 0.3 * ( m * ( 1.0 - m ) * 4.0 ) * pow( max( artCs, 0.0 ), 5.0 );
+				// lightning lights the cloud from within: a cool white wash, thicker where the cloud is dense
+				ccol += vec3( 0.5, 0.58, 0.8 ) * artFlash * ( 0.35 + 0.65 * core );
 				ccol = min( ccol, vec3( SKY_MAX_RADIANCE ) );
 				artAlpha = clamp( m * artDensity * smoothstep( 0.015, 0.1, direction.y ), 0.0, 1.0 );
 				texColor = mix( texColor, ccol, artAlpha );
 			}
+			texColor += vec3( 0.12, 0.15, 0.24 ) * artFlash * ( 1.0 - 0.6 * artAlpha );
+			texColor = min( texColor, vec3( SKY_MAX_RADIANCE ) );
 			// sun disc + glow, hidden behind cloud and below the horizon
 			float artDisc = smoothstep( 0.99935, 0.9998, artCs );
 			float artGlow = pow( max( artCs, 0.0 ), 260.0 ) * 0.45 + pow( max( artCs, 0.0 ), 22.0 ) * 0.1;
@@ -246,6 +255,8 @@ function patchSkyMaterial(mat: THREE.ShaderMaterial): void {
   mat.uniforms.artSun = { value: 1 };
   mat.uniforms.artHaze = { value: 0.55 };
   mat.uniforms.artDusk = { value: 0 };
+  mat.uniforms.artFlash = { value: 0 };
+  mat.uniforms.artFogW = { value: 0 };
   mat.uniforms.artLit = { value: new THREE.Color(1, 1, 1) };
   mat.uniforms.artShade = { value: new THREE.Color(0.4, 0.45, 0.55) };
   mat.uniforms.artSunCol = { value: new THREE.Color(1, 0.9, 0.7) };
@@ -284,6 +295,14 @@ export class SkyDome {
   private lastHour = Number.NaN;
   private cloudTime = 0;
   private overcast = 0;
+  private cloudAmount = -1;
+  private windSpeed = 0.2;
+  private flashAmount = 0;
+  private fogAmount = 0;
+  private readonly fogColor = new THREE.Color();
+  private hasFogColor = false;
+  private windPhase = 0;
+  private lastWall = Number.NaN;
   private lastCaptureOvercast = 0;
   private sunElevation = 1;
   private trueSun: THREE.Vector3 | null = null;
@@ -327,6 +346,18 @@ export class SkyDome {
   /** Rain gloom 0..1 (Weather via DayNight): more and denser cloud, a duller sky. */
   setOvercast(o: number): void {
     this.overcast = clamp(o, 0, 1);
+  }
+
+  /**
+   * Weather look (DayNight forwards it): `cloud` cover 0..1 (-1 = derive it from the gloom as before), `wind` 0..1 (the clouds
+   * drift faster), `flash` lightning 0..1, `fog` 0..1 with the fog colour so the horizon band meets the fog exactly.
+   */
+  setWeatherSky(cloud: number, wind: number, flash: number, fog: number, fogColor: THREE.Color | null): void {
+    this.cloudAmount = Number.isFinite(cloud) ? cloud : -1;
+    this.windSpeed = clamp(Number.isFinite(wind) ? wind : 0.2, 0, 1);
+    this.flashAmount = clamp(Number.isFinite(flash) ? flash : 0, 0, 1);
+    this.fogAmount = clamp(Number.isFinite(fog) ? fog : 0, 0, 1);
+    if (fogColor) { this.fogColor.copy(fogColor); this.hasFogColor = true; } else this.hasFogColor = false;
   }
 
   setSunDirection(dir: THREE.Vector3): void {
@@ -406,9 +437,15 @@ export class SkyDome {
     const u = this.uniforms;
     timeCycleAt(hour, this.tc);
     const c = this.tc.sunColor;
-    const a = cloudParamsAt(sunElevation, this.overcast, [c.r, c.g, c.b], this.art);
+    const a = cloudParamsAt(sunElevation, this.overcast, [c.r, c.g, c.b], this.art, this.cloudAmount);
     this.wall = typeof performance !== 'undefined' ? performance.now() * 0.001 : 0;
-    u.artTime.value = (this.cloudTime / CLOUD_TIME_PER_HOUR) * 0.04 + this.wall * 0.0035;
+    // clouds drift with the wind: real seconds, faster in a gale (a calm day keeps the old slow drift)
+    const dw = Number.isFinite(this.lastWall) ? Math.min(0.25, Math.max(0, this.wall - this.lastWall)) : 0;
+    this.lastWall = this.wall;
+    this.windPhase += dw * (0.0035 + 0.03 * this.windSpeed * this.windSpeed);
+    u.artTime.value = (this.cloudTime / CLOUD_TIME_PER_HOUR) * 0.04 + this.windPhase;
+    u.artFlash.value = this.flashAmount;
+    u.artFogW.value = this.fogAmount;
     u.artCover.value = a.cover;
     u.artDensity.value = a.density;
     u.artQuality.value = this.starsEnabled ? 1 : 0; // phone: cheaper cloud noise (no detail octaves, no lit-side lookup)
@@ -420,6 +457,11 @@ export class SkyDome {
     // sun disc: the key-light colour pushed toward white-hot (it is the brightest thing in the sky), horizon colour for the haze
     (u.artSunCol.value as THREE.Color).setRGB(0.55 + 0.45 * c.r, 0.5 + 0.4 * c.g, 0.4 + 0.3 * c.b);
     (u.artHazeCol.value as THREE.Color).copy(this.horizon).multiplyScalar(0.85);
+    if (this.fogAmount > 0 && this.hasFogColor) {
+      // in mist the horizon band is the fog colour itself, so there is no seam where the ground fog meets the sky
+      (u.artHazeCol.value as THREE.Color).lerp(this.fogColor, Math.min(1, this.fogAmount * 1.6));
+      u.artHaze.value = Math.min(0.97, a.haze + (0.97 - a.haze) * this.fogAmount);
+    }
   }
 
   /** Sky colour at the horizon for fog. Pass the sun elevation sine for an exact value; omit for the last update. */

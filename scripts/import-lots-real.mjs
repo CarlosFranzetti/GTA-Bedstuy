@@ -261,20 +261,26 @@ const R3_FOOT_FIELDS = ['base_bbl', 'bin', 'height_roof', 'construction_year', '
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function pagedFetchSlow(base, select, where, order, label) {
+  // pages of 2,500 rows, each kept on disk as soon as it arrives so an interrupted run resumes where it stopped
   const rows = [];
-  const page = 5000;
+  const page = 2500;
+  const dir = path.join(R3_DIR, `${label}-pages`);
+  fs.mkdirSync(dir, { recursive: true });
   for (let off = 0; ; off += page) {
-    const q = new URLSearchParams({ $select: select, $where: where, $order: order, $limit: String(page), $offset: String(off) });
-    let rowsPage = null;
-    for (let attempt = 0; attempt < 4 && !rowsPage; attempt++) {
-      const res = await fetch(`${base}?${q}`);
-      if (res.ok) rowsPage = await res.json(); else { console.log(`  ${label} HTTP ${res.status}, retrying`); await pause(4000 * (attempt + 1)); }
+    const file = path.join(dir, `${off}.json`);
+    let rowsPage = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+    for (let attempt = 0; attempt < 6 && !rowsPage; attempt++) {
+      try {
+        const q = new URLSearchParams({ $select: select, $where: where, $order: order, $limit: String(page), $offset: String(off) });
+        const res = await fetch(`${base}?${q}`);
+        if (res.ok) { rowsPage = await res.json(); fs.writeFileSync(file, JSON.stringify(rowsPage)); await pause(1500); }
+        else { console.log(`  ${label} HTTP ${res.status}, retrying`); await pause(4000 * (attempt + 1)); }
+      } catch (e) { console.log(`  ${label} ${String(e.cause?.code ?? e.message)}, retrying`); await pause(4000 * (attempt + 1)); }
     }
-    if (!rowsPage) throw new Error(`${label}: HTTP failures at offset ${off}`);
+    if (!rowsPage) throw new Error(`${label}: failures at offset ${off}`);
     rows.push(...rowsPage);
     console.log(`  ${label} offset ${off}: ${rowsPage.length} rows`);
     if (rowsPage.length < page) break;
-    await pause(1500);
   }
   return rows;
 }
@@ -305,7 +311,7 @@ async function mainR3() {
       const rows = await pagedFetchSlow(PLUTO, R3_PLUTO_FIELDS.join(','), where, 'bbl', 'pluto');
       pluto = { source: 'NYC DCP MapPLUTO (64uk-42ks) via NYC Open Data', url: PLUTO, select: R3_PLUTO_FIELDS.join(','), where, bbox, fetched: new Date().toISOString(), rows };
       fs.writeFileSync(plutoFile, JSON.stringify(pluto));
-      fs.writeFileSync(path.join(ROOT, 'src/world/data/raw/pluto-r3.query.json'), JSON.stringify({ source: pluto.source, url: PLUTO, select: pluto.select, where, order: 'bbl', pages: '5000 rows, 1.5 s apart', fetched: pluto.fetched.slice(0, 10), rows: rows.length, note: 'raw rows cached in cache/real-r3/ (git-ignored); the shipped lots are public/data/real/lots-*.json' }, null, 2) + '\n');
+      fs.writeFileSync(path.join(ROOT, 'src/world/data/raw/pluto-r3.query.json'), JSON.stringify({ source: pluto.source, url: PLUTO, select: pluto.select, where, order: 'bbl', pages: '2500 rows, 1.5 s apart', fetched: pluto.fetched.slice(0, 10), rows: rows.length, note: 'raw rows cached in cache/real-r3/ (git-ignored); the shipped lots are public/data/real/lots-*.json' }, null, 2) + '\n');
     } else pluto = JSON.parse(fs.readFileSync(plutoFile, 'utf8'));
     console.log(`MapPLUTO rows: ${pluto.rows.length} (fetched ${pluto.fetched})`);
 
@@ -315,7 +321,7 @@ async function mainR3() {
       const rows = await pagedFetchSlow(FOOT, R3_FOOT_FIELDS.join(','), where, 'bin', 'footprints');
       foot = { source: 'NYC Building Footprints (5zhs-2jue) via NYC Open Data', url: FOOT, select: R3_FOOT_FIELDS.join(','), where, bbox, fetched: new Date().toISOString(), rows };
       fs.writeFileSync(footFile, JSON.stringify(foot));
-      fs.writeFileSync(path.join(ROOT, 'src/world/data/raw/footprints-r3.query.json'), JSON.stringify({ source: foot.source, url: FOOT, select: foot.select, where, order: 'bin', pages: '5000 rows, 1.5 s apart', fetched: foot.fetched.slice(0, 10), rows: rows.length, note: 'polygons not fetched: height_roof (ft), construction_year and shape_area (sq ft) per BIN only' }, null, 2) + '\n');
+      fs.writeFileSync(path.join(ROOT, 'src/world/data/raw/footprints-r3.query.json'), JSON.stringify({ source: foot.source, url: FOOT, select: foot.select, where, order: 'bin', pages: '2500 rows, 1.5 s apart', fetched: foot.fetched.slice(0, 10), rows: rows.length, note: 'polygons not fetched: height_roof (ft), construction_year and shape_area (sq ft) per BIN only' }, null, 2) + '\n');
     } else foot = JSON.parse(fs.readFileSync(footFile, 'utf8'));
     console.log(`footprint rows: ${foot.rows.length} (fetched ${foot.fetched})`);
 
