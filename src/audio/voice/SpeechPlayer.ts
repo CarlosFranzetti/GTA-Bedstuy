@@ -9,6 +9,7 @@
 import { CAST_MAP } from './cast';
 import { ClipCache } from './ClipCache';
 import { FxBank, playLaugh, playSfx, type FxHost } from './fx';
+import { fadeOutAndStop, gate, type Gated } from './fade';
 import { clipKey, lineSeconds } from './script';
 import { planLine, shapeClip, turnGap } from './prosody';
 import { rhythmFor } from './rhythm';
@@ -88,7 +89,8 @@ export class SpeechPlayer {
   private token = 0;
   private bank: FxBank | null = null;
   private bankCtx: AudioContext | null = null;
-  private sources: AudioScheduledSourceNode[] = [];
+  private sources: Gated[] = [];
+  private fadeCtx: BaseAudioContext | null = null;
   private timers = new Set<ReturnType<typeof setTimeout>>();
   private silent: { items: Item[]; at: number; left: number; cb: PlayCallbacks; token: number; lines: readonly ResolvedLine[] } | null = null;
   private paused = false;
@@ -153,7 +155,8 @@ export class SpeechPlayer {
     this.silent = null;
     for (const t of this.timers) clearTimeout(t);
     this.timers.clear();
-    for (const s of this.sources) { try { s.stop(); s.disconnect(); } catch { /* already ended */ } }
+    // a cancelled clip fades over 25 ms instead of being cut at a non-zero sample (that is a click)
+    if (this.sources.length && this.fadeCtx) fadeOutAndStop(this.fadeCtx, this.sources);
     this.sources = [];
     try { this.env.speech?.cancel(); } catch { /* ignore */ }
     try { this.env.engine()?.cancelAll(); } catch { /* ignore */ }
@@ -243,12 +246,13 @@ export class SpeechPlayer {
       buf.copyToChannel(pcm as Float32Array<ArrayBuffer>, 0);
       const src = host.ctx.createBufferSource();
       src.buffer = buf;
-      src.connect(this.fx(host, it.cast.fx));
+      const gt = gate(host.ctx, src, this.fx(host, it.cast.fx));
+      this.fadeCtx = host.ctx;
       const now = host.ctx.currentTime + 0.03;
       const startAt = Math.max(now, overlap ? clipEnd - 0.45 : cursor + it.lead);
       overlap = false;
       src.start(startAt);
-      this.sources.push(src);
+      this.sources.push({ src, gate: gt });
       clipEnd = startAt + buf.duration;
       cursor = clipEnd + it.gap;
       if (!started) { started = true; cb.onStart?.(); }

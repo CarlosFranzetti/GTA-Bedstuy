@@ -35,7 +35,16 @@ export interface HandsHudState {
   count: number | null;
   reserve: number | null;
   reloading: boolean;
+  /** a pistol or a throwable is in hand on foot: the HUD shows the aiming reticle */
+  aim?: boolean;
+  /** counts up with every shot, so the reticle can kick */
+  shots?: number;
+  /** in a car: the widget stays, dimmed (the action button does nothing there yet) */
+  dim?: boolean;
 }
+
+/** What the saved game keeps of the hands (ui/GameSave): the items, the rounds, and what was in hand. */
+export interface SavedHands { bottles: number; bricks: number; pistol: boolean; mag: number; reserve: number; current: HandItem }
 
 export class Hands {
   bottles = 0;
@@ -121,6 +130,29 @@ export class Hands {
       reloading: this.reloading && item === 'pistol',
     };
   }
+
+  /** The hands as they go into a save. */
+  serialize(): SavedHands {
+    return { bottles: this.bottles, bricks: this.bricks, pistol: this.hasPistol, mag: this.mag, reserve: this.reserve, current: this.current };
+  }
+
+  /** Put the hands back from a save (any shape: bad or missing fields give an empty pair of hands). Returns true when something was restored. */
+  restore(d: unknown): boolean {
+    const o = (typeof d === 'object' && d !== null ? d : null) as Partial<Record<keyof SavedHands, unknown>> | null;
+    const num = (v: unknown, max: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.min(max, Math.floor(v))) : 0);
+    this.bottles = num(o?.bottles, 99); this.bricks = num(o?.bricks, 99);
+    this.hasPistol = o?.pistol === true;
+    this.mag = this.hasPistol ? num(o?.mag, PISTOL.magSize) : 0;
+    this.reserve = this.hasPistol ? num(o?.reserve, PISTOL.maxReserve) : 0;
+    const cur = o?.current;
+    this.current = HAND_ORDER.includes(cur as HandItem) && this.owns(cur as HandItem) ? (cur as HandItem) : 'fists';
+    this.reloading = false;
+    this.changed();
+    return o !== null;
+  }
+
+  /** Back to bare fists and nothing in the pockets (a new game). */
+  reset(): void { this.restore(null); }
 
   private changed(): void { this.onChange?.(); }
 }

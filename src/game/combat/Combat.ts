@@ -65,6 +65,11 @@ export interface CombatFrame {
 export const FLEE_RADIUS = 9;
 export const SHOUT_RADIUS = 18;
 export const WITNESS_RADIUS = 25;
+/** A gunshot carries further than a scuffle: people this close run, the ones this close shout. */
+export const GUNSHOT_FLEE_RADIUS = 15;
+export const GUNSHOT_SHOUT_RADIUS = 30;
+/** Bystanders stand and look at what happened for about this long (s, each person 0.6 to 1.4 times it) before they run. */
+export const LOOK_BEAT = 0.25;
 /** Seconds the player keeps facing the aim after releasing the button with the pistol out. */
 const AIM_HOLD = 0.35;
 const THROW_WINDUP = 0.22;
@@ -91,6 +96,10 @@ export class Combat {
   private throwYaw = 0;
   private dryClicked = false;
   private lastHud = '';
+  private shots = 0;
+  /** last frame: the player may act (on foot, nothing blocking) */
+  private live = false;
+  private aimHeld = false;
 
   constructor(private readonly deps: CombatDeps) {
     this.pickups = new PickupSet(deps.pickups ?? []);
@@ -103,12 +112,29 @@ export class Combat {
     this.hands.cycle(dir);
   }
 
-  /** What the HUD shows now (null while in a car). */
-  hudState(): HandsHudState | null { return this.deps.player.inVehicle ? null : this.hands.state(); }
+  /** What the HUD shows now: the hands, with the reticle flag on foot; dimmed in a car, where the action button does nothing yet. */
+  hudState(): HandsHudState | null {
+    const s = this.hands.state();
+    if (this.deps.player.inVehicle) return { ...s, dim: true };
+    return { ...s, aim: this.live && actionFor(s.item) !== 'punch', shots: this.shots };
+  }
+
+  /**
+   * 0 or 1: the action button is held with a pistol or a throwable in hand, so the camera slides a little further over the shoulder.
+   * Wiring: `cam.aimBias = combat.aimBias` next to `cam.holdView = combat.holdView`.
+   */
+  get aimBias(): number { return this.aimHeld ? 1 : 0; }
+
+  /** The hands, for the saved game (see ui/GameSave). */
+  serialize(): unknown { return this.hands.serialize(); }
+  /** Put the hands back from a save; anything in progress stops. */
+  restore(d: unknown): void { this.stopAll(); this.recoil = 0; this.hands.restore(d); }
+  /** A new game: empty hands. */
+  reset(): void { this.restore(null); }
 
   private pushHud(): void {
     const s = this.hudState();
-    const key = s ? `${s.item}|${s.count}|${s.reserve}|${s.reloading}` : '';
+    const key = s ? `${s.item}|${s.count}|${s.reserve}|${s.reloading}|${s.aim ? 1 : 0}|${s.shots ?? 0}|${s.dim ? 1 : 0}` : '';
     if (key === this.lastHud) return;
     this.lastHud = key;
     this.deps.onHands?.(s);
@@ -124,6 +150,8 @@ export class Combat {
     const held = frame.input.actionHeld();
     const cyc = frame.input.consumeCycle();
     const live = !frame.blocked && !p.inVehicle && !p.isEntering;
+    this.live = live;
+    this.aimHeld = false;
 
     // pickups: walking over them while on foot; the glow and bob are drawn either way
     const got = this.pickups.update(dt, p.body.pos, live);
@@ -142,6 +170,7 @@ export class Combat {
       if (action === 'punch') this.updateFists(dt, pressed, frame);
       else if (action === 'throw') this.updateThrow(dt, pressed, frame);
       else this.updatePistol(dt, pressed, held, frame);
+      this.aimHeld = held && action !== 'punch' && (action === 'shoot' || (this.hands.current === 'bottle' ? this.hands.bottles : this.hands.bricks) > 0 || this.throwT >= 0);
     }
 
     this.updateFlights(dt);
@@ -212,7 +241,7 @@ export class Combat {
     const tip = fistTip(origin, p.body.heading);
     const dir = forwardFromHeading(p.body.heading);
     const hit = this.deps.world.raycast(origin, dir, Math.hypot(tip.x - origin.x, tip.z - origin.z), 'player');
-    if (hit && hit.body.kind !== 'ped') this.deps.sfx?.thud();
+    if (hit && hit.body.kind !== 'ped') { if (hit.body.kind === 'vehicle' || hit.body.kind === 'cop') this.deps.sfx?.carThud(); else this.deps.sfx?.thud(); }
   }
 
   // ------------------------------------------------------------------------------------------------ throwing
@@ -269,7 +298,7 @@ export class Combat {
       const ped = hit.body.userData as Pedestrian | undefined;
       if (ped && typeof ped.hitBy === 'function') this.hurt(ped, 'thrown', 'thrown', { x: pr.x - pr.vx * 0.05, z: pr.z - pr.vz * 0.05 });
     }
-    if (out.carThud) sfx?.thud();
+    if (out.carThud) sfx?.carThud();
     if (out.sound === 'glass') sfx?.glass(); else if (!out.carThud) sfx?.thud();
     if (out.particles === 'glass') fx?.burst('glass', pos, 10);
     else if (out.particles === 'dust') fx?.burst('dust', pos, 4);
@@ -316,6 +345,7 @@ export class Combat {
     if (!h.fireRound()) return null;
     this.fireCool = PISTOL.fireInterval;
     this.recoil = 1;
+    this.shots++;
     const origin = { x: p.body.pos.x, z: p.body.pos.z };
     const peds = this.nearbyPedBodies(origin);
     const aim = assistYaw(world, origin, yaw, peds);
@@ -329,7 +359,7 @@ export class Combat {
     // anyone could hear it: the police system hears it as a crime, and people near run
     this.deps.events.emit('gunshot', { pos: origin });
     this.deps.events.emit('crime', { type: 'gunshot', pos: origin });
-    this.scare(origin, null);
+    this.scare(origin, null, GUNSHOT_FLEE_RADIUS, GUNSHOT_SHOUT_RADIUS);
     switch (shot.target) {
       case 'ped': {
         const ped = shot.body?.userData as Pedestrian | undefined;
@@ -372,14 +402,15 @@ export class Combat {
   }
 
   /** Nearby pedestrians run (close) or shout (further); returns how many other people could see it. */
-  private scare(pos: Vec2, victim: Pedestrian | null): number {
+  private scare(pos: Vec2, victim: Pedestrian | null, fleeR = FLEE_RADIUS, shoutR = SHOUT_RADIUS): number {
     let witnesses = 0;
     for (const o of this.deps.peds()) {
       if (o === victim || o.state === 'down') continue;
       const d = Math.hypot(o.body.pos.x - pos.x, o.body.pos.z - pos.z);
       if (d <= WITNESS_RADIUS) witnesses++;
-      if (d <= FLEE_RADIUS) o.flee(pos, 6);
-      else if (d <= SHOUT_RADIUS) o.react('shout', pos);
+      // each person looks toward it for a beat of their own, then runs away from it (people already running just carry on)
+      if (d <= fleeR) o.flee(pos, 6, o.state === 'fleeing' ? 0 : LOOK_BEAT);
+      else if (d <= shoutR) o.react('shout', pos);
     }
     return witnesses;
   }

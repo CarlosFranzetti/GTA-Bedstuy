@@ -42,6 +42,34 @@ function glowTexture(): THREE.Texture {
   return t;
 }
 
+/** A small four-point star with a hot core: the muzzle flash. Drawn once on a canvas (no files). */
+function starTexture(): THREE.Texture {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  g.translate(32, 32);
+  const ray = (ang: number, len: number, w: number): void => {
+    g.save(); g.rotate(ang);
+    const lg = g.createLinearGradient(0, 0, len, 0);
+    lg.addColorStop(0, 'rgba(255,255,255,1)'); lg.addColorStop(1, 'rgba(255,230,170,0)');
+    g.fillStyle = lg; g.beginPath(); g.moveTo(0, -w); g.lineTo(len, 0); g.lineTo(0, w); g.lineTo(-len * 0.25, 0); g.closePath(); g.fill();
+    g.restore();
+  };
+  for (let i = 0; i < 4; i++) ray((i * Math.PI) / 2, 31, 3.2);
+  for (let i = 0; i < 4; i++) ray(Math.PI / 4 + (i * Math.PI) / 2, 17, 2.2);
+  const core = g.createRadialGradient(0, 0, 0, 0, 0, 9);
+  core.addColorStop(0, 'rgba(255,255,255,1)'); core.addColorStop(0.5, 'rgba(255,240,200,0.8)'); core.addColorStop(1, 'rgba(255,220,150,0)');
+  g.fillStyle = core; g.beginPath(); g.arc(0, 0, 9, 0, Math.PI * 2); g.fill();
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/** The shot's streak: how fast it flies (m/s), how long it is (m) and how thin (m). Thin and quick, not a beam. */
+export const TRACER = { speed: 420, length: 3.2, width: 0.011 } as const;
+/** The muzzle star's size (m) and how long it shows (s): a frame or two; and the width of the faint warm pool it throws on the ground (m). */
+export const MUZZLE = { size: 0.17, life: 0.036, groundGlow: 2.4 } as const;
+
+interface TracerState { m: THREE.Mesh; ax: number; ay: number; az: number; dx: number; dy: number; dz: number; len: number; head: number; on: boolean }
+
 interface Particle { s: THREE.Sprite; vx: number; vy: number; vz: number; life: number; max: number; grow: number; grav: number; size: number }
 
 const GLASS_COLOR = new THREE.Color(0xd6f0ee), DUST_COLOR = new THREE.Color(0xb8a98c), PUFF_COLOR = new THREE.Color(0xcfc7b6), SPARK_COLOR = new THREE.Color(0xffc060);
@@ -51,9 +79,11 @@ export class CombatView implements CombatFx {
   private readonly glow = glowTexture();
   private readonly particles: Particle[] = [];
   private nextParticle = 0;
-  private readonly tracers: Array<{ m: THREE.Mesh; life: number }> = [];
+  private readonly tracers: TracerState[] = [];
   private nextTracer = 0;
+  private readonly star = starTexture();
   private readonly flashSprite: THREE.Sprite;
+  private readonly flashGlow: THREE.Mesh;
   private flashLife = 0;
   private readonly flyingMeshes: Array<{ bottle: THREE.Object3D; brick: THREE.Object3D }> = [];
   private readonly pickupMeshes = new Map<string, { g: THREE.Group; glow: THREE.Sprite; phase: number }>();
@@ -66,7 +96,7 @@ export class CombatView implements CombatFx {
     glass: new THREE.MeshLambertMaterial({ color: 0x3f8f58, transparent: true, opacity: 0.88 }),
     brick: new THREE.MeshLambertMaterial({ color: 0x9a4b34 }),
     gun: new THREE.MeshLambertMaterial({ color: 0x24272c }),
-    tracer: new THREE.MeshBasicMaterial({ color: 0xffe9a8, transparent: true, depthWrite: false, fog: false }),
+    tracer: new THREE.MeshBasicMaterial({ color: 0xfff1c4, transparent: true, opacity: 0.85, depthWrite: false, fog: false }),
   };
   private held: THREE.Object3D | null = null;
   private heldItem: HandItem = 'fists';
@@ -85,11 +115,15 @@ export class CombatView implements CombatFx {
       const m = new THREE.Mesh(this.geo.bar, this.mat.tracer.clone());
       m.visible = false; m.frustumCulled = false; m.renderOrder = 6;
       this.root.add(m);
-      this.tracers.push({ m, life: 0 });
+      this.tracers.push({ m, ax: 0, ay: 0, az: 0, dx: 0, dy: 0, dz: 1, len: 0, head: 0, on: false });
     }
-    this.flashSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.glow, color: 0xffd890, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, fog: false }));
+    // the muzzle flash: a small star, depth-tested so it never glows through the player; and a faint warm pool on the ground under it
+    this.flashSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.star, color: 0xffe2a0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
     this.flashSprite.visible = false; this.flashSprite.renderOrder = 7;
     this.root.add(this.flashSprite);
+    this.flashGlow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: this.glow, color: 0xffb060, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, opacity: 0 }));
+    this.flashGlow.rotation.x = -Math.PI / 2; this.flashGlow.visible = false; this.flashGlow.renderOrder = 3;
+    this.root.add(this.flashGlow);
     for (let i = 0; i < FLYING_SLOTS; i++) {
       const bottle = this.makeBottle(), brick = new THREE.Mesh(this.geo.brick, this.mat.brick);
       bottle.visible = brick.visible = false;
@@ -115,17 +149,37 @@ export class CombatView implements CombatFx {
     return g;
   }
 
+  /** A thin streak that flies from `a` to `b` at TRACER.speed and is gone on arrival. */
   tracer(a: V3, b: V3): void {
     const t = this.tracers[this.nextTracer++ % MAX_TRACERS];
     const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, len = Math.hypot(dx, dy, dz) || 0.01;
-    t.m.position.set((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
-    t.m.lookAt(b.x, b.y, b.z);
-    t.m.scale.set(0.025, 0.025, len);
-    t.m.visible = true; t.life = 0.07;
-    (t.m.material as THREE.MeshBasicMaterial).opacity = 0.9;
+    t.ax = a.x; t.ay = a.y; t.az = a.z; t.dx = dx / len; t.dy = dy / len; t.dz = dz / len; t.len = len; t.head = 0; t.on = true;
+    t.m.visible = true;
+    this.poseTracer(t);
   }
 
-  flash(p: V3): void { this.flashSprite.position.set(p.x, p.y, p.z); this.flashSprite.scale.setScalar(0.5); this.flashSprite.visible = true; this.flashLife = 0.055; }
+  private poseTracer(t: TracerState): void {
+    const head = Math.min(t.len, t.head), tail = Math.max(0, head - TRACER.length), seg = head - tail;
+    const mid = (head + tail) / 2;
+    t.m.position.set(t.ax + t.dx * mid, t.ay + t.dy * mid, t.az + t.dz * mid);
+    t.m.lookAt(t.ax + t.dx * (mid + 1), t.ay + t.dy * (mid + 1), t.az + t.dz * (mid + 1));
+    t.m.scale.set(TRACER.width, TRACER.width, Math.max(0.01, seg));
+  }
+
+  /** A small bright star at the muzzle for a frame or two, and a faint warm pool on the ground below it. */
+  flash(p: V3): void {
+    const s = this.flashSprite;
+    s.position.set(p.x, p.y, p.z);
+    s.scale.setScalar(MUZZLE.size * (0.85 + Math.random() * 0.4));
+    (s.material as THREE.SpriteMaterial).rotation = Math.random() * Math.PI;
+    s.visible = true;
+    this.flashLife = MUZZLE.life;
+    const g = this.flashGlow;
+    g.position.set(p.x, groundAt(p.x, p.z) + 0.04, p.z);
+    g.scale.setScalar(MUZZLE.groundGlow);
+    (g.material as THREE.MeshBasicMaterial).opacity = 0.3;
+    g.visible = true;
+  }
 
   burst(kind: Burst, p: V3, n: number): void {
     for (let i = 0; i < n; i++) {
@@ -226,17 +280,22 @@ export class CombatView implements CombatFx {
       (q.s.material as THREE.SpriteMaterial).opacity = Math.min(1, k * 1.6) * ((q.s.material as THREE.SpriteMaterial).blending === THREE.AdditiveBlending ? 1 : 0.6);
     }
     for (const t of this.tracers) {
-      if (!t.m.visible) continue;
-      t.life -= dt;
-      if (t.life <= 0) t.m.visible = false; else (t.m.material as THREE.MeshBasicMaterial).opacity = Math.min(0.9, t.life * 14);
+      if (!t.on) continue;
+      t.head += TRACER.speed * dt;
+      if (t.head - TRACER.length >= t.len) { t.on = false; t.m.visible = false; continue; }
+      this.poseTracer(t);
     }
-    if (this.flashLife > 0) { this.flashLife -= dt; if (this.flashLife <= 0) this.flashSprite.visible = false; }
+    if (this.flashLife > 0) {
+      this.flashLife -= dt;
+      (this.flashGlow.material as THREE.MeshBasicMaterial).opacity = Math.max(0, this.flashLife / MUZZLE.life) * 0.3;
+      if (this.flashLife <= 0) { this.flashSprite.visible = false; this.flashGlow.visible = false; }
+    }
   }
 
   dispose(): void {
     this.root.removeFromParent();
     this.held?.removeFromParent();
-    this.glow.dispose();
+    this.glow.dispose(); this.star.dispose();
     for (const g of Object.values(this.geo)) g.dispose();
     for (const m of Object.values(this.mat)) m.dispose();
     for (const q of this.particles) (q.s.material as THREE.Material).dispose();

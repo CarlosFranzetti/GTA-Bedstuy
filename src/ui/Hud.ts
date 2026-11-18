@@ -142,6 +142,8 @@ export class Hud {
   private readonly handsIconEl: HTMLElement;
   private readonly handsCountEl: HTMLElement;
   private handsKey = '';
+  private readonly reticleEl: HTMLElement;
+  private lastShots = 0;
 
   constructor(root: HTMLElement) {
     this.doc = root.ownerDocument;
@@ -277,11 +279,18 @@ export class Hud {
     this.handsCountEl = this.make('span', 'hud-hands-count');
     this.handsEl.append(this.handsIconEl, this.handsCountEl);
     this.handsEl.addEventListener('pointerdown', (e) => { e.stopPropagation(); this.onCycleHands?.(); });
+    // aiming reticle: a thin ring with four ticks and a centre dot, drawn in CSS at the middle of the screen while a pistol or a throwable is in hand
+    this.reticleEl = this.make('div', 'hud-reticle');
+    this.reticleEl.hidden = true;
+    this.reticleEl.setAttribute('aria-hidden', 'true');
+    this.reticleEl.append(this.make('span', 'hud-reticle-ring'), this.make('span', 'hud-reticle-dot'));
+    for (const side of ['n', 'e', 's', 'w']) this.reticleEl.append(this.make('span', `hud-reticle-tick hud-reticle-${side}`));
 
     root.append(
       this.fpsEl,
       this.starsEl,
       this.handsEl,
+      this.reticleEl,
       this.promptEl,
       this.barsEl,
       location,
@@ -294,11 +303,22 @@ export class Hud {
 
   /** Show what is in the player's hands (null hides the widget: in a car, indoors, nothing to show). Cheap to call every frame. */
   setHands(s: HandsHudState | null): void {
-    const key = s ? `${s.item}|${s.count}|${s.reserve}|${s.reloading}` : '';
+    const key = s ? `${s.item}|${s.count}|${s.reserve}|${s.reloading}|${s.aim ? 1 : 0}|${s.shots ?? 0}|${s.dim ? 1 : 0}` : '';
     if (key === this.handsKey) return;
     this.handsKey = key;
     this.handsEl.hidden = !s;
+    this.reticleEl.hidden = !s || !s.aim || !!s.dim;
     if (!s) return;
+    this.handsEl.classList.toggle('dim', !!s.dim);
+    this.handsEl.title = s.dim ? 'No action from a car yet' : '';
+    this.reticleEl.dataset.item = s.item;
+    this.reticleEl.classList.toggle('empty', s.count === 0);
+    this.reticleEl.classList.toggle('reloading', s.reloading);
+    const shots = s.shots ?? 0;
+    if (shots !== this.lastShots) {
+      this.lastShots = shots;
+      this.reticleEl.classList.remove('kick'); void this.reticleEl.offsetWidth; this.reticleEl.classList.add('kick'); // restart the CSS animation
+    }
     this.handsEl.dataset.item = s.item;
     this.handsEl.classList.toggle('empty', s.count === 0);
     this.handsEl.classList.toggle('reloading', s.reloading);

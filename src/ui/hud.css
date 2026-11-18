@@ -574,6 +574,32 @@ body.ui-panel-open .hud-card { display: none !important; }
 .hud-hands-count:empty { display: none; }
 .hud-hands.empty { color: #f08a7a; }
 .hud-hands.reloading { color: #f2c230; }
+.hud-hands.dim { opacity: 0.38; filter: grayscale(0.7); }
+
+/* ---- aiming reticle: a thin ring, four ticks and a dot at the middle of the screen. Pale with a dark edge so it reads on sun and on shade.
+   It kicks open a little with every shot (.kick), goes red with an empty gun and amber while reloading. A bottle or brick gets the ring and dot only. */
+.hud-reticle {
+  --ret: #f4efe2; --ret-edge: rgba(10, 10, 14, 0.75);
+  position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; z-index: 3;
+}
+.hud-reticle[hidden] { display: none; }
+.hud-reticle.empty { --ret: #f08a7a; }
+.hud-reticle.reloading { --ret: #f2c230; }
+.hud-reticle > span { position: absolute; display: block; background: var(--ret); box-shadow: 0 0 0 1px var(--ret-edge); }
+.hud-reticle-ring { left: -9px; top: -9px; width: 18px; height: 18px; border-radius: 50%; background: none !important; border: 1.5px solid var(--ret); box-shadow: 0 0 0 1px var(--ret-edge), inset 0 0 0 1px var(--ret-edge) !important; transition: transform 90ms ease-out; }
+.hud-reticle-dot { left: -1.5px; top: -1.5px; width: 3px; height: 3px; border-radius: 50%; }
+.hud-reticle-tick { width: 2px; height: 6px; transition: transform 90ms ease-out; }
+.hud-reticle-n { left: -1px; top: -17px; }
+.hud-reticle-s { left: -1px; top: 11px; }
+.hud-reticle-e, .hud-reticle-w { width: 6px; height: 2px; top: -1px; }
+.hud-reticle-e { left: 11px; }
+.hud-reticle-w { left: -17px; }
+.hud-reticle:not([data-item='pistol']) .hud-reticle-tick { display: none; }
+.hud-reticle.kick .hud-reticle-ring { animation: hud-ret-kick 160ms ease-out; }
+.hud-reticle.kick .hud-reticle-tick { animation: hud-ret-kick-tick 160ms ease-out; }
+@keyframes hud-ret-kick { 0% { transform: scale(1.5); } 100% { transform: scale(1); } }
+@keyframes hud-ret-kick-tick { 0% { opacity: 0.4; } 100% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .hud-reticle.kick .hud-reticle-ring, .hud-reticle.kick .hud-reticle-tick { animation: none; } }
 
 /* ---- title screen up (body.title-up, set by the host): none of the game's interface shows over it.
    The HUD layer rises above the minimap, the mission chip, the phone and map buttons and the touch controls (all z-index 15 or

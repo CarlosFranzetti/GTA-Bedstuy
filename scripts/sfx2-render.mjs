@@ -22,15 +22,16 @@ page.on('pageerror', (e) => console.log('PAGEERR', e.message.slice(0, 300)));
 await page.setContent('<html><body></body></html>');
 await page.addScriptTag({ content: js });
 const save = (n, b64) => writeFileSync(`${out}/${n}.wav`, Buffer.from(b64, 'base64'));
-if (mode === 'drive') {
-  const type = a[1] ?? 'sedan', tag = arg('tag', 'new');
+if (mode === 'drive') for (const type of (a[1] ?? 'sedan').split(',')) {
+  const tag = arg('tag', 'new');
   const r = await page.evaluate(([t, w]) => window.sfx2.longDrive(t, 120, w), [type, a.includes('--wav')]);
   if (r.wav) { save(`drive_${type}_${tag}`, r.wav); delete r.wav; }
   writeFileSync(`${out}/drive_${type}_${tag}.json`, JSON.stringify(r));
   console.log(type, tag, 'dips>6dB (not at a marker):', r.dips.length, JSON.stringify(r.dips), 'falls>12dB/0.5s:', r.falls.length, JSON.stringify(r.falls), 'NaN', r.nan, 'peak', r.peakDb.toFixed(1), 'LUFS by phase', JSON.stringify(Object.fromEntries(Object.entries(r.phases).map(([k, v]) => [k, +v.toFixed(1)]))));
 } else if (mode === 'steady') {
   const rows = [];
-  for (const t of await page.evaluate(() => window.sfx2.types)) rows.push(await page.evaluate((t) => window.sfx2.steady(t), t));
+  const only = arg('types', '');
+  for (const t of (await page.evaluate(() => window.sfx2.types)).filter((t) => !only || only.split(',').includes(t))) rows.push(await page.evaluate((t) => window.sfx2.steady(t), t));
   writeFileSync(`${out}/steady_${arg('tag', 'new')}.json`, JSON.stringify(rows, null, 1));
   for (const r of rows) console.log(r.type.padEnd(10), Object.entries(r).filter(([k]) => k !== 'type').map(([k, v]) => `${k} ${v.toFixed(1)}`).join('  '));
 } else if (mode === 'demos') {

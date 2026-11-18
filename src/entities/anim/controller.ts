@@ -57,41 +57,74 @@ export function keyIdle(p: Float32Array, kind: 'crossed' | 'lean', side: number)
 /**
  * An on-foot action layered on the upper body (the captured clips have no punch, throw or aim). `k` is the progress 0..1 through the
  * move; for 'aim' it is how far the arms are up (0 hanging, 1 levelled) and `recoil` (0..1) kicks the gun arm back after a shot.
- * Only torso, head, shoulders and elbows are touched, so the legs keep walking underneath.
+ * Torso, head, shoulders and elbows are written; a punch also adds a stance and a step to the hips, legs and knees (added onto the walk, so it keeps going underneath).
  */
 export interface ActionPose { kind: 'punchL' | 'punchR' | 'heavy' | 'throw' | 'aim'; k: number; recoil?: number }
 
-const UPPER_CH = ['torso', 'head', 'armL', 'elbowL', 'armR', 'elbowR'] as const;
+/** The bones an action may write: the upper body and, for a punch's stance and step, the hips, legs and knees (added onto whatever they are doing). */
+const ACTION_CH = ['hips', 'torso', 'head', 'armL', 'elbowL', 'armR', 'elbowR', 'legL', 'kneeL', 'legR', 'kneeR'] as const;
 const sstep = (a: number, b: number, x: number): number => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 /** 0 -> 1 over [a, b], then back to 0 over [b, c]: a hump. */
 const hump = (a: number, b: number, c: number, x: number): number => sstep(a, b, x) * (1 - sstep(b, c, x));
 
 /**
+ * How far a punching arm is out, through a swing of progress `k` (0..1) that lands at `hit`: -0.3 (drawn back a touch), 1 (fully out), 0
+ * (back at the guard). Fast out (a cubic ease-out over about 0.2 of the swing), a short hold at the hit, a slower smooth return.
+ */
+export function swingCurve(k: number, hit: number): number {
+  const wind = hit * 0.45, hold = hit + 0.06;
+  if (k <= 0) return 0;
+  if (k < wind) return -0.3 * sstep(0, wind, k);
+  if (k < hit) { const t = (k - wind) / (hit - wind); return -0.3 + 1.3 * (1 - (1 - t) ** 3); }
+  if (k < hold) return 1;
+  return 1 - sstep(hold, 1, k);
+}
+
+/**
  * Hand-keyed upper-body poses, written over a standing/walking pose. Forward is -z in the figure's space, so a positive shoulder x
  * swings the arm forward and up; a positive elbow x folds the forearm up; a negative torso x leans forward; a positive torso y turns
- * to the figure's left.
+ * to the figure's left; a positive shoulder z swings the arm out sideways (then a positive y sweeps it forward); a positive leg x
+ * swings the leg forward.
+ *
+ * Punches are boxed from an orthodox guard (left foot forward, shoulders bladed, both fists up by the chin, chin tucked): the left
+ * jab and the right cross alternate, and the heavy third hit is a right hook with a lunge. The hips turn a beat ahead of the
+ * shoulders, the rear foot pivots, the lead foot steps in, and the body surges and leans into the blow.
  */
 export function keyAction(p: Float32Array, a: ActionPose): void {
   const set = (b: Parameters<typeof boneChannel>[0], x: number, y: number, z: number): void => { const o = boneChannel(b); p[o] = x; p[o + 1] = y; p[o + 2] = z; };
   const add = (b: Parameters<typeof boneChannel>[0], x: number, y: number, z: number): void => { const o = boneChannel(b); p[o] += x; p[o + 1] += y; p[o + 2] += z; };
   const k = Math.min(1, Math.max(0, a.k));
   if (a.kind === 'punchL' || a.kind === 'punchR' || a.kind === 'heavy') {
-    const heavy = a.kind === 'heavy';
-    const right = a.kind !== 'punchL'; // a heavy hit is a right
-    const hit = heavy ? 0.5 : 0.4;                                                   // the blow lands this far through the move
-    const cock = sstep(0, hit * 0.5, k) * (1 - sstep(hit * 0.5, hit, k));            // fist drawn back
-    const strike = sstep(hit * 0.5, hit, k) * (1 - sstep(hit + 0.15, 1, k));         // arm driven out, held through the hit, recovered
-    const hitter = right ? 'armR' : 'armL', hitterEl = right ? 'elbowR' : 'elbowL';
-    const guard = right ? 'armL' : 'armR', guardEl = right ? 'elbowL' : 'elbowR';
-    const side = right ? 1 : -1;
-    // the striking arm: cocked back and bent, then straight out at chest height
-    set(hitter, 0.15 - (heavy ? 0.9 : 0.55) * cock + 1.3 * strike, -0.1 * side * strike, 0.1 * side);
-    set(hitterEl, (0.4 + (heavy ? 1.5 : 1.2) * cock) * (1 - strike) + 0.1 * strike, 0, 0);
-    // the guard hand up by the chin
-    set(guard, 0.9, 0.35 * side, -0.1 * side); set(guardEl, 1.9, 0, 0);
-    // the body turns into the blow (a right punch turns left) and dips forward on a heavy one
-    add('torso', (heavy ? -0.28 : -0.12) * strike + 0.1 * cock, side * (0.55 * strike - 0.3 * cock) * (heavy ? 1.25 : 1), 0);
-    add('head', 0.03, -side * 0.25 * strike, 0);
+    const heavy = a.kind === 'heavy', jab = a.kind === 'punchL';
+    const hit = heavy ? 0.5 : 0.4;
+    const e = swingCurve(k, hit);                       // the striking arm: -0.3 .. 1
+    const ep = Math.max(0, e);
+    const lead = swingCurve(Math.min(1, k + 0.06), hit); // the hips are a beat ahead
+    // both fists at the guard, the striking one then goes out: shoulder x / elbow x as functions of the extension
+    const sh = 0.95 + 0.52 * e, el = e >= 0 ? 1.95 - 1.85 * e : 1.95 - 0.9 * e;
+    if (jab) {
+      set('armL', sh, -0.3 + 0.28 * ep, -0.1); set('elbowL', el, 0, 0);
+      set('armR', 0.95, 0.3, 0.1); set('elbowR', 1.95, 0, 0);
+    } else if (!heavy) {
+      set('armR', sh, 0.3 - 0.28 * ep, 0.1); set('elbowR', el, 0, 0);
+      set('armL', 0.95, -0.3, -0.1); set('elbowL', 1.95, 0, 0);
+    } else {
+      // a hook: the arm out to the side and swept round in a flat arc, elbow bent
+      set('armR', 0.35 + 0.2 * ep, 0.1 + 0.95 * e, 1.1 + 0.25 * e); set('elbowR', 1.55 - 0.2 * e, 0, 0);
+      set('armL', 0.95, -0.3, -0.1); set('elbowL', 1.95, 0, 0);
+    }
+    // the body: bladed in the guard, turned into the blow (jab: a little more shoulder; cross: hips then shoulders square up and past; hook: all of it)
+    const twT = jab ? -0.3 - 0.1 * e : heavy ? -0.4 + 1.0 * e : -0.3 + 0.6 * e;
+    const twH = jab ? -0.2 - 0.05 * lead : heavy ? -0.25 + 0.65 * lead : -0.2 + 0.4 * lead;
+    const lean = jab ? -0.1 : heavy ? -0.28 : -0.14;
+    add('torso', -0.05 + lean * ep, twT, heavy ? -0.1 * ep : 0.03 * ep);
+    add('hips', 0.0, twH, 0);
+    add('head', -0.1 + 0.35 * lean * ep, 0.2 * twT, 0);
+    // the legs: staggered stance, the lead foot steps in on the blow, the rear foot pivots and drives
+    const stepIn = jab ? 0.16 : heavy ? 0.2 : 0.05;
+    add('legL', 0.17 + stepIn * ep, -0.12, 0); add('kneeL', -0.22 + (jab ? 0.1 * ep : heavy ? -0.16 * ep : -0.12 * ep), 0, 0);
+    add('legR', -0.1 - (jab ? 0.06 : heavy ? 0.1 : 0.06) * ep, -0.4 + (jab ? 0 : 0.4) * ep, 0); add('kneeR', -0.26 + (jab ? 0.12 * ep : heavy ? 0.08 * ep : -0.18 * ep), 0, 0);
+    p[RIG_CH + 2] -= (jab ? 0.04 : heavy ? 0.14 : 0.07) * ep;
   } else if (a.kind === 'throw') {
     // overhand with the right: arm cocked up and back, torso arched, then whipped through and down
     const cock = hump(0, 0.38, 0.5, k);
@@ -307,11 +340,12 @@ export class AnimController {
 
     // an on-foot action (punch, throw, aim): the hand-keyed upper body, faded in and out so the arms never snap
     if (inp.action) this.lastAction = inp.action;
-    this.actionW += ((inp.action ? 1 : 0) - this.actionW) * Math.min(1, dt * (inp.action?.kind === 'aim' ? 12 : 26));
+    this.actionW += ((inp.action ? 1 : 0) - this.actionW) * Math.min(1, dt * (inp.action?.kind === 'aim' ? 12 : 18));
     if (this.lastAction && this.actionW > 0.01) {
       this.tmp.set(this.base);
       keyAction(this.tmp, this.lastAction);
-      for (const name of UPPER_CH) { const o = boneChannel(name); for (let c = 0; c < 3; c++) this.base[o + c] += (this.tmp[o + c] - this.base[o + c]) * this.actionW; }
+      for (const name of ACTION_CH) { const o = boneChannel(name); for (let c = 0; c < 3; c++) this.base[o + c] += (this.tmp[o + c] - this.base[o + c]) * this.actionW; }
+      this.base[RIG_CH + 2] += (this.tmp[RIG_CH + 2] - this.base[RIG_CH + 2]) * this.actionW;
     } else if (!inp.action) this.lastAction = null;
 
     this.write(this.base, inp.yawRate ?? 0, speed);

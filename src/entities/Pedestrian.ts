@@ -46,6 +46,12 @@ export interface PedEnvironment {
 
 const WALK_SPEED = 1.2;
 const FLEE_SPEED = 4;
+/** A person who is hit stands and turns to face the attacker for about this long (s) before running. */
+export const FACE_BEAT = 0.55;
+/** Metres of noise on each runner's choice of which way to go at a junction, so a crowd splits instead of all taking the same street. */
+const FLEE_SPREAD = 22;
+/** Fleeing people whose way out is within this cosine of side-on to the threat pick a way at random. */
+const FLEE_TIE = 0.5;
 const DOWN_TIME = 6;
 /** A second blow within this many seconds of the first puts a pedestrian down (hitBy). */
 const HIT_MEMORY = 6;
@@ -151,6 +157,9 @@ export class Pedestrian implements Entity {
   /** `gesture` clock at the last hitBy */
   private hitStamp = -1e9;
   private reactionSeen: object | null = null;
+  /** seconds left of standing and turning to face `flinchAt` before the run starts (a hit, a gunshot) */
+  private flinchT = 0;
+  private readonly flinchAt: Vec2 = { x: 0, z: 0 };
 
   constructor(
     readonly id: string,
@@ -223,10 +232,15 @@ export class Pedestrian implements Entity {
   get targetNodeId(): string | null { return this.targetId; }
   get previousNodeId(): string | null { return this.prevId; }
 
-  /** Run away from a point for `seconds` (ignored while knocked down). */
-  flee(from: Vec2, seconds = 5): void {
+  /**
+   * Run away from a point for `seconds` (ignored while knocked down). With `pause` > 0 they first stand and turn to look at the point
+   * for about that long (each person's own beat: 0.6 to 1.4 times it), then run.
+   */
+  flee(from: Vec2, seconds = 5, pause = 0): void {
     if (this.state === 'down') return;
     this.dropChat(false);
+    this.flinchT = pause > 0 ? pause * (0.6 + 0.8 * this.rng.next()) : 0;
+    this.flinchAt.x = from.x; this.flinchAt.z = from.z;
     this.fleeFrom.x = from.x;
     this.fleeFrom.z = from.z;
     this.fleeTimer = seconds;
@@ -238,9 +252,11 @@ export class Pedestrian implements Entity {
     // heading toward the threat: turn back along the edge we were on
     const t = this.targetId ? this.sidewalks.nodes[this.targetId] : undefined;
     if (t && this.prevId && this.sidewalks.nodes[this.prevId]) {
-      const dNow = hyp(this.body.pos.x - from.x, this.body.pos.z - from.z);
-      const dTarget = hyp(t.pos.x - from.x, t.pos.z - from.z);
-      if (dTarget < dNow) {
+      // running toward the threat when the way to the next node points at it (not merely when that node is nearer to it): turn round
+      const ax = this.body.pos.x - from.x, az = this.body.pos.z - from.z, tx = t.pos.x - this.body.pos.x, tz = t.pos.z - this.body.pos.z;
+      const cos = (ax * tx + az * tz) / ((hyp(ax, az) * hyp(tx, tz)) || 1);
+      // side-on to the threat: either way is as good, so people split up
+      if (cos < (Math.abs(cos) < FLEE_TIE ? (this.rng.next() - 0.5) * FLEE_TIE : 0)) {
         const back = this.prevId;
         this.prevId = this.targetId;
         this.targetId = back;
@@ -263,10 +279,11 @@ export class Pedestrian implements Entity {
       this.body.pos.x += (dx / d) * 0.25; this.body.pos.z += (dz / d) * 0.25;
       this.react('startle', from);
       this.say('bumped');
-      this.flee(from, 5);
+      this.flee(from, 5, FACE_BEAT); // turns to face whoever did it for a beat, then runs
       return 'staggered';
     }
     this.state = 'down';
+    this.flinchT = 0;
     this.waitCrossing = null;
     this.detour = null;
     this.reaction = null;
@@ -363,6 +380,13 @@ export class Pedestrian implements Entity {
         break;
       }
       default: {
+        if (this.state === 'fleeing' && this.flinchT > 0) {
+          // frozen for a beat, turning to look at what happened
+          this.flinchT -= dt;
+          b.vel.x = 0; b.vel.z = 0;
+          b.heading += angleDiff(b.heading, Math.atan2(this.flinchAt.x - b.pos.x, -(this.flinchAt.z - b.pos.z))) * Math.min(1, dt * 14);
+          break;
+        }
         if (this.state === 'fleeing') {
           this.fleeTimer -= dt;
           if (this.fleeTimer <= 0) this.state = 'walking';
@@ -831,7 +855,7 @@ export class Pedestrian implements Entity {
         const e = edges[adj[i]];
         if (!useAll && e.to === came) continue;
         const n = this.sidewalks.nodes[e.to];
-        const d = hyp(n.pos.x - this.fleeFrom.x, n.pos.z - this.fleeFrom.z);
+        const d = hyp(n.pos.x - this.fleeFrom.x, n.pos.z - this.fleeFrom.z) + (this.rng.next() - 0.5) * FLEE_SPREAD;
         if (d > bestD) { bestD = d; chosen = adj[i]; }
       }
     } else {

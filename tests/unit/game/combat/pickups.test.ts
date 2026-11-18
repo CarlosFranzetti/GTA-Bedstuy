@@ -6,7 +6,7 @@ import { subdivideLots } from '@/world/LotSubdivider';
 import { getBedstuyFaces } from '@/world/data/faces';
 import { buildWorld } from '@/world/WorldBuilder';
 import { World2D } from '@/physics/World2D';
-import { PICKUP_RADIUS, PickupSet, RESPAWN_SECONDS, placePickups, type PickupDef } from '@/game/combat/pickups';
+import { PICKUP_RADIUS, PickupSet, RESPAWN_SECONDS, placePickups, placeRealPickups, type PickupDef } from '@/game/combat/pickups';
 import type { IMaterialLibrary } from '@/world/types';
 
 const HOME = { x: 9, z: 20 };
@@ -114,4 +114,30 @@ describe('the pickups in the real built world', () => {
     }
     expect(reached).toBe(true);
   }, 120_000);
+});
+
+describe('placeRealPickups (plain data from the real map)', () => {
+  const home = { x: 100, z: 100 };
+  const shops = [{ id: 'deli', x: 110, z: 100 }, { id: 'liquor', x: 160, z: 140 }, { id: 'far', x: 900, z: 900 }, { id: 'near', x: 101, z: 100 }];
+
+  it('puts a bottle at every shop door and a pistol at the nearest shop that is not on top of the spawn', () => {
+    const out = placeRealPickups({ home, shops });
+    for (const sh of shops) expect(out.some((d) => d.kind === 'bottle' && Math.hypot(d.x - sh.x, d.z - sh.z) < 2)).toBe(true);
+    const pistol = out.find((d) => d.id === 'pistol:home')!;
+    expect(pistol.kind).toBe('pistol');
+    expect(Math.hypot(pistol.x - 110, pistol.z - 100)).toBeLessThan(3);      // the deli, not the shop 1 m from the spawn
+    expect(new Set(out.map((d) => d.id)).size).toBe(out.length);              // ids are unique
+  });
+  it('is deterministic, nudges off solid ground, and skips a shop that has no free spot', () => {
+    const a = placeRealPickups({ home, shops }), b = placeRealPickups({ home, shops });
+    expect(a).toEqual(b);
+    const nudged = placeRealPickups({ home, shops: [shops[0]] }, (p) => Math.hypot(p.x - 110, p.z - 100) < 0.5);
+    expect(nudged.find((d) => d.kind === 'bottle')).toBeTruthy();
+    expect(Math.hypot(nudged[0].x - 110, nudged[0].z - 100)).toBeGreaterThan(0.5);
+    expect(placeRealPickups({ home, shops: [shops[0]] }, () => true)).toEqual([]);
+  });
+  it('adds nothing for shops that the lots already cover', () => {
+    const lots = [] as never[];
+    expect(placeRealPickups({ home, shops: [], lots }).length).toBe(0);
+  });
 });

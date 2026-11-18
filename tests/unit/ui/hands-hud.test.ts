@@ -38,4 +38,32 @@ describe('the hands widget', () => {
     for (const k of HAND_ORDER) { expect(HAND_ICONS[k]).toContain('<svg'); expect(HAND_ICONS[k]).not.toContain('<text'); seen.add(HAND_ICONS[k]); }
     expect(seen.size).toBe(HAND_ORDER.length);
   });
+
+  it('stays on screen but dimmed in a car, with the reticle gone', () => {
+    const { hud, el, root } = setup();
+    hud.setHands({ item: 'pistol', count: 9, reserve: 12, reloading: false, aim: true, shots: 0 });
+    expect(root.querySelector('.hud-reticle')!.hasAttribute('hidden')).toBe(false);
+    hud.setHands({ item: 'pistol', count: 9, reserve: 12, reloading: false, dim: true });
+    expect(el.hidden).toBe(false);
+    expect(el.classList.contains('dim')).toBe(true);
+    expect(root.querySelector('.hud-reticle')!.hasAttribute('hidden')).toBe(true);
+    hud.setHands({ item: 'pistol', count: 9, reserve: 12, reloading: false, aim: true });
+    expect(el.classList.contains('dim')).toBe(false);
+  });
+  it('shows the reticle only while a pistol or a throwable is aimed, marks an empty gun, and kicks on each shot', () => {
+    const { hud, root } = setup();
+    const ret = root.querySelector('.hud-reticle') as HTMLElement;
+    expect(ret.hidden).toBe(true);
+    hud.setHands({ item: 'fists', count: null, reserve: null, reloading: false, aim: false, shots: 0 });
+    expect(ret.hidden).toBe(true);
+    hud.setHands({ item: 'bottle', count: 2, reserve: null, reloading: false, aim: true, shots: 0 });
+    expect(ret.hidden).toBe(false);
+    expect(ret.dataset.item).toBe('bottle');
+    hud.setHands({ item: 'pistol', count: 0, reserve: 0, reloading: false, aim: true, shots: 1 });
+    expect(ret.classList.contains('empty')).toBe(true);
+    expect(ret.classList.contains('kick')).toBe(true);
+    expect(ret.querySelectorAll('.hud-reticle-tick').length).toBe(4);
+    expect(ret.getAttribute('aria-hidden')).toBe('true');
+    expect(ret.textContent).toBe('');                  // drawn, no lettering
+  });
 });

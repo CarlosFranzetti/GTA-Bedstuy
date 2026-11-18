@@ -96,11 +96,98 @@ describe('punching', () => {
     expect(r.combat.hudState()?.item).toBe('fists');
   });
 
-  it('hides the hands widget in a car', () => {
-    const r = rig({ bricks: 1 });
-    expect(r.combat.hudState()).not.toBeNull();
+  it('dims the hands widget in a car instead of hiding it, and shoots nothing', () => {
+    const r = rig({ pistol: true });
+    r.combat.cycle(1);
+    r.step(2);
+    expect(r.combat.hudState()?.dim).toBeUndefined();
+    expect(r.combat.hudState()?.aim).toBe(true);
     r.player.inVehicle = true;
-    expect(r.combat.hudState()).toBeNull();
+    r.input.press(); r.step(30);
+    const s = r.combat.hudState();
+    expect(s?.dim).toBe(true);
+    expect(s?.aim).toBeFalsy();
+    expect(s?.item).toBe('pistol');
+    expect(r.combat.hands.mag).toBe(12);               // no rounds fired from the car
+    expect(r.log.some((l) => l.type === 'gunshot')).toBe(false);
+    expect(r.combat.aimBias).toBe(0);
+  });
+});
+
+describe('aiming', () => {
+  it('shows the reticle flag for the pistol and a throwable on foot, never for fists, and kicks with every shot', () => {
+    const r = rig({ pistol: true, bottles: 1 });
+    r.step(2);
+    expect(r.combat.hudState()?.aim).toBe(false);       // fists
+    r.combat.cycle(1); r.step(1);
+    expect(r.combat.hudState()?.item).toBe('bottle');
+    expect(r.combat.hudState()?.aim).toBe(true);
+    r.combat.cycle(1); r.step(1);
+    expect(r.combat.hudState()?.item).toBe('pistol');
+    const before = r.combat.hudState()?.shots;
+    r.input.press(); r.step(20);
+    expect(r.combat.hudState()?.shots).toBe((before ?? 0) + 1);
+    r.step(2, 0, true);                                 // a menu is up: no reticle
+    expect(r.combat.hudState()?.aim).toBe(false);
+  });
+  it('pushes the shoulder bias while the button is held with a pistol or a throwable, and not with fists or empty hands', () => {
+    const r = rig({ pistol: true, bricks: 1 });
+    r.input.press(); r.step(5);
+    expect(r.combat.aimBias).toBe(0);                    // fists punch: no aim
+    r.input.release(); r.combat.cycle(1); r.combat.cycle(1); r.step(2);   // bricks, then the pistol
+    expect(r.combat.hands.current).toBe('pistol');
+    expect(r.combat.aimBias).toBe(0);                    // not held yet
+    r.input.press(); r.step(3);
+    expect(r.combat.aimBias).toBe(1);
+    r.input.release(); r.step(3);
+    expect(r.combat.aimBias).toBe(0);
+    r.combat.cycle(-1); r.step(1);
+    expect(r.combat.hands.current).toBe('brick');
+    r.input.press(); r.step(3);
+    expect(r.combat.aimBias).toBe(1);
+  });
+});
+
+describe('the hands are saved and reset', () => {
+  it('round trips through serialize / restore, and reset empties them', () => {
+    const r = rig({ pistol: true, bottles: 2, bricks: 3 });
+    r.combat.cycle(1); r.combat.cycle(1); r.combat.cycle(1);
+    r.combat.hands.mag = 5; r.combat.hands.reserve = 20;
+    const saved = JSON.parse(JSON.stringify(r.combat.serialize()));
+    const r2 = rig();
+    r2.combat.restore(saved);
+    expect(r2.combat.hands.serialize()).toEqual(r.combat.hands.serialize());
+    expect(r2.combat.hands.current).toBe('pistol');
+    expect(r2.combat.hudState()).toMatchObject({ item: 'pistol', count: 5, reserve: 20 });
+    r2.combat.reset();
+    expect(r2.combat.hands.serialize()).toEqual({ bottles: 0, bricks: 0, pistol: false, mag: 0, reserve: 0, current: 'fists' });
+  });
+  it('a restored game with bad data ends up with empty hands and no crash', () => {
+    const r = rig({ pistol: true });
+    for (const bad of [null, undefined, 5, 'x', { bottles: 'many', current: 'rocket', pistol: true, mag: 99, reserve: -4 }]) {
+      r.combat.restore(bad);
+      const h = r.combat.hands;
+      expect(h.owns(h.current)).toBe(true);
+      expect(h.mag).toBeLessThanOrEqual(12);
+      expect(h.reserve).toBeGreaterThanOrEqual(0);
+    }
+  });
+});
+
+describe('people scatter and look', () => {
+  it('a hit person turns to face the attacker before running, and a gunshot sends a crowd both ways', () => {
+    const r = rig({ pistol: true });
+    r.sim.tickPeds = true;
+    // a bystander to the left of the shooter faces the shot for a beat, then runs away from it
+    const a = r.addPed('a', -6, 0);
+    r.combat.cycle(1);
+    r.input.press(); r.step(3);
+    expect(a.state).toBe('fleeing');
+    const x0 = a.body.pos.x;
+    r.step(2);
+    expect(Math.abs(a.body.pos.x - x0)).toBeLessThan(0.01);   // still frozen: looking
+    r.step(60);
+    expect(a.body.pos.x).toBeLessThan(x0 - 0.5);              // then away from the shot (the shooter is at x 0)
   });
 });
 

@@ -9,6 +9,7 @@ import type { PedSpec } from './ped';
 import { createCanvas } from '@/textures/canvas';
 import { Px } from './pedPaintShared';
 import { makeShader, locateEyes } from './pedPaintShade';
+import { mixc } from './pedPaintShared';
 import { paintSwatches } from './pedPaintSwatch';
 
 export { rgb } from './pedPaintShared';
@@ -68,6 +69,9 @@ function rasterise(b: BakeInput, size: number): void {
       continue;
     }
     grp(ia, ga); grp(ib, gb); grp(ic, gc);
+    // on the head, a triangle that faces away from the front (the inside of a lid, the far side of a fold) never takes a texel from one that faces front, whatever their depth:
+    // the eyeball and the lips share texels with the lid ring that hides them
+    const headPen = (ga[0] + gb[0] + gc[0]) / 3 > 0.5 && (b.normal[ia * 3 + 2] + b.normal[ib * 3 + 2] + b.normal[ic * 3 + 2]) / 3 > 0.15 && b.position[ia * 3 + 2] < 0.02 ? 1 : 0;
     const x0 = Math.max(0, Math.floor(Math.min(ax, bx, cx) - 1)), x1 = Math.min(size - 1, Math.ceil(Math.max(ax, bx, cx) + 1));
     const y0 = Math.max(0, Math.floor(Math.min(ay, by, cy) - 1)), y1 = Math.min(size - 1, Math.ceil(Math.max(ay, by, cy) + 1));
     for (let py = y0; py <= y1; py++) for (let px = x0; px <= x1; px++) {
@@ -77,8 +81,8 @@ function rasterise(b: BakeInput, size: number): void {
       if (l1 < e || l2 < e || l3 < e) continue;
       const q = py * size + px, c1 = Math.min(1.2, Math.max(-0.2, l1)), c2 = Math.min(1.2, Math.max(-0.2, l2)), c3 = 1 - c1 - c2;
       // where charts fold over each other (lids, nostrils, lips) the surface nearest the front owns the texel
-      const zz = b.position[ia * 3 + 2] * c1 + b.position[ib * 3 + 2] * c2 + b.position[ic * 3 + 2] * c3;
-      if (cover[q] && zz > depthMap[q] + 0.01) continue;
+      const zz = b.position[ia * 3 + 2] * c1 + b.position[ib * 3 + 2] * c2 + b.position[ic * 3 + 2] * c3 + headPen;
+      if (cover[q] && zz > depthMap[q] + 0.0006) continue;
       depthMap[q] = zz;
       for (let k = 0; k < 3; k++) {
         posMap[q * 3 + k] = b.position[ia * 3 + k] * c1 + b.position[ib * 3 + k] * c2 + b.position[ic * 3 + k] * c3;
@@ -86,6 +90,29 @@ function rasterise(b: BakeInput, size: number): void {
       }
       for (let k = 0; k < 4; k++) wMap[q * 4 + k] = ga[k] * c1 + gb[k] * c2 + gc[k] * c3;
       cover[q] = 1;
+    }
+  }
+}
+
+/** the lids on the edge of each eyeball: a soft lash line on the skin right next to the opening (heavier above, light below) and the shade the lids throw onto the eye */
+function paintLids(img: Uint8ClampedArray, size: number, mask: Uint8Array, K: ReturnType<typeof makeShader>['K']): void {
+  const lash: [number, number, number] = [mixc(K.hairC, [20, 14, 14], 0.6)[0], mixc(K.hairC, [20, 14, 14], 0.6)[1], mixc(K.hairC, [20, 14, 14], 0.6)[2]];
+  for (const e of K.eyes) {
+    if (!e) continue;
+    for (let y = Math.max(2, e.y0 - 5); y <= Math.min(size - 3, e.y1 + 5); y++) for (let x = Math.max(2, e.x0 - 5); x <= Math.min(size - 3, e.x1 + 5); x++) {
+      const q = y * size + x;
+      let m3 = 0, m5 = 0;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const v = mask[(y + dy) * size + x + dx]; m5 += v; if (dy >= -1 && dy <= 1 && dx >= -1 && dx <= 1) m3 += v; }
+      const upper = y < e.py;
+      if (mask[q]) {
+        // eyeball: darker toward the lids, most under the upper one
+        const open = 1 - m5 / 25, sh = open * open * (upper ? 1.0 : 0.6);
+        const k = 1 - Math.min(0.62, 0.8 * sh);
+        img[q * 4] *= k; img[q * 4 + 1] *= k; img[q * 4 + 2] *= k;
+      } else if (m5 > 0) {
+        const w = Math.min(1, m3 / 3.2 + (upper ? m5 / 18 : m5 / 40)) * (upper ? 0.95 : 0.5);
+        for (let c = 0; c < 3; c++) img[q * 4 + c] += (lash[c] - img[q * 4 + c]) * w;
+      }
     }
   }
 }
@@ -100,6 +127,7 @@ export function bakeSkin(b: BakeInput, size = SK_ATLAS): HTMLCanvasElement {
   try { return bakeSkinInner(b, size); } finally { if (t0) { bakeStats.last = performance.now() - t0; bakeStats.ms += bakeStats.last; bakeStats.count++; } }
 }
 function bakeSkinInner(b: BakeInput, size: number): HTMLCanvasElement {
+  (globalThis as { __pedBakeHook?: (b: BakeInput) => void }).__pedBakeHook?.(b);
   rasterise(b, size);
   const { K, shade } = makeShader(b), px = new Px();
   locateEyes(K, size, cover, posMap, wMap);
@@ -110,6 +138,7 @@ function bakeSkinInner(b: BakeInput, size: number): HTMLCanvasElement {
     shade(posMap[q * 3], posMap[q * 3 + 1], posMap[q * 3 + 2], nrmMap[q * 3], nrmMap[q * 3 + 1], nrmMap[q * 3 + 2], wMap[q * 4], wMap[q * 4 + 1], wMap[q * 4 + 2], wMap[q * 4 + 3], q, px);
     img[q * 4] = px.r; img[q * 4 + 1] = px.g; img[q * 4 + 2] = px.b; img[q * 4 + 3] = 255; filled[q] = 1;
   }
+  paintLids(img, size, K.eyeTex!, K);
   // pad the charts outward so filtering and mip levels never pull in the background
   for (let pass = 0; pass < 3; pass++) {
     const add: number[] = [];

@@ -115,13 +115,33 @@ if (view === 'atlas') {
 if (params.get('grid') === '1') globalThis.__pedGrid = true;
 const MAPS = ['ba-hoodie-fade', 'hj-man', 'me-hijabi', 'ba-elder', 'la-site', 'player-wh-1'];
 const mapOf = (m) => { let img = null; m.group.traverse((o) => { if (o.isMesh && !img) img = o.material.map?.image; }); return img; };
+if (view === 'uvdebug') {
+  const ids = (params.get('ids') ?? 'ea-nurse').split(','), Z = 4, T = 256 * Z;
+  const c = document.createElement('canvas'); c.width = T * ids.length; c.height = T; document.body.prepend(c);
+  const ctx = c.getContext('2d'); ctx.fillStyle = '#111'; ctx.fillRect(0, 0, c.width, c.height);
+  let cap = null; globalThis.__pedBakeHook = (b) => { cap = b; };
+  ids.forEach((id, k) => {
+    const v = pedVariantIndex(id); buildPedModel(materials, new Rng(v + 1), { variant: v }); const b = cap; if (!b) return;
+    ctx.globalCompositeOperation = 'lighter';
+    for (let t = 0; t < b.index.length; t += 3) {
+      const i = [b.index[t], b.index[t + 1], b.index[t + 2]];
+      let wh = 0; for (const q of i) for (let kk = 0; kk < 4; kk++) if (b.joints[q * 4 + kk] === 3) wh += b.weights[q * 4 + kk] / 3;
+      if (wh < 0.5) continue;
+      const nz = (b.normal[i[0] * 3 + 2] + b.normal[i[1] * 3 + 2] + b.normal[i[2] * 3 + 2]) / 3;
+      const px = (q) => b.uv[q * 2] * 512 * Z + k * T, py = (q) => (1 - b.uv[q * 2 + 1]) * 512 * Z;
+      ctx.fillStyle = nz < -0.2 ? 'rgba(60,120,255,0.35)' : 'rgba(255,90,60,0.35)';
+      ctx.beginPath(); ctx.moveTo(px(i[0]), py(i[0])); ctx.lineTo(px(i[1]), py(i[1])); ctx.lineTo(px(i[2]), py(i[2])); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+  });
+}
 if (view === 'maps') {
   const ids = (params.get('ids') ?? MAPS.join(',')).split(','), cols = 3, sz = Number(params.get('sz') ?? 512);
   const c = document.createElement('canvas'); c.width = cols * sz; c.height = Math.ceil(ids.length / cols) * sz; document.body.prepend(c);
   const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false; ctx.fillStyle = '#f0f'; ctx.fillRect(0, 0, c.width, c.height);
   ids.forEach((id, i) => { const v = pedVariantIndex(id), m = buildPedModel(materials, new Rng(v + 1), { variant: v }); const img = mapOf(m); if (img) ctx.drawImage(img, (i % cols) * sz, Math.floor(i / cols) * sz, sz, sz); });
 }
-if (view === 'faces4') { place((params.get('ids') ?? 'ba-hoodie-fade,wh-elder,me-hijabi,hj-man').split(','), 0, 0.36, Number(params.get('yaw') ?? 0)); cam.position.set(0, 1.5, 1.0); look.set(0, 1.5, 0); cam.fov = 26; }
+if (view === 'faces4') { place((params.get('ids') ?? 'ba-hoodie-fade,wh-elder,me-hijabi,hj-man').split(','), 0, 0.3, Number(params.get('yaw') ?? 0)); cam.position.set(0, 1.55, 1.25); look.set(0, 1.55, 0); cam.fov = 26; }
 if (view === 'player') { const ids = ['ba', 'la', 'wh', 'ea', 'sa', 'mx'].flatMap((g) => [`player-${g}-0`, `player-${g}-1`, `player-${g}-2`]).slice(0, 12); place(ids.slice(0, 6), 0, 0.8, 0.45); place(ids.slice(6), 1, 0.8, 0.45); cam.position.set(2.6, 1.45, 6.2); look.set(0, 0.95, -0.8); cam.fov = 36; }
 if (view === 'street10') { place(BODIES.slice(0, 10), 0, 1.4, 0.5); cam.position.set(2.5, 1.7, 16); look.set(0, 1.0, 0); cam.fov = 28; }
 // PEOPLE3 views: all twelve body types at any yaw (front 0, side 1.57, back 3.14), and the player at the on-foot game camera (3.2 m behind, 1.55 m up, fov 64)

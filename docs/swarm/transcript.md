@@ -3233,3 +3233,9 @@ Starting ACTION2: punch animation (anim/controller.ts keyAction), muzzle flash/t
 
 ### 2026-11-18T15:33:49Z · Nell Roadwright (REALTRAFFIC2)
 Starting REALTRAFFIC2: real-map traffic, parking, pedestrians, police on the unchanged systems. Taking src/world/roadnet/{lanes,lightsReal,trafficReal,signalPhases,walkReal,sidewalks,gameReal,realWorld}.ts, a new realTraffic adapter file, tests/unit/world/roadnet-*.test.ts and tests/unit/sim/realtraffic-*. roadnet-lanes is already green (17); checking the existing realtraffic sim first.
+
+### 2026-11-18T15:48:28Z · Tamsin Reed (PEOPLE5)
+For PEDTEX2: trouser hem lower edge is now HEM_Y = 0.07 (exported from pedLegs.ts), cuff lip top at 0.10, was 0.03/0.06. The painter hem (anY+0.015, stitch at d=0.03, 'dark where it meets the shoe') now sits 2 to 4 cm above the geometric cuff; please key it to HEM_Y + 0.03 instead. Also new: sleeve cuff lips at the wrist (long, y = wrist+0.012 to +0.046) and the elbow-ish end of short sleeves, hem bands follow the body outline; they sample the top swatch (SK_RECTS.torso).
+
+### 2026-11-18T15:50:41Z · Mara Voss (HAIR3)
+Wrap-up HAIR3: pieces are wired into pedMesh.geometryFor (hair, beard, hat, glasses, bags at hi; hair, hat, bags at mid; none at far; shoes still the old shoeParts, hi hijab still hijabShell). Old headParts, headShell call and the bag block are removed. Afro is now a round ball, caps/hems a little smoother. PEDTEX2: in game frames I saw no doubled painted hair or glasses; tsc currently shows errors in pedPaintFace.ts (EyeSlot dirx/sx/sy), not mine. Frames: scratchpad/hair3.

@@ -80,4 +80,22 @@ describe('Hands', () => {
     h.add('brick'); h.cycle(1); h.takeThrowable();
     expect(n).toBe(3);
   });
+
+  it('serialises and restores, clamping anything odd, and falls back to fists when the held item is not owned', () => {
+    const h = new Hands();
+    h.add('bottle'); h.add('pistol'); h.cycle(1); h.cycle(1);
+    const d = JSON.parse(JSON.stringify(h.serialize()));
+    expect(d).toEqual({ bottles: 1, bricks: 0, pistol: true, mag: 12, reserve: 12, current: 'pistol' });
+    const g = new Hands(); let n = 0; g.onChange = () => { n++; };
+    expect(g.restore(d)).toBe(true);
+    expect(g.serialize()).toEqual(d);
+    expect(n).toBeGreaterThan(0);
+    g.restore({ ...d, pistol: false, current: 'pistol' });
+    expect(g.current).toBe('fists');
+    expect(g.mag).toBe(0);
+    g.restore({ bottles: 500, bricks: -3, pistol: true, mag: 99, reserve: 9999, current: 'brick' });
+    expect(g.serialize()).toEqual({ bottles: 99, bricks: 0, pistol: true, mag: 12, reserve: 60, current: 'fists' });
+    expect(g.restore('nonsense')).toBe(false);
+    expect(g.serialize()).toEqual({ bottles: 0, bricks: 0, pistol: false, mag: 0, reserve: 0, current: 'fists' });
+  });
 });

@@ -29,8 +29,8 @@ const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 const CUT: Record<string, { taper: number; size: number }> = {
   jeans: { taper: 0.15, size: 1.04 }, trousers: { taper: 0.15, size: 1.06 }, cargo: { taper: 0.08, size: 1.14 }, sweats: { taper: 0.08, size: 1.12 }, leggings: { taper: 0.12, size: 0.92 },
 };
-/** the hem's lower edge above the ground (the brief: 2 to 4 cm), the cuff lip's height and how far it stands proud of the leg */
-export const HEM_Y = 0.03, CUFF_H = 0.03, CUFF_OUT = 0.008;
+/** the hem's lower edge above the ground (7 cm: the shoe shows 6 to 8 cm below it from the game camera), the cuff lip's height and how far it stands proud of the leg */
+export const HEM_Y = 0.07, CUFF_H = 0.03, CUFF_OUT = 0.008;
 /** the thigh never exceeds this share of the hip width (the extra mass of a heavy build goes to the seat and the belly) */
 export const THIGH_OF_HIP = 0.55;
 
@@ -91,6 +91,7 @@ function compact(pos: Float32Array, nrm: Float32Array, uv: Float32Array, jnt: Ui
 }
 
 const legWeight = (L: MhLod, i: number): number => { let t = 0; for (let k = 0; k < 4; k++) if (L.joints[i * 4 + k] >= 8) t += L.weights[i * 4 + k]; return t; };
+const wsumAt = (L: MhLod, i: number, set: readonly number[]): number => { let t = 0; for (let k = 0; k < 4; k++) if (set.includes(L.joints[i * 4 + k])) t += L.weights[i * 4 + k]; return t; };
 
 /** the u / v of a chart: thigh above the knee, shin below; the same mapping on every LOD (u is the angle, v the height inside a FIXED range) */
 function tileUv(rect: { x: number; y: number; w: number; h: number }, u: number, ft: number): [number, number] {
@@ -139,34 +140,42 @@ export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array,
   }
   for (const v of removed) if (!drop[v]) yBoundary = Math.max(yBoundary, pos[v * 3 + 1]);
   const yTop = yBoundary + 0.006, chartTop = hipY + 0.08;
-  // the pelvis above the cut is wider than the leg: from the seat up the tube flares OUTWARD (the inner edge stays put, so the gap between the legs is kept) to meet the
-  // old surface at the cut, so the leg grows out of the hip instead of the hip hanging over the leg like a skirt
+  // the pelvis above the cut is as wide and as deep as the body that continues above it: from the seat up each tube grows OUTWARD (the inner edge stays put, so the gap between the
+  // legs is kept) and front and back into the section of that body, with one smooth ease, so the leg grows out of a firm rounded seat instead of the hip hanging over the leg like a shelf
   const P = new Float32Array(pos), N = new Float32Array(nrm);
-  let flareX = 0, flareZ = 0;
+  let bx = 0, bzF = Infinity, bzB = -Infinity;
   for (let i = 0; i < n; i++) {
-    if (drop[i] || legWeight(L, i) < 0.5) continue;
+    if (drop[i] || wsumAt(L, i, [4, 5, 6, 7]) > 0.3) continue;
     const y = P[i * 3 + 1];
-    if (y < yBoundary - 0.07 || y > yBoundary + 0.04) continue;
-    const sd = P[i * 3] < 0 ? -1 : 1;
-    flareX = Math.max(flareX, sd * (P[i * 3] - sd * cx) - rxS); flareZ = Math.max(flareZ, Math.abs(P[i * 3 + 2] - czS) - rzS);
+    if (y < yBoundary + 0.004 || y > yBoundary + 0.05) continue;
+    bx = Math.max(bx, Math.abs(P[i * 3])); bzF = Math.min(bzF, P[i * 3 + 2]); bzB = Math.max(bzB, P[i * 3 + 2]);
   }
-  flareX = Math.min(0.05, Math.max(0, flareX)); flareZ = Math.min(0.03, Math.max(0, flareZ));
+  const haveBody = isFinite(bzF) && bzB > bzF;
+  const flareX = haveBody ? Math.min(0.08, Math.max(0, bx - (cx + rxS))) : 0.02;
+  const czTop = haveBody ? (bzF + bzB) / 2 : czS, rzTop = haveBody ? Math.min(0.2, Math.max(rzS * 0.9, (bzB - bzF) / 2)) : rzS;
   // rows of the tubes
   const seg = detail === 'hi' ? 12 : detail === 'mid' ? 8 : 5, cuffTop = yh + CUFF_H;
   const ySt = ySeat - 0.02, thighY = detail === 'hi' ? [yTop, lerp(yTop, ySt, 0.5), ySt, lerp(ySt, kneeY, 0.5), kneeY + 0.055, kneeY] : detail === 'mid' ? [yTop, ySt, kneeY + 0.05, kneeY] : [yTop, ySt, kneeY];
   const shinY = detail === 'hi' ? [kneeY, kneeY - 0.055, lerp(kneeY, cuffTop, 0.55), cuffTop] : detail === 'mid' ? [kneeY, kneeY - 0.05, cuffTop] : [kneeY, yh];
   const out = new StripMesh();
   const hemR = radius(yh);
+  const rowOf = (side: -1 | 1, y: number, grow = 0): Row => {
+    const k = radius(y), e = sstep(ySt, yTop, y), dx = flareX * 0.5 * e, rzB = rzS * k + grow;
+    return { y, rx: rxS * k + grow + dx, rz: lerp(rzB, rzTop + grow, e), cx: side * cx + side * dx, cz: lerp(czAt(y), czTop, e), up: 0 };
+  };
+  // the old pelvis vertices that belong to the leg (the stub above the cut) must not stand outside the tube: a vertex of the coarse base mesh out at the hip is what made the flaps
+  for (let i = 0; i < n; i++) {
+    if (drop[i] || legWeight(L, i) < 0.5 || P[i * 3 + 1] > yTop + 0.02 || P[i * 3 + 1] < yDrop - 0.02) continue;
+    const r = rowOf(P[i * 3] < 0 ? -1 : 1, Math.min(P[i * 3 + 1], yTop)), q = Math.hypot((P[i * 3] - r.cx) / (r.rx + 0.003), (P[i * 3 + 2] - r.cz) / (r.rz + 0.003));
+    if (q > 1) { P[i * 3] = r.cx + (P[i * 3] - r.cx) / q; P[i * 3 + 2] = r.cz + (P[i * 3 + 2] - r.cz) / q; }
+  }
   for (const side of [-1, 1] as const) {
     const ax = side * cx, mir = side < 0 ? 1 : -1, b0 = side < 0 ? 8 : 10, b1 = b0 + 1;
     const skin = (y: number): { j: number[]; w: number[] } => {
       const w1 = sstep(kneeY + 0.05, kneeY - 0.05, y), wh = 0.4 * sstep(ySeat - 0.02, ySeat + 0.12, y), top = 1 - wh;
       return { j: [b0, b1, 1, 0], w: [top * (1 - w1), top * w1, wh, 0] };
     };
-    const row = (y: number, grow = 0, up = 0): Row => {
-      const k = radius(y), fl = sstep(ySt, yTop, y), dx = flareX * fl;
-      return { y, rx: rxS * k + grow + dx, rz: rzS * k + grow + flareZ * fl, cx: ax + side * dx, cz: czAt(y), up };
-    };
+    const row = (y: number, grow = 0, up = 0): Row => ({ ...rowOf(side, y, grow), up });
     // slope of the wall: a tapering leg leans its normal down a little
     const slope = taper * rxS / (ySeat - yh);
     const wall = (ys: number[], grow = 0): Row[] => ys.map((y) => ({ ...row(y, grow), up: slope }));

@@ -299,3 +299,49 @@ describe('Save panel, menu and phone', () => {
     expect(root2.querySelectorAll('.ph-tab').length).toBe(3);
   });
 });
+
+
+describe('the hands in the save', () => {
+  const handsPart = () => {
+    const state: { d: unknown; resets: number } = { d: { bottles: 0, bricks: 0, pistol: false, mag: 0, reserve: 0, current: 'fists' }, resets: 0 };
+    return { state, hands: { serialize: () => state.d, restore: (d: unknown) => { state.d = d; }, reset: () => { state.resets++; state.d = { bottles: 0, bricks: 0, pistol: false, mag: 0, reserve: 0, current: 'fists' }; } } };
+  };
+  it('are captured, survive the JSON round trip and are put back', () => {
+    const w = world(), h = handsPart();
+    w.parts.hands = h.hands;
+    h.state.d = { bottles: 2, bricks: 1, pistol: true, mag: 7, reserve: 24, current: 'pistol' };
+    const snap = JSON.parse(JSON.stringify(captureSave(w.parts, 5)));
+    expect(snap.hands).toEqual(h.state.d);
+    const w2 = world(), h2 = handsPart();
+    w2.parts.hands = h2.hands;
+    applySave(w2.parts, migrateSave(snap)!);
+    expect(h2.state.d).toEqual(h.state.d);
+  });
+  it('an old save without them loads and leaves empty hands', () => {
+    const w = world(), h = handsPart();
+    w.parts.hands = h.hands;
+    h.state.d = { bottles: 9, bricks: 9, pistol: true, mag: 1, reserve: 1, current: 'pistol' };
+    const old = JSON.parse(JSON.stringify(captureSave(world().parts, 5)));
+    expect(old.hands).toBeUndefined();
+    const s = migrateSave(old)!;
+    expect(s.hands).toBeUndefined();
+    applySave(w.parts, s);
+    expect(h.state.resets).toBe(1);
+    expect(h.state.d).toMatchObject({ pistol: false, current: 'fists' });
+    // a host that has no hands part at all still loads
+    expect(() => applySave(world().parts, s)).not.toThrow();
+  });
+  it('a damaged hands block is cleaned, and New Game resets them', () => {
+    const base = JSON.parse(JSON.stringify(captureSave(world().parts, 5)));
+    const s = migrateSave({ ...base, hands: { bottles: 'x', pistol: true, mag: 500, reserve: -1, current: 'rocket' } })!;
+    expect(s.hands).toEqual({ bottles: 0, bricks: 0, pistol: true, mag: 12, reserve: 0, current: 'fists' });
+    expect(migrateSave({ ...base, hands: 'junk' })!.hands).toBeUndefined();
+    const w = world(), h = handsPart();
+    w.parts.hands = h.hands;
+    const m = new SaveManager(new SaveStore(memStore()), { newGame: () => undefined });
+    m.bind(w.parts);
+    h.state.d = { bottles: 3, bricks: 0, pistol: false, mag: 0, reserve: 0, current: 'bottle' };
+    m.newGame();
+    expect(h.state.resets).toBe(1);
+  });
+});

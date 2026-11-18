@@ -127,12 +127,26 @@ export function vehicleFov(speed: number): number {
   return CAM_VEHICLE.fov + (CAM_VEHICLE.fovTop - CAM_VEHICLE.fov) * clamp(Math.abs(speed) / SPEED_FULL, 0, 1);
 }
 
+/** Extra shoulder offset (m) at full aim bias. */
+export const AIM_SHOULDER = 0.32;
+/** The shoulder offset aiming adds: the same side as the current one (the right when there is none), none in first person or a car. */
+export function aimShoulder(side: number, bias: number, first = false): number {
+  if (first || bias <= 0) return 0;
+  return AIM_SHOULDER * Math.min(1, bias) * (side < 0 ? -1 : 1);
+}
+
 export class ThirdPersonCamera {
   readonly camera: THREE.PerspectiveCamera;
   /** Heading (radians, clockwise from north) the camera looks toward. Walk "forward" = this. Never includes look-back or cinematic offsets. */
   yaw = 0;
   /** While true the camera never returns behind the body on its own (aiming, a cutscene). */
   holdView = false;
+  /**
+   * 0..1: how far the on-foot camera slides over the shoulder for aiming (the action button held with a pistol or a throwable in
+   * hand). The extra shoulder offset (AIM_SHOULDER m) goes the same way as the current shoulder and is smoothed with the rest of the rig.
+   * Set it each frame: `cam.aimBias = combat.aimBias`.
+   */
+  aimBias = 0;
   pitch = DEFAULT_PITCH;
   /** Static world used for wall avoidance when `update` is not handed one. */
   world: CameraWorld | null = null;
@@ -410,7 +424,8 @@ export class ThirdPersonCamera {
     this.height += (rig.height - this.height) * k;
     this.lookY += (rig.look - this.lookY) * k;
     this.forward += (rig.forward - this.forward) * k;
-    this.shoulder += ((vehicleMode ? 0 : vrig.shoulder * this.views.side * (this.slide ? -1 : 1)) - this.shoulder) * k;
+    const side = vehicleMode ? 0 : vrig.shoulder * this.views.side * (this.slide ? -1 : 1);
+    this.shoulder += (side + aimShoulder(side, this.aimBias, vrig.first || vehicleMode) - this.shoulder) * k;
     this.cineShotYaw = cine ? cine.yaw : 0;
 
     const fov = vehicleMode

@@ -62,7 +62,7 @@ export function soundRecorder(): CombatSounds & { log: string[] } {
   const log: string[] = [];
   const mk = (n: string) => () => { log.push(n); };
   return {
-    log, whoosh: mk('whoosh'), punch: (h: boolean) => { log.push(h ? 'punchHeavy' : 'punch'); }, thud: mk('thud'), glass: mk('glass'), crack: mk('crack'),
+    log, whoosh: mk('whoosh'), punch: (h: boolean) => { log.push(h ? 'punchHeavy' : 'punch'); }, thud: mk('thud'), carThud: mk('carThud'), glass: mk('glass'), crack: mk('crack'),
     tick: mk('tick'), click: mk('click'), reload: mk('reload'), pickup: mk('pickup'), throwAway: mk('throwAway'),
   };
 }

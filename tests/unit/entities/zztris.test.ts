@@ -1,0 +1,13 @@
+import { describe, it, beforeAll } from 'vitest';
+import * as THREE from 'three';
+import { readFileSync, readdirSync } from 'node:fs';
+import { Rng } from '@/core/Rng';
+import { PED_SPECS } from '@/textures/painters/ped';
+import { clearPeople, parseShape, registerShape, buildMhPedModel } from '@/entities/models/pedMesh';
+import type { IMaterialLibrary } from '@/world/types';
+const DIR = 'src/assets/models/people/';
+const materials = { get: () => new THREE.MeshStandardMaterial() } as unknown as IMaterialLibrary;
+beforeAll(async () => { clearPeople(); for (const f of readdirSync(DIR).filter((n) => n.endsWith('.glb'))) { const b = readFileSync(DIR + f); registerShape(await parseShape(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer)); } });
+describe('tris', () => { it('t', () => { const tot = { hi: 0, mid: 0, far: 0 };
+  PED_SPECS.forEach((p, v) => { const m = buildMhPedModel(materials, new Rng(v + 1), { variant: v })!; const lv: number[] = []; m.group.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) lv.push((o as THREE.SkinnedMesh).geometry.index!.count / 3); }); tot.hi += lv[0]; tot.mid += lv[1]; tot.far += lv[2]; });
+  console.log('TRIS ' + JSON.stringify(tot)); }); });

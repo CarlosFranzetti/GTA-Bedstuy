@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ThirdPersonCamera, dampStep, vehicleFov, IDLE_CINEMATIC_AFTER, RECENTRE_DELAY, footFollow } from '@/core/Camera';
+import { ThirdPersonCamera, AIM_SHOULDER, aimShoulder, dampStep, vehicleFov, IDLE_CINEMATIC_AFTER, RECENTRE_DELAY, footFollow } from '@/core/Camera';
 import type { Input } from '@/core/Input';
 import { angleDiff } from '@/core/Math2';
 
@@ -231,5 +231,42 @@ describe('rig scales with the vehicle', () => {
     expect(truck.camera.position.z).toBeCloseTo(7, 1);
     expect(truck.camera.position.y).toBeGreaterThan(3.2);
     expect(truck.camera.position.y).toBeLessThan(4);
+  });
+});
+
+
+describe('aim bias (over the shoulder while aiming)', () => {
+  const sideOffset = (c: ThirdPersonCamera): number => c.camera.position.x - T.x; // heading 0: the camera looks north, so its shoulder offset is along x
+  it('aimShoulder goes the same way as the current shoulder, scaled by the bias, and is zero in first person or with no bias', () => {
+    expect(aimShoulder(0.35, 1)).toBeCloseTo(AIM_SHOULDER);
+    expect(aimShoulder(-0.35, 1)).toBeCloseTo(-AIM_SHOULDER);
+    expect(aimShoulder(0.35, 0.5)).toBeCloseTo(AIM_SHOULDER / 2);
+    expect(aimShoulder(0.35, 0)).toBe(0);
+    expect(aimShoulder(0.35, 1, true)).toBe(0);
+    expect(aimShoulder(0, 1)).toBeCloseTo(AIM_SHOULDER);
+  });
+  it('slides the on-foot camera sideways when set, smoothly, and slides it back when cleared', () => {
+    const c = new ThirdPersonCamera();
+    for (let i = 0; i < 120; i++) c.update(DT, T, 0, 'foot', fake());
+    const rest = sideOffset(c);
+    c.aimBias = 1;
+    c.update(DT, T, 0, 'foot', fake());
+    const first = sideOffset(c);
+    for (let i = 0; i < 120; i++) c.update(DT, T, 0, 'foot', fake());
+    const aimed = sideOffset(c);
+    expect(Math.abs(first - rest)).toBeLessThan(AIM_SHOULDER * 0.4);          // not a jump
+    expect(Math.abs(aimed - rest)).toBeCloseTo(AIM_SHOULDER, 1);               // settles at the extra offset
+    expect(Math.sign(aimed - rest)).toBe(Math.sign(rest) || 1);                // the same side as the shoulder
+    c.aimBias = 0;
+    for (let i = 0; i < 180; i++) c.update(DT, T, 0, 'foot', fake());
+    expect(sideOffset(c)).toBeCloseTo(rest, 1);
+  });
+  it('does nothing in a car', () => {
+    const c = new ThirdPersonCamera();
+    for (let i = 0; i < 120; i++) c.update(DT, T, 0, 'vehicle', fake());
+    const rest = sideOffset(c);
+    c.aimBias = 1;
+    for (let i = 0; i < 120; i++) c.update(DT, T, 0, 'vehicle', fake());
+    expect(sideOffset(c)).toBeCloseTo(rest, 3);
   });
 });

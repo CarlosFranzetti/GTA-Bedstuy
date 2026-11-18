@@ -84,6 +84,53 @@ export function placePickups(lots: readonly Lot[], home: Vec2, blocked?: Blocked
   return out;
 }
 
+/**
+ * The real map (`?map=real`): plain data in, so nothing here imports the road network. `lots` are the real map's placed lots (the
+ * same `Lot` shape as the grid's, shops attached), `shops` are the sidewalk points in front of the shop doors (the places table's
+ * `poiSpot`, as the map's blips carry them: `mapPlaces` with kind 'shop') and `home` is the player's spawn.
+ */
+export interface RealPickupData {
+  home: Vec2;
+  shops: ReadonlyArray<{ id: string; x: number; z: number }>;
+  lots?: readonly Lot[];
+}
+
+/** A shop door's own spot gets a bottle if no pickup is already within this many metres of it. */
+const SHOP_SPACING = 6;
+/** The home pistol goes at the shop spot nearest home that is at least this far (m) from the spawn and no further than HOME_MAX. */
+const HOME_MIN = 5;
+const HOME_MAX = 60;
+
+/**
+ * Pickups for the real map: everything the lots give (a bottle by each shop, bricks at scaffold fences, bottles by the kerb, the
+ * pistols) plus a bottle at every shop door the lots did not cover, and a pistol near home when no lot gave one. Deterministic.
+ */
+export function placeRealPickups(data: RealPickupData, blocked?: Blocked): PickupDef[] {
+  const out: PickupDef[] = data.lots ? placePickups(data.lots, data.home, blocked) : [];
+  const near = (p: Vec2, kind: PickupKind | null, r: number): boolean => out.some((o) => (kind === null || o.kind === kind) && Math.hypot(o.x - p.x, o.z - p.z) < r);
+  const free = (p: Vec2): Vec2 | null => {
+    for (const [dx, dz] of [[0, 0], [1.2, 0], [-1.2, 0], [0, 1.2], [0, -1.2]] as const) {
+      const q = { x: p.x + dx, z: p.z + dz };
+      if (!blocked || !blocked(q, FOOT)) return q;
+    }
+    return null;
+  };
+  const add = (id: string, kind: PickupKind, p: Vec2 | null): void => { if (p) out.push({ id, kind, x: +p.x.toFixed(2), z: +p.z.toFixed(2) }); };
+  for (const sh of data.shops) {
+    if (near(sh, 'bottle', SHOP_SPACING)) continue;
+    add(`bottle:real:${sh.id}`, 'bottle', free(sh));
+  }
+  if (!out.some((o) => o.kind === 'pistol' && Math.hypot(o.x - data.home.x, o.z - data.home.z) <= HOME_MAX)) {
+    let best: { x: number; z: number } | null = null, bestD = Infinity;
+    for (const sh of data.shops) {
+      const d = Math.hypot(sh.x - data.home.x, sh.z - data.home.z);
+      if (d >= HOME_MIN && d <= HOME_MAX && d < bestD) { bestD = d; best = sh; }
+    }
+    if (best) add('pistol:home', 'pistol', free({ x: best.x + 1.6, z: best.z }) ?? free(best));
+  }
+  return out;
+}
+
 export interface CollectedPickup { id: string; kind: PickupKind; x: number; z: number }
 
 interface Dropped { id: string; kind: PickupKind; x: number; z: number; ttl: number; /** seconds before it can be picked up (the thrower is still next to it) */ arm: number }

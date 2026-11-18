@@ -144,11 +144,11 @@ const DEFAULTS: MenuSettings = { quality: 'medium', auto: false, master: 1, radi
 const CONTROLS: Record<InputMode, { title: string; rows: Array<[string, string]> }> = {
   keyboard: {
     title: 'Keyboard & mouse',
-    rows: [['WASD', 'Move / drive'], ['Mouse', 'Look'], ['Shift', 'Sprint / handbrake'], ['Alt or Caps Lock', 'Walk (half-tilt a stick)'], ['Space', 'Jump / brake / start'], ['Left click or G', 'Action on foot: punch, throw or shoot by what is in hand (nothing in a car yet)'], ['Q', 'Next item in hand'], ['F', 'Enter / exit car'], ['H', 'Horn'], ['E', 'Next radio station'], ['P', 'Phone'], ['M', 'Map'], ['N', 'Point at HOME / WAX DELI'], ['Alt+Enter', 'Full screen'], ['Esc', 'Pause']],
+    rows: [['WASD', 'Move / drive'], ['Mouse', 'Look'], ['Shift', 'Sprint / handbrake'], ['Alt or Caps Lock', 'Walk (half-tilt a stick)'], ['Space', 'Jump / brake / start'], ['Left click or G', 'Action on foot: punch, throw or shoot by what is in hand (no action from a car yet: the hands icon dims there)'], ['Q', 'Next item in hand'], ['F', 'Enter / exit car'], ['H', 'Horn'], ['E', 'Next radio station'], ['P', 'Phone'], ['M', 'Map'], ['N', 'Point at HOME / WAX DELI'], ['Alt+Enter', 'Full screen'], ['Esc', 'Pause']],
   },
   touch: {
     title: 'Touch',
-    rows: [['Left stick', 'Move / drive'], ['Drag right side', 'Look'], ['CAR', 'Enter / exit car'], ['RUN / BRAKE', 'Sprint, brake (half-push the stick to walk)'], ['ACT', 'Action on foot: punch, throw or shoot (nothing in a car yet)'], ['Tap the item icon', 'Next item in hand'], ['HORN', 'Horn'], ['RADIO', 'Next station'], ['PHONE / MAP', 'Open the phone or the map'], ['Tap Offer/Nav chip', 'Point at HOME / WAX DELI'], ['II', 'Pause']],
+    rows: [['Left stick', 'Move / drive'], ['Drag right side', 'Look'], ['CAR', 'Enter / exit car'], ['RUN / BRAKE', 'Sprint, brake (half-push the stick to walk)'], ['ACT', 'Action on foot: punch, throw or shoot (no action from a car yet: the hands icon dims there)'], ['Tap the item icon', 'Next item in hand'], ['HORN', 'Horn'], ['RADIO', 'Next station'], ['PHONE / MAP', 'Open the phone or the map'], ['Tap Offer/Nav chip', 'Point at HOME / WAX DELI'], ['II', 'Pause']],
   },
   gamepad: {
     title: 'Gamepad',

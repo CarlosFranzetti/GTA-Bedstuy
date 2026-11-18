@@ -25,6 +25,7 @@ import { FAR_DIST, MID_DIST, PedLod, buildPedModel as buildProcedural, pedPhone,
 import { hijabShell } from './pedGarments';
 import { peopleMode } from '@/textures/painters/pedMode';
 import { legTubes, isCoveredLeg, StripMesh, addStrip, type Row, type LegTube, type LegDetail } from './pedLegs';
+import { addPolarStrip, cuffRows, hemRows, straightenArms } from './pedCuts';
 import { bodyTypeOf, type BodyType } from './pedBodyTypes';
 import { makeCtx, personPieces } from './pedPieces';
 import { pickPedVariant, type PedModel, type PedOptions } from './pedBody';
@@ -428,6 +429,10 @@ export function dressLod(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): M
       const dx = x * fx - axX, dz = z - cz0;
       const kUp = bt.arms / Math.max(0.8, bt.shoulders), k = 1 + (lerp(kUp, 1 + (kUp - 1) * 0.5, sstep(elY + 0.02, elY - 0.1, y)) - 1) * wA;
       x = axX + dx * k; z = cz0 + dz * k;
+      // PEOPLE5: a sleeve is a straight-cut slab, not a sausage: the upper arm is a little flatter front to back (and wider by a fraction), the forearm breaks slightly forward at the elbow
+      const za = lerp(R.shoulderL[2], R.wristL[2], t), slab = sstep(shY - 0.015, shY - 0.1 * K, y) * (1 - sstep(elY + 0.05, elY - 0.05, y)) * wA;
+      z = za + (z - za) * (1 - 0.16 * slab); x = axX + (x - axX) * (1 + 0.05 * slab);
+      z -= 0.014 * K * sstep(elY + 0.03, elY - 0.08, y) * wA;
     }
     // legs: out with the hips, thickness about the leg axis following the profile
     if (wL > 0.01) {
@@ -462,6 +467,8 @@ export function dressLod(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): M
       void x;
       if (t > 0) { out[i * 3] += normal[i * 3] * t; out[i * 3 + 1] += normal[i * 3 + 1] * t * 0.3; out[i * 3 + 2] += normal[i * 3 + 2] * t; }
     }
+    // the clothed arm is a straight cut: its radius never grows from the shoulder down to the cuff (pedCuts.straightenArms)
+    if (top.sleeves === 'long' || top.sleeves === 'short') straightenArms(L, out, shY - 0.08 * K, (top.sleeves === 'long' ? wrY + 0.03 : sleeveCut + 0.01), 0.85);
     normal = shadeNormals(L, out);
     return covered ? withTubes(s, spec, L, out, normal, bt, legK, detail) : { ...L, position: out, normal };
   }
@@ -498,13 +505,10 @@ function clothExtras(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.Bu
     if (r && r2) {
       // the hem of a top is a layer of its own: a wall standing 10 mm proud of the trousers (hard-shaded lip, flat underside), then a soft return into the body
       const o = k === 'puffer' ? 0.012 : k === 'jacket' || k === 'hoodie' ? 0.011 : 0.009;
-      const ell = (y: number, g: number, up: number, q = r): Row => ({ y, rx: q.rx + g, rz: q.rz + g, cx: q.cx, cz: q.cz, up });
       const m = new StripMesh(), uvT = (u: number, v: number): [number, number] => { const q = SK_RECTS.torso; return [(q.x + 3 + u * (q.w - 6)) / ATLAS, 1 - (q.y + 3 + (1 - v) * (q.h - 6)) / ATLAS]; };
-      const skin = (): { j: number[]; w: number[] } => ({ j: [2, 0, 0, 0], w: [1, 0, 0, 0] });
-      const mid = { rx: Math.max(r.rx, r2.rx), rz: Math.max(r.rz, r2.rz), cx: (r.cx + r2.cx) / 2, cz: (r.cz + r2.cz) / 2 };
-      addStrip(m, [ell(hemTop, o, -1), ell(hemTop, -0.006, -1)], { seg, mir: 1, skin, uv: (u) => uvT(u, 0.5) });
-      addStrip(m, [ell(hemTop, o, 0), ell(hemTop + 0.012, o, 0)], { seg, mir: 1, skin, uv: (u) => uvT(u, 0.5) });
-      addStrip(m, [ell(hemTop + 0.012, o, 0.1), ell(hemTop + 0.05, o, 0, mid), ell(hemTop + 0.13, 0.012, 0, r2)], { seg, mir: 1, skin, uv: (u) => uvT(u, 0.5) });
+      // PEOPLE5: the band is lofted along the measured outline of the body (pedCuts.hemRows), so it always stands outside the body: a clean ring, no chips, no diamonds
+      const hb = hemRows(L, L.position, hemTop, o, hi ? 20 : 12, hi);
+      if (hb) for (const rows of hb.rows) addPolarStrip(m, rows, { seg: hi ? 20 : 12, skin: { j: [2, 0, 0, 0], w: [1, 0, 0, 0] }, uv: (u) => uvT(u, 0.5) });
       out.push(stripGeometry(m));
       if (k === 'hoodie') {
         const zf = r.cz - r.rz;      // the pocket: a soft pad on the front of the belly
@@ -514,6 +518,17 @@ function clothExtras(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.Bu
           { y: hemTop + 0.17, rx: r.rx * 0.5, rz: 0.012, cx: r.cx, cz: zf + 0.012 },
         ], hi ? 12 : 8, SK_RECTS.torso, 2, 'both'));
       }
+    }
+  }
+  // PEOPLE5: the crisp end of a sleeve, the same edge language as the trouser hem: a lip 5 to 6.5 mm proud of the arm with a flat underside facing the hand (pedCuts.cuffRows)
+  if (spec.top.sleeves === 'long' || spec.top.sleeves === 'short') {
+    const Rr = s.rig, long = spec.top.sleeves === 'long', yEnd = long ? Rr.wristL[1] + 0.012 : Rr.elbowL[1] + (Rr.shoulderL[1] - Rr.elbowL[1]) * 0.42, sg = hi ? 8 : 6;
+    for (const side of [-1, 1] as const) {
+      const rows = cuffRows(L, L.position, side, yEnd, long ? 0.034 : 0.022, long ? 0.0065 : 0.005, sg);
+      if (!rows) continue;
+      const m = new StripMesh(), q = SK_RECTS.torso, bone = (yEnd > Rr.elbowL[1] ? 4 : 5) + (side < 0 ? 0 : 2);
+      for (const rr of rows) addPolarStrip(m, rr, { seg: sg, skin: { j: [bone, 0, 0, 0], w: [1, 0, 0, 0] }, uv: (u) => [(q.x + 3 + u * (q.w - 6)) / ATLAS, 1 - (q.y + 3 + 0.5 * (q.h - 6)) / ATLAS] });
+      out.push(stripGeometry(m));
     }
   }
   if (['jeans', 'trousers', 'cargo', 'sweats'].includes(spec.bottom.kind) && !L.tube) {
@@ -561,7 +576,7 @@ function shoeParts(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.Buff
   const out: THREE.BufferGeometry[] = [], R = peopleRig(s, spec), anY = s.landmarks.ankleY, rect = SK_RECTS.shoe, seg = hi ? 12 : 8;
   const bt = bodyTypeOf(spec), K = Math.min(1.15, Math.max(0.85, (s.landmarks.crownY / 1.78) * (0.9 + 0.1 * bt.legs)));
   const T = [0, 0.03, 0.1, 0.24, 0.42, 0.6, 0.78, 0.92, 1];
-  const W = [0.014, 0.034, 0.046, 0.053, 0.051, 0.047, 0.043, 0.041, 0.039], H = [0.028, 0.05, 0.065, 0.072, 0.082, 0.105, 0.125, 0.13, 0.126];
+  const W = [0.017, 0.039, 0.052, 0.059, 0.057, 0.051, 0.045, 0.042, 0.04], H = [0.034, 0.06, 0.078, 0.088, 0.097, 0.115, 0.131, 0.138, 0.134];      // PEOPLE5: a taller, wider toe box; the vamp reaches 10 cm at the trouser hem
   const flat = spec.sex === 'f' && !spec.shoes.high && !/#f|#e/i.test(spec.shoes.color), len = 0.272 * Math.max(0.93, K);
   for (const side of ['L', 'R']) {
     const a = R['ankle' + side], bone = side === 'L' ? 9 : 11;

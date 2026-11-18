@@ -4,7 +4,7 @@ export const CONTROLS_LINES = [
   'Shift sprint (the default on foot is a jog)',
   'Alt or Caps Lock: walk (half-tilt a stick on a pad)',
   'Space jump (brake in a car)',
-  'Left click or G: punch, throw or shoot (on foot; nothing in a car yet)',
+  'Left click or G: punch, throw or shoot (on foot; no action from a car yet, the hands icon dims there)',
   'Q next item in hand',
   'F enter/exit car',
   'V camera view (tap twice: swap last two)',
@@ -18,12 +18,12 @@ export const CONTROLS_LINES = [
 ];
 
 export const KEYBOARD_ROWS: Array<[string, string]> = [
-  ['WASD', 'Move / drive'], ['Mouse', 'Look'], ['Shift', 'Sprint / handbrake'], ['Alt / Caps Lock', 'Walk (hold, or toggle with Caps Lock)'], ['Space', 'Jump on foot / brake in a car / start'], ['Left click / Left Ctrl', 'Action on foot: punch, throw or shoot by what is in hand (nothing in a car yet)'], ['Q', 'Next item in hand'], ['F', 'Enter / exit car'],
+  ['WASD', 'Move / drive'], ['Mouse', 'Look'], ['Shift', 'Sprint / handbrake'], ['Alt / Caps Lock', 'Walk (hold, or toggle with Caps Lock)'], ['Space', 'Jump on foot / brake in a car / start'], ['Left click / Left Ctrl', 'Action on foot: punch, throw or shoot by what is in hand (no action from a car yet: the hands icon dims there)'], ['Q', 'Next item in hand'], ['F', 'Enter / exit car'],
   ['V', 'Camera view (tap twice to swap the last two)'], ['B / Middle mouse', 'Swap over-the-shoulder side'], ['C', 'Look back (hold)'],
   ['H', 'Horn'], ['E', 'Next radio station'], ['P', 'Phone'], ['M', 'Map'], ['N', 'Point at HOME / WAX DELI'], ['Alt+Enter', 'Full screen'], ['Esc', 'Pause'],
 ];
 export const TOUCH_ROWS: Array<[string, string]> = [
-  ['Left stick', 'Move / drive'], ['Drag right side', 'Look'], ['CAR', 'Enter / exit car'], ['RUN / BRAKE', 'Sprint on foot, brake in a car (half-push the stick to walk)'], ['JUMP', 'Jump (on foot)'], ['ACT', 'Action on foot: punch, throw or shoot (nothing in a car yet)'], ['Item icon (top right)', 'Next item in hand'],
+  ['Left stick', 'Move / drive'], ['Drag right side', 'Look'], ['CAR', 'Enter / exit car'], ['RUN / BRAKE', 'Sprint on foot, brake in a car (half-push the stick to walk)'], ['JUMP', 'Jump (on foot)'], ['ACT', 'Action on foot: punch, throw or shoot (no action from a car yet: the hands icon dims there)'], ['Item icon (top right)', 'Next item in hand'],
   ['VIEW', 'Cycle camera view'], ['HORN', 'Horn'], ['RADIO', 'Next station'], ['PHONE / MAP', 'Open the phone or the map'], ['II', 'Pause'],
 ];
 export const GAMEPAD_ROWS: Array<[string, string]> = [

@@ -81,6 +81,8 @@ interface ShellOpts {
   rows: number;
   /** offset from the scalp (m) at azimuth be and u = 0 at the rim .. 1 at the crown */
   thick: (be: number, u: number) => number;
+  /** the whole outer radius from the head centre (m) at azimuth be, u, given the skull radius there: overrides rim + thick (the afros are round masses) */
+  radius?: (be: number, u: number, skull: number, al: number, rimA: number) => number;
   /** extra lift (m) straight up */
   up?: (be: number, u: number) => number;
   /** the hanging part: rings from the rim down to a hem height (null = no hang at that azimuth); thick is the offset from the body there (s 0 .. 1 to the hem) */
@@ -105,7 +107,8 @@ function shell(ctx: Ctx, mb: MeshBuilder, o: ShellOpts): void {
       const hw = hemJ === null ? 0 : clamp((ctx.C[1] + Math.cos(rimA) * 0.095 - hemJ) / 0.05);
       const w = Math.max(hw, sstep(0, 0.4, o.inner ? Math.min(u, 1 - u) : u)), R = lerp(sampleF(F.raw, al, be), sampleF(F.env, al, be), w);
       const th = !o.inner && k === 0 ? poleTh : Math.max(o.thick(be, u), hang && hw > 0 ? hang.thick(be, 0) * hw * (1 - sstep(0, 0.35, u)) : 0), up = !o.inner && k === 0 ? poleUp : o.up ? o.up(be, u) : 0;
-      last = [ctx.C[0] + d[0] * (R + th), ctx.C[1] + d[1] * (R + th) + up, ctx.C[2] + d[2] * (R + th)];
+      const rad = o.radius ? o.radius(be, u, R, al, rimA) : R + th;
+      last = [ctx.C[0] + d[0] * rad, ctx.C[1] + d[1] * rad + up, ctx.C[2] + d[2] * rad];
       P[k].push(last); S[k].push(o.shade ? o.shade(be, u, 0) : 0.8 + 0.2 * sstep(0, 0.45, u));
     }
     if (hang) {
@@ -125,10 +128,10 @@ function shell(ctx: Ctx, mb: MeshBuilder, o: ShellOpts): void {
 }
 
 /** the skull cap of most styles */
-function cap(ctx: Ctx, mb: MeshBuilder, line: Knots, thick: (be: number, u: number) => number, o: { rows?: number; cols?: number; wander?: number; up?: (be: number, u: number) => number; shade?: (be: number, u: number, s: number) => number; inner?: (be: number, rim: number) => number } = {}): void {
+function cap(ctx: Ctx, mb: MeshBuilder, line: Knots, thick: (be: number, u: number) => number, o: { radius?: (be: number, u: number, skull: number, al: number, rimA: number) => number; rows?: number; cols?: number; wander?: number; up?: (be: number, u: number) => number; shade?: (be: number, u: number, s: number) => number; inner?: (be: number, rim: number) => number } = {}): void {
   if (ctx.underHat) return;
   const rim = rimFn(ctx, line, o.wander ?? 0.6);
-  shell(ctx, mb, { be: unif(o.cols ?? colsOf(ctx, 16, 10)), rim, rows: o.rows ?? rowsOf(ctx, 5, 4), thick, up: o.up, shade: o.shade, inner: o.inner ? (be) => o.inner!(be, rim(be)) : undefined, W: headW });
+  shell(ctx, mb, { be: unif(o.cols ?? colsOf(ctx, 19, 11)), rim, rows: o.rows ?? rowsOf(ctx, 5, 4), thick, radius: o.radius, up: o.up, shade: o.shade, inner: o.inner ? (be) => o.inner!(be, rim(be)) : undefined, W: headW });
 }
 /** a lift from nothing at the hairline: no step at the edge */
 const rise = (u: number, w = 0.3): number => sstep(0, w, u);
@@ -186,24 +189,34 @@ function locks(ctx: Ctx, mb: MeshBuilder, o: LockOpts): void {
   });
 }
 
+/** an afro: a near-spherical mass centred on the skull (a little high), rolling in to the hairline over the first half of the way up */
+function afroBall(ctx: Ctx, mb: MeshBuilder, extra: number, wide: number): void {
+  const hw = headRingAt(ctx, ctx.Y(0.62)).rx, Ra = (hw + 0.012 + extra) * wide;
+  cap(ctx, mb, T_AFRO, (be, u) => rise(u, 0.3) * 0.004 * lumps(be, u, 8), {
+    cols: colsOf(ctx, 20, 12), rows: rowsOf(ctx, 6, 5),
+    radius: (be, u, R, al, rimA) => lerp(Ra * (1 - 0.08 * sstep(1.9, 3.14, azOf(be))) + 0.0025 * lumps(be, u, 8), R + 0.003, sstep(rimA - 0.8, rimA, al)),
+    up: (_be, u) => 0.012 * sstep(0.2, 1, u),
+  });
+}
+
 const STYLES: Record<HairId, (ctx: Ctx, mb: MeshBuilder) => void> = {
-  lowFade: (ctx, mb) => cap(ctx, mb, T_LOWBACK, (be, u) => rise(u, 0.28) * (0.0045 + 0.0085 * sstep(0.35, 0.85, u) + 0.004 * front(be) * sstep(0.55, 1, u)), { cols: colsOf(ctx, 20, 12), rows: rowsOf(ctx, 5, 4) }),
-  highTop: (ctx, mb) => cap(ctx, mb, T_LOWBACK, (_be, u) => rise(u, 0.28) * 0.006 + 0.03 * sstep(0.3, 0.7, u), { cols: colsOf(ctx, 20, 12), rows: rowsOf(ctx, 6, 4), up: (_be, u) => 0.012 * sstep(0.4, 1, u) }),
-  crop: (ctx, mb) => cap(ctx, mb, T_SHORT, (be, u) => rise(u, 0.25) * (0.0035 + 0.003 * sstep(0.4, 1, u)) + 0.003 * front(be) * sstep(0.5, 1, u), { cols: colsOf(ctx, 16, 10) }),
-  short: (ctx, mb) => cap(ctx, mb, T_SHORT, (be, u) => rise(u, 0.28) * (0.006 + 0.008 * sstep(0.3, 0.9, u)) + 0.008 * front(be) * sstep(0.5, 1, u), { cols: colsOf(ctx, 16, 10) }),
+  lowFade: (ctx, mb) => cap(ctx, mb, T_LOWBACK, (be, u) => rise(u, 0.28) * (0.0045 + 0.0085 * sstep(0.35, 0.85, u) + 0.004 * front(be) * sstep(0.55, 1, u)), { cols: colsOf(ctx, 22, 12), rows: rowsOf(ctx, 5, 4) }),
+  highTop: (ctx, mb) => cap(ctx, mb, T_LOWBACK, (_be, u) => rise(u, 0.28) * 0.006 + 0.03 * sstep(0.3, 0.7, u), { cols: colsOf(ctx, 22, 12), rows: rowsOf(ctx, 6, 4), up: (_be, u) => 0.012 * sstep(0.4, 1, u) }),
+  crop: (ctx, mb) => cap(ctx, mb, T_SHORT, (be, u) => rise(u, 0.25) * (0.0035 + 0.003 * sstep(0.4, 1, u)) + 0.003 * front(be) * sstep(0.5, 1, u), { cols: colsOf(ctx, 19, 11) }),
+  short: (ctx, mb) => cap(ctx, mb, T_SHORT, (be, u) => rise(u, 0.28) * (0.006 + 0.008 * sstep(0.3, 0.9, u)) + 0.008 * front(be) * sstep(0.5, 1, u), { cols: colsOf(ctx, 19, 11) }),
   curls: (ctx, mb) => cap(ctx, mb, T_SHORT, (be, u) => rise(u, 0.3) * (0.012 + 0.012 * lumps(be, u, 9)), { cols: colsOf(ctx, 22, 12), rows: rowsOf(ctx, 5, 4) }),
-  afro: (ctx, mb) => cap(ctx, mb, T_AFRO, (be, u) => 0.058 * (1 - 0.2 * sstep(1.9, 3.14, azOf(be))) * ball1(u, 0.8) + 0.004 * lumps(be, u, 8) * rise(u, 0.3), { cols: colsOf(ctx, 20, 12), rows: rowsOf(ctx, 6, 4) }),
-  afroLarge: (ctx, mb) => cap(ctx, mb, T_AFRO, (be, u) => 0.095 * (1 - 0.2 * sstep(1.9, 3.14, azOf(be))) * ball1(u, 0.8) + 0.005 * lumps(be, u, 8) * rise(u, 0.3), { cols: colsOf(ctx, 20, 12), rows: rowsOf(ctx, 6, 4) }),
+  afro: (ctx, mb) => afroBall(ctx, mb, 0.05, 1),
+  afroLarge: (ctx, mb) => afroBall(ctx, mb, 0.09, 1.08),
   puff: (ctx, mb) => {
-    cap(ctx, mb, T_SHORT, (_be, u) => rise(u, 0.25) * (0.0045 + 0.004 * sstep(0.4, 1, u)), { cols: colsOf(ctx, 16, 10), rows: rowsOf(ctx, 4, 3) });
+    cap(ctx, mb, T_SHORT, (_be, u) => rise(u, 0.25) * (0.0045 + 0.004 * sstep(0.4, 1, u)), { cols: colsOf(ctx, 19, 11), rows: rowsOf(ctx, 4, 3) });
     const b = ctx.Y(0.97); ball(ctx, mb, [0, b + 0.012, ctx.C[2] + 0.075], ctx.H * 0.2, 0.9, 0.03);
   },
   bun: (ctx, mb) => {
-    cap(ctx, mb, T_SHORT, (_be, u) => rise(u, 0.25) * (0.0045 + 0.004 * sstep(0.4, 1, u)), { cols: colsOf(ctx, 16, 10), rows: rowsOf(ctx, 4, 3) });
+    cap(ctx, mb, T_SHORT, (_be, u) => rise(u, 0.25) * (0.0045 + 0.004 * sstep(0.4, 1, u)), { cols: colsOf(ctx, 19, 11), rows: rowsOf(ctx, 4, 3) });
     ball(ctx, mb, [0, ctx.Y(1.0) + 0.03, ctx.C[2] + 0.04], ctx.H * 0.16, 0.85);
   },
   ponytail: (ctx, mb) => {
-    cap(ctx, mb, T_SHORT, (_be, u) => rise(u, 0.25) * (0.0045 + 0.005 * sstep(0.4, 1, u)), { cols: colsOf(ctx, 16, 10), rows: rowsOf(ctx, 5, 4) });
+    cap(ctx, mb, T_SHORT, (_be, u) => rise(u, 0.25) * (0.0045 + 0.005 * sstep(0.4, 1, u)), { cols: colsOf(ctx, 19, 11), rows: rowsOf(ctx, 5, 4) });
     // a tail gathered at the back of the crown: leaves backwards, then falls in a curve, tapering to a tip
     const d0 = dirOf(Math.PI * 0.34, Math.PI), root: V3 = add(ctx.C, mul(d0, skullR(ctx, d0) + 0.013)), W = blend(BONE.head, BONE.torso, (p) => sstep(ctx.lm.chinY + 0.02, ctx.lm.chinY - 0.14, p[1]));
     const N = ctx.detail === 'hi' ? 7 : 5, path: V3[] = [root], L = 0.3;
@@ -216,8 +229,8 @@ const STYLES: Record<HairId, (ctx: Ctx, mb: MeshBuilder) => void> = {
   twists: (ctx, mb) => cap(ctx, mb, T_SHORT, (be, u) => rise(u, 0.3) * (0.014 + 0.014 * (0.5 + 0.5 * Math.sin(be * 7 + u * 2.2)) * (0.6 + 0.4 * Math.cos(u * 10 + be * 2))), { cols: colsOf(ctx, 28, 14), rows: rowsOf(ctx, 6, 4), shade: (be, u) => 0.74 + 0.26 * (0.5 + 0.5 * Math.sin(be * 7 + u * 2.2)) * sstep(0, 0.3, u) + 0.08 * sstep(0.3, 1, u) }),
   // long locs and box braids: a cap and a hanging mass of thick, tapered, touching locks down the back and over the shoulders (one welded surface,
   // the locks are the ridges of it, each ending in its own rounded tip at its own length)
-  locs: (ctx, mb) => locks(ctx, mb, { n: colsOf(ctx, 24, 16), per: 4, amp: 0.03, capAmp: 0.018, drop: 0.06, extra: 0.17, stagger: 0.05, tip: 0.09, rows: rowsOf(ctx, 5, 4), hrows: rowsOf(ctx, 3, 3) }),
-  boxBraids: (ctx, mb) => locks(ctx, mb, { n: colsOf(ctx, 30, 18), per: 3, amp: 0.02, capAmp: 0.011, drop: 0.1, extra: 0.2, stagger: 0.05, tip: 0.06, rows: rowsOf(ctx, 4, 3), hrows: rowsOf(ctx, 3, 3) }),
+  locs: (ctx, mb) => locks(ctx, mb, { n: colsOf(ctx, 24, 16), per: 4, amp: 0.042, capAmp: 0.024, drop: 0.06, extra: 0.17, stagger: 0.05, tip: 0.09, rows: rowsOf(ctx, 5, 4), hrows: rowsOf(ctx, 3, 3) }),
+  boxBraids: (ctx, mb) => locks(ctx, mb, { n: colsOf(ctx, 30, 18), per: 3, amp: 0.03, capAmp: 0.016, drop: 0.1, extra: 0.2, stagger: 0.05, tip: 0.06, rows: rowsOf(ctx, 4, 3), hrows: rowsOf(ctx, 3, 3) }),
   cornrows: (ctx, mb) => {
     const n = colsOf(ctx, 24, 12), f = (be: number): number => ridge(be, n / 3, 0);
     cap(ctx, mb, T_LOWBACK, (be, u) => 0.0045 * rise(u, 0.3) + 0.007 * f(be) * sstep(0.08, 0.35, u) * (1 - 0.7 * sstep(0.85, 1, u)) + 0.002 * sstep(0.2, 1, u), { cols: n, rows: rowsOf(ctx, 4, 3), shade: (be, u) => 0.7 + 0.3 * f(be) * sstep(0.05, 0.3, u) + 0.2 * (1 - sstep(0.05, 0.3, u)) });
@@ -225,31 +238,31 @@ const STYLES: Record<HairId, (ctx: Ctx, mb: MeshBuilder) => void> = {
   bob: (ctx, mb) => {
     const yb = ctx.lm.chinY - 0.012;
     shell(ctx, mb, {
-      be: unif(colsOf(ctx, 20, 12)), rim: rimFn(ctx, T_FULL, 0.3), rows: rowsOf(ctx, 5, 4), W: headW,
+      be: unif(colsOf(ctx, 22, 12)), rim: rimFn(ctx, T_FULL, 0.3), rows: rowsOf(ctx, 5, 4), W: headW,
       thick: (be, u) => rise(u, 0.28) * (0.007 + 0.008 * sstep(0.3, 1, u)) + 0.006 * front(be) * sstep(0.5, 1, u),
-      hang: hangOf(ctx, 1.0, 1.55, (az) => yb + 0.03 * sstep(1.6, 3.1, az) - 0.012 * (1 - sstep(1.6, 3.1, az)), rowsOf(ctx, 2, 2), (_be, s) => bulge(s, 0.008, 0.02, 0.0045)),
+      hang: hangOf(ctx, 1.0, 1.7, (az) => yb + 0.03 * sstep(1.9, 3.14, az) - 0.012 * (1 - sstep(1.9, 3.14, az)) + 0.02 * (1 - sstep(1.0, 2.6, az)), rowsOf(ctx, 3, 2), (_be, s) => bulge(s, 0.008, 0.021, -0.004)),
     });
   },
   long: (ctx, mb) => {
     const yb = ctx.rig.shoulderL[1] - 0.2, ys = ctx.rig.shoulderL[1] - 0.05;
     shell(ctx, mb, {
-      be: unif(colsOf(ctx, 20, 12)), rim: rimFn(ctx, T_FULL, 0.3), rows: rowsOf(ctx, 5, 4), W: blend(BONE.head, BONE.torso, (p) => sstep(ctx.lm.chinY + 0.02, ctx.lm.chinY - 0.14, p[1])),
+      be: unif(colsOf(ctx, 22, 12)), rim: rimFn(ctx, T_FULL, 0.3), rows: rowsOf(ctx, 5, 4), W: blend(BONE.head, BONE.torso, (p) => sstep(ctx.lm.chinY + 0.02, ctx.lm.chinY - 0.14, p[1])),
       thick: (be, u) => rise(u, 0.28) * (0.007 + 0.008 * sstep(0.3, 1, u)) + 0.006 * front(be) * sstep(0.5, 1, u),
-      hang: hangOf(ctx, 1.0, 1.55, (az) => lerp(ys, yb, sstep(1.7, 2.9, az)), rowsOf(ctx, 4, 3), (_be, s) => bulge(s, 0.008, 0.017, 0.004)),
+      hang: hangOf(ctx, 1.0, 1.7, (az) => lerp(ys, yb, sstep(1.5, 3.14, az)) - 0.012 * (1 - sstep(1.2, 3.14, Math.abs(az - Math.PI) * -1 + 3.14)), rowsOf(ctx, 4, 3), (_be, s) => bulge(s, 0.008, 0.018, -0.003)),
     });
   },
   wavy: (ctx, mb) => {
     const yb = ctx.rig.shoulderL[1] - 0.1, ys = ctx.rig.shoulderL[1] - 0.01;
     shell(ctx, mb, {
-      be: unif(colsOf(ctx, 20, 12)), rim: rimFn(ctx, T_FULL, 0.3), rows: rowsOf(ctx, 5, 4), W: blend(BONE.head, BONE.torso, (p) => sstep(ctx.lm.chinY + 0.02, ctx.lm.chinY - 0.14, p[1])),
+      be: unif(colsOf(ctx, 22, 12)), rim: rimFn(ctx, T_FULL, 0.3), rows: rowsOf(ctx, 5, 4), W: blend(BONE.head, BONE.torso, (p) => sstep(ctx.lm.chinY + 0.02, ctx.lm.chinY - 0.14, p[1])),
       thick: (be, u) => rise(u, 0.28) * (0.008 + 0.008 * sstep(0.3, 1, u)) + 0.005 * Math.sin(be * 5 + u * 7) * sstep(0.1, 0.5, u) + 0.006 * front(be) * sstep(0.5, 1, u),
-      hang: hangOf(ctx, 1.0, 1.55, (az) => lerp(ys, yb, sstep(1.7, 2.9, az)), rowsOf(ctx, 5, 4), (be, s) => bulge(s, 0.008, 0.017, 0.005) + 0.007 * Math.sin(s * 11 + be * 3) * sstep(0.05, 0.3, s) * (1 - sstep(0.8, 1, s))),
+      hang: hangOf(ctx, 1.0, 1.7, (az) => lerp(ys, yb, sstep(1.5, 3.14, az)) - 0.012 * (1 - sstep(1.2, 3.14, Math.abs(az - Math.PI) * -1 + 3.14)), rowsOf(ctx, 5, 4), (be, s) => bulge(s, 0.008, 0.018, -0.002) + 0.007 * Math.sin(s * 11 + be * 3) * sstep(0.05, 0.3, s) * (1 - sstep(0.8, 1, s))),
     });
   },
   receding: (ctx, mb) => {
     // a high, M-shaped front, a thin top, the sides and back kept short
     const line: Knots = [[0, 0.92], [0.55, 0.86], [0.95, 0.74], [1.3, 0.62], [1.8, 0.62], [2.4, 0.46], [Math.PI, 0.38]];
-    cap(ctx, mb, line, (be, u) => rise(u, 0.3) * (0.0035 + 0.003 * sstep(0.4, 1, u)) * (1 - 0.3 * sstep(0.7, 1, u) * front(be)), { cols: colsOf(ctx, 16, 10) });
+    cap(ctx, mb, line, (be, u) => rise(u, 0.3) * (0.0035 + 0.003 * sstep(0.4, 1, u)) * (1 - 0.3 * sstep(0.7, 1, u) * front(be)), { cols: colsOf(ctx, 19, 11) });
   },
   baldFringe: (ctx, mb) => {
     // bald on top, a horseshoe of short hair round the sides and the back (the front of the band closes to nothing)

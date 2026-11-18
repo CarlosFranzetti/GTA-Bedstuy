@@ -8,6 +8,7 @@
  */
 import type { Inventory } from '@/game/Inventory';
 import type { RecordDef } from '@/game/records';
+import type { SavedHands } from '@/game/combat/items';
 
 /**
  * v3 adds `story` (StoryState: branch flags, fork choices, heard news). v2 saves load unchanged (story absent: the mission
@@ -62,6 +63,8 @@ export interface SaveData {
   weather?: string;
   radioStation?: string;
   playerLook?: PlayerLook | null;
+  /** What is in the player's hands: bottles, bricks, the pistol and its rounds, and the item held (combat/items). Absent in older saves: empty hands. */
+  hands?: SavedHands;
   /** street name at save time, for the slot list */
   street?: string;
 }
@@ -110,6 +113,16 @@ function cleanStory(o: unknown): { v: 1; flags: string[]; choices: Record<string
   return { v: 1, flags, choices, seenNews };
 }
 
+const HAND_ITEMS = ['fists', 'bottle', 'brick', 'pistol'] as const;
+/** A hands block that is not the expected shape is dropped; counts are clamped to what the game allows. */
+function cleanHands(o: unknown): SavedHands | undefined {
+  if (!isObj(o)) return undefined;
+  const n = (v: unknown, max: number): number => (finite(v) ? Math.max(0, Math.min(max, Math.floor(v))) : 0);
+  const pistol = o.pistol === true;
+  const current = (HAND_ITEMS as readonly unknown[]).includes(o.current) ? (o.current as SavedHands['current']) : 'fists';
+  return { bottles: n(o.bottles, 99), bricks: n(o.bricks, 99), pistol, mag: pistol ? n(o.mag, 12) : 0, reserve: pistol ? n(o.reserve, 60) : 0, current };
+}
+
 function cleanInventory(o: unknown): SaveInventory | undefined {
   if (!isObj(o)) return undefined;
   const records = Array.isArray(o.records) ? (o.records.filter((r) => isObj(r) && typeof r.id === 'string') as unknown as RecordDef[]) : [];
@@ -149,6 +162,8 @@ export function migrateSave(raw: unknown, now: number = Date.now()): SaveData | 
     if (typeof raw.weather === 'string') out.weather = raw.weather;
     if (typeof raw.radioStation === 'string') out.radioStation = raw.radioStation;
     if (raw.playerLook !== undefined) out.playerLook = cleanLook(raw.playerLook);
+    const hands = cleanHands(raw.hands);
+    if (hands) out.hands = hands;
     if (typeof raw.street === 'string') out.street = raw.street.slice(0, 80);
     return out;
   }
@@ -175,6 +190,8 @@ export interface SaveParts {
   getStation(): string; setStation(name: string): void;
   getLook(): PlayerLook | null; setLook(l: PlayerLook | null): void;
   getStreet(): string;
+  /** The combat hands (`combat` itself): saved with the game, put back on load, emptied on New Game. Optional so older hosts still work. */
+  hands?: { serialize(): unknown; restore(d: unknown): void; reset(): void };
 }
 
 /** Snapshot the live game. */
@@ -184,7 +201,7 @@ export function captureSave(p: SaveParts, now: number = Date.now()): SaveData {
     v: SAVE_VERSION, savedAt: now, pose: p.getPose(), hour: p.getHour(), day: p.getDay(), cash: inv.cash,
     inventory: { records: inv.records, items: inv.items(), flags: inv.flags },
     missions: p.missions.serialize(), story: p.missions.story?.serialize(), phone: p.phone.serialize(), wanted: p.getWanted(), weather: p.getWeather(),
-    radioStation: p.getStation(), playerLook: p.getLook(), street: p.getStreet(),
+    radioStation: p.getStation(), playerLook: p.getLook(), street: p.getStreet(), hands: cleanHands(p.hands?.serialize()),
   };
 }
 
@@ -207,6 +224,7 @@ export function applySave(p: SaveParts, s: SaveData): void {
   if (s.weather !== undefined) p.setWeather(s.weather);
   if (s.wanted !== undefined) p.setWanted(s.wanted);
   if (s.radioStation) p.setStation(s.radioStation);
+  if (s.hands) p.hands?.restore(s.hands); else p.hands?.reset(); // a save from before the hands existed: empty hands
   p.setPose(s.pose);
 }
 
@@ -343,6 +361,7 @@ export class SaveManager {
 
   newGame(): void {
     try { this.host.newGame(); } catch { /* host failure leaves the old game running */ return; }
+    try { this.parts?.hands?.reset(); } catch { /* the hands are a nicety */ }
     this.lastAuto = -Infinity;
     this.host.afterApply?.('new');
     this.changed();

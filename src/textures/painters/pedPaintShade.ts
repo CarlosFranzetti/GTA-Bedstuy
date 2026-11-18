@@ -38,24 +38,50 @@ export function makeShader(b: BakeInput): Shader {
   return { K, shade };
 }
 
-/** find the texel of each eye centre and the metres-per-texel round it (standard head metres), so the eye is painted in map space */
+/**
+ * find each eyeball: seeds are the texels at the eye middle that lie more than 12 mm deeper than the skin round them (the eyeball sphere sits behind the lid ring),
+ * grown over the map while neighbouring texels stay within 4 mm of each other in 3D. The painter then colours those texels as eye (sclera, iris, pupil) and everything
+ * else as skin, so the opening is exactly the one the geometry cuts, whatever the lids do.
+ */
 export function locateEyes(K: Look, size: number, cover: Uint8Array, pos: Float32Array, w: Float32Array): void {
-  K.size = size; K.eyes = [null, null];
-  const lm = K.lm, best = [1e9, 1e9], bq = [-1, -1];
-  for (let q = 0; q < size * size; q++) {
-    if (!cover[q] || w[q * 4] < 0.5) continue;
-    const y = pos[q * 3 + 1]; if (Math.abs(y - lm.eyeY) > 0.02) continue;
-    const x = pos[q * 3], z = pos[q * 3 + 2], fz = (K.zc - z) / Math.max(0.05, K.rzH); if (fz < 0.5) continue;
-    const side = x < 0 ? 0 : 1, dx = Math.abs(x) - lm.eyeX, dy = y - lm.eyeY, d = dx * dx + dy * dy;
-    if (d < best[side]) { best[side] = d; bq[side] = q; }
-  }
-  for (let side = 0; side < 2; side++) {
-    const q = bq[side]; if (q < 0 || best[side] > 0.012 * 0.012) continue;
-    const cx = q % size, cy = (q / size) | 0, at = (px: number, py: number): number => (py * size + px) * 3;
-    if (cx < 5 || cy < 5 || cx > size - 6 || cy > size - 6) continue;
-    const xr = Math.abs(pos[at(cx + 4, cy)]), xl = Math.abs(pos[at(cx - 4, cy)]), yu = pos[at(cx, cy - 4) + 1], yd = pos[at(cx, cy + 4) + 1];
-    const dxm = (xr - xl) / 8, dym = (yu - yd) / 8;
-    const sx = Math.min(0.0012, Math.max(0.00025, Math.abs(dxm) / K.wsx)), sy = Math.min(0.0016, Math.max(0.0003, Math.abs(dym) / K.hs));
-    K.eyes[side] = { cx, cy, dirx: dxm >= 0 ? 1 : -1, sx, sy };
+  K.size = size; K.eyes = [null, null]; K.eyeTex = new Uint8Array(size * size);
+  const lm = K.lm, half = size >> 1, tex = K.eyeTex;
+  const stack: number[] = [];
+  for (let sd = 0; sd < 2; sd++) {
+    const sgn = sd === 0 ? -1 : 1;
+    let zf = 1e9;
+    for (let py = 0; py < half; py++) for (let px = 0; px < half; px++) {
+      const q = py * size + px; if (!cover[q] || w[q * 4] < 0.5) continue;
+      const x = pos[q * 3], y = pos[q * 3 + 1]; if (x * sgn <= 0 || Math.abs(Math.abs(x) - lm.eyeX) > 0.014 || Math.abs(y - lm.eyeY) > 0.012) continue;
+      if (pos[q * 3 + 2] < zf) zf = pos[q * 3 + 2];
+    }
+    if (zf > 1e8) continue;
+    stack.length = 0;
+    for (let py = 0; py < half; py++) for (let px = 0; px < half; px++) {
+      const q = py * size + px; if (!cover[q] || w[q * 4] < 0.5) continue;
+      const x = pos[q * 3], y = pos[q * 3 + 1]; if (x * sgn <= 0 || Math.abs(Math.abs(x) - lm.eyeX) > 0.006 || Math.abs(y - lm.eyeY) > 0.005) continue;
+      if (pos[q * 3 + 2] > zf + 0.012) { stack.push(q); tex[q] = 1; }
+    }
+    if (stack.length < 4) continue;
+    let n = 0, x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1, zMin = 1e9;
+    const grown: number[] = [];
+    while (stack.length && n < 6000) {
+      const q = stack.pop()!; n++; grown.push(q);
+      const px = q % size, py = (q / size) | 0;
+      if (px < x0) x0 = px; if (px > x1) x1 = px; if (py < y0) y0 = py; if (py > y1) y1 = py; if (pos[q * 3 + 2] < zMin) zMin = pos[q * 3 + 2];
+      for (let k = 0; k < 4; k++) {
+        const nx = px + (k === 0 ? 1 : k === 1 ? -1 : 0), ny = py + (k === 2 ? 1 : k === 3 ? -1 : 0);
+        if (nx < 1 || ny < 1 || nx >= half - 1 || ny >= half - 1) continue;
+        const o = ny * size + nx; if (tex[o] || !cover[o] || w[o * 4] < 0.5) continue;
+        if (pos[o * 3 + 2] < zf + 0.01) continue;
+        const d = Math.hypot(pos[o * 3] - pos[q * 3], pos[o * 3 + 1] - pos[q * 3 + 1], pos[o * 3 + 2] - pos[q * 3 + 2]);
+        if (d > 0.004) continue;
+        tex[o] = 1; stack.push(o);
+      }
+    }
+    if (n >= 6000 || grown.length < 12) { for (const q of grown) tex[q] = 0; continue; }
+    let sx = 0, sy = 0, spx = 0, spy = 0, c = 0;
+    for (const q of grown) { if (pos[q * 3 + 2] > zMin + 0.0035) continue; sx += Math.abs(pos[q * 3]); sy += pos[q * 3 + 1]; spx += q % size; spy += (q / size) | 0; c++; }
+    K.eyes[sd] = { cx: sx / c, cy: sy / c, zf, x0, y0, x1, y1, px: spx / c, py: spy / c };
   }
 }
