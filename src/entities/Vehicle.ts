@@ -735,7 +735,13 @@ export class Vehicle implements IVehicle {
     const total = inv(b.mass) + inv(other.mass);
     if (total === 0) return;
     const J = (1.1 * closing) / total; // impulse magnitude, kg m/s
-    const rx = contact.point.x - b.pos.x, rz = contact.point.z - b.pos.z;
+    // The lever: where the push acts across the car. World2D reports one contact vertex, which is a coin toss for two flat noses meeting
+    // square-on, so against another body use half the centre offset across the normal (0 for centred hits, real for offset ones).
+    let rx = contact.point.x - b.pos.x, rz = contact.point.z - b.pos.z;
+    if (other.shape.kind !== 'circle') {
+      const off = 0.5 * ((other.pos.x - b.pos.x) * nz - (other.pos.z - b.pos.z) * nx);
+      rx = nz * off; rz = -nx * off; // a vector across the normal of length |off|: rx*nz - rz*nx = off
+    }
     const I = b.mass * (this.spec.length * this.spec.length + this.spec.width * this.spec.width) / 12;
     // the push on this car points away from the other body: F = -n * J; torque = r.x F.z - r.z F.x
     const dw = (-J * (rx * nz - rz * nx)) / I * IMPACT_YAW_SCALE;

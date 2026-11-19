@@ -84,7 +84,7 @@ PLUTO building class: Q* parks and playgrounds (and land use 9), W* schools (W1 
 
 ## Churches and other religious buildings
 
-228 lots in the map (155 in R3). Top 30:
+229 lots in the map (156 in R3). Top 30:
 
 | ring | BBL | game x, z | lat, lon | street | class | lot m2 | notes |
 |---|---|---|---|---|---|---|---|
