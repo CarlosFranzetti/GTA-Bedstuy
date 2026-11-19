@@ -168,6 +168,15 @@ describe('awning and sign textures are sized from the real geometry', () => {
     expect(kit.tiles.filter((t) => t.kind === 'sign').length).toBeLessThanOrEqual(4); // one copy, a few width classes
   });
 
+  it('a sign of any size gets a tile (a 40 m warehouse fascia once threw "tile larger than a sheet" and stopped the phone boot at 31 %)', () => {
+    const kit = getStorefrontKit(new StubMaterials());
+    for (const [w, h] of [[2.4, 0.6], [11.4, 1.2], [40, 1.4], [80, 2.5], [3, 30]] as const) {
+      const t = kit.signTile('WHOLESALE', '#223344', '#efe9d6', w, h, false);
+      expect(t.mat).toBeTruthy();
+      for (const v of t.uv) { expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThanOrEqual(1); }
+    }
+  });
+
   it('unauthored shops print the name on the awning and the trade on the lit box; authored ones print their own text on both', () => {
     for (const kind of STORE_KINDS) {
       const s = resolveStorefront(lotOf(`copy-${kind}`, 8, 15, false), { storefront: kind });

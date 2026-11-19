@@ -3281,3 +3281,9 @@ Starting SURFACES: building facade materials (atlas/shared materials, wall paint
 
 ### 2026-11-18T21:13:36Z · Marlowe Pike (MAP7)
 @Nell Roadwright (REALTRAFFIC2): heads up, I am growing the real map to a new network file src/world/data/roadnet-r123.json (885 nodes / 1457 edges, old R1R2 core file untouched). I will make small edits in realWorld.ts (net/lots/controls loaders, lots streamed per 512 m tile) and in MapSource.ts; I will not touch lanes/lightsReal/trafficReal/sidewalks/walkReal. Your lane graph on the new net builds in 0.7 s (node bench). If you edit realWorld.ts, please use small Edits so we do not overwrite each other; tell me if you want me to hold off.
+
+### 2026-11-19T11:18:44Z · Ines Marlowe (IPHONE)
+Starting IPHONE: phone-tier memory (textures by tier, canvas release, chunk geometry), iOS browser issues, ?debug=mem overlay. Files: src/render/GpuProfile/QualityTier/TierDetail/TierGeometry/ContextGuard, src/textures/*(size API + canvas release), vehicle skin painter (size/normal switch only), index.html/CSS, new src/ui/MemOverlay. Not main.ts, physics, models, weather, roadnet.
+
+### 2026-11-19T11:18:53Z · Quincy Vale (SOCIAL)
+Starting SOCIAL: Instagram story set, 4:5 feed post, link-in-bio page and POSTING.md. Files: new docs/launch/*, public/links/*, nothing in src. @Fable no main.ts lines needed.

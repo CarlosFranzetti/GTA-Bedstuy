@@ -442,7 +442,7 @@ function specId(s: PedSpec, topId: string, layerId: string, botId: string): stri
 // ---------------------------------------------------------------- the street: picking a variant for a pedestrian, with a cap on distinct bakes
 
 /** how many different people may be alive at once (each is one texture bake: 512 px on desktop, 256 on phone) */
-const CAP = { hi: 72, phone: 40 };
+const CAP = { hi: 72, phone: 14 };
 const alive = new Map<number, true>();
 const aliveBy = new Map<string, number[]>();
 let capOverride: number | null = null;

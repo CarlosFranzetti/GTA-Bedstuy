@@ -136,11 +136,11 @@ const BASE_MIX: ReadonlyArray<readonly [VehicleType, number]> = [
 ];
 /** CARS14: share of all traffic per sports / electric type (released in CARS2 after the traffic suites passed with them: about 7.7 % together). */
 export const CARS14_TRAFFIC_SHARE: Readonly<Record<string, number>> = {
-  coupe911: 0, hothatch: 0, jdmcoupe: 0, muscle: 0, evsedan: 0, exotic: 0, wedgetruck: 0,
+  coupe911: 0.012, hothatch: 0.015, jdmcoupe: 0.012, muscle: 0.012, evsedan: 0.015, exotic: 0.006, wedgetruck: 0.005,
 };
 /** CARS2: share of all traffic per era street type (15 % together; the long ones, limo 7.8 m and step van 6.4 m, stay under 1 % and 1 %). */
 export const CARS2_TRAFFIC_SHARE: Readonly<Record<string, number>> = {
-  wagon: 0, bigsuv: 0, minitruck: 0, panelvan: 0, taxivan: 0, limo: 0, classic: 0, donk: 0, copsuv: 0, convertible: 0, stepvan: 0, icecream: 0,
+  wagon: 0.025, bigsuv: 0.02, minitruck: 0.018, panelvan: 0.015, taxivan: 0.02, limo: 0.006, classic: 0.012, donk: 0.008, copsuv: 0.004, convertible: 0.01, stepvan: 0.01, icecream: 0.004,
 };
 /** Parked-car multiplier on a type's share (default 1): old cars and wagons are kerb cars, a limo or a police SUV is rarely left on a street. */
 export const PARK_WEIGHT: Readonly<Record<string, number>> = { classic: 2.5, donk: 2.5, wagon: 1.6, minitruck: 1.4, taxivan: 0.4, limo: 0.5, copsuv: 0.4, exotic: 0.5, icecream: 1.5, convertible: 1.3 };

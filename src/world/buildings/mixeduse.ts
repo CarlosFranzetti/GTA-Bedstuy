@@ -704,8 +704,9 @@ export class StorefrontKit {
     const atlas = lit ? this.lit : this.boards;
     if (atlas) {
       const geom = { widthM, heightM };
-      const ppm = Math.min(SIGN_PPM, ppmFor(widthM));
-      const sw = Math.max(16, Math.round(widthM * ppm)), sh = Math.max(16, Math.round(heightM * ppm));
+      // a long sign (a 40 m warehouse fascia) must still fit one sheet: lower its resolution rather than fail the whole world build
+      const ppm = Math.min(SIGN_PPM, ppmFor(widthM), (SHEET_W - 2 * SHEET_PAD) / widthM, (SHEET_H - 2 * SHEET_PAD) / heightM);
+      const sw = Math.max(16, Math.floor(widthM * ppm)), sh = Math.max(16, Math.floor(heightM * ppm));
       const { sheet, rects } = atlas.place([{ w: sw, h: sh }]);
       atlas.paint(sheet, rects[0], signPainter(text, bg, fg, geom), (Rng.hash(key) ^ this.seed) >>> 0);
       this.record(lit ? 'sign' : 'board', text, widthM, heightM, sw, sh);

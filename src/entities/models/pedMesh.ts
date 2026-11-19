@@ -704,6 +704,8 @@ function skinMaterial(materials: IMaterialLibrary, s: MhShape, variant: number, 
       const canvas = bakeSkin({ position: L.position, normal: L.normal, uv: L.uv, index: L.index, joints: L.joints, weights: L.weights, landmarks: s.landmarks, rig: peopleRig(s, spec), headRings: s.headRings as number[][], topHem: topHemY(s, spec), spec }, phone ? 256 : 512);
       const tex = new THREE.CanvasTexture(canvas);
       tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; tex.name = `ped:${spec.id}`;
+      // phone: the baked canvas is only needed for the upload; free its backing store right after (no per-person canvas kept alive)
+      if (phone) tex.onUpdate = () => { canvas.width = 1; canvas.height = 1; tex.onUpdate = () => undefined; };
       mat.map = tex;
     } catch (e) { warnOnce(`pedbake:${spec.id}`, 'ped texture bake failed, flat colour', e); }
   }

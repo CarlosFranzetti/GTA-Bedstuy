@@ -344,6 +344,7 @@ export function skinSizeNow(style?: SkinStyle): number {
   if (style && NEW_SKIN_STYLES.has(style)) return phone ? SKIN_W / 2 : SKIN_W;
   return phone ? SKIN_W / 2 : SKIN_W * 2; // 1024 x 512 off the phone tier
 }
+const PHONE_PACK: Partial<Record<SkinStyle, number>> = { wagon: 0, bigsuv: 0, minitruck: 0, panelvan: 0, limo: 0, classic: 0, donk: 0, copsuv: 40, convertible: 0, stepvan: 22, icecream: 25 };
 const NEW_SKIN_STYLES: ReadonlySet<SkinStyle> = new Set<SkinStyle>(['pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'dollar', 'coupe911', 'exotic', 'jdmcoupe', 'hothatch', 'muscle', 'wedgetruck', 'evsedan', 'wagon', 'bigsuv', 'minitruck', 'panelvan', 'limo', 'classic', 'donk', 'copsuv', 'convertible', 'stepvan', 'icecream']);
 
 /**
@@ -356,7 +357,9 @@ export function carSkinMaterial(materials: IMaterialLibrary, style: SkinStyle, c
   if (typeof document === 'undefined') return base;
   let set = sets.get(materials);
   if (!set) { set = { tex: new Map(), mats: new Map() }; sets.set(materials, set); }
-  const pack = opts.pack ?? packFor(style, color, opts.type);
+  let pack = opts.pack ?? packFor(style, color, opts.type);
+  // CARS2 on the phone tier: each new body keeps exactly one skin (its main pack), so the 11 new bodies add 11 textures at most, not one per trim pack
+  if (carPaintConfigured() && carPaintTier() === 'phone') pack = PHONE_PACK[style] ?? pack;
   const mk = `${style}|${color.toLowerCase()}|${pack}|${opts.cond && hasCond(opts.cond) ? opts.condKey ?? '' : ''}`;
   const cached = set.mats.get(mk);
   if (cached) return cached;
