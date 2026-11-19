@@ -12,11 +12,11 @@ export type ShoeId = typeof SHOE_IDS[number];
 interface Style { len: number; T: number[]; W: number[]; H: number[]; /** sole height and how far the sole edge sticks out */ sh: number; s: number; /** the arch lifted off the ground (dress shoes) and the toe spring */ arch: number; toeUp: number; /** the heel stands this high */ heel?: number; shaft?: { top: number; pad: number; cuff?: number; /** stays outside cut trouser legs (jeans tucked into the boot) */ tuck?: boolean } }
 const T5 = [0, 0.14, 0.42, 0.75, 1];
 const STYLES: Record<Exclude<ShoeId, 'sandal' | 'slide'>, Style> = {
-  sneakerLow: { len: 0.19, T: T5, W: [0.019, 0.039, 0.046, 0.04, 0.034], H: [0.036, 0.062, 0.078, 0.108, 0.132], sh: 0.012, s: 0.006, arch: 0, toeUp: 0.012 },
+  sneakerLow: { len: 0.19, T: T5, W: [0.019, 0.039, 0.046, 0.04, 0.034], H: [0.036, 0.066, 0.086, 0.118, 0.14], sh: 0.012, s: 0.006, arch: 0, toeUp: 0.012 },
   sneakerHigh: { len: 0.19, T: T5, W: [0.019, 0.039, 0.046, 0.04, 0.034], H: [0.036, 0.062, 0.078, 0.108, 0.132], sh: 0.012, s: 0.006, arch: 0, toeUp: 0.012, shaft: { top: 0.205, pad: 0.009 } },
   workBoot: { len: 0.2, T: T5, W: [0.022, 0.042, 0.05, 0.045, 0.038], H: [0.05, 0.078, 0.095, 0.122, 0.145], sh: 0.016, s: 0.009, arch: 0.006, toeUp: 0.01, shaft: { top: 0.225, pad: 0.012, cuff: 0.014 } },
   dressShoe: { len: 0.225, T: T5, W: [0.012, 0.034, 0.044, 0.04, 0.034], H: [0.026, 0.045, 0.058, 0.095, 0.128], sh: 0.01, s: 0.002, arch: 0.012, toeUp: 0.014 },
-  flat: { len: 0.2, T: T5, W: [0.016, 0.036, 0.043, 0.039, 0.033], H: [0.022, 0.04, 0.052, 0.09, 0.126], sh: 0.006, s: 0.002, arch: 0.004, toeUp: 0.01 },
+  flat: { len: 0.2, T: T5, W: [0.018, 0.039, 0.047, 0.042, 0.035], H: [0.022, 0.04, 0.052, 0.09, 0.126], sh: 0.006, s: 0.002, arch: 0.004, toeUp: 0.01 },
   // PEOPLE6: a runner (thick wedge sole, low and wide), a tall boot (a shaft to the calf), a loafer (a low dress shoe), a low heel (the heel stands 3 cm up, a pointed toe)
   runner: { len: 0.2, T: T5, W: [0.02, 0.04, 0.047, 0.041, 0.035], H: [0.04, 0.066, 0.08, 0.104, 0.126], sh: 0.022, s: 0.008, arch: 0, toeUp: 0.016 },
   tallBoot: { len: 0.215, T: T5, W: [0.014, 0.034, 0.043, 0.04, 0.035], H: [0.04, 0.062, 0.078, 0.1, 0.128], sh: 0.012, s: 0.004, arch: 0.006, toeUp: 0.012, shaft: { top: 0.34, pad: 0.008, cuff: 0.012, tuck: true } },

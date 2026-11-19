@@ -79,6 +79,6 @@ describe('player look', () => {
     setPlayerLook({ group: 'ea', variant: 2 });
     expect(PED_SPECS[pedVariantIndex('player')].id).toBe('player-ea-2');
     setPlayerLook({ group: 'zz' as never, variant: 99 });
-    expect(getPlayerLook().variant).toBe(2);
+    expect(getPlayerLook().variant).toBe(4);      // PEOPLE6: five data-driven wardrobes (PLAYER_LOOKS), the last is index 4
   });
 });

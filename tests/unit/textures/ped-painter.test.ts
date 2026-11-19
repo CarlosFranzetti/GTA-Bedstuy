@@ -12,7 +12,7 @@ const at = (px: Uint8ClampedArray, x: number, y: number): [number, number, numbe
 describe('ped atlas painter', () => {
   it('has at least 12 civilian variants plus a cop, Ms. Odette, the DJ and the player, with unique ids', () => {
     expect(CIVILIAN_COUNT).toBeGreaterThanOrEqual(12);
-    expect(PED_VARIANT_COUNT).toBe(CIVILIAN_COUNT + 3 + 24) // cop, Ms. Odette, the DJ, and the player's 24 random looks;
+    expect(PED_VARIANT_COUNT).toBe(CIVILIAN_COUNT + 3 + 40) // cop, Ms. Odette, the DJ, and the player's 40 looks (8 groups x the 5 wardrobes of PLAYER_LOOKS);
     expect(new Set(PED_SPECS.map((s) => s.id)).size).toBe(PED_VARIANT_COUNT);
     for (const id of ['cop', 'odette', 'dj', 'player']) expect(PED_SPECS[pedVariantIndex(id)].role).not.toBe('civilian');
     expect(PED_SPECS[pedVariantIndex('odette')].role).toBe('shopkeeper');

@@ -324,7 +324,9 @@ const pickG = <T,>(rng: Rng, rec: Record<string, G<T>>, who: Who, mult?: (id: st
   wpick(rng, Object.keys(rec).map((id) => [id, gW(rec[id], who, mult ? mult(id) : 1)] as [string, number]));
 const colour = (rng: Rng, pool: string): string => pickOf(rng, COLOURWAYS[pool]);
 /** a colour that does not vanish against `other` */
-const distinct = (rng: Rng, pool: string, other: string[], min = 60): string => { let c = colour(rng, pool); for (let i = 0; i < 4 && other.some((o) => dist(c, o) < min); i++) c = colour(rng, pool); return c; };
+const distinct = (rng: Rng, pool: string, other: string[], min = 60): string => { let c = colour(rng, pool); for (let i = 0; i < 8 && other.some((o) => dist(c, o) < min); i++) c = colour(rng, pool);
+  if (other.some((o) => dist(c, o) < min)) c = other.some((o) => dist(o, '#1c1c20') < 120) ? '#e8e6e0' : '#1c1c20';
+  return c; };
 
 export interface Slots { top: string; layer?: string; bottom: string; shoes: string; onePiece?: string }
 
