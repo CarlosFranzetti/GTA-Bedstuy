@@ -304,8 +304,9 @@ missions.restore(loadMissionData());
 const missionMarkers = new MissionMarkerView();
 scene.add(missionMarkers.group);
 const lights = new TrafficLights(grid); // clocked by TrafficSystem only; main just mirrors it onto the signal meshes
-const traffic = new TrafficSystem(grid, physics, events, rng.fork('traffic'), scene, materials, makeVehicle, makePed, lights, world.lots, realWorld ? { ...tier0.traffic, maxMoving: 0, peds: 0, parkOccupancy: 0, cops: 0 } : tier0.traffic);
-const cops = new CopSystem(grid, physics, events, rng.fork('cops'), scene, makeVehicle, wanted, { lights, patrolCount: realWorld ? 0 : tier0.traffic.cops });
+const rt = realWorld?.traffic ?? null; // real map: lanes, sidewalks, crossings and signals in the shape TrafficSystem reads
+const traffic = new TrafficSystem(rt ? rt.grid : grid, physics, events, rng.fork('traffic'), scene, materials, rt ? rt.fitVehicles(makeVehicle) : makeVehicle, makePed, rt ? rt.lights : lights, world.lots, rt ? rt.density(tier0.traffic) : tier0.traffic, rt ? { x: HOME.x, z: HOME.z } : undefined);
+const cops = new CopSystem(rt ? rt.grid : grid, physics, events, rng.fork('cops'), scene, makeVehicle, wanted, { lights: rt ? rt.lights : lights, patrolCount: tier0.traffic.cops });
 const audio = new AudioSystem(events);
 audio.radio.onToast = (m) => hud.showToast(m); // a station that fails to play skips ahead and says so
 const phone = new Phone();
@@ -457,7 +458,7 @@ function applyQuality(q: Quality): void {
   weather.setTier(q);
   sky.starsEnabled = t.stars;
   nightLights.setPoolSize(LIGHTING.lampPool[q]);
-  traffic.setDensity(t.traffic);
+  traffic.setDensity(rt ? rt.density(t.traffic) : t.traffic);
   cops.setPatrolCount(t.traffic.cops);
   applyDetail(t);
 }
@@ -473,7 +474,7 @@ function applyGraphics(): void {
   gfx = deriveNow(quality);
   renderer.setPixelRatio(ratioFor(quality)); renderer.setSize(window.innerWidth, window.innerHeight); pipeline.setSize(window.innerWidth, window.innerHeight);
   culler.setMaxDist(gfx.cullDistance); chunkCuller.setMaxDist(chunkRangeFor(quality) * gfx.chunkScale); instanceCuller?.setRange(gfx.instanceDistance);
-  traffic.setDensity(gfx.traffic); cops.setPatrolCount(gfx.traffic.cops); blobs.setEnabled(gfx.blobs);
+  traffic.setDensity(rt ? rt.density(gfx.traffic) : gfx.traffic); cops.setPatrolCount(gfx.traffic.cops); blobs.setEnabled(gfx.blobs);
   if (gfx.shadowMap) setupShadows(renderer, dayNight.sun, gfx.shadowMap); else { renderer.shadowMap.enabled = false; dayNight.sun.castShadow = false; }
   setNormalMaps(scene, gfx.normalMaps); setAnisotropy(scene, Math.min(gfx.anisotropy, renderer.capabilities.getMaxAnisotropy()));
   pipeline.setPostOptions(gfx.post); cam.fovOffset = gfx.fovOffset; game.maxFps = gfx.maxFps;

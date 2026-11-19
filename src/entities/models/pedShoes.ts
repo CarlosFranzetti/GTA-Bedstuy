@@ -15,12 +15,12 @@ const STYLES: Record<Exclude<ShoeId, 'sandal' | 'slide'>, Style> = {
   sneakerLow: { len: 0.19, T: T5, W: [0.019, 0.039, 0.046, 0.04, 0.034], H: [0.036, 0.062, 0.078, 0.108, 0.132], sh: 0.012, s: 0.006, arch: 0, toeUp: 0.012 },
   sneakerHigh: { len: 0.19, T: T5, W: [0.019, 0.039, 0.046, 0.04, 0.034], H: [0.036, 0.062, 0.078, 0.108, 0.132], sh: 0.012, s: 0.006, arch: 0, toeUp: 0.012, shaft: { top: 0.205, pad: 0.009 } },
   workBoot: { len: 0.2, T: T5, W: [0.022, 0.042, 0.05, 0.045, 0.038], H: [0.05, 0.078, 0.095, 0.122, 0.145], sh: 0.016, s: 0.009, arch: 0.006, toeUp: 0.01, shaft: { top: 0.225, pad: 0.012, cuff: 0.014 } },
-  dressShoe: { len: 0.225, T: T5, W: [0.01, 0.03, 0.04, 0.038, 0.033], H: [0.026, 0.045, 0.058, 0.095, 0.128], sh: 0.01, s: 0.002, arch: 0.012, toeUp: 0.014 },
+  dressShoe: { len: 0.225, T: T5, W: [0.012, 0.034, 0.044, 0.04, 0.034], H: [0.026, 0.045, 0.058, 0.095, 0.128], sh: 0.01, s: 0.002, arch: 0.012, toeUp: 0.014 },
   flat: { len: 0.2, T: T5, W: [0.016, 0.036, 0.043, 0.039, 0.033], H: [0.022, 0.04, 0.052, 0.09, 0.126], sh: 0.006, s: 0.002, arch: 0.004, toeUp: 0.01 },
   // PEOPLE6: a runner (thick wedge sole, low and wide), a tall boot (a shaft to the calf), a loafer (a low dress shoe), a low heel (the heel stands 3 cm up, a pointed toe)
   runner: { len: 0.2, T: T5, W: [0.02, 0.04, 0.047, 0.041, 0.035], H: [0.04, 0.066, 0.08, 0.104, 0.126], sh: 0.022, s: 0.008, arch: 0, toeUp: 0.016 },
   tallBoot: { len: 0.215, T: T5, W: [0.014, 0.034, 0.043, 0.04, 0.035], H: [0.04, 0.062, 0.078, 0.1, 0.128], sh: 0.012, s: 0.004, arch: 0.006, toeUp: 0.012, shaft: { top: 0.34, pad: 0.008, cuff: 0.012, tuck: true } },
-  loafer: { len: 0.222, T: T5, W: [0.012, 0.032, 0.041, 0.039, 0.033], H: [0.024, 0.04, 0.05, 0.078, 0.108], sh: 0.01, s: 0.002, arch: 0.008, toeUp: 0.012 },
+  loafer: { len: 0.222, T: T5, W: [0.012, 0.034, 0.044, 0.04, 0.034], H: [0.024, 0.04, 0.05, 0.078, 0.108], sh: 0.01, s: 0.002, arch: 0.008, toeUp: 0.012 },
   heel: { len: 0.215, T: T5, W: [0.008, 0.028, 0.038, 0.036, 0.03], H: [0.024, 0.044, 0.056, 0.092, 0.124], sh: 0.008, s: 0.001, arch: 0.004, toeUp: 0.006, heel: 0.03 },
 };
 
@@ -48,7 +48,7 @@ function section(w: number, h: number, sh: number, s: number): Array<[number, nu
 function foot(ctx: Ctx, mb: MeshBuilder, side: 'L' | 'R', st: Style, o: { rect: typeof SWATCH.shoe; tint?: V3 }): void {
   const a = ctx.ankle[side], sc = Math.min(1.15, Math.max(0.85, (ctx.lm.crownY / 1.78) * (0.9 + 0.1 * ctx.bt.legs))), W = one(side === 'L' ? BONE.kneeL : BONE.kneeR);
   const zHeel = a.cz + a.rz + 0.016, zToe = a.cz - st.len * sc, P: V3[][] = [], U: number[][] = [];
-  const stations = ctx.detail === 'hi' ? st.T : [0, 0.3, 0.75, 1];
+  const stations = ctx.detail === 'hi' ? st.T : [0, 0.3, 0.6, 0.85, 1];
   const prof = (arr: number[], t: number): number => { for (let i = 1; i < st.T.length; i++) if (t <= st.T[i]) return lerp(arr[i - 1], arr[i], (t - st.T[i - 1]) / (st.T[i] - st.T[i - 1] || 1)); return arr[arr.length - 1]; };
   for (const t of stations) {
     const z = zToe + t * (zHeel - zToe), w = Math.max(prof(st.W, t) * sc, t >= 0.99 ? a.rx + 0.006 : 0), h = prof(st.H, t) * sc;

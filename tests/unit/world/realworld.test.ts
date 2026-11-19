@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
 import type { IMaterialLibrary } from '@/world/types';
 import { buildRealWorld, measureWorld } from '@/world/roadnet/realWorld';
+import { fileLotSource } from './helpers/lotSource';
 
 function stubLib(): IMaterialLibrary {
   const cache = new Map<string, THREE.Material>();
@@ -16,7 +17,7 @@ function stubLib(): IMaterialLibrary {
 
 describe('buildRealWorld', () => {
   it('assembles roads, buildings, el and a spawn; reports counts', async () => {
-    const rw = await buildRealWorld({ materials: stubLib(), rng: new Rng(7), tier: 'high' });
+    const rw = await buildRealWorld({ materials: stubLib(), rng: new Rng(7), tier: 'high', lotSource: fileLotSource() });
     console.log('[realworld]', JSON.stringify({ standIns: rw.standIns, stats: rw.stats, spawn: rw.spawn, lots: rw.lots.length, chunkMeshes: rw.chunkMeshes.length }));
     for (const r of [64, 128, 256, 512]) console.log(`[realworld] radius ${r}`, JSON.stringify(measureWorld(rw.group, rw.spawn, r)));
     expect(rw.group.getObjectByName('roads-real')).toBeTruthy();
@@ -32,7 +33,7 @@ describe('buildRealWorld', () => {
   }, 900000);
 
   it('falls back to stand-ins when asked and still builds', async () => {
-    const rw = await buildRealWorld({ materials: stubLib(), rng: new Rng(7), forceStandIns: true });
+    const rw = await buildRealWorld({ materials: stubLib(), rng: new Rng(7), forceStandIns: true, lotSource: fileLotSource() });
     expect(rw.standIns.length).toBe(3);
     expect(rw.group.getObjectByName('roads-standin')).toBeTruthy();
     expect(rw.colliders.length).toBeGreaterThan(100);

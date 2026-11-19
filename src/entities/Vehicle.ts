@@ -137,14 +137,14 @@ const PROP_SLIDE_MAX_SPEED = 12;
 const PROP_FRICTION_SCALE = 0.25;
 // ---- impacts
 const IMPACT_MIN = 0.5;
-const WALL_FRICTION = 0.22;
-const WALL_ALIGN = 0.1;
+const WALL_FRICTION = 0.35;
+const WALL_ALIGN = 0.18;
 /** Share of the physical yaw impulse a collision gives (arcade: spins read, nothing pirouettes), its cap (rad/s) and decay (1/s, tyres grip the spin out). */
 const IMPACT_YAW_SCALE = 0.4;
 const IMPACT_YAW_MAX = 2.4;
 const IMPACT_YAW_DECAY = 2.6;
 /** Closing speed below which a touch gives no spin (a scrape, a nudge). */
-const IMPACT_YAW_MIN_CLOSING = 1.5;
+const IMPACT_YAW_MIN_CLOSING = 2.5;
 /** Impacts below this closing speed (m/s) cost nothing: pressing the throttle into a wall must not wreck the car. */
 const DAMAGE_FREE_CLOSING = 2;
 const DAMAGE_DIVISOR = 34;
@@ -443,7 +443,7 @@ export class Vehicle implements IVehicle {
   onContact(contact: Contact, other: Body2D): void {
     if (other.kind === 'static' || other.mass === Infinity) { this.staticContact = other; this.staticContactTime = this.time; }
     if (this.driver === 'player') this.noteContact(contact);
-    if (this.driver !== null) this.slideOffProp(contact, other);
+    if (this.driver === 'player') this.slideOffProp(contact, other);
     if (contact.impulse < IMPACT_MIN) return;
     // A car sliding along a wall (or a pedestrian pressed against it) re-touches it every frame with a slowly
     // changing impulse: a repeat within SCRAPE_WINDOW is a scrape (5% of the damage, no new impact event) unless
@@ -454,7 +454,7 @@ export class Vehicle implements IVehicle {
     this.lastHitTime = this.time;
     this.lastHitImpulse = scrape ? this.lastHitImpulse : contact.impulse;
     this.damage = clamp(this.damage + (Math.max(0, contact.impulse - DAMAGE_FREE_CLOSING) / DAMAGE_DIVISOR) * (scrape ? SCRAPE_DAMAGE : 1), 0, 1);
-    this.reactToImpact(contact, other);
+    this.reactToImpact(contact, other, scrape);
     if (scrape) return;
     // Two Vehicles both get onContact for the same contact: only the `a` side reports it.
     if (other.userData instanceof Vehicle && contact.a !== this.body) return;
@@ -738,18 +738,14 @@ export class Vehicle implements IVehicle {
     const rx = contact.point.x - b.pos.x, rz = contact.point.z - b.pos.z;
     const I = b.mass * (this.spec.length * this.spec.length + this.spec.width * this.spec.width) / 12;
     // the push on this car points away from the other body: F = -n * J; torque = r.x F.z - r.z F.x
-    let dw = (-J * (rx * nz - rz * nx)) / I * IMPACT_YAW_SCALE;
-    // A flat wall met nose-first touches both corners at once; the single contact point World2D reports is only one of them, so the
-    // lever would be a coin toss. Fade the spin out as the hit gets square-on (full beyond ~35 degrees off the heading).
-    if ((other.kind === 'static' || other.mass === Infinity) && other.shape.kind !== 'circle') {
-      const f = forwardFromHeading(b.heading);
-      dw *= clamp((1 - Math.abs(nx * f.x + nz * f.z)) * 6, 0, 1);
-    }
+    const dw = (-J * (rx * nz - rz * nx)) / I * IMPACT_YAW_SCALE;
+    // Flat walls (segments, building polygons) already turn the car along the wall in reactToImpact; the spin is for cars and props.
+    if ((other.kind === 'static' || other.mass === Infinity) && other.shape.kind !== 'circle') return;
     this.impactYaw = clamp(this.impactYaw + dw, -IMPACT_YAW_MAX, IMPACT_YAW_MAX);
   }
 
   /** Wall scrub, alignment with the wall, camera shake and suspension kick. */
-  private reactToImpact(contact: Contact, other: Body2D): void {
+  private reactToImpact(contact: Contact, other: Body2D, scrape = false): void {
     const b = this.body;
     const sgn = contact.a === b ? 1 : -1;
     const nx = contact.normal.x * sgn, nz = contact.normal.z * sgn; // points toward `other`
@@ -788,8 +784,9 @@ export class Vehicle implements IVehicle {
     const f = forwardFromHeading(b.heading);
     this.pitchV += clamp(closing * 0.05, 0, 0.5) * (nx * f.x + nz * f.z > 0 ? -1 : 1);
     // and the body rolls away from a hit on the flank (a nose hit mostly pitches)
-    this.rollV += clamp(closing * 0.045, 0, 0.45) * (nx * perpRight(f).x + nz * perpRight(f).z > 0 ? -1 : 1) * Math.min(1, 0.4 + Math.abs(nx * perpRight(f).x + nz * perpRight(f).z));
-    this.spinFromImpact(contact, other, closing);
+    if (!scrape) this.rollV += clamp(closing * 0.045, 0, 0.45) * (nx * perpRight(f).x + nz * perpRight(f).z > 0 ? -1 : 1) * Math.min(1, 0.4 + Math.abs(nx * perpRight(f).x + nz * perpRight(f).z));
+    // only a fresh hit spins the car: a car held against something re-touches it every step and must come to rest
+    if (!scrape) this.spinFromImpact(contact, other, closing);
 
     // remember where it hurt (car-local) for dent weighting
     const dx = contact.point.x - b.pos.x, dz = contact.point.z - b.pos.z;

@@ -38,7 +38,7 @@ describe('map switch (WP0)', () => {
     expect(mapKindFromSearch('?map=')).toBe('grid');
     expect(mapKindFromSearch('?maps=real')).toBe('grid');
   });
-  it('grid source adapts the grid lazily; real source loads the core network', async () => {
+  it('grid source adapts the grid lazily; real source loads the whole real network (R1+R2+R3)', async () => {
     const grid = buildGrid(loadBedstuyData());
     const g = await loadMapSource('', grid);
     expect(g.kind).toBe('grid');
@@ -47,7 +47,7 @@ describe('map switch (WP0)', () => {
     expect(g.net).toBe(g.net);
     const r = await loadMapSource('?map=real', grid);
     expect(r.kind).toBe('real');
-    const core = (await import('@/world/data/roadnet-core.json')).default as unknown as RoadNetJson;
+    const core = (await import('@/world/data/roadnet-r123.json')).default as unknown as RoadNetJson;
     expect(r.net.edges.length).toBe(core.e.length);
   });
 });

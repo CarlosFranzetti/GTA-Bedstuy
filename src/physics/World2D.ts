@@ -43,13 +43,13 @@ const YIELD_IMPACT = 0.4;
  * Soft personal space between people: pairs closer than PERSONAL_SPACE (centres, m) drift apart at up to PERSONAL_PUSH m/s, and
  * head-on pairs each lean to their own right so they step round each other. The hard collision stays at the body radii.
  */
-export const PERSONAL_SPACE = 0.85;
-const PERSONAL_PUSH = 0.9;
+export const PERSONAL_SPACE = 0.75;
+const PERSONAL_PUSH = 0.45;
 /** Approaching pairs start leaning aside at this distance (m) and move sideways at this speed (m/s) each. */
-const STEP_ASIDE_RANGE = 2.2;
-const STEP_ASIDE_SPEED = 0.9;
+const STEP_ASIDE_RANGE = 1.6;
+const STEP_ASIDE_SPEED = 0.45;
 /** Overlaps deeper than this between two dynamic bodies that are not moving into each other (spawns, teleports) are eased apart. */
-const GENTLE_DEPTH = 0.15;
+const GENTLE_DEPTH = 0.3;
 const GENTLE_STEP = 0.05;
 /** A vehicle slower than this (m/s) is immovable for people leaning on it. */
 const PARKED_SPEED2 = 0.6 * 0.6;

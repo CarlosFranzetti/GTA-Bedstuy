@@ -93,6 +93,8 @@ export interface RealPropsOptions {
   tier?: Quality;
   /** points to keep 1.5 m clear of (the el columns: allColumnSpots(...).map(s => s.p)) */
   avoid?: ReadonlyArray<Vec2>;
+  /** MAP7: furniture only on edges and junctions inside this polygon (the whole R3 map would be 5,600 meshes and 2.6 M triangles at boot); default: everywhere */
+  region?: ReadonlyArray<Vec2>;
 }
 
 export interface RealPropsStats {
@@ -267,6 +269,7 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
   const rng = opts.rng;
   const controls = opts.controls ?? nodeControl(net, {});
   const avoid = opts.avoid ?? [];
+  const inRegion = (p: Vec2): boolean => !opts.region || pointInPolygon(p, opts.region);
 
   // ---- sidewalk-band test: inside a kerb ring, outside its building line
   const kerbs = new Hash<number>();
@@ -332,6 +335,7 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
   net.edges.forEach((E, e) => {
     if (E.level !== 0 || E.cls === 'highway' || E.cls === 'ramp' || E.cls === 'ped' || E.a === E.b) return;
     if (isRibbonless(net, d, e)) return;
+    if (!inRegion(net.pointAt(e, net.lengths[e] / 2).p)) return;
     const L = net.lengths[e];
     const cutA = d.cuts[e].cutA, cutB = d.cuts[e].cutB;
     const lo = cutA + 6, hi = L - cutB - 6;
@@ -426,6 +430,7 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
     return { p: { x: p.x + right.x * off, z: p.z + right.z * off }, out, roadSide: { x: -right.x, z: -right.z }, hw };
   };
   for (const [legId, info] of rigLegs) {
+    if (!inRegion(net.nodes[d.legs[legId].node].p)) continue;
     for (const extra of [0, 1.5, 3]) {
       const a = approachSpot(legId, SIGNAL_POLE_S + extra);
       if (!ok(a.p, 2.5)) continue;
@@ -435,6 +440,7 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
     }
   }
   for (const legId of stopLegs) {
+    if (!inRegion(net.nodes[d.legs[legId].node].p)) continue;
     const a = approachSpot(legId, STOP_SIGN_S);
     if (!ok(a.p, 2)) continue;
     claim(a.p);

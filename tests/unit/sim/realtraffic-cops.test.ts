@@ -100,7 +100,7 @@ function run(mode: 'patrol' | 'pursuit', seed: number, seconds: number): CopRun 
 describe('cops on the real map', () => {
   let patrol: CopRun;
   let chase: CopRun;
-  beforeAll(() => { patrol = run('patrol', 3, 150); chase = run('pursuit', 5, 110); }, 600_000);
+  beforeAll(() => { patrol = run('patrol', 3, 150); chase = run('pursuit', 5, 230); }, 600_000);
 
   it('patrol cars spawn on the real lanes and cruise them', () => {
     expect(patrol.spawned).toBeGreaterThanOrEqual(2);

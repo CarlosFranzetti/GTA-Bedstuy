@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
 import type { IMaterialLibrary } from '@/world/types';
 import { buildRealWorld, type RealWorld } from '@/world/roadnet/realWorld';
+import { fileLotSource } from './helpers/lotSource';
 import { reviewFrames } from '@/world/roadnet/reviewFrames';
 import { ChunkCuller, InstanceCuller, chunkRangeFor } from '@/render/Culling';
 import { setCarPaintTier } from '@/render/CarPaintFx';
@@ -81,7 +82,7 @@ const results: Record<string, Record<string, Drawn>> = {};
 describe.each(['phone', 'low', 'medium'] as Quality[])('real map, game-path culling, tier %s', (tier) => {
   it('draws a bounded number of meshes at the review frames', async () => {
     setCarPaintTier(tier);
-    const rw = await buildRealWorld({ materials: stubLib(), rng: new Rng(7), tier, warmMs: 0 });
+    const rw = await buildRealWorld({ materials: stubLib(), rng: new Rng(7), tier, warmMs: 0, lotSource: fileLotSource() });
     const chunk = new ChunkCuller(chunkRangeFor(tier));
     ChunkCuller.buildsPerUpdate = 1e9;
     for (const m of rw.chunkMeshes) chunk.add(m);

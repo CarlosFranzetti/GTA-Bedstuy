@@ -42,7 +42,10 @@ import type { RealProps } from './propsReal';
 import type { RealTraffic } from './trafficReal';
 import type { RealPlaces, PlacesTable } from './placesReal';
 import type { RealLotTiles, LotSource } from './lotStreamReal';
-import { R1R2_EXTENT } from './extents';
+import { R1R2_EXTENT, offsetRing } from './extents';
+
+/** street furniture is built for the first two rings plus this margin (m); the seven-block ring has none yet (needs streaming) */
+const PROPS_REACH = 150;
 
 export interface RealWorld {
   net: RoadNet;
@@ -369,7 +372,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
     const { buildRealProps } = await import('./propsReal');
     const { nodeControl } = await import('./signalPhases');
     const controlsJson = (await import('@/world/data/roadnet-controls-r123.json')).default as unknown;
-    props = buildRealProps({ net, derived, sidewalks, materials: mats, rng: rng.fork('props'), layout: chunks, tier, controls: nodeControl(net, controlsJson), avoid: elSpots.map((s) => s.p) });
+    props = buildRealProps({ net, derived, sidewalks, materials: mats, rng: rng.fork('props'), layout: chunks, tier, controls: nodeControl(net, controlsJson), avoid: elSpots.map((s) => s.p), region: offsetRing(R1R2_EXTENT, PROPS_REACH, 1.5) });
     group.add(props.group);
     colliders.push(...props.colliders);
     chunkMeshes.push(...props.chunkMeshes);

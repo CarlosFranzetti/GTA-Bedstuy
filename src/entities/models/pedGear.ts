@@ -152,7 +152,7 @@ const COLLARS: Record<string, { h: number; flare: number; gap: number; pt: numbe
 };
 /** the stand of a shirt, polo, jacket or coat collar (a band round the neck open at the front) with its points or lapels; takes the colour of the garment (or of the shirt under an open one) */
 function collar(ctx: Ctx, mb: MeshBuilder): void {
-  const t = ctx.spec.top, c = COLLARS[t.style ?? ''];
+  const t = ctx.spec.top, c = COLLARS[t.style ?? ''] ?? COLLARS.shirt;
   if (!c) return;
   const tint = hexLin(c.fur ? '#e8e4dc' : t.under && (t.style === 'denim' || t.style === 'bomber' || t.style === 'workshirt') ? t.color : t.under && t.style === 'blazer' ? t.color : t.color);
   const y0 = ctx.lm.chinY - 0.066, cols = ctx.detail === 'hi' ? 14 : 9, A = Math.PI - c.gap;

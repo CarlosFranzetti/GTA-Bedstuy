@@ -63,7 +63,7 @@ describe('PEDHAIR pieces: the roster only names pieces that exist', () => {
     for (const h of ['lowFade', 'highTop', 'curls', 'afro', 'afroLarge', 'locsShort', 'locs', 'boxBraids', 'cornrows', 'bun', 'ponytail', 'bob', 'long', 'wavy', 'receding', 'baldFringe']) expect(HAIR_IDS as readonly string[]).toContain(h);
     for (const h of ['fitted', 'snapback', 'beanie', 'bucket', 'flatCap', 'kufi', 'kippah', 'fedora', 'headscarf', 'hijab', 'durag', 'hoodUp', 'hoodDown', 'hardHat', 'bikeHelmet']) expect(HAT_IDS as readonly string[]).toContain(h);
     for (const h of ['glasses', 'sunglasses', 'headphones', 'earbuds', 'backpack', 'tote', 'messenger', 'shoppingBag', 'handbag', 'cane', 'scarf', 'chain']) expect(ACCESSORY_IDS as readonly string[]).toContain(h);
-    expect(SHOE_IDS.length).toBe(6);
+    expect(SHOE_IDS.length).toBe(11);      // PEOPLE6: runner, tall boot, loafer, low heel and slide added
   });
 });
 
