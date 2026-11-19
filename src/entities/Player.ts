@@ -134,6 +134,8 @@ export class Player implements Entity {
   private pinT = 0;
   /** seconds left lying after being run down (0 = on their feet). Input is ignored and cars pass over the body meanwhile. */
   private downT = 0;
+  /** the last drawn pose was lying down (so the flat pose is undone on the first frame back on foot) */
+  private wasDown = false;
   private readonly pinLast: Vec2 = { x: 0, z: 0 };
   private pinTarget: Vec2 | null = null;
   /** Jump state (visual arc only). The host sets `jumpLocked` while a menu is open or the player is inside an interior. */
@@ -603,6 +605,13 @@ export class Player implements Entity {
     const tgt = ex ?? this.enterSeat;
     // on a sidewalk the slab is 0.15 m above the roadway: draw the figure on it (the seat of a car is measured from the road)
     this.groundY = easeGround(this.groundY, groundAt(pos.x, pos.z), 1 / 60);
+    if (this.downT > 0 || this.wasDown) { // run down: lie flat on the ground like a knocked-down pedestrian, then stand again
+      applyPose(o, pos, heading, this.groundY + (this.downT > 0 ? 0.22 : 0));
+      const down = this.downT > 0;
+      if (this.rig) this.rig.setDown(down); else { o.rotation.order = 'YXZ'; o.rotation.x = down ? Math.PI / 2 : 0; }
+      this.wasDown = down;
+      return;
+    }
     if (k <= 0.001 || !tgt) { applyPose(o, pos, heading, y + this.groundY); return; }
     const e = k * k * (3 - 2 * k);
     const h = heading + angleDiff(heading, tgt.heading) * e;

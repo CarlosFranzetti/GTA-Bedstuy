@@ -6,6 +6,7 @@
  */
 import { familyMats, roofClutter, sideWallFrame, wallWithHoles, windows } from './facade';
 import { lotLook, partyWallDetail } from './partyWall';
+import { getStorefrontKit } from './mixeduse';
 import type { Hole, LotCtx, LotOutput } from './facade';
 
 const TRADES = [
@@ -64,10 +65,11 @@ export function buildWarehouse(c: LotCtx): LotOutput {
 
   // sign band with the trade name on the parapet
   const text = lot.poi?.sign ?? TRADES[Math.floor(rng.next() * TRADES.length)];
-  const sign = m.lib.sign(text, SIGN_BG[Math.floor(rng.next() * SIGN_BG.length)], '#efe9d6');
+  const signBg = SIGN_BG[Math.floor(rng.next() * SIGN_BG.length)];
   const sy0 = H - 1.5, sy1 = H - 0.45, f = 0.05;
+  const sign = getStorefrontKit(m.lib).signTile(text, signBg, '#efe9d6', W - 0.8 - 2 * f, sy1 - sy0 - 2 * f, false); // shared sign atlas: no draw call per sign
   b.box(m.metal, 0.4, sy0, 0, W - 0.4, sy1, 0.22, 'rludf');
-  b.rect(sign, [0.4 + f, sy0 + f, 0.225], [W - 0.8 - 2 * f, 0, 0], [0, sy1 - sy0 - 2 * f, 0], { ru: 1, rv: 1 });
+  b.rect(sign.mat, [0.4 + f, sy0 + f, 0.225], [W - 0.8 - 2 * f, 0, 0], [0, sy1 - sy0 - 2 * f, 0], { uvRect: [sign.uv[0], sign.uv[1], sign.uv[2], sign.uv[3]] });
   // parapet and roof
   b.box(look.party, 0, H, -D, W, H + 0.6, 0, 'frlb');
   b.box(m.limestone, -0.05, H + 0.55, -0.05, W + 0.05, H + 0.7, 0.2, 'frlufd');

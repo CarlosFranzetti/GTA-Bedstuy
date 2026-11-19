@@ -10,6 +10,7 @@ import {
   roofClutter, sideWallFrame, storeyLevels, wallWithHoles, windows,
 } from './facade';
 import { lotLook, partyWallDetail } from './partyWall';
+import { getStorefrontKit } from './mixeduse';
 import type { Hole, LotCtx, LotOutput } from './facade';
 
 export function buildApartment(c: LotCtx): LotOutput {
@@ -57,10 +58,10 @@ export function buildApartment(c: LotCtx): LotOutput {
       b.bar(m.metal, [x1 - 0.03, y + 1.2, z1 - 0.03], [x1 - 0.03, y + 1.2, 0], 0.05);
     }
     if (lot.poi) {
-      const sign = m.lib.sign(lot.poi.sign, '#222a30', '#e9e4d8');
       const sy0 = 2.9, sy1 = 3.8, f = 0.06;
+      const sign = getStorefrontKit(m.lib).signTile(lot.poi.sign, '#222a30', '#e9e4d8', W - 0.8 - 2 * f, sy1 - sy0 - 2 * f, false);
       b.box(m.metal, 0.4, sy0, 0, W - 0.4, sy1, 0.3, 'rlud');
-      b.rect(sign, [0.4 + f, sy0 + f, 0.305], [W - 0.8 - 2 * f, 0, 0], [0, sy1 - sy0 - 2 * f, 0], { ru: 1, rv: 1 });
+      b.rect(sign.mat, [0.4 + f, sy0 + f, 0.305], [W - 0.8 - 2 * f, 0, 0], [0, sy1 - sy0 - 2 * f, 0], { uvRect: [sign.uv[0], sign.uv[1], sign.uv[2], sign.uv[3]] });
       const uvr: [number, number, number, number] = [0.2, 0.6, 0.8, 0.85];
       b.rect(m.window, [0.4, sy1 - f, 0.31], [W - 0.8, 0, 0], [0, f, 0], { uvRect: uvr });
       b.rect(m.window, [0.4, sy0, 0.31], [W - 0.8, 0, 0], [0, f, 0], { uvRect: uvr });

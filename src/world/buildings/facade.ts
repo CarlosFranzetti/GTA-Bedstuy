@@ -523,8 +523,9 @@ export class LotBatch {
       this.bakeTone(g, mat, r, info);
       g.setAttribute('uv', new THREE.Float32BufferAttribute(r.uv, 2));
       g.applyMatrix4(m);
-      let list = this.out.get(mat);
-      if (!list) { list = []; this.out.set(mat, list); }
+      const target = (mat.userData.sharedAs as THREE.Material | undefined) ?? mat; // identical looks share one mesh (MaterialLibrary SHARED_AS)
+      let list = this.out.get(target);
+      if (!list) { list = []; this.out.set(target, list); }
       list.push(g);
       r.p = []; r.n = []; r.uv = [];
     }

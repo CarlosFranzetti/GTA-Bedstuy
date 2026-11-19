@@ -15,7 +15,7 @@ import {
 import { awningPainter, copLiveryPainter, signPainter, taxiLiveryPainter } from './painters/signage';
 import { CLOTH_COLORS, LEAF_VARIANTS, SKIN_TONES, treeLeavesPainter, treeTrunkPainter } from './painters/organic';
 import { gray, wrapVariant } from './painters/util';
-import { LOT_TONE_KEYS, patchLotTone } from './lotTone';
+import { LOT_TONE_KEYS, TEXVAR_ON, patchLotTone } from './lotTone';
 import { patchTreeTint } from './treeTint';
 import { patchShopGlass, patchWindow } from './windowShader';
 import { GROUND_DETAIL_KEYS, patchGroundDetail, GROUND_VARIATION, disposeVariationTexture, patchGroundVariation } from './groundVariation';
@@ -55,6 +55,18 @@ const PAINT_ENV_INTENSITY = 1.2;
 /** Keys whose albedo follows the non-repeating world-space ground variation field (ART). */
 const GROUND_VARIATION_KEYS: Partial<Record<MaterialKey, 'asphalt' | 'concrete' | 'paint'>> = {
   asphalt: 'asphalt', asphaltWorn: 'asphalt', concrete: 'concrete', bluestone: 'concrete', laneLine: 'paint', crosswalk: 'paint',
+};
+
+/**
+ * Variants that render identically once the photo sets are on (same photo and repeat, or colour decided per vertex by the lot
+ * tone / window shader). `LotBatch` merges their geometry into the target's mesh, so a cell draws one wall mesh per photo
+ * instead of one per variant (SURFACES: facade draw calls). The other variants stay valid materials for anything that asks.
+ */
+const SHARED_AS: Record<string, string> = {
+  'brickRed:1': 'brickRed:0', 'brickRed:3': 'brickRed:2', 'brickPainted:0': 'brickRed:2', 'brickPainted:1': 'brickRed:2',
+  'brownstone:1': 'brownstone:0',
+  'window:1': 'window:0', 'window:2': 'window:0', 'window:3': 'window:0',
+  'tarRoof:1': 'tarRoof:0', 'tarRoof:2': 'tarRoof:0', 'corrugatedSteel:1': 'corrugatedSteel:0', 'corrugatedSteel:2': 'corrugatedSteel:0',
 };
 
 interface Spec {
@@ -134,6 +146,11 @@ export class MaterialLibrary implements IMaterialLibrary {
       m = spec.build(v);
       m.name = id;
       this.cache.set(id, m);
+      const sh = SHARED_AS[id];
+      if (sh && TEXVAR_ON) {
+        const [k, v] = sh.split(':');
+        m.userData.sharedAs = this.get(k as MaterialKey, Number(v));
+      }
       const ei = ENV_INTENSITY[key];
       if (ei !== undefined && m instanceof THREE.MeshStandardMaterial) this.registerEnv(m, ei);
       const gv = GROUND_VARIATION_KEYS[key];

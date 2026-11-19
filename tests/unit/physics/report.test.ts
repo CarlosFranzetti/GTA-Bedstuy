@@ -2,7 +2,7 @@
  * Prints the numbers behind docs/swarm/tasks/PHYSICS.md. Skipped unless PHYSICS_REPORT=<output file> is set:
  *   PHYSICS_REPORT=/tmp/physics.txt npx vitest run tests/unit/physics/report.test.ts
  */
-import * as nodefs from 'fs';
+import * as nodefs from 'node:fs';
 import { it } from 'vitest';
 import { carCar, f1, measureHandling, wallRun } from './scenarios';
 import type { VehicleType } from '@/world/types';

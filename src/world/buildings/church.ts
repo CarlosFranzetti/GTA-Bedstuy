@@ -5,6 +5,7 @@
  * masonry follows the lot's material family (limestone by default); nave height follows the data floors.
  */
 import { bayCentres, cornice, familyMats, sideWallFrame, wallWithHoles, windows } from './facade';
+import { getStorefrontKit } from './mixeduse';
 import type { Hole, LotCtx, LotOutput, V3 } from './facade';
 
 export function buildChurch(c: LotCtx): LotOutput {
@@ -121,11 +122,11 @@ export function buildChurch(c: LotCtx): LotOutput {
   });
 
   if (lot.poi) {
-    const sign = m.lib.sign(lot.poi.sign, '#2d1747', '#f2e6c9');
     const sw = Math.min(nw * 0.45, 4.6);
     const sy0 = eave - 4.1, sy1 = sy0 + 0.9, f = 0.06, z0 = -S + 0.15;
+    const sign = getStorefrontKit(m.lib).signTile(lot.poi.sign, '#2d1747', '#f2e6c9', sw - 2 * f, sy1 - sy0 - 2 * f, false);
     b.box(m.metal, doorX - sw / 2, sy0, -S, doorX + sw / 2, sy1, z0, 'rlud');
-    b.rect(sign, [doorX - sw / 2 + f, sy0 + f, z0 + 0.005], [sw - 2 * f, 0, 0], [0, sy1 - sy0 - 2 * f, 0], { ru: 1, rv: 1 });
+    b.rect(sign.mat, [doorX - sw / 2 + f, sy0 + f, z0 + 0.005], [sw - 2 * f, 0, 0], [0, sy1 - sy0 - 2 * f, 0], { uvRect: [sign.uv[0], sign.uv[1], sign.uv[2], sign.uv[3]] });
     const uvr: [number, number, number, number] = [0.2, 0.6, 0.8, 0.85];
     b.rect(m.window, [doorX - sw / 2, sy1 - f, z0 + 0.01], [sw, 0, 0], [0, f, 0], { uvRect: uvr });
     b.rect(m.window, [doorX - sw / 2, sy0, z0 + 0.01], [sw, 0, 0], [0, f, 0], { uvRect: uvr });
