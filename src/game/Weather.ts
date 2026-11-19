@@ -1062,6 +1062,7 @@ export class Weather {
     m.needsUpdate = true;
   }
 
+  /** 256 x 256 single-channel mask (64 kB). The painting canvas is read once and dropped: no canvas stays alive. */
   private static makePuddleTexture(factory: (w: number, h: number) => HTMLCanvasElement): THREE.Texture {
     try {
       const size = 256;
@@ -1069,7 +1070,11 @@ export class Weather {
       const ctx = canvas.getContext('2d');
       if (ctx) {
         puddleMaskPainter(ctx, size, size, new Rng('puddle-mask'), 0);
-        const t = new THREE.CanvasTexture(canvas);
+        const px = ctx.getImageData(0, 0, size, size).data;
+        const r = new Uint8Array(size * size);
+        for (let i = 0; i < r.length; i++) r[i] = px[i * 4];
+        canvas.width = 1; canvas.height = 1; // release the backing store
+        const t = new THREE.DataTexture(r, size, size, THREE.RedFormat);
         t.wrapS = THREE.RepeatWrapping;
         t.wrapT = THREE.RepeatWrapping;
         t.magFilter = THREE.LinearFilter;

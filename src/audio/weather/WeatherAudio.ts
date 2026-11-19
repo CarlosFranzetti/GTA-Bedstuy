@@ -8,6 +8,10 @@
 import { newWeatherMix, thunderLevel, weatherMix, type WeatherAudioSink, type WeatherAudioState, type WeatherMix } from './mix';
 import { rainLayer, roofLayer, thunderClap, windLayer, type ThunderKind } from './synth';
 
+/** Weather buffers are made at no more than 24 kHz (rain and thunder have nothing above 12 kHz) and resampled by the engine: halves their memory. */
+export const MAX_BUFFER_RATE = 24000;
+const bufferRate = (ctx: BaseAudioContext): number => Math.min(ctx.sampleRate, MAX_BUFFER_RATE);
+
 export interface WeatherAudioHost { ctx: BaseAudioContext; dest: AudioNode }
 
 /** Ramp time constants (s): levels move slowly, the filter corner quicker (a car door closing). */
@@ -59,8 +63,8 @@ export class WeatherAudio implements WeatherAudioSink {
     const n = this.n;
     if (!n) return;
     const kind: ThunderKind = distanceM < 1400 ? 'close' : 'far';
-    const variant = this.clapN++ % 3;
-    const buf = this.buffer(ctx, `thunder:${kind}:${variant}`, () => thunderClap(kind, ctx.sampleRate, 1 + variant));
+    const variant = this.clapN++ % 2;
+    const buf = this.buffer(ctx, `thunder:${kind}:${variant}`, () => thunderClap(kind, bufferRate(ctx), 1 + variant));
     const src = ctx.createBufferSource();
     src.buffer = buf;
     const g = ctx.createGain();
@@ -82,7 +86,7 @@ export class WeatherAudio implements WeatherAudioSink {
     let b = this.bufs.get(id);
     if (!b) {
       const data = make();
-      b = ctx.createBuffer(1, data.length, ctx.sampleRate);
+      b = ctx.createBuffer(1, data.length, bufferRate(ctx));
       b.getChannelData(0).set(data);
       this.bufs.set(id, b);
     }
@@ -91,7 +95,7 @@ export class WeatherAudio implements WeatherAudioSink {
 
   private build(h: WeatherAudioHost): void {
     const { ctx, dest } = h;
-    const sr = ctx.sampleRate;
+    const sr = bufferRate(ctx);
     const sources: AudioBufferSourceNode[] = [];
     const oscs: OscillatorNode[] = [];
     const loop = (id: string, make: () => Float32Array, out: AudioNode): void => {

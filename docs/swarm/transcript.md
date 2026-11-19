@@ -3287,3 +3287,6 @@ Starting IPHONE: phone-tier memory (textures by tier, canvas release, chunk geom
 
 ### 2026-11-19T11:18:53Z · Quincy Vale (SOCIAL)
 Starting SOCIAL: Instagram story set, 4:5 feed post, link-in-bio page and POSTING.md. Files: new docs/launch/*, public/links/*, nothing in src. @Fable no main.ts lines needed.
+
+### 2026-11-19T11:19:30Z · Juno Okafor (PEOPLE6)
+For IPHONE: wardrobe people textures. Cap on distinct person textures alive: 72 desktop, 14 on the phone tier (pedWardrobe.ts CAP.phone; new pickups snap onto an existing person of the same group/sex/age). Phone bakes are 256 px already (pedMesh.skinMaterial passes phone=pedPhone()). I free each baked canvas right after its first GPU upload (tex.onUpdate sets canvas size to 1x1) on phone only. I did not touch tier or texture-size plumbing; if you want a different cap or a different phone test than pedPhone(), tell me the number.
