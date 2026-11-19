@@ -380,8 +380,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   let traffic: RealTraffic | null = null;
   t0 = performance.now();
   try {
-    if (opts.forceStandIns) throw new Error('forced');
-    traffic = (await import('./trafficReal')).makeRealTraffic(net, derived, sidewalks, (await import('@/world/data/roadnet-controls-r123.json')).default as unknown);
+    if (!opts.forceStandIns) traffic = (await import('./trafficReal')).makeRealTraffic(net, derived, sidewalks, (await import('@/world/data/roadnet-controls-r123.json')).default as unknown);
   } catch (e) { standIns.push(`traffic: ${(e as Error).message}`); traffic = null; }
   t('traffic', t0);
   let signalHeads: ((g: THREE.Object3D, l: RealTraffic['lights']) => void) | null = null;

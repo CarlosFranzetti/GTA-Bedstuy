@@ -19,7 +19,7 @@ import type { IVehicle, VehicleType } from '@/world/types';
 import { DT, Sim, input, stubMaterials } from './harness';
 import { derived, net, sidewalks } from './realtraffic-run';
 
-interface CopRun { maxOnDuty: number; spawned: number; closest: number; closeAt: number; travelled: number; kerb: number; building: number; samples: number; nonFinite: number; sirensOffAt: number; zeroAt: number; stuck: string[] }
+interface CopRun { maxOnDuty: number; spawned: number; closest: number; closeAt: number; travelled: number; kerb: number; building: number; samples: number; nonFinite: number; sirensOffAt: number; zeroAt: number; stuck: string[]; trail: string[] }
 
 const box = (ring: readonly Vec2[]): readonly [number, number, number, number] => {
   let a = Infinity, b = Infinity, c = -Infinity, e = -Infinity;
@@ -52,7 +52,7 @@ function run(mode: 'patrol' | 'pursuit', seed: number, seconds: number): CopRun 
   pv.setInput(input());
   sim.add(pv);
   const p0 = { x: pv.body.pos.x, z: pv.body.pos.z };
-  const r: CopRun = { maxOnDuty: 0, spawned: 0, closest: Infinity, closeAt: -1, travelled: 0, kerb: 0, building: 0, samples: 0, nonFinite: 0, sirensOffAt: -1, zeroAt: -1, stuck: [] };
+  const r: CopRun = { maxOnDuty: 0, spawned: 0, closest: Infinity, closeAt: -1, travelled: 0, kerb: 0, building: 0, samples: 0, nonFinite: 0, sirensOffAt: -1, zeroAt: -1, stuck: [], trail: [] };
   if (mode === 'pursuit') wanted.raiseTo(2);
   const seen = new Set<string>();
   const last = new Map<string, Vec2>();
@@ -68,6 +68,7 @@ function run(mode: 'patrol' | 'pursuit', seed: number, seconds: number): CopRun 
     wanted.update(DT);
     sim.step(DT);
     if (mode === 'pursuit' && wanted.stars === 0 && r.zeroAt < 0) r.zeroAt = t;
+    if (step % 600 === 0) r.trail.push(`${t.toFixed(0)}s stars=${wanted.stars}`);
     const onDuty = cops.cops.filter((c) => c.driver === 'cop' && c.siren).length;
     r.maxOnDuty = Math.max(r.maxOnDuty, onDuty);
     if (mode === 'pursuit' && wanted.stars === 0 && r.sirensOffAt < 0 && !cops.cops.some((c) => c.siren)) r.sirensOffAt = t;
@@ -115,7 +116,7 @@ describe('cops on the real map', () => {
   });
 
   it('the pursuit ends when the stars decay: sirens off within a second of zero stars', () => {
-    expect(chase.zeroAt).toBeGreaterThan(0);
+    expect(chase.zeroAt, chase.trail.join(' ')).toBeGreaterThan(0);
     expect(chase.sirensOffAt - chase.zeroAt).toBeLessThanOrEqual(1.5);
   });
 
