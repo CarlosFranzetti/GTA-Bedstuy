@@ -1,6 +1,8 @@
 # WP4: road and sidewalk meshing along polylines, and chunk culling by spatial hash
 
-Model: **sonnet**. Suggested worker: **Lena** (PERF/LOD: culling and budgets). Parallel with WP2, WP3, WP5, WP10.
+Status: historical record (not maintained)
+
+Model: **standard**. Suggested worker: **Lena** (PERF/LOD: culling and budgets). Parallel with WP2, WP3, WP5, WP10.
 Read first: `_realmap-rules.md` (binding), realmap.md sections 4 (rows "Road + sidewalk meshing", "Chunk culling") and 5 (budget).
 
 ## Files owned (new)

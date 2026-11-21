@@ -1,5 +1,7 @@
 # Bed-Stuy surface reference (for texture work)
 
+Status: historical record (not maintained)
+
 Purpose: a text-only brief of what real surfaces look like, so texture artists can paint procedural equivalents. No images were downloaded or copied. Hex values are **estimates** unless a source is cited; calibrate them by eye against photos you have a right to use.
 
 **Access limits (read first):** During research, the session egress proxy refused connections to `en.wikipedia.org` and `www.nyc.gov` (403 policy denial), and WebFetch could not resolve `www.brownstoner.com`. The LPC designation report and the NYC DOT Street Design Manual were therefore **not read**. Facts below come from search-result snippets and secondary sources, and are marked where thin. Verify against the primary documents before treating any number as final.

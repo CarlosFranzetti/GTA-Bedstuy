@@ -1,5 +1,7 @@
 # Playtest transcript
 
+Status: historical record (not maintained)
+
 Session: /home/user/GTA-Bedstuy/playtests/h8c
 Ended: idle timeout (600s without a command)
 Steps: 8

@@ -1,6 +1,8 @@
 # WP2: lane graph and signal phases for the real map
 
-Model: **sonnet**. Suggested worker: **Theo** (CARFIX, traffic AI root-causing). Parallel with WP3, WP4, WP5, WP10.
+Status: historical record (not maintained)
+
+Model: **standard**. Suggested worker: **Theo** (CARFIX, traffic AI root-causing). Parallel with WP3, WP4, WP5, WP10.
 Read first: `_realmap-rules.md` (binding), realmap.md sections 3-4 (rows "Lane graph" and "Signals").
 
 ## Files owned (new)

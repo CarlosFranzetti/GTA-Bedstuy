@@ -1,5 +1,7 @@
 # GTA Bed-Stuy Design Bible
 
+Status: partly out of date (checked 21 Nov 2026): written on 1 Nov against the GTA III bar. Since then the art direction is `docs/swarm/art/ART-BAR.md` v2 (owner ruling of 11 Nov: no inked look, "Rockstar polish"), and people and cars target GTA IV and V as a style reference. Its design targets for look and handling predate that.
+
 Owner: BIBLE lane (Stage 3). Audience: every lane, plus the MGR reviewing them. Status: living document, written 2026-11-01.
 
 **What this is.** A set of design targets drawn from analysis of GTA 5, to review lane work against. It is **design analysis only**. Nothing here is copied from GTA: no assets, text, music, logos, names, or extracted game values (PRD §2.1). Every numeric target below is *ours*, tuned by eye; where a public source gives a GTA figure it is cited, and where it does not we say so.

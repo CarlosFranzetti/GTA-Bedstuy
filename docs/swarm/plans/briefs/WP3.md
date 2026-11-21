@@ -1,6 +1,8 @@
 # WP3: pedestrian sidewalk graph and crosswalks for the real map
 
-Model: **sonnet**. Suggested worker: **June** (CROWD: ped spawning, crosswalk deadlock). Parallel with WP2, WP4, WP5, WP10.
+Status: historical record (not maintained)
+
+Model: **standard**. Suggested worker: **June** (CROWD: ped spawning, crosswalk deadlock). Parallel with WP2, WP4, WP5, WP10.
 Read first: `_realmap-rules.md` (binding), realmap.md section 4 (row "Pedestrian graph + crosswalks").
 
 ## Files owned (new)

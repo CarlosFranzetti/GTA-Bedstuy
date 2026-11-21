@@ -1,5 +1,7 @@
 # GTA 5 style notes (art direction reference)
 
+Status: historical record (not maintained)
+
 Purpose: emulate the look of GTA 5 with procedural three.js materials and post-processing for the GTA Bed-Stuy fan tribute. This is style analysis only. No Rockstar asset, texture or image was downloaded or used.
 
 **Sourcing caveat.** The research environment could not open most primary pages (the Courrèges blog, Digital Foundry, threejs.org, Wikipedia). Figures below come from search-result excerpts and are marked as such. Anything marked **(speculation)** is my inference or common practice, not a sourced claim about GTA 5. Verify against the original pages before quoting.

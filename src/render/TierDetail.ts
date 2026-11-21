@@ -75,3 +75,28 @@ export function setAnisotropy(root: THREE.Object3D, cap: number): number {
   }
   return changed;
 }
+
+interface TextureUploader { initTexture(t: THREE.Texture): void }
+
+/**
+ * Phone and low tiers: sends every canvas texture that is still waiting for its first view to the GPU now, so its canvas is
+ * emptied (texTier.releaseCanvasAfterUpload) instead of sitting in JS memory, in Safari's per-page canvas budget, until the
+ * player first looks at that shop front. The GPU copy is the same one the first view would have made, so texture memory does
+ * not change; only live canvas memory falls. Returns how many textures were uploaded. Cheap to call again (uploaded ones are skipped).
+ */
+export function uploadPendingCanvasTextures(renderer: TextureUploader, root: THREE.Object3D): number {
+  let n = 0;
+  const seen = new Set<THREE.Texture>();
+  for (const m of materialsUnder(root)) {
+    for (const slot of MAP_SLOTS) {
+      const t = (m as unknown as Record<string, THREE.Texture | null | undefined>)[slot];
+      if (!t || seen.has(t)) continue;
+      seen.add(t);
+      if (canvasReleased(t) || typeof t.onUpdate !== 'function') continue; // not waiting for an upload hook
+      const img = t.image as { getContext?: unknown; width?: number; height?: number } | undefined;
+      if (!img || typeof img.getContext !== 'function' || (img.width ?? 0) * (img.height ?? 0) <= 1) continue;
+      try { renderer.initTexture(t); n++; } catch { /* texture not uploadable yet: the first view will do it */ }
+    }
+  }
+  return n;
+}

@@ -1,5 +1,7 @@
 # BLOCKS: what stands on each block face, and where it comes from
 
+Status: partly out of date (checked 21 Nov 2026): it describes the stylised grid map as of 9 Nov (the MapPLUTO import). The real-street map (`?map=real`) and its data sources are in `docs/swarm/plans/realmap.md` and `docs/CREDITS.md`.
+
 Lane GEO2, 9 Nov 2026 (updated for MapPLUTO). Companion to `docs/reference/block-faces.md` (R2 passes 1 and 2), which holds the raw search notes; this file is the per-face reading the game data follows.
 
 ## 0. What could and could not be reached

@@ -1,5 +1,7 @@
 # REALMAP: a real street network for Bed-Stuy, Bushwick, Williamsburg and a corner of Ridgewood
 
+Status: historical record (not maintained)
+
 Imani (MAPLEAD), 11 Nov 2026. Status: design + working data pipeline + RoadNet core landed; no consumer migrated.
 Debug views: `docs/reference/realmap-r1r2.svg` (names, classes, one-way arrows, signals, stubs; open in a browser),
 `docs/reference/realmap-r1r2.png` (quick look), `docs/reference/brooklyn-overview-check.png` (overview layer with R1+R2 lit).
@@ -176,26 +178,26 @@ outline. The map is in the grid frame (Brooklyn appears rotated 8.6 deg); an opt
 
 ## 7. Work packages
 
-Model column: haiku = grunt work (data, conversion, fixtures, mechanical edits), sonnet = behaviour-changing code.
+Model column: light = grunt work (data, conversion, fixtures, mechanical edits), standard = behaviour-changing code.
 "Done" always includes `npx tsc --noEmit` clean and the package's tests green; no edits to src/main.ts (WP0 hands Fable a
 snippet).
 
 | WP | Model | Owns (files) | Input -> output, interface | Done when | Depends / parallel |
 |---|---|---|---|---|---|
-| WP0 map switch | sonnet (small) | `src/world/roadnet/MapSource.ts`, snippet for Fable | `?map=real` -> `{ kind, net: RoadNet, grid?: GridModel }`; `loadRoadNet(): Promise<RoadNet>` (inline core in artifact, fetch in hosted) | flag read, both paths boot, test for the selector | none; first |
-| WP1 derived geometry | sonnet | `roadnet/derive.ts` | `deriveGeometry(net, opts): Derived { nodePolys: Vec2[][], curbRings: Vec2[][], buildingRings: Vec2[][], returns }` with curb returns (r 4.5/6 m), handles 3..6-leg nodes and acute (Broadway) angles | fixture tests: 4-leg square equals grid boxes; 45 deg wye has no self-intersection; all R1+R2 rings simple (no self-crossing) | after RoadNet (done); parallel with WP2, WP3 |
-| WP2 lane graph + signals | sonnet | `roadnet/lanes.ts`, `roadnet/signalPhases.ts`, TrafficLights `fromRoadNet` | `buildLaneGraph(net, derived): LaneGraph`; `signalGroups(net, node): number[][]` (approach edges per phase) | on the grid adapter: lane graph node count within 5 % of Grid.ts and traffic tests pass with it; on real: every directed edge reachable, no dead lane except stubs; 5-leg Broadway nodes get 3 phases | WP1; parallel with WP3 |
-| WP2b signal data | haiku | `scripts/import-signals.mjs`, `data/raw/lpi.json` | `mqt5-ctec` points -> mark nodes within 15 m as `signal` | report of changed nodes | parallel |
-| WP3 sidewalks + crosswalks | sonnet | `roadnet/sidewalks.ts` | `buildSidewalkGraph(net, derived): { graph: Graph, crosswalks: Crosswalk[] }` (Crosswalk gets `edge`) | connected per block cluster; every signal node has a crosswalk per approach; ped-spawn tests pass on both maps | WP1; parallel with WP2 |
-| WP4 road meshing + chunking | sonnet | `roadnet/meshRoads.ts`, `render/Culling.ts` (`chunkLayoutFromBounds`), WorldBuilder hook behind the flag | `buildRoadMeshes(net, derived, mats, tier): THREE.Group`, roads/sidewalks/markings chunked | R1 renders with no z-fighting at intersections, curbs continuous, markings stop at stop bars; draw calls for roads <= today's per view | WP1 |
-| WP5 faces + lots frame | sonnet | `roadnet/faces.ts`, `LotSubdivider` real path | `blockFaces(net, derived): BlockFace[]` (general), lot placement in the face frame; wedge and acute-corner rules | every lot's outward within 10 deg of its frontage normal; no building overlaps another (AABB in lot frame) | WP1; parallel WP2/3 |
-| WP6 PLUTO lots + footprints | haiku (fetch) then sonnet (assign) | `scripts/import-lots-real.mjs`, `src/world/data/lots-r1r2.json` | PLUTO + footprints for R1+R2 -> `{bbl, block, edge, s0, width, depth, floors, cls, year, front?}` quantised; sidewalk width per face from the curb-to-front gap | >= 95 % of PLUTO lots in R1 assigned to a block and edge; corner lots flagged; size <= 100 kB raw | data part now; assignment after WP5 |
-| WP7 signs, props, furniture | sonnet | `signBlades.ts`, `props/*` real paths | per-node blades along edges; poles at derived corners; s-parameterised placement | one blade per street per corner; no prop on a roadway (`net.isOnRoad` test) | WP1, WP5 |
-| WP8 map + minimap + overview | sonnet | `ui/MapScreen.ts`, `ui/Minimap.ts`, `ui/overviewLayer.ts`; haiku: lite base64 build step | draws RoadNet + overview (section 6), labels by zoom, pan/zoom | screenshots at 3 zooms; label test (no label off its street); artifact uses the lite blob | parallel from now (needs only RoadNet + overview files) |
-| WP9 missions + saves | sonnet; haiku for the migration table | `missions/content/places.ts`, `PointerRoute.ts`, `NavTargets.ts`, `GameSave.ts`; `data/places-real.json` | places by BBL/address, corners by two street names; save `map` field | every mission place resolves on the real map; save across maps resets pose | WP5, WP6 |
-| WP10 the el on Broadway + Myrtle | sonnet | `transit/*` real path | path from Broadway/Myrtle edges, stations by name, columns along s | train runs Flushing Av -> Gates Av and Myrtle Av -> Knickerbocker Av; transit tests on both maps | WP1 |
-| WP11 tests and fixtures | haiku | `tests/unit/world/*-real.test.ts`, fixture updates | counts from data, not literals; grid tests unchanged | suite green on both maps | rolling |
-| WP12 perf gate | haiku (captures) + sonnet (fixes) | capture scripts only | 7 views x 4 tiers, triangles/draws, build time | within budget (section 5) | after WP4, WP5 |
+| WP0 map switch | standard (small) | `src/world/roadnet/MapSource.ts`, snippet for Fable | `?map=real` -> `{ kind, net: RoadNet, grid?: GridModel }`; `loadRoadNet(): Promise<RoadNet>` (inline core in artifact, fetch in hosted) | flag read, both paths boot, test for the selector | none; first |
+| WP1 derived geometry | standard | `roadnet/derive.ts` | `deriveGeometry(net, opts): Derived { nodePolys: Vec2[][], curbRings: Vec2[][], buildingRings: Vec2[][], returns }` with curb returns (r 4.5/6 m), handles 3..6-leg nodes and acute (Broadway) angles | fixture tests: 4-leg square equals grid boxes; 45 deg wye has no self-intersection; all R1+R2 rings simple (no self-crossing) | after RoadNet (done); parallel with WP2, WP3 |
+| WP2 lane graph + signals | standard | `roadnet/lanes.ts`, `roadnet/signalPhases.ts`, TrafficLights `fromRoadNet` | `buildLaneGraph(net, derived): LaneGraph`; `signalGroups(net, node): number[][]` (approach edges per phase) | on the grid adapter: lane graph node count within 5 % of Grid.ts and traffic tests pass with it; on real: every directed edge reachable, no dead lane except stubs; 5-leg Broadway nodes get 3 phases | WP1; parallel with WP3 |
+| WP2b signal data | light | `scripts/import-signals.mjs`, `data/raw/lpi.json` | `mqt5-ctec` points -> mark nodes within 15 m as `signal` | report of changed nodes | parallel |
+| WP3 sidewalks + crosswalks | standard | `roadnet/sidewalks.ts` | `buildSidewalkGraph(net, derived): { graph: Graph, crosswalks: Crosswalk[] }` (Crosswalk gets `edge`) | connected per block cluster; every signal node has a crosswalk per approach; ped-spawn tests pass on both maps | WP1; parallel with WP2 |
+| WP4 road meshing + chunking | standard | `roadnet/meshRoads.ts`, `render/Culling.ts` (`chunkLayoutFromBounds`), WorldBuilder hook behind the flag | `buildRoadMeshes(net, derived, mats, tier): THREE.Group`, roads/sidewalks/markings chunked | R1 renders with no z-fighting at intersections, curbs continuous, markings stop at stop bars; draw calls for roads <= today's per view | WP1 |
+| WP5 faces + lots frame | standard | `roadnet/faces.ts`, `LotSubdivider` real path | `blockFaces(net, derived): BlockFace[]` (general), lot placement in the face frame; wedge and acute-corner rules | every lot's outward within 10 deg of its frontage normal; no building overlaps another (AABB in lot frame) | WP1; parallel WP2/3 |
+| WP6 PLUTO lots + footprints | light (fetch) then standard (assign) | `scripts/import-lots-real.mjs`, `src/world/data/lots-r1r2.json` | PLUTO + footprints for R1+R2 -> `{bbl, block, edge, s0, width, depth, floors, cls, year, front?}` quantised; sidewalk width per face from the curb-to-front gap | >= 95 % of PLUTO lots in R1 assigned to a block and edge; corner lots flagged; size <= 100 kB raw | data part now; assignment after WP5 |
+| WP7 signs, props, furniture | standard | `signBlades.ts`, `props/*` real paths | per-node blades along edges; poles at derived corners; s-parameterised placement | one blade per street per corner; no prop on a roadway (`net.isOnRoad` test) | WP1, WP5 |
+| WP8 map + minimap + overview | standard | `ui/MapScreen.ts`, `ui/Minimap.ts`, `ui/overviewLayer.ts`; light: lite base64 build step | draws RoadNet + overview (section 6), labels by zoom, pan/zoom | screenshots at 3 zooms; label test (no label off its street); artifact uses the lite blob | parallel from now (needs only RoadNet + overview files) |
+| WP9 missions + saves | standard; light for the migration table | `missions/content/places.ts`, `PointerRoute.ts`, `NavTargets.ts`, `GameSave.ts`; `data/places-real.json` | places by BBL/address, corners by two street names; save `map` field | every mission place resolves on the real map; save across maps resets pose | WP5, WP6 |
+| WP10 the el on Broadway + Myrtle | standard | `transit/*` real path | path from Broadway/Myrtle edges, stations by name, columns along s | train runs Flushing Av -> Gates Av and Myrtle Av -> Knickerbocker Av; transit tests on both maps | WP1 |
+| WP11 tests and fixtures | light | `tests/unit/world/*-real.test.ts`, fixture updates | counts from data, not literals; grid tests unchanged | suite green on both maps | rolling |
+| WP12 perf gate | light (captures) + standard (fixes) | capture scripts only | 7 views x 4 tiers, triangles/draws, build time | within budget (section 5) | after WP4, WP5 |
 
 Parallel plan: wave 1 = WP0, WP1, WP2b, WP6-data, WP8; wave 2 = WP2, WP3, WP4, WP5, WP10; wave 3 = WP6-assign, WP7, WP9, WP11;
 then WP12 and PLAYTEST. R2 is the same packages re-run on more data plus R2-specific acceptance (wedges, el on Myrtle).
@@ -233,7 +235,7 @@ Recommend against:
 - Putting R3/R4 data or the full overview into the artifact.
 - Shipping R1 before PERF2 closes and WP4 chunks the roads.
 
-Effort and risk (worker-days at sonnet speed, honest):
+Effort and risk (worker-days at standard speed, honest):
 
 | Phase | Effort | Risk | Notes |
 |---|---|---|---|

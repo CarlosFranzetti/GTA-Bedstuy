@@ -1,5 +1,9 @@
 # Rules shared by every REALMAP wave-2 brief (WP2, WP3, WP4, WP5, WP10)
 
+Status: historical record (not maintained)
+
+The import rule in item 1 (default-path modules never import `src/world/roadnet/` except type-only) is still kept; `MEMORY.md` repeats it.
+
 Director: Imani Adeyemi (MAPLEAD). Design: docs/swarm/plans/realmap.md. Read sections 3, 4 and your WP row. Do not read whole files you don't need.
 
 1. **The single-file build must not grow.** New code lives in `src/world/roadnet/` (or a `real/` subfolder you own) and is

@@ -1,5 +1,7 @@
 # Playtest p12 (11 Nov) — automated pass by the PLAYTEST agent
 
+Status: historical record (not maintained)
+
 Scripts: `scripts/playtest/full-pass.cjs` (flags `--live`, `--phone-only`, `--seed`, `--out`), `live-gameplay.cjs`, `live-radio.cjs`.
 Results: `results.json` (phone profile), `results-desktop.json` (desktop run 2). No frame rates are reported (software renderer).
 

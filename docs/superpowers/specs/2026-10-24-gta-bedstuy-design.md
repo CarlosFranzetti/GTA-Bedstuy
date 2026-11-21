@@ -1,5 +1,7 @@
 # GTA Bed-Stuy — Design Spec
 
+Status: historical record (not maintained)
+
 **Status:** approved 2026-10-24 (Street View reference-only, 10-block area as drawn, sandbox v1, title "GTA Bed-Stuy")
 **Date:** 2026-10-24
 **Author:** Carlos Franzetti (direction), Claude (draft)

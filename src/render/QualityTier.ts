@@ -23,7 +23,7 @@ export interface TierTraffic {
 export interface TierConfig {
   /** device pixel ratio cap */
   maxPixelRatio: number;
-  /** cap on the drawing-buffer width in px (the pixel ratio is lowered to fit); Infinity = no cap */
+  /** cap on the drawing-buffer width in px (the pixel ratio is lowered to fit); Infinity = no cap. On `phone` it caps the LONG side of the buffer, whichever way the phone is held */
   maxBufferWidth: number;
   /** DistanceCuller range (m) for prop cells, parked cars and peds */
   cullDistance: number;
@@ -70,9 +70,30 @@ export interface TierConfig {
 export const SIGN_BLOOM_ON_FPS = 45;
 export const SIGN_BLOOM_OFF_FPS = 38;
 
+/**
+ * Phone tier render size: the buffer's long side, in px, on recent phones (older ones start lower, see GpuProfile). 1280 x 592 is
+ * about 0.76 MP: sharp on a 6-inch screen and still a small post chain. The old cap was 720 px WIDE, which in portrait left the
+ * canvas at 390 x 844 CSS px (a blur) and on its side at 720 x 332.
+ */
+export const PHONE_BUFFER_LONG_SIDE = 1280;
+/** Older or weaker handhelds. */
+export const PHONE_BUFFER_LONG_SIDE_OLD = 960;
+
+let longSideOverride: number | null = null;
+/** Tests and tools: pretend the device's long screen side is `px` CSS px (null = read `screen`). */
+export function setDeviceLongSide(px: number | null): void { longSideOverride = px; }
+/**
+ * Long side of the device's screen in CSS px (iOS Safari keeps `screen.width` x `screen.height` in portrait whatever the
+ * orientation, so this is steady while the phone turns). 0 when unknown (no screen, a desktop test run).
+ */
+export function deviceLongSideCss(): number {
+  if (longSideOverride !== null) return longSideOverride;
+  try { return typeof screen !== 'undefined' ? Math.max(screen.width || 0, screen.height || 0) : 0; } catch { return 0; }
+}
+
 export const TIER_CONFIG: Record<Quality, TierConfig> = {
   phone: {
-    maxPixelRatio: 1, maxBufferWidth: 720, cullDistance: 110, carNearDist: 14, carNearMax: 3, buildingFarDist: 50, buildingTrimDist: 40, buildingMergeDist: 80, buildingMergeDist2: Infinity, instanceDistance: 80, pedDistance: 55,
+    maxPixelRatio: 3, maxBufferWidth: PHONE_BUFFER_LONG_SIDE, cullDistance: 110, carNearDist: 14, carNearMax: 3, buildingFarDist: 50, buildingTrimDist: 40, buildingMergeDist: 80, buildingMergeDist2: Infinity, instanceDistance: 80, pedDistance: 55,
     fog: { near: 30, far: 100 }, rainStreaks: 200, anisotropy: 2, normalMaps: false, simpleGeometry: true, stars: false, minimapHz: 30, blobShadows: true, signBloomFps: SIGN_BLOOM_ON_FPS,
     transitRange: 140,
     traffic: { maxMoving: 10, peds: 14, parkOccupancy: 0.3, cops: 1 },
@@ -118,7 +139,9 @@ export const tierConfig = (q: Quality): TierConfig => TIER_CONFIG[q];
 export function pixelRatioFor(q: Quality, devicePixelRatio: number, cssWidth: number): number {
   const t = TIER_CONFIG[q];
   const dpr = Number.isFinite(devicePixelRatio) && devicePixelRatio > 0 ? devicePixelRatio : 1;
-  const byWidth = cssWidth > 0 && Number.isFinite(t.maxBufferWidth) ? t.maxBufferWidth / cssWidth : Infinity;
+  // phone: the cap is on the long side, so a portrait phone is not rendered at its 390 px width
+  const side = q === 'phone' ? Math.max(cssWidth, deviceLongSideCss()) : cssWidth;
+  const byWidth = side > 0 && Number.isFinite(t.maxBufferWidth) ? t.maxBufferWidth / side : Infinity;
   return Math.max(0.25, Math.min(t.maxPixelRatio, dpr, byWidth));
 }
 

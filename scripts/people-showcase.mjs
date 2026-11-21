@@ -16,7 +16,7 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const errors = [];
 try {
   // an entry may carry its own query: name~key=value~key=value (the file is named after the whole entry)
-  for (const entry of views.split(',')) {
+  for (const entry of (views.includes(';') ? views.split(';') : views.split(','))) {
     const [v, ...kv] = entry.split('~'), vq = kv.join('&'), fname = entry.replace(/[~=]/g, '_');
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 300)); });

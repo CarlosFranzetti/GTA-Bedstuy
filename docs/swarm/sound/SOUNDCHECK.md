@@ -1,5 +1,7 @@
 # SOUNDCHECK: engine levels, the street mix, stutter, speech rhythm
 
+Status: historical record (not maintained)
+
 Lane SOUNDCHECK (Echo), 18 Nov. Nothing here was heard: this machine has no audio output and I cannot listen. Every number
 comes from offline renders of the real code (Web Audio `OfflineAudioContext` in headless Chromium) measured with ffmpeg
 `ebur128` (BS.1770, K-weighted) or with sample-level analysis. Each "what to listen for" line says what a person should check.

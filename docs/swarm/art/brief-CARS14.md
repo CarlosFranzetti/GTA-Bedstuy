@@ -1,6 +1,8 @@
 # Brief: CARS14 (Dmitri) — sports cars, an electric wedge pickup parody, per-type handling
 
-Director: Tomas (ARTDIR). Model: sonnet. Port 4485. Start when Kenji (CARFIXUP) posts FINAL.
+Status: historical record (not maintained)
+
+Director: Tomas (ARTDIR). Model: standard. Port 4485. Start when Kenji (CARFIXUP) posts FINAL.
 Read first: docs/swarm/ORG.md, docs/swarm/plans/stage14.md (rules), docs/swarm/art/ART-BAR.md (Cars section),
 board.md "Token policy". Read only the files below. Post start, blockers and wrap-up to "@Tomas" with scripts/swarm-say.sh "Dmitri (CARS14)".
 

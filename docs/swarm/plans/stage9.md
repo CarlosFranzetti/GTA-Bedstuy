@@ -1,6 +1,8 @@
 # Stage 9 plan: GTA4-fidelity people and cars, and the map toward Bushwick
 
-Written by the Opus manager (MGR) on 9 Nov 2026. It answers the user's two Stage 9 asks recorded in PRD.md ("Stage 9 asks") and on the
+Status: historical record (not maintained)
+
+Written by the lead model manager (MGR) on 9 Nov 2026. It answers the user's two Stage 9 asks recorded in PRD.md ("Stage 9 asks") and on the
 board as PLAN9. It is a plan, not a commitment of exact numbers: every figure below is a target that a lane must measure and report.
 The street survey that part B depends on (which streets, in what order, at what angles) is being written by GEO2 into
 `docs/reference/EXPANSION.md`. Part B is written so that survey can fill in the names without changing the engineering.

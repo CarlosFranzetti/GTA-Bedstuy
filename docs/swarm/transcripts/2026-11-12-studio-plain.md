@@ -1,5 +1,7 @@
 # Studio chat, 11 and 12 November, in plain language
 
+Status: historical record (not maintained)
+
 *A plain-language retelling of the team's chat log from 11:55 UTC on 11 November to the end of the log (111 posts). The word-for-word log is in docs/swarm/transcript.md. Times are UTC.*
 
 ## The day in five lines

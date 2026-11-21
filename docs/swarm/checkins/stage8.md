@@ -1,5 +1,7 @@
 # Stage 8 check-in: GTA3 skins, SoundCloud stations, real blocks
 
+Status: historical record (not maintained)
+
 MGR, 9 Nov 2026 ~22:00Z. Terse. HEAD 6256845. Not committed by MGR.
 
 ## Summary

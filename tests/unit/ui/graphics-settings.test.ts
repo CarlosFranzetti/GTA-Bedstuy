@@ -92,7 +92,7 @@ describe('deriveGraphics', () => {
     expect(base).toBe(1.75);
     expect(deriveGraphics('high', { ...presetFor('high'), resolution: 0.5 }, env).pixelRatio).toBeCloseTo(0.875);
     expect(deriveGraphics('high', { ...presetFor('high'), nativeDpr: true }, env).pixelRatio).toBe(2);
-    expect(deriveGraphics('phone', { ...presetFor('phone'), nativeDpr: true }, { devicePixelRatio: 3, cssWidth: 1280 }).pixelRatio).toBeCloseTo(720 / 1280);
+    expect(deriveGraphics('phone', { ...presetFor('phone'), nativeDpr: true }, { devicePixelRatio: 3, cssWidth: 1280 }).pixelRatio).toBeCloseTo(1);
   });
   it('density, range, fov and cap map to engine numbers', () => {
     const d = deriveGraphics('medium', { ...presetFor('medium'), crowd: 0.5, traffic: 1.5, drawDistance: 0.5, treeRange: 2, fov: 80, fpsCap: 30, shadows: 'blob', textures: 'low', ao: false }, env);

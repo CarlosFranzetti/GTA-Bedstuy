@@ -1,6 +1,8 @@
 # GTA Bed-Stuy — Product Requirements (staged)
 
-Owner: Opus manager (MGR), Stage 1 swarm. Direction: Carlos Franzetti. Orchestrator: Fable.
+Status: partly out of date (checked 21 Nov 2026): sections 1 to 5 are the requirements and acceptance criteria written for Stages 1 to 9 and are not kept current (the tier budgets in section 3 are now in `src/render/QualityTier.ts`, and the live state is in `MEMORY.md`, "State"). The owner's asks, from "Stage 9 asks" to the end of the file, are the maintained record and are appended in order.
+
+Owner: the manager lane (MGR), Stage 1 swarm. Direction: Carlos Franzetti. Orchestrator: Fable.
 Status: living document, expanded 2026-10-28 from the orchestrator's skeleton. Stage plan and roster:
 `docs/swarm/stages.md`. Board: `docs/swarm/board.md`. Design spec of record:
 `docs/superpowers/specs/2026-10-24-gta-bedstuy-design.md` (this PRD refines it; where they disagree on
@@ -223,7 +225,7 @@ neighbourhood recognisability test with the user; real-GPU 60 fps at medium (use
 
 Context (Fable's Stage 3 decisions): the rigged-models / audio plan moves to Stage 4+ (no models delivered yet).
 Stage 3 is a fix-and-playtest loop: the user's bug (cannot exit cars), Stage 2 open issues 1–4 and 7, a recorded
-playtest harness, then three blind Haiku playtesters (H1 on-foot explorer, H2 driver/missions, H3 chaos/cops)
+playtest harness, then three blind playtesters (H1 on-foot explorer, H2 driver/missions, H3 chaos/cops)
 whose findings MGR triages into a defects table. Added 15:17–15:19Z from the user: MOB phone tier, MDL CC0 model
 research, RADIO own-library radio (8 stations, 147 slots) + talk station, WRITE 22-min talk-show script, BIBLE design reference
 (GTA 5 as the yardstick). Licensing: no copyrighted songs bundled, no Street View pixels, CC0 models with credits only. Ports: V1 4401, PT 4402, L10 4403, W2 4404, H1–H3 4411–4413, MGR 4420.
@@ -240,7 +242,7 @@ research, RADIO own-library radio (8 stations, 147 slots) + talk station, WRITE 
 | V1 | Enter still works (F near a car, touch, gamepad); no regression in player/vehicle tests | `npx vitest run tests/unit/entities` |
 | PT harness | `scripts/playtest/**` runs a Playwright session against a local preview, records **one webm** per session and writes a **thoughts transcript** (step, time, command, thought, state) | one demo session (scripted brain) with files listed in PT's report |
 | PT | In-page **subtitle box** shows the tester's current thought, burned into the video; **≥ 95 % of steps** carry a non-empty subtitle on screen when their frame is captured | harness counts subtitled steps / total steps and prints it |
-| PT | Command-file protocol a Haiku agent can drive step by step (write a command, wait for the step result + screenshot + state JSON), documented in `docs/PLAYTEST.md` with a worked example; harness survives a bad command without crashing | MGR review + demo log |
+| PT | Command-file protocol a playtester agent can drive step by step (write a command, wait for the step result + screenshot + state JSON), documented in `docs/PLAYTEST.md` with a worked example; harness survives a bad command without crashing | MGR review + demo log |
 | PT | Per-step state export: mode (foot/car), position, speed, wanted level, mission state, HUD text, console errors | state JSON per step |
 | L10 lighting | **Night spawn view mean luma within 0.085–0.13** (Stage 2: 0.24) via a glazing emissive cap ≈ 0.35 × texel; other night views ≥ 0.085; blown < 0.5 % at every audited hour | `scripts/light-audit.mjs` night views, before/after table |
 | L10 | GTAO outline artefacts vs AoProxy: verified present or absent with an A/B frame; fixed or ticketed with cause | L10 report + frames |
@@ -413,7 +415,7 @@ The user's words: "I don't know what's up with the cartoonish models I currently
 4. Radio voices: free in-browser neural TTS (no ElevenLabs), GTA-style hosts, talk shows, interviews.
 
 ## Stage 14 asks (user, 11 Nov, night) — plan in docs/swarm/plans/stage14.md
-More vehicles (sports cars, a Tesla-truck parody); more realistic textures; no letters like "BK" on characters; people interact and have voices; many agents for graphics and sound; GTA 5 style loading screen with a load bar; another 20 blocks; buildings and textures accurate from street photos; an accurate Brooklyn map with real twists and turns (opus agent to lead larger sub-projects, cheaper agents for research and grunt work); 15 radio stations incl. 2 talk and one 80s, with SoundCloud sets from Dekmantel, Boiler Room, RA and internet radio streams; realistic clothing and models at the level of GTA / Yakuza / Saints Row; AAA level for native ports and best possible web; teams for environment, cars, characters, sound; distinct engine sounds, horns and handling per vehicle; shortcuts for camera views and swapping; a jump button; phone menu styled like an iPhone; map shows real Brooklyn with built streets lit and the rest dimmed; focus Bed-Stuy and Bushwick (Williamsburg, a bit of Ridgewood later; Queens much later; avoid most of south Brooklyn).
+More vehicles (sports cars, a Tesla-truck parody); more realistic textures; no letters like "BK" on characters; people interact and have voices; many agents for graphics and sound; GTA 5 style loading screen with a load bar; another 20 blocks; buildings and textures accurate from street photos; an accurate Brooklyn map with real twists and turns ([a senior agent] to lead larger sub-projects, cheaper agents for research and grunt work); 15 radio stations incl. 2 talk and one 80s, with SoundCloud sets from Dekmantel, Boiler Room, RA and internet radio streams; realistic clothing and models at the level of GTA / Yakuza / Saints Row; AAA level for native ports and best possible web; teams for environment, cars, characters, sound; distinct engine sounds, horns and handling per vehicle; shortcuts for camera views and swapping; a jump button; phone menu styled like an iPhone; map shows real Brooklyn with built streets lit and the rest dimmed; focus Bed-Stuy and Bushwick (Williamsburg, a bit of Ridgewood later; Queens much later; avoid most of south Brooklyn).
 
 ## Stage 15 asks (owner, 11 Nov, after the demo package)
 Verbatim: "Graphics are cool shoulders are weird on chars and there should be more variation in body types the title screen
@@ -475,3 +477,23 @@ Fable's reading: (1) physics defects fixed; (2) more body types and a much large
 street and building textures; (7) recognisable real places; (8) lanes in parallel but sparing with usage; (9) periodic
 transcripts and updates to the owner. Earlier the same day: Space starts the game, one action button, camera returns behind
 the player two seconds after a look, illustrated loading posters (blocked on an image generator).
+
+## Stage 19 asks (owner, 21 Nov)
+As recorded in `MEMORY.md` (the words in quotation marks are the owner's; the rest is the recorded summary of what he said):
+"update all the docs, set up this memory file, make a logo, fix the README, then all staff back to work: fix the bugs, then grow
+the map, then actual locations with fake names, then much more textures and clothing and better geometry all around ("really dig
+into GTA 4 and 5 for that"), more characters, more vehicles and better handling; "the phone is meh so let's fix that"; polish."
+
+Reading of each ask (the technical writer's, for the lead to confirm):
+1. Update all the docs: every Markdown file gets a status line, the README is rewritten, and an index, a changelog and a contributing page are added.
+2. Set up the memory file: `MEMORY.md` is the standing memory every session reads first (done on 21 Nov).
+3. Make a logo: a brand lane produces the logo, icons and the README header image (`docs/brand/`, `public/icons/`).
+4. Fix the README: rewritten against the code on 21 Nov.
+5. All staff back to work, in this order: fix the bugs first (the red tests listed in `MEMORY.md`: grid and real-map traffic simulation, real-map draw calls).
+6. Then grow the map: the real map is already about 9.8 km2 in the unreleased tree; the next step is not specified further.
+7. Then actual locations with fake names: recognisable real places under invented names, on the real map.
+8. Then much more textures and clothing and better geometry all around, "really dig into GTA 4 and 5 for that": street and building textures with a shared facade sheet, more wardrobe, better people, car and building geometry, with GTA IV and V as style references only (no assets).
+9. More characters and more vehicles, and better handling.
+10. "The phone is meh so let's fix that": the phone version needs a pass on controls, layout and memory (lane PHONE2; `?debug=mem` for numbers).
+11. Polish, across all of the above.
+

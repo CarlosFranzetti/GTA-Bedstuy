@@ -1,6 +1,8 @@
 # Stage 1 check-in
 
-Author: MGR (Opus manager). Swarm window: 2026-10-28 01:09Z → 03:10Z (~2 h). Sources: `docs/swarm/transcript.md`
+Status: historical record (not maintained)
+
+Author: MGR (lead model manager). Swarm window: 2026-10-28 01:09Z → 03:10Z (~2 h). Sources: `docs/swarm/transcript.md`
 (all FINAL REPORTs and MGR reviews), `docs/swarm/board.md`, task records in `docs/swarm/tasks/`, and spot checks
 of the tree by MGR (file presence, call sites in `src/main.ts`, `tsc --noEmit`, targeted vitest runs).
 Acceptance criteria referenced as PRD §5.x (`docs/swarm/PRD.md`).
@@ -120,22 +122,22 @@ Suggested lanes (ids are provisional). "Owns" lists the files to grant on the bo
 | # | Task | Suggested owner (model) | Owns | Depends on |
 |---|---|---|---|---|
 | 0 | Stage 1 close-out: §5 items 1, 2 and 5 (metalness fix + audit re-run, leftover allocations, save R1 sets) | Fable | MaterialLibrary lines, SkyDome/LensFlare/NightLights/Hud/Minimap lines | — |
-| 1 | **Grid verification + schema v2**: confirm the N–S street order (DeKalb?), one-way directions and widths; extend `bedstuy.json` with per-lot fields (floors, width, material family, stoop, cornice, use, storefront archetype) | data lane (sonnet) + Fable for types.ts | `src/world/data/bedstuy.json`, `src/world/Grid.ts`, grid tests | allowlist or user screenshots |
-| 2 | **Block-face research pass 2**: OSM/PLUTO pull if allowlisted, else per-face checklist from the user's Street View screenshots (values only) | R2-successor (haiku) | `docs/reference/block-faces.md`, `docs/world-notes.md` | 1 (schema) |
-| 3 | **Facade generator per face**: build lots from the schema-v2 data (floors, stoop, cornice, material), keep the fallbacks | buildings lane (sonnet) | `src/world/BuildingGen.ts`, `LotSubdivider.ts`, `src/world/buildings/*` | 1, 2 |
-| 4 | **Storefront placement + awning UVs at true aspect** (drop R4's pre-squeeze) | R4-successor (sonnet) | `src/world/buildings/mixeduse.ts`, signage geometry, `storefront-art.ts` | 3 |
-| 5 | **Mission framework**: triggers, objectives, fail/retry, HUD text, save of mission state | missions-core (sonnet) | `src/game/missions/*`, HUD mission widget | — |
-| 6 | **Mission content**: 3–5 missions (bodega delivery, laundromat getaway, block-party run, cop escape) | missions-content (sonnet) | `src/game/missions/content/*` | 5 |
-| 7 | **Hosted build**: `build:hosted`, asset manifest, `VITE_HOSTED`, 2K CC0 sets (from R1, after the licence check), `ultra` tier, lazy loading; artifact still ≤ 16 MB | build lane (sonnet) + Fable for package.json / vite config | `scripts/`, `src/textures/packs.ts`, hosted manifest | R1 licence check |
-| 8 | **Perf pass 2**: instancing for props and parked cars, per-cell material merging, shadow-pass culling, < 500 draw calls at medium | M4-successor (sonnet) | `src/render/Culling.ts`, `WorldBuilder.ts`, `main.ts` | 3 (new geometry) |
-| 9 | **Lighting follow-ups**: wet-asphalt variant + wetness state, stoop acne at 7h/18h on medium/high, signal-lamp bloom at night, audit baselines in repo | M1-successor (sonnet) | M1's Stage 1 files + MaterialLibrary lines | 0 |
-| 10 | **QA / regression lane**: the missing §5.2 tests (top-speed stability, contact jitter, drift angle, full-density gridlock sim), screenshot set per stage | QA (sonnet) | `tests/**` new files only | — |
-| 11 | **CC0 round 4**: corrugated steel, chain-link, granite, cast iron, tar roof (needs an ambientcg.com / polyhaven.com allowlist) | R1-successor (haiku) | scratchpad + `docs/swarm/tasks/` | allowlist |
-| 12 | MGR: Stage 2 PRD refresh, board, reviews, check-in | MGR (opus) | `docs/swarm/*` | — |
+| 1 | **Grid verification + schema v2**: confirm the N–S street order (DeKalb?), one-way directions and widths; extend `bedstuy.json` with per-lot fields (floors, width, material family, stoop, cornice, use, storefront archetype) | data lane (standard) + Fable for types.ts | `src/world/data/bedstuy.json`, `src/world/Grid.ts`, grid tests | allowlist or user screenshots |
+| 2 | **Block-face research pass 2**: OSM/PLUTO pull if allowlisted, else per-face checklist from the user's Street View screenshots (values only) | R2-successor (light) | `docs/reference/block-faces.md`, `docs/world-notes.md` | 1 (schema) |
+| 3 | **Facade generator per face**: build lots from the schema-v2 data (floors, stoop, cornice, material), keep the fallbacks | buildings lane (standard) | `src/world/BuildingGen.ts`, `LotSubdivider.ts`, `src/world/buildings/*` | 1, 2 |
+| 4 | **Storefront placement + awning UVs at true aspect** (drop R4's pre-squeeze) | R4-successor (standard) | `src/world/buildings/mixeduse.ts`, signage geometry, `storefront-art.ts` | 3 |
+| 5 | **Mission framework**: triggers, objectives, fail/retry, HUD text, save of mission state | missions-core (standard) | `src/game/missions/*`, HUD mission widget | — |
+| 6 | **Mission content**: 3–5 missions (bodega delivery, laundromat getaway, block-party run, cop escape) | missions-content (standard) | `src/game/missions/content/*` | 5 |
+| 7 | **Hosted build**: `build:hosted`, asset manifest, `VITE_HOSTED`, 2K CC0 sets (from R1, after the licence check), `ultra` tier, lazy loading; artifact still ≤ 16 MB | build lane (standard) + Fable for package.json / vite config | `scripts/`, `src/textures/packs.ts`, hosted manifest | R1 licence check |
+| 8 | **Perf pass 2**: instancing for props and parked cars, per-cell material merging, shadow-pass culling, < 500 draw calls at medium | M4-successor (standard) | `src/render/Culling.ts`, `WorldBuilder.ts`, `main.ts` | 3 (new geometry) |
+| 9 | **Lighting follow-ups**: wet-asphalt variant + wetness state, stoop acne at 7h/18h on medium/high, signal-lamp bloom at night, audit baselines in repo | M1-successor (standard) | M1's Stage 1 files + MaterialLibrary lines | 0 |
+| 10 | **QA / regression lane**: the missing §5.2 tests (top-speed stability, contact jitter, drift angle, full-density gridlock sim), screenshot set per stage | QA (standard) | `tests/**` new files only | — |
+| 11 | **CC0 round 4**: corrugated steel, chain-link, granite, cast iron, tar roof (needs an ambientcg.com / polyhaven.com allowlist) | R1-successor (light) | scratchpad + `docs/swarm/tasks/` | allowlist |
+| 12 | MGR: Stage 2 PRD refresh, board, reviews, check-in | MGR (lead) | `docs/swarm/*` | — |
 
 ## 8. Process notes
 
-- Research lanes (haiku) finished within ~6 minutes and mechanics lanes within ~25 minutes. M1 took ~2 h,
+- Research lanes (light) finished within ~6 minutes and mechanics lanes within ~25 minutes. M1 took ~2 h,
   because each light-audit run is ~15 min of headless rendering. Next time, start the audit harness first, or
   split the audit into its own lane.
 - Several features were green in unit tests but not wired until M4 applied them in `main.ts`. Asking each

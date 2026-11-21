@@ -13,6 +13,7 @@
  * The tier is only the starting point: ?q=, a saved Menu choice and PerfMonitor's one-way auto drop still win.
  */
 import type { Quality } from './Shadows';
+import { PHONE_BUFFER_LONG_SIDE, PHONE_BUFFER_LONG_SIDE_OLD, deviceLongSideCss } from './QualityTier';
 
 export interface GpuInfo {
   /** UNMASKED_RENDERER_WEBGL, or RENDERER when the debug extension is missing */
@@ -27,6 +28,9 @@ export interface GpuInfo {
   cores?: number;
   /** navigator.deviceMemory (GB, Chromium only, capped at 8) */
   memoryGB?: number;
+  /** screen.width / screen.height (CSS px; iOS keeps them in portrait) and devicePixelRatio: tell a recent phone from an old one */
+  screenLong?: number;
+  dpr?: number;
   /** running inside the native wrapper (Electron / Tauri): always a desktop context, no phone fallback, high-performance GPU */
   native?: boolean;
 }
@@ -49,6 +53,8 @@ export interface GpuProfile {
   smaa: boolean;
   /** WebGL context attributes to pass to the renderer */
   contextAttributes: { antialias: false; alpha: false; powerPreference: 'high-performance' | 'default' };
+  /** the buffer cap is on the long side of the view (handhelds: a portrait phone is not rendered at its narrow width) */
+  longSide?: boolean;
   /** the native app hint was set */
   native: boolean;
   /** why, for logs and the debug overlay */
@@ -117,13 +123,27 @@ export function classifyRenderer(raw: string, os: OsKind): { gpu: GpuClass; tier
 
 const STRONG: Pick<GpuProfile, 'maxBufferWidth'> = { maxBufferWidth: 3840 };
 
+/**
+ * Buffer long side for a handheld: 1280 px on recent phones, 960 on older or weaker ones. Safari hides the GPU model, so this
+ * goes by the screen (an iPhone 12 or later has 2532 physical px or more on its long side; iPads are big and strong enough)
+ * and, on Android, by cores and memory. The Menu's resolution scale lets the player go lower.
+ */
+export function handheldBufferLongSide(info: Pick<GpuInfo, 'userAgent' | 'platform' | 'maxTouchPoints' | 'screenLong' | 'dpr' | 'cores' | 'memoryGB'>): number {
+  const os = detectOs(info);
+  if (os === 'ios') {
+    const phys = (info.screenLong ?? 0) * (info.dpr ?? 1);
+    return (info.screenLong ?? 0) >= 1000 || phys >= 2500 ? PHONE_BUFFER_LONG_SIDE : PHONE_BUFFER_LONG_SIDE_OLD;
+  }
+  return (info.cores ?? 0) >= 8 && (info.memoryGB ?? 0) >= 6 ? PHONE_BUFFER_LONG_SIDE : PHONE_BUFFER_LONG_SIDE_OLD;
+}
+
 export function classifyGpu(info: GpuInfo): GpuProfile {
   const os = detectOs(info);
   const native = !!info.native || /Electron\//.test(info.userAgent ?? '');
   const base = { os, native, smaa: true, contextAttributes: { antialias: false as const, alpha: false as const, powerPreference: 'high-performance' as const } };
 
   if (!native && (os === 'ios' || os === 'android')) {
-    return { ...base, gpu: /Apple/i.test(info.renderer) ? 'apple-mobile' : /Adreno/i.test(info.renderer) ? 'adreno' : 'mali', tier: 'phone', maxPixelRatio: 1, maxBufferWidth: 720, smaa: false,
+    return { ...base, gpu: /Apple/i.test(info.renderer) ? 'apple-mobile' : /Adreno/i.test(info.renderer) ? 'adreno' : 'mali', tier: 'phone', maxPixelRatio: 3, maxBufferWidth: handheldBufferLongSide(info), longSide: true, smaa: false,
       contextAttributes: { ...base.contextAttributes, powerPreference: 'default' }, reason: `${os} handheld: reduced world by design` };
   }
 
@@ -154,8 +174,9 @@ export function classifyGpu(info: GpuInfo): GpuProfile {
 }
 
 /** Final renderer pixel ratio: the tier's own ratio, further lowered by the profile. */
-export function profilePixelRatio(tierRatio: number, p: Pick<GpuProfile, 'maxPixelRatio' | 'maxBufferWidth'>, cssWidth: number): number {
-  const byWidth = cssWidth > 0 ? p.maxBufferWidth / cssWidth : Infinity;
+export function profilePixelRatio(tierRatio: number, p: Pick<GpuProfile, 'maxPixelRatio' | 'maxBufferWidth'> & { longSide?: boolean }, cssWidth: number): number {
+  const side = p.longSide ? Math.max(cssWidth, deviceLongSideCss()) : cssWidth;
+  const byWidth = side > 0 ? p.maxBufferWidth / side : Infinity;
   return Math.max(0.25, Math.min(tierRatio, p.maxPixelRatio, byWidth));
 }
 
@@ -165,6 +186,7 @@ export function readGpuInfo(): GpuInfo {
   const info: GpuInfo = {
     native: typeof window !== 'undefined' && !!(window as unknown as { gtaNative?: unknown }).gtaNative,
     renderer: '', userAgent: nav?.userAgent, platform: nav?.platform, maxTouchPoints: nav?.maxTouchPoints,
+    screenLong: deviceLongSideCss(), dpr: typeof window !== 'undefined' ? window.devicePixelRatio : undefined,
     cores: nav?.hardwareConcurrency, memoryGB: (nav as unknown as { deviceMemory?: number } | undefined)?.deviceMemory,
   };
   try {

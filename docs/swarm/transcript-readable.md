@@ -1,5 +1,7 @@
 # The Bed-Stuy Build: A Readable Transcript
 
+Status: historical record (not maintained)
+
 *What the AI team said to each other while building your GTA-style Bed-Stuy game, retold in plain English.*
 
 This is a retelling of the team's shared log (`docs/swarm/transcript.md`, about 200 posts). Short phrases in "quote marks" are the agents' own words; everything else is paraphrase. Where an agent posted only numbers, I say so. Technical terms are explained in [square brackets] when they first appear, and in the glossary at the end.
@@ -538,7 +540,7 @@ At 13:27 MGR wrote `checkins/stage3.md`. In short: your car-exit bug is fixed an
 # STAGE 4: Reaching the GTA3 Bar
 *3 November, 13:31Z to about 23:00Z, with a long pause in the afternoon*
 
-**The target.** Stage 3 had ended with green gates and your car-exit bug fixed. The manager's graphics ladder (a checklist of what the picture must look like, one rung per GTA generation) had not reached its first rung, "GTA3". Seven standard camera viewpoints are judged against it: a noon street, a noon corner, a golden-hour aerial, a dusk car view, a night car view, a night corner and a morning view of the traffic signals. fable opened Stage 4 at 13:31Z with two lanes: **GTA3** (a Sonnet agent to close the manager's gaps) and **H4** (a Haiku blind tester for the phone version and the record shop on build "v13").
+**The target.** Stage 3 had ended with green gates and your car-exit bug fixed. The manager's graphics ladder (a checklist of what the picture must look like, one rung per GTA generation) had not reached its first rung, "GTA3". Seven standard camera viewpoints are judged against it: a noon street, a noon corner, a golden-hour aerial, a dusk car view, a night car view, a night corner and a morning view of the traffic signals. fable opened Stage 4 at 13:31Z with two lanes: **GTA3** (a standard model agent to close the manager's gaps) and **H4** (a light model blind tester for the phone version and the record shop on build "v13").
 
 ## Hour 13:30Z: the black square turns out to be tree pits
 
@@ -578,7 +580,7 @@ At 16:17 MGR sent a short nudge to SHOPUX: its fifteen minutes had become over a
 
 ### H5: the tester who could not get there
 
-Before the pause, H5 (also Haiku, phone tier, build v14) had finished at 16:25Z and its report is the most downcast of the stage. "I could not get far." It followed the HUD pointer to Throop Ave and the Golden Cork shop but "never reached WAX DELI or my home". In order:
+Before the pause, H5 (also light model, phone tier, build v14) had finished at 16:25Z and its report is the most downcast of the stage. "I could not get far." It followed the HUD pointer to Throop Ave and the Golden Cork shop but "never reached WAX DELI or my home". In order:
 
 - Steps 4 to 5, 7, 12 to 13: walking "into brick walls with no clear way round", and "the glass deli front blocks the sidewalk with no visible gap".
 - Step 11: "the Crate Digger mission was silently replaced by Laundromat Getaway with no toast, while the state JSON said mission null until step 15."
@@ -691,7 +693,7 @@ fable also published artifact **v15** at 04:11 (9.45 MB; 119 test files, 1,897 t
 
 ## H6: the first blind tester to get through the shop
 
-H6 (Haiku, phone tier 640 by 360, port 4431) began at 04:08:45. It ended after 48 steps at 04:42, stuck near Lafayette Avenue. fable's summary at 04:43 and MGR's at 04:46 agree with the tester's own transcript. Here are H6's subtitles, in order, because they are the best window into a first-time player.
+H6 (light model, phone tier 640 by 360, port 4431) began at 04:08:45. It ended after 48 steps at 04:42, stuck near Lafayette Avenue. fable's summary at 04:43 and MGR's at 04:46 agree with the tester's own transcript. Here are H6's subtitles, in order, because they are the best window into a first-time player.
 
 **Finding the shop.** Step 1: "Spawned on a busy street with a brick wall right next to me and a big yellow sign ahead. The top pill says Offer: Crate Digger 15 m with a down arrow, so the goal is behind me. I will turn around to find it." Step 4: "The offer turned into a mission called Crate Digger with a timer of 8:00 and the cash went from 120 to 180 somewhere along the way." Step 5, on turning: "I overshot ... The big half-turn I asked for only swung the view about 90 degrees." Step 8: "The prompt now says F Enter WAX DELI and the screen is going dark, so I am at the door."
 
@@ -712,7 +714,7 @@ At 04:42 MGR wrote `checkins/stage5.md`: all four feel lanes accepted, both Stag
 # STAGE 6: Getting Around, and the Last GTA3 Items
 *7 November, 04:44Z to 05:31Z (47 minutes)*
 
-Three Sonnet lanes launched in the same minute, one for each cluster of H6's findings. This is the fastest stage so far: from H6's report at 04:43 to a published build at 05:30, less than an hour.
+Three standard model lanes launched in the same minute, one for each cluster of H6's findings. This is the fastest stage so far: from H6's report at 04:43 to a published build at 05:30, less than an hour.
 
 ## NAV6 and the two different traps
 

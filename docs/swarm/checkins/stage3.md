@@ -1,6 +1,8 @@
 # Stage 3 check-in: the playtest loop
 
-Written by the Opus manager (MGR) on 3 Nov 2026 at about 13:30Z. Stage 3 ran from 1 Nov 15:14Z to 3 Nov 13:30Z, interrupted twice by
+Status: historical record (not maintained)
+
+Written by the lead model manager (MGR) on 3 Nov 2026 at about 13:30Z. Stage 3 ran from 1 Nov 15:14Z to 3 Nov 13:30Z, interrupted twice by
 the account usage limit (1 Nov ~19:20Z to 3 Nov 06:20Z, and again on the morning of 3 Nov). Every review cited here is in
 `transcript.md` (search `MGR review of`); the readable narrative for the user is `transcript-readable.md`.
 

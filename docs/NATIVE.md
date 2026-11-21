@@ -1,5 +1,7 @@
 # Native desktop apps (macOS Apple Silicon, Windows x64)
 
+Status: current (checked 21 Nov 2026)
+
 GTA Bed-Stuy is a non-commercial fan tribute. The desktop apps are a thin Electron shell (`native/`) around the same hosted web build the browser version uses, so the browser and the app draw the same game with the same Chromium WebGL2 engine. The web build and the 12 MB single-file artifact are untouched.
 
 ## Get it running in under two minutes (owner)
@@ -90,7 +92,8 @@ npm --prefix native run dist:win      # -> native/release/*.exe (installer and p
 - Job **smoke** (Linux, virtual display): builds the web bundle, runs the shell's unit tests, boots the real Electron app and checks the title screen, start, one frame, fonts, street animation pack, voice pack, map data, the radio and voice hosts in the policy, and the graphics report (`native/scripts/smoke.mjs`). Software rendering only: it proves the app boots, not how it looks or runs on a GPU.
 - Job **build** (macOS arm64, Windows x64): hosted web build, shell tests, packaging, then `verify-package.mjs` looks inside the finished app and fails if the web build is missing, is the single-file artifact, lacks fonts, voice pack, `street.bin` or map data, or contains the phonemizer. Artifacts are named with the commit: `gta-bedstuy-mac-arm64-<commit>` and `gta-bedstuy-win-x64-<commit>`; the installers inside carry it too. A missing installer fails the upload step.
 - A tag such as `v0.1.0` also attaches the installers to a GitHub Release.
-- Never verified on GitHub's runners yet: nobody has run this workflow. The Linux unpacked app and the smoke test are the only things run so far.
+- What the runners have shown (GitHub Actions run list read on 21 Nov 2026): the workflow has run 56 times, 35 cancelled by a newer push, 20 failed, 1 fully green (11 Nov). In the latest runs the macOS and Windows **build** jobs succeed and upload the installers; the Linux **smoke** job fails at the step "Boot smoke test (title screen, start, one frame)", and its cause has not been investigated here. No GitHub Release exists yet (no `v*` tag has been pushed), so the installers are only available as run artifacts, which expire after 30 days.
+- Nobody on the studio side has run the built apps on a real Mac or Windows machine.
 
 ## Signing (optional, secrets are not set up yet)
 Add repository secrets; the workflow already reads them and signs only when present.

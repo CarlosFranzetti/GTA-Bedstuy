@@ -1,5 +1,7 @@
 # Records, the shop, the decks and the interiors (CLUB lane)
 
+Status: current (checked 21 Nov 2026)
+
 No copyrighted music is bundled. A record is one of three kinds:
 
 | kind | where it comes from | price | tempo |

@@ -1,6 +1,8 @@
 # Brief: UI14 — smartphone phone, GTA 5 style loading screen, real-Brooklyn map screen
 
-Director: Tomas (ARTDIR). Model: sonnet. Port 4486. Start when Priya (MENU) posts FINAL; take her FINAL as the handover.
+Status: historical record (not maintained)
+
+Director: Tomas (ARTDIR). Model: standard. Port 4486. Start when Priya (MENU) posts FINAL; take her FINAL as the handover.
 Read first: docs/swarm/ORG.md, docs/swarm/plans/stage14.md (rules), docs/swarm/art/ART-BAR.md (Interface and Loading),
 board.md "Token policy". Read only the files below. Post start, blockers and wrap-up to "@Tomas" with scripts/swarm-say.sh "<your name> (UI14)".
 

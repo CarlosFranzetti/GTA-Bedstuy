@@ -24,14 +24,14 @@ describe('texture size by tier (the one API new textures use)', () => {
       expect(wantsReliefMaps()).toBe(true);
     }
   });
-  it('halves every kind on the phone tier and never goes below the minimum side', () => {
+  it('halves most kinds on the phone tier (shop sheets and people go to 3/8) and never goes below the minimum side', () => {
     setTextureTier('phone');
     expect(texSize(1024)).toBe(512);
     expect(texSize(512, 'decal')).toBe(256);
-    expect(texSize(2048, 'atlas')).toBe(1024);
+    expect(texSize(2048, 'atlas')).toBe(768);   // shop-front sheets: 3/8 (the memory target of the second phone pass)
     expect(texSize(1024, 'skin')).toBe(512);
     expect(texSize(1024, 'ground')).toBe(768); // ground photos are seen up close
-    expect(texSize(256, 'people')).toBe(128);
+    expect(texSize(1024, 'people')).toBe(384);  // people are small on a phone screen
     expect(texSize(20, 'surface')).toBe(MIN_TEX_SIDE);
     expect(texSize(8, 'surface')).toBe(8); // already below the minimum: untouched
     expect(wantsReliefMaps()).toBe(false);

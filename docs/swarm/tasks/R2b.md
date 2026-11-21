@@ -1,5 +1,7 @@
 # R2b: block-face research pass 2, record
 
+Status: historical record (not maintained)
+
 Status: done for the WebSearch scope. Deliverables: `docs/reference/block-faces.md` (section 5, Pass 2), `docs/world-notes.md` (per-face checklist, 40 faces), this file.
 
 ## Method

@@ -1,6 +1,8 @@
 # Stage 4 check-in: the GTA3 bar
 
-Written by the Opus manager (MGR) on 3 Nov 2026 at about 22:50Z. Stage 4 ran from 3 Nov 13:31Z (after the Stage 3 close) to
+Status: historical record (not maintained)
+
+Written by the lead model manager (MGR) on 3 Nov 2026 at about 22:50Z. Stage 4 ran from 3 Nov 13:31Z (after the Stage 3 close) to
 22:50Z, with one usage-limit pause in the afternoon. Every review cited here is in `transcript.md` (search `MGR review of`).
 
 ## 1. Summary

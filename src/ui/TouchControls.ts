@@ -127,6 +127,11 @@ export function hapticTick(ms = 9): boolean {
   } catch { return false; }
 }
 
+/** iPhone Safari in a browser tab (not an installed web app): the only way to lose the browser bars is Add to Home Screen. */
+export function isIosBrowserTab(nav: { userAgent?: string; standalone?: boolean } = typeof navigator !== 'undefined' ? navigator : {}, standaloneMq = (): boolean => { try { return typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches; } catch { return false; } }): boolean {
+  return /iPhone|iPad|iPod/i.test(nav.userAgent ?? '') && !nav.standalone && !standaloneMq();
+}
+
 const TUTORIAL_LINES: Array<[string, string]> = [
   ['ACT', 'punch, throw or shoot'], ['JUMP', 'jump'], ['RUN', 'sprint while you move'],
   ['CAR', 'get in or out (shows near a car or door)'], ['GAS / BRAKE', 'drive; the stick steers'],
@@ -149,6 +154,7 @@ export class TouchControls {
   private runLatched = false;
   private promptTimer: ReturnType<typeof setInterval> | null = null;
   private tutorial: HTMLElement | null = null;
+  private tutorialAt = 0;
 
   constructor(private parent: HTMLElement, private input: Input, prefs: TouchPrefs = new TouchPrefs()) {
     this.prefs = prefs;
@@ -332,22 +338,23 @@ export class TouchControls {
     t.className = 'tc-tutorial';
     t.innerHTML = '<div class="tc-tut-left"><b>MOVE</b><span>Touch and drag anywhere on this side</span></div>'
       + '<div class="tc-tut-right"><b>LOOK</b><span>Drag anywhere on this side</span></div>'
-      + `<ul class="tc-tut-list">${TUTORIAL_LINES.map(([k, v]) => `<li><b>${k}</b> ${v}</li>`).join('')}</ul>`;
+      + `<ul class="tc-tut-list">${TUTORIAL_LINES.map(([k, v]) => `<li><b>${k}</b> ${v}</li>`).join('')}${isIosBrowserTab() ? '<li class="tc-tut-tip"><b>TIP</b> Share, then Add to Home Screen, hides the browser bars</li>' : ''}</ul>`;
     const ok = document.createElement('button');
     ok.type = 'button'; ok.className = 'tc-tut-ok'; ok.textContent = 'GOT IT';
     ok.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.dismissTutorial(true); });
     t.appendChild(ok);
     this.root.appendChild(t);
-    this.tutorial = t;
+    this.tutorial = t; this.tutorialAt = Date.now();
     // it never blocks play: touching the controls dismisses it, and it fades by itself after a while
     setTimeout(() => this.dismissTutorial(true), 20000);
   }
   private dismissTutorial(force = false): void {
     if (!this.tutorial) return;
+    if (!force && Date.now() - this.tutorialAt < 4000) return; // the first touches of play do not whisk it away before it can be read
     this.tutorial.classList.add('out');
     const t = this.tutorial; this.tutorial = null;
     setTimeout(() => t.remove(), 300);
-    if (force || true) this.prefs.markTutorialSeen();
+    this.prefs.markTutorialSeen();
   }
   private setupRotateHint(): void {
     let shown = false;

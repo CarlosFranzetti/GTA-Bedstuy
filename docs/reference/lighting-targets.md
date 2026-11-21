@@ -1,5 +1,7 @@
 # Lighting targets (R3, research-lighting)
 
+Status: historical record (not maintained)
+
 Owner: R3. Audience: M1 (lighting-reflections). Read-only reference, no source was changed.
 
 **How to read the numbers.** `[src]` = taken from a source excerpt listed in section 6. `[calc]` = computed here from our code or from the formulas cited. `[est]` = estimate or stylisation chosen for the game look, to be tuned by eye with `scripts/light-audit.mjs`. Nothing below was rendered; every target needs a screenshot check.

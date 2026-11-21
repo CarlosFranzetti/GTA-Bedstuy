@@ -1,6 +1,8 @@
 # Stage 6 check-in: getting around, and the last GTA3 items
 
-Written by the Opus manager (MGR) on 7 Nov 2026 at about 05:30Z. Stage 6 opened at 04:43Z, straight after the Stage 5 close and
+Status: historical record (not maintained)
+
+Written by the lead model manager (MGR) on 7 Nov 2026 at about 05:30Z. Stage 6 opened at 04:43Z, straight after the Stage 5 close and
 H6's blind playtest, and ran three lanes: NAV6, HUD6 and GTA4A. Reviews are in `transcript.md` (search `MGR review of`).
 
 ## 1. Summary

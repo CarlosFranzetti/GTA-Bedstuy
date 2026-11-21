@@ -1,5 +1,7 @@
 # Landmark candidates inside the grown real map (MAP7, 18 Nov 2026)
 
+Status: historical record (not maintained)
+
 For the LANDMARKS lane. Everything here comes from NYC Open Data that the real-map import already holds: MapPLUTO (`64uk-42ks`: building class, land use, lot area, residential units, owner) and the Centerline-derived network (street names). PLUTO has **no place names** (no school, church or park names): a name has to come from a separate open source or from the facts below, and nothing here is a verified name. Coordinates are in the game frame (metres, +x east along the Bed-Stuy streets, +z south, origin Throop Ave x Kosciuszko St; `src/world/roadnet/geom.ts` REAL_FRAME) and WGS84. `ring` = which ring the lot is in: R1 / R2 / R2+ were already on the map, **R3 is the new seven-block ring**. Lot ids are BBLs (borough 3 + block + lot): they match `RealLot.bbl` in the game, so a landmark can be attached to a lot with `rw.lots.find(l => l.bbl === ...)` once its tile is loaded (`rw.lotTiles.ensure(x, z, r)`).
 
 Full lists are in `cache/real-r3/lots-r3-all.json` (git-ignored; rebuild with `node scripts/import-lots-real.mjs --r3`). Below: the biggest or most recognisable per category, ring R3 first because those are new.

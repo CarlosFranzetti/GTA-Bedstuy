@@ -1,5 +1,9 @@
 # World notes: per-face checklist for Street View (R2, Stage 2)
 
+Status: historical record (not maintained)
+
+Do not use this procedure: the owner's rule is no Google Maps or Street View data or imagery (`MEMORY.md`, rule 2). The Street View checklist below was written on 28 Oct, before that rule was made absolute.
+
 Purpose: a checklist for filling the block faces of the 10-block Bed-Stuy grid from Street View screenshots, once the user supplies them. It turns what to look at into D1's schema fields (`src/world/data/schema.ts`, `LotSpec` and `FaceDef`). Values go into `src/world/data/bedstuy.json` (faces with `lots`, or `typology` defaults). The screenshots themselves stay out of the repo.
 
 ## Rules (from PRD §2.1)

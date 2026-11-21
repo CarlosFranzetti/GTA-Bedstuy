@@ -1,5 +1,7 @@
 # ART-BAR v2: "Rockstar polish" (Tomas Inkwell, ARTDIR, 11 Nov, Stage 15)
 
+Status: current (checked 21 Nov 2026): the bar and its banned list still stand and the owner's "no inked look" ruling is in force. The scoreboard was brought up to 21 Nov from the transcript; no art director has scored a round since 12 Nov.
+
 > **Owner ruling, 11 Nov (after seeing the first ink tests): "i dont want the inked look i just want better polygons for the
 > characters".** The inked, posterised panel pipeline in section (a) is retired. Title and loading art are clean, polished
 > in-engine shots of our own world: composed with the free camera, gently graded, soft vignette, thin letterbox, nothing
@@ -265,8 +267,21 @@ deck, stripes or vents drawn as geometry steps, chrome outline on every edge.
 | ROADS (Bea) | 12 Nov r2, smoke2 | FAIL (better): grey flags and quiet asphalt pass on start street; bluestone stretch still brown/blue planks, cube trees, broken dashed power lines, faceted bags |
 | FACADES (Noor) | 12 Nov r1, realworld2 + smoke | FAIL: brick scale and repeat, no base grime |
 | FACADES (Noor) | 12 Nov r2, smoke2 | FAIL: brick still rubble-scale and high contrast on the rowhouses; no change seen yet |
-| SHOTS (Priya) | none yet | waiting |
-| HUD2 (Zadie) | none yet | waiting |
+| SHOTS (Priya) | 12 Nov | Not scored. SHOTS2 (Vesper) produced the five title and loading backdrops, `public/art/shot-*.webp`, 1920 px wide, in-engine frames with no ink filter (wrap-up 12 Nov 20:18). The six illustrated loading posters were never made: the free image generators refused without a token. |
+| HUD2 (Zadie) | none | No round posted. |
+
+Rows below were added on 21 Nov. They record each lane's own wrap-up claim from `docs/swarm/transcript.md`. No art director scored them, so none is a PASS or a FAIL, and none has been looked at in the running game by the writer of this table.
+
+| Lane | Round | Status |
+|---|---|---|
+| PEOPLE4 (Quill) | 12 Nov | Claims trousers are cut tubes with a gap, hem cuffs, chunky shoes (in the live game since 12 Nov). Not scored. |
+| HAIR3 (Mara Voss) | 18 Nov | Claims hair, beard, hat, glasses and bag pieces are wired into the person mesh (a live commit of 18 Nov is titled "People wear hair, hats and bags"). Not scored. |
+| HAIR4 (Iris Calder) | 18 Nov | Started rebuilding hair shapes; no wrap-up posted. Not scored. |
+| PEOPLE5 (Tamsin Reed) | 18 Nov | Claims shoes visible from the chase camera, hem bands that follow the body, straight sleeves with cuffs. Not scored. |
+| PEDTEX2 (Tessa Grain) | 18 Nov | Face and cloth painters done. Reports open geometry faults: squeezed eye-region UVs, hair polygons over the eyes on two models. Not scored. |
+| PEOPLE6 (Juno Okafor) | 18 to 19 Nov | Claims 21 body types and a wardrobe of 27 tops and layers, 6 one-pieces, 20 bottoms, 11 shoes. In development, not released. Not scored. |
+| CARS2 (Kestrel Moyne) | 18 Nov | Started more car types and liveries; no wrap-up posted. The source has 37 vehicle types. Not scored. |
+| SURFACES (Ines Marlowe), SURFACES2 (Tamsin Orrell) | 18 and 21 Nov | Shared facade sheet and street surfaces started; no wrap-up posted. The section (g) checklist above is still unchecked. |
 
 ## Earlier read, 11 Nov midday (frames in c14b/, cars14/hi_before/, ui14/)
 - People: shoulders peak at the collar with zigzag shirt shards at neck, hem and cuffs; one body for everyone; the hijab is

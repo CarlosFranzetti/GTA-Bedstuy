@@ -1,6 +1,8 @@
 # Stage 2 check-in — block-face accuracy, missions, hosted build
 
-Written by Fable at close-out (29 Oct, ~01:10Z). The Opus manager reviewed and accepted every lane but hit the
+Status: historical record (not maintained)
+
+Written by Fable at close-out (29 Oct, ~01:10Z). The lead model manager reviewed and accepted every lane but hit the
 account usage limit before writing this file; its per-lane reviews are in `transcript.md` (search `MGR review of`).
 A container restart at ~22:45Z killed seven lanes mid-work; all were relaunched in resume mode with their on-disk
 edits intact and finished.

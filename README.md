@@ -4,8 +4,6 @@
 
 # GTA Bed-Stuy
 
-Status: current (checked 21 Nov 2026)
-
 GTA Bed-Stuy is a free, non-commercial fan tribute: an open-world, third-person driving and walking game set in
 Bedford-Stuyvesant, Brooklyn. You walk the streets, drive, fight a little, take jobs from people on the block, listen to
 the car radio, and get chased by the police. It runs in a web browser (Three.js, Vite, TypeScript) and as desktop apps.
@@ -30,7 +28,9 @@ repository; the source holds work that has not been checked in the running game 
 ## Controls
 
 These come from `src/core/ControlsHelp.ts`, `src/core/Input.ts`, `src/core/Gamepad.ts`, `src/ui/TouchControls.ts` and the
-pause menu's Controls tab (`src/ui/Menu.ts`). On a phone the layout is being reworked (in development).
+pause menu's Controls tab (`src/ui/Menu.ts`). The touch column is the released layout. In the source tree it is being
+reworked (in development): a stick that appears under your thumb anywhere on the left, GAS, BRAKE and HAND buttons in a car,
+and VIEW doubling as look-behind. This column will change when that is released.
 
 | Action | Keyboard and mouse | Gamepad | Touch |
 |---|---|---|---|
@@ -77,8 +77,8 @@ There is no action button in a car yet. Left Ctrl is not a game key, because Ctr
 - **Radio.** A dial of 15 stations: SoundCloud sets played through SoundCloud's own player, live public radio streams,
   and a scripted talk show, WBSY Talk. Nothing is bundled. DJs and hosts speak with synthesized voices.
   See [docs/RADIO.md](docs/RADIO.md).
-- **Places to go in.** HOME, the WAX DELI record shop and the AFTERSLOTH club, which has working DJ decks. An elevated
-  train line you can ride.
+- **Places to go in.** HOME, the WAX DELI record shop, and the AFTERSLOTH club (open at night, once a mission unlocks it) with
+  DJ decks you can play. An elevated train line you can ride.
 - **Weather, day and night.** A day and night cycle. Eight weather kinds on a seeded forecast (clear, partly cloudy,
   overcast, light rain, heavy rain, thunderstorm, fog, windy): in development.
 - **Saves and settings.** Saves and settings are kept in your browser (or the app's profile folder).
@@ -86,8 +86,9 @@ There is no action button in a car yet. Left Ctrl is not a game key, because Ctr
 ## Quality settings and URL parameters
 
 There are four tiers: `phone`, `low`, `medium` and `high` (`src/render/QualityTier.ts`). Each has a triangle and draw-call
-budget: phone 300,000 and 150, low 500,000 and 220, medium 1,200,000 and 320, high 2,000,000 and 450. The phone tier draws at
-most 720 px wide, loads no normal or roughness maps, and keeps a short view distance hidden by fog. The `low` tier does
+budget: phone 300,000 and 150, low 500,000 and 220, medium 1,200,000 and 320, high 2,000,000 and 450. The phone tier draws
+at a reduced size (the cap is being changed by the phone work in development, see `src/render/QualityTier.ts`), loads no
+normal or roughness maps, and keeps a short view distance hidden by fog. The `low` tier does
 not yet meet its draw-call budget. Without a parameter the game picks a tier from the graphics card and may step down
 once if the frame rate stays low. The pause menu, Settings, has finer controls (resolution, shadows, draw distance,
 crowd and traffic density, anti-aliasing, bloom and more).

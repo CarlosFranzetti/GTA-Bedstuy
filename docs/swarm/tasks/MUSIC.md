@@ -1,6 +1,8 @@
 # MUSIC - legal sources for real recorded music (research only)
 
-Owner: MUSIC (research, Haiku). Scope: find legal sources of real recorded music for the radio stations in docs/RADIO.md, report reachability from this sandbox, and say what the user must do. No source edits, no audio shipped into the repo. Sample files live in `/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/music/samples-cc0-openlofi/` (10 mp3, 1.0-2.4 MB each, with SHA256SUMS.txt, SOURCES.txt and licence copies).
+Status: historical record (not maintained)
+
+Owner: MUSIC (research, light model). Scope: find legal sources of real recorded music for the radio stations in docs/RADIO.md, report reachability from this sandbox, and say what the user must do. No source edits, no audio shipped into the repo. Sample files live in `/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/music/samples-cc0-openlofi/` (10 mp3, 1.0-2.4 MB each, with SHA256SUMS.txt, SOURCES.txt and licence copies).
 
 ## Reachability from this sandbox (checked 2026-11-03)
 

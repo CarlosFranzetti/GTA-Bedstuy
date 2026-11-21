@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "GTA Bed-Stuy: a non-commercial fan tribute set on ten blocks around Throop Ave & Kosciuszko St, Brooklyn. Not affiliated with Rockstar Games or Take-Two.",
+  "description": "GTA Bed-Stuy: a non-commercial fan tribute, an open-world Bedford-Stuyvesant, Brooklyn, played in a browser. Not affiliated with Rockstar Games or Take-Two.",
   "engines": {
     "node": ">=20.19"
   },

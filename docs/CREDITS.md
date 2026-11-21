@@ -1,5 +1,7 @@
 # Credits
 
+Status: current (checked 21 Nov 2026). Completeness was checked on 21 Nov against every third-party source in the repository (`src/assets`, `public`, `tests/fixtures`, `package.json`, the data-import scripts under `scripts/`) and every dataset the real map uses; the entries added that day are marked "added 21 Nov".
+
 ## Studio
 
 **Created and directed by Carlos Franzetti**, the owner and the only human on the project.
@@ -56,7 +58,7 @@ shared between variants are stored once (`brick_normal`, `brick_rough`, `brick_p
 
 Fetched by `scripts/fetch-cc0-textures.mjs` (re-runnable). Each set folder has a `LICENSE.txt` with the source URL,
 author and licence. All are **CC0 1.0 Universal**. 1K JPEG albedo / OpenGL normal / roughness, plus 512 px re-encodes
-(`*_512.jpg`). Not wired into materials yet.
+(`*_512.jpg`). In use: the material library (`src/textures/cc0.ts`, `packs.ts`), the clothing tiles of the people textures (`src/entities/models/pedBodyHi.ts`) and the detail atlas (`src/textures/detailAtlas.ts`, built by `scripts/fetch-detail-atlas.mjs`).
 
 | set | source asset | author | source URL |
 |---|---|---|---|
@@ -127,6 +129,7 @@ No recorded music is bundled in the repo. Candidate source checked by MUSIC on 2
 
 - Building data pipeline (`scripts/import-osm.mjs`, `docs/REAL-BLOCKS.md`): (c) OpenStreetMap contributors, Open Database License (ODbL) 1.0, https://www.openstreetmap.org/copyright. No OSM data is in `bedstuy.json` yet (the Overpass hosts were unreachable); the credit applies as soon as an import is written.
 - NYC MapPLUTO, NYC Department of City Planning, via NYC Open Data, and NYC Building Footprints (DoITT/OTI), via NYC Open Data: the lots in `src/world/data/bedstuy.json` (width, storeys, class, year built, roof height) come from them via `scripts/fetch-pluto.mjs` and `scripts/import-pluto.mjs`; raw rows in `src/world/data/raw/`. Public data; credit kept.
+- Venue positions for the grid map (added 21 Nov): NYC DOHMH Restaurant Inspection Results (`43nn-pn8j`) and NYC DCWP business licences (`w7w3-xahh`), both from NYC Open Data, joined to MapPLUTO by address or BBL. The raw rows are `src/world/data/raw/venues-current.json` and `venues-expansion.json` (fetched 9 Nov 2026). They decide where a shop of a given kind stands; every shop name in the game is a generated parody (`parody_name`), and no real venue name is shown. Public data; credit kept.
 - Block descriptions in `docs/reference/BLOCKS.md` come from the public web pages named inline there (Brownstoner, New York YIMBY, GrowNYC, MTA Bus Time, Wikipedia, CityLand, listing sites). Facts only; no text or images copied. No Google Maps, Street View or Earth data is used anywhere.
 
 ## Real map, R1 + R2 + R3 (`?map=real`, hosted and native builds only; MAP7, fetched 18 Nov 2026)
@@ -140,7 +143,11 @@ All of it is NYC Open Data (City of New York), public datasets, fetched over the
 | Building footprints | NYC Building Footprints `5zhs-2jue` | `within_box(the_geom, <R3 extent box>)`, fields base_bbl, bin, height_roof, construction_year, shape_area (no polygons) | roof height and building count per lot |
 | Pedestrian signal points | VZV Leading Pedestrian Interval Signals `xc4v-ntf4`, Accessible Pedestrian Signal Locations `de3m-c5p4`, Exclusive Pedestrian Signal (Barnes Dance) `8kuj-2n3u` | `within_box(the_geom, <R3 extent box>)` (`scripts/import-signals.mjs --r3`) | `src/world/data/roadnet-controls-r123.json` (which junctions are signalised; the city publishes no full signal inventory) |
 
-R3 is the R1+R2 area pushed out seven city blocks on every side (`src/world/roadnet/extents.ts`).
+R3 is the R1+R2 area pushed out seven city blocks on every side (`src/world/roadnet/extents.ts`; the outline encloses about 9.8 km2).
+
+Brooklyn overview layer (added 21 Nov; `public/data/brooklyn-overview.json`, `src/world/data/brooklyn-overview-lite.json`, built by `scripts/build-brooklyn-overview.mjs`): NYC Open Data again, with no Google data: street centrelines CSCL `inkn-q76z`, Borough Boundaries clipped to the shoreline `gthc-hcne`, and 2020 Neighborhood Tabulation Areas `9nt8-h7nd` (label points).
+
+The tax-lot rows in `src/world/data/raw/*pluto*.json` carry whatever MapPLUTO publishes for a lot, including an owner-name column. The game does not show it.
 
 ## People base mesh (HUMAN)
 
@@ -167,23 +174,28 @@ Candidates not used, with the reason, are in `docs/reference/VOICES.md` (Piper: 
 
 All DJs, hosts, callers, shows and commercials (`src/audio/voice/**`) are original fiction written for this fan tribute. No real person, station or brand is named or imitated; a lint test (`tests/unit/audio/voice-content.test.ts`) enforces a deny-list of real brands, outlets and public figures.
 
-## Radio stations (RADIO15)
-Nothing is bundled. SoundCloud sets play only through SoundCloud's official widget; internet radio plays as each station's own public stream. Real set and artist names come from SoundCloud / the station and are shown as published.
+## Radio stations (RADIO15, as rebalanced on 11 Nov; table corrected 21 Nov from `src/audio/stations.ts`)
+Nothing is bundled. SoundCloud sets play only through SoundCloud's official widget (`https://w.soundcloud.com/player/api.js`); internet radio plays as each station's own public stream. Real set and artist names come from SoundCloud or the station and are shown as published. The dial has 15 stations; the "My Library" station appears only when the player adds their own files.
 
 | Station | Type | Source | Site |
 |---|---|---|---|
 | Boiler Room | SoundCloud account | soundcloud.com/platform | https://boilerroom.tv |
 | Dekmantel Podcast | SoundCloud account | soundcloud.com/dkmntl | https://www.dekmantel.com |
-| Resident Advisor (RA NYC pool + RA Podcast) | RA pool + SoundCloud account | soundcloud.com/resident-advisor | https://ra.co |
-| Mixmag | SoundCloud account | soundcloud.com/mixmag-1 | https://mixmag.net |
-| FACT Mixes | SoundCloud account | soundcloud.com/180fact | https://www.factmag.com |
+| Resident Advisor (RA NYC pool and RA Podcast) | RA pool, SoundCloud account | soundcloud.com/resident-advisor and the studio's own RA NYC proxy | https://ra.co |
 | Rinse FM | SoundCloud account | soundcloud.com/rinsefm | https://rinse.fm |
 | Soulection | SoundCloud account | soundcloud.com/soulection | https://soulection.com |
+| Universal Hip Hop Radio | SoundCloud account | soundcloud.com/uhhmradio | https://soundcloud.com/uhhmradio |
+| SilverStarSound | SoundCloud account | soundcloud.com/silver-star-sound | https://soundcloud.com/silver-star-sound |
+| DJ RubyTunes Latin | SoundCloud account | soundcloud.com/djrubytunes | https://soundcloud.com/djrubytunes |
 | The Lot Radio | SoundCloud account | soundcloud.com/thelotradio | https://www.thelotradio.com |
-| dublab, KEXP 90.3, Radio Paradise, WFMU 91.1, SomaFM Underground 80s, WNYC 93.9 FM | live public streams | each station's own stream URL (src/audio/stations.ts) | their sites |
+| WFMU Rock'n'Soul | live public stream | stream0.wfmu.org/rocknsoul | https://wfmu.org/ |
+| WFMU 91.1 | live public stream | stream0.wfmu.org/freeform-128k | https://wfmu.org |
+| KEXP 90.3 | live public stream | kexp.streamguys1.com/kexp128.mp3 | https://www.kexp.org |
+| SomaFM Underground 80s | live public stream | ice2.somafm.com/u80s-128-mp3 (with fallbacks) | https://somafm.com/u80s/ |
+| WNYC 93.9 FM | live public stream | fm939.wnyc.org/wnycfm (with a fallback) | https://www.wnyc.org |
 | WBSY Talk | scripted, synthesized voices | original fiction | n/a |
 
-KEXP's current-song line uses its open API; SomaFM's uses channels.json. Credit and link are shown in the Radio panel.
+KEXP's current-song line uses its open API (`api.kexp.org`); SomaFM's uses `channels.json`. Credit and link are shown in the Radio panel. Earlier versions of this table also listed Mixmag, FACT Mixes, dublab and Radio Paradise; they are no longer on the dial.
 
 ## Street photos and observed facades (ENV14)
 
@@ -191,7 +203,7 @@ Facts only (a wall colour, material class and shop-awning colour per lot) derive
 
 | Source | Author | Licence | Photos used |
 |---|---|---|---|
-| Wikimedia Commons | Jim.henderson | CC0 | 5 |
+| Wikimedia Commons | Jim.henderson | 3 public domain, 2 CC0 | 5 |
 | KartaView (OpenStreetCam) | 15 contributors (names in the sidecar) | CC BY-SA 4.0 | 215 |
 
 NYC Parks 2015 Street Tree Census (`uvpi-gqnh`) and NYC DCP MapPLUTO / Building Footprints via NYC Open Data: public data, no restriction.
@@ -232,6 +244,16 @@ built by `scripts/anim/build-clips.mjs` from the trials listed in `scripts/anim/
   Ubisoft LaFAN1 (CC BY-NC-ND 4.0 per the README at https://github.com/ubisoft/ubisoft-laforge-animation-dataset: non-commercial and no derivatives, ruled out);
   Bandai Namco Research Motion Dataset (CC BY-NC 4.0 per its README https://github.com/BandaiNamcoResearchInc/Bandai-Namco-Research-Motiondataset, ND on part of it per press coverage: non-commercial, ruled out);
   100STYLE (CC BY 4.0 per its Zenodo record https://zenodo.org/records/8127870; not needed, CMU covered the list). Mixamo is excluded (its licence does not allow passing the files on).
+
+## Title and loading pictures (SHOTS2; added 21 Nov)
+
+`public/art/shot-*.webp` (five files) are screenshots taken from the game's own renderer with a free camera, then graded. They contain nothing from outside the project. The six illustrated loading posters described in `docs/swarm/art/loading-prompts.md` were never made, so no generated image is in the repository.
+
+## Build and test tooling (added 21 Nov)
+
+Run-time dependency of the game: three.js 0.186 (MIT). Development tools, none shipped in the game: Vite, vite-plugin-singlefile, Vitest and jsdom (MIT), TypeScript (Apache-2.0), glTF-Transform and meshoptimizer (MIT; used by `scripts/compress-models.mjs` and `scripts/people-pipeline.mjs`). The desktop shell adds Electron and electron-builder (see the table below). The browser tests use Playwright and Chromium, installed outside the project.
+
+Test fixture, not shipped (`tests/fixtures/`): `CesiumMan.glb`, a skinned walking man from the Khronos glTF Sample Assets (https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CesiumMan), (c) Cesium (Analytical Graphics, Inc.), **CC BY 4.0**: attribution required if redistributed. `osm-sample.geojson` is synthetic (made by `tests/fixtures/make-osm-sample.mjs`), not OpenStreetMap data.
 
 ## Desktop apps (NATIVE2): what the installers contain
 

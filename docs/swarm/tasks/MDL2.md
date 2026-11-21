@@ -1,6 +1,8 @@
 # MDL2 - GTA-4/5-grade cars and people (models research, pass 2)
 
-Owner: MDL2 (models-research-2, Haiku). Scope: higher-fidelity glTF/GLB cars and rigged humans that can be downloaded from
+Status: historical record (not maintained)
+
+Owner: MDL2 (models-research-2, light model). Scope: higher-fidelity glTF/GLB cars and rigged humans that can be downloaded from
 this sandbox, with licence evidence per pack. Downloads: `/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/mdl2/picks/`
 (hashes in `.../scratchpad/mdl2/SHA256SUMS.txt`). Clones (read-only evidence) in `.../scratchpad/mdl2/repos/`. Inspector script
 (reads only the GLB JSON chunk, runs nothing from downloads): `.../scratchpad/mdl2-tools/glbinfo.py`. No repo source changed.

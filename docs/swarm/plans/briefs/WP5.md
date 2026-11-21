@@ -1,6 +1,8 @@
 # WP5: block faces and lots on real frontages (rotated, wedge and acute-corner lots)
 
-Model: **sonnet**. Suggested worker: **Gus Calloway** (built the lots file; knows PLUTO). Parallel with WP2, WP3, WP4, WP10.
+Status: historical record (not maintained)
+
+Model: **standard**. Suggested worker: **Gus Calloway** (built the lots file; knows PLUTO). Parallel with WP2, WP3, WP4, WP10.
 Coordinate with Rafael (ENV14) who keys building looks on BBL. Read first: `_realmap-rules.md`, realmap.md section 4 (row "Blocks / faces / lots").
 
 ## Files owned (new)

@@ -1,6 +1,7 @@
 /** Default tier per device over recorded WebGL renderer strings (Chrome/ANGLE, Safari, Firefox) + context-loss guard. */
 import { describe, it, expect } from 'vitest';
-import { classifyGpu, detectOs, profilePixelRatio, type GpuInfo } from '@/render/GpuProfile';
+import { classifyGpu, detectOs, profilePixelRatio, handheldBufferLongSide, type GpuInfo } from '@/render/GpuProfile';
+import { setDeviceLongSide } from '@/render/QualityTier';
 import { ContextGuard } from '@/render/ContextGuard';
 
 const MAC = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36';
@@ -66,7 +67,7 @@ describe('classifyGpu: recorded renderer strings', () => {
       { renderer: 'ANGLE (Qualcomm, Adreno (TM) 740, OpenGL ES 3.2)', userAgent: ANDROID, platform: 'Linux armv8l', maxTouchPoints: 5 },
       { renderer: 'Mali-G78', userAgent: ANDROID, platform: 'Linux armv8l', maxTouchPoints: 5 },
     ];
-    for (const i of phones) { const p = classifyGpu(i); expect(p.tier).toBe('phone'); expect(p.maxPixelRatio).toBe(1); expect(p.maxBufferWidth).toBe(720); }
+    for (const i of phones) { const p = classifyGpu(i); expect(p.tier).toBe('phone'); expect(p.maxPixelRatio).toBe(3); expect([960, 1280]).toContain(p.maxBufferWidth); expect(p.longSide).toBe(true); }
   });
 
   it('a Windows touch-screen laptop is still a desktop (touch points alone do not make it a phone)', () => {
@@ -84,6 +85,30 @@ describe('classifyGpu: recorded renderer strings', () => {
     expect(detectOs({ userAgent: IPAD_DESKTOP, platform: 'MacIntel', maxTouchPoints: 5 })).toBe('ios');
     expect(detectOs({ userAgent: WIN, platform: 'Win32', maxTouchPoints: 0 })).toBe('windows');
     expect(detectOs({ userAgent: 'X11; Linux x86_64', platform: 'Linux x86_64' })).toBe('linux');
+  });
+});
+
+describe('handheld render size', () => {
+  it('recent iPhones and iPads get a 1280 px long side, older ones 960', () => {
+    const base = { userAgent: IPHONE, platform: 'iPhone', maxTouchPoints: 5 };
+    expect(handheldBufferLongSide({ ...base, screenLong: 844, dpr: 3 })).toBe(1280);   // iPhone 12 to 15
+    expect(handheldBufferLongSide({ ...base, screenLong: 926, dpr: 3 })).toBe(1280);   // Pro Max
+    expect(handheldBufferLongSide({ ...base, screenLong: 667, dpr: 2 })).toBe(960);    // iPhone 8 / SE
+    expect(handheldBufferLongSide({ ...base, screenLong: 896, dpr: 2 })).toBe(960);    // iPhone 11 / XR
+    expect(handheldBufferLongSide({ userAgent: IPAD_DESKTOP, platform: 'MacIntel', maxTouchPoints: 5, screenLong: 1180, dpr: 2 })).toBe(1280);
+  });
+  it('Android goes by cores and memory', () => {
+    const a = { userAgent: ANDROID, platform: 'Linux armv8l', maxTouchPoints: 5 };
+    expect(handheldBufferLongSide({ ...a, cores: 8, memoryGB: 8 })).toBe(1280);
+    expect(handheldBufferLongSide({ ...a, cores: 8, memoryGB: 4 })).toBe(960);
+    expect(handheldBufferLongSide({ ...a })).toBe(960);
+  });
+  it('a handheld profile caps the long side in portrait too', () => {
+    setDeviceLongSide(844);
+    const p = { maxPixelRatio: 3, maxBufferWidth: 1280, longSide: true };
+    expect(profilePixelRatio(3, p, 390) * 844).toBeCloseTo(1280);
+    expect(profilePixelRatio(3, p, 844) * 844).toBeCloseTo(1280);
+    setDeviceLongSide(null);
   });
 });
 

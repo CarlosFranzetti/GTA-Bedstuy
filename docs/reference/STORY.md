@@ -1,5 +1,9 @@
 # AIR RIGHTS: story bible and playtest guide
 
+Status: current (checked 21 Nov 2026)
+
+One item in it is still open: the section "Host wiring still to do" (overheard lines on pedestrian chat barks) is not wired, because `pickOverheard` is not called outside `src/game/story/overheard.ts` (checked 21 Nov). The 13 core missions and their act order match `src/game/missions/content/story/`.
+
 Owner: STORY lane (Stage 12). Audience: the PLAYTEST agent, Fable, and any lane touching missions, phone, radio or posters.
 Code: `src/game/story/**` (cast, flags, state, director, news, ambient signs), `src/game/missions/content/story/*` (the missions),
 `src/game/missions/{types,MissionSystem}.ts` (the new objective kinds). Tests: `tests/unit/sim/story-missions.test.ts`,

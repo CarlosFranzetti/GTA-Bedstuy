@@ -183,11 +183,21 @@ export function gradeColorAt(rgb: [number, number, number], hour: number): [numb
 }
 
 /**
+ * Phone-tier grade: a small bright screen in daylight reads flat and milky, so contrast and saturation go up a little and the
+ * blacks lift less. Applied only to the LUT baked for the phone tier (no extra pass, no extra cost); other tiers are untouched.
+ */
+export const PHONE_GRADE = { saturation: 1.07, curve: 0.06, lift: 0.6, curveMax: 0.55 } as const;
+export function phoneGrade(p: PresetParams): PresetParams {
+  return { ...p, saturation: p.saturation * PHONE_GRADE.saturation, curve: Math.min(PHONE_GRADE.curveMax, p.curve + PHONE_GRADE.curve), lift: (p.lift ?? BLACK_LIFT) * PHONE_GRADE.lift };
+}
+
+/**
  * Bakes a grade (a preset name, or an index into `HOUR_KEYS`) into a 32x32x32 RGBA8 3D texture. Texel (x, y, z) holds the grade of
  * (r, g, b) = (x, y, z) / 31, so the shader samples it with the colour as the texture coordinate.
  */
-export function buildLut(preset: GradePreset | number): THREE.Data3DTexture {
-  const params = typeof preset === 'number' ? HOUR_KEYS[preset].params : PRESETS[preset];
+export function buildLut(preset: GradePreset | number, tune?: (p: PresetParams) => PresetParams): THREE.Data3DTexture {
+  const base = typeof preset === 'number' ? HOUR_KEYS[preset].params : PRESETS[preset];
+  const params = tune ? tune(base) : base;
   const n = LUT_SIZE;
   const data = new Uint8Array(n * n * n * 4);
   const inv = 1 / (n - 1);

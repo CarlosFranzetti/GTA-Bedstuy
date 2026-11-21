@@ -1,5 +1,7 @@
 # Playtest transcript
 
+Status: historical record (not maintained)
+
 Session: /home/user/GTA-Bedstuy/playtests/h7
 Ended: tester ended the session
 Steps: 58

@@ -1,5 +1,7 @@
 # Stage 7 check-in: toward GTA4
 
+Status: historical record (not maintained)
+
 MGR, 9 Nov 2026 ~22:00Z. Terse by request. Reviews in `transcript.md` (search `MGR review of`). HEAD 6256845. Not committed by MGR.
 
 ## Summary

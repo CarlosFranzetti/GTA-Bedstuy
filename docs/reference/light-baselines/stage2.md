@@ -1,5 +1,7 @@
 # Stage 2 lighting baselines (L9)
 
+Status: historical record (not maintained)
+
 Numeric only; the PNGs stay in the session scratchpad. Produced by `node scripts/light-audit.mjs` (headless swiftshader, 640x360,
 sRGB luma 0..1; "blown" = pixels > 0.95, "crushed" = < 0.05, "low-half" = bottom half of the frame = street level).
 Build = Stage 2 tree at 00:0xZ (Weather wired by P8, S4 storefronts and B3 facades partly landed). Gate: blown < 0.5 % everywhere (max seen 0.09 %).

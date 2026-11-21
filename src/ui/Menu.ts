@@ -148,7 +148,7 @@ const CONTROLS: Record<InputMode, { title: string; rows: Array<[string, string]>
   },
   touch: {
     title: 'Touch',
-    rows: [['Left stick', 'Move / drive'], ['Drag right side', 'Look'], ['CAR', 'Enter / exit car'], ['RUN / BRAKE', 'Sprint, brake (half-push the stick to walk)'], ['ACT', 'Action on foot: punch, throw or shoot (no action from a car yet: the hands icon dims there)'], ['Tap the item icon', 'Next item in hand'], ['HORN', 'Horn'], ['RADIO', 'Next station'], ['PHONE / MAP', 'Open the phone or the map'], ['Tap Offer/Nav chip', 'Point at HOME / WAX DELI'], ['II', 'Pause']],
+    rows: [['Left side', 'Touch and drag anywhere: the stick appears under your thumb. Move on foot, steer in a car (half-push to walk)'], ['Right side', 'Drag anywhere that is not a button to look'], ['CAR / EXIT', 'Shows when a car or door is in reach; EXIT while driving'], ['RUN', 'Tap to sprint while the stick is held'], ['GAS / BRAKE / HAND', 'In a car: throttle, brake and handbrake'], ['ACT', 'Action on foot: punch, throw or shoot (no action from a car yet: the hands icon dims there)'], ['Tap the item icon', 'Next item in hand'], ['HORN', 'Horn'], ['RADIO', 'Next station'], ['PHONE / MAP', 'Open the phone or the map'], ['Tap Offer/Nav chip', 'Point at HOME / WAX DELI'], ['II', 'Pause']],
   },
   gamepad: {
     title: 'Gamepad',

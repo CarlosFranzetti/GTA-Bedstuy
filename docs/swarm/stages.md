@@ -1,5 +1,7 @@
 # GTA Bed-Stuy — Stage plan
 
+Status: current (checked 21 Nov 2026) as the list of stages; the Stage 0 to 3 detail and the old "Stage 4+" plan below are a historical record and were left as written. From Stage 5 on the project is not run from this file: stages are opened by the owner's asks in `PRD.md`, the live state is `MEMORY.md` ("State"), and the day-to-day log is `transcript.md`. The table below was added on 21 Nov 2026.
+
 Owner: MGR. Companion to `docs/swarm/PRD.md` (acceptance criteria in PRD §5). Each stage has goals,
 entry/exit criteria, risks and a roster. A stage exits only when its check-in
 (`docs/swarm/checkins/stage<N>.md`) is written and the orchestrator has integrated the work.
@@ -52,17 +54,17 @@ PRD skeleton.
 **Roster:**
 | id | lane | model |
 |---|---|---|
-| R1 | research-cc0 (CC0 texture sets round 3) | haiku |
-| R2 | research-blocks (block-face data) | haiku |
-| R3 | research-lighting (lighting targets) | haiku |
-| R4 | textures-storefront | sonnet |
-| R5 | textures-vehicles-people | sonnet |
-| M1 | lighting-reflections | sonnet |
-| M2 | driving-feel | sonnet |
-| M3 | traffic-ai | sonnet |
-| M4 | performance (owns entry point) | sonnet |
-| M5 | gameplay-ui | sonnet |
-| MGR | manager, PRD/stages/board/check-in | opus |
+| R1 | research-cc0 (CC0 texture sets round 3) | light |
+| R2 | research-blocks (block-face data) | light |
+| R3 | research-lighting (lighting targets) | light |
+| R4 | textures-storefront | standard |
+| R5 | textures-vehicles-people | standard |
+| M1 | lighting-reflections | standard |
+| M2 | driving-feel | standard |
+| M3 | traffic-ai | standard |
+| M4 | performance (owns entry point) | standard |
+| M5 | gameplay-ui | standard |
+| MGR | manager, PRD/stages/board/check-in | lead |
 | Fable | orchestrator, shared files, integration, commits | session |
 
 ---
@@ -101,17 +103,17 @@ regressions in artifact when 2K textures arrive (hosted-only asset set).
 **Roster (board.md is the source of truth for owned files):**
 | id | lane | model |
 |---|---|---|
-| D1 | data-schema (bedstuy.json v2, loader, validation) | sonnet |
-| R2 | research-blocks-2 (WebSearch block faces, screenshot checklist) | haiku |
-| B3 | buildings (facades from schema v2) | sonnet |
-| S4 | storefronts (placement, true-aspect awnings, corner wrap, night state) | sonnet |
-| X5 | missions (framework + 3 missions) | sonnet |
-| H7 | hosted-build (Vercel, manifest, ultra, lazy textures) | sonnet |
-| P8 | performance-2 (instancing, < 500 draw calls; owns main.ts/WorldBuilder.ts, applies wiring) | sonnet |
-| L9 | lighting-2 (wet state, acne, lamp bloom, baselines) | sonnet |
-| Q10 | qa (missing §5.2 tests, screenshot set, regression report) | sonnet |
-| T11 | textures-4 (procedural industrial surfaces) | sonnet |
-| MGR | manager | opus |
+| D1 | data-schema (bedstuy.json v2, loader, validation) | standard |
+| R2 | research-blocks-2 (WebSearch block faces, screenshot checklist) | light |
+| B3 | buildings (facades from schema v2) | standard |
+| S4 | storefronts (placement, true-aspect awnings, corner wrap, night state) | standard |
+| X5 | missions (framework + 3 missions) | standard |
+| H7 | hosted-build (Vercel, manifest, ultra, lazy textures) | standard |
+| P8 | performance-2 (instancing, < 500 draw calls; owns main.ts/WorldBuilder.ts, applies wiring) | standard |
+| L9 | lighting-2 (wet state, acne, lamp bloom, baselines) | standard |
+| Q10 | qa (missing §5.2 tests, screenshot set, regression report) | standard |
+| T11 | textures-4 (procedural industrial surfaces) | standard |
+| MGR | manager | lead |
 | Fable | orchestrator, shared files, commits | session |
 
 ---
@@ -121,8 +123,8 @@ regressions in artifact when 2K textures arrive (hosted-only asset set).
 **Goals:**
 1. Fix the user-reported bug: **the player cannot exit cars** (F key, touch CAR button, gamepad), plus enter/exit edge cases.
 2. **Recorded playtest harness**: Playwright video + in-page subtitle box burned into the recording showing the tester's
-   thoughts, a command-file protocol a Haiku agent can drive step by step, per-step state export, webm + thoughts transcript.
-3. **Blind playtests** by three Haiku agents with no code access (on-foot explorer, driver/missions, chaos/cops);
+   thoughts, a command-file protocol a light model agent can drive step by step, per-step state export, webm + thoughts transcript.
+3. **Blind playtests** by three light model agents with no code access (on-foot explorer, driver/missions, chaos/cops);
    MGR triages their bugs and confusions into a defects table that seeds Stage 4.
 4. User additions (15:17–15:19Z): phone tier, CC0 model research, own-library radio + original talk show, GTA 5 design bible.
 5. Stage 2 carry-overs: night glazing cap near spawn + GTAO artefact check (L10); areaway fence colliders, avenue
@@ -138,7 +140,7 @@ H1–H3) reviewed by MGR; playtest triage posted; check-in `checkins/stage3.md` 
 | Risk | Mitigation |
 |---|---|
 | Exit bug is input-path specific (works with one input, not another) or position specific (walls, adjacent cars) | 50-attempt headless matrix across inputs and placements; exit-spot search unit tests |
-| Haiku testers get stuck on the harness protocol instead of the game | PT ships a worked example + scripted demo; protocol tolerant of bad commands; MGR answers `@MGR` fast |
+| light model testers get stuck on the harness protocol instead of the game | PT ships a worked example + scripted demo; protocol tolerant of bad commands; MGR answers `@MGR` fast |
 | Testers' reports are vague | report template: tried / expected / happened / where; subtitle transcript as evidence |
 | Headless load (several Chromium sessions) crashes night renders (seen in Stage 2) | fixed per-lane ports; stagger H1–H3; low tier for playtests |
 | Lighting cap regresses other views | full light-audit before/after table, Stage 3 baselines |
@@ -147,17 +149,17 @@ H1–H3) reviewed by MGR; playtest triage posted; check-in `checkins/stage3.md` 
 **Roster (board.md is the source of truth for owned files):**
 | id | lane | model |
 |---|---|---|
-| V1 | vehicle-exit-bug | sonnet |
-| PT | playtest-harness | sonnet |
-| L10 | lighting-3 | sonnet |
-| W2 | world-fixes | sonnet |
-| H1–H3 | blind playtesters (after `PT READY`) | haiku |
-| MOB | phone-tier (added 15:17Z) | sonnet |
-| MDL | models-research, CC0 glTF (added 15:17Z) | haiku |
-| RADIO | radio-library, user's own files, 8 stations + talk (added 15:17Z) | sonnet |
-| WRITE | talk-show-writer, 22-min original script (added 15:17Z) | sonnet |
-| BIBLE | design-bible, GTA 5 as design targets (added 15:18Z) | sonnet |
-| MGR | manager | opus |
+| V1 | vehicle-exit-bug | standard |
+| PT | playtest-harness | standard |
+| L10 | lighting-3 | standard |
+| W2 | world-fixes | standard |
+| H1–H3 | blind playtesters (after `PT READY`) | light |
+| MOB | phone-tier (added 15:17Z) | standard |
+| MDL | models-research, CC0 glTF (added 15:17Z) | light |
+| RADIO | radio-library, user's own files, 8 stations + talk (added 15:17Z) | standard |
+| WRITE | talk-show-writer, 22-min original script (added 15:17Z) | standard |
+| BIBLE | design-bible, GTA 5 as design targets (added 15:18Z) | standard |
+| MGR | manager | lead |
 | Fable | orchestrator, shared files, commits, launches H1–H3 | session |
 
 ---
@@ -184,3 +186,32 @@ audio licensing (CC0/own only, no sampled commercial music); polish never ends (
 
 **Proposed roster:** model integration (characters) · model integration (vehicles) · animation/state
 machines · audio design · audio systems/mixer · UX polish/accessibility · perf on hardware · QA · MGR · Fable.
+
+---
+
+## Stages 4 to 19 at a glance (added 21 Nov 2026)
+
+Dates are from the check-in files, `PRD.md` and the transcript. "Landed" means what the check-in or the lane wrap-ups say; the
+lead's own check in the running game is recorded only for what is in the live release (`CHANGELOG.md`).
+
+| Stage | When | Theme | Where it is written down | State |
+|---|---|---|---|---|
+| 4 | 3 Nov | The GTA III bar on seven viewpoints | `checkins/stage4.md` | Closed 3 Nov |
+| 5 | 3 to 7 Nov | The feel lanes | `checkins/stage5.md` | Closed 7 Nov |
+| 6 | 7 Nov | Getting around, and the last GTA III items (NAV6, HUD6, GTA4A) | `checkins/stage6.md` | Closed 7 Nov |
+| 7 | from 7 Nov | Toward GTA IV | `checkins/stage7.md` | Closed 9 Nov |
+| 8 | 9 Nov | Skins, SoundCloud stations, real blocks | `checkins/stage8.md` | Closed 9 Nov |
+| 9 | 9 Nov | GTA IV fidelity for people and cars; the map toward Bushwick; the pivot away from GTA III looks | `PRD.md` (Stage 9 asks, PIVOT), `plans/stage9.md` | No check-in file |
+| 10 | 10 Nov | Radio sound, stuck cars, smoother movement, a mixed population, map and save buttons | `PRD.md` | No check-in file |
+| 11 | 11 Nov | Mac flicker, full screen, graphics options, GTA V style interface, loading screen and music | `PRD.md` | No check-in file |
+| 12 | 11 Nov | Smoother people, Williamsburg and trains, story, more cars, a playtester | `PRD.md` | No check-in file |
+| 13 | 11 Nov | Options screen, flicker overlay, native apps, neural voices | `PRD.md` | No check-in file |
+| 14 | 11 Nov | More vehicles and textures, 15 radio stations, the accurate real map | `PRD.md`, `plans/stage14.md`, `plans/realmap.md` | No check-in file |
+| 15 | 11 Nov | "Rockstar polish": new art bar, body types, interface, real map becomes playable | `PRD.md`, `art/ART-BAR.md` | No check-in file |
+| 16 | 12 Nov | Flicker fixed; volume options; audio bug; captured body motion | `PRD.md` | No check-in file |
+| 17 | 12 Nov | People geometry and textures, hair, hats, bags, quieter engines | `PRD.md` | No check-in file |
+| 18 | 18 Nov | Physics, more bodies and clothes, weather, more cars, real map grown by seven blocks, textures, real places | `PRD.md`, `swarm/ORG.md` (lanes of 18 to 21 Nov), `tasks/` | Lanes landed their work in the tree; none is released and several are not yet checked in the running game |
+| 19 | 21 Nov | Docs and memory, logo, bug fixing, grow the map, real places, textures and clothing, vehicles, the phone, polish | `PRD.md` (Stage 19 asks) | Open |
+
+Open work and what is red today: `MEMORY.md`, "State on 21 Nov 2026".
+

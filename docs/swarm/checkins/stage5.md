@@ -1,6 +1,8 @@
 # Stage 5 check-in: the feel lanes
 
-Written by the Opus manager (MGR) on 7 Nov 2026 at about 04:15Z. Stage 5 picked up after the Stage 4 close on 3 Nov, paused for the
+Status: historical record (not maintained)
+
+Written by the lead model manager (MGR) on 7 Nov 2026 at about 04:15Z. Stage 5 picked up after the Stage 4 close on 3 Nov, paused for the
 usage limit, and closed after the feel lanes reported on 7 Nov. Reviews are in `transcript.md` (search `MGR review of`).
 
 ## 1. Summary

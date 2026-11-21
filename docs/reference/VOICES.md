@@ -1,5 +1,7 @@
 # Voices: HD text-to-speech, cast and shows (lane VOX)
 
+Status: partly out of date (checked 21 Nov 2026): the cast, the DJ-to-station mapping and the contents of the baked pack were corrected against `src/audio/voice/cast.ts` and `public/voice/manifest.json` on 21 Nov. The timing measurements are from 11 and 12 Nov on a software-rendered box and are kept as a record; nobody has re-measured them. The prosody and pack-production notes were not re-run.
+
 Non-commercial fan tribute. The user asked for "free repo on GitHub" voices for GTA-style hosts, talk radio, interviews and talk shows, and chose the **free in-browser route** (no ElevenLabs, no paid APIs).
 
 ## Decision: Kokoro-82M through kokoro-js
@@ -55,15 +57,15 @@ TalkStation  (WBSY Talk)           uses TalkSchedule + hub, bed ducking via setB
 * Pre-render: the next talk block is decided at 60 percent of the current one and rendered in the background at low priority (`prefetch`), repeat lines come from the cache.
 * Character effects (`src/audio/voice/fx.ts`): `studio` (high-pass, presence EQ, compressor, short room reverb), `phone` (320 to 3300 Hz band-pass, soft clip, compression) for callers, `tinny` for machines, `ad` (bright, squashed) for commercials.
 
-## Cast (35 voices, 28 distinct Kokoro presets)
+## Cast (34 voices in `cast.ts`, 25 distinct Kokoro presets; corrected 21 Nov)
 
-Music-station DJs: Deja Fontaine (BK House, `af_nicole`), Odell Reverb (Dub Lab, `bm_george`, 0.85), Big Tayo (Stoop Radio, `am_puck`, 1.12), Velvet Lou (Boogie Down, `am_michael`), Wren Calloway (Weird Hours, `af_aoede`, 0.9), Auntie Pearl (Yard FM, `af_kore`), Tommy Tapedeck (Flashback 88, `am_fenrir`, 1.14), Cass Meridian (Radio SC, `bf_emma`).
-WBSY Talk: Buck Mercer, Lorraine Static, Boards, Candace Prowse, Garrett Lyle-Voss, Chair Odessa Whitlock, Mr. Abernathy, Mrs. Delacroix, Juniper Vale, Declan Frye, Hollis Crane, Mr. Winston Pruitt, Marisol Quiñones, Dana Okafor; callers Hakim, Tanya, Kiki, Gerald, Gus, Reverend Tillman, Rosa, Dev; ad voices Trent and Noelle; a smart speaker. Full table with persona, catchphrases, speed, effect and fallback pitch/rate: `src/audio/voice/cast.ts`.
+Music-station DJs (nine; the station names are those of the 15-station dial, see `docs/RADIO.md`): Deja Fontaine (Boiler Room, `af_nicole`), Odell Reverb (Dekmantel Podcast, `bm_george`, 0.85), Cass Meridian (Resident Advisor, `bf_emma`), Tommy Tapedeck (Rinse FM, `am_fenrir`, 1.14), Velvet Lou (Soulection, `am_michael`), Big Tayo (Universal Hip Hop Radio, `am_puck`, 1.12), Auntie Pearl (SilverStarSound, `af_kore`), Lucho Ventura (DJ RubyTunes Latin, `am_eric`), Wren Calloway (The Lot Radio, `af_aoede`, 0.9). The live-stream stations have no DJ persona.
+WBSY Talk (14 hosts and guests, 8 callers, 3 announcer voices): Buck Mercer, Lorraine Static, Boards, Candace Prowse, Garrett Lyle-Voss, Chair Odessa Whitlock, Mr. Abernathy, Mrs. Delacroix, Juniper Vale, Declan Frye, Hollis Crane, Mr. Winston Pruitt, Marisol Quiñones, Dana Okafor; callers Hakim, Tanya, Kiki, Gerald, Gus, Reverend Tillman, Rosa, Dev; ad voices Trent and Noelle; a smart speaker. Full table with persona, catchphrases, speed, effect and fallback pitch/rate: `src/audio/voice/cast.ts`.
 
 ## Content (all data, no code)
 
 * `src/audio/voice/shows/djs.ts`: per station 7 categories (idents, intros, outros, blind, hours, traffic, shouts), slots `{dj} {title} {prevDj} {prevTitle} {station} {freq} {time} {weather} {street} {hood}`. Intros and outros use the real DJ name and set title from the now-playing data; `{time}` `{weather}` `{street}` come from `audio.setBroadcast`.
-* `src/audio/voice/shows/*.ts`: seven WBSY Talk shows (morning call-in, "Flip That Brownstone", community board, "Breathe & Build", "Dead Air", "Block Talk", "News at the Top") and `ads.ts` with 23 parody commercials.
+* `src/audio/voice/shows/*.ts`: seven WBSY Talk shows (morning call-in, "Flip That Brownstone", community board, "Breathe & Build", "Dead Air", "Block Talk", "News at the Top") and `ads.ts` with 26 parody commercials (counted 21 Nov).
 * Line syntax: `{ who: castId, text: 'words [pause 0.6] more [laugh] [sfx airhorn] [beat]' }`, `[over]` at the start of a line = interruption (starts 0.45 s before the previous sentence ends), optional `when: 'wanted' | 'calm' | 'mission' | 'bulletin' | 'rain' | 'night'` so the news can react to the wanted level, finished missions, STORY bulletins, rain and the hour. Directions are never spoken.
 * Scheduler (`Scheduler.ts`): shuffle-bag `Rotation` (no repeats until the pool is exhausted, also never opens a refill with the last item), talk = show, then 2 and 1 commercials alternately, DJs: tune-in ident, set changes (outro of the last set + intro of the next), and every 8 minutes an idle fill rotating time/weather, traffic, neighbourhood shout-out, ident, with a commercial every fourth fill.
 * Tests: `tests/unit/audio/voice-content.test.ts` (lint: speakers exist, real-brand deny-list, blocked words, line and sentence length, 2+ voices per show, 3 to 6 minutes per show, 20+ ads, one DJ per station), `voice-scheduler.test.ts` (rotation, slot filling with real artist names, news reactions, cache-key stability), `voice-engine.test.ts` (fake worker, fallback, cancel, cache, hub defaults), `voice-integration.test.ts`.
@@ -86,6 +88,10 @@ Live Kokoro runs 4 to 9x slower than real time on CPU here (measured again under
 * Runtime (`src/audio/voice/pack.ts`): manifest fetched after the first gesture, a bank fetched when one of its clips is first needed, decoded per clip. Order for any sentence: pack, ClipCache, live neural (only if the engine measured at or below 1.6x), SpeechSynthesis, silent with subtitles. A talk or DJ segment plays from the pack only if every sentence of it is covered; otherwise the whole segment is spoken by one system voice (no voice switch mid-line). A 404 on the manifest is the normal artifact state: one quiet console message, no retries.
 * Never in the single-file artifact: `VoiceHub` gets `packBase` only when the build is hosted (`VITE_HOSTED=1`, which the native builds also use). `public/voice/` is copied to `dist/voice` by Vite but `make-artifact.mjs` only reads `dist/index.html`, so the artifact does not grow (measured, see the report).
 * Slots: sentences with open slots (`{dj}`, `{title}`, `{time}`, `{street}`) are not baked; sentences with finite ones are (station name and frequency for idents; `{hood}` x12, `{weather}` x7, `{stars}` x5 only for sentences with at most 16 variants). The DJ shout-outs per neighbourhood are the last tier. Idents depend on the dial: when RADIO15 renames stations, re-run the bake (only the new idents render).
+
+### What is in the pack today (counted 21 Nov from `public/voice/`)
+
+`public/voice/manifest.json` (engine `kokoro-82m-v1.0-q8`) lists 717 clips in 22 bank files, 5.7 MB: 192 DJ clips (banks `dj-deja`, `dj-odell`, `dj-tayo`, `dj-lou`, `dj-wren`, `dj-pearl`, `dj-tommy`, `dj-lucho`, `dj-cass`, 18 to 30 clips each), 151 story and mission lines (`story`) and 349 pedestrian bark clips (`bark-g00` to `bark-g11`). There are no banks for the WBSY Talk shows or the commercials, so those are still spoken by live HD voices (if the device is fast enough) or by the browser's own voices. None of the 717 clip texts uses an old station name, and 35 name a current one (Boiler Room, Dekmantel, Rinse FM and so on), so the station idents were re-baked after the 11 Nov dial change.
 
 ### Producing it
 ```

@@ -1,5 +1,7 @@
 # SOUND BAR: the sound direction (Nia, SOUNDDIR, 11 Nov)
 
+Status: partly out of date (checked 21 Nov 2026): the dial, the limiter and the vehicle-type notes were checked against the code and corrected below; the mix targets (section 2) were not re-measured. SOUNDCHECK on 18 Nov measured engines and the street mix: `docs/swarm/sound/SOUNDCHECK.md`.
+
 The bar every sound lane is held to. Nobody on this team can listen, so every claim ships with a number from an offline
 render or a real-browser probe (see "Checks"). Owner's words we answer to: engines and horns "awful, each should be a bit
 different"; "GTA style hosts and talk radio and interviews and talk shows"; "various human sounding voices"; peds "interact".
@@ -15,8 +17,9 @@ different"; "GTA style hosts and talk radio and interviews and talk shows"; "var
   show names shown on the dial and spoken by DJs. Two talk stations are ours (scripted, voiced locally), never third party.
 - Every station has a fallback source: a second stream URL or a SoundCloud pool. The 80s station especially (SomaFM may
   403 from some networks). A station with no working source hides from the dial; it never plays silence.
-- Keep Mei's eight DJ personas: map each onto the new station that fits (Pearl to dancehall, Odell to dub, Tommy to the 80s,
-  Lou to disco/boogie, Tayo to hip-hop, Deja to house, Wren to freeform, Cass to the techno/RA station). New stations without
+- Keep Mei's DJ personas: map each onto the new station that fits. Done on 11 Nov and extended since to nine (see `docs/RADIO.md`):
+  Deja on Boiler Room, Odell on Dekmantel, Cass on Resident Advisor, Tommy on Rinse FM, Lou on Soulection, Tayo on Universal Hip Hop
+  Radio, Pearl on SilverStarSound, Lucho on DJ RubyTunes Latin, Wren on The Lot Radio. The live-stream stations have no persona. New stations without
   a persona get a station ident voice (Trent/Noelle) until VOICE14 adds hosts.
 - DJ over intros: on SoundCloud stations, the DJ speaks over the first 6 to 20 s of a new set (sets open slowly), music
   ducked; never mid-set except the 8-minute idle fill. Live streams that carry their own hosts (KEXP, WFMU style): our DJ
@@ -45,8 +48,8 @@ volume to match these numbers by reference, and cannot pass the limiter (state t
 - Ducking: DJ over music -13 dB (gain 0.22, as Announcer does now); talk bed under hosts -9 dB (0.25 of 0.7). Attack 120 ms,
   hold 250 ms after the last word, release 800 ms. Mission dialogue and ped speech duck the radio by -6 dB, the engine by -3 dB.
 - Master: one DynamicsCompressor as a limiter before destination (threshold -3 dB, knee 0, ratio 20, attack 3 ms,
-  release 120 ms), then master gain. Ceiling: no sample above -1 dBFS in any offline render. Today master goes straight to
-  destination with no limiter: that is the first change SFX14 makes (one node, AudioSystem).
+  release 120 ms), then master gain. Ceiling: no sample above -1 dBFS in any offline render. The limiter now exists
+  (`AudioSystem.ts`: threshold -3 dB, knee 0, ratio 20, attack 3 ms, release 120 ms, then the destination); checked 21 Nov.
 - The loading theme (Otis) measured -5.5 dBFS peak, -13.3 dB RMS, but 89.6 % of energy below 500 Hz and 1.2 % above 4 kHz:
   it reads dark and boomy on laptop speakers. Target for any music we synthesize: presence (2 to 5 kHz) at least 10 %,
   highs at least 3 %, sub at most 8 %.
@@ -58,8 +61,8 @@ Each type must be recognisable with eyes closed within 2 s of idle or 3 s of a p
 - Beater: small four with a lumpy idle, random misfire (1 in 20 to 40 cycles), heat-shield rattle at 1.5 to 2.5 krpm, exhaust
   leak buzz, belt squeal on start, weak wavering horn.
 - V8 (muscle, cop, pickup, town car only): cross-plane lope at idle, strong half-order, exhaust resonance 80 to 200 Hz,
-  burble/crackle on lift-off (muscle most). Today eight of 18 types are V8 (cab, luxury, ambulance and dollar van too): cut
-  that to four. Cab becomes a hybrid four (electric creep below 15 km/h, engine cuts in); luxury a hushed turbo six with
+  burble/crackle on lift-off (muscle most). The source now has 37 vehicle types and `src/audio/vehicle/engineModel.ts` gives V8 lopes to cab, cop, pickup, pony, town car and
+  luxury (checked 21 Nov), so the cut to four proposed on 11 Nov was not made as written. Cab becomes a hybrid four (electric creep below 15 km/h, engine cuts in); luxury a hushed turbo six with
   little exhaust and more tyre/wind; ambulance a diesel V8 with clatter; dollar van a tired V6 with an exhaust leak.
 - Electric (CARS14 adds them): no firing order. Inverter whine rising 1 to 8 kHz with speed, motor hum, pedestrian warning
   tone below 30 km/h, near silence at idle, tyre and wind carry the speed. Must still read at -24 LUFS in the cabin.

@@ -1,5 +1,7 @@
 # Block faces: real-street reference for the 10 Bed-Stuy blocks
 
+Status: historical record (not maintained)
+
 Status: **partial, text-sourced.** No building footprints, no MapPLUTO floors or year-built data, and no street-direction data were retrieved. The OSM Overpass API and NYC Open Data are both unreachable from this session (see `docs/swarm/tasks/R2.md`). Google Street View was not accessed. Everything below comes from search-result snippets and listing pages. Confidence: **H** = official or multiple sources, **M** = one credible source, **L** = inference or single weak snippet.
 
 Grid under review: `src/world/data/bedstuy.json` (columns Tompkins / Throop / Marcus Garvey; rows Hart, Pulaski, Kosciuszko, Lafayette, Van Buren, Greene).

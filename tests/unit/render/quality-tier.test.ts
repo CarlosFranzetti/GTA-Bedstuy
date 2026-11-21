@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { QUALITY_ORDER, TIER_CONFIG, pixelRatioFor, tierBelow, tierConfig } from '@/render/QualityTier';
+import { QUALITY_ORDER, TIER_CONFIG, pixelRatioFor, setDeviceLongSide, tierBelow, tierConfig } from '@/render/QualityTier';
 import { DEFAULT_CULL_DISTANCE, DistanceCuller, cullDistanceFor, shouldHide } from '@/render/Culling';
 import { LIGHTING } from '@/render/LightingConfig';
 import { SHADOWS_ENABLED, phoneSunCasters, setupShadows } from '@/render/Shadows';
@@ -21,8 +21,8 @@ describe('tier table', () => {
 
   it('phone values match the brief', () => {
     const p = tierConfig('phone');
-    expect(p.maxPixelRatio).toBeLessThanOrEqual(1);
-    expect(p.maxBufferWidth).toBeLessThanOrEqual(720);
+    expect(p.maxPixelRatio).toBeLessThanOrEqual(3);
+    expect(p.maxBufferWidth).toBe(1280); // long side of the buffer
     expect(p.traffic).toEqual({ maxMoving: 10, peds: 14, parkOccupancy: 0.3, cops: 1 });
     expect(p.rainStreaks).toBe(200);
     expect(p.anisotropy).toBe(2);
@@ -73,12 +73,16 @@ describe('tier table', () => {
 });
 
 describe('pixel ratio', () => {
-  it('phone renders at most 720 px wide and never above 1', () => {
-    expect(pixelRatioFor('phone', 3, 390)).toBe(1);               // portrait phone: 390 css px < 720
-    expect(pixelRatioFor('phone', 3, 915) * 915).toBeLessThanOrEqual(720.0001); // landscape
-    expect(pixelRatioFor('phone', 2, 1280) * 1280).toBeLessThanOrEqual(720.0001);
+  it('phone caps the LONG side of the buffer at 1280 px, in either orientation', () => {
+    setDeviceLongSide(844);                                           // an iPhone 13: screen.height 844 whichever way it is held
+    expect(pixelRatioFor('phone', 3, 844) * 844).toBeCloseTo(1280);   // landscape
+    expect(pixelRatioFor('phone', 3, 390) * 844).toBeCloseTo(1280);   // portrait: not rendered at its 390 px width
+    expect(pixelRatioFor('phone', 1, 390)).toBe(1);                   // a dpr 1 screen never goes above its own
     expect(pixelRatioFor('phone', 0.75, 500)).toBe(0.75);
     expect(pixelRatioFor('phone', NaN, 500)).toBe(1);
+    setDeviceLongSide(0);
+    expect(pixelRatioFor('phone', 3, 915) * 915).toBeLessThanOrEqual(1280.0001); // unknown screen: the view's own width
+    setDeviceLongSide(null);
   });
   it('other tiers keep their caps', () => {
     expect(pixelRatioFor('low', 3, 1000)).toBe(1.25);

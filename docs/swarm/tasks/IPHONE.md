@@ -1,5 +1,7 @@
 # IPHONE: phone-tier memory and iPhone Safari issues (Ines Marlowe)
 
+Status: historical record (not maintained)
+
 Owner report: "iPhone version keeps crashing at start, probably too memory intensive". Hosted build, headless Chromium emulating an
 iPhone 13 (phone tier, pixel ratio 1, canvas 390x664), software GL, so GPU and process numbers are indicative only. Probe:
 `scratchpad/iphone2/memprobe2.cjs` (copy of the lane's memprobe with: precise heap through CDP after a GC, peak heap sampled every

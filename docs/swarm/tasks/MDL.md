@@ -1,6 +1,8 @@
 # MDL - models research (Stage 3)
 
-Owner: MDL (models-research, Haiku). Scope: CC0 (or explicitly permissive) glTF cars and characters for
+Status: historical record (not maintained)
+
+Owner: MDL (models-research, light model). Scope: CC0 (or explicitly permissive) glTF cars and characters for
 `src/assets/models/`, matching the loader contract in `src/assets/models/README.md`. Downloads live in the scratchpad
 (`scratchpad/mdl/`, exports in `scratchpad/mdl/out/`); scripts in `scratchpad/mdl-tools/` (outside the downloads).
 No repo source was changed; `docs/CREDITS.md` gained a "Models" section.

@@ -1,5 +1,7 @@
 # Loading posters: prompts
 
+Status: current (checked 21 Nov 2026)
+
 Six original graphic-novel style posters for the loading screen. Status on 18 Nov: NOT made yet. The free image services
 reachable from the build box refuse without a Hugging Face token, and a keyless service tried on 18 Nov gave weak pictures
 with its own watermark, so it was not used.

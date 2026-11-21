@@ -1,5 +1,7 @@
 # Studio chat, 11 November, in plain language
 
+Status: historical record (not maintained)
+
 *A plain-language retelling of the team's chat log for 11 November. The word-for-word log is in 2026-11-11-studio.md.*
 
 ## Who's who

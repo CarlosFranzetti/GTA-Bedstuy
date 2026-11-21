@@ -1,5 +1,7 @@
 # WBSY Talk — Bed-Stuy Talk Radio: "The Late Shift with Lorraine Static: Wired Up in Bed-Stuy"
 
+Status: partly out of date (checked 21 Nov 2026): the in-game WBSY Talk now plays the seven shows in `src/audio/voice/shows/` (see `docs/reference/VOICES.md`). This page reproduces the older 22-minute script `src/audio/talk/script.json` (57 segments, count checked 21 Nov), which the game uses only when a script is injected, as in tests.
+
 Reference copy of the original 22-minute talk-radio script that the in-game talk station reads aloud. The machine-readable source of truth is `src/audio/talk/script.json`; this page is generated from it for people. Do not edit one without the other.
 
 - Segments: 57 | Words: 3288 | Target runtime: 22:05 (1325 s at about 150 words per minute) | Longest spoken segment: 54 s

@@ -1,5 +1,7 @@
 # Platform check: 5 minutes on your own machine
 
+Status: current (checked 21 Nov 2026; the table below was re-read against the code that day: the depth range and the panel switches were corrected, the rest still holds)
+
 Everything we test runs on a Linux box with a software renderer (SwiftShader). It never touches a real GPU. If you write down
 what these five minutes show, we can fix a glitch without guessing. Do it once in Chrome and once in the native app. Do it on
 Windows as well if you can.
@@ -9,11 +11,11 @@ Windows as well if you can.
 |---|---|---|
 | Starting tier | An M4 Mac in Chrome should report `ANGLE Metal Renderer: Apple M4` and start on **high** with pixel ratio 1.75 and SMAA. We have never seen the real string. Safari only says "Apple GPU". | src/render/GpuProfile.ts |
 | Windows tiers | The RTX/GTX/RX/Iris/UHD rules use renderer strings we wrote by hand. No real Windows machine has run the game. | GpuProfile.ts |
-| Flicker fixes | The FLICKER lane changed the stale culling spheres, the car and person LOD hysteresis and the depth range (near 0.1, far 900). We have only checked them in software. | src/render/Culling.ts, CarLod.ts, DepthRange.ts |
+| Flicker fixes | The FLICKER lane changed the stale culling spheres, the car and person LOD hysteresis and the depth range (near 0.2 m, far 900 m, `CAMERA_NEAR` and `CAMERA_FAR` in `src/render/DepthRange.ts`). We have only checked them in software. | src/render/Culling.ts, CarLod.ts, DepthRange.ts |
 | Colour seam | Playtest p12 D4 showed a hard vertical seam, warm on the left and cool on the right, when the phone was open. Not confirmed. | post chain (Pipeline.ts) |
 | Auto quality drop | PerfMonitor drops the tier once after a sustained slow stretch. We have never seen it on a 120 Hz ProMotion screen. | src/render/Perf.ts |
 | Context loss | The guard should recover from a lost GPU context (sleep and wake, switching GPUs, a driver reset) without a black screen. It has never fired on a real GPU. | src/render/ContextGuard.ts |
-| Native app GPU | Electron forces ANGLE Metal on the Mac and D3D11 on Windows, plus the high-performance GPU. Only the CI build has run it. | native/src/main.ts |
+| Native app GPU | Electron forces ANGLE Metal on the Mac and D3D11 on Windows, plus the high-performance GPU. Only CI has built it (the build jobs pass; the Linux smoke job currently fails: see `docs/NATIVE.md`). | native/src/main.ts |
 | Neural voices | The WebGPU path is off by default and untested. The WASM path is slow on our box. | src/audio/voice/** |
 
 ## The check (about 5 minutes)
@@ -28,8 +30,8 @@ buildings, cars, people, sky, shadows, the whole screen, or only the edges). Say
 walking, driving or turning the camera. Note the time of day too, since night uses other passes. A screenshot (Cmd+Shift+4)
 or a short screen recording (Cmd+Shift+5) is worth more than any description.
 
-**3. Switch things off (2 min).** In the panel, untick one box at a time and check whether the glitch goes away: Ambient
-occlusion, Bloom, Depth of field, Anti-aliasing, Vignette, Film grain. Tick it again before you try the next one. Tell us
+**3. Switch things off (2 min).** In the panel, untick one box at a time and check whether the glitch goes away: All post effects,
+HUD and page overlays, Shadows, Ambient occlusion, Bloom, Depth of field, Anti-aliasing, Vignette, Film grain. Tick it again before you try the next one. Tell us
 which box made it go away, or that none did.
 
 **4. Change the tier (1 min).** Open the same link with `&q=medium`, then with `&q=low`, for example

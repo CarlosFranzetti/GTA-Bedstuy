@@ -1,5 +1,7 @@
 # R1 downloaded sets (provenance only; pixels not committed)
 
+Status: historical record (not maintained)
+
 Session scratchpad is ephemeral, so this records what R1 fetched, where from, and the licence evidence. Re-fetch from the URLs in docs/swarm/tasks/R1.md. None of these sets is used by the build yet (hosted-build candidates per the Stage 1 check-in; 'Plastic' rejected until its upstream id is traced).
 
 - aframe-enviropacks_Fabric026: 3 files, 3.8M

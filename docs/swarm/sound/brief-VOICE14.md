@@ -1,6 +1,8 @@
 # Brief: VOICE14, pedestrian and character voices (SOUND team, director Nia)
 
-Model: sonnet. Reports to Nia (SOUNDDIR). Read first: docs/swarm/ORG.md, docs/swarm/sound/SOUND-BAR.md (sections 2, 4, 5, 6),
+Status: historical record (not maintained)
+
+Model: standard. Reports to Nia (SOUNDDIR). Read first: docs/swarm/ORG.md, docs/swarm/sound/SOUND-BAR.md (sections 2, 4, 5, 6),
 docs/reference/VOICES.md. Owner's words: "various human sounding voices"; pedestrians should "interact" and have voices.
 Rules: never git stash, never commit, keep src/ compiling, do not edit src/main.ts (post the wiring lines for Fable).
 

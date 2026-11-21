@@ -1,5 +1,7 @@
 # PERF3b: triangles and draws by category, phone and low (Dara Quint)
 
+Status: historical record (not maintained)
+
 Method: `scripts/perf3-breakdown.cjs` (hosted build, `vite preview`, canvas hidden, `renderOnce`, every mesh hooked for one frame; noon, 960x540, grid map).
 Run: `NODE_PATH=/opt/node-tools/node_modules:$PWD/node_modules scripts/swarm-render.sh node scripts/perf3-breakdown.cjs --dist <build> --out <dir> --tiers low [--views home,junction,el,row] [--map real] [--frames] [--detail]`.
 Viewpoints: home spawn; Lewis Ave x Kosciuszko St corner; under the el on Flushing Ave; brownstone row looking north (6,-520). Counts only, no fps.

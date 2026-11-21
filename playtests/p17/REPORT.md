@@ -1,5 +1,7 @@
 # GTA Bed-Stuy playtest p17 (Mara Quill, PLAYTEST17)
 
+Status: historical record (not maintained)
+
 Build: current tree, `VITE_HOSTED=1`, tested at `?perf=0&q=low`, 800x450, software rendering. No game code changed.
 Scripts and raw logs: scratchpad/playtest17 (`jobA3.log`, `jobB.log`, `jobC.try1.log`). Only jobs A, B and C produced results. Jobs D and E (cars, radio, phone, map, missions, menu, save/load, weather) died to the box's memory limit before they got going. See "Not tested".
 

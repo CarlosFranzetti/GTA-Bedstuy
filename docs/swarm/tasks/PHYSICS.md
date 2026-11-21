@@ -1,5 +1,7 @@
 # PHYSICS lane (Rowan Hale), 18 Nov
 
+Status: historical record (not maintained)
+
 Owner brief: "fixing physics", GTA III feel (arcade, weighty, forgiving, never glitchy). Method: headless scenarios in
 `tests/unit/physics/scenarios.ts` (real World2D + Vehicle + Player + Pedestrian stepped like main.ts), numbers below measured
 BEFORE any fix. "After" numbers are in the last section.

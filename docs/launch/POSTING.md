@@ -1,5 +1,7 @@
 # Posting GTA Bed-Stuy: Instagram story, feed post, bio link
 
+Status: current (checked 21 Nov 2026)
+
 Placeholders: `@yourhandle` stands for your own Instagram handle. Nothing here invents one.
 
 ## Files

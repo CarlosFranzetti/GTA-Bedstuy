@@ -11,7 +11,7 @@ import { BLOOM_INPUT_CAP, HDR_CAP, HDR_SAFE_GLSL, guardBloomInput } from '@/rend
 import type { Pass } from 'three/addons/postprocessing/Pass.js';
 import type { Quality } from './Shadows';
 import { newTimeCycle, timeCycleAt, hazeAt, grainAmount } from './LightingConfig';
-import { EXPOSURE_BY_PRESET, HOUR_KEYS, buildLut, lutKeysForHour } from './lut';
+import { EXPOSURE_BY_PRESET, HOUR_KEYS, buildLut, lutKeysForHour, phoneGrade } from './lut';
 import { FxPass, FX_TIERS, fxPassCosts, type PassCost } from './ssr';
 import { signBloomGate } from './QualityTier';
 import { setCarPaintTier, setCarPaintWet } from './CarPaintFx';
@@ -533,7 +533,7 @@ export class RenderPipeline {
   }
 
   private lut(i: number): THREE.Data3DTexture {
-    return (this.lutTextures[i] ??= buildLut(i));
+    return (this.lutTextures[i] ??= buildLut(i, this.q === 'phone' ? phoneGrade : undefined));
   }
 
   private updateDof(dt: number): void {

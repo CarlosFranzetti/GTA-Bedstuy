@@ -1,5 +1,7 @@
 # Street photos and observed facades (ENV14)
 
+Status: current (checked 21 Nov 2026)
+
 Rule: no Google Maps / Street View pixels or data. Only openly licensed sources, with licence and author recorded. Everything is fetched and baked at build time by scripts; the player's browser never contacts these hosts.
 
 ## Pipeline

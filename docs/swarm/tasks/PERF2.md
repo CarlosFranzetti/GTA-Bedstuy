@@ -1,5 +1,7 @@
 # PERF2: bring phone and low back to budget (brief for Lena, from Greta Voss, ENGDIR)
 
+Status: historical record (not maintained)
+
 You report to Greta. Measure before you cut, as always. No edits to src/main.ts (send Fable the exact lines). Never git stash, never commit.
 
 ## Numbers (11 Nov, current tree, `scripts/perf-breakdown.mjs`, 960x540, views 1 / 4 / 10)

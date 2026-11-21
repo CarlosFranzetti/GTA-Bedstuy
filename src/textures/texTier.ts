@@ -32,7 +32,7 @@ export type TexKind =
 
 /** Size factor by tier and kind (1 = the size the painter was written for). */
 const SCALE: Record<Quality, Record<TexKind, number>> = {
-  phone: { surface: 0.5, ground: 0.75, atlas: 0.5, skin: 0.5, people: 0.5, decal: 0.5 },
+  phone: { surface: 0.5, ground: 0.75, atlas: 0.375, skin: 0.5, people: 0.375, decal: 0.5 },
   low: { surface: 1, ground: 1, atlas: 1, skin: 1, people: 1, decal: 1 },
   medium: { surface: 1, ground: 1, atlas: 1, skin: 1, people: 1, decal: 1 },
   high: { surface: 1, ground: 1, atlas: 1, skin: 1, people: 1, decal: 1 },

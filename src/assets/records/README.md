@@ -1,5 +1,7 @@
 # Records drop folder
 
+Status: current (checked 21 Nov 2026)
+
 Put your OWN licensed audio files here (mp3, wav, ogg, m4a, flac, aac, opus). At build time each file becomes a free
 record in the WAX DELI bins ("Your drop folder"). Nothing here is committed by default and nothing is uploaded.
 Do not add music you do not have the rights to ship: the built single-file artifact embeds these files.

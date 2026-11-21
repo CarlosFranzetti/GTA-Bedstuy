@@ -1,24 +1,105 @@
-/* Touch controls: shown only when TouchControls is constructed (coarse pointer devices). */
-.tc-root { position: absolute; inset: 0; pointer-events: none; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.tc-look { position: absolute; top: 0; right: 0; bottom: 0; width: 60%; pointer-events: auto; touch-action: none; }
+/* Touch controls: shown only when TouchControls is constructed (coarse pointer devices).
+   Layout: a floating stick anywhere in the left half, look-drag anywhere in the right half, a right-thumb button cluster
+   (biggest button = the most used: ACT on foot, GAS in a car). Positions are offsets from the bottom-right safe corner. */
+.tc-root {
+  position: absolute; inset: 0; pointer-events: none; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  --tc-r: max(env(safe-area-inset-right, 0px), 14px);
+  --tc-b: max(env(safe-area-inset-bottom, 0px), 14px);
+  --tc-l: max(env(safe-area-inset-left, 0px), 14px);
+}
+.tc-zone { position: absolute; top: 0; bottom: 0; pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.tc-zone-left { left: 0; width: 50%; }
+.tc-look { right: 0; width: 50%; }
+
+/* the floating stick: a faint ghost ring marks the usual spot until a thumb lands, then the real ring appears under the thumb */
+.tc-ghost {
+  position: absolute; left: calc(var(--tc-l) + 20px); bottom: calc(var(--tc-b) + 16px); width: 120px; height: 120px; border-radius: 50%;
+  border: 2px dashed rgba(255, 255, 255, 0.28); background: rgba(255, 255, 255, 0.04); pointer-events: none; transition: opacity 160ms ease;
+}
+.tc-ghost::after { content: 'MOVE'; position: absolute; inset: 0; display: grid; place-items: center; font: 700 13px/1 system-ui, sans-serif; letter-spacing: .14em; color: rgba(255, 255, 255, 0.55); text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+.tc-stick-on .tc-ghost { opacity: 0; }
 .tc-stick {
-  position: absolute; left: max(22px, env(safe-area-inset-left, 0px)); bottom: max(26px, env(safe-area-inset-bottom, 0px));
-  width: 150px; height: 150px; border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 255, 255, 0.35);
-  pointer-events: auto; touch-action: none; display: grid; place-items: center;
+  position: absolute; left: 0; top: 0; width: 112px; height: 112px; margin: 0; border-radius: 50%; padding: 0; box-sizing: content-box;
+  background: rgba(255, 255, 255, 0.10); border: 3px solid rgba(255, 255, 255, 0.55); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 16px rgba(0, 0, 0, 0.35);
+  pointer-events: none; display: grid; place-items: center; opacity: 0; transition: opacity 90ms ease; will-change: transform;
 }
-.tc-knob { width: 62px; height: 62px; border-radius: 50%; background: rgba(255, 255, 255, 0.55); box-shadow: 0 2px 8px rgba(0,0,0,.4); transition: transform 40ms linear; }
-.tc-buttons {
-  position: absolute; right: max(18px, env(safe-area-inset-right, 0px)); bottom: max(26px, env(safe-area-inset-bottom, 0px));
-  display: grid; grid-template-columns: 78px 78px; gap: 12px; pointer-events: auto;
-}
+.tc-stick-on .tc-stick { opacity: 1; }
+.tc-knob { width: 58px; height: 58px; border-radius: 50%; background: rgba(255, 255, 255, 0.78); box-shadow: 0 2px 8px rgba(0,0,0,.45); }
+
+/* buttons: absolute from the bottom-right corner. --x / --y offset, --s size. Labels are at least 12 px. */
+.tc-buttons { position: absolute; inset: 0; pointer-events: none; }
 .tc-btn {
-  width: 78px; height: 78px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.4);
-  background: rgba(20, 20, 26, 0.55); color: #fff; font: 700 11px/1.1 system-ui, sans-serif; letter-spacing: .06em;
-  touch-action: none; -webkit-tap-highlight-color: transparent; padding: 0;
+  position: absolute; right: calc(var(--tc-r) + var(--x, 0px)); bottom: calc(var(--tc-b) + var(--y, 0px)); width: var(--s, 64px); height: var(--s, 64px);
+  border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.55); background: rgba(16, 16, 22, 0.62); color: #fff; padding: 0;
+  font: 800 14px/1 system-ui, -apple-system, sans-serif; letter-spacing: .05em; text-shadow: 0 1px 2px rgba(0,0,0,.8);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4); pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+  transition: transform 60ms ease, background-color 60ms ease;
 }
-.tc-btn.on { background: rgba(244, 196, 48, 0.85); color: #1a1408; }
-.tc-btn-car { border-color: rgba(244, 196, 48, 0.8); }
+.tc-btn[hidden] { display: none; }
+.tc-btn.on { background: rgba(244, 196, 48, 0.92); color: #1a1408; transform: scale(0.93); border-color: #fff; }
+/* on foot */
+.tc-btn-act { --x: 0px; --y: 0px; --s: 92px; font-size: 18px; border-color: rgba(255, 130, 96, 0.95); background: rgba(70, 24, 16, 0.6); }
+.tc-btn-jump { --x: 106px; --y: 6px; --s: 66px; }
+.tc-btn-run { --x: 14px; --y: 106px; --s: 66px; }
+.tc-btn-run.on { background: rgba(120, 200, 255, 0.9); color: #04121c; }
+.tc-btn-car { --x: 98px; --y: 96px; --s: 70px; border-color: #f4c430; background: rgba(60, 46, 6, 0.7); animation: tc-pulse 1.1s ease-in-out infinite; }
+.tc-btn-view { --x: 188px; --y: 8px; --s: 50px; font-size: 12px; }
+.tc-btn-look { --x: 188px; --y: 66px; --s: 50px; font-size: 12px; }
+/* in a car: GAS is the big one, BRAKE next to it */
+.tc-btn-gas { --x: 0px; --y: 0px; --s: 100px; font-size: 20px; border-color: rgba(120, 230, 140, 0.95); background: rgba(14, 56, 26, 0.62); }
+.tc-btn-brake { --x: 114px; --y: 0px; --s: 84px; font-size: 16px; border-color: rgba(255, 110, 96, 0.95); background: rgba(70, 20, 16, 0.62); }
+.tc-btn-hand { --x: 14px; --y: 116px; --s: 56px; font-size: 12px; }
+.tc-driving .tc-btn-car { --x: 106px; --y: 98px; --s: 62px; font-size: 14px; animation: none; }
+.tc-driving .tc-btn-horn { --x: 210px; --y: 8px; --s: 50px; font-size: 12px; }
+.tc-driving .tc-btn-radio { --x: 210px; --y: 66px; --s: 50px; font-size: 12px; }
+.tc-driving .tc-btn-view { --x: 268px; --y: 8px; }
+.tc-driving .tc-btn-look { --x: 268px; --y: 66px; }
+@keyframes tc-pulse { 0%, 100% { box-shadow: 0 3px 10px rgba(0,0,0,.4), 0 0 0 0 rgba(244,196,48,.55); } 50% { box-shadow: 0 3px 10px rgba(0,0,0,.4), 0 0 0 10px rgba(244,196,48,0); } }
+@media (prefers-reduced-motion: reduce) { .tc-btn-car { animation: none; } }
+
+/* short screens (a phone on its side): everything a little smaller so the cluster stays under the HUD; labels still 12 px */
+@media (max-height: 420px) {
+  .tc-root { --tc-b: max(env(safe-area-inset-bottom, 0px), 10px); }
+  .tc-btn-act { --s: 84px; }
+  .tc-btn-jump { --x: 98px; --y: 4px; --s: 60px; }
+  .tc-btn-run { --x: 12px; --y: 96px; --s: 60px; }
+  .tc-btn-car { --x: 90px; --y: 88px; --s: 64px; }
+  .tc-btn-view { --x: 172px; --y: 6px; --s: 46px; }
+  .tc-btn-look { --x: 172px; --y: 58px; --s: 46px; }
+  .tc-btn-gas { --s: 92px; }
+  .tc-btn-brake { --x: 104px; --s: 78px; }
+  .tc-btn-hand { --x: 12px; --y: 106px; --s: 52px; }
+  .tc-driving .tc-btn-car { --x: 96px; --y: 90px; --s: 58px; }
+  .tc-driving .tc-btn-horn { --x: 196px; --y: 6px; --s: 46px; }
+  .tc-driving .tc-btn-radio { --x: 196px; --y: 58px; --s: 46px; }
+  .tc-driving .tc-btn-view { --x: 250px; --y: 6px; }
+  .tc-driving .tc-btn-look { --x: 250px; --y: 58px; }
+}
+/* portrait: the small buttons stack in a column above the cluster instead of running left into the stick's half */
+@media (orientation: portrait) {
+  .tc-btn-view { --x: 14px; --y: 192px; }
+  .tc-btn-look { --x: 14px; --y: 248px; }
+  .tc-driving .tc-btn-view { --x: 14px; --y: 192px; }
+  .tc-driving .tc-btn-look { --x: 14px; --y: 248px; }
+  .tc-driving .tc-btn-horn { --x: 14px; --y: 304px; }
+  .tc-driving .tc-btn-radio { --x: 14px; --y: 360px; }
+}
+
+/* first-run help and the rotate hint: neither takes a touch from the game */
+.tc-tutorial { position: absolute; inset: 0; pointer-events: none; background: rgba(0, 0, 0, 0.38); transition: opacity 280ms ease; z-index: 3; color: #fff; font-family: system-ui, -apple-system, sans-serif; }
+.tc-tutorial.out { opacity: 0; }
+.tc-tut-left, .tc-tut-right { position: absolute; top: 28%; display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; max-width: 40%; border-radius: 12px; background: rgba(10, 10, 14, 0.78); border: 2px solid rgba(255, 255, 255, 0.35); }
+.tc-tut-left { left: max(env(safe-area-inset-left, 0px), 16px); }
+.tc-tut-right { right: max(env(safe-area-inset-right, 0px), 16px); text-align: right; }
+.tc-tut-left b, .tc-tut-right b { font-size: 18px; letter-spacing: .12em; color: #f4c430; }
+.tc-tut-left span, .tc-tut-right span { font-size: 14px; line-height: 1.3; }
+.tc-tut-list { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(var(--tc-b) + 116px); margin: 0; padding: 10px 14px; list-style: none; width: max-content; max-width: 56%; border-radius: 12px; background: rgba(10, 10, 14, 0.78); border: 2px solid rgba(255, 255, 255, 0.25); font-size: 13px; line-height: 1.45; }
+.tc-tut-list b { color: #f4c430; display: inline-block; min-width: 4.6em; }
+.tc-tut-ok { position: absolute; left: 50%; transform: translateX(-50%); top: 12%; min-width: 150px; min-height: 48px; padding: 0 22px; border-radius: 24px; border: 2px solid #f4c430; background: #f4c430; color: #1a1408; font: 800 16px/1 system-ui, sans-serif; letter-spacing: .1em; pointer-events: auto; touch-action: none; }
+@media (max-height: 420px) { .tc-tut-left, .tc-tut-right { top: 22%; } .tc-tut-list { bottom: auto; top: 44%; max-width: 44%; } .tc-tut-ok { top: 6%; } }
+.tc-rotate { position: absolute; left: 50%; transform: translateX(-50%); top: calc(max(env(safe-area-inset-top, 0px), 10px) + 150px); padding: 8px 14px; border-radius: 18px; background: rgba(10, 10, 14, 0.82); border: 1px solid rgba(255, 255, 255, 0.3); color: #fff; font: 600 13px/1.2 system-ui, sans-serif; transition: opacity 300ms ease; pointer-events: none; white-space: nowrap; }
+.tc-rotate.out { opacity: 0; }
+
 /* re-flow the HUD around the controls (portrait): minimap + bars top-left; street / speed / radio stack bottom-left above the stick;
    help text and subtitles above the button cluster. Nothing sits over the 2x3 button block (right, bottom 26..284). */
 .hud-root.touch canvas.minimap { left: max(16px, env(safe-area-inset-left, 0px)) !important; bottom: auto !important; top: 34px !important; width: 140px !important; height: 140px !important; }
@@ -48,12 +129,6 @@
   .hud-root.touch .msn-sub { bottom: auto; top: 56px; left: calc(50% + 90px); max-width: calc(100% - 480px); font-size: 14px; }
 }
 
-/* JUMP is an on-foot button; it hides while driving (setDriving) */
-.tc-driving .tc-btn-jump { display: none; }
 
-/* ACT is the on-foot action button (punch / throw / shoot): it takes the empty cell beside VIEW at the bottom right (thumb reach, clear of the stick in portrait); it hides while driving */
-.tc-btn-act { position: absolute; right: 0; bottom: 0; width: 78px; height: 78px; font-size: 12px; border-color: rgba(255, 120, 90, 0.85); }
-.tc-driving .tc-btn-act { display: none; }
-@media (max-height: 420px) { .tc-btn-act { width: 54px; height: 54px; } }
 /* phones: the pause / phone / map buttons own the top-right corner, so the hands widget sits left of the stars */
 .touch .hud-hands { top: 44px; right: calc(max(16px, env(safe-area-inset-right, 0px)) + 150px); }

@@ -1,5 +1,7 @@
 # Test fixtures
 
+Status: current (checked 21 Nov 2026)
+
 Used by unit tests only. Nothing in this folder is imported by `src/` or shipped in the build.
 
 - `CesiumMan.glb` - skinned, animated walking man (one clip) from the Khronos glTF Sample Assets

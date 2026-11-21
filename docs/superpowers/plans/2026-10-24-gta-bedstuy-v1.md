@@ -1,6 +1,8 @@
 # GTA Bed-Stuy v1 Implementation Plan
 
-> **For agentic workers:** Orchestrated by Fable (this session) using superpowers:subagent-driven-development. Tasks 1–10 run in parallel as separate Sonnet/Haiku agents in the SAME working directory on disjoint files. Task 11 (integration) is the orchestrator's.
+Status: historical record (not maintained)
+
+> **For agentic workers:** Orchestrated by Fable (this session) using superpowers:subagent-driven-development. Tasks 1–10 run in parallel as separate standard model/light model agents in the SAME working directory on disjoint files. Task 11 (integration) is the orchestrator's.
 
 **Goal:** A playable browser sandbox on ten real Bed-Stuy blocks: walk, jack cars, drive, traffic, pedestrians, cops, day/night, procedural audio, published as a single-file artifact.
 
@@ -31,7 +33,7 @@
 
 ---
 
-### Task 1: Grid (Sonnet) — `src/world/Grid.ts`
+### Task 1: Grid (standard model) — `src/world/Grid.ts`
 
 **Produces:** `loadBedstuyData(): BedstuyData` (imports the JSON), `buildGrid(data: BedstuyData): GridModel`.
 
@@ -46,7 +48,7 @@ Rules:
 
 **Tests** `tests/unit/world/grid.test.ts`: 10 blocks, 18 intersections, 27 segments; `isOnRoad({x:0,z:0})` true; `isOnRoad(center of r2c0)` false; lanes strongly connected (BFS from any node reaches all); sidewalks connected; one-way street `hart` (oneWay +1 = eastbound) has lane headings ≈ +π/2 only; `nearestLaneNode` returns a node within 10 m of a point on Throop; block `r2c0` curb x-range is (−250+7, 0−7) and z-range (+5, 100−6.5).
 
-### Task 2: RoadBuilder (Sonnet) — `src/world/RoadBuilder.ts`
+### Task 2: RoadBuilder (standard model) — `src/world/RoadBuilder.ts`
 
 **Consumes:** `GridModel`, `IMaterialLibrary`.
 **Produces:** `buildRoads(grid: GridModel, materials: IMaterialLibrary): { group: THREE.Group; colliders: StaticCollider[] }`.
@@ -59,7 +61,7 @@ Rules:
 
 **Tests** `tests/unit/world/roads.test.ts` with a stub `IMaterialLibrary` (returns `MeshBasicMaterial` per key, records keys requested): group has ≤ 12 meshes; bounding box spans ≥ grid bounds; requested keys include `asphalt`, `concrete`, `laneLine`, `crosswalk`; 4 edge colliders.
 
-### Task 3: MaterialLibrary (Sonnet) — `src/textures/MaterialLibrary.ts`, `src/textures/canvas.ts`, `src/textures/painters/*.ts`
+### Task 3: MaterialLibrary (standard model) — `src/textures/MaterialLibrary.ts`, `src/textures/canvas.ts`, `src/textures/painters/*.ts`
 
 **Produces:** `class MaterialLibrary implements IMaterialLibrary` with `constructor(rng: Rng, canvasFactory?: (w: number, h: number) => HTMLCanvasElement)`; `src/textures/canvas.ts` exports `createCanvas(w, h)` (document-based) and the `Painter` type `(ctx: CanvasRenderingContext2D, w: number, h: number, rng: Rng, variant: number) => void`.
 
@@ -70,7 +72,7 @@ Rules:
 
 **Tests** `tests/unit/textures/materials.test.ts` with a **fake canvas** (object with `getContext('2d')` returning a recorder of fill/stroke/text calls; width/height; no node-canvas): same seed → identical recorded op list for `brick` variant 0; different variants differ; `get('brick', 0) === get('brick', 0)` (cached); `awning('#d62828','X') !== awning('#d62828','Y')`; `setNight(true)` sets emissive intensity 0.9 on `window`.
 
-### Task 4: Lots + Buildings (Sonnet) — `src/world/LotSubdivider.ts`, `src/world/BuildingGen.ts`, `src/world/buildings/*.ts`
+### Task 4: Lots + Buildings (standard model) — `src/world/LotSubdivider.ts`, `src/world/BuildingGen.ts`, `src/world/buildings/*.ts`
 
 **Produces:** `subdivideLots(grid: GridModel, pois: PoiDef[], rng: Rng): Lot[]`; `buildBuildings(lots: Lot[], materials: IMaterialLibrary, rng: Rng): { group: THREE.Group; colliders: StaticCollider[] }`.
 
@@ -93,7 +95,7 @@ Buildings (one merged mesh per material across all lots; `colliders` = one `Poly
 
 **Tests** `tests/unit/world/lots.test.ts`, `tests/unit/world/buildings.test.ts` (use a tiny fake `GridModel` with one block built by hand, and a stub `IMaterialLibrary`): lot widths sum to face length ± 0.01; no lot < 4 m; every POI assigned exactly once and its lot type matches the archetype rule; corner lots are on E/W faces; `buildBuildings` returns ≥ 1 mesh and one `Polygon` collider per non-vacant lot; all colliders lie inside the block's buildingLine bounding box.
 
-### Task 5: Furniture + Signage (Haiku) — `src/world/FurnitureGen.ts`
+### Task 5: Furniture + Signage (light model) — `src/world/FurnitureGen.ts`
 
 **Consumes:** `GridModel`, `Lot[]`, `IMaterialLibrary`, `Rng`.
 **Produces:** `buildFurniture(grid: GridModel, lots: Lot[], materials: IMaterialLibrary, rng: Rng): { group: THREE.Group; colliders: StaticCollider[] }`.
@@ -105,7 +107,7 @@ Buildings (one merged mesh per material across all lots; `colliders` = one `Poly
 
 **Tests** `tests/unit/world/furniture.test.ts` (fake one-block grid): ≥ 4 lampposts (corners), trees spaced ≥ 10 m apart along a face, every collider is a Circle with 0.15 ≤ r ≤ 0.5 and lies within the block's curb polygon.
 
-### Task 6: Physics (Sonnet) — `src/physics/Collider2D.ts`, `src/physics/World2D.ts`
+### Task 6: Physics (standard model) — `src/physics/Collider2D.ts`, `src/physics/World2D.ts`
 
 **Produces:** `Collider2D.ts`: `obbCorners(pos, heading, obb): Vec2[]`, `overlap(a: Body2D, b: Body2D): { normal: Vec2; depth: number; point: Vec2 } | null` handling circle/obb/polygon/segment in any pairing (SAT for convex shapes; segment as degenerate polygon with 0.05 m thickness), `pointInPolygon(p, pts)`, `rayShape(from, dir, maxDist, body): { dist; point } | null`. `World2D.ts`: `class World2D implements IWorld2D` (constructor `(cellSize = 12)`; spatial hash; static bodies hashed once, dynamic re-hashed each step).
 
@@ -113,7 +115,7 @@ Buildings (one merged mesh per material across all lots; `colliders` = one `Poly
 
 **Tests** `tests/unit/physics/collider2d.test.ts`, `tests/unit/physics/world2d.test.ts`: circle-circle MTV; circle vs OBB rotated 45°; OBB vs OBB separated/overlapping; circle vs polygon edge and corner; raycast hits a polygon at the right distance and misses when ignored; `step` pushes a circle out of a static polygon fully (depth 0 afterwards); vehicle-vs-ped contact carries `impulse ≈ 8` when closing at 8 m/s; a body moving 50 m/s does not tunnel through a 0.3 m thick segment in one 1/60 step (substep or swept test inside `step`).
 
-### Task 7: Player, Vehicle, Camera (Sonnet) — `src/entities/Vehicle.ts`, `src/entities/Player.ts`, `src/core/Camera.ts` *(exception: Camera.ts is yours to create)*
+### Task 7: Player, Vehicle, Camera (standard model) — `src/entities/Vehicle.ts`, `src/entities/Player.ts`, `src/core/Camera.ts` *(exception: Camera.ts is yours to create)*
 
 **Produces:**
 - `VEHICLE_SPECS: Record<VehicleType, VehicleSpec>` (sedan 4.6×1.8×1.4 m, 30 m/s, accel 8; suv 4.9×2.0×1.8, 27, 7; boxtruck 7×2.4×3.2, 20, 4; cop = sedan 33 m/s, accel 9; `maxSteer` 0.6 rad; `brakeDecel` 14).
@@ -123,7 +125,7 @@ Buildings (one merged mesh per material across all lots; `colliders` = one `Poly
 
 **Tests** `tests/unit/entities/vehicle.test.ts`, `player.test.ts`, `camera.test.ts` (stub materials; a fake `Input` object `{isDown, pressed, axis, mouseDX, mouseDY, wheel}`): full throttle for 6 s reaches ≥ 0.8·maxSpeed and never exceeds maxSpeed; brake from 20 m/s stops within 3 s; steer right at 10 m/s increases heading; player `tryEnter` picks the nearest vehicle within 3 m and ignores one at 5 m; camera yaw converges behind a vehicle heading π/2 within 3 s of no mouse input.
 
-### Task 8: Traffic, Pedestrians, Cops, Wanted (Sonnet) — `src/entities/TrafficAgent.ts`, `src/entities/Pedestrian.ts`, `src/entities/Cop.ts`, `src/game/TrafficSystem.ts`, `src/game/WantedSystem.ts`, `src/game/CopSystem.ts`
+### Task 8: Traffic, Pedestrians, Cops, Wanted (standard model) — `src/entities/TrafficAgent.ts`, `src/entities/Pedestrian.ts`, `src/entities/Cop.ts`, `src/game/TrafficSystem.ts`, `src/game/WantedSystem.ts`, `src/game/CopSystem.ts`
 
 **Consumes:** `GridModel`, `IWorld2D`, `IVehicle` (via a factory you are given, never by importing `Vehicle`), `EventBus`, `Rng`.
 **Produces:**
@@ -136,7 +138,7 @@ Buildings (one merged mesh per material across all lots; `colliders` = one `Poly
 
 **Tests** `tests/unit/game/wanted.test.ts`, `tests/unit/entities/traffic.test.ts`, `pedestrian.test.ts`, `cops.test.ts` (fake `IVehicle`, fake `IWorld2D`, hand-built 4-node lane graph): wanted +1 per hitPed, caps at 3, decays after 20 s; traffic agent steers positive toward a node to the right; brakes when raycast reports a hit at 4 m; pedestrian never picks the node it came from when another exists; cop count follows stars.
 
-### Task 9: HUD, Minimap, Day/Night (Haiku) — `src/ui/Hud.ts`, `src/ui/Minimap.ts`, `src/game/DayNight.ts`, `src/ui/hud.css` (imported from Hud.ts)
+### Task 9: HUD, Minimap, Day/Night (light model) — `src/ui/Hud.ts`, `src/ui/Minimap.ts`, `src/game/DayNight.ts`, `src/ui/hud.css` (imported from Hud.ts)
 
 **Produces:**
 - `class Hud { constructor(root: HTMLElement); update(state: HudState): void; showSplash(): void; hideSplash(): void; }` — DOM overlay: stars top-right (★ filled/outline), speed bottom-right (km/h, only in vehicle), location label bottom-left (street name, GTA-style small caps), radio station name next to it (only in vehicle), centre-bottom prompt, tiny FPS top-left. Splash: title "GTA BED-STUY", subtitle "a fan tribute · not affiliated with Rockstar Games or Take-Two", controls list (WASD move · Shift run · F enter/exit car · Space brake · H horn · E radio · mouse look · click to start), hidden on `hideSplash()`.
@@ -145,7 +147,7 @@ Buildings (one merged mesh per material across all lots; `colliders` = one `Poly
 
 **Tests** `tests/unit/ui/hud.test.ts` (`// @vitest-environment jsdom`), `tests/unit/ui/minimap.test.ts`, `tests/unit/game/daynight.test.ts`: hud shows 2 filled stars for `stars: 2`; speed hidden when not in vehicle; `worldToMinimap` puts a point 10 m ahead of the player above centre regardless of heading; `isNightAt(23)` true, `isNightAt(12)` false; `skyColorAt(12)` brighter than `skyColorAt(0)`.
 
-### Task 10: Audio (Haiku) — `src/audio/AudioSystem.ts`, `src/audio/synth.ts`, `src/audio/radio.ts`
+### Task 10: Audio (light model) — `src/audio/AudioSystem.ts`, `src/audio/synth.ts`, `src/audio/radio.ts`
 
 **Produces:**
 - `src/audio/synth.ts` pure helpers: `engineFrequency(speed: number, throttle: number): number` (idle 55 Hz, up to ~220 Hz, rises with throttle), `hornFrequencies(): [number, number]` (two detuned tones ≈ 400/500 Hz), `impactGain(strength: number): number` (0..1, saturates at 15 m/s).

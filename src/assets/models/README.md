@@ -1,5 +1,7 @@
 # Character and vehicle models (glTF / GLB)
 
+Status: partly out of date (checked 21 Nov 2026): the glTF cars and characters are opt-in (`VITE_GLTF_CARS=1`, `VITE_GLTF_PEDS=1`) and the default game draws procedural cars and MakeHuman-based people instead; the loader details below were not re-read against `src/entities/models/gltf/`.
+
 **Vehicles are procedural by default** (`src/entities/models/carBodies.ts` + `carModel.ts`: lofted GTA3-era bodies, licence ours). The
 `vehicle-*.glb` files here are an opt-in alternative: build with `VITE_GLTF_CARS=1` to bundle and use them (without the flag they are not
 bundled at all).

@@ -1,5 +1,7 @@
 # EXPANSION: survey of the area between Throop Ave and Bushwick Ave (SURVEY9)
 
+Status: historical record (not maintained)
+
 Lane SURVEY9, 9 Nov 2026. Sources: NYC MapPLUTO (`64uk-42ks`) and NYC Building Footprints (`5zhs-2jue`) from `data.cityofnewyork.us`, DOHMH restaurant inspections (`43nn-pn8j`) and DCWP licences (`w7w3-xahh`) from the same portal; Wikipedia/MTA snippets for the stations. No Google data. `bedstuy.json` is untouched. Raw data: `src/world/data/raw/expansion-pluto.json` (6,899 lots, trimmed to the polygon, X/Z in grid metres), `expansion-pluto.query.json`, `venues-current.json`, `venues-expansion.json`. Sketch: `docs/reference/expansion-sketch.svg`.
 
 ## 1. Frame and the street table

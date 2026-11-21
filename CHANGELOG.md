@@ -10,19 +10,19 @@ How to read it:
 
 - The project has no version numbers or tags. `package.json` says 0.1.0 and has not been changed.
 - Vercel builds the commit at the head of each push. If several commits were pushed together, only the last was built, so a few
-  lines below may never have been live on their own. Before 12 Nov 2026 `vercel.json` had no `ignoreCommand`, so every push was
-  built; the filter above is applied to those days only as an approximation.
+  lines below may never have been live on their own. The `ignoreCommand` rule in `vercel.json` was added on 12 Nov 2026; before that
+  every push was in principle built, so the filter above is only an approximation for the earlier days.
 - The newest line is the version live today (`033bb97`, 18 Nov 2026). Everything committed after it is unreleased work in progress:
   see `MEMORY.md`, "State".
-- The first commits (24 Oct 2026) predate the hosted site.
+- The first commits (24 Oct 2026) predate `vercel.json`, which was added on 28 Oct 2026.
 
 
-## Week of 16 Nov 2026 (2 releases)
+## Week of 16 Nov 2026 (2 commits)
 
 - 2026-11-18 `033bb97` Combat follow-ups, title fixes from the playtest (live now)
 - 2026-11-18 `a96dc51` People wear hair, hats and bags; cleaner hems, shoes and faces; quieter, steadier engines
 
-## Week of 9 Nov 2026 (203 releases)
+## Week of 9 Nov 2026 (203 commits)
 
 - 2026-11-12 `adbdc2c` Title screen has its pictures and nothing of the game's interface over it
 - 2026-11-12 `5678772` Action button on foot: punch, throw, shoot
@@ -228,7 +228,7 @@ How to read it:
 - 2026-11-09 `a2c2f5e` Stage 7/8 lanes WIP, playtest logs and transcript
 - 2026-11-09 `7cbdb9c` Swarm: Stage 8 lanes SKINS, RADIO8, GEO2, SCRIBE2; H8 and SHOP7 WIP
 
-## Week of 2 Nov 2026 (78 releases)
+## Week of 2 Nov 2026 (78 commits)
 
 - 2026-11-07 `2fed82a` Pause: Stage 7 lanes WIP, playtest logs and transcript
 - 2026-11-07 `a539c9d` Stage 7 lanes WIP, playtest logs and transcript
@@ -309,7 +309,7 @@ How to read it:
 - 2026-11-03 `27b561c` Swarm: six new lanes (models research 2, GTA-level graphics, real-blocks import, missions 2, interiors/DJ, Radio SC)
 - 2026-11-03 `5a42bde` Swarm: DRIVE lane from playtest findings; H2 partial relay
 
-## Week of 26 Oct 2026 (38 releases)
+## Week of 26 Oct 2026 (38 commits)
 
 - 2026-11-01 `5899225` Car exit fix: consumed key edges per fixed step, gamepad exit, enter-walk cancel; swarm snapshot
 - 2026-11-01 `7c5339d` Playtest harness waits full game time and reports cut-short actions; R/X consume presses
@@ -350,7 +350,7 @@ How to read it:
 - 2026-10-28 `c51d785` Swarm: block-face research brief; material keys for vehicle/people textures
 - 2026-10-28 `07d3d34` Swarm scaffolding: transcript, board, PRD skeleton, lighting config
 
-## Week of 19 Oct 2026 (33 releases)
+## Week of 19 Oct 2026 (33 commits)
 
 - 2026-10-24 `52ad811` Ground painters from the brief: NYC asphalt, 5x5 sidewalk slabs with gum, bluestone flags, granite curbs, manholes, grates, ladder crosswalks
 - 2026-10-24 `024f1c2` Masonry painters from the Bed-Stuy brief; wire optional glTF characters and vehicles into entities

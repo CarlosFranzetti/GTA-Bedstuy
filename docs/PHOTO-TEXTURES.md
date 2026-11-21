@@ -1,5 +1,7 @@
 # Your own Bed-Stuy textures
 
+Status: current (checked 21 Nov 2026)
+
 The fastest way to make the city look like *the actual block* is to photograph its surfaces and
 let the game use them. Nothing is ripped from any game or map service; these are your photos.
 

@@ -1,5 +1,7 @@
 # Real blocks: building footprints from open data, textures from your own photos
 
+Status: partly out of date (checked 21 Nov 2026): its OpenStreetMap importer (`scripts/import-osm.mjs`) has never been run on real data. The grid map's lots come from NYC MapPLUTO (`docs/reference/BLOCKS.md`), and the real-street map uses NYC Open Data only (`docs/CREDITS.md`). The pipeline described here is kept for reference.
+
 **Update (GEO2, 9 Nov 2026): MapPLUTO is imported.** `node scripts/fetch-pluto.mjs` then `node scripts/import-pluto.mjs --write` rebuild the lots from NYC MapPLUTO and Building Footprints with no OSM data (see `docs/reference/BLOCKS.md`). Restore `bedstuy.json` from git before a re-run if you want the original typology notes as input. The OSM path below still works when Overpass is reachable.
 
 Status: the pipeline is built and tested against a synthetic fixture. The map hosts (overpass-api.de, openstreetmap.org, data.cityofnewyork.us) were blocked in the sandbox when this was written, so no real data has been imported yet. Everything below runs from files you download yourself; once those hosts are allowed the same commands work with `curl` straight into the importer.

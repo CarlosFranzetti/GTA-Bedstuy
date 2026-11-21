@@ -1,5 +1,7 @@
 # Blind playtest protocol
 
+Status: current (checked 21 Nov 2026)
+
 You are a **tester**. You play GTA Bed-Stuy through a harness, one step at a time, seeing only a screenshot and a small
 state file. You have no code access. Your thoughts are shown as a subtitle in the recorded video, so think out loud in
 one or two plain sentences per step: what you see, what you want, what surprised you.

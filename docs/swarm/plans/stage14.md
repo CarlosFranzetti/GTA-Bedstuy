@@ -1,5 +1,7 @@
 # Stage 14 plan (user direction, 11 Nov): teams, order, gates
 
+Status: historical record (not maintained)
+
 Goal: AAA-feeling native apps (Mac Apple Silicon, Windows) and the best web build we can make; phone build stays limited.
 Area: Bed-Stuy and Bushwick first; Williamsburg and a corner of Ridgewood later; Queens much later; most of south Brooklyn never.
 
@@ -39,13 +41,13 @@ The browser steps go through `scripts/swarm-render.sh` one at a time, so on a bu
 ## Teams
 | Team | Lead model | Lanes | Scope |
 |---|---|---|---|
-| MAP | opus (design lead) | MAPLEAD, then workers | Real Brooklyn street geometry (curves, diagonals, Bushwick's rotated grid) from NYC street centerlines; +20 blocks toward Bushwick; map screen showing real Brooklyn with built streets lit and the rest dark |
-| ENVIRONMENT | sonnet + haiku fetchers | ENV14 | Building accuracy per lot; textures from licensed street photos; more real surface detail |
-| CARS | sonnet | CARS14 (after CARFIXUP) | Sports cars, electric wedge pickup parody, per-type handling |
-| CHARACTERS | sonnet | CHAR14 | Realistic clothing (no letters or logos like "BK"), fix hijab/seams/hems, people talk to each other and react |
-| SOUND | sonnet | RADIO15, SFX14, (VOX follow-up) | 15 stations (2 talk, one 80s; Dekmantel, Boiler Room, RA sets; internet radio streams); distinct engine and horn per vehicle; ped voices |
-| CONTROLS/UI | sonnet | CONTROLS14, UI14 (after MENU) | Camera view shortcuts and swap, jump, iPhone-style phone, GTA 5 style loading screen with load bar |
-| QA | haiku | PLAYTEST | Re-run after each team lands |
+| MAP | lead (design lead) | MAPLEAD, then workers | Real Brooklyn street geometry (curves, diagonals, Bushwick's rotated grid) from NYC street centerlines; +20 blocks toward Bushwick; map screen showing real Brooklyn with built streets lit and the rest dark |
+| ENVIRONMENT | standard + light fetchers | ENV14 | Building accuracy per lot; textures from licensed street photos; more real surface detail |
+| CARS | standard | CARS14 (after CARFIXUP) | Sports cars, electric wedge pickup parody, per-type handling |
+| CHARACTERS | standard | CHAR14 | Realistic clothing (no letters or logos like "BK"), fix hijab/seams/hems, people talk to each other and react |
+| SOUND | standard | RADIO15, SFX14, (VOX follow-up) | 15 stations (2 talk, one 80s; Dekmantel, Boiler Room, RA sets; internet radio streams); distinct engine and horn per vehicle; ped voices |
+| CONTROLS/UI | standard | CONTROLS14, UI14 (after MENU) | Camera view shortcuts and swap, jump, iPhone-style phone, GTA 5 style loading screen with load bar |
+| QA | light | PLAYTEST | Re-run after each team lands |
 
 ## Order
 1. Now: MAPLEAD (design + data pipeline), RADIO15, SFX14, CHAR14, ENV14, CONTROLS14; CARS14 starts when CARFIXUP posts FINAL; UI14 when MENU posts FINAL.
