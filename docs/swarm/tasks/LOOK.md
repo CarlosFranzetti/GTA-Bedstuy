@@ -44,5 +44,25 @@ Note: other lanes edit textures in the same tree, so before (built early) and af
 Capture caveat: the page crashes about every second shot on this box (shader recompile on hour or weather change under load);
 the script reloads and retries.
 
+## Verified and not verified
+- Verified (looked at, low tier, software render): row, rowS, ave, aveW at 17:30; row, shop corner at 22:00; heavy rain by day and night;
+  one phone frame (grade and sky only: the building streamer had not loaded in that capture, so its geometry is not a valid view).
+- `npx vitest run tests/unit/render tests/unit/game/daynight.test.ts --maxWorkers=1`: 360 passed. `npx tsc --noEmit`: clean under src/.
+- NOT verified: medium and high tiers (not captured: memory), SSR wet lamp doubling (medium and high only; low has none),
+  junction under the el at 22:00 wet in an equal before/after pair, overcast without rain, noon after the last build, a real phone,
+  the headlamp and NightBounce look after the lamp change. Triangles and draws are unchanged by this lane (no geometry, no pass added).
+
+## Camera (proposal only, src/core/Camera.ts is not mine)
+Measured: on foot CAM_FOOT distance 3.2 m, height 1.55, look 1.4, fov 64, shoulder 0.35 (already inside DIRECTION: close, low, 64 deg).
+Car CAM_VEHICLE distance 4.6 m, height 1.7, look 1.3, fov 70 rising to 82 at speed, plus 0.9 m pull-back at speed.
+Proposal for the car: distance 4.1, height 1.45, look 1.15, fov 62 rising to 72, speed pull-back 0.6. Not mocked (the capture queue
+did not return the free-camera pair).
+
 ## Left to do / still breaks the picture
-(to fill)
+- Asphalt is near black in sun and at night (SURFACES4: albedo 0.10 to 0.14 plus lighter wheel tracks). It kills the lamp pools.
+- Tree leaves are emerald in the albedo; the grade pulls them to olive but cannot fix it (SURFACES4 / vegetation).
+- Street lamps are sparse in the row view (no lamp within the 26 m pool range) so no pools at all there; lamp heads read warm white,
+  not sodium orange (emissive colour in props, not mine).
+- No weather-driven grade: overcast and rain only change light colours, fog and sky; a per-weather LUT blend would finish it.
+- A faint greenish band in the sky between the dust-beige haze and the pale blue at 17:30 (horizon keys 0.42 to 0.62).
+- Medium and high: grain, vignette, SSR wet lamps unchecked.

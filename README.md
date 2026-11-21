@@ -32,29 +32,39 @@ pause menu's Controls tab (`src/ui/Menu.ts`). The touch column is the released l
 reworked (in development): a stick that appears under your thumb anywhere on the left, GAS, BRAKE and HAND buttons in a car,
 and VIEW doubling as look-behind. This column will change when that is released.
 
+The layout follows GTA V on PC (keys and pad) with GTA IV where the two agree: if you know either, your hands are already
+in the right place. Bindings are conventions only; nothing is taken from any game. Every keyboard key can be changed in the
+pause menu, Controls tab (click a key, press the new one; Backspace clears; Reset to defaults). The pad column shows Xbox
+names; a PlayStation pad shows Cross, Circle, Square, Triangle, L1, R1, L2, R2. The sources and how sure each row is are in
+`docs/swarm/tasks/CONTROLS.md`.
+
 | Action | Keyboard and mouse | Gamepad | Touch |
 |---|---|---|---|
 | Move, steer | W A S D | Left stick | Left stick |
 | Look | Mouse | Right stick | Drag on the right side |
-| Sprint on foot (the default is a jog) | Shift | X or Square | RUN |
-| Walk slowly | Hold Alt, or toggle Caps Lock | Half-tilt the left stick | Half-push the stick |
-| Jump | Space | B or Circle | JUMP |
-| Throttle and brake in a car | W and S, Space brakes | RT and LT | Left stick, RUN/BRAKE |
-| Handbrake | Shift | X or Square | |
+| Sprint on foot (the default is a jog) | Left Shift | A, hold | RUN |
+| Walk slowly | Hold Alt, or toggle Caps Lock | L3 toggles; or half-tilt the left stick | Half-push the stick |
+| Jump | Space | X | JUMP |
+| Throttle, brake and reverse in a car | W, S | RT, LT | Left stick, BRAKE |
+| Handbrake (car) | Space | RB | HAND |
 | Punch, throw or shoot (on foot, by the item in hand) | Left click or G | RT | ACT |
-| Next item in hand | Q | D-pad right (left goes back) | Tap the item icon |
-| Enter or exit a car | F | A | CAR |
-| Camera view (tap twice to swap the last two) | V | Select or Back | VIEW |
-| Swap over-the-shoulder side | B or middle mouse | RB | |
-| Look back | Hold C | R3 | LOOK |
-| Horn | H | LB | HORN |
-| Next radio station | E | Y | RADIO |
-| Phone, map | P, M | | PHONE, MAP |
+| Aim, take cover (reserved, no function yet) | Right click, Q | LT, RB | |
+| Next, previous item in hand | Tab or wheel down, wheel up | LB or d-pad right, d-pad left | Tap the item icon |
+| Enter or exit a vehicle | F | Y | CAR |
+| Camera view (tap twice to swap the last two) | V | View or Select | VIEW |
+| Swap over-the-shoulder side | B | RB on foot | |
+| Look behind | Hold C | R3 | LOOK |
+| Horn (car) | G, hold | L3, hold | HORN |
+| Radio next, previous (car) | . and , or wheel | d-pad right, left | RADIO |
+| Phone | Up arrow or middle click | D-pad up | PHONE |
+| Map | M | Start, then the Map tab | MAP |
 | Point at HOME or WAX DELI | N | | Tap the Offer or Nav chip |
 | Full screen | Alt+Enter | | |
-| Pause menu | Esc | Start | II |
+| Pause menu (opens on the map) | Esc | Start | II |
 
-There is no action button in a car yet. Left Ctrl is not a game key, because Ctrl+W closes a browser tab.
+There is no action button in a car yet. Left Ctrl (stealth in GTA V) is bound to Walk only while the page is in full screen
+with the browser's Keyboard Lock active, because Ctrl+W closes a browser tab otherwise. Mission prompts that say R retry
+or X abandon use those keys too.
 
 ## What is in the game
 

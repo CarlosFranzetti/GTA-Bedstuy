@@ -38,18 +38,47 @@ export function doorDistance(v: IVehicle, p: Vec2): number {
   return Math.min(door, body);
 }
 const FOOT_RADIUS = 0.4;
-/** m/s^2 while speeding up / while stopping (a walk-speed start takes ~0.19 s, a stop ~0.11 s). */
-const ACCEL = 16;
-const DECEL = 28;
+/**
+ * m/s^2 while speeding up and while stopping. Both depend on how fast the body is already going: light on its feet from a standstill
+ * (a jog is reached in ~0.4 s), heavier the faster it goes (sprint builds over ~1 s and stops in ~0.4 s over a metre or so).
+ */
+const ACCEL_LOW = 9;
+const ACCEL_HIGH = 4.6;
+const DECEL_LOW = 12;
+const DECEL_HIGH = 17;
 /** Reversing direction accelerates a bit harder than a plain start. */
 const TURN_ACCEL_BOOST = 1.5;
 /** Sprint blend ramps 0 -> 1 in this many seconds when Shift is held, and back down faster. */
-const SPRINT_RAMP_UP = 0.45;
-const SPRINT_RAMP_DOWN = 0.25;
-/** Facing turns toward the move direction with this exponential rate (1/s). */
+const SPRINT_RAMP_UP = 0.8;
+const SPRINT_RAMP_DOWN = 0.3;
+/** Facing turns toward the move direction with this exponential rate (1/s), never faster than `maxTurnRate(speed)`. */
 const TURN_SMOOTH = 16;
-/** Walk to the car door before getting in. */
+/** Fastest the body can swing round (rad/s): quick on the spot, about 300 deg/s at a jog and 180 deg/s flat out. */
+export function maxTurnRate(speed: number): number { return 2.4 + 8.5 * Math.exp(-speed / 2.6); }
+/**
+ * Share of the wanted speed the body gives while it is not yet facing the way it was told to go: 1 when aligned, about 0.3 at a right
+ * angle, 0.15 when the stick is pulled the opposite way. The body plants, swings round, then drives off: a reversal is no instant flip.
+ */
+export function alignScale(cosErr: number): number {
+  const t = Math.min(1, Math.max(0, (cosErr + 0.3) / 1.2));
+  return 0.15 + 0.85 * t * t * (3 - 2 * t);
+}
+/** Hitting something hard at speed: the share of speed that must be lost in one step to count as a bump, how long the brace lasts (s). */
+const BUMP_DROP = 3;
+const BRACE_TIME = 0.5;
+/** Sprinting at a wall: speed is taken off over the last metres so the contact is at about this speed (m/s), braking at BRAKE_ACCEL. */
+const WALL_CONTACT_SPEED = 2.4;
+const BRAKE_ACCEL = 8;
+/** Walk to the car door before getting in: the time scales with the distance, between these (s). */
 const ENTER_TIME = 0.4;
+const ENTER_TIME_MAX = 0.8;
+const ENTER_WALK_SPEED = 3.4;
+/** Leaving a moving car: above LEAVE_STEP m/s the player steps out carrying part of its speed, above LEAVE_ROLL they roll out and get up. */
+const LEAVE_STEP = 2.5;
+const LEAVE_ROLL = 9;
+const LEAVE_CARRY = 0.5;
+const LEAVE_CARRY_MAX = 6;
+const ROLL_TIME = 0.9;
 /** Share of the entering time spent sinking into the seat (the rest is the walk to the door), and the exit slide (s). */
 const SEAT_SHARE = 0.5;
 /** The seated figure stays visible this long after the car is claimed, finishing the sit-down (s). */
@@ -122,13 +151,22 @@ export class Player implements Entity {
    * first free spot. Without it, exit() falls back to the side the player got in from.
    */
   blockedAt: ((p: Vec2, r: number, ignoreId?: string) => boolean) | null = null;
-  private entering: { vehicle: IVehicle; t: number; from: Vec2; prevDriver: IVehicle['driver'] } | null = null;
+  private entering: { vehicle: IVehicle; t: number; from: Vec2; prevDriver: IVehicle['driver']; time: number; v0: Vec2 } | null = null;
   /**
    * Called when the walk to a car door begins. The integrator must take `body` out of the physics world here:
    * the door is often on the far side of the car, so the glide crosses the car's own box and, left in World2D,
    * the player body shoves the (parked) car out of its spot and into traffic.
    */
   onEnterStart: (() => void) | null = null;
+  /** Fires when the player runs into something hard at speed (a wall, a person): strength 0..1. Hook a small camera kick and a grunt here. */
+  onBump: ((strength: number) => void) | null = null;
+  /** Id of the vehicle being walked to (null otherwise): the camera should not pull in for the car the player is stepping into. */
+  get enteringId(): string | null { return this.entering ? this.entering.vehicle.id : null; }
+  private braceT = 0;
+  private wallBraced = false;
+  private postSpeed = 0;
+  /** The facing (rad/s) the body turned at in the last step, for the animation. */
+  turnRate = 0;
   /** A second F press arrived during the walk to the door (long on slow machines): exit right after sitting down. */
   private exitQueued = false;
   private pinT = 0;
@@ -286,7 +324,13 @@ export class Player implements Entity {
     this.exitQueued = false;
     this.enteredFar = doorFar(best, this.body.pos);
     this.enteredFrom = { x: this.body.pos.x, z: this.body.pos.z };
-    this.entering = { vehicle: best, t: 0, from: { x: this.body.pos.x, z: this.body.pos.z }, prevDriver };
+    const walkTo = Math.hypot(best.doorPos().x - this.body.pos.x, best.doorPos().z - this.body.pos.z);
+    this.entering = {
+      vehicle: best, t: 0, from: { x: this.body.pos.x, z: this.body.pos.z }, prevDriver,
+      time: clamp(walkTo / ENTER_WALK_SPEED, ENTER_TIME, ENTER_TIME_MAX),
+      v0: this.entryVelocity(best),
+    };
+    this.braceT = 0;
     this.pinT = 0; this.pinTarget = null;
     this.jump.reset(); this.body.height = 0; this.prevY = 0;
     this.body.shape.r = SEATED_RADIUS; // glide through the car's own collision box
@@ -295,6 +339,15 @@ export class Player implements Entity {
     this.wantRun = false;
     this.desiredVel = { x: 0, z: 0 };
     return best;
+  }
+
+  /** The part of the player's own velocity that points toward the door, capped: the walk to the door carries on from it. */
+  private entryVelocity(v: IVehicle): Vec2 {
+    const b = this.body, door = v.doorPos();
+    const dx = door.x - b.pos.x, dz = door.z - b.pos.z, l = Math.hypot(dx, dz);
+    if (l < 1e-3) return { x: 0, z: 0 };
+    const along = Math.min(4, Math.max(0, (b.vel.x * dx + b.vel.z * dz) / l));
+    return { x: (dx / l) * along, z: (dz / l) * along };
   }
 
   /** True when at least one of the four sides of `v` has a free foot-sized spot. */
@@ -420,6 +473,7 @@ export class Player implements Entity {
     }
     const away = pick.side;
     const exitSeat = this.seatOf(v);
+    const carVx = v.body.vel.x, carVz = v.body.vel.z, carSp = Math.hypot(carVx, carVz);
     v.driver = null;
     v.setInput(NEUTRAL);
     this.vehicle = null;
@@ -438,6 +492,14 @@ export class Player implements Entity {
     this.object3D.visible = true;
     this.anim?.playOnce('standUp', { from: 0.4, rate: 2.3, fadeIn: 0.05, fadeOut: 0.25 }); // rise out of the seat (captured stand-up)
     this.exitVis = { t: 1, ...exitSeat }; this.seatK = 0; this.enterSeat = null;                 // and slide out of the seat to the spot beside the door
+    this.braceT = 0; this.wallBraced = false; this.postSpeed = 0;
+    if (carSp > LEAVE_STEP) {
+      // the car is moving: the body keeps part of its speed. A step out at a trot, or above LEAVE_ROLL a roll along the ground and a get-up.
+      const carry = Math.min(LEAVE_CARRY_MAX, carSp * LEAVE_CARRY);
+      this.body.vel.x = (carVx / carSp) * carry; this.body.vel.z = (carVz / carSp) * carry;
+      if (carSp > LEAVE_ROLL) { this.downT = ROLL_TIME; this.exitVis = null; this.jump.reset(); this.body.height = 0; this.prevY = 0; }
+      else this.anim?.playOnce('stumble', { amp: 0.4, from: 0.2, to: 0.55, rate: 1.8, fadeIn: 0.05, fadeOut: 0.3 });
+    }
     this.prevPos.x = this.body.pos.x; this.prevPos.z = this.body.pos.z; this.prevHeading = this.body.heading;
     this.events.emit('exitVehicle', { vehicleId: v.id });
   }
@@ -489,28 +551,74 @@ export class Player implements Entity {
     this.updatePin(dt, moved);
     if (this.pinTarget) { b.vel.x = 0; b.vel.z = 0; this.animateFoot(dt); return; }
 
+    // --- a hard hit: the physics pass has just taken most of the speed off (a wall, a person). Brace and stagger, do not stand dead.
+    const speedNow = Math.hypot(b.vel.x, b.vel.z);
+    if (this.moveDir && this.postSpeed - speedNow > BUMP_DROP && !this.jump.busy) {
+      const strength = clamp((this.postSpeed - speedNow) / RUN_SPEED, 0, 1);
+      this.braceT = BRACE_TIME;
+      this.sprintBlend = Math.min(this.sprintBlend, 0.2);
+      this.anim?.playOnce('stumble', { amp: 0.35 + 0.4 * strength, from: 0.2, to: 0.6, rate: 1.8, fadeIn: 0.05, fadeOut: 0.25 });
+      this.onBump?.(strength);
+    }
+    this.braceT = Math.max(0, this.braceT - dt);
+    if (speedNow < 2.5) this.wallBraced = false;
+    const brace = 1 - 0.65 * (this.braceT / BRACE_TIME); // the legs come back under the body: less push for a moment after a hit
+
     // --- sprint ramp, then accelerate toward the desired velocity (no instant starts or stops)
     const ramp = this.wantRun && this.moveDir ? 1 / SPRINT_RAMP_UP : -1 / SPRINT_RAMP_DOWN;
     this.sprintBlend = clamp(this.sprintBlend + ramp * dt, 0, 1);
+    const speedFrac = clamp(speedNow / RUN_SPEED, 0, 1);
+    const prevHeading = b.heading;
+    // facing turns toward the way the body is told to go (or the aim), but only as fast as its speed allows
+    const turnTo = (face: number): void => {
+      const want = angleDiff(b.heading, face) * (1 - Math.exp(-TURN_SMOOTH * this.jump.accelScale * dt));
+      const lim = maxTurnRate(speedNow) * dt;
+      b.heading = wrapAngle(b.heading + clamp(want, -lim, lim));
+    };
     if (this.moveDir) {
       const k = this.sprintBlend;
       // base pace: a jog (WALK_SPEED); Alt / Caps Lock or a half-pushed stick: a walk; Shift: sprint. A full key press is moveMag 1.
       const walkish = !this.wantRun && (this.wantStroll || this.moveMag < STICK_WALK_MAG);
       const base = walkish ? STROLL_SPEED : this.moveMag < 1 ? STROLL_SPEED + (WALK_SPEED - STROLL_SPEED) * ((this.moveMag - STICK_WALK_MAG) / (1 - STICK_WALK_MAG)) : WALK_SPEED;
-      const sp = (base + (RUN_SPEED - base) * (k * k * (3 - 2 * k))) * this.jump.speedScale;
-      this.desiredVel = { x: this.moveDir.x * sp, z: this.moveDir.z * sp };
+      let sp = (base + (RUN_SPEED - base) * (k * k * (3 - 2 * k))) * this.jump.speedScale;
       const want = headingFromVec(this.moveDir);
       const face = this.aimYaw ?? want;
-      b.heading = wrapAngle(b.heading + angleDiff(b.heading, face) * (1 - Math.exp(-TURN_SMOOTH * this.jump.accelScale * dt)));
+      turnTo(face);
+      // not yet facing the way it was told to go: give less speed until the body has swung round (not while aiming: that strafes)
+      if (this.aimYaw === null) sp *= alignScale(Math.cos(angleDiff(b.heading, want)));
+      // sprinting at a wall: take speed off over the last metres, so the contact is a brace and not a dead stop
+      if (speedNow > WALL_CONTACT_SPEED + 1.2 && this.blockedAt && !this.jump.busy) {
+        const ux = b.vel.x / speedNow, uz = b.vel.z / speedNow;
+        for (const d of [0.8, 1.4, 2.0, 2.8]) {
+          if (this.blockedAt({ x: b.pos.x + ux * (d + FOOT_RADIUS), z: b.pos.z + uz * (d + FOOT_RADIUS) }, FOOT_RADIUS * 0.8)) {
+            const cap = Math.sqrt(WALL_CONTACT_SPEED * WALL_CONTACT_SPEED + 2 * BRAKE_ACCEL * Math.max(0, d - 0.55));
+            if (cap < sp) {
+              sp = cap;
+              if (!this.wallBraced && speedNow > 5) { // the first moment of braking for a wall: throw the weight back, a small stagger
+                this.wallBraced = true;
+                this.anim?.playOnce('stumble', { amp: 0.3, from: 0.2, to: 0.55, rate: 1.8, fadeIn: 0.08, fadeOut: 0.3 });
+                this.onBump?.(0.3);
+              }
+            }
+            break;
+          }
+        }
+      }
+      this.desiredVel = { x: this.moveDir.x * sp, z: this.moveDir.z * sp };
     } else {
       this.desiredVel = { x: 0, z: 0 };
-      if (this.aimYaw !== null) b.heading = wrapAngle(b.heading + angleDiff(b.heading, this.aimYaw) * (1 - Math.exp(-TURN_SMOOTH * dt)));
+      if (this.aimYaw !== null) turnTo(this.aimYaw);
     }
+    this.turnRate = dt > 0 ? angleDiff(prevHeading, b.heading) / dt : 0;
     const ex = this.desiredVel.x - b.vel.x, ez = this.desiredVel.z - b.vel.z;
     const el = Math.hypot(ex, ez);
     if (el > 1e-9) {
       const reversing = this.moveDir !== null && b.vel.x * this.desiredVel.x + b.vel.z * this.desiredVel.z < 0;
-      const rate = (this.moveDir ? ACCEL * (reversing ? TURN_ACCEL_BOOST : 1) : DECEL) * this.jump.accelScale;
+      const accel = ACCEL_LOW + (ACCEL_HIGH - ACCEL_LOW) * speedFrac;
+      const decel = DECEL_LOW + (DECEL_HIGH - DECEL_LOW) * speedFrac;
+      // pushing against the velocity or letting go: the heavier brake; speeding up along it: the lighter motor
+      const slowing = !this.moveDir || b.vel.x * ex + b.vel.z * ez < 0 || Math.hypot(this.desiredVel.x, this.desiredVel.z) < speedNow;
+      const rate = (slowing ? Math.max(decel, this.moveDir && reversing ? accel * TURN_ACCEL_BOOST : 0) : accel * (reversing ? TURN_ACCEL_BOOST : 1)) * this.jump.accelScale * (slowing ? 1 : brace);
       const step = Math.min(el, rate * dt);
       b.vel.x += (ex / el) * step;
       b.vel.z += (ez / el) * step;
@@ -519,6 +627,7 @@ export class Player implements Entity {
     // so there is nothing to do here and the y offset stays 0.
     b.pos.x += b.vel.x * dt;
     b.pos.z += b.vel.z * dt;
+    this.postSpeed = Math.hypot(b.vel.x, b.vel.z);
     this.animateFoot(dt);
   }
 
@@ -548,11 +657,13 @@ export class Player implements Entity {
   private updateEntering(dt: number): void {
     const e = this.entering!;
     const b = this.body;
-    e.t = Math.min(1, e.t + dt / ENTER_TIME);
-    const k = e.t * e.t * (3 - 2 * e.t);
+    e.t = Math.min(1, e.t + dt / e.time);
     const door = e.vehicle.doorPos(); // tracks the car if it is still rolling
-    const nx = e.from.x + (door.x - e.from.x) * k;
-    const nz = e.from.z + (door.z - e.from.z) * k;
+    // a Hermite path from where the player was, leaving at the speed they had (no stop dead at the first frame), arriving at rest at the door
+    const u = e.t, u2 = u * u, u3 = u2 * u;
+    const h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2;
+    const nx = h00 * e.from.x + h10 * e.time * e.v0.x + h01 * door.x;
+    const nz = h00 * e.from.z + h10 * e.time * e.v0.z + h01 * door.z;
     b.vel.x = (nx - b.pos.x) / dt;
     b.vel.z = (nz - b.pos.z) / dt;
     b.pos.x = nx; b.pos.z = nz;

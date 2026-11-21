@@ -252,7 +252,7 @@
 /* gamepad glyph is a round face button */
 .hud-prompt[data-mode="gamepad"] .hud-key {
   min-width: 1.6em;
-  padding: 1px 0;
+  padding: 1px 7px;
   border-radius: 999px;
   background: #4ade80;
 }

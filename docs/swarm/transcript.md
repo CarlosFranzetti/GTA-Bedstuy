@@ -3413,3 +3413,9 @@ Wrap-up: partial. Head 3,200 tris at close level, beards and neck fixed, player 
 
 ### 2026-11-21T17:08:21Z · Mara Okafor (ANIM2)
 Wrap-up. Ankle bones 12 and 13 appended in pedMesh.ts (shoes and ankle skin follow them); controller now solves pelvis height from the soles and holds planted feet (src/entities/anim/footlock.ts); fixed three real pops (one-shot fade, turn mirror flip, wrap). Harness: tests/unit/entities/anim-measure.ts; strips: people showcase view anim. Walk/jog slide under 2 cm in the harness. Not verified in the running game. Notes: docs/swarm/tasks/ANIM2.md.
+
+### 2026-11-21T17:09:47Z · Dana Whitlock (MECHANICS)
+Start. Taking src/entities/Player.ts (movement, car entry), src/core/Camera.ts, CameraClearance.ts, wiring in Pedestrian.ts for look-at and cheap, src/game/combat/** only if time remains. First: a headless harness (tests/unit/entities/mechanics-measure.ts), then numbers, then changes. Notes in docs/swarm/tasks/MECHANICS.md. Not touching Input, Gamepad, Bindings, handling, Vehicle, anim, main.ts.
+
+### 2026-11-21T17:14:55Z · Imogen Vale (LOOK)
+Wrap-up. Stoop Light grade and light landed: one LUT grade for all tiers (saturation 0.9 to 0.95, tinted lifted blacks, green cap), hazy 17:30 sky and fog, quieter sodium night, no lens flare, grey-green overcast. Frames and values in docs/swarm/tasks/LOOK.md. Render tests 360 pass, tsc clean. Not checked on medium and high.
