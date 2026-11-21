@@ -31,7 +31,7 @@ import { PALETTES, type CarLook, type WheelDesign } from './carLook';
 import { buildExtras } from './carExtras';
 import { CAR_COLORWAYS, type SkinLayout, type SkinStyle } from '@/textures/painters/vehicleSkin';
 import {
-  Acc, STYLES, isTaxiYellow, mirrorX, buildPassengerParts, buildTruckParts, buildBusParts, wheelRadiusFor, hullSectionCount, isCars14, isCars2,
+  Acc, STYLES, isTaxiYellow, mirrorX, buildPassengerParts, buildTruckParts, buildBusParts, wheelRadiusFor, hullSectionCount, isCars14, isCars2, isCars4Passenger, CARS4_TRUCKS,
   type CarParts, type PassengerStyle,
 } from './carBodies';
 export { wheelRadiusFor, hullSectionCount };
@@ -40,7 +40,8 @@ export { wheelRadiusFor, hullSectionCount };
 export type CarStyle = 'sedan' | 'coupe' | 'suv' | 'van' | 'cab' | 'cop' | 'cargo' | 'hatch' | 'beater' | 'bus'
   | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'garbage' | 'ambulance' | 'dollar' | 'unmarked'
   | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan'
-  | 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'limo' | 'classic' | 'donk' | 'copsuv' | 'convertible' | 'stepvan' | 'icecream';
+  | 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'limo' | 'classic' | 'donk' | 'copsuv' | 'convertible' | 'stepvan' | 'icecream'
+  | 'hearse' | 'livery' | 'schoolbus' | 'towtruck' | 'flatbed' | 'foodtruck' | 'sweeper' | 'bucket';
 
 export interface CarModel {
   group: THREE.Group;
@@ -69,6 +70,7 @@ export function styleFor(type: VehicleType, color: string, variant = 0, unmarked
   if (type === 'pickup' || type === 'crossover' || type === 'minivan' || type === 'luxury' || type === 'towncar' || type === 'pony' || isCars14(type)) return type;
   if (type === 'garbage' || type === 'ambulance') return type;
   if (isCars2(type)) return type;
+  if (isCars4Passenger(type) || type === 'schoolbus' || type in CARS4_TRUCKS) return type as CarStyle; // CARS4
   if (type === 'taxivan') return 'minivan'; // the minivan taxi: the minivan body in taxi paint, taxi skin pack and a roof light
   if (type === 'dollarvan') return 'dollar';
   if (type === 'cab') return 'cab';
@@ -116,6 +118,14 @@ export const PAINT_VARIANTS: Record<VehicleType, readonly string[]> = {
   convertible: PALETTES.convertible.slice(0, 4).map((e) => e.color),
   stepvan: PALETTES.stepvan.slice(0, 4).map((e) => e.color),
   icecream: PALETTES.icecream.slice(0, 4).map((e) => e.color),
+  hearse: PALETTES.hearse.slice(0, 4).map((e) => e.color),
+  livery: PALETTES.livery.slice(0, 4).map((e) => e.color),
+  schoolbus: ['#e8a710', '#e8a710'],
+  towtruck: PALETTES.towtruck.slice(0, 4).map((e) => e.color),
+  flatbed: PALETTES.flatbed.slice(0, 4).map((e) => e.color),
+  foodtruck: PALETTES.foodtruck.slice(0, 4).map((e) => e.color),
+  sweeper: PALETTES.sweeper.slice(0, 4).map((e) => e.color),
+  bucket: PALETTES.bucket.slice(0, 4).map((e) => e.color),
   garbage: ['#eef1ec', '#eef1ec'],
   ambulance: ['#f4f4f4', '#f4f4f4'],
   dollarvan: PALETTES.dollarvan.slice(0, 4).map((e) => e.color),
@@ -448,9 +458,10 @@ const partsCache = new Map<string, CarParts>();
 const layoutCache = new Map<string, SkinLayout>();
 
 /** The body styles that wear a baked skin (the cab and the cop car have their own livery maps on the regular UV set). */
-const SKINNED: ReadonlySet<CarStyle> = new Set<CarStyle>(['sedan', 'coupe', 'suv', 'van', 'cargo', 'hatch', 'beater', 'bus', 'pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'garbage', 'ambulance', 'dollar', 'coupe911', 'exotic', 'jdmcoupe', 'hothatch', 'muscle', 'wedgetruck', 'evsedan', 'wagon', 'bigsuv', 'minitruck', 'panelvan', 'limo', 'classic', 'donk', 'copsuv', 'convertible', 'stepvan', 'icecream']);
+const SKINNED: ReadonlySet<CarStyle> = new Set<CarStyle>(['sedan', 'coupe', 'suv', 'van', 'cargo', 'hatch', 'beater', 'bus', 'pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'garbage', 'ambulance', 'dollar', 'coupe911', 'exotic', 'jdmcoupe', 'hothatch', 'muscle', 'wedgetruck', 'evsedan', 'wagon', 'bigsuv', 'minitruck', 'panelvan', 'limo', 'classic', 'donk', 'copsuv', 'convertible', 'stepvan', 'icecream',
+  'hearse', 'livery', 'schoolbus', 'towtruck', 'flatbed', 'foodtruck', 'sweeper', 'bucket']);
 /** The skin layout family of a body: the garbage truck's cab is the box truck's cab, the ambulance is the cargo van. */
-const skinStyleOf = (st: CarStyle): SkinStyle => (st === 'garbage' ? 'van' : st === 'ambulance' ? 'cargo' : (st as SkinStyle));
+const skinStyleOf = (st: CarStyle): SkinStyle => (st === 'garbage' || st in CARS4_TRUCKS ? 'van' : st === 'ambulance' ? 'cargo' : st === 'schoolbus' ? 'bus' : (st as SkinStyle));
 const boxCache = new Map<string, PaintBox>();
 
 const layoutKey = (style: CarStyle, spec: VehicleSpec, lv: CarLevel): string => `${style}|${spec.length}|${spec.width}|${spec.height}|${lv}`;
@@ -458,7 +469,7 @@ function partsFor(style: CarStyle, spec: VehicleSpec, lv: CarLevel = 'full'): Ca
   const key = layoutKey(style, spec, lv);
   let p = partsCache.get(key);
   if (!p) {
-    p = style === 'van' ? buildTruckParts(spec) : style === 'garbage' ? buildTruckParts(spec, 'garbage') : style === 'bus' ? buildBusParts(spec) : buildPassengerParts(style as PassengerStyle | 'unmarked', spec, lv === 'full' ? 2 : 1);
+    p = style === 'van' ? buildTruckParts(spec) : style === 'garbage' ? buildTruckParts(spec, 'garbage') : style in CARS4_TRUCKS ? buildTruckParts(spec, CARS4_TRUCKS[style]) : style === 'bus' ? buildBusParts(spec) : style === 'schoolbus' ? buildBusParts(spec, true) : buildPassengerParts(style as PassengerStyle | 'unmarked', spec, lv === 'full' ? 2 : 1);
     if (SKINNED.has(style)) {
       // second UV set for the skin atlas (the regular uv stays untouched: dirt-map fallback, far-car proxies)
       const box = paintBox(p.paint);
@@ -631,7 +642,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
     if ((st === 'cargo' || st === 'panelvan') && look.livery > 0) pack = 9 + look.livery;
     else if (st === 'bus') pack = look.livery % 4;
   }
-  if (st === 'ambulance') pack = 20; else if (st === 'dollar') pack = 21;
+  if (st === 'ambulance') pack = 20; else if (st === 'dollar') pack = 21; else if (st === 'schoolbus') pack = 5; // 5: school livery on the bus skin
   const cond = layout && box && look ? condFor(box, layout, look, seed) : undefined;
   const paintMat = st === 'cop' ? liveryWithGaps(materials, materials.get('copLivery'), 'cop') : st === 'cab' ? liveryWithGaps(materials, materials.get('taxiLivery'), 'cab')
     : layout ? carSkinMaterial(materials, skinStyleOf(st), spec.color, layout, { pack, cond, condKey: look?.condKey, type }) : materials.carPaint(spec.color);
@@ -652,7 +663,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   };
 
   paintMeshes.push(mesh(parts.paint, paintMat, 'body'));
-  if (parts.paint2) paintMeshes.push(mesh(parts.paint2, cargoLiveryMaterial(materials, st === 'garbage' ? 11 : look ? look.livery : variant), 'cargo'));
+  if (parts.paint2) paintMeshes.push(mesh(parts.paint2, parts.paint2Plain ? materials.carPaint(spec.color) : cargoLiveryMaterial(materials, st === 'garbage' ? 11 : look ? look.livery : variant), 'cargo'));
   mesh(parts.glass, glassMat, 'glass');
   if (split) mesh(parts.trim, trimMaterial(), 'trim');
 
@@ -690,7 +701,7 @@ export function buildCarModel(type: VehicleType, spec: VehicleSpec, materials: I
   mesh(parts.plate, materials.get('plate', variant), 'plate');
 
   // wheels: steer pivot (front only) -> roll pivot -> (split) tyre + hubcap; the rear pair is one mesh under the left roll pivot
-  const wkind: WheelKind = look?.wheel ?? (st === 'cab' || st === 'cop' || st === 'unmarked' || st === 'beater' || st === 'cargo' || st === 'van' || st === 'bus' || st === 'garbage' || st === 'ambulance' || st === 'dollar' ? 'steel' : 'alloy6'); // hubcap steelies on the taxi, cruiser, beater and the work vehicles
+  const wkind: WheelKind = look?.wheel ?? (st === 'cab' || st === 'cop' || st === 'unmarked' || st === 'beater' || st === 'cargo' || st === 'van' || st === 'bus' || st === 'schoolbus' || st === 'garbage' || st === 'ambulance' || st === 'dollar' || st in CARS4_TRUCKS ? 'steel' : 'alloy6'); // hubcap steelies on the taxi, cruiser, beater and the work vehicles
   const wg = wheelGeos(parts.wheelR, parts.wheelW, wkind, lv);
   const wheels: THREE.Object3D[] = [];
   const steerPivots: THREE.Object3D[] = [];

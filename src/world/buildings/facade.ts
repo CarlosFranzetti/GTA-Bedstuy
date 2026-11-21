@@ -145,8 +145,9 @@ export function loadMats(lib: IMaterialLibrary): BuildingMats {
     scaffold: lib.get('scaffold', 0),
     chain: lib.get('chainlinkFence', 0),
     chainRail: lib.get('chainlinkRail', 0),
-    ironAreaway: lib.get('castIronFence', 0),
-    ironStoop: lib.get('castIronFence', 1),
+    // the cast-iron fence strips are now real pickets in the dark-metal mesh (SURFACES3): both names point at the metal
+    ironAreaway: lib.get('metalDark', 0),
+    ironStoop: lib.get('metalDark', 0),
     corrugated: lib.get('corrugatedSteel', 0),
     plainAwnings,
     darkAwning: lib.awning('#27303a', ''),
@@ -875,7 +876,23 @@ export function windows(b: LotBatch, m: BuildingMats, o: WindowRow): void {
 /** Straight run of cast-iron fence (castIronFence quad) along x at depth z, standing on y0; double-sided material. */
 export function ironFenceRun(b: LotBatch, mat: THREE.Material, x0: number, x1: number, z: number, y0 = 0): void {
   if (x1 - x0 < 0.05) return;
-  b.rect(mat, [x0, y0, z], [x1 - x0, 0, 0], [0, IRON_H, 0], { ru: (x1 - x0) / IRON_TILE, rv: 1 });
+  // real pickets (SURFACES3): the fence is geometry in the dark-metal mesh, so it costs no draw call of its own and catches light
+  ironPickets(b, mat, [x0, y0, z], [x1, y0, z], IRON_H, 0.13);
+  b.bar(mat, [x0, y0 + IRON_H - 0.06, z], [x1, y0 + IRON_H - 0.06, z], 0.035);
+  b.bar(mat, [x0, y0 + 0.5, z], [x1, y0 + 0.5, z], 0.025);
+}
+
+/** Vertical iron pickets of height h standing on the line a to c (any slope), a bottom rail, and small spear tips. */
+export function ironPickets(b: LotBatch, mat: THREE.Material, a: V3, c: V3, h: number, pitch = 0.13): void {
+  const L = Math.hypot(c[0] - a[0], c[1] - a[1], c[2] - a[2]);
+  if (L < 0.05) return;
+  const n = Math.max(1, Math.round(L / pitch));
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const x = a[0] + (c[0] - a[0]) * t, y = a[1] + (c[1] - a[1]) * t, z = a[2] + (c[2] - a[2]) * t;
+    b.bar(mat, [x, y, z], [x, y + h, z], 0.022);
+  }
+  b.bar(mat, [a[0], a[1] + 0.1, a[2]], [c[0], c[1] + 0.1, c[2]], 0.03);
 }
 
 /** Slim wrought-iron bars across a basement window (3 pickets + top/bottom rail), in front of the opening. */

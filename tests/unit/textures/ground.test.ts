@@ -159,7 +159,7 @@ describe('ground painters', () => {
 
   it('crosswalk draws four bars joined by two long edge lines', () => {
     const { main } = paint(crosswalkPainter, 256, 256, 3, 0);
-    const paintColours = new Set(['#e9e7df', '#dedbd0', '#d3d0c4']);
+    const paintColours = new Set(['#e6e4dc', '#dfdcd1', '#d6d3c7']);
     let fill = '';
     const rects: unknown[][] = [];
     for (const o of main) {

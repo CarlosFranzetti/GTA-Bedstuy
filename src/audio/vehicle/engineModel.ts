@@ -39,7 +39,8 @@ export interface EngineVoice {
  * Characters: V6 smooth, V8 lopes (cab/cop/pickup/pony/towncar/luxury), diesel clatter + turbo (trucks, bus, vans),
  * small fours (hatch, beater with misfire + heat-shield rattle), hybrid whine (minivan).
  */
-type Cars2Voice = 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'taxivan' | 'limo' | 'classic' | 'donk' | 'copsuv' | 'convertible' | 'stepvan' | 'icecream';
+type Cars2Voice = 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'taxivan' | 'limo' | 'classic' | 'donk' | 'copsuv' | 'convertible' | 'stepvan' | 'icecream'
+  | 'hearse' | 'livery' | 'schoolbus' | 'towtruck' | 'flatbed' | 'foodtruck' | 'sweeper' | 'bucket';
 const BASE_VOICES: Record<Exclude<VehicleType, Cars2Voice>, EngineVoice> = {
   sedan:     { cyl: 6, vmax: 30, idle: 750, red: 6200, gears: 6, step: 1.32, top: 0.72, shift: 0.8,  inr: 1,   h: [1.2, 1, 18],  tone: 700,  open: 1800, ex: [180, 2, 6],  sub: 0.15, lope: 0.05, det: 7,  wob: 6,  air: 0.25, g: 1, sh: [[1.5, 0.1]] },
   suv:       { cyl: 6, vmax: 27, idle: 690, red: 5600, gears: 6, step: 1.36, top: 0.7,  shift: 0.78, inr: 1.4, h: [1.0, 1.2, 20], tone: 560,  open: 1500, ex: [140, 3, 8],  sub: 0.3,  lope: 0.08, det: 5,  wob: 8,  air: 0.35, g: 1.15, sh: [[1.5, 0.12]], road: 1.2 },
@@ -83,6 +84,15 @@ export const ENGINE_VOICES: Record<VehicleType, EngineVoice> = {
   convertible: { ...BASE_VOICES.pony, cyl: 6, vmax: 33, idle: 820, red: 6600, tone: 1100, lope: 0.06, crack: 0.5, g: 0.8 },
   stepvan: { ...BASE_VOICES.boxtruck, vmax: 20, tone: 400, clat: 0.8, wob: 12 },
   icecream: { ...BASE_VOICES.boxtruck, vmax: 20, idle: 700, tone: 470, clat: 0.55, turbo: 0.1, g: 0.9 },
+  // CARS4: V8 hearse and livery car (the cab's four-cylinder is not the livery car's voice), diesel work trucks
+  hearse: { ...BASE_VOICES.towncar, cyl: 8, vmax: 28, idle: 580, tone: 340, inr: 1.6, road: 1.5, g: 0.9 },
+  livery: { ...BASE_VOICES.towncar, vmax: 30, idle: 620, tone: 380, ex: [95, 2, 8], g: 1 },
+  schoolbus: { ...BASE_VOICES.bus, vmax: 17, idle: 640, tone: 430, clat: 1, turbo: 0.1, h: [0.8, 0.7, 24] },
+  towtruck: { ...BASE_VOICES.boxtruck, cyl: 8, vmax: 22, idle: 660, tone: 380, ex: [86, 4, 9], lope: 0.12, clat: 0.8 },
+  flatbed: { ...BASE_VOICES.boxtruck, vmax: 21, tone: 400, ex: [88, 3, 8], clat: 0.8 },
+  foodtruck: { ...BASE_VOICES.boxtruck, vmax: 20, idle: 650, tone: 430, wob: 14, clat: 0.6, g: 0.95 },
+  sweeper: { ...BASE_VOICES.garbage, vmax: 12, idle: 540, tone: 250, air: 0.6, h: [0.6, 0.9, 30] },
+  bucket: { ...BASE_VOICES.garbage, vmax: 19, idle: 600, red: 2800, tone: 300, ex: [74, 4, 10], clat: 0.9 },
 };
 
 /** Voice for a type; a type the table does not know yet falls back to the sedan so a new car is never silent. */

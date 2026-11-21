@@ -142,6 +142,8 @@ export function isIosBrowserTab(nav: { userAgent?: string; standalone?: boolean 
   return /iPhone|iPad|iPod/i.test(nav.userAgent ?? '') && !nav.standalone && !standaloneMq();
 }
 
+const isPortrait = (): boolean => { try { return typeof matchMedia === 'function' && matchMedia('(orientation: portrait)').matches; } catch { return false; } };
+
 const TUTORIAL_LINES: Array<[string, string]> = [
   ['ACT', 'punch, throw or shoot'], ['JUMP', 'jump'], ['RUN', 'sprint while you move'],
   ['CAR', 'get in or out (shows near a car or door)'], ['GAS / BRAKE', 'drive; the stick steers'],
@@ -336,8 +338,8 @@ export class TouchControls {
     const waitForPlay = setInterval(() => {
       if (!playHasStarted(this.parent)) return;
       clearInterval(waitForPlay);
-      this.showRotateHint();
-      if (!this.prefs.tutorialSeen) this.showTutorial();
+      if (!this.prefs.tutorialSeen) this.showTutorial(); // the first-run card carries the sideways tip itself
+      else this.showRotateHint();
     }, 400);
   }
   showTutorial(): void {
@@ -345,7 +347,7 @@ export class TouchControls {
     const t = document.createElement('div');
     t.className = 'tc-tutorial';
     t.innerHTML = '<div class="tc-tut-card"><div class="tc-tut-cols"><div><b>MOVE</b><span>Touch and drag on the left half</span></div><div><b>LOOK</b><span>Drag on the right half</span></div></div>'
-      + `<ul class="tc-tut-list">${TUTORIAL_LINES.map(([k, v]) => `<li><b>${k}</b> ${v}</li>`).join('')}${isIosBrowserTab() ? '<li class="tc-tut-tip"><b>TIP</b> Share, then Add to Home Screen, hides the browser bars</li>' : ''}</ul></div>`;
+      + `<ul class="tc-tut-list">${TUTORIAL_LINES.map(([k, v]) => `<li><b>${k}</b> ${v}</li>`).join('')}${isPortrait() ? '<li class="tc-tut-tip"><b>TIP</b> Phones play best sideways</li>' : ''}${isIosBrowserTab() ? '<li class="tc-tut-tip"><b>TIP</b> Share, then Add to Home Screen, hides the browser bars</li>' : ''}</ul></div>`;
     const ok = document.createElement('button');
     ok.type = 'button'; ok.className = 'tc-tut-ok'; ok.textContent = 'GOT IT';
     ok.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.dismissTutorial(true); });

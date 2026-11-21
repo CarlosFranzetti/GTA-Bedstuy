@@ -144,7 +144,7 @@ export const asphaltPainter: Painter = (ctx, w, h, rng, variant, aux) => {
   const worn = wrapVariant(variant, 2) === 1;
   const H = aux?.height;
   const R = aux?.rough ?? null;
-  ctx.fillStyle = worn ? '#57595d' : '#33353a';
+  ctx.fillStyle = worn ? '#6d6f73' : '#505256';
   ctx.fillRect(0, 0, w, h);
   if (H) {
     H.fillStyle = gray(128);
@@ -155,7 +155,7 @@ export const asphaltPainter: Painter = (ctx, w, h, rng, variant, aux) => {
     }
   }
   speckle(ctx, w, h, rng, worn ? 7000 : 6000,
-    worn ? ['#6c6e72', '#48494d', '#7e8084', '#3e3f43'] : ['#44464b', '#26282c', '#52545a', '#1e2024'], 1, 2.5, 0.7);
+    worn ? ['#84868a', '#5d5e62', '#96989c', '#505156'] : ['#62646a', '#383a3f', '#74767c', '#2e3034'], 1, 2.5, 0.7);
   if (aux) auxSpeckle(aux.height, aux.rng, 0, 0, w, h, 6000, [92, 110, 150, 168], 1, 2.5, 0.55);
   blotches(ctx, w, h, rng, worn ? 24 : 10, worn ? '#2a2b2e' : '#1c1d20', 0.12, 20, 70,
     R ? { ctx: R, color: gray(170) } : null);
@@ -439,48 +439,54 @@ export const GUM = 'rgb(78,76,73)';
  * asphalt shows through in flecks, heavier in the wheel tracks (v ~0.25 / 0.75), with black tyre scuffs.
  */
 export const crosswalkPainter: Painter = (ctx, w, h, rng) => {
-  ctx.fillStyle = '#383a3f';
+  // asphalt under the paint (only the gaps between bars show it); the paint is clean thermoplastic: flat colour, a slightly
+  // darker rim, a few large soft chips and the tyre-dust bands. No per-pixel speckle (that read as a noisy pixel pattern).
+  ctx.fillStyle = '#4b4d52';
   ctx.fillRect(0, 0, w, h);
-  speckle(ctx, w, h, rng, 1500, ['#44464b', '#26282c'], 1, 2, 0.6);
+  speckle(ctx, w, h, rng, 500, ['#5a5c62', '#3a3c41'], 1, 1.5, 0.35);
   const pitch = w / 4;
   const bar = pitch / 2;
   const rail = h * 0.075;
   const inset = h * 0.03;
-  const paints = ['#e9e7df', '#dedbd0', '#d3d0c4'];
-  // rails: two long lines along the walking direction
+  const paints = ['#e6e4dc', '#dfdcd1', '#d6d3c7'];
   for (const y of [inset, h - inset - rail]) {
     ctx.fillStyle = paints[rng.int(0, 2)];
     ctx.fillRect(0, y, w, rail);
   }
-  // bars: connect the rails
   for (let i = 0; i < 4; i++) {
     ctx.fillStyle = paints[rng.int(0, 2)];
     ctx.fillRect(i * pitch + 1, inset, bar - 2, h - 2 * inset);
   }
-  // paint edges slightly dirty
-  withAlpha(ctx, 0.25, () => {
-    ctx.fillStyle = '#8f8d83';
+  // dirty rim and a thin worn edge
+  withAlpha(ctx, 0.3, () => {
+    ctx.fillStyle = '#7d7b72';
     for (let i = 0; i < 4; i++) {
-      ctx.fillRect(i * pitch + 1, inset, 2, h - 2 * inset);
-      ctx.fillRect(i * pitch + bar - 3, inset, 2, h - 2 * inset);
+      ctx.fillRect(i * pitch + 1, inset, 1.5, h - 2 * inset);
+      ctx.fillRect(i * pitch + bar - 2.5, inset, 1.5, h - 2 * inset);
     }
   });
-  // flaking: asphalt flecks everywhere, more in the wheel tracks
-  speckle(ctx, w, h, rng, 420, ['#383a3f', '#4b4d52', '#2c2e32'], 1, 3.5, 0.8);
+  // tyre-dust bands in the wheel tracks
   for (const ty of [0.25, 0.75]) {
-    speckleIn(ctx, rng, 0, h * (ty - 0.1), w, h * 0.2, 170, ['#383a3f', '#44464b', '#2c2e32'], 1.5, 4.5, 0.85);
-    withAlpha(ctx, 0.14, () => {
-      ctx.fillStyle = '#0a0a0b';
-      ctx.fillRect(0, h * (ty - 0.045), w, h * 0.09);
+    withAlpha(ctx, 0.1, () => {
+      ctx.fillStyle = '#2a2a2c';
+      ctx.fillRect(0, h * (ty - 0.06), w, h * 0.12);
     });
   }
-  // a few bigger worn-through chips on the bars
-  for (let i = 0; i < 12; i++) {
-    ctx.fillStyle = '#383a3f';
-    ctx.fillRect(rng.int(0, 3) * pitch + rng.range(2, bar - 8), rng.range(inset, h - inset - 8), rng.range(3, 9), rng.range(3, 12));
+  // a few large soft chips where the paint has lifted (irregular blobs, not specks)
+  for (let i = 0; i < 9; i++) {
+    const cx = rng.int(0, 3) * pitch + rng.range(2, bar - 4), cy = rng.range(inset, h - inset - 6);
+    const rw = rng.range(2, 6), rh = rng.range(3, 11);
+    ctx.fillStyle = '#4b4d52';
+    ctx.beginPath();
+    for (let k = 0; k < 9; k++) {
+      const a = (k / 9) * Math.PI * 2, r = 0.7 + rng.next() * 0.5;
+      const px = cx + Math.cos(a) * rw * r, py = cy + Math.sin(a) * rh * r;
+      if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
   }
-  // grime
-  blotches(ctx, w, h, rng, 6, '#3a342a', 0.12, 8, 24);
+  blotches(ctx, w, h, rng, 6, '#3a342a', 0.1, 10, 30);
 };
 
 /** 512px: tar roof with gravel speckle and seams. Relief: gravel bumps, seams recessed. */

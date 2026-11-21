@@ -297,7 +297,7 @@ function cornrows(ctx: Ctx, mb: MeshBuilder): void {
     const z0 = zs0[j], z1 = zs1[j];
     const crest = (j % 2 === 1) ? 1 : 0, edge = sstep(0, 2, Math.min(j, NC - 1 - j));
     for (let i = 0; i < NR; i++) {
-      const f = i / (NR - 1), z = lerp(z0, z1, f), p = at(z) ?? at(c[2]) ?? ([0, c[1] + 0.09, z] as V3), th = (0.0055 + 0.0085 * crest * sstep(0.04, 0.2, Math.min(f, 1 - f) * 2)) * (0.1 + 0.9 * edge) * sstep(0, 0.1, Math.min(f, 1 - f) + 0.02);
+      const f = i / (NR - 1), z = lerp(z0, z1, f), p = at(z) ?? at(c[2]) ?? ([0, c[1] + 0.09, z] as V3), th = (0.0055 + 0.0085 * crest * sstep(0.04, 0.2, Math.min(f, 1 - f) * 2)) * (0.1 + 0.9 * edge) * (0.4 + 0.6 * sstep(0, 0.1, Math.min(f, 1 - f) + 0.02)) + 0.0025;      // PEOPLE8: the ends keep 40 % of the thickness and a 2.5 mm floor (they tapered to nothing and the skin of the forehead came through as teeth)
       P[i].push(add(p, mul(dir, th))); Th[i].push(crest);
     }
   }

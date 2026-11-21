@@ -285,7 +285,9 @@ export type VehicleType = 'sedan' | 'suv' | 'boxtruck' | 'cop' | 'cab' | 'cargov
   // CARS14: sports cars, an electric wedge pickup parody, an electric sedan
   | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan'
   // CARS2: era Brooklyn street types (wagon, big SUV, small pickup, panel van, minivan taxi, stretch limo, 1970s sedan and its donk, police SUV, convertible, step van, ice-cream truck)
-  | 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'taxivan' | 'limo' | 'classic' | 'donk' | 'copsuv' | 'convertible' | 'stepvan' | 'icecream';
+  | 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'taxivan' | 'limo' | 'classic' | 'donk' | 'copsuv' | 'convertible' | 'stepvan' | 'icecream'
+  // CARS4: hearse, livery sedan, school bus, tow truck, flatbed, food truck, street sweeper, bucket truck (not in traffic: see docs/swarm/tasks/CARS4.md)
+  | 'hearse' | 'livery' | 'schoolbus' | 'towtruck' | 'flatbed' | 'foodtruck' | 'sweeper' | 'bucket';
 
 export interface VehicleSpec {
   type: VehicleType;

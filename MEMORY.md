@@ -34,6 +34,11 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 
 ## What the owner wants (his words, newest first)
 
+- 21 Nov, later: "check in with me every now and then, let's see some images"; wants to see the play map; wants a
+  plain-English conversational transcript (`docs/swarm/transcripts/`); "I want to decide the direction of the models and
+  clothing" (ask him, with pictures, before any lane sets a style); original buildings, landmarks and stores under parody
+  and invented names, with textures from open street-level images. He also named Google Street View: its imagery is not
+  licensed for reuse, so rule 2 stands until he decides after hearing that (asked 21 Nov).
 - 21 Nov: update all the docs, set up this memory file, make a logo, fix the README, then all staff back to work: fix the
   bugs, then grow the map, then actual locations with fake names, then much more textures and clothing and better geometry
   all around ("really dig into GTA 4 and 5 for that"), more characters, more vehicles and better handling; "the phone is

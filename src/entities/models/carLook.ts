@@ -55,6 +55,15 @@ export const PALETTES: Record<VehicleType, readonly PaintEntry[]> = {
   convertible: [P('red', '#c8283a', 3), P('yellow', '#e8c21c', 2), P('blue', '#2468c4', 2), P('white', '#eeeeea', 3), P('silver', '#b3b7bb', 2), P('black', '#16181b', 2), P('teal', '#1b8f8a', 1), P('tangerine', '#e8791c', 1)],
   stepvan: [P('mail white', '#f2f2ee', 3, 22), P('parcel brown', '#5e4126', 3, 23), P('bakery cream', '#efe2c0', 1, 24), P('plain white', '#ecebe6', 1), P('depot grey', '#8d9298', 1)],
   icecream: [P('cream', '#f4efe0', 3, 25), P('strawberry', '#f2b6c8', 2, 25), P('mint', '#b8e0cc', 2, 25), P('sky', '#a8d0ee', 2, 25), P('lemon', '#f2e08a', 1, 25), P('white', '#f6f6f2', 1, 25)],
+  // CARS4: not in traffic (parked and mission use only until Fable adds them to the share table); service colours are fleet-clean
+  hearse: [P('black', '#0e0f12', 7, 4), P('silver', '#a6aab0', 2), P('white', '#ecebe4', 2), P('midnight', '#141a2a', 1), P('grey', '#55595f', 1)],
+  livery: [P('black', '#101114', 8), P('midnight', '#141a2a', 2), P('black cherry', '#2a1018', 1), P('white', '#ecebe4', 1), P('silver', '#a6aab0', 1), P('grey', '#555a62', 1)],
+  schoolbus: [P('school yellow', '#e8a710', 1)],
+  towtruck: [P('white', '#e8e8e4', 3), P('red', '#b82a28', 3), P('yellow', '#e0b01e', 2), P('blue', '#2a4f86', 1), P('black', '#17181b', 1), P('orange', '#e0701a', 1)],
+  flatbed: [P('red', '#a8262a', 3), P('white', '#e8e8e4', 3), P('blue', '#2a4f86', 2), P('yellow', '#e0b01e', 2), P('green', '#2c6a46', 1), P('grey', '#7c8288', 1), P('orange', '#e0701a', 1)],
+  foodtruck: [P('teal', '#2c8a7a', 3), P('pink', '#e87aa0', 2), P('orange', '#e0701a', 2), P('yellow', '#e8c21c', 2), P('white', '#eeeeea', 2), P('blue', '#2a7ac0', 1), P('lime', '#8cc43a', 1), P('red', '#c8283a', 1)],
+  sweeper: [P('safety yellow', '#e0b01e', 4), P('orange', '#e0701a', 2), P('white', '#e8e8e4', 2), P('green', '#2c6a46', 1), P('blue', '#2a5a9a', 1)],
+  bucket: [P('white', '#e8e8e4', 4), P('utility yellow', '#e0b01e', 2), P('orange', '#e0701a', 2), P('blue', '#2a4f86', 1), P('green', '#2c6a46', 1)],
   dollarvan: [P('white', '#e8eaea', 4), P('silver', '#b4b8bd', 2), P('grey', '#8a9096', 2), P('cream', '#e4dcc4', 1), P('blue', '#2a4f86', 1), P('maroon', '#6a2a30', 1), P('green', '#2f5a48', 1), P('red', '#a02a2a', 1)],
 };
 
@@ -145,6 +154,10 @@ const WHEELS_BY_TYPE: Partial<Record<VehicleType, readonly WheelDesign[]>> = {
   convertible: ['alloy5', 'mesh', 'turbine', 'alloy6'],
   stepvan: ['steel', 'steelBare'],
   icecream: ['steel', 'steelBare'],
+  // CARS4
+  hearse: ['mesh', 'steel', 'turbine'],
+  livery: ['steel', 'steelBare', 'mesh', 'steel'],
+  schoolbus: ['steel'], towtruck: ['steel', 'steelBare'], flatbed: ['steel', 'steelBare'], foodtruck: ['steel', 'steelBare'], sweeper: ['steel'], bucket: ['steel'],
 };
 
 /** Delivery livery counts: cargo van (skin packs 10..14), box truck (cargo livery canvases 1..11), cop (marked paints) */
@@ -158,8 +171,8 @@ export function lookFor(type: VehicleType, color: string, seed: number): CarLook
   const wheel = wheels ? r.pick(wheels) : 'steel';
   const sporty = type === 'convertible' || type === 'pony' || type === 'luxury' || type === 'hatch' || type === 'sedan' || type === 'jdmcoupe' || type === 'hothatch' || type === 'muscle' || type === 'coupe911';
   const lowered = sporty && r.chance(type === 'pony' || type === 'jdmcoupe' || type === 'hothatch' ? 0.5 : 0.14) ? (r.chance(0.5) ? 0.04 : 0.07) : 0;
-  const fleet = type === 'cab' || type === 'taxivan' || type === 'copsuv' || type === 'stepvan' || type === 'icecream' || type === 'cop' || type === 'bus' || type === 'garbage' || type === 'ambulance' || type === 'boxtruck';
-  const tint: 0 | 1 | 2 = type === 'towncar' || type === 'limo' ? 2 : fleet || type === 'cargovan' || type === 'panelvan' ? 0 : r.chance(0.3) ? (r.chance(0.35) ? 2 : 1) : 0;
+  const fleet = type === 'cab' || type === 'taxivan' || type === 'copsuv' || type === 'stepvan' || type === 'icecream' || type === 'cop' || type === 'bus' || type === 'garbage' || type === 'ambulance' || type === 'boxtruck' || type === 'schoolbus' || type === 'sweeper' || type === 'bucket' || type === 'foodtruck';
+  const tint: 0 | 1 | 2 = type === 'towncar' || type === 'limo' || type === 'hearse' || type === 'livery' ? 2 : fleet || type === 'cargovan' || type === 'panelvan' ? 0 : r.chance(0.3) ? (r.chance(0.35) ? 2 : 1) : 0;
   let roof: RoofGear = 'none';
   if (type === 'cab' || type === 'taxivan') roof = r.pick(['topperPlain', 'topperAd', 'topperAd', 'topperHail'] as const);
   else if (type === 'icecream') roof = 'cone';
@@ -177,12 +190,12 @@ export function lookFor(type: VehicleType, color: string, seed: number): CarLook
   for (let i = 0; i < nSt; i++) stickers.push(r.int(0, STICKER_COUNT - 1));
   const rideshare = (type === 'sedan' || type === 'evsedan' || type === 'hatch' || type === 'crossover' || type === 'luxury' || type === 'minivan' || type === 'towncar') && r.chance(type === 'towncar' ? 0.35 : 0.14) ? r.int(0, RIDESHARE.length - 1) : -1;
   // wear: beaters carry it, fleet vans get dirty, luxury cars stay clean
-  const tired = type === 'beater' ? 2 : type === 'luxury' || type === 'limo' || type === 'copsuv' ? -2 : type === 'classic' || type === 'minitruck' || type === 'panelvan' || type === 'stepvan' || type === 'icecream' || type === 'cargovan' || type === 'boxtruck' || type === 'dollarvan' || type === 'garbage' ? 1 : 0;
+  const tired = type === 'beater' ? 2 : type === 'luxury' || type === 'limo' || type === 'copsuv' ? -2 : type === 'classic' || type === 'minitruck' || type === 'panelvan' || type === 'stepvan' || type === 'icecream' || type === 'cargovan' || type === 'boxtruck' || type === 'dollarvan' || type === 'garbage' || type === 'towtruck' || type === 'flatbed' || type === 'sweeper' ? 1 : type === 'hearse' || type === 'livery' ? -1 : 0;
   const lvl = (bias: number): number => Math.max(0, Math.min(3, Math.floor(r.next() * 2.6 + bias * 0.5 + (r.chance(0.25) ? 1 : 0) - 0.6)));
   const dirt = type === 'garbage' ? 3 : lvl(tired + 1);
-  const rust = type === 'luxury' || type === 'limo' || type === 'copsuv' || type === 'convertible' || type === 'cop' || type === 'ambulance' || type === 'exotic' || type === 'coupe911' || type === 'evsedan' ? 0 : lvl(tired - (type === 'cab' ? 1 : 0));
+  const rust = type === 'luxury' || type === 'limo' || type === 'hearse' || type === 'livery' || type === 'schoolbus' || type === 'foodtruck' || type === 'copsuv' || type === 'convertible' || type === 'cop' || type === 'ambulance' || type === 'exotic' || type === 'coupe911' || type === 'evsedan' ? 0 : lvl(tired - (type === 'cab' ? 1 : 0));
   const dents = r.chance(0.18 + 0.12 * Math.max(0, tired)) ? r.int(1, 3) : 0;
-  const primer = (type === 'beater' ? r.chance(0.55) : type === 'luxury' || type === 'limo' || type === 'copsuv' || type === 'cop' || type === 'ambulance' ? false : r.chance(0.05)) ? r.int(1, 4) : 0;
+  const primer = (type === 'beater' ? r.chance(0.55) : type === 'luxury' || type === 'limo' || type === 'copsuv' || type === 'cop' || type === 'ambulance' || type === 'hearse' || type === 'livery' || type === 'schoolbus' || type === 'foodtruck' || type === 'sweeper' || type === 'bucket' ? false : r.chance(0.05)) ? r.int(1, 4) : 0;
   let livery = 0;
   if (type === 'cargovan' || type === 'panelvan') livery = r.int(0, CARGO_VAN_LIVERIES - 1);
   else if (type === 'boxtruck') livery = r.int(0, BOX_LIVERY_VARIANTS - 2); // the last variant is the garbage truck's

@@ -108,6 +108,8 @@ export const HANDLING_OF: Record<VehicleType, HandlingClassName> = {
   cargovan: 'van', panelvan: 'van', dollarvan: 'van', ambulance: 'van', minivan: 'van', taxivan: 'van',
   boxtruck: 'truck', stepvan: 'truck', icecream: 'truck', garbage: 'heavy', bus: 'bus',
   towncar: 'bigsedan', classic: 'bigsedan', donk: 'bigsedan', limo: 'limo',
+  // CARS4
+  hearse: 'bigsedan', livery: 'bigsedan', schoolbus: 'bus', towtruck: 'truck', flatbed: 'truck', foodtruck: 'truck', sweeper: 'heavy', bucket: 'truck',
 };
 
 /** Per-type tweaks on top of the class row. */

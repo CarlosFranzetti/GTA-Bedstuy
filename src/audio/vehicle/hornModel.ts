@@ -16,7 +16,8 @@ export type SirenMode = 'wail' | 'yelp' | 'whoop' | 'hilo' | 'parody';
 
 const m3 = 1.189, M3 = 1.26, P4 = 1.335;
 
-type Cars2Horn = 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'taxivan' | 'limo' | 'classic' | 'donk' | 'copsuv' | 'convertible' | 'stepvan' | 'icecream';
+type Cars2Horn = 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'taxivan' | 'limo' | 'classic' | 'donk' | 'copsuv' | 'convertible' | 'stepvan' | 'icecream'
+  | 'hearse' | 'livery' | 'schoolbus' | 'towtruck' | 'flatbed' | 'foodtruck' | 'sweeper' | 'bucket';
 const BASE_HORNS: Record<Exclude<VehicleType, Cars2Horn>, HornSpec> = {
   sedan:     { kind: 'car',   root: 415, ratios: [1, M3],        wave: 'square',   lp: 2600, atk: 0.012, rel: 0.09, gain: 1 },
   suv:       { kind: 'car',   root: 351, ratios: [1, m3],        wave: 'square',   lp: 2200, atk: 0.015, rel: 0.1,  gain: 1 },
@@ -60,6 +61,15 @@ export const HORNS: Record<VehicleType, HornSpec> = {
   convertible: { ...BASE_HORNS.pony, root: 415, lp: 3600 },
   stepvan: { ...BASE_HORNS.boxtruck, root: 262 },
   icecream: { ...BASE_HORNS.boxtruck, root: 252, lp: 1500 },
+  // CARS4: the hearse and livery car are quiet and low, the school bus is the bus horn, the work trucks are air horns of different size
+  hearse: { ...BASE_HORNS.towncar, root: 196, lp: 1400, gain: 0.9 },
+  livery: { ...BASE_HORNS.cab, kind: 'car', root: 392, wave: 'square', lp: 2400 },
+  schoolbus: { ...BASE_HORNS.bus, root: 262, lp: 1200 },
+  towtruck: { ...BASE_HORNS.boxtruck, root: 268 },
+  flatbed: { ...BASE_HORNS.boxtruck, root: 258 },
+  foodtruck: { ...BASE_HORNS.boxtruck, root: 280, lp: 1400 },
+  sweeper: { ...BASE_HORNS.garbage, root: 300, beeper: false },
+  bucket: { ...BASE_HORNS.boxtruck, root: 248 },
 };
 
 export function hornFor(type: string | null | undefined): HornSpec {

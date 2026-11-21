@@ -23,10 +23,20 @@ float gdSeed = 0.37; float gdCls = 0.0; bool gdRoad = false; vec4 gdRd = vec4( 0
 #ifdef USE_COLOR_ALPHA
   gdRd = vColor; gdCls = floor( gdRd.y ); gdSeed = fract( gdRd.y ); gdRoad = gdRd.x > 1.5 && gdRd.w > gdRd.z;
 #endif
-float gdTone = ( gdCls > 0.5 ? 0.86 : 1.12 ) * ( 0.92 + 0.16 * gdSeed );
+float gdPx = length( fwidth( gw ) );
+float gdTone = ( gdCls > 0.5 ? 0.9 : 1.08 ) * ( 0.84 + 0.32 * gdSeed );
 float gdM1 = gdFbm( gw / 31.0 + gdSeed * 13.0 );
 float gdM2 = gdFbm( gw / 6.5 + gdSeed * 5.0 );
-gdTone *= 1.0 + ( gdM1 - 0.5 ) * 0.5 + ( gdM2 - 0.5 ) * 0.22;
+float gdM3 = gdFbm( gw / 1.9 + gdSeed * 3.0 );
+gdTone *= 1.0 + ( gdM1 - 0.5 ) * 0.75 + ( gdM2 - 0.5 ) * 0.34 + ( gdM3 - 0.5 ) * 0.16;
+// aggregate: stones of about 2 cm and a 7 cm mottle, faded out by the pixel footprint so nothing aliases at a distance
+float gdGA = 1.0 - smoothstep( 0.012, 0.05, gdPx );
+float gdGB = 1.0 - smoothstep( 0.04, 0.17, gdPx );
+float gdSt = gdHash( floor( gw * 48.0 ) );
+float gdSt2 = gdHash( floor( gw * 23.0 ) + 7.0 );
+gdTone *= 1.0 + gdGA * ( ( gdSt - 0.5 ) * 0.36 + ( gdSt > 0.94 ? 0.34 : 0.0 ) - ( gdSt2 > 0.9 ? 0.16 : 0.0 ) );
+gdTone *= 1.0 + gdGB * ( gdNoise( gw * 15.0 ) - 0.5 ) * 0.24;
+vec3 gdOver = vec3( 0.0 ); float gdOverM = 0.0;
 gdCol *= mix( vec3( 1.03, 1.0, 0.96 ), vec3( 0.96, 1.0, 1.05 ), gdM1 );
 if ( gdCls > 0.5 ) gdCol *= vec3( 0.95, 0.97, 1.03 );
 if ( gdRoad ) {
@@ -41,13 +51,15 @@ if ( gdRoad ) {
   // worn lighter wheel paths and the dark oil line between them, patchy along the lane
   float wp = exp( -pow( ( abs( cl ) - 0.85 ) / 0.3, 2.0 ) ) * smoothstep( 1.0, 1.8, rk );
   float wn = 0.35 + 0.65 * gdNoise( vec2( rs * 0.13, rc * 0.2 + gdSeed * 9.0 ) );
-  gdTone *= 1.0 + wp * wn * 0.16 * traffic;
+  gdTone *= 1.0 - wp * wn * 0.17 * traffic;
   float mid = exp( -pow( cl / 0.24, 2.0 ) ) * smoothstep( 1.0, 1.8, rk );
-  gdTone *= 1.0 - mid * 0.14 * smoothstep( 0.5, 0.85, gdNoise( vec2( rs * 0.6, gdSeed * 50.0 ) ) );
+  gdTone *= 1.0 - mid * 0.16 * smoothstep( 0.5, 0.85, gdNoise( vec2( rs * 0.6, gdSeed * 50.0 ) ) );
+  // lighter, dry crown between the tracks and toward the road centre
+  gdTone *= 1.0 + 0.08 * smoothstep( 0.35, 1.0, rk / rhw ) + 0.05 * exp( -pow( cl / 0.5, 2.0 ) ) * ( 1.0 - wn * 0.5 );
   // stop lines and junction approaches: brake dust, oil drips in the lane centres
   float sl = smoothstep( 13.0, 1.5, re );
   float oil = sl * smoothstep( 0.58, 0.82, gdNoise( vec2( rs * 1.1, cl * 3.2 ) + gdSeed * 20.0 ) ) * exp( -pow( cl / 1.1, 2.0 ) );
-  gdTone *= ( 1.0 - sl * 0.07 ) * ( 1.0 - oil * 0.4 );
+  gdTone *= ( 1.0 - sl * 0.1 ) * ( 1.0 - oil * 0.5 );
   // parked-car strip: less polished, a touch lighter
   gdTone *= 1.0 + 0.045 * smoothstep( 2.7, 1.5, rk ) * smoothstep( 0.6, 1.1, rk );
   // gutter grime along the kerb: brown-grey silt, ragged inner edge, grit
@@ -63,24 +75,24 @@ if ( gdRoad ) {
     float wob = ( gdNoise( vec2( rs * 0.45, ti ) ) - 0.5 ) * 1.1 + ( gdNoise( vec2( rs * 2.3, ti ) ) - 0.5 ) * 0.12;
     float a0 = gdHash( vec2( ti + 9.0, 1.0 ) ) * 0.3; float a1 = 0.55 + gdHash( vec2( ti + 4.0, 2.0 ) ) * 0.45;
     float ext = smoothstep( a0, a0 + 0.07, tf ) * ( 1.0 - smoothstep( a1 - 0.07, a1, tf ) );
-    float wdt = 0.016 + 0.02 * gdHash( vec2( ti, 5.0 ) );
+    float wdt = 0.024 + 0.026 * gdHash( vec2( ti, 5.0 ) );
     float line = ( 1.0 - smoothstep( wdt, wdt * 2.4, abs( rc - lat - wob ) ) ) * ext;
     gdTone *= 1.0 - line * 0.62;
   }
   // thermal cracks across the lanes, sealed, every few metres in places
   float sm = rs + gdSeed * 77.0; float xi = floor( sm / 7.0 ); float xh = gdHash( vec2( xi, gdSeed * 77.0 + 2.0 ) );
-  if ( xh > 0.78 ) {
+  if ( xh > 0.7 ) {
     float posm = ( xi + 0.2 + 0.6 * gdHash( vec2( xi, 3.0 ) ) ) * 7.0;
     float xd = abs( sm - posm + ( gdNoise( vec2( rc * 1.3, xi ) ) - 0.5 ) * 1.4 + ( gdNoise( vec2( rc * 7.0, xi ) ) - 0.5 ) * 0.1 );
     float la = mix( -rhw + 0.6, 0.0, gdHash( vec2( xi, 4.0 ) ) );
     float lb = la + 1.5 + gdHash( vec2( xi, 5.0 ) ) * rhw;
-    float xline = ( 1.0 - smoothstep( 0.012, 0.034, xd ) ) * smoothstep( la, la + 0.3, rc ) * ( 1.0 - smoothstep( lb - 0.3, lb, rc ) );
+    float xline = ( 1.0 - smoothstep( 0.018, 0.05, xd ) ) * smoothstep( la, la + 0.3, rc ) * ( 1.0 - smoothstep( lb - 0.3, lb, rc ) );
     gdTone *= 1.0 - xline * 0.5;
   }
   // utility cuts: long narrow strips along a lane, sealed at the edges, darker (fresh) or lighter (old fill)
   float uc = ( rs + gdSeed * 131.0 ) / 37.0; float ui = floor( uc ); float uf = fract( uc ) * 37.0;
   float uh = gdHash( vec2( ui, gdSeed * 17.0 + 4.0 ) );
-  if ( uh > 0.82 ) {
+  if ( uh > 0.62 ) {
     float ua = 2.0 + gdHash( vec2( ui, 6.0 ) ) * 6.0;
     float ul = min( 8.0 + gdHash( vec2( ui, 7.0 ) ) * 18.0, 35.0 - ua );
     float ulat = ( laneC > 0.0 ? ( gdHash( vec2( ui, 8.0 ) ) > 0.5 ? laneC : -laneC ) : 0.0 ) + ( gdHash( vec2( ui, 9.0 ) ) - 0.5 ) * 1.4;
@@ -88,7 +100,7 @@ if ( gdRoad ) {
     float usd = gdBoxSd( vec2( uf - ua - ul * 0.5, rc - ulat ), vec2( ul * 0.5, uhw ) ) + ( gdNoise( vec2( rs * 3.0, rc * 3.0 ) ) - 0.5 ) * 0.04;
     float uin = 1.0 - smoothstep( -0.012, 0.012, usd );
     float useam = 1.0 - smoothstep( 0.0, 0.03, abs( usd + 0.025 ) );
-    gdTone *= mix( 1.0, ( uh > 0.93 ? 1.2 : 0.76 ) * ( 0.92 + 0.16 * gdNoise( gw * 6.0 ) ), uin * 0.92 ) * ( 1.0 - useam * 0.42 );
+    gdTone *= mix( 1.0, ( uh > 0.9 ? 1.18 : 0.68 ) * ( 0.92 + 0.16 * gdNoise( gw * 6.0 ) ), uin * 0.92 ) * ( 1.0 - useam * 0.42 );
   }
   // a trench cut across the whole roadway, very rare
   float zc = ( rs + gdSeed * 59.0 ) / 83.0; float zi = floor( zc ); float zf = fract( zc ) * 83.0;
@@ -101,13 +113,13 @@ if ( gdRoad ) {
   // repair patches: rare, irregular, large
   float pc = ( rs + gdSeed * 211.0 ) / 71.0; float pi = floor( pc ); float pf = fract( pc ) * 71.0;
   float ph = gdHash( vec2( pi, gdSeed * 3.0 + 20.0 ) );
-  if ( ph > 0.9 ) {
+  if ( ph > 0.7 ) {
     vec2 pctr = vec2( 12.0 + 45.0 * gdHash( vec2( pi, 21.0 ) ), ( gdHash( vec2( pi, 22.0 ) ) - 0.5 ) * max( rhw - 2.0, 0.5 ) * 2.0 );
     vec2 phs = vec2( 1.3 + 2.2 * gdHash( vec2( pi, 23.0 ) ), 0.9 + 1.3 * gdHash( vec2( pi, 24.0 ) ) );
     vec2 pq = vec2( pf, rc ) - pctr + ( vec2( gdNoise( gw * 0.9 ), gdNoise( gw * 0.9 + 5.0 ) ) - 0.5 ) * 0.7;
     float psd = gdBoxSd( pq, phs ) - 0.35;
     float pin = 1.0 - smoothstep( -0.03, 0.03, psd );
-    gdTone *= mix( 1.0, ph > 0.96 ? 1.16 : 0.78, pin * 0.9 ) * ( 1.0 - ( 1.0 - smoothstep( 0.0, 0.05, abs( psd ) ) ) * 0.25 );
+    gdTone *= mix( 1.0, ph > 0.93 ? 1.16 : 0.7, pin * 0.92 ) * ( 1.0 - ( 1.0 - smoothstep( 0.0, 0.045, abs( psd ) ) ) * 0.4 );
   }
   // steel road plate, 2.4 x 1.2 m, aligned with the lane
   float qc = ( rs + gdSeed * 97.0 ) / 53.0; float qi = floor( qc ); float qf = fract( qc ) * 53.0;
@@ -119,6 +131,66 @@ if ( gdRoad ) {
     vec3 qcol = vec3( 0.2, 0.205, 0.215 ) * ( 0.82 + 0.3 * gdNoise( gw * 4.0 ) ) * ( 1.0 + 0.7 * qrim * qin ) * ( 1.0 + 0.06 * step( 0.5, fract( ( qf + rc ) * 9.0 ) ) );
     gdCol = mix( gdCol, qcol / max( gdTone, 0.3 ), qin );
     gdTone *= 1.0 - ( 1.0 - smoothstep( 0.0, 0.14, qsd ) ) * ( 1.0 - qin ) * 0.3;
+  }
+  // oil drips in the parking lane, one every few car lengths
+  float oc = ( rs + gdSeed * 61.0 ) / 5.8; float oi = floor( oc ); float oh = gdHash( vec2( oi, gdSeed * 9.0 + 70.0 ) );
+  if ( oh > 0.42 ) {
+    vec2 oq = vec2( ( fract( oc ) - 0.25 - 0.5 * gdHash( vec2( oi, 71.0 ) ) ) * 5.8 * 0.8, rk - ( 0.9 + 1.2 * gdHash( vec2( oi, 72.0 ) ) ) );
+    float od = length( oq ) + ( gdNoise( oq * 5.0 + oi ) - 0.5 ) * 0.28;
+    float oR = 0.2 + 0.32 * gdHash( vec2( oi, 73.0 ) );
+    float ob = ( 1.0 - smoothstep( oR * 0.35, oR, od ) ) * smoothstep( 0.35, 1.0, rk );
+    gdTone *= 1.0 - ob * ( oh > 0.7 ? 0.42 : 0.28 );
+    gdCol *= mix( vec3( 1.0 ), vec3( 0.94, 0.98, 1.08 ), ob );
+  }
+  // gutter pan joint: a thin dark line where the kerb apron meets the roadway, and damp dark silt in the lowest strip
+  gdTone *= 1.0 - ( 1.0 - smoothstep( 0.008, 0.026, abs( rk - 0.44 + ( gdNoise( vec2( rs * 1.5, gdSeed * 5.0 ) ) - 0.5 ) * 0.05 ) ) ) * 0.4;
+  float damp = 1.0 - smoothstep( 0.05, 0.3, rk + ( gdNoise( vec2( rs * 1.2, rk * 4.0 ) ) - 0.5 ) * 0.2 );
+  gdTone *= 1.0 - damp * 0.28;
+  // debris in the gutter: leaves, wrappers, grit in drifts
+  vec2 dc = vec2( rs, rk ) / 0.11; vec2 di = floor( dc );
+  float drift = smoothstep( 0.45, 0.8, gdNoise( vec2( rs * 0.17, gdSeed * 40.0 ) ) );
+  float dh = gdHash( di + 17.0 );
+  if ( rk < 0.6 && dh > 0.92 - 0.06 * drift ) {
+    float dd = 1.0 - smoothstep( 0.2, 0.42, length( fract( dc ) - 0.5 ) );
+    vec3 dcol = gdHash( di + 3.0 ) > 0.55 ? vec3( 0.85, 0.62, 0.34 ) : ( gdHash( di + 4.0 ) > 0.5 ? vec3( 1.9 ) : vec3( 0.55 ) );
+    gdCol = mix( gdCol, gdCol * dcol, dd * 0.75 );
+  }
+  // storm drain grate against the kerb (rare), bars across the flow
+  float gc2 = ( rs + gdSeed * 29.0 ) / 41.0; float gi2 = floor( gc2 );
+  if ( gdHash( vec2( gi2, gdSeed * 6.0 + 95.0 ) ) > 0.6 ) {
+    vec2 gq = vec2( fract( gc2 ) * 41.0 - 6.0 - 28.0 * gdHash( vec2( gi2, 96.0 ) ), rk - 0.3 );
+    float gsd = gdBoxSd( gq, vec2( 0.5, 0.24 ) );
+    float gin = 1.0 - smoothstep( -0.01, 0.012, gsd );
+    float bars = step( 0.38, fract( gq.x * 7.5 ) );
+    vec3 gcol = vec3( 0.05, 0.05, 0.052 ) * ( 0.7 + 0.6 * gdNoise( gw * 5.0 ) ) * ( 0.35 + 0.9 * bars ) * ( 1.0 + 1.2 * ( 1.0 - smoothstep( 0.0, 0.05, -gsd ) ) * 0.25 );
+    gdOver = mix( gdOver, gcol, gin ); gdOverM = max( gdOverM, gin );
+    gdTone *= 1.0 - ( 1.0 - smoothstep( 0.0, 0.2, gsd ) ) * ( 1.0 - gin ) * 0.3;
+  }
+  // water valve box cover (small round lid, T-slot) on the lane
+  float vc = ( rs + gdSeed * 17.0 ) / 29.0; float vi = floor( vc );
+  if ( gdHash( vec2( vi, gdSeed * 8.0 + 120.0 ) ) > 0.7 ) {
+    vec2 vq = vec2( fract( vc ) * 29.0 - 5.0 - 19.0 * gdHash( vec2( vi, 121.0 ) ), rc - ( gdHash( vec2( vi, 122.0 ) ) - 0.5 ) * max( rhw - 1.0, 0.3 ) * 1.6 );
+    float vr = length( vq );
+    float vin = 1.0 - smoothstep( 0.095, 0.108, vr );
+    float vslot = step( abs( vq.x ), 0.015 ) * step( abs( vq.y ), 0.06 ) + step( abs( vq.y ), 0.015 ) * step( abs( vq.x ), 0.06 );
+    vec3 vcol = vec3( 0.06, 0.055, 0.052 ) * ( 0.8 + 0.5 * gdNoise( gw * 9.0 ) ) * ( 1.0 + vslot * 1.3 + smoothstep( 0.08, 0.095, vr ) * 1.1 );
+    gdOver = mix( gdOver, vcol, vin ); gdOverM = max( gdOverM, vin );
+    gdTone *= 1.0 - ( 1.0 - smoothstep( 0.1, 0.2, vr ) ) * ( 1.0 - vin ) * 0.3;
+  }
+  // concrete bus pad against the kerb of avenues, 12 m long, jointed every 3 m, rubber-dark where the bus stops
+  float bc = ( rs + gdSeed * 83.0 ) / 150.0; float bi = floor( bc ); float bf = fract( bc ) * 150.0;
+  if ( gdCls > 0.5 && gdHash( vec2( bi, gdSeed * 2.0 + 140.0 ) ) > 0.55 ) {
+    float b0 = 18.0 + 80.0 * gdHash( vec2( bi, 141.0 ) );
+    vec2 bq = vec2( bf - b0 - 6.0, rk - 1.2 );
+    float bsd = gdBoxSd( bq, vec2( 6.0, 1.2 ) ) + ( gdNoise( gw * 2.5 ) - 0.5 ) * 0.04;
+    float bin = 1.0 - smoothstep( -0.01, 0.015, bsd );
+    float bslab = floor( ( bf - b0 ) / 3.0 );
+    float bj = ( 1.0 - smoothstep( 0.01, 0.028, abs( fract( ( bf - b0 ) / 3.0 ) * 3.0 - 0.0 ) ) ) + ( 1.0 - smoothstep( 0.01, 0.028, abs( fract( ( bf - b0 ) / 3.0 ) * 3.0 - 3.0 ) ) );
+    vec3 bcol = vec3( 0.2, 0.198, 0.19 ) * ( 0.86 + 0.28 * gdHash( vec2( bslab, bi + 3.0 ) ) ) * ( 0.9 + 0.2 * gdFbm( gw * 1.3 ) );
+    bcol *= 1.0 - 0.5 * clamp( bj, 0.0, 1.0 ) - 0.18 * smoothstep( 0.6, 0.0, abs( bq.x ) / 4.0 ) * smoothstep( 0.45, 0.8, gdNoise( gw * 0.7 ) );
+    bcol *= 1.0 + gdGA * ( gdSt - 0.5 ) * 0.1;
+    gdOver = mix( gdOver, bcol, bin ); gdOverM = max( gdOverM, bin );
+    gdTone *= 1.0 - ( 1.0 - smoothstep( 0.0, 0.07, abs( bsd ) ) ) * 0.2;
   }
   // manhole cover (cast iron, 90 cm) on the lane, rare
   float hc = ( rs + gdSeed * 43.0 ) / 47.0; float hi = floor( hc ); float hf = fract( hc ) * 47.0;
@@ -150,7 +222,7 @@ if ( kh > 0.95 ) {
   vec3 kcol = vec3( 0.4, 0.385, 0.36 ) * dtlGain( 2.0, gw / 2.4, 1.5 ) * ( 0.75 + 0.5 * gdNoise( gw * 0.7 ) );
   gdCol = mix( gdCol, kcol, km * 0.85 );
 }
-diffuseColor.rgb = gdCol * gdTone;
+diffuseColor.rgb = mix( gdCol * gdTone, gdOver, gdOverM );
 `;
 
 /** concrete sidewalk (kind 2) and bluestone flags (kind 5; GD_FLAG defined): slabs from the UV grid, so the joints in the map and the tone agree */
@@ -170,7 +242,7 @@ float gdSeed = 0.0; bool gdSw = false; vec4 gdRd = vec4( 0.0 );
 vec2 sc = floor( sg ); vec2 sf = fract( sg );
 float sd = gdHash( sc + gdSeed * 97.0 + 5.0 );
 float sd2 = gdHash( sc * 1.7 + gdSeed * 53.0 + 9.0 );
-float gdTone = 1.0 + ( sd - 0.5 ) * 0.24;
+float gdTone = 1.0 + ( sd - 0.5 ) * 0.36;
 #ifdef GD_FLAG
 gdTone = 1.0 + ( sd - 0.5 ) * 0.08;
 #endif
@@ -178,8 +250,14 @@ gdTone = 1.0 + ( sd - 0.5 ) * 0.08;
   // the painted flags are staggered and uneven, so only slow world noise goes on top (a per-cell tone would cut across them)
   gdTone = 1.0;
 #else
-  if ( sd > 0.93 ) { gdTone *= 1.13; gdCol = mix( gdCol, vec3( dot( gdCol, vec3( 0.3333 ) ) ), 0.4 ); }
-  else if ( sd < 0.07 ) { gdTone *= 0.8; gdCol *= vec3( 1.05, 1.0, 0.9 ); }
+  if ( sd > 0.9 ) { gdTone *= 1.13; gdCol = mix( gdCol, vec3( dot( gdCol, vec3( 0.3333 ) ) ), 0.4 ); }
+  else if ( sd < 0.12 ) { gdTone *= 0.76; gdCol *= vec3( 1.06, 1.0, 0.88 ); }
+  // a slab heaved by a root or frost: one edge lifted (light lip, shadow on the low side), the slab tilted
+  if ( sd2 > 0.94 ) {
+    float lx = mix( sf.x, sf.y, step( 0.5, fract( sd * 11.0 ) ) );
+    gdTone *= 0.88 + 0.26 * lx;
+    gdTone *= 1.0 + 0.16 * ( 1.0 - smoothstep( 0.0, 0.03, lx ) ) - 0.3 * ( 1.0 - smoothstep( 0.0, 0.05, 1.0 - lx ) ) * 0.4;
+  }
   gdCol *= mix( vec3( 1.03, 1.01, 0.97 ), vec3( 0.97, 1.0, 1.04 ), sd2 );
 #endif
 #ifdef GD_FLAG
@@ -196,6 +274,15 @@ float stainAmt = smoothstep( 0.62, 0.9, gdHash( sc + gdSeed * 13.0 + 31.0 ) ) * 
 #endif
 gdCol *= mix( vec3( 1.0 ), vec3( 0.8, 0.77, 0.72 ), stainAmt * smoothstep( 0.2, 1.0, sf.y ) * 0.8 );
 // cracks: a few slabs, wandering from a corner, tar-sealed hairline
+float gdPx = length( fwidth( gw ) );
+{
+  // sand and small stones in the concrete surface, faded by the pixel footprint
+  float sGA = 1.0 - smoothstep( 0.01, 0.045, gdPx );
+  gdTone *= 1.0 + sGA * ( gdHash( floor( gw * 55.0 ) ) - 0.5 ) * 0.2;
+  // joint grime: dark water and dirt line along the slab edges, patchy
+  float jd = min( min( sf.x, 1.0 - sf.x ), min( sf.y, 1.0 - sf.y ) ) * slabM;
+  gdTone *= 1.0 - ( 1.0 - smoothstep( 0.0, 0.06, jd ) ) * 0.12 * ( 0.4 + 0.9 * gdNoise( gw * 1.3 ) );
+}
 float ch = gdHash( sc + gdSeed * 31.0 + 2.0 );
 #ifdef GD_FLAG
 ch = 0.0;
@@ -207,7 +294,7 @@ if ( ch > 0.78 ) {
   float ct = dot( cp, cdir ); float cn2 = dot( cp, vec2( -cdir.y, cdir.x ) );
   float clen = 0.35 + 0.65 * fract( ch * 13.0 );
   cn2 += ( gdNoise( sg * 8.0 + 3.0 ) - 0.5 ) * 0.06 + ( gdNoise( sg * 31.0 ) - 0.5 ) * 0.015;
-  float cline = ( 1.0 - smoothstep( 0.0035, 0.011, abs( cn2 ) ) ) * smoothstep( 0.0, 0.05, ct ) * ( 1.0 - smoothstep( clen - 0.12, clen, ct ) );
+  float cline = ( 1.0 - smoothstep( 0.006, 0.017, abs( cn2 ) ) ) * smoothstep( 0.0, 0.05, ct ) * ( 1.0 - smoothstep( clen - 0.12, clen, ct ) );
   gdTone *= 1.0 - cline * ( ch > 0.92 ? 0.62 : 0.4 );
 }
 // chewing gum: sparse, in clusters, pale halo
@@ -249,10 +336,13 @@ diffuseColor.rgb = gdCol * gdTone;
 /** lane paint (kind 3): chipped and worn toward the asphalt in places, repainted bright in others */
 export const PAINT_GLSL = `
 vec2 fc = floor( gw / 17.0 ); float fh = gdHash( fc + 51.0 );
-float fade = fh > 0.8 ? 1.22 : ( fh < 0.32 ? 0.58 + 0.25 * gdNoise( gw * 3.0 ) : 1.0 );
-float wearN = gdNoise( gw * 6.5 ) * 0.55 + gdNoise( gw * 21.0 ) * 0.3 + gdNoise( gw * 61.0 ) * 0.15;
+float fade = fh > 0.8 ? 1.2 : ( fh < 0.32 ? 0.62 + 0.2 * gdNoise( gw * 1.7 ) : 1.0 );
+// worn thermoplastic: chips are blobs of 10 to 40 cm with ragged edges (smooth noise, no per-pixel speckle), thinner in the wheel paths
+float wearN = gdNoise( gw * 2.3 ) * 0.5 + gdNoise( gw * 6.1 ) * 0.32 + gdNoise( gw * 15.0 ) * 0.18;
 float wearLow = gdNoise( gw * 0.17 + 2.0 );
-float chip = smoothstep( 0.52, 0.74, wearN * ( 0.55 + 0.8 * wearLow ) + ( fh < 0.32 ? 0.12 : 0.0 ) );
-vec3 paintCol = diffuseColor.rgb * fade * ( 0.94 + 0.12 * gdNoise( gw * 2.0 ) );
-diffuseColor.rgb = mix( paintCol, vec3( 0.16, 0.165, 0.17 ), chip * 0.7 );
+float chip = smoothstep( 0.57, 0.68, wearN * ( 0.55 + 0.8 * wearLow ) + ( fh < 0.32 ? 0.1 : 0.0 ) );
+vec3 paintCol = diffuseColor.rgb * fade * ( 0.95 + 0.1 * gdNoise( gw * 1.1 ) );
+// grey tyre-dust and a thin dirty rim where the paint meets the road
+paintCol *= mix( 1.0, 0.78, smoothstep( 0.4, 0.62, wearN ) * 0.5 );
+diffuseColor.rgb = mix( paintCol, vec3( 0.13, 0.135, 0.14 ) * ( 0.85 + 0.3 * gdNoise( gw * 9.0 ) ), chip * 0.85 );
 `;

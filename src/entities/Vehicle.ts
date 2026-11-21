@@ -62,6 +62,15 @@ export const VEHICLE_SPECS: Record<VehicleType, VehicleSpec> = {
   convertible: { type: 'convertible', name: 'Convertible', length: 4.55, width: 1.83, height: 1.3, maxSpeed: 33, accel: 9, brakeDecel: 14.5, maxSteer: 0.6, color: '#c8283a', mass: 1450, grip: 1.06, steerRate: 1.12, enginePitch: 1.15 },
   stepvan: { type: 'stepvan', name: 'Step van', length: 6.4, width: 2.15, height: 2.7, maxSpeed: 20, accel: 3.2, brakeDecel: 11, maxSteer: 0.5, color: '#f2f0e8', mass: 4200, grip: 0.88, steerRate: 0.72, enginePitch: 0.65, camDist: 3.0, camHeight: 0.8 },
   icecream: { type: 'icecream', name: 'Ice-cream truck', length: 5.6, width: 2.1, height: 2.7, maxSpeed: 20, accel: 3.6, brakeDecel: 11, maxSteer: 0.52, color: '#f4efe0', mass: 3300, grip: 0.9, steerRate: 0.78, enginePitch: 0.7, camDist: 2.2, camHeight: 0.7 },
+  // CARS4 (not in traffic; see docs/swarm/tasks/CARS4.md). Invented types; sizes are plausible, not copied.
+  hearse: { type: 'hearse', name: 'Hearse', length: 5.9, width: 2.0, height: 1.55, maxSpeed: 28, accel: 6.5, brakeDecel: 12.5, maxSteer: 0.5, color: '#0e0f12', mass: 2300, grip: 0.9, steerRate: 0.78, enginePitch: 0.75, camDist: 3.0, camHeight: 0.7 },
+  livery: { type: 'livery', name: 'Livery sedan', length: 5.39, width: 1.99, height: 1.44, maxSpeed: 30, accel: 7, brakeDecel: 13.5, maxSteer: 0.58, color: '#101114', mass: 1850, grip: 0.95, steerRate: 0.88, enginePitch: 0.82 },
+  schoolbus: { type: 'schoolbus', name: 'School bus', length: 12, width: 2.5, height: 3.2, maxSpeed: 17, accel: 1.8, brakeDecel: 9, maxSteer: 0.5, color: '#e8a710', mass: 10500, grip: 0.88, steerRate: 0.6, enginePitch: 0.55, camDist: 5.0, camHeight: 1.0 },
+  towtruck: { type: 'towtruck', name: 'Tow truck', length: 6.6, width: 2.3, height: 2.6, maxSpeed: 22, accel: 3.5, brakeDecel: 11.5, maxSteer: 0.55, color: '#e8e8e4', mass: 5200, grip: 0.9, steerRate: 0.75, enginePitch: 0.68, camDist: 3.0, camHeight: 0.8 },
+  flatbed: { type: 'flatbed', name: 'Flatbed truck', length: 7, width: 2.4, height: 2.5, maxSpeed: 21, accel: 3.2, brakeDecel: 11, maxSteer: 0.55, color: '#a8262a', mass: 4800, grip: 0.9, steerRate: 0.75, enginePitch: 0.68, camDist: 3.0, camHeight: 0.8 },
+  foodtruck: { type: 'foodtruck', name: 'Food truck', length: 6, width: 2.2, height: 2.9, maxSpeed: 20, accel: 3.2, brakeDecel: 11, maxSteer: 0.52, color: '#2c8a7a', mass: 4000, grip: 0.9, steerRate: 0.76, enginePitch: 0.7, camDist: 2.6, camHeight: 0.8 },
+  sweeper: { type: 'sweeper', name: 'Street sweeper', length: 6.8, width: 2.5, height: 3, maxSpeed: 12, accel: 1.6, brakeDecel: 9, maxSteer: 0.5, color: '#e0b01e', mass: 11000, grip: 0.9, steerRate: 0.65, enginePitch: 0.6, camDist: 3.6, camHeight: 0.9 },
+  bucket: { type: 'bucket', name: 'Bucket truck', length: 7.4, width: 2.5, height: 3.4, maxSpeed: 19, accel: 2.6, brakeDecel: 10, maxSteer: 0.5, color: '#e8e8e4', mass: 8500, grip: 0.9, steerRate: 0.7, enginePitch: 0.62, camDist: 3.6, camHeight: 0.9 },
 };
 
 // ---- longitudinal

@@ -63,6 +63,8 @@ const SIGN_F = 0.07;
 /** Corner chamfer (each leg). */
 export const CORNER_CUT = 1.5;
 const BACK_BY = 0.6;
+/** how far the shop glazing sits behind the wall plane (SURFACES3): the opening gets reveals, a stone sill and a soffit that catch the sun and cast a shadow */
+const SHOP_RECESS = 0.2;
 /** Awning density on the atlas: valance (text) and slope (decoration, rarely seen close up). */
 const AWN_VAL_PPM_FULL = 100;
 const AWN_SLOPE_PPM_FULL = 28;
@@ -1024,10 +1026,15 @@ export function buildGroundFloor(c: LotCtx, plan: StorefrontPlan, brick: THREE.M
   }
   for (const g of plan.glass) {
     const len = g.b - g.a;
-    front(tileMat, g.a, g.b, 0, 0.6, 0.01);
-    front(m.glass, g.a, g.b, 0.6, SHOP_H, 0.01, { ru: Math.max(1, Math.round(len / 1.6)), rv: 1 });
-    for (const px of postsOf(g)) frontBox(m.metal, px - 0.03, px + 0.03, 0, SHOP_H, 0, 0.05, 'lrf');
-    frontBox(m.metal, g.a, g.b, 0.6, 0.66, 0, 0.04, 'f');
+    front(tileMat, g.a, g.b, 0, 0.6, 0.01 - SHOP_RECESS);
+    front(m.glass, g.a, g.b, 0.6, SHOP_H, 0.01 - SHOP_RECESS, { ru: Math.max(1, Math.round(len / 1.6)), rv: 1 });
+    for (const px of postsOf(g)) frontBox(m.metal, px - 0.03, px + 0.03, 0, SHOP_H, -SHOP_RECESS, 0.05 - SHOP_RECESS, 'lrf');
+    frontBox(m.metal, g.a, g.b, 0.6, 0.66, -SHOP_RECESS, 0.04 - SHOP_RECESS, 'f');
+    // the opening: brick reveals both sides, a steel soffit, and a stone stall-riser sill that sticks out of the wall line
+    frontBox(brick, g.a, g.a + 0.02, 0, SHOP_H, -SHOP_RECESS, 0, 'lr');
+    frontBox(brick, g.b - 0.02, g.b, 0, SHOP_H, -SHOP_RECESS, 0, 'lr');
+    frontBox(m.metal, g.a, g.b, SHOP_H - 0.02, SHOP_H, -SHOP_RECESS, 0, 'd');
+    frontBox(m.stoop, g.a - 0.02, g.b + 0.02, 0.56, 0.62, -SHOP_RECESS, 0.05, 'fu');
   }
 
   // ---- mid-block set-back door alcove (z = -BACK_BY)
@@ -1077,9 +1084,13 @@ export function buildGroundFloor(c: LotCtx, plan: StorefrontPlan, brick: THREE.M
 
     // cross-street glazing run, its pier and the plain wall beyond
     const sg = plan.sideGlass;
-    side(tileMat, sg.a, sg.b, 0, 0.6, 0.01);
-    side(m.glass, sg.a, sg.b, 0.6, SHOP_H, 0.01, { ru: Math.max(1, Math.round((sg.b - sg.a) / 1.6)), rv: 1 });
-    for (const pz of postsOf(sg)) sideBox(m.metal, pz - 0.03, pz + 0.03, 0, SHOP_H, 0, 0.05, 'rlf');
+    side(tileMat, sg.a, sg.b, 0, 0.6, 0.01 - SHOP_RECESS);
+    side(m.glass, sg.a, sg.b, 0.6, SHOP_H, 0.01 - SHOP_RECESS, { ru: Math.max(1, Math.round((sg.b - sg.a) / 1.6)), rv: 1 });
+    for (const pz of postsOf(sg)) sideBox(m.metal, pz - 0.03, pz + 0.03, 0, SHOP_H, -SHOP_RECESS, 0.05 - SHOP_RECESS, 'rlf');
+    sideBox(brick, sg.a, sg.a + 0.02, 0, SHOP_H, -SHOP_RECESS, 0, 'fb');
+    sideBox(brick, sg.b - 0.02, sg.b, 0, SHOP_H, -SHOP_RECESS, 0, 'fb');
+    sideBox(m.metal, sg.a, sg.b, SHOP_H - 0.02, SHOP_H, -SHOP_RECESS, 0, 'd');
+    sideBox(m.stoop, sg.a - 0.02, sg.b + 0.02, 0.56, 0.62, -SHOP_RECESS, 0.05, 'rlu');
     side(brick, sg.b, sg.b + 0.4, 0, SHOP_H, 0, { u0: 0.2, v0: 0 });
   }
 
@@ -1131,8 +1142,8 @@ export function buildGroundFloor(c: LotCtx, plan: StorefrontPlan, brick: THREE.M
       const uv = kit.stickerUv(s.kind);
       const opt: RectOpt = { uvRect: [uv[0], uv[1], uv[2], uv[3]] };
       const y0 = s.y - slot.hM / 2;
-      if (s.face === 'front') front(stickerMat, s.at - slot.wM / 2, s.at + slot.wM / 2, y0, y0 + slot.hM, 0.06, opt);
-      else side(stickerMat, s.at - slot.wM / 2, s.at + slot.wM / 2, y0, y0 + slot.hM, 0.06, opt);
+      if (s.face === 'front') front(stickerMat, s.at - slot.wM / 2, s.at + slot.wM / 2, y0, y0 + slot.hM, 0.06 - SHOP_RECESS, opt);
+      else side(stickerMat, s.at - slot.wM / 2, s.at + slot.wM / 2, y0, y0 + slot.hM, 0.06 - SHOP_RECESS, opt);
     }
   }
 

@@ -579,6 +579,8 @@ export interface CarParts {
   paint: THREE.BufferGeometry;
   /** truck cargo box (white paint) */
   paint2?: THREE.BufferGeometry;
+  /** CARS4 work bodies: paint2 is in the car's own plain library paint, not the cargo livery canvas */
+  paint2Plain?: boolean;
   glass: THREE.BufferGeometry;
   /** dark plastic + chrome in one vertex-coloured geometry */
   trim: THREE.BufferGeometry;
@@ -749,8 +751,8 @@ export interface Style {
 
 export type PassengerStyle = 'sedan' | 'coupe' | 'suv' | 'cop' | 'cab' | 'cargo' | 'hatch' | 'beater' | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'ambulance' | 'dollar'
   | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan'
-  | 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'limo' | 'classic' | 'donk' | 'copsuv' | 'convertible' | 'stepvan' | 'icecream';
-type DerivedKey = 'donk' | 'copsuv' | 'icecream';
+  | 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'limo' | 'classic' | 'donk' | 'copsuv' | 'convertible' | 'stepvan' | 'icecream' | 'hearse' | 'livery';
+type DerivedKey = 'donk' | 'copsuv' | 'icecream' | 'hearse' | 'livery';
 export type StyleKey = 'sedan' | 'coupe' | 'suv' | 'crown' | 'charger' | 'cargo' | 'hatch' | 'beater' | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'dollar'
   | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan'
   | 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'limo' | 'classic' | 'convertible' | 'stepvan' | DerivedKey;
@@ -1782,6 +1784,37 @@ export const STYLES: Record<StyleKey, Style> = {
   donk: { ...BASE_STYLES.classic, sill: 0.3, wheelR: 0.43, wheelW: 0.27, bumperY: 0.42, dims: { L: 5.7, W: 2.0, H: 1.52 }, grille: 'bigbar' },
   copsuv: { ...BASE_STYLES.suv, dims: { L: 5.05, W: 2.0, H: 1.78 }, grille: 'bigbar', chromeBumper: false },
   icecream: { ...BASE_STYLES.stepvan, dims: { L: 5.6, W: 2.1, H: 2.7 }, glassTop: 2.1 },
+  // CARS4 "Solace": a long funeral coach, 5.9 x 2.0 x 1.55 m: wagon-based, wheelbase 3.6 m, tall flat roofline carried to a boxy tail,
+  // small side windows (the rear compartment is paint), upright round-lamp face, chrome bumpers.
+  hearse: {
+    ...BASE_STYLES.wagon,
+    Lref: 5.9, Href: 1.55, sill: 0.21, wheelR: 0.34, wheelW: 0.225, axle: 1.8,
+    secs: [
+      [-2.95, 1.02, 0.98, 0.92],
+      [-2.9, 1.2, 1.0, 0.9],
+      [-2.78, 1.5, 1.02, 0.78],
+      [-1.0, 1.55, 1.02, 0.76],
+      [0.62, 1.54, 1.02, 0.75],
+      [1.32, 1.1, 1.0, 0.9],
+      [1.8, 1.04, 0.98, 0.93],
+      [2.4, 0.98, 0.94, 0.93],
+      [2.75, 0.93, 0.89, 0.92],
+      [2.95, 0.88, 0.84, 0.92],
+    ],
+    windshield: [1.32, 0.62],
+    doorGlass: [[1.18, 0.56], [0.44, -0.3], [-2.0, -2.55]],
+    bPillar: [0.5, 0.44],
+    rearGlass: [-2.78, -2.92],
+    seams: [1.14, 0.5, -0.32],
+    handles: [0.52, -0.22],
+    hoodBack: 1.36,
+    maxGap: 0.4, archN: 6,
+    plan: [[-2.95, 0.92], [-2.3, 0.99], [-1, 1], [1, 1], [2.2, 0.98], [2.95, 0.92]],
+    dims: { L: 5.9, W: 2.0, H: 1.55 },
+    headLamp: 'round2', tailLamp: 'box2', grille: 'bars', chromeBumper: true, lampD: 0.12, tailD: 0.06, endF: 0.4, endR: 0.2, grilleW: 0.6,
+  },
+  // CARS4 "Regent Executive": the livery cab, the Regent body stretched 0.2 m, round twin lamps, chrome bar bumpers, no roof light.
+  livery: { ...BASE_STYLES.crown, dims: { L: 5.6, W: 1.99, H: 1.47 }, headLamp: 'round2', tailLamp: 'box2', grille: 'slats', chromeBumper: true },
 };
 
 /** The CARS14 types: sports cars, the electric wedge pickup and the electric sedan (each has its own style of the same name). */
@@ -1790,6 +1823,12 @@ export function isCars14(type: string): type is (typeof CARS14_TYPES)[number] { 
 /** The CARS2 types that are built from a STYLES entry of their own name (the minivan taxi shares the minivan body). */
 export const CARS2_TYPES = ['wagon', 'bigsuv', 'minitruck', 'panelvan', 'limo', 'classic', 'donk', 'copsuv', 'convertible', 'stepvan', 'icecream'] as const;
 export function isCars2(type: string): type is (typeof CARS2_TYPES)[number] { return (CARS2_TYPES as readonly string[]).includes(type); }
+/** CARS4 passenger bodies built from a STYLES entry of their own name (the work trucks and the school bus are built by buildTruckParts / buildBusParts). */
+export const CARS4_PASSENGER = ['hearse', 'livery'] as const;
+export function isCars4Passenger(type: string): type is (typeof CARS4_PASSENGER)[number] { return (CARS4_PASSENGER as readonly string[]).includes(type); }
+/** CARS4 truck kinds built on the box truck's cab (buildTruckParts) */
+export type TruckKind = 'box' | 'garbage' | 'flatbed' | 'tow' | 'bucket' | 'sweeper' | 'food';
+export const CARS4_TRUCKS: Readonly<Record<string, TruckKind>> = { towtruck: 'tow', flatbed: 'flatbed', foodtruck: 'food', sweeper: 'sweeper', bucket: 'bucket' };
 
 /** The STYLES entry a passenger-body vehicle type is built from (the minivan taxi shares the minivan body, the cab the Regent body). */
 export function styleKeyOf(type: VehicleType): StyleKey {
@@ -1804,15 +1843,17 @@ export function styleKeyOf(type: VehicleType): StyleKey {
 }
 
 export function wheelRadiusFor(type: VehicleType): number {
-  if (type === 'boxtruck' || type === 'bus') return 0.5;
+  if (type === 'boxtruck' || type === 'bus' || type === 'schoolbus') return 0.5;
   if (type === 'garbage') return GARBAGE_R;
+  if (type === 'sweeper' || type === 'bucket') return 0.46; // CARS4 (the model's tyre radius)
+  if (type in CARS4_TRUCKS) return TRUCK_R;
   return STYLES[styleKeyOf(type)].wheelR;
 }
 
 /** Number of cross-sections that define a type's hull (before smoothing). */
 export function hullSectionCount(type: VehicleType): number {
-  if (type === 'boxtruck' || type === 'garbage') return TRUCK_CAB_SECS.length;
-  if (type === 'bus') return 12;
+  if (type === 'boxtruck' || type === 'garbage' || type in CARS4_TRUCKS) return TRUCK_CAB_SECS.length;
+  if (type === 'bus' || type === 'schoolbus') return 12;
   return STYLES[styleKeyOf(type)].secs.length;
 }
 
@@ -2598,6 +2639,8 @@ const TRUCK_R = 0.405;
 /** garbage truck: 22.5 in tyres */
 export const GARBAGE_R = 0.5;
 const TRUCK_AXLES: [number, number] = [2.45, -1.36];
+/** CARS4 work trucks: wheelbase (m) per body */
+const TRUCK_WHEELBASE: Readonly<Record<string, number>> = { flatbed: 4.0, tow: 3.8, bucket: 4.5, sweeper: 3.4, food: 3.7 };
 
 /** [u, roof height, belt height, roof half-width fraction] for the cab, metres. */
 const TRUCK_CAB_SECS: [number, number, number, number][] = [
@@ -2610,26 +2653,135 @@ const TRUCK_CAB_SECS: [number, number, number, number][] = [
   [3.4, 1.58, 1.45, 0.92],
 ];
 
+/** Where the rear body goes (car space, z = -u: the cab is at -z, the rear at +z). */
+interface WorkSpace { Wg2: number; H: number; zA: number; zB: number; bl: number; zc: number; sill: number; uBcab: number; cabRoof: number; hasBox: boolean }
+interface WorkAcc { trim: Acc; chrome: Acc; grey: Acc; paint2: Acc }
+/** a box tilted about x (pitch > 0 lifts its rear end), centre at (x, y, z) */
+const tiltBox = (w: number, h: number, d: number, pitch: number, x: number, y: number, z: number): THREE.BufferGeometry =>
+  new THREE.BoxGeometry(w, h, d).rotateX(-pitch).translate(x, y, z);
+
+/**
+ * CARS4: the rear bodies of the work trucks (flatbed, tow truck, bucket truck, sweeper, food truck). The loft (food, sweeper) or the
+ * deck and its fittings are built here; everything is plain boxes and cylinders in the three existing meshes (paint2 = the car's own
+ * paint, trim dark / chrome / grey), so a work truck is the same six draws as a box truck.
+ */
+function buildWorkBody(kind: TruckKind, A: WorkAcc, S: WorkSpace): void {
+  const { trim, chrome, grey, paint2 } = A;
+  const { Wg2, zA, zB, bl, zc } = S;
+  const deckY = 1.12;
+  const both = (g: THREE.BufferGeometry, acc: Acc): void => { acc.addBoth(g); };
+  if (kind === 'flatbed') {
+    grey.add(bx(2 * Wg2 - 0.04, 0.14, bl - 0.1, 0, deckY, zc));                         // steel deck
+    for (let k = -3; k <= 3; k++) trim.add(bx(0.03, 0.02, bl - 0.2, k * 0.3, deckY + 0.08, zc)); // deck planks (ribs)
+    paint2.add(bx(2 * Wg2 - 0.1, 1.0, 0.12, 0, deckY + 0.57, zA + 0.12));               // headboard
+    for (const k of [-1, 1]) {
+      trim.add(bx(0.2, 0.2, bl - 0.3, k * (Wg2 - 0.15), deckY - 0.18, zc));              // side rails under the deck
+      paint2.add(bx(0.16, 0.5, 0.9, k * (Wg2 - 0.1), 0.7, zc + bl * 0.1));               // toolbox under the deck
+      for (let j = 0; j < 5; j++) chrome.add(bx(0.04, 0.16, 0.04, k * (Wg2 - 0.03), deckY + 0.14, zA + 0.5 + j * (bl - 1.0) / 4)); // stake pockets
+    }
+    trim.add(bx(2 * Wg2 - 0.2, 0.12, 0.14, 0, deckY + 0.1, zB - 0.12));                  // rear lip
+    for (let k = 0; k < 4; k++) grey.add(bx(2 * Wg2 - 0.5, 0.05, 0.07, 0, deckY + 0.1, zA + 0.7 + k * 0.28)); // cab-guard rails
+    return;
+  }
+  if (kind === 'tow') {
+    // utility body behind the cab, a low deck behind it, a wrecker boom with a hook, a wheel-lift cross bar at the tail
+    const bz = zA + 0.95;
+    paint2.add(bx(2 * Wg2 - 0.1, 0.95, 1.7, 0, deckY + 0.55, bz));                        // service body
+    for (const k of [-1, 1]) {
+      trim.add(decalX(0.7, 0.55, k, k * (Wg2 - 0.05 + 0.004), deckY + 0.55, bz - 0.4));   // compartment doors
+      trim.add(decalX(0.7, 0.55, k, k * (Wg2 - 0.05 + 0.004), deckY + 0.55, bz + 0.45));
+      chrome.add(bx(0.03, 0.05, 0.16, k * (Wg2 - 0.03), deckY + 0.6, bz - 0.12));
+    }
+    grey.add(bx(2 * Wg2 - 0.04, 0.12, bl - 1.9, 0, deckY - 0.05, zB - (bl - 1.9) / 2));   // rear deck
+    trim.add(bx(2 * Wg2 - 0.6, 0.1, 0.25, 0, deckY - 0.05, zB - 0.05));                    // wheel-lift cross bar
+    // boom: pivot on the body roof, raised toward the rear
+    const px = 0, py = deckY + 1.05, pz = bz + 0.2;
+    grey.add(tiltBox(0.26, 0.26, 2.2, 0.42, px, py + 0.4, pz + 1.0));
+    grey.add(bx(0.5, 0.3, 0.5, px, py + 0.05, pz));                                         // pivot housing
+    chrome.add(cylX(0.045, 0.3, px, py + 0.4, pz, 8));
+    chrome.add(cylZ(0.012, 0.9, px, py + 0.0, pz + 2.1, 4));                                // cable
+    chrome.add(new THREE.TorusGeometry(0.08, 0.02, 4, 8).rotateY(Math.PI / 2).translate(px, py - 0.55, pz + 2.1)); // hook
+    // outriggers and a reflective bar
+    for (const k of [-1, 1]) trim.add(bx(0.05, 0.05, 0.5, k * (Wg2 - 0.02), deckY - 0.3, zB - 0.9));
+    return;
+  }
+  if (kind === 'bucket') {
+    // utility body with compartment doors, a rear turret, a boom lying along the roof and over the cab, a bucket resting above the cab
+    const bz = zA + (bl - 0.3) * 0.5 + 0.2;
+    const bLen = bl - 0.5;
+    paint2.add(bx(2 * Wg2 - 0.12, 1.3, bLen, 0, deckY + 0.7, bz));                        // utility body
+    for (const k of [-1, 1]) for (let j = 0; j < 4; j++) {
+      trim.add(decalX(0.75, 0.9, k, k * (Wg2 - 0.06 + 0.004), deckY + 0.7, bz - bLen / 2 + 0.55 + j * 0.95));
+      chrome.add(bx(0.03, 0.05, 0.14, k * (Wg2 - 0.03), deckY + 0.7, bz - bLen / 2 + 0.3 + j * 0.95));
+    }
+    const top = deckY + 1.35;
+    grey.add(bx(0.7, 0.2, 0.9, 0, top + 0.08, zB - 0.9));                                  // turret base
+    // boom along the roof toward the cab and out over it (rest position), slight upward angle
+    const bm = bz - bLen / 2 - 0.2, bl2 = (zB - 0.9) - bm;
+    grey.add(tiltBox(0.3, 0.32, bl2 + 0.2, -0.02, 0.0, top + 0.38, (bm + zB - 0.9) / 2 - 0.1));
+    grey.add(bx(0.24, 0.5, 0.24, 0, top + 0.18, bm + 0.4));                               // cradle post
+    // the bucket: a basket hung over the cab roof
+    const by = S.cabRoof + 0.62, bzz = bm - 0.15;
+    paint2.add(bx(0.95, 0.85, 0.95, 0, by, bzz));
+    chrome.add(bx(1.0, 0.04, 1.0, 0, by + 0.45, bzz));                                      // rim
+    trim.add(bx(0.7, 0.04, 0.7, 0, by + 0.4, bzz));                                         // inside (dark)
+    for (const k of [-1, 1]) {
+      trim.add(bx(0.1, 0.1, 1.2, k * (Wg2 - 0.15), deckY - 0.3, zB - 1.0));                // outrigger beams
+      trim.add(cylX(0.05, 0.1, k * (Wg2 + 0.02), deckY - 0.55, zB - 1.0, 6));
+    }
+    return;
+  }
+  if (kind === 'sweeper') {
+    // hopper details: hatch lids, side brush arms and discs under the nose of the hopper, rear flap, hoses, roof beacon
+    for (const k of [-1, 1]) {
+      trim.add(new THREE.CylinderGeometry(0.34, 0.34, 0.1, 12).translate(k * (Wg2 - 0.1), 0.2, zA + 0.5));   // side brush discs
+      grey.add(bx(0.5, 0.1, 0.12, k * (Wg2 - 0.4), 0.42, zA + 0.5));                                        // brush arm
+      trim.add(cylZ(0.07, bl - 0.8, k * (Wg2 - 0.1), 1.35, zc, 6));                                        // suction hose
+    }
+    chrome.add(bx(1.4, 0.04, 0.5, 0, S.H + 0.0, zc));                                                       // hopper lid rim
+    trim.add(bx(1.2, 0.1, 0.5, 0, S.H + 0.02, zc + 0.3));
+    trim.add(bx(2 * Wg2 - 0.5, 0.5, 0.1, 0, 0.85, zB + 0.02));                                            // tail flap
+    trim.add(cylX(0.18, 1.3, 0, 0.32, zA + 0.3, 10));                                                       // main broom roll under the front
+    for (const k of [-1, 1]) trim.add(bx(0.06, 0.22, 0.22, k * 0.28, S.cabRoof + 0.12, zA - 0.1));         // beacon
+    return;
+  }
+  if (kind === 'food') {
+    // serving window (curb side, right), counter shelf, awning, roof vents, generator box, menu board
+    const x = Wg2 + 0.004;
+    trim.add(decalX(1.7, 0.85, 1, x, 1.95, zc + 0.15));                                                    // window opening (dark)
+    chrome.add(bx(0.14, 0.04, 1.8, Wg2 + 0.06, 1.5, zc + 0.15));                                           // counter shelf
+    grey.add(new THREE.BoxGeometry(0.9, 0.04, 2.0).rotateZ(-0.32).translate(Wg2 + 0.34, 2.55, zc + 0.15));      // awning (raised, sloping out)
+    for (const dz of [-0.9, 0.9]) chrome.add(cylZ(0.015, 0.02, Wg2 + 0.05, 2.2, zc + 0.15 + dz, 4));
+    trim.add(decalX(0.9, 0.8, -1, -x, 1.9, zc - 0.5));                                                     // menu board (left)
+    for (const dz of [-0.4, 0.4]) trim.add(bx(0.6, 0.14, 0.5, 0, S.H + 0.05, zc + dz));                    // roof vents
+    trim.add(bx(0.6, 0.5, 0.8, -(Wg2 - 0.2), 0.8, zB - 0.5));                                              // generator box under the rear
+    return;
+  }
+}
+
 /**
  * `kind = 'garbage'` ("Boro Sanitation"): a low cab-forward refuse truck of the Mack LR type with a rear-loader packer body on a tandem rear axle.
  * Wheelbase 186-221 in (4.7-5.6 m) per  and  ;
  * overall 9.2 x 2.5 x 3.6 m is an estimate (the searches returned no overall dimensions).
  */
-export function buildTruckParts(spec: VehicleSpec, kind: 'box' | 'garbage' = 'box'): CarParts {
+export function buildTruckParts(spec: VehicleSpec, kind: TruckKind = 'box'): CarParts {
   const { length: L, width: W, height: H } = spec;
   const G = kind === 'garbage';
-  const R = G ? GARBAGE_R : TRUCK_R;
-  const ww = G ? 0.3 : 0.23;
-  const sill = G ? 0.7 : 0.62;
+  /** CARS4 work bodies on the same cab: flatbed, tow, bucket, sweeper, food */
+  const N = kind !== 'box' && !G;
+  const BIG = kind === 'sweeper' || kind === 'bucket';
+  const R = G ? GARBAGE_R : BIG ? 0.46 : TRUCK_R;
+  const ww = G || BIG ? 0.3 : 0.23;
+  const sill = G ? 0.7 : BIG ? 0.68 : 0.62;
   const arch = archOf(R, sill);
-  const dU = G ? (L - 7) / 2 : 0;
+  const dU = G || N ? (L - 7) / 2 : 0;
   const CAB = TRUCK_CAB_SECS.map(([u, yT, yB, wr]) => [u + dU, G ? yT * 1.08 : yT, yB, wr] as [number, number, number, number]);
   const Wc2 = G ? 1.12 : 1.03;     // cab half-width (2.06 m cab; the refuse cab is 2.24)
   const Wg2 = W / 2 - 0.025;       // box half-width
   const uF = L / 2 - 0.1;          // cab nominal front
   const uB = CAB[0][0]; // cab back
-  const axleF = G ? uF - 0.95 : TRUCK_AXLES[0];
-  const axleR = G ? axleF - 4.9 : TRUCK_AXLES[1];
+  const axleF = G || N ? uF - 0.95 : TRUCK_AXLES[0];
+  const axleR = G ? axleF - 4.9 : N ? axleF - TRUCK_WHEELBASE[kind] : TRUCK_AXLES[1];
   const axleR2 = axleR - 1.32; // garbage: tandem rear
 
   // ---- cab hull
@@ -2678,10 +2830,17 @@ export function buildTruckParts(spec: VehicleSpec, kind: 'box' | 'garbage' = 'bo
   // ---- cargo box hull: 16 ft box (4.9 m), floor 1.05 m, roof at the spec height; it overhangs the cab by 0.4 m each side
   const cargoBack = -L / 2 + 0.04;
   const cargoFront = uB - 0.05;
+  const hasBox = !(kind === 'flatbed' || kind === 'tow' || kind === 'bucket');
   const boxRing = (u: number): V2[] => {
     const d = Math.min(cargoFront - u, u - cargoBack);
     const g = endG(d, 0.1);
     const s = 1 - 0.06 * (1 - g);
+    if (kind === 'food') return boxHalf(Wg2 * s, 0.95 + 0.05 * (1 - g), H - 0.02 - 0.06 * (1 - g), 0.14);
+    if (kind === 'sweeper') {
+      // hopper: a tall rounded barrel over the rear axle, a lower sloped nose behind the cab
+      const front = Math.max(0, (u - (cargoFront - 1.0)) / 1.0);
+      return boxHalf(Wg2 * (0.96 - 0.05 * (1 - g)), 1.0 + 0.05 * (1 - g), H - 0.02 - 0.05 * (1 - g) - 0.45 * front, 0.5);
+    }
     if (G) {
       // packer body: a rounded barrel, full height forward of the hopper, a lower loading lip over the last 1.5 m
       const top = u < cargoBack + 1.5 ? H - 0.9 - 0.05 * (1 - g) + 0.9 * Math.max(0, (u - cargoBack - 0.9) / 0.6) : H - 0.02 - 0.05 * (1 - g);
@@ -2690,12 +2849,15 @@ export function buildTruckParts(spec: VehicleSpec, kind: 'box' | 'garbage' = 'bo
     return boxHalf(Wg2 * s, 1.05 + 0.05 * (1 - g), H - 0.02 - 0.05 * (1 - g), 0.07);
   };
   const boxUs = stationList([cargoBack, cargoFront, ...(G ? [cargoBack + 0.9, cargoBack + 1.5] : [])], END_T.flatMap((t) => [cargoBack + t * 0.1, cargoFront - t * 0.1]), G ? 1.4 : 8);
-  const box = buildLoft({ us: boxUs, half: boxRing, creases: [], cls: () => 'paint' });
+  const box = hasBox ? buildLoft({ us: boxUs, half: boxRing, creases: [], cls: () => 'paint' }) : null;
 
   const paint = new Acc().add(cab.paint);
-  const paint2 = new Acc().add(box.paint);
-  const trim = new Acc().add(cab.dark).add(box.dark);
+  const paint2 = new Acc();
+  if (box) paint2.add(box.paint);
+  const trim = new Acc().add(cab.dark);
+  if (box) trim.add(box.dark);
   const chrome = new Acc();
+  const grey = new Acc();
   const glass = new Acc().add(cab.glass);
   if (cab.inner.attributes.position) trim.add(cab.inner);
 
@@ -2715,7 +2877,7 @@ export function buildTruckParts(spec: VehicleSpec, kind: 'box' | 'garbage' = 'bo
   }
 
   // ---- wheel liners and interior
-  const wx = G ? 0.98 : 0.86;
+  const wx = G ? 0.98 : BIG ? 0.94 : 0.86;
   trim.addBoth(wheelLiner(arch, wx - 0.52 * ww - 0.03, Wc2 - 0.01, -axleF));
   trim.add(bx(2 * Wc2 * 0.8, 0.3, 0.4, 0, 1.28, -(ws[0] - 0.3)));
   for (const s of [-1, 1]) {
@@ -2746,7 +2908,7 @@ export function buildTruckParts(spec: VehicleSpec, kind: 'box' | 'garbage' = 'bo
     const hp = lampPieces('box', true, v3(fx, 0.95, -(uF + 0.002)), -0.1);
     for (const g of hp.lens) head.addBoth(g);
     for (const g of hp.housing) trim.addBoth(g);
-    const tp = lampPieces('tall', false, v3(Wg2 - 0.1, 1.55, L / 2 - 0.035), 0, 2.4);
+    const tp = lampPieces('tall', false, v3(Wg2 - 0.1, kind === 'box' || G ? 1.55 : N && hasBox ? 1.45 : 1.05, L / 2 - 0.035), 0, kind === 'box' || G ? 2.4 : 1.6);
     for (const g of tp.lens) tail.addBoth(g);
     for (const g of tp.housing) trim.addBoth(g);
   }
@@ -2776,6 +2938,9 @@ export function buildTruckParts(spec: VehicleSpec, kind: 'box' | 'garbage' = 'bo
     }
     trim.add(bx(2 * Wg2 - 0.2, 0.18, 0.3, 0, 0.82, L / 2 - 0.17)); // rear step platform
     for (let k = -3; k <= 3; k++) chrome.add(bx(0.02, 0.4, 0.03, k * 0.3, 1.5, rz)); // comb teeth
+  } else if (N) {
+    const zA = -cargoFront, zB = -cargoBack, bl = zB - zA, zc = (zA + zB) / 2;
+    buildWorkBody(kind, { trim, chrome, grey, paint2 }, { Wg2, H, zA, zB, bl, zc, sill, uBcab: uB, cabRoof: CAB[0][1], hasBox });
   } else {
   for (let y = 1.4; y <= 3.12; y += 0.14) trim.add(decalZ(2 * Wg2 - 0.4, 0.016, 0, y, rz));
   trim.add(bx(2 * Wg2 - 0.36, 0.04, 0.03, 0, 1.3, rz + 0.01)); // bottom bar of the roll-up door
@@ -2789,9 +2954,10 @@ export function buildTruckParts(spec: VehicleSpec, kind: 'box' | 'garbage' = 'bo
 
   const parts: CarParts = {
     paint: paint.merge(),
-    paint2: ((g) => { boxLiveryUV(g); return g; })(paint2.merge()),
+    paint2: ((g) => { if (!N) boxLiveryUV(g); return g; })(paint2.merge()),
+    paint2Plain: N,
     glass: glass.merge(),
-    trim: mergeTrim(trim, chrome),
+    trim: mergeTrim(trim, chrome, grey),
     lampHead: head.merge(),
     lampTail: tail.merge(),
     plate: platesGeo([v3(0, G ? 0.55 : 0.48, -(L / 2 + 0.003)), v3(0, 0.8, L / 2 + 0.003)]),
@@ -2820,7 +2986,7 @@ export const BUS_BELT = 1.2;
 export const BUS_SEAMS = [5.5, 4.5, -1.1, -2.1];
 const BUS_WIN_TOP = 2.5;
 
-export function buildBusParts(spec: VehicleSpec): CarParts {
+export function buildBusParts(spec: VehicleSpec, school = false): CarParts {
   const { length: L, width: W, height: H } = spec;
   const R = 0.5, ww = 0.3, sill = 0.32;
   const arch = archOf(R, sill);
@@ -2919,11 +3085,23 @@ export function buildBusParts(spec: VehicleSpec): CarParts {
   for (const ax of [axF, axR]) trim.addBoth(wheelLiner(arch, wx - 0.52 * ww - 0.03, wM0 - 0.01, -ax));
 
   // ---- roof gear: air-conditioning pod, two hatches, a destination sign over the screen
-  trim.add(bx(1.7, 0.2, 2.6, 0, H + 0.08, 3.4)); // pod, rear third
-  trim.add(bx(1.2, 0.05, 0.9, 0, H + 0.02, -1.0));
-  trim.add(bx(1.2, 0.05, 0.9, 0, H + 0.02, 0.5));
-  trim.add(bx(1.9, 0.26, 0.04, 0, H - 0.2, -(uScr - 0.02))); // destination sign (dark when off)
-  chrome.add(bx(1.96, 0.02, 0.05, 0, H - 0.06, -(uScr - 0.02)));
+  if (!school) {
+    trim.add(bx(1.7, 0.2, 2.6, 0, H + 0.08, 3.4)); // pod, rear third
+    trim.add(bx(1.2, 0.05, 0.9, 0, H + 0.02, -1.0));
+    trim.add(bx(1.2, 0.05, 0.9, 0, H + 0.02, 0.5));
+    trim.add(bx(1.9, 0.26, 0.04, 0, H - 0.2, -(uScr - 0.02))); // destination sign (dark when off)
+    chrome.add(bx(1.96, 0.02, 0.05, 0, H - 0.06, -(uScr - 0.02)));
+  } else {
+    // CARS4 school bus: no sign pod; two roof hatches, a vent, warning lamp housings front and rear (dark, no colour), a black rub rail is in the skin
+    trim.add(bx(0.7, 0.07, 0.7, 0, H + 0.03, -1.0));
+    trim.add(bx(0.7, 0.07, 0.7, 0, H + 0.03, 1.6));
+    trim.add(bx(1.4, 0.05, 1.0, 0, H + 0.025, 3.2));
+    for (const s of [-1, 1]) for (const zz of [-(uScr - 0.1), tipF - 0.15]) trim.add(bx(0.34, 0.2, 0.1, s * 0.82, H - 0.18, zz));
+    trim.add(bx(1.6, 0.06, 0.04, 0, H - 0.3, -(uScr - 0.02))); // thin sign strip over the screen
+    // stop arm on the driver's side: a thin dark octagon on a short arm
+    trim.add(new THREE.CylinderGeometry(0.2, 0.2, 0.03, 8).rotateZ(Math.PI / 2).translate(-(wM0 + 0.05), 1.75, -(tipF - 1.9)));
+    trim.add(bx(0.03, 0.03, 0.2, -(wM0 + 0.02), 1.75, -(tipF - 1.78)));
+  }
   // ---- front: bumper, small intake, lamps, wiper; rear: bumper, engine door lines, rear window
   trim.add(bumperGeo(2 * wM0 * 0.96, 0.24, 0.3, 0.46, -(tipF - 0.28), false));
   trim.add(bumperGeo(2 * wM0 * 0.96, 0.24, 0.3, 0.46, tipF - 0.28, true));
