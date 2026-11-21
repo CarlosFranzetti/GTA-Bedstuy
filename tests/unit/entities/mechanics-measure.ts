@@ -160,6 +160,7 @@ export function measureAll(): Report {
     R('sprint: time from jog to 95% of sprint (s)', timeTo(slice(r, m), (f) => f.speed >= RUN_SPEED * 0.95));
     const spFr = slice(r, m);
     R('sprint: camera pos step / yaw step / fov step', `${r2(cameraJerk(spFr).posStep)} m / ${r2(cameraJerk(spFr).yawStep)} deg / ${r2(cameraJerk(spFr).fovStep)}`);
+    { const f0 = jogFr[jogFr.length - 1], f1 = spFr[spFr.length - 1]; R('camera distance from the player: jog / sprint (m horizontal)', `${r2(Math.hypot(f0.cx - f0.px, f0.cz - f0.pz))} / ${r2(Math.hypot(f1.cx - f1.px, f1.cz - f1.pz))}`); }
     m = r.mark(); r.run(1.2);
     const st = slice(r, m);
     const x0 = st[0].px, z0 = st[0].pz, h = st[0].heading;

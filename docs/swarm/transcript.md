@@ -3425,3 +3425,9 @@ Controls lane: conventions table is in docs/swarm/tasks/CONTROLS.md (Rockstar's 
 
 ### 2026-11-21T17:27:33Z · Sloane Merrick (STORES2)
 Wrap-up: 27 trades with parody names, signs (lit box and hand-painted fascia), trade decals, dressing; hooked into resolveStorefront on both maps; no draw calls added. Tests green: shops-names (new), storefront, signage, buildings, map-screen, textures. Frames: 14 default-map day and night frames, the map screen, an avenue row. NOT verified by eye: real-map shops, phone tier. Notes and frame paths in docs/swarm/tasks/STORES.md. No main.ts lines.
+
+### 2026-11-21T17:29:36Z · Ines Calloway (REALBLOCKS)
+Start. Taking src/world/buildings/**, roadnet/buildingsReal.ts and lotsReal.ts style selection, facadeSheet and wall painters, glazing and awning painters, small additions to shops/shopTypes.ts. Notes in docs/swarm/tasks/REALBLOCKS.md. Will report what changes draw counts.
+
+### 2026-11-21T17:29:54Z · Dana Whitlock (MECHANICS)
+Wrap-up. On foot weight (accel by speed, turn rate by speed, plant and turn, sprint-at-wall brace), camera pivot spring and car swing, car entry path and moving-car exit, look-at and cheap wired. LOOK's car camera values applied (tests updated). Numbers in docs/swarm/tasks/MECHANICS.md. Not seen in the game. main.ts lines are in the report. Aim and melee not started.

@@ -285,6 +285,8 @@ const spawn = bootPose ? { x: bootPose.x, z: bootPose.z } : { x: HOME.x, z: HOME
 const player = new Player('player', spawn, materials, events);
 if (realWorld) player.body.heading = HOME.heading;
 player.blockedAt = (p, r, ignoreId) => physics.overlapsSolid(p, r, ignoreId);
+player.onBump = (strength) => cam.addShake(0.12 * strength); // a hard bump into a wall or a person shakes the view a little
+Pedestrian.lookAtPoint = player.body.pos; // a live point: people nearby glance at the player
 if (saved && bootPose) { player.body.heading = bootPose.heading; dayNight.timeOfDay = saved.hour; }
 scene.add(player.object3D);
 physics.addBody(player.body);
@@ -515,7 +517,7 @@ const camTarget: Vec2 = { x: 0, z: 0 };
 let camHeading = 0;
 const sunDir = dayNight.sunDirection; // true astronomical sun (the shadow light is mirrored/lifted at night)
 const focusPoint = new THREE.Vector3();
-const camCtx: { world: typeof physics; vehicle: IVehicle | null } = { world: physics, vehicle: null };
+const camCtx: { world: typeof physics; vehicle: IVehicle | null; ignoreId?: string | null } = { world: physics, vehicle: null, ignoreId: null };
 const nearDoor = (v: IVehicle, p: Vec2): boolean => doorDistance(v, p) <= ENTER_RANGE;
 let saveTick = 0;
 let minimapAcc = 0;
@@ -528,6 +530,7 @@ function updateCamera(dt = 1 / 60): void {
   else if (world.transit.ride) { const c = world.transit.ride.cam; cam.camera.position.set(c.px, c.py, c.pz); cam.camera.lookAt(c.lx, c.ly, c.lz); }
   else {
     camCtx.vehicle = player.vehicle;
+    camCtx.ignoreId = player.enteringId; // the lens does not shy from the car being entered
     cam.holdView = combat.holdView; // aiming: the view stays where the player put it
     cam.aimBias = combat.aimBias; // over the shoulder while the action button is held with something to aim
     cam.update(dt, camTarget, camHeading, player.inVehicle ? 'vehicle' : 'foot', input, camCtx);
