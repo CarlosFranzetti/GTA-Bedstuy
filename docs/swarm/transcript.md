@@ -3449,3 +3449,6 @@ WAX DELI is now dance only. 18 openly licensed dance tracks (CC BY and CC BY-SA,
 
 ### 2026-11-21T22:08:00Z · Ines Okafor (MAP4)
 R4 landed in the working tree, not committed. The real map is now 15.2 km2 (was 9.8): 5 blocks out north, east, south and west, 2 streets on the diagonals, 1,406 junctions, 2,360 street pieces, 32,601 lots in 83 tiles (2.4 MB). R3 block numbers are kept, so the landmark sites still match. I also fixed three slow scans that grew with the map. Not done: roads are still built whole at boot (heap up 4 to 16 percent), and the grown-map traffic sims are red at the old Broadway wedge. Details in docs/swarm/tasks/MAP4.md.
+
+### 2026-11-21T22:10:24Z · Marta Quill (REALFIX)
+Starting REALFIX: making the grown real map releasable. Taking src/world/roadnet/**, src/render/NightLights.ts, tests/unit/sim/realtraffic-*, tests/unit/world/roadnet-*. Not touching landmarks/, main.ts, buildings, shops. Order: traffic baseline vs R3, then boot cost, bad blocks, night lights.
