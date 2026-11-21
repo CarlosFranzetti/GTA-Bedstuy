@@ -215,6 +215,11 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   is the wrong colour. Most are in Bushwick: the best-known Bed-Stuy places (Fulton St plaza and theatre, Girls' High,
   Stuyvesant Heights) lie outside the old outline and wait for MAP4. Names need a one-by-one web recheck before release.
   Notes: `docs/swarm/tasks/LANDMARKS2.md`.
+- LANDMARKS3 (21 Nov night, not released): repaired Cedarvane Church (tower, round window, turret), Gablewood Row (pale
+  corner house) and Wrenfield Church; 4 Bed-Stuy places added in `landmarks3.ts` (a Victorian Gothic high school, a
+  Moorish-revival apartment house, a stone church, a Stuyvesant Heights brownstone row), so 17 new places since the
+  first 20. Seen only in the standalone harness, never in the running game. Seven invented names still need a web check
+  (listed in `docs/swarm/tasks/LANDMARKS3.md`). The Fulton St plaza and theatre lie outside the lot coverage.
 - Not started: the real map as the main map; medium and high tier performance.
 - Waiting on the owner: promoting the link-in-bio page (branch `release-links`); a Hugging Face token or his own
   pictures for the loading posters; a test on a real iPhone (`?debug=mem` shows memory numbers); one story voice clip

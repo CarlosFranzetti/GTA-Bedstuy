@@ -40,6 +40,11 @@ export interface RoadMeshOptions {
   cellM?: number;
   /** where a zebra is drawn: (edge, node) pairs of the pedestrian graph's crosswalks; default buildSidewalkGraph(net, d).crosswalks */
   crosswalks?: ReadonlyArray<{ edge: number; node: number }>;
+  /**
+   * REALFIX: the area kept as ONE cell per material (what the smaller R3 map drew: about 9 road draws at the spawn); triangles outside it are
+   * split into `cellM` cells (default 1,024 m on a big net) that the chunk culler hides by distance. Without it a big net is cells everywhere.
+   */
+  core?: ReadonlyArray<Vec2>;
 }
 
 /** metres per texture repeat (RoadBuilder TILE_M) */
@@ -468,10 +473,52 @@ export function buildRoadMeshes(net: RoadNet, d: Derived, mats: WorldMaterials, 
   for (const sl of slots.values()) total += sl.batch.triangles;
   const cell = opts.cellM ?? (total <= AUTO_SINGLE_CELL_TRIS ? SINGLE_CELL_M : BIG_NET_CELL_M);
   const layout = { ...base, cellX: cell, cellZ: cell, chunkX: Math.max(base.chunkX, cell), chunkZ: Math.max(base.chunkZ, cell) };
-  for (const part of Object.keys(parts) as Part[]) splitMeshesIntoCells(parts[part], layout.cellX, layout.cellZ, undefined, 0, layout.originX, layout.originZ);
+  const coreMeshes = new Map<Part, THREE.Mesh[]>();
+  if (opts.core && cell < SINGLE_CELL_M) for (const part of Object.keys(parts) as Part[]) coreMeshes.set(part, splitCore(parts[part], opts.core));
+  for (const part of Object.keys(parts) as Part[]) {
+    splitMeshesIntoCells(parts[part], layout.cellX, layout.cellZ, undefined, 0, layout.originX, layout.originZ);
+    for (const m of coreMeshes.get(part) ?? []) parts[part].add(m); // whole, after the split: tagRoadChunks keys it by its bounding sphere
+  }
   tagRoadChunks(root, layout);
   root.userData.chunkLayout = layout;
   return root;
+}
+
+/**
+ * Replaces each mesh of `group` by two meshes sharing its vertex buffers: the triangles whose centroid is inside `core` (kept whole; the caller sets it aside while the rest is split into cells) and the rest. Index-only: no vertex is copied.
+ */
+function splitCore(group: THREE.Group, core: ReadonlyArray<Vec2>): THREE.Mesh[] {
+  const kept: THREE.Mesh[] = [];
+  for (const mesh of group.children.slice() as THREE.Mesh[]) {
+    const g = mesh.geometry;
+    const idx = g.index, pos = g.getAttribute('position');
+    if (!idx || !pos) continue;
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const q of core) { x0 = Math.min(x0, q.x); z0 = Math.min(z0, q.z); x1 = Math.max(x1, q.x); z1 = Math.max(z1, q.z); }
+    const inside: number[] = [], outside: number[] = [];
+    const a = idx.array;
+    for (let t = 0; t < a.length; t += 3) {
+      const cx = (pos.getX(a[t]) + pos.getX(a[t + 1]) + pos.getX(a[t + 2])) / 3, cz = (pos.getZ(a[t]) + pos.getZ(a[t + 1]) + pos.getZ(a[t + 2])) / 3;
+      const dst = cx >= x0 && cx <= x1 && cz >= z0 && cz <= z1 && pointInPolygon({ x: cx, z: cz }, core) ? inside : outside;
+      dst.push(a[t], a[t + 1], a[t + 2]);
+    }
+    if (inside.length === 0) continue;
+    if (outside.length === 0) { group.remove(mesh); kept.push(mesh); continue; }
+    const mk = (list: number[], name: string): THREE.Mesh => {
+      const ng = new THREE.BufferGeometry();
+      for (const k of Object.keys(g.attributes)) ng.setAttribute(k, g.getAttribute(k));
+      ng.setIndex(new THREE.BufferAttribute(pos.count > 65535 ? new Uint32Array(list) : new Uint16Array(list), 1));
+      const m = new THREE.Mesh(ng, mesh.material);
+      m.name = name; m.receiveShadow = mesh.receiveShadow; m.castShadow = mesh.castShadow;
+      return m;
+    };
+    const mi = mk(inside, mesh.name), mo = mk(outside, mesh.name);
+    group.remove(mesh);
+    g.dispose();
+    group.add(mo);
+    kept.push(mi);
+  }
+  return kept;
 }
 
 function addMarkings(net: RoadNet, d: Derived, tier: Quality, slot: (part: Part, key: MaterialKey, variant: number, name: string) => Batch, zebraAt: Set<number>): void {

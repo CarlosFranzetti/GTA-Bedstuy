@@ -27,7 +27,7 @@ import { loadRoadNet } from './MapSource';
 import type { RoadNet } from './RoadNet';
 import { deriveGeometry, type Derived } from './derive';
 import { buildRoadMeshes } from './meshRoads';
-import { CHUNK_ANCHOR, chunkLayoutFromBounds, ROAD_CHUNK_PREFIX } from './chunksReal';
+import { CHUNK_ANCHOR, chunkLayoutFromBounds, ROAD_CHUNK_PREFIX, tagRoadChunks } from './chunksReal';
 import { buildSidewalkGraph, type SidewalkNet } from './sidewalks';
 import { blockFaces } from './faces';
 import { placeLots } from './lotsReal';
@@ -37,14 +37,14 @@ import { RealTrains } from './elTrainsReal';
 import { RealBuildingStreamer, type ColliderHost, type StreamRanges } from './buildingStream';
 import type { RealLot } from './lotsReal';
 import { pointInPolygon, signedArea } from './geom';
-import type { LampSpot } from '@/world/FurnitureGen';
+import { setLampsLit, type LampSpot } from '@/world/FurnitureGen';
 import type { RealProps } from './propsReal';
 import type { RealTraffic } from './trafficReal';
 import type { RealPlaces, PlacesTable } from './placesReal';
 import type { RealLotTiles, LotSource } from './lotStreamReal';
 import type { LandmarkLayer } from '@/world/landmarks/layer';
 import type { RingPropsStreamer } from './propsStream';
-import { R1R2_EXTENT, offsetRing } from './extents';
+import { R1R2_EXTENT, R3_EXTENT, offsetRing } from './extents';
 
 /** street furniture is built at boot for the first two rings plus this margin (m); the outer rings are streamed by tile (propsStream.ts) */
 const PROPS_REACH = 150;
@@ -98,7 +98,7 @@ export interface RealWorld {
   homeSpawn: { x: number; z: number; heading: number };
   /** moves HOME / deli / club doors and nav targets onto the real lots; call once before the interiors are built (no-op without places) */
   applyDoors: () => void;
-  stats: { meshes: number; triangles: number; lots: number; colliders: number; ms: Record<string, number> };
+  stats: { meshes: number; triangles: number; lots: number; colliders: number; ms: Record<string, number>; /** REALFIX: fenced lots standing in for the blocks without buildings */ fences: { lots: number; panels: number } };
 }
 
 export interface RealWorldOptions {
@@ -285,7 +285,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   let roads: THREE.Group;
   try {
     if (opts.forceStandIns) throw new Error('forced');
-    roads = buildRoadMeshes(net, derived, mats, { tier, crosswalks: sidewalks.crosswalks });
+    roads = buildRoadMeshes(net, derived, mats, { tier, crosswalks: sidewalks.crosswalks, core: R3_EXTENT });
     roads.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && typeof m.userData.chunk === 'string') chunkMeshes.push(m); });
   } catch (e) {
     standIns.push(`roads: ${(e as Error).message}`);
@@ -297,6 +297,23 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   let { spawn, heading } = spawnNear(net, sidewalks, { x: 0, z: 0 });
 
   const bad = badBlocks(net, derived);
+
+  // REALFIX: the blocks that cannot take buildings get a plain fenced lot instead of bare ground (fenceLots.ts); soft: no fence if it throws
+  let fenceInfo = { lots: 0, panels: 0 };
+  try {
+    if (opts.forceStandIns) throw new Error('forced');
+    const { buildFenceLots } = await import('./fenceLots');
+    const fl = buildFenceLots(net, derived, bad, new THREE.MeshStandardMaterial({ color: 0x4d5256, roughness: 0.9, metalness: 0.2, side: THREE.DoubleSide }));
+    if (fl) {
+      const lay = { ...chunks, cellX: 256, cellZ: 256, chunkX: 256, chunkZ: 256 };
+      splitMeshesIntoCells(fl.group, lay.cellX, lay.cellZ, undefined, 0, lay.originX, lay.originZ);
+      tagRoadChunks(fl.group, lay);
+      fl.group.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && typeof m.userData.chunk === 'string') chunkMeshes.push(m); });
+      group.add(fl.group);
+      colliders.push(...fl.colliders);
+      fenceInfo = { lots: fl.lots, panels: fl.panels };
+    }
+  } catch (e) { standIns.push(`fences: ${(e as Error).message}`); }
 
   // buildings: streamed by 128 m chunk around the player (WP4 buildingStream), far boxes beyond; stand-in boxes if it throws
   t0 = performance.now();
@@ -416,14 +433,19 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   let signalHeads: ((g: THREE.Object3D, l: RealTraffic['lights']) => void) | null = null;
   if (props && traffic) void import('./propsReal').then((m) => { signalHeads = m.updateRealSignals; });
 
+  let ringLit = false, ringBuilt = -1;
   const update: RealWorld['update'] = (dt, px, pz, cam, night) => {
     streamer?.update(px, pz, cam.y); trains?.update(dt, cam, night); landmarks?.update(px, pz, cam.y);
     if (lotTiles && streamer) lotTiles.update(px, pz, streamer.ranges.far + Math.max(0, cam.y - 3) * CHUNK_RANGE_PER_M_HEIGHT + 160);
-    if (ringProps) ringProps.update(px, pz);
+    if (ringProps) {
+      ringProps.update(px, pz);
+      // REALFIX: lamp heads of tiles that streamed in follow the night flag (main.ts sets it on its own group only)
+      if (night !== ringLit || ringProps.totalBuilt !== ringBuilt) { ringLit = night; ringBuilt = ringProps.totalBuilt; for (const g of ringProps.groups()) setLampsLit(g, night); }
+    }
     if (traffic && props && signalHeads) { signalHeads(props.group, traffic.lights); if (ringProps) for (const g of ringProps.groups()) signalHeads(g, traffic.lights); }
   };
   const setColliderHost = (h: ColliderHost): void => { host = h; if (held.size) h.add([...held.values()]); };
-  const stats = { ...measureWorld(group), lots: lots.length, colliders: colliders.length, ms };
+  const stats = { ...measureWorld(group), lots: lots.length, colliders: colliders.length, ms, fences: fenceInfo };
   void ROAD_CHUNK_PREFIX;
   if (typeof window !== 'undefined') { // debug: scripts/perf-real.mjs reads the world and the review frames from the page
     const w = window as unknown as { __gtaRealWorld?: () => RealWorld; __gtaRealFrames?: () => Promise<unknown> };

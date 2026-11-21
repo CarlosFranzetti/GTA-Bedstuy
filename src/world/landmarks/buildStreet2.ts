@@ -37,12 +37,15 @@ export function* buildRowhouses(c: BuildCtx): Generator<void> {
   yield;
   for (let i = 0; i < n; i++) {
     const x0 = i * bw, x1 = x0 + bw, cx = (x0 + x1) / 2;
-    const wallM = tenement ? (i % 4 === 2 ? painted : brick) : brown;
+    // LANDMARKS3: `look.pale` (a colour) paints the house at index `look.paleAt` in that colour, with dark string courses; the others stay brick
+    const isPale = tenement && typeof look.pale === 'string' && i === Number(look.paleAt ?? 0);
+    const wallM = tenement ? (typeof look.pale === 'string' ? (isPale ? painted : brick) : i % 4 === 2 ? painted : brick) : brown;
     k.box(wallM, x0, 0, 0, x1, H, depth, { top: k.m('tarRoof', 1) });
     k.solidRect(x0, 0, x1, depth);
     // party-wall parapet and bracketed cornice
     band(k, cornice, x0, 0, x1, 0, H - (tenement ? 0.9 : 1.0), tenement ? 0.9 : 1.0, tenement ? 0.55 : 0.6, [0, -1]);
     if (detail > 0) for (let b = 0.4; b < bw - 0.2; b += 0.9) k.box(cornice, x0 + b, H - 1.8, -0.15, x0 + b + 0.22, H - 1.0, 0.0);
+    if (isPale) for (let f = 0; f <= floors; f++) band(k, cornice, x0, 0, x1, 0, base + 0.2 + f * fh - (f === floors ? 0.0 : 0.0), 0.3, 0.1, [0, -1]);
     if (tenement) {
       // door in the arch at one end of each house, windows spaced between; arched and hooded
       const doorX = x0 + bw * (i % 2 ? 0.8 : 0.2);
@@ -53,7 +56,9 @@ export function* buildRowhouses(c: BuildCtx): Generator<void> {
     } else {
       // parlour door beside a window, windows over, basement windows under the stoop; stone heads and sills
       const doorX = x0 + bw * (i % 2 ? 0.78 : 0.22);
-      windowBand(k, { x0, z0: 0, dx: 1, dz: 0, len: bw, out: [0, -1], y0: base + 0.5, floors, floorH: fh, w: 1.15, h: 2.3, pitch: bw / 2, margin: 0.4, trim: detail > 0 ? trim : null, detail, skip: (j, f) => f === 0 && Math.abs(x0 + (j + 0.5) * (bw / 2) - doorX) < 1.0, variant: (j, f) => (j + f + i) & 1 });
+      const arched = look.arched === true; // LANDMARKS3: round-headed top-floor windows under a dark hood (the Stuyvesant Heights houses)
+      windowBand(k, { x0, z0: 0, dx: 1, dz: 0, len: bw, out: [0, -1], y0: base + 0.5, floors, floorH: fh, w: 1.15, h: 2.3, pitch: bw / 2, margin: 0.4, trim: detail > 0 ? trim : null, detail, skip: (j, f) => (f === 0 && Math.abs(x0 + (j + 0.5) * (bw / 2) - doorX) < 1.0) || (arched && f === floors - 1), variant: (j, f) => (j + f + i) & 1 });
+      if (arched) archRun(k, { alongX: true, at: 0, from: x0 + 0.5, to: x1 - 0.5, out: [0, -1], y0: base + 0.5 + (floors - 1) * fh, floors: 1, floorH: fh, pitch: bw / 2, w: 1.2, h: 2.2, hood: cornice, detail });
       windowBand(k, { x0, z0: 0, dx: 1, dz: 0, len: bw, out: [0, -1], y0: 0.7, floors: 1, floorH: 1, w: 1.0, h: 1.0, pitch: bw / 2, margin: 0.4, trim: null, detail: 0, skip: (j) => Math.abs(x0 + (j + 0.5) * (bw / 2) - doorX) < 1.0 });
       k.quad(dark, [doorX - 0.55, base, -0.04], [doorX + 0.55, base, -0.04], [doorX + 0.55, base + 2.6, -0.04], [doorX - 0.55, base + 2.6, -0.04], { hint: [0, 0, -1] });
       // the high stoop with side walls and an iron railing

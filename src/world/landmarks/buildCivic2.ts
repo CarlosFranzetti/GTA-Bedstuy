@@ -124,6 +124,19 @@ export function* buildTwinChurch(c: BuildCtx): Generator<void> {
     // white quoin courses stepping down the buff wings
     if (detail > 0) for (const [a, b] of [[x0 + Tw, cx - pw / 2], [cx + pw / 2, x1 - Tw]] as Array<[number, number]>) for (let y = 2.4; y < H - 1; y += 3.2) band(k, trim, a, zf, b, zf, y, 0.5, 0.18, [0, -1]);
   }
+  // LANDMARKS3: the real front is a white terracotta centre between plain buff brick wings: the wings outside the towers, lower, with
+  // white quoin courses at the corners and tall arched windows
+  if (!gothic && x0 > 2.5) {
+    const wH = H - 3.2;
+    for (const [a, b, out] of [[0.3, x0, [-1, 0]], [x1, W - 0.3, [1, 0]]] as Array<[number, number, Out]>) {
+      k.box(wallM, a, 0, zf, b, wH, zEnd, { top: roofM });
+      k.solidRect(a, zf, b, zEnd);
+      band(k, trim, a, zf, b, zf, wH - 0.5, 0.5, 0.2, [0, -1]);
+      if (detail > 0) for (let y = 2.4; y < wH - 1; y += 3.2) band(k, trim, a, zf, b, zf, y, 0.4, 0.15, [0, -1]);
+      if (detail > 0 && b - a > 2.6) archRun(k, { alongX: true, at: zf, from: a + 0.4, to: b - 0.4, out: [0, -1], y0: 4.4, floors: 1, floorH: 5, pitch: 2.8, w: 1.2, h: 3.6, hood: trim, detail });
+      void out;
+    }
+  }
   // wings: tall narrow windows
   if (detail > 0) for (const [a, b] of [[x0 + Tw, cx - pw / 2], [cx + pw / 2, x1 - Tw]] as Array<[number, number]>) {
     if (b - a > 1.8) archRun(k, { alongX: true, at: zf, from: a, to: b, out: [0, -1], y0: 5.2, floors: 1, floorH: 5, pitch: 2.6, w: 1.1, h: 3.4, hood: trim, lancet: gothic, detail });
@@ -608,20 +621,27 @@ export function* buildRomanesqueChurch(c: BuildCtx): Generator<void> {
     archSurround(k, stone, mid + dx, zf, 0.9, 1.9, 3.8, [0, -1], true, 0.5, 0.1);
   }
   steps(k, k.m('concrete'), mid, zf - 0.1, 8.4, 5, 0.17, 0.5, [0, -1]);
-  // the tall round-headed window with a rusticated surround and two narrow windows beside it
-  archPane(k, glass, mid, zf, 5.4, 3.4, 8.2, [0, -1], true, 0.06);
-  archSurround(k, stone, mid, zf, 5.4, 3.4, 8.2, [0, -1], true, 0.7, 0.1);
-  for (const dx of [-4.2, 4.2]) { archPane(k, glass, mid + dx, zf, 5.8, 1.2, 5, [0, -1], true, 0.06); archSurround(k, stone, mid + dx, zf, 5.8, 1.2, 5, [0, -1], true, 0.45, 0.1); }
+  // LANDMARKS3: the real front has a big ROUND (rose) window with tracery in the gable and tall narrow arched windows under it,
+  // plus brown rusticated quoins up the corner; the round window sits high, under the apex of the gable
+  const roseY = 11.6, roseR = 2.05;
+  disc(k, k.flatM, mid, roseY, zf, roseR + 0.5, [0, -1], 20, 0.09, { color: 0xa88a66 });
+  disc(k, glass, mid, roseY, zf, roseR, [0, -1], 20, 0.14);
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI; k.bar(stone, [mid + Math.cos(a) * roseR, roseY + Math.sin(a) * roseR, zf - 0.17], [mid - Math.cos(a) * roseR, roseY - Math.sin(a) * roseR, zf - 0.17], 0.09); }
+  disc(k, k.flatM, mid, roseY, zf, 0.5, [0, -1], 10, 0.2, { color: 0xa88a66 });
+  for (const dx of [-1.5, 1.5]) { archPane(k, glass, mid + dx, zf, 5.2, 1.3, 4.4, [0, -1], true, 0.06); archSurround(k, stone, mid + dx, zf, 5.2, 1.3, 4.4, [0, -1], true, 0.4, 0.1); }
+  for (const dx of [-4.4, 4.4]) { archPane(k, glass, mid + dx, zf, 5.8, 1.1, 4.4, [0, -1], true, 0.06); archSurround(k, stone, mid + dx, zf, 5.8, 1.1, 4.4, [0, -1], true, 0.4, 0.1); }
+  if (detail > 0) for (let y = 0, j = 0; y < H - 0.3; y += 1.05, j++) k.box(stone, bx0 - 0.12, y, zf - 0.12, bx0 + (j % 2 ? 1.0 : 0.6), y + 0.5, zf + 0.2);
   band(k, stone, bx0, zf, bx1, zf, 4.6, 0.35, 0.18, [0, -1]);
   // side windows
   archRun(k, { alongX: false, at: bx0, from: zf + 2, to: zEnd - 1, out: [-1, 0], y0: 3.2, floors: 1, floorH: 5, pitch: 3.6, w: 1.3, h: 5, hood: stone, detail });
   yield;
   // the tower: rusticated corners (alternate long and short blocks), a belfry arcade, a steep red pyramid with green copper edges
-  const th = 19, tx0 = W - tw - 0.1, tx1 = W - 0.3, tz0 = zf - 0.7, tz1 = tz0 + tw - 0.4;
+  const th = 24, tx0 = W - tw - 0.1, tx1 = W - 0.3, tz0 = zf - 0.7, tz1 = tz0 + tw - 0.4;
   k.box(wallM, tx0, 0, tz0, tx1, th, tz1, { noTop: true });
   if (detail > 0) for (let y = 0, j = 0; y < th - 0.3; y += 1.05, j++) for (const [bx, bz] of [[tx0 + 0.7, tz0], [tx1 - 0.7, tz0]] as Array<[number, number]>) k.box(stone, bx - 0.12, y, bz - 0.12, bx + (j % 2 ? 0.85 : 0.55), y + 0.5, bz + 0.2);
   archPane(k, glass, (tx0 + tx1) / 2, tz0, 2.6, 0.9, 3.4, [0, -1], true, 0.05);
   archPane(k, glass, (tx0 + tx1) / 2, tz0, 8.6, 0.9, 3.4, [0, -1], true, 0.05);
+  archPane(k, glass, (tx0 + tx1) / 2, tz0, 13.6, 0.9, 3.4, [0, -1], true, 0.05);
   for (const out of [[0, -1], [-1, 0], [1, 0]] as Out[]) {
     const alongX = out[1] !== 0;
     const at = alongX ? tz0 : out[0] < 0 ? tx0 : tx1;
@@ -629,16 +649,16 @@ export function* buildRomanesqueChurch(c: BuildCtx): Generator<void> {
     for (const dx of [-0.8, 0, 0.8]) archPane(k, dark, m0 + dx, at, th - 4.2, 0.6, 3.2, out, alongX, 0.05);
   }
   band(k, stone, tx0, tz0, tx1, tz0, th - 0.5, 0.5, 0.3, [0, -1]);
-  k.cone(k.flatM, (tx0 + tx1) / 2, (tz0 + tz1) / 2, tw * 0.8, th, th + 9, 4, { color: RED, rot: Math.PI / 4 });
+  k.cone(k.flatM, (tx0 + tx1) / 2, (tz0 + tz1) / 2, tw * 0.8, th, th + 10, 4, { color: RED, rot: Math.PI / 4 });
   k.cone(k.flatM, (tx0 + tx1) / 2, (tz0 + tz1) / 2, tw * 0.82, th - 0.1, th + 0.5, 4, { color: GREEN, rot: Math.PI / 4 });
-  cross(k, (tx0 + tx1) / 2, th + 8.8, (tz0 + tz1) / 2, 2, 0x6b6a62);
+  cross(k, (tx0 + tx1) / 2, th + 9.8, (tz0 + tz1) / 2, 2, 0x6b6a62);
   k.solidRect(tx0, tz0, tx1, tz1);
   // the round turret at the right, a conical roof with a finial
-  const rx = 2.3, rz = zf + 2.0;
-  k.cyl(wallM, rx, rz, 2.0, 0, 9.6, 10, { noTop: true });
+  const rx = 2.4, rz = zf - 0.3;
+  k.cyl(wallM, rx, rz, 2.0, 0, 10.6, 10, { noTop: true });
   for (const a of [-0.5, 0.2, 0.9]) archPane(k, glass, rx + Math.sin(a) * 0.1, rz - 2.0, 3 + (a + 0.5) * 0.6, 0.8, 3, [0, -1], true, 0.05);
-  k.cone(k.flatM, rx, rz, 2.4, 9.6, 14, 10, { color: TILE });
-  k.cone(k.flatM, rx, rz, 2.3, 9.5, 9.9, 10, { color: GREEN });
+  k.cone(k.flatM, rx, rz, 2.5, 10.6, 15.4, 10, { color: TILE });
+  k.cone(k.flatM, rx, rz, 2.4, 10.5, 10.9, 10, { color: GREEN });
   k.solidCircle(rx, rz, 2.0);
   signBoard(k, row.name.toUpperCase(), 4.6, 1.2, 0.5, [0, -1], 3.4, '#1c2b46', '#efe6c8', 0);
   fence(k, 0, 0.2, W, 0.2, { h: 1.1, gaps: [[mid - 4.2, mid + 4.2]], postEvery: 3 });

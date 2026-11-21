@@ -237,6 +237,18 @@ Fourteen more real places under invented names (13 places, the housing pair coun
 
 The mural walls carry ORIGINAL artwork painted in code from flat-coloured shapes (a sunrise, a bird, a skyline, waves): no real person, no copied mural. No Google Maps or Street View, news, listing or Flickr image was looked at or saved.
 
+## Landmarks, third set (LANDMARKS3, added 21 Nov night; `src/world/landmarks/landmarks3.ts`, `buildCivic3.ts`)
+
+Photos were looked at (and measured by eye) only; nothing is cut from them. No texture is derived from any photo, so the CC BY-SA files impose no share-alike duty here; they are credited anyway. Licence read from each file's Commons page listing.
+
+| Source | Author | Licence | Used for |
+|---|---|---|---|
+| File:Girls_HS_Nostrand_Av_jeh.jpg | Jim Henderson | CC0 | massing, tower, portico and colours of the Victorian school |
+| File:Alhambra_Apts_Nostrand_Av_jeh.jpg | Jim Henderson | CC0 | pilasters, corner bay, tile mansard, shop arcade of the Moorish apartment house |
+| File:Victory_RCC_Throop_Av_jeh.jpg | Jim Henderson | CC0 | gable front, round window, porch, buttresses of the Gothic stone church |
+| File:Decatur_Stuyvesant_Heights_HD_1.JPG | Smallbones | CC BY-SA 3.0 | colour, arches and bay of the Stuyvesant Heights house row |
+| MapPLUTO, Building Footprints | NYC Open Data | NYC Open Data terms of use | lot sites, floors, years |
+
 ## People base mesh (HUMAN)
 
 | Asset | Source | Licence | Where |

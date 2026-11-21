@@ -34,12 +34,14 @@ const ROOF_SCALE_M = 64; // lotTone.ts: the roof-line height rides in the alpha 
 const WALL_NAME = /^(brickRed|brickPainted|brownstone|limestone|cornice):/;
 
 /** bake aTone / aStyle into every mesh whose material takes a tone (all faces count as the street front: a landmark shows several) */
-export function applyTone(meshes: readonly THREE.Mesh[], cw: Colourway): void {
+export function applyTone(meshes: readonly THREE.Mesh[], cw: Colourway, pale?: string): void {
   for (const m of meshes) {
     const mat = m.material as THREE.Material;
     if (!mat.name) continue;
     const t = toneFor(mat.name, cw, true, false);
     if (!t) continue;
+    // LANDMARKS3: a painted house in a brick row (`look.pale`): the painted-brick layer takes its own flat colour
+    if (pale && mat.name.startsWith('brickPainted:') && /^#[0-9a-f]{6}$/i.test(pale)) t.tone = [...hex(pale), 242] as typeof t.tone;
     const n = m.geometry.getAttribute('position').count;
     const tone = new Uint8Array(n * 4), style = new Uint8Array(n * 4);
     for (let i = 0; i < n; i++) { tone.set(t.tone, i * 4); style.set(t.style, i * 4); }

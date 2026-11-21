@@ -12,12 +12,11 @@ import { Vehicle, VEHICLE_SPECS } from '@/entities/Vehicle';
 import { CopSystem } from '@/game/CopSystem';
 import { WantedSystem } from '@/game/WantedSystem';
 import { World2D } from '@/physics/World2D';
-import controls from '@/world/data/roadnet-controls.json';
 import { pointInPolygon } from '@/world/roadnet/geom';
 import { makeRealTraffic } from '@/world/roadnet/trafficReal';
 import type { IVehicle, VehicleType } from '@/world/types';
 import { DT, Sim, input, stubMaterials } from './harness';
-import { derived, net, sidewalks } from './realtraffic-run';
+import { controls, derived, net, playerSpot, sidewalks } from './realtraffic-run';
 
 interface CopRun { maxOnDuty: number; spawned: number; closest: number; closeAt: number; travelled: number; kerb: number; building: number; samples: number; nonFinite: number; sirensOffAt: number; zeroAt: number; stuck: string[]; trail: string[] }
 
@@ -45,8 +44,7 @@ function run(mode: 'patrol' | 'pursuit', seed: number, seconds: number): CopRun 
   };
   const cops = new CopSystem(grid, physics, events, new Rng(seed), new THREE.Scene(), makeCop, wanted, { lights: rt.lights, patrolCount: mode === 'patrol' ? 3 : 0 });
   // the player's car stands on a lane near the middle of the map
-  const mid = { x: (net.bounds.minX + net.bounds.maxX) / 2, z: (net.bounds.minZ + net.bounds.maxZ) / 2 };
-  const lane = grid.nearestLaneNode(mid);
+  const lane = grid.nearestLaneNode(playerSpot());
   const pv = new Vehicle('player-car', { ...VEHICLE_SPECS.sedan }, { x: lane.pos.x, z: lane.pos.z }, lane.heading, stubMaterials, events);
   pv.driver = 'player';
   pv.setInput(input());

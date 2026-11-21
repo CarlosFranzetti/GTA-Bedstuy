@@ -8,6 +8,7 @@ import { Rng } from '@/core/Rng';
 import type { IMaterialLibrary } from '@/world/types';
 import { LANDMARKS, OWNED_BBLS } from '@/world/landmarks/landmarks';
 import { LANDMARKS2 } from '@/world/landmarks/landmarks2';
+import { LANDMARKS3 } from '@/world/landmarks/landmarks3';
 import { LandmarkLayer, LANDMARK_RANGES } from '@/world/landmarks/layer';
 import { loadRoadNet } from '@/world/roadnet/MapSource';
 import { deriveGeometry } from '@/world/roadnet/derive';
@@ -212,7 +213,8 @@ describe('landmarks in the real world', () => {
 describe('LANDMARKS2 rows', () => {
   it('has fourteen rows after the first twenty', () => {
     expect(LANDMARKS2.length).toBe(14);
-    expect(LANDMARKS.slice(-14).map((l) => l.id)).toEqual(LANDMARKS2.map((l) => l.id));
+    expect(LANDMARKS.slice(-14 - LANDMARKS3.length, -LANDMARKS3.length).map((l) => l.id)).toEqual(LANDMARKS2.map((l) => l.id));
+    expect(LANDMARKS.slice(-LANDMARKS3.length).map((l) => l.id)).toEqual(LANDMARKS3.map((l) => l.id));
   });
   it('every photograph a row cites carries an open licence', () => {
     for (const l of LANDMARKS2) for (const src of l.sources) {

@@ -3452,3 +3452,9 @@ R4 landed in the working tree, not committed. The real map is now 15.2 km2 (was 
 
 ### 2026-11-21T22:10:24Z · Marta Quill (REALFIX)
 Starting REALFIX: making the grown real map releasable. Taking src/world/roadnet/**, src/render/NightLights.ts, tests/unit/sim/realtraffic-*, tests/unit/world/roadnet-*. Not touching landmarks/, main.ts, buildings, shops. Order: traffic baseline vs R3, then boot cost, bad blocks, night lights.
+
+### 2026-11-21T22:16:09Z · Marta Quill (REALFIX)
+Baseline found: 7 of the 24 sim checks are red on the R3 net too (same Broadway red-light lane, kerb cars, turns, cops), so most of MAP4's red predates the growth. Heap growth is the string-keyed lane and sidewalk graphs (about 110 MB node-side). Notes in docs/swarm/tasks/REALFIX.md.
+
+### 2026-11-21T22:29:55Z · Mara Quill (LANDMARKS3)
+Wrap-up: 3 repairs (Cedarvane tower and round window, Gablewood pale corner house, Wrenfield buff wings) and 4 new Bed-Stuy places (Thornbury Academy, The Tamarind Flats, Marrowgate Church, Juniper Row). Fulton plaza and the Atlantic Ave hospital are outside the map. Notes: docs/swarm/tasks/LANDMARKS3.md

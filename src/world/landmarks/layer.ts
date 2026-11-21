@@ -31,13 +31,14 @@ import { buildSubway } from './buildStreet';
 import { buildArmory, buildChurch, buildDepot, buildFirehouse, buildHospital, buildLibrary, buildSchool, buildStationHouse } from './buildCivic';
 import { buildBrewery, buildClinicCorner, buildMarket, buildPostOffice, buildRomanesqueChurch, buildTheatre, buildTwinChurch } from './buildCivic2';
 import { buildEatery, buildMuralWalls, buildRowhouses } from './buildStreet2';
+import { buildGothicGable, buildGothicSchool, buildMoorish } from './buildCivic3';
 
 /** the builder of a kind of site */
 const BUILDERS: Partial<Record<LandmarkRow['kind'], (c: BuildCtx) => Generator<void>>> = {
-  park: buildPark, pool: buildPool, playground: buildPlayground, garden: buildGarden, housing: buildHousing,
-  church: (c) => (c.row.look.plan === 'twin' ? buildTwinChurch(c) : c.row.look.plan === 'romanesque' ? buildRomanesqueChurch(c) : buildChurch(c)),
+  park: buildPark, pool: buildPool, playground: buildPlayground, garden: buildGarden, housing: (c) => (c.row.look.plan === 'moorish' ? buildMoorish(c) : buildHousing(c)),
+  church: (c) => (c.row.look.plan === 'gothicgable' ? buildGothicGable(c) : c.row.look.plan === 'twin' ? buildTwinChurch(c) : c.row.look.plan === 'romanesque' ? buildRomanesqueChurch(c) : buildChurch(c)),
   theatre: buildTheatre, brewery: buildBrewery, market: buildMarket, rowhouses: buildRowhouses, eatery: buildEatery, mural: buildMuralWalls,
-  armory: buildArmory, school: buildSchool, hospital: (c) => (c.row.look.style === 'corner' ? buildClinicCorner(c) : buildHospital(c)), library: (c) => (c.row.look.style === 'post' ? buildPostOffice(c) : buildLibrary(c)), stationhouse: buildStationHouse,
+  armory: buildArmory, school: (c) => (c.row.look.plan === 'gothic' ? buildGothicSchool(c) : buildSchool(c)), hospital: (c) => (c.row.look.style === 'corner' ? buildClinicCorner(c) : buildHospital(c)), library: (c) => (c.row.look.style === 'post' ? buildPostOffice(c) : buildLibrary(c)), stationhouse: buildStationHouse,
   firehouse: buildFirehouse, depot: buildDepot, subway: buildSubway,
 };
 
@@ -188,7 +189,7 @@ export class LandmarkLayer {
     g.name = `landmark:${e.row.id}`;
     let tris = 0;
     const meshes = job.kit.finish();
-    try { applyTone(meshes, landmarkColourway(e.row)); } catch { /* the wall tone is a nicety: plain materials still draw */ }
+    try { applyTone(meshes, landmarkColourway(e.row), typeof e.row.look.pale === 'string' ? e.row.look.pale : undefined); } catch { /* the wall tone is a nicety: plain materials still draw */ }
     for (const m of meshes) {
       g.add(m);
       const geo = m.geometry;

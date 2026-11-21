@@ -138,3 +138,31 @@ describe('NightLights headlights', () => {
     expect(nl.headlights.every((h) => h.intensity === 0)).toBe(true);
   });
 });
+
+describe('NightLights streamed lamp list (REALFIX)', () => {
+  it('lights lamps pushed into the extra list after construction, and lets go of ones that are removed', () => {
+    const { nl } = make(4);
+    const extra: Array<{ pos: { x: number; z: number }; height: number }> = [];
+    nl.setExtraLamps(extra);
+    // nothing near x = 2000 yet: no light
+    settle(nl, 2000, true);
+    expect(litX(nl)).toEqual([]);
+    for (const x of [1990, 2000, 2010, 2020, 2030]) extra.push({ pos: { x, z: 0 }, height: 7.75 });
+    settle(nl, 2000, true);
+    expect(litX(nl)).toEqual([1990, 2000, 2010, 2020]);
+    // the tile goes away: the list shrinks and the lights fade out
+    extra.length = 0;
+    settle(nl, 2000, true);
+    expect(litX(nl)).toEqual([]);
+    // a different tile streams in at the same indices
+    for (const x of [2100, 2110]) extra.push({ pos: { x, z: 0 }, height: 7.75 });
+    settle(nl, 2105, true);
+    expect(litX(nl)).toEqual([2100, 2110]);
+  });
+
+  it('far lamps do not take a pooled light', () => {
+    const { nl } = make(4);
+    settle(nl, 5000, true);
+    expect(litX(nl)).toEqual([]);
+  });
+});

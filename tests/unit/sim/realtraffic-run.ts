@@ -40,7 +40,14 @@ const CROSSWALK_SLACK = 3.2;
 
 /** MAP4: REAL_NET=r4 runs the whole grown network (R1..R4); REAL_PLAYER="x,z" puts the player there (default: the middle of the bounds) */
 const WHOLE = process.env.REAL_NET === 'r4';
-const controls = WHOLE ? controlsR4 : controlsCore;
+export const controls = WHOLE ? controlsR4 : controlsCore;
+/** where the player stands: REAL_PLAYER="x,z", else the game's own start area (0, 0) on the whole net (the middle of its bounds is a quiet corner of Queens side streets), else the middle of the bounds */
+export const playerSpot = (): { x: number; z: number } => {
+  const at = process.env.REAL_PLAYER?.split(',').map(Number);
+  if (at && at.length === 2 && at.every(Number.isFinite)) return { x: at[0], z: at[1] };
+  if (WHOLE) return { x: 0, z: 0 };
+  return { x: (net.bounds.minX + net.bounds.maxX) / 2, z: (net.bounds.minZ + net.bounds.maxZ) / 2 };
+};
 export const net = RoadNet.fromJson((WHOLE ? r4 : core) as unknown as RoadNetJson);
 export const derived = deriveGeometry(net);
 export const sidewalks = buildSidewalkGraph(net, derived);
@@ -91,9 +98,7 @@ export function runReal(seed: number, seconds: number, trace?: ReadonlySet<strin
   let seq = 0;
   const makeVehicle = (type: VehicleType, pos: Vec2, heading: number, color: string): IVehicle =>
     new Vehicle(`veh${seq++}`, { ...VEHICLE_SPECS[type], color }, pos, heading, stubMaterials, events);
-  const mid = { x: (net.bounds.minX + net.bounds.maxX) / 2, z: (net.bounds.minZ + net.bounds.maxZ) / 2 };
-  const at = process.env.REAL_PLAYER?.split(',').map(Number);
-  const player = grid.nearestSidewalkNode(at && at.length === 2 && at.every(Number.isFinite) ? { x: at[0], z: at[1] } : mid).pos;
+  const player = grid.nearestSidewalkNode(playerSpot()).pos;
   const traffic = new TrafficSystem(grid, physics, events, new Rng(seed), scene, proxyMaterials(), rt.fitVehicles(makeVehicle), undefined, rt.lights, undefined, {}, player);
   const active = (): ActiveAgent[] => (traffic as unknown as { active: ActiveAgent[] }).active;
 

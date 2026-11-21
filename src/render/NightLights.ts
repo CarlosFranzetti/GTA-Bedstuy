@@ -12,6 +12,8 @@ const LAMP_DROP = 0.3;
 const FADE_SECONDS = 0.5;
 /** A lit lamp is kept until it is this many metres farther than the pool's farthest candidate (anti-flicker). */
 const HYSTERESIS = 4;
+/** Only lamps this close (m) to the player compete for a pooled light (the pool is 12 to 24 lights with a 26 m range). */
+const CANDIDATE_RADIUS = 120;
 
 const HEADLIGHT_COLOR = 0xfff1d6;
 /**
@@ -42,8 +44,10 @@ export interface NightLightsOptions {
 
 interface Slot {
   light: THREE.PointLight;
-  /** Index into the lamp list, or -1 when free. */
+  /** Index into the lamp list (the base list, then the extra list), or -1 when free. */
   lamp: number;
+  /** The lamp the index pointed at when the slot took it: a streamed list that shrinks or reorders no longer matches, and the slot lets go. */
+  ref: NightLampSpot | null;
   /** True while fading out before the slot can be reused. */
   releasing: boolean;
 }
@@ -67,7 +71,10 @@ export class NightLights {
   private headlightsEnabled = true;
   private headlightsAttached = false;
   private headlightIntensity = 0;
-  private readonly dist = new Float64Array(0);
+  private dist = new Float64Array(0);
+  /** REALFIX: a second, growing lamp list (the real map's streamed outer-ring lamps, `realWorld.ringProps.lamps`), indexed after the base list. */
+  private extra: ReadonlyArray<NightLampSpot> = [];
+  private cand: number[] = [];
   /** sign / shop-window / doorway light bleed (one additive mesh; see NightBounce.ts) */
   readonly bounce: NightBounce;
 
@@ -88,7 +95,7 @@ export class NightLights {
       light.name = `night-lamp-${i}`;
       scene.add(light);
       this.lights.push(light);
-      this.slots.push({ light, lamp: -1, releasing: false });
+      this.slots.push({ light, lamp: -1, ref: null, releasing: false });
     }
 
     this.headlights = [];
@@ -103,6 +110,19 @@ export class NightLights {
       this.headlights.push(spot);
       this.targets.push(target);
     }
+  }
+
+  /**
+   * REALFIX: hands the pool a second lamp list that may grow and shrink at any time (streamed street furniture). The list is read, never
+   * copied: push or splice it as tiles come and go. A lit lamp whose entry disappears is released at once. Pass `[]` to drop it.
+   */
+  setExtraLamps(list: ReadonlyArray<NightLampSpot>): void {
+    this.extra = list;
+  }
+
+  private lampAt(i: number): NightLampSpot | undefined {
+    const nb = this.lamps.length;
+    return i < nb ? this.lamps[i] : this.extra[i - nb];
   }
 
   /**
@@ -123,7 +143,7 @@ export class NightLights {
       light.name = `night-lamp-${this.slots.length}`;
       this.scene.add(light);
       this.lights.push(light);
-      this.slots.push({ light, lamp: -1, releasing: false });
+      this.slots.push({ light, lamp: -1, ref: null, releasing: false });
     }
   }
 
@@ -135,21 +155,27 @@ export class NightLights {
     const step = Number.isFinite(dt) && dt > 0 ? dt : 0;
     const rate = (LAMP_INTENSITY / FADE_SECONDS) * step;
 
-    // 1. Which lamps should be lit: the poolSize nearest (night only).
-    const n = this.lamps.length;
+    // 1. Which lamps should be lit: the poolSize nearest (night only). Only lamps within CANDIDATE_RADIUS are sorted.
+    const nb = this.lamps.length;
+    const n = nb + this.extra.length;
     const k = this.slots.length;
     const desired = this.desired;
     desired.clear();
     let cutoff = Infinity;
     if (isNight && n > 0) {
+      if (this.dist.length < n) this.dist = new Float64Array(Math.ceil(n * 1.25));
+      const cand = this.cand;
+      cand.length = 0;
       for (let i = 0; i < n; i++) {
-        const l = this.lamps[i].pos;
-        this.dist[i] = Math.hypot(l.x - playerPos.x, l.z - playerPos.z);
+        const l = (i < nb ? this.lamps[i] : this.extra[i - nb]).pos;
+        const dd = Math.hypot(l.x - playerPos.x, l.z - playerPos.z);
+        this.dist[i] = dd;
+        if (dd < CANDIDATE_RADIUS) cand.push(i);
       }
-      const order = Array.from({ length: n }, (_, i) => i).sort((a, b) => this.dist[a] - this.dist[b] || a - b);
-      const take = Math.min(k, n);
+      const order = cand.sort((a, b) => this.dist[a] - this.dist[b] || a - b);
+      const take = Math.min(k, order.length);
       for (let i = 0; i < take; i++) desired.add(order[i]);
-      cutoff = this.dist[order[take - 1]] + HYSTERESIS;
+      cutoff = take > 0 ? this.dist[order[take - 1]] + HYSTERESIS : -1;
     }
 
     // 2. Release slots whose lamp fell out of range (with hysteresis) or when it is day.
@@ -158,7 +184,7 @@ export class NightLights {
     for (const s of this.slots) {
       if (s.lamp < 0) continue;
       if (!s.releasing) {
-        const keep = isNight && (desired.has(s.lamp) || this.dist[s.lamp] <= cutoff);
+        const keep = isNight && this.lampAt(s.lamp) === s.ref && (desired.has(s.lamp) || this.dist[s.lamp] <= cutoff);
         if (!keep) s.releasing = true;
       }
       if (!s.releasing) held.add(s.lamp);
@@ -173,6 +199,7 @@ export class NightLights {
       s.light.intensity = cur < target ? Math.min(target, cur + rate) : Math.max(target, cur - rate);
       if (s.releasing && s.light.intensity <= 0) {
         s.lamp = -1;
+        s.ref = null;
         s.releasing = false;
       }
     }
@@ -185,8 +212,9 @@ export class NightLights {
         if (w >= wanted.length) break;
         if (s.lamp >= 0) continue;
         const idx = wanted[w++];
-        const lamp = this.lamps[idx];
+        const lamp = this.lampAt(idx)!;
         s.lamp = idx;
+        s.ref = lamp;
         s.releasing = false;
         s.light.position.set(lamp.pos.x, lamp.height - LAMP_DROP, lamp.pos.z);
         s.light.intensity = 0;

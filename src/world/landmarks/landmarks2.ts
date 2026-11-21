@@ -336,9 +336,9 @@ export const LANDMARKS2: readonly LandmarkRow[] = [
   },
   {
     "id": "brightwater-houses",
-    "name": "Brightwater Houses",
+    "name": "Quillfeather Houses",
     "kind": "housing",
-    "district": "Brightwater Houses",
+    "district": "Quillfeather Houses",
     "blurb": "A nineteen-storey public housing tower on a green block.",
     "lots": [
       "3030980001"
@@ -466,7 +466,9 @@ export const LANDMARKS2: readonly LandmarkRow[] = [
       "bay": 9.6,
       "floors": 3,
       "wall": "#9b4c3a",
-      "cornice": "#4a4650"
+      "cornice": "#3f3d46",
+      "pale": "#e6e1d3",
+      "paleAt": 0
     },
     "sources": [
       {
@@ -694,9 +696,9 @@ export const LANDMARKS2: readonly LandmarkRow[] = [
     },
     "look": {
       "plan": "romanesque",
-      "wall": "#d3c49c",
+      "wall": "#dccaa2",
       "paint": 0.35,
-      "trim": "#a99b84",
+      "trim": "#b89870",
       "cornice": "#a99b84",
       "metal": "#2a2420"
     },

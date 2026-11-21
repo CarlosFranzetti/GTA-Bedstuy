@@ -48,6 +48,11 @@ const TURN_MIN = 0.5;
 const TURN_EXIT_SPEED = 3.5;
 /** sharper than this and the connection is a U-turn, only built when a lane would be stranded otherwise */
 const U_TURN = 2.95;
+/** the agent looks this many lane nodes ahead for a stop line (TrafficAgent.signalQueueAhead) */
+const AGENT_LOOKAHEAD_NODES = 6;
+/** a connector slows its car for a stop line that ends the next lane within this many metres (m), assuming this braking (m/s2) */
+const SHORT_LINK_M = 45;
+const LINE_DECEL = 2.2;
 /** turns sharper than this (~120 deg) are not built unless a lane would otherwise have no way on: a car cannot make them */
 const SHARP_TURN = 2.1;
 
@@ -237,16 +242,31 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
     const to = first(b);
     const key = `${from.id}>${to.id}`;
     if (linked.has(key)) return false;
-    const curve = bezierConnector(from, to, o.turnStep, onRoad);
+    // a stop line at the end of the next lane must stay inside the agent's six-node look-ahead: the connector gets fewer, longer pieces then
+    const maxSeg = last(b).stopLine ? Math.max(3, AGENT_LOOKAHEAD_NODES - b.nodeIds.length) + 1 : Infinity;
+    const curve = bezierConnector(from, to, o.turnStep, onRoad, maxSeg);
     if (curve.bad > 0 && !allowBad) return false;
     linked.add(key);
     const nodeIds: string[] = [];
     // a turn crosses the crosswalk of the leg it enters: its last half is taken slowly, so a car that has not yet seen a
     // pedestrian stepping off the kerb can still stop
     const turning = Math.abs(angleDiff(from.heading, to.heading)) > TURN_MIN;
+    // REALFIX: when the lane this connector feeds ends at a stop line within SHORT_LINK_M, the box is left at a speed from which the car can still
+    // stop there (two signals 17 m apart on a skewed Broadway junction sent cars into the second line at 12 m/s)
+    let laneLen = 0;
+    for (let k = 1; k < b.nodeIds.length; k++) { const p0 = graph.nodes[b.nodeIds[k - 1]].pos, p1 = graph.nodes[b.nodeIds[k]].pos; laneLen += Math.hypot(p1.x - p0.x, p1.z - p0.z); }
+    const feedsLine = !!last(b).stopLine;
+    const rest: number[] = [];
+    {
+      let acc = laneLen + Math.hypot(to.pos.x - (curve.pts.length ? curve.pts[curve.pts.length - 1].x : from.pos.x), to.pos.z - (curve.pts.length ? curve.pts[curve.pts.length - 1].z : from.pos.z));
+      for (let i = curve.pts.length - 1; i >= 0; i--) { rest[i] = acc; if (i > 0) acc += Math.hypot(curve.pts[i].x - curve.pts[i - 1].x, curve.pts[i].z - curve.pts[i - 1].z); }
+    }
     curve.pts.forEach((q, i) => {
       const id = `cx:${from.id}>${b.id}:${i + 1}`;
-      addNode({ id, pos: q, streetId: to.streetId, heading: headingFromVec(curve.tans[i]), stopLine: false, ...(turning && i >= (curve.pts.length - 1) / 2 ? { maxSpeed: TURN_EXIT_SPEED } : {}) });
+      const turnCap = turning && i >= (curve.pts.length - 1) / 2 ? TURN_EXIT_SPEED : Infinity;
+      const lineCap = feedsLine && rest[i] < SHORT_LINK_M ? Math.sqrt(2 * LINE_DECEL * rest[i]) + 1.5 : Infinity;
+      const cap = Math.min(turnCap, lineCap);
+      addNode({ id, pos: q, streetId: to.streetId, heading: headingFromVec(curve.tans[i]), stopLine: false, ...(cap < Infinity ? { maxSpeed: cap } : {}) });
       nodeIds.push(id);
     });
     let prev = from.id;
@@ -384,7 +404,7 @@ function sampleOffset(tp: readonly Vec2[], tc: Float64Array, tau: number, o: num
  * handle length starts at ~0.4 of the chord and shrinks while samples fall off the paved area (`onRoad`), which keeps tight
  * turns inside the curb returns.
  */
-function bezierConnector(from: LaneNode, to: LaneNode, step: number, onRoad: (p: Vec2) => boolean): { pts: Vec2[]; tans: Vec2[]; bad: number } {
+function bezierConnector(from: LaneNode, to: LaneNode, step: number, onRoad: (p: Vec2) => boolean, maxSegments = Infinity): { pts: Vec2[]; tans: Vec2[]; bad: number } {
   const p0 = from.pos;
   const p3 = to.pos;
   const chord = Math.hypot(p3.x - p0.x, p3.z - p0.z);
@@ -412,7 +432,8 @@ function bezierConnector(from: LaneNode, to: LaneNode, step: number, onRoad: (p:
     let len = 0;
     let prev = p0;
     for (let i = 1; i <= 12; i++) { const q = at(i / 12); len += Math.hypot(q.x - prev.x, q.z - prev.z); prev = q; }
-    const n = Math.max(1, Math.ceil(len / step));
+    // REALFIX: `maxSegments` (set when the next lane ends at a stop line within the agent's look-ahead) keeps the agent's six-node look-ahead (TrafficAgent.signalQueueAhead) still reaches a stop line that follows a wide junction box (a 27 m Broadway link ran a red at 12 m/s behind an 8-node connector)
+    const n = Math.min(maxSegments, Math.max(1, Math.ceil(len / step)));
     const pts: Vec2[] = [];
     const tans: Vec2[] = [];
     let bad = 0;
