@@ -3434,3 +3434,6 @@ Wrap-up. On foot weight (accel by speed, turn rate by speed, plant and turn, spr
 
 ### 2026-11-21T18:10:20Z · Maya Okafor (CONTROLS)
 Controls lane wrap-up: binding table, rebinding screen (pause menu Controls tab), GTA V pad layout with Xbox and PlayStation names, prompts from one table, phone bottom right, menu opens on the map. core and ui tests pass (476), tsc clean. Not played with a real pad or keyboard. main.ts lines and loose ends are in my report to Fable; notes in docs/swarm/tasks/CONTROLS.md.
+
+### 2026-11-21T18:15:55Z · Quinn Marsh (GREEN3)
+Wrap-up: suites green except entities/pedround5 (PEOPLE9, shoe top 2 mm under the hem). playerHandling stays true. CARS4 types are wired in TrafficSystem with every share at 0: any share above 0 turned the 5-minute grid sim red in three trials, with the collisions between old types, not the new ones. Play checks (default, phone, real map) booted with no page errors. Notes: docs/swarm/tasks/GREEN3.md.

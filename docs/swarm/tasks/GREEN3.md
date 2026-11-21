@@ -61,3 +61,19 @@ Script: scratchpad/green3/play.cjs (modes default, phone, real). Build: VITE_HOS
 - No page or console errors, no crash. Boot 76 s. 0 non-finite meshes, 17,045 meshes, 464k triangles, 275 draw calls (low tier budget 500k / 220: DRAWS ARE OVER by 55 in this aerial view; the test cap in realworld-draws is a separate number).
 - Counts after 30 s: 1,006 vehicles (977 parked, 29 moving), 35 pedestrians, 0 cops yet. 977 parked respects PARKED_CAP 1000. Types seen include ambulance, no schoolbus.
 - Frame 01-start: a pale yellow tall translucent column stands at the far end of the sidewalk beside a yellow awning (looks like a light shaft or a glow plane). Not investigated. Frame 09-aerial fine.
+
+## FINAL STATE (21 Nov, end of lane)
+| Was red | Now |
+|---|---|
+| audio sfx-models x2 (new types) | green (test lists updated; derived horns skipped in the 6% rule) |
+| entities carlook (luxury rust) | green (test updated) |
+| sim bench-sim (load), enter-exit (timeout), realtraffic-turns (schoolbus) | green |
+| sim driving-feel, vehicle-qa, pursuit | green without any switch (HANDLING3 retune); Vehicle.playerHandling stays TRUE |
+| render, storefront, buildings mesh caps, handling-model, vehicle.test, player-edge, pedmesh | transient or fixed by their lanes; green on last run |
+| world realworld-draws, roadnet-mesh, derive, realworld | green on this run |
+| stray tests | deleted _dbg.test.ts (entities), _rb_probe.test.ts (world); h2dbg and h3dbg were already gone |
+
+Still red: tests/unit/entities/pedround5 "la-bomber/hi shoe top at the front of the hem: 0.0719 vs 0.074" (PEOPLE9, 2 mm).
+Not done: CARS4 shares are 0 (see above); the new types are not in traffic. 150 m drive not reached on the default map (script does not steer). Pale yellow column in real-map frame 01. Real-map low tier is 275 draws against the 220 budget in an aerial view.
+tsc --noEmit clean at the end. Files I changed: src/game/TrafficSystem.ts (CARS4 table, shares 0, never-parked and not-moving lists); tests: audio/sfx-models, entities/carlook, sim/bench-sim, sim/enter-exit, sim/realtraffic-turns, sim/long-vehicle-turns, sim/traffic-5min (impact types in the failure message).
+main.ts lines: none required. Optional: append 'hearse', 'livery', 'schoolbus', 'towtruck', 'flatbed', 'foodtruck', 'sweeper', 'bucket' to HULL_TYPES (main.ts line 256) once the shares go above zero.
