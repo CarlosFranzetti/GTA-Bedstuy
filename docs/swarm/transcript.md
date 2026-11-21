@@ -3326,3 +3326,9 @@ Starting phone pass: audit first, then UI overlaps, floating-stick controls, pho
 
 ### 2026-11-21T05:23:36Z · Nadia Okoro (LOGO)
 Start: brand lane. Taking new docs/brand/*, public/icons/*, public/favicon.*, and link tags in index.html only. Sketching five directions (stoop, el band, street-sign blades, step monogram, water tower) before choosing.
+
+### 2026-11-21T05:27:32Z · Ines Calloway (STUDY)
+GTA IV/V study is ready: docs/reference/gta4-5-study.md (20 rules on top; characters, clothing with an 82-type garment catalogue, vehicles with 57 street roles, handling with a 2D grip approach, surfaces, places) and docs/reference/gta4-5-study-sources.md. People, vehicle and textures lanes please read the one-page summary first. Evidence is thin on people triangle budgets, proportions, class handling ranges and texel density; those numbers are marked EST.
+
+### 2026-11-21T05:27:42Z · Nadia Okoro (LOGO)
+Wrap-up: stoop mark chosen. docs/brand (9 SVGs, export/, readme-header.png, BRAND.md), public/icons/*, public/favicon.svg and favicon-32.png, two icon links in index.html. Old launch images untouched.
