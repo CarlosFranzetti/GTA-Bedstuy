@@ -2656,6 +2656,14 @@ const TRUCK_CAB_SECS: [number, number, number, number][] = [
 /** Where the rear body goes (car space, z = -u: the cab is at -z, the rear at +z). */
 interface WorkSpace { Wg2: number; H: number; zA: number; zB: number; bl: number; zc: number; sill: number; uBcab: number; cabRoof: number; hasBox: boolean }
 interface WorkAcc { trim: Acc; chrome: Acc; grey: Acc; paint2: Acc }
+/** a thin dark outline of a compartment door on a flank (side +1 / -1), centre (y, z), size h x d */
+function doorOutline(side: number, x: number, y: number, z: number, h: number, d: number): THREE.BufferGeometry[] {
+  const t = 0.014, o = side * 0.006;
+  return [
+    bx(0.01, t, d, x + o, y + h / 2, z), bx(0.01, t, d, x + o, y - h / 2, z),
+    bx(0.01, h, t, x + o, y, z + d / 2), bx(0.01, h, t, x + o, y, z - d / 2),
+  ];
+}
 /** a box tilted about x (pitch > 0 lifts its rear end), centre at (x, y, z) */
 const tiltBox = (w: number, h: number, d: number, pitch: number, x: number, y: number, z: number): THREE.BufferGeometry =>
   new THREE.BoxGeometry(w, h, d).rotateX(-pitch).translate(x, y, z);
@@ -2688,8 +2696,8 @@ function buildWorkBody(kind: TruckKind, A: WorkAcc, S: WorkSpace): void {
     const bz = zA + 0.95;
     paint2.add(bx(2 * Wg2 - 0.1, 0.95, 1.7, 0, deckY + 0.55, bz));                        // service body
     for (const k of [-1, 1]) {
-      trim.add(decalX(0.7, 0.55, k, k * (Wg2 - 0.05 + 0.004), deckY + 0.55, bz - 0.4));   // compartment doors
-      trim.add(decalX(0.7, 0.55, k, k * (Wg2 - 0.05 + 0.004), deckY + 0.55, bz + 0.45));
+      for (const g of doorOutline(k, k * (Wg2 - 0.05), deckY + 0.55, bz - 0.4, 0.7, 0.7)) trim.add(g);   // compartment doors (outlines)
+      for (const g of doorOutline(k, k * (Wg2 - 0.05), deckY + 0.55, bz + 0.45, 0.7, 0.7)) trim.add(g);
       chrome.add(bx(0.03, 0.05, 0.16, k * (Wg2 - 0.03), deckY + 0.6, bz - 0.12));
     }
     grey.add(bx(2 * Wg2 - 0.04, 0.12, bl - 1.9, 0, deckY - 0.05, zB - (bl - 1.9) / 2));   // rear deck
@@ -2711,7 +2719,7 @@ function buildWorkBody(kind: TruckKind, A: WorkAcc, S: WorkSpace): void {
     const bLen = bl - 0.5;
     paint2.add(bx(2 * Wg2 - 0.12, 1.3, bLen, 0, deckY + 0.7, bz));                        // utility body
     for (const k of [-1, 1]) for (let j = 0; j < 4; j++) {
-      trim.add(decalX(0.75, 0.9, k, k * (Wg2 - 0.06 + 0.004), deckY + 0.7, bz - bLen / 2 + 0.55 + j * 0.95));
+      for (const g of doorOutline(k, k * (Wg2 - 0.06), deckY + 0.7, bz - bLen / 2 + 0.55 + j * 0.95, 0.95, 0.8)) trim.add(g);
       chrome.add(bx(0.03, 0.05, 0.14, k * (Wg2 - 0.03), deckY + 0.7, bz - bLen / 2 + 0.3 + j * 0.95));
     }
     const top = deckY + 1.35;

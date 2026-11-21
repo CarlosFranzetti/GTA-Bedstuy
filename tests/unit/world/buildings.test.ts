@@ -347,6 +347,7 @@ describe('facade depth and detail', () => {
     const ms = meshOf(res.group);
     expect(ms.length).toBeLessThanOrEqual(60);
     const tris = ms.reduce((n, m) => n + m.geometry.getAttribute('position').count / 3, 0);
+    console.log('CITYTRIS', tris);
     // party-wall dressing and roof extras (GTA3) added ~6% on 609k for the ten blocks; the world is now 25 blocks (B1),
     // and the east blocks are procedural placeholders until GEO3 imports their lots
     const grow = g.blocks.length / 10;

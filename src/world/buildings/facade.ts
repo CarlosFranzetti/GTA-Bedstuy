@@ -877,9 +877,8 @@ export function windows(b: LotBatch, m: BuildingMats, o: WindowRow): void {
 export function ironFenceRun(b: LotBatch, mat: THREE.Material, x0: number, x1: number, z: number, y0 = 0): void {
   if (x1 - x0 < 0.05) return;
   // real pickets (SURFACES3): the fence is geometry in the dark-metal mesh, so it costs no draw call of its own and catches light
-  ironPickets(b, mat, [x0, y0, z], [x1, y0, z], IRON_H, 0.13);
+  ironPickets(b, mat, [x0, y0, z], [x1, y0, z], IRON_H, 0.17);
   b.bar(mat, [x0, y0 + IRON_H - 0.06, z], [x1, y0 + IRON_H - 0.06, z], 0.035);
-  b.bar(mat, [x0, y0 + 0.5, z], [x1, y0 + 0.5, z], 0.025);
 }
 
 /** Vertical iron pickets of height h standing on the line a to c (any slope), a bottom rail, and small spear tips. */
@@ -890,7 +889,7 @@ export function ironPickets(b: LotBatch, mat: THREE.Material, a: V3, c: V3, h: n
   for (let i = 0; i <= n; i++) {
     const t = i / n;
     const x = a[0] + (c[0] - a[0]) * t, y = a[1] + (c[1] - a[1]) * t, z = a[2] + (c[2] - a[2]) * t;
-    b.bar(mat, [x, y, z], [x, y + h, z], 0.022);
+    b.box(mat, x - 0.013, y, z - 0.008, x + 0.013, y + h, z + 0.008, 'fb'); // two thin faces: 4 triangles a picket
   }
   b.bar(mat, [a[0], a[1] + 0.1, a[2]], [c[0], c[1] + 0.1, c[2]], 0.03);
 }

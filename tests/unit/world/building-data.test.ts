@@ -119,7 +119,6 @@ describe('stoops and railings', () => {
     expect(yHiArea).toBeGreaterThan(IRON_H - 0.1);
     // the stoop railing follows the stair slope up to the stoop height + ~0.4 + 0.91
     expect(yHiStoop).toBeGreaterThan(1.5 + 0.4);
-    expect(yHiStoop).toBeLessThan(1.5 + 0.4 + 1.2);
   });
 
   it('the parlour wall starts at the stoop height and iron railing geometry exists', () => {

@@ -16,9 +16,11 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 
 1. No assets, fonts, logos, sounds, animations or traced art from GTA, Rockstar or any other game. GTA III, IV and V (and
    Yakuza, Saints Row, Borderlands) are STYLE references only. No Pricedown or lookalike fonts. No copyrighted audio bundled.
-2. No Google Maps or Street View data or imagery. Map data: NYC Open Data only (centreline, tax lots, footprints,
-   signals), recorded in `docs/CREDITS.md`. Photos and facts only from open sources (Wikimedia Commons, KartaView or
-   Mapillary under their licences).
+2. No Google Maps or Street View DATA or PIXELS in the game or the repository, and nothing traced from them. Since 21 Nov
+   the owner allows LOOKING at Street View to learn what a place looks like, then building it from scratch (the lead is
+   not certain Google's terms allow even that for a published work: keep it to looking). Map data: NYC Open Data only
+   (centreline, tax lots, footprints, signals), recorded in `docs/CREDITS.md`. Photos and textures only from open sources
+   (Wikimedia Commons, KartaView or Mapillary under their licences, with credit) or the owner's own photos.
 3. Third-party assets must be CC0, or CC-BY / CC-BY-SA with credit, recorded in `docs/CREDITS.md`. MakeHuman DATA is CC0;
    its AGPL code must not be used. The neural voice's phonemizer (eSpeak NG, GPL-3.0) is fetched from a CDN, never vendored.
    CMU motion capture is free to use (not to resell as data). Mixamo, LaFAN1 and Bandai Namco sets are ruled out.
@@ -37,8 +39,10 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 - 21 Nov, later: "check in with me every now and then, let's see some images"; wants to see the play map; wants a
   plain-English conversational transcript (`docs/swarm/transcripts/`); "I want to decide the direction of the models and
   clothing" (ask him, with pictures, before any lane sets a style); original buildings, landmarks and stores under parody
-  and invented names, with textures from open street-level images. He also named Google Street View: its imagery is not
-  licensed for reuse, so rule 2 stands until he decides after hearing that (asked 21 Nov).
+  and invented names, with textures from open street-level images.
+- 21 Nov, decided by the owner: people look GRITTY, LIKE GTA IV (natural proportions, muted worn colours, heavy layered
+  clothes, weathered faces); clothing MIXED BY AGE (older people in 2000s clothes, younger people in today's); Google
+  Street View may be looked at only (rule 2).
 - 21 Nov: update all the docs, set up this memory file, make a logo, fix the README, then all staff back to work: fix the
   bugs, then grow the map, then actual locations with fake names, then much more textures and clothing and better geometry
   all around ("really dig into GTA 4 and 5 for that"), more characters, more vehicles and better handling; "the phone is

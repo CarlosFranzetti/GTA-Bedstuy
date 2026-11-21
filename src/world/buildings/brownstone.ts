@@ -180,8 +180,8 @@ export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
       b.bar(m.metal, [rx, yF + rh + 0.03, zEnd - 0.05], [rx, yL + rh + 0.03, zLand], 0.05);
       b.bar(m.metal, [rx, yL + rh + 0.03, zLand], [rx, yL + rh + 0.03, -S + 0.08], 0.05);
       // infill: pickets up the slope and across the landing (SURFACES3: real bars instead of a fence texture)
-      ironPickets(b, m.ironStoop, [rx, yF, zEnd - 0.05], [rx, yL, zLand], rh, lite ? 0.22 : 0.14);
-      ironPickets(b, m.ironStoop, [rx, yL, zLand], [rx, yL, zLand - (landing - 0.08)], rh, lite ? 0.22 : 0.14);
+      ironPickets(b, m.ironStoop, [rx, yF, zEnd - 0.05], [rx, yL, zLand], rh, lite ? 0.3 : 0.2);
+      ironPickets(b, m.ironStoop, [rx, yL, zLand], [rx, yL, zLand - (landing - 0.08)], rh, lite ? 0.3 : 0.2);
     }
     stoops.push({ x0, x1, z0: -S, z1: zEnd });
     // areaway fence along the building line (spear variant), open at the stoop foot and the basement entry

@@ -38,7 +38,7 @@ export type SkinRegion = keyof typeof SKIN_RECTS;
 /** `van` is the box truck's cab; `cargo` the Transit-type cargo van */
 export type SkinStyle = 'sedan' | 'coupe' | 'suv' | 'van' | 'cargo' | 'hatch' | 'beater' | 'bus' | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'dollar'
   | 'coupe911' | 'exotic' | 'jdmcoupe' | 'hothatch' | 'muscle' | 'wedgetruck' | 'evsedan'
-  | 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'limo' | 'classic' | 'donk' | 'copsuv' | 'convertible' | 'stepvan' | 'icecream';
+  | 'wagon' | 'bigsuv' | 'minitruck' | 'panelvan' | 'limo' | 'classic' | 'donk' | 'copsuv' | 'convertible' | 'stepvan' | 'icecream' | 'hearse' | 'livery';
 
 /** Everything the painter needs to know about the body (fractions of the paint's bounding box; length fractions run nose 0 -> tail 1). */
 export interface SkinLayout {
@@ -131,6 +131,8 @@ export const CAR_COLORWAYS: Record<SkinStyle, readonly Colorway[]> = {
   copsuv: [{ name: 'white', color: '#f2f2f2', pack: 40 }],
   convertible: [{ name: 'red', color: '#c8283a', pack: 0 }, { name: 'yellow', color: '#e8c21c', pack: 0 }, { name: 'blue', color: '#2468c4', pack: 0 }],
   stepvan: [{ name: 'mail white', color: '#f2f2ee', pack: 22 }, { name: 'parcel brown', color: '#5e4126', pack: 23 }, { name: 'bakery cream', color: '#efe2c0', pack: 24 }],
+  hearse: [{ name: 'black', color: '#0e0f12', pack: 4 }, { name: 'silver', color: '#a6aab0', pack: 0 }, { name: 'white', color: '#ecebe4', pack: 0 }],
+  livery: [{ name: 'black', color: '#101114', pack: 0 }, { name: 'midnight', color: '#141a2a', pack: 0 }, { name: 'white', color: '#ecebe4', pack: 0 }],
   icecream: [{ name: 'cream', color: '#f4efe0', pack: 25 }, { name: 'strawberry', color: '#f2b6c8', pack: 25 }, { name: 'mint', color: '#b8e0cc', pack: 25 }],
   van: [
     { name: 'work white', color: '#ebebe4', pack: 0 },
@@ -205,7 +207,7 @@ function ellipse(cx: number, cy: number, rx: number, ry: number, maxY: number, n
 }
 
 /** styles whose head and tail lamps are real geometry (no painted lamp patches on the end faces) */
-const GEO_LAMPS: ReadonlySet<SkinStyle> = new Set<SkinStyle>(['hatch', 'beater', 'cargo', 'bus', 'sedan', 'suv', 'coupe', 'pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'dollar', 'coupe911', 'exotic', 'jdmcoupe', 'hothatch', 'muscle', 'wedgetruck', 'evsedan', 'wagon', 'bigsuv', 'minitruck', 'panelvan', 'limo', 'classic', 'donk', 'copsuv', 'convertible', 'stepvan', 'icecream']);
+const GEO_LAMPS: ReadonlySet<SkinStyle> = new Set<SkinStyle>(['hatch', 'beater', 'cargo', 'bus', 'sedan', 'suv', 'coupe', 'pickup', 'crossover', 'minivan', 'luxury', 'towncar', 'pony', 'dollar', 'coupe911', 'exotic', 'jdmcoupe', 'hothatch', 'muscle', 'wedgetruck', 'evsedan', 'wagon', 'bigsuv', 'minitruck', 'panelvan', 'limo', 'classic', 'donk', 'copsuv', 'convertible', 'stepvan', 'icecream', 'hearse', 'livery']);
 
 function paintFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): void {
   if (L.style === 'bus') { paintBusFlank(s, L, side, rng); return; }
@@ -407,12 +409,22 @@ function paintBusFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): 
   const bottom = r.y + r.h;
   s.shade(r.x, Y(0.5), r.w, 3, '#ffffff', 0.5);
   s.shade(r.x, Y(0.12), r.w, bottom - Y(0.12), '#000000', 0.2);
+  const school = (L.pack ?? 0) === 5;
+  if (school) {
+    // CARS4 school bus: black rub rails at the belt, the skirt and the sill, the lettering on the yellow band above the windows
+    for (const [v0, v1] of [[0.37, 0.345], [0.27, 0.25], [0.15, 0.135]] as const) s.solid(r.x, Y(v0), r.w, Y(v1) - Y(v0), '#16181b');
+    s.solid(r.x, Y(0.1), r.w, Y(0.06) - Y(0.1), '#16181b');
+    const word = 'SCHOOL BUS';
+    s.text(word, X(0.5) - (word.length * 16) / 2, Y(0.9), 2, '#16181b');
+    s.text('BORO BOARD OF LEARNING', X(0.5) - (22 * 8) / 2, Y(0.17), 1, '#16181b');
+  } else {
   // livery: blue band with a thin yellow line above it, then a lower grey skirt
   s.solid(r.x, Y(0.27), r.w, Y(0.14) - Y(0.27), '#1b4f93');
   s.solid(r.x, Y(0.292), r.w, Y(0.275) - Y(0.292), '#f2b705');
   s.solid(r.x, Y(0.1), r.w, Y(0.06) - Y(0.1), '#7d848c');
   s.text('BKLYN TRANSIT', side === 'right' ? X(0.3) - 52 : X(0.3), Y(0.23), 1, '#ffffff');
-  const ad = L.pack ?? 0;
+  }
+  const ad = school ? 0 : L.pack ?? 0;
   if (ad > 0) {
     // ad wrap between the wheels: three invented advertisers (colour block, big lettering)
     const x0 = Math.min(X(0.3), X(0.7)), x1 = Math.max(X(0.3), X(0.7));
@@ -520,7 +532,8 @@ function paintEnd(s: Sk, L: SkinLayout, region: 'front' | 'rear', rng: Rng): voi
     s.text(L.badge, cx - L.badge.length * 2, Y(L.tailLamp.v) - 18, 1, '#d7dbe0');
     if (L.style !== 'bus' && L.style !== 'cargo') { s.solid(cx + 30, bottom - 9, 7, 4, '#2b2d31'); s.solid(cx + 31, bottom - 8, 5, 2, '#6a6e74'); } // exhaust
   }
-  if (L.style === 'bus') { s.solid(r.x, Y(0.36), r.w, Y(0.2) - Y(0.36), '#1b4f93'); s.solid(r.x, Y(0.385), r.w, 2, '#f2b705'); if (region === 'rear') s.text('B26', cx - 6, Y(0.8), 1, '#ffffff'); }
+  if (L.style === 'bus' && (L.pack ?? 0) === 5) { s.solid(r.x, Y(0.36), r.w, Y(0.3) - Y(0.36), '#16181b'); s.solid(r.x, Y(0.22), r.w, Y(0.16) - Y(0.22), '#16181b'); if (region === 'rear') s.text('SCHOOL BUS', cx - 40, Y(0.8), 1, '#16181b'); }
+  else if (L.style === 'bus') { s.solid(r.x, Y(0.36), r.w, Y(0.2) - Y(0.36), '#1b4f93'); s.solid(r.x, Y(0.385), r.w, 2, '#f2b705'); if (region === 'rear') s.text('B26', cx - 6, Y(0.8), 1, '#ffffff'); }
   // grime on the valance
   for (let i = 0; i < 6; i++) s.shade(r.x, bottom - 14 + i * 2.4, r.w, 14 - i * 2.4, '#5e4d38', 0.07);
   for (let i = 0; i < 40; i++) s.shade(rng.range(r.x, r.x + r.w), rng.range(bottom - 16, bottom - 1), rng.range(1, 3), 1.5, '#4a3c2a', 0.35);
