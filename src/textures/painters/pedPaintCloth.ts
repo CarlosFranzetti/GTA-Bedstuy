@@ -327,7 +327,7 @@ export function paintTop(K: Look, t: Tex, c: Px, arm: boolean, leg: boolean, nec
     c.mul(1 - 0.28 * ln(Math.abs(y - (hemTop + 0.12)) - 0.02, 0.0025));
   }
   if (k === 'uniform' && tor) {
-    if (sty !== 'boiler' && y > shY - 0.025 && ax > shX * 0.55 && ax < shX + 0.01 && tor) c.mix(trimC, 0.65);                                       // epaulettes
+    // PEOPLE8: no epaulettes: the painted trim patch read as a square pad on each shoulder; the shoulder is one smooth cloth surface
     if (top.tie && ax < 0.011 * (1 + 0.5 * sst(shY - 0.1, shY - 0.25, y)) && y < shY + 0.02 && y > shY - 0.3 && front > 0.5) c.mix(rgbOf(top.tie), 0.95);
     // chest pockets with a flap
     if (frontish) for (const sd of [-1, 1]) {

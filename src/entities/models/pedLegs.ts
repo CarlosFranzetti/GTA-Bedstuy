@@ -167,11 +167,13 @@ export function legTubes(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array,
   const hemR = radius(yh);
   const rowOf = (side: -1 | 1, y: number, grow = 0): Row => {
     const k = radius(y), e = sstep(ySt, yTop, y), dx = flareX * 0.5 * e, rzB = rzS * k + grow;
-    return { y, rx: rxS * k + grow + dx, rz: lerp(rzB, rzTop + grow, e), cx: side * cx + side * dx, cz: lerp(czAt(y), czTop, e), up: 0 };
+    // PEOPLE8: from the seat up the inner edge of each tube also grows toward the middle and meets the other tube there (a crotch seam), so no pouch or slit shows between the legs under the belt
+    const inn = Math.max(0, cx - rxS * k - grow - 0.004) * e;
+    return { y, rx: rxS * k + grow + dx + inn / 2, rz: lerp(rzB, rzTop + grow, e), cx: side * (cx + dx - inn / 2), cz: lerp(czAt(y), czTop, e), up: 0 };
   };
   // the old pelvis vertices that belong to the leg (the stub above the cut) must not stand outside the tube: a vertex of the coarse base mesh out at the hip is what made the flaps
   for (let i = 0; i < n; i++) {
-    if (drop[i] || legWeight(L, i) < 0.5 || P[i * 3 + 1] > yTop + 0.02 || P[i * 3 + 1] < yDrop - 0.02) continue;
+    if (drop[i] || legWeight(L, i) < 0.12 || wsumAt(L, i, [4, 5, 6, 7]) > 0.3 || P[i * 3 + 1] > yTop + 0.02) continue;      // PEOPLE8: every leg-ish vertex of the pelvis (the crotch flaps had 0.4 to 0.49 of leg weight), not only those at least half on the leg
     const r = rowOf(P[i * 3] < 0 ? -1 : 1, Math.min(P[i * 3 + 1], yTop)), q = Math.hypot((P[i * 3] - r.cx) / (r.rx + 0.003), (P[i * 3 + 2] - r.cz) / (r.rz + 0.003));
     if (q > 1) { P[i * 3] = r.cx + (P[i * 3] - r.cx) / q; P[i * 3 + 2] = r.cz + (P[i * 3 + 2] - r.cz) / q; }
   }

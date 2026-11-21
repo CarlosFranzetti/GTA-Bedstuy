@@ -344,13 +344,12 @@ export class TouchControls {
     if (this.tutorial) return;
     const t = document.createElement('div');
     t.className = 'tc-tutorial';
-    t.innerHTML = '<div class="tc-tut-left"><b>MOVE</b><span>Touch and drag anywhere on this side</span></div>'
-      + '<div class="tc-tut-right"><b>LOOK</b><span>Drag anywhere on this side</span></div>'
-      + `<ul class="tc-tut-list">${TUTORIAL_LINES.map(([k, v]) => `<li><b>${k}</b> ${v}</li>`).join('')}${isIosBrowserTab() ? '<li class="tc-tut-tip"><b>TIP</b> Share, then Add to Home Screen, hides the browser bars</li>' : ''}</ul>`;
+    t.innerHTML = '<div class="tc-tut-card"><div class="tc-tut-cols"><div><b>MOVE</b><span>Touch and drag on the left half</span></div><div><b>LOOK</b><span>Drag on the right half</span></div></div>'
+      + `<ul class="tc-tut-list">${TUTORIAL_LINES.map(([k, v]) => `<li><b>${k}</b> ${v}</li>`).join('')}${isIosBrowserTab() ? '<li class="tc-tut-tip"><b>TIP</b> Share, then Add to Home Screen, hides the browser bars</li>' : ''}</ul></div>`;
     const ok = document.createElement('button');
     ok.type = 'button'; ok.className = 'tc-tut-ok'; ok.textContent = 'GOT IT';
     ok.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); this.dismissTutorial(true); });
-    t.appendChild(ok);
+    t.querySelector('.tc-tut-card')!.appendChild(ok);
     this.root.appendChild(t);
     this.tutorial = t; this.tutorialAt = Date.now();
     // it never blocks play: touching the controls dismisses it, and it fades by itself after a while

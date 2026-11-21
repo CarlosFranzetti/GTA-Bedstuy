@@ -114,8 +114,9 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 - iPhone Safari caps total 2D canvas memory per page (hundreds of MB, device dependent) and kills heavy tabs. On phone
   and low tiers canvases are emptied after upload, textures are half size, no normal or roughness maps load, and building
   detail is streamed per cell.
-- Budgets: phone 300k triangles and 150 draw calls, low 500k and 220. Each block of buildings uses 10 to 15 wall
-  materials, which is why low misses its draw budget; one shared facade sheet is the fix.
+- Budgets: phone 300k triangles and 150 draw calls, low 500k and 220. The seven wall classes (brick, painted brick,
+  brownstone, limestone, stoop, cornice, roof) are layers of ONE material, `brickSheet:0` (`src/textures/facadeSheet.ts`,
+  `docs/swarm/tasks/SURFACES2.md`); low home 269 -> 223 draws. New wall classes join as sheet layers, not as materials.
 - Free image generators reachable from here refuse without a token; a keyless one stamps a watermark. Not used.
 
 ## State on 21 Nov 2026

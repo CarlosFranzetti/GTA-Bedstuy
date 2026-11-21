@@ -1,0 +1,56 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>car close view</title>
+<style>html,body{margin:0;background:#789;overflow:hidden}</style></head>
+<body><script type="module">
+// CARS4 close views: one row per type, four panels (front three-quarter, side, rear three-quarter, top-ish). Dev server only.
+// /scripts/carclose.html?types=sedan,hatch&seed=1234&pw=480&ph=300&night=0&color=#hex
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Rng } from '@/core/Rng';
+import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { buildCarModel } from '@/entities/models/carModel';
+import { VEHICLE_SPECS } from '@/entities/Vehicle';
+import { lookFor } from '@/entities/models/carLook';
+const P = new URLSearchParams(location.search);
+const types = (P.get('types') ?? 'sedan').split(',');
+const seed = Number(P.get('seed') ?? 1234), pw = Number(P.get('pw') ?? 480), ph = Number(P.get('ph') ?? 300);
+const color = P.get('color'); const variant = Number(P.get('variant') ?? 0); const lamps = P.get('lamps') === '1';
+const views = (P.get('views') ?? 'f3q,side,r3q,top').split(',');
+const W = views.length * pw, H = types.length * ph;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.setScissorTest(true);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x8aa4bc);
+const pm = new THREE.PMREMGenerator(renderer);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.5;
+const sun = new THREE.DirectionalLight(0xfff2dc, 2.6); sun.position.set(-6, 10, 5); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x6a5a48, 0.7));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshStandardMaterial({ color: 0x5a5d62, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const materials = new MaterialLibrary(new Rng(7)); materials.carPaintDetail(); materials.setEnvironment(scene.environment);
+const cam = new THREE.PerspectiveCamera(30, pw / ph, 0.1, 200);
+const info = {};
+types.forEach((type, r) => {
+  const spec = { ...VEHICLE_SPECS[type] }; if (color) spec.color = color;
+  const m = buildCarModel(type, spec, materials, variant, undefined, false, lookFor(type, spec.color, seed), seed);
+  scene.add(m.group);
+  if (lamps) { for (const h of m.headlights) h.material.emissiveIntensity = 4; for (const t of m.taillights) t.material.emissiveIntensity = 3; }
+  const L = spec.length, Hh = spec.height;
+  views.forEach((v, c) => {
+    const d = Math.max(L * 1.45, Hh * 3.2, 6);
+    let ang = { f3q: Math.PI + 0.65, side: Math.PI / 2, r3q: 0.65, front: Math.PI, rear: 0, top: Math.PI + 0.5 }[v];
+    let el = Hh * 0.7 + 0.4;
+    if (v === 'top') { el = d * 0.75; }
+    if (v === 'front' || v === 'rear') { el = Hh * 0.6 + 0.3; }
+    const dd = v === 'top' ? d * 0.75 : d;
+    cam.position.set(Math.sin(ang) * dd, el, Math.cos(ang) * dd); cam.lookAt(0, Hh * 0.4, 0);
+    const x = c * pw, y = H - (r + 1) * ph;
+    renderer.setViewport(x, y, pw, ph); renderer.setScissor(x, y, pw, ph);
+    renderer.render(scene, cam);
+  });
+  let t = 0, dc = 0; m.group.traverse((o) => { if (o.isMesh && o.visible) { dc++; const g = o.geometry; t += (g.index ? g.index.count : g.attributes.position.count) / 3 * (o.isInstancedMesh ? o.count : 1); } });
+  info[type] = { tris: Math.round(t), draws: dc, style: m.style };
+  scene.remove(m.group);
+});
+window.__ready = { W, H, info };
+</script></body></html>

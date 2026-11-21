@@ -13,7 +13,7 @@ const arg = (k, d) => { const i = a.indexOf(k); return i >= 0 ? a[i + 1] : d; };
 const out = resolve(a[0] ?? 'landmarks-game'); mkdirSync(out, { recursive: true });
 const dist = resolve(arg('--dist', 'dist')); const port = Number(arg('--port', 4471)); const q = arg('--q', 'low');
 const ids = arg('--ids', '').split(',').filter(Boolean); const views = arg('--views', 'street,aerial').split(',');
-const W = 1280, H = 720;
+const W = Number(arg('--w', 1024)), H = Number(arg('--h', 576));
 const preview = spawn('node', ['node_modules/vite/bin/vite.js', 'preview', '--outDir', dist, '--port', String(port), '--strictPort'], { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'] });
 const base = `http://localhost:${port}`;
 for (let i = 0; i < 80; i++) { try { if ((await fetch(`${base}/`)).ok) break; } catch {} await new Promise((r) => setTimeout(r, 250)); }
@@ -49,14 +49,14 @@ try {
           const dd = big ? 2.5 : row.kind === 'subway' ? 7 : Math.max(13, Math.min(26, s.w * 0.4));
           p = [front.x + o.x * dd + s.fx * s.w * (big ? 0.1 : 0.12), 1.7, front.z + o.z * dd + s.fz * s.w * (big ? 0.1 : 0.12)];
           l = [c.x - s.nx * s.d * (big ? 0.15 : 0.45), big ? 5 : Math.min(12, size * 0.12), c.z - s.nz * s.d * (big ? 0.15 : 0.45)];
-        } else { const h = Math.max(50, size * 0.55); p = [front.x + o.x * (size * 0.3 + 10), h, front.z + o.z * (size * 0.3 + 10)]; l = [c.x, 0, c.z]; }
+        } else { const h = Math.min(70, Math.max(34, size * 0.3)); p = [front.x + o.x * (size * 0.22 + 12), h, front.z + o.z * (size * 0.22 + 12)]; l = [c.x, 0, c.z]; } // modest height: the streamers' far range grows with it and a software page is killed beyond a few gigabytes
         // the player stands at the camera's ground point, so the streamers (buildings, landmarks) work around it
         d.teleport(p[0], p[2]); d.step(3);
         d.setFreeCam(p[0], p[1], p[2], l[0], l[1], l[2]);
         rw.streamer.settle(p[0], p[2], p[1]);
         rw.landmarks.settle(p[0], p[2], p[1]);
         d.settle(30);
-        let info; for (let i = 0; i < 4; i++) info = d.renderOnce(1, 1 / 60);
+        let info; for (let i = 0; i < 2; i++) info = d.renderOnce(1, 1 / 60);
         const url = d.renderer.domElement.toDataURL('image/png');
         return { url, info, lm: rw.landmarks.stats() };
       }, { row, v });
