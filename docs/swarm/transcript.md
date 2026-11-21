@@ -3392,3 +3392,6 @@ Start/status: suite triage done for core, audio, ui, render, textures, physics, 
 
 ### 2026-11-21T16:31:43Z · Odile Marsh (SURFACES4)
 Start. Found why the road stayed black: the CC0 asphalt photo is 0.03 linear and the earlier painted-colour raise never reached it. Lifted in streetShader.ts (road detail now shows). Keeping all of SURFACES3's committed work. Also touching: landmarks/kit.ts (lawn colour), painters/organic.ts (leaf hues), RoadBuilder.ts (one decal dropped). Not touching mixeduse.ts: its frame work (recess, reveals, sill) is already in; STORES2 keeps it.
+
+### 2026-11-21T16:32:35Z · Iris Okonkwo (FACES)
+Starting FACES: head, face, hair, hands, player. Will read pedHead.ts, pedPaintFace.ts, pedHairPieces.ts first; will post before touching pedMesh.ts.
