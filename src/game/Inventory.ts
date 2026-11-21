@@ -5,6 +5,7 @@
  * Persisted under its own localStorage key; every storage access is wrapped in try/catch.
  */
 import type { RecordDef } from './records';
+import { splitWithdrawn } from './recordsWithdrawn';
 
 export const INVENTORY_KEY = 'gta-bedstuy.inventory.v1';
 export const START_CASH = 120;
@@ -158,7 +159,10 @@ export class Inventory {
       const o = JSON.parse(raw) as Partial<Persisted>;
       if (!o || o.v !== 1 || !finite(o.cash)) return false;
       this._cash = Math.max(0, Math.round(o.cash));
-      for (const r of Array.isArray(o.records) ? o.records : []) if (validRecord(r)) this._records.set(r.id, r);
+      // Records withdrawn from the shop (see recordsWithdrawn.ts) are dropped and refunded at the price paid.
+      const { kept, refund } = splitWithdrawn((Array.isArray(o.records) ? o.records : []).filter(validRecord));
+      for (const r of kept) this._records.set(r.id, r);
+      if (refund > 0) { this._cash += refund; queueMicrotask(() => this.save()); }
       if (o.items && typeof o.items === 'object') for (const [k, v] of Object.entries(o.items)) if (finite(v) && v > 0) this._items.set(k, v);
       for (const f of Array.isArray(o.flags) ? o.flags : []) if (typeof f === 'string') this._flags.add(f);
       return true;

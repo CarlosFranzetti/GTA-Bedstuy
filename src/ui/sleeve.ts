@@ -4,6 +4,10 @@
  *
  *  - 'paper'   a 78 rpm paper sleeve: kraft stock, a die-cut hole with the round label showing through, a rubber stamp.
  *  - 'blocks'  a dance-band / jazz jacket: bold type over blocks of flat colour.
+ *  - 'twelve'  a 1980s 12-inch: black jacket with a die-cut centre showing the label, big title across the top.
+ *  - 'promo'   a 1990s white-label promo: plain white stock, a typed label and a crooked rubber stamp.
+ *  - 'picture' a 2000s picture sleeve: gradient art, a skyline of stoops, a wide title band and a barcode.
+ *  - 'minimal' a 2010s digital-era cover: off-white, one geometric shape, tiny type in a corner.
  *  - 'sticker' a 12-inch jacket: a brownstone-and-stoop silhouette under a hype sticker (used for the synthesised originals too).
  */
 import { Rng } from '@/core/Rng';
@@ -27,8 +31,10 @@ function wrap(text: string, n: number, lines: number): string[] {
   return out;
 }
 
-export function sleeveStyleOf(def: Pick<RecordDef, 'kind' | 'sleeve'>): 'paper' | 'blocks' | 'sticker' {
-  return def.sleeve === 'paper' || def.sleeve === 'blocks' ? def.sleeve : 'sticker';
+export type SleeveKind = 'paper' | 'blocks' | 'sticker' | 'twelve' | 'promo' | 'picture' | 'minimal';
+const SLEEVE_KINDS: readonly string[] = ['paper', 'blocks', 'twelve', 'promo', 'picture', 'minimal'];
+export function sleeveStyleOf(def: Pick<RecordDef, 'kind' | 'sleeve'>): SleeveKind {
+  return def.sleeve && SLEEVE_KINDS.includes(def.sleeve) ? (def.sleeve as SleeveKind) : 'sticker';
 }
 
 export function sleeveSvg(def: RecordDef): string {
@@ -75,6 +81,56 @@ export function sleeveSvg(def: RecordDef): string {
       + `<text x="${split + 56}" y="176" font-family="${BARLOW}" font-size="9" fill="#f4ecd8" opacity=".85">${esc(cat)}</text>`
       + `<text x="${split + 56}" y="187" font-family="${BARLOW}" font-size="9" fill="#f4ecd8" opacity=".85">${esc(String(year))}</text>`
       + `<text x="${split / 2}" y="190" text-anchor="middle" font-family="${BARLOW}" font-weight="700" font-size="9" fill="${esc(c1)}" transform="rotate(-90 ${split / 2} 100)" opacity="0">.</text>`;
+  } else if (style === 'twelve') {
+    const lines = wrap(def.title.toUpperCase(), 12, 3);
+    const size = Math.min(27, 160 / Math.max(4, Math.max(...lines.map((l) => l.length))) * 1.3);
+    body = `<rect width="200" height="200" fill="#111"/>`
+      + `<rect x="0" y="0" width="200" height="6" fill="${esc(c0)}"/><rect x="0" y="194" width="200" height="6" fill="${esc(c0)}"/>`
+      + lines.map((ln, i) => `<text x="12" y="${32 + i * (size + 2)}" font-family="${ANTON}" font-size="${size.toFixed(1)}" fill="${esc(c0)}" letter-spacing="1">${esc(ln)}</text>`).join('')
+      + `<circle cx="100" cy="132" r="52" fill="#050505" stroke="#2a2a2a" stroke-width="1"/><circle cx="100" cy="132" r="30" fill="${esc(c0)}"/><circle cx="100" cy="132" r="30" fill="none" stroke="${esc(c1)}" stroke-width="1.5"/><circle cx="100" cy="132" r="3" fill="#050505"/>`
+      + `<text x="100" y="124" text-anchor="middle" font-family="${ANTON}" font-size="7" fill="${esc(c1)}">${esc(clip(label.toUpperCase(), 18))}</text>`
+      + `<text x="100" y="134" text-anchor="middle" font-family="${BARLOW}" font-weight="700" font-size="6.5" fill="${esc(c1)}">${esc(clip(def.artist.toUpperCase(), 24))}</text>`
+      + `<text x="100" y="143" text-anchor="middle" font-family="${BARLOW}" font-size="5.5" fill="${esc(c1)}">${esc(cat)} · 45 RPM</text>`
+      + `<text x="12" y="${40 + lines.length * (size + 2)}" font-family="${BARLOW}" font-weight="700" font-size="11" fill="#f4ecd8">${esc(clip(def.artist.toUpperCase(), 26))}</text>`
+      + `<text x="188" y="186" text-anchor="end" font-family="${BARLOW}" font-weight="700" font-size="9" fill="#f4ecd8" opacity=".8">12 INCH · ${esc(String(year))}</text>`;
+  } else if (style === 'promo') {
+    const tilt = -7 + rng.next() * 14;
+    const lines = wrap(def.title, 17, 3);
+    body = `<rect width="200" height="200" fill="#efece4"/>`
+      + `<rect x="0" y="0" width="200" height="200" fill="none" stroke="rgba(0,0,0,.12)" stroke-width="6"/>`
+      + `<circle cx="100" cy="112" r="64" fill="#f9f8f4" stroke="rgba(0,0,0,.25)" stroke-width="1"/><circle cx="100" cy="112" r="4" fill="#d8d4c8" stroke="rgba(0,0,0,.35)" stroke-width="1"/>`
+      + `<text x="100" y="74" text-anchor="middle" font-family="${BARLOW}" font-weight="700" font-size="9" fill="#222" letter-spacing="1">${esc(clip(label.toUpperCase(), 24))}</text>`
+      + lines.map((ln, i) => `<text x="100" y="${90 + i * 11}" text-anchor="middle" font-family="${BARLOW}" font-weight="700" font-size="${fit(ln.length, 80, 11, 7)}" fill="#111">${esc(ln)}</text>`).join('')
+      + `<text x="100" y="${98 + lines.length * 11}" text-anchor="middle" font-family="${BARLOW}" font-size="8" fill="#333">${esc(clip(def.artist, 30))}</text>`
+      + `<text x="100" y="158" text-anchor="middle" font-family="${BARLOW}" font-size="7" fill="#444">${esc(cat)} · ${Math.round(def.bpm)} BPM</text>`
+      + `<g transform="rotate(${tilt.toFixed(1)} 100 28)"><rect x="34" y="12" width="132" height="32" rx="3" fill="none" stroke="${esc(c0)}" stroke-width="2.5" opacity=".85"/>`
+      + `<text x="100" y="27" text-anchor="middle" font-family="${ANTON}" font-size="13" fill="${esc(c0)}" opacity=".9" letter-spacing="1.5">DJ PROMO</text>`
+      + `<text x="100" y="39" text-anchor="middle" font-family="${BARLOW}" font-weight="700" font-size="8.5" fill="${esc(c0)}" opacity=".9">NOT FOR SALE · ${esc(String(year))}</text></g>`;
+  } else if (style === 'picture') {
+    const sky = `sk-${def.id.replace(/[^a-z0-9]/gi, '')}`;
+    const lines = wrap(def.title.toUpperCase(), 14, 2);
+    const size = Math.min(24, 170 / Math.max(5, Math.max(...lines.map((l) => l.length))) * 1.3);
+    const stoops = Array.from({ length: 7 }, (_, i) => { const h = 40 + Math.floor(rng.next() * 50); return `<rect x="${i * 30 - 6}" y="${176 - h}" width="26" height="${h}" fill="rgba(0,0,0,${(0.35 + rng.next() * 0.3).toFixed(2)})"/>`; }).join('');
+    body = `<defs><radialGradient id="${sky}" cx=".5" cy=".35" r=".8"><stop offset="0" stop-color="${esc(c0)}"/><stop offset="1" stop-color="${esc(c1)}"/></radialGradient></defs>`
+      + `<rect width="200" height="200" fill="url(#${sky})"/>`
+      + `<circle cx="${60 + Math.floor(rng.next() * 80)}" cy="62" r="${28 + Math.floor(rng.next() * 14)}" fill="#f4ecd8" opacity=".85"/>` + stoops
+      + `<rect x="0" y="148" width="200" height="34" fill="rgba(0,0,0,.55)"/>`
+      + lines.map((ln, i) => `<text x="10" y="${166 + i * (size * 0.5) - (lines.length - 1) * 2}" font-family="${ANTON}" font-size="${(size * (lines.length > 1 ? 0.62 : 0.85)).toFixed(1)}" fill="#f4ecd8" letter-spacing=".6">${esc(ln)}</text>`).join('')
+      + `<text x="10" y="194" font-family="${BARLOW}" font-weight="700" font-size="9.5" fill="#f4ecd8">${esc(clip(def.artist.toUpperCase(), 26))} · ${esc(clip(label.toUpperCase(), 14))}</text>`
+      + `<g transform="translate(160 156)"><rect width="32" height="22" fill="#f4ecd8"/>${Array.from({ length: 11 }, (_, i) => `<rect x="${2 + i * 2.7}" y="2" width="${i % 3 === 0 ? 1.6 : 0.9}" height="14" fill="#111"/>`).join('')}<text x="16" y="21" text-anchor="middle" font-family="${BARLOW}" font-size="4" fill="#111">${esc(cat)}</text></g>`
+      + `<text x="190" y="14" text-anchor="end" font-family="${BARLOW}" font-weight="700" font-size="8" fill="#f4ecd8" opacity=".85">${esc(String(year))}</text>`;
+  } else if (style === 'minimal') {
+    const shape = rng.next();
+    const lines = wrap(def.title, 20, 2);
+    body = `<rect width="200" height="200" fill="#f1efe9"/>`
+      + (shape < 0.34 ? `<circle cx="100" cy="92" r="46" fill="${esc(c0)}"/><circle cx="100" cy="92" r="22" fill="#f1efe9"/>`
+        : shape < 0.67 ? `<rect x="54" y="46" width="92" height="92" fill="${esc(c0)}"/><rect x="54" y="92" width="92" height="46" fill="${esc(c1)}"/>`
+          : `<path d="M100 40 L150 134 L50 134 Z" fill="${esc(c0)}"/><path d="M100 76 L126 134 L74 134 Z" fill="${esc(c1)}"/>`)
+      + lines.map((ln, i) => `<text x="14" y="${164 + i * 11}" font-family="${ANTON}" font-size="${fit(ln.length, 150, 11, 7)}" fill="#161616" letter-spacing=".8">${esc(ln.toUpperCase())}</text>`).join('')
+      + `<text x="14" y="${168 + lines.length * 11}" font-family="${BARLOW}" font-size="7.5" fill="#444">${esc(clip(def.artist, 34))}</text>`
+      + `<text x="186" y="16" text-anchor="end" font-family="${BARLOW}" font-weight="700" font-size="7.5" fill="#444">${esc(cat)}</text>`
+      + `<text x="14" y="16" font-family="${BARLOW}" font-weight="700" font-size="7.5" fill="#444" letter-spacing=".8">${esc(clip(label.toUpperCase(), 22))}</text>`
+      + `<text x="186" y="190" text-anchor="end" font-family="${BARLOW}" font-size="7.5" fill="#444">${esc(String(year))}</text>`;
   } else {
     // sticker: a row of brownstones with stoops against a sodium sky, then a hype sticker
     const houses: string[] = []; let x = -4;

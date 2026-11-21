@@ -8,6 +8,7 @@
  */
 import type { Inventory } from '@/game/Inventory';
 import type { RecordDef } from '@/game/records';
+import { splitWithdrawn } from '@/game/recordsWithdrawn';
 import type { SavedHands } from '@/game/combat/items';
 
 /**
@@ -208,14 +209,18 @@ export function captureSave(p: SaveParts, now: number = Date.now()): SaveData {
 /** Restore a save into the live game. Fields the save does not have (migrated v1) are left alone. */
 export function applySave(p: SaveParts, s: SaveData): void {
   if (s.playerLook !== undefined) p.setLook(s.playerLook);
+  let withdrawnRefund = 0;
   if (s.inventory) {
     const inv = p.inventory;
     inv.reset([]);
-    for (const r of s.inventory.records) inv.addRecord(r);
+    const { kept, refund } = splitWithdrawn(s.inventory.records);
+    withdrawnRefund = refund;
+    for (const r of kept) inv.addRecord(r);
     for (const [id, n] of Object.entries(s.inventory.items)) inv.giveItem(id, n);
     for (const f of s.inventory.flags) inv.setFlag(f, true);
   }
-  if (s.cash !== undefined) { const d = s.cash - p.inventory.cash; if (d !== 0) p.inventory.add(d); }
+  if (s.cash !== undefined) { const d = s.cash + withdrawnRefund - p.inventory.cash; if (d !== 0) p.inventory.add(d); }
+  else if (withdrawnRefund > 0) p.inventory.add(withdrawnRefund);
   if (s.missions !== undefined) p.missions.restore(s.missions);
   if (s.story !== undefined) p.missions.story?.restore(s.story);
   if (s.phone !== undefined) p.phone.restore(s.phone);

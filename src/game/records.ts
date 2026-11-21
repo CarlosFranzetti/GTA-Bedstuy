@@ -2,7 +2,7 @@
  * Records: the vinyl the player can buy, press, and play on the decks.
  *
  * Nothing copyrighted is bundled. A record is one of:
- *  - 'procedural': one of 12 original loops synthesised here (exact BPM, parody titles);
+ *  - 'procedural': one of 8 original dance loops synthesised here (exact BPM, parody titles);
  *  - 'library':    "pressed" for free from a file in the player's own Radio library;
  *  - 'drop':       a file the player put in `src/assets/records/` (their own licensed audio; see docs/RECORDS.md);
  *  - 'archive':    a REAL free recording (public domain) with a parody sleeve, streamed from `public/records/` on demand
@@ -14,7 +14,7 @@ import { Rng } from '@/core/Rng';
 import { archiveUrl } from './archiveRecords';
 
 export type RecordKind = 'procedural' | 'library' | 'drop' | 'archive';
-export type RecordGenre = 'hiphop' | 'house' | 'disco' | 'dub' | 'trap' | 'jazz' | 'techno' | 'breaks' | 'electro';
+export type RecordGenre = 'hiphop' | 'house' | 'disco' | 'techno' | 'breaks' | 'electro';
 
 export interface RecordDef {
   id: string;
@@ -38,8 +38,7 @@ export interface RecordDef {
 
 /** Default tempo per genre, used for files whose tempo has not been measured. */
 export const GENRE_BPM: Record<string, number> = {
-  hiphop: 90, house: 124, disco: 112, dub: 72, trap: 140, jazz: 96, techno: 130, breaks: 134, electro: 128,
-  ragtime: 100, blues: 90, gospel: 80, islands: 100,
+  hiphop: 90, house: 124, disco: 112, techno: 130, breaks: 134, electro: 128, dnb: 172, prewar: 110,
 };
 
 export function defaultBpm(genre: string): number { return GENRE_BPM[genre] ?? 120; }
@@ -51,12 +50,8 @@ const SPECS: Spec[] = [
   { id: 'wax-02', title: 'Bodega Cat Boogie', artist: 'The Corner Stores', genre: 'house', bpm: 122, price: 14, colors: ['#e63946', '#1d1d2c'], root: 48, minor: true },
   { id: 'wax-03', title: 'Throop Night Bus', artist: 'Nightbus Collective', genre: 'house', bpm: 118, price: 14, colors: ['#3a86ff', '#0b132b'], root: 43, minor: true },
   { id: 'wax-04', title: 'Spin Cycle Love', artist: 'Kosciuszkomat', genre: 'disco', bpm: 112, price: 16, colors: ['#ff70a6', '#3d1c3a'], root: 46, minor: false },
-  { id: 'wax-05', title: 'Quarter Water Dub', artist: 'Dub Mayor', genre: 'dub', bpm: 72, price: 18, colors: ['#2a9d8f', '#102a28'], root: 41, minor: true },
-  { id: 'wax-06', title: 'Alternate Side Panic', artist: 'Street Cleaning', genre: 'trap', bpm: 140, price: 15, colors: ['#9b5de5', '#16082b'], root: 40, minor: true },
-  { id: 'wax-07', title: 'Brownstone Blues', artist: 'Mr. Fixture', genre: 'jazz', bpm: 96, price: 20, colors: ['#8d5a2b', '#f2e3c6'], root: 50, minor: true },
   { id: 'wax-08', title: 'Dollar Van Dispatch', artist: 'Zone Three', genre: 'techno', bpm: 130, price: 17, colors: ['#ffd60a', '#111111'], root: 38, minor: true },
   { id: 'wax-09', title: 'Fire Escape Sunrise', artist: 'Roofline', genre: 'house', bpm: 120, price: 13, colors: ['#ff9f1c', '#2ec4b6'], root: 47, minor: false },
-  { id: 'wax-10', title: 'Rent Is Due (Dub Mix)', artist: 'Landlord Dub', genre: 'dub', bpm: 126, price: 19, colors: ['#5f0f40', '#fb8b24'], root: 39, minor: true },
   { id: 'wax-11', title: 'Kickback On Kosciuszko', artist: 'Afterhours Pigeons', genre: 'breaks', bpm: 134, price: 16, colors: ['#06d6a0', '#073b4c'], root: 42, minor: true },
   { id: 'wax-12', title: 'Sloth Anthem', artist: 'The Afterhours Sloth', genre: 'electro', bpm: 128, price: 25, colors: ['#f72585', '#240046'], root: 44, minor: true },
 ];
