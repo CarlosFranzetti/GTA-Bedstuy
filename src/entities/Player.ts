@@ -71,8 +71,8 @@ const WALL_CONTACT_SPEED = 2.4;
 const BRAKE_ACCEL = 8;
 /** Walk to the car door before getting in: the time scales with the distance, between these (s). */
 const ENTER_TIME = 0.4;
-const ENTER_TIME_MAX = 0.8;
-const ENTER_WALK_SPEED = 3.4;
+const ENTER_TIME_MAX = 0.62;
+const ENTER_WALK_SPEED = 4.4;
 /** Leaving a moving car: above LEAVE_STEP m/s the player steps out carrying part of its speed, above LEAVE_ROLL they roll out and get up. */
 const LEAVE_STEP = 2.5;
 const LEAVE_ROLL = 9;
