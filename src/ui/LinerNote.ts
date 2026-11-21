@@ -19,6 +19,8 @@ export function linerLines(def: RecordDef): string[] {
     l.recorded + '.',
     `Source: ${l.sourceName} (${l.sourceUrl}).`,
     `Licence: ${l.licence}. ${l.licenceText}`,
+    ...(l.attribution ? [`Credit: ${l.attribution}`] : []),
+    ...(l.changes ? [l.changes] : []),
   ];
 }
 
@@ -42,7 +44,10 @@ export function linerNote(doc: Document, def: RecordDef, onClose?: () => void): 
     const a = doc.createElement('a'); a.href = l.sourceUrl; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = l.sourceUrl.replace(/^https:\/\//, '');
     src.append(`${l.sourceName}: `, a); text.appendChild(src);
     add('liner-l', `Licence: ${l.licence}. ${l.licenceText}`);
-    add('liner-m', def.beatMatched === false ? 'Not beat-matched: an old recording with a drifting tempo, so the decks show a guide tempo only.' : `Steady tempo, about ${Math.round(def.bpm)} BPM (an estimate: nudge by ear).`);
+    if (l.attribution) add('liner-l', `Credit: ${l.attribution}`);
+    if (l.changes) add('liner-m', l.changes);
+    if (l.checked) add('liner-m', l.checked === 'A' ? 'Licence check: tier A (a second statement agrees with the licence field).' : 'Licence check: tier B (the item\'s licence field, set by the label\'s own upload, is the only statement reachable).');
+    add('liner-m', def.beatMatched === false ? 'Not beat-matched: the tempo drifts or could not be measured with confidence, so the decks show a guide tempo only.' : `Steady tempo, about ${Math.round(def.bpm)} BPM (an estimate: nudge by ear).`);
   } else {
     for (const ln of linerLines(def)) add('liner-l', ln);
   }

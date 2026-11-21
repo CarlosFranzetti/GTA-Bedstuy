@@ -24,34 +24,35 @@ function make() {
 describe('ShopUi archive crate', () => {
   it('lists synth and archive bins with crate chips, sleeves and the own-files line', () => {
     const { shop, parent } = make(); shop.open();
-    expect(parent.querySelectorAll('.shop-card').length).toBe(12 + ARCHIVE_SPECS.length);
-    expect(parent.querySelectorAll('.shop-chip').length).toBe(2 + 5);
-    expect(parent.querySelectorAll('.shop-cover svg').length).toBe(12 + ARCHIVE_SPECS.length);
+    expect(parent.querySelectorAll('.shop-card').length).toBe(PROCEDURAL_RECORDS.length + ARCHIVE_SPECS.length);
+    expect(parent.querySelectorAll('.shop-chip').length).toBe(2 + 5 + 1); // all, synth, five crates, listening post
+    expect(parent.querySelectorAll('.shop-cover svg').length).toBe(PROCEDURAL_RECORDS.length + ARCHIVE_SPECS.length);
     expect(parent.querySelector('.shop-note')?.textContent).toMatch(/src\/assets\/records/);
   });
   it('a crate chip and the C key filter the bins', () => {
     const { shop, parent } = make(); shop.open();
-    const chip = [...parent.querySelectorAll<HTMLButtonElement>('.shop-chip')].find((b) => b.textContent === '78s: Gospel')!; chip.click();
-    expect(parent.querySelectorAll('.shop-card').length).toBe(ARCHIVE_SPECS.filter((s) => s.genre === 'gospel').length);
-    shop.cycleCrate(); // gospel -> islands
-    expect(shop.crateFilter).toBe('islands');
+    const chip = [...parent.querySelectorAll<HTMLButtonElement>('.shop-chip')].find((b) => b.textContent === 'Pre-war dance floor')!; chip.click();
+    expect(parent.querySelectorAll('.shop-card').length).toBe(ARCHIVE_SPECS.filter((s) => s.genre === 'prewar').length);
+    shop.cycleCrate(); // prewar -> listening post
+    expect(shop.crateFilter).toBe('post');
   });
   it('buys an archive record, previews it by fetching the clip, and sells it back', async () => {
     const { shop, inventory, events, fetched, preview } = make(); shop.open();
-    const def = ARCHIVE_RECORDS[0];
+    const def = ARCHIVE_RECORDS[0]; const second = ARCHIVE_RECORDS[1];
     expect(shop.buy(def.id)).toBe('ok');
     expect(inventory.hasRecord(def.id)).toBe(true); expect(events[0][0]).toBe('shop:bought');
     expect(await shop.preview(ARCHIVE_RECORDS[1].id)).toBe(true);
-    expect(fetched[0]).toMatch(/records\/ia-drag\.mp3$/); expect(preview.play).toHaveBeenCalled();
+    expect(fetched[0]).toMatch(new RegExp(`records/${second.ref}\\.mp3$`)); expect(preview.play).toHaveBeenCalled();
     expect(shop.sell(def.id)).toBe(Math.floor(def.price / 2));
   });
   it('the liner note opens with the true credits and the licence, and Esc closes the note first', () => {
     const { shop, parent } = make(); shop.open();
-    const idx = 12 + 1; // second archive record
+    const idx = PROCEDURAL_RECORDS.length + 1; // second archive record
     (parent.querySelectorAll('.shop-card')[idx].querySelector('.shop-btn') as HTMLButtonElement).click();
     expect(shop.linerOpen).toBe(true);
     const text = parent.querySelector('.liner')!.textContent!;
-    expect(text).toContain('Joseph Moskowitz'); expect(text).toContain('Panama-Pacific Drag'); expect(text).toContain('PD-US'); expect(text).toContain('archive.org');
+    const l = ARCHIVE_SPECS[1].liner;
+    expect(text).toContain(l.performer); expect(text).toContain(l.title); expect(text).toContain(l.licence); expect(text).toContain('archive.org'); expect(text).toContain('Credit:');
     expect(parent.querySelector('.liner a')?.getAttribute('rel')).toContain('noopener');
     shop.navigate('back');
     expect(shop.linerOpen).toBe(false); expect(shop.isOpen).toBe(true);

@@ -24,7 +24,7 @@ export const PD_LAST_YEAR = 1925;
 
 export type SleeveStyle = 'paper' | 'blocks' | 'sticker' | 'twelve' | 'promo' | 'picture' | 'minimal';
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'grail';
-export type Crate = 'prewar' | 'house' | 'techno' | 'breaks' | 'electro' | 'disco';
+export type Crate = 'prewar' | 'house' | 'breaks' | 'electro' | 'disco';
 
 /** The truth behind a sleeve. Shown in the liner note and in docs/CREDITS.md. */
 export interface Liner {
@@ -91,7 +91,7 @@ const PREWAR_SPECS: readonly ArchiveSpec[] = ROWS.map((r) => ({
 export const ARCHIVE_SPECS: readonly ArchiveSpec[] = [...DANCE_SPECS, ...PREWAR_SPECS];
 
 export const CRATES: ReadonlyArray<{ id: Crate; label: string }> = [
-  { id: 'house', label: 'House' }, { id: 'techno', label: 'Techno' }, { id: 'breaks', label: 'Breaks' }, { id: 'electro', label: 'Electro' },
+  { id: 'house', label: 'House & tech house' }, { id: 'electro', label: 'Electro & progressive' }, { id: 'breaks', label: 'Breaks' },
   { id: 'disco', label: 'Disco & nu-disco' }, { id: 'prewar', label: 'Pre-war dance floor' },
 ];
 

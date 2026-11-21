@@ -12,6 +12,7 @@ import { pressLibraryTrack, guessGenre, type RecordDef, type RecordSource } from
 import { CRATES, RARITY_LABEL, archiveStock, type Crate, type Rarity } from '@/game/archiveRecords';
 import { linerNote } from './LinerNote';
 import { sleeveElement } from './sleeve';
+import { LISTENING_POST, postEmbedSrc, type PostTrack } from '@/game/listeningPost';
 import { isCloseKey, isConfirmKey, navDirOf, releasePointerLock, setPanelClass, type NavDir } from './panelKeys';
 import './shop.css';
 
@@ -32,6 +33,9 @@ export interface ShopDeps {
   dropRecords?: readonly RecordDef[];
   /** The archive crate: real free recordings under parody sleeves. Default: the hosted build's crate (none in the single-file build). */
   archive?: readonly RecordDef[];
+  /** The listening post (streams through SoundCloud's own player). `tracks` defaults to LISTENING_POST. `onListen(true)` is called when a stream
+   * starts (pause the radio so two SoundCloud players never play at once) and `onListen(false)` when it stops or the shop closes (resume it). */
+  post?: { tracks?: readonly PostTrack[]; onListen?: (on: boolean) => void };
   onToggle?: (open: boolean) => void;
   /** Release the mouse capture (pointer lock) on open so the buttons can be clicked. Needs Menu to ignore the unlock. */
   releasePointerLock?: boolean;
@@ -45,7 +49,7 @@ export const BUY_CONFIRM_MARGIN = 10;
 export type BuyOutcome = 'ok' | 'owned' | 'poor';
 type Tab = 'bins' | 'crate' | 'press';
 const TABS: readonly Tab[] = ['bins', 'crate', 'press'];
-type CrateFilter = 'all' | 'synth' | Crate;
+type CrateFilter = 'all' | 'synth' | 'post' | Crate;
 interface Row { el: HTMLElement; primary?: () => void; secondary?: () => void; def?: RecordDef }
 
 export class ShopUi {
@@ -58,6 +62,7 @@ export class ShopUi {
   private readonly closeBtn: HTMLButtonElement;
   private readonly tabs = new Map<Tab, HTMLButtonElement>();
   private tab: Tab = 'bins';
+  private listening: string | null = null;
   private crate: CrateFilter = 'all';
   /** The record whose liner note is open, if any. */
   private liner: RecordDef | null = null;
@@ -114,9 +119,30 @@ export class ShopUi {
 
   get isOpen(): boolean { return this.opened; }
 
+  private priceRange(): string {
+    const ps = this.sold().map((r) => r.price).filter((n) => n > 0);
+    return ps.length ? `$${Math.min(...ps)} to $${Math.max(...ps)}` : '$12 to $25';
+  }
+  private postTracks(): readonly PostTrack[] { return this.d.post?.tracks ?? LISTENING_POST; }
+  /** Stops a listening-post stream (removes SoundCloud's player) and tells the host so the radio can resume. */
+  private stopPost(): void {
+    if (this.listening === null) return;
+    this.listening = null; this.d.post?.onListen?.(false);
+  }
+  get listeningTo(): string | null { return this.listening; }
+  /** Starts or stops the stream of a listening-post track. */
+  togglePost(id: string): void {
+    const t = this.postTracks().find((x) => x.id === id); if (!t || !postEmbedSrc(t.url)) return;
+    if (this.listening === id) { this.stopPost(); this.say('Listening post stopped.'); this.render(); return; }
+    this.stopPreview();
+    const was = this.listening !== null; this.listening = id;
+    if (!was) this.d.post?.onListen?.(true);
+    this.say('Streaming from SoundCloud. The player shows the real artist and title. Not for the decks.'); this.render();
+  }
+
   open(): void {
     if (this.opened) return;
-    this.opened = true; this.root.hidden = false; this.say(this.archiveList().length ? 'Sleeves $11 to $38. Preview plays 20 seconds. L opens the liner note.' : 'Sleeves are $12 to $25. Preview plays 20 seconds.');
+    this.opened = true; this.root.hidden = false; this.say(this.archiveList().length ? `Sleeves ${this.priceRange()}. Preview plays 20 seconds. L opens the liner note.` : 'Sleeves are $12 to $25. Preview plays 20 seconds.');
     this.armed = null;
     this.sel = this.firstBuyableRow();
     this.render();
@@ -130,7 +156,7 @@ export class ShopUi {
 
   close(): void {
     if (!this.opened) return;
-    this.opened = false; this.liner = null; this.root.hidden = true; this.stopPreview();
+    this.opened = false; this.liner = null; this.root.hidden = true; this.stopPreview(); this.stopPost();
     this.doc.removeEventListener('keydown', this.keyHandler, true);
     this.doc.removeEventListener('keyup', this.keyUpHandler, true);
     setPanelClass(this.doc, 'shop-open', false);
@@ -175,6 +201,7 @@ export class ShopUi {
   /** What the Bins tab lists under the current crate filter. */
   private binList(): RecordDef[] {
     const arc = this.archiveList();
+    if (this.crate === 'post') return [];
     if (this.crate === 'synth') return [...this.d.stock, ...(this.d.dropRecords ?? [])];
     if (this.crate === 'all') return [...this.d.stock, ...arc, ...(this.d.dropRecords ?? [])];
     return arc.filter((r) => r.genre === this.crate);
@@ -188,7 +215,7 @@ export class ShopUi {
 
   /** C key: next crate (All, Synth originals, then the archive crates that exist). */
   cycleCrate(): void {
-    const ids: CrateFilter[] = ['all', 'synth', ...CRATES.filter((c) => this.archiveList().some((r) => r.genre === c.id)).map((c) => c.id)];
+    const ids: CrateFilter[] = ['all', 'synth', ...CRATES.filter((c) => this.archiveList().some((r) => r.genre === c.id)).map((c) => c.id), 'post'];
     this.crate = ids[(ids.indexOf(this.crate) + 1) % ids.length]; this.liner = null; this.sel = 0; this.armed = null; this.render();
   }
   get crateFilter(): string { return this.crate; }
@@ -314,7 +341,7 @@ export class ShopUi {
     }
     if (this.tab === 'bins') {
       this.crateBar();
-      this.note('Your own music: press files from your Radio library (third tab) or drop them in src/assets/records/ before building. Free, and they play on the decks.');
+      if (this.crate === 'post') this.postRows(); else this.note('Your own music: press files from your Radio library (third tab) or drop them in src/assets/records/ (only files you may redistribute: a deployed build bundles them). Free, and they play on the decks.');
       for (const def of this.binList()) {
         const owned = this.d.inventory.hasRecord(def.id);
         const take = (): void => { this.d.inventory.addRecord(def); this.say(`Took "${def.title}".`); };
@@ -354,12 +381,45 @@ export class ShopUi {
 
   private crateBar(): void {
     const arc = this.archiveList();
-    if (arc.length === 0) return;
     const bar = this.crateEl; bar.hidden = false;
-    const chips: Array<[CrateFilter, string]> = [['all', 'All'], ['synth', 'Synth originals'], ...CRATES.filter((c) => arc.some((r) => r.genre === c.id)).map((c): [CrateFilter, string] => [c.id, c.label])];
+    const chips: Array<[CrateFilter, string]> = [['all', 'All'], ['synth', 'Synth originals'], ...CRATES.filter((c) => arc.some((r) => r.genre === c.id)).map((c): [CrateFilter, string] => [c.id, c.label]), ['post', 'Listening post']];
     for (const [id, text] of chips) {
       const b = this.btn(text, 'shop-chip' + (id === this.crate ? ' on' : ''), () => { this.crate = id; this.sel = 0; this.armed = null; this.render(); });
       b.setAttribute('aria-pressed', String(id === this.crate)); bar.appendChild(b);
+    }
+  }
+
+  /** The listening post: parody sleeves around SoundCloud's official player. Stream only, never on the decks. */
+  private postRows(): void {
+    this.note("Listening post: real records, streamed from their own official SoundCloud pages through SoundCloud's player. Nothing is downloaded or kept, and these cannot go on the decks.");
+    const tracks = this.postTracks();
+    if (tracks.length === 0) { this.note("The listening post is empty. Real tracks are added here only when they are on the artist's or label's own verified SoundCloud account and embedding is allowed."); return; }
+    for (const t of tracks) {
+      const src = postEmbedSrc(t.url); if (!src) continue;
+      const def: RecordDef = { id: t.id, title: t.title, artist: t.artist, genre: t.genre, price: 0, bpm: 0, colors: t.colors, kind: 'library', sleeve: t.sleeve, label: t.label, cat: t.cat, year: t.real.year };
+      const on = this.listening === t.id;
+      const c = this.el('div', 'shop-card shop-post');
+      const idx = this.rows.length;
+      this.rows.push({ el: c, primary: () => this.togglePost(t.id), secondary: () => this.togglePost(t.id) });
+      c.addEventListener('pointerdown', () => { this.sel = idx; this.applySel(); });
+      const cover = this.el('div', 'shop-cover'); cover.appendChild(sleeveElement(this.doc, def));
+      const meta = this.el('div', 'shop-meta');
+      const ti = this.el('div', 'shop-rt'); ti.textContent = t.title;
+      const ar = this.el('div', 'shop-ra'); ar.textContent = `${t.artist} · ${t.genre} · stream only`;
+      const tr = this.el('div', 'shop-price'); tr.textContent = `Really: ${t.real.title} by ${t.real.artist}, ${t.real.label}, ${t.real.year}`;
+      const lk = this.el('div', 'shop-ra');
+      const a = this.doc.createElement('a'); a.href = t.url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = t.url.replace(/^https:\/\//, '');
+      lk.append('Official page: ', a);
+      meta.append(ti, ar, tr, lk);
+      const act = this.el('div', 'shop-actions');
+      act.append(this.btn(on ? 'Stop' : 'Listen', 'shop-btn shop-primary', () => this.togglePost(t.id)));
+      c.append(cover, meta, act);
+      if (on) {
+        const f = this.doc.createElement('iframe'); f.className = 'shop-post-player'; f.src = src; f.title = `SoundCloud player: ${t.real.title} by ${t.real.artist}`;
+        f.setAttribute('allow', 'autoplay; encrypted-media'); f.setAttribute('scrolling', 'no'); f.setAttribute('frameborder', 'no'); f.height = '120';
+        c.appendChild(f);
+      }
+      this.body.appendChild(c);
     }
   }
 

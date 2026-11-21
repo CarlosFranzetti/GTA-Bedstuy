@@ -6,28 +6,33 @@ No copyrighted music is bundled. A record is one of four kinds:
 
 | kind | where it comes from | price | tempo |
 |---|---|---|---|
-| `procedural` | 12 original loops synthesised in `src/game/records.ts` (parody titles, e.g. "Stoop Season", "Sloth Anthem") | $12 to $25 | exact |
+| `procedural` | 8 original dance loops synthesised in `src/game/records.ts` (hip-hop instrumental, house, disco, techno, breaks, electro; parody titles, e.g. "Stoop Season", "Sloth Anthem"). Jazz, dub and trap were withdrawn on 21 Nov | $12 to $25 | exact |
 | `library` | "pressed" for free from a file in the player's Radio library (WAX DELI, tab "Press my music") | free | genre default, then measured by an onset estimate when the file is first decoded |
-| `drop` | a file in `src/assets/records/` (see below) | free | genre default, then measured |
-| `archive` | 28 REAL public-domain recordings (US, first published 1925 or earlier) under invented sleeves; hosted build only | $11 to $38 by rarity | measured offline; old tempos that drift are marked "not beat-matched" |
+| `drop` | a file in `src/assets/records/` (see below: it is BUNDLED into a deployed build) | free | genre default, then measured |
+| `archive` | 28 REAL recordings under invented sleeves, hosted build only: 18 openly licensed dance tracks (CC BY / CC BY-SA, 2005 to 2018) and ten public-domain 78s ("Pre-war dance floor", US, first published 1925 or earlier) | $11 to $38 by rarity | measured offline; tracks without a stable pulse are marked "not beat-matched" |
+| listening post | 4 real Kompakt tracks, STREAMED through SoundCloud's own player only (`src/game/listeningPost.ts`); never on the decks | stream only | none |
 
-## The archive crate (RECORDS, 21 Nov 2026)
-Real music, parody sleeves. `src/game/archiveRecords.ts` holds the catalogue: an invented artist, title, label, catalogue number, sleeve style
-and price per record, plus its liner note (true performer, title, year, source, licence and the licence text as the source shows it). Clips are
-`public/records/<id>.mp3` (80 s, mono, 40 kbit/s, about 400 kB), made by `scripts/records/crate.py` from the Internet Archive item named in the
-liner note and loaded only on preview or when put on a deck; `RecordSource` keeps the last three decoded (`ARCHIVE_KEEP`). The single-file build
-has no `public/records/`, so `archiveStock()` is empty there and the 12 synthesised records remain. Sleeves are painted in code (`src/ui/sleeve.ts`:
-`paper` for 78s, `blocks` for dance bands, `sticker` for 12-inch and the synthesised originals). The shop has crate chips (key C), a Liner button
-(key L) on every archive and synthesised record, and the decks show the true credit under the title. Full licence finding and track table:
-`docs/swarm/tasks/RECORDS.md`; every record is listed in `docs/CREDITS.md`. To add a record: add the clip to `CLIPS` in `crate.py`, run it, add
-a row in `archiveRecords.ts`; `tests/unit/game/archive-records.test.ts` checks the licence, the files and the sleeves.
-Not done: a SoundCloud "listening post" (see the task file for why), and a modern CC BY crate (ccMixter and Free Music Archive do not serve files without a login or hotlink protection).
+## The crates (RECORDS 21 Nov 2026, reworked by RECORDS2)
+Real music, parody sleeves. The owner's rule: dance records only, 1980 to 2025 for the openly licensed ones (none from the 1980s or 1990s could be cleared: the crate is 2005 to 2018), plus ten pre-war public-domain dance 78s he asked to keep.
+`src/game/archiveRecords.ts` holds the catalogue type, the ten pre-war rows and the crate list; `src/game/danceRecords.ts` holds the 18 dance rows. Each row: an invented artist, title, label, catalogue number, sleeve style and price, plus a liner note (true performer,
+title, label, year, source, licence, the licence statement as the source shows it, the attribution the licence requires, what was changed, and how the licence was checked). Clips are `public/records/<id>.mp3` (dance: 60 s stereo 56 kbit/s, about 410 kB; pre-war: 80 s mono 40 kbit/s),
+made by `scripts/records/crate.py` and loaded only on preview or when put on a deck; `RecordSource` keeps the last three decoded (`ARCHIVE_KEEP`). The single-file build has no `public/records/`, so `archiveStock()` is empty there and the 8 synthesised records remain.
+Sleeves are painted in code (`src/ui/sleeve.ts`, Anton and Barlow Condensed only): `twelve` (1980s 12-inch), `promo` (1990s white label), `picture` (2000s), `minimal` (2010s), `paper` and `blocks` (78s), `sticker` (the brownstone jacket). The shop has crate chips (key C), a Liner button (key L) and
+the decks show the true credit under the title. Licence evidence for every track and what was left out and why: `docs/swarm/tasks/RECORDS2.md`; every record is in `docs/CREDITS.md`.
+To add a record: add the clip to `DANCE` (or `CLIPS`) in `crate.py` and run it, add a row in `danceRecords.ts`; `tests/unit/game/archive-records.test.ts` checks licences, years, attribution, tempo ranges and the files. A CC BY-SA row's clip is shared under the same licence.
+**Withdrawn records** (18 pre-war 78s and four synthesised loops) are listed in `src/game/recordsWithdrawn.ts`; an old save holding one gets the price paid back in cash.
+
+## The listening post
+A shop crate chip. Each row is a parody sleeve around SoundCloud's official embedded player (`https://w.soundcloud.com/player/`); nothing is downloaded, cached or re-hosted, and these never go on the decks. A track is listed only when its SoundCloud account is the artist's or label's own (verified badge and linked from their own site), the track page allows embedding, and the release is 1980 to 2025 (the checks are written at the top of `listeningPost.ts`). While a stream plays the shop tells the host (`post.onListen`) so the radio is paused, and again when it stops or the shop closes.
+The owner can add his own choices to `LISTENING_POST`; with an empty list the shop says it is empty.
 
 ## Your own files
 - **Radio library files** stay on your device (blob URLs, session only). A pressed record remembers its title and tempo; the audio
   is playable again once the file is re-added in the Radio library (the decks say so if it is missing).
-- **Drop folder** `src/assets/records/`: put your own licensed files there before `npm run build`; they are globbed at build
-  time like the texture packs and become free records. Licensing is on you: the single-file artifact embeds them.
+- **Drop folder** `src/assets/records/`: put your own files there before `npm run build`; they are globbed at build
+  time like the texture packs and become free records. **A file there is BUNDLED into the build, which means it is REDISTRIBUTED to everyone who gets that build.**
+  The licence of a track you bought normally does not allow that. So: put only files you have the right to redistribute (your own music, or CC0, CC BY or CC BY-SA files with the credit
+  added to docs/CREDITS.md), or keep them in a local build that is never deployed or shared. The single-file artifact embeds them; a hosted deploy serves them.
 
 ## Tempo and the beat grid
 Procedural records have exact BPM and start on a downbeat. Files get a default per genre (`GENRE_BPM`) and are measured once with

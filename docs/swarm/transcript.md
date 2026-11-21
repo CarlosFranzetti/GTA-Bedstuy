@@ -3443,3 +3443,6 @@ Camera spring now exact for a moving target (same pose at 30 and 144 fps) and th
 
 ### 2026-11-21T19:24:38Z · Ines Calloway (REALBLOCKS)
 Wrap-up (partial). Era style (eraStyle.ts) on the real map: cornice, arches, bays. Grid era style behind GRID_ERA_STYLE=false (traffic-5min goes red with family/stoop/door/floor changes on). Per-trade shop windows landed in windowShader. Flat shop colours and stoop rail merged: 2 to 3 draws fewer, low el still 228. No photo-derived textures. Notes in docs/swarm/tasks/REALBLOCKS.md.
+
+### 2026-11-21T21:10:47Z · Ines Calloway (RECORDS2)
+WAX DELI is now dance only. 18 openly licensed dance tracks (CC BY and CC BY-SA, 2005 to 2018, none from the 1980s or 90s could be cleared), ten pre-war dance 78s kept, 4 streamed Kompakt tracks in a listening post. One whole netlabel was left out because its own site says non-commercial while the archive says share-alike. Evidence in docs/swarm/tasks/RECORDS2.md.

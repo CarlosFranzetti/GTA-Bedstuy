@@ -71,3 +71,8 @@
 .liner-close { align-self: flex-start; margin-top: 8px; }
 @media (max-width: 520px) { .liner { flex-direction: column; } .liner-sleeve { width: 60%; } .shop-cover { width: 56px; height: 56px; } }
 @media (max-height: 480px) { .shop-cover { width: 48px; height: 48px; } .liner-sleeve { width: min(150px, 30%); } .liner-t { font-size: 18px; } }
+
+/* Listening post: SoundCloud's own player under the sleeve (stream only). */
+.shop-post { flex-wrap: wrap; }
+.shop-post-player { flex: 1 0 100%; width: 100%; height: 120px; margin-top: 8px; border: 0; border-radius: 4px; background: #111; }
+.shop-post a { color: #8ecbff; }

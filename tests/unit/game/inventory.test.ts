@@ -29,12 +29,12 @@ describe('Inventory', () => {
   });
   it('buys a record once, refuses when poor, sells at half', () => {
     const inv = new Inventory(PROCEDURAL_RECORDS, mem());
-    const r = PROCEDURAL_RECORDS[6]; // $20
+    const r = PROCEDURAL_RECORDS[7]; // wax-12, $25
     expect(inv.buy(r)).toBe('ok');
-    expect(inv.cash).toBe(START_CASH - 20);
+    expect(inv.cash).toBe(START_CASH - 25);
     expect(inv.buy(r)).toBe('owned');
-    expect(inv.sell(r.id)).toBe(10);
-    expect(inv.cash).toBe(START_CASH - 10);
+    expect(inv.sell(r.id)).toBe(12);
+    expect(inv.cash).toBe(START_CASH - 25 + 12);
     expect(inv.hasRecord(r.id)).toBe(false);
     expect(inv.sell(r.id)).toBe(-1);
     inv.add(-inv.cash);
@@ -46,7 +46,7 @@ describe('Inventory', () => {
     a.add(33); a.buy(PROCEDURAL_RECORDS[4]); a.giveItem('keycard', 2); a.setFlag('aftersloth.unlocked');
     const b = new Inventory(PROCEDURAL_RECORDS, st);
     expect(b.cash).toBe(a.cash);
-    expect(b.hasRecord('wax-05')).toBe(true);
+    expect(b.hasRecord('wax-08')).toBe(true);
     expect(b.itemCount('keycard')).toBe(2);
     expect(b.hasFlag('aftersloth.unlocked')).toBe(true);
     st.data.set(INVENTORY_KEY, '{nope');

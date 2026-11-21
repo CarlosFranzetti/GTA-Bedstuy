@@ -60,9 +60,8 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
   ANIM2 (skeleton with ankles, neck and wrists; foot planting; blending; idles), then more garment shapes.
 - 21 Nov, later still: remake the pizzerias, delis and other small stores, each under a parody name, EXCEPT the hidden
   record shop (WAX DELI keeps its name). The record shop should stock "real records": parody sleeves, artists and titles,
-  but real music "if you can handle that somehow". Lead's plan: real commercial tracks only as streams through the
-  official SoundCloud player (never bundled, not mixable on the decks); a crate of public-domain and CC-licensed real
-  recordings that can be bundled and mixed, each credited; the owner's own files through `src/assets/records/`.
+  but real music "if you can handle that somehow". Built as: real commercial tracks only as streams through the
+  official SoundCloud player (never bundled, not mixable on the decks); a crate of CC BY / CC BY-SA dance tracks and ten public-domain 78s that can be bundled and mixed, each credited; the owner's own files through `src/assets/records/` (only files he may redistribute).
 - 21 Nov, decided by the owner: people look GRITTY, LIKE GTA IV (natural proportions, muted worn colours, heavy layered
   clothes, weathered faces); clothing MIXED BY AGE (older people in 2000s clothes, younger people in today's); Google
   Street View may be looked at only (rule 2).
@@ -99,17 +98,14 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   Resuming a lane with a very large context is costly; start a fresh one with a good brief instead.
 - A stop hook asks for a commit and push after every turn.
 
-## Records (21 Nov)
+## Records (21 Nov, reworked by RECORDS2)
 
-- OWNER, 21 Nov late: WAX DELI should stock DANCE records only, from 1980 to 2025, under parody sleeves, with a liner note
-  giving the real credits. Copyrighted recordings of that era cannot be bundled or re-hosted. Lawful routes: openly
-  licensed dance tracks (CC0, CC BY, CC BY-SA; checked per track; mostly 2000s onward, very little from the 1980s exists
-  under open licences) as mixable records; real commercial tracks only as streams through the official SoundCloud player,
-  from the artist's or label's own account, never on the decks. Lane RECORDS2 replaces the 1909 to 1925 crate.
-
-- WAX DELI sells 28 real public-domain recordings (Internet Archive, US first published 1925 or earlier) under parody sleeves; the liner note
-  gives the true credit. Clips are in `public/records/` (11 MB, on demand, hosted build only). Licence finding and tracks: `docs/swarm/tasks/RECORDS.md`.
-  1926 recordings become free on 1 Jan 2027: the rule is `PD_LAST_YEAR` in `src/game/archiveRecords.ts`. No SoundCloud listening post, no CC BY crate (see the task file).
+- The owner's ask: WAX DELI's real records are dance records only, 1980 to 2025, under parody sleeves with liner notes giving the real credits; and he kept ten of the public-domain 78s.
+  Now: 18 openly licensed dance tracks (CC BY / CC BY-SA, 2005 to 2018; NONE from the 1980s or 1990s could be cleared), ten pre-war dance 78s ("Pre-war dance floor", US public domain, first published 1925 or earlier),
+  8 synthesised dance loops (jazz, dub, trap withdrawn), and a listening post of 4 Kompakt tracks streamed through SoundCloud's own player (never on the decks; rule 8). Evidence, tiers and what was left out: `docs/swarm/tasks/RECORDS2.md`.
+- A licence field on an Internet Archive item is a lead, not proof: the Monofonicos netlabel's items say BY-SA while its own site says BY-NC-SA, so it was left out. Check the label's own statement.
+- A file in `src/assets/records/` is BUNDLED into a deployed build, i.e. redistributed to everyone: only files you may redistribute, or a local build that is never deployed.
+- Withdrawn records are listed in `src/game/recordsWithdrawn.ts`; old saves get the price paid refunded. `PD_LAST_YEAR` (1925) stays; 1926 recordings become free on 1 Jan 2027.
 
 ## Deploying
 

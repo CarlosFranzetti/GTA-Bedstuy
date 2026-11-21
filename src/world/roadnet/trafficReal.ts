@@ -42,7 +42,20 @@ export function walkableGraph(g: Graph, net: RoadNet, d: Derived): { graph: Grap
     for (const q of ring) { x0 = Math.min(x0, q.x); z0 = Math.min(z0, q.z); x1 = Math.max(x1, q.x); z1 = Math.max(z1, q.z); }
     return { ring, x0, z0, x1, z1 };
   });
-  const inBuilding = (p: Vec2): boolean => rings.some((r) => p.x >= r.x0 && p.x <= r.x1 && p.z >= r.z0 && p.z <= r.z1 && pointInPolygon(p, r.ring));
+  // MAP4: grid over the ring boxes (every sample point scanned every ring: 2 s on the R4 net)
+  const BCELL = 64;
+  const bGrid = new Map<number, number[]>();
+  rings.forEach((r, i) => {
+    for (let x = Math.floor(r.x0 / BCELL); x <= Math.floor(r.x1 / BCELL); x++) for (let z = Math.floor(r.z0 / BCELL); z <= Math.floor(r.z1 / BCELL); z++) {
+      const k = x * 65536 + z;
+      const l = bGrid.get(k);
+      if (l) l.push(i); else bGrid.set(k, [i]);
+    }
+  });
+  const inBuilding = (p: Vec2): boolean => (bGrid.get(Math.floor(p.x / BCELL) * 65536 + Math.floor(p.z / BCELL)) ?? []).some((i) => {
+    const r = rings[i];
+    return p.x >= r.x0 && p.x <= r.x1 && p.z >= r.z0 && p.z <= r.z1 && pointInPolygon(p, r.ring);
+  });
   const isCross = (id: string): boolean => id.startsWith('cw:');
   const good: GraphEdge[] = [];
   for (const e of g.edges) {

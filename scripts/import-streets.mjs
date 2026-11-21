@@ -159,6 +159,23 @@ async function main() {
     }
 
     const { data, report } = build.buildRoadNet(raw.rows, { frame: geom.REAL_FRAME, extent: R4 ? ext.R4_EXTENT : R3 ? ext.R3_EXTENT : ext.R1R2_EXTENT });
+    if (R4) { // keep the block numbers of the R3 network (landmark sites refer to them): old blocks first, in their old order, new ones after
+      const keys = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/world/data/raw/r3-block-keys.json'), 'utf8')).blocks;
+      const tmp = new RoadNet(data);
+      const cen = data.blocks.map((b, i) => { const r = tmp.blockRing(i); let cx = 0, cz = 0; for (const p of r) { cx += p.x; cz += p.z; } return [b.area, cx / r.length, cz / r.length]; });
+      const taken = new Set();
+      const ordered = [];
+      let lost = 0;
+      for (const k of keys) {
+        let best = -1, bd = 1.5;
+        cen.forEach((c, i) => { if (taken.has(i)) return; const d = Math.hypot(c[1] - k[1], c[2] - k[2]); if (d < bd && Math.abs(c[0] - k[0]) <= Math.max(3, 0.01 * k[0])) { bd = d; best = i; } });
+        if (best < 0) { lost++; ordered.push(null); } else { taken.add(best); ordered.push(data.blocks[best]); }
+      }
+      const fill = data.blocks.filter((_, i) => !taken.has(i));
+      // an R3 block with no counterpart (none expected) keeps its number as an empty island so later numbers do not shift
+      data.blocks = [...ordered.map((b) => b ?? { edges: [], area: 0, island: true }), ...fill];
+      console.log(`R3 block numbers kept: ${keys.length - lost} of ${keys.length} matched, ${lost} lost; ${fill.length} new blocks appended`);
+    }
     const json = JSON.stringify(codec.encodeRoadNet(data));
     fs.writeFileSync(OUT, json + '\n');
     const gz = zlib.gzipSync(json, { level: 9 }).length;

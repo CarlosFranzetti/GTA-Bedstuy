@@ -29,10 +29,14 @@ import { buildGarden, buildPark, buildPlayground, buildPool, type BuildCtx } fro
 import { buildHousing } from './buildHousing';
 import { buildSubway } from './buildStreet';
 import { buildArmory, buildChurch, buildDepot, buildFirehouse, buildHospital, buildLibrary, buildSchool, buildStationHouse } from './buildCivic';
+import { buildBrewery, buildMarket, buildTheatre, buildTwinChurch } from './buildCivic2';
+import { buildEatery, buildMuralWalls, buildRowhouses } from './buildStreet2';
 
 /** the builder of a kind of site */
 const BUILDERS: Partial<Record<LandmarkRow['kind'], (c: BuildCtx) => Generator<void>>> = {
-  park: buildPark, pool: buildPool, playground: buildPlayground, garden: buildGarden, housing: buildHousing, church: buildChurch,
+  park: buildPark, pool: buildPool, playground: buildPlayground, garden: buildGarden, housing: buildHousing,
+  church: (c) => (c.row.look.plan === 'twin' ? buildTwinChurch(c) : buildChurch(c)),
+  theatre: buildTheatre, brewery: buildBrewery, market: buildMarket, rowhouses: buildRowhouses, eatery: buildEatery, mural: buildMuralWalls,
   armory: buildArmory, school: buildSchool, hospital: buildHospital, library: buildLibrary, stationhouse: buildStationHouse,
   firehouse: buildFirehouse, depot: buildDepot, subway: buildSubway,
 };

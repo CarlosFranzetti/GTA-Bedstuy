@@ -70,7 +70,7 @@ describe('DjGame scoring', () => {
     expect(good.g.result().score).toBeGreaterThan(bad.g.result().score);
   });
   it('pitching the slower record into the same tempo restores the tempo match', () => {
-    const { g } = setup(8, 1); // 120 vs 122
+    const { g } = setup(5, 1); // 120 vs 122
     g.setPitch(0, 122 / 120 - 1);
     expect(Math.abs(g.deck(0).bpm - g.deck(1).bpm)).toBeLessThan(0.01);
   });

@@ -28,7 +28,7 @@ describe('ShopUi', () => {
     expect(shop.root.hidden).toBe(true);
     shop.open();
     expect(shop.isOpen).toBe(true);
-    expect(parent.querySelectorAll('.shop-card').length).toBe(12);
+    expect(parent.querySelectorAll('.shop-card').length).toBe(8);
     expect(parent.querySelector('.shop-cash')?.textContent).toBe(`$${START_CASH}`);
     shop.close();
     expect(shop.root.hidden).toBe(true);
@@ -36,10 +36,10 @@ describe('ShopUi', () => {
   it('buys with cash, emits shop:bought, refuses when poor or owned', () => {
     const { shop, inventory, events } = make();
     shop.open();
-    expect(shop.buy('wax-07')).toBe('ok');
-    expect(inventory.cash).toBe(START_CASH - 20);
-    expect(events[0]).toEqual(['shop:bought', { recordId: 'wax-07', price: 20, shop: 'wax-deli' }]);
-    expect(shop.buy('wax-07')).toBe('owned');
+    expect(shop.buy('wax-08')).toBe('ok');
+    expect(inventory.cash).toBe(START_CASH - 17);
+    expect(events[0]).toEqual(['shop:bought', { recordId: 'wax-08', price: 17, shop: 'wax-deli' }]);
+    expect(shop.buy('wax-08')).toBe('owned');
     inventory.add(-inventory.cash);
     expect(shop.buy('wax-12')).toBe('poor');
     expect(inventory.hasRecord('wax-12')).toBe(false);
@@ -68,7 +68,7 @@ describe('ShopUi', () => {
   });
   it('previews 20 s on the preview deck', async () => {
     const { shop, preview } = make();
-    expect(await shop.preview('wax-05')).toBe(true);
+    expect(await shop.preview('wax-08')).toBe(true);
     expect(preview.play).toHaveBeenCalledTimes(1);
     shop.stopPreview();
     expect(preview.stop).toHaveBeenCalled();

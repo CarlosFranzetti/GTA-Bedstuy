@@ -57,8 +57,12 @@ const SPECS: Spec[] = [
 ];
 
 /** The 12 procedural originals sold at WAX DELI. */
+/** Sleeve eras for the originals (they are invented, so they are free to wear any era): the rest use the brownstone sticker jacket. */
+const SYNTH_SLEEVE: Record<string, string> = { 'wax-04': 'twelve', 'wax-12': 'twelve', 'wax-08': 'promo', 'wax-09': 'promo' };
+
 export const PROCEDURAL_RECORDS: readonly RecordDef[] = SPECS.map((s) => ({
   id: s.id, title: s.title, artist: s.artist, genre: s.genre, price: s.price, bpm: s.bpm, colors: s.colors, kind: 'procedural' as const,
+  ...(SYNTH_SLEEVE[s.id] ? { sleeve: SYNTH_SLEEVE[s.id], label: 'WAX DELI PRESS', cat: s.id.toUpperCase().replace('-', ' '), year: 2026 } : {}),
 }));
 
 const specById = new Map(SPECS.map((s) => [s.id, s]));

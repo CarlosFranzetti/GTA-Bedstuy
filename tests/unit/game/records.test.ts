@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { PROCEDURAL_RECORDS, dropRecords, estimateBpm, loopSamples, pressLibraryTrack, synthRecord, RecordSource, type BufferContext } from '@/game/records';
 
 describe('procedural records', () => {
-  it('ships 12 originals with exact bpm and unique ids', () => {
-    expect(PROCEDURAL_RECORDS).toHaveLength(12);
-    expect(new Set(PROCEDURAL_RECORDS.map((r) => r.id)).size).toBe(12);
+  it('ships 8 originals with exact bpm and unique ids', () => {
+    expect(PROCEDURAL_RECORDS).toHaveLength(8);
+    expect(new Set(PROCEDURAL_RECORDS.map((r) => r.id)).size).toBe(8);
     for (const r of PROCEDURAL_RECORDS) { expect(r.bpm).toBeGreaterThan(60); expect(r.price).toBeGreaterThan(0); expect(r.kind).toBe('procedural'); }
   });
   it('renders a loop of whole bars at the exact tempo, audible and finite', () => {

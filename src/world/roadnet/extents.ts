@@ -143,6 +143,6 @@ export const R4_RING: Vec2[] = [
 ];
 
 /** the whole real map: R4_RING grown by the margin (R4 contains R3 completely) */
-export const R4_EXTENT = offsetRing(R4_RING, EXTENT_MARGIN, 1.5);
+export const R4_EXTENT = offsetRing(R4_RING, EXTENT_MARGIN); // no bevel: the ring is already chamfered, and a bevel at its one reflex corner (north-east notch) self-intersects
 /** in the R4 ring only: inside R4_EXTENT but outside R3_EXTENT */
 export function inR4Ring(p: Vec2): boolean { return pointInPolygon(p, R4_EXTENT) && !pointInPolygon(p, R3_EXTENT); }

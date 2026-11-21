@@ -95,6 +95,8 @@ export interface RealPropsOptions {
   avoid?: ReadonlyArray<Vec2>;
   /** MAP7: furniture only on edges and junctions inside this polygon (the whole R3 map would be 5,600 meshes and 2.6 M triangles at boot); default: everywhere */
   region?: ReadonlyArray<Vec2>;
+  /** MAP4: as `region`, a predicate on the edge midpoint or junction (the streamed tiles of the outer rings use it); both apply when both are given */
+  regionFn?: (p: Vec2) => boolean;
 }
 
 export interface RealPropsStats {
@@ -269,7 +271,7 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
   const rng = opts.rng;
   const controls = opts.controls ?? nodeControl(net, {});
   const avoid = opts.avoid ?? [];
-  const inRegion = (p: Vec2): boolean => !opts.region || pointInPolygon(p, opts.region);
+  const inRegion = (p: Vec2): boolean => (!opts.region || pointInPolygon(p, opts.region)) && (!opts.regionFn || opts.regionFn(p));
 
   // ---- sidewalk-band test: inside a kerb ring, outside its building line
   const kerbs = new Hash<number>();

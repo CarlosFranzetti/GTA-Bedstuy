@@ -13,8 +13,9 @@
  * the live lot and block data.
  */
 import type { LandmarkRow } from './types';
+import { LANDMARKS2 } from './landmarks2';
 
-export const LANDMARKS: readonly LandmarkRow[] = [
+const LANDMARKS_1: readonly LandmarkRow[] = [
   {
     id: "thistledown-park", name: "Thistledown Park", kind: "park", district: "Thistledown Park, Marcy to Tompkins",
     blurb: "The big neighbourhood park: lawns, a bandshell plaza, courts and a playground.",
@@ -467,6 +468,9 @@ export const LANDMARKS: readonly LandmarkRow[] = [
     ],
   },
 ];
+
+/** the first twenty rows (LANDMARKS lane) followed by the LANDMARKS2 rows */
+export const LANDMARKS: readonly LandmarkRow[] = [...LANDMARKS_1, ...LANDMARKS2];
 
 export const LANDMARK_BY_ID: ReadonlyMap<string, LandmarkRow> = new Map(LANDMARKS.map((l) => [l.id, l]));
 /** every BBL a landmark owns: the generic building on these lots is not built */

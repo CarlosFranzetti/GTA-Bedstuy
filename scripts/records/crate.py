@@ -31,7 +31,6 @@ DANCE = [
  ('dc-anaconda', 'tou269', 'tou269a.mp3', 40, 60),
  ('dc-itchy', 'tou269', 'tou269c.mp3', 40, 60),
  ('dc-plasma', 'tou252', 'tou252a.mp3', 40, 60),
- ('dc-solar', 'tou252', 'tou252b.mp3', 40, 60),
  ('dc-cry', 'tou258', 'tou258a.mp3', 60, 60),
  ('dc-powerline', 'tou227', 'tou227a.mp3', 40, 60),
  ('dc-aerial', 'tou220', 'tou220a.mp3', 60, 60),
@@ -47,13 +46,12 @@ DANCE = [
  ('dc-run4', 'TDCDV003', '03 - Run 4 Da Sun.mp3', 40, 60),
  ('dc-starburstz', 'TDCDV003', '05 - Starburstz.mp3', 40, 60),
  ('dc-discodown', 'TDC043', '03.DiscoDown.mp3', 40, 60),
- ('dc-workout', 'TDC043', '05.WorkoutMachine.mp3', 40, 60),
 ]
 
 def estimate(x, sr, fb=120.0):
     """numpy port of estimateBpm in src/game/records.ts; also returns the pulse strength (best / sum0)."""
-    hop = max(1, int(sr * 0.01)); frames = len(x) // hop
-    if frames < 300: return fb, 0.0
+    hop = max(1, int(sr * 0.00127)); frames = len(x) // hop  # 1.27 ms hop: 0.3 percent tempo steps (the first lane used 10 ms)
+    if frames < 2000: return fb, 0.0
     env = np.sqrt((x[:frames*hop].reshape(frames, hop) ** 2).mean(axis=1))
     onset = np.maximum(0, np.diff(env, prepend=env[0])); onset[0] = 0
     mean = onset.sum() / frames

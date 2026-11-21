@@ -374,6 +374,7 @@ function ensureAudio(): boolean {
   dj = new DjGame(djAudio, events);
   shopUi = new ShopUi(overlay, { releasePointerLock: true, 
     inventory, stock: PROCEDURAL_RECORDS, source: recSource, preview, events, dropRecords: drop.defs,
+    post: { onListen: (on) => (on ? audio.pause('listening-post') : audio.resume('listening-post')) }, // one SoundCloud player at a time
     libraryTracks: () => audio.library.serialize().pool.map((t) => ({ id: t.id, name: t.name, path: t.path })),
   });
   djUi = new DjUi(overlay, { game: dj, inventory, source: recSource, onToggle: (o) => ambient.duck(o), releasePointerLock: true });
