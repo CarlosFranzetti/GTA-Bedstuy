@@ -1,6 +1,6 @@
 # MAP4 task record (R4: the real map grown again)
 
-Status: landed, partly verified (21 Nov 2026, night). Engineer: Ines Okafor (MAP4).
+Status: landed, partly verified (21 Nov 2026, night). Engineer: Ines Okafor (MAP4). Not committed by this lane.
 
 Ask (owner, 21 Nov night): "grow our blocks by 5 in each direction and 2 streets each in between N, E, W, S."
 Reading: the R3 outline pushed out 5 city blocks on the four cardinal sides and 2 streets on the diagonal sides, corners bevelled.
@@ -92,6 +92,65 @@ Not done (needs main.ts or NightLights): the pooled night lights are sized once 
 ## Roads
 
 All roads are still built at boot (one mesh set for the whole net, split into cells). meshRoads.ts used 256 m cells above 150 k road triangles,
-which gave 40 more draws per street view; the R4 net is over the threshold, so big nets now use 1,024 m cells (`BIG_NET_CELL_M`).
+which gave 40 more draws per street view; the R4 net is over the threshold, so big nets now use 1,024 m cells (`BIG_NET_CELL_M`). Road meshes are
+NOT streamed: that is the one thing in the brief left undone (see "What is rough").
 
-(measurements, tests and frames: see below, filled in as they land)
+## Elevated railway speed-up
+
+`elReal.blockedAt` scanned every node polygon and every leg for every column (2.6 s on R3, 4.6 s on R4); now grids: allColumnSpots 2,636 -> 68 ms.
+
+## Costs, before (commit 636100f, the R3 map) and after (this tree)
+
+Hosted build, `?map=real`, headless SwiftShader Chromium 640x360, canvas hidden, `scripts/map4-probe.mjs`. Counts and heap only; the wall times
+are software-rendered and are not reported. Stage times are `rw.stats.ms` (ms, JS on this box, other lanes were running, so +-30 %).
+
+| | R3 low | R4 low | R3 phone | R4 phone |
+|---|---|---|---|---|
+| JS heap after boot (MB) | 1,049 | 1,087 to 1,207 (4 runs) | 339 | 394 |
+| world meshes / triangles | 4,405 / 1.98 M | 3,537 / 2.00 M | 3,762 / 1.40 M | 2,897 / 1.42 M |
+| spawn draw calls (total / scene) | 204 / 159 | 229 to 265 / 184 to 220 | 88 / 83 | 94 / 89 |
+| spawn triangles | 399,751 | 315,000 to 333,000 | 389,633 | 283,293 |
+| net+derive ms | 89 | 140 to 290 | 164 | 113 |
+| sidewalks ms | 890 | 180 to 430 | 1,384 | 174 |
+| roads ms | 239 | 380 to 560 | 313 | 349 |
+| buildings ms | 2,007 | 2,000 to 2,700 | 1,349 | 1,314 |
+| el ms | 2,404 | 100 to 170 | 2,485 | 114 |
+| props ms | 527 | 510 to 990 | 677 | 657 |
+| traffic ms | 2,409 | 2,800 to 3,300 | 2,388 | 2,226 |
+| boot download (bytes, all responses) | 22,776,690 | 22,934,586 (+157,896) | | |
+
+Reading: boot JS time is about the same or lower (the two quadratic scans and the el column scan were fixed), but the heap is 4 to 16 % higher and the road
+draws at the spawn are higher (37 draws for roads against about 9), because the roads, the lane graph and the derived rings are all whole-map.
+Deep in the new ring (low, 640x360, same run): north (Hooper St) 294 calls / 364 k triangles; south (Mac Donough St) 303 / 456 k; east (Woodbine St,
+Ridgewood) 190 / 201 k; west (Classon Ave) 243 / 312 k; south-east diagonal (Weirfield St) 377 / 611 k (a shopfront close-up with a police car:
+over the low budget on that one view, a dense block, not map size); north-east diagonal (Scott Ave) 173 / 109 k. Resident ring furniture
+there: 5 to 6 tiles, 600 to 860 meshes, 190 k to 305 k triangles (most hidden beyond the range). Each spot had 16 to 41 cars within 200 m, 3 to 15 parked.
+
+## Tests
+
+- `npx tsc --noEmit`: clean.
+- `npx vitest run tests/unit/world --maxWorkers=1`: 45 files, 850 passed, 1 skipped. Changed: `roadnet-r123.test.ts` is now `roadnet-r4.test.ts` (reads the
+  r4 files; adds the R4 extent tests; bad-block bounds 5 -> 8 big blocks and "all but one repaired", file size bound 120 -> 200 kB), `derive.test.ts` loads r4.
+  landmarks.test.ts passes only because the 581 R3 block numbers are kept.
+- `npx vitest run tests/unit/sim/realtraffic-5min.test.ts realtraffic-turns.test.ts realtraffic-cops.test.ts --maxWorkers=1 --testTimeout=900000`: 24 of 24 pass.
+  These run on the CORE net (R1+R2), not the grown map, so they say nothing about R3 or R4 streets. `REAL_NET=r4` (new, in realtraffic-run.ts; `REAL_PLAYER="x,z"`
+  moves the player) runs them on the whole R4 net: 16 pass, 8 fail:
+  5 min x 2 seeds: one to three cars cross Broadway x Malcolm X Blvd (986,-200) 5 to 18 s into red (lanes of edges 1558 and 1563), three or four car samples on the kerb and inside a
+  building on Willoughby Ave at (1040,-485) (the Broadway wedge, bad block 470), seed 4242 has 49 moving cars against a limit of 48;
+  turns: 4 connectors deviate more than 6 m (limit 2, which pins the core net);
+  cops: one patrol spawns (needs 2) and the closest cop is 100 m from the player (limit 25) with the player in the middle of the bounds.
+  The 5-minute failures are in the old core area, and MEMORY.md already lists the kinds (a red-light run, cars off road) as known red on the grown map; I did not check
+  that they also fail on the R3 net, and I did not fix them.
+- Single-file build: `npx vite build` index.html 10,805 kB (unchanged), no `RingPropsStreamer`, `lots-index`, `Hooper St` or `furniture-real` strings in it;
+  the import rule (`grep "roadnet/" src`) prints only the known lines.
+
+## What is rough or missing
+
+- Roads, the lane graph, the sidewalk graph and the derived rings are built for the whole net at boot: heap +4 % (low) and +16 % (phone), spawn road draws up.
+  Chunked road building (per 1,024 m cell, as the furniture is) is the next step; the 1,024 m cell split in meshRoads.ts already gives the seams.
+- Night lights of the streamed furniture: NightLights sizes its lamp arrays once; ring-tile lamps are lit posts without a pooled light. Needs `NightLights` to take a lamp list that grows
+  (`RingPropsStreamer.lamps` is the live list) and one line in main.ts.
+- 27 bad blocks (7 big) have no buildings, see above; only 5 of the 27 are new blocks (670, 686, 698, 726, 865); the rest were already bad on R3.
+- R4 furniture is procedural like R3's (the street tree census and hydrant files are not used by propsReal.ts at all).
+- Big roads at the edge: highway and ramp edges are drawn, not driven, nothing modelled. Queens (Ridgewood, Glendale) is in the east: its lots are MapPLUTO QN.
+- The R4 sims on the grown net are red in the places above.
