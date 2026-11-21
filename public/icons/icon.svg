@@ -1,9 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b1b4a"/><stop offset="0.6" stop-color="#c4553a"/><stop offset="1" stop-color="#f5a742"/></linearGradient></defs>
-<rect width="512" height="512" fill="url(#g)"/>
-<g transform="translate(256 256) scale(1) translate(-256 -256)">
-<rect x="96" y="250" width="150" height="190" fill="#1a1420"/><rect x="266" y="190" width="150" height="250" fill="#241a2c"/>
-<g fill="#f5c542"><rect x="118" y="278" width="22" height="30"/><rect x="170" y="278" width="22" height="30"/><rect x="118" y="340" width="22" height="30"/><rect x="288" y="226" width="22" height="30"/><rect x="340" y="226" width="22" height="30"/><rect x="340" y="290" width="22" height="30"/></g>
-<path d="M60 440h392v14H60z" fill="#0d0a12"/><path d="M60 418h64v22H60zM80 396h44v22H80z" fill="#3a2a40"/>
-<rect x="244" y="150" width="8" height="290" fill="#0d0a12"/><path d="M248 150q0-34 34-34" stroke="#0d0a12" stroke-width="8" fill="none"/><circle cx="290" cy="124" r="14" fill="#fff2b0"/>
-</g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-labelledby="t d">
+<title id="t">GTA Bed-Stuy</title>
+<desc id="d">App icon: the stoop mark on ink.</desc>
+<rect width="256" height="256" fill="#0a0910"/><g id="mark" transform="translate(25.6 25.6) scale(0.8)"><path id="cornice" fill="#f2c230" d="M28 20h208v18h-10v8H42v-8h-10z"/><path id="facade" fill="#f2c230" fill-rule="evenodd" d="M68 52L224 52L224 236L160 236L160 160L152 160L130 160L130 172L108 172L108 184L86 184L86 196L68 196ZM80 108V82a14 14 0 0 1 28 0V108zM122 108V82a14 14 0 0 1 28 0V108zM164 108V82a14 14 0 0 1 28 0V108zM80 160V134a14 14 0 0 1 28 0V160zM122 160V134a14 14 0 0 1 28 0V160zM164 162V134a22 22 0 0 1 44 0V162zM178 190h30v28h-30z"/><path id="stoop" fill="#ffffff" d="M20 236L20 228L42 228L42 216L64 216L64 204L86 204L86 192L108 192L108 180L130 180L130 168L152 168L152 236Z"/></g>
+</svg>
