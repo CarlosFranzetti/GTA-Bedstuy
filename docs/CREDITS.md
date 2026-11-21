@@ -219,6 +219,24 @@ Each landmark is a real kind of place in the neighbourhood built under an invent
 
 No Google Maps or Street View data or imagery, no OpenStreetMap data, no Wikimedia Commons image and no Mapillary or KartaView image was used for the landmarks. Where a place could not be sourced beyond its footprint, height and building class, the row in `landmarks.ts` says so and the building is a generic one of its kind.
 
+## Landmarks, second set (LANDMARKS2, added 21 Nov night; `src/world/landmarks/landmarks2.ts`)
+
+Fourteen more real places under invented names (13 places, the housing pair counts as one). This set was built looking at open-licence photographs. The photographs were looked at and measured by eye only: nothing was cut, traced or sampled from them, no texture or image from them is in the game or the repository (walls use the shared material library, coloured in code), so nothing in the game is a derivative of them. They are credited here because the look follows them. Written facts (Wikipedia, designation reports) and NYC Open Data (MapPLUTO, Building Footprints) are listed in each row of `landmarks2.ts`.
+
+| Photograph (Wikimedia Commons file page) | Author | Licence | Used for |
+|---|---|---|---|
+| File:Main_entrance_of_St._Barbara%E2%80%99s_Roman_Catholic_Church_in_New_York_City.jpg | Wiktoriapopek | CC BY 4.0 | proportions and colours of the twin-tower church front |
+| File:RKO_BUSHWICK_THEATER_IN_BROOKLYN,_NEW_YORK_CITY..._-_NARA_-_555919.jpg | Danny Lyon, US National Archives (Documerica) | public domain | the round corner tower, marquee and white terracotta of the movie palace |
+| File:Ulmer_Brewery_Bushwick_Av_Belvedere_St_jeh.jpg | Jim Henderson | CC0 | window rhythm, hoods, cornice and colour of the brewery |
+| File:Wyckoff_Heights_Medical_Center.jpg | Jim Henderson | CC BY-SA 3.0 (and GFDL) | podium, glass-block bay, tower, brick colour of the medical centre |
+| File:Brooklyn-9-27-2013_038_-_US_Post_Office_-_Metropolitan_Station,_47_Debevoise_Street.JPG | photographer credited on the file page | CC BY-SA 3.0 | arched windows, belt course and colour of the post office |
+| File:Rugged_Cross_BC_Lafayette_jeh.JPG | Jim Henderson | CC0 | tower, porch and window layout of the Romanesque church |
+| File:13th_Regiment_Armory,_August_2025.jpg | on the file page | CC0 | towers and gate of the armoury |
+| File:RIDGEWOOD-GLENDALE-FRESH_POND_008.JPG | ALT55 - Victor M | CC BY-SA 3.0 | arched windows and dark hoods of the tenement row |
+| File:HylanHousesBushwickBK.JPG | on the file page | public domain (PD-self) | brick colour and proportions of the towers (looked at) |
+
+The mural walls carry ORIGINAL artwork painted in code from flat-coloured shapes (a sunrise, a bird, a skyline, waves): no real person, no copied mural. No Google Maps or Street View, news, listing or Flickr image was looked at or saved.
+
 ## People base mesh (HUMAN)
 
 | Asset | Source | Licence | Where |
