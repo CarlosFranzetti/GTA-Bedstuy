@@ -21,3 +21,13 @@
 - Triangles unchanged by design except locs/braids (about 380 each at the allowance). Hi max about 4,300 per person in the line-ups.
 - Phone memory: no new maps, no texture size changes. Single-file build 10.3 MB after (before not measured; change is code only).
 - Tests: tests/unit/entities 808 passed; tests/unit/textures passed; tsc clean under src.
+
+# PEOPLE8: geometry repair (21 Nov 2026)
+Frames: scratchpad/people8/before and after. Fixed and seen: 1 hem, 2 cuffs, 3 shoulder pads, 4 crotch, 5 orange bib, 7 hairline (braids). Not fixed: 6 neck and cheek patches, 8 small child.
+1. Hem box. Cause: pedCuts.outerRadii dilated the outline by a neighbour each way and blurred it, which on a wide shallow hip turned the ring into a circle 6 to 8 cm off the body. Now a circumscribed polygon over 4x finer rays plus vertices. Three styles (HemStyle): roll (jacket, cardigan, uniform: thin edge), rib (hoodie, tracksuit, bomber: 5 cm band), baffle (puffer: rounded pillow). All follow the body 3 to 12 mm off.
+2. Cuffs: cuffRows rewritten (CuffStyle rib 3 mm proud 4 cm, flat 2 mm 3 cm, hem for short sleeves), 10 rays hi, 6 mid.
+3. Shoulders: the square patch was the painted uniform epaulette (pedPaintCloth.ts). Removed.
+4. Crotch: pelvis vertices with 0.12 to 0.49 leg weight were left hanging (the cut took only 0.5 and above); they are now pulled into the tube, and the inner edges of the tubes grow to meet at the seat (pedLegs.ts rowOf).
+5. The orange bib and strip is the scarf accessory (pedGear.ts scarf, chosen by id hash), not a collar: a flat cone plus a 22 cm tail. Now a 5 cm rounded wrap clamped to the neck with a 12 cm tail. Collars were never the cause.
+7. Hairline: the skin teeth on the braids person were the cornrow ridge ends thinning to zero (pedHairPieces.cornrows). Ends keep 40 percent and a 2.5 mm floor, edges smoothed across columns. rimFn blur widened to five taps (it helps a little; kept).
+Still wrong: the hem of some jackets (navy suit, cardigan) still sits wider than the waist above because the body is hip-wide there; ragged face tile edge on the cheek and jaw (skin atlas, face island) and neck colour step; hoodie pocket bottom is rough; the small bald child not identified (kid body type is h 0.78, head 1.22 by design). Tests: entities and textures pass except car tests from the vehicles lane (carbodies, carlook) and tsc errors in car*.ts from the same lane.

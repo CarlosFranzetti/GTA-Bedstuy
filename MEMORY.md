@@ -40,6 +40,11 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
   plain-English conversational transcript (`docs/swarm/transcripts/`); "I want to decide the direction of the models and
   clothing" (ask him, with pictures, before any lane sets a style); original buildings, landmarks and stores under parody
   and invented names, with textures from open street-level images.
+- 21 Nov, later still: remake the pizzerias, delis and other small stores, each under a parody name, EXCEPT the hidden
+  record shop (WAX DELI keeps its name). The record shop should stock "real records": parody sleeves, artists and titles,
+  but real music "if you can handle that somehow". Lead's plan: real commercial tracks only as streams through the
+  official SoundCloud player (never bundled, not mixable on the decks); a crate of public-domain and CC-licensed real
+  recordings that can be bundled and mixed, each credited; the owner's own files through `src/assets/records/`.
 - 21 Nov, decided by the owner: people look GRITTY, LIKE GTA IV (natural proportions, muted worn colours, heavy layered
   clothes, weathered faces); clothing MIXED BY AGE (older people in 2000s clothes, younger people in today's); Google
   Street View may be looked at only (rule 2).
