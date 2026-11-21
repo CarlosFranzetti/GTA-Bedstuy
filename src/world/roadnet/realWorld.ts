@@ -324,7 +324,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
     try {
       if (opts.forceStandIns) throw new Error('forced');
       const { RealPlaces, applyRealDoors } = await import('./placesReal');
-      const table = (await import('@/world/data/places-real-r123.json')).default as unknown as PlacesTable;
+      const table = (await import('@/world/data/places-real-r4.json')).default as unknown as PlacesTable;
       const { loadBedstuyData } = await import('@/world/Grid');
       const pl = new RealPlaces({ net, derived, faces, lots: lots as RealLot[], table, pois: loadBedstuyData().pois });
       const withPois = pl.lotsWithPois();
@@ -386,7 +386,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
     if (opts.forceStandIns) throw new Error('forced');
     const { buildRealProps } = await import('./propsReal');
     const { nodeControl } = await import('./signalPhases');
-    const controlsJson = (await import('@/world/data/roadnet-controls-r123.json')).default as unknown;
+    const controlsJson = (await import('@/world/data/roadnet-controls-r4.json')).default as unknown;
     props = buildRealProps({ net, derived, sidewalks, materials: mats, rng: rng.fork('props'), layout: chunks, tier, controls: nodeControl(net, controlsJson), avoid: elSpots.map((s) => s.p), region: offsetRing(R1R2_EXTENT, PROPS_REACH, 1.5) });
     group.add(props.group);
     colliders.push(...props.colliders);
@@ -398,7 +398,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   let traffic: RealTraffic | null = null;
   t0 = performance.now();
   try {
-    if (!opts.forceStandIns) traffic = (await import('./trafficReal')).makeRealTraffic(net, derived, sidewalks, (await import('@/world/data/roadnet-controls-r123.json')).default as unknown);
+    if (!opts.forceStandIns) traffic = (await import('./trafficReal')).makeRealTraffic(net, derived, sidewalks, (await import('@/world/data/roadnet-controls-r4.json')).default as unknown);
   } catch (e) { standIns.push(`traffic: ${(e as Error).message}`); traffic = null; }
   t('traffic', t0);
   let signalHeads: ((g: THREE.Object3D, l: RealTraffic['lights']) => void) | null = null;

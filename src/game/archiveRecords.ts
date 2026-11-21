@@ -1,31 +1,30 @@
 /**
- * The archive crate at WAX DELI: real recordings, parody sleeves.
+ * The WAX DELI crates of REAL recordings under parody sleeves: ten public-domain "Pre-war dance floor" 78s (this file) and the open-licence
+ * dance crate, 2005 to 2018 (src/game/danceRecords.ts).
  *
- * Every record here is a REAL recording that is free to use, shown under an INVENTED artist, title, label and catalogue number
- * with a sleeve painted in code (src/ui/sleeve.ts). The truth (real performer, title, year, source, licence) is one tap away in the
- * liner note (src/ui/LinerNote.ts) and is listed in docs/CREDITS.md. Nothing here is a real artist's name: invented names were
- * searched on MusicBrainz (docs/swarm/tasks/RECORDS.md).
+ * Every record is a REAL recording that is free to use, shown under an INVENTED artist, title, label and catalogue number with a sleeve painted
+ * in code (src/ui/sleeve.ts). The truth (real performer, title, year, source, licence, attribution) is one tap away in the liner note
+ * (src/ui/LinerNote.ts) and is listed in docs/CREDITS.md. Invented names were searched on MusicBrainz (docs/swarm/tasks/RECORDS2.md).
  *
- * Audio is NOT in the code bundle. Each record is a clip (80 s, mono, 22 kHz, 40 kbit/s MP3, about 400 kB) in `public/records/<id>.mp3`,
- * made by `scripts/records/crate.py` from the Internet Archive item named in `source`, fetched only when a record is previewed or
- * loaded on a deck, and decoded one at a time. The single-file build has no `public/records/`, so the crate is hosted-only
- * (`archiveStock()` returns [] there) and the synthesised records remain.
+ * Audio is NOT in the code bundle. Each record is a clip in `public/records/<id>.mp3`, made by `scripts/records/crate.py`, fetched only when a
+ * record is previewed or loaded on a deck, and decoded one at a time. The single-file build has no `public/records/`, so the crates are
+ * hosted-only (`archiveStock()` returns [] there) and the synthesised records remain.
  *
- * Legal basis (checked 21 Nov 2026 against 17 U.S.C. 1401(a)(2): see docs/swarm/tasks/RECORDS.md): a sound recording first
- * published in 1925 or earlier is out of federal protection in the United States from 1 Jan 2026, and so are the compositions.
- * The licence code for such a record is `PD-US`. Allowed licences for any future record: see ALLOWED_LICENCES.
+ * Legal basis. PREWAR: a sound recording first published in 1925 or earlier is out of federal protection in the United States from 1 Jan 2026
+ * (17 U.S.C. 1401(a)(2); docs/swarm/tasks/RECORDS.md), and so are the compositions; licence code `PD-US`. DANCE: CC BY or CC BY-SA, see ALLOWED_LICENCES.
  */
 import type { RecordDef } from './records';
+import { DANCE_SPECS } from './danceRecords';
 
-export type Licence = 'PD-US' | 'CC0-1.0' | 'CC-BY-4.0' | 'CC-BY-3.0' | 'CC-BY-SA-4.0' | 'CC-BY-SA-3.0';
+export type Licence = 'PD-US' | 'CC0-1.0' | 'CC-BY-2.0' | 'CC-BY-2.5' | 'CC-BY-3.0' | 'CC-BY-4.0' | 'CC-BY-SA-2.0' | 'CC-BY-SA-2.5' | 'CC-BY-SA-3.0' | 'CC-BY-SA-4.0';
 /** No NC (the owner's rule) and no ND (a deck edits the audio). */
-export const ALLOWED_LICENCES: readonly Licence[] = ['PD-US', 'CC0-1.0', 'CC-BY-4.0', 'CC-BY-3.0', 'CC-BY-SA-4.0', 'CC-BY-SA-3.0'];
+export const ALLOWED_LICENCES: readonly Licence[] = ['PD-US', 'CC0-1.0', 'CC-BY-2.0', 'CC-BY-2.5', 'CC-BY-3.0', 'CC-BY-4.0', 'CC-BY-SA-2.0', 'CC-BY-SA-2.5', 'CC-BY-SA-3.0', 'CC-BY-SA-4.0'];
 /** The last first-publication year that is public domain in the US on 1 Jan 2026 (17 U.S.C. 1401(a)(2), 1923-1946 band: year + 100). */
 export const PD_LAST_YEAR = 1925;
 
-export type SleeveStyle = 'paper' | 'blocks' | 'sticker';
+export type SleeveStyle = 'paper' | 'blocks' | 'sticker' | 'twelve' | 'promo' | 'picture' | 'minimal';
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'grail';
-export type Crate = 'ragtime' | 'jazz' | 'blues' | 'gospel' | 'islands';
+export type Crate = 'prewar' | 'house' | 'techno' | 'breaks' | 'electro' | 'disco';
 
 /** The truth behind a sleeve. Shown in the liner note and in docs/CREDITS.md. */
 export interface Liner {
@@ -39,6 +38,12 @@ export interface Liner {
   licence: Licence;
   /** The licence statement exactly as the source shows it (or that it shows none). */
   licenceText: string;
+  /** Dance crate: the attribution line the licence requires (CC BY / BY-SA). */
+  attribution?: string;
+  /** Dance crate: what was changed (clip, fades, re-encode) and the share-alike note. */
+  changes?: string;
+  /** Dance crate: 'A' a second statement agrees with the licence field, 'B' only the field (docs/swarm/tasks/RECORDS2.md). */
+  checked?: 'A' | 'B';
 }
 
 export interface ArchiveSpec {
@@ -74,7 +79,7 @@ const ROWS: Row[] = [
   { id: 'ia-sisterkate', a: 'The Throop Avenue Shiverers', t: 'Shimmy Like My Cousin Kate', l: 'Marcy Disc Co.', c: 'MD 1925', g: 'prewar', r: 'common', p: 11, b: 130.7, bm: true, s: 'blocks', k: ['#ff70a6', '#3d1c3a'], who: 'The Virginians', real: 'I Wish I Could Shimmy Like My Sister Kate', y: 1923, rec: 'Year as given on the Internet Archive item', src: 'Virginians', lic: NONE },
 ];
 
-export const ARCHIVE_SPECS: readonly ArchiveSpec[] = ROWS.map((r) => ({
+const PREWAR_SPECS: readonly ArchiveSpec[] = ROWS.map((r) => ({
   id: r.id, artist: r.a, title: r.t, label: r.l, cat: r.c, genre: r.g, rarity: r.r, price: r.p, bpm: r.b, beatMatched: r.bm, sleeve: r.s, colors: r.k,
   liner: {
     performer: r.who, title: r.real, year: r.y, recorded: r.rec, sourceName: 'Internet Archive', sourceUrl: IA + r.src,
@@ -83,9 +88,11 @@ export const ARCHIVE_SPECS: readonly ArchiveSpec[] = ROWS.map((r) => ({
   },
 }));
 
+export const ARCHIVE_SPECS: readonly ArchiveSpec[] = [...DANCE_SPECS, ...PREWAR_SPECS];
+
 export const CRATES: ReadonlyArray<{ id: Crate; label: string }> = [
-  { id: 'ragtime', label: '78s: Ragtime' }, { id: 'jazz', label: '78s: Jazz & dance' }, { id: 'blues', label: '78s: Blues' },
-  { id: 'gospel', label: '78s: Gospel' }, { id: 'islands', label: '78s: Strings' },
+  { id: 'house', label: 'House' }, { id: 'techno', label: 'Techno' }, { id: 'breaks', label: 'Breaks' }, { id: 'electro', label: 'Electro' },
+  { id: 'disco', label: 'Disco & nu-disco' }, { id: 'prewar', label: 'Pre-war dance floor' },
 ];
 
 export const RARITY_LABEL: Record<Rarity, string> = { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', grail: 'Grail' };

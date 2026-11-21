@@ -82,7 +82,7 @@ const ROWS: Row[] = [
   { id: 'dc-starburstz', a: 'Rosalind Rooftop', t: 'Streetlampz', l: 'Gold Stoop Boogie', c: 'GSB 50', g: 'disco', r: 'common', p: 14, b: 120.3, bm: true, s: 'minimal', k: ['#e5383b', '#161a1d'],
     who: "Disco Romancin'", real: 'Starburstz', label: 'Get Some! Records / The Daft Club (TDCDV003, "Disco Romance")', y: 2011, item: 'TDCDV003', lic: 'CC-BY-SA-3.0', tier: 'B',
     shown: `${T_FIELD('Attribution-ShareAlike 3.0')} Release notes: "All releases are under the Creative Commons License" (no version named). The notes flag sampled elements on other tracks of the release, not on this one.`, start: 40 },
-  { id: 'dc-discodown', a: 'Mirrorball Marcy', t: 'Disco Downstairs', l: 'Gold Stoop Boogie', c: 'GSB 43', g: 'disco', r: 'common', p: 13, b: 0, bm: true, s: 'minimal', k: ['#7209b7', '#10002b'],
+  { id: 'dc-discodown', a: 'Mirrorball Marcy', t: 'Disco Downstairs', l: 'Gold Stoop Boogie', c: 'GSB 43', g: 'disco', r: 'common', p: 13, b: 127.9, bm: true, s: 'minimal', k: ['#7209b7', '#10002b'],
     who: "Disco Romancin'", real: 'Disco Down', label: 'Get Some! Records / The Daft Club (TDC043, "DiscoTech D\'Amour")', y: 2011, item: 'TDC043', lic: 'CC-BY-SA-3.0', tier: 'B',
     shown: `${T_FIELD('Attribution-ShareAlike 3.0')} Release notes: "All releases are under the Creative Commons License" (no version named). The notes flag sampled elements on other tracks of the release, not on this one.`, start: 40 },
 ];
