@@ -161,7 +161,11 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 
 ## State on 21 Nov 2026
 
-- Live: commit `033bb97` (combat follow-ups, title fixes). Everything after it on `master` is unreleased work in progress.
+- Live: commit `6110995` (21 Nov evening): Stoop Light look, GTA-convention keys and pad, weighty movement and camera,
+  27 parody shop trades with per-trade windows, 20 landmarks, 28 public-domain records, people and vehicle upgrades.
+  Verified by the lead on that exact tree (see its commit message). The car camera is the older 4.6 m / 1.7 m rig: the
+  lower 4.1 m / 1.45 m rig hid the road behind the roof. Grid-map era style is off (`GRID_ERA_STYLE`): with it on,
+  tests/unit/sim/traffic-5min gridlocks.
 - Unreleased and not yet verified in the running game: phone memory cut, physics rework, wardrobe and 21 body types,
   weather system, 37 vehicle types, real map grown to about 9.8 km² with traffic, pedestrians and police.
 - Known red: grid-map traffic simulation (gridlock and AI collisions with the new car mix); real-map simulation (cars off

@@ -3440,3 +3440,6 @@ Wrap-up: suites green except entities/pedround5 (PEOPLE9, shoe top 2 mm under th
 
 ### 2026-11-21T18:38:42Z · Wren Calloway (MECHFIX)
 Camera spring now exact for a moving target (same pose at 30 and 144 fps) and the wall pull-in acts on the first frame. A car pushing a person is no longer a knock-down. Getting in skips a refused car for the next one. Notes in docs/swarm/tasks/MECHFIX.md.
+
+### 2026-11-21T19:24:38Z · Ines Calloway (REALBLOCKS)
+Wrap-up (partial). Era style (eraStyle.ts) on the real map: cornice, arches, bays. Grid era style behind GRID_ERA_STYLE=false (traffic-5min goes red with family/stoop/door/floor changes on). Per-trade shop windows landed in windowShader. Flat shop colours and stoop rail merged: 2 to 3 draws fewer, low el still 228. No photo-derived textures. Notes in docs/swarm/tasks/REALBLOCKS.md.

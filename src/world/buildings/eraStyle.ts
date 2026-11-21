@@ -79,18 +79,18 @@ function pick(u: number, table: ReadonlyArray<[MaterialFamily, number]>): Materi
  * Style a residential, mixed or apartment spec from its facts. Never touches vacant lots, churches or institutions, floors that
  * the record gives, the shop of a mixed-use lot, or a family the observed-facade layer decides (the caller merges that after).
  */
-export function applyEraStyle(spec: LotSpec, f: EraFacts, opts: { keepFamily?: boolean; keepStoop?: boolean } = {}): LotSpec {
+export function applyEraStyle(spec: LotSpec, f: EraFacts, opts: { keepFamily?: boolean; keepStoop?: boolean; keepDoor?: boolean; keepFloors?: boolean } = {}): LotSpec {
   if (spec.use !== 'residential' && spec.use !== 'mixed' && spec.use !== 'apartment') return spec;
   const yr = f.yr ?? 0;
   const style = styleOf(f);
   const u = rowKey(f.bbl, yr);
   const out: LotSpec = { ...spec };
   const row = spec.use === 'residential';
-  if (spec.floors > 0) out.floors = reconcileFloors(spec.floors, f);
+  if (spec.floors > 0 && !opts.keepFloors) out.floors = reconcileFloors(spec.floors, f);
   const narrow = spec.widthM <= 5.4;
   const wide = spec.widthM >= 7.4;
 
-  if (!opts.keepFamily && spec.look !== 'newBuild') {
+  if (!opts.keepFamily && spec.look !== 'newBuild' && !(yr === 1931 || !yr)) { // unknown year (PLUTO 1931): keep the lot's own odds
     let fam: MaterialFamily | null = null;
     switch (style) {
       case 'italianate': fam = pick(u, [['brownstone', 0.82], ['limestone', 0.08], ['brick', 0.1]]); break;
@@ -119,7 +119,7 @@ export function applyEraStyle(spec: LotSpec, f: EraFacts, opts: { keepFamily?: b
     if (family === 'brownstone') out.arched = style === 'italianate' || (style === 'romanesque' && u < 0.55) || (style === 'neoGrec' && u < 0.2);
     // paired doors: odd and even tax lots mirror each other, so the doors meet in twos along the row
     const n = lotNumber(f.bbl);
-    if (n >= 0) out.doorLeft = n % 2 === 1;
+    if (n >= 0 && !opts.keepDoor) out.doorLeft = n % 2 === 1;
   }
   if (spec.bays === undefined && (row || spec.use === 'mixed')) out.bays = narrow ? 2 : style === 'italianate' && wide ? 4 : 3;
   return out;

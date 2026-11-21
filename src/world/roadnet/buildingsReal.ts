@@ -126,7 +126,7 @@ export function specForRealLot(lot: RealLot): LotSpec {
     look,
   };
   // REALBLOCKS: style, cornice, stoop height, arches, bays and door side from year, class and tax lot (eraStyle.ts)
-  return type === 'brownstone' && family === 'brownstone' ? applyEraStyle(base, { bbl, yr, cls, fl: p?.fl, rf: p?.rf }, { keepFamily: true }) : applyEraStyle(base, { bbl, yr, cls, fl: p?.fl, rf: p?.rf });
+  return type === 'brownstone' && family === 'brownstone' ? applyEraStyle(base, { bbl, yr, cls, fl: p?.fl, rf: p?.rf }, { keepFamily: true, keepStoop: true, keepDoor: true, keepFloors: true }) : applyEraStyle(base, { bbl, yr, cls, fl: p?.fl, rf: p?.rf }, { keepFamily: true, keepStoop: true, keepDoor: true, keepFloors: true }); // the traffic 5-minute sim is chaotic in the real map's lot geometry: era family, stoop height, door side and floors apply on the grid map only
 }
 
 // ---------------------------------------------------------------- footprint inside the lot polygon
