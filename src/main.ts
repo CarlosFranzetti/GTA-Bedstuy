@@ -76,6 +76,7 @@ import { MissionHud } from '@/ui/MissionHud';
 import { DistanceCuller, InstanceCuller, ChunkCuller, chunkRangeFor } from '@/render/Culling';
 import { CarLod, applyCarShadowFlags } from '@/render/CarLod';
 import { RenderProxies } from '@/render/AoProxy';
+import { installMobileViewportFixes } from '@/render/MobileViewport';
 import { buildCarModel } from '@/entities/models/carModel';
 import { applyClutterState } from '@/world/PropsGen';
 import { Inventory } from '@/game/Inventory';
@@ -863,6 +864,8 @@ const applyResize = (): void => {
 };
 // a lost WebGL context (GPU reset, tab eviction) must not leave a black screen: skip drawing, then rebuild sizes on restore
 const contextGuard = new ContextGuard(renderer.domElement, { onRestored: applyResize });
+// phones: re-apply the size after a rotation, the address bar hiding and a return from the background
+installMobileViewportFixes(applyResize);
 // moving the window between displays changes devicePixelRatio without a resize event
 { let mq: MediaQueryList | null = null; const watchDpr = (): void => { mq?.removeEventListener('change', onDpr); mq = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`); mq.addEventListener('change', onDpr); }; const onDpr = (): void => { applyResize(); watchDpr(); }; if (typeof window.matchMedia === 'function') watchDpr(); }
 // ?debug=gfx: overlay with the renderer string, tier, DPR, active passes and switches to turn each effect off (for bug reports)
