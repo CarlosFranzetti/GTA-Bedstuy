@@ -9,7 +9,7 @@
  * Both are idempotent and cheap to call again after late loads (user texture packs, hosted tier swaps).
  */
 import * as THREE from 'three';
-import { canvasReleased } from '@/textures/texTier';
+import { canvasReleased, releasesCanvases } from '@/textures/texTier';
 
 interface Stash { normalMap: THREE.Texture | null; roughnessMap: THREE.Texture | null; roughness: number; }
 const stash = new WeakMap<THREE.Material, Stash>();
@@ -99,4 +99,17 @@ export function uploadPendingCanvasTextures(renderer: TextureUploader, root: THR
     }
   }
   return n;
+}
+
+// Phone and low tiers: once the game is ready, upload the canvases that still wait for a first view (a handful of times while
+// late textures arrive). Starts itself from the debug hook main.ts already sets, so main.ts needs no line for it.
+if (typeof window !== 'undefined' && typeof document !== 'undefined' && releasesCanvases()) {
+  const w = window as unknown as { __gtaReady?: boolean; __gtaDebug?: { renderer: TextureUploader; scene: THREE.Object3D } };
+  const RUNS_MS = [500, 2500, 6000, 15000, 40000];
+  let started = false;
+  const poll = setInterval(() => {
+    if (started || !w.__gtaReady || !w.__gtaDebug) return;
+    started = true; clearInterval(poll);
+    for (const ms of RUNS_MS) setTimeout(() => { try { if (w.__gtaDebug) uploadPendingCanvasTextures(w.__gtaDebug.renderer, w.__gtaDebug.scene); } catch { /* best effort */ } }, ms);
+  }, 400);
 }

@@ -114,7 +114,10 @@ if ( vLtTone.a > 0.01 ) {
     float ltSillRun = ( 1.0 - smoothstep( 0.0, 1.5, ltBelowSill ) ) * smoothstep( 0.46, 0.8, ltRun ) * smoothstep( 1.4, 3.0, ltY );
     float ltStain = clamp( ltSootTop * ( 0.35 + 0.65 * ltRun ) * ( 0.35 + 0.65 * ltWx ) + ltSillRun * ( 0.25 + 0.5 * ltWx ), 0.0, 1.0 );
     ltCol *= 1.0 - ltStain * 0.34;
-    ltCol = mix( ltCol, ltCol * vec3( 0.9, 0.94, 1.0 ), ltSillRun * 0.4 ); // runs are cool and grey, not just dark
+    // runs are cool and grey, not just dark; on about a third of the lots the streaks under the sills (iron anchors, window units) run rust-brown
+    float ltRustLot = step( 0.64, fract( ltSeed * 5.3 + 0.2 ) );
+    vec3 ltRunTint = mix( vec3( 0.9, 0.94, 1.0 ), vec3( 1.0, 0.74, 0.55 ), ltRustLot * smoothstep( 0.5, 0.78, ltRun ) );
+    ltCol = mix( ltCol, ltCol * ltRunTint, ltSillRun * 0.4 + ltRustLot * ltSillRun * 0.2 );
     ltCol *= 1.0 - ltWx * smoothstep( 3.0, 16.0, ltY ) * 0.12;
     float ltFoot = 1.0 - smoothstep( 0.2, 1.1 + 0.5 * ltNoise( vec2( ltS * 1.7, 3.0 ) + ltSeed * 8.0 ), ltY );
     ltCol *= 1.0 - ltFoot * ltWx * 0.22; // rising damp darkens the first metre
@@ -385,3 +388,102 @@ if ( gLtBump > 0.5 ) {
 
 /** Material keys whose cached materials carry the tone patch. */
 export const LOT_TONE_KEYS: readonly string[] = ['brickRed', 'brickPainted', 'brownstone', 'limestone', 'stoop', 'cornice', 'rollGate', 'metalDark', 'castIronFence'];
+
+
+// ------------------------------------------------------------------------------------------------ facade sheet (SURFACES2)
+
+/**
+ * The same wall shader on ONE shared material (facadeSheet.ts): the wall photos live in a texture array and each vertex carries
+ * `aLayer` (brick, painted brick, brownstone, limestone, stoop, cornice, roof), so a cell of buildings draws its masonry, stoops,
+ * cornices and roofs in one call instead of one per material. The per-material compile flags (LT_STONE, LT_CORNICE) become
+ * per-vertex branches; the photo sample, its repeat, its relief and its roughness come from the array.
+ */
+export interface SheetShaderOpts {
+  /** layer index of the brownstone (carved stone) and cornice classes */
+  stoneLayer: number;
+  corniceLayer: number;
+  layerCount: number;
+  /** normal + roughness array present (not on phone) */
+  relief: boolean;
+  uniforms: { map: THREE.Texture; relief: THREE.Texture | null; rep: THREE.Vector2[]; normalScale: number[]; rough: number[] };
+}
+
+/** FRAG_MAIN with the two `#ifdef LT_*` classes turned into runtime branches (nested USE_* conditionals stay as they are). */
+export function sheetFragMain(): string {
+  const out: string[] = [];
+  const stack: boolean[] = [];
+  for (const ln of FRAG_MAIN.split('\n')) {
+    const t = ln.trim();
+    if (t === '#ifdef LT_STONE') { stack.push(true); out.push('if ( ltIsStone ) {'); continue; }
+    if (t === '#ifdef LT_CORNICE') { stack.push(true); out.push('if ( ltIsCornice ) {'); continue; }
+    if (t.startsWith('#if')) { stack.push(false); out.push(ln); continue; }
+    if (t === '#else') { out.push(stack[stack.length - 1] ? '} else {' : ln); continue; }
+    if (t === '#endif') { out.push(stack.pop() ? '}' : ln); continue; }
+    out.push(ln);
+  }
+  return out.join('\n').replace('textureLod( map, vMapUv, 11.0 ).rgb * diffuse', 'textureLod( tShMap, vec3( shUv, shLayer ), 11.0 ).rgb * diffuse');
+}
+
+export function patchLotToneSheet(m: THREE.MeshStandardMaterial, o: SheetShaderOpts): void {
+  const prev = m.onBeforeCompile;
+  const main = sheetFragMain();
+  m.onBeforeCompile = (shader, renderer) => {
+    prev?.call(m, shader, renderer);
+    shader.uniforms.tDetail = { value: detailAtlasTexture() };
+    shader.uniforms.tSigns = { value: wallSignTexture() };
+    shader.uniforms.tShMap = { value: o.uniforms.map };
+    if (o.relief && o.uniforms.relief) shader.uniforms.tShNR = { value: o.uniforms.relief };
+    shader.uniforms.uShRep = { value: o.uniforms.rep };
+    shader.uniforms.uShNs = { value: o.uniforms.normalScale };
+    shader.uniforms.uShRough = { value: o.uniforms.rough };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>\n${VERT_DECL}\nattribute float aLayer;\nvarying float vShLayer;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+vShLayer = aLayer;
+vLtTone = aTone; vLtStyle = aStyle;
+vLtW = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;
+vLtN = normalize( mat3( modelMatrix ) * objectNormal );`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+${o.relief ? '#define SH_RELIEF\n' : ''}${FRAG_DECL}
+uniform sampler2DArray tShMap;
+${o.relief ? 'uniform sampler2DArray tShNR;\n' : ''}uniform vec2 uShRep[${o.layerCount}];
+uniform float uShNs[${o.layerCount}];
+uniform float uShRough[${o.layerCount}];
+varying float vShLayer;`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+float shLayer = floor( vShLayer + 0.5 );
+vec2 shUv = vMapUv * uShRep[ int( shLayer ) ];
+diffuseColor *= texture( tShMap, vec3( shUv, shLayer ) );
+bool ltIsStone = abs( shLayer - ${o.stoneLayer}.0 ) < 0.5;
+bool ltIsCornice = abs( shLayer - ${o.corniceLayer}.0 ) < 0.5;
+${main}`)
+      .replace('#include <roughnessmap_fragment>', `float roughnessFactor = uShRough[ int( shLayer ) ];
+#ifdef SH_RELIEF
+roughnessFactor *= texture( tShNR, vec3( shUv, shLayer ) ).b;
+#endif
+roughnessFactor = mix( roughnessFactor, 0.3, gLtGloss );`)
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+#if defined( SH_RELIEF ) && defined( USE_NORMALMAP_TANGENTSPACE )
+{
+  vec4 shN = texture( tShNR, vec3( shUv, shLayer ) );
+  vec3 shM = vec3( shN.xy * 2.0 - 1.0, 0.0 );
+  shM.z = sqrt( saturate( 1.0 - dot( shM.xy, shM.xy ) ) );
+  shM.xy *= uShNs[ int( shLayer ) ];
+  normal = normalize( tbn * shM );
+}
+#endif
+normal = normalize( mix( normal, nonPerturbedNormal, gLtFlat ) );
+if ( gLtBump > 0.5 ) {
+  vec2 ltDh = vec2( dFdx( gLtH ), dFdy( gLtH ) );
+  vec3 ltSx = dFdx( - vViewPosition ), ltSy = dFdy( - vViewPosition );
+  vec3 ltR1 = cross( ltSy, normal ), ltR2 = cross( normal, ltSx );
+  float ltDet = dot( ltSx, ltR1 ) * faceDirection;
+  vec3 ltGrad = sign( ltDet ) * ( ltDh.x * ltR1 + ltDh.y * ltR2 );
+  normal = normalize( abs( ltDet ) * normal - ltGrad );
+}`);
+  };
+  const prevKey = m.customProgramCacheKey;
+  m.customProgramCacheKey = () => `${prevKey ? prevKey.call(m) : ''}|lottone3sheet${o.relief ? 'R' : ''}`;
+  m.needsUpdate = true;
+}

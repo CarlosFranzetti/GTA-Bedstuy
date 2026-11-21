@@ -44,7 +44,7 @@ export interface RealGame {
   reapply(): void;
 }
 
-type Needs = Pick<RealWorld, 'net' | 'derived' | 'sidewalks' | 'places' | 'el' | 'lots' | 'homeSpawn'>;
+type Needs = Pick<RealWorld, 'net' | 'derived' | 'sidewalks' | 'places' | 'el' | 'lots' | 'homeSpawn'> & Partial<Pick<RealWorld, 'landmarks'>>;
 
 export function elStations(el: { paths: readonly ElPath[]; stations: readonly ElStationReal[] }): RealGame['stations'] {
   const out: RealGame['stations'] = [];
@@ -80,10 +80,11 @@ export function buildRealGame(rw: Needs): RealGame {
       ...navPlaces(),
       ...placesFromLots(rw.lots),
       ...stations.map((s) => ({ id: `station:${s.id}`, kind: 'station' as const, label: s.name, x: s.x, z: s.z })),
+      ...(rw.landmarks?.mapPlaces ?? []), // landmarks under invented names (src/world/landmarks)
     ],
     home: { x: rw.homeSpawn.x, z: rw.homeSpawn.z, heading: rw.homeSpawn.heading },
     bounds: { minX: b.minX, maxX: b.maxX, minZ: b.minZ, maxZ: b.maxZ },
-    streetName: (p) => rw.net.streetNameAt(p),
+    streetName: (p) => rw.landmarks?.areaAt(p) ?? rw.net.streetNameAt(p), // on or at a landmark the HUD shows its invented name
     release: () => useRealPlaces(null),
     reapply: () => useRealPlaces(places, walker),
   };

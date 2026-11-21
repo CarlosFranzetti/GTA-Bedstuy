@@ -20,6 +20,8 @@ export type Season = 'cold' | 'mild' | 'warm';
 export const LOOKS: readonly Look[] = ['work', 'street', 'smart', 'sport', 'church', 'elder', 'teen', 'service', 'night'];
 const LK: Record<string, Look> = { w: 'work', s: 'street', m: 'smart', p: 'sport', c: 'church', e: 'elder', t: 'teen', u: 'service', n: 'night' };
 type Age = 'kid' | 'teen' | 'adult' | 'old';
+/** true while it rains (setWardrobeWeather): rain gear is likelier, sandals and slides are not worn */
+let WET = false;
 type Top = PedSpec['top'];
 type Bottom = PedSpec['bottom'];
 
@@ -51,6 +53,18 @@ export const COLOURWAYS: Record<string, string[]> = {
   shoeWhite: P('#f4f4f4 #e8e4dc #f0f0ee #d8d4cc'),
   shoeBright: P('#e8e8ec #2a5ab0 #c0392b #e0702a #2d7a4a #8c9098 #14161a #d8b84a'),
   shoeNude: P('#d8b898 #1c1c20 #6a2a3a #c8a080 #2f3442'),
+  // PEOPLE7
+  rain: P('#e8c82a #e0702a #2f3a58 #3a6a8a #1c1c20 #3a7a4a #a83a2a'),
+  rainBoot: P('#e8c82a #2d6a3a #1c1c20 #2f3a58 #a83a2a #3a3f48'),
+  varsity: P('#2a3a6a #7a2030 #1f4a34 #1c1c20 #5a2a6a #c8a04a'),
+  lab: P('#f4f4f2 #e8e6e0 #dbe6ee #e4dcc6'),
+  fleece: P('#3a5a4a #2f3a58 #7a5a3a #8c9098 #c8a04a #a83a2a #1c1c20 #4a6a8a'),
+  leather: P('#1c1c20 #2a1c18 #4a2a1c #3a2a22 #5b3a24'),
+  cord: P('#7a5a3a #4a5a3a #6a3a3a #a89a78 #3a3a48 #8a6a2a'),
+  camp: P('#7a9ab8 #d8b84a #2d7a4a #c8586a #e4dcc6 #3a7a9a #b8532a #6a4a8a'),
+  flannel: P('#b83a2a #2f4a6a #3a5a3a #c88a2a #5a3a2a #3a3f48 #7a2a3a'),
+  tennis: P('#f4f4f2 #2f3a58 #1c1c20 #3a5a4a #c8586a #e4dcc6'),
+  workDark: P('#2f3442 #3a3f48 #4a4a40 #5b4a30 #1c1c20'),
 };
 const hex2 = (v: number): string => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0');
 const rgbOf = (h: string): [number, number, number] => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
@@ -74,6 +88,8 @@ interface G<T> {
   hat?: HatStyle;
   /** a bottom that must go with it, and layers (outer garments over a base top) */
   only?: string;
+  /** PEOPLE7: weight multiplier [in dry weather, in rain] (rain gear, sandals) */
+  wx?: [number, number];
 }
 const top = (k: string, w: 0 | 1 | 2, c: string, p: Partial<Top>, o: Partial<G<Top>> = {}): G<Top> => ({ k, w, c, p, ...o });
 const T0 = { print: 'none', printColor: '#ffffff' } as const;
@@ -94,6 +110,10 @@ export const BASE_TOPS: Record<string, G<Top>> = {
   zipHoodie: top('s2 t2 p2 w1', 1, 'dark', { kind: 'hoodie', sleeves: 'long', zip: true, ...T0 }, { hat: 'hoodDown' }),
   bballJersey: top('p2 t2 s1', 0, 'team', { kind: 'jersey', sleeves: 'none', ...T0 }, { sx: 'm', a: 'atk' }),
   footballShirt: top('p2 t2 s1', 0, 'team', { kind: 'jersey', sleeves: 'short', style: 'football', print: 'stripes', printColor: '#e8e8ec' }, { a: 'atk' }),
+  crewSweat: top('s3 t3 p2 w1 e1', 1, 'tee', { kind: 'tee', sleeves: 'long', fabric: 'fleece', pattern: 'heather', ...T0 }, { a: 'atok' }),
+  campShirt: top('s2 e2 n1 m1', 0, 'camp', { kind: 'blouse', sleeves: 'short', style: 'shirt', pattern: 'stripe', ...T0 }, { sx: 'm', a: 'ato' }),
+  flannel: top('s3 w3 t1', 1, 'flannel', { kind: 'blouse', sleeves: 'long', style: 'workshirt', fabric: 'canvas', pattern: 'plaid', ...T0 }, { tr: 'tee' }),
+  knitPolo: top('m2 e3 c1', 1, 'knit', { kind: 'tee', sleeves: 'short', style: 'polo', fabric: 'knit', ...T0 }, { sx: 'm', a: 'ao' }),
   scrubs: top('u3', 0, 'scrub', { kind: 'scrubs', sleeves: 'short', ...T0 }, { only: 'scrubs' }),
 };
 /** layers: outer garments over a base top (the base shows in the opening, or in the collar) */
@@ -107,12 +127,20 @@ export const LAYERS: Record<string, G<Top>> = {
   bomber: top('s3 t3 n2', 1, 'dark', { kind: 'jacket', sleeves: 'long', open: true, fabric: 'leather', style: 'bomber', ...T0 }),
   bomberNylon: top('s2 t3 p1', 1, 'puffer', { kind: 'jacket', sleeves: 'long', open: true, fabric: 'canvas', style: 'bomber', ...T0 }),
   pufferShort: top('s3 t3 w2 e1 p1', 2, 'puffer', { kind: 'puffer', sleeves: 'long', ...T0 }),
-  pufferLong: top('s2 e2 m1 w1', 2, 'puffer', { kind: 'puffer', sleeves: 'long', long: true, ...T0 }),
+  pufferLong: top('s2 e2 m1 w1', 2, 'puffer', { kind: 'puffer', sleeves: 'long', long: true, ...T0 }, { wx: [1, 1.5] }),
   overcoat: top('m3 e2 c2 n1 w1', 2, 'coat', { kind: 'jacket', sleeves: 'long', long: true, fabric: 'wool', style: 'overcoat', ...T0 }),
-  trench: top('m2 s1 w1 e1', 1, 'coat', { kind: 'jacket', sleeves: 'long', long: true, fabric: 'canvas', style: 'trench', ...T0 }),
-  parka: top('s2 w2 t1 e1', 2, 'puffer', { kind: 'puffer', sleeves: 'long', long: true, style: 'parka', ...T0 }, { hat: 'hood' }),
+  trench: top('m2 s1 w1 e1', 1, 'coat', { kind: 'jacket', sleeves: 'long', long: true, fabric: 'canvas', style: 'trench', ...T0 }, { wx: [1, 2] }),
+  parka: top('s2 w2 t1 e1', 2, 'puffer', { kind: 'puffer', sleeves: 'long', long: true, style: 'parka', ...T0 }, { hat: 'hood', wx: [1, 2] }),
   blazer: top('m3 w1 c2 n2 s1', 1, 'suit', { kind: 'jacket', sleeves: 'long', style: 'blazer', ...T0 }),
   workVest: top('w3 u2', 1, 'work', { kind: 'vest', sleeves: 'long', pattern: 'none', ...T0 }, { tr: 'trackTrim' }),
+  fleece: top('s2 w3 e2 p1', 1, 'fleece', { kind: 'jacket', sleeves: 'long', zip: true, fabric: 'fleece', style: 'track', ...T0 }, { wx: [1, 1] }),
+  windbreaker: top('p3 s2 t2 w1', 1, 'puffer', { kind: 'tracksuit', sleeves: 'long', zip: true, style: 'track', ...T0 }, { tr: 'tee', wx: [1, 2.2] }),
+  varsity: top('t3 s2 p1', 1, 'varsity', { kind: 'jacket', sleeves: 'long', zip: true, fabric: 'wool', style: 'bomber', pattern: 'block', ...T0 }, { tr: 'white', a: 'atk' }),
+  peacoat: top('m3 e2 c2 n2 s1', 2, 'coat', { kind: 'jacket', sleeves: 'long', fabric: 'wool', style: 'blazer', ...T0 }),
+  leatherCoat: top('n3 s1 m1', 2, 'leather', { kind: 'jacket', sleeves: 'long', long: true, fabric: 'leather', style: 'trench', ...T0 }, { sx: 'm', a: 'a' }),
+  workJacket: top('w3 u1 s1', 1, 'work', { kind: 'jacket', sleeves: 'long', zip: true, fabric: 'canvas', style: 'workshirt', ...T0 }, { sx: 'm' }),
+  rainSlicker: top('s1 w2 u2 e1', 1, 'rain', { kind: 'jacket', sleeves: 'long', long: true, fabric: 'canvas', style: 'trench', ...T0 }, { hat: 'hood', wx: [0.12, 7] }),
+  labCoat: top('u2', 0, 'lab', { kind: 'jacket', sleeves: 'long', long: true, fabric: 'canvas', style: 'trench', ...T0 }, { only: 'scrubs' }),
   apron: top('u3 w1', 0, 'work', { kind: 'apron', sleeves: 'short', ...T0 }),
 };
 /** one-piece garments (a dress, a tunic, a boiler suit, a tracksuit set): they fill the top and the bottom slot */
@@ -149,6 +177,15 @@ export const BOTTOMS: Record<string, G<Bottom>> = {
   pencil: bot('m3 w2 c1 n2', 1, 'skirt', { kind: 'skirt', cut: 'pencil' }, { sx: 'f', a: 'ato' }),
   pleated: bot('m1 c2 e2 t2 u1 s1', 1, 'skirt', { kind: 'skirt', cut: 'pleated' }, { sx: 'f' }),
   denimSkirt: bot('s2 t2 n1', 0, 'denim', { kind: 'skirt', cut: 'mini', denim: true }, { sx: 'f', a: 'atk' }),
+  jeansFlare: bot('s2 n2 t1', 1, 'denim', { kind: 'jeans', cut: 'flare' }, { sx: 'f', a: 'at' }),
+  trousersSlim: bot('m3 n2 s1 w1', 1, 'suit', { kind: 'trousers', cut: 'slim' }, { a: 'at' }),
+  cordTrousers: bot('s2 e3 m1 w1', 1, 'cord', { kind: 'trousers', cut: 'straight' }, { a: 'ao' }),
+  workDark: bot('w3 u2', 1, 'workDark', { kind: 'trousers', cut: 'straight' }, { sx: 'm' }),
+  chinoShorts: bot('s3 w1 t2 p1', 0, 'chino', { kind: 'shorts', cut: 'knee' }, { a: 'atk' }),
+  sweatShorts: bot('p2 s2 t2', 0, 'dark', { kind: 'shorts', cut: 'short' }, { a: 'atk' }),
+  tennisSkirt: bot('p2 t3 s1', 0, 'tennis', { kind: 'skirt', cut: 'pleated' }, { sx: 'f', a: 'atk' }),
+  denimMaxi: bot('s2 c1 e1', 1, 'denim', { kind: 'skirt', long: true, cut: 'maxi', denim: true }, { sx: 'f', a: 'at' }),
+  midiSkirt: bot('m2 c3 e2 n1 s1', 1, 'skirt', { kind: 'skirt', cut: 'knee' }, { sx: 'f', a: 'ato' }),
   maxiSkirt: bot('c2 e2 s2 m1', 1, 'skirt', { kind: 'skirt', long: true, cut: 'maxi' }, { sx: 'f', a: 'ato' }),
 };
 
@@ -164,8 +201,13 @@ export const SHOES: Record<string, G<PedSpec['shoes']>> = {
   dressShoe: shoe('m3 c3 n1 w1 e1', 1, 'shoeDark', 'dressShoe', { a: 'ato' }),
   flat: shoe('m2 c2 w2 e3 s1 u2', 1, 'shoeNude', 'flat', { sx: 'f' }),
   heel: shoe('m1 c2 n3', 1, 'shoeNude', 'heel', { sx: 'f', a: 'a' }),
-  sandal: shoe('s2 c1', 0, 'shoeTan', 'sandal', { a: 'ato' }),
-  slide: shoe('s2 t3 p1', 0, 'shoeDark', 'slide', { a: 'atok' }),
+  sandal: shoe('s2 c1', 0, 'shoeTan', 'sandal', { a: 'ato', wx: [1, 0.05] }),
+  rainBoot: shoe('s1 w1 t1 u1', 1, 'rainBoot', 'tallBoot', { a: 'at', wx: [0.06, 9] }),
+  ankleBoot: shoe('s2 n3 m1 t1', 1, 'shoeDark', 'workBoot', { sx: 'f', a: 'at' }),
+  tanBoot: shoe('s3 t2 w2', 2, 'shoeTan', 'workBoot', { sx: 'm', a: 'at' }),
+  flipFlop: shoe('s1 t2', 0, 'shoeBright', 'slide', { a: 'atk', wx: [1, 0.02] }),
+  canvasLow: shoe('s2 t3 p1 u1', 1, 'shoeBright', 'sneakerLow', { a: 'atok' }),
+  slide: shoe('s2 t3 p1', 0, 'shoeDark', 'slide', { a: 'atok', wx: [1, 0.05] }),
 };
 
 // ---------------------------------------------------------------- weights and the compatibility rules
@@ -180,6 +222,7 @@ function gW<T>(g: G<T>, who: Who, extra = 1): number {
   if (!(g.a ?? 'ato').includes(ageCode(who.age))) return 0;
   if (g.sx && who.sex !== 'x' && g.sx !== who.sex) return 0;
   if (g.sx && who.sex === 'x') extra *= 0.3;
+  if (g.wx) extra *= g.wx[WET ? 1 : 0];
   return look(g.k, who.look) * seasonK(g.w, who.season) * extra;
 }
 function wpick<T>(rng: Rng, items: Array<[T, number]>): T | null {
@@ -212,8 +255,11 @@ function layerOk(layerId: string, topId: string, botId: string): number {
   return 1;
 }
 function shoeOk(shoeId: string, botId: string | null, topId: string, sex: 'm' | 'f' | 'x', season: Season, age: Age): number {
+  const ALIAS: Record<string, string> = { rainBoot: 'tallBoot', ankleBoot: 'workBoot', tanBoot: 'workBoot', flipFlop: 'slide', canvasLow: 'sneakerLow' };
+  const shoeKey = shoeId; shoeId = ALIAS[shoeId] ?? shoeId;
   const b = botId ? BOTTOMS[botId] : null, bk = b?.p.kind, cut = b?.p.cut;
   let w = 1;
+  if (shoeKey === 'rainBoot' && (bk === 'skirt' && cut !== 'mini' && cut !== 'pleated' || cut === 'pencil')) w *= 0.5;
   if (['sandal', 'slide'].includes(shoeId)) { if (season === 'cold') return 0; if (bk && !['shorts', 'sweats', 'leggings', 'skirt'].includes(bk) && bk !== 'jeans') return 0.2; if (topId === 'sweater' && season !== 'warm') w *= 0.3; }
   if (shoeId === 'slide' && (bk === 'skirt' && cut !== 'mini' || cut === 'pencil')) return 0;
   if (shoeId === 'tallBoot') { if (bk === 'shorts' || bk === 'cargo' || bk === 'sweats') return 0; if (season === 'warm') w *= 0.2; if (cut === 'baggy' || cut === 'crop') w *= 0.2; }
@@ -303,11 +349,28 @@ function faceFor(rng: Rng, sex: 'm' | 'f' | 'x', age: Age, g: PopGroup, mask: nu
 
 // ---------------------------------------------------------------- composing a person
 
-export interface WardrobeOpts { look?: Look; season?: Season; /** probability of a face mask (a few percent) */ mask?: number; sunday?: boolean }
+export interface WardrobeOpts { look?: Look; /** PEOPLE7: a district's weights over the looks (see DISTRICT_LOOKS), used when no look is given */ bias?: Partial<Record<Look, number>>; season?: Season; /** probability of a face mask (a few percent) */ mask?: number; sunday?: boolean }
 let SEASON: Season = 'mild';
 /** the season hint for every person drawn from now on (the game may set it from its date; the same seed + season is always the same person) */
 export function setWardrobeSeason(s: Season): void { SEASON = s; }
 export function getWardrobeSeason(): Season { return SEASON; }
+/**
+ * PEOPLE7: the weather the people on the street dress for. Pass Weather.kind (src/game/Weather.ts) whenever it changes; while it rains, people spawned from then on
+ * wear slickers, trench coats, parkas with the hood up, rain boots and no sandals. People already on the street keep their clothes. Unknown kinds count as dry.
+ */
+export function setWardrobeWeather(kind: string): void { WET = kind === 'lightRain' || kind === 'heavyRain' || kind === 'thunderstorm'; }
+export function isWardrobeWet(): boolean { return WET; }
+/** a hint for the season from the weather kind and a temperature of the day if the game has one (0 cold .. 1 hot); rain and wind never read as "warm" */
+export function seasonForWeather(kind: string, warmth = 0.5): Season { const s: Season = warmth < 0.3 ? 'cold' : warmth > 0.7 ? 'warm' : 'mild'; return s === 'warm' && (kind === 'heavyRain' || kind === 'thunderstorm' || kind === 'windy') ? 'mild' : s; }
+/** PEOPLE7: how a district tilts the looks, so a block reads as a place (pass as WardrobeOpts.bias; the keys are zone names the world may use) */
+export const DISTRICT_LOOKS: Record<string, Partial<Record<Look, number>>> = {
+  brownstone: { smart: 1.6, elder: 1.4, work: 0.8, night: 0.5, teen: 0.9 },
+  strip: { street: 1.4, teen: 1.5, night: 1.6, service: 1.4, elder: 0.7 },
+  park: { sport: 3, teen: 1.3, elder: 1.2, work: 0.4, smart: 0.5, night: 0.3 },
+  church: { church: 6, smart: 1.8, elder: 1.5, sport: 0.3, night: 0.2 },
+  industrial: { work: 3, service: 1.6, smart: 0.3, night: 0.3, church: 0.2 },
+  transit: { work: 1.6, smart: 1.5, service: 1.8, sport: 0.6 },
+};
 
 const LOOK_BY_AGE: Record<Age, Array<[Look, number]>> = {
   adult: [['street', 30], ['work', 16], ['smart', 12], ['sport', 11], ['night', 6], ['service', 7], ['church', 2]],
@@ -315,8 +378,8 @@ const LOOK_BY_AGE: Record<Age, Array<[Look, number]>> = {
   old: [['elder', 60], ['church', 6], ['street', 18], ['smart', 10], ['work', 2]],
   kid: [['teen', 100]],
 };
-export function pickLook(rng: Rng, age: Age, sunday = false): Look {
-  const pool = LOOK_BY_AGE[age].map(([l, w]) => [l, l === 'church' && sunday ? w * 8 : w] as [Look, number]);
+export function pickLook(rng: Rng, age: Age, sunday = false, bias?: Partial<Record<Look, number>>): Look {
+  const pool = LOOK_BY_AGE[age].map(([l, w]) => [l, (l === 'church' && sunday ? w * 8 : w) * (bias?.[l] ?? 1)] as [Look, number]);
   return wpick(rng, pool) ?? 'street';
 }
 
@@ -334,7 +397,7 @@ export interface Slots { top: string; layer?: string; bottom: string; shoes: str
 export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 'age'>, opts: WardrobeOpts = {}): PedSpec {
   const rng = new Rng(seed);
   const group = (base.group ?? 'wh') as PopGroup, sex = base.sex ?? 'm', age = (base.age ?? 'adult') as Age;
-  const season = opts.season ?? SEASON, lk = opts.look ?? pickLook(rng, age, opts.sunday);
+  const season = opts.season ?? SEASON, lk = opts.look ?? pickLook(rng, age, opts.sunday, opts.bias);
   const who: Who = { age, sex, look: lk, season };
   // the body
   const pool = BODY_POOLS[`${age}-${sex}`] ?? BODY_POOLS['adult-m'];

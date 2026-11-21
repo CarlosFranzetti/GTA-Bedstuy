@@ -158,7 +158,8 @@ const BUILD: Record<HatId, (ctx: Ctx, mb: MeshBuilder) => void> = {
   hijab: (ctx, mb) => hijab(ctx, mb, false),
   hoodUp: (ctx, mb) => hijab(ctx, mb, true),
   hoodDown: (ctx, mb) => {
-    drape(ctx, mb, { yBot: ctx.rig.shoulderL[1] - 0.045, top: () => ctx.lm.chinY - 0.012, rows: rowsOf(ctx, 4, 3), cols: ctx.detail === 'hi' ? 14 : 8, off0: 0.012, off1: 0.018, bulge: (be, s) => 0.034 * back(be) * Math.sin(Math.min(1, s * 1.5) * Math.PI * 0.7) + 0.012 * Math.abs(Math.sin(be)) * sstep(0.2, 1, s), fold: 0.01, W: toTorso(ctx) });
+    // PEOPLE7: a hood lying on the shoulders is a thick rolled cowl at the neck (a roll one third of the way down, fuller at the back where the bag of the hood lies) and a soft hem, not a flat sheet over the shoulder slope
+    drape(ctx, mb, { yBot: ctx.rig.shoulderL[1] - 0.06, top: () => ctx.lm.chinY - 0.006, rows: rowsOf(ctx, 5, 3), cols: ctx.detail === 'hi' ? 16 : 8, off0: 0.016, off1: 0.012, bulge: (be, s) => 0.034 * back(be) * Math.sin(Math.min(1, s * 1.5) * Math.PI * 0.7) + 0.016 * Math.sin(Math.min(1, s * 3) * Math.PI) + 0.008 * Math.abs(Math.sin(be)) * sstep(0.3, 0.8, s), fold: 0.012, W: toTorso(ctx) });
   },
   durag: (ctx, mb) => {
     dome(ctx, mb, { line: [[0, 0.7], [0.9, 0.6], [1.57, 0.5], [2.4, 0.4], [Math.PI, 0.38]], thick: (_be, u) => 0.0055 + 0.003 * sstep(0, 0.5, u), rows: rowsOf(ctx, 4, 3), shade: (u) => 0.9 + 0.1 * u });

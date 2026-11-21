@@ -15,6 +15,8 @@ export const STICK_RADIUS = 56;   // px of travel for full deflection
 export const DEAD_ZONE = 0.12;
 /** Pixels of look drag are multiplied by this before they reach the camera (the same gain the old look area used). */
 export const LOOK_GAIN = 2.2;
+/** Half the outer size of the stick ring in touch.css (112 px + 2 x 3 px border): the ring is centred on the touch point. */
+const RING_HALF = 59;
 /** Share of the pending look turn that is delivered each frame (1 = no smoothing). Everything is delivered within a few frames. */
 export const LOOK_SMOOTH = 0.55;
 
@@ -227,7 +229,7 @@ export class TouchControls {
   }
   private drawStick(): void {
     const o = this.stick.origin, r = this.stick.radius, v = this.stick.vec;
-    this.ring.style.transform = `translate(${o.x - r - 8}px, ${o.y - r - 8}px)`;
+    this.ring.style.transform = `translate(${o.x - RING_HALF}px, ${o.y - RING_HALF}px)`;
     this.knob.style.transform = `translate(${v.x * r}px, ${-v.y * r}px)`;
   }
 

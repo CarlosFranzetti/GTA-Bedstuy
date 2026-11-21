@@ -135,7 +135,7 @@ export class LoadingScreen {
     this.pctEl = el('span', 'ld-pct', row);
     this.chip = el('button', 'ld-sound', row);
     this.chip.type = 'button';
-    this.chip.textContent = 'Click for sound';
+    this.chip.textContent = (() => { try { return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches ? 'Tap for sound' : 'Click for sound'; } catch { return 'Click for sound'; } })();
     const track = el('div', 'ld-track', bottom);
     this.bar = el('div', 'ld-fill', track);
     const disc = el('p', 'ld-disclaimer', bottom);

@@ -73,24 +73,52 @@ export function flatMaterials(lib: object): FlatMat {
   return f;
 }
 
+/** flat colours the far (silhouette) mode paints each material key with */
+const FAR_COLOUR: Record<string, number> = {
+  brickRed: 0x8a4a3c, brickPainted: 0xb4ada0, limestone: 0xcdc5ae, brownstone: 0x6e4c3d, tarRoof: 0x3d3d40, concrete: 0x9b9a95, asphalt: 0x46474b,
+  window: 0x48586a, metalDark: 0x2e2e30, treeLeaves: 0x3f6f35, treeTrunk: 0x4a3a2c, corrugatedSteel: 0x8a9096, rollGate: 0x7a7f84, cornice: 0xb7ab96,
+  stoop: 0x9a8f7e, granite: 0x84837f, bluestone: 0x7d8087, chainlinkFence: 0x888b8e, castIronFence: 0x2a2a2c, tire: 0x1c1c1c, grass: 0x4f7c3a,
+};
+const markers = new Map<string, THREE.Material>();
+function farMarker(key: string): THREE.Material {
+  let m = markers.get(key);
+  if (!m) { m = new THREE.MeshBasicMaterial(); m.userData.farColor = FAR_COLOUR[key] ?? 0x8a8a8a; markers.set(key, m); }
+  return m;
+}
+
 export class Kit {
   readonly colliders: StaticCollider[] = [];
   readonly lib: IMaterialLibrary;
   readonly flatM: THREE.MeshStandardMaterial;
-  readonly grassM: THREE.MeshStandardMaterial;
+  readonly grassM: THREE.Material;
   private raw = new Map<THREE.Material, Raw>();
   private readonly det: number;
   private colliderN = 0;
   triangles = 0;
 
-  constructor(lib: IMaterialLibrary, readonly frame: Frame, readonly id: string) {
+  /**
+   * far mode: every material key maps to a flat colour in ONE vertex-coloured material (one draw per landmark), and the decor
+   * builders (windows, signs, trees, fences, benches) return early: the distant silhouette of the same layout.
+   */
+  constructor(lib: IMaterialLibrary, readonly frame: Frame, readonly id: string, readonly far = false) {
     this.lib = lib;
     const f = flatMaterials(lib);
-    this.flatM = f.flat; this.grassM = f.grass;
+    this.flatM = f.flat; this.grassM = far ? farMarker('grass') : f.grass;
     this.det = frame.fx * frame.nz - frame.fz * frame.nx;
   }
 
-  m(key: MaterialKey, variant = 0): THREE.Material { return this.lib.get(key, variant); }
+  /**
+   * A shared material. Variants are collapsed on purpose (one wall, one roof, one leaf material, two windows): every variant is a
+   * separate draw call, and a landmark gets its colour from the wall tone (tone.ts), not from variants.
+   */
+  m(key: MaterialKey, variant = 0): THREE.Material {
+    if (this.far) return farMarker(key);
+    let v = variant;
+    if (key === 'window') v = variant & 1;
+    else if (key === 'tarRoof') v = 1;
+    else if (key === 'brickRed' || key === 'treeLeaves' || key === 'brownstone' || key === 'metalDark' || key === 'stoop') v = 0;
+    return this.lib.get(key, v);
+  }
 
   /** local -> world (x, z) */
   toWorld(x: number, z: number): Vec2 {
@@ -99,8 +127,9 @@ export class Kit {
   }
 
   private buf(mat: THREE.Material): Raw {
-    let r = this.raw.get(mat);
-    if (!r) { r = { p: [], n: [], uv: [], c: [] }; this.raw.set(mat, r); }
+    const key = this.far ? this.flatM : mat;
+    let r = this.raw.get(key);
+    if (!r) { r = { p: [], n: [], uv: [], c: [] }; this.raw.set(key, r); }
     return r;
   }
 
@@ -122,7 +151,7 @@ export class Kit {
     if (o?.hint && _c.x * o.hint[0] + _c.y * o.hint[1] + _c.z * o.hint[2] < 0) { _c.negate(); [bb, cc] = [c, b]; }
     const n: V3 = [_c.x, _c.y, _c.z];
     const r = this.buf(mat);
-    const col0 = o?.color ?? 0xffffff;
+    const col0 = o?.color ?? (this.far ? ((mat.userData.farColor as number | undefined) ?? 0x8a8a8a) : 0xffffff);
     const uv = o?.uv;
     const pl = (p: V3): [number, number] => {
       // planar projection on the dominant axis of the normal
@@ -149,7 +178,6 @@ export class Kit {
     const t = { hint: o?.hint, color: o?.color };
     this.tri(mat, a, b, c, { ...t, uv: [uvs[0], uvs[1], uvs[2]] });
     this.tri(mat, a, c, d, { ...t, uv: [uvs[0], uvs[2], uvs[3]] });
-    this.triangles -= 0; // two triangles counted by tri()
   }
 
   /** a vertical wall between two floor points, facing `out` (a local direction on the xz plane) */
@@ -323,8 +351,8 @@ export class Kit {
       if (colr) g.setAttribute('color', new THREE.BufferAttribute(colr, 3));
       g.computeBoundingSphere();
       const m = new THREE.Mesh(g, mat);
-      m.name = `lm:${this.id}:${mat.name || 'mat'}`;
-      m.castShadow = mat !== this.grassM && mat !== this.flatM;
+      m.name = `lm:${this.id}:${this.far ? 'far' : mat.name || 'mat'}`;
+      m.castShadow = !this.far && mat !== this.grassM && mat !== this.flatM;
       m.receiveShadow = true;
       out.push(m);
     }

@@ -266,3 +266,17 @@
   .menu-root.gp-in, .gp-pane, .has-pending .gp-act-apply { animation: none; }
   .gp-row, .gp-arrow, .menu-tab, .gp-meter i, .gp-act { transition: none; }
 }
+
+/* phone on its side: the day, time and street lines are what makes the header 110 px tall; with them gone the settings list
+   shows five rows instead of three and a half. The pause button and the cash stay. */
+@media (max-height: 460px) and (pointer: coarse) {
+  .gp-when, .gp-street { display: none; }
+  .menu-title { font-size: 28px; }
+  .gp-player { padding: 2px 10px; }
+  .gp-tabhint { display: none; }
+}
+/* thumb-sized arrows and rows on a touch screen (the 760 px rule above shrinks the arrows to 36 px) */
+@media (pointer: coarse) {
+  .gp-arrow, .menu-root[data-input="touch"] .gp-arrow { width: 44px; min-height: 44px; }
+  .gp-row { min-height: 46px; }
+}

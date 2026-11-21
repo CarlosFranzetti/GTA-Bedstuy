@@ -173,3 +173,12 @@
 .rl-dial-off { margin-left: auto; font-size: 11px; opacity: 0.8; }
 .rl-dial-about { margin: 4px 2px 6px; }
 .rl-dial-about a { color: inherit; text-decoration: underline; }
+
+/* phones: the notice must not sit on the controls (bottom) or the corner buttons: portrait puts it above the button cluster,
+   a phone on its side puts it under the top row, between the minimap chip and the corner buttons */
+@media (pointer: coarse) and (orientation: portrait) {
+  .rl-tapbar { bottom: calc(max(env(safe-area-inset-bottom, 0px), 14px) + 340px); max-width: calc(100vw - 32px); }
+}
+@media (pointer: coarse) and (orientation: landscape) {
+  .rl-tapbar { bottom: auto; top: 74px; left: 46%; max-width: min(340px, calc(100vw - 560px)); font-size: 13px; }
+}

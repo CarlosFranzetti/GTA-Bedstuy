@@ -7,7 +7,7 @@
   --tc-b: max(env(safe-area-inset-bottom, 0px), 14px);
   --tc-l: max(env(safe-area-inset-left, 0px), 14px);
 }
-.tc-zone { position: absolute; top: 0; bottom: 0; pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.tc-zone { position: absolute; top: 0; bottom: 0; z-index: 1; pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
 .tc-zone-left { left: 0; width: 50%; }
 .tc-look { right: 0; width: 50%; }
 
@@ -27,7 +27,7 @@
 .tc-knob { width: 58px; height: 58px; border-radius: 50%; background: rgba(255, 255, 255, 0.78); box-shadow: 0 2px 8px rgba(0,0,0,.45); }
 
 /* buttons: absolute from the bottom-right corner. --x / --y offset, --s size. Labels are at least 12 px. */
-.tc-buttons { position: absolute; inset: 0; pointer-events: none; }
+.tc-buttons { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
 .tc-btn {
   position: absolute; right: calc(var(--tc-r) + var(--x, 0px)); bottom: calc(var(--tc-b) + var(--y, 0px)); width: var(--s, 64px); height: var(--s, 64px);
   border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.55); background: rgba(16, 16, 22, 0.62); color: #fff; padding: 0;
@@ -86,7 +86,7 @@
 }
 
 /* first-run help and the rotate hint: neither takes a touch from the game */
-.tc-tutorial { position: absolute; inset: 0; pointer-events: none; background: rgba(0, 0, 0, 0.38); transition: opacity 280ms ease; z-index: 3; color: #fff; font-family: system-ui, -apple-system, sans-serif; }
+.tc-tutorial { position: absolute; inset: 0; pointer-events: none; z-index: 6; background: rgba(0, 0, 0, 0.38); transition: opacity 280ms ease; color: #fff; font-family: system-ui, -apple-system, sans-serif; }
 .tc-tutorial.out { opacity: 0; }
 .tc-tut-left, .tc-tut-right { position: absolute; top: 28%; display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; max-width: 40%; border-radius: 12px; background: rgba(10, 10, 14, 0.78); border: 2px solid rgba(255, 255, 255, 0.35); }
 .tc-tut-left { left: max(env(safe-area-inset-left, 0px), 16px); }
@@ -100,35 +100,58 @@
 .tc-rotate { position: absolute; left: 50%; transform: translateX(-50%); top: calc(max(env(safe-area-inset-top, 0px), 10px) + 150px); padding: 8px 14px; border-radius: 18px; background: rgba(10, 10, 14, 0.82); border: 1px solid rgba(255, 255, 255, 0.3); color: #fff; font: 600 13px/1.2 system-ui, sans-serif; transition: opacity 300ms ease; pointer-events: none; white-space: nowrap; }
 .tc-rotate.out { opacity: 0; }
 
-/* re-flow the HUD around the controls (portrait): minimap + bars top-left; street / speed / radio stack bottom-left above the stick;
-   help text and subtitles above the button cluster. Nothing sits over the 2x3 button block (right, bottom 26..284). */
-.hud-root.touch canvas.minimap { left: max(16px, env(safe-area-inset-left, 0px)) !important; bottom: auto !important; top: 34px !important; width: 140px !important; height: 140px !important; }
-.hud-root.touch .hud-bars { bottom: auto; top: 180px; width: 140px; }
-.touch .hud-location { left: max(16px, env(safe-area-inset-left, 0px)); right: auto; align-items: flex-start; text-align: left; bottom: 206px; max-width: 150px; }
-.touch .hud-speed { text-align: left; }
-.touch .hud-speed-value { font-size: 44px; }
-.touch .hud-prompt { left: auto; right: max(18px, env(safe-area-inset-right, 0px)); transform: none; bottom: 292px; max-width: calc(100% - 36px); white-space: normal; }
-.hud-root.touch .msn-sub { bottom: 344px; max-width: calc(100% - 32px); }
-.touch .hud-stars { right: calc(max(16px, env(safe-area-inset-right, 0px)) + 52px); top: 46px; }
+/* ---- HUD around the controls. `html` in front lifts the specificity over hud.css / map.css / mission.css / phone.css, which each
+   carry their own phone rules. Portrait first, then short landscape (a phone on its side). Nothing sits on the button cluster
+   (bottom right), the stick's home (bottom left) or the notch / home-bar insets. */
+html .hud-root.touch canvas.minimap { left: max(16px, env(safe-area-inset-left, 0px)) !important; bottom: auto !important; top: calc(max(env(safe-area-inset-top, 0px), 10px) + 24px) !important; width: 140px !important; height: 140px !important; }
+html .hud-root.touch .hud-bars { left: max(16px, env(safe-area-inset-left, 0px)); bottom: auto; top: calc(max(env(safe-area-inset-top, 0px), 10px) + 170px); width: 140px; }
+html .hud-root.touch .hud-bar-lbl { font-size: 12px; width: 34px; }
+html .hud-root.touch .hud-bar-track { height: 7px; }
+html .hud-root.touch .hud-location { left: max(16px, env(safe-area-inset-left, 0px)); right: auto; align-items: flex-start; text-align: left; bottom: 200px; max-width: 170px; }
+html .hud-root.touch .hud-speed { text-align: left; }
+html .hud-root.touch .hud-speed-value { font-size: 44px; }
+html .hud-root.touch .hud-street { font-size: 20px; }
+html .hud-root.touch .hud-area, html .hud-root.touch .hud-radio, html .hud-root.touch .hud-vehicle-class { font-size: 12px; }
+html .hud-root.touch .hud-prompt { left: max(16px, env(safe-area-inset-left, 0px)); right: auto; transform: none; bottom: 150px; max-width: calc(100% - 230px); white-space: normal; }
+html .hud-root.touch .msn-sub { bottom: 330px; left: 16px; right: 16px; max-width: none; font-size: 16px; }
+html .hud-root.touch .hud-stars { right: calc(max(16px, env(safe-area-inset-right, 0px)) + 52px); top: 46px; }
+html .hud-root.touch .msn-col { top: calc(max(env(safe-area-inset-top, 0px), 10px) + 214px); left: 16px; right: 16px; max-width: none; }
+html .hud-root.touch .ph-toast { top: calc(max(env(safe-area-inset-top, 0px), 10px) + 254px); left: 16px; right: 16px; width: auto; }
+html .hud-root.touch .ph-prompt { bottom: 330px; }
+/* radio station popup: under the mission chip, not across the cash and the minimap */
+html .hud-root.touch .hud-station { top: calc(max(env(safe-area-inset-top, 0px), 10px) + 262px); width: calc(100% - 32px); }
+html .hud-root.touch .hud-card { top: 40%; }
 .touch .hud-fps { display: none; }
+/* anything tappable in the HUD stays above the two touch zones (which cover the whole screen) */
+html .hud-root.touch :is(.msn-col, .hud-hands, .ph-button, .map-button, .ph-panel, .menu-pause-btn) { z-index: 5; }
+/* the pause / phone / map buttons are 48 px tall for a thumb */
+html .hud-root.touch .menu-pause-btn { width: 48px; height: 48px; }
+html .hud-root.touch .ph-button.ph-button, html .hud-root.touch .map-button.map-button { width: 48px; height: 48px; }
+/* menu: arrows and rows are thumb sized (menu.css shrinks the arrows to 36 px under 760 px wide) */
+html .menu-root[data-input="touch"] .gp-arrow { width: 44px; height: 44px; }
+html .menu-root[data-input="touch"] .gp-row { min-height: 48px; }
 @media (max-height: 420px) {
-  .tc-stick { width: 120px; height: 120px; }
-  .tc-btn { width: 54px; height: 54px; font-size: 9px; }
-  .tc-buttons { grid-template-columns: 54px 54px; gap: 8px; bottom: max(14px, env(safe-area-inset-bottom, 0px)); }
-  .hud-root.touch canvas.minimap { width: 100px !important; height: 100px !important; }
-  .hud-root.touch .hud-bars { top: 140px; width: 100px; }
-  /* sideways: stars under the cash, pause / phone / map in a row below them, so the button block (right, from y 160) stays clear */
-  .touch .hud-stars { right: max(16px, env(safe-area-inset-right, 0px)); top: 44px; }
-  .hud-root.touch .menu-pause-btn { top: 78px; right: max(16px, env(safe-area-inset-right, 0px)); }
-  .hud-root.touch.hud-root .ph-button { top: 78px; right: calc(max(16px, env(safe-area-inset-right, 0px)) + 52px); }
-  .hud-root.touch.hud-root .map-button { top: 78px; right: calc(max(16px, env(safe-area-inset-right, 0px)) + 108px); }
-  /* street / speed / radio sit right of the stick; prompt next to them; subtitles go to the top so they never meet the stack */
-  .touch .hud-location { left: calc(max(22px, env(safe-area-inset-left, 0px)) + 130px); bottom: 14px; max-width: 200px; }
-  .touch .hud-speed-value { font-size: 38px; }
-  .touch .hud-prompt { left: calc(50% + 70px); right: auto; transform: translateX(-50%); bottom: 14px; max-width: 230px; }
-  .hud-root.touch .msn-sub { bottom: auto; top: 56px; left: calc(50% + 90px); max-width: calc(100% - 480px); font-size: 14px; }
+  html .hud-root.touch canvas.minimap { width: 100px !important; height: 100px !important; top: calc(max(env(safe-area-inset-top, 0px), 8px) + 4px) !important; }
+  html .hud-root.touch .hud-bars { top: calc(max(env(safe-area-inset-top, 0px), 8px) + 110px); width: 100px; }
+  /* sideways: stars under the cash, pause / phone / map in a row below them, the hands widget left of the row */
+  html .hud-root.touch .hud-stars { right: max(16px, env(safe-area-inset-right, 0px)); top: 44px; }
+  html .hud-root.touch .menu-pause-btn { top: 74px; right: max(16px, env(safe-area-inset-right, 0px)); }
+  html .hud-root.touch .ph-button.ph-button { top: 74px; right: calc(max(16px, env(safe-area-inset-right, 0px)) + 56px); }
+  html .hud-root.touch .map-button.map-button { top: 74px; right: calc(max(16px, env(safe-area-inset-right, 0px)) + 112px); }
+  /* street / speed / radio sit right of the stick's home; the prompt is centred left of the cluster */
+  html .hud-root.touch .hud-location { left: calc(max(14px, env(safe-area-inset-left, 0px)) + 150px); bottom: 12px; max-width: 200px; }
+  html .hud-root.touch .hud-speed-value { font-size: 38px; }
+  html .hud-root.touch .hud-prompt { left: 44%; right: auto; transform: translateX(-50%); bottom: 12px; max-width: 200px; }
+  /* subtitles sit above the prompt, between the stick's half and the cluster; the phone text drops under the top row */
+  html .hud-root.touch .msn-sub { bottom: 62px; left: 170px; right: 320px; max-width: none; font-size: 14px; text-align: center; }
+  html .hud-root.touch .msn-col { top: calc(max(env(safe-area-inset-top, 0px), 8px) + 8px); left: calc(max(16px, env(safe-area-inset-left, 0px)) + 112px); right: auto; max-width: calc(100% - 640px); }
+  html .hud-root.touch .ph-toast { top: 74px; left: 300px; right: auto; width: 280px; }
+  html .hud-root.touch .ph-prompt { bottom: 62px; }
+  html .hud-root.touch .hud-toast { max-width: calc(100% - 640px); white-space: normal; text-align: center; }
+  html .hud-root.touch .hud-card { max-width: calc(100% - 640px); }
+  html .hud-root.touch .hud-station { top: calc(max(env(safe-area-inset-top, 0px), 8px) + 4px); left: 50%; width: min(420px, calc(100% - 640px)); }
+  html .hud-root.touch .hud-hands { top: 74px; right: calc(max(16px, env(safe-area-inset-right, 0px)) + 172px); }
 }
-
 
 /* phones: the pause / phone / map buttons own the top-right corner, so the hands widget sits left of the stars */
 .touch .hud-hands { top: 44px; right: calc(max(16px, env(safe-area-inset-right, 0px)) + 150px); }

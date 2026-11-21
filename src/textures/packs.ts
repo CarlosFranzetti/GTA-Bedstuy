@@ -255,5 +255,6 @@ export async function loadTexturePacks(materials: MaterialLibrary, maxAnisotropy
       }
     }
   }
+  materials.finalizeFacadeSheet?.(); // optional: test doubles of the library have no sheet
   return n;
 }

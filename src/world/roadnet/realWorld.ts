@@ -42,6 +42,7 @@ import type { RealProps } from './propsReal';
 import type { RealTraffic } from './trafficReal';
 import type { RealPlaces, PlacesTable } from './placesReal';
 import type { RealLotTiles, LotSource } from './lotStreamReal';
+import type { LandmarkLayer } from '@/world/landmarks/layer';
 import { R1R2_EXTENT, offsetRing } from './extents';
 
 /** street furniture is built for the first two rings plus this margin (m); the seven-block ring has none yet (needs streaming) */
@@ -86,6 +87,8 @@ export interface RealWorld {
   traffic: RealTraffic | null;
   /** the lot tiles (512 m files placed as the player nears them); null when the buildings fell back to boxes */
   lotTiles: RealLotTiles | null;
+  /** landmark sites under invented names, built by distance (src/world/landmarks); null when it fell back */
+  landmarks: LandmarkLayer | null;
   /** the places table over the real lots; null when it fell back */
   places: RealPlaces | null;
   /** player start outside HOME's door (equals spawn / spawnHeading when places fell back) */
@@ -107,6 +110,8 @@ export interface RealWorldOptions {
   warmMs?: number;
   /** where the lot tiles come from (default: fetch public/data/real/); tests pass a reader of the files */
   lotSource?: LotSource;
+  /** override the landmark layer's near / far ranges (renders) */
+  landmarkRanges?: Partial<{ near: number; far: number }>;
   /** force the stand-ins (tests, and to compare against the real pieces) */
   forceStandIns?: boolean;
 }
@@ -298,6 +303,8 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   let homeSpawn = { x: spawn.x, z: spawn.z, heading };
   let streamer: RealBuildingStreamer | null = null;
   let lotTiles: RealLotTiles | null = null;
+  let landmarks: LandmarkLayer | null = null;
+  let ownedLot: (l: Lot) => boolean = () => false;
   const held = new Map<string, StaticCollider>();
   let host: ColliderHost | undefined = opts.colliders;
   const proxyHost: ColliderHost = {
@@ -310,7 +317,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
     // lots come as 512 m tiles (public/data/real/): the tiles over the first two rings are placed now (places, the home door and the
     // missions need them), the rest as the player comes near (RealLotTiles.update in `update`)
     const { RealLotTiles: Tiles, fetchLotSource } = await import('./lotStreamReal');
-    lotTiles = new Tiles({ net, derived, faces, bad, source: opts.lotSource ?? fetchLotSource(), concurrency: 2, onLots: (ls) => { (lots as RealLot[]).push(...ls); streamer?.addLots(ls); } });
+    lotTiles = new Tiles({ net, derived, faces, bad, source: opts.lotSource ?? fetchLotSource(), concurrency: 2, onLots: (ls) => { (lots as RealLot[]).push(...ls); streamer?.addLots(ls.filter((l) => !ownedLot(l))); } });
     await lotTiles.init();
     lots = await lotTiles.loadWhere((b) => boxTouchesPolygon(b, R1R2_EXTENT));
     // places (Gus): the POI lots carry their shop sign; the home door gives the spawn. Soft: without it the lots stay plain.
@@ -328,7 +335,15 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
     } catch (e) { standIns.push(`places: ${(e as Error).message}`); }
     let looks: ((bbl: string) => never) | undefined;
     try { looks = (await import('@/world/data/facadeObserved')).observedLook as never; } catch (e) { standIns.push(`looks: ${(e as Error).message}`); }
-    streamer = new RealBuildingStreamer({ lots: lots as RealLot[], materials: mats, rng: rng.fork('buildings'), layout: chunks, tier, colliders: proxyHost, ranges: opts.streamRanges, looks });
+    // landmarks (src/world/landmarks): the lots a landmark owns get no generic building; the layer builds the landmark by distance
+    try {
+      if (opts.forceStandIns) throw new Error('forced');
+      const lm = await import('@/world/landmarks/layer');
+      landmarks = new lm.LandmarkLayer({ materials: mats, tier, colliders: proxyHost, ranges: opts.landmarkRanges });
+      ownedLot = (l) => lm.OWNED_BBLS.has((l as RealLot).bbl);
+      group.add(landmarks.root);
+    } catch (e) { standIns.push(`landmarks: ${(e as Error).message}`); landmarks = null; ownedLot = () => false; }
+    streamer = new RealBuildingStreamer({ lots: (lots as RealLot[]).filter((l) => !ownedLot(l)), materials: mats, rng: rng.fork('buildings'), layout: chunks, tier, colliders: proxyHost, ranges: opts.streamRanges, looks });
     group.add(streamer.root);
     const end = performance.now() + (opts.warmMs ?? 2500);
     while (performance.now() < end) {
@@ -390,7 +405,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   if (props && traffic) void import('./propsReal').then((m) => { signalHeads = m.updateRealSignals; });
 
   const update: RealWorld['update'] = (dt, px, pz, cam, night) => {
-    streamer?.update(px, pz, cam.y); trains?.update(dt, cam, night);
+    streamer?.update(px, pz, cam.y); trains?.update(dt, cam, night); landmarks?.update(px, pz, cam.y);
     if (lotTiles && streamer) lotTiles.update(px, pz, streamer.ranges.far + Math.max(0, cam.y - 3) * CHUNK_RANGE_PER_M_HEIGHT + 160);
     if (traffic && props && signalHeads) signalHeads(props.group, traffic.lights);
   };
@@ -401,7 +416,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
     const w = window as unknown as { __gtaRealWorld?: () => RealWorld; __gtaRealFrames?: () => Promise<unknown> };
     w.__gtaRealFrames = async () => (await import('./reviewFrames')).reviewFrames(w.__gtaRealWorld!());
   }
-  const rwOut: RealWorld = { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, badBlocks: [...bad].sort((a, b) => a - b), streamer, setColliderHost, update, trains, notice: REAL_NOTICE, standIns, el, props, traffic, lamps: props?.lamps ?? [], furnitureGroup: props?.group ?? furnitureGroup, places, homeSpawn, applyDoors, lotTiles, stats };
+  const rwOut: RealWorld = { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, badBlocks: [...bad].sort((a, b) => a - b), streamer, setColliderHost, update, trains, notice: REAL_NOTICE, standIns, el, props, traffic, lamps: props?.lamps ?? [], furnitureGroup: props?.group ?? furnitureGroup, places, homeSpawn, applyDoors, lotTiles, landmarks, stats };
   if (typeof window !== 'undefined') (window as unknown as { __gtaRealWorld?: () => RealWorld }).__gtaRealWorld = () => rwOut;
   return rwOut;
 }

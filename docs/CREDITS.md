@@ -149,6 +149,20 @@ Brooklyn overview layer (added 21 Nov; `public/data/brooklyn-overview.json`, `sr
 
 The tax-lot rows in `src/world/data/raw/*pluto*.json` carry whatever MapPLUTO publishes for a lot, including an owner-name column. The game does not show it.
 
+## Landmarks under invented names (LANDMARKS, added 21 Nov; `src/world/landmarks/`, `?map=real` only)
+
+Each landmark is a real kind of place in the neighbourhood built under an invented name: the massing, height, materials and function are kept, every name, sign and detail is made up, and everything is generated in code (no photograph, drawing or model is used or traced). Facts about a place came only from the open sources below. The per-place list (what each place really is, where, what was built, which source) is in `docs/swarm/tasks/LANDMARKS.md`; the same URLs sit in each row of `src/world/landmarks/landmarks.ts`. The list of real names that the invented names are checked against lives in the test `tests/unit/world/landmarks-names.test.ts` only.
+
+| Source | What was read | Licence |
+|---|---|---|
+| NYC Parks Properties `enfh-gkve`, NYC Open Data | acreage, kind and bounding streets of parks and playgrounds (fetched 21 Nov 2026, Socrata, no token) | NYC Open Data terms of use (public data) |
+| NYC Facilities Database `ji82-xba5`, NYC Open Data | kind and position of libraries, firehouses, schools, hospitals, gardens, plazas, historic sites; also the list of real names to avoid | NYC Open Data terms of use (public data) |
+| NYC MapPLUTO `64uk-42ks` and NYC Building Footprints `5zhs-2jue`, NYC Open Data | lot class, storeys, year built and roof height of every landmark lot (already in the real-map import above) | NYC Open Data terms of use (public data) |
+| Wikipedia articles on Boys High School (Brooklyn), 83rd Precinct Police Station, St. George's Protestant Episcopal Church (Brooklyn), Marcy Houses, Sumner Houses, Herbert Von King Park, Maria Hernandez Park and the list of armories in New York City | year, style, materials, storey counts and boundaries only; paraphrased, no sentence, image or table copied | CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/) |
+| Bushwiki (bushwiki.nyc), page on the Bushwick Avenue church at Madison Street | that the corner tower is octagonal and part of a 1901 addition | facts only; no text or image used |
+
+No Google Maps or Street View data or imagery, no OpenStreetMap data, no Wikimedia Commons image and no Mapillary or KartaView image was used for the landmarks. Where a place could not be sourced beyond its footprint, height and building class, the row in `landmarks.ts` says so and the building is a generic one of its kind.
+
 ## People base mesh (HUMAN)
 
 | Asset | Source | Licence | Where |

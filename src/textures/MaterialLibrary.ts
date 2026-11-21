@@ -17,6 +17,7 @@ import { awningPainter, copLiveryPainter, signPainter, taxiLiveryPainter } from 
 import { CLOTH_COLORS, LEAF_VARIANTS, SKIN_TONES, treeLeavesPainter, treeTrunkPainter } from './painters/organic';
 import { gray, wrapVariant } from './painters/util';
 import { LOT_TONE_KEYS, TEXVAR_ON, patchLotTone } from './lotTone';
+import { FacadeSheet, SHEET_LAYERS, SHEET_LAYER_OF } from './facadeSheet';
 import { patchTreeTint } from './treeTint';
 import { patchShopGlass, patchWindow } from './windowShader';
 import { GROUND_DETAIL_KEYS, patchGroundDetail, GROUND_VARIATION, disposeVariationTexture, patchGroundVariation } from './groundVariation';
@@ -125,6 +126,7 @@ export class MaterialLibrary implements IMaterialLibrary {
   private readonly envMaterials: THREE.MeshStandardMaterial[] = [];
   private readonly reliefCache = new Map<string, ReliefMaps>();
   private readonly overrides = new Map<string, MapOverride>();
+  private sheet: FacadeSheet | null = null;
   private env: THREE.Texture | null = null;
   private paintDetail: CarPaintMaps | null = null;
   private night = false;
@@ -162,9 +164,32 @@ export class MaterialLibrary implements IMaterialLibrary {
       if (gd && m instanceof THREE.MeshStandardMaterial) patchGroundDetail(m, gd);
       const ov = this.overrides.get(id);
       if (ov) this.applyOverride(m, ov);
+      // SURFACES2: the wall classes are layers of one shared material; LotBatch routes their geometry there (facade.ts flush)
+      const sl = SHEET_LAYER_OF[id];
+      if (sl !== undefined && TEXVAR_ON && m instanceof THREE.MeshStandardMaterial) {
+        m.userData.sheetLayer = sl;
+        // lazy: building the sheet paints the other six layers, which a plain get() must not do
+        Object.defineProperty(m.userData, 'sheetMat', { get: () => this.facadeSheetMaterial(), enumerable: false, configurable: true });
+      }
     }
     return m;
   }
+
+  /** The shared wall material (texture-array layers: SHEET_LAYERS). Built on first use; its layers are read from the library's own wall materials. */
+  facadeSheetMaterial(): THREE.Material {
+    if (!this.sheet) {
+      this.sheet = new FacadeSheet((i) => {
+        const [key, variant] = SHEET_LAYERS[i].split(':');
+        return this.get(key as MaterialKey, Number(variant)) as THREE.MeshStandardMaterial;
+      }, this.aniso);
+      this.registerEnv(this.sheet.material, 0.1);
+      this.sheet.refresh();
+    }
+    return this.sheet.material;
+  }
+
+  /** Call once every photo set has been applied: the sheet reads its layers a last time (and on phone and low frees its pixels after the upload). */
+  finalizeFacadeSheet(): void { this.sheet?.finalize(); }
 
   /**
    * Swap in externally loaded maps (e.g. CC0 photo PBR sets) for a key/variant. Applies to the cached material if it
@@ -177,6 +202,7 @@ export class MaterialLibrary implements IMaterialLibrary {
     this.overrides.set(id, maps);
     const m = this.cache.get(id);
     if (m) this.applyOverride(m, maps);
+    if (this.sheet && SHEET_LAYER_OF[id] !== undefined) this.sheet.schedule();
   }
 
   hasOverride(key: MaterialKey, variant: number): boolean {
@@ -268,6 +294,7 @@ export class MaterialLibrary implements IMaterialLibrary {
   dispose(): void {
     for (const t of this.textures) t.dispose();
     for (const m of [...this.cache.values(), ...this.awnings.values(), ...this.signs.values(), ...this.paints.values()]) m.dispose();
+    this.sheet?.dispose(); this.sheet = null;
     this.cache.clear(); this.awnings.clear(); this.signs.clear(); this.paints.clear();
     this.reliefCache.clear();
     this.paintDetail = null;

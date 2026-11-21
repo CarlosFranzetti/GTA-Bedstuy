@@ -144,13 +144,19 @@ export const CARS2_TRAFFIC_SHARE: Readonly<Record<string, number>> = {
 };
 /** Parked-car multiplier on a type's share (default 1): old cars and wagons are kerb cars, a limo or a police SUV is rarely left on a street. */
 export const PARK_WEIGHT: Readonly<Record<string, number>> = { classic: 2.5, donk: 2.5, wagon: 1.6, minitruck: 1.4, taxivan: 0.4, limo: 0.5, copsuv: 0.4, exotic: 0.5, icecream: 1.5, convertible: 1.3 };
+/**
+ * Types kept out of the MOVING mix (they still park). The 7.8 m limo crawls a left turn at about 1 m/s with its tail
+ * across the box, so cross traffic released on green drives into it (two hard impacts in two 5-minute seeds, both with
+ * the limo; 2 limos spawned in all). Its turning circle is wider than the 14 m boxes of the street grid.
+ */
+const NOT_MOVING: ReadonlySet<string> = new Set(['limo']);
 function cumulative(parked: boolean): ReadonlyArray<readonly [VehicleType, number]> {
   const extra: [string, number][] = [...Object.entries(CARS14_TRAFFIC_SHARE), ...Object.entries(CARS2_TRAFFIC_SHARE)];
   const baseShare = BASE_MIX.map(([t, e], k) => [t, e - (k ? BASE_MIX[k - 1][1] : 0)] as [VehicleType, number]);
   const baseTotal = BASE_MIX[BASE_MIX.length - 1][1];
   const scale = (1 - extra.reduce((a, [, w]) => a + w, 0)) / baseTotal;
   const list: [VehicleType, number][] = [...baseShare.map(([t, w]) => [t, w * scale] as [VehicleType, number]), ...extra.map(([t, w]) => [t as VehicleType, w] as [VehicleType, number])];
-  const weighted = list.map(([t, w]) => [t, w * (parked ? PARK_WEIGHT[t] ?? 1 : 1)] as [VehicleType, number]);
+  const weighted = list.map(([t, w]) => [t, parked ? w * (PARK_WEIGHT[t] ?? 1) : NOT_MOVING.has(t) ? 0 : w] as [VehicleType, number]);
   const tot = weighted.reduce((a, [, w]) => a + w, 0);
   let edge = 0;
   return weighted.map(([t, w]) => [t, (edge += w / tot)] as const);
@@ -160,6 +166,10 @@ const PARKED_MIX = cumulative(true);
 const PED_COUNT = 40;
 const MAX_TRAFFIC = 30;
 const DEFAULT_PARK_OCCUPANCY_SHARE = 0.65;
+/** most parked cars the world may hold at full density (bodies, meshes and colliders all cost); the grid map holds about 240, the real map would hold about 2,500 */
+export const PARKED_CAP = 1000;
+/** the parked-car share at which the cap applies in full: the real map's full-tier value (0.65 x its 0.4 thinning); lower tiers get a proportionally lower cap */
+const PARKED_CAP_REF_OCCUPANCY = 0.26;
 const NEAR_RADIUS = 160;
 const SPAWN_MIN = 90;
 const SPAWN_MAX = 150;
@@ -535,8 +545,13 @@ export class TrafficSystem {
     }
     let spawnCar: Slot | null = null;
     for (const sl of slots) if (!spawnCar || dist(sl.pos, this.spawnPoint) < dist(spawnCar.pos, this.spawnPoint)) spawnCar = sl;
+    // a map several times the size of the grid would hold thousands of parked bodies: thin them evenly to an absolute cap
+    const cap = Math.round(PARKED_CAP * Math.min(1, this.density.parkOccupancy / PARKED_CAP_REF_OCCUPANCY));
+    const keepShare = slots.length > cap ? cap / slots.length : 1;
+    const thin = new Rng(Rng.hash('parked-thin')); // its own stream: the traffic rng sequence does not depend on how many slots the map offers
     for (const sl of slots) {
       if (spawnCar && sl !== spawnCar && dist(sl.pos, spawnCar.pos) < SPAWN_CAR_CLEAR) continue;
+      if (sl !== spawnCar && keepShare < 1 && !thin.chance(keepShare)) continue;
       const v = this.makeVehicle(sl.type, sl.pos, sl.h, sl.color);
       v.driver = null;
       this.register(v);

@@ -251,7 +251,7 @@ export class Hud {
     start.style.cursor = 'pointer';
     start.style.pointerEvents = 'auto';
     const startSub = this.make('p', 'hud-start-sub');
-    startSub.textContent = coarse ? 'A on a gamepad' : 'A on a gamepad · tap on a phone';
+    startSub.textContent = coarse ? 'best played sideways' : 'A on a gamepad · tap on a phone';
     const credits = this.make('button', 'hud-credits');
     credits.type = 'button';
     credits.textContent = 'Credits';

@@ -129,9 +129,10 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   `docs/brand/BRAND.md`), new app icons and favicon; the GTA IV and V style study (`docs/reference/gta4-5-study.md`, with
   its sources file: style reference only, many numbers are marked as estimates).
 - Lanes running on 21 Nov (results are claims until the lead checks them): GREEN2 (bugs and tests), PHONE2 (phone),
-  DOCS (README and every markdown file), SURFACES2 (textures, shared facade sheet), PEOPLE7 (clothing and characters),
-  LANDMARKS (real places under invented names, `src/world/landmarks/`). Their results go in `docs/swarm/tasks/`.
-- Not started: vehicles and handling (waits for GREEN2 to leave the traffic code); the real map as the main map; medium
+  SURFACES2 (textures, shared facade sheet), PEOPLE7 (clothing and characters),
+  LANDMARKS (real places under invented names, `src/world/landmarks/`), CARS3 (handling for the player, car geometry,
+  new vehicle types kept out of traffic until the lead adds them). Their results go in `docs/swarm/tasks/`.
+- Not started: the real map as the main map; medium
   and high tier performance.
 - Waiting on the owner: promoting the link-in-bio page (branch `release-links`); a Hugging Face token or his own
   pictures for the loading posters; a test on a real iPhone (`?debug=mem` shows memory numbers); one story voice clip

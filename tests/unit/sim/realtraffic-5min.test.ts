@@ -22,6 +22,7 @@ describe.each(SEEDS)('real map traffic, seed %i', (seed) => {
     expect(R.crossings).toBeGreaterThan(100);
     expect(R.signals).toBeGreaterThan(90);
     expect(R.parked).toBeGreaterThan(40);
+    expect(R.parked).toBeLessThanOrEqual(1100); // PARKED_CAP: the grown map would otherwise hold about 2,500 parked bodies
   });
 
   it('population holds: moving cars near the target, pedestrians at the target', () => {

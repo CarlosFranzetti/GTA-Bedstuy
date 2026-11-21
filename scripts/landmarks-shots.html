@@ -1,0 +1,72 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>landmarks shots</title>
+<style>html,body{margin:0;background:#789;overflow:hidden}</style></head>
+<body><script type="module">
+// LANDMARKS review harness (dev server only): builds the real-map world, then builds each landmark and renders street and aerial views.
+//   ?ids=a,b,c  ?views=street,aerial,side  ?w=1280&h=720  ?tier=low
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Rng } from '@/core/Rng';
+import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { buildRealWorld } from '@/world/roadnet/realWorld';
+import { LANDMARKS } from '@/world/landmarks/landmarks';
+
+const params = new URLSearchParams(location.search);
+const W = Number(params.get('w') ?? 1280), H = Number(params.get('h') ?? 720);
+const tier = params.get('tier') ?? 'low';
+const ids = (params.get('ids') ?? LANDMARKS.map((l) => l.id).join(',')).split(',');
+const views = (params.get('views') ?? 'street,aerial').split(',');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9db7cf);
+const pm = new THREE.PMREMGenerator(renderer);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.5;
+const sun = new THREE.DirectionalLight(0xfff2dc, 2.4); sun.position.set(-300, 500, 200); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x6a5a48, 0.8));
+const materials = new MaterialLibrary(new Rng(7));
+materials.setEnvironment(scene.environment);
+
+const rw = await buildRealWorld({ materials, rng: new Rng(7), tier, warmMs: 0, streamRanges: { near: 70, far: 0, detail: 0, trim: 40 }, landmarkRanges: { near: 400, far: 400 } });
+scene.add(rw.group);
+const out = {}, info = {};
+const lm = rw.landmarks;
+const byId = new Map(LANDMARKS.map((l) => [l.id, l]));
+const cam = new THREE.PerspectiveCamera(62, W / H, 0.1, 2500);
+for (const id of ids) {
+  const row = byId.get(id); if (!row) continue;
+  const s = row.site;
+  const front = { x: s.ax + s.fx * s.w / 2, z: s.az + s.fz * s.w / 2 };
+  const outd = { x: -s.nx, z: -s.nz };
+  const c = { x: s.ax + s.fx * s.w / 2 + s.nx * s.d / 2, z: s.az + s.fz * s.w / 2 + s.nz * s.d / 2 };
+  lm.settle(c.x, c.z, 0);
+  // make the other landmarks and the buildings quiet for this frame: only the near group and generic buildings near the site
+  rw.streamer.settle(c.x, c.z, 0);
+  const size = Math.hypot(s.w, s.d);
+  const t0 = performance.now();
+  for (const v of views) {
+    let p, l;
+    const big = ['park', 'housing', 'hospital', 'armory', 'playground'].includes(row.kind);
+    if (v === 'street') {
+      // a building is seen from the middle of the street, an open site from its own pavement looking in
+      const d = big ? 2.5 : row.kind === 'subway' ? 7 : Math.max(13, Math.min(26, s.w * 0.4));
+      p = [front.x + outd.x * d + s.fx * s.w * (big ? 0.1 : 0.12), 1.7, front.z + outd.z * d + s.fz * s.w * (big ? 0.1 : 0.12)];
+      l = [c.x - s.nx * s.d * (big ? 0.15 : 0.45), big ? 5 : Math.min(12, size * 0.12), c.z - s.nz * s.d * (big ? 0.15 : 0.45)];
+    }
+    else if (v === 'side') { p = [front.x + s.fx * (s.w * 0.62 + 14) + s.nx * s.d * 0.25, 3, front.z + s.fz * (s.w * 0.62 + 14) + s.nz * s.d * 0.25]; l = [c.x, Math.min(12, size * 0.05), c.z]; }
+    else if (v === 'inside') { p = [c.x + s.nx * 0, 1.8, c.z]; l = [c.x + s.fx * 30, 3, c.z + s.fz * 30]; }
+    else { const h = Math.max(50, size * 0.55); p = [front.x + outd.x * (size * 0.3 + 10), h, front.z + outd.z * (size * 0.3 + 10)]; l = [c.x, 0, c.z]; }
+    cam.position.set(p[0], p[1], p[2]); cam.lookAt(l[0], l[1], l[2]);
+    rw.update(0, p[0], p[2], cam.position, false);
+    renderer.render(scene, cam);
+    out[`${id}-${v}`] = renderer.domElement.toDataURL('image/png');
+    info[`${id}-${v}`] = { tris: renderer.info.render.triangles, calls: renderer.info.render.calls };
+  }
+  const near = lm.nearOf(row.kind === 'subway' ? id + '-0' : id);
+  info[id] = { ms: Math.round(performance.now() - t0), nearTris: lm.stats().triangles, meshes: near ? near.children.length : 0 };
+}
+window.__ready = { shots: out, info, stats: lm?.stats(), standIns: rw.standIns };
+</script></body></html>

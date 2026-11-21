@@ -154,7 +154,8 @@ const COLLARS: Record<string, { h: number; flare: number; gap: number; pt: numbe
 function collar(ctx: Ctx, mb: MeshBuilder): void {
   const t = ctx.spec.top, c = COLLARS[t.style ?? ''] ?? COLLARS.shirt;
   if (!c) return;
-  const tint = hexLin(c.fur ? '#e8e4dc' : t.under && (t.style === 'denim' || t.style === 'bomber' || t.style === 'workshirt') ? t.color : t.under && t.style === 'blazer' ? t.color : t.color);
+  // PEOPLE7: the collar samples the garment's own fabric swatch (painted from the top, so it always matches the cloth) instead of the neutral texel, which came out skin-coloured on some people; only a fur hood trim is tinted
+  const tint: V3 = c.fur ? hexLin('#e8e4dc') : [1, 1, 1], rectC = c.fur ? NEUTRAL : SWATCH.torso;
   const y0 = ctx.lm.chinY - 0.066, cols = ctx.detail === 'hi' ? 14 : 9, A = Math.PI - c.gap;
   const P: V3[][] = [];
   const rows: Array<[number, number]> = c.fur ? [[0, 0.012], [0.45, 0.034], [1, 0.03]] : [[0, 0.01], [1, 0.01 + c.flare]];
@@ -163,14 +164,14 @@ function collar(ctx: Ctx, mb: MeshBuilder): void {
     for (let j = 0; j < cols; j++) { const be = c.gap + (j / (cols - 1)) * (2 * A); row.push(ringPoint(ctx, y0 + u * c.h, be, off + (c.fur ? 0.004 * Math.sin(be * 5) : 0))); }
     P.push(row);
   }
-  mb.grid(P, { rect: NEUTRAL, tint, center: [0, y0, ctx.C[2]], W: torsoW, uv: () => [0.5, 0.5], shade: (i, j) => (c.fur ? 0.9 + 0.1 * Math.sin(j * 2.1) : 0.92 + 0.08 * i) });
+  mb.grid(P, { rect: rectC, tint, center: [0, y0, ctx.C[2]], W: torsoW, uv: () => [0.5, 0.5], shade: (i, j) => (c.fur ? 0.9 + 0.1 * Math.sin(j * 2.1) : 0.92 + 0.08 * i) });
   if (c.pt > 0) {
     // points / lapels: a ribbon from the corner of the opening down and out over the chest
     for (const sd of [-1, 1] as const) {
       const n = c.pt > 0.1 ? 4 : 2, pts: V3[] = [];
       for (let k = 0; k <= n; k++) { const f = k / n; pts.push(surfPt(ctx, sd * (0.016 + 0.03 * f * (c.pt > 0.1 ? 1.3 : 1)), y0 + 0.012 - c.pt * f, 'front', 0.012 + 0.004 * f)); }
       const nrm = pts.map((): V3 => [0, 0.3, -1]);
-      ribbon(mb, pts, widthsAlong(pts, nrm), c.pt > 0.1 ? 0.017 : 0.012, { rect: NEUTRAL, centre: [0, y0 - 0.1, ctx.C[2] + 0.2], W: torsoW, tint, shade: 0.96, uvt: [0.5, 0.5] });
+      ribbon(mb, pts, widthsAlong(pts, nrm), c.pt > 0.1 ? 0.017 : 0.012, { rect: rectC, centre: [0, y0 - 0.1, ctx.C[2] + 0.2], W: torsoW, tint, shade: 0.96, uvt: [0.5, 0.5] });
     }
   }
 }

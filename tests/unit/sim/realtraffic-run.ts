@@ -232,8 +232,8 @@ const anyStill = new Map<string, number>();
       }
       if (step % 30 === 0) {
         run.carSamples++;
-        if (onKerb(p)) { run.carOnKerb++; if (run.carDetail.length < 40) run.carDetail.push(`kerb ${v.id}@${t.toFixed(0)} ${p.x.toFixed(0)},${p.z.toFixed(0)} ${net.streetNameAt(p)} sp${v.speed.toFixed(1)}`); }
-        if (inAny(buildings, p)) { run.carInBuilding++; if (run.carDetail.length < 40) run.carDetail.push(`building ${v.id}@${t.toFixed(0)} ${p.x.toFixed(0)},${p.z.toFixed(0)} ${net.streetNameAt(p)} sp${v.speed.toFixed(1)}`); }
+        if (onKerb(p)) { run.carOnKerb++; if (run.carDetail.length < 40) run.carDetail.push(`kerb ${v.id}@${t.toFixed(0)} ${p.x.toFixed(0)},${p.z.toFixed(0)} ${net.streetNameAt(p)} sp${v.speed.toFixed(1)} ${v.spec.type} ${v.driver}`); }
+        if (inAny(buildings, p)) { run.carInBuilding++; if (run.carDetail.length < 40) run.carDetail.push(`building ${v.id}@${t.toFixed(0)} ${p.x.toFixed(0)},${p.z.toFixed(0)} ${net.streetNameAt(p)} sp${v.speed.toFixed(1)} ${v.spec.type} ${v.driver}`); }
       }
     }
     // red clocks (after the checks, so a car crossing the very frame the light changes is judged on the old state)

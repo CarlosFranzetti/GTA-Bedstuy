@@ -27,17 +27,25 @@ const smoothAz = (f: (be: number) => number, w = 0.34) => (be: number): number =
 interface LineOpts { wander?: number; /** a widow's peak: the centre of the forehead reaches down by this fraction */ peak?: number; /** baby hairs: a fine irregular fringe along the front line (fraction of a head) */ baby?: number; /** points that hang below the line at n places round the head (fraction), crests at the columns */ scallop?: [number, number] }
 /** a hairline: a smooth curve through the knots (no corners), a slightly broken edge (not for the straight-cut styles), an optional widow's peak, baby hairs and scallops; the rim height is turned into a polar angle on the real skull */
 const rimFn = (ctx: Ctx, k: Knots, o: LineOpts | number = {}) => {
-  const op: LineOpts = typeof o === 'number' ? { wander: o } : o, wd = op.wander ?? 1, f = smoothAz(knots(k)), memo = new Map<number, number>();
-  return (be: number): number => {
-    const key = Math.round(be * 1000); let v = memo.get(key);
+  const op: LineOpts = typeof o === 'number' ? { wander: o } : o, wd = op.wander ?? 1, f = smoothAz(knots(k)), raw = new Map<number, number>(), memo = new Map<number, number>();
+  // the polar angle of the hairline at one azimuth (a few ray casts on the skull)
+  const rawAt = (be0: number): number => {
+    const be = ((be0 % TAU) + TAU) % TAU, key = Math.round(be * 1000); let v = raw.get(key);
     if (v === undefined) {
       const az = azOf(be), fr = 1 - sstep(0.7, 1.3, az);
       let h = f(be) + wd * (0.014 * Math.sin(be * 3 + 1.3) + 0.008 * Math.sin(be * 6 + 0.7));
       if (op.peak) h -= op.peak * Math.exp(-Math.pow(az / 0.22, 2));
       if (op.baby) h -= op.baby * fr * (0.5 + 0.5 * Math.sin(be * 9 + 0.4)) * sstep(0.05, 0.3, az);
       if (op.scallop) h -= op.scallop[1] * ridge(be, op.scallop[0], 0);
-      v = rimAtHeight(ctx, ctx.Y(h), be); memo.set(key, v);
+      v = rimAtHeight(ctx, ctx.Y(h), be); raw.set(key, v);
     }
+    return v;
+  };
+  // PEOPLE7: the ray casts jitter from one column to the next over the brow ridge and the temples, and the hairline came out as a row of black teeth: the angle is blurred over its neighbours (the scallops of the
+  // curl styles, which are asked for on purpose, keep their shape: they are far wider than the blur)
+  return (be: number): number => {
+    const key = Math.round(be * 1000); let v = memo.get(key);
+    if (v === undefined) { v = (rawAt(be - 0.2) + 2 * rawAt(be) + rawAt(be + 0.2)) / 4; memo.set(key, v); }
     return v;
   };
 };
@@ -126,7 +134,8 @@ function shell(ctx: Ctx, mb: MeshBuilder, o: ShellOpts): void {
       const t = Ns === 1 ? 1 : o.inner ? k / (Ns - 1) : Math.pow(k / (Ns - 1), 1.25), u = 1 - t, al = lerp(inA, rimA, t), d = dirOf(al, be);
       // where the style hangs, the hairline is no edge: the hair goes on down, so it keeps its full thickness (and clears the ear) at the rim
       const hw = hemJ === null ? 0 : clamp((ctx.C[1] + Math.cos(rimA) * 0.095 - hemJ) / 0.05);
-      const w = Math.max(hw, sstep(0, 0.4, o.inner ? Math.min(u, 1 - u) : u)), R = lerp(sampleF(F.raw, al, be), sampleF(F.env, al, be), w);
+      const w = Math.max(hw, sstep(0, 0.4, o.inner ? Math.min(u, 1 - u) : u)), R =
+       lerp(sampleF(F.raw, al, be), sampleF(F.env, al, be), w);
       const th = !o.inner && k === 0 ? poleTh : Math.max(o.thick(be, u), hang && hw > 0 ? hang.thick(be, 0) * hw * (1 - sstep(0, 0.35, u)) : 0), up = !o.inner && k === 0 ? poleUp : o.up ? o.up(be, u) : 0;
       const rad = o.radius ? o.radius(be, u, R, al, rimA) : R + th;
       last = [ctx.C[0] + d[0] * rad, ctx.C[1] + d[1] * rad + up, ctx.C[2] + d[2] * rad];
@@ -336,8 +345,8 @@ const STYLES: Record<HairId, (ctx: Ctx, mb: MeshBuilder) => void> = {
     const n = colsOf(ctx, 26, 14), nr = n / 2, f = (be: number): number => ridge(be, nr, 0);
     cap(ctx, mb, L_SHORT, (be, u) => 0.006 * sstep(0, 0.25, u) + 0.016 * f(be) * (0.3 + 0.7 * sstep(0, 0.35, u)) + 0.006 * sstep(0.5, 1, u), { cols: n, rows: rowsOf(ctx, 6, 4), wander: 0.4, shade: (be, u) => 0.62 + 0.38 * f(be) * sstep(0, 0.2, u) + 0.06 * sstep(0.3, 1, u) });
   },
-  locs: (ctx, mb) => locks(ctx, mb, { back: 5, front: 2, rad: 0.026, drop: 0.07, stagger: 0.12, capCols: colsOf(ctx, 14, 10), sides: 5, segs: 2, sway: 0.03 }),
-  boxBraids: (ctx, mb) => locks(ctx, mb, { back: 6, front: 2, rad: 0.0155, drop: 0.12, stagger: 0.14, capCols: colsOf(ctx, 14, 10), sides: 4, segs: 2, sway: 0.02 }),
+  locs: (ctx, mb) => locks(ctx, mb, { back: 5, front: 2, rad: 0.026, drop: 0.07, stagger: 0.12, capCols: colsOf(ctx, 10, 8), sides: 4, segs: 3, sway: 0.05 }),
+  boxBraids: (ctx, mb) => locks(ctx, mb, { back: 6, front: 2, rad: 0.0155, drop: 0.12, stagger: 0.14, capCols: colsOf(ctx, 12, 9), sides: 4, segs: 3, sway: 0.035 }),
   cornrows,
   // chin length, tucked behind the ear, side parted with a soft front
   bob: (ctx, mb) => {
@@ -397,15 +406,18 @@ export function buildHair(id: HairId, ctx: Ctx): Piece {
 
 export function buildBeard(id: BeardId, ctx: Ctx): Piece {
   const mb = new MeshBuilder(headW);
-  const jawAxis = ((): V3 => { const d = Math.hypot(0.3, 0.95); return [0, -0.3 / d, -0.95 / d]; })();
+  // PEOPLE7: the cap is built from a centre on the head's axis at the height of the chin (beard) or the lip (moustache), looking straight forward, so its rays are level like the fit check's.
+  // It used to be built from the centre of the skull, 17 degrees below level, which is the nose: the cap covered the eyes and the lips.
+  const at = (t: number): Ctx => ({ ...ctx, C: [0, ctx.Y(t), headRingAt(ctx, ctx.Y(t)).cz] as V3 });
+  const front: V3 = [0, 0, -1];
   if (id === 'stache') {
-    const ax: V3 = [0, -0.07, -0.997];
-    patch(ctx, mb, { axis: ax, rows: 3, cols: ctx.detail === 'hi' ? 10 : 6, rim: (be) => 0.2 + 0.16 * Math.abs(Math.sin(be)) * Math.abs(Math.sin(be)) * 0 + 0.14 * Math.abs(Math.sin(be)) - 0.05 * Math.max(0, Math.cos(be)), thick: (_be, u) => 0.0025 + 0.006 * sstep(0, 0.5, u), rect: SWATCH.hair, W: headW });
+    patch(at(0.29), mb, { axis: front, rows: 3, cols: ctx.detail === 'hi' ? 10 : 6, rim: (be) => 0.075 + 0.17 * Math.pow(Math.abs(Math.sin(be)), 1.2), thick: (_be, u) => 0.002 + 0.004 * sstep(0, 0.5, u), rect: SWATCH.hair, W: headW });
   } else {
     const full = id === 'beard';
-    patch(ctx, mb, { axis: jawAxis, rows: rowsOf(ctx, 3, 3), rim: (be) => (full ? 0.46 + 0.5 * Math.abs(Math.sin(be)) * (Math.cos(be) < 0.3 ? 1 : 0.85) - 0.18 * Math.max(0, Math.cos(be)) - 0.14 * Math.max(0, -Math.cos(be)) : 0.34 + 0.06 * Math.abs(Math.sin(be)) - 0.05 * Math.max(0, Math.cos(be))), thick: (_be, u) => edge(u, 0.0025, full ? 0.012 : 0.01, 0.4) + (full ? 0.006 : 0.004) * sstep(0.6, 1, u), rect: SWATCH.hair, W: headW });
+    patch(at(0.1), mb, { axis: front, rows: rowsOf(ctx, 3, 3), rim: (be) => (full ? (Math.cos(be) >= 0 ? 0.5 + 0.4 * Math.abs(Math.sin(be)) - 0.1 * Math.cos(be) : 0.13 + 0.78 * Math.pow(Math.abs(Math.sin(be)), 6)) : 0.34 + 0.06 * Math.abs(Math.sin(be)) - 0.05 * Math.max(0, Math.cos(be))), thick: (_be, u) => edge(u, 0.0025, full ? 0.012 : 0.01, 0.4) + (full ? 0.006 : 0.004) * sstep(0.6, 1, u), rect: SWATCH.hair, W: headW });
   }
-  const lifted = relax(ctx, mb);
+  let lifted = relax(ctx, mb);
+  for (let k = 0; k < 3; k++) if (relax(ctx, mb) === 0) break;
   return done('beard:' + id, 'hair', mb, lifted);
 }
 void clamp; void BONE;

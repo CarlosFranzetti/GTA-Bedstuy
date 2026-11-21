@@ -49,7 +49,7 @@ export function paintSwatches(img: Uint8ClampedArray, size: number, K: Look, R: 
     if (grey) o.mix(mixc(hair, [255, 255, 255], 0.5), 0.3 * vn2(u * 160, v * 6, 105));
     o.lite(0.13 * g2(v - 0.38, 0.12) * (curly ? 0.6 : 1));            // a soft sheen band
     o.mul(1 - 0.28 * sst(0.7, 1.0, v));                                // root shadow
-    if (!hasHair(style)) o.set(mixc(K.skin, hair, 0.25));
+    if (!hasHair(style) && !s.face.beard && !s.face.mustache) o.set(mixc(K.skin, hair, 0.25));   // a bald man's beard keeps the hair colour
   });
   // ---------------------------------------------------------------- hat
   const hat = rgb(s.hatColor), hatTrim = rgb(s.hatTrim), hk = s.hat;

@@ -19,6 +19,9 @@ export interface Site {
 
 export interface SourceNote { what: string; url: string; licence: string }
 
+/** one subway stair, in world metres: (x, z) is the middle of the stairwell, (fx, fz) runs along the street, (nx, nz) points away from the kerb */
+export interface Entrance { x: number; z: number; fx: number; fz: number; nx: number; nz: number; station: string; colour: string }
+
 export interface LandmarkRow {
   id: string;
   /** the INVENTED name shown on signs, the map and the HUD */
@@ -34,4 +37,6 @@ export interface LandmarkRow {
   /** the look recipe: numbers and words the builder of that kind reads (massing from footprint, height, materials) */
   look: Record<string, number | string | boolean>;
   sources: SourceNote[];
+  /** kind 'subway': the stairs, built one by one (the row's own site is the first of them) */
+  entrances?: Entrance[];
 }

@@ -72,7 +72,7 @@ const categorize = (p) => { for (const [n, re] of CATS) if (re.test(p)) return n
       const url = `http://localhost:${port}/?perf=0&q=${q}` + (mapName === 'real' ? '&map=real' : '');
       await page.goto(url, { waitUntil: 'domcontentloaded' });
       await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 540000 });
-      await page.evaluate(() => { const d = window.__gtaDebug; d.renderer.domElement.style.visibility = 'hidden'; d.stopLoop(); if (window.__gtaChunkCuller) window.__gtaChunkCuller.buildsPerUpdate = 1e9; });
+      await page.evaluate(() => { const d = window.__gtaDebug; d.renderer.domElement.style.visibility = 'hidden'; d.stopLoop(); if (window.__gtaChunkCuller) { window.__gtaChunkCuller.buildsPerUpdate = 1e9; window.__gtaChunkCuller.streamBudget = 1e9; } });
       const views = mapName === 'real' ? REAL_VIEWS : VIEWS;
       for (const name of wantViews) {
         const v = views[name]; if (!v) continue;
