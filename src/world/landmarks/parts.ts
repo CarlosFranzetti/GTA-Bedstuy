@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { buildCloudGeometry } from '@/world/props/treeCloud';
 import type { Rng } from '@/core/Rng';
 import { Kit, TILE, type V3 } from './kit';
+import { signMaterial } from './signs';
 
 export type Dir2 = readonly [number, number];
 
@@ -181,7 +182,8 @@ export function bench(k: Kit, x: number, z: number, yaw: [number, number], len =
   const [fx, fz] = yaw;
   const rx = fz, rz = -fx;
   const wood = k.m('stoop');
-  const iron = k.m('metalDark');
+  const iron = k.flatM; // plain colour: a bench is not worth a draw call of its own
+  const IRON = 0x2c2c2e;
   const hl = len / 2;
   const P = (a: number, b: number, y: number): V3 => [x + rx * a + fx * b, y, z + rz * a + fz * b];
   // seat
@@ -193,15 +195,15 @@ export function bench(k: Kit, x: number, z: number, yaw: [number, number], len =
   k.quad(wood, P(hl, -0.25, 0.5), P(-hl, -0.25, 0.5), P(-hl, -0.25, 0.95), P(hl, -0.25, 0.95), { hint: [-fx, 0, -fz], ru: 0.6, rv: 0.15 });
   for (const s of [-1, 1]) {
     const a = s * (hl - 0.1);
-    k.quad(iron, P(a, -0.25, 0), P(a, 0.25, 0), P(a, 0.25, 0.42), P(a, -0.25, 0.42), { hint: [rx * s, 0, rz * s], ru: 0.1, rv: 0.1 });
-    k.quad(iron, P(a, 0.25, 0), P(a, -0.25, 0), P(a, -0.25, 0.42), P(a, 0.25, 0.42), { hint: [-rx * s, 0, -rz * s], ru: 0.1, rv: 0.1 });
+    k.quad(iron, P(a, -0.25, 0), P(a, 0.25, 0), P(a, 0.25, 0.42), P(a, -0.25, 0.42), { hint: [rx * s, 0, rz * s], ru: 0.1, rv: 0.1, color: IRON });
+    k.quad(iron, P(a, 0.25, 0), P(a, -0.25, 0), P(a, -0.25, 0.42), P(a, 0.25, 0.42), { hint: [-rx * s, 0, -rz * s], ru: 0.1, rv: 0.1, color: IRON });
   }
 }
 
 /** A post lamp: thin pole and a lantern head (flat material, the lamps lane lights none of these). */
 export function lampPost(k: Kit, x: number, z: number, h = 4.2): void {
   if (k.far) return;
-  k.cyl(k.m('metalDark'), x, z, 0.06, 0, h, 5, { noTop: false });
+  k.cyl(k.flatM, x, z, 0.06, 0, h, 5, { noTop: false, color: 0x2c2c2e });
   k.cyl(k.flatM, x, z, 0.22, h, h + 0.35, 6, { color: 0xf0e4c0 });
 }
 
@@ -228,7 +230,7 @@ export function fence(k: Kit, x0: number, z0: number, x1: number, z1: number, o:
     const n = Math.max(1, Math.round((b - a) / pr));
     for (let i = 0; i <= n; i++) {
       const px = ax + ((bx - ax) * i) / n, pz = az + ((bz - az) * i) / n;
-      k.cyl(k.m('metalDark'), px, pz, 0.05, 0, h + 0.1, 4, { noTop: false });
+      k.cyl(k.flatM, px, pz, 0.05, 0, h + 0.1, 4, { noTop: false, color: 0x2c2c2e });
     }
     if (o.collide !== false) k.solidSeg(ax, az, bx, bz);
   }
@@ -239,7 +241,7 @@ export function fence(k: Kit, x0: number, z0: number, x1: number, z1: number, o:
 /** A sign board on a wall (or free standing) facing `out`, centred at (cx, y, cz); 4:1 board of width w. */
 export function signBoard(k: Kit, text: string, cx: number, y: number, cz: number, out: Dir2, w: number, bg: string, fg: string, proud = 0.08): void {
   if (k.far) return;
-  const mat = k.lib.sign(text, bg, fg);
+  const mat = signMaterial(k.lib, text, bg, fg);
   const [rx, rz] = rightOf(out);
   const h = w / 4;
   const px = cx + out[0] * proud, pz = cz + out[1] * proud;

@@ -26,10 +26,12 @@ try {
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 200)); });
   await page.goto(`${base}/?map=real&q=${q}&perf=0`, { waitUntil: 'load', timeout: 180_000 });
   await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 420_000 });
-  await page.keyboard.press('Space'); await page.waitForTimeout(800);
+  // hide the canvas and stop the loop BEFORE anything else: a visible software-rendered game page uses many gigabytes and is killed
+  await page.evaluate(() => { const d = window.__gtaDebug; d.stopLoop(); d.renderer.domElement.style.visibility = 'hidden'; });
+  await page.keyboard.press('Space'); await page.waitForTimeout(500);
   const dismiss = async () => { const b = page.getByRole('button', { name: 'Resume' }); if (await b.isVisible().catch(() => false)) { await b.click(); await page.waitForTimeout(300); } };
   await dismiss();
-  await page.evaluate(() => { const d = window.__gtaDebug; d.stopLoop(); d.renderer.domElement.style.visibility = 'hidden'; d.setHour(12); d.step(5); });
+  await page.evaluate(() => { const d = window.__gtaDebug; d.setHour(12); d.step(5); });
   const rows = await page.evaluate(() => window.__gtaRealWorld().landmarks.rows.map((r) => ({ id: r.id, kind: r.kind, name: r.name, site: r.site })));
   for (const row of rows) {
     if (ids.length && !ids.includes(row.id)) continue;

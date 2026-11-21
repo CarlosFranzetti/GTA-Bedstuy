@@ -270,6 +270,54 @@ export const LANDMARKS: readonly LandmarkRow[] = [
     ],
   },
   {
+    id: "sparrowhawk-school", name: "Sparrowhawk Elementary School", kind: "school", district: "Sparrowhawk Elementary School",
+    blurb: "Post-war public school: long brick block, ribbon windows, a fenced yard.",
+    lots: ["3017870014"],
+    site: { ax: 203.2, az: 72.4, fx: -1, fz: 0.0013, nx: -0.0008, nz: -1, w: 148.4, d: 31.9, block: 420 },
+    look: {"plan":"slab","floors":4,"wall":"#a45a40"},
+    sources: [
+      {
+        "what": "MapPLUTO tax lot facts (class, floors, year)",
+        "url": "https://data.cityofnewyork.us/resource/64uk-42ks.json",
+        "licence": "NYC Open Data terms of use"
+      },
+      {
+        "what": "Building Footprints (roof height, year)",
+        "url": "https://data.cityofnewyork.us/resource/5zhs-2jue.json",
+        "licence": "NYC Open Data terms of use"
+      },
+      {
+        "what": "Facilities Database (kind and extent of the facility)",
+        "url": "https://data.cityofnewyork.us/resource/ji82-xba5.json",
+        "licence": "NYC Open Data terms of use"
+      }
+    ],
+  },
+  {
+    id: "linnet-hill-school", name: "Linnet Hill Elementary School", kind: "school", district: "Linnet Hill Elementary School",
+    blurb: "Mid-century public school on a whole block frontage, with a yard and courts.",
+    lots: ["3017730014"],
+    site: { ax: 231.1, az: -173.8, fx: -1, fz: 0.0006, nx: -0.0004, nz: -1, w: 178.5, d: 28, block: 365 },
+    look: {"plan":"slab","floors":3,"wall":"#9b6a4c"},
+    sources: [
+      {
+        "what": "MapPLUTO tax lot facts (class, floors, year)",
+        "url": "https://data.cityofnewyork.us/resource/64uk-42ks.json",
+        "licence": "NYC Open Data terms of use"
+      },
+      {
+        "what": "Building Footprints (roof height, year)",
+        "url": "https://data.cityofnewyork.us/resource/5zhs-2jue.json",
+        "licence": "NYC Open Data terms of use"
+      },
+      {
+        "what": "Facilities Database (kind and extent of the facility)",
+        "url": "https://data.cityofnewyork.us/resource/ji82-xba5.json",
+        "licence": "NYC Open Data terms of use"
+      }
+    ],
+  },
+  {
     id: "wexcombe-medical-center", name: "Wexcombe Medical Center", kind: "hospital", district: "Wexcombe Medical Center",
     blurb: "Hospital campus: a tall tower slab, low wings and an entrance plaza.",
     lots: [],
@@ -407,9 +455,9 @@ export const LANDMARKS: readonly LandmarkRow[] = [
     id: "street-stairs", name: "Subway entrances", kind: "subway", district: "Subway entrance",
     blurb: "Stairs down to the underground lines, with a globe lamp and an invented station board.",
     lots: [],
-    site: { ax: -1062.6, az: 91.1, fx: 1, fz: -0.001, nx: 0.001, nz: 1, w: 6, d: 2.4, block: -1 },
+    site: { ax: -1062.6, az: 91.6, fx: 1, fz: -0.001, nx: 0.001, nz: 1, w: 6, d: 2.4, block: -1 },
     look: {},
-    entrances: [{"x":-1062.6,"z":91.1,"fx":1,"fz":-0.001,"nx":0.001,"nz":1,"station":"Cormorant Square","colour":"#3fae5c"},{"x":-1062.8,"z":74.3,"fx":1,"fz":-0.001,"nx":-0.001,"nz":-1,"station":"Cormorant Square","colour":"#3fae5c"},{"x":-777.2,"z":90.7,"fx":1,"fz":-0.001,"nx":0.001,"nz":1,"station":"Cormorant Square","colour":"#3fae5c"},{"x":-771.5,"z":67.2,"fx":0.001,"fz":1,"nx":-1,"nz":0.001,"station":"Cormorant Square","colour":"#3fae5c"},{"x":-503.7,"z":-503.5,"fx":1,"fz":0.001,"nx":0.001,"nz":-1,"station":"Ferrier Cross","colour":"#3fae5c"},{"x":-460.7,"z":-503.5,"fx":1,"fz":0,"nx":0,"nz":-1,"station":"Ferrier Cross","colour":"#3fae5c"},{"x":-491.6,"z":-968.5,"fx":-0.001,"fz":1,"nx":-1,"nz":-0.001,"station":"Tern Yard","colour":"#3fae5c"},{"x":-465.6,"z":-1007.7,"fx":0.856,"fz":-0.517,"nx":-0.517,"nz":-0.856,"station":"Tern Yard","colour":"#3fae5c"},{"x":2275.1,"z":-964.9,"fx":0.67,"fz":0.742,"nx":-0.742,"nz":0.67,"station":"Bellrope","colour":"#8a8d94"},{"x":2256.2,"z":-977,"fx":0.711,"fz":-0.704,"nx":-0.704,"nz":-0.711,"station":"Bellrope","colour":"#8a8d94"},{"x":2285.6,"z":-986.6,"fx":0.722,"fz":-0.691,"nx":0.691,"nz":0.722,"station":"Bellrope","colour":"#8a8d94"}],
+    entrances: [{"x":-1062.6,"z":91.6,"fx":1,"fz":-0.001,"nx":0.001,"nz":1,"station":"Cormorant Square","colour":"#3fae5c"},{"x":-1062.8,"z":73.8,"fx":1,"fz":-0.001,"nx":-0.001,"nz":-1,"station":"Cormorant Square","colour":"#3fae5c"},{"x":-777.2,"z":91.2,"fx":1,"fz":-0.001,"nx":0.001,"nz":1,"station":"Cormorant Square","colour":"#3fae5c"},{"x":-772,"z":67.2,"fx":0.001,"fz":1,"nx":-1,"nz":0.001,"station":"Cormorant Square","colour":"#3fae5c"},{"x":-503.7,"z":-504,"fx":1,"fz":0.001,"nx":0.001,"nz":-1,"station":"Ferrier Cross","colour":"#3fae5c"},{"x":-460.7,"z":-504,"fx":1,"fz":0,"nx":0,"nz":-1,"station":"Ferrier Cross","colour":"#3fae5c"},{"x":-492.1,"z":-968.5,"fx":-0.001,"fz":1,"nx":-1,"nz":-0.001,"station":"Tern Yard","colour":"#3fae5c"},{"x":-465.8,"z":-1008.1,"fx":0.856,"fz":-0.517,"nx":-0.517,"nz":-0.856,"station":"Tern Yard","colour":"#3fae5c"},{"x":2274.7,"z":-964.6,"fx":0.67,"fz":0.742,"nx":-0.742,"nz":0.67,"station":"Bellrope","colour":"#8a8d94"},{"x":2255.8,"z":-977.4,"fx":0.711,"fz":-0.704,"nx":-0.704,"nz":-0.711,"station":"Bellrope","colour":"#8a8d94"},{"x":2286,"z":-986.2,"fx":0.722,"fz":-0.691,"nx":0.691,"nz":0.722,"station":"Bellrope","colour":"#8a8d94"}],
     sources: [
       {
         "what": "MTA Subway Entrances and Exits (positions of the stairs)",

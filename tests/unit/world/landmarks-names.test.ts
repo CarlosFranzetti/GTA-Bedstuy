@@ -701,7 +701,7 @@ const norm = (s: string): string => s.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ')
 /** words that every kind of place uses: they carry no identity */
 const GENERIC = new Set(('park pool playground garden gardens houses house towers tower church methodist episcopal baptist school high academy library branch ' +
   'station engine firehouse fire medical center centre hospital sanitation garage depot armory square plaza the of and st saint avenue street ave ' +
-  'subway entrance entrances stairs memorial community public junior middle elementary precinct police department city new york brooklyn bed stuy').split(' '));
+  'hill hills subway entrance entrances stairs memorial community public junior middle elementary precinct police department city new york brooklyn bed stuy').split(' '));
 const tokens = (s: string): string[] => norm(s).split(' ').filter((t) => t.length > 2 && !GENERIC.has(t));
 
 describe('landmark names are invented', () => {

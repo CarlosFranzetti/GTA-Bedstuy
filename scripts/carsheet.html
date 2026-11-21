@@ -1,0 +1,53 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>car contact sheet</title>
+<style>html,body{margin:0;background:#789;overflow:hidden}</style></head>
+<body><script type="module">
+// CARS3 contact sheet: every vehicle type in one canvas (one cell each), one angle per sheet. Dev server only.
+// /scripts/carsheet.html?angle=front3q|side|rear3q&cols=7&cw=300&ch=200&types=a,b,c&label=1
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Rng } from '@/core/Rng';
+import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { buildCarModel } from '@/entities/models/carModel';
+import { VEHICLE_SPECS } from '@/entities/Vehicle';
+import { lookFor } from '@/entities/models/carLook';
+
+const P = new URLSearchParams(location.search);
+const angle = P.get('angle') ?? 'front3q';
+const cols = Number(P.get('cols') ?? 7), cw = Number(P.get('cw') ?? 300), ch = Number(P.get('ch') ?? 200);
+const types = (P.get('types') ?? Object.keys(VEHICLE_SPECS).join(',')).split(',');
+const rows = Math.ceil(types.length / cols);
+const W = cols * cw, H = rows * ch;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.setScissorTest(true);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8aa4bc);
+const pm = new THREE.PMREMGenerator(renderer);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.5;
+const sun = new THREE.DirectionalLight(0xfff2dc, 2.6); sun.position.set(-6, 10, 5); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x6a5a48, 0.7));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshStandardMaterial({ color: 0x5a5d62, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const materials = new MaterialLibrary(new Rng(7)); materials.carPaintDetail(); materials.setEnvironment(scene.environment);
+const cam = new THREE.PerspectiveCamera(34, cw / ch, 0.1, 200);
+const a = { front3q: Math.PI + 0.6, side: Math.PI / 2, rear3q: 0.6 }[angle] ?? Math.PI + 0.6;
+let tris = 0;
+const info = {};
+types.forEach((type, i) => {
+  const spec = VEHICLE_SPECS[type];
+  const m = buildCarModel(type, spec, materials, 0, undefined, false, lookFor(type, spec.color, 1234), 1234);
+  scene.add(m.group);
+  const size = Math.max(spec.length * 0.8, spec.height * 2.2, 3.4);
+  const d = size / Math.tan((cam.fov * Math.PI) / 360) * 0.5 + spec.length * 0.35;
+  cam.position.set(Math.sin(a) * d, spec.height * 0.85 + 0.5, Math.cos(a) * d); cam.lookAt(0, spec.height * 0.42, 0);
+  const x = (i % cols) * cw, y = H - (Math.floor(i / cols) + 1) * ch;
+  renderer.setViewport(x, y, cw, ch); renderer.setScissor(x, y, cw, ch);
+  renderer.render(scene, cam);
+  let t = 0; m.group.traverse((o) => { if (o.isMesh && o.visible) { const g = o.geometry; t += (g.index ? g.index.count : g.attributes.position.count) / 3 * (o.isInstancedMesh ? o.count : 1); } });
+  info[type] = Math.round(t); tris += t;
+  scene.remove(m.group);
+});
+window.__ready = { W, H, tris: Math.round(tris), info };
+</script></body></html>

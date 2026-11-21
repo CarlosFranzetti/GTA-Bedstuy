@@ -49,10 +49,10 @@ const BASE_HORNS: Record<Exclude<VehicleType, Cars2Horn>, HornSpec> = {
 export const HORNS: Record<VehicleType, HornSpec> = {
   ...BASE_HORNS,
   wagon: { ...BASE_HORNS.sedan, root: 405 },
-  bigsuv: { ...BASE_HORNS.suv, root: 351 },
+  bigsuv: { ...BASE_HORNS.suv, root: 335 },
   minitruck: { ...BASE_HORNS.hatch, kind: 'car', root: 400, gain: 0.9 },
-  panelvan: { ...BASE_HORNS.cargovan, root: 399 },
-  taxivan: { ...BASE_HORNS.cab, root: 430 },
+  panelvan: { ...BASE_HORNS.cargovan, root: 386 },
+  taxivan: { ...BASE_HORNS.cab, root: 442 },
   limo: { ...BASE_HORNS.towncar, root: 185 },
   classic: { ...BASE_HORNS.towncar, root: 225, wave: 'square', lp: 1900 },
   donk: { ...BASE_HORNS.towncar, root: 175, wave: 'square', lp: 1600, gain: 1.15 },

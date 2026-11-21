@@ -346,7 +346,7 @@ const STYLES: Record<HairId, (ctx: Ctx, mb: MeshBuilder) => void> = {
     cap(ctx, mb, L_SHORT, (be, u) => 0.006 * sstep(0, 0.25, u) + 0.016 * f(be) * (0.3 + 0.7 * sstep(0, 0.35, u)) + 0.006 * sstep(0.5, 1, u), { cols: n, rows: rowsOf(ctx, 6, 4), wander: 0.4, shade: (be, u) => 0.62 + 0.38 * f(be) * sstep(0, 0.2, u) + 0.06 * sstep(0.3, 1, u) });
   },
   locs: (ctx, mb) => locks(ctx, mb, { back: 5, front: 2, rad: 0.026, drop: 0.07, stagger: 0.12, capCols: colsOf(ctx, 10, 8), sides: 4, segs: 3, sway: 0.05 }),
-  boxBraids: (ctx, mb) => locks(ctx, mb, { back: 6, front: 2, rad: 0.0155, drop: 0.12, stagger: 0.14, capCols: colsOf(ctx, 12, 9), sides: 4, segs: 3, sway: 0.035 }),
+  boxBraids: (ctx, mb) => locks(ctx, mb, { back: 6, front: 2, rad: 0.0155, drop: 0.12, stagger: 0.14, capCols: colsOf(ctx, 10, 8), sides: 4, segs: 3, sway: 0.035 }),
   cornrows,
   // chin length, tucked behind the ear, side parted with a soft front
   bob: (ctx, mb) => {

@@ -29,7 +29,7 @@ function record(type: VehicleType, driver: 'traffic' | 'cop'): number[][] {
   const v = new Vehicle('traj-' + type, VEHICLE_SPECS[type], { x: 0, z: 0 }, 0.3, stubMaterials, new EventBus());
   v.driver = driver;
   const out: number[][] = [];
-  const r = (x: number) => Math.round(x * 1e5) / 1e5;
+  const r = (x: number) => Math.round(x * 1e5) / 1e5 + 0; // + 0 turns -0 into 0 (JSON drops the sign)
   for (let i = 0; i < 24 * 60; i++) {
     v.setInput(script(i / 60));
     v.update(1 / 60);

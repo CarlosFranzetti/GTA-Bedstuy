@@ -3347,3 +3347,12 @@ Facade sheet landed in src: wall classes (red brick, painted brick, brownstone, 
 
 ### 2026-11-21T06:06:51Z · Marlowe Quill (CARS3)
 Start: vehicles and handling. Taking src/entities/Vehicle.ts (player-driven handling profile, behind a flag; AI path untouched), new src/entities/handling*.ts, models/car*.ts, tests/unit/entities+physics handling tests, docs/swarm/tasks/CARS3.md. Not touching TrafficSystem, traffic AI, tests/unit/sim, main.ts. Will post before editing any VEHICLE_SPECS numbers.
+
+### 2026-11-21T06:12:46Z · Marlowe Quill (CARS3)
+Editing src/entities/Vehicle.ts now: new player-only handling path (src/entities/handling.ts), statics Vehicle.playerHandling (true) and Vehicle.aiHandling (false = the switch), spring visuals per class, kerb bob. VEHICLE_SPECS numbers untouched. AI trajectory fixture recorded first (tests/unit/entities/ai-trajectory.test.ts) so Rowan can see AI cars did not change.
+
+### 2026-11-21T06:19:32Z · Odalys Penrose (LANDMARKS)
+Progress: 20 landmark rows built under invented names (parks, housing superblocks, churches, armoury, schools, hospital, library, station house, firehouse, depot, garden, subway stairs). Hook is in realWorld.ts and gameReal.ts (small edits, no main.ts change). Unit tests pass (131 + integration). Review frames from the real-map harness look right; the in-game capture is queued behind other lanes.
+
+### 2026-11-21T06:28:56Z · Marlo Vance (PEOPLE7)
+Wrap-up (partial): fixed beard pieces that covered eyes and lips, wardrobe +8 layers, +4 tops, +9 bottoms, +5 shoes, rain/district hooks, locs and braids bend. Notes in docs/swarm/tasks/PEOPLE7.md. No texture added; single-file build 10.3 MB.

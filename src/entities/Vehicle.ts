@@ -9,6 +9,8 @@ import {
   angleDiff, applyPose, clamp, dot, forwardFromHeading, headingFromVec, perpRight, wrapAngle, type Vec2,
 } from '@/core/Math2';
 import type { EventBus } from '@/core/Events';
+import { HandlingModel, handlingFor, type HandlingClass } from '@/entities/handling';
+import { groundAt } from '@/world/Ground';
 import { YIELD_PREFIX } from '@/physics/World2D';
 import type {
   Body2D, Contact, IMaterialLibrary, IVehicle, VehicleInput, VehicleSpec, VehicleType,
@@ -158,10 +160,6 @@ const SCRAPE_ESCALATE = 1.5;
 const SCRAPE_ESCALATE_ADD = 1;
 const SHAKE_DECAY = 5; // 1/s, only when nobody consumes it
 // ---- chassis visuals
-const ROLL_PER_ACCEL = 0.0055;
-const PITCH_PER_ACCEL = 0.004;
-const TILT_K = 70;
-const TILT_C = 10;
 const BOUNCE_K = 150;
 const BOUNCE_C = 11;
 const BOUNCE_MAX = 0.06;
@@ -205,6 +203,15 @@ export class Vehicle implements IVehicle {
    * slide earlier without touching any per-type number. Engine thrust is unchanged.
    */
   static roadGrip = 1;
+  /**
+   * CARS3 handling profile (src/entities/handling.ts): slip-angle tyres, load transfer, drive layout, handbrake, gearbox feel.
+   * `playerHandling` gives it to the player's car. `aiHandling` is THE SWITCH for traffic and police: false (default) keeps the
+   * old kinematic model they are tuned against (tests/unit/entities/ai-trajectory.test.ts pins it); set true to give them the new one.
+   */
+  static playerHandling = true;
+  static aiHandling = false;
+  /** Suspension kicks when the player's car rolls over a kerb (needs `setGround`, see src/world/Ground.ts). */
+  static kerbBob = true;
   /** Wedge push-out for the player's car (see updateWedge). Off only for tests that assert a car held against an obstacle rests. */
   static wedgeAssist = true;
   readonly spec: VehicleSpec;
@@ -247,6 +254,11 @@ export class Vehicle implements IVehicle {
   private yawRate = 0;
   private brakePressure = 0;
   private rearGrip = MU_REAR;
+  /** CARS3: made on first use of the handling profile */
+  private hm: HandlingModel | null = null;
+  /** CARS3: class row for the chassis springs (roll, pitch, stiffness) */
+  private readonly vis: HandlingClass;
+  private kerbF = 0; private kerbR = 0; private kerbInit = false;
   /** CARS14: 0..1 how hard the engine is pulling this step (throttle minus the speed term) */
   private driveLoad = 0;
   private wheelRoll = 0;
@@ -295,6 +307,7 @@ export class Vehicle implements IVehicle {
     this.spec = spec;
     this.seed = seedOf(id);
     this.tyreMu = spec.grip ?? 1;
+    this.vis = handlingFor(spec.type);
     this.body = {
       id,
       kind: spec.type === 'cop' ? 'cop' : 'vehicle',
@@ -350,6 +363,9 @@ export class Vehicle implements IVehicle {
    * touching a body), kept while the push-out nudges the car free. 0 when moving freely. The HUD shows a hint at 1.5 s.
    */
   get blockedSeconds(): number { return this._blockedSeconds; }
+
+  /** Yaw rate in rad/s (+ = nose turning right), without the collision spin. */
+  get yawRateRad(): number { return this.yawRate; }
 
   /** 0..1 tyre slip (for squeal audio / skid effects): 0 = gripping, 1 = fully sliding. */
   get slip(): number { return this.slipAmt; }
@@ -408,8 +424,11 @@ export class Vehicle implements IVehicle {
     if (input.horn && !this.prevHorn) this.events.emit('horn', { pos: { x: b.pos.x, z: b.pos.z } });
     this.prevHorn = input.horn;
 
+    if (this.driver === 'player' && Vehicle.kerbBob) this.kerbStep();
     this.springs(dt);
-    this.animate(dt, this.speed);
+    const hm = this.hm;
+    const wheelSpeed = hm !== null && this.useProfile() ? this.speed * (1 - 0.9 * hm.lockup) + Math.sign(input.throttle || 1) * hm.wheelspin * 9 : this.speed;
+    this.animate(dt, wheelSpeed);
     applyPose(this.object3D, b.pos, b.heading);
     this.checkSettled();
   }
@@ -483,6 +502,7 @@ export class Vehicle implements IVehicle {
     if (!driven) { this.integrateParked(h); return; }
     const input = this.input;
     const unstick = this.driver === 'player' && Vehicle.wedgeAssist ? this.updateWedge(h) : null;
+    if (this.useProfile()) { this.integrateProfile(h, unstick); return; }
 
     const f0 = forwardFromHeading(b.heading);
     const r0 = perpRight(f0);
@@ -603,12 +623,71 @@ export class Vehicle implements IVehicle {
     b.pos.z += b.vel.z * h;
 
     // measured accelerations drive the chassis springs; slip drives squeal
-    const aLat = (vLat - vLatBefore) / h;
+    const aLat = ((this.yawRate + this.impactYaw) * vLongN) * 1; // centripetal, for the body roll (the slip read-out below still uses vLat)
+    void vLatBefore;
     const k = Math.min(1, 14 * h);
     this.aLongF += (aLong - this.aLongF) * k;
     this.aLatF += (aLat - this.aLatF) * k;
     const slipNow = clamp((Math.abs(vLat) - 0.7) / 3.5, 0, 1);
     this.slipAmt += (slipNow - this.slipAmt) * Math.min(1, 10 * h);
+  }
+
+  /** True when this car runs the CARS3 handling profile (see `Vehicle.playerHandling` / `aiHandling`). */
+  useProfile(): boolean {
+    if (this.driver === 'player') return Vehicle.playerHandling;
+    if (this.driver === 'traffic' || this.driver === 'cop') return Vehicle.aiHandling;
+    return false;
+  }
+
+  /** The handling model of this car (made on demand); tests and the HUD read steering, slip and load numbers from it. */
+  get handling(): HandlingModel { return (this.hm ??= new HandlingModel(this.spec)); }
+
+  /** CARS3 dynamics: see handling.ts. The body keeps its world velocity; the model works in the car's own axes. */
+  private integrateProfile(h: number, unstick: number | null): void {
+    const b = this.body;
+    const hm = this.handling;
+    const input = this.input;
+    const f0 = forwardFromHeading(b.heading);
+    const r0 = perpRight(f0);
+    const st = { u: dot(b.vel, f0), v: dot(b.vel, r0), r: this.yawRate };
+    const thr = unstick !== null ? unstick : input.throttle;
+    hm.step(h, st, { throttle: thr, steer: input.steer, brake: input.brake, handbrake: input.handbrake }, { grip: this.grip, roadGrip: Vehicle.roadGrip });
+    const oppose = !input.brake && thr * st.u < 0 && Math.abs(st.u) > 0.5;
+    const braking = input.brake || oppose || input.handbrake;
+    if (braking !== this.braking) { this.braking = braking; this.applyLights(); }
+    this.yawRate = st.r;
+    b.heading = wrapAngle(b.heading + (st.r + this.impactYaw) * h);
+    this.decayImpactYaw(h);
+    const f1 = forwardFromHeading(b.heading);
+    const r1 = perpRight(f1);
+    b.vel.x = f1.x * st.u + r1.x * st.v;
+    b.vel.z = f1.z * st.u + r1.z * st.v;
+    b.pos.x += b.vel.x * h;
+    b.pos.z += b.vel.z * h;
+    this.steerNorm = hm.steerNorm;
+    this.steerAngle = hm.delta;
+    this.brakePressure = hm.brakeP;
+    this.driveLoad = hm.driveLoad;
+    this.aLongF = hm.aLong;
+    this.aLatF = hm.aLat;
+    this.slipAmt = hm.slip;
+  }
+
+  /** Kerb strikes: the ground height under each axle changes (sidewalk 0.15 m above the road), the body bobs and the nose lifts or drops. */
+  private kerbStep(): void {
+    const b = this.body;
+    const f = forwardFromHeading(b.heading);
+    const half = this.spec.length * 0.3;
+    const hf = groundAt(b.pos.x + f.x * half, b.pos.z + f.z * half);
+    const hr = groundAt(b.pos.x - f.x * half, b.pos.z - f.z * half);
+    if (!this.kerbInit) { this.kerbF = hf; this.kerbR = hr; this.kerbInit = true; return; }
+    const df = hf - this.kerbF, dr = hr - this.kerbR;
+    this.kerbF = hf; this.kerbR = hr;
+    if (df === 0 && dr === 0) return;
+    const v = Math.min(14, Math.abs(this.speed)) / 8;
+    const soft = 1 / (1 + this.vis.springK / 60);
+    this.bounceV += (df + dr) * 3.2 * v * (0.6 + soft);
+    this.pitchV += (df - dr) * 4.2 * v * (0.6 + soft);
   }
 
   /** True for a thin static prop (pole, hydrant, tree, bollard) that a car should slide off. */
@@ -827,23 +906,23 @@ export class Vehicle implements IVehicle {
 
   /** Spring-damped body roll / pitch / bounce driven by the measured accelerations. */
   private springs(dt: number): void {
-    const sc = Math.min(1.6, this.spec.height / 1.4);
-    const rollT = clamp(-this.aLatF * ROLL_PER_ACCEL * sc, -0.1, 0.1);
-    const pitchT = clamp(this.aLongF * PITCH_PER_ACCEL * sc, -0.08, 0.08);
+    const vs = this.vis;
+    const rollT = clamp(-this.aLatF * vs.rollGain, -vs.rollMax, vs.rollMax);
+    const pitchT = clamp(this.aLongF * vs.pitchGain, -vs.pitchMax, vs.pitchMax);
     let rem = dt;
     while (rem > 1e-9) {
       const h = Math.min(rem, 1 / 120);
       rem -= h;
-      this.rollV += (-TILT_K * (this.roll - rollT) - TILT_C * this.rollV) * h;
+      this.rollV += (-vs.springK * (this.roll - rollT) - vs.springC * this.rollV) * h;
       this.roll += this.rollV * h;
-      this.pitchV += (-TILT_K * (this.pitch - pitchT) - TILT_C * this.pitchV) * h;
+      this.pitchV += (-vs.springK * (this.pitch - pitchT) - vs.springC * this.pitchV) * h;
       this.pitch += this.pitchV * h;
       this.bounceV += (-BOUNCE_K * this.bounce - BOUNCE_C * this.bounceV) * h;
       this.bounce += this.bounceV * h;
     }
     this.bounce = clamp(this.bounce, -BOUNCE_MAX, BOUNCE_MAX);
-    this.roll = clamp(this.roll, -0.15, 0.15);
-    this.pitch = clamp(this.pitch, -0.12, 0.12);
+    this.roll = clamp(this.roll, -vs.rollMax * 1.35, vs.rollMax * 1.35);
+    this.pitch = clamp(this.pitch, -vs.pitchMax * 1.5, vs.pitchMax * 1.5);
     this.chassis.rotation.set(this.pitch, 0, this.roll);
     this.chassis.position.y = this.bounce;
   }

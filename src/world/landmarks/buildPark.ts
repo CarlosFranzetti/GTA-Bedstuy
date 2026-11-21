@@ -89,10 +89,10 @@ export function court(k: Kit, cx: number, cz: number, len: number, wid: number, 
     }
   }
   // hoops: post, backboard, rim
-  const iron = k.m('metalDark');
+  const iron = k.flatM;
   for (const s of [-1, 1]) {
     const hx = alongX ? (s < 0 ? x0 - 0.4 : x1 + 0.4) : cx, hz = alongX ? cz : (s < 0 ? z0 - 0.4 : z1 + 0.4);
-    k.cyl(iron, hx, hz, 0.07, 0, 3.4, 5);
+    k.cyl(iron, hx, hz, 0.07, 0, 3.4, 5, { color: 0x2c2c2e });
     const bxw = alongX ? 0 : 0.9, bzw = alongX ? 0.9 : 0;
     const inward: V3 = alongX ? [-s, 0, 0] : [0, 0, -s];
     k.quad(k.flatM, [hx - bxw, 2.7, hz - bzw], [hx + bxw, 2.7, hz + bzw], [hx + bxw, 3.5, hz + bzw], [hx - bxw, 3.5, hz - bzw], { hint: inward, color: 0xe9e6dc });
@@ -124,7 +124,7 @@ export function playground(k: Kit, x: number, z: number, w: number, d: number, r
     k.bar(k.flatM, [sx + e, 0, sz + 1.2], [sx + e, fy, sz], 0.12, { color: blu });
   }
   k.bar(k.flatM, [sx, fy, sz], [sx + 5, fy, sz], 0.14, { color: blu });
-  for (const e of [1.3, 3.7]) { k.bar(k.m('metalDark'), [sx + e, fy, sz], [sx + e, 0.5, sz], 0.03); k.quad(k.flatM, [sx + e - 0.2, 0.5, sz - 0.15], [sx + e + 0.2, 0.5, sz - 0.15], [sx + e + 0.2, 0.5, sz + 0.15], [sx + e - 0.2, 0.5, sz + 0.15], { hint: [0, 1, 0], color: 0x1d1d1d }); }
+  for (const e of [1.3, 3.7]) { k.bar(k.flatM, [sx + e, fy, sz], [sx + e, 0.5, sz], 0.03, { color: 0x2c2c2e }); k.quad(k.flatM, [sx + e - 0.2, 0.5, sz - 0.15], [sx + e + 0.2, 0.5, sz - 0.15], [sx + e + 0.2, 0.5, sz + 0.15], [sx + e - 0.2, 0.5, sz + 0.15], { hint: [0, 1, 0], color: 0x1d1d1d }); }
   k.solidRect(sx - 0.3, sz - 1.4, sx + 5.3, sz + 1.4);
   // slide tower + slide
   const tx = x + w - 6, tz = z + 3;
@@ -323,7 +323,7 @@ export function* buildPark(c: BuildCtx): Generator<void> {
     // a stone pier on each side of the gate with a name board on the near one
     for (const sd of [-1, 1]) {
       const px = g[0] + (inward[1] !== 0 ? sd * (gateW / 2 + 0.4) : 0), pz = g[1] + (inward[0] !== 0 ? sd * (gateW / 2 + 0.4) : 0);
-      k.box(k.m('limestone'), px - 0.4, 0, pz - 0.4, px + 0.4, 2.1, pz + 0.4);
+      k.box(k.flatM, px - 0.4, 0, pz - 0.4, px + 0.4, 2.1, pz + 0.4, { color: 0xcfc7b0 });
       k.solidCircle(px, pz, 0.5);
     }
     void sx; void sz;
@@ -478,7 +478,7 @@ export function* buildPool(c: BuildCtx): Generator<void> {
   }
   for (const x of [px0 + 2, px1 - 2]) line(k, x, pz0 + 1, x, pz1 - 1, 0.24, 0.3, 0x1c4a6e);
   // ladders
-  for (let i = 0; i < 4; i++) { const x = px0 + 8 + i * 13; k.bar(k.m('metalDark'), [x, 0.8, pz0 - 0.3], [x, 0.3, pz0 + 0.4], 0.05); }
+  for (let i = 0; i < 4; i++) { const x = px0 + 8 + i * 13; k.bar(k.flatM, [x, 0.8, pz0 - 0.3], [x, 0.3, pz0 + 0.4], 0.05, { color: 0xb9bec4 }); }
   k.solidRect(px0 - 0.5, pz0 - 0.5, px1 + 0.5, pz1 + 0.5);
   yield;
   // deck chairs, fence, trees

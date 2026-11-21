@@ -49,6 +49,19 @@ describe('uploadPendingCanvasTextures', () => {
     expect(uploadPendingCanvasTextures(renderer, scene)).toBe(0);              // nothing left to do
     setTextureTier(null);
   });
+  it('adopts a cargo livery canvas that was built without the release hook, and only those', () => {
+    setTextureTier('phone');
+    const livery = new THREE.Texture(fakeCanvas(1024, 512)); const other = new THREE.Texture(fakeCanvas(1024, 512));
+    const scene = new THREE.Group();
+    const a = new THREE.MeshBasicMaterial({ map: livery }); a.name = 'cargoLivery:3';
+    const b = new THREE.MeshBasicMaterial({ map: other }); b.name = 'minimap';
+    scene.add(new THREE.Mesh(new THREE.PlaneGeometry(), a), new THREE.Mesh(new THREE.PlaneGeometry(), b));
+    const renderer = { initTexture: vi.fn((t: THREE.Texture) => { t.onUpdate?.call(t, t); }) };
+    expect(uploadPendingCanvasTextures(renderer, scene)).toBe(1);
+    expect((livery.image as HTMLCanvasElement).width).toBe(1);
+    expect((other.image as HTMLCanvasElement).width).toBe(1024);               // a texture nobody vouched for is left alone
+    setTextureTier(null);
+  });
   it('survives a texture the renderer cannot upload yet', () => {
     setTextureTier('phone');
     const t = new THREE.Texture(fakeCanvas(64, 64)); releaseCanvasAfterUpload(t);

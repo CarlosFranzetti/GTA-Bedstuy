@@ -65,6 +65,20 @@ export function* buildChurch(c: BuildCtx): Generator<void> {
   archSurround(k, stone, mid, naveZ0, 0, 2.2, 3.6, [0, -1], true, 0.4, 0.1);
   steps(k, stone, mid, naveZ0, 5, 3, 0.18, 0.5, [0, -1]);
   band(k, stone, naveX0, naveZ0, naveX1, naveZ0, eave - 0.4, 0.4, 0.3, [0, -1]);
+  // lancets either side of the door, a rose window in the gable, corner buttresses
+  for (const dx of [-4.4, 4.4]) {
+    if (mid + dx - 0.6 > naveX0 && mid + dx + 0.6 < naveX1) { archPane(k, k.m('window', 0), mid + dx, naveZ0, 2.4, 1.2, 4.0, [0, -1], true, 0.05); archSurround(k, stone, mid + dx, naveZ0, 2.4, 1.2, 4.0, [0, -1], true, 0.2, 0.08); }
+  }
+  if (detail > 0) {
+    const ry = eave + 2.6, rr = 1.5, rz = naveZ0 - 0.05;
+    const P = (a: number, r: number): [number, number, number] => [mid + Math.cos(a) * r, ry + Math.sin(a) * r, rz];
+    for (let i = 0; i < 12; i++) {
+      const a0 = (i / 12) * Math.PI * 2, a1 = ((i + 1) / 12) * Math.PI * 2;
+      k.tri(k.m('window', 1), [mid, ry, rz], P(a0, rr), P(a1, rr), { hint: [0, 0, -1], uv: [[0.5, 0.7], [0.5 + Math.cos(a0) * 0.4, 0.7 + Math.sin(a0) * 0.3], [0.5 + Math.cos(a1) * 0.4, 0.7 + Math.sin(a1) * 0.3]] });
+      k.quad(stone, P(a0, rr), P(a1, rr), P(a1, rr + 0.3), P(a0, rr + 0.3), { hint: [0, 0, -1], ru: 0.3, rv: 0.1 });
+    }
+    for (const bx of [naveX0, naveX1]) k.box(stone, bx - 0.45, 0, naveZ0 - 0.55, bx + 0.45, eave - 0.6, naveZ0 + 0.3);
+  }
   // side walls: tall narrow windows between buttresses
   for (const side of [0, 1]) {
     const xs = side ? naveX1 : naveX0;
@@ -180,6 +194,7 @@ export function* buildArmory(c: BuildCtx): Generator<void> {
 export function* buildSchool(c: BuildCtx): Generator<void> {
   const { k, row, rng, detail } = c;
   const W = row.site.w, D = row.site.d;
+  if (row.look.plan === 'slab') { yield* buildSchoolSlab(c); return; }
   const brick = k.m('brickRed', 0), stone = k.m('limestone'), cornice = k.m('cornice'), roof = k.m('tarRoof', 1);
   const floors = Number(row.look.floors ?? 4), fh = 4.3;
   const H = floors * fh;
@@ -420,4 +435,42 @@ export function* buildDepot(c: BuildCtx): Generator<void> {
   }
   fence(k, 0, 0, W, 0, { h: 2.4, mat: k.m('chainlinkFence'), postEvery: 6, gaps: [[W / 2 - 4, W / 2 + 4]] });
   void rng;
+}
+
+/** a post-war public school: a long brick block with ribbon windows, an entrance canopy, a wing at one end and a fenced yard */
+function* buildSchoolSlab(c: BuildCtx): Generator<void> {
+  const { k, row, rng, detail } = c;
+  const W = row.site.w, D = row.site.d;
+  const floors = Number(row.look.floors ?? 3), fh = 3.9, H = floors * fh;
+  const brick = k.m('brickRed', 0), stone = k.m('limestone'), roof = k.m('tarRoof', 1), conc = k.m('concrete');
+  const bd = Math.min(17, D * 0.6);
+  k.floor(conc, [[0, 0], [W, 0], [W, D], [0, D]], 0.04);
+  k.box(brick, 1, 0, 2.5, W - 1, H, 2.5 + bd, { top: roof });
+  flatRoof(k, roof, brick, 1, 2.5, W - 1, 2.5 + bd, H, 0.8);
+  // a wing across the back at the right-hand end, one storey lower
+  const wx0 = W - 30, wz1 = Math.min(D - 1, 2.5 + bd + 11);
+  k.box(brick, wx0, 0, 2.5 + bd, W - 1, H - fh, wz1, { top: roof });
+  flatRoof(k, roof, brick, wx0, 2.5 + bd, W - 1, wz1, H - fh, 0.8);
+  k.solidRect(1, 2.5, W - 1, 2.5 + bd); k.solidRect(wx0, 2.5 + bd, W - 1, wz1);
+  // stone band between the storeys and ribbon windows
+  for (let f = 1; f <= floors; f++) band(k, stone, 1, 2.5, W - 1, 2.5, f * fh - 0.25, 0.25, 0.1, [0, -1]);
+  windowBand(k, { x0: 1, z0: 2.5, dx: 1, dz: 0, len: W - 2, out: [0, -1], y0: 1.0, floors, floorH: fh, w: 2.4, h: 2.0, pitch: 3.3, margin: 1.6, trim: null, detail, skip: (i, f) => f === 0 && Math.abs(i - (W - 2) / 3.3 / 2) < 1.5 });
+  windowBand(k, { x0: 1, z0: 2.5 + bd, dx: 1, dz: 0, len: wx0 - 1, out: [0, 1], y0: 1.0, floors, floorH: fh, w: 2.4, h: 2.0, pitch: 3.3, trim: null, detail });
+  windowBand(k, { x0: wx0, z0: wz1, dx: 1, dz: 0, len: W - 1 - wx0, out: [0, 1], y0: 1.0, floors: floors - 1, floorH: fh, w: 2.4, h: 2.0, pitch: 3.3, trim: null, detail });
+  // entrance: a flat canopy on two columns over double doors, and the name board on the parapet
+  const mx = W / 2;
+  k.box(k.m('concrete'), mx - 4.5, 3.3, -1.4, mx + 4.5, 3.6, 2.5, { top: k.m('concrete') });
+  for (const x of [mx - 4, mx + 4]) { k.cyl(k.m('concrete'), x, -1.0, 0.22, 0, 3.3, 6); k.solidCircle(x, -1.0, 0.3); }
+  archPane(k, k.m('metalDark'), mx, 2.5, 0, 3.4, 2.8, [0, -1], true, 0.05);
+  signBoard(k, row.name.toUpperCase(), mx, H - 3.2, 2.4, [0, -1], 9, '#27415f', '#f0ecd8', 0.02);
+  // the yard behind: asphalt, painted court lines, a fence
+  const yz0 = wz1 + 1.5;
+  if (yz0 < D - 3) {
+    k.floor(k.flatM, [[2, yz0], [wx0 - 2, yz0], [wx0 - 2, D - 1], [2, D - 1]], 0.06, { color: 0x4c4f53 });
+    k.floor(k.flatM, [[6, yz0 + 1], [26, yz0 + 1], [26, D - 2], [6, D - 2]], 0.07, { color: 0x3f6a52 });
+    fence(k, 2, D - 0.5, wx0 - 2, D - 0.5, { h: 2.6, mat: k.m('chainlinkFence'), postEvery: 6 });
+  }
+  fence(k, 0, 0.5, W, 0.5, { h: 1.0, gaps: [[mx - 3, mx + 3]], postEvery: 6 });
+  for (let i = 0; i < 6; i++) tree(k, 4 + rng.next() * (W - 8), 0.9 + rng.next() * 0.5, rng, 0.6 + rng.next() * 0.2, false);
+  yield;
 }

@@ -24,6 +24,9 @@ export function landmarkColourway(row: LandmarkRow): Colourway {
   return cw;
 }
 
+const ROOF_SCALE_M = 64; // lotTone.ts: the roof-line height rides in the alpha of the `color` attribute, in units of 64 m
+const WALL_NAME = /^(brickRed|brickPainted|brownstone|limestone|cornice):/;
+
 /** bake aTone / aStyle into every mesh whose material takes a tone (all faces count as the street front: a landmark shows several) */
 export function applyTone(meshes: readonly THREE.Mesh[], cw: Colourway): void {
   for (const m of meshes) {
@@ -34,6 +37,16 @@ export function applyTone(meshes: readonly THREE.Mesh[], cw: Colourway): void {
     const n = m.geometry.getAttribute('position').count;
     const tone = new Uint8Array(n * 4), style = new Uint8Array(n * 4);
     for (let i = 0; i < n; i++) { tone.set(t.tone, i * 4); style.set(t.style, i * 4); }
+    if (WALL_NAME.test(mat.name)) {
+      // the wall shader places soot and streaks from the roof-line height (alpha of `color`); without it every wall counts as 64 m tall
+      const pos = m.geometry.getAttribute('position');
+      let roofH = 0;
+      for (let i = 0; i < n; i++) roofH = Math.max(roofH, pos.getY(i));
+      const col = new Uint8Array(n * 4).fill(255);
+      const a = Math.max(0, Math.min(255, Math.round((roofH / ROOF_SCALE_M) * 255)));
+      for (let i = 0; i < n; i++) col[i * 4 + 3] = a;
+      m.geometry.setAttribute('color', new THREE.BufferAttribute(col, 4, true));
+    }
     m.geometry.setAttribute('aTone', new THREE.BufferAttribute(tone, 4, true));
     m.geometry.setAttribute('aStyle', new THREE.BufferAttribute(style, 4, true));
   }

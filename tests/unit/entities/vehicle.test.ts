@@ -240,7 +240,8 @@ describe('Vehicle', () => {
       return { maxLat, slip: v.slip };
     };
     const g = slide(false), d = slide(true);
-    expect(g.maxLat).toBeLessThan(2);
+    // CARS3: the player's tyres follow a slip-angle curve, so a hard turn-in at 20 m/s has about 2 m/s of honest side slip (the old kinematic model had none)
+    expect(g.maxLat).toBeLessThan(2.5);
     expect(d.maxLat).toBeGreaterThan(4);
     expect(d.maxLat).toBeGreaterThan(3 * g.maxLat);
   });
@@ -523,7 +524,7 @@ describe('Vehicle', () => {
       v.driver = 'player';
       v.body.vel = { x: 0, z: -60 / 3.6 };
       v.setInput(input({ steer: 0.5, handbrake: true }));
-      run(v, 0.5);
+      run(v, 0.8); // CARS3: the rear lets go progressively, so the slide builds over most of a second
       expect(Math.abs(v.lateralSpeed)).toBeGreaterThan(2);
     });
   });

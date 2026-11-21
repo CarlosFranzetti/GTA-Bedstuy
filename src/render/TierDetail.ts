@@ -9,7 +9,7 @@
  * Both are idempotent and cheap to call again after late loads (user texture packs, hosted tier swaps).
  */
 import * as THREE from 'three';
-import { canvasReleased, releasesCanvases } from '@/textures/texTier';
+import { canvasReleased, releaseCanvasAfterUpload, releasesCanvases } from '@/textures/texTier';
 
 interface Stash { normalMap: THREE.Texture | null; roughnessMap: THREE.Texture | null; roughness: number; }
 const stash = new WeakMap<THREE.Material, Stash>();
@@ -77,6 +77,8 @@ export function setAnisotropy(root: THREE.Object3D, cap: number): number {
 }
 
 interface TextureUploader { initTexture(t: THREE.Texture): void }
+/** Materials whose colour map is a canvas painted once at build time (cargo box liveries) and never redrawn. */
+const ADOPT_MATERIALS = /^cargoLivery:/;
 
 /**
  * Phone and low tiers: sends every canvas texture that is still waiting for its first view to the GPU now, so its canvas is
@@ -92,6 +94,8 @@ export function uploadPendingCanvasTextures(renderer: TextureUploader, root: THR
       const t = (m as unknown as Record<string, THREE.Texture | null | undefined>)[slot];
       if (!t || seen.has(t)) continue;
       seen.add(t);
+      // painted once and never touched again, but built without the release hook (cars lane): adopt it here
+      if (slot === 'map' && typeof t.onUpdate !== 'function' && !canvasReleased(t) && ADOPT_MATERIALS.test(m.name)) releaseCanvasAfterUpload(t);
       if (canvasReleased(t) || typeof t.onUpdate !== 'function') continue; // not waiting for an upload hook
       const img = t.image as { getContext?: unknown; width?: number; height?: number } | undefined;
       if (!img || typeof img.getContext !== 'function' || (img.width ?? 0) * (img.height ?? 0) <= 1) continue;

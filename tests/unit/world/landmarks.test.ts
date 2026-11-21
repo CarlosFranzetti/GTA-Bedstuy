@@ -172,3 +172,35 @@ describe('landmark builders stay within budget', () => {
     expect(layer.areaAt({ x: 1e6, z: 1e6 })).toBeNull();
   });
 });
+
+describe('landmarks in the real world', () => {
+  it('the world builds them, the generic building is skipped on owned lots, the map and the HUD name them', async () => {
+    const { buildRealWorld } = await import('@/world/roadnet/realWorld');
+    const { buildRealGame } = await import('@/world/roadnet/gameReal');
+    const rw = await buildRealWorld({ materials: stubLib(), rng: new Rng(7), tier: 'low', warmMs: 0, lotSource: fileLotSource() });
+    expect(rw.standIns.filter((s) => s.startsWith('landmarks'))).toEqual([]);
+    expect(rw.landmarks).toBeTruthy();
+    // owned lots of the first two rings are in the world's lot list but not in the building streamer
+    const owned = rw.lots.filter((l) => OWNED_BBLS.has((l as { bbl?: string }).bbl ?? ''));
+    expect(owned.length).toBeGreaterThanOrEqual(2);
+    const inStreamer = new Set<string>();
+    for (const c of rw.streamer!.chunks.values()) for (const l of c.lots) inStreamer.add(l.bbl);
+    for (const l of owned) expect(inStreamer.has((l as { bbl: string }).bbl), `owned lot ${(l as { bbl: string }).bbl} must not get a generic building`).toBe(false);
+    expect(inStreamer.size).toBeGreaterThan(1000);
+    // the layer builds around the player and hands colliders to the host
+    const lib = LANDMARKS.find((l) => l.id === 'tillery-library')!;
+    const s = lib.site;
+    const c = { x: s.ax + s.fx * s.w / 2 + s.nx * s.d / 2, z: s.az + s.fz * s.w / 2 + s.nz * s.d / 2 };
+    const added: string[] = [];
+    rw.setColliderHost({ add: (cs) => { for (const x of cs) added.push(String(x.id)); }, remove: () => undefined });
+    rw.landmarks!.settle(c.x, c.z, 0);
+    expect(rw.landmarks!.nearOf('tillery-library')).toBeTruthy();
+    expect(added.some((id) => id.startsWith('lm:tillery-library'))).toBe(true);
+    // map blips and the HUD place label (through the real game's hooks)
+    const rg = buildRealGame(rw);
+    expect(rg.mapPlaces.some((m) => m.label === 'Tillery Branch Library')).toBe(true);
+    expect(rg.streetName(c)).toBe('Tillery Branch Library');
+    expect(rg.streetName({ x: c.x + 400, z: c.z + 400 })).not.toBe('Tillery Branch Library');
+    rg.release();
+  }, 900000);
+});

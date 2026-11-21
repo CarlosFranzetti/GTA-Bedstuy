@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
-  joystickVector, TouchControls, STICK_RADIUS, FloatingStick, LookSmoother, visibleButtons, promptNeedsCarButton, TouchPrefs, hapticTick, LOOK_GAIN,
+  joystickVector, TouchControls, STICK_RADIUS, FloatingStick, LookSmoother, visibleButtons, promptNeedsCarButton, TouchPrefs, hapticTick, LOOK_GAIN, playHasStarted,
 } from '@/ui/TouchControls';
 import { Input, ACTION_VIRTUAL } from '@/core/Input';
 
@@ -165,6 +165,20 @@ describe('TouchControls DOM', () => {
   });
 });
 
+describe('playHasStarted', () => {
+  it('waits for the game to be ready and for the title to be gone', () => {
+    document.body.className = ''; document.body.innerHTML = '';
+    const root = document.createElement('div'); document.body.appendChild(root);
+    expect(playHasStarted(root, {})).toBe(false);                       // still loading
+    expect(playHasStarted(root, { __gtaReady: true })).toBe(true);      // no title element at all
+    const splash = document.createElement('div'); splash.className = 'hud-splash'; root.appendChild(splash);
+    expect(playHasStarted(root, { __gtaReady: true })).toBe(false);     // title showing
+    splash.style.display = 'none'; expect(playHasStarted(root, { __gtaReady: true })).toBe(true);
+    document.body.classList.add('title-up'); expect(playHasStarted(root, { __gtaReady: true })).toBe(false);
+    document.body.classList.remove('title-up');
+  });
+});
+
 describe('tutorial and rotate hint', () => {
   beforeEach(() => { document.body.innerHTML = ''; vi.useFakeTimers(); });
   it('shows once when asked, and dismissing it is remembered', () => {
@@ -176,6 +190,15 @@ describe('tutorial and rotate hint', () => {
     (root.querySelector('.tc-tut-ok') as HTMLElement).dispatchEvent(ptr('pointerdown', 1, 0, 0));
     expect(prefs.tutorialSeen).toBe(true);
     vi.advanceTimersByTime(500); expect(root.querySelector('.tc-tutorial')).toBeNull();
+    vi.useRealTimers();
+  });
+  it('shows by itself once the game is ready and the title is gone', () => {
+    const root = document.createElement('div'); document.body.appendChild(root);
+    new TouchControls(root, new Input(document.body), new TouchPrefs(memStore()));
+    vi.advanceTimersByTime(2000); expect(root.querySelector('.tc-tutorial')).toBeNull();   // not ready yet
+    (window as unknown as { __gtaReady?: boolean }).__gtaReady = true;
+    vi.advanceTimersByTime(1000); expect(root.querySelector('.tc-tutorial')).not.toBeNull();
+    delete (window as unknown as { __gtaReady?: boolean }).__gtaReady;
     vi.useRealTimers();
   });
   it('does not show on a later run once it was seen', () => {

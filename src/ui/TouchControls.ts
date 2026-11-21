@@ -129,6 +129,14 @@ export function hapticTick(ms = 9): boolean {
   } catch { return false; }
 }
 
+/** True once the game finished loading and the player left the title (the host marks the title with body.title-up and shows .hud-splash). */
+export function playHasStarted(parent: HTMLElement, win: { __gtaReady?: boolean } = window as unknown as { __gtaReady?: boolean }): boolean {
+  if (!win.__gtaReady) return false;
+  if (document.body.classList.contains('title-up')) return false;
+  const splash = parent.querySelector<HTMLElement>('.hud-splash');
+  return !(splash && splash.style.display !== 'none');
+}
+
 /** iPhone Safari in a browser tab (not an installed web app): the only way to lose the browser bars is Add to Home Screen. */
 export function isIosBrowserTab(nav: { userAgent?: string; standalone?: boolean } = typeof navigator !== 'undefined' ? navigator : {}, standaloneMq = (): boolean => { try { return typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches; } catch { return false; } }): boolean {
   return /iPhone|iPad|iPod/i.test(nav.userAgent ?? '') && !nav.standalone && !standaloneMq();
@@ -326,10 +334,9 @@ export class TouchControls {
   // ---- first-run help (one screen, dismissible, remembered) and the rotate hint
   private setupTutorial(): void {
     if (this.prefs.tutorialSeen) return;
+    // the boot takes a while (loading screen, then the title): wait until the game is ready AND the title has been dismissed
     const waitForPlay = setInterval(() => {
-      const splash = this.parent.querySelector<HTMLElement>('.hud-splash');
-      const up = !!splash && splash.style.display !== 'none';
-      if (up) return;
+      if (!playHasStarted(this.parent)) return;
       clearInterval(waitForPlay);
       if (!this.prefs.tutorialSeen) this.showTutorial();
     }, 400);

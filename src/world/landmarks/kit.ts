@@ -79,6 +79,9 @@ const FAR_COLOUR: Record<string, number> = {
   window: 0x48586a, metalDark: 0x2e2e30, treeLeaves: 0x3f6f35, treeTrunk: 0x4a3a2c, corrugatedSteel: 0x8a9096, rollGate: 0x7a7f84, cornice: 0xb7ab96,
   stoop: 0x9a8f7e, granite: 0x84837f, bluestone: 0x7d8087, chainlinkFence: 0x888b8e, castIronFence: 0x2a2a2c, tire: 0x1c1c1c, grass: 0x4f7c3a,
 };
+/** keys that are always drawn as plain vertex colour in the one flat material (small furniture, paving): fewer draw calls, no texture needed */
+const FLAT_KEYS = new Set<string>(['granite', 'bluestone', 'stoop']);
+FAR_COLOUR.granite = 0x85837e; FAR_COLOUR.bluestone = 0x7a7e86; FAR_COLOUR.stoop = 0x8b6b47;
 const markers = new Map<string, THREE.Material>();
 function farMarker(key: string): THREE.Material {
   let m = markers.get(key);
@@ -112,7 +115,7 @@ export class Kit {
    * separate draw call, and a landmark gets its colour from the wall tone (tone.ts), not from variants.
    */
   m(key: MaterialKey, variant = 0): THREE.Material {
-    if (this.far) return farMarker(key);
+    if (this.far || FLAT_KEYS.has(key)) return farMarker(key);
     let v = variant;
     if (key === 'window') v = variant & 1;
     else if (key === 'tarRoof') v = 1;
@@ -127,7 +130,7 @@ export class Kit {
   }
 
   private buf(mat: THREE.Material): Raw {
-    const key = this.far ? this.flatM : mat;
+    const key = this.far || mat.userData.farColor !== undefined ? this.flatM : mat;
     let r = this.raw.get(key);
     if (!r) { r = { p: [], n: [], uv: [], c: [] }; this.raw.set(key, r); }
     return r;
@@ -151,7 +154,7 @@ export class Kit {
     if (o?.hint && _c.x * o.hint[0] + _c.y * o.hint[1] + _c.z * o.hint[2] < 0) { _c.negate(); [bb, cc] = [c, b]; }
     const n: V3 = [_c.x, _c.y, _c.z];
     const r = this.buf(mat);
-    const col0 = o?.color ?? (this.far ? ((mat.userData.farColor as number | undefined) ?? 0x8a8a8a) : 0xffffff);
+    const col0 = o?.color ?? ((mat.userData.farColor as number | undefined) ?? (this.far ? 0x8a8a8a : 0xffffff));
     const uv = o?.uv;
     const pl = (p: V3): [number, number] => {
       // planar projection on the dominant axis of the normal
