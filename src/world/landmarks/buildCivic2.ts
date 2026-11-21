@@ -6,6 +6,7 @@
  * Local frame: x along the frontage, z into the site, y up; the street front faces [0, -1].
  */
 import type { BuildCtx } from './buildPark';
+import { localRing } from './buildPark';
 import type { Kit, V3 } from './kit';
 import { archPane, archSurround, band, bench, disc, fence, flatRoof, lampPost, lancetPane, lancetSurround, rectCornice, signBoard, steps, tree } from './parts';
 
@@ -194,75 +195,173 @@ export function* buildTwinChurch(c: BuildCtx): Generator<void> {
   if (detail > 0) { lampPost(k, cx - 8.5, 1.2, 3.4); lampPost(k, cx + 8.5, 1.2, 3.4); }
 }
 
+// ----------------------------------------------------------------------------------------------- polygon helpers (corner sites)
+
+type P2 = [number, number];
+
+/** Ramer-Douglas-Peucker on a closed ring (keeps the corners of a block ring that has rounded corners) */
+function simplifyRing(ring: P2[], tol: number): P2[] {
+  const n = ring.length;
+  if (n <= 4) return ring.slice();
+  // anchor on the two points farthest apart
+  let ia = 0, ib = 0, best = -1;
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const d = Math.hypot(ring[i][0] - ring[j][0], ring[i][1] - ring[j][1]); if (d > best) { best = d; ia = i; ib = j; } }
+  const side = (from: number, to: number): P2[] => {
+    const pts: P2[] = [];
+    for (let i = from; i !== to; i = (i + 1) % n) pts.push(ring[i]);
+    pts.push(ring[to]);
+    return pts;
+  };
+  const rdp = (pts: P2[]): P2[] => {
+    if (pts.length < 3) return pts;
+    const a = pts[0], b = pts[pts.length - 1];
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    let md = 0, mi = 0;
+    for (let i = 1; i < pts.length - 1; i++) { const d = Math.abs((pts[i][0] - a[0]) * (b[1] - a[1]) - (pts[i][1] - a[1]) * (b[0] - a[0])) / L; if (d > md) { md = d; mi = i; } }
+    if (md <= tol) return [a, b];
+    return [...rdp(pts.slice(0, mi + 1)).slice(0, -1), ...rdp(pts.slice(mi))];
+  };
+  const s1 = rdp(side(ia, ib)), s2 = rdp(side(ib, ia));
+  return [...s1.slice(0, -1), ...s2.slice(0, -1)];
+}
+
+const area2 = (r: P2[]): number => { let a = 0; for (let i = 0; i < r.length; i++) { const p = r[i], q = r[(i + 1) % r.length]; a += p[0] * q[1] - q[0] * p[1]; } return a; };
+
+/** inset a convex ring by d (miter), returned counter-clockwise in (x, z) */
+function insetRing(ring: P2[], d: number): P2[] {
+  const r = area2(ring) < 0 ? ring.slice().reverse() : ring.slice();
+  const n = r.length;
+  return r.map((p, i) => {
+    const a = r[(i + n - 1) % n], b = r[(i + 1) % n];
+    const e1 = [p[0] - a[0], p[1] - a[1]], e2 = [b[0] - p[0], b[1] - p[1]];
+    const l1 = Math.hypot(e1[0], e1[1]) || 1, l2 = Math.hypot(e2[0], e2[1]) || 1;
+    // for a counter-clockwise ring in (x, z) with z down, the inward normal of an edge (dx, dz) is (-dz, dx)
+    const n1 = [-e1[1] / l1, e1[0] / l1], n2 = [-e2[1] / l2, e2[0] / l2];
+    const k = d / (1 + n1[0] * n2[0] + n1[1] * n2[1]);
+    return [p[0] + (n1[0] + n2[0]) * k, p[1] + (n1[1] + n2[1]) * k] as P2;
+  });
+}
+
+/** keep the part of a ring where dot(p - o, dir) >= t (Sutherland-Hodgman, one plane) */
+function clipRing(ring: P2[], o: P2, dir: P2, t: number): P2[] {
+  const f = (p: P2): number => (p[0] - o[0]) * dir[0] + (p[1] - o[1]) * dir[1] - t;
+  const out: P2[] = [];
+  for (let i = 0; i < ring.length; i++) {
+    const p = ring[i], q = ring[(i + 1) % ring.length];
+    const fp = f(p), fq = f(q);
+    if (fp >= 0) out.push(p);
+    if ((fp >= 0) !== (fq >= 0)) { const u = fp / (fp - fq); out.push([p[0] + (q[0] - p[0]) * u, p[1] + (q[1] - p[1]) * u]); }
+  }
+  return out;
+}
+
+/** vertical pane run along a slanted edge a -> b with outward normal `out` (local xz) */
+function edgePanes(k: Kit, a: P2, b: P2, out: P2, o: { y0: number; floors: number; floorH: number; w: number; h: number; pitch: number; margin: number; mat: (i: number, f: number) => Mat; trim?: Mat | null; skip?: (i: number, f: number) => boolean }): void {
+  if (k.far) return;
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const ux = (b[0] - a[0]) / L, uz = (b[1] - a[1]) / L;
+  const n = Math.max(0, Math.floor((L - 2 * o.margin - o.w) / o.pitch) + 1);
+  if (!n) return;
+  const start = (L - ((n - 1) * o.pitch + o.w)) / 2;
+  const hint: V3 = [out[0], 0, out[1]];
+  for (let f = 0; f < o.floors; f++) for (let i = 0; i < n; i++) {
+    if (o.skip?.(i, f)) continue;
+    const s0 = start + i * o.pitch, s1 = s0 + o.w, y = o.y0 + f * o.floorH;
+    const P = (s: number, yy: number, off: number): V3 => [a[0] + ux * s + out[0] * off, yy, a[1] + uz * s + out[1] * off];
+    k.quad(o.mat(i, f), P(s0, y, 0.05), P(s1, y, 0.05), P(s1, y + o.h, 0.05), P(s0, y + o.h, 0.05), { hint, ru: 1, rv: 1 });
+    if (o.trim) {
+      const t = 0.22;
+      k.quad(o.trim, P(s0 - t, y + o.h, 0.09), P(s1 + t, y + o.h, 0.09), P(s1 + t, y + o.h + 0.34, 0.09), P(s0 - t, y + o.h + 0.34, 0.09), { hint, ru: 0.5, rv: 0.1 });
+      k.quad(o.trim, P(s0 - t, y - 0.2, 0.09), P(s1 + t, y - 0.2, 0.09), P(s1 + t, y, 0.09), P(s0 - t, y, 0.09), { hint, ru: 0.5, rv: 0.1 });
+    }
+  }
+}
+
+/** a projecting band along a slanted edge */
+function edgeBand(k: Kit, mat: Mat, a: P2, b: P2, out: P2, y: number, h: number, proud: number): void {
+  if (k.far) return;
+  const hint: V3 = [out[0], 0, out[1]];
+  const A: V3 = [a[0] + out[0] * proud, y, a[1] + out[1] * proud], B: V3 = [b[0] + out[0] * proud, y, b[1] + out[1] * proud];
+  k.quad(mat, A, B, [B[0], y + h, B[2]], [A[0], y + h, A[2]], { hint, ru: Math.hypot(b[0] - a[0], b[1] - a[1]) / 3, rv: h / 3 });
+  k.quad(mat, [a[0], y + h, a[1]], [b[0], y + h, b[1]], [B[0], y + h, B[2]], [A[0], y + h, A[2]], { hint: [0, 1, 0], ru: 3, rv: 0.2 });
+}
+
 // ----------------------------------------------------------------------------------------------- movie palace
 
 /**
- * A corner movie palace of 1911 in white glazed terracotta: a round corner tower with a porthole and a heavy cornice, a fluted
- * marquee carrying the name, tall windows with figures over them along the street side, a red base, a taller fly tower behind.
- * The tower stands at the left (x = 0) end of the frontage.
+ * A corner movie palace of 1911 in white glazed terracotta on a wedge-shaped block: a round tower fills the sharp corner (porthole,
+ * heavy ring cornice), a deep fluted marquee under it carries the name, tall windows with stone heads and a bracketed cornice run
+ * down both long walls over a red base. The sharp corner is the vertex of the site ring nearest the frame origin.
  */
 export function* buildTheatre(c: BuildCtx): Generator<void> {
   const { k, row, detail } = c;
-  const W = row.site.w, D = row.site.d;
   const look = row.look;
-  const white = k.m('brickPainted', 0), trim = k.m('limestone'), roof = k.m('tarRoof', 1), dark = k.m('metalDark'), brick = k.m('brickRed', 0);
+  const white = k.m('brickPainted', 0), trim = k.m('limestone'), roof = k.m('tarRoof', 1), dark = k.m('metalDark'), glass = k.m('window', 1);
   const H = Number(look.height ?? 21);
-  const R = Number(look.towerR ?? 5.2);
-  const sideD = Math.min(D - 2, 40);
+  const R = Number(look.towerR ?? 4.5);
   const RED = 0x7a2f26, BULB = 0xf4dca0, CREAM = 0xe6dccb;
-  k.floor(k.m('concrete'), [[0, 0], [W, 0], [W, 2.2], [0, 2.2]], 0.05);
+  const raw = localRing(row);
+  let main = simplifyRing(raw, 1.8);
+  main = insetRing(main, 1.0);
+  // the sharp corner: the vertex nearest the frame origin; the tower stands on the bisector
+  let ai = 0, bd = 1e9;
+  main.forEach((p, i) => { const d = Math.hypot(p[0], p[1]); if (d < bd) { bd = d; ai = i; } });
+  const A = main[ai], pa = main[(ai + main.length - 1) % main.length], pb = main[(ai + 1) % main.length];
+  const u1 = [pa[0] - A[0], pa[1] - A[1]], u2 = [pb[0] - A[0], pb[1] - A[1]];
+  const l1 = Math.hypot(u1[0], u1[1]), l2 = Math.hypot(u2[0], u2[1]);
+  let bis: P2 = [u1[0] / l1 + u2[0] / l2, u1[1] / l1 + u2[1] / l2];
+  const bl = Math.hypot(bis[0], bis[1]) || 1; bis = [bis[0] / bl, bis[1] / bl];
+  const half = Math.acos(Math.max(-1, Math.min(1, (u1[0] * u2[0] + u1[1] * u2[1]) / (l1 * l2)))) / 2;
+  const dT = Math.min(R / Math.max(0.2, Math.sin(half)), 16);
+  const Rt = Math.min(R, dT * Math.sin(half));
+  const ctr: P2 = [A[0] + bis[0] * dT, A[1] + bis[1] * dT];
+  const body = clipRing(main, A, bis, dT);
+  k.floor(k.m('concrete'), raw, 0.04);
   yield;
-  // street block: the front wall along x, the long side wall along z
-  k.box(white, R, 0, 2.2, W, H, 2.2 + sideD, { top: roof });
-  flatRoof(k, roof, white, R, 2.2, W, 2.2 + sideD, H, 0.9);
-  // the red base band
-  k.box(k.flatM, R, 0, 2.15, W, 1.3, 2.25, { color: RED, noTop: true });
-  // tall windows with heads on the front wall
-  const wins = Math.max(2, Math.floor((W - R - 3) / 5));
-  const pitch = (W - R - 3) / wins;
-  for (let i = 0; i < wins; i++) {
-    const cx = R + 1.5 + pitch * (i + 0.5);
-    archPane(k, k.m('window', 1), cx, 2.2, 8.2, 2.0, 6.4, [0, -1], true, 0.05);
-    archSurround(k, trim, cx, 2.2, 8.2, 2.0, 6.4, [0, -1], true, 0.45, 0.08);
-    if (detail > 0) { k.box(trim, cx - 0.5, 15.6, 2.0, cx + 0.5, 17.4, 2.25); }
-    archPane(k, dark, cx, 2.2, 0.9, 1.8, 3.4, [0, -1], true, 0.05);
+  // walls: one prism over the clipped ring (the walls are tall plain terracotta, windows and bands go on the long edges)
+  k.prism(white, body, 0, H, { top: roof });
+  k.solidPoly(body);
+  const centroid: P2 = [body.reduce((s, p) => s + p[0], 0) / body.length, body.reduce((s, p) => s + p[1], 0) / body.length];
+  const ccw = area2(body) > 0;
+  for (let i = 0; i < body.length; i++) {
+    const a = body[i], b = body[(i + 1) % body.length];
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (L < 8) continue;
+    // outward normal: for a counter-clockwise ring in (x, z) the outward normal of (dx, dz) is (dz, -dx)
+    const dx = (b[0] - a[0]) / L, dz = (b[1] - a[1]) / L;
+    const out: P2 = ccw ? [dz, -dx] : [-dz, dx];
+    void centroid;
+    edgePanes(k, a, b, out, { y0: 7.6, floors: 1, floorH: 5, w: 1.9, h: 6.2, pitch: 4.6, margin: 3, mat: () => glass, trim: detail > 0 ? trim : null });
+    edgePanes(k, a, b, out, { y0: 0.9, floors: 1, floorH: 5, w: 1.6, h: 3.3, pitch: 5.4, margin: 3, mat: () => dark });
+    edgeBand(k, trim, a, b, out, H - 1.7, 1.7, 0.7);
+    edgeBand(k, trim, a, b, out, 6.9, 0.5, 0.3);
+    edgeBand(k, k.flatM, a, b, out, 0, 1.3, 0.05);
   }
-  band(k, trim, R, 2.2, W, 2.2, H - 1.7, 1.7, 0.7, [0, -1]);
-  band(k, trim, R, 2.2, W, 2.2, 6.9, 0.5, 0.3, [0, -1]);
-  // the side wall (long, toward +z): tall windows with the same heads
-  const sc = Math.floor((sideD - 3) / 4.6);
-  for (let i = 0; i < sc; i++) {
-    const cz = 4 + (sideD - 3) * (i + 0.5) / sc;
-    archPane(k, k.m('window', 1), cz, W, 8.2, 1.8, 6.2, [1, 0], false, 0.05);
-    archSurround(k, trim, cz, W, 8.2, 1.8, 6.2, [1, 0], false, 0.4, 0.08);
-  }
-  band(k, trim, W, 2.2, W, 2.2 + sideD, H - 1.7, 1.7, 0.7, [1, 0]);
-  // the round corner tower: a drum with a porthole under a heavy ring cornice, and a flat roof
-  const tcx = R, tcz = 2.2 + R;
-  k.cyl(white, tcx, tcz, R, 0, H + 3.4, 18, { top: roof });
-  k.cyl(trim, tcx, tcz, R + 0.55, H + 1.4, H + 3.4, 18, { top: trim });
-  k.cyl(trim, tcx, tcz, R + 0.35, H - 2.6, H - 1.6, 18, { noTop: true });
-  disc(k, trim, tcx, H - 6.4, 2.2 + 0.0, 1.5, [0, -1], 12, 0.02);
-  // the porthole sits on the tower's front face (toward the street at z = 2.2 - R * 0.0)
-  disc(k, k.m('window', 1), tcx, H - 6.4, tcz - R, 1.2, [0, -1], 12, 0.06);
-  disc(k, trim, tcx, H - 6.4, tcz - R, 1.7, [0, -1], 12, 0.03);
-  k.solidCircle(tcx, tcz, R);
-  k.solidRect(R, 2.2, W, 2.2 + sideD);
   yield;
-  // the marquee: a deep fluted box over the doors that wraps the corner, the name on its front
-  const mw = Math.min(W - 2, 20);
-  k.box(k.flatM, 0.4, 5.1, 0.2, mw, 6.4, 2.2, { color: CREAM });
-  for (let x = 0.8; x < mw - 0.2; x += 0.55) k.box(k.flatM, x, 5.2, 0.12, x + 0.12, 6.3, 0.2, { color: BULB, noTop: false });
-  k.box(k.flatM, 0.4, 6.4, 0.3, mw, 6.7, 2.2, { color: RED });
-  signBoard(k, row.name.toUpperCase(), mw / 2, 6.8, 0.25, [0, -1], Math.min(14, mw - 2), '#7a2f26', '#f4e6c0', 0.04);
-  // doors under it and the ticket booth
-  for (let i = 0; i < 3; i++) { const dx = 4 + i * 2.6; k.quad(dark, [dx, 0, 2.18], [dx + 2.0, 0, 2.18], [dx + 2.0, 3.6, 2.18], [dx, 3.6, 2.18], { hint: [0, 0, -1] }); }
-  k.box(k.flatM, mw * 0.5 - 1.2, 0, 0.6, mw * 0.5 + 1.2, 2.2, 1.9, { color: 0x6a3c2a });
-  // the fly tower behind
-  k.box(brick, R + 4, H, 2.2 + sideD - 14, W - 3, H + 7, 2.2 + sideD, { top: roof });
-  // a vertical blade sign on the tower
-  k.box(k.flatM, 0.1, H - 12, 0.1, 0.7, H - 2, 0.7, { color: 0xb02a22 });
-  void bench;
+  // the round tower: a drum with a porthole, a ring cornice and a flat cap
+  k.cyl(white, ctr[0], ctr[1], Rt, 0, H + 3.2, 20, { top: roof });
+  k.cyl(trim, ctr[0], ctr[1], Rt + 0.5, H + 1.2, H + 3.2, 20, { top: trim });
+  k.cyl(trim, ctr[0], ctr[1], Rt + 0.3, H - 2.8, H - 1.8, 20, { noTop: true });
+  const outT: P2 = [-bis[0], -bis[1]];
+  const pc: P2 = [ctr[0] - bis[0] * Rt, ctr[1] - bis[1] * Rt];
+  disc(k, trim, pc[0], H - 6.8, pc[1], 1.7, outT, 12, 0.03);
+  disc(k, glass, pc[0], H - 6.8, pc[1], 1.2, outT, 12, 0.08);
+  k.solidCircle(ctr[0], ctr[1], Rt);
+  // the marquee: a deep fluted box wrapping the front of the tower, the name on it in capitals
+  const mw = Math.min(14, Rt * 3.2), md = 2.6;
+  const tx = -outT[1], tz = outT[0]; // along the marquee
+  const mc: P2 = [pc[0] + outT[0] * (md / 2 - 0.4), pc[1] + outT[1] * (md / 2 - 0.4)];
+  const pt = (s: number, t: number): P2 => [mc[0] + tx * s + outT[0] * t, mc[1] + tz * s + outT[1] * t];
+  k.prism(k.flatM, [pt(-mw / 2, -md / 2), pt(mw / 2, -md / 2), pt(mw / 2, md / 2), pt(-mw / 2, md / 2)], 5.1, 6.4, { color: CREAM });
+  k.prism(k.flatM, [pt(-mw / 2 - 0.1, -md / 2), pt(mw / 2 + 0.1, -md / 2), pt(mw / 2 + 0.1, md / 2 + 0.1), pt(-mw / 2 - 0.1, md / 2 + 0.1)], 6.4, 6.75, { color: RED });
+  if (detail > 0) for (let s = -mw / 2 + 0.5; s < mw / 2 - 0.3; s += 0.7) { const q = pt(s, md / 2 + 0.05), q2 = pt(s + 0.14, md / 2 + 0.05); k.quad(k.flatM, [q[0], 5.3, q[1]], [q2[0], 5.3, q2[1]], [q2[0], 6.3, q2[1]], [q[0], 6.3, q[1]], { hint: [outT[0], 0, outT[1]], color: BULB }); }
+  const sb = pt(0, md / 2 + 0.06);
+  signBoard(k, row.name.toUpperCase(), sb[0], 6.85, sb[1], outT, Math.min(13, mw), '#7a2f26', '#f4e6c0', 0);
+  // doors under the marquee and a ticket booth
+  for (const s of [-3.2, 0, 3.2]) { const d0 = pt(s - 1.0, -md / 2 + 0.02), d1 = pt(s + 1.0, -md / 2 + 0.02); k.quad(dark, [d0[0], 0, d0[1]], [d1[0], 0, d1[1]], [d1[0], 3.6, d1[1]], [d0[0], 3.6, d0[1]], { hint: [-outT[0], 0, -outT[1]] }); }
+  // the roof: a fly tower box and a vertical blade sign on the tower
+  const fly = pt(0, -md / 2 - 9);
+  k.prism(k.m('brickRed', 0), [[fly[0] - 7, fly[1] - 6], [fly[0] + 7, fly[1] - 6], [fly[0] + 7, fly[1] + 6], [fly[0] - 7, fly[1] + 6]], H, H + 5, { top: roof });
   yield;
 }
 

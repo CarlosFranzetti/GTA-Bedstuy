@@ -20,7 +20,7 @@ import type { Vec2 } from '@/core/Math2';
 import type { Rng } from '@/core/Rng';
 import type { IMaterialLibrary, LaneGraph, Lot, StaticCollider } from '@/world/types';
 import type { Quality } from '@/render/Shadows';
-import { CHUNK_RANGE_PER_M_HEIGHT, FINE_CELLS, chunkKeyOf, chunkKeyOfCell, splitMeshesIntoCells, type ChunkLayout } from '@/render/Culling';
+import { CHUNK_RANGE_PER_M_HEIGHT, FINE_CELLS, chunkRangeFor, chunkKeyOf, chunkKeyOfCell, splitMeshesIntoCells, type ChunkLayout } from '@/render/Culling';
 import { buildBuildings } from '@/world/BuildingGen';
 import { SIDEWALK_HEIGHT } from '@/world/WorldBuilder';
 import { loadRoadNet } from './MapSource';
@@ -43,9 +43,10 @@ import type { RealTraffic } from './trafficReal';
 import type { RealPlaces, PlacesTable } from './placesReal';
 import type { RealLotTiles, LotSource } from './lotStreamReal';
 import type { LandmarkLayer } from '@/world/landmarks/layer';
+import type { RingPropsStreamer } from './propsStream';
 import { R1R2_EXTENT, offsetRing } from './extents';
 
-/** street furniture is built for the first two rings plus this margin (m); the seven-block ring has none yet (needs streaming) */
+/** street furniture is built at boot for the first two rings plus this margin (m); the outer rings are streamed by tile (propsStream.ts) */
 const PROPS_REACH = 150;
 
 export interface RealWorld {
@@ -78,6 +79,8 @@ export interface RealWorld {
   el: ReturnType<typeof buildElPaths>;
   /** street furniture (lamps, signals, signs, trees, hydrants); null when it fell back. main: world.lamps = rw.lamps, world.furnitureGroup = rw.furnitureGroup */
   props: RealProps | null;
+  /** MAP4: street furniture of the outer rings, built per tile near the player (null when the props failed); `.settle(x, z)` builds the tiles around a point now */
+  ringProps: RingPropsStreamer | null;
   lamps: LampSpot[];
   furnitureGroup: THREE.Group;
   /**
@@ -380,6 +383,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   try { trains = new RealTrains(el.paths, el.stations); group.add(trains.group); } catch (e) { standIns.push(`trains: ${(e as Error).message}`); }
   // street furniture (June): lamps, signals, signs, trees, hydrants, bins
   let props: RealProps | null = null;
+  let ringProps: RingPropsStreamer | null = null;
   const furnitureGroup = new THREE.Group();
   t0 = performance.now();
   try {
@@ -391,6 +395,14 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
     group.add(props.group);
     colliders.push(...props.colliders);
     chunkMeshes.push(...props.chunkMeshes);
+    // the outer rings (R3, R4): the same generator, a 512 m tile at a time as the player comes near (propsStream.ts)
+    const baseRegion = offsetRing(R1R2_EXTENT, PROPS_REACH, 1.5);
+    const { RingPropsStreamer: Ring } = await import('./propsStream');
+    const range = chunkRangeFor(tier);
+    ringProps = new Ring({
+      build: (inTile, key) => buildRealProps({ net, derived, sidewalks, materials: mats, rng: rng.fork(`props-ring:${key}`), layout: chunks, tier, controls: nodeControl(net, controlsJson), avoid: elSpots.map((s) => s.p), regionFn: inTile }),
+      parent: group, colliders: proxyHost, bounds: net.bounds, covered: (p) => pointInPolygon(p, baseRegion), load: range + 256, drop: range + 1000, range,
+    });
   } catch (e) { standIns.push(`props: ${(e as Error).message}`); props = null; }
   t('props', t0);
 
@@ -407,7 +419,8 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   const update: RealWorld['update'] = (dt, px, pz, cam, night) => {
     streamer?.update(px, pz, cam.y); trains?.update(dt, cam, night); landmarks?.update(px, pz, cam.y);
     if (lotTiles && streamer) lotTiles.update(px, pz, streamer.ranges.far + Math.max(0, cam.y - 3) * CHUNK_RANGE_PER_M_HEIGHT + 160);
-    if (traffic && props && signalHeads) signalHeads(props.group, traffic.lights);
+    if (ringProps) ringProps.update(px, pz);
+    if (traffic && props && signalHeads) { signalHeads(props.group, traffic.lights); if (ringProps) for (const g of ringProps.groups()) signalHeads(g, traffic.lights); }
   };
   const setColliderHost = (h: ColliderHost): void => { host = h; if (held.size) h.add([...held.values()]); };
   const stats = { ...measureWorld(group), lots: lots.length, colliders: colliders.length, ms };
@@ -416,7 +429,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
     const w = window as unknown as { __gtaRealWorld?: () => RealWorld; __gtaRealFrames?: () => Promise<unknown> };
     w.__gtaRealFrames = async () => (await import('./reviewFrames')).reviewFrames(w.__gtaRealWorld!());
   }
-  const rwOut: RealWorld = { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, badBlocks: [...bad].sort((a, b) => a - b), streamer, setColliderHost, update, trains, notice: REAL_NOTICE, standIns, el, props, traffic, lamps: props?.lamps ?? [], furnitureGroup: props?.group ?? furnitureGroup, places, homeSpawn, applyDoors, lotTiles, landmarks, stats };
+  const rwOut: RealWorld = { net, derived, group, colliders, lots, chunkMeshes, chunks, sidewalks, spawn, spawnHeading: heading, badBlocks: [...bad].sort((a, b) => a - b), streamer, setColliderHost, update, trains, notice: REAL_NOTICE, standIns, el, props, ringProps, traffic, lamps: props?.lamps ?? [], furnitureGroup: props?.group ?? furnitureGroup, places, homeSpawn, applyDoors, lotTiles, landmarks, stats };
   if (typeof window !== 'undefined') (window as unknown as { __gtaRealWorld?: () => RealWorld }).__gtaRealWorld = () => rwOut;
   return rwOut;
 }

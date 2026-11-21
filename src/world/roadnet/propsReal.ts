@@ -392,6 +392,7 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
   for (const r of d.returns) {
     if (r.kind === 'bevel' || r.pts.length === 0) continue;
     const A = d.legs[r.legA], B = d.legs[r.legB];
+    if (!inRegion(net.nodes[A.node].p)) continue; // MAP4: corners follow the region too (they stood on the whole map before)
     const mid = r.pts[Math.floor(r.pts.length / 2)];
     const bis = { x: A.dir.x + B.dir.x, z: A.dir.z + B.dir.z };
     const bl = Math.hypot(bis.x, bis.z);
