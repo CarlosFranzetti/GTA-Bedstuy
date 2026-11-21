@@ -17,12 +17,10 @@ import { createServer } from 'vite';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // --r3 (MAP7): the same table for the whole real map (roadnet-r123.json; lots from the cache of import-lots-real.mjs --r3,
 // which keeps the PLUTO addresses the shipped lot tiles leave out) -> places-real-r123.json
-// --r4 (MAP4, 21 Nov 2026): the same for the grown map: roadnet-r4.json, cache/real-r4/lots-r4-all.json -> places-real-r4.json
-const R4 = process.argv.includes('--r4');
-const R3 = process.argv.includes('--r3') || R4;
-const CORE = path.join(ROOT, R4 ? 'src/world/data/roadnet-r4.json' : R3 ? 'src/world/data/roadnet-r123.json' : 'src/world/data/roadnet-core.json');
-const LOTS = R4 ? path.join(ROOT, 'cache/real-r4/lots-r4-all.json') : R3 ? path.join(ROOT, 'cache/real-r3/lots-r3-all.json') : path.join(ROOT, 'src/world/data/raw/lots-real-r1r2a.json');
-const OUT = path.join(ROOT, R4 ? 'src/world/data/places-real-r4.json' : R3 ? 'src/world/data/places-real-r123.json' : 'src/world/data/places-real.json');
+const R3 = process.argv.includes('--r3');
+const CORE = path.join(ROOT, R3 ? 'src/world/data/roadnet-r123.json' : 'src/world/data/roadnet-core.json');
+const LOTS = R3 ? path.join(ROOT, 'cache/real-r3/lots-r3-all.json') : path.join(ROOT, 'src/world/data/raw/lots-real-r1r2a.json');
+const OUT = path.join(ROOT, R3 ? 'src/world/data/places-real-r123.json' : 'src/world/data/places-real.json');
 
 function walk(dir, out = []) {
   for (const f of fs.readdirSync(dir, { withFileTypes: true })) {

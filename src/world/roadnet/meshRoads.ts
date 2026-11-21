@@ -72,8 +72,6 @@ const MIN_RIBBON = 0.05;
 /** below this many road triangles the whole network stays one cell per material (draw calls cost more than the triangles) */
 export const AUTO_SINGLE_CELL_TRIS = 150_000;
 const SINGLE_CELL_M = 1e6;
-/** MAP4: the R4 net (about 230 k road triangles) is over the threshold; 256 m cells gave 40 more draws per street view than the one-cell R3 net, 1024 m cells about 10 (the roads are streamed per cell as well, see realWorld) */
-const BIG_NET_CELL_M = 1024;
 
 type V3 = [number, number, number];
 
@@ -466,7 +464,7 @@ export function buildRoadMeshes(net: RoadNet, d: Derived, mats: WorldMaterials, 
   const base = chunkLayoutFromBounds(net.bounds, false);
   let total = 0;
   for (const sl of slots.values()) total += sl.batch.triangles;
-  const cell = opts.cellM ?? (total <= AUTO_SINGLE_CELL_TRIS ? SINGLE_CELL_M : BIG_NET_CELL_M);
+  const cell = opts.cellM ?? (total <= AUTO_SINGLE_CELL_TRIS ? SINGLE_CELL_M : 256);
   const layout = { ...base, cellX: cell, cellZ: cell, chunkX: Math.max(base.chunkX, cell), chunkZ: Math.max(base.chunkZ, cell) };
   for (const part of Object.keys(parts) as Part[]) splitMeshesIntoCells(parts[part], layout.cellX, layout.cellZ, undefined, 0, layout.originX, layout.originZ);
   tagRoadChunks(root, layout);

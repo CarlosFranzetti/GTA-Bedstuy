@@ -47,7 +47,7 @@ describe('map switch (WP0)', () => {
     expect(g.net).toBe(g.net);
     const r = await loadMapSource('?map=real', grid);
     expect(r.kind).toBe('real');
-    const core = (await import('@/world/data/roadnet-r4.json')).default as unknown as RoadNetJson;
+    const core = (await import('@/world/data/roadnet-r123.json')).default as unknown as RoadNetJson;
     expect(r.net.edges.length).toBe(core.e.length);
   });
 });

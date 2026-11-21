@@ -95,8 +95,6 @@ export interface RealPropsOptions {
   avoid?: ReadonlyArray<Vec2>;
   /** MAP7: furniture only on edges and junctions inside this polygon (the whole R3 map would be 5,600 meshes and 2.6 M triangles at boot); default: everywhere */
   region?: ReadonlyArray<Vec2>;
-  /** MAP4: as `region`, a predicate on the edge midpoint or junction (the streamed tiles of the outer rings use it); both apply when both are given */
-  regionFn?: (p: Vec2) => boolean;
 }
 
 export interface RealPropsStats {
@@ -271,7 +269,7 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
   const rng = opts.rng;
   const controls = opts.controls ?? nodeControl(net, {});
   const avoid = opts.avoid ?? [];
-  const inRegion = (p: Vec2): boolean => (!opts.region || pointInPolygon(p, opts.region)) && (!opts.regionFn || opts.regionFn(p));
+  const inRegion = (p: Vec2): boolean => !opts.region || pointInPolygon(p, opts.region);
 
   // ---- sidewalk-band test: inside a kerb ring, outside its building line
   const kerbs = new Hash<number>();
@@ -392,7 +390,6 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
   for (const r of d.returns) {
     if (r.kind === 'bevel' || r.pts.length === 0) continue;
     const A = d.legs[r.legA], B = d.legs[r.legB];
-    if (!inRegion(net.nodes[A.node].p)) continue; // MAP4: corners follow the region too (they stood on the whole map before)
     const mid = r.pts[Math.floor(r.pts.length / 2)];
     const bis = { x: A.dir.x + B.dir.x, z: A.dir.z + B.dir.z };
     const bl = Math.hypot(bis.x, bis.z);

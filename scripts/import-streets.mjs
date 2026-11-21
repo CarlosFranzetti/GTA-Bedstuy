@@ -12,8 +12,6 @@
  * --r3 (MAP7, 18 Nov 2026): the whole real map, R1+R2+R3 (extents.ts R3_EXTENT, seven blocks beyond the old edge on every side).
  *   Raw rows are cached in cache/real-r3/centerline-r3.json (git-ignored; the query, the row count and the fetch date are in the
  *   tracked src/world/data/raw/centerline-r3.query.json) and the network is written to src/world/data/roadnet-r123.json.
- * --r4 (MAP4, 21 Nov 2026): the same for R4_EXTENT (R3 plus five blocks N, E, S, W and two streets on the diagonals): cache/real-r4/,
- *   src/world/data/raw/centerline-r4.query.json, src/world/data/roadnet-r4.json.
  *   The default mode (R1+R2 only, roadnet-core.json) is unchanged and still used by the tests that pin its counts.
  */
 import fs from 'node:fs';
@@ -23,11 +21,10 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const R4 = process.argv.includes('--r4');
-const R3 = process.argv.includes('--r3') || R4; // R4 is the R3 whole-map mode with the bigger extent
-const RAW = R4 ? path.join(ROOT, 'cache/real-r4/centerline-r4.json') : R3 ? path.join(ROOT, 'cache/real-r3/centerline-r3.json') : path.join(ROOT, 'src/world/data/raw/centerline-r1r2.json');
-const OUT = path.join(ROOT, R4 ? 'src/world/data/roadnet-r4.json' : R3 ? 'src/world/data/roadnet-r123.json' : 'src/world/data/roadnet-core.json');
-const QUERY_OUT = path.join(ROOT, R4 ? 'src/world/data/raw/centerline-r4.query.json' : 'src/world/data/raw/centerline-r3.query.json');
+const R3 = process.argv.includes('--r3');
+const RAW = R3 ? path.join(ROOT, 'cache/real-r3/centerline-r3.json') : path.join(ROOT, 'src/world/data/raw/centerline-r1r2.json');
+const OUT = path.join(ROOT, R3 ? 'src/world/data/roadnet-r123.json' : 'src/world/data/roadnet-core.json');
+const QUERY_OUT = path.join(ROOT, 'src/world/data/raw/centerline-r3.query.json');
 const SVG = path.join(ROOT, 'docs/reference/realmap-r1r2.svg');
 const DATASET = 'https://data.cityofnewyork.us/resource/inkn-q76z.json';
 const FIELDS = [
@@ -148,53 +145,35 @@ async function main() {
 
     let raw;
     if (args.has('--refresh') || !fs.existsSync(RAW)) {
-      raw = await fetchExtent(proj, R4 ? ext.R4_EXTENT : R3 ? ext.R3_EXTENT : ext.R1R2_EXTENT);
+      raw = await fetchExtent(proj, R3 ? ext.R3_EXTENT : ext.R1R2_EXTENT);
       fs.mkdirSync(path.dirname(RAW), { recursive: true });
       fs.writeFileSync(RAW, JSON.stringify(raw));
-      if (R3) fs.writeFileSync(QUERY_OUT, JSON.stringify({ source: 'NYC Centerline (CSCL) inkn-q76z via NYC Open Data', url: raw.query, bbox: raw.bbox, filter: "boroughcode in ('3','4'); pages of 5000 rows", fetched: raw.fetched.slice(0, 10), rows: raw.rows.length, note: 'raw rows cached in cache/real-r3/ (git-ignored); ' + path.basename(OUT) + ' is the derived network' }, null, 2) + '\n');
+      if (R3) fs.writeFileSync(QUERY_OUT, JSON.stringify({ source: 'NYC Centerline (CSCL) inkn-q76z via NYC Open Data', url: raw.query, bbox: raw.bbox, filter: "boroughcode in ('3','4'); pages of 5000 rows", fetched: raw.fetched.slice(0, 10), rows: raw.rows.length, note: 'raw rows cached in cache/real-r3/ (git-ignored); roadnet-r123.json is the derived network' }, null, 2) + '\n');
       console.log(`wrote ${path.relative(ROOT, RAW)}: ${raw.rows.length} rows, ${(fs.statSync(RAW).size / 1024).toFixed(0)} kB`);
     } else {
       raw = JSON.parse(fs.readFileSync(RAW, 'utf8'));
       console.log(`cached ${path.relative(ROOT, RAW)}: ${raw.rows.length} rows (fetched ${raw.fetched}); --refresh to re-download`);
     }
 
-    const { data, report } = build.buildRoadNet(raw.rows, { frame: geom.REAL_FRAME, extent: R4 ? ext.R4_EXTENT : R3 ? ext.R3_EXTENT : ext.R1R2_EXTENT });
-    if (R4) { // keep the block numbers of the R3 network (landmark sites refer to them): old blocks first, in their old order, new ones after
-      const keys = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/world/data/raw/r3-block-keys.json'), 'utf8')).blocks;
-      const tmp = new RoadNet(data);
-      const cen = data.blocks.map((b, i) => { const r = tmp.blockRing(i); let cx = 0, cz = 0; for (const p of r) { cx += p.x; cz += p.z; } return [b.area, cx / r.length, cz / r.length]; });
-      const taken = new Set();
-      const ordered = [];
-      let lost = 0;
-      for (const k of keys) {
-        let best = -1, bd = 1.5;
-        cen.forEach((c, i) => { if (taken.has(i)) return; const d = Math.hypot(c[1] - k[1], c[2] - k[2]); if (d < bd && Math.abs(c[0] - k[0]) <= Math.max(3, 0.01 * k[0])) { bd = d; best = i; } });
-        if (best < 0) { lost++; ordered.push(null); } else { taken.add(best); ordered.push(data.blocks[best]); }
-      }
-      const fill = data.blocks.filter((_, i) => !taken.has(i));
-      // an R3 block with no counterpart (none expected) keeps its number as an empty island so later numbers do not shift
-      data.blocks = [...ordered.map((b) => b ?? { edges: [], area: 0, island: true }), ...fill];
-      console.log(`R3 block numbers kept: ${keys.length - lost} of ${keys.length} matched, ${lost} lost; ${fill.length} new blocks appended`);
-    }
+    const { data, report } = build.buildRoadNet(raw.rows, { frame: geom.REAL_FRAME, extent: R3 ? ext.R3_EXTENT : ext.R1R2_EXTENT });
     const json = JSON.stringify(codec.encodeRoadNet(data));
     fs.writeFileSync(OUT, json + '\n');
     const gz = zlib.gzipSync(json, { level: 9 }).length;
     const net = new RoadNet(data);
 
     // per-phase counts: edges by midpoint, blocks by ring centroid, signals by position (extents.ts phaseOf)
-    const phaseName = (p) => ext.phaseOf(p) ?? (ext.inR3Ring(p) ? 'R3' : (R4 && ext.inR4Ring(p)) ? 'R4' : null);
-    const counts = Object.fromEntries(['R1', 'R2', 'R2+', 'R3', 'R4'].map((n) => [n, { edges: 0, km: 0, blocks: 0, islands: 0, signals: 0, areaKm2: 0 }]));
+    const counts = Object.fromEntries(['R1', 'R2', 'R2+', 'R3'].map((n) => [n, { edges: 0, km: 0, blocks: 0, islands: 0, signals: 0, areaKm2: 0 }]));
     net.edges.forEach((e, i) => {
-      const ph = phaseName(net.pointAt(i, net.lengths[i] / 2).p);
+      const ph = ext.phaseOf(net.pointAt(i, net.lengths[i] / 2).p) ?? (ext.inR3Ring(net.pointAt(i, net.lengths[i] / 2).p) ? 'R3' : null);
       if (ph) { counts[ph].edges++; counts[ph].km += net.lengths[i] / 1000; }
     });
     net.blocks.forEach((bl, i) => {
       const r = net.blockRing(i);
       const c = r.reduce((a, p) => ({ x: a.x + p.x / r.length, z: a.z + p.z / r.length }), { x: 0, z: 0 });
-      const ph = phaseName(c);
+      const ph = ext.phaseOf(c) ?? (ext.inR3Ring(c) ? 'R3' : null);
       if (ph) { counts[ph][bl.island ? 'islands' : 'blocks']++; counts[ph].areaKm2 += bl.area / 1e6; }
     });
-    net.nodes.forEach((n) => { const ph = n.control === 'signal' && phaseName(n.p); if (ph) counts[ph].signals++; });
+    net.nodes.forEach((n) => { const ph = n.control === 'signal' && (ext.phaseOf(n.p) ?? (ext.inR3Ring(n.p) ? 'R3' : null)); if (ph) counts[ph].signals++; });
     const phases = [['R1', ext.R1_EXTENT], ['R2', ext.R2_EXTENT]];
     const names = new Set(data.edges.map((e) => e.name));
     console.log('report', report);
