@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { Input } from '@/core/Input';
-import { GamepadInput, applyDeadZone, DEAD_ZONE } from '@/core/Gamepad';
+import { GamepadInput, applyDeadZone, DEAD_ZONE, DEFAULT_TUNING } from '@/core/Gamepad';
+import { GAME_BINDINGS } from '@/core/Bindings';
 
 function makePad(over: { axes?: number[]; pressed?: number[]; values?: Record<number, number> } = {}): Gamepad {
   const buttons = Array.from({ length: 17 }, (_, i) => {
@@ -200,5 +201,48 @@ describe('GamepadInput', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' }));
     expect(input.mode).toBe('keyboard');
     expect(modes).toEqual(['gamepad', 'keyboard']);
+  });
+
+  it('reads the pad family from the id and tells the binding table (prompts show Triangle on a PlayStation pad)', () => {
+    const { gp, set } = setup();
+    const ps = makePad(); (ps as unknown as { id: string }).id = 'DualSense Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)';
+    set(ps); gp.update(1 / 60);
+    expect(gp.padKind).toBe('playstation');
+    expect(GAME_BINDINGS.padKind).toBe('playstation');
+    const xb = makePad(); (xb as unknown as { id: string }).id = 'Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 02fd)';
+    set(xb); gp.update(1 / 60);
+    expect(GAME_BINDINGS.padKind).toBe('xbox');
+  });
+
+  it('tuning: a bigger dead zone swallows a small stick push; look speed and curve scale the camera', () => {
+    const input = new Input(document.body);
+    let pad: Gamepad | null = makePad({ axes: [0.3, 0, 0, 0] });
+    const gp = new GamepadInput(input, { getPads: () => [pad], tuning: { ...DEFAULT_TUNING, moveDeadZone: 0.4 } });
+    gp.update(1 / 60);
+    expect(input.touchAxis.x).toBe(0);
+    gp.tuning.moveDeadZone = 0.1; gp.update(1 / 60);
+    expect(input.touchAxis.x).toBeGreaterThan(0);
+    pad = makePad({ axes: [0, 0, 1, 0] });
+    input.endFrame(); gp.update(0.1);
+    const base = input.mouseDX;
+    input.endFrame(); gp.tuning.lookSpeed = 2; gp.update(0.1);
+    expect(input.mouseDX).toBeCloseTo(base * 2);
+  });
+
+  it('rumble goes to the pad actuator as a dual-rumble effect, and not when switched off or paused', () => {
+    const input = new Input(document.body);
+    const calls: Array<{ type: string; p: { strongMagnitude: number; duration: number } }> = [];
+    const pad = { ...makePad(), vibrationActuator: { playEffect: (type: string, p: { strongMagnitude: number; duration: number }) => { calls.push({ type, p }); return Promise.resolve('complete'); } } } as unknown as Gamepad;
+    const gp = new GamepadInput(input, { getPads: () => [pad], tuning: { ...DEFAULT_TUNING } });
+    gp.rumble(0.8, 0.3, 200);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].type).toBe('dual-rumble');
+    expect(calls[0].p.strongMagnitude).toBeCloseTo(0.8);
+    gp.rumble(5, 0, 99999);
+    expect(calls[1].p.strongMagnitude).toBe(1); expect(calls[1].p.duration).toBe(2000);
+    gp.tuning.vibration = false; gp.rumble(1, 1, 100);
+    expect(calls).toHaveLength(2);
+    gp.tuning.vibration = true; gp.paused = true; gp.rumble(1, 1, 100);
+    expect(calls).toHaveLength(2);
   });
 });

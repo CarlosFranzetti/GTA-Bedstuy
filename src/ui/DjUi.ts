@@ -191,6 +191,7 @@ export class DjUi {
       const v = g.deck(id); const ui = this.decks[id];
       ui.title.textContent = v.record ? `${v.record.title} · ${v.record.artist}` : 'Empty deck';
       ui.bpm.textContent = v.record ? `${v.bpm.toFixed(1)} BPM${v.record.beatMatched === false ? ' · not beat-matched' : ''}` : '--';
+      ui.bpm.classList.toggle('free', !!v.record && v.record.beatMatched === false);
       this.paintCredit(ui, v.record ?? null);
       ui.pos.textContent = v.record ? `${Math.floor(v.pos / 60)}:${String(Math.floor(v.pos % 60)).padStart(2, '0')}` : '';
       ui.pitchLabel.textContent = `${v.pitch >= 0 ? '+' : ''}${(v.pitch * 100).toFixed(1)}%`;

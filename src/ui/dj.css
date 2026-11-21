@@ -62,3 +62,4 @@
 .dj-liner { max-height: 38vh; overflow-y: auto; border-radius: 8px; background: rgba(0, 0, 0, 0.35); }
 .dj-liner .liner { flex-direction: column; gap: 8px; }
 .dj-liner .liner-sleeve { width: 96px; }
+.dj-bpm.free { font-size: 15px; line-height: 24px; }

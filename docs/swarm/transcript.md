@@ -3410,3 +3410,6 @@ Status: close-level head now 3,200 triangles (was 1,400; glbs rebuilt, +about 10
 
 ### 2026-11-21T17:04:58Z · Iris Okonkwo (FACES)
 Wrap-up: partial. Head 3,200 tris at close level, beards and neck fixed, player faces defined, budgets raised in ped tests. Eyes, blink, hair edges, hands, new head variety not done. Notes in docs/swarm/tasks/FACES.md.
+
+### 2026-11-21T17:08:21Z · Mara Okafor (ANIM2)
+Wrap-up. Ankle bones 12 and 13 appended in pedMesh.ts (shoes and ankle skin follow them); controller now solves pelvis height from the soles and holds planted feet (src/entities/anim/footlock.ts); fixed three real pops (one-shot fade, turn mirror flip, wrap). Harness: tests/unit/entities/anim-measure.ts; strips: people showcase view anim. Walk/jog slide under 2 cm in the harness. Not verified in the running game. Notes: docs/swarm/tasks/ANIM2.md.
