@@ -71,3 +71,23 @@ Taglines (taken from the lexicon): "THE CAT RUNS THE REGISTER", "OVEN OLDER THAN
 
 ## Sources
 Nothing external. Names, parts lists and taglines are written for this game. Colours are the plain trade colours of New York shops, written from general knowledge. No photo, no open-data text and no image from any game or map service was used for signs; the 215 KartaView photos (CC BY-SA 4.0, `docs/CREDITS.md`, ENV14) were used by ENV14 only for wall colour, material class and awning colour per lot (`src/world/data/facade-observed.json`); they are not used here. Street View: not looked at, nothing taken from it.
+
+## Frames (default map, hosted build, `?q=low&perf=0`, game hour 17:30 unless named; all under /tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/stores2/)
+- Day, wide (15 m) and close (7 m): f3/pizzeria_*, f3/bodega_*, f3/caribbean_*, f3/barber_*, f3/laundromat_*, f3/dollar_* (first build). Later build with the oven, washer and board fixes: f8/pizzeria_close_1730.jpg, f8/laundromat_close_1730.jpg, f8/dollar_wide_1730.jpg, f8/dollar_close_1730.jpg.
+- One avenue block, six shops in a row (bodega, liquor, barber, bodega, pharmacy, bodega): f8/avenue6_1730.jpg (camera ended on the far sidewalk behind a tree and scaffold; signs are too small to read at that distance).
+- Night 22:00: f8/pizzeria_wide_2200.jpg, f8/pizzeria_close_2200.jpg, f8/barber_wide_2200.jpg, f8/bodega_wide_2200.jpg, f8/caribbean_wide_2200.jpg.
+- Map screen: f11/mapscreen.png (43 shop markers from the grid map; names are not drawn at this zoom, only at zoom 0.8 and above).
+- Real map: not verified (see below).
+
+## What was seen, and what is wrong in the frames
+- Seen working: sun-faded awnings in per-trade colours, lit boxes with the trade, hand-painted fascia (Caribbean: gold Anton on dark), barber pole decals in the window, HOT SLICES board and the oven glow in a pizzeria window (and it glows at night), washers in a laundromat window, plastic chairs, a lit box and OPEN neon at 22:00.
+- Wrong or weak: every shop window shows the same shelf-of-books glazing picture (the frame's glass texture, not mine), so the trade shows in the sign, awning, decals and dressing but not in the window; awning names are small at 15 m (letter height is the awning painter's); decals are small (0.3 m); crates, ice box and news rack are dark blocks that read as clutter more than as goods (they use the lot's own tile colour and the dark metal on purpose, to add no material); the six-shop avenue frame is too far to read signs.
+- Page crashes: with SwiftShader launch flags a second frame at 22:00 killed the page twice; a plain `chromium.launch()` with `domcontentloaded` got 5 night frames in one boot. Cause not found.
+
+## Not done
+- Real map: the generator is wired through the same `resolveStorefront` (the BBL is the id), but no real-map shop frame was captured: the one run that got through put the camera inside the Not-Ray's building (frame f10/real_4_E.jpg shows a bare room), the others crashed. Treat real-map shops as unverified by eye. Real-map generated shops are not on the map screen (the lots there carry no spec when the map is built); only the 15 hand-made places are.
+- No HUD place label exists for shops in the code I found; none added.
+- No per-trade window art (a window that shows what the shop sells); needs a per-trade glazing painter in the frame code, or more decal slots. Bar, smoke shop and check cashing have no sidewalk dressing.
+- Fonts: decals now ask for Barlow Condensed and Anton first, but the faces must be loaded when the atlas is painted; this was not checked in the frames (letters look condensed, which may be either face or Arial Narrow). The single-file build has no font files and falls back to system faces.
+- Warehouse names (`warehouse.ts`) and the old pool names in `storefront-art.ts` (STORE_NAMES) are untouched and not checked against real businesses; STORE_NAMES is now only a fallback.
+- Not yet checked: night frames on the phone tier; phone tier at all.

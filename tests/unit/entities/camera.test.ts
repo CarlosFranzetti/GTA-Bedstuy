@@ -66,21 +66,21 @@ describe('ThirdPersonCamera', () => {
     expect(Math.abs(angleDiff(c.yaw, 3))).toBeLessThan(0.02);
   });
 
-  it('smooths toward a moving target and the vehicle mode sits 4.6 m back', () => {
+  it('smooths toward a moving target and the vehicle mode sits 4.1 m back', () => {
     const c = new ThirdPersonCamera();
     c.yaw = 0; c.pitch = 0;
     c.update(1 / 60, { x: 0, z: 0 }, 0, 'foot', fake());
-    // the pivot rides rigidly on the target (no trailing lag), the rig itself eases between modes
+    // a jump of more than a few metres (a teleport) snaps the pivot; short moves go through a critically damped spring
     c.update(1 / 60, { x: 100, z: 0 }, 0, 'foot', fake());
     expect(c.camera.position.x).toBeCloseTo(100.35, 2);
     c.update(1 / 60, { x: 100, z: 0 }, 0, 'vehicle', fake());
     expect(c.camera.position.z).toBeGreaterThan(3.2);
-    expect(c.camera.position.z).toBeLessThan(4.6);
+    expect(c.camera.position.z).toBeLessThan(4.1);
     const v = new ThirdPersonCamera();
     v.pitch = 0;
     for (let t = 0; t < 3; t += 1 / 60) v.update(1 / 60, { x: 0, z: 0 }, 0, 'vehicle', fake());
-    expect(v.camera.position.z).toBeCloseTo(4.6, 1);
-    expect(v.camera.position.y).toBeCloseTo(1.7, 1);
+    expect(v.camera.position.z).toBeCloseTo(4.1, 1);
+    expect(v.camera.position.y).toBeCloseTo(1.45, 1);
     expect(Number.isFinite(v.camera.position.x)).toBe(true);
   });
 
@@ -96,7 +96,7 @@ describe('ThirdPersonCamera', () => {
     expect(v.camera.position.x).toBeCloseTo(0, 1); // no shoulder in a car
   });
 
-  it('vehicle mode: distance grows 4.6 -> 5.5 m and FOV widens 70 -> 82 deg with speed', () => {
+  it('vehicle mode: distance grows 4.1 -> 4.7 m and FOV widens 62 -> 72 deg with speed', () => {
     const slow = new ThirdPersonCamera();
     const fast = new ThirdPersonCamera();
     slow.pitch = fast.pitch = 0;
@@ -104,14 +104,14 @@ describe('ThirdPersonCamera', () => {
       slow.update(1 / 60, { x: 0, z: 0 }, 0, 'vehicle', fake(), { speed: 0 });
       fast.update(1 / 60, { x: 0, z: 0 }, 0, 'vehicle', fake(), { vehicle: { speed: 30 } });
     }
-    expect(slow.camera.position.z).toBeCloseTo(4.6, 1);
-    expect(slow.camera.fov).toBeCloseTo(70, 1);
-    expect(fast.camera.position.z).toBeCloseTo(5.5, 1);
-    expect(fast.camera.fov).toBeCloseTo(82, 1);
+    expect(slow.camera.position.z).toBeCloseTo(4.1, 1);
+    expect(slow.camera.fov).toBeCloseTo(62, 1);
+    expect(fast.camera.position.z).toBeCloseTo(4.7, 1);
+    expect(fast.camera.fov).toBeCloseTo(72, 1);
     // reverse speed widens too; and on foot the speed is ignored
     const rev = new ThirdPersonCamera();
     for (let t = 0; t < 4; t += 1 / 60) rev.update(1 / 60, { x: 0, z: 0 }, 0, 'vehicle', fake(), { speed: -30 });
-    expect(rev.camera.fov).toBeCloseTo(82, 1);
+    expect(rev.camera.fov).toBeCloseTo(72, 1);
     const foot = new ThirdPersonCamera();
     for (let t = 0; t < 2; t += 1 / 60) foot.update(1 / 60, { x: 0, z: 0 }, 0, 'foot', fake(), { speed: 30 });
     expect(foot.camera.fov).toBe(64);

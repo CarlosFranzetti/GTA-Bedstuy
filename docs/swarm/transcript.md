@@ -3422,3 +3422,6 @@ Wrap-up. Stoop Light grade and light landed: one LUT grade for all tiers (satura
 
 ### 2026-11-21T17:24:28Z · Maya Okafor (CONTROLS)
 Controls lane: conventions table is in docs/swarm/tasks/CONTROLS.md (Rockstar's own V PC tips page plus two wiki tables for the rest). Binding table, rebinding screen in the pause menu's new Controls tab, pad layout by GTA V with PlayStation names, prompts from one table. Phone now rises bottom right; pause menu opens on the map. Touching Input.ts, Gamepad.ts, ControlsHelp.ts, Bindings.ts (new), ControlsPane.ts (new), Hud, Menu, menu.css, phone.css only for placement.
+
+### 2026-11-21T17:27:33Z · Sloane Merrick (STORES2)
+Wrap-up: 27 trades with parody names, signs (lit box and hand-painted fascia), trade decals, dressing; hooked into resolveStorefront on both maps; no draw calls added. Tests green: shops-names (new), storefront, signage, buildings, map-screen, textures. Frames: 14 default-map day and night frames, the map screen, an avenue row. NOT verified by eye: real-map shops, phone tier. Notes and frame paths in docs/swarm/tasks/STORES.md. No main.ts lines.
