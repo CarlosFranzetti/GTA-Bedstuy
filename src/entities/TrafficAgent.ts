@@ -143,6 +143,8 @@ const FLANK_IGNORE_FOR = 5;
 const BOX_EXIT_LOOKAHEAD = 9;
 /** a parked car that the path to the aim point clears by this much (on top of both half widths) is not a blocker, even when a ray grazes it */
 const PARKED_PATH_MARGIN = 0.3;
+/** a vehicle this far (m) or less off its lane line is steering back onto it, so the lane line decides which parked cars are in the way */
+const LANE_RECOVER_MAX = 2.2;
 const BOX_EXIT_LATERAL = 2.6;
 const BOX_JAM_SPEED = 1;
 const BOX_JAM_MAX = 8;
@@ -809,12 +811,30 @@ export class TrafficAgent {
     if (rx * ux + rz * uz < 0) return false;
     const myHalfW = b.shape.kind === 'obb' ? b.shape.halfW : 1;
     // the parked car's extent across the path: its long side if it lies along the path, else its short side
-    let ext = 1;
-    if (o.shape.kind === 'obb') {
-      const c = Math.abs(Math.cos(o.heading - Math.atan2(ux, -uz)));
-      ext = o.shape.halfW * c + o.shape.halfL * Math.sqrt(1 - c * c);
-    } else if (o.shape.kind === 'circle') ext = o.shape.r;
-    return Math.abs(rx * -uz + rz * ux) > myHalfW + ext + PARKED_PATH_MARGIN;
+    const extAcross = (dirX: number, dirZ: number): number => {
+      if (o.shape.kind === 'obb') {
+        const c = Math.abs(Math.cos(o.heading - Math.atan2(dirX, -dirZ)));
+        return o.shape.halfW * c + o.shape.halfL * Math.sqrt(1 - c * c);
+      }
+      return o.shape.kind === 'circle' ? o.shape.r : 1;
+    };
+    if (Math.abs(rx * -uz + rz * ux) > myHalfW + extAcross(ux, uz) + PARKED_PATH_MARGIN) return true;
+    // a long vehicle that swung wide of its lane in a turn aims its ray at the kerb row: a parked car that the vehicle
+    // would clear were it on the lane line is no obstacle (it steers back onto the line as it rolls)
+    const prev = this.prevId ? this.lanes.nodes[this.prevId] : null;
+    const tgt = this.target;
+    if (!prev || !tgt) return false;
+    const lx0 = tgt.pos.x - prev.pos.x;
+    const lz0 = tgt.pos.z - prev.pos.z;
+    const ll = hyp(lx0, lz0);
+    if (ll < 2) return false;
+    const lx = lx0 / ll;
+    const lz = lz0 / ll;
+    const mine = Math.abs((b.pos.x - prev.pos.x) * -lz + (b.pos.z - prev.pos.z) * lx);
+    if (mine > LANE_RECOVER_MAX) return false;
+    const ox = o.pos.x - prev.pos.x;
+    const oz = o.pos.z - prev.pos.z;
+    return Math.abs(ox * -lz + oz * lx) > myHalfW + extAcross(lx, lz) + PARKED_PATH_MARGIN;
   }
 
   /**
