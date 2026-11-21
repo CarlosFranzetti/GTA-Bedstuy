@@ -26,7 +26,7 @@ const SIM_SECONDS = 300;
 const WINDOW = 60;
 const PLAYER = { x: 0, z: 50 }; // a central, stationary player: traffic spawns 90-150 m around it
 
-interface Impact { t: number; a: string; b: string; strength: number; x: number; z: number; aDriver?: string; bDriver?: string }
+interface Impact { t: number; a: string; b: string; strength: number; x: number; z: number; aDriver?: string; bDriver?: string; aType?: string; bType?: string }
 interface Run {
   seed: number;
   agentsSeen: number;
@@ -67,9 +67,10 @@ function runTraffic(seed: number): Run {
   let t = 0;
   const entities = new Map<string, { onContact?: (c: never, o: never) => void; update(dt: number): void }>();
   const driverOf = new Map<string, string | null>();
+  const typeOf = new Map<string, string>();
   events.on('impact', (e) => {
     driverOf.get(e.a);
-    run.impacts.push({ t, a: e.a, b: e.b, strength: e.strength, x: e.pos.x, z: e.pos.z, aDriver: String(driverOf.get(e.a)), bDriver: String(driverOf.get(e.b)) });
+    run.impacts.push({ t, a: e.a, b: e.b, strength: e.strength, x: e.pos.x, z: e.pos.z, aDriver: String(driverOf.get(e.a)), bDriver: String(driverOf.get(e.b)), aType: typeOf.get(e.a), bType: typeOf.get(e.b) });
   });
   events.on('pedKnockedDown', (e) => run.knockedDown.push({ t, id: e.id }));
 
@@ -93,7 +94,7 @@ function runTraffic(seed: number): Run {
     entities.clear();
     driverOf.clear();
     const movers: IVehicle[] = [];
-    for (const v of traffic.vehicles) { v.update(DT); entities.set(v.body.id, v as never); driverOf.set(v.body.id, v.driver); if (v.driver === 'traffic') movers.push(v); }
+    for (const v of traffic.vehicles) { v.update(DT); entities.set(v.body.id, v as never); driverOf.set(v.body.id, v.driver); typeOf.set(v.body.id, String((v as { spec?: { type?: string } }).spec?.type)); if (v.driver === 'traffic') movers.push(v); }
     for (const v of cops.cops) { v.update(DT); entities.set(v.body.id, v as never); driverOf.set(v.body.id, v.driver); if (v.driver === 'cop') movers.push(v); }
     for (const p of traffic.peds) { p.update(DT); entities.set(p.body.id, p as never); driverOf.set(p.body.id, 'ped'); }
     const contacts = physics.step(DT);
