@@ -40,6 +40,11 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
   plain-English conversational transcript (`docs/swarm/transcripts/`); "I want to decide the direction of the models and
   clothing" (ask him, with pictures, before any lane sets a style); original buildings, landmarks and stores under parody
   and invented names, with textures from open street-level images.
+- 21 Nov, evening: "World should resemble real blocks, facades, stores and buildings; make similar textures from existing
+  images online; realism but parodied." How: each real block's buildings follow the real ones (floors, material, colour,
+  style, stoops, bays, shopfront positions) from NYC Open Data and open street photos; textures are derived only from
+  CC0 / CC BY / CC BY-SA photos with credit, or painted in code to match what was seen; other online images and Street
+  View are looked at only (rule 2); names and signs stay parodies (rule 4). Lane REALBLOCKS, after SURFACES4 and STORES2.
 - 21 Nov, evening: "Better models and anime [animation, as the lead reads it] for players, smooth as GTA 3 but detailed
   like 5. Better faces. More clothes and varied. AAA ROCKSTAR LEVEL LOOK." Lanes: FACES (heads, faces, hair, hands),
   ANIM2 (skeleton with ankles, neck and wrists; foot planting; blending; idles), then more garment shapes.
