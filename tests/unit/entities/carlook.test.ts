@@ -12,11 +12,13 @@ const mat = () => new THREE.MeshBasicMaterial();
 const materials = { get: () => mat(), awning: () => mat(), sign: () => mat(), carPaint: () => mat(), setNight: () => {} } as unknown as IMaterialLibrary;
 const tris = (g: THREE.BufferGeometry) => (g.index ? g.index.count : g.attributes.position.count) / 3;
 
+const CARS4_FEW = ['hearse', 'livery', 'towtruck', 'flatbed', 'foodtruck', 'sweeper', 'bucket'];
+
 describe('car looks (CARS12 variation)', () => {
   it('every private-car type has 8 or more paints, all valid and distinct', () => {
     for (const t of TYPES) {
       const p = PALETTES[t];
-      expect(p.length, t).toBeGreaterThanOrEqual(t === 'cop' || t === 'cab' || t === 'taxivan' || t === 'copsuv' || t === 'garbage' || t === 'ambulance' ? 1 : t === 'stepvan' || t === 'icecream' ? 5 : 8);
+      expect(p.length, t).toBeGreaterThanOrEqual(t === 'cop' || t === 'cab' || t === 'taxivan' || t === 'copsuv' || t === 'garbage' || t === 'ambulance' || t === 'schoolbus' ? 1 : t === 'stepvan' || t === 'icecream' || CARS4_FEW.includes(t) ? 5 : 8); // CARS4: service types have fewer paints
       for (const e of p) expect(/^#[0-9a-f]{6}$/i.test(e.color)).toBe(true);
       expect(new Set(p.map((e) => e.color)).size).toBe(p.length);
     }

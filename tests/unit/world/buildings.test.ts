@@ -347,11 +347,10 @@ describe('facade depth and detail', () => {
     const ms = meshOf(res.group);
     expect(ms.length).toBeLessThanOrEqual(60);
     const tris = ms.reduce((n, m) => n + m.geometry.getAttribute('position').count / 3, 0);
-    console.log('CITYTRIS', tris);
     // party-wall dressing and roof extras (GTA3) added ~6% on 609k for the ten blocks; the world is now 25 blocks (B1),
     // and the east blocks are procedural placeholders until GEO3 imports their lots
     const grow = g.blocks.length / 10;
-    expect(tris).toBeLessThan(660_000 * grow);
+    expect(tris).toBeLessThan(700_000 * grow); // SURFACES3: +6 % for real areaway fence pickets (was 660k)
     expect(tris).toBeGreaterThan(400_000);
   }, 120_000); // WBURG: the city has 45 blocks now; whole-city builds take longer under a loaded machine
 });

@@ -162,18 +162,22 @@ if (uCond.w > 0.5) {
   float n1 = vnoise(q * 3.3), n2 = vnoise(q * 12.0);
   float yN = clamp((q.y - uBox.x) / uBox.y, 0.0, 1.0);
   float dl = uCond.x / 3.0;
-  float dirtAmt = dl * smoothstep(0.12 + 0.45 * dl, 0.0, yN) * (0.7 + 0.4 * n1);
-  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.2, 0.17, 0.12), clamp(dirtAmt * 0.6, 0.0, 0.6));
-  diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.5, 0.46, 0.38), dl * 0.2 * (0.4 + n2));
+  // CARS4: road grime is low on the body and streaks upward from the sill; it darkens the paint (it used to add an even pale film, which made dark cars chalky)
+  float streak = smoothstep(0.5, 0.9, vnoise(vec3(q.z * 13.0, q.y * 1.4, q.x * 0.5)));
+  float dirtAmt = dl * smoothstep(0.1 + 0.4 * dl, 0.0, yN) * (0.55 + 0.45 * n1 + 0.5 * streak);
+  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.42 + vec3(0.07, 0.06, 0.04), clamp(dirtAmt * 0.75, 0.0, 0.7));
+  // sun-faded roof and bonnet on the tired cars only (dirt level 2 and 3)
+  float topFade = smoothstep(0.8, 1.0, yN) * (0.45 + 0.55 * n1) * step(1.5, uCond.x) * (uCond.x - 1.0) * 0.5;
+  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.85 + vec3(0.14), clamp(topFade, 0.0, 0.5));
   if (uCond.y > 0.5) {
     float rl = uCond.y / 3.0;
     float lowEdge = 1.0 - smoothstep(0.0, 0.3, yN);
-    float m = smoothstep(0.6, 0.9, n2 * 0.3 + n1 * 0.2 + lowEdge * 0.8 * rl) + smoothstep(0.93, 0.99, n1) * rl * 0.8;
+    float m = smoothstep(0.66, 0.92, n2 * 0.42 + n1 * 0.3 + lowEdge * 0.5 * rl) + smoothstep(0.93, 0.99, n1) * rl * 0.8;
     diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.4, 0.19, 0.07), vec3(0.64, 0.35, 0.14), n2), clamp(m, 0.0, 0.9));
   }
   if (uCond.z > 0.5 && q.z > uPrimer.x && q.z < uPrimer.y && q.y > uPrimer.z && q.y < uPrimer.w && (uBox.z == 0.0 || q.x * uBox.z > 0.0)) {
     float edge = smoothstep(0.0, 0.015, min(min(q.z - uPrimer.x, uPrimer.y - q.z), min(q.y - uPrimer.z, uPrimer.w - q.y)));
-    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.43, 0.46, 0.42) * (0.85 + 0.3 * n2), edge);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.30, 0.32, 0.29) * (0.9 + 0.2 * n2), edge);
   }
   for (int i = 0; i < 3; i++) {
     if (uDent[i].w > 0.0) {

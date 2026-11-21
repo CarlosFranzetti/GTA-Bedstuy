@@ -377,15 +377,12 @@ function weatherFlank(s: Sk, L: SkinLayout, side: 'left' | 'right', rng: Rng): v
   const Y = (v: number): number => r.y + (1 - v) * r.h;
   const beltY = Y(L.belt);
   // chalky, sun-bleached upper body and a streaked clear coat
-  s.shade(r.x, beltY, r.w, Y(0.3) - beltY, '#ffffff', 0.16);
-  for (let i = 0; i < 14; i++) s.shade(rng.range(r.x, r.x + r.w - 20), rng.range(beltY, Y(0.3)), rng.range(8, 30), rng.range(2, 8), '#ffffff', rng.range(0.1, 0.22));
+  // CARS4: the chalk is a light bloom (it was 16 to 22 percent white blotches, which read as a missing texture on a red car)
+  s.shade(r.x, beltY, r.w, Y(0.3) - beltY, '#ffffff', 0.06);
+  for (let i = 0; i < 8; i++) s.shade(rng.range(r.x, r.x + r.w - 20), rng.range(beltY, Y(0.3)), rng.range(8, 30), rng.range(2, 8), '#ffffff', rng.range(0.03, 0.08));
   // mismatched panel: the rear door on the right, the front fender on the left, in grey / green primer
-  const a = side === 'right' ? L.seams[1] : 0.0, b = side === 'right' ? L.seams[2] : L.seams[0];
-  const xa = Math.min(X(a), X(b)), xb = Math.max(X(a), X(b));
-  const primer = side === 'right' ? '#6f7864' : '#8d8f8a';
-  s.solid(xa + 1.5, beltY + 1, xb - xa - 2, Y(0.15) - beltY - 1, primer);
-  s.shade(xa + 1.5, beltY + 1, xb - xa - 2, 1, '#000000', 0.0);
-  for (let i = 0; i < 10; i++) s.solid(xa + rng.range(2, Math.max(3, xb - xa - 6)), rng.range(beltY + 2, Y(0.18)), rng.range(2, 5), rng.range(1, 2), rng.chance(0.5) ? '#646d59' : '#838a7a');
+  // CARS4: the painted-in primer door (a fixed light grey with dot speckle) is gone: it read as a white missing-texture panel at 5 m. The one
+  // mismatched primer panel is now the shader's (carSkin.ts COND_FRAG, dark primer grey, beaters only, 40 percent of them).
   // rust: freckles along the sill, arch lips and the bottom of the doors, a couple of bigger blooms
   const rust = ['#7a3d1c', '#9a5326', '#5c2d14', '#b0642a'];
   for (let i = 0; i < 90; i++) {
@@ -562,8 +559,8 @@ export function paintCarSkin(col: CanvasRenderingContext2D, mask: CanvasRenderin
 /** Beater roof / hood / boot: chalky clear-coat failure in patches, rust bubbling at the panel edges and on the bumpers. */
 function weatherEnds(s: Sk, L: SkinLayout, rng: Rng): void {
   const t = SKIN_RECTS.top;
-  s.shade(t.x, t.y, t.w, t.h, '#ffffff', 0.2);
-  for (let i = 0; i < 16; i++) s.shade(rng.range(t.x, t.x + t.w - 30), rng.range(t.y + 4, t.y + t.h - 14), rng.range(14, 50), rng.range(8, 22), '#ffffff', rng.range(0.15, 0.3));
+  s.shade(t.x, t.y, t.w, t.h, '#ffffff', 0.07);
+  for (let i = 0; i < 10; i++) s.shade(rng.range(t.x, t.x + t.w - 30), rng.range(t.y + 4, t.y + t.h - 14), rng.range(14, 50), rng.range(8, 22), '#ffffff', rng.range(0.03, 0.09));
   const rust = ['#7a3d1c', '#9a5326', '#5c2d14', '#b0642a'];
   for (let i = 0; i < 40; i++) {
     const edge = rng.chance(0.5);
@@ -572,7 +569,7 @@ function weatherEnds(s: Sk, L: SkinLayout, rng: Rng): void {
   for (const reg of ['front', 'rear'] as const) {
     const r = SKIN_RECTS[reg];
     for (let i = 0; i < 30; i++) s.solid(rng.range(r.x + 3, r.x + r.w - 3), r.y + r.h - rng.range(2, 26), rng.range(1, 3.2), rng.range(1, 2.4), rng.pick(rust));
-    s.shade(r.x, r.y, r.w, r.h * 0.5, '#ffffff', 0.14);
+    s.shade(r.x, r.y, r.w, r.h * 0.5, '#ffffff', 0.06);
   }
   void L;
 }

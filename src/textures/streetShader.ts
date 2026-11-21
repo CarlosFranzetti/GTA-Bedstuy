@@ -24,11 +24,11 @@ float gdSeed = 0.37; float gdCls = 0.0; bool gdRoad = false; vec4 gdRd = vec4( 0
   gdRd = vColor; gdCls = floor( gdRd.y ); gdSeed = fract( gdRd.y ); gdRoad = gdRd.x > 1.5 && gdRd.w > gdRd.z;
 #endif
 float gdPx = length( fwidth( gw ) );
-float gdTone = ( gdCls > 0.5 ? 0.9 : 1.08 ) * ( 0.84 + 0.32 * gdSeed );
+float gdTone = ( gdCls > 0.5 ? 0.9 : 1.08 ) * ( 0.78 + 0.44 * gdSeed );
 float gdM1 = gdFbm( gw / 31.0 + gdSeed * 13.0 );
 float gdM2 = gdFbm( gw / 6.5 + gdSeed * 5.0 );
 float gdM3 = gdFbm( gw / 1.9 + gdSeed * 3.0 );
-gdTone *= 1.0 + ( gdM1 - 0.5 ) * 0.75 + ( gdM2 - 0.5 ) * 0.34 + ( gdM3 - 0.5 ) * 0.16;
+gdTone *= 1.0 + ( gdM1 - 0.5 ) * 1.3 + ( gdM2 - 0.5 ) * 0.55 + ( gdM3 - 0.5 ) * 0.22;
 // aggregate: stones of about 2 cm and a 7 cm mottle, faded out by the pixel footprint so nothing aliases at a distance
 float gdGA = 1.0 - smoothstep( 0.012, 0.05, gdPx );
 float gdGB = 1.0 - smoothstep( 0.04, 0.17, gdPx );
@@ -242,7 +242,7 @@ float gdSeed = 0.0; bool gdSw = false; vec4 gdRd = vec4( 0.0 );
 vec2 sc = floor( sg ); vec2 sf = fract( sg );
 float sd = gdHash( sc + gdSeed * 97.0 + 5.0 );
 float sd2 = gdHash( sc * 1.7 + gdSeed * 53.0 + 9.0 );
-float gdTone = 1.0 + ( sd - 0.5 ) * 0.36;
+float gdTone = 1.0 + ( sd - 0.5 ) * 0.44;
 #ifdef GD_FLAG
 gdTone = 1.0 + ( sd - 0.5 ) * 0.08;
 #endif
@@ -282,6 +282,10 @@ float gdPx = length( fwidth( gw ) );
   // joint grime: dark water and dirt line along the slab edges, patchy
   float jd = min( min( sf.x, 1.0 - sf.x ), min( sf.y, 1.0 - sf.y ) ) * slabM;
   gdTone *= 1.0 - ( 1.0 - smoothstep( 0.0, 0.06, jd ) ) * 0.12 * ( 0.4 + 0.9 * gdNoise( gw * 1.3 ) );
+#ifndef GD_FLAG
+  // the scored joint itself: a crisp dark line 2.5 cm wide with a pale lip beside it
+  gdTone *= 1.0 - ( 1.0 - smoothstep( 0.008, 0.02, jd ) ) * 0.38 + ( smoothstep( 0.02, 0.03, jd ) * ( 1.0 - smoothstep( 0.03, 0.05, jd ) ) ) * 0.06;
+#endif
 }
 float ch = gdHash( sc + gdSeed * 31.0 + 2.0 );
 #ifdef GD_FLAG
@@ -338,11 +342,11 @@ export const PAINT_GLSL = `
 vec2 fc = floor( gw / 17.0 ); float fh = gdHash( fc + 51.0 );
 float fade = fh > 0.8 ? 1.2 : ( fh < 0.32 ? 0.62 + 0.2 * gdNoise( gw * 1.7 ) : 1.0 );
 // worn thermoplastic: chips are blobs of 10 to 40 cm with ragged edges (smooth noise, no per-pixel speckle), thinner in the wheel paths
-float wearN = gdNoise( gw * 2.3 ) * 0.5 + gdNoise( gw * 6.1 ) * 0.32 + gdNoise( gw * 15.0 ) * 0.18;
+float wearN = gdNoise( gw * 4.1 ) * 0.5 + gdNoise( gw * 9.3 ) * 0.32 + gdNoise( gw * 21.0 ) * 0.18;
 float wearLow = gdNoise( gw * 0.17 + 2.0 );
-float chip = smoothstep( 0.57, 0.68, wearN * ( 0.55 + 0.8 * wearLow ) + ( fh < 0.32 ? 0.1 : 0.0 ) );
+float chip = smoothstep( 0.66, 0.74, wearN * ( 0.55 + 0.8 * wearLow ) + ( fh < 0.32 ? 0.1 : 0.0 ) );
 vec3 paintCol = diffuseColor.rgb * fade * ( 0.95 + 0.1 * gdNoise( gw * 1.1 ) );
 // grey tyre-dust and a thin dirty rim where the paint meets the road
 paintCol *= mix( 1.0, 0.78, smoothstep( 0.4, 0.62, wearN ) * 0.5 );
-diffuseColor.rgb = mix( paintCol, vec3( 0.13, 0.135, 0.14 ) * ( 0.85 + 0.3 * gdNoise( gw * 9.0 ) ), chip * 0.85 );
+diffuseColor.rgb = mix( paintCol, vec3( 0.075, 0.078, 0.082 ) * ( 0.85 + 0.3 * gdNoise( gw * 9.0 ) ), chip * 0.85 );
 `;

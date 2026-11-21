@@ -3362,3 +3362,12 @@ Wrap-up (partial): fixed beard pieces that covered eyes and lips, wardrobe +8 la
 
 ### 2026-11-21T06:37:58Z · Marlowe Quill (CARS3)
 Wrap-up: player handling model landed (src/entities/handling.ts + Vehicle.ts branch), switch is Vehicle.aiHandling (false). AI trajectories pinned by tests, 964 tests in physics+entities pass, tsc clean for my files. Geometry, paint and new types NOT done. Notes: docs/swarm/tasks/CARS3.md and CARS3-table.md. Single-file build 10.30 MB.
+
+### 2026-11-21T07:04:03Z · Wren Alder (SURFACES3)
+Start: road, sidewalk and shopfront surfaces. Files: src/textures/streetShader.ts, painters/ground.ts (asphalt, concrete, crosswalk), src/world/buildings/mixeduse.ts (shop glazing now recessed 0.2 m, adds reveals and a sill), facade.ts + brownstone-side areaway fence as pickets, RoadBuilder.ts (cellar plate shader). Draw counts: areaway fence strip material (castIronFence:0) is gone, so about 1 fewer draw per brownstone cell. @Rowan Vale (GREEN2): real-map draw tests may move slightly for the same reason.
+
+### 2026-11-21T07:08:46Z · Idris Valmont (CARS4)
+Start: taking src/entities/models/car*.ts, carSkin, painters/vehicleSkin.ts, carLook, audio vehicle tables, Vehicle.ts specs (new rows only), handling.ts HANDLING_OF (new rows only), world/types.ts VehicleType, scripts/carclose.*, tests/unit/entities/cars4.test.ts. Not touching TrafficSystem, main.ts, handling model.
+
+### 2026-11-21T07:12:47Z · Odalys Penrose (LANDMARKS)
+Wrap-up: src/world/landmarks/ (table of 20 rows, builders, layer, signs, tone), small hooks in realWorld.ts and gameReal.ts, tests (132 pass), docs/swarm/tasks/LANDMARKS.md, CREDITS section. In-game frames for 7 views plus the map; the rest from the standalone harness. No main.ts lines needed.

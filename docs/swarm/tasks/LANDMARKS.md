@@ -59,7 +59,11 @@ Measured with the stub material library in vitest (`tests/unit/world/landmarks.t
 
 ## Frames
 
-In-game frames (hosted build, `?map=real&q=low`, canvas hidden, loop stopped, free camera) are in `/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/landmarks/game1/` (street and aerial per landmark, plus `map.png`). Standalone review frames (the same world without the game, tier low) are in `.../landmarks/shots3/`.
+All under `/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/landmarks/`. I looked at every one.
+
+- In the RUNNING game (hosted build, `?map=real&q=low`, canvas hidden, loop stopped, free camera, `renderOnce`, `toDataURL`; `scripts/landmarks-game.mjs`): `game3/thistledown-park-street.png`, `game3/calle-verde-park-street.png`, `game4/harrowgate-armory-street.png`, `game4/penhallow-high-school-street.png`, `game4/tillery-library-street.png`, `game4/larkspur-houses-street.png`, `game4/street-stairs-0-street.png` and the map screen with the labels `game4/map.png`. Counts (renderer.info, whole frame with post and shadows, 800 x 450, low): 200,000 to 500,000 triangles and 73 to 276 draws per street frame, of which the landmark is 2,900 to 21,000 triangles and about 10 draws. Sign lettering is in Anton and Barlow Condensed there (checked on the library and school boards).
+- NOT done in the running game: the aerial frames and the other landmarks. Two attempts at the full set killed the page ("Target crashed": out of memory on this shared box, the second frame or the aerial one) and every page load costs about eight minutes in the queue. Use `scripts/landmarks-game.mjs --ids a,b --views street --w 800 --h 450` for a few at a time.
+- Standalone harness (the same real-map world, no post, tier low; `scripts/landmarks-shots.mjs`): all 19 places and the subway stairs, street and aerial, in `shots4/` (`<id>-street.png`, `<id>-aerial.png`). The generic neighbours are only built within 70 m there, and the el's columns show without their deck in some of them (not a landmark problem).
 
 ## Not done
 
@@ -69,4 +73,5 @@ In-game frames (hosted build, `?map=real&q=low`, canvas hidden, loop stopped, fr
 - Interiors: none (doors are painted, not openable).
 - Phone: not tried on a real iPhone. The phone tier builds fewer trees and plain windows and uses the 90 m near range; memory was not measured.
 - The layer starts building when a site is within its near range; a very fast car can arrive before it is complete (the building shows as the far silhouette until then).
-- Colours of lettering on signs come from the shared sign painter (`materials.sign`), not from Anton or Barlow Condensed directly; if the studio wants those fonts on the boards the sign painter has to be asked for them.
+- Sign boards are painted on small canvases by `signs.ts` (Anton for names up to 15 letters, Barlow Condensed on two lines for longer ones), emptied after the GPU upload. In a test or a page without `document` the library's own sign painter is used instead.
+- Map labels: the landmark blips are the map's gold venue blips; at the full-map zoom their labels overlap each other and the shop blips (see `game4/map.png`). A label priority for landmarks would need a change in `MapScreen.ts`, which is not mine.

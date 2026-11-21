@@ -427,6 +427,30 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
       pm.color.set('#8a8d91');
       pm.roughness = 0.5;
       pm.metalness = 0.3;
+      // diamond-plate cellar doors (SURFACES3): 3.5 cm lozenge treads in alternating directions, a flat frame, two hinge bars, a rusty rim; albedo only
+      const prevCompile = pm.onBeforeCompile;
+      pm.onBeforeCompile = (shader, renderer) => {
+        prevCompile?.call(pm, shader, renderer);
+        shader.vertexShader = shader.vertexShader
+          .replace('#include <common>', '#include <common>\nvarying vec2 vPlU;')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvPlU = uv;');
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nvarying vec2 vPlU;')
+          .replace('#include <map_fragment>', `#include <map_fragment>
+{
+  vec2 pu = vPlU * vec2( ${PLATE_L.toFixed(2)}, ${PLATE_W.toFixed(2)} );
+  float pe = min( min( pu.x, ${PLATE_L.toFixed(2)} - pu.x ), min( pu.y, ${PLATE_W.toFixed(2)} - pu.y ) );
+  vec2 pc = pu / 0.04; vec2 pi2 = floor( pc ); vec2 pl = fract( pc ) - 0.5;
+  bool alt = mod( pi2.x + pi2.y, 2.0 ) < 0.5;
+  vec2 pq = alt ? pl : pl.yx;
+  float tread = ( 1.0 - smoothstep( 0.30, 0.38, abs( pq.x ) ) ) * ( 1.0 - smoothstep( 0.08, 0.14, abs( pq.y ) ) );
+  float inner = smoothstep( 0.06, 0.075, pe );
+  float hinge = ( 1.0 - smoothstep( 0.012, 0.02, abs( pu.x - 0.5 ) ) ) + ( 1.0 - smoothstep( 0.012, 0.02, abs( pu.x - ${( PLATE_L - 0.5 ).toFixed(2)} ) ) );
+  float rust = smoothstep( 0.1, 0.0, pe ) * 0.55;
+  diffuseColor.rgb *= ( 0.74 + 0.5 * tread * inner ) * ( 1.0 - 0.3 * clamp( hinge, 0.0, 1.0 ) ) * mix( vec3( 1.0 ), vec3( 1.25, 0.8, 0.55 ), rust );
+}`);
+      };
+      pm.customProgramCacheKey = () => 'cellarplate1';
       return pm;
     });
     for (const f of bl.faces) {

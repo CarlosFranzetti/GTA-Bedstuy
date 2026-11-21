@@ -131,7 +131,7 @@ function cane(ctx: Ctx, mb: MeshBuilder): void {
 function scarf(ctx: Ctx, mb: MeshBuilder): void {
   // PEOPLE8: this is the "orange bib" of the grey hoodie (not a collar): three rows made a flat cone on the chest and the tail was a 4 cm wide, 22 cm long strip. Now a soft round wrap (a 7 cm roll, rounded
   // in section) with a short narrow tail on one side.
-  const y0 = ctx.lm.chinY - 0.07, y1 = ctx.lm.chinY - 0.012, hi = ctx.detail === 'hi', cols = hi ? 14 : 9, P: V3[][] = [];
+  const y0 = ctx.lm.chinY - 0.064, y1 = ctx.lm.chinY - 0.012, hi = ctx.detail === 'hi', cols = hi ? 14 : 9, P: V3[][] = [];
   const prof: Array<[number, number]> = hi ? [[0, 0.012], [0.22, 0.024], [0.5, 0.03], [0.78, 0.024], [1, 0.012]] : [[0, 0.012], [0.5, 0.03], [1, 0.012]];
   const top: V3[] = []; for (let j = 0; j < cols; j++) top.push(ringPoint(ctx, y1, (j / cols) * Math.PI * 2, 0.012));
   for (const [t, off] of prof) {
@@ -139,7 +139,7 @@ function scarf(ctx: Ctx, mb: MeshBuilder): void {
     for (let j = 0; j < cols; j++) {
       const be = (j / cols) * Math.PI * 2, q = ringPoint(ctx, lerp(y0, y1, t), be, off + 0.004 * Math.sin(be * 2 + t * 3) + 0.008 * (1 - front(be)) * t);
       // a wrap hangs from the neck: the shoulder slope below must not drag it out into a bib, so it never stands more than 3.5 cm further from the neck axis than the ring at its top
-      const tx = top[j][0] - ctx.C[0], tz = top[j][2] - ctx.C[2], qx = q[0] - ctx.C[0], qz = q[2] - ctx.C[2], rt = Math.hypot(tx, tz) + 0.035 + 0.01 * (1 - t), rq = Math.hypot(qx, qz), k = rq > rt ? rt / rq : 1;
+      const tx = top[j][0] - ctx.C[0], tz = top[j][2] - ctx.C[2], qx = q[0] - ctx.C[0], qz = q[2] - ctx.C[2], rt = Math.hypot(tx, tz) + 0.05 + 0.02 * (1 - t), rq = Math.hypot(qx, qz), k = rq > rt ? rt / rq : 1;
       row.push([ctx.C[0] + qx * k, q[1], ctx.C[2] + qz * k]);
     }
     P.push(row);

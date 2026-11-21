@@ -37,8 +37,10 @@ export function* buildSubway(c: BuildCtx): Generator<void> {
   const colour = parseInt(String(row.look.colour ?? '#3fae5c').slice(1), 16);
   for (const z of [z0 - 0.1, z1 + 0.1]) {
     k.cyl(iron, x0, z, 0.07, 0, 2.5, 6, { color: IRON });
-    k.cyl(k.flatM, x0, z, 0.3, 2.5, 3.0, 8, { color: colour });
-    k.cone(k.flatM, x0, z, 0.3, 3.0, 3.25, 8, { color: colour });
+    // a globe: two frusta (widening, then narrowing) and a flat cap
+    k.cone(k.flatM, x0, z, 0.16, 2.5, 2.78, 10, { color: colour, r1: 0.3, rot: 0 });
+    k.cone(k.flatM, x0, z, 0.3, 2.78, 3.06, 10, { color: colour, r1: 0.18, rot: 0 });
+    k.floor(k.flatM, Array.from({ length: 10 }, (_, i) => [x0 + Math.cos((i / 10) * Math.PI * 2) * 0.18, z + Math.sin((i / 10) * Math.PI * 2) * 0.18] as [number, number]), 3.06, { color: colour });
     k.solidCircle(x0, z, 0.2);
   }
   // the station board on a pole at the far end, readable from both sides of the pavement

@@ -37,7 +37,8 @@ try {
     if (ids.length && !ids.includes(row.id)) continue;
     for (const v of views) {
       await dismiss();
-      const r = await page.evaluate(({ row, v }) => {
+      let r;
+      try { r = await page.evaluate(({ row, v }) => {
         const d = window.__gtaDebug, rw = window.__gtaRealWorld(), s = row.site;
         const front = { x: s.ax + s.fx * s.w / 2, z: s.az + s.fz * s.w / 2 };
         const o = { x: -s.nx, z: -s.nz };
@@ -59,7 +60,7 @@ try {
         let info; for (let i = 0; i < 2; i++) info = d.renderOnce(1, 1 / 60);
         const url = d.renderer.domElement.toDataURL('image/png');
         return { url, info, lm: rw.landmarks.stats() };
-      }, { row, v });
+      }, { row, v }); } catch (e) { console.error('frame failed', row.id, v, String(e).slice(0, 120)); report.push({ id: row.id, view: v, failed: String(e).slice(0, 120) }); writeFileSync(`${out}/report.json`, JSON.stringify({ report, errors }, null, 1)); throw e; }
       writeFileSync(`${out}/${row.id}-${v}.png`, Buffer.from(r.url.split(',')[1], 'base64'));
       report.push({ id: row.id, view: v, tris: r.info.triangles, calls: r.info.total, lm: r.lm });
       console.log(`${out}/${row.id}-${v}.png`, r.info.triangles, r.info.total);

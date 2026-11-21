@@ -104,6 +104,37 @@ Loading (emulation, relative only): about 70 s from navigation to ready in this 
   a list of ACT, JUMP, RUN, CAR, GAS / BRAKE. It never blocks play (only its GOT IT button takes touches), touching the controls dismisses it
   after 4 s, and it fades by itself after 20 s. Storage that throws (private window) falls back to showing it each run.
 
+## Memory table (phone tier, hosted build, headless Chromium as iPhone 13, software GL: GPU numbers are estimates)
+
+Probe: `scratchpad/phone2/memprobe3.cjs` (the IPHONE lane's memprobe2 plus a settle wait, a viewport and hour switch, spawn-relative frames).
+"before" is the tree as found (`before` = `mem-before.log`, measured at ready); "after" is measured 14 s after ready, when the upload pass has run
+(`mem-after3.log`; the same run at 0.5 s, `mem-after-n.log`, gives geometry and triangles comparable to before, because the world keeps streaming cells).
+
+| | before | after | target |
+|---|---|---|---|
+| textures on the GPU (estimate) | 116.6 MB (181 textures) | 94.0 MB (177) | < 100 MB: met |
+| live 2D canvases | 53.7 MB (104) | 48.2 MB (96) | < 40 MB: NOT met, 8 MB over |
+| world geometry, at ready | 17.9 MB | 20.6 MB (15.8 to 20.6 between runs) | |
+| geometry in JS, all, at ready | 90.8 MB | 89.1 to 93.8 MB | |
+| triangles in the scene, at ready | 0.82 M | 0.81 to 0.84 M | |
+| JS heap after GC | 81.4 MB | 83.2 MB | < 250 MB |
+| JS heap peak while booting | 287 MB | 289 MB (at 0.5 s) | |
+| boot download | 7.01 MB | 7.01 MB | < 8 MB |
+| canvas buffer | 720 x 332 | 1280 x 591 (0.76 MP against 0.24 MP) | |
+
+Reading it:
+* The wardrobe, weather and vehicle additions had not pushed geometry, triangles or heap up: they are flat against the IPHONE lane's after numbers
+  (it measured 117 MB textures and 60 MB canvases; this tree measured 116.6 and 53.7 before my change).
+* Textures: 22.6 MB saved, almost all from the shop-front sheets (19 sheets at 1024 x 512 became 768 x 384: 2.7 MB to 1.5 MB each).
+* Canvases: the shop-front sheets are now uploaded and emptied at ready (12 sheets, 24 MB before) and the cargo liveries are adopted; but 12 ped bakes
+  at 512 x 512 (12.6 MB, people lane, `pedMesh.ts` bakes at 512 on phone and only empties the canvas at first sight) and 5 cargo liveries at 1024 x 512
+  (10 MB, cars lane, `carModel.ts cargoLiveryMaterial`; the materials are cached and not yet in the scene, so the upload pass cannot reach them) are
+  still alive, plus car paint (2 MB), a 1024 x 1024 and a 1024 x 640 canvas (6.8 MB, not identified) and small ones.
+  What would close the gap, in their files: bake peds at `texSize(1024, 'people')` = 384 (saves about 5.6 MB), size the livery with `texSize(2048, 'skin')` and
+  call `releaseCanvasAfterUpload(tex)` where it is built (saves up to 10 MB), or hand the textures to `renderer.initTexture` after their first bake.
+* The 2-minute play measurement was not repeated: at 1280 px a software-GL frame takes over a minute, and the page was killed after the first
+  frame of a frame run. The IPHONE lane's play numbers (+8 MB heap, +29 MB geometry) stand until a device run.
+
 ## Tests
 
 `tests/unit/ui/touch.test.ts` (floating stick, follow, look smoothing, context buttons, GAS / BRAKE / RUN, tutorial memory, haptics),

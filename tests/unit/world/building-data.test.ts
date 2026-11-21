@@ -103,22 +103,22 @@ describe('stoops and railings', () => {
     expect(yRange(byMat(r.group, /^brownstone:/)).lo).toBeGreaterThanOrEqual(0);
   });
 
-  it('stoop railings and the areaway fence are real pickets in the dark-metal mesh (SURFACES3); flush rows have no fence', () => {
+  it('stoop railings use the cast-iron fence strip; the areaway fence is real pickets in the dark-metal mesh (SURFACES3); flush rows have neither', () => {
     const r = build([lotOf({ stoop: { present: true, heightM: 1.5 } })]);
-    expect(byMat(r.group, /^castIronFence:/).length).toBe(0); // no fence-strip draw call any more
-    const metal = byMat(r.group, /^metalDark:/);
-    expect(metal.length).toBe(1);
+    const stoop = byMat(r.group, /^castIronFence:1$/);
+    expect(tris(stoop)).toBeGreaterThanOrEqual(4);
+    expect(byMat(r.group, /^castIronFence:0$/).length).toBe(0); // no areaway strip draw call any more
+    // the stoop railing quads follow the stair slope up to the stoop height + ~0.4 + 0.91
+    expect(yRange(stoop).hi).toBeGreaterThan(1.5 + 0.4);
+    expect(yRange(stoop).hi).toBeLessThan(1.5 + 0.4 + 1.0);
     // areaway pickets stand on the ground at the building line (z = -0.1), 0.91 m tall
-    const p = metal[0].geometry.getAttribute('position');
-    let yHiArea = 0, nArea = 0, yHiStoop = 0;
-    for (let i = 0; i < p.count; i++) {
-      if (Math.abs(p.getZ(i) + 0.1) < 0.02 && p.getY(i) <= IRON_H + 0.01) { nArea++; yHiArea = Math.max(yHiArea, p.getY(i)); }
-      yHiStoop = Math.max(yHiStoop, p.getY(i));
-    }
-    expect(nArea).toBeGreaterThan(40);
-    expect(yHiArea).toBeGreaterThan(IRON_H - 0.1);
-    // the stoop railing follows the stair slope up to the stoop height + ~0.4 + 0.91
-    expect(yHiStoop).toBeGreaterThan(1.5 + 0.4);
+    const p = byMat(r.group, /^metalDark:/)[0].geometry.getAttribute('position');
+    let yHi = 0, n = 0;
+    for (let i = 0; i < p.count; i++) if (Math.abs(p.getZ(i) + 0.1) < 0.02 && p.getY(i) <= IRON_H + 0.01) { n++; yHi = Math.max(yHi, p.getY(i)); }
+    expect(n).toBeGreaterThan(40);
+    expect(yHi).toBeGreaterThan(IRON_H - 0.1);
+    const flush = build([lotOf({ stoop: { present: false, heightM: 0 } })]);
+    expect(byMat(flush.group, /^castIronFence:/).length).toBe(0);
   });
 
   it('the parlour wall starts at the stoop height and iron railing geometry exists', () => {

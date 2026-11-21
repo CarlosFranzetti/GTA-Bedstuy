@@ -185,7 +185,7 @@ describe('landmarks in the real world', () => {
     expect(owned.length).toBeGreaterThanOrEqual(2);
     const inStreamer = new Set<string>();
     for (const c of rw.streamer!.chunks.values()) for (const l of c.lots) inStreamer.add(l.bbl);
-    for (const l of owned) expect(inStreamer.has((l as { bbl: string }).bbl), `owned lot ${(l as { bbl: string }).bbl} must not get a generic building`).toBe(false);
+    for (const l of owned) expect(inStreamer.has((l as unknown as { bbl: string }).bbl), `owned lot ${(l as unknown as { bbl: string }).bbl} must not get a generic building`).toBe(false);
     expect(inStreamer.size).toBeGreaterThan(1000);
     // the layer builds around the player and hands colliders to the host
     const lib = LANDMARKS.find((l) => l.id === 'tillery-library')!;

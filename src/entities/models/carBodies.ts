@@ -2758,7 +2758,7 @@ function buildWorkBody(kind: TruckKind, A: WorkAcc, S: WorkSpace): void {
     const x = Wg2 + 0.004;
     trim.add(decalX(1.7, 0.85, 1, x, 1.95, zc + 0.15));                                                    // window opening (dark)
     chrome.add(bx(0.14, 0.04, 1.8, Wg2 + 0.06, 1.5, zc + 0.15));                                           // counter shelf
-    grey.add(new THREE.BoxGeometry(0.9, 0.04, 2.0).rotateZ(-0.32).translate(Wg2 + 0.34, 2.55, zc + 0.15));      // awning (raised, sloping out)
+    grey.add(new THREE.BoxGeometry(0.5, 0.04, 2.0).rotateZ(-0.3).translate(Wg2 + 0.13, 2.5, zc + 0.15));      // awning (raised, sloping out)
     for (const dz of [-0.9, 0.9]) chrome.add(cylZ(0.015, 0.02, Wg2 + 0.05, 2.2, zc + 0.15 + dz, 4));
     trim.add(decalX(0.9, 0.8, -1, -x, 1.9, zc - 0.5));                                                     // menu board (left)
     for (const dz of [-0.4, 0.4]) trim.add(bx(0.6, 0.14, 0.5, 0, S.H + 0.05, zc + dz));                    // roof vents

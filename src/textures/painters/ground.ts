@@ -144,7 +144,7 @@ export const asphaltPainter: Painter = (ctx, w, h, rng, variant, aux) => {
   const worn = wrapVariant(variant, 2) === 1;
   const H = aux?.height;
   const R = aux?.rough ?? null;
-  ctx.fillStyle = worn ? '#6d6f73' : '#505256';
+  ctx.fillStyle = worn ? '#85878b' : '#686a6e';
   ctx.fillRect(0, 0, w, h);
   if (H) {
     H.fillStyle = gray(128);
@@ -155,7 +155,7 @@ export const asphaltPainter: Painter = (ctx, w, h, rng, variant, aux) => {
     }
   }
   speckle(ctx, w, h, rng, worn ? 7000 : 6000,
-    worn ? ['#84868a', '#5d5e62', '#96989c', '#505156'] : ['#62646a', '#383a3f', '#74767c', '#2e3034'], 1, 2.5, 0.7);
+    worn ? ['#9c9ea2', '#74767a', '#aeb0b4', '#65666a'] : ['#7c7e84', '#505257', '#8e9096', '#44464a'], 1, 2.5, 0.7);
   if (aux) auxSpeckle(aux.height, aux.rng, 0, 0, w, h, 6000, [92, 110, 150, 168], 1, 2.5, 0.55);
   blotches(ctx, w, h, rng, worn ? 24 : 10, worn ? '#2a2b2e' : '#1c1d20', 0.12, 20, 70,
     R ? { ctx: R, color: gray(170) } : null);
@@ -305,7 +305,7 @@ export const concretePainter: Painter = (ctx, w, h, rng, variant, aux) => {
   const slab = w / 2;
   const H = aux?.height;
   const R = aux?.rough ?? null;
-  ctx.fillStyle = dark ? '#5d5c58' : '#a9a7a0';
+  ctx.fillStyle = dark ? '#5d5c58' : '#8f8d87';
   ctx.fillRect(0, 0, w, h);
   if (H) {
     H.fillStyle = gray(30);
@@ -313,7 +313,7 @@ export const concretePainter: Painter = (ctx, w, h, rng, variant, aux) => {
   }
   for (let sy = 0; sy < 2; sy++) {
     for (let sx = 0; sx < 2; sx++) {
-      ctx.fillStyle = hsl(40, 4, (dark ? 36 : 66) + rng.range(-3, 3));
+      ctx.fillStyle = hsl(40, 4, (dark ? 36 : 58) + rng.range(-3, 3));
       ctx.fillRect(sx * slab + 2 * k, sy * slab + 2 * k, slab - 4 * k, slab - 4 * k);
       if (H) {
         H.fillStyle = gray(120);
@@ -441,9 +441,9 @@ export const GUM = 'rgb(78,76,73)';
 export const crosswalkPainter: Painter = (ctx, w, h, rng) => {
   // asphalt under the paint (only the gaps between bars show it); the paint is clean thermoplastic: flat colour, a slightly
   // darker rim, a few large soft chips and the tyre-dust bands. No per-pixel speckle (that read as a noisy pixel pattern).
-  ctx.fillStyle = '#4b4d52';
+  ctx.fillStyle = '#686a6e';
   ctx.fillRect(0, 0, w, h);
-  speckle(ctx, w, h, rng, 500, ['#5a5c62', '#3a3c41'], 1, 1.5, 0.35);
+  speckle(ctx, w, h, rng, 500, ['#76787e', '#505257'], 1, 1.5, 0.35);
   const pitch = w / 4;
   const bar = pitch / 2;
   const rail = h * 0.075;
@@ -476,7 +476,7 @@ export const crosswalkPainter: Painter = (ctx, w, h, rng) => {
   for (let i = 0; i < 9; i++) {
     const cx = rng.int(0, 3) * pitch + rng.range(2, bar - 4), cy = rng.range(inset, h - inset - 6);
     const rw = rng.range(2, 6), rh = rng.range(3, 11);
-    ctx.fillStyle = '#4b4d52';
+    ctx.fillStyle = '#686a6e';
     ctx.beginPath();
     for (let k = 0; k < 9; k++) {
       const a = (k / 9) * Math.PI * 2, r = 0.7 + rng.next() * 0.5;

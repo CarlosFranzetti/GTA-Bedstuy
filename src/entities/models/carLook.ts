@@ -193,9 +193,12 @@ export function lookFor(type: VehicleType, color: string, seed: number): CarLook
   const tired = type === 'beater' ? 2 : type === 'luxury' || type === 'limo' || type === 'copsuv' ? -2 : type === 'classic' || type === 'minitruck' || type === 'panelvan' || type === 'stepvan' || type === 'icecream' || type === 'cargovan' || type === 'boxtruck' || type === 'dollarvan' || type === 'garbage' || type === 'towtruck' || type === 'flatbed' || type === 'sweeper' ? 1 : type === 'hearse' || type === 'livery' ? -1 : 0;
   const lvl = (bias: number): number => Math.max(0, Math.min(3, Math.floor(r.next() * 2.6 + bias * 0.5 + (r.chance(0.25) ? 1 : 0) - 0.6)));
   const dirt = type === 'garbage' ? 3 : lvl(tired + 1);
-  const rust = type === 'luxury' || type === 'limo' || type === 'hearse' || type === 'livery' || type === 'schoolbus' || type === 'foodtruck' || type === 'copsuv' || type === 'convertible' || type === 'cop' || type === 'ambulance' || type === 'exotic' || type === 'coupe911' || type === 'evsedan' ? 0 : lvl(tired - (type === 'cab' ? 1 : 0));
+  // CARS4: rust (arches, sills) belongs to old cars; everything else is clean or, rarely, one light bloom
+  const OLD = type === 'beater' || type === 'classic' || type === 'minitruck' || type === 'panelvan' || type === 'stepvan' || type === 'icecream' || type === 'cargovan' || type === 'boxtruck' || type === 'dollarvan' || type === 'garbage' || type === 'towtruck' || type === 'flatbed' || type === 'donk';
+  const rust = OLD ? lvl(tired) : r.chance(0.05) ? 1 : 0;
   const dents = r.chance(0.18 + 0.12 * Math.max(0, tired)) ? r.int(1, 3) : 0;
-  const primer = (type === 'beater' ? r.chance(0.55) : type === 'luxury' || type === 'limo' || type === 'copsuv' || type === 'cop' || type === 'ambulance' || type === 'hearse' || type === 'livery' || type === 'schoolbus' || type === 'foodtruck' || type === 'sweeper' || type === 'bucket' ? false : r.chance(0.05)) ? r.int(1, 4) : 0;
+    // CARS4: a mismatched primer panel is a beater's wear only (it showed as a missing texture on ordinary cars at 5 m)
+  const primer = type === 'beater' && r.chance(0.4) ? r.int(1, 4) : 0;
   let livery = 0;
   if (type === 'cargovan' || type === 'panelvan') livery = r.int(0, CARGO_VAN_LIVERIES - 1);
   else if (type === 'boxtruck') livery = r.int(0, BOX_LIVERY_VARIANTS - 2); // the last variant is the garbage truck's

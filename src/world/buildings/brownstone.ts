@@ -9,7 +9,7 @@
  * the rng, exactly as before the data-driven pass.
  */
 import {
-  BASEMENT_H, CHAIN_TILE, IRON_H, IRON_TILE, PARLOUR_H, acUnits, bayCentres, bayCount, corniceOfKind, drainPipe, familyMats, fireEscape, ironFenceRun, ironPickets,
+  BASEMENT_H, CHAIN_TILE, IRON_H, IRON_TILE, PARLOUR_H, acUnits, bayCentres, bayCount, corniceOfKind, drainPipe, familyMats, fireEscape, ironFenceRun,
   revealFaces, roofClutter, roofWithParapet, storeyLevels, wallWithHoles, waterTank, windowAwning, windowBars, windows,
 } from './facade';
 import { lotLook, partyWallDetail, roofDetails } from './partyWall';
@@ -179,9 +179,9 @@ export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
       b.bar(m.metal, [rx, yL, -S + 0.08], [rx, yL + rh + 0.04, -S + 0.08], 0.07);
       b.bar(m.metal, [rx, yF + rh + 0.03, zEnd - 0.05], [rx, yL + rh + 0.03, zLand], 0.05);
       b.bar(m.metal, [rx, yL + rh + 0.03, zLand], [rx, yL + rh + 0.03, -S + 0.08], 0.05);
-      // infill: pickets up the slope and across the landing (SURFACES3: real bars instead of a fence texture)
-      ironPickets(b, m.ironStoop, [rx, yF, zEnd - 0.05], [rx, yL, zLand], rh, lite ? 0.3 : 0.2);
-      ironPickets(b, m.ironStoop, [rx, yL, zLand], [rx, yL, zLand - (landing - 0.08)], rh, lite ? 0.3 : 0.2);
+      const slopeLen = Math.hypot(zLand - zEnd, yL - yF);
+      b.rect(m.ironStoop, [rx, yF, zEnd - 0.05], [0, yL - yF, zLand - zEnd + 0.05], [0, rh, 0], { ru: slopeLen / IRON_TILE, rv: 1 });
+      b.rect(m.ironStoop, [rx, yL, zLand], [0, 0, -(landing - 0.08)], [0, rh, 0], { ru: (landing - 0.08) / IRON_TILE, rv: 1 });
     }
     stoops.push({ x0, x1, z0: -S, z1: zEnd });
     // areaway fence along the building line (spear variant), open at the stoop foot and the basement entry
