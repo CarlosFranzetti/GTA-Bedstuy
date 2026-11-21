@@ -164,7 +164,7 @@ export class DjUi {
     const def = this.d.inventory.getRecord(recordId);
     if (!def) return false;
     const buf = this.d.source ? await this.d.source.load(def) : null;
-    if (this.d.source && !buf) { this.say('That file is not loaded this session. Re-add it in the Radio library.'); return false; }
+    if (this.d.source && !buf) { this.say(def.kind === 'archive' ? 'Could not fetch that clip (offline?). Try again.' : 'That file is not loaded this session. Re-add it in the Radio library.'); return false; }
     const length = buf ? buf.duration : (60 / def.bpm) * 4 * LOOP_BARS;
     if (def.kind !== 'procedural' && buf) def.bpm = await this.d.source!.measure(def);
     this.d.game.load(deck, def, length, buf);
