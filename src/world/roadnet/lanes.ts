@@ -52,7 +52,7 @@ const U_TURN = 2.95;
 const AGENT_LOOKAHEAD_NODES = 6;
 /** a connector slows its car for a stop line that ends the next lane within this many metres (m), assuming this braking (m/s2) */
 const SHORT_LINK_M = 45;
-const LINE_DECEL = 2.2;
+const LINE_DECEL = 1.6;
 /** turns sharper than this (~120 deg) are not built unless a lane would otherwise have no way on: a car cannot make them */
 const SHARP_TURN = 2.1;
 
@@ -264,7 +264,7 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
     curve.pts.forEach((q, i) => {
       const id = `cx:${from.id}>${b.id}:${i + 1}`;
       const turnCap = turning && i >= (curve.pts.length - 1) / 2 ? TURN_EXIT_SPEED : Infinity;
-      const lineCap = feedsLine && rest[i] < SHORT_LINK_M ? Math.sqrt(2 * LINE_DECEL * rest[i]) + 1.5 : Infinity;
+      const lineCap = feedsLine && rest[i] < SHORT_LINK_M ? Math.sqrt(2 * LINE_DECEL * rest[i]) + 0.5 : Infinity;
       const cap = Math.min(turnCap, lineCap);
       addNode({ id, pos: q, streetId: to.streetId, heading: headingFromVec(curve.tans[i]), stopLine: false, ...(cap < Infinity ? { maxSpeed: cap } : {}) });
       nodeIds.push(id);
