@@ -125,8 +125,14 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   weather system, 37 vehicle types, real map grown to about 9.8 km² with traffic, pedestrians and police.
 - Known red: grid-map traffic simulation (gridlock and AI collisions with the new car mix); real-map simulation (cars off
   road, a red-light run, about 3,000 parked cars); real-map draw-call tests.
-- Not started: street and building textures with a shared facade sheet; recognisable real places under invented names;
-  medium and high tier performance.
+- Done 21 Nov, not yet used in the game: the logo (a brownstone with a tall stoop: `docs/brand/`, rules in
+  `docs/brand/BRAND.md`), new app icons and favicon; the GTA IV and V style study (`docs/reference/gta4-5-study.md`, with
+  its sources file: style reference only, many numbers are marked as estimates).
+- Lanes running on 21 Nov (results are claims until the lead checks them): GREEN2 (bugs and tests), PHONE2 (phone),
+  DOCS (README and every markdown file), SURFACES2 (textures, shared facade sheet), PEOPLE7 (clothing and characters),
+  LANDMARKS (real places under invented names, `src/world/landmarks/`). Their results go in `docs/swarm/tasks/`.
+- Not started: vehicles and handling (waits for GREEN2 to leave the traffic code); the real map as the main map; medium
+  and high tier performance.
 - Waiting on the owner: promoting the link-in-bio page (branch `release-links`); a Hugging Face token or his own
   pictures for the loading posters; a test on a real iPhone (`?debug=mem` shows memory numbers); one story voice clip
   re-bake; deleting old Vercel deployments.
