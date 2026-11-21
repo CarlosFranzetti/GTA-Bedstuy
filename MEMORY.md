@@ -209,6 +209,12 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   `places-real-r4.json` (the r123 files are gone); outline and distances in `docs/swarm/tasks/MAP4.md`. The 581 R3 block numbers are kept (landmark
   sites use them): never rebuild the network without `src/world/data/raw/r3-block-keys.json`. Furniture of the outer rings streams per tile
   (`src/world/roadnet/propsStream.ts`); roads are still all built at boot. Real-map sims run on the core net; `REAL_NET=r4` runs them on R4.
+- LANDMARKS2 (21 Nov night, not released): 13 more real places under invented names in `src/world/landmarks/landmarks2.ts`,
+  7 built from open-licence Commons photos (looked at, nothing sampled; credited in CREDITS). The lead looked at four
+  pairs: the brewery and the post office are fair matches; the church lacks its tower and round window; the tenement row
+  is the wrong colour. Most are in Bushwick: the best-known Bed-Stuy places (Fulton St plaza and theatre, Girls' High,
+  Stuyvesant Heights) lie outside the old outline and wait for MAP4. Names need a one-by-one web recheck before release.
+  Notes: `docs/swarm/tasks/LANDMARKS2.md`.
 - Not started: the real map as the main map; medium and high tier performance.
 - Waiting on the owner: promoting the link-in-bio page (branch `release-links`); a Hugging Face token or his own
   pictures for the loading posters; a test on a real iPhone (`?debug=mem` shows memory numbers); one story voice clip
