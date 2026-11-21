@@ -517,6 +517,13 @@ export function unwrapUVs(mesh, lm, shared = null) {
   let headCz = 0;
   if (head) { for (const v of head.vs) headCz += P[v * 3 + 2]; headCz /= head.vs.size; }
   if (shared) headCz = shared.headCz;
+  // FACES: the head's cylinder axis slides back to the neck's axis toward the chin. The throat and the underside of the jaw sit BEHIND the head's centre, so with one axis they
+  // wrapped round to the sides of the tile and overlapped the cheeks and ears (the ragged light patches at jaw and neck: two surfaces fighting for the same texels).
+  let neckCz = headCz;
+  if (shared && shared.neckCz !== undefined) neckCz = shared.neckCz;
+  else { let sz = 0, n = 0; for (let v = 0; v < P.length / 3; v++) { const y = P[v * 3 + 1]; if (y > lm.chinY - 0.09 && y < lm.chinY - 0.03 && Math.abs(P[v * 3]) < 0.08) { sz += P[v * 3 + 2]; n++; } } if (n) neckCz = sz / n; }
+  const sstp = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const czAt = (y) => neckCz + (headCz - neckCz) * sstp(lm.chinY - 0.05, lm.chinY + 0.07, y);
   const ys = [lm.chinY, lm.chinY + 0.41 * (lm.eyeY - lm.chinY), lm.chinY + 0.68 * (lm.eyeY - lm.chinY), lm.eyeY, lm.crownY];
   const ts = [FACE_T.chin, FACE_T.mouth, FACE_T.nose, FACE_T.eye, FACE_T.crown];
   const headT = (y) => { if (y <= ys[0]) return 0; for (let k = 1; k < ys.length; k++) if (y <= ys[k]) return ts[k - 1] + ((y - ys[k - 1]) / (ys[k] - ys[k - 1])) * (ts[k] - ts[k - 1]); return 1; };
@@ -526,7 +533,7 @@ export function unwrapUVs(mesh, lm, shared = null) {
     const cx = g.cb[0] + (g.ct[0] - g.cb[0]) * ft, cz = g.cb[1] + (g.ct[1] - g.cb[1]) * ft;
     if (g.tile === 'head') {
       // front at the middle of the tile, the front half weighted twice as dense as the back; the seam is the back of the skull
-      let a = Math.atan2(x - 0, -(zz - headCz));            // 0 = straight ahead (-z), +- pi = behind
+      let a = Math.atan2(x - 0, -(zz - czAt(yy)));            // 0 = straight ahead (-z), +- pi = behind
       const sgn = a < 0 ? -1 : 1, s0 = Math.min(1, Math.abs(a) / Math.PI);
       return [0.5 + 0.5 * sgn * (2 * s0 - s0 * s0), headT(yy)];
     }
@@ -583,7 +590,7 @@ export function unwrapUVs(mesh, lm, shared = null) {
     for (const j of order) sum += W[v * 12 + j];
     order.forEach((j, k2) => { joints[i * 4 + k2] = j; weights[i * 4 + k2] = W[v * 12 + j] / sum; });
   });
-  const out = { groups: {}, headCz, maxU: Object.fromEntries(maxU) };
+  const out = { groups: {}, headCz, neckCz, maxU: Object.fromEntries(maxU) };
   for (const [k, g] of groups) out.groups[k] = { lo: g.lo, hi: g.hi, long: g.long, a1: g.a1, cb: g.cb, ct: g.ct, tile: g.tile, side: g.side };
   return { position, normal, uv: Float32Array.from(outUv), joints, weights, indices: Uint32Array.from(outIdx), regions: region, shared: out, srcVertex: Int32Array.from(outSrc) };
 }
