@@ -335,6 +335,7 @@ export class ThirdPersonCamera {
     // a car jammed against a wall jitters by centimetres every physics step, and the lens must not shiver with it.
     {
       const ux = targetPos.x + this.offX, uz = targetPos.z + this.offZ;
+      const oldKX = this.slkX, oldKZ = this.slkZ;
       if (first) { this.slkX = ux; this.slkZ = uz; }
       else {
         const band = SLACK_BAND * this.blockAmt;
@@ -345,8 +346,16 @@ export class ThirdPersonCamera {
       if (first || Math.hypot(this.spX - this.slkX, this.spZ - this.slkZ) > PIVOT_SNAP) { this.spX = this.slkX; this.spZ = this.slkZ; this.svX = 0; this.svZ = 0; }
       else {
         const om = vehicleMode ? PIVOT_OMEGA_CAR : PIVOT_OMEGA_FOOT;
-        const sx = dampStep(this.spX - this.slkX, this.svX, om, dt), sz = dampStep(this.spZ - this.slkZ, this.svZ, om, dt);
-        this.spX = this.slkX + sx.x; this.svX = sx.v; this.spZ = this.slkZ + sz.x; this.svZ = sz.v;
+        // The target moved from oldK to slk during this step: treat it as moving at that constant velocity u. In the frame that
+        // rests at the spring's equilibrium (2u/omega behind the target) the update is the exact critically damped step, so
+        // the result does not depend on how the same motion is cut into frames.
+        // a jump (not a motion: over 60 m/s) keeps the old reading, a step in the target at the start of the frame
+        const mv = Math.hypot(this.slkX - oldKX, this.slkZ - oldKZ) / dt;
+        const k2 = dt > 1e-6 && mv < 60 ? 2 / om / dt : 0;
+        const ax = (this.slkX - oldKX) * k2, az = (this.slkZ - oldKZ) * k2; // 2u/omega
+        const ux2 = ax * om / 2, uz2 = az * om / 2; // u
+        const sx = dampStep(this.spX - (k2 ? oldKX : this.slkX) + ax, this.svX - ux2, om, dt), sz = dampStep(this.spZ - (k2 ? oldKZ : this.slkZ) + az, this.svZ - uz2, om, dt);
+        this.spX = this.slkX + sx.x - ax; this.svX = sx.v + ux2; this.spZ = this.slkZ + sz.x - az; this.svZ = sz.v + uz2;
       }
       this.tgt.x = this.spX; this.tgt.z = this.spZ;
     }
@@ -536,6 +545,8 @@ export class ThirdPersonCamera {
         if (!vehicleMode && Math.abs(vrig.shoulder) > 0.1) this.updateSlide(world, targetPos, stat, d, dt);
         else { this.slide = false; this.slideTimer = 0; this.slideFree = 0; }
         const limitNow = Math.min(stat, dyn, d + 0.5);
+        // slack above the real distance is dead weight: a wall that appears must start pulling the lens in on this frame
+        if (this.reach > d + 0.05) this.reach = d + 0.05;
         if (first || !this.initReach) this.reach = limitNow;
         else if (limitNow < this.reach) this.reach += Math.max((limitNow - this.reach) * (1 - Math.exp(-WALL_IN_RATE * dt)), -WALL_IN_MAX * dt);
         else if (limitNow - this.reach > REACH_DEAD) this.reach += (limitNow - this.reach) * (1 - Math.exp(-WALL_OUT_RATE * dt));

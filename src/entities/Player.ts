@@ -70,6 +70,8 @@ const BRACE_TIME = 0.5;
 const WALL_CONTACT_SPEED = 2.4;
 const BRAKE_ACCEL = 8;
 /** Walk to the car door before getting in: the time scales with the distance, between these (s). */
+/** Ranking penalty (m) for a car reached by its body box only (its door is beyond ENTER_RANGE). */
+const FAR_DOOR_PENALTY = 1.5;
 const ENTER_TIME = 0.4;
 const ENTER_TIME_MAX = 0.55;
 const ENTER_WALK_SPEED = 5;
@@ -108,6 +110,8 @@ const PIN_SPEED = 5;
 
 /** A car moving faster than this (m/s) that runs into the player knocks them down. */
 const KNOCK_SPEED = 3;
+/** Closing speed along the contact normal (m/s) below which the car is shoving a person it already touches, not hitting him. */
+const KNOCK_CLOSING = 1.5;
 /** Seconds the player lies and slides before getting up, the share of the car's speed they are thrown at, the cap (m/s) and the ground drag (1/s). */
 const KNOCK_TIME = 1.3;
 const KNOCK_THROW = 0.8;
@@ -238,11 +242,14 @@ export class Player implements Entity {
    * A car at speed runs the player down: thrown along its path (a little to the side, away from its centreline), controls dead
    * for KNOCK_TIME seconds, vehicles pass over the body while it slides, then the player gets up. A slow bump just shoves.
    */
-  onContact(_contact: Contact, other: Body2D): void {
+  onContact(contact: Contact, other: Body2D): void {
     if (this.vehicle || this.entering || this.downT > 0) return;
     if (other.kind !== 'vehicle' && other.kind !== 'cop') return;
     const sp = Math.hypot(other.vel.x, other.vel.z);
     if (sp < KNOCK_SPEED) return;
+    // A car that keeps pushing a person it has already caught (its speed creeping up while he is shoved along) is not a hit: the
+    // knock needs a real closing speed at the contact itself. Heavier foot braking (MECHANICS) let a slow car reach KNOCK_SPEED while pushing.
+    if (contact.impulse < KNOCK_CLOSING) return;
     const b = this.body;
     let ax = b.pos.x - other.pos.x, az = b.pos.z - other.pos.z;
     const al = Math.hypot(ax, az) || 1; ax /= al; az /= al;
@@ -314,17 +321,24 @@ export class Player implements Entity {
   tryEnter(vehicles: IVehicle[]): IVehicle | null {
     if (this.entering) { this.exitQueued = true; return null; } // F again while walking to the door: "never mind", leave as soon as seated
     if (this.vehicle || this.downT > 0) return null;
-    let best: IVehicle | null = null;
-    let bestD = ENTER_RANGE;
+    // Candidates by how near the player is to the door (a car reached only by its body box ranks behind one whose door is in
+    // range, so a van beside the cab is not picked over the cab). A candidate that cannot be entered (jammed on every side, a
+    // far door) is skipped for the next one: one refused car never leaves the player standing frozen beside another he could take.
+    const cands: Array<{ v: IVehicle; k: number }> = [];
     for (const v of vehicles) {
       if (v.driver === 'player') continue;
       const d = doorDistance(v, this.body.pos);
-      if (d <= bestD) { bestD = d; best = v; }
+      if (d <= ENTER_RANGE) cands.push({ v, k: doorFar(v, this.body.pos) ? d + FAR_DOOR_PENALTY : d });
+    }
+    cands.sort((p, q) => p.k - q.k);
+    let best: IVehicle | null = null;
+    for (const c of cands) {
+      // Getting in from beyond the door only makes sense if there is somewhere to get out again: a car jammed against
+      // walls and props on every side is refused (the player would be spat out inside the wall).
+      if (this.blockedAt && doorFar(c.v, this.body.pos) && (this.blockedAt(this.body.pos, FOOT_RADIUS, c.v.id) || !this.anyExitFree(c.v))) continue;
+      best = c.v; break;
     }
     if (!best) return null;
-    // Getting in from beyond the door only makes sense if there is somewhere to get out again: a car jammed against
-    // walls and props on every side is refused (the player would be spat out inside the wall).
-    if (this.blockedAt && doorFar(best, this.body.pos) && (this.blockedAt(this.body.pos, FOOT_RADIUS, best.id) || !this.anyExitFree(best))) return null;
     const prevDriver = best.driver;
     best.driver = 'player';
     best.setInput({ ...NEUTRAL, brake: true }); // a rolling car brakes while you climb in instead of coasting away from the door
