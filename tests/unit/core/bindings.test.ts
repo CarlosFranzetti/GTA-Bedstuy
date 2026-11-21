@@ -71,8 +71,8 @@ describe('rebinding', () => {
   });
   it('a key moves out of its other slot instead of appearing twice', () => {
     const b = fresh();
-    b.rebind('attack', 1, 'MouseLeft');
-    expect(b.get('attack')).toEqual(['MouseLeft']);
+    b.rebind('attack', 1, 'MouseLeft'); // already in slot 0: the two keys swap
+    expect(b.get('attack')).toEqual(['KeyG', 'MouseLeft']);
   });
   it('clearSlot, reset and resetAll', () => {
     const b = fresh();
