@@ -45,7 +45,7 @@ const rimFn = (ctx: Ctx, k: Knots, o: LineOpts | number = {}) => {
   // curl styles, which are asked for on purpose, keep their shape: they are far wider than the blur)
   return (be: number): number => {
     const key = Math.round(be * 1000); let v = memo.get(key);
-    if (v === undefined) { v = (rawAt(be - 0.2) + 2 * rawAt(be) + rawAt(be + 0.2)) / 4; memo.set(key, v); }
+    if (v === undefined) { v = (rawAt(be - 0.4) + 2 * rawAt(be - 0.2) + 3 * rawAt(be) + 2 * rawAt(be + 0.2) + rawAt(be + 0.4)) / 9; memo.set(key, v); }      // PEOPLE8: five taps (was three): the brow and temple ray casts still left shallow teeth
     return v;
   };
 };
@@ -280,11 +280,21 @@ function cornrows(ctx: Ctx, mb: MeshBuilder): void {
   if (ctx.underHat) return;
   const NC = colsOf(ctx, 17, 13), NR = rowsOf(ctx, 6, 5), rim = rimFn(ctx, L_FADE, 0), c = ctx.C, P: V3[][] = Array.from({ length: NR }, () => []), Th: number[][] = Array.from({ length: NR }, () => []), nRidge = Math.round((NC - 1) / 2);
   const inside = (p: V3): boolean => { const d = norm(sub(p, c)); return Math.acos(clamp(d[1], -1, 1)) <= rim(Math.atan2(d[0], -d[2] + 0) + (d[0] < 0 ? TAU : 0)); };
+  // PEOPLE8: the first and last z of every ridge came out ragged from column to column (the front edge of the braids was a row of skin-coloured teeth): they are collected first, filled where a ray
+  // missed, and smoothed across the columns, so the front edge is one soft curve
+  const dirs: V3[] = [], zs0: number[] = [], zs1: number[] = [];
   for (let j = 0; j < NC; j++) {
     const tau = lerp(-1.34, 1.34, j / (NC - 1)), dir: V3 = [Math.sin(tau), Math.cos(tau), 0], at = (z: number): V3 | null => { const o: V3 = [0, c[1], z], t = ctx.head.hit(o, dir, 0.5); return isFinite(t) ? add(o, mul(dir, t)) : null; };
     let z0 = Infinity, z1 = -Infinity;
     for (let k = 0; k <= 44; k++) { const z = c[2] - 0.14 + (0.27 * k) / 44; const q = at(z); if (q && inside(q)) { z0 = Math.min(z0, z); z1 = Math.max(z1, z); } }
-    if (!isFinite(z0)) { z0 = c[2] - 0.01; z1 = c[2] + 0.01; }
+    dirs.push(dir); zs0.push(z0); zs1.push(z1);
+  }
+  const fill = (a: number[]): void => { const ok = a.filter((v) => isFinite(v)); const m = ok.length ? ok.reduce((x, y) => x + y, 0) / ok.length : c[2]; for (let j = 0; j < a.length; j++) if (!isFinite(a[j])) a[j] = m; };
+  fill(zs0); fill(zs1);
+  for (let it = 0; it < 4; it++) for (const a of [zs0, zs1]) { const prev = a.slice(); for (let j = 0; j < a.length; j++) a[j] = 0.25 * prev[Math.max(0, j - 1)] + 0.5 * prev[j] + 0.25 * prev[Math.min(a.length - 1, j + 1)]; }
+  for (let j = 0; j < NC; j++) {
+    const dir = dirs[j], at = (z: number): V3 | null => { const o: V3 = [0, c[1], z], t = ctx.head.hit(o, dir, 0.5); return isFinite(t) ? add(o, mul(dir, t)) : null; };
+    const z0 = zs0[j], z1 = zs1[j];
     const crest = (j % 2 === 1) ? 1 : 0, edge = sstep(0, 2, Math.min(j, NC - 1 - j));
     for (let i = 0; i < NR; i++) {
       const f = i / (NR - 1), z = lerp(z0, z1, f), p = at(z) ?? at(c[2]) ?? ([0, c[1] + 0.09, z] as V3), th = (0.0055 + 0.0085 * crest * sstep(0.04, 0.2, Math.min(f, 1 - f) * 2)) * (0.1 + 0.9 * edge) * sstep(0, 0.1, Math.min(f, 1 - f) + 0.02);
