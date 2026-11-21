@@ -356,7 +356,10 @@ export class HandlingModel {
     // slide assist: once the car is sliding, steering that would wind the slide up closes down (countersteer stays free), so a held key
     // does not turn a drift into a spin and nothing can tank-slap
     const xRear = Math.abs(this.alphaR) / (cl.peakR * DEG);
-    if (u > KIN_BELOW && delta * this.alphaR < 0 && xRear > SLIDE_ASSIST_FROM) delta *= clamp(1 - (xRear - SLIDE_ASSIST_FROM) / SLIDE_ASSIST_SPAN, SLIDE_ASSIST_MIN, 1);
+    // (HANDLING2: only in proportion to the dynamic share `wDyn`. In the kinematic blend below ~6 m/s the rear "slip angle" b r / u of an ordinary tight
+    // turn is large without any slide, and the assist used to close the steering to about 80 percent exactly at junction speeds.)
+    const wDyn = u > 0 ? smooth(KIN_BELOW, DYN_ABOVE, u) : 0;
+    if (u > KIN_BELOW && delta * this.alphaR < 0 && xRear > SLIDE_ASSIST_FROM) delta *= 1 - wDyn * (1 - clamp(1 - (xRear - SLIDE_ASSIST_FROM) / SLIDE_ASSIST_SPAN, SLIDE_ASSIST_MIN, 1));
     this.delta = delta;
 
     // ---- dynamic bicycle (forward speeds)

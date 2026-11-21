@@ -92,7 +92,7 @@ if ( gdRoad ) {
   // utility cuts: long narrow strips along a lane, sealed at the edges, darker (fresh) or lighter (old fill)
   float uc = ( rs + gdSeed * 131.0 ) / 37.0; float ui = floor( uc ); float uf = fract( uc ) * 37.0;
   float uh = gdHash( vec2( ui, gdSeed * 17.0 + 4.0 ) );
-  if ( uh > 0.62 ) {
+  if ( uh > 0.55 ) {
     float ua = 2.0 + gdHash( vec2( ui, 6.0 ) ) * 6.0;
     float ul = min( 8.0 + gdHash( vec2( ui, 7.0 ) ) * 18.0, 35.0 - ua );
     float ulat = ( laneC > 0.0 ? ( gdHash( vec2( ui, 8.0 ) ) > 0.5 ? laneC : -laneC ) : 0.0 ) + ( gdHash( vec2( ui, 9.0 ) ) - 0.5 ) * 1.4;
@@ -113,7 +113,7 @@ if ( gdRoad ) {
   // repair patches: rare, irregular, large
   float pc = ( rs + gdSeed * 211.0 ) / 71.0; float pi = floor( pc ); float pf = fract( pc ) * 71.0;
   float ph = gdHash( vec2( pi, gdSeed * 3.0 + 20.0 ) );
-  if ( ph > 0.7 ) {
+  if ( ph > 0.6 ) {
     vec2 pctr = vec2( 12.0 + 45.0 * gdHash( vec2( pi, 21.0 ) ), ( gdHash( vec2( pi, 22.0 ) ) - 0.5 ) * max( rhw - 2.0, 0.5 ) * 2.0 );
     vec2 phs = vec2( 1.3 + 2.2 * gdHash( vec2( pi, 23.0 ) ), 0.9 + 1.3 * gdHash( vec2( pi, 24.0 ) ) );
     vec2 pq = vec2( pf, rc ) - pctr + ( vec2( gdNoise( gw * 0.9 ), gdNoise( gw * 0.9 + 5.0 ) ) - 0.5 ) * 0.7;

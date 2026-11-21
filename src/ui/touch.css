@@ -86,7 +86,8 @@
 }
 
 /* first-run help and the rotate hint: neither takes a touch from the game */
-.tc-tutorial { position: absolute; inset: 0; pointer-events: none; z-index: 6; background: rgba(0, 0, 0, 0.42); transition: opacity 280ms ease; color: #fff; font-family: system-ui, -apple-system, sans-serif; display: grid; place-items: center; }
+.tc-tutorial { position: absolute; inset: 0; pointer-events: none; z-index: 6; background: rgba(0, 0, 0, 0.42); transition: opacity 280ms ease; color: #fff; font-family: system-ui, -apple-system, sans-serif; display: grid; place-items: center; box-sizing: border-box; }
+@media (orientation: portrait) { .tc-tutorial { padding-top: 40px; } }
 .tc-tutorial.out { opacity: 0; }
 /* one centred card, clear of the stick's side, the button cluster and the corner buttons; only its button takes touches */
 .tc-tut-card { width: min(360px, calc(100% - 32px)); box-sizing: border-box; padding: 14px 16px 16px; border-radius: 14px; background: rgba(10, 10, 14, 0.9); border: 2px solid rgba(255, 255, 255, 0.35); display: flex; flex-direction: column; gap: 10px; }

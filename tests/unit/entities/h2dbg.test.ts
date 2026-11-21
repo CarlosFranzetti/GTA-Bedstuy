@@ -1,10 +1,10 @@
 import { it } from 'vitest';
-import { Vehicle } from '@/entities/Vehicle';
-import { corner90 } from './handlingMeasure';
+import { Sim, input, makeVehicle } from '../sim/harness';
 it('dbg', () => {
-  const out: string[] = [];
-  for (const mode of [false, true]) { Vehicle.playerHandling = mode;
-    for (const t of ['sedan','suv','cargovan','bus'] as const) for (const k of [20, 30, 40, 50]) { const c = corner90(t, k); out.push(`${mode?'new':'old'} ${t} ${k} time=${c.time.toFixed(2)} sweep=${c.sweep.toFixed(1)} turned=${c.turned.toFixed(0)} exit=${c.exitKmh.toFixed(0)} slip=${c.maxSlip.toFixed(1)}`); } }
-  Vehicle.playerHandling = true;
-  console.log(out.join('\n'));
+  const v = makeVehicle('sedan', 0, 0, 0); v.driver = 'player';
+  const sim = new Sim(); sim.add(v); const rows: string[] = [];
+  v.setInput(input({ throttle: 1 })); sim.run(3);
+  v.setInput(input({ throttle: 1, steer: 1 }));
+  sim.run(2, (t) => { if (Math.round(t*60)%10==0) rows.push(`${t.toFixed(2)} u=${v.speed.toFixed(2)} lat=${v.lateralSpeed.toFixed(2)} r=${v.yawRateRad.toFixed(2)} dl=${(v.handling.delta).toFixed(3)} sn=${v.handling.steerNorm.toFixed(2)} aF=${(v.handling.alphaF*57.3).toFixed(1)} aR=${(v.handling.alphaR*57.3).toFixed(1)} rc=${v.handling.rearCap.toFixed(2)}`); });
+  console.log(rows.join('\n'));
 });
