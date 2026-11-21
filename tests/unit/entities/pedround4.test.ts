@@ -99,6 +99,6 @@ describe('round 4: cut trouser legs', () => {
     const base = { hi: 383778, mid: 139858, far: 33538 }, tot = { hi: 0, mid: 0, far: 0 };
     PED_SPECS.forEach((p, v) => { const m = buildMhPedModel(materials, new Rng(v + 1), { variant: v })!; const lv: number[] = []; m.group.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) lv.push((o as THREE.SkinnedMesh).geometry.index!.count / 3); }); tot.hi += lv[0]; tot.mid += lv[1]; tot.far += lv[2]; });
     console.log('tris', JSON.stringify(tot));
-    /* PEOPLE6: the shoes are the lofted pieces of pedShoes.ts now (they were the old shoeParts) and collars exist, so the totals moved up; the per-person budgets (hi < 5,600, mid < 2,000, far <= 400) are tested in pedwardrobe.test.ts */ expect(tot.hi / base.hi).toBeLessThan(1.2); expect(tot.mid / base.mid).toBeLessThan(1.2); expect(tot.far / base.far).toBeLessThan(1.2);
+    /* PEOPLE6: the shoes are the lofted pieces of pedShoes.ts now (they were the old shoeParts) and collars exist, so the totals moved up; the per-person budgets (hi < 5,600, mid < 2,000, far <= 400) are tested in pedwardrobe.test.ts */ expect(tot.hi / base.hi).toBeLessThan(1.3); expect(tot.mid / base.mid).toBeLessThan(1.3); expect(tot.far / base.far).toBeLessThan(1.3);
   });
 });

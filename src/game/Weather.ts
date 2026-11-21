@@ -384,6 +384,8 @@ const MAX_PULSES = 4;
 const MAX_THUNDER = 4;
 const FLASH_ATTACK = 0.035;
 const FLASH_DECAY = 0.085;
+/** Brightest a flash may get (0..1): keeps a close strike under the BlinkProbe jump threshold at night. */
+const FLASH_MAX = 0.72;
 
 export class Weather {
   private _state: WeatherState = 'dry';
@@ -933,7 +935,7 @@ export class Weather {
         f += this.pAmp[i] * (x < FLASH_ATTACK ? x / FLASH_ATTACK : Math.exp(-(x - FLASH_ATTACK) / FLASH_DECAY));
       }
     }
-    this.flash = Math.min(1, f);
+    this.flash = Math.min(FLASH_MAX, f);
   }
 
   /** Writes the weather look to DayNight (which hands it to SkyDome) when it moved, and re-lights once. */
@@ -993,7 +995,7 @@ export class Weather {
         (u.uDeck.value as THREE.Vector4).w = deckOn;
         // light rain draws a third of the streaks, a downpour all of them
         this.rainMesh.geometry.setDrawRange(0, Math.max(2, Math.floor(this.streakCap * (0.3 + 0.7 * clamp01(this.rain / 0.9)))) * 2);
-        u.uAlpha.value = 0.16 + 0.44 * this.rain;
+        u.uAlpha.value = 0.24 + 0.5 * this.rain;
         (u.uColor.value as THREE.Color).setRGB(0.55 * bright, 0.6 * bright, 0.7 * bright + 0.05);
       }
     }

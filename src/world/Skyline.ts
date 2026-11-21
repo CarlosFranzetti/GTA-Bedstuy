@@ -12,6 +12,7 @@
  * `planSkyline` (pure) decides the blocks, `buildSkylineGeometry` turns a plan into geometry, `createSkyline` makes the mesh.
  */
 import * as THREE from 'three';
+import { releaseCanvasAfterUpload } from '@/textures/texTier';
 import { Rng } from '@/core/Rng';
 import type { GridBounds, IMaterialLibrary } from '@/world/types';
 
@@ -238,6 +239,7 @@ export function createSkyline(bounds: GridBounds, materials: IMaterialLibrary, r
   for (const t of [map, emissiveMap]) {
     t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.anisotropy = 4;
+    releaseCanvasAfterUpload(t); // phone and low: the painted atlas canvas is emptied once the GPU has it
   }
   const material = new THREE.MeshStandardMaterial({
     name: 'skyline', map, emissiveMap, emissive: new THREE.Color(1, 1, 1), emissiveIntensity: 0, vertexColors: true, roughness: 0.92, metalness: 0,

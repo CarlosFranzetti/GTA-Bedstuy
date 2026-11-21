@@ -1,0 +1,23 @@
+/* GTA Bed-Stuy launch kit: shared look. Matches the title screen (hud.css .hud-splash). */
+@font-face { font-family: "Anton"; src: url("../../public/fonts/Anton-Regular.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Barlow Condensed"; src: url("../../public/fonts/BarlowCondensed-SemiBold.woff2") format("woff2"); font-weight: 600; }
+@font-face { font-family: "Barlow Condensed"; src: url("../../public/fonts/BarlowCondensed-Bold.woff2") format("woff2"); font-weight: 700; }
+:root { --ink: #0a0910; --gold: #f2c230; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--ink); }
+body { position: relative; overflow: hidden; color: #fff; font-family: "Barlow Condensed", sans-serif; font-weight: 600; }
+.abs { position: absolute; }
+.bg { position: absolute; left: 0; top: 0; width: 100%; background-size: cover; background-repeat: no-repeat; }
+.fade { position: absolute; inset: 0; }
+.display { font-family: "Anton", sans-serif; font-weight: 400; text-transform: uppercase; }
+.presents { position: absolute; left: 80px; top: 268px; font-size: 34px; letter-spacing: .3em; text-transform: uppercase; color: rgba(255,255,255,.9); text-shadow: 0 2px 12px #000; }
+.lockup { position: absolute; left: 80px; width: 920px; text-shadow: 0 3px 22px rgba(0,0,0,.6); }
+.lockup .a { margin-bottom: 20px; font-family: "Anton"; font-size: 84px; line-height: 1; letter-spacing: .34em; color: var(--gold); }
+.lockup .b { font-family: "Anton"; font-size: 250px; line-height: .92; letter-spacing: .01em; color: #fff; white-space: nowrap; }
+.lockup .rule { height: 8px; background: var(--gold); margin-top: 18px; }
+.tap { position: absolute; left: 0; width: 100%; top: 1180px; text-align: center; font-size: 32px; letter-spacing: .34em; text-transform: uppercase; color: rgba(255,255,255,.78); font-weight: 700; text-shadow: 0 2px 10px #000; }
+.tap svg { display: block; margin: 8px auto 0; width: 44px; height: 22px; }
+/* the empty band for the sticker: y 1250..1430, nothing drawn */
+.addr { position: absolute; left: 0; width: 100%; text-align: center; font-family: "Anton"; letter-spacing: .02em; color: #fff; text-shadow: 0 3px 16px rgba(0,0,0,.7); }
+.disc { position: absolute; left: 80px; right: 80px; text-align: center; font-size: 26px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.72); font-weight: 600; text-shadow: 0 2px 8px #000; }
+.gold { color: var(--gold); }

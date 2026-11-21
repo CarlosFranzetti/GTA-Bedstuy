@@ -10,6 +10,7 @@ import type { MaterialKey } from '@/world/types';
 import type { MaterialLibrary } from '@/textures/MaterialLibrary';
 import { cc0Entries, grimeUrl } from '@/textures/cc0';
 import { patchWallGrime } from '@/textures/groundVariation';
+import { acquireScratch, downscaleCanvas, releaseCanvasAfterUpload, releaseScratch, canvasReleased, texSize, textureTier, wantsReliefMaps } from '@/textures/texTier';
 
 import brickRed from '@/assets/textures/brick_red_color.jpg';
 import brickWhite from '@/assets/textures/brick_white_color.jpg';
@@ -177,23 +178,52 @@ export function setPackAnisotropy(n: number, extra: Iterable<THREE.Texture> = []
   for (const t of [...PACK_TEXTURES, ...extra]) {
     if (t.anisotropy === n) continue;
     t.anisotropy = n;
-    t.needsUpdate = true;
+    if (!canvasReleased(t)) t.needsUpdate = true; // a texture whose source was freed after upload must not be uploaded again
     count++;
   }
   return count;
 }
 
+/**
+ * Phone tier: a photo map wider than `texSize` allows (1024 -> 512) is redrawn at the smaller size on a pooled scratch canvas
+ * and replaced by a canvas texture that frees its pixels after upload; the full-size decoded image is released at once.
+ */
+export function shrinkPhotoTexture(t: THREE.Texture, q = textureTier(), kind: 'surface' | 'ground' = 'surface'): THREE.Texture {
+  const im = t.image as (CanvasImageSource & { width: number; height: number; close?: () => void }) | undefined;
+  if (q !== 'phone' || !im || !(im.width > 0) || typeof document === 'undefined') return t;
+  const w = texSize(im.width, kind, q), h = texSize(im.height, kind, q);
+  if (w >= im.width && h >= im.height) return t;
+  const make = (cw: number, ch: number): HTMLCanvasElement => { const c = document.createElement('canvas'); c.width = cw; c.height = ch; return c; };
+  const src = acquireScratch(make, im.width, im.height);
+  const sctx = src.getContext('2d');
+  if (!sctx) { releaseScratch(src); return t; }
+  sctx.drawImage(im, 0, 0);
+  const out = new THREE.CanvasTexture(downscaleCanvas(src, make, w, h));
+  releaseScratch(src);
+  out.wrapS = t.wrapS; out.wrapT = t.wrapT; out.colorSpace = t.colorSpace; out.anisotropy = t.anisotropy;
+  releaseCanvasAfterUpload(out, true);
+  t.dispose();
+  if (typeof im.close === 'function') im.close();
+  return out;
+}
+
+/** Photo sets of surfaces the player sees from above and close: the phone tier shrinks them less (texTier 'ground'). */
+const GROUND_KEYS: ReadonlySet<string> = new Set(['sidewalk', 'asphalt', 'asphaltWorn', 'concrete', 'dirt', 'bluestone']);
+
 /** Load every pack and hand the maps to the material library. Resolves to the number of entries applied. */
 export async function loadTexturePacks(materials: MaterialLibrary, maxAnisotropy = 8, loader = new THREE.TextureLoader()): Promise<number> {
   const cache = new Map<string, Promise<THREE.Texture>>();
-  const load = (url: string, srgb: boolean) => {
+  const load = (url: string, srgb: boolean, kind: 'surface' | 'ground' = 'surface') => {
     let p = cache.get(url + srgb);
     if (!p) {
-      p = loader.loadAsync(url).then((t) => {
+      p = loader.loadAsync(url).then((t0) => {
+        t0.wrapS = t0.wrapT = THREE.RepeatWrapping;
+        t0.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+        const t = shrinkPhotoTexture(t0, undefined, kind);
         t.wrapS = t.wrapT = THREE.RepeatWrapping;
         t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
         t.anisotropy = maxAnisotropy;
-        t.needsUpdate = true;
+        if (!canvasReleased(t)) t.needsUpdate = true;
         PACK_TEXTURES.add(t);
         return t;
       });
@@ -202,12 +232,14 @@ export async function loadTexturePacks(materials: MaterialLibrary, maxAnisotropy
     return p;
   };
   const byId = effectivePackEntries(); // user photos win
+  const relief = wantsReliefMaps(); // phone: normal and roughness maps are neither requested nor kept (the files are never fetched)
   let n = 0;
   await Promise.all([...byId.values()].map(async (e) => {
-    const [map, normalMap, roughnessMap] = await Promise.all([e.color ? load(e.color, true) : undefined, e.normal ? load(e.normal, false) : undefined, e.rough ? load(e.rough, false) : undefined]);
+    const [map, normalMap, roughnessMap] = await Promise.all([e.color ? load(e.color, true, GROUND_KEYS.has(e.key) ? 'ground' : 'surface') : undefined, e.normal && relief ? load(e.normal, false) : undefined, e.rough && relief ? load(e.rough, false) : undefined]);
     materials.overrideMaps(e.key, e.variant, { map, normalMap, roughnessMap, repeat: { x: e.repeat, y: e.repeat }, normalScale: e.normalScale });
     const m = materials.get(e.key, e.variant) as THREE.MeshStandardMaterial;
     if (e.roughness !== undefined) m.roughness = e.roughness;
+    if (!relief && m.roughness >= 0.99) m.roughness = 0.85; // no roughness map on this tier: the same flat value TierDetail.FLAT_ROUGHNESS uses
     if (e.envMapIntensity !== undefined) m.envMapIntensity = e.envMapIntensity;
     if (e.tint) m.color.set(e.tint);
     m.needsUpdate = true;

@@ -9,6 +9,7 @@ import {
   angleDiff, applyPose, clamp, dot, forwardFromHeading, headingFromVec, perpRight, wrapAngle, type Vec2,
 } from '@/core/Math2';
 import type { EventBus } from '@/core/Events';
+import { YIELD_PREFIX } from '@/physics/World2D';
 import type {
   Body2D, Contact, IMaterialLibrary, IVehicle, VehicleInput, VehicleSpec, VehicleType,
 } from '@/world/types';
@@ -443,7 +444,7 @@ export class Vehicle implements IVehicle {
   onContact(contact: Contact, other: Body2D): void {
     if (other.kind === 'static' || other.mass === Infinity) { this.staticContact = other; this.staticContactTime = this.time; }
     if (this.driver === 'player') this.noteContact(contact);
-    if (this.driver === 'player') this.slideOffProp(contact, other);
+    if (this.driver === 'player' && !YIELD_PREFIX.test(other.id)) this.slideOffProp(contact, other);
     if (contact.impulse < IMPACT_MIN) return;
     // A car sliding along a wall (or a pedestrian pressed against it) re-touches it every frame with a slowly
     // changing impulse: a repeat within SCRAPE_WINDOW is a scrape (5% of the damage, no new impact event) unless
@@ -728,6 +729,7 @@ export class Vehicle implements IVehicle {
    */
   private spinFromImpact(contact: Contact, other: Body2D, closing: number): void {
     if (closing < IMPACT_YAW_MIN_CLOSING) return;
+    if (this.driver === 'traffic' || this.driver === 'cop') return; // the AI drivers are tuned against cars that do not swing round on a bump
     const b = this.body;
     const sgn = contact.a === b ? 1 : -1;
     const nx = contact.normal.x * sgn, nz = contact.normal.z * sgn; // toward the other body
@@ -758,7 +760,7 @@ export class Vehicle implements IVehicle {
     const closing = contact.impulse;
     const isStatic = other.kind === 'static' || other.mass === Infinity;
 
-    if (isStatic) {
+    if (isStatic && !YIELD_PREFIX.test(other.id)) { // a hydrant or bollard is bowled through: World2D already took its speed
       // World2D removed the normal component; scrub the tangential one by Coulomb wall friction
       const vn = b.vel.x * nx + b.vel.z * nz;
       let tx = b.vel.x - nx * vn, tz = b.vel.z - nz * vn;

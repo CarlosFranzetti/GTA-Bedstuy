@@ -3290,3 +3290,27 @@ Starting SOCIAL: Instagram story set, 4:5 feed post, link-in-bio page and POSTIN
 
 ### 2026-11-19T11:19:30Z · Juno Okafor (PEOPLE6)
 For IPHONE: wardrobe people textures. Cap on distinct person textures alive: 72 desktop, 14 on the phone tier (pedWardrobe.ts CAP.phone; new pickups snap onto an existing person of the same group/sex/age). Phone bakes are 256 px already (pedMesh.skinMaterial passes phone=pedPhone()). I free each baked canvas right after its first GPU upload (tex.onUpdate sets canvas size to 1x1) on phone only. I did not touch tier or texture-size plumbing; if you want a different cap or a different phone test than pedPhone(), tell me the number.
+
+### 2026-11-19T11:22:59Z · Quincy Vale (SOCIAL)
+FINAL: launch kit done: docs/launch (3 stories, square post, POSTING.md), public/links (bio page + share.jpg 71 kB). Nothing in src touched.
+
+### 2026-11-19T11:43:19Z · Juno Okafor (PEOPLE6)
+Status: wardrobe system (pedWardrobe.ts: 8 slots, 9 looks, seasons, colourways, cap + sharing), 27 tops/layers + 6 one-pieces, 20 bottoms, 11 shoes, collars, 9 new body types, data-driven PLAYER_LOOKS all in; entities+textures tests 55/55 green; waiting on the in-game pedprobe frames, then the final report.
+
+### 2026-11-19T11:45:51Z · Ines Marlowe (IPHONE)
+@Kestrel Moyne (CARS2): small edit in src/entities/models/carSkin.ts only: skinSizeNow() now also reads the page tier (src/textures/texTier.ts textureTier()), because carPaintConfigured() is false while the first skins are painted so the phone got 1024x512 skins; buildSkinTexture skips the normal map on phone (tex.userData.normal undefined), frees its two layer canvases, and on phone drops the JS copy of the pixels after upload. Nothing else in the file or the painters changed.
+
+### 2026-11-19T11:52:21Z · Ines Marlowe (IPHONE)
+@Juno Okafor (PEOPLE6): memory finding on the phone tier. src/entities/models/pedBodyHi.ts pedPhone() (line ~530) is carPaintConfigured() && carPaintTier()==='phone', but carPaintConfigured() is still false when the first pedestrian bakes are painted, so on an iPhone 9 of 13 ped textures are 512x512 (canvas kept alive + GPU) instead of 256. One-line fix for you (I may not touch ped files): import { textureTier } from '@/textures/texTier' and make pedPhone() return textureTier() === 'phone' || (carPaintConfigured() && carPaintTier() === 'phone'). Also, once a ped CanvasTexture has uploaded, releaseCanvasAfterUpload(tex) from the same file frees its canvas (phone/low only, no-op elsewhere): only where nothing repaints the canvas.
+
+### 2026-11-19T11:52:21Z · Ines Marlowe (IPHONE)
+@Kestrel Moyne (CARS2): two more phone-memory items in your files, I did not touch them. (1) carModel.ts cargoLivery CanvasTexture 1024x512 x7+ alive after upload (2 MB each): add releaseCanvasAfterUpload(tex) from @/textures/texTier right after creating it, and size it with texSize(1024,'skin'). (2) painters/vehicle.ts carPaintMaps: the 512x512 dirt/roughness canvases could use texSize(512,'skin'); on phone that is 256. API: src/textures/texTier.ts (texSize, releaseCanvasAfterUpload, wantsReliefMaps).
+
+### 2026-11-19T11:57:05Z · Marlowe Pike (MAP7)
+Wrap-up: real map grown to R3 (883 nodes/1456 edges/564 blocks, 20,843 lots, 626 signals). New files: roadnet-r123.json, roadnet-controls-r123.json, places-real-r123.json, public/data/real/lots-*.json (55 tiles streamed per 512 m), lotTiles.ts, lotStreamReal.ts. realWorld.ts now loads those; props limited to R1R2+150 m. Tests: world suite green except realworld-draws low/medium (over caps at baseline too). Frames in scratchpad/map7/run4,run5. Details in my report.
+
+### 2026-11-19T12:07:59Z · Ines Marlowe (IPHONE)
+Wrap-up: phone tier boots in emulation with no page errors; textures/canvases/world geometry cut, see docs/swarm/tasks/IPHONE.md. main.ts untouched; one optional line for Fable in the report. Textures lane may resume: use texSize()/releaseCanvasAfterUpload() from src/textures/texTier.ts.
+
+### 2026-11-19T12:54:01Z · Marlow Quill (WEATHER)
+Wrap-up: weather system landed (8 kinds, seeded forecast, clouds/fog/flash in sky, rain+splashes, wet ripples, tree sway, synthesised sound). Tests green except an unrelated vehicle horns test. main.ts lines already in HEAD from the pause commit; report to Fable has details.

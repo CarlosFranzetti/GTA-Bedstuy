@@ -6,7 +6,11 @@ import { buildGrid } from '@/world/Grid';
 import { buildRoads } from '@/world/RoadBuilder';
 import { subdivideLots } from '@/world/LotSubdivider';
 import { getBedstuyFaces } from '@/world/data/faces';
-import { buildBuildings } from '@/world/BuildingGen';
+import { buildBuildings, lotSeeds } from '@/world/BuildingGen';
+import { BuildingStream, STREAM_MESH, emptyLike } from '@/world/BuildingStream';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { setBatchSkip } from '@/world/buildings/facade';
+import { PHONE_HIDDEN_MESH } from '@/render/TierGeometry';
 import { buildFurniture, type LampSpot } from '@/world/FurnitureGen';
 import { buildProps } from '@/world/PropsGen';
 import { buildSignals, signalColliders } from '@/world/props/signals';
@@ -36,6 +40,8 @@ export interface BuiltWorld {
   chunkMeshes: THREE.Mesh[];
   chunks: ChunkLayout;
   stats: { meshes: number; lots: number; colliders: number; cells: SplitStats };
+  /** Phone tier: the on-demand cell builder (ChunkCuller drives it through the shells' `userData.stream`); null on the other tiers. */
+  stream: BuildingStream | null;
 }
 
 /** Meshes below this many triangles are not split per cell: one city-wide draw is cheaper than one per visible cell. */
@@ -80,7 +86,16 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
   colliders.push(...roads.colliders);
 
   const lots = subdivideLots(grid, data.pois, rng.fork('lots'), getBedstuyFaces());
-  const buildings = buildBuildings(lots, materials, rng.fork('buildings'));
+  // phone: the classes this tier never draws (fire escapes, tanks, scaffolds, fences...: a fifth of the building triangles) are not baked at all
+  if (tier === 'phone') setBatchSkip((name) => PHONE_HIDDEN_MESH.test('buildings:' + name));
+  let stream: BuildingStream | null = null;
+  let streamShells: THREE.Mesh[] = [];
+  let buildings: { group: THREE.Group; colliders: StaticCollider[] };
+  if (tier === 'phone' && STREAM_BUILDINGS) {
+    const sb = buildBuildingsStreamed(lots, materials, rng.fork('buildings'), grid);
+    buildings = sb; stream = sb.stream; streamShells = sb.shells;
+  } else buildings = buildBuildings(lots, materials, rng.fork('buildings'));
+  setBatchSkip(null);
   buildings.group.position.y = SIDEWALK_HEIGHT;
   group.add(buildings.group);
   colliders.push(...buildings.colliders);
@@ -114,6 +129,7 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
   const split = (g: THREE.Object3D): THREE.Mesh[] => splitMeshesIntoCells(g, chunks.cellX, chunks.cellZ, cells, minSplit, chunks.originX, chunks.originZ, SPARSE_SPLIT_CELLS[tier] ?? 0);
   // meshes that were too small to split stay city-wide (no cell key) and are never chunk-culled
   const chunkMeshes = [...split(buildings.group), ...split(furniture.group)].filter((m) => typeof m.userData.cell === 'string'); // instanced kinds are skipped
+  for (const sh of streamShells) { buildings.group.add(sh); chunkMeshes.push(sh); } // phone: cells of buildings built on demand (BuildingStream); not split, they are already per cell
   // fine-cell tiers cull per cell (a cell is drawn whole, so a 500 x 200 m chunk would draw its far half too); coarse tiers cull per 2 x 2 block chunk
   for (const m of chunkMeshes) m.userData.chunk = FINE_CELLS[tier] ? (m.userData.cell as string) : chunkKeyOfCell(chunks, m.userData.cell as string);
   // signal poles and lamps were binned by cell in buildSignals: same chunk rule
@@ -125,6 +141,7 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
     chunkMeshes.push(o as THREE.Mesh);
   });
   const propCells = split(props.group);
+  if (tier === 'phone') dropPhoneHidden(group, [chunkMeshes, propCells]);
 
   // the far skyline ring: forked last so the streams of everything above are unchanged
   const skyline = createSkyline(grid.bounds, materials, rng.fork('skyline'), tier === 'low'); // low: walls and roofs only (a third of the triangles)
@@ -132,5 +149,87 @@ export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: 
 
   let meshes = 0;
   group.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes++; });
-  return { grid, lots, group, colliders, furnitureGroup: furniture.group, signalsGroup: signals, lamps: furniture.lamps, transit, propCells, chunkMeshes, chunks, stats: { meshes, lots: lots.length, colliders: colliders.length, cells } };
+  return { grid, lots, group, colliders, furnitureGroup: furniture.group, signalsGroup: signals, lamps: furniture.lamps, transit, propCells, chunkMeshes, chunks, stats: { meshes, lots: lots.length, colliders: colliders.length, cells }, stream };
+}
+
+/**
+ * Phone tier: removes (and frees) the meshes of the classes the tier never draws (TierGeometry.PHONE_HIDDEN_MESH: props bags and wires,
+ * manholes, grates, skid marks...). They were only switched off through a camera layer before, which kept every vertex in memory.
+ * A later switch to a higher tier cannot bring them back (a reload does). Returns the number of meshes dropped.
+ */
+/** Clutter buckets above rank 0 (`props:clutter-<cat>-r1|r2...`): the phone tier turns every one off through its material (clutterTier.ts), so they are never drawn. */
+const PHONE_CLUTTER_MESH = /^props:clutter-[a-z]+-r[12]/;
+
+export function dropPhoneHidden(root: THREE.Object3D, lists: THREE.Mesh[][] = []): number {
+  const doomed: THREE.Mesh[] = [];
+  root.traverse((o) => { if ((o as THREE.Mesh).isMesh && (PHONE_HIDDEN_MESH.test(o.name) || PHONE_CLUTTER_MESH.test(o.name))) doomed.push(o as THREE.Mesh); });
+  const set = new Set(doomed);
+  for (const m of doomed) { m.removeFromParent(); m.geometry.dispose(); }
+  for (const l of lists) { let w = 0; for (let i = 0; i < l.length; i++) if (!set.has(l[i])) l[w++] = l[i]; l.length = w; }
+  return doomed.length;
+}
+
+/** Phone tier builds its buildings per render cell on demand (BuildingStream). Off: every tier builds the whole city at boot as before. */
+export const STREAM_BUILDINGS = true;
+
+/**
+ * The boot pass of the streamed buildings. Lots are grouped by the render cell of their centre and each group is built on its own, so the
+ * peak is one group rather than the city: the colliders are kept, the streamed material classes become empty shells (bounds and
+ * attribute layout of the real geometry, nothing else), and the other classes are merged city-wide as before (`group`).
+ */
+function buildBuildingsStreamed(
+  lots: Lot[], materials: IMaterialLibrary, rng: Rng, grid: GridModel,
+): { group: THREE.Group; colliders: StaticCollider[]; stream: BuildingStream; shells: THREE.Mesh[] } {
+  const layout = chunkLayout(grid.streets, FINE_CELLS.phone);
+  const seeds = lotSeeds(lots, rng);
+  const skip = (name: string): boolean => PHONE_HIDDEN_MESH.test('buildings:' + name);
+  const byCell = new Map<string, Set<string>>();
+  for (const l of lots) {
+    // the building stands behind its front line: centre = middle of the front pushed half a depth away from the street
+    const cx = (l.frontA.x + l.frontB.x) / 2 - l.outward.x * l.depth / 2, cz = (l.frontA.z + l.frontB.z) / 2 - l.outward.z * l.depth / 2;
+    const key = `${Math.floor((cx - layout.originX) / layout.cellX)}_${Math.floor((cz - layout.originZ) / layout.cellZ)}`;
+    let s = byCell.get(key);
+    if (!s) { s = new Set(); byCell.set(key, s); }
+    s.add(l.id);
+  }
+  const stream = new BuildingStream(lots, materials, rng, seeds, skip);
+  const group = new THREE.Group();
+  group.name = 'buildings';
+  const colliders: StaticCollider[] = [];
+  const shells: THREE.Mesh[] = [];
+  const small = new Map<string, { material: THREE.Material; name: string; shadow: boolean; geos: THREE.BufferGeometry[] }>();
+  setBatchSkip(skip);
+  try {
+    for (const key of [...byCell.keys()].sort()) {
+      const ids = byCell.get(key)!;
+      const r = buildBuildings(lots, materials, rng, ids, seeds);
+      colliders.push(...r.colliders);
+      const cellShells: THREE.Mesh[] = [];
+      for (const m of [...r.group.children] as THREE.Mesh[]) {
+        if (STREAM_MESH.test(m.name)) {
+          const shell = new THREE.Mesh(emptyLike(m.geometry), m.material);
+          shell.name = m.name; shell.castShadow = m.castShadow; shell.receiveShadow = m.receiveShadow;
+          shell.userData = { cell: key, chunk: key, stream };
+          cellShells.push(shell);
+          m.geometry.dispose();
+        } else {
+          let e = small.get(m.name);
+          if (!e) { e = { material: m.material as THREE.Material, name: m.name, shadow: m.castShadow, geos: [] }; small.set(m.name, e); }
+          e.geos.push(m.geometry);
+        }
+      }
+      stream.register(key, ids, cellShells);
+      shells.push(...cellShells);
+    }
+  } finally { setBatchSkip(null); }
+  for (const e of small.values()) {
+    const g = e.geos.length === 1 ? e.geos[0] : mergeGeometries(e.geos, false);
+    if (!g) continue;
+    if (e.geos.length > 1) for (const x of e.geos) x.dispose();
+    g.computeBoundingSphere(); g.computeBoundingBox();
+    const mesh = new THREE.Mesh(g, e.material);
+    mesh.name = e.name; mesh.castShadow = e.shadow; mesh.receiveShadow = true;
+    group.add(mesh);
+  }
+  return { group, colliders, stream, shells };
 }

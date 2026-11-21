@@ -19,10 +19,14 @@ export const REAL_CELL_FINE_M = 32;
 export const REAL_CHUNK_M = 128;
 export const ROAD_CHUNK_PREFIX = 'r';
 
-/** Cell 64 m (32 m fine), chunk 128 m, origin = the minimum corner of `b`. */
-export function chunkLayoutFromBounds(b: Bounds, fine = false): ChunkLayout {
+/** The minimum corner of the first two rings' bounds: every layout is a whole number of chunks from it, so growing the map keeps the chunks of the old area as they were (MAP7). */
+export const CHUNK_ANCHOR = { x: -287, z: -1300.5 };
+
+/** Cell 64 m (32 m fine), chunk 128 m, origin = the minimum corner of `b`, or with `anchor` snapped down onto the lattice of whole chunks from it (the game passes CHUNK_ANCHOR). */
+export function chunkLayoutFromBounds(b: Bounds, fine = false, anchor?: { x: number; z: number }): ChunkLayout {
   const cell = fine ? REAL_CELL_FINE_M : REAL_CELL_M;
-  return { cellX: cell, cellZ: cell, chunkX: REAL_CHUNK_M, chunkZ: REAL_CHUNK_M, originX: b.minX, originZ: b.minZ };
+  const snap = (v: number, a: number): number => a + Math.floor((v - a) / REAL_CHUNK_M + 1e-9) * REAL_CHUNK_M;
+  return { cellX: cell, cellZ: cell, chunkX: REAL_CHUNK_M, chunkZ: REAL_CHUNK_M, originX: anchor ? snap(b.minX, anchor.x) : b.minX, originZ: anchor ? snap(b.minZ, anchor.z) : b.minZ };
 }
 
 /** Key of the road chunk that holds the render cell `cellKey` (`ix_iz`). */

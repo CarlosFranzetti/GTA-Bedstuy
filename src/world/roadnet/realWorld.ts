@@ -27,7 +27,7 @@ import { loadRoadNet } from './MapSource';
 import type { RoadNet } from './RoadNet';
 import { deriveGeometry, type Derived } from './derive';
 import { buildRoadMeshes } from './meshRoads';
-import { chunkLayoutFromBounds, ROAD_CHUNK_PREFIX } from './chunksReal';
+import { CHUNK_ANCHOR, chunkLayoutFromBounds, ROAD_CHUNK_PREFIX } from './chunksReal';
 import { buildSidewalkGraph, type SidewalkNet } from './sidewalks';
 import { blockFaces } from './faces';
 import { placeLots } from './lotsReal';
@@ -253,7 +253,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   const colliders: StaticCollider[] = [];
   const chunkMeshes: THREE.Mesh[] = [];
   const fine = FINE_CELLS[tier];
-  const chunks = chunkLayoutFromBounds(net.bounds, fine);
+  const chunks = chunkLayoutFromBounds(net.bounds, fine, CHUNK_ANCHOR);
 
   // ground
   {

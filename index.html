@@ -2,11 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b0b10" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <title>GTA Bed-Stuy</title>
 <meta name="description" content="A non-commercial fan tribute set on ten blocks around Throop Ave and Kosciuszko St, Brooklyn. Not affiliated with Rockstar Games or Take-Two." />
 <style>
   html, body { margin: 0; height: 100%; background: #0b0b10; overflow: hidden; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  /* iPhone Safari: dynamic toolbar height, no rubber-band scroll, no double-tap zoom, no long-press callout or text-size inflation on the controls */
+  @supports (height: 100dvh) { html, body { height: 100dvh; } }
+  html { overscroll-behavior: none; touch-action: manipulation; -webkit-touch-callout: none; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+  canvas, #app { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   #app { position: fixed; inset: 0; }
   canvas.game { display: block; width: 100%; height: 100%; }
 </style>

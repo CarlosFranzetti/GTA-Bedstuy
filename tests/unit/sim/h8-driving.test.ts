@@ -44,17 +44,20 @@ describe('1 small static props: slide, do not stick', () => {
     expect(car.body.pos.z).toBeLessThan(-6);
   });
 
-  it('a hydrant stays solid: the car does not pass through it', () => {
-    const sim = new Sim();
-    const car = makeVehicle('sedan', 0, 0, 0);
-    car.driver = 'player';
-    sim.add(car);
-    const h = pole(sim, 0, -3.5, 0.3, 'hydrant-1');
-    car.setInput(input({ throttle: 1 }));
-    let minD = Infinity;
-    sim.run(2, () => { minD = Math.min(minD, Math.hypot(car.body.pos.x - h.pos.x, car.body.pos.z - h.pos.z)); });
-    // body is an OBB: its centre can never reach the hydrant (half-length 2.3 along the nose)
-    expect(minD).toBeGreaterThan(0.8);
+  it('a hydrant is bowled through (PHYSICS: it used to pin the car): the car passes with a small speed loss, a pole still stops it', () => {
+    const run = (id: string) => {
+      const sim = new Sim();
+      const car = makeVehicle('sedan', 0, 0, 0);
+      car.driver = 'player';
+      sim.add(car);
+      pole(sim, 0, -8, 0.3, id);
+      car.body.vel = { x: 0, z: -8 };
+      car.setInput(input({ throttle: 0.3 }));
+      sim.run(2.2);
+      return car.body.pos.z;
+    };
+    expect(run('hydrant-1')).toBeLessThan(-14);
+    expect(run('pole-1')).toBeGreaterThan(-8); // the nose is stopped by the pole
   });
 
   it('bins are knocked over: a car at 8 m/s drives through a soft-bin without slowing', () => {

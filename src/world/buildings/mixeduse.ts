@@ -22,6 +22,7 @@
 import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
 import { createCanvas } from '@/textures/canvas';
+import { canvasReleased, releaseCanvasAfterUpload, texScale, texSize } from '@/textures/texTier';
 import type { Painter } from '@/textures/canvas';
 import { awningSlopePainter, awningValancePainter, signPainter, stickerAtlasPainter } from '@/textures/painters/signage';
 import {
@@ -63,11 +64,15 @@ const SIGN_F = 0.07;
 export const CORNER_CUT = 1.5;
 const BACK_BY = 0.6;
 /** Awning density on the atlas: valance (text) and slope (decoration, rarely seen close up). */
-const AWN_VAL_PPM = 100;
-const AWN_SLOPE_PPM = 28;
+const AWN_VAL_PPM_FULL = 100;
+const AWN_SLOPE_PPM_FULL = 28;
+const awnValPpm = (): number => AWN_VAL_PPM_FULL * ATLAS_SCALE();
+const awnSlopePpm = (): number => AWN_SLOPE_PPM_FULL * ATLAS_SCALE();
 /** Width of the shared plain awning piece that fills either side of the lettering. */
 const PLAIN_W = 1.5;
-const SIGN_PPM = 80;
+const SIGN_PPM_FULL = 80;
+/** IPHONE: pixels per metre follow the tier (texTier.ts 'atlas': half on the phone tier), so the sheets are a quarter of the pixels there. */
+const ATLAS_SCALE = (): number => texScale('atlas');
 /** Lightbox face widths (m): boxes snap to a class so the same copy is one shared tile. */
 const SIGN_CLASSES = [2.4, 3.4, 4.6, 6.0, 7.6, 9.4, 11.4] as const;
 const LIGHTBOX_NIGHT = 0.55; // L9 limit: lightbox emissiveIntensity x texel <= 0.55 (night bloom threshold 0.9)
@@ -414,8 +419,12 @@ interface Sheet {
   rowH: number;
 }
 
-const SHEET_W = 2048;
-const SHEET_H = 1024;
+const SHEET_W_FULL = 2048;
+const SHEET_H_FULL = 1024;
+const sheetW = (): number => texSize(SHEET_W_FULL, 'atlas');
+const sheetH = (): number => texSize(SHEET_H_FULL, 'atlas');
+/** The real map streams storefronts after the first frame, so its sheets keep their canvases. */
+const keepSheetCanvases = (): boolean => typeof location !== 'undefined' && /[?&]map=real\b/.test(location.search);
 const SHEET_PAD = 4;
 
 type CanvasFactory = (w: number, h: number) => HTMLCanvasElement;
@@ -438,8 +447,8 @@ class Atlas {
   constructor(
     private readonly factory: CanvasFactory,
     private readonly makeMat: (tex: THREE.CanvasTexture, index: number) => THREE.MeshStandardMaterial,
-    private readonly sw = SHEET_W,
-    private readonly sh = SHEET_H,
+    private readonly sw = sheetW(),
+    private readonly sh = sheetH(),
   ) {}
 
   private newSheet(): Sheet {
@@ -453,6 +462,7 @@ class Atlas {
     tex.wrapT = THREE.ClampToEdgeWrapping;
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 8;
+    if (!keepSheetCanvases()) releaseCanvasAfterUpload(tex); // phone and low: the 8 MB canvas is emptied once the sheet is on the GPU (all tiles are painted at build time)
     const sheet: Sheet = { canvas, ctx, tex, mat: this.makeMat(tex, this.sheets.length), x: 0, y: 0, rowH: 0 };
     this.sheets.push(sheet);
     return sheet;
@@ -485,6 +495,7 @@ class Atlas {
   }
 
   paint(sheet: Sheet, rect: { x: number; y: number; w: number; h: number }, painter: Painter, seed: number): void {
+    if (canvasReleased(sheet.tex)) return; // a tile painted after the sheet's canvas was emptied (cannot happen at build time)
     const { ctx } = sheet;
     ctx.save();
     ctx.translate(rect.x, rect.y);
@@ -632,9 +643,9 @@ export class StorefrontKit {
     const hit = this.plainCache.get(key);
     if (hit) return hit;
     if (!this.awnings) return null;
-    const vh = Math.round((AWN_VAL + AWN_FRINGE) * AWN_VAL_PPM);
-    const vw = Math.round(PLAIN_W * AWN_VAL_PPM);
-    const sw = Math.max(8, Math.round(PLAIN_W * AWN_SLOPE_PPM)), sh = Math.max(8, Math.round(AWN_SLOPE * AWN_SLOPE_PPM));
+    const vh = Math.round((AWN_VAL + AWN_FRINGE) * awnValPpm());
+    const vw = Math.round(PLAIN_W * awnValPpm());
+    const sw = Math.max(8, Math.round(PLAIN_W * awnSlopePpm())), sh = Math.max(8, Math.round(AWN_SLOPE * awnSlopePpm()));
     const { sheet, rects } = this.awnings.place([{ w: vw, h: vh }, { w: sw, h: sh }]);
     const seed = (Rng.hash(key) ^ this.seed) >>> 0;
     const geom = { widthM: PLAIN_W, slopeM: 0, valanceM: AWN_VAL, fringeM: AWN_FRINGE };
@@ -643,7 +654,7 @@ export class StorefrontKit {
     this.record('awning-valance', `plain:${style}`, PLAIN_W, AWN_VAL + AWN_FRINGE, vw, vh);
     this.record('awning-slope', `plain:${style}`, PLAIN_W, AWN_SLOPE, sw, sh);
     const v = this.awnings.uv(rects[0]);
-    const fringeV = (Math.max(1, Math.round(AWN_FRINGE * AWN_VAL_PPM)) / vh) * (v[3] - v[1]);
+    const fringeV = (Math.max(1, Math.round(AWN_FRINGE * awnValPpm())) / vh) * (v[3] - v[1]);
     const out = {
       valance: { mat: sheet.mat, uv: [v[0], v[1] + fringeV, v[2], v[3]] as UvRect },
       slope: { mat: sheet.mat, uv: this.awnings.uv(rects[1]) },
@@ -654,8 +665,8 @@ export class StorefrontKit {
   }
 
   /**
-   * Awning tile for a name on a run at most `availW` metres long: the lettering at AWN_VAL_PPM over `textW` metres
-   * (just what the name needs), the slope art at AWN_SLOPE_PPM, and the shared plain pieces for the remainder.
+   * Awning tile for a name on a run at most `availW` metres long: the lettering at awnValPpm() over `textW` metres
+   * (just what the name needs), the slope art at awnSlopePpm(), and the shared plain pieces for the remainder.
    */
   awningTile(color: string, text: string, availW: number, fullW = availW): AwningTile {
     const need = awningTextWidth(text);
@@ -668,8 +679,8 @@ export class StorefrontKit {
     const style = this.styleOf(text);
     const plain = this.awnings && !full ? this.plainPieces(color, style) : null;
     if (this.awnings) {
-      const vw = Math.round(textW * AWN_VAL_PPM), vh = Math.round((AWN_VAL + AWN_FRINGE) * AWN_VAL_PPM);
-      const sw = Math.max(16, Math.round(textW * AWN_SLOPE_PPM)), sh = Math.max(8, Math.round(AWN_SLOPE * AWN_SLOPE_PPM));
+      const vw = Math.round(textW * awnValPpm()), vh = Math.round((AWN_VAL + AWN_FRINGE) * awnValPpm());
+      const sw = Math.max(16, Math.round(textW * awnSlopePpm())), sh = Math.max(8, Math.round(AWN_SLOPE * awnSlopePpm()));
       const { sheet, rects } = this.awnings.place([{ w: vw, h: vh }, { w: sw, h: sh }]);
       const seed = (Rng.hash(key) ^ this.seed) >>> 0;
       this.awnings.paint(sheet, rects[0], awningValancePainter(color, text, { widthM: textW, slopeM: 0, valanceM: AWN_VAL, fringeM: AWN_FRINGE }), seed);
@@ -677,7 +688,7 @@ export class StorefrontKit {
       this.record('awning-valance', text, textW, AWN_VAL + AWN_FRINGE, vw, vh);
       this.record('awning-slope', text, textW, AWN_SLOPE, sw, sh);
       const v = this.awnings.uv(rects[0]);
-      const fringeV = (Math.max(1, Math.round(AWN_FRINGE * AWN_VAL_PPM)) / vh) * (v[3] - v[1]);
+      const fringeV = (Math.max(1, Math.round(AWN_FRINGE * awnValPpm())) / vh) * (v[3] - v[1]);
       const valance: Piece = { mat: sheet.mat, uv: [v[0], v[1] + fringeV, v[2], v[3]] };
       const slope: Piece = { mat: sheet.mat, uv: this.awnings.uv(rects[1]) };
       const fringe: Piece = { mat: sheet.mat, uv: [v[0], v[1], v[2], v[1] + fringeV] };
@@ -705,7 +716,7 @@ export class StorefrontKit {
     if (atlas) {
       const geom = { widthM, heightM };
       // a long sign (a 40 m warehouse fascia) must still fit one sheet: lower its resolution rather than fail the whole world build
-      const ppm = Math.min(SIGN_PPM, ppmFor(widthM), (SHEET_W - 2 * SHEET_PAD) / widthM, (SHEET_H - 2 * SHEET_PAD) / heightM);
+      const ppm = Math.min(SIGN_PPM_FULL * ATLAS_SCALE(), ppmFor(widthM) * ATLAS_SCALE(), (sheetW() - 2 * SHEET_PAD) / widthM, (sheetH() - 2 * SHEET_PAD) / heightM);
       const sw = Math.max(16, Math.floor(widthM * ppm)), sh = Math.max(16, Math.floor(heightM * ppm));
       const { sheet, rects } = atlas.place([{ w: sw, h: sh }]);
       atlas.paint(sheet, rects[0], signPainter(text, bg, fg, geom), (Rng.hash(key) ^ this.seed) >>> 0);

@@ -306,6 +306,13 @@ function enableVertexAo(m: THREE.Material): void {
   m.needsUpdate = true;
 }
 
+/**
+ * IPHONE: material classes the phone tier never draws (TierGeometry.PHONE_HIDDEN_MESH) are not baked at all: set while the world is
+ * built on that tier, `null` otherwise. Takes the material name (`metalDark:0`), returns true to drop its geometry.
+ */
+let batchSkip: ((materialName: string) => boolean) | null = null;
+export function setBatchSkip(fn: ((materialName: string) => boolean) | null): void { batchSkip = fn; }
+
 export class LotBatch {
   private raw = new Map<THREE.Material, Raw>();
   private out = new Map<THREE.Material, THREE.BufferGeometry[]>();
@@ -516,6 +523,7 @@ export class LotBatch {
     const info = this.lotInfo();
     for (const [mat, r] of this.raw) {
       if (!r.p.length) continue;
+      if (batchSkip && batchSkip(((mat.userData.sharedAs as THREE.Material | undefined) ?? mat).name)) { r.p = []; r.n = []; r.uv = []; continue; }
       const g = new THREE.BufferGeometry();
       g.setAttribute('color', new THREE.BufferAttribute(bakeVertexAo(r.p, r.n, this.openings, overhangs), 4, true));
       g.setAttribute('position', new THREE.Float32BufferAttribute(r.p, 3));

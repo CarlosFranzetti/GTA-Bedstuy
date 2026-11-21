@@ -76,7 +76,7 @@ function sunAngle(hour: number): number {
 }
 
 /** Overcast (rain) scaling, see DayNight.overcast. */
-const OVERCAST_SUN_CUT = 0.7;
+const OVERCAST_SUN_CUT = 0.82;
 const OVERCAST_MOON_CUT = 0.35;
 const OVERCAST_HEMI_GAIN = 0.2;
 const OVERCAST_FOG_CUT = 0.55;
@@ -86,9 +86,9 @@ const WEATHER_FOG_NEAR = 4;
 const WEATHER_FOG_FAR = 140;
 const WEATHER_FOG_GREY = 0.5;
 /** Lightning (Weather.flash 0..1): fraction of the skylight and sun added at the peak of a flash, and its cool tint. */
-const FLASH_HEMI_GAIN = 1.0;
-const FLASH_HEMI_ADD = 0.45;
-const FLASH_SUN_ADD = 1.1;
+const FLASH_HEMI_GAIN = 0.3;
+const FLASH_HEMI_ADD = 0.12;
+const FLASH_SUN_ADD = 0.4;
 const FLASH_TINT = 0.55;
 const _flashTint = new Color(0.78, 0.86, 1);
 const _grey = new Color();

@@ -119,9 +119,9 @@ setWardrobeSeason(params.get('season') ?? 'mild'); setWardrobeCap(Number(params.
 const SEED = Number(params.get('seed') ?? 1);
 const streetIds = (n, off = 0) => { const out = []; for (let i = 0; i < n; i++) { const rng = new Rng(Rng.hash(`ped-${SEED}-${i + off}`)); out.push(PED_SPECS[pickWardrobeVariant(rng, pickPedVariant(rng), false)].id); } return out; };
 if (view === 'wardrobe40') {
-  const ids = streetIds(40, Number(params.get('off') ?? 0)), cols = 10;
-  for (let r = 0; r < 4; r++) place(ids.slice(r * cols, r * cols + cols), r, 0.98, 0.12 - 0.04 * r);
-  cam.position.set(0, 2.6, 8.2); look.set(0, 0.85, -2.2); cam.fov = 50;
+  const ids = streetIds(40, Number(params.get('off') ?? 0)), cols = 8;
+  for (let r = 0; r < 5; r++) place(ids.slice(r * cols, r * cols + cols), r * 1.5, 1.45, 0.1);
+  cam.position.set(0, 7.5, 12.5); look.set(0, 0.6, -4.6); cam.fov = 42;
 }
 if (view === 'wardrobe20') { const ids = streetIds(20, Number(params.get('off') ?? 0)); place(ids.slice(0, 10), 0, 0.98, 0.1); place(ids.slice(10), 1, 0.98, -0.1); cam.position.set(0, 1.5, 7.4); look.set(0, 0.92, -0.8); cam.fov = 46; }
 if (view === 'wardrobe10') { const ids = streetIds(10, Number(params.get('off') ?? 0)); place(ids, 0, 0.98, Number(params.get('yaw') ?? 0.15)); cam.position.set(0, 1.3, 6.2); look.set(0, 0.92, 0); cam.fov = 40; }

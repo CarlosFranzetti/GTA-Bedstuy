@@ -34,10 +34,12 @@ const smooth = (a: number, b: number, x: number): number => { const t = clamp01(
 
 /**
  * Master level of the whole weather bed on the ambience bus, as a gain. Tuned offline (scripts/weather-audio-render.mjs):
- * heavy rain in the open lands within a dB of the city bed, light rain about 8 dB under it.
+ * heavy rain in the open lands within a dB or two of the city bed (-42 LUFS on the ambience bus), light rain about 7 dB under it.
  */
-export const RAIN_MASTER = 0.5;
-export const WIND_MASTER = 0.5;
+export const RAIN_MASTER = 0.052;
+export const WIND_MASTER = 0.24;
+/** Thunder bus scale: a close clap punches about 13 dB above the heavy-rain bed, not 40. */
+export const THUNDER_MASTER = 0.22;
 
 export interface WeatherMix {
   /** gain of the three rain patter layers (light, steady, heavy roar) */
@@ -73,7 +75,7 @@ export function weatherMix(s: WeatherAudioState, out: WeatherMix = newWeatherMix
   out.steady = present * smooth(0.1, 0.4, rain) * (1 - smooth(0.7, 1.0, rain) * 0.55);
   out.heavy = smooth(0.5, 0.95, rain);
   // loudness grows with the rain, a little under the city bed for a shower and level with it in a downpour
-  const loud = 0.34 + 0.66 * rain;
+  const loud = 0.15 + 0.85 * Math.pow(rain, 1.3);
   const place = s.indoors ? 0.5 : s.inVehicle ? 0.8 : s.covered ? 1.05 : 1;
   out.rainGain = RAIN_MASTER * loud * present * place;
   out.rainCutoff = s.indoors ? 650 : s.inVehicle ? 1500 : s.covered ? 12000 : 16000;
@@ -84,7 +86,7 @@ export function weatherMix(s: WeatherAudioState, out: WeatherMix = newWeatherMix
   out.windGain = WIND_MASTER * smooth(0.04, 0.5, wind) * (0.45 + 0.55 * wind) * windCar * windRoom;
   out.windHz = 220 + 520 * wind + 160 * clamp01(s.gust);
   out.windGust = 0.25 + 0.5 * wind;
-  out.thunderGain = s.indoors ? 0.45 : s.inVehicle ? 0.7 : 1;
+  out.thunderGain = THUNDER_MASTER * (s.indoors ? 0.45 : s.inVehicle ? 0.7 : 1);
   out.thunderCutoff = s.indoors ? 500 : s.inVehicle ? 1800 : 16000;
   return out;
 }

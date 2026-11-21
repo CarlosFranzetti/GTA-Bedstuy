@@ -5,7 +5,7 @@
  */
 import * as THREE from 'three';
 import type { Vec2 } from '@/core/Math2';
-import type { Rng } from '@/core/Rng';
+import { Rng } from '@/core/Rng';
 import type { IMaterialLibrary, Lot, StaticCollider } from '@/world/types';
 import type { LotSpec } from '@/world/buildings/facade';
 import { LotBatch, loadMats } from '@/world/buildings/facade';
@@ -23,11 +23,38 @@ import { buildScaffold } from '@/world/buildings/scaffold';
 /** A lot as produced by `subdivideLots`: data-driven lots carry the `spec` their facade is generated from. */
 export type SpecLot = Lot & { spec?: LotSpec };
 
+/**
+ * Per-lot random seeds exactly as `rng.fork(lot.id)` would draw them, in lot order (fork consumes one draw of its parent). Keeping them lets
+ * a subset of lots be built again later, on its own, and come out identical (phone tier: cells of buildings are built on demand).
+ */
+export function lotSeeds(lots: readonly SpecLot[], rng: Rng): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const l of lots) out.set(l.id, Math.floor(rng.next() * 0xffffffff));
+  return out;
+}
+
 export function buildBuildings(
   lots: SpecLot[],
   materials: IMaterialLibrary,
   rng: Rng,
+  /** build only these lots (corner sides still come from the whole of `lots`); with `seeds` the per-lot generators match a full build */
+  only?: ReadonlySet<string>,
+  seeds?: ReadonlyMap<string, number>,
 ): { group: THREE.Group; colliders: StaticCollider[] } {
+  const g = buildBuildingsSteps(lots, materials, rng, only, seeds);
+  let r = g.next();
+  while (!r.done) r = g.next();
+  return r.value;
+}
+
+/** The same build as `buildBuildings`, one lot per `next()` (so a caller can spread it over frames); the final value is the result. */
+export function* buildBuildingsSteps(
+  lots: SpecLot[],
+  materials: IMaterialLibrary,
+  rng: Rng,
+  only?: ReadonlySet<string>,
+  seeds?: ReadonlyMap<string, number>,
+): Generator<void, { group: THREE.Group; colliders: StaticCollider[] }, void> {
   const mats = loadMats(materials);
   const batch = new LotBatch();
   const colliders: StaticCollider[] = [];
@@ -45,7 +72,9 @@ export function buildBuildings(
   const cornersPerFace = seen;
 
   for (const lot of lots) {
-    const lrng = rng.fork(lot.id);
+    const seed = seeds?.get(lot.id);
+    const lrng = seed !== undefined ? new Rng((Rng.hash(lot.id) ^ seed) >>> 0) : rng.fork(lot.id);
+    if (only && !only.has(lot.id)) continue;
     const dx = lot.frontB.x - lot.frontA.x, dz = lot.frontB.z - lot.frontA.z;
     const dl = Math.hypot(dx, dz) || 1;
     let dir: Vec2 = { x: dx / dl, z: dz / dl };
@@ -116,6 +145,7 @@ export function buildBuildings(
         id: `${lot.id}-areaway${i}`,
       });
     });
+    yield;
   }
 
   const group = new THREE.Group();

@@ -9,6 +9,7 @@
  * Both are idempotent and cheap to call again after late loads (user texture packs, hosted tier swaps).
  */
 import * as THREE from 'three';
+import { canvasReleased } from '@/textures/texTier';
 
 interface Stash { normalMap: THREE.Texture | null; roughnessMap: THREE.Texture | null; roughness: number; }
 const stash = new WeakMap<THREE.Material, Stash>();
@@ -69,7 +70,7 @@ export function setAnisotropy(root: THREE.Object3D, cap: number): number {
       seen.add(t);
       if (!anisoHome.has(t)) anisoHome.set(t, t.anisotropy);
       const want = Math.max(1, Math.min(cap, anisoHome.get(t)!));
-      if (t.anisotropy !== want) { t.anisotropy = want; if (t.image) t.needsUpdate = true; changed++; }
+      if (t.anisotropy !== want) { t.anisotropy = want; if (t.image && !canvasReleased(t)) t.needsUpdate = true; changed++; }
     }
   }
   return changed;

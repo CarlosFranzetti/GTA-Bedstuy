@@ -151,11 +151,15 @@ export function cloudParamsAt(sunElevation: number, overcast: number, sunRgb: re
   r.density = c >= 0 ? clamp(0.5 + 0.1 * up + 0.3 * c + 0.12 * o, 0.45, 1) : clamp(0.62 + 0.1 * up + 0.28 * o, 0.5, 1);
   const gloom = 1 - 0.32 * o;
   const nl = Math.max(sunRgb[0], sunRgb[1], sunRgb[2], 1e-3);
+  // cloud-filtered light is grey, not the warm sun colour: desaturate with the gloom
+  const grey = (sunRgb[0] + sunRgb[1] + sunRgb[2]) / 3;
+  const sat = 1 - 0.85 * o;
+  const sr = nl > 0 ? (grey + (sunRgb[0] - grey) * sat) : sunRgb[0], sg = grey + (sunRgb[1] - grey) * sat, sb = grey + (sunRgb[2] - grey) * sat;
   const dim = (0.008 + 0.992 * up) * gloom;
   r.lit = [
-    clamp((sunRgb[0] / nl) * 0.96 * dim + 0.006 * night + 0.55 * dusk * 0.9, 0, SKY_MAX_RADIANCE),
-    clamp((sunRgb[1] / nl) * 0.93 * dim + 0.007 * night + 0.55 * dusk * 0.42, 0, SKY_MAX_RADIANCE),
-    clamp((sunRgb[2] / nl) * 0.9 * dim + 0.012 * night + 0.55 * dusk * 0.34, 0, SKY_MAX_RADIANCE),
+    clamp((sr / nl) * 0.96 * dim + 0.006 * night + 0.55 * dusk * 0.9, 0, SKY_MAX_RADIANCE),
+    clamp((sg / nl) * 0.93 * dim + 0.007 * night + 0.55 * dusk * 0.42, 0, SKY_MAX_RADIANCE),
+    clamp((sb / nl) * 0.9 * dim + 0.012 * night + 0.55 * dusk * 0.34, 0, SKY_MAX_RADIANCE),
   ];
   const sh = (0.02 + 0.98 * up) * (1 - 0.3 * o);
   r.shade = [
@@ -228,12 +232,12 @@ const ART_GLSL_BODY = /* glsl */ `
 				vec3 ccol = mix( artShade, artLit, lit * ( 1.0 - 0.55 * core ) + 0.12 );
 				ccol += artLit * 0.3 * ( m * ( 1.0 - m ) * 4.0 ) * pow( max( artCs, 0.0 ), 5.0 );
 				// lightning lights the cloud from within: a cool white wash, thicker where the cloud is dense
-				ccol += vec3( 0.5, 0.58, 0.8 ) * artFlash * ( 0.35 + 0.65 * core );
+				ccol += vec3( 0.28, 0.33, 0.48 ) * artFlash * ( 0.35 + 0.65 * core );
 				ccol = min( ccol, vec3( SKY_MAX_RADIANCE ) );
 				artAlpha = clamp( m * artDensity * smoothstep( 0.015, 0.1, direction.y ), 0.0, 1.0 );
 				texColor = mix( texColor, ccol, artAlpha );
 			}
-			texColor += vec3( 0.12, 0.15, 0.24 ) * artFlash * ( 1.0 - 0.6 * artAlpha );
+			texColor += vec3( 0.04, 0.05, 0.09 ) * artFlash * ( 1.0 - 0.6 * artAlpha );
 			texColor = min( texColor, vec3( SKY_MAX_RADIANCE ) );
 			// sun disc + glow, hidden behind cloud and below the horizon
 			float artDisc = smoothstep( 0.99935, 0.9998, artCs );
@@ -409,8 +413,10 @@ export class SkyDome {
 
     // Stars fade in as the sun drops below the horizon.
     const starAlpha = (isNight || dir.y < 0 ? 1 - smooth(-0.2, -0.02, dir.y) : 0) * 0.95;
-    this.stars.visible = this.starsEnabled && starAlpha > 0.01;
-    (this.stars.material as THREE.PointsMaterial).opacity = starAlpha;
+    this.stars.visible = this.starsEnabled && starAlpha > 0.01 && (this.cloudAmount < 0 || this.cloudAmount < 0.97);
+    // cloud and fog hide the stars
+    const cloudHide = this.cloudAmount >= 0 ? 1 - 0.95 * smooth(0.25, 0.85, this.cloudAmount) : 1 - 0.8 * this.overcast;
+    (this.stars.material as THREE.PointsMaterial).opacity = starAlpha * cloudHide * (1 - 0.8 * this.fogAmount);
 
     if (cameraPos) {
       this.sky.position.copy(cameraPos);

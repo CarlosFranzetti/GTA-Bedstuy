@@ -32,3 +32,13 @@ BEFORE any fix. "After" numbers are in the last section.
 ## Fix list
 
 World2D: yielding props (hydrant-, bollard-: a car drives through, one contact, small speed loss), `vehiclePass` for flung bodies, soft personal space between people (0.85 m, head-on pairs lean to their right), gentle depenetration. Vehicle: `Vehicle.roadGrip`, collision spin (`impactYaw`), roll kick, damage free below 2 m/s closing, slide-off for every driver and up to 12 m/s, lower wall friction. Player: run-down knock (1.3 s, thrown, up again), pin recovery only when truly trapped. Pedestrian: thrown clear of the bumper. Combat: jab judged at impact or at swing start.
+
+## After (19 Nov)
+
+Changes made while fixing the regressions the first version caused: spin and roll kick only on a fresh hit (never on the scrape re-contacts of a car held against something); no spin from flat walls (segments, polygons); spin lever for car-vs-car is half the centre offset across the contact normal; AI drivers (traffic, cop) get no collision spin; prop slide-off is player-only again; wall friction and align restored to 0.35 / 0.18; personal space softened to 0.75 m, 0.45 m/s, lean only inside 1.6 m; deep-overlap easing starts at 0.3 m; hydrants/bollards are driven through with no wall scrub; the player lies flat while knocked down.
+
+Wall (sedan, no throttle), impact -> rebound m/s: 5 -> 0.5, 15 -> 1.5, 30 -> 2.9; max penetration -0.03 m; jitter at rest 0 to 0.1 cm (8.5 cm in the 30 m/s head-on). Glancing 60 degrees at 20 m/s keeps its speed longer than before only in the AI-free case; the wall friction is the old 0.35.
+
+Handling (radius m at full lock, stop time s / distance m, handbrake peak slip deg, 0.2-steer slip deg), sedan 10 m/s: 13.3, 0.9/4.4, 55, 0.6; sedan 20: 37.9, 1.5/14.4, 29, 0.8; hatch 20: 36.4, 1.5/14.5; coupe911 20: 32.2, 1.4/13.2; coupe911 30: 73, 1.8/25.7; exotic 20: 29.5, 1.1/11.3; exotic 30: 66.6, 1.5/21.6; suv 20: 39.9, 1.6/14.9; pickup 20: 40.7, 1.7/16.4; cargovan 10: 13.3, 1.1/5.5; boxtruck 10: 13.3, 1.1/5.5; bus 10: 24.6, 1.5/7.2 (no handbrake slide, slip 4); garbage 10: 22.4, 1.4/6.9; cop 20: 36.5, 1.5/14.5; muscle 30: 87.4, 1.9/26.6 (lift-off slip 7.7). Full table: `PHYSICS_REPORT=<file> npx vitest run tests/unit/physics/report.test.ts`.
+
+Traffic 5-minute sim: with the 19 new car types (CARS14 + CARS2 shares) remapped to sedan inside the test, seed 21 is fully green (gridlock, AI collisions) with all of this physics on; remapping only CARS14 still fails, only CARS2 still fails the gridlock test. The mix, not the physics, is the difference.

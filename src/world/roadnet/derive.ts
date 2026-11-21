@@ -48,10 +48,12 @@ export interface DeriveOptions {
   minRibbon?: number;
   /** gaps whose curb lines meet farther than this from the node are joined by a chord instead (m) */
   maxCorner?: number;
+  /** MAP7 (off by default): pull building-ring vertices that left the kerb ring back inside (pullInside). Turns six more big blocks of the R3 map from 'bad' into buildable, but the five-minute traffic sim on the first two rings then drives cars into the new building colliders, so it stays off until the traffic lane looks at it. */
+  repairRings?: boolean;
 }
 
 export const DEFAULT_DERIVE: Required<DeriveOptions> = {
-  rStreet: 4.5, rAvenue: 6, rMin: 1.5, arcStepDeg: 15, lookahead: 8, minRibbon: 1, maxCorner: 50,
+  rStreet: 4.5, rAvenue: 6, rMin: 1.5, arcStepDeg: 15, lookahead: 8, minRibbon: 1, maxCorner: 50, repairRings: false,
 };
 
 export interface Leg {
@@ -486,7 +488,7 @@ export function deriveGeometry(net: RoadNet, options: DeriveOptions = {}): Deriv
     }
     // MAP7: the edge-wise ring can leave the kerb ring at one or two vertices (a junction cluster on a very short edge, a Broadway wedge
     // beside a big block). Pull such vertices toward the block's centre until they are inside; keep the result only if it is still simple.
-    if (ok && crOk && br.some((p) => !pointInPolygon(p, cr))) {
+    if (o.repairRings && ok && crOk && br.some((p) => !pointInPolygon(p, cr))) {
       const pulled = pullInside(br, cr);
       if (pulled) br = pulled;
     }

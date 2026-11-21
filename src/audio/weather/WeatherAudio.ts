@@ -157,6 +157,7 @@ export class WeatherAudio implements WeatherAudioSink {
     const n = this.n;
     if (!n) return;
     this.n = null;
+    this.bufs.clear(); // give the buffers back (about 5 MB at 24 kHz): they are made again when the weather returns
     for (const s of n.sources) { try { s.stop(); s.disconnect(); } catch { /* not started */ } }
     for (const o of n.oscs) { try { o.stop(); o.disconnect(); } catch { /* not started */ } }
     for (const g of [n.light, n.steady, n.heavy, n.roof, n.rainLp, n.rainGain, n.windBp, n.windGust, n.windGain, n.gustDepth, n.thunderLp, n.thunderBus]) { try { g.disconnect(); } catch { /* ok */ } }

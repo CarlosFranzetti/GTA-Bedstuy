@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
 import type { IMaterialLibrary, MaterialKey } from '@/world/types';
 import { createCanvas, type Aux, type Painter } from './canvas';
+import { acquireScratch, canvasReleased, downscaleCanvas, releaseCanvasAfterUpload, releaseScratch, releasesCanvases, texSize, wantsReliefMaps } from './texTier';
 import { heightFromRgba, heightToNormal } from './normalmap';
 import { asphaltPainter, concretePainter, crosswalkPainter, roofPainter, bluestonePainter, granitePainter, manholePainter, gratePainter } from './painters/ground';
 import { brickPainter, brownstonePainter, cornicePainter, limestonePainter } from './painters/masonry';
@@ -302,11 +303,18 @@ export class MaterialLibrary implements IMaterialLibrary {
   }
 
   private textureSet(
-    label: string, w: number, h: number, paint: Painter, variant: number, relief?: Relief,
+    label: string, w: number, h: number, paint: Painter, variant: number, reliefIn?: Relief,
   ): { map: THREE.CanvasTexture; relief: ReliefMaps | null } {
-    const canvas = this.factory(w, h);
-    canvas.width = w;
-    canvas.height = h;
+    // IPHONE: the phone tier keeps no normal / roughness maps (never drawn there) and stores the colour map at half size: the painter
+    // still draws at its own size (painters are written in absolute pixels) on a pooled scratch canvas that is downscaled and handed back
+    const relief = wantsReliefMaps() ? reliefIn : undefined;
+    const sw = texSize(w, 'surface'), sh = texSize(h, 'surface');
+    const down = sw < w || sh < h;
+    const canvas = down ? acquireScratch(this.factory, w, h) : this.factory(w, h);
+    if (!down) {
+      canvas.width = w;
+      canvas.height = h;
+    }
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('MaterialLibrary: 2D context unavailable');
     const rng = new Rng((Rng.hash(label) ^ this.seed) >>> 0);
@@ -340,8 +348,11 @@ export class MaterialLibrary implements IMaterialLibrary {
     }
 
     paint(ctx, w, h, rng, variant, aux);
-    const map = new THREE.CanvasTexture(canvas);
+    let kept = canvas;
+    if (down) { kept = downscaleCanvas(canvas, this.factory, sw, sh); releaseScratch(canvas); }
+    const map = new THREE.CanvasTexture(kept);
     this.prepColour(map);
+    releaseCanvasAfterUpload(map); // phone and low: the canvas is emptied once the GPU has the texture (nothing paints into it again)
 
     if (aux && hCtx && hCanvas && relief) {
       const normal = this.normalFromHeight(hCtx, w, h, relief.strength);
@@ -412,15 +423,20 @@ export class MaterialLibrary implements IMaterialLibrary {
       t.anisotropy = this.aniso;
       if (colour) t.colorSpace = THREE.SRGBColorSpace;
       if (o.repeat) t.repeat.set(o.repeat.x, o.repeat.y);
-      if (t.image) t.needsUpdate = true;
+      if (t.image && !canvasReleased(t)) t.needsUpdate = true;
     };
-    if (o.map) { prep(o.map, true); mm.map = o.map; }
+    const drop = (old: THREE.Texture | null, next: THREE.Texture | null | undefined): void => {
+      // phone / low: the procedural map a photo set replaces is never drawn again; free it (canvas and GPU copy) instead of keeping it for the session
+      if (old && next && old !== next && releasesCanvases() && this.textures.includes(old)) { old.dispose(); const im = old.image as { width?: number; height?: number } | undefined; if (im && 'getContext' in (im as object)) { im.width = 1; im.height = 1; } }
+    };
+    if (o.map) { prep(o.map, true); drop(mm.map, o.map); mm.map = o.map; }
     if (o.normalMap) {
       prep(o.normalMap, false);
+      drop(mm.normalMap, o.normalMap);
       mm.normalMap = o.normalMap;
       if (o.normalScale !== undefined) mm.normalScale.set(o.normalScale, o.normalScale);
     }
-    if (o.roughnessMap) { prep(o.roughnessMap, false); mm.roughnessMap = o.roughnessMap; }
+    if (o.roughnessMap) { prep(o.roughnessMap, false); drop(mm.roughnessMap, o.roughnessMap); mm.roughnessMap = o.roughnessMap; }
     mm.needsUpdate = true;
   }
 

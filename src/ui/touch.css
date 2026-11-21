@@ -1,5 +1,5 @@
 /* Touch controls: shown only when TouchControls is constructed (coarse pointer devices). */
-.tc-root { position: absolute; inset: 0; pointer-events: none; touch-action: none; user-select: none; -webkit-user-select: none; }
+.tc-root { position: absolute; inset: 0; pointer-events: none; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .tc-look { position: absolute; top: 0; right: 0; bottom: 0; width: 60%; pointer-events: auto; touch-action: none; }
 .tc-stick {
   position: absolute; left: max(22px, env(safe-area-inset-left, 0px)); bottom: max(26px, env(safe-area-inset-bottom, 0px));
@@ -32,8 +32,8 @@
 .touch .hud-fps { display: none; }
 @media (max-height: 420px) {
   .tc-stick { width: 120px; height: 120px; }
-  .tc-btn { width: 62px; height: 62px; font-size: 10px; }
-  .tc-buttons { grid-template-columns: 62px 62px; gap: 8px; }
+  .tc-btn { width: 54px; height: 54px; font-size: 9px; }
+  .tc-buttons { grid-template-columns: 54px 54px; gap: 8px; bottom: max(14px, env(safe-area-inset-bottom, 0px)); }
   .hud-root.touch canvas.minimap { width: 100px !important; height: 100px !important; }
   .hud-root.touch .hud-bars { top: 140px; width: 100px; }
   /* sideways: stars under the cash, pause / phone / map in a row below them, so the button block (right, from y 160) stays clear */
@@ -51,9 +51,9 @@
 /* JUMP is an on-foot button; it hides while driving (setDriving) */
 .tc-driving .tc-btn-jump { display: none; }
 
-/* ACT is the on-foot action button (punch / throw / shoot): a big round button just left of the grid; it hides while driving */
-.tc-btn-act { position: absolute; right: calc(100% + 14px); bottom: 0; width: 96px; height: 96px; font-size: 14px; border-color: rgba(255, 120, 90, 0.85); }
+/* ACT is the on-foot action button (punch / throw / shoot): it takes the empty cell beside VIEW at the bottom right (thumb reach, clear of the stick in portrait); it hides while driving */
+.tc-btn-act { position: absolute; right: 0; bottom: 0; width: 78px; height: 78px; font-size: 12px; border-color: rgba(255, 120, 90, 0.85); }
 .tc-driving .tc-btn-act { display: none; }
-@media (max-height: 420px) { .tc-btn-act { width: 76px; height: 76px; right: calc(100% + 10px); } }
+@media (max-height: 420px) { .tc-btn-act { width: 54px; height: 54px; } }
 /* phones: the pause / phone / map buttons own the top-right corner, so the hands widget sits left of the stars */
 .touch .hud-hands { top: 44px; right: calc(max(16px, env(safe-area-inset-right, 0px)) + 150px); }

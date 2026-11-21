@@ -205,7 +205,17 @@ export const FAR_MERGE_LEVELS: ReadonlyArray<{ group: number; cell: number }> = 
 /** Cells per side of the level-0 merge group (tests). */
 export const FAR_MERGE_GROUP = FAR_MERGE_LEVELS[0].group;
 
-interface ChunkRec { meshes: THREE.Mesh[]; detail: THREE.Mesh[]; trim: THREE.Mesh[]; small: THREE.Mesh[]; smallHidden: boolean; far: THREE.Mesh[]; minX: number; maxX: number; minZ: number; maxZ: number; hidden: boolean; detailHidden: boolean; trimHidden: boolean; isFar: boolean; groups: MergeGroup[]; chosen: number; merged: boolean }
+/** The slice of BuildingStream (world/BuildingStream.ts) the culler drives: cells of building geometry built on demand (phone tier). */
+export interface CellStreamLike { request(key: string, budgetMs?: number): boolean; evict(key: string): void; isResident(key: string): boolean }
+/** Streamed cells are built this far (m) beyond the chunk range, and freed this much farther again (see BuildingStream.STREAM_PREFETCH_M / STREAM_EVICT_M). */
+export const STREAM_PREFETCH = 90;
+export const STREAM_EVICT = 70;
+/** A camera high above the street still asks for no more than this radius (m) of built cells: the phone must not build the whole city for an aerial view. */
+export const STREAM_MAX_RADIUS = 300;
+/** Time (ms) one `update` may spend building streamed cells. */
+export const STREAM_BUDGET_MS = 6;
+
+interface ChunkRec { stream: CellStreamLike | null; cellKey: string; wasResident: boolean; meshes: THREE.Mesh[]; detail: THREE.Mesh[]; trim: THREE.Mesh[]; small: THREE.Mesh[]; smallHidden: boolean; far: THREE.Mesh[]; minX: number; maxX: number; minZ: number; maxZ: number; hidden: boolean; detailHidden: boolean; trimHidden: boolean; isFar: boolean; groups: MergeGroup[]; chosen: number; merged: boolean }
 interface MergeGroup { level: number; members: ChunkRec[]; qual: boolean; active: boolean; built: boolean; failed: boolean; meshes: THREE.Mesh[] }
 
 export class ChunkCuller {
@@ -218,6 +228,8 @@ export class ChunkCuller {
   farOverride: number | null = null;
   /** far geometries built per update call at most (each is a one-off clustering of one cell mesh, ~2 ms); review scripts raise it through window.__gtaChunkCuller */
   static buildsPerUpdate = 5;
+  /** ms per update spent building streamed cells of buildings (phone tier); review scripts raise it through window.__gtaChunkCuller to fill every cell before a capture */
+  static streamBudget = STREAM_BUDGET_MS;
   private detailDist: number;
   private readonly box = new THREE.Box3();
   constructor(public maxDist: number, private readonly margin = 6) { this.detailDist = maxDist * CHUNK_DETAIL_FRACTION; }
@@ -231,9 +243,11 @@ export class ChunkCuller {
     mesh.updateWorldMatrix(true, false);
     this.box.setFromObject(mesh);
     let c = this.chunks.get(key);
-    if (!c) { c = { meshes: [], detail: [], trim: [], small: [], smallHidden: false, far: [], minX: this.box.min.x, maxX: this.box.max.x, minZ: this.box.min.z, maxZ: this.box.max.z, hidden: false, detailHidden: false, trimHidden: false, isFar: false, groups: [], chosen: -1, merged: false }; this.chunks.set(key, c); this.joinGroups(key, c); }
+    if (!c) { c = { stream: null, cellKey: '', wasResident: false, meshes: [], detail: [], trim: [], small: [], smallHidden: false, far: [], minX: this.box.min.x, maxX: this.box.max.x, minZ: this.box.min.z, maxZ: this.box.max.z, hidden: false, detailHidden: false, trimHidden: false, isFar: false, groups: [], chosen: -1, merged: false }; this.chunks.set(key, c); this.joinGroups(key, c); }
     else { c.minX = Math.min(c.minX, this.box.min.x); c.maxX = Math.max(c.maxX, this.box.max.x); c.minZ = Math.min(c.minZ, this.box.min.z); c.maxZ = Math.max(c.maxZ, this.box.max.z); }
     c.meshes.push(mesh);
+    const st = mesh.userData.stream as CellStreamLike | undefined;
+    if (st) { c.stream = st; c.cellKey = mesh.userData.cell as string; }
     if (TRIM_SMALL_MESH.test(mesh.name)) c.small.push(mesh); // shop signs, boards, tags: unreadable long before the rest of the trim
     else if (TRIM_MESH.test(mesh.name)) c.trim.push(mesh);
     if (PHONE_HIDDEN_MESH.test(mesh.name)) c.detail.push(mesh);
@@ -281,9 +295,17 @@ export class ChunkCuller {
     const detailDist = Math.min(this.detailDist, farDist);
     const trimDist = this.trimDist();
     let builds = ChunkCuller.buildsPerUpdate;
+    let wanted: Array<{ c: ChunkRec; d2: number }> | null = null;
     for (const c of this.chunks.values()) {
       const dx = Math.max(c.minX - px, 0, px - c.maxX), dz = Math.max(c.minZ - pz, 0, pz - c.maxZ);
       const d2 = dx * dx + dz * dz;
+      if (c.stream) { // streamed cell of buildings: built when near, freed when far (nearest first, within the time budget, below)
+        const reach = Math.min(base, STREAM_MAX_RADIUS) + STREAM_PREFETCH;
+        const res = c.stream.isResident(c.cellKey);
+        if (!res && d2 <= reach * reach) (wanted ??= []).push({ c, d2 });
+        else if (res && d2 > (reach + STREAM_EVICT) * (reach + STREAM_EVICT)) { c.stream.evict(c.cellKey); c.isFar = false; }
+        if (res !== c.wasResident) { c.wasResident = res; c.isFar = false; } // new full geometry in the shells (or none): the far swap restarts from it
+      }
       const limit = c.hidden ? base - this.margin : base;
       const hide = d2 > limit * limit;
       const dlimit = Math.min(base, detailDist) - (c.detailHidden ? this.margin : 0);
@@ -310,6 +332,15 @@ export class ChunkCuller {
         }
         c.isFar = wantFar;
         for (const m of c.far) swapFarGeometry(m, wantFar);
+      }
+    }
+    if (wanted) {
+      wanted.sort((a, b) => a.d2 - b.d2);
+      const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
+      for (const w of wanted) {
+        const left = ChunkCuller.streamBudget - ((typeof performance !== 'undefined' ? performance.now() : 0) - t0);
+        if (left <= 0) break;
+        if (w.c.stream!.request(w.c.cellKey, left)) { w.c.wasResident = true; w.c.isFar = false; }
       }
     }
     if (Number.isFinite(mergeDist0) || Number.isFinite(mergeDist1)) {

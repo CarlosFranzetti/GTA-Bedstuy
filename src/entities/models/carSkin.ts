@@ -19,6 +19,7 @@ import {
   CAR_COLORWAYS, SKIN_H, SKIN_PAINT_BASE, SKIN_RECTS, SKIN_W, paintCarSkin, type SkinLayout, type SkinRegion, type SkinStyle,
 } from '@/textures/painters/vehicleSkin';
 import { carPaintConfigured, carPaintTier } from '@/render/CarPaintFx';
+import { textureTier, wantsReliefMaps } from '@/textures/texTier';
 import { STYLES, BUS_AXLES, BUS_BELT, BUS_SEAMS, type StyleKey } from './carBodies';
 import { paletteEntry } from './carLook';
 import type { VehicleType } from '@/world/types';
@@ -323,14 +324,16 @@ export function buildSkinTexture(layout: SkinLayout, size = SKIN_W, make: (w: nu
       data[dst + x * 4 + 3] = msk[src + x * 4]; // red channel of the (grey) mask
     }
   }
-  const nrm = buildSkinNormal(data, w, h);
+  cc.width = cc.height = mc.width = mc.height = 0; // the two layer canvases are only a source for `data`: free their backing stores now
+  const nrm = wantsReliefMaps() ? buildSkinNormal(data, w, h) : null; // phone: no panel-line normal map (a 390 px screen never shows it)
   const tex = new THREE.DataTexture(data, w, h, THREE.RGBAFormat);
-  tex.userData.normal = nrm;
+  tex.userData.normal = nrm ?? undefined;
+  if (textureTier() === 'phone') tex.onUpdate = () => { (tex.image as { data: ArrayBufferView | null }).data = null; tex.userData.canvasReleased = true; tex.onUpdate = null; }; // the GPU has it: drop the 1 MB JS copy
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.magFilter = THREE.LinearFilter;
   tex.minFilter = THREE.LinearMipmapLinearFilter;
   tex.generateMipmaps = true;
-  tex.anisotropy = 4;
+  tex.anisotropy = textureTier() === 'phone' ? 2 : 4;
   tex.channel = 1;
   tex.needsUpdate = true;
   tex.name = `carSkin:${layout.style}:${layout.pack ?? 0}`;
@@ -339,7 +342,8 @@ export function buildSkinTexture(layout: SkinLayout, size = SKIN_W, make: (w: nu
 
 /** Texture width by tier: the phone tier paints half-size skins (decided when a skin is first needed). */
 export function skinSizeNow(style?: SkinStyle): number {
-  const phone = carPaintConfigured() && carPaintTier() === 'phone';
+  // IPHONE: texTier.ts knows the tier from the page itself (carPaintConfigured() only turns true once the Pipeline exists, after the first skins were already painted at full size)
+  const phone = textureTier() === 'phone' || (carPaintConfigured() && carPaintTier() === 'phone');
   // the CARS12 bodies get half-size atlases (512 x 256, 256 x 128 on the phone): 12 more atlases at full size would cost ~65 MB of texture memory
   if (style && NEW_SKIN_STYLES.has(style)) return phone ? SKIN_W / 2 : SKIN_W;
   return phone ? SKIN_W / 2 : SKIN_W * 2; // 1024 x 512 off the phone tier

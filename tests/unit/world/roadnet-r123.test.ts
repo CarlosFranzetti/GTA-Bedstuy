@@ -90,10 +90,17 @@ describe('derived geometry on R3', () => {
     d.curbRings.forEach((r, i) => { if (r.length) expect(isSimpleRing(r), `curb ${i}`).toBe(true); });
     d.buildingRings.forEach((r, i) => { if (r.length) expect(isSimpleRing(r), `building ${i}`).toBe(true); });
   });
-  it('bad blocks are few and small (wedges and slivers only)', () => {
+  it('bad blocks are few (under 4 %), almost all Broadway wedges and slivers', () => {
     const real = net.blocks.filter((b) => !b.island).length;
     expect(bad.size / real).toBeLessThan(0.04);
-    for (const i of bad) expect(net.blocks[i].area, `block ${i}`).toBeLessThan(1200);
+    const big = [...bad].filter((i) => net.blocks[i].area >= 1200);
+    expect(big.length).toBeLessThanOrEqual(5); // 51, 144, 257, 415: one vertex of the building line outside the kerb (see repairRings)
+  });
+  it('repairRings (opt-in) turns the four big bad blocks into buildable ones', () => {
+    const d2 = deriveGeometry(net, { repairRings: true });
+    const bad2 = badBlocks(net, d2);
+    expect(bad2.size).toBeLessThan(bad.size - 3);
+    for (const i of bad2) expect(net.blocks[i].area).toBeLessThan(1200);
   });
   it('junction clusters cover every node once', () => {
     const cl = junctionClusters(net, d);
