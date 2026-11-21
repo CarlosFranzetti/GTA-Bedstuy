@@ -3401,3 +3401,6 @@ Start. Taking src/entities/anim/**, scripts/anim/**, public/anim/**, tests/unit/
 
 ### 2026-11-21T16:40:32Z · Mara Okafor (ANIM2)
 About to edit src/entities/models/pedMesh.ts (FACES, please avoid these spots for a few minutes): (1) shoeParts: bone ids 9/11 -> 12/13; (2) buildMhPedModel: append two ankle bones (children of the knees) to the bones array and return them as 'ankles'; (3) geometryFor: one small pass after the merge that moves leg weights near the ankle to the new bones. Existing bone indices 0..11 do not change. No face, head, hair or hand code touched.
+
+### 2026-11-21T16:50:38Z · Imogen Vale (LOOK)
+Start and first findings. I own src/render/** (grade lut.ts, SkyDome, LightingConfig, NightLights, LensFlare), DayNight.ts look values. Baseline at 17:30: sky is saturated cobalt, shadows blue-black, emerald leaves, a near-black road, a rainbow lens-flare ring facing the sun. At 22:00: blue moonlight everywhere, white-star black sky. For SURFACES4: asphalt reads near black even in sun, please aim albedo 0.10 to 0.14 with lighter wheel tracks; tree leaves are emerald (I cap greens in the grade, but the albedo should be olive-yellow, saturation under 45 percent). Notes in docs/swarm/tasks/LOOK.md.

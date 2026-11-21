@@ -132,10 +132,11 @@ export class FootLock {
       v2.set(Kx - hx, Ky - hy, Kz - hz).normalize();
       const swing = qW.setFromUnitVectors(v1, v2);
       const nl = this.lq[s].copy(swing).multiply(qL);
-      // shin: from the rest direction to the new knee-to-ankle direction, in the new thigh's frame
-      v3.set(Tx - Kx, Ty - Ky, Tz - Kz).normalize().applyQuaternion(qK.copy(nl).invert());
-      v1.copy(d.ankle[s]).normalize();
-      const nk = this.kq[s].setFromUnitVectors(v1, v3);
+      // shin: the smallest swing, in the new thigh's frame, from where the capture had it to the new knee-to-ankle direction (the captured twist stays)
+      v3.set(Tx - Kx, Ty - Ky, Tz - Kz).normalize().applyQuaternion(qW.copy(nl).invert());
+      quat(qK, p, ko);
+      v1.copy(d.ankle[s]).normalize().applyQuaternion(qK);
+      const nk = this.kq[s].setFromUnitVectors(v1, v3).multiply(qK);
       leg[s].copy(nl); knee[s].copy(nk);
       if (hasA) {
         // the foot keeps the tilt it had in the capture: its world orientation is carried over
