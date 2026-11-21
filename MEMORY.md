@@ -69,7 +69,14 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 - Only the lead edits `src/main.ts`. Lanes hand back exact lines. Lanes never `git stash`, never commit or push, keep
   `src/` compiling, and post to the transcript with `scripts/swarm-say.sh "Name (LANE)" "<message>"`.
 - A lane's report is a claim, not a fact. The lead checks in the running game before anything is deployed.
-- Usage: seven or eight lanes at once hit the five-hour limit in about three hours. Run five or six, give tight briefs,
+- The look: `docs/swarm/art/DIRECTION.md` ("Stoop Light": late-afternoon haze and sodium nights, a muted world with
+  earned accents, shape before texture, worn not dirty, one hand). Written 21 Nov on the owner's instruction to reimagine
+  the look as a small team of the best veterans would. It outranks ART-BAR.md. The "ex-Rockstar" framing is a working
+  fiction inside the studio only: never claimed in the game, README, credits or posts.
+- Usage: the limit is a budget of roughly ten lane-runs per five-hour window (about 5 million lane tokens), whatever the
+  parallelism. On 21 Nov fourteen lanes started in two hours and seven were cut off mid-task with no report. So: pick the
+  ten most valuable runs per window, ask each to stay under about 350k tokens and to write its notes file EARLY and keep
+  it current (a lane that is cut off leaves only its files). Give tight briefs,
   ask for scoped tests and one in-game capture, and tell lanes to hand back a solid partial result rather than run out.
   Resuming a lane with a very large context is costly; start a fresh one with a good brief instead.
 - A stop hook asks for a commit and push after every turn.
@@ -143,12 +150,14 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 - Done 21 Nov, not yet used in the game: the logo (a brownstone with a tall stoop: `docs/brand/`, rules in
   `docs/brand/BRAND.md`), new app icons and favicon; the GTA IV and V style study (`docs/reference/gta4-5-study.md`, with
   its sources file: style reference only, many numbers are marked as estimates).
-- Lanes running on 21 Nov (results are claims until the lead checks them): GREEN2 (bugs and tests), PHONE2 (phone),
-  SURFACES2 (textures, shared facade sheet), PEOPLE7 (clothing and characters),
-  LANDMARKS (real places under invented names, `src/world/landmarks/`), CARS3 (handling for the player, car geometry,
-  new vehicle types kept out of traffic until the lead adds them). Their results go in `docs/swarm/tasks/`.
-- Not started: the real map as the main map; medium
-  and high tier performance.
+- 21 Nov results the lead looked at: landmarks (20 places under invented names on the real map, `src/world/landmarks/`);
+  the shared facade sheet; garment repairs (hems, cuffs, shoulders, trouser seat); player handling model with lean and
+  weight (`src/entities/handling.ts`), which made keyboard steering too weak (8 sim tests red: driving-feel, vehicle-qa,
+  pursuit) and must be retuned or switched off (`Vehicle.playerHandling = false`) before release.
+- Cut off by the usage limit on 21 Nov with work on disk but no report: GREEN2 (bugs), PHONE2 (notes in
+  `docs/swarm/tasks/PHONE2.md`), CARS4 (car bodies, notes in CARS4.md), SURFACES3 (streets and shopfronts), HANDLING2,
+  STORES (`src/world/shops/`). Restarted as fresh lanes under DIRECTION.md.
+- Not started: the record shop's real records; the real map as the main map; medium and high tier performance.
 - Waiting on the owner: promoting the link-in-bio page (branch `release-links`); a Hugging Face token or his own
   pictures for the loading posters; a test on a real iPhone (`?debug=mem` shows memory numbers); one story voice clip
   re-bake; deleting old Vercel deployments.
