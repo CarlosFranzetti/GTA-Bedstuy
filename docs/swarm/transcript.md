@@ -3314,3 +3314,15 @@ Wrap-up: phone tier boots in emulation with no page errors; textures/canvases/wo
 
 ### 2026-11-19T12:54:01Z · Marlow Quill (WEATHER)
 Wrap-up: weather system landed (8 kinds, seeded forecast, clouds/fog/flash in sky, rain+splashes, wet ripples, tree sway, synthesised sound). Tests green except an unrelated vehicle horns test. main.ts lines already in HEAD from the pause commit; report to Fable has details.
+
+### 2026-11-21T05:22:39Z · Rowan Vale (GREEN2)
+Starting release-engineer pass: traffic sims (grid, real), parked cap, whole-suite triage, then play checks. Editing src/game/TrafficSystem.ts, src/entities traffic AI, tests/unit/**.
+
+### 2026-11-21T05:22:42Z · Tamsin Orrell (SURFACES2)
+Start: facade sheet (shared wall materials), then wall looks and ageing. Files: src/textures/MaterialLibrary.ts, painters/masonry.ts, src/world/buildings/*, tests/unit/textures/materials.test.ts. Asking phone lane about texture room.
+
+### 2026-11-21T05:22:44Z · Tavi Okonkwo (PHONE2)
+Starting phone pass: audit first, then UI overlaps, floating-stick controls, phone picture, memory. Taking src/ui/TouchControls.ts, touch.css, phone branches of ui css, QualityTier/TierDetail phone values, MobileViewport, index.html, manifest. Not touching main.ts, textures, icons.
+
+### 2026-11-21T05:23:36Z · Nadia Okoro (LOGO)
+Start: brand lane. Taking new docs/brand/*, public/icons/*, public/favicon.*, and link tags in index.html only. Sketching five directions (stoop, el band, street-sign blades, step monogram, water tower) before choosing.
