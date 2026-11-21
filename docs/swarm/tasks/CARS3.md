@@ -81,3 +81,48 @@ slip 2.5 m/s, handbrake window 0.8 s).
 | motorcycle | needs a two-wheel model (lean, no yaw-grip pair): not feasible in this lane; say so |
 
 Two-wheelers (moped, e-bike) need their own handling model and rider animation; the table above does not cover them.
+
+## HANDLING3 (Odell Pryce, 21 Nov): keyboard feel, handbrake, pursuit
+
+Status: current. Nobody has driven this by hand; all numbers are from headless simulation.
+
+Findings on arrival (HANDLING2 had left one uncommitted-looking edit in `handling.ts` and a scratch test):
+* The edit is right and kept: the slide assist closed the steering to about 80 percent inside the kinematic blend (3 to 6 m/s), because the
+  "rear slip angle" b r / u of an ordinary tight turn is large there without any slide. With it, `driving-feel.test.ts` and `pursuit.test.ts`
+  were already green (the 32 and 54 degree turns and the pursuit rams came from this one cause: the junction speeds had a steering that was
+  closed by the assist; the fleeing scripted driver steers by the raw lock and lost its turning circle). No test driver was changed.
+* `pursuit.test.ts` "three stars, player flees" takes 30 to 40 s on this loaded box and trips vitest's 30 s default: run it with
+  `--testTimeout=180000`. Not a physics failure.
+* The real remaining red was the handbrake: a locked rear axle has almost no side force, and the bicycle model alone only turned the
+  velocity along with the nose (3 degrees of slip after 0.5 s dry, 1.7 wet). The wet path was not wrong, just the same missing yaw moment.
+
+Changes (all in `src/entities/handling.ts`):
+* `HB_ROTATE` = 8.5 rad/s^2 yaw moment while the handbrake is held with the wheel turned, in proportion to how far the rear has let go (`hbK`),
+  to the wheel, to speed (full above 8 m/s), and to the class (`(yawAccel - 2) / 5`, so a sedan 1.0, SUV 0.7, van 0.5, truck 0.3, bus 0.08:
+  a bus does not drift). It fades out as the yaw nears `yawMax`, so the cap holds (pony stays under its cap).
+* Slide assist is off while the handbrake is on (`hbK >= 0.5`): a hold is a slide, the assist only protects the normal drive.
+* Recovery yaw damping 2.8 -> 4: release straightens in about 1 s (was 1.1 to 1.2 s once the slide was real).
+* Key return to centre: `STEER_RETURN_MULT` 1.6 x (1 + u/12) -> 1.0 x (1 + u/24). A tap now returns in about 0.17 s instead of 0.04 s
+  (`vehicle.test.ts` "steering is rate limited" needs a visible return; the old return was a snap).
+* Tyres: `BASE` muF 1.05 -> 1.10, muR 1.20 -> 1.24 (sedan holds 50 km/h full lock a little tighter). SUV, bigsuv, pickup and van `yawCap`
+  +0.1 (they turned 54 to 49 degrees in 2 s at 30 km/h against 65 to 66 in the old model; now 59 and 53).
+* Deleted the scratch test `h2dbg.test.ts`. Kept `handling2-measure.test.ts` (it writes the table below to `$OUT`).
+* No test assertion was changed. `Vehicle.aiHandling` stays false; `ai-trajectory.test.ts` green.
+
+Table (headless; 2 s of held full lock with throttle holding the speed; steady radius = 30 km/h full lock; handbrake = 60 km/h, half lock, 0.5 s hold; stop from 72 km/h):
+
+| type | model | turn 2 s @30 | turn 2 s @50 | radius @30 (m) | handbrake slip dry | wet | settles after release (s) | stop 72 (m) |
+|---|---|---|---|---|---|---|---|---|
+| sedan | old | 66 | 79 | 12.8 | 25 | 13 | 0.60 | 14.8 |
+| sedan | new, before | 64 | 70 | 13.3 | 3 | 2 | 0.67 | 15.7 |
+| sedan | new, now | 65 | 72 | 13.2 | 20 | 20 | 1.00 | 15.7 |
+| hatch | old / before / now | 67 / 71 / 71 | 83 / 76 / 76 | 12.8 / 12.2 / 12.2 | 27 / 7 / 23 | 14 / 4 / 21 | 0.65 / 0.82 / 1.03 | 14.9 / 16.6 / 16.6 |
+| SUV | old / before / now | 66 / 54 / 59 | 75 / 55 / 56 | 12.8 / 15.4 / 14.0 | 22 / 2 / 14 | 12 / 1 / 13 | 0.57 / 0.02 / 0.92 | 15.2 / 17.3 / 17.3 |
+| cargo van | old / before / now | 65 / 49 / 53 | 72 / 48 / 49 | 12.9 / 16.5 / 15.0 | 18 / 1 / 8 | 11 / 0 / 9 | 0.48 / 0.02 / 0.77 | 18.2 / 19.6 / 19.6 |
+| bus | old / before / now | 35 / 32 / 32 | 37 / 28 / 28 | 21.8 / 21.7 / 21.7 | 2 / 1 / 1 | 3 / 1 / 1 | 0.02 / 0.02 / 0.02 | 18.6 / 19.5 / 19.5 |
+
+Reading it: the sedan now turns within 10 percent of the old model at 30 km/h and about 9 percent less at 50 (the tyres, not the key rate,
+bind there: about 0.9 g). SUV and vans stay a little wider than before, on purpose (weight). Settling 1.0 s is the time for the slip to fall
+under 3 degrees after the handbrake is released; the car is pointing straight before that. Stop distance is unchanged by this lane.
+
+Not verified: any in-game drive, a gamepad, real keyboard timing. Stick steering code was not touched, only the key return rate.

@@ -14,8 +14,18 @@ export function awningStyle(text: string): AwningStyle {
   return awningStyleFor(text);
 }
 
-const VINYL_FONT = 'Arial Narrow, "Helvetica Neue", Arial, sans-serif';
-const METAL_FONT = 'Impact, "Arial Black", Arial, sans-serif';
+// STORES2: the project's two fonts first (Barlow Condensed for vinyl, boxes and decals; Anton for corrugated metal and
+// hand-painted fascias), the old system faces behind them for the single-file build and for the first frames.
+const VINYL_FONT = '"Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif';
+const METAL_FONT = 'Anton, Impact, "Arial Black", Arial, sans-serif';
+const BOX_FONT = VINYL_FONT;
+if (typeof document !== 'undefined') {
+  // ask for the faces now so they are usually there when the storefront atlas is painted (no-op without them)
+  const fs = (document as Document & { fonts?: FontFaceSet }).fonts;
+  if (fs && typeof fs.load === 'function') {
+    void Promise.all([fs.load('700 40px "Barlow Condensed"'), fs.load('40px "Anton"')]).catch(() => undefined);
+  }
+}
 const PLATE_FILL = '#fff8e8';
 const PLATE_EDGE = '#2a2118';
 
@@ -32,7 +42,7 @@ function setSpacing(ctx: CanvasRenderingContext2D, px: number): void {
 /** fitFont, then (where the canvas supports letterSpacing) widen tracking and shrink until the spaced text still fits. */
 function fitSpaced(
   ctx: CanvasRenderingContext2D, text: string, maxW: number, maxH: number, frac: number,
-  weight = 'bold', family = 'Arial, Helvetica, sans-serif', minPx = 6,
+  weight = 'bold', family = BOX_FONT, minPx = 6,
 ): number {
   setSpacing(ctx, 0);
   let px = fitFont(ctx, text, maxW, maxH, weight, family, minPx);
@@ -502,7 +512,10 @@ function neonText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
  * length across and down; icons and badges are drawn at their true shape. Without `geom` the canvas is treated as
  * true-aspect at PX_PER_M.
  */
-export function signPainter(text: string, bg: string, fg: string, geom?: SignGeom): Painter {
+export type SignStyle = 'box' | 'fascia';
+
+export function signPainter(text: string, bg: string, fg: string, geom?: SignGeom, style: SignStyle = 'box'): Painter {
+  if (style === 'fascia') return fasciaPainter(text, bg, fg, geom);
   return (ctx, w, h, rng) => {
     const layout = layoutSign(text);
     const ppm = geom ? w / geom.widthM : w / signGeomOfCanvas(w, h).widthM;
@@ -636,7 +649,7 @@ export function signPainter(text: string, bg: string, fg: string, geom?: SignGeo
         const longer = a.length >= b.length ? a : b;
         const spx = fitSpaced(ctx, longer, maxW, areaH * 0.42, frac);
         for (const [s, y, c] of [[a, areaTop + areaH * 0.28, 0], [b, areaTop + areaH * 0.72, 1]] as const) {
-          ctx.font = `bold ${spx}px Arial, Helvetica, sans-serif`;
+          ctx.font = `bold ${spx}px ${BOX_FONT}`;
           if (layout.neon) neonText(ctx, s, w / 2, y, spx, layout.neonColors[c]);
           else ctx.fillText(s, w / 2, y);
         }
@@ -647,7 +660,91 @@ export function signPainter(text: string, bg: string, fg: string, geom?: SignGeo
       }
     }
     setSpacing(ctx, 0);
+    signWear(ctx, w, h, rng);
   };
+}
+
+/** Sun-faded on top, dirty low, a few drips: not fresh vinyl (DIRECTION.md "worn, not dirty"). */
+function signWear(ctx: CanvasRenderingContext2D, w: number, h: number, rng: Rng): void {
+  withAlpha(ctx, 0.1, () => {
+    ctx.fillStyle = '#e9dfc6';
+    ctx.fillRect(0, 0, w, h * 0.45);
+  });
+  for (let q = 0; q < 5; q++) {
+    withAlpha(ctx, 0.035, () => {
+      ctx.fillStyle = '#16100a';
+      ctx.fillRect(0, h * (0.62 + q * 0.08), w, h * 0.5);
+    });
+  }
+  const n = Math.max(2, Math.round(w / 90));
+  for (let i = 0; i < n; i++) sootStreak(ctx, rng.range(0, w), h * rng.range(0.1, 0.4), rng.range(2, 5), rng.range(h * 0.3, h * 0.6), 0.1, '#1a120a');
+  speckle(ctx, w, h, rng, Math.round(w * h * 0.0012), ['#000000', '#ffffff', '#8a7a5a'], 1, 2, 0.07);
+}
+
+/**
+ * Hand-painted fascia (STORES2): a flat board, brush-streaked paint, a painted rule inset from the edge, the name in
+ * Anton with each letter a little off its line, the trade underneath in Barlow Condensed. Unlit: it reads by daylight
+ * and by the shop's own window, the way a painted board over a bodega, a braider or a garage does.
+ */
+function fasciaPainter(text: string, bg: string, fg: string, geom?: SignGeom): Painter {
+  return (ctx, w, h, rng) => {
+    const { main, secondary } = splitSecondaryOf(text);
+    const k = h / 128;
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, w, h);
+    for (let i = 0; i < Math.round(h / 3); i++) {
+      withAlpha(ctx, rng.range(0.02, 0.07), () => {
+        ctx.fillStyle = rng.chance(0.5) ? '#ffffff' : '#000000';
+        ctx.fillRect(rng.range(-20, w * 0.4), (i / Math.round(h / 3)) * h, rng.range(w * 0.2, w * 0.9), rng.range(1, 2.5) * k);
+      });
+    }
+    // painted rule, a little uneven
+    ctx.strokeStyle = fg;
+    ctx.lineWidth = 3 * k;
+    ctx.beginPath();
+    const m = 7 * k;
+    ctx.moveTo(m, m + rng.range(-1, 1));
+    ctx.lineTo(w - m, m + rng.range(-1, 1));
+    ctx.lineTo(w - m, h - m + rng.range(-1, 1));
+    ctx.lineTo(m, h - m + rng.range(-1, 1));
+    ctx.closePath();
+    ctx.stroke();
+    const ppm = geom ? w / geom.widthM : w / 4;
+    const areaW = w - 2 * (m + 0.1 * ppm);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    setSpacing(ctx, 0);
+    const mainH = secondary ? h * 0.46 : h * 0.62;
+    const px = fitFont(ctx, main, areaW, mainH, 'normal', METAL_FONT, 8);
+    ctx.fillStyle = fg;
+    const y = secondary ? h * 0.38 : h * 0.5;
+    // per-letter drift: measure, then set each character down with a hair of lean and rise
+    const widths = [...main].map((c) => ctx.measureText(c).width);
+    let x = w / 2 - widths.reduce((a, b) => a + b, 0) / 2;
+    [...main].forEach((c, i) => {
+      ctx.save();
+      ctx.translate(x + widths[i] / 2, y + rng.range(-0.025, 0.025) * px);
+      ctx.rotate(rng.range(-0.025, 0.025));
+      ctx.fillText(c, 0, 0);
+      ctx.restore();
+      x += widths[i];
+    });
+    if (secondary) {
+      const spx = fitFont(ctx, secondary, areaW * 0.9, h * 0.2, 'bold', BOX_FONT, 6);
+      ctx.font = `bold ${spx}px ${BOX_FONT}`;
+      setSpacing(ctx, spx * 0.08);
+      ctx.fillText(secondary, w / 2, h * 0.76);
+      setSpacing(ctx, 0);
+    }
+    signWear(ctx, w, h, rng);
+  };
+}
+
+function splitSecondaryOf(text: string): { main: string; secondary: string } {
+  const t = text.toUpperCase();
+  const i = t.indexOf('·');
+  if (i < 0) return { main: t.trim(), secondary: '' };
+  return { main: t.slice(0, i).trim(), secondary: t.slice(i + 1).replace(/\s*·\s*/g, '  ·  ').trim() };
 }
 
 // ---------------------------------------------------------------------------------------------- sticker atlas
@@ -655,7 +752,7 @@ export function signPainter(text: string, bg: string, fg: string, geom?: SignGeo
 /** Bold centred line shrunk to fit; plain fill, no outline. */
 function stickerText(ctx: CanvasRenderingContext2D, text: string, cx: number, cy: number, maxW: number, maxH: number, fill: string): void {
   setSpacing(ctx, 0);
-  fitFont(ctx, text, maxW, maxH, 'bold', 'Arial, Helvetica, sans-serif', 6);
+  fitFont(ctx, text, maxW, maxH, 'bold', BOX_FONT, 6);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = fill;
@@ -734,6 +831,124 @@ export const stickerAtlasPainter: Painter = (ctx, _w, _h, rng) => {
       ctx.fillRect(p.cx + p.w / 2 - 34, y, 20, 3);
     });
   }
+
+  // STORES2 trade decals (generic wording only; no brand marks, no lettering from any real shop)
+  p = plate('cross', '#0e6a4a', '#e9fff4');
+  drawPictogram(ctx, 'medcross', p.cx, p.cy - 16, 60, '#ffffff');
+  stickerText(ctx, 'PHARMACY', p.cx, p.cy + 38, p.w - 12, 24, '#e9fff4');
+
+  p = plate('halal', '#1d5a3a', '#d4af37');
+  stickerText(ctx, 'HALAL', p.cx, p.cy - 8, p.w - 12, 44, '#f1d36a');
+  stickerText(ctx, 'FOOD', p.cx, p.cy + 32, p.w - 14, 22, '#f4efe0');
+
+  p = plate('cash', '#12301f', '#ffe97a');
+  drawPictogram(ctx, 'dollar', p.cx, p.cy - 22, 50, '#ffe97a');
+  stickerText(ctx, 'CHECKS', p.cx, p.cy + 18, p.w - 12, 26, '#ffe97a');
+  stickerText(ctx, 'CASHED', p.cx, p.cy + 44, p.w - 12, 22, '#ffffff');
+
+  const sh = slot('hotslices');
+  drawPlate(ctx, sh.x + sh.w / 2, sh.y + sh.h / 2, sh.w - 8, sh.h - 8, '#2a0f0c', '#a8281f', 1);
+  drawPictogram(ctx, 'pizza', sh.x + 52, sh.y + sh.h / 2, 64, '#f2b134');
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  setSpacing(ctx, 0);
+  const hp = fitFont(ctx, 'HOT SLICES', sh.w - 120, sh.h * 0.46, 'bold', 'Arial Black, Arial, sans-serif', 10);
+  neonText(ctx, 'HOT SLICES', sh.x + sh.w / 2 + 38, sh.y + sh.h / 2 + 2, hp, '#ffb02e');
+
+  p = plate('fresh', '#2f7a43', '#f4efd8');
+  drawPictogram(ctx, 'leaf', p.cx, p.cy - 16, 56, '#d9f2b0');
+  stickerText(ctx, 'FRESH', p.cx, p.cy + 28, p.w - 12, 30, '#f4efd8');
+  stickerText(ctx, 'FRUIT', p.cx, p.cy + 50, p.w - 12, 16, '#f4efd8');
+
+  p = plate('phonefix', '#14192a', '#2ee6ff');
+  drawPictogram(ctx, 'phone', p.cx, p.cy - 18, 56, '#9fb4d8');
+  stickerText(ctx, 'SCREENS', p.cx, p.cy + 30, p.w - 12, 24, '#2ee6ff');
+  stickerText(ctx, 'WHILE U WAIT', p.cx, p.cy + 52, p.w - 12, 14, '#e8f6ff');
+
+  p = plate('coffee', '#1c1511', '#efe0c0');
+  drawPictogram(ctx, 'coffee', p.cx, p.cy - 18, 56, '#efe0c0');
+  stickerText(ctx, 'COFFEE', p.cx, p.cy + 30, p.w - 12, 28, '#efe0c0');
+  stickerText(ctx, 'HOT & ICED', p.cx, p.cy + 52, p.w - 12, 14, '#c9a96a');
+
+  p = plate('bake', '#3a2314', '#fbeccb');
+  drawPictogram(ctx, 'bread', p.cx, p.cy - 16, 58, '#d9a95a');
+  stickerText(ctx, 'FRESH', p.cx, p.cy + 30, p.w - 12, 26, '#fbeccb');
+  stickerText(ctx, 'BAKED', p.cx, p.cy + 52, p.w - 12, 16, '#fbeccb');
+
+  // fruit stand top: crates of oranges, apples, limes and bananas seen from above
+  const spd = slot('produce');
+  ctx.fillStyle = '#6a4a2a';
+  ctx.fillRect(spd.x + 2, spd.y + 2, spd.w - 4, spd.h - 4);
+  const cols = ['#d9801f', '#b3262d', '#7a9a2a', '#e2c22f', '#c85a2a', '#8aa832'];
+  for (let i = 0; i < 4; i++) {
+    const bx = spd.x + 8 + i * ((spd.w - 16) / 4), bw2 = (spd.w - 16) / 4 - 4;
+    ctx.fillStyle = '#3a2a18';
+    ctx.fillRect(bx, spd.y + 8, bw2, spd.h - 16);
+    for (let n = 0; n < 34; n++) {
+      ctx.fillStyle = cols[(i * 2 + (n % 3)) % cols.length];
+      ctx.beginPath();
+      ctx.arc(bx + 6 + rng.range(0, bw2 - 12), spd.y + 16 + rng.range(0, spd.h - 32), 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // pizza oven glow: the mouth of a brick oven seen through the window, orange fading to dark
+  const so2 = slot('oven');
+  ctx.fillStyle = '#1a0e08';
+  ctx.fillRect(so2.x, so2.y, so2.w, so2.h);
+  const gcx = so2.x + so2.w / 2, gcy = so2.y + so2.h * 0.62;
+  const glow = ['#2a1208', '#3e1a0a', '#5a260c', '#7a3510', '#a0480f', '#c8601a', '#e87d28', '#f4a040', '#ffc86a', '#ffe0a0'];
+  glow.forEach((c, i) => {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.arc(gcx, gcy, so2.w * 0.5 * (1 - i / glow.length), 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.fillStyle = '#120804';
+  ctx.beginPath();
+  ctx.arc(so2.x + so2.w / 2, so2.y + so2.h, so2.w * 0.36, Math.PI, 0);
+  ctx.arc(so2.x + so2.w / 2, so2.y + so2.h, so2.w * 0.3, 0, Math.PI, true);
+  ctx.fill();
+  // a bucket of flowers from above: stems and blooms in a few plain colours
+  const sf2 = slot('flowers');
+  ctx.fillStyle = '#2a4a2a';
+  ctx.fillRect(sf2.x + 4, sf2.y + 4, sf2.w - 8, sf2.h - 8);
+  const bl = ['#d9455a', '#e8c42a', '#e8e4d8', '#d98c9a', '#7a5ab0', '#e07b00'];
+  for (let n = 0; n < 40; n++) {
+    ctx.fillStyle = bl[n % bl.length];
+    ctx.beginPath();
+    ctx.arc(sf2.x + 12 + rng.range(0, sf2.w - 24), sf2.y + 12 + rng.range(0, sf2.h - 24), rng.range(5, 9), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // barber pole: glass cylinder with a red, white and blue spiral, caps top and bottom
+  const sp = slot('pole');
+  const px = sp.x + sp.w / 2, pw = 48, top = sp.y + 26, bot = sp.y + sp.h - 26;
+  ctx.fillStyle = '#e8e4d8';
+  ctx.fillRect(px - pw / 2, top, pw, bot - top);
+  const band = 26;
+  const cl = (y: number): number => Math.max(top, Math.min(bot, y));
+  for (let k = -4, i = 0; k < 12; k++, i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#b3262d' : '#2a4a9a';
+    ctx.beginPath();
+    const y = top + k * band * 2;
+    ctx.moveTo(px - pw / 2, cl(y));
+    ctx.lineTo(px + pw / 2, cl(y - 30));
+    ctx.lineTo(px + pw / 2, cl(y - 30 + band));
+    ctx.lineTo(px - pw / 2, cl(y + band));
+    ctx.closePath();
+    ctx.fill();
+  }
+  // glass sheen and shading in vertical strips (no gradients)
+  const strips = ['rgba(0,0,0,0.30)', 'rgba(0,0,0,0.16)', 'rgba(255,255,255,0.10)', 'rgba(255,255,255,0.24)', 'rgba(255,255,255,0.10)', 'rgba(0,0,0,0.12)', 'rgba(0,0,0,0.28)'];
+  strips.forEach((c, i) => {
+    ctx.fillStyle = c;
+    ctx.fillRect(px - pw / 2 + (i * pw) / strips.length, top, pw / strips.length + 0.5, bot - top);
+  });
+  ctx.fillStyle = '#9a9488';
+  ctx.fillRect(px - pw / 2 - 5, top - 14, pw + 10, 16);
+  ctx.fillRect(px - pw / 2 - 5, bot - 2, pw + 10, 16);
+  ctx.fillStyle = '#6a665c';
+  ctx.fillRect(px - 8, top - 26, 16, 12);
   setSpacing(ctx, 0);
 };
 

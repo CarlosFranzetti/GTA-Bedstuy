@@ -59,7 +59,10 @@ export function flatMaterials(lib: object): FlatMat {
   for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
     const k = (y * N + x) * 4;
     const v = 0.78 + rnd() * 0.22 + (((x >> 3) + (y >> 3)) & 1) * 0.04;
-    data[k] = 86 * v; data[k + 1] = 128 * v; data[k + 2] = 56 * v; data[k + 3] = 255;
+    // SURFACES4: olive and yellow-green under 40 percent saturation (DIRECTION.md), with patches of bare earth worn through
+    const cell = ((x >> 2) * 73856093) ^ ((y >> 2) * 19349663);
+    const bare = ((cell >>> 0) % 100) < 14 ? 0.55 : 0;
+    data[k] = (108 + (128 - 108) * bare) * v; data[k + 1] = (113 + (108 - 113) * bare) * v; data[k + 2] = (68 + (84 - 68) * bare) * v; data[k + 3] = 255;
   }
   const tex = new THREE.DataTexture(data, N, N, THREE.RGBAFormat);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -77,7 +80,7 @@ export function flatMaterials(lib: object): FlatMat {
 const FAR_COLOUR: Record<string, number> = {
   brickRed: 0x8a4a3c, brickPainted: 0xb4ada0, limestone: 0xcdc5ae, brownstone: 0x6e4c3d, tarRoof: 0x3d3d40, concrete: 0x9b9a95, asphalt: 0x46474b,
   window: 0x48586a, metalDark: 0x2e2e30, treeLeaves: 0x3f6f35, treeTrunk: 0x4a3a2c, corrugatedSteel: 0x8a9096, rollGate: 0x7a7f84, cornice: 0xb7ab96,
-  stoop: 0x9a8f7e, granite: 0x84837f, bluestone: 0x7d8087, chainlinkFence: 0x888b8e, castIronFence: 0x2a2a2c, tire: 0x1c1c1c, grass: 0x4f7c3a,
+  stoop: 0x9a8f7e, granite: 0x84837f, bluestone: 0x7d8087, chainlinkFence: 0x888b8e, castIronFence: 0x2a2a2c, tire: 0x1c1c1c, grass: 0x6c7344,
 };
 /** keys that are always drawn as plain vertex colour in the one flat material (small furniture, paving): fewer draw calls, no texture needed */
 const FLAT_KEYS = new Set<string>(['granite', 'bluestone', 'stoop']);

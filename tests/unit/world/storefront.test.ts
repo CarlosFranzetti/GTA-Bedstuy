@@ -9,6 +9,7 @@ import {
   isNightHour, isStoreClosed, planStorefront, resolveStorefront, setStorefrontCanvasFactory, setStorefrontHour,
   type StorefrontPlan, type StorefrontSpec,
 } from '@/world/buildings/mixeduse';
+import { SHOP_TYPES } from '@/world/shops/shopTypes';
 import { STICKER_SLOTS, STORE_KINDS, STORE_NAMES, STORE_SIGNS, classifyArchetype, layoutSign, type StoreKind } from '@/textures/painters/storefront-art';
 import { subdivideLots } from '@/world/LotSubdivider';
 import { buildBuildings } from '@/world/BuildingGen';
@@ -183,12 +184,14 @@ describe('awning and sign textures are sized from the real geometry', () => {
       if (kind === 'church' || kind === 'daycare') expect(s.signCopy).toBe(s.name);
       else {
         expect(s.signCopy).not.toBe(s.name);
-        expect(STORE_SIGNS[kind]).toContain(s.signCopy);
+        // STORES2: the trade copy comes from the shop's trade (shops/shopNames.ts); the old per-kind pool covers shops without one
+        if (s.shopType) expect(classifyArchetype(s.signCopy)).toBe(SHOP_TYPES[s.shopType].archetype);
+        else expect(STORE_SIGNS[kind]).toContain(s.signCopy);
         // the trade copy classifies as the same art archetype as the shop
         const a = classifyArchetype(s.signCopy);
         if (kind === 'bodega' || kind === 'deli') expect(a).toBe('bodega');
         if (kind === 'barber') expect(a).toBe('barber');
-        if (kind === 'restaurant') expect(a).toBe('kitchen');
+        if (kind === 'restaurant') expect(['kitchen', 'pizza']).toContain(a);
         if (kind === 'liquor') expect(a).toBe('liquor');
         expect(layoutSign(s.signCopy).mainLine.length).toBeGreaterThan(2);
       }

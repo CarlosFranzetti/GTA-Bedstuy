@@ -52,7 +52,7 @@ describe('car looks (CARS12 variation)', () => {
     expect(ladder).toBeGreaterThan(40);
     expect(unmarked).toBeGreaterThan(30);
     expect(unmarked).toBeLessThan(120);
-    expect(rust).toBe(0);
+    expect(rust).toBeLessThan(n * 0.1); // CARS4: a new luxury car gets one light rust bloom about 5% of the time, never more
   });
   it('extras are cheap vertex-coloured geometry (a few hundred triangles at most) and never NaN', () => {
     const spec = VEHICLE_SPECS.crossover;

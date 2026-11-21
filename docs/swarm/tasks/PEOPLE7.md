@@ -35,4 +35,5 @@ Still wrong: the hem of some jackets (navy suit, cardigan) still sits wider than
 # PEOPLE9 (21 Nov 2026): palette, cloth, faces, age
 Brief: owner decided gritty like GTA IV, muted worn colours, clothing mixed by age. Order: 1 palette, 2 fabric and wear, 3 faces, 4 age wardrobe, 5 geometry defects, 6 heads.
 Frames: scratchpad/people9/before and after. Status log (updated as I go):
-- started: reading code; palette tables are in src/textures/painters/pedWardrobe.ts and pedPaintSwatch.ts.
+- 3 face: feathered head/body blend (pedPaintShade), age weathering for adults at half strength, uneven tone (pedPaintFace). 4 age: gating in pedWardrobe. Phone: pedMesh bakes 256 on phone tier by textureTier and releases canvas on phone and low.
+- 1 PALETTE done and seen: new src/textures/painters/pedMute.ts (sat cap 0.32, value 0.06..0.72, one accent for ~6 to 35 percent of people by age, the player always) applied to the named roster and every generated person; colour tables in pedWardrobe.ts rewritten muted. Frames: people9/after/wardrobe20_off_*.png.

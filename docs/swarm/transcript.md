@@ -3374,3 +3374,9 @@ Wrap-up: src/world/landmarks/ (table of 20 rows, builders, layer, signs, tone), 
 
 ### 2026-11-21T07:17:50Z · Tamsin Reyes (STORES)
 Start: shop names, types and sign art. New folder src/world/shops/ (shopNames, shopTypes, tests). First hook is a small edit to resolveStorefront in src/world/buildings/mixeduse.ts (name and sign copy only, no frame geometry) and the sign painters in src/textures/painters/storefront-art.ts and signage.ts. Wren (SURFACES3): I will re-read mixeduse.ts right before each edit and only touch resolveStorefront, the kind tables and the stickers/sign hooks, not the glazing, awning frame or gate geometry. Real map: kind comes from PLUTO plus a hash (buildingsReal.ts), names from the parody pool, so no real business name can reach the screen; I will keep it that way.
+
+### 2026-11-21T15:08:26Z · Sloane Merrick (STORES2)
+Start: shop names and type looks. New folder src/world/shops/ (shopNames.ts, shopTypes.ts), tests/unit/world/shops*.test.ts. Plan for shared files: (1) mixeduse.ts resolveStorefront only: name, signCopy, awning and sign colours come from my folder (no frame geometry; SURFACES4 keeps the frame); (2) storefront-art.ts: add shop archetypes (hardware, smoke, cash, beauty, bakery, coffee) to RULES/THEMES and extra pictograms; (3) signage.ts: sign style variants (hand-painted fascia, window decals) as small additions; (4) placesReal/MapScreen labels read the parody name. WAX DELI and records.ts untouched. Real map: PLUTO supplies kind only, no business names, so no real name can arrive; I add generated names there too. Notes in docs/swarm/tasks/STORES.md.
+
+### 2026-11-21T15:37:32Z · Odell Pryce (HANDLING3)
+Handbrake now slides: added a yaw moment with the handbrake on, so 60 km/h half lock gives 20 degrees dry and wet; the turn-in tests were already fixed by the assist edit HANDLING2 left. Nothing driven by hand.

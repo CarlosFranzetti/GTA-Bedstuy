@@ -258,7 +258,7 @@ export function paintBottom(K: Look, t: Tex, c: Px, leg: boolean): void {
       c.mix([226, 222, 210], 0.85 * g2(Math.hypot(ax - 0.014, (y - (K.hemTop - 0.03)) * 1.2), 0.0055) * fr);
     }
     // crotch and seat: shadow between the legs, soft folds at the hip
-    c.mul(1 - 0.2 * g2(ax, 0.03) * sst(K.hipY - 0.02, K.hipY - 0.1, y));
+    c.mul(1 - 0.07 * g2(ax, 0.045) * sst(K.hipY - 0.02, K.hipY - 0.1, y));
     c.mul(1 - 0.1 * g2(y - (K.hipY + 0.02), 0.05) * sst(0.1, 0.17, ax));
   }
   c.mul(0.93 + 0.1 * (t.nx * LIGHT.x + t.ny * LIGHT.y + t.nz * LIGHT.z));

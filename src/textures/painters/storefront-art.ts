@@ -14,12 +14,13 @@ export type AwningStyle = 'vinyl' | 'metal';
 
 export type Archetype =
   | 'bodega' | 'laundromat' | 'barber' | 'salon' | 'pizza' | 'kitchen' | 'liquor' | 'dollar'
-  | 'pharmacy' | 'daycare' | 'funeral' | 'auto' | 'church' | 'condo' | 'cellphone' | 'generic';
+  | 'pharmacy' | 'daycare' | 'funeral' | 'auto' | 'church' | 'condo' | 'cellphone' | 'generic'
+  | 'bakery' | 'coffee' | 'hardware' | 'cash' | 'smoke'; // STORES2
 
 export const PICTOGRAM_KINDS = [
   'sandwich', 'coffee', 'lottery', 'atm', 'washer', 'shirt', 'scissors', 'comb', 'braid', 'pizza', 'soda', 'bowl',
   'bottle', 'glass', 'tag', 'medcross', 'pill', 'block', 'star', 'candle', 'wrench', 'tire', 'cross', 'house',
-  'phone', 'chili', 'drumstick',
+  'phone', 'chili', 'drumstick', 'bread', 'leaf', 'dollar',
 ] as const;
 export type PictogramKind = (typeof PICTOGRAM_KINDS)[number];
 
@@ -102,14 +103,19 @@ const RULES: readonly [Archetype, RegExp][] = [
   ['funeral', /FUNERAL|MORTUARY/],
   ['condo', /LEASING|RESIDENCES?|CONDOS?|APARTMENTS?/],
   ['laundromat', /LAUNDR|\bWASH\b|K-O-MAT|DRY CLEAN|\bMAT\b/],
+  ['cash', /CHECKS? CASH|MONEY ORDER|PAYDAY|CASH ADVANCE|CASH-A/],
   ['barber', /BARBER|\bCUT[SZ]\b/],
-  ['salon', /BRAID|SALON|\bNAILS?\b|\bHAIR\b|\bLOCS\b|\bWEAVE/],
+  ['salon', /BRAID|SALON|\bNAILS?\b|\bHAIR\b|\bLOCS\b|\bWEAVE|BEAUTY|COSMETIC|\bLASH/],
   ['pharmacy', /PHARMAC|\bDRUGS?\b|\bRX\b|CHEMIST/],
+  ['smoke', /SMOKE SHOP|\bSMOKE\b|\bVAPE|TOBACCO|HOOKAH|CIGAR/],
+  ['hardware', /HARDWARE|LOCKSMITH|PLUMBING|LUMBER|\bTOOLS?\b|PAINT & /],
   ['cellphone', /WIRELESS|\bCELL\b|\bPHONES?\b|\bFONE|MOBILE|UNLOCK/],
   ['daycare', /DAY ?CARE|PRESCHOOL|SCHOLARS|ACADEMY|\bKIDS\b|NURSERY/],
   ['auto', /\bAUTO\b|\bTIRES?\b|GARAGE|MOTORS|BODY SHOP|\bREPAIRS?\b|MUFFLER/],
   ['liquor', /LIQUOR|\bWINES?\b|SPIRITS|\bBEER\b|TAVERN|\bBAR\b|LOUNGE|\bPUB\b/],
   ['pizza', /PIZZ|\bSLICES?\b/],
+  ['bakery', /BAKERY|BAKE SHOP|\bBREAD\b|PASTR|DONUT|BAGEL|\bCAKES?\b/],
+  ['coffee', /COFFEE|ESPRESSO|\bCAFE\b|TEA HOUSE/],
   ['kitchen', /KITCHEN|RESTAURANT|GRILL|CHICKEN|WINGS|OXTAIL|JERK|CARIBBEAN|CHINESE|TAKE-?OUT|\bFISH\b|SOUL FOOD|BBQ|DINER|BAKERY|\bCAFE\b/],
   ['dollar', /99¢|99C\b|\bDOLLAR\b|DISCOUNT/],
   ['bodega', /DELI|GROCER|BODEGA|MARKET|CORNER STORE|\bFOOD\b|\bMART\b|SUPERETTE|CONVENIENCE/],
@@ -159,6 +165,11 @@ const THEMES: Record<Archetype, Theme> = {
   condo: { stripe: 'pin', colors: ['#3a3a3a'], pictograms: ['house'], phone: true },
   cellphone: { stripe: 'zigzag', colors: ['#2ee6ff', '#ffffff', '#7a3cff'], pictograms: ['phone', 'phone'], phone: true },
   generic: { stripe: 'none', colors: [], pictograms: [], phone: false },
+  bakery: { stripe: 'dots', colors: ['#c59a3a', '#f4e6c8'], pictograms: ['bread', 'coffee'], phone: true },
+  coffee: { stripe: 'pin', colors: ['#d4af37'], pictograms: ['coffee', 'bread'], phone: true },
+  hardware: { stripe: 'bands', colors: ['#c8242a', '#ffffff', '#1d2328'], pictograms: ['wrench', 'tag'], phone: true },
+  cash: { stripe: 'bands', colors: ['#d9c12f', '#1f6f4a'], pictograms: ['dollar', 'dollar'], phone: false },
+  smoke: { stripe: 'zigzag', colors: ['#4a2a6a', '#2f6f4f'], pictograms: ['leaf', 'glass'], phone: true },
 };
 
 export type Cuisine = 'caribbean' | 'soul' | 'chinese';
@@ -284,7 +295,7 @@ export const PICTOGRAM_COLOR: Record<PictogramKind, string> = {
   scissors: '#9aa0a6', comb: '#d62828', braid: '#5a3220', pizza: '#f2b134', soda: '#d32f2f', bowl: '#c4252b',
   bottle: '#1d6b3a', glass: '#c4252b', tag: '#d62828', medcross: '#0a7f5a', pill: '#d62828', block: '#e53935',
   star: '#f2b134', candle: '#f1ead8', wrench: '#444444', tire: '#c4252b', cross: '#5a2d82', house: '#7a4a2a',
-  phone: '#2b3a55', chili: '#d62828', drumstick: '#c9822b',
+  phone: '#2b3a55', chili: '#d62828', drumstick: '#c9822b', bread: '#c9922b', leaf: '#3a8a3a', dollar: '#2f7a43',
 };
 
 /** Rounded-rectangle path (quadratic corners) centred at (cx, cy); the caller fills/strokes. */
@@ -633,6 +644,32 @@ export function drawPictogram(
       rect(-0.78, -0.62, 0.34, 0.22, '#3a7d2a');
       line([-0.6, -0.5, -0.9, -0.85], 0.1, '#3a7d2a');
       break;
+    case 'bread':
+      ctx.fillStyle = color;
+      ctx.save();
+      ctx.translate(0, 0.12 * u);
+      ctx.scale(1, 0.53);
+      ctx.beginPath();
+      ctx.arc(0, 0, 0.95 * u, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      for (const sx of [-0.45, 0, 0.45]) line([sx - 0.1, -0.15, sx + 0.1, 0.35], 0.09, '#f4e0b0');
+      break;
+    case 'leaf':
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(-0.85 * u, 0.7 * u);
+      ctx.quadraticCurveTo(-0.9 * u, -0.8 * u, 0.85 * u, -0.8 * u);
+      ctx.quadraticCurveTo(0.9 * u, 0.7 * u, -0.85 * u, 0.7 * u);
+      ctx.fill();
+      line([-0.7, 0.62, 0.5, -0.55], 0.08, '#e8f4d0');
+      break;
+    case 'dollar':
+      disc(0, 0, 0.9, color);
+      disc(0, 0, 0.72, '#f4efe4');
+      line([0.28, -0.4, -0.2, -0.45, -0.3, -0.12, 0.3, 0.12, 0.22, 0.45, -0.3, 0.42], 0.13, color);
+      line([0, -0.62, 0, 0.62], 0.08, color);
+      break;
     case 'drumstick':
       ctx.save();
       ctx.rotate(-Math.PI / 4);
@@ -748,12 +785,14 @@ export function drawStripe(
 
 // ---------------------------------------------------------------------------------------------- stickers
 
-export type StickerKind = 'atm' | 'ebt' | 'lotto' | 'h24' | 'open' | 'camera' | 'noloiter' | 'menu';
+export type StickerKind = 'atm' | 'ebt' | 'lotto' | 'h24' | 'open' | 'camera' | 'noloiter' | 'menu'
+  | 'hotslices' | 'cross' | 'halal' | 'cash' | 'fresh' | 'phonefix' | 'coffee' | 'bake' | 'pole'
+  | 'produce' | 'oven' | 'flowers'; // STORES2
 
 /** One slot of the 512x384 sticker atlas (px) and the sticker's real size in metres (same pixel density both axes). */
 export interface StickerSlot { x: number; y: number; w: number; h: number; wM: number; hM: number }
 
-export const STICKER_ATLAS = { w: 512, h: 384 } as const;
+export const STICKER_ATLAS = { w: 512, h: 896 } as const;
 export const STICKER_SLOTS: Record<StickerKind, StickerSlot> = {
   atm: { x: 0, y: 0, w: 128, h: 128, wM: 0.3, hM: 0.3 },
   ebt: { x: 128, y: 0, w: 128, h: 128, wM: 0.3, hM: 0.3 },
@@ -763,6 +802,20 @@ export const STICKER_SLOTS: Record<StickerKind, StickerSlot> = {
   camera: { x: 256, y: 128, w: 128, h: 128, wM: 0.3, hM: 0.3 },
   noloiter: { x: 384, y: 128, w: 128, h: 128, wM: 0.3, hM: 0.3 },
   menu: { x: 0, y: 256, w: 128, h: 128, wM: 0.3, hM: 0.3 },
+  // STORES2: trade decals. Same pixel density (128 px = 0.3 m).
+  cross: { x: 128, y: 256, w: 128, h: 128, wM: 0.3, hM: 0.3 },
+  halal: { x: 256, y: 256, w: 128, h: 128, wM: 0.3, hM: 0.3 },
+  cash: { x: 384, y: 256, w: 128, h: 128, wM: 0.3, hM: 0.3 },
+  hotslices: { x: 0, y: 384, w: 256, h: 128, wM: 0.6, hM: 0.3 },
+  fresh: { x: 256, y: 384, w: 128, h: 128, wM: 0.3, hM: 0.3 },
+  pole: { x: 384, y: 384, w: 128, h: 256, wM: 0.3, hM: 0.6 },
+  phonefix: { x: 0, y: 512, w: 128, h: 128, wM: 0.3, hM: 0.3 },
+  coffee: { x: 128, y: 512, w: 128, h: 128, wM: 0.3, hM: 0.3 },
+  bake: { x: 256, y: 512, w: 128, h: 128, wM: 0.3, hM: 0.3 },
+  // dressing art: a fruit-stand top, the pizza oven's glow (emissive at night), a bucket of flowers
+  produce: { x: 0, y: 640, w: 256, h: 128, wM: 0.6, hM: 0.3 },
+  oven: { x: 256, y: 640, w: 256, h: 128, wM: 0.6, hM: 0.3 },
+  flowers: { x: 0, y: 768, w: 128, h: 128, wM: 0.3, hM: 0.3 },
 };
 
 // ---------------------------------------------------------------------------------------------- parody names
@@ -784,7 +837,7 @@ export const STORE_NAMES: Record<StoreKind, readonly string[]> = {
     'TWO BROTHERS GROCERY  ·  LOTTO  ·  EBT', 'CORNER KING DELI & GROCERY  ·  ATM',
   ],
   deli: [
-    'HEROES DELI  ·  SANDWICHES  ·  BREAKFAST', 'FRESH TO ORDER DELI  ·  BACON EGG & CHEESE', 'ALL DAY BREAKFAST DELI  ·  COFFEE  ·  HEROES',
+    'HEROES DELI  ·  SANDWICHES  ·  BREAKFAST', 'FRESH TO ORDER DELI  ·  BACON EGG & CHEESE', 'ALL DAY BREAKFAST DELI  ·  HOT & COLD  ·  HEROES',
     'SANDWICH KINGS DELI  ·  HOT & COLD',
   ],
   laundromat: [
@@ -847,7 +900,7 @@ export function storefrontName(kind: StoreKind, n: number, cuisine?: Cuisine | n
  */
 export const STORE_SIGNS: Record<StoreKind, readonly string[]> = {
   bodega: ['DELI & GROCERY  ·  OPEN 24 HRS  ·  ATM', 'GROCERY  ·  FRESH DELI  ·  WE ACCEPT EBT', 'FOOD MARKET  ·  LOTTO  ·  ATM', 'CORNER STORE  ·  COLD DRINKS  ·  EBT'],
-  deli: ['DELI  ·  HOT & COLD SANDWICHES', 'DELI  ·  BREAKFAST  ·  LUNCH', 'HEROES & DELI  ·  COFFEE'],
+  deli: ['DELI  ·  HOT & COLD SANDWICHES', 'DELI  ·  BREAKFAST  ·  LUNCH', 'HEROES & DELI  ·  HOT & COLD'],
   laundromat: ['COIN LAUNDRY  ·  WASH DRY FOLD', 'LAUNDROMAT  ·  DROP-OFF SERVICE', 'LAUNDROMAT  ·  OPEN 7 DAYS'],
   barber: ['BARBER SHOP  ·  WALK-INS', 'BARBERS  ·  FADES & LINE-UPS', 'BARBER SHOP  ·  KIDS CUTS'],
   liquor: ['WINE & LIQUOR', 'LIQUOR STORE  ·  OPEN LATE', 'WINES  ·  SPIRITS  ·  LIQUOR'],

@@ -72,7 +72,7 @@ export interface HandlingClass {
 
 const BASE: HandlingClass = {
   wheelbaseFrac: 0.6, weightFront: 0.55, hcg: 0.55, yawK: 1.25,
-  muF: 1.05, muR: 1.2, peakF: 9, peakR: 10, floorF: 0.86, floorR: 0.8, loadSens: 0.35, rollBias: 0.08,
+  muF: 1.1, muR: 1.24, peakF: 9, peakR: 10, floorF: 0.86, floorR: 0.8, loadSens: 0.35, rollBias: 0.08,
   brakeBias: 0.7, abs: true, engineBrake: 1.6, gears: 5, gearFeel: 0.16, shiftCut: 0.12, tractionBoost: 1.7, hbRear: 0.16,
   steerRef: 15, steerRate: 1.0, yawCap: 1.0, yawAccel: 7, yawMax: 2.3,
   rollGain: 0.0085, pitchGain: 0.0055, rollMax: 0.11, pitchMax: 0.075, springK: 55, springC: 7.5,
@@ -90,10 +90,10 @@ export const HANDLING_CLASSES: Record<HandlingClassName, HandlingClass> = {
   muscle: c({ yawCap: 0.95, weightFront: 0.53, yawK: 1.4, muF: 0.95, muR: 1.12, peakF: 10, peakR: 11, floorF: 0.84, floorR: 0.72, brakeBias: 0.66, abs: false, engineBrake: 1.2, gears: 4, gearFeel: 0.22, rollGain: 0.009, springK: 60, steerRef: 11, tractionBoost: 1.8 }),
   sports: c({ yawCap: 1.3, weightFront: 0.5, hcg: 0.45, yawK: 1.05, muF: 1.18, muR: 1.3, peakF: 8, peakR: 8.5, floorF: 0.88, floorR: 0.84, engineBrake: 1.3, gears: 6, rollGain: 0.0045, pitchGain: 0.0035, springK: 100, springC: 12, yawAccel: 9.5, steerRef: 12, tractionBoost: 1.5 }),
   supercar: c({ yawCap: 1.45, weightFront: 0.44, hcg: 0.4, yawK: 0.95, muF: 1.35, muR: 1.5, peakF: 7.5, peakR: 8, floorF: 0.9, floorR: 0.88, engineBrake: 1.2, gears: 7, gearFeel: 0.12, rollGain: 0.0035, pitchGain: 0.003, springK: 120, springC: 14, yawAccel: 11, steerRef: 11, tractionBoost: 1.9 }),
-  suv: c({ yawCap: 0.9, weightFront: 0.53, hcg: 0.85, yawK: 1.4, muF: 0.98, muR: 1.22, peakF: 10, peakR: 11, floorF: 0.85, floorR: 0.82, loadSens: 0.65, rollBias: 0.12, rollGain: 0.0125, pitchGain: 0.0075, rollMax: 0.14, springK: 42, springC: 6.5, yawAccel: 5.5, steerRef: 14, tractionBoost: 1.5 }),
-  bigsuv: c({ yawCap: 0.85, weightFront: 0.52, hcg: 0.95, yawK: 1.55, muF: 0.94, muR: 1.18, peakF: 10.5, peakR: 11, floorF: 0.84, floorR: 0.8, loadSens: 0.7, rollBias: 0.14, rollGain: 0.0145, pitchGain: 0.0085, rollMax: 0.15, springK: 38, springC: 6, yawAccel: 4.8, steerRef: 13, tractionBoost: 1.4 }),
-  pickup: c({ yawCap: 0.9, weightFront: 0.57, hcg: 0.8, yawK: 1.5, muF: 0.95, muR: 1.12, peakF: 10, peakR: 11, floorF: 0.85, floorR: 0.78, loadSens: 0.6, brakeBias: 0.72, rollGain: 0.011, pitchGain: 0.0075, rollMax: 0.14, springK: 40, springC: 6, yawAccel: 5, steerRef: 13, tractionBoost: 1.3 }),
-  van: c({ yawCap: 0.85, weightFront: 0.5, hcg: 1.0, yawK: 1.6, muF: 0.92, muR: 1.15, peakF: 10, peakR: 11, loadSens: 0.75, rollBias: 0.12, engineBrake: 2.0, rollGain: 0.0145, pitchGain: 0.008, rollMax: 0.15, springK: 36, springC: 6, yawAccel: 4.5, steerRef: 13, tractionBoost: 1.35 }),
+  suv: c({ yawCap: 1.0, weightFront: 0.53, hcg: 0.85, yawK: 1.4, muF: 0.98, muR: 1.22, peakF: 10, peakR: 11, floorF: 0.85, floorR: 0.82, loadSens: 0.65, rollBias: 0.12, rollGain: 0.0125, pitchGain: 0.0075, rollMax: 0.14, springK: 42, springC: 6.5, yawAccel: 5.5, steerRef: 14, tractionBoost: 1.5 }),
+  bigsuv: c({ yawCap: 0.95, weightFront: 0.52, hcg: 0.95, yawK: 1.55, muF: 0.94, muR: 1.18, peakF: 10.5, peakR: 11, floorF: 0.84, floorR: 0.8, loadSens: 0.7, rollBias: 0.14, rollGain: 0.0145, pitchGain: 0.0085, rollMax: 0.15, springK: 38, springC: 6, yawAccel: 4.8, steerRef: 13, tractionBoost: 1.4 }),
+  pickup: c({ yawCap: 1.0, weightFront: 0.57, hcg: 0.8, yawK: 1.5, muF: 0.95, muR: 1.12, peakF: 10, peakR: 11, floorF: 0.85, floorR: 0.78, loadSens: 0.6, brakeBias: 0.72, rollGain: 0.011, pitchGain: 0.0075, rollMax: 0.14, springK: 40, springC: 6, yawAccel: 5, steerRef: 13, tractionBoost: 1.3 }),
+  van: c({ yawCap: 0.95, weightFront: 0.5, hcg: 1.0, yawK: 1.6, muF: 0.92, muR: 1.15, peakF: 10, peakR: 11, loadSens: 0.75, rollBias: 0.12, engineBrake: 2.0, rollGain: 0.0145, pitchGain: 0.008, rollMax: 0.15, springK: 36, springC: 6, yawAccel: 4.5, steerRef: 13, tractionBoost: 1.35 }),
   truck: c({ yawCap: 0.6, wheelbaseFrac: 0.64, weightFront: 0.42, hcg: 1.25, yawK: 1.8, muF: 0.9, muR: 1.12, peakF: 11, peakR: 12, loadSens: 0.85, abs: false, brakeBias: 0.6, engineBrake: 2.4, gears: 6, gearFeel: 0.25, shiftCut: 0.2, rollGain: 0.016, pitchGain: 0.009, rollMax: 0.16, pitchMax: 0.08, springK: 32, springC: 5.5, yawAccel: 3.5, yawMax: 1.7, steerRef: 13, steerRate: 0.9, tractionBoost: 1.25 }),
   heavy: c({ yawCap: 0.7, wheelbaseFrac: 0.62, weightFront: 0.45, hcg: 1.35, yawK: 1.9, muF: 0.88, muR: 1.1, peakF: 11, peakR: 12, loadSens: 0.9, abs: false, brakeBias: 0.6, engineBrake: 3.0, gears: 6, gearFeel: 0.28, shiftCut: 0.25, rollGain: 0.017, pitchGain: 0.009, rollMax: 0.17, pitchMax: 0.08, springK: 30, springC: 5.5, yawAccel: 3.0, yawMax: 1.5, steerRef: 12, steerRate: 0.85, tractionBoost: 1.2 }),
   bus: c({ yawCap: 0.65, wheelbaseFrac: 0.58, weightFront: 0.4, hcg: 1.3, yawK: 2.0, muF: 0.88, muR: 1.05, peakF: 11, peakR: 12, loadSens: 0.85, abs: false, brakeBias: 0.58, engineBrake: 3.0, gears: 6, gearFeel: 0.25, shiftCut: 0.22, rollGain: 0.014, pitchGain: 0.009, rollMax: 0.15, pitchMax: 0.08, springK: 30, springC: 5.5, yawAccel: 2.4, yawMax: 1.3, steerRef: 12, steerRate: 0.8, tractionBoost: 1.2 }),
@@ -151,7 +151,7 @@ const OPPOSE_BRAKE = 0.8;
 const HANDBRAKE_DECEL_FRAC = 0.2;
 const STEER_RATE = 5.6;           // full lock in ~0.18 s at a crawl (keys)
 const STEER_RATE_SPEED = 30;      // m/s scale on which the key rate falls: at 60 km/h (16.7 m/s) it is still 3.6/s, 0.28 s to lock
-const STEER_RETURN_MULT = 1.6;
+const STEER_RETURN_MULT = 1.0;
 const ANALOG_FOLLOW = 7;
 const LOW_YAW_CAP = 0.5;
 const HIGH_YAW_CAP = 1.0;
@@ -174,6 +174,10 @@ const SLIDE_ASSIST_MIN = 0.3;
 const SCRUB = 0.5;
 /** yaw acceleration (rad/s^2) a fully rear-driven car gets at full load and full lock (power oversteer's push) */
 const POWER_ROTATE = 1.3;
+/** HANDLING3: yaw acceleration (rad/s^2, for a class with yawAccel 7; scaled down to nothing for a bus) the handbrake adds with the wheel turned. A locked rear axle has almost no side force
+ * to swing against, but a real handbrake turn also throws the nose round by weight transfer and the locked rear stepping out; the bicycle model alone
+ * only turned the velocity with the nose (slip 3 degrees after 0.5 s, 2 degrees wet). This moment makes a tap rotate the car and a hold slide. */
+const HB_ROTATE = 8.5;
 
 const ENGINE_BRAKE_FADE = 2;
 
@@ -253,7 +257,7 @@ export class HandlingModel {
       this.steerNorm += (s - this.steerNorm) * Math.min(1, ANALOG_FOLLOW * h);
     } else {
       const returning = Math.abs(s) < Math.abs(this.steerNorm) && s * this.steerNorm >= 0;
-      const rate = (STEER_RATE * cl.steerRate * this.steerRateScale / (1 + uAbs / STEER_RATE_SPEED)) * (returning ? STEER_RETURN_MULT * (1 + uAbs / 12) : 1);
+      const rate = (STEER_RATE * cl.steerRate * this.steerRateScale / (1 + uAbs / STEER_RATE_SPEED)) * (returning ? STEER_RETURN_MULT * (1 + uAbs / 24) : 1);
       this.steerNorm += clamp(s - this.steerNorm, -rate * h, rate * h);
     }
 
@@ -359,7 +363,8 @@ export class HandlingModel {
     // (HANDLING2: only in proportion to the dynamic share `wDyn`. In the kinematic blend below ~6 m/s the rear "slip angle" b r / u of an ordinary tight
     // turn is large without any slide, and the assist used to close the steering to about 80 percent exactly at junction speeds.)
     const wDyn = u > 0 ? smooth(KIN_BELOW, DYN_ABOVE, u) : 0;
-    if (u > KIN_BELOW && delta * this.alphaR < 0 && xRear > SLIDE_ASSIST_FROM) delta *= 1 - wDyn * (1 - clamp(1 - (xRear - SLIDE_ASSIST_FROM) / SLIDE_ASSIST_SPAN, SLIDE_ASSIST_MIN, 1));
+    const hbK = input.handbrake ? clamp((1 - this.rearCap) / (1 - cl.hbRear), 0, 1) : 0;
+    if (hbK < 0.5 && u > KIN_BELOW && delta * this.alphaR < 0 && xRear > SLIDE_ASSIST_FROM) delta *= 1 - wDyn * (1 - clamp(1 - (xRear - SLIDE_ASSIST_FROM) / SLIDE_ASSIST_SPAN, SLIDE_ASSIST_MIN, 1));
     this.delta = delta;
 
     // ---- dynamic bicycle (forward speeds)
@@ -379,7 +384,9 @@ export class HandlingModel {
     const Fyr = -Math.sign(this.alphaR) * capR * tyreShape(xR, floorR);
     const cd = Math.cos(delta), sd = Math.sin(delta);
     const vDot = (Fyf * cd + Fyr) / m - u * r;
-    const rDot = (a * Fyf * cd - b * Fyr) / this.iz - (recovering ? 2.8 * r : 0)
+    const rDot = (a * Fyf * cd - b * Fyr) / this.iz - (recovering ? 4 * r : 0)
+      + HB_ROTATE * clamp((cl.yawAccel - 2) / 5, 0, 1.2) * hbK * this.steerNorm * smooth(KIN_BELOW, 8, uAbs)
+        * (r * this.steerNorm > 0 ? clamp((cl.yawMax - Math.abs(r)) / (0.35 * cl.yawMax), 0, 1) : 1) // fades out as the yaw cap nears
       + POWER_ROTATE * rs * this.driveLoad * this.steerNorm * Math.min(1, uAbs / 12); // a rear-driven car under power tucks its nose in
     const uDot = Fx / m + v * r - (SCRUB * Fyf * sd) / m;
     const aLatForce = (Fyf * cd + Fyr) / m;

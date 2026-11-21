@@ -18,7 +18,8 @@ float gdBoxSd( vec2 p, vec2 h ) { vec2 d = abs( p ) - h; return length( max( d, 
 
 /** asphalt: the whole branch of the ground detail shader for kind 1 */
 export const ASPHALT_GLSL = `
-vec3 gdCol = diffuseColor.rgb;
+// the CC0 asphalt photo is about 0.19 sRGB (0.03 linear): lift it to a tarmac albedo of about 0.09 linear (DIRECTION.md: 0.07 to 0.12, never black)
+vec3 gdCol = diffuseColor.rgb * 3.1;
 float gdSeed = 0.37; float gdCls = 0.0; bool gdRoad = false; vec4 gdRd = vec4( 0.0 );
 #ifdef USE_COLOR_ALPHA
   gdRd = vColor; gdCls = floor( gdRd.y ); gdSeed = fract( gdRd.y ); gdRoad = gdRd.x > 1.5 && gdRd.w > gdRd.z;
@@ -81,7 +82,7 @@ if ( gdRoad ) {
   }
   // thermal cracks across the lanes, sealed, every few metres in places
   float sm = rs + gdSeed * 77.0; float xi = floor( sm / 7.0 ); float xh = gdHash( vec2( xi, gdSeed * 77.0 + 2.0 ) );
-  if ( xh > 0.7 ) {
+  if ( xh > 0.55 ) {
     float posm = ( xi + 0.2 + 0.6 * gdHash( vec2( xi, 3.0 ) ) ) * 7.0;
     float xd = abs( sm - posm + ( gdNoise( vec2( rc * 1.3, xi ) ) - 0.5 ) * 1.4 + ( gdNoise( vec2( rc * 7.0, xi ) ) - 0.5 ) * 0.1 );
     float la = mix( -rhw + 0.6, 0.0, gdHash( vec2( xi, 4.0 ) ) );
@@ -162,7 +163,7 @@ if ( gdRoad ) {
     float gsd = gdBoxSd( gq, vec2( 0.5, 0.24 ) );
     float gin = 1.0 - smoothstep( -0.01, 0.012, gsd );
     float bars = step( 0.38, fract( gq.x * 7.5 ) );
-    vec3 gcol = vec3( 0.05, 0.05, 0.052 ) * ( 0.7 + 0.6 * gdNoise( gw * 5.0 ) ) * ( 0.35 + 0.9 * bars ) * ( 1.0 + 1.2 * ( 1.0 - smoothstep( 0.0, 0.05, -gsd ) ) * 0.25 );
+    vec3 gcol = vec3( 0.11, 0.11, 0.115 ) * ( 0.7 + 0.6 * gdNoise( gw * 5.0 ) ) * ( 0.35 + 0.9 * bars ) * ( 1.0 + 1.2 * ( 1.0 - smoothstep( 0.0, 0.05, -gsd ) ) * 0.25 );
     gdOver = mix( gdOver, gcol, gin ); gdOverM = max( gdOverM, gin );
     gdTone *= 1.0 - ( 1.0 - smoothstep( 0.0, 0.2, gsd ) ) * ( 1.0 - gin ) * 0.3;
   }
@@ -173,7 +174,7 @@ if ( gdRoad ) {
     float vr = length( vq );
     float vin = 1.0 - smoothstep( 0.095, 0.108, vr );
     float vslot = step( abs( vq.x ), 0.015 ) * step( abs( vq.y ), 0.06 ) + step( abs( vq.y ), 0.015 ) * step( abs( vq.x ), 0.06 );
-    vec3 vcol = vec3( 0.06, 0.055, 0.052 ) * ( 0.8 + 0.5 * gdNoise( gw * 9.0 ) ) * ( 1.0 + vslot * 1.3 + smoothstep( 0.08, 0.095, vr ) * 1.1 );
+    vec3 vcol = vec3( 0.13, 0.12, 0.115 ) * ( 0.8 + 0.5 * gdNoise( gw * 9.0 ) ) * ( 1.0 + vslot * 1.3 + smoothstep( 0.08, 0.095, vr ) * 1.1 );
     gdOver = mix( gdOver, vcol, vin ); gdOverM = max( gdOverM, vin );
     gdTone *= 1.0 - ( 1.0 - smoothstep( 0.1, 0.2, vr ) ) * ( 1.0 - vin ) * 0.3;
   }
@@ -201,7 +202,7 @@ if ( gdRoad ) {
     float hring = smoothstep( 0.34, 0.37, hr ) * hin;
     float hang = atan( hq.y, hq.x );
     float hgrid = step( 0.5, fract( hr * 9.0 ) ) * 0.25 + step( 0.82, abs( sin( hang * 6.0 ) ) ) * 0.2;
-    vec3 hcol = vec3( 0.07, 0.065, 0.062 ) * ( 0.7 + 0.6 * gdNoise( gw * 4.0 ) ) * ( 1.0 + hgrid + hring * 0.6 );
+    vec3 hcol = vec3( 0.14, 0.13, 0.125 ) * ( 0.7 + 0.6 * gdNoise( gw * 4.0 ) ) * ( 1.0 + hgrid + hring * 0.6 );
     gdCol = mix( gdCol, hcol / max( gdTone, 0.3 ), hin );
     gdTone *= 1.0 - ( 1.0 - smoothstep( 0.46, 0.62, hr ) ) * ( 1.0 - hin ) * 0.25;
   }
@@ -219,7 +220,7 @@ if ( kh > 0.95 ) {
   vec2 kq = ( fract( kc ) - kctr ) * 43.0 + ( vec2( gdNoise( gw * 0.8 ), gdNoise( gw * 0.8 + 3.1 ) ) - 0.5 ) * 1.2;
   float ksd = gdBoxSd( kq, vec2( 1.2 + gdHash( ki + 3.3 ) * 2.0, 1.0 + gdHash( ki + 4.4 ) * 1.4 ) );
   float km = 1.0 - smoothstep( -0.05, 0.08, ksd );
-  vec3 kcol = vec3( 0.4, 0.385, 0.36 ) * dtlGain( 2.0, gw / 2.4, 1.5 ) * ( 0.75 + 0.5 * gdNoise( gw * 0.7 ) );
+  vec3 kcol = vec3( 0.2, 0.192, 0.18 ) * dtlGain( 2.0, gw / 2.4, 1.5 ) * ( 0.75 + 0.5 * gdNoise( gw * 0.7 ) );
   gdCol = mix( gdCol, kcol, km * 0.85 );
 }
 diffuseColor.rgb = mix( gdCol * gdTone, gdOver, gdOverM );
@@ -342,11 +343,11 @@ export const PAINT_GLSL = `
 vec2 fc = floor( gw / 17.0 ); float fh = gdHash( fc + 51.0 );
 float fade = fh > 0.8 ? 1.2 : ( fh < 0.32 ? 0.62 + 0.2 * gdNoise( gw * 1.7 ) : 1.0 );
 // worn thermoplastic: chips are blobs of 10 to 40 cm with ragged edges (smooth noise, no per-pixel speckle), thinner in the wheel paths
-float wearN = gdNoise( gw * 4.1 ) * 0.5 + gdNoise( gw * 9.3 ) * 0.32 + gdNoise( gw * 21.0 ) * 0.18;
+float wearN = gdNoise( gw * 2.6 ) * 0.5 + gdNoise( gw * 6.5 ) * 0.32 + gdNoise( gw * 15.0 ) * 0.18;
 float wearLow = gdNoise( gw * 0.17 + 2.0 );
-float chip = smoothstep( 0.66, 0.74, wearN * ( 0.55 + 0.8 * wearLow ) + ( fh < 0.32 ? 0.1 : 0.0 ) );
+float chip = smoothstep( 0.69, 0.77, wearN * ( 0.55 + 0.8 * wearLow ) + ( fh < 0.32 ? 0.1 : 0.0 ) );
 vec3 paintCol = diffuseColor.rgb * fade * ( 0.95 + 0.1 * gdNoise( gw * 1.1 ) );
 // grey tyre-dust and a thin dirty rim where the paint meets the road
 paintCol *= mix( 1.0, 0.78, smoothstep( 0.4, 0.62, wearN ) * 0.5 );
-diffuseColor.rgb = mix( paintCol, vec3( 0.075, 0.078, 0.082 ) * ( 0.85 + 0.3 * gdNoise( gw * 9.0 ) ), chip * 0.85 );
+diffuseColor.rgb = mix( paintCol, vec3( 0.1, 0.102, 0.108 ) * ( 0.85 + 0.3 * gdNoise( gw * 9.0 ) ), chip * 0.8 );
 `;

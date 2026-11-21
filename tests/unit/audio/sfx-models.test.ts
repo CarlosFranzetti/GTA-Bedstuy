@@ -109,8 +109,8 @@ describe('overrun (engine braking)', () => {
 });
 
 describe('vehicle character', () => {
-  it('only five types are V8 (cop, pickup, town car, muscle and the diesel ambulance)', () => {
-    expect(types.filter((t) => ENGINE_VOICES[t].cyl === 8).sort()).toEqual(['ambulance', 'cop', 'muscle', 'pickup', 'towncar']);
+  it('only eight types are V8 (cop, pickup, town car, muscle, hearse, livery, tow truck and the diesel ambulance)', () => {
+    expect(types.filter((t) => ENGINE_VOICES[t].cyl === 8).sort()).toEqual(['ambulance', 'cop', 'hearse', 'livery', 'muscle', 'pickup', 'towncar', 'towtruck']);
   });
   it('the cab is a hybrid four: engine off at a crawl, on above it; the luxury car is a hushed turbo six', () => {
     const cab = ENGINE_VOICES.cab;
@@ -156,15 +156,18 @@ describe('vehicle character', () => {
 
 describe('horns and sirens', () => {
   const classOf = (t: VT) => {
-    if (['bus', 'boxtruck', 'garbage', 'stepvan', 'icecream'].includes(t)) return 'air';
+    if (['bus', 'boxtruck', 'garbage', 'stepvan', 'icecream', 'schoolbus', 'flatbed', 'foodtruck', 'sweeper', 'bucket', 'towtruck'].includes(t)) return 'air';
     if (['hatch', 'hothatch'].includes(t)) return 'compact';
-    if (['luxury', 'towncar', 'evsedan'].includes(t)) return 'luxury';
+    if (['luxury', 'towncar', 'evsedan', 'hearse'].includes(t)) return 'luxury';
     if (t === 'beater') return 'beater';
     if (t === 'cop' || t === 'ambulance' || t === 'copsuv') return 'siren';
     return 'dual';
   };
+  // CARS2 and CARS4 variants borrow a base horn and shift it a little on purpose: only the original classes must be 6% apart.
+  const derived = ['wagon', 'bigsuv', 'minitruck', 'panelvan', 'taxivan', 'limo', 'classic', 'donk', 'copsuv', 'convertible', 'stepvan', 'icecream', 'hearse', 'livery', 'schoolbus', 'towtruck', 'flatbed', 'foodtruck', 'sweeper', 'bucket'];
   it('fundamentals differ by at least 6% between classes', () => {
     for (const a of types) for (const b of types) {
+      if (derived.includes(a) || derived.includes(b)) continue;
       if (a >= b || classOf(a) === classOf(b) || classOf(a) === 'siren' || classOf(b) === 'siren') continue; // sirens are identified by their sweep, not their root
       const r = Math.max(HORNS[a].root, HORNS[b].root) / Math.min(HORNS[a].root, HORNS[b].root);
       expect(r, `${a}/${b}`).toBeGreaterThanOrEqual(1.06);

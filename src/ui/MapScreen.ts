@@ -1,6 +1,7 @@
 import './map.css';
 import type { Vec2 } from '@/core/Math2';
 import type { GridModel, Lot, PoiDef } from '@/world/types';
+import { resolveStorefront } from '@/world/buildings/mixeduse';
 import { NAV_TARGETS } from '@/game/missions/NavTargets';
 import { getWaypoint, onWaypointChange, setWaypoint } from '@/game/missions/Waypoint';
 import { createPointerRouter, type PointerRouter } from '@/game/missions/PointerRoute';
@@ -61,11 +62,20 @@ export function placesFromPois(grid: GridModel, pois: readonly PoiDef[]): MapPla
 }
 
 /** Shops and venues from the built lots, which include the Stage 9 east expansion. */
-export function placesFromLots(lots: readonly Pick<Lot, 'poi' | 'frontA' | 'frontB'>[]): MapPlace[] {
+export function placesFromLots(lots: readonly (Pick<Lot, 'poi' | 'frontA' | 'frontB'> & Partial<Pick<Lot, 'id' | 'type' | 'corner'>>)[]): MapPlace[] {
   const out: MapPlace[] = [];
-  for (const l of lots) if (l.poi) out.push({ id: l.poi.id, kind: 'shop', label: short(l.poi.sign), x: (l.frontA.x + l.frontB.x) / 2, z: (l.frontA.z + l.frontB.z) / 2, color: l.poi.awningColor });
+  for (const l of lots) {
+    const mid = { x: (l.frontA.x + l.frontB.x) / 2, z: (l.frontA.z + l.frontB.z) / 2 };
+    if (l.poi) out.push({ id: l.poi.id, kind: 'shop', label: short(l.poi.sign), ...mid, color: l.poi.awningColor });
+    else if (l.type === 'mixeduse' && l.corner && l.id && (l as { spec?: unknown }).spec) {
+      // STORES2: corner shops show the parody name their sign carries (the same resolve the building uses)
+      const sf = resolveStorefront(l as unknown as Lot, (l as { spec?: SpecLikeArg }).spec);
+      if (sf.shopType && !sf.shuttered) out.push({ id: `shop:${l.id}`, kind: 'shop', label: short(sf.name), ...mid, color: sf.awningColor });
+    }
+  }
   return out;
 }
+type SpecLikeArg = Parameters<typeof resolveStorefront>[1];
 
 export interface MapScreenOptions {
   /** HOME, venues, shops. Default: HOME and the deli only. El stations are added when none are given. */

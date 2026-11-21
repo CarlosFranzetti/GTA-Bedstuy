@@ -352,7 +352,7 @@ describe('true-aspect textures (no pre-squeeze)', () => {
 describe('storefront names and cuisines', () => {
   const EXPECT: Record<string, Archetype[]> = {
     bodega: ['bodega'], deli: ['bodega'], laundromat: ['laundromat'], barber: ['barber'], liquor: ['liquor'], pharmacy: ['pharmacy'],
-    daycare: ['daycare'], restaurant: ['kitchen', 'pizza'], cellphone: ['cellphone'], church: ['church'], generic: ['generic', 'dollar', 'auto'],
+    daycare: ['daycare'], restaurant: ['kitchen', 'pizza'], cellphone: ['cellphone'], church: ['church'], generic: ['generic', 'dollar', 'auto', 'cash'],
   };
 
   it('every pooled parody name classifies back to its own type', () => {

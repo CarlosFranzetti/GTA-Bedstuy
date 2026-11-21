@@ -12,6 +12,7 @@
  * No fillText: prints use a 3 x 5 pixel font drawn with rects. All art is invented (no real brands or people).
  */
 import { buildRoster, playerSpecId } from './pedRoster';
+import { muteSpec } from './pedMute';
 import type { Rng } from '@/core/Rng';
 import type { Painter } from '../canvas';
 
@@ -231,7 +232,7 @@ export const BASE_SPECS: readonly PedSpec[] = [
 ];
 
 /** the street population: BASE_SPECS' outfits worn by a mix of people, new outfits, and the player's random looks (pedRoster.ts) */
-export const PED_SPECS: PedSpec[] = buildRoster(BASE_SPECS);
+export const PED_SPECS: PedSpec[] = buildRoster(BASE_SPECS).map(muteSpec);
 /** the named roster (generated wardrobe people are appended after it, see registerSpec) */
 export const PED_VARIANT_COUNT = PED_SPECS.length;
 /** variants 0..CIVILIAN_COUNT-1 are the street civilians */
@@ -247,7 +248,7 @@ export function skirtShape(b: PedSpec['bottom'], dress: boolean): { hem: number;
 export function registerSpec(spec: PedSpec): number {
   const i = PED_SPECS.findIndex((s, k) => k >= PED_VARIANT_COUNT && s.id === spec.id);
   if (i >= 0) return i;
-  PED_SPECS.push(spec);
+  PED_SPECS.push(muteSpec(spec));
   return PED_SPECS.length - 1;
 }
 

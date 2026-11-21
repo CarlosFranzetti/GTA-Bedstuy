@@ -10,7 +10,7 @@ export const LEAF_VARIANTS = 3;
  */
 export const treeLeavesPainter: Painter = (ctx, w, h, rng, variant) => {
   const v = wrapVariant(variant, LEAF_VARIANTS);
-  const hue = [105, 120, 82][v];
+  const hue = [86, 98, 68][v]; // SURFACES4: olive and yellow-green, not emerald
   const cx = w / 2, cy = h / 2, R = w * 0.46;
   const leaf = (x: number, y: number, len: number, ang: number, fill: string, rib: string): void => {
     const c = Math.cos(ang), s = Math.sin(ang), wd = len * 0.36;
@@ -44,14 +44,14 @@ export const treeLeavesPainter: Painter = (ctx, w, h, rng, variant) => {
       const top = 1 - y / h;
       const inner = 1 - d / lr; // darker toward the lobe's core, brighter at its lit rim
       const l = 19 + top * 26 + (1 - inner) * 8 + rng.range(-3, 5);
-      leaf(x, y, rng.range(8, 15), rng.range(0, Math.PI * 2), hsl(hue + rng.range(-12, 12), rng.range(36, 58), l), hsl(hue + 6, 30, l + 10));
+      leaf(x, y, rng.range(8, 15), rng.range(0, Math.PI * 2), hsl(hue + rng.range(-12, 12), rng.range(24, 40), l), hsl(hue + 6, 30, l + 10));
     }
   }
   for (let i = 0; i < 40; i++) { // loose leaves on the rim
     const a = rng.range(0, Math.PI * 2), d = R * rng.range(0.7, 1.02);
     const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d * 0.9;
     const l = 28 + (1 - y / h) * 22 + rng.range(-3, 5);
-    leaf(x, y, rng.range(8, 14), rng.range(0, Math.PI * 2), hsl(hue + rng.range(-12, 12), rng.range(40, 60), l), hsl(hue + 6, 30, l + 10));
+    leaf(x, y, rng.range(8, 14), rng.range(0, Math.PI * 2), hsl(hue + rng.range(-12, 12), rng.range(26, 42), l), hsl(hue + 6, 30, l + 10));
   }
 };
 

@@ -24,12 +24,15 @@ import { Rng } from '@/core/Rng';
 import { createCanvas } from '@/textures/canvas';
 import { canvasReleased, releaseCanvasAfterUpload, texScale, texSize } from '@/textures/texTier';
 import type { Painter } from '@/textures/canvas';
-import { awningSlopePainter, awningValancePainter, signPainter, stickerAtlasPainter } from '@/textures/painters/signage';
+import { awningSlopePainter, awningValancePainter, signPainter, stickerAtlasPainter, type SignStyle } from '@/textures/painters/signage';
 import {
   STICKER_ATLAS, STICKER_SLOTS, cuisineOf, layoutAwning, ppmFor, storefrontName, storefrontSignCopy,
   type AwningStyle, type Cuisine, type StickerKind, type StoreKind,
 } from '@/textures/painters/storefront-art';
 import type { Archetype as PoiArchetype, IMaterialLibrary, Lot } from '@/world/types';
+import { SHOP_TYPES, typeOfArchetype, typesOfKind, type DressingKind, type ShopType } from '@/world/shops/shopTypes';
+import { pickShopType, shopIdentity } from '@/world/shops/shopNames';
+import { addShopDressing } from '@/world/shops/shopDressing';
 import { bayCentres, buildUpperFloors, familyMats, sideWallFrame, wallWithHoles, windows } from './facade';
 import type { Hole, LotBatch, LotCtx, LotOutput, RectOpt, V3 } from './facade';
 
@@ -96,6 +99,17 @@ export interface StorefrontSpec {
   shuttered: boolean;
   /** floors above the ground floor, when the data says */
   floorsAbove: number | null;
+  /** STORES2: the trade (shops/shopTypes.ts); drives sign colours, window decals, fascia style and sidewalk dressing */
+  shopType?: ShopType;
+  /** the short joke under the name (also on the awning after the dot) */
+  tagline?: string;
+  /** lit-box letters and ground, when the type sets them */
+  signColors?: readonly [string, string];
+  /** window decals this trade wears (replaces the store kind's default set) */
+  stickerSet?: readonly StickerKind[];
+  /** hand-painted board instead of a lit box */
+  fascia?: boolean;
+  dressing?: readonly DressingKind[];
 }
 
 /**
@@ -209,16 +223,30 @@ export function resolveStorefront(lot: Lot, lotSpec?: SpecLike | null, cornerLot
   }
   const roll = r.next();
   if (!kind) kind = weighted(cornerLot ? CORNER_WEIGHTS : MID_WEIGHTS, roll);
-  if (kind === 'restaurant' && !cuisine) {
-    const c = r.next();
-    cuisine = c < 0.4 ? 'caribbean' : c < 0.7 ? 'soul' : 'chinese';
-  }
   const h = Rng.hash(lot.id);
-  const text = input?.name ?? input?.sign ?? poi?.sign ?? storefrontName(kind, h >>> 3, cuisine);
-  if (kind === 'restaurant' && !cuisine) cuisine = cuisineOf(text);
-  const authored = !!(input?.name ?? input?.sign ?? poi?.sign);
-  const signCopy = authored || kind === 'church' || kind === 'daycare' ? text : storefrontSignCopy(kind, h >>> 11, cuisine);
-  const colors = AWNING_COLORS[kind];
+  // The `sign` text the WBURG import wrote into data lots was never checked against real shops: it is a hint for the trade
+  // only, and the sign says what the shops generator says. An explicit `name` and the 15 hand-made POIs keep their own text.
+  const fixedName: string | undefined = poi?.sign ?? input?.name ?? (poi ? input?.sign : undefined);
+  const authored = !!fixedName;
+  // STORES2: the trade. A hand-authored shop keeps its own name and takes the look of its archetype; a generated one
+  // picks a trade of its store kind (a "restaurant" lot becomes a pizzeria, a takeout, a jerk kitchen, a wing shop or a
+  // halal grill; a "generic" lot a dollar store, a braider, a hardware store, ...) and a parody name to match.
+  let shopType: ShopType | null = typeOfArchetype(input?.archetype ?? input?.kind ?? (poi ? String(poi.archetype) : undefined));
+  // a plain bodega, deli or liquor hint is only a store kind: the block gets the mix (corner grocery with a fruit stand, bakery,
+  // coffee shop, bar) unless the shop is a hand-made POI
+  const broad = shopType === 'bodega' || shopType === 'deli' || shopType === 'liquor';
+  if (!shopType || SHOP_TYPES[shopType].kind !== kind || (broad && !poi)) {
+    let cands = typesOfKind(kind).map((i) => ({ type: i.type, weight: i.weight }));
+    if (kind === 'restaurant' && cuisine) cands = cands.filter((c) => SHOP_TYPES[c.type].cuisine === cuisine);
+    shopType = cands.length ? pickShopType(cands, lot.id) : null;
+  }
+  if (kind === 'restaurant') cuisine = shopType ? SHOP_TYPES[shopType].cuisine : (cuisine ?? 'caribbean');
+  const id = shopType ? shopIdentity(shopType, lot.id) : null;
+  const text = fixedName ?? id?.name ?? storefrontName(kind, h >>> 3, cuisine);
+  if (kind === 'restaurant' && !cuisine && authored) cuisine = cuisineOf(text);
+  const signCopy = authored ? text : kind === 'church' || kind === 'daycare' ? text : id?.signCopy ?? storefrontSignCopy(kind, h >>> 11, cuisine);
+  const info = shopType ? SHOP_TYPES[shopType] : null;
+  const colors = info?.awning ?? AWNING_COLORS[kind];
   // un-authored shops colour their awning from the name, so one name is one shared texture tile
   const awningColor = input?.awningColor ?? poi?.awningColor ?? colors[Rng.hash(text) % colors.length];
   const opts = CLOSING[kind];
@@ -228,7 +256,10 @@ export function resolveStorefront(lot: Lot, lotSpec?: SpecLike | null, cornerLot
   // a few mid-block shops are closed down for good
   const shuttered = input?.shuttered ?? (!cornerLot && !poi && kind !== 'church' && r.chance(0.07));
   const fl = (lotSpec ?? (lot as LotWithSpec).spec)?.floors;
-  return { kind, cuisine, name: text, signCopy, awningColor, closesAt, shuttered, floorsAbove: typeof fl === 'number' && fl >= 2 ? Math.min(5, Math.round(fl) - 1) : null };
+  return {
+    kind, cuisine, name: text, signCopy, awningColor, closesAt, shuttered, floorsAbove: typeof fl === 'number' && fl >= 2 ? Math.min(5, Math.round(fl) - 1) : null,
+    shopType: shopType ?? undefined, tagline: id?.tagline, signColors: info?.sign, stickerSet: info?.stickers, fascia: info?.fascia, dressing: info?.dressing,
+  };
 }
 
 // ---------------------------------------------------------------------------------------------- plan (pure layout)
@@ -305,7 +336,7 @@ export function planStorefront(spec: StorefrontSpec, W: number, D: number, cs: C
   const mirror = cs === 'right';
   const kind = spec.kind;
   const cut = corner ? CORNER_CUT : 0;
-  const lit = kind !== 'church' && kind !== 'daycare' && !spec.shuttered;
+  const lit = kind !== 'church' && kind !== 'daycare' && !spec.shuttered && !spec.fascia;
   const sign: StorefrontPlan['sign'] = {
     front: corner ? { a: -SIGN_D, b: W - 0.3 } : { a: 0.3, b: W - 0.3 },
     side: null,
@@ -337,7 +368,7 @@ export function planStorefront(spec: StorefrontSpec, W: number, D: number, cs: C
 
   // window stickers: biggest first, front glazing nearest the door/corner first; corner shops put every other one on the side
   const stickers: PlannedSticker[] = [];
-  const pool = [...STICKER_SETS[kind]];
+  const pool = [...(spec.stickerSet ?? STICKER_SETS[kind])];
   if (spec.closesAt === null && (kind === 'bodega' || kind === 'deli' || kind === 'liquor')) pool.splice(1, 0, 'h24');
   if (spec.shuttered) pool.length = 0;
   const cursor = { front: 0.45, side: 0.45 };
@@ -709,8 +740,8 @@ export class StorefrontKit {
   }
 
   /** Sign-face tile `widthM` x `heightM`. `lit` boxes are emissive after dark; boards are painted and unlit. */
-  signTile(text: string, bg: string, fg: string, widthM: number, heightM: number, lit: boolean): SignTile {
-    const key = `${text}|${bg}|${fg}|${widthM.toFixed(2)}|${lit ? 1 : 0}`;
+  signTile(text: string, bg: string, fg: string, widthM: number, heightM: number, lit: boolean, style: SignStyle = 'box'): SignTile {
+    const key = `${text}|${bg}|${fg}|${widthM.toFixed(2)}|${lit ? 1 : 0}${style === 'box' ? '' : `|${style}`}`;
     const hit = this.signCache.get(key);
     if (hit) return hit;
     let tile: SignTile;
@@ -721,7 +752,7 @@ export class StorefrontKit {
       const ppm = Math.min(SIGN_PPM_FULL * ATLAS_SCALE(), ppmFor(widthM) * ATLAS_SCALE(), (sheetW() - 2 * SHEET_PAD) / widthM, (sheetH() - 2 * SHEET_PAD) / heightM);
       const sw = Math.max(16, Math.floor(widthM * ppm)), sh = Math.max(16, Math.floor(heightM * ppm));
       const { sheet, rects } = atlas.place([{ w: sw, h: sh }]);
-      atlas.paint(sheet, rects[0], signPainter(text, bg, fg, geom), (Rng.hash(key) ^ this.seed) >>> 0);
+      atlas.paint(sheet, rects[0], signPainter(text, bg, fg, geom, style), (Rng.hash(key) ^ this.seed) >>> 0);
       this.record(lit ? 'sign' : 'board', text, widthM, heightM, sw, sh);
       tile = { mat: sheet.mat, uv: atlas.uv(rects[0]), widthM };
     } else {
@@ -735,6 +766,7 @@ export class StorefrontKit {
   stickers(): THREE.Material | null {
     if (!this.factory) return null;
     if (!this.stickerSheet) {
+      const SC = Math.min(1, Math.max(0.5, ATLAS_SCALE()));
       const atlas = new Atlas(this.factory, (tex) => {
         const m = new THREE.MeshStandardMaterial({
           map: tex, emissiveMap: tex, emissive: new THREE.Color(0xffffff), emissiveIntensity: 0, roughness: 0.5, metalness: 0,
@@ -744,13 +776,19 @@ export class StorefrontKit {
         m.userData.storefrontGlow = STICKER_NIGHT;
         this.glowMats.push(m);
         return m;
-      }, STICKER_ATLAS.w + 2 * SHEET_PAD, STICKER_ATLAS.h + 2 * SHEET_PAD);
-      // the sticker atlas has its own fixed size: one 512x384 sheet laid out by STICKER_SLOTS
-      const { sheet, rects } = atlas.place([{ w: STICKER_ATLAS.w, h: STICKER_ATLAS.h }]);
-      atlas.paint(sheet, rects[0], stickerAtlasPainter, Rng.hash('sf-stickers'));
+      }, Math.round(STICKER_ATLAS.w * SC) + 2 * SHEET_PAD, Math.round(STICKER_ATLAS.h * SC) + 2 * SHEET_PAD);
+      // the sticker atlas has its own fixed size: one 512x896 sheet laid out by STICKER_SLOTS; on phone and low it is painted
+      // at half size (STORES2: the sheet grew with the trade decals, so it follows the tier like the sign sheets)
+      const { sheet, rects } = atlas.place([{ w: Math.round(STICKER_ATLAS.w * SC), h: Math.round(STICKER_ATLAS.h * SC) }]);
+      atlas.paint(sheet, rects[0], (ctx, w, h, rng, t) => {
+        ctx.save();
+        ctx.scale(SC, SC);
+        stickerAtlasPainter(ctx, STICKER_ATLAS.w, STICKER_ATLAS.h, rng, t);
+        ctx.restore();
+      }, Rng.hash('sf-stickers'));
       for (const k of Object.keys(STICKER_SLOTS) as StickerKind[]) {
         const s = STICKER_SLOTS[k];
-        this.stickerUvs[k] = atlas.uv({ x: rects[0].x + s.x, y: rects[0].y + s.y, w: s.w, h: s.h });
+        this.stickerUvs[k] = atlas.uv({ x: rects[0].x + s.x * SC, y: rects[0].y + s.y * SC, w: s.w * SC, h: s.h * SC });
       }
       this.stickerSheet = atlas;
       this.apply();
@@ -1189,7 +1227,8 @@ export function buildGroundFloor(c: LotCtx, plan: StorefrontPlan, brick: THREE.M
   // ---- sign box above the awning: lit box on most shops, a flat painted board on churches and day cares. The box
   // snaps to a face-width class (so the same copy is one shared tile) and hugs the corner on corner shops.
   const sg = plan.sign;
-  const [bg, fg] = SIGN_COLORS[spec.kind];
+  const [bg, fg] = spec.signColors ?? SIGN_COLORS[spec.kind];
+  const signStyle = spec.fascia ? 'fascia' : 'box';
   const y0 = SIGN_Y0, y1 = SIGN_Y0 + sg.height;
   const dep = sg.depth;
   const faceH = sg.height - 2 * SIGN_F;
@@ -1204,7 +1243,7 @@ export function buildGroundFloor(c: LotCtx, plan: StorefrontPlan, brick: THREE.M
     const box = boxOf(sg.front, plan.corner);
     frontBox(m.metal, box.a, box.b, y0, y1, 0, dep, 'rludf');
     if (unique) {
-      const tile = kit.signTile(copy, bg, fg, box.b - box.a - 2 * SIGN_F, faceH, sg.lit);
+      const tile = kit.signTile(copy, bg, fg, box.b - box.a - 2 * SIGN_F, faceH, sg.lit, signStyle);
       front(tile.mat, box.a + SIGN_F, box.b - SIGN_F, y0 + SIGN_F, y1 - SIGN_F, dep + 0.005, { uvRect: [tile.uv[0], tile.uv[1], tile.uv[2], tile.uv[3]] });
     }
   }
@@ -1212,9 +1251,24 @@ export function buildGroundFloor(c: LotCtx, plan: StorefrontPlan, brick: THREE.M
     const box = boxOf(sg.side, true);
     sideBox(m.metal, box.a, box.b, y0, y1, 0, dep, 'fbud' + (f.nx < 0 ? 'l' : 'r'));
     if (unique) {
-      const tile = kit.signTile(copy, bg, fg, box.b - box.a - 2 * SIGN_F, faceH, sg.lit);
+      const tile = kit.signTile(copy, bg, fg, box.b - box.a - 2 * SIGN_F, faceH, sg.lit, signStyle);
       side(tile.mat, box.a + SIGN_F, box.b - SIGN_F, y0 + SIGN_F, y1 - SIGN_F, dep + 0.005, { uvRect: [tile.uv[0], tile.uv[1], tile.uv[2], tile.uv[3]] });
     }
+  }
+  // ---- STORES2: what this trade puts on the pavement and in the window (merged boxes and painted quads; no new material)
+  if (spec.dressing && spec.dressing.length && !spec.shuttered) {
+    const uvOf = (uv: UvRect): [number, number, number, number] => [uv[0], uv[1], uv[2], uv[3]];
+    addShopDressing(spec.dressing, {
+      W, door: plan.door ? [plan.door.a, plan.door.b] : null, cut: plan.cut, glass: plan.glass, seed: Rng.hash(c.lot.id) >>> 0,
+      box: (mat, X0, X1, y0, y1, z0, z1, faces) => frontBox(mat, X0, X1, y0, y1, z0, z1, faces),
+      quad: (mat, X0, X1, y0, y1, z, uv) => front(mat, X0, X1, y0, y1, z, { uvRect: uvOf(uv) }),
+      top: (mat, X0, X1, z0, z1, y, uv) => b.rect(mat, [Math.min(wx(X0), wx(X1)), y, z0], [Math.abs(X1 - X0), 0, 0], [0, 0, z1 - z0], { hint: [0, 1, 0], uvRect: uvOf(uv) }),
+      across: (mat, X, y0, y1, z0, z1, uv, facing) => b.rect(mat, [wx(X), y0, z0], [0, 0, z1 - z0], [0, y1 - y0, 0], { hint: [facing, 0, 0], uvRect: uvOf(uv) }),
+      metal: m.metal,
+      tile: { cream: kit.flat('#d9d2bd', 0.45), green: kit.flat('#25392f', 0.45), black: kit.flat('#1b1d20', 0.45), navy: kit.flat('#1f2c44', 0.45) },
+      stickers: stickerMat,
+      uv: (k) => kit.stickerUv(k),
+    });
   }
   return { topY: GROUND_H };
 }

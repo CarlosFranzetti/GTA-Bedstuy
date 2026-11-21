@@ -4,9 +4,9 @@ import { NightBounce } from './NightBounce';
 
 // ---------------------------------------------------------------- tunables
 
-const LAMP_COLOR = 0xffcf8a;
+const LAMP_COLOR = 0xffa44f; // high-pressure sodium
 /** Candela (three r155+ physical units). ~E = 45/7.75^2 = 0.75 lux on the sidewalk right under a lamp. */
-const LAMP_INTENSITY = 45;
+const LAMP_INTENSITY = 70;
 const LAMP_DROP = 0.3;
 /** Seconds for a light to fade fully in or out. */
 const FADE_SECONDS = 0.5;

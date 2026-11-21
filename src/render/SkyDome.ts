@@ -42,9 +42,9 @@ const PARAM_KEYS: ReadonlyArray<{ hour: number } & SkyParams> = [
   { hour: 5, turbidity: 3, rayleigh: 0.8, mieCoefficient: 0.004, mieDirectionalG: 0.82, exposure: 0.105 },
   { hour: 6.5, turbidity: 5, rayleigh: 2.2, mieCoefficient: 0.008, mieDirectionalG: 0.88, exposure: 0.125 },
   { hour: 9, turbidity: 5, rayleigh: 2.0, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.14 },
-  { hour: 12, turbidity: 3.5, rayleigh: 2.4, mieCoefficient: 0.004, mieDirectionalG: 0.75, exposure: 0.15 },
-  { hour: 16, turbidity: 5, rayleigh: 2.1, mieCoefficient: 0.006, mieDirectionalG: 0.8, exposure: 0.14 },
-  { hour: 18.3, turbidity: 5, rayleigh: 2.0, mieCoefficient: 0.008, mieDirectionalG: 0.88, exposure: 0.135 },
+  { hour: 12, turbidity: 5, rayleigh: 1.9, mieCoefficient: 0.006, mieDirectionalG: 0.78, exposure: 0.15 },
+  { hour: 16, turbidity: 8, rayleigh: 1.7, mieCoefficient: 0.011, mieDirectionalG: 0.84, exposure: 0.17 },
+  { hour: 18.3, turbidity: 10, rayleigh: 1.5, mieCoefficient: 0.015, mieDirectionalG: 0.9, exposure: 0.17 },
   { hour: 19.5, turbidity: 5, rayleigh: 2.2, mieCoefficient: 0.008, mieDirectionalG: 0.9, exposure: 0.12 },
   { hour: 21, turbidity: 4, rayleigh: 0.8, mieCoefficient: 0.006, mieDirectionalG: 0.85, exposure: 0.105 },
   { hour: 24, turbidity: 2, rayleigh: 0.6, mieCoefficient: 0.003, mieDirectionalG: 0.8, exposure: 0.087 },
@@ -83,14 +83,17 @@ export function skyParamsAt(hour: number): SkyParams {
 
 /** Horizon colour keyed by sun elevation (sine of the elevation angle), matching what the Sky shader paints there. */
 const HORIZON_KEYS: ReadonlyArray<{ e: number; color: number }> = [
-  { e: -0.3, color: 0x0a1030 }, // night
-  { e: -0.12, color: 0x0e1638 },
-  { e: -0.05, color: 0x2a2f62 }, // blue hour
-  { e: 0.0, color: 0xe08a62 }, // sunset glow
-  { e: 0.08, color: 0xe6b08a }, // hazy warm
-  { e: 0.25, color: 0xbcd0df },
-  { e: 0.6, color: 0xa9d0ec }, // clear blue
-  { e: 1.0, color: 0xa4cdee },
+  // Stoop Light: the night horizon is a dark blue-grey with a faint city glow (not a black-blue void), the low sun gives a warm
+  // dust haze that turns neutral and then pale blue as the sun climbs, and nothing is a saturated cyan.
+  { e: -0.3, color: 0x1a2030 }, // night, city glow
+  { e: -0.12, color: 0x232a3d },
+  { e: -0.05, color: 0x353b5e }, // blue hour
+  { e: 0.0, color: 0xd8916c }, // sunset glow
+  { e: 0.08, color: 0xdcae8e }, // hazy warm
+  { e: 0.25, color: 0xd0bfae },
+  { e: 0.42, color: 0xc4c4c2 }, // golden-hour dust haze
+  { e: 0.62, color: 0xb6c9dc }, // clear, pale
+  { e: 1.0, color: 0xb0cae4 },
 ];
 const HORIZON_COLORS = HORIZON_KEYS.map((k) => new THREE.Color(k.color));
 
@@ -168,7 +171,8 @@ export function cloudParamsAt(sunElevation: number, overcast: number, sunRgb: re
     clamp(0.6 * sh + 0.01 * night + 0.22 * dusk * 0.4, 0, SKY_MAX_RADIANCE),
   ];
   r.sunDisc = smooth(-0.02, 0.05, e) * (1 - 0.85 * o);
-  r.haze = clamp((0.55 + 0.25 * dusk + 0.2 * o) * (1 - 0.7 * night), 0, 0.9);
+  const golden = smooth(0.0, 0.18, e) * (1 - smooth(0.4, 0.8, e));
+  r.haze = clamp((0.55 + 0.25 * dusk + 0.2 * o + 0.18 * golden) * (1 - 0.7 * night), 0, 0.9);
   r.dusk = dusk;
   return r;
 }
@@ -211,7 +215,7 @@ const ART_GLSL_BODY = /* glsl */ `
 				texColor = mix( texColor, ramp, artDusk * ( 0.3 + 0.7 * artAz ) * ( 1.0 - 0.45 * vv ) );
 			}
 			// horizon haze band (matches the fog colour so the skyline dissolves into the sky)
-			float artHz = 1.0 - smoothstep( 0.0, 0.34 + 0.9 * artFogW, artUp );
+			float artHz = 1.0 - smoothstep( 0.0, 0.35 + 0.65 * artHaze + 0.9 * artFogW, artUp );
 			texColor = mix( texColor, artHazeCol, artHz * artHz * artHaze );
 			// clouds
 			float artAlpha = 0.0;
@@ -412,7 +416,7 @@ export class SkyDome {
     (u.sunDirH.value as THREE.Vector3).set(hl > 1e-4 ? dir.x / hl : 1, 0, hl > 1e-4 ? dir.z / hl : 0);
 
     // Stars fade in as the sun drops below the horizon.
-    const starAlpha = (isNight || dir.y < 0 ? 1 - smooth(-0.2, -0.02, dir.y) : 0) * 0.95;
+    const starAlpha = (isNight || dir.y < 0 ? 1 - smooth(-0.2, -0.02, dir.y) : 0) * 0.4;
     this.stars.visible = this.starsEnabled && starAlpha > 0.01 && (this.cloudAmount < 0 || this.cloudAmount < 0.97);
     // cloud and fog hide the stars
     const cloudHide = this.cloudAmount >= 0 ? 1 - 0.95 * smooth(0.25, 0.85, this.cloudAmount) : 1 - 0.8 * this.overcast;
@@ -462,7 +466,7 @@ export class SkyDome {
     (u.artShade.value as THREE.Color).setRGB(a.shade[0], a.shade[1], a.shade[2]);
     // sun disc: the key-light colour pushed toward white-hot (it is the brightest thing in the sky), horizon colour for the haze
     (u.artSunCol.value as THREE.Color).setRGB(0.55 + 0.45 * c.r, 0.5 + 0.4 * c.g, 0.4 + 0.3 * c.b);
-    (u.artHazeCol.value as THREE.Color).copy(this.horizon).multiplyScalar(0.85);
+    (u.artHazeCol.value as THREE.Color).copy(this.horizon).multiplyScalar(0.95);
     if (this.fogAmount > 0 && this.hasFogColor) {
       // in mist the horizon band is the fog colour itself, so there is no seam where the ground fog meets the sky
       (u.artHazeCol.value as THREE.Color).lerp(this.fogColor, Math.min(1, this.fogAmount * 1.6));
@@ -532,7 +536,7 @@ export class SkyDome {
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     const mat = new THREE.PointsMaterial({
-      size: 2.2,
+      size: 1.7,
       sizeAttenuation: false,
       vertexColors: true,
       transparent: true,

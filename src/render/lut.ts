@@ -26,9 +26,12 @@ export interface PresetParams {
   midMul?: RGB;
   /** Black lift; omitted = BLACK_LIFT. */
   lift?: number;
+  /** Colour the lifted blacks take (the haze colour of that hour, unit-ish); omitted = neutral. Stoop Light: blacks sit in the haze. */
+  liftTint?: RGB;
 }
 
 const BLACK_LIFT = 0.02;
+const NEUTRAL_RGB: RGB = [1, 1, 1];
 
 export const PRESETS: Record<GradePreset, PresetParams> = {
   day: { saturation: 1.1, curve: 0.3, shadowTint: [-0.018, 0.004, 0.014], highlightMul: [1.0, 0.985, 0.94] },
@@ -79,11 +82,39 @@ export function gradeWith(rgb: [number, number, number], p: PresetParams): [numb
   g = clamp01(g);
   b = clamp01(b);
 
-  // Lifted blacks.
+  // Soft chroma cap (Stoop Light: world surfaces stay under about 35 percent saturation, accents keep their punch but not
+  // their full strength) and a harder one for green, pushed towards olive: emerald lawns are the worst offender.
+  {
+    const mx = Math.max(r, g, b);
+    const mn = Math.min(r, g, b);
+    const chroma = mx - mn;
+    const gd = g - Math.max(r, b);
+    const w = gd > 0 ? smoothstep(0, 0.1, gd) : 0;
+    const knee = 0.42 - 0.26 * w;
+    const slope = 0.8 - 0.35 * w;
+    if (chroma > knee) {
+      const k = (knee + (chroma - knee) * slope) / chroma;
+      const l = r * LR + g * LG + b * LB;
+      r = l + (r - l) * k;
+      g = l + (g - l) * k;
+      b = l + (b - l) * k;
+    }
+    if (w > 0) {
+      const gd2 = g - Math.max(r, b);
+      r += 0.28 * gd2 * w;
+      g -= 0.08 * gd2 * w;
+    }
+    r = clamp01(r);
+    g = clamp01(g);
+    b = clamp01(b);
+  }
+
+  // Lifted blacks, tinted towards the haze colour of the hour.
   const lift = p.lift ?? BLACK_LIFT;
-  r = lift + r * (1 - lift);
-  g = lift + g * (1 - lift);
-  b = lift + b * (1 - lift);
+  const lt = p.liftTint ?? NEUTRAL_RGB;
+  r = lift * lt[0] + r * (1 - lift);
+  g = lift * lt[1] + g * (1 - lift);
+  b = lift * lt[2] + b * (1 - lift);
 
   // Teal shadows (additive, zero luma), mid-tone tint and warm highlights (multiplicative).
   const l1 = r * LR + g * LG + b * LB;
@@ -121,16 +152,19 @@ export function gradeColor(rgb: [number, number, number], preset: GradePreset): 
  * by `lutKeysForHour` (two baked LUTs crossfaded in the grading shader), the last key wraps to the first.
  */
 export const HOUR_KEYS: readonly { name: string; hour: number; params: PresetParams }[] = [
-  { name: 'deepNight', hour: 2, params: { saturation: 0.92, curve: 0.44, lift: 0.014, shadowTint: [-0.026, 0.003, 0.04], highlightMul: [1.0, 0.94, 0.8], midMul: [0.96, 0.99, 1.06] } },
-  { name: 'preDawn', hour: 4.5, params: { saturation: 0.95, curve: 0.36, shadowTint: [-0.024, 0.004, 0.036], highlightMul: [0.98, 0.97, 0.94], midMul: [0.97, 0.99, 1.05] } },
-  { name: 'dawn', hour: 6, params: { saturation: 1.06, curve: 0.34, shadowTint: [-0.02, 0.002, 0.03], highlightMul: [1.0, 0.94, 0.84], midMul: [1.0, 0.99, 1.02] } },
-  { name: 'morning', hour: 8, params: { saturation: 1.2, curve: 0.34, shadowTint: [-0.016, 0.004, 0.02], highlightMul: [1.0, 0.96, 0.87], midMul: [1.03, 1.0, 0.96], lift: 0.024 } },
-  { name: 'noon', hour: 12, params: { saturation: 1.27, curve: 0.32, shadowTint: [-0.012, 0.004, 0.014], highlightMul: [1.0, 0.972, 0.9], midMul: [1.035, 1.0, 0.95], lift: 0.025 } },
-  { name: 'afternoon', hour: 15.5, params: { saturation: 1.26, curve: 0.34, shadowTint: [-0.016, 0.004, 0.018], highlightMul: [1.0, 0.958, 0.86], midMul: [1.04, 1.0, 0.94], lift: 0.024 } },
-  { name: 'golden', hour: 17.5, params: { saturation: 1.26, curve: 0.4, shadowTint: [-0.026, -0.002, 0.032], highlightMul: [1.0, 0.89, 0.7], midMul: [1.05, 0.98, 0.9] } },
-  { name: 'dusk', hour: 19, params: { saturation: 1.15, curve: 0.4, shadowTint: [-0.02, -0.004, 0.036], highlightMul: [1.0, 0.88, 0.7], midMul: [1.03, 0.97, 0.96] } },
-  { name: 'blueHour', hour: 20.3, params: { saturation: 1.02, curve: 0.37, shadowTint: [-0.024, 0.0, 0.038], highlightMul: [1.0, 0.92, 0.8], midMul: [0.95, 0.97, 1.03], lift: 0.016 } },
-  { name: 'night', hour: 22.5, params: { saturation: 0.95, curve: 0.44, lift: 0.014, shadowTint: [-0.026, 0.003, 0.04], highlightMul: [1.0, 0.93, 0.78], midMul: [0.96, 0.99, 1.06] } },
+  // Stoop Light (docs/swarm/art/DIRECTION.md): saturation pulled below neutral (the old keys boosted it by 20 to 27 percent),
+  // a gentler S-curve (soft shoulder, the ACES output curve does the rest), blacks lifted into the haze colour of the hour,
+  // shadows blue-teal, highlights amber. Blue hour and night keep their blue-grey and let the lamps carry the colour.
+  { name: 'deepNight', hour: 2, params: { saturation: 0.9, curve: 0.34, lift: 0.02, liftTint: [0.82, 0.94, 1.18], shadowTint: [-0.026, 0.004, 0.04], highlightMul: [1.0, 0.95, 0.84], midMul: [0.97, 0.99, 1.05] } },
+  { name: 'preDawn', hour: 4.5, params: { saturation: 0.9, curve: 0.3, lift: 0.024, liftTint: [0.88, 0.95, 1.14], shadowTint: [-0.024, 0.004, 0.036], highlightMul: [0.99, 0.97, 0.92], midMul: [0.98, 0.99, 1.04] } },
+  { name: 'dawn', hour: 6, params: { saturation: 0.93, curve: 0.28, lift: 0.03, liftTint: [1.08, 0.97, 0.9], shadowTint: [-0.02, 0.002, 0.03], highlightMul: [1.0, 0.94, 0.84], midMul: [1.0, 0.99, 1.02] } },
+  { name: 'morning', hour: 8, params: { saturation: 0.95, curve: 0.27, lift: 0.032, liftTint: [0.98, 1.0, 1.04], shadowTint: [-0.016, 0.004, 0.022], highlightMul: [1.0, 0.96, 0.88], midMul: [1.02, 1.0, 0.97] } },
+  { name: 'noon', hour: 12, params: { saturation: 0.94, curve: 0.26, lift: 0.034, liftTint: [0.94, 0.99, 1.08], shadowTint: [-0.014, 0.005, 0.022], highlightMul: [1.0, 0.97, 0.9], midMul: [1.02, 1.0, 0.96] } },
+  { name: 'afternoon', hour: 15.5, params: { saturation: 0.94, curve: 0.28, lift: 0.034, liftTint: [0.98, 1.0, 1.05], shadowTint: [-0.018, 0.005, 0.026], highlightMul: [1.0, 0.95, 0.86], midMul: [1.03, 1.0, 0.95] } },
+  { name: 'golden', hour: 17.5, params: { saturation: 0.95, curve: 0.3, lift: 0.036, liftTint: [1.1, 0.98, 0.9], shadowTint: [-0.03, 0.002, 0.04], highlightMul: [1.0, 0.9, 0.72], midMul: [1.05, 0.99, 0.92] } },
+  { name: 'dusk', hour: 19, params: { saturation: 0.93, curve: 0.32, lift: 0.032, liftTint: [1.04, 0.96, 1.02], shadowTint: [-0.024, -0.002, 0.04], highlightMul: [1.0, 0.89, 0.72], midMul: [1.03, 0.97, 0.97] } },
+  { name: 'blueHour', hour: 20.3, params: { saturation: 0.92, curve: 0.32, lift: 0.026, liftTint: [0.88, 0.96, 1.14], shadowTint: [-0.024, 0.0, 0.04], highlightMul: [1.0, 0.93, 0.82], midMul: [0.96, 0.98, 1.03] } },
+  { name: 'night', hour: 22.5, params: { saturation: 0.9, curve: 0.34, lift: 0.022, liftTint: [0.84, 0.95, 1.16], shadowTint: [-0.026, 0.004, 0.04], highlightMul: [1.0, 0.94, 0.8], midMul: [0.97, 0.99, 1.05] } },
 ];
 
 function lerp(a: number, b: number, t: number): number {
@@ -151,6 +185,7 @@ export function lerpParams(a: PresetParams, b: PresetParams, t: number): PresetP
     highlightMul: lerpRgb(a.highlightMul, b.highlightMul, t),
     midMul: lerpRgb(a.midMul ?? NEUTRAL, b.midMul ?? NEUTRAL, t),
     lift: lerp(a.lift ?? BLACK_LIFT, b.lift ?? BLACK_LIFT, t),
+    liftTint: lerpRgb(a.liftTint ?? NEUTRAL, b.liftTint ?? NEUTRAL, t),
   };
 }
 
@@ -186,7 +221,7 @@ export function gradeColorAt(rgb: [number, number, number], hour: number): [numb
  * Phone-tier grade: a small bright screen in daylight reads flat and milky, so contrast and saturation go up a little and the
  * blacks lift less. Applied only to the LUT baked for the phone tier (no extra pass, no extra cost); other tiers are untouched.
  */
-export const PHONE_GRADE = { saturation: 1.07, curve: 0.06, lift: 0.6, curveMax: 0.55 } as const;
+export const PHONE_GRADE = { saturation: 1.02, curve: 0.03, lift: 0.8, curveMax: 0.5 } as const;
 export function phoneGrade(p: PresetParams): PresetParams {
   return { ...p, saturation: p.saturation * PHONE_GRADE.saturation, curve: Math.min(PHONE_GRADE.curveMax, p.curve + PHONE_GRADE.curve), lift: (p.lift ?? BLACK_LIFT) * PHONE_GRADE.lift };
 }

@@ -39,17 +39,19 @@ describe('ART hour-key LUT tables', () => {
     }
   });
 
-  it('noon and afternoon are warmer and punchier than the old flat noon', () => {
+  it('noon and afternoon: Stoop Light pulls saturation below neutral (was boosted 1.22+), highlights stay warm', () => {
     for (const n of ['noon', 'afternoon']) {
       const p = key(n);
-      expect(p.saturation).toBeGreaterThanOrEqual(1.22); // old noon 1.16 (+~10 %)
+      expect(p.saturation).toBeLessThanOrEqual(1.0); // DIRECTION.md: saturation down 10 to 15 percent (the old keys were 1.26)
+      expect(p.saturation).toBeGreaterThanOrEqual(0.85);
       const hi = gradeWith([0.85, 0.85, 0.85], p);
       expect(hi[0], n).toBeGreaterThan(hi[2] + 0.02); // warm highlights
       const mid = gradeWith([0.3, 0.3, 0.3], p);
       expect(mid[0]).toBeGreaterThanOrEqual(mid[2] - 0.005); // mids not blue
     }
-    // more contrast than before: darks darker, lights lighter relative to the middle
-    expect(key('noon').curve).toBeGreaterThanOrEqual(0.3);
+    // a gentle shoulder: some S-curve, but softer than the old 0.32 to 0.4
+    expect(key('noon').curve).toBeGreaterThanOrEqual(0.2);
+    expect(key('noon').curve).toBeLessThanOrEqual(0.32);
   });
 
   it('golden hour is amber over cool shadows; night is cool-blue shadows under sodium highlights', () => {
@@ -60,5 +62,17 @@ describe('ART hour-key LUT tables', () => {
       const hi = gradeWith([0.9, 0.9, 0.9], p);
       expect(hi[0], n + ' highlight').toBeGreaterThan(hi[2] + 0.08);
     }
+  });
+
+  it('soft chroma cap: emerald green is pulled to olive, neutral and brown surfaces and warm accents are barely touched', () => {
+    const p = key('afternoon');
+    const emerald = gradeWith([0.1, 0.7, 0.2], p);
+    const mx = Math.max(...emerald), mn = Math.min(...emerald);
+    expect((mx - mn) / mx, 'emerald lawn saturation').toBeLessThan(0.6);
+    expect(emerald[0], 'olive: red lifted towards yellow').toBeGreaterThan(0.1 + 0.05);
+    const brick = gradeWith([0.42, 0.2, 0.15], p);
+    expect(brick[0]).toBeGreaterThan(brick[1] + 0.12);
+    const taxi = gradeWith([0.9, 0.7, 0.1], p);
+    expect(taxi[0]).toBeGreaterThan(taxi[2] + 0.4);
   });
 });
