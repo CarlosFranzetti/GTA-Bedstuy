@@ -36,6 +36,11 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 
 ## What the owner wants (his words, newest first)
 
+- 21 Nov, night: "another 15 actual locations and the look as per online images"; "grow our blocks by 5 in each
+  direction and 2 streets each in between N, E, W, S". Lead's reading: the real-street map grows 5 blocks north, east,
+  south and west and 2 streets on the diagonals (lane MAP4); 15 more real places under invented names, each built to
+  match open photos of the real place (lane LANDMARKS2; open-licence photos may be viewed and used, anything else is
+  look-only, rule 2). Both live on `?map=real` until the real map becomes the main map.
 - 21 Nov, later: "check in with me every now and then, let's see some images"; wants to see the play map; wants a
   plain-English conversational transcript (`docs/swarm/transcripts/`); "I want to decide the direction of the models and
   clothing" (ask him, with pictures, before any lane sets a style); original buildings, landmarks and stores under parody
