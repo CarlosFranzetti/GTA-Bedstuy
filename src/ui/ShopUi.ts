@@ -52,6 +52,8 @@ export class ShopUi {
   readonly root: HTMLElement;
   private readonly cashEl: HTMLElement;
   private readonly body: HTMLElement;
+  /** Crate chips: outside the scrolling list so they stay on screen. */
+  private readonly crateEl: HTMLElement;
   private readonly status: HTMLElement;
   private readonly closeBtn: HTMLButtonElement;
   private readonly tabs = new Map<Tab, HTMLButtonElement>();
@@ -92,6 +94,8 @@ export class ShopUi {
       const b = this.btn(label, 'shop-tab', () => this.setTab(id));
       this.tabs.set(id, b); nav.appendChild(b);
     }
+    this.crateEl = this.el('div', 'shop-crates');
+    this.crateEl.setAttribute('role', 'group'); this.crateEl.setAttribute('aria-label', 'Crates');
     this.body = this.el('div', 'shop-body');
     this.status = this.el('p', 'shop-status');
     this.status.setAttribute('role', 'status'); this.status.setAttribute('aria-live', 'polite');
@@ -100,7 +104,7 @@ export class ShopUi {
     hint.textContent = 'W/S select · Q / E tabs · C crate · L liner note · Enter or F buy · V preview · Esc or X close';
     this.closeBtn = this.btn('Close', 'shop-btn shop-close', () => this.close());
     foot.append(this.status, hint, this.closeBtn);
-    panel.append(head, nav, this.body, foot);
+    panel.append(head, nav, this.crateEl, this.body, foot);
     this.root.appendChild(panel);
     parent.appendChild(this.root);
     this.root.addEventListener('pointerdown', (e) => { if (e.target === this.root) this.close(); });
@@ -301,6 +305,7 @@ export class ShopUi {
     this.cashEl.textContent = `$${this.d.inventory.cash}`;
     for (const [id, b] of this.tabs) { b.classList.toggle('on', id === this.tab); b.setAttribute('aria-pressed', String(id === this.tab)); }
     this.body.textContent = '';
+    this.crateEl.textContent = ''; this.crateEl.hidden = true;
     this.rows = [];
     if (this.liner) {
       this.body.appendChild(linerNote(this.doc, this.liner, () => this.closeLiner()));
@@ -350,14 +355,12 @@ export class ShopUi {
   private crateBar(): void {
     const arc = this.archiveList();
     if (arc.length === 0) return;
-    const bar = this.el('div', 'shop-crates');
-    bar.setAttribute('role', 'group'); bar.setAttribute('aria-label', 'Crates');
+    const bar = this.crateEl; bar.hidden = false;
     const chips: Array<[CrateFilter, string]> = [['all', 'All'], ['synth', 'Synth originals'], ...CRATES.filter((c) => arc.some((r) => r.genre === c.id)).map((c): [CrateFilter, string] => [c.id, c.label])];
     for (const [id, text] of chips) {
       const b = this.btn(text, 'shop-chip' + (id === this.crate ? ' on' : ''), () => { this.crate = id; this.sel = 0; this.armed = null; this.render(); });
       b.setAttribute('aria-pressed', String(id === this.crate)); bar.appendChild(b);
     }
-    this.body.appendChild(bar);
   }
 
   private card(def: RecordDef, actions: HTMLElement[], tag: string, keys: Omit<Row, 'el'> = {}): HTMLElement {

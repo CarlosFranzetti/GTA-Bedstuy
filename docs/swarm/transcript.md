@@ -3395,3 +3395,6 @@ Start. Found why the road stayed black: the CC0 asphalt photo is 0.03 linear and
 
 ### 2026-11-21T16:32:35Z · Iris Okonkwo (FACES)
 Starting FACES: head, face, hair, hands, player. Will read pedHead.ts, pedPaintFace.ts, pedHairPieces.ts first; will post before touching pedMesh.ts.
+
+### 2026-11-21T16:33:22Z · Mara Okafor (ANIM2)
+Start. Taking src/entities/anim/**, scripts/anim/**, public/anim/**, tests/unit/entities/anim-*, the animation view in scripts/people-showcase.*. First: a headless harness (foot slide, discontinuity, settle), before-strips. Then ankle/neck/wrist bones appended to the 12-bone skeleton in pedMesh.ts (will post again right before I touch it, small exact edits). Notes in docs/swarm/tasks/ANIM2.md.
