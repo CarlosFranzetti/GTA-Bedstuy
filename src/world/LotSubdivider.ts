@@ -59,7 +59,7 @@ export function specFromData(d: DataLotSpec): LotSpec {
   };
   // REALBLOCKS: year, class and roof height sit in the import note ("PLUTO C0 built 1910 ... roof 12.9 m"); style from them (eraStyle.ts)
   const m = /PLUTO ([A-Z0-9]{2}) built (\d{4})/.exec(d.note ?? '');
-  if (!m || !d.bbl || !d.bbl) return spec; // filler lots have no record
+  if (!m || !d.bbl || d.bays > 0) return spec; // hand-authored bays win; filler lots have no record (with era style on those lots traffic-5min gridlocks)
   const rf = /roof ([\d.]+) m/.exec(d.note ?? '');
   return applyEraStyle(spec, { bbl: d.bbl, yr: Number(m[2]), cls: m[1], rf: rf ? Number(rf[1]) : null }, { keepFamily: !!obsMap || d.family === 'church' || d.family === 'vacant', keepStoop: true } /* stoop depth is a street-side collider: the grid keeps the data's height (traffic-5min) */);
 }
