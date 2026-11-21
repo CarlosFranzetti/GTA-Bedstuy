@@ -31,3 +31,8 @@ Frames: scratchpad/people8/before and after. Fixed and seen: 1 hem, 2 cuffs, 3 s
 5. The orange bib and strip is the scarf accessory (pedGear.ts scarf, chosen by id hash), not a collar: a flat cone plus a 22 cm tail. Now a 5 cm rounded wrap clamped to the neck with a 12 cm tail. Collars were never the cause.
 7. Hairline: the skin teeth on the braids person were the cornrow ridge ends thinning to zero (pedHairPieces.cornrows). Ends keep 40 percent and a 2.5 mm floor, edges smoothed across columns. rimFn blur widened to five taps (it helps a little; kept).
 Still wrong: the hem of some jackets (navy suit, cardigan) still sits wider than the waist above because the body is hip-wide there; ragged face tile edge on the cheek and jaw (skin atlas, face island) and neck colour step; hoodie pocket bottom is rough; the small bald child not identified (kid body type is h 0.78, head 1.22 by design). Tests: entities and textures pass except car tests from the vehicles lane (carbodies, carlook) and tsc errors in car*.ts from the same lane.
+
+# PEOPLE9 (21 Nov 2026): palette, cloth, faces, age
+Brief: owner decided gritty like GTA IV, muted worn colours, clothing mixed by age. Order: 1 palette, 2 fabric and wear, 3 faces, 4 age wardrobe, 5 geometry defects, 6 heads.
+Frames: scratchpad/people9/before and after. Status log (updated as I go):
+- started: reading code; palette tables are in src/textures/painters/pedWardrobe.ts and pedPaintSwatch.ts.
