@@ -317,3 +317,47 @@ export function steps(k: Kit, mat: THREE.Material, cx: number, z: number, w: num
     }
   }
 }
+
+// ----------------------------------------------------------------------------------------------- LANDMARKS2 parts
+
+/** a pointed-head (lancet) opening: a rectangle with a two-sided gable head. Same arguments as archPane. */
+export function lancetPane(k: Kit, mat: THREE.Material, cx: number, z: number, y0: number, w: number, h: number, out: Dir2, alongX = true, proud = 0.06): void {
+  if (k.far) return;
+  const hint: V3 = [out[0], 0, out[1]];
+  const r = w / 2;
+  const yS = y0 + h - r * 1.4;
+  const P = (s: number, y: number): V3 => (alongX ? [cx + s, y, z + out[1] * proud] : [z + out[0] * proud, y, cx + s]);
+  k.quad(mat, P(-r, y0), P(r, y0), P(r, yS), P(-r, yS), { hint, ru: 1, rv: 1 });
+  k.tri(mat, P(-r, yS), P(r, yS), P(0, y0 + h), { hint, uv: [[0, 0.7], [1, 0.7], [0.5, 1]] });
+}
+
+/** a pointed surround for lancetPane (two jambs and two head rakes) */
+export function lancetSurround(k: Kit, mat: THREE.Material, cx: number, z: number, y0: number, w: number, h: number, out: Dir2, alongX = true, t = 0.3, proud = 0.1): void {
+  if (k.far) return;
+  const hint: V3 = [out[0], 0, out[1]];
+  const r = w / 2;
+  const yS = y0 + h - r * 1.4;
+  const P = (s: number, y: number): V3 => (alongX ? [cx + s, y, z + out[1] * proud] : [z + out[0] * proud, y, cx + s]);
+  k.quad(mat, P(-r - t, y0), P(-r, y0), P(-r, yS), P(-r - t, yS), { hint, ru: 0.12, rv: 1 });
+  k.quad(mat, P(r, y0), P(r + t, y0), P(r + t, yS), P(r, yS), { hint, ru: 0.12, rv: 1 });
+  k.quad(mat, P(-r - t, yS), P(-r, yS), P(0, y0 + h), P(0, y0 + h + t * 1.2), { hint, ru: 0.3, rv: 0.12 });
+  k.quad(mat, P(r, yS), P(r + t, yS), P(0, y0 + h + t * 1.2), P(0, y0 + h), { hint, ru: 0.3, rv: 0.12 });
+}
+
+/** a regular n-gon disc (porthole, rose, sun) standing on a wall: centre (cx, y, cz), facing `out`, radius r, `proud` off the wall */
+export function disc(k: Kit, mat: THREE.Material, cx: number, y: number, cz: number, r: number, out: Dir2, n = 12, proud = 0.05, o?: { color?: number }): void {
+  if (k.far) return;
+  const [rx, rz] = rightOf(out);
+  const hint: V3 = [out[0], 0, out[1]];
+  const P = (a: number, rr: number): V3 => [cx + out[0] * proud + rx * Math.cos(a) * rr, y + Math.sin(a) * rr, cz + out[1] * proud + rz * Math.cos(a) * rr];
+  for (let i = 0; i < n; i++) {
+    const a0 = (i / n) * Math.PI * 2, a1 = ((i + 1) / n) * Math.PI * 2;
+    k.tri(mat, [cx + out[0] * proud, y, cz + out[1] * proud], P(a0, r), P(a1, r), { hint, color: o?.color, uv: [[0.5, 0.5], [0.5 + Math.cos(a0) * 0.45, 0.5 + Math.sin(a0) * 0.45], [0.5 + Math.cos(a1) * 0.45, 0.5 + Math.sin(a1) * 0.45]] });
+  }
+}
+
+/** a flat-coloured quad on a wall plane: u along the wall from (x0, z0) toward (x1, z1), v up. Used by mural art and lettering bars. */
+export interface WallPlane { x0: number; z0: number; ux: number; uz: number; out: Dir2 }
+export function planePoint(p: WallPlane, u: number, v: number, off: number): V3 {
+  return [p.x0 + p.ux * u + p.out[0] * off, v, p.z0 + p.uz * u + p.out[1] * off];
+}

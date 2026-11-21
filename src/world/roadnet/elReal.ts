@@ -17,7 +17,8 @@ import {
   ACCEL, CAR_COUNT, CAR_GAP, CAR_LENGTH, DECEL, DOOR_TIME, DWELL, PERIOD, TRAIN_LENGTH, V_CRUISE,
 } from '@/transit/ElLine';
 import type { Derived } from './derive';
-import { distance, pointInPolygon } from './geom';
+import { distance, pointInPolygon, segmentIntersection } from './geom';
+import { R3_EXTENT } from './extents';
 import type { RoadNet } from './RoadNet';
 
 export interface ElPath { id: 'JZ' | 'M'; pts: Vec2[]; cum: Float64Array; length: number }
@@ -47,6 +48,7 @@ function chainEdges(net: RoadNet, name: string, start: number, prefer?: (dir: Ve
   const nodes = [start];
   const used = new Set<number>();
   let v = start;
+  let prevDir: Vec2 | null = null; // MAP4: at a fork (Broadway splits around Hooper St) keep going straight
   while (v !== stop) {
     let best = -1, bestScore = -Infinity;
     for (const e of net.incident[v]) {
@@ -56,7 +58,7 @@ function chainEdges(net: RoadNet, name: string, start: number, prefer?: (dir: Ve
       const p0 = fwd ? ed.pts[0] : ed.pts[ed.pts.length - 1];
       const p1 = fwd ? ed.pts[1] : ed.pts[ed.pts.length - 2];
       const d = unit(sub(p1, p0));
-      const score = prefer && used.size === 0 ? prefer(d) : -used.size;
+      const score = prefer && used.size === 0 ? prefer(d) : prevDir ? d.x * prevDir.x + d.z * prevDir.z : -used.size;
       if (score > bestScore) { bestScore = score; best = e; }
     }
     if (best < 0) break;
@@ -65,21 +67,62 @@ function chainEdges(net: RoadNet, name: string, start: number, prefer?: (dir: Ve
     const fwd = ed.a === v;
     const seq = fwd ? ed.pts : ed.pts.slice().reverse();
     for (let k = pts.length ? 1 : 0; k < seq.length; k++) pts.push(seq[k]);
+    prevDir = unit(sub(seq[seq.length - 1], seq[seq.length - 2]));
     v = fwd ? ed.b : ed.a;
     nodes.push(v);
   }
   return { pts, nodes };
 }
 
-/** The end node of a street's chain that is farthest toward -z (north) among nodes touched by exactly one of its edges. */
+/**
+ * The end node of the street's chain that is farthest toward -z (north) among nodes touched by exactly one of its edges. MAP4: only
+ * the chain joined to the Myrtle Ave crossing counts (the bigger net holds other pieces of Broadway, in Williamsburg and Ridgewood).
+ */
 function northEnd(net: RoadNet, name: string): number {
+  const onStreet = (v: number): number[] => net.incident[v].filter((e) => net.edges[e].name === name && net.edges[e].level === 0);
+  const seed = net.nodes.findIndex((_, v) => onStreet(v).length > 0 && net.incident[v].some((e) => net.edges[e].name === 'Myrtle Ave'));
+  const reach = new Set<number>();
+  if (seed >= 0) {
+    const todo = [seed];
+    while (todo.length) {
+      const v = todo.pop()!;
+      if (reach.has(v)) continue;
+      reach.add(v);
+      for (const e of onStreet(v)) todo.push(net.edges[e].a === v ? net.edges[e].b : net.edges[e].a);
+    }
+  }
   let best = -1;
   net.nodes.forEach((n, i) => {
-    const k = net.incident[i].filter((e) => net.edges[e].name === name && net.edges[e].level === 0).length;
-    if (k !== 1) return;
+    if (seed >= 0 && !reach.has(i)) return;
+    if (onStreet(i).length !== 1) return;
     if (best < 0 || n.p.z < net.nodes[best].p.z) best = i;
   });
   return best;
+}
+
+/**
+ * MAP4: the el keeps its R3 extent. The net now runs on past it (Broadway to Williamsburg and Cypress Hills, Myrtle Ave to
+ * Ridgewood), so a chain is cut where it leaves `poly`, at the crossing point, and its node list keeps the nodes inside.
+ */
+function clipChain(net: RoadNet, ch: { pts: Vec2[]; nodes: number[] }, poly: ReadonlyArray<Vec2>): { pts: Vec2[]; nodes: number[] } {
+  const inside = (q: Vec2): boolean => pointInPolygon(q, poly);
+  const cross = (a: Vec2, b: Vec2): Vec2 => {
+    let t = 1;
+    for (let i = 0; i < poly.length; i++) {
+      const h = segmentIntersection(a, b, poly[i], poly[(i + 1) % poly.length]);
+      if (h && h.s < t) t = h.s;
+    }
+    return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t };
+  };
+  const pts = ch.pts;
+  const i0 = pts.findIndex(inside);
+  if (i0 < 0) return ch;
+  let i1 = i0;
+  while (i1 + 1 < pts.length && inside(pts[i1 + 1])) i1++;
+  const out = pts.slice(i0, i1 + 1);
+  if (i0 > 0) out.unshift(cross(pts[i0], pts[i0 - 1]));
+  if (i1 < pts.length - 1) out.push(cross(pts[i1], pts[i1 + 1]));
+  return { pts: out, nodes: ch.nodes.filter((v) => inside(net.nodes[v].p)) };
 }
 
 /** Replaces every bend by a tangent-continuous arc of radius `r`; vertices too close together for that are merged first. */
@@ -175,7 +218,7 @@ function crossingOf(net: RoadNet, nodes: number[], along: string, cross: string)
 export function buildElPaths(net: RoadNet): { paths: ElPath[]; stations: ElStationReal[] } {
   const start = northEnd(net, 'Broadway');
   if (start < 0) return { paths: [], stations: [] };
-  const bw = chainEdges(net, 'Broadway', start);
+  const bw = clipChain(net, chainEdges(net, 'Broadway', start), R3_EXTENT);
   if (bw.pts.length < 2) return { paths: [], stations: [] };
   const paths: ElPath[] = [makePath('JZ', smoothPolyline(bw.pts, ELBOW_R))];
   const nodeLists = new Map<'JZ' | 'M', number[]>([['JZ', bw.nodes]]);
@@ -184,8 +227,8 @@ export function buildElPaths(net: RoadNet): { paths: ElPath[]; stations: ElStati
   const myrtleNode = bw.nodes.find((v) => net.incident[v].some((e) => net.edges[e].name === 'Myrtle Ave'));
   if (myrtleNode !== undefined) {
     const upTo = bw.nodes.indexOf(myrtleNode);
-    const cutPts = chainEdges(net, 'Broadway', start, undefined, myrtleNode).pts;
-    const my = chainEdges(net, 'Myrtle Ave', myrtleNode, (d) => d.x);
+    const cutPts = clipChain(net, chainEdges(net, 'Broadway', start, undefined, myrtleNode), R3_EXTENT).pts;
+    const my = clipChain(net, chainEdges(net, 'Myrtle Ave', myrtleNode, (d) => d.x), R3_EXTENT);
     if (my.pts.length >= 2 && cutPts.length >= 2) {
       paths.push(makePath('M', smoothPolyline([...cutPts, ...my.pts.slice(1)], ELBOW_R)));
       nodeLists.set('M', [...bw.nodes.slice(0, upTo + 1), ...my.nodes.slice(1)]);
@@ -244,22 +287,52 @@ function halfWidthAt(net: RoadNet, q: Vec2): number {
   return h ? net.edges[h.edge].width / 2 : 6.5;
 }
 
+/** MAP4: grids over the node polygons and the legs (blockedAt scanned all of them for every column: 4.6 s of boot on the R4 net) */
+interface BlockGrid { cell: number; polys: Map<number, number[]>; legs: Map<number, number[]> }
+const blockGrids = new WeakMap<Derived, BlockGrid>();
+const BG = 64;
+const bgKey = (ix: number, iz: number): number => (ix + 32768) * 65536 + (iz + 32768);
+function blockGridOf(d: Derived, net: RoadNet): BlockGrid {
+  let g = blockGrids.get(d);
+  if (g) return g;
+  g = { cell: BG, polys: new Map(), legs: new Map() };
+  d.nodePolys.forEach((poly, i) => {
+    if (!poly.length) return;
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const q of poly) { x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); z0 = Math.min(z0, q.z); z1 = Math.max(z1, q.z); }
+    for (let ix = Math.floor((x0 - 1) / BG); ix <= Math.floor((x1 + 1) / BG); ix++) for (let iz = Math.floor((z0 - 1) / BG); iz <= Math.floor((z1 + 1) / BG); iz++) {
+      const k = bgKey(ix, iz); const l = g!.polys.get(k); if (l) l.push(i); else g!.polys.set(k, [i]);
+    }
+  });
+  d.legs.forEach((leg, i) => {
+    const n = net.nodes[leg.node].p;
+    const k = bgKey(Math.floor(n.x / BG), Math.floor(n.z / BG)); const l = g!.legs.get(k); if (l) l.push(i); else g!.legs.set(k, [i]);
+  });
+  blockGrids.set(d, g);
+  return g;
+}
+
 /** true when a column footprint at q would stand in a paved node polygon or a crosswalk band */
 function blockedAt(q: Vec2, d: Derived, net: RoadNet): boolean {
-  for (const poly of d.nodePolys) {
-    if (!poly.length) continue;
+  const g = blockGridOf(d, net);
+  const cx = Math.floor(q.x / BG), cz = Math.floor(q.z / BG);
+  for (const i of g.polys.get(bgKey(cx, cz)) ?? []) {
+    const poly = d.nodePolys[i];
     // the footprint, not just the centre: the centre and four points half a metre out
     if (pointInPolygon(q, poly) || pointInPolygon({ x: q.x + 0.5, z: q.z }, poly) || pointInPolygon({ x: q.x - 0.5, z: q.z }, poly)
       || pointInPolygon({ x: q.x, z: q.z + 0.5 }, poly) || pointInPolygon({ x: q.x, z: q.z - 0.5 }, poly)) return true;
   }
   const a0 = SHARED_CROSSWALK.start - COLUMN_PAD, a1 = SHARED_CROSSWALK.start + SHARED_CROSSWALK.width + COLUMN_PAD;
-  for (const leg of d.legs) {
-    const n = net.nodes[leg.node].p;
-    const rx = q.x - n.x, rz = q.z - n.z;
-    if (rx * rx + rz * rz > 80 * 80) continue;
-    const along = rx * leg.dir.x + rz * leg.dir.z;
-    const lat = rx * leg.nrm.x + rz * leg.nrm.z;
-    if (along >= leg.cut + a0 && along <= leg.cut + a1 && Math.abs(lat) <= leg.hw + leg.sidewalk) return true;
+  for (let ix = cx - 2; ix <= cx + 2; ix++) for (let iz = cz - 2; iz <= cz + 2; iz++) {
+    for (const li of g.legs.get(bgKey(ix, iz)) ?? []) {
+      const leg = d.legs[li];
+      const n = net.nodes[leg.node].p;
+      const rx = q.x - n.x, rz = q.z - n.z;
+      if (rx * rx + rz * rz > 80 * 80) continue;
+      const along = rx * leg.dir.x + rz * leg.dir.z;
+      const lat = rx * leg.nrm.x + rz * leg.nrm.z;
+      if (along >= leg.cut + a0 && along <= leg.cut + a1 && Math.abs(lat) <= leg.hw + leg.sidewalk) return true;
+    }
   }
   return false;
 }

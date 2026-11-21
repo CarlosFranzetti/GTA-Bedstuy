@@ -1,0 +1,10 @@
+import path from 'node:path'; import { createServer } from 'vite';
+const ROOT='/home/user/GTA-Bedstuy';
+const vite = await createServer({ configFile:false, root:ROOT, appType:'custom', logLevel:'silent', resolve:{alias:{'@':path.join(ROOT,'src')}}, server:{middlewareMode:true,ws:false}, optimizeDeps:{noDiscovery:true}});
+const geom = await vite.ssrLoadModule('/src/world/roadnet/geom.ts');
+const ext = await vite.ssrLoadModule('/src/world/roadnet/extents.ts');
+const off=JSON.parse(process.argv[2]); const bev=+process.argv[3]||0;
+const r=ext.offsetRing(ext.R3_RING, off, bev);
+console.log(r.length, JSON.stringify(r.map(p=>[p.x,p.z])));
+console.log('area R1R2',(Math.abs(geom.signedArea(ext.R1R2_RING))/1e6).toFixed(2),'R3',(Math.abs(geom.signedArea(ext.R3_RING))/1e6).toFixed(2),'R4',(Math.abs(geom.signedArea(r))/1e6).toFixed(2));
+await vite.close();

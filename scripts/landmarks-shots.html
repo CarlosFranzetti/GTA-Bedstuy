@@ -49,7 +49,18 @@ for (const id of ids) {
   rw.streamer.settle(c.x, c.z, 0);
   const size = Math.hypot(s.w, s.d);
   const t0 = performance.now();
-  for (const v of views) {
+  // LANDMARKS2: ?cams=name:x,y,z>x,y,z;name2:... in SITE-LOCAL metres (x along the frontage, y up, z into the site): one frame per camera
+  const camSpecs = (params.get('cams') ?? '').split(';').filter(Boolean).map((c) => { const [n, r] = c.split(':'); const [a, b] = r.split('>').map((q) => q.split(',').map(Number)); const [only, nn] = n.includes('|') ? n.split('|') : [null, n]; return { only, n: nn, a, b }; });
+  const loc = (lx, lz) => [s.ax + s.fx * lx + s.nx * lz, s.az + s.fz * lx + s.nz * lz];
+  for (const cs of camSpecs.filter((q) => !q.only || q.only === id)) {
+    const a = loc(cs.a[0], cs.a[2]), b = loc(cs.b[0], cs.b[2]);
+    cam.position.set(a[0], cs.a[1], a[1]); cam.lookAt(b[0], cs.b[1], b[1]);
+    rw.update(0, a[0], a[1], cam.position, false);
+    renderer.render(scene, cam);
+    out[`${id}-${cs.n}`] = renderer.domElement.toDataURL('image/png');
+    info[`${id}-${cs.n}`] = { tris: renderer.info.render.triangles, calls: renderer.info.render.calls };
+  }
+  for (const v of views.filter((q) => q !== 'cams')) {
     let p, l;
     const big = ['park', 'housing', 'hospital', 'armory', 'playground'].includes(row.kind);
     if (v === 'street') {

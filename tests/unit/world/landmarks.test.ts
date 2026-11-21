@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { Rng } from '@/core/Rng';
 import type { IMaterialLibrary } from '@/world/types';
 import { LANDMARKS, OWNED_BBLS } from '@/world/landmarks/landmarks';
+import { LANDMARKS2 } from '@/world/landmarks/landmarks2';
 import { LandmarkLayer, LANDMARK_RANGES } from '@/world/landmarks/layer';
 import { loadRoadNet } from '@/world/roadnet/MapSource';
 import { deriveGeometry } from '@/world/roadnet/derive';
@@ -24,7 +25,7 @@ function stubLib(): IMaterialLibrary {
   } as IMaterialLibrary;
 }
 
-const KINDS = ['park', 'pool', 'playground', 'housing', 'church', 'armory', 'school', 'hospital', 'library', 'stationhouse', 'firehouse', 'depot', 'garden', 'subway', 'plaza'];
+const KINDS = ['park', 'pool', 'playground', 'housing', 'church', 'armory', 'school', 'hospital', 'library', 'stationhouse', 'firehouse', 'depot', 'garden', 'subway', 'plaza', 'theatre', 'brewery', 'market', 'rowhouses', 'eatery', 'mural'];
 
 describe('landmark table', () => {
   it('has about twenty rows with unique ids and names', () => {
@@ -85,8 +86,11 @@ describe('landmark sites against the real-map data', async () => {
     it(`${l.id}: the site lies inside its block`, () => {
       const s = l.site;
       if (s.block < 0) return; // street furniture (subway stairs) stands on the pavement, not in a block
-      const ring = rings[s.block];
-      expect(ring && ring.length >= 3, `block ${s.block}`).toBe(true);
+      // LANDMARKS2: block indices move when the map grows, so a site is checked against the ring that holds its centre
+      const mid = { x: s.ax + s.fx * s.w / 2 + s.nx * s.d / 2, z: s.az + s.fz * s.w / 2 + s.nz * s.d / 2 };
+      let ring = rings[s.block];
+      if (!(ring && ring.length >= 3 && pointInPolygon(mid, ring))) ring = rings.find((r) => r && r.length >= 3 && pointInPolygon(mid, r)) as typeof ring;
+      expect(ring && ring.length >= 3, `block holding ${l.id}`).toBe(true);
       const at = (x: number, z: number): { x: number; z: number } => ({ x: s.ax + s.fx * x + s.nx * z, z: s.az + s.fz * x + s.nz * z });
       // the corners, pulled in 1 m (corner radii of the block ring)
       const e = 1;
@@ -106,13 +110,13 @@ describe('landmark sites against the real-map data', async () => {
   it('no invented street-like word collides with a street of the map', () => {
     const streetWords = new Set<string>();
     for (const n of net.edges.map((e) => String(e.name ?? ''))) for (const t of n.toLowerCase().split(/[^a-z0-9]+/)) if (t.length > 3) streetWords.add(t);
-    const generic = new Set(['park', 'pool', 'church', 'school', 'houses', 'garden', 'library', 'station', 'engine', 'medical', 'center', 'methodist', 'branch', 'playground', 'high', 'armory', 'firehouse', 'sanitation', 'garage', 'towers', 'calle', 'verde']);
+    const generic = new Set(['theatre', 'brewhouse', 'north', 'south', 'pizza', 'yard', 'park', 'pool', 'church', 'school', 'houses', 'garden', 'library', 'station', 'engine', 'medical', 'center', 'methodist', 'branch', 'playground', 'high', 'armory', 'firehouse', 'sanitation', 'garage', 'towers', 'calle', 'verde']);
     for (const l of LANDMARKS) for (const t of l.name.toLowerCase().split(/[^a-z0-9]+/)) if (t.length > 3 && !generic.has(t)) expect(streetWords.has(t), `${l.name}: ${t}`).toBe(false);
   });
 });
 
 describe('landmark builders stay within budget', () => {
-  const BUDGET: Record<string, number> = { park: 60000, housing: 70000, hospital: 40000, armory: 30000, school: 30000, church: 20000, pool: 15000, playground: 20000, library: 12000, stationhouse: 12000, firehouse: 6000, depot: 12000, garden: 6000, subway: 2500 };
+  const BUDGET: Record<string, number> = { theatre: 20000, brewery: 25000, market: 8000, rowhouses: 16000, eatery: 8000, mural: 12000, park: 60000, housing: 70000, hospital: 40000, armory: 30000, school: 30000, church: 20000, pool: 15000, playground: 20000, library: 12000, stationhouse: 12000, firehouse: 6000, depot: 12000, garden: 6000, subway: 2500 };
   for (const tier of ['phone', 'low'] as const) {
     it(`near and far builds per landmark, tier ${tier}`, () => {
       const lib = stubLib();
@@ -203,4 +207,23 @@ describe('landmarks in the real world', () => {
     expect(rg.streetName({ x: c.x + 400, z: c.z + 400 })).not.toBe('Tillery Branch Library');
     rg.release();
   }, 900000);
+});
+
+describe('LANDMARKS2 rows', () => {
+  it('has fourteen rows after the first twenty', () => {
+    expect(LANDMARKS2.length).toBe(14);
+    expect(LANDMARKS.slice(-14).map((l) => l.id)).toEqual(LANDMARKS2.map((l) => l.id));
+  });
+  it('every photograph a row cites carries an open licence', () => {
+    for (const l of LANDMARKS2) for (const src of l.sources) {
+      if (!/commons\.wikimedia\.org\/wiki\/File:/.test(src.url)) continue;
+      expect(src.licence, `${l.id} ${src.url}`).toMatch(/^(CC0|CC BY 4\.0|CC BY-SA 3\.0|CC BY-SA 4\.0|Public domain)/);
+    }
+  });
+  it('no real name leaks into a shipped row', () => {
+    for (const l of LANDMARKS2) {
+      const text = `${l.name} ${l.district} ${l.blurb}`.toLowerCase();
+      for (const bad of ['rko', 'ulmer', 'wyckoff', 'barbara', 'hylan', 'lindsay', 'roberta', 'rugged', 'metropolitan station', '13th regiment']) expect(text.includes(bad), `${bad} in ${l.id}`).toBe(false);
+    }
+  });
 });

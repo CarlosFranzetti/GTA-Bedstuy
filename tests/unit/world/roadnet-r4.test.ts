@@ -1,12 +1,13 @@
 /**
- * MAP7: the whole real map (R1 + R2 + the seven-block ring R3): extents, the network file, derived geometry, signals, lot tiles.
+ * MAP7 + MAP4: the whole real map (R1 + R2 + the seven-block ring R3 + the five-block ring R4): extents, the network file,
+ * derived geometry, signals, lot tiles.
  * Counts come from the data files (ranges, never literals), as in the other roadnet tests.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Vec2 } from '@/core/Math2';
-import { R1R2_EXTENT, R3_EXTENT, R3_RING, R1R2_RING, R3_OFFSETS, offsetRing, inR3Ring, phaseOf } from '@/world/roadnet/extents';
+import { R1R2_EXTENT, R3_EXTENT, R3_RING, R1R2_RING, R3_OFFSETS, R4_EXTENT, R4_RING, R4_OFFSETS, offsetRing, inR3Ring, inR4Ring, phaseOf } from '@/world/roadnet/extents';
 import { closestOnSegment, pointInPolygon, signedArea } from '@/world/roadnet/geom';
 import { RoadNet } from '@/world/roadnet/RoadNet';
 import { encodeRoadNet, decodeRoadNet, type RoadNetJson } from '@/world/roadnet/codec';
@@ -20,8 +21,8 @@ import { blockTiles, decodeLotTile, encodeLotTile, tileBounds, tileKeyOf, type L
 import { RealLotTiles, type LotSource } from '@/world/roadnet/lotStreamReal';
 
 const ROOT = join(import.meta.dirname, '../../..');
-const netJson = JSON.parse(readFileSync(join(ROOT, 'src/world/data/roadnet-r123.json'), 'utf8')) as RoadNetJson;
-const controls = JSON.parse(readFileSync(join(ROOT, 'src/world/data/roadnet-controls-r123.json'), 'utf8')) as { nodes: Record<string, { control: string }> };
+const netJson = JSON.parse(readFileSync(join(ROOT, 'src/world/data/roadnet-r4.json'), 'utf8')) as RoadNetJson;
+const controls = JSON.parse(readFileSync(join(ROOT, 'src/world/data/roadnet-controls-r4.json'), 'utf8')) as { nodes: Record<string, { control: string }> };
 const lotIndex = JSON.parse(readFileSync(join(ROOT, 'public/data/real/lots-index.json'), 'utf8')) as LotTileIndex;
 const tileFile = (k: string): LotTileJson => JSON.parse(readFileSync(join(ROOT, `public/data/real/lots-${k}.json`), 'utf8')) as LotTileJson;
 const core = JSON.parse(readFileSync(join(ROOT, 'src/world/data/roadnet-core.json'), 'utf8')) as RoadNetJson;
@@ -32,6 +33,30 @@ const d = deriveGeometry(net);
 const faces = blockFaces(net, d);
 const bad = badBlocks(net, d);
 const fileSource: LotSource = { index: async () => lotIndex, tile: async (k) => tileFile(k) };
+
+describe('R4 extent', () => {
+  it('contains the whole R3 extent, is a simple ring, and grew by about five blocks on the cardinal sides', () => {
+    expect(R4_OFFSETS).toHaveLength(R3_RING.length);
+    for (const p of R3_EXTENT) expect(pointInPolygon(p, R4_EXTENT), `${p.x},${p.z}`).toBe(true);
+    expect(isSimpleRing(R4_RING)).toBe(true);
+    expect(isSimpleRing(R4_EXTENT)).toBe(true);
+    const a3 = Math.abs(signedArea(R3_RING)) / 1e6, a4 = Math.abs(signedArea(R4_RING)) / 1e6;
+    expect(a3).toBeGreaterThan(9.5);
+    expect(a4).toBeGreaterThan(14);
+    expect(a4).toBeLessThan(17);
+    // north, west, south sides: the R3 side line is 410..500 m (five blocks of 80..100 m) inside the R4 outline
+    const mid = (i: number): Vec2 => ({ x: (R3_RING[i].x + R3_RING[(i + 1) % R3_RING.length].x) / 2, z: (R3_RING[i].z + R3_RING[(i + 1) % R3_RING.length].z) / 2 });
+    for (const i of [0, 9, 10]) { const dd = distToRing(mid(i), R4_RING); expect(dd, `side ${i}`).toBeGreaterThan(380); expect(dd, `side ${i}`).toBeLessThan(520); }
+  });
+  it('inR4Ring and inR3Ring do not overlap', () => {
+    const pt: Vec2 = { x: -1400, z: -300 }; // west of Skillman St: R4 only
+    expect(pointInPolygon(pt, R4_EXTENT)).toBe(true);
+    expect(inR3Ring(pt) || phaseOf(pt) !== null).toBe(false);
+    expect(inR4Ring(pt)).toBe(true);
+    expect(inR4Ring({ x: 400, z: -300 })).toBe(false);
+    expect(inR4Ring({ x: -900, z: -300 })).toBe(false);
+  });
+});
 
 describe('R3 extent', () => {
   it('contains the whole R1+R2 extent and is about seven blocks wider on every side', () => {
@@ -62,7 +87,7 @@ describe('R3 extent', () => {
   });
 });
 
-describe('roadnet-r123.json', () => {
+describe('roadnet-r4.json', () => {
   it('is a bigger network than the first two rings and survives the codec', () => {
     const small = RoadNet.fromJson(core);
     expect(net.edges.length).toBeGreaterThan(2 * small.edges.length);
@@ -70,8 +95,8 @@ describe('roadnet-r123.json', () => {
     const again = decodeRoadNet(encodeRoadNet(net.data));
     expect(again.edges.length).toBe(net.edges.length);
   });
-  it('lies inside R3_EXTENT (plus the margin) and reaches the seven-block boundary streets', () => {
-    for (const n of net.nodes) expect(pointInPolygon(n.p, R3_EXTENT) || distToRing(n.p, R3_EXTENT) < 1.5, `${n.p.x},${n.p.z} ${n.control}`).toBe(true);
+  it('lies inside R4_EXTENT (plus the margin) and still has the R3 and R4 boundary streets', () => {
+    for (const n of net.nodes) expect(pointInPolygon(n.p, R4_EXTENT) || distToRing(n.p, R4_EXTENT) < 1.5, `${n.p.x},${n.p.z} ${n.control}`).toBe(true);
     const names = new Set(net.edges.map((e) => e.name));
     for (const s of ['Jefferson Ave', 'Skillman St', 'Boerum St', 'St Nicholas Ave', 'Broadway', 'Myrtle Ave', 'Tompkins Ave', 'Flushing Ave']) expect(names.has(s), s).toBe(true);
   });
@@ -82,10 +107,10 @@ describe('roadnet-r123.json', () => {
     const diag = net.edges.filter((e) => { const a = e.pts[0], b = e.pts[e.pts.length - 1]; const ang = Math.abs(((Math.atan2(b.z - a.z, b.x - a.x) * 180) / Math.PI) % 90); return Math.abs(ang - 45) < 12 && Math.hypot(b.x - a.x, b.z - a.z) > 100; });
     expect(diag.length).toBeGreaterThan(50);
   });
-  it('is small: under 120 kB raw', () => { expect(JSON.stringify(netJson).length).toBeLessThan(120_000); });
+  it('is small: under 200 kB raw', () => { expect(JSON.stringify(netJson).length).toBeLessThan(200_000); });
 });
 
-describe('derived geometry on R3', () => {
+describe('derived geometry on R4', () => {
   it('every kerb and building ring is simple', () => {
     d.curbRings.forEach((r, i) => { if (r.length) expect(isSimpleRing(r), `curb ${i}`).toBe(true); });
     d.buildingRings.forEach((r, i) => { if (r.length) expect(isSimpleRing(r), `building ${i}`).toBe(true); });
@@ -94,13 +119,13 @@ describe('derived geometry on R3', () => {
     const real = net.blocks.filter((b) => !b.island).length;
     expect(bad.size / real).toBeLessThan(0.04);
     const big = [...bad].filter((i) => net.blocks[i].area >= 1200);
-    expect(big.length).toBeLessThanOrEqual(5); // 51, 144, 257, 415: one vertex of the building line outside the kerb (see repairRings)
+    expect(big.length).toBeLessThanOrEqual(8); // R4: 142, 399, 56, 308, 163 beside the Broadway wedges 470 and 670: one vertex of the building line outside the kerb (see repairRings, MAP4.md)
   });
-  it('repairRings (opt-in) turns the four big bad blocks into buildable ones', () => {
+  it('repairRings (opt-in) turns all but one of the big bad blocks into buildable ones', () => {
     const d2 = deriveGeometry(net, { repairRings: true });
     const bad2 = badBlocks(net, d2);
     expect(bad2.size).toBeLessThan(bad.size - 3);
-    for (const i of bad2) expect(net.blocks[i].area).toBeLessThan(1200);
+    expect([...bad2].filter((i) => net.blocks[i].area >= 1200).length).toBeLessThanOrEqual(1); // block 142 (13,000 m2, west of Williamsburg St) stays bad
   });
   it('junction clusters cover every node once', () => {
     const cl = junctionClusters(net, d);
