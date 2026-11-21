@@ -58,10 +58,11 @@ const MIN_CAM_Y = 0.4;
 /** Pivot offsets: the camera orbits a point `look` m above the ground at the car's roof centre / the player's head. */
 export const CAM_FOOT = { distance: 3.2, height: 1.55, look: 1.4, fov: 64, shoulder: 0.35 };
 // LOOK lane's measured values (21 Nov): lower and closer, a narrower lens; the pull-back and the pivot lag below carry the sense of speed.
-export const CAM_VEHICLE = { distance: 4.1, height: 1.45, look: 1.15, fov: 62, fovTop: 72 };
+// car rig: the lower 4.1 m / 1.45 m rig tried on 21 Nov sat at roof height and the roof hid the road; back to the shipped rig
+export const CAM_VEHICLE = { distance: 4.6, height: 1.7, look: 1.3, fov: 70, fovTop: 82 };
 const SEDAN = { length: 4.6, height: 1.45, width: 1.9 };
 /** Extra pull-back (m) at top speed, so the road ahead opens up. */
-const SPEED_DISTANCE = 0.6;
+const SPEED_DISTANCE = 0.9;
 const SPEED_FULL = 30;
 /** Look-back: spring rate of the 0..1 blend (snap ~0.35 s) and the key that drives it. */
 const LOOKBACK_OMEGA = 11;

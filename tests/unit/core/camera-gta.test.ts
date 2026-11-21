@@ -100,27 +100,27 @@ describe('return behind the body after a look', () => {
 });
 
 describe('field of view vs speed', () => {
-  const table: Array<[number, number]> = [[0, 62], [7.5, 64.5], [15, 67], [30, 72], [60, 72], [-30, 72]];
+  const table: Array<[number, number]> = [[0, 70], [7.5, 73], [15, 76], [30, 82], [60, 82], [-30, 82]];
   it.each(table)('vehicleFov(%d m/s) = %d', (sp, fov) => { expect(vehicleFov(sp)).toBeCloseTo(fov, 5); });
-  it('the live camera reaches 62 at rest, 72 at top speed and 64 on foot', () => {
+  it('the live camera reaches 70 at rest, 82 at top speed and 64 on foot', () => {
     const rest = new ThirdPersonCamera(), top = new ThirdPersonCamera(), foot = new ThirdPersonCamera();
     for (let i = 0; i < 360; i++) {
       rest.update(DT, T, 0, 'vehicle', fake(), { speed: 0 });
       top.update(DT, T, 0, 'vehicle', fake(), { speed: 30 });
       foot.update(DT, T, 0, 'foot', fake());
     }
-    expect(rest.camera.fov).toBeCloseTo(62, 1);
-    expect(top.camera.fov).toBeCloseTo(72, 1);
+    expect(rest.camera.fov).toBeCloseTo(70, 1);
+    expect(top.camera.fov).toBeCloseTo(82, 1);
     expect(foot.camera.fov).toBeCloseTo(64, 1);
   });
 });
 
 describe('rig geometry', () => {
-  it('car: 4.1 m behind, 1.45 m up at rest (pitch 0)', () => {
+  it('car: 4.6 m behind, 1.7 m up at rest (pitch 0)', () => {
     const c = new ThirdPersonCamera(); c.pitch = 0;
     for (let i = 0; i < 120; i++) c.update(DT, T, 0, 'vehicle', fake(), { speed: 0 });
-    expect(c.camera.position.z).toBeCloseTo(4.1, 2);
-    expect(c.camera.position.y).toBeCloseTo(1.45, 2);
+    expect(c.camera.position.z).toBeCloseTo(4.6, 2);
+    expect(c.camera.position.y).toBeCloseTo(1.7, 2);
   });
   it('lateral g rolls the view, sign follows the turn, level when straight', () => {
     const c = new ThirdPersonCamera();
@@ -182,7 +182,7 @@ describe('idle cinematic', () => {
     expect(c.cinematicAmount).toBe(0);
     expect(c.idleSeconds).toBe(0);
     expect(Math.abs(c.camera.position.x)).toBeLessThan(0.05);
-    expect(c.camera.position.z).toBeCloseTo(4.1, 1);
+    expect(c.camera.position.z).toBeCloseTo(4.6, 1);
   });
   it('does not start while the target is moving', () => {
     const c = new ThirdPersonCamera();
@@ -223,12 +223,12 @@ describe('rig scales with the vehicle', () => {
     for (let i = 0; i < 300; i++) c.update(DT, T, 0, 'vehicle', fake(), { vehicle: { speed: 0, spec } });
     return c;
   };
-  it('sedan keeps 4.1 m / 1.45 m; box truck (7 x 3.2 m) sits back and high enough to see over its roof', () => {
+  it('sedan keeps 4.6 m / 1.7 m; box truck (7 x 3.2 m) sits back and high enough to see over its roof', () => {
     const sedan = settle({ length: 4.6, height: 1.4 });
-    expect(sedan.camera.position.z).toBeCloseTo(4.1, 1);
-    expect(sedan.camera.position.y).toBeCloseTo(1.45, 1);
+    expect(sedan.camera.position.z).toBeCloseTo(4.6, 1);
+    expect(sedan.camera.position.y).toBeCloseTo(1.7, 1);
     const truck = settle({ length: 7, height: 3.2 });
-    expect(truck.camera.position.z).toBeCloseTo(6.5, 1); // 4.1 + (7 - 4.6) extra length
+    expect(truck.camera.position.z).toBeCloseTo(7, 1);
     expect(truck.camera.position.y).toBeGreaterThan(3.2);
     expect(truck.camera.position.y).toBeLessThan(4);
   });

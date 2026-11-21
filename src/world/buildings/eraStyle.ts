@@ -79,7 +79,7 @@ function pick(u: number, table: ReadonlyArray<[MaterialFamily, number]>): Materi
  * Style a residential, mixed or apartment spec from its facts. Never touches vacant lots, churches or institutions, floors that
  * the record gives, the shop of a mixed-use lot, or a family the observed-facade layer decides (the caller merges that after).
  */
-export function applyEraStyle(spec: LotSpec, f: EraFacts, opts: { keepFamily?: boolean } = {}): LotSpec {
+export function applyEraStyle(spec: LotSpec, f: EraFacts, opts: { keepFamily?: boolean; keepStoop?: boolean } = {}): LotSpec {
   if (spec.use !== 'residential' && spec.use !== 'mixed' && spec.use !== 'apartment') return spec;
   const yr = f.yr ?? 0;
   const style = styleOf(f);
@@ -114,7 +114,7 @@ export function applyEraStyle(spec: LotSpec, f: EraFacts, opts: { keepFamily?: b
     // raised-basement rows: the older and grander the row, the higher the parlour floor
     const base = style === 'italianate' ? 1.95 : style === 'neoGrec' ? 1.8 : style === 'romanesque' ? 1.65 : style === 'frame' ? 1.0 : 1.3;
     const jitter = (hash01(`${f.bbl ?? ''}:stoop`) - 0.5) * 0.12; // a row shares its height to within a few centimetres
-    out.stoop = { present: true, heightM: Math.round((base + jitter + (wide ? 0.05 : 0)) * 100) / 100 };
+    if (!opts.keepStoop) out.stoop = { present: true, heightM: Math.round((base + jitter + (wide ? 0.05 : 0)) * 100) / 100 };
     // brownstone and Romanesque parlour windows: round arches on the oldest rows and half the 1890s ones
     if (family === 'brownstone') out.arched = style === 'italianate' || (style === 'romanesque' && u < 0.55) || (style === 'neoGrec' && u < 0.2);
     // paired doors: odd and even tax lots mirror each other, so the doors meet in twos along the row

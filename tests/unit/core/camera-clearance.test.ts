@@ -89,11 +89,11 @@ describe('pure helpers', () => {
 });
 
 describe('open road is unchanged', () => {
-  it('no obstacle: the chase lens sits 4.1 m behind and 1.45 m up, as before', () => {
+  it('no obstacle: the chase lens sits 4.6 m behind and 1.7 m up, as before', () => {
     const w = new World2D(12);
     const { cam } = drive(w, 2);
-    expect(cam.camera.position.z).toBeCloseTo(4.1, 2);
-    expect(cam.camera.position.y).toBeCloseTo(1.45, 2);
+    expect(cam.camera.position.z).toBeCloseTo(4.6, 2);
+    expect(cam.camera.position.y).toBeCloseTo(1.7, 2);
   });
 });
 
@@ -303,7 +303,7 @@ describe('no popping', () => {
     const afterTenth = cam.camera.position.z;
     expect(afterTenth - near).toBeLessThan(1.5);  // eased, not an instant jump to 4.6
     drive(w2, 3, { cam });
-    expect(cam.camera.position.z).toBeGreaterThan(3.9);
+    expect(cam.camera.position.z).toBeGreaterThan(4.4);
   });
 });
 
