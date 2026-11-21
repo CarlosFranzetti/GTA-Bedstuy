@@ -66,6 +66,7 @@ export interface ActionPose { kind: 'punchL' | 'punchR' | 'heavy' | 'throw' | 'a
 
 /** The bones an action may write: the upper body and, for a punch's stance and step, the hips, legs and knees (added onto whatever they are doing). */
 const ACTION_CH = ['hips', 'torso', 'head', 'armL', 'elbowL', 'armR', 'elbowR', 'legL', 'kneeL', 'legR', 'kneeR'] as const;
+const ease = (w: number): number => w * w * (3 - 2 * w);
 const sstep = (a: number, b: number, x: number): number => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 /** 0 -> 1 over [a, b], then back to 0 over [b, c]: a hump. */
 const hump = (a: number, b: number, c: number, x: number): number => sstep(a, b, x) * (1 - sstep(b, c, x));
@@ -177,6 +178,7 @@ export class AnimController {
   private turnT = 0;
   private turnW = 0;
   private jumpW = 0;
+  private jumpTouched = false;
   private actionW = 0;
   private lastAction: ActionPose | null = null;
   private recentMax = 0;
@@ -201,6 +203,25 @@ export class AnimController {
   private readonly eul = new THREE.Euler();
   private readonly v3 = new THREE.Vector3();
   private yawLead = 0;
+  /** the speed the blends use: the entity's speed with its rate of change limited, so an input that snaps cannot snap the pose */
+  private speedS = -1;
+  private turnDir = 1;
+  private actionU = 0;
+  private jumpU = 0;
+  private lookYaw = 0;
+  private lookPitch = 0;
+  private aliveT: number;
+  private readonly lock: FootLock;
+  private readonly rigV = new THREE.Vector3();
+  private readonly refDims: LegDims;
+  private readonly realDims: LegDims;
+  private readonly lockQ = { leg: [new THREE.Quaternion(), new THREE.Quaternion()], knee: [new THREE.Quaternion(), new THREE.Quaternion()], ankle: [new THREE.Quaternion(), new THREE.Quaternion()] };
+  /** arm swing left over for a hand that is carrying something: [left, right] (1 = free swing) */
+  private readonly armLoad = [1, 1];
+  /** the far level of detail: no foot lock, no breathing or look-at (a cheaper update for crowds and the phone tier) */
+  cheap = false;
+  /** the foot lock's weights (0 free, 1 held) for tests and the showcase */
+  get footLock(): readonly number[] { return this.lock.w; }
 
   constructor(private readonly target: PoseTarget, private gait: Gait, private readonly lib: ClipLibrary = clipLibrary()) {
     this.phase = gait.phase;
@@ -216,7 +237,19 @@ export class AnimController {
     this.headRel.copy(t.head.position).sub(t.torso.position);
     this.stoopBaked = (t.torso.userData.stoopBaked as number | undefined) ?? 0;
     this.bones = [t.hips, t.torso, t.head, t.arms[0], t.elbows[0], t.arms[1], t.elbows[1], t.legs[0], t.knees[0], t.legs[1], t.knees[1], t.ankles?.[0], t.ankles?.[1]];
+    const V = (x: number, y: number, z: number): THREE.Vector3 => new THREE.Vector3(x, y, z);
+    this.refDims = { hip: [V(0.09, 0.82, 0), V(-0.09, 0.82, 0)], knee: [V(0, -REF.thigh, 0), V(0, -REF.thigh, 0)], ankle: [V(0, -REF.shin, 0), V(0, -REF.shin, 0)], hasAnkle: true };
+    const hasAnkle = !!t.ankles;
+    this.realDims = {
+      hip: [t.legs[0].position.clone(), t.legs[1].position.clone()], knee: [t.knees[0].position.clone(), t.knees[1].position.clone()],
+      ankle: [0, 1].map((i) => (t.ankles && t.ankles[i].position.length() > 0.1 ? t.ankles[i].position.clone() : V(0, -this.dims.shin, 0))) as [THREE.Vector3, THREE.Vector3], hasAnkle,
+    };
+    this.lock = new FootLock(this.realDims);
+    this.aliveT = gait.phase * 40;
   }
+
+  /** What a person carries: a bag in a hand takes the swing out of that arm. `arm` 0 = left, 1 = right, `free` 0..1 of the normal swing. */
+  setCarry(arm: 0 | 1, free: number): void { this.armLoad[arm] = free; }
 
   setGait(g: Gait): void { this.gait = g; }
   get busy(): boolean { return this.shot !== null; }
@@ -253,7 +286,10 @@ export class AnimController {
     const chain = this.chain();
     const idle = this.lib.get(this.idleName) ?? this.lib.get('idle');
     if (!chain || !idle) return false;
-    const speed = Math.max(0, inp.speed) / this.legScale; // in the clips' proportions
+    const raw = Math.max(0, inp.speed) / this.legScale; // in the clips' proportions
+    // an input that jumps (a pedestrian stopped dead, a car door) is eased: at most 16 m/s^2 up and 22 down, so the blends below never see a step
+    this.speedS = this.speedS < 0 ? raw : this.speedS + Math.max(-22 * dt, Math.min(16 * dt, raw - this.speedS));
+    const speed = this.speedS;
     const g = this.gait;
 
     // idle layer
@@ -285,29 +321,36 @@ export class AnimController {
     }
 
     // start / stop, detected from the speed history (entities ramp speed over several frames, so look back a little)
-    this.recentMax = Math.max(speed, this.recentMax - 2.5 * dt);
-    this.sinceStill = speed < 0.3 ? 0 : this.sinceStill + dt;
+    this.recentMax = Math.max(raw, this.recentMax - 2.5 * dt);
+    this.sinceStill = raw < 0.3 ? 0 : this.sinceStill + dt;
     if (!this.shot && !(inp.jump && inp.jump.phase !== 'ground')) {
-      if (speed < 0.35 && this.recentMax > 1.2) {
+      if (raw < 0.35 && this.recentMax > 1.2) {
         this.playOnce(this.recentMax > 2.6 ? 'stopRun' : 'stopWalk', { from: this.recentMax > 2.6 ? 0.4 : 0.45, fadeIn: 0.1, fadeOut: 0.25 });
         this.recentMax = 0;
-      } else if (speed > 2.0 && this.sinceStill < 0.4 && !this.startedRun) { this.playOnce('startRun', { to: 0.55, fadeIn: 0.05, fadeOut: 0.3 }); this.startedRun = true; }
+      } else if (raw > 2.0 && this.sinceStill < 0.4 && !this.startedRun) { this.playOnce('startRun', { to: 0.55, fadeIn: 0.05, fadeOut: 0.3 }); this.startedRun = true; }
     }
-    if (speed < 0.3) this.startedRun = false;
-    if (this.shot && speed > 0.9 && this.shot.clip.name.startsWith('stop')) this.cancelOnce(0.12);
+    if (raw < 0.3) this.startedRun = false;
+    if (this.shot && raw > 0.9 && this.shot.clip.name.startsWith('stop')) this.cancelOnce(0.12);
 
-    // turn in place
+    // turn in place. The direction is latched when the turn starts: it used to follow the rate's sign every frame, so the mirrored pose flipped in
+    // (a 137 degree jump in the head) the frame the rate fell to zero while the turn was still fading out.
     const turn = this.lib.get('turn');
-    const wantTurn = !!turn && speed < 0.5 && Math.abs(inp.yawRate ?? 0) > 0.9 && !this.shot;
+    const yawIn = inp.yawRate ?? 0;
+    const wantTurn = !!turn && speed < 0.5 && Math.abs(yawIn) > 0.9 && !this.shot;
+    if (wantTurn && this.turnW < 0.05) this.turnDir = yawIn > 0 ? 1 : -1;
+    else if (wantTurn && Math.abs(yawIn) > 1.5 && (yawIn > 0 ? 1 : -1) !== this.turnDir && this.turnW < 0.5) this.turnDir = yawIn > 0 ? 1 : -1;
     this.turnW += ((wantTurn ? 1 : 0) - this.turnW) * Math.min(1, dt * 9);
     if (turn && this.turnW > 0.01) {
-      const yaw = inp.yawRate ?? 0;
-      const rate = Math.min(2.5, Math.max(0.4, Math.abs(yaw) / (Math.abs(turn.turn) / turn.duration)));
+      const rate = Math.min(2.5, Math.max(0.4, Math.abs(wantTurn ? yawIn : this.turnDir * 1.9) / (Math.abs(turn.turn) / turn.duration)));
       this.turnT += dt * rate;
-      if (this.turnT > 0.92 * turn.duration) this.turnT = 0.08 * turn.duration;
-      sampleClip(turn, Math.max(this.turnT, 0.08 * turn.duration), this.tmp);
-      if ((yaw > 0) !== (turn.turn > 0)) mirrorPose(this.tmp);
-      this.mix(this.base, this.tmp, this.turnW);
+      const lo = 0.08 * turn.duration, hi = 0.92 * turn.duration, span = hi - lo, fz = 0.14 * span;
+      if (this.turnT > hi) this.turnT -= span;
+      const tt = Math.max(this.turnT, lo);
+      sampleClip(turn, tt, this.tmp);
+      // a turn longer than the capture loops: the last stretch cross-fades into the first, so the wrap is seamless
+      if (tt > hi - fz) { sampleClip(turn, tt - span, this.tmp2); this.mix(this.tmp, this.tmp2, ease((tt - (hi - fz)) / fz)); }
+      if ((this.turnDir > 0) !== (turn.turn > 0)) mirrorPose(this.tmp);
+      this.mix(this.base, this.tmp, ease(this.turnW));
     } else this.turnT = 0;
 
     // a corner while walking: the captured walking turn, mirrored for the other way
@@ -326,14 +369,15 @@ export class AnimController {
       // the fade-in runs from where the shot STARTED (a shot that starts part way through its clip used to begin at full weight: a pop)
       const w = Math.min(1, (s.t - s.t0) / Math.max(0.001, s.fadeIn * s.rate), (s.end - s.t) / Math.max(0.001, s.fadeOut * s.rate));
       if (s.t >= s.end) this.shot = null;
-      else { sampleClip(s.clip, s.t, this.tmp2); if (s.mirror) mirrorPose(this.tmp2); this.mix(this.base, this.tmp2, Math.max(0, w) * s.amp); }
+      else { sampleClip(s.clip, s.t, this.tmp2); if (s.mirror) mirrorPose(this.tmp2); this.mix(this.base, this.tmp2, ease(Math.max(0, w)) * s.amp); }
     }
 
     // jump
     const j = inp.jump;
     const jumpClip = this.lib.get('jump');
     const jumping = !!j && j.phase !== 'ground' && !!jumpClip;
-    this.jumpW += ((jumping ? 1 : 0) - this.jumpW) * Math.min(1, dt * (jumping ? 30 : 12));
+    this.jumpU = Math.max(0, Math.min(1, this.jumpU + (jumping ? dt / 0.06 : -dt / 0.16)));
+    this.jumpW = ease(this.jumpU);
     if (jumpClip && j && this.jumpW > 0.01) {
       const ph = j.phase === 'ground' ? 'land' : j.phase;
       const airtime = (2 * Math.max(1, j.vy)) / JUMP_TIMES.gravity;
@@ -341,10 +385,12 @@ export class AnimController {
       sampleClip(jumpClip, t, this.tmp);
       this.mix(this.base, this.tmp, this.jumpW);
     }
+    this.jumpTouched = this.jumpW > 0.01;
 
     // an on-foot action (punch, throw, aim): the hand-keyed upper body, faded in and out so the arms never snap
     if (inp.action) this.lastAction = inp.action;
-    this.actionW += ((inp.action ? 1 : 0) - this.actionW) * Math.min(1, dt * (inp.action?.kind === 'aim' ? 12 : 18));
+    this.actionU = Math.max(0, Math.min(1, this.actionU + (inp.action ? dt / (inp.action.kind === 'aim' ? 0.18 : 0.09) : -dt / 0.2)));
+    this.actionW = ease(this.actionU);
     if (this.lastAction && this.actionW > 0.01) {
       this.tmp.set(this.base);
       keyAction(this.tmp, this.lastAction);
@@ -352,7 +398,7 @@ export class AnimController {
       this.base[RIG_CH + 2] += (this.tmp[RIG_CH + 2] - this.base[RIG_CH + 2]) * this.actionW;
     } else if (!inp.action) this.lastAction = null;
 
-    this.write(this.base, inp.yawRate ?? 0, speed);
+    this.write(this.base, inp.yawRate ?? 0, speed, dt, inp, raw);
     return true;
   }
 
@@ -363,7 +409,7 @@ export class AnimController {
     const hipL = boneChannel('legL'), hipR = boneChannel('legR');
     p[hipL] *= stride; p[hipR] *= stride;
     p[boneChannel('kneeL')] *= 1 + (stride - 1) * 0.5; p[boneChannel('kneeR')] *= 1 + (stride - 1) * 0.5;
-    p[boneChannel('armL')] *= g.armSwing; p[boneChannel('armR')] *= g.armSwing;
+    p[boneChannel('armL')] *= g.armSwing * this.armLoad[0]; p[boneChannel('armR')] *= g.armSwing * this.armLoad[1];
     p[boneChannel('elbowL')] *= 0.6 + 0.4 * g.armSwing; p[boneChannel('elbowR')] *= 0.6 + 0.4 * g.armSwing;
     const walkiness = 1 - smooth(1.6, 3.0, speed); // posture quirks fade out when running
     const own = this.stoopBaked > 0.02 ? 0.3 : 1; // a stoop already baked into this body's rest pose is not added again
@@ -375,39 +421,69 @@ export class AnimController {
 
   private mix(into: Float32Array, over: Float32Array, w: number): void { for (let k = 0; k < NCH; k++) into[k] += (over[k] - into[k]) * w; }
 
-  /** Ankle height above its rest height for a pose, the lower of the two feet, for legs of the given proportions. */
-  private lowFoot(p: Float32Array, thigh: number, shin: number): number {
-    let low = 9;
-    for (const [lc, kc] of [[boneChannel('legL'), boneChannel('kneeL')], [boneChannel('legR'), boneChannel('kneeR')]]) {
-      this.qA.setFromEuler(this.eul.set(p[lc], p[lc + 1], p[lc + 2]));
-      this.qB.setFromEuler(this.eul.set(p[kc], p[kc + 1], p[kc + 2])).premultiply(this.qA);
-      const y = -thigh * (1 - 2 * (this.qA.x * this.qA.x + this.qA.z * this.qA.z)) - shin * (1 - 2 * (this.qB.x * this.qB.x + this.qB.z * this.qB.z));
-      // y of the rotated (0, -len, 0) vectors: -len * (1 - 2(x^2 + z^2))
-      low = Math.min(low, y + thigh + shin);
-    }
-    return low;
-  }
-
-  private write(p: Float32Array, yawRate: number, speed: number): void {
+  /**
+   * Write the pose to the bones. Order: what the body does on top of the clips (walking lead, breathing, look-at), the pelvis height from the SOLES
+   * (so a planted shoe stands on the ground), the rotations, then the foot lock, which may bend the legs to hold a planted foot (footlock.ts).
+   */
+  private write(p: Float32Array, yawRate: number, speed: number, dt: number, inp: AnimInput, rawSpeed: number): void {
     // walking turns: the head and shoulders lead the body round a corner, the body leans into it
     const lead = Math.min(1, speed / 1.2) * Math.max(-3, Math.min(3, yawRate));
-    this.yawLead += (lead - this.yawLead) * 0.2;
+    this.yawLead += (lead - this.yawLead) * Math.min(1, dt * 12);
     p[boneChannel('head')] += 0; p[boneChannel('head') + 1] += this.yawLead * 0.13;
     p[boneChannel('torso') + 1] += this.yawLead * 0.07; p[boneChannel('torso') + 2] += -this.yawLead * 0.02 * Math.min(1.5, speed / 2);
-    // feet on the ground for THIS body: lowest ankle at the height the capture says, in this body's proportions
-    const ref = this.lowFoot(p, REF.thigh, REF.shin);
-    const real = this.lowFoot(p, this.dims.thigh, this.dims.shin);
+    if (!this.cheap) this.alive(p, dt, inp);
+    // the pelvis: the capture says how high its lowest sole was above the ground (0 for a foot on the floor, more in a stride's flight or a jump);
+    // this body's own legs are then placed so THEIR lowest sole is at that height. The old rule used the ankle, so a rolling foot dug in.
+    const sc = this.fp / (REF.thigh + REF.shin);
     const dyRef = p[RIG_CH + 1];
-    p[RIG_CH + 1] = (dyRef + ref) * (this.fp / (REF.thigh + REF.shin)) - real;
+    const cRef = REF.thigh + REF.shin + ANKLE_H + dyRef + soleRel(p, this.refDims, true);
+    const clear = cRef * sc * sstep(0.004, 0.03, cRef);
+    const real = soleRel(p, this.realDims, true);
+    p[RIG_CH + 1] = clear - real - this.target.legs[0].position.y;
     for (let b = 0; b < BONES.length; b++) {
       const o = this.bones[b];
       if (o) o.rotation.set(p[b * 3], p[b * 3 + 1], p[b * 3 + 2]);
     }
-    const sc = this.fp / (REF.thigh + REF.shin);
     this.target.rig.position.set(p[RIG_CH] * sc, p[RIG_CH + 1], p[RIG_CH + 2] * sc);
     // the head rides on the torso (it is a child of the rig here): lean, duck and lie down take it along
     const th = boneChannel('torso');
     this.qA.setFromEuler(this.eul.set(p[th], p[th + 1], p[th + 2]));
     this.target.head.position.copy(this.headRel).applyQuaternion(this.qA).add(this.torsoRest);
+    // the foot lock, off while sitting, falling, jumping or turning on the spot
+    if (this.cheap) { this.lock.reset(); return; }
+    const sitting = !!this.shot && /^(sit|stand|stumble|flinch)/.test(this.shot.clip.name);
+    const turning = Math.abs(yawRate) > 1.4 && speed < 1;
+    const enable = sitting || this.jumpTouched || turning ? 0 : 1;
+    const gz = this.target.group?.scale.z ?? 1;
+    this.rigV.set(p[RIG_CH] * sc, p[RIG_CH + 1], p[RIG_CH + 2] * sc);
+    const lq = this.lockQ;
+    const hit = this.lock.solve(p, this.rigV, dt, rawSpeed * this.legScale / (gz || 1), yawRate, enable, lq.leg, lq.knee, lq.ankle);
+    for (let i = 0; i < 2; i++) if (hit[i]) {
+      this.bones[7 + i * 2]?.quaternion.copy(lq.leg[i]);
+      this.bones[8 + i * 2]?.quaternion.copy(lq.knee[i]);
+      if (this.target.ankles) this.bones[11 + i]?.quaternion.copy(lq.ankle[i]);
+    }
+  }
+
+  /**
+   * A body that is alive on top of the clips: breathing in the chest, the weight easing from one foot to the other while standing, and a head that
+   * looks (the head turns most, the shoulders a little, the eyes' work is left to the face). Small, slow, and different for each person
+   * (the phase comes from the gait's seed), so a standing crowd is not in step.
+   */
+  private alive(p: Float32Array, dt: number, inp: AnimInput): void {
+    this.aliveT += dt;
+    const t = this.aliveT, ph = this.gait.phase * 6.283, still = this.idleW > 0 ? this.idleW : 0;
+    const breathe = Math.sin(t * 2 * Math.PI * (0.24 + 0.05 * this.gait.sway) + ph);
+    const tc = boneChannel('torso'), hc = boneChannel('head');
+    p[tc] += 0.011 * breathe; p[hc] -= 0.006 * breathe;
+    p[boneChannel('armL') + 2] += 0.008 * breathe; p[boneChannel('armR') + 2] -= 0.008 * breathe;
+    // weight shift: slow sway of the pelvis side to side with a slight counter-roll of the shoulders (while standing; the foot lock keeps the shoes put)
+    const sw = Math.sin(t * 2 * Math.PI * 0.07 + ph * 1.7) * still;
+    p[RIG_CH] += 0.014 * sw; p[boneChannel('hips') + 2] += 0.03 * sw; p[tc + 2] -= 0.04 * sw; p[hc + 2] += 0.02 * sw;
+    // look: yaw/pitch toward a target, eased (a critically damped follow, no snap); head 65 %, upper body 20 % of the turn
+    const L = inp.look, ty = L ? Math.max(-1.3, Math.min(1.3, L.yaw)) : 0, tp = L ? Math.max(-0.5, Math.min(0.5, L.pitch ?? 0)) : 0;
+    const k = Math.min(1, dt * (L ? 7 : 4));
+    this.lookYaw += (ty - this.lookYaw) * k; this.lookPitch += (tp - this.lookPitch) * k;
+    p[hc + 1] += 0.65 * this.lookYaw; p[tc + 1] += 0.2 * this.lookYaw; p[hc] -= 0.6 * this.lookPitch;
   }
 }

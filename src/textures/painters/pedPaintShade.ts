@@ -29,7 +29,7 @@ export function makeShader(b: BakeInput): Shader {
   const shade: Shader['shade'] = (x, y, z, nx, ny, nz, wh, wt, wa, wl, q, o) => {
     const l = Math.hypot(nx, ny, nz) || 1;
     T.x = x; T.y = y; T.z = z; T.nx = nx / l; T.ny = ny / l; T.nz = nz / l; T.wh = wh; T.wt = wt; T.wa = wa; T.wl = wl; T.q = q;
-    if ((y > lm.chinY - 0.012 && wh > 0.55) || (y > lm.chinY + 0.012 && Math.abs(x) < 0.16)) { paintHead(K, T, o); return; }
+    if ((y > lm.chinY - 0.012 && wh > 0.55) || (y > lm.chinY + 0.012 && Math.abs(x) < 0.16)) { paintHead(K, T, o); if ((globalThis as any).__dbg) o.set([255, 0, 0]); return; }
     paintBody(K, T, o);
     // FACES: the join of face and neck is positional, a wide soft band under the jaw (the old one followed the bone weights, which are piecewise linear over big triangles and
     // left a ragged lighter patch at the ear, cheek and jaw). The weights only nudge the band; the face painter is skin-tone compatible with the neck's.

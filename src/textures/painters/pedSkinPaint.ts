@@ -71,7 +71,6 @@ function rasterise(b: BakeInput, size: number): void {
     // on the head, a triangle that faces away from the front (the inside of a lid, the far side of a fold) never takes a texel from one that faces front, whatever their depth:
     // the eyeball and the lips share texels with the lid ring that hides them
     const headPen = (ga[0] + gb[0] + gc[0]) / 3 > 0.5 && (b.normal[ia * 3 + 2] + b.normal[ib * 3 + 2] + b.normal[ic * 3 + 2]) / 3 > 0.15 && b.position[ia * 3 + 2] < 0.02 ? 1 : 0;
-    const headSide = (ga[0] + gb[0] + gc[0]) / 3 > 0.5;
     const x0 = Math.max(0, Math.floor(Math.min(ax, bx, cx) - 1)), x1 = Math.min(size - 1, Math.ceil(Math.max(ax, bx, cx) + 1));
     const y0 = Math.max(0, Math.floor(Math.min(ay, by, cy) - 1)), y1 = Math.min(size - 1, Math.ceil(Math.max(ay, by, cy) + 1));
     for (let py = y0; py <= y1; py++) for (let px = x0; px <= x1; px++) {
@@ -81,10 +80,7 @@ function rasterise(b: BakeInput, size: number): void {
       if (l1 < e || l2 < e || l3 < e) continue;
       const q = py * size + px, c1 = Math.min(1.2, Math.max(-0.2, l1)), c2 = Math.min(1.2, Math.max(-0.2, l2)), c3 = 1 - c1 - c2;
       // where charts fold over each other (lids, nostrils, lips) the surface nearest the front owns the texel
-      let zz = b.position[ia * 3 + 2] * c1 + b.position[ib * 3 + 2] * c2 + b.position[ic * 3 + 2] * c3 + headPen;
-      // FACES: at the side of the head (ear charts overlap the skull in the cylinder map) the SKULL, the innermost surface, owns the texel, not the one nearest the front:
-      // the ear's back was winning skull texels, so the skull was drawn with colours painted for another place (the ragged patches at cheek, jaw and neck)
-      if (headSide) { const axv = Math.abs(b.position[ia * 3] * c1 + b.position[ib * 3] * c2 + b.position[ic * 3] * c3); if (axv > 0.06) zz = 10 + axv; }
+      const zz = b.position[ia * 3 + 2] * c1 + b.position[ib * 3 + 2] * c2 + b.position[ic * 3 + 2] * c3 + headPen;
       if (cover[q] && zz > depthMap[q] + 0.0006) continue;
       depthMap[q] = zz;
       for (let k = 0; k < 3; k++) {

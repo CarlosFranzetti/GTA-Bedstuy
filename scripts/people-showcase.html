@@ -157,7 +157,7 @@ if (view === 'garments') {
 }
 
 // ---- PEDTEX views: flat maps, four faces, the player's looks, street distance
-if (params.get('grid') === '1') globalThis.__pedGrid = true;
+if (params.get('grid') === '1') globalThis.__pedGrid = true; if (params.get('dbg') === '1') globalThis.__dbg = true;
 const MAPS = ['ba-hoodie-fade', 'hj-man', 'me-hijabi', 'ba-elder', 'la-site', 'player-wh-1'];
 const mapOf = (m) => { let img = null; m.group.traverse((o) => { if (o.isMesh && !img) img = o.material.map?.image; }); return img; };
 

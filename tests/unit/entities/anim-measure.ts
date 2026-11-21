@@ -46,17 +46,18 @@ export interface Sample { frames: Frame[]; dt: number }
 /** Plays `input(t)` through a controller for `seconds`; the entity travels along -z at the commanded speed (as the game's entities do). */
 export function play(opts: { seconds: number; dt?: number; speed: (t: number) => number; extra?: (t: number) => Partial<AnimInput>; ankles?: boolean; gait?: Gait; lib?: ClipLibrary; setup?: (c: AnimController, rig: Rig) => void; onFrame?: (c: AnimController, t: number) => void; makeController?: (t: PoseTarget, g: Gait, l: ClipLibrary) => AnimController }): Sample {
   const dt = opts.dt ?? 1 / 60, lib = opts.lib ?? fullLib();
-  const rig = makeRig(opts.ankles ?? false);
+  const rig = makeRig(opts.ankles ?? true);
   const c = opts.makeController ? opts.makeController(rig.target, opts.gait ?? PLAYER_GAIT, lib) : new AnimController(rig.target, opts.gait ?? PLAYER_GAIT, lib);
   opts.setup?.(c, rig);
   const frames: Frame[] = [];
-  let z = 0;
+  let z = 0, x = 0, heading = 0;
   const n = Math.round(opts.seconds / dt);
   for (let i = 0; i < n; i++) {
-    const t = i * dt, sp = opts.speed(t);
-    z -= sp * dt;
-    rig.group.position.set(0, 0, z);
-    c.update(dt, { speed: sp, ...(opts.extra?.(t) ?? {}) });
+    const t = i * dt, sp = opts.speed(t), ex = opts.extra?.(t) ?? {};
+    heading += (ex.yawRate ?? 0) * dt;                                   // the entity turns and travels the way it faces
+    x -= Math.sin(heading) * sp * dt; z -= Math.cos(heading) * sp * dt;
+    rig.group.position.set(x, 0, z); rig.group.rotation.y = heading;
+    c.update(dt, { speed: sp, ...ex });
     opts.onFrame?.(c, t);
     rig.group.updateMatrixWorld(true);
     const w = (arr: THREE.Object3D[]): THREE.Vector3[] => arr.map((m) => m.getWorldPosition(new THREE.Vector3()));
@@ -139,7 +140,7 @@ export function settleTime(trace: number[], dt: number, t0: number, target: numb
 export interface Report { [k: string]: number | string }
 export function runAll(opts: { ankles?: boolean; makeController?: Parameters<typeof play>[0]['makeController']; lib?: ClipLibrary } = {}): Report {
   const R: Report = {};
-  const base = { ankles: opts.ankles ?? false, makeController: opts.makeController, lib: opts.lib };
+  const base = { ankles: opts.ankles ?? true, makeController: opts.makeController, lib: opts.lib };
   // steady gaits: slide and float at walk, jog, sprint
   for (const [name, v] of [['walk', 1.4], ['jog', 2.8], ['sprint', 5.2]] as const) {
     const s = play({ ...base, seconds: 8, speed: () => v });
@@ -195,7 +196,7 @@ export function runAll(opts: { ankles?: boolean; makeController?: Parameters<typ
   // cost: 100 people, 300 frames of walking, relative number (ms on this box)
   {
     const lib = opts.lib ?? fullLib();
-    const people = Array.from({ length: 100 }, (_, i) => { const r = makeRig(opts.ankles ?? false); const c = opts.makeController ? opts.makeController(r.target, makeGait(i + 3), lib) : new AnimController(r.target, makeGait(i + 3), lib); return { r, c }; });
+    const people = Array.from({ length: 100 }, (_, i) => { const r = makeRig(opts.ankles ?? true); const c = opts.makeController ? opts.makeController(r.target, makeGait(i + 3), lib) : new AnimController(r.target, makeGait(i + 3), lib); return { r, c }; });
     for (const p of people) for (let f = 0; f < 20; f++) p.c.update(1 / 60, { speed: 1.4 });
     const t0 = performance.now();
     for (let f = 0; f < 200; f++) for (const p of people) p.c.update(1 / 60, { speed: 1.4 });
