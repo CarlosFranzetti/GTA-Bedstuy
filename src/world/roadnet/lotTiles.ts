@@ -7,15 +7,15 @@
  * Lengths are 0.1 m integers (x, z in the RoadNet grid frame), -1 = missing. A lot belongs to the tile of its block's centre
  * (so a block is never split between two files); a lot outside every block belongs to the tile it stands in. `placeLots`
  * works block by block, so a tile is placed on its own (`placeLotsDetailed(..., blocks)`) as the player comes near it.
- * Produced by scripts/import-lots-real.mjs --r3 / --r4 from MapPLUTO (64uk-42ks) and Building Footprints (5zhs-2jue), NYC Open Data.
+ * Produced by scripts/import-lots-real.mjs --r3 from MapPLUTO (64uk-42ks) and Building Footprints (5zhs-2jue), NYC Open Data.
  */
 export const LOT_TILE_M = 512;
-export const LOT_PHASES = ['R1', 'R2', 'R2+', 'R3', 'R4'] as const;
+export const LOT_PHASES = ['R1', 'R2', 'R2+', 'R3'] as const;
 
 export interface LotTileIndex {
   v: 2;
   tile: number;
-  /** sha1 prefix of the shipped network (roadnet-r4.json since MAP4; roadnet-r123.json before) the edge / block numbers refer to */
+  /** sha1 prefix of roadnet-r123.json the edge / block numbers refer to */
   net: string;
   tiles: Record<string, { n: number; b: [number, number, number, number] }>;
   total: number;
@@ -52,7 +52,7 @@ export function encodeLotTile(key: string, lots: ReadonlyArray<TileLot & { nb: n
     if (c === undefined) { c = cls.length; cls.push(l.cls); ix.set(l.cls, c); }
     return [
       Number(l.bbl), dm(l.x), dm(l.z), dm(l.lf), dm(l.ld), dm(l.bf), dm(l.bd), l.fl ?? -1, l.yr ?? -1, c, Number.parseInt(l.lu, 10) || 0,
-      l.e, dm(l.s), l.sd, l.blk, l.nb, dm(l.rf), Math.max(0, ([...LOT_PHASES] as string[]).indexOf(l.ph)),
+      l.e, dm(l.s), l.sd, l.blk, l.nb, dm(l.rf), Math.max(0, (['R1', 'R2', 'R2+', 'R3'] as string[]).indexOf(l.ph)),
     ];
   });
   return { v: 2, t: key, cls, rows };
@@ -62,7 +62,7 @@ export function decodeLotTile(j: LotTileJson): { lots: TileLot[] } {
   if (j.v !== 2) throw new Error(`lot tile: unsupported version ${String(j.v)}`);
   return {
     lots: j.rows.map((r) => ({
-      bbl: String(r[0]), ph: LOT_PHASES[r[17]] ?? 'R4', x: r[1] / 10, z: r[2] / 10, lf: un(r[3]), ld: un(r[4]), bf: un(r[5]), bd: un(r[6]),
+      bbl: String(r[0]), ph: LOT_PHASES[r[17]] ?? 'R3', x: r[1] / 10, z: r[2] / 10, lf: un(r[3]), ld: un(r[4]), bf: un(r[5]), bd: un(r[6]),
       fl: r[7] < 0 ? null : r[7], yr: r[8] < 0 ? null : r[8], cls: j.cls[r[9]] ?? '', lu: r[10] ? String(r[10]) : '', e: r[11], s: un(r[12]),
       sd: r[13], blk: r[14], bins: r[15] > 0 ? new Array<string>(r[15]).fill('') : undefined, rf: un(r[16]), ad: '',
     })),

@@ -31,7 +31,7 @@ try {
   await page.keyboard.press('Space'); await page.waitForTimeout(500);
   const dismiss = async () => { const b = page.getByRole('button', { name: 'Resume' }); if (await b.isVisible().catch(() => false)) { await b.click(); await page.waitForTimeout(300); } };
   await dismiss();
-  await page.evaluate((HOUR) => { const d = window.__gtaDebug; d.setHour(Number(HOUR)); d.step(5); }, arg('--hour', '17.5'));
+  await page.evaluate(() => { const d = window.__gtaDebug; d.setHour(12); d.step(5); });
   const rows = await page.evaluate(() => window.__gtaRealWorld().landmarks.rows.map((r) => ({ id: r.id, kind: r.kind, name: r.name, site: r.site })));
   for (const row of rows) {
     if (ids.length && !ids.includes(row.id)) continue;

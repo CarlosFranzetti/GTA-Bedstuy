@@ -33,11 +33,11 @@ export function mapKindFromSearch(search: string): MapKind {
 let realNet: Promise<RoadNet> | null = null;
 
 /**
- * Decode the shipped real-map network: R1 + R2 + the seven-block ring R3 + the MAP4 ring R4 (roadnet-r4.json, 130 kB raw, 37 kB gzip). Cached; safe to
+ * Decode the shipped real-map network: R1 + R2 + the seven-block ring R3 (roadnet-r123.json, 78 kB raw, 23 kB gzip). Cached; safe to
  * call twice. (roadnet-core.json, the first two rings only, is no longer loaded by the game; tests import it directly.)
  */
 export function loadRoadNet(): Promise<RoadNet> {
-  realNet ??= import('@/world/data/roadnet-r4.json').then((m) => RoadNet.fromJson((m.default ?? m) as unknown as RoadNetJson));
+  realNet ??= import('@/world/data/roadnet-r123.json').then((m) => RoadNet.fromJson((m.default ?? m) as unknown as RoadNetJson));
   return realNet;
 }
 

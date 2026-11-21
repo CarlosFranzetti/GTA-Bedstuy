@@ -173,10 +173,7 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 
 ## State on 21 Nov 2026
 
-- Live: commit `9f2e59f` (21 Nov night): everything in `6110995` plus the dance-only WAX DELI (18 openly licensed dance
-  records 2005 to 2018, ten pre-war dance sides, a SoundCloud listening post of four Kompakt tracks) and Vercel Web
-  Analytics code. Verified by the lead on that exact tree. The map-growth (MAP4) and LANDMARKS2 work was left out of it.
-- Before that: commit `6110995` (21 Nov evening): Stoop Light look, GTA-convention keys and pad, weighty movement and camera,
+- Live: commit `6110995` (21 Nov evening): Stoop Light look, GTA-convention keys and pad, weighty movement and camera,
   27 parody shop trades with per-trade windows, 20 landmarks, 28 public-domain records, people and vehicle upgrades.
   Verified by the lead on that exact tree (see its commit message). The car camera is the older 4.6 m / 1.7 m rig: the
   lower 4.1 m / 1.45 m rig hid the road behind the roof. Grid-map era style is off (`GRID_ERA_STYLE`): with it on,
@@ -201,11 +198,6 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   high, eyeball and lid geometry with a face bone, an ear UV chart, hair shells that fade into the scalp. `docs/swarm/tasks/FACES.md`.
 - Record shop (RECORDS, 21 Nov): 28 US public-domain recordings (first published 1925 or earlier) under parody sleeves
   with liner notes, clips in public/records/ loaded on demand, hosted build only. `docs/swarm/tasks/RECORDS.md`.
-- Real map grown again (MAP4, 21 Nov night, not yet verified by the lead): R4 = R3 plus 5 blocks N/E/S/W and 2 streets on the diagonals,
-  15.15 km2 (R3 9.80), 1,406 nodes, 2,360 edges, 32,601 lots in 83 tiles (2.4 MB). Data files are `roadnet-r4.json`, `roadnet-controls-r4.json`,
-  `places-real-r4.json` (the r123 files are gone); outline and distances in `docs/swarm/tasks/MAP4.md`. The 581 R3 block numbers are kept (landmark
-  sites use them): never rebuild the network without `src/world/data/raw/r3-block-keys.json`. Furniture of the outer rings streams per tile
-  (`src/world/roadnet/propsStream.ts`); roads are still all built at boot. Real-map sims run on the core net; `REAL_NET=r4` runs them on R4.
 - Not started: the real map as the main map; medium and high tier performance.
 - Waiting on the owner: promoting the link-in-bio page (branch `release-links`); a Hugging Face token or his own
   pictures for the loading posters; a test on a real iPhone (`?debug=mem` shows memory numbers); one story voice clip

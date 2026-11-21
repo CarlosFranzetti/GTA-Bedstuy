@@ -808,7 +808,6 @@ export class MapScreen {
     const wants = (b: MapBlip): boolean => {
       if (b === this.hover || b === this.selected) return true;
       if (this.overviewAlpha > 0.5) return false; // no labels out in the overview
-      if (b.id.startsWith('lm:')) return zoom >= v.fitScale * 1.4; // landmark names (LANDMARKS2): only once zoomed in, and they give way to other labels
       if (b.kind === 'home' || b.kind === 'venue' || b.kind === 'giver' || b.kind === 'goal') return true;
       if (b.kind === 'station') return zoom >= v.fitScale * 0.9;
       if (b.kind === 'shop') return zoom >= 0.8;
@@ -825,7 +824,7 @@ export class MapScreen {
         const w = ctx.measureText(b.label).width + 4;
         const dy = b.kind === 'goal' || b.kind === 'giver' ? -17 : b.kind === 'shop' ? -12 : 22;
         label = { text: b.label, x: s.x, y: s.y + dy, ang: 0, size, color: b.kind === 'home' ? C.home : b.kind === 'venue' || b.kind === 'giver' ? C.gold : b.kind === 'goal' ? (b.color ?? C.goal) : '#e5e9f0', pri: 0, w };
-        const required = b.kind !== 'shop' && b.kind !== 'station' && !b.id.startsWith('lm:');
+        const required = b.kind !== 'shop' && b.kind !== 'station';
         let r = this.rect(label);
         if (hit(r)) {
           const step = size + 3;

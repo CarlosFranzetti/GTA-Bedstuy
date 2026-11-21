@@ -695,49 +695,13 @@ const REAL: readonly string[] = [
   "Young Jean Lee'S Theater Company",
   "Young Women'S Leadership School Of Brooklyn",
   "Zion Triangle",
-  // LANDMARKS2: the real places the second set stands for (kept here and nowhere in shipped code or deployed docs)
-  "St. Barbara's Church",
-  "Church of St. Barbara",
-  "St. Barbara's Roman Catholic Church",
-  "RKO Bushwick Theatre",
-  "Bushwick Theatre",
-  "B. F. Keith's Bushwick Theatre",
-  "ACORN High School for Social Justice",
-  "Brooklyn High School for Law and Technology",
-  "Ulmer Brewery",
-  "William Ulmer Brewery",
-  "Roberta's",
-  "Roberta's Pizza",
-  "Wyckoff Heights Hospital",
-  "German Hospital of Brooklyn",
-  "Bushwick Houses",
-  "Hylan Houses",
-  "Bushwick-Hylan Houses",
-  "Lindsay Park",
-  "Lindsay Park Houses",
-  "Lindsay Park Cooperative",
-  "Metropolitan Station",
-  "US Post Office Metropolitan Station",
-  "Rugged Cross Baptist Church",
-  "Christ Evangelical English Lutheran Church",
-  "13th Regiment Armory",
-  "Pamoja House",
-  "Sumner House Shelter",
-  "Stuyvesant Heights Historic District",
-  "Do the Right Thing",
-  "Sal's Famous Pizzeria",
-  "Moore Street Market",
-  "Stockholm Street Historic District",
-  "Bushwick Collective",
 ];
 
 const norm = (s: string): string => s.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 /** words that every kind of place uses: they carry no identity */
 const GENERIC = new Set(('park pool playground garden gardens houses house towers tower church methodist episcopal baptist school high academy library branch ' +
   'station engine firehouse fire medical center centre hospital sanitation garage depot armory square plaza the of and st saint avenue street ave ' +
-  'hill hills subway entrance entrances stairs memorial community public junior middle elementary precinct police department city new york brooklyn bed stuy ' +
-  // LANDMARKS2: more words every kind of place uses
-  'cross theatre theater north south post office pizza pizzeria yard row brewery brewhouse court').split(' '));
+  'hill hills subway entrance entrances stairs memorial community public junior middle elementary precinct police department city new york brooklyn bed stuy').split(' '));
 const tokens = (s: string): string[] => norm(s).split(' ').filter((t) => t.length > 2 && !GENERIC.has(t));
 
 describe('landmark names are invented', () => {

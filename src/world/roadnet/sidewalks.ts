@@ -124,27 +124,9 @@ export function buildSidewalkGraph(net: RoadNet, d: Derived, opts: { spacing?: n
   const pendings: Pending[] = [];
   const ringSegs: Array<{ ring: number; seg: number }> = [];
   rings.forEach((r, ri) => r.forEach((_, si) => ringSegs.push({ ring: ri, seg: si })));
-  // MAP4: a uniform grid over the ring segments (the scan of every segment for every crosswalk end was 4 s on the R4 net)
-  const SNAP_CELL = 32;
-  const segGrid = new Map<number, number[]>();
-  const gkey = (cx: number, cz: number): number => (cx + 32768) * 65536 + (cz + 32768);
-  ringSegs.forEach(({ ring, seg }, idx) => {
-    const r = rings[ring];
-    const a = r[seg], b = r[(seg + 1) % r.length];
-    const x0 = Math.floor((Math.min(a.x, b.x) - SNAP_TOL) / SNAP_CELL), x1 = Math.floor((Math.max(a.x, b.x) + SNAP_TOL) / SNAP_CELL);
-    const z0 = Math.floor((Math.min(a.z, b.z) - SNAP_TOL) / SNAP_CELL), z1 = Math.floor((Math.max(a.z, b.z) + SNAP_TOL) / SNAP_CELL);
-    for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) {
-      const k = gkey(x, z);
-      const l = segGrid.get(k);
-      if (l) l.push(idx); else segGrid.set(k, [idx]);
-    }
-  });
   const snap = (p: Vec2): { ring: number; seg: number; t: number; q: Vec2; d: number } | null => {
     let best: { ring: number; seg: number; t: number; q: Vec2; d: number } | null = null;
-    // candidates are visited in ringSegs order, as before, so ties break the same way
-    const cand = segGrid.get(gkey(Math.floor(p.x / SNAP_CELL), Math.floor(p.z / SNAP_CELL))) ?? [];
-    for (const idx of cand) {
-      const { ring, seg } = ringSegs[idx];
+    for (const { ring, seg } of ringSegs) {
       const r = rings[ring];
       const a = r[seg], b = r[(seg + 1) % r.length];
       if (Math.min(a.x, b.x) - SNAP_TOL > p.x || Math.max(a.x, b.x) + SNAP_TOL < p.x) continue;

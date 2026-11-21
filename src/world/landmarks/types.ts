@@ -2,9 +2,7 @@
 
 export type LandmarkKind =
   | 'park' | 'pool' | 'playground' | 'housing' | 'church' | 'armory' | 'school' | 'hospital'
-  | 'library' | 'stationhouse' | 'firehouse' | 'depot' | 'garden' | 'subway' | 'plaza'
-  // LANDMARKS2
-  | 'theatre' | 'brewery' | 'market' | 'rowhouses' | 'eatery' | 'mural';
+  | 'library' | 'stationhouse' | 'firehouse' | 'depot' | 'garden' | 'subway' | 'plaza';
 
 /** A frame in world metres (x east, z south). Local x runs from (ax, az) along (fx, fz); local z runs INTO the site along (nx, nz). */
 export interface Site {

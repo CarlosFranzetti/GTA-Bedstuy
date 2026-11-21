@@ -117,32 +117,3 @@ export const R3_EXTENT = offsetRing(R3_RING, EXTENT_MARGIN, 1.5);
 export const R123_AREA_NOTE = 'R1 + R2 + R2+ + R3 = everything inside R3_EXTENT';
 /** in the R3 ring only: inside R3_EXTENT but outside R1R2_EXTENT */
 export function inR3Ring(p: Vec2): boolean { return pointInPolygon(p, R3_EXTENT) && !pointInPolygon(p, R1R2_EXTENT); }
-
-/**
- * R4 (MAP4, 21 Nov 2026, night): the owner's "grow our blocks by 5 in each direction and 2 streets each in between N, E, W, S".
- * The R3 outline pushed outward by FIVE city blocks on the four cardinal sides and TWO streets on the diagonal sides, corners
- * bevelled (the two square west corners are cut by 260 m so the whole is roughly an octagon). A "block" is the local spacing of
- * the streets that run parallel to the side, measured on the CSCL net (11,000 segments, 21 Nov): the offsets are distances from
- * the R3 side line to the fifth (or second) parallel street beyond it. Per side of R3_RING, in order (metres):
- *   0 north (Boerum St line; streets every ~80 m, 5th = Lorimer/Metropolitan side): 490
- *   1 north chamfer: 490 (kept equal to side 0 so the ring has no notch)
- *   2, 3 north-east diagonals (Meserole..Stagg; Cypress..Onderdonk): 230 (two streets, 80..150 m apart)
- *   4 north-east tip, facing north: 490
- *   5 east (St Nicholas / Cypress / Seneca / Onderdonk / Woodward / Forest, 120..170 m apart): 710
- *   6, 7, 8 south-east diagonals (Weirfield, Halsey, Eldert ..., 80 m apart): 165
- *   9 south (Jefferson Ave line; Hancock, Halsey, Macon, Mac Donough, Decatur, 82 m apart): 412
- *  10 west (Skillman St line; Franklin, Kent, Taaffe, Classon, Emerson ..., 70..110 m apart): 439
- * docs/swarm/tasks/MAP4.md has the measured gaps.
- */
-export const R4_OFFSETS = [490, 490, 230, 230, 490, 710, 165, 165, 165, 412, 439];
-
-/** The R4 outline (grid metres, REAL_FRAME): offsetRing(R3_RING, R4_OFFSETS, 1.5) with the two west corners chamfered by 260 m, computed once. */
-export const R4_RING: Vec2[] = [
-  P(-1591.3, -1805), P(-1331.1, -2065.6), P(48.2, -2068.6), P(356.4, -2117.1), P(370.6, -1854.5), P(1621.6, -2204.4), P(2252.8, -1562.4),
-  P(3354.6, -1544.7), P(3792.6, -361.4), P(1795.5, 1392.1), P(1645.6, 1540), P(1349.7, 1236), P(-1333.8, 1236), P(-1593.6, 976),
-];
-
-/** the whole real map: R4_RING grown by the margin (R4 contains R3 completely) */
-export const R4_EXTENT = offsetRing(R4_RING, EXTENT_MARGIN); // no bevel: the ring is already chamfered, and a bevel at its one reflex corner (north-east notch) self-intersects
-/** in the R4 ring only: inside R4_EXTENT but outside R3_EXTENT */
-export function inR4Ring(p: Vec2): boolean { return pointInPolygon(p, R4_EXTENT) && !pointInPolygon(p, R3_EXTENT); }
