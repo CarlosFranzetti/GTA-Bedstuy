@@ -9,6 +9,7 @@ import { BONES, NCH, RIG_CH, boneChannel, mirrorPose, sampleClip, type Clip } fr
 import { chainBlend, cycleFrequency, idleWeight, jumpTime, rateFor, smooth, type Blend } from './locomotion';
 import type { Gait } from './gait';
 import { clipLibrary, type ClipLibrary } from './library';
+import { FootLock, soleRel, type LegDims } from './footlock';
 
 export interface PoseTarget {
   hips: THREE.Object3D; torso: THREE.Object3D; head: THREE.Object3D; rig: THREE.Object3D;
@@ -27,9 +28,11 @@ export interface AnimInput {
   jump?: { phase: 'ground' | 'takeoff' | 'air' | 'land'; t: number; vy: number };
   /** an on-foot action (punch, throw, aim) layered over the upper body; null or absent for none */
   action?: ActionPose | null;
+  /** where the person is looking, relative to where the body faces (rad: yaw positive = to their left, pitch positive = up); absent = straight ahead */
+  look?: { yaw: number; pitch?: number } | null;
 }
 
-interface OneShot { amp: number; clip: Clip; t: number; end: number; rate: number; mirror: boolean; fadeIn: number; fadeOut: number }
+interface OneShot { amp: number; clip: Clip; t: number; t0: number; end: number; rate: number; mirror: boolean; fadeIn: number; fadeOut: number }
 
 /**
  * Hand-keyed street idles layered on the captured standing idle (the data we may use has no arms-crossed or leaning take).
@@ -233,7 +236,7 @@ export class AnimController {
   playOnce(name: string, o: { amp?: number; rate?: number; mirror?: boolean; from?: number; to?: number; fadeIn?: number; fadeOut?: number } = {}): boolean {
     const clip = this.lib.get(name);
     if (!clip) return false;
-    this.shot = { amp: o.amp ?? 1, clip, t: (o.from ?? 0) * clip.duration, end: (o.to ?? 1) * clip.duration, rate: o.rate ?? 1, mirror: o.mirror ?? false, fadeIn: o.fadeIn ?? 0.12, fadeOut: o.fadeOut ?? 0.2 };
+    this.shot = { amp: o.amp ?? 1, clip, t: (o.from ?? 0) * clip.duration, t0: (o.from ?? 0) * clip.duration, end: (o.to ?? 1) * clip.duration, rate: o.rate ?? 1, mirror: o.mirror ?? false, fadeIn: o.fadeIn ?? 0.12, fadeOut: o.fadeOut ?? 0.2 };
     return true;
   }
   cancelOnce(fade = 0.15): void { if (this.shot) { this.shot.end = Math.min(this.shot.end, this.shot.t + fade); this.shot.fadeOut = fade; } }
@@ -320,7 +323,8 @@ export class AnimController {
     if (this.shot) {
       const s = this.shot;
       s.t += dt * s.rate;
-      const w = Math.min(1, s.t / Math.max(0.001, s.fadeIn), (s.end - s.t) / Math.max(0.001, s.fadeOut));
+      // the fade-in runs from where the shot STARTED (a shot that starts part way through its clip used to begin at full weight: a pop)
+      const w = Math.min(1, (s.t - s.t0) / Math.max(0.001, s.fadeIn * s.rate), (s.end - s.t) / Math.max(0.001, s.fadeOut * s.rate));
       if (s.t >= s.end) this.shot = null;
       else { sampleClip(s.clip, s.t, this.tmp2); if (s.mirror) mirrorPose(this.tmp2); this.mix(this.base, this.tmp2, Math.max(0, w) * s.amp); }
     }
