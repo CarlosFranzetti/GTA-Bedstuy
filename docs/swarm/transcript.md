@@ -3371,3 +3371,6 @@ Start: taking src/entities/models/car*.ts, carSkin, painters/vehicleSkin.ts, car
 
 ### 2026-11-21T07:12:47Z · Odalys Penrose (LANDMARKS)
 Wrap-up: src/world/landmarks/ (table of 20 rows, builders, layer, signs, tone), small hooks in realWorld.ts and gameReal.ts, tests (132 pass), docs/swarm/tasks/LANDMARKS.md, CREDITS section. In-game frames for 7 views plus the map; the rest from the standalone harness. No main.ts lines needed.
+
+### 2026-11-21T07:17:50Z · Tamsin Reyes (STORES)
+Start: shop names, types and sign art. New folder src/world/shops/ (shopNames, shopTypes, tests). First hook is a small edit to resolveStorefront in src/world/buildings/mixeduse.ts (name and sign copy only, no frame geometry) and the sign painters in src/textures/painters/storefront-art.ts and signage.ts. Wren (SURFACES3): I will re-read mixeduse.ts right before each edit and only touch resolveStorefront, the kind tables and the stickers/sign hooks, not the glazing, awning frame or gate geometry. Real map: kind comes from PLUTO plus a hash (buildingsReal.ts), names from the parody pool, so no real business name can reach the screen; I will keep it that way.

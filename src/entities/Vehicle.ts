@@ -660,7 +660,7 @@ export class Vehicle implements IVehicle {
     const r0 = perpRight(f0);
     const st = { u: dot(b.vel, f0), v: dot(b.vel, r0), r: this.yawRate };
     const thr = unstick !== null ? unstick : input.throttle;
-    hm.step(h, st, { throttle: thr, steer: input.steer, brake: input.brake, handbrake: input.handbrake }, { grip: this.grip, roadGrip: Vehicle.roadGrip });
+    hm.step(h, st, { throttle: thr, steer: input.steer, brake: input.brake, handbrake: input.handbrake }, { grip: this.grip, roadGrip: Vehicle.roadGrip, calm: Vehicle.calmSteering });
     const oppose = !input.brake && thr * st.u < 0 && Math.abs(st.u) > 0.5;
     const braking = input.brake || oppose || input.handbrake;
     if (braking !== this.braking) { this.braking = braking; this.applyLights(); }

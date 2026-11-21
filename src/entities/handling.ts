@@ -149,7 +149,8 @@ const BRAKE_APPLY = 7.5;
 const BRAKE_RELEASE = 14;
 const OPPOSE_BRAKE = 0.8;
 const HANDBRAKE_DECEL_FRAC = 0.2;
-const STEER_RATE = 3.2;
+const STEER_RATE = 5.6;           // full lock in ~0.18 s at a crawl (keys)
+const STEER_RATE_SPEED = 30;      // m/s scale on which the key rate falls: at 60 km/h (16.7 m/s) it is still 3.6/s, 0.28 s to lock
 const STEER_RETURN_MULT = 1.6;
 const ANALOG_FOLLOW = 7;
 const LOW_YAW_CAP = 0.5;
@@ -178,7 +179,8 @@ const ENGINE_BRAKE_FADE = 2;
 
 export interface HandlingInput { throttle: number; steer: number; brake: boolean; handbrake: boolean }
 export interface HandlingState { u: number; v: number; r: number }
-export interface HandlingEnv { grip: number; roadGrip: number }
+/** `calm` false (`Vehicle.calmSteering = false`) drops the calm yaw-rate cap: for a scripted or AI driver that steers by the raw lock */
+export interface HandlingEnv { grip: number; roadGrip: number; calm?: boolean }
 
 /**
  * The stateful half: steering, pedals, filtered accelerations. `Vehicle` owns one per car (made lazily, player-driven cars only unless
@@ -251,7 +253,7 @@ export class HandlingModel {
       this.steerNorm += (s - this.steerNorm) * Math.min(1, ANALOG_FOLLOW * h);
     } else {
       const returning = Math.abs(s) < Math.abs(this.steerNorm) && s * this.steerNorm >= 0;
-      const rate = (STEER_RATE * cl.steerRate * this.steerRateScale / (1 + uAbs / 18)) * (returning ? STEER_RETURN_MULT * (1 + uAbs / 12) : 1);
+      const rate = (STEER_RATE * cl.steerRate * this.steerRateScale / (1 + uAbs / STEER_RATE_SPEED)) * (returning ? STEER_RETURN_MULT * (1 + uAbs / 12) : 1);
       this.steerNorm += clamp(s - this.steerNorm, -rate * h, rate * h);
     }
 
@@ -349,7 +351,7 @@ export class HandlingModel {
     // the calm yaw-rate cap (rad/s), scaled by the class: how tight a turn a held key gives at a given speed (above ~16 m/s the tyres bind first)
     const cap = (LOW_YAW_CAP + (HIGH_YAW_CAP - LOW_YAW_CAP) * t * t * (3 - 2 * t)) * cl.yawCap;
     const hbFast = input.handbrake && uAbs > 3;
-    if (!hbFast) lock0 = Math.min(lock0, Math.atan((cap * L) / uF));
+    if (!hbFast && env.calm !== false) lock0 = Math.min(lock0, Math.atan((cap * L) / uF));
     let delta = this.steerNorm * lock0;
     // slide assist: once the car is sliding, steering that would wind the slide up closes down (countersteer stays free), so a held key
     // does not turn a drift into a spin and nothing can tank-slap
