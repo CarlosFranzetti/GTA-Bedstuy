@@ -129,18 +129,21 @@ function cane(ctx: Ctx, mb: MeshBuilder): void {
 }
 
 function scarf(ctx: Ctx, mb: MeshBuilder): void {
-  const y0 = ctx.lm.chinY - 0.115, y1 = ctx.lm.chinY - 0.012, cols = ctx.detail === 'hi' ? 12 : 8, P: V3[][] = [];
-  for (const [t, off] of [[0, 0.016], [0.5, 0.032], [1, 0.02]] as const) {
+  // PEOPLE8: this is the "orange bib" of the grey hoodie (not a collar): three rows made a flat cone on the chest and the tail was a 4 cm wide, 22 cm long strip. Now a soft round wrap (a 7 cm roll, rounded
+  // in section) with a short narrow tail on one side.
+  const y0 = ctx.lm.chinY - 0.094, y1 = ctx.lm.chinY - 0.016, hi = ctx.detail === 'hi', cols = hi ? 14 : 9, P: V3[][] = [];
+  const prof: Array<[number, number]> = hi ? [[0, 0.01], [0.22, 0.022], [0.5, 0.028], [0.78, 0.022], [1, 0.011]] : [[0, 0.01], [0.5, 0.028], [1, 0.011]];
+  for (const [t, off] of prof) {
     const row: V3[] = [];
-    for (let j = 0; j < cols; j++) { const be = (j / cols) * Math.PI * 2; row.push(ringPoint(ctx, lerp(y0, y1, t), be, off + 0.008 * Math.sin(be * 2 + t * 3) + 0.01 * (1 - front(be)) * t)); }
+    for (let j = 0; j < cols; j++) { const be = (j / cols) * Math.PI * 2; row.push(ringPoint(ctx, lerp(y0, y1, t), be, off + 0.004 * Math.sin(be * 2 + t * 3) + 0.008 * (1 - front(be)) * t)); }
     P.push(row);
   }
   // its own colour from the person (the gear swatch carries the bag's colour, which made a blue block on a hoodie)
   const tint = hexLin(['#8a2a3a', '#2f3a58', '#c8a04a', '#4a5a3a', '#d8d4cc', '#6a4a6a', '#8a5a2a'][Math.floor(rnd(ctx.spec.id, 17) * 7)]);
   mb.grid(P, { rect: NEUTRAL, tint, wrap: true, center: [0, lerp(y0, y1, 0.5), ctx.C[2]], W: torsoW, uv: () => [0.5, 0.5], shade: (i, j) => 0.8 + 0.2 * (i / 2) + 0.05 * Math.sin(j * 1.7) });
-  // a tail hanging down the chest
-  const tx = 0.03, pts = [0, 1, 2, 3].map((k) => surfPt(ctx, tx + 0.006 * k, y0 + 0.01 - 0.075 * k, 'front', 0.03 - 0.005 * k)), nrm = pts.map((): V3 => [0, 0, -1]);
-  ribbon(mb, pts, widthsAlong(pts, nrm), 0.02, { rect: NEUTRAL, tint, centre: [0, y0 - 0.1, ctx.C[2] + 0.2], W: torsoW, shade: 0.9, uvt: [0.5, 0.5] });
+  // a short tail hanging down the chest beside the middle
+  const tx = 0.045, pts = [0, 1, 2].map((k) => surfPt(ctx, tx + 0.004 * k, y0 + 0.012 - 0.06 * k, 'front', 0.03 - 0.004 * k)), nrm = pts.map((): V3 => [0, 0, -1]);
+  ribbon(mb, pts, widthsAlong(pts, nrm), 0.014, { rect: NEUTRAL, tint, centre: [0, y0 - 0.1, ctx.C[2] + 0.2], W: torsoW, shade: 0.9, uvt: [0.5, 0.5] });
 }
 
 /** collar shapes by garment style: stand height, how far it flares out, the half angle of the front opening (rad), the points / lapels hanging down the chest (length, 0 = none), fur */

@@ -200,7 +200,6 @@ export class TouchControls {
     // the HUD already works out "a car or a door is in reach" for its prompt; the CAR button follows it (no main.ts wiring needed)
     this.promptTimer = setInterval(() => this.syncPrompt(), 150);
     this.setupTutorial();
-    this.setupRotateHint();
   }
 
   // ---- stick
@@ -332,12 +331,12 @@ export class TouchControls {
   }
 
   // ---- first-run help (one screen, dismissible, remembered) and the rotate hint
+  /** The boot takes a while (loading screen, then the title): the first-run help and the rotate hint wait until the game is ready AND the title is gone. */
   private setupTutorial(): void {
-    if (this.prefs.tutorialSeen) return;
-    // the boot takes a while (loading screen, then the title): wait until the game is ready AND the title has been dismissed
     const waitForPlay = setInterval(() => {
       if (!playHasStarted(this.parent)) return;
       clearInterval(waitForPlay);
+      this.showRotateHint();
       if (!this.prefs.tutorialSeen) this.showTutorial();
     }, 400);
   }
@@ -365,7 +364,8 @@ export class TouchControls {
     setTimeout(() => t.remove(), 300);
     this.prefs.markTutorialSeen();
   }
-  private setupRotateHint(): void {
+  /** Portrait only, once per session, 7 s, no touches. */
+  showRotateHint(): void {
     let shown = false;
     try { shown = sessionStorage.getItem('gtabs.rotateHint') === '1'; } catch { /* ignore */ }
     if (shown || typeof matchMedia !== 'function' || !matchMedia('(orientation: portrait)').matches) return;
