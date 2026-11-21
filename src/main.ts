@@ -60,6 +60,7 @@ import { createTitleMusic } from '@/render/TitleMusic';
 import { Credits } from '@/ui/Credits';
 import { RadioUi } from '@/ui/RadioUi';
 import { GamepadInput } from '@/core/Gamepad';
+import { startAnalytics } from '@/core/Analytics';
 import { SaveManager, SaveStore, poseOnMap } from '@/ui/GameSave';
 import { MapScreen, navPlaces, placesFromLots } from '@/ui/MapScreen';
 import { getPlayerLook, setPlayerLook, randomPlayerLook, type PlayerLook as RosterLook } from '@/textures/painters/pedRoster';
@@ -89,6 +90,8 @@ import { Interiors, FadeOverlay, WebAmbient } from '@/world/interiors';
 import { Phone, savePhoneData, loadPhoneData, clearPhoneData } from '@/game/Phone';
 import { PhoneHud } from '@/ui/PhoneHud';
 import type { MissionHudState } from '@/game/missions/types';
+
+startAnalytics(); // live site only: counts page views (no cookies); off in the single-file and desktop builds and on localhost
 
 declare global {
   interface Window { __gtaReady?: boolean; __gtaStats?: Record<string, number>; }

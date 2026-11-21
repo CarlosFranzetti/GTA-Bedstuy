@@ -24,6 +24,7 @@
     "native:build:win": "VITE_HOSTED=1 vite build && npm --prefix native run dist:win"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "three": "^0.186.1"
   },
   "devDependencies": {

@@ -286,7 +286,8 @@ built by `scripts/anim/build-clips.mjs` from the trials listed in `scripts/anim/
 
 ## Build and test tooling (added 21 Nov)
 
-Run-time dependency of the game: three.js 0.186 (MIT). Development tools, none shipped in the game: Vite, vite-plugin-singlefile, Vitest and jsdom (MIT), TypeScript (Apache-2.0), glTF-Transform and meshoptimizer (MIT; used by `scripts/compress-models.mjs` and `scripts/people-pipeline.mjs`). The desktop shell adds Electron and electron-builder (see the table below). The browser tests use Playwright and Chromium, installed outside the project.
+Run-time dependencies of the game: three.js 0.186 (MIT), and on the live site only `@vercel/analytics` 2.0.1 (MIT), which
+loads Vercel's page-view script (`src/core/Analytics.ts`). Development tools, none shipped in the game: Vite, vite-plugin-singlefile, Vitest and jsdom (MIT), TypeScript (Apache-2.0), glTF-Transform and meshoptimizer (MIT; used by `scripts/compress-models.mjs` and `scripts/people-pipeline.mjs`). The desktop shell adds Electron and electron-builder (see the table below). The browser tests use Playwright and Chromium, installed outside the project.
 
 Test fixture, not shipped (`tests/fixtures/`): `CesiumMan.glb`, a skinned walking man from the Khronos glTF Sample Assets (https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CesiumMan), (c) Cesium (Analytical Graphics, Inc.), **CC BY 4.0**: attribution required if redistributed. `osm-sample.geojson` is synthetic (made by `tests/fixtures/make-osm-sample.mjs`), not OpenStreetMap data.
 

@@ -113,6 +113,11 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 
 ## Deploying
 
+- Vercel Web Analytics (owner's ask, 21 Nov): `src/core/Analytics.ts` calls `inject()` from `@vercel/analytics` on the
+  hosted build over https on a real host only (never the single file, desktop apps, localhost or tests). The owner must
+  switch Web Analytics on for the project in the Vercel dashboard (Analytics tab) for data to appear. The link-in-bio
+  page is plain HTML and is not counted yet.
+
 - Vercel builds every push to `master` UNLESS the commit message contains "work in progress", starts with "WIP", or
   contains "[skip deploy]" (`ignoreCommand` in `vercel.json`). So: unfinished work is committed as "Lanes' work in
   progress"; a commit the lead has verified gets a plain message and goes live.

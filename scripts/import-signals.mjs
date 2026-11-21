@@ -26,10 +26,12 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const R3 = process.argv.includes('--r3');
-const CORE = path.join(ROOT, R3 ? 'src/world/data/roadnet-r123.json' : 'src/world/data/roadnet-core.json');
-const OUT = path.join(ROOT, R3 ? 'src/world/data/roadnet-controls-r123.json' : 'src/world/data/roadnet-controls.json');
-const CACHE = path.join(ROOT, R3 ? 'cache/real-r3/signals' : 'cache/signals');
+const R4 = process.argv.includes('--r4');
+const R3 = process.argv.includes('--r3') || R4; // R4 (MAP4, 21 Nov 2026): the same whole-map mode over R4_EXTENT, roadnet-r4.json -> roadnet-controls-r4.json, cache/real-r4/signals
+const CORE = path.join(ROOT, R4 ? 'src/world/data/roadnet-r4.json' : R3 ? 'src/world/data/roadnet-r123.json' : 'src/world/data/roadnet-core.json');
+const OUT = path.join(ROOT, R4 ? 'src/world/data/roadnet-controls-r4.json' : R3 ? 'src/world/data/roadnet-controls-r123.json' : 'src/world/data/roadnet-controls.json');
+const CACHE = path.join(ROOT, R4 ? 'cache/real-r4/signals' : R3 ? 'cache/real-r3/signals' : 'cache/signals');
+const WHOLE_EXTENT = (ext) => (R4 ? ext.R4_EXTENT : ext.R3_EXTENT);
 const BASE = 'https://data.cityofnewyork.us/resource';
 const TOLERANCE_M = 15;
 const DATASETS = [
@@ -69,7 +71,7 @@ async function main() {
     const ext = await vite.ssrLoadModule('/src/world/roadnet/extents.ts');
     const { RoadNet } = await vite.ssrLoadModule('/src/world/roadnet/RoadNet.ts');
     const proj = geom.makeFrameProjection(geom.REAL_FRAME);
-    const ll = (R3 ? ext.R3_EXTENT : [...ext.R1_EXTENT, ...ext.R2_EXTENT]).map((p) => proj.toLonLat(p));
+    const ll = (R3 ? WHOLE_EXTENT(ext) : [...ext.R1_EXTENT, ...ext.R2_EXTENT]).map((p) => proj.toLonLat(p));
     const bbox = {
       n: Math.max(...ll.map((p) => p[1])) + 0.0005, s: Math.min(...ll.map((p) => p[1])) - 0.0005,
       w: Math.min(...ll.map((p) => p[0])) - 0.0005, e: Math.max(...ll.map((p) => p[0])) + 0.0005,
@@ -77,7 +79,7 @@ async function main() {
 
     const coreJson = JSON.parse(fs.readFileSync(CORE, 'utf8'));
     const net = RoadNet.fromJson(coreJson);
-    const inCoverage = (p) => geom.pointInPolygon(p, R3 ? ext.R3_EXTENT : ext.R1R2_EXTENT);
+    const inCoverage = (p) => geom.pointInPolygon(p, R3 ? WHOLE_EXTENT(ext) : ext.R1R2_EXTENT);
 
     // nearest node to each point (within the tolerance) and per-node sources
     const matched = new Map(); // node -> Set of dataset ids

@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Builds the WAX DELI archive crate: downloads each source file, cuts a clip, re-encodes it small, and measures tempo.
+"""Builds the WAX DELI crates: downloads each source file, cuts a clip, re-encodes it small, and measures tempo.
+Two groups: PREWAR (ten public-domain 78s, 80 s mono clips) and DANCE (open-licence dance tracks, 1980-2025 rule, 60 s stereo clips).
 
 Run from anywhere:  python3 -I scripts/records/crate.py <work-dir> [only-id ...]
 Needs ffmpeg and numpy. Output: public/records/<id>.mp3 and <work-dir>/measure.json.
 The CATALOGUE here (real credits) is mirrored by src/game/archiveRecords.ts (parody sleeves + credits); a unit test checks they agree.
-Sources: Internet Archive items only (public domain by 17 U.S.C. 1401, first published 1925 or earlier; see docs/swarm/tasks/RECORDS.md).
-ccMixter file downloads answer 403 and Free Music Archive downloads need a login, so no CC BY crate is built here.
+Sources: Internet Archive items only. PREWAR: public domain by 17 U.S.C. 1401, first published 1925 or earlier (docs/swarm/tasks/RECORDS.md).
+DANCE: CC BY / CC BY-SA netlabel releases (docs/swarm/tasks/RECORDS2.md). ccMixter file downloads still answer 403 and are not used.
 """
 import json, os, subprocess, sys, urllib.parse, urllib.request
 import numpy as np
@@ -14,9 +15,6 @@ IA = 'https://archive.org/download/'
 # id, source key, file, start s, duration s, kind ('ia' or url)
 CLIPS = [
  ('ia-castle', 'Europes_Society_Orch-Castle_Rag', 'Europes_Society_Orch-Castle_House_Rag-Victor-35372.mp3', 0, 80),
- ('ia-drag', 'Joseph_Moskowitz-Panama_Pacific_Drag', 'Joseph_Moskowitiz-Panama-Pacific_Drag.mp3', 0, 80),
- ('ia-pickle', 'WilliamHReitz', 'WilliamHReitz-DillPicklesRagXylophoneSolo.mp3', 0, 80),
- ('ia-banjo', 'Fred_Van_Eps-Rag_Pickings', 'Fred_Van_Eps-Rag_Pickings-Victor-16934-11.mp3', 0, 80),
  ('ia-livery', 'OriginalDixielandJassBand', 'OriginalDixielandJassBand-LiveryStableBlues.mp3', 0, 80),
  ('ia-africa', '78_africa_original-memphis-five-hanley_gbia0101463a', 'Africa - Original Memphis Five - Hanley.mp3', 0, 80),
  ('ia-fouroclock', 'Original_Memphis_Five-Four_O_Clock_Blues', 'Original_Memphis_Five-Four_O_Clock_Blues-Vocalion-14506-1923.mp3', 0, 80),
@@ -25,22 +23,31 @@ CLIPS = [
  ('ia-shake', 'FletcherHenderson', 'FletcherHenderson-ShakeYourFeet.mp3', 0, 80),
  ('ia-charleston', 'charleston1925', 'charleston1925_64kb.mp3', 0, 80),
  ('ia-mail', 'Tennessee_Ten-Three_Jazz_Sides_From_1923', 'Tennessee_Ten-Waitin_for_the_Evenin_Mail.mp3', 0, 80),
- ('ia-rhapsody', 'rhapblue11924', 'rhapblue11924_64kb.mp3', 0, 80),
- ('ia-crazy', 'MamieSmithHerJazzHounds', 'MamieSmithHerJazzHounds-CrazyBlues_64kb.mp3', 0, 80),
- ('ia-gulf', 'loc-jukebox-670192-gulf-coast-blues', 'jukebox-670192_gulf-coast-blues.mp3', 0, 80),
- ('ia-chicago', 'loc-jukebox-672304-chicago-bound-blues', 'jukebox-672304_chicago-bound-blues.mp3', 0, 80),
- ('ia-everybody', 'Lucille_Hegamin-Everybodys_Blues', 'Lucille_Hegamin-Everybodys_Blues-Bell-P45-1920_64kb.mp3', 0, 80),
- ('ia-strut', 'Leona_Williams-Struttin_Blues', 'Leona_Williams-Struttin_Blues_64kb.mp3', 0, 80),
- ('ia-advertise', 'Clara_Smith-Dont_Advertise_Your_Man', 'Clara_Smith-Dont_Advertise_Your_Man_64kb.mp3', 0, 80),
- ('ia-fisk-swing', 'fisk-university-jubilee-quartet-swing-low-sweet-chariot-victor-16453-a', 'Fisk University Jubilee Quartet - Swing Low, Sweet Chariot - Victor 16453-A.mp3', 0, 80),
- ('ia-fisk-slippers', 'fisk-university-jubilee-quartet-golden-slippers-victor-16453-b', 'Fisk University Jubilee Quartet - Golden Slippers - Victor 16453-B.mp3', 0, 80),
- ('ia-bethel', 'loc-jukebox-67444-ain-t-it-a-shame-to-work-on-sunday', 'jukebox-67444_ain-t-it-a-shame-to-work-on-sunday.mp3', 0, 80),
- ('ia-southern4', 'EDIS-SRP-0196-01', 'EDIS-SRP-0196-01.mp3', 0, 80),
- ('ia-ferera', 'southern1924', 'southern1924_64kb.mp3', 0, 80),
- ('ia-hawaiian', 'Irene_West_Royal_Hawaiians_Hawaiian_Waltz_Medly_Hawaiian_Guitar_Duet_', 'HawaiianWaltzMedly_64kb.mp3', 0, 80),
- ('ia-birmingham', '78_birmingham-blues_fats-waller_gbia0388856b', 'BIRMINGHAM BLUES - FATS WALLER.mp3', 0, 80),
- ('ia-glide', '78_the-new-york-glide_ethel-waters-alburys-blue-and-jazz-seven-tom-delaney_gbia0275389b', "THE NEW YORK GLIDE - ETHEL WATERS - ALBURY'S BLUE AND JAZZ SEVEN.mp3", 0, 80),
  ('ia-sisterkate', 'Virginians', 'Virginians-IWishICouldShimmyLikeMySisterKate.mp3', 0, 80),
+]
+
+# DANCE: id, item, file, start s, duration s. 60 s stereo clips from 40 s in (past the intro, into the groove).
+DANCE = [
+ ('dc-anaconda', 'tou269', 'tou269a.mp3', 40, 60),
+ ('dc-itchy', 'tou269', 'tou269c.mp3', 40, 60),
+ ('dc-plasma', 'tou252', 'tou252a.mp3', 40, 60),
+ ('dc-solar', 'tou252', 'tou252b.mp3', 40, 60),
+ ('dc-cry', 'tou258', 'tou258a.mp3', 60, 60),
+ ('dc-powerline', 'tou227', 'tou227a.mp3', 40, 60),
+ ('dc-aerial', 'tou220', 'tou220a.mp3', 60, 60),
+ ('dc-house', 'tek07', 'tek07-01-pasquale-h_o_u_s_e.mp3', 40, 60),
+ ('dc-sunshine', 'tek07', 'tek07-02-pasquale-sunshine_come_back.mp3', 40, 60),
+ ('dc-iliketoknow', 'tek07', 'tek07-04-pasquale-i_like_to_know.mp3', 40, 60),
+ ('dc-caribbean', 'tek03', 'tek03-01-das_boogie-caribbean_vibes.mp3', 60, 60),
+ ('dc-cuba', 'tek03', 'tek03-02-das_boogie-cuba_libre.mp3', 60, 60),
+ ('dc-lineoffly', 'Bo010-BattleBreaks-LineOfFlight', '01-BattleBreaks-LineOfFly.mp3', 60, 60),
+ ('dc-lineofflight', 'Bo010-BattleBreaks-LineOfFlight', '02-BattleBreaks-LineOfFlight.mp3', 60, 60),
+ ('dc-aquadisco', 'aquatone-alpha-song', '02.Magic AquaDisco.mp3', 40, 60),
+ ('dc-alphasong', 'aquatone-alpha-song', '01.Alpha Song.mp3', 40, 60),
+ ('dc-run4', 'TDCDV003', '03 - Run 4 Da Sun.mp3', 40, 60),
+ ('dc-starburstz', 'TDCDV003', '05 - Starburstz.mp3', 40, 60),
+ ('dc-discodown', 'TDC043', '03.DiscoDown.mp3', 40, 60),
+ ('dc-workout', 'TDC043', '05.WorkoutMachine.mp3', 40, 60),
 ]
 
 def estimate(x, sr, fb=120.0):
@@ -73,14 +80,14 @@ def main():
     res = {}
     mpath = os.path.join(work, 'measure.json')
     if os.path.exists(mpath): res = json.load(open(mpath))
-    for cid, key, f, start, dur in CLIPS:
+    for cid, key, f, start, dur in CLIPS + DANCE:
         if only and cid not in only: continue
         url = f if key == 'cc' else IA + urllib.parse.quote(key) + '/' + urllib.parse.quote(f)
         src = os.path.join(work, 'dl', cid + '.src.mp3')
         if not os.path.exists(src):
             subprocess.run(['curl', '-sSL', '--fail', '-m', '180', '-o', src, url], check=True)
         dst = os.path.join(out, cid + '.mp3')
-        old = key != 'cc'
+        old = cid.startswith('ia-')
         enc = ['-ac', '1', '-ar', '22050', '-b:a', '40k'] if old else ['-ac', '2', '-ar', '44100', '-b:a', '56k', '-joint_stereo', '1']
         fade = f'afade=t=in:d=0.25,afade=t=out:st={dur-1.5}:d=1.5,alimiter=limit=0.92'
         subprocess.run(['ffmpeg', '-y', '-v', 'error', '-ss', str(start), '-t', str(dur), '-i', src, '-af', fade, '-c:a', 'libmp3lame', *enc, '-map_metadata', '-1', dst], check=True)

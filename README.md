@@ -179,6 +179,11 @@ The owner's standing rules are in [MEMORY.md](MEMORY.md). The short version:
 Created and directed by Carlos Franzetti. The studio staff credited in the game and in
 [docs/CREDITS.md](docs/CREDITS.md) are AI agents working under his direction.
 
+## Privacy
+
+The live site counts page views with Vercel Web Analytics. It sets no cookies and the game stores nothing about you on a
+server: saves and settings stay in your browser. The single-file build and the desktop apps count nothing.
+
 ## Disclaimer
 
 This is a fan tribute, not affiliated with, endorsed by, or connected to Rockstar Games or Take-Two Interactive.
