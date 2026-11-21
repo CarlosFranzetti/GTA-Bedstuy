@@ -92,3 +92,26 @@ describe('sweep of a neighbour car beside the cab', () => {
     expect(bad).toEqual([]);
   });
 });
+
+describe('a car that cannot be entered does not shadow the one beside it', () => {
+  it('the nearest car (reached by its body box, far door) is refused as jammed: the next car is taken, the player does not stand frozen', () => {
+    const sim = new Sim(); const events = new EventBus();
+    // two cars in a row ahead of and behind the player, who stands beside their ends: both doors are over 3 m away, both bodies within reach
+    const a = makeVehicle('sedan', 1.9, -4.4, 0, events, 'A'), b = makeVehicle('sedan', 1.9, 5.0, 0, events, 'B');
+    sim.add(a); sim.add(b);
+    const player = new Player('p', { x: 0, z: 0 }, stubMaterials, events); sim.add(player);
+    events.on('enterVehicle', () => sim.world.removeBody(player.body.id));
+    const far = (v: typeof a) => Math.hypot(v.doorPos().x, v.doorPos().z);
+    expect(far(a)).toBeGreaterThan(3); expect(far(b)).toBeGreaterThan(3);
+    player.blockedAt = (_p, _r, ignore) => ignore === 'A' || ignore === 'p'; // A is jammed in; B is not
+    const s: Setup = { sim, player, cab: a, others: [b], input: new Input(document.body) };
+    expect(runFrames(s, 150, [0, 2])).toBeLessThan(1.5);
+    expect(player.vehicle).toBe(b);
+  });
+  it('a car whose door is in range is preferred over one reached only by its body box', () => {
+    const s = setup(0, 1.8, [{ type: 'cargovan' as VehicleType, left: 2.6, fwd: 2.5 }]);
+    for (let i = 0; i < 10; i++) s.sim.step(DT);
+    expect(runFrames(s, 150, [0, 2])).toBeLessThan(1.5);
+    expect(s.player.vehicle).toBe(s.cab);
+  });
+});

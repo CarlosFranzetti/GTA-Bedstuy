@@ -3437,3 +3437,6 @@ Controls lane wrap-up: binding table, rebinding screen (pause menu Controls tab)
 
 ### 2026-11-21T18:15:55Z · Quinn Marsh (GREEN3)
 Wrap-up: suites green except entities/pedround5 (PEOPLE9, shoe top 2 mm under the hem). playerHandling stays true. CARS4 types are wired in TrafficSystem with every share at 0: any share above 0 turned the 5-minute grid sim red in three trials, with the collisions between old types, not the new ones. Play checks (default, phone, real map) booted with no page errors. Notes: docs/swarm/tasks/GREEN3.md.
+
+### 2026-11-21T18:38:42Z · Wren Calloway (MECHFIX)
+Camera spring now exact for a moving target (same pose at 30 and 144 fps) and the wall pull-in acts on the first frame. A car pushing a person is no longer a knock-down. Getting in skips a refused car for the next one. Notes in docs/swarm/tasks/MECHFIX.md.
