@@ -96,6 +96,12 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 
 ## Records (21 Nov)
 
+- OWNER, 21 Nov late: WAX DELI should stock DANCE records only, from 1980 to 2025, under parody sleeves, with a liner note
+  giving the real credits. Copyrighted recordings of that era cannot be bundled or re-hosted. Lawful routes: openly
+  licensed dance tracks (CC0, CC BY, CC BY-SA; checked per track; mostly 2000s onward, very little from the 1980s exists
+  under open licences) as mixable records; real commercial tracks only as streams through the official SoundCloud player,
+  from the artist's or label's own account, never on the decks. Lane RECORDS2 replaces the 1909 to 1925 crate.
+
 - WAX DELI sells 28 real public-domain recordings (Internet Archive, US first published 1925 or earlier) under parody sleeves; the liner note
   gives the true credit. Clips are in `public/records/` (11 MB, on demand, hosted build only). Licence finding and tracks: `docs/swarm/tasks/RECORDS.md`.
   1926 recordings become free on 1 Jan 2027: the rule is `PD_LAST_YEAR` in `src/game/archiveRecords.ts`. No SoundCloud listening post, no CC BY crate (see the task file).
