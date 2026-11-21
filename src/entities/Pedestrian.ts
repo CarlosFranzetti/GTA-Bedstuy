@@ -1,7 +1,7 @@
 import { hyp } from '@/core/Math2';
 import * as THREE from 'three';
 import type { EventBus } from '@/core/Events';
-import { angleDiff, type Vec2 } from '@/core/Math2';
+import { angleDiff, clamp, headingFromVec, type Vec2 } from '@/core/Math2';
 import type { SignalLights } from '@/game/TrafficLights';
 import { Rng } from '@/core/Rng';
 import { animateWalk, type HumanModel } from '@/entities/models/humanModel';
@@ -916,10 +916,44 @@ export class Pedestrian implements Entity {
         this.anim.setIdle(io > 4.3 ? 'crossed' : io > 3.6 ? 'idle2' : io < 0.6 && this.state === 'waiting' ? 'lean' : null, io > 2.5);
       }
       const speed = moving ? Math.hypot(b.vel.x, b.vel.z) : 0;
-      if (!this.anim.update(dt, { speed, yawRate })) animateWalk(this.model, this.phase, this.amp);
+      // far level of detail (a few hundred triangles, 40 m and more away): no foot lock, breathing or look-at
+      const lod = (this.lodObj ??= this.model.group.getObjectByName('pedLod') as THREE.LOD | null ?? null);
+      const farLevel = !!lod && lod.levels.length > 1 && lod.levels[lod.levels.length - 1].object.visible;
+      if (this.anim.cheap !== farLevel) this.anim.cheap = farLevel;
+      if (!this.anim.update(dt, { speed, yawRate, look: farLevel ? null : this.glance(dt) })) animateWalk(this.model, this.phase, this.amp);
       this.applyIdlePose(this.model);
     }
   }
+
+  /** The person to glance at (the player): the host sets it once, to a live position. Null = nobody. */
+  static lookAtPoint: Vec2 | null = null;
+  private lodObj: THREE.LOD | null | undefined;
+  private glanceW = 0;
+  private glanceYaw = 0;
+  /**
+   * Heads turn to the player when he is close and in front (within 6 m, 110 degrees), in glances: each person looks for a while, looks away,
+   * looks again (about half of them are not curious at all). Nobody who is fleeing, down or startled looks. Eased so the head never snaps.
+   */
+  private glance(dt: number): { yaw: number; pitch: number } | null {
+    const t = Pedestrian.lookAtPoint, b = this.body;
+    let want = 0, yaw = this.glanceYaw;
+    if (t && (this.state === 'walking' || this.state === 'waiting')) {
+      const dx = t.x - b.pos.x, dz = t.z - b.pos.z, d = Math.hypot(dx, dz);
+      if (d < 6 && d > 0.6) {
+        const rel = angleDiff(b.heading, headingFromVec({ x: dx, z: dz }));
+        const seed = Rng.hash(`${this.id}:glance`);
+        const curious = (seed & 1) === 0;
+        this.glanceClock += dt;
+        const phase = Math.sin(this.glanceClock * 0.9 + (seed % 628) / 100);
+        if (curious && Math.abs(rel) < 1.9 && phase > -0.2) { want = 1; yaw = clamp(rel, -1.0, 1.0); }
+      }
+    }
+    this.glanceW += (want - this.glanceW) * (1 - Math.exp(-4 * dt));
+    if (want) this.glanceYaw = yaw;
+    if (this.glanceW < 0.01) return null;
+    return { yaw: -this.glanceYaw * this.glanceW, pitch: 0 }; // positive = to their left; the heading angle is clockwise
+  }
+  private glanceClock = 0;
 
   /** This person's gait, from their id and age (deterministic, no random draws). */
   private walkGait(): Gait { return this.gait ??= makeGait(Rng.hash(`${this.id}:gait`), this.person?.age ?? 'adult'); }

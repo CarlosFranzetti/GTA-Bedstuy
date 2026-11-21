@@ -18,9 +18,11 @@ export interface CameraContext {
   /** Static geometry to keep the camera out of (defaults to `camera.world`). */
   world?: CameraWorld | null;
   /** The vehicle being driven: its `speed` widens the view and its `shakeRequested` is consumed (read, then zeroed). */
-  vehicle?: { readonly id?: string; readonly speed: number; shakeRequested?: number; readonly spec?: { readonly length: number; readonly height: number; readonly width?: number; readonly camDist?: number; readonly camHeight?: number } } | null;
+  vehicle?: { readonly id?: string; readonly speed: number; readonly lateralSpeed?: number; shakeRequested?: number; readonly spec?: { readonly length: number; readonly height: number; readonly width?: number; readonly camDist?: number; readonly camHeight?: number } } | null;
   /** Speed in m/s when no vehicle object is at hand. */
   speed?: number;
+  /** Id of a body the lens should not shy from (the car the player is walking to). */
+  ignoreId?: string | null;
 }
 
 const MOUSE_SENS = 0.0025;
@@ -55,10 +57,11 @@ const SPEED_SMOOTH = 2.5;
 const MIN_CAM_Y = 0.4;
 /** Pivot offsets: the camera orbits a point `look` m above the ground at the car's roof centre / the player's head. */
 export const CAM_FOOT = { distance: 3.2, height: 1.55, look: 1.4, fov: 64, shoulder: 0.35 };
-export const CAM_VEHICLE = { distance: 4.6, height: 1.7, look: 1.3, fov: 70, fovTop: 82 };
+// LOOK lane's measured values (21 Nov): lower and closer, a narrower lens; the pull-back and the pivot lag below carry the sense of speed.
+export const CAM_VEHICLE = { distance: 4.1, height: 1.45, look: 1.15, fov: 62, fovTop: 72 };
 const SEDAN = { length: 4.6, height: 1.45, width: 1.9 };
 /** Extra pull-back (m) at top speed, so the road ahead opens up. */
-const SPEED_DISTANCE = 0.9;
+const SPEED_DISTANCE = 0.6;
 const SPEED_FULL = 30;
 /** Look-back: spring rate of the 0..1 blend (snap ~0.35 s) and the key that drives it. */
 const LOOKBACK_OMEGA = 11;
@@ -108,12 +111,32 @@ const FALLBACK_RAY_STEPS = 4;
 const LETTERBOX_SHARE = 0.12;
 const LETTERBOX_RATE = 5;
 /** Rate (1/s) at which the pivot jump from getting in / out of a car (door -> car centre) is absorbed, and the largest jump absorbed (m). */
-const PIVOT_SETTLE = 7;
+const PIVOT_SETTLE = 5;
 const PIVOT_JUMP_MAX = 8;
 /** Touch look: drag deltas arrive in bursts per pointer event; they are released through a dt-correct low-pass (rate 1/s) so the view glides. */
 const TOUCH_LOOK_RATE = 26;
 /** Rate (1/s) at which the lens is pulled in when a wall is behind it (it used to snap in a single frame). */
-const WALL_IN_RATE = 22;
+const WALL_IN_RATE = 14;
+/** The lens never moves in faster than this (m/s) when something comes between it and the body: it glides in, it does not pop. */
+const WALL_IN_MAX = 16;
+/** Rates (1/s) at which the lens rises over a roof and comes back down. */
+const LIFT_UP = 9;
+const LIFT_DOWN = 4;
+/** Pivot spring (rad/s): the lens follows the body through a critically damped spring, so it lags a little at speed and settles when the body stops. */
+const PIVOT_OMEGA_FOOT = 20;
+const PIVOT_OMEGA_CAR = 60;
+/** A pivot further than this from its target (a teleport, a respawn) snaps. */
+const PIVOT_SNAP = 6;
+/** After getting in or out of a car the rig eases over about this long (s): its distance, height and lens change slowly. */
+const TRANSITION_TIME = 1.1;
+/** Car cam: the view swings out of a corner (rad per rad/s of turn rate) and looks into a slide (share of the slip angle), and settles. */
+const SWING_RATE = 0.16;
+const SWING_SLIP = 0.5;
+const SWING_MAX = 0.45;
+const SWING_OMEGA = 5;
+/** Roll on foot with turn rate x speed (rad per unit), capped. */
+const ROLL_FOOT_PER = 0.0012;
+const ROLL_FOOT_MAX = 0.02;
 
 /** Exact step of a critically damped spring on `x` (distance from rest) with velocity `v`. */
 export function dampStep(x: number, v: number, omega: number, dt: number): { x: number; v: number } {
@@ -167,6 +190,10 @@ export class ThirdPersonCamera {
   private backBlend = 0;   // 0 = behind, 1 = in front looking back
   private backVel = 0;
   private cineBlend = 0;
+  private spX = 0; private spZ = 0; private svX = 0; private svZ = 0;
+  private transT = 0;
+  private liftS = 0;
+  private swing = 0; private swingVel = 0;
   private cineYaw = 0;
   private roll = 0;
   private headingRate = 0;
@@ -295,7 +322,9 @@ export class ThirdPersonCamera {
       const jx = this.prevX - targetPos.x, jz = this.prevZ - targetPos.z;
       if (Math.hypot(jx, jz) < PIVOT_JUMP_MAX) { this.offX += jx; this.offZ += jz; } else { this.offX = 0; this.offZ = 0; }
     }
+    if (this.lastMode !== null && mode !== this.lastMode) this.transT = 1;
     this.lastMode = mode;
+    this.transT = Math.max(0, this.transT - dt / TRANSITION_TIME);
     if (this.offX !== 0 || this.offZ !== 0) {
       const decay = Math.exp(-PIVOT_SETTLE * dt);
       this.offX *= decay; this.offZ *= decay;
@@ -312,7 +341,14 @@ export class ThirdPersonCamera {
         this.slkX = slackFollow(this.slkX, ux, band);
         this.slkZ = slackFollow(this.slkZ, uz, band);
       }
-      this.tgt.x = this.slkX; this.tgt.z = this.slkZ;
+      // critically damped pivot: a little lag behind a moving body, no shiver, settles when it stops
+      if (first || Math.hypot(this.spX - this.slkX, this.spZ - this.slkZ) > PIVOT_SNAP) { this.spX = this.slkX; this.spZ = this.slkZ; this.svX = 0; this.svZ = 0; }
+      else {
+        const om = vehicleMode ? PIVOT_OMEGA_CAR : PIVOT_OMEGA_FOOT;
+        const sx = dampStep(this.spX - this.slkX, this.svX, om, dt), sz = dampStep(this.spZ - this.slkZ, this.svZ, om, dt);
+        this.spX = this.slkX + sx.x; this.svX = sx.v; this.spZ = this.slkZ + sz.x; this.svZ = sz.v;
+      }
+      this.tgt.x = this.spX; this.tgt.z = this.spZ;
     }
     targetPos = this.tgt;
     if (first) { this.prevHeading = targetHeading; this.prevX = targetPos.x; this.prevZ = targetPos.z; }
@@ -378,6 +414,19 @@ export class ThirdPersonCamera {
       this.backVel = st.v;
     }
 
+    // ---- car: swing out of a corner and look into a slide (added to the view, never to `yaw`) ----------------------------------
+    {
+      let want = 0;
+      if (vehicleMode && veh && !vrig.first) {
+        const sp = veh.speed, lat = veh.lateralSpeed ?? 0;
+        const slip = Math.abs(sp) > 1 ? Math.atan2(lat, Math.abs(sp)) * (sp < 0 ? -1 : 1) : 0;
+        const live = clamp((Math.abs(sp) - 2) / 4, 0, 1);
+        want = clamp((SWING_SLIP * slip - SWING_RATE * this.headingRate) * live, -SWING_MAX, SWING_MAX);
+      }
+      const st = dampStep(this.swing - want, this.swingVel, SWING_OMEGA, dt);
+      this.swing = want + st.x; this.swingVel = st.v;
+    }
+
     // ---- idle cinematic ------------------------------------------------------------------------------------
     if (this.still >= IDLE_CINEMATIC_AFTER) {
       this.cineBlend = Math.min(1, this.cineBlend + CINE_IN * dt);
@@ -398,7 +447,7 @@ export class ThirdPersonCamera {
 
     // ---- speed, rig distance/height/fov --------------------------------------------------------------------
     const smooth = vehicleMode ? SMOOTH_VEH : SMOOTH_FOOT;
-    const k = snap ? 1 : 1 - Math.exp(-smooth * dt);
+    const k = snap ? 1 : 1 - Math.exp(-smooth * dt * (1 - 0.7 * this.transT));
     const kSpeed = first ? 1 : 1 - Math.exp(-SPEED_SMOOTH * dt);
     const speed = vehicleMode ? Math.abs(veh ? veh.speed : ctx?.speed ?? 0) : 0;
     this.speedN += (clamp(speed / SPEED_FULL, 0, 1) - this.speedN) * kSpeed;
@@ -408,7 +457,7 @@ export class ThirdPersonCamera {
     const extraH = vehicleMode && veh?.spec ? Math.max(0, veh.spec.height - SEDAN.height) : 0;
     const cine = vrig.cinematic && vehicleMode ? this.views.director.shot : null;
     const sedanRig = vehicleMode
-      ? { distance: CAM_VEHICLE.distance + extraLen + (veh?.spec?.camDist ?? 0), height: CAM_VEHICLE.height + extraH + (veh?.spec?.camHeight ?? 0), look: CAM_VEHICLE.look + 0.9 * extraH }
+      ? { distance: CAM_VEHICLE.distance + extraLen + (veh?.spec?.camDist ?? 0), height: CAM_VEHICLE.height + extraH * 1.15 + (veh?.spec?.camHeight ?? 0), look: CAM_VEHICLE.look + 0.9 * extraH }
       : CAM_FOOT;
     const vlen = veh?.spec?.length ?? SEDAN.length;
     const vh = veh?.spec?.height ?? SEDAN.height;
@@ -444,13 +493,13 @@ export class ThirdPersonCamera {
       this.headingRate += (rate - this.headingRate) * (1 - Math.exp(-12 * dt));
     }
     const lat = vehicleMode ? (veh ? veh.speed : ctx?.speed ?? 0) * this.headingRate : 0;
-    const wantRoll = clamp(lat * ROLL_PER_G, -ROLL_MAX, ROLL_MAX);
+    const wantRoll = vehicleMode ? clamp(lat * ROLL_PER_G, -ROLL_MAX, ROLL_MAX) : first ? 0 : clamp(Math.min(moveSpeed, 7) * this.headingRate * ROLL_FOOT_PER, -ROLL_FOOT_MAX, ROLL_FOOT_MAX);
     this.roll += (wantRoll - this.roll) * (first ? 1 : 1 - Math.exp(-ROLL_SMOOTH * dt));
     this.prevHeading = targetHeading;
     this.prevX = rawTarget.x; this.prevZ = rawTarget.z;
 
     // ---- rig placement: the pivot rides rigidly on the target; only the rig parameters are smoothed --------
-    const viewYaw = this.yaw + Math.PI * this.backBlend + this.cineYaw + this.cineShotYaw;
+    const viewYaw = this.yaw + Math.PI * this.backBlend + this.cineYaw + this.cineShotYaw + this.swing * (1 - this.backBlend);
     const bx = Math.sin(viewYaw), bz = -Math.cos(viewYaw);
     const sx = -bz * this.shoulder, sz = bx * this.shoulder;
     const horiz = this.distance * Math.cos(this.pitch);
@@ -482,13 +531,13 @@ export class ThirdPersonCamera {
           : FOOT_BOX;
         // free distance along the view line: static walls (with the inside-collider hold) and other bodies
         const stat = this.staticLimit(world, targetPos, this.pos.x, this.pos.z, true);
-        const dyn = this.dynamicLimit(world, targetPos, this.pos.x, this.pos.z, veh?.id);
+        const dyn = this.dynamicLimit(world, targetPos, this.pos.x, this.pos.z, veh?.id ?? ctx?.ignoreId ?? undefined);
         // on foot, walled in behind: swap to the shoulder side that is free (undone once the first side is free again)
         if (!vehicleMode && Math.abs(vrig.shoulder) > 0.1) this.updateSlide(world, targetPos, stat, d, dt);
         else { this.slide = false; this.slideTimer = 0; this.slideFree = 0; }
         const limitNow = Math.min(stat, dyn, d + 0.5);
         if (first || !this.initReach) this.reach = limitNow;
-        else if (limitNow < this.reach) this.reach += (limitNow - this.reach) * (1 - Math.exp(-WALL_IN_RATE * dt));
+        else if (limitNow < this.reach) this.reach += Math.max((limitNow - this.reach) * (1 - Math.exp(-WALL_IN_RATE * dt)), -WALL_IN_MAX * dt);
         else if (limitNow - this.reach > REACH_DEAD) this.reach += (limitNow - this.reach) * (1 - Math.exp(-WALL_OUT_RATE * dt));
         this.initReach = true;
         const h = Math.max(MIN_REACH, Math.min(d, this.reach));
@@ -505,12 +554,18 @@ export class ThirdPersonCamera {
         const trimmed = smoothstep(0, 0.15, d - h);
         const near = 1 - smoothstep(rb + CLEAR_IN, rb + CLEAR_IN + 0.25, h);
         const f = Math.max(raiseAmount(h, rb) * trimmed, near);
+        let lift = 0;
         if (f > 0) {
           const roofY = box.top + (vehicleMode ? ROOF_MARGIN_CAR : ROOF_MARGIN_FOOT);
-          if (this.pos.y < roofY) this.pos.y += (roofY - this.pos.y) * f;
+          if (this.pos.y < roofY) lift = (roofY - this.pos.y) * f;
         }
+        // the rise over the roof is eased (fast up, slower down): the lens must not jump when the box it clears changes (getting in or out)
+        const lr = first || snap ? 1 : 1 - Math.exp(-(lift > this.liftS ? LIFT_UP : LIFT_DOWN) * dt);
+        this.liftS += (lift - this.liftS) * lr;
+        this.pos.y += this.liftS;
       }
     } else {
+      this.liftS = 0;
       this.blockAmt += (0 - this.blockAmt) * (1 - Math.exp(-BLOCK_RATE * dt));
       this.reach = FAR;
       this.initReach = false;

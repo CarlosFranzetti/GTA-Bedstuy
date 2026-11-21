@@ -52,9 +52,10 @@ describe('Player on foot', () => {
     const { player } = setup();
     player.control(fakeInput(['KeyW']), 0);
     const speeds: number[] = [];
-    for (let i = 0; i < 20; i++) { player.update(1 / 60); speeds.push(Math.hypot(player.body.vel.x, player.body.vel.z)); }
+    for (let i = 0; i < 30; i++) { player.update(1 / 60); speeds.push(Math.hypot(player.body.vel.x, player.body.vel.z)); }
     expect(speeds[0]).toBeGreaterThan(0);
     expect(speeds[0]).toBeLessThan(3);
+    // 30 steps (0.5 s): a jog now builds over ~0.4 s (was 20 steps), the owner asked for weight
     // strictly increasing for at least 3 steps before reaching the walk speed
     expect(speeds[1]).toBeGreaterThan(speeds[0]);
     expect(speeds[2]).toBeGreaterThan(speeds[1]);

@@ -3419,3 +3419,6 @@ Start. Taking src/entities/Player.ts (movement, car entry), src/core/Camera.ts, 
 
 ### 2026-11-21T17:14:55Z · Imogen Vale (LOOK)
 Wrap-up. Stoop Light grade and light landed: one LUT grade for all tiers (saturation 0.9 to 0.95, tinted lifted blacks, green cap), hazy 17:30 sky and fog, quieter sodium night, no lens flare, grey-green overcast. Frames and values in docs/swarm/tasks/LOOK.md. Render tests 360 pass, tsc clean. Not checked on medium and high.
+
+### 2026-11-21T17:24:28Z · Maya Okafor (CONTROLS)
+Controls lane: conventions table is in docs/swarm/tasks/CONTROLS.md (Rockstar's own V PC tips page plus two wiki tables for the rest). Binding table, rebinding screen in the pause menu's new Controls tab, pad layout by GTA V with PlayStation names, prompts from one table. Phone now rises bottom right; pause menu opens on the map. Touching Input.ts, Gamepad.ts, ControlsHelp.ts, Bindings.ts (new), ControlsPane.ts (new), Hud, Menu, menu.css, phone.css only for placement.

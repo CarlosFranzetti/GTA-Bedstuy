@@ -29,7 +29,7 @@ export class FakeInput {
 export interface Frame {
   t: number; px: number; pz: number; vx: number; vz: number; speed: number; heading: number;
   /** the drawn figure's position (what the player sees) */
-  fx: number; fz: number; fh: number; fy: number;
+  fx: number; fz: number; fh: number; fy: number; fv: boolean;
   cx: number; cy: number; cz: number; camYaw: number; viewYaw: number; fov: number;
   mode: 'foot' | 'vehicle'; entering: boolean; inVehicle: boolean; sprint: number;
 }
@@ -44,7 +44,7 @@ export class Rig {
   frames: Frame[] = [];
   readonly camTarget = { x: 0, z: 0 };
   private camHeading = 0;
-  private ctx: { world: unknown; vehicle: Vehicle | null };
+  private ctx: { world: unknown; vehicle: Vehicle | null; ignoreId?: string | null };
   private tmp = new THREE.Vector3();
 
   constructor(start = { x: 0, z: 0 }, opts: { carAt?: { x: number; z: number; h?: number }; type?: Parameters<typeof makeVehicle>[0] } = {}) {
@@ -73,7 +73,7 @@ export class Rig {
     p.control(this.input as never, this.cam.yaw);
     this.sim.step(DT);
     this.pose(1);
-    this.ctx.vehicle = p.vehicle as Vehicle | null;
+    this.ctx.vehicle = p.vehicle as Vehicle | null; this.ctx.ignoreId = p.enteringId;
     this.cam.update(DT, this.camTarget, this.camHeading, p.inVehicle ? 'vehicle' : 'foot', this.input as never, this.ctx as never);
     this.input.mouseDX = 0; this.input.mouseDY = 0;
     if (!record) return;
@@ -82,7 +82,7 @@ export class Rig {
     const b = p.body;
     this.frames.push({
       t: this.sim.time, px: b.pos.x, pz: b.pos.z, vx: b.vel.x, vz: b.vel.z, speed: Math.hypot(b.vel.x, b.vel.z), heading: b.heading,
-      fx: p.object3D.position.x, fz: p.object3D.position.z, fh: -p.object3D.rotation.y, fy: p.object3D.position.y,
+      fx: p.object3D.position.x, fz: p.object3D.position.z, fh: -p.object3D.rotation.y, fy: p.object3D.position.y, fv: p.object3D.visible,
       cx: c.position.x, cy: c.position.y, cz: c.position.z, camYaw: this.cam.yaw, viewYaw: Math.atan2(this.tmp.x, -this.tmp.z), fov: c.fov,
       mode: p.inVehicle ? 'vehicle' : 'foot', entering: p.isEntering, inVehicle: p.inVehicle, sprint: p.sprint,
     });
@@ -124,7 +124,7 @@ export function offsetStep(fr: Frame[]): number {
 }
 export function figureStep(fr: Frame[]): number {
   let m = 0;
-  for (let i = 1; i < fr.length; i++) m = Math.max(m, Math.hypot(fr[i].fx - fr[i - 1].fx, fr[i].fz - fr[i - 1].fz));
+  for (let i = 1; i < fr.length; i++) if (fr[i].fv && fr[i - 1].fv) m = Math.max(m, Math.hypot(fr[i].fx - fr[i - 1].fx, fr[i].fz - fr[i - 1].fz));
   return m;
 }
 export function headingStep(fr: Frame[]): number {
@@ -253,7 +253,7 @@ export function measureAll(): Report {
     const cj = cameraJerk(enterFr);
     R('enter: camera pos step / yaw step / fov step', `${r2(cj.posStep)} m / ${r2(cj.yawStep)} deg / ${r2(cj.fovStep)} deg`);
     R('enter: camera-to-figure offset, largest one-frame change (m)', offsetStep(enterFr));
-    R('enter: figure largest one-frame move (m) (walk is ~0.05)', figureStep(enterFr));
+    R('enter: figure largest one-frame move while visible (m) (walk is ~0.05)', figureStep(enterFr));
     R('enter: figure facing largest one-frame change (deg)', figureTurnStep(enterFr));
     traces.enter = enterFr;
     // sprint up to speed then leave

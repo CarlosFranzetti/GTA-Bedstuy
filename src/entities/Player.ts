@@ -163,6 +163,13 @@ export class Player implements Entity {
   /** Id of the vehicle being walked to (null otherwise): the camera should not pull in for the car the player is stepping into. */
   get enteringId(): string | null { return this.entering ? this.entering.vehicle.id : null; }
   private braceT = 0;
+  /**
+   * Something nearby the head should turn to (a person walking past, a shop window): world position, or null. The host sets it (main.ts: the
+   * nearest pedestrian within about 5 m in front). The head also leads every turn: it looks where the body is about to go.
+   */
+  glanceAt: Vec2 | null = null;
+  private lookYaw = 0;
+  private lookLead = 0;
   private wallBraced = false;
   private postSpeed = 0;
   /** The facing (rad/s) the body turned at in the last step, for the animation. */
@@ -587,9 +594,9 @@ export class Player implements Entity {
       // not yet facing the way it was told to go: give less speed until the body has swung round (not while aiming: that strafes)
       if (this.aimYaw === null) sp *= alignScale(Math.cos(angleDiff(b.heading, want)));
       // sprinting at a wall: take speed off over the last metres, so the contact is a brace and not a dead stop
-      if (speedNow > WALL_CONTACT_SPEED + 1.2 && this.blockedAt && !this.jump.busy) {
+      if (speedNow > WALL_CONTACT_SPEED + 0.2 && this.blockedAt && !this.jump.busy) {
         const ux = b.vel.x / speedNow, uz = b.vel.z / speedNow;
-        for (const d of [0.8, 1.4, 2.0, 2.8]) {
+        for (const d of [0.5, 0.8, 1.1, 1.4, 1.8, 2.2, 2.8]) {
           if (this.blockedAt({ x: b.pos.x + ux * (d + FOOT_RADIUS), z: b.pos.z + uz * (d + FOOT_RADIUS) }, FOOT_RADIUS * 0.8)) {
             const cap = Math.sqrt(WALL_CONTACT_SPEED * WALL_CONTACT_SPEED + 2 * BRAKE_ACCEL * Math.max(0, d - 0.55));
             if (cap < sp) {
@@ -683,12 +690,12 @@ export class Player implements Entity {
   private completeEnter(): void {
     const e = this.entering!;
     this.entering = null;
-    this.seatK = 0; this.enterSeat = null;
     const best = e.vehicle;
     this.vehicle = best;
     this.seatTail = this.anim?.hasClip('sitDown') ? SEAT_TAIL : 0;
     this.object3D.visible = this.seatTail > 0;
-    if (this.seatTail <= 0) { this.seatK = 0; this.enterSeat = null; }
+    // keep the figure in the seat on the frame it is claimed (it used to pop to the car's centre for one frame)
+    if (this.seatTail > 0) { this.seatK = 1; this.enterSeat = this.seatOf(best); } else { this.seatK = 0; this.enterSeat = null; }
     this.body.shape.r = SEATED_RADIUS;
     this.syncToVehicle();
     this.prevPos.x = this.body.pos.x; this.prevPos.z = this.body.pos.z; this.prevHeading = this.body.heading;
@@ -746,12 +753,33 @@ export class Player implements Entity {
       this.anim ??= new AnimController(this.model, PLAYER_GAIT);
       const yawRate = dt > 0 ? -angleDiff(this.animHeading, b.heading) / dt : 0;
       this.animHeading = b.heading;
-      if (!this.anim.update(dt, { speed: sp, yawRate, jump: { phase: this.jump.phase, t: this.jump.t, vy: this.jump.vy }, action: this.actionPose })) {
+      if (!this.anim.update(dt, { speed: sp, yawRate, jump: { phase: this.jump.phase, t: this.jump.t, vy: this.jump.vy }, action: this.actionPose, look: this.lookInput(dt) })) {
         if (this.jump.busy) animateJump(this.model, this.jump.phase, this.jump.t, this.jump.vy);
         else animateWalk(this.model, this.walkPhase, this.walkAmp);
       }
     }
     this.pose3D(b.pos, b.heading, this.jump.y);
+  }
+
+  /**
+   * Where the head looks, relative to the body (the anim controller eases it further): toward the way the body is about to go (so the head
+   * leads a turn, about 0.6 of the angle still to turn) and, when standing or walking easy, at `glanceAt` when it is in front.
+   */
+  private lookInput(dt: number): { yaw: number; pitch: number } | null {
+    const b = this.body;
+    let leadWant = 0;
+    if (this.moveDir && this.aimYaw === null) leadWant = clamp(angleDiff(b.heading, headingFromVec(this.moveDir)) * 0.6, -0.8, 0.8);
+    this.lookLead += (leadWant - this.lookLead) * (1 - Math.exp(-10 * dt));
+    let glance = 0;
+    const g = this.glanceAt;
+    if (g && !this.inVehicle && this.downT <= 0 && Math.hypot(this.body.vel.x, this.body.vel.z) < 4.5) {
+      const rel = angleDiff(b.heading, headingFromVec({ x: g.x - b.pos.x, z: g.z - b.pos.z }));
+      if (Math.abs(rel) < 1.9) glance = clamp(rel, -1.0, 1.0);
+    }
+    this.lookYaw += (glance - this.lookYaw) * (1 - Math.exp(-5 * dt));
+    const yawRight = this.lookLead + this.lookYaw; // clockwise = to the right
+    if (Math.abs(yawRight) < 0.005) return null;
+    return { yaw: -yawRight, pitch: 0 }; // the controller's yaw is positive to the LEFT
   }
 
   dispose(): void {
