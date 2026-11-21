@@ -70,7 +70,7 @@ export const ACTIONS: readonly ActionDef[] = [
 export const ACTION_BY_ID: ReadonlyMap<ActionId, ActionDef> = new Map(ACTIONS.map((a) => [a.id, a]));
 
 /** Keys the rebinding screen refuses: they belong to the browser or the menus. Backspace / Delete clear a slot. */
-export const RESERVED_KEYS: ReadonlySet<string> = new Set(['Escape', 'F1', 'F3', 'F4', 'F5', 'F11', 'F12', 'MetaLeft', 'MetaRight', 'ContextMenu', 'Backspace', 'Delete', 'Enter', 'NumpadEnter', 'MouseLeft']);
+export const RESERVED_KEYS: ReadonlySet<string> = new Set(['Escape', 'F1', 'F3', 'F4', 'F5', 'F11', 'F12', 'MetaLeft', 'MetaRight', 'ContextMenu', 'Backspace', 'Delete', 'Enter', 'NumpadEnter']);
 /** Keys that only work as game keys while the Keyboard Lock API holds them (fullscreen): Ctrl+W closes a tab otherwise. */
 export const LOCK_ONLY_KEYS: ReadonlySet<string> = new Set(['ControlLeft', 'ControlRight']);
 
@@ -235,7 +235,7 @@ export function padButtonName(btn: PadBtn, kind: PadKind): string { return PAD_N
 /** Decide the pad family from `Gamepad.id` (Chromium: "DualSense Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)"). */
 export function detectPadKind(id: string | undefined): PadKind {
   const s = (id ?? '').toLowerCase();
-  if (/playstation|dualshock|dualsense|054c|sony|wireless controller/.test(s)) return 'playstation';
+  if (/playstation|dualshock|dualsense|054c|sony/.test(s)) return 'playstation';
   if (/xbox|xinput|045e|microsoft|x-box/.test(s)) return 'xbox';
   return s ? 'generic' : 'xbox';
 }
