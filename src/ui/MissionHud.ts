@@ -1,3 +1,4 @@
+import { codeBound, glyphFor } from '@/core/Bindings';
 import './mission.css';
 import { angleDiff, headingFromVec, type Vec2 } from '@/core/Math2';
 import type { MissionHudState, MissionMarker } from '@/game/missions/types';
@@ -161,10 +162,10 @@ export class MissionHud {
 
     // Idle pointer: N (or a tap on the chip) cycles Offer -> HOME -> WAX DELI -> Offer (see game/missions/NavTargets).
     this.pointerEl.style.pointerEvents = 'auto';
-    this.pointerEl.title = 'Press N (or tap) to point at HOME or WAX DELI';
+    this.pointerEl.title = `Press ${glyphFor('pointAt', { mode: 'keyboard' })} (or tap) to point at HOME or WAX DELI`;
     this.pointerEl.addEventListener('click', () => { if (this.lastStatus === 'idle') cycleNavTarget(); });
     this.onKey = (e: KeyboardEvent): void => {
-      if (e.code !== 'KeyN' || e.repeat || e.ctrlKey || e.metaKey || e.altKey || this.lastStatus !== 'idle' || this.inside) return;
+      if (!codeBound('pointAt', e.code) || e.repeat || e.ctrlKey || e.metaKey || e.altKey || this.lastStatus !== 'idle' || this.inside) return;
       const t = e.target as HTMLElement | null;
       if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
       if (this.doc.body?.classList.contains('ui-panel-open')) return;

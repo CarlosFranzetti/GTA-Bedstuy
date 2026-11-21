@@ -280,3 +280,33 @@
   .gp-arrow, .menu-root[data-input="touch"] .gp-arrow { width: 44px; min-height: 44px; }
   .gp-row { min-height: 46px; }
 }
+
+/* ---- Controls tab: key bindings by action, the pad layout, pad feel. Same language as the other tabs. */
+.gp-pane-controls { grid-template-columns: minmax(0, 1fr) minmax(250px, 340px); }
+.ctl-scroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 6px 10px 14px; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.3) transparent; }
+.ctl-row { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 2px 8px; border-bottom: 1px solid var(--hair); }
+.ctl-row.unbound .ctl-lab { color: #e88a7c; }
+.ctl-lab { flex: 1; min-width: 0; font: 600 18px/1.1 var(--font-hud); letter-spacing: 0.04em; text-transform: uppercase; color: var(--txt); }
+.ctl-note { flex: none; font: 600 12px/1 var(--font-hud); letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+.ctl-slots { flex: none; display: flex; gap: 6px; }
+.ctl-key { box-sizing: border-box; min-width: 108px; min-height: 32px; padding: 4px 10px; border: 1px solid rgba(255, 255, 255, 0.28); border-radius: 3px; background: rgba(255, 255, 255, 0.05); color: var(--txt); font: 600 16px/1 var(--font-hud); letter-spacing: 0.06em; cursor: pointer; transition: background-color var(--gp-t), color var(--gp-t); }
+.ctl-key.empty { color: var(--dim); border-style: dashed; }
+.ctl-key:hover, .ctl-key:focus-visible { background: rgba(255, 255, 255, 0.12); outline: none; box-shadow: inset 4px 0 0 var(--gold); }
+.ctl-key.wait { background: var(--gold); color: #15110a; border-color: var(--gold); }
+.ctl-reset { margin: 12px 8px 4px; padding: 8px 16px; border: 1px solid var(--gold); border-radius: 3px; background: transparent; color: var(--gold); font: 700 15px/1 var(--font-hud); letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; }
+.ctl-reset:hover, .ctl-reset:focus-visible { background: var(--gold); color: #15110a; outline: none; }
+.ctl-pad { margin: 4px 8px 8px; font: 400 14px/1.3 var(--font-text); color: var(--dim); }
+.ctl-padrow { display: flex; gap: 12px; padding: 3px 8px; border-bottom: 1px solid var(--hair); font: 400 15px/1.25 var(--font-text); }
+.ctl-padkey { flex: none; width: 130px; font: 700 15px/1.25 var(--font-hud); letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
+.ctl-padval { flex: 1; color: var(--txt); }
+.ctl-slider { display: flex; align-items: center; gap: 12px; min-height: 38px; padding: 2px 8px; border-bottom: 1px solid var(--hair); }
+.ctl-range { flex: none; width: 160px; accent-color: var(--gold); }
+.ctl-val { flex: none; width: 84px; text-align: right; font: 600 15px/1 var(--font-hud); letter-spacing: 0.06em; color: var(--txt); }
+.ctl-check { accent-color: var(--gold); width: 20px; height: 20px; }
+.ctl-range:focus-visible, .ctl-check:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.ctl-side { align-self: stretch; box-sizing: border-box; padding: 16px 18px; background: var(--panel); border-radius: 2px; overflow-y: auto; }
+.ctl-side-h { margin: 0 0 8px; font: 700 22px/1.05 var(--font-hud); letter-spacing: 0.08em; text-transform: uppercase; color: #fff; }
+.ctl-help { margin: 0 0 10px; font: 400 15px/1.4 var(--font-text); color: var(--dim); }
+.ctl-status { min-height: 3em; margin: 14px 0 0; padding-left: 10px; border-left: 3px solid var(--gold); font: 500 15px/1.4 var(--font-text); color: var(--txt); }
+.ctl-status:empty { border-left-color: transparent; }
+@media (max-width: 760px) { .gp-pane-controls { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; } .ctl-side { display: none; } .ctl-key { min-width: 76px; } .ctl-range { width: 110px; } }

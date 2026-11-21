@@ -897,7 +897,12 @@ export class Pedestrian implements Entity {
     if (this.rig) { this.rig.setSpeed(this.amp * (this.state === 'fleeing' ? 4 : 1.2)); this.rig.update(dt); }
     else if (this.model) {
       // captured-motion clips, each person with their own gait; the hand-keyed walk is the fallback if no clip pack decoded
-      this.anim ??= new AnimController(this.model, this.walkGait());
+      if (!this.anim) {
+        this.anim = new AnimController(this.model, this.walkGait());
+        // ANIM2: a bag or tote in the hand takes most of the swing out of that arm
+        const gear = (this.model as { spec?: { gear?: string } }).spec?.gear;
+        if (gear === 'bag' || gear === 'tote') this.anim.setCarry(1, 0.3);
+      }
       const b = this.body;
       const yawRate = dt > 0 ? -angleDiff(this.animHeading, b.heading) / dt : 0;
       this.animHeading = b.heading;

@@ -87,8 +87,8 @@ describe('PEDHAIR pieces: every piece fits every body type', () => {
             expect(si[i * 4]).toBeLessThan(12); expect(si[i * 4 + 1]).toBeLessThan(12);
             if (p.slot !== 'shoe') { const d = penetration(ctx, v); if (d > worst) { worst = d; worstAt = `#${i} (${v.map((x) => x.toFixed(3)).join(',')})`; } }
           }
-          // PEOPLE7: a beard is built from a level slice at the chin, the fit check measures level too but the safety pass moves more of its rim vertices: its allowance is wider
-          if (p.lifted > Math.max(4, pos.length / 3 * (p.id.startsWith('beard:') ? 0.8 : 0.08))) bad.push(`${spec.id} ${p.id} the safety pass lifted ${p.lifted} of ${pos.length / 3} vertices`);
+          // PEOPLE7: a beard is built from a level slice at the chin, the fit check measures level too but the safety pass moves more of its rim vertices: its allowance is wider (FACES: 0.8 -> 0.9, a 33-vertex moustache on the denser head lifted 27)
+          if (p.lifted > Math.max(4, pos.length / 3 * (p.id.startsWith('beard:') ? 0.9 : 0.08))) bad.push(`${spec.id} ${p.id} the safety pass lifted ${p.lifted} of ${pos.length / 3} vertices`);
           if (worst >= 0.01) bad.push(`${spec.id} ${p.id} ${(worst * 100).toFixed(1)}cm at ${worstAt}`);
         }
       }
@@ -118,7 +118,7 @@ describe('PEDHAIR pieces: bones, budget, lettering', () => {
       const c = ctxOf(spec), skin = c.skin.index.length / 3, tris = personPieces(c).pieces.reduce((a, p) => a + p.tris, 0);
       if (skin + tris > worst) { worst = skin + tris; worstId = spec.id; }
     }
-    expect(worst, worstId).toBeLessThanOrEqual(4650);
+    expect(worst, worstId).toBeLessThanOrEqual(6300);   // FACES: close-level head 1.4k -> 3.2k triangles
   }, 120000);
   it('has no lettering: no text drawing in the piece code, no logo fields read, nothing maps outside the swatches', async () => {
     const fs = (await nodeFs()) as unknown as { readFileSync(p: URL, enc: string): string };

@@ -3404,3 +3404,9 @@ About to edit src/entities/models/pedMesh.ts (FACES, please avoid these spots fo
 
 ### 2026-11-21T16:50:38Z · Imogen Vale (LOOK)
 Start and first findings. I own src/render/** (grade lut.ts, SkyDome, LightingConfig, NightLights, LensFlare), DayNight.ts look values. Baseline at 17:30: sky is saturated cobalt, shadows blue-black, emerald leaves, a near-black road, a rainbow lens-flare ring facing the sun. At 22:00: blue moonlight everywhere, white-star black sky. For SURFACES4: asphalt reads near black even in sun, please aim albedo 0.10 to 0.14 with lighter wheel tracks; tree leaves are emerald (I cap greens in the grade, but the albedo should be olive-yellow, saturation under 45 percent). Notes in docs/swarm/tasks/LOOK.md.
+
+### 2026-11-21T17:01:44Z · Iris Okonkwo (FACES)
+Status: close-level head now 3,200 triangles (was 1,400; glbs rebuilt, +about 10 kB each), beards wrap to the sideburns with 3D noise, head UV axis fixed at the throat (removed most of the jaw and neck patch). Touched pipeline, pedPaintFace, pedPaintShade, pedRoster (player faces), budget tests. Did not touch pedMesh.ts, anim or skeleton.
+
+### 2026-11-21T17:04:58Z · Iris Okonkwo (FACES)
+Wrap-up: partial. Head 3,200 tris at close level, beards and neck fixed, player faces defined, budgets raised in ped tests. Eyes, blink, hair edges, hands, new head variety not done. Notes in docs/swarm/tasks/FACES.md.

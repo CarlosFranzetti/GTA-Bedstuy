@@ -77,12 +77,12 @@ describe('Menu (open-world pause layout)', () => {
   });
 
   describe('header and tabs', () => {
-    it('lists MAP, MISSIONS, STATS, SETTINGS, SAVE, RADIO in a tablist; MAP and SAVE only with their parts', () => {
+    it('lists MAP, MISSIONS, STATS, SETTINGS, CONTROLS, SAVE, RADIO in a tablist; MAP and SAVE only with their parts', () => {
       const menu = new Menu(parent, {}, { storage: null });
       const tablist = menu.root.querySelector('nav.menu-tabs[role="tablist"]')!;
       const btns = [...tablist.querySelectorAll<HTMLButtonElement>(':scope > button.menu-tab')];
       expect(btns.map((b) => b.textContent)).toEqual(MENU_TABS.map((t) => t.label));
-      expect(btns.map((b) => b.dataset.tab)).toEqual(['map', 'missions', 'stats', 'settings', 'save', 'radio']);
+      expect(btns.map((b) => b.dataset.tab)).toEqual(['map', 'missions', 'stats', 'settings', 'controls', 'save', 'radio']);
       expect(btns.filter((b) => b.hidden).map((b) => b.dataset.tab)).toEqual(['map', 'save']);
       expect(btns.find((b) => b.dataset.tab === 'settings')!.getAttribute('aria-selected')).toBe('true');
     });
@@ -91,11 +91,12 @@ describe('Menu (open-world pause layout)', () => {
       const menu = new Menu(parent, {}, { storage: null });
       menu.open();
       expect(menu.tabName).toBe('settings');
+      press('KeyE'); expect(menu.tabName).toBe('controls');
       press('KeyE'); expect(menu.tabName).toBe('radio');
       press('KeyE'); expect(menu.tabName).toBe('missions'); // map is not shown: wraps to the first visible tab
       press('KeyQ'); expect(menu.tabName).toBe('radio');
-      press('PageUp'); expect(menu.tabName).toBe('settings');
-      menu.tab(-1); expect(menu.tabName).toBe('stats');
+      press('PageUp'); expect(menu.tabName).toBe('controls');
+      menu.tab(-1); expect(menu.tabName).toBe('settings');
       menu.root.querySelector<HTMLButtonElement>('.menu-tab[data-tab="radio"]')!.click();
       expect(menu.tabName).toBe('radio');
       expect(menu.root.querySelector<HTMLElement>('.gp-pane-radio')!.hidden).toBe(false);
@@ -135,7 +136,7 @@ describe('Menu (open-world pause layout)', () => {
     it('is a single scrolling list with yellow sub-headers and the APPLY / DEFAULTS / BACK stack', () => {
       const menu = new Menu(parent, {}, { storage: null, fullscreen: null });
       expect(menu.root.querySelector('.gp-cats')).toBeNull();
-      expect([...menu.root.querySelectorAll('.gp-pane-settings .gp-sub')].map((n) => n.textContent)).toEqual(['Display', 'Graphics', 'Audio', 'Controls', 'Game', 'Keyboard & mouse controls', 'Minimap']);
+      expect([...menu.root.querySelectorAll('.gp-pane-settings .gp-sub')].map((n) => n.textContent)).toEqual(['Display', 'Graphics', 'Audio', 'Controls', 'Game', 'Minimap']);
       expect([...menu.root.querySelectorAll('.gp-act')].map((n) => n.textContent)).toEqual(['Apply', 'Defaults', 'Back']);
       expect(menu.root.querySelector('.menu-title')!.textContent).toBe('Settings');
     });
@@ -257,13 +258,10 @@ describe('Menu (open-world pause layout)', () => {
       expect(menu.graphics.effective('high')).toMatchObject({ ao: false, dof: false, bloom: false, traffic: 0.75 });
     });
 
-    it('Controls reference follows the device and Reset position needs a second press', () => {
+    it('Reset position needs a second press', () => {
       const cb = cbs();
       const menu = new Menu(parent, cb, { storage: null, fullscreen: null });
       menu.open();
-      expect(rows(menu).some((r) => r.textContent!.includes('Enter / exit car'))).toBe(true);
-      menu.setInputMode('gamepad');
-      expect(rows(menu).some((r) => r.textContent!.includes('Throttle'))).toBe(true);
       goto(menu, 'reset').click();
       expect(cb.onReset).not.toHaveBeenCalled();
       expect(row(menu, 'reset').textContent).toContain('PRESS AGAIN');
@@ -306,7 +304,7 @@ describe('Menu (open-world pause layout)', () => {
     it('bumpers switch tabs through tab()', () => {
       const menu = new Menu(parent, {}, { storage: null });
       menu.open();
-      menu.tab(1); expect(menu.tabName).toBe('radio');
+      menu.tab(1); expect(menu.tabName).toBe('controls');
       menu.tab(-1); expect(menu.tabName).toBe('settings');
     });
   });
@@ -566,7 +564,7 @@ describe('Menu (open-world pause layout)', () => {
     menu.open();
     const seen: MenuTab[] = [];
     for (let i = 0; i < 8; i++) { seen.push(menu.tabName); menu.tab(1); }
-    expect(new Set(seen)).toEqual(new Set<MenuTab>(['map', 'missions', 'stats', 'settings', 'radio']));
+    expect(new Set(seen)).toEqual(new Set<MenuTab>(['map', 'missions', 'stats', 'settings', 'controls', 'radio']));
   });
 
   describe('desktop shell and HD voices', () => {

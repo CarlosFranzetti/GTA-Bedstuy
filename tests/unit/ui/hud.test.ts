@@ -111,10 +111,10 @@ describe('Hud', () => {
     expect(splash.textContent).toContain('a fan tribute · not affiliated with Rockstar Games or Take-Two');
     expect(splash.textContent).toContain('WASD move');
     expect(splash.textContent).toContain('Shift sprint');
-    expect(splash.textContent).toContain('F enter/exit car');
-    expect(splash.textContent).toContain('Space brake');
-    expect(splash.textContent).toContain('H horn');
-    expect(splash.textContent).toContain('E radio');
+    expect(splash.textContent).toContain('F enter/exit vehicle');
+    expect(splash.textContent).toContain('Space jump, handbrake in a car');
+    expect(splash.textContent).toContain('G horn');
+    expect(splash.textContent).toContain('. / , radio');
     expect(splash.textContent).toContain('mouse look');
     expect(splash.textContent).toContain('press space to start')
     expect(splash.textContent).toContain('Carlos Franzetti presents');
@@ -150,14 +150,14 @@ describe('Hud', () => {
       expect(el(root, '.hud-key').textContent).toBe('F');
     });
 
-    it('swaps F for A when the gamepad is active, and re-renders the current prompt', () => {
+    it('swaps F for Y when the gamepad is active (GTA V layout), and re-renders the current prompt', () => {
       const hud = new Hud(root);
       hud.update({ ...base, prompt: 'F  Exit car' });
       hud.setInputMode('gamepad');
-      expect(el(root, '.hud-prompt').textContent).toBe('A  Exit car');
+      expect(el(root, '.hud-prompt').textContent).toBe('Y  Exit car');
       expect(el(root, '.hud-prompt').dataset.mode).toBe('gamepad');
       hud.update({ ...base, prompt: 'F  Enter car' });
-      expect(el(root, '.hud-key').textContent).toBe('A');
+      expect(el(root, '.hud-key').textContent).toBe('Y');
       hud.setInputMode('keyboard');
       expect(el(root, '.hud-prompt').textContent).toBe('F  Enter car');
       hud.setInputMode('touch');

@@ -176,7 +176,13 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 - Cut off by the usage limit on 21 Nov with work on disk but no report: GREEN2 (bugs), PHONE2 (notes in
   `docs/swarm/tasks/PHONE2.md`), CARS4 (car bodies, notes in CARS4.md), SURFACES3 (streets and shopfronts), HANDLING2,
   STORES (`src/world/shops/`). Restarted as fresh lanes under DIRECTION.md.
-- Not started: the record shop's real records; the real map as the main map; medium and high tier performance.
+- People heads (FACES, 21 Nov): close-level head budget 1,400 to 3,200 triangles in scripts/people-pipeline.mjs, all 23
+  base meshes rebuilt; head UV axis follows the neck (jaw patch mostly gone); eyes are still painted, hair edges still
+  tear, no new head shapes. What would close the gap: separate player head mesh with a 1024 px texture on medium and
+  high, eyeball and lid geometry with a face bone, an ear UV chart, hair shells that fade into the scalp. `docs/swarm/tasks/FACES.md`.
+- Record shop (RECORDS, 21 Nov): 28 US public-domain recordings (first published 1925 or earlier) under parody sleeves
+  with liner notes, clips in public/records/ loaded on demand, hosted build only. `docs/swarm/tasks/RECORDS.md`.
+- Not started: the real map as the main map; medium and high tier performance.
 - Waiting on the owner: promoting the link-in-bio page (branch `release-links`); a Hugging Face token or his own
   pictures for the loading posters; a test on a real iPhone (`?debug=mem` shows memory numbers); one story voice clip
   re-bake; deleting old Vercel deployments.

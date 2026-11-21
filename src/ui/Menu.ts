@@ -11,6 +11,9 @@
  * Settings persist to localStorage (wrapped; a blocked/absent store just means no persistence).
  * The root uses the `hidden` attribute and `data-ui-modal`, which `Input` uses to leave typing/focus keys alone.
  */
+import { ControlsPane } from './ControlsPane';
+import { glyphFor } from '@/core/Bindings';
+import { TOUCH_ROWS } from '@/core/ControlsHelp';
 import './menu.css';
 import type { InputMode } from '@/core/Input';
 import type { NavDir } from '@/core/Gamepad';
@@ -33,10 +36,10 @@ export type MenuQuality = 'phone' | 'low' | 'medium' | 'high';
 export const QUALITIES: readonly MenuQuality[] = ['phone', 'low', 'medium', 'high'];
 export const SETTINGS_KEY = 'gta-bedstuy.settings.v1';
 
-export type MenuTab = 'map' | 'missions' | 'stats' | 'settings' | 'save' | 'radio';
+export type MenuTab = 'map' | 'missions' | 'stats' | 'settings' | 'controls' | 'save' | 'radio';
 export const MENU_TABS: ReadonlyArray<{ id: MenuTab; label: string }> = [
   { id: 'map', label: 'Map' }, { id: 'missions', label: 'Missions' }, { id: 'stats', label: 'Stats' },
-  { id: 'settings', label: 'Settings' }, { id: 'save', label: 'Save' }, { id: 'radio', label: 'Radio' },
+  { id: 'settings', label: 'Settings' }, { id: 'controls', label: 'Controls' }, { id: 'save', label: 'Save' }, { id: 'radio', label: 'Radio' },
 ];
 
 export interface MenuSettings {
@@ -141,21 +144,6 @@ export interface MenuOptions {
 
 const DEFAULTS: MenuSettings = { quality: 'medium', auto: false, master: 1, radio: 1, invertY: false };
 
-const CONTROLS: Record<InputMode, { title: string; rows: Array<[string, string]> }> = {
-  keyboard: {
-    title: 'Keyboard & mouse',
-    rows: [['WASD', 'Move / drive'], ['Mouse', 'Look'], ['Shift', 'Sprint / handbrake'], ['Alt or Caps Lock', 'Walk (half-tilt a stick)'], ['Space', 'Jump / brake / start'], ['Left click or G', 'Action on foot: punch, throw or shoot by what is in hand (no action from a car yet: the hands icon dims there)'], ['Q', 'Next item in hand'], ['F', 'Enter / exit car'], ['H', 'Horn'], ['E', 'Next radio station'], ['P', 'Phone'], ['M', 'Map'], ['N', 'Point at HOME / WAX DELI'], ['Alt+Enter', 'Full screen'], ['Esc', 'Pause']],
-  },
-  touch: {
-    title: 'Touch',
-    rows: [['Left side', 'Touch and drag anywhere: the stick appears under your thumb. Move on foot, steer in a car (half-push to walk)'], ['Right side', 'Drag anywhere that is not a button to look'], ['CAR / EXIT', 'Shows when a car or door is in reach; EXIT while driving'], ['RUN', 'Tap to sprint while the stick is held'], ['GAS / BRAKE / HAND', 'In a car: throttle, brake and handbrake'], ['ACT', 'Action on foot: punch, throw or shoot (no action from a car yet: the hands icon dims there)'], ['Tap the item icon', 'Next item in hand'], ['HORN', 'Horn'], ['RADIO', 'Next station'], ['PHONE / MAP', 'Open the phone or the map'], ['Tap Offer/Nav chip', 'Point at HOME / WAX DELI'], ['II', 'Pause']],
-  },
-  gamepad: {
-    title: 'Gamepad',
-    rows: [['Left stick', 'Move / steer'], ['Right stick', 'Look'], ['RT', 'Throttle in a car; action on foot (punch, throw, shoot)'], ['D-pad left / right', 'Previous / next item in hand (on foot)'], ['LT', 'Brake'], ['X', 'Sprint / handbrake'], ['Half-tilt stick', 'Walk'], ['A', 'Enter / exit car'], ['LB', 'Horn'], ['Y', 'Next station'], ['Start', 'Pause']],
-  },
-};
-
 const clamp01 = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : fallback);
 
 type AdvControl =
@@ -247,6 +235,7 @@ export class Menu {
   private readonly streetEl: HTMLElement;
   private readonly footEl: HTMLElement;
   private tabId: MenuTab = 'settings';
+  private controlsPane!: ControlsPane;
   private inputMode: InputMode = 'keyboard';
   private infoTimer = 0;
 
@@ -407,6 +396,8 @@ export class Menu {
     acts.appendChild(this.statusEl);
     this.settingsPane.append(optsBox, this.descPanel('settings'), acts);
 
+    this.controlsPane = new ControlsPane(this.doc);
+    this.panes.get('controls')!.append(this.column('gp-col gp-col-opts', this.controlsPane.root), this.controlsPane.side);
     this.panes.get('radio')!.append(this.column('gp-col gp-col-opts', this.radioList.el), this.descPanel('radio'));
     this.panes.get('missions')!.append(this.column('gp-col gp-col-opts', this.missionList.el), this.descPanel('missions'));
     this.panes.get('stats')!.append(this.column('gp-col gp-col-opts', this.statList.el), this.descPanel('stats'));
@@ -451,7 +442,7 @@ export class Menu {
     this.missionList.setRows([]);
 
     this.setInputMode(opts.touch ? 'touch' : 'keyboard');
-    this.showTab('settings', true);
+    this.showTab(opts.map ? 'map' : 'settings', true); // the pause menu opens on the map
     this.syncFs();
     this.syncFps();
     this.syncInfo();
@@ -540,6 +531,7 @@ export class Menu {
     this.cb.onPause?.(true);
     const win = this.doc.defaultView;
     if (win) this.infoTimer = win.setInterval(() => this.syncInfo(), 1000);
+    if (this.tabBtns.get('map') && !this.tabBtns.get('map')!.hidden) this.tabId = 'map'; // always opens on the map, as in the GTA pause menu
     this.showTab(this.tabId, true);
     this.focusList();
   }
@@ -609,6 +601,12 @@ export class Menu {
   /** Gamepad / programmatic navigation. No-op while closed. */
   navigate(dir: NavDir): void {
     if (!this.opened) return;
+    if (this.tabId === 'controls') {
+      const c = this.controlsPane;
+      if (c.capturing) { c.cancel(); return; }
+      if (dir === 'up' || dir === 'down' || dir === 'left' || dir === 'right') c.move(dir); else if (dir === 'confirm') c.confirm(); else this.back();
+      return;
+    }
     switch (dir) {
       case 'up': this.moveList(-1); break;
       case 'down': this.moveList(1); break;
@@ -622,6 +620,7 @@ export class Menu {
   dispose(): void {
     this.cleanup.splice(0).forEach((fn) => fn());
     this.savePanel?.dispose();
+    this.controlsPane.dispose();
     this.leaveMap();
     const win = this.doc.defaultView;
     win?.cancelAnimationFrame?.(this.fpsRaf);
@@ -654,6 +653,7 @@ export class Menu {
   private focusList(): void {
     const l = this.activeList();
     if (l && this.opened) l.highlight(l.index, true);
+    else if (this.opened && this.tabId === 'controls') this.controlsPane.focusFirst();
     else if (this.opened) (this.tabBtns.get(this.tabId))?.focus();
   }
 
@@ -763,6 +763,16 @@ export class Menu {
     const onBtn = t?.tagName === 'BUTTON' && !t.classList.contains('gp-arrow');
     const lists = this.activeList();
     if (!lists) {
+      if (this.tabId === 'controls') {
+        const c = this.controlsPane;
+        switch (e.code) {
+          case 'ArrowUp': case 'KeyW': e.preventDefault(); c.move('up'); return;
+          case 'ArrowDown': case 'KeyS': e.preventDefault(); c.move('down'); return;
+          case 'ArrowLeft': case 'KeyA': e.preventDefault(); c.move('left'); return;
+          case 'ArrowRight': case 'KeyD': e.preventDefault(); c.move('right'); return;
+          default: break;
+        }
+      }
       if (e.code === 'Tab' && this.trapTab(e)) return;
       if (e.code === 'Backspace' && this.tabId !== 'save') { e.preventDefault(); this.back(); }
       return;
@@ -801,6 +811,7 @@ export class Menu {
     else if (id === 'missions') this.fillMissions();
     else if (id === 'stats') this.fillStats();
     else if (id === 'radio') { this.radioList.refresh(); }
+    if (id === 'controls') this.controlsPane.refresh(); else this.controlsPane.cancel();
     this.syncInfo();
   }
 
@@ -989,7 +1000,7 @@ export class Menu {
       set: ((v: boolean) => { this.opts.hdVoices?.set(v); }) as RowSpec['set'],
       text: () => this.opts.hdVoices?.label?.() ?? '',
     });
-    S.set('station', { id: 'station', label: 'Tuned to', kind: 'info', desc: 'The station playing now. Press E in the game (Y on a gamepad) to change it.', text: () => this.opts.info?.().station || 'Off' });
+    S.set('station', { id: 'station', label: 'Tuned to', kind: 'info', desc: `The station playing now. In a vehicle press ${glyphFor('radioNext', { mode: 'keyboard' })} for the next one and ${glyphFor('radioPrev', { mode: 'keyboard' })} for the previous (the d-pad left and right on a pad).`, text: () => this.opts.info?.().station || 'Off' });
     S.set('invert', { id: 'invert', label: 'Invert Look Y', kind: 'toggle', def: () => false, desc: 'Inverts vertical look for the mouse, the right stick and touch drag.', get: () => this.state.invertY, set: ((v: boolean) => this.setInvertY(v)) as RowSpec['set'] });
     S.set('reset', {
       id: 'reset', label: 'Reset position', kind: 'action',
@@ -1034,7 +1045,7 @@ export class Menu {
       ['Audio', [S.get('master')!, S.get('radiovol')!, S.get('sfxvol')!, S.get('voicevol')!, S.get('ambvol')!, S.get('hdvoices')!]],
       ['Controls', [S.get('invert')!]],
       ['Game', [S.get('install')!, S.get('radiolib')!, S.get('reset')!, S.get('credits')!, S.get('quit')!]],
-      [`${CONTROLS[this.inputMode].title} controls`, CONTROLS[this.inputMode].rows.map(([k, v]) => ({ id: `c:${k}`, label: k, kind: 'info' as const, desc: `${k}: ${v}. The list follows the device you are using.`, text: () => v }))],
+      ...(this.inputMode === 'touch' ? [['Touch controls', TOUCH_ROWS.map(([k, v]) => ({ id: `c:${k}`, label: k, kind: 'info' as const, desc: `${k}: ${v}`, text: () => v }))] as [string, RowSpec[]]] : []),
       ['Minimap', MINIMAP_LEGEND.map((item) => ({ id: `l:${item.text}`, label: item.text, kind: 'info' as const, desc: `On the minimap: ${item.text}.`, text: () => '', swatch: { color: item.swatch, shape: item.shape } }))],
     ];
     const out: RowSpec[] = [];

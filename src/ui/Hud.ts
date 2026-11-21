@@ -1,6 +1,8 @@
 import './hud.css';
 import type { HudState } from '@/world/types';
 import type { InputMode } from '@/core/Input';
+import { GAME_BINDINGS, glyphFor } from '@/core/Bindings';
+import { controlsLines } from '@/core/ControlsHelp';
 import { DISCLAIMER } from './creditsData';
 import { BACKDROPS, backdropUrl } from './backdrops';
 import { HAND_ICONS } from '@/game/combat/icons';
@@ -20,9 +22,9 @@ export interface BlockedHudState {
 export const BLOCKED_HINT_AFTER = 1.5;
 /** The prompt pill text while wedged, per input device (replaces "Exit car" until the car is free). */
 export const BLOCKED_HINT: Record<InputMode, string> = {
-  keyboard: 'Blocked: S to reverse, Shift handbrake',
+  get keyboard() { return `Blocked: ${glyphFor('moveBack', { mode: 'keyboard' })} to reverse, ${glyphFor('handbrake', { mode: 'keyboard', inVehicle: true })} handbrake`; },
   touch: 'Blocked: pull back to reverse',
-  gamepad: 'Blocked: LT to reverse, B handbrake',
+  get gamepad() { return `Blocked: ${glyphFor('moveBack', { mode: 'gamepad', inVehicle: true })} to reverse, ${glyphFor('handbrake', { mode: 'gamepad', inVehicle: true })} handbrake`; },
 };
 
 /** Optional real player vitals (0..1). The game has no health model yet: bars show HEAT (wanted) and SPEED until these are supplied. */
@@ -53,23 +55,12 @@ const MAX_STARS = 3;
 /** Title backdrops: the in-engine shots (src/ui/backdrops.ts), one at a time, changing every TITLE_ART_MS. Missing in the single-file build, which keeps the graded dark backdrop. */
 const TITLE_ART = BACKDROPS;
 export const TITLE_ART_MS = 9000;
-const CONTROLS = [
-  'WASD move',
-  'Shift sprint',
-  'Alt or Caps Lock walk',
-  'F enter/exit car',
-  'Space brake',
-  'H horn',
-  'E radio',
-  'mouse look',
-  'touch: left stick, drag right to look',
-  'gamepad: sticks, RT/LT drive, A enter/exit',
-];
 
-/** Glyph shown in the prompt pill for the "enter/exit" action, per input device. */
-const ACTION_GLYPH: Record<InputMode, string> = { keyboard: 'F', touch: 'CAR', gamepad: 'A' };
-/** Prompt prefixes M4 may send (any device's glyph); they are rewritten to the active device's glyph. */
-const GLYPH_ALIASES = new Set(['F', 'CAR', 'A']);
+/**
+ * Prompt prefixes the game may send (a key name, a touch caption or a pad button): they stand for the "enter / exit" action and
+ * are rewritten to what the active device uses now, from the binding table ("F" on the keyboard unless rebound, "Y" on a pad).
+ */
+const GLYPH_ALIASES = new Set(['F', 'CAR', 'A', 'Y', 'Triangle']);
 
 const WELCOME_TITLE = 'Welcome to Bed-Stuy';
 const WELCOME_SUB = 'Brooklyn, New York';
@@ -163,6 +154,7 @@ export class Hud {
     this.promptEl = this.make('div', 'hud-prompt');
     this.promptEl.hidden = true;
     this.promptEl.dataset.mode = this.inputMode;
+    GAME_BINDINGS.onChange(() => { if (this.lastPrompt) this.renderPrompt(this.lastPrompt, true); }); // a rebind or a different pad rewrites the key shown
 
     this.speedEl = this.make('div', 'hud-speed');
     this.speedEl.hidden = true;
@@ -263,7 +255,7 @@ export class Hud {
     const summary = this.doc.createElement('summary');
     summary.textContent = 'Controls';
     const controls = this.make('ul', 'hud-controls');
-    for (const label of CONTROLS) {
+    for (const label of controlsLines()) {
       const li = this.doc.createElement('li');
       li.textContent = label;
       controls.appendChild(li);
@@ -512,7 +504,7 @@ export class Hud {
     const m = /^(\S+)\s{2}(.*)$/.exec(prompt);
     this.promptEl.textContent = '';
     if (m) {
-      const glyph = GLYPH_ALIASES.has(m[1]) ? ACTION_GLYPH[this.inputMode] : m[1];
+      const glyph = GLYPH_ALIASES.has(m[1]) ? glyphFor('enter', { mode: this.inputMode }) : m[1];
       const key = this.doc.createElement('span');
       key.className = 'hud-key';
       key.textContent = glyph;

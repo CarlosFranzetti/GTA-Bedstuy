@@ -17,13 +17,13 @@ describe('Hud blocked hint and speed readout', () => {
   const prompt = () => root.querySelector<HTMLElement>('.hud-prompt')!;
   const speed = () => root.querySelector<HTMLElement>('.hud-speed-value')!.textContent;
 
-  it('shows "Blocked: S to reverse, Shift handbrake" once wedged for more than 1.5 s, in place of the exit prompt', () => {
+  it('shows "Blocked: S to reverse, Space handbrake" once wedged for more than 1.5 s, in place of the exit prompt', () => {
     hud.update({ ...base, blockedSeconds: 1.2 });
     expect(prompt().textContent).toBe('F  Exit car');
     hud.update({ ...base, blockedSeconds: 1.6 });
     expect(prompt().hidden).toBe(false);
-    expect(prompt().textContent).toBe('Blocked: S to reverse, Shift handbrake');
-    expect(BLOCKED_HINT.keyboard).toBe('Blocked: S to reverse, Shift handbrake');
+    expect(prompt().textContent).toBe('Blocked: S to reverse, Space handbrake');
+    expect(BLOCKED_HINT.keyboard).toBe('Blocked: S to reverse, Space handbrake');
     hud.update({ ...base, blockedSeconds: 0 });
     expect(prompt().textContent).toBe('F  Exit car');
   });

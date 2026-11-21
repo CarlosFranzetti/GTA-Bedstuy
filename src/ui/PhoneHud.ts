@@ -1,3 +1,4 @@
+import { codeBound } from '@/core/Bindings';
 import './phone.css';
 import { angleDiff, headingFromVec, type Vec2 } from '@/core/Math2';
 import type { Phone, PhoneMessage } from '@/game/Phone';
@@ -24,7 +25,7 @@ const APP_ICONS = {
   settings: ICON('<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>'),
 } as const;
 const BASE_TABS: readonly Tab[] = ['messages', 'contacts', 'next'];
-const HINT = 'Q / E tabs   Up / Down list   Enter open   P close';
+const HINT = 'Q / E tabs   Up / Down list   Enter open   Esc close';
 
 function setText(node: Element, text: string): void {
   if (node.textContent !== text) node.textContent = text;
@@ -215,7 +216,7 @@ export class PhoneHud {
     if (tg && (tg.tagName === 'TEXTAREA' || tg.tagName === 'SELECT') && e.code !== 'Escape') return; // typing / picking in the save tab
     let dir: NavDir | null = null;
     let used = true;
-    if (e.code === 'KeyP' || e.code === 'Escape' || e.key === 'Escape') { if (!e.repeat) this.closePhone(); }
+    if ((codeBound('phone', e.code) && !e.code.startsWith('Arrow')) || e.code === 'Escape' || e.key === 'Escape') { if (!e.repeat) this.closePhone(); }
     else if (e.code === 'KeyQ' || e.code === 'ArrowLeft' || e.key === 'ArrowLeft') dir = 'left';
     else if (e.code === 'KeyE' || e.code === 'ArrowRight' || e.key === 'ArrowRight') dir = 'right';
     else if (e.code === 'ArrowUp' || e.key === 'ArrowUp') dir = 'up';

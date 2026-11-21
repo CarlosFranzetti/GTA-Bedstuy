@@ -458,6 +458,7 @@ export class AnimController {
     this.rigV.set(p[RIG_CH] * sc, p[RIG_CH + 1], p[RIG_CH + 2] * sc);
     const lq = this.lockQ;
     const hit = this.lock.solve(p, this.rigV, dt, rawSpeed * this.legScale / (gz || 1), yawRate, enable, lq.leg, lq.knee, lq.ankle);
+    this.target.rig.position.copy(this.rigV);     // the lock may have sunk the pelvis a little to reach a held foot
     for (let i = 0; i < 2; i++) if (hit[i]) {
       this.bones[7 + i * 2]?.quaternion.copy(lq.leg[i]);
       this.bones[8 + i * 2]?.quaternion.copy(lq.knee[i]);

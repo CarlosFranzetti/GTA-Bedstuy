@@ -83,9 +83,9 @@ describe('GamepadInput', () => {
     expect(input.mouseDX).toBeCloseTo(dx / 2);
   });
 
-  it('A is an enter/exit edge (KeyF), once per press', () => {
+  it('Y is an enter/exit edge (KeyF), once per press (GTA V layout; A is sprint)', () => {
     const { gp, input, set } = setup();
-    set(makePad({ pressed: [0] }));
+    set(makePad({ pressed: [3] }));
     gp.update(1 / 60);
     expect(input.pressed('KeyF')).toBe(true);
     expect(input.isDown('KeyF')).toBe(false);
@@ -99,15 +99,47 @@ describe('GamepadInput', () => {
     expect(input.consume('KeyF')).toBe(false);
   });
 
-  it('Y is radio (KeyE); LB horn and X handbrake/run are held', () => {
+  it('A also raises the PadConfirm edge (the title screen starts on it)', () => {
     const { gp, input, set } = setup();
-    set(makePad({ pressed: [3, 4, 2] }));
+    set(makePad({ pressed: [0] }));
     gp.update(1 / 60);
-    expect(input.pressed('KeyE')).toBe(true);
-    expect(input.isDown('KeyH')).toBe(true);
+    expect(input.pressed('PadConfirm')).toBe(true);
+    expect(input.pressed('KeyF')).toBe(false);
+  });
+
+  it('on foot: A sprints (held), X jumps, LB next item, d-pad up phone, d-pad left/right items', () => {
+    const { gp, input, set } = setup();
+    set(makePad({ pressed: [0, 2, 4, 12] }));
+    gp.update(1 / 60);
     expect(input.isDown('ShiftLeft')).toBe(true);
+    expect(input.pressed('Space')).toBe(true);
+    expect(input.consumeCycle()).toBe(1);
+    expect(input.pressed('KeyP')).toBe(true);
     set(makePad());
     gp.update(1 / 60);
+    expect(input.isDown('ShiftLeft')).toBe(false);
+    set(makePad({ pressed: [14] }));
+    gp.update(1 / 60);
+    expect(input.consumeCycle()).toBe(-1);
+  });
+
+  it('L3 toggles walking on foot; in a car L3 is the horn and RB the handbrake; d-pad is the radio', () => {
+    const { gp, input, set } = setup();
+    set(makePad({ pressed: [10] })); gp.update(1 / 60);
+    expect(input.isDown('AltLeft')).toBe(true);
+    set(makePad()); gp.update(1 / 60);
+    expect(input.isDown('AltLeft')).toBe(true); // toggled on
+    set(makePad({ pressed: [10] })); gp.update(1 / 60);
+    set(makePad()); gp.update(1 / 60);
+    expect(input.isDown('AltLeft')).toBe(false);
+    gp.inVehicle = true;
+    set(makePad({ pressed: [10, 5, 15] })); gp.update(1 / 60);
+    expect(input.isDown('KeyH')).toBe(true);
+    expect(input.isDown('ShiftLeft')).toBe(true);
+    expect(input.pressed('KeyE')).toBe(true);
+    set(makePad({ pressed: [14] })); gp.update(1 / 60);
+    expect(input.pressed('RadioPrev')).toBe(true);
+    set(makePad()); gp.update(1 / 60);
     expect(input.isDown('KeyH')).toBe(false);
     expect(input.isDown('ShiftLeft')).toBe(false);
   });
@@ -117,8 +149,8 @@ describe('GamepadInput', () => {
     gp.inVehicle = true;
     set(makePad({ values: { 7: 0.6, 6: 1 } }));
     gp.update(1 / 60);
-    expect(input.touchAxis.y).toBeCloseTo(0.6);
-    expect(input.axis(['KeyS'], ['KeyW'])).toBeCloseTo(0.6);
+    expect(input.touchAxis.y).toBeCloseTo((0.6 - 0.05) / 0.95);
+    expect(input.axis(['KeyS'], ['KeyW'])).toBeCloseTo((0.6 - 0.05) / 0.95);
     expect(input.isDown('Space')).toBe(true);
     set(makePad({ values: { 7: 0.6 } }));
     gp.update(1 / 60);

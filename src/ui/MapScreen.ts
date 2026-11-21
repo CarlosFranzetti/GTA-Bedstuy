@@ -1,3 +1,4 @@
+import { codeBound } from '@/core/Bindings';
 import './map.css';
 import type { Vec2 } from '@/core/Math2';
 import type { GridModel, Lot, PoiDef } from '@/world/types';
@@ -433,7 +434,7 @@ export class MapScreen {
   }
 
   private onOpenKey(e: KeyboardEvent): void {
-    if (e.code !== 'KeyM' || e.repeat || e.ctrlKey || e.metaKey || e.altKey || this.opened) return;
+    if (!codeBound('map', e.code) || e.repeat || e.ctrlKey || e.metaKey || e.altKey || this.opened) return;
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
     const cl = this.doc.body.classList;
@@ -447,7 +448,7 @@ export class MapScreen {
     if (!this.opened || e.ctrlKey || e.metaKey || e.altKey) return;
     this.firstInput();
     let used = true;
-    if (e.code === 'KeyM' || e.code === 'Escape' || e.key === 'Escape') { if (!e.repeat) this.close(); }
+    if (codeBound('map', e.code) || e.code === 'Escape' || e.key === 'Escape') { if (!e.repeat) this.close(); }
     else if (e.code === 'KeyP') { /* swallowed: the phone does not open under the map */ }
     else if (e.key === '+' || e.key === '=' || e.code === 'NumpadAdd') { if (!e.repeat) this.stepZoom(1); }
     else if (e.key === '-' || e.code === 'NumpadSubtract') { if (!e.repeat) this.stepZoom(-1); }

@@ -334,7 +334,7 @@ export function buildRoster(baseSpecs: readonly PedSpec[]): PedSpec[] {
       players.push({
         ...out, id: playerId(l), group: g, sex: 'm', age: 'adult',
         skin: pal.skin[(hash(g + v) + v) % pal.skin.length], hair: PLAYER_HAIR[g][v], hairColor: pal.hair[v % pal.hair.length],
-        face: { ...out.face, stubble: v === 1 }, weight: 0,
+        face: { ...out.face, brows: 'thick', stubble: v === 0 || v === 1 || v === 3, beard: v === 2 || v === 4 }, weight: 0,   // FACES: every look has strong brows and some beard, so the face is memorable from the front
         ...dress(PLAYER_LOOKS[v]),
       });
     }

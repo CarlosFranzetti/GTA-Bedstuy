@@ -42,7 +42,7 @@ describe('round 3 proportions and cloth', () => {
     for (const id of ['me-hijabi', 'sa-hijabi']) {
       const v = PED_SPECS.findIndex((p) => p.id === id);
       const m = buildMhPedModel(materials, new Rng(v + 1), { variant: v });
-      expect(m, id).not.toBeNull(); expect(m!.triangles, id).toBeLessThan(5400);
+      expect(m, id).not.toBeNull(); expect(m!.triangles, id).toBeLessThan(7300);   // FACES: close-level head 1.4k -> 3.2k triangles
     }
   });
   it('the hijab drape is a smooth cloth: the person is one skinned mesh with the 12 bones', () => {

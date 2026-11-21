@@ -48,12 +48,12 @@ describe('action button: keyboard and virtual', () => {
     window.dispatchEvent(new KeyboardEvent('keyup', { code: ACTION_KEY }));
     expect(input.actionHeld()).toBe(false);
   });
-  it('Q cycles forward, the virtual previous cycles back', () => {
+  it('the item action cycles forward (Tab by default), the virtual previous cycles back', () => {
     const input = new Input(document.createElement('div'));
-    window.dispatchEvent(new KeyboardEvent('keydown', { code: CYCLE_NEXT_KEY }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Tab' }));
     expect(input.consumeCycle()).toBe(1);
     expect(input.consumeCycle()).toBe(0);
-    window.dispatchEvent(new KeyboardEvent('keyup', { code: CYCLE_NEXT_KEY }));
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Tab' }));
     input.pulse(CYCLE_PREV_VIRTUAL);
     expect(input.consumeCycle()).toBe(-1);
   });

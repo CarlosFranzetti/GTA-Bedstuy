@@ -67,9 +67,9 @@ describe('phone keyboard', () => {
     expect(root.querySelectorAll('.ph-text').length).toBe(2);
   });
 
-  it('P and Escape close the phone, release the body class, and stop swallowing keys', () => {
+  it('Escape closes the phone (the Up arrow opens it, so only Esc and a non-arrow phone key close it), release the body class, and stop swallowing keys', () => {
     hud.toggle();
-    expect(press('KeyP').defaultPrevented).toBe(true);
+    expect(press('Escape').defaultPrevented).toBe(true);
     expect(phone.isOpen).toBe(false);
     expect(document.body.classList.contains('phone-open')).toBe(false);
     expect(document.body.classList.contains('ui-panel-open')).toBe(false);
