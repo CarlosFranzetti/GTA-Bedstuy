@@ -160,6 +160,26 @@ if (view === 'garments') {
 if (params.get('grid') === '1') globalThis.__pedGrid = true;
 const MAPS = ['ba-hoodie-fade', 'hj-man', 'me-hijabi', 'ba-elder', 'la-site', 'player-wh-1'];
 const mapOf = (m) => { let img = null; m.group.traverse((o) => { if (o.isMesh && !img) img = o.material.map?.image; }); return img; };
+
+// FACES: texel coverage of the head chart. view=uvstat&ids=a,b : head triangles (head weight > 0.5) with a collapsed UV area, where they are in 3D
+if (view === 'uvstat') {
+  const out = []; let cap = null; globalThis.__pedBakeHook = (b) => { cap = b; };
+  for (const id of (params.get('ids') ?? 'ea-nurse').split(',')) {
+    const v = pedVariantIndex(id); buildPedModel(materials, new Rng(v + 1), { variant: v }); const b = cap; if (!b) continue;
+    let n = 0, bad = 0, area = 0; const pts = [];
+    for (let t = 0; t < b.index.length; t += 3) {
+      const i = [b.index[t], b.index[t + 1], b.index[t + 2]];
+      let wh = 0; for (const q of i) for (let kk = 0; kk < 4; kk++) if (b.joints[q * 4 + kk] === 3) wh += b.weights[q * 4 + kk] / 3;
+      if (wh < 0.5) continue; n++;
+      const u = (q) => [b.uv[q * 2] * 512, b.uv[q * 2 + 1] * 512];
+      const [a0, a1] = u(i[0]), [b0, b1] = u(i[1]), [c0, c1] = u(i[2]);
+      const ar = Math.abs((b0 - a0) * (c1 - a1) - (c0 - a0) * (b1 - a1)) / 2; area += ar;
+      if (ar < 0.5) { bad++; if (pts.length < 12) pts.push(i.map((q) => [b.position[q*3], b.position[q*3+1], b.position[q*3+2]].map((x) => +x.toFixed(3)).join(' ')).join(' | ') + ' uvArea=' + ar.toFixed(3)); }
+    }
+    out.push({ id, headTris: n, collapsed: bad, texelsCovered: Math.round(area), pts, chin: cap.landmarks.chinY, eye: cap.landmarks.eyeY });
+  }
+  window.__uvstat = out;
+}
 if (view === 'uvdebug') {
   const ids = (params.get('ids') ?? 'ea-nurse').split(','), Z = 4, T = 256 * Z;
   const c = document.createElement('canvas'); c.width = T * ids.length; c.height = T; document.body.prepend(c);
@@ -208,10 +228,53 @@ if (view.startsWith('legs4')) {
   if (above) { scene.traverse((o) => { if (o.isMesh && o !== ground) { /* keep */ } }); }
 }
 if (view === 'legs4-feet') { place(params.get('ids') ? params.get('ids').split(',') : LEGS4.slice(0, 4), 0, 0.5, Number(params.get('yaw') ?? 2.6)); cam.position.set(0.6, 0.45, 1.9); look.set(0, 0.15, 0); cam.fov = 30; }
+// ANIM2 view: a strip of evenly spaced frames of one person playing a named scenario (tests/unit/entities/anim-scenarios.ts) through the real AnimController.
+// ?view=anim&action=walk&n=8&cam=side|3q|front|top&id=player-ba-0&gait=<seed>
+let ANIM = null;
+if (view === 'anim') {
+  const { SCENARIOS } = await import('../tests/unit/entities/anim-scenarios');
+  const { AnimController } = await import('@/entities/anim/controller');
+  const { ClipLibrary } = await import('@/entities/anim/library');
+  const { makeGait, PLAYER_GAIT } = await import('@/entities/anim/gait');
+  const sc = SCENARIOS[params.get('action') ?? 'walk'];
+  const n = Number(params.get('n') ?? 8), camMode = params.get('cam') ?? 'side', id = params.get('id') ?? 'player-ba-0';
+  const v = pedVariantIndex(id), m = buildPedModel(materials, new Rng(v + 1), { variant: v });
+  scene.add(m.group); TRIS[id] = m.triangles;
+  const lib = ClipLibrary.fromCore(); await lib.loadStreet('/anim/street.bin', fetch);
+  const gait = params.get('gait') ? makeGait(Number(params.get('gait')), 'adult') : PLAYER_GAIT;
+  const ctl = new AnimController(m, gait, lib);
+  // a ground line and a tick every half metre along the path, so a foot that slides against the ground shows
+  const pts = []; for (let k = -90; k <= 20; k++) { pts.push(-1.5, 0.002, k * 0.5, 1.5, 0.002, k * 0.5); pts.push(1.5, 0.002, k * 0.5, 1.5, 0.35, k * 0.5); }
+  const gl = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)), new THREE.LineBasicMaterial({ color: 0xd8e0e8 }));
+  scene.add(gl);
+  const tile = Number(params.get('tw') ?? 220), th = Number(params.get('th') ?? 520);
+  renderer.setSize(tile * n, th); renderer.setScissorTest(true);
+  const dt = 1 / 60, [w0, w1] = sc.window, step = (w1 - w0) / (n - 1);
+  const samples = Array.from({ length: n }, (_, i) => Math.round((w0 + i * step) / dt));
+  let heading = 0, px = 0, pz = 0, k = 0; const log = [];
+  for (let f = 0; f <= samples[n - 1]; f++) {
+    const t = f * dt, sp = sc.speed(t), ex = sc.extra ? sc.extra(t) : {};
+    if (sc.idleAt && Math.abs(t - sc.idleAt[0]) < dt / 2) ctl.setIdle(sc.idleAt[1]);
+    heading += (ex.yawRate ?? 0) * dt; px += -Math.sin(heading) * sp * dt; pz += -Math.cos(heading) * sp * dt;
+    ctl.update(dt, { speed: sp, ...ex });
+    m.group.position.set(px, 0, pz); m.group.rotation.y = heading;
+    if (f === samples[k]) {
+      m.group.updateMatrixWorld(true);
+      const c = new THREE.Vector3(px, 0.82, pz);
+      const d = camMode === 'side' ? [4.4, 0.3, 0] : camMode === '3q' ? [3.0, 0.6, 3.0] : camMode === 'front' ? [0, 0.4, -3.4] : [0.01, 4.2, 0.01];
+      cam.fov = camMode === 'top' ? 30 : 36; cam.aspect = tile / th; cam.updateProjectionMatrix();
+      cam.position.set(px + d[0], d[1] + 0.82, pz + d[2]);   // the camera keeps its place relative to the ground path, so a turn is seen against the ground
+      cam.lookAt(c);
+      renderer.setViewport(k * tile, 0, tile, th); renderer.setScissor(k * tile, 0, tile, th);
+      renderer.render(scene, cam);
+      log.push(+t.toFixed(2)); k++;
+    }
+  }
+  ANIM = { action: params.get('action'), times: log };
+}
 if (params.get('unlit') === '1') scene.traverse((o) => { if (o.isMesh && o !== ground && o.material?.map) o.material = new THREE.MeshBasicMaterial({ map: o.material.map }); });
 if (params.get('cam')) { const c = params.get('cam').split(',').map(Number); cam.position.set(c[0], c[1], c[2]); look.set(c[3], c[4], c[5]); if (c[6]) cam.fov = c[6]; }
 if (SIL) { scene.background = new THREE.Color(0xffffff); scene.environment = null; ground.visible = false; scene.traverse((o) => { if (o.isMesh && o !== ground) o.material = new THREE.MeshBasicMaterial({ color: 0x000000 }); }); }
-cam.updateProjectionMatrix(); cam.lookAt(look);
-for (let i = 0; i < 3; i++) renderer.render(scene, cam);
-window.__ready = { bakeMs: Math.round(bakeStats.ms), bakes: bakeStats.count, buildMs: Math.round(buildMs), perPerson: TRIS, tris: renderer.info.render.triangles, calls: renderer.info.render.calls, bodies: BODIES };
+if (view !== 'anim') { cam.updateProjectionMatrix(); cam.lookAt(look); for (let i = 0; i < 3; i++) renderer.render(scene, cam); }
+window.__ready = { bakeMs: Math.round(bakeStats.ms), bakes: bakeStats.count, buildMs: Math.round(buildMs), perPerson: TRIS, tris: renderer.info.render.triangles, calls: renderer.info.render.calls, bodies: BODIES, anim: ANIM, uvstat: window.__uvstat };
 </script></body></html>

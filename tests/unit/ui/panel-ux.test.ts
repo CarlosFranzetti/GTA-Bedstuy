@@ -64,7 +64,7 @@ describe('panel layout (CSS contract for 640x360 and phones)', () => {
     const { shop } = makeShop(); shop.open();
     const panel = shop.root.querySelector('.shop-panel')!;
     const kids = [...panel.children].map((c) => c.className);
-    expect(kids).toEqual(['shop-head', 'shop-tabs', 'shop-body', 'shop-foot']);
+    expect(kids).toEqual(['shop-head', 'shop-tabs', 'shop-crates', 'shop-body', 'shop-foot']);
     expect(panel.querySelector('.shop-foot .shop-close')?.textContent).toBe('Close');
     expect(rule(shopCss, '.shop-foot')).toMatch(/flex:\s*none/);
     expect(panel.querySelector('.shop-body .shop-close')).toBeNull();

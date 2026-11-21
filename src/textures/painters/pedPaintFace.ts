@@ -4,7 +4,7 @@
  * age lines for the elders, and the painted hairline under the hair pieces. Sizes are in "standard metres" (xm from the
  * midline, ym above the eye line, both divided by the head scale), so a big head and a small one carry the same face.
  */
-import { Px, g2, ln, sst, band, hash, vn2, rnd, mixc, mulc, type Look, type Tex, type RGB } from './pedPaintShared';
+import { Px, g2, ln, sst, band, hash, vn2, vn3, rnd, mixc, mulc, type Look, type Tex, type RGB } from './pedPaintShared';
 
 const SCLERA: RGB = [232, 226, 216], SCLERA_SH: RGB = [158, 134, 126], CARUNCLE: RGB = [186, 108, 98], PUPIL: RGB = [12, 10, 10];
 
@@ -29,8 +29,8 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
   // skin that is not one flat colour: slow mottling (smooth, never per texel) and a warmer nose, cheeks and ears
   const mott = vn2(x * 42, y * 42 + z * 30, 3) - 0.5;
   o.mul(1 + 0.07 * mott);
-  o.mix(K.skinWarm, 0.14 * (vn2(x * 22, y * 22, 9)) * fm);
-  o.mix(K.skinCool, 0.1 * sst(0.45, 0.55, vn2(x * 18 + 7, y * 18, 10)) * fm);
+  o.mix(K.skinWarm, 0.14 * (vn3(x * 22, y * 22, z * 22, 9)) * fm);
+  o.mix(K.skinCool, 0.1 * sst(0.45, 0.55, vn3(x * 18 + 7, y * 18, z * 18, 10)) * fm);
   if (fm > 0) {
     const jaw = sst(yChin * 0.55, yChin * 0.95, ym);
     o.mix(K.blush, (K.female || K.kidish ? 0.24 : 0.14) * g2(xm - 0.043, 0.022) * g2(ym + 0.018, 0.02) * fm);            // cheeks
@@ -46,9 +46,9 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
     o.tint(K.skinSh, 0.14 * g2(sx + 0.03, 0.03) * g2(ym - yN * 0.4, 0.04) * fm * sst(0.02, 0.04, -ym - 0.012 + 0.04));      // the cheek on the shaded side of the nose
     // uneven tone: ruddy nose and cheeks, a sallow patch at the temple and a grey cast round the mouth on weathered faces
     if (ageK > 0) {
-      const bl = vn2(x * 15 + 3, y * 15, 12);
+      const bl = vn3(x * 15 + 3, y * 15, z * 15, 12);
       o.mix(K.blush, 0.16 * ageK * sst(0.45, 0.8, bl) * g2(xm - 0.03, 0.03) * g2(ym + 0.01, 0.03) * fm);
-      o.mix(K.skinCool, 0.1 * ageK * sst(0.5, 0.85, vn2(x * 20 + 9, y * 20, 13)) * fm);
+      o.mix(K.skinCool, 0.1 * ageK * sst(0.5, 0.85, vn3(x * 20 + 9, y * 20, z * 20, 13)) * fm);
       o.tint(K.skinSh, 0.1 * ageK * g2(xm, 0.04) * band(yM - 0.012, yM + 0.002, ym, 0.004) * fm);
     }
     // ---------------------------------------------------------------- nose: bridge light, both side planes, wings, nostrils, tip
@@ -177,7 +177,7 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
 
     // ---------------------------------------------------------------- freckles and a mole, a few people
     if (K.grp === 'wh' || K.grp === 'hj' || K.grp === 'mx' || K.grp === 'la') if (K.h.fr < 0.22) {
-      const fr = sst(0.74, 0.86, vn2(x * 380, y * 380, 11));
+      const fr = sst(0.74, 0.86, vn3(x * 380, y * 380, z * 380, 11));
       o.mix(mulc(K.skin, 0.8), 0.28 * fr * g2(xm - 0.03, 0.028) * g2(ym - yN * 0.35 + 0.002, 0.02));
     }
     if (K.h.mol < 0.18) {
@@ -185,43 +185,15 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
       o.mix(mulc(K.skinSh, 0.8), 0.7 * g2(Math.hypot(sx - mxp, ym - myp), 0.0016));
     }
 
-    // ---------------------------------------------------------------- beard, moustache, stubble: a texture with an edge, not a box
-    // some men without any facial hair still carry a five o'clock shadow
-    const shadow5 = !face.beard && !face.mustache && !face.stubble && !K.female && !K.kidish && K.h.f5 < 0.35;
-    const hairy = !!(face.beard || face.mustache || face.stubble) || shadow5;
-    if (hairy) {
-      const topEdge = yM + 0.007 + 0.034 * sst(0.02, 0.078, xm);                          // the cheek line, high by the ear, low by the mouth
-      const botEdge = yChin - 0.03 - 0.01 * sst(0.0, 0.06, xm);
-      const inJaw = sst(topEdge + 0.004, topEdge - 0.004 - 0.008 * (face.beard ? 0 : 1), ym) * sst(botEdge, botEdge + 0.012, ym) * sst(0.084, 0.07, xm);
-      const lipHole = 1 - 0.9 * sst(1.0, 0.8, mx) * band(-loH, upH, my, 0.0012);
-      const stache = (face.mustache || face.beard) ? sst(0.036, 0.02, xm) * band(yM + 0.004 - 0.2 * xm, yN - 0.0025 - 0.12 * Math.max(0, xm - 0.008), ym, 0.0038) : 0;
-      const strand = vn2(sx * 330 + 11, ym * 120, 13), grainN = vn2(sx * 300, ym * 300, 14);
-      let dens = 0;
-      if (face.beard) dens = Math.max(inJaw * lipHole, stache * lipHole);
-      else if (face.stubble || shadow5) dens = (shadow5 ? 0.26 : 0.4) * Math.max(inJaw * sst(0.0, 0.03, -ym + 0.035 - 0.04 * sst(0.03, 0.07, xm)), stache) * lipHole;
-      else if (face.mustache) dens = stache * lipHole;
-      if (dens > 0) {
-        const thresh = face.beard || face.mustache ? 0.5 : 0.62;
-        const a = Math.min(0.95, Math.max(0, (dens - 0.18 + (grainN - 0.5) * 0.5) * (face.beard || face.mustache ? 2.0 : 1.3)));
-        const full = !!(face.beard || face.mustache);
-        if (!full) {
-          // stubble is a soft grey-brown shade on the skin with a little unevenness, never specks
-          const sh = Math.min(1, dens * (0.8 + 0.7 * grainN) * 1.6);
-          o.mix(mixc(mulc(K.skin, 0.52), mixc(K.hairC, [30, 26, 30], 0.5), 0.45), Math.min(0.62, sh * 0.62));
-          o.tint(K.skinCool, 0.18 * sh);
-        } else {
-        const hc = full ? mixc(mulc(K.hairC, K.old ? 0.8 + 0.16 * strand : 0.8 + 0.4 * strand), K.skin, (K.old ? 0.1 : 0.18) * (1 - strand)) : mixc(mulc(K.skin, 0.58), K.hairC, 0.4);
-        o.mix(hc, a * (dens > thresh ? 1 : 0.8) * (K.old ? 0.85 : 1));
-        }
-      }
-    }
   } else {
     // the back and sides of the head: shade only
     o.tint(K.skinSh, 0.05);
   }
+  // beard and stubble run on round the jaw to the sideburns and ear, fading out toward the back of the head (a beard that stopped at the cheek showed as a hard vertical edge)
+  if (fz > -0.75) beardPass(K, t, o, xm, ym, sx, fz);
 
   // ---------------------------------------------------------------- ears: warm rim, dark bowl, pink lobe
-  const earM = sst(0.072, 0.082, ax) * g2(ym + 0.026, 0.034) * sst(0.55, 0.1, fz);
+  const earM = sst(0.072, 0.082, ax) * g2(ym + 0.026, 0.034) * g2(fz + 0.02, 0.3);   // FACES: limited front to back to the ear itself (it ran as a pale line across the whole side of the head)
   if (earM > 0.02) {
     o.mix(K.skinWarm, 0.32 * earM);
     o.tint(K.skinSh, 0.34 * earM * sst(0.0, 0.6, -t.nz * 0.5 + 0.5 * Math.abs(t.nx) * -1 + 0.4) * g2(ym + 0.026, 0.015));
@@ -263,6 +235,45 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
 
 const clampStep = (x: number): number => (x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x));
 const exmL = (xm: number): number => xm - 0.029;
+/** beard, moustache and stubble: a texture with an edge, not a box (its own function: it reaches further round the head than the front-of-face features) */
+function beardPass(K: Look, t: Tex, o: Px, xm: number, ym: number, sx: number, fz: number): void {
+  const { face } = K, old = K.old, expr = K.expr, tired = expr === 'tired', amused = expr === 'amused';
+  const edm = K.edm, yN = -0.32 * edm, yM = -0.59 * edm, yChin = -edm, sfade = sst(-0.75, -0.05, fz);
+  const mx = xm / K.mouthMw, gm = face.mouth, cornerLift = (gm === 'grin' ? 0.0032 : amused ? 0.0017 : tired ? -0.0007 : gm === 'frown' ? -0.0006 : 0.0001);
+  const my = ym - yM - cornerLift * mx * mx;
+  const upH = 0.0066 * (1 - 0.45 * mx * mx) * (old ? 0.75 : 1), loH = 0.0094 * (1 - 0.7 * mx * mx) * (old ? 0.8 : 1);
+  // ---------------------------------------------------------------- beard, moustache, stubble: a texture with an edge, not a box
+  // some men without any facial hair still carry a five o'clock shadow
+  const shadow5 = !face.beard && !face.mustache && !face.stubble && !K.female && !K.kidish && K.h.f5 < 0.35;
+  const hairy = !!(face.beard || face.mustache || face.stubble) || shadow5;
+  if (hairy) {
+    const topEdge = yM + 0.007 + 0.034 * sst(0.02, 0.078, xm);                          // the cheek line, high by the ear, low by the mouth
+    const botEdge = yChin - 0.03 - 0.01 * sst(0.0, 0.06, xm);
+    const inJaw = sst(topEdge + 0.004, topEdge - 0.004 - 0.008 * (face.beard ? 0 : 1), ym) * sst(botEdge, botEdge + 0.012, ym) * sst(0.084, 0.07, xm);
+    const lipHole = 1 - 0.9 * sst(1.0, 0.8, mx) * band(-loH, upH, my, 0.0012);
+    const stache = (face.mustache || face.beard) ? sst(0.036, 0.02, xm) * band(yM + 0.004 - 0.2 * xm, yN - 0.0025 - 0.12 * Math.max(0, xm - 0.008), ym, 0.0038) : 0;
+    const strand = vn3(sx * 330 + 11, ym * 120, t.z * 330, 13), grainN = vn3(sx * 300, ym * 300, t.z * 300, 14);
+    let dens = 0;
+    if (face.beard) dens = Math.max(inJaw * lipHole, stache * lipHole);
+    else if (face.stubble || shadow5) dens = (shadow5 ? 0.26 : 0.4) * Math.max(inJaw * sst(0.0, 0.03, -ym + 0.035 - 0.04 * sst(0.03, 0.07, xm)), stache) * lipHole;
+    else if (face.mustache) dens = stache * lipHole;
+    if (dens > 0) {
+      const thresh = face.beard || face.mustache ? 0.5 : 0.62;
+      const a = Math.min(0.95, Math.max(0, (dens - 0.18 + (grainN - 0.5) * 0.5) * (face.beard || face.mustache ? 2.0 : 1.3)) * sfade);
+      const full = !!(face.beard || face.mustache);
+      if (!full) {
+        // stubble is a soft grey-brown shade on the skin with a little unevenness, never specks
+        const sh = Math.min(1, dens * (0.8 + 0.7 * grainN) * 1.6) * sfade;
+        o.mix(mixc(mulc(K.skin, 0.52), mixc(K.hairC, [30, 26, 30], 0.5), 0.45), Math.min(0.62, sh * 0.62));
+        o.tint(K.skinCool, 0.18 * sh);
+      } else {
+      const hc = full ? mixc(mulc(K.hairC, K.old ? 0.8 + 0.16 * strand : 0.8 + 0.4 * strand), K.skin, (K.old ? 0.1 : 0.18) * (1 - strand)) : mixc(mulc(K.skin, 0.58), K.hairC, 0.4);
+      o.mix(hc, a * (dens > thresh ? 1 : 0.8) * (K.old ? 0.85 : 1));
+      }
+    }
+  }
+}
+
 function rgbHat(K: Look): RGB { return mixc(rgbOf(K.s.hatColor), [0, 0, 0], 0); }
 function glassC(K: Look): RGB { return rgbOf(K.face.glasses ?? '#222222'); }
 import { rgb as rgbOf } from './pedPaintShared';

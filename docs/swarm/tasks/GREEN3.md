@@ -38,3 +38,5 @@ Existing parked-car cap: TrafficSystem PARKED_CAP = 1000 already in the code (to
 
 ## Play check (step 5)
 Script: scratchpad/green3/play.cjs (modes default, phone, real). Build: VITE_HOSTED=1 into scratchpad/green3/dist. Frames in scratchpad/green3/out/<mode>/. Results below as they come.
+- Parked cars on the real map: already capped (TrafficSystem PARKED_CAP = 1000, tested in realtraffic-5min: parked <= 1100). Nothing to do.
+- Play-check runs are queued behind other lanes in scripts/swarm-render.sh (load average 14 on 4 cores); first attempt timed out at 700 s.

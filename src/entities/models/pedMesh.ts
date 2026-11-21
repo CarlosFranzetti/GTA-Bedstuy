@@ -585,7 +585,7 @@ function shoeParts(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.Buff
   const W = [0.017, 0.039, 0.052, 0.059, 0.057, 0.051, 0.045, 0.042, 0.04], H = [0.034, 0.06, 0.078, 0.088, 0.097, 0.115, 0.131, 0.138, 0.134];      // PEOPLE5: a taller, wider toe box; the vamp reaches 10 cm at the trouser hem
   const flat = spec.sex === 'f' && !spec.shoes.high && !/#f|#e/i.test(spec.shoes.color), len = 0.272 * Math.max(0.93, K);
   for (const side of ['L', 'R']) {
-    const a = R['ankle' + side], bone = side === 'L' ? 9 : 11;
+    const a = R['ankle' + side], bone = side === 'L' ? 12 : 13;      // ANIM2: the shoe follows the new ankle bones (12, 13), not the knee
     let cx: number, zHeel: number;
     if (L.tube) { cx = side === 'L' ? L.tube.xL : L.tube.xR; zHeel = L.tube.cz + L.tube.rz + 0.026; }
     else {
@@ -627,6 +627,41 @@ function shoeParts(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.Buff
     out.push(g);
   }
   return out;
+}
+
+/**
+ * ANIM2: the part of the leg near the ankle follows the ankle bones (12, 13), so a foot that rolls from heel to toe takes its shoe, the cuff and the
+ * lowest part of the shin with it. Skin below the ankle (the far level still has its own feet) goes fully to the ankle; a trouser cuff or shin
+ * 4 to 16 cm above it shares up to half its weight. Shoes are already on the ankle bones. At most four weights per vertex are kept.
+ */
+export function followAnkles(geo: THREE.BufferGeometry, R: Record<string, number[]>): void {
+  const pos = geo.getAttribute('position'), ji = geo.getAttribute('skinIndex'), jw = geo.getAttribute('skinWeight');
+  if (!pos || !ji || !jw) return;
+  const anY = R.ankleL[1], hi = anY + 0.16, lo = anY + 0.035;
+  const ids: number[] = [0, 0, 0, 0], ws: number[] = [0, 0, 0, 0];
+  for (let v = 0; v < pos.count; v++) {
+    const y = pos.getY(v);
+    if (y > hi) continue;
+    const t = Math.min(1, Math.max(0, (hi - y) / (hi - lo)));
+    const f = y < anY ? 1 : 0.5 * t * t * (3 - 2 * t);
+    let moveL = 0, moveR = 0;
+    for (let k = 0; k < 4; k++) {
+      ids[k] = ji.getComponent(v, k); ws[k] = jw.getComponent(v, k);
+      if (ids[k] === 9) { moveL += ws[k] * f; ws[k] -= ws[k] * f; } else if (ids[k] === 11) { moveR += ws[k] * f; ws[k] -= ws[k] * f; }
+    }
+    if (moveL + moveR <= 0) continue;
+    // fold the moved weight into an ankle slot (the existing one, else the weakest slot)
+    const add = (bone: number, w: number): void => {
+      if (w <= 0) return;
+      let slot = ids.findIndex((j, k) => j === bone && ws[k] > 0);
+      if (slot < 0) { slot = 0; for (let k = 1; k < 4; k++) if (ws[k] < ws[slot]) slot = k; ids[slot] = bone; ws[slot] = 0; }
+      ws[slot] += w;
+    };
+    add(12, moveL); add(13, moveR);
+    let sum = 0; for (let k = 0; k < 4; k++) sum += ws[k];
+    for (let k = 0; k < 4; k++) { ji.setComponent(v, k, ids[k]); jw.setComponent(v, k, ws[k] / (sum || 1)); }
+  }
+  ji.needsUpdate = true; jw.needsUpdate = true;
 }
 
 const geoCache = new Map<string, { geo: THREE.BufferGeometry; triangles: number }>();
@@ -686,6 +721,7 @@ function geometryFor(s: MhShape, variant: number, detail: PedDetail): { geo: THR
   for (const g of parts) if (!g.getAttribute('color')) g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(g.getAttribute('position').count * 3).fill(1), 3));
   const geo = parts.length ? mergeGeometries([base, ...parts], false) : base;
   if (!geo) throw new Error('pedMesh: merge failed');
+  followAnkles(geo, peopleRig(s, spec));
   geo.computeBoundingBox(); geo.computeBoundingSphere();
   c = { geo, triangles: geo.index!.count / 3 };
   geoCache.set(key, c);
@@ -770,7 +806,9 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
     const knee = bone('knee', leg, R['knee' + side], R['hip' + side]);
     arms.push(arm); elbows.push(elbow); legs.push(leg); knees.push(knee);
   }
-  const bones = [rig, hips, torso, head, arms[0], elbows[0], arms[1], elbows[1], legs[0], knees[0], legs[1], knees[1]] as THREE.Bone[];
+  // ANIM2: ankle bones appended (indices 12 left, 13 right), children of the knees: the shoe rolls with the foot and the clips' ankle channels drive it
+  const ankles = ['L', 'R'].map((side, i) => bone(`ankle${side}`, knees[i], R['ankle' + side], R['knee' + side]));
+  const bones = [rig, hips, torso, head, arms[0], elbows[0], arms[1], elbows[1], legs[0], knees[0], legs[1], knees[1], ankles[0], ankles[1]] as THREE.Bone[];
   group.updateMatrixWorld(true);
   const skeleton = new THREE.Skeleton(bones);
   const lod = new PedLod(); lod.name = 'pedLod'; lod.exempt = opts.heightScale !== undefined;
@@ -806,7 +844,7 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
     head.scale.setScalar((skinMode ? headK : age === 'kid' ? 1.06 : 1) * rng.range(0.985, 1.015));
     torso.scale.set(1 + rng.range(-0.015, 0.015), 1, 1 + rng.range(-0.02, 0.02));
   }
-  return { group, legs, arms, head, knees, elbows, torso, rig, hips, spec, variant, triangles };
+  return { group, legs, arms, head, knees, elbows, torso, rig, hips, ankles, spec, variant, triangles };
 }
 
 /** Drop-in for pedBodyHi.buildPedModel: the MakeHuman people when loaded, else PEDHI's procedural ones. */

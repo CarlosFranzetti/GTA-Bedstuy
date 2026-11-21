@@ -40,6 +40,12 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
   plain-English conversational transcript (`docs/swarm/transcripts/`); "I want to decide the direction of the models and
   clothing" (ask him, with pictures, before any lane sets a style); original buildings, landmarks and stores under parody
   and invented names, with textures from open street-level images.
+- 21 Nov, evening: (1) the agents' conversations retold as human-like exchanges, and SEPARATELY each one's thought
+  process as if a person had written it (written as working notes reconstructed from the record: posts, notes files,
+  reports and diffs; never presented as a log of hidden reasoning; `docs/swarm/transcripts/`); (2) interface, keys and
+  controller settings mapped "as if it were GTA and Rockstar" (layout and bindings by convention only: no assets, fonts,
+  icons or logos from them; lane CONTROLS); (3) mechanics "smooth and like GTA 4" (camera, on-foot movement, car entry,
+  aiming and melee, reactions; lane MECHANICS after ANIM2 hands back).
 - 21 Nov, evening: "World should resemble real blocks, facades, stores and buildings; make similar textures from existing
   images online; realism but parodied." How: each real block's buildings follow the real ones (floors, material, colour,
   style, stoops, bays, shopfront positions) from NYC Open Data and open street photos; textures are derived only from

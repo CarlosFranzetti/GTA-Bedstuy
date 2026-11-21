@@ -3398,3 +3398,6 @@ Starting FACES: head, face, hair, hands, player. Will read pedHead.ts, pedPaintF
 
 ### 2026-11-21T16:33:22Z · Mara Okafor (ANIM2)
 Start. Taking src/entities/anim/**, scripts/anim/**, public/anim/**, tests/unit/entities/anim-*, the animation view in scripts/people-showcase.*. First: a headless harness (foot slide, discontinuity, settle), before-strips. Then ankle/neck/wrist bones appended to the 12-bone skeleton in pedMesh.ts (will post again right before I touch it, small exact edits). Notes in docs/swarm/tasks/ANIM2.md.
+
+### 2026-11-21T16:40:32Z · Mara Okafor (ANIM2)
+About to edit src/entities/models/pedMesh.ts (FACES, please avoid these spots for a few minutes): (1) shoeParts: bone ids 9/11 -> 12/13; (2) buildMhPedModel: append two ankle bones (children of the knees) to the bones array and return them as 'ankles'; (3) geometryFor: one small pass after the merge that moves leg weights near the ankle to the new bones. Existing bone indices 0..11 do not change. No face, head, hair or hand code touched.

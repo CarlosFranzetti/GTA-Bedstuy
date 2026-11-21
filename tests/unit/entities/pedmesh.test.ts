@@ -158,7 +158,7 @@ describe('shipped people glbs', () => {
     for (const spec of PED_SPECS) expect(names.has(shapeFor(spec)), spec.id).toBe(true);
   });
 
-  it('draw count: one skinned mesh per LOD on 12 bones, one shared material per variant, <= 3 draws near', () => {
+  it('draw count: one skinned mesh per LOD on 14 bones (12 + two ankles, ANIM2), one shared material per variant, <= 3 draws near', () => {
     for (let v = 0; v < PED_VARIANT_COUNT; v++) {
       const m = buildMhPedModel(materials, new Rng(5), { variant: v, heightScale: 1 })!;
       expect(m, PED_SPECS[v].id).not.toBeNull();
@@ -169,7 +169,7 @@ describe('shipped people glbs', () => {
       expect(lod.levels.length).toBe(3);
       for (const l of lod.levels) expect(l.object.type).toBe('SkinnedMesh');
       expect(new Set(meshes.map((x) => x.material)).size).toBe(1);
-      expect(meshes[0].skeleton.bones.length).toBe(12);
+      expect(meshes[0].skeleton.bones.length).toBe(14);
       expect(m.triangles).toBeGreaterThan(2500);
       expect(m.triangles).toBeLessThan(5600); // ~3.9k skin (head 1.5k, hands 0.7k, shoulders 0.4k, rest 1.25k) + shoes, hems, cuffs + hair / hat / hood volumes
       const box = new THREE.Box3().setFromObject(m.group);

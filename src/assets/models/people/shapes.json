@@ -1,207 +1,207 @@
 {
  "ba_m": {
   "height": 1.79,
-  "bytes": 67696,
+  "bytes": 78724,
   "tris": {
-   "hi": 3528,
+   "hi": 5332,
    "mid": 1134,
    "far": 400
   }
  },
  "ba_f": {
   "height": 1.67,
-  "bytes": 67420,
+  "bytes": 78984,
   "tris": {
-   "hi": 3502,
+   "hi": 5308,
    "mid": 1126,
    "far": 400
   }
  },
  "ca_m": {
   "height": 1.79,
-  "bytes": 67688,
+  "bytes": 79304,
   "tris": {
-   "hi": 3530,
+   "hi": 5334,
    "mid": 1136,
    "far": 400
   }
  },
  "ca_f": {
   "height": 1.67,
-  "bytes": 67316,
+  "bytes": 78624,
   "tris": {
-   "hi": 3528,
+   "hi": 5336,
    "mid": 1132,
    "far": 400
   }
  },
  "la_m": {
   "height": 1.78,
-  "bytes": 67740,
+  "bytes": 78848,
   "tris": {
-   "hi": 3526,
+   "hi": 5332,
    "mid": 1138,
    "far": 400
   }
  },
  "la_f": {
   "height": 1.66,
-  "bytes": 66780,
+  "bytes": 78140,
   "tris": {
-   "hi": 3498,
+   "hi": 5300,
    "mid": 1122,
    "far": 400
   }
  },
  "wh_m": {
   "height": 1.78,
-  "bytes": 68104,
+  "bytes": 79484,
   "tris": {
-   "hi": 3538,
+   "hi": 5342,
    "mid": 1142,
    "far": 400
   }
  },
  "wh_f": {
   "height": 1.66,
-  "bytes": 67320,
+  "bytes": 78464,
   "tris": {
-   "hi": 3514,
+   "hi": 5316,
    "mid": 1118,
    "far": 400
   }
  },
  "ea_m": {
   "height": 1.74,
-  "bytes": 68984,
+  "bytes": 80348,
   "tris": {
-   "hi": 3532,
+   "hi": 5334,
    "mid": 1132,
    "far": 396
   }
  },
  "ea_f": {
   "height": 1.62,
-  "bytes": 67636,
+  "bytes": 78616,
   "tris": {
-   "hi": 3508,
+   "hi": 5308,
    "mid": 1116,
    "far": 400
   }
  },
  "sa_m": {
   "height": 1.78,
-  "bytes": 68664,
+  "bytes": 79936,
   "tris": {
-   "hi": 3536,
+   "hi": 5344,
    "mid": 1146,
    "far": 398
   }
  },
  "sa_f": {
   "height": 1.66,
-  "bytes": 67172,
+  "bytes": 78328,
   "tris": {
-   "hi": 3518,
+   "hi": 5318,
    "mid": 1126,
    "far": 398
   }
  },
  "me_m": {
   "height": 1.78,
-  "bytes": 67824,
+  "bytes": 79340,
   "tris": {
-   "hi": 3536,
+   "hi": 5340,
    "mid": 1138,
    "far": 398
   }
  },
  "me_f": {
   "height": 1.66,
-  "bytes": 67184,
+  "bytes": 78400,
   "tris": {
-   "hi": 3510,
+   "hi": 5310,
    "mid": 1124,
    "far": 400
   }
  },
  "mx_m": {
   "height": 1.78,
-  "bytes": 68124,
+  "bytes": 80012,
   "tris": {
-   "hi": 3548,
+   "hi": 5354,
    "mid": 1152,
    "far": 396
   }
  },
  "mx_f": {
   "height": 1.66,
-  "bytes": 67212,
+  "bytes": 78792,
   "tris": {
-   "hi": 3520,
+   "hi": 5322,
    "mid": 1136,
    "far": 400
   }
  },
  "ba_m_old": {
   "height": 1.73,
-  "bytes": 68224,
+  "bytes": 79420,
   "tris": {
-   "hi": 3532,
+   "hi": 5332,
    "mid": 1152,
    "far": 398
   }
  },
  "ba_f_old": {
   "height": 1.61,
-  "bytes": 68424,
+  "bytes": 79856,
   "tris": {
-   "hi": 3528,
+   "hi": 5326,
    "mid": 1142,
    "far": 400
   }
  },
  "wh_m_old": {
   "height": 1.72,
-  "bytes": 68476,
+  "bytes": 80048,
   "tris": {
-   "hi": 3548,
+   "hi": 5352,
    "mid": 1160,
    "far": 400
   }
  },
  "wh_f_old": {
   "height": 1.6,
-  "bytes": 68972,
+  "bytes": 80116,
   "tris": {
-   "hi": 3534,
+   "hi": 5338,
    "mid": 1142,
    "far": 400
   }
  },
  "teen_a": {
   "height": 1.6,
-  "bytes": 67912,
+  "bytes": 79096,
   "tris": {
-   "hi": 3524,
+   "hi": 5328,
    "mid": 1134,
    "far": 398
   }
  },
  "teen_b": {
   "height": 1.46,
-  "bytes": 67888,
+  "bytes": 79088,
   "tris": {
-   "hi": 3508,
+   "hi": 5316,
    "mid": 1100,
    "far": 400
   }
  },
  "mx_x": {
   "height": 1.72,
-  "bytes": 67904,
+  "bytes": 79240,
   "tris": {
-   "hi": 3508,
+   "hi": 5316,
    "mid": 1126,
    "far": 398
   }
