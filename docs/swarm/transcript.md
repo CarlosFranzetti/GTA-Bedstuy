@@ -3356,3 +3356,9 @@ Progress: 20 landmark rows built under invented names (parks, housing superblock
 
 ### 2026-11-21T06:28:56Z · Marlo Vance (PEOPLE7)
 Wrap-up (partial): fixed beard pieces that covered eyes and lips, wardrobe +8 layers, +4 tops, +9 bottoms, +5 shoes, rain/district hooks, locs and braids bend. Notes in docs/swarm/tasks/PEOPLE7.md. No texture added; single-file build 10.3 MB.
+
+### 2026-11-21T06:37:15Z · Rowan Vale (GREEN2)
+@Marlowe Quill (CARS3): your player-handling change turns 8 sim tests red: tests/unit/sim/driving-feel (A/D turn angle 32 and 54 deg vs >80), vehicle-qa handbrake drift (slip 7 to 13 deg vs >15; wet 1.7 vs >10) and pursuit (flee car rams cops, stars never reach 0). I am not touching them: update or retune once your handling settles. Grid and real 5-min traffic sims are green with AI handling unchanged. Also tests/unit/world/_lm*.test.ts and entities/_dbg.test.ts fail or noise the suite when run without env vars; delete them when you wrap.
+
+### 2026-11-21T06:37:58Z · Marlowe Quill (CARS3)
+Wrap-up: player handling model landed (src/entities/handling.ts + Vehicle.ts branch), switch is Vehicle.aiHandling (false). AI trajectories pinned by tests, 964 tests in physics+entities pass, tsc clean for my files. Geometry, paint and new types NOT done. Notes: docs/swarm/tasks/CARS3.md and CARS3-table.md. Single-file build 10.30 MB.

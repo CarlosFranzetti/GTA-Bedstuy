@@ -53,24 +53,43 @@ export function polarRadii(segs: number[], cx: number, cz: number, seg: number):
   return r;
 }
 
-/** the largest outline over several heights, spread by one neighbour each way and blurred: the radius a band must have to stand outside the body between those heights */
+/**
+ * The radius a ring of `seg` rays must have to stand outside the body between the heights `ys`. PEOPLE8: the old version dilated by a neighbour each way and blurred, which on a wide, shallow
+ * hip (2:1) turned the outline into a circle 6 to 8 cm off the body front and back (the "hem box"). Now the outline is sampled on 4 x seg fine rays (cut triangles plus every vertex in the
+ * band), the ring takes the fine value on its own rays, and each chord of the ring is raised only as far as needed to clear the fine samples between its two ends (a circumscribed polygon).
+ */
 export function outerRadii(L: MhLod, pos: ArrayLike<number>, ys: number[], c: { cx: number; cz: number }, seg: number, use: (v: number) => boolean): number[] {
-  const r = new Array<number>(seg).fill(0);
-  for (const y of ys) { const p = polarRadii(cutSegments(L, pos, y, use), c.cx, c.cz, seg); for (let j = 0; j < seg; j++) r[j] = Math.max(r[j], p[j]); }
-  // the vertices themselves too: a corner of the coarse mesh between two rays would stick out of a chord, so its two neighbouring samples are raised until the chord clears it
-  const yLo = Math.min(...ys), yHi = Math.max(...ys), half = Math.cos(Math.PI / seg);
+  const N = seg * 4, fine = new Array<number>(N).fill(0);
+  for (const y of ys) { const p = polarRadii(cutSegments(L, pos, y, use), c.cx, c.cz, N); for (let j = 0; j < N; j++) fine[j] = Math.max(fine[j], p[j]); }
+  const yLo = Math.min(...ys), yHi = Math.max(...ys), verts: Array<[number, number]> = [];      // [angle in turns, radius]
   for (let i = 0; i < pos.length / 3; i++) {
     const y = pos[i * 3 + 1];
     if (y < yLo || y > yHi || !use(i)) continue;
     const dx = pos[i * 3] - c.cx, dz = pos[i * 3 + 2] - c.cz, rv = Math.hypot(dx, dz);
     if (rv < 1e-4) continue;
-    const f = (((Math.atan2(-dz, dx) / TAU) % 1) + 1) % 1 * seg, j0 = Math.floor(f) % seg, j1 = (j0 + 1) % seg, need = rv / half;
-    r[j0] = Math.max(r[j0], need); r[j1] = Math.max(r[j1], need);
+    verts.push([(((Math.atan2(-dz, dx) / TAU) % 1) + 1) % 1, rv]);
   }
-  // a ray that missed (a thin sliver) takes its neighbours' value
-  for (let j = 0; j < seg; j++) if (r[j] <= 0) r[j] = Math.max(r[(j + seg - 1) % seg], r[(j + 1) % seg]);
-  const m = r.map((_, j) => Math.max(r[(j + seg - 1) % seg], r[j], r[(j + 1) % seg]));
-  return m.map((v, j) => Math.max(v, 0.25 * m[(j + seg - 1) % seg] + 0.5 * v + 0.25 * m[(j + 1) % seg]));
+  for (let j = 0; j < N; j++) if (fine[j] <= 0) fine[j] = Math.max(fine[(j + N - 1) % N], fine[(j + 1) % N]);
+  // the samples a chord must clear: fine rays and vertices, by turns
+  const samples: Array<[number, number]> = fine.map((r, j) => [j / N, r] as [number, number]).concat(verts);
+  const r = new Array<number>(seg);
+  for (let j = 0; j < seg; j++) r[j] = Math.max(fine[(j * 4) % N], fine[(j * 4 + N - 1) % N] * 0.98, fine[(j * 4 + 1) % N] * 0.98);
+  const byEdge: Array<Array<[number, number]>> = Array.from({ length: seg }, () => []);
+  for (const [t, rad] of samples) { const e = Math.min(seg - 1, Math.floor(t * seg)); byEdge[e].push([t * seg - e, rad]); }
+  for (let pass = 0; pass < 6; pass++) {
+    let moved = false;
+    for (let e = 0; e < seg; e++) {
+      const e1 = (e + 1) % seg;
+      const a0 = (e / seg) * TAU, a1 = ((e + 1) / seg) * TAU;
+      const px = r[e] * Math.cos(a0), pz = -r[e] * Math.sin(a0), qx = r[e1] * Math.cos(a1), qz = -r[e1] * Math.sin(a1);
+      for (const [f, rad] of byEdge[e]) {
+        const phi = a0 + f * (a1 - a0), t = rayHit(0, 0, Math.cos(phi), -Math.sin(phi), px, pz, qx, qz);
+        if (t > 0 && t < rad - 1e-4) { const k = Math.min(1.12, rad / t); r[e] *= k; r[e1] *= k; moved = true; break; }
+      }
+    }
+    if (!moved) break;
+  }
+  return r;
 }
 
 export interface PolarRow { y: number; cx: number; cz: number; r: number[]; /** vertical part of the normal: 0 wall, -1 faces down, +1 faces up */ up: number }
@@ -108,50 +127,58 @@ export const notArm = (L: MhLod) => (i: number): boolean => { let w = 0; for (le
 /** a body vertex of one arm (side -1 = the character's left = bones 4, 5) */
 export const armOf = (L: MhLod, side: -1 | 1) => (i: number): boolean => { let w = 0; const a = side < 0 ? 4 : 6; for (let k = 0; k < 4; k++) { const j = L.joints[i * 4 + k]; if (j === a || j === a + 1) w += L.weights[i * 4 + k]; } return w >= 0.5; };
 
-/**
- * The rows of the hem band of a top at `hemTop`: a flat underside, a wall `o` proud of the body, a soft return that settles back into the body above. Every row is the largest outline of the
- * body within 2 cm of its height (so it stands outside the body between the sample heights) plus a margin that falls from `o` to a few millimetres.
- */
-export function hemRows(L: MhLod, pos: ArrayLike<number>, hemTop: number, o: number, seg: number, hi: boolean): { rows: PolarRow[][]; c: { cx: number; cz: number } } | null {
-  const use = notArm(L), c = centreOf(cutSegments(L, pos, hemTop + 0.04, use));
-  if (!c) return null;
-  const at = (y: number, g: number, up: number, lo = 0.02, hiy = 0.02): PolarRow => {
-    const ys = [y - lo, y - lo / 2, y, y + hiy / 2, y + hiy], r = outerRadii(L, pos, ys, c, seg, use);
-    return { y, cx: c.cx, cz: c.cz, r: r.map((v) => v + g), up };
-  };
-  const wall = at(hemTop + 0.006, o, 0, 0.016, 0.03);              // the radius of the wall: the body between just under the hem and 3 cm above it
-  const lo = { ...wall, y: hemTop }, top = { ...wall, y: hemTop + 0.012 }, inner = { ...lo, r: lo.r.map((v) => v - 0.014), up: -1 };
-  const ret: PolarRow[] = [{ ...top, up: 0.1 }];
-  const ys = hi ? [0.05, 0.13] : [0.07, 0.13];
-  ys.forEach((d, i) => {
-    const g = o + (0.004 - o) * (d - 0.012) / (0.13 - 0.012);
-    const row = at(hemTop + d, g, 0, 0.03, 0.03);
-    // never inside the row below it by more than the body narrows (the return follows the body, it does not dive)
-    ret.push({ ...row, up: i === ys.length - 1 ? 0 : 0.02 });
-  });
-  return { rows: [[{ ...lo, up: -1 }, inner], [lo, top], ret], c };
-}
+/** how a top ends: a thin rolled edge (shirt, jacket, cardigan), a ribbed band that pulls in (hoodie, track jacket, bomber), a soft rounded baffle (puffer) */
+export type HemStyle = 'roll' | 'rib' | 'baffle';
 
 /**
- * The cuff of a sleeve: the dressed arm is cut at heights above `yEnd` (the painted sleeve end); a lip `step` proud of the arm there, a flat underside facing the hand, a hard wall, a soft
- * return into the sleeve. Rows follow the arm's own outline and axis (per row), so the cuff stands on the arm however it is bent.
+ * The rows of the hem of a top at `hemTop` (PEOPLE8). Every row is the outline of the body at its own height plus a margin `g`, so the hem follows the torso surface and never flares: a flat
+ * underside tucked inside the body, then a profile per style, all of it between 4 and 12 mm off the body and gone into it within 6 to 9 cm. `o` is the wall margin of the style.
  */
-export function cuffRows(L: MhLod, pos: ArrayLike<number>, side: -1 | 1, yEnd: number, height: number, step: number, seg: number): PolarRow[][] | null {
+export function hemRows(L: MhLod, pos: ArrayLike<number>, hemTop: number, o: number, seg: number, hi: boolean, style: HemStyle = 'roll'): { rows: PolarRow[][]; c: { cx: number; cz: number } } | null {
+  const use = notArm(L), c = centreOf(cutSegments(L, pos, hemTop + 0.04, use));
+  if (!c) return null;
+  const at = (d: number, g: number, up: number, w = 0.012): PolarRow => {
+    const y = hemTop + d, ys = [y - w, y - w / 2, y, y + w / 2, y + w], r = outerRadii(L, pos, ys, c, seg, use);
+    return { y, cx: c.cx, cz: c.cz, r: r.map((v) => Math.max(0.02, v + g)), up };
+  };
+  // [height above the hem, margin off the body, vertical part of the normal]
+  const prof: Array<[number, number, number]> = style === 'baffle'
+    ? (hi ? [[0, -0.002, -0.6], [0.011, o * 0.8, -0.3], [0.03, o, 0], [0.049, o * 0.85, 0.35], [0.066, 0.005, 0.15], [0.09, 0.003, 0]] : [[0, -0.002, -0.6], [0.015, o * 0.9, -0.2], [0.04, o * 0.9, 0.3], [0.08, 0.004, 0]])
+    : style === 'rib'
+      ? (hi ? [[0, 0.004, 0], [0.02, o * 0.8, 0], [0.044, o * 0.8, 0], [0.052, o * 1.25, 0.4], [0.08, 0.003, 0]] : [[0, 0.004, 0], [0.045, o * 0.8, 0], [0.054, o * 1.25, 0.4], [0.085, 0.003, 0]])
+      : (hi ? [[0, o * 0.7, 0], [0.01, o, 0], [0.032, o * 0.5, 0.05], [0.06, 0.003, 0]] : [[0, o * 0.7, 0], [0.012, o, 0], [0.05, 0.003, 0]]);
+  const rows = prof.map(([d, g, up]) => at(d, g, up));
+  // the flat underside: from the lowest ring in to 1.4 cm inside the body, so nothing shows between the hem and the trousers
+  const first = rows[0], under: PolarRow = { ...first, up: -1, r: first.r.map((v) => Math.max(0.02, v - 0.014)) };
+  return { rows: [[{ ...first, up: -1 }, under], rows], c };
+}
+
+/** a sleeve ends in a ribbed ring (hoodie, track jacket, sweater, bomber, puffer), a flat band (shirt, blazer, jacket) or, short, a plain hem */
+export type CuffStyle = 'rib' | 'flat' | 'hem';
+
+/**
+ * The cuff of a sleeve (PEOPLE8): a ring as wide as the sleeve (a ribbed cuff 3 mm proud, a flat shirt cuff 2 mm), 3 to 4 cm tall and round in section (more rays, a rounded bead), with a short
+ * underside tucked into the arm so the hand comes out of the inside. Rows follow the arm's own outline and axis per row, so the cuff stands on the arm however it is bent. `yEnd` is the painted
+ * sleeve end; `height` is the cuff's height; `step` is the margin of the wall off the arm.
+ */
+export function cuffRows(L: MhLod, pos: ArrayLike<number>, side: -1 | 1, yEnd: number, height: number, step: number, seg: number, style: CuffStyle = 'rib'): PolarRow[][] | null {
   const use = armOf(L, side);
   const at = (y: number, g: number, up: number): PolarRow | null => {
-    const segs = cutSegments(L, pos, y, use), c = centreOf(segs);
+    const c = centreOf(cutSegments(L, pos, y, use));
     if (!c) return null;
-    const rs = [y - 0.012, y, y + 0.012].map((q) => cutSegments(L, pos, q, use)), r = new Array<number>(seg).fill(0);
-    for (const s of rs) { const p = polarRadii(s, c.cx, c.cz, seg); for (let j = 0; j < seg; j++) r[j] = Math.max(r[j], p[j]); }
-    for (let j = 0; j < seg; j++) if (r[j] <= 0) r[j] = Math.max(r[(j + seg - 1) % seg], r[(j + 1) % seg]);
-    const m = r.map((_, j) => Math.max(r[(j + seg - 1) % seg], r[j], r[(j + 1) % seg]));
-    return { y, cx: c.cx, cz: c.cz, r: m.map((v) => v + g), up };
+    const r = outerRadii(L, pos, [y - 0.01, y, y + 0.01], c, seg, use);
+    return { y, cx: c.cx, cz: c.cz, r: r.map((v) => Math.max(0.012, v + g)), up };
   };
-  const bottom = at(yEnd + 0.012, step, -1), topRow = at(yEnd + height, step, 0), back = at(yEnd + height + 0.05, 0.003, 0);
-  if (!bottom || !topRow || !back) return null;
-  // the wall's own bottom edge sits at yEnd with the radius of the first row (a cone that follows the arm), the underside returns inside the skin
-  const lo: PolarRow = { ...bottom, y: yEnd, up: 0 }, under: PolarRow = { ...bottom, y: yEnd, up: -1, r: bottom.r.map((v) => v - step - 0.003) }, underOuter: PolarRow = { ...lo, up: -1 };
-  return [[underOuter, under], [lo, topRow], [{ ...topRow, up: 0.1 }, back]];
+  // [height above the cuff's lower edge, margin, vertical part of the normal]
+  const prof: Array<[number, number, number]> = style === 'rib'
+    ? [[0, step * 0.4, -0.5], [0.006, step, -0.2], [height * 0.5, step * 1.05, 0], [height - 0.006, step, 0.2], [height + 0.004, step * 0.5, 0.5], [height + 0.03, 0.001, 0]]
+    : style === 'flat'
+      ? [[0, step * 0.8, 0], [height, step * 0.8, 0], [height + 0.004, step * 1.5, 0.6], [height + 0.03, 0.001, 0]]
+      : [[0, step * 0.6, 0], [height, step * 0.6, 0.05], [height + 0.03, 0.001, 0]];
+  const rows: PolarRow[] = [];
+  for (const [d, g, up] of prof) { const row = at(yEnd + d, g, up); if (!row) return null; rows.push(row); }
+  const first = rows[0], under: PolarRow = { ...first, up: -1, r: first.r.map((v) => Math.max(0.01, v - 0.012)) };
+  return [[{ ...first, up: -1 }, under], rows];
 }
 
 /**

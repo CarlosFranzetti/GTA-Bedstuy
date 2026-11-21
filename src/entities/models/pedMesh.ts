@@ -26,7 +26,7 @@ import { FAR_DIST, MID_DIST, PedLod, buildPedModel as buildProcedural, pedPhone,
 import { hijabShell } from './pedGarments';
 import { peopleMode } from '@/textures/painters/pedMode';
 import { legTubes, isCoveredLeg, StripMesh, addStrip, type Row, type LegTube, type LegDetail } from './pedLegs';
-import { addPolarStrip, cuffRows, hemRows, straightenArms, swingSkirt } from './pedCuts';
+import { addPolarStrip, cuffRows, hemRows, straightenArms, swingSkirt, type CuffStyle } from './pedCuts';
 import { bodyTypeOf, type BodyType } from './pedBodyTypes';
 import { makeCtx, personPieces } from './pedPieces';
 import { pickPedVariant, type PedModel, type PedOptions } from './pedBody';
@@ -505,17 +505,19 @@ function clothExtras(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.Bu
     const r = bodyRing(L, hemTop - 0.06, hemTop + 0.1, notArm), r2 = bodyRing(L, hemTop + 0.1, hemTop + 0.16, notArm);
     if (r && r2) {
       // the hem of a top is a layer of its own: a wall standing 10 mm proud of the trousers (hard-shaded lip, flat underside), then a soft return into the body
-      const o = k === 'puffer' ? 0.012 : k === 'jacket' || k === 'hoodie' ? 0.011 : 0.009;
+      // PEOPLE8: three ways to end a top (pedCuts.HemStyle): a puffer ends in a soft rounded baffle, a hoodie, track jacket or bomber in a ribbed band, everything else in a thin rolled edge
+      const style = k === 'puffer' ? 'baffle' : k === 'hoodie' || k === 'tracksuit' || spec.top.style === 'bomber' ? 'rib' : 'roll';
+      const o = style === 'baffle' ? 0.012 : style === 'rib' ? 0.009 : 0.007;
       const m = new StripMesh(), uvT = (u: number, v: number): [number, number] => { const q = SK_RECTS.torso; return [(q.x + 3 + u * (q.w - 6)) / ATLAS, 1 - (q.y + 3 + (1 - v) * (q.h - 6)) / ATLAS]; };
       // PEOPLE5: the band is lofted along the measured outline of the body (pedCuts.hemRows), so it always stands outside the body: a clean ring, no chips, no diamonds
-      const hb = hemRows(L, L.position, hemTop, o, hi ? 20 : 12, hi);
+      const hb = hemRows(L, L.position, hemTop, o, hi ? 20 : 12, hi, style);
       if (hb) for (const rows of hb.rows) addPolarStrip(m, rows, { seg: hi ? 20 : 12, skin: { j: [2, 0, 0, 0], w: [1, 0, 0, 0] }, uv: (u) => uvT(u, 0.5) });
       out.push(stripGeometry(m));
       if (k === 'hoodie') {
         const zf = r.cz - r.rz;      // the pocket: a soft pad on the front of the belly
         out.push(loft([
-          { y: hemTop + 0.03, rx: r.rx * 0.62, rz: 0.012, cx: r.cx, cz: zf + 0.008 },
-          { y: hemTop + 0.09, rx: r.rx * 0.7, rz: 0.03, cx: r.cx, cz: zf + 0.002 },
+          { y: hemTop + 0.055, rx: r.rx * 0.6, rz: 0.008, cx: r.cx, cz: zf + 0.012 },
+          { y: hemTop + 0.1, rx: r.rx * 0.66, rz: 0.022, cx: r.cx, cz: zf + 0.004 },
           { y: hemTop + 0.17, rx: r.rx * 0.5, rz: 0.012, cx: r.cx, cz: zf + 0.012 },
         ], hi ? 12 : 8, SK_RECTS.torso, 2, 'both'));
       }
@@ -523,9 +525,11 @@ function clothExtras(s: MhShape, spec: PedSpec, L: MhLod, hi: boolean): THREE.Bu
   }
   // PEOPLE5: the crisp end of a sleeve, the same edge language as the trouser hem: a lip 5 to 6.5 mm proud of the arm with a flat underside facing the hand (pedCuts.cuffRows)
   if (spec.top.sleeves === 'long' || spec.top.sleeves === 'short') {
-    const Rr = s.rig, long = spec.top.sleeves === 'long', yEnd = long ? Rr.wristL[1] + 0.012 : Rr.elbowL[1] + (Rr.shoulderL[1] - Rr.elbowL[1]) * 0.42, sg = hi ? 8 : 6;
+    const Rr = s.rig, long = spec.top.sleeves === 'long', yEnd = long ? Rr.wristL[1] + 0.012 : Rr.elbowL[1] + (Rr.shoulderL[1] - Rr.elbowL[1]) * 0.42, sg = hi ? 10 : 6;
+    // PEOPLE8: ribbed cuff on hoodies, track jackets, sweaters, bombers, puffers and cardigans; a flat band on shirts, blazers and jackets; a plain hem on a short sleeve
+    const rib = ['hoodie', 'tracksuit', 'puffer', 'cardigan'].includes(spec.top.kind) || ['sweater', 'bomber', 'track', 'boiler'].includes(spec.top.style ?? ''), cs: CuffStyle = !long ? 'hem' : rib ? 'rib' : 'flat';
     for (const side of [-1, 1] as const) {
-      const rows = cuffRows(L, L.position, side, yEnd, long ? 0.034 : 0.022, long ? 0.0065 : 0.005, sg);
+      const rows = cuffRows(L, L.position, side, yEnd, cs === 'hem' ? 0.016 : cs === 'rib' ? 0.04 : 0.032, cs === 'rib' ? 0.0035 : 0.0025, sg, cs);
       if (!rows) continue;
       const m = new StripMesh(), q = SK_RECTS.torso, bone = (yEnd > Rr.elbowL[1] ? 4 : 5) + (side < 0 ? 0 : 2);
       for (const rr of rows) addPolarStrip(m, rr, { seg: sg, skin: { j: [bone, 0, 0, 0], w: [1, 0, 0, 0] }, uv: (u) => [(q.x + 3 + u * (q.w - 6)) / ATLAS, 1 - (q.y + 3 + 0.5 * (q.h - 6)) / ATLAS] });
