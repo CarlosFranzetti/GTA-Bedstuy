@@ -40,7 +40,7 @@ function leftTurn(type: VehicleType): { maxErr: number; entered: boolean } {
 }
 
 describe('left turn onto Throop from Kosciuszko, alone on the street', () => {
-  for (const type of ['sedan', 'cab', 'bus', 'garbage', 'ambulance', 'cargovan'] as VehicleType[]) {
+  for (const type of ['sedan', 'cab', 'bus', 'garbage', 'ambulance', 'cargovan', 'towtruck', 'flatbed', 'foodtruck', 'sweeper', 'bucket', 'hearse', 'livery'] as VehicleType[]) {
     it(`${type}: either turns and settles in the lane (within 1.2 m of the lane line), or, if its turning circle is too wide for the box, keeps straight on`, () => {
       const r = leftTurn(type);
       if (r.entered) expect(r.maxErr).toBeLessThan(1.2);

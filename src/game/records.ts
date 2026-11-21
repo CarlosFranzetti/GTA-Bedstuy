@@ -4,13 +4,16 @@
  * Nothing copyrighted is bundled. A record is one of:
  *  - 'procedural': one of 12 original loops synthesised here (exact BPM, parody titles);
  *  - 'library':    "pressed" for free from a file in the player's own Radio library;
- *  - 'drop':       a file the player put in `src/assets/records/` (their own licensed audio; see docs/RECORDS.md).
+ *  - 'drop':       a file the player put in `src/assets/records/` (their own licensed audio; see docs/RECORDS.md);
+ *  - 'archive':    a REAL free recording (public domain) with a parody sleeve, streamed from `public/records/` on demand
+ *                  (hosted build only; src/game/archiveRecords.ts).
  *
  * `synthRecord` is pure (no Web Audio), so it runs in tests. `RecordSource` turns a record into an AudioBuffer.
  */
 import { Rng } from '@/core/Rng';
+import { archiveUrl } from './archiveRecords';
 
-export type RecordKind = 'procedural' | 'library' | 'drop';
+export type RecordKind = 'procedural' | 'library' | 'drop' | 'archive';
 export type RecordGenre = 'hiphop' | 'house' | 'disco' | 'dub' | 'trap' | 'jazz' | 'techno' | 'breaks' | 'electro';
 
 export interface RecordDef {
@@ -25,13 +28,18 @@ export interface RecordDef {
   /** Cover colours (CSS), sleeve background and label. */
   colors: [string, string];
   kind: RecordKind;
-  /** library: the Radio library track id. drop: the file key. */
+  /** library: the Radio library track id. drop: the file key. archive: the clip name (and the liner note key). */
   ref?: string;
+  /** archive: false when the old recording's tempo drifts or has no steady pulse ("not beat-matched": the decks say free tempo). */
+  beatMatched?: boolean;
+  /** archive: the invented sleeve credits (the true credits are the liner note, see archiveRecords.ts). */
+  rarity?: string; year?: number; label?: string; cat?: string; sleeve?: string;
 }
 
 /** Default tempo per genre, used for files whose tempo has not been measured. */
 export const GENRE_BPM: Record<string, number> = {
   hiphop: 90, house: 124, disco: 112, dub: 72, trap: 140, jazz: 96, techno: 130, breaks: 134, electro: 128,
+  ragtime: 100, blues: 90, gospel: 80, islands: 100,
 };
 
 export function defaultBpm(genre: string): number { return GENRE_BPM[genre] ?? 120; }
@@ -286,19 +294,38 @@ export interface BufferContext {
 /** Resolves blob URLs for library records (Radio library tracks live only for the session). */
 export type UrlResolver = (def: RecordDef) => string | undefined;
 
+/** Decoded archive clips kept at once: two decks and the shop preview. Older ones are released (phone memory). */
+export const ARCHIVE_KEEP = 3;
+
 export class RecordSource {
   private readonly cache = new Map<string, Promise<AudioBuffer | null>>();
+  private readonly archiveOrder: string[] = [];
   constructor(private readonly ctx: BufferContext, private readonly resolve: UrlResolver = () => undefined,
-    private readonly fetcher: (url: string) => Promise<ArrayBuffer> = async (u) => (await fetch(u)).arrayBuffer()) {}
+    private readonly fetcher: (url: string) => Promise<ArrayBuffer> = async (u) => { const r = await fetch(u); if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.arrayBuffer(); }) {}
 
-  /** True when the record can be played right now (procedural, or its file is loaded this session). */
-  available(def: RecordDef): boolean { return def.kind === 'procedural' || !!this.resolve(def); }
+  /** True when the record can be played right now (procedural, an archive clip to fetch, or its file is loaded this session). */
+  available(def: RecordDef): boolean { return def.kind === 'procedural' || def.kind === 'archive' || !!this.resolve(def); }
 
-  /** The decoded audio, or null if the file is gone. Cached per record id. */
+  /** The decoded audio, or null if the file is gone. Cached per record id (archive clips: the last ARCHIVE_KEEP only). */
   load(def: RecordDef): Promise<AudioBuffer | null> {
     let p = this.cache.get(def.id);
-    if (!p) { p = this.build(def); this.cache.set(def.id, p); }
+    if (!p) {
+      p = this.build(def); this.cache.set(def.id, p);
+      if (def.kind === 'archive') this.trackArchive(def.id, p);
+    } else if (def.kind === 'archive') this.touchArchive(def.id);
     return p;
+  }
+
+  /** Decoded archive clips currently held (for tests and the memory probe). */
+  get archiveHeld(): number { return this.archiveOrder.length; }
+
+  private touchArchive(id: string): void { const i = this.archiveOrder.indexOf(id); if (i >= 0) { this.archiveOrder.splice(i, 1); this.archiveOrder.push(id); } }
+
+  private trackArchive(id: string, p: Promise<AudioBuffer | null>): void {
+    this.archiveOrder.push(id);
+    // a failed fetch must not stick: the next preview tries again
+    void p.then((b) => { if (!b && this.cache.get(id) === p) { this.cache.delete(id); const i = this.archiveOrder.indexOf(id); if (i >= 0) this.archiveOrder.splice(i, 1); } });
+    while (this.archiveOrder.length > ARCHIVE_KEEP) { const old = this.archiveOrder.shift()!; this.cache.delete(old); }
   }
 
   private async build(def: RecordDef): Promise<AudioBuffer | null> {
@@ -309,14 +336,15 @@ export class RecordSource {
         buf.getChannelData(0).set(r.left); buf.getChannelData(1).set(r.right);
         return buf;
       }
-      const url = this.resolve(def);
+      const url = def.kind === 'archive' ? (def.ref ? archiveUrl(def.ref) : undefined) : this.resolve(def);
       if (!url) return null;
       return await this.ctx.decodeAudioData(await this.fetcher(url));
     } catch { return null; }
   }
 
-  /** Measures a file record's tempo once decoded. */
+  /** Measures a file record's tempo once decoded. Archive records carry their measured (or defaulted) tempo already. */
   async measure(def: RecordDef): Promise<number> {
+    if (def.kind === 'archive') return def.bpm;
     const buf = await this.load(def);
     if (!buf || def.kind === 'procedural') return def.bpm;
     return estimateBpm(buf.getChannelData(0), buf.sampleRate, def.bpm);

@@ -235,7 +235,7 @@ export function resolveStorefront(lot: Lot, lotSpec?: SpecLike | null, cornerLot
   // a plain bodega, deli or liquor hint is only a store kind: the block gets the mix (corner grocery with a fruit stand, bakery,
   // coffee shop, bar) unless the shop is a hand-made POI
   const broad = shopType === 'bodega' || shopType === 'deli' || shopType === 'liquor';
-  if (!shopType || SHOP_TYPES[shopType].kind !== kind || (broad && !poi)) {
+  if (!shopType || SHOP_TYPES[shopType].kind !== kind || (broad && !poi && !authored)) {
     let cands = typesOfKind(kind).map((i) => ({ type: i.type, weight: i.weight }));
     if (kind === 'restaurant' && cuisine) cands = cands.filter((c) => SHOP_TYPES[c.type].cuisine === cuisine);
     shopType = cands.length ? pickShopType(cands, lot.id) : null;
@@ -1265,7 +1265,8 @@ export function buildGroundFloor(c: LotCtx, plan: StorefrontPlan, brick: THREE.M
       top: (mat, X0, X1, z0, z1, y, uv) => b.rect(mat, [Math.min(wx(X0), wx(X1)), y, z0], [Math.abs(X1 - X0), 0, 0], [0, 0, z1 - z0], { hint: [0, 1, 0], uvRect: uvOf(uv) }),
       across: (mat, X, y0, y1, z0, z1, uv, facing) => b.rect(mat, [wx(X), y0, z0], [0, 0, z1 - z0], [0, y1 - y0, 0], { hint: [facing, 0, 0], uvRect: uvOf(uv) }),
       metal: m.metal,
-      tile: { cream: kit.flat('#d9d2bd', 0.45), green: kit.flat('#25392f', 0.45), black: kit.flat('#1b1d20', 0.45), navy: kit.flat('#1f2c44', 0.45) },
+      // only materials this lot already uses (its own tile colour, metal): dressing must not add a draw call to any cell
+      tile: { cream: tileMat, green: tileMat, black: m.metal, navy: tileMat },
       stickers: stickerMat,
       uv: (k) => kit.stickerUv(k),
     });

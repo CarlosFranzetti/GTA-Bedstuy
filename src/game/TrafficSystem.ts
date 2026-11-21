@@ -143,15 +143,20 @@ export const CARS2_TRAFFIC_SHARE: Readonly<Record<string, number>> = {
   wagon: 0.025, bigsuv: 0.02, minitruck: 0.018, panelvan: 0.015, taxivan: 0.02, limo: 0.006, classic: 0.012, donk: 0.008, copsuv: 0.004, convertible: 0.01, stepvan: 0.01, icecream: 0.004,
 };
 /** Parked-car multiplier on a type's share (default 1): old cars and wagons are kerb cars, a limo or a police SUV is rarely left on a street. */
-export const PARK_WEIGHT: Readonly<Record<string, number>> = { classic: 2.5, donk: 2.5, wagon: 1.6, minitruck: 1.4, taxivan: 0.4, limo: 0.5, copsuv: 0.4, exotic: 0.5, icecream: 1.5, convertible: 1.3 };
+export const PARK_WEIGHT: Readonly<Record<string, number>> = { classic: 2.5, donk: 2.5, wagon: 1.6, minitruck: 1.4, taxivan: 0.4, limo: 0.5, copsuv: 0.4, exotic: 0.5, icecream: 1.5, convertible: 1.3,
+  hearse: 0.3, livery: 0.6, schoolbus: 0.2, towtruck: 0.4, flatbed: 0.5, foodtruck: 0.8, sweeper: 0.1, bucket: 0.2 };
+/** CARS4: share of all traffic per work and service type (about 3.7 % together; not part of the CARS14 + CARS2 25 % sum in cars2.test). */
+export const CARS4_TRAFFIC_SHARE: Readonly<Record<string, number>> = {
+  hearse: 0.003, livery: 0.008, schoolbus: 0.003, towtruck: 0.005, flatbed: 0.005, foodtruck: 0.006, sweeper: 0.003, bucket: 0.004,
+};
 /**
  * Types kept out of the MOVING mix (they still park). The 7.8 m limo crawls a left turn at about 1 m/s with its tail
  * across the box, so cross traffic released on green drives into it (two hard impacts in two 5-minute seeds, both with
  * the limo; 2 limos spawned in all). Its turning circle is wider than the 14 m boxes of the street grid.
  */
-const NOT_MOVING: ReadonlySet<string> = new Set(['limo']);
+const NOT_MOVING: ReadonlySet<string> = new Set(['limo', 'schoolbus']); // schoolbus (12 m): swings 4.6 m wide on the grid's 14 m left turn (long-vehicle-turns), so it only parks, until its turn is tuned
 function cumulative(parked: boolean): ReadonlyArray<readonly [VehicleType, number]> {
-  const extra: [string, number][] = [...Object.entries(CARS14_TRAFFIC_SHARE), ...Object.entries(CARS2_TRAFFIC_SHARE)];
+  const extra: [string, number][] = [...Object.entries(CARS14_TRAFFIC_SHARE), ...Object.entries(CARS2_TRAFFIC_SHARE), ...Object.entries(CARS4_TRAFFIC_SHARE)];
   const baseShare = BASE_MIX.map(([t, e], k) => [t, e - (k ? BASE_MIX[k - 1][1] : 0)] as [VehicleType, number]);
   const baseTotal = BASE_MIX[BASE_MIX.length - 1][1];
   const scale = (1 - extra.reduce((a, [, w]) => a + w, 0)) / baseTotal;
@@ -704,7 +709,7 @@ export class TrafficSystem {
     for (const [t, edge] of moving ? TRAFFIC_MIX : PARKED_MIX) {
       if (r >= edge) continue;
       // buses, refuse trucks and ambulances only drive, they are never parked at a kerb
-      return !moving && (t === 'bus' || t === 'garbage' || t === 'ambulance') ? 'hatch' : t;
+      return !moving && (t === 'bus' || t === 'garbage' || t === 'ambulance' || t === 'schoolbus' || t === 'sweeper') ? 'hatch' : t;
     }
     return 'sedan';
   }

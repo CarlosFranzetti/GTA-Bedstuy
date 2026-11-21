@@ -9,6 +9,9 @@
 import { Inventory } from '@/game/Inventory';
 import { PREVIEW_SECONDS } from '@/game/DjAudio';
 import { pressLibraryTrack, guessGenre, type RecordDef, type RecordSource } from '@/game/records';
+import { CRATES, RARITY_LABEL, archiveStock, type Crate, type Rarity } from '@/game/archiveRecords';
+import { linerNote } from './LinerNote';
+import { sleeveElement } from './sleeve';
 import { isCloseKey, isConfirmKey, navDirOf, releasePointerLock, setPanelClass, type NavDir } from './panelKeys';
 import './shop.css';
 
@@ -27,6 +30,8 @@ export interface ShopDeps {
   libraryTracks?: () => PressableTrack[];
   /** Free records from the drop folder. */
   dropRecords?: readonly RecordDef[];
+  /** The archive crate: real free recordings under parody sleeves. Default: the hosted build's crate (none in the single-file build). */
+  archive?: readonly RecordDef[];
   onToggle?: (open: boolean) => void;
   /** Release the mouse capture (pointer lock) on open so the buttons can be clicked. Needs Menu to ignore the unlock. */
   releasePointerLock?: boolean;
@@ -40,7 +45,8 @@ export const BUY_CONFIRM_MARGIN = 10;
 export type BuyOutcome = 'ok' | 'owned' | 'poor';
 type Tab = 'bins' | 'crate' | 'press';
 const TABS: readonly Tab[] = ['bins', 'crate', 'press'];
-interface Row { el: HTMLElement; primary?: () => void; secondary?: () => void }
+type CrateFilter = 'all' | 'synth' | Crate;
+interface Row { el: HTMLElement; primary?: () => void; secondary?: () => void; def?: RecordDef }
 
 export class ShopUi {
   readonly root: HTMLElement;
@@ -50,6 +56,9 @@ export class ShopUi {
   private readonly closeBtn: HTMLButtonElement;
   private readonly tabs = new Map<Tab, HTMLButtonElement>();
   private tab: Tab = 'bins';
+  private crate: CrateFilter = 'all';
+  /** The record whose liner note is open, if any. */
+  private liner: RecordDef | null = null;
   private opened = false;
   private previewing: string | null = null;
   /** Keyboard / gamepad selection: 0..rows.length-1 are cards, rows.length is the Close button. */
@@ -88,7 +97,7 @@ export class ShopUi {
     this.status.setAttribute('role', 'status'); this.status.setAttribute('aria-live', 'polite');
     const foot = this.el('div', 'shop-foot');
     const hint = this.el('span', 'shop-hint');
-    hint.textContent = 'W/S select · Q / E tabs · Enter or F buy · V preview · Esc or X close';
+    hint.textContent = 'W/S select · Q / E tabs · C crate · L liner note · Enter or F buy · V preview · Esc or X close';
     this.closeBtn = this.btn('Close', 'shop-btn shop-close', () => this.close());
     foot.append(this.status, hint, this.closeBtn);
     panel.append(head, nav, this.body, foot);
@@ -103,7 +112,7 @@ export class ShopUi {
 
   open(): void {
     if (this.opened) return;
-    this.opened = true; this.root.hidden = false; this.say('Sleeves are $12 to $25. Preview plays 20 seconds.');
+    this.opened = true; this.root.hidden = false; this.say(this.archiveList().length ? 'Sleeves $11 to $38. Preview plays 20 seconds. L opens the liner note.' : 'Sleeves are $12 to $25. Preview plays 20 seconds.');
     this.armed = null;
     this.sel = this.firstBuyableRow();
     this.render();
@@ -117,7 +126,7 @@ export class ShopUi {
 
   close(): void {
     if (!this.opened) return;
-    this.opened = false; this.root.hidden = true; this.stopPreview();
+    this.opened = false; this.liner = null; this.root.hidden = true; this.stopPreview();
     this.doc.removeEventListener('keydown', this.keyHandler, true);
     this.doc.removeEventListener('keyup', this.keyUpHandler, true);
     setPanelClass(this.doc, 'shop-open', false);
@@ -138,7 +147,7 @@ export class ShopUi {
       case 'left': this.setTab(TABS[(TABS.indexOf(this.tab) + TABS.length - 1) % TABS.length]); break;
       case 'right': this.setTab(TABS[(TABS.indexOf(this.tab) + 1) % TABS.length]); break;
       case 'confirm': if (this.sel >= n) this.close(); else this.rows[this.sel]?.primary?.(); break;
-      case 'back': if (this.pendingConfirm) { this.armed = null; this.say('Cancelled.'); } else this.close(); break;
+      case 'back': if (this.liner) this.closeLiner(); else if (this.pendingConfirm) { this.armed = null; this.say('Cancelled.'); } else this.close(); break;
     }
   }
 
@@ -155,9 +164,34 @@ export class ShopUi {
 
   private now(): number { return Date.now(); }
 
+  /** Everything on sale: synthesised originals, then the archive crate. */
+  private sold(): RecordDef[] { return [...this.d.stock, ...this.archiveList()]; }
+  private archiveList(): readonly RecordDef[] { return this.d.archive ?? archiveStock(); }
+
+  /** What the Bins tab lists under the current crate filter. */
+  private binList(): RecordDef[] {
+    const arc = this.archiveList();
+    if (this.crate === 'synth') return [...this.d.stock, ...(this.d.dropRecords ?? [])];
+    if (this.crate === 'all') return [...this.d.stock, ...arc, ...(this.d.dropRecords ?? [])];
+    return arc.filter((r) => r.genre === this.crate);
+  }
+
+  /** Opens or closes the liner note of the selected record (key L). */
+  linerSelected(): void { if (this.liner) { this.closeLiner(); return; } const d = this.rows[this.sel]?.def; if (d) this.openLiner(d); }
+  openLiner(def: RecordDef): void { this.liner = def; this.armed = null; this.render(); this.say('Liner note: the real credits behind the sleeve. Esc to go back.'); }
+  closeLiner(): void { this.liner = null; this.render(); }
+  get linerOpen(): boolean { return this.liner !== null; }
+
+  /** C key: next crate (All, Synth originals, then the archive crates that exist). */
+  cycleCrate(): void {
+    const ids: CrateFilter[] = ['all', 'synth', ...CRATES.filter((c) => this.archiveList().some((r) => r.genre === c.id)).map((c) => c.id)];
+    this.crate = ids[(ids.indexOf(this.crate) + 1) % ids.length]; this.liner = null; this.sel = 0; this.armed = null; this.render();
+  }
+  get crateFilter(): string { return this.crate; }
+
   /** Index of the first bin row the player can still buy or take; 0 when none. */
   private firstBuyableRow(): number {
-    const list = [...this.d.stock, ...(this.d.dropRecords ?? [])];
+    const list = this.binList();
     const i = list.findIndex((def) => !this.d.inventory.hasRecord(def.id));
     return i < 0 ? 0 : i;
   }
@@ -171,6 +205,8 @@ export class ShopUi {
     if (isCloseKey(e)) { if (!e.repeat) this.navigate('back'); }
     else if (isConfirmKey(e)) { if (!e.repeat) this.navigate('confirm'); }
     else if (e.code === 'KeyV') { if (!e.repeat) this.previewSelected(); }
+    else if (e.code === 'KeyL') { if (!e.repeat) this.linerSelected(); }
+    else if (e.code === 'KeyC') { if (!e.repeat && this.tab === 'bins') this.cycleCrate(); }
     else if (e.code === 'KeyQ') { if (!e.repeat) this.navigate('left'); }
     else if (e.code === 'KeyE') { if (!e.repeat) this.navigate('right'); }
     else {
@@ -180,7 +216,7 @@ export class ShopUi {
     if (used) { e.preventDefault(); e.stopPropagation(); }
   }
 
-  private setTab(t: Tab): void { this.tab = t; this.armed = null; this.sel = t === 'bins' ? this.firstBuyableRow() : 0; this.render(); }
+  private setTab(t: Tab): void { this.tab = t; this.liner = null; this.armed = null; this.sel = t === 'bins' ? this.firstBuyableRow() : 0; this.render(); }
 
   private applySel(): void {
     this.sel = Math.max(0, Math.min(this.rows.length, this.sel));
@@ -202,7 +238,7 @@ export class ShopUi {
   // ------------------------------------------------------------ actions (also used by tests)
 
   buy(id: string): BuyOutcome {
-    const def = this.d.stock.find((r) => r.id === id);
+    const def = this.sold().find((r) => r.id === id);
     if (!def) return 'owned';
     const r = this.d.inventory.buy(def);
     if (r === 'ok') { this.say(`Bought "${def.title}" for $${def.price}.`); this.d.events?.emit('shop:bought', { recordId: def.id, price: def.price, shop: 'wax-deli' }); }
@@ -241,11 +277,11 @@ export class ShopUi {
   }
 
   async preview(id: string): Promise<boolean> {
-    const def = this.d.stock.find((r) => r.id === id) ?? this.d.inventory.getRecord(id);
+    const def = this.sold().find((r) => r.id === id) ?? this.d.inventory.getRecord(id);
     if (!def || !this.d.source || !this.d.preview) { this.say('The listening station is out of order (no audio yet: click the game once).'); return false; }
     this.stopPreview();
     const buf = await this.d.source.load(def);
-    if (!buf) { this.say('That file is not loaded this session. Re-add it in the Radio library.'); return false; }
+    if (!buf) { this.say(def.kind === 'archive' ? 'Could not fetch that clip (offline?). Try again.' : 'That file is not loaded this session. Re-add it in the Radio library.'); return false; }
     this.previewing = id;
     this.d.preview.play(buf, () => { this.previewing = null; this.render(); });
     this.say(`Previewing "${def.title}" (${PREVIEW_SECONDS} s)...`);
@@ -266,8 +302,15 @@ export class ShopUi {
     for (const [id, b] of this.tabs) { b.classList.toggle('on', id === this.tab); b.setAttribute('aria-pressed', String(id === this.tab)); }
     this.body.textContent = '';
     this.rows = [];
+    if (this.liner) {
+      this.body.appendChild(linerNote(this.doc, this.liner, () => this.closeLiner()));
+      this.updateCount();
+      return;
+    }
     if (this.tab === 'bins') {
-      for (const def of [...this.d.stock, ...(this.d.dropRecords ?? [])]) {
+      this.crateBar();
+      this.note('Your own music: press files from your Radio library (third tab) or drop them in src/assets/records/ before building. Free, and they play on the decks.');
+      for (const def of this.binList()) {
         const owned = this.d.inventory.hasRecord(def.id);
         const take = (): void => { this.d.inventory.addRecord(def); this.say(`Took "${def.title}".`); };
         this.body.appendChild(this.card(def, [
@@ -275,9 +318,9 @@ export class ShopUi {
           owned ? this.label('Owned') : def.price === 0
             ? this.btn('Take (free)', 'shop-btn shop-primary', take)
             : this.btn(`Buy $${def.price}`, 'shop-btn shop-primary', () => { this.buy(def.id); }),
-        ], def.price === 0 ? 'Free' : `$${def.price}`, {
+        ], def.price === 0 ? 'Free' : (def.rarity ? `${RARITY_LABEL[def.rarity as Rarity] ?? def.rarity} \u00b7 ` : '') + `$${def.price}`, {
           primary: owned ? () => this.say('You already own that one.') : def.price === 0 ? take : () => this.keyBuy(def),
-          secondary: () => this.togglePreview(def.id),
+          secondary: () => this.togglePreview(def.id), def,
         }));
       }
     } else if (this.tab === 'crate') {
@@ -287,7 +330,7 @@ export class ShopUi {
         this.body.appendChild(this.card(def, [
           this.btn(this.previewing === def.id ? 'Stop' : 'Preview', 'shop-btn', () => this.togglePreview(def.id)),
           this.btn(`Sell $${this.d.inventory.sellPrice(def)}`, 'shop-btn', () => { this.sell(def.id); }),
-        ], `${Math.round(def.bpm)} BPM`, { primary: () => this.keySell(def), secondary: () => this.togglePreview(def.id) }));
+        ], def.beatMatched === false ? 'free tempo' : `${Math.round(def.bpm)} BPM`, { primary: () => this.keySell(def), secondary: () => this.togglePreview(def.id), def }));
       }
     } else {
       const tracks = this.d.libraryTracks?.() ?? [];
@@ -298,24 +341,36 @@ export class ShopUi {
         const def = pressLibraryTrack(t, guessGenre(t.path ?? t.name));
         this.body.appendChild(this.card(def, [
           this.d.inventory.hasRecord(id) ? this.label('Pressed') : this.btn('Press (free)', 'shop-btn shop-primary', () => { this.press(t); }),
-        ], 'Your file', { primary: () => { this.press(t); } }));
+        ], 'Your file', { primary: () => { this.press(t); }, def }));
       }
     }
     this.applySel();
   }
 
+  private crateBar(): void {
+    const arc = this.archiveList();
+    if (arc.length === 0) return;
+    const bar = this.el('div', 'shop-crates');
+    bar.setAttribute('role', 'group'); bar.setAttribute('aria-label', 'Crates');
+    const chips: Array<[CrateFilter, string]> = [['all', 'All'], ['synth', 'Synth originals'], ...CRATES.filter((c) => arc.some((r) => r.genre === c.id)).map((c): [CrateFilter, string] => [c.id, c.label])];
+    for (const [id, text] of chips) {
+      const b = this.btn(text, 'shop-chip' + (id === this.crate ? ' on' : ''), () => { this.crate = id; this.sel = 0; this.armed = null; this.render(); });
+      b.setAttribute('aria-pressed', String(id === this.crate)); bar.appendChild(b);
+    }
+    this.body.appendChild(bar);
+  }
+
   private card(def: RecordDef, actions: HTMLElement[], tag: string, keys: Omit<Row, 'el'> = {}): HTMLElement {
+    if (def.kind === 'archive' || def.kind === 'procedural') actions.unshift(this.btn('Liner', 'shop-btn', () => this.openLiner(def)));
     const c = this.el('div', 'shop-card');
     const idx = this.rows.length;
     this.rows.push({ el: c, ...keys });
     c.addEventListener('pointerdown', () => { this.sel = idx; this.applySel(); });
     const cover = this.el('div', 'shop-cover');
-    cover.style.background = `linear-gradient(135deg, ${def.colors[0]}, ${def.colors[1]})`;
-    const disc = this.el('div', 'shop-disc'); disc.style.background = `radial-gradient(circle at center, ${def.colors[0]} 0 14%, #0a0a0a 15% 100%)`;
-    cover.appendChild(disc);
+    cover.appendChild(sleeveElement(this.doc, def));
     const meta = this.el('div', 'shop-meta');
     const t = this.el('div', 'shop-rt'); t.textContent = def.title;
-    const a = this.el('div', 'shop-ra'); a.textContent = `${def.artist} · ${def.genre} · ${Math.round(def.bpm)} BPM`;
+    const a = this.el('div', 'shop-ra'); a.textContent = `${def.artist} · ${def.genre} · ` + (def.beatMatched === false ? 'free tempo' : `${Math.round(def.bpm)} BPM`);
     const p = this.el('div', 'shop-price'); p.textContent = tag;
     meta.append(t, a, p);
     const act = this.el('div', 'shop-actions'); act.append(...actions);

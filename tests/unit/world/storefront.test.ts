@@ -189,7 +189,7 @@ describe('awning and sign textures are sized from the real geometry', () => {
         else expect(STORE_SIGNS[kind]).toContain(s.signCopy);
         // the trade copy classifies as the same art archetype as the shop
         const a = classifyArchetype(s.signCopy);
-        if (kind === 'bodega' || kind === 'deli') expect(a).toBe('bodega');
+        if (!s.shopType && (kind === 'bodega' || kind === 'deli')) expect(a).toBe('bodega');
         if (kind === 'barber') expect(a).toBe('barber');
         if (kind === 'restaurant') expect(['kitchen', 'pizza']).toContain(a);
         if (kind === 'liquor') expect(a).toBe('liquor');
@@ -278,7 +278,8 @@ describe('archetype to layout', () => {
         const s = resolveStorefront(lotOf(`n-${kind}-${i}`, 8, 15, false), { storefront: kind });
         expect(s.kind).toBe(kind);
         const art = classifyArchetype(s.name);
-        if (kind === 'bodega' || kind === 'deli') expect(art).toBe('bodega');
+        if (s.shopType) expect(art).toBe(SHOP_TYPES[s.shopType].archetype); // STORES2: the trade decides the art
+        else if (kind === 'bodega' || kind === 'deli') expect(art).toBe('bodega');
         if (kind === 'barber') expect(art).toBe('barber');
         if (kind === 'church') expect(art).toBe('church');
         if (kind === 'restaurant') expect(['kitchen', 'pizza']).toContain(art);

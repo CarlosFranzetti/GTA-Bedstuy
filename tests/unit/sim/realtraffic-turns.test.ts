@@ -33,6 +33,6 @@ describe('real map turn connectors', () => {
 
   it('no vehicle longer than MAX_REAL_VEHICLE_LENGTH is a normal car', () => {
     const longer = Object.values(VEHICLE_SPECS).filter((s) => s.length > MAX_REAL_VEHICLE_LENGTH).map((s) => s.type).sort();
-    expect(longer).toEqual(['bus', 'garbage']);
+    expect(longer).toEqual(['bus', 'garbage', 'schoolbus']); // CARS4 school bus: the real map runs it as a box truck like the others
   });
 });

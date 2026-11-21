@@ -11,6 +11,8 @@
  */
 import { DjGame, MAX_PITCH, type DeckId } from '@/game/DjGame';
 import { LOOP_BARS, type RecordSource } from '@/game/records';
+import { linerFor } from '@/game/archiveRecords';
+import { linerNote } from './LinerNote';
 import type { Inventory } from '@/game/Inventory';
 import { isCloseKey, isConfirmKey, navDirOf, releasePointerLock, setPanelClass, type NavDir } from './panelKeys';
 import './dj.css';
@@ -47,6 +49,7 @@ export class DjUi {
     title: HTMLElement; bpm: HTMLElement; pos: HTMLElement; pitch: HTMLInputElement; pitchLabel: HTMLElement;
     play: HTMLButtonElement; cue: HTMLButtonElement; nudgeDown: HTMLButtonElement; nudgeUp: HTMLButtonElement;
     dots: HTMLElement[]; select: HTMLSelectElement;
+    credit: HTMLElement; creditText: HTMLElement; liner: HTMLElement; linerFor: string;
   }> = [];
   private readonly raf: (fn: (t: number) => void) => number;
   private readonly caf: (id: number) => void;
@@ -187,7 +190,8 @@ export class DjUi {
     for (const id of [0, 1] as const) {
       const v = g.deck(id); const ui = this.decks[id];
       ui.title.textContent = v.record ? `${v.record.title} · ${v.record.artist}` : 'Empty deck';
-      ui.bpm.textContent = v.record ? `${v.bpm.toFixed(1)} BPM` : '--';
+      ui.bpm.textContent = v.record ? `${v.bpm.toFixed(1)} BPM${v.record.beatMatched === false ? ' · not beat-matched' : ''}` : '--';
+      this.paintCredit(ui, v.record ?? null);
       ui.pos.textContent = v.record ? `${Math.floor(v.pos / 60)}:${String(Math.floor(v.pos % 60)).padStart(2, '0')}` : '';
       ui.pitchLabel.textContent = `${v.pitch >= 0 ? '+' : ''}${(v.pitch * 100).toFixed(1)}%`;
       ui.play.textContent = v.playing ? 'PAUSE' : 'PLAY';
@@ -234,9 +238,28 @@ export class DjUi {
     const reset = this.btn('0%', 'dj-btn dj-small', () => { pitch.value = '0'; g.setPitch(id, 0); });
     const ctl = this.el('div', 'dj-ctl'); ctl.append(play, cue, nm, np);
     const pr = this.el('div', 'dj-pitchrow'); pr.append(pitch, pitchLabel, reset);
-    col.append(label, select, title, bpm, pos, dotRow, ctl, pr);
-    this.decks[id] = { title, bpm, pos, pitch, pitchLabel, play, cue, nudgeDown: nm, nudgeUp: np, dots, select };
+    const credit = this.el('div', 'dj-credit'); credit.hidden = true;
+    const creditText = this.el('span', 'dj-credit-text');
+    const liner = this.el('div', 'dj-liner'); liner.hidden = true;
+    const linerBtn = this.btn('Liner', 'dj-btn dj-small dj-linerbtn', () => { liner.hidden = !liner.hidden; });
+    credit.append(creditText, linerBtn);
+    col.append(label, select, title, credit, liner, bpm, pos, dotRow, ctl, pr);
+    this.decks[id] = { title, bpm, pos, pitch, pitchLabel, play, cue, nudgeDown: nm, nudgeUp: np, dots, select, credit, creditText, liner, linerFor: '' };
     return col;
+  }
+
+  /** The true credit of an archive record under the deck title, with a Liner button for the full note. */
+  private paintCredit(ui: DjUi['decks'][number], rec: { id: string; kind: 'procedural' | 'library' | 'drop' | 'archive'; ref?: string } | null): void {
+    const l = rec ? linerFor(rec as never) : undefined;
+    const key = l && rec ? rec.id : '';
+    if (ui.linerFor === key) return;
+    ui.linerFor = key; ui.liner.textContent = ''; ui.liner.hidden = true;
+    ui.credit.hidden = !l;
+    if (l && rec) {
+      ui.creditText.textContent = `Really: ${l.title}, ${l.performer}, ${l.year}`;
+      const def = this.d.inventory.getRecord(rec.id);
+      if (def) ui.liner.appendChild(linerNote(this.doc, def));
+    }
   }
 
   private refreshSelects(): void {

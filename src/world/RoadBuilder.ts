@@ -550,9 +550,8 @@ export function buildRoads(grid: GridModel, materials: IMaterialLibrary): { grou
       const t = rng.range(SEG_MARGIN, L - SEG_MARGIN);
       const lat = rng.range(-latMax, latMax);
       const c = { x: s.a.x + dir.x * t + right.x * lat, z: s.a.z + dir.z * t + right.z * lat };
-      decal('asphalt', 0, 'road-patches').push(
-        flatQuad(c.x, c.z, dir, rng.range(1.2, 2.4), rng.range(1.0, 2.0), Y_DECAL),
-      );
+      // SURFACES4: the asphalt shader paints its own patches, so the decal is dropped (one draw call fewer); the rng is still consumed
+      void c; rng.range(1.2, 2.4); rng.range(1.0, 2.0);
     }
 
     // crack lines, slightly off the road direction

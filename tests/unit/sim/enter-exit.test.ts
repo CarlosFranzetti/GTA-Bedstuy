@@ -75,7 +75,7 @@ describe('entering and exiting a car beside obstacles', () => {
     }
     expect(tested).toBeGreaterThanOrEqual(35);
     expect(failures).toEqual([]);
-  });
+  }, 180_000); // 40 real-world setups: over 30 s on a loaded 4-core box
 
   it('exit beside a parked car on the door side: the player is pushed clear, not stuck inside the other car', () => {
     const sim = new Sim();

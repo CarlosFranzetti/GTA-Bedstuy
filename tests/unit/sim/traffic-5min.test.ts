@@ -224,7 +224,7 @@ describe('full-density traffic, 5 simulated minutes on the real map (PRD 5.2)', 
   it('Q10-D1 (fixed by F12): AI-vs-AI collisions with closing speed >= 3 m/s stay below 3 per 5 minutes (seeds 7 + 21)', () => {
     for (const seed of SEEDS) {
       const hard = runs.get(seed)!.impacts.filter((i) => i.strength >= 3 && (i.aDriver === 'traffic' || i.aDriver === 'cop') && (i.bDriver === 'traffic' || i.bDriver === 'cop'));
-      expect(hard.length).toBeLessThan(3);
+      expect(hard.length, `seed ${seed}: ${JSON.stringify(hard)}`).toBeLessThan(3);
     }
   });
 

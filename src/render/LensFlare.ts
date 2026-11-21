@@ -128,20 +128,15 @@ export class SunFlare {
     };
 
     const glow = makeGlowTexture();
-    const hex = makeHexTexture();
-    const rainbow = makeRainbowTexture();
-    this.textures.push(glow, hex, rainbow);
+    this.textures.push(glow);
 
     const add = (tex: THREE.Texture, size: number, distance: number, color: string): void => {
       const element = new LensflareElement(tex, size, distance, new THREE.Color(color));
       this.specs.push({ element, base: new THREE.Color(color) });
       this.flare.addElement(element);
     };
-    add(glow, 520, 0, '#ffffff');
-    add(glow, 70, 0.55, '#ffd9a8');
-    add(hex, 80, 0.7, '#ffe6c8');
-    add(rainbow, 150, 0.85, '#ffffff');
-    add(hex, 55, 1.0, '#cfe0ff');
+    // Stoop Light: no lens flare (DIRECTION.md "Never"): no rainbow ring, no hexagon ghosts, only a soft warm sun glow on the sun.
+    add(glow, 420, 0, '#ffe2bd');
 
     this.object3d.add(this.flare);
     this.object3d.visible = false;
