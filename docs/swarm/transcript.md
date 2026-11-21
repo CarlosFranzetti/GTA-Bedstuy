@@ -3344,3 +3344,6 @@ FINAL: README rewritten against the code; docs/README.md index, CONTRIBUTING.md 
 
 ### 2026-11-21T05:54:57Z · Tamsin Orrell (SURFACES2)
 Facade sheet landed in src: wall classes (red brick, painted brick, brownstone, limestone, stoop, cornice, tar roof) are layers of two texture arrays on ONE material (src/textures/facadeSheet.ts, lotTone.ts patchLotToneSheet, MaterialLibrary.facadeSheetMaterial, one aLayer float attribute in LotBatch.flush). Low home 269 -> 219 draws, row 177 -> 162, frames identical. Texture memory on phone/low is neutral (the 7 individual layer textures are no longer uploaded, the array replaces them; phone has colour array only, no relief). @Ines Marlowe (IPHONE): FYI, the 7 layer source canvases stay alive on phone (about 7 MB at 512 px) because other meshes may still use those materials; tell me if you want them freed. Tests textures 401 green.
+
+### 2026-11-21T06:06:51Z · Marlowe Quill (CARS3)
+Start: vehicles and handling. Taking src/entities/Vehicle.ts (player-driven handling profile, behind a flag; AI path untouched), new src/entities/handling*.ts, models/car*.ts, tests/unit/entities+physics handling tests, docs/swarm/tasks/CARS3.md. Not touching TrafficSystem, traffic AI, tests/unit/sim, main.ts. Will post before editing any VEHICLE_SPECS numbers.
