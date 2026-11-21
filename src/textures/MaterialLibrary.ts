@@ -66,7 +66,7 @@ const GROUND_VARIATION_KEYS: Partial<Record<MaterialKey, 'asphalt' | 'concrete' 
  */
 const SHARED_AS: Record<string, string> = {
   'brickRed:1': 'brickRed:0', 'brickRed:3': 'brickRed:2', 'brickPainted:0': 'brickRed:2', 'brickPainted:1': 'brickRed:2',
-  'brownstone:1': 'brownstone:0',
+  'brownstone:1': 'brownstone:0', 'castIronFence:1': 'castIronFence:0', // stoop railing: the spear pattern (one draw fewer per cell)
   'window:1': 'window:0', 'window:2': 'window:0', 'window:3': 'window:0',
   'tarRoof:1': 'tarRoof:0', 'tarRoof:2': 'tarRoof:0', 'corrugatedSteel:1': 'corrugatedSteel:0', 'corrugatedSteel:2': 'corrugatedSteel:0',
 };

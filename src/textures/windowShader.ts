@@ -11,9 +11,11 @@
 import * as THREE from 'three';
 
 const WIN_VERT = `attribute vec4 aStyle;
-varying vec3 vWinSeed;`;
+varying vec3 vWinSeed;
+varying float vWinTrade;`;
 
 const WIN_FRAG_DECL = `varying vec3 vWinSeed;
+varying float vWinTrade;
 float gWinGlow = 0.0;
 vec3 gWinTone = vec3( 1.0 );
 float wnHash( vec2 p ) { p = fract( p * vec2( 123.34, 456.21 ) ); p += dot( p, p + 45.32 ); return fract( p.x * p.y ); }
@@ -121,7 +123,8 @@ export function patchWindow(m: THREE.MeshStandardMaterial): void {
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>\n${WIN_VERT}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
-vWinSeed = aStyle.xyz;`);
+vWinSeed = aStyle.xyz;
+vWinTrade = aStyle.w;`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${WIN_FRAG_DECL}`)
       .replace('#include <map_fragment>', `#include <map_fragment>\n${WIN_MAIN}`)
@@ -146,6 +149,9 @@ if ( vWinSeed.z > 0.002 ) {
   float wnB = wnHash( wnS.yx * 0.0571 + wnT * vec2( 2.9, 1.3 ) + 0.57 );
   float wnC = wnHash( wnS.xy * 0.0437 + wnT * vec2( 4.1, 2.3 ) + 0.91 );
   float wnD = wnHash( wnS.yx * 0.0319 + wnT * vec2( 3.3, 5.1 ) + 0.29 );
+  // REALBLOCKS: the trade of the shop (aStyle.w, 0 = unknown): 1 bodega 2 deli 3 kitchen 4 barber 5 hair and nails 6 laundromat 7 phones 8 liquor 9 cafe 10 plain 11 pharmacy
+  float wnTr = floor( vWinTrade * 255.0 + 0.5 );
+  if ( wnTr > 0.5 ) wnA = wnTr < 1.5 ? 0.1 : wnTr < 4.5 ? 0.44 : wnTr < 6.5 ? 0.7 : wnTr < 9.5 ? 0.55 : 0.9;
   float wnMask = texture2D( emissiveMap, vEmissiveMapUv ).r;
   vec2 wf = fract( vMapUv );
   vec2 gp = clamp( vec2( ( wf.x - 0.0195 ) / 0.9609, ( wf.y - 0.2 ) / 0.761 ), 0.0, 1.0 );
@@ -157,7 +163,88 @@ if ( vWinSeed.z > 0.002 ) {
   float wnBack = smoothstep( 0.42, 0.5, gp.y );
   wnIn += vec3( 0.04, 0.036, 0.03 ) * wnBack; // the back wall and ceiling are a little lighter than the floor
   float wnReflK = 0.35;
-  if ( wnA < 0.3 ) {
+  if ( wnTr > 1.5 && wnTr < 2.5 ) {
+    // deli: chip and drink shelves on the back wall, a glass meat case with trays, a menu board
+    float wnRw = floor( gp.y * 4.0 );
+    float wnRy2 = fract( gp.y * 4.0 );
+    float wnX2 = gp.x * 20.0 + wnRw * 2.3;
+    float wnH2 = wnHash( vec2( floor( wnX2 ), wnRw + wnB * 31.0 ) );
+    float wnPr = step( 0.5, gp.y ) * step( 0.15, wnH2 ) * step( abs( fract( wnX2 ) - 0.5 ), 0.36 ) * step( 0.1, wnRy2 ) * step( wnRy2, 0.45 + 0.4 * wnH2 );
+    vec3 wnPc2 = wnH2 < 0.35 ? vec3( 0.85, 0.15, 0.1 ) : wnH2 < 0.6 ? vec3( 0.95, 0.8, 0.15 ) : wnH2 < 0.8 ? vec3( 0.15, 0.4, 0.8 ) : vec3( 0.9, 0.88, 0.8 );
+    wnIn = mix( wnIn, pow( wnPc2, vec3( 2.2 ) ) * 0.8, wnPr * step( 0.72, gp.x ) + wnPr * step( gp.x, 0.72 ) * step( 0.42, gp.y ) );
+    float wnCs = step( 0.05, gp.x ) * step( gp.x, 0.68 ) * step( 0.08, gp.y ) * step( gp.y, 0.38 );
+    float wnTy = step( 0.5, fract( gp.x * 7.0 ) );
+    wnIn = mix( wnIn, mix( pow( vec3( 0.72, 0.3, 0.26 ), vec3( 2.2 ) ), pow( vec3( 0.85, 0.75, 0.55 ), vec3( 2.2 ) ), wnTy ) * 0.9, wnCs * step( gp.y, 0.26 ) );
+    wnIn = mix( wnIn, pow( vec3( 0.7, 0.78, 0.82 ), vec3( 2.2 ) ), wnCs * step( 0.26, gp.y ) * 0.45 );
+    float wnMb = step( 0.74, gp.x ) * step( gp.x, 0.96 ) * step( 0.2, gp.y ) * step( gp.y, 0.62 );
+    wnIn = mix( wnIn, pow( vec3( 0.08, 0.07, 0.06 ), vec3( 2.2 ) ) + vec3( 0.6, 0.55, 0.4 ) * step( 0.7, fract( gp.y * 18.0 ) ) * step( 0.78, gp.x ) * step( gp.x, 0.92 ) * 0.5, wnMb );
+    wnGl = wnPr * 0.7 + wnCs * 0.9 + wnMb * 0.5 + 0.2; wnLight = vec3( 1.0, 0.96, 0.82 ); wnLitP = 0.95; wnReflK = 0.28;
+  } else if ( wnTr > 2.5 && wnTr < 3.5 ) {
+    // takeout kitchen / pizza: a lit menu board over a steel counter, an oven glow, stools
+    float wnBd = step( 0.12, gp.x ) * step( gp.x, 0.62 ) * step( 0.55, gp.y ) * step( gp.y, 0.92 );
+    float wnLn = step( 0.55, fract( gp.y * 14.0 ) ) * step( 0.16, gp.x ) * step( gp.x, 0.2 + 0.4 * wnHash( vec2( floor( gp.y * 14.0 ), wnB * 9.0 ) ) );
+    wnIn = mix( wnIn, pow( vec3( 0.07, 0.06, 0.06 ), vec3( 2.2 ) ) + pow( vec3( 0.95, 0.85, 0.5 ), vec3( 2.2 ) ) * wnLn * 0.7, wnBd );
+    float wnPic = step( 0.66, gp.x ) * step( gp.x, 0.9 ) * step( 0.58, gp.y ) * step( gp.y, 0.9 );
+    wnIn = mix( wnIn, pow( vec3( 0.85, 0.5, 0.15 ), vec3( 2.2 ) ) * ( 0.7 + 0.5 * wnNoise( gp * 14.0 ) ), wnPic );
+    float wnCt = step( 0.0, gp.y ) * step( gp.y, 0.36 ) * step( 0.04, gp.x ) * step( gp.x, 0.78 );
+    wnIn = mix( wnIn, pow( vec3( 0.55, 0.57, 0.58 ), vec3( 2.2 ) ) * ( 0.8 + 0.3 * step( 0.5, fract( gp.x * 5.0 ) ) ), wnCt );
+    float wnOv = step( 0.8, gp.x ) * step( gp.x, 0.97 ) * step( 0.1, gp.y ) * step( gp.y, 0.5 );
+    wnIn = mix( wnIn, pow( vec3( 1.0, 0.45, 0.12 ), vec3( 2.2 ) ) * 0.8, wnOv * step( abs( gp.y - 0.3 ), 0.09 ) );
+    wnIn = mix( wnIn, pow( vec3( 0.2, 0.15, 0.12 ), vec3( 2.2 ) ), wnOv * 0.6 );
+    wnGl = wnBd * 0.9 + wnPic * 0.6 + wnCt * 0.5 + wnOv * 0.8 + 0.2; wnLight = vec3( 1.0, 0.82, 0.55 ); wnLitP = 0.93; wnReflK = 0.3;
+  } else if ( wnTr > 4.5 && wnTr < 5.5 ) {
+    // hair and nails: shelves of small bottles and wig heads on the wall, a mirror and a chair
+    float wnRw = floor( gp.y * 6.0 );
+    float wnRy2 = fract( gp.y * 6.0 );
+    float wnX2 = gp.x * 22.0 + wnRw * 1.7;
+    float wnH2 = wnHash( vec2( floor( wnX2 ), wnRw + wnB * 23.0 ) );
+    float wnBt = step( 0.45, gp.y ) * step( 0.18, wnH2 ) * step( abs( fract( wnX2 ) - 0.5 ), 0.26 ) * step( 0.12, wnRy2 ) * step( wnRy2, 0.6 + 0.25 * wnH2 );
+    vec3 wnBc = wnH2 < 0.3 ? vec3( 0.85, 0.35, 0.6 ) : wnH2 < 0.5 ? vec3( 0.55, 0.3, 0.75 ) : wnH2 < 0.7 ? vec3( 0.95, 0.9, 0.85 ) : vec3( 0.2, 0.15, 0.18 );
+    wnIn = mix( wnIn, pow( wnBc, vec3( 2.2 ) ) * 0.85, wnBt * step( gp.x, 0.55 ) );
+    float wnMr = step( 0.58, gp.x ) * step( gp.x, 0.95 ) * step( 0.36, gp.y ) * step( gp.y, 0.92 );
+    wnIn = mix( wnIn, pow( vec3( 0.6, 0.62, 0.66 ), vec3( 2.2 ) ), wnMr * 0.8 );
+    float wnHd = step( length( ( gp - vec2( 0.2 + 0.1 * wnC, 0.3 ) ) * vec2( 1.0, 1.4 ) ), 0.07 ) * step( gp.x, 0.5 );
+    wnIn = mix( wnIn, pow( vec3( 0.12, 0.08, 0.07 ), vec3( 2.2 ) ), wnHd );
+    float wnChr = step( 0.1, gp.y ) * step( gp.y, 0.4 ) * step( abs( gp.x - 0.76 ), 0.07 );
+    wnIn = mix( wnIn, pow( vec3( 0.55, 0.15, 0.3 ), vec3( 2.2 ) ), wnChr );
+    wnGl = wnBt * 0.7 + wnMr * 0.9 + 0.22; wnLight = vec3( 1.0, 0.86, 0.94 ); wnLitP = 0.9; wnReflK = 0.4;
+  } else if ( wnTr > 6.5 && wnTr < 7.5 ) {
+    // phone repair: a wall grid of cases and cables, a glass counter, a lit repair bench
+    float wnGx = fract( gp.x * 18.0 );
+    float wnGy = fract( gp.y * 7.0 );
+    float wnHc = wnHash( vec2( floor( gp.x * 18.0 ), floor( gp.y * 7.0 ) + wnB * 17.0 ) );
+    float wnCsx = step( 0.5, gp.y ) * step( 0.12, wnGx ) * step( wnGx, 0.88 ) * step( 0.1, wnGy ) * step( wnGy, 0.85 ) * step( 0.1, wnHc );
+    vec3 wnCc = wnHc < 0.3 ? vec3( 0.12, 0.6, 0.85 ) : wnHc < 0.5 ? vec3( 0.9, 0.2, 0.45 ) : wnHc < 0.7 ? vec3( 0.95, 0.8, 0.2 ) : wnHc < 0.85 ? vec3( 0.2, 0.2, 0.24 ) : vec3( 0.85, 0.88, 0.9 );
+    wnIn = mix( wnIn, pow( wnCc, vec3( 2.2 ) ) * 0.85, wnCsx );
+    float wnCn = step( 0.06, gp.x ) * step( gp.x, 0.9 ) * step( 0.1, gp.y ) * step( gp.y, 0.34 );
+    wnIn = mix( wnIn, pow( vec3( 0.6, 0.7, 0.76 ), vec3( 2.2 ) ) * ( 0.8 + 0.4 * step( 0.5, fract( gp.x * 12.0 ) ) ), wnCn * 0.55 );
+    wnGl = wnCsx * 0.9 + wnCn * 0.8 + 0.2; wnLight = vec3( 0.86, 0.94, 1.0 ); wnLitP = 0.97; wnReflK = 0.32;
+  } else if ( wnTr > 7.5 && wnTr < 8.5 ) {
+    // liquor: a wall of bottles in tiers (green, amber, clear), a price strip along every shelf
+    float wnRw = floor( gp.y * 5.0 );
+    float wnRy2 = fract( gp.y * 5.0 );
+    float wnX2 = gp.x * 30.0 + wnRw * 4.1;
+    float wnH2 = wnHash( vec2( floor( wnX2 ), wnRw + wnB * 29.0 ) );
+    float wnNeck = step( 0.62, wnRy2 ) * step( abs( fract( wnX2 ) - 0.5 ), 0.12 );
+    float wnBody2 = step( wnRy2, 0.64 ) * step( abs( fract( wnX2 ) - 0.5 ), 0.3 );
+    float wnBo = step( 0.1, wnRy2 ) * step( wnRy2, 0.88 ) * step( 0.1, wnH2 ) * max( wnNeck, wnBody2 );
+    vec3 wnBc = wnH2 < 0.3 ? vec3( 0.1, 0.45, 0.22 ) : wnH2 < 0.55 ? vec3( 0.7, 0.4, 0.08 ) : wnH2 < 0.75 ? vec3( 0.8, 0.85, 0.85 ) : wnH2 < 0.9 ? vec3( 0.5, 0.1, 0.12 ) : vec3( 0.1, 0.14, 0.4 );
+    wnIn = mix( wnIn, pow( wnBc, vec3( 2.2 ) ) * ( 0.6 + 0.5 * step( 0.5, fract( wnX2 ) ) ), wnBo );
+    wnIn = mix( wnIn, pow( vec3( 0.5, 0.48, 0.42 ), vec3( 2.2 ) ), step( wnRy2, 0.07 ) );
+    float wnPl = step( 0.06, gp.x ) * step( gp.x, 0.94 ) * step( 0.0, gp.y ) * step( gp.y, 0.2 );
+    wnIn = mix( wnIn, wnIn * 0.5 + vec3( 0.02 ), wnPl * 0.35 );
+    wnGl = wnBo * 0.8 + 0.18; wnLight = wnC < 0.5 ? vec3( 1.0, 0.8, 0.55 ) : vec3( 0.95, 0.97, 1.0 ); wnLitP = 0.9; wnReflK = 0.3;
+  } else if ( wnTr > 10.5 ) {
+    // pharmacy: bright white aisles, tall shelf bays with coloured boxes, a back counter
+    float wnAi = step( 0.5, fract( gp.x * 6.0 ) );
+    float wnRw = floor( gp.y * 6.0 );
+    float wnH2 = wnHash( vec2( floor( gp.x * 24.0 ), wnRw + wnB * 19.0 ) );
+    float wnBx = step( 0.15, wnH2 ) * step( 0.12, fract( gp.y * 6.0 ) ) * step( fract( gp.y * 6.0 ), 0.78 ) * step( abs( fract( gp.x * 24.0 ) - 0.5 ), 0.36 );
+    vec3 wnBc = wnH2 < 0.3 ? vec3( 0.2, 0.65, 0.5 ) : wnH2 < 0.55 ? vec3( 0.9, 0.9, 0.92 ) : wnH2 < 0.8 ? vec3( 0.3, 0.5, 0.85 ) : vec3( 0.9, 0.5, 0.35 );
+    wnIn = mix( wnIn, pow( vec3( 0.78, 0.8, 0.8 ), vec3( 2.2 ) ), 0.6 );
+    wnIn = mix( wnIn, pow( wnBc, vec3( 2.2 ) ) * 0.9, wnBx * ( 0.5 + 0.5 * wnAi ) );
+    wnGl = 0.7 + wnBx * 0.4; wnLight = vec3( 0.92, 1.0, 0.98 ); wnLitP = 0.97; wnReflK = 0.25;
+  } else if ( wnA < 0.3 ) {
     // bodega: shelves of product shapes
     float wnRows = 5.0;
     float wnR = floor( gp.y * wnRows );
@@ -242,7 +329,8 @@ export function patchShopGlass(m: THREE.MeshStandardMaterial): void {
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>\n${WIN_VERT}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
-vWinSeed = aStyle.xyz;`);
+vWinSeed = aStyle.xyz;
+vWinTrade = aStyle.w;`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${WIN_FRAG_DECL}`)
       .replace('#include <map_fragment>', `#include <map_fragment>\n${SHOP_MAIN}`)

@@ -60,7 +60,8 @@ export function buildBrownstone(c: LotCtx, opts: BrownstoneOpts): RowResult {
 
   const bays = bayCount(W, spec);
   const xs = bayCentres(W, bays);
-  const doorBay = rng.chance(0.5) ? 0 : bays - 1;
+  const doorRoll = rng.chance(0.5); // always drawn: the random stream must not change when the data decides
+  const doorBay = (spec?.doorLeft ?? doorRoll) ? 0 : bays - 1;
   const entryBay = doorBay === 0 ? bays - 1 : 0;
   const doorX = xs[doorBay], entryX = xs[entryBay];
   const stoopW = 1.5;

@@ -64,6 +64,8 @@ export interface LotSpec {
   scaffold?: boolean;
   /** arched parlour windows (brownstone rows) */
   arched?: boolean;
+  /** REALBLOCKS: stoop and door on the left of the front (true) or the right (false); undefined = random (eraStyle.ts pairs the doors by tax-lot number) */
+  doorLeft?: boolean;
   /** file stem of a facade-photo atlas (facade-<lotId>) mapped once across the front; see facadeTexture.ts */
   facadeTexture?: string;
   /** wood-frame house (siding) or new-build condo (panel cladding / glazed brick): picks the wall kind in colourway.ts */
@@ -352,7 +354,10 @@ export class LotBatch {
   clearUV(): void { this.uvMaps.clear(); }
 
   /** Colourway of the lot being built: `flush` bakes it into the `aTone` / `aStyle` attributes (and jitters wall UVs). `front` = the front-family materials (null = every wall material). */
+  /** REALBLOCKS: trade code of the shop being built (shopTradeCode in shops/shopTypes.ts), baked into the shop glass's aStyle.w; 0 = unknown */
+  shopTrade = 0;
   setColourway(cw: Colourway | null, front: ReadonlySet<THREE.Material> | null = null, corner = false, limestoneFront = false): void {
+    this.shopTrade = 0;
     this.cw = cw ? { cw, front, corner, limestoneFront } : null;
   }
 
@@ -526,7 +531,10 @@ export class LotBatch {
       if (!r.p.length) continue;
       if (batchSkip && batchSkip(((mat.userData.sharedAs as THREE.Material | undefined) ?? mat).name)) { r.p = []; r.n = []; r.uv = []; continue; }
       const g = new THREE.BufferGeometry();
-      g.setAttribute('color', new THREE.BufferAttribute(bakeVertexAo(r.p, r.n, this.openings, overhangs), 4, true));
+      const ao = bakeVertexAo(r.p, r.n, this.openings, overhangs);
+      const tint = mat.userData.flatTint as THREE.Color | undefined; // flat shop colours share one material: the colour rides in the vertex colour
+      if (tint) for (let i = 0; i < ao.length; i += 4) { ao[i] = Math.round(ao[i] * tint.r); ao[i + 1] = Math.round(ao[i + 1] * tint.g); ao[i + 2] = Math.round(ao[i + 2] * tint.b); }
+      g.setAttribute('color', new THREE.BufferAttribute(ao, 4, true));
       g.setAttribute('position', new THREE.Float32BufferAttribute(r.p, 3));
       g.setAttribute('normal', new THREE.Float32BufferAttribute(r.n, 3));
       this.bakeTone(g, mat, r, info);
@@ -627,7 +635,7 @@ export class LotBatch {
           last = hashAt(mx, my, mz);
         }
       }
-      for (let k = i; k < Math.min(count, i + n); k++) { style[k * 4] = last[0]; style[k * 4 + 1] = last[1]; style[k * 4 + 2] = last[2]; }
+      for (let k = i; k < Math.min(count, i + n); k++) { style[k * 4] = last[0]; style[k * 4 + 1] = last[1]; style[k * 4 + 2] = last[2]; style[k * 4 + 3] = this.shopTrade; }
       i += n;
     }
   }

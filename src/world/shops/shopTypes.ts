@@ -123,3 +123,25 @@ export function typeOfArchetype(a: string | undefined): ShopType | null {
   };
   return m[k] ?? null;
 }
+
+/**
+ * REALBLOCKS: what the shop window shows, as a small code the glass shader reads (windowShader.ts SHOP_MAIN, `aStyle.w`):
+ * 1 bodega shelves, 2 deli case and menu, 3 kitchen counter and menu board, 4 barber chairs and mirror, 5 hair and nails,
+ * 6 laundromat machines, 7 phone cases, 8 bottle wall, 9 cafe, 10 plain dim shop, 11 pharmacy aisles; 0 = unknown (random as before).
+ */
+export function shopTradeCode(t: ShopType | undefined): number {
+  switch (t) {
+    case 'bodega': case 'grocery': case 'dollar': return 1;
+    case 'deli': return 2;
+    case 'pizzeria': case 'chinese': case 'caribbean': case 'chicken': case 'halal': return 3;
+    case 'barber': return 4;
+    case 'braiding': case 'beauty': case 'nails': return 5;
+    case 'laundromat': return 6;
+    case 'phoneRepair': return 7;
+    case 'liquor': case 'smoke': return 8;
+    case 'coffee': case 'bakery': case 'bar': return 9;
+    case 'hardware': case 'autoRepair': case 'cashing': case 'funeral': case 'daycare': case 'church': return 10;
+    case 'pharmacy': return 11;
+    default: return 0;
+  }
+}

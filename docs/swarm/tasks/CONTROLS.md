@@ -72,6 +72,43 @@ car), LT aim (brake in a car), LB next item (on foot), RB swap shoulder on foot 
 L3 walk toggle on foot / horn in a car, R3 look behind, d-pad up phone, d-pad left and right previous and next item on foot
 and previous and next radio station in a car, Back camera view, Start pause.
 
-## Status
+## What landed
 
-(updated as the work lands; see the end of the file)
+- `src/core/Bindings.ts` (new): the one table. Actions with default keys, context (on foot, in a vehicle, both), the pad
+  layout, key and button names (Xbox, PlayStation, generic, detected from `Gamepad.id`), conflicts, rebinding, saving
+  (`gta-bedstuy.bindings.v1`, device-local, not the game save), `glyphFor` for prompts, `codeBound` for UI listeners.
+- `src/core/Input.ts`: game code still reads the old key codes ('KeyF', 'Space' ...), now as action ids resolved through the
+  table, so a rebind changes the game with no change to Player.ts or main.ts. `Input.vehicleContext` picks the live actions
+  (Space is jump on foot, handbrake in a car). Mouse buttons and the wheel are bindable. Arrows no longer move (Up is the
+  phone, as in GTA). Left Ctrl only counts while the Keyboard Lock API holds it in fullscreen.
+- `src/core/Gamepad.ts`: the GTA V layout, PlayStation names, `PadTuning` (two dead zones, look speed, look curve, trigger
+  dead zone, rumble) saved as `gta-bedstuy.pad.v1`, `rumble()` through `vibrationActuator` where Chromium offers it.
+- `src/core/ControlsHelp.ts`: help rows built from the table (loading-screen fold, Controls tab).
+- `src/ui/ControlsPane.ts` (new) and the Controls tab in `Menu.ts`: key list by group, two slots per action, click then press,
+  conflicts reported, Backspace clears, Esc cancels, Reset to defaults, pad reference for the connected pad, pad feel.
+- HUD: prompts read the table ("F" or the rebound key; "Y" or "Triangle" on a pad; CAR on a phone) and redraw on a rebind.
+  The pause menu opens on the map. The phone rises from the bottom right on keyboard and pad screens (touch unchanged).
+  Already in place and left alone: minimap bottom left with the bars under it, wanted stars and cash top right, the item in
+  hand left of the cash, help text top left with the objective box below it, subtitles bottom centre, street and area name
+  bottom right.
+
+## Not done, on purpose
+
+- Separate Audio, Display and Game tabs. They are sections inside Settings (sub-headers) as before; splitting one list with a
+  shared Apply stack into three tabs was out of reach in the budget. The tab list is Map, Missions, Stats, Settings, Controls,
+  Save, Radio.
+- A GTA IV pad preset: the layouts agree for everything this game has (see above).
+- Cover, aim, reload, headlights: bound (Q, right click, R, H) and listed as "not used yet" so that the day they exist the keys
+  are already where a GTA player expects them. R is also "retry mission".
+- Pad button rebinding (keyboard only).
+
+## Needs the lead (main.ts and files outside this lane)
+
+See the lane's final report: the main.ts lines, `RadioDirector.prev()` and `AudioSystem.prevStation()` for the previous
+station key, and the loading-screen tips in `src/render/Loading.ts` that still name H, E and P.
+
+## Not verified
+
+Nobody has played this with a real pad or a real keyboard on a real GTA-trained hand. Keyboard Lock capturing Ctrl+W was not
+tested (it needs a real fullscreen Chromium window; the page here is headless). Pad names depend on the browser reporting an
+id string that contains "dualsense", "playstation", "xbox" or a vendor id. Rumble was tested against a fake actuator only.

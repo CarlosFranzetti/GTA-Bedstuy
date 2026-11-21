@@ -30,7 +30,7 @@ import {
   type AwningStyle, type Cuisine, type StickerKind, type StoreKind,
 } from '@/textures/painters/storefront-art';
 import type { Archetype as PoiArchetype, IMaterialLibrary, Lot } from '@/world/types';
-import { SHOP_TYPES, typeOfArchetype, typesOfKind, type DressingKind, type ShopType } from '@/world/shops/shopTypes';
+import { SHOP_TYPES, shopTradeCode, typeOfArchetype, typesOfKind, type DressingKind, type ShopType } from '@/world/shops/shopTypes';
 import { pickShopType, shopIdentity } from '@/world/shops/shopNames';
 import { addShopDressing } from '@/world/shops/shopDressing';
 import { bayCentres, buildUpperFloors, familyMats, sideWallFrame, wallWithHoles, windows } from './facade';
@@ -588,6 +588,7 @@ export class StorefrontKit {
   private readonly gates = new Map<number, THREE.Material>();
   private readonly gateDecals = new Map<string, THREE.Material>();
   private readonly flats = new Map<string, THREE.Material>();
+  private readonly sharedFlats = new Map<string, THREE.Material>();
   private readonly glowMats: THREE.MeshStandardMaterial[] = [];
 
   constructor(readonly lib: IMaterialLibrary, private readonly factory: CanvasFactory | null = defaultFactory()) {
@@ -840,8 +841,20 @@ export class StorefrontKit {
     const key = `${color}|${roughness}|${metalness}`;
     let m = this.flats.get(key);
     if (!m) {
-      m = new THREE.MeshStandardMaterial({ color: new THREE.Color(color), roughness, metalness });
+      const fm = new THREE.MeshStandardMaterial({ color: new THREE.Color(color), roughness, metalness });
+      m = fm;
       m.name = `sf:flat:${color}`;
+      // REALBLOCKS: every flat colour of one roughness draws as ONE mesh per cell: LotBatch.flush multiplies the colour into the
+      // baked vertex colour (`userData.flatTint`) and moves the geometry onto this white shared material
+      m.userData.flatTint = fm.color.clone();
+      const sk = `${roughness}|${metalness}`;
+      let shared = this.sharedFlats.get(sk);
+      if (!shared) {
+        shared = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness, metalness, vertexColors: true });
+        shared.name = 'sf:flat';
+        this.sharedFlats.set(sk, shared);
+      }
+      m.userData.sharedAs = shared;
       this.flats.set(key, m);
     }
     return m;
@@ -852,8 +865,8 @@ export class StorefrontKit {
     this.lit?.dispose();
     this.boards?.dispose();
     this.stickerSheet?.dispose();
-    for (const m of [...this.gates.values(), ...this.gateDecals.values(), ...this.flats.values()]) m.dispose();
-    this.gates.clear(); this.gateDecals.clear(); this.flats.clear(); this.awningCache.clear(); this.plainCache.clear(); this.signCache.clear(); this.glowMats.length = 0;
+    for (const m of [...this.gates.values(), ...this.gateDecals.values(), ...this.flats.values(), ...this.sharedFlats.values()]) m.dispose();
+    this.gates.clear(); this.gateDecals.clear(); this.flats.clear(); this.sharedFlats.clear(); this.awningCache.clear(); this.plainCache.clear(); this.signCache.clear(); this.glowMats.length = 0;
     KITS.delete(this);
   }
 }
@@ -1315,6 +1328,7 @@ function groundShell(c: LotCtx, plan: StorefrontPlan, brick: THREE.Material): vo
 export function buildMixedUse(c: LotCtx): LotOutput {
   const { b, m, rng, W, D, lot } = c;
   const spec = resolveStorefront(lot, c.spec as SpecLike | undefined);
+  b.shopTrade = shopTradeCode(spec.shopType);
   const nUp = spec.floorsAbove ?? rng.int(2, 3);
   const r0 = rng.next();
   const fam = c.spec?.family;

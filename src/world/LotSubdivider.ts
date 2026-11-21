@@ -17,6 +17,7 @@ import type { BlockFace, GridModel, Lot, LotType, PoiDef, Side } from '@/world/t
 import type { LotSpec, MaterialFamily } from '@/world/buildings/facade';
 import type { SpecLot } from '@/world/BuildingGen';
 import { FAMILY_FOR_OBSERVED, observedFacade } from '@/world/data/facadeObserved';
+import { applyEraStyle } from '@/world/buildings/eraStyle';
 import { STOREFRONT_TO_ARCHETYPE, faceFor, lotsForFace } from '@/world/data/schema';
 import type { StorefrontKind } from '@/world/data/schema';
 import type { FaceSet, LotSpec as DataLotSpec } from '@/world/data/schema';
@@ -40,7 +41,7 @@ export function specFromData(d: DataLotSpec): LotSpec {
     case 'garage': use = 'mixed'; storefront ??= 'autorepair'; break;
     default: use = !d.stoop && (floors >= 4 || d.family === 'newBuild') ? 'apartment' : 'residential';
   }
-  return {
+  const spec: LotSpec = {
     floors: Math.max(1, floors),
     widthM: d.widthM,
     family,
@@ -56,6 +57,11 @@ export function specFromData(d: DataLotSpec): LotSpec {
     bbl: d.bbl,
     look: obsMap ? obsMap.look : d.family === 'frame' ? 'frame' : d.family === 'newBuild' ? 'newBuild' : undefined,
   };
+  // REALBLOCKS: year, class and roof height sit in the import note ("PLUTO C0 built 1910 ... roof 12.9 m"); style from them (eraStyle.ts)
+  const m = /PLUTO ([A-Z0-9]{2}) built (\d{4})/.exec(d.note ?? '');
+  if (!m || !d.bbl || d.bays > 0) return spec; // hand-authored bays win; filler lots have no record
+  const rf = /roof ([\d.]+) m/.exec(d.note ?? '');
+  return applyEraStyle(spec, { bbl: d.bbl, yr: Number(m[2]), cls: m[1], rf: rf ? Number(rf[1]) : null }, { keepFamily: !!obsMap || d.family === 'church' || d.family === 'vacant' });
 }
 
 /** Which generator builds a lot with this spec. */

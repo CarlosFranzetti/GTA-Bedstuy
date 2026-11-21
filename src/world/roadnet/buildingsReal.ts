@@ -25,6 +25,7 @@ import type { IMaterialLibrary, StaticCollider } from '@/world/types';
 import type { LotSpec, MaterialFamily } from '@/world/buildings/facade';
 import { buildBuildings, type SpecLot } from '@/world/BuildingGen';
 import { chunkKeyOfCell, splitMeshesIntoCells, type ChunkLayout } from '@/render/Culling';
+import { applyEraStyle } from '@/world/buildings/eraStyle';
 import type { RealLot } from './lotsReal';
 
 /** WorldBuilder.SIDEWALK_HEIGHT (not imported: that module pulls in the whole default world) */
@@ -113,7 +114,7 @@ export function specForRealLot(lot: RealLot): LotSpec {
   } else if (use === 'church') family = 'limestone';
   const rowClass = 'ABCS'.includes(c0) || cls === 'R3';
   const stoop = use === 'residential' && rowClass && floors >= 2 && lot.width <= 12 && (!yr || yr < 1940) && look !== 'newBuild';
-  return {
+  const base: LotSpec = {
     floors,
     widthM: lot.width,
     family,
@@ -124,6 +125,8 @@ export function specForRealLot(lot: RealLot): LotSpec {
     bbl,
     look,
   };
+  // REALBLOCKS: style, cornice, stoop height, arches, bays and door side from year, class and tax lot (eraStyle.ts)
+  return type === 'brownstone' && family === 'brownstone' ? applyEraStyle(base, { bbl, yr, cls, fl: p?.fl, rf: p?.rf }, { keepFamily: true }) : applyEraStyle(base, { bbl, yr, cls, fl: p?.fl, rf: p?.rf });
 }
 
 // ---------------------------------------------------------------- footprint inside the lot polygon
