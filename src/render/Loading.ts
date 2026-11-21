@@ -53,9 +53,9 @@ export const PANEL_MS = 8000;
 export const TIP_MS = 6500;
 
 export const LOADING_TIPS: readonly string[] = [
-  'Press F to get in or out of a car. Hold Space to brake, H for the horn.',
-  'E tunes the radio. Six stations, from boom-bap to block-party funk.',
-  'P opens your phone. M opens the map: drop a pin and the arrow follows it.',
+  'Press F to get in or out of a car. Space is the handbrake, G the horn.',
+  'Full stop and comma tune the radio up and down the dial, or roll the mouse wheel in a car.',
+  'The up arrow opens your phone. M opens the map: drop a pin and the arrow follows it.',
   'Every block has a story. Walk up to a gold marker to hear it.',
   'Cabs, bikes and delivery vans all share Throop Ave: look both ways.',
   'The dusk light on the brownstones is best around 6 pm.',

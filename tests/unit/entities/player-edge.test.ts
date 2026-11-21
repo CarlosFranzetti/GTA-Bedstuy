@@ -26,6 +26,7 @@ function world() {
   events.on('radioNext', () => radio.push(1));
   /** One simulation step exactly as main.ts does it (control, F edge, update). */
   const simStep = (useConsume = true) => {
+    input.vehicleContext = player.inVehicle; // as main.ts does: car-only keys (the radio) resolve only in a car
     player.control(input, 0);
     const f = useConsume ? input.consume('KeyF') : input.pressed('KeyF');
     if (f) { if (player.inVehicle) player.exit(); else player.tryEnter([car]); }
@@ -122,10 +123,11 @@ describe('enter and exit at any frame rate', () => {
     expect(outside).toBe(true);
   });
 
-  it('radio (E) toggles once per press on a multi-step frame', () => {
+  // the next-station key is now the full stop, as in GTA V (Bindings.ts): it still raises the canonical KeyE action
+  it('radio (full stop) toggles once per press on a multi-step frame', () => {
     const w = world();
     w.press(); w.runFor(1.0, 100);
-    w.press('KeyE');
+    w.press('Period');
     w.runFor(0.5, 100);
     expect(w.radio.length).toBe(1);
   });

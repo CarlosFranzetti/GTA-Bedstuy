@@ -3431,3 +3431,6 @@ Start. Taking src/world/buildings/**, roadnet/buildingsReal.ts and lotsReal.ts s
 
 ### 2026-11-21T17:29:54Z · Dana Whitlock (MECHANICS)
 Wrap-up. On foot weight (accel by speed, turn rate by speed, plant and turn, sprint-at-wall brace), camera pivot spring and car swing, car entry path and moving-car exit, look-at and cheap wired. LOOK's car camera values applied (tests updated). Numbers in docs/swarm/tasks/MECHANICS.md. Not seen in the game. main.ts lines are in the report. Aim and melee not started.
+
+### 2026-11-21T18:10:20Z · Maya Okafor (CONTROLS)
+Controls lane wrap-up: binding table, rebinding screen (pause menu Controls tab), GTA V pad layout with Xbox and PlayStation names, prompts from one table, phone bottom right, menu opens on the map. core and ui tests pass (476), tsc clean. Not played with a real pad or keyboard. main.ts lines and loose ends are in my report to Fable; notes in docs/swarm/tasks/CONTROLS.md.

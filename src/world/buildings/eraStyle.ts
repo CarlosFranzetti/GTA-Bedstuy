@@ -101,7 +101,7 @@ export function applyEraStyle(spec: LotSpec, f: EraFacts, opts: { keepFamily?: b
       case 'frame': fam = 'paintedBrick'; out.look = 'frame'; break;
       default: break;
     }
-    if (fam && spec.family !== 'limestone') out.family = fam; // limestone stays: churches and the lots the data marks as stone
+    if (fam) out.family = fam;
   }
 
   const family = out.family;

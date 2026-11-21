@@ -687,6 +687,8 @@ const game = new Game(
 // pause menu, gamepad, settings (Menu fires its persisted-setting callbacks once at construction)
 let lastPad = performance.now();
 const gamepad = new GamepadInput(input, { onBumper: (d) => { if (phoneHud.isOpen || shopUi?.isOpen || djUi?.isOpen || !menu.isOpen) return false; menu.tab(d); return true; }, onToast: (m) => hud.showToast(m), onStart: () => { if (splashUp) { startGame(); return; } if (shopUi?.isOpen) shopUi.close(); else if (djUi?.isOpen) djUi.leave(); else menu.toggle(); }, onNav: (d) => { if (phoneHud.isOpen) phoneHud.navigate(d); else if (shopUi?.isOpen) shopUi.navigate(d); else if (djUi?.isOpen) djUi.navigate(d); else menu.navigate(d); } });
+events.on('gunshot', () => gamepad.rumble(0.45, 0.2, 90)); // a pad shivers with a shot
+events.on('pedHit', (e) => { if (e.by !== 'shot') gamepad.rumble(0.3, 0.5, 120); }); // and thumps with a punch or a thrown brick
 const radioUi = new RadioUi(overlay, audio);
 const menu = new Menu(overlay, {
   onPause: (p) => { game.paused = p || document.hidden; gamepad.paused = p; audio.setPaused(p); if (!p) { input.endFrame(); input.requestLock(); } },
@@ -754,19 +756,20 @@ game.add({
   update(dt) {
     // input
     const away = interiors.state !== 'outside'; // inside a room (3 km off the map) or fading: the street sim keeps watching the door
-    if (splashUp && input.mode === 'gamepad' && input.pressed('KeyF')) startGame(); // A on the title screen
+    if (splashUp && input.mode === 'gamepad' && (input.pressed('PadConfirm') || input.pressed('KeyF'))) startGame(); // A (or Y) on the title screen
     const blocked = interiors.locked || uiOpen() || splashUp; // nothing moves behind the title screen
     if (!away) { lastOutside.x = player.body.pos.x; lastOutside.z = player.body.pos.z; }
     player.jumpLocked = away || blocked;
-    if (blocked) { for (const k of ['KeyF', 'KeyE', 'KeyR', 'KeyX', 'KeyP']) input.consume(k); }
+    if (blocked) { for (const k of ['KeyF', 'KeyE', 'KeyR', 'KeyX', 'KeyP', 'RadioPrev']) input.consume(k); }
     else {
       cam.views.handleKeys(input, player.inVehicle ? 'vehicle' : 'foot'); // V cycles views, double-tap swaps, B swaps shoulder
       // riding the el: the player is carried by the train until the next stop
       const ride = world.transit.ride;
-      if (ride) { player.body.pos.x = ride.x; player.body.pos.z = ride.z; player.body.vel.x = 0; player.body.vel.z = 0; } else player.control(input, cam.yaw);
+      if (ride) { player.body.pos.x = ride.x; player.body.pos.z = ride.z; player.body.vel.x = 0; player.body.vel.z = 0; } else { input.vehicleContext = player.inVehicle; player.control(input, cam.yaw); }
       const alight = world.transit.takeAlight(); if (alight) { player.body.pos.x = alight.x; player.body.pos.z = alight.z; }
       const tm = world.transit.takeMessage(); if (tm) hud.showToast(tm);
       if (input.consume('KeyP') && !map.isOpen) phoneHud.toggle();
+      if (player.inVehicle && input.consume('RadioPrev')) audio.prevStation(); // , or wheel up: previous station
       if (input.consume('KeyF')) {
         const fpos = player.body.pos;
         if (!player.inVehicle && interiors.interact(fpos)) { /* door / shop / decks / bar handled */ }

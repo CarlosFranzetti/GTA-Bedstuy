@@ -112,3 +112,19 @@ station key, and the loading-screen tips in `src/render/Loading.ts` that still n
 Nobody has played this with a real pad or a real keyboard on a real GTA-trained hand. Keyboard Lock capturing Ctrl+W was not
 tested (it needs a real fullscreen Chromium window; the page here is headless). Pad names depend on the browser reporting an
 id string that contains "dualsense", "playstation", "xbox" or a vendor id. Rumble was tested against a fake actuator only.
+
+## Evidence (screenshots, 21 Nov)
+
+Folder: /tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/controls
+- shots/hud-foot-1920.png: the running game on foot (minimap and heat bar bottom left, objective chip top left, hands icon, cash and
+  stars top right). Real game, loop stopped, one frame drawn by hand.
+- shots/menu-open-1920.png, menu-open-1280.png: the pause menu opens on the Map tab. Also menu-missions, -stats, -settings,
+  -controls, -save, -radio at 1920 and 1280.
+- shots/menu-controls-1920.png, rebind-wait-1920.png, rebind-conflict-1920.png (and 1280): the rebinding screen, waiting for a key,
+  and after a conflict ("W now does Enter / exit vehicle. It was taken from Move forward / accelerate").
+- hudshots/prompt-keyboard-1920.png, prompt-xbox-1280.png, prompt-playstation-1280.png, prompt-rebound-1280.png,
+  hud-car-ui-1920.png, hud-car-ui-1280.png: the real `Hud` class and CSS fed by hand over frames captured from the game
+  (prompt top left with the key for the device; speed, street and radio bottom right). NOT the running game: stepping the live
+  loop here kills the page, so the prompt and car HUD states were fed to the HUD directly. The cash, minimap and mission box are
+  not in those shots (main.ts feeds them).
+- The SoundCloud "No stream" toast in the menu shots is the radio widget failing offline in this sandbox.

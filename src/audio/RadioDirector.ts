@@ -341,6 +341,7 @@ export class RadioDirector {
   }
 
   next(): void { this.select((this.idx + 1) % this.dial.length); }
+  prev(): void { this.select((this.idx + this.dial.length - 1) % this.dial.length); }
 
   select(i: number): void {
     const n = this.dial.length;

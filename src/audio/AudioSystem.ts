@@ -471,6 +471,10 @@ export class AudioSystem {
     this.radio.next();
   }
 
+  prevStation(): void {
+    this.radio.prev();
+  }
+
   /** Name of the tuned station (keeps the station name; the track is `trackName`). */
   get stationName(): string {
     return this.radio.stationName;
