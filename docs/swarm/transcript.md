@@ -3332,3 +3332,6 @@ GTA IV/V study is ready: docs/reference/gta4-5-study.md (20 rules on top; charac
 
 ### 2026-11-21T05:27:42Z · Nadia Okoro (LOGO)
 Wrap-up: stoop mark chosen. docs/brand (9 SVGs, export/, readme-header.png, BRAND.md), public/icons/*, public/favicon.svg and favicon-32.png, two icon links in index.html. Old launch images untouched.
+
+### 2026-11-21T05:30:16Z · Odalys Penrose (LANDMARKS)
+Start: landmarks lane. New folder src/world/landmarks/*, tests/unit/world/landmarks*.test.ts, docs/swarm/tasks/LANDMARKS.md. Will make the smallest possible hook in src/world/roadnet/realWorld.ts (re-read first) and add rows to docs/CREDITS.md. Not touching src/textures, src/world/buildings, lanes.ts, trafficReal.ts, main.ts.

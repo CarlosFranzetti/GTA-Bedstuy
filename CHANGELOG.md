@@ -1,0 +1,387 @@
+# Changelog
+
+Status: current (checked 21 Nov 2026)
+
+What went live on https://gta-bedstuy.vercel.app, newest first, grouped by week (weeks start on Monday). Each line is one
+commit that was a deploying commit: its subject does not contain "work in progress" or "[skip deploy]" and does not start with
+"WIP", "wip:" or "Lanes". Dates are commit dates. The wording is the commit subject, unedited.
+
+How to read it:
+
+- The project has no version numbers or tags. `package.json` says 0.1.0 and has not been changed.
+- Vercel builds the commit at the head of each push. If several commits were pushed together, only the last was built, so a few
+  lines below may never have been live on their own. Before 12 Nov 2026 `vercel.json` had no `ignoreCommand`, so every push was
+  built; the filter above is applied to those days only as an approximation.
+- The newest line is the version live today (`033bb97`, 18 Nov 2026). Everything committed after it is unreleased work in progress:
+  see `MEMORY.md`, "State".
+- The first commits (24 Oct 2026) predate the hosted site.
+
+
+## Week of 16 Nov 2026 (2 releases)
+
+- 2026-11-18 `033bb97` Combat follow-ups, title fixes from the playtest (live now)
+- 2026-11-18 `a96dc51` People wear hair, hats and bags; cleaner hems, shoes and faces; quieter, steadier engines
+
+## Week of 9 Nov 2026 (203 releases)
+
+- 2026-11-12 `adbdc2c` Title screen has its pictures and nothing of the game's interface over it
+- 2026-11-12 `5678772` Action button on foot: punch, throw, shoot
+- 2026-11-12 `c71aa67` Space starts the game; the camera returns behind you two seconds after a look
+- 2026-11-12 `5e9d777` Trousers are cut garments: straight legs, a gap between them, cuffs and chunkier shoes
+- 2026-11-12 `6d498e1` Characters stand on the sidewalk instead of sinking into it
+- 2026-11-12 `75fa84d` Latest: upright people, new bodies and clothes, street surfaces, camera clear of the car
+- 2026-11-12 `a36e1dd` People stand and walk upright; smaller deployments
+- 2026-11-12 `e6d8bbb` Streets round two: leafier trees, square bluestone flags, solid wires, worn kerb paint, smooth trash bags
+- 2026-11-12 `1ea4e9d` Cars: seven distinct sports and special shapes, body-integrated bumpers, spoked wheels, taxi crumple fixed
+- 2026-11-12 `6041ef1` People: believable proportions from the base mesh's own weight and muscle shapes, smooth normals
+- 2026-11-12 `5b19a4a` Story: ten new side missions, six new characters, phone threads, overheard lines, signs and radio bulletins
+- 2026-11-12 `c2fd6ce` Streets: quiet dark asphalt drawn in road space, slab sidewalks, four tree forms
+- 2026-11-12 `aab1fcd` Art bar: people checklist with numbers, world surfaces checklist, scoreboard; ink pipeline removed
+- 2026-11-12 `68452d2` Engine sounds lowered: player engine about 8 dB down, nearby traffic 6 dB down
+- 2026-11-12 `26da225` Sound: quieter, smoother engines; footsteps and city bed wired; more light render slots
+- 2026-11-12 `b59ecea` Real map: missions, pointer, minimap and saves work there
+- 2026-11-12 `0671d3a` Eighteen lanes started: people, movement, playtest, real map, screens, cars, camera, sound, story, roads, native, tests
+- 2026-11-12 `b30526b` Shared lane rules; render queue: two game slots and a small-job slot
+- 2026-11-12 `ab61952` People rebuilt: one closed mesh per person with clothes painted in, twelve body types
+- 2026-11-12 `85b454f` Performance: phone and low tiers draw about half the triangles
+- 2026-11-12 `091926b` Engine no longer cuts out on every gear change
+- 2026-11-12 `4d820e2` Motion-captured movement for the player and pedestrians; real map gets lamps, shops, home spawn and observed colours
+- 2026-11-12 `8fd89ab` Volume sliders apply as they move; old levels carried over; credits follow chosen names
+- 2026-11-12 `e790dea` Volume options: Master, Radio and music, Sound effects, Voices, Ambience
+- 2026-11-12 `4dd7052` Title theme and credits roll wired in
+- 2026-11-12 `83df47b` Stage 16 asks recorded; seven focused lanes started
+- 2026-11-11 `45fcfe9` Fix whole-screen black flicker: one overflowing HDR pixel no longer blacks out the frame
+- 2026-11-11 `0a3c9ff` Debug overlay shows the real GPU string; one heavy render job at a time; Engine team is Foundry
+- 2026-11-11 `8425aa0` Engine notes and scripts in progress
+- 2026-11-11 `9005810` Real map: photo-observed looks for 502 lots, real street furniture positions, floors check
+- 2026-11-11 `fd4119b` Car greenhouse fix across all types (Dmitri); lanes' last work before the usage limit
+- 2026-11-11 `5c8e252` Flicker diagnosis: blink counters and three switches in the ?debug=gfx overlay
+- 2026-11-11 `e594c52` Real-map places, street furniture, trains; title theme v2 mix; queue priority for owner bugs
+- 2026-11-11 `58d036a` Real-map preview: buildings stream around the player, trains on the real el
+- 2026-11-11 `3ce4fb2` Facade colours and materials observed from open street photos; street tree census
+- 2026-11-11 `e7e2573` Radio dial rebalanced to 15 stations across more genres
+- 2026-11-11 `928a4f7` Real map: building streamer with far boxes and leak-free disposal
+- 2026-11-11 `60dd0f3` Owner rulings: no inked art, larger play area via the real map
+- 2026-11-11 `fe07e38` Real-map preview behind ?map=real (hosted and native only); lanes, signals, world assembler
+- 2026-11-11 `5c24bb0` Fair render queue with a light slot; real-map buildings on real lots; title theme draft
+- 2026-11-11 `0365e73` Real map: road, sidewalk, curb and marking meshes with chunk layout
+- 2026-11-11 `289031c` Real map: block faces and lot placement on real frontages
+- 2026-11-11 `ce91d45` Real map: elevated lines on Broadway (J/Z) and Myrtle (M) as data and mesh builder
+- 2026-11-11 `432a28d` Sim fixes: traffic spawn ring, cop spawn cone, story test premise; art bar rulings
+- 2026-11-11 `22bc929` Art bar v2 'Rockstar polish'; lanes in progress
+- 2026-11-11 `a24cd98` Real map: sidewalks use the shared junction clusters; lanes in progress
+- 2026-11-11 `5eca3ee` Real map: sidewalk and crosswalk graph, junction contract; lanes in progress
+- 2026-11-11 `bf4c0aa` Stage 15 asks recorded: Rockstar polish, body types, HUD life, speech rhythm
+- 2026-11-11 `ed859a6` Studio: wave two briefs, credits and title music lanes, radio rebalance in progress
+- 2026-11-11 `eec4e12` Real map: map-source switch and intersection geometry for odd-angle junctions
+- 2026-11-11 `c5566ea` Radio: 15 stations, 14 verified playing (SoundCloud accounts and live streams)
+- 2026-11-11 `8cffec5` Pedestrian voices and barks, story character voices, pre-rendered voice pack (station idents baked; the rest rendering)
+- 2026-11-11 `6d6e30f` Seven new car types (first pass), drivetrain handling fields; held out of moving traffic until the sim tests clear
+- 2026-11-11 `10bb20c` Conversation log as dialogue; conversation rule for the studio
+- 2026-11-11 `ee74497` Real lots and footprints by lot number for Bed-Stuy and Bushwick; signalised intersections from city data
+- 2026-11-11 `2eae619` Comic-style pause menu and settings wired: advanced graphics, tabs, phone apps, loading music; car fixes (sanitation truck, ambulance lights)
+- 2026-11-11 `521e009` Radio: 15-station catalog with live streams and SoundCloud account sources (verification in progress); skip toast wired
+- 2026-11-11 `42dfe00` Readable studio conversation log and the script that builds it
+- 2026-11-11 `d3fccee` Roster: chosen names
+- 2026-11-11 `cc8e3c6` Studio names: the CEO is Fable Hart; everyone picks their own last name or nickname
+- 2026-11-11 `98546d4` Owner's map screen spec
+- 2026-11-11 `ac86696` Real street network: design, centerline import for Bed-Stuy and Bushwick, RoadNet core, Brooklyn overview layer
+- 2026-11-11 `6bc247c` Vehicle sound model wired: per-type engine voice, horn hold, reverse, brakes, doors, AI engine voices
+- 2026-11-11 `3b3d7ec` Camera views (V cycle, double-tap swap, shoulder swap), jump with vaulting, first person, touch VIEW and JUMP; wired into the loop
+- 2026-11-11 `2905a68` Merge branch 'master' of https://github.com/CarlosFranzetti/GTA-Bedstuy
+- 2026-11-11 `cd57c0d` Car skin test: assert the paint condition overlay (#1)
+- 2026-11-11 `c23bc15` Decision: free voices for scripted radio; lanes WIP
+- 2026-11-11 `dd2b14a` Sound bar and VOICE14 brief; Sound team is Airwaves
+- 2026-11-11 `601d57f` Art bar and briefs; team names Streetscape and Inkwell
+- 2026-11-11 `95876f4` Studio org: directors, names, transcript rules, team-name vote, alumni roster
+- 2026-11-11 `96eb39d` Stage 14 plan, asks and lanes
+- 2026-11-11 `4b79e28` Texture variety: detail atlas, gate states, faded wall signs, softened sidewalk patches; loading theme v2 with radio library entry
+- 2026-11-11 `6d7e0b3` People round 3: realistic eyes, warm skin shading, hijab cloth, stoop, accessories
+- 2026-11-11 `908d6ba` Williamsburg extension: four northern block rows, elevated line with two trains, stations, rideable; wired into the frame loop
+- 2026-11-11 `706283d` Camera: per-vehicle distance and height offsets typed
+- 2026-11-11 `f490876` Cars: nine more vehicle types, per-car look variants, liveries, per-type camera and engine pitch
+- 2026-11-11 `ed81978` Playtest p12 report; lanes WIP
+- 2026-11-11 `79afa30` Native CI: build the Mac app on macos-latest (the macos-14 job was cancelled at start)
+- 2026-11-11 `1eaedfe` Radio voices: in-browser neural TTS engine (opt-in), cast of 35, seven talk shows, parody ads, DJ lines; news reacts to wanted level and missions
+- 2026-11-11 `43d754b` GPU profile default tier, context-loss guard, ?debug=gfx overlay; native CI builds on native changes
+- 2026-11-11 `1f4ef88` Native desktop shell (Electron) for macOS arm64 and Windows x64, CI workflow; lanes WIP
+- 2026-11-11 `5a0164c` People: head-priority LOD, smoothed garment borders, new face painter, hair textures, body variety
+- 2026-11-11 `f05a9e8` Story: Air Rights arc wired into boot (14 missions, forks, bulletins, street notices, cargo damage)
+- 2026-11-11 `ad969dc` Stage 13 asks; NATIVE lane; lanes WIP
+- 2026-11-11 `577d260` Stage 12 asks and lanes
+- 2026-11-11 `f0c566c` Stage 11 lanes WIP
+- 2026-11-11 `68ef272` Stage 11 asks and lanes
+- 2026-11-11 `85acf0a` SoundCloud stations: no redundant seek at start; live radio and gameplay check scripts; audio on the debug object
+- 2026-11-11 `1c18820` SoundCloud stations: stall watchdog nudges a frozen mix, then skips it
+- 2026-11-11 `8563fa7` SoundCloud stations: allow 45 s for the player to load (8 s gave up with the title showing and no sound), longer skip window, quick retry, real-size hidden player
+- 2026-11-10 `330bb44` Stage 10 gate green; artifact v17 published
+- 2026-11-10 `5e701a2` Low-tier LOD: clustered far cars and buildings, lighter near cars on phone and low, capped hi-detail people
+- 2026-11-10 `7a177d5` Interior figures use roster variant ids
+- 2026-11-10 `0d0424d` Triangle budget: finite tree range, cheap canopies, box shadow hulls, shadow and AO culling, finer building cells
+- 2026-11-10 `6a0f7ee` Traffic AI: flank and fleeing pedestrian handling, yellow commitment, spawn spreading; backlog notes
+- 2026-11-10 `e901951` Traffic AI: back out from thin poles, long-body braking reach for buses
+- 2026-11-10 `ff437a3` Vehicle roster: cargo van, cab-over box truck, hatchback, beater sedan, city bus
+- 2026-11-10 `df559db` Pedestrian spawner: hidden-spot rule, local deficit fetch, crosswalk deadlock fix
+- 2026-11-10 `66b15d1` Sim step cost: sleeping bodies, settled vehicles, integer hash keys, catch-up limit; lanes WIP
+- 2026-11-10 `77f9938` People pass 5 final tweaks; lanes WIP
+- 2026-11-10 `053cd6f` Car lamps per type, SUV cladding, door seams, grilles
+- 2026-11-10 `2b3d6e2` HUD layout, whole-grid map with label placement and legend, save toasts
+- 2026-11-10 `7508d0b` Render lock: waiting jobs take whichever slot frees
+- 2026-11-10 `3931d98` People pass 4: continuous garment UVs, straight coats, hair styles, face and pose fixes
+- 2026-11-10 `62b59ed` Car door gaps, alloy and steel wheels, livery normals; people pass 3; lanes WIP
+- 2026-11-10 `3bc7823` Bag knots, neutral asphalt; lanes WIP
+- 2026-11-10 `45f6e66` Map screen, save and load slots with autosave, player look persisted and rolled on new game
+- 2026-11-10 `699cc8b` Touch look smoothing, frame bench tools; lanes WIP
+- 2026-11-10 `9a16b36` Multicultural ped roster with 23 body shapes, body-fitted garments, random player look
+- 2026-11-10 `22a338c` Player exit spots avoid cars as well as walls
+- 2026-11-10 `3a3fa01` Cab vehicle type, verified car proportions, hood and trunk seams, 1024 car skins; east block lots; curbside bag colour
+- 2026-11-10 `6709831` CROWD final: clutter test rewrite; lanes WIP
+- 2026-11-10 `19a4883` Stage 10 lanes WIP and transcript
+- 2026-11-10 `ff4eed4` Stage 10 asks and lanes
+- 2026-11-10 `78029f8` People from MakeHuman mesh wired into boot, player, interiors; grey sidewalk set; lighter bag piles
+- 2026-11-09 `349da20` Swarm transcript: ART CC0 frame check
+- 2026-11-09 `d245177` Stage 9 lanes WIP and transcript
+- 2026-11-09 `ca316da` People from the MakeHuman base mesh: nine shapes, three LODs, loader and wiring (HUMAN WIP)
+- 2026-11-09 `abd9e61` Stage 9 lanes WIP and transcript
+- 2026-11-09 `1ee7de1` Stage 9 lanes WIP and transcript
+- 2026-11-09 `f77bf09` Stage 9 lanes WIP and transcript
+- 2026-11-09 `b696c72` Stage 9 lanes WIP and transcript
+- 2026-11-09 `8d79067` Swarm transcript: PEDHI review and next pass
+- 2026-11-09 `f29d346` Realistic procedural people (PEDHI) as the interim default; HUMAN lane for a real base mesh
+- 2026-11-09 `37106dc` Stage 9 lanes WIP and transcript
+- 2026-11-09 `7cbf1af` World materials from CC0 PBR sets (ART): brick, asphalt, concrete, bluestone, metal, roofs, wall grime
+- 2026-11-09 `d53aaf7` Stage 9 lanes WIP and transcript
+- 2026-11-09 `7f31343` Swarm transcript: NAV6 fix, pursuit test owner
+- 2026-11-09 `4eb6032` Swarm transcript: CC0 texture wiring owners
+- 2026-11-09 `4b9a5ed` CC0 PBR texture sets from Poly Haven and ambientCG (18 sets, with licences)
+- 2026-11-09 `2cde82c` Stage 9 lanes WIP and transcript
+- 2026-11-09 `655e563` Ignore the lanes' tmp test folder
+- 2026-11-09 `dd7b62e` Stage 9 lanes WIP and transcript
+- 2026-11-09 `e6fc729` Real-car roster slice 1 (cab, cruiser, sedan, SUV); ASSETS lane for CC0 PBR textures
+- 2026-11-09 `7f7f84f` Stage 9 lanes WIP and transcript
+- 2026-11-09 `c6adacf` Chunk culling: range grows with camera height; phone slack 0; aerial viewpoint moved
+- 2026-11-09 `62beae2` Mission rings need F on foot and in a stopped car; SUV feel test updated
+- 2026-11-09 `fc93756` Swarm transcript: note on the mission test shim
+- 2026-11-09 `1036d7f` Stage 9 lanes WIP and transcript
+- 2026-11-09 `8641bcd` Swarm transcript: housekeeping note
+- 2026-11-09 `d041885` Ignore the lanes' scratch test folder
+- 2026-11-09 `fd1c782` Stage 9 lanes WIP and transcript
+- 2026-11-09 `2e3a78a` Swarm transcript: DRIVE9 accepted; rings need F on foot
+- 2026-11-09 `f2e0375` Driving fixes from playtest H8 (DRIVE9)
+- 2026-11-09 `d4e9a09` Stage 9 lanes WIP and transcript
+- 2026-11-09 `52e8d06` Swarm transcript: GRID9 accepted, test owners assigned
+- 2026-11-09 `86238a2` East expansion phase 1: three new avenues, 15 blocks, chunk culling (GRID9)
+- 2026-11-09 `bb449cc` Stage 9 lanes WIP and transcript
+- 2026-11-09 `6256845` Swarm: pivot to GTA4/5 realism for people and cars; PEDHI lane
+- 2026-11-09 `1a57d2c` Stage 9 lanes WIP and transcript
+- 2026-11-09 `7410c1a` Swarm transcript: GEO2 closed, PLUTO data kept
+- 2026-11-09 `2573a74` GEO2 PLUTO import frames
+- 2026-11-09 `ed49d49` Stage 9 lanes WIP and transcript
+- 2026-11-09 `e311bf2` Stage 9 lanes WIP and transcript
+- 2026-11-09 `511cfd1` People as one skinned mesh each (12 bones) so a pedestrian costs one draw
+- 2026-11-09 `69afc3e` Swarm transcript: SKINS draw-call defect, H8 triage
+- 2026-11-09 `5af1551` Radio: proxy the ra-nyc API in dev and preview so the harness can play sets
+- 2026-11-09 `1b85ccd` Stage 9 lanes WIP and transcript
+- 2026-11-09 `5a0021c` Clear-coat car paint on the default skinned cars (GFX2)
+- 2026-11-09 `a3842d5` GRID9 B1 WIP: east grid, chunks, skyline bounds; transcript
+- 2026-11-09 `c01b37c` HOME sign frames at dusk and noon (SHOP7)
+- 2026-11-09 `cd4acef` Swarm render lock: two slots so playtests do not starve captures
+- 2026-11-09 `c545770` Stage 9 lanes WIP and transcript
+- 2026-11-09 `e390e4b` HOME blade sign enlarged and raised so it reads from the sidewalk
+- 2026-11-09 `7145704` Stage 9 lanes WIP and transcript
+- 2026-11-09 `f688e9d` Stage 9 lanes WIP and transcript
+- 2026-11-09 `5ced799` Parody names for real venues on the current grid (VENUES)
+- 2026-11-09 `e33ba83` Stage 9 lanes WIP and transcript
+- 2026-11-09 `544cc7c` Stage 9 lanes WIP and transcript
+- 2026-11-09 `326c58e` Swarm: expansion extent decision; GRID9, GEO3, VENUES lanes
+- 2026-11-09 `77950d4` Expansion survey: real street geometry and lots toward Bushwick (SURVEY9)
+- 2026-11-09 `449a24f` Stage 8/9 lanes WIP, survey data and transcript
+- 2026-11-09 `8c62848` GTA3-style people and baked car skins (SKINS)
+- 2026-11-09 `88a1065` PRD: real artist names for SoundCloud mixes; parody only for venues
+- 2026-11-09 `f391e14` Swarm transcript: Stage 9 order and the insert-not-compress decision
+- 2026-11-09 `2ab180f` Swarm: Stage 9 plan (MGR)
+- 2026-11-09 `f410e5c` Swarm: token policy (smaller models for busy work, terse posts)
+- 2026-11-09 `d45e41c` Swarm: Stage 9 ask added (cars modelled after actual cars)
+- 2026-11-09 `46f8693` Swarm: Stage 9 asks recorded (GTA4 fidelity, Bushwick expansion)
+- 2026-11-09 `524786f` Swarm transcript: GFX2 review decisions
+- 2026-11-09 `27b835d` Swarm transcript: SKINS close-ups, GFX2 review request
+- 2026-11-09 `ad47ed0` Car-paint clear coat and neon bounce
+- 2026-11-09 `b51cb20` Swarm transcript: resume at 14:20Z
+- 2026-11-09 `446f7f8` Pause: final lane status lines and playtest logs
+- 2026-11-09 `6b6f431` Pause: Stage 8 lanes WIP, playtest logs and transcript
+- 2026-11-09 `c35c17b` Real lots from NYC MapPLUTO: widths, floors, classes and build years
+- 2026-11-09 `0f426c9` Stage 7/8 lanes WIP, playtest logs and transcript
+- 2026-11-09 `e78c7cb` Swarm transcript: live ra-nyc check, PLUTO reachable
+- 2026-11-09 `d7fb30e` Real blocks from open sources: BLOCKS.md, lot notes, side-street shopfronts
+- 2026-11-09 `9aaa1f4` Swarm: resume after limit; H8 session logs; transcript
+- 2026-11-09 `316a63e` Stage 7/8 lanes WIP, playtest logs and transcript
+- 2026-11-09 `8d032dd` Shop and mission UX from playtest H7
+- 2026-11-09 `0eee725` Stage 7/8 lanes WIP, playtest logs and transcript
+- 2026-11-09 `c1f27aa` Stage 7/8 lanes WIP, playtest logs and transcript
+- 2026-11-09 `8c7b637` RaFeed: top-ups never run before the first tune-in
+- 2026-11-09 `02eb2f7` Stage 7/8 lanes WIP, playtest logs and transcript
+- 2026-11-09 `ca6ff30` Radio: eight SoundCloud-mix stations with synthesized announcers
+- 2026-11-09 `58dd224` Stage 7/8 lanes WIP, playtest logs and transcript
+- 2026-11-09 `92ddc11` Stage 7/8 lanes WIP, playtest logs and transcript
+- 2026-11-09 `ee840dc` Readable transcript: Stages 4 to 8 in plain English
+- 2026-11-09 `f79d192` Stage 7/8 lanes WIP, playtest logs and transcript
+- 2026-11-09 `a2c2f5e` Stage 7/8 lanes WIP, playtest logs and transcript
+- 2026-11-09 `7cbdb9c` Swarm: Stage 8 lanes SKINS, RADIO8, GEO2, SCRIBE2; H8 and SHOP7 WIP
+
+## Week of 2 Nov 2026 (78 releases)
+
+- 2026-11-07 `2fed82a` Pause: Stage 7 lanes WIP, playtest logs and transcript
+- 2026-11-07 `a539c9d` Stage 7 lanes WIP, playtest logs and transcript
+- 2026-11-07 `80b9b8f` Playtest harness: allow N, Q and C; correct the turn figures; H7 results
+- 2026-11-07 `4fad471` Stage 7 lanes WIP, playtest logs and transcript
+- 2026-11-07 `183477f` Stage 7 lanes WIP, playtest logs and transcript
+- 2026-11-07 `66cf780` Swarm transcript: Stage 7 lanes started
+- 2026-11-07 `c2cba39` Swarm: Stage 6 check-in; Stage 7 lanes GFX2, CROWD, H7, H8
+- 2026-11-07 `a8e2810` Swarm transcript: v16 published
+- 2026-11-07 `98d877a` Swarm: GTA4A accepted; transcript
+- 2026-11-07 `9ad3c19` GTA4A lane WIP and swarm transcript
+- 2026-11-07 `61e4209` GTA4A lane WIP: quality tier ranges; transcript
+- 2026-11-07 `6b1582d` GTA4A lane WIP and swarm transcript
+- 2026-11-07 `acb5665` Brownstone areaways: wider basement-entry gap so yards cannot trap the player
+- 2026-11-07 `a0c853e` Stage 6 lanes WIP and swarm transcript
+- 2026-11-07 `307af2c` Ignore lane scratch tests
+- 2026-11-07 `8b9a782` HUD: hide the location card behind panels; advance suffix only when paid
+- 2026-11-07 `cec1b64` Swarm: HUD6 accepted; transcript
+- 2026-11-07 `8d790df` Stage 6 lanes WIP and swarm transcript
+- 2026-11-07 `bc02585` HUD: mission column layout, interior goal state, start toast, phone keys, sign blades
+- 2026-11-07 `1644046` Stage 6 lanes WIP and swarm transcript
+- 2026-11-07 `a5eb72a` Swarm transcript: v15 capture results
+- 2026-11-07 `2255fc5` Swarm: Stage 6 lanes NAV6, HUD6, GTA4A
+- 2026-11-07 `40a61b1` Playtest H6 (phone tier, v15) and the Stage 5 check-in
+- 2026-11-07 `5e587eb` Swarm: ART accepted; H6 playtest steps so far
+- 2026-11-07 `ae7c264` Ignore playtest build copies and ready markers
+- 2026-11-07 `241ba3b` Swarm transcript and playtest H6 logs
+- 2026-11-07 `f535219` Swarm transcript: v15 published
+- 2026-11-07 `d0d93d4` Swarm transcript and playtest H6 progress
+- 2026-11-07 `42deae4` Swarm transcript: v15 gates, capture and H6 started
+- 2026-11-07 `d893563` Swarm transcript: ART final report
+- 2026-11-07 `04f0cc8` Swarm transcript: ART night fix relayed
+- 2026-11-07 `2e69cc7` Swarm: PHONEGFX accepted; board and transcript
+- 2026-11-07 `b4209d6` Phone tier: blob shadows, cheap sun shadow casters, tier fog, bloom gate
+- 2026-11-07 `e303c9d` Grade: trim night, deep-night and blue-hour keys
+- 2026-11-07 `97aa676` Sky: night clouds and haze no longer brighten the night environment
+- 2026-11-07 `b193644` Screens: move the two corner viewpoints out of the building
+- 2026-11-07 `a244bfd` Swarm transcript: ART smoke clean
+- 2026-11-07 `e2e8828` Swarm: CARS2 final report; PHONEGFX WIP (blob shadows, tier geometry)
+- 2026-11-07 `5558e5a` Ignore per-lane temporary smoke script copies
+- 2026-11-07 `859b11e` Swarm: CAM accepted by MGR
+- 2026-11-07 `89a36bc` Swarm transcript: CAM final report and review request
+- 2026-11-03 `58dd46c` Car exit picks a free spot; wire the static-overlap probe
+- 2026-11-03 `06b056c` Swarm render lock waits up to two hours
+- 2026-11-03 `60dc4c1` Swarm: Stage 4 check-in (MGR) and transcript
+- 2026-11-03 `1dc660f` Swarm transcript: RASC review and follow-ups
+- 2026-11-03 `2e0fae6` Radio SC: random 45-minute DJ sets from the ra-nyc API
+- 2026-11-03 `9b18ef6` Swarm: RASC lane for Radio SC sets from ra-nyc; proxy rewrite
+- 2026-11-03 `fc7c319` CARS2 and PHONEGFX lanes WIP: lofted car bodies, phone shadows and LUT
+- 2026-11-03 `51374b2` CARS2 and ART lanes WIP: car bodies, vehicle/signage painters
+- 2026-11-03 `a5b692b` ART and CARS2 lanes WIP: sky, grade, ground variation, car bodies
+- 2026-11-03 `cb25002` Show cinematic bars for 2.5 s when a mission starts
+- 2026-11-03 `1a3bf3f` CAM lane WIP: follow-camera rig and touch tests
+- 2026-11-03 `c1138dd` Wire mission pointer router and door-distance enter check; lanes WIP
+- 2026-11-03 `fa4802f` Swarm: GTA3 feel lanes (cars, camera, art direction, phone shadows)
+- 2026-11-03 `52c686c` Shop and decks panels: phone fit, keyboard/gamepad, door bands and fence gap, pointer tests
+- 2026-11-03 `443e3be` Swarm: MISSFIX lane from H5 findings
+- 2026-11-03 `55a5396` GTA3 bar: tree pits, party walls, roof variety, hourly sidewalk life; remove scratch tests
+- 2026-11-03 `f15e3ac` Panels release pointer lock without opening the pause menu; swarm snapshot
+- 2026-11-03 `7f59832` Panels: gamepad routing, mission clock pause while a panel is open, pointer uses camera yaw; swarm snapshot
+- 2026-11-03 `1d8f6ff` Swarm: SHOPUX lane from H4 findings
+- 2026-11-03 `761c68d` Traffic density follows the game hour; swarm snapshot
+- 2026-11-03 `7de7da4` Readable transcript: Stage 3 through close-out, playtests, usage-limit pauses
+- 2026-11-03 `9e960fd` Swarm Stage 4 board: GTA3 bar lane and phone/club playtester
+- 2026-11-03 `7440708` Stage 3 check-in, PRD 5.4 rows, graphics ladder, board; artifact v13
+- 2026-11-03 `25001c6` Traffic: intersection deadlock fix (box yield, exit jam hold, parked-car graze); swarm snapshot
+- 2026-11-03 `caa6ce9` Remove stray debug tests
+- 2026-11-03 `b8600d1` Swarm: TA2 traffic-deadlock lane
+- 2026-11-03 `03ee480` Swarm: STUCK lane from playtest findings
+- 2026-11-03 `5427143` Dev deps for model compression (gltf-transform, meshoptimizer); swarm snapshot
+- 2026-11-03 `2e89ded` Swarm: WIRE integration lane
+- 2026-11-03 `6332556` Schema: facadeTexture lot field; packs skip facade atlases; swarm snapshot
+- 2026-11-03 `a5635c9` Enter-car shove fix: player walk-to-door no longer pushes the parked car; swarm snapshot
+- 2026-11-03 `3c102d5` Pipeline follows weather wetness/rain; swarm snapshot
+- 2026-11-03 `ce03190` Swarm: graphics ladder (GTA3 -> GTA4 -> GTA5) and CLUTTER lane
+- 2026-11-03 `31e50a3` Radio SC follows game time; swarm snapshot
+- 2026-11-03 `b5c4333` Swarm: MDLI2 lane (civilian variety with mesh compression)
+- 2026-11-03 `27b561c` Swarm: six new lanes (models research 2, GTA-level graphics, real-blocks import, missions 2, interiors/DJ, Radio SC)
+- 2026-11-03 `5a42bde` Swarm: DRIVE lane from playtest findings; H2 partial relay
+
+## Week of 26 Oct 2026 (38 releases)
+
+- 2026-11-01 `5899225` Car exit fix: consumed key edges per fixed step, gamepad exit, enter-walk cancel; swarm snapshot
+- 2026-11-01 `7c5339d` Playtest harness waits full game time and reports cut-short actions; R/X consume presses
+- 2026-11-01 `df44924` Playtest doc: background shell timeout note; swarm snapshot
+- 2026-11-01 `3f7f0fb` Phone tier keeps fences and roll gates visible so colliders match the drawn world; swarm snapshot
+- 2026-11-01 `009aa2c` Playtest harness: recorded sessions with subtitle box and command protocol
+- 2026-11-01 `3273a9a` Readable transcript: roundtable discussion and synthesis added
+- 2026-11-01 `9e42f40` Readable English transcript of the swarm (stages 1-3)
+- 2026-11-01 `59a7b0b` Swarm: shared render lock for headless runs
+- 2026-11-01 `a037f9b` Radio library UI and talk station wired into the menu and HUD; swarm snapshot
+- 2026-11-01 `a520060` Swarm: model integration lane
+- 2026-11-01 `a643c36` Swarm: roundtable + readable transcript requested
+- 2026-11-01 `720510e` Swarm: four more radio stations requested (trap, psych, echo-dub rock, jazz rock)
+- 2026-11-01 `220f349` Swarm: record the GTA 5 design-bible direction
+- 2026-11-01 `cb062c2` Swarm Stage 3: phone tier, models research, radio library, talk show lanes
+- 2026-11-01 `50e067c` Swarm Stage 3 board
+- 2026-10-29 `7de34af` Stage 2 close-out: storefront hour wiring, slimmer mission markers, check-in report, board
+- 2026-10-28 `76b3edc` chainlinkRail alpha-tested; swarm snapshot
+- 2026-10-28 `8461368` Hosted build config: two-branch vite config, build:hosted scripts, Vercel output; swarm snapshot
+- 2026-10-28 `3f0549c` Mission events on the bus, WantedSystem.raiseTo, minimap blips; swarm snapshot
+- 2026-10-28 `3974acd` Industrial material keys: corrugated steel, chain-link, granite curb, cast-iron fence, tar roof, graffiti
+- 2026-10-28 `df59855` Swarm Stage 2: PRD 5.3 criteria, stages entry text, transcript
+- 2026-10-28 `972cec5` Swarm Stage 2: transcript snapshot (agents starting)
+- 2026-10-28 `db400ae` Swarm Stage 2 board
+- 2026-10-28 `72163d7` Stage 1 close-out: dielectric glass/paint metalness, alloc-free sky/flare/lamps/HUD, R1 provenance, grid notes
+- 2026-10-28 `5cb3754` Swarm stage 1 close-out: check-in report, board, transcript; artifact v5
+- 2026-10-28 `cfd2c1c` Lighting and reflections: per-hour time cycle, true sun direction for sky/flare, 60° sun arc, moon key light, dusk bloom fix, sky radiance cap, headlight tuning, light-audit tool
+- 2026-10-28 `fa4575c` People use the new fabric materials: fleece hoodies, denim, sneakers
+- 2026-10-28 `5324035` Performance and wiring: render interpolation, loading screen, auto quality, culling; menus, gamepad, signals, save state wired into the entry point
+- 2026-10-28 `b0c28d3` Traffic lights with NYC phasing and green wave; signal-aware traffic, overtaking, honking; signal-aware pedestrians, groups, stoop sitting; cop patrol/pursuit polish
+- 2026-10-28 `48932c3` Driving feel: torque curve, ABS-like braking, slip-angle drift, body roll, dents, pushable parked cars, wall scrubbing; on-foot acceleration; camera speed lag, FOV, shake, wall pull-in
+- 2026-10-28 `2cd4c57` Storefront art: archetype-aware awnings with pictograms, phone plates, lightbox badges, neon signs
+- 2026-10-28 `c192621` Position persistence (SaveState) with menu reset
+- 2026-10-28 `be0c0b1` UI and audio: pause/settings menu, gamepad input, HUD polish, minimap smoothing, gear shifts, tyre squeal, audio pause
+- 2026-10-28 `93e5a36` Swarm: CC0 round-3 findings; cedar water-tank texture pack
+- 2026-10-28 `37fb6d8` Swarm: lighting targets brief (per-hour and per-material tables)
+- 2026-10-28 `3b54c3f` Vehicle and people textures: paint flake/dirt/scratch detail, tyre sidewalls, plates, hoodie/denim/varsity/sneaker fabrics
+- 2026-10-28 `c51d785` Swarm: block-face research brief; material keys for vehicle/people textures
+- 2026-10-28 `07d3d34` Swarm scaffolding: transcript, board, PRD skeleton, lighting config
+
+## Week of 19 Oct 2026 (33 releases)
+
+- 2026-10-24 `52ad811` Ground painters from the brief: NYC asphalt, 5x5 sidewalk slabs with gum, bluestone flags, granite curbs, manholes, grates, ladder crosswalks
+- 2026-10-24 `024f1c2` Masonry painters from the Bed-Stuy brief; wire optional glTF characters and vehicles into entities
+- 2026-10-24 `9d6a02f` Lofted car hulls with arches, glass, trim and lights; 7.5-head humans with hands, hair variants and richer walk cycle
+- 2026-10-24 `32ead96` Storefront and metal painters: galvanized/painted/tagged roll gates, vinyl and corrugated awnings, lightbox signs, window variants, cedar tanks
+- 2026-10-24 `5a75add` Texture packs: Brooklyn dirt for tree pits and lots, tan iron-spot brick, from a second CC0 mirror
+- 2026-10-24 `d73b0cc` Rigged glTF character/vehicle support; Bed-Stuy and GTA style reference briefs; new ground material keys
+- 2026-10-24 `edde536` Street props: utility poles with catenary wires, billboards, fences, dumpsters, trash, cones, graffiti
+- 2026-10-24 `2b76648` Cinematic post: depth of field, 3D LUT grading by hour, auto-exposure, sun lens flare, tighter shadows
+- 2026-10-24 `b4a10f0` Photo-to-PBR pipeline: convert your own surface photos into tileable texture sets, auto-loaded by file name
+- 2026-10-24 `bcd6599` Graphics integration: exposure balance, matte pack surfaces, medium default quality, test timeout, README
+- 2026-10-24 `4dc6955` Facade detail: recessed windows, sills, railed stoops, bracketed cornices, roof clutter, storefront lightboxes; wire render stack
+- 2026-10-24 `4bbc245` Procedural car models (sedan, SUV, box truck, cruiser) with lights and better human rigs with walk cycle
+- 2026-10-24 `e6798b1` Add sky dome with sun/stars and env capture, pooled streetlights and headlights; detailed curbs, manholes, drains, patches, worn markings
+- 2026-10-24 `b789a56` PBR material library: procedural normal/roughness maps, clearcoat car paint, env reflections, map overrides
+- 2026-10-24 `e70d5f2` Add CC0 photo-based PBR texture packs derived from ambientCG sets, with loader and credits
+- 2026-10-24 `2057f3b` Add render pipeline: cascading sun shadows, GTAO, bloom, color grading, SMAA, quality presets
+- 2026-10-24 `4c413ec` Contracts: optional environment map and headlights hooks for the graphics upgrade
+- 2026-10-24 `b8a18df` Add touchscreen controls: virtual joystick, look drag, action buttons; phone HUD layout
+- 2026-10-24 `ffc24e1` Add artifact packaging script and npm run artifact
+- 2026-10-24 `11eb6cf` Integration fixes: edge-input survives zero-step frames, wider fog, brighter night, review hooks
+- 2026-10-24 `1695a79` Add traffic AI, pedestrians, cops, wanted system; integration entry point
+- 2026-10-24 `a34bdd3` Add 2D physics: SAT colliders, spatial-hash World2D with sweep substepping
+- 2026-10-24 `a8b7c88` Add street furniture: trees, lampposts, street-name signs, hydrants, trash, bodega ice-box
+- 2026-10-24 `ee9c82a` Add Grid: intersections, segments, blocks, lane and sidewalk graphs from bedstuy.json
+- 2026-10-24 `0fe2f0b` Add canvas-painted MaterialLibrary: brick, brownstone, asphalt, awnings, signs, night glow
+- 2026-10-24 `b0b3000` Add arcade Vehicle, on-foot Player with enter/exit, third-person camera
+- 2026-10-24 `58b72f2` Add procedural Web Audio: engine, horn, impacts, ambience, parody radio stations
+- 2026-10-24 `b7793a9` Add procedural RoadBuilder: asphalt, sidewalks, curbs, markings, crosswalks, map-edge walls
+- 2026-10-24 `60c2c83` Add README with tribute disclaimer
+- 2026-10-24 `c26460e` Add v1 implementation plan; contract tweaks; jsdom for DOM tests
+- 2026-10-24 `a24adce` Scaffold Vite + Three.js skeleton, shared contracts, world data, test harnesses
+- 2026-10-24 `8d9bb5e` Record approved decisions in design spec
+- 2026-10-24 `f7c7aee` Add GTA Bed-Stuy design spec
