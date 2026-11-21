@@ -920,6 +920,24 @@ export const stickerAtlasPainter: Painter = (ctx, _w, _h, rng) => {
     ctx.fill();
   }
 
+  // a row of front-loading washers seen through a laundromat window: cream cabinets, dark round doors with a pale rim
+  const swd = slot('washers');
+  ctx.fillStyle = '#6a7a84';
+  ctx.fillRect(swd.x + 2, swd.y + 2, swd.w - 4, swd.h - 4);
+  for (let i = 0; i < 4; i++) {
+    const wx0 = swd.x + 8 + i * ((swd.w - 16) / 4), ww = (swd.w - 16) / 4 - 6;
+    ctx.fillStyle = '#e4dfd0';
+    ctx.fillRect(wx0, swd.y + 10, ww, swd.h - 20);
+    const cx = wx0 + ww / 2, cy = swd.y + swd.h * 0.56;
+    for (const [r, c] of [[ww * 0.4, '#8a95a0'], [ww * 0.33, '#1f2c44'], [ww * 0.2, '#35557a']] as const) {
+      ctx.fillStyle = c;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#b3262d';
+    ctx.fillRect(wx0 + 5, swd.y + 14, 10, 4);
+  }
   // barber pole: glass cylinder with a red, white and blue spiral, caps top and bottom
   const sp = slot('pole');
   const px = sp.x + sp.w / 2, pw = 48, top = sp.y + 26, bot = sp.y + sp.h - 26;

@@ -91,8 +91,8 @@ const HORIZON_KEYS: ReadonlyArray<{ e: number; color: number }> = [
   { e: 0.0, color: 0xd8916c }, // sunset glow
   { e: 0.08, color: 0xdcae8e }, // hazy warm
   { e: 0.25, color: 0xd0bfae },
-  { e: 0.42, color: 0xc4c4c2 }, // golden-hour dust haze
-  { e: 0.62, color: 0xb6c9dc }, // clear, pale
+  { e: 0.42, color: 0xcfc1ae }, // golden-hour dust haze
+  { e: 0.62, color: 0xb8c9da }, // clear, pale
   { e: 1.0, color: 0xb0cae4 },
 ];
 const HORIZON_COLORS = HORIZON_KEYS.map((k) => new THREE.Color(k.color));
@@ -215,8 +215,10 @@ const ART_GLSL_BODY = /* glsl */ `
 				texColor = mix( texColor, ramp, artDusk * ( 0.3 + 0.7 * artAz ) * ( 1.0 - 0.45 * vv ) );
 			}
 			// horizon haze band (matches the fog colour so the skyline dissolves into the sky)
-			float artHz = 1.0 - smoothstep( 0.0, 0.35 + 0.65 * artHaze + 0.9 * artFogW, artUp );
+			float artHz = 1.0 - smoothstep( 0.0, 0.3 + 0.5 * artHaze + 0.9 * artFogW, artUp );
 			texColor = mix( texColor, artHazeCol, artHz * artHz * artHaze );
+			// Stoop Light: a little of the haze colour over the whole dome, so the zenith is dusty, not cobalt
+			texColor = mix( texColor, artHazeCol, 0.1 * artHaze );
 			// clouds
 			float artAlpha = 0.0;
 			if ( direction.y > 0.015 ) {

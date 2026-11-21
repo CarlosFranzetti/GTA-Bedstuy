@@ -82,7 +82,7 @@ def main():
         dst = os.path.join(out, cid + '.mp3')
         old = key != 'cc'
         enc = ['-ac', '1', '-ar', '22050', '-b:a', '40k'] if old else ['-ac', '2', '-ar', '44100', '-b:a', '56k', '-joint_stereo', '1']
-        fade = f'afade=t=in:d=0.25,afade=t=out:st={dur-1.5}:d=1.5'
+        fade = f'afade=t=in:d=0.25,afade=t=out:st={dur-1.5}:d=1.5,alimiter=limit=0.92'
         subprocess.run(['ffmpeg', '-y', '-v', 'error', '-ss', str(start), '-t', str(dur), '-i', src, '-af', fade, '-c:a', 'libmp3lame', *enc, '-map_metadata', '-1', dst], check=True)
         pcm = subprocess.run(['ffmpeg', '-v', 'error', '-i', dst, '-f', 'f32le', '-ac', '1', '-ar', '11025', '-'], capture_output=True, check=True).stdout
         x = np.frombuffer(pcm, dtype=np.float32); sr = 11025

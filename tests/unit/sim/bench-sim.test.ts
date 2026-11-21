@@ -5,7 +5,8 @@
  * Without BENCH_SIM it runs a short smoke version with loose budgets so the suite stays fast and stable.
  */
 import * as THREE from 'three';
-import { loadavg, cpus } from 'node:os';
+// @ts-ignore node module types are not installed for tests
+import * as os from 'node:os';
 import { describe, expect, it } from 'vitest';
 import { EventBus } from '@/core/Events';
 import { Rng } from '@/core/Rng';
@@ -114,7 +115,7 @@ describe('sim step cost (node, real world)', () => {
     const total = rows.total.slice(warm);
     expect(pct(total, .5)).toBeLessThan(FULL ? 1.0 : 5);
     // a worst-step bound is a timing test: it means nothing when other jobs hold the machine (several lanes share this 4-core box)
-    const loaded = loadavg()[0] > cpus().length * 1.5;
+    const loaded = os.loadavg()[0] > os.cpus().length * 1.5;
     if (!loaded) expect(Math.max(...total)).toBeLessThan(FULL ? 8 : 120);
   }, 300_000);
 });

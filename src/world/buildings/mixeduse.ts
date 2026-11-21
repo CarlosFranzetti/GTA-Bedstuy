@@ -1264,6 +1264,8 @@ export function buildGroundFloor(c: LotCtx, plan: StorefrontPlan, brick: THREE.M
       quad: (mat, X0, X1, y0, y1, z, uv) => front(mat, X0, X1, y0, y1, z, { uvRect: uvOf(uv) }),
       top: (mat, X0, X1, z0, z1, y, uv) => b.rect(mat, [Math.min(wx(X0), wx(X1)), y, z0], [Math.abs(X1 - X0), 0, 0], [0, 0, z1 - z0], { hint: [0, 1, 0], uvRect: uvOf(uv) }),
       across: (mat, X, y0, y1, z0, z1, uv, facing) => b.rect(mat, [wx(X), y0, z0], [0, 0, z1 - z0], [0, y1 - y0, 0], { hint: [facing, 0, 0], uvRect: uvOf(uv) }),
+      glassZ: 0.062 - SHOP_RECESS,
+      board: spec.shopType ? SHOP_TYPES[spec.shopType].board : undefined,
       metal: m.metal,
       // only materials this lot already uses (its own tile colour, metal): dressing must not add a draw call to any cell
       tile: { cream: tileMat, green: tileMat, black: m.metal, navy: tileMat },

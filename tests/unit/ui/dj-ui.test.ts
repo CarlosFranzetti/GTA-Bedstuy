@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { DjUi } from '@/ui/DjUi';
 import { DjGame } from '@/game/DjGame';
 import { Inventory } from '@/game/Inventory';
-import { PROCEDURAL_RECORDS } from '@/game/records';
+import { PROCEDURAL_RECORDS, RecordSource, type BufferContext } from '@/game/records';
+import { ARCHIVE_RECORDS } from '@/game/archiveRecords';
 
 describe('DjUi', () => {
   it('loads records on decks, plays, scripted frames score, and Finish emits dj:setFinished', async () => {
@@ -33,5 +34,21 @@ describe('DjUi', () => {
     expect(document.querySelectorAll('.dj-crowd')[document.querySelectorAll('.dj-crowd').length - 1].hasAttribute('hidden')).toBe(true);
     const p = document.querySelector<HTMLInputElement>('.dj-pitch')!;
     expect(p.min).toBe('-8'); expect(p.max).toBe('8');
+  });
+  it('an archive record on a deck shows its true credit, a liner note, and "not beat-matched" when the tempo drifts', async () => {
+    const ctx: BufferContext = { sampleRate: 4000, createBuffer: (c, l, r) => { const ch = Array.from({ length: c }, () => new Float32Array(l)); return { duration: l / r, length: l, getChannelData: (i: number) => ch[i] } as unknown as AudioBuffer; }, decodeAudioData: async () => ctx.createBuffer(1, 4000 * 80, 4000) };
+    const inv = new Inventory(PROCEDURAL_RECORDS, null); inv.add(500);
+    const drifting = ARCHIVE_RECORDS.find((r) => r.beatMatched === false)!; const steady = ARCHIVE_RECORDS.find((r) => r.beatMatched)!;
+    inv.buy(drifting); inv.buy(steady);
+    const ui = new DjUi(document.body, { game: new DjGame(null), inventory: inv, source: new RecordSource(ctx, () => undefined, async () => new ArrayBuffer(4)), raf: () => 0, caf: () => undefined });
+    ui.open('home');
+    expect(await ui.loadDeck(0, drifting.id)).toBe(true);
+    expect(await ui.loadDeck(1, steady.id)).toBe(true);
+    ui.paint();
+    const decks = [...document.querySelectorAll('.dj-deck')].slice(-2);
+    expect(decks[0].querySelector('.dj-bpm')?.textContent).toContain('not beat-matched');
+    expect(decks[1].querySelector('.dj-bpm')?.textContent).not.toContain('not beat-matched');
+    expect(decks[0].querySelector('.dj-credit-text')?.textContent).toMatch(/^Really: /);
+    expect(decks[0].querySelector('.dj-liner .liner')?.textContent).toContain('Licence: PD-US');
   });
 });

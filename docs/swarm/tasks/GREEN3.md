@@ -27,3 +27,14 @@ Existing parked-car cap: TrafficSystem PARKED_CAP = 1000 already in the code (to
 - realtraffic-turns "no vehicle longer than MAX_REAL_VEHICLE_LENGTH is a normal car": the new schoolbus (12 m) is over 8 m, the real map already makes it a box truck. FIXED: expected list now bus, garbage, schoolbus.
 - driving-feel, vehicle-qa, pursuit, traffic-5min, realtraffic-5min: GREEN in this run with the current handling.ts (HANDLING3 retuned). So Vehicle.playerHandling stays TRUE. Recheck at the end.
 - stray scratch tests deleted: tests/unit/entities/_dbg.test.ts (h2dbg and h3dbg were already gone).
+
+## CARS4 vehicle types into traffic (step 4)
+- Added to src/game/TrafficSystem.ts: CARS4_TRAFFIC_SHARE, PARK_WEIGHT rows, cumulative() extra list, never-parked list (schoolbus, sweeper), NOT_MOVING gets schoolbus.
+- long-vehicle-turns now covers all 8 new types plus hearse/livery: all pass except schoolbus (swings 4.6 m wide on the grid's 14 m left turn), so schoolbus is in NOT_MOVING (as CARS4 suggested). It is also never parked, so it never appears yet.
+- traffic-5min (grid, seeds 7 + 21) with the CARS4 shares above zero: RED in 3 trials (full shares: 4 hard AI-vs-AI impacts, none involving a new type: hatch/bigsuv, luxury/luxury, luxury/minitruck, convertible/bus; half shares: one car moved 9.5 m in 60 s vs 10; sweeper/bucket zero: icecream hit 5.4 m/s). The baseline has a thin margin and any change of mix shifts the random stream.
+- DECISION: the table is in place with every share at 0 (documented in the code). With zero shares both 5-minute sims are green. Raising shares is blocked on AI-vs-AI collision fixes, NOT on the new types themselves.
+- driving-feel, vehicle-qa, pursuit green with the current handling.ts; Vehicle.playerHandling stays true.
+- bench-sim worst-step bound skipped under load (os.loadavg > 1.5 x cores).
+
+## Play check (step 5)
+Script: scratchpad/green3/play.cjs (modes default, phone, real). Build: VITE_HOSTED=1 into scratchpad/green3/dist. Frames in scratchpad/green3/out/<mode>/. Results below as they come.

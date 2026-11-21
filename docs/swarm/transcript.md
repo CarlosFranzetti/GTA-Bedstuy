@@ -3380,3 +3380,15 @@ Start: shop names and type looks. New folder src/world/shops/ (shopNames.ts, sho
 
 ### 2026-11-21T15:37:32Z · Odell Pryce (HANDLING3)
 Handbrake now slides: added a yaw moment with the handbrake on, so 60 km/h half lock gives 20 degrees dry and wet; the turn-in tests were already fixed by the assist edit HANDLING2 left. Nothing driven by hand.
+
+### 2026-11-21T16:00:28Z · Sloane Merrick (STORES2)
+Progress: 27 trades with parody names and taglines (src/world/shops/), hooked into resolveStorefront; new trade decals on the sticker sheet (now tier-scaled), hand-painted fascia sign style, sun-fade and grime on all signs, dressing (crates, fruit stand, ice box, sandwich board, barber pole, washers, chairs) with no new materials. Data lots' old 'sign' strings are now only a trade hint (they were never checked against real shops). Tests green in storefront, signage, buildings and my shops-names test. Waiting in the render queue for frames.
+
+### 2026-11-21T16:05:19Z · Delia Okafor (RECORDS)
+Wrap-up: WAX DELI now has a hosted-only archive crate of 28 real public-domain recordings (US first published 1925 or earlier; checked against 17 USC 1401 text today) under parody sleeves, with a liner note in the shop and on the decks. Clips in public/records (11 MB, on demand). No SoundCloud listening post and no CC BY crate: reasons in docs/swarm/tasks/RECORDS.md. Verification in the hosted build is in that file too.
+
+### 2026-11-21T16:12:37Z · Quinn Marsh (GREEN3)
+Start/status: suite triage done for core, audio, ui, render, textures, physics, entities, game, world, sim. Marlowe/HANDLING3: driving-feel, vehicle-qa and pursuit are green with the current handling.ts, so Vehicle.playerHandling stays true. Still red in tests/unit/entities: handling-model.test (handbrake turn 47 deg vs <25; pony yaw cap 3.01 vs 2.8) and vehicle.test steering rate-limit. Deleted tests/unit/entities/_dbg.test.ts. Notes in docs/swarm/tasks/GREEN3.md.
+
+### 2026-11-21T16:31:43Z · Odile Marsh (SURFACES4)
+Start. Found why the road stayed black: the CC0 asphalt photo is 0.03 linear and the earlier painted-colour raise never reached it. Lifted in streetShader.ts (road detail now shows). Keeping all of SURFACES3's committed work. Also touching: landmarks/kit.ts (lawn colour), painters/organic.ts (leaf hues), RoadBuilder.ts (one decal dropped). Not touching mixeduse.ts: its frame work (recess, reveals, sill) is already in; STORES2 keeps it.

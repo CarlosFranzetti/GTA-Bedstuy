@@ -92,6 +92,11 @@ const FLASH_SUN_ADD = 0.4;
 const FLASH_TINT = 0.55;
 const _flashTint = new Color(0.78, 0.86, 1);
 const _grey = new Color();
+/** Overcast light is grey-green (Stoop Light's second signature): the sky fill, the bounce and the (dim) sun are pulled towards these by day. */
+const OVERCAST_HEMI = new Color(0x9ba79d);
+const OVERCAST_GROUND = new Color(0x6d6c5e);
+const OVERCAST_SUN = new Color(0xdfe5dc);
+const OVERCAST_TINT = 0.55;
 const _tc = newTimeCycle();
 const _moonDir = new Vector3();
 
@@ -237,7 +242,7 @@ export class DayNight implements Clock {
         // rain haze: greyer fog
         const c = this.scene.fog.color;
         const lum = c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722;
-        c.lerp(_grey.setRGB(lum, lum, lum * 1.04), OVERCAST_FOG_GREY * o);
+        c.lerp(_grey.setRGB(lum * 0.98, lum * 1.03, lum * 1.0), OVERCAST_FOG_GREY * o);
       }
       const fog = this.scene.fog as Fog;
       const wf = clamp(this.fogAmount, 0, 1);
@@ -260,6 +265,13 @@ export class DayNight implements Clock {
     this.hemi.color.copy(tc.hemiSky);
     this.hemi.groundColor.copy(tc.hemiGround);
     this.hemi.intensity = tc.hemiI * (1 + OVERCAST_HEMI_GAIN * o) * (1 + FLASH_HEMI_GAIN * fl) + FLASH_HEMI_ADD * fl;
+    if (o > 0) {
+      // grey-green by day only (the night colours stay as they are)
+      const day = clamp(tc.sunI / 1.5, 0, 1) * o * OVERCAST_TINT;
+      this.hemi.color.lerp(OVERCAST_HEMI, day);
+      this.hemi.groundColor.lerp(OVERCAST_GROUND, day);
+      this.sun.color.lerp(OVERCAST_SUN, day);
+    }
     if (fl > 0) this.hemi.color.lerp(_flashTint, FLASH_TINT * fl);
   }
 }

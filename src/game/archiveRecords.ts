@@ -55,7 +55,7 @@ export interface ArchiveSpec {
 }
 
 const IA = 'https://archive.org/details/';
-const NONE = 'No licence statement on the item page (collection: 78rpm). The page shows the date below.';
+const NONE = 'The item page shows no licence statement (collection: 78rpm).';
 const MARK = 'Library of Congress item. Licence field: Public Domain Mark 1.0 (https://creativecommons.org/publicdomain/mark/1.0/).';
 const PD_OLD = 'Licence field: Public Domain (http://creativecommons.org/licenses/publicdomain/).';
 

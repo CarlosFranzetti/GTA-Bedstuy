@@ -40,37 +40,39 @@ export interface ShopTypeInfo {
   fascia: boolean;
   /** things on the pavement */
   dressing: readonly DressingKind[];
+  /** what the sandwich board says (a decal from the sticker sheet) */
+  board?: StickerKind;
 }
 
 const T = (i: ShopTypeInfo): ShopTypeInfo => i;
 
 export const SHOP_TYPES: Record<ShopType, ShopTypeInfo> = {
   pizzeria: T({ type: 'pizzeria', label: 'pizzeria', kind: 'restaurant', cuisine: null, weight: 30, archetype: 'pizza',
-    awning: ['#b3262d', '#2f6f3e', '#a8281f'], sign: ['#241410', '#f6e9c4'], stickers: ['hotslices', 'open', 'menu'], fascia: false, dressing: ['sandwichBoard', 'hotCase'] }),
+    awning: ['#b3262d', '#2f6f3e', '#a8281f'], sign: ['#241410', '#f6e9c4'], stickers: ['hotslices', 'open', 'menu'], fascia: false, dressing: ['sandwichBoard', 'hotCase'], board: 'hotslices' }),
   bodega: T({ type: 'bodega', label: 'bodega', kind: 'bodega', cuisine: null, weight: 60, archetype: 'bodega',
     awning: ['#c8242a', '#e2b52f', '#2a6aa0', '#2f7a43'], sign: ['#161616', '#f5f0e0'], stickers: ['open', 'atm', 'ebt', 'lotto', 'camera'], fascia: false, dressing: ['crates', 'iceBox', 'newsRack'] }),
   grocery: T({ type: 'grocery', label: 'corner grocery with fruit stand', kind: 'bodega', cuisine: null, weight: 40, archetype: 'bodega',
     awning: ['#2f7a43', '#d9a921', '#b3262d'], sign: ['#12261a', '#f4efd8'], stickers: ['fresh', 'open', 'ebt', 'lotto'], fascia: false, dressing: ['fruitStand', 'crates', 'flowerBuckets'] }),
   deli: T({ type: 'deli', label: 'deli', kind: 'deli', cuisine: null, weight: 50, archetype: 'bodega',
-    awning: ['#b3262d', '#2f7a43', '#d9a921'], sign: ['#161616', '#f5f0e0'], stickers: ['open', 'ebt', 'camera'], fascia: false, dressing: ['sandwichBoard', 'newsRack'] }),
+    awning: ['#b3262d', '#2f7a43', '#d9a921'], sign: ['#161616', '#f5f0e0'], stickers: ['open', 'ebt', 'camera'], fascia: false, dressing: ['sandwichBoard', 'newsRack'], board: 'menu' }),
   chinese: T({ type: 'chinese', label: 'Chinese takeout', kind: 'restaurant', cuisine: 'chinese', weight: 22, archetype: 'kitchen',
-    awning: ['#b3262d', '#d9a921', '#8c1d22'], sign: ['#2a1210', '#ffe9a8'], stickers: ['menu', 'open', 'camera'], fascia: false, dressing: ['sandwichBoard'] }),
+    awning: ['#b3262d', '#d9a921', '#8c1d22'], sign: ['#2a1210', '#ffe9a8'], stickers: ['menu', 'open', 'camera'], fascia: false, dressing: ['sandwichBoard'], board: 'menu' }),
   caribbean: T({ type: 'caribbean', label: 'Caribbean and jerk', kind: 'restaurant', cuisine: 'caribbean', weight: 18, archetype: 'kitchen',
-    awning: ['#e2b52f', '#2f7a43', '#c8242a'], sign: ['#12261a', '#ffe08a'], stickers: ['menu', 'open'], fascia: true, dressing: ['sandwichBoard', 'plasticChairs'] }),
+    awning: ['#e2b52f', '#2f7a43', '#c8242a'], sign: ['#12261a', '#ffe08a'], stickers: ['menu', 'open'], fascia: true, dressing: ['sandwichBoard', 'plasticChairs'], board: 'menu' }),
   chicken: T({ type: 'chicken', label: 'fried chicken', kind: 'restaurant', cuisine: 'soul', weight: 16, archetype: 'kitchen',
-    awning: ['#c8242a', '#e07b00', '#e2b52f'], sign: ['#2a0f0c', '#ffe6b0'], stickers: ['menu', 'open', 'camera'], fascia: false, dressing: ['sandwichBoard'] }),
+    awning: ['#c8242a', '#e07b00', '#e2b52f'], sign: ['#2a0f0c', '#ffe6b0'], stickers: ['menu', 'open', 'camera'], fascia: false, dressing: ['sandwichBoard'], board: 'menu' }),
   halal: T({ type: 'halal', label: 'halal grill', kind: 'restaurant', cuisine: null, weight: 14, archetype: 'kitchen',
-    awning: ['#2f7a43', '#d9a921', '#2a6aa0'], sign: ['#10221a', '#f3ecd0'], stickers: ['halal', 'menu', 'open'], fascia: false, dressing: ['sandwichBoard', 'plasticChairs'] }),
+    awning: ['#2f7a43', '#d9a921', '#2a6aa0'], sign: ['#10221a', '#f3ecd0'], stickers: ['halal', 'menu', 'open'], fascia: false, dressing: ['sandwichBoard', 'plasticChairs'], board: 'halal' }),
   bakery: T({ type: 'bakery', label: 'bakery', kind: 'deli', cuisine: null, weight: 22, archetype: 'bakery',
-    awning: ['#c59a3a', '#8c4a2f', '#d98c9a'], sign: ['#2b1a12', '#fbeccb'], stickers: ['bake', 'open'], fascia: true, dressing: ['sandwichBoard'] }),
+    awning: ['#c59a3a', '#8c4a2f', '#d98c9a'], sign: ['#2b1a12', '#fbeccb'], stickers: ['bake', 'open'], fascia: true, dressing: ['sandwichBoard'], board: 'bake' }),
   coffee: T({ type: 'coffee', label: 'coffee shop', kind: 'deli', cuisine: null, weight: 18, archetype: 'coffee',
-    awning: ['#33473a', '#5a3a28', '#2a3a55'], sign: ['#1c1511', '#efe0c0'], stickers: ['coffee', 'open'], fascia: false, dressing: ['sandwichBoard', 'plasticChairs'] }),
+    awning: ['#33473a', '#5a3a28', '#2a3a55'], sign: ['#1c1511', '#efe0c0'], stickers: ['coffee', 'open'], fascia: false, dressing: ['sandwichBoard', 'plasticChairs'], board: 'coffee' }),
   liquor: T({ type: 'liquor', label: 'liquor store', kind: 'liquor', cuisine: null, weight: 75, archetype: 'liquor',
     awning: ['#1a1a1c', '#4a1d2e', '#1b2a4a'], sign: ['#141214', '#e8d49a'], stickers: ['open', 'lotto', 'atm', 'noloiter'], fascia: false, dressing: ['crates'] }),
   dollar: T({ type: 'dollar', label: 'dollar store', kind: 'generic', cuisine: null, weight: 14, archetype: 'dollar',
-    awning: ['#d9a921', '#b3262d', '#e2c22f'], sign: ['#7a1015', '#fff2c2'], stickers: ['open', 'camera'], fascia: false, dressing: ['bagStack', 'sandwichBoard'] }),
+    awning: ['#d9a921', '#b3262d', '#e2c22f'], sign: ['#7a1015', '#fff2c2'], stickers: ['open', 'camera'], fascia: false, dressing: ['bagStack', 'sandwichBoard'], board: 'ebt' }),
   pharmacy: T({ type: 'pharmacy', label: 'pharmacy', kind: 'pharmacy', cuisine: null, weight: 1, archetype: 'pharmacy',
-    awning: ['#1f8a63', '#2a6aa0'], sign: ['#0b3d2e', '#e9fff4'], stickers: ['cross', 'open', 'camera'], fascia: false, dressing: ['sandwichBoard'] }),
+    awning: ['#1f8a63', '#2a6aa0'], sign: ['#0b3d2e', '#e9fff4'], stickers: ['cross', 'open', 'camera'], fascia: false, dressing: ['sandwichBoard'], board: 'cross' }),
   laundromat: T({ type: 'laundromat', label: 'laundromat', kind: 'laundromat', cuisine: null, weight: 1, archetype: 'laundromat',
     awning: ['#2a6aa0', '#2a9d8f', '#4a7ab0'], sign: ['#0d3b66', '#ffffff'], stickers: ['open', 'noloiter'], fascia: false, dressing: ['washerRow', 'plasticChairs'] }),
   barber: T({ type: 'barber', label: 'barbershop', kind: 'barber', cuisine: null, weight: 1, archetype: 'barber',
@@ -82,7 +84,7 @@ export const SHOP_TYPES: Record<ShopType, ShopTypeInfo> = {
   nails: T({ type: 'nails', label: 'nail salon', kind: 'generic', cuisine: null, weight: 14, archetype: 'salon',
     awning: ['#d98c9a', '#7a5ab0', '#2a9d8f'], sign: ['#2a1a28', '#ffeef4'], stickers: ['open'], fascia: false, dressing: ['flowerBuckets'] }),
   phoneRepair: T({ type: 'phoneRepair', label: 'phone repair', kind: 'cellphone', cuisine: null, weight: 1, archetype: 'cellphone',
-    awning: ['#2b3a55', '#6a3cc0', '#0d8fa5'], sign: ['#14192a', '#e8f6ff'], stickers: ['phonefix', 'open', 'camera'], fascia: false, dressing: ['sandwichBoard'] }),
+    awning: ['#2b3a55', '#6a3cc0', '#0d8fa5'], sign: ['#14192a', '#e8f6ff'], stickers: ['phonefix', 'open', 'camera'], fascia: false, dressing: ['sandwichBoard'], board: 'phonefix' }),
   cashing: T({ type: 'cashing', label: 'check cashing', kind: 'generic', cuisine: null, weight: 8, archetype: 'cash',
     awning: ['#d9c12f', '#1f6f4a', '#2a3a55'], sign: ['#12301f', '#ffe97a'], stickers: ['cash', 'atm', 'camera'], fascia: false, dressing: [] }),
   hardware: T({ type: 'hardware', label: 'hardware', kind: 'generic', cuisine: null, weight: 8, archetype: 'hardware',

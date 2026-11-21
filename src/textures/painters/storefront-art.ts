@@ -787,7 +787,7 @@ export function drawStripe(
 
 export type StickerKind = 'atm' | 'ebt' | 'lotto' | 'h24' | 'open' | 'camera' | 'noloiter' | 'menu'
   | 'hotslices' | 'cross' | 'halal' | 'cash' | 'fresh' | 'phonefix' | 'coffee' | 'bake' | 'pole'
-  | 'produce' | 'oven' | 'flowers'; // STORES2
+  | 'produce' | 'oven' | 'flowers' | 'washers'; // STORES2
 
 /** One slot of the 512x384 sticker atlas (px) and the sticker's real size in metres (same pixel density both axes). */
 export interface StickerSlot { x: number; y: number; w: number; h: number; wM: number; hM: number }
@@ -816,6 +816,7 @@ export const STICKER_SLOTS: Record<StickerKind, StickerSlot> = {
   produce: { x: 0, y: 640, w: 256, h: 128, wM: 0.6, hM: 0.3 },
   oven: { x: 256, y: 640, w: 256, h: 128, wM: 0.6, hM: 0.3 },
   flowers: { x: 0, y: 768, w: 128, h: 128, wM: 0.3, hM: 0.3 },
+  washers: { x: 128, y: 768, w: 256, h: 128, wM: 0.6, hM: 0.3 },
 };
 
 // ---------------------------------------------------------------------------------------------- parody names

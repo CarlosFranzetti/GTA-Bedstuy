@@ -1,6 +1,6 @@
 # RECORDS: real music at WAX DELI (lane RECORDS)
 
-Status: in progress (started 21 Nov 2026)
+Status: built and checked (21 Nov 2026). Lane RECORDS, signed Delia Okafor.
 
 ## Licence finding
 VERIFIED 21 Nov 2026 from the statute itself (https://www.law.cornell.edu/uscode/text/17/1401, fetched today), not from memory:
@@ -49,3 +49,43 @@ No Mixamo-style doubt: anything whose first-release year I could not pin at or b
 | ia-southern4 | The Throop Heights Quartet: Sweet Fire Escape Chariot (Fort Greene Phonograph Co. FGP 8311) | The Southern Four: Swing Low, Sweet Chariot, 1921 | https://archive.org/details/EDIS-SRP-0196-01 | PD-US | gospel, uncommon, $17 | free tempo (pulse 0.134, drift 0.238) |
 | ia-ferera | Palm Tree on Putnam Duo: Rooftop Blues (Guitar Duet) (Throop Records TR 5067) | Ferera and Paalihu (Hawaiian guitars): Southern Blues (guitar duet), 1924 | https://archive.org/details/southern1924 | PD-US | islands, uncommon, $15 | free tempo (pulse 0.209, drift 0.0) |
 | ia-hawaiian | The Royal Roofline Hawaiians: Rooftop Luau Waltz (Brownstone Phonograph BP 1770) | Irene West Royal Hawaiians (Palie K. Lua and David K. Kaili, guitars): Hawaiian Waltz Medley, 1914 | https://archive.org/details/Irene_West_Royal_Hawaiians_Hawaiian_Waltz_Medly_Hawaiian_Guitar_Duet_ | PD-US | islands, rare, $23 | free tempo (pulse 0.574, drift 0.038) |
+
+
+## Decisions and what was not done
+
+Delivery (per source). Internet Archive: I tested hot-linking. `archive.org/download/<item>/<file>` answers a 302 with `Access-Control-Allow-Origin: *`
+and then serves from a rotating storage node (`dnNNNNNN.us.archive.org` or `.ca.archive.org`), so a browser could stream it. I chose NOT to: (1) the node
+names change, so a game URL can rot; (2) each play would pull 2 to 7 MB (full 78 transfers) from a non-profit's servers for a clip of 80 seconds;
+(3) it would make the shop depend on a third party being up. Instead the clips are cut and re-encoded small (80 s, mono, 22.05 kHz, 40 kbit/s MP3,
+about 400 kB, 11.2 MB for 28) into `public/records/`, which Vercel serves and caches, loaded only on preview or deck load and never inlined in the
+single-file build. MP3 because every browser decodes it (Ogg Opus does not decode on older Safari). A takedown of any item means deleting one file.
+
+Tempo. `estimateBpm` (src/game/records.ts) was ported to numpy and run on each clip in three thirds. Result: many 78 transfers lock onto about 80 BPM,
+which is the 78 rpm turntable rumble (one turn every 0.77 s), not the music; those and every drifting or vocal record are marked "not beat-matched"
+and show a genre guide tempo. Six records with a stable pulse (three thirds within about 4 percent) are marked beat-matched with the measured tempo:
+Four O'Clock Blues 125.3, Cake Walking Babies 117.9, Shake Your Feet 109.3, Charleston 100.2, Waitin' for the Evenin' Mail 136.7, Shimmy Like My Sister Kate 130.7.
+I could not listen, so these are estimates (a fox trot can come out at double or half time): nudge by ear.
+
+Name check. Every invented artist and label (27 + 14 names) was searched on MusicBrainz (exact-field query, score 85 or more): no hit. MusicBrainz is not exhaustive;
+the names are neighbourhood jokes (street names plus a trade), not stage names.
+
+B, the SoundCloud listening post: LEFT OUT. Reasons: (1) the game's widget code (src/audio/sc/) is built for radio stations, one widget at a time with the
+radio's own lifecycle, and a shop crate that opens it would collide with a playing station; wiring it is a main.ts and radio-lane change, not mine; (2) I
+cannot verify from this box that any given track is embeddable (w.soundcloud.com is not reachable here and I cannot listen), and a record that opens a
+"this track cannot be played here" widget is worse than none; (3) choosing real commercial tracks is the owner's taste and his decision. A clean design
+for later: a fifth shop tab "Listening post" with a fixed list of SoundCloud URLs the owner picks (his own playlist is best), each row a generic sleeve
+and a button that calls the existing station's `play(url)` through the official widget, with the line "listening post: streams from SoundCloud, not for the decks".
+
+Modern CC BY crate: LEFT OUT. ccMixter's API lists tracks with their licence (CC BY 3.0 for the ones I looked at), but `ccmixter.org/content/...mp3`
+answers 403 to a plain request (hotlink protection), and I did not try to get round it. Free Music Archive track pages show the licence, but its download
+button redirects to a login and the stream file lives behind the player; I did not take it (no accounts, and I had not read its terms). Wikimedia Commons
+rate-limited the sandbox. Internet Archive items with a Creative Commons field are uploader-asserted and I saw obvious mislabels (a commercial album
+marked CC0), so they were not used. If the owner wants hip-hop, funk, house, dub and Afrobeat records: put CC BY files he has downloaded himself into
+`src/assets/records/` (kind `drop`) or send me a list of tracks he has checked.
+
+Gaps. No Latin or Caribbean record: the one tango I found (Canaro, "Cuatro Lagrimas") has a year with no label date, and the calypso on the Archive is 1930s
+or later (not yet free). Stride piano is one record (Birmingham Blues, an IA date marked approximate). Gospel is four sides, all vocal.
+
+Not verified: the sound itself (nobody listened); each first-publication year beyond what the Internet Archive item says and what I know of the
+record (the least certain are the "1922", "1923" or "1925" dates the item gives as a bare year: Dill Pickles Rag, Shake Your Feet, Shimmy Like My Sister Kate,
+Charleston, Cake Walking Babies); the native (Electron, file://) build, where `fetch` of `records/*.mp3` may be blocked.

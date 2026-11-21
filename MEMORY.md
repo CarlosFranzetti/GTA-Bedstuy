@@ -40,6 +40,9 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
   plain-English conversational transcript (`docs/swarm/transcripts/`); "I want to decide the direction of the models and
   clothing" (ask him, with pictures, before any lane sets a style); original buildings, landmarks and stores under parody
   and invented names, with textures from open street-level images.
+- 21 Nov, evening: "Better models and anime [animation, as the lead reads it] for players, smooth as GTA 3 but detailed
+  like 5. Better faces. More clothes and varied. AAA ROCKSTAR LEVEL LOOK." Lanes: FACES (heads, faces, hair, hands),
+  ANIM2 (skeleton with ankles, neck and wrists; foot planting; blending; idles), then more garment shapes.
 - 21 Nov, later still: remake the pizzerias, delis and other small stores, each under a parody name, EXCEPT the hidden
   record shop (WAX DELI keeps its name). The record shop should stock "real records": parody sleeves, artists and titles,
   but real music "if you can handle that somehow". Lead's plan: real commercial tracks only as streams through the
@@ -80,6 +83,12 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   ask for scoped tests and one in-game capture, and tell lanes to hand back a solid partial result rather than run out.
   Resuming a lane with a very large context is costly; start a fresh one with a good brief instead.
 - A stop hook asks for a commit and push after every turn.
+
+## Records (21 Nov)
+
+- WAX DELI sells 28 real public-domain recordings (Internet Archive, US first published 1925 or earlier) under parody sleeves; the liner note
+  gives the true credit. Clips are in `public/records/` (11 MB, on demand, hosted build only). Licence finding and tracks: `docs/swarm/tasks/RECORDS.md`.
+  1926 recordings become free on 1 Jan 2027: the rule is `PD_LAST_YEAR` in `src/game/archiveRecords.ts`. No SoundCloud listening post, no CC BY crate (see the task file).
 
 ## Deploying
 

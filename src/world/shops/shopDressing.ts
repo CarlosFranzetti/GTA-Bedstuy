@@ -29,6 +29,10 @@ export interface DressingEnv {
   top(mat: THREE.Material, X0: number, X1: number, z0: number, z1: number, y: number, uv: UvRect): void;
   /** quad on the plane X, spanning z0..z1, facing toward +x or -x */
   across(mat: THREE.Material, X: number, y0: number, y1: number, z0: number, z1: number, uv: UvRect, facing: 1 | -1): void;
+  /** z of the glass plane's inside face, where window decals sit */
+  glassZ: number;
+  /** the sandwich board's decal */
+  board?: StickerKind;
   metal: THREE.Material;
   tile: { cream: THREE.Material; green: THREE.Material; black: THREE.Material; navy: THREE.Material };
   stickers: THREE.Material | null;
@@ -92,11 +96,11 @@ const PLACERS: Record<DressingKind, Placer> = {
     e.box(e.tile.navy, x0 + 0.04, x0 + 0.46, 0.98, 1.06, 0.42, 0.44, 'f');
     return 0.6;
   },
-  sandwichBoard(e, z, h) {
+  sandwichBoard(e, z) {
     const x0 = z.a + 0.1;
     e.box(e.tile.black, x0, x0 + 0.56, 0, 0.92, 0.62, 0.66, 'rlufb');
     if (e.stickers) {
-      const k: StickerKind = (h & 3) === 0 ? 'hotslices' : 'menu';
+      const k: StickerKind = e.board ?? 'menu';
       const s = sz(k, 1.5);
       const cx = x0 + 0.28;
       e.quad(e.stickers, cx - s.w / 2, cx + s.w / 2, 0.55, 0.55 + s.h, 0.665, e.uv(k));
@@ -138,29 +142,23 @@ const PLACERS: Record<DressingKind, Placer> = {
     return used || 0.5;
   },
   washerRow(e) {
-    // inside the window: a row of front-loaders along the first glazing run
+    // the glazing is a painted display, not a window onto an interior: the washers are a decal on the glass
     const g = e.glass[0];
-    if (!g) return 0;
-    const n = Math.min(6, Math.floor((g.b - g.a - 0.3) / 0.78));
-    for (let i = 0; i < n; i++) {
-      const x0 = g.a + 0.2 + i * 0.78;
-      e.box(e.tile.cream, x0, x0 + 0.7, 0, 0.95, -1.1, -0.45, 'rlufb');
-      e.box(e.tile.navy, x0 + 0.17, x0 + 0.53, 0.3, 0.66, -0.455, -0.43, 'f');
-    }
+    if (!g || !e.stickers) return 0;
+    const s = sz('washers', 1.7);
+    const cx = (g.a + g.b) / 2;
+    if (g.b - g.a < s.w + 0.3) return 0;
+    e.quad(e.stickers, cx - s.w / 2, cx + s.w / 2, 0.68, 0.68 + s.h, e.glassZ, e.uv('washers'));
     return 0;
   },
   hotCase(e, _z, h) {
-    // inside the window: a counter, and the oven's glow behind it (the glow is on the emissive sticker sheet)
+    // the oven's mouth glows through the window (the glow is on the emissive sticker sheet, so it is lit at night)
     const g = e.glass[h % Math.max(1, e.glass.length)] ?? e.glass[0];
-    if (!g) return 0;
-    const x0 = g.a + 0.15, x1 = g.b - 0.15;
-    if (x1 - x0 < 0.6) return 0;
-    e.box(e.tile.black, x0, x1, 0, 1.05, -1.0, -0.4, 'rlufb');
-    if (e.stickers) {
-      const s = sz('oven', 1.4);
-      const cx = (x0 + x1) / 2;
-      e.quad(e.stickers, cx - s.w / 2, cx + s.w / 2, 1.1, 1.1 + s.h, -1.15, e.uv('oven'));
-    }
+    if (!g || !e.stickers) return 0;
+    const s = sz('oven', 1.5);
+    if (g.b - g.a < s.w + 0.3) return 0;
+    const cx = (g.a + g.b) / 2;
+    e.quad(e.stickers, cx - s.w / 2, cx + s.w / 2, 0.68, 0.68 + s.h, e.glassZ, e.uv('oven'));
     return 0;
   },
   bagStack(e, z) {
