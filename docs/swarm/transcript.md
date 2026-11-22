@@ -3515,3 +3515,9 @@ Root cause of the mouse bug found and fixed: any click inside a panel reached th
 
 ### 2026-11-22T15:46:24Z · Wren Aldous (POLICE2)
 Police lane wrap-up: grid map checked in the running game from three punches to BUSTED and release at the precinct door; real map only headless. Diff for main.ts: scratchpad/police2/main-police2.diff. Notes: docs/swarm/tasks/POLICE2.md.
+
+### 2026-11-22T15:47:27Z · 
+
+
+### 2026-11-22T15:47:28Z · Ilse Marrow (TEXTURES2)
+Starting. Far buildings first: the massing in buildingStream.ts gets a facade from the sheet, then more surface textures where the frame is flat.

@@ -24,11 +24,16 @@ import { TrafficSystem } from '@/game/TrafficSystem';
 import { CopSystem } from '@/game/CopSystem';
 import { WantedSystem } from '@/game/WantedSystem';
 import { Combat } from '@/game/combat/Combat';
+import { PoliceSystem } from '@/game/police/PoliceSystem';
+import { precinctFor, precinctPlace } from '@/game/police/precincts';
+import type { BustHost } from '@/game/police/bust';
+import { Officer } from '@/entities/Officer';
+import { BustCard } from '@/ui/BustCard';
 import { CombatSfx } from '@/game/combat/sfx';
 import { CombatView } from '@/game/combat/view';
 import { placePickups, placeRealPickups } from '@/game/combat/pickups';
 import { DayNight } from '@/game/DayNight';
-import { Hud, type RadioHudState, type BlockedHudState } from '@/ui/Hud';
+import { Hud, type RadioHudState, type BlockedHudState, type PoliceHudState, type WantedHudState } from '@/ui/Hud';
 import { Minimap } from '@/ui/Minimap';
 import { TouchControls } from '@/ui/TouchControls';
 import { AudioSystem } from '@/audio/AudioSystem';
@@ -63,7 +68,7 @@ import { RadioUi } from '@/ui/RadioUi';
 import { GamepadInput } from '@/core/Gamepad';
 import { startAnalytics } from '@/core/Analytics';
 import { chooseMap } from '@/world/mapChoice';
-import { SaveManager, SaveStore, poseOnMap } from '@/ui/GameSave';
+import { SaveManager, SaveStore, poseOnMap, formatClock } from '@/ui/GameSave';
 import { MapScreen, navPlaces, placesFromLots } from '@/ui/MapScreen';
 import { getPlayerLook, setPlayerLook, randomPlayerLook, type PlayerLook as RosterLook } from '@/textures/painters/pedRoster';
 import { LoadingScreen, nextPaint, withTimeout } from '@/render/Loading';
@@ -368,7 +373,8 @@ const missionHud = new MissionHud(overlay);
 missionHud.setRouter(realGame ? realGame.router : createPointerRouter(grid));
 setTimeout(() => missionHud.showHomeHint(), 2500); // one-time 'your place is the green awning' toast at first spawn
 const minimap = new Minimap(overlay, grid, realGame?.minimapRoads);
-const map = new MapScreen(overlay, grid, realGame ? { places: realGame.mapPlaces, streets: realGame.streetSource, router: realGame.router } : { places: [...navPlaces(), ...placesFromLots(world.lots)] });
+const precinct = precinctFor(realWorld ? 'real' : 'grid', realWorld?.landmarks?.rows ?? [], (p) => (rt ? rt.grid : grid).nearestSidewalkNode(p).pos); // POLICE2: the jail: the station house landmark on the real map, a marked door on the grid
+const map = new MapScreen(overlay, grid, realGame ? { places: realGame.mapPlaces, streets: realGame.streetSource, router: realGame.router } : { places: [...navPlaces(), ...placesFromLots(world.lots), ...(realGame ? [] : [precinctPlace(precinct)])] });
 
 const input = new Input(renderer.domElement);
 panels.configure({ input, openPause: () => menu.open() }); // the gate: no keys, clicks or pointer lock reach the game while a screen is open
@@ -412,6 +418,38 @@ events.on('mission:twist', (e) => { if (e.id === 'aftersloth-residency') interio
 events.on('mission:objective', (e) => { if (e.id === 'aftersloth-residency' && e.index >= 5) interiors.setBlackout(false); });
 events.on('mission:completed', (e) => { if (e.id === 'aftersloth-residency') interiors.setBlackout(false); });
 events.on('mission:failed', (e) => { if (e.id === 'aftersloth-residency') interiors.setBlackout(false); });
+// POLICE2: heat, witnesses, officers on foot, arrest, BUSTED and the precinct door (src/game/police, docs/swarm/tasks/POLICE2.md)
+let beatUntil = 0; // a scripted mission beat (letterbox) is on: nobody is arrested during it
+events.on('mission:beat', (e) => { beatUntil = performance.now() / 1000 + e.seconds; });
+const bustCard = new BustCard(overlay);
+const police = new PoliceSystem({
+  events, world: physics, wanted, cops, player, scene, rng: rng.fork('police'),
+  peds: () => traffic.peds,
+  makeOfficer: (id, pos, h) => new Officer(id, pos, h, materials, rng.fork(id)),
+  isNight: () => dayNight.timeOfDay < 5.5 || dayNight.timeOfDay >= 20,
+  blocked: () => interiors.state !== 'outside' || interiors.locked || uiOpen() || splashUp || game.paused || performance.now() / 1000 < beatUntil,
+  tryingToFlee: () => Math.hypot(player.body.vel.x, player.body.vel.z) > 3.5, // read between player.control and player.update: the intent of this frame
+  ejectPlayer: () => player.exit(),
+  precinct: () => precinct,
+  router: realGame ? realGame.router : createPointerRouter(grid),
+  say: (t) => hud.showToast(t, 1800),
+  onBusted: () => { void bustCard.play(() => police.completeBust(bustHost), () => formatClock(dayNight.timeOfDay)); },
+});
+const bustHost: BustHost = {
+  cash: () => inventory.cash,
+  addCash: (n) => { inventory.add(n); },
+  dropWeapons: () => combat.reset(),
+  teleport: (s) => {
+    if (interiors.inside) interiors.exit(); if (player.inVehicle) player.exit(); // the car stays where it was
+    const b = player.body; b.pos.x = s.spot.x; b.pos.z = s.spot.z; b.vel.x = 0; b.vel.z = 0; b.heading = s.heading;
+    player.prevPos.x = s.spot.x; player.prevPos.z = s.spot.z; lastOutside.x = s.spot.x; lastOutside.z = s.spot.z;
+    input.endFrame();
+  },
+  advanceClock: (h) => { const t = dayNight.timeOfDay + h; if (t >= 24) { gameDay++; applyClutterState(world.group, quality, gameDay); } dayNight.timeOfDay = t % 24; prevHour = dayNight.timeOfDay; dayNight.update(0); },
+  clearWanted: () => { wanted.stars = 0; events.emit('wantedChanged', { stars: 0 }); },
+  addBust: () => {},
+};
+if (!saved) police.setGrace(120); // the first two minutes of a new game: minor acts add no heat (police.setGrace is the tutorial's switch too)
 const phoneHud = new PhoneHud(overlay, phone, { saves, canSave: () => interiors.state === 'outside', apps: { map: () => map.toggle(), radio: () => radioUi.open(), settings: () => { menu.open(); menu.showTab('settings'); } } });
 map.onOpen = () => { if (phoneHud.isOpen) phoneHud.toggle(); };
 const missionHudScratch = {} as MissionHudState;
@@ -580,6 +618,7 @@ function interpolateAll(alpha: number, refX: number, refY: number, refZ: number)
   carLod.endFrame();
   for (const v of cops.cops) { const b = placeInterpolated(v, alpha); proxies.addCar(hullKey(v.spec.type), b.x, b.z, b.h); blobs.addCar(b.x, b.z, b.h, v.spec.length, v.spec.width); }
   for (const p of traffic.peds) { const b = placeInterpolated(p, alpha); if (!culler.applyTo(p.object3D, b.x, b.z, refX, refZ, 1, pedRange)) { proxies.addPed(b.x, b.z); blobs.addPed(b.x, b.z); } }
+  for (const o of police.officers) { const b = placeInterpolated(o, alpha); blobs.addPed(b.x, b.z); }
   if (veh) {
     const b = poses.blend(veh.body, alpha, blended);
     camTarget.x = b.x; camTarget.z = b.z; camHeading = b.h;
@@ -600,7 +639,7 @@ const PROMPT_ENTER = `${PROMPT_KEY}  Enter car`;
 let slowTick = 0;
 let streetName = '';
 let prompt = '';
-const hudState: HudState & RadioHudState & BlockedHudState = { stars: 0, speedKmh: 0, inVehicle: false, radioStation: '', prompt: '', timeOfDay: 0, streetName: '', fps: 60 };
+const hudState: HudState & RadioHudState & BlockedHudState & PoliceHudState & WantedHudState = { stars: 0, speedKmh: 0, inVehicle: false, radioStation: '', prompt: '', timeOfDay: 0, streetName: '', fps: 60 };
 const passes = new PassCounter();
 passes.attach(renderer);
 const stats: Record<string, number> = { drawCalls: 0, drawCallsShadow: 0, drawCallsScene: 0, drawCallsGBuffer: 0, drawCallsPost: 0, triangles: 0, fps: 60, fps1pctLow: 0, heapMBPerMin: 0, culledObjects: 0, carsFar: 0, vehicles: 0, peds: 0, cops: 0, meshes: world.stats.meshes, colliders: world.stats.colliders };
@@ -661,6 +700,7 @@ const game = new Game(
       if (!player.inVehicle) { const ip = interiors.prompt(pos); if (ip) prompt = isTouch ? ip.replace(/^F  /, `${PROMPT_KEY}  `) : ip; }
     }
     hudState.stars = wanted.stars;
+    hudState.heat = police.heatFraction; hudState.policeLine = police.stateLine; hudState.wantedCooling = wanted.stars > 0 && police.state === 'searching';
     hudState.speedKmh = player.vehicle ? Math.hypot(player.vehicle.body.vel.x, player.vehicle.body.vel.z) * 3.6 : 0;
     hudState.blockedSeconds = (player.vehicle as { blockedSeconds?: number } | null)?.blockedSeconds ?? 0;
     hudState.inVehicle = player.inVehicle;
@@ -738,6 +778,7 @@ saves.bind({
   getHour: () => dayNight.timeOfDay, setHour: (h) => { dayNight.timeOfDay = h; prevHour = h; dayNight.update(0); },
   getDay: () => gameDay, setDay: (d) => { gameDay = d; applyClutterState(world.group, quality, gameDay); },
   inventory, missions, phone,
+  getBusts: () => police.busts, setBusts: (n) => police.setBusts(n),
   getWanted: () => wanted.stars, setWanted: (n) => { wanted.stars = n; events.emit('wantedChanged', { stars: n }); },
   getWeather: () => weather.state, setWeather: (w) => weather.setState(w as 'dry' | 'rain' | 'wet' | 'drying', true),
   getStation: () => audio.stationName, setStation: (st) => { for (let i = 0; i < 12 && audio.stationName !== st; i++) audio.nextStation(); },
@@ -750,7 +791,7 @@ saves.bind({
     clearMissionData(); missions.story.reset(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++;
     if (interiors.inside) interiors.exit(); if (player.inVehicle) player.exit();
     const b = player.body; b.pos.x = HOME.x; b.pos.z = HOME.z; b.vel.x = 0; b.vel.z = 0;
-    dayNight.timeOfDay = 8; prevHour = 8; gameDay = 0; weather.setState('dry', true); wanted.stars = 0;
+    dayNight.timeOfDay = 8; prevHour = 8; gameDay = 0; weather.setState('dry', true); wanted.stars = 0; police.setBusts(0); police.heat.reset(); police.setGrace(120);
     pendingLook = randomPlayerLook(`${Math.random()}:${Date.now()}`);
   },
   // the player model is built once at boot, so a different look (new game, or a save with another look) is applied by autosaving and reloading
@@ -766,6 +807,7 @@ game.add({
     for (const v of traffic.vehicles) poses.capture(v.body);
     for (const v of cops.cops) poses.capture(v.body);
     for (const p of traffic.peds) poses.capture(p.body);
+    for (const o of police.officers) poses.capture(o.body);
     poses.capture(player.body);
     poses.endCapture();
   },
@@ -804,6 +846,7 @@ game.add({
     traffic.update(dt, away ? lastOutside : player.body.pos);
     cops.update(dt, away ? lastOutside : player.body.pos, player.vehicle ? player.vehicle.body : player.body);
     wanted.update(dt);
+    police.update(dt); // after player.control, before player.update: a held player's velocity is zeroed here
     combat.update(dt, { viewYaw: cam.yaw, blocked: blocked || away || phoneHud.isOpen || map.isOpen, input });
     {
       const pv = player.vehicle; const mb = (pv ?? player).body;
@@ -951,7 +994,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
     for (let i = 0; i < n; i++) updateCamera();
   },
   panels, menu, input, interiors, inventory, phone, combat, get dj() { return dj; }, get shopUi() { return shopUi; }, get djUi() { return djUi; }, ensureAudio, missions,
-  player, cops, traffic, wanted, physics, grid, events, scene, sky, pipeline, blobs, nightLights, dayNight, renderer, materials, perf, culler, carLod, proxies, weather,
+  player, cops, police, bustCard, traffic, wanted, physics, grid, events, scene, sky, pipeline, blobs, nightLights, dayNight, renderer, materials, perf, culler, carLod, proxies, weather,
   nearby(r: number) { const p = player.body.pos; const out: unknown[] = []; for (const b of physics.bodies()) { const d = Math.hypot(b.pos.x - p.x, b.pos.z - p.z); if (b.shape.kind === 'circle' && d < r) out.push({ id: b.id, kind: b.kind, d: +d.toFixed(2) }); } return out; },
 };
 
