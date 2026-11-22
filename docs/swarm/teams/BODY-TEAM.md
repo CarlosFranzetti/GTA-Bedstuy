@@ -76,3 +76,61 @@ combat poses (`anim/combatPoses.ts`), the police hold poses and the camera stay 
   game; other seats use the showcase and harness pages and ask REVIEW for an in-game look.
 - Stay under about 300k tokens each. A finished small thing beats a large unfinished one. Hand back a solid partial
   result rather than run out.
+
+
+# Round 2: anatomy and wardrobe (started 23 Nov 2026, just after midnight UTC)
+
+## What the owner said (22 Nov, late night, with ten reference pictures)
+
+"Fix shoulder blades and curve in the upper back. Elders, teenagers and children get special shaping. Neck thickness
+variations. What's with the misshapen arms, thighs and crotch? Can you do some research on human anatomy and have the
+bodies resemble actual human forms; that said, be economical with polygons. In terms of clothing I want more like 60
+outfits, and tops, bottoms, hats, shoes, sneakers can be mixed as well for more variety."
+On his reference pictures: "these images are a bit extreme for our purposes in terms of muscular detail, but as far as
+proportions go this is what needs to happen; same goes for the vehicles' shapes and textures overall; likewise for the
+streets and roads and clothing. Next round we need to tackle textures. Absolutely strive for this kind of detail on
+faces and clothing but conserve polygons."
+
+His pictures are in the session scratch folder, NOT in the repository and never to be copied into it (they are other
+games' screenshots: look, learn the proportions, take nothing):
+`/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/refs/` (`ours-lineup-crop.jpg`
+is OUR line-up with the faults he means; the `ref-*.jpg` files are the look he wants). Open them with the Read tool
+before you start. What they show: broad shoulders over a narrower waist; a thick neck running into sloped trapezius;
+a rounded deltoid cap; upper arms and forearms with real muscle shape and a visible elbow; a back with shoulder
+blades and a spine channel; a seat and thighs with mass, thighs that touch at the top; calves; hands that are big
+enough; people standing with weight. Our line-up shows: tube arms with no elbow, a coat-hanger shoulder, stick
+thighs with a gap and a black wedge between them, no back.
+
+## What round 1 achieved (read `docs/swarm/tasks/BODY-*.md` for the detail)
+
+Arms hang and reach mid-thigh, hands and heads are the right size, bodies have real width and depth (survey girths by
+build, `src/entities/models/pedMass.ts`), statures are in the normal range, the standing squat is gone, the run has
+arm drive, shoes follow the foot, seventeen whole outfits exist, the black wedges under hems are fixed in code (a
+texture bake fault). REVIEW's last numbers: chest depth and waist depth read 14 to 17 percent THICK and shoulders 8
+percent wide WHEN DRESSED (coats look padded and square); shoes still 0.188 of stature (real 0.154).
+
+## The five seats of round 2 (nobody edits another seat's files; ask on the channel)
+
+| Seat | Owns | Job |
+|---|---|---|
+| TORSO | `src/entities/models/pedMass.ts`, a new `pedTorso.ts`, `pedMesh.ts` (makes the three hooks below in its first fifteen minutes) | The trunk as anatomy: ribcage, shoulder blades and the spine channel, the curve of the upper back, chest, belly, the pelvis and the crotch, the seat; the neck and its thickness variation; the trapezius and the shoulder top |
+| LIMBS | a new `src/entities/models/pedLimbs.ts`, `pedProportions.ts` | Arms and legs as anatomy: deltoid cap, upper arm, elbow, forearm, wrist, hand; thigh, knee, calf, ankle, foot; the join of the thighs at the crotch (with TORSO) |
+| AGES | a new `src/entities/models/pedAges.ts`, `pedBodyTypes.ts`, `humanModel.ts` | Elders, teenagers and children as their own shapes; children refitted (round 1 left them out); the mix of builds and ages on the street |
+| FIT | `pedGarments.ts`, `pedCuts.ts`, `pedPieces.ts`, `pedPiecesKit.ts`, `pedLegs.ts`, `pedShoes.ts`, `pedFit.ts` | Garment geometry on the new bodies: coats that are not padded boxes, sleeves and trouser legs that taper, a trouser seat and crotch that look like trousers, collars and hems, shoes the size of feet |
+| WARDROBE | `src/textures/painters/pedOutfits.ts`, `pedWardrobe.ts`, the cloth painters, `pedGear.ts`, `pedHeadwear.ts` | About sixty outfits, and a mix system so tops, bottoms, hats and shoes also combine freely into believable people |
+
+The hooks: in `dressLodBody` in `pedMesh.ts`, after `massApply`, TORSO adds three calls in this order and posts when
+they are in: `applyTorso(...)`, `applyLimbs(...)`, `applyAges(...)`, each a function of the seat's own file with the
+same arguments `massApply` takes (stub files that return the input unchanged are created by TORSO so everyone
+compiles). Each pass must be replayed on the mid and far levels so the three levels agree, as `pedMass.ts` does.
+
+There is no REVIEW seat this round: the lead runs Wren's tools (`scratchpad/bodyteam/review/shoot.sh <tag>`, the
+measuring test `tests/unit/entities/body-review-measure.test.ts`) and posts the sheets and numbers. Seats use the
+showcase pages (`scripts/body-lineup.mjs`, `scripts/clothes-showcase.mjs`, `scripts/body-review.mjs`) themselves.
+One researcher (anatomy for low-polygon bodies) posts numbers to the channel and writes
+`docs/reference/anatomy-lowpoly.md`: ask with "@RESEARCH:".
+
+Everything else in this file still holds: the channel, the rules of the road, the budgets (triangles per person per
+level within about 10 percent of today: 6,391 / 1,626 / 360 on average; no new draw calls or textures per person on
+phone and low), minors never hurt, off-limits files (faces, eyes, hair, `src/main.ts`, animation: `src/entities/anim/**`
+belongs to nobody this round: if a body change needs an animation change, post "@Fable:").

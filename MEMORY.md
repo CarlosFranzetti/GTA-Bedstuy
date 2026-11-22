@@ -41,6 +41,17 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 
 ## What the owner wants (his words, newest first)
 
+- 22 Nov, late night, with ten reference pictures (other games' screenshots, kept in the session scratch folder only,
+  never in the repository): "fix shoulder blades and curve in the upper back. Elders, teenagers and children get special
+  shaping. Neck thickness variations. Whats with the misshapen arms, thighs and crotch. Do some research on human anatomy
+  and have the bodies resemble actual human forms; that said be economical with polygons." "these images are a bit
+  extreme ... in terms of muscular detail but as far as proportions go this is what needs to happen, same goes for the
+  vehicles shapes and textures overall, likewise for the streets and roads and clothing"; "next round we need to tackle
+  textures"; "strive for this kind of detail on faces and clothing but conserve polygons". Also: "add a motorbike and
+  maybe a skateboard"; "more like 60 outfits, and tops bottoms hats shoes sneakers can be mixed as well". Round 2 of the
+  body team (`docs/swarm/teams/BODY-TEAM.md`): seats TORSO, LIMBS, AGES, FIT, WARDROBE. Queued: textures (clothing,
+  faces, streets), vehicles to the same references plus a motorbike and a skateboard.
+
 - 22 Nov, late evening, on seeing the body team's first line-up: "whats with the elongated bodies i said gta V is bible
   and also style guide". People were tall, narrow and thin-limbed. Rule for people from now on: solid, ordinary builds
   (civilian survey medians for width and depth, statures inside the 5th to 95th percentile, thick enough necks and
