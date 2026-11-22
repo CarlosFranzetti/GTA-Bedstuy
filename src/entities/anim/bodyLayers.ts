@@ -50,6 +50,8 @@ export interface BodyLayerIn {
   seed?: number;
   /** the smallest arm clearance this body and its clothes need (rad of abduction): `group.userData.splay` */
   splay?: number;
+  /** the forward lean baked into this body's rest pose (rad, negative = forward: `torso.userData.stoopBaked`; 0 or absent for none) */
+  stoop?: number;
   /** the far level of detail: arms only */
   cheap?: boolean;
 }
@@ -102,10 +104,12 @@ export const ARM = {
   /** what is added to the body's own clearance (`splay`) */
   abdAdd: 0.035,
   /** the least elbow flexion standing / walking */
-  elbowStand: 0.3,
-  elbowWalk: 0.2,
+  elbowStand: 0.1,
+  elbowWalk: 0.12,
   /** extra flexion per radian of forward arm swing */
-  elbowSwing: 0.25,
+  elbowSwing: 0.2,
+  /** how much of the chest's forward pitch the upper arms give back, so they hang from the shoulder and do not swing back with the lean */
+  hangBack: 0.85,
   /** forearm turn so the palm faces the thigh (rad, about the forearm's axis; mirrored by side) */
   pronate: 0,
 } as const;
@@ -140,6 +144,9 @@ function arms(p: Float32Array, s: BodyLayerIn, aw: number): void {
   const want = Math.max(ARM.abdMin, (s.splay ?? 0.03) + ARM.abdAdd);
   const extra = Math.max(0, want - ARM.clipAbd) * aw;
   p[C_ARM_L + 2] -= extra; p[C_ARM_R + 2] += extra;
+  // the arms hang from the shoulder: a leaning chest (the clip's, and an elder's stoop baked into the mesh) must not swing them back behind the body
+  const lean = -(p[C_TORSO] + (s.stoop ?? 0));
+  if (lean > 0) { const g = ARM.hangBack * Math.min(lean, 0.35) * aw; p[C_ARM_L] += g; p[C_ARM_R] += g; }
   // the elbow never locks straight; more bent on the forward swing
   const floor = ARM.elbowStand * idle + ARM.elbowWalk * walkW;
   for (let i = 0; i < 2; i++) {

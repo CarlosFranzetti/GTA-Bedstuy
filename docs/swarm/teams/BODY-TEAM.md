@@ -14,6 +14,16 @@ GTA V is the STYLE reference: how its street people are proportioned, dressed, s
 carry. Nothing is taken from it or from any game: no model, texture, animation, sound, name or measurement lifted from
 game files (MEMORY.md rules 1 to 4 stand).
 
+## The owner's correction (22 Nov, late evening, on seeing the first line-up)
+
+"What's with the elongated bodies? I said GTA V is the bible and also the style guide."
+
+Our people are tall, narrow and thin-limbed: stretched. From now on: solid, ordinary builds first. Widths and depths
+at shoulder, chest, waist, hip and thigh up to the civilian survey medians; thicker necks and limbs; statures inside the
+5th to 95th percentile; more stocky and heavy people than slim ones; clothes with regular and relaxed ease. If a
+change makes a person look taller or thinner it is the wrong direction unless the survey number demands it AND the
+line-up still reads as solid. REVIEW says in every re-shoot whether the line-up still reads as stretched.
+
 ## The goal of this topic
 
 A person on our street, at 3 m and at 20 m, standing, walking, jogging, sprinting, turning and stopping, reads as a

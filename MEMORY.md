@@ -41,6 +41,11 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 
 ## What the owner wants (his words, newest first)
 
+- 22 Nov, late evening, on seeing the body team's first line-up: "whats with the elongated bodies i said gta V is bible
+  and also style guide". People were tall, narrow and thin-limbed. Rule for people from now on: solid, ordinary builds
+  (civilian survey medians for width and depth, statures inside the 5th to 95th percentile, thick enough necks and
+  limbs, more stocky and heavy people than slim ones). Written into `docs/swarm/teams/BODY-TEAM.md`.
+
 - 22 Nov, evening (after the fifth deploy): "continue with the swarm and refinements. Start with movement and then the
   eyes. Faces are still too caricature but the features are a marked improvement, the eyes are wonky again. Refer to
   GTA 5: I want that kind of detail. The bodies just look kind of silly right now." "GTA 5 is your new bible" (a STYLE

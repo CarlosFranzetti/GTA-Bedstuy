@@ -43,11 +43,13 @@ interface Target {
   elbowKeep?: number;
   elbowMin?: number;
   abd?: number;
+  /** how much of the captured side-to-side arm roll is kept about that mean (some walks fling the arms 20 to 40 degrees out) */
+  abdKeep?: number;
   armX?: number;
 }
 
 const STAND: Target = { torso: -2, torsoKeep: 0.6, head: -3, headKeep: 0.6, hips: -2, leg: 2, knee: -3, elbow: 5, elbowKeep: 0.7, elbowMin: 2, abd: 4, level: true, headYaw: [0, 0.4], torsoYaw: [0, 0.5] };
-const WALKARMS = { elbow: 16, elbowKeep: 0.85, elbowMin: 5, abd: 5, level: true } as const;
+const WALKARMS = { elbow: 12, elbowKeep: 0.85, elbowMin: 3, abd: 5, abdKeep: 0.5, level: true } as const;
 
 export const POSTURE: Readonly<Record<string, Target>> = {
   idle: STAND,
@@ -139,7 +141,11 @@ export function settlePosture(c: Clip): Clip {
   }
   if (t.abd !== undefined) {
     // the left arm (at -x) is lifted away by a negative roll, the right arm by a positive one
-    for (const [side, sign] of [['L', -1], ['R', 1]] as const) { const ch = x(`arm${side}`) + 2; shift(c, ch, sign * t.abd * RAD - mean(c, ch)); }
+    const keep = t.abdKeep ?? 0.6;
+    for (const [side, sign] of [['L', -1], ['R', 1]] as const) {
+      const ch = x(`arm${side}`) + 2, m = mean(c, ch);
+      for (let f = 0; f < c.frames; f++) { const i = f * NCH + ch; c.data[i] = sign * t.abd * RAD + (c.data[i] - m) * keep; }
+    }
   }
   if (t.armX !== undefined) for (const side of ['L', 'R'] as const) shift(c, x(`arm${side}`), t.armX * RAD);
   return c;

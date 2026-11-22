@@ -252,6 +252,8 @@ export class AnimController {
   private yawLead = 0;
   /** the entity's acceleration (m/s2, clip proportions, eased) and seconds since a start from rest or a stop began (-1 when none): inputs to the body layers */
   private accelS = 0;
+  /** cycles per second of the last frame (the midpoint step reads it) */
+  private freq = 1;
   private startT = -1;
   private stopT = -1;
   private stillFor = 0;
@@ -383,8 +385,9 @@ export class AnimController {
       const b: Blend = chainBlend(speed, chain);
       // GAIT: the phase advances so the planted foot travels back at the ground speed (locomotion.ts matchedFrequency), stepped at the midpoint of the frame
       const sf = this.strideFactor();
-      const fMid = matchedFrequency(speed, chain, b, this.phase + 0.5 * dt * matchedFrequency(speed, chain, b, this.phase, sf), sf);
-      this.phase = (this.phase + Math.max(fMid, 0.55 / chain[b.lo].duration) * dt) % 1;
+      const fMid = Math.max(matchedFrequency(speed, chain, b, this.phase + 0.5 * dt * this.freq, sf), 0.55 / chain[b.lo].duration);
+      this.freq = fMid;
+      this.phase = (this.phase + fMid * dt) % 1;
       sampleClip(chain[b.lo], this.phase * chain[b.lo].duration, this.loco);
       if (b.hi !== b.lo) { sampleClip(chain[b.hi], this.phase * chain[b.hi].duration, this.tmp); for (let k = 0; k < NCH; k++) this.loco[k] += (this.tmp[k] - this.loco[k]) * b.t; }
       this.lastRatio = rateFor(speed, chain[b.t > 0.5 ? b.hi : b.lo]);

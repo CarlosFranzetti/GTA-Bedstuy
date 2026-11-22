@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import '@/textures/painters/ped';
 import { OUTFITS } from '@/textures/painters/pedOutfits';
 import { BASE_TOPS, LAYERS, BOTTOMS, SHOES, composeSpec } from '@/textures/painters/pedWardrobe';
 import { rgb } from '@/textures/painters/pedPaintShared';
@@ -21,7 +22,7 @@ describe('whole outfits (CLOTHES)', () => {
   it('colours are muted: at most one clearly saturated piece per way (an accent), none loud', () => {
     for (const o of OUTFITS) for (const w of o.ways) {
       const cs = [w.top, w.layer, w.bottom, w.shoes, w.hat, w.gear].filter(Boolean) as string[];
-      const loud = cs.filter((c) => sat(c) > 0.55);
+      const loud = cs.filter((c) => sat(c) > 0.55 && Math.max(...rgb(c)) > 110);   // dark browns are saturated but not loud
       expect(loud.length, `${o.id} ${cs.join(' ')}`).toBeLessThanOrEqual(1);
       for (const c of cs) expect(sat(c), `${o.id} ${c}`).toBeLessThan(0.85);
     }

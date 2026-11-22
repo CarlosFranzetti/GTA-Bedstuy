@@ -66,6 +66,9 @@ const REF_DIMS: LegDims = (() => {
   return { hip: [V(0.09, 0.82, 0), V(-0.09, 0.82, 0)], knee: [V(0, -0.4, 0), V(0, -0.4, 0)], ankle: [V(0, -0.345, 0), V(0, -0.345, 0)], hasAnkle: true };
 })();
 const tables = new WeakMap<Clip, Float32Array>();
+/** one lookup per clip per frame: the table and its mean */
+const packs = new WeakMap<Clip, { t: Float32Array; mean: number }>();
+function packOf(c: Clip): { t: Float32Array; mean: number } { let k = packs.get(c); if (!k) { const t = strideTable(c); let m = 0; for (const v of t) m += v; k = { t, mean: m / t.length }; packs.set(c, k); } return k; }
 
 /** metres of back travel of the planted foot per cycle, at STRIDE_N phases of `clip`; flight stretches take the average, the result is smoothed and kept within 0.6 to 1.5 times the mean. */
 export function strideTable(clip: Clip): Float32Array {
@@ -111,12 +114,9 @@ export function tableAt(t: Float32Array, phase: number): number {
  * leg swing carries (controller.applyGait). The result is held to within 0.7 and 1.45 of the plain average rate, so the cycle never stalls or rushes.
  */
 export function matchedFrequency(speed: number, chain: ReadonlyArray<Clip>, b: Blend, phase: number, stride: number): number {
-  const A = chain[b.lo], B = chain[b.hi];
-  const la = tableAt(strideTable(A), phase);
-  const l = b.hi === b.lo ? la : la * (1 - b.t) + tableAt(strideTable(B), phase) * b.t;
-  const mean = b.hi === b.lo ? meanOf(strideTable(A)) : meanOf(strideTable(A)) * (1 - b.t) + meanOf(strideTable(B)) * b.t;
+  const A = packOf(chain[b.lo]);
+  let l = tableAt(A.t, phase), mean = A.mean;
+  if (b.hi !== b.lo) { const B = packOf(chain[b.hi]); l = l * (1 - b.t) + tableAt(B.t, phase) * b.t; mean = mean * (1 - b.t) + B.mean * b.t; }
   const f = speed / Math.max(0.2, l * stride), fm = speed / Math.max(0.2, mean * stride);
   return Math.min(1.45 * fm, Math.max(0.7 * fm, f));
 }
-const means = new WeakMap<Float32Array, number>();
-function meanOf(t: Float32Array): number { let m = means.get(t); if (m === undefined) { m = 0; for (const v of t) m += v; m /= t.length; means.set(t, m); } return m; }
