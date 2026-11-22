@@ -49,7 +49,9 @@ describe('stain placement data', () => {
     const g = bake((b, wall) => b.box(wall, 0, 0, -3, 5, 5, 0)).get('brickRed:0')!;
     const byte = Math.round(g.getAttribute('aStyle').getX(0) * 255);
     expect(byte - Math.floor(byte / KIND_STEP) * KIND_STEP).toBe(21);
-    for (const k of Object.values(WallKind)) expect(k * KIND_STEP + 21).toBeLessThanOrEqual(255);
+    // the roof kind (TEXTURES2, 11) has no room for the 0..21 phase: LotBatch clamps the byte at 255 and 242..255 still decodes to kind 11; every other kind keeps its full phase range
+    for (const k of Object.values(WallKind)) expect(k === WallKind.roof ? k * KIND_STEP : k * KIND_STEP + 21).toBeLessThanOrEqual(255);
+    expect(Math.floor(255 / KIND_STEP)).toBe(WallKind.roof);
   });
 });
 

@@ -15,8 +15,8 @@ import type { ObservedMaterial } from '@/world/data/facadeObserved';
 export type RGB = [number, number, number];
 
 /** Wall surface kinds; the value is what the shader branches on (`kind * KIND_STEP` is stored in `aStyle.x`). */
-export const WallKind = { brick: 0, siding: 1, stucco: 2, panel: 3, glazed: 4, trim: 5, awning: 6, stripedAwning: 7, gate: 8, party: 9, door: 10 } as const;
-/** `kind * KIND_STEP` is the byte stored in `aStyle.x` (kinds 0..10 fit; `q` 0..20 = the storey phase rides in the remainder, 21 = none). */
+export const WallKind = { brick: 0, siding: 1, stucco: 2, panel: 3, glazed: 4, trim: 5, awning: 6, stripedAwning: 7, gate: 8, party: 9, door: 10, roof: 11 } as const;
+/** `kind * KIND_STEP` is the byte stored in `aStyle.x` (kinds 0..11 fit, the roof kind 11 leaves no room for a phase and reads none; `q` 0..20 = the storey phase rides in the remainder, 21 = none). */
 export const KIND_STEP = 22;
 /** the lot's roof-line height / ROOF_SCALE rides in the alpha of the `color` vertex attribute of its wall materials (stain placement in lotTone.ts) */
 export const ROOF_SCALE = 64;
@@ -49,6 +49,8 @@ export interface Colourway {
   striped: boolean;
   /** front door paint */
   door: RGB;
+  /** roof surface (sRGB): tar, silver coat, gravel, membrane, mineral cap (TEXTURES2; the far massing paints the same) */
+  roof: RGB;
   /** texture UV jitter applied to this lot's wall materials */
   uv: { scale: number; ou: number; ov: number; flip: boolean };
 }
@@ -120,6 +122,10 @@ const AWNING: Swatch[] = [
   { id: 'green', c: '#2f6f4f', w: 14 }, { id: 'burgundy', c: '#7a2a34', w: 10 }, { id: 'navy', c: '#26354f', w: 12 }, { id: 'black', c: '#25272a', w: 8 },
   { id: 'tan', c: '#b9a37a', w: 8 }, { id: 'cream', c: '#d8ceb4', w: 8 }, { id: 'royal', c: '#2c5a9a', w: 8 }, { id: 'teal', c: '#2f7a7a', w: 6 },
   { id: 'orange', c: '#c8672a', w: 6 }, { id: 'red', c: '#b02a2a', w: 10 }, { id: 'mustard', c: '#c79b2a', w: 5 }, { id: 'grey', c: '#6e7378', w: 5 },
+];
+const ROOF: Swatch[] = [
+  { id: 'tar', c: '#34353a', w: 36 }, { id: 'old-tar', c: '#2a2b2e', w: 14 }, { id: 'silver', c: '#8e9498', w: 18 }, { id: 'gravel', c: '#6f6d68', w: 14 },
+  { id: 'membrane', c: '#232527', w: 8 }, { id: 'mineral', c: '#58604f', w: 6 }, { id: 'patched', c: '#43454a', w: 4 },
 ];
 const DOOR: Swatch[] = [
   { id: 'black', c: '#1c1c1e', w: 18 }, { id: 'brown', c: '#4b2f20', w: 16 }, { id: 'green', c: '#2b4a3a', w: 14 }, { id: 'red', c: '#8e2a24', w: 12 },
@@ -225,9 +231,11 @@ export function lotColourway(lot: ColourwayInput): Colourway {
     awning,
     striped: r.next() < 0.3,
     door: [0, 0, 0],
+    roof: [0, 0, 0],
     uv,
   };
   cw.door = hex(pickSwatch(r, DOOR).c); // drawn last: every colour above is unchanged by it
+  cw.roof = jitter(hex(pickSwatch(r, ROOF).c), r, 0.08); // after the door: nothing earlier changes
   return applyObserved(cw, lot.spec?.bbl);
 }
 
@@ -284,6 +292,7 @@ export function toneFor(name: string, cw: Colourway, frontFace: boolean, limesto
   }
   if (name === 'awning:#8a3b2e|') return { tone: [...cw.awning[0], 250], style: [b((cw.striped ? WallKind.stripedAwning : WallKind.awning) * KIND_STEP), 128, b(cw.seed * 255), b(cw.weather * 230)] };
   if (name === 'awning:#27303a|') return { tone: [...cw.awning[1], 250], style: [b(WallKind.awning * KIND_STEP), 128, b(cw.seed * 255), b(cw.weather * 230)] };
+  if (name.startsWith('tarRoof:')) return { tone: [...cw.roof, 240], style: [b(WallKind.roof * KIND_STEP), 128, b(cw.seed * 255), b(cw.weather * 255)] };
   if (name.startsWith('cornice:')) return { tone: [...cw.cornice, 235], style: flatStyle(cw) };
   if (name.startsWith('rollGate:')) return { tone: [...cw.gate, 235], style: [b(WallKind.gate * KIND_STEP), 128, b(cw.seed * 255), b(cw.weather * 255)] };
   if (name.startsWith('metalDark:') || name.startsWith('castIronFence:')) return { tone: [...cw.metal, 245], style: flatStyle(cw) };

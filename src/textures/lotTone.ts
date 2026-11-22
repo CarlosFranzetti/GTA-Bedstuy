@@ -297,7 +297,33 @@ if ( vLtTone.a > 0.01 ) {
     ltCol = mix( ltCol, ltCol * vec3( 0.82, 0.92, 0.8 ), smoothstep( 0.7, 0.9, ltNoise( ltP * 8.0 + ltSeed * 6.0 ) ) * ltWx * 0.5 );
     gLtFlat = max( gLtFlat, 0.4 );
   }
-  if ( ltKind > 9.5 ) {
+  if ( ltKind > 10.5 ) {
+    // ---- flat roof (TEXTURES2): tar, silver coat, gravel, membrane or mineral cap by lot; laid in 1 m strips with seams, fresh tar and
+    // coat patches, ponding stains with a dried rim, gravel speckle that fades with the pixel footprint
+    vec2 ltRp = vLtW.xz;
+    float ltRpx = max( length( fwidth( ltRp ) ), 1e-4 );
+    float ltOri = step( 0.5, fract( ltSeed * 7.7 ) );
+    vec2 ltRq = ltOri > 0.5 ? ltRp.yx : ltRp;
+    float ltStrip = floor( ltRq.x + ltSeed * 9.0 );
+    float ltFs = fract( ltRq.x + ltSeed * 9.0 );
+    float ltSeam = 1.0 - smoothstep( 0.0, 0.03 + ltRpx, min( ltFs, 1.0 - ltFs ) );
+    float ltSt = ltHash( vec2( ltStrip, ltSeed * 31.0 ) );
+    vec3 ltRoof = ltTarget * ltChroma * ( 0.93 + 0.14 * ltSt );
+    ltRoof *= 1.0 + ( ltNoise( ltRp * 0.21 + ltSeed * 17.0 ) - 0.5 ) * 0.3; // macro: sun-bleached and shaded areas
+    float ltPond = smoothstep( 0.6, 0.74, ltNoise( ltRp * 0.33 + ltSeed * 41.0 ) );
+    float ltPondRim = smoothstep( 0.56, 0.6, ltNoise( ltRp * 0.33 + ltSeed * 41.0 ) ) * ( 1.0 - ltPond );
+    ltRoof *= 1.0 - 0.28 * ltPond;
+    ltRoof = mix( ltRoof, ltRoof * 1.35 + 0.012, ltPondRim * 0.5 );
+    float ltFresh = smoothstep( 0.72, 0.75, ltNoise( ltRp * 0.55 + ltSeed * 13.0 ) ) * smoothstep( 0.25, 0.6, ltNoise( ltRp * 6.0 + 2.0 ) );
+    ltRoof = mix( ltRoof, ltRoof * 0.7, ltFresh * 0.8 ); // fresh black tar patches
+    ltRoof = mix( ltRoof, ltRoof * 1.08, ltSeam * 0.6 );
+    float ltGrA = 1.0 - smoothstep( 0.02, 0.09, ltRpx );
+    ltRoof *= 1.0 + ltGrA * ( ltHash( floor( ltRp * 38.0 ) ) - 0.5 ) * 0.22;
+    ltRoof *= 1.0 - ltWx * 0.1;
+    ltCol = ltRoof;
+    gLtFlat = 0.55;
+  }
+  if ( ltKind > 9.5 && ltKind < 10.5 ) {
     // panelled front door: two tall lower panels, two upper panels behind the glass, stiles and rails, kick plate, knob, number plate
     vec2 dq = vec2( vLtStyle.y, vLtStyle.z );
     float dSeed = floor( vLtStyle.w * 255.0 + 0.5 ) / 255.0;

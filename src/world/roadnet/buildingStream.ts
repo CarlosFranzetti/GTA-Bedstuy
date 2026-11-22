@@ -194,10 +194,8 @@ export function buildFarGeometry(lots: ReadonlyArray<RealLot>, looks?: (bbl: str
     const wall: [number, number, number] = [lin(cw.front[0]) * FAR_WALL_GAIN, lin(cw.front[1]) * FAR_WALL_GAIN, lin(cw.front[2]) * FAR_WALL_GAIN];
     const party = cw.party[0];
     const partyC: [number, number, number] = [lin(party[0]) * FAR_WALL_GAIN, lin(party[1]) * FAR_WALL_GAIN, lin(party[2]) * FAR_WALL_GAIN];
-    // roof: tar, now and then a silver coat
-    const rr = hash01(lot.bbl + 'r');
-    const tar = rr < 0.2 ? 0.2 + 0.1 * hash01(lot.bbl + 'q') : 0.05 + 0.05 * rr;
-    const roof: [number, number, number] = rr < 0.2 ? [tar, tar * 1.02, tar * 1.06] : [tar, tar * 0.98, tar * 0.95];
+    // roof: the colourway's roof surface (tar, silver coat, gravel, membrane, mineral cap), as the detailed roof will be
+    const roof: [number, number, number] = [lin(cw.roof[0]) * 0.95, lin(cw.roof[1]) * 0.95, lin(cw.roof[2]) * 0.95];
     const corn = cw.cornice, awn = cw.awning[0];
     const cx = (c0[0][0] + c0[2][0]) / 2, cz = (c0[0][1] + c0[2][1]) / 2;
     const exposedEdge = lot.corner ? (lot.cornerEnd === 'a' ? 3 : 1) : -1;

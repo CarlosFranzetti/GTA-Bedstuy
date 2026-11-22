@@ -23,7 +23,9 @@ import { resolveVehicleSources } from '@/entities/models/gltf/VehicleSource';
 import { TrafficSystem } from '@/game/TrafficSystem';
 import { CopSystem } from '@/game/CopSystem';
 import { WantedSystem } from '@/game/WantedSystem';
-import { Combat } from '@/game/combat/Combat';
+import { Combat, type Victim } from '@/game/combat/Combat';
+import { Blood, bloodOn, setBlood } from '@/game/combat/blood';
+import { PlayerVitals, applyKnockout, hospitalFor } from '@/game/combat/vitals';
 import { PoliceSystem } from '@/game/police/PoliceSystem';
 import { precinctFor, precinctPlace } from '@/game/police/precincts';
 import type { BustHost } from '@/game/police/bust';
@@ -33,7 +35,7 @@ import { CombatSfx } from '@/game/combat/sfx';
 import { CombatView } from '@/game/combat/view';
 import { placePickups, placeRealPickups } from '@/game/combat/pickups';
 import { DayNight } from '@/game/DayNight';
-import { Hud, type RadioHudState, type BlockedHudState, type PoliceHudState, type WantedHudState } from '@/ui/Hud';
+import { Hud, type RadioHudState, type BlockedHudState, type PoliceHudState, type WantedHudState, type VitalsHudState } from '@/ui/Hud';
 import { Minimap } from '@/ui/Minimap';
 import { TouchControls } from '@/ui/TouchControls';
 import { AudioSystem } from '@/audio/AudioSystem';
@@ -59,6 +61,7 @@ import { gfxDebugRequested, mountGfxDebug, flagToggle } from '@/render/GfxDebug'
 import { setNormalMaps, setAnisotropy } from '@/render/TierDetail';
 import { setPhoneDetailHidden } from '@/render/TierGeometry';
 import { Menu, missionLogOf } from '@/ui/Menu';
+import type { RowSpec } from '@/ui/menuRows';
 import { GraphicsStore, deriveGraphics } from '@/ui/GraphicsSettings';
 import { createLoadingMusic } from '@/render/LoadingMusic';
 import { createTitleMusic } from '@/render/TitleMusic';
@@ -363,7 +366,12 @@ overlay.id = 'overlay';
 app.appendChild(overlay);
 const hud = new Hud(overlay);
 // the action button on foot: fists, thrown bottles and bricks, a pistol (pickups on the grid map only for now)
-const combat = new Combat({ events, world: physics, peds: () => traffic.peds, player, fx: new CombatView(scene), sfx: new CombatSfx(() => audio.sfxHost), pickups: realWorld ? placeRealPickups({ home: HOME, shops: (realGame?.mapPlaces ?? []).filter((m) => m.kind === 'shop'), lots: world.lots }, (p, r) => physics.overlapsSolid(p, r)) : placePickups(world.lots, HOME, (p, r) => physics.overlapsSolid(p, r)), onHands: (s) => hud.setHands(s) });
+// COMBAT2: everyone on the street can be hit, police officers on foot too; blood (a setting), the player's health, people who fight back
+const hittable: Victim[] = [];
+const blood = new Blood(quality);
+const vitals = new PlayerVitals();
+const combat = new Combat({ events, world: physics, blood, vitals, noteAttacked: () => police.noteAttacked(), onKnockedOut: () => knockedOut(),
+  peds: () => { hittable.length = 0; for (const p of traffic.peds) hittable.push(p); for (const o of police.officers) hittable.push(o); return hittable; }, player, fx: new CombatView(scene, blood), sfx: new CombatSfx(() => audio.sfxHost), pickups: realWorld ? placeRealPickups({ home: HOME, shops: (realGame?.mapPlaces ?? []).filter((m) => m.kind === 'shop'), lots: world.lots }, (p, r) => physics.overlapsSolid(p, r)) : placePickups(world.lots, HOME, (p, r) => physics.overlapsSolid(p, r)), onHands: (s) => hud.setHands(s) });
 hud.onCycleHands = () => combat.cycle(1);
 // Title theme: plays on the title screen once the browser lets audio start (a click during loading, or the native app),
 // fades out a few seconds after the player presses start, and plays again under the credits roll.
@@ -455,6 +463,17 @@ const bustHost: BustHost = {
   clearWanted: () => { wanted.stars = 0; events.emit('wantedChanged', { stars: 0 }); },
   addBust: () => {},
 };
+// COMBAT2: the player's health ran out: he wakes outside the hospital landmark (real map) or at home (grid), seven hours later, with a bill
+const hospital = hospitalFor(realWorld ? 'real' : 'grid', HOME, realWorld?.landmarks?.rows ?? [], (p) => (rt ? rt.grid : grid).nearestSidewalkNode(p).pos);
+function knockedOut(): void {
+  applyKnockout({
+    cash: () => inventory.cash, addCash: (n) => { inventory.add(n); },
+    teleport: (s) => { if (interiors.inside) interiors.exit(); if (player.inVehicle) player.exit(); const b = player.body; b.pos.x = s.spot.x; b.pos.z = s.spot.z; b.vel.x = 0; b.vel.z = 0; b.heading = s.heading; player.prevPos.x = s.spot.x; player.prevPos.z = s.spot.z; lastOutside.x = s.spot.x; lastOutside.z = s.spot.z; input.endFrame(); },
+    advanceClock: (h) => { const t = dayNight.timeOfDay + h; if (t >= 24) { gameDay++; applyClutterState(world.group, quality, gameDay); } dayNight.timeOfDay = t % 24; prevHour = dayNight.timeOfDay; dayNight.update(0); },
+    say: (t) => hud.showToast(t, 4200),
+  }, vitals, hospital);
+  police.heat.reset(); wanted.stars = 0; events.emit('wantedChanged', { stars: 0 }); // the police lose interest in a man in a hospital bed
+}
 if (!saved) police.setGrace(120); // the first two minutes of a new game: minor acts add no heat (police.setGrace is the tutorial's switch too)
 const phoneHud = new PhoneHud(overlay, phone, { saves, canSave: () => interiors.state === 'outside', apps: { map: () => map.toggle(), radio: () => radioUi.open(), settings: () => { menu.open(); menu.showTab('settings'); } } });
 map.onOpen = () => { if (phoneHud.isOpen) phoneHud.toggle(); };
@@ -645,7 +664,7 @@ const PROMPT_ENTER = `${PROMPT_KEY}  Enter car`;
 let slowTick = 0;
 let streetName = '';
 let prompt = '';
-const hudState: HudState & RadioHudState & BlockedHudState & PoliceHudState & WantedHudState = { stars: 0, speedKmh: 0, inVehicle: false, radioStation: '', prompt: '', timeOfDay: 0, streetName: '', fps: 60 };
+const hudState: HudState & RadioHudState & BlockedHudState & PoliceHudState & WantedHudState & VitalsHudState = { stars: 0, speedKmh: 0, inVehicle: false, radioStation: '', prompt: '', timeOfDay: 0, streetName: '', fps: 60 };
 const passes = new PassCounter();
 passes.attach(renderer);
 const stats: Record<string, number> = { drawCalls: 0, drawCallsShadow: 0, drawCallsScene: 0, drawCallsGBuffer: 0, drawCallsPost: 0, triangles: 0, fps: 60, fps1pctLow: 0, heapMBPerMin: 0, culledObjects: 0, carsFar: 0, vehicles: 0, peds: 0, cops: 0, meshes: world.stats.meshes, colliders: world.stats.colliders };
@@ -706,6 +725,7 @@ const game = new Game(
       if (!player.inVehicle) { const ip = interiors.prompt(pos); if (ip) prompt = isTouch ? ip.replace(/^F  /, `${PROMPT_KEY}  `) : ip; }
     }
     hudState.stars = wanted.stars;
+    hudState.health = vitals.fraction; // COMBAT2
     hudState.heat = police.heatFraction; hudState.policeLine = police.stateLine; hudState.wantedCooling = wanted.stars > 0 && police.state === 'searching';
     hudState.speedKmh = player.vehicle ? Math.hypot(player.vehicle.body.vel.x, player.vehicle.body.vel.z) * 3.6 : 0;
     hudState.blockedSeconds = (player.vehicle as { blockedSeconds?: number } | null)?.blockedSeconds ?? 0;
@@ -771,6 +791,7 @@ const menu = new Menu(overlay, {
     ['Records owned', String(inventory.records.length)], ['Wanted level', String(wanted.stars)]] }),
   missionLog: () => missionLogOf(missions),
   hdVoices: { get: () => audio.hdVoices, set: (v) => audio.setHdVoices(v), label: () => audio.hdLabel },
+  gameRows: [{ id: 'blood', label: 'Blood', kind: 'toggle', def: () => true, desc: 'Blood on or off: a few dark drops on a hard hit, a pool under someone knocked out, marks on the pavement that fade. Off removes all of it.', get: () => bloodOn(), set: ((v: boolean) => setBlood(v)) as RowSpec['set'] }],
 });
 panels.register({ id: 'menu', isOpen: () => menu.isOpen, close: () => menu.close(), back: () => menu.back(), keepsEscape: () => menu.keepsEscape });
 panels.register({ id: 'map', isOpen: () => map.isOpen, close: () => map.close(), insideOf: 'menu' });
@@ -797,7 +818,7 @@ saves.bind({
     clearMissionData(); missions.story.reset(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++;
     if (interiors.inside) interiors.exit(); if (player.inVehicle) player.exit();
     const b = player.body; b.pos.x = HOME.x; b.pos.z = HOME.z; b.vel.x = 0; b.vel.z = 0;
-    dayNight.timeOfDay = 8; prevHour = 8; gameDay = 0; weather.setState('dry', true); wanted.stars = 0; police.setBusts(0); police.heat.reset(); police.setGrace(120);
+    dayNight.timeOfDay = 8; prevHour = 8; gameDay = 0; weather.setState('dry', true); wanted.stars = 0; police.setBusts(0); police.heat.reset(); police.setGrace(120); vitals.reset(); blood.clear();
     pendingLook = randomPlayerLook(`${Math.random()}:${Date.now()}`);
   },
   // the player model is built once at boot, so a different look (new game, or a save with another look) is applied by autosaving and reloading
@@ -1000,7 +1021,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
     camHeading = (veh ? veh.body : player.body).heading;
     for (let i = 0; i < n; i++) updateCamera();
   },
-  panels, menu, input, interiors, inventory, phone, combat, get dj() { return dj; }, get shopUi() { return shopUi; }, get djUi() { return djUi; }, ensureAudio, missions,
+  panels, menu, input, interiors, inventory, phone, combat, vitals, blood, get dj() { return dj; }, get shopUi() { return shopUi; }, get djUi() { return djUi; }, ensureAudio, missions,
   player, cops, police, bustCard, traffic, wanted, physics, grid, events, scene, sky, pipeline, blobs, nightLights, dayNight, renderer, materials, perf, culler, carLod, proxies, weather,
   nearby(r: number) { const p = player.body.pos; const out: unknown[] = []; for (const b of physics.bodies()) { const d = Math.hypot(b.pos.x - p.x, b.pos.z - p.z); if (b.shape.kind === 'circle' && d < r) out.push({ id: b.id, kind: b.kind, d: +d.toFixed(2) }); } return out; },
 };
