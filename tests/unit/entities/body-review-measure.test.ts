@@ -116,6 +116,13 @@ function measure(p: Posed): Record<string, number | string> {
     armAngleBind_deg: r1(armsB.total), armAngleStandClip_deg: r1(clipOnly.total), armAngleStandGame_deg: r1(game.total), armOutStandGame_deg: r1(game.out), armFwdStandGame_deg: r1(game.fwd),
     elbowBendStandGame_deg: r1(game.elbow), splay_deg: r1(deg((m.group.userData.splay as number) ?? 0)),
   });
+  // widths and depths as a share of stature, at the survey's landmark heights (arm-weighted vertices left out; skin and cloth as drawn). Real (ANSUR, P50 men / women):
+  // bideltoid .290/.276, chest breadth .165, chest depth .145/.151, waist breadth .186/.183, waist depth .134/.128, hip breadth .196/.217, buttock depth .140/.142, head breadth .088/.091
+  {
+    const band = (y: number): { w: number; d: number } => { const vs = pos.filter((v, i) => Math.abs(v.y - y) < 0.015 && !ARM_B.includes(bone[i])); if (!vs.length) return { w: NaN, d: NaN }; const [a, b] = ext(vs, (v) => v.x), [c, d] = ext(vs, (v) => v.z); return { w: b - a, d: d - c }; };
+    const ch = band(0.735 * stature), wa = band(0.602 * stature), hp = band(0.512 * stature - 0.0), bt = band(0.49 * stature);
+    Object.assign(R, { bideltoid_over_H: r3((sx1 - sx0) / stature), chestW_over_H: r3(ch.w / stature), chestD_over_H: r3(ch.d / stature), waistW_over_H: r3(wa.w / stature), waistD_over_H: r3(wa.d / stature), hipW_over_H: r3(Math.max(hp.w, bt.w) / stature), buttD_over_H: r3(Math.max(hp.d, bt.d) / stature), headW_over_H: r3(headW / stature) });
+  }
   // knee bend at rest
   { let kb = 0; for (let s = 0; s < 2; s++) { const a = W(m.legs[s]), k = W(m.knees[s]), an = W(m.ankles![s]); kb += deg(k.clone().sub(a).angleTo(an.clone().sub(k))) / 2; } R.kneeBendStand_deg = r1(kb); }
   // walking: arm angles over one stride

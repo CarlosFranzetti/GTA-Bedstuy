@@ -50,7 +50,7 @@ interface Target {
   armX?: number;
 }
 
-const STAND: Target = { torso: -2, torsoKeep: 0.6, head: -3, headKeep: 0.6, hips: -2, leg: 2, knee: -3, elbow: 5, elbowKeep: 0.7, elbowMin: 2, abd: 4, level: true, rollKeep: 0.35, headYaw: [0, 0.4], torsoYaw: [0, 0.5] };
+const STAND: Target = { torso: -2, torsoKeep: 0.6, head: -3, headKeep: 0.6, hips: -2, leg: 2, knee: -3, elbow: 5, elbowKeep: 0.7, elbowMin: 2, abd: 4, level: true, rollKeep: 0.35, headYaw: [0, 0.3], torsoYaw: [0, 0.5] };
 const WALKARMS = { elbow: 12, elbowKeep: 0.85, elbowMin: 3, abd: 5, abdKeep: 0.5, level: true } as const;
 
 export const POSTURE: Readonly<Record<string, Target>> = {

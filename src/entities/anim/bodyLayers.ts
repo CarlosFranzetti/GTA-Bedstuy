@@ -102,7 +102,7 @@ export const ARM = {
   /** the abduction the corrected clips already carry (posture.ts: 4 to 6 degrees) */
   clipAbd: 0.075,
   /** what is added to the body's own clearance (`splay`) */
-  abdAdd: 0.035,
+  abdAdd: 0.05,
   /** the least elbow flexion standing / walking */
   elbowStand: 0.1,
   elbowWalk: 0.12,
@@ -145,7 +145,7 @@ function arms(p: Float32Array, s: BodyLayerIn, aw: number): void {
   const extra = Math.max(0, want - ARM.clipAbd) * aw;
   p[C_ARM_L + 2] -= extra; p[C_ARM_R + 2] += extra;
   // and never inward: whatever a walk style does (a limp throws the arms out, an angry one crosses them in), the upper arm stays off the torso and the coat
-  const floorAbd = Math.max(0.05, want * 0.7);
+  const floorAbd = Math.max(0.06, want * 0.75);
   if (p[C_ARM_L + 2] > -floorAbd) p[C_ARM_L + 2] += (-floorAbd - p[C_ARM_L + 2]) * aw;
   if (p[C_ARM_R + 2] < floorAbd) p[C_ARM_R + 2] += (floorAbd - p[C_ARM_R + 2]) * aw;
   // the arms hang from the shoulder: a leaning chest (the clip's, and an elder's stoop baked into the mesh) must not swing them back behind the body
@@ -198,13 +198,17 @@ function standing(p: Float32Array, s: BodyLayerIn, st: BodyLayerState, dt: numbe
   st.hIn -= dt;
   if (st.hIn <= 0) {
     const big = rnd(st) < 0.25;
-    st.hTYaw = (rnd(st) * 2 - 1) * (big ? 0.5 : 0.18) * (st.hBusy > 1 ? 1.4 : 1);
+    st.hTYaw = (rnd(st) * 2 - 1) * (big ? 0.38 : 0.15) * (st.hBusy > 1 ? 1.35 : 1);
     st.hTPitch = (rnd(st) * 2 - 1) * 0.07;
     st.hIn = (1.2 + rnd(st) * 5) / st.hBusy;
   }
   const hk = 1 - Math.exp(-dt * 3.2);
   st.hYaw += (st.hTYaw - st.hYaw) * hk; st.hPitch += (st.hTPitch - st.hPitch) * hk;
   p[C_HEAD + 1] += st.hYaw * sw; p[C_HEAD] += st.hPitch * sw;
+  { // nobody stands with the head turned right round: the captured clip's own sweep and the turns above together stay under about 45 degrees
+    const hy = p[C_HEAD + 1], a = Math.abs(hy);
+    if (a > 0.6) p[C_HEAD + 1] = (hy < 0 ? -1 : 1) * (0.6 + 0.2 * (1 - Math.exp(-(a - 0.6) / 0.2)));
+  }
   p[C_TORSO + 1] += st.hYaw * 0.12 * sw;
 
   // a hand in a pocket: held for a while, then let go
