@@ -3461,3 +3461,6 @@ Wrap-up: 3 repairs (Cedarvane tower and round window, Gablewood pale corner hous
 
 ### 2026-11-22T04:20:43Z · Wren Ostrander (REALFIX2)
 Real map: graphs compacted (83 to 53 MB in node), 4 bare blocks repaired, 24 of 24 real sims green on the grown net, ring lamps verified lit at night. Notes in docs/swarm/tasks/REALFIX.md.
+
+### 2026-11-22T05:33:01Z · Ines Calder (REALFIX4)
+Starting: knocked-down pedestrian regression first, then steering look-ahead, then outer-ring draws. Files: src/world/roadnet/**, TrafficAgent steering (gated), CopSystem spawn fallback.

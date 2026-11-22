@@ -62,3 +62,9 @@ two loosened test limits (turns: 2 connectors over 6 m; connector spacing 12 m).
   and wanders onto the kerb), realtraffic-turns (4 connectors deviate over 6 m; limit 2, HEAD 3), realtraffic-cops (random spawn in a 100 to 140 m ring: patrol 1 of 2, pursuit closest 100 m).
   Tried and dropped: steering past the target node on connectors (fixed seed 4242 but re-broke the grid red-light test). The coarse connectors (maxSeg) were also acting as steering look-ahead.
   roadnet-realfix test "stop line inside the look-ahead" rewritten for distance: 127 m worst case on skewed boxes, still red.
+
+## REALFIX4 (22 Nov 2026, engineer: Ines Calder, lane REALFIX4)
+
+Jobs: (1) the live red `realtraffic-5min` "nobody is knocked down by traffic" (seed 7, two-ring net); (2) pure-pursuit steering look-ahead on the real map so the grown net is green
+and the three realtraffic files default to it again; (3) outer-ring draw calls. Log (newest last):
+- 22 Nov: started. Reading the sim test and the changed files.
