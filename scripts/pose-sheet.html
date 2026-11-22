@@ -33,36 +33,22 @@ const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshSta
 const materials = new MaterialLibrary(new Rng(7)); materials.setEnvironment(scene.environment);
 const lib = ClipLibrary.fromCore(); await lib.loadStreet('/anim/street.bin', fetch);
 const speed = { stand: 0, walk: 1.4, jog: 3.0, sprint: 6.5 }[pose] ?? 0;
-let layerFn = null, mkState = null;
-if (layers) { try { const m = await import('@/entities/anim/bodyLayers'); layerFn = m.applyBodyLayers; mkState = m.makeBodyLayerState; } catch (e) { console.error('no bodyLayers', e); } }
 const people = ids.map((id, i) => {
   const v = pedVariantIndex(id), m = buildPerson(materials, new Rng(v + 1), { variant: v });
   scene.add(m.group); m.group.visible = false;
   const spec = PED_SPECS[v], age = spec.age ?? 'adult', gait = makeGait(seed0 * 7 + i * 13, age);
   const ctl = new AnimController(m, gait, lib);
-  const st = mkState ? mkState(seed0 * 101 + i) : null, p = new Float32Array(42);
-  if (st && P.get('pocket')) { st.ready = false; st.__force = P.get('pocket'); }
-  return { m, ctl, spec, st, p, age, gait, seed: seed0 * 101 + i };
+  ctl.bodyLayersOn = layers;      // the controller calls bodyLayers itself now
+  return { m, ctl, spec };
 });
-const dt = 1 / 60, EUL = new THREE.Euler();
-// adapter for the sheet only: the layers are called on the pose read back from the bones (the game calls them inside the controller)
-function layersOn(p0) {
-  const { m, p, st, age, gait, seed } = p0;
-  const bones = [m.hips, m.torso, m.head, m.arms[0], m.elbows[0], m.arms[1], m.elbows[1]];
-  const idx = [0, 1, 2, 3, 4, 5, 6];
-  idx.forEach((b, k) => { const o = bones[k].rotation; p[b * 3] = o.x; p[b * 3 + 1] = o.y; p[b * 3 + 2] = o.z; });
-  const kn = [m.knees[0], m.knees[1]]; p[8 * 3] = kn[0].rotation.x; p[10 * 3] = kn[1].rotation.x;
-  p[39] = 0;
-  if (st.__force && st.ready) { st.gestOn = true; st.gestU = 1; st.gestIn = 1e9; st.gestSide = st.__force === 'L' ? -1 : 1; st.shiftIn = 1e9; }
-  layerFn(p, { dt, speed, idleW: speed < 0.1 ? 1 : 0, yawRate: 0, age, armSwing: gait.armSwing, sway: gait.sway, phase0: gait.phase, seed, splay: m.group.userData.splay ?? 0.03 }, st);
-  idx.forEach((b, k) => { bones[k].rotation.set(p[b * 3], p[b * 3 + 1], p[b * 3 + 2]); });
-  m.rig.position.x += p[39];
-}
+const dt = 1 / 60;
 for (const p of people) {
   for (let f = 0; f < T * 60; f++) {
     p.ctl.update(dt, { speed });
-    const sp = p.m.group.userData.splay ?? 0; // the game's reactionPose rewrites the arm roll after the controller, every frame
-    if (!layers) { p.m.arms[0].rotation.z = -sp; p.m.arms[1].rotation.z = sp; } else if (layerFn) layersOn(p);
+    const st = p.ctl.bls;
+    if (layers && P.get('pocket') && st.ready) { st.gestOn = true; st.gestU = 1; st.gestIn = 1e9; st.gestSide = P.get('pocket') === 'L' ? -1 : 1; st.shiftIn = 1e9; }
+    const sp = p.m.group.userData.splay ?? 0; // the OLD game rewrote the arm roll after the controller every frame; with the layers on that line is gone
+    if (!layers) { p.m.arms[0].rotation.z = -sp; p.m.arms[1].rotation.z = sp; }
   }
   p.m.group.updateMatrixWorld(true);
 }
