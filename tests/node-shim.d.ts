@@ -5,11 +5,11 @@
  */
 declare module 'node:fs' {
   export function readFileSync(path: string, encoding: string): string;
-  export function readFileSync(path: string): { length: number; buffer: ArrayBuffer; byteOffset: number; byteLength: number } & Uint8Array;
+  export function readFileSync(path: string | URL): { length: number; buffer: ArrayBuffer; byteOffset: number; byteLength: number } & Uint8Array;
   export function writeFileSync(path: string, data: string | Uint8Array): void;
   export function appendFileSync(path: string, data: string): void;
   export function existsSync(path: string): boolean;
-  export function readdirSync(path: string): string[];
+  export function readdirSync(path: string | URL): string[];
   export function statSync(path: string): { size: number; isFile(): boolean; isDirectory(): boolean };
 }
 declare module 'node:path' {

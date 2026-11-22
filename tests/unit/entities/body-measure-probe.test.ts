@@ -29,7 +29,7 @@ export function measure(spec: PedSpec, seed = 1): Measure {
   // joints after body type, scaled: use built bones
   m.group.updateMatrixWorld(true);
   const wp = (o: THREE.Object3D) => { const v = new THREE.Vector3(); o.getWorldPosition(v); return v; };
-  const sh = wp(m.arms[0]), el = wp(m.elbows[0]), hipJ = wp(m.legs[0]), kn = wp(m.knees[0]), an = wp(m.ankles[0]), shR = wp(m.arms[1]);
+  const sh = wp(m.arms[0]), el = wp(m.elbows[0]), hipJ = wp(m.legs[0]), kn = wp(m.knees[0]), an = wp(m.ankles![0]), shR = wp(m.arms[1]);
   const wrist = s.rig.wristL ? new THREE.Vector3(R.wristL[0] * gs.x, R.wristL[1] * gs.y, R.wristL[2] * gs.z) : null;
   void wrist;
   const lm = s.landmarks;
