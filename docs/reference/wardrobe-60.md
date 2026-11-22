@@ -374,4 +374,126 @@ Warmth budget (sum of the warmth values, hats and scarf +0.5, then the season's 
 Hot-day detail: a person in a tank or a tee carries the cap or the bucket hat at x2 (sun) and sunglasses at x3 by day.
 
 ---------------------------------------------------------------------------------------------------------------
-(PART 3 AND 4 FOLLOW)
+## PART 3. THE SIXTY OUTFITS
+
+Format. T top, L layer, B bottom, S shoes, H headwear, G gear (a bag). Ids are from part 1; `-` = none. Each outfit has two or three
+colourways (W1, W2, W3) written as `T hex, L hex, B hex, S hex, H hex, G hex`, only for the slots the outfit has. One accent at most
+per colourway, marked `*`. `wt` = how common (1 to 5). "who" uses part 1's age bands and sex weights. Every outfit obeys part 2
+except where a "tonal set" or a named exception is noted. Respect note for the cultural outfits: they are ordinary clothing worn by
+ordinary people of any build and age on this street; build them plain and solid, not as costume; do not put them on every person of
+a skin tone; the lead is asking the owner separately about the Hasidic community, and none appears here.
+
+### 3.1 The seventeen that exist (keep their ids; colourways are as in `src/textures/painters/pedOutfits.ts`)
+
+| id | parts (T / L / B / S / H / G) | who | wt |
+|---|---|---|---|
+| churchAuntie | blouse / blazer / midiSkirt / flat / churchHat / handbag | e, a; W | 3 |
+| churchDeacon | dressShirt / blazer / suitTrousers / dressShoe / fedora / - | e, a; M | 3 |
+| elderErrand | shirt / - / chinos / loafer / flatCap / - | e; M | 4 |
+| elderHeadwrap | blouse / cardigan / maxiSkirt / flat / headwrap / tote | e; W | 3 |
+| oldTimerTallTee | tee (to become tallTee) / - / jeansBaggy / sneakerHigh / cap / - | a, e; M | 3 |
+| leather90s | shirt / bomber (leather) / suitTrousers / dressShoe / - / - | a, e; M | 3 |
+| canvasWorker | pocketTee / workJacket / workTrousers / workBoot / beanie / - | a; M | 3 |
+| hiVisCrew | tee / hiVisVest / cargo / workBoot / hardhat / - | a; M | 3 |
+| clinicScrubs | scrubs / fleece / workDark / sneakerDark / - / handbag | a; any | 3 |
+| transitUniform | dressShirt (uniformShirt) / - / suitTrousers / dressShoe / cap / handbag | a; any | 3 |
+| winterTeen | crewSweat / pufferShort / sweatsCuffed / sneakerLow / beanie / backpack | t | 4 |
+| creativeCoat | sweater / overcoat (peacoat) / jeansBaggy (jeansWide) / sneakerDark / - / tote | y | 2 |
+| denimMidSeason | tee / denimJacket / jeansSlim / sneakerLow / beanie / crossbody | y | 4 |
+| summerSlides | tee / - / chinoShorts / slide / bucket / - | y | 4 |
+| schoolDay | hoodie / - / jeansStraight / sneakerLow / - / backpack | t | 4 |
+| deliveryRider | tee / windbreaker / trackPants / runner / helmet / backpack (deliveryBag) | y, a; M | 3 |
+| nightOut | tee / blazer / jeansSlim / ankleBoot / - / - | y, a | 3 |
+
+Suggested light edits to these (for the WARDROBE seat to choose): swap oldTimerTallTee's top to `tallTee`; swap creativeCoat's
+bottom to `jeansWide` or `trousersWide`; let deliveryRider's backpack be `deliveryBag` once it exists.
+
+### 3.2 Forty-three new outfits
+
+#### Older men and women (the 1990s and 2000s)
+
+| id | parts (T / L / B / S / H / G) | colourways | who | wt |
+|---|---|---|---|---|
+| elderVelour | tee / velourTrack / trackPants (the same velour colour: a tonal set) / sneakerLow / flatCap or - / - | W1 T #b8b8b2, L #243a52, B #243a52, S #b8b8b4. W2 T #1c1c20, L #5a2a34*, B #5a2a34, S #b8b8b4. W3 T #b4b0a4, L #2d4a3a, B #2d4a3a, S #aaa6a0, H #3a3028 | e; M, some W | 3 |
+| elderTrackWoman | tee / velourTrack / trackPants / sneakerLow / headwrap or - / tote | W1 T #b4aa94, L #3a3248, B #3a3248, S #b8b8b4, G #b0aca0. W2 T #b8b8b2, L #34483a, B #34483a, S #aaa6a0, H #8a6a2a*, G #8a7048. W3 T #1c1c20, L #6c7078, B #34363e, S #b8b8b4 | e; W | 3 |
+| elderCardiganWalk | blouse / cardigan / pleated / flat / - (glasses) / groceryBag | W1 T #c8bfae, L #5a2a34, B #2f3442, S #1c1c20, G #b8b8b0. W2 T #b8b8b0, L #2f3a58, B #4a3a44, S #2a2220, G #a89a78. W3 T #b4aa94, L #a89e88, B #34483a, S #1c1c20 | e; W | 4 |
+| elderOvercoat | sweater / overcoat / suitTrousers / loafer / flatCap / - (scarf) | W1 T #a89e88, L #2f3442, B #3a3e4a, S #161616, H #3a3028, scarf #b0aca0. W2 T #2f3a58, L #7a6a4c, B #4a4a52, S #2a2220, H #2f3442. W3 T #5a2a34*, L #1c1c20, B #2f3442, S #161616 | e; M | 3 |
+| elderSummerPolo | polo / - / chinos / sneakerLow / bucket or cap / - | W1 T #b4b0a4, B #7a6a4a, S #b8b8b4, H #6a8098. W2 T #6a8098, B #c8bca0, S #aaa6a0, H #b4b0a4. W3 T #8a8a86, B #2f3a48, S #b8b8b4, H #4a5a48 | e, a; M | 3 |
+| elderJeansBlouse | blouse / cardigan (open) / jeansStraight / sneakerLow / - / tote | W1 T #c8bfae, L #8a7048, B #34506f, S #b8b8b4, G #b0aca0. W2 T #a0aab4, L #3a4a40, B #232b3b, S #aaa6a0, G #2f3442. W3 T #b4a0a2, L #5a5a40, B #4d6c98, S #b8b8b4 | e; W | 3 |
+| elderKufiTunic | bandShirt (long, hem KNEE) / - / chinos or suitTrousers / loafer or sandal / kufi / - | W1 T #b8b8b0, B #8a8478, S #3a2418, H #d8d4c8. W2 T #b0a48a, B #4a4a40, S #2a2220, H #1c1c20. W3 T #6a6a50, B #3a3f48, S #3a2418, H #c8bca0 | e, a; M | 2 |
+| tallTeeTan | tallTee / - / jeansBaggy / tanBoot / durag or snapback / - (a thin chain, paint) | W1 T #b8b8b2, B #34506f, S #98804e, H #1c1c20. W2 T #1c1c20, B #4d6c98, S #7a5e36, H #6c7078. W3 T #8a8a86, B #232b3b, S #98804e, H #2f3a58 | a (2000s style), some y; M | 3 |
+
+#### Workers
+
+| id | parts | colourways | who | wt |
+|---|---|---|---|---|
+| kitchenWhites | T tee / L chefJacket (white, double-breasted) / B workDark (dark check) / S sneakerDark / H cap or beanie / - | W1 T #1c1c20, L #b8b8b2, B #34363e, S #161616, H #b8b8b2. W2 T #3a3f48, L #b4b0a4, B #2f3442, S #1c1c20, H #2f3442. | a, y; any | 2 |
+| barberSmock | T tee / L barberSmock / B jeansSlim / S sneakerDark / H - / - | W1 T #b4b0a4, L #1c1c20, B #232b3b, S #161616. W2 T #9c9a94, L #3a3f48, B #151a22, S #2a2c32. W3 T #1c1c20, L #6c7078, B #34506f, S #b8b8b4 | y, a; M | 2 |
+| mechanicCoveralls | one-piece boilerSuit (zip front, chest pockets, knee patches) / S workBoot / H cap / G - | W1 suit #2f3442, S #3a2418, H #1c1c20. W2 suit #5b4a30, S #161616, H #5a5348. W3 suit #4a4a40, S #3a2418, H #2f3442 | a; M | 2 |
+| counterApron | T longTee or tee / L apron / B jeansStraight / S sneakerDark / H cap or - / - | W1 T #b4b0a4, L #6a5f48, B #34506f, S #161616. W2 T #3a3f48, L #8a8a86, B #232b3b, S #2a2c32, H #1c1c20. W3 T #7c8088, L #3a3f48, B #4d6c98, S #b8b8b4 | a, y; any | 3 |
+| securityGuard | T uniformShirt / L windbreaker (plain, no panel) / B workDark / S workBoot (black) / H cap / G - | W1 T #98a8b8, L #1c1c20, B #1c1c20, S #161616, H #1c1c20. W2 T #b8b8b0, L #243a52, B #2f3442, S #161616, H #243a52. | a, y; M | 3 |
+| housePainter | T pocketTee / - / B workTrousers (painter off-white: a tonal set with spatter) / S canvasLow / H cap / - | W1 T #8a8a86, B #b4b0a4, S #b8b8b4, H #b4b0a4. W2 T #b4b0a4, B #c8bca0, S #8a8a86, H #6c7078. | a; M | 2 |
+| baristaApron | T tee / L apron / B jeansSlim / S sneakerDark / H beanie or - / G crossbody | W1 T #b4b0a4, L #3a3f48, B #232b3b, S #161616, H #2f3442, G #3a2a22. W2 T #1c1c20, L #6a5f48, B #151a22, S #b8b8b4, G #2a2c32. W3 T #a8a290, L #34363e, B #34506f, S #161616 | y; any | 3 |
+| parksCrew | T tee / L fleece / B cargo / S workBoot / H cap / - | W1 T #9c9a94, L #3a4a40, B #4a4a40, S #3a2418, H #3a4a40. W2 T #3a3f48, L #46607a, B #2f3442, S #161616, H #1c1c20. | a; M | 2 |
+
+#### Office and smart
+
+| id | parts | colourways | who | wt |
+|---|---|---|---|---|
+| officeSuit | T dressShirt / L blazer / B suitTrousers (a matching suit: a tonal set) / S dressShoe / H - / G crossbody (dark) | W1 T #b8b8b0, L #2f3442, B #2f3442, S #161616, tie #5a2a34* (the accent). W2 T #a8b4be, L #3a3e4a, B #3a3e4a, S #2a2220. W3 T #b8b8b0, L #1c1c24, B #1c1c24, S #161616, tie #3a4a5a | a, y; M | 3 |
+| officeShirtChinos | T shirt (cuffs turned once) / - / B chinos / S loafer or sneakerDark / H - / G crossbody | W1 T #a8b4be, B #a89a78, S #3a2418, G #3a2a22. W2 T #b8b8b0, B #2f3a48, S #161616, G #2a2c32. W3 T #98a4b0, B #4a4a40, S #2a2220, G #3a2a22 | a, y; any | 4 |
+| officeBlouse | T blouse / L blazer / B suitTrousers or trousersSlim / S flat or heel / H - / G handbag | W1 T #c8bfae, L #3a3e4a, B #3a3e4a, S #1c1c20, G #2a2220. W2 T #a0aab4, L #2f3442, B #2f3442, S #2f3442, G #1c1c20. W3 T #b4a0a2, L #4a4a52, B #4a4a52, S #1c1c20, G #3a2a22 | a, y; W | 4 |
+| officeWrapDress | one-piece wrapDress / L blazer or cardigan (optional) / S heel or flat / G handbag | W1 dress #2f3a58, L #b0aca0, S #1c1c20, G #1c1c20. W2 dress #5a2a34*, L #1c1c24, S #1c1c20, G #2a2220. W3 dress #34483a, L #3a3e4a, S #2a2220, G #3a2a22 | a, y; W | 3 |
+| commuterOvercoat | T dressShirt or sweater / L overcoat / B suitTrousers / S dressShoe / H - / G handbag (and a scarf, accessories) | W1 T #b8b8b0, L #2f3442, B #3a3e4a, S #161616, G #1c1c20, scarf #b0aca0. W2 T #a89e88, L #7a6a4c, B #2f3442, S #2a2220, G #3a2a22, scarf #3a3f48. W3 T #98a4b0, L #1c1c20, B #1c1c24, S #161616, scarf #7a3028* | a, y; any | 3 |
+
+#### Young adults, today
+
+| id | parts | colourways | who | wt |
+|---|---|---|---|---|
+| pufferWide | T hoodie / L pufferShort / B jeansWide or cargo / S sneakerHigh or chunkySneaker / H beanie / G sling | W1 T #6c7078, L #1c1c20, B #4d6c98, S #b8b8b4, H #1c1c20, G #34363e. W2 T #1c1c20, L #3a4a30, B #1c1c20, S #aaa6a0, H #2f3442, G #1c1c20. W3 T #b0aca0, L #2f3a58, B #6c7078, S #b8b8b4, H #7a3028* | t, y; any | 4 |
+| oversizedWide | T turtleneck / L overcoat (camel, oversized) / B trousersWide / S chunkySneaker / H - / G tote | W1 T #1c1c20, L #7a6a4c, B #3a3e4a, S #b8b8b4, G #b0aca0. W2 T #b0a894, L #2f3442, B #1c1c20, S #aaa6a0, G #8a7048. W3 T #3a3f48, L #5a5a40, B #a89e88, S #161616, G #1c1c20 | y; any | 2 |
+| croppedJogger | T tee / L cropJacket (bomber or work cut, hem at the waist) / B sweatsCuffed / S sneakerLow / H cap / G crossbody | W1 T #b4b0a4, L #4a4a40, B #1c1c20, S #b8b8b4, H #1c1c20, G #2a2c32. W2 T #3a3f48, L #6a5f48, B #6c7078, S #aaa6a0, G #3a2a22. W3 T #b8b8b2, L #1c1c20, B #34363e, S #b8b8b4, H #7a3028* | y; any | 3 |
+| athleisureW | T ribTank / L windbreaker / B leggings / S runner / H - / G sling | W1 T #b4b0a4, L #2f3a58, B #1c1c20, S #8a8a86, G #1c1c20. W2 T #1c1c20, L #6c7078, B #34363e, S #b8b8b4, G #34363e. W3 T #8a9482, L #1c1c20, B #1c1c20, S #aaa6a0 | y, a; W | 3 |
+| summerTankShorts | T tank / - / B cargoShorts / S canvasLow or slide / H bucket / G - (headphones around the neck) | W1 T #b8b8b2, B #4a4a40, S #1c1c20, H #6a8098. W2 T #1c1c20, B #a89a78, S #b8b8b4, H #4a5a48. W3 T #9c9a94, B #2e3848, S #161616, H #bdb49c | t, y; M, some W | 4 |
+| vintageSport | T tee / L windbreaker (colour-block, 2 muted tones, no logo) / B trackPants or jeansBaggy / S sneakerHigh / H bucket / G - | W1 T #b4b0a4, L #6a8098 over #aaa69a, B #1c1c20, S #b8b8b4, H #1c1c20. W2 T #1c1c20, L #3a4a30 over #8a8a86, B #34506f, S #aaa6a0, H #4a5a48. W3 T #8a8a86, L #2f3a58 over #b4b0a4, B #232b3b, S #b8b8b4, H #a8582a* | y; M, some W | 2 |
+| flannelBoots | T flannel / - / B jeansStraight / S tanBoot / H beanie / G backpack | W1 T #7a3028*, B #232b3b, S #98804e, H #1c1c20, G #2f3442. W2 T #2f4a6a, B #34506f, S #7a5e36, H #2f3442, G #34363e. W3 T #34503a, B #151a22, S #98804e, H #3a3f48 | y; M | 3 |
+| denimDouble | T tee / L denimJacket (pale) / B jeansStraight (dark, black or indigo) / S tanBoot or sneakerLow / H - / G crossbody | W1 T #1c1c20, L #667f9a, B #151a22, S #98804e, G #2a2c32. W2 T #b4b0a4, L #4d6c98, B #1f2a3a, S #161616. W3 T #b0aca0, L #232b3b, B #667f9a, S #b8b8b4, G #3a2a22 | y, a; any | 1 |
+
+#### Teenagers and children
+
+| id | parts | colourways | who | wt |
+|---|---|---|---|---|
+| schoolUniform | T polo / L cardigan / B chinos (M) or pleated (W) / S sneakerDark / H - / G backpack. No insignia anywhere | W1 T #b8b8b0, L #2f3a58, B #6c7078, S #161616, G #1c1c20. W2 T #98a8b8, L #34363e, B #2f3442, S #161616, G #2f3a58. | c, t; any | 3 |
+| hoopsCourt | T bballJersey (no numbers) / - / B bballShorts / S sneakerHigh / H - / G backpack (a duffel for a y) | W1 T #14161a, B #14161a, S #b8b8b4. W2 T #2a3a5a, B #b4b4b4, S #161616. W3 T #b4b4b4, B #5a2030*, S #aaa6a0 | t, y; M | 3 |
+| teenGirlWide | T tee / L bomber (nylon) / B jeansWide / S chunkySneaker / H - / G crossbody | W1 T #b4b0a4, L #3a4a30, B #667f9a, S #b8b8b4, G #1c1c20. W2 T #1c1c20, L #6c7078, B #4d6c98, S #aaa6a0, G #3a2a22. W3 T #b8b8b2, L #1c1c20, B #232b3b, S #b8b8b4 | t; W | 3 |
+| kidPlayground | T tee / - / B sweatsCuffed or cargoShorts / S sneakerLow / H cap or - / G backpack | W1 T #6a8098, B #34363e, S #b8b8b4, H #1c1c20, G #2f3442. W2 T #9a8040*, B #232b3b, S #aaa6a0, G #1c1c20. W3 T #b4b0a4, B #4a4a40, S #b8b8b4, G #46607a | c; any | 4 |
+| kidPuffer | T crewSweat / L pufferShort / B jeansStraight or leggings / S sneakerLow / H beanie / G backpack | W1 T #9c9a94, L #7a3028*, B #232b3b, S #aaa6a0, H #1c1c20, G #1c1c20. W2 T #3a3f48, L #2f3a58, B #1c1c20, S #b8b8b4, H #6c7078. W3 T #b4b0a4, L #3a4a30, B #34506f, S #b8b8b4, H #3a4a30 | c; any | 3 |
+| churchKidBoy | T shirt / L cardigan or blazer / B suitTrousers / S dressShoe or sneakerDark / H - / G - | W1 T #b8b8b0, L #2f3442, B #2f3442, S #161616. W2 T #a8b4be, L #4a3a44, B #3a3e4a, S #2a2220. | c, t; M | 2 |
+| churchKidGirl | one-piece shirtDress or sundress (long enough: hem KNEE) / L cardigan / S flat / H - / G handbag (small) | W1 dress #b4a0a2, L #2f3a58, S #1c1c20, G #3a2a22. W2 dress #a0aab4, L #5a2a34, S #2a2220. W3 dress #a8b0a0, L #3a3248, S #1c1c20, G #1c1c20 | c, t; W | 2 |
+
+#### Sport and leisure, and the night
+
+| id | parts | colourways | who | wt |
+|---|---|---|---|---|
+| runningKit | T tank or tee / - / B runShorts (existing) / S runner / H cap / G - (headphones) | W1 T #b8b8b2, B #14161a, S #8a8a86, H #1c1c20. W2 T #1c1c20, B #2a3a5a, S #b8b8b4, H #6c7078. W3 T #8a9482, B #1c1c20, S #aaa6a0, H #1c1c20 | y, a; any | 2 |
+| yogaStudio | T ribTank / L fleece or cardigan (cool only) / B leggings / S slide or sneakerLow / H - / G tote (a rolled mat) | W1 T #b4b0a4, L #6c7078, B #1c1c20, S #1c1c20, G #8a7048. W2 T #1c1c20, L #3a4a40, B #34363e, S #b8b8b4, G #b0aca0. W3 T #8a9482, L #2f3a58, B #1c1c20, S #aaa6a0 | y, a; W | 2 |
+| nightWrap | one-piece wrapDress / S heel or ankleBoot / G handbag or crossbody / H - | W1 dress #1c1c24, S #1c1c20, G #1c1c20. W2 dress #5a2a34*, S #161616, G #2a2220. W3 dress #34483a, S #1c1c20, G #3a2a22 | y, a; W | 2 |
+
+#### Culturally specific dress worn on this street (ordinary clothing, plain and solid)
+
+| id | parts | colourways | who | wt |
+|---|---|---|---|---|
+| boubouWoman | one-piece kaftan (wide cut, long, to MID-CALF or ANKLE, a solid colour with one plain panel of a second tone, no loud print) / H headwrap (the same family) / S flat or sandal / G handbag | W1 dress #34483a, H #8a6a2a*, S #2a2220, G #2a2220. W2 dress #2f3a58, H #b8b8b0, S #1c1c20, G #3a2a22. W3 dress #8a4a32, H #3a3248, S #5b3a24, G #1c1c20 | a, e (and y); W | 3 |
+| dashikiSet | T dashiki (solid, plain collar band) / - / B chinos or suitTrousers / S loafer / H kufi or - / G - | W1 T #8a6a2a*, B #3a3f48, S #2a2220, H #1c1c20. W2 T #34503a, B #b0a48a, S #3a2418, H #d8d4c8. W3 T #2f3a58, B #4a4a40, S #161616 | y, a, e; M | 2 |
+| hijabModest | T shirt (long, hem HIP) or blouse / L cardigan (long) or - / B maxiSkirt or suitTrousers / S flat or sneakerLow / H hijab / G tote or handbag | W1 T #b8b8b0, L #2f3a58, B #1c1c20, S #1c1c20, H #1c1c20, G #3a2a22. W2 T #a8b0a0, L #3a4a40, B #34483a, S #2a2220, H #b0a894, G #b0aca0. W3 T #c8bfae, L #1c1c20, B #3a3f48, S #b8b8b4, H #8a8a86 | t, y, a, e; W | 3 |
+| bonnetErrand | T crewSweat or hoodie / - / B leggings or sweatsCuffed / S slide / H bonnet / G groceryBag. Early morning and short errands only (part 2.8) | W1 T #7c8088, B #1c1c20, S #1c1c20, H #5a2a34*, G #b8b8b0. W2 T #3a3f48, B #34363e, S #b8b8b4, H #1c1c20, G #a89a78. W3 T #b0aca0, B #2f3442, S #1c1c20, H #c8bfae | y, a; W | 2 |
+
+### 3.3 Count and coverage
+
+17 existing + 43 new = 60. By group, with the new ones: older (7 + 1 tallTeeTan), workers 8, office 5, young adults today 8, teen and
+children 7, sport and night 3, cultural 4. By age band the sixty cover: children 5 (schoolUniform, kidPlayground, kidPuffer,
+churchKidBoy, churchKidGirl), teens 8 with the shared ones, young adults 21, adults 22, elders 17. Plus the mix (parts) draws the
+rest of the street, at about half the people (the code's whole-outfit share; the owner may wish to lift it).
+
+---------------------------------------------------------------------------------------------------------------
+(PART 4 FOLLOWS)
