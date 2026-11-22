@@ -5,7 +5,8 @@ import { angleDiff, clamp, headingFromVec, type Vec2 } from '@/core/Math2';
 import type { SignalLights } from '@/game/TrafficLights';
 import { Rng } from '@/core/Rng';
 import { animateWalk, type HumanModel } from '@/entities/models/humanModel';
-import { AnimController, PED_ONESHOTS } from '@/entities/anim/controller';
+import { AnimController, PED_ONESHOTS, type ActionPose } from '@/entities/anim/controller';
+import { PedVitals, DAMAGE, type Force, type Temperament } from '@/entities/pedVitals';
 import { makeGait, type Gait } from '@/entities/anim/gait';
 import { easeGround, groundAt } from '@/world/Ground';
 import { buildPerson as buildPedModel, loadPeople } from '@/entities/models/pedMesh';
@@ -52,9 +53,24 @@ export const FACE_BEAT = 0.55;
 const FLEE_SPREAD = 22;
 /** Fleeing people whose way out is within this cosine of side-on to the threat pick a way at random. */
 const FLEE_TIE = 0.5;
-const DOWN_TIME = 6;
-/** A second blow within this many seconds of the first puts a pedestrian down (hitBy). */
-const HIT_MEMORY = 6;
+/** COMBAT2: what happened to a person who was hit (see `Pedestrian.hitBy`). 'struckDown' = hit while already on the ground. */
+export type HitResult = 'staggered' | 'knockedDown' | 'knockedOut' | 'struckDown' | 'ignored';
+/** COMBAT2: what a person is doing instead of their daily walk: cowering, filming it, watching it, or fighting the player. */
+export interface PedSpecial {
+  mode: 'cower' | 'film' | 'watch' | 'fight';
+  /** seconds left */
+  t: number;
+  /** what they face */
+  at: Vec2;
+  target?: Body2D;
+  /** called when a punch of theirs lands (damage, where the puncher stands) */
+  onHit?: (damage: number, from: Vec2) => void;
+  phase: 'close' | 'wind' | 'swing' | 'recover';
+  pt: number;
+  punches: number;
+  landed: boolean;
+}
+export const BRAWL = { speed: 3.4, reach: 1.15, giveUp: 16, wind: 0.45, swing: 0.45, recover: 0.5, punches: 3, damage: [7, 7, 12] as const, fightSeconds: 14 };
 const HIT_SPEED = 2;
 const CROSSWALK_SCAN_RADIUS = 12;
 const WAIT_RECHECK = 0.3;
@@ -102,6 +118,12 @@ export class Pedestrian implements Entity {
   readonly object3D: THREE.Group;
   readonly body: Body2D;
   state: PedState = 'walking';
+  /** COMBAT2: health, build and temperament (flee, cower, film, fight back) */
+  readonly vitals: PedVitals;
+  /** COMBAT2: cowering, filming, watching or fighting: set by Combat's crowd, ended here when the time is up */
+  special: PedSpecial | null = null;
+  /** the arm pose of a fight (read by the animator) */
+  private fightPose: ActionPose | null = null;
 
   private readonly model: HumanModel | null = null;
   private readonly rig: CharacterRig | null = null;
@@ -195,6 +217,7 @@ export class Pedestrian implements Entity {
     else { this.model = buildPedModel(materials, rng); g = this.model.group; }
     g.rotation.order = 'YXZ';
     this.object3D = g;
+    this.vitals = new PedVitals(id, this.person?.age ?? 'adult');
 
     if (!this.pickNext(start.id)) this.targetId = null;
     if (env) this.setEnvironment(env);
