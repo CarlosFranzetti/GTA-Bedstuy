@@ -41,6 +41,17 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 
 ## What the owner wants (his words, newest first)
 
+- 22 Nov, evening (after the fifth deploy): "continue with the swarm and refinements. Start with movement and then the
+  eyes. Faces are still too caricature but the features are a marked improvement, the eyes are wonky again. Refer to
+  GTA 5: I want that kind of detail. The bodies just look kind of silly right now." "GTA 5 is your new bible" (a STYLE
+  reference: rule 1 stands). HOW HE WANTS US TO WORK NOW: one topic at a time, each with a team of five agents in
+  parallel who talk to each other (`docs/swarm/teams/`), plus no more than three research agents (clothing that is more
+  stylish and realistic, faces that make sense, body types that are more human, textures); updates, demos and questions
+  to him along the way; when a topic has made progress an Opus agent updates the docs, then push and deploy, then that
+  topic pauses and the next team of five starts. Topic 1: movement and body geometry (`docs/swarm/teams/BODY-TEAM.md`).
+  Topic 2: faces, eyes and details. Then vehicles, the camera and the engine sound that still stutters. He wants the
+  teams' conversations as human-readable transcripts (`docs/swarm/transcripts/`).
+
 - 22 Nov, afternoon (after the third and fourth deploys), one long message. The list:
   - cars: SUVs and trucks "feel strangely larger and longer than they should be compared to the sedans and sports cars",
     "get the dimensions so they make sense", "model them on real world vehicles"; car shadows "wonky ... looks like the car
