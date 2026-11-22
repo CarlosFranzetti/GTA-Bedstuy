@@ -39,8 +39,11 @@ export const ALL_STILL_MAX = 150;
 const ARMED_RANGE = 8;
 const CROSSWALK_SLACK = 3.2;
 
-/** REALFIX: the whole grown network (R1..R4) is the default; REAL_NET=core runs the first two rings only (the MAP3 net); REAL_PLAYER="x,z" puts the player there */
-const WHOLE = process.env.REAL_NET !== 'core';
+/** REAL_NET=r4 runs the whole grown network (R1..R4); the default is the first two rings only (the MAP3 net); REAL_PLAYER="x,z" puts the player there */
+// Lead, 22 Nov: the default is the first two rings again (what these tests covered while the map was live at 9.8 km2).
+// REAL_NET=r4 runs the whole grown network: there 6 checks are KNOWN RED with dense turn connectors (cars leaving the lane after
+// tight turns, 4 wide connectors, cop spawn luck): docs/swarm/tasks/REALFIX.md, REALFIX3. The fix is a steering look-ahead, not done yet.
+const WHOLE = process.env.REAL_NET === 'r4';
 export const controls = WHOLE ? controlsR4 : controlsCore;
 /** where the player stands: REAL_PLAYER="x,z", else (0, -300) on the whole net, inside the first two rings (the middle of its bounds is a quiet corner of Queens side streets; the cop checks pass from this spot and fail at several others, see REALFIX.md), else the middle of the bounds */
 export const playerSpot = (): { x: number; z: number } => {

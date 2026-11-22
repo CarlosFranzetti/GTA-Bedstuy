@@ -783,11 +783,16 @@ export class TrafficAgent {
       this.stopAheadFor = t.id;
       this.stopAhead = null;
       let n: LaneNode | undefined = t;
-      for (let i = 0; i < 6 && n; i++) {
+      // real map: look a distance ahead (its connectors are dense); the grid map keeps the six-node look
+      const maxM = this.lanes.signalLookAheadM;
+      let walked = 0;
+      for (let i = 0; i < (maxM !== undefined ? 80 : 6) && n; i++) {
         if (n.stopLine) { this.stopAhead = n; break; }
         const adj: number[] | undefined = this.lanes.adjacency[n.id];
         if (!adj || adj.length !== 1) break;
-        n = this.lanes.nodes[this.lanes.edges[adj[0]].to];
+        const nx: LaneNode | undefined = this.lanes.nodes[this.lanes.edges[adj[0]].to];
+        if (maxM !== undefined && nx) { walked += hyp(nx.pos.x - n.pos.x, nx.pos.z - n.pos.z); if (walked > maxM) break; }
+        n = nx;
       }
     }
     const s = this.stopAhead;

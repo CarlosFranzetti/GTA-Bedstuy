@@ -56,3 +56,9 @@ two loosened test limits (turns: 2 connectors over 6 m; connector spacing 12 m).
 - Reading: in `TrafficAgent` the braking for a red only starts when the stop line is the TARGET node (`node.stopLine`, around line 452). `signalQueueAhead` (six nodes)
   feeds only stuck detection and overtaking. So coarse connectors were not needed for braking; the speed cap is what keeps a car able to stop.
 - Log: first step, remove `maxSeg` and measure.
+- 22 Nov, measured (REALFIX3, grown net, dense connectors = `maxSeg` dropped, speed cap kept, distance look-ahead `LaneGraph.signalLookAheadM` = 90 m read by `TrafficAgent.signalQueueAhead`; grid map keeps six nodes):
+  roadnet-signals 19/19 green (both reds fixed); default-map sims (traffic-5min, traffic-agent-qa, pursuit), roadnet-lanes (spacing back to 12 m) green.
+  Still red with dense connectors, and identical with the pre-maxSeg lanes.ts (so not caused by the look-ahead): realtraffic-5min (cars in buildings: 9 and 57 samples at Throop / Vernon, a car overshoots a 90 deg turn
+  and wanders onto the kerb), realtraffic-turns (4 connectors deviate over 6 m; limit 2, HEAD 3), realtraffic-cops (random spawn in a 100 to 140 m ring: patrol 1 of 2, pursuit closest 100 m).
+  Tried and dropped: steering past the target node on connectors (fixed seed 4242 but re-broke the grid red-light test). The coarse connectors (maxSeg) were also acting as steering look-ahead.
+  roadnet-realfix test "stop line inside the look-ahead" rewritten for distance: 127 m worst case on skewed boxes, still red.

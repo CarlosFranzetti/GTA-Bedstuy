@@ -133,7 +133,11 @@ export interface LaneNode extends GraphNode {
   /** optional speed cap (m/s) while this node is the target (the real map slows a turn's last stretch, which crosses the exit crosswalk) */
   maxSpeed?: number;
 }
-export interface LaneGraph extends Graph { nodes: Record<string, LaneNode>; }
+export interface LaneGraph extends Graph {
+  nodes: Record<string, LaneNode>;
+  /** when set (the real map), TrafficAgent.signalQueueAhead looks this many metres down a single-successor chain for a stop line instead of six nodes */
+  signalLookAheadM?: number;
+}
 
 export interface GridBounds { minX: number; maxX: number; minZ: number; maxZ: number; }
 

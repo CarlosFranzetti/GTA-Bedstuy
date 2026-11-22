@@ -48,6 +48,11 @@ const TURN_MIN = 0.5;
 const TURN_EXIT_SPEED = 3.5;
 /** sharper than this and the connection is a U-turn, only built when a lane would be stranded otherwise */
 const U_TURN = 2.95;
+/** a connector slows its car for a stop line that ends the next lane within this many metres (m), assuming this braking (m/s2) */
+/** the agent's stop-line look-ahead on this graph, in metres (the connectors are dense, so a node count would not reach a stop line behind a wide box) */
+const SIGNAL_LOOKAHEAD_M = 90;
+const SHORT_LINK_M = 45;
+const LINE_DECEL = 1.6;
 /** turns sharper than this (~120 deg) are not built unless a lane would otherwise have no way on: a car cannot make them */
 const SHARP_TURN = 2.1;
 
@@ -99,7 +104,7 @@ export function buildLaneGraph(net: RoadNet, d: Derived, opts: LaneOptions = {})
 
 export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptions = {}): LaneBuild {
   const o: Required<LaneOptions> = { ...DEFAULT_LANES, ...opts };
-  const graph: LaneGraph = { nodes: {}, edges: [], adjacency: {} };
+  const graph: LaneGraph = { nodes: {}, edges: [], adjacency: {}, signalLookAheadM: SIGNAL_LOOKAHEAD_M };
   const clusters = junctionClusters(net, d);
   const ci = clusterIndexOfNode(net, clusters);
   const cid = clusters.map(clusterId);
@@ -244,9 +249,22 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
     // a turn crosses the crosswalk of the leg it enters: its last half is taken slowly, so a car that has not yet seen a
     // pedestrian stepping off the kerb can still stop
     const turning = Math.abs(angleDiff(from.heading, to.heading)) > TURN_MIN;
+    // REALFIX: when the lane this connector feeds ends at a stop line within SHORT_LINK_M, the box is left at a speed from which the car can still
+    // stop there (two signals 17 m apart on a skewed Broadway junction sent cars into the second line at 12 m/s)
+    let laneLen = 0;
+    for (let k = 1; k < b.nodeIds.length; k++) { const p0 = graph.nodes[b.nodeIds[k - 1]].pos, p1 = graph.nodes[b.nodeIds[k]].pos; laneLen += Math.hypot(p1.x - p0.x, p1.z - p0.z); }
+    const feedsLine = !!last(b).stopLine;
+    const rest: number[] = [];
+    {
+      let acc = laneLen + Math.hypot(to.pos.x - (curve.pts.length ? curve.pts[curve.pts.length - 1].x : from.pos.x), to.pos.z - (curve.pts.length ? curve.pts[curve.pts.length - 1].z : from.pos.z));
+      for (let i = curve.pts.length - 1; i >= 0; i--) { rest[i] = acc; if (i > 0) acc += Math.hypot(curve.pts[i].x - curve.pts[i - 1].x, curve.pts[i].z - curve.pts[i - 1].z); }
+    }
     curve.pts.forEach((q, i) => {
       const id = `cx:${from.id}>${b.id}:${i + 1}`;
-      addNode({ id, pos: q, streetId: to.streetId, heading: headingFromVec(curve.tans[i]), stopLine: false, ...(turning && i >= (curve.pts.length - 1) / 2 ? { maxSpeed: TURN_EXIT_SPEED } : {}) });
+      const turnCap = turning && i >= (curve.pts.length - 1) / 2 ? TURN_EXIT_SPEED : Infinity;
+      const lineCap = feedsLine && rest[i] < SHORT_LINK_M ? Math.sqrt(2 * LINE_DECEL * rest[i]) + 0.5 : Infinity;
+      const cap = Math.min(turnCap, lineCap);
+      addNode({ id, pos: q, streetId: to.streetId, heading: headingFromVec(curve.tans[i]), stopLine: false, ...(cap < Infinity ? { maxSpeed: cap } : {}) });
       nodeIds.push(id);
     });
     let prev = from.id;
