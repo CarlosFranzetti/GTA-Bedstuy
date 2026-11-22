@@ -55,7 +55,7 @@ export const BODY_TYPES: Record<BodyTypeId, BodyType> = {
   slight: T({ h: 0.88, weight: -0.9, shoulders: 0.92, arms: 0.9, legs: 0.92, head: 1.05, hips: 0.97 }),
 };
 /** BODY seat: measured bideltoid width of the bases was 9 to 10 percent under ANSUR II (0.462 against 0.510 m, men): every type's shoulders are widened to match; children and teens by less */
-for (const [id, b] of Object.entries(BODY_TYPES)) b.shoulders *= id === 'kid' ? 1.0 : id === 'teen' || id === 'lean-teen' ? 1.04 : 1.08;
+for (const [id, b] of Object.entries(BODY_TYPES)) { b.shoulders *= id === 'kid' ? 1.0 : id === 'teen' || id === 'lean-teen' ? 1.04 : 1.08; b.chest *= id === 'kid' ? 1.0 : 1.07; }
 /** the types a generated person may have, by age and sex, with weights (pedWardrobe.ts) */
 export const BODY_POOLS: Record<string, Array<[BodyTypeId, number]>> = {
   'adult-m': [['avg', 3], ['athletic', 2], ['heavy', 1.2], ['lanky', 1.1], ['tall-thin', 0.8], ['short-stocky', 1], ['broad', 1], ['slim', 1.5], ['big-tall', 1.2], ['stout', 0.9]],
@@ -91,7 +91,7 @@ export function bodyTypeId(spec: Pick<PedSpec, 'id' | 'build' | 'sex' | 'age' | 
   return list[Math.floor(hash(spec.id + ':body') * list.length) % list.length];
 }
 /** per sex adjustment on top of the body type: men carry the wedge (narrower waist and hips), women a softer taper */
-const SEX_ADJ: Record<'m' | 'f' | 'x', Partial<BodyType>> = { m: { hips: 0.95, waist: 0.95 }, f: { waist: 0.985 }, x: { hips: 0.975, waist: 0.97 } };
+const SEX_ADJ: Record<'m' | 'f' | 'x', Partial<BodyType>> = { m: { hips: 0.95, waist: 1.0 }, f: { waist: 1.0 }, x: { hips: 0.975, waist: 0.97 } };
 const adjusted = new Map<string, BodyType>();
 export function bodyTypeOf(spec: Parameters<typeof bodyTypeId>[0]): BodyType {
   const id = bodyTypeId(spec), sx = spec.sex === 'f' ? 'f' : spec.sex === 'x' ? 'x' : 'm', k = id + sx;

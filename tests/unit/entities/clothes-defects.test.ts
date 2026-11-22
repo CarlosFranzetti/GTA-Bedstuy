@@ -37,3 +37,38 @@ describe('clothes: no NaN in the dressed body', () => {
     expect(bad).toEqual([]);
   });
 });
+
+/** the final merged geometry of a person (what the game draws), per level */
+function levels(v: number): THREE.BufferGeometry[] {
+  const m = buildMhPedModel(materials, new Rng(v + 1), { variant: v })!, out: THREE.BufferGeometry[] = [];
+  m.group.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) out.push((o as THREE.SkinnedMesh).geometry); });
+  return out;
+}
+export interface Tally { tris: number; flipped: number; degenerate: number; nan: number }
+/** triangles whose geometric normal points against the average of their own vertex normals (inside out), degenerate ones, and non-finite corners */
+export function tally(g: THREE.BufferGeometry): Tally {
+  const P = g.getAttribute('position'), N = g.getAttribute('normal'), I = g.index!, t: Tally = { tris: I.count / 3, flipped: 0, degenerate: 0, nan: 0 };
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3(), e1 = new THREE.Vector3(), e2 = new THREE.Vector3();
+  for (let k = 0; k < I.count; k += 3) {
+    const i0 = I.getX(k), i1 = I.getX(k + 1), i2 = I.getX(k + 2);
+    a.fromBufferAttribute(P, i0); b.fromBufferAttribute(P, i1); c.fromBufferAttribute(P, i2);
+    if (![a, b, c].every((v) => Number.isFinite(v.x + v.y + v.z))) { t.nan++; continue; }
+    e1.subVectors(b, a); e2.subVectors(c, a); n.crossVectors(e1, e2);
+    const area = n.length() / 2;
+    if (area < 1e-9) { t.degenerate++; continue; }
+    n.normalize();
+    const vn = new THREE.Vector3(N.getX(i0) + N.getX(i1) + N.getX(i2), N.getY(i0) + N.getY(i1) + N.getY(i2), N.getZ(i0) + N.getZ(i1) + N.getZ(i2));
+    if (vn.lengthSq() > 1e-6 && n.dot(vn.normalize()) < -0.2) t.flipped++;
+  }
+  return t;
+}
+describe('clothes: probe flipped triangles (measurement)', () => {
+  it('prints', () => {
+    const rows: string[] = [];
+    for (const id of ['wh-office', 'ba-hoodie-fade', 'ba-puffer-braids', 'ca-nurse', 'wh-elder']) {
+      const v = PED_SPECS.findIndex((s) => s.id === id);
+      levels(v).forEach((g, k) => { const t = tally(g); rows.push(`${id} L${k} ${JSON.stringify(t)}`); });
+    }
+    console.log(rows.join('\n'));
+  });
+});

@@ -404,7 +404,7 @@ function dressLodBody(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): MhLo
   const armX = Math.abs(R.shoulderL[0]), hipX = Math.abs(R.hipL[0]), legK = legX(bt), wristX = Math.abs(R.wristL[0]), hipY = R.hipL[1];
   const yBelly = hipY + 0.09 * K, yWaist = hipY + 0.14 * K, yChest = shY - 0.13 * K, neckY = lm.chinY - 0.03;
   const waistK = bt.waist;
-  const fWaist = 1 + Math.max(0, bt.belly) * 1.1 + Math.max(0, bt.hips - 1) * 0.3 + Math.min(0, bt.belly) * 2;
+  const fWaist = 1 + 0.07 + Math.max(0, bt.belly) * 1.1 + Math.max(0, bt.hips - 1) * 0.3 + Math.min(0, bt.belly) * 2;
   const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
   // a leg's thickness along its length: thigh full, knee slimmer, calf a little fuller than the ankle, then the ankle (a heavy leg is a solid leg, not a sausage)
   const legProfile = (t: number): number => {
@@ -431,7 +431,7 @@ function dressLodBody(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): MhLo
     }
     const front = z < cz0;
     z = cz0 + (z - cz0) * (1 + (bt.chest - 1) * (front ? 0.9 : 0.5) * gauss(y - yChest, 0.13) * torsoLike);
-    if (front) z -= bt.belly * gauss(y - yBelly, 0.12) * Math.min(1, wT + wH) * Math.max(0, 1 - (Math.abs(x) / 0.25) ** 2);
+    if (front) z -= (bt.belly + 0.012) * gauss(y - yBelly, 0.12) * Math.min(1, wT + wH) * Math.max(0, 1 - (Math.abs(x) / 0.25) ** 2);
     else z += Math.max(0, bt.hips - 1) * 0.1 * gauss(y - (hipY - 0.03), 0.1) * Math.min(1, wH + wL) + Math.max(0, bt.belly) * 0.25 * gauss(y - (yChest - 0.05), 0.12) * torsoLike;   // back and seat
     // the hips and the top of the thigh follow the hips
     if (wL > 0.01) x *= 1 + (bt.hips - 1) * 0.6 * gauss(y - (hipY - 0.04), 0.1) * wL;
