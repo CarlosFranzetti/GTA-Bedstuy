@@ -91,7 +91,7 @@ export function walkingRing(d: Derived, b: number, island: boolean): Vec2[] {
   while (out.length > 1 && distance(out[0], out[out.length - 1]) < MIN_NODE_GAP) out.pop();
   if (out.length < 3) return [];
   // REALFIX2: the corner arcs of the kerb ring (15 deg steps) are one node each; a walker cuts such a corner by a few centimetres, so near-collinear vertices go (the graph is the heap's biggest object on the grown map)
-  const lean = simplifyPolyline([...out, out[0]], WALK_SIMPLIFY_TOL);
+  const lean = simplifyPolyline([...out, out[0]], process.env.BX_NOSIMP ? 0 : WALK_SIMPLIFY_TOL);
   lean.pop();
   return lean.length >= 3 ? lean : out;
 }

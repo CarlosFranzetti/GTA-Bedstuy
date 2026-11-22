@@ -104,7 +104,7 @@ export function buildLaneGraph(net: RoadNet, d: Derived, opts: LaneOptions = {})
 
 export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptions = {}): LaneBuild {
   const o: Required<LaneOptions> = { ...DEFAULT_LANES, ...opts };
-  const graph: LaneGraph = { nodes: {}, edges: [], adjacency: {}, signalLookAheadM: SIGNAL_LOOKAHEAD_M };
+  const graph: LaneGraph = { nodes: {}, edges: [], adjacency: {}, ...(process.env.BX_NOLA ? {} : { signalLookAheadM: SIGNAL_LOOKAHEAD_M }) };
   const clusters = junctionClusters(net, d);
   const ci = clusterIndexOfNode(net, clusters);
   const cid = clusters.map(clusterId);
@@ -262,7 +262,7 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
     curve.pts.forEach((q, i) => {
       const id = `cx:${from.id}>${b.id}:${i + 1}`;
       const turnCap = turning && i >= (curve.pts.length - 1) / 2 ? TURN_EXIT_SPEED : Infinity;
-      const lineCap = feedsLine && rest[i] < SHORT_LINK_M ? Math.sqrt(2 * LINE_DECEL * rest[i]) + 0.5 : Infinity;
+      const lineCap = !process.env.BX_NOCAP && feedsLine && rest[i] < SHORT_LINK_M ? Math.sqrt(2 * LINE_DECEL * rest[i]) + 0.5 : Infinity;
       const cap = Math.min(turnCap, lineCap);
       addNode({ id, pos: q, streetId: to.streetId, heading: headingFromVec(curve.tans[i]), stopLine: false, ...(cap < Infinity ? { maxSpeed: cap } : {}) });
       nodeIds.push(id);
