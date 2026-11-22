@@ -67,6 +67,8 @@ import { createLoadingMusic } from '@/render/LoadingMusic';
 import { createTitleMusic } from '@/render/TitleMusic';
 import { Credits } from '@/ui/Credits';
 import { PanelManager } from '@/ui/PanelManager';
+import { Tutorial, tutorialRows } from '@/ui/tutorial';
+import { getWaypoint } from '@/game/missions/Waypoint';
 import { RadioUi } from '@/ui/RadioUi';
 import { GamepadInput } from '@/core/Gamepad';
 import { startAnalytics } from '@/core/Analytics';
@@ -474,7 +476,6 @@ function knockedOut(): void {
   }, vitals, hospital);
   police.heat.reset(); wanted.stars = 0; events.emit('wantedChanged', { stars: 0 }); // the police lose interest in a man in a hospital bed
 }
-if (!saved) police.setGrace(120); // the first two minutes of a new game: minor acts add no heat (police.setGrace is the tutorial's switch too)
 const phoneHud = new PhoneHud(overlay, phone, { saves, canSave: () => interiors.state === 'outside', apps: { map: () => map.toggle(), radio: () => radioUi.open(), settings: () => { menu.open(); menu.showTab('settings'); } } });
 map.onOpen = () => { if (phoneHud.isOpen) phoneHud.toggle(); };
 const missionHudScratch = {} as MissionHudState;
@@ -742,6 +743,7 @@ const game = new Game(
     Object.assign(missionHudScratch, missions.hud); missionHudScratch.cash = inventory.cash; // Inventory owns the wallet
     missionHud.update(missionHudScratch, frameDt);
     missionHud.updatePointer(missions.markers, camTarget, cam.yaw);
+    tutorial.update(frameDt);
     missionMarkers.sync(missions.markers, missions.markersVersion); missionMarkers.update(performance.now() / 1000);
     interiors.update(frameDt, dj?.roomBeat ?? null);
     phone.update(frameDt, pos, dayNight.timeOfDay);
@@ -771,6 +773,16 @@ const gamepad = new GamepadInput(input, { onBumper: (d) => { if (phoneHud.isOpen
 events.on('gunshot', () => gamepad.rumble(0.45, 0.2, 90)); // a pad shivers with a shot
 events.on('pedHit', (e) => { if (e.by !== 'shot') gamepad.rumble(0.3, 0.5, 120); }); // and thumps with a punch or a thrown brick
 const radioUi = new RadioUi(overlay, audio, { onToggle: () => panels.sync() });
+// TUTORIAL: the mini tutorial and the one-time hints. It owns the new-game police grace period (it sets 120 s here when nothing is loaded, tops it up while it runs).
+const tutorial = new Tutorial({
+  root: overlay, events, police, loadedSave: !!saved, splashUp: () => splashUp,
+  host: {
+    input, player, camera: cam, vehicles: () => allVehicles(), pickups: () => combat.pickups.active(), handsSig: () => JSON.stringify(combat.hands.serialize()),
+    panelTop: () => panels.top, blocked: () => interiors.state !== 'outside' || interiors.locked || uiOpen() || splashUp || game.paused || performance.now() / 1000 < beatUntil,
+    waypoint: () => !!getWaypoint(), homeDist: () => Math.hypot(player.body.pos.x - HOME.x, player.body.pos.z - HOME.z),
+    stars: () => wanted.stars, heat: () => police.heatFraction * 100, raining: () => weather.rain > 0.2, prompt: () => hudState.prompt, mission: () => missions.hud.status === 'active',
+  },
+});
 panels.register({ id: 'radio', isOpen: () => radioUi.isOpen, close: () => radioUi.close() });
 const menu = new Menu(overlay, {
   onPause: (p) => { game.paused = p || document.hidden; gamepad.paused = p; audio.setPaused(p); if (!p) input.endFrame(); }, // the PanelManager gives the pointer back to the game from the Resume click or key
@@ -791,7 +803,7 @@ const menu = new Menu(overlay, {
     ['Records owned', String(inventory.records.length)], ['Wanted level', String(wanted.stars)]] }),
   missionLog: () => missionLogOf(missions),
   hdVoices: { get: () => audio.hdVoices, set: (v) => audio.setHdVoices(v), label: () => audio.hdLabel },
-  gameRows: [{ id: 'blood', label: 'Blood', kind: 'toggle', def: () => true, desc: 'Blood on or off: a few dark drops on a hard hit, a pool under someone knocked out, marks on the pavement that fade. Off removes all of it.', get: () => bloodOn(), set: ((v: boolean) => setBlood(v)) as RowSpec['set'] }],
+  gameRows: [...tutorialRows(tutorial, () => menu.close()), { id: 'blood', label: 'Blood', kind: 'toggle', def: () => true, desc: 'Blood on or off: a few dark drops on a hard hit, a pool under someone knocked out, marks on the pavement that fade. Off removes all of it.', get: () => bloodOn(), set: ((v: boolean) => setBlood(v)) as RowSpec['set'] }],
 });
 panels.register({ id: 'menu', isOpen: () => menu.isOpen, close: () => menu.close(), back: () => menu.back(), keepsEscape: () => menu.keepsEscape });
 panels.register({ id: 'map', isOpen: () => map.isOpen, close: () => map.close(), insideOf: 'menu' });
@@ -818,11 +830,11 @@ saves.bind({
     clearMissionData(); missions.story.reset(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++;
     if (interiors.inside) interiors.exit(); if (player.inVehicle) player.exit();
     const b = player.body; b.pos.x = HOME.x; b.pos.z = HOME.z; b.vel.x = 0; b.vel.z = 0;
-    dayNight.timeOfDay = 8; prevHour = 8; gameDay = 0; weather.setState('dry', true); wanted.stars = 0; police.setBusts(0); police.heat.reset(); police.setGrace(120); vitals.reset(); blood.clear();
+    dayNight.timeOfDay = 8; prevHour = 8; gameDay = 0; weather.setState('dry', true); wanted.stars = 0; police.setBusts(0); police.heat.reset(); tutorial.newGame(); vitals.reset(); blood.clear();
     pendingLook = randomPlayerLook(`${Math.random()}:${Date.now()}`);
   },
   // the player model is built once at boot, so a different look (new game, or a save with another look) is applied by autosaving and reloading
-  afterApply: () => { input.endFrame(); story.resync(); if (pendingLook) { saves.autosave(Date.now(), true, true); location.reload(); } },
+  afterApply: (kind) => { if (kind === 'load') tutorial.cancel(); input.endFrame(); story.resync(); if (pendingLook) { saves.autosave(Date.now(), true, true); location.reload(); } },
 });
 if (canSaveHere) saves.applyCarryOver(); // first visit to the real map with only grid saves: cash, records and look come along, everything else starts fresh
 window.addEventListener('pagehide', () => { if (canSaveHere) saves.autosave(Date.now(), interiors.state === 'outside', true); });
@@ -1021,7 +1033,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
     camHeading = (veh ? veh.body : player.body).heading;
     for (let i = 0; i < n; i++) updateCamera();
   },
-  panels, menu, input, interiors, inventory, phone, combat, vitals, blood, get dj() { return dj; }, get shopUi() { return shopUi; }, get djUi() { return djUi; }, ensureAudio, missions,
+  panels, menu, input, interiors, inventory, phone, combat, vitals, blood, tutorial, get dj() { return dj; }, get shopUi() { return shopUi; }, get djUi() { return djUi; }, ensureAudio, missions,
   player, cops, police, bustCard, traffic, wanted, physics, grid, events, scene, sky, pipeline, blobs, nightLights, dayNight, renderer, materials, perf, culler, carLod, proxies, weather,
   nearby(r: number) { const p = player.body.pos; const out: unknown[] = []; for (const b of physics.bodies()) { const d = Math.hypot(b.pos.x - p.x, b.pos.z - p.z); if (b.shape.kind === 'circle' && d < r) out.push({ id: b.id, kind: b.kind, d: +d.toFixed(2) }); } return out; },
 };

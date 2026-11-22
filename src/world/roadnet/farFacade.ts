@@ -57,17 +57,19 @@ vec3 fLamp( float h ) {
 
 const FRAG_MAIN = `
 {
-  float fs = vFWin.x, fv = vFWin.y, fW = max( vFWin.z, 1.0 );
-  float fKind = vFWin.w;
-  float fSeed = vFLot.y;
+  // the lot data are constant per quad but arrive interpolated: snap them, or every hash of them speckles (windowShader.ts does the same)
+  vec4 fLot = floor( vFLot * 255.0 + 0.5 );
+  float fs = vFWin.x, fv = vFWin.y, fW = max( floor( vFWin.z * 16.0 + 0.5 ) / 16.0, 1.0 );
+  float fKind = floor( vFWin.w + 0.5 );
+  float fSeed = fLot.y / 255.0;
   float fPix = fwidth( fs ) + fwidth( fv );
   float fFine = 1.0 - smoothstep( 0.05, 0.25, fPix ); // joints and speckle fade out with distance
   float fMid = 1.0 - smoothstep( 0.4, 1.6, fPix );     // window frames and roof patches fade into the mean colour a little later
   vec3 fBase = diffuseColor.rgb;
   if ( fKind < 1.5 ) {
     // wall: macro tint and wear over the lot, brick courses, damp plinth, soot under the cornice
-    float floors = floor( vFLot.x * 32.0 + 0.5 );
-    float bh = vFLot.z * 4.0;
+    float floors = floor( fLot.x / 255.0 * 32.0 + 0.5 );
+    float bh = fLot.z / 255.0 * 4.0;
     float H = bh + 3.3 + max( floors - 1.0, 0.0 ) * 2.9;
     float macro = fNoise( vec2( fs, fv ) * 0.23 + fSeed * 31.0 );
     fBase *= 0.9 + 0.2 * macro;
@@ -77,7 +79,7 @@ const FRAG_MAIN = `
     fBase *= 1.0 - 0.18 * ( 1.0 - smoothstep( 0.0, 1.0, fv ) );          // splash and damp at the foot
     fBase *= 1.0 - 0.1 * smoothstep( H - 2.2, H, fv ) * ( 0.4 + 0.6 * macro ); // soot under the cornice
     if ( fKind > 0.5 ) {
-      bool shop = vFLot.w > 0.5;
+      bool shop = fLot.w > 127.0;
       float topP = bh + 3.3;
       float k = fv < topP ? 0.0 : 1.0 + floor( ( fv - topP ) / 2.9 );
       float y0 = k < 0.5 ? bh : topP + ( k - 1.0 ) * 2.9;

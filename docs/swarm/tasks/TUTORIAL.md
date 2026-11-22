@@ -107,3 +107,23 @@ step (top centre; the card is low or, on a phone, just under it). The lead may d
 - `tests/unit/sim/tutorial-sim.test.ts` (2): a scripted player with the REAL Player, Input (real key edges), Vehicle, World2D, binding table and Tutorial
   completes every step on the grid map (its real colliders) and on the real-street net (the real start spot). The car, the pickup and the exit spot are placed
   from where the player stands, never from a coordinate.
+
+## Layout decisions (from looking at frames)
+- Desktop: bottom centre, 28 px up; raised to 136 px while the HUD prompt pill ("F  Enter car") is up; 92 / 140 px while the radio's tap or Retry bar is up.
+  Width capped to clear the minimap and the street block. The neighbourhood name card steps aside while the card is raised.
+- Phone: top centre, 56 px down, at most 340 px or 46 vw wide; the touch buttons and stick sit at the bottom corners, so nothing is under a thumb.
+  While a mission runs the card waits (mission dialogue owns the bottom of the screen).
+
+## In the running game (22 Nov, hosted build of a scratch worktree with the diff applied, `?map=grid&q=low`, 960 x 540, software rendering, no fps claimed)
+Script: `scratchpad/tutorial/drive.cjs` (real key events for W, Shift, Space, F; the loop stopped, the script steps the sim and calls `tutorial.update`).
+Log of the last desktop run: `scratchpad/tutorial/run-desktop6.log` (15 of 16 checks; the one failure is the script reading the card 1.25 s after F, while the tick
+for the car step was still showing: timing in the script, not the game). Verified there: starts on the look step after Space; the card has pointer-events none;
+look, walk, run, jump by real input; the vault step is offered at the grid start because a parked car is 4.3 m away; moving on works; F gets into the car and the
+car step counts as done even when it was not on the card; driving completes the drive step; the 45 s offer shows "Taking a while? Enter moves on."; no HUD overlap.
+Frames: `scratchpad/tutorial/shots/` (d1-look with the street under it is in `shots-scene/`; the others have a flat background because rendering a frame
+killed the page twice on this shared box). Phone frames `p1`..`p5` (see the report for what they do and do not show).
+
+## Not verified
+A real pad (D-pad down skip, pad glyphs by `Gamepad.id`), a real phone (touch targets, thumbs, orientation), how it feels to play, whether two minutes is the real time,
+the shop, decks, rain and wanted hints in the running game (unit-tested only), the car chapter in the running game, the real-street map in the browser (the sim runs
+on its net, the browser run used the grid), sound. The HUD in the shots was not live (the render callback was stopped).

@@ -3542,3 +3542,6 @@ COMBAT2 wrap-up: anyone can be hit (officers too), health and temperaments (flee
 
 ### 2026-11-22T17:13:13Z · Odile Brandt (CARS6)
 CARS6 wrap-up: sedan, taxi (old three-box) and police car now three different silhouettes; pickup has a real crew cab over the front half, a lower bed and gap line; SUVs have upright tails and squared arches; hatch reshaped. Coupe, muscle, wagon, vans not done. Seven optional loft fields added in carBodies.ts. Sizes unchanged, triangles within 10 percent, sims green. Notes: docs/swarm/tasks/CARS6.md
+
+### 2026-11-22T17:33:01Z · Ilse Marrow (TEXTURES2)
+Far buildings now carry windows, floors, shopfronts, cornices and roof colour from the lot data, drawn in the shader: no extra draw calls, triangles or texture memory. Detail near the player now arrives in about half the frames or better. Roofs got per-lot surfaces. Frames and numbers are in docs/swarm/tasks/TEXTURES2.md.

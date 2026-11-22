@@ -45,7 +45,8 @@ body:has(.tut-card.on.up) .hud-card { opacity: 0 !important; }
 .tut-card[data-kind="hint"] .tut-line { font-size: 16px; }
 
 /* phone: top centre, small, the only things that take a touch are the two buttons */
-.tut-card[data-device="touch"] { bottom: auto; top: 56px; max-width: min(340px, 46vw); padding: 7px 12px 7px; font-size: 14px; gap: 3px; }
+/* landscape: left edge clear of the minimap, right edge clear of the item, map, phone and pause buttons (top right, about 250 px) */
+.tut-card[data-device="touch"] { bottom: auto; top: 56px; left: 124px; transform: none; max-width: min(340px, calc(100% - 124px - 250px)); padding: 7px 12px 7px; font-size: 14px; gap: 3px; }
 .tut-card[data-device="touch"] .tut-why { font-size: 12px; }
 .tut-btn {
   pointer-events: auto; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
@@ -53,7 +54,7 @@ body:has(.tut-card.on.up) .hud-card { opacity: 0 !important; }
   font: 700 11px/1 var(--font-hud, "Barlow Condensed", "Arial Narrow", sans-serif); letter-spacing: 0.14em; text-transform: uppercase;
 }
 .tut-next { border-color: #f2c230; color: #f2c230; }
-@media (orientation: portrait) { .tut-card[data-device="touch"] { max-width: calc(100% - 32px); top: 64px; } }
+@media (orientation: portrait) { .tut-card[data-device="touch"] { left: 50%; transform: translateX(-50%); max-width: calc(100% - 32px); top: 64px; } }
 
 /* a small screen: the prompt sits at 20 px, the minimap at the left; leave room for both */
 @media (max-height: 480px), (max-width: 700px) {
