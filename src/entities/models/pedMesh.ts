@@ -801,7 +801,8 @@ function peopleRig(s: MhShape, spec: PedSpec): Record<string, number[]> {
 export const HEADS_OF_STATURE: Record<'adult' | 'old' | 'teen' | 'kid', number> = { adult: 7.5, old: 7.5, teen: 7.1, kid: 6.2 };
 export function headsOf(spec: PedSpec, bt: BodyType): number {
   const age = spec.age ?? 'adult';
-  return HEADS_OF_STATURE[age === 'old' ? 'old' : age === 'teen' ? 'teen' : age === 'kid' ? 'kid' : 'adult'] / Math.sqrt(bt.head);
+  const base = HEADS_OF_STATURE[age === 'old' ? 'old' : age === 'teen' ? 'teen' : age === 'kid' ? 'kid' : 'adult'];
+  return age === 'kid' || age === 'teen' ? base : base / Math.sqrt(bt.head);      // a child's head share is the age's, not the type's
 }
 /** scale of the head bone that gives a person `headsOf` head heights of stature (the head grows about the neck joint, so the crown rises with it) */
 export function headScaleFor(s: MhShape, spec: PedSpec, bt: BodyType): number {
