@@ -144,6 +144,10 @@ function arms(p: Float32Array, s: BodyLayerIn, aw: number): void {
   const want = Math.max(ARM.abdMin, (s.splay ?? 0.03) + ARM.abdAdd);
   const extra = Math.max(0, want - ARM.clipAbd) * aw;
   p[C_ARM_L + 2] -= extra; p[C_ARM_R + 2] += extra;
+  // and never inward: whatever a walk style does (a limp throws the arms out, an angry one crosses them in), the upper arm stays off the torso and the coat
+  const floorAbd = Math.max(0.05, want * 0.7);
+  if (p[C_ARM_L + 2] > -floorAbd) p[C_ARM_L + 2] += (-floorAbd - p[C_ARM_L + 2]) * aw;
+  if (p[C_ARM_R + 2] < floorAbd) p[C_ARM_R + 2] += (floorAbd - p[C_ARM_R + 2]) * aw;
   // the arms hang from the shoulder: a leaning chest (the clip's, and an elder's stoop baked into the mesh) must not swing them back behind the body
   const lean = -(p[C_TORSO] + (s.stoop ?? 0));
   if (lean > 0) { const g = ARM.hangBack * Math.min(lean, 0.35) * aw; p[C_ARM_L] += g; p[C_ARM_R] += g; }

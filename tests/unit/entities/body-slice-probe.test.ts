@@ -26,7 +26,17 @@ export function slices(spec: PedSpec, seed: number): Record<string, number> {
   const hj = s.rig.head[1], hs = m.head.scale.x;
   let H = (hj + (s.landmarks.crownY - hj) * hs) * gs.y; for (let i = 0; i < nv; i++) H = Math.max(H, P(i)[1]);
   const arms = [4, 5, 6, 7], legs = [8, 9, 10, 11, 12, 13];
-  const slab = (yr: number, pred: (i: number) => boolean, half: number) => { let x0 = 9, x1 = -9, z0 = 9, z1 = -9, ok = false; const y = yr * H; for (let i = 0; i < nv; i++) { const p = P(i); if (Math.abs(p[1] - y) > half * H || !pred(i)) continue; ok = true; x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[2]); z1 = Math.max(z1, p[2]); } return { w: ok ? (x1 - x0) / H : 0, d: ok ? (z1 - z0) / H : 0, zf: z0 / H, zb: z1 / H }; };
+  const slab = (yr: number, pred: (i: number) => boolean, _half: number) => {
+    // exact: intersect every triangle edge whose two ends pass the predicate with the plane y = yr * H, take the hull's extent
+    let x0 = 9, x1 = -9, z0 = 9, z1 = -9, ok = false; const y = yr * H;
+    for (let t = 0; t < L.index.length; t += 3) for (let k = 0; k < 3; k++) {
+      const a = L.index[t + k], b = L.index[t + (k + 1) % 3]; if (!pred(a) || !pred(b)) continue;
+      const pa = P(a), pb = P(b); if ((pa[1] - y) * (pb[1] - y) > 0 || pa[1] === pb[1]) continue;
+      const u = (y - pa[1]) / (pb[1] - pa[1]), x = pa[0] + (pb[0] - pa[0]) * u, z = pa[2] + (pb[2] - pa[2]) * u;
+      ok = true; x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z);
+    }
+    return { w: ok ? (x1 - x0) / H : 0, d: ok ? (z1 - z0) / H : 0, zf: z0 / H, zb: z1 / H };
+  };
   const trunk = (i: number): boolean => wsum(i, arms) < 0.35 && wsum(i, legs) < 0.5 && Math.abs(P(i)[0]) < 0.3;
   const out: Record<string, number> = { H };
   const put = (k: string, r: { w: number; d: number; zf: number; zb: number }, mult = 1): void => { out[k + 'W'] = r.w; out[k + 'D'] = r.d; out[k + 'G'] = ell(r.w, r.d) * mult; out[k + 'Zf'] = r.zf; out[k + 'Zb'] = r.zb; };

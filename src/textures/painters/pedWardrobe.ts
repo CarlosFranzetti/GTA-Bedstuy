@@ -10,7 +10,8 @@
  * number of bakes alive at once is capped (`pickWardrobeVariant` snaps new people onto an existing one of the same group, sex and age when the cap is reached).
  * No lettering, no logos, no numbers on any garment.
  */
-import { outfitWeights, type Outfit, type Way } from './pedOutfits';
+import { OUTFITS, outfitWeights, type Outfit, type Way } from './pedOutfits';
+const OUTFITS_BY_ID = new Map(OUTFITS.map((o) => [o.id, o]));
 export { OUTFITS } from './pedOutfits';
 import { Rng } from '@/core/Rng';
 import { BODY_POOLS, type BodyTypeId } from '@/entities/models/pedBodyTypes';
@@ -354,7 +355,7 @@ function faceFor(rng: Rng, sex: 'm' | 'f' | 'x', age: Age, g: PopGroup, mask: nu
 
 // ---------------------------------------------------------------- composing a person
 
-export interface WardrobeOpts { look?: Look; /** PEOPLE7: a district's weights over the looks (see DISTRICT_LOOKS), used when no look is given */ bias?: Partial<Record<Look, number>>; season?: Season; /** probability of a face mask (a few percent) */ mask?: number; sunday?: boolean; /** CLOTHES: false/omitted = about half the people wear a whole outfit (pedOutfits.ts); true keeps the random pools only */ noOutfit?: boolean }
+export interface WardrobeOpts { look?: Look; /** PEOPLE7: a district's weights over the looks (see DISTRICT_LOOKS), used when no look is given */ bias?: Partial<Record<Look, number>>; season?: Season; /** probability of a face mask (a few percent) */ mask?: number; sunday?: boolean; /** CLOTHES: false/omitted = about half the people wear a whole outfit (pedOutfits.ts); true keeps the random pools only */ noOutfit?: boolean; /** force one outfit by id and one of its colourways (the showcase) */ outfit?: string; way?: number }
 let SEASON: Season = 'mild';
 /** the season hint for every person drawn from now on (the game may set it from its date; the same seed + season is always the same person) */
 export function setWardrobeSeason(s: Season): void { SEASON = s; }
@@ -406,8 +407,8 @@ export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 
   const who: Who = { age, sex, look: lk, season };
   // CLOTHES: about half of the people wear a whole outfit (pedOutfits.ts: garments and colours that belong together), drawn from a stream of its own so the rest of the draw is unchanged
   const oRng = new Rng((seed * 7919 + 13) >>> 0), ofw = outfitWeights(age, sex, lk, season);
-  const OFT: Outfit | null = !opts.noOutfit && oRng.next() < 0.55 ? wpick(oRng, ofw) : null;
-  const WAY: Way | null = OFT ? OFT.ways[Math.floor(oRng.next() * OFT.ways.length) % OFT.ways.length] : null;
+  const OFT: Outfit | null = opts.outfit ? (OUTFITS_BY_ID.get(opts.outfit) ?? null) : !opts.noOutfit && oRng.next() < 0.55 ? wpick(oRng, ofw) : null;
+  const WAY: Way | null = OFT ? OFT.ways[(opts.way ?? Math.floor(oRng.next() * OFT.ways.length)) % OFT.ways.length] : null;
   // the body
   const pool = BODY_POOLS[`${age}-${sex}`] ?? BODY_POOLS['adult-m'];
   const body = wpick(rng, pool.map(([b, w]) => [b, w] as [BodyTypeId, number])) ?? 'avg';

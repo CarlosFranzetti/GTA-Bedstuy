@@ -37,6 +37,8 @@ interface Target {
    * clips sweep the head from -67 to +59 degrees every four seconds and twist the chest by 30, which reads as someone scanning a room.
    */
   level?: boolean;
+  /** how much of the captured head roll is kept about its mean when `level` is set (default 0.7; the standing clips tilt the head with every look) */
+  rollKeep?: number;
   headYaw?: readonly [number, number];
   torsoYaw?: readonly [number, number];
   elbow?: number;
@@ -48,7 +50,7 @@ interface Target {
   armX?: number;
 }
 
-const STAND: Target = { torso: -2, torsoKeep: 0.6, head: -3, headKeep: 0.6, hips: -2, leg: 2, knee: -3, elbow: 5, elbowKeep: 0.7, elbowMin: 2, abd: 4, level: true, headYaw: [0, 0.4], torsoYaw: [0, 0.5] };
+const STAND: Target = { torso: -2, torsoKeep: 0.6, head: -3, headKeep: 0.6, hips: -2, leg: 2, knee: -3, elbow: 5, elbowKeep: 0.7, elbowMin: 2, abd: 4, level: true, rollKeep: 0.35, headYaw: [0, 0.4], torsoYaw: [0, 0.5] };
 const WALKARMS = { elbow: 12, elbowKeep: 0.85, elbowMin: 3, abd: 5, abdKeep: 0.5, level: true } as const;
 
 export const POSTURE: Readonly<Record<string, Target>> = {
@@ -121,7 +123,7 @@ export function settlePosture(c: Clip): Clip {
     const tz = x('torso') + 2, hz = x('head') + 2;
     shift(c, tz, -0.5 * RAD - mean(c, tz));
     const m = mean(c, hz);
-    for (let f = 0; f < c.frames; f++) { const i = f * NCH + hz; c.data[i] = (c.data[i] - m) * 0.7; }
+    for (let f = 0; f < c.frames; f++) { const i = f * NCH + hz; c.data[i] = (c.data[i] - m) * (t.rollKeep ?? 0.7); }
   }
   for (const [spec, ch] of [[t.headYaw, x('head') + 1], [t.torsoYaw, x('torso') + 1]] as const) {
     if (!spec) continue;

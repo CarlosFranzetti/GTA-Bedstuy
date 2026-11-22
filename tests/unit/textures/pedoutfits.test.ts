@@ -27,11 +27,11 @@ describe('whole outfits (CLOTHES)', () => {
       for (const c of cs) expect(sat(c), `${o.id} ${c}`).toBeLessThan(0.85);
     }
   });
-  it('no piece vanishes into its neighbour: top against bottom, and the outer layer against the bottom, differ by 28 or more', () => {
+  it('no piece vanishes into its neighbour: without a layer the top differs from the bottom by 28 or more, with a layer the layer differs from the top shown under it', () => {
     const d = (a: string, b: string): number => { const p = rgb(a), q = rgb(b); return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
     for (const o of OUTFITS) for (const w of o.ways) {
-      const outer = w.layer ?? w.top;
-      if (!/skirt|Skirt|scrubs|workDark/.test(o.bottom + o.top)) expect(d(outer, w.bottom), `${o.id} ${outer} on ${w.bottom}`).toBeGreaterThanOrEqual(28);
+      if (w.layer) expect(d(w.layer, w.top), `${o.id} layer ${w.layer} over ${w.top}`).toBeGreaterThanOrEqual(24);
+      else if (o.top !== 'scrubs') expect(d(w.top, w.bottom), `${o.id} ${w.top} on ${w.bottom}`).toBeGreaterThanOrEqual(28);
     }
   });
   it('composeSpec dresses about half of a crowd in a whole outfit and the same seed is the same person', () => {

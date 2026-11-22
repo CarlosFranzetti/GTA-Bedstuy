@@ -57,8 +57,9 @@ const info = [];
 cams.forEach((c, r) => people.forEach((p, k) => {
   people.forEach((q) => { q.m.group.visible = false; });
   p.m.group.visible = true;
-  const d = { front: [0, 0.2, -4.2], side: [4.2, 0.2, 0], '3q': [3.0, 0.4, -3.0], back: [0, 0.3, 4.2] }[c];
-  const s = p.m.group.scale.y, cy = 0.9 * s;
+  const d = { front: [0, 0.2, -4.2], side: [4.2, 0.2, 0], '3q': [3.0, 0.4, -3.0], back: [0, 0.3, 4.2], hand: [0.2, 0.1, -1.6], hand3q: [1.4, 0.1, -1.1], handside: [1.7, 0.0, 0.0] }[c];
+  const s = p.m.group.scale.y, near = c.startsWith('hand'), cy = (near ? 0.78 : 0.9) * s;
+  cam.fov = near ? 34 : 32; cam.updateProjectionMatrix();
   cam.position.set(d[0], d[1] + cy, d[2]); cam.lookAt(0, cy, 0);
   renderer.setViewport(k * tw, (cams.length - 1 - r) * th, tw, th); renderer.setScissor(k * tw, (cams.length - 1 - r) * th, tw, th);
   renderer.render(scene, cam);
