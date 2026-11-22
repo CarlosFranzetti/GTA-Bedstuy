@@ -7,7 +7,7 @@ import { ThirdPersonCamera } from '@/core/Camera';
 import { clamp, type Vec2 } from '@/core/Math2';
 import type { Entity, IVehicle, VehicleType, GraphNode, HudState } from '@/world/types';
 import { loadBedstuyData } from '@/world/Grid';
-import { buildWorld, SIDEWALK_HEIGHT } from '@/world/WorldBuilder';
+import { buildWorld, buildGridModelOnly, SIDEWALK_HEIGHT } from '@/world/WorldBuilder';
 import { ringGround, setGround, slabGround } from '@/world/Ground';
 import { loadPeople } from '@/entities/models/pedMesh';
 import { updateSignalMeshes } from '@/world/props/signals';
@@ -149,10 +149,12 @@ loading.begin('textures'); // finished when the async packs are awaited below, b
 const packsReady = loadTexturePacks(materials, renderer.capabilities.getMaxAnisotropy()).catch((e) => { console.warn('texture packs failed', e); return 0; });
 await nextPaint();
 loading.begin('world');
-const world = buildWorld(data, materials, rng);
+// The real map is the main map. It needs the grid's MODEL (graphs, crosswalks) but none of the grid's meshes, so those are not built (a phone with no ?map= stays on the grid: mapChoice.ts).
+const realMapChosen = import.meta.env?.VITE_HOSTED === '1' && chooseMap(true, params.get('map'), quality === 'phone') === 'real';
+const world = realMapChosen ? buildGridModelOnly(data) : buildWorld(data, materials, rng);
 // The real-street map is the main map of the hosted and native builds (`?map=grid` opens the older grid). The flag is a build-time constant, so the single-file
 // build drops this branch and never carries the real street network or the 1.5 MB lot data.
-const realWorld = import.meta.env?.VITE_HOSTED === '1' && chooseMap(true, params.get('map')) === 'real'
+const realWorld = realMapChosen
   ? await (await import('@/world/roadnet/realWorld')).buildRealWorld({ materials, rng: rng.fork('real'), tier: quality })
   : null;
 if (realWorld) Object.assign(world, { group: realWorld.group, colliders: realWorld.colliders, chunkMeshes: realWorld.chunkMeshes, propCells: [], lamps: realWorld.lamps, lots: realWorld.lots, furnitureGroup: realWorld.furnitureGroup });
@@ -163,6 +165,7 @@ if (import.meta.env?.VITE_HOSTED === '1' && realWorld) {
   try { realGame = (await import('@/world/roadnet/gameReal')).buildRealGame(realWorld); } catch (e) { console.warn('[real map] missions and saves are off:', e); }
 }
 const mapName: 'grid' | 'real' = realWorld ? 'real' : 'grid';
+(window as unknown as { __gtaMap: unknown }).__gtaMap = { name: mapName, handheld: quality === 'phone' }; // read by the Settings "Map" row (Menu.ts)
 scene.add(world.group);
 const { grid } = world;
 // characters are drawn on the walking surface: a sidewalk slab is 0.15 m above the roadway (their shoes used to be inside it)
@@ -276,7 +279,7 @@ const makePed = (id: string, node: GraphNode) =>
 
 // spawn on foot at the saved position (clamped to the map), else at the default spot
 const SPAWN = { x: 9, z: 20 };
-const saves = new SaveManager(new SaveStore());
+const saves = new SaveManager(new SaveStore(undefined, mapName)); // each map keeps its own save slots (GameSave.savePrefix)
 // home and bounds of the map in play; a save made on the other map loads with the player at home (GameSave.poseOnMap)
 const HOME = realGame ? realGame.home : realWorld ? realWorld.homeSpawn : { ...SPAWN, heading: 0 };
 const BOUNDS = realGame ? realGame.bounds : realWorld ? realWorld.net.bounds : grid.bounds;
@@ -357,7 +360,6 @@ let splashUp = false;
 const credits = new Credits(overlay, { onOpen: () => titleMusic.start(), onClose: () => { if (!splashUp) titleMusic.stop(1.5); } });
 hud.onSplash = (shown) => { splashUp = shown; input.lockBlocked = shown; document.body.classList.toggle('title-up', shown); if (shown) titleMusic.start(); else if (!credits.isOpen) titleMusic.stop(3); }; // title-up: the game's interface is hidden behind the title (hud.css)
 hud.onCredits = () => credits.open();
-if (realWorld) { const n = document.createElement('div'); n.textContent = realWorld.notice; n.style.cssText = 'position:fixed;left:8px;bottom:6px;font:11px monospace;color:#fff;opacity:.75;z-index:50;pointer-events:none'; document.body.appendChild(n); }
 const missionHud = new MissionHud(overlay);
 missionHud.setRouter(realGame ? realGame.router : createPointerRouter(grid));
 setTimeout(() => missionHud.showHomeHint(), 2500); // one-time 'your place is the green awning' toast at first spawn
@@ -743,6 +745,7 @@ saves.bind({
   // the player model is built once at boot, so a different look (new game, or a save with another look) is applied by autosaving and reloading
   afterApply: () => { input.endFrame(); story.resync(); if (pendingLook) { saves.autosave(Date.now(), true, true); location.reload(); } },
 });
+if (canSaveHere) saves.applyCarryOver(); // first visit to the real map with only grid saves: cash, records and look come along, everything else starts fresh
 window.addEventListener('pagehide', () => { if (canSaveHere) saves.autosave(Date.now(), interiors.state === 'outside', true); });
 
 // 1) first system: snapshot every dynamic body's pose before the step moves it (render lerps prev -> current)

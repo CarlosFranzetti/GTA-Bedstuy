@@ -20,7 +20,9 @@ Wrong, and fixed or handed over:
 - Native "Boot smoke test" (`native/scripts/smoke.mjs`) failed 18 checks. Ours, fixed (item 6).
 - Not fixed, noted: the phone sun-shadow casters cover only the lots loaded at boot (the first rings), so on the phone tier buildings farther out cast no sun shadow.
   The HUD shows an fps readout in the top-left corner in the scripted shots (loop stopped); not checked whether it is the usual setting.
-- Not run in the browser: entering a car and driving, phone and map screens, the shop panel: the scripted run for those (`play.cjs`) hung on queue waits; see "Not verified".
+- Also seen in the running game (`play.cjs`, final tree): the WAX DELI door, entering the room, the shop panel opening and closing, the exit back to the street, the phone, the map
+  screen (no preview wording; the map shows the grown 15 km2 net and its blips), getting into a car and driving it (77.6 m in 5 s; the script picked a traffic car in a far ring, so
+  that frame shows bare far-ring ground, not a street).
 
 ## 2. Saves
 Before: one set of slots (`gta-bedstuy.save.v2.<slot>`); a save carries `pose.map`; a pose from the other map was sent home on foot (`poseOnMap`) but the rest of the save
@@ -84,17 +86,18 @@ the Settings row switches either way. Reverse the default after a real-iPhone te
 - README.md, docs/README.md, docs/NATIVE.md reworded; MEMORY.md updated.
 
 ## 7. A way back
-`?map=grid` (or `?map=classic`) opens the grid exactly as before: `buildWorld` is unchanged, grid saves unchanged. `tests/unit/sim/traffic-5min.test.ts` result: see the log below.
+`?map=grid` (or `?map=classic`) opens the grid exactly as before: `buildWorld` is unchanged, grid saves unchanged. `npx vitest run tests/unit/sim/traffic-5min.test.ts --maxWorkers=1 --testTimeout=900000`: 14 of 14 pass (109 s). `?map=grid` boots with no page errors on desktop (`?q=low`: 220 draws / 494 k
+triangles in software at the spawn), and its save and reload work under the old key (`gta-bedstuy.save.v2.slot1`).
 
 ## Checks run
 - `npx tsc --noEmit`: no errors from files touched by this lane (errors in `pedPaintFace.ts` and a few `tests/unit/{audio,entities}` files belong to the FACES2, AUDIOFIX and CAMFIX lanes).
 - `npx vitest run tests/unit/ui tests/unit/game tests/unit/world tests/unit/render --maxWorkers=1`: 157 files, 2,062 pass, 2 fail, both TREES lane work in progress
-  (`furniture.test.ts` tree triangle budget, `culling-buckets.test.ts` tree height).
+  (`furniture.test.ts` tree triangle budget, `culling-buckets.test.ts` tree height). Run before the last doc edits; no source changed after it.
 - Single-file build: index.html 10.3 MB (budget 12 MB), no `buildRealGame`, `roadnet-r4`, `RoadNet`, `realWorld` or preview wording in it.
 
 ## Not verified
 - Anything on a real iPhone. All phone numbers are emulation on a software renderer.
-- Car entry and driving, phone screen, map screen and the shop panel in the running game after the switch (the scripted run did not finish in the queue); the map screen text is unchecked for old wording by eye.
+- A driving frame on a real street (the one taken is of a far ring), and the phone screen and shop panel by eye beyond the one frame each.
 - The carry-over and the Map row in the running game: unit-tested only.
 - The grid default for phones is a decision on numbers, not on a crash seen.
 

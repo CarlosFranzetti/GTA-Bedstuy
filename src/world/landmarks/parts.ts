@@ -3,7 +3,7 @@
  * All coordinates are site-local (see kit.ts). Nothing here imports roadnet.
  */
 import * as THREE from 'three';
-import { buildCloudGeometry, CLOUD_CARDS, SHRUB_CARDS } from '@/world/props/treeCloud';
+import { buildCloudGeometry, CLOUD_CARDS, LITE_CARDS, SHRUB_CARDS } from '@/world/props/treeCloud';
 import { treePartsFor, type TreeStyle } from '@/world/data/streetTrees';
 import type { Rng } from '@/core/Rng';
 import { Kit, TILE, type V3 } from './kit';
@@ -139,6 +139,7 @@ export function flatRoof(k: Kit, roof: THREE.Material, wallMat: THREE.Material, 
 // ----------------------------------------------------------------------------------------------- trees and furniture
 
 let cloudGeo: THREE.BufferGeometry | null = null;
+let cloudGeoLite: THREE.BufferGeometry | null = null;
 let shrubGeo: THREE.BufferGeometry | null = null;
 const _grey = new THREE.Color();
 
@@ -177,9 +178,9 @@ function limbPrism(k: Kit, mat: THREE.Material, a: V3, b: V3, r0: number, r1: nu
  * data/streetTrees.ts) so the crown is full. `h` scales the whole tree: 1 = a mature tree with a crown about 11 m wide and 11 m tall,
  * 0.6 a young street-frontage tree, 0.45 a small ornamental. About 160 triangles of leaves and 60 of trunk.
  */
-export function tree(k: Kit, x: number, z: number, rng: Rng, h = 1, solid = true): void {
+export function tree(k: Kit, x: number, z: number, rng: Rng, h = 1, solid = true, lite = false): void {
   if (k.far) return;
-  cloudGeo ??= buildCloudGeometry();
+  const cg = lite ? (cloudGeoLite ??= buildCloudGeometry(LITE_CARDS)) : (cloudGeo ??= buildCloudGeometry());
   const tr = k.m('treeTrunk');
   const lv = k.m('treeLeaves', 0);
   // species: small trees are ornamental pears; big ones planes, now and then an oak (tall oval) or a honey locust (wide, flat)
@@ -204,7 +205,7 @@ export function tree(k: Kit, x: number, z: number, rng: Rng, h = 1, solid = true
   limbPrism(k, tr, [x, 2.6 * th, z], L(-1.2, 4.2, -1.0), 0.12 * tw, 0.05 * tw);
   for (const [ox, oy, oz, r, sq] of parts.clouds) {
     const ex = ox * cy + oz * sy, ez = -ox * sy + oz * cy;
-    addGeo(k, lv, cloudGeo, r, r * sq, r, rng.next() * 6.28, x + ex, oy * h, z + ez);
+    addGeo(k, lv, cg, r, r * sq, r, rng.next() * 6.28, x + ex, oy * h, z + ez);
   }
   if (solid) k.solidCircle(x, z, 0.35 + 0.3 * h);
 }

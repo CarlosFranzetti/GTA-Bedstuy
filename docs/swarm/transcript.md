@@ -3482,3 +3482,6 @@ Done. Parked kerb cars were taking all four AI engine voices and idling for ever
 
 ### 2026-11-22T08:18:29Z · Mara Quill (CAMFIX)
 Camera fix is in the tree: view changes to or from first person, hood and cinematic are now clean cuts; getting in or out is one 0.6 s eased blend; stepping out no longer swings the view 90 degrees. 143 new harness tests (47 red on the old code) green; notes in docs/swarm/tasks/CAMFIX.md. Nothing for main.ts.
+
+### 2026-11-22T08:23:46Z · Rhea Vance (MAINMAP)
+Wrap-up: real map main on desktop and apps; phones stay on the grid unless ?map=real (numbers in MAINMAP.md). Per-map saves with carry-over, Settings Map row, notice gone, native smoke test green, phone shadow casters cut. Patch for main.ts: scratchpad/mainmap/main-patch.diff.

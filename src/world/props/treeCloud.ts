@@ -5,6 +5,8 @@ import { Rng } from '@/core/Rng';
 export const CLOUD_CARDS = 16;
 /** Cards of the small cloud used for shrubs and hedges (16 triangles). */
 export const SHRUB_CARDS = 8;
+/** Cards per cloud on the phone and low tiers (24 triangles): the same dome, a little less leaf. */
+export const LITE_CARDS = 12;
 /** Triangles of one canopy cloud. */
 export const CLOUD_TRIS = CLOUD_CARDS * 2;
 
@@ -69,11 +71,11 @@ export function buildCloudGeometry(cards = CLOUD_CARDS, tangent = 0.72): THREE.B
 
 /**
  * Street / park tree trunk: a lathe with a root flare (0.54 m at the ground, 0.34 at 0.45 m, 0.2 at 3 m; open ended, 7 sides) and
- * four limbs that climb into the crown. About 60 triangles, shared by every tree; the instance matrix scales it per species.
+ * four limbs that climb into the crown (`lite`: 6 sides and three limbs, 48 triangles, for the phone and low tiers). About 60 triangles, shared by every tree; the instance matrix scales it per species.
  */
-export function buildTreeTrunkGeometry(): THREE.BufferGeometry {
+export function buildTreeTrunkGeometry(lite = false): THREE.BufferGeometry {
   const parts: THREE.BufferGeometry[] = [];
-  const lathe = new THREE.LatheGeometry([new THREE.Vector2(0.54, 0), new THREE.Vector2(0.33, 0.5), new THREE.Vector2(0.2, 3.0)], 7);
+  const lathe = new THREE.LatheGeometry([new THREE.Vector2(0.54, 0), new THREE.Vector2(0.33, 0.5), new THREE.Vector2(0.2, 3.0)], lite ? 6 : 7);
   parts.push(lathe.toNonIndexed());
   const up = new THREE.Vector3(0, 1, 0);
   const limb = (a: [number, number, number], b: [number, number, number], r0: number, r1: number): void => {
@@ -87,7 +89,7 @@ export function buildTreeTrunkGeometry(): THREE.BufferGeometry {
   limb([0, 2.3, 0], [0, 4.8, 0], 0.17, 0.06);
   limb([0, 2.6, 0], [1.4, 4.1, 0.9], 0.12, 0.05);
   limb([0, 2.6, 0], [-1.2, 4.2, -1.0], 0.12, 0.05);
-  limb([0, 2.7, 0], [0.2, 4.0, -1.5], 0.1, 0.045);
+  if (!lite) limb([0, 2.7, 0], [0.2, 4.0, -1.5], 0.1, 0.045);
   // merge by hand (no extra import): all parts are non-indexed with position, normal and uv
   let n = 0;
   for (const p of parts) n += p.getAttribute('position').count;

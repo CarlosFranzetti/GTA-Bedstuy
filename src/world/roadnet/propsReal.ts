@@ -34,7 +34,7 @@ import type { IMaterialLibrary, StaticCollider } from '@/world/types';
 import { chunkKeyOf, type ChunkLayout } from '@/render/Culling';
 import type { Quality } from '@/render/Shadows';
 import { treePartsFor, treeStyleFor } from '@/world/data/streetTrees';
-import { buildCloudGeometry, buildTreeTrunkGeometry } from '@/world/props/treeCloud';
+import { buildCloudGeometry, buildTreeTrunkGeometry, LITE_CARDS } from '@/world/props/treeCloud';
 import { LAMP_HEAD_NAME, placeMatrix, type LampSpot } from '@/world/FurnitureGen';
 import { SIGN_LAYOUT } from '@/world/signBlades';
 import { alignYaw, box, cyl, frameMatrix, xform } from '@/world/props/common';
@@ -161,8 +161,9 @@ function buildGeometries(tier?: Quality): Record<'trunk' | 'leaves' | 'lamp' | '
     parts.forEach((p) => p.dispose());
     return g;
   };
-  const trunk = buildTreeTrunkGeometry(); // root flare plus four limbs, shared with the grid map and the parks (props/treeCloud.ts)
-  const leaves = buildCloudGeometry(tier === 'phone' ? 12 : undefined); // 32 triangles of leaf cards per cloud (24 on the phone tier), shared with FurnitureGen
+  const lite = tier === 'phone' || tier === 'low';
+  const trunk = buildTreeTrunkGeometry(lite); // root flare plus four limbs, shared with the grid map and the parks (props/treeCloud.ts)
+  const leaves = buildCloudGeometry(lite ? LITE_CARDS : undefined); // 32 triangles of leaf cards per cloud (24 on the phone and low tiers), shared with FurnitureGen
   return {
     trunk, leaves,
     lamp: merge([cyl(0.07, 0.09, LAMP_HEIGHT, 6).translate(0, LAMP_HEIGHT / 2, 0), box(LAMP_ARM, 0.08, 0.1).translate(LAMP_ARM / 2, 7.9, 0)]),

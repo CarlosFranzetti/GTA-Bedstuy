@@ -360,7 +360,7 @@ export function* buildPark(c: BuildCtx): Generator<void> {
     pointInRing(p, ring) && taken.every((t) => Math.hypot(t.x - p[0], t.z - p[1]) > t.r + (t.r < 4 ? gap - 2.6 + 0.0 : 1.2)) &&
     distToPaths(p) > 3.4 && !gates.some((g) => Math.hypot(g[0] - p[0], g[1] - p[1]) < 7);
   const plant = (p: Pt, h: number): void => {
-    tree(k, p[0], p[1], rng, h);
+    tree(k, p[0], p[1], rng, h, true, detail < 2);
     taken.push({ x: p[0], z: p[1], r: 2.6 });
   };
   let placed = 0, tries = 0;
