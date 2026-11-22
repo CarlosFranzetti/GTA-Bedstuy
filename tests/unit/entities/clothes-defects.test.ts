@@ -4,7 +4,7 @@
  *   1. no NaN or Inf in the dressed positions, normals or uvs (a NaN corner wins every texel it covers in the bake and prints black into the colour map)
  *   2. no triangle of the merged person with a corner outside the finite box, none degenerate beyond the allowance
  */
-import { describe, expect, it, beforeAll } from 'vitest';
+import { describe, expect, it, beforeAll, vi } from 'vitest';
 import * as THREE from 'three';
 import { readFileSync, readdirSync } from 'node:fs';
 import { Rng } from '@/core/Rng';
@@ -12,6 +12,12 @@ import { PED_SPECS } from '@/textures/painters/ped';
 import { clearPeople, parseShape, registerShape, shapeFor, dressLod, buildMhPedModel, type MhShape } from '@/entities/models/pedMesh';
 import type { IMaterialLibrary } from '@/world/types';
 
+// the texture bake is a canvas job: capture what the game hands it instead (node has no canvas)
+const baked: Array<{ id: string; position: Float32Array; normal: Float32Array }> = [];
+vi.mock('@/textures/painters/pedSkinPaint', async (orig) => {
+  const m = await orig<typeof import('@/textures/painters/pedSkinPaint')>();
+  return { ...m, bakeSkin: (b: { position: Float32Array; normal: Float32Array; spec: { id: string } }) => { baked.push({ id: b.spec.id, position: b.position, normal: b.normal }); return { width: 1, height: 1 }; } };
+});
 const DIR = 'src/assets/models/people/';
 const shapes = new Map<string, MhShape>();
 const materials = { get: () => new THREE.MeshStandardMaterial() } as unknown as IMaterialLibrary;
@@ -38,12 +44,6 @@ describe('clothes: no NaN in the dressed body', () => {
   });
 });
 
-/** the final merged geometry of a person (what the game draws), per level */
-function levels(v: number): THREE.BufferGeometry[] {
-  const m = buildMhPedModel(materials, new Rng(v + 1), { variant: v })!, out: THREE.BufferGeometry[] = [];
-  m.group.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) out.push((o as THREE.SkinnedMesh).geometry); });
-  return out;
-}
 export interface Tally { tris: number; flipped: number; degenerate: number; nan: number }
 /** triangles whose geometric normal points against the average of their own vertex normals (inside out), degenerate ones, and non-finite corners */
 export function tally(g: THREE.BufferGeometry): Tally {
@@ -62,13 +62,30 @@ export function tally(g: THREE.BufferGeometry): Tally {
   }
   return t;
 }
-describe('clothes: probe flipped triangles (measurement)', () => {
-  it('prints', () => {
-    const rows: string[] = [];
-    for (const id of ['wh-office', 'ba-hoodie-fade', 'ba-puffer-braids', 'ca-nurse', 'wh-elder']) {
-      const v = PED_SPECS.findIndex((s) => s.id === id);
-      levels(v).forEach((g, k) => { const t = tally(g); rows.push(`${id} L${k} ${JSON.stringify(t)}`); });
-    }
-    console.log(rows.join('\n'));
+
+describe('clothes: the bake input has no NaN', () => {
+  it('every vertex handed to the texture bake is finite (a NaN corner paints black over the texels it covers: the dark patches under hems and at the seat)', () => {
+    const had = (globalThis as { document?: unknown }).document;
+    (globalThis as { document?: unknown }).document = {};
+    try {
+      const ids = ['wh-office', 'ba-hoodie-fade', 'ba-puffer-braids', 'ca-nurse', 'wh-elder', 'la-bomber', 'ba-sundress'];
+      const bad: string[] = [];
+      for (const id of ids) {
+        const v = PED_SPECS.findIndex((s) => s.id === id);
+        buildMhPedModel(materials, new Rng(v + 1), { variant: v });
+        const b = baked.filter((x) => x.id === id).pop();
+        if (!b) { bad.push(id + ' no bake captured'); continue; }
+        let n = 0; for (let i = 0; i < b.position.length; i++) if (!Number.isFinite(b.position[i]) || !Number.isFinite(b.normal[i])) n++;
+        if (n) bad.push(`${id} ${n} non-finite values`);
+      }
+      expect(bad).toEqual([]);
+    } finally { (globalThis as { document?: unknown }).document = had; }
   });
 });
+
+/** the final merged geometry of a person (what the game draws), per level */
+export function levels(v: number): THREE.BufferGeometry[] {
+  const m = buildMhPedModel(materials, new Rng(v + 1), { variant: v })!, out: THREE.BufferGeometry[] = [];
+  m.group.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) out.push((o as THREE.SkinnedMesh).geometry); });
+  return out;
+}

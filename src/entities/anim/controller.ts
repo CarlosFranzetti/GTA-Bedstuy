@@ -11,6 +11,7 @@ import type { Gait } from './gait';
 import { clipLibrary, type ClipLibrary } from './library';
 import { FootLock, soleRel, type LegDims } from './footlock';
 import { isCombatPose, keyCombatPose } from './combatPoses';
+import { applyBodyLayers, makeBodyLayerState, type BodyLayerIn } from './bodyLayers';
 
 export interface PoseTarget {
   hips: THREE.Object3D; torso: THREE.Object3D; head: THREE.Object3D; rig: THREE.Object3D;
@@ -249,6 +250,12 @@ export class AnimController {
   private readonly eul = new THREE.Euler();
   private readonly v3 = new THREE.Vector3();
   private yawLead = 0;
+  /** the entity's acceleration (m/s2, clip proportions, eased) and seconds since a start from rest or a stop began (-1 when none): inputs to the body layers */
+  private accelS = 0;
+  private startT = -1;
+  private stopT = -1;
+  private stillFor = 0;
+  private startPeak = 0;
   /** the speed the blends use: the entity's speed with its rate of change limited, so an input that snaps cannot snap the pose */
   private speedS = -1;
   private turnDir = 1;
@@ -261,6 +268,11 @@ export class AnimController {
   private lookPitch = 0;
   private aliveT: number;
   private readonly lock: FootLock;
+  /** the POSE seat's upper-body layers: one small state and one reused input per person */
+  private readonly bls = makeBodyLayerState();
+  private readonly bli: BodyLayerIn;
+  /** 0 turns the body layers off (tests) */
+  bodyLayersOn = true;
   private readonly rigV = new THREE.Vector3();
   private readonly refDims: LegDims;
   private readonly realDims: LegDims;
@@ -299,6 +311,8 @@ export class AnimController {
     };
     this.lock = new FootLock(this.realDims);
     this.aliveT = gait.phase * 40;
+    this.bls.rng = (gait.seed | 0) || 1;
+    this.bli = { dt: 0, speed: 0, idleW: 1, yawRate: 0, age: gait.age, armSwing: gait.armSwing, sway: gait.sway, phase0: gait.phase, seed: gait.seed, splay: (t.group?.userData.splay as number | undefined) ?? 0, startT: -1, stopT: -1 };
   }
 
   /** What a person carries: a bag in a hand takes the swing out of that arm. `arm` 0 = left, 1 = right, `free` 0..1 of the normal swing. */
@@ -341,8 +355,10 @@ export class AnimController {
     if (!chain || !idle) return false;
     const raw = Math.max(0, inp.speed) / this.legScale; // in the clips' proportions
     // an input that jumps (a pedestrian stopped dead, a car door) is eased: at most 16 m/s^2 up and 22 down, so the blends below never see a step
+    const prevS = this.speedS;
     this.speedS = this.speedS < 0 ? raw : this.speedS + Math.max(-22 * dt, Math.min(16 * dt, raw - this.speedS));
     const speed = this.speedS;
+    if (prevS >= 0 && dt > 0) this.accelS += ((speed - prevS) / dt - this.accelS) * Math.min(1, dt * 8);
     const g = this.gait;
 
     // idle layer
@@ -376,6 +392,15 @@ export class AnimController {
       for (let k = 0; k < NCH; k++) this.base[k] += (this.loco[k] - this.base[k]) * (1 - iw);
     }
 
+    // GAIT: the clock of a start from rest (short first steps and a lean while it runs: 0.35 s walking, up to 0.6 s to a run) and of a stop (steps that shorten)
+    this.stillFor = raw < 0.3 ? this.stillFor + dt : 0;
+    if (this.startT < 0 && raw > 0.3 && this.sinceStill < 0.2 && this.stillFor === 0 && this.stopT < 0 && prevS >= 0 && this.recentMax < 0.9) { this.startT = 0; this.startPeak = raw; }
+    if (this.startT >= 0) {
+      this.startT += dt; this.startPeak = Math.max(this.startPeak, raw);
+      if (this.startT > this.startLen() || raw < 0.2) this.startT = -1;
+    }
+    if (this.stopT >= 0) { this.stopT += dt; if (this.stopT > 1 || raw > 0.9) this.stopT = -1; }
+    else if (raw < 0.35 && this.recentMax > 1.0 && this.startT < 0) this.stopT = 0;
     // start / stop, detected from the speed history (entities ramp speed over several frames, so look back a little)
     this.recentMax = Math.max(raw, this.recentMax - 2.5 * dt);
     this.sinceStill = raw < 0.3 ? 0 : this.sinceStill + dt;
@@ -470,7 +495,15 @@ export class AnimController {
   }
 
   /** how much this person's leg swing is scaled: their own stride, a little more when the clip is played fast, less for a quick cadence (short quick steps) */
-  private strideFactor(): number { const g = this.gait; return g.stride * Math.pow(Math.min(1.6, Math.max(0.7, this.lastRatio)), 0.3) / g.cadence; }
+  private strideFactor(): number {
+    const g = this.gait;
+    // a start takes short first steps that grow over the start's length; a stop's last steps shorten
+    const startG = this.startT >= 0 ? 0.55 + 0.45 * ease(Math.min(1, this.startT / this.startLen())) : 1;
+    const stopG = this.stopT >= 0 ? 1 - 0.35 * sstep(0, 0.45, this.stopT) : 1;
+    return g.stride * Math.pow(Math.min(1.6, Math.max(0.7, this.lastRatio)), 0.3) / g.cadence * startG * stopG;
+  }
+  /** seconds a start takes to reach pace: 0.35 walking, longer toward a run (the key still answers at once; the weight is in the pose and the entity's ramp) */
+  private startLen(): number { return 0.35 + 0.25 * sstep(2, 4, this.startPeak); }
 
   /** Per-person modifiers on the locomotion pose. */
   private applyGait(p: Float32Array, speed: number): void {
@@ -504,6 +537,10 @@ export class AnimController {
     // the body leans into a turn the faster it goes (a lean of about 11 degrees at a sprint turning at 3 rad/s, none standing): hips and chest roll together
     const leanZ = Math.max(-0.2, Math.min(0.2, -this.yawLead * Math.min(speed, 6.5) * 0.0105 * this.leanGain));
     p[boneChannel('torso') + 2] += leanZ * 0.6; p[boneChannel('hips') + 2] += leanZ * 0.4;
+    // weight: the body leans into a start and back into a brake (up to about 10 degrees forward, 11 back), head kept level; none when the speed is steady
+    const fw = Math.max(-0.2, Math.min(0.17, this.accelS * 0.011)) * Math.min(1, speed / 0.6 + 0.4);
+    p[boneChannel('torso')] -= fw * 0.65; p[boneChannel('hips')] -= fw * 0.35; p[boneChannel('head')] += fw * 0.5;
+    if (this.bodyLayersOn) this.layers(p, dt, speed, yawRate, inp);
     if (!this.cheap) this.alive(p, dt, inp);
     // the pelvis: the capture says how high its lowest sole was above the ground (0 for a foot on the floor, more in a stride's flight or a jump);
     // this body's own legs are then placed so THEIR lowest sole is at that height. The old rule used the ankle, so a rolling foot dug in.
@@ -539,6 +576,19 @@ export class AnimController {
     }
   }
 
+  /** The POSE seat's upper-body layers (bodyLayers.ts): arms that hang, the ribcage over the weight, standing weight shift and head. They only add to the upper body. */
+  private layers(p: Float32Array, dt: number, speed: number, yawRate: number, inp: AnimInput): void {
+    const i = this.bli, s = this.shot;
+    const busy = !!s && /^(sit|stand|stumble|flinch)/.test(s.clip.name);
+    i.dt = dt; i.speed = speed; i.idleW = Math.max(0, this.idleW); i.yawRate = yawRate; i.age = this.gait.age; i.armSwing = this.gait.armSwing; i.sway = this.gait.sway;
+    i.accel = this.accelS; i.phase = this.phase; i.stride = this.strideFactor(); i.yawLead = this.yawLead; i.turnInPlace = this.turnW;
+    i.startT = this.startT; i.stopT = this.stopT;
+    i.off = busy ? 1 : Math.max(this.actionW, this.jumpW, ease(this.vaultU));
+    i.armsBusy = this.keyed || /^(phone|talk|eat)/.test(this.idleName) ? 1 : Math.max(this.armLoad[0] < 1 ? 1 - this.armLoad[0] : 0, this.armLoad[1] < 1 ? 1 - this.armLoad[1] : 0);
+    i.cheap = this.cheap;
+    applyBodyLayers(p, i, this.bls);
+  }
+
   /**
    * A body that is alive on top of the clips: breathing in the chest, the weight easing from one foot to the other while standing, and a head that
    * looks (the head turns most, the shoulders a little, the eyes' work is left to the face). Small, slow, and different for each person
@@ -546,14 +596,12 @@ export class AnimController {
    */
   private alive(p: Float32Array, dt: number, inp: AnimInput): void {
     this.aliveT += dt;
-    const t = this.aliveT, ph = this.gait.phase * 6.283, still = this.idleW > 0 ? this.idleW : 0;
+    const t = this.aliveT, ph = this.gait.phase * 6.283;
     const breathe = Math.sin(t * 2 * Math.PI * (0.24 + 0.05 * this.gait.sway) + ph);
     const tc = boneChannel('torso'), hc = boneChannel('head');
     p[tc] += 0.011 * breathe; p[hc] -= 0.006 * breathe;
     p[boneChannel('armL') + 2] += 0.008 * breathe; p[boneChannel('armR') + 2] -= 0.008 * breathe;
-    // weight shift: slow sway of the pelvis side to side with a slight counter-roll of the shoulders (while standing; the foot lock keeps the shoes put)
-    const sw = Math.sin(t * 2 * Math.PI * 0.07 + ph * 1.7) * still;
-    p[RIG_CH] += 0.014 * sw; p[boneChannel('hips') + 2] += 0.03 * sw; p[tc + 2] -= 0.04 * sw; p[hc + 2] += 0.02 * sw;
+    // (the weight shift while standing is the POSE seat's now: bodyLayers.ts)
     // look: yaw/pitch toward a target, eased (a critically damped follow, no snap); head 65 %, upper body 20 % of the turn
     const L = inp.look, ty = L ? Math.max(-1.3, Math.min(1.3, L.yaw)) : 0, tp = L ? Math.max(-0.5, Math.min(0.5, L.pitch ?? 0)) : 0;
     const k = Math.min(1, dt * (L ? 7 : 4));

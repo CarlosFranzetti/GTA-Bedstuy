@@ -811,6 +811,7 @@ export function headScaleFor(s: MhShape, spec: PedSpec, bt: BodyType): number {
   return Math.min(1.35, Math.max(0.95, k));
 }
 
+const hs0 = (target: number, shape: MhShape): number => target / shape.height;
 export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: PedOptions = {}): PedModel | null {
   if (!peopleReady()) return null;
   let variant: number;
@@ -866,17 +867,19 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
     // a person of their own: the body type sets stature and build, a little personal variation on top (stature 1.5 to 1.95 m for adults)
     const age = spec.age ?? 'adult', grown = age === 'adult' || age === 'old';
     const tri = (): number => (rng.range(-1, 1) + rng.range(-1, 1)) * 0.5;
+    const gz = (): number => (rng.range(-1, 1) + rng.range(-1, 1) + rng.range(-1, 1)) * 0.577;      // about a normal draw, sd 1 (BODY: stature and build spread like a population, survey sd 3.9 percent of stature)
     const skinMode = peopleMode() === 'skin';
     const bh = skinMode ? bt.h : BUILD_SCALE[spec.build][1], bw = skinMode ? 1 : BUILD_SCALE[spec.build][0];
-    let target = shape.height * (bh + tri() * (grown ? 0.04 : 0.03)) * (age === 'old' ? 0.985 : 1);
-    if (grown) target = Math.min(1.95, Math.max(1.5, target));
+    // the type sets the build and part of the stature (0.65 of its factor: a type is a tendency, not a mould), a normal draw does the rest
+    let target = shape.height * ((skinMode ? 1 + (bh - 1) * 0.65 : bh) + gz() * (grown ? 0.032 : 0.04)) * (age === 'old' ? 0.985 : 1);
+    if (grown) target = Math.min(1.97, Math.max(1.48, target));
     // the head is sized by HEADS OF STATURE (adults 7.2, GTA IV proportion), not by a factor on the MakeHuman head (which is a small head: 7.9 heads);
     // the taller head lifts the crown, so the stature is brought back to the target
     const headK = headScaleFor(shape, spec, bt), crownRise = 1 + ((headK - 1) * (shape.landmarks.crownY - shape.rig.head[1])) / shape.height;
-    const hs = target / shape.height / crownRise, wide = bw * (1 + tri() * 0.04);
-    group.scale.set(wide * (0.98 + 0.02 * hs), hs, wide * (0.98 + 0.02 * hs));
+    const hs = target / shape.height / crownRise, wide = bw * (1 + gz() * 0.028 + (hs0(target, shape) - 1) * 0.3), deep = 1 + gz() * 0.03;      // taller people are a little broader; depth is its own draw
+    group.scale.set(wide * (0.98 + 0.02 * hs), hs, wide * deep * (0.98 + 0.02 * hs));
     if (leanOf(bt) !== 0) torso.userData.stoopBaked = leanOf(bt);      // the lean is in the rest pose of the skin and the rig (not an extra pose)
-    for (const k of [0, 1]) arms[k].scale.y = 1 + rng.range(-0.02, 0.02);
+    for (const k of [0, 1]) arms[k].scale.y = 1 + gz() * 0.015;
     head.scale.setScalar((skinMode ? headK : age === 'kid' ? 1.06 : 1) * rng.range(0.985, 1.015));
     torso.scale.set(1 + rng.range(-0.015, 0.015), 1, 1 + rng.range(-0.02, 0.02));
   }

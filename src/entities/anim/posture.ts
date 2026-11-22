@@ -23,9 +23,31 @@ interface Target {
   /** standing clips only: mean thigh and knee pitch (the average of both legs is moved there, the left/right difference stays) */
   leg?: number;
   knee?: number;
+  /**
+   * POSE (22 Nov): the arms. The captured subjects hold the forearms well forward (idle: 34 degrees of elbow flexion, walk 20 to 29, a different
+   * mean for each arm) and one upper arm further from the body than the other; the mesh's forearm already points about 10 degrees forward at rest,
+   * so a person standing read as holding something. `elbow`: mean flexion of both elbows (deg), `elbowKeep` how much of the captured bending is kept
+   * (1 = all), `elbowMin` the least flexion at any frame (deg). `abd`: the mean lift of each upper arm away from the body (deg, the same for both
+   * arms), `armX`: added to both upper arms' mean forward swing (deg, + = forward).
+   */
+  /**
+   * POSE: level the body. The capture subjects walk and stand with the chest leaning 3 to 6 degrees to one side and the head tilted up to 9 degrees
+   * (the walk clip's head roll averages -9): `level` moves the mean roll of the chest to -0.5 degrees and of the head to 0 and keeps the motion about
+   * them (the lean over the standing leg, the nod). `headYaw` / `torsoYaw`: [mean deg, how much of the captured turning is kept]: the standing
+   * clips sweep the head from -67 to +59 degrees every four seconds and twist the chest by 30, which reads as someone scanning a room.
+   */
+  level?: boolean;
+  headYaw?: readonly [number, number];
+  torsoYaw?: readonly [number, number];
+  elbow?: number;
+  elbowKeep?: number;
+  elbowMin?: number;
+  abd?: number;
+  armX?: number;
 }
 
-const STAND: Target = { torso: -2, torsoKeep: 0.6, head: -3, headKeep: 0.6, hips: -2, leg: 2, knee: -6 };
+const STAND: Target = { torso: -2, torsoKeep: 0.6, head: -3, headKeep: 0.6, hips: -2, leg: 2, knee: -3, elbow: 5, elbowKeep: 0.7, elbowMin: 2, abd: 4, level: true, headYaw: [0, 0.4], torsoYaw: [0, 0.5] };
+const WALKARMS = { elbow: 16, elbowKeep: 0.85, elbowMin: 5, abd: 5, level: true } as const;
 
 export const POSTURE: Readonly<Record<string, Target>> = {
   idle: STAND,
@@ -34,19 +56,19 @@ export const POSTURE: Readonly<Record<string, Target>> = {
   talk2: { torso: -1, head: 0, headKeep: 0.8 },
   eat: { torso: -3, head: -14 },
   phone: { torso: 2, head: -12 },
-  walk: { torso: -3, head: -1 },
-  walkBrisk: { torso: -4, head: -1 },
-  walkFast: { torso: -4, head: 0 },
-  walkStroll: { torso: -2, head: 0 },
+  walk: { torso: -3, head: -1, ...WALKARMS },
+  walkBrisk: { torso: -4, head: -1, ...WALKARMS },
+  walkFast: { torso: -4, head: 0, ...WALKARMS },
+  walkStroll: { torso: -2, head: 0, ...WALKARMS },
   walkHeavy: { torso: -4, head: -5 },
-  walkJaunty: { torso: -1, head: -2 },
+  walkJaunty: { torso: -1, head: -2, ...WALKARMS },
   walkAngry: { torso: -8, head: -9 },   // still the one who leans into it, without the 16 degree hunch
   walkSad: { torso: -6, head: -12 },    // slumped forward (the capture leaned back 7 degrees with the head down)
-  walkHobble: { torso: -7, head: -6 },
-  walkLimp: { torso: -3, head: -1 },
+  walkHobble: { torso: -7, head: -6, ...WALKARMS },
+  walkLimp: { torso: -3, head: -1, ...WALKARMS },
   walkDrunk: { torso: 0, head: 4 },
-  jog: { torso: -6, head: 2 },
-  run: { torso: -9, head: 3 },
+  jog: { torso: -6, head: 2, abd: 6, armX: 8, level: true },
+  run: { torso: -9, head: 3, abd: 6, armX: 12, level: true },
 };
 
 const RAD = Math.PI / 180;
@@ -92,5 +114,33 @@ export function settlePosture(c: Clip): Clip {
       }
     }
   }
+  // level the body, and keep the standing head and chest from sweeping round (POSE)
+  if (t.level) {
+    const tz = x('torso') + 2, hz = x('head') + 2;
+    shift(c, tz, -0.5 * RAD - mean(c, tz));
+    const m = mean(c, hz);
+    for (let f = 0; f < c.frames; f++) { const i = f * NCH + hz; c.data[i] = (c.data[i] - m) * 0.7; }
+  }
+  for (const [spec, ch] of [[t.headYaw, x('head') + 1], [t.torsoYaw, x('torso') + 1]] as const) {
+    if (!spec) continue;
+    const m = mean(c, ch);
+    for (let f = 0; f < c.frames; f++) { const i = f * NCH + ch; c.data[i] = spec[0] * RAD + (c.data[i] - m) * spec[1]; }
+  }
+  // the arms (POSE): elbows that bend a little, upper arms a few degrees clear of the body, the same on both sides
+  if (t.elbow !== undefined) {
+    const keep = t.elbowKeep ?? 1;
+    for (const side of ['L', 'R'] as const) {
+      const ch = x(`elbow${side}`), m = mean(c, ch);
+      let lo = Infinity;
+      for (let f = 0; f < c.frames; f++) { const i = f * NCH + ch; c.data[i] = t.elbow * RAD + (c.data[i] - m) * keep; lo = Math.min(lo, c.data[i]); }
+      const floor = (t.elbowMin ?? 0) * RAD;
+      if (lo < floor) shift(c, ch, floor - lo);
+    }
+  }
+  if (t.abd !== undefined) {
+    // the left arm (at -x) is lifted away by a negative roll, the right arm by a positive one
+    for (const [side, sign] of [['L', -1], ['R', 1]] as const) { const ch = x(`arm${side}`) + 2; shift(c, ch, sign * t.abd * RAD - mean(c, ch)); }
+  }
+  if (t.armX !== undefined) for (const side of ['L', 'R'] as const) shift(c, x(`arm${side}`), t.armX * RAD);
   return c;
 }

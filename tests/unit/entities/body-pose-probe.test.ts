@@ -37,8 +37,9 @@ describe('probe', () => {
     for (const spec of PED_SPECS) {
       const m = buildMhPedModel(materials, new Rng(5), { variant: spec.id }); if (!m) continue;
       const rest = ang(m, 0);
-      const ctl = new AnimController(m, makeGait(n * 13 + 1, spec.age ?? 'adult'), lib);
+      const ctl = new AnimController(m, makeGait(n * 13 + 1, spec.age ?? 'adult'), lib); if (process.env.NOLOCK) ctl.footLockOn = false;
       for (let i = 0; i < 60; i++) ctl.update(1 / 30, { speed: 0 });
+      if (['la-delivery','ba-work','wh-elder','ea-kid'].includes(spec.id)) { ctl.update(1/30,{speed:0}); const r=(o:THREE.Object3D)=>[o.rotation.x,o.rotation.y,o.rotation.z].map(v=>(v*D).toFixed(0)).join('/'); rows.push('POSE '+spec.id+' knee '+r(m.knees[0])+' '+r(m.knees[1])+' leg '+r(m.legs[0])+' hips '+r(m.hips)+' torso '+r(m.torso)+' head '+r(m.head)+' armL '+r(m.arms[0])+' elbL '+r(m.elbows[0])+' elbR '+r(m.elbows[1])+' ankle '+(m.ankles?r(m.ankles[0]):'')); }
       const idle = ang(m, 0);
       // rest of the elbow
       let minO = 99, maxO = -99, minF = 99, maxF = -99;

@@ -91,7 +91,7 @@ export function bodyTypeId(spec: Pick<PedSpec, 'id' | 'build' | 'sex' | 'age' | 
   return list[Math.floor(hash(spec.id + ':body') * list.length) % list.length];
 }
 /** per sex adjustment on top of the body type: men carry the wedge (narrower waist and hips), women a softer taper */
-const SEX_ADJ: Record<'m' | 'f' | 'x', Partial<BodyType>> = { m: { hips: 0.95, waist: 1.0 }, f: { waist: 1.0 }, x: { hips: 0.975, waist: 0.97 } };
+const SEX_ADJ: Record<'m' | 'f' | 'x', Partial<BodyType>> = { m: { hips: 0.95, waist: 0.97 }, f: { waist: 1.0 }, x: { hips: 0.975, waist: 0.97 } };
 const adjusted = new Map<string, BodyType>();
 export function bodyTypeOf(spec: Parameters<typeof bodyTypeId>[0]): BodyType {
   const id = bodyTypeId(spec), sx = spec.sex === 'f' ? 'f' : spec.sex === 'x' ? 'x' : 'm', k = id + sx;

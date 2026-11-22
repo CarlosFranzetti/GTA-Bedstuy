@@ -11,17 +11,19 @@ export type ShoeId = typeof SHOE_IDS[number];
 
 interface Style { len: number; T: number[]; W: number[]; H: number[]; /** sole height and how far the sole edge sticks out */ sh: number; s: number; /** the arch lifted off the ground (dress shoes) and the toe spring */ arch: number; toeUp: number; /** the heel stands this high */ heel?: number; shaft?: { top: number; pad: number; cuff?: number; /** stays outside cut trouser legs (jeans tucked into the boot) */ tuck?: boolean } }
 const T5 = [0, 0.14, 0.42, 0.75, 1];
+/** shoe length over stature (foot 0.154 plus a thumb of room) */
+export const SHOE_LEN = 0.158;
 const STYLES: Record<Exclude<ShoeId, 'sandal' | 'slide'>, Style> = {
   sneakerLow: { len: 0.25, T: T5, W: [0.019, 0.039, 0.046, 0.04, 0.034], H: [0.036, 0.068, 0.088, 0.124, 0.148], sh: 0.012, s: 0.006, arch: 0, toeUp: 0.012 },
   sneakerHigh: { len: 0.25, T: T5, W: [0.019, 0.039, 0.046, 0.04, 0.034], H: [0.036, 0.062, 0.078, 0.108, 0.132], sh: 0.012, s: 0.006, arch: 0, toeUp: 0.012, shaft: { top: 0.205, pad: 0.009 } },
   workBoot: { len: 0.25, T: T5, W: [0.022, 0.042, 0.05, 0.045, 0.038], H: [0.05, 0.078, 0.095, 0.122, 0.145], sh: 0.016, s: 0.009, arch: 0.006, toeUp: 0.01, shaft: { top: 0.225, pad: 0.012, cuff: 0.014 } },
-  dressShoe: { len: 0.245, T: T5, W: [0.012, 0.035, 0.046, 0.041, 0.034], H: [0.028, 0.05, 0.066, 0.106, 0.138], sh: 0.01, s: 0.002, arch: 0.012, toeUp: 0.014 },
-  flat: { len: 0.232, T: T5, W: [0.02, 0.041, 0.05, 0.044, 0.036], H: [0.024, 0.046, 0.06, 0.104, 0.144], sh: 0.006, s: 0.002, arch: 0.004, toeUp: 0.01 },
+  dressShoe: { len: 0.245, T: T5, W: [0.012, 0.035, 0.046, 0.041, 0.034], H: [0.028, 0.056, 0.086, 0.11, 0.138], sh: 0.01, s: 0.002, arch: 0.012, toeUp: 0.014 },
+  flat: { len: 0.232, T: T5, W: [0.02, 0.041, 0.05, 0.044, 0.036], H: [0.024, 0.05, 0.082, 0.108, 0.144], sh: 0.006, s: 0.002, arch: 0.004, toeUp: 0.01 },
   // PEOPLE6: a runner (thick wedge sole, low and wide), a tall boot (a shaft to the calf), a loafer (a low dress shoe), a low heel (the heel stands 3 cm up, a pointed toe)
   runner: { len: 0.25, T: T5, W: [0.02, 0.04, 0.047, 0.041, 0.035], H: [0.04, 0.066, 0.08, 0.104, 0.126], sh: 0.022, s: 0.008, arch: 0, toeUp: 0.016 },
   tallBoot: { len: 0.25, T: T5, W: [0.014, 0.034, 0.043, 0.04, 0.035], H: [0.04, 0.062, 0.078, 0.1, 0.128], sh: 0.012, s: 0.004, arch: 0.006, toeUp: 0.012, shaft: { top: 0.34, pad: 0.008, cuff: 0.012, tuck: true } },
-  loafer: { len: 0.243, T: T5, W: [0.012, 0.034, 0.044, 0.04, 0.034], H: [0.026, 0.044, 0.058, 0.092, 0.126], sh: 0.01, s: 0.002, arch: 0.008, toeUp: 0.012 },
-  heel: { len: 0.235, T: T5, W: [0.008, 0.028, 0.038, 0.036, 0.03], H: [0.024, 0.044, 0.056, 0.092, 0.124], sh: 0.008, s: 0.001, arch: 0.004, toeUp: 0.006, heel: 0.03 },
+  loafer: { len: 0.243, T: T5, W: [0.012, 0.034, 0.044, 0.04, 0.034], H: [0.026, 0.05, 0.08, 0.1, 0.126], sh: 0.01, s: 0.002, arch: 0.008, toeUp: 0.012 },
+  heel: { len: 0.235, T: T5, W: [0.008, 0.028, 0.038, 0.036, 0.03], H: [0.024, 0.048, 0.078, 0.1, 0.124], sh: 0.008, s: 0.001, arch: 0.004, toeUp: 0.006, heel: 0.03 },
 };
 
 for (const k of Object.keys(STYLES) as Array<keyof typeof STYLES>) (STYLES[k] as Style & { fine?: boolean }).fine = true;
@@ -47,12 +49,14 @@ function section(w: number, h: number, sh: number, s: number): Array<[number, nu
   return [[0, 0, 0], ...half, [0, h, 0.5], ...half.slice().reverse().map(([x, y, u]) => [-x, y, 1 - u] as [number, number, number])];
 }
 function foot(ctx: Ctx, mb: MeshBuilder, side: 'L' | 'R', st: Style, o: { rect: typeof SWATCH.shoe; tint?: V3 }): void {
-  const a = ctx.ankle[side], sc = Math.min(1.15, Math.max(0.85, (ctx.lm.crownY / 1.78) * (0.9 + 0.1 * ctx.bt.legs))), W = one(side === 'L' ? BONE.kneeL : BONE.kneeR);
-  const zHeel = a.cz + a.rz + 0.016, zToe = a.cz - st.len * sc, P: V3[][] = [], U: number[][] = [];
+  // CLOTHES: a shoe is 0.158 of the person's stature long (the foot is 0.154: ANSUR II, docs/reference/gta5-characters.md), whatever the build, for a child as for a man;
+  // before, the length was a fixed 0.25 m in front of the ankle with the scale floored at 0.85, so a 1.78 m man had a 31 to 35 cm shoe and a child a clown's
+  const a = ctx.ankle[side], sc = Math.min(1.15, Math.max(0.8, ctx.lm.crownY / 1.78)), scH = Math.max(0.92, sc), W = one(side === 'L' ? BONE.kneeL : BONE.kneeR);
+  const zHeel = a.cz + a.rz + 0.012, zToe = zHeel - SHOE_LEN * ctx.lm.crownY * (st.len / 0.25), P: V3[][] = [], U: number[][] = [];
   const stations = ctx.detail === 'hi' ? ((st as Style & { fine?: boolean }).fine ? [0, 0.14, 0.3, 0.42, 0.58, 0.75, 1] : st.T) : [0, 0.3, 0.45, 0.62, 0.82, 1];
   const prof = (arr: number[], t: number): number => { for (let i = 1; i < st.T.length; i++) if (t <= st.T[i]) return lerp(arr[i - 1], arr[i], (t - st.T[i - 1]) / (st.T[i] - st.T[i - 1] || 1)); return arr[arr.length - 1]; };
   for (const t of stations) {
-    const z = zToe + t * (zHeel - zToe), w = Math.max(prof(st.W, t) * sc, t >= 0.99 ? a.rx + 0.006 : 0), h = prof(st.H, t) * sc;
+    const z = zToe + t * (zHeel - zToe), w = Math.max(prof(st.W, t) * sc, t >= 0.99 ? a.rx + 0.006 : 0), h = prof(st.H, t) * scH;
     const lift = st.toeUp * sc * Math.pow(1 - Math.min(1, t / 0.25), 2) + st.arch * sc * Math.sin(Math.PI * Math.min(1, Math.max(0, (t - 0.2) / 0.55))) + (st.heel ?? 0) * sc * Math.min(1, Math.max(0, (t - 0.3) / 0.6)) ** 2;
     const sec = section(w, h, st.sh * sc, st.s * sc);
     P.push(sec.map(([x, y]) => [a.cx + x, lift + y, z] as V3)); U.push(sec.map((p) => p[2]));

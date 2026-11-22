@@ -724,7 +724,9 @@ export class Pedestrian implements Entity {
       this.findBlocker(gx, gz);
     }
     if (this.blockSlide.x !== 0 || this.blockSlide.z !== 0) { gx = this.blockSlide.x; gz = this.blockSlide.z; }
-    const k = speed;
+    // GAIT: a person sets off with weight: the speed climbs from what they have (rest, or a run they were already in) at a walker's 3.4 m/s2 (a
+    // run-away 9), so a walk reaches pace in about 0.35 s and a flight in 0.45 s; slowing down is still immediate (the goal is reached or lost)
+    const cur = hyp(b.vel.x, b.vel.z), k = cur < speed ? Math.min(speed, cur + (this.state === 'fleeing' ? 9 : 3.4) * dt) : speed;
     b.vel.x = gx * k;
     b.vel.z = gz * k;
     b.pos.x += b.vel.x * dt;
@@ -1062,7 +1064,8 @@ export class Pedestrian implements Entity {
       const lod = (this.lodObj ??= this.model.group.getObjectByName('pedLod') as THREE.LOD | null ?? null);
       const farLevel = !!lod && lod.levels.length > 1 && lod.levels[lod.levels.length - 1].object.visible;
       if (this.anim.cheap !== farLevel) this.anim.cheap = farLevel;
-      if (!this.anim.update(dt, { speed, yawRate, look: farLevel ? null : this.glance(dt), action: this.fightPose })) animateWalk(this.model, this.phase, this.amp);
+      this.animLive = this.anim.update(dt, { speed, yawRate, look: farLevel ? null : this.glance(dt), action: this.fightPose });
+      if (!this.animLive) animateWalk(this.model, this.phase, this.amp);
       this.applyIdlePose(this.model);
     }
   }
@@ -1070,6 +1073,8 @@ export class Pedestrian implements Entity {
   /** The person to glance at (the player): the host sets it once, to a live position. Null = nobody. */
   static lookAtPoint: Vec2 | null = null;
   private lodObj: THREE.LOD | null | undefined;
+  /** the animation controller posed the body this frame (else the procedural walk did) */
+  private animLive = false;
   private glanceW = 0;
   private glanceYaw = 0;
   /**
@@ -1161,7 +1166,7 @@ export class Pedestrian implements Entity {
   private reactionPose(m: HumanModel): void {
     const r = this.reaction;
     const splay = (m.group.userData.splay as number | undefined) ?? 0;
-    if (this.pose !== 'talk') { m.arms[0].rotation.z = -splay; m.arms[1].rotation.z = splay; }
+    if (this.pose !== 'talk' && !this.animLive) { m.arms[0].rotation.z = -splay; m.arms[1].rotation.z = splay; } // the controller's body layers hold the arm clearance now (POSE)
     if (!r || r.delay > 0) return;
     const t = this.gesture, k = Math.sin((r.t / r.dur) * Math.PI);   // eases in and out
     switch (r.kind) {

@@ -98,7 +98,7 @@ describe('every body type through idle, walk, run and turn', () => {
         expect(low - kneeRest, where + ' lifted').toBeLessThan(0.34);
         expect(low - kneeRest, where + ' sunk').toBeGreaterThan(-0.3);
         expect(h.y, where + ' hips').toBeGreaterThan(hipY * 0.8);
-        expect(h.y, where + ' hips').toBeLessThan(hipY * 1.08);
+        expect(h.y, where + ' hips').toBeLessThan(hipY * 1.1); // GAIT: was 1.08; the stride-matched run cycle meets its flight phase on other frames, up to 1.09
         for (const l of m.legs) expect(Math.abs(l.rotation.x), where + ' thigh').toBeLessThan(1.15);
       }
     }

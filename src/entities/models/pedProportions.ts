@@ -54,3 +54,36 @@ export function normalizeShape(s: MhShape): MhShape {
   void wr;
   return s;
 }
+
+// ---------------------------------------------------------------- what the other seats read from a built person (metres, in world scale, at rest)
+import type { PedModel } from './pedBody';
+import { bodyTypeOf } from './pedBodyTypes';
+import { shapeByName } from './pedMesh';
+
+const segLen = (o: { position: { x: number; y: number; z: number } }): number => Math.hypot(o.position.x, o.position.y, o.position.z);
+/** leg segments of a built person: hip joint to knee, knee to ankle joint, ankle joint to the floor, and the whole (hip joint height) */
+export function legSegments(p: PedModel): { thigh: number; shin: number; ankleHeight: number; total: number } {
+  const sy = p.group.scale.y, thigh = segLen(p.knees[0]) * sy, shin = (p.ankles ? segLen(p.ankles[0]) : 0.4) * sy, total = (p.legs[0].position.y) * sy;
+  return { thigh, shin, ankleHeight: Math.max(0, total - thigh - shin), total };
+}
+/** hip joint height above the floor: what a foot-planting solver treats as the leg's reach (thigh + shin + ankle height) */
+export const legLength = (p: PedModel): number => legSegments(p).total;
+/** arm segments: shoulder joint to elbow, elbow to wrist (the hand hangs below that: handLength) and the reach of the straight arm to the fingertips */
+export function armSegments(p: PedModel): { upper: number; fore: number; hand: number; total: number } {
+  const sy = p.group.scale.y, upper = segLen(p.elbows[0]) * sy * (p.arms[0].scale.y || 1), s = shapeByName(p.group.userData.pedShape);
+  const wrist = s ? s.rig.wristL : null, el = s ? s.rig.elbowL : null;
+  const fore = wrist && el ? Math.hypot(wrist[0] - el[0], wrist[1] - el[1], wrist[2] - el[2]) * sy : 0.26 * sy;
+  const hand = (s ? s.landmarks.wristY - ARM_TARGET.tip * s.landmarks.crownY : 0.19) * sy;
+  return { upper, fore, hand, total: upper + fore + hand };
+}
+export const armLength = (p: PedModel): number => armSegments(p).total;
+/** half the width of the body's torso (without the arms) at a height above the floor, from the base shape's rings and the person's type and scale: a close estimate for placing hands, hip props and sleeves, not a surface */
+export function torsoHalfWidthAt(p: PedModel, height: number): number {
+  const s = shapeByName(p.group.userData.pedShape);
+  if (!s) return 0.17 * p.group.scale.x;
+  const bt = bodyTypeOf(p.spec), y = height / p.group.scale.y, rings = [...s.hipRings, ...s.torsoRings].filter((r) => r).sort((a, b) => a[0] - b[0]);
+  let r = rings[rings.length - 1];
+  for (let i = 1; i < rings.length; i++) if (y <= rings[i][0]) { const a = rings[i - 1], b = rings[i], t = (y - a[0]) / (b[0] - a[0] || 1); r = [y, a[1] + (b[1] - a[1]) * t, 0, 0]; break; }
+  const k = y > s.rig.shoulderL[1] - 0.12 ? bt.shoulders : y < s.rig.hipL[1] + 0.05 ? bt.hips : 1 + 0.5 * (bt.belly * 1.1 + bt.hips - 1);
+  return r[1] * k * p.group.scale.x;
+}

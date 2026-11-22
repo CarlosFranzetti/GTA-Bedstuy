@@ -86,6 +86,7 @@ describe('Pedestrian', () => {
 
   it('walks at about 1.2 m/s', () => {
     const { ped } = setup();
+    for (let i = 0; i < 30; i++) ped.update(1 / 60); // GAIT: a walker sets off over about 0.35 s (3.4 m/s2), so measure the half second after that
     const start = { ...ped.body.pos };
     for (let i = 0; i < 30; i++) ped.update(1 / 60);
     const d = Math.hypot(ped.body.pos.x - start.x, ped.body.pos.z - start.z);

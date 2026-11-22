@@ -7,6 +7,7 @@
  */
 import { describe, expect, it, beforeAll } from 'vitest';
 import * as THREE from 'three';
+// @ts-ignore the project's node typings lack mkdirSync
 import { readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
 import { Rng } from '@/core/Rng';
 import { PED_SPECS } from '@/textures/painters/ped';

@@ -80,9 +80,11 @@ export class FootLock {
   private readonly cl = [new THREE.Quaternion(), new THREE.Quaternion()];
   private readonly ck = [new THREE.Quaternion(), new THREE.Quaternion()];
   private static readonly lq1 = new THREE.Quaternion();
+  private static readonly lq2 = new THREE.Quaternion();
+  private static readonly lq3 = new THREE.Quaternion();
   /** `prev` is last frame's correction (new = prev * captured); move it toward this frame's solution `sol` by at most `maxA` radians and write the result into `sol` */
-  private limit(prev: THREE.Quaternion, sol: THREE.Quaternion, cap: THREE.Quaternion, maxA: number, _leg: boolean): void {
-    const want = FootLock.lq1.copy(sol).multiply(qW.copy(cap).invert());   // sol = want * cap
+  private limit(prev: THREE.Quaternion, sol: THREE.Quaternion, cap: THREE.Quaternion, maxA: number): void {
+    const want = FootLock.lq1.copy(sol).multiply(FootLock.lq3.copy(cap).invert());   // sol = want * cap
     const ang = 2 * Math.acos(Math.min(1, Math.abs(prev.dot(want))));
     if (ang > maxA) prev.slerp(want, maxA / ang); else prev.copy(want);
     sol.copy(prev).multiply(cap);
@@ -201,8 +203,8 @@ export class FootLock {
       // the correction the solve makes to the captured thigh and shin may turn by at most 900 degrees a second: a knee that is almost straight can pick another
       // side from one frame to the next, and that must read as a quick bend, never a snap
       const maxA = 15.7 * dt;
-      this.limit(this.cl[s], nl, quat(qA, p, lo), maxA, true);
-      this.limit(this.ck[s], nk, quat(qL, p, ko), maxA, false);
+      this.limit(this.cl[s], nl, quat(FootLock.lq2, p, lo), maxA);
+      this.limit(this.ck[s], nk, quat(FootLock.lq2, p, ko), maxA);
       leg[s].copy(nl); knee[s].copy(nk);
       if (d.hasAnkle) {
         // the foot keeps the tilt it had in the capture: its world orientation is carried over
