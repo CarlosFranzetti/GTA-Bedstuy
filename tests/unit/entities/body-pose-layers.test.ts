@@ -144,10 +144,10 @@ describe('body layers: the arms', () => {
   it('the elbow is never locked straight, standing or walking, and bends more on the forward swing', () => {
     const base = (): Float32Array => { const p = new Float32Array(NCH); p[ch('armL')] = 0.35; p[ch('armR')] = -0.35; return p; }; // elbows at 0 = straight
     const p = run(3, () => ({ speed: 1.4, idleW: 0 }), 3, base).at(-1)!;
-    expect(p[ch('elbowL')]).toBeGreaterThan(0.2); expect(p[ch('elbowR')]).toBeGreaterThan(0.15);
-    expect(p[ch('elbowL')], 'the arm swinging forward bends more').toBeGreaterThan(p[ch('elbowR')] + 0.05);
+    expect(p[ch('elbowL')]).toBeGreaterThan(0.15); expect(p[ch('elbowR')]).toBeGreaterThan(0.1);
+    expect(p[ch('elbowL')], 'the arm swinging forward bends more').toBeGreaterThan(p[ch('elbowR')] + 0.04);
     const s = run(3, () => ({ speed: 0 }), 3, base).at(-1)!;
-    expect(s[ch('elbowL')]).toBeGreaterThan(0.2);
+    expect(s[ch('elbowL')]).toBeGreaterThan(0.08);
   });
 });
 

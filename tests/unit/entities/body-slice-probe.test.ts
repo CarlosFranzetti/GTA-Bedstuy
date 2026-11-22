@@ -52,6 +52,7 @@ export function slices(spec: PedSpec, seed: number): Record<string, number> {
   put('biceps', slab(0.72, (i) => P(i)[0] < 0 && wsum(i, arms) > 0.5, 0.01), 1);
   put('forearm', slab(0.56, (i) => P(i)[0] < 0 && wsum(i, arms) > 0.5, 0.01), 1);
   out.shoulderY = sh;
+  if (process.env.BODY_PROFILE) { const rowsP: string[] = []; for (let y = 0.04; y < 0.9; y += 0.03) { const lg = slab(y, (i) => P(i)[0] < 0 && wsum(i, legs) > 0.5, 0), ar = slab(y, (i) => P(i)[0] < 0 && wsum(i, arms) > 0.5, 0), tr = slab(y, trunk, 0); rowsP.push(`y=${y.toFixed(2)} leg ${lg.w.toFixed(3)}x${lg.d.toFixed(3)} arm ${ar.w.toFixed(3)}x${ar.d.toFixed(3)} trunk ${tr.w.toFixed(3)}x${tr.d.toFixed(3)} zf ${tr.zf.toFixed(3)} zb ${tr.zb.toFixed(3)}`); } writeFileSync(process.env.BODY_PROFILE + "." + spec.sex + "." + spec.body + ".txt", rowsP.join("\n")); }
   return out;
 }
 const rows: Array<{ key: string; m: Record<string, number> }> = [];

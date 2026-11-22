@@ -30,6 +30,14 @@ Foot slide, ball of the foot, cm per stance, mean / max, lock on, player's own s
 | sprintToStop | 4.0 / 15.7 | 2.1 / 16.1 | 3.3 / 17.7 | 0.2 / 0.3 | 0.2 / 0.3 | 0.3 / 1.1 |
 (The old "before" start rows are the first stance, which in the old code was dragged 4 to 8 cm as the body set off; it depended on the frame rate.)
 
+## Looked at
+No browser strips: the showcase render queue was full (both small slots held by other seats) and one attempt died when I edited the tree under it. Instead, plots drawn from the harness frames
+(PIL, `scratchpad/bodyteam/gait/plot.py`): the dots are the ground speed of a planted ball (ball under 3 cm), before (top) and after (bottom), red left foot, blue right; a skating foot is a dot well above zero.
+- `/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/bodyteam/gait/plots/slide-jogToSprint.png`: before, the blue foot in the run slides at 1 to 2 m/s in most stances; after, every planted foot is at about 0 to 0.4.
+- `/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/bodyteam/gait/plots/slide-sprintToStop.png`: the stop. Honest: after the body stops, the settling right foot still shuffles at 0.5 to 1 m/s for about 0.4 s with its ball 2 to 3 cm up (a toe drag in the captured stop clip; the lock lets go above 2.7 cm). Widening the lock's capture height to 3.4 cm halved it but pushed jog-to-run past 4 cm, so it stays as it was. Open.
+- Browser strips (the people showcase, real model, side view, after only; the render finally ran): `/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/bodyteam/gait/strips/anim_action_walkJogSprint_cam_side-after.png` (walk to jog to sprint: planted shoes, longer reach as the speed rises) and `.../anim_action_stopRun_cam_side-after.png` (run, two shortening steps, standing; the back lean is slight). No before strips.
+- also `slide-startSprint.png`, `slide-walkToStop.png`. Real strips of the in-game look are still owed (ask REVIEW).
+
 ## Items 2 to 5 (headless; what landed)
 - 2 Starts and stops (controller.ts): a start clock (`startT`, 0.35 s walking growing to 0.6 s toward a run) and a stop clock (`stopT`); during a start the leg swing begins at 0.55 of its length and grows
   (short first steps; the phase is stride-matched so the feet still keep pace), during a stop it shortens by up to 0.35 (settling steps). A lean from acceleration (`accelS`): up to 10 degrees forward

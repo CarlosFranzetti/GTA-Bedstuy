@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { writeFileSync } from 'node:fs';
 import { Rng } from '@/core/Rng';
-import { buildMhPedModel, clearPeople, parseShape, registerShape, shapeByName, type PedModel } from '@/entities/models/pedMesh';
+import { buildMhPedModel, clearPeople, parseShape, registerShape, shapeByName } from '@/entities/models/pedMesh';
+import type { PedModel } from '@/entities/models/pedBody';
 import { torsoHalfWidthAt } from '@/entities/models/pedProportions';
 import { PED_SPECS } from '@/textures/painters/ped';
 import { fullLib } from './anim-measure';
@@ -14,6 +14,8 @@ import type { IMaterialLibrary } from '@/world/types';
 // Angles are measured in the body's own frame: the upper arm against the vertical (out = away from the body), the forearm against the upper arm.
 const materials = { get: () => new THREE.MeshStandardMaterial() } as unknown as IMaterialLibrary;
 const DIR = new URL('../../../src/assets/models/people/', import.meta.url);
+type Fs = { readFileSync(p: URL | string): { buffer: ArrayBufferLike; byteOffset: number; byteLength: number }; readdirSync(p: URL): string[] };
+const nodeFs = async (): Promise<Fs> => (await import(/* @vite-ignore */ 'node:' + 'fs')) as unknown as Fs;
 const DEG = 180 / Math.PI;
 const IDS = ['la-delivery', 'ba-work', 'wh-elder', 'ea-kid', 'ba-puffer-braids', 'hj-man', 'ba-church-lady', 'ba-jersey-teen', 'ba-church-man', 'ca-nurse'];
 
@@ -36,7 +38,7 @@ describe('built people: arms and head', () => {
   const lib = fullLib();
   const rows: string[] = [];
   beforeAll(async () => {
-    const fs = await import('node:fs');
+    const fs = await nodeFs();
     clearPeople();
     for (const f of fs.readdirSync(DIR).filter((n) => n.endsWith('.glb')).sort()) {
       const b = fs.readFileSync(new URL(f, DIR));
@@ -110,5 +112,5 @@ describe('built people: arms and head', () => {
     }
   });
 
-  it('writes the sheet of numbers', () => { if (process.env.POSE_OUT) writeFileSync(process.env.POSE_OUT, rows.join('\n')); });
+  it('writes the sheet of numbers', () => { if (process.env.POSE_OUT) void import(/* @vite-ignore */ 'node:' + 'fs').then((fs) => fs.writeFileSync(process.env.POSE_OUT as string, rows.join('\n'))); });
 });

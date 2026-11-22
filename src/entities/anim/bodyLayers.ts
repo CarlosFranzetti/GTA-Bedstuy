@@ -131,7 +131,7 @@ function initState(st: BodyLayerState, s: BodyLayerIn): void {
   st.hBusy = age === 'kid' ? 2 : age === 'teen' ? 1.1 : age === 'old' ? 0.6 : 0.8;
   st.hIn = 1 + rnd(st) * 4;
   st.slouch = age === 'teen' ? 0.5 + 0.5 * rnd(st) : age === 'adult' ? 0.35 * rnd(st) : age === 'old' ? 0.2 * rnd(st) : 0;
-  st.gestChance = age === 'kid' ? 0.05 : age === 'teen' ? 0.6 : age === 'old' ? 0.3 : 0.5;
+  st.gestChance = age === 'kid' ? 0.05 : age === 'teen' ? 0.5 : age === 'old' ? 0.25 : 0.4;
   st.gestIn = 2 + rnd(st) * 10;
   st.gestSide = rnd(st) < 0.5 ? -1 : 1;
 }
@@ -214,9 +214,9 @@ function standing(p: Float32Array, s: BodyLayerIn, st: BodyLayerState, dt: numbe
   // a hand in a pocket: held for a while, then let go
   st.gestIn -= dt;
   if (st.gestIn <= 0) {
-    if (st.gestOn) { st.gestOn = false; st.gestIn = 5 + rnd(st) * 15; }
-    else if (rnd(st) < st.gestChance) { st.gestOn = true; st.gestKind = 1; st.gestSide = rnd(st) < 0.5 ? -1 : 1; st.gestIn = 8 + rnd(st) * 20; }
-    else st.gestIn = 4 + rnd(st) * 10;
+    if (st.gestOn) { st.gestOn = false; st.gestIn = 8 + rnd(st) * 17; }
+    else if (rnd(st) < st.gestChance) { st.gestOn = true; st.gestKind = 1; st.gestSide = rnd(st) < 0.5 ? -1 : 1; st.gestIn = 6 + rnd(st) * 14; }
+    else st.gestIn = 8 + rnd(st) * 17;
   }
   st.gestU += ((st.gestOn ? 1 : 0) - st.gestU) * (1 - Math.exp(-dt * 3));
   const g = st.gestU * sw * aw;

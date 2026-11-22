@@ -11,6 +11,8 @@ import * as THREE from 'three';
 import { readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
 import { Rng } from '@/core/Rng';
 import { PED_SPECS } from '@/textures/painters/ped';
+import { pickPedVariant } from '@/entities/models/pedBody';
+import { pickWardrobeVariant } from '@/textures/painters/pedWardrobe';
 import { clearPeople, parseShape, registerShape, shapeFor, dressLod, topHemY, buildMhPedModel, type MhShape, type MhLod } from '@/entities/models/pedMesh';
 import { bodyTypeId } from '@/entities/models/pedBodyTypes';
 import { notArm } from '@/entities/models/pedCuts';
@@ -175,20 +177,23 @@ describe('body review: measurements', () => {
     writeFileSync(`${OUT}/${TAG}-people-T.md`, ['| metric | ' + rows.map((r) => String(r.id).slice(0, 12)).join(' | ') + ' |', '|---|' + rows.map(() => '---').join('|') + '|', ...keys.slice(1).map((k) => '| ' + k + ' | ' + rows.map((r) => String(r[k])).join(' | ') + ' |')].join('\n') + '\n');
   }, 300000);
 
-  it('aggregates arm angle and heads over every civilian spec', () => {
-    const lib = fullLib(), out: Array<Record<string, number>> = [];
-    for (const sp of PED_SPECS) {
-      if (sp.role !== 'civilian') continue;
-      const p = build(sp.id, lib), m = p.m; m.group.updateMatrixWorld(true);
-      p.ctl.setIdle(null, false); for (let k = 0; k < 45; k++) p.ctl.update(1 / 30, { speed: 0 }); splay(p);
-      const a = armAngles(p), lm = p.shape.landmarks, gs = m.group.scale.y, hs = m.head.scale.y;
-      m.group.updateMatrixWorld(true);
-      out.push({ standGame: a.total, out: a.out, fwd: a.fwd, elbow: a.elbow, stature: m.group.scale.y * p.shape.height, splay: deg((m.group.userData.splay as number) ?? 0), hs: hs * gs * lm.crownY });
+  it('aggregates proportions over the street mix (300 pedestrian draws as the game picks them)', () => {
+    const lib = fullLib(), cache = new Map<string, Record<string, number | string>>(), draws: string[] = [];
+    for (let i = 0; i < 300; i++) { const rng = new Rng(Rng.hash(`ped-1-${i}`)); draws.push(PED_SPECS[pickWardrobeVariant(rng, pickPedVariant(rng), false)].id); }
+    for (const id of new Set(draws)) { const sp = PED_SPECS.find((q) => q.id === id)!; if (sp.role !== 'civilian') continue; cache.set(id, measure(build(id, lib))); }
+    const rows = draws.map((d) => cache.get(d)).filter((r): r is Record<string, number | string> => !!r);
+    const adults = rows.filter((r) => r.age === 'adult' || r.age === 'old'), res: Record<string, unknown> = { draws: rows.length, adults: adults.length, uniqueSpecs: cache.size };
+    const q = (xs: number[], f: number): number => { const a = xs.slice().sort((x, y) => x - y); return a[Math.min(a.length - 1, Math.floor(f * a.length))]; };
+    for (const k of ['stature_m', 'heads', 'bideltoid_over_H', 'chestW_over_H', 'chestD_over_H', 'waistW_over_H', 'waistD_over_H', 'hipW_over_H', 'buttD_over_H', 'headW_over_H', 'fingertipY_over_H', 'footLen_over_H', 'handLen_over_H', 'elbowBendStandGame_deg', 'kneeBendStand_deg', 'armAngleStandGame_deg', 'armAngleWalkMean_deg', 'trisInverted']) {
+      const xs = adults.map((r) => Number(r[k])).filter((x) => Number.isFinite(x)); res[k] = { p5: r3(q(xs, 0.05)), p50: r3(q(xs, 0.5)), p95: r3(q(xs, 0.95)), mean: r3(xs.reduce((a, b) => a + b, 0) / xs.length) };
     }
-    const mean = (k: string): number => r1(out.reduce((s, o) => s + o[k], 0) / out.length), mx = (k: string): number => r1(Math.max(...out.map((o) => o[k])));
+    const men = adults.filter((r) => r.sex === 'm').map((r) => Number(r.stature_m)), wom = adults.filter((r) => r.sex === 'f').map((r) => Number(r.stature_m));
+    res.statureMen = { n: men.length, p5: r2(q(men, 0.05)), p50: r2(q(men, 0.5)), p95: r2(q(men, 0.95)), max: r2(Math.max(...men)) };
+    res.statureWomen = { n: wom.length, p5: r2(q(wom, 0.05)), p50: r2(q(wom, 0.5)), p95: r2(q(wom, 0.95)), max: r2(Math.max(...wom)) };
+    const bt: Record<string, number> = {}; for (const r of rows) bt[String(r.type)] = (bt[String(r.type)] ?? 0) + 1; res.bodyTypeCounts = bt;
     mkdirSync(OUT, { recursive: true });
-    writeFileSync(`${OUT}/${TAG}-aggregate.json`, JSON.stringify({ n: out.length, armTotalMean: mean('standGame'), armTotalMax: mx('standGame'), armOutMean: mean('out'), armFwdMean: mean('fwd'), elbowMean: mean('elbow'), splayMean: mean('splay') }, null, 1));
-    expect(out.length).toBeGreaterThan(50);
+    writeFileSync(`${OUT}/${TAG}-aggregate.json`, JSON.stringify(res, null, 1));
+    expect(rows.length).toBeGreaterThan(100);
   }, 600000);
 
   it('foot slide on real bodies, steady and through speed changes', () => {

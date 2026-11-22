@@ -19,13 +19,13 @@ try {
   for (const entry of views.split(',').filter(Boolean)) {
     const [v, ...kv] = entry.split('~'), q = kv.join('&'), fname = entry.replace(/[~=]/g, '_');
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-    page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 300)); });
-    page.on('pageerror', (e) => errors.push(String(e).slice(0, 300)));
+    page.on('console', (m) => { if (m.type() === 'error') { errors.push(m.text().slice(0, 300)); console.error('console.error', m.text().slice(0, 300)); } });
+    page.on('pageerror', (e) => { errors.push(String(e).slice(0, 300)); console.error('pageerror', String(e).slice(0, 400)); });
     let r = null;
     for (let attempt = 0; attempt < 3 && !r; attempt++) {
       try {
         await page.goto(`http://localhost:${port}/scripts/body-review.html?view=${v}${q ? '&' + q : ''}`, { waitUntil: 'load', timeout: 180000 });
-        await page.waitForFunction(() => window.__ready, null, { timeout: 240000 });
+        await page.waitForFunction(() => window.__ready, null, { timeout: 120000 });
         r = await page.evaluate(() => ({ info: window.__ready, data: document.getElementById('out').toDataURL('image/png') }));
       } catch (e) { if (attempt === 2) throw e; await new Promise((x) => setTimeout(x, 3000)); }
     }

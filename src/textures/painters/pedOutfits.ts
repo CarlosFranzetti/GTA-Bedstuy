@@ -48,7 +48,7 @@ export const OUTFITS: readonly Outfit[] = [
     ways: [{ top: '#9c9a94', layer: '#6a5f48', bottom: '#3a3f48', shoes: '#5b3a24', hat: '#2f3442' }, { top: '#b4b0a4', layer: '#4a4a40', bottom: '#5b4a30', shoes: '#3a2418', hat: '#1c1c20' }, { top: '#7c8088', layer: '#5b4a30', bottom: '#2f3442', shoes: '#7a4a2a', hat: '#4a4a40' }] },
   { id: 'hiVisCrew', who: 'city utility crew: high-visibility vest over a tee, cargo trousers, boots, a hard hat', a: 'a', sx: 'm', k: 'w5 u2', season: [1, 2, 1.2],
     top: 'tee', layer: 'workVest', bottom: 'cargo', shoes: 'workBoot', hat: 'hardhat', gear: 'none',
-    ways: [{ top: '#9c9a94', layer: '#b8682c', bottom: '#4a4a40', shoes: '#3a2418', hat: '#f4f4f0' }, { top: '#3a3f48', layer: '#b9b432', bottom: '#2f3442', shoes: '#161616', hat: '#f4f4f0' }] },
+    ways: [{ top: '#9c9a94', layer: '#bc5420', bottom: '#4a4a40', shoes: '#3a2418', hat: '#f4f4f0' }, { top: '#3a3f48', layer: '#aab22e', bottom: '#2f3442', shoes: '#161616', hat: '#f4f4f0' }] },
   { id: 'clinicScrubs', who: 'clinic staff: scrubs under a fleece, clean sneakers', a: 'a', k: 'u5 w1', season: [1.5, 1.5, 1],
     top: 'scrubs', layer: 'fleece', bottom: 'workDark', shoes: 'sneakerDark', hat: 'none', gear: 'bag',
     ways: [{ top: '#3a6a74', layer: '#2f3a58', bottom: '#3a6a74', shoes: '#161616', gear: '#1c1c20' }, { top: '#2f3a58', layer: '#6c7078', bottom: '#2f3a58', shoes: '#b8b8b4', gear: '#34363e' }, { top: '#7a9ca8', layer: '#3a4a40', bottom: '#7a9ca8', shoes: '#b8b8b4', gear: '#2a2c32' }] },
