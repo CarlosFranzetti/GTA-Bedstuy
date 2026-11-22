@@ -82,3 +82,16 @@ What changed in part 2 (small, because the steady gait was already planted by AN
   (0.64 m in a frame at 30 fps, view pitch 680 degrees a second for about 0.1 s) when the player ends on the other side of a wall that was behind the lens. It is the same pull-in
   and lift-over-the-roof any walk round a corner does. If the lead wants it gone: in Camera.ts, ease `liftS` with the lens's pull-in (LIFT_UP 9) while `snappedThisFrame` is false and
   the pull-in is above 10 m/s; I did not touch it.
+
+## In the running game (one run, software rendering, no fps claimed)
+Hosted build of a COPY of the tree with the main.ts patch applied (`/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/move2/main-move2.diff`; the real main.ts is untouched), `?map=grid&q=low`, canvas hidden, Space pressed, loop stopped,
+640 x 360 frames from `renderOnce` with a free camera 3.6 m to the road side. Two parked sedans moved to 1.12 m nose to tail, the player placed in the gap facing the tail of the front one, W held,
+Jump pressed. The page crashed ("Target crashed") four times after 5 to 8 frames when other lanes were rendering, so the sequence is in three pieces.
+- `/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/move2/strip-vault-A.jpg`: frames f00 to f07 (approach, press, plant, over: about every 3 steps from the press) and f10 to f15 (the same vault, a second run, steps 7 to 22 after the press).
+- `/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/move2/strip-vault-B.jpg`: f30 to f38 (steps 22 to 46: the descent and the landing), per frame numbers in `/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/move2/game/log.txt`.
+What the frames show, honestly: the approach is a run stride; at the press the body pitches forward, a hand reaches the trunk lid, the legs swing up and to one side (f04, f05 read as a vault over the corner
+of the trunk); the figure then stays 1.1 m up (about 0.15 m above the lid) across the corner and comes down in about a third of a second (y 1.14, 0.64, 0.07, 0.01). It reads as a hurdle with a hand
+plant, not a polished slide: the legs are tucked rather than swung straight through, there is no second hand, and the landing is not seen: the camera was on the other side of the car, so from f32 on
+he is hidden behind it (the log says landed at (-6.0, 28.6), 1.4 m beside the car's centre line, on the sidewalk side, carrying 2.4 m/s). f10 to f15 are dark (the second run's lighting). The thumbnails
+are small; the poses were not checked up close from the front. NOT seen: the pinned cases in the running game, a rolling car, the sprint auto-vault, any person near the landing.
+This build was made before the lean-into-turn and the shoulder check went in: those two are headless only.

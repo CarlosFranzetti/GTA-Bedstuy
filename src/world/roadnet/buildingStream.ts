@@ -223,6 +223,7 @@ export class RealBuildingStreamer {
     // Rng.fork consumes its parent: draw the seed once, then give every lot a fresh generator so a rebuilt chunk is identical
     this.seed = Math.floor(o.rng.next() * 0xffffffff) >>> 0;
     this.root.name = 'buildings-stream';
+    this.root.userData.streamer = this; // review hook: scene.getObjectByName('buildings-stream').userData.streamer.stats()
     this.farMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
     this.chunks = this.map;
     this.addLots(o.lots);

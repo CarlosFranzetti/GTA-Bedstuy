@@ -299,6 +299,12 @@ const spawn = bootPose ? { x: bootPose.x, z: bootPose.z } : { x: HOME.x, z: HOME
 const player = new Player('player', spawn, materials, events);
 if (realWorld) player.body.heading = HOME.heading;
 player.blockedAt = (p, r, ignoreId) => physics.overlapsSolid(p, r, ignoreId);
+// MOVE2: vaulting over the low part of a car. The vehicles near a point come from the physics world (each car body's userData is the vehicle); the
+// body leaves the physics world for the length of the scripted vault, like the walk to a car door.
+player.vehiclesNear = (p, r) => physics.queryCircle(p, r).map((b) => b.userData as IVehicle).filter((v) => !!v && !!v.spec && v.body.kind !== 'player');
+player.onVaultStart = () => physics.removeBody(player.body.id);
+player.onVaultEnd = () => physics.addBody(player.body);
+let vaultPromptUp = false;
 player.onBump = (strength) => cam.addShake(0.12 * strength); // a hard bump into a wall or a person shakes the view a little
 Pedestrian.lookAtPoint = player.body.pos; // a live point: people nearby glance at the player
 if (saved && bootPose) { player.body.heading = bootPose.heading; dayNight.timeOfDay = saved.hour; }
@@ -863,6 +869,7 @@ game.add({
     for (const p of traffic.peds) { p.update(dt); entityById.set(p.body.id, p); }
     player.update(dt);
     entityById.set(player.body.id, player);
+    if (player.vaultPrompt !== vaultPromptUp) { vaultPromptUp = player.vaultPrompt; if (vaultPromptUp) hud.showToast('Jump: climb over'); } // boxed in for 1.5 s: say how to get out
 
     // physics
     const contacts = physics.step(dt);

@@ -3521,3 +3521,6 @@ Police lane wrap-up: grid map checked in the running game from three punches to 
 
 ### 2026-11-22T15:47:28Z · Ilse Marrow (TEXTURES2)
 Starting. Far buildings first: the massing in buildingStream.ts gets a facade from the sheet, then more surface textures where the frame is flat.
+
+### 2026-11-22T15:51:30Z · Teddy Okonkwo (MOVE2)
+MOVE2 wrap-up: vault over hoods and decks (pinned rescue, climb over, squeeze, auto-vault), a hand-keyed vault pose, lean into turns, shoulder check. 41 vault tests + 7 gait tests green, camfix vault scenarios green. main.ts diff in scratchpad/move2/main-move2.diff. Notes: docs/swarm/tasks/MOVE2.md

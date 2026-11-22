@@ -46,7 +46,7 @@ it (axle 0.578 L on the sedan, as the real car), tyres keep their real diameter,
 ### New sizes (m)
 | type | before L x W x H | after L x W x H | basis |
 |---|---|---|---|
-| sedan | 4.88 x 1.84 x 1.45 | 4.78 x 1.83 x 1.44 | between a 2022 compact (Civic, maker) and the Camry XV70 (4.88, the earlier lane's search) |
+| sedan | 4.88 x 1.84 x 1.45 | 4.82 x 1.83 x 1.44 | between a 2022 compact (Civic, maker) and the Camry XV70 (4.88, the earlier lane's search) |
 | suv | 5.05 x 2.00 x 1.78 | 4.85 x 1.93 x 1.74 | mid-size 2-3 row class (estimate from memory: Highlander / Edge class 4.8 to 4.95); the police SUV keeps 5.05 x 2.00 (Explorer-based) |
 | crossover | 4.694 x 1.867 x 1.68 | 4.60 x 1.85 x 1.66 | compact crossover class (RAV4-like 4.6 x 1.86 x 1.69, estimate) |
 | bigsuv | 5.55 x 2.00 x 1.95 | 5.35 x 2.05 x 1.92 | 2022 Tahoe, Edmunds |
@@ -96,3 +96,35 @@ Fixes:
 * `textures/painters/vehicle.ts`: tyre rubber `#222223` (was `#161616`), ribs a step lighter. Same canvas size, so no texture memory change.
 Not done for part 2: a per-tyre contact patch and an ambient shadow that follows the body outline (the decal is a rounded box), a car-receives-shadow
 change (kept off: it would double the sun shadow and cost shadow-sampling on every car material), and a wheel arch painted lighter.
+
+### Evidence (frames at 640 x 360, software rendering; no frame rates)
+* `scratchpad/cars5/lineup/before-side.jpg`, `before-front.jpg`: all 45 types at one scale (`scripts/carlineup.mjs`, orthographic, 1.75 m figure, 5 m ruler).
+  `after-side.jpg`, `after-front.jpg`: 16 main types after the change (sedan has since moved from 4.78 to 4.82 m; the picture shows 4.78).
+* Hover, before: `game-park-before/before-17.5-sedan-q3.jpg` (a parked sedan at the kerb at 17:30 seen from 3.5 m: smooth grey body, dark wheel stubs, no
+  contact shadow, the car floats; it is the far proxy, 8-gon wheels); `game-before2/sheet-q3.jpg` (taxi, van, box truck lit and unshadowed).
+  After: `game-park-after/` and `game-after/` (same cameras; the traffic of the two runs differs, so a car is not the same pair in every frame).
+* In-game numbers from `renderer.info` at 17:30, low tier, same camera family: 400 to 430 k triangles and 190 to 238 draw calls before, 380 to 437 k
+  and 199 to 232 after (the traffic differed between the two runs, so the +/- is traffic, not the change; the blob is by design +1 draw call).
+
+## Part 3: shapes after real vehicles: NOT redone
+I looked at the line-up and at the style data first. The 29 loft styles in `carBodies.ts` were already built from published figures by CARS12, CARS14 and
+CARS2: each has its real wheelbase (axle position), hood / cabin / deck breakpoints (`secs`), windshield and rear-glass rake, belt height, tumblehome (`plan`), era
+lamp and grille type, and the van and truck boxes. The sedan's wheelbase is 0.578 of its length (the real car 0.579). Re-proportioning them again by eye without a
+side-by-side with open photos would have risked making them worse, and my budget went into parts 1 and 2. What the line-up shows that could still be improved
+(not done): the cab, cop and wagon read alike in side view; the hatch reads as a wagon; the pickup bed side is a flat slab; the 1990s three-box
+flat hood versus the current high-beltline SUV is subtle (belt heights 0.98 against 1.17 are right, the hood lengths could differ more).
+
+## Triangles and draws per car (unchanged: sizes scale the same meshes)
+sedan 6,998 full / 3,926 lite, suv 5,374 / 3,262, pickup 5,088 / 3,146, bigsuv 5,768 / 3,430, cargovan 4,526 / 2,914, boxtruck 4,128 / 3,296 (all
+before and after; `measure-after.csv` has all types). Far proxies untouched (under 1.2 k). Draw calls per car unchanged (6 near). Phone: the car blob
+was already on and stays one draw call; texture memory unchanged (tyre painter same size; blob texture same 64 px).
+
+## Tests
+* `tests/unit/entities/ai-trajectory.test.ts` fixture re-recorded on purpose (`UPDATE_AI_TRAJ=1`): the sedan, SUV and pickup are shorter now, so the
+  recorded AI trajectories of those three changed. The test's rule (AI cars keep their pre-CARS3 handling) still holds: the handling code is unchanged.
+* `tests/unit/render/phone-gfx.test.ts`: one assertion changed (setEnabled(false) now keeps one car-blob draw call; pedestrians off).
+* `tests/unit/entities/cars5-measure.test.ts`: the measuring tool; writes a CSV only when `CARS5_TAG` is set.
+* Sim sensitivity: with a 4.78 m sedan the real-map cop test "the pursuit ends when the stars decay" failed (stars climbed to 3 in that seeded run and
+  did not decay in 230 s); with the old 4.88 and with 4.82 it passes. This is a chaotic seeded run, not a logic fault; I took 4.82 m (still between the Civic 4.67
+  and the Camry 4.88).
+* Other red in `tests/unit/entities`: vault-pinned-strip (camfix, other lane's vault.ts work in the tree), pedround5 shoe hem (known 2 mm check).
