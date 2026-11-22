@@ -20,7 +20,7 @@ export const VEHICLE_SPECS: Record<VehicleType, VehicleSpec> = {
   // accel is the launch acceleration; the thrust curve a = accel * (throttle - (v/maxSpeed)^2) makes
   // 0 -> 0.93*maxSpeed take ~6 s for the sedan (= 0-100 km/h) and ~12 s for the box truck.
   sedan: { type: 'sedan', name: 'Sedan', length: 4.82, width: 1.83, height: 1.44, maxSpeed: 30, accel: 8, brakeDecel: 14, maxSteer: 0.6, color: '#8a8f98', mass: 1550, grip: 1.0, steerRate: 1.0, enginePitch: 1.0 },
-  suv: { type: 'suv', name: 'SUV', length: 4.85, width: 1.93, height: 1.74, maxSpeed: 27, accel: 7, brakeDecel: 14, maxSteer: 0.6, color: '#2c3e50', mass: 2100, grip: 0.95, steerRate: 0.92, enginePitch: 0.9 },
+  suv: { type: 'suv', name: 'SUV', length: 4.95, width: 1.93, height: 1.74, maxSpeed: 27, accel: 7, brakeDecel: 14, maxSteer: 0.6, color: '#2c3e50', mass: 2100, grip: 0.95, steerRate: 0.92, enginePitch: 0.9 },
   // ROSTER: sizes follow the real class, see the style comments in models/carBodies.ts (box truck: Isuzu NPR 16 ft box, bus: 40 ft transit bus)
   boxtruck: { type: 'boxtruck', name: 'Box truck', length: 7, width: 2.44, height: 3.3, maxSpeed: 20, accel: 2.7, brakeDecel: 12, maxSteer: 0.6, color: '#e8e8e8', mass: 3500, grip: 0.9, steerRate: 0.8, enginePitch: 0.7, camDist: 2.5, camHeight: 0.8 },
   cargovan: { type: 'cargovan', name: 'Cargo van', length: 5.7, width: 2.03, height: 2.62, maxSpeed: 25, accel: 5, brakeDecel: 12, maxSteer: 0.6, color: '#ecf0f1', mass: 2400, grip: 0.9, steerRate: 0.88, enginePitch: 0.82, camDist: 2.0, camHeight: 0.7 },

@@ -63,7 +63,7 @@ describe('tutorial: the card', () => {
     const m = makeTutorial();
     frames(m.t, 0.3);
     expect(line(m)).toContain('look around');
-    expect(card(m).querySelector('.tut-why')?.textContent).toMatch(/camera follows/i);
+    expect(card(m).querySelector('.tut-why')?.textContent).toMatch(/who is behind you/i);
     expect(card(m).querySelectorAll('.tut-dots i').length).toBeGreaterThan(10);
     expect(card(m).querySelector('.tut-skip')?.textContent).toContain('Skip tutorial');
     expect(card(m).querySelector('.tut-skip kbd')?.textContent).toBe('Backspace');
@@ -331,6 +331,18 @@ describe('tutorial: hints', () => {
     expect(line(m)).toContain('look around');
     keydown('Backspace'); frames(m.t, 0.5);
     expect(card(m).classList.contains('on')).toBe(false);       // the missed hint is not replayed later
+  });
+
+  it('a save loaded from the pause menu ends the tutorial and the hints for the rest of the session', () => {
+    const m = makeTutorial();
+    frames(m.t, 0.3);
+    m.g.events.emit('wantedChanged', { stars: 2 });   // the load itself sets the stars
+    m.t.cancel();
+    frames(m.t, 1);
+    m.g.events.emit('wantedChanged', { stars: 1 }); m.g.state.raining = true;
+    frames(m.t, 2);
+    expect(card(m).classList.contains('on')).toBe(false);
+    expect(m.t.active).toBe(false);
   });
 
   it('shows the keys of the device in hand', () => {

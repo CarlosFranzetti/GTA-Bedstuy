@@ -37,7 +37,7 @@ export function eyeShapeOf(spec: PedSpec): EyeShape {
   const k = (tired ? 0.88 : amused ? 0.95 : 1) * (kidish ? 1.08 : 1) * (face.eyes === 'wide' ? 1.1 : face.eyes === 'sleepy' ? 0.84 : 1) * (1 - 0.2 * heavy);
   return {
     a: 0.0152 * eyeK, bUp: 0.0072 * k, bLo: 0.0027 * (amused ? 0.72 : 1) * (1 + 0.1 * heavy),
-    tilt: 0.0009 + 0.0004 * tl, ri: 0.0057 * (kidish ? 1.08 : 1), iy: 0.0021 - 0.0006 * heavy, gx: 0.0009 * (gz - 0.5), heavy, eyeK,
+    tilt: 0.0009 + 0.0004 * tl, ri: 0.0065 * (kidish ? 1.06 : 1), iy: 0.0019 - 0.0006 * heavy, gx: 0.0009 * (gz - 0.5), heavy, eyeK,
   };
 }
 /** the upper and lower edge of the opening at u = x / a (|u| < 1) */

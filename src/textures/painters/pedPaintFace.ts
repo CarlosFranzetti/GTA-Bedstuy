@@ -80,6 +80,9 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
     let slot = K.eyes[x < 0 ? 0 : 1];
     const pxq = t.q % K.size, pyq = (t.q / K.size) | 0, rr = K.eyeRect ? K.eyeRect[x < 0 ? 0 : 1] : null;
     let loc = !!slot && Math.abs(pxq - slot.cx) < 60 && Math.abs(pyq - slot.cy) < 40;
+    // FACES4: the lids of the shipped mesh are squeezed in the unwrap, so other triangles (the old lid ring, the folds under the eye) share texels with the eye's neighbourhood and showed a ghost of it, a pale lens
+    // with an outline under each eye. A texel counts as the eye only when its own position is at the eye (the map-space frame is for the squeezed lids themselves, a few mm off the nominal centre at most).
+    if (loc && (Math.abs(xm - 0.029 - (pxq - slot!.cx) * slot!.dirx * slot!.sx) > 0.002 || Math.abs(ym - (slot!.cy - pyq) * slot!.sy) > 0.002)) loc = false;
     if (rr && pxq >= rr.x0 && pxq < rr.x0 + rr.w && pyq >= rr.y0 && pyq < rr.y0 + rr.h) { slot = rr; loc = true; }
     const exm = loc ? (pxq - slot!.cx) * slot!.dirx * slot!.sx : xm - 0.029;
     const eym = loc ? (slot!.cy - pyq) * slot!.sy : ym;
@@ -92,7 +95,7 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
       if (isOpen && dUp > 0 && dLo > 0) {
         // inside the opening: the white of the eye (off-white, never pure, yellower with years), shaded under the upper lid and into the corners, then the iris
         const sc = mixc(SCLERA, [224, 210, 182], Math.min(0.6, 0.3 * K.wear));
-        const shade = 0.66 * sst(0.0052, 0.0, dUp) + 0.2 * sst(0.0022, 0.0, dLo) + 0.34 * sst(0.45, 1.0, Math.abs(u));
+        const shade = 0.5 * sst(0.0042, 0.0, dUp) + 0.16 * sst(0.0018, 0.0, dLo) + 0.26 * sst(0.5, 1.0, Math.abs(u));
         o.set(sc).mix(SCLERA_SH, Math.min(0.95, shade));
         o.mix([188, 92, 84], (0.06 + 0.12 * Math.min(1.3, K.wear)) * sst(0.55, 0.95, Math.abs(u)) * (0.6 + 0.4 * vn2(exm * 700, eym * 300, 17)));   // a little red in the corners
         o.mix(CARUNCLE, 0.55 * sst(-0.7, -0.94, u) * sst(0.0, 0.0016, dLo));
@@ -113,7 +116,7 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
         o.tint(K.skinSh, 0.5 * sst(0.0016, 0.0, dUp));                                                                         // the upper lid's shadow on the ball (the lid has thickness)
         o.mix([236, 226, 216], 0.22 * g2(dLo - 0.0003, 0.00035) * sst(0.95, 0.5, Math.abs(u)));                                 // the wet line along the lower lid
         // lash line on the upper lid, thick and dark; a fine line under the lower lid
-        o.mix(lashC, 0.96 * sst(lashT * 1.25, 0.0, dUp));
+        o.mix(lashC, 0.96 * sst(lashT * 0.8, 0.0, dUp));                                                                      // (inside the opening the lash line is thin: the thick part is on the lid)
         o.mix(mixc(K.skinSh, [40, 24, 22], 0.4), 0.2 * sst(0.0008, 0.0, dLo));
       } else if (isOpen) {
         // outside: the lid skin, its crease above, the lower lid

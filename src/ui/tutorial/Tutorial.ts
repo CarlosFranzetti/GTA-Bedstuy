@@ -60,6 +60,8 @@ export class Tutorial {
   private readonly o: TutorialOptions;
   private readonly hints: readonly HintDef[];
   private pendingStart: boolean;
+  /** A save was loaded, at boot or since (the pause menu's Load): no hints for the rest of the session. */
+  private loaded: boolean;
   private graceT = 0;
   private unboundT = 0;
   private padDown = false;
@@ -78,6 +80,7 @@ export class Tutorial {
     this.ctx.held = (code) => opts.host.input.isDown(code);
     this.card = new TutorialCard(opts.root, { onSkip: () => this.skip(), onNext: () => this.next() });
 
+    this.loaded = opts.loadedSave;
     this.pendingStart = !opts.loadedSave && !this.store.started;
     if (!opts.loadedSave) opts.police.setGrace(GRACE_NEW_GAME); // the first two minutes of a new game, as before; the tutorial tops it up
     if (this.pendingStart) this.markTouchCardSeen(); // the old first-run card on a phone is folded into this one
@@ -123,7 +126,7 @@ export class Tutorial {
 
   /** A save was loaded or a new game began under the tutorial: whatever is on the card goes. */
   cancel(): void {
-    this.pendingStart = false;
+    this.pendingStart = false; this.loaded = true;
     this.engine.cancel();
     this.queue = []; this.shown = null;
     this.card.hide();
@@ -171,7 +174,7 @@ export class Tutorial {
   // ---- hints ---------------------------------------------------------------------------------------------------------
 
   private hintsAllowed(): boolean {
-    return this.store.hintsOn && (!this.o.loadedSave || !!this.o.hintsWithSave) && !this.engine.running && !this.pendingStart;
+    return this.store.hintsOn && (!this.loaded || !!this.o.hintsWithSave) && !this.engine.running && !this.pendingStart;
   }
 
   private enqueue(h: HintDef): void {
@@ -212,7 +215,7 @@ export class Tutorial {
 
   /** The player was never near a car during the tutorial: the first car they get into brings the car steps back, once. */
   private maybeResumeChapter(): void {
-    if (this.disposed || this.engine.running || this.pendingStart || this.o.loadedSave) return;
+    if (this.disposed || this.engine.running || this.pendingStart || this.loaded) return;
     if (this.store.outcome !== 'done') return;
     const ids = this.store.deferred.filter((id) => CAR_CHAIN.includes(id) && id !== 'vault' && id !== 'car');
     if (ids.length === 0) return;

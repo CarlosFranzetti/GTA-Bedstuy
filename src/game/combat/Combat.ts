@@ -573,7 +573,7 @@ export class Combat {
     if (force === 'shot' || force === 'blast') b.spray(x, CHEST, z, dx, dz);
     else if (force === 'light') { if (worn) b.burst(x, 1.5, z, dx, dz, 0.5); }
     else b.burst(x, 1.4, z, dx, dz, force === 'club' || force === 'heavy' ? 1 : 0.8);
-    if (res === 'knockedOut') b.pool(x + dx * 0.1, z + dz * 0.1);
+    if (res === 'knockedOut') b.pool(x, z);
   }
 
   /** A person's punch landed on the player. */

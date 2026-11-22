@@ -25,7 +25,7 @@ export const STEPS: readonly StepDef[] = [
     id: 'look',
     text: { keyboard: 'Move the mouse to look around.', gamepad: 'Push the {look} to look around.', touch: 'Drag on the right side of the screen to look around.' },
     plain: { keyboard: 'Slide the mouse side to side. If the view will not turn, click the game once.', gamepad: 'Push the {look} left or right.', touch: 'Put a thumb on the right half of the screen and drag.' },
-    why: 'The camera follows where you look. So does trouble.',
+    why: 'Worth knowing who is behind you.',
     start: (c, s) => { s.acc.prev = c.yaw; },
     done: (c, s) => { add(s, 'turn', Math.abs(angDiff(c.yaw, s.acc.prev ?? c.yaw))); s.acc.prev = c.yaw; return (s.acc.turn ?? 0) >= 1.1; },
   },
@@ -95,7 +95,7 @@ export const STEPS: readonly StepDef[] = [
   {
     id: 'radio',
     text: { keyboard: 'Press {radioNext} for the next station and {radioPrev} for the previous one.', gamepad: 'Press {radioNext} for the next station and {radioPrev} for the previous one.', touch: 'Tap {=RADIO} for the next station.' },
-    plain: { keyboard: 'Tap {radioNext}, then {radioPrev}. The wheel works too.', gamepad: 'Tap the d-pad right, then left.', touch: 'Tap {=RADIO}.' },
+    plain: { keyboard: 'Tap {radioNext} for the next one, then tap {radioPrev} to go back. The mouse wheel works too.', gamepad: 'Tap {radioNext}, then {radioPrev}.', touch: 'Tap {=RADIO}.' },
     why: 'The stations are real mixes and live streams.',
     when: (c) => c.inVehicle,
     start: (c, s) => mark(c, s, 'KeyE', 'RadioPrev'),
@@ -119,7 +119,7 @@ export const STEPS: readonly StepDef[] = [
   {
     id: 'action',
     text: { keyboard: '{attack} uses what is in your hands. {itemNext} changes what you carry.', gamepad: '{attack} uses what is in your hands. {itemNext} changes what you carry.', touch: 'Tap {=ACT} to use what is in your hands. Tap the item icon to change it.' },
-    plain: { keyboard: 'Press {attack} now. Then press {itemNext}.', gamepad: 'Pull {attack} now. Then press {itemNext}.', touch: 'Tap {=ACT} now.' },
+    plain: { keyboard: 'Use {attack} now, then {itemNext}.', gamepad: 'Use {attack} now, then {itemNext}.', touch: 'Tap {=ACT} now.' },
     why: 'Fists to start. Pick things up and the same button does more.',
     when: (c) => !c.inVehicle,
     start: (c, s) => mark(c, s, 'ActionButton', 'ItemNext', 'ItemPrev'),
@@ -141,7 +141,7 @@ export const STEPS: readonly StepDef[] = [
     id: 'map',
     text: { keyboard: 'Press {map} for the map, then click a spot to drop a waypoint.', gamepad: 'Open Map from the phone, then press {confirm} on a spot to drop a waypoint.', touch: 'Open Map from the phone, then tap a spot to drop a waypoint.' },
     plain: { keyboard: 'Press {map}. Click anywhere on the map. A pin appears and the arrow follows it.', gamepad: 'Open the phone, pick Map, move to a spot and press {confirm}.', touch: 'Open the phone, pick Map and tap anywhere.' },
-    why: 'The pin shows on your minimap and as an arrow on the street.',
+    why: 'The pin shows on the map, and the arrow at the top follows it.',
     done: (c, s) => (s.seen.has('map') || s.seen.has('phone')) && c.waypoint,
   },
   {
@@ -153,11 +153,11 @@ export const STEPS: readonly StepDef[] = [
   {
     id: 'home',
     last: true,
-    text: { keyboard: 'Your place is the green awning. Press {pointAt} and an arrow points the way.', gamepad: 'Your place is the green awning. Find it on the map and set a waypoint.', touch: 'Your place is the green awning. Tap the arrow at the top of the screen to point at it.' },
-    why: 'Jobs start from the markers on the map. Home is a good first stop.',
+    text: { keyboard: 'The arrow at the top points to the nearest job. {pointAt} points it at home, the green awning.', gamepad: 'The arrow at the top points to the nearest job. Home is the green awning.', touch: 'The arrow at the top points to the nearest job. Tap it to point at home, the green awning.' },
+    why: 'Jobs start at the markers on the map. Go and find one.',
     auto: 14,
     start: (c, s) => { s.base.pointed = c.presses('PointKey'); },
-    done: (c, s) => c.homeDist < HOME_NEAR_M || c.presses('PointKey') > Number(s.base.pointed),
+    done: (c, s) => (s.t >= 4 && c.homeDist < HOME_NEAR_M) || c.presses('PointKey') > Number(s.base.pointed),
   },
 ];
 

@@ -22,6 +22,25 @@ import { playerSpot } from './realtraffic-run';
 
 const HALF_PI = Math.PI / 2;
 
+// jsdom has no 2D canvas: the world builder paints textures, so give it a context that accepts every call
+const ctx2d = (): unknown => new Proxy({}, {
+  get: (_t, k) => {
+    if (k === 'measureText') return () => ({ width: 10 });
+    if (k === 'getImageData' || k === 'createImageData') return (_x: number, _y: number, w = 1, h = 1) => ({ data: new Uint8ClampedArray(Math.max(4, w * h * 4)), width: w, height: h });
+    if (/^create.*Gradient$/.test(String(k))) return () => ({ addColorStop() {} });
+    if (k === 'createPattern') return () => ({});
+    if (k === 'canvas') return document.createElement('canvas');
+    return () => undefined;
+  },
+  set: () => true,
+});
+/** Build the grid map's physics with the permissive context, then put the real (absent) one back. */
+function gridPhysics(): ReturnType<typeof realPhysics> {
+  const proto = HTMLCanvasElement.prototype; const was = proto.getContext;
+  proto.getContext = ((): unknown => ctx2d()) as never;
+  try { return realPhysics(); } finally { proto.getContext = was; }
+}
+
 interface Scene { physics: World2D; start: { x: number; z: number } }
 
 /** A start spot with 45 m of open ground to the west (the scripted player runs along -x) and 8 m either side. */
@@ -80,7 +99,11 @@ function play(scene: Scene): { log: string[]; completed: string[]; outcome: stri
     sinceStep += DT; t += DT;
     if (tut.engine.completed.includes('out') && pickup.x > start.x + 100) {
       const p0 = player.body.pos;
-      pickup = [[2.5, 0], [-2.5, 0], [0, 2.5], [0, -2.5]].map(([ox, oz]) => ({ x: p0.x + ox, z: p0.z + oz })).find((q) => !physics.overlapsSolid(q, 0.4)) ?? { x: p0.x + 2.5, z: p0.z };
+      const free = (ox: number, oz: number): boolean => [1, 1.5, 2, 2.5].every((f) => !physics.overlapsSolid({ x: p0.x + ox * f / 2.5, z: p0.z + oz * f / 2.5 }, 0.4));
+      const away = { x: p0.x - car.body.pos.x, z: p0.z - car.body.pos.z };   // out from the car they just left
+      const dirs = ([[2.5, 0], [-2.5, 0], [0, 2.5], [0, -2.5]] as const).slice().sort((a, b) => (b[0] * away.x + b[1] * away.z) - (a[0] * away.x + a[1] * away.z));
+      const [ox, oz] = dirs.find(([a, b]) => free(a, b)) ?? dirs[0];
+      pickup = { x: p0.x + ox, z: p0.z + oz };
     }
     const cd = Math.hypot(car.body.pos.x - player.body.pos.x, car.body.pos.z - player.body.pos.z);
     // --- what the person on the keyboard does for the step on the card
@@ -130,7 +153,7 @@ function play(scene: Scene): { log: string[]; completed: string[]; outcome: stri
 
 describe('the tutorial, scripted, with the real systems', () => {
   it('on the grid map: a scripted player completes every step, in the order of what is near, and the tutorial finishes', () => {
-    const { physics } = realPhysics();
+    const { physics } = gridPhysics();
     const start = clearStart(physics, { x: 9, z: 20 });
     const r = play({ physics, start });
     const missing = STEP_IDS.filter((id) => !r.completed.includes(id));

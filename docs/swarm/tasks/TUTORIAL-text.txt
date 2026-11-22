@@ -1,0 +1,164 @@
+TUTORIAL text as drawn with the default bindings (Xbox names on a pad). Generated from src/ui/tutorial/steps.ts and hints.ts. Caps are shown plain.
+
+look
+  keyboard: Move the mouse to look around.
+    (after 20 s) Slide the mouse side to side. If the view will not turn, click the game once.
+  gamepad: Push the Right stick to look around.
+    (after 20 s) Push the Right stick left or right.
+  touch: Drag on the right side of the screen to look around.
+    (after 20 s) Put a thumb on the right half of the screen and drag.
+  why: Worth knowing who is behind you.
+
+walk
+  keyboard: Hold W A S D to walk.
+    (after 20 s) Hold W to go forward. A and D go left and right.
+  gamepad: Push the Left stick to walk.
+    (after 20 s) Push the left stick forward.
+  touch: Hold a thumb on the left side of the screen and drag to walk.
+    (after 20 s) Press and hold on the left half, then drag the way you want to go.
+  why: The stoops, the avenue and the corner store are all a walk away.
+
+run
+  keyboard: Hold Shift while you walk to run.
+  gamepad: Hold A while you walk to run.
+  touch: Tap RUN to run, tap it again to stop.
+  why: Walking is a jog already. This is the fast one.
+
+jump
+  keyboard: Press Space to jump.
+  gamepad: Press X to jump.
+  touch: Tap JUMP to jump.
+  why: Handy for low fences.
+
+vault
+  keyboard: Run at the hood of a parked car and press Space to go over it.
+    (after 20 s) Face the front of the car from a step away, run at it and press Space.
+  gamepad: Run at the hood of a parked car and press X to go over it.
+    (after 20 s) Face the front of the car from a step away, run at it and press X.
+  touch: Run at the hood of a parked car and tap JUMP to go over it.
+    (after 20 s) Face the front of the car from a step away, run at it and tap JUMP.
+  why: Boxed in between two cars? Same move gets you out.
+
+car
+  keyboard: Walk up to a car and press F to get in.
+    (after 20 s) Stand beside a door of any parked car and press F.
+  gamepad: Walk up to a car and press Y to get in.
+    (after 20 s) Stand beside a door of any parked car and press Y.
+  touch: Walk up to a car and tap CAR to get in.
+    (after 20 s) Stand beside a door of any parked car. The CAR button lights up. Tap it.
+  why: Walking is fine. Driving is faster.
+
+drive
+  keyboard: Hold W to drive. A and D steer.
+  gamepad: Pull RT to drive. Steer with the Left stick.
+  touch: Hold GAS to drive. Steer with your left thumb.
+  why: Take the road. Mind the pedestrians.
+
+brake
+  keyboard: Hold S to brake. Tap Space for the handbrake.
+    (after 20 s) While moving, hold S. Then tap Space for a short slide.
+  gamepad: Hold LT to brake. Press RB for the handbrake.
+    (after 20 s) While moving, hold LT. Then press RB for a short slide.
+  touch: Tap BRAKE to brake and HAND for the handbrake.
+    (after 20 s) While moving, hold BRAKE. Then tap HAND for a short slide.
+  why: The handbrake locks the back wheels. Good for corners, hard on tyres.
+
+camera
+  keyboard: Hold C to look behind. Press V to change the view.
+  gamepad: Hold R3 to look behind. Press View to change the view.
+  touch: Hold BACK to look behind. Tap VIEW to change the view.
+  why: Useful when someone is following you.
+
+radio
+  keyboard: Press . for the next station and , for the previous one.
+    (after 20 s) Tap . for the next one, then tap , to go back. The mouse wheel works too.
+  gamepad: Press D-pad right for the next station and D-pad left for the previous one.
+    (after 20 s) Tap D-pad right, then D-pad left.
+  touch: Tap RADIO for the next station.
+    (after 20 s) Tap RADIO.
+  why: The stations are real mixes and live streams.
+
+out
+  keyboard: Press F to get out.
+  gamepad: Press Y to get out.
+  touch: Tap EXIT to get out.
+  why: The car stays where you leave it.
+
+pickup
+  keyboard: Walk over the glow on the ground to pick it up.
+  gamepad: Walk over the glow on the ground to pick it up.
+  touch: Walk over the glow on the ground to pick it up.
+  why: Whatever is lying there is yours.
+
+action
+  keyboard: Left click uses what is in your hands. Tab changes what you carry.
+    (after 20 s) Use Left click now, then Tab.
+  gamepad: RT uses what is in your hands. LB changes what you carry.
+    (after 20 s) Use RT now, then LB.
+  touch: Tap ACT to use what is in your hands. Tap the item icon to change it.
+    (after 20 s) Tap ACT now.
+  why: Fists to start. Pick things up and the same button does more.
+
+police
+  keyboard: Minor trouble builds heat. Get seen too often and you are wanted. Stand still for an officer and you are busted.
+  gamepad: Minor trouble builds heat. Get seen too often and you are wanted. Stand still for an officer and you are busted.
+  touch: Minor trouble builds heat. Get seen too often and you are wanted. Stand still for an officer and you are busted.
+  why: Nothing counts against you for now. That ends.
+
+phone
+  keyboard: Press Up to open the phone.
+  gamepad: Press D-pad up to open the phone.
+  touch: Tap PHONE to open the phone.
+  why: Messages, jobs and the map apps come through it.
+
+map
+  keyboard: Press M for the map, then click a spot to drop a waypoint.
+    (after 20 s) Press M. Click anywhere on the map. A pin appears and the arrow follows it.
+  gamepad: Open Map from the phone, then press A on a spot to drop a waypoint.
+    (after 20 s) Open the phone, pick Map, move to a spot and press A.
+  touch: Open Map from the phone, then tap a spot to drop a waypoint.
+    (after 20 s) Open the phone, pick Map and tap anywhere.
+  why: The pin shows on the map, and the arrow at the top follows it.
+
+pause
+  keyboard: Press Esc to pause. Settings, Controls and Save are in there.
+  gamepad: Press Menu to pause. Settings, Controls and Save are in there.
+  touch: Tap the pause button, top right. Settings, Controls and Save are in there.
+  why: You can replay this tutorial from Settings, under Game.
+
+home
+  keyboard: The arrow at the top points to the nearest job. N points it at home, the green awning.
+  gamepad: The arrow at the top points to the nearest job. Home is the green awning.
+  touch: The arrow at the top points to the nearest job. Tap it to point at home, the green awning.
+  why: Jobs start at the markers on the map. Go and find one.
+
+goodbye: That is the lot. The block is yours.
+
+Offer after 45 s: keyboard "Taking a while? Enter moves on."; pad "Taking a while? D-pad down skips the tutorial."; phone: a Next button.
+
+HINTS (each once; the card adds "Hint. You can turn hints off in Settings.")
+
+wanted
+  keyboard: You are wanted. Get out of sight and keep moving, or stand still and take the fine.
+  gamepad: You are wanted. Get out of sight and keep moving, or stand still and take the fine.
+  touch: You are wanted. Get out of sight and keep moving, or stand still and take the fine.
+
+shop
+  keyboard: The records are in the bins. Stand by them and press F.
+  gamepad: The records are in the bins. Stand by them and press Y.
+  touch: The records are in the bins. Stand by them and tap CAR.
+
+record
+  keyboard: That one is yours now. Play it on the decks at home or at the club.
+  gamepad: That one is yours now. Play it on the decks at home or at the club.
+  touch: That one is yours now. Play it on the decks at home or at the club.
+
+decks
+  keyboard: On the decks, match the tempo, line up the beats, then slide the crossfader on a bar line.
+  gamepad: On the decks, match the tempo, line up the beats, then slide the crossfader on a bar line.
+  touch: On the decks, match the tempo, line up the beats, then slide the crossfader on a bar line.
+
+rain
+  keyboard: Rain. It will pass. The city looks its best wet.
+  gamepad: Rain. It will pass. The city looks its best wet.
+  touch: Rain. It will pass. The city looks its best wet.

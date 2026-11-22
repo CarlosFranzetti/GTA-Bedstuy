@@ -1,6 +1,6 @@
 # CARS5: vehicle sizes, the hovering look, real-vehicle shapes (22 Nov 2026)
 
-Status: in progress (written early, kept current). Lane CARS5, vehicle artist-programmer.
+Status: parts 1 and 2 done and checked; part 3 not redone (see below). Sims green (20 files, 229 tests) on the final sizes. Lane CARS5, vehicle artist-programmer.
 
 ## Owner's words (22 Nov)
 - Large cars, SUVs and trucks feel larger and longer than they should against sedans and sports cars.
@@ -47,7 +47,7 @@ it (axle 0.578 L on the sedan, as the real car), tyres keep their real diameter,
 | type | before L x W x H | after L x W x H | basis |
 |---|---|---|---|
 | sedan | 4.88 x 1.84 x 1.45 | 4.82 x 1.83 x 1.44 | between a 2022 compact (Civic, maker) and the Camry XV70 (4.88, the earlier lane's search) |
-| suv | 5.05 x 2.00 x 1.78 | 4.85 x 1.93 x 1.74 | mid-size 2-3 row class (estimate from memory: Highlander / Edge class 4.8 to 4.95); the police SUV keeps 5.05 x 2.00 (Explorer-based) |
+| suv | 5.05 x 2.00 x 1.78 | 4.95 x 1.93 x 1.74 | mid-size 3-row class (estimate from memory: Highlander 4.95 x 1.93 x 1.73; 4.85 failed a physics assertion, see Tests); the police SUV keeps 5.05 x 2.00 (Explorer-based) |
 | crossover | 4.694 x 1.867 x 1.68 | 4.60 x 1.85 x 1.66 | compact crossover class (RAV4-like 4.6 x 1.86 x 1.69, estimate) |
 | bigsuv | 5.55 x 2.00 x 1.95 | 5.35 x 2.05 x 1.92 | 2022 Tahoe, Edmunds |
 | pickup | 5.885 x 2.03 x 1.96 | 5.60 x 2.00 x 1.90 | short-bed crew / extended cab class (estimate; the F-150 crew cab 5.5 ft bed is 5.885 per Edmunds) |
@@ -128,3 +128,14 @@ was already on and stays one draw call; texture memory unchanged (tyre painter s
   did not decay in 230 s); with the old 4.88 and with 4.82 it passes. This is a chaotic seeded run, not a logic fault; I took 4.82 m (still between the Civic 4.67
   and the Camry 4.88).
 * Other red in `tests/unit/entities`: vault-pinned-strip (camfix, other lane's vault.ts work in the tree), pedround5 shoe hem (known 2 mm check).
+* `tests/unit/physics/scenarios.test.ts` "slip stays under 6 degrees ... lift-off slip under 12": the SUV at 4.85 m gave 12.07 deg at 20 m/s (handling wheelbase is a share of
+  the spec length), so the SUV is 4.95 m (Highlander class). Physics folder green with that.
+* Red in the combined run that is not vehicle work: ped-hitby (2), pedmesh draw count, pedround4 knee gap, pedround5 shoe hem (known), `zz_f4_probe.test.ts` (another
+  lane's probe file), `roadnet-stream` incremental budget. Entities, world, physics, game and render folders otherwise green (2,921 tests passed).
+
+## Final checks
+Sims `npx vitest run tests/unit/sim` 20 files / 229 tests green on the final sizes (sedan 4.82, suv 4.95). `npx tsc --noEmit` clean for src/entities, render, textures.
+Single-file build 10.42 MiB (10.92 MB), under 12. Nothing in main.ts changes. Best before/after: `scratchpad/cars5/pairs/sedan-side-before-after-crop.jpg` (top before, bottom after; note the
+before car is drawn by the far proxy with flat grey wheel discs, the after car by the near model, a LOD difference between the two runs that the capture did not control),
+`lineup/before-side.jpg` vs `lineup/after-side.jpg`, `game-before2/sheet-q3.jpg` vs `game-after/sheet-q3.jpg`.
+Open: a far-proxy car (beyond 40 m on low, 52 m medium) still has flat 8-gon wheel discs with no rim; the car blob is a rounded box, not the body outline; part 3.

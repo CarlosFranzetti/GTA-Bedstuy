@@ -12,12 +12,14 @@ import { buildPerson as buildPedModel, loadPeople } from '@/entities/models/pedM
 import { PED_SPECS, CIVILIAN_COUNT } from '@/textures/painters/ped';
 import { setPeopleMode } from '@/textures/painters/pedMode';
 import { faceDebug } from '@/entities/models/pedHead';
+import { eyeDebug } from '@/entities/models/pedEyes';
 import { setCarPaintTier } from '@/render/CarPaintFx';
 import { setTextureTier } from '@/textures/texTier';
 { const tq = new URLSearchParams(location.search).get('tier'); if (tq) { setCarPaintTier(tq); setTextureTier(tq); } }   // FACES3: tier=phone renders the phone tier's mid level and 256 px bake
 await loadPeople();
 const q = new URLSearchParams(location.search);
 if (q.get('fdbg')) globalThis.__fdbg = true; if (q.get('dbg')) globalThis.__dbg = true;
+eyeDebug.patch = q.get('eyes') !== '0';   // FACES4: eyes=0 draws the old painted eyes (no eye patch)
 faceDebug.morph = q.get('morph') !== '0'; faceDebug.stress = Number(q.get('stress') ?? 1);
 setPeopleMode('skin');
 const W = Number(q.get('w') ?? 1500), H = Number(q.get('h') ?? 1000);
@@ -53,6 +55,8 @@ if (texMode === 'dump') {
   first.group.traverse((o) => { if (o.isMesh && o.material && o.material.map && o.material.map.image && !img) img = o.material.map.image; });
   cv.width = 1024; cv.height = 512; const g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
   const sc = img.width / 512; g.drawImage(img, 0, 0, 256 * sc, 256 * sc, 0, 0, 512, 512); g.drawImage(img, 0, 0, img.width, img.width, 512, 0, 512, 512);
+  // FACES4: the eye patch rectangles of the atlas (x 256..512, y 320..384), enlarged four times, over the right half
+  g.drawImage(img, 256 * sc, 320 * sc, 256 * sc, 64 * sc, 512, 256, 512, 128);
   
   document.body.innerHTML = ''; document.body.appendChild(cv); window.__ready = { dump: true }; throw new Error('dump');
 }

@@ -22,7 +22,7 @@ import type { HiTile } from '@/textures/painters/pedHi';
 import { SK_RECTS, bakeSkin, type BakeInput } from '@/textures/painters/pedSkinPaint';
 import { releasesCanvases, textureTier } from '@/textures/texTier';
 import { faceDebug, faceTraits, morphHead } from './pedHead';
-import { eyePatchFor, type EyePatch } from './pedEyes';
+import { eyePatchFor, patchColor, type EyePatch } from './pedEyes';
 import { PED_SPECS, pedVariantIndex, shortsLen, skirtShape, type PedSpec, type PxRect } from '@/textures/painters/ped';
 import { pickWardrobeVariant } from '@/textures/painters/pedWardrobe';
 import { FAR_DIST, MID_DIST, PedLod, buildPedModel as buildProcedural, pedPhone, type PedDetail } from './pedBodyHi';
@@ -727,7 +727,7 @@ function geometryFor(s: MhShape, variant: number, detail: PedDetail): { geo: THR
   const hide = eyes ? new Set<number>([...(veil?.hide ?? []), ...eyes.hide]) : veil?.hide;
   base.setIndex(new THREE.BufferAttribute(detail === 'far' ? L.index : noFoot(s, L, hide, legCutY(s, spec)), 1));
   const parts = detail === 'far' ? [] : [...separatePieces(s, spec, bt, L0, detail, !!veil), ...bodyParts(s, spec, detail === 'hi'), ...skinExtras(s, spec, detail === 'hi'), ...clothExtras(s, spec, L0, detail === 'hi')];
-  if (eyes) parts.push(eyePatchGeometry(eyes));
+  if (eyes) parts.push(eyePatchGeometry(eyes, ao));
   if (detail === 'hi' && veil) parts.push(...veil.shell);
   for (const g of parts) leanGeometry(g.getAttribute('position').array as Float32Array, (g.getAttribute('normal')?.array as Float32Array) ?? null, g.getAttribute('skinIndex').array, g.getAttribute('skinWeight').array, bt, pivot);
   base.setAttribute('color', new THREE.BufferAttribute(ao, 3));
@@ -769,13 +769,14 @@ function skinMaterial(materials: IMaterialLibrary, s: MhShape, variant: number, 
   return mat;
 }
 /** FACES4: the eye patch as a part of the skinned geometry (same attributes as the body) */
-function eyePatchGeometry(e: EyePatch): THREE.BufferGeometry {
+function eyePatchGeometry(e: EyePatch, ao: Float32Array): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(e.position), 3));
   g.setAttribute('normal', new THREE.BufferAttribute(Float32Array.from(e.normal), 3));
   g.setAttribute('uv', new THREE.BufferAttribute(e.uv, 2));
   g.setAttribute('skinIndex', new THREE.BufferAttribute(Uint16Array.from(e.joints), 4));
   g.setAttribute('skinWeight', new THREE.BufferAttribute(e.weights, 4));
+  g.setAttribute('color', new THREE.BufferAttribute(patchColor(e, ao), 3));
   g.setIndex(new THREE.BufferAttribute(Uint32Array.from(e.index), 1));
   return g;
 }

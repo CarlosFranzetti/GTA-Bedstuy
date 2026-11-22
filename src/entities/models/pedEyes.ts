@@ -22,6 +22,7 @@ export interface EyePatch {
   /** render geometry (the morphed skin plus the relief) */ position: Float32Array; normal: Float32Array;
   /** for the texture bake: the unmorphed skin point under each vertex and the skin's normal there */ position0: Float32Array; normal0: Float32Array;
   uv: Float32Array; index: Uint32Array; joints: Uint16Array; weights: Float32Array;
+  /** the skin triangle corners under each vertex and their weights (3 each), so the skin's vertex colours (its baked ambient occlusion) can be carried onto the patch */ hitV: Uint32Array; hitW: Float32Array;
   /** triangles (of the skin's index, by triangle number) that lie wholly under the patch */ hide: Set<number>;
 }
 
@@ -32,7 +33,7 @@ export function buildEyePatch(s: Pick<MhShape, 'landmarks'>, spec: PedSpec, L: M
   const P0 = new Float32Array(L.position); if (L.faceDelta) for (let i = 0; i < L.faceDelta.length && i < P0.length; i++) P0[i] -= L.faceDelta[i];      // (the leg tubes are appended after the morph: no delta for them)
   const nv1 = 1 + (RINGS.length - 1) * NA, nvT = nv1 * 2;
   const pos = new Float32Array(nvT * 3), nrm = new Float32Array(nvT * 3), pos0 = new Float32Array(nvT * 3), nrm0 = new Float32Array(nvT * 3), uv = new Float32Array(nvT * 2);
-  const idx: number[] = [], hide = new Set<number>();
+  const idx: number[] = [], hide = new Set<number>(), hitV = new Uint32Array(nvT * 3), hitW = new Float32Array(nvT * 3);
   void n;
   for (let sd = 0; sd < 2; sd++) {
     const side = sd === 0 ? -1 : 1, rect = EYE_RECTS[sd], rcx = rect.x + rect.w / 2, rcy = rect.y + rect.h / 2;
@@ -73,6 +74,7 @@ export function buildEyePatch(s: Pick<MhShape, 'landmarks'>, spec: PedSpec, L: M
         const h = hit(X, Y, null); if (!h) { if ((globalThis as { __eyeDbg?: boolean }).__eyeDbg) console.log('NOHIT', sd, r, j, rho, X, Y, zRef, cand.length); return null; }
         const vi = r === 0 ? base : base + 1 + (r - 1) * NA + j;
         const a = L.index[h.t * 3], b = L.index[h.t * 3 + 1], c = L.index[h.t * 3 + 2];
+        hitV[vi * 3] = a; hitV[vi * 3 + 1] = b; hitV[vi * 3 + 2] = c; hitW[vi * 3] = h.l1; hitW[vi * 3 + 1] = h.l2; hitW[vi * 3 + 2] = h.l3;
         let nx = 0, ny = 0, nz = 0;
         for (let k = 0; k < 3; k++) {
           pos[vi * 3 + k] = L.position[a * 3 + k] * h.l1 + L.position[b * 3 + k] * h.l2 + L.position[c * 3 + k] * h.l3;
@@ -84,15 +86,16 @@ export function buildEyePatch(s: Pick<MhShape, 'landmarks'>, spec: PedSpec, L: M
         // the relief along the skin normal (metres, + out of the face)
         const up = sphi >= 0, c2 = cphi * cphi;
         let off: number;
-        if (rho < 0.995) off = -(0.0005 + 0.0012 * rho * rho + 0.0014 * rho * rho * c2);                                   // the eyeball: deeper toward the corners
+        if (rho < 0.995) off = -(0.0002 + 0.0007 * rho * rho + 0.0008 * rho * rho * c2);                                   // the eyeball: deeper toward the corners
         else {
           const lid = (up ? 0.0006 : 0.0004) * (1 - 0.5 * c2);                                                              // the lid margin has thickness
           const fall = 1 - sst(1.0, 1.9, rho);
           off = lid * fall
             - (up ? 0.0004 * E.heavy * Math.exp(-(((rho - 1.55) / 0.22) ** 2)) : 0)                                          // a heavy lid folds
             + (up ? 0 : (0.0003 + 0.0006 * bag) * Math.exp(-(((rho - 1.75) / 0.3) ** 2)))                                    // the pouch under the eye
-            + 0.00015 * sst(1.5, EYE_RHO_MAX, rho);                                                                         // the outer ring stands a hair proud so it never z-fights the skin
+            + 0.0004 * sst(1.05, 1.6, rho) * (1 - 0.5 * sst(2.2, EYE_RHO_MAX, rho));                                         // the whole pad stands 0.2 to 0.4 mm proud so the folds of the old lid ring never poke through it
         }
+        if (rho > 1.05) off = Math.max(off, 0.0002);
         pos[vi * 3] += nx * off; pos[vi * 3 + 1] += ny * off; pos[vi * 3 + 2] += nz * off;
         uv[vi * 2] = (rcx + exm / EYE_SR) / 512; uv[vi * 2 + 1] = 1 - (rcy - (eym - EYE_EYC) / EYE_SR) / 512;
       }
@@ -117,9 +120,11 @@ export function buildEyePatch(s: Pick<MhShape, 'landmarks'>, spec: PedSpec, L: M
       const pts: Array<[number, number]> = [];
       for (let k = 0; k < 3; k++) { const a = v[k], b = v[(k + 1) % 3]; pts.push([P0[a * 3], P0[a * 3 + 1]], [(P0[a * 3] + P0[b * 3]) / 2, (P0[a * 3 + 1] + P0[b * 3 + 1]) / 2]); }
       pts.push([(P0[v[0] * 3] + P0[v[1] * 3] + P0[v[2] * 3]) / 3, (P0[v[0] * 3 + 1] + P0[v[1] * 3 + 1] + P0[v[2] * 3 + 1]) / 3]);
+      // a skin triangle that touches the opening would cover part of the recessed eye, so it goes; one wholly inside ρ 2.3 goes too (the old lid ring and its folds would poke through the patch). Everything else stays under the patch (which
+      // sits on or above it), so a triangle that reaches past the patch's rim can never leave a hole.
       let near = false;
-      for (const p of pts) { const rr = rhoOf(p[0], p[1]); if (rr > 2.3) ok = false; if (rr < 1.7) near = true; }
-      if (ok || near) hide.add(t);
+      for (const p of pts) { const rr = rhoOf(p[0], p[1]); if (rr > 2.3) ok = false; if (rr < 0.95) near = true; }
+      if (ok || near || rhoOf(pts[pts.length - 1][0], pts[pts.length - 1][1]) < 1.7) hide.add(t);       // (the last point is the centroid)
     }
   }
   // orientation: each eye's patch faces out like the skin it sits on (the two eyes are mirror images, so each is checked on its own: flip its triangles when its first one faces in)
@@ -158,7 +163,7 @@ export function buildEyePatch(s: Pick<MhShape, 'landmarks'>, spec: PedSpec, L: M
   }
   const joints = new Uint16Array(nvT * 4), weights = new Float32Array(nvT * 4);
   for (let k = 0; k < nvT; k++) { joints[k * 4] = HEAD_BONE; weights[k * 4] = 1; }
-  return { position: pos, normal: nrm, position0: pos0, normal0: nrm0, uv, index: ix, joints, weights, hide };
+  return { position: pos, normal: nrm, position0: pos0, normal0: nrm0, uv, index: ix, joints, weights, hide, hitV, hitW };
 }
 
 const cache = new WeakMap<MhLod, EyePatch | null>();
@@ -168,4 +173,11 @@ export function eyePatchFor(s: Pick<MhShape, 'landmarks'>, spec: PedSpec, L: MhL
   let p = cache.get(L);
   if (p === undefined) { try { p = buildEyePatch(s, spec, L); } catch { p = null; } cache.set(L, p); }
   return p;
+}
+
+/** the skin's per-vertex colour (ambient occlusion) interpolated onto the patch, so it is not lighter than the skin round it */
+export function patchColor(e: EyePatch, skin: Float32Array): Float32Array {
+  const n = e.position.length / 3, out = new Float32Array(n * 3);
+  for (let v = 0; v < n; v++) for (let k = 0; k < 3; k++) out[v * 3 + k] = skin[e.hitV[v * 3] * 3 + k] * e.hitW[v * 3] + skin[e.hitV[v * 3 + 1] * 3 + k] * e.hitW[v * 3 + 1] + skin[e.hitV[v * 3 + 2] * 3 + k] * e.hitW[v * 3 + 2];
+  return out;
 }

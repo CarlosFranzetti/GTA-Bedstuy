@@ -98,7 +98,7 @@ export class Blood implements BloodFx {
     // one pool per spot: a second call near an existing pool does not add another
     for (const m of this.marks) if (m.pool && Math.hypot(m.x - x, m.z - z) < 0.9) return;
     if (this.poolCount >= this.caps.pools) { const i = this.marks.findIndex((m) => m.pool); if (i >= 0) this.marks.splice(i, 1); }
-    this.marks.push({ x, z, r: 0.5 + this.rnd() * 0.12, rot: this.rnd() * 6.28, age: 0, life: POOL_LIFE, grow: POOL_GROW, pool: true });
+    this.marks.push({ x, z, r: 0.4 + this.rnd() * 0.1, rot: this.rnd() * 6.28, age: 0, life: POOL_LIFE, grow: POOL_GROW, pool: true });
   }
 
   private addDrop(d: Drop): void {
