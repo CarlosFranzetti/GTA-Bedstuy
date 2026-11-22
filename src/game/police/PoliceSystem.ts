@@ -38,6 +38,10 @@ export const OFFICER_SIGHT_NIGHT = 32;
 export const GUNSHOT_HEARD = 70;
 /** Seconds out of every officer's sight before the police are "searching". */
 export const LOSE_SECONDS = 5;
+/** A patrol car or officer this close (m) to the player or to where they were last seen has "arrived"; until then a star does not cool. */
+const RESPONSE_RADIUS = 40;
+/** ... but not for ever: if nobody gets there in this many seconds the call is dropped and the star cools as usual. */
+const RESPONSE_GIVE_UP = 75;
 const MAX_OFFICERS = [0, 2, 3, 4] as const;
 const SIGHT_PERIOD = 0.25;
 const SPAWN_PERIOD = 1.0;
@@ -95,6 +99,10 @@ export class PoliceSystem {
   lastSeen: Vec2 | null = null;
   /** seconds since any officer last saw the player */
   unseenFor = 0;
+  /** has a unit reached the scene since the newest star was earned (stars do not cool before that) */
+  responded = true;
+  /** seconds the newest star's call has been out with nobody at the scene yet */
+  enRouteFor = 0;
   busts = 0;
   /** one break-free per chase; reset when the stars reach zero */
   breakFreeUsed = false;
@@ -136,6 +144,13 @@ export class PoliceSystem {
   noteAttacked(): void { this.selfDefence = SELF_DEFENCE_SECONDS; }
 
   /** 0..1 for the HUD bar */
+  /** Is a patrol car the AI drives, or an officer on foot, within `r` metres of `p`? */
+  private unitNear(p: Vec2, r: number): boolean {
+    for (const c of this.d.cops.patrolCars()) if (dist(c.vehicle.body.pos, p) <= r) return true;
+    for (const o of this.officers) if (dist(o.body.pos, p) <= r) return true;
+    return false;
+  }
+
   get heatFraction(): number { return Math.min(1, this.heat.heat / HEAT_MAX); }
 
   /** The HUD line for the state: empty when calm. */
@@ -265,6 +280,10 @@ export class PoliceSystem {
     if (this.selfDefence > 0) this.selfDefence -= dt;
     const stars = d.wanted.stars;
     if (stars === 0 && this.starsLastFrame > 0) { this.breakFreeUsed = false; this.resisted = false; }
+    // A new star: the call has gone out and nobody has arrived yet. The star must not cool while they are still on their way
+    // (the lead watched a one-star car start 240 m off and the star cool at 20 s, a few seconds before it got there).
+    if (stars > this.starsLastFrame) { this.responded = false; this.enRouteFor = 0; if (!this.lastSeen) this.lastSeen = { x: pp.x, z: pp.z }; }
+    if (stars === 0) { this.responded = true; this.enRouteFor = 0; }
     this.starsLastFrame = stars;
 
     if (this.busted) { this.holdPlayer(); this.tickOfficers(dt, pp); this.state = 'busted'; return; }
@@ -276,8 +295,12 @@ export class PoliceSystem {
       const seen = this.officerSees(pp);
       this.seenBy = seen ? 'officer' : 'none';
       if (seen) { this.lastSeen = { x: pp.x, z: pp.z }; this.unseenFor = 0; } else this.unseenFor += SIGHT_PERIOD;
+      if (stars > 0 && !this.responded) {
+        this.enRouteFor += SIGHT_PERIOD;
+        if (seen || this.unitNear(pp, RESPONSE_RADIUS) || (this.lastSeen && this.unitNear(this.lastSeen, RESPONSE_RADIUS)) || this.enRouteFor >= RESPONSE_GIVE_UP) this.responded = true;
+      }
     }
-    d.wanted.holdDecay = stars > 0 && this.unseenFor < LOSE_SECONDS;
+    d.wanted.holdDecay = stars > 0 && (this.unseenFor < LOSE_SECONDS || !this.responded);
 
     // the officers
     this.spawnTimer -= dt;
@@ -304,7 +327,11 @@ export class PoliceSystem {
       const v = c.vehicle;
       const dd = dist(v.body.pos, pp);
       const slow = Math.abs(v.speed) < 5;
-      if (!(dd <= 12 || (dd <= 22 && slow))) continue;
+      // A car that has pulled up nearby but cannot get closer (a red light, a parked row, the kerb between it and a player on the
+      // pavement) used to sit there with its crew inside: the lead watched one stop 25 m off until the star cooled. Stopped
+      // within 45 m, the officer gets out and walks the rest.
+      const stopped = Math.abs(v.speed) < 1.2;
+      if (!(dd <= 12 || (dd <= 22 && slow) || (dd <= 45 && stopped))) continue;
       if (this.clock - (this.carSpawnAt.get(v) ?? -99) < 8) continue;
       this.carSpawnAt.set(v, this.clock);
       const h = v.body.heading;

@@ -24,6 +24,8 @@ export function makePed(world: World2D, events: EventBus, id: string, x: number,
   const ped = new Pedestrian(id, { id: 'a', pos: { x, z } }, g, world, materials, events, new Rng(id));
   ped.body.pos.x = x; ped.body.pos.z = z; ped.body.vel.x = 0; ped.body.vel.z = 0;
   world.addBody(ped.body);
+  // the seeded person can come out as a child or a teenager, whom combat never hurts (Pedestrian.isMinor): these tests are about adults
+  Object.defineProperty(ped, 'isMinor', { get: () => false, configurable: true });
   return ped;
 }
 

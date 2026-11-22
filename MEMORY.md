@@ -211,6 +211,46 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 
 ## State on 22 Nov 2026
 
+- FIFTH deploy of 22 Nov (the owner's long list of that afternoon; lanes MENU2, CARS5, CARS6, TRAFFIC2, POLICE2, MOVE2,
+  RADIO3, SCMIXES, TALK2, COMBAT2, TUTORIAL, FACES4, TEXTURES2; notes for each in `docs/swarm/tasks/`). What it carries:
+  - Menus: every panel goes through `src/ui/PanelManager.ts` and the `Input.blocked` gate. Opening a panel frees the
+    pointer; Back is Esc, right click, pad B or the Back button; settings apply at once. A new panel must register with
+    `isOpen` and `back` and call `panels.sync()`; panels must NOT add their own Esc handler. Audio has "Engine sound: On / Off"
+    above "Engine volume". Settings, Game has Replay tutorial, Hints and Blood (`gameRows` in `src/main.ts`).
+  - Cars: specs re-set from real-world figures (`src/entities/Vehicle.ts`; the old ones were the biggest model of each
+    class); a contact shadow beside every car on every tier (`BlobShadows.ts`); seven classes reshaped (sedan, taxi, police
+    car, pickup, SUV, big SUV, hatch) with new loft fields in `carBodies.ts`. Not reshaped: coupes, muscle, wagon, minivan,
+    crossover, vans, trucks. Sedan 4.78 m and SUV 4.85 m fail seeded tests; 4.82 and 4.95 pass.
+  - Traffic: `src/game/trafficHours.ts`: about a quarter fewer moving cars by day, nights lighter still, a rush about 8:45 and
+    17:30 that is heavy on about 4 days in 10. Until `setHour` is called the factor is exactly 1 (the sims rely on that).
+  - Police (`src/game/police/`): minor acts build heat, a warning at 40, a star at 100 or for a serious act; crimes need a
+    witness; an officer holds a slow player for 1.5 s (one break-free per chase), then BUSTED and release at the precinct:
+    "Ironside Station House" on the real map (about 1.8 km from home), "Cardinal Row Precinct" (a marked door, no building)
+    on the grid. Lead's fixes after watching it: a new star does not cool until a unit reaches the scene or 75 s pass
+    (`responded`), and an officer gets out of a car that has stopped within 45 m. Three stars max; no roadblocks, no cell.
+  - Movement: Jump vaults over a hood or trunk (`src/entities/vault.ts`), auto-vault at a sprint, a pinned player can always
+    climb out; lean into turns. The gait work (starts, stops, kerbs) is NOT done.
+  - Combat (`src/game/combat/`): everyone has health; temperaments flee, cower, film, fight back; the player has health and
+    wakes at "Wexcombe Medical Center" (real map) or at home; bat, pipe, frozen fish, pistol, six-shooter, pump shotgun;
+    blood (`blood.ts`, capped per tier, Settings switch). LEAD'S LINE: children and teenagers are never hurt
+    (`Pedestrian.isMinor`: the blow is ignored and they run). Tests force adults where they need a victim.
+  - Tutorial (`src/ui/tutorial/`): 18 steps on a new game, skippable, Replay in Settings; one-time hints. Hints are not shown
+    when a save is loaded (`hintsWithSave` flips that: asked the owner).
+  - Radio: `src/audio/sc/mixes.json` holds the checked pools (81 mixes, each page opened on 22 Nov, all 45 minutes or more);
+    stations shuffle their pool and start mid-mix. `hiphop` replaces `stoop` (that account has two uploads from 2017). Live
+    stations rotate between streams. "The Group Chat 99.9" (`script-groupchat.json`) speaks with the browser's
+    SpeechSynthesis, not the neural voice. SoundCloud IS reachable from this box with curl through the proxy: account pages
+    list their ten newest tracks without scripts (`scratchpad/scmix/list.py`, `verify.py`; a lane that says otherwise tested
+    without the proxy).
+  - Faces: a real eye on the close level (`pedEyes.ts`, shared curve `pedEyeShape.ts`; the atlas strip x 256..512,
+    y 320..384 is taken), repainted lips, a painted hairline band. Still: a thin line from the eye toward the ear on some
+    heads, pale flaps under some eyes, no blink, the mid level untouched.
+  - Far buildings on the real map have facades drawn in the shader from lot data (`farFacade.ts`), six flat-roof surfaces,
+    and chunks in front of the camera stream first.
+  - Open after this deploy: one grid boot in five logged a "computed min/max have NaN" geometry warning that could not be
+    reproduced (782 eye patches and 180 car builds are finite); the real map's low-tier start view is about 260 to 300 draws
+    against 220; the Group Chat's voice; a bust mid-mission does not fail the mission; fighters walk through walls toward
+    the player; phone tile loading can take up to 10 s under load.
 - Third deploy of 22 Nov (the owner's play report and asks of that morning). What it carries:
   - The real-street map is the MAIN map on desktop browsers and the desktop apps (`src/world/mapChoice.ts`); `?map=grid` or
     Settings, "Map" opens the old grid. PHONES STAY ON THE GRID by default (`quality === 'phone'`): on the emulated iPhone the

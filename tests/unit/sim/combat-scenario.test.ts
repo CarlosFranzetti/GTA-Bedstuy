@@ -40,6 +40,7 @@ function fight(graph: Graph, physics: World2D, start: { x: number; z: number }) 
   const make = (id: string, dx: number, dz: number): Pedestrian => {
     const p = new Pedestrian(id, nodeNear(graph, start.x + dx, start.z + dz), graph, physics, materials, events, new Rng(id));
     p.body.pos.x = start.x + dx; p.body.pos.z = start.z + dz; p.body.vel.x = 0; p.body.vel.z = 0;
+    Object.defineProperty(p, 'isMinor', { get: () => false, configurable: true }); // the scenario is about adults: combat never hurts a child or a teenager
     peds.push(p);
     return p;
   };

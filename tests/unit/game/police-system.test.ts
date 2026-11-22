@@ -195,7 +195,7 @@ describe('arrest', () => {
     const r = rig(); withWitness(r);
     r.wanted.raiseTo(1);
     const car = { body: mkBody('pcar', 0, 0, 'vehicle'), speed: 0 } as unknown as IVehicle;
-    r.player.vehicle = car; (r.player as { inVehicle: boolean }).inVehicle = true;
+    (r.player as { vehicle: unknown }).vehicle = car; (r.player as { inVehicle: boolean }).inVehicle = true;
     adoptOfficer(r, 2.5, 0);
     tick(r, 1.5);
     expect(r.police.isBeingArrested()).toBe(false);
