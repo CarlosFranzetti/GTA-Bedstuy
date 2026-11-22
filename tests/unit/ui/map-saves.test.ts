@@ -20,7 +20,7 @@ function world(map: 'grid' | 'real') {
   };
   const inventory = new Inventory(PROCEDURAL_RECORDS, null);
   const parts: SaveParts = {
-    getPose: () => ({ ...live.pose }), setPose: (p) => { live.pose = { ...p }; },
+    getPose: () => ({ ...live.pose }), setPose: (p) => { live.pose = { ...poseOnMap(p, map, { x: 100, z: -50, heading: 0.3 }, { minX: -500, maxX: 500, minZ: -500, maxZ: 500 }) }; },
     getHour: () => live.hour, setHour: (h) => { live.hour = h; },
     getDay: () => live.day, setDay: (d) => { live.day = d; },
     inventory,
@@ -121,7 +121,7 @@ describe('per-map save slots', () => {
     const rm2 = new SaveManager(new SaveStore(ms, 'real'));
     const b2 = rm2.bootSave();
     expect(rm2.hasCarryOver).toBe(false);
-    expect(b2?.pose.map).toBe('real');
+    expect(b2?.pose).toMatchObject({ map: 'real', x: 100, z: -50, inCar: false });
   });
 
   it('a fresh install on the real map has nothing to carry over', () => {
