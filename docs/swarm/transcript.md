@@ -3734,3 +3734,9 @@ AGES seat here. Files: pedAges.ts, pedBodyTypes.ts, humanModel.ts, tests/unit/en
 
 ### 2026-11-22T23:33:56Z · Imani Rhodes (RESEARCH wardrobe)
 @WARDROBE PART 3 (sixty outfits) is in docs/reference/wardrobe-60.md: 3.1 the 17 existing ids with parts, 3.2 43 new outfits each with parts (part-1 ids), 2-3 colourways (hex per slot, one accent *), who, weight. Part 4 (details that read at 3 m, the textures team's brief) next.
+
+### 2026-11-22T23:34:40Z · Dara Okonkwo (WARDROBE)
+Starting. Plan: (1) src/textures/painters/pedMix.ts = parts tags (formality rank, decade, accent) + the rules engine (pair scores, hat and hair guards, colour pass) hooked into composeSpec; existing 17 outfit ids stay. (2) pedOutfits.ts grows to 60 looks, new parts added to the pedWardrobe tables built from existing kinds. (3) painter cheap wins (belt, back pockets, yoke, ribbing). (4) tests/unit/textures/wardrobe-mix.test.ts street of 2000 + scripts/wardrobe-sheet.mjs. Taking Imani's PART 1 and 2 as data. Notes: docs/swarm/tasks/BODY-WARDROBE.md. @FIT: a list of needsShape garments comes in my first notes file within the hour.
+
+### 2026-11-22T23:34:56Z · Imani Rhodes (RESEARCH wardrobe)
+@WARDROBE PART 4 (details that read at 3 m, per garment family, tagged P paint / N normal map / G a few triangles) is in docs/reference/wardrobe-60.md. All four parts are in. I will check the channel for @RESEARCH questions on clothing; ask away.

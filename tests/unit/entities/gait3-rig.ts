@@ -70,3 +70,41 @@ export function footPoints(p: Person): FootPts {
   }
   return R;
 }
+
+export interface Frame3 { v: number; pts: FootPts }
+/** a run: the figure travels along -z at `speed(t)` (as the game's entities do), every frame recorded */
+export function runFrames(p: Person, speed: (t: number) => number, seconds: number, dt = 1 / 60, setup?: (c: AnimController) => void): Frame3[] {
+  const g = p.m.group, out: Frame3[] = []; let z = 0;
+  g.position.set(0, 0, 0); g.rotation.y = 0; setup?.(p.ctl);
+  for (let i = 0; i < Math.round(seconds / dt); i++) { const v = speed(i * dt); z -= v * dt; g.position.z = z; p.ctl.update(dt, { speed: v }); out.push({ v, pts: footPoints(p) }); }
+  return out;
+}
+export interface Stance3 { side: number; i0: number; i1: number; slide: number; v: number }
+/**
+ * Planted = the point is within `h` of the ground and not rising (still or moving down); the stance ends when it leaves the ground or starts to rise.
+ * Slide = how far the point travels over the ground (x, z) from the first planted frame to the last. Stances shorter than 3 frames are ignored.
+ */
+export function stances(fr: Frame3[], pick: (p: FootPts) => THREE.Vector3[], h = 0.015): Stance3[] {
+  const out: Stance3[] = [];
+  for (let side = 0; side < 2; side++) {
+    let st = -1;
+    const close = (e: number): void => { if (st >= 0 && e - st >= 3) { const a = pick(fr[st].pts)[side], b = pick(fr[e].pts)[side]; out.push({ side, i0: st, i1: e, slide: Math.hypot(b.x - a.x, b.z - a.z), v: fr[Math.round((st + e) / 2)].v }); } st = -1; };
+    for (let i = 0; i < fr.length; i++) {
+      const y = pick(fr[i].pts)[side].y, py = i ? pick(fr[i - 1].pts)[side].y : y, planted = y < h && y <= py + 0.0005;
+      if (planted && st < 0) st = i; else if (!planted && st >= 0) close(i - 1);
+    }
+    if (st >= 0) st = -1;       // a stance cut off by the end of the run is dropped
+  }
+  return out.sort((a, b) => a.i0 - b.i0);
+}
+/** the reviewer's detection: a stance = the ANKLE within 3 cm of the lowest ankle height of the run (after the first 30 frames) */
+export function reviewerStances(fr: Frame3[]): { st: Stance3[]; clearance: number } {
+  const ank = (p: FootPts): THREE.Vector3[] => p.ankle;
+  const thr = Math.min(...fr.slice(30).flatMap((f) => [f.pts.ankle[0].y, f.pts.ankle[1].y])) + 0.03, out: Stance3[] = [];
+  for (let side = 0; side < 2; side++) {
+    let st = -1; const close = (e: number): void => { if (st >= 0 && e - st >= 3) { const a = ank(fr[st].pts)[side], b = ank(fr[e].pts)[side]; out.push({ side, i0: st, i1: e, slide: Math.hypot(b.x - a.x, b.z - a.z), v: fr[Math.round((st + e) / 2)].v }); } st = -1; };
+    for (let i = 0; i < fr.length; i++) { const low = fr[i].pts.ankle[side].y < thr; if (low && st < 0) st = i; else if (!low && st >= 0) close(i - 1); }
+  }
+  return { st: out, clearance: Math.max(...fr.slice(30).flatMap((f) => [f.pts.ankle[0].y, f.pts.ankle[1].y])) - (thr - 0.03) };
+}
+export const stat = (xs: number[]): { n: number; mean: number; max: number } => ({ n: xs.length, mean: xs.length ? +(100 * xs.reduce((a, b) => a + b, 0) / xs.length).toFixed(1) : NaN, max: xs.length ? +(100 * Math.max(...xs)).toFixed(1) : NaN });

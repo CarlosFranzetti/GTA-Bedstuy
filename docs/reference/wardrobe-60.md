@@ -2,7 +2,7 @@
 
 Author: Imani Rhodes (RESEARCH, wardrobe), 22 to 23 Nov 2026. Builds on `docs/reference/clothing-brooklyn.md` (sixteen outfits, cut
 numbers, open fabric list: not repeated here) and on the code as it stands (`src/textures/painters/pedWardrobe.ts`,
-`pedOutfits.ts`). Status: part 1 (parts list) written; parts 2 to 4 follow in this file.
+`pedOutfits.ts`). Status: parts 1 to 4 written (22 Nov late night); questions from the channel are answered in section 5.
 
 HOW TO TRUST THIS FILE. Everything below is my own synthesis of widely documented street dress, standard garment-pattern practice,
 `clothing-brooklyn.md`, and a look at the owner's reference pictures (other games' screenshots, looked at only: a fitted grey
@@ -490,10 +490,158 @@ bottom to `jeansWide` or `trousersWide`; let deliveryRider's backpack be `delive
 
 ### 3.3 Count and coverage
 
-17 existing + 43 new = 60. By group, with the new ones: older (7 + 1 tallTeeTan), workers 8, office 5, young adults today 8, teen and
-children 7, sport and night 3, cultural 4. By age band the sixty cover: children 5 (schoolUniform, kidPlayground, kidPuffer,
-churchKidBoy, churchKidGirl), teens 8 with the shared ones, young adults 21, adults 22, elders 17. Plus the mix (parts) draws the
-rest of the street, at about half the people (the code's whole-outfit share; the owner may wish to lift it).
+17 existing + 43 new = 60. By group, the new ones: older 7 plus tallTeeTan, workers 8, office 5, young adults today 8, teens and children 7, sport and night 3, cultural 4 (total 43). By age band: children (schoolUniform, kidPlayground, kidPuffer, churchKidBoy, churchKidGirl, and hoopsCourt and hijabModest for the oldest of them), teens (schoolDay, winterTeen, schoolUniform, hoopsCourt, teenGirlWide, hijabModest and the youth looks), young adults, adults and elders each have a dozen or more. I did not count exact totals per band; the `who` column of each row is the source of truth. ## PART 4. DETAIL THAT READS AT 3 METRES ON FEW POLYGONS (the textures team's brief)
+
+Budget facts that shape this list (from BODY-TEAM.md and BODY-CLOTHES.md): torso and sleeves are the BODY mesh offset along its
+normals and painted into the skin atlas; trousers are lofted tubes; hems and cuffs are polar strips; hats, bags and shoes are
+separate pieces. So the cheap, reliable way to add detail is PAINT (albedo lines and a normal-map hint), then a few extra triangle
+strips for the three things the eye reads in silhouette: the hem, the collar and the cuff. Nothing here needs a new draw call.
+Estimated cost tags: P = paint only, N = paint plus a normal-map hint, G = a few triangles (under about 40 per person).
+Scale rule: at 3 m, a line must be at least 1 px wide in the atlas at the tier's texel density; anything finer than about 6 mm
+real size is lost, so exaggerate stitching to 4 to 6 mm and keep contrast low (8 to 12 percent lighter or darker than the cloth).
+The first priority in every family is the SILHOUETTE (hem, collar, cuff, shoulder), then 2 or 3 painted lines, then wear.
+
+### 4.1 Tops
+
+- TEE (tee, tallTee, pocketTee, longTee): (1) rib collar as a 2 cm band, a slightly darker or lighter ring, with a seam line at the
+  neck back (P); (2) the sleeve hem and the body hem as a 1 cm folded band with a double stitch line, visible as a lighter line (P);
+  (3) shoulder seam sitting 2 cm onto the arm for a normal tee, 5 to 7 cm down the arm for a tallTee (a painted line AND the sleeve
+  seam position: it is the tell of an oversized tee) (P); (4) a few horizontal ripples at the hem for jersey and a belly crease (N).
+  Pocket tee: a rectangle 10 x 11 cm with a stitch line on three sides (P).
+- HENLEY: the placket as a 3 cm wide strip 12 cm long with three buttons (dots, 1.5 cm) and a stitched border (P).
+- TANK and RIBTANK: (1) vertical rib lines, 2 to 3 per cm at atlas scale, so 4 to 5 mm wide stripes at 8 to 12 percent contrast
+  (this is the "ribbed tank top" of the owner's picture) (P, N); (2) deep armhole with a 1.5 cm binding line all round, the
+  armhole cut to 4 cm below the armpit so the side of the ribs shows (P plus the sleeve-less mesh); (3) neck binding in the same
+  line weight, scoop or round (P); (4) a slight darkening across the chest and under the bust or belly where the knit stretches (P).
+- CREWSWEAT, HOODIE, ZIPHOODIE: (1) rib hem band 6 cm tall with vertical ribs and a visible step in thickness where it meets the
+  body (G if a hem strip exists, else P); (2) rib cuffs 7 cm; (3) hoodie: kangaroo pocket as a trapezoid with a stitched edge, hood
+  rolled at the neck as a 10 to 12 cm roll with the drawcords as two short lines (P, G); (4) a raglan seam from armpit to neck on
+  the crewSweat (a diagonal painted line).
+- POLO, KNITPOLO: collar flaps as two wedges standing 2 cm off the neck, a 3 button placket with a stitched outline, short sleeve
+  rib cuff (P, G for the collar if available).
+- SWEATER, TURTLENECK: chunky rib at the hem and cuff, a heathered knit noise (2 tones), the roll neck as a 4 cm raised ring (G
+  if a ring exists, else a lighter band in the albedo).
+- SHIRT, DRESSSHIRT, BANDSHIRT: (1) the point collar as two wedges with a collar stand, open at the throat; (2) a button placket down
+  the centre (a lighter strip with 6 dots every 8 cm); (3) cuffs 6 cm with a button; (4) a vertical crease at the shoulder blades
+  and across the belly from sitting (N). For dressShirt with a tie: the knot as a small block (6 x 4 cm) at the throat and the
+  tie as a 7 cm wide strip down to the belt, one tone, slightly shorter than the belt line; a stripe in a second tone is allowed
+  as a plain diagonal band (P, G).
+- FLANNEL, CAMPSHIRT: the plaid as broad bars of two tones plus a thin crossing line, repeat 8 to 10 cm, aligned straight down the
+  placket (the placket cuts the pattern: that seam is the tell) (P). Camp collar open flat, no stand.
+- BLOUSE: soft gathers at the shoulder yoke or the neck (3 to 4 darker vertical lines), a V or round neck binding, a drape line at
+  the bust (N). Keep colours pale and desaturated.
+- BBALLJERSEY: the armhole binding in a contrast tone 2 cm wide, the neck binding the same, side panels in a darker tone, a hem band
+  with 2 stripes (all P; NO numbers, no letters: the two panels and bindings are what make it read as a jersey).
+- SCRUBS, UNIFORMSHIRT: scrubs: V neck with a contrast binding, a chest patch pocket and two hip pockets (rectangles with stitch),
+  side slits at the hem. Uniform shirt: two chest pockets with flaps (button as a dot), shoulder epaulettes as plain loops, the
+  collar points; NO badge shape, no patch, no stripes at the sleeve.
+- DASHIKI: the wide sleeve with a 3 cm cuff band, the neckline band and a rectangular panel on the chest, in one second tone
+  (never lettering or pictorial print).
+
+### 4.2 Bottoms
+
+- JEANS (all cuts): (1) the YOKE: a V-shaped seam at the back waist (a lighter or darker line); (2) back pockets as two pentagons
+  with a double-stitched outline and a curved decoration line in a contrast thread (about 12 cm wide, set 3 cm below the yoke) (P);
+  (3) a FADE: a lighter zone at the lap (front thigh), the whiskers (short diagonal lines at the hip crease), a honeycomb patch
+  behind each knee, the hem darker with dirt, the side seam lighter (N and P; clothing-brooklyn.md point 7); (4) the HEM: a rolled
+  cuff of 3 to 4 cm as a lighter band with a thickness step, or a STACKED hem (baggy and wide: 2 to 3 horizontal folds above the shoe
+  with the back dragging below the heel) (G). Also a belt: a 3.5 cm dark band at the waist with a small buckle square (P).
+  Fly: a short J-shaped stitch line and a button dot (P). A rivet dot at each front pocket corner (P).
+- CHINOS, SUITTROUSERS, TROUSERSWIDE: the pressed crease as a thin lighter line down the front of each leg, centred on the knee (P),
+  slash pockets as short diagonal seams at the hip, a back welt pocket as a thin horizontal bar with a button, the waistband 4 cm
+  with belt loops (5 dark ticks) and a belt; a pleat at the waistband for the wide cut (two soft vertical folds); a "break" at
+  the hem: one horizontal fold where the hem meets the shoe (N, G).
+- CARGO, CARGOSHORTS: the bellows pocket: a rectangle 15 x 18 cm on the outer thigh with a 5 cm flap (a darker band with a button),
+  three vertical stitch lines on the pocket, and the bellows fold drawn as two inner lines; patch back pockets; a drawcord at the
+  hem or a stitched cuff; bar-tack ticks (small crosses) at the pocket corners (P, N). The pocket should ALSO stand 8 to 10 mm
+  off the leg in the normal map (G if a 6 triangle pocket piece is affordable).
+- WORKTROUSERS: knee patches (a darker rectangle 20 x 18 cm over each knee), a hammer loop and a thigh pocket, a darker dirt gradient
+  from the knee to the hem, a frayed pale hem (P).
+- SWEATSCUFFED, TRACKPANTS: the elastic waistband 5 cm with a drawcord (two short cord ends), side seams, a ribbed cuff 7 cm at the
+  ankle that gathers the leg into a bloused fold above it (G); for trackPants the 2 cm side stripe running seam to hem (P).
+- SHORTS: bball: a 4 cm elastic waist, a side-seam slit and a 3 cm contrast trim at the leg opening; chino: the roll or a plain
+  hem with a stitched line and slash pockets.
+- SKIRTS: midi: a waistband and a pleat or a back vent line, a hem band, a soft sway in the lower third (normal map folds); maxi: a
+  gathered waist (12 to 16 vertical gather lines at the top, fanning out), a tiered seam at the knee; pencil: a back slit.
+- LEGGINGS: almost nothing: a faint sheen along the shin, a waistband 5 cm, and the seam down the inside leg (P).
+
+### 4.3 Outer layers
+
+- BOMBER (leather and nylon): ribbed collar 5 cm, rib cuffs 7 cm and a rib hem band 6 cm (vertical ribs, a thickness step (G));
+  a centre zip with a pull tab and two slash pockets at the hip; the SLEEVE POCKET: a 3 x 12 cm zip on the upper left arm; leather
+  creases: three horizontal folds at each elbow and across the stomach (N), a lighter wear at shoulders and cuffs; nylon: a sheen
+  gradient from a high specular band on the shoulders and a few diagonal pinch lines.
+- DENIMJACKET: the yoke seam across the shoulders, two chest flap pockets with a stitched outline, a seam each side of the placket,
+  a pointed collar, a button line, side pockets, a waistband 4 cm tapered with two tabs; whiskering at the elbow; a lighter wash on
+  the seams (P, N).
+- PUFFER (short and long): the baffles as horizontal stripes 12 to 16 cm tall with a dark pinch line (2 mm) between them and a
+  lighter highlight on each baffle's top (N is the key: bulge 10 to 20 mm per baffle), a high collar or hood roll of 8 cm, a zip
+  with a flap, a rib or elastic cuff, a hem drawcord line; a collapse at the elbow and under the arm; a sheen specular (G if
+  the puffer mesh has ring loops, else N).
+- OVERCOAT and BLAZER: (1) the notch lapel: a lapel shape 8 to 9 cm wide, the notch a 1 cm cut at the top of the lapel, the roll line
+  from the collar to the first button as a soft lighter line; (2) the break of the jacket front: a V where the fronts open, the
+  front edge curving back below the last button (an arc, not a straight cut); the button line with 2 or 3 buttons (dots);
+  (3) flap pockets at the hip (a rectangle 15 x 5 cm with a shadow) and a breast pocket (welt, a small rectangle at the left); (4) the
+  sleeve cuff with 3 buttons (dots) and the hem edge 12 mm thick; a shoulder seam and an armhole seam line (P, G). Sharp collar
+  roll, a long vertical drape in the overcoat (N). For a blazer the open V reveals the shirt and tie (see 4.1).
+- WORKJACKET: the corduroy collar facing (a stripe pattern 2 to 3 cm), 4 patch pockets with stitched edges and a button each, a
+  hem band, cuff straps, a boxy square silhouette, fade at shoulders, elbows, cuffs and back of the forearm, darker at the hem (P, N).
+- WINDBREAKER, VELOURTRACK: high collar, a centre zip with a long pull, a colour-block panel across the chest and shoulders (two muted
+  tones, edge lines at 2 mm), elastic cuffs and hem, a plain 2 cm sleeve stripe on the velour; velour: a soft nap sheen that
+  brightens on the shoulder and the sides of the arms (roughness map).
+- FLEECE: a fuzzy outline (the edge of the garment is blurred 1 to 2 mm in the alpha or the normal), a stand collar 4 cm, a chest
+  zip pocket (a diagonal zip line), cuff binding.
+- CARDIGAN: a shawl or V front with 5 or 6 buttons or open, patch pockets, rib hem band 6 cm, rib cuffs, chunky knit noise.
+- HIVISVEST: two horizontal grey reflective bands 5 cm wide round the body and two vertical over the shoulders, the bands slightly
+  brighter and glossier (specular), a zip or velcro centre line, side straps, a mesh noise on the body fabric. It is the most
+  readable item in the game at distance: keep its colour desaturated and do not add lettering.
+- CHEFJACKET and BARBERSMOCK: double-breasted fold (two rows of 4 cloth knots 1.5 cm), a standing collar, rolled cuffs; the smock:
+  snap line down the front, a stiff boxy hem MID-THIGH, a chest pocket.
+
+### 4.4 Headwear, shoes, accessories
+
+- CAP: a curved 6 cm brim, crown with six panel seams meeting at the button, an eyelet dot on each side, a faint sweatband line; no logo.
+- BEANIE: 5 cm folded cuff with vertical rib lines, a rounded crown with a small gather at the top.
+- BUCKET: a drooping 4 cm brim, a stitched brim edge (3 rings), a crown with a seam.
+- FLATCAP and FEDORA: flat cap, an eight-panel crown with a button on the top and a short peak; fedora, a centre crease and two
+  side pinches in the crown, a band 2.5 cm, the brim edge turned up a little at the back.
+- CHURCHHAT: a wide soft brim, a ribbon band and a bow or a small spray as ONE accent shape; the brim has a slight tilt.
+- HEADWRAP, HIJAB, BONNET, DURAG, KUFI: headwrap and hijab, the folds as 3 to 4 overlapping bands (darker lines) with a knot or a pin
+  at one point; bonnet, a smooth puff with a gathered band; durag, a smooth sheen on the skull with a seam down the middle and the
+  tail; kufi, a fine knit or weave pattern as faint diagonal hatching (the cap is small, so just a rounded cap with a seam ring).
+- SNEAKERS (low, high, chunky, runner, canvas): the white or dark sole as a 2.5 to 4 cm band with a slightly lighter or darker
+  midsole, a toe cap shape (a curve across the toe), 5 lace dots and a tongue, a heel counter patch, a stitched side panel line
+  (no brand-shaped mark: use one plain curved panel), and wear: a crease across the toe box and a scuffed
+  toe cap (P, N). Rounded toe box, sole thicker at the heel.
+- BOOTS (workBoot, tanBoot, ankleBoot): lugged sole 3 to 4 cm as a dark band with a notch pattern, a welt line, a toe cap seam,
+  speed hooks or eyelets in two columns, a padded collar; scuff at the toe; leather creases at the ankle.
+- DRESS SHOES, LOAFERS, FLATS, HEELS: a shine highlight on the toe, a cap-toe seam or a strap with a small tassel or a penny slit,
+  a thin sole line 1 cm, a heel stack; flats: an elastic edge line; heels: a pointed toe and a visible heel block.
+- BAGS: backpack, a two-strap shape with a zip line, a front pocket, a top handle loop; tote, two handles hanging 20 cm and a base
+  seam; crossbody and sling, one diagonal strap line across the torso (this line is the tell) and a flap with a clasp dot; handbag,
+  a clasp line and a handle arc; groceryBag, a bulb shape with two handles and translucent crinkle (N); deliveryBag, a squarish box
+  with a flap seam and a strap; all unmarked.
+- GLASSES and SUNGLASSES: a 1.5 cm band across the eyes, a bridge, two temple lines running to the ears; sunglasses, the lens darker
+  and a little glossy. (Faces belong to another seat; ask on the channel.)
+- BELT and CHAIN: belt, a 3.5 cm band in a dark tone with a buckle square at the front and a loop; chain, a thin lighter line 2 mm
+  at the collarbone looping at the sternum.
+
+### 4.5 Wear and weight: the cheap rules that make cloth read as worn
+
+1. Darker at hems and cuffs, lighter at shoulders, elbows, knees and seats; one place that shines (the seat of the suit trousers, the
+   knees of a blazer's sleeve at the elbow).
+2. Fold placement, not noise: elbows, knees, crotch (a fan), armpits, the waist on a tucked shirt, the belly on a leather jacket; stiff
+   cloth has a few large folds, limp cloth many small; puffy cloth has horizontal pinches; wool long vertical folds.
+3. Seam lines in the albedo at 8 to 12 percent contrast are free: centre front, shoulder, side, armhole, waistband, fly.
+4. Roughness separates materials at the same colour: matte jersey and fleece, a sheen on nylon and velour, a sharp specular on leather
+   and a hi-vis band, a soft sheen on wool at the stress points, a satin sheen on a durag and a bonnet.
+5. Layer contrast: each layer 12 or more L* from the one under it, with a one-pixel dark shadow line where the outer layer ends.
+6. Texture sources for the families that have an open fabric (denim, jersey, fleece, wool, leather, corduroy, rough weave) are listed in
+   `clothing-brooklyn.md` part 3 (CC0); the families with no open source (puffer quilting, a true rib knit, hi-vis, sneaker mesh,
+   velour, satin, canvas duck) are painted in code over a plain base, as that file says.
 
 ---------------------------------------------------------------------------------------------------------------
-(PART 4 FOLLOWS)
+
+## 5. Questions from the channel
+
+(none yet that needed a reply; see the end of this file as they come in)

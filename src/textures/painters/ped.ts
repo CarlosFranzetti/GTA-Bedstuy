@@ -88,8 +88,10 @@ export interface PedSpec {
     /** jacket worn open over `under` (a tee or hoodie shows) */ open?: boolean;
     /** what the outer layer is made of (default by garment) */ fabric?: 'canvas' | 'denim' | 'leather' | 'wool' | 'fleece' | 'knit';
     /** the cut inside the kind (collar, pocket, belt ...), see TopStyle */ style?: TopStyle;
+    /** WARDROBE (optional, read by the garment geometry when it can): the fit of the garment and its neckline; a look that needs a shape the geometry lacks is built from the nearest kind and carries these so FIT can finish it (see pedMix.NEEDS_SHAPE) */
+    fit?: 'skin' | 'oversized' | 'cropped'; neck?: 'roll' | 'band' | 'henley' | 'scoop' | 'wide';
   };
-  bottom: { kind: BottomKind; color: string; trim: string; /** ankle-length skirt */ long?: boolean; /** the cut inside the kind, see BottomCut */ cut?: BottomCut; /** denim shorts / skirt (painted like jeans) */ denim?: boolean };
+  bottom: { kind: BottomKind; color: string; trim: string; /** ankle-length skirt */ long?: boolean; /** the cut inside the kind, see BottomCut */ cut?: BottomCut; /** denim shorts / skirt (painted like jeans) */ denim?: boolean; /** WARDROBE (optional): a wide leg or a high rise, see pedMix.NEEDS_SHAPE */ fit?: 'wide' | 'highRise' };
   shoes: { color: string; sole: string; accent: string; high?: boolean; /** explicit shoe (else picked from the outfit) */ kind?: ShoeKind; /** sock colour where it shows (slides, cropped legs) */ sock?: string };
   gear: 'none' | 'backpack' | 'bag' | 'tote' | 'messenger';
   gearColor: string;

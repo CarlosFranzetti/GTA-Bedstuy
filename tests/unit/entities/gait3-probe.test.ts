@@ -1,14 +1,13 @@
 import { describe, it, beforeAll } from 'vitest';
-import { loadShapes, buildPerson, footPoints, SIX } from './gait3-rig';
+import { loadShapes, buildPerson, runFrames, stances } from './gait3-rig';
 beforeAll(async () => { await loadShapes(); });
 describe('gait3 probe', () => {
-  it('prints foot geometry', () => {
-    for (const id of SIX) {
-      const p = buildPerson(id);
-      p.ctl.update(1 / 60, { speed: 0 });
-      const f = footPoints(p), gs = p.m.group.scale.y;
-      console.log(id, 'groupScale', gs.toFixed(3), 'ankleY', f.ankle[0].y.toFixed(3), 'lockBallY', f.lockBall[0].y.toFixed(3), 'meshBallY', f.meshBall[0].y.toFixed(3), 'meshHeelY', f.meshHeel[0].y.toFixed(3), 'soleLocalY', p.soleY[0].toFixed(3),
-        'ballL', p.ballL[0].toArray().map((x) => x.toFixed(3)).join(','), 'heelL', p.heelL[0].toArray().map((x) => x.toFixed(3)).join(','));
+  it('heel glide', () => {
+    const p = buildPerson('ba-hoodie-fade'), fr = runFrames(p, () => 1.4, 8);
+    for (const s of stances(fr, (q) => q.meshHeel).filter((q) => q.i0 > 90).slice(0, 5)) {
+      const row: string[] = [];
+      for (let i = s.i0 - 3; i <= s.i1 + 3; i += 2) { const f = fr[i].pts, sd = s.side; row.push(`${i}:h${(f.meshHeel[sd].y * 100).toFixed(1)}/b${(f.meshBall[sd].y * 100).toFixed(1)}/z${((f.meshHeel[sd].z - fr[i].pts.meshHeel[sd].z) * 100).toFixed(0)}`); }
+      console.log('stance side', s.side, 'slide', (s.slide * 100).toFixed(1), row.join(' '));
     }
   });
 });
