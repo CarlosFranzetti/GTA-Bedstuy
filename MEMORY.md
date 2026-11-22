@@ -209,10 +209,14 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   - Camera (CAMFIX, `docs/swarm/tasks/CAMFIX.md`): first person, hood and cinematic are clean cuts (the hood blend flew the
     lens through the car); getting in or out is one 0.6 s eased blend; chase views blend in 0.25 s; stepping out holds the
     view. Rig numbers unchanged. 143 harness tests in `tests/unit/entities/camfix*.ts`.
-  - Faces (FACES2, `docs/swarm/tasks/FACES2.md`): about 30 seeded shape traits per person (`pedHead.ts` `faceTraits`,
-    `morphHead`, called from `pedMesh.dressLod`), age in shape and skin. No extra triangles, draws or textures. Still short:
-    everyone frowns, a pale ragged patch on the cheek by the ear (an unwrap or chart edge in `scripts/people-pipeline.mjs`),
-    hairline teeth, painted eyes. Next lane: those four.
+  - Faces (FACES2 then FACES3, `docs/swarm/tasks/FACES2.md`, `FACES3.md`; FACES3 went live in the fourth deploy of 22 Nov):
+    about 30 seeded shape traits per person (`pedHead.ts` `faceTraits`, `morphHead`, called from `pedMesh.dressLod`), age in
+    shape and skin, no extra triangles, draws or textures. The pale patch by the ear was the head UNWRAP: the cylinder axis
+    stood in front of the ears, so nostril and eye-socket triangles wrapped across half the tile and overwrote the cheeks in
+    the bake. Fixed in `unwrapUVs` (`scripts/people-pipeline.mjs`, axis at the ear plane), all 23 base meshes rebuilt.
+    Mouths rest neutral (`mouthUp`), the hair rim is lifted 3.2 mm so skin no longer pokes through, both eyes look the same
+    way. Still short: lips are thin dark lines, a hard hairline edge, no eyeball or lid geometry, a dark cheek wedge on the
+    mid level (phone tier), banding at the neck and collar, some heavy builds still pout at three-quarter view.
   - Trees (TREES, `docs/swarm/tasks/TREES.md`): crowns of 4 or 5 overlapping leaf clouds (`src/world/props/treeCloud.ts`),
     flared trunks, park groves, hedges and shrubs; about the same triangles per tree on phone and low.
   - Anti-aliasing is off by default on every tier (owner); SMAA is a choice in Settings.
