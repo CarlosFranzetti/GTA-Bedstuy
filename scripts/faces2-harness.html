@@ -1,0 +1,50 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>faces2 harness</title>
+<style>html,body{margin:0;background:#789;overflow:hidden}</style></head>
+<body><script type="module">
+// FACES2 review harness: a grid of heads at one camera (front / three-quarter), or a few people at a set distance.
+// Dev server: vite --port N, then /scripts/faces2-harness.html?view=grid&start=0&stride=7&n=24&yaw=0|0.7&cols=6
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Rng } from '@/core/Rng';
+import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { buildPerson as buildPedModel, loadPeople } from '@/entities/models/pedMesh';
+import { PED_SPECS, CIVILIAN_COUNT } from '@/textures/painters/ped';
+import { setPeopleMode } from '@/textures/painters/pedMode';
+await loadPeople();
+const q = new URLSearchParams(location.search);
+setPeopleMode('skin');
+const W = Number(q.get('w') ?? 1500), H = Number(q.get('h') ?? 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); renderer.setScissorTest(true); document.body.appendChild(renderer.domElement);
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x8a96a2);
+const pm = new THREE.PMREMGenerator(renderer);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.45;
+// late afternoon: low warm sun from the left and front, cool sky fill
+const sun = new THREE.DirectionalLight(0xffd8a8, 2.8); sun.position.set(-4, 3.2, 5); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xaac4e8, 0x6a5a48, 0.65));
+const materials = new MaterialLibrary(new Rng(7)); materials.carPaintDetail(); materials.setEnvironment(scene.environment);
+const view = q.get('view') ?? 'grid', yaw = Number(q.get('yaw') ?? 0);
+const start = Number(q.get('start') ?? 0), stride = Number(q.get('stride') ?? 7), n = Number(q.get('n') ?? 24), cols = Number(q.get('cols') ?? 6);
+const ids = q.get('ids') ? q.get('ids').split(',') : null;
+const variants = ids ? ids.map((id) => PED_SPECS.findIndex((s) => s.id === id)) : Array.from({ length: n }, (_, i) => (start + i * stride) % CIVILIAN_COUNT);
+const t0 = performance.now();
+const models = variants.map((v) => { const m = buildPedModel(materials, new Rng(v + 1), { variant: v }); m.group.rotation.y = Math.PI + yaw; scene.add(m.group); m.group.visible = false; return m; });
+const buildMs = performance.now() - t0;
+const info = { buildMsPerPerson: +(buildMs / variants.length).toFixed(1), people: variants.length, ids: variants.map((v) => PED_SPECS[v].id), tris: models.map((m) => m.triangles) };
+const rows = Math.ceil(variants.length / cols), tw = Math.floor(W / cols), th = Math.floor(H / rows);
+const dist = Number(q.get('d') ?? 0.85), fov = Number(q.get('fov') ?? 22), full = view === 'full';
+const cam = new THREE.PerspectiveCamera(fov, tw / th, 0.05, 50);
+models.forEach((m, i) => {
+  m.group.visible = true; m.group.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(m.group); const top = box.max.y;
+  const cx = (box.min.x + box.max.x) / 2;
+  const hp = new THREE.Vector3(); m.head.getWorldPosition(hp); const ly = full ? top / 2 : hp.y + Number(q.get('hy') ?? 0.085);
+  cam.position.set(m.group.position.x, ly + (full ? 0 : 0.02), dist); cam.lookAt(0, ly, 0); cam.aspect = tw / th; cam.updateProjectionMatrix();
+  const c = i % cols, r = Math.floor(i / cols);
+  renderer.setViewport(c * tw, H - (r + 1) * th, tw, th); renderer.setScissor(c * tw, H - (r + 1) * th, tw, th);
+  renderer.render(scene, cam); m.group.visible = false;
+});
+window.__ready = { ...info, calls: renderer.info.render.calls };
+</script></body></html>

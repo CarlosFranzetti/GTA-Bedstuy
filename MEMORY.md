@@ -36,6 +36,17 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 
 ## What the owner wants (his words, newest first)
 
+- 22 Nov, after playing the live game: "radio station issues (sometimes it wont play)"; "the car engine sound gets stuck,
+  starts to loop and stutters"; "engine should be 45% lower by default and also an option in settings to turn engine off
+  altogether"; "sometimes the camera screws up getting in and out of car or changing views"; "have the faces be
+  different and varied and more like GTA 4. I WANT SOME AAA POLISH"; then push and deploy everything and send him a
+  transcript. Lanes AUDIOFIX, CAMFIX, FACES2.
+- 22 Nov: "I want real-street map made the main map" (lane MAINMAP: `src/world/mapChoice.ts`, `?map=grid` keeps the old
+  grid; the single-file build stays on the grid); "a public GitHub release for the Mac and PC native executables" (a
+  tag push from this box is refused, HTTP 403: the `native` workflow now takes a release tag when run by hand); "make the
+  trees bushier especially in the park" (lane TREES); "do not have anti-aliasing on by default" (done in
+  `src/ui/GraphicsSettings.ts`: SMAA stays a choice in Settings).
+
 - 21 Nov, night: "another 15 actual locations and the look as per online images"; "grow our blocks by 5 in each
   direction and 2 streets each in between N, E, W, S". Lead's reading: the real-street map grows 5 blocks north, east,
   south and west and 2 streets on the diagonals (lane MAP4); 15 more real places under invented names, each built to

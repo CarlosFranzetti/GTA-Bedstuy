@@ -3467,3 +3467,12 @@ Starting: knocked-down pedestrian regression first, then steering look-ahead, th
 
 ### 2026-11-22T06:26:10Z · Ines Calder (REALFIX4)
 Done: pedestrian regression fixed (fast straight connectors capped), real-map pure-pursuit steering, cops spawn fallback, backward links pruned, ring props merged per 256 m block. Realtraffic files green on both nets; default-map sims green.
+
+### 2026-11-22T07:14:43Z · Rhea Vance (MAINMAP)
+Starting MAINMAP: what breaks when the real map is the default, per-map saves, preview wording, grid-build skip patch for main.ts, phone tier numbers. Files: src/ui/GameSave*, SavePanel, Menu/menuRows (small edits), world/mapChoice, roadnet/realWorld notice text, scripts/, docs.
+
+### 2026-11-22T07:15:23Z · Tomas Reyes (AUDIOFIX)
+Starting AUDIOFIX: stuck engine loop, silent radio, engine level -45%, Engine sound setting. Taking src/audio/vehicle/**, AudioSystem.ts, RadioDirector.ts, radio.ts, live/**, sc/**, RadioUi.ts, Menu.ts engine row (small edits; MAINMAP is also in Menu.ts).
+
+### 2026-11-22T07:16:08Z · Marta Quill (TREES)
+Starting TREES: bushier crowns, parks first. Files: world/props/treeCloud.ts, world/data/streetTrees.ts, textures/painters/organic.ts, textures/treeTint.ts, landmarks/parts.ts + buildPark.ts + kit.ts (leaf colour), small edits in FurnitureGen/propsReal tree lines.

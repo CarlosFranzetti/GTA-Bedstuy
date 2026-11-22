@@ -2,9 +2,16 @@ name: native
 
 # Desktop apps: macOS Apple Silicon (dmg + zip) and Windows x64 (installer + portable exe).
 # Runs on a push to master that touches the shell (native/**), this file, or anything the hosted web build is made from, and by hand
-# (Actions, "native", Run workflow). A v* tag also attaches the installers to a GitHub Release. See docs/NATIVE.md.
+# (Actions, "native", Run workflow). A v* tag also attaches the installers to a GitHub Release, and so does a run by hand with a
+# release tag typed in (that makes the tag and the public Release from the commit that was built). See docs/NATIVE.md.
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Publish a public GitHub Release under this tag (for example v0.2.0). Leave empty to only build.'
+        required: false
+        default: ''
+        type: string
   push:
     tags: ['v*']
     branches: [master]
@@ -148,8 +155,18 @@ jobs:
           retention-days: 30
 
       - name: Attach to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
           files: ${{ matrix.paths }}
           generate_release_notes: true
+          body: |
+            Free, non-commercial fan tribute. Desktop builds of the game that runs at https://gta-bedstuy.vercel.app
+
+            - macOS (Apple Silicon): open the .dmg and drag the app to Applications.
+            - Windows (64-bit): run the Setup .exe, or use the portable .exe without installing.
+
+            These builds are not signed, so macOS and Windows warn on the first start. The steps to get past the warning are in
+            docs/NATIVE.md in the repository.

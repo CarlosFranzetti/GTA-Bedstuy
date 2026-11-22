@@ -16,7 +16,14 @@ import type { SavedHands } from '@/game/combat/items';
  * save's embedded block, if any, still restores it). The slot key prefix keeps its 'v2' so existing slots are not orphaned.
  */
 export const SAVE_VERSION = 3;
+/** Grid-map slots keep the original prefix, so every save made before the real map became the main map still loads on `?map=grid`. */
 export const SAVE_PREFIX = 'gta-bedstuy.save.v2.';
+/** The real-street map has its own slots (22 Nov 2026): a position and a mission state on one map mean nothing on the other. */
+export const REAL_SAVE_PREFIX = 'gta-bedstuy.save.v2.real.';
+export type SaveMap = 'grid' | 'real';
+export const savePrefix = (map: SaveMap): string => (map === 'real' ? REAL_SAVE_PREFIX : SAVE_PREFIX);
+/** Clock hour a player carried over from the other map starts at (the fresh-game hour, LightingConfig.startHour). */
+export const CARRY_OVER_HOUR = 17.5;
 export const LEGACY_SAVE_KEY = 'gta-bedstuy.save.v1';
 export const EXPORT_FORMAT = 'gta-bedstuy-save';
 export const AUTOSAVE_INTERVAL_MS = 60_000;
@@ -245,7 +252,8 @@ export class SaveStore {
   /** false once any read/write failed or no storage exists: saves then live only in memory and the UI says so. */
   storageOk: boolean;
 
-  constructor(private readonly storage: SaveStorage | null = defaultStorage()) {
+  /** `map` picks the slot set: each map keeps its own slots ('grid' is the original key prefix). */
+  constructor(private readonly storage: SaveStorage | null = defaultStorage(), readonly map: SaveMap = 'grid') {
     this.storageOk = storage !== null;
     if (storage) {
       try { storage.getItem(LEGACY_SAVE_KEY); } catch { this.storageOk = false; }
@@ -265,9 +273,9 @@ export class SaveStore {
     try { this.storage.setItem(key, text); } catch { this.storageOk = false; }
   }
 
-  /** Raw slot content, then validation: 'corrupt' for text that is not a usable save. */
-  get(id: SlotId): SaveData | 'corrupt' | null {
-    const raw = this.read(SAVE_PREFIX + id);
+  /** Raw slot content, then validation: 'corrupt' for text that is not a usable save. `map` reads the other map's slot (carry-over). */
+  get(id: SlotId, map: SaveMap = this.map): SaveData | 'corrupt' | null {
+    const raw = this.read(savePrefix(map) + id);
     if (raw === null || raw === '') return null;
     try { return migrateSave(JSON.parse(raw)) ?? 'corrupt'; } catch { return 'corrupt'; }
   }
@@ -275,17 +283,19 @@ export class SaveStore {
   put(id: SlotId, data: SaveData): boolean {
     let text: string;
     try { text = JSON.stringify(data); } catch { return false; }
-    this.write(SAVE_PREFIX + id, text);
+    this.write(savePrefix(this.map) + id, text);
     return true;
   }
 
   remove(id: SlotId): void {
-    this.mem.delete(SAVE_PREFIX + id);
-    if (this.storage) { try { this.storage.removeItem(SAVE_PREFIX + id); } catch { this.storageOk = false; } }
+    const key = savePrefix(this.map) + id;
+    this.mem.delete(key);
+    if (this.storage) { try { this.storage.removeItem(key); } catch { this.storageOk = false; } }
   }
 
-  /** The v1 position-only save, migrated, or null. */
-  legacy(): SaveData | null {
+  /** The v1 position-only save, migrated, or null. It predates the real map, so only the grid map reads it. */
+  legacy(force = false): SaveData | null {
+    if (this.map !== 'grid' && !force) return null;
     const raw = this.read(LEGACY_SAVE_KEY);
     if (!raw) return null;
     try { return migrateSave(JSON.parse(raw)); } catch { return null; }
@@ -385,8 +395,49 @@ export class SaveManager {
       if (s && s !== 'corrupt' && (!best || s.savedAt > best.savedAt)) best = s;
     }
     best ??= this.store.legacy();
+    this.carried = null;
+    if (!best && this.store.map === 'real') best = this.carryOverFromGrid();
     if (best?.playerLook !== undefined) this.playerLook = best.playerLook;
     return best;
+  }
+
+  /**
+   * A player who arrives on the real map with only grid saves starts fresh: new place, new clock, empty missions and story,
+   * but keeps the cash, the records, the held items and the look of the newest grid save. Never touches the grid slots.
+   * The pose is a grid pose, so `poseOnMap` puts the player at home on foot (never in a wall).
+   */
+  private carryOverFromGrid(): SaveData | null {
+    let src: SaveData | null = null;
+    for (const id of SLOT_IDS) {
+      const s = this.store.get(id, 'grid');
+      if (s && s !== 'corrupt' && (!src || s.savedAt > src.savedAt)) src = s;
+    }
+    src ??= this.store.legacy(true);
+    if (!src) return null;
+    const out: SaveData = { v: SAVE_VERSION, savedAt: src.savedAt, pose: { x: 0, z: 0, heading: 0, inCar: false, map: 'grid' }, hour: CARRY_OVER_HOUR };
+    if (src.cash !== undefined) out.cash = src.cash;
+    if (src.inventory) out.inventory = { records: src.inventory.records, items: src.inventory.items, flags: [] };
+    if (src.playerLook !== undefined) out.playerLook = src.playerLook;
+    if (src.radioStation) out.radioStation = src.radioStation;
+    this.carried = out;
+    return out;
+  }
+
+  /** Set by `bootSave` when it returned a carry-over from the grid map (see `applyCarryOver`). */
+  private carried: SaveData | null = null;
+  get hasCarryOver(): boolean { return this.carried !== null; }
+
+  /**
+   * Call once after `bind`: puts the carried-over cash, records and items into the live game and writes the first real-map
+   * autosave, so the carry-over happens once. Returns whether anything was applied.
+   */
+  applyCarryOver(now: number = Date.now()): boolean {
+    const c = this.carried;
+    if (!c || !this.parts) return false;
+    this.carried = null;
+    const ok = this.loadData(c);
+    if (ok) this.autosave(now, true, true);
+    return ok;
   }
 
   /** JSON text for a download. Null for an empty or corrupt slot. */
