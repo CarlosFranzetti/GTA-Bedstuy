@@ -22,6 +22,9 @@ export interface TrafficAgentOptions {
 }
 
 const STEER_GAIN = 2.5;
+/** REALFIX4, real map only (lanes.signalLookAheadM set): pure pursuit. The car steers at the point PURSUIT_MIN + PURSUIT_SPEED_GAIN * speed (m) ahead along its lane path, never past a stop line or a fork */
+const PURSUIT_MIN = 4;
+const PURSUIT_SPEED_GAIN = 0.5;
 const ARRIVE_RADIUS = 3;
 const STOP_WAIT = 0.8;
 const MAX_EXTRA_WAIT = 4;
@@ -139,6 +142,8 @@ const FLANK_PED_MARGIN = 1;
 const FLANK_TAIL_SWING = 0.5;
 const FLANK_HOLD_MAX = 6;
 const FLANK_IGNORE_FOR = 5;
+/** real map only: the speed (m/s) a car may creep at while it is ignoring a pedestrian pressed against it */
+const FLANK_CREEP_SPEED = 1.2;
 /** do not block the box: a stop line is not entered while the exit lane is jammed this far past the box edge; a hopeless wait ends after BOX_JAM_MAX */
 const BOX_EXIT_LOOKAHEAD = 9;
 /** a parked car that the path to the aim point clears by this much (on top of both half widths) is not a blocker, even when a ray grazes it */
@@ -230,6 +235,7 @@ export class TrafficAgent {
   private readonly rayDir: Vec2 = { x: 0, z: -1 };
   private readonly rayFrom: Vec2 = { x: 0, z: 0 };
   private readonly scratch: Vec2 = { x: 0, z: 0 };
+  private readonly scratch2: Vec2 = { x: 0, z: 0 };
   private readonly ignoreStop: boolean;
   private readonly speedForStreet?: (streetId: string) => number;
   private readonly fixedCruise?: number;
@@ -404,6 +410,11 @@ export class TrafficAgent {
     // ---- steering
     let aimXs = aimX;
     let aimZs = aimZ;
+    if (this.lanes.signalLookAheadM !== undefined && !this.passBody) {
+      const a = this.pursuitPoint(node, PURSUIT_MIN + PURSUIT_SPEED_GAIN * Math.max(0, speed));
+      aimXs = a.x - rx * this.lat;
+      aimZs = a.z - rz * this.lat;
+    }
     if (this.passBody) {
       // swinging round the car being passed: aim at the road beside it, not at a lane node 20 m away
       const pb = this.passBody;
@@ -493,6 +504,8 @@ export class TrafficAgent {
     if (this.flankIgnore > 0) {
       this.flankIgnore -= dt;
       this.flankHold = 0;
+      // real map: creeping on past a pedestrian who has pinned the car is a creep (a car that pulled away at 2.4 m/s^2 clipped one at 5 m/s)
+      if (this.lanes.signalLookAheadM !== undefined) desired = Math.min(desired, FLANK_CREEP_SPEED);
     } else if (this.pedFlank) {
       this.pedGap = Math.min(this.pedGap, 0.1);
       if (Math.abs(speed) < 0.3) this.flankHold += this.pedFlankMoving ? dt * 0.25 : dt; // a walking ped passes by: wait four times as long before creeping on
@@ -1004,6 +1017,31 @@ export class TrafficAgent {
   private extraHalfL(): number {
     const sh = this.vehicle.body.shape;
     return sh.kind === 'obb' ? Math.max(0, sh.halfL - SEDAN_HALF_L) : 0;
+  }
+
+  /** Point `ahead` metres along the lane path from the car: through `node`, then the single successors, ending at a stop line or a fork. */
+  private pursuitPoint(node: LaneNode, ahead: number): Vec2 {
+    const out = this.scratch2;
+    let px = this.vehicle.body.pos.x, pz = this.vehicle.body.pos.z;
+    let n: LaneNode = node;
+    let left = ahead;
+    for (let i = 0; i < 24; i++) {
+      const seg = hyp(n.pos.x - px, n.pos.z - pz);
+      if (seg >= left) {
+        const t = left / Math.max(seg, 1e-6);
+        out.x = px + (n.pos.x - px) * t; out.z = pz + (n.pos.z - pz) * t;
+        return out;
+      }
+      left -= seg; px = n.pos.x; pz = n.pos.z;
+      if (n.stopLine && !this.ignoreStop) break;
+      const adj: number[] | undefined = this.lanes.adjacency[n.id];
+      if (!adj || adj.length !== 1) break;
+      const nx: LaneNode | undefined = this.lanes.nodes[this.lanes.edges[adj[0]].to];
+      if (!nx) break;
+      n = nx;
+    }
+    out.x = px; out.z = pz;
+    return out;
   }
 
   private scanPeds(fx: number, fz: number, speed: number, minReach = 0): number {

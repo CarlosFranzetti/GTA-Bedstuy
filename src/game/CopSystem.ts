@@ -275,7 +275,48 @@ export class CopSystem {
       this.entries.push({ vehicle: v, agent, hitCooldown: 0, patrol });
       return true;
     }
+    // REALFIX4, real map only (its lane graph has 84,000 nodes, so 24 random picks often miss a ring of 100 to 140 m, or land where the cop cannot get to the
+    // player in time): scan every node, take a random one inside the ring, off the forward cone first, then anywhere in the ring
+    if (this.grid.lanes.signalLookAheadM === undefined) return false;
+    for (let pass = 0; pass < 2; pass++) {
+      const found: LaneNode[] = [];
+      for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
+        if (n.stopLine) continue;
+        const d = dist(n.pos, playerPos);
+        if (d < SPAWN_MIN || d > SPAWN_MAX) continue;
+        if (pass === 0 && !patrol && playerVel) {
+          const sp = Math.hypot(playerVel.x, playerVel.z);
+          if (sp > AHEAD_MIN_SPEED && ((n.pos.x - playerPos.x) * playerVel.x + (n.pos.z - playerPos.z) * playerVel.z) / (d * sp) > AHEAD_CONE_COS) continue;
+        }
+        if (this.world.queryCircle(n.pos, 5).length > 0) continue;
+        found.push(n);
+      }
+      if (found.length) {
+        // pursuit cops steer greedily toward the player, so one that starts facing the player and as near as the ring allows reaches it; patrols take a random node
+        if (!patrol) {
+          const facing = (n: LaneNode): number => ((playerPos.x - n.pos.x) * Math.sin(n.heading) - (playerPos.z - n.pos.z) * Math.cos(n.heading)) / Math.max(1, dist(n.pos, playerPos));
+          const toward = found.filter((n) => facing(n) > 0.5);
+          const pool = toward.length ? toward : found;
+          return this.spawnAt(pool.reduce((a, b) => (dist(b.pos, playerPos) < dist(a.pos, playerPos) ? b : a)), patrol);
+        }
+        return this.spawnAt(found[Math.floor(this.rng.next() * found.length) % found.length], patrol);
+      }
+    }
     return false;
+  }
+
+  private spawnAt(n: LaneNode, patrol: boolean): boolean {
+    const v = this.makeVehicle('cop', { x: n.pos.x, z: n.pos.z }, n.heading, '#1b2a4a');
+    v.driver = 'cop';
+    v.siren = true;
+    this.scene.add(v.object3D);
+    this.world.addBody(v.body);
+    const agent = new CopAgent(v, this.grid, this.world, this.lights);
+    if (patrol) agent.setPursuing(false);
+    this.cops.push(v);
+    this.entries.push({ vehicle: v, agent, hitCooldown: 0, patrol });
+    return true;
   }
 
   private remove(entryIndex: number): void {

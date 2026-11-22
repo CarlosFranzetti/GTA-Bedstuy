@@ -22,23 +22,35 @@ const d = deriveGeometry(net);
 describe('lane connectors that feed a stop line', () => {
   const build = buildLaneGraphDetailed(net, d);
   const chainOf = new Map(build.chains.map((c) => [c.nodeIds[0], c]));
-  // Lead, 22 Nov: KNOWN RED, skipped so it is not forgotten: the worst case is 127 m on skewed junction boxes against a 90 m look-ahead
-  // (docs/swarm/tasks/REALFIX.md, REALFIX3). It needs the steering look-ahead design, not a larger number.
-  it.skip('keep the stop line inside the agent look-ahead distance when the lane after a connector is short', () => {
-    let checked = 0;
+  // REALFIX4: this replaces the skipped "stop line inside the look-ahead distance" test. Distance from a connector to a stop line behind a short lane is no
+  // longer what keeps a car able to stop there (127 m on skewed boxes): the line cap below does (the connector is slow enough to brake inside the link), and
+  // the look-ahead distance only serves stuck detection and overtaking. What the steering now relies on is tested here instead.
+  it('cap the second half of EVERY connector (straight ones too) at the exit-crosswalk speed', () => {
     const g = build.graph;
-    const len = (ids: readonly string[]): number => { let l = 0; for (let i = 1; i < ids.length; i++) l += Math.hypot(g.nodes[ids[i]].pos.x - g.nodes[ids[i - 1]].pos.x, g.nodes[ids[i]].pos.z - g.nodes[ids[i - 1]].pos.z); return l; };
-    expect(g.signalLookAheadM).toBeGreaterThan(40);
+    let checked = 0;
     for (const cn of build.connectors) {
-      const ch = chainOf.get(cn.to);
-      if (!ch) continue;
-      const lastNode = g.nodes[ch.nodeIds[ch.nodeIds.length - 1]];
-      if (!lastNode.stopLine || ch.nodeIds.length > 3 || len(ch.nodeIds) > 45) continue;
+      if (cn.nodeIds.length < 4) continue;
+      const half = cn.nodeIds.slice(Math.ceil((cn.nodeIds.length - 1) / 2));
       checked++;
-      // from the connector's first node to the stop line, by distance (the agent walks single-successor chains up to signalLookAheadM)
-      expect(len([...cn.nodeIds, ...ch.nodeIds])).toBeLessThanOrEqual(g.signalLookAheadM!);
+      for (const id of half) expect(g.nodes[id].maxSpeed ?? Infinity).toBeLessThanOrEqual(6);
     }
     expect(checked).toBeGreaterThan(100);
+  });
+  it('build no connector that runs backwards from the heading at its start (the old two-signal Broadway links)', () => {
+    const g = build.graph;
+    let short = 0, back = 0;
+    for (const cn of build.connectors) {
+      if (cn.uturn) continue;
+      const from = g.nodes[cn.from], to = g.nodes[cn.to];
+      const cx = to.pos.x - from.pos.x, cz = to.pos.z - from.pos.z, cl = Math.hypot(cx, cz);
+      if (cl > 0.5 && cl < 40) {
+        short++;
+        const dot = (cx * Math.sin(from.heading) - cz * Math.cos(from.heading)) / cl;
+        if (dot < -0.1) back++;
+      }
+    }
+    expect(short).toBeGreaterThan(100);
+    expect(back).toBe(0); // measured 0 of 6,243 short links
   });
   it('cap the speed of the connector nodes next to a close stop line', () => {
     let capped = 0;

@@ -3464,3 +3464,6 @@ Real map: graphs compacted (83 to 53 MB in node), 4 bare blocks repaired, 24 of 
 
 ### 2026-11-22T05:33:01Z · Ines Calder (REALFIX4)
 Starting: knocked-down pedestrian regression first, then steering look-ahead, then outer-ring draws. Files: src/world/roadnet/**, TrafficAgent steering (gated), CopSystem spawn fallback.
+
+### 2026-11-22T06:26:10Z · Ines Calder (REALFIX4)
+Done: pedestrian regression fixed (fast straight connectors capped), real-map pure-pursuit steering, cops spawn fallback, backward links pruned, ring props merged per 256 m block. Realtraffic files green on both nets; default-map sims green.

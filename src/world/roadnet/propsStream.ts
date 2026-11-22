@@ -50,6 +50,51 @@ interface Tile {
   empty: boolean;
 }
 
+/** REALFIX4: instanced furniture of one tile is merged per kind (geometry + material) into 256 m blocks: a 512 m tile is at most 4 blocks per kind instead of up to 16 chunks per kind */
+export const MERGE_BLOCK_M = 256;
+
+/**
+ * Replaces the plain instanced meshes of `props` that share a geometry and a material and lie in the same block by one InstancedMesh per block.
+ * Left alone: meshes with `userData.realSignals` (the signal controller recolours lamps by instance index), `noInstanceCull`, and anything not instanced.
+ * Returns the new chunkMeshes list (the originals are removed from the group and disposed).
+ */
+export function mergeInstancedPerBlock(props: RealProps, blockM = MERGE_BLOCK_M): THREE.Mesh[] {
+  const groups = new Map<string, THREE.InstancedMesh[]>();
+  const keep: THREE.Mesh[] = [];
+  for (const m of props.chunkMeshes) {
+    const im = m as THREE.InstancedMesh;
+    const mat = m.material as THREE.Material;
+    if (!im.isInstancedMesh || m.userData.realSignals || m.userData.noInstanceCull || Array.isArray(mat) || im.instanceColor) { keep.push(m); continue; }
+    if (!im.boundingSphere) im.computeBoundingSphere();
+    const c = im.boundingSphere!.center;
+    const k = `${m.geometry.uuid}|${mat.uuid}|${Math.floor(c.x / blockM)}|${Math.floor(c.z / blockM)}`;
+    const l = groups.get(k);
+    if (l) l.push(im); else groups.set(k, [im]);
+  }
+  const out = keep;
+  for (const list of groups.values()) {
+    if (list.length === 1) { out.push(list[0]); continue; }
+    let n = 0;
+    for (const im of list) n += im.count;
+    const first = list[0];
+    const merged = new THREE.InstancedMesh(first.geometry, first.material, n);
+    let o = 0;
+    for (const im of list) {
+      (merged.instanceMatrix.array as Float32Array).set((im.instanceMatrix.array as Float32Array).subarray(0, im.count * 16), o * 16);
+      o += im.count;
+      props.group.remove(im);
+      im.dispose();
+    }
+    merged.instanceMatrix.needsUpdate = true;
+    merged.name = first.name;
+    merged.userData.chunk = first.userData.chunk;
+    merged.computeBoundingSphere();
+    props.group.add(merged);
+    out.push(merged);
+  }
+  return out;
+}
+
 export class RingPropsStreamer {
   /** lamp heads of every resident tile (the form world.lamps takes) */
   readonly lamps: LampSpot[] = [];
@@ -95,6 +140,8 @@ export class RingPropsStreamer {
     for (const c of props.colliders) { c.id = `t${key}:${c.id ?? ''}`; tile.ids.push(c.id); }
     this.o.colliders.add(props.colliders);
     this.o.parent.add(props.group);
+    props.chunkMeshes = mergeInstancedPerBlock(props);
+    props.stats.meshes = props.chunkMeshes.length;
     for (const m of props.chunkMeshes) {
       const sp = (m as THREE.InstancedMesh).boundingSphere ?? (m.geometry.boundingSphere ?? (m.geometry.computeBoundingSphere(), m.geometry.boundingSphere));
       const c = sp ? sp.center.clone().add(new THREE.Vector3(0, 0, 0)) : new THREE.Vector3();

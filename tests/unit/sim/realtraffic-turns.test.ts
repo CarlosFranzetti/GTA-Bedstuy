@@ -19,7 +19,7 @@ describe('real map turn connectors', () => {
     expect(b.length / r.length).toBeLessThan(0.01);
     // the unfinished or far-off ones are the 90 deg turns across the short links of two Broadway signal pairs only (Middleton St 14 m, Malcolm X Blvd 33 m:
     // REALFIX2 measured 3 on the grown net). Pruning them (chord or angle rules in lanes.ts) strands lanes or builds longer fallbacks: see REALFIX.md.
-    expect(b.filter((t) => t.maxDev > 6).length).toBeLessThanOrEqual(2); // the original limit; the grown net (REAL_NET=r4) measures 4: known red
+    expect(b.filter((t) => t.maxDev > 6).length).toBeLessThanOrEqual(2); // the original limit; the grown net measures 1 since REALFIX4 (backward links are no longer built)
   });
 
   it('a car at speed (8 m/s into the stop line) makes them too', () => {

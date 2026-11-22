@@ -46,6 +46,8 @@ const DEAD_END_BACK = 3;
 const TURN_MIN = 0.5;
 /** speed cap (m/s) on the second half of a turn connector, where it crosses the exit crosswalk */
 const TURN_EXIT_SPEED = 3.5;
+/** REALFIX4: the second half of ANY connector (a straight one too) is crossed at no more than this (m/s): the crosswalk of the exit leg lies right after the box, and a pedestrian who steps off at an unsignalised crossing is only seen inside the cone (7 m + 1.2 s of speed), too late to stop a car doing 10 m/s */
+const EXIT_CONN_SPEED = 6;
 /** sharper than this and the connection is a U-turn, only built when a lane would be stranded otherwise */
 const U_TURN = 2.95;
 /** a connector slows its car for a stop line that ends the next lane within this many metres (m), assuming this braking (m/s2) */
@@ -55,6 +57,9 @@ const SHORT_LINK_M = 45;
 const LINE_DECEL = 1.6;
 /** turns sharper than this (~120 deg) are not built unless a lane would otherwise have no way on: a car cannot make them */
 const SHARP_TURN = 2.1;
+/** REALFIX4: a non-fallback connector whose chord is shorter than this (m) and points further back than this cosine against the start heading is not built */
+const BACKWARD_LINK_M = 40;
+const BACKWARD_DOT = -0.1;
 
 export type EndKind = 'junction' | 'through' | 'dead' | 'stub';
 
@@ -104,7 +109,7 @@ export function buildLaneGraph(net: RoadNet, d: Derived, opts: LaneOptions = {})
 
 export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptions = {}): LaneBuild {
   const o: Required<LaneOptions> = { ...DEFAULT_LANES, ...opts };
-  const graph: LaneGraph = { nodes: {}, edges: [], adjacency: {}, ...(process.env.BX_NOLA ? {} : { signalLookAheadM: SIGNAL_LOOKAHEAD_M }) };
+  const graph: LaneGraph = { nodes: {}, edges: [], adjacency: {}, signalLookAheadM: SIGNAL_LOOKAHEAD_M };
   const clusters = junctionClusters(net, d);
   const ci = clusterIndexOfNode(net, clusters);
   const cid = clusters.map(clusterId);
@@ -242,6 +247,11 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
     const to = first(b);
     const key = `${from.id}>${to.id}`;
     if (linked.has(key)) return false;
+    // REALFIX4: a link that runs BACKWARDS relative to the heading at its start (the next stop line lies behind the car, ~100 deg round: the Broadway pairs 9 to 14 m apart) is no turn a car can drive
+    if (!allowBad && !uturn) {
+      const cx = to.pos.x - from.pos.x, cz = to.pos.z - from.pos.z, cl = Math.hypot(cx, cz);
+      if (cl > 0.5 && cl < BACKWARD_LINK_M && (cx * Math.sin(from.heading) - cz * Math.cos(from.heading)) / cl < BACKWARD_DOT) return false;
+    }
     const curve = bezierConnector(from, to, o.turnStep, onRoad);
     if (curve.bad > 0 && !allowBad) return false;
     linked.add(key);
@@ -261,8 +271,9 @@ export function buildLaneGraphDetailed(net: RoadNet, d: Derived, opts: LaneOptio
     }
     curve.pts.forEach((q, i) => {
       const id = `cx:${from.id}>${b.id}:${i + 1}`;
-      const turnCap = turning && i >= (curve.pts.length - 1) / 2 ? TURN_EXIT_SPEED : Infinity;
-      const lineCap = !process.env.BX_NOCAP && feedsLine && rest[i] < SHORT_LINK_M ? Math.sqrt(2 * LINE_DECEL * rest[i]) + 0.5 : Infinity;
+      const lateHalf = i >= (curve.pts.length - 1) / 2;
+      const turnCap = lateHalf ? (turning ? TURN_EXIT_SPEED : EXIT_CONN_SPEED) : Infinity;
+      const lineCap = feedsLine && rest[i] < SHORT_LINK_M ? Math.sqrt(2 * LINE_DECEL * rest[i]) + 0.5 : Infinity;
       const cap = Math.min(turnCap, lineCap);
       addNode({ id, pos: q, streetId: to.streetId, heading: headingFromVec(curve.tans[i]), stopLine: false, ...(cap < Infinity ? { maxSpeed: cap } : {}) });
       nodeIds.push(id);

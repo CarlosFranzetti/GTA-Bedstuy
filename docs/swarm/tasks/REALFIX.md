@@ -68,3 +68,25 @@ two loosened test limits (turns: 2 connectors over 6 m; connector spacing 12 m).
 Jobs: (1) the live red `realtraffic-5min` "nobody is knocked down by traffic" (seed 7, two-ring net); (2) pure-pursuit steering look-ahead on the real map so the grown net is green
 and the three realtraffic files default to it again; (3) outer-ring draw calls. Log (newest last):
 - 22 Nov: started. Reading the sim test and the changed files.
+- 22 Nov, item 1 found. The knocked-down pedestrian (seed 7, two-ring net) is one of a family, not one change: ped108 on the unsignalised Hart St / Evergreen crossing (n183, crosswalk e298) was hit at t181 by a box truck at 4.4 m/s.
+  A car released from the stop line crossed a 25 m STRAIGHT connector, accelerating to 9.7 m/s, to a crosswalk that lies right after the box; the ped stepped off when the car was far away, and the car's pedestrian cone (7 m + 1.2 s of speed,
+  2.4 m wide, braking at 0.4 of full) saw her too late. Only turns (angle over 0.5 rad) had the 3.5 m/s exit cap. Bisect (each change switched off alone, seed 7): without the line speed cap it passes, without the distance look-ahead it passes,
+  without the 0.2 m walking-ring simplification it fails on ANOTHER pedestrian (ped94 at Myrtle, 7.1 m/s): so any trajectory change reshuffles which crossing is hit; the weakness is the fast straight connector. compact, kerbCoversRoad, skipBlocks,
+  fence lots are not used by the sim at all. Fix 1: lanes.ts caps the second half of every connector at EXIT_CONN_SPEED = 6 m/s. That uncovered the old steering fault (a step van overshooting a 90 deg turn into the kerb, seed 4242): item 2.
+  A second hit on the same crossing (seed 4242, 5 m/s) was a car pinned by a pedestrian against its front that, after FLANK_HOLD_MAX, pulled away at full acceleration: on the real map it now creeps at 1.2 m/s (gated).
+- 22 Nov, item 2 first cut: pure pursuit in TrafficAgent (`pursuitPoint`, real map only: gate `lanes.signalLookAheadM`): aim 4 m + 0.5 s of speed ahead along the lane path (single successors, ending at a stop line or fork).
+  Two-ring net: 20 of 20 green (5min x 2 seeds, turns). Grown net (REAL_NET=r4): 5min green both seeds (0 cars in buildings, was 9 and 57); turns test has 4 connectors over 6 m; cops not yet run.
+- 22 Nov, items 1 and 2 done in code (details in the final report below). Cops: `CopSystem.spawn` falls back to a scan of every node from a random start (real map only, gate `lanes.signalLookAheadM`): first off the forward cone, then anywhere in the 100 to 140 m ring.
+  Turn test: the 4 connectors over 6 m were direct links between two stop lines 9 to 14 m apart whose chord ran BACKWARDS against the start heading (about 140 deg round): lanes.ts `connect` no longer builds a non-fallback link shorter than 40 m with
+  chord cosine below -0.1 against the start heading; 49 -> 43 bad connectors of 6,707, over 6 m: 4 -> 1 (limit 2); connectivity test still green (this was the rule REALFIX2 thought stranded lanes: a chord rule on all links did; this one only prunes backwards links).
+  realtraffic-run.ts: the default net is the whole grown network again (`REAL_NET=core` for the two-ring net). The skipped look-ahead test in roadnet-realfix is replaced by two tests of the new behaviour.
+- 22 Nov, item 3 (outer-ring draws): `mergeInstancedPerBlock` in propsStream.ts merges the plain instanced furniture of a streamed tile per kind (geometry + material) into 256 m blocks
+  (signal lamp meshes, which the signal controller recolours by instance index, and anything not instanced are left alone). Measured with scripts/map4-probe.mjs (a copy with a flag to switch the merge off in the same build), hosted build, low tier, 640x360, noon:
+  | spot | draws before -> after | triangles before -> after | ring meshes resident before -> after |
+  | far south, Malcolm X Blvd (989, 1281) | 299 -> 232 | 515,883 -> 549,023 | 568 -> 298 |
+  | far east, Centre St (3318, -182) | 190 -> 177 | 346,110 -> 359,334 | 1,026 -> 555 |
+  | spawn | 201 -> 204 | 405,060 -> 405,785 | (n/a) |
+  A 512 m block (the whole tile) was tried: 223 / 645,783 at the south spot, so 256 m is the better trade. South is still over the low budget (220 draws, 500 k triangles): the rest is buildings and shopfronts, not furniture.
+  Not merged: the non-instanced meshes (street-name blades, signal poles) and the signal lamps; not measured on the phone tier.
+- 22 Nov, cops: the first fallback (first valid node from a random start) and a nearest-node one each fixed one net and broke the other (luck: a cop steers greedily at the player, so a spawn behind a block never arrives).
+  Final: after 24 random picks fail, on the real map only, scan all lane nodes, keep those in the 100 to 140 m ring off the forward cone, prefer those FACING the player (cosine over 0.5), take the nearest; patrols take a random one. Green on both nets.
