@@ -38,6 +38,13 @@ export interface TalkAudio {
   volume(): number;
 }
 
+/** A second scripted talk station (RADIO3: The Group Chat) has its own name and starts mid-show the first time it is tuned in. */
+export interface TalkOptions {
+  name?: string;
+  /** 0..1: where in the loop the first tune-in lands, as a real station is already on. Absent = start of the script. */
+  random?: () => number;
+}
+
 export interface TalkEnv {
   speech: SpeechLike | null;
   makeUtterance: (text: string) => UtteranceLike;
@@ -125,14 +132,17 @@ export class TalkPlayer {
   private voices: Record<VoiceRole, VoiceLike | null> | null = null;
   private voiceCount = -1;
 
-  constructor(private readonly env: TalkEnv, script: TalkSegment[]) {
+  constructor(private readonly env: TalkEnv, script: TalkSegment[], private readonly opts: TalkOptions = {}) {
     this.segs = script;
     this.reindex();
   }
 
   /** True when the device can speak. */
   get voiceAvailable(): boolean { return !!this.env.speech; }
-  get stationName(): string { return this.voiceAvailable ? TALK_STATION_NAME : TALK_UNAVAILABLE_NAME; }
+  get stationName(): string {
+    const n = this.opts.name ?? TALK_STATION_NAME;
+    return this.voiceAvailable ? n : `${n} (voice unavailable on this device)`;
+  }
   get isActive(): boolean { return this.active; }
   get segmentCount(): number { return this.segs.length; }
   get loopSeconds(): number { return this.loop; }
@@ -140,6 +150,7 @@ export class TalkPlayer {
   setScript(script: TalkSegment[]): void {
     this.segs = script;
     this.reindex();
+    this.midShowDone = false;
     if (this.active) this.begin(this.segmentAt(this.clock));
   }
 
@@ -172,6 +183,7 @@ export class TalkPlayer {
     this.active = on;
     if (on) {
       this.env.audio.setBed(BED_OPEN);
+      this.midShow();
       this.begin(this.segmentAt(this.clock));
     } else {
       this.halt();
@@ -224,6 +236,16 @@ export class TalkPlayer {
     this.starts = this.segs.map((s) => { const at = t; t += s.seconds; return at; });
     this.loop = totalSeconds(this.segs);
     if (this.index >= this.segs.length) this.index = 0;
+  }
+
+  private midShowDone = false;
+  /** First tune-in: the show is already under way (the virtual clock jumps to a random segment start). */
+  private midShow(): void {
+    if (this.midShowDone || !this.opts.random || this.segs.length === 0 || this.loop <= 0) return;
+    this.midShowDone = true;
+    const r = this.opts.random();
+    const i = Math.min(this.segs.length - 1, Math.floor((Number.isFinite(r) ? Math.max(0, r) : 0) * this.segs.length));
+    this.clock = this.starts[i];
   }
 
   private segmentAt(clock: number): number {

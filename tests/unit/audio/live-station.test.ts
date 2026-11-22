@@ -24,10 +24,12 @@ class FakeAudio implements AudioLike {
   emit(t: string) { (this.h.get(t) ?? []).forEach((f) => f()); }
 }
 
-const kexp = catalogEntry('kexp')!;
+// The single-stream behaviour is tested on the entries with their pools taken off (pool behaviour: live-pool.test.ts).
+const single = (id: string) => ({ ...catalogEntry(id)!, pool: undefined });
+const kexp = single('kexp');
 let clock = 0;
 let audio: FakeAudio;
-const env = () => ({ createAudio: () => (audio = new FakeAudio()), now: () => clock, canLoad: () => true, doc: () => null, fetchJson: async () => ({ results: [{ artist: 'Interpol', song: 'Evil' }] }), tickMs: 1000 });
+const env = () => ({ createAudio: () => (audio = new FakeAudio()), now: () => clock, canLoad: () => true, doc: () => null, fetchJson: async () => ({ results: [{ artist: 'Interpol', song: 'Evil' }] }), tickMs: 1000, random: () => 0 });
 const advance = (ms: number) => { for (let t = 0; t < ms; t += 1000) { clock += 1000; vi.advanceTimersByTime(1000); } };
 const flush = async () => { await Promise.resolve(); await Promise.resolve(); };
 
@@ -35,13 +37,14 @@ beforeEach(() => { clock = 0; vi.useFakeTimers(); });
 afterEach(() => { vi.useRealTimers(); });
 
 describe('catalog', () => {
-  it('has 15 stations: 9 SoundCloud/RA, 4 live music, 2 talk, one 80s, https only, unique ids', () => {
-    expect(CATALOG).toHaveLength(15);
-    expect(new Set(CATALOG.map((e) => e.id)).size).toBe(15);
-    expect(CATALOG.filter((e) => e.talk).map((e) => e.id)).toEqual(['talk', 'wnyc']);
+  it('has 17 stations: 9 SoundCloud/RA, 5 live music, 3 talk, one 80s, https only, unique ids, hip hop first', () => {
+    expect(CATALOG).toHaveLength(17);
+    expect(new Set(CATALOG.map((e) => e.id)).size).toBe(17);
+    expect(CATALOG.map((e) => e.id).slice(0, 3)).toEqual(['bkhouse', 'hiphop', 'beat']);
+    expect(CATALOG.filter((e) => e.talk).map((e) => e.id)).toEqual(['talk', 'groupchat', 'wnyc']);
     expect(CATALOG.filter((e) => e.group === '80s')).toHaveLength(1);
     for (const e of CATALOG) {
-      for (const u of [...(e.streams ?? []), ...(e.scUrls ?? [])]) expect(u.startsWith('https://')).toBe(true);
+      for (const u of [...(e.streams ?? []), ...(e.scUrls ?? []), ...(e.pool ?? []).flatMap((x) => x.streams)]) expect(u.startsWith('https://')).toBe(true);
       expect(SOURCE_BADGE[e.kind]).toBeTruthy();
       if (e.kind !== 'scripted') expect(e.site).toMatch(/^https:\/\//);
       if (e.kind === 'live-stream') expect(e.streams!.length).toBeGreaterThan(0);
@@ -91,7 +94,7 @@ describe('LiveStation', () => {
   });
 
   it('stall watchdog: no progress for 12 s while playing reconnects (and cycles to the alternate stream URL)', () => {
-    const live = catalogEntry('u80s')!;
+    const live = single('u80s');
     const s = new LiveStation(live, env());
     s.setActive(true);
     audio.emit('playing');
@@ -170,7 +173,8 @@ describe('RadioDirector with live stations', () => {
     expect(dir.current.kind).toBe('live');
     expect(dir.current.badge).toBe('LIVE');
     expect(audio.src).toBe(kexp.streams![0]);
-    expect(dir.stationName).toBe('KEXP 90.3');
+    expect(dir.stationName).toBe('Indie & Rock Live');
+    expect(dir.trackName).toMatch(/^KEXP 90.3/);
     dir.setScVolume(0.5);
     expect(audio.volume).toBeCloseTo(0.5);
     const a = audio;
@@ -193,9 +197,10 @@ describe('RadioDirector with live stations', () => {
     dir.onToast = (m) => toasts.push(m);
     dir.setOn(true);
     dir.selectById('kexp');
-    for (let i = 0; i < LIVE_MAX_RECONNECTS + 1; i++) audio.emit('error');
+    // a pool station moves through its other streams before it gives up (one error per single-URL stream is a retry, two a dead stream)
+    for (let i = 0; i < 12 && dir.current.id === 'kexp'; i++) audio.emit('error');
     expect(dir.current.id).toBe('u80s');
-    expect(toasts[0]).toMatch(/KEXP 90.3 is off the air. Tuning to SomaFM Underground 80s/);
+    expect(toasts.some((t) => /Indie & Rock Live is off the air. Tuning to SomaFM Underground 80s/.test(t))).toBe(true);
     expect(dir.trackName).toMatch(/off the air/);
     expect(dir.isFailed('kexp')).toBe(true);
     // every live station fails in turn; the dial walks on and ends on a station with a message, not a loop

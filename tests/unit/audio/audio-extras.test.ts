@@ -38,7 +38,7 @@ function fakeCtx() {
 function setup() {
   const events = new EventBus();
   const f = fakeCtx();
-  const audio = new AudioSystem(events, () => f.ctx as unknown as AudioContext);
+  const audio = new AudioSystem(events, () => f.ctx as unknown as AudioContext, { shuffleStart: false });
   return { events, audio, ...f };
 }
 
@@ -218,7 +218,7 @@ describe('AudioSystem pause/resume', () => {
     const events = new EventBus();
     const f = fakeCtx();
     delete (f.ctx as Partial<typeof f.ctx>).suspend;
-    const audio = new AudioSystem(events, () => f.ctx as unknown as AudioContext);
+    const audio = new AudioSystem(events, () => f.ctx as unknown as AudioContext, { shuffleStart: false });
     await audio.start();
     expect(() => { audio.pause(); audio.resume(); }).not.toThrow();
   });

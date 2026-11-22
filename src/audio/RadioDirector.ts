@@ -20,6 +20,7 @@ import type { VoiceHub } from './voice/VoiceHub';
 import type { SpeechLike, UtteranceLike } from './talk/TalkPlayer';
 import { ScStation, SC_STORAGE_KEY } from './sc/ScStation';
 import { RaFeed, matcherFor } from './sc/RaFeed';
+import { mixesFor } from './sc/mixes';
 import { Announcer, DEFAULT_BROADCAST, type BroadcastContext } from './announcer/Announcer';
 
 export const CROSSFADE_SECONDS = 0.5;
@@ -85,6 +86,12 @@ export interface DirectorOptions {
   autoSkip?: boolean;
   /** Remembers the last station across sessions. Absent = not persisted. */
   lastStore?: LastStationStore;
+  /** RADIO3: the second scripted talk station (The Group Chat). Absent = it is not on the dial. */
+  talk2?: TalkLike;
+  /** RADIO3: start on a random music or live station instead of the remembered one (a session's first car). */
+  shuffleStart?: boolean;
+  /** Random numbers 0..1 for the shuffled start (tests). */
+  random?: () => number;
 }
 
 function stationStorageKey(id: string): string {
@@ -127,6 +134,7 @@ export class RadioDirector {
   private readonly failWave = new Set<string>();
   private readonly handledFail = new Set<string>();
   private readonly lastStore: LastStationStore | null;
+  private readonly talk2: TalkLike | null;
   private readonly autoSkip: boolean;
   private readonly changeListeners = new Set<() => void>();
   /** Hour, weather and street that the announcers talk about. */
@@ -148,7 +156,7 @@ export class RadioDirector {
         // Production: only the RA station draws on the RA NYC pool and every other station plays its own account.
         // An injected feed (tests) is shared by all stations as before, without catalog sources.
         feed: def.usesPool || classic ? this.feed : null,
-        config: { id: def.id, name: def.name, match: def.usesPool || classic ? match : null, storageKey: stationStorageKey(def.id), sources: classic ? [] : def.sources, randomStart: !classic },
+        config: { id: def.id, name: def.name, match: def.usesPool || classic ? match : null, storageKey: stationStorageKey(def.id), sources: classic ? [] : def.sources, randomStart: !classic, mixes: classic ? [] : mixesFor(def.id) },
         storage: opts.scEnv?.storage,
       } as Partial<import('./sc/ScStation').ScEnv>);
       this.scStations.push(st);
@@ -163,17 +171,19 @@ export class RadioDirector {
     this.sc = this.scMap.get('sc')!;
     this.sc.onGameHour = (h) => { if (h !== null) this.broadcast.hour = h; };
     this.lastStore = opts.lastStore ?? null;
+    this.talk2 = opts.talk2 ?? null;
     this.autoSkip = opts.autoSkip !== false;
     for (const e of CATALOG) {
       if (e.kind !== 'live-stream') continue;
       const ls = new LiveStation(e, opts.liveEnv);
       ls.onFail = () => this.onLiveFail(e.id);
+      ls.onSource = (name) => { if (this.on && this.current.id === e.id) this.toast(`Now on ${name}.`); };
       ls.onChange(() => this.emitChange());
       this.liveStations.set(e.id, ls);
     }
     this.baseDial = [
       ...synthStations.map((s, i): RadioStationEntry => ({ id: `synth${i}`, kind: 'synth', name: s.name, synth: s })),
-      ...CATALOG.map((e): RadioStationEntry => {
+      ...CATALOG.filter((e) => !(e.kind === 'scripted' && e.script === 'groupchat' && !opts.talk2)).map((e): RadioStationEntry => {
         const base = { id: e.id, name: e.name, source: e.kind, info: e, badge: SOURCE_BADGE[e.kind] };
         if (e.kind === 'live-stream') return { ...base, kind: 'live' };
         if (e.kind === 'scripted') return { ...base, kind: 'talk' };
@@ -186,7 +196,7 @@ export class RadioDirector {
       makeUtterance: v?.makeUtterance ?? (() => { throw new Error('no speech'); }),
       volume: v?.volume ?? (() => 1),
       setDuck: (level) => { for (const s of this.scStations) s.setDuck(level); for (const l of this.liveStations.values()) l.setDuck(level); },
-      talkBusy: () => this.current.kind === 'talk' || this.talk.isActive,
+      talkBusy: () => this.current.kind === 'talk' || this.talk.isActive || !!this.talk2?.isActive,
       context: () => this.broadcast,
       random: v?.random ?? Math.random,
       dj: v?.dj,
@@ -194,8 +204,13 @@ export class RadioDirector {
     });
     this.refreshDial();
     const saved = this.lastStore?.get();
-    const si = saved ? this.dial.findIndex((e) => e.id === saved) : -1;
+    const si = saved && !opts.shuffleStart ? this.dial.findIndex((e) => e.id === saved) : -1;
     if (si >= 0) this.idx = si;
+    else if (opts.shuffleStart) {
+      // A different station each session (not talk, not My Library): the dial no longer opens on the same one.
+      const pick = this.dial.filter((e) => e.kind !== 'talk' && e.kind !== 'library' && !e.info?.talk);
+      if (pick.length) this.idx = this.dial.indexOf(pick[Math.min(pick.length - 1, Math.floor((opts.random ?? Math.random)() * pick.length))]);
+    }
     this.unsubLib = library.onChange(() => {
       this.libTimeline = null;
       this.refreshDial();
@@ -283,6 +298,23 @@ export class RadioDirector {
 
   /* ---------- reading ---------- */
 
+  /** Credit link of what is on now (mix page on SoundCloud, or the live stream's site), or null. */
+  get nowLink(): { label: string; url: string } | null {
+    const sc = this.currentSc;
+    if (sc) {
+      const url = sc.mixUrl;
+      if (!url) return null;
+      const np = sc.nowPlaying;
+      return { label: np?.title ? `${np.title}${np.user ? ` (${np.user})` : ''} on SoundCloud` : 'this mix on SoundCloud', url };
+    }
+    const l = this.currentLive;
+    if (l) return { label: l.sourceName || l.name, url: l.sourceSite };
+    return null;
+  }
+
+  /** The scripted talk station behind a dial entry (WBSY Talk, or The Group Chat). */
+  private talkOf(e: RadioStationEntry): TalkLike { return e.info?.script === 'groupchat' && this.talk2 ? this.talk2 : this.talk; }
+
   get index(): number { return this.idx; }
   get current(): RadioStationEntry { return this.dial[this.idx] ?? this.dial[0]; }
 
@@ -290,7 +322,7 @@ export class RadioDirector {
     const c = this.current;
     if (c.kind === 'sc') return this.currentSc!.stationName;
     if (c.kind === 'live') return c.name;
-    return c.kind === 'talk' ? this.talk.stationName : c.name;
+    return c.kind === 'talk' ? this.talkOf(c).stationName : c.name;
   }
 
   /**
@@ -304,7 +336,7 @@ export class RadioDirector {
       const l = this.currentLive!;
       return l.notice && !l.needsTap ? l.notice : l.trackName;
     }
-    if (c.kind === 'talk') return this.talk.caption;
+    if (c.kind === 'talk') return this.talkOf(c).caption;
     if (c.kind === 'sc') {
       if (this.on && this.announcer.speaking) return this.announcer.name;
       const sc = this.currentSc!;
@@ -319,7 +351,7 @@ export class RadioDirector {
 
   /** 0..1 through the talk show loop while WBSY Talk is tuned in, otherwise 0. */
   get talkProgress(): number {
-    return this.current.kind === 'talk' ? this.talk.progress.fraction : 0;
+    return this.current.kind === 'talk' ? this.talkOf(this.current).progress.fraction : 0;
   }
 
   /** Virtual clock of My Library in seconds (for tests). */
@@ -388,6 +420,7 @@ export class RadioDirector {
     if (p === this.paused) return;
     this.paused = p;
     this.talk.setPaused(p);
+    this.talk2?.setPaused(p);
     this.announcer.setPaused(p);
     for (const s of this.scStations) s.setPaused(p);
     for (const l of this.liveStations.values()) l.setPaused(p);
@@ -399,6 +432,7 @@ export class RadioDirector {
     if (this.paused || !(dt > 0)) return;
     this.libClock += dt;
     this.talk.update(dt);
+    this.talk2?.update(dt);
     for (const s of this.scStations) s.update(dt);
     this.announcer.update(dt);
     if (this.toastLeft > 0) { this.toastLeft -= dt; if (this.toastLeft <= 0) this.toastText = ''; }
@@ -418,6 +452,7 @@ export class RadioDirector {
     this.unsubLib();
     this.announcer.dispose();
     this.talk.dispose();
+    this.talk2?.dispose();
     for (const s of this.scStations) s.dispose();
     for (const l of this.liveStations.values()) l.dispose();
     this.decks?.forEach((d) => { d.onEnded = null; d.onError = null; d.onDuration = null; d.stop(); });
@@ -428,7 +463,8 @@ export class RadioDirector {
 
   private syncActive(): void {
     const c = this.current;
-    this.talk.setActive(this.on && c.kind === 'talk');
+    this.talk.setActive(this.on && c.kind === 'talk' && this.talkOf(c) === this.talk);
+    this.talk2?.setActive(this.on && c.kind === 'talk' && this.talkOf(c) === this.talk2);
     for (const s of this.scStations) s.setActive(this.on && c.kind === 'sc' && c.id === s.id);
     for (const l of this.liveStations.values()) l.setActive(this.on && c.kind === 'live' && c.id === l.id);
   }

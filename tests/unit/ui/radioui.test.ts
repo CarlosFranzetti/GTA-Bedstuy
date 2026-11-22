@@ -305,12 +305,12 @@ describe('RadioUi SoundCloud stations', () => {
     ui.open();
     const sections = qa(ui.root, '.rl-sc');
     expect(sections).toHaveLength(9);
-    expect(sections.map((s) => (s as HTMLElement).dataset.station)).toEqual(['hiphop', 'bkhouse', 'dublab', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc']);
+    expect(sections.map((s) => (s as HTMLElement).dataset.station)).toEqual(['bkhouse', 'hiphop', 'dublab', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc']);
     const houseSec = sections[0];
     expect(q(houseSec, '.rl-station-name').textContent).toBe('Boiler Room');
     expect(q(houseSec, '.rl-sc-pool').textContent).toBe('Pool for Boiler Room: 2 of 3 sets match, 2 not heard yet.');
     expect(q(houseSec, '.rl-sc-keywords').textContent).toContain('house');
-    expect(q(sections[1], '.rl-sc-pool').textContent).toBe('Pool for Dekmantel Podcast: 1 of 3 sets match, 1 not heard yet.');
+    expect(q(sections[2], '.rl-sc-pool').textContent).toBe('Pool for Dekmantel Podcast: 1 of 3 sets match, 1 not heard yet.');
     expect(q(sections[8], '.rl-sc-pool').textContent).toContain('3 of 3 sets match');
     // links are per station
     const input = q<HTMLInputElement>(houseSec, '.rl-sc-input');
@@ -381,11 +381,11 @@ describe('RadioUi station list (15 stations)', () => {
       radioFailed: (id) => dir.isFailed(id),
     });
     const items = qa(ui.root, '.rl-dial-item');
-    expect(items).toHaveLength(15);
+    expect(items).toHaveLength(16); // 17 on the dial with The Group Chat, which needs its own talk player
     const badges = items.map((li) => q(li, '.rl-badge').textContent);
     expect(badges.filter((b) => b === 'SC')).toHaveLength(8);
     expect(badges.filter((b) => b === 'RA')).toHaveLength(1);
-    expect(badges.filter((b) => b === 'LIVE')).toHaveLength(5);
+    expect(badges.filter((b) => b === 'LIVE')).toHaveLength(6);
     expect(badges.filter((b) => b === 'TALK')).toHaveLength(1);
     expect(q(ui.root, '.rl-dial-current')).toBe(items[0]);
     expect(q(items[0], '.rl-dial-about').textContent).toMatch(/Boiler Room/);

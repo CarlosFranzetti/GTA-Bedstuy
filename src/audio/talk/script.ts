@@ -112,3 +112,16 @@ export function loadBundledScript(): TalkSegment[] {
   const first = Object.values(mods)[0];
   return first ? parseScript(first) : [];
 }
+
+export const GROUPCHAT_NAME = 'The Group Chat 99.9';
+
+/**
+ * RADIO3: the Group Chat script (about 100 kB), fetched as its own chunk and only on hosted and native builds: the single-file
+ * build never includes it (the station is then not on the dial). Missing file or bad shape gives an empty script.
+ */
+export async function loadGroupChatScript(): Promise<TalkSegment[]> {
+  if (import.meta.env?.VITE_HOSTED !== '1') return [];
+  const mods = import.meta.glob('./script-groupchat.json', { import: 'default' }) as Record<string, () => Promise<unknown>>;
+  const first = Object.values(mods)[0];
+  return first ? parseScript(await first()) : [];
+}

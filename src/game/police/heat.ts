@@ -7,7 +7,7 @@ import type { CrimeType } from '@/core/Events';
 
 export const HEAT_MAX = 100;
 /** Heat at which the police warn you ("Police are watching"). */
-export const HEAT_WARN = 45;
+export const HEAT_WARN = 40;
 /** Heat at which a star is added; heat then drops to HEAT_AFTER_STAR. */
 export const HEAT_STAR = 100;
 export const HEAT_AFTER_STAR = 40;

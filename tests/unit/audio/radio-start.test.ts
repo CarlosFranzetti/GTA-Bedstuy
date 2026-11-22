@@ -41,7 +41,7 @@ afterEach(() => { vi.useRealTimers(); });
 
 describe('live stream that never answers', () => {
   it('is not mistaken for an autoplay block: no "Tap to start radio" while the element is trying, and it gives up for the next station', async () => {
-    const s = new LiveStation(catalogEntry('kexp')!, liveEnv());
+    const s = new LiveStation({ ...catalogEntry('kexp')!, pool: undefined }, liveEnv());
     const fail = vi.fn();
     s.onFail = fail;
     s.setActive(true);
@@ -54,7 +54,7 @@ describe('live stream that never answers', () => {
     expect(fail).toHaveBeenCalledTimes(1);
   });
   it('a real autoplay refusal still asks for a tap', async () => {
-    const s = new LiveStation(catalogEntry('kexp')!, liveEnv());
+    const s = new LiveStation({ ...catalogEntry('kexp')!, pool: undefined }, liveEnv());
     s.setActive(true);
     last().mode = 'refuse';
     s.userStart();
@@ -62,7 +62,7 @@ describe('live stream that never answers', () => {
     expect(s.needsTap).toBe(true);
   });
   it('says what it is doing instead of sitting silent: connecting, then retrying', async () => {
-    const s = new LiveStation(catalogEntry('kexp')!, liveEnv());
+    const s = new LiveStation({ ...catalogEntry('kexp')!, pool: undefined }, liveEnv());
     s.setActive(true);
     await flush();
     expect(s.notice).toBe('');
@@ -72,7 +72,7 @@ describe('live stream that never answers', () => {
     expect(s.notice).toMatch(/trying again/i);
   });
   it('a single-URL stream retries once, then fails (no minute-long silence)', async () => {
-    const s = new LiveStation(catalogEntry('kexp')!, liveEnv());
+    const s = new LiveStation({ ...catalogEntry('kexp')!, pool: undefined }, liveEnv());
     s.setActive(true);
     await flush();
     advance(40000);
@@ -83,7 +83,7 @@ describe('live stream that never answers', () => {
 
 describe('failure is reported once', () => {
   it('the error event that clearing the source raises is ignored (it used to re-run fail and fire onFail again)', () => {
-    const s = new LiveStation(catalogEntry('kexp')!, liveEnv());
+    const s = new LiveStation({ ...catalogEntry('kexp')!, pool: undefined }, liveEnv());
     const fail = vi.fn();
     s.onFail = fail;
     s.setActive(true);
@@ -95,7 +95,7 @@ describe('failure is reported once', () => {
     expect(fail).toHaveBeenCalledTimes(1);
   });
   it('late events from a station that is no longer tuned do nothing', () => {
-    const s = new LiveStation(catalogEntry('kexp')!, liveEnv());
+    const s = new LiveStation({ ...catalogEntry('kexp')!, pool: undefined }, liveEnv());
     s.setActive(true);
     const a = last();
     s.setActive(false);

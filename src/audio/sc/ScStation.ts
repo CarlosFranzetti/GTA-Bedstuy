@@ -18,6 +18,7 @@
  */
 
 import { RaFeed, type RaMatch, type RaSet, type RaStatus } from './RaFeed';
+import { MIN_POOL, type CuratedMix } from './mixes';
 
 export const SC_STORAGE_KEY = 'gta-bedstuy.radio.sc.v1';
 export const SC_STATION_NAME = 'Radio SC';
@@ -44,6 +45,11 @@ export const SC_TAP_PROMPT = 'Tap to start radio';
 export const SC_CONNECTING = 'Connecting to SoundCloud...';
 export const SC_NO_STREAM = 'No stream: SoundCloud could not load (needs the hosted build / internet)';
 export const SC_MAX_MIXES = 40;
+/** RADIO3: a station with a curated pool moves on to a new mix when you come back after at least this many game seconds away. */
+export const SC_REROLL_AWAY_S = 60;
+/** RADIO3: a mix is never entered in its last ten minutes, and short ones (under fifteen) always start at the top. */
+export const SC_TAIL_S = 600;
+export const SC_MIN_MIDSTART_S = 900;
 /** Dayparting stub: mixes flagged afterhours are preferred for the first mix between these hours. */
 export const SC_PREFERRED_HOURS = { from: 23, to: 6 } as const;
 
@@ -82,7 +88,7 @@ export function inPreferredHours(hour: number): boolean {
 
 /* ---------- mix list ---------- */
 
-export interface ScMix { url: string; afterhours?: boolean; /** A catalog source (account or playlist) of the station, not a pasted link: never saved, never removed. */ builtin?: boolean }
+export interface ScMix { url: string; afterhours?: boolean; /** A curated pool mix (src/audio/sc/mixes.json): its researched title, DJ and length. */ meta?: CuratedMix; /** The station's account, played only when no curated mix can play. */ fallback?: boolean; /** A catalog source (account or playlist) of the station, not a pasted link: never saved, never removed. */ builtin?: boolean }
 
 export interface ScStorage {
   load(): ScMix[] | null;
@@ -155,6 +161,8 @@ export interface ScStationConfig {
   sources?: readonly string[];
   /** After loading a multi-sound source, skip to a random sound (preferring sets of at least 45 min). */
   randomStart?: boolean;
+  /** RADIO3: the station's curated mixes. With at least two the station plays them in a shuffled bag; fewer = today's account behaviour. */
+  mixes?: readonly CuratedMix[];
 }
 
 /** Sets shorter than this are only picked when nothing longer is in the source. */
@@ -277,6 +285,17 @@ export class ScStation {
   private readonly heard = new Set<string>();
   private lastSetUrl = '';
   private lastLink = '';
+  /** RADIO3: the curated-pool mode, its shuffled bag of mix URLs, and whether the current mix still needs its random start. */
+  private readonly curated: boolean;
+  private bag: string[] = [];
+  private startPending = false;
+  private awayFor = 0;
+  /** The mixes the widget could not play this session (skipped and remembered). */
+  get badMixes(): readonly string[] { return [...this.bad]; }
+  get isCurated(): boolean { return this.curated; }
+  get curatedCount(): number { return this.list.filter((m) => m.meta).length; }
+  /** The SoundCloud page of the mix that is on (the credit link), or ''. */
+  get mixUrl(): string { return this.currentUrl() ?? ''; }
   private duck = 1;
   /** Called when the game hour is fed in (the director shares it with the announcers). */
   onGameHour: ((h: number | null) => void) | null = null;
@@ -284,7 +303,13 @@ export class ScStation {
   constructor(env: Partial<ScEnv> = {}) {
     const config = env.config ?? DEFAULT_SC_CONFIG;
     this.env = { ...defaultEnv(config), ...env, config };
-    this.list = [...(config.sources ?? []).map((url): ScMix => ({ url, builtin: true })), ...(this.env.storage?.load() ?? [])];
+    const curated = (config.mixes ?? []).length >= MIN_POOL;
+    this.curated = curated;
+    this.list = [
+      ...(curated ? config.mixes!.map((m): ScMix => ({ url: m.url, builtin: true, meta: m })) : []),
+      ...(config.sources ?? []).map((url): ScMix => (curated ? { url, builtin: true, fallback: true } : { url, builtin: true })),
+      ...(this.env.storage?.load() ?? []),
+    ];
     this.raOn = this.env.storage?.loadRa?.() ?? true;
     this.env.feed?.onChange(() => {
       this.listeners.forEach((fn) => fn());
@@ -412,6 +437,7 @@ export class ScStation {
   }
   get nowPlaying(): NowPlaying | null {
     if (this.curSet) return { title: this.curSet.title, user: this.curSet.dj || this.now?.user || '' };
+    if (!this.now && this.curated && this.state === 'ready') { const m = this.list[this.index]?.meta; if (m) return { title: m.title, user: m.dj }; }
     return this.now;
   }
   /** HUD line: "Set title — DJ" for pool sets, "Title - user" for pasted links, a hint when empty, '' while loading. */
@@ -422,6 +448,7 @@ export class ScStation {
       return dj ? `${this.curSet.title} \u2014 ${dj}` : this.curSet.title;
     }
     if (this.now) return this.now.user ? `${this.now.title} - ${this.now.user}` : this.now.title;
+    if (this.curated && this.state === 'ready') { const m = this.list[this.index]?.meta; if (m) return m.dj ? `${m.title} - ${m.dj}` : m.title; }
     return '';
   }
   /** Virtual position (seconds) in the current mix. */
@@ -432,6 +459,15 @@ export class ScStation {
   setActive(on: boolean): void {
     if (on === this.active) return;
     this.active = on;
+    if (on && this.curated && this.sessionStarted && this.awayFor >= SC_REROLL_AWAY_S && this.state !== 'loading') {
+      // A different mix on each tune-in after a real break (a quick flip past the station resumes the same one).
+      const prev = this.curSet ? null : this.list[this.index]?.url;
+      this.pickNext();
+      if (prev && this.list[this.index]?.url === prev && this.curatedCount > 1) this.pickNext();
+      this.pos = 0;
+      this.now = null;
+    }
+    if (on) this.awayFor = 0;
     if (on) this.tuneIn();
     else { this.widget?.pause(); this.clearTimers(); this.unhook(); this.play_ = 'idle'; this.hideWidget(); }
     this.listeners.forEach((fn) => fn());
@@ -558,6 +594,7 @@ export class ScStation {
   update(dt: number): void {
     if (this.paused || !(dt > 0) || (this.list.length === 0 && !this.curSet)) return;
     this.pos += dt;
+    if (!this.active) this.awayFor += dt;
     if (!this.active && this.duration > 0 && !this.isSet && this.pos >= this.duration) {
       // The mix "ended" while the player listened to something else: move on without touching the widget.
       this.pos -= this.duration;
@@ -613,7 +650,31 @@ export class ScStation {
       }
       return false;
     };
+    const fromBag = (): boolean => {
+      this.curSet = null;
+      const ok = (m: ScMix) => !this.bad.has(m.url);
+      let pool = this.list.filter((m) => ok(m) && !m.fallback);
+      if (!pool.length) pool = this.list.filter((m) => ok(m) && m.fallback);
+      if (!pool.length) return false;
+      const urls = new Set(pool.map((m) => m.url));
+      this.bag = this.bag.filter((u) => urls.has(u));
+      if (!this.bag.length) {
+        const a = [...urls];
+        for (let i = a.length - 1; i > 0; i--) { const j = Math.min(i, Math.floor(this.env.random() * (i + 1))); [a[i], a[j]] = [a[j], a[i]]; }
+        // A new round never opens with the mix that just played.
+        if (a.length > 1 && a[0] === this.lastLink) a.push(a.shift()!);
+        this.bag = a;
+      }
+      const url = this.bag.shift()!;
+      this.index = Math.max(0, this.list.findIndex((m) => m.url === url));
+      this.lastLink = url;
+      this.lastWasPool = false;
+      this.picked = true;
+      this.startPending = !!this.list[this.index]?.meta;
+      return true;
+    };
     const fromList = (): boolean => {
+      if (this.curated) return fromBag();
       this.curSet = null;
       if (!listOk) return false;
       const n = this.list.length;
@@ -632,7 +693,7 @@ export class ScStation {
       return false;
     };
     const attempt = (): boolean => {
-      if (nightLink && fromList()) return true;
+      if (nightLink && !this.curated && fromList()) return true;
       // A station with both an account and the RA pool alternates between them.
       if (usePool && this.lastWasPool === true && this.list.some((m) => m.builtin) && fromList()) return true;
       if (usePool && fromPool(match)) return true;
@@ -780,7 +841,7 @@ export class ScStation {
         this.askForMore();
       }
     });
-    w.bind(ev(api, 'PLAY', 'play'), () => { this.errStreak = 0; this.markPlaying(); this.learn(w); });
+    w.bind(ev(api, 'PLAY', 'play'), () => { this.errStreak = 0; this.markPlaying(); this.learn(w); this.midStart(w); });
     w.bind(ev(api, 'ERROR', 'error'), () => {
       const u = this.currentUrl();
       if (u) this.bad.add(u);
@@ -836,6 +897,22 @@ export class ScStation {
     });
     w.getDuration((ms) => { if (ms > 0) this.duration = ms / 1000; });
     w.getSounds?.((s) => { this.isSet = s.length > 1; this.randomStart(w, s as ScSound[]); });
+  }
+
+  /** A curated mix is entered somewhere in the middle, as a radio would be mid-show (never in the last ten minutes). Once per mix. */
+  private midStart(w: ScWidget): void {
+    if (!this.startPending || !this.curated || this.curSet) return;
+    this.startPending = false;
+    const meta = this.list[this.index]?.meta;
+    const dur = this.duration > 0 ? this.duration : (meta?.minutes ?? 0) * 60;
+    if (!(dur > SC_MIN_MIDSTART_S)) return;
+    const r = this.env.random();
+    const at = Math.floor(Math.max(0, Math.min(0.999, Number.isFinite(r) ? r : 0)) * (dur - SC_TAIL_S));
+    if (at < 5) return;
+    this.pos = at;
+    this.lastProgPos = -1;
+    this.lastProgAt = this.env.now();
+    w.seekTo(at * 1000);
   }
 
   /** Sound indexes already played from each source (per-station no-repeat for random starts). */

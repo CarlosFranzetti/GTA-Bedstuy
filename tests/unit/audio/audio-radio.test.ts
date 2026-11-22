@@ -80,7 +80,7 @@ function rig(script: TalkSegment[] = []) {
   const events = new EventBus();
   const { ctx, created } = makeCtx();
   const library = new Library();
-  const audio = new AudioSystem(events, () => ctx as unknown as AudioContext, { library, speech: null, script, feed: null, scEnv: { canLoad: () => false }, controller: { handles: { get: async () => null, put: async () => undefined, clear: async () => undefined } } });
+  const audio = new AudioSystem(events, () => ctx as unknown as AudioContext, { library, speech: null, script, shuffleStart: false, feed: null, scEnv: { canLoad: () => false }, controller: { handles: { get: async () => null, put: async () => undefined, clear: async () => undefined } } });
   return { events, audio, ctx, created, library };
 }
 
@@ -217,7 +217,7 @@ describe('AudioSystem with the music library', () => {
 
   it('exposes the nine SoundCloud stations and takes the announcers\' hour and weather', async () => {
     const { audio } = rig();
-    expect(audio.scStations.map((s) => s.id)).toEqual(['hiphop', 'bkhouse', 'dublab', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc']);
+    expect(audio.scStations.map((s) => s.id)).toEqual(['bkhouse', 'hiphop', 'dublab', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc']);
     expect(audio.sc).toBe(audio.scStations[8]);
     expect(() => audio.setBroadcast({ weather: 'rain', rain: 0.5, hour: 1.25, street: 'Throop Ave' })).not.toThrow();
     expect(audio.announcerLine).toBe('');

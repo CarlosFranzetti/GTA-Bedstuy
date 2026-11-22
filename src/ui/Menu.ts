@@ -487,7 +487,7 @@ export class Menu {
         this.syncFs();
         this.refreshAll();
         win?.setTimeout(() => win.dispatchEvent(new Event('resize')), 150);
-        if (!on && escaped && !this.opened && !this.doc.body.classList.contains('ui-panel-open')) this.open();
+        if (!on && escaped && !this.opened && !this.otherPanelOpen()) this.open();
       }));
       const fs = this.fullscreen;
       this.fsTitle.addEventListener('click', () => { void fs.enter(); });
@@ -517,7 +517,7 @@ export class Menu {
     if (opts.openOnPointerUnlock !== false) {
       const onLock = () => {
         const locked = !!this.doc.pointerLockElement;
-        if (this.wasLocked && !locked && !this.opened && !this.doc.body.classList.contains('ui-panel-open')) this.open();
+        if (this.wasLocked && !locked && !this.opened && !this.otherPanelOpen()) this.open();
         this.wasLocked = locked;
       };
       this.doc.addEventListener('pointerlockchange', onLock);
@@ -979,7 +979,7 @@ export class Menu {
       }) as RowSpec['set'],
     });
     S.set('map', {
-      id: 'map', label: 'Which map', kind: 'action',
+      id: 'map', label: 'Map', kind: 'action',
       desc: 'Real streets is the Bedford-Stuyvesant street map. Classic grid is the older stylised map. Each map keeps its own saves. Press twice to reload on the other map.',
       visible: () => this.mapSwitchInfo().available,
       text: () => `${this.mapSwitchInfo().current === 'real' ? 'Real streets' : 'Classic grid'}${this.mapArmed ? ' · PRESS AGAIN for ' + (this.mapSwitchInfo().current === 'real' ? 'Classic grid' : 'Real streets') : ' ›'}`,
@@ -1298,6 +1298,12 @@ export class Menu {
 
   /** The title's start key was pressed (a key press is a user gesture too): enter full screen if the player chose "play full screen" before. */
   startGesture(): void { const fs = this.fullscreen; if (fs?.preferred && !fs.active) void fs.enter(); }
+
+  /** Another screen (phone, shop, decks, radio list, a stand-alone map) is open: a pointer-lock exit or full-screen exit is not the pause menu's business then. */
+  private otherPanelOpen(): boolean {
+    const cl = this.doc.body.classList;
+    return ['shop-open', 'dj-open', 'phone-open', 'radio-open', 'map-open'].some((c) => cl.contains(c));
+  }
 
   private splashShowing(): boolean {
     const el = this.root.parentElement?.querySelector<HTMLElement>('.hud-splash');

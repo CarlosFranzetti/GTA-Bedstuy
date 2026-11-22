@@ -11,7 +11,7 @@ async function setup(pos?: number) {
   const ctx = new RecCtx();
   const mixer = new Mixer(null);
   if (pos !== undefined) mixer.set('engine', pos);
-  const audio = new AudioSystem(events, () => ctx as unknown as AudioContext, { feed: null, scEnv: { canLoad: () => false }, mixer });
+  const audio = new AudioSystem(events, () => ctx as unknown as AudioContext, { feed: null, shuffleStart: false, scEnv: { canLoad: () => false }, mixer });
   await audio.start();
   return { ctx, audio, mixer };
 }

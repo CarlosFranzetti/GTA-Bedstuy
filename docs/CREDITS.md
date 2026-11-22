@@ -297,6 +297,40 @@ Nothing is bundled. SoundCloud sets play only through SoundCloud's official widg
 
 KEXP's current-song line uses its open API (`api.kexp.org`); SomaFM's uses `channels.json`. Credit and link are shown in the Radio panel. Earlier versions of this table also listed Mixmag, FACT Mixes, dublab and Radio Paradise; they are no longer on the dial.
 
+## Radio, 22 Nov (RADIO3): pools of live streams, SoundCloud mix pools, hip hop
+Same rules as above: nothing bundled, nothing downloaded. Live streams play as each broadcaster's own public stream in an audio element; mixes play only through SoundCloud's official widget, each with the mix's own page linked in the Radio panel.
+Each live stream below was requested from this box on 22 Nov 2026 and answered `200` with an audio content type and the station's own `icy-name` (a request for the first byte only; nothing was listened to). SomaFM refuses requests from this box for most of its streams (HTTP 403), one answered once; its streams are the broadcaster's published player URLs and are NOT verified from here.
+
+| Dial station | Stream (what plays) | Source | Site |
+|---|---|---|---|
+| Soul & Funk Live | WFMU Rock'n'Soul | stream0.wfmu.org/rocknsoul | https://wfmu.org/ |
+| Soul & Funk Live | 181.FM Soul | listen.181fm.com/181-soul_128k.mp3 | https://www.181.fm |
+| Soul & Funk Live | SomaFM Seven Inch Soul | ice2.somafm.com/7soul-128-mp3 (not verified from this box) | https://somafm.com/7soul/ |
+| WFMU Live | WFMU 91.1 Freeform | stream0.wfmu.org/freeform-128k | https://wfmu.org |
+| WFMU Live | WFMU Give the Drummer Radio | stream0.wfmu.org/drummer | https://wfmu.org |
+| WFMU Live | WFMU Sheena's Jungle Room | stream0.wfmu.org/sheena | https://wfmu.org |
+| Indie & Rock Live | KEXP 90.3 | kexp.streamguys1.com/kexp128.mp3 | https://www.kexp.org |
+| Indie & Rock Live | 181.FM Rock 181 | listen.181fm.com/181-rock_128k.mp3 | https://www.181.fm |
+| Indie & Rock Live | Radio Paradise Rock Mix | stream.radioparadise.com/rock-128 (AAC) | https://radioparadise.com |
+| Indie & Rock Live | KCRW Eclectic24 | streams.kcrw.com/e24_mp3 | https://www.kcrw.com |
+| SomaFM Underground 80s | SomaFM Underground 80s (not verified from this box) | ice2.somafm.com/u80s-128-mp3 (with mirrors) | https://somafm.com/u80s/ |
+| SomaFM Underground 80s | 181.FM Awesome 80s | listen.181fm.com/181-awesome80s_128k.mp3 | https://www.181.fm |
+| 181.FM The Beat | 181.FM The Beat (hip hop and R&B) | listen.181fm.com/181-beat_128k.mp3 | https://www.181.fm |
+
+The Group Chat 99.9 is original fiction (script by the TALK2 lane), spoken by the browser's own synthesized voices.
+
+SoundCloud mixes (`src/audio/sc/mixes.json`, researched and each page opened by the SCMIXES lane and the lead on 22 Nov 2026; these are other people's DJ mixes, played through SoundCloud's own player with credit and a link; the pools go stale as uploaders remove tracks). Uploader accounts by station:
+- weird: thelotradio (10 mixes)
+- sc: resident-advisor (7 mixes)
+- bkhouse: platform (9 mixes)
+- dublab: dkmntl (5 mixes)
+- flashback: rinsefm (10 mixes)
+- boogie: soulection (10 mixes)
+- yard: silver-star-sound (9 mixes)
+- latin: djrubytunes (8 mixes)
+- Stoop Hip Hop Radio (two shows of the old Universal Hip Hop Radio account): uhhmradio (2 mixes)
+- Stoop Hip Hop Radio: back-to-the-classics, dj-xclusive-g2b, djchiefone, djwashburn, illsound, mrchriswaters, pfcuttin, ruboxmusic, uncledoobie (11 mixes)
+
 ## Street photos and observed facades (ENV14)
 
 Facts only (a wall colour, material class and shop-awning colour per lot) derived from the photos below; no photo pixels are in the game, the atlas or the artifact. Method and licence reasoning: `docs/STREET-PHOTOS.md`. Per-lot photo, author, licence and URL: `src/world/data/facade-observed.provenance.json`.

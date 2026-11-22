@@ -20,6 +20,11 @@ const box = (x0: number, z0: number, x1: number, z1: number): Vec2[] => [{ x: x0
 const driveOff = (r: CamRig, s = 3): void => { r.hold('KeyW'); r.wait(s); };
 
 export const SCENARIOS: Scenario[] = [
+  // MOVE2: the vault over a hood. The body is lifted over the car (a drawn height only: the camera follows the ground position) and set down on the far side.
+  { name: 'vault-walk-into-hood', opts: { car: { x: 0, z: 0, h: Math.PI / 2 }, start: { x: 4.6, z: 0 }, startHeading: -Math.PI / 2 }, window: 2.8,
+    run: (r) => { r.hold('KeyW'); r.wait(1.4); r.tap('Space', 0.1); r.wait(2); } },
+  { name: 'vault-sprint-hood', opts: { car: { x: 0, z: 0, h: Math.PI / 2 }, start: { x: 9, z: 0.3 }, startHeading: -Math.PI / 2 }, window: 3.6,
+    run: (r) => { r.hold('KeyW', 'ShiftLeft'); r.wait(2.4); r.hold('KeyW'); r.wait(1.5); } },
   { name: 'enter-drive-off', opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR, startHeading: Math.PI / 2 }, window: 2.4,
     run: (r) => { r.wait(0.2); r.tap('KeyF', 1.2); driveOff(r, 3); } },
   { name: 'enter-from-behind', opts: { car: { x: 0, z: 0 }, start: { x: 0, z: 4 }, startHeading: 0 }, window: 2.4,

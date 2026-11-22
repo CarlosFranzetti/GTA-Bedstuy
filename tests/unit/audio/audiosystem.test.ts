@@ -86,7 +86,7 @@ function setup() {
   const events = new EventBus();
   const fake = makeFakeContext();
   const factory = vi.fn(() => fake.ctx as unknown as AudioContext);
-  const audio = new AudioSystem(events, factory, { feed: null, scEnv: { canLoad: () => false } });
+  const audio = new AudioSystem(events, factory, { feed: null, shuffleStart: false, scEnv: { canLoad: () => false } });
   return { events, audio, factory, ...fake };
 }
 
@@ -238,13 +238,13 @@ describe('AudioSystem radio', () => {
     expect(audio.stationName).toBe('Boiler Room');
   });
 
-  it('steps through the whole 15-station dial on nextStation() and wraps', async () => {
+  it('steps through the whole dial on nextStation() and wraps', async () => {
     const { audio } = setup();
     await audio.start();
     const names = [audio.stationName];
-    for (let i = 0; i < 14; i++) { audio.nextStation(); names.push(audio.stationName); }
+    for (let i = 0; i < 15; i++) { audio.nextStation(); names.push(audio.stationName); }
     expect(names).toEqual([
-      'Boiler Room', 'Dekmantel Podcast', 'Resident Advisor', 'Rinse FM', 'Soulection', "WFMU Rock'n'Soul", 'Universal Hip Hop Radio', 'SilverStarSound', 'DJ RubyTunes Latin', 'The Lot Radio', 'WFMU 91.1', 'KEXP 90.3', 'SomaFM Underground 80s',
+      'Boiler Room', 'Stoop Hip Hop Radio', '181.FM The Beat', 'Dekmantel Podcast', 'Resident Advisor', 'Rinse FM', 'Soulection', 'Soul & Funk Live', 'SilverStarSound', 'DJ RubyTunes Latin', 'The Lot Radio', 'WFMU Live', 'Indie & Rock Live', 'SomaFM Underground 80s',
       'WBSY Talk (voice unavailable on this device)', 'WNYC 93.9 FM',
     ]);
     audio.nextStation();
@@ -255,7 +255,7 @@ describe('AudioSystem radio', () => {
     const { events, audio } = setup();
     await audio.start();
     events.emit('radioNext', {});
-    expect(audio.stationName).toBe('Dekmantel Podcast');
+    expect(audio.stationName).toBe('Stoop Hip Hop Radio');
   });
 
   it('never sequences synthesized music on a SoundCloud station, in a vehicle or not', async () => {

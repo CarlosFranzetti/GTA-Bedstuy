@@ -37,10 +37,10 @@ function setup(tracks: ImportedTrack[] = []) {
 }
 
 describe('station list', () => {
-  it('has the 15 dial stations (9 SoundCloud, 4 live music, 2 talk) and no My Library while the library is empty', () => {
+  it('has the 17 dial stations (9 SoundCloud, 5 live music, 3 talk) and no My Library while the library is empty', () => {
     const { dir } = setup();
-    expect(dir.stations.map((s) => s.kind)).toEqual(['sc', 'sc', 'sc', 'sc', 'sc', 'live', 'sc', 'sc', 'sc', 'sc', 'live', 'live', 'live', 'talk', 'live']);
-    expect(dir.stations.map((s) => s.name)).toEqual(['Boiler Room', 'Dekmantel Podcast', 'Resident Advisor', 'Rinse FM', 'Soulection', "WFMU Rock'n'Soul", 'Universal Hip Hop Radio', 'SilverStarSound', 'DJ RubyTunes Latin', 'The Lot Radio', 'WFMU 91.1', 'KEXP 90.3', 'SomaFM Underground 80s', 'WBSY Talk', 'WNYC 93.9 FM']);
+    expect(dir.stations.map((s) => s.kind)).toEqual(['sc', 'sc', 'live', 'sc', 'sc', 'sc', 'sc', 'live', 'sc', 'sc', 'sc', 'live', 'live', 'live', 'talk', 'live']);
+    expect(dir.stations.map((s) => s.name)).toEqual(['Boiler Room', 'Stoop Hip Hop Radio', '181.FM The Beat', 'Dekmantel Podcast', 'Resident Advisor', 'Rinse FM', 'Soulection', 'Soul & Funk Live', 'SilverStarSound', 'DJ RubyTunes Latin', 'The Lot Radio', 'WFMU Live', 'Indie & Rock Live', 'SomaFM Underground 80s', 'WBSY Talk', 'WNYC 93.9 FM']);
     expect(dir.libraryOnDial).toBe(false);
   });
 
@@ -48,9 +48,9 @@ describe('station list', () => {
     const { dir, lib } = setup([item('Pop/a.mp3', 100)]);
     expect(dir.libraryOnDial).toBe(true);
     expect(dir.stations.at(-1)).toMatchObject({ id: 'mylib', name: 'My Library', kind: 'library' });
-    expect(dir.stations).toHaveLength(16);
+    expect(dir.stations).toHaveLength(17);
     lib.reset();
-    expect(dir.stations).toHaveLength(15);
+    expect(dir.stations).toHaveLength(16);
     expect(dir.stations.at(-1)!.id).toBe('wnyc');
   });
 
@@ -260,6 +260,6 @@ describe('tune callback', () => {
     dir.onTune = (e) => seen.push(e.id);
     dir.next();
     dir.next();
-    expect(seen).toEqual(['dublab', 'sc']);
+    expect(seen).toEqual(['hiphop', 'beat']);
   });
 });

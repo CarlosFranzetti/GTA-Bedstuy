@@ -19,7 +19,7 @@ function rig() {
     createBuffer: (_c: number, len: number) => ({ getChannelData: () => new Float32Array(len) }), createBufferSource: () => Object.assign(new N(), { buffer: null, loop: false }),
   };
   const mixer = new Mixer(mem());
-  const audio = new AudioSystem(new EventBus(), () => ctx as unknown as AudioContext, { mixer });
+  const audio = new AudioSystem(new EventBus(), () => ctx as unknown as AudioContext, { mixer, shuffleStart: false });
   const master = () => gains.find((g) => g.out.includes(dest))!;
   const buses = () => gains.filter((g) => g.out.includes(master()));
   return { audio, mixer, gains, master, buses };

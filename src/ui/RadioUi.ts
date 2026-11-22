@@ -30,6 +30,8 @@ export interface RadioUiSource {
   readonly radioNeedsTap?: boolean;
   radioUserStart?(): void;
   radioFailed?(id: string): boolean;
+  /** RADIO3: what is on now on the tuned station and where to find it (the SoundCloud page of the mix, or the broadcaster's site). */
+  radioNowLink?(): { label: string; url: string } | null;
   /** AudioSystem's context + master bus (null until audio has started); the Loading theme row plays through it. */
   readonly djHost?: { ctx: AudioContext; dest: AudioNode } | null;
   /** VOX: HD voices (on-device neural TTS). The row is left out when `setHdVoices` is absent. */
@@ -327,6 +329,18 @@ export class RadioUi {
           about.appendChild(a);
         }
         li.appendChild(about);
+        const now = this.host.radioNowLink?.();
+        if (now && /^https:\/\//.test(now.url)) {
+          const p = this.el('p', 'rl-note rl-dial-now');
+          p.append('On now: ');
+          const a = this.doc.createElement('a');
+          a.href = now.url;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.textContent = now.label;
+          p.appendChild(a);
+          li.appendChild(p);
+        }
       }
       return li;
     }));

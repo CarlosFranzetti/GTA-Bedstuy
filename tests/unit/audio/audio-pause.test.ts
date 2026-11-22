@@ -12,7 +12,7 @@ import { RecCtx } from './fakeWebAudio';
 function setup() {
   const events = new EventBus();
   const ctx = new RecCtx();
-  const audio = new AudioSystem(events, () => ctx as unknown as AudioContext, { feed: null, scEnv: { canLoad: () => false } });
+  const audio = new AudioSystem(events, () => ctx as unknown as AudioContext, { feed: null, shuffleStart: false, scEnv: { canLoad: () => false } });
   return { events, ctx, audio };
 }
 const cars = (x0: number): TrafficCar[] => Array.from({ length: 6 }, (_, i) => ({ id: `c${i}`, type: i % 2 ? 'bus' : 'hatch', x: x0 + i * 3, z: 4, vx: 6, vz: 0, speed: 6, throttle: 0.5 }));

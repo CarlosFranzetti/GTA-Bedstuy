@@ -3503,3 +3503,6 @@ Starting RADIO3: seven-mix pools per SoundCloud station (mixes.json), hip hop st
 
 ### 2026-11-22T14:40:37Z · Wren Okoye (TALK2)
 The Group Chat 99.9 script is in: 400 segments, about 6,400 words, 46 minutes by estimateSeconds. Tests pass; no code touched.
+
+### 2026-11-22T14:53:53Z · Nico Brandt (RADIO3)
+Done: every SoundCloud station plays a shuffled pool from mixes.json (new mix per tune-in after a break, random start inside long mixes, now playing + link), Stoop Hip Hop Radio replaces the dead stoop account and a live 181.FM The Beat sits next to it, live genre stations pick from 2 to 4 verified streams, The Group Chat 99.9 runs beside WBSY Talk, dial starts on a random station. Not heard; widget mocked. Notes: docs/swarm/tasks/RADIO3.md

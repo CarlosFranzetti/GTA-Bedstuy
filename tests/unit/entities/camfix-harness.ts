@@ -83,6 +83,9 @@ export class CamRig {
     this.player = new Player('player', start, stubMaterials, this.events);
     this.player.body.heading = opts.startHeading ?? 0;
     this.sim.add(this.player);
+    this.player.onVaultStart = () => this.sim.world.removeBody(this.player.body.id); // as main.ts wires it
+    this.player.onVaultEnd = () => this.sim.world.addBody(this.player.body);
+    this.player.vehiclesNear = (q, r) => this.sim.world.queryCircle(q, r).map((b) => b.userData as { spec?: unknown; body: { kind: string } }).filter((u) => !!u && !!u.spec && u.body.kind !== 'player') as never;
     this.events.on('enterVehicle', () => this.sim.world.removeBody(this.player.body.id));
     this.events.on('exitVehicle', () => this.sim.world.addBody(this.player.body));
     for (const w of opts.walls ?? []) this.sim.world.addStatic({ kind: 'polygon', points: w }, { x: 0, z: 0 }, 'wall');

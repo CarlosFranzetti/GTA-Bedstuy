@@ -1035,7 +1035,7 @@ const BASE_STYLES: Record<Exclude<StyleKey, DerivedKey>, Style> = {
     bumperY: 0.5, bumperH: 0.3,
     plan: [[-2.95, 0.96], [-2.2, 0.99], [-1, 1], [1, 1], [2.3, 0.97], [2.95, 0.88]],
     headLamp: 'angular', tailLamp: 'tall', grille: 'wedge', lampD: 0.12, tailD: 0.05, endF: 0.3, endR: 0.12, grilleW: 0.55, lampInset: 0.17,
-    dims: { L: 5.98, W: 2.06, H: 2.78 },
+    dims: { L: 5.7, W: 2.03, H: 2.62 },
   },
   // ---- CARS12 new types (WebSearch, 11 Nov 2026; sources in each comment)
   // "Forge 150": a full-size crew-cab pickup of the a real type (2021-), 5.5 ft bed: wheelbase 145 in (3.68 m, 
@@ -1072,7 +1072,7 @@ const BASE_STYLES: Record<Exclude<StyleKey, DerivedKey>, Style> = {
     bumperY: 0.5, bumperH: 0.28,
     plan: [[-2.95, 0.95], [-2.5, 0.99], [-1, 1], [1, 1], [2.3, 0.99], [2.95, 0.95]],
     headLamp: 'quad', tailLamp: 'tall', grille: 'bigbar', lampD: 0.1, tailD: 0.05, endF: 0.3, endR: 0.2, grilleW: 0.78,
-    dims: { L: 5.885, W: 2.03, H: 1.96 },
+    dims: { L: 5.6, W: 2.0, H: 1.9 },
     bed: { u0: -1.12, u1: -2.94, floor: 0.95 },
   },
   // "Trekker V": a compact crossover of the a real type (2023-): length 184.8 in (4.694 m), width 73.5 in (1.867 m), height 66.2 in (1.68 m), wheelbase 106.3 in (2.70 m).
@@ -1107,7 +1107,7 @@ const BASE_STYLES: Record<Exclude<StyleKey, DerivedKey>, Style> = {
     bumperY: 0.4, bumperH: 0.24,
     plan: [[-2.37, 0.9], [-1.9, 0.97], [-0.9, 1], [0.9, 1], [1.9, 0.99], [2.37, 0.93]],
     headLamp: 'swept', tailLamp: 'tall', grille: 'bars', lampD: 0.18, tailD: 0.06, endF: 0.4, endR: 0.2, grilleW: 0.55,
-    dims: { L: 4.694, W: 1.867, H: 1.68 },
+    dims: { L: 4.6, W: 1.85, H: 1.66 },
   },
   // "Voyager Eight": a minivan of the a real type (2021-): wheelbase 120.5 in (3.06 m), length 203.7 in (5.175 m), width 78.5 in (1.994 m), height 68.5 in without rails (1.74 m) / 69.7 in with (1.77 m).
   // Source:  (via search summary), 
@@ -1277,7 +1277,7 @@ const BASE_STYLES: Record<Exclude<StyleKey, DerivedKey>, Style> = {
     bumperY: 0.5, bumperH: 0.3,
     plan: [[-2.95, 0.96], [-2.2, 0.99], [-1, 1], [1, 1], [2.3, 0.97], [2.95, 0.88]],
     headLamp: 'angular', tailLamp: 'tall', grille: 'wedge', lampD: 0.12, tailD: 0.05, endF: 0.3, endR: 0.12, grilleW: 0.55, lampInset: 0.17,
-    dims: { L: 5.98, W: 2.06, H: 2.78 },
+    dims: { L: 5.7, W: 2.03, H: 2.62 },
     windowed: true,
   },
   // "Stuttgart GT": a long-hood rear-drive fastback coupe (a 2+2 grand tourer): long, low bonnet, cabin pushed back, one unbroken roof line
@@ -1551,7 +1551,7 @@ const BASE_STYLES: Record<Exclude<StyleKey, DerivedKey>, Style> = {
     bumperY: 0.34, bumperH: 0.22,
     plan: [[-2.5, 0.91], [-1.9, 0.98], [-0.9, 1], [0.9, 1], [1.8, 0.98], [2.5, 0.91]],
     headLamp: 'quad', tailLamp: 'tall', grille: 'mesh', lampD: 0.1, tailD: 0.06, endF: 0.4, endR: 0.2, grilleW: 0.6,
-    dims: { L: 4.95, W: 1.84, H: 1.5 },
+    dims: { L: 4.85, W: 1.83, H: 1.5 },
   },
   // "Bruiser 2500": a full-size body-on-frame SUV of the 1990s: 5.55 x 2.0 x 1.95 m, wheelbase 3.3 m. Slab sides, upright glass, roof rails.
   bigsuv: {
@@ -1582,7 +1582,7 @@ const BASE_STYLES: Record<Exclude<StyleKey, DerivedKey>, Style> = {
     bumperY: 0.48, bumperH: 0.3,
     plan: [[-2.8, 0.95], [-2.3, 0.99], [-1.0, 1], [1.0, 1], [2.3, 0.99], [2.8, 0.95]],
     headLamp: 'box', tailLamp: 'box2', grille: 'bigbar', lampD: 0.1, tailD: 0.05, endF: 0.3, endR: 0.2, grilleW: 0.7, chromeBumper: true,
-    dims: { L: 5.55, W: 2.0, H: 1.95 },
+    dims: { L: 5.35, W: 2.05, H: 1.92 },
   },
   // "Scamper": a compact regular-cab pickup of the 1990s, 6 ft bed: 4.75 x 1.7 x 1.6 m, wheelbase 2.75 m.
   minitruck: {

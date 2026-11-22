@@ -38,12 +38,12 @@
 .gp-cash { font: 700 clamp(22px, 3.4vh, 30px)/1 var(--font-hud); letter-spacing: 0.04em; color: #6fbf5a; font-variant-numeric: tabular-nums; }
 .gp-when, .gp-street { font: 600 13px/1.2 var(--font-hud); letter-spacing: 0.16em; text-transform: uppercase; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .gp-street { color: var(--txt); }
-.gp-x, .gp-back {
-  appearance: none; flex: none; width: 44px; height: 44px; padding: 0; border: 1px solid rgba(255, 255, 255, 0.28); border-radius: 2px; background: var(--panel); color: var(--txt);
+.gp-x {
+  appearance: none; flex: none; min-width: 44px; height: 44px; padding: 0 20px; border: 1px solid rgba(255, 255, 255, 0.28); border-radius: 2px; background: var(--panel); color: var(--txt);
   font: 600 20px/1 var(--font-hud); cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: background-color var(--gp-t), color var(--gp-t);
 }
-.gp-x:hover, .gp-back:hover { background: var(--gold); border-color: var(--gold); color: #0a0910; }
-.gp-back { display: none; font-size: 26px; }
+.gp-x { font-size: 18px; letter-spacing: 0.16em; text-transform: uppercase; }
+.gp-x:hover, .gp-x:focus-visible { background: var(--gold); border-color: var(--gold); color: #0a0910; }
 
 /* ---- tab bar */
 .gp-tabbar { display: flex; align-items: stretch; gap: 8px; margin-top: 14px; border-bottom: 1px solid var(--hair); }
@@ -66,11 +66,11 @@
 .gp-body { position: relative; flex: 1; min-height: 0; margin-top: 14px; }
 .gp-pane { position: absolute; inset: 0; display: grid; gap: 14px; min-height: 0; animation: gp-rise var(--gp-t) ease-out; }
 .gp-pane[hidden] { display: none; }
-.gp-pane-settings { grid-template-columns: minmax(0, 1fr) minmax(250px, 340px); grid-template-rows: minmax(0, 1fr) auto; }
+.gp-pane-settings { grid-template-columns: minmax(0, 1fr) minmax(250px, 340px); grid-template-rows: auto minmax(0, 1fr); }
 .gp-pane-radio, .gp-pane-missions, .gp-pane-stats { grid-template-columns: minmax(0, 1fr) minmax(250px, 340px); }
-.gp-pane-settings > .gp-col { grid-column: 1; grid-row: 1; }
-.gp-pane-settings > .gp-desc { grid-column: 2; grid-row: 1; align-self: stretch; margin: 0; }
-.gp-pane-settings > .gp-acts { grid-column: 1 / -1; grid-row: 2; }
+.gp-pane-settings > .gp-groups { grid-column: 1 / -1; grid-row: 1; }
+.gp-pane-settings > .gp-col { grid-column: 1; grid-row: 2; }
+.gp-pane-settings > .gp-desc { grid-column: 2; grid-row: 2; align-self: stretch; margin: 0; }
 .gp-pane-map, .gp-pane-save { display: flex; flex-direction: column; }
 .gp-pane-map[hidden], .gp-pane-save[hidden] { display: none; }
 .gp-col { min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--panel); border-radius: 2px; }
@@ -133,18 +133,17 @@
 .gp-row[data-state="active"] .gp-text { color: var(--gold); }
 .gp-row[data-state="failed"] .gp-text { color: #ff6a5c; }
 
-/* ---- footer bar: APPLY / DEFAULTS / BACK */
-.gp-acts { display: flex; flex-direction: row; align-items: center; justify-content: flex-end; gap: 10px; min-height: 0; padding: 8px 10px; background: var(--panel); border-radius: 2px; }
-.gp-act {
-  appearance: none; min-height: 44px; padding: 0 26px; border: 1px solid rgba(255, 255, 255, 0.28); border-radius: 2px; background: transparent; color: var(--txt); cursor: pointer;
-  font: 700 19px/1 var(--font-hud); letter-spacing: 0.16em; text-transform: uppercase; transition: background-color var(--gp-t), color var(--gp-t), border-color var(--gp-t);
+/* ---- settings groups (Game, Controls, Audio, Graphics, Map) and the status line */
+.gp-groups { display: flex; flex-direction: row; align-items: center; gap: 8px; min-height: 0; padding: 6px 8px; background: var(--panel); border-radius: 2px; overflow-x: auto; scrollbar-width: none; }
+.gp-groups::-webkit-scrollbar { display: none; }
+.gp-chip {
+  appearance: none; flex: 0 0 auto; min-height: 44px; min-width: 64px; padding: 0 20px; border: 1px solid rgba(255, 255, 255, 0.28); border-radius: 2px; background: transparent; color: var(--txt); cursor: pointer;
+  font: 700 18px/1 var(--font-hud); letter-spacing: 0.14em; text-transform: uppercase; transition: background-color var(--gp-t), color var(--gp-t), border-color var(--gp-t);
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
-.gp-act:hover, .gp-act.hi { background: var(--gold); border-color: var(--gold); color: #0a0910; }
-.gp-act.dim { opacity: 0.45; }
-.has-pending .gp-act-apply { border-color: var(--gold); animation: gp-pulse 1.4s ease-in-out infinite; }
-@keyframes gp-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(232, 181, 58, 0); } 50% { box-shadow: 0 0 0 3px rgba(232, 181, 58, 0.35); } }
-.gp-status { order: -1; margin: 0 auto 0 8px; min-height: 1.2em; text-align: left; font: 600 15px/1.2 var(--font-hud); letter-spacing: 0.1em; color: var(--gold); text-transform: uppercase; }
+.gp-chip:hover, .gp-chip.hi { background: rgba(255, 255, 255, 0.1); border-color: #fff; }
+.gp-chip.on { background: var(--gold); border-color: var(--gold); color: #0a0910; }
+.gp-status { margin: 0 0 0 auto; min-height: 1.2em; text-align: right; font: 600 15px/1.2 var(--font-hud); letter-spacing: 0.1em; color: var(--gold); text-transform: uppercase; white-space: nowrap; }
 
 /* ---- description panel */
 .gp-desc {
@@ -171,6 +170,12 @@
 /* ---- footer prompts */
 .gp-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 20px; min-height: 30px; margin-top: 12px; font: 600 14px/1 var(--font-hud); letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
 .gp-foot-fill { flex: 1; }
+.gp-foot-back {
+  appearance: none; flex: none; min-height: 44px; padding: 0 26px; border: 1px solid rgba(255, 255, 255, 0.28); border-radius: 2px; background: var(--panel); color: var(--txt); cursor: pointer;
+  font: 700 18px/1 var(--font-hud); letter-spacing: 0.16em; text-transform: uppercase; transition: background-color var(--gp-t), color var(--gp-t);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.gp-foot-back:hover, .gp-foot-back:focus-visible { background: var(--gold); border-color: var(--gold); color: #0a0910; }
 .gp-prompt { display: inline-flex; align-items: center; gap: 8px; }
 .gp-key { display: inline-block; min-width: 22px; padding: 4px 8px; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 2px; color: #fff; font: 700 13px/1 var(--font-hud); letter-spacing: 0.06em; text-align: center; }
 
@@ -214,8 +219,7 @@
 /* ---- narrow screens (phone portrait): same look, list full width, the three actions as a bottom bar */
 @media (max-width: 760px) {
   .gp-shell { padding: max(10px, env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-right, 0px)) max(8px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px)); }
-  .gp-back { display: block; }
-  .gp-x { display: none; }
+  .gp-x { padding: 0 14px; font-size: 16px; }
   .gp-head { align-items: center; gap: 10px; }
   .menu-title { font-size: 36px; }
   .gp-game { display: none; }
@@ -225,15 +229,16 @@
   .gp-tabhint { display: none; }
   .menu-tab { min-width: 72px; padding: 0 12px; font-size: 17px; }
   .gp-body { margin-top: 8px; }
-  .gp-foot { display: none; }
+  .gp-foot { margin-top: 6px; }
+  .gp-foot .gp-prompt { display: none; }
+  .gp-foot-back { flex: 1; }
   .gp-pane { gap: 8px; }
   .gp-pane-radio, .gp-pane-missions, .gp-pane-stats { grid-template-columns: minmax(0, 1fr); }
-  .gp-pane-settings { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .gp-pane-settings { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
   .gp-pane-settings > .gp-desc { display: none; }
-  .gp-pane-settings > .gp-acts { grid-column: 1; }
+  .gp-pane-settings > .gp-col { grid-column: 1; }
   .gp-pane-radio .gp-desc, .gp-pane-missions .gp-desc, .gp-pane-stats .gp-desc { display: none; }
-  .gp-acts { justify-content: space-between; gap: 6px; padding: 6px; }
-  .gp-act { flex: 1; padding: 0 6px; font-size: 17px; letter-spacing: 0.1em; }
+  .gp-chip { padding: 0 14px; min-width: 56px; font-size: 16px; }
   .gp-status { display: none; }
   .gp-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; font-size: 17px; padding: 0 2px 0 14px; }
   .gp-val { justify-content: flex-end; min-width: 0; gap: 2px; }
@@ -253,9 +258,11 @@
   .gp-head { align-items: center; }
   .gp-tabbar { margin-top: 4px; }
   .gp-body { margin-top: 6px; }
-  .gp-foot { display: none; }
+  .gp-foot { margin-top: 4px; min-height: 0; }
+  .gp-foot .gp-prompt, .gp-foot-fill { display: none; }
+  .gp-foot-back { min-height: 38px; }
+  .gp-chip { min-height: 38px; }
   .gp-pane-settings, .gp-pane-radio, .gp-pane-missions, .gp-pane-stats { grid-template-columns: minmax(0, 1fr) minmax(150px, 240px); }
-  .gp-act { min-height: 40px; font-size: 16px; }
   .gp-row { min-height: 40px; font-size: 17px; }
   .menu-root[data-input="touch"] .gp-row { min-height: 44px; }
   .gp-desc { padding: 10px 12px; }
@@ -263,8 +270,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .menu-root.gp-in, .gp-pane, .has-pending .gp-act-apply { animation: none; }
-  .gp-row, .gp-arrow, .menu-tab, .gp-meter i, .gp-act { transition: none; }
+  .menu-root.gp-in, .gp-pane { animation: none; }
+  .gp-row, .gp-arrow, .menu-tab, .gp-meter i, .gp-chip, .gp-foot-back { transition: none; }
 }
 
 /* phone on its side: the day, time and street lines are what makes the header 110 px tall; with them gone the settings list

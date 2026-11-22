@@ -42,6 +42,8 @@ export class VaultScene {
     this.player.body.heading = heading;
     this.sim.entities.set('p', this.player);
     this.physics.addBody(this.player.body);
+    this.player.onVaultStart = () => this.physics.removeBody(this.player.body.id); // as main.ts wires it
+    this.player.onVaultEnd = () => this.physics.addBody(this.player.body);
     this.player.vehiclesNear = (p, r) => this.physics.queryCircle(p, r).map((b) => b.userData as IVehicle).filter((u) => !!u && !!(u as IVehicle).spec && (u as IVehicle).body.kind !== 'player');
     cars.forEach((c, i) => { const v = makeVehicle(c.type ?? 'sedan', c.x, c.z, c.heading, this.events, c.id ?? `car${i}`); this.sim.add(v); this.cars.push(v); });
     this.sim.run(0.3, undefined, dt);

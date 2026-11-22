@@ -28,7 +28,7 @@ import { PedVoicePlayer } from './voice/peds/PedVoicePlayer';
 import { Mixer, engineBusGain, type MixKey } from './Mixer';
 import type { Surface } from './vehicle/fx';
 import type { Listener, TrafficCar } from './vehicle/nodes';
-import { loadBundledScript, type TalkSegment } from './talk/script';
+import { loadBundledScript, loadGroupChatScript, GROUPCHAT_NAME, type TalkSegment } from './talk/script';
 
 /** Seconds of audio queued ahead of currentTime by the radio sequencer. */
 const LOOKAHEAD = 0.1;
@@ -93,6 +93,10 @@ export interface AudioSystemOptions {
   makeUtterance?: (text: string) => UtteranceLike;
   /** Talk show script. Default: src/audio/talk/script.json when present. */
   script?: TalkSegment[];
+  /** RADIO3: the Group Chat script (tests). Default: src/audio/talk/script-groupchat.json, loaded on hosted and native builds. */
+  groupChatScript?: TalkSegment[];
+  /** RADIO3: start the dial on a random station each session (default on in the game, off when a lastStore is injected, as in tests). */
+  shuffleStart?: boolean;
   /** Folder-handle store and importer overrides (tests). */
   controller?: ControllerDeps;
   /** Live-stream environment (tests: fake audio element). */
@@ -222,7 +226,23 @@ export class AudioSystem {
       context: () => this.radio.broadcastContext,
       setBed: (level) => this.setBed(level),
     });
+    // RADIO3: The Group Chat, a second scripted station on its own script (src/audio/talk/script-groupchat.json, hosted and native builds only).
+    let chat: TalkPlayer | undefined;
+    if (opts.groupChatScript || hostedBuild()) {
+      chat = new TalkPlayer({
+        speech,
+        makeUtterance: opts.makeUtterance ?? ((text) => new SpeechSynthesisUtterance(text) as unknown as UtteranceLike),
+        audio: { sting: (kind) => this.playSting(talkSting(kind), kind), setBed: (level) => this.setBed(level), volume: () => this.mixer.level('voices') },
+      }, opts.groupChatScript ?? [], { name: GROUPCHAT_NAME, random: Math.random });
+      if (!opts.groupChatScript) {
+        const c = chat;
+        void loadGroupChatScript().then((segs) => { if (segs.length) c.setScript(segs); }).catch(() => undefined);
+      }
+    }
     this.radio = new RadioDirector(library, talk, undefined, opts.sc, {
+      talk2: chat,
+      shuffleStart: opts.shuffleStart === undefined ? opts.lastStore === undefined : opts.shuffleStart,
+      random: Math.random,
       feed: opts.feed,
       scEnv: opts.scEnv,
       liveEnv: opts.liveEnv,
@@ -428,6 +448,8 @@ export class AudioSystem {
   get radioNeedsTap(): boolean { return this.radio.needsTap; }
   radioUserStart(): void { this.radio.userStart(); }
   radioFailed(id: string): boolean { return this.radio.isFailed(id); }
+  /** RADIO3: the credit link of what is on now: the mix's SoundCloud page, or the live stream's broadcaster. */
+  radioNowLink(): { label: string; url: string } | null { return this.radio.nowLink; }
 
   /** Radio SC station (mix list, next mix, test) for the Radio library panel. */
   get sc(): ScStation { return this.radio.sc; }

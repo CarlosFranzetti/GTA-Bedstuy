@@ -66,14 +66,14 @@ export interface CatalogEntry {
 }
 
 export const CATALOG: readonly CatalogEntry[] = [
-  /* hip hop: first on the dial, this is Bed-Stuy. 13 DJ mixes from src/audio/sc/mixes.json (the old Universal Hip Hop Radio account holds two tracks from 2017: folded in) */
+  /* club / electronic */
+  { id: 'bkhouse', name: 'Boiler Room', kind: 'sc-account', group: 'club', genre: 'club sets / house / techno', dj: 'deja', site: 'https://boilerroom.tv',
+    about: 'Filmed club sets from Boiler Room, from their SoundCloud through the official player.', scUrls: ['https://soundcloud.com/platform/tracks'] },
+  /* hip hop: second on the dial, early because this is Bed-Stuy. 13 DJ mixes from src/audio/sc/mixes.json (the old Universal Hip Hop Radio account holds two tracks from 2017: folded in) */
   { id: 'hiphop', name: 'Stoop Hip Hop Radio', kind: 'sc-account', group: 'hiphop', genre: 'hip hop DJ mixes', dj: 'tayo', site: 'https://soundcloud.com',
     about: 'Hip hop DJ mixes by a dozen different DJs, each from its own SoundCloud page through the official player, shuffled.', scUrls: ['https://soundcloud.com/uhhmradio/tracks'] },
   { id: 'beat', name: '181.FM The Beat', kind: 'live-stream', group: 'hiphop', genre: 'hip hop / R&B', site: 'https://www.181.fm',
     about: '181.FM The Beat, hip hop and R&B. Live public stream.', streams: ['https://listen.181fm.com/181-beat_128k.mp3'] },
-  /* club / electronic */
-  { id: 'bkhouse', name: 'Boiler Room', kind: 'sc-account', group: 'club', genre: 'club sets / house / techno', dj: 'deja', site: 'https://boilerroom.tv',
-    about: 'Filmed club sets from Boiler Room, from their SoundCloud through the official player.', scUrls: ['https://soundcloud.com/platform/tracks'] },
   { id: 'dublab', name: 'Dekmantel Podcast', kind: 'sc-account', group: 'club', genre: 'techno / house / leftfield', dj: 'odell', site: 'https://www.dekmantel.com',
     about: 'The Dekmantel podcast series (Amsterdam), from their SoundCloud through the official player.', scUrls: ['https://soundcloud.com/dkmntl/tracks'] },
   { id: 'sc', name: 'Resident Advisor', kind: 'ra-pool', group: 'club', genre: 'RA NYC events + RA Podcast', dj: 'cass', site: 'https://ra.co',

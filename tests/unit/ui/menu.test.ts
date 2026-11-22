@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { Mixer } from '@/audio/Mixer';
 import { Menu, SETTINGS_KEY, MENU_TABS, missionLogOf, type MenuCallbacks, type MapEmbed, type MenuTab } from '@/ui/Menu';
 
 function memStore(initial: Record<string, string> = {}) {
@@ -29,15 +30,16 @@ const fakeFs = () => {
 describe('Menu (open-world pause layout)', () => {
   let parent: HTMLElement;
   beforeEach(() => { parent = document.createElement('div'); document.body.appendChild(parent); });
-  afterEach(() => { parent.remove(); });
+  afterEach(() => { parent.remove(); document.body.className = ''; });
 
   const press = (code: string, opts: KeyboardEventInit = {}) => (document.activeElement ?? document.body).dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true, ...opts }));
   const row = (m: Menu, id: string) => m.root.querySelector<HTMLElement>(`.gp-pane-settings .gp-list [data-id="${id}"]`)!;
   const rows = (m: Menu) => [...m.root.querySelectorAll<HTMLElement>('.gp-pane-settings .gp-list .gp-row')].filter((r) => !r.hidden);
   const hi = (m: Menu) => m.root.querySelector<HTMLElement>('.gp-pane-settings .gp-list .gp-row.hi')!;
-  const act = (m: Menu, name: string) => m.root.querySelector<HTMLButtonElement>(`.gp-act-${name}`)!;
+  /** shows the group a row lives in (settings are grouped: only one group's rows are on screen) */
+  const show = (m: Menu, id: string) => { const g = m.groupOfRow(id); if (g && m.settingsGroup !== g) m.showGroup(g); return row(m, id); };
   /** goes to a row with the arrow keys / navigate and returns it */
-  const goto = (m: Menu, id: string) => { for (let i = 0; i < 80 && hi(m)?.dataset.id !== id; i++) m.navigate('down'); return row(m, id); };
+  const goto = (m: Menu, id: string) => { show(m, id); for (let i = 0; i < 80 && hi(m)?.dataset.id !== id; i++) m.navigate('down'); return row(m, id); };
   const enter = (m: Menu, id?: string) => { m.open(); if (id) goto(m, id); };
   const val = (m: Menu, id: string) => row(m, id).querySelector('.gp-text')!.textContent;
 
@@ -60,7 +62,7 @@ describe('Menu (open-world pause layout)', () => {
     const menu = new Menu(parent, {}, { storage: null });
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
     expect(menu.isOpen).toBe(true);
-    parent.querySelector<HTMLButtonElement>('.gp-back')!.click();
+    parent.querySelector<HTMLButtonElement>('.gp-resume')!.click();
     expect(menu.isOpen).toBe(false);
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
@@ -132,129 +134,137 @@ describe('Menu (open-world pause layout)', () => {
     });
   });
 
-  describe('settings: one list with pending changes', () => {
-    it('is a single scrolling list with yellow sub-headers and the APPLY / DEFAULTS / BACK stack', () => {
-      const menu = new Menu(parent, {}, { storage: null, fullscreen: null });
-      expect(menu.root.querySelector('.gp-cats')).toBeNull();
-      expect([...menu.root.querySelectorAll('.gp-pane-settings .gp-sub')].map((n) => n.textContent)).toEqual(['Display', 'Graphics', 'Audio', 'Controls', 'Game', 'Minimap']);
-      expect([...menu.root.querySelectorAll('.gp-act')].map((n) => n.textContent)).toEqual(['Apply', 'Defaults', 'Back']);
+  describe('settings: grouped, every change applies at once', () => {
+    it('has the groups Game, Controls, Audio, Graphics, Map as chips, one group on screen at a time, and a visible Back and Resume', () => {
+      const menu = new Menu(parent, {}, { storage: null, fullscreen: null, mixer: new Mixer(null) });
+      expect([...menu.root.querySelectorAll('.gp-chip')].map((n) => n.textContent)).toEqual(['Game', 'Controls', 'Audio', 'Graphics', 'Map']);
+      expect(menu.root.querySelector('.gp-act')).toBeNull(); // no Apply / Defaults stack any more
+      expect(menu.root.querySelector('.gp-resume')!.textContent).toBe('Resume');
+      expect(menu.root.querySelector('.gp-foot-back')!.textContent).toBe('Back');
       expect(menu.root.querySelector('.menu-title')!.textContent).toBe('Settings');
-    });
-
-    it('up / down move through the rows and skip the sub-headers; arrows past the end reach the action stack', () => {
-      const menu = new Menu(parent, {}, { storage: null, fullscreen: null, initialQuality: 'medium' });
       menu.open();
-      expect(hi(menu).dataset.id).toBe('g:fpsCap'); // window mode is hidden without full screen support; headers are never selected
-      press('ArrowDown'); expect(hi(menu).dataset.id).toBe('g:resolution');
-      press('ArrowUp'); press('ArrowUp');
-      expect(menu.focusZone).toBe('list');
-      for (let i = 0; i < 60 && menu.focusZone === 'list'; i++) press('ArrowDown');
-      expect(menu.focusZone).toBe('acts');
-      expect(act(menu, 'apply').classList.contains('hi')).toBe(true);
-      press('ArrowDown'); expect(act(menu, 'defaults').classList.contains('hi')).toBe(true);
-      press('ArrowUp'); press('ArrowUp');
-      expect(menu.focusZone).toBe('list');
+      expect(menu.settingsGroup).toBe('game');
+      expect(rows(menu).map((r) => r.dataset.id)).toEqual(expect.arrayContaining(['radiolib', 'reset']));
+      expect(rows(menu).map((r) => r.dataset.id)).not.toContain('master');
+      menu.root.querySelector<HTMLButtonElement>('.gp-chip[data-group="audio"]')!.click();
+      expect(menu.settingsGroup).toBe('audio');
+      expect(rows(menu).map((r) => r.dataset.id)).toEqual(expect.arrayContaining(['master', 'engineon', 'enginevol']));
+      expect(menu.root.querySelector('.gp-chip.on')!.textContent).toBe('Audio');
     });
 
-    it('left / right change a segmented row, a slider and a toggle as PENDING: nothing reaches the host until APPLY', () => {
+    it('up / down walk the rows of the group; Up from the first row reaches the chips, Left / Right change group, Down returns', () => {
+      const menu = new Menu(parent, {}, { storage: null, fullscreen: null, initialQuality: 'medium' });
+      menu.open(); menu.showGroup('graphics');
+      expect(hi(menu).dataset.id).toBe('quality'); // window mode is hidden without full screen support
+      press('ArrowDown'); expect(hi(menu).dataset.id).toBe('autodetect');
+      press('ArrowUp'); press('ArrowUp');
+      expect(menu.focusZone).toBe('chips');
+      press('ArrowRight'); expect(menu.settingsGroup).toBe('map');
+      press('ArrowLeft'); press('ArrowLeft'); expect(menu.settingsGroup).toBe('audio');
+      press('ArrowDown');
+      expect(menu.focusZone).toBe('list');
+      expect(hi(menu).dataset.id).toBe('master');
+    });
+
+    it('left / right change a segmented row, a slider and a toggle and each reaches the host and the store at once', () => {
       const cb = cbs();
       const store = memStore();
       const menu = new Menu(parent, cb, { storage: store, initialQuality: 'medium', fullscreen: null });
       enter(menu, 'quality');
       press('ArrowRight');
       expect(val(menu, 'quality')).toBe('High');
-      expect(menu.pendingCount).toBe(1);
-      expect(cb.onQuality).not.toHaveBeenCalled();
+      expect(cb.onQuality).toHaveBeenLastCalledWith('high');
       goto(menu, 'master'); press('ArrowLeft');
       expect(val(menu, 'master')).toBe('95%');
+      expect(cb.onMasterVolume).toHaveBeenLastCalledWith(0.95);
       goto(menu, 'invert'); press('ArrowRight');
       expect(val(menu, 'invert')).toBe('ON');
-      expect(menu.pendingCount).toBe(3);
-      expect(cb.onMasterVolume).not.toHaveBeenCalled();
-      expect(store.data[SETTINGS_KEY]).toBeUndefined();
-      act(menu, 'apply').click();
-      expect(menu.pendingCount).toBe(0);
-      expect(cb.onQuality).toHaveBeenLastCalledWith('high');
-      expect(cb.onMasterVolume).toHaveBeenLastCalledWith(0.95);
       expect(cb.onInvertLookY).toHaveBeenLastCalledWith(true);
-      expect(JSON.parse(store.data[SETTINGS_KEY])).toEqual({ quality: 'high', auto: false, master: 0.95, radio: 1, invertY: true });
-      expect(val(menu, 'invert')).toBe('ON');
+      expect(JSON.parse(store.data[SETTINGS_KEY])).toMatchObject({ quality: 'high', auto: false, master: 0.95, radio: 1, invertY: true });
     });
 
-    it('going back to the original value drops the pending change', () => {
-      const menu = new Menu(parent, cbs(), { storage: null, initialQuality: 'medium', fullscreen: null });
-      enter(menu, 'quality');
-      press('ArrowRight'); expect(menu.pendingCount).toBe(1);
-      press('ArrowLeft'); expect(menu.pendingCount).toBe(0);
-    });
-
-    it('arrows, a click on a row and Enter on the keyboard all edit the pending value', () => {
-      const menu = new Menu(parent, cbs(), { storage: null, initialQuality: 'medium', fullscreen: null });
+    it('arrows, a click on a row and Enter on the keyboard all edit the value at once', () => {
+      const cb = cbs();
+      const menu = new Menu(parent, cb, { storage: null, initialQuality: 'medium', fullscreen: null });
       menu.open();
-      row(menu, 'master').querySelector<HTMLButtonElement>('.gp-arrow.l')!.click();
+      show(menu, 'master').querySelector<HTMLButtonElement>('.gp-arrow.l')!.click();
       expect(val(menu, 'master')).toBe('95%');
-      row(menu, 'quality').click(); // click cycles a segmented row
+      expect(cb.onMasterVolume).toHaveBeenLastCalledWith(0.95);
+      show(menu, 'quality').click(); // click cycles a segmented row
       expect(val(menu, 'quality')).toBe('High');
       goto(menu, 'invert'); press('Enter');
       expect(val(menu, 'invert')).toBe('ON');
-      expect(menu.pendingCount).toBe(3);
+      expect(cb.onInvertLookY).toHaveBeenLastCalledWith(true);
     });
 
-    it('DEFAULTS makes the preset values pending and APPLY commits them (graphics overrides are dropped)', () => {
+    it('a slider drags with the pointer and steps with clicks on its end arrows', () => {
+      const cb = cbs();
+      const menu = new Menu(parent, cb, { storage: null, fullscreen: null });
+      menu.open();
+      const bar = show(menu, 'master').querySelector<HTMLElement>('.gp-bar')!;
+      bar.getBoundingClientRect = () => ({ left: 100, width: 200, top: 0, height: 10, right: 300, bottom: 10, x: 100, y: 0, toJSON() { return {}; } }) as DOMRect;
+      const ev = (type: string, x: number) => { const e = new Event(type, { bubbles: true }) as Event & { clientX: number; pointerId: number }; e.clientX = x; e.pointerId = 1; bar.dispatchEvent(e); };
+      ev('pointerdown', 200); expect(val(menu, 'master')).toBe('50%');
+      ev('pointermove', 160); expect(val(menu, 'master')).toBe('30%');
+      ev('pointerup', 160); ev('pointermove', 280); expect(val(menu, 'master')).toBe('30%'); // released: no more dragging
+      expect(cb.onMasterVolume).toHaveBeenLastCalledWith(0.3);
+      show(menu, 'master').querySelector<HTMLButtonElement>('.gp-arrow.r')!.click();
+      expect(val(menu, 'master')).toBe('35%');
+    });
+
+    it('Reset to defaults is the last row of a group, asks once, and Back cancels the question', () => {
       const cb = cbs();
       const menu = new Menu(parent, cb, { storage: memStore(), initialQuality: 'medium', fullscreen: null });
       menu.graphics.set('shadows', 'off'); menu.graphics.set('crowd', 0.5);
-      menu.open();
+      menu.open(); menu.showGroup('graphics');
       expect(val(menu, 'g:shadows')).toBe('Off');
-      act(menu, 'defaults').click();
+      const r = row(menu, 'reset:graphics');
+      expect(r.querySelector('.gp-lab')!.textContent).toBe('Reset Graphics to defaults');
+      r.click();
+      expect(r.textContent).toContain('PRESS AGAIN');
+      expect(val(menu, 'g:shadows')).toBe('Off'); // asked, not done
+      menu.back();
+      expect(menu.isOpen).toBe(true); // the first Back only cancels the question
+      expect(r.textContent).not.toContain('PRESS AGAIN');
+      r.click(); r.click();
       expect(val(menu, 'g:shadows')).toBe('Medium');
       expect(val(menu, 'g:crowd')).toBe('100%');
-      expect(menu.graphics.hasOverrides).toBe(true); // still pending
-      act(menu, 'apply').click();
       expect(menu.graphics.hasOverrides).toBe(false);
       expect(cb.onGraphics).toHaveBeenLastCalledWith(expect.objectContaining({ shadows: 'medium', crowd: 1 }), expect.any(Array));
+      // another group is untouched
+      menu.showGroup('audio'); expect(row(menu, 'reset:audio')).toBeTruthy();
     });
 
-    it('BACK with pending changes asks first (DISCARD?), a second press discards and resumes; Esc is BACK', () => {
-      const cb = cbs();
-      const menu = new Menu(parent, cb, { storage: null, initialQuality: 'medium', fullscreen: null });
-      enter(menu, 'master'); press('ArrowLeft');
-      expect(menu.pendingCount).toBe(1);
-      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
-      expect(menu.isOpen).toBe(true);
-      expect(act(menu, 'back').textContent).toBe('Discard?');
-      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
-      expect(menu.isOpen).toBe(false);
-      expect(menu.pendingCount).toBe(0);
-      expect(cb.onMasterVolume).not.toHaveBeenCalled();
-      menu.open();
-      expect(val(menu, 'master')).toBe('100%');
-      act(menu, 'back').click(); // nothing pending: closes at once
-      expect(menu.isOpen).toBe(false);
+    it('Audio reset puts the sliders back to 100% and the engine On', () => {
+      const mixer = new Mixer(null);
+      const menu = new Menu(parent, {}, { storage: null, mixer, fullscreen: null });
+      menu.open(); menu.showGroup('audio');
+      mixer.set('sfx', 0.2); mixer.set('engine', 0);
+      row(menu, 'reset:audio').click(); row(menu, 'reset:audio').click();
+      expect(mixer.get('sfx')).toBe(1);
+      expect(mixer.get('engine')).toBe(1);
     });
 
-    it('Auto Detect Settings and the preset: apply order keeps the chosen preset on top', () => {
+    it('Auto Detect Settings and the preset: choosing a preset turns Auto off', () => {
       const cb = cbs();
       const menu = new Menu(parent, cb, { storage: null, initialQuality: 'medium', auto: true, fullscreen: null });
       enter(menu, 'autodetect');
       expect(val(menu, 'autodetect')).toBe('ON');
       press('ArrowLeft'); // off
+      expect(menu.settings.auto).toBe(false);
       press('ArrowUp'); press('ArrowRight'); // back up to the preset, medium -> high
-      act(menu, 'apply').click();
       expect(menu.settings).toMatchObject({ auto: false, quality: 'high' });
       expect(cb.onAuto).toHaveBeenLastCalledWith(false);
       expect(cb.onQuality).toHaveBeenLastCalledWith('high');
     });
 
-    it('each graphics row maps to a real setting and changes it on APPLY', () => {
+    it('each graphics row maps to a real setting and changes it at once', () => {
       const menu = new Menu(parent, cbs(), { storage: null, initialQuality: 'high', fullscreen: null });
-      menu.open();
+      menu.open(); menu.showGroup('graphics');
       const ids = rows(menu).map((r) => r.dataset.id);
-      expect(ids).toEqual(expect.arrayContaining(['g:fpsCap', 'g:resolution', 'g:nativeDpr', 'g:showFps', 'quality', 'autodetect', 'g:shadows', 'g:drawDistance', 'g:treeRange', 'g:crowd', 'g:traffic', 'g:aa', 'g:textures', 'g:ao', 'g:bloom', 'g:dof', 'g:vignette', 'g:grain', 'g:fov', 'master', 'radiovol', 'invert']));
+      expect(ids).toEqual(expect.arrayContaining(['g:fpsCap', 'g:resolution', 'g:nativeDpr', 'g:showFps', 'quality', 'autodetect', 'g:shadows', 'g:drawDistance', 'g:treeRange', 'g:crowd', 'g:traffic', 'g:aa', 'g:textures', 'g:ao', 'g:bloom', 'g:dof', 'g:vignette', 'g:grain', 'g:fov']));
       row(menu, 'g:ao').click(); row(menu, 'g:dof').click(); row(menu, 'g:bloom').click();
       row(menu, 'g:traffic').querySelector<HTMLButtonElement>('.gp-arrow.l')!.click();
-      expect(menu.graphics.effective('high')).toMatchObject({ ao: true, dof: true, bloom: true, traffic: 1 });
-      act(menu, 'apply').click();
       expect(menu.graphics.effective('high')).toMatchObject({ ao: false, dof: false, bloom: false, traffic: 0.75 });
     });
 
@@ -270,6 +280,24 @@ describe('Menu (open-world pause layout)', () => {
       expect(menu.isOpen).toBe(false);
     });
 
+    it('Back (Esc, the button, a right click) first cancels a "press again" question, then resumes', () => {
+      const menu = new Menu(parent, {}, { storage: null, fullscreen: null });
+      menu.open();
+      row(menu, 'reset').click();
+      expect(menu.asking).toBe(true);
+      menu.root.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })); // right click
+      expect(menu.asking).toBe(false);
+      expect(menu.isOpen).toBe(true);
+      menu.root.querySelector<HTMLButtonElement>('.gp-foot-back')!.click();
+      expect(menu.isOpen).toBe(false);
+      menu.open();
+      row(menu, 'reset').click();
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
+      expect(menu.isOpen).toBe(true);
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
+      expect(menu.isOpen).toBe(false);
+    });
+
     it('Radio library reaches the host at once (it is an action, not a setting)', () => {
       const cb = cbs();
       const menu = new Menu(parent, cb, { storage: null });
@@ -277,25 +305,34 @@ describe('Menu (open-world pause layout)', () => {
       row(menu, 'radiolib').click();
       expect(cb.onRadioLibrary).toHaveBeenCalledTimes(1);
     });
+
+    it('hover moves the one focus only when the mouse moves, never when the list scrolls under a still pointer', () => {
+      const menu = new Menu(parent, {}, { storage: null, mixer: new Mixer(null) });
+      menu.open(); menu.showGroup('audio');
+      const pm = (el: Element, x: number, y: number) => { const e = new Event('pointermove', { bubbles: true }) as Event & { clientX: number; clientY: number; pointerType: string }; e.clientX = x; e.clientY = y; e.pointerType = 'mouse'; el.dispatchEvent(e); };
+      pm(row(menu, 'sfxvol'), 10, 10);
+      expect(hi(menu).dataset.id).toBe('sfxvol');
+      press('ArrowDown'); // the keyboard moves the focus on
+      expect(hi(menu).dataset.id).toBe('engineon');
+      pm(row(menu, 'sfxvol'), 10, 10); // same coordinates: the list scrolled under a still pointer, nothing moves
+      expect(hi(menu).dataset.id).toBe('engineon');
+      pm(row(menu, 'sfxvol'), 12, 10); // a real move
+      expect(hi(menu).dataset.id).toBe('sfxvol');
+    });
   });
 
   describe('gamepad', () => {
-    it('navigate(): up / down select, left / right change, confirm cycles / accepts, back asks then resumes', () => {
+    it('navigate(): up / down select, left / right change, confirm cycles, back resumes', () => {
       const cb = cbs();
       const menu = new Menu(parent, cb, { storage: null, initialQuality: 'medium', fullscreen: null });
       menu.navigate('down');
-      expect(menu.pendingCount).toBe(0); // closed: inert
+      expect(cb.onQuality).not.toHaveBeenCalled(); // closed: inert
       menu.open();
       goto(menu, 'quality');
       menu.navigate('right');
       expect(val(menu, 'quality')).toBe('High');
       menu.navigate('left'); menu.navigate('left');
       expect(val(menu, 'quality')).toBe('Low');
-      menu.navigate('down'); menu.navigate('down'); menu.navigate('confirm'); // shadows cycles to the next value
-      expect(menu.pendingCount).toBe(2);
-      for (let i = 0; i < 60 && menu.focusZone === 'list'; i++) menu.navigate('down');
-      menu.navigate('confirm'); // APPLY
-      expect(menu.pendingCount).toBe(0);
       expect(cb.onQuality).toHaveBeenLastCalledWith('low');
       menu.navigate('back');
       expect(menu.isOpen).toBe(false);
@@ -314,7 +351,7 @@ describe('Menu (open-world pause layout)', () => {
       const cb = cbs();
       const store = memStore({ [SETTINGS_KEY]: JSON.stringify({ quality: 'low', master: 0.3, radio: 0.8, invertY: true }) });
       const menu = new Menu(parent, cb, { storage: store, initialQuality: 'high' });
-      expect(menu.settings).toEqual({ auto: false, quality: 'low', master: 0.3, radio: 0.8, invertY: true });
+      expect(menu.settings).toMatchObject({ auto: false, quality: 'low', master: 0.3, radio: 0.8, invertY: true });
       expect(cb.onQuality).toHaveBeenCalledWith('low');
       expect(cb.onMasterVolume).toHaveBeenCalledWith(0.3);
       expect(cb.onRadioVolume).toHaveBeenCalledWith(0.8);
@@ -340,8 +377,7 @@ describe('Menu (open-world pause layout)', () => {
       const throwing = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } };
       const menu = new Menu(parent, {}, { storage: throwing, fullscreen: null });
       enter(menu, 'quality');
-      press('ArrowLeft');
-      expect(() => act(menu, 'apply').click()).not.toThrow();
+      expect(() => press('ArrowLeft')).not.toThrow();
       expect(menu.settings.quality).toBe('low');
     });
 
@@ -352,7 +388,6 @@ describe('Menu (open-world pause layout)', () => {
       row(a, 'g:shadows').querySelector<HTMLButtonElement>('.gp-arrow.l')!.click();
       row(a, 'g:shadows').querySelector<HTMLButtonElement>('.gp-arrow.l')!.click();
       row(a, 'g:crowd').querySelector<HTMLButtonElement>('.gp-arrow.l')!.click();
-      act(a, 'apply').click();
       expect(JSON.parse(store.data['gta-bedstuy.graphics.v1']).overrides).toEqual({ shadows: 'blob', crowd: 0.75 });
       a.dispose();
       const cb = cbs();
@@ -366,7 +401,7 @@ describe('Menu (open-world pause layout)', () => {
     it('hides rows the tier cannot do and follows the live tier on open', () => {
       let live: 'phone' | 'high' = 'high';
       const menu = new Menu(parent, cbs(), { storage: null, initialQuality: 'high', fullscreen: null, getQuality: () => live });
-      menu.open();
+      menu.open(); menu.showGroup('graphics');
       expect(row(menu, 'g:ao').hidden).toBe(false);
       menu.close();
       live = 'phone'; menu.open();
@@ -374,15 +409,12 @@ describe('Menu (open-world pause layout)', () => {
       expect(row(menu, 'g:shadows').querySelector('.gp-text')!.textContent).toBe('Blob');
     });
 
-    it('Window Mode toggles full screen on APPLY; Esc out of full screen opens the pause menu', () => {
+    it('Window Mode toggles full screen at once; Esc out of full screen opens the pause menu', () => {
       const { fs, esc } = fakeFs();
       const menu = new Menu(parent, cbs(), { storage: null, fullscreen: fs, openOnPointerUnlock: false });
-      menu.open();
+      menu.open(); menu.showGroup('graphics');
       expect(val(menu, 'windowmode')).toBe('Windowed');
       row(menu, 'windowmode').click();
-      expect(val(menu, 'windowmode')).toBe('Full screen');
-      expect((fs as { toggle: unknown }).toggle).not.toHaveBeenCalled();
-      act(menu, 'apply').click();
       expect((fs as { toggle: unknown }).toggle).toHaveBeenCalled();
       expect(val(menu, 'windowmode')).toBe('Full screen');
       menu.close();
@@ -394,14 +426,14 @@ describe('Menu (open-world pause layout)', () => {
       const { fs } = fakeFs();
       (fs as { supported: boolean }).supported = false;
       const menu = new Menu(parent, cbs(), { storage: null, fullscreen: fs });
-      menu.open();
+      menu.open(); menu.showGroup('graphics');
       expect(row(menu, 'windowmode').hidden).toBe(true);
     });
 
     it('the install hint shows only when installable (hosted build)', () => {
       const hosted = new Menu(parent, {}, { storage: null, installable: true, fullscreen: null });
       hosted.open();
-      expect(row(hosted, 'install').hidden).toBe(false);
+      expect(show(hosted, 'install').hidden).toBe(false);
       const plain = document.createElement('div'); document.body.appendChild(plain);
       const artifact = new Menu(plain, {}, { storage: null, installable: false, fullscreen: null });
       artifact.open();
@@ -409,13 +441,12 @@ describe('Menu (open-world pause layout)', () => {
       plain.remove();
     });
 
-    it('Show FPS toggles the counter once applied', () => {
+    it('Show FPS toggles the counter at once', () => {
       const menu = new Menu(parent, cbs(), { storage: null, fullscreen: null });
-      menu.open();
+      menu.open(); menu.showGroup('graphics');
       const counter = parent.querySelector<HTMLElement>('.fps-counter')!;
-      row(menu, 'g:showFps').click();
       expect(counter.hidden).toBe(true);
-      act(menu, 'apply').click();
+      row(menu, 'g:showFps').click();
       expect(counter.hidden).toBe(false);
     });
   });
@@ -535,13 +566,17 @@ describe('Menu (open-world pause layout)', () => {
     expect(desktop.pauseButton.hidden).toBe(true);
   });
 
-  it('on touch the list has 44 px arrows, the actions form a bar and the back arrow resumes', () => {
+  it('on touch every control is a tap: groups, rows, arrows, Back and Resume', () => {
     const menu = new Menu(parent, {}, { storage: null, touch: true });
     menu.open();
     expect(menu.root.dataset.input).toBe('touch');
-    expect(menu.root.querySelectorAll('.gp-act').length).toBe(3);
-    row(menu, 'master').querySelector<HTMLButtonElement>('.gp-arrow.r')!.click();
-    menu.root.querySelector<HTMLButtonElement>('.gp-back')!.click();
+    menu.root.querySelector<HTMLButtonElement>('.gp-chip[data-group="audio"]')!.click();
+    row(menu, 'master').querySelector<HTMLButtonElement>('.gp-arrow.l')!.click();
+    expect(val(menu, 'master')).toBe('95%');
+    menu.root.querySelector<HTMLButtonElement>('.gp-foot-back')!.click();
+    expect(menu.isOpen).toBe(false);
+    menu.pauseButton.click();
+    menu.root.querySelector<HTMLButtonElement>('.gp-resume')!.click();
     expect(menu.isOpen).toBe(false);
   });
 
@@ -577,7 +612,7 @@ describe('Menu (open-world pause layout)', () => {
 
     it('in a browser there is no Quit row; in the shell Quit needs two presses and the install hint is hidden', () => {
       const plain = new Menu(parent, {}, { storage: null, fullscreen: null, installable: true });
-      plain.open();
+      plain.open(); plain.showGroup('game');
       expect(row(plain, 'quit').hidden).toBe(true);
       expect(row(plain, 'install').hidden).toBe(false);
       plain.dispose();
@@ -585,6 +620,7 @@ describe('Menu (open-world pause layout)', () => {
       const menu = new Menu(parent, {}, { storage: null, fullscreen: null, installable: true });
       menu.open();
       expect(row(menu, 'install').hidden).toBe(true);
+      show(menu, 'quit');
       row(menu, 'quit').click();
       expect(n.quit).not.toHaveBeenCalled();
       row(menu, 'quit').click();
@@ -594,27 +630,24 @@ describe('Menu (open-world pause layout)', () => {
     it('Window Mode goes through gtaNative.setFullscreen when present', () => {
       const n = native();
       const menu = new Menu(parent, {}, { storage: null, fullscreen: null });
-      menu.open();
+      menu.open(); menu.showGroup('graphics');
       expect(row(menu, 'windowmode').hidden).toBe(false);
       row(menu, 'windowmode').click();
-      act(menu, 'apply').click();
       expect(n.setFullscreen).toHaveBeenLastCalledWith(true);
       expect(val(menu, 'windowmode')).toBe('Full screen');
     });
 
-    it('HD voices row appears only with the host switch and changes it on APPLY', () => {
+    it('HD voices row appears only with the host switch and changes it at once', () => {
       const bare = new Menu(parent, {}, { storage: null, fullscreen: null });
-      bare.open();
+      bare.open(); bare.showGroup('audio');
       expect(row(bare, 'hdvoices').hidden).toBe(true);
       bare.dispose();
       let on = false;
       const set = vi.fn((v: boolean) => { on = v; });
       const menu = new Menu(parent, {}, { storage: null, fullscreen: null, hdVoices: { get: () => on, set } });
-      menu.open();
+      menu.open(); menu.showGroup('audio');
       expect(row(menu, 'hdvoices').hidden).toBe(false);
       row(menu, 'hdvoices').click();
-      expect(set).not.toHaveBeenCalled();
-      act(menu, 'apply').click();
       expect(set).toHaveBeenCalledWith(true);
       expect(val(menu, 'hdvoices')).toBe('ON');
     });

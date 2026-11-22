@@ -23,6 +23,7 @@ import { CRIME_LABEL } from '@/game/WantedSystem';
 import { HEAT_WARN, HEAT_MAX, HeatModel } from './heat';
 import { applyBust, type BustHost, type BustInfo, type BustResult, fineFor } from './bust';
 import type { PrecinctSite } from './precincts';
+import type { PointerRouter } from '@/game/missions/PointerRoute';
 
 export const ARREST_HOLD = 1.5;
 /** An on-foot player slower than this (m/s) can be grabbed; a sprint is about 5.5. */
@@ -76,6 +77,8 @@ export interface PoliceDeps {
   /** put the player out of the car (the car stays where it is) */
   ejectPlayer: () => void;
   precinct: () => PrecinctSite;
+  /** sidewalk router (the mission pointer's): the next point to walk to on the way to a goal. Absent: officers walk straight. */
+  router?: PointerRouter;
   /** a short on-screen line ("You were seen", "Resisting arrest") */
   say?: (text: string) => void;
   /** the host shows the BUSTED card and then calls completeBust (see main.ts); called once per arrest */
@@ -331,8 +334,16 @@ export class PoliceSystem {
         o.reach = Math.max(0, o.reach - dt * 3);
         const target = this.d.player.vehicle ? this.d.player.vehicle.body.pos : pp;
         if (o.mode === 'approach' && !this.busted) {
-          if (this.unseenFor >= LOSE_SECONDS && this.lastSeen) { o.run = false; if (o.steer(dt, this.lastSeen, 1.5) <= 1.6) o.stop(); }
-          else { o.run = stars >= 2; o.steer(dt, target, this.d.player.vehicle ? 2.6 : 0.8); }
+          const searching = this.unseenFor >= LOSE_SECONDS && this.lastSeen;
+          const goal = searching ? this.lastSeen! : target;
+          const stop = searching ? 1.5 : this.d.player.vehicle ? 2.6 : 0.8;
+          o.run = !searching && stars >= 2;
+          const near = dist(o.body.pos, goal) < 6;
+          if (this.d.router && !near) {
+            if (o.routeT <= 0 || !o.waypoint) { o.routeT = 0.5; const w = this.d.router(o.body.pos, goal); o.waypoint = { x: w.x, z: w.z }; }
+            o.steer(dt, o.waypoint!, 0.3);
+          } else o.steer(dt, goal, stop);
+          if (searching && dist(o.body.pos, goal) <= 1.6) o.stop();
         } else if (o.mode === 'leave' && o.goal) o.steer(dt, o.goal, 0.5);
       }
       o.update(dt);
@@ -360,7 +371,7 @@ export class PoliceSystem {
       const h = this.hold;
       h.t += dt;
       const dd = dist(h.officer.body.pos, pp);
-      if (dd > GRAB_REACH + 1.2) { this.cancelHold(); return; }
+      if (dd > (h.fromCar ? 5 : GRAB_REACH + 1.2)) { this.cancelHold(); return; }
       if (!this.breakFreeUsed && this.d.tryingToFlee() && h.t > 0.2) { this.breakFree('You broke free'); return; }
       h.officer.face(dt, pp);
       if (h.t >= ARREST_HOLD) this.bust();
@@ -392,7 +403,7 @@ export class PoliceSystem {
     this.resisted = true;
     this.hold = null;
     this.d.player.actionPose = null;
-    if (h) { h.officer.cooldown = BREAK_FREE_COOLDOWN; h.officer.mode = 'approach'; h.officer.hitBy(this.d.player.body.pos, 'light'); }
+    if (h) { h.officer.cooldown = BREAK_FREE_COOLDOWN; h.officer.mode = 'approach'; h.officer.shove(this.d.player.body.pos); }
     this.d.wanted.addStars(1, 'Resisting arrest');
     this.say('Resisting arrest');
     void why;

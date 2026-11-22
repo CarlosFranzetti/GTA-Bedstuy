@@ -36,6 +36,9 @@ export class Officer implements Entity {
   /** the last time (s on this officer's clock) something struck it */
   struck = 0;
   age = 0;
+  /** the next point on the way (from the sidewalk router) and seconds until it is asked again */
+  waypoint: Vec2 | null = null;
+  routeT = 0;
   /** called when the player hits this officer (Combat.hurt calls `hitBy`): PoliceSystem breaks the hold and reports the crime */
   onStruck: (() => void) | null = null;
 
@@ -71,6 +74,13 @@ export class Officer implements Entity {
     return 'staggered';
   }
 
+  /** A push back without it counting as a hit (breaking out of a hold): a step away and a beat of stagger. */
+  shove(from: Vec2): void {
+    const dx = this.body.pos.x - from.x, dz = this.body.pos.z - from.z, d = hyp(dx, dz) || 1;
+    this.body.pos.x += (dx / d) * 0.6; this.body.pos.z += (dz / d) * 0.6;
+    this.stagger = 0.6;
+  }
+
   /** Walk toward `to` at walking or running pace; stops within `stop` metres. Returns the distance left. */
   steer(dt: number, to: Vec2, stop = 0.1): number {
     const b = this.body;
@@ -95,8 +105,10 @@ export class Officer implements Entity {
   update(dt: number): void {
     this.age += dt;
     if (this.cooldown > 0) this.cooldown -= dt;
+    if (this.routeT > 0) this.routeT -= dt;
     if (this.stagger > 0) this.stagger -= dt;
-    // the physics world moves the body from `vel`; here only the figure follows
+    // like a Pedestrian the officer moves its own body (World2D only pushes overlapping bodies apart); then the figure follows
+    this.body.pos.x += this.body.vel.x * dt; this.body.pos.z += this.body.vel.z * dt;
     if (this.speedNow > 0.1) this.phase += dt * 5 * (this.run ? 1.8 : 1);
     this.animate(dt);
     this.applyPose(dt);

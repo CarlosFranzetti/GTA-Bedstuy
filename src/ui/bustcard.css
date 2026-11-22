@@ -1,0 +1,10 @@
+/* POLICE2: the BUSTED card. Quiet: dimmed street, one word in the display face, one line under it. */
+.bust-card { position: fixed; inset: 0; z-index: 26; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; pointer-events: none; background: rgba(8, 9, 12, 0); transition: background 700ms ease; }
+.bust-card[hidden] { display: none; }
+.bust-card.dim { background: rgba(8, 9, 12, 0.55); }
+.bust-card.black { background: rgba(0, 0, 0, 1); }
+.bust-card.clear { background: rgba(0, 0, 0, 0); transition: background 1400ms ease; }
+.bust-title { font-family: var(--font-display, 'Anton', Impact, sans-serif); font-weight: 400; font-size: clamp(44px, 9vw, 96px); letter-spacing: 0.12em; color: #e8e2d2; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.6); }
+.bust-sub { font: 500 clamp(13px, 2vw, 18px)/1.3 var(--font-hud, 'Barlow Condensed', sans-serif); letter-spacing: 0.08em; color: #cfc8b4; min-height: 1.3em; text-align: center; padding: 0 16px; }
+.bust-card.clear .bust-title, .bust-card.clear .bust-sub { opacity: 0; transition: opacity 1200ms ease 1600ms; }
+@media (prefers-reduced-motion: reduce) { .bust-card, .bust-card.clear { transition: none; } }

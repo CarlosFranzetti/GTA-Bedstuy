@@ -59,6 +59,7 @@ describe('Menu "Map" row', () => {
   it('shows the current map and goes to the other one after a second press', () => {
     const go = vi.fn();
     const menu = new Menu(parent, {}, { storage: null, mapSwitch: { available: true, current: 'real', go } });
+    menu.showGroup('map');
     expect(row(menu).hidden).toBe(false);
     expect(row(menu).textContent).toContain('Map');
     expect(row(menu).textContent).toContain('Real streets');

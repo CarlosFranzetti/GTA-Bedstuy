@@ -22,10 +22,10 @@ export interface Persona {
 export const PERSONAS: readonly Persona[] = [
   { stationId: 'bkhouse', name: 'Deja Fontaine', role: 'sidekick', pitch: 1.08, rate: 0.98,
     personality: ['Warm late-night host who talks like she is standing at the edge of the dance floor.', 'Calls everyone "family", loves a long blend, never rushes a vocal.'] },
-  { stationId: 'dublab', name: 'Odell Reverb', role: 'host', pitch: 0.7, rate: 0.84,
-    personality: ['Slow, dry and deadpan; every sentence lands a beat late, like an echo.', 'Talks about bass as weather and the speaker stack as a roommate.'] },
   { stationId: 'hiphop', name: 'Big Tayo', role: 'caller', pitch: 0.92, rate: 1.16,
     personality: ['Hyped stoop-side MC who never met a pause he did not fill.', 'Shouts out blocks, bodegas and bike lanes; thinks every verse is a lunchtime event.'] },
+  { stationId: 'dublab', name: 'Odell Reverb', role: 'host', pitch: 0.7, rate: 0.84,
+    personality: ['Slow, dry and deadpan; every sentence lands a beat late, like an echo.', 'Talks about bass as weather and the speaker stack as a roommate.'] },
   { stationId: 'boogie', name: 'Velvet Lou', role: 'announcer', pitch: 0.86, rate: 0.92,
     personality: ['Smooth after-hours host in a very good jacket.', 'Treats the mirror ball as a co-host and the groove as a legal requirement.'] },
   { stationId: 'weird', name: 'Wren Calloway', role: 'sidekick', pitch: 1.3, rate: 0.88,

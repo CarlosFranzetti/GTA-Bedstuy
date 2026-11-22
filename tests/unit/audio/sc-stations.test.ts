@@ -19,8 +19,8 @@ const stoop = scStationDef('hiphop')!;
 
 describe('station table', () => {
   it('has the eight stations in dial order, Radio SC last', () => {
-    expect(SC_STATIONS.map((s) => s.name)).toEqual(['Boiler Room', 'Dekmantel Podcast', 'Universal Hip Hop Radio', 'Soulection', 'The Lot Radio', 'SilverStarSound', 'Rinse FM', 'DJ RubyTunes Latin', 'Resident Advisor']);
-    expect(SC_STATIONS.map((s) => s.id)).toEqual(['hiphop', 'bkhouse', 'dublab', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc']);
+    expect(SC_STATIONS.map((s) => s.name)).toEqual(['Boiler Room', 'Stoop Hip Hop Radio', 'Dekmantel Podcast', 'Soulection', 'The Lot Radio', 'SilverStarSound', 'Rinse FM', 'DJ RubyTunes Latin', 'Resident Advisor']);
+    expect(SC_STATIONS.map((s) => s.id)).toEqual(['bkhouse', 'hiphop', 'dublab', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc']);
   });
 
   it('filters by keywords in the set title or the DJ name, case-insensitively', () => {

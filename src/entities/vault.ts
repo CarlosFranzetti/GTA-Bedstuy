@@ -29,6 +29,8 @@ const LAND_GAP = 0.2;
 /** Walls and cars along the path are tested with a thinner body than the landing (the body is lifted over the car, the path may graze). */
 const PATH_R = 0.26;
 const SAMPLES = 28;
+/** A body this tall (m) has no low front or deck worth crossing: a van, a step van, a truck. A pickup (1.96) and an SUV still have a hood. */
+const TALL_BODY = 2.0;
 const NO_PROFILE: ReadonlySet<string> = new Set(['boxtruck', 'bus', 'schoolbus', 'garbage', 'towtruck', 'flatbed', 'foodtruck', 'sweeper', 'bucket']);
 
 /** Master switch for running into a hood at a sprint (MENU2 may bind it to a setting). */
@@ -62,13 +64,21 @@ export interface VaultPlan {
   side: number;
   /** the car's centre line was crossed more along its length than across it */
   lengthwise: boolean;
+  /** a pinned climb over the whole body (roof included), not a hood vault */
+  climb: boolean;
 }
 
 /** The car's surface profile: height of the hood / deck at distance `u` along the car (front positive), or null where it is the cabin. Null function: never vaultable. */
-export interface TopProfile { top(u: number): number | null; }
+export interface TopProfile {
+  top(u: number): number | null;
+  /** the height of the body's top at `u` anywhere along it, the greenhouse included (a pinned player may climb right over a car) */
+  any(u: number): number;
+}
+/** Highest top a pinned player climbs over (m): the roof of a car, an SUV or a pickup; vans and trucks are beyond it. */
+export const CLIMB_MAX_HEIGHT = 1.95;
 
 export function topProfile(spec: VehicleSpec): TopProfile | null {
-  if (NO_PROFILE.has(spec.type)) return null;
+  if (NO_PROFILE.has(spec.type) || spec.height >= TALL_BODY) return null; // trucks, buses and the tall vans: the front is a wall
   const st = STYLES[styleKeyOf(spec.type as VehicleType)];
   if (!st) return null;
   const L = st.dims ? st.dims.L : spec.length, H = st.dims ? st.dims.H : spec.height;
@@ -83,7 +93,15 @@ export function topProfile(spec: VehicleSpec): TopProfile | null {
   };
   const frontZone = st.windshield[0] * kx;               // forward of the windshield base: the hood
   const rearZone = st.rearGlass ? st.rearGlass[1] * kx : -Infinity; // behind the rear glass base: the deck
+  const w1 = st.windshield[1] * kx;
+  const rg = st.rearGlass;
+  const anyTop = (u: number): number => {
+    if (st.windshield[0] > st.windshield[1] && u <= frontZone && u >= w1) { const t = (frontZone - u) / Math.max(1e-6, frontZone - w1); return at(frontZone) + (at(w1) - at(frontZone)) * t; }
+    if (rg && u >= rearZone && u <= rg[0] * kx) { const r0 = rg[0] * kx; const t = (r0 - u) / Math.max(1e-6, r0 - rearZone); return at(r0) + (at(rearZone) - at(r0)) * t; }
+    return at(u);
+  };
   return {
+    any: anyTop,
     top(u: number): number | null {
       if (u >= frontZone) return at(u);
       if (u <= rearZone) return at(u);
@@ -132,6 +150,9 @@ export function planVault(a: PlanArgs): PlanResult {
   const intentHeading = Math.atan2(dirIntent.x, -dirIntent.z);
   const reach = a.pinned ? VAULT_REACH_PINNED : VAULT_REACH;
 
+  for (const climb of a.pinned ? [false, true] : [false]) {
+  if (best) break;
+  const limit = climb ? CLIMB_MAX_HEIGHT : VAULT_MAX_HEIGHT;
   for (const car of a.cars) {
     const od = outlineDistance(car, a.pos);
     if (od.d > reach + 1e-6) continue;
@@ -146,9 +167,10 @@ export function planVault(a: PlanArgs): PlanResult {
     const hw = car.halfW ?? car.spec.width / 2, hl = car.halfL ?? car.spec.length / 2;
     // landing candidates: round the outline, in the car's own frame (so a rolling car carries its landing spots with it)
     const cands: Array<[number, number]> = [];
-    const off = FOOT_R + LAND_GAP;
-    for (let u = -hl + 0.3; u <= hl - 0.3 + 1e-6; u += 0.45) { cands.push([u, hw + off]); cands.push([u, -hw - off]); }
-    for (let w = -hw + 0.3; w <= hw - 0.3 + 1e-6; w += 0.45) { cands.push([hl + off, w]); cands.push([-hl - off, w]); }
+    for (const off of [FOOT_R + 0.03, FOOT_R + LAND_GAP]) {
+      for (let u = -hl + 0.3; u <= hl - 0.3 + 1e-6; u += 0.45) { cands.push([u, hw + off]); cands.push([u, -hw - off]); }
+      for (let w = -hw + 0.3; w <= hw - 0.3 + 1e-6; w += 0.45) { cands.push([hl + off, w]); cands.push([-hl - off, w]); }
+    }
     const fr0 = frameOf(car, 0);
     const startLocal = toLocal(fr0, a.pos);
     let reasonRank = 3;
@@ -156,7 +178,7 @@ export function planVault(a: PlanArgs): PlanResult {
     for (const [lu, lw] of cands) {
       // the duration depends on the length of the path; the landing is placed where the car will be by then
       const rough = Math.hypot(lu - startLocal.u, lw - startLocal.w);
-      const T = clamp(rough / 4.4, 0.62, 0.95);
+      const T = clamp(rough / (climb ? 3.6 : 4.2), climb ? 1.0 : 0.7, climb ? 1.5 : 1.0);
       const frT = frameOf(car, T);
       const land = toWorld(frT, lu, lw);
       const dx = land.x - a.pos.x, dz = land.z - a.pos.z, len = Math.hypot(dx, dz);
@@ -173,8 +195,8 @@ export function planVault(a: PlanArgs): PlanResult {
         const p = { x: a.pos.x + dx * f, z: a.pos.z + dz * f };
         const q = toLocal(frameOf(car, f * T), p);
         if (Math.abs(q.u) <= hl + 0.04 && Math.abs(q.w) <= hw + 0.04) {
-          const h = prof.top(q.u);
-          if (h === null || h > VAULT_MAX_HEIGHT) { ok = false; note('tall', car.id, 1); break; }
+          const h = climb ? prof.any(q.u) : prof.top(q.u);
+          if (h === null || h > limit) { ok = false; note('tall', car.id, 1); break; }
           raw[i] = h; inside++; if (entry < 0) entry = f; exit = f;
         } else if (f * len > 0.35 && i < SAMPLES && a.blocked(p, PATH_R, car.id)) { ok = false; }
       }
@@ -184,10 +206,11 @@ export function planVault(a: PlanArgs): PlanResult {
       const cost = len + (a.pinned ? 0 : 1.6 * dAng) + 2 * peak;
       if (cost < bestCost) {
         bestCost = cost;
-        best = { carId: car.id, start: { x: a.pos.x, z: a.pos.z }, land, dir, T, profile: heightProfile(raw, entry, exit), peak, side: sideOf(a.facing, dir, lw), lengthwise: Math.abs(dx * fr0.fx + dz * fr0.fz) > Math.abs(dx * fr0.rx + dz * fr0.rz) };
+        best = { carId: car.id, start: { x: a.pos.x, z: a.pos.z }, land, dir, T, profile: heightProfile(raw, entry, exit, T), peak, side: sideOf(a.facing, dir, lw), lengthwise: Math.abs(dx * fr0.fx + dz * fr0.fz) > Math.abs(dx * fr0.rx + dz * fr0.rz), climb };
       }
     }
     if (!anyValid) note('blocked', car.id, reasonRank);
+  }
   }
   if (best) return { plan: best, refusal: 'none', carId: best.carId };
   return { plan: null, refusal, carId: refusalId };
@@ -200,11 +223,18 @@ function sideOf(facing: number, dir: Vec2, lw: number): number {
 
 const sstep = (a: number, b: number, x: number): number => { const t = clamp((x - a) / Math.max(1e-6, b - a), 0, 1); return t * t * (3 - 2 * t); };
 
-/** Turn the raw surface heights under the path into the height of the figure: lifted a little before the car and held above it, then eased back to the ground. */
-function heightProfile(raw: number[], entry: number, exit: number): number[] {
+/**
+ * Turn the raw surface heights under the path into the height of the figure: lifted before the car and held above it, then eased back to the
+ * ground. The rise and the fall each take at least RISE_TIME seconds (about a metre in a fifth of a second is a hop, not a pop), and the
+ * lift is a smoothed envelope of the surface so the feet pass above the paint.
+ */
+const RISE_TIME = 0.24;
+function heightProfile(raw: number[], entry: number, exit: number, T: number): number[] {
   const n = raw.length - 1;
   const out: number[] = new Array(n + 1).fill(0);
-  const reach = 0.1; // share of the path over which the lift leads and trails the surface
+  const reach = 0.16; // share of the path over which the lift leads and trails the surface
+  const rise = Math.min(0.45, RISE_TIME / T);
+  const fadeIn = Math.max(0.06, Math.min(entry + 0.04, rise)), fadeOut = Math.min(0.94, Math.max(exit - 0.04, 1 - rise));
   for (let i = 0; i <= n; i++) {
     const f = i / n;
     let h = 0;
@@ -213,9 +243,11 @@ function heightProfile(raw: number[], entry: number, exit: number): number[] {
       const w = 1 - Math.abs(i - j) / (n * reach);
       if (w > 0) h = Math.max(h, raw[j] * (w * w * (3 - 2 * w)));
     }
-    if (h > 0) h += 0.1; // the feet pass above the paint
+    // the envelope over the car, extended to the whole span between the fades so the figure does not dip between samples
+    if (f >= fadeIn && f <= fadeOut) h = Math.max(h, raw[Math.max(0, Math.min(n, Math.round(Math.max(entry, Math.min(exit, f)) * n)))]);
+    if (h > 0) h += 0.12; // the feet pass above the paint
     h = Math.max(h, 0.1 * Math.sin(Math.PI * f)); // a hop even over nothing much
-    out[i] = h * sstep(0, Math.max(0.06, entry - 0.02), f) * (1 - sstep(Math.min(0.94, exit + 0.02), 1, f));
+    out[i] = h * sstep(0, fadeIn, f) * (1 - sstep(fadeOut, 1, f));
   }
   out[0] = 0; out[n] = 0;
   return out;

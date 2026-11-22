@@ -248,7 +248,7 @@ const SC_HINTS: Record<ScStationId, { keywords: readonly string[]; patterns: rea
   sc: { keywords: [], patterns: [] },
 };
 
-const SC_ORDER = ['hiphop', 'bkhouse', 'dublab', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc'];
+const SC_ORDER = ['bkhouse', 'hiphop', 'dublab', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc'];
 export const SC_STATIONS: readonly ScStationDef[] = CATALOG.filter((e) => e.kind === 'sc-account' || e.kind === 'ra-pool' || e.kind === 'sc-playlist').map((e): ScStationDef => ({
   id: e.id as ScStationId,
   name: e.name,

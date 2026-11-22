@@ -116,6 +116,15 @@ export const PINNED_AFTER = 1.5;
 const BOX_PROBE = 0.4;
 const BOX_PROBE_R = 0.34;
 const BOX_RUN = 2.0;
+/** The farthest the last-resort squeeze looks for open ground (m). */
+/** Speed (m/s) the body leaves a vault with: most of a run's speed is kept, a standing start comes off at a quick walk. */
+const vaultLandSpeed = (entry: number): number => clamp(0.78 * entry, 2.4, 5.2);
+const SQUEEZE_MAX = 9;
+/** The camera keeps ignoring the vaulted car this long after the landing (s). */
+const VAULT_CAM_TAIL = 0.7;
+/** ... and holds while the player is within this distance (m) of the car, for at most this long (s): the lens sits one rig length behind the body. */
+const VAULT_CAM_NEAR = 4;
+const VAULT_CAM_HOLD = 4;
 
 /** A car moving faster than this (m/s) that runs into the player knocks them down. */
 const KNOCK_SPEED = 3;
@@ -174,7 +183,13 @@ export class Player implements Entity {
   /** Fires when the player runs into something hard at speed (a wall, a person): strength 0..1. Hook a small camera kick and a grunt here. */
   onBump: ((strength: number) => void) | null = null;
   /** Id of the vehicle being walked to (null otherwise): the camera should not pull in for the car the player is stepping into. */
-  get enteringId(): string | null { return this.entering ? this.entering.vehicle.id : null; }
+  get enteringId(): string | null {
+    if (this.entering) return this.entering.vehicle.id;
+    // MOVE2: while vaulting a car (and for a moment after) the lens does not shy from it either: the camera follows the ground position and
+    // the body is over the car, so the car would otherwise pull the lens in and lift it over the roof in a frame or two.
+    if (this.vault) return this.vault.plan.carId;
+    return this.vaultTail > 0 ? this.vaultCarId : null;
+  }
   private braceT = 0;
   /**
    * Something nearby the head should turn to (a person walking past, a shop window): world position, or null. The host sets it (main.ts: the
@@ -214,11 +229,20 @@ export class Player implements Entity {
   get vaultPrompt(): boolean { return this.boxedT >= PINNED_AFTER && !this.vault && !this.held; }
   /** Fires when a vault starts (strength 0..1 for a sound) and when one lands. */
   onVault: (() => void) | null = null;
+  /**
+   * The vault is scripted (the path was checked clear), so the host takes the body out of the physics world for its length, like the walk to a
+   * car door (`onEnterStart`): main.ts `physics.removeBody(player.body.id)` / `physics.addBody(player.body)`. Besides saving the work, the camera's
+   * ray from the player to the lens would otherwise start inside the player's own body and could not skip the vaulted car as well.
+   */
+  onVaultStart: (() => void) | null = null;
+  onVaultEnd: (() => void) | null = null;
   private vault: { plan: VaultPlan; t: number; m0: number; m1: number; speed: number; ds: number; progress: number } | null = null;
   private vaultY = 0;
   private vaultPrevY = 0;
   /** seconds since the vault ended (the pose fades out over about 0.3 s); the vault pose input for the animation */
   private vaultTail = 0;
+  private vaultCarId: string | null = null;
+  private vaultHold = 0;
   private vaultAnimK = 0;
   private vaultSide = 1;
   private boxedT = 0;
@@ -393,7 +417,7 @@ export class Player implements Entity {
     const len = Math.hypot(plan.land.x - plan.start.x, plan.land.z - plan.start.z);
     const sp = Math.hypot(b.vel.x, b.vel.z);
     const along = Math.max(0, b.vel.x * plan.dir.x + b.vel.z * plan.dir.z);
-    const vland = clamp(0.6 * Math.max(sp, 2.2), 2.2, 4);
+    const vland = vaultLandSpeed(sp);
     this.vault = { plan, t: 0, m0: clamp((along * plan.T) / len, 0, 2.2), m1: clamp((vland * plan.T) / len, 0.3, 2.2), speed: sp, ds: 0, progress: 0 };
     this.vaultSide = plan.side;
     this.vaultY = 0; this.vaultPrevY = 0; this.vaultAnimK = 0;
@@ -401,16 +425,18 @@ export class Player implements Entity {
     this.jump.reset(); b.height = 0;
     this.sprintBlend = Math.min(this.sprintBlend, 0.6);
     this.boxedT = 0; this.pinTarget = null; this.pinT = 0;
+    this.onVaultStart?.();
     this.onVault?.();
   }
 
   private endVault(): void {
     const v = this.vault!, b = this.body, pl = v.plan;
     b.pos.x = pl.land.x; b.pos.z = pl.land.z;
-    const vland = clamp(0.6 * Math.max(v.speed, 2.2), 2.2, 4);
+    const vland = vaultLandSpeed(v.speed);
     b.vel.x = pl.dir.x * vland; b.vel.z = pl.dir.z * vland;
     b.vehiclePass = false; b.height = 0;
     this.vault = null; this.vaultY = 0;
+    this.onVaultEnd?.();
     this.postSpeed = vland;
     // landed where something stands (a car that rolled in, a prop): glide to free ground
     if (this.blockedAt && this.blockedAt(b.pos, FOOT_RADIUS * 0.9)) this.pinTarget = Player.findFreeSpot(b.pos, (p, r) => this.blockedAt!(p, r), this.moveDir, PIN_SEARCH, false);
@@ -430,7 +456,7 @@ export class Player implements Entity {
     this.vaultAnimK = clamp(v.t / pl.T, 0, 1);
     this.turnRate = 0;
     this.animateFoot(dt);
-    if (v.t >= pl.T) { this.endVault(); this.vaultTail = 0; }
+    if (v.t >= pl.T) { this.endVault(); this.vaultTail = VAULT_CAM_TAIL; this.vaultCarId = pl.carId; this.vaultHold = 0; }
   }
 
   /**
@@ -455,15 +481,50 @@ export class Player implements Entity {
     this.boxedT = this.boxedNow ? this.boxedT + dt : Math.max(0, this.boxedT - dt * 3);
   }
 
-  /** Every neighbour too tall (or no landing): squeeze out sideways to the nearest free ground, through the gap between the bodies. */
+  /**
+   * Every neighbour too tall (or no landing): squeeze out sideways to the nearest ground that leads somewhere (a foot spot with a clear 2 m run
+   * from it, so the pocket's own floor does not count), gliding through the gap between the bodies. A last resort: it can pass through a wall.
+   */
   private squeezeOut(): boolean {
     const b = this.body;
     if (!this.blockedAt) return false;
     const blocked = this.blockedAt;
-    const spot = Player.findFreeSpot(b.pos, (p, r) => blocked(p, r), this.moveDir, 4, false);
-    if (!spot) return false;
-    this.pinTarget = spot; this.boxedT = 0;
-    return true;
+    const opens = (p: Vec2): boolean => {
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        let clear = true;
+        for (let d = 0.5; d <= 2.0 && clear; d += 0.5) if (blocked({ x: p.x + Math.cos(a) * d, z: p.z + Math.sin(a) * d }, BOX_PROBE_R)) clear = false;
+        if (clear) return true;
+      }
+      return false;
+    };
+    // the glide may pass through a car (the body is squeezed past it) but never through a wall or a prop: only static blockers count on the way
+    const ids = this.carsNear(SQUEEZE_MAX + 3).map((c) => c.id);
+    const wallAt = (p: Vec2, r: number): boolean => {
+      if (!blocked(p, r)) return false;
+      for (const id of ids) if (!blocked(p, r, id)) return false;
+      return true;
+    };
+    const reach = (p: Vec2): boolean => {
+      const dx = p.x - b.pos.x, dz = p.z - b.pos.z, l = Math.hypot(dx, dz);
+      for (let t = 0.3; t < l; t += 0.3) if (wallAt({ x: b.pos.x + (dx / l) * t, z: b.pos.z + (dz / l) * t }, 0.28)) return false;
+      return true;
+    };
+    for (let d = 0.8; d <= SQUEEZE_MAX; d += 0.4) {
+      let best: Vec2 | null = null, bestScore = Infinity;
+      for (let i = 0; i < 24; i++) {
+        const a = (i / 24) * Math.PI * 2, dir = { x: Math.cos(a), z: Math.sin(a) };
+        const p = { x: b.pos.x + dir.x * d, z: b.pos.z + dir.z * d };
+        if (blocked(p, FOOT_RADIUS) || !opens(p) || !reach(p)) continue;
+        // prefer ground with room round it (not a spot pressed against a wall), then the way the player is pushing
+        let room = 0;
+        for (let k = 0; k < 8; k++) if (!blocked({ x: p.x + Math.cos(k * Math.PI / 4) * 0.8, z: p.z + Math.sin(k * Math.PI / 4) * 0.8 }, BOX_PROBE_R)) room++;
+        const score = -room * 10 - (this.moveDir ? dir.x * this.moveDir.x + dir.z * this.moveDir.z : 0);
+        if (score < bestScore) { bestScore = score; best = p; }
+      }
+      if (best) { this.pinTarget = best; this.boxedT = 0; b.vehiclePass = true; return true; }
+    }
+    return false;
   }
 
   /**
@@ -624,7 +685,7 @@ export class Player implements Entity {
     if (this.pinTarget) {
       const dx = this.pinTarget.x - b.pos.x, dz = this.pinTarget.z - b.pos.z, l = Math.hypot(dx, dz);
       const step = PIN_SPEED * dt;
-      if (l <= step) { b.pos.x = this.pinTarget.x; b.pos.z = this.pinTarget.z; this.pinTarget = null; }
+      if (l <= step) { b.pos.x = this.pinTarget.x; b.pos.z = this.pinTarget.z; this.pinTarget = null; b.vehiclePass = false; }
       else { b.pos.x += (dx / l) * step; b.pos.z += (dz / l) * step; }
       this.pinT = 0;
       return;
@@ -719,6 +780,14 @@ export class Player implements Entity {
   update(dt: number): void {
     const b = this.body;
     this.prevPos.x = b.pos.x; this.prevPos.z = b.pos.z; this.prevHeading = b.heading;
+    if (this.vaultTail > 0) {
+      // the lens was left on the far side of the car: it keeps ignoring that car while the player is within a lens length of it (the line from lens to body
+      // crosses the car until then, and a pull-in over the roof would be a pop), at most VAULT_CAM_HOLD seconds
+      this.vaultHold += dt;
+      const car = this.vaultCarId && this.vehiclesNear ? this.carsNear(6).find((c) => c.id === this.vaultCarId) : undefined;
+      if (car && this.vaultHold < VAULT_CAM_HOLD && outlineDistance(car, b.pos).d < VAULT_CAM_NEAR) this.vaultTail = VAULT_CAM_TAIL;
+      else this.vaultTail = Math.max(0, this.vaultTail - dt);
+    }
     if (this.vehicle) {
       this.syncToVehicle();
       if (this.seatTail > 0) { // finish the sit-down before the figure disappears into the car

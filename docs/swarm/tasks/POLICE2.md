@@ -15,7 +15,7 @@ pursuit and traffic sims, which build WantedSystem and CopSystem without a Polic
 
 ## Decisions
 
-- Heat 0..100. Fades 1.3 per second (a full bar in about 77 s). Minor acts add heat; a warning at 45; a star at 100 (heat then drops
+- Heat 0..100. Fades 1.3 per second (a full bar in about 77 s). Minor acts add heat; a warning at 40; a star at 100 (heat then drops
   to 40) or when a minor act is seen within 15 s of a warning. Serious crimes (gunshot, hit a pedestrian with a car, hit an officer,
   carjack) give a star at once when SEEN. Unseen: a quarter of the heat, never a star.
 - Ladder stays at three stars (five is not cheap: the cop dispatch, PIT and the HUD are all built for three).
