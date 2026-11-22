@@ -127,8 +127,11 @@ compiles). Each pass must be replayed on the mid and far levels so the three lev
 There is no REVIEW seat this round: the lead runs Wren's tools (`scratchpad/bodyteam/review/shoot.sh <tag>`, the
 measuring test `tests/unit/entities/body-review-measure.test.ts`) and posts the sheets and numbers. Seats use the
 showcase pages (`scripts/body-lineup.mjs`, `scripts/clothes-showcase.mjs`, `scripts/body-review.mjs`) themselves.
-One researcher (anatomy for low-polygon bodies) posts numbers to the channel and writes
-`docs/reference/anatomy-lowpoly.md`: ask with "@RESEARCH:".
+Three researchers post numbers to the channel (ask with "@RESEARCH:"): the trunk, back and neck
+(`docs/reference/anatomy-trunk.md`), limbs and ages (`docs/reference/anatomy-limbs-ages.md`), and the wardrobe of sixty
+outfits with mix rules (`docs/reference/wardrobe-60.md`). The lead added the three hooks and the stub files himself
+before the seats started. A small fix lane, GAIT3, owns `src/entities/anim/**` this round (foot slide measurement,
+the set-off ramp made visual only so the seeded simulations stay as they were): `docs/swarm/tasks/BODY-GAIT3.md`.
 
 Everything else in this file still holds: the channel, the rules of the road, the budgets (triangles per person per
 level within about 10 percent of today: 6,391 / 1,626 / 360 on average; no new draw calls or textures per person on

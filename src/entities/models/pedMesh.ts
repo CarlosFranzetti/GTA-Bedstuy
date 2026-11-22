@@ -33,6 +33,9 @@ import { legTubes, isCoveredLeg, StripMesh, addStrip, type Row, type LegTube, ty
 import { addPolarStrip, cuffRows, hemRows, straightenArms, swingSkirt, type CuffStyle } from './pedCuts';
 import { bodyTypeOf, bodyTypeId, type BodyType } from './pedBodyTypes';
 import { fitMass, replayMass, sexOf, type MassFit } from './pedMass';
+import { applyTorso } from './pedTorso';
+import { applyLimbs } from './pedLimbs';
+import { applyAges } from './pedAges';
 import { makeCtx, personPieces } from './pedPieces';
 import { pickPedVariant, type PedModel, type PedOptions } from './pedBody';
 
@@ -474,6 +477,7 @@ function dressLodBody(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): MhLo
   if (faceDebug.morph) { const pre = Float32Array.from(pos); morphHead(s, L, pos, faceTraits(spec)); for (let i = 0; i < pos.length; i++) pre[i] = pos[i] - pre[i]; lastFaceDelta = pre; }       // FACES2: a face of their own (pedHead.ts); the same parameters at every level
   flattenTorso(L, pos, hipY + 0.02, shY + 0.01, cz0, 1);
   massApply(s, spec, L, pos);
+  applyTorso(s, spec, L, pos); applyLimbs(s, spec, L, pos); applyAges(s, spec, L, pos);   // body team round 2: anatomy passes (pedTorso.ts, pedLimbs.ts, pedAges.ts), in this order, on every level
   let normal = shadeNormals(L, pos);
   const covered = isCoveredLeg(spec.bottom.kind), detail: LegDetail = L === s.lods.hi ? 'hi' : L === s.lods.mid ? 'mid' : L === s.lods.far ? 'far' : L.index.length / 3 > 2200 ? 'hi' : L.index.length / 3 > 700 ? 'mid' : 'far';
   if (dress) {
