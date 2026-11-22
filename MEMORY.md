@@ -176,7 +176,13 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 
 ## State on 21 Nov 2026
 
-- Live: commit `41357ca` (21 Nov night): everything in `6110995` plus the dance-only WAX DELI (18 openly licensed dance
+- Live since 22 Nov (deployed on the owner's instruction "push all changes and deploy" while the last test groups were
+  still running): the real-street map grown to 15.15 km2 (R4), 17 more landmarks under invented names (LANDMARKS2 and 3),
+  lit outer-ring lamps, real-map memory back at the old map's level. All behind `?map=real`; the default map is unchanged.
+  Known red on the grown net (`REAL_NET=r4`): cars leaving the lane after tight turns, 4 wide turn connectors, cop spawn
+  luck; one skipped look-ahead test in tests/unit/world/roadnet-realfix.test.ts. Next real-map job: a steering look-ahead
+  for traffic cars (docs/swarm/tasks/REALFIX.md, REALFIX3). Outer-ring views are over the low draw budget (299 to 371).
+- Before that: commit `41357ca` (21 Nov night): everything in `6110995` plus the dance-only WAX DELI (18 openly licensed dance
   records 2005 to 2018, ten pre-war dance sides, a SoundCloud listening post of four Kompakt tracks) and Vercel Web
   Analytics code. Verified by the lead on that exact tree. The map-growth (MAP4) and LANDMARKS2 work was left out of it.
 - Before that: commit `6110995` (21 Nov evening): Stoop Light look, GTA-convention keys and pad, weighty movement and camera,
