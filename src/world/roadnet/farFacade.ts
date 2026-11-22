@@ -120,14 +120,14 @@ const FRAG_MAIN = `
         float wx = step( ddx, 0.55 );
         float wyy = step( wy0, yl ) * step( yl, wy1 );
         inGlass = wx * wyy;
-        float fx = step( ddx, 0.66 ), fyy = step( wy0 - 0.12, yl ) * step( yl, wy1 + 0.18 );
+        float fx = step( ddx, 0.68 ), fyy = step( wy0 - 0.14, yl ) * step( yl, wy1 + 0.2 );
         inFrame = fx * fyy * ( 1.0 - inGlass );
         float blind = step( 0.82, cellSeed ) * step( yl, wy1 - 0.2 );
-        glass = mix( vec3( 0.035, 0.04, 0.05 ) * ( 0.6 + 1.2 * fHash( vec2( bi, k ) + fSeed * 9.0 ) ), vec3( 0.2, 0.19, 0.17 ), blind * 0.8 );
-        glass += vec3( 0.012, 0.016, 0.022 ) * smoothstep( wy1, wy0, yl ); // sky in the upper glass
+        glass = mix( vec3( 0.05, 0.058, 0.07 ) * ( 0.6 + 1.2 * fHash( vec2( bi, k ) + fSeed * 9.0 ) ), vec3( 0.22, 0.21, 0.19 ), blind * 0.8 );
+        glass += vec3( 0.03, 0.04, 0.055 ) * smoothstep( wy0, wy1, yl ); // sky in the upper glass
         litP = 0.4;
       }
-      fBase = mix( fBase, mix( fBase, trim, 0.7 ), inFrame * fMid );
+      fBase = mix( fBase, mix( fBase, trim, 0.85 ), inFrame * fMid );
       fBase = mix( fBase, glass, inGlass );
       // night: the same rule as the detailed windows (windowShader.ts): about 40 percent lit, amber to pale, TV blue now and then
       float nl = step( fHash( vec2( bi * 1.7 + k * 5.3, fSeed * 61.0 + k ) ), litP ) * inGlass;

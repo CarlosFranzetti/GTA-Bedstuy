@@ -293,6 +293,9 @@ export class Pedestrian implements Entity {
     }
   }
 
+  /** True for a child or a teenager: combat never hurts them (see hitBy). */
+  get isMinor(): boolean { const a = this.person?.age; return a === 'kid' || a === 'teen'; }
+
   /**
    * Someone hit this person (src/game/combat). COMBAT2: health by age and build, a strike by its kind (`force`, and `damage` when the
    * weapon says so). A jab staggers; a second jab inside six seconds, a heavy, thrown, club or shot blow, or a person already worn down
@@ -301,6 +304,9 @@ export class Pedestrian implements Entity {
    * Who runs, cowers or fights back after it is decided from the temperament (cower here; fighting back is started by Combat).
    */
   hitBy(from: Vec2, force: Force = 'light', damage?: number): HitResult {
+    // Lead's line (22 Nov): children and teenagers are never hurt. A blow aimed at one does not land: they duck away and run.
+    // No damage, no blood, no knock-down. Cars and everything else treat them as before.
+    if (this.isMinor) { this.dropChat(false); if (this.special) this.endSpecial(false); if (this.state !== 'down') this.flee(from, 6); return 'ignored'; }
     const onGround = this.state === 'down';
     const wasOut = this.vitals.out;
     const out = this.vitals.strike(force, damage ?? DAMAGE[force], onGround);
