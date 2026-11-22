@@ -2,7 +2,9 @@
  * Speed-driven blending of the locomotion cycles. All cycles start at the same event (the left foot passing the right going
  * forward), so one shared phase can drive them and neighbours blend without the feet crossing over.
  */
-import type { Clip } from './clipPack';
+import { NCH, RIG_CH, sampleClip, type Clip } from './clipPack';
+import { ballRel, type LegDims } from './footlock';
+import * as THREE from 'three';
 
 export interface Blend {
   /** index of the lower and upper clip in the chain, and the weight of the upper one */
@@ -50,3 +52,71 @@ export function jumpTime(clip: { duration: number; marks: number[] }, phase: 'ta
       : down + Math.min(1, t / land) * (1 - down);
   return u * clip.duration;
 }
+
+
+/**
+ * GAIT: stride-matched playback. A captured cycle played at a steady rate lets its planted foot travel back at a speed that is not constant through the stance
+ * (the run take's right foot goes back at 2.7 m/s while its left goes at 3.7), so at one rate the shoe skates by the difference. `strideTable` measures, for
+ * a clip, how far the planted foot's ball travels back per unit of cycle at each phase (metres per cycle, in the clip's own proportions); the controller then
+ * advances the shared phase at ground speed over that, so at every instant stride length times cadence is the ground speed.
+ */
+export const STRIDE_N = 96;
+const REF_DIMS: LegDims = (() => {
+  const V = (x: number, y: number, z: number): THREE.Vector3 => new THREE.Vector3(x, y, z);
+  return { hip: [V(0.09, 0.82, 0), V(-0.09, 0.82, 0)], knee: [V(0, -0.4, 0), V(0, -0.4, 0)], ankle: [V(0, -0.345, 0), V(0, -0.345, 0)], hasAnkle: true };
+})();
+const tables = new WeakMap<Clip, Float32Array>();
+
+/** metres of back travel of the planted foot per cycle, at STRIDE_N phases of `clip`; flight stretches take the average, the result is smoothed and kept within 0.6 to 1.5 times the mean. */
+export function strideTable(clip: Clip): Float32Array {
+  const hit = tables.get(clip);
+  if (hit) return hit;
+  const N = STRIDE_N, pose = new Float32Array(NCH), b = [0, 0, 0];
+  const z = [new Float32Array(N), new Float32Array(N)], y = [new Float32Array(N), new Float32Array(N)];
+  for (let i = 0; i < N; i++) {
+    sampleClip(clip, (i / N) * clip.duration, pose);
+    for (let s = 0; s < 2; s++) { ballRel(pose, REF_DIMS, s as 0 | 1, b); z[s][i] = b[2] + pose[RIG_CH + 2]; y[s][i] = b[1] + pose[RIG_CH + 1]; }
+  }
+  const ymin = [Math.min(...y[0]), Math.min(...y[1])];
+  const raw = new Float32Array(N), ok = new Uint8Array(N);
+  let sum = 0, cnt = 0;
+  for (let i = 0; i < N; i++) {
+    let acc = 0, n = 0;
+    for (let s = 0; s < 2; s++) {
+      if (y[s][i] > ymin[s] + 0.04) continue;                        // this foot is in the air
+      acc += (z[s][(i + 1) % N] - z[s][(i + N - 1) % N]) * (N / 2); n++; // metres per cycle, back is positive
+    }
+    if (n > 0) { raw[i] = acc / n; ok[i] = 1; sum += raw[i]; cnt++; }
+  }
+  const mean = cnt ? sum / cnt : Math.max(0.5, clip.speed * clip.duration);
+  for (let i = 0; i < N; i++) if (!ok[i]) raw[i] = mean;
+  const out = new Float32Array(N);
+  for (let pass = 0; pass < 2; pass++) {
+    for (let i = 0; i < N; i++) out[i] = (raw[(i + N - 1) % N] + 2 * raw[i] + raw[(i + 1) % N]) * 0.25;
+    raw.set(out);
+  }
+  for (let i = 0; i < N; i++) out[i] = Math.min(1.5 * mean, Math.max(0.6 * mean, raw[i]));
+  tables.set(clip, out);
+  return out;
+}
+
+/** table value at a phase 0..1 (linear, wrapping) */
+export function tableAt(t: Float32Array, phase: number): number {
+  const x = (((phase % 1) + 1) % 1) * t.length, i = Math.floor(x), u = x - i;
+  return t[i % t.length] * (1 - u) + t[(i + 1) % t.length] * u;
+}
+
+/**
+ * Cycles per second so the planted foot keeps pace with the ground, at this phase of the blended chain. `stride` is the multiplier the person's
+ * leg swing carries (controller.applyGait). The result is held to within 0.7 and 1.45 of the plain average rate, so the cycle never stalls or rushes.
+ */
+export function matchedFrequency(speed: number, chain: ReadonlyArray<Clip>, b: Blend, phase: number, stride: number): number {
+  const A = chain[b.lo], B = chain[b.hi];
+  const la = tableAt(strideTable(A), phase);
+  const l = b.hi === b.lo ? la : la * (1 - b.t) + tableAt(strideTable(B), phase) * b.t;
+  const mean = b.hi === b.lo ? meanOf(strideTable(A)) : meanOf(strideTable(A)) * (1 - b.t) + meanOf(strideTable(B)) * b.t;
+  const f = speed / Math.max(0.2, l * stride), fm = speed / Math.max(0.2, mean * stride);
+  return Math.min(1.45 * fm, Math.max(0.7 * fm, f));
+}
+const means = new WeakMap<Float32Array, number>();
+function meanOf(t: Float32Array): number { let m = means.get(t); if (m === undefined) { m = 0; for (const v of t) m += v; m /= t.length; means.set(t, m); } return m; }

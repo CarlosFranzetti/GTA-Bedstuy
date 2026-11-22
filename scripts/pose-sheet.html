@@ -1,0 +1,67 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>pose sheet</title>
+<style>html,body{margin:0;background:#789;overflow:hidden}</style></head>
+<body><script type="module">
+// POSE seat sheet: standing and mid-stride, four people, front / side / three-quarter (and back). Dev server only.
+// ?pose=stand|walk|jog|sprint &t=<seconds into the pose> &ids=a,b,c,d &cams=front,side,3q &layers=0|1 &seed=<n>
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Rng } from '@/core/Rng';
+import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { buildPerson, loadPeople } from '@/entities/models/pedMesh';
+import { pedVariantIndex, PED_SPECS } from '@/textures/painters/ped';
+import { setPeopleMode } from '@/textures/painters/pedMode';
+import { AnimController } from '@/entities/anim/controller';
+import { ClipLibrary } from '@/entities/anim/library';
+import { makeGait } from '@/entities/anim/gait';
+await loadPeople();
+setPeopleMode('skin');
+const P = new URLSearchParams(location.search);
+const pose = P.get('pose') ?? 'stand', T = Number(P.get('t') ?? 6), layers = P.get('layers') === '1', seed0 = Number(P.get('seed') ?? 3);
+const ids = (P.get('ids') ?? 'la-delivery,ba-work,wh-elder,ea-kid').split(',');
+const cams = (P.get('cams') ?? 'front,side,3q').split(',');
+const tw = Number(P.get('tw') ?? 300), th = Number(P.get('th') ?? 560);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(tw * ids.length, th * cams.length); document.body.appendChild(renderer.domElement);
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.setScissorTest(true);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x8aa4bc);
+const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.5;
+const sun = new THREE.DirectionalLight(0xfff2dc, 2.6); sun.position.set(-6, 10, 5); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x6a5a48, 0.7));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({ color: 0x5a5d62, roughness: 1 })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const materials = new MaterialLibrary(new Rng(7)); materials.setEnvironment(scene.environment);
+const lib = ClipLibrary.fromCore(); await lib.loadStreet('/anim/street.bin', fetch);
+const speed = { stand: 0, walk: 1.4, jog: 3.0, sprint: 6.5 }[pose] ?? 0;
+let layerFn = null, mkState = null;
+if (layers) { try { const m = await import('@/entities/anim/bodyLayers'); layerFn = m.applyBodyLayers; mkState = m.makeBodyLayerState; } catch (e) { console.error('no bodyLayers', e); } }
+const people = ids.map((id, i) => {
+  const v = pedVariantIndex(id), m = buildPerson(materials, new Rng(v + 1), { variant: v });
+  scene.add(m.group); m.group.visible = false;
+  const spec = PED_SPECS[v], age = spec.age ?? 'adult', gait = makeGait(seed0 * 7 + i * 13, age);
+  const ctl = new AnimController(m, gait, lib);
+  if (layers && ctl.bodyLayers !== undefined) ctl.bodyLayers = true;
+  return { m, ctl, spec };
+});
+const dt = 1 / 60;
+for (const p of people) {
+  for (let f = 0; f < T * 60; f++) {
+    p.ctl.update(dt, { speed });
+    const sp = p.m.group.userData.splay ?? 0; // the game's reactionPose rewrites the arm roll after the controller, every frame
+    if (!(layers && p.ctl.bodyLayers)) { p.m.arms[0].rotation.z = -sp; p.m.arms[1].rotation.z = sp; }
+  }
+  p.m.group.updateMatrixWorld(true);
+}
+const cam = new THREE.PerspectiveCamera(32, tw / th, 0.1, 100);
+const info = [];
+cams.forEach((c, r) => people.forEach((p, k) => {
+  people.forEach((q) => { q.m.group.visible = false; });
+  p.m.group.visible = true;
+  const d = { front: [0, 0.2, -4.2], side: [4.2, 0.2, 0], '3q': [3.0, 0.4, -3.0], back: [0, 0.3, 4.2] }[c];
+  const s = p.m.group.scale.y, cy = 0.9 * s;
+  cam.position.set(d[0], d[1] + cy, d[2]); cam.lookAt(0, cy, 0);
+  renderer.setViewport(k * tw, (cams.length - 1 - r) * th, tw, th); renderer.setScissor(k * tw, (cams.length - 1 - r) * th, tw, th);
+  renderer.render(scene, cam);
+}));
+window.__ready = { ids, pose, layers, info };
+</script></body></html>

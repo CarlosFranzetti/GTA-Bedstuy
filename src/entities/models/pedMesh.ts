@@ -53,6 +53,8 @@ const shapes = new Map<string, MhShape>();
 export function peopleFlag(): boolean { return (import.meta.env?.VITE_PEOPLE ?? 'mh') !== 'hi'; }
 export function peopleReady(): boolean { return peopleFlag() && shapes.size > 0; }
 export function peopleShapes(): string[] { return [...shapes.keys()]; }
+/** a shipped base shape by name (the BODY harness and measuring tests read the joints and landmarks from it) */
+export function shapeByName(name: string): MhShape | undefined { return shapes.get(name); }
 export function clearPeople(): void { shapes.clear(); geoCache.clear(); dressCache.clear(); }
 
 /** smooth normals; vertices at the same position (tile borders of the UV projection) share one normal */

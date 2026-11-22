@@ -50,6 +50,20 @@ export function soleRel(p: Float32Array, d: LegDims, useAnkle: boolean): number 
   return low;
 }
 
+/**
+ * Where the ball of one foot is in the rig frame for a pose (x right, y up from the leg pivots' level, z back; the clip's own rig surge is NOT added): used to
+ * tabulate how fast a clip's planted foot travels back at each phase (locomotion.ts `strideTable`). Writes [x, y, z] into `out`.
+ */
+export function ballRel(p: Float32Array, d: LegDims, side: 0 | 1, out: number[]): void {
+  quat(qL, p, boneChannel(('leg' + SIDES[side]) as 'legL'));
+  quat(qK, p, boneChannel(('knee' + SIDES[side]) as 'kneeL'));
+  qLK.copy(qL).multiply(qK);
+  v1.copy(d.ankle[side]).applyQuaternion(qLK).add(v3.copy(d.knee[side]).applyQuaternion(qL)).add(d.hip[side]);
+  if (d.hasAnkle) qW.copy(qLK).multiply(quat(qA, p, boneChannel(('ankle' + SIDES[side]) as 'ankleL'))); else qW.copy(qLK);
+  v2.set(0, -FOOT.ankleH, FOOT.ball).applyQuaternion(qW);
+  out[0] = v1.x + v2.x; out[1] = v1.y + v2.y; out[2] = v1.z + v2.z;
+}
+
 const sstep = (a: number, b: number, x: number): number => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 export class FootLock {

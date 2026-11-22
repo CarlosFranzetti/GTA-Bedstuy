@@ -1,0 +1,326 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>people showcase</title>
+<style>html,body{margin:0;background:#789;overflow:hidden}</style></head>
+<body><script type="module">
+// Review harness for the SKINS lane: lines up every GTA3 person and every skinned car body (no game, no world).
+// Dev server only: vite --port N, then /scripts/skins-showcase.html?view=peds|faces|cars|car4m&q=low|phone
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Rng } from '@/core/Rng';
+import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { PED_SPECS, pickPedVariant } from '@/entities/models/pedBody';
+import { pickWardrobeVariant, composeSpec, setWardrobeSeason, setWardrobeCap, dress, BASE_TOPS, LAYERS, BOTTOMS, SHOES, ONE_PIECE, COLOURWAYS, LOOKS } from '@/textures/painters/pedWardrobe';
+import { registerSpec } from '@/textures/painters/ped';
+import { buildPerson as buildPedModel, loadPeople } from '@/entities/models/pedMesh';
+import { pedVariantIndex, PED_SPECS as SPECS } from '@/textures/painters/ped';
+import { setPeopleMode } from '@/textures/painters/pedMode';
+import { bodyTypeId } from '@/entities/models/pedBodyTypes';
+import { bakeStats } from '@/textures/painters/pedSkinPaint';
+import { paintPedHi } from '@/textures/painters/pedHi';
+import { makeShader } from '@/textures/painters/pedPaintShade';
+import { Px } from '@/textures/painters/pedPaintShared';
+await loadPeople();
+import { animateWalk } from '@/entities/models/humanModel';
+import { buildCarModel } from '@/entities/models/carModel';
+import { VEHICLE_SPECS } from '@/entities/Vehicle';
+import { CAR_COLORWAYS } from '@/textures/painters/vehicleSkin';
+
+const params = new URLSearchParams(location.search);
+const view = params.get('view') ?? 'peds';
+setPeopleMode(params.get('mode') === 'shells' ? 'shells' : 'skin');
+const POSE = params.get('pose') ?? 'stand', SIL = params.get('sil') === '1';
+const W = Number(params.get('w') ?? 1280), H = Number(params.get('h') ?? 720);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8aa4bc);
+const pm = new THREE.PMREMGenerator(renderer);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.5;
+const sun = new THREE.DirectionalLight(0xfff2dc, 2.6); sun.position.set(-6, 10, 5); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x6a5a48, 0.7));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshStandardMaterial({ color: 0x5a5d62, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const materials = new MaterialLibrary(new Rng(7));
+materials.carPaintDetail();
+materials.setEnvironment(scene.environment);
+const cam = new THREE.PerspectiveCamera(38, W / H, 0.1, 100);
+const look = new THREE.Vector3();
+
+const LINE_A = ['ba-hoodie-fade', 'ba-jersey-teen', 'ca-tracksuit', 'ea-nurse', 'wh-office', 'mx-office'];
+const LINE_B = ['ea-office', 'me-tracksuit', 'hj-man', 'me-hijabi', 'ba-puffer-braids', 'wh-elder'];
+const LINE_C = ['la-construction', 'ca-headwrap', 'wh-elder', 'ea-nurse', 'ba-church-man', 'sa-hijabi'];
+let buildMs = 0; const TRIS = {};
+const place = (ids, row, spacing, yaw) => {
+  ids.forEach((id, i) => {
+    const v = pedVariantIndex(id);
+    const t0 = performance.now();
+    const m = buildPedModel(materials, new Rng(v + 1), { variant: v });
+    buildMs += performance.now() - t0; TRIS[id] = m.triangles;
+    m.group.position.set((i - (ids.length - 1) / 2) * spacing + row * spacing * 0.5, 0, -row * 1.6);
+    m.group.rotation.y = Math.PI + yaw + 0.08 * ((i % 3) - 1);
+    { const sp = m.group.userData.splay ?? 0; m.arms[0].rotation.z = -sp; m.arms[1].rotation.z = sp; }
+    if (POSE === 'stride') animateWalk(m, Math.PI / 2 + (i % 2) * Math.PI, 1);
+    const forced = params.get('lod');
+    if (forced) { const k = { hi: 0, mid: 1, far: 2 }[forced]; m.group.traverse((o) => { if (o.isLOD) { o.update = () => {}; o.levels.forEach((l, q) => { l.object.visible = q === k; }); } }); }
+    scene.add(m.group);
+  });
+};
+if (view === 'lineup') { place(LINE_A, 0, 1.05, 0); place(LINE_B, 1, 1.05, 0); cam.position.set(0, 2.4, 7.2); look.set(0, 0.9, -0.8); cam.fov = 36; }
+else if (view === 'lineup-3q') { place(LINE_A, 0, 0.9, 0.7); place(LINE_B, 1, 0.9, 0.7); cam.position.set(3.2, 1.5, 6.0); look.set(0, 0.95, -0.6); cam.fov = 36; }
+else if (view === 'faces-a') { place(LINE_A, 0, 0.62, 0); cam.position.set(0, 1.62, 2.6); look.set(0, 1.5, 0); cam.fov = 30; }
+else if (view === 'faces-b') { place(LINE_B, 0, 0.62, 0); cam.position.set(0, 1.62, 2.6); look.set(0, 1.5, 0); cam.fov = 30; }
+else if (view === 'faces-c') { place(LINE_C, 0, 0.62, 0); cam.position.set(0, 1.62, 2.6); look.set(0, 1.5, 0); cam.fov = 30; }
+else if (view === 'close-a') { place(['ba-hoodie-fade', 'ea-nurse', 'wh-elder'], 0, 0.5, 0); cam.position.set(0, 1.64, 1.25); look.set(0, 1.6, 0); cam.fov = 30; }
+else if (view === 'close-b') { place(['ba-church-man', 'me-hijabi', 'wh-office'], 0, 0.5, 0.0); cam.position.set(0, 1.64, 1.25); look.set(0, 1.6, 0); cam.fov = 30; }
+else if (view === 'close3q-a') { place(['ba-hoodie-fade', 'ea-nurse', 'wh-elder'], 0, 0.5, 0.75); cam.position.set(0, 1.64, 1.3); look.set(0, 1.55, 0); cam.fov = 30; }
+else if (view === 'close3q-b') { place(['ba-church-man', 'me-hijabi', 'wh-office'], 0, 0.5, -0.7); cam.position.set(0, 1.64, 1.3); look.set(0, 1.55, 0); cam.fov = 30; }
+else if (view === 'full-c') { place(LINE_C, 0, 0.8, 0.3); cam.position.set(0, 1.4, 4.2); look.set(0, 0.95, 0); cam.fov = 36; }
+else if (view === 'near4m') { place(LINE_A.slice(0, 3), 0, 1.0, 0.4); cam.position.set(1.7, 1.5, 3.6); look.set(0, 1.0, 0); cam.fov = 38; }
+// one person per body type (silhouette review): pick the first civilian of each type, men and women mixed
+const TYPE_ORDER = ['slim', 'athletic', 'heavy', 'tall-thin', 'short-stocky', 'broad', 'pear', 'petite', 'elder', 'teen', 'avg', 'kid'];
+const byType = {}; for (const sp of SPECS) if (sp.role === 'civilian') { const t = bodyTypeId(sp); (byType[t] ??= []).push(sp.id); }
+const BODIES = TYPE_ORDER.map((t, i) => (byType[t] ?? [])[i % 2] ?? (byType[t] ?? [])[0]).filter(Boolean);
+if (view === 'bodies') { place(BODIES.slice(0, 6), 0, 1.1, 0.0); place(BODIES.slice(6), 1, 1.1, 0.0); cam.position.set(0, 2.6, 8.4); look.set(0, 0.95, -0.8); cam.fov = 38; }
+if (view === 'side') { place(['ba-elder', 'wh-elder', 'ba-hoodie-fade', 'wh-office'], 0, 0.8, 1.45); cam.position.set(0, 1.3, 5.2); look.set(0, 0.95, 0); cam.fov = 32; }
+if (view === 'legs2') { place(['sa-bomber', 'la-delivery', 'la-hoodie-cap', 'ba-hoodie-fade'], 0, 0.7, 0.35); cam.position.set(0.6, 0.8, 3.4); look.set(0, 0.7, 0); cam.fov = 34; }
+if (view === 'hs') { const yaw = Number(params.get('yaw') ?? 0); place(['la-hoodie-cap', 'ba-hoodie-fade', 'wh-office', 'ba-puffer-braids'], 0, 0.9, yaw); cam.position.set(0, 1.25, 4.6); look.set(0, 0.92, 0); cam.fov = 34; }
+if (view === 'head') { const yaw = Number(params.get('yaw') ?? 0.8); place(['ba-church-man', 'wh-office', 'ea-nurse'], 0, 0.45, yaw); cam.position.set(0, 1.6, 2.0); look.set(0, 1.62, 0); cam.fov = 24; }
+if (view === 'hands') { place(['ba-church-man', 'wh-office'], 0, 0.5, 0.6); cam.position.set(0.5, 0.95, 1.0); look.set(0, 0.9, 0); cam.fov = 28; }
+if (view === 'line10') { place(BODIES.slice(0, 10), 0, 0.98, 0.0); cam.position.set(0, 1.35, 10.8); look.set(0, 0.95, 0); cam.fov = 30; }
+if (view === 'line10-3q') { place(BODIES.slice(0, 10), 0, 0.98, 0.5); cam.position.set(3.0, 1.35, 10.6); look.set(0, 0.95, 0); cam.fov = 30; }
+if (view === 'street') { place(BODIES.slice(0, 6), 0, 0.9, 0.5); place(BODIES.slice(6), 1, 0.9, 0.5); cam.position.set(2.5, 1.7, 15); look.set(0, 1.0, -0.8); cam.fov = 28; }
+if (view === 'bodies-3q') { place(BODIES.slice(0, 6), 0, 1.0, 0.7); place(BODIES.slice(6), 1, 1.0, 0.7); cam.position.set(3.2, 1.5, 7.0); look.set(0, 0.95, -0.8); cam.fov = 38; }
+const OUT_A = ['ba-transit', 'la-site', 'ba-denim-open', 'sa-bomber', 'wh-coat', 'ba-sundress'];
+const OUT_B = ['ca-shorts', 'ea-breton', 'wh-flannel', 'sa-masked', 'ea-site', 'hj-boy'];
+if (view === 'outfits-a') { place(OUT_A, 0, 0.95, 0.15); cam.position.set(0.3, 1.45, 5.6); look.set(0, 0.95, 0); cam.fov = 34; }
+else if (view === 'outfits-b') { place(OUT_B, 0, 0.95, 0.15); cam.position.set(0.3, 1.45, 5.6); look.set(0, 0.95, 0); cam.fov = 34; }
+else if (view === 'outfits-c') { place(['ba-hoodie-fade', 'la-delivery', 'wh-puffer-braids'.replace('wh', 'ba'), 'ca-tracksuit', 'ba-jersey-teen', 'wh-cyclist'], 0, 0.95, -0.25); cam.position.set(-0.4, 1.45, 5.6); look.set(0, 0.95, 0); cam.fov = 34; }
+else if (view === 'hijab') { place(['me-hijabi', 'sa-hijabi'], 0, 0.7, 0.45); cam.position.set(0.9, 1.5, 2.2); look.set(0, 1.35, 0); cam.fov = 30; }
+else if (view === 'shoulder') { place(['ba-hoodie-fade', 'ba-denim-open', 'ba-transit'], 0, 0.62, 0.8); cam.position.set(1.6, 1.5, 1.3); look.set(0, 1.35, 0); cam.fov = 30; }
+else if (view === 'shoulder-front') { place(['ba-hoodie-fade', 'ba-denim-open', 'ba-transit'], 0, 0.62, 0.0); cam.position.set(0, 1.45, 1.7); look.set(0, 1.3, 0); cam.fov = 34; }
+else if (view === 'legs') { place(['ba-denim-open', 'ca-shorts', 'la-site', 'ba-sundress'], 0, 0.7, 0.5); cam.position.set(1.3, 0.55, 2.4); look.set(0, 0.5, 0); cam.fov = 34; }
+else if (view === 'hands') { place(['ba-hoodie-fade', 'wh-coat', 'ba-sundress'], 0, 0.55, 0.9); cam.position.set(1.2, 1.0, 1.5); look.set(0, 0.95, 0); cam.fov = 28; }
+if (view === 'tex') {
+  const v = pedVariantIndex(params.get('v') ?? 'ba-hoodie-fade'), m = buildPedModel(materials, new Rng(v + 1), { variant: v });
+  let img = null; m.group.traverse((o) => { if (o.isMesh && !img) img = o.material.map?.image; });
+  const c = document.createElement('canvas'); c.width = c.height = 1024; document.body.prepend(c);
+  const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false; ctx.fillStyle = '#f0f'; ctx.fillRect(0, 0, 1024, 1024); if (img) ctx.drawImage(img, 0, 0, 1024, 1024);
+}
+if (view === 'atlas') {
+  const c = document.createElement('canvas'); c.width = c.height = 1024; document.body.prepend(c);
+  const ctx = c.getContext('2d'); const v = pedVariantIndex(params.get('v') ?? 'ba-hoodie-fade');
+  paintPedHi(ctx, null, null, 1024, new Rng(`pedhi:${v}`), v);
+}
+
+
+// ---- PEOPLE6 views: the wardrobe. wardrobe40 = forty pedestrians drawn the way the game draws them (each from its own stream); seed=N shifts the draw; season=cold|mild|warm
+setWardrobeSeason(params.get('season') ?? 'mild'); setWardrobeCap(Number(params.get('cap') ?? 200));
+const SEED = Number(params.get('seed') ?? 1);
+const streetIds = (n, off = 0) => { const out = []; for (let i = 0; i < n; i++) { const rng = new Rng(Rng.hash(`ped-${SEED}-${i + off}`)); out.push(PED_SPECS[pickWardrobeVariant(rng, pickPedVariant(rng), false)].id); } return out; };
+if (view === 'wardrobe40') {
+  const ids = streetIds(40, Number(params.get('off') ?? 0)), cols = 8;
+  for (let r = 0; r < 5; r++) place(ids.slice(r * cols, r * cols + cols), r * 1.5, 1.45, 0.1);
+  cam.position.set(0, 7.5, 12.5); look.set(0, 0.6, -4.6); cam.fov = 42;
+}
+if (view === 'wardrobe20') { const ids = streetIds(20, Number(params.get('off') ?? 0)); place(ids.slice(0, 10), 0, 0.98, 0.1); place(ids.slice(10), 1, 0.98, -0.1); cam.position.set(0, 1.5, 7.4); look.set(0, 0.92, -0.8); cam.fov = 46; }
+if (view === 'wardrobe10') { const ids = streetIds(10, Number(params.get('off') ?? 0)); place(ids, 0, 0.98, Number(params.get('yaw') ?? 0.15)); cam.position.set(0, 1.3, 6.2); look.set(0, 0.92, 0); cam.fov = 40; }
+// one person per new body type: men on the first row, women behind; type=<id> shows one type in six looks
+const NEWT = ['lanky', 'swimmer', 'stoop-slim', 'elder-heavy', 'big-tall', 'pregnant', 'lean-teen', 'stout', 'slight'];
+const typed = (t, sex, age, seed) => { const sp = composeSpec(seed, { group: ['ba', 'wh', 'la', 'ea', 'sa'][seed % 5], sex, age }, { look: age === 'old' ? 'elder' : 'street' }); sp.body = t; sp.id = `${sp.id}-${t}`; registerSpec(sp); return sp.id; };
+if (view === 'newbodies') {
+  const yaw = Number(params.get('yaw') ?? 0.2);
+  const row0 = [typed('lanky', 'm', 'adult', 3), typed('big-tall', 'm', 'adult', 8), typed('stout', 'm', 'adult', 9), typed('stoop-slim', 'm', 'old', 12), typed('lean-teen', 'm', 'teen', 14)];
+  const row1 = [typed('swimmer', 'f', 'adult', 5), typed('pregnant', 'f', 'adult', 6), typed('slight', 'f', 'adult', 11), typed('elder-heavy', 'f', 'old', 13), typed('lean-teen', 'f', 'teen', 15)];
+  place(row0, 0, 1.15, yaw); place(row1, 1, 1.15, yaw); cam.position.set(0, 2.2, 7.4); look.set(0, 0.9, -0.8); cam.fov = 38;
+}
+if (view === 'newbodies-side') { const yaw = Number(params.get('yaw') ?? 1.45); const row = [typed('lanky', 'm', 'adult', 3), typed('big-tall', 'm', 'adult', 8), typed('stoop-slim', 'm', 'old', 12), typed('swimmer', 'f', 'adult', 5), typed('pregnant', 'f', 'adult', 6), typed('elder-heavy', 'f', 'old', 13)]; place(row, 0, 0.9, yaw); cam.position.set(0, 1.3, 6.0); look.set(0, 0.92, 0); cam.fov = 36; }
+// a child of about ten with an adult, and a pregnant woman beside her partner
+if (view === 'pair') { const a = typed('big-tall', 'm', 'adult', 8), k = typed('kid', 'm', 'kid', 21), b = typed('pregnant', 'f', 'adult', 6), c = typed('avg', 'f', 'adult', 22); place([a, k, b, c], 0, 0.8, 0.3); cam.position.set(0, 1.3, 4.2); look.set(0, 0.85, 0); cam.fov = 36; }
+// the garments: every top, layer, bottom and one-piece worn by one person, row by row (garments=tops|layers|bottoms|shoes)
+
+// garments=tops|layers|bottoms|shoes|onepiece: one fixed person (m or f, sex=) in each garment of the catalogue, 8 to a row
+if (view === 'garments') {
+  const set = params.get('set') ?? 'tops', sex = params.get('sex') ?? 'm', yaw = Number(params.get('yaw') ?? 0.25), per = Number(params.get('per') ?? 6), from = Number(params.get('from') ?? 0);
+  const baseSpec = composeSpec(7, { group: sex === 'm' ? 'la' : 'ea', sex, age: 'adult' }, { look: 'street', season: 'mild' });
+  const jeans = ['jeansStraight', '#34506f'], white = ['sneakerLow', '#f4f4f4'], nohat = { hat: 'none' };
+  const entries = [];
+  const pc = (g, i = 0) => COLOURWAYS[g.c][(i * 3 + 1 + entries.length * 2) % COLOURWAYS[g.c].length];
+  if (set === 'tops') for (const [id, g] of Object.entries(BASE_TOPS)) { if (g.sx && g.sx !== sex) continue; entries.push([id, { top: [id, pc(g)], bottom: jeans, shoes: white, hat: g.hat }]); }
+  if (set === 'layers') for (const [id, g] of Object.entries(LAYERS)) entries.push([id, { top: ['tee', '#e8e6e0'], layer: [id, pc(g, 1), '#e8e6e0'], bottom: jeans, shoes: white, hat: g.hat }]);
+  if (set === 'bottoms') for (const [id, g] of Object.entries(BOTTOMS)) { if (g.sx && g.sx !== sex) continue; entries.push([id, { top: ['tee', '#c8c6c0'], bottom: [id, pc(g)], shoes: ['sneakerLow', '#f4f4f4'] }]); }
+  if (set === 'shoes') for (const [id, g] of Object.entries(SHOES)) { if (g.sx && g.sx !== sex) continue; entries.push([id, { top: ['tee', '#c8c6c0'], bottom: id === 'tallBoot' || id === 'heel' || id === 'flat' ? ['jeansSlim', '#2e3848'] : ['jeansStraight', '#34506f'], shoes: [id, pc(g)] }]); }
+  const ids = entries.slice(from, from + per).map(([id, e], i) => { const sp = { ...baseSpec, hat: 'none', ...dress(e) }; sp.id = `${baseSpec.id}-${set}-${id}`; registerSpec(sp); console.log(set, i + from, id); return sp.id; });
+  if (set === 'onepiece') for (const [id, o] of Object.entries(ONE_PIECE)) { const sp = composeSpec(30 + ids.length, { group: 'ba', sex: o.sx ?? 'f', age: 'adult' }, { look: 'street' }); sp.id += '-op-' + id; ids.push(sp.id); registerSpec(sp); }
+  place(ids, 0, 1.0, yaw);
+  { const d = Number(params.get('dist') ?? 5.6), ly = Number(params.get('ly') ?? 0.9); cam.position.set(0, ly + 0.3, d); look.set(0, ly, 0); cam.fov = Number(params.get('fov') ?? 34); }
+}
+
+// ---- PEDTEX views: flat maps, four faces, the player's looks, street distance
+if (params.get('grid') === '1') globalThis.__pedGrid = true;
+const MAPS = ['ba-hoodie-fade', 'hj-man', 'me-hijabi', 'ba-elder', 'la-site', 'player-wh-1'];
+const mapOf = (m) => { let img = null; m.group.traverse((o) => { if (o.isMesh && !img) img = o.material.map?.image; }); return img; };
+
+// FACES: texel coverage of the head chart. view=uvstat&ids=a,b : head triangles (head weight > 0.5) with a collapsed UV area, where they are in 3D
+if (view === 'uvstat') {
+  const out = []; let cap = null; globalThis.__pedBakeHook = (b) => { cap = b; };
+  for (const id of (params.get('ids') ?? 'ea-nurse').split(',')) {
+    const v = pedVariantIndex(id); buildPedModel(materials, new Rng(v + 1), { variant: v }); const b = cap; if (!b) continue;
+    let n = 0, bad = 0, area = 0; const pts = [];
+    for (let t = 0; t < b.index.length; t += 3) {
+      const i = [b.index[t], b.index[t + 1], b.index[t + 2]];
+      let wh = 0; for (const q of i) for (let kk = 0; kk < 4; kk++) if (b.joints[q * 4 + kk] === 3) wh += b.weights[q * 4 + kk] / 3;
+      if (wh < 0.5) continue; n++;
+      const u = (q) => [b.uv[q * 2] * 512, b.uv[q * 2 + 1] * 512];
+      const [a0, a1] = u(i[0]), [b0, b1] = u(i[1]), [c0, c1] = u(i[2]);
+      const ar = Math.abs((b0 - a0) * (c1 - a1) - (c0 - a0) * (b1 - a1)) / 2; area += ar;
+      if (ar < 0.5) { bad++; if (pts.length < 12) pts.push(i.map((q) => [b.position[q*3], b.position[q*3+1], b.position[q*3+2]].map((x) => +x.toFixed(3)).join(' ')).join(' | ') + ' uvArea=' + ar.toFixed(3)); }
+    }
+    out.push({ id, headTris: n, collapsed: bad, texelsCovered: Math.round(area), pts, chin: cap.landmarks.chinY, eye: cap.landmarks.eyeY });
+  }
+  window.__uvstat = out;
+}
+if (view === 'uvdebug') {
+  const ids = (params.get('ids') ?? 'ea-nurse').split(','), Z = 4, T = 256 * Z;
+  const c = document.createElement('canvas'); c.width = T * ids.length; c.height = T; document.body.prepend(c);
+  const ctx = c.getContext('2d'); ctx.fillStyle = '#111'; ctx.fillRect(0, 0, c.width, c.height);
+  let cap = null; globalThis.__pedBakeHook = (b) => { cap = b; };
+  ids.forEach((id, k) => {
+    const v = pedVariantIndex(id); buildPedModel(materials, new Rng(v + 1), { variant: v }); const b = cap; if (!b) return;
+    ctx.globalCompositeOperation = 'lighter';
+    for (let t = 0; t < b.index.length; t += 3) {
+      const i = [b.index[t], b.index[t + 1], b.index[t + 2]];
+      let wh = 0; for (const q of i) for (let kk = 0; kk < 4; kk++) if (b.joints[q * 4 + kk] === 3) wh += b.weights[q * 4 + kk] / 3;
+      if (wh < 0.5) continue;
+      const nz = (b.normal[i[0] * 3 + 2] + b.normal[i[1] * 3 + 2] + b.normal[i[2] * 3 + 2]) / 3;
+      const px = (q) => b.uv[q * 2] * 512 * Z + k * T, py = (q) => (1 - b.uv[q * 2 + 1]) * 512 * Z;
+      ctx.fillStyle = nz < -0.2 ? 'rgba(60,120,255,0.35)' : 'rgba(255,90,60,0.35)';
+      ctx.beginPath(); ctx.moveTo(px(i[0]), py(i[0])); ctx.lineTo(px(i[1]), py(i[1])); ctx.lineTo(px(i[2]), py(i[2])); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+  });
+}
+if (view === 'maps') {
+  const ids = (params.get('ids') ?? MAPS.join(',')).split(','), cols = 3, sz = Number(params.get('sz') ?? 512);
+  const c = document.createElement('canvas'); c.width = cols * sz; c.height = Math.ceil(ids.length / cols) * sz; document.body.prepend(c);
+  const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false; ctx.fillStyle = '#f0f'; ctx.fillRect(0, 0, c.width, c.height);
+  ids.forEach((id, i) => { const v = pedVariantIndex(id), m = buildPedModel(materials, new Rng(v + 1), { variant: v }); const img = mapOf(m); if (img) ctx.drawImage(img, (i % cols) * sz, Math.floor(i / cols) * sz, sz, sz); });
+}
+if (view === 'faces4') { place((params.get('ids') ?? 'ba-hoodie-fade,wh-elder,me-hijabi,hj-man').split(','), 0, 0.3, Number(params.get('yaw') ?? 0)); cam.position.set(0, 1.55, 1.25); look.set(0, 1.55, 0); cam.fov = 26; }
+if (view === 'cust') { place(params.get('ids').split(','), 0, Number(params.get('sp') ?? 0.8), Number(params.get('yaw') ?? 0)); cam.position.set(0, 1.0, Number(params.get('dist') ?? 4.5)); look.set(0, Number(params.get('ly') ?? 0.95), 0); cam.fov = Number(params.get('fov') ?? 32); }
+if (view === 'player') { const ids = ['ba', 'la', 'wh', 'ea', 'sa', 'mx'].flatMap((g) => [`player-${g}-0`, `player-${g}-1`, `player-${g}-2`]).slice(0, 12); place(ids.slice(0, 6), 0, 0.8, 0.45); place(ids.slice(6), 1, 0.8, 0.45); cam.position.set(2.6, 1.45, 6.2); look.set(0, 0.95, -0.8); cam.fov = 36; }
+if (view === 'street10') { place(BODIES.slice(0, 10), 0, 1.4, 0.5); cam.position.set(2.5, 1.7, 16); look.set(0, 1.0, 0); cam.fov = 28; }
+// PEOPLE3 views: all twelve body types at any yaw (front 0, side 1.57, back 3.14), and the player at the on-foot game camera (3.2 m behind, 1.55 m up, fov 64)
+if (view === 'bodies12') { const yaw = Number(params.get('yaw') ?? 0), part = Number(params.get('part') ?? 0); place(BODIES.slice(part * 6, part * 6 + 6), 0, 1.0, yaw); cam.position.set(0, 1.3, 6.3); look.set(0, 0.95, 0); cam.fov = 36; }
+if (view === 'playerback') {
+  const id = params.get('id') ?? 'player-ba-0', v = pedVariantIndex(id), m = buildPedModel(materials, new Rng(v + 1), { variant: v });
+  m.group.rotation.y = 0; scene.add(m.group); TRIS[id] = m.triangles;
+  cam.position.set(0.35, 1.55, 3.2); look.set(0, 1.4, 0); cam.fov = 64;   // the player's back is toward the camera at +z: the model faces -z
+}
+if (view === 'feet') { const yaw = Number(params.get('yaw') ?? 0); place(['ba-hoodie-fade', 'wh-office', 'ba-puffer-braids', 'ea-nurse'], 0, 0.7, yaw); cam.position.set(0, 0.5, 3.3); look.set(0, 0.35, 0); cam.fov = 30; }
+// PEOPLE4 views: the legs from the front, the side, the back and from above and behind (the game camera), six people in trousers, both LODs (query lod=mid forces the mid mesh)
+const LEGS4 = ['ba-transit', 'ba-hoodie-fade', 'la-delivery', 'wh-office', 'ba-puffer-braids', 'ca-tracksuit'];
+if (view.startsWith('legs4')) {
+  const yaw = { front: 0, side: 1.57, back: Math.PI, '3q': 0.8, above: Math.PI, above3q: Math.PI + 0.6 }[view.slice(6)] ?? 0, ids = (params.get('ids') ?? LEGS4.join(',')).split(',');
+  place(ids, 0, 0.75, yaw);
+  const above = view.includes('above');
+  const dz = Number(params.get('dist') ?? (above ? 3.4 : 3.6)), ly = Number(params.get('ly') ?? (above ? 0.35 : 0.5)); cam.position.set(above ? 0.4 : 0, above ? 2.4 : ly + 0.25, dz); look.set(0, ly, 0); cam.fov = above ? 48 : 34;
+  if (above) { scene.traverse((o) => { if (o.isMesh && o !== ground) { /* keep */ } }); }
+}
+if (view === 'legs4-feet') { place(params.get('ids') ? params.get('ids').split(',') : LEGS4.slice(0, 4), 0, 0.5, Number(params.get('yaw') ?? 2.6)); cam.position.set(0.6, 0.45, 1.9); look.set(0, 0.15, 0); cam.fov = 30; }
+// ANIM2 view: a strip of evenly spaced frames of one person playing a named scenario (tests/unit/entities/anim-scenarios.ts) through the real AnimController.
+// ?view=anim&action=walk&n=8&cam=side|3q|front|top&id=player-ba-0&gait=<seed>
+let ANIM = null;
+if (view === 'anim') {
+  const { SCENARIOS } = await import('../tests/unit/entities/anim-scenarios');
+  const { AnimController } = await import('@/entities/anim/controller');
+  const { ClipLibrary } = await import('@/entities/anim/library');
+  const { makeGait, PLAYER_GAIT } = await import('@/entities/anim/gait');
+  const sc = SCENARIOS[params.get('action') ?? 'walk'];
+  const n = Number(params.get('n') ?? 8), camMode = params.get('cam') ?? 'side', id = params.get('id') ?? 'player-ba-0';
+  const v = pedVariantIndex(id), m = buildPedModel(materials, new Rng(v + 1), { variant: v });
+  scene.add(m.group); TRIS[id] = m.triangles;
+  const lib = ClipLibrary.fromCore(); await lib.loadStreet('/anim/street.bin', fetch);
+  const gait = params.get('gait') ? makeGait(Number(params.get('gait')), 'adult') : PLAYER_GAIT;
+  const ctl = new AnimController(m, gait, lib);
+  // a ground line and a tick every half metre along the path, so a foot that slides against the ground shows
+  const pts = []; for (let k = -90; k <= 20; k++) { pts.push(-1.5, 0.002, k * 0.5, 1.5, 0.002, k * 0.5); pts.push(1.5, 0.002, k * 0.5, 1.5, 0.35, k * 0.5); }
+  const gl = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)), new THREE.LineBasicMaterial({ color: 0xd8e0e8 }));
+  scene.add(gl);
+  const tile = Number(params.get('tw') ?? 220), th = Number(params.get('th') ?? 520);
+  renderer.setSize(tile * n, th); renderer.setScissorTest(true);
+  const dt = 1 / 60, [w0, w1] = sc.window, step = (w1 - w0) / (n - 1);
+  const samples = Array.from({ length: n }, (_, i) => Math.round((w0 + i * step) / dt));
+  let heading = 0, px = 0, pz = 0, k = 0; const log = [];
+  for (let f = 0; f <= samples[n - 1]; f++) {
+    const t = f * dt, sp = sc.speed(t), ex = sc.extra ? sc.extra(t) : {};
+    if (sc.idleAt && Math.abs(t - sc.idleAt[0]) < dt / 2) ctl.setIdle(sc.idleAt[1]);
+    heading += (ex.yawRate ?? 0) * dt; px += -Math.sin(heading) * sp * dt; pz += -Math.cos(heading) * sp * dt;
+    ctl.update(dt, { speed: sp, ...ex });
+    m.group.position.set(px, 0, pz); m.group.rotation.y = heading;
+    if (f === samples[k]) {
+      m.group.updateMatrixWorld(true);
+      const c = new THREE.Vector3(px, 0.82, pz);
+      const d = camMode === 'side' ? [4.4, 0.3, 0] : camMode === '3q' ? [3.0, 0.6, 3.0] : camMode === 'front' ? [0, 0.4, -3.4] : [0.01, 4.2, 0.01];
+      cam.fov = camMode === 'top' ? 30 : 36; cam.aspect = tile / th; cam.updateProjectionMatrix();
+      cam.position.set(px + d[0], d[1] + 0.82, pz + d[2]);   // the camera keeps its place relative to the ground path, so a turn is seen against the ground
+      cam.lookAt(c);
+      renderer.setViewport(k * tile, 0, tile, th); renderer.setScissor(k * tile, 0, tile, th);
+      renderer.render(scene, cam);
+      log.push(+t.toFixed(2)); k++;
+    }
+  }
+  ANIM = { action: params.get('action'), times: log };
+}
+
+// CLOTHES seat: view=look&ids=a,b,c&body=slim,avg,heavy&yaw=0 : each id once per body type (rows), camera by cam= or default full-length
+if (view === 'look') {
+  const ids = (params.get('ids') ?? 'ba-hoodie-fade').split(','), bodies = (params.get('body') ?? '').split(',').filter(Boolean), yaw = Number(params.get('yaw') ?? 0);
+  const rows = bodies.length ? bodies : [''];
+  rows.forEach((b, r) => {
+    const list = ids.map((id) => {
+      if (!b) return id;
+      const base = SPECS[pedVariantIndex(id)], sp = { ...base, body: b, id: `${base.id}~${b}` }; registerSpec(sp); return sp.id;
+    });
+    place(list, r, Number(params.get('sp') ?? 1.1), yaw);
+  });
+  cam.position.set(0, Number(params.get('cy') ?? 1.1), Number(params.get('d') ?? 4.6)); look.set(0, Number(params.get('ly') ?? 0.92), -0.8 * (rows.length - 1) * 0.5); cam.fov = Number(params.get('fov') ?? 34);
+}
+
+// CLOTHES: view=bakeprobe&v=id : which triangles of the person land on near-black texels of the baked map (and what is wrong with them)
+if (view === 'bakeprobe') {
+  let cap = null; globalThis.__pedBakeHook = (b) => { cap = b; };
+  const v = pedVariantIndex(params.get('v') ?? 'wh-office'); const m = buildPedModel(materials, new Rng(v + 1), { variant: v });
+  let img = null; m.group.traverse((o) => { if (o.isMesh && !img) img = o.material.map?.image; });
+  const c = document.createElement('canvas'); c.width = c.height = img.width; const g = c.getContext('2d'); g.drawImage(img, 0, 0); const S = img.width, data = g.getImageData(0, 0, S, S).data;
+  const bad = []; let nanN = 0, lowN = 0;
+  const nrmLen = (i) => Math.hypot(cap.normal[i*3], cap.normal[i*3+1], cap.normal[i*3+2]);
+  for (let i = 0; i < cap.position.length / 3; i++) { const l = nrmLen(i); if (!isFinite(l)) nanN++; else if (l < 0.5) lowN++; }
+  for (let t = 0; t < cap.index.length; t += 3) {
+    const ii = [cap.index[t], cap.index[t+1], cap.index[t+2]];
+    const u = ii.reduce((a, q) => a + cap.uv[q*2], 0) / 3, vv = ii.reduce((a, q) => a + cap.uv[q*2+1], 0) / 3;
+    const px = Math.floor(u * S), py = Math.floor((1 - vv) * S), o = (py * S + px) * 4;
+    if (data[o] + data[o+1] + data[o+2] < 40) {
+      const P = ii.map((q) => [cap.position[q*3], cap.position[q*3+1], cap.position[q*3+2]].map((x) => +x.toFixed(3)));
+      const N = ii.map((q) => [cap.normal[q*3], cap.normal[q*3+1], cap.normal[q*3+2]].map((x) => +x.toFixed(2)));
+      const W = ii.map((q) => [0,1,2,3].map((k) => cap.joints[q*4+k] + ':' + cap.weights[q*4+k].toFixed(2)).join(' '));
+      bad.push({ t: t / 3, uv: [+(u*512).toFixed(0), +(vv*512).toFixed(0)], P, N, W });
+    }
+  }
+  const sh = makeShader(cap), px = new Px(); const probes = [];
+  for (const bt of bad.slice(0, 5)) {
+    const t = bt.t * 3, ii = [cap.index[t], cap.index[t+1], cap.index[t+2]], av = (f) => ii.reduce((a, q) => a + f(q), 0) / 3;
+    const wj = (set) => av((q) => { let w = 0; for (let k = 0; k < 4; k++) if (set.includes(cap.joints[q*4+k])) w += cap.weights[q*4+k]; return w; });
+    sh.shade(av((q) => cap.position[q*3]), av((q) => cap.position[q*3+1]), av((q) => cap.position[q*3+2]), av((q) => cap.normal[q*3]), av((q) => cap.normal[q*3+1]), av((q) => cap.normal[q*3+2]), wj([3]), wj([1,2]), wj([4,5,6,7]), wj([8,9,10,11]), 7, px);
+    probes.push([px.r, px.g, px.b].map((x) => +x.toFixed(1)));
+  }
+  window.__uvstat = { total: cap.index.length / 3, nanN, lowN, nbad: bad.length, probes };
+}
+if (params.get('unlit') === '1') scene.traverse((o) => { if (o.isMesh && o !== ground && o.material?.map) o.material = new THREE.MeshBasicMaterial({ map: o.material.map }); });
+if (params.get('cam')) { const c = params.get('cam').split(',').map(Number); cam.position.set(c[0], c[1], c[2]); look.set(c[3], c[4], c[5]); if (c[6]) cam.fov = c[6]; }
+if (SIL) { scene.background = new THREE.Color(0xffffff); scene.environment = null; ground.visible = false; scene.traverse((o) => { if (o.isMesh && o !== ground) o.material = new THREE.MeshBasicMaterial({ color: 0x000000 }); }); }
+if (view !== 'anim') { cam.updateProjectionMatrix(); cam.lookAt(look); for (let i = 0; i < 3; i++) renderer.render(scene, cam); }
+window.__ready = { bakeMs: Math.round(bakeStats.ms), bakes: bakeStats.count, buildMs: Math.round(buildMs), perPerson: TRIS, tris: renderer.info.render.triangles, calls: renderer.info.render.calls, bodies: BODIES, anim: ANIM, uvstat: window.__uvstat };
+</script></body></html>

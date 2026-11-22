@@ -1,0 +1,232 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>body review</title>
+<style>html,body{margin:0;background:#222;overflow:hidden}#gl{display:none}</style></head>
+<body><canvas id="out"></canvas><script type="module">
+// REVIEW harness of the body team: the same cameras every time. People are built and posed the way the game does it
+// (AnimController with a person's own gait, then Pedestrian.reactionPose's arm splay), drawn in late-afternoon light, and overlaid
+// with a 1.75 m scale bar and head-height ticks. Dev server only: vite --port N, then /scripts/body-review.html?view=<view>
+// views: lineup (12 people, stand and walk, front and side), strips (one adult walk / jog / sprint, 8 frames), startstop,
+//        near3 (6 people at 3 m), crowd20 (20 people at 20 m), hands (arm angle close look)
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Rng } from '@/core/Rng';
+import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { PED_SPECS, pickPedVariant } from '@/entities/models/pedBody';
+import { pickWardrobeVariant } from '@/textures/painters/pedWardrobe';
+import { buildPerson, loadPeople, parseShape } from '@/entities/models/pedMesh';
+import { pedVariantIndex } from '@/textures/painters/ped';
+import { setPeopleMode } from '@/textures/painters/pedMode';
+import { bodyTypeId } from '@/entities/models/pedBodyTypes';
+import { AnimController } from '@/entities/anim/controller';
+import { clipLibrary } from '@/entities/anim/library';
+import { makeGait, PLAYER_GAIT } from '@/entities/anim/gait';
+import { cycleFrequency, chainBlend } from '@/entities/anim/locomotion';
+await loadPeople();
+setPeopleMode('skin');
+const lib = clipLibrary();
+await lib.loadStreet('/anim/street.bin', fetch);
+
+const P = new URLSearchParams(location.search);
+const view = P.get('view') ?? 'lineup';
+const gl = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+gl.outputColorSpace = THREE.SRGBColorSpace;
+gl.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xb9b3a6);                       // late-afternoon haze
+const pm = new THREE.PMREMGenerator(gl);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.45;
+const sun = new THREE.DirectionalLight(0xffcf9c, 3.0); sun.position.set(-7, 6, 8); scene.add(sun);   // low warm sun, from the camera's left
+scene.add(new THREE.HemisphereLight(0xa9bcd6, 0x5a4a3a, 0.65));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshStandardMaterial({ color: 0x55524d, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const materials = new MaterialLibrary(new Rng(7));
+materials.carPaintDetail();
+materials.setEnvironment(scene.environment);
+
+const out = document.getElementById('out'); const ctx = out.getContext('2d');
+const info = { view, people: {} };
+
+// ---- people
+const TYPE_ORDER = ['slim', 'athletic', 'heavy', 'tall-thin', 'short-stocky', 'broad', 'pear', 'petite', 'elder', 'teen', 'avg', 'kid'];
+const byType = {}; for (const sp of PED_SPECS) if (sp.role === 'civilian') { const t = bodyTypeId(sp); (byType[t] ??= []).push(sp.id); }
+// 12 people: one per body type, men and women alternating where a type has both
+const LINE12 = TYPE_ORDER.map((t, i) => (byType[t] ?? [])[i % 2] ?? (byType[t] ?? [])[0]).filter(Boolean);
+const ageBand = (sp) => (sp.age === 'kid' ? 'kid' : sp.age === 'teen' ? 'teen' : sp.age === 'old' ? 'old' : 'adult');
+const shapeCache = new Map();
+async function shapeOf(name) {
+  if (!shapeCache.has(name)) { const b = await (await fetch(`/src/assets/models/people/${name}.glb`)).arrayBuffer(); shapeCache.set(name, await parseShape(b)); }
+  return shapeCache.get(name);
+}
+async function make(id, seedOff = 0) {
+  const v = pedVariantIndex(id), m = buildPerson(materials, new Rng(v + 1 + seedOff), { variant: v });
+  m.id = id;
+  m.group.updateMatrixWorld(true);
+  const sh = await shapeOf(m.group.userData.pedShape), lm = sh.landmarks, gs = m.group.scale.y, hs = m.head.scale.y;
+  const hy = m.head.getWorldPosition(new THREE.Vector3()).y;           // head joint, world, rest pose
+  const chin = hy + (lm.chinY - sh.rig.head[1]) * hs * gs, crown = hy + (lm.crownY - sh.rig.head[1]) * hs * gs;
+  m.headLen = crown - chin; m.stature = crown;
+  m.gait = makeGait(v * 7 + 3, ageBand(m.spec));
+  m.ctl = new AnimController(m, m.gait, lib);
+  scene.add(m.group);
+  return m;
+}
+const splayOf = (m) => m.group.userData.splay ?? 0;
+function applySplay(m) { const sp = splayOf(m); m.arms[0].rotation.z = -sp; m.arms[1].rotation.z = sp; }   // Pedestrian.reactionPose does this after the clip
+function stand(m, secs = 1.5) { m.ctl.setIdle(null, false); for (let k = 0; k < secs * 30; k++) m.ctl.update(1 / 30, { speed: 0 }); applySplay(m); }
+function walk(m, speed = 1.3, secs = 2.0) { for (let k = 0; k < secs * 30; k++) m.ctl.update(1 / 30, { speed }); applySplay(m); }
+function forceHi(m) { m.group.traverse((o) => { if (o.isLOD) { o.update = () => {}; o.levels.forEach((l, q) => { l.object.visible = q === 0; }); } }); }
+
+// ---- sheet drawing
+const font = (px, bold) => `${bold ? 'bold ' : ''}${px}px sans-serif`;
+function label(x, y, text, px = 14, col = '#fff', bg = 'rgba(0,0,0,0.55)') {
+  ctx.font = font(px, true); const w = ctx.measureText(text).width + 8; ctx.fillStyle = bg; ctx.fillRect(x, y - px, w, px + 6); ctx.fillStyle = col; ctx.fillText(text, x + 4, y);
+}
+/** renders `cam` into a tile of the output canvas at (ox, oy); returns a world to tile projector */
+function tile(cam, ox, oy, w, h) {
+  gl.setSize(w, h, false);
+  for (let i = 0; i < 2; i++) gl.render(scene, cam);
+  ctx.drawImage(gl.domElement, ox, oy);
+  cam.updateMatrixWorld(true);
+  return (p) => { const v = new THREE.Vector3(p[0], p[1], p[2]).project(cam); return [ox + (v.x * 0.5 + 0.5) * w, oy + (0.5 - v.y * 0.5) * h]; };
+}
+/** scale bar (1.75 m, a tick every 0.25 m) and head-height ticks (numbered from the ground) beside a person at world x */
+function rulers(proj, x, z, m) {
+  const bar = (dx) => { const [bx, by0] = proj([x + dx, 0, z]), [, by1] = proj([x + dx, 1.75, z]); return [bx, by0, by1]; };
+  const [bx, y0, y1] = bar(0.5);
+  ctx.strokeStyle = '#ffe14d'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bx, y0); ctx.lineTo(bx, y1); ctx.stroke();
+  for (let k = 0; k <= 7; k++) { const [tx, ty] = proj([x + 0.5, k * 0.25, z]); ctx.beginPath(); ctx.moveTo(tx - 4, ty); ctx.lineTo(tx + 4, ty); ctx.stroke(); }
+  const [, ty] = proj([x + 0.5, 1.75, z]); ctx.fillStyle = '#ffe14d'; ctx.font = font(11, true); ctx.fillText('1.75', bx + 5, ty + 4);
+  // head-height ticks on the left
+  const [lx] = proj([x - 0.5, 0, z]);
+  ctx.strokeStyle = '#7fe0ff'; ctx.fillStyle = '#7fe0ff'; ctx.lineWidth = 1.5; ctx.font = font(11, true);
+  for (let k = 0; k * m.headLen <= m.stature + 0.05; k++) { const [, yy] = proj([x - 0.5, k * m.headLen, z]); ctx.beginPath(); ctx.moveTo(lx - 7, yy); ctx.lineTo(lx + 7, yy); ctx.stroke(); ctx.fillText(String(k), lx - 20, yy + 4); }
+  const [, ys] = proj([x - 0.5, m.stature, z]); ctx.beginPath(); ctx.moveTo(lx - 7, ys); ctx.lineTo(lx + 7, ys); ctx.stroke();
+}
+function orthoRow(span, w, h, camZ = 14) {
+  const aspect = w / h, halfW = span / 2, vh = (halfW * 2) / aspect;
+  const cam = new THREE.OrthographicCamera(-halfW, halfW, vh - 1.15, -1.15, 0.1, 100);
+  cam.position.set(0, 1, camZ); cam.lookAt(0, 1, 0); cam.up.set(0, 1, 0); cam.updateProjectionMatrix();
+  return cam;
+}
+const FRONT = Math.PI, SIDE = -Math.PI / 2;      // model faces -z; front = toward the camera at +z; side = facing screen-right
+
+if (view === 'lineup') {
+  const N = LINE12.length, SP = 1.0, W = 2400, H = 560, span = N * SP + 0.6;
+  const people = []; for (let i = 0; i < N; i++) people.push(await make(LINE12[i]));
+  const pose = P.get('pose') ?? 'stand';
+  people.forEach((m, i) => { if (pose === 'walk') walk(m, 1.3 + (i % 3) * 0.1, 2.0 + i * 0.07); else stand(m); forceHi(m); });
+  out.width = W; out.height = H * 2;
+  const cam = orthoRow(span, W, H);
+  for (const [r, yaw, name] of [[0, FRONT, 'FRONT'], [1, SIDE, 'SIDE']]) {
+    people.forEach((m, i) => { m.group.position.set((i - (N - 1) / 2) * SP, 0, 0); m.group.rotation.y = yaw; });
+    const proj = tile(cam, 0, r * H, W, H);
+    people.forEach((m, i) => { const x = (i - (N - 1) / 2) * SP; rulers(proj, x, 0, m); const [lx, ly] = proj([x - 0.45, -0.12, 0]); label(lx, ly + 2, `${m.id.slice(0, 16)} ${m.stature.toFixed(2)}m ${(m.stature / m.headLen).toFixed(1)}h`, 11); });
+    label(8, r * H + 20, `${pose.toUpperCase()} ${name}   yellow: 1.75 m bar (tick 0.25 m)   cyan: head heights from the ground`, 15);
+  }
+  people.forEach((m) => { info.people[m.id] = { stature: +m.stature.toFixed(3), headLen: +m.headLen.toFixed(3), tris: m.triangles }; });
+}
+
+if (view === 'strips') {
+  // one adult, one cycle in 8 frames, side view, at walk / jog / sprint. The same person every time (the one the anim sheets use).
+  const N = 8, SP = 1.15, W = 1760, H = 460, span = N * SP + 0.4, id = P.get('id') ?? 'ba-hoodie-fade';
+  const speeds = [['WALK 1.3 m/s', 1.3], ['JOG 3.0 m/s', 3.0], ['SPRINT 6.5 m/s', 6.5]];
+  const chain = [lib.get('walk'), lib.get('jog'), lib.get('run')];
+  out.width = W; out.height = H * speeds.length;
+  const cam = orthoRow(span, W, H);
+  for (let r = 0; r < speeds.length; r++) {
+    const [name, sp] = speeds[r], f = cycleFrequency(sp, chain, chainBlend(sp, chain), 1), models = [];
+    for (let i = 0; i < N; i++) {
+      const m = await make(id); m.ctl = new AnimController(m, PLAYER_GAIT, lib);
+      m.ctl.update((i / N) / f + 1e-6, { speed: sp }); applySplay(m); forceHi(m);
+      m.group.position.set((i - (N - 1) / 2) * SP, 0, 0); m.group.rotation.y = SIDE; models.push(m);
+    }
+    const proj = tile(cam, 0, r * H, W, H);
+    models.forEach((m, i) => { const x = (i - (N - 1) / 2) * SP; const [lx, ly] = proj([x - 0.2, -0.1, 0]); label(lx, ly, `${i + 1}/${N}`, 12); });
+    label(8, r * H + 20, name + `  (cycle ${(1 / f).toFixed(2)} s, hands splay ${splayOf(models[0]).toFixed(2)} rad)`, 15);
+    const [gx0, gy0] = proj([-span / 2, 0, 0]), [gx1] = proj([span / 2, 0, 0]);
+    ctx.strokeStyle = '#ffe14d'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(gx0, gy0); ctx.lineTo(gx1, gy0); ctx.stroke();
+    models.forEach((m) => scene.remove(m.group));
+  }
+}
+
+if (view === 'startstop') {
+  // the player's own speed curve (Player.ts): from rest to a jog, and from a jog to a stop. 8 snapshots each, equally spaced in time.
+  const N = 8, SP = 1.15, W = 1760, H = 460, span = N * SP + 0.4, id = P.get('id') ?? 'ba-hoodie-fade';
+  const rows = [
+    ['START: rest to jog (jog pressed at t=0.3 s)', (t) => (t < 0.3 ? 0 : 3.0), 0.3, 0.2],
+    ['STOP: jog to rest (released at t=0 s)', (t) => (t < 0.0 ? 3.0 : 0), 0.0, 0.12],
+  ];
+  const BONES = ['rig', 'hips', 'torso', 'head', 'arms0', 'elbows0', 'arms1', 'elbows1', 'legs0', 'knees0', 'legs1', 'knees1', 'a0', 'a1'];
+  const list = (m) => [m.rig, m.hips, m.torso, m.head, m.arms[0], m.elbows[0], m.arms[1], m.elbows[1], m.legs[0], m.knees[0], m.legs[1], m.knees[1], m.ankles[0], m.ankles[1]];
+  out.width = W; out.height = H * rows.length;
+  const cam = orthoRow(span, W, H);
+  for (let r = 0; r < rows.length; r++) {
+    const [name, target, t0, dtSnap] = rows[r];
+    const live = await make(id); live.ctl = new AnimController(live, PLAYER_GAIT, lib);
+    let v = r === 1 ? 3.0 : 0; const dt = 1 / 60, snaps = [];
+    if (r === 1) { for (let k = 0; k < 180; k++) live.ctl.update(dt, { speed: 3.0 }); }     // running steadily first
+    else { for (let k = 0; k < 90; k++) live.ctl.update(dt, { speed: 0 }); }
+    let t = 0, nextSnap = r === 0 ? 0.0 : 0.0, k = 0; const times = [];
+    const startT = r === 0 ? 0.3 - 0.0 : 0.0;
+    // r0: snapshots from t=0.2 s (just before the press) every dtSnap; r1: from the release every dtSnap
+    for (let step = 0; step < 6 * 60 && snaps.length < N; step++) {
+      t = step * dt;
+      const want = target(t), frac = Math.min(1, v / 6.5), a = want > v ? 9 + (4.6 - 9) * frac : 12 + (17 - 12) * frac;
+      v += Math.sign(want - v) * Math.min(Math.abs(want - v), a * dt);
+      live.ctl.update(dt, { speed: v });
+      const first = r === 0 ? 0.2 : 0.0;
+      if (t >= first + snaps.length * dtSnap - 1e-9) { applySplay(live); snaps.push(list(live).map((b) => [b.position.clone(), b.quaternion.clone(), b.scale.clone()])); times.push([t, v]); }
+    }
+    const shown = [];
+    for (let i = 0; i < snaps.length; i++) {
+      const m = await make(id); forceHi(m);
+      list(m).forEach((b, q) => { b.position.copy(snaps[i][q][0]); b.quaternion.copy(snaps[i][q][1]); b.scale.copy(snaps[i][q][2]); });
+      m.group.position.set((i - (N - 1) / 2) * SP, 0, 0); m.group.rotation.y = SIDE; shown.push(m);
+    }
+    live.group.visible = false;
+    const proj = tile(cam, 0, r * H, W, H);
+    shown.forEach((m, i) => { const x = (i - (N - 1) / 2) * SP; const [lx, ly] = proj([x - 0.45, -0.1, 0]); label(lx, ly, `t ${times[i][0].toFixed(2)}s  v ${times[i][1].toFixed(1)}`, 12); });
+    label(8, r * H + 20, name, 15);
+    const [gx0, gy0] = proj([-span / 2, 0, 0]), [gx1] = proj([span / 2, 0, 0]);
+    ctx.strokeStyle = '#ffe14d'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(gx0, gy0); ctx.lineTo(gx1, gy0); ctx.stroke();
+    shown.forEach((m) => scene.remove(m.group)); scene.remove(live.group);
+  }
+}
+
+if (view === 'near3') {
+  // six people, each from 3 m, the foot-camera field of view (64 degrees, 16:9), camera at chest height; standing and walking alternate
+  const ids = (P.get('ids') ?? '').split(',').filter(Boolean), pick = ids.length ? ids : ['ba-hoodie-fade', 'wh-office', 'ea-nurse', 'wh-elder', 'la-construction', 'me-hijabi'];
+  const TW = 640, TH = 360; out.width = TW * 2; out.height = TH * 3;
+  const cam = new THREE.PerspectiveCamera(64, TW / TH, 0.1, 200);
+  for (let i = 0; i < 6; i++) {
+    const m = await make(pick[i]);
+    if (i % 2) walk(m, 1.3, 2 + i * 0.1); else stand(m);
+    const ox = (i % 2) * TW, oy = Math.floor(i / 2) * TH, cx = i * 30;
+    m.group.position.set(cx, 0, 0); m.group.rotation.y = FRONT + (i % 2 ? 0.55 : -0.35);
+    cam.position.set(cx + 0.6, 1.25, 3.0); cam.lookAt(cx, 1.0, 0); cam.updateMatrixWorld(true);
+    tile(cam, ox, oy, TW, TH);
+    label(ox + 6, oy + 18, `${m.id} 3 m ${i % 2 ? 'walking' : 'standing'}`, 13);
+    info.people[m.id] = { tris: m.triangles };
+  }
+}
+
+if (view === 'crowd20') {
+  // 20 people as the street draws them (wardrobe pick), 14 to 26 m from the camera, half walking, half standing
+  const SEED = Number(P.get('seed') ?? 1), ids = [];
+  for (let i = 0; i < 20; i++) { const rng = new Rng(Rng.hash(`ped-${SEED}-${i}`)); ids.push(PED_SPECS[pickWardrobeVariant(rng, pickPedVariant(rng), false)].id); }
+  const W = 1280, H = 720; out.width = W; out.height = H;
+  const cam = new THREE.PerspectiveCamera(64, W / H, 0.1, 300); cam.position.set(0, 1.7, 0); cam.lookAt(0, 1.2, -20);
+  const r = new Rng(31);
+  for (let i = 0; i < 20; i++) {
+    const m = await make(ids[i]); if (i % 2) walk(m, 1.3, 2 + i * 0.1); else stand(m);
+    const z = -(14 + (i % 5) * 3), x = ((i * 7) % 20 - 9.5) * (-z / 20) * 1.1;
+    m.group.position.set(x, 0, z); m.group.rotation.y = r.range(-1, 1) + (i % 2 ? SIDE : FRONT);
+  }
+  cam.updateMatrixWorld(true); tile(cam, 0, 0, W, H);
+  label(6, 18, 'crowd of 20, 14 to 26 m, foot-camera fov', 14);
+}
+
+info.tris = gl.info.render.triangles; info.calls = gl.info.render.calls;
+window.__ready = info;
+</script></body></html>

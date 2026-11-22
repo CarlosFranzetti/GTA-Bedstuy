@@ -1,0 +1,62 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>body line-up</title>
+<style>html,body{margin:0;background:#c9ced4;overflow:hidden}</style></head>
+<body><script type="module">
+// BODY seat harness: line-ups of body types, front or side, orthographic, with a metre scale and head-height ticks.
+// ?sex=m|f &age=adult|old|teen|kid &types=avg,slim,... &yaw=0 (front) | 1.5708 (side) &naked=1 (skin only, grey) &seed=3 &w=1400 &h=700
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Rng } from '@/core/Rng';
+import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { composeSpec } from '@/textures/painters/pedWardrobe';
+import { registerSpec } from '@/textures/painters/ped';
+import { buildPerson, loadPeople, dressLod, shapeFor, peopleShapes } from '@/entities/models/pedMesh';
+import * as PM from '@/entities/models/pedMesh';
+import { setPeopleMode } from '@/textures/painters/pedMode';
+await loadPeople();
+setPeopleMode('skin');
+const q = new URLSearchParams(location.search);
+const W = Number(q.get('w') ?? 1400), H = Number(q.get('h') ?? 720);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xc9ced4);
+const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.55;
+const sun = new THREE.DirectionalLight(0xfff2dc, 2.2); sun.position.set(-4, 6, 8); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x6a5a48, 0.6));
+const materials = new MaterialLibrary(new Rng(7)); materials.carPaintDetail(); materials.setEnvironment(scene.environment);
+const sex = q.get('sex') ?? 'm', age = q.get('age') ?? 'adult', yaw = Number(q.get('yaw') ?? 0), naked = q.get('naked') === '1', seed = Number(q.get('seed') ?? 3);
+const types = (q.get('types') ?? 'avg,slim,athletic,heavy,tall-thin,short-stocky,broad,pear').split(',');
+const sp = 0.95, info = [];
+const grey = new THREE.MeshStandardMaterial({ color: 0xb8a592, roughness: 0.8 });
+types.forEach((t, i) => {
+  const grp = (q.get('group') ?? 'wh');
+  const spec = composeSpec(seed + i * 7, { group: grp, sex, age }, { look: age === 'old' ? 'elder' : 'street' });
+  spec.body = t === 'auto' ? undefined : t; spec.id = `${spec.id}-bl${i}`; registerSpec(spec);
+  const v = registerSpec(spec);
+  const m = buildPerson(materials, new Rng(seed + i), { variant: v });
+  m.group.position.set((i - (types.length - 1) / 2) * sp, 0, 0); m.group.rotation.y = Math.PI + yaw;
+  { const s = m.group.userData.splay ?? 0; m.arms[0].rotation.z = -s; m.arms[1].rotation.z = s; }
+  if (naked) {
+    const shape = PM.shapeByName(m.group.userData.pedShape), L = dressLod(shape, spec, shape.lods.hi, false);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(L.position, 3)); g.setAttribute('normal', new THREE.BufferAttribute(L.normal, 3));
+    g.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(L.joints, 4)); g.setAttribute('skinWeight', new THREE.BufferAttribute(L.weights, 4)); g.setIndex(new THREE.BufferAttribute(L.index, 1));
+    const lod = m.group.getObjectByName('pedLod'); lod.update = () => {};
+    lod.levels.forEach((l, k) => { l.object.visible = k === 0; if (k === 0) { l.object.geometry = g; l.object.material = grey; } });
+  }
+  scene.add(m.group); info.push({ id: spec.id, tris: m.triangles });
+});
+// ruler: a metre scale at the left, ticks every 10 cm, and head-height lines for a 7.5-head figure of 1.75 m (every 0.2333 m)
+const lineMat = new THREE.LineBasicMaterial({ color: 0x223344 });
+const pts = []; const x0 = -(types.length / 2) * sp - 0.35;
+for (let k = 0; k <= 20; k++) { const y = k * 0.1, len = k % 5 === 0 ? 0.16 : 0.07; pts.push(x0, y, 0, x0 + len, y, 0); }
+pts.push(x0, 0, 0, x0, 2, 0);
+const ruler = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)), lineMat); scene.add(ruler);
+const hp = []; const xr = (types.length / 2) * sp + 0.2; for (let k = 0; k <= 7; k++) { const y = k * 1.75 / 7.5; hp.push(x0, y, -0.5, xr, y, -0.5); }
+scene.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(hp, 3)), new THREE.LineBasicMaterial({ color: 0xaa5533, transparent: true, opacity: 0.55 })));
+const span = types.length * sp + 0.9, camH = Math.max(2.1, span * H / W);
+const cam = new THREE.OrthographicCamera(-span / 2, span / 2, camH / 2 + 0.95 - 0.05, -camH / 2 + 0.95 - 0.05, 0.1, 50); cam.position.set(0, 0.95, 10); cam.lookAt(0, 0.95, 0);
+for (let i = 0; i < 3; i++) renderer.render(scene, cam);
+window.__ready = { people: info, tris: renderer.info.render.triangles };
+</script></body></html>
