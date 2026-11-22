@@ -327,6 +327,8 @@ export class Menu {
     this.root.setAttribute('aria-modal', 'true');
     this.root.setAttribute('aria-labelledby', 'menu-title');
     this.root.setAttribute('data-ui-modal', '');
+    // Right click goes back one step, like Esc (the PanelManager does this first when it is attached).
+    this.root.addEventListener('contextmenu', (e) => { e.preventDefault(); if (this.opened) this.back(); });
     this.shell = this.el('div', 'gp-shell');
 
     const head = this.el('header', 'gp-head');
@@ -457,7 +459,9 @@ export class Menu {
     parent.appendChild(this.fpsEl);
 
     this.buildSpecs();
+    this.buildGroups();
     this.optList.setRows(this.settingsRows());
+    this.syncChips();
     this.radioList.setRows(this.radioRows());
     this.statList.setRows([]);
     this.missionList.setRows([]);
@@ -532,10 +536,8 @@ export class Menu {
   get isOpen(): boolean { return this.opened; }
   get settings(): MenuSettings { return { ...this.state }; }
   get tabName(): MenuTab { return this.tabId; }
-  /** Settings changed with the arrows but not applied yet. */
-  get pendingCount(): number { return this.pending.size; }
-  /** 'list' while the option rows have the focus, 'acts' while APPLY / DEFAULTS / BACK do. */
-  get focusZone(): 'list' | 'acts' { return this.zone; }
+  /** 'chips' while the group chips have the focus, 'list' while the rows do. */
+  get focusZone(): 'list' | 'chips' { return this.onChips ? 'chips' : 'list'; }
 
   open(): void {
     if (this.opened) return;
@@ -767,7 +769,7 @@ export class Menu {
   }
 
   /** The panel manager leaves Esc to the menu while a key is being rebound. */
-  get keepsEscape(): boolean { return this.opened && this.tabId === 'controls' && this.controlsPane.capturing; }
+  get keepsEscape(): boolean { return this.opened && this.tabId === 'controls' && !!this.controlsPane.capturing; }
 
   private onWindowKey(e: KeyboardEvent): void {
     if (e.code === 'Escape' && !e.repeat) { e.preventDefault(); if (this.opened) this.back(); else this.open(); return; }
@@ -902,11 +904,6 @@ export class Menu {
     if (this.opened && this.tabId === 'stats') this.fillStats(true);
   }
 
-  private syncBack(): void {
-    this.backBtn.setAttribute('aria-label', 'Back');
-    this.backBtn.dataset.mode = 'resume';
-  }
-
   private syncFoot(): void {
     const m = this.inputMode;
     const lists = this.activeList() !== null;
@@ -916,13 +913,13 @@ export class Menu {
       if (lists) prompts.push(['↑↓', 'Select']);
       if (lists && opts && this.tabId !== 'missions' && this.tabId !== 'stats') prompts.push(['←→', 'Change']);
       if (lists) prompts.push(['Enter', 'Accept']);
-      prompts.push(['Q E', 'Tabs'], ['Esc', 'Back']);
+      prompts.push(['Q E', 'Tabs'], ['Esc', 'Back'], ['Right click', 'Back']);
     } else if (m === 'gamepad') {
       if (lists) prompts.push(['D-pad', 'Select']);
       if (lists) prompts.push(['A', 'Accept']);
       prompts.push(['B', 'Back'], ['LB RB', 'Tabs'], ['Start', 'Resume']);
     } else {
-      prompts.push(['Tap', 'Select'], ['‹', 'Back']);
+      prompts.push(['Tap', 'Select']);
     }
     this.footEl.textContent = '';
     for (const [k, t] of prompts) {
@@ -934,6 +931,7 @@ export class Menu {
     }
     const hint = this.el('span', 'gp-foot-fill');
     this.footEl.insertBefore(hint, this.footEl.firstChild);
+    this.footEl.appendChild(this.footBack);
   }
 
   /* ---------- settings: specs ---------- */
@@ -981,7 +979,7 @@ export class Menu {
       }) as RowSpec['set'],
     });
     S.set('map', {
-      id: 'map', label: 'Map', kind: 'action',
+      id: 'map', label: 'Which map', kind: 'action',
       desc: 'Real streets is the Bedford-Stuyvesant street map. Classic grid is the older stylised map. Each map keeps its own saves. Press twice to reload on the other map.',
       visible: () => this.mapSwitchInfo().available,
       text: () => `${this.mapSwitchInfo().current === 'real' ? 'Real streets' : 'Classic grid'}${this.mapArmed ? ' · PRESS AGAIN for ' + (this.mapSwitchInfo().current === 'real' ? 'Classic grid' : 'Real streets') : ' ›'}`,
@@ -1016,9 +1014,17 @@ export class Menu {
       S.set(id, { id, label: MIX_LABELS[k], kind: 'slider', live: !!mx, min: 0, max: 100, step: 5, def: () => 100, desc: MIX_DESC[k], fmt: (v) => (k === 'engine' && v === 0 ? 'Off' : `${v}%`),
         visible: legacy || mx ? undefined : () => false,
         get: () => Math.round((mx ? mx.get(k) : legacy ? legacy.get() : 1) * 100),
-        set: ((v: number) => { if (mx) mx.set(k, v / 100); else legacy?.set(v / 100); }) as RowSpec['set'] });
+        set: ((v: number) => { if (mx) { mx.set(k, v / 100); if (k === 'engine' && v > 0) this.rememberEngine(v / 100); } else legacy?.set(v / 100); }) as RowSpec['set'] });
     };
     mixRow('master', 'master', { get: () => this.state.master, set: (v) => this.setMaster(v) });
+    // Engine sound On / Off (22 Nov, the owner: "make sure the engine on off option is in settings"). Off is the slider's 0 (no engine voice is
+    // created, AUDIOFIX); On puts the slider back where it was before it went Off (100% = the engine bus at its default 0.55 on first use).
+    S.set('engineon', {
+      id: 'engineon', label: 'Engine sound', kind: 'toggle', visible: mx ? undefined : () => false,
+      desc: 'On or Off for every engine, yours and the traffic\u2019s. Off removes engine sound altogether (tyres, horns, crashes and doors stay). On brings the Engine Sound slider back to where you left it.',
+      get: () => (mx ? mx.get('engine') > 0 : true), def: () => true,
+      set: ((v: boolean) => { this.setEngineOn(v); }) as RowSpec['set'],
+    });
     mixRow('radiovol', 'radio', { get: () => this.state.radio, set: (v) => this.setRadio(v) });
     mixRow('sfxvol', 'sfx'); mixRow('enginevol', 'engine'); mixRow('voicevol', 'voices'); mixRow('ambvol', 'ambience');
     S.set('radiolib', { id: 'radiolib', label: 'Radio library', kind: 'action', desc: 'Opens the radio library: tracks, stations and the playlist.', press: () => { this.cb.onRadioLibrary?.(); } });
@@ -1036,6 +1042,7 @@ export class Menu {
       text: () => this.opts.hdVoices?.label?.() ?? '',
     });
     S.set('station', { id: 'station', label: 'Tuned to', kind: 'info', desc: `The station playing now. In a vehicle press ${glyphFor('radioNext', { mode: 'keyboard' })} for the next one and ${glyphFor('radioPrev', { mode: 'keyboard' })} for the previous (the d-pad left and right on a pad).`, text: () => this.opts.info?.().station || 'Off' });
+    S.set('keys', { id: 'keys', label: 'Keys and buttons', kind: 'action', desc: 'Opens the Controls tab: see and change every key, mouse button and pad button.', press: () => { this.showTab('controls'); } });
     S.set('invert', { id: 'invert', label: 'Invert Look Y', kind: 'toggle', def: () => false, desc: 'Inverts vertical look for the mouse, the right stick and touch drag.', get: () => this.state.invertY, set: ((v: boolean) => this.setInvertY(v)) as RowSpec['set'] });
     S.set('reset', {
       id: 'reset', label: 'Reset position', kind: 'action',
@@ -1080,44 +1087,78 @@ export class Menu {
     return [S.get('station')!, S.get('radiovol')!, S.get('radiolib')!];
   }
 
-  /** The one scrolling settings list: yellow sub-headers, rows changed with the arrows (held as pending until APPLY). */
-  private settingsRows(): RowSpec[] {
+  /** The settings rows by group. Each group ends with a "Reset to defaults" row that asks once. */
+  private buildGroups(): void {
     const S = this.specs, G = this.gfxRows;
     const g = (...keys: GraphicsKey[]): RowSpec[] => keys.map((k) => G.get(k)!);
-    const sections: Array<[string, RowSpec[]]> = [
-      ['Display', [S.get('windowmode')!, ...g('fpsCap', 'resolution', 'nativeDpr', 'showFps')]],
-      ['Graphics', [S.get('quality')!, S.get('autodetect')!, ...g('shadows', 'drawDistance', 'treeRange', 'crowd', 'traffic', 'aa', 'textures', 'ao', 'bloom', 'dof', 'vignette', 'grain', 'fov')]],
-      ['Audio', [S.get('master')!, S.get('radiovol')!, S.get('sfxvol')!, S.get('enginevol')!, S.get('voicevol')!, S.get('ambvol')!, S.get('hdvoices')!]],
-      ['Controls', [S.get('invert')!]],
-      ['Game', [S.get('install')!, S.get('map')!, S.get('radiolib')!, S.get('reset')!, S.get('credits')!, S.get('quit')!]],
-      ...(this.inputMode === 'touch' ? [['Touch controls', TOUCH_ROWS.map(([k, v]) => ({ id: `c:${k}`, label: k, kind: 'info' as const, desc: `${k}: ${v}`, text: () => v }))] as [string, RowSpec[]]] : []),
-      ['Minimap', MINIMAP_LEGEND.map((item) => ({ id: `l:${item.text}`, label: item.text, kind: 'info' as const, desc: `On the minimap: ${item.text}.`, text: () => '', swatch: { color: item.swatch, shape: item.shape } }))],
+    const touchRows: RowSpec[] = TOUCH_ROWS.map(([k, v]) => ({ id: `c:${k}`, label: k, kind: 'info' as const, desc: `${k}: ${v}`, text: () => v, visible: () => this.inputMode === 'touch' }));
+    const defs: Array<[SettingsGroup, RowSpec[]]> = [
+      ['game', [S.get('install')!, S.get('radiolib')!, S.get('reset')!, S.get('credits')!, S.get('quit')!]],
+      ['controls', [S.get('invert')!, S.get('keys')!, ...touchRows]],
+      ['audio', [S.get('master')!, S.get('radiovol')!, S.get('sfxvol')!, S.get('engineon')!, S.get('enginevol')!, S.get('voicevol')!, S.get('ambvol')!, S.get('hdvoices')!]],
+      ['graphics', [S.get('windowmode')!, S.get('quality')!, S.get('autodetect')!, ...g('fpsCap', 'resolution', 'nativeDpr', 'showFps', 'shadows', 'drawDistance', 'treeRange', 'crowd', 'traffic', 'aa', 'textures', 'ao', 'bloom', 'dof', 'vignette', 'grain', 'fov')]],
+      ['map', [S.get('map')!, ...MINIMAP_LEGEND.map((item) => ({ id: `l:${item.text}`, label: item.text, kind: 'info' as const, desc: `On the minimap: ${item.text}.`, text: () => '', swatch: { color: item.swatch, shape: item.shape } }))]],
     ];
+    for (const [id, rows] of defs) {
+      const resettable = rows.filter((r) => r.def && r.set);
+      this.groupSpecs.set(id, [...rows, ...(resettable.length ? [this.resetRow(id, resettable)] : [])]);
+    }
+  }
+
+  private resetRow(id: SettingsGroup, rows: RowSpec[]): RowSpec {
+    const label = SETTINGS_GROUPS.find((x) => x.id === id)!.label;
+    return {
+      id: `reset:${id}`, label: `Reset ${label} to defaults`, kind: 'action',
+      desc: `Puts every ${label} setting back the way it came. Press once to ask, press again to do it. Back cancels.`,
+      text: () => (this.resetGroupArmed === id ? 'PRESS AGAIN' : '›'),
+      press: () => {
+        if (this.resetGroupArmed !== id) {
+          this.disarmAll(); this.resetGroupArmed = id; this.refreshAll();
+          const w = this.doc.defaultView; if (w) this.resetGroupTimer = w.setTimeout(() => this.disarmAll(), 4000);
+          this.statusEl.textContent = `Press again to reset ${label}`;
+          return;
+        }
+        this.doc.defaultView?.clearTimeout(this.resetGroupTimer); this.resetGroupArmed = null;
+        this.resetRows(rows);
+        this.statusEl.textContent = `${label} reset`;
+        this.refreshAll();
+      },
+    };
+  }
+
+  /** Sets every row to its default (the quality preset first, so the rest sit on the right tier). */
+  private resetRows(rows: readonly RowSpec[]): void {
+    const order = [...rows].sort((a, b) => (a.id === 'quality' ? -2 : a.id === 'autodetect' ? -1 : 0) - (b.id === 'quality' ? -2 : b.id === 'autodetect' ? -1 : 0));
+    for (const r of order) {
+      if (!r.def || !r.set) continue;
+      const want = r.def(), cur = r.get?.();
+      if (want !== cur) r.set(want as never);
+    }
+  }
+
+  /** The one settings list: the rows of the chosen group only. */
+  private settingsRows(): RowSpec[] {
     const out: RowSpec[] = [];
-    for (const [name, rows] of sections) {
-      out.push({ id: `h:${name}`, label: name, kind: 'header' });
-      for (const r of rows) out.push(this.pend(r));
+    for (const [id, rows] of this.groupSpecs) {
+      for (const r of rows) {
+        const vis = r.visible;
+        out.push({ ...r, visible: () => id === this.group && (vis ? vis() : true) });
+      }
     }
     return out;
   }
 
-  /** Wraps an editable row: reads show the pending value, writes only go to the pending map. */
-  private pend(spec: RowSpec): RowSpec {
-    if (spec.kind !== 'seg' && spec.kind !== 'slider' && spec.kind !== 'toggle') return spec;
-    this.orig.set(spec.id, spec);
-    const id = spec.id;
-    if (spec.live) return spec;
-    return {
-      ...spec,
-      get: () => (this.pending.has(id) ? (this.pending.get(id) as string | number | boolean) : spec.get!()),
-      set: ((v: string | number | boolean) => {
-        if (v === spec.get!()) this.pending.delete(id); else this.pending.set(id, v);
-        this.disarmDiscard();
-        this.statusEl.textContent = '';
-      }) as RowSpec['set'],
-      custom: () => this.pending.has(id),
-    };
+  /** Engine sound On / Off. Off is the Engine Sound slider at 0; On restores the position it had. */
+  private setEngineOn(on: boolean): void {
+    const mx = this.opts.mixer;
+    if (!mx) return;
+    const cur = mx.get('engine');
+    if (!on) { if (cur > 0) { this.state.engineLast = cur; this.save(); } mx.set('engine', 0); return; }
+    if (cur > 0) return;
+    mx.set('engine', this.state.engineLast > 0 ? this.state.engineLast : 1);
   }
+
+  private rememberEngine(v: number): void { if (v > 0 && v !== this.state.engineLast) { this.state.engineLast = v; this.save(); } }
 
   private afterChange(): void {
     this.refreshAll();
@@ -1125,7 +1166,7 @@ export class Menu {
   }
 
   private refreshAll(): void {
-    this.optList.refresh(); this.radioList.refresh(); this.syncActs();
+    this.optList.refresh(); this.radioList.refresh();
     this.showDesc(this.tabId === 'settings' ? 'settings' : (this.tabId as string), (this.activeList() ?? this.optList).current);
   }
 
@@ -1244,6 +1285,7 @@ export class Menu {
       if (typeof o.master === 'number') out.master = clamp01(o.master, 1);
       if (typeof o.radio === 'number') out.radio = clamp01(o.radio, 1);
       if (typeof o.invertY === 'boolean') out.invertY = o.invertY;
+      if (typeof o.engineLast === 'number' && o.engineLast > 0) out.engineLast = clamp01(o.engineLast, 1);
       return out;
     } catch { return {}; }
   }

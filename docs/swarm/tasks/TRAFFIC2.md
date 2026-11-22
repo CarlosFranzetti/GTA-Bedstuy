@@ -84,5 +84,5 @@ No change needed. main.ts already calls `traffic.setHour(dayNight.timeOfDay)` ev
 - `npx vitest run tests/unit/game/traffic-hours.test.ts`: 10 of 10 green.
 - `npx vitest run tests/unit/game --maxWorkers=1`: 42 files, 487 tests, all green.
 - `npx tsc --noEmit`: no errors from these files. One error from another lane's test file (cars5-measure.test.ts).
-- Sim runs: see below.
+- Sim runs: tests/unit/sim/traffic-5min.test.ts and realtraffic-5min.test.ts, run together: 2 files, 30 of 30 tests passed, exit 0 (log in the session scratchpad, traffic2/sim.log). These sims never call setHour, so the cap equals maxMoving as before.
 - Not verified: the feel in the running game; no browser run was made (not needed for this lane).

@@ -62,7 +62,7 @@ export interface RowListOptions {
   onChange?: (row: RowSpec) => void;
   /** A row was pressed with the pointer (not the keyboard): the owner may move the focus to this list. */
   onPointer?: () => void;
-  /** false while the pointer should not move the highlight (another column has the focus). */
+  /** false while the pointer should not move the highlight. Default: hover always moves the one focus. */
   canHover?: () => boolean;
   /** Label for the list (screen readers). */
   label?: string;
@@ -74,6 +74,8 @@ export class RowList {
   private rows: Built[] = [];
   private idx = 0;
   private activeFlag = false;
+  private lastX = -1;
+  private lastY = -1;
 
   constructor(doc: Document, private readonly opts: RowListOptions = {}, className = '') {
     this.doc = doc;
@@ -179,6 +181,10 @@ export class RowList {
 
   /** true when no selectable row follows the highlighted one. */
   atEnd(): boolean { for (let i = this.idx + 1; i < this.rows.length; i++) if (this.ok(i)) return false; return true; }
+  /** true when no selectable row precedes the highlighted one. */
+  atStart(): boolean { for (let i = this.idx - 1; i >= 0; i--) if (this.ok(i)) return false; return true; }
+  /** Moves the highlight to the first selectable row (a new group was chosen). */
+  snapToFirst(): void { for (let i = 0; i < this.rows.length; i++) if (this.ok(i)) { this.idx = i; break; } this.paintHighlight(false); this.opts.onHighlight?.(this.current); }
   highlightLast(focus = false): void { for (let i = this.rows.length - 1; i >= 0; i--) if (this.ok(i)) { this.highlight(i, focus); return; } }
 
   private snapToVisible(dir: 1 | -1): void {
@@ -252,7 +258,14 @@ export class RowList {
     else if (built.left && built.right) val.append(built.left, text, built.right);
     else val.append(text);
     el.append(lab, val);
-    el.addEventListener('mouseenter', () => { if (this.ok(this.rows.indexOf(built)) && (this.opts.canHover?.() ?? true)) this.highlight(this.rows.indexOf(built)); });
+    // Hover moves the one focus, but only when the mouse itself moved: a list that scrolls under a still pointer (keyboard, wheel) must not steal it.
+    el.addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'touch') return;
+      if (e.clientX === this.lastX && e.clientY === this.lastY) return;
+      this.lastX = e.clientX; this.lastY = e.clientY;
+      const i = this.rows.indexOf(built);
+      if (i !== this.idx && this.ok(i) && (this.opts.canHover?.() ?? true)) { this.opts.onPointer?.(); this.highlight(i); }
+    });
     el.addEventListener('click', () => {
       this.pointerTo(built);
       if (spec.kind === 'slider') return; // the bar and arrows handle themselves

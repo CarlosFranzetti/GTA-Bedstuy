@@ -36,6 +36,9 @@ export interface VitalsHudState {
 /** Optional wanted cool-down flag: stars blink while the player is out of sight and the heat is draining. */
 export interface WantedHudState { wantedCooling?: boolean }
 
+/** POLICE2: the heat bar under the stars (0..1) and the one-line police state ("Police are watching", "Searching"). Both optional. */
+export interface PoliceHudState { heat?: number; policeLine?: string }
+
 /** Optional vehicle info: shown for a few seconds when the player gets in. */
 export interface VehicleHudState { vehicleName?: string; vehicleClass?: string }
 export const VEHICLE_CARD_MS = 3800;
@@ -84,6 +87,9 @@ export class Hud {
   private readonly rootEl: HTMLElement;
   private readonly fpsEl: HTMLElement;
   private readonly starsEl: HTMLElement;
+  private readonly heatEl: HTMLElement;
+  private readonly heatFill: HTMLElement;
+  private readonly heatLine: HTMLElement;
   private readonly starEls: HTMLElement[] = [];
   private readonly promptEl: HTMLElement;
   private readonly speedEl: HTMLElement;
@@ -150,6 +156,12 @@ export class Hud {
       this.starsEl.appendChild(star);
       this.starEls.push(star);
     }
+
+    this.heatEl = this.make('div', 'hud-heat');
+    this.heatEl.hidden = true;
+    this.heatFill = this.make('div', 'hud-heat-fill');
+    this.heatLine = this.make('div', 'hud-heat-line');
+    this.heatEl.append(this.heatFill, this.heatLine);
 
     this.promptEl = this.make('div', 'hud-prompt');
     this.promptEl.hidden = true;
@@ -282,6 +294,7 @@ export class Hud {
     root.append(
       this.fpsEl,
       this.starsEl,
+      this.heatEl,
       this.handsEl,
       this.reticleEl,
       this.promptEl,
@@ -319,7 +332,7 @@ export class Hud {
     this.handsCountEl.textContent = s.reloading ? '...' : s.count === null ? '' : s.reserve === null ? String(s.count) : `${s.count}/${s.reserve}`;
   }
 
-  update(state: HudState & RadioHudState & BlockedHudState & VitalsHudState & WantedHudState & VehicleHudState): void {
+  update(state: HudState & RadioHudState & BlockedHudState & VitalsHudState & WantedHudState & VehicleHudState & PoliceHudState): void {
     const stars = Math.round(Math.min(MAX_STARS, Math.max(0, finite(state.stars))));
     this.starEls.forEach((el, i) => {
       const on = i < stars;
@@ -331,6 +344,16 @@ export class Hud {
     this.starsEl.classList.toggle('cooling', stars > 0 && state.wantedCooling === true);
     if (stars !== this.lastStars) this.starsEl.setAttribute('aria-label', `Wanted level ${stars} of ${MAX_STARS}`);
     this.lastStars = stars;
+    // POLICE2: a thin heat bar and a quiet state line under the stars; hidden while nothing is happening
+    const heat = Math.min(1, Math.max(0, finite(state.heat ?? 0)));
+    const line = state.policeLine ?? '';
+    const showHeat = heat > 0.02 || line !== '';
+    this.heatEl.hidden = !showHeat;
+    if (showHeat) {
+      this.heatFill.style.width = `${Math.round(heat * 100)}%`;
+      this.heatEl.classList.toggle('warn', heat >= 0.45);
+      setText(this.heatLine, line);
+    }
 
     this.setSpeed(String(Math.round(Math.abs(finite(state.speedKmh)))));
     this.speedEl.hidden = !state.inVehicle;

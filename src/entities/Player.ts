@@ -113,8 +113,9 @@ const PIN_SPEED = 5;
 /** Seconds boxed in with no free direction before the climb-over prompt shows and the vault is always possible. */
 export const PINNED_AFTER = 1.5;
 /** Probe distance and radius for "is any direction free" (m). */
-const BOX_PROBE = 0.6;
+const BOX_PROBE = 0.4;
 const BOX_PROBE_R = 0.34;
+const BOX_RUN = 2.0;
 
 /** A car moving faster than this (m/s) that runs into the player knocks them down. */
 const KNOCK_SPEED = 3;
@@ -221,6 +222,8 @@ export class Player implements Entity {
   private vaultAnimK = 0;
   private vaultSide = 1;
   private boxedT = 0;
+  private boxedAcc = 0;
+  private boxedNow = false;
   private autoCheckT = 0;
   private autoOk = false;
   private pinnedKick = false;
@@ -430,16 +433,26 @@ export class Player implements Entity {
     if (v.t >= pl.T) { this.endVault(); this.vaultTail = 0; }
   }
 
-  /** Boxed in: no free direction for PINNED_AFTER seconds. Called each step on foot. */
+  /**
+   * Boxed in: no way out. Every 0.2 s sixteen runs of BOX_RUN metres are tried with a foot-sized probe; when none is clear the body is in a pocket
+   * (between cars and walls) and a timer counts up. A free run, however short the street, ends it. PINNED_AFTER seconds of it shows the climb prompt.
+   */
   private updateBoxed(dt: number): void {
     const b = this.body;
-    if (!this.blockedAt || this.held || this.jump.busy) { this.boxedT = Math.max(0, this.boxedT - dt * 3); return; }
-    let free = false;
-    for (let i = 0; i < 8 && !free; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      if (!this.blockedAt({ x: b.pos.x + Math.cos(a) * BOX_PROBE, z: b.pos.z + Math.sin(a) * BOX_PROBE }, BOX_PROBE_R)) free = true;
+    if (!this.blockedAt || this.held || this.jump.busy) { this.boxedT = Math.max(0, this.boxedT - dt * 3); this.boxedAcc = 0; return; }
+    this.boxedAcc += dt;
+    if (this.boxedAcc >= 0.2) {
+      this.boxedAcc = 0;
+      let free = false;
+      for (let i = 0; i < 16 && !free; i++) {
+        const a = (i / 16) * Math.PI * 2, cx = Math.cos(a), cz = Math.sin(a);
+        let clear = true;
+        for (let d = BOX_PROBE; d <= BOX_RUN + 1e-6 && clear; d += 0.4) if (this.blockedAt({ x: b.pos.x + cx * d, z: b.pos.z + cz * d }, BOX_PROBE_R)) clear = false;
+        free = clear;
+      }
+      this.boxedNow = !free;
     }
-    this.boxedT = free ? Math.max(0, this.boxedT - dt * 3) : this.boxedT + dt;
+    this.boxedT = this.boxedNow ? this.boxedT + dt : Math.max(0, this.boxedT - dt * 3);
   }
 
   /** Every neighbour too tall (or no landing): squeeze out sideways to the nearest free ground, through the gap between the bodies. */

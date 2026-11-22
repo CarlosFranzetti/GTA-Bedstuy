@@ -68,6 +68,8 @@ export interface SaveData {
   /** StoryState.serialize(): flags, fork choices, heard news (v3). */
   story?: unknown;
   wanted?: number;
+  /** POLICE2: how many times the player has been busted. Absent in older saves: zero. */
+  busts?: number;
   weather?: string;
   radioStation?: string;
   playerLook?: PlayerLook | null;
@@ -167,6 +169,7 @@ export function migrateSave(raw: unknown, now: number = Date.now()): SaveData | 
     const story = cleanStory(raw.story);
     if (story) out.story = story;
     if (finite(raw.wanted)) out.wanted = Math.max(0, Math.min(6, Math.round(raw.wanted)));
+    if (finite(raw.busts) && raw.busts > 0) out.busts = Math.min(9999, Math.floor(raw.busts));
     if (typeof raw.weather === 'string') out.weather = raw.weather;
     if (typeof raw.radioStation === 'string') out.radioStation = raw.radioStation;
     if (raw.playerLook !== undefined) out.playerLook = cleanLook(raw.playerLook);
@@ -194,6 +197,8 @@ export interface SaveParts {
   missions: { serialize(): unknown; restore(d: unknown): boolean; story?: { serialize(): unknown; restore(d: unknown): boolean } };
   phone: { serialize(): unknown; restore(d: unknown): boolean };
   getWanted(): number; setWanted(n: number): void;
+  /** POLICE2: the bust count (optional so older hosts still work) */
+  getBusts?(): number; setBusts?(n: number): void;
   getWeather(): string; setWeather(w: string): void;
   getStation(): string; setStation(name: string): void;
   getLook(): PlayerLook | null; setLook(l: PlayerLook | null): void;
@@ -208,7 +213,7 @@ export function captureSave(p: SaveParts, now: number = Date.now()): SaveData {
   return {
     v: SAVE_VERSION, savedAt: now, pose: p.getPose(), hour: p.getHour(), day: p.getDay(), cash: inv.cash,
     inventory: { records: inv.records, items: inv.items(), flags: inv.flags },
-    missions: p.missions.serialize(), story: p.missions.story?.serialize(), phone: p.phone.serialize(), wanted: p.getWanted(), weather: p.getWeather(),
+    missions: p.missions.serialize(), story: p.missions.story?.serialize(), phone: p.phone.serialize(), wanted: p.getWanted(), busts: p.getBusts?.() || undefined, weather: p.getWeather(),
     radioStation: p.getStation(), playerLook: p.getLook(), street: p.getStreet(), hands: cleanHands(p.hands?.serialize()),
   };
 }
@@ -235,6 +240,7 @@ export function applySave(p: SaveParts, s: SaveData): void {
   p.setHour(s.hour);
   if (s.weather !== undefined) p.setWeather(s.weather);
   if (s.wanted !== undefined) p.setWanted(s.wanted);
+  p.setBusts?.(s.busts ?? 0); // an older save: no busts
   if (s.radioStation) p.setStation(s.radioStation);
   if (s.hands) p.hands?.restore(s.hands); else p.hands?.reset(); // a save from before the hands existed: empty hands
   p.setPose(s.pose);

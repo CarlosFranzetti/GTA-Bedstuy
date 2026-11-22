@@ -8,7 +8,7 @@
  * Lazy: no element and no network until the first tune-in. Tuning away drops the connection (a live stream must not buffer
  * in the background); tuning back reconnects at the live edge.
  */
-import type { CatalogEntry, LiveNowPlaying } from '../stations';
+import type { CatalogEntry, LiveNowPlaying, LiveSource } from '../stations';
 
 export const LIVE_STALL_MS = 12000;
 export const LIVE_CONNECT_MS = 12000;
@@ -18,6 +18,8 @@ export const LIVE_MAX_RECONNECTS = 3;
 export const LIVE_SAY_MS = 3000;
 /** After a failure, how long before a tune-in may try the station again. */
 export const LIVE_RETRY_MS = 30000;
+/** A pool station that has played one stream this long moves to another of its streams (RADIO3). */
+export const LIVE_ROTATE_MS = 35 * 60 * 1000;
 export const LIVE_TAP_PROMPT = 'Tap to start radio';
 export const LIVE_NO_STREAM = 'No stream: this station could not be reached';
 export const LIVE_CONNECTING = 'Connecting to the stream...';
@@ -50,6 +52,9 @@ export interface LiveEnv {
   stallMs: number;
   connectMs: number;
   blockedMs: number;
+  /** Picks the pool stream (0..1). */
+  random: () => number;
+  rotateMs: number;
 }
 
 export type LiveState = 'idle' | 'connecting' | 'playing' | 'failed';
@@ -64,6 +69,7 @@ function defaultEnv(): LiveEnv {
     doc: () => (typeof document !== 'undefined' ? document : null),
     fetchJson: async (url) => { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(String(r.status)); return r.json(); },
     tickMs: 2000, stallMs: LIVE_STALL_MS, connectMs: LIVE_CONNECT_MS, blockedMs: LIVE_BLOCKED_MS,
+    random: Math.random, rotateMs: LIVE_ROTATE_MS,
   };
 }
 
@@ -103,6 +109,13 @@ export class LiveStation {
   private hookDoc: Document | null = null;
   private npTimer: ReturnType<typeof setInterval> | null = null;
   private track = '';
+  /** The pool stream that is on (null for a station with one stream). */
+  private source: LiveSource | null = null;
+  private lastSourceId = '';
+  private sourceAt = 0;
+  private readonly deadSources = new Set<string>();
+  /** Fired when the station moves to another stream of its pool on its own (rotation or a dead stream), with that stream's name. */
+  onSource: ((name: string) => void) | null = null;
   private readonly listeners = new Set<() => void>();
   /** Fired when the station gave up (director tunes away with a toast). */
   onFail: (() => void) | null = null;
@@ -121,9 +134,17 @@ export class LiveStation {
   get playState(): LivePlay { return this.play_; }
   get isActive(): boolean { return this.active; }
   get needsTap(): boolean { return this.active && !this.paused && this.play_ === 'blocked'; }
-  get streamUrl(): string { return this.def.streams?.[this.streamIdx % (this.def.streams?.length || 1)] ?? ''; }
+  private get streams(): readonly string[] { return this.source?.streams ?? this.def.streams ?? []; }
+  get streamUrl(): string { const l = this.streams; return l[this.streamIdx % (l.length || 1)] ?? ''; }
+  /** The pool stream that is on, or null. */
+  get sourceName(): string { return this.source?.name ?? ''; }
+  get sourceSite(): string { return this.source?.site ?? this.def.site; }
+  private get np(): LiveNowPlaying | undefined { return this.source ? this.source.nowPlaying : this.def.nowPlaying; }
   /** HUD second half: the current song when the station publishes one, else its genre line. */
-  get trackName(): string { return this.track || this.def.genre; }
+  get trackName(): string {
+    if (this.source) return this.track ? `${this.source.name}: ${this.track}` : this.source.name;
+    return this.track || this.def.genre;
+  }
   get notice(): string {
     if (!this.active) return '';
     if (this.state === 'failed') return LIVE_NO_STREAM;
@@ -142,7 +163,7 @@ export class LiveStation {
     this.connect();
   }
   /** Reconnects a single-URL stream gets before it is given up (retry once); stations with mirrors try each of them. */
-  private get maxReconnects(): number { const n = this.def.streams?.length ?? 1; return n > 1 ? Math.min(LIVE_MAX_RECONNECTS, n - 1) : 1; }
+  private get maxReconnects(): number { const n = this.streams.length || 1; return n > 1 ? Math.min(LIVE_MAX_RECONNECTS, n - 1) : 1; }
   onChange(fn: () => void): () => void { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; }
   private emit(): void { this.listeners.forEach((fn) => fn()); }
 
@@ -183,9 +204,40 @@ export class LiveStation {
       this.state = 'idle';
     }
     this.reconnects = 0;
+    this.deadSources.clear();
+    this.chooseSource();
     this.connect();
     this.pollNowPlaying();
-    if (!this.npTimer && this.def.nowPlaying) this.npTimer = setInterval(() => this.pollNowPlaying(), NOWPLAYING_MS);
+    if (!this.npTimer && (this.def.nowPlaying || this.def.pool?.some((x) => x.nowPlaying))) this.npTimer = setInterval(() => this.pollNowPlaying(), NOWPLAYING_MS);
+  }
+
+  /** Pool stations: a random stream, never the one that played last when there is another. */
+  private chooseSource(avoid: string = this.lastSourceId): void {
+    const pool = this.def.pool;
+    if (!pool?.length) { this.source = null; return; }
+    let cand = pool.filter((x) => !this.deadSources.has(x.id));
+    if (!cand.length) { this.source = null; return; }
+    const fresh = cand.filter((x) => x.id !== avoid);
+    if (fresh.length) cand = fresh;
+    const r = this.env.random();
+    this.source = cand[Math.min(cand.length - 1, Math.max(0, Math.floor((Number.isFinite(r) ? r : 0) * cand.length)))];
+    this.lastSourceId = this.source.id;
+    this.sourceAt = this.env.now();
+    this.streamIdx = 0;
+    this.track = '';
+  }
+  /** Moves to another stream of the pool (rotation, or the stream is dead). False when there is none. */
+  private changeSource(dead: boolean): boolean {
+    const pool = this.def.pool;
+    if (!pool || pool.length < 2 || !this.source) return false;
+    if (dead) this.deadSources.add(this.source.id);
+    const before = this.source;
+    this.chooseSource(before.id);
+    if (!this.source || this.source.id === before.id) { this.source = before; return false; }
+    this.reconnects = 0;
+    this.onSource?.(this.source.name);
+    this.pollNowPlaying();
+    return true;
   }
 
   /** (Re)opens the stream at its live edge and asks the element to play. */
@@ -274,12 +326,16 @@ export class LiveStation {
     const idle = this.env.now() - this.lastProgAt;
     const limit = this.state === 'playing' ? this.env.stallMs : this.env.connectMs;
     if (idle >= limit) { this.reconnect(); return; }
+    if (this.source && this.state === 'playing' && this.env.now() - this.sourceAt >= this.env.rotateMs && this.changeSource(false)) { this.state = 'connecting'; this.play_ = 'starting'; this.connect(); return; }
     const n = this.notice;
     if (n !== this.lastNotice) { this.lastNotice = n; this.emit(); }
   }
 
   private reconnect(): void {
-    if (++this.reconnects > this.maxReconnects) { this.fail(); return; }
+    if (++this.reconnects > this.maxReconnects) {
+      if (this.changeSource(true)) { this.state = 'connecting'; this.play_ = 'starting'; this.connect(); return; }
+      this.fail(); return;
+    }
     this.streamIdx++; // alternate stream URL when the station publishes more than one
     this.state = 'connecting';
     this.play_ = 'starting';
@@ -313,9 +369,11 @@ export class LiveStation {
   }
 
   private pollNowPlaying(): void {
-    const np = this.def.nowPlaying;
+    const np = this.np;
     if (!np || !this.active) return;
+    const forId = this.source?.id ?? '';
     this.env.fetchJson(np.url).then((j) => {
+      if ((this.source?.id ?? '') !== forId) return; // the stream changed while the answer was on its way
       const t = parseNowPlaying(np, j);
       if (t && t !== this.track) { this.track = t; this.emit(); }
     }).catch(() => { /* optional: genre line stays */ });
