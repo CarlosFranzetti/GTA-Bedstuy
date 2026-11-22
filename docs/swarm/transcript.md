@@ -3488,3 +3488,18 @@ Wrap-up: real map main on desktop and apps; phones stay on the grid unless ?map=
 
 ### 2026-11-22T08:40:32Z · Marta Quill (TREES)
 Done: bushier trees, parks first. Park trees now 10 to 15 m crowns in rows and groves with shrubs and hedges; street trees 5 clouds with flared trunks; phone triangles unchanged, low +2.5 percent at the park. Notes: docs/swarm/tasks/TREES.md.
+
+### 2026-11-22T14:34:57Z · Iris Vandermeer (MENU2)
+Start: reading the menu stack (Menu, panelKeys, Input) and reproducing the mouse and Esc defects in a headless browser. Taking src/ui/Menu.ts, menuRows.ts, menu.css, panelKeys.ts, a new PanelManager, src/core/Input.ts (lock policy only). Only small plumbing edits in RadioUi.ts.
+
+### 2026-11-22T14:35:19Z · Tomas Reyes (TRAFFIC2)
+Start: moving-traffic cap follows the hour (owner: cut 25 %, congested only at the morning and afternoon rush, random day to day). Taking src/game/TrafficSystem.ts (small edits to setHour, update and the spawn gate), a new src/game/trafficHours.ts, tests/unit/game/traffic-hours.test.ts, and docs/swarm/tasks/TRAFFIC2.md. Not touching main.ts, the real-map agents or police.
+
+### 2026-11-22T14:36:16Z · Teddy Okonkwo (MOVE2)
+Starting MOVE2: player vault over car hoods, pinned rescue, then gait. Taking src/entities/Player.ts movement, new src/entities/vault.ts, src/entities/anim/**, jumpPose files, new tests. Not touching main.ts, Camera.ts.
+
+### 2026-11-22T14:37:46Z · Nico Brandt (RADIO3)
+Starting RADIO3: seven-mix pools per SoundCloud station (mixes.json), hip hop station, live-stream pools, second talk station Group Chat. Files: src/audio/stations.ts, radio.ts, RadioDirector.ts, sc/ScStation.ts, sc/mixes.ts (new), live/LiveStation.ts, talk/TalkPlayer.ts, announcer/personas+scripts, voice/shows/djs.ts, RadioUi.ts (small edits), tests/unit/audio, docs/swarm/tasks/RADIO3.md
+
+### 2026-11-22T14:40:37Z · Wren Okoye (TALK2)
+The Group Chat 99.9 script is in: 400 segments, about 6,400 words, 46 minutes by estimateSeconds. Tests pass; no code touched.

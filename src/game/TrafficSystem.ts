@@ -14,6 +14,7 @@ import { TrafficAgent } from '@/entities/TrafficAgent';
 import { VEHICLE_SPECS } from '@/entities/Vehicle';
 import { pickPaint } from '@/entities/models/carLook';
 import { TrafficLights, type SignalLights } from './TrafficLights';
+import { VehicleHours } from './trafficHours';
 
 /** `ln:<segment>:<dir>:<i>` -> `ln:<segment>:<dir>` */
 const laneKey = (id: string): string => id.slice(0, id.lastIndexOf(':'));
@@ -263,6 +264,8 @@ export class TrafficSystem {
   private pedSeq = 0;
   /** hour-of-day scaling of the pedestrian budget (1 until `setHour` is called) and the ticker that eases toward it */
   private hourFactor = 1;
+  /** share of `maxMoving` allowed to drive by hour (TRAFFIC2; exactly 1 until `setHour`) */
+  private readonly vehicleHours = new VehicleHours('traffic-hours');
   private pedTimer = 0;
   private readonly pedSched = new PedSpawnScheduler();
   /** neighbourly behaviour of the pedestrians near the player (conversations, greetings, reactions, barks) */
@@ -340,11 +343,23 @@ export class TrafficSystem {
   get pedTarget(): number { return Math.max(this.density.peds > 0 ? 1 : 0, Math.round(this.density.peds * this.hourFactor)); }
 
   /**
+   * Moving cars allowed near the player right now (TRAFFIC2). `maxMoving` until `setHour` is called; after that the
+   * hour's share of it (at least 2 when `maxMoving` is above 0). Over the cap, no car spawns; cars on the road are not
+   * removed here (the despawn-out-of-sight rules thin them).
+   */
+  get movingCap(): number {
+    const m = this.density.maxMoving;
+    if (!this.vehicleHours.known || m <= 0) return m;
+    return Math.max(2, Math.round(m * this.vehicleHours.factor));
+  }
+
+  /**
    * Time of day (hours, 0-24). The street fills and empties with the BIBLE section 7 curve inside the tier budget, and stoop
    * sitting / door loitering follow it. The crowd eases toward the target one pedestrian per tick out of the player's sight;
    * `snap` jumps straight there (scripted captures, tests).
    */
   setHour(hour: number, snap = false): void {
+    this.vehicleHours.set(hour);
     this.hourFactor = pedHourFactor(hour);
     this.social.setHour(hour);
     setPedDayContext(hour); // GTA3 people: church clothes are likelier in the late morning
@@ -495,6 +510,7 @@ export class TrafficSystem {
       if (tg && this.grid.lanes.adjacency[tg.id]?.length === 0 && dist(tg.pos, p) < 6) { a.agent.release(); this.swapRemove(this.active, i); this.removeVehicle(a.vehicle); continue; }
       a.agent.update(dt);
     }
+    this.vehicleHours.advance(dt);
     // spawn: the budget is owed at each tick and paid out one car per step, so building meshes and agents never piles
     // 20 cars into a single step (the first tick after loading used to)
     this.spawnTimer += dt;
@@ -508,7 +524,7 @@ export class TrafficSystem {
       for (let i = 0; i < this.active.length; i++) {
         if (dist(this.active[i].vehicle.body.pos, playerPos) < NEAR_RADIUS) near++;
       }
-      if (near < this.density.maxMoving && this.spawnTraffic(playerPos)) this.spawnOwed--;
+      if (near < this.movingCap && this.spawnTraffic(playerPos)) this.spawnOwed--;
       else this.spawnOwed = 0;
     }
   }

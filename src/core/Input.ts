@@ -35,6 +35,11 @@ export class Input {
   private virtEdges = new Set<string>();
   /** Edges raised after the frame's simulation steps (gamepad poll in the render callback); they survive one `endFrame()`. */
   private carryOver = new Set<string>();
+  /** Keys physically held right now, kept even while the gate is closed (MENU2): the gate reopens knowing which keys to ignore until they are let go. */
+  private rawDown = new Set<string>();
+  /** Keys held when the gate reopened: ignored until released, so the key that closed a panel never fires in the game (no jump on resume). */
+  private suppressed = new Set<string>();
+  private gateClosed = false;
   /** Mouse movement since last `endFrame()`, pixels. */
   mouseDX = 0; mouseDY = 0;
   wheel = 0;
@@ -58,8 +63,11 @@ export class Input {
 
   constructor(private el: HTMLElement = document.body, readonly bindings: Bindings = GAME_BINDINGS) {
     window.addEventListener('keydown', (e) => {
+      this.rawDown.add(e.code);
       // Keys typed inside a modal UI (pause menu) belong to that UI: no game state, no preventDefault.
       if (Input.inModal(e.target)) return;
+      // A panel is open (MENU2): the keyboard belongs to it. A key still held from before the gate reopened stays ignored until released.
+      if (this.gateClosed || this.suppressed.has(e.code)) return;
       // Ctrl is a game key only while the Keyboard Lock API holds it (fullscreen); otherwise Ctrl+W would close the tab.
       if (LOCK_ONLY_KEYS.has(e.code) && !this.bindings.ctrlSafe) return;
       this.setMode('keyboard');
@@ -71,12 +79,13 @@ export class Input {
       this.caps = e.getModifierState?.('CapsLock') ?? this.caps;
       this.gesture();
     });
-    window.addEventListener('keyup', (e) => { this.phys.delete(e.code); this.caps = e.getModifierState?.('CapsLock') ?? this.caps; });
-    window.addEventListener('blur', () => this.phys.clear());
+    window.addEventListener('keyup', (e) => { this.rawDown.delete(e.code); this.suppressed.delete(e.code); this.phys.delete(e.code); this.caps = e.getModifierState?.('CapsLock') ?? this.caps; });
+    window.addEventListener('blur', () => { this.phys.clear(); this.rawDown.clear(); this.suppressed.clear(); });
     window.addEventListener('mouseup', (e) => { const c = Input.mouseCode(e.button); if (c) this.phys.delete(c); });
-    window.addEventListener('contextmenu', (e) => { if (this.pointerLocked) e.preventDefault(); });
+    window.addEventListener('contextmenu', (e) => { if (this.pointerLocked || this.gateClosed) e.preventDefault(); });
     el.addEventListener('mousemove', (e) => { if (this.pointerLocked) { this.mouseDX += e.movementX; this.mouseDY += this.invertLookY ? -e.movementY : e.movementY; this.setMode('keyboard'); } });
     el.addEventListener('mousedown', (e) => {
+      if (this.gateClosed) { this.gesture(); return; } // a panel is open: a click is the panel's, never the game's and never a lock request
       const wasLocked = this.pointerLocked; // the click that takes the lock is not an action
       this.gesture(); this.requestLock();
       const code = Input.mouseCode(e.button);
@@ -87,6 +96,7 @@ export class Input {
       this.phys.add(code);
     });
     el.addEventListener('wheel', (e) => {
+      if (this.gateClosed) return;
       this.wheel += Math.sign(e.deltaY);
       if (this.pointerLocked && e.deltaY !== 0) this.physEdges.add(e.deltaY < 0 ? WHEEL_UP : WHEEL_DOWN);
     }, { passive: true });
@@ -132,13 +142,30 @@ export class Input {
   private gesture() { if (!this.firstGesture) { this.firstGesture = true; this.onFirstGesture?.(); } }
   /** Must be called from inside a user-gesture handler. Failures (phones, some embedded views) are silent. */
   requestLock(): void {
-    if (this.pointerLocked || this.lockBlocked) return;
+    if (this.pointerLocked || this.lockBlocked || this.gateClosed) return;
     try { const r = (this.el.requestPointerLock as undefined | (() => unknown))?.call(this.el); (r as Promise<void> | undefined)?.catch?.(() => {}); } catch { /* unsupported */ }
   }
   /** External trigger for the first gesture (e.g. a click on the splash overlay). */
   /** While true the pointer is not captured on a click (the title screen: its prompt and buttons must stay clickable). */
   lockBlocked = false;
   notifyGesture(): void { this.gesture(); this.requestLock(); }
+
+  /**
+   * MENU2 input gate. While a panel is open (pause menu, map, phone, shop, decks, radio list) the game gets nothing: no keys, no mouse
+   * buttons, wheel or look, no touch or pad buttons, and no pointer-lock request. Closing the gate drops everything held. Opening it
+   * again ignores the keys still held until they are released, so the key that closed a panel is not also a jump or a punch.
+   */
+  get blocked(): boolean { return this.gateClosed; }
+  set blocked(v: boolean) {
+    if (v === this.gateClosed) return;
+    this.gateClosed = v;
+    if (v) {
+      this.phys.clear(); this.physEdges.clear(); this.virtualDown.clear(); this.virtEdges.clear(); this.carryOver.clear();
+      this.touchAxis.x = 0; this.touchAxis.y = 0; this.mouseDX = 0; this.mouseDY = 0; this.wheel = 0;
+    } else {
+      this.suppressed = new Set(this.rawDown);
+    }
+  }
   /** `code` is an action id (or an unbound physical code): is it held now, from the keyboard, mouse or a virtual button? */
   isDown(code: string): boolean {
     if (this.virtualDown.has(code)) return true;
@@ -147,7 +174,7 @@ export class Input {
   }
   /** Press/release an action from an on-screen control or pad. A press also counts as an edge for `pressed()`. */
   setVirtual(code: string, down: boolean): void {
-    if (down) { if (!this.virtualDown.has(code)) this.virtEdges.add(code); this.virtualDown.add(code); this.gesture(); }
+    if (down) { if (this.gateClosed) return; if (!this.virtualDown.has(code)) this.virtEdges.add(code); this.virtualDown.add(code); this.gesture(); }
     else this.virtualDown.delete(code);
   }
   /**
@@ -155,9 +182,9 @@ export class Input {
    * frame's steps and BEFORE `endFrame()`): the edge is kept through that frame's `endFrame()` so the next frame's
    * steps can still see it. A plain `setVirtual` edge raised there would be wiped before any step read it.
    */
-  pulse(code: string): void { this.virtEdges.add(code); this.carryOver.add(code); this.gesture(); }
+  pulse(code: string): void { if (this.gateClosed) return; this.virtEdges.add(code); this.carryOver.add(code); this.gesture(); }
   /** Camera look delta from a touch drag, in pixels. */
-  addLook(dx: number, dy: number): void { this.mouseDX += dx; this.mouseDY += this.invertLookY ? -dy : dy; }
+  addLook(dx: number, dy: number): void { if (this.gateClosed) return; this.mouseDX += dx; this.mouseDY += this.invertLookY ? -dy : dy; }
   /** Record which device the player is using; fires `onModeChange` only on a real change. */
   setMode(mode: InputMode): void {
     if (this.mode === mode) return;

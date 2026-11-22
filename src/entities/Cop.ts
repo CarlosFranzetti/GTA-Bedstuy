@@ -27,7 +27,13 @@ export interface CopTarget {
   vel: Vec2;
   /** wanted level */
   stars: number;
+  /** POLICE2: at one star a patrol car follows and holds a gap instead of closing in to ram (CopSystem.gentleAtOneStar) */
+  gentle?: boolean;
 }
+
+/** POLICE2: the gap a one-star patrol car keeps (m), and its top speed while following. */
+export const GENTLE_GAP = 9;
+const GENTLE_TOP = 15;
 
 export interface PitAim { aim: Vec2; phase: 'trail' | 'strike'; }
 
@@ -136,6 +142,12 @@ export class CopAgent {
       inp.brake = false;
       inp.handbrake = false;
       inp.horn = false;
+      if (quarry && quarry.gentle && quarry.stars <= 1 && this.pitPhase === null) {
+        // one star: shadow the player at a gap, never close in to ram; the officer gets out at the gap
+        const want = Math.min(GENTLE_TOP, Math.max(0, (d - GENTLE_GAP) * 0.9) + (tSpeed > 3 ? tSpeed * 0.8 : 0));
+        inp.throttle = Math.abs(err) > 1.4 ? 0.3 : v.speed < want ? Math.min(1, 0.3 + (want - v.speed) * 0.2) : 0;
+        inp.brake = v.speed > want + 1.5;
+      }
       v.setInput(inp);
       return;
     }

@@ -30,6 +30,8 @@ export interface AnimInput {
   action?: ActionPose | null;
   /** where the person is looking, relative to where the body faces (rad: yaw positive = to their left, pitch positive = up); absent = straight ahead */
   look?: { yaw: number; pitch?: number } | null;
+  /** MOVE2: vaulting over a car: progress k 0..1 through the vault and which side the legs swing over (+1 / -1); null or absent for none */
+  vault?: { k: number; side: number } | null;
 }
 
 interface OneShot { amp: number; clip: Clip; t: number; t0: number; end: number; rate: number; mirror: boolean; fadeIn: number; fadeOut: number }
@@ -62,7 +64,7 @@ export function keyIdle(p: Float32Array, kind: 'crossed' | 'lean', side: number)
  * move; for 'aim' it is how far the arms are up (0 hanging, 1 levelled) and `recoil` (0..1) kicks the gun arm back after a shot.
  * Torso, head, shoulders and elbows are written; a punch also adds a stance and a step to the hips, legs and knees (added onto the walk, so it keeps going underneath).
  */
-export interface ActionPose { kind: 'punchL' | 'punchR' | 'heavy' | 'throw' | 'aim'; k: number; recoil?: number }
+export interface ActionPose { kind: 'punchL' | 'punchR' | 'heavy' | 'throw' | 'aim' | 'grab' | 'held'; k: number; recoil?: number }
 
 /** The bones an action may write: the upper body and, for a punch's stance and step, the hips, legs and knees (added onto whatever they are doing). */
 const ACTION_CH = ['hips', 'torso', 'head', 'armL', 'elbowL', 'armR', 'elbowR', 'legL', 'kneeL', 'legR', 'kneeR'] as const;
@@ -138,6 +140,18 @@ export function keyAction(p: Float32Array, a: ActionPose): void {
     set('armL', 0.9 * cock + 0.4, 0.2, 0.2 * cock); set('elbowL', 0.5 * cock + 0.3, 0, 0);
     add('torso', 0.2 * cock - 0.3 * whip, 0.5 * whip - 0.35 * cock, 0);
     add('head', 0.04 - 0.08 * whip, 0, 0);
+  } else if (a.kind === 'grab') {
+    // POLICE2, an officer taking hold: both arms reach forward and a little out, hands open, shoulders squared, leaning in; k is how far in
+    const r = sstep(0, 0.35, k);
+    set('armL', 1.25 * r, -0.2 * r, -0.18 * r); set('elbowL', 0.55 * r, 0, 0);
+    set('armR', 1.25 * r, 0.2 * r, 0.18 * r); set('elbowR', 0.55 * r, 0, 0);
+    add('torso', -0.14 * r, 0, 0); add('head', 0.05 * r, 0, 0);
+  } else if (a.kind === 'held') {
+    // POLICE2, the player held: both arms drawn back and in behind, shoulders rolled forward, head down
+    const r = sstep(0, 0.3, k);
+    set('armL', -0.55 * r, 0.35 * r, 0.12 * r); set('elbowL', 0.35 * r, 0, 0);
+    set('armR', -0.55 * r, -0.35 * r, -0.12 * r); set('elbowR', 0.35 * r, 0, 0);
+    add('torso', -0.12 * r, 0, 0); add('head', 0.22 * r, 0, 0);
   } else {
     // pistol held out at arm's length in both hands; the shot kicks the gun arm up and back
     const up = sstep(0, 1, k), r = Math.min(1, Math.max(0, a.recoil ?? 0));
@@ -147,6 +161,36 @@ export function keyAction(p: Float32Array, a: ActionPose): void {
     add('torso', -0.04 * up + 0.07 * r, -0.2 * up, 0);
     add('head', 0.02 * up - 0.03 * r, 0.12 * up, 0);
   }
+}
+
+/**
+ * The vault (hood slide), hand-keyed: no captured vault, climb or hurdle clip is in the pack (it holds walks, runs, jump, stumble, sit, stand,
+ * turns and idles). Five poses, blended smoothly: the run's last stride (k 0), the plant (0.2: lead knee up, one hand reaching for the hood,
+ * trail leg driving), the crossing (0.5: weight on the planted hand, hips rolled over it, both legs swung through to the side), the landing
+ * (0.78: two feet down, knees taking it, arms out) and the first recovery stride (1.0). `side` is which way the legs swing (mirrored for -1).
+ * Forward is -z; a negative torso x leans forward; knees bend to negative x; a positive elbow x folds the forearm up.
+ */
+export const VAULT_KEYS: ReadonlyArray<{ k: number; v: Readonly<Record<string, readonly [number, number, number]>>; dy: number; surge: number }> = [
+  { k: 0.0, dy: 0, surge: 0, v: { hips: [0.05, 0, 0], torso: [-0.28, 0, 0], head: [0.15, 0, 0], armL: [-0.5, 0, 0.1], elbowL: [1.2, 0, 0], armR: [0.7, 0, -0.1], elbowR: [1.3, 0, 0], legL: [0.55, 0, 0], kneeL: [-0.9, 0, 0], legR: [-0.35, 0, 0], kneeR: [-0.7, 0, 0] } },
+  { k: 0.2, dy: 0.03, surge: -0.04, v: { hips: [0.1, 0.1, 0.05], torso: [-0.62, 0.1, -0.05], head: [0.45, 0, 0], armL: [0.55, 0, 0.1], elbowL: [0.55, 0, 0], armR: [1.2, 0, -0.1], elbowR: [0.15, 0, 0], legL: [1.25, 0, 0.08], kneeL: [-1.45, 0, 0], legR: [-0.4, 0, 0], kneeR: [-0.35, 0, 0] } },
+  { k: 0.5, dy: 0.1, surge: -0.1, v: { hips: [0.15, 0.2, 0.45], torso: [-0.72, 0.12, -0.28], head: [0.5, 0.1, 0], armL: [0.1, 0, 0.35], elbowL: [0.75, 0, 0], armR: [1.05, 0, -0.1], elbowR: [0.1, 0, 0], legL: [0.95, 0, 0.3], kneeL: [-1.15, 0, 0], legR: [0.7, 0, 0.18], kneeR: [-1.05, 0, 0] } },
+  { k: 0.78, dy: 0.0, surge: -0.03, v: { hips: [0.2, 0, 0.08], torso: [-0.34, 0, -0.04], head: [0.2, 0, 0], armL: [0.45, 0, 0.55], elbowL: [0.55, 0, 0], armR: [0.35, 0, -0.55], elbowR: [0.6, 0, 0], legL: [0.55, 0, 0.05], kneeL: [-0.85, 0, 0], legR: [0.3, 0, 0.03], kneeR: [-0.75, 0, 0] } },
+  { k: 1.0, dy: 0, surge: 0, v: { hips: [0.05, 0, 0], torso: [-0.22, 0, 0], head: [0.1, 0, 0], armL: [0.5, 0, 0.1], elbowL: [1.1, 0, 0], armR: [-0.4, 0, -0.1], elbowR: [1.2, 0, 0], legL: [-0.4, 0, 0], kneeL: [-0.7, 0, 0], legR: [0.5, 0, 0], kneeR: [-0.9, 0, 0] } },
+];
+
+/** Write the vault pose at progress `k` (absolute, all bones; the controller mixes it over the run by a weight). */
+export function keyVault(p: Float32Array, k: number, side: number): void {
+  const K = VAULT_KEYS, x = Math.min(1, Math.max(0, k));
+  let i = 0;
+  while (i < K.length - 2 && x > K[i + 1].k) i++;
+  const a = K[i], b = K[i + 1], u = sstep(a.k, b.k, x);
+  for (const name of BONES) {
+    const o = boneChannel(name);
+    const va = a.v[name], vb = b.v[name];
+    for (let c = 0; c < 3; c++) p[o + c] = va && vb ? va[c] + (vb[c] - va[c]) * u : p[o + c] * (1 - u * 0) ;
+  }
+  p[RIG_CH] = 0; p[RIG_CH + 1] = a.dy + (b.dy - a.dy) * u; p[RIG_CH + 2] = a.surge + (b.surge - a.surge) * u;
+  if (side < 0) mirrorPose(p);
 }
 
 /** the skeleton the clips were cut for (scripts/anim/retarget.mjs OUR) and the ankle's height above the sole */
@@ -208,6 +252,9 @@ export class AnimController {
   private turnDir = 1;
   private actionU = 0;
   private jumpU = 0;
+  private vaultU = 0;
+  private vaultLast: { k: number; side: number } | null = null;
+  private vaultTouched = false;
   private lookYaw = 0;
   private lookPitch = 0;
   private aliveT: number;
@@ -387,6 +434,17 @@ export class AnimController {
     }
     this.jumpTouched = this.jumpW > 0.01;
 
+    // vault over a car: the hand-keyed whole body over the run, faded in over a tenth of a second and out over a quarter
+    if (inp.vault) this.vaultLast = inp.vault;
+    this.vaultU = Math.max(0, Math.min(1, this.vaultU + (inp.vault ? dt / 0.1 : -dt / 0.25)));
+    const vaultW = ease(this.vaultU);
+    if (this.vaultLast && vaultW > 0.01) {
+      this.tmp.set(this.base);
+      keyVault(this.tmp, this.vaultLast.k, this.vaultLast.side);
+      this.mix(this.base, this.tmp, vaultW);
+    } else if (!inp.vault) this.vaultLast = null;
+    this.vaultTouched = vaultW > 0.01;
+
     // an on-foot action (punch, throw, aim): the hand-keyed upper body, faded in and out so the arms never snap
     if (inp.action) this.lastAction = inp.action;
     this.actionU = Math.max(0, Math.min(1, this.actionU + (inp.action ? dt / (inp.action.kind === 'aim' ? 0.18 : 0.09) : -dt / 0.2)));
@@ -453,7 +511,7 @@ export class AnimController {
     if (this.cheap) { this.lock.reset(); return; }
     const sitting = !!this.shot && /^(sit|stand|stumble|flinch)/.test(this.shot.clip.name);
     const turning = Math.abs(yawRate) > 1.4 && speed < 1;
-    const enable = sitting || this.jumpTouched || turning ? 0 : 1;
+    const enable = sitting || this.jumpTouched || this.vaultTouched || turning ? 0 : 1;
     const gz = this.target.group?.scale.z ?? 1;
     this.rigV.set(p[RIG_CH] * sc, p[RIG_CH + 1], p[RIG_CH + 2] * sc);
     const lq = this.lockQ;

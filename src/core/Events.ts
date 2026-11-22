@@ -7,7 +7,9 @@ import type { Vec2 } from './Math2';
  * On foot (src/game/combat): assault = a punch that put someone down in view of others (a little heat), thrownHit = a bottle or
  * brick that put someone down (more), gunshot = a pistol shot anyone could hear (a lot).
  */
-export type CrimeType = 'hitPed' | 'hitCop' | 'hitVehicle' | 'carjack' | 'hitParked' | 'sidewalkDriving' | 'assault' | 'thrownHit' | 'gunshot';
+export type CrimeType = 'hitPed' | 'hitCop' | 'hitVehicle' | 'carjack' | 'hitParked' | 'sidewalkDriving' | 'assault' | 'thrownHit' | 'gunshot'
+  /** POLICE2: a landed punch or shove that did not put anyone down (PoliceSystem raises it from `pedHit`), and running a red light in front of a cop */
+  | 'punch' | 'redLight';
 
 export interface GameEvents {
   /** Something the cops care about. */
@@ -18,6 +20,8 @@ export interface GameEvents {
   exitVehicle: { vehicleId: string };
   horn: { pos: Vec2 };
   wantedChanged: { stars: number };
+  /** POLICE2: the player was arrested. `fine` is what was taken, `stars` the level they had. Missions fail on it; the host shows the card. */
+  busted: { stars: number; fine: number };
   /** Player asked the radio to change station. */
   radioNext: Record<string, never>;
   /** Fired once when the player first interacts (needed to start WebAudio). */

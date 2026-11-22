@@ -1,0 +1,124 @@
+/**
+ * POLICE2: a police officer on foot. Not a Pedestrian (no sidewalk graph, no social life): PoliceSystem owns it, steers it toward
+ * a point, and tells it when to reach for the player. It uses the same person builder (variant 'cop': uniform and cap), the same
+ * captured-motion controller and the hand-keyed `grab` pose. Nobody is hurt: a hit staggers it, it never goes down.
+ */
+import * as THREE from 'three';
+import { hyp } from '@/core/Math2';
+import { angleDiff, type Vec2 } from '@/core/Math2';
+import { Rng } from '@/core/Rng';
+import { AnimController } from '@/entities/anim/controller';
+import { makeGait, type Gait } from '@/entities/anim/gait';
+import { animateWalk, type HumanModel } from '@/entities/models/humanModel';
+import { buildPerson } from '@/entities/models/pedMesh';
+import { easeGround, groundAt } from '@/world/Ground';
+import type { Body2D, Entity, IMaterialLibrary } from '@/world/types';
+
+export const OFFICER_WALK = 2.0;
+export const OFFICER_RUN = 4.4;
+/** Reach (m) at which an officer can take hold of someone on foot. */
+export const GRAB_REACH = 1.2;
+
+export type OfficerMode = 'approach' | 'hold' | 'search' | 'leave';
+
+export class Officer implements Entity {
+  readonly object3D: THREE.Group;
+  readonly body: Body2D;
+  mode: OfficerMode = 'approach';
+  /** where to walk in 'search' (the player's last seen spot) or 'leave' */
+  goal: Vec2 | null = null;
+  /** run rather than walk (two stars and up, or the player is getting away) */
+  run = false;
+  /** seconds this officer may not grab again (after a break-free) */
+  cooldown = 0;
+  /** what the arm pose shows: 0 none .. 1 reaching */
+  reach = 0;
+  /** the last time (s on this officer's clock) something struck it */
+  struck = 0;
+  age = 0;
+  /** called when the player hits this officer (Combat.hurt calls `hitBy`): PoliceSystem breaks the hold and reports the crime */
+  onStruck: (() => void) | null = null;
+
+  private readonly model: HumanModel | null;
+  private anim: AnimController | null = null;
+  private gait: Gait | null = null;
+  private groundY = NaN;
+  private phase = 0;
+  private animHeading = 0;
+  private speedNow = 0;
+  private stagger = 0;
+
+  constructor(readonly id: string, pos: Vec2, heading: number, materials: IMaterialLibrary, rng: Rng) {
+    this.body = { id, kind: 'ped', shape: { kind: 'circle', r: 0.3 }, pos: { x: pos.x, z: pos.z }, vel: { x: 0, z: 0 }, heading, mass: 75, userData: this };
+    this.model = buildPerson(materials, rng, { variant: 'cop' }) as unknown as HumanModel;
+    this.object3D = this.model.group;
+    this.object3D.rotation.order = 'YXZ';
+    this.applyPose(0);
+  }
+
+  get speed(): number { return this.speedNow; }
+
+  /**
+   * The player hit this officer. Same signature as Pedestrian.hitBy so Combat can call it: it staggers (a step back), never goes down.
+   * Returns 'staggered' so the combat code treats it as a light hit.
+   */
+  hitBy(from: Vec2, _force: 'light' | 'heavy' | 'thrown' | 'shot' = 'light'): 'staggered' | 'knockedDown' | 'ignored' {
+    const dx = this.body.pos.x - from.x, dz = this.body.pos.z - from.z, d = hyp(dx, dz) || 1;
+    this.body.pos.x += (dx / d) * 0.3; this.body.pos.z += (dz / d) * 0.3;
+    this.stagger = 0.5;
+    this.struck = this.age;
+    this.onStruck?.();
+    return 'staggered';
+  }
+
+  /** Walk toward `to` at walking or running pace; stops within `stop` metres. Returns the distance left. */
+  steer(dt: number, to: Vec2, stop = 0.1): number {
+    const b = this.body;
+    const dx = to.x - b.pos.x, dz = to.z - b.pos.z, d = hyp(dx, dz);
+    if (this.stagger > 0 || d <= stop) { b.vel.x = 0; b.vel.z = 0; this.speedNow = 0; return d; }
+    const v = Math.min(this.run ? OFFICER_RUN : OFFICER_WALK, (d - stop) / Math.max(dt, 1e-3));
+    b.vel.x = (dx / d) * v; b.vel.z = (dz / d) * v;
+    const want = Math.atan2(dx, -dz);
+    b.heading += angleDiff(b.heading, want) * Math.min(1, dt * 9);
+    this.speedNow = v;
+    return d;
+  }
+
+  /** Face a point without moving (while holding someone). */
+  face(dt: number, to: Vec2): void {
+    const want = Math.atan2(to.x - this.body.pos.x, -(to.z - this.body.pos.z));
+    this.body.heading += angleDiff(this.body.heading, want) * Math.min(1, dt * 9);
+  }
+
+  stop(): void { this.body.vel.x = 0; this.body.vel.z = 0; this.speedNow = 0; }
+
+  update(dt: number): void {
+    this.age += dt;
+    if (this.cooldown > 0) this.cooldown -= dt;
+    if (this.stagger > 0) this.stagger -= dt;
+    // the physics world moves the body from `vel`; here only the figure follows
+    if (this.speedNow > 0.1) this.phase += dt * 5 * (this.run ? 1.8 : 1);
+    this.animate(dt);
+    this.applyPose(dt);
+  }
+
+  private animate(dt: number): void {
+    const m = this.model;
+    if (!m) return;
+    this.gait ??= makeGait(Rng.hash(`${this.id}:gait`), 'adult');
+    this.anim ??= new AnimController(m, this.gait);
+    const yawRate = dt > 0 ? -angleDiff(this.animHeading, this.body.heading) / dt : 0;
+    this.animHeading = this.body.heading;
+    const action = this.mode === 'hold' || this.reach > 0 ? { kind: 'grab' as const, k: Math.max(0.01, this.reach) } : null;
+    if (!this.anim.update(dt, { speed: this.speedNow, yawRate, action, look: null })) animateWalk(m, this.phase, this.speedNow > 0.1 ? 0.9 : 0);
+  }
+
+  private applyPose(dt: number): void {
+    const o = this.object3D;
+    this.groundY = easeGround(this.groundY, groundAt(this.body.pos.x, this.body.pos.z), dt > 0 ? dt : 1 / 60);
+    o.position.set(this.body.pos.x, this.groundY, this.body.pos.z);
+    o.rotation.y = -this.body.heading;
+  }
+
+  dispose(): void { this.object3D.removeFromParent(); }
+}

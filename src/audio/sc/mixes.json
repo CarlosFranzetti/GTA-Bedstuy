@@ -1,12 +1,589 @@
 {
-  "weird": [],
-  "sc": [],
-  "bkhouse": [],
-  "dublab": [],
-  "flashback": [],
-  "boogie": [],
-  "yard": [],
-  "latin": [],
-  "stoop": [],
-  "hiphop": []
+ "weird": [
+  {
+   "url": "https://soundcloud.com/thelotradio/the-level-party-with-shawn",
+   "title": "THE LEVEL PARTY with Shawn O'Sullivan @ The Lot Radio 11-19-2026",
+   "dj": "THE LEVEL PARTY with Shawn O'Sullivan",
+   "checked": "page-opened",
+   "minutes": 121
+  },
+  {
+   "url": "https://soundcloud.com/thelotradio/jessica-romoff-hosts-the-wharf",
+   "title": "Jessica Romoff Hosts the Wharf Cat Show @ The Lot Radio 11-19-2026",
+   "dj": "Jessica Romoff Hosts the Wharf Cat Show",
+   "checked": "page-opened",
+   "minutes": 51
+  },
+  {
+   "url": "https://soundcloud.com/thelotradio/coast-2-coast-with-c-brom-and",
+   "title": "Coast 2 Coast with c.brom and X-Coast @ The Lot Radio 11-19-2026",
+   "dj": "Coast 2 Coast with c.brom and X-Coast",
+   "checked": "page-opened",
+   "minutes": 59
+  },
+  {
+   "url": "https://soundcloud.com/thelotradio/caim-the-lot-radio-11-19-2026",
+   "title": "Caim  @ The Lot Radio 11-19-2026",
+   "dj": "Caim",
+   "checked": "page-opened",
+   "minutes": 58
+  },
+  {
+   "url": "https://soundcloud.com/thelotradio/120-radio-invites-dj-j-m-lee",
+   "title": "120 Radio invites DJ J-M LEE @ The Lot Radio 11-19-2026",
+   "dj": "120 Radio invites DJ J-M LEE",
+   "checked": "page-opened",
+   "minutes": 117
+  },
+  {
+   "url": "https://soundcloud.com/thelotradio/gnmr-i-fiumi-di-mercurio-the",
+   "title": "GNMR - I fiumi di Mercurio @ The Lot Radio 11-19-2026",
+   "dj": "GNMR - I fiumi di Mercurio",
+   "checked": "page-opened",
+   "minutes": 58
+  },
+  {
+   "url": "https://soundcloud.com/thelotradio/justin-strauss-the-245313497",
+   "title": "JUSTIN STRAUSS @ The Lot Radio 11-19-2026",
+   "dj": "JUSTIN STRAUSS",
+   "checked": "page-opened",
+   "minutes": 118
+  },
+  {
+   "url": "https://soundcloud.com/thelotradio/weird-science-with-amourette-8",
+   "title": "WEIRD SCIENCE with Amourette  @ The Lot Radio 11-19-2026",
+   "dj": "WEIRD SCIENCE with Amourette",
+   "checked": "page-opened",
+   "minutes": 57
+  },
+  {
+   "url": "https://soundcloud.com/thelotradio/patience-impatience-with-6",
+   "title": "Patience/Impatience with Timedream @ The Lot Radio 11-19-2026",
+   "dj": "Patience/Impatience with Timedream",
+   "checked": "page-opened",
+   "minutes": 121
+  },
+  {
+   "url": "https://soundcloud.com/thelotradio/gems-with-rose-kourts-2",
+   "title": "GEMS with Rose Kourts: Labradorite @ The Lot Radio 11-18-2026",
+   "dj": "GEMS with Rose Kourts: Labradorite",
+   "checked": "page-opened",
+   "minutes": 122
+  }
+ ],
+ "sc": [
+  {
+   "url": "https://soundcloud.com/resident-advisor/ra-1065-azzi-on-the-beat",
+   "title": "RA.1065 Azzi On The Beat",
+   "dj": "Azzi On The Beat",
+   "checked": "page-opened",
+   "minutes": 60
+  },
+  {
+   "url": "https://soundcloud.com/resident-advisor/ra-1064-carlita",
+   "title": "RA.1064 Carlita",
+   "dj": "Carlita",
+   "checked": "page-opened",
+   "minutes": 61
+  },
+  {
+   "url": "https://soundcloud.com/resident-advisor/ra-1063-andy-stott",
+   "title": "RA.1063 Andy Stott",
+   "dj": "Andy Stott",
+   "checked": "page-opened",
+   "minutes": 61
+  },
+  {
+   "url": "https://soundcloud.com/resident-advisor/fm-tashlc-2026",
+   "title": "RA Live - Tash LC - Field Maneuvers 2026",
+   "dj": "Tash LC",
+   "checked": "page-opened",
+   "minutes": 91
+  },
+  {
+   "url": "https://soundcloud.com/resident-advisor/fm2026-jana-rush",
+   "title": "RA Live - Jana Rush - Field Maneuvers 2026",
+   "dj": "Jana Rush",
+   "checked": "page-opened",
+   "minutes": 117
+  },
+  {
+   "url": "https://soundcloud.com/resident-advisor/fm2026-imogen",
+   "title": "RA Live - IMOGEN - Field Maneuvers 2026",
+   "dj": "IMOGEN",
+   "checked": "page-opened",
+   "minutes": 96
+  },
+  {
+   "url": "https://soundcloud.com/resident-advisor/fm2026-ijordan",
+   "title": "RA Live - I. JORDAN - Field Maneuvers 2026",
+   "dj": "I. JORDAN",
+   "checked": "page-opened",
+   "minutes": 120
+  }
+ ],
+ "bkhouse": [
+  {
+   "url": "https://soundcloud.com/platform/makoto-osaka",
+   "title": "Makoto | Boiler Room: Osaka",
+   "dj": "Makoto",
+   "checked": "page-opened",
+   "minutes": 62
+  },
+  {
+   "url": "https://soundcloud.com/platform/rico-osaka",
+   "title": "Rico | Boiler Room: Osaka",
+   "dj": "Rico",
+   "checked": "page-opened",
+   "minutes": 50
+  },
+  {
+   "url": "https://soundcloud.com/platform/kyo-osaka",
+   "title": "Kyo | Boiler Room: Osaka",
+   "dj": "Kyo",
+   "checked": "page-opened",
+   "minutes": 51
+  },
+  {
+   "url": "https://soundcloud.com/platform/vieze-asbak-la-sunday",
+   "title": "Vieze Asbak | Boiler Room LA: Teletech",
+   "dj": "Vieze Asbak",
+   "checked": "page-opened",
+   "minutes": 59
+  },
+  {
+   "url": "https://soundcloud.com/platform/jazzy-la-sunday",
+   "title": "JAZZY | Boiler Room LA: Teletech",
+   "dj": "JAZZY",
+   "checked": "page-opened",
+   "minutes": 61
+  },
+  {
+   "url": "https://soundcloud.com/platform/jowi-la-sunday",
+   "title": "Jowi | Boiler Room LA: Teletech",
+   "dj": "Jowi",
+   "checked": "page-opened",
+   "minutes": 59
+  },
+  {
+   "url": "https://soundcloud.com/platform/natte-visstick-la-sunday",
+   "title": "Natte Visstick | Boiler Room LA: Teletech",
+   "dj": "Natte Visstick",
+   "checked": "page-opened",
+   "minutes": 58
+  },
+  {
+   "url": "https://soundcloud.com/platform/hannah-laing-la-sunday-1",
+   "title": "Hannah Laing | Boiler Room LA: Teletech",
+   "dj": "Hannah Laing",
+   "checked": "page-opened",
+   "minutes": 56
+  },
+  {
+   "url": "https://soundcloud.com/platform/the-glitch-mob-la-saturday",
+   "title": "The Glitch Mob | Boiler Room LA: heds",
+   "dj": "The Glitch Mob",
+   "checked": "page-opened",
+   "minutes": 58
+  }
+ ],
+ "dublab": [
+  {
+   "url": "https://soundcloud.com/dkmntl/loidis-at-dekmantel-festival-2025",
+   "title": "Loidis at Selectors - Dekmantel Festival 2025",
+   "dj": "Loidis",
+   "checked": "page-opened",
+   "minutes": 177
+  },
+  {
+   "url": "https://soundcloud.com/dkmntl/teqmun-at-the-nest-dekmantel-festival-2025",
+   "title": "Teqmun at The Nest - Dekmantel Festival 2025",
+   "dj": "Teqmun",
+   "checked": "page-opened",
+   "minutes": 173
+  },
+  {
+   "url": "https://soundcloud.com/dkmntl/spekki-webu-woody-92-at-ufo-ii-dekmantel-festival-2025",
+   "title": "Spekki Webu & Woody92 at UFO II - Dekmantel Festival 2025",
+   "dj": "Spekki Webu & Woody92",
+   "checked": "page-opened",
+   "minutes": 121
+  },
+  {
+   "url": "https://soundcloud.com/dkmntl/dekmantel-mix-490-niks",
+   "title": "Dekmantel Mix 490 - NIKS",
+   "dj": "NIKS",
+   "checked": "page-opened",
+   "minutes": 86
+  },
+  {
+   "url": "https://soundcloud.com/dkmntl/rozaly-tash-lc-at-dekmantel",
+   "title": "Rozaly & Tash LC at Dekmantel Selectors 2025",
+   "dj": "Rozaly & Tash LC",
+   "checked": "page-opened",
+   "minutes": 121
+  }
+ ],
+ "flashback": [
+  {
+   "url": "https://soundcloud.com/rinsefm/fold171126",
+   "title": "Fold & SP:MC: Live from Phonox - 17 November 2026",
+   "dj": "Fold & SP:MC: Live from Phonox",
+   "checked": "page-opened",
+   "minutes": 60
+  },
+  {
+   "url": "https://soundcloud.com/rinsefm/hessleaudio161126",
+   "title": "Hessle Audio with Ben UFO - 16 November 2026",
+   "dj": "Hessle Audio with Ben UFO",
+   "checked": "page-opened",
+   "minutes": 120
+  },
+  {
+   "url": "https://soundcloud.com/rinsefm/manueldarquart201026",
+   "title": "Adventures In Paradise With Manuel Darquart - 20 October 2026",
+   "dj": "Adventures In Paradise With Manuel Darquart",
+   "checked": "page-opened",
+   "minutes": 60
+  },
+  {
+   "url": "https://soundcloud.com/rinsefm/suziebakos201026",
+   "title": "Suzie Bakos with Sam Limiri - 20 October 2026",
+   "dj": "Suzie Bakos with Sam Limiri",
+   "checked": "page-opened",
+   "minutes": 60
+  },
+  {
+   "url": "https://soundcloud.com/rinsefm/caracrosby201026",
+   "title": "Cara Crosby - 20 October 2026",
+   "dj": "Cara Crosby",
+   "checked": "page-opened",
+   "minutes": 60
+  },
+  {
+   "url": "https://soundcloud.com/rinsefm/papaoul201026",
+   "title": "Papaoul with Goya Gumbani - 20 October 2026",
+   "dj": "Papaoul with Goya Gumbani",
+   "checked": "page-opened",
+   "minutes": 120
+  },
+  {
+   "url": "https://soundcloud.com/rinsefm/loris191026",
+   "title": "Loris - 19 October 2026",
+   "dj": "Loris",
+   "checked": "page-opened",
+   "minutes": 60
+  },
+  {
+   "url": "https://soundcloud.com/rinsefm/tasha191026",
+   "title": "Tasha - 19 October 2026",
+   "dj": "Tasha",
+   "checked": "page-opened",
+   "minutes": 60
+  },
+  {
+   "url": "https://soundcloud.com/rinsefm/amaliah191026",
+   "title": "Amaliah B2B Human Movement - 19 October 2026",
+   "dj": "Amaliah B2B Human Movement",
+   "checked": "page-opened",
+   "minutes": 59
+  },
+  {
+   "url": "https://soundcloud.com/rinsefm/dyslecta191026",
+   "title": "Dyslecta B2B Buckley:  Live From Oxi, Berlin (Part 2) - 19 October 2026",
+   "dj": "Dyslecta B2B Buckley:  Live From Oxi, Berlin (Part 2)",
+   "checked": "page-opened",
+   "minutes": 58
+  }
+ ],
+ "boogie": [
+  {
+   "url": "https://soundcloud.com/soulection/show-754",
+   "title": "Show #754 | Future Beats, R&B, Soul, & Afro Soul",
+   "dj": "Soulection Radio (Joe Kay and guests)",
+   "checked": "page-opened",
+   "minutes": 121
+  },
+  {
+   "url": "https://soundcloud.com/soulection/show-753",
+   "title": "Show #753 | R&B/Soul, Future Beats, Classics, Afro Fusion",
+   "dj": "Soulection Radio (Joe Kay and guests)",
+   "checked": "page-opened",
+   "minutes": 124
+  },
+  {
+   "url": "https://soundcloud.com/soulection/show-752",
+   "title": "Show #752 | Dub, Reggae, Soulful House, & Afro-Fusion",
+   "dj": "Soulection Radio (Joe Kay and guests)",
+   "checked": "page-opened",
+   "minutes": 122
+  },
+  {
+   "url": "https://soundcloud.com/soulection/show-751",
+   "title": "Show #751 | Future Beats, R&B, Reggae, & UK Bass",
+   "dj": "Soulection Radio (Joe Kay and guests)",
+   "checked": "page-opened",
+   "minutes": 126
+  },
+  {
+   "url": "https://soundcloud.com/soulection/show-750-r-b-classics-soul",
+   "title": "Show #750 | R&B, Classics, Soul, Blends, & House",
+   "dj": "Soulection Radio (Joe Kay and guests)",
+   "checked": "page-opened",
+   "minutes": 122
+  },
+  {
+   "url": "https://soundcloud.com/soulection/show-749",
+   "title": "Show #749 | 15-Year Celebration",
+   "dj": "Soulection Radio (Joe Kay and guests)",
+   "checked": "page-opened",
+   "minutes": 126
+  },
+  {
+   "url": "https://soundcloud.com/soulection/show-748",
+   "title": "Show #748 (Swizz Beatz Takeover Pt. 3) | (Breakbeats, Hip Hop, & Salsa)",
+   "dj": "Soulection Radio (Joe Kay and guests)",
+   "checked": "page-opened",
+   "minutes": 118
+  },
+  {
+   "url": "https://soundcloud.com/soulection/show-747",
+   "title": "Show #747 (Icee Red Takeover) | (R&B, Miami Bass, & Global Bass)",
+   "dj": "Soulection Radio (Joe Kay and guests)",
+   "checked": "page-opened",
+   "minutes": 125
+  },
+  {
+   "url": "https://soundcloud.com/soulection/show-746",
+   "title": "Show #746 | Edits, Samples, Remixes, & Blends",
+   "dj": "Soulection Radio (Joe Kay and guests)",
+   "checked": "page-opened",
+   "minutes": 122
+  },
+  {
+   "url": "https://soundcloud.com/soulection/show-745",
+   "title": "Show #745 | Beats, R&B/Soul, & Afro Electronic",
+   "dj": "Soulection Radio (Joe Kay and guests)",
+   "checked": "page-opened",
+   "minutes": 123
+  }
+ ],
+ "yard": [
+  {
+   "url": "https://soundcloud.com/silver-star-sound/silverstar13november2026",
+   "title": "This Is How You Juggle On Friday 13 Nov 2026",
+   "dj": "SilverStar Sound",
+   "checked": "page-opened",
+   "minutes": 107
+  },
+  {
+   "url": "https://soundcloud.com/silver-star-sound/silverstar6november2026",
+   "title": "This Is How You Juggle On Friday 6 Nov 2026",
+   "dj": "SilverStar Sound",
+   "checked": "page-opened",
+   "minutes": 107
+  },
+  {
+   "url": "https://soundcloud.com/silver-star-sound/this-is-how-you-juggle-on-4",
+   "title": "This Is How You Juggle On Friday 30 Oct 2026",
+   "dj": "SilverStar Sound",
+   "checked": "page-opened",
+   "minutes": 108
+  },
+  {
+   "url": "https://soundcloud.com/silver-star-sound/this-is-how-you-juggle-on-3",
+   "title": "This Is How You Juggle On Friday 23 Oct 2026",
+   "dj": "SilverStar Sound",
+   "checked": "page-opened",
+   "minutes": 108
+  },
+  {
+   "url": "https://soundcloud.com/silver-star-sound/this-is-how-you-juggle-on-2",
+   "title": "This Is How You Juggle On Friday 16 Oct 2026",
+   "dj": "SilverStar Sound",
+   "checked": "page-opened",
+   "minutes": 107
+  },
+  {
+   "url": "https://soundcloud.com/silver-star-sound/this-is-how-you-juggle-on-1",
+   "title": "This Is How You Juggle On Friday  9 Oct 2026",
+   "dj": "SilverStar Sound",
+   "checked": "page-opened",
+   "minutes": 107
+  },
+  {
+   "url": "https://soundcloud.com/silver-star-sound/this-is-how-you-juggle-on",
+   "title": "This Is How You Juggle On Friday 18 Sept 2026",
+   "dj": "SilverStar Sound",
+   "checked": "page-opened",
+   "minutes": 106
+  },
+  {
+   "url": "https://soundcloud.com/silver-star-sound/dancehall-2026-hits-fully",
+   "title": "Dancehall 2026 Hits Fully Loaded - X Rated & Raw",
+   "dj": "SilverStar Sound",
+   "checked": "page-opened",
+   "minutes": 61
+  },
+  {
+   "url": "https://soundcloud.com/silver-star-sound/reggaetown-silverstar-live",
+   "title": "ReggaeTown SilverStar Live March 2026",
+   "dj": "SilverStar Sound",
+   "checked": "page-opened",
+   "minutes": 55
+  }
+ ],
+ "latin": [
+  {
+   "url": "https://soundcloud.com/djrubytunes/salsa-cumbia-reggaeton-mix-nov",
+   "title": "SALSA-CUMBIA-REGGAETON MIX - NOV 2026",
+   "dj": "DJ RubyTunes",
+   "checked": "page-opened",
+   "minutes": 67
+  },
+  {
+   "url": "https://soundcloud.com/djrubytunes/salsas-romanticas-mix-oct-2026",
+   "title": "SALSAS ROMANTICAS MIX - OCT 2026",
+   "dj": "DJ RubyTunes",
+   "checked": "page-opened",
+   "minutes": 64
+  },
+  {
+   "url": "https://soundcloud.com/djrubytunes/bachata-merengue-tipico-mix",
+   "title": "BACHATA-MERENGUE-TIPICO MIX - OCT 2026",
+   "dj": "DJ RubyTunes",
+   "checked": "page-opened",
+   "minutes": 75
+  },
+  {
+   "url": "https://soundcloud.com/djrubytunes/salsas-clasicas-mix-oct-2026",
+   "title": "SALSAS CLASICAS MIX - OCT 2026",
+   "dj": "DJ RubyTunes",
+   "checked": "page-opened",
+   "minutes": 66
+  },
+  {
+   "url": "https://soundcloud.com/djrubytunes/bachata-merengue-mix-oct-2029",
+   "title": "BACHATA-MERENGUE MIX - OCT 2029",
+   "dj": "DJ RubyTunes",
+   "checked": "page-opened",
+   "minutes": 54
+  },
+  {
+   "url": "https://soundcloud.com/djrubytunes/salsas-romanticas-mix-1-sept",
+   "title": "SALSAS ROMANTICAS MIX #1 - SEPT 2026",
+   "dj": "DJ RubyTunes",
+   "checked": "page-opened",
+   "minutes": 61
+  },
+  {
+   "url": "https://soundcloud.com/djrubytunes/bachata-merengue-sandy-y-papo",
+   "title": "BACHATA-MERENGUE & SANDY Y PAPO MIX - SEPT 2026",
+   "dj": "DJ RubyTunes",
+   "checked": "page-opened",
+   "minutes": 57
+  },
+  {
+   "url": "https://soundcloud.com/djrubytunes/salsa-mix-2-sept-2026",
+   "title": "SALSA MIX #2 - SEPT 2026",
+   "dj": "DJ RubyTunes",
+   "checked": "page-opened",
+   "minutes": 61
+  }
+ ],
+ "stoop": [
+  {
+   "url": "https://soundcloud.com/uhhmradio/rocklogic-uhhradio-the-jam",
+   "title": "ROCKLOGIC UHHRADIO THE JAM JULY 7 2017",
+   "dj": "Universal Hip Hop Radio",
+   "checked": "page-opened",
+   "minutes": 61
+  },
+  {
+   "url": "https://soundcloud.com/uhhmradio/grandwizzard-theodore-uhhm-july-4tth-weekend",
+   "title": "GRANDWIZZARD THEODORE UHHRADIO THE JAM JULY 4TTH Weekend",
+   "dj": "Universal Hip Hop Radio",
+   "checked": "page-opened",
+   "minutes": 61
+  }
+ ],
+ "hiphop": [
+  {
+   "url": "https://soundcloud.com/ruboxmusic/september-60-minute-hiphop-mixtape-46",
+   "title": "September \"60-Minute\" HIphop Mixtape 46",
+   "dj": "Ruboxmusic",
+   "checked": "page-opened",
+   "minutes": 65
+  },
+  {
+   "url": "https://soundcloud.com/illsound/radj-lomka181",
+   "title": "Underground Rap Mix 2026 • Strictly Boom Bap & Raw Hip Hop • LOMKA Vol. 181 by RADJ",
+   "dj": "radj",
+   "checked": "page-opened",
+   "minutes": 62
+  },
+  {
+   "url": "https://soundcloud.com/back-to-the-classics/dj-sbm-back-to-the-classics-1",
+   "title": "DJ SBM - Back to the Classics 1",
+   "dj": "Back to the Classics 1",
+   "checked": "page-opened",
+   "minutes": 59
+  },
+  {
+   "url": "https://soundcloud.com/mrchriswaters/golden-era-of-hip-hop-mix-rare-hard-to-find-90s-hip-hop",
+   "title": "GOLDEN ERA OF HIP HOP MIX (Rare/ Hard to Find 90's Hip Hop)",
+   "dj": "Chris Waters",
+   "checked": "page-opened",
+   "minutes": 55
+  },
+  {
+   "url": "https://soundcloud.com/djwashburn/hip-hop-90s2000s-party-mix-clean-smooth-transitions-quick-mixing-60-mins",
+   "title": "Hip Hop 90s/2000s Party Mix *CLEAN (Smooth Transitions & Quick Mixing) 60 Mins",
+   "dj": "DJ Washburn",
+   "checked": "page-opened",
+   "minutes": 63
+  },
+  {
+   "url": "https://soundcloud.com/djchiefone/1996-mixtape-part-1",
+   "title": "DJ CHIEF-ONE - 1996 MIXTAPE (Part 1)",
+   "dj": "DJ CHIEF-ONE",
+   "checked": "page-opened",
+   "minutes": 177
+  },
+  {
+   "url": "https://soundcloud.com/uncledoobie/uncle-doobie-90s-east-coast-hip-hop-mix",
+   "title": "Uncle Doobie - 90s East Coast Hip Hop Mix",
+   "dj": "uncledoobie",
+   "checked": "page-opened",
+   "minutes": 57
+  },
+  {
+   "url": "https://soundcloud.com/pfcuttin/eastnyradio-6-13-19-all-new-mix-plus-dj-selectron",
+   "title": "EastNYRADIO 6-13-19 All new mix plus Dj Selectron",
+   "dj": "PFCUTTIN",
+   "checked": "page-opened",
+   "minutes": 127
+  },
+  {
+   "url": "https://soundcloud.com/dj-xclusive-g2b/90s-hip-hop-mix-snoop-dogg-2pac-dr-dre-nas-krs-one-ice-cube-mobb-deep-big-l-nas-more",
+   "title": "90s HIP HOP MIX ~ Luniz, 2Pac, Big L, NAS, Biggie, KRS. One, Mobb Deep, Snoop Dogg, Ice Cube & More",
+   "dj": "DJ XclusiVe G2B",
+   "checked": "page-opened",
+   "minutes": 75
+  },
+  {
+   "url": "https://soundcloud.com/pfcuttin/eastnyradio-11-20-26-mix-mp3",
+   "title": "EastNYRadio 11-20-26 mix.mp3",
+   "dj": "PFCUTTIN",
+   "checked": "page-opened",
+   "minutes": 62
+  },
+  {
+   "url": "https://soundcloud.com/pfcuttin/eastnyradio-11-10-26-mix-mp3",
+   "title": "EastNYRadio 11-10-26 mix.mp3",
+   "dj": "PFCUTTIN",
+   "checked": "page-opened",
+   "minutes": 62
+  }
+ ]
 }

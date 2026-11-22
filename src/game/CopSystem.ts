@@ -60,6 +60,9 @@ export class CopSystem {
   private ramCount = 0;
   private ramAge = 0;
   private sidewalkTime = 0;
+  /** POLICE2: at one star the patrol car shadows the player instead of ramming (the foot officers do the arresting). Off by default. */
+  gentleAtOneStar = false;
+  private readonly chirps = new Map<IVehicle, number>();
 
   constructor(
     private readonly grid: GridModel,
@@ -91,6 +94,7 @@ export class CopSystem {
       this.quarry.heading = body.heading;
       this.quarry.vel = body.vel;
       this.quarry.stars = wanted;
+      this.quarry.gentle = this.gentleAtOneStar;
       quarry = this.quarry;
     }
 
@@ -154,8 +158,22 @@ export class CopSystem {
         continue;
       }
       e.agent.update(dt, playerPos, quarry);
+      const ch = this.chirps.get(v);
+      if (ch !== undefined) { if (ch > dt) { this.chirps.set(v, ch - dt); v.siren = true; } else this.chirps.delete(v); }
     }
   }
+
+  // ---- POLICE2 entry points (read-only views for the police system; nothing here changes the dispatch)
+
+  /** Cop cars the AI still drives (a stolen one is excluded), with whether each is chasing. */
+  patrolCars(): { vehicle: IVehicle; pursuing: boolean }[] {
+    const out: { vehicle: IVehicle; pursuing: boolean }[] = [];
+    for (const e of this.entries) if (e.vehicle.driver === 'cop') out.push({ vehicle: e.vehicle, pursuing: e.agent.pursuing });
+    return out;
+  }
+
+  /** A short siren chirp from this car (a warning). */
+  chirp(v: IVehicle, seconds = 1.2): void { this.chirps.set(v, seconds); v.siren = true; }
 
   dispose(): void {
     this.off();

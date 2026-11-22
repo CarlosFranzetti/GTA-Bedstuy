@@ -1,0 +1,101 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>car line-up</title>
+<style>html,body{margin:0;background:#789;overflow:hidden}</style></head>
+<body><script type="module">
+// CARS5 line-up: vehicle types side by side at ONE scale (orthographic), a 1.75 m figure and a 5 m ruler at every row start.
+// /scripts/carlineup.html?view=side|front|q3&types=a,b&ppm=60&rowm=40&tier=low|high
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Rng } from '@/core/Rng';
+import { MaterialLibrary } from '@/textures/MaterialLibrary';
+import { buildCarModel } from '@/entities/models/carModel';
+import { VEHICLE_SPECS } from '@/entities/Vehicle';
+import { lookFor } from '@/entities/models/carLook';
+
+const P = new URLSearchParams(location.search);
+const view = P.get('view') ?? 'side';
+const ppm = Number(P.get('ppm') ?? 60), rowM = Number(P.get('rowm') ?? 40), rowH = Number(P.get('rowh') ?? 4.2);
+const types = (P.get('types') ?? Object.keys(VEHICLE_SPECS).join(',')).split(',');
+// pack rows by length (side) or width (front)
+const extent = (t) => (view === 'front' ? VEHICLE_SPECS[t].width : VEHICLE_SPECS[t].length) + 0.9;
+const rows = []; let cur = [], used = 3.2;
+for (const t of types) { if (used + extent(t) > rowM && cur.length) { rows.push(cur); cur = []; used = 3.2; } cur.push(t); used += extent(t); }
+if (cur.length) rows.push(cur);
+const W = Math.round(rowM * ppm), H = Math.round(rows.length * rowH * ppm);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); document.body.appendChild(renderer.domElement);
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0xc9d3dc);
+const pm = new THREE.PMREMGenerator(renderer);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.6;
+const sun = new THREE.DirectionalLight(0xfff2dc, 2.4); sun.position.set(-8, 14, 10); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x6a5a48, 0.7));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0x5a5d62, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2; ground.position.y = 0; scene.add(ground);
+const materials = new MaterialLibrary(new Rng(7)); materials.carPaintDetail(); materials.setEnvironment(scene.environment);
+const flat = (c) => new THREE.MeshBasicMaterial({ color: c });
+function person() { // 1.75 m stand-in: legs, torso, arms, head
+  const g = new THREE.Group(); const m = flat(0x2a6f4a), s = flat(0xd9a77f);
+  const add = (w, h, d, x, y, mat) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); b.position.set(x, y, 0); g.add(b); };
+  add(0.2, 0.85, 0.2, -0.1, 0.425, m); add(0.2, 0.85, 0.2, 0.1, 0.425, m); add(0.42, 0.6, 0.24, 0, 1.15, m);
+  add(0.1, 0.55, 0.12, -0.27, 1.2, m); add(0.1, 0.55, 0.12, 0.27, 1.2, m); add(0.2, 0.25, 0.2, 0, 1.62, s);
+  return g;
+}
+function ruler(len = 5) { // 5 m, alternating 1 m bars
+  const g = new THREE.Group();
+  for (let i = 0; i < len; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(1, 0.12, 0.12), flat(i % 2 ? 0xffffff : 0xd33a2c)); b.position.set(i + 0.5, 0.06, 0); g.add(b); }
+  return g;
+}
+const cam = new THREE.OrthographicCamera(0, W / ppm, rowH, 0, -100, 100);
+const info = {}; let tris = 0;
+const group = new THREE.Group(); scene.add(group);
+const items = [];
+rows.forEach((row, ri) => {
+  const p = person(); const r = ruler();
+  // side: view along x, scene x -> screen -x... use z as the horizontal axis. front: horizontal axis is x.
+  items.push({ obj: p, ri, h: 0.6 }); items.push({ obj: r, ri, h: 2.0 });
+  let x = 4.2;
+  for (const t of row) {
+    const spec = VEHICLE_SPECS[t];
+    const m = buildCarModel(t, spec, materials, 0, undefined, false, lookFor(t, spec.color, 1234), 1234);
+    const half = extent(t) / 2; x += half;
+    items.push({ obj: m.group, ri, h: x, type: t });
+    let n = 0; m.group.traverse((o) => { if (o.isMesh && o.visible) { const g = o.geometry; n += (g.index ? g.index.count : g.attributes.position.count) / 3 * (o.isInstancedMesh ? o.count : 1); } });
+    info[t] = Math.round(n); tris += n; x += half;
+  }
+});
+// render each row with its own scissor: all objects live at their own world x = h (horizontal screen axis), row separated in screen only
+const rowObjs = rows.map(() => []);
+for (const it of items) rowObjs[it.ri].push(it);
+for (let ri = 0; ri < rows.length; ri++) {
+  for (const o of group.children.slice()) group.remove(o);
+  for (const it of rowObjs[ri]) {
+    const o = it.obj;
+    if (it.type) { o.position.set(it.h, 0, 0); o.rotation.y = view === 'side' ? Math.PI / 2 : Math.PI; }
+    group.add(o);
+  }
+  rowObjs[ri][0].obj.position.set(2.0, 0, 0); rowObjs[ri][1].obj.visible = false;
+  const y = H - (ri + 1) * rowH * ppm;
+  renderer.setViewport(0, y, W, rowH * ppm); renderer.setScissor(0, y, W, rowH * ppm); renderer.setScissorTest(true);
+  cam.position.set(0, 0, 30); cam.lookAt(0, 0, 0);
+  cam.updateProjectionMatrix();
+  renderer.render(scene, cam);
+}
+// 2D overlay: labels + 5 m ruler drawn on a copy
+const c2 = document.createElement('canvas'); c2.width = W; c2.height = H; const g2 = c2.getContext('2d');
+g2.drawImage(renderer.domElement, 0, 0);
+rows.forEach((row, ri) => {
+  const y0 = (ri + 1) * rowH * ppm; // baseline (ground) in px from top
+  g2.font = '13px sans-serif'; g2.textBaseline = 'bottom';
+  const ty = y0 - rowH * ppm + 34; for (let i = 0; i < 5; i++) { g2.fillStyle = i % 2 ? '#fff' : '#d33a2c'; g2.fillRect(0.3 * ppm + i * ppm, ty, ppm, 6); }
+  g2.fillStyle = '#111'; g2.fillText('5 m', 0.3 * ppm, ty - 2);
+  let x = 4.2;
+  for (const t of row) {
+    const half = extent(t) / 2; x += half; const s = VEHICLE_SPECS[t];
+    g2.fillStyle = '#111'; g2.fillText(`${t} ${s.length.toFixed(2)}x${s.width.toFixed(2)}x${s.height.toFixed(2)}`, (x - half) * ppm, y0 - rowH * ppm + 18);
+    x += half;
+  }
+});
+c2.id = 'out'; document.body.appendChild(c2); renderer.domElement.style.display = 'none';
+window.__ready = { W, H, rows: rows.map((r) => r.length), tris: Math.round(tris), info };
+</script></body></html>

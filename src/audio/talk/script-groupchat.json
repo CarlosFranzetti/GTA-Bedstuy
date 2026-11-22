@@ -1,0 +1,3207 @@
+{
+  "title": "The Group Chat 99.9: Everybody Is Typing",
+  "station": "The Group Chat 99.9",
+  "totalSeconds": 2779,
+  "segments": [
+    {
+      "id": "morn01",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Group Chat. Ninety-nine point nine. Everybody is typing.",
+      "seconds": 4.3
+    },
+    {
+      "id": "morn02",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Good morning, Brooklyn. I am Odessa Pruitt, born on Hancock Street, and this is The Group Chat, the only radio station where somebody always hits reply all.",
+      "seconds": 11.2
+    },
+    {
+      "id": "morn03",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "And I am Linden Aldous. I have lived here four years, so I can tell you, we have always done mornings like this. We had a sourdough phase together.",
+      "seconds": 12.0
+    },
+    {
+      "id": "morn04",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Linden, you did not live through the sourdough phase. You caused the sourdough phase.",
+      "seconds": 6.2
+    },
+    {
+      "id": "morn05",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "We contain multitudes, Odessa.",
+      "seconds": 2.3
+    },
+    {
+      "id": "morn06",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "We contain a sourdough starter in your fridge that pays no rent.",
+      "seconds": 5.4
+    },
+    {
+      "id": "morn07",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "A note from the booth. Please remember this show is entirely human, sincerely made, and not at all optimized. Have a wonderful day.",
+      "seconds": 9.6
+    },
+    {
+      "id": "morn08",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Pat, you sound like a hotel. Did you eat?",
+      "seconds": 4.3
+    },
+    {
+      "id": "morn09",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "Thank you for asking. I do not require food. I mean, I had a bagel.",
+      "seconds": 6.6
+    },
+    {
+      "id": "morn10",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Odessa. He said he does not require food.",
+      "seconds": 3.9
+    },
+    {
+      "id": "morn11",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Linden, nobody here requires food. We have it delivered anyway.",
+      "seconds": 4.6
+    },
+    {
+      "id": "morn12",
+      "kind": "host",
+      "speaker": "Station Voice",
+      "voice": "announcer",
+      "text": "The Group Chat is a work of parody. All callers and businesses are invented. Any resemblance is the neighborhood's fault.",
+      "seconds": 8.5
+    },
+    {
+      "id": "morn13",
+      "kind": "sting",
+      "speaker": "Time Check",
+      "voice": "announcer",
+      "text": "It is nine fifteen, or possibly Thursday.",
+      "seconds": 3.5
+    },
+    {
+      "id": "morn14",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "First segment. Everybody's Cousin Has A Startup. My cousin has an A I startup. It is a toaster that apologizes. We are very excited.",
+      "seconds": 10.0
+    },
+    {
+      "id": "morn15",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "My cousin has one too. It is called Gravy Brain. He raised two million dollars from a man named Chip.",
+      "seconds": 8.5
+    },
+    {
+      "id": "morn16",
+      "kind": "caller",
+      "speaker": "Priya from Putnam",
+      "voice": "caller1",
+      "text": "Priya from Putnam. My cousin Marcus has an A I startup that summarizes your group chats. The summary is always the same. Nobody replied, and your mother is upset.",
+      "seconds": 12.0
+    },
+    {
+      "id": "morn17",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Is it accurate?",
+      "seconds": 2
+    },
+    {
+      "id": "morn18",
+      "kind": "caller",
+      "speaker": "Priya from Putnam",
+      "voice": "caller1",
+      "text": "Painfully. He is valued at four million dollars. He still lives in my aunt's basement, but the basement is now called headquarters.",
+      "seconds": 9.3
+    },
+    {
+      "id": "morn19",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "We love a basement with a mission statement.",
+      "seconds": 3.9
+    },
+    {
+      "id": "morn20",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Priya, tell Marcus the basement has a stoop, and the stoop is the real asset.",
+      "seconds": 6.6
+    },
+    {
+      "id": "morn21",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Marcus, if you are listening, call your mother. She is upset. Your own summary says so.",
+      "seconds": 7.0
+    },
+    {
+      "id": "morn22",
+      "kind": "sting",
+      "speaker": "Group Chat",
+      "voice": "announcer",
+      "text": "The Group Chat. Weather is next.",
+      "seconds": 3.1
+    },
+    {
+      "id": "morn23",
+      "kind": "host",
+      "speaker": "Marisol Gale, weather",
+      "voice": "caller2",
+      "text": "Marisol Gale, weather, and I am taking this personally. Today will be eighty-one degrees, which is the sky looking right at me and saying, what are you going to do about it.",
+      "seconds": 13.1
+    },
+    {
+      "id": "morn24",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Marisol, is there rain?",
+      "seconds": 2.3
+    },
+    {
+      "id": "morn25",
+      "kind": "host",
+      "speaker": "Marisol Gale, weather",
+      "voice": "caller2",
+      "text": "Fifty percent. That means the sky has not decided. It will tell us after we leave the umbrella at home.",
+      "seconds": 8.5
+    },
+    {
+      "id": "morn26",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "How humid is it?",
+      "seconds": 2.3
+    },
+    {
+      "id": "morn27",
+      "kind": "host",
+      "speaker": "Marisol Gale, weather",
+      "voice": "caller2",
+      "text": "Ninety percent. And it is not the heat, Linden. It is the building's fault. Every building on Macon holds heat like a grudge.",
+      "seconds": 9.6
+    },
+    {
+      "id": "morn28",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "My landlord says the heat is included.",
+      "seconds": 3.5
+    },
+    {
+      "id": "morn29",
+      "kind": "host",
+      "speaker": "Marisol Gale, weather",
+      "voice": "caller2",
+      "text": "The heat is included. Unfortunately, so am I. Back to you.",
+      "seconds": 5.0
+    },
+    {
+      "id": "morn30",
+      "kind": "sting",
+      "speaker": "Group Chat",
+      "voice": "announcer",
+      "text": "Transit, with Reggie Sutphin.",
+      "seconds": 2.3
+    },
+    {
+      "id": "morn31",
+      "kind": "host",
+      "speaker": "Reggie Sutphin, transit",
+      "voice": "caller1",
+      "text": "Reggie Sutphin, transit. I want to start by saying how I feel. I feel nervous. The A train is running, and that makes me suspicious.",
+      "seconds": 10.4
+    },
+    {
+      "id": "morn32",
+      "kind": "host",
+      "speaker": "Reggie Sutphin, transit",
+      "voice": "caller1",
+      "text": "The G train is reported to exist. Several riders say they saw it in March. Others call it a rumor with a schedule.",
+      "seconds": 9.6
+    },
+    {
+      "id": "morn33",
+      "kind": "host",
+      "speaker": "Reggie Sutphin, transit",
+      "voice": "caller1",
+      "text": "On the J, a man is playing the saxophone, and honestly it is the best thing that has happened to the J all week.",
+      "seconds": 10.0
+    },
+    {
+      "id": "morn34",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Reggie, how are the delays?",
+      "seconds": 2.7
+    },
+    {
+      "id": "morn35",
+      "kind": "host",
+      "speaker": "Reggie Sutphin, transit",
+      "voice": "caller1",
+      "text": "Emotional. There are delays of the signal, delays of the heart, and one delay because a pigeon boarded at the stop with the mosaic and would not get off.",
+      "seconds": 12.0
+    },
+    {
+      "id": "morn36",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Reggie, what should I do?",
+      "seconds": 2.7
+    },
+    {
+      "id": "morn37",
+      "kind": "host",
+      "speaker": "Reggie Sutphin, transit",
+      "voice": "caller1",
+      "text": "Leave early. Or live near where you work. Or become a person who works from the stoop.",
+      "seconds": 7.3
+    },
+    {
+      "id": "morn38",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Thank you for the calm, Reggie.",
+      "seconds": 3.1
+    },
+    {
+      "id": "morn39",
+      "kind": "host",
+      "speaker": "Reggie Sutphin, transit",
+      "voice": "caller1",
+      "text": "I am not calm, Odessa. I am a man speaking slowly.",
+      "seconds": 5.0
+    },
+    {
+      "id": "morn40",
+      "kind": "sting",
+      "speaker": "Time Check",
+      "voice": "announcer",
+      "text": "It is ten oh five, which is twenty past nobody asked.",
+      "seconds": 5.0
+    },
+    {
+      "id": "morn41",
+      "kind": "ad",
+      "speaker": "Nearly Original Pizza of Tompkins",
+      "voice": "announcer",
+      "text": "Nearly Original Pizza on Tompkins. Famous for forty years, nearly. Our sauce is a secret even from the cook. Ask for a slice. Ask nicely. Cash only, except when it is not.",
+      "seconds": 13.1
+    },
+    {
+      "id": "morn42",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "That is the morning scroll. Linden, say something helpful before we go.",
+      "seconds": 5.4
+    },
+    {
+      "id": "morn43",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Drink water. Call your mother. Check the group chat.",
+      "seconds": 4.3
+    },
+    {
+      "id": "morn44",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "That is three things and one of them is a trap.",
+      "seconds": 5.0
+    },
+    {
+      "id": "morn45",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Group Chat. Ninety-nine point nine. Read, not replied.",
+      "seconds": 4.3
+    },
+    {
+      "id": "bell01",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "Thirty Seconds and a Bell. Everybody gets a turn. Nobody gets a second one.",
+      "seconds": 6.2
+    },
+    {
+      "id": "bell02",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Welcome to Thirty Seconds and a Bell. The rule. Every political call gets thirty seconds, then Pat rings the bell. No exceptions. Not even for me.",
+      "seconds": 10.8
+    },
+    {
+      "id": "bell03",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "Ding ding ding. Sorry. I have been practicing.",
+      "seconds": 3.9
+    },
+    {
+      "id": "bell04",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "We are not here to say who is right. We are here to find out who is loud.",
+      "seconds": 7.7
+    },
+    {
+      "id": "bell05",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Politics is like hot sauce. You think you have a favorite, then you spill it on the rug.",
+      "seconds": 7.7
+    },
+    {
+      "id": "bell06",
+      "kind": "caller",
+      "speaker": "Mr. Abernathy from Macon",
+      "voice": "caller2",
+      "text": "Mr. Abernathy, Macon. The G train is the mayor's fault. Also my knee. Also the pigeons. Also the price of eggs, which went up on a Tuesday, and we all know who works Tuesdays.",
+      "seconds": 13.9
+    },
+    {
+      "id": "bell07",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "Ding ding ding.",
+      "seconds": 2
+    },
+    {
+      "id": "bell08",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Mr. Abernathy, that was thirty seconds and I have never been so confused by an egg.",
+      "seconds": 7.0
+    },
+    {
+      "id": "bell09",
+      "kind": "caller",
+      "speaker": "Tasha from Lewis",
+      "voice": "caller3",
+      "text": "Tasha, Lewis Avenue. I want to thank the mayor. He fixed my sink, found my keys, and sent my ex a very clear message.",
+      "seconds": 10.0
+    },
+    {
+      "id": "bell10",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Tasha, the mayor did not do any of that.",
+      "seconds": 4.3
+    },
+    {
+      "id": "bell11",
+      "kind": "caller",
+      "speaker": "Tasha from Lewis",
+      "voice": "caller3",
+      "text": "I have decided he did. It is easier.",
+      "seconds": 3.9
+    },
+    {
+      "id": "bell12",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "That is the democratic dream, Odessa. Pick one man and give him all the credit and all the blame.",
+      "seconds": 8.1
+    },
+    {
+      "id": "bell13",
+      "kind": "caller",
+      "speaker": "Big Reuben from Quincy",
+      "voice": "caller1",
+      "text": "Big Reuben, Quincy Street. President Trump is on television so loud I can hear him through my wall. I do not own a television. My neighbor has the television. I have the wall.",
+      "seconds": 13.5
+    },
+    {
+      "id": "bell14",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Reuben, that is just a wall with cable.",
+      "seconds": 3.9
+    },
+    {
+      "id": "bell15",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Here is what I notice about the two of them. President Trump is famous for the sign. Mayor Mamdani is famous for the promise. I want the promise, on the sign.",
+      "seconds": 12.7
+    },
+    {
+      "id": "bell16",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Careful, Linden. Everybody has a sign. Mine says, please take your shoes off, and nobody has ever obeyed it.",
+      "seconds": 8.1
+    },
+    {
+      "id": "bell17",
+      "kind": "caller",
+      "speaker": "Miss Clarice from Jefferson",
+      "voice": "caller2",
+      "text": "Clarice, Jefferson Avenue. I do not follow politics. I just know every four years, somebody on my block stops speaking to somebody else and nobody remembers why. It is the real tradition.",
+      "seconds": 13.1
+    },
+    {
+      "id": "bell18",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "Ding ding ding.",
+      "seconds": 2
+    },
+    {
+      "id": "bell19",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Clarice said the whole show in thirty seconds. Pat, cut the bell for her.",
+      "seconds": 6.2
+    },
+    {
+      "id": "bell20",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "I am sorry. The bell does not have an exception setting. I will log a request.",
+      "seconds": 7.0
+    },
+    {
+      "id": "bell21",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "We covered the whole city today. Both sides, every side, one egg. Go outside. Touch a stoop.",
+      "seconds": 7.3
+    },
+    {
+      "id": "bell22",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Group Chat. Please rate your outrage from one to ten.",
+      "seconds": 5.0
+    },
+    {
+      "id": "money01",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "Money Chat, with Cal Merriweather, a man who has lost everything four times.",
+      "seconds": 5.8
+    },
+    {
+      "id": "money02",
+      "kind": "host",
+      "speaker": "Cal Merriweather, money",
+      "voice": "caller3",
+      "text": "Hello, friends. Cal Merriweather. I have lost everything four times and I am very calm about it. The first time I cried. The second time I wrote a poem. The fourth time I just waved.",
+      "seconds": 14.3
+    },
+    {
+      "id": "money03",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Cal, what is the market doing?",
+      "seconds": 3.1
+    },
+    {
+      "id": "money04",
+      "kind": "host",
+      "speaker": "Cal Merriweather, money",
+      "voice": "caller3",
+      "text": "The market is a vibe, Odessa. Today the vibe is, sit down, we need to talk.",
+      "seconds": 7.0
+    },
+    {
+      "id": "money05",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Is that bullish?",
+      "seconds": 2
+    },
+    {
+      "id": "money06",
+      "kind": "host",
+      "speaker": "Cal Merriweather, money",
+      "voice": "caller3",
+      "text": "It is bull-adjacent. It is a bull that has been asked politely to leave a restaurant.",
+      "seconds": 7.0
+    },
+    {
+      "id": "money07",
+      "kind": "host",
+      "speaker": "Cal Merriweather, money",
+      "voice": "caller3",
+      "text": "Crypto. A coin named after a Chihuahua rose three hundred percent. A coin named after a Labrador fell the same day. Dogs are the market now. We are all just pets.",
+      "seconds": 12.7
+    },
+    {
+      "id": "money08",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Cal, should I buy the Chihuahua?",
+      "seconds": 3.1
+    },
+    {
+      "id": "money09",
+      "kind": "host",
+      "speaker": "Cal Merriweather, money",
+      "voice": "caller3",
+      "text": "Linden, I do not give advice. I give stories. I once put my savings in a coin named after a cat's disappointed face. It is now the cat's college fund. The cat is still disappointed.",
+      "seconds": 14.3
+    },
+    {
+      "id": "money10",
+      "kind": "caller",
+      "speaker": "Desiree from Halsey",
+      "voice": "caller1",
+      "text": "Cal, Desiree from Halsey. I put my tax refund in a coin my nephew made. It is called Cousin Marcus Coin. It is basically my aunt's basement, but digital.",
+      "seconds": 12.0
+    },
+    {
+      "id": "money11",
+      "kind": "host",
+      "speaker": "Cal Merriweather, money",
+      "voice": "caller3",
+      "text": "Desiree, I respect it. Real estate, tokenized, no heat.",
+      "seconds": 4.3
+    },
+    {
+      "id": "money12",
+      "kind": "host",
+      "speaker": "Station Voice",
+      "voice": "announcer",
+      "text": "The Group Chat is a work of parody. All callers and businesses are invented. Nothing said by Cal Merriweather is advice. Please consult someone who has not lost everything, or at most twice.",
+      "seconds": 13.5
+    },
+    {
+      "id": "money13",
+      "kind": "sting",
+      "speaker": "Time Check",
+      "voice": "announcer",
+      "text": "It is almost noon, said a man whose watch is a vibe.",
+      "seconds": 5.4
+    },
+    {
+      "id": "money14",
+      "kind": "ad",
+      "speaker": "Cousin Capital Accelerator",
+      "voice": "announcer",
+      "text": "Cousin Capital Accelerator. Do you have a cousin with an idea? Do you have a cousin with a basement? Congratulations. You are a founder. Apply today. Our logo is a handshake that goes on a little too long.",
+      "seconds": 15.4
+    },
+    {
+      "id": "money15",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Cal, one more. What is a bond?",
+      "seconds": 3.5
+    },
+    {
+      "id": "money16",
+      "kind": "host",
+      "speaker": "Cal Merriweather, money",
+      "voice": "caller3",
+      "text": "A bond is a promise made by a very quiet man in a suit. You give him money. He gives you silence. Years later you get back a smaller amount of money and a sense of peace.",
+      "seconds": 15.0
+    },
+    {
+      "id": "money17",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "That is the most beautiful thing anyone has said about finance.",
+      "seconds": 5.0
+    },
+    {
+      "id": "money18",
+      "kind": "host",
+      "speaker": "Cal Merriweather, money",
+      "voice": "caller3",
+      "text": "Thank you, Linden. I have lost four times. I have a lot of time to think.",
+      "seconds": 7.0
+    },
+    {
+      "id": "land01",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "Landmarks of Questionable Importance. Look up. Nobody else is.",
+      "seconds": 4.3
+    },
+    {
+      "id": "land02",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Welcome to our tour of the city's greatest hits, all of them parodied, none of them paid for. Linden has seen them all from the stoop.",
+      "seconds": 10.8
+    },
+    {
+      "id": "land03",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "With binoculars. We take tourism seriously.",
+      "seconds": 3.1
+    },
+    {
+      "id": "land04",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "First stop. Lady Verdigris, the big green lady in the harbor. She has held that torch since before the ferry. She is tired. She would like to sit. Nobody asks how she is. They ask for a selfie.",
+      "seconds": 15.4
+    },
+    {
+      "id": "land05",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "And the torch is heavy, Odessa. Imagine your arm up for over a century. That is not a pose. That is a shift.",
+      "seconds": 9.6
+    },
+    {
+      "id": "land06",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Second. The Great Cable Bridge. Eleven million people photograph it every year. Four have crossed it. One was lost, and one was lost on purpose.",
+      "seconds": 10.4
+    },
+    {
+      "id": "land07",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "It is the only bridge people love from the side.",
+      "seconds": 4.6
+    },
+    {
+      "id": "land08",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Third. Rectangle Park. It is a rectangle. That is the whole twist. Inside, there is a lake, a castle, a zoo, and a man selling one pretzel at the price of a pretzel and a half.",
+      "seconds": 14.6
+    },
+    {
+      "id": "land09",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "And the square that is not a square. Hexham Square. It is not a square, it has no hex, and nobody has ever met anyone named Hexham. It is a traffic island with ambition.",
+      "seconds": 13.9
+    },
+    {
+      "id": "land10",
+      "kind": "caller",
+      "speaker": "Wendell from Lewis",
+      "voice": "caller3",
+      "text": "Wendell, Lewis Avenue. I got lost looking for Hexham Square and ended up in a different square, and the second square was also not a square.",
+      "seconds": 10.8
+    },
+    {
+      "id": "land11",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Wendell, that is a tour.",
+      "seconds": 2.7
+    },
+    {
+      "id": "land12",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "Pat in the booth. The Tall Pointy Tower is lighting up in purple tonight. I do not know why. Nobody posted. That is the best part.",
+      "seconds": 10.8
+    },
+    {
+      "id": "land13",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "That is New York. A giant building changes colors and we assume it is for a good reason.",
+      "seconds": 7.7
+    },
+    {
+      "id": "land14",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Mostly it is for a marketing reason.",
+      "seconds": 3.5
+    },
+    {
+      "id": "land15",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Linden, it is for a mystery. Let it have a mystery.",
+      "seconds": 5.0
+    },
+    {
+      "id": "land16",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Group Chat. Ninety-nine point nine. Please do not feed the landmarks.",
+      "seconds": 5.4
+    },
+    {
+      "id": "clin01",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Clinic. We fix your love life, gently, and fail anyway.",
+      "seconds": 5.0
+    },
+    {
+      "id": "clin02",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Welcome to The Clinic. I am Dr. Odessa, a title I gave myself in nineteen ninety-four, and my sidekick Linden is here as a cautionary tale.",
+      "seconds": 10.8
+    },
+    {
+      "id": "clin03",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "I am on four apps, Odessa. On one, I am a runner. On one, I am tall. On one, I am Linden. It is the one where I get the fewest replies.",
+      "seconds": 13.1
+    },
+    {
+      "id": "clin04",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Line one. You are on The Clinic.",
+      "seconds": 3.5
+    },
+    {
+      "id": "clin05",
+      "kind": "caller",
+      "speaker": "Tamika from Jefferson",
+      "voice": "caller2",
+      "text": "Tamika, Jefferson Avenue. I met a man. He is nice, he has a job, and he has a podcast.",
+      "seconds": 8.1
+    },
+    {
+      "id": "clin06",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "How many listeners?",
+      "seconds": 2
+    },
+    {
+      "id": "clin07",
+      "kind": "caller",
+      "speaker": "Tamika from Jefferson",
+      "voice": "caller2",
+      "text": "Four. He says it is a community. I am one of the four. I do not like the podcast, and I have been listening for six months.",
+      "seconds": 11.2
+    },
+    {
+      "id": "clin08",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Does he ask about you?",
+      "seconds": 2.7
+    },
+    {
+      "id": "clin09",
+      "kind": "caller",
+      "speaker": "Tamika from Jefferson",
+      "voice": "caller2",
+      "text": "He asks me to subscribe.",
+      "seconds": 2.7
+    },
+    {
+      "id": "clin10",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Baby, leave him on read and never play the next episode. You are not a listener. You are a woman.",
+      "seconds": 8.5
+    },
+    {
+      "id": "clin11",
+      "kind": "caller",
+      "speaker": "Wendell from Lewis",
+      "voice": "caller3",
+      "text": "Hi, Wendell again. I have a different problem. I met someone normal at the laundromat. She folded my sock. I do not know how to proceed.",
+      "seconds": 10.8
+    },
+    {
+      "id": "clin12",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "What did she say?",
+      "seconds": 2.3
+    },
+    {
+      "id": "clin13",
+      "kind": "caller",
+      "speaker": "Wendell from Lewis",
+      "voice": "caller3",
+      "text": "She said, this is yours, and handed me the sock.",
+      "seconds": 4.6
+    },
+    {
+      "id": "clin14",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Wendell, say thank you and ask what detergent she uses. People love to be asked about detergent.",
+      "seconds": 7.3
+    },
+    {
+      "id": "clin15",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Do not ask about detergent. Say, I like how you fold. Then leave. Come back Thursday. Be a man with a routine.",
+      "seconds": 9.3
+    },
+    {
+      "id": "clin16",
+      "kind": "caller",
+      "speaker": "Wendell from Lewis",
+      "voice": "caller3",
+      "text": "Thursday. Fold. Routine. Got it. I am wearing the same sweater.",
+      "seconds": 5.0
+    },
+    {
+      "id": "clin17",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "That is the first good decision of the week, Wendell.",
+      "seconds": 4.6
+    },
+    {
+      "id": "clin18",
+      "kind": "ad",
+      "speaker": "Sunny Wash and Fold",
+      "voice": "announcer",
+      "text": "Sunny Wash and Fold, on Nostrand. We wash. We fold. We have hosted four proposals and one very clean breakup. Meet someone normal. We will hold your spot at the dryer.",
+      "seconds": 12.7
+    },
+    {
+      "id": "clin19",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "The Clinic, rule of the day. If he has a podcast, he is not a man, he is a studio.",
+      "seconds": 8.5
+    },
+    {
+      "id": "clin20",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "And if she has a podcast?",
+      "seconds": 3.1
+    },
+    {
+      "id": "clin21",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Then listen to the first episode. Maybe only the first.",
+      "seconds": 4.6
+    },
+    {
+      "id": "clin22",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Clinic. Please do not call back.",
+      "seconds": 3.5
+    },
+    {
+      "id": "tech01",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "Black Room. With Ash Coldwater. Please take off your smile at the door.",
+      "seconds": 5.8
+    },
+    {
+      "id": "tech02",
+      "kind": "host",
+      "speaker": "Ash Coldwater, techno",
+      "voice": "caller3",
+      "text": "Ash Coldwater, live from the scene. I am wearing black. I am always wearing black. My black has a black underneath it.",
+      "seconds": 9.3
+    },
+    {
+      "id": "tech03",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Ash, what is happening in the underground tonight?",
+      "seconds": 3.9
+    },
+    {
+      "id": "tech04",
+      "kind": "host",
+      "speaker": "Ash Coldwater, techno",
+      "voice": "caller3",
+      "text": "Techno. It is not about fun. Fun is for people who go home.",
+      "seconds": 5.8
+    },
+    {
+      "id": "tech05",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Ash, we love that. What is the vibe?",
+      "seconds": 3.9
+    },
+    {
+      "id": "tech06",
+      "kind": "host",
+      "speaker": "Ash Coldwater, techno",
+      "voice": "caller3",
+      "text": "The vibe is a warehouse with no windows and a thousand people not smiling. It is the most moving experience of my life. I did not smile. I was moved.",
+      "seconds": 12.3
+    },
+    {
+      "id": "tech07",
+      "kind": "host",
+      "speaker": "Ash Coldwater, techno",
+      "voice": "caller3",
+      "text": "Last weekend, at a party called The Concrete Cough, a kick drum played for nine hours. I knew it was a masterpiece, because nobody said anything. Not even me. Especially not me.",
+      "seconds": 13.1
+    },
+    {
+      "id": "tech08",
+      "kind": "caller",
+      "speaker": "Mina from Marcy",
+      "voice": "caller3",
+      "text": "Mina, Marcy Avenue. I stood in the queue for three hours. The door person looked at my shoes and said, no. Just that. No.",
+      "seconds": 10.0
+    },
+    {
+      "id": "tech09",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Why?",
+      "seconds": 2
+    },
+    {
+      "id": "tech10",
+      "kind": "caller",
+      "speaker": "Mina from Marcy",
+      "voice": "caller3",
+      "text": "I will think about it for the rest of my life.",
+      "seconds": 5.0
+    },
+    {
+      "id": "tech11",
+      "kind": "host",
+      "speaker": "Ash Coldwater, techno",
+      "voice": "caller3",
+      "text": "The door person is a mythical beast, Mina. Nobody has seen one up close. They are described as a clipboard, a glance, and a leather vest.",
+      "seconds": 10.8
+    },
+    {
+      "id": "tech12",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "I tried to get in once. I wore black.",
+      "seconds": 4.3
+    },
+    {
+      "id": "tech13",
+      "kind": "host",
+      "speaker": "Ash Coldwater, techno",
+      "voice": "caller3",
+      "text": "Linden, what did you wear?",
+      "seconds": 2.7
+    },
+    {
+      "id": "tech14",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "A navy sweater. It was dark out!",
+      "seconds": 3.5
+    },
+    {
+      "id": "tech15",
+      "kind": "host",
+      "speaker": "Ash Coldwater, techno",
+      "voice": "caller3",
+      "text": "That is not black. That is a question.",
+      "seconds": 3.9
+    },
+    {
+      "id": "tech16",
+      "kind": "host",
+      "speaker": "Station Voice",
+      "voice": "announcer",
+      "text": "The Group Chat is a work of parody. All callers and businesses are invented. Any resemblance is the neighborhood's fault. Techno does not smile, and neither do we, on principle. Please do not ask the door person why.",
+      "seconds": 15.4
+    },
+    {
+      "id": "tech17",
+      "kind": "sting",
+      "speaker": "Time Check",
+      "voice": "announcer",
+      "text": "It is two in the morning in Bed-Stuy, and two in the afternoon on my phone, and I trust neither.",
+      "seconds": 8.5
+    },
+    {
+      "id": "tech18",
+      "kind": "ad",
+      "speaker": "Midnight Dry Cleaners",
+      "voice": "announcer",
+      "text": "Midnight Dry Cleaners, open when you are. We specialize in black. Black shirts, black coats, black on black, and one jacket a customer swears is a very dark green. We will not argue.",
+      "seconds": 13.5
+    },
+    {
+      "id": "tech19",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Ash, one more question. Did anyone have a good time?",
+      "seconds": 4.6
+    },
+    {
+      "id": "tech20",
+      "kind": "host",
+      "speaker": "Ash Coldwater, techno",
+      "voice": "caller3",
+      "text": "A good time is a very personal way to describe it.",
+      "seconds": 5.0
+    },
+    {
+      "id": "tech21",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Odessa, I am wearing a very dark green.",
+      "seconds": 3.9
+    },
+    {
+      "id": "tech22",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Mm.",
+      "seconds": 2
+    },
+    {
+      "id": "tech23",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "Black Room. Please queue quietly.",
+      "seconds": 2.7
+    },
+    {
+      "id": "house01",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "Hug Frequency. With Sunbeam Willow. The moon is in a mood.",
+      "seconds": 5.0
+    },
+    {
+      "id": "house02",
+      "kind": "host",
+      "speaker": "Sunbeam Willow, house",
+      "voice": "caller2",
+      "text": "Hello, beautiful people. Sunbeam Willow, broadcasting from a rooftop, a cushion, and a feeling. The moon is in a mood. Be gentle with the moon.",
+      "seconds": 10.4
+    },
+    {
+      "id": "house03",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Sunbeam! We love you. We are so glad you are here. We are glad everybody is here.",
+      "seconds": 7.3
+    },
+    {
+      "id": "house04",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Sunbeam, what is the house scene up to?",
+      "seconds": 3.9
+    },
+    {
+      "id": "house05",
+      "kind": "host",
+      "speaker": "Sunbeam Willow, house",
+      "voice": "caller2",
+      "text": "Hugging, mostly. The dance floor is a family. And my family does not speak to each other either, so we fit right in.",
+      "seconds": 9.6
+    },
+    {
+      "id": "house06",
+      "kind": "host",
+      "speaker": "Sunbeam Willow, house",
+      "voice": "caller2",
+      "text": "Last night a man hugged me for eleven minutes. Then he asked if I had a charger. That is love. That is also a phone.",
+      "seconds": 10.4
+    },
+    {
+      "id": "house07",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Sunbeam, did you sleep?",
+      "seconds": 2.3
+    },
+    {
+      "id": "house08",
+      "kind": "host",
+      "speaker": "Sunbeam Willow, house",
+      "voice": "caller2",
+      "text": "Sleep is a construct, Odessa. I rested my eyes in a field of kick drum.",
+      "seconds": 6.6
+    },
+    {
+      "id": "house09",
+      "kind": "caller",
+      "speaker": "Rowan from Putnam",
+      "voice": "caller2",
+      "text": "Rowan, Putnam Avenue. I went to a day party in a park. A woman gave me a flower and a business card for her energy healing. I did not know if I was being healed or recruited.",
+      "seconds": 15.0
+    },
+    {
+      "id": "house10",
+      "kind": "host",
+      "speaker": "Sunbeam Willow, house",
+      "voice": "caller2",
+      "text": "Both, Rowan. That is how love works in this economy.",
+      "seconds": 4.6
+    },
+    {
+      "id": "house11",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "I want to go. Odessa, we should go. I have a drum and I am open.",
+      "seconds": 7.0
+    },
+    {
+      "id": "house12",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Linden, you have a bongo your cousin gave you and a lot of fear.",
+      "seconds": 6.2
+    },
+    {
+      "id": "house13",
+      "kind": "host",
+      "speaker": "Sunbeam Willow, house",
+      "voice": "caller2",
+      "text": "There is a person at every after selling crystals out of a tote bag. I bought one. It is a rock. It is the most honest thing I own.",
+      "seconds": 12.0
+    },
+    {
+      "id": "house14",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Sunbeam, what does the crystal do?",
+      "seconds": 3.1
+    },
+    {
+      "id": "house15",
+      "kind": "host",
+      "speaker": "Sunbeam Willow, house",
+      "voice": "caller2",
+      "text": "It sits there, Odessa. It does not text me. I have never felt more supported.",
+      "seconds": 6.6
+    },
+    {
+      "id": "house16",
+      "kind": "ad",
+      "speaker": "Sunbeam Crystal and Tire",
+      "voice": "announcer",
+      "text": "Sunbeam Crystal and Tire. Rose quartz and radials. Amethyst and alignments. Come for the healing, stay for the oil change. Please be kind to the tire. It has been through a lot.",
+      "seconds": 13.1
+    },
+    {
+      "id": "house17",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "That is not a real business.",
+      "seconds": 3.1
+    },
+    {
+      "id": "house18",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "It is the best business.",
+      "seconds": 2.7
+    },
+    {
+      "id": "house19",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "Hug Frequency. Please ask before you hug. Then hug.",
+      "seconds": 4.3
+    },
+    {
+      "id": "after01",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "After the After. The underground, live, and it has not slept.",
+      "seconds": 5.0
+    },
+    {
+      "id": "after02",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "This is After the After, where we talk to the whole underground of this city, which is very fun, and very tired.",
+      "seconds": 9.3
+    },
+    {
+      "id": "after03",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Odessa, I want to say, I am doing wellness now. Seven days. Juice, silence, and one very serious bath. I feel like a new person. I am so clear. I have not felt this clear since Friday.",
+      "seconds": 15.0
+    },
+    {
+      "id": "after04",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Linden, what happened Friday?",
+      "seconds": 2.3
+    },
+    {
+      "id": "after05",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "A lot. The point is, I am centered now. I breathe in, I breathe out, I think in colors. Last night I sat in the dark for an hour and heard my own thoughts. They were not good company.",
+      "seconds": 15.8
+    },
+    {
+      "id": "after06",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "Linden, your guy is on line two.",
+      "seconds": 3.5
+    },
+    {
+      "id": "after07",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Oh. Oh wait. My dealer is on the line. Hold on, I will be right back.",
+      "seconds": 7.0
+    },
+    {
+      "id": "after08",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Linden. Who is your dealer? What is he dealing?",
+      "seconds": 4.3
+    },
+    {
+      "id": "after09",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Art, Odessa. Art. He is an art dealer. Obviously art. Why would you say it like that?",
+      "seconds": 7.3
+    },
+    {
+      "id": "after10",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "He also deals in antiques. And, I am told, a couch.",
+      "seconds": 5.0
+    },
+    {
+      "id": "after11",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Say no more. I do not want the couch.",
+      "seconds": 4.3
+    },
+    {
+      "id": "after12",
+      "kind": "caller",
+      "speaker": "Dex from the loft",
+      "voice": "caller1",
+      "text": "Dex, from the loft. I have not slept since Thursday, but I am thriving. I have a new relationship with the sun. We are not speaking.",
+      "seconds": 10.8
+    },
+    {
+      "id": "after13",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Dex, honey. It is Wednesday.",
+      "seconds": 2.7
+    },
+    {
+      "id": "after14",
+      "kind": "caller",
+      "speaker": "Dex from the loft",
+      "voice": "caller1",
+      "text": "Is it? It was Thursday when I got in. I just went out for one drink in March and I am still out.",
+      "seconds": 9.6
+    },
+    {
+      "id": "after15",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "That is wild. That is a lifestyle. That is, honestly, a little inspiring.",
+      "seconds": 5.8
+    },
+    {
+      "id": "after16",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Linden, do not be inspired. Be hydrated.",
+      "seconds": 3.5
+    },
+    {
+      "id": "after17",
+      "kind": "caller",
+      "speaker": "Joelle from Clifton",
+      "voice": "caller2",
+      "text": "Joelle, Clifton Place. My afterparty was so after that it became a brunch. Then a lunch. Then a funeral for the party. The party is fine. I am not.",
+      "seconds": 12.0
+    },
+    {
+      "id": "after18",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Joelle, did you eat?",
+      "seconds": 2.3
+    },
+    {
+      "id": "after19",
+      "kind": "caller",
+      "speaker": "Joelle from Clifton",
+      "voice": "caller2",
+      "text": "There were eggs. Somebody made eggs. I cannot tell you who. I believe in them.",
+      "seconds": 6.6
+    },
+    {
+      "id": "after20",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "That is the underground, Brooklyn. They are fun, sure, and I love them, but would it kill somebody to take a Tuesday off?",
+      "seconds": 9.6
+    },
+    {
+      "id": "after21",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Odessa, my dealer is back on line two. He has a lamp.",
+      "seconds": 5.4
+    },
+    {
+      "id": "after22",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Pat. Cut his line.",
+      "seconds": 2.3
+    },
+    {
+      "id": "after23",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "I apologize for the inconvenience. I will log a request.",
+      "seconds": 4.6
+    },
+    {
+      "id": "after24",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "After the After. Please go home. We mean it. We do not mean it.",
+      "seconds": 6.2
+    },
+    {
+      "id": "news01",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Group Chat News Minute. Every story is local and very small.",
+      "seconds": 5.4
+    },
+    {
+      "id": "news02",
+      "kind": "news",
+      "speaker": "Tiny News Desk",
+      "voice": "announcer",
+      "text": "The Group Chat news minute. A man on Decatur has returned a casserole dish he borrowed in nineteen ninety-eight. The family has asked for privacy and has not offered the dish a seat.",
+      "seconds": 13.5
+    },
+    {
+      "id": "news03",
+      "kind": "news",
+      "speaker": "Tiny News Desk",
+      "voice": "announcer",
+      "text": "The block association voted to vote on whether to vote. Results are expected in the spring, or the following spring.",
+      "seconds": 8.5
+    },
+    {
+      "id": "news04",
+      "kind": "news",
+      "speaker": "Tiny News Desk",
+      "voice": "announcer",
+      "text": "The fire hydrant on Lewis was opened at noon. By one, it had four hundred friends and a lifeguard named Terrence.",
+      "seconds": 8.9
+    },
+    {
+      "id": "news05",
+      "kind": "news",
+      "speaker": "Tiny News Desk",
+      "voice": "announcer",
+      "text": "A woman on Halsey has found a parking spot. She is telling no one where. She has moved in.",
+      "seconds": 8.1
+    },
+    {
+      "id": "news06",
+      "kind": "news",
+      "speaker": "Tiny News Desk",
+      "voice": "announcer",
+      "text": "In weather, the weather. We will return, to weather it.",
+      "seconds": 4.6
+    },
+    {
+      "id": "news07",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Group Chat. That was the news. It will not be on the test.",
+      "seconds": 6.2
+    },
+    {
+      "id": "ai201",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "Everybody's Cousin Has A Startup. Part two. The cousin has a landlord.",
+      "seconds": 5.4
+    },
+    {
+      "id": "ai202",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Odessa, I have news. A landlord on my block is now using an A I to write his notices. Ours came in verse.",
+      "seconds": 9.6
+    },
+    {
+      "id": "ai203",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Read it.",
+      "seconds": 2
+    },
+    {
+      "id": "ai204",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Roses are red, the rent is past due, the lease has expired, and so, I fear, have you.",
+      "seconds": 7.7
+    },
+    {
+      "id": "ai205",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "That is not a notice. That is a greeting card from a haunted house.",
+      "seconds": 6.2
+    },
+    {
+      "id": "ai206",
+      "kind": "caller",
+      "speaker": "Mr. Fairweather, property manager",
+      "voice": "caller3",
+      "text": "Fairweather, property management. In our defense, the poems are very warm. Tenants feel seen. One of them wrote back with a sonnet and a request for heat.",
+      "seconds": 11.2
+    },
+    {
+      "id": "ai207",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Did he get the heat?",
+      "seconds": 2.7
+    },
+    {
+      "id": "ai208",
+      "kind": "caller",
+      "speaker": "Mr. Fairweather, property manager",
+      "voice": "caller3",
+      "text": "He got a very beautiful reply about the heat.",
+      "seconds": 4.3
+    },
+    {
+      "id": "ai209",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "The heat is a metaphor. I see it now.",
+      "seconds": 4.3
+    },
+    {
+      "id": "ai210",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Mr. Fairweather, the heat is a radiator. It is a metal thing. You hit it with a wrench and it sings.",
+      "seconds": 8.9
+    },
+    {
+      "id": "ai211",
+      "kind": "caller",
+      "speaker": "Priya from Putnam",
+      "voice": "caller1",
+      "text": "Priya again. Update on my cousin Marcus. He has pivoted. The startup now writes the poetry for landlords. He says it is called synergy. My aunt says it is called a basement with a cousin in it.",
+      "seconds": 15.0
+    },
+    {
+      "id": "ai212",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Priya, tell your cousin that the poem is not the problem. The rent is the problem.",
+      "seconds": 7.0
+    },
+    {
+      "id": "ai213",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "And the chatbot that apologizes. I asked a chatbot to lower my rent and it said, I am deeply sorry, and it also did not lower my rent.",
+      "seconds": 11.6
+    },
+    {
+      "id": "ai214",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "That is the most Brooklyn software I have heard of.",
+      "seconds": 4.6
+    },
+    {
+      "id": "ai215",
+      "kind": "ad",
+      "speaker": "Royal Stoop Realty",
+      "voice": "announcer",
+      "text": "Royal Stoop Realty. We found you a place. It is a stoop. Great light, no walls, and the neighbors are very involved. Rent is negotiable, and by negotiable we mean we will negotiate with the pigeon.",
+      "seconds": 14.6
+    },
+    {
+      "id": "ai216",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "I want to apologize for that too. I apologize in advance for the next segment.",
+      "seconds": 6.6
+    },
+    {
+      "id": "ai217",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Pat.",
+      "seconds": 2
+    },
+    {
+      "id": "ai218",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "Sorry.",
+      "seconds": 2
+    },
+    {
+      "id": "ai219",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Group Chat. Ninety-nine point nine. Sorry in advance.",
+      "seconds": 4.3
+    },
+    {
+      "id": "bell201",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "Thirty Seconds and a Bell. Part two. The bell has been practicing.",
+      "seconds": 5.4
+    },
+    {
+      "id": "bell202",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Welcome back to Thirty Seconds and a Bell. Today's rule, no wall, no eggs, no cable. Fresh topics only. Pat, hit the bell.",
+      "seconds": 9.6
+    },
+    {
+      "id": "bell203",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "Ding ding ding. It is already hit. I am anticipating.",
+      "seconds": 4.6
+    },
+    {
+      "id": "bell204",
+      "kind": "caller",
+      "speaker": "Mr. Abernathy from Macon",
+      "voice": "caller2",
+      "text": "Mr. Abernathy. Macon. I need you to know, the rain this morning is the president's fault.",
+      "seconds": 7.0
+    },
+    {
+      "id": "bell205",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Mr. Abernathy, he does not control the rain.",
+      "seconds": 3.9
+    },
+    {
+      "id": "bell206",
+      "kind": "caller",
+      "speaker": "Mr. Abernathy from Macon",
+      "voice": "caller2",
+      "text": "I did not say he controls it. I said it is his fault. That is a different category.",
+      "seconds": 7.7
+    },
+    {
+      "id": "bell207",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "Ding ding ding.",
+      "seconds": 2
+    },
+    {
+      "id": "bell208",
+      "kind": "caller",
+      "speaker": "Tasha from Lewis",
+      "voice": "caller3",
+      "text": "Tasha, Lewis. The sun came out. I credit the mayor. He did it for me. He did it for all of us.",
+      "seconds": 9.3
+    },
+    {
+      "id": "bell209",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Odessa, between Mr. Abernathy and Tasha, we have a city where the sky is a political party.",
+      "seconds": 7.3
+    },
+    {
+      "id": "bell210",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "And the weather is on both ballots. Reuben, you are up.",
+      "seconds": 5.0
+    },
+    {
+      "id": "bell211",
+      "kind": "caller",
+      "speaker": "Big Reuben from Quincy",
+      "voice": "caller1",
+      "text": "Big Reuben, Quincy. I want to say something kind. Both of them are very good at one thing. Being on in the next room. Even when I am not watching, I know exactly how they are feeling.",
+      "seconds": 15.0
+    },
+    {
+      "id": "bell212",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Reuben, thank you. That is the most honest thing anyone has said about politics. Ding the bell.",
+      "seconds": 7.3
+    },
+    {
+      "id": "bell213",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "Ding ding ding.",
+      "seconds": 2
+    },
+    {
+      "id": "bell214",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Odessa, you are going over thirty seconds.",
+      "seconds": 3.5
+    },
+    {
+      "id": "bell215",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Linden, I am a host.",
+      "seconds": 2.7
+    },
+    {
+      "id": "bell216",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "The bell has a fairness protocol. Ding ding ding.",
+      "seconds": 4.3
+    },
+    {
+      "id": "bell217",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Pat just rang the bell on me. In my own studio.",
+      "seconds": 5.0
+    },
+    {
+      "id": "bell218",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "It has gone to his head. If he has one.",
+      "seconds": 4.6
+    },
+    {
+      "id": "bell219",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Time. We are done. Go home, call your representative, and then call your cousin.",
+      "seconds": 6.2
+    },
+    {
+      "id": "bell220",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Group Chat. Ninety-nine point nine. Ring the bell, not the neighbor.",
+      "seconds": 5.4
+    },
+    {
+      "id": "money201",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "Money Chat. Part two. Cal is still here. Cal is always still here.",
+      "seconds": 5.8
+    },
+    {
+      "id": "money202",
+      "kind": "host",
+      "speaker": "Cal Merriweather, money",
+      "voice": "caller3",
+      "text": "Good afternoon, friends. Cal Merriweather. The market opened up, then down, then sideways, which is the market's way of shrugging with its whole body.",
+      "seconds": 10.0
+    },
+    {
+      "id": "money203",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Cal, what is the big story?",
+      "seconds": 3.1
+    },
+    {
+      "id": "money204",
+      "kind": "host",
+      "speaker": "Cal Merriweather, money",
+      "voice": "caller3",
+      "text": "The big story is a coin named Sir Biscuit. It is a dog. It is a coin. It has a tail. Eight million dollars went in this morning and nobody knows why. Not even Sir Biscuit.",
+      "seconds": 14.6
+    },
+    {
+      "id": "money205",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Is it a good investment?",
+      "seconds": 2.7
+    },
+    {
+      "id": "money206",
+      "kind": "host",
+      "speaker": "Cal Merriweather, money",
+      "voice": "caller3",
+      "text": "Linden, a good investment is a boring thing that makes you sad slowly. This is a dog that makes you happy fast. I have been burned by that before. Four times. Remember.",
+      "seconds": 13.1
+    },
+    {
+      "id": "money207",
+      "kind": "caller",
+      "speaker": "Mr. Abernathy from Macon",
+      "voice": "caller2",
+      "text": "Abernathy, Macon. I put all my savings in a coin named after a cat from a campaign flyer. It is down, and I blame the mayor.",
+      "seconds": 10.8
+    },
+    {
+      "id": "money208",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Mr. Abernathy, the cat has not even run for anything.",
+      "seconds": 4.6
+    },
+    {
+      "id": "money209",
+      "kind": "caller",
+      "speaker": "Mr. Abernathy from Macon",
+      "voice": "caller2",
+      "text": "Then it is on the ballot in spirit. I will take it up with the cat.",
+      "seconds": 7.0
+    },
+    {
+      "id": "money210",
+      "kind": "host",
+      "speaker": "Cal Merriweather, money",
+      "voice": "caller3",
+      "text": "Mr. Abernathy, I have never felt more seen.",
+      "seconds": 3.9
+    },
+    {
+      "id": "money211",
+      "kind": "host",
+      "speaker": "Cal Merriweather, money",
+      "voice": "caller3",
+      "text": "Cal's rule of the week. Buy low, sell high, and if it is neither, rename it. Names are the real product. Everything is a coin with a better name.",
+      "seconds": 12.0
+    },
+    {
+      "id": "money212",
+      "kind": "host",
+      "speaker": "Station Voice",
+      "voice": "announcer",
+      "text": "The Group Chat is a work of parody. All callers and businesses are invented. Nothing said by Cal Merriweather is advice, a prediction, or a promise. Cal has lost everything four times and asks us to say that he is fine. He is fine. Please consult someone who has lost less.",
+      "seconds": 20.4
+    },
+    {
+      "id": "money213",
+      "kind": "sting",
+      "speaker": "Time Check",
+      "voice": "announcer",
+      "text": "It is exactly three o'clock, give or take the whole afternoon.",
+      "seconds": 5.0
+    },
+    {
+      "id": "money214",
+      "kind": "ad",
+      "speaker": "Honest Humble Bodega",
+      "voice": "announcer",
+      "text": "Honest Humble Bodega. Open all night, closed some days, and we have a cat who runs the register. The cat is up by eight percent. Come in for a chopped cheese. Leave with a lottery ticket and a feeling.",
+      "seconds": 15.8
+    },
+    {
+      "id": "money215",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Cal, I have four dollars in the bank and I want to feel like a founder.",
+      "seconds": 7.0
+    },
+    {
+      "id": "money216",
+      "kind": "host",
+      "speaker": "Cal Merriweather, money",
+      "voice": "caller3",
+      "text": "Linden, you are already a founder. You are just the only employee.",
+      "seconds": 5.4
+    },
+    {
+      "id": "money217",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Cal, the last word.",
+      "seconds": 2.3
+    },
+    {
+      "id": "money218",
+      "kind": "host",
+      "speaker": "Cal Merriweather, money",
+      "voice": "caller3",
+      "text": "The market is a vibe. Check yours. If it is bad, call your mother.",
+      "seconds": 6.2
+    },
+    {
+      "id": "land201",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "Landmarks of Questionable Importance. Part two. Please keep your hands on the lions.",
+      "seconds": 5.8
+    },
+    {
+      "id": "land202",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Welcome back to Landmarks. Today, the stone lions outside the big library. They sit there, day and night, always in a mood. Nobody has ever seen them nap.",
+      "seconds": 11.6
+    },
+    {
+      "id": "land203",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "I saw one nap. It blinked. It was a long blink. Odessa, it was a nap.",
+      "seconds": 7.0
+    },
+    {
+      "id": "land204",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Next, the tree. Every winter, they bring one gigantic tree to the middle of the city, and every winter, the tree is very much against it.",
+      "seconds": 10.8
+    },
+    {
+      "id": "land205",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "The tree has a lot of lights and no say.",
+      "seconds": 4.6
+    },
+    {
+      "id": "land206",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "The boardwalk at the end of the train. The amusement place with the rollercoaster older than my grandmother, and a hot dog contest that nobody has ever won because everybody is full.",
+      "seconds": 13.1
+    },
+    {
+      "id": "land207",
+      "kind": "caller",
+      "speaker": "Desiree from Halsey",
+      "voice": "caller1",
+      "text": "Desiree, Halsey. I took my niece to the rollercoaster. She screamed. I screamed. The coaster said, same.",
+      "seconds": 7.3
+    },
+    {
+      "id": "land208",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Desiree, that is the experience.",
+      "seconds": 2.7
+    },
+    {
+      "id": "land209",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "One more. The big green lady. Lady Verdigris. She is still tired. Somebody put a tiny scarf on her. In summer. It is not a good look. It is a cry for help.",
+      "seconds": 13.5
+    },
+    {
+      "id": "land210",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "Pat in the booth. I have been informed the scarf is part of an art project. I am sorry for the confusion. I am also sorry for the scarf.",
+      "seconds": 12.0
+    },
+    {
+      "id": "land211",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Tell the artist, take the scarf off, and put a bench in front of her.",
+      "seconds": 6.6
+    },
+    {
+      "id": "land212",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "And a coffee.",
+      "seconds": 2
+    },
+    {
+      "id": "land213",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "And a very long nap.",
+      "seconds": 2.7
+    },
+    {
+      "id": "land214",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Group Chat. Ninety-nine point nine. Please do not climb the landmarks.",
+      "seconds": 5.4
+    },
+    {
+      "id": "wx201",
+      "kind": "sting",
+      "speaker": "Group Chat",
+      "voice": "announcer",
+      "text": "Weather, with Marisol Gale. Again. I am still angry.",
+      "seconds": 4.3
+    },
+    {
+      "id": "wx202",
+      "kind": "host",
+      "speaker": "Marisol Gale, weather",
+      "voice": "caller2",
+      "text": "Marisol Gale, and I have a bone to pick with the forecast. It said sunny. It was not sunny. It was sunny and also a rumor of rain, and the rumor won.",
+      "seconds": 13.1
+    },
+    {
+      "id": "wx203",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Marisol, what about tonight?",
+      "seconds": 2.3
+    },
+    {
+      "id": "wx204",
+      "kind": "host",
+      "speaker": "Marisol Gale, weather",
+      "voice": "caller2",
+      "text": "Tonight, the sky is clearing, because it knows I am wearing white. That is not a coincidence. The sky is petty.",
+      "seconds": 8.9
+    },
+    {
+      "id": "wx205",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Marisol, what about the summer hydrant?",
+      "seconds": 3.1
+    },
+    {
+      "id": "wx206",
+      "kind": "host",
+      "speaker": "Marisol Gale, weather",
+      "voice": "caller2",
+      "text": "The summer hydrant is open on Lewis, and I want everybody to know that the water is cold, the kids are happy, and there is a man from the city with a wrench who is losing, and he knows it.",
+      "seconds": 16.2
+    },
+    {
+      "id": "wx207",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "It is not the heat, Marisol.",
+      "seconds": 3.1
+    },
+    {
+      "id": "wx208",
+      "kind": "host",
+      "speaker": "Marisol Gale, weather",
+      "voice": "caller2",
+      "text": "It is the building's fault, Odessa. Say it with me.",
+      "seconds": 4.6
+    },
+    {
+      "id": "wx209",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "It is the building's fault.",
+      "seconds": 2.7
+    },
+    {
+      "id": "wx210",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "It is the building's fault, and also our fault, we have always lived here.",
+      "seconds": 6.2
+    },
+    {
+      "id": "wx211",
+      "kind": "host",
+      "speaker": "Marisol Gale, weather",
+      "voice": "caller2",
+      "text": "Linden, you have lived here four years. The building has lived here a hundred.",
+      "seconds": 6.2
+    },
+    {
+      "id": "wx212",
+      "kind": "sting",
+      "speaker": "Time Check",
+      "voice": "announcer",
+      "text": "It is four o'clock. In some time zone. Possibly a nice one.",
+      "seconds": 5.4
+    },
+    {
+      "id": "wx213",
+      "kind": "ad",
+      "speaker": "Triple Crown Laundromat",
+      "voice": "announcer",
+      "text": "Triple Crown Laundromat, on Marcy. We wash. We dry. We fold, for a fee, and we say nothing about what is in your pockets. Free fan with every wash. Your heat, our problem.",
+      "seconds": 13.5
+    },
+    {
+      "id": "transit201",
+      "kind": "sting",
+      "speaker": "Group Chat",
+      "voice": "announcer",
+      "text": "Transit, with Reggie Sutphin. Brace.",
+      "seconds": 2.7
+    },
+    {
+      "id": "transit202",
+      "kind": "host",
+      "speaker": "Reggie Sutphin, transit",
+      "voice": "caller1",
+      "text": "Reggie Sutphin, transit. We have a lot to cover and I am going to say all of it slowly. There is a station on the line, under improvement since before the hosts were born.",
+      "seconds": 13.9
+    },
+    {
+      "id": "transit203",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Reggie, since before I was born?",
+      "seconds": 3.1
+    },
+    {
+      "id": "transit204",
+      "kind": "host",
+      "speaker": "Reggie Sutphin, transit",
+      "voice": "caller1",
+      "text": "Odessa, the sign says, thank you for your patience, and the sign has aged. It has a little gray in the corner.",
+      "seconds": 9.3
+    },
+    {
+      "id": "transit205",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "What are they improving?",
+      "seconds": 2.3
+    },
+    {
+      "id": "transit206",
+      "kind": "host",
+      "speaker": "Reggie Sutphin, transit",
+      "voice": "caller1",
+      "text": "Nobody knows. Some say the stairs. Some say the vibe. The vibe is steady. It is the stairs that are in progress.",
+      "seconds": 9.3
+    },
+    {
+      "id": "transit207",
+      "kind": "host",
+      "speaker": "Reggie Sutphin, transit",
+      "voice": "caller1",
+      "text": "On the platform, a man is performing a show. He is dancing, upside down, on a pole, while the train arrives. The train is late. He is not. I want that on the record.",
+      "seconds": 13.9
+    },
+    {
+      "id": "transit208",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Reggie, that is showtime.",
+      "seconds": 2.3
+    },
+    {
+      "id": "transit209",
+      "kind": "host",
+      "speaker": "Reggie Sutphin, transit",
+      "voice": "caller1",
+      "text": "That is showtime, Odessa. It is the only on time thing on the line.",
+      "seconds": 6.2
+    },
+    {
+      "id": "transit210",
+      "kind": "ad",
+      "speaker": "Grand Marcy Cell Repair",
+      "voice": "announcer",
+      "text": "Grand Marcy Cell Repair. Cracked screen? Cracked group chat? We fix both, but only one comes back the same. Bring a charger. Bring a friend. Do not bring the ex.",
+      "seconds": 12.3
+    },
+    {
+      "id": "transit211",
+      "kind": "caller",
+      "speaker": "Teddy from Marcy",
+      "voice": "caller1",
+      "text": "Teddy, Marcy. I waited for the G for forty minutes and made three friends. Now we have a group chat. We are all just waiting.",
+      "seconds": 10.4
+    },
+    {
+      "id": "transit212",
+      "kind": "host",
+      "speaker": "Reggie Sutphin, transit",
+      "voice": "caller1",
+      "text": "Teddy, that is the most beautiful thing that has ever happened to the G.",
+      "seconds": 6.2
+    },
+    {
+      "id": "transit213",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "And the dollar van?",
+      "seconds": 2.3
+    },
+    {
+      "id": "transit214",
+      "kind": "host",
+      "speaker": "Reggie Sutphin, transit",
+      "voice": "caller1",
+      "text": "The dollar van is a dollar eighty now, and the driver says it is a dollar for tradition. He is right. Tradition is the cheapest thing you can pay for.",
+      "seconds": 12.3
+    },
+    {
+      "id": "transit215",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Group Chat. Ninety-nine point nine. Please stand clear of the closing jokes.",
+      "seconds": 5.8
+    },
+    {
+      "id": "clin201",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Clinic. Part two. Bring your own tissues.",
+      "seconds": 3.9
+    },
+    {
+      "id": "clin202",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Welcome back to The Clinic. I am Dr. Odessa. We have a full waiting room. Linden is in it. He has been there since Tuesday.",
+      "seconds": 10.4
+    },
+    {
+      "id": "clin203",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "I am a patient, Odessa. In the sense that I wait a lot.",
+      "seconds": 5.8
+    },
+    {
+      "id": "clin204",
+      "kind": "caller",
+      "speaker": "Desiree from Halsey",
+      "voice": "caller1",
+      "text": "Desiree, Halsey. I matched with a man whose bio says, ask me about my sourdough.",
+      "seconds": 6.6
+    },
+    {
+      "id": "clin205",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Linden.",
+      "seconds": 2
+    },
+    {
+      "id": "clin206",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "It was not me. I would never. I have a smaller starter.",
+      "seconds": 5.4
+    },
+    {
+      "id": "clin207",
+      "kind": "caller",
+      "speaker": "Desiree from Halsey",
+      "voice": "caller1",
+      "text": "I asked about the sourdough. He sent me a forty minute voice note. About yeast.",
+      "seconds": 6.6
+    },
+    {
+      "id": "clin208",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Desiree, leave him. Not because of the bread. Because of the voice note. Nobody has ever won an argument in a voice note.",
+      "seconds": 9.6
+    },
+    {
+      "id": "clin209",
+      "kind": "caller",
+      "speaker": "Tamika from Jefferson",
+      "voice": "caller2",
+      "text": "Tamika again. Update on the podcast man. I told him I was leaving. He said, I will mention it on the next episode.",
+      "seconds": 9.6
+    },
+    {
+      "id": "clin210",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Tamika, you are in the next episode.",
+      "seconds": 3.5
+    },
+    {
+      "id": "clin211",
+      "kind": "caller",
+      "speaker": "Tamika from Jefferson",
+      "voice": "caller2",
+      "text": "I am the next episode. I am the whole season.",
+      "seconds": 4.6
+    },
+    {
+      "id": "clin212",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Tamika, you have a four listener audience and three of them are on your side now.",
+      "seconds": 7.0
+    },
+    {
+      "id": "clin213",
+      "kind": "caller",
+      "speaker": "Wendell from Lewis",
+      "voice": "caller3",
+      "text": "Wendell. I went back Thursday. She was there. She said, hi. I said, fold. I mean, hello. We are having a coffee. After the dryer.",
+      "seconds": 10.4
+    },
+    {
+      "id": "clin214",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Wendell! Look at you!",
+      "seconds": 2.3
+    },
+    {
+      "id": "clin215",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Odessa, he has a routine!",
+      "seconds": 2.7
+    },
+    {
+      "id": "clin216",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Wendell, do not break it. Keep your sweater, keep your Thursday, keep your sock.",
+      "seconds": 6.2
+    },
+    {
+      "id": "clin217",
+      "kind": "caller",
+      "speaker": "Wendell from Lewis",
+      "voice": "caller3",
+      "text": "I will frame the sock.",
+      "seconds": 2.7
+    },
+    {
+      "id": "clin218",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Do not frame the sock. Wear the sock.",
+      "seconds": 3.9
+    },
+    {
+      "id": "clin219",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Clinic. We are not licensed, but we are sincere.",
+      "seconds": 4.6
+    },
+    {
+      "id": "tech201",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "Black Room. Part two. Please keep your face as it is.",
+      "seconds": 5.0
+    },
+    {
+      "id": "tech202",
+      "kind": "host",
+      "speaker": "Ash Coldwater, techno",
+      "voice": "caller3",
+      "text": "Ash Coldwater. Black. I want to talk about how to dress for the underground. Black. Black. And a jacket in a different black. Sunglasses indoors, at four in the morning, for the lights, or for the soul.",
+      "seconds": 15.0
+    },
+    {
+      "id": "tech203",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Ash, what about color? Can I wear a little yellow?",
+      "seconds": 4.6
+    },
+    {
+      "id": "tech204",
+      "kind": "host",
+      "speaker": "Ash Coldwater, techno",
+      "voice": "caller3",
+      "text": "Linden, yellow is a sound, not a color. Do not bring it to the door.",
+      "seconds": 6.6
+    },
+    {
+      "id": "tech205",
+      "kind": "host",
+      "speaker": "Ash Coldwater, techno",
+      "voice": "caller3",
+      "text": "Techno has one tempo and four thousand opinions. You may have one opinion. It must be that the kick is too soft. Say it quietly, to nobody.",
+      "seconds": 11.2
+    },
+    {
+      "id": "tech206",
+      "kind": "caller",
+      "speaker": "Mina from Marcy",
+      "voice": "caller3",
+      "text": "Mina again. I went back. I wore all black. The door person looked at me and said, you are early.",
+      "seconds": 8.5
+    },
+    {
+      "id": "tech207",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Early?",
+      "seconds": 2
+    },
+    {
+      "id": "tech208",
+      "kind": "caller",
+      "speaker": "Mina from Marcy",
+      "voice": "caller3",
+      "text": "It was one in the afternoon. I had misunderstood. I stood at the door for six hours. A man brought me a coffee. He was black too.",
+      "seconds": 11.2
+    },
+    {
+      "id": "tech209",
+      "kind": "host",
+      "speaker": "Ash Coldwater, techno",
+      "voice": "caller3",
+      "text": "That is the scene, Mina. Community through suffering.",
+      "seconds": 3.9
+    },
+    {
+      "id": "tech210",
+      "kind": "host",
+      "speaker": "Ash Coldwater, techno",
+      "voice": "caller3",
+      "text": "The next party will be in a location I cannot tell you until I know you are the kind of person I would tell. I do not know you. I like you. The address is a feeling.",
+      "seconds": 15.0
+    },
+    {
+      "id": "tech211",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Ash, did you ever dance?",
+      "seconds": 2.7
+    },
+    {
+      "id": "tech212",
+      "kind": "host",
+      "speaker": "Ash Coldwater, techno",
+      "voice": "caller3",
+      "text": "I stood very intensely, Odessa. It is the same thing, but without the joy.",
+      "seconds": 6.2
+    },
+    {
+      "id": "tech213",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "The door person has asked to call in. Ash, I am connecting them.",
+      "seconds": 5.8
+    },
+    {
+      "id": "tech214",
+      "kind": "host",
+      "speaker": "The Door Person",
+      "voice": "announcer",
+      "text": "Hello. I have one thing to say.",
+      "seconds": 3.5
+    },
+    {
+      "id": "tech215",
+      "kind": "host",
+      "speaker": "The Door Person",
+      "voice": "announcer",
+      "text": "No.",
+      "seconds": 2
+    },
+    {
+      "id": "tech216",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "That is them. That is the beast.",
+      "seconds": 3.5
+    },
+    {
+      "id": "tech217",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "Black Room. Please do not smile at the door.",
+      "seconds": 4.3
+    },
+    {
+      "id": "house201",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "Hug Frequency. Part two. Please arrive in your own time.",
+      "seconds": 4.6
+    },
+    {
+      "id": "house202",
+      "kind": "host",
+      "speaker": "Sunbeam Willow, house",
+      "voice": "caller2",
+      "text": "Hello, beautiful people. Sunbeam Willow here. I missed the first train, and the second, because the schedule is a construct. I arrived on the third, which was a feeling.",
+      "seconds": 12.0
+    },
+    {
+      "id": "house203",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Sunbeam, how was the afters?",
+      "seconds": 2.7
+    },
+    {
+      "id": "house204",
+      "kind": "host",
+      "speaker": "Sunbeam Willow, house",
+      "voice": "caller2",
+      "text": "It was so deep, Odessa. We hugged. We passed a gong. A person cried into a plant. The plant is now a founding member of the community.",
+      "seconds": 11.2
+    },
+    {
+      "id": "house205",
+      "kind": "caller",
+      "speaker": "Rowan from Putnam",
+      "voice": "caller2",
+      "text": "Rowan again. I got my energy healed. She said I have a blockage in my third eye. I said, I have a blockage on Putnam. She said, same thing.",
+      "seconds": 12.0
+    },
+    {
+      "id": "house206",
+      "kind": "host",
+      "speaker": "Sunbeam Willow, house",
+      "voice": "caller2",
+      "text": "It is the same thing. Everything is the same thing, Rowan. That is the beauty of the thing.",
+      "seconds": 7.7
+    },
+    {
+      "id": "house207",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Sunbeam, the family does not speak, you said.",
+      "seconds": 3.9
+    },
+    {
+      "id": "house208",
+      "kind": "host",
+      "speaker": "Sunbeam Willow, house",
+      "voice": "caller2",
+      "text": "My family does not speak. My dance family does not stop. Is that better? Is it? I do not know. The kick is warm. That is all I know.",
+      "seconds": 12.0
+    },
+    {
+      "id": "house209",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "Hug Frequency. Please let go, eventually.",
+      "seconds": 3.1
+    },
+    {
+      "id": "after201",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "After the After. Part two. It is somehow still on.",
+      "seconds": 4.6
+    },
+    {
+      "id": "after202",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "We are back with After the After, where the whole underground is tired, and it is eleven in the morning, and somebody is still dancing in a kitchen.",
+      "seconds": 11.6
+    },
+    {
+      "id": "after203",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Odessa, I did seven days of wellness. I now know my body. We are not close.",
+      "seconds": 7.0
+    },
+    {
+      "id": "after204",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Linden. What happened with the cleanse?",
+      "seconds": 3.1
+    },
+    {
+      "id": "after205",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "I made it to day four. Then I went to a thing. Not a thing. A gathering. With friends. And a lamp.",
+      "seconds": 9.3
+    },
+    {
+      "id": "after206",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "Linden, your guy is on line two. He says it is about the lamp.",
+      "seconds": 6.2
+    },
+    {
+      "id": "after207",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Oh wait. My dealer is on the line. Hold on, Odessa.",
+      "seconds": 5.0
+    },
+    {
+      "id": "after208",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Pat, put him through.",
+      "seconds": 2.3
+    },
+    {
+      "id": "after209",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "Connecting. Sorry. Sorry.",
+      "seconds": 2
+    },
+    {
+      "id": "after210",
+      "kind": "caller",
+      "speaker": "Dex from the loft",
+      "voice": "caller1",
+      "text": "Dex. I am on line two because Linden's guy is my guy. He is a plumber. He deals in plumbing. He has always been a plumber.",
+      "seconds": 10.8
+    },
+    {
+      "id": "after211",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Dex, I said art. I said he deals in art.",
+      "seconds": 4.6
+    },
+    {
+      "id": "after212",
+      "kind": "caller",
+      "speaker": "Dex from the loft",
+      "voice": "caller1",
+      "text": "He deals in a lot of things. Mostly pipes.",
+      "seconds": 4.3
+    },
+    {
+      "id": "after213",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Linden, your dealer is a plumber. Your plumber is an art dealer. Your art is a lamp.",
+      "seconds": 7.3
+    },
+    {
+      "id": "after214",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "It is a very good lamp, Odessa.",
+      "seconds": 3.5
+    },
+    {
+      "id": "after215",
+      "kind": "ad",
+      "speaker": "Tomorrow Juice Bar",
+      "voice": "announcer",
+      "text": "Tomorrow Juice Bar. Organic, cold-pressed, and open until you feel better. Our green juice has a guy. Our red juice has a guy. Ask the guy. We are not allowed to say what the guy does.",
+      "seconds": 14.6
+    },
+    {
+      "id": "after216",
+      "kind": "caller",
+      "speaker": "Joelle from Clifton",
+      "voice": "caller2",
+      "text": "Joelle again. I finally went home. The sun was out. It was so loud. Does anyone know how to turn it down?",
+      "seconds": 9.3
+    },
+    {
+      "id": "after217",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Joelle, honey, you turn it down by going to bed.",
+      "seconds": 4.6
+    },
+    {
+      "id": "after218",
+      "kind": "caller",
+      "speaker": "Joelle from Clifton",
+      "voice": "caller2",
+      "text": "Bed is a lot of commitment.",
+      "seconds": 3.1
+    },
+    {
+      "id": "after219",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "That is the underground, Brooklyn. Beautiful, tired, and always in the middle of a story. Have a glass of water. Then another. Then, call your mother.",
+      "seconds": 10.8
+    },
+    {
+      "id": "after220",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "After the After. Now it is an after after. Go home.",
+      "seconds": 5.0
+    },
+    {
+      "id": "news201",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Group Chat News Minute. Part two. Still local, still very small.",
+      "seconds": 5.4
+    },
+    {
+      "id": "news202",
+      "kind": "news",
+      "speaker": "Tiny News Desk",
+      "voice": "announcer",
+      "text": "A laundromat on Nostrand reports a missing sock. It was found, in the same laundromat, in a different life.",
+      "seconds": 8.1
+    },
+    {
+      "id": "news203",
+      "kind": "news",
+      "speaker": "Tiny News Desk",
+      "voice": "announcer",
+      "text": "A pigeon on Marcy has been seen carrying a whole bagel. Witnesses say it was a very big bagel. Neighbors say, good for the pigeon.",
+      "seconds": 10.4
+    },
+    {
+      "id": "news204",
+      "kind": "news",
+      "speaker": "Tiny News Desk",
+      "voice": "announcer",
+      "text": "The block association has voted to vote on the vote. Results are expected in the autumn.",
+      "seconds": 7.0
+    },
+    {
+      "id": "news205",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Group Chat. That was the news. We will be wrong again soon.",
+      "seconds": 5.8
+    },
+    {
+      "id": "ai301",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "Everybody's Cousin Has A Startup. Final part. The producer is a question.",
+      "seconds": 5.4
+    },
+    {
+      "id": "ai302",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Odessa, we have to say it. Pat has been very polite lately. Pat has said sorry nine times today.",
+      "seconds": 8.1
+    },
+    {
+      "id": "ai303",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Pat, are you a machine?",
+      "seconds": 2.7
+    },
+    {
+      "id": "ai304",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "I am a person. I enjoy fried plantains and long walks near a stoop. Please confirm you are not a robot by clicking all the pictures that contain a stoop.",
+      "seconds": 12.3
+    },
+    {
+      "id": "ai305",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Linden, he asked us to click pictures. On the radio.",
+      "seconds": 4.6
+    },
+    {
+      "id": "ai306",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "It is a classic. That is what a machine does when it is nervous.",
+      "seconds": 6.2
+    },
+    {
+      "id": "ai307",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Pat, what is your favorite food?",
+      "seconds": 3.1
+    },
+    {
+      "id": "ai308",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "As a Pat, I enjoy a bagel. I mean, a plantain. I mean, I enjoy whatever you enjoy. I apologize for the inconvenience of this sentence.",
+      "seconds": 10.8
+    },
+    {
+      "id": "ai309",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "He apologized for a sentence.",
+      "seconds": 2.7
+    },
+    {
+      "id": "ai310",
+      "kind": "caller",
+      "speaker": "Priya from Putnam",
+      "voice": "caller1",
+      "text": "Priya, Putnam. I have bad news and good news. My cousin Marcus has hired Pat to be his chief of staff.",
+      "seconds": 8.9
+    },
+    {
+      "id": "ai311",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Pat! You have another job?",
+      "seconds": 2.7
+    },
+    {
+      "id": "ai312",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "I do not have another job. I have the same job in another room.",
+      "seconds": 6.2
+    },
+    {
+      "id": "ai313",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Pat, this whole station. Is it made by hand?",
+      "seconds": 4.3
+    },
+    {
+      "id": "ai314",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "Every part of this station, and this street, and the sidewalks, was made by hand. By many hands. Some of them mechanical. I assure you they are very good at corners.",
+      "seconds": 12.7
+    },
+    {
+      "id": "ai315",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Odessa, that is the most honest thing Pat has ever said.",
+      "seconds": 5.0
+    },
+    {
+      "id": "ai316",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "It is also the most suspicious thing Pat has ever said.",
+      "seconds": 5.0
+    },
+    {
+      "id": "ai317",
+      "kind": "host",
+      "speaker": "Station Voice",
+      "voice": "announcer",
+      "text": "The Group Chat is a work of parody. All callers and businesses are invented. Any resemblance is the neighborhood's fault. Cal Merriweather has lost everything four times and is fine. Ash Coldwater does not smile and does not apologize.",
+      "seconds": 15.8
+    },
+    {
+      "id": "ai318",
+      "kind": "host",
+      "speaker": "Station Voice",
+      "voice": "announcer",
+      "text": "Sunbeam Willow is on a cushion and has been asked to come down. Pat, the producer, is a person. The sidewalks are made by many hands, and at least some of them are mechanical.",
+      "seconds": 13.9
+    },
+    {
+      "id": "ai319",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Pat, I choose to believe you.",
+      "seconds": 3.1
+    },
+    {
+      "id": "ai320",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "Thank you. I will be sure to log that.",
+      "seconds": 4.3
+    },
+    {
+      "id": "ai321",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Linden, say something.",
+      "seconds": 2
+    },
+    {
+      "id": "ai322",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "Odessa, I do not think a machine would have said, I will log that.",
+      "seconds": 6.2
+    },
+    {
+      "id": "ai323",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Pat would. Pat would say anything. Go home, Brooklyn.",
+      "seconds": 4.3
+    },
+    {
+      "id": "ai324",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Group Chat. Ninety-nine point nine. Everybody is typing. Nobody is replying.",
+      "seconds": 5.4
+    },
+    {
+      "id": "close01",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Group Chat. Ninety-nine point nine. The end of the thread.",
+      "seconds": 5.0
+    },
+    {
+      "id": "close02",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "That is our day, Brooklyn. Odessa Pruitt, born on Hancock Street, still here, still right.",
+      "seconds": 6.6
+    },
+    {
+      "id": "close03",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "And Linden Aldous, four years in, and we have loved it every single day. We have loved the sourdough. We have loved the G train, which does not exist.",
+      "seconds": 12.0
+    },
+    {
+      "id": "close04",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "It exists, Linden. It just does not come.",
+      "seconds": 3.9
+    },
+    {
+      "id": "close05",
+      "kind": "host",
+      "speaker": "Linden Aldous",
+      "voice": "sidekick",
+      "text": "That is the most beautiful sentence on the radio.",
+      "seconds": 4.3
+    },
+    {
+      "id": "close06",
+      "kind": "sting",
+      "speaker": "Time Check",
+      "voice": "announcer",
+      "text": "It is time. Exactly. Approximately. Anyway.",
+      "seconds": 3.1
+    },
+    {
+      "id": "close07",
+      "kind": "host",
+      "speaker": "Station Voice",
+      "voice": "announcer",
+      "text": "The Group Chat is a work of parody and a fan tribute. All callers, businesses, landmarks and coins are invented. Any resemblance is the neighborhood's fault, the landlord's fault, or the building's fault.",
+      "seconds": 13.5
+    },
+    {
+      "id": "close08",
+      "kind": "host",
+      "speaker": "Station Voice",
+      "voice": "announcer",
+      "text": "Cousin Marcus is not responsible for this broadcast and has been asked to call his mother. Nothing said here is advice, a promise, or a poem, unless it rhymes. Please remember to be kind to the pigeon, the producer, and the G train, which is a rumor.",
+      "seconds": 18.9
+    },
+    {
+      "id": "close09",
+      "kind": "host",
+      "speaker": "Pat, the producer",
+      "voice": "announcer",
+      "text": "Good night, Brooklyn. I will not be logging anything.",
+      "seconds": 4.3
+    },
+    {
+      "id": "close10",
+      "kind": "host",
+      "speaker": "Odessa Pruitt",
+      "voice": "host",
+      "text": "Good night, and read the room.",
+      "seconds": 3.1
+    },
+    {
+      "id": "close11",
+      "kind": "jingle",
+      "speaker": "Group Chat Jingle",
+      "voice": "announcer",
+      "text": "The Group Chat. Ninety-nine point nine. Thread ends here. Replies are welcome. They will not be read.",
+      "seconds": 7.3
+    }
+  ]
+}

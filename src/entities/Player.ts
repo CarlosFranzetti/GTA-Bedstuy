@@ -10,6 +10,9 @@ import { animateJump } from '@/entities/models/jumpPose';
 import { AnimController, type ActionPose } from '@/entities/anim/controller';
 import { PLAYER_GAIT } from '@/entities/anim/gait';
 import { JumpState } from '@/entities/Jump';
+import {
+  AUTO_VAULT_SPEED, VAULT_REACH, outlineDistance, planVault, topProfile, vaultHeight, vaultProgress, vaultSettings, type VaultCar, type VaultPlan,
+} from '@/entities/vault';
 import { buildPerson as buildPedModel } from '@/entities/models/pedMesh';
 import type { CharacterRig, CharacterSource } from '@/world/types';
 import { Rng } from '@/core/Rng';
@@ -107,6 +110,11 @@ const RING_SAMPLES = 16;
 const PIN_AFTER = 0.6;
 const PIN_SEARCH = 2.5;
 const PIN_SPEED = 5;
+/** Seconds boxed in with no free direction before the climb-over prompt shows and the vault is always possible. */
+export const PINNED_AFTER = 1.5;
+/** Probe distance and radius for "is any direction free" (m). */
+const BOX_PROBE = 0.6;
+const BOX_PROBE_R = 0.34;
 
 /** A car moving faster than this (m/s) that runs into the player knocks them down. */
 const KNOCK_SPEED = 3;
@@ -195,6 +203,29 @@ export class Player implements Entity {
   onLand: ((strength: number) => void) | null = null;
   private prevY = 0;
   private landCheck = false;
+  /**
+   * MOVE2: vaulting over the low part of a car. The host sets `vehiclesNear` (main.ts: the vehicles from `physics.queryCircle`, each body's
+   * userData); without it there is no vault. `held` is for the police arrest: a held player cannot vault.
+   */
+  vehiclesNear: ((p: Vec2, r: number) => IVehicle[]) | null = null;
+  held = false;
+  /** True when the pinned prompt should show ("Jump: climb over"): boxed in with no free direction for a while. */
+  get vaultPrompt(): boolean { return this.boxedT >= PINNED_AFTER && !this.vault && !this.held; }
+  /** Fires when a vault starts (strength 0..1 for a sound) and when one lands. */
+  onVault: (() => void) | null = null;
+  private vault: { plan: VaultPlan; t: number; m0: number; m1: number; speed: number; ds: number; progress: number } | null = null;
+  private vaultY = 0;
+  private vaultPrevY = 0;
+  /** seconds since the vault ended (the pose fades out over about 0.3 s); the vault pose input for the animation */
+  private vaultTail = 0;
+  private vaultAnimK = 0;
+  private vaultSide = 1;
+  private boxedT = 0;
+  private autoCheckT = 0;
+  private autoOk = false;
+  private pinnedKick = false;
+  /** True during a vault. */
+  get isVaulting(): boolean { return this.vault !== null; }
   /** On-foot action pose (punch, throw, aim) the combat system sets each step; layered over the upper body by the anim controller. */
   actionPose: ActionPose | null = null;
   /** While set, the body turns to face this heading (rad) instead of its move direction: aiming a pistol, the throw. */
@@ -243,7 +274,7 @@ export class Player implements Entity {
    * for KNOCK_TIME seconds, vehicles pass over the body while it slides, then the player gets up. A slow bump just shoves.
    */
   onContact(contact: Contact, other: Body2D): void {
-    if (this.vehicle || this.entering || this.downT > 0) return;
+    if (this.vehicle || this.entering || this.downT > 0 || this.vault) return;
     if (other.kind !== 'vehicle' && other.kind !== 'cop') return;
     const sp = Math.hypot(other.vel.x, other.vel.z);
     if (sp < KNOCK_SPEED) return;
@@ -293,7 +324,7 @@ export class Player implements Entity {
     this.vehicleInput = { ...NEUTRAL };
     if (this.entering || this.downT > 0) { this.moveDir = null; this.wantRun = false; return; }
     // Space on foot is jump (in a vehicle it is the brake, handled above); a press while locked is swallowed
-    if (input.consume('Space') && !this.jumpLocked) this.jump.tryJump(true, Math.hypot(this.body.vel.x, this.body.vel.z));
+    const jumpPress = input.consume('Space') && !this.jumpLocked;
     const fwd = input.axis(['KeyS', 'ArrowDown'], ['KeyW', 'ArrowUp']);
     const right = input.axis(['KeyA', 'ArrowLeft'], ['KeyD', 'ArrowRight']);
     const f = forwardFromHeading(cameraYaw);
@@ -311,6 +342,153 @@ export class Player implements Entity {
       this.wantRun = false;
       this.wantStroll = false;
     }
+    if (jumpPress && !this.vault && !this.held) this.jumpPressed();
+  }
+
+  /**
+   * Space on foot: first try to climb over the low part of a car in front (or, boxed in, over the lowest neighbour); else a plain jump.
+   * A press toward a car that cannot be crossed (too tall, no clear landing) is a small stumble, not a jump into its door.
+   */
+  private jumpPressed(): void {
+    const sp = Math.hypot(this.body.vel.x, this.body.vel.z);
+    if (this.jump.busy) { this.jump.tryJump(true, sp); return; }
+    if (this.vehiclesNear) {
+      const pinned = this.boxedT >= PINNED_AFTER;
+      const res = this.planFromHere(pinned);
+      if (res.plan) { this.startVault(res.plan); return; }
+      if (pinned && this.squeezeOut()) return;
+      if (res.refusal === 'tall' || res.refusal === 'blocked' || res.refusal === 'fast') {
+        // facing a car it cannot cross: a small stumble against it
+        this.anim?.playOnce('stumble', { amp: 0.25, from: 0.2, to: 0.5, rate: 1.8, fadeIn: 0.05, fadeOut: 0.2 });
+        this.onBump?.(0.15);
+        return;
+      }
+    }
+    this.jump.tryJump(true, sp);
+  }
+
+  private carsNear(r: number): VaultCar[] {
+    const out: VaultCar[] = [];
+    for (const v of this.vehiclesNear?.(this.body.pos, r) ?? []) {
+      if (v.driver === 'player' || v === this.vehicle) continue;
+      const sh = v.body.shape;
+      out.push({ id: v.id, spec: v.spec, pos: v.body.pos, vel: v.body.vel, heading: v.body.heading, halfW: sh.kind === 'obb' ? sh.halfW : undefined, halfL: sh.kind === 'obb' ? sh.halfL : undefined });
+    }
+    return out;
+  }
+
+  private planFromHere(pinned: boolean, at: Vec2 = this.body.pos) {
+    const b = this.body;
+    return planVault({
+      pos: at, facing: b.heading, intent: this.moveDir, speed: Math.hypot(b.vel.x, b.vel.z), pinned,
+      cars: this.carsNear(5), blocked: (p, r, ig) => (this.blockedAt ? this.blockedAt(p, r, ig) : false),
+    });
+  }
+
+  private startVault(plan: VaultPlan): void {
+    const b = this.body;
+    const len = Math.hypot(plan.land.x - plan.start.x, plan.land.z - plan.start.z);
+    const sp = Math.hypot(b.vel.x, b.vel.z);
+    const along = Math.max(0, b.vel.x * plan.dir.x + b.vel.z * plan.dir.z);
+    const vland = clamp(0.6 * Math.max(sp, 2.2), 2.2, 4);
+    this.vault = { plan, t: 0, m0: clamp((along * plan.T) / len, 0, 2.2), m1: clamp((vland * plan.T) / len, 0.3, 2.2), speed: sp, ds: 0, progress: 0 };
+    this.vaultSide = plan.side;
+    this.vaultY = 0; this.vaultPrevY = 0; this.vaultAnimK = 0;
+    b.vehiclePass = true;
+    this.jump.reset(); b.height = 0;
+    this.sprintBlend = Math.min(this.sprintBlend, 0.6);
+    this.boxedT = 0; this.pinTarget = null; this.pinT = 0;
+    this.onVault?.();
+  }
+
+  private endVault(): void {
+    const v = this.vault!, b = this.body, pl = v.plan;
+    b.pos.x = pl.land.x; b.pos.z = pl.land.z;
+    const vland = clamp(0.6 * Math.max(v.speed, 2.2), 2.2, 4);
+    b.vel.x = pl.dir.x * vland; b.vel.z = pl.dir.z * vland;
+    b.vehiclePass = false; b.height = 0;
+    this.vault = null; this.vaultY = 0;
+    this.postSpeed = vland;
+    // landed where something stands (a car that rolled in, a prop): glide to free ground
+    if (this.blockedAt && this.blockedAt(b.pos, FOOT_RADIUS * 0.9)) this.pinTarget = Player.findFreeSpot(b.pos, (p, r) => this.blockedAt!(p, r), this.moveDir, PIN_SEARCH, false);
+    this.onLand?.(0.35);
+  }
+
+  private updateVault(dt: number): void {
+    const v = this.vault!, b = this.body, pl = v.plan;
+    this.prevY = this.vaultY;
+    v.t += dt;
+    const len = Math.hypot(pl.land.x - pl.start.x, pl.land.z - pl.start.z);
+    const { s, ds } = vaultProgress(v.t, pl.T, v.m0, v.m1);
+    b.pos.x = pl.start.x + (pl.land.x - pl.start.x) * s; b.pos.z = pl.start.z + (pl.land.z - pl.start.z) * s;
+    b.vel.x = pl.dir.x * ds * len; b.vel.z = pl.dir.z * ds * len;
+    b.heading = wrapAngle(b.heading + angleDiff(b.heading, headingFromVec(pl.dir)) * (1 - Math.exp(-20 * dt)));
+    this.vaultY = vaultHeight(pl, s); b.height = this.vaultY;
+    this.vaultAnimK = clamp(v.t / pl.T, 0, 1);
+    this.turnRate = 0;
+    this.animateFoot(dt);
+    if (v.t >= pl.T) { this.endVault(); this.vaultTail = 0; }
+  }
+
+  /** Boxed in: no free direction for PINNED_AFTER seconds. Called each step on foot. */
+  private updateBoxed(dt: number): void {
+    const b = this.body;
+    if (!this.blockedAt || this.held || this.jump.busy) { this.boxedT = Math.max(0, this.boxedT - dt * 3); return; }
+    let free = false;
+    for (let i = 0; i < 8 && !free; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      if (!this.blockedAt({ x: b.pos.x + Math.cos(a) * BOX_PROBE, z: b.pos.z + Math.sin(a) * BOX_PROBE }, BOX_PROBE_R)) free = true;
+    }
+    this.boxedT = free ? Math.max(0, this.boxedT - dt * 3) : this.boxedT + dt;
+  }
+
+  /** Every neighbour too tall (or no landing): squeeze out sideways to the nearest free ground, through the gap between the bodies. */
+  private squeezeOut(): boolean {
+    const b = this.body;
+    if (!this.blockedAt) return false;
+    const blocked = this.blockedAt;
+    const spot = Player.findFreeSpot(b.pos, (p, r) => blocked(p, r), this.moveDir, 4, false);
+    if (!spot) return false;
+    this.pinTarget = spot; this.boxedT = 0;
+    return true;
+  }
+
+  /**
+   * Running flat out into a low part of a car: the vault starts by itself. Returns true while a feasible vault is ahead, so the sprint
+   * is not braked for the wall (the body of the car is the wall).
+   */
+  private autoVault(speedNow: number, dt: number): boolean {
+    const b = this.body;
+    if (!vaultSettings.autoVault || !this.vehiclesNear || this.held || this.aimYaw !== null || !this.moveDir) return false;
+    if (this.sprintBlend < 0.85 || speedNow < AUTO_VAULT_SPEED || this.jump.busy) { this.autoOk = false; return false; }
+    if (Math.cos(angleDiff(b.heading, headingFromVec(this.moveDir))) < 0.9) { this.autoOk = false; return false; }
+    const f = forwardFromHeading(b.heading);
+    const cars = this.carsNear(3.4);
+    let lowD = Infinity;
+    for (const c of cars) {
+      const od = outlineDistance(c, b.pos);
+      const ang = Math.abs(angleDiff(b.heading, Math.atan2(od.near.x - b.pos.x, -(od.near.z - b.pos.z))));
+      if (od.d > 3.2 || ang > 0.6) continue;
+      const prof = topProfile(c.spec);
+      if (!prof) continue;
+      const fr = { fx: Math.sin(c.heading), fz: -Math.cos(c.heading) };
+      const u = (od.near.x - c.pos.x) * fr.fx + (od.near.z - c.pos.z) * fr.fz;
+      const h = prof.top(u);
+      if (h !== null && h <= 1.15) lowD = Math.min(lowD, od.d);
+    }
+    if (lowD === Infinity) { this.autoOk = false; return false; }
+    if (lowD <= VAULT_REACH) {
+      const res = this.planFromHere(false);
+      if (res.plan) { this.startVault(res.plan); return true; }
+      this.autoOk = false; return false;
+    }
+    this.autoCheckT -= dt;
+    if (this.autoCheckT <= 0) {
+      this.autoCheckT = 0.15;
+      const probe = { x: b.pos.x + f.x * (lowD - VAULT_REACH + 0.1), z: b.pos.z + f.z * (lowD - VAULT_REACH + 0.1) };
+      this.autoOk = !!this.planFromHere(false, probe).plan;
+    }
+    return this.autoOk;
   }
 
   /**
@@ -320,7 +498,7 @@ export class Player implements Entity {
    */
   tryEnter(vehicles: IVehicle[]): IVehicle | null {
     if (this.entering) { this.exitQueued = true; return null; } // F again while walking to the door: "never mind", leave as soon as seated
-    if (this.vehicle || this.downT > 0) return null;
+    if (this.vehicle || this.downT > 0 || this.vault) return null;
     // Candidates by how near the player is to the door (a car reached only by its body box ranks behind one whose door is in
     // range, so a van beside the cab is not picked over the cab). A candidate that cannot be entered (jammed on every side, a
     // far door) is skipped for the next one: one refused car never leaves the player standing frozen beside another he could take.
@@ -552,9 +730,10 @@ export class Player implements Entity {
       return;
     }
     if (this.exitVis) { this.exitVis.t -= dt / EXIT_SLIDE; if (this.exitVis.t <= 0) this.exitVis = null; }
+    if (this.vault) { this.updateVault(dt); return; }
 
     // jump: advance the arc first so the physics pass of this step sees the new height
-    this.prevY = this.jump.y;
+    this.prevY = this.jump.y + this.vaultY;
     this.jump.update(dt);
     b.height = this.jump.y;
     if (this.jump.takeLaunched()) this.onJump?.();
@@ -571,6 +750,7 @@ export class Player implements Entity {
     this.pinLast.x = b.pos.x; this.pinLast.z = b.pos.z;
     this.updatePin(dt, moved);
     if (this.pinTarget) { b.vel.x = 0; b.vel.z = 0; this.animateFoot(dt); return; }
+    this.updateBoxed(dt);
 
     // --- a hard hit: the physics pass has just taken most of the speed off (a wall, a person). Brace and stagger, do not stand dead.
     const speedNow = Math.hypot(b.vel.x, b.vel.z);
@@ -584,6 +764,9 @@ export class Player implements Entity {
     this.braceT = Math.max(0, this.braceT - dt);
     if (speedNow < 2.5) this.wallBraced = false;
     const brace = 1 - 0.65 * (this.braceT / BRACE_TIME); // the legs come back under the body: less push for a moment after a hit
+    // flat out into a low car: the vault starts by itself (and the sprint is not braked for the car)
+    const autoAhead = this.autoVault(speedNow, dt);
+    if (this.vault) { this.updateVault(dt); return; }
 
     // --- sprint ramp, then accelerate toward the desired velocity (no instant starts or stops)
     const ramp = this.wantRun && this.moveDir ? 1 / SPRINT_RAMP_UP : -1 / SPRINT_RAMP_DOWN;
@@ -608,7 +791,7 @@ export class Player implements Entity {
       // not yet facing the way it was told to go: give less speed until the body has swung round (not while aiming: that strafes)
       if (this.aimYaw === null) sp *= alignScale(Math.cos(angleDiff(b.heading, want)));
       // sprinting at a wall: take speed off over the last metres, so the contact is a brace and not a dead stop
-      if (speedNow > WALL_CONTACT_SPEED + 0.2 && this.blockedAt && !this.jump.busy) {
+      if (speedNow > WALL_CONTACT_SPEED + 0.2 && this.blockedAt && !this.jump.busy && !autoAhead) {
         const ux = b.vel.x / speedNow, uz = b.vel.z / speedNow;
         for (const d of [0.5, 0.8, 1.1, 1.4, 1.8, 2.2, 2.8]) {
           if (this.blockedAt({ x: b.pos.x + ux * (d + FOOT_RADIUS), z: b.pos.z + uz * (d + FOOT_RADIUS) }, FOOT_RADIUS * 0.8)) {
@@ -657,7 +840,7 @@ export class Player implements Entity {
     const b = this.body;
     if (this.vehicle) { this.pose3D(b.pos, b.heading, 0); return; }
     const a = clamp(alpha, 0, 1);
-    const y = this.prevY + (this.jump.y - this.prevY) * a;
+    const y = this.prevY + (this.jump.y + this.vaultY - this.prevY) * a;
     if (Math.hypot(b.pos.x - this.prevPos.x, b.pos.z - this.prevPos.z) > 8) { this.pose3D(b.pos, b.heading, y); return; }
     const pos = { x: this.prevPos.x + (b.pos.x - this.prevPos.x) * a, z: this.prevPos.z + (b.pos.z - this.prevPos.z) * a };
     this.pose3D(pos, this.prevHeading + angleDiff(this.prevHeading, b.heading) * a, y);
@@ -767,12 +950,13 @@ export class Player implements Entity {
       this.anim ??= new AnimController(this.model, PLAYER_GAIT);
       const yawRate = dt > 0 ? -angleDiff(this.animHeading, b.heading) / dt : 0;
       this.animHeading = b.heading;
-      if (!this.anim.update(dt, { speed: sp, yawRate, jump: { phase: this.jump.phase, t: this.jump.t, vy: this.jump.vy }, action: this.actionPose, look: this.lookInput(dt) })) {
-        if (this.jump.busy) animateJump(this.model, this.jump.phase, this.jump.t, this.jump.vy);
+      if (!this.anim.update(dt, { speed: sp, yawRate, jump: { phase: this.jump.phase, t: this.jump.t, vy: this.jump.vy }, action: this.actionPose, look: this.lookInput(dt), vault: this.vault ? { k: this.vaultAnimK, side: this.vaultSide } : null })) {
+        if (this.vault) animateJump(this.model, 'air', 0.2, 1);
+        else if (this.jump.busy) animateJump(this.model, this.jump.phase, this.jump.t, this.jump.vy);
         else animateWalk(this.model, this.walkPhase, this.walkAmp);
       }
     }
-    this.pose3D(b.pos, b.heading, this.jump.y);
+    this.pose3D(b.pos, b.heading, this.jump.y + this.vaultY);
   }
 
   /**
