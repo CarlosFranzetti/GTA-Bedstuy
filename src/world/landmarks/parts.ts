@@ -3,7 +3,7 @@
  * All coordinates are site-local (see kit.ts). Nothing here imports roadnet.
  */
 import * as THREE from 'three';
-import { buildCloudGeometry, SHRUB_CARDS } from '@/world/props/treeCloud';
+import { buildCloudGeometry, CLOUD_CARDS, SHRUB_CARDS } from '@/world/props/treeCloud';
 import { treePartsFor, type TreeStyle } from '@/world/data/streetTrees';
 import type { Rng } from '@/core/Rng';
 import { Kit, TILE, type V3 } from './kit';
@@ -210,25 +210,38 @@ export function tree(k: Kit, x: number, z: number, rng: Rng, h = 1, solid = true
 }
 
 /**
- * A shrub mass: one or two low flattened leaf clouds (16 triangles each) sitting on the ground. `r` is the radius in metres.
- * Understorey for the parks: groups under the big trees, along paths and fences.
+ * A shrub mass: a low flattened leaf cloud (32 triangles) sitting on the ground, `r` metres wide. Understorey for the parks:
+ * groups under the big trees, along paths and fences.
  */
 export function shrub(k: Kit, x: number, z: number, rng: Rng, r = 1.1, squash = 0.72): void {
   if (k.far) return;
-  shrubGeo ??= buildCloudGeometry(SHRUB_CARDS);
+  shrubGeo ??= buildCloudGeometry(CLOUD_CARDS, 0.3);
   const lv = k.m('treeLeaves', 0);
   addGeo(k, lv, shrubGeo, r, r * squash, r, rng.next() * 6.28, x, r * squash * 0.62, z);
 }
 
-/** A clipped hedge along (x0, z0) to (x1, z1): a row of overlapping low shrub clouds, `h` high (about 1 m). */
+/**
+ * A clipped hedge along (x0, z0) to (x1, z1), `h` high (about 1 m): a solid olive body (6 triangles, flat colour, no draw call of
+ * its own) with leaf clouds (32 triangles) along its top every 1.3 m, so it reads dense and leafy from both sides.
+ */
 export function hedge(k: Kit, x0: number, z0: number, x1: number, z1: number, rng: Rng, h = 1.0): void {
   if (k.far) return;
   const L = Math.hypot(x1 - x0, z1 - z0);
   if (L < 1) return;
-  const step = h * 1.5, n = Math.max(1, Math.round(L / step));
+  const ux = (x1 - x0) / L, uz = (z1 - z0) / L, w = h * 0.45;
+  const P = (t: number, s: number, y: number): V3 => [x0 + ux * t - uz * s, y, z0 + uz * t + ux * s];
+  const col = 0x3a4724;
+  const q = (a: V3, b: V3, c: V3, d: V3, hint: V3): void => k.quad(k.flatM, a, b, c, d, { hint, color: col });
+  q(P(0, -w, 0), P(L, -w, 0), P(L, -w * 0.8, h * 0.95), P(0, -w * 0.8, h * 0.95), [-uz * -1, 0, ux * -1]);
+  q(P(L, w, 0), P(0, w, 0), P(0, w * 0.8, h * 0.95), P(L, w * 0.8, h * 0.95), [-uz, 0, ux]);
+  q(P(0, -w * 0.8, h * 0.95), P(L, -w * 0.8, h * 0.95), P(L, w * 0.8, h * 0.95), P(0, w * 0.8, h * 0.95), [0, 1, 0]);
+  shrubGeo ??= buildCloudGeometry(CLOUD_CARDS, 0.3);
+  const lv = k.m('treeLeaves', 0);
+  const n = Math.max(1, Math.round(L / 1.3));
   for (let i = 0; i < n; i++) {
-    const t = (i + 0.5) / n;
-    shrub(k, x0 + (x1 - x0) * t, z0 + (z1 - z0) * t, rng, h * 0.95, 0.9);
+    const t = ((i + 0.5) / n) * L, s = (i % 2 ? 1 : -1) * w * 0.3;
+    const c = P(t, s, h * 0.5);
+    addGeo(k, lv, shrubGeo, h * 0.85, h * 0.72, h * 0.85, rng.next() * 6.28, c[0], c[1], c[2]);
   }
 }
 

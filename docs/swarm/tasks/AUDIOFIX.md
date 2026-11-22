@@ -1,6 +1,6 @@
 # AUDIOFIX (22 Nov 2026): stuck engine, silent radio, engine level, Engine sound setting
 
-Status: in progress. Notes kept current as the work goes.
+Status: code and tests done (22 Nov); browser boot check below. Nothing here was HEARD: nobody on this team can listen.
 
 ## Owner report
 "some radio station issues (sometimes it wont play) and the car engine sound gets stuck, starts to loop and stutters; engine
@@ -32,3 +32,41 @@ suspend()/resume() settle later like a browser), `engine-lifecycle.test.ts`, `au
    car creeping in a queue hunts between two revs.
 Not a cause (measured, all green): player engine voices (never more than 1, none 2.5 s after exit at 60/30/15 fps), ghosts, node growth per
 frame, NaN, event pile-up while running.
+
+## What changed
+Engine, parked cars (cause 1)
+- `src/audio/vehicle/nodes.ts` `TrafficEngines`: a car slower than 0.5 m/s gets no voice (`TRAFFIC_MIN_SPEED`); a voice outlives its car's stop by
+  3 s (`TRAFFIC_STILL_GRACE`); each voice hears a throttle smoothed over 0.35 s (the 0.5/0.1 flip at 1 m/s made a creeping car hunt: rpm swung 1088 to 2111,
+  now under 700); `setEnabled(false)` creates and keeps none.
+- `EngineNodes.apply`: `lim.gain` goes through `aim` (it was written every frame); `acc.gain` is re-aimed so accessories return after `retire()`.
+Pause, suspend (causes 2 and 3)
+- `AudioSystem.resume()` always calls `ctx.resume()` (unless closed) instead of trusting `state`; `pause()` freezes the vehicle layer, `resume()` thaws it.
+- `VehicleAudio.setFrozen`: while the clock is stopped `update`, `setTraffic`, one-shots, honks (player and AI) and the bed one-shots are dropped; `AudioSystem.setEngine`
+  skips its parameter writes and the untyped-engine horn/impact events are ignored while paused.
+Engine level and setting
+- New engine bus (`engineBus`, into `sfxBus`): the player's engine, its ghosts, the AI engines and the old untyped engine all connect to it.
+  Level: `ENGINE_BUS_DEFAULT = 0.55` (src/audio/Mixer.ts) times the taper of the new `engine` slider position.
+  OLD: engines connected straight to the effects bus at 1.0 (engine body trim `ENGINE_TRIM` 0.15, unchanged). NEW: x 0.55 = -5.2 dB at the default; the other buses are untouched.
+  SOUND-BAR.md (21 Nov numbers, not re-measured): own engine cruise / full throttle with the radio on -24 / -19 LUFS, so about -29 / -24 now; the radio stays at about
+  -14 and voices above it (SOUNDCHECK: cruise was already 9 to 10 dB under a stream). The radio and voices therefore sit about 15 dB / 10 dB above the engine in a car. Not re-measured by an offline render.
+- Settings row `Engine Sound` (menu id `enginevol`, Audio group, after Sound Effects): 0 to 100 in steps of 5, shows `Off` at 0, live, saved with the mixer (`wbsy.mixer`, key `engine`).
+  At 0 `VehicleAudio.setEngineEnabled(false)` disposes the player's engine, its ghosts and the AI voices and nothing is created (tested: no oscillator beyond the beds).
+  Tyres, wind, horns, crashes, doors, footsteps are not engine and stay.
+Radio (see "Radio causes")
+- `LiveStation`: "blocked" only when the browser really refused (element paused); the error event that clearing the source raises no longer re-fails; late events ignored;
+  retry once for single-URL streams (mirror stations try each mirror); connect timeout 20 s to 12 s; notices "Connecting to the stream..." and "Stream interrupted. Trying again...";
+  `restart()`; no media element = fail, not a crash.
+- `ScStation`: stale boots ignored (generation counter), `restart()`, a load that finishes after tune-away is paused, notice "Connecting to SoundCloud..." while loading.
+- `RadioDirector.checkStart`: a SoundCloud or live station silent for 20 game seconds (not counting pauses, not counting a tap prompt) is retried once with a toast
+  ("X is slow to start. Trying again."), at 40 s it is skipped like a failed one ("X is off the air. Tuning to Y.").
+- `AudioSystem`: pause reasons were already a Set and balanced (ShopUi.close -> stopPost -> onListen(false) on Escape, Close, X, backdrop, dispose); covered by a test now.
+## Radio causes (found in code, each with a test in tests/unit/audio/radio-start.test.ts)
+1. A live stream that accepts play() but never answers was labelled "blocked" after 4 s; the watchdog skips blocked streams, so it sat behind "Tap to start radio" with no timeout.
+2. After a failure the source is cleared, browsers raise an error event for that, the handler re-ran `fail()` and `onFail` fired again (and again with no other station to go to).
+3. Up to four reconnects of 20 s each before a dead stream gave way: over a minute of silence.
+4. A SoundCloud player that never reported ready sat 45 s in "loading" with no message and no way to start over; a boot that answered late could build a second player.
+5. A SoundCloud `load` with auto_play that completes after the listener tuned away starts the old mix under the new station.
+6. Not found: unbalanced pause counts, stale callbacks stopping a new station (the director already guards on the current id; tested), CORS or mixed content (all stream URLs are https, no crossOrigin).
+## Streams NOT checked (this box cannot reach them; the tests use mocked elements)
+wfmu rocknsoul `https://stream0.wfmu.org/rocknsoul`, wfmu freeform `https://stream0.wfmu.org/freeform-128k`, KEXP `https://kexp.streamguys1.com/kexp128.mp3`, SomaFM u80s
+(`ice2` / `ice6` mp3, `ice2` aac) and 181.FM, WNYC (`fm939.wnyc.org/wnycfm`, `stream.wnyc.org/wnycfm`), the SoundCloud player API and every SoundCloud account. Whether any is dead today is unknown.

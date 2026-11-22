@@ -6,6 +6,8 @@ The bar every sound lane is held to. Nobody on this team can listen, so every cl
 render or a real-browser probe (see "Checks"). Owner's words we answer to: engines and horns "awful, each should be a bit
 different"; "GTA style hosts and talk radio and interviews and talk shows"; "various human sounding voices"; peds "interact".
 
+> 22 Nov (AUDIOFIX): engines (the player's and the AI cars') now go through an engine bus at 0.55 of the old level (-5.2 dB) with its own "Engine Sound" setting (0 = Off, no voice created). The engine rows in the table below are the 21 Nov measurements, about 5 dB lower now; not re-measured.
+
 ## 1. The dial (15 stations)
 - Range before quantity. The dial must cover at least eight distinct moods/genres; no more than five stations may be
   club/electronic (house, techno, DJ-set culture). Required lanes of taste: club/techno, house/disco/boogie, hip-hop,

@@ -12,6 +12,14 @@ describe('chooseMap', () => {
     expect(chooseMap(true, 'grid')).toBe('grid');
     expect(chooseMap(true, 'classic')).toBe('grid');
   });
+  it('a phone with no ?map= stays on the grid; an explicit ?map=real on a phone is honoured; desktop is unchanged', () => {
+    expect(chooseMap(true, null, true)).toBe('grid');
+    expect(chooseMap(true, '', true)).toBe('grid');
+    expect(chooseMap(true, 'real', true)).toBe('real');
+    expect(chooseMap(true, 'grid', true)).toBe('grid');
+    expect(chooseMap(true, null, false)).toBe('real');
+    expect(chooseMap(false, 'real', true)).toBe('grid');
+  });
   it('the single-file build is always the grid, whatever the address says', () => {
     for (const p of [null, 'real', 'grid', 'classic']) expect(chooseMap(false, p)).toBe('grid');
   });
@@ -20,6 +28,8 @@ describe('chooseMap', () => {
     expect(currentMap(true, '?q=low&map=grid')).toBe('grid');
     expect(currentMap(true, '?map=real')).toBe('real');
     expect(currentMap(false, '?map=real')).toBe('grid');
+    expect(currentMap(true, '', true)).toBe('grid');
+    expect(currentMap(true, '?map=real', true)).toBe('real');
   });
 });
 
@@ -28,6 +38,7 @@ describe('mapSwitchUrl', () => {
     expect(mapSwitchUrl('https://x.test/?q=low', 'grid')).toBe('https://x.test/?q=low&map=grid');
     expect(mapSwitchUrl('https://x.test/?q=low&map=grid#a', 'real')).toBe('https://x.test/?q=low#a');
     expect(mapSwitchUrl('https://x.test/', 'real')).toBe('https://x.test/');
+    expect(mapSwitchUrl('https://x.test/?q=phone&map=grid', 'real', true)).toBe('https://x.test/?q=phone&map=real');
     expect(mapSwitchUrl('https://x.test/?map=real', 'grid')).toBe('https://x.test/?map=grid');
   });
 });
@@ -65,5 +76,14 @@ describe('Menu "Map" row', () => {
     row(menu).click(); row(menu).click();
     expect(go).toHaveBeenCalledTimes(1);
     expect(go.mock.calls[0][0]).not.toContain('map=');
+  });
+  it('reads the map in play from main.ts (a phone on the grid offers the real streets with an explicit ?map=real)', () => {
+    (window as unknown as { __gtaMap?: unknown }).__gtaMap = { name: 'grid', handheld: true };
+    try {
+      const go = vi.fn();
+      const menu = new Menu(parent, {}, { storage: null, mapSwitch: { available: true, current: 'grid', go, handheld: true } });
+      row(menu).click(); row(menu).click();
+      expect(go.mock.calls[0][0]).toContain('map=real');
+    } finally { delete (window as unknown as { __gtaMap?: unknown }).__gtaMap; }
   });
 });

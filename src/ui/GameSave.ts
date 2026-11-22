@@ -390,6 +390,7 @@ export class SaveManager {
    */
   bootSave(): SaveData | null {
     let best: SaveData | null = null;
+    this.copyOldRealSaves();
     for (const id of SLOT_IDS) {
       const s = this.store.get(id);
       if (s && s !== 'corrupt' && (!best || s.savedAt > best.savedAt)) best = s;
@@ -399,6 +400,19 @@ export class SaveManager {
     if (!best && this.store.map === 'real') best = this.carryOverFromGrid();
     if (best?.playerLook !== undefined) this.playerLook = best.playerLook;
     return best;
+  }
+
+  /**
+   * Before 22 Nov the real map (`?map=real`) saved into the shared slots with `pose.map = 'real'`. The first time the real map boots with no slots of
+   * its own, those saves are COPIED into its slots (the grid slots are left as they were), so nobody who tried the real map loses their game.
+   */
+  private copyOldRealSaves(): void {
+    if (this.store.map !== 'real') return;
+    if (SLOT_IDS.some((id) => this.store.get(id) !== null)) return;
+    for (const id of SLOT_IDS) {
+      const g = this.store.get(id, 'grid');
+      if (g && g !== 'corrupt' && g.pose.map === 'real') this.store.put(id, g);
+    }
   }
 
   /**

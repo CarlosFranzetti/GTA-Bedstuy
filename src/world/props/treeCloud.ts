@@ -15,7 +15,7 @@ export const CLOUD_TRIS = CLOUD_CARDS * 2;
  * Vertex normals point out of the ball centre (soft volume shading, the material is double-sided). A per-vertex grey
  * (`color`, multiplied into the leaf colour by the material) makes the middle of the cloud dark and its lit top and rim light.
  */
-export function buildCloudGeometry(cards = CLOUD_CARDS): THREE.BufferGeometry {
+export function buildCloudGeometry(cards = CLOUD_CARDS, tangent = 0.55): THREE.BufferGeometry {
   const cr = new Rng(cards === CLOUD_CARDS ? 'tree-cloud-shell' : `tree-cloud-shell-${cards}`);
   const pos: number[] = [], nor: number[] = [], uv: number[] = [], col: number[] = [];
   const q = new THREE.Quaternion(), z = new THREE.Vector3(0, 0, 1);
@@ -39,7 +39,9 @@ export function buildCloudGeometry(cards = CLOUD_CARDS): THREE.BufferGeometry {
     }
     const centre = dir.clone().multiplyScalar(rad);
     // card normal: mostly radial, a little skew so neighbours are not parallel plates
-    const n = dir.clone().add(new THREE.Vector3(cr.range(-0.3, 0.3), cr.range(-0.3, 0.3), cr.range(-0.3, 0.3))).normalize();
+    // (`tangent` 1 = flat plates on the ball, lower = cards turned every way, a ragged leafy outline)
+    const rnd = new THREE.Vector3(cr.range(-1, 1), cr.range(-1, 1), cr.range(-1, 1)).normalize();
+    const n = dir.clone().multiplyScalar(tangent).add(rnd.multiplyScalar(1 - tangent)).normalize();
     q.setFromUnitVectors(z, n);
     q.multiply(new THREE.Quaternion().setFromAxisAngle(z, cr.range(0, Math.PI * 2)));
     const h = size / 2;
@@ -52,7 +54,7 @@ export function buildCloudGeometry(cards = CLOUD_CARDS): THREE.BufferGeometry {
         pos.push(p.x, p.y, p.z); nor.push(nn.x, nn.y, nn.z); uv.push(us[j][0], us[j][1]);
         // dark in the middle, lit on the shell; a lit top and a shaded underside; per-card jitter so the dome is not uniform
         const rr = Math.min(1, p.length());
-        const b = (0.5 + 0.5 * Math.pow(rr, 1.3)) * (0.82 + 0.2 * Math.min(1, Math.max(0, (p.y + 0.9) / 1.8))) * (0.94 + 0.12 * ((i * 0.618) % 1));
+        const b = (0.62 + 0.42 * Math.pow(rr, 1.3)) * (0.82 + 0.2 * Math.min(1, Math.max(0, (p.y + 0.9) / 1.8))) * (0.94 + 0.12 * ((i * 0.618) % 1));
         col.push(b, b, b);
       }
     }

@@ -199,6 +199,10 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   the new steering has not been watched in the running game. First deploy of the day (ff12a75) went out on the owner's
   instruction before the last test groups finished and carried one regression (a pedestrian knocked down in the
   five-minute real-map sim), fixed in the second.
+- AUDIOFIX (22 Nov, not yet released; owner's report: stuck engine, silent radio, too loud): parked kerb cars no longer get idling engine voices (they took all four AI slots,
+  a constant drone), pause/resume no longer leaves the audio context suspended, nothing is scheduled while the clock is stopped, the engine bus sits at 0.55 of its old level
+  (-45%), a new Settings row "Engine Sound" (0 = Off creates no engine voice), and the radio retries a silent station once and then tunes on with a toast. Tests green; not heard.
+  Notes and the unchecked stream URLs: `docs/swarm/tasks/AUDIOFIX.md`. Lead still to add one line in `src/main.ts` (skip cars under 0.5 m/s when filling `NEAR_AUDIO_CARS`).
 - Before that: commit `41357ca` (21 Nov night): everything in `6110995` plus the dance-only WAX DELI (18 openly licensed dance
   records 2005 to 2018, ten pre-war dance sides, a SoundCloud listening post of four Kompakt tracks) and Vercel Web
   Analytics code. Verified by the lead on that exact tree. The map-growth (MAP4) and LANDMARKS2 work was left out of it.

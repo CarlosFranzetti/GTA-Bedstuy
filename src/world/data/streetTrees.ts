@@ -93,7 +93,7 @@ export interface TreeParts {
 /**
  * Trunk scale and canopy clouds of one tree. `R` is the cloud radius the caller used to draw (1.2 to 1.6 times the species
  * canopy, about 1.4 for a mid-size tree): it sets the crown width, kept between 0.82 and 1.15 of the form's own width unless
- * `free` (park trees pass their own size). `u1` decides whether the last lobe is drawn, `u2` jitters the lobes.
+ * `free` (park trees pass their own size and get a crown 0.9 m lower: older trees keep their lower limbs). `u1` decides whether the last lobe is drawn, `u2` jitters the lobes.
  */
 export function treePartsFor(style: TreeStyle, R: number, u1: number, u2: number, free = false): TreeParts {
   const f = treeFormOf(style.species);
@@ -104,7 +104,7 @@ export function treePartsFor(style: TreeStyle, R: number, u1: number, u2: number
     // the last lobe of a broad tree comes and goes; every lobe shifts a little so two planes never match
     if (i === f.clouds.length - 1 && u1 < f.dropLast) return;
     const j = (u2 * 7.31 + i * 1.7) % 1;
-    clouds.push([(x + (j - 0.5) * 0.6) * k, (y + (((j * 3.1) % 1) - 0.5) * 0.5) * th, (z + (((j * 5.3) % 1) - 0.5) * 0.6) * k, r * k, f.squash * (0.92 + 0.16 * ((j * 3.7) % 1))]);
+    clouds.push([(x + (j - 0.5) * 0.6) * k, (y - (free ? 0.9 : 0) + (((j * 3.1) % 1) - 0.5) * 0.5) * th, (z + (((j * 5.3) % 1) - 0.5) * 0.6) * k, r * k, f.squash * (0.92 + 0.16 * ((j * 3.7) % 1))]);
   });
   return { trunk: [tw, th, tw], clouds };
 }

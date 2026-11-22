@@ -36,7 +36,7 @@ How the streets, lots and buildings are made and where the data comes from.
 | [docs/reference/BLOCKS.md](reference/BLOCKS.md) | What stands on each block face of the grid map and where each fact comes from (9 Nov). | partly out of date |
 | [docs/reference/block-faces.md](reference/block-faces.md) | Raw search notes behind the block faces (research pass, 28 Oct). | historical record |
 | [docs/reference/EXPANSION.md](reference/EXPANSION.md) | Survey of the area between Throop Ave and Bushwick Ave, with the street table and projection (9 Nov). | historical record |
-| [docs/swarm/plans/realmap.md](swarm/plans/realmap.md) | Design of the real-street map (`?map=real`): data, phases, rules (11 Nov). | historical record |
+| [docs/swarm/plans/realmap.md](swarm/plans/realmap.md) | Design of the real-street map (the main map since 22 Nov; `?map=grid` is the old grid): data, phases, rules (11 Nov). | historical record |
 | [docs/swarm/plans/landmarks-candidates.md](swarm/plans/landmarks-candidates.md) | Candidate landmarks inside the grown real map, from open data (18 Nov). | historical record |
 | [docs/STREET-PHOTOS.md](STREET-PHOTOS.md) | How wall colours are read from openly licensed street photos, and the licence reasoning. | current |
 | [docs/PHOTO-TEXTURES.md](PHOTO-TEXTURES.md) | How to add your own photographed surfaces as textures. | current |
@@ -148,6 +148,7 @@ Measured results and research notes, one file per lane task.
 | [docs/swarm/tasks/PERF3.md](swarm/tasks/PERF3.md) | Triangle and draw-call numbers by category, phone and low (18 Nov). | historical record |
 | [docs/swarm/tasks/PHYSICS.md](swarm/tasks/PHYSICS.md) | Physics defects measured and fixed (18 to 19 Nov). | historical record |
 | [docs/swarm/tasks/IPHONE.md](swarm/tasks/IPHONE.md) | Phone-tier memory cuts and measurements in an emulated iPhone (19 Nov). | historical record |
+| [docs/swarm/tasks/MAINMAP.md](swarm/tasks/MAINMAP.md) | The real-street map becomes the main map: what broke, per-map saves, the Map setting, skipping the grid build, phone numbers (22 Nov). | current |
 | `docs/swarm/tasks/GREEN2.md` | Release-engineering pass: traffic simulations and test triage (21 Nov, being written by its lane). | not written yet |
 | `docs/swarm/tasks/PHONE2.md` | Phone pass: audit, overlaps, controls, memory (21 Nov, being written by its lane). | not written yet |
 

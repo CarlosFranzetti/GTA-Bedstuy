@@ -16,7 +16,8 @@ function bake(id: string, size = 256): Uint8ClampedArray {
   const v = PED_SPECS.findIndex((s) => s.id === id), spec = PED_SPECS[v], s = shapes.find((x) => x.name === shapeFor(spec))!;
   const L = dressLod(s, spec, s.lods.hi, true), bt = bodyTypeOf(spec), R: Record<string, number[]> = {};
   for (const [k, p] of Object.entries(s.rig)) R[k] = jointFor(k, p, bt);
-  const input: BakeInput = { position: L.position, normal: L.normal, uv: L.uv, index: L.index, joints: L.joints, weights: L.weights, landmarks: s.landmarks, rig: R, headRings: s.headRings as number[][], topHem: topHemY(s, spec), spec };
+  const input: BakeInput = { position: L.faceDelta ? L.position.map((x, i) => x - L.faceDelta![i]) : L.position,   // as pedMesh does: features are painted at the unmorphed place
+     normal: L.normal, uv: L.uv, index: L.index, joints: L.joints, weights: L.weights, landmarks: s.landmarks, rig: R, headRings: s.headRings as number[][], topHem: topHemY(s, spec), spec };
   bakeSkin(input, size);
   return last!.data.slice();
 }
@@ -107,8 +108,8 @@ describe('people skin painter (pedSkinPaint + pedPaint*)', () => {
       const a = bake(id, size), k = size / 512;
       let dark = 0, light = 0;
       for (let y = Math.floor(90 * k); y < Math.floor(140 * k); y++) for (let x = Math.floor(40 * k); x < Math.floor(220 * k); x++) { const q = (y * size + x) * 4, l = (a[q] + a[q + 1] + a[q + 2]) / 3; if (l < 45) dark++; if (l > 175 && l < 250) light++; }
-      expect(dark, `${id}@${size}`).toBeGreaterThan(size === 512 ? 8 : 2);
-      expect(light, `${id}@${size}`).toBeGreaterThan(size === 512 ? 8 : 2);
+      expect(dark, `${id}@${size}`).toBeGreaterThan(size === 512 ? 8 : 1);   // FACES2: brows now run from 0.66 to 1.5 of the old width, so a thin-browed person has fewer dark texels at 256 px (2, was 3 or more)
+      expect(light, `${id}@${size}`).toBeGreaterThan(size === 512 ? 8 : 1);
     }
   }, 120000);
 

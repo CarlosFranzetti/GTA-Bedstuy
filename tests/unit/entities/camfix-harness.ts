@@ -149,7 +149,9 @@ export class CamRig {
     const dir = this.tmp.clone();
     const e = c.matrixWorld.elements;
     const look = (this.cam as unknown as { look: THREE.Vector3 }).look;
-    const veh = p.vehicle ?? (p.isEntering ? this.vehicles.find((x) => x.id === p.enteringId) ?? null : null) ?? this.lastCar() ?? this.vehicles[0] ?? null;
+    let veh: { body: Vehicle['body']; spec: Vehicle['spec'] } | null = p.vehicle as Vehicle | null;
+    if (!veh && p.isEntering) veh = this.vehicles.find((x) => x.id === p.enteringId) ?? null;
+    if (!veh) veh = this.lastCarRef ?? this.vehicles[0] ?? null;
     this.frames.push({
       t: this.wall, dt, steps, mode: p.inVehicle ? 'vehicle' : 'foot', view: this.cam.viewId, entering: p.isEntering, inVehicle: p.inVehicle,
       px: c.position.x, py: c.position.y, pz: c.position.z, lx: look.x, ly: look.y, lz: look.z, dx: dir.x, dy: dir.y, dz: dir.z,
@@ -162,7 +164,6 @@ export class CamRig {
     });
   }
   private lastCarRef: Vehicle | null = null;
-  private lastCar(): Vehicle | null { return this.lastCarRef; }
 
   /** Run `seconds` of wall clock at the rig's frame rate (a hitch frame replaces one frame when its time comes). */
   wait(seconds: number): void {

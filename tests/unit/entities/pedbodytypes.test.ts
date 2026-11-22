@@ -1,3 +1,4 @@
+import { faceDebug } from '@/entities/models/pedHead';
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { BODY_TYPES, bodyTypeId, type BodyTypeId } from '@/entities/models/pedBodyTypes';
@@ -33,7 +34,10 @@ describe('body types', () => {
     const s = await parseShape(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer);
     const spec = PED_SPECS.find((p) => p.id === 'ba-puffer-braids')!;
     // bare legs (shorts): the trousered legs are rebuilt as tubes (pedLegs.ts, vertices renumbered), so this per-vertex comparison uses the unchanged topology
+    // FACES2: dressLod now also gives the head its own shape (pedHead.ts); this test is about the clothing, so the face morph is off here (pedhead.test.ts covers the morph)
+    faceDebug.morph = false;
     const L = s.lods.hi, D = dressLod(s, { ...spec, body: 'avg', bottom: { ...spec.bottom, kind: 'shorts' as const } }, L, true);
+    faceDebug.morph = true;
     let headMoved = 0, handMoved = 0, torsoOut = 0, torsoN = 0;
     for (let i = 0; i < L.position.length / 3; i++) {
       const y = L.position[i * 3 + 1], dx = D.position[i * 3] - L.position[i * 3], dz = D.position[i * 3 + 2] - L.position[i * 3 + 2], d = Math.hypot(dx, dz);

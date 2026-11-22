@@ -142,7 +142,7 @@ export interface MenuOptions {
   /** Show the "install as app" hint (hosted build only). Default: true when built with VITE_HOSTED=1. */
   installable?: boolean;
   /** The "Map" row (Real streets / Classic grid): hosted and native builds only. Defaults read the build flag and `location`; tests inject. `go` gets the address of the other map. */
-  mapSwitch?: { available: boolean; current: MapChoice; go(url: string): void };
+  mapSwitch?: { available: boolean; current: MapChoice; go(url: string): void; handheld?: boolean };
 }
 
 const DEFAULTS: MenuSettings = { quality: 'medium', auto: false, master: 1, radio: 1, invertY: false };
@@ -975,7 +975,7 @@ export class Menu {
         const info = this.mapSwitchInfo(); const w = this.doc.defaultView;
         const href = w ? w.location.href : 'http://localhost/';
         this.opts.saves?.autosave(Date.now(), true, true); // the pagehide autosave also fires, but a reload from a menu should not depend on it
-        info.go(mapSwitchUrl(href, info.current === 'real' ? 'grid' : 'real'));
+        info.go(mapSwitchUrl(href, info.current === 'real' ? 'grid' : 'real', info.handheld === true));
       },
     });
     S.set('install', {
@@ -1044,10 +1044,14 @@ export class Menu {
     } catch { return false; }
   }
 
-  private mapSwitchInfo(): { available: boolean; current: MapChoice; go(url: string): void } {
+  private mapSwitchInfo(): { available: boolean; current: MapChoice; go(url: string): void; handheld?: boolean } {
     if (this.opts.mapSwitch) return this.opts.mapSwitch;
     const hosted = hostedBuild(), w = this.doc.defaultView;
-    return { available: hosted, current: currentMap(hosted, w ? w.location.search : ''), go: (url) => { try { w?.location.assign(url); } catch { /* blocked */ } } };
+    // main.ts publishes the map in play and whether this is a handheld (phone tier: opens the grid unless `?map=real`)
+    const info = (w as unknown as { __gtaMap?: { name?: string; handheld?: boolean } } | null)?.__gtaMap;
+    const handheld = info?.handheld === true;
+    const current: MapChoice = info?.name === 'real' || info?.name === 'grid' ? info.name : currentMap(hosted, w ? w.location.search : '', handheld);
+    return { available: hosted, current, go: (url) => { try { w?.location.assign(url); } catch { /* blocked */ } }, handheld };
   }
 
   private disarmReset(): void {

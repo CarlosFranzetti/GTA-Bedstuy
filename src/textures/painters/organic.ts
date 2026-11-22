@@ -44,14 +44,14 @@ export const treeLeavesPainter: Painter = (ctx, w, h, rng, variant) => {
     const la = rng.range(0, Math.PI * 2), ld = Math.sqrt(rng.next()) * R * 0.66;
     const lx = cx + Math.cos(la) * ld, ly = cy + Math.sin(la) * ld * 0.9;
     const lr = rng.range(0.2, 0.32) * R;
-    const n = 64;
+    const n = 80;
     for (let i = 0; i < n; i++) {
       const a = rng.range(0, Math.PI * 2), d = Math.sqrt(rng.next()) * lr;
       const x = lx + Math.cos(a) * d, y = ly + Math.sin(a) * d * 0.85;
       const top = 1 - y / h;
       const inner = 1 - d / lr; // darker toward the lobe's core, brighter at its lit rim
       const l = 19 + top * 26 + (1 - inner) * 8 + rng.range(-3, 5);
-      leaf(x, y, rng.range(9, 16), rng.range(0, Math.PI * 2), hsl(hue + rng.range(-12, 12), rng.range(24, 40), l), hsl(hue + 6, 30, l + 10));
+      leaf(x, y, rng.range(7, 13), rng.range(0, Math.PI * 2), hsl(hue + rng.range(-12, 12), rng.range(24, 40), l), hsl(hue + 6, 30, l + 10));
     }
   }
   for (let i = 0; i < 36; i++) { // loose leaves on the rim

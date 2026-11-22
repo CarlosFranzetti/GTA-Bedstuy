@@ -113,6 +113,8 @@ const frame = await ev(`(() => {
 if (frame?.url) { writeFileSync(SHOT.replace(/\.png$/, '') + '-frame.png', Buffer.from(frame.url.split(',')[1], 'base64')); delete frame.url; }
 
 // ---- what the hosted build gained, through the app protocol
+// what the GAME itself fetched so far, from the debugger's request log (taken before this script's own probes below; the page's resource timing buffer holds only 250 entries and loses them)
+const seenByGame = [...reqs.values()].map((r) => `${r.url} ${r.status}`);
 const feat = await ev(`(async () => {
   const out = {};
   const head = async (u) => { try { const r = await fetch(u); const b = await r.arrayBuffer(); return { ok: r.ok, status: r.status, bytes: b.byteLength, type: r.headers.get('content-type') }; } catch (e) { return { ok: false, error: String(e) }; } };
@@ -133,10 +135,10 @@ const feat = await ev(`(async () => {
   out.url = location.href;
   return out;
 })()`, true);
-const timed = await ev(`performance.getEntriesByType('resource').map((e) => e.name + ' ' + (e.responseStatus || 0))`);
-feat.gameFetchedStreet = (timed || []).some((n) => /anim\/street\.bin 200/.test(n));
-feat.gameFetchedVoiceManifest = (timed || []).some((n) => /voice\/manifest\.json 200/.test(n));
-feat.gameFetchedPeopleGlb = (timed || []).some((n) => /assets\/ba_[a-z_]+-[\w-]+\.glb 200/.test(n));
+feat.gameFetchedStreet = seenByGame.some((n) => /anim\/street\.bin 200/.test(n));
+feat.gameFetchedVoiceManifest = seenByGame.some((n) => /voice\/manifest\.json 200/.test(n));
+feat.gameFetchedPeopleGlb = seenByGame.some((n) => /assets\/[a-z]{2}_[a-z_]+-[\w-]+\.glb 200/.test(n));
+feat.gameFetchedSample = seenByGame.filter((n) => /street|\.glb|manifest/.test(n)).slice(0, 6);
 
 // ---- content security policy probes (no network needed: a block is reported before any request is made)
 const csp = await ev(`(async () => {

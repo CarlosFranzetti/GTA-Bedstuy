@@ -154,7 +154,7 @@ function segDist(p: Vec2, a: Vec2, b: Vec2): number {
 
 // ---------------------------------------------------------------- shared geometries (built once, shared by every chunk)
 
-function buildGeometries(): Record<'trunk' | 'leaves' | 'lamp' | 'lampHead' | 'hydrant' | 'trash' | 'signLampDisc' | 'stopPole', THREE.BufferGeometry> {
+function buildGeometries(tier?: Quality): Record<'trunk' | 'leaves' | 'lamp' | 'lampHead' | 'hydrant' | 'trash' | 'signLampDisc' | 'stopPole', THREE.BufferGeometry> {
   const merge = (parts: THREE.BufferGeometry[]): THREE.BufferGeometry => {
     const g = mergeGeometries(parts, false);
     if (!g) throw new Error('propsReal: could not merge geometry');
@@ -162,7 +162,7 @@ function buildGeometries(): Record<'trunk' | 'leaves' | 'lamp' | 'lampHead' | 'h
     return g;
   };
   const trunk = buildTreeTrunkGeometry(); // root flare plus four limbs, shared with the grid map and the parks (props/treeCloud.ts)
-  const leaves = buildCloudGeometry(); // 32 triangles of leaf cards per cloud, shared with FurnitureGen
+  const leaves = buildCloudGeometry(tier === 'phone' ? 12 : undefined); // 32 triangles of leaf cards per cloud (24 on the phone tier), shared with FurnitureGen
   return {
     trunk, leaves,
     lamp: merge([cyl(0.07, 0.09, LAMP_HEIGHT, 6).translate(0, LAMP_HEIGHT / 2, 0), box(LAMP_ARM, 0.08, 0.1).translate(LAMP_ARM / 2, 7.9, 0)]),
@@ -441,7 +441,7 @@ export function buildRealProps(opts: RealPropsOptions): RealProps {
   counts.signalPoles = poles.length;
 
   // ---- bucket by 128 m chunk and build the meshes
-  const geo = buildGeometries();
+  const geo = buildGeometries(opts.tier);
   const M = {
     trunk: materials.get('treeTrunk'), leaves: materials.get('treeLeaves'), metal: materials.get('metalDark'),
     hydrant: materials.get('hydrant'), trash: materials.get('trash'),

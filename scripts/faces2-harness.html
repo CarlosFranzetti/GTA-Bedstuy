@@ -14,6 +14,7 @@ import { setPeopleMode } from '@/textures/painters/pedMode';
 import { faceDebug } from '@/entities/models/pedHead';
 await loadPeople();
 const q = new URLSearchParams(location.search);
+if (q.get('fdbg')) globalThis.__fdbg = true;
 faceDebug.morph = q.get('morph') !== '0'; faceDebug.stress = Number(q.get('stress') ?? 1);
 setPeopleMode('skin');
 const W = Number(q.get('w') ?? 1500), H = Number(q.get('h') ?? 1000);

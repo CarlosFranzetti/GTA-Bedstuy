@@ -82,7 +82,7 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
     const tilt = 0.0009 + 0.0004 * K.h.tl;
     if (Math.abs(u) < 1.5) {
       const shp = u * u < 1 ? Math.pow(1 - u * u, 0.62) : 0;
-      const bUp = 0.0074 * (0.8 + 0.2 * (1 - K.h.lid)) * (tired ? 0.76 : amused ? 0.92 : 1) * (K.kidish ? 1.1 : 1) * (face.eyes === 'wide' ? 1.1 : face.eyes === 'sleepy' ? 0.8 : 1);
+      const bUp = 0.0074 * (1) * (tired ? 0.76 : amused ? 0.92 : 1) * (K.kidish ? 1.1 : 1) * (face.eyes === 'wide' ? 1.1 : face.eyes === 'sleepy' ? 0.8 : 1);
       const bLo = 0.0024 * (amused ? 0.68 : 1);
       const yu = bUp * shp * (u < 0 ? 0.92 : 1) + tilt * u, yl = -bLo * Math.pow(Math.max(0, 1 - u * u), 0.8) + tilt * u;
       const dUp = yu - eym, dLo = eym - yl;
@@ -131,7 +131,7 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
       o.tint(K.skinSh, (0.05 + 0.1 * K.h.bag) * (0.4 + ageK) * g2(xm - 0.03, 0.014) * g2(ym + 0.0185, 0.0035));                                                     // eye bag edge
       for (let i = 0; i < 4; i++) {                                                                                                // forehead lines, broken and wavy
         const yl2 = 0.03 + i * 0.0062, w = vn2(xm * 120 + i * 5, i, 6);
-        o.tint(K.skinSh, 0.13 * ageK * g2(ym - yl2 - 0.002 * (w - 0.5), 0.0012) * sst(0.075, 0.055, xm) * sst(0.25, 0.55, w) * sst(0.1, 0.4, fz));
+        o.tint(K.skinSh, 0.1 * Math.min(1.4, ageK * ageK + 0.1) * g2(ym - yl2 - 0.002 * (w - 0.5), 0.0012) * sst(0.075, 0.055, xm) * sst(0.25, 0.55, w) * sst(0.1, 0.4, fz));
       }
       o.tint(K.skinSh, 0.12 * g2(xm - 0.0055, 0.0016) * band(0.014, 0.03, ym, 0.003));                                            // between the brows
     }
@@ -206,8 +206,9 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
   // ---------------------------------------------------------------- the scalp under the hair meshes: plain skin, a little darker toward the hair colour above the brow line (no painted hairline, strokes or edge)
   if (s.hair !== 'bald') {
     const side2 = sst(0.05, 0.085, ax), back = sst(0.1, -0.35, fz);
-    const hl = lm.chinY + (lm.crownY - lm.chinY) * (0.8 - 0.1 * side2 - 0.4 * back);
-    o.mix(mixc(K.skin, K.hairC, 0.3), 0.7 * sst(hl - 0.02, hl + 0.03, y));
+    const hl = lm.chinY + (lm.crownY - lm.chinY) * (0.8 - 0.1 * side2 - 0.4 * back) + 0.01;
+    // FACES2: the hair piece's border is ragged (triangle edges), so the skin below it fades to the hair colour over a wide soft band: the teeth lose their contrast instead of showing as pale skin cut out of dark hair
+    o.mix(mixc(K.skin, K.hairC, 0.62), 0.85 * sst(hl - 0.07, hl + 0.02, y));
   }
 
   // ---------------------------------------------------------------- hats that show on the skull

@@ -152,4 +152,19 @@ describe('per-map save slots', () => {
     expect(ms.m.has(`${REAL_SAVE_PREFIX}slot1`)).toBe(false);
     expect(ms.m.has(`${SAVE_PREFIX}slot1`)).toBe(true);
   });
+
+  it('saves the real map made before it had its own slots (pose.map real, shared slots) are copied over, whole, once', () => {
+    const ms = memStore();
+    const old = { v: 3, savedAt: 50, pose: { x: 700, z: -40, heading: 1, inCar: false, map: 'real' }, hour: 21, cash: 777, missions: { v: 1, completed: ['q'] } };
+    ms.setItem(`${SAVE_PREFIX}auto`, JSON.stringify(old));
+    ms.setItem(`${SAVE_PREFIX}slot1`, JSON.stringify({ v: 3, savedAt: 60, pose: { x: 1, z: 1, heading: 0, inCar: false }, hour: 9, cash: 1 })); // a grid save
+    const rm = new SaveManager(new SaveStore(ms, 'real'));
+    const b = rm.bootSave();
+    expect(b?.cash).toBe(777);
+    expect(b?.pose).toMatchObject({ x: 700, map: 'real' });
+    expect(rm.hasCarryOver).toBe(false);
+    expect(ms.m.has(`${REAL_SAVE_PREFIX}auto`)).toBe(true);
+    expect(ms.m.has(`${REAL_SAVE_PREFIX}slot1`)).toBe(false); // the grid save did not cross
+    expect(ms.m.get(`${SAVE_PREFIX}auto`)).toBe(JSON.stringify(old)); // the original stays
+  });
 });

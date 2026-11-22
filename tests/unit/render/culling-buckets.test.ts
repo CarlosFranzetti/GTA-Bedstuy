@@ -75,7 +75,7 @@ describe('furniture instancing buckets (real map)', () => {
       const bb = p.geometry.boundingBox!;
       const sphere = p.geometry.boundingSphere!;
       expect(sphere.radius).toBeGreaterThan(0);
-      expect(bb.max.y).toBeLessThan(12); // lamps are 8 m, tree canopies ~5.6 m
+      expect(bb.max.y).toBeLessThan(18); // lamps are 8 m, mature tree crowns reach 13 m (TREES, 22 Nov: crowns 8 to 12 m wide; was 5.6 m)
     }
   });
 });

@@ -140,6 +140,13 @@ function casterBox(width: number, height: number, depth: number, sx: number, sz:
 
 /** Cell size (m) of the building shadow-caster prisms. */
 const CASTER_CELL_M = 100;
+/**
+ * Phone: the building prisms stay ONE mesh (3 shadow draws) while they are few. The real-street map has thousands of lots in its first rings
+ * (about 120 k triangles), and one mesh is drawn whole in every shadow pass, so above this size the phone splits them into cells like the other
+ * tiers, with bigger cells (fewer draws): only the cells in the sun's box draw.
+ */
+const PHONE_SINGLE_MESH_MAX_TRIS = 60_000;
+const PHONE_CASTER_CELL_M = 200;
 
 export class BlobShadows {
   /** Add this to the scene. */
@@ -206,7 +213,10 @@ export class BlobShadows {
     this.buildingCaster.name = 'caster:buildings';
     this.buildingCaster.matrixAutoUpdate = false;
     // phone keeps the single mesh: its budget is draws (3 shadow draws), and 31 k triangles fit; low and up are the other way round
-    const cells = browserTier() === 'phone' ? null : splitGeometryByCell(b.geometry, CASTER_CELL_M, CASTER_CELL_M);
+    const phoneTier = browserTier() === 'phone';
+    const bigForPhone = (b.geometry.index?.count ?? 0) / 3 > PHONE_SINGLE_MESH_MAX_TRIS;
+    const cellM = phoneTier ? PHONE_CASTER_CELL_M : CASTER_CELL_M;
+    const cells = phoneTier && !bigForPhone ? null : splitGeometryByCell(b.geometry, cellM, cellM);
     for (const g of cells ? cells.values() : [b.geometry]) {
       g.computeBoundingSphere();
       const m = new THREE.Mesh(g, this.casterMat);

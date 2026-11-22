@@ -68,11 +68,12 @@ or X abandon use those keys too.
 
 ## What is in the game
 
-- **Maps.** The default map is a stylised grid of named Bed-Stuy streets (sixteen in `src/world/data/bedstuy.json`),
-  centred on Throop Ave and Kosciuszko St, with buildings placed from NYC tax-lot data. Add `?map=real` (hosted and
-  desktop-app builds only) to play on a map built from the city's street centrelines and tax lots. The live site has an
-  earlier, smaller real map. In the source it now covers about 9.8 km2 (area of the outline in
-  `src/world/roadnet/extents.ts`) with traffic, pedestrians and police: in development, with known failing tests.
+- **Maps.** The main map is the real Bedford-Stuyvesant street map (hosted site and desktop apps): streets from the city's
+  street centrelines, buildings from its tax lots, about 15 km2 with traffic, pedestrians, police, missions and saving.
+  The older stylised grid of named streets (sixteen in `src/world/data/bedstuy.json`, centred on Throop Ave and Kosciuszko St)
+  is still there: add `?map=grid` (or pick "Map" in Settings), and it is the only map in the single-file build, which carries
+  no real-street code or data. Each map keeps its own save slots; a first visit to the real map with only grid saves starts
+  fresh and brings the cash, records and look along.
 - **People.** Pedestrians built from open MakeHuman data, with their own clothes, hair, hats and bags, moving with
   captured walking and running motion. Twenty-one body types and a large wardrobe are in development.
 - **Vehicles.** The source defines 37 vehicle types (`VEHICLE_SPECS` in `src/entities/Vehicle.ts`): sedans, SUVs, vans,
@@ -107,7 +108,7 @@ crowd and traffic density, anti-aliasing, bloom and more).
 |---|---|
 | `?q=phone`, `?q=low`, `?q=medium`, `?q=high` | Start on that tier and never step down on your own. |
 | `?q=ultra` | Hosted builds only: `high` with 16x anisotropic filtering. |
-| `?map=real` | Hosted and desktop-app builds only: the real-street map. |
+| `?map=grid` (or `?map=classic`) | Hosted and desktop-app builds: the older stylised grid map instead of the real streets (the default there). The single-file build is always the grid. |
 | `?debug=gfx` | A panel with the graphics card, tier and passes, switches to turn effects off, and a Copy report button. Used for bug reports ([docs/PLATFORM-CHECK.md](docs/PLATFORM-CHECK.md)). |
 | `?debug=mem` | A memory overlay, for phone testing. |
 | `?perf=0` | Keep the chosen tier; no automatic step-down. |

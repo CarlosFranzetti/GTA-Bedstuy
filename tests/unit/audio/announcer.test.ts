@@ -403,7 +403,7 @@ describe('director wiring', () => {
   it('sets the broadcast context from setBroadcast and the Radio SC game hour', () => {
     const talk = new TalkPlayer({ speech: null, makeUtterance: mkUtt, audio: { sting: () => 0, setBed: () => undefined, volume: () => 1 } }, []);
     const speech = new FakeSpeech();
-    const dir = new RadioDirector(new Library(), talk, undefined, undefined, { feed: null, scEnv: { canLoad: () => false }, voice: { speech, makeUtterance: mkUtt, volume: () => 1, random: () => 0.1 } });
+    const dir = new RadioDirector(new Library(), talk, undefined, undefined, { feed: null, autoSkip: false, scEnv: { canLoad: () => false }, voice: { speech, makeUtterance: mkUtt, volume: () => 1, random: () => 0.1 } });
     dir.setBroadcast({ weather: 'rain', rain: 0.9, street: 'Marcy Ave' });
     dir.sc.setGameHour(14.5);
     dir.setOn(true);

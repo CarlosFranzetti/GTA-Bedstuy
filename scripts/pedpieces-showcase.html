@@ -44,7 +44,7 @@ function person(spec) {
   const s = SH[shapeFor(spec)], bt = bodyTypeOf(spec);
   const L0 = dressLod(s, spec, s.lods.hi, true);
   const rig = {}; for (const [k, v] of Object.entries(s.rig)) rig[k] = jointFor(k, v, bt);
-  const canvas = bakeSkin({ position: L0.position, normal: L0.normal, uv: L0.uv, index: L0.index, joints: L0.joints, weights: L0.weights, landmarks: s.landmarks, rig, headRings: s.headRings, topHem: topHemY(s, spec), spec }, 512);
+  const canvas = bakeSkin({ position: L0.faceDelta ? L0.position.map((v, i) => v - L0.faceDelta[i]) : L0.position, normal: L0.normal, uv: L0.uv, index: L0.index, joints: L0.joints, weights: L0.weights, landmarks: s.landmarks, rig, headRings: s.headRings, topHem: topHemY(s, spec), spec }, 512);
   const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
   const ctx = makeCtx(s, spec, bt, L0, rig, 'hi');
   // body without its own feet
