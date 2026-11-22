@@ -83,7 +83,8 @@ describe('round 4: cut trouser legs', () => {
         let z0 = 9, z1 = -9, w0 = 9, w1 = -9, ymin = 9;
         for (let i = 0; i < P.count; i++) {
           if (U.getX(i) < 0.75 || U.getY(i) > 0.25 || P.getX(i) > -0.02 || P.getY(i) > 0.2) continue;     // the left shoe: its swatch is the bottom right tile of the atlas
-          z0 = Math.min(z0, P.getZ(i)); z1 = Math.max(z1, P.getZ(i)); w0 = Math.min(w0, P.getX(i)); w1 = Math.max(w1, P.getX(i)); ymin = Math.min(ymin, P.getY(i));
+          z0 = Math.min(z0, P.getZ(i)); z1 = Math.max(z1, P.getZ(i)); ymin = Math.min(ymin, P.getY(i));
+          if (P.getY(i) < 0.09) { w0 = Math.min(w0, P.getX(i)); w1 = Math.max(w1, P.getX(i)); }     // CLOTHES 22 Nov: the width of the FOOT (below the shaft of a boot): the shoe is now 0.158 of stature long, so a boot's calf shaft, as wide as the leg, no longer counts as the foot's width
         }
         const id = `${spec.id}/${lv.name}`;
         expect((z1 - z0) * sc.z, id + ' length').toBeGreaterThanOrEqual(0.24);

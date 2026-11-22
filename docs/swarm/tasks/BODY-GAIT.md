@@ -59,3 +59,8 @@ So about 10 to 15 percent more for a walker; the far level the same within noise
 - `anim-bodies.test.ts`: the hip-height ceiling in the one-shots test goes from 1.08 to 1.1 of the hip's rest height: the stride-matched run cycle meets its flight phase on different frames and its
   pelvis rise peaks at 1.09 on one body at one frame. It is the run take's own bounce, not a new lift.
 - `pedestrian.test.ts`: "walks at about 1.2 m/s" measures the half second after the 0.35 s set-off.
+
+# Second shift (Tomas Reyes, GAIT, 22 Nov 2026, late evening)
+Taking over from Rowan. Order of work: 1 jog and sprint arms, lean and knees; 2 the standing squat; 3 turn in place and reversal; 4 walk cycle (pelvis, heel-toe, shuffle); 5 kerbs; 6 cost; 7 the five sims.
+Bone ownership agreed with POSE on the channel (see transcript): arms and elbows below 2.6 m/s are POSE's (bodyLayers.ts); from 2.6 to 4.2 m/s a run style blends in; above 4.2 the run style (new `src/entities/anim/runStyle.ts`, GAIT's) writes arm, elbow, torso and hips pitch and the swing knees. Acceleration lean stays GAIT's.
+Notes are written as I go; items below are filled when done.

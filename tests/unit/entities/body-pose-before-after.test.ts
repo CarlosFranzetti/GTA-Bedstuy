@@ -86,8 +86,9 @@ describe('arm angle before and after', () => {
       rows.push(`${label.padEnd(22)} BEFORE ${f(b)}`, `${''.padEnd(22)} AFTER  ${f(a)}`);
       expect(a.stand.flex, id + ' standing forearm bend').toBeLessThan(b.stand.flex - 6);
       expect(a.stand.flex, id + ' standing forearm bend').toBeLessThan(35);
-      expect(a.walk.flexLo, id + ' walking elbow never locked straight').toBeGreaterThan(b.walk.flexLo - 1);
-      if (id !== 'ea-kid') expect(a.stand.out, id + ' upper arm clear of the body').toBeGreaterThan(b.stand.out);
+      expect(a.walk.flexLo, id + ' walking elbow never locked straight').toBeGreaterThan(12);
+      expect(a.stand.out, id + ' upper arm a few degrees clear of the body').toBeGreaterThan(3);
+      expect(a.stand.out, id + ' upper arm not held out').toBeLessThan(14);
     }
     if (process.env.POSE_OUT) (await nodeFs()).writeFileSync(process.env.POSE_OUT, rows.join('\n'));
   }, 120000);
