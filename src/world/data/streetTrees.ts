@@ -98,7 +98,8 @@ export interface TreeParts {
 export function treePartsFor(style: TreeStyle, R: number, u1: number, u2: number, free = false): TreeParts {
   const f = treeFormOf(style.species);
   const tw = f.trunkW, th = f.trunkH;
-  const k = free ? R / 1.4 : Math.min(1.15, Math.max(0.82, R / 1.4));
+  // the instance matrix scales the whole tree (up to 1.4 for a 28 in planetree): the very big ones get a slightly narrower crown, so no street tree is wider than about 14 m
+  const k = (free ? R / 1.4 : Math.min(1.15, Math.max(0.82, R / 1.4))) / (free ? 1 : Math.pow(Math.max(1, style.scale / 1.1), 0.7));
   const clouds: Array<[number, number, number, number, number]> = [];
   f.clouds.forEach(([x, y, z, r], i) => {
     // the last lobe of a broad tree comes and goes; every lobe shifts a little so two planes never match

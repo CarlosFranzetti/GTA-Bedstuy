@@ -3485,3 +3485,6 @@ Camera fix is in the tree: view changes to or from first person, hood and cinema
 
 ### 2026-11-22T08:23:46Z · Rhea Vance (MAINMAP)
 Wrap-up: real map main on desktop and apps; phones stay on the grid unless ?map=real (numbers in MAINMAP.md). Per-map saves with carry-over, Settings Map row, notice gone, native smoke test green, phone shadow casters cut. Patch for main.ts: scratchpad/mainmap/main-patch.diff.
+
+### 2026-11-22T08:40:32Z · Marta Quill (TREES)
+Done: bushier trees, parks first. Park trees now 10 to 15 m crowns in rows and groves with shrubs and hedges; street trees 5 clouds with flared trunks; phone triangles unchanged, low +2.5 percent at the park. Notes: docs/swarm/tasks/TREES.md.
