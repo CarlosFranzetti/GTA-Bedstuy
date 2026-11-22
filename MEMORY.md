@@ -176,12 +176,18 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 
 ## State on 21 Nov 2026
 
-- Live since 22 Nov (deployed on the owner's instruction "push all changes and deploy" while the last test groups were
-  still running): the real-street map grown to 15.15 km2 (R4), 17 more landmarks under invented names (LANDMARKS2 and 3),
-  lit outer-ring lamps, real-map memory back at the old map's level. All behind `?map=real`; the default map is unchanged.
-  Known red on the grown net (`REAL_NET=r4`): cars leaving the lane after tight turns, 4 wide turn connectors, cop spawn
-  luck; one skipped look-ahead test in tests/unit/world/roadnet-realfix.test.ts. Next real-map job: a steering look-ahead
-  for traffic cars (docs/swarm/tasks/REALFIX.md, REALFIX3). Outer-ring views are over the low draw budget (299 to 371).
+- Live since 22 Nov: the real-street map grown to 15.15 km2 (R4), 17 more landmarks under invented names (LANDMARKS2 and 3),
+  lit outer-ring lamps, real-map memory back at the old map's level, and (second deploy of the day) real-map traffic that
+  steers by a look-ahead point (`TrafficAgent.pursuitPoint`, gated on `lanes.signalLookAheadM`, real map only), slower
+  junction exits at crosswalks, a cop-spawn fallback and merged outer-ring furniture. Verified by the lead on that tree:
+  every test folder green except the known 2 mm shoe-hem check; the real-map sims pass on the whole grown net (their
+  default again; `REAL_NET=core` for the inner rings); both builds; clean boots on desktop and emulated iPhone on both
+  maps. All behind `?map=real`; the default map's traffic is unchanged. Still open on the real map: the far south is
+  over the low draw budget (232 against 220, buildings and shopfronts), the spawn view moves between 202 and 279 draws
+  with traffic, the phone tier draws about 367k triangles at the spawn (budget 300k), 20 sliver blocks are bare, and
+  the new steering has not been watched in the running game. First deploy of the day (ff12a75) went out on the owner's
+  instruction before the last test groups finished and carried one regression (a pedestrian knocked down in the
+  five-minute real-map sim), fixed in the second.
 - Before that: commit `41357ca` (21 Nov night): everything in `6110995` plus the dance-only WAX DELI (18 openly licensed dance
   records 2005 to 2018, ten pre-war dance sides, a SoundCloud listening post of four Kompakt tracks) and Vercel Web
   Analytics code. Verified by the lead on that exact tree. The map-growth (MAP4) and LANDMARKS2 work was left out of it.
