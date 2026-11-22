@@ -6,7 +6,7 @@
  */
 import * as THREE from 'three';
 import { BONES, NCH, RIG_CH, boneChannel, mirrorPose, sampleClip, type Clip } from './clipPack';
-import { chainBlend, cycleFrequency, idleWeight, jumpTime, rateFor, smooth, type Blend } from './locomotion';
+import { chainBlend, idleWeight, jumpTime, matchedFrequency, rateFor, smooth, type Blend } from './locomotion';
 import type { Gait } from './gait';
 import { clipLibrary, type ClipLibrary } from './library';
 import { FootLock, soleRel, type LegDims } from './footlock';
@@ -365,7 +365,10 @@ export class AnimController {
     const iw = this.idleW;
     if (iw < 1) {
       const b: Blend = chainBlend(speed, chain);
-      this.phase = (this.phase + cycleFrequency(speed, chain, b, g.cadence) * dt) % 1;
+      // GAIT: the phase advances so the planted foot travels back at the ground speed (locomotion.ts matchedFrequency), stepped at the midpoint of the frame
+      const sf = this.strideFactor();
+      const fMid = matchedFrequency(speed, chain, b, this.phase + 0.5 * dt * matchedFrequency(speed, chain, b, this.phase, sf), sf);
+      this.phase = (this.phase + Math.max(fMid, 0.55 / chain[b.lo].duration) * dt) % 1;
       sampleClip(chain[b.lo], this.phase * chain[b.lo].duration, this.loco);
       if (b.hi !== b.lo) { sampleClip(chain[b.hi], this.phase * chain[b.hi].duration, this.tmp); for (let k = 0; k < NCH; k++) this.loco[k] += (this.tmp[k] - this.loco[k]) * b.t; }
       this.lastRatio = rateFor(speed, chain[b.t > 0.5 ? b.hi : b.lo]);
@@ -466,10 +469,13 @@ export class AnimController {
     return true;
   }
 
+  /** how much this person's leg swing is scaled: their own stride, a little more when the clip is played fast, less for a quick cadence (short quick steps) */
+  private strideFactor(): number { const g = this.gait; return g.stride * Math.pow(Math.min(1.6, Math.max(0.7, this.lastRatio)), 0.3) / g.cadence; }
+
   /** Per-person modifiers on the locomotion pose. */
   private applyGait(p: Float32Array, speed: number): void {
     const g = this.gait;
-    const stride = g.stride * Math.pow(Math.min(1.6, Math.max(0.7, this.lastRatio)), 0.3) / Math.pow(g.cadence, 0.5);
+    const stride = this.strideFactor();
     const hipL = boneChannel('legL'), hipR = boneChannel('legR');
     p[hipL] *= stride; p[hipR] *= stride;
     p[boneChannel('kneeL')] *= 1 + (stride - 1) * 0.5; p[boneChannel('kneeR')] *= 1 + (stride - 1) * 0.5;
