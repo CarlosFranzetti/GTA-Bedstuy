@@ -41,6 +41,7 @@ export const SC_STALL_MS = 12000;
 /** Position frozen this long after PLAY: send play() again. */
 export const SC_STALL_NUDGE_MS = 5000;
 export const SC_TAP_PROMPT = 'Tap to start radio';
+export const SC_CONNECTING = 'Connecting to SoundCloud...';
 export const SC_NO_STREAM = 'No stream: SoundCloud could not load (needs the hosted build / internet)';
 export const SC_MAX_MIXES = 40;
 /** Dayparting stub: mixes flagged afterhours are preferred for the first mix between these hours. */
@@ -406,7 +407,8 @@ export class ScStation {
     if (!this.active) return '';
     if (this.state === 'failed' || (this.state !== 'loading' && this.hasSources && this.offline)) return SC_NO_STREAM;
     if (!this.hasSources && this.state !== 'loading') return SC_EMPTY_HINT;
-    return this.needsTap ? SC_TAP_PROMPT : '';
+    if (this.needsTap) return SC_TAP_PROMPT;
+    return this.state === 'loading' && !this.paused ? SC_CONNECTING : '';
   }
   get nowPlaying(): NowPlaying | null {
     if (this.curSet) return { title: this.curSet.title, user: this.curSet.dj || this.now?.user || '' };
@@ -685,6 +687,7 @@ export class ScStation {
     const doc = this.env.doc();
     if (!doc || !this.env.canLoad()) { this.fail(); return; }
     this.state = 'loading';
+    const mine = ++this.bootId;
     try {
       this.apiLoads++;
       const feed = this.randomSets ? this.env.feed : null;
@@ -692,6 +695,7 @@ export class ScStation {
       if (feed) void feed.ensure();
       const poolReady = feed && this.list.length === 0 && feed.size === 0 ? withTimeout(feed.whenUsable(), this.env.timeoutMs).catch(() => undefined) : Promise.resolve();
       const [api] = await Promise.all([withTimeout(this.env.loadApi(), this.env.timeoutMs), poolReady]);
+      if (mine !== this.bootId) return; // restarted meanwhile: this attempt must not build a second player
       this.api = api;
       if (!this.picked) this.pickNext(true);
       const url = this.currentUrl();
@@ -702,15 +706,33 @@ export class ScStation {
       const widget = api.Widget(frame);
       this.widget = widget;
       await withTimeout(new Promise<void>((res) => widget.bind(ev(api, 'READY', 'ready'), () => res())), this.env.timeoutMs);
+      if (mine !== this.bootId) { frame.remove(); return; }
       this.bindEvents(api, widget);
       this.state = 'ready';
       this.pushVolume();
       this.learn(widget);
       this.applyPlayback(true);
     } catch {
+      if (mine !== this.bootId) return;
       this.teardown();
       this.fail();
     }
+  }
+
+  private bootId = 0;
+  /**
+   * Starts over (the director's watchdog: no sound a long time after tune-in). Drops the player and builds a new one; an earlier
+   * attempt that answers late is ignored. Does nothing for a station that is not tuned in.
+   */
+  restart(): void {
+    if (!this.active) return;
+    this.bootId++;
+    this.teardown();
+    this.state = 'idle';
+    this.failedAt = -Infinity;
+    this.errStreak = 0;
+    this.tuneIn();
+    this.listeners.forEach((fn) => fn());
   }
 
   private fail(): void {
@@ -853,7 +875,9 @@ export class ScStation {
       this.lastProgPos = -1;
       this.now = null;
       if (this.play_ === 'playing') this.play_ = 'starting';
-      this.widget.load(url, { auto_play: !this.paused, callback: () => { this.learn(this.widget!); this.applyPlayback(false); } });
+      const w = this.widget;
+      // The player may finish loading (and start by itself, auto_play) after the listener tuned away: it must then be stopped, not left playing under another station.
+      w.load(url, { auto_play: !this.paused, callback: () => { if (!this.active || this.paused || this.widget !== w) { w.pause(); return; } this.learn(w); this.applyPlayback(false); } });
       return;
     }
     if (this.env.config.randomStart && !this.randomizedFor && this.widget.getSounds) {

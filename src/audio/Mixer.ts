@@ -3,20 +3,29 @@
  * The slider value is the position (0..1); the gain applied to the audio is the perceptual taper of that position
  * (squared: even steps feel even, and the bottom of the slider is gentle). AudioSystem applies the values to its buses.
  */
-export type MixKey = 'master' | 'radio' | 'sfx' | 'voices' | 'ambience';
-export const MIX_KEYS: readonly MixKey[] = ['master', 'radio', 'sfx', 'voices', 'ambience'];
-export const MIX_LABELS: Record<MixKey, string> = { master: 'Master Volume', radio: 'Radio and Music', sfx: 'Sound Effects', voices: 'Voices', ambience: 'Ambience' };
+export type MixKey = 'master' | 'radio' | 'sfx' | 'voices' | 'ambience' | 'engine';
+export const MIX_KEYS: readonly MixKey[] = ['master', 'radio', 'sfx', 'voices', 'ambience', 'engine'];
+export const MIX_LABELS: Record<MixKey, string> = { master: 'Master Volume', radio: 'Radio and Music', sfx: 'Sound Effects', voices: 'Voices', ambience: 'Ambience', engine: 'Engine Sound' };
 export const MIX_DESC: Record<MixKey, string> = {
   master: 'Volume of everything in the game.',
   radio: 'Radio stations, SoundCloud, live streams, your tracks and the title and loading music.',
   sfx: 'Engines, horns, tyres, doors, impacts, footsteps and trains.',
   voices: 'Radio hosts, talk radio, pedestrians and story lines.',
   ambience: 'The city bed, birds, crickets and rain.',
+  engine: 'Your engine and the engines of other cars (on top of Sound Effects). Off removes engine sound altogether; tyres, horns, crashes and doors stay.',
 };
 export const MIX_KEY = 'wbsy.mixer';
 const LEGACY_KEY = 'gta-bedstuy.settings.v1';
 
 /** Slider position 0..1 to linear gain. */
+/**
+ * AUDIOFIX (22 Nov): the engine bus at its default position (100%) sits at 0.55 of the level it had before, which is 45 percent lower
+ * (-5.2 dB). The slider position goes through the same taper as the others and multiplies this.
+ */
+export const ENGINE_BUS_DEFAULT = 0.55;
+/** Linear gain of the engine bus for a slider position. 0 = Engine sound off. */
+export const engineBusGain = (pos: number): number => ENGINE_BUS_DEFAULT * taper(pos);
+
 export const taper = (v: number): number => { const x = Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0; return x * x; };
 
 type Store = Pick<Storage, 'getItem' | 'setItem'>;
@@ -36,7 +45,7 @@ export function storedMix(store: Store | null = defaultStore()): Partial<Record<
 export const storedMusicGain = (store?: Store | null): number => { const m = storedMix(store); return taper(m.master ?? 1) * taper(m.radio ?? 1); };
 
 export class Mixer {
-  private v: Record<MixKey, number> = { master: 1, radio: 1, sfx: 1, voices: 1, ambience: 1 };
+  private v: Record<MixKey, number> = { master: 1, radio: 1, sfx: 1, voices: 1, ambience: 1, engine: 1 };
   private readonly subs = new Set<(k: MixKey) => void>();
 
   constructor(private readonly store: Store | null = defaultStore()) {

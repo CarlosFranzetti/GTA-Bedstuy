@@ -3,7 +3,8 @@
  * All coordinates are site-local (see kit.ts). Nothing here imports roadnet.
  */
 import * as THREE from 'three';
-import { buildCloudGeometry } from '@/world/props/treeCloud';
+import { buildCloudGeometry, SHRUB_CARDS } from '@/world/props/treeCloud';
+import { treePartsFor, type TreeStyle } from '@/world/data/streetTrees';
 import type { Rng } from '@/core/Rng';
 import { Kit, TILE, type V3 } from './kit';
 import { signMaterial } from './signs';
@@ -138,41 +139,97 @@ export function flatRoof(k: Kit, roof: THREE.Material, wallMat: THREE.Material, 
 // ----------------------------------------------------------------------------------------------- trees and furniture
 
 let cloudGeo: THREE.BufferGeometry | null = null;
+let shrubGeo: THREE.BufferGeometry | null = null;
+const _grey = new THREE.Color();
 
-/** append a geometry (positions, normals, uv) to a material bucket under a transform given as scale, yaw and translation */
+/** append a geometry (positions, normals, uv, optional grey `color`) to a material bucket under a transform given as scale, yaw and translation */
 export function addGeo(k: Kit, mat: THREE.Material, g: THREE.BufferGeometry, sx: number, sy: number, sz: number, yaw: number, tx: number, ty: number, tz: number): void {
-  const p = g.getAttribute('position'), n = g.getAttribute('normal'), uv = g.getAttribute('uv');
+  const p = g.getAttribute('position'), uv = g.getAttribute('uv'), ca = g.getAttribute('color');
   const c = Math.cos(yaw), s = Math.sin(yaw);
   for (let i = 0; i < p.count; i += 3) {
-    const pts: V3[] = [], nrm: V3[] = [];
+    const pts: V3[] = [];
     for (let j = 0; j < 3; j++) {
       const x = p.getX(i + j) * sx, y = p.getY(i + j) * sy, z = p.getZ(i + j) * sz;
       pts.push([x * c + z * s + tx, y + ty, -x * s + z * c + tz]);
-      const nx = n.getX(i + j), ny = n.getY(i + j), nz = n.getZ(i + j);
-      nrm.push([nx * c + nz * s, ny, -nx * s + nz * c]);
     }
-    // the cloud cards are one-sided with a radial normal: keep the card's own winding, shade by the radial normal
-    k.tri(mat, pts[0], pts[1], pts[2], { uv: [[uv.getX(i), uv.getY(i)], [uv.getX(i + 1), uv.getY(i + 1)], [uv.getX(i + 2), uv.getY(i + 2)]] });
-    void nrm;
+    // the cloud cards are one-sided: keep the card's own winding. The card's grey (dark core, light rim) goes in as the triangle colour
+    let color: number | undefined;
+    if (ca) { const b = (ca.getX(i) + ca.getX(i + 1) + ca.getX(i + 2)) / 3; color = _grey.setRGB(b, b, b).getHex(); }
+    k.tri(mat, pts[0], pts[1], pts[2], { color, uv: [[uv.getX(i), uv.getY(i)], [uv.getX(i + 1), uv.getY(i + 1)], [uv.getX(i + 2), uv.getY(i + 2)]] });
   }
 }
 
-/** A park tree: octagonal trunk and two or three leaf clouds. `h` scales the whole tree (1 = a 7 m street tree). */
+/** tapered four-sided limb from a to b (8 triangles) */
+function limbPrism(k: Kit, mat: THREE.Material, a: V3, b: V3, r0: number, r1: number): void {
+  const d = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]).normalize();
+  const u = new THREE.Vector3().crossVectors(d, Math.abs(d.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0)).normalize();
+  const v = new THREE.Vector3().crossVectors(d, u);
+  const ring = (c: V3, r: number): V3[] => [[1, 0], [0, 1], [-1, 0], [0, -1]].map(([s, t]) => [c[0] + (u.x * s + v.x * t) * r, c[1] + (u.y * s + v.y * t) * r, c[2] + (u.z * s + v.z * t) * r] as V3);
+  const A = ring(a, r0), B = ring(b, r1);
+  for (let i = 0; i < 4; i++) {
+    const j = (i + 1) % 4;
+    k.quad(mat, A[i], A[j], B[j], B[i], { hint: [(A[i][0] + A[j][0]) / 2 - a[0], (A[i][1] + A[j][1]) / 2 - a[1], (A[i][2] + A[j][2]) / 2 - a[2]], ru: 0.2, rv: 0.5 });
+  }
+}
+
+/**
+ * A park tree (TREES, 22 Nov): trunk with a root flare and limbs, and four or five overlapping leaf clouds (the street-tree forms of
+ * data/streetTrees.ts) so the crown is full. `h` scales the whole tree: 1 = a mature tree with a crown about 11 m wide and 11 m tall,
+ * 0.6 a young street-frontage tree, 0.45 a small ornamental. About 160 triangles of leaves and 60 of trunk.
+ */
 export function tree(k: Kit, x: number, z: number, rng: Rng, h = 1, solid = true): void {
   if (k.far) return;
   cloudGeo ??= buildCloudGeometry();
   const tr = k.m('treeTrunk');
-  const lv = k.m('treeLeaves', rng.int(0, 3));
-  const th = (2.6 + rng.next() * 0.8) * h;
-  k.cyl(tr, x, z, 0.2 * h, 0, th, 6, { noTop: true });
-  const R = (2.0 + rng.next() * 0.9) * h;
-  k.floor(tr, [[x - 0.1, z - 0.1], [x + 0.1, z - 0.1], [x + 0.1, z + 0.1], [x - 0.1, z + 0.1]], th); // keeps the trunk top closed under the leaves
-  const clouds = rng.chance(0.5) ? 3 : 2;
-  for (let c = 0; c < clouds; c++) {
-    const a = rng.next() * Math.PI * 2, r = c === 0 ? 0 : R * 0.45;
-    addGeo(k, lv, cloudGeo, R * (1 - c * 0.12), R * (0.85 - c * 0.1), R * (1 - c * 0.12), rng.next() * 6.28, x + Math.cos(a) * r, th + R * (0.55 + c * 0.35), z + Math.sin(a) * r);
+  const lv = k.m('treeLeaves', 0);
+  // species: small trees are ornamental pears; big ones planes, now and then an oak (tall oval) or a honey locust (wide, flat)
+  const sp = h < 0.55 ? 3 : rng.chance(0.2) ? 4 : rng.chance(0.18) ? 2 : 1;
+  const style: TreeStyle = { dbhIn: 15, species: sp, scale: h, canopy: 1 };
+  const parts = treePartsFor(style, 1.4 * h * (0.92 + rng.next() * 0.2), rng.next(), rng.next(), true);
+  const yaw = rng.next() * Math.PI * 2, cy = Math.cos(yaw), sy = Math.sin(yaw);
+  // trunk: the lathe of buildTreeTrunkGeometry as quads (7 sides, 3 rings) and four limbs
+  const tw = parts.trunk[0] * h, th = parts.trunk[1] * h;
+  const rings: Array<[number, number]> = [[0.54 * tw, 0], [0.33 * tw, 0.5 * th], [0.2 * tw, 3.0 * th]];
+  const N = 7, a0 = rng.next() * 6.28;
+  for (let s = 0; s < 2; s++) for (let i = 0; i < N; i++) {
+    const A = a0 + (i / N) * Math.PI * 2, B = a0 + ((i + 1) / N) * Math.PI * 2;
+    const [r0, y0] = rings[s], [r1, y1] = rings[s + 1];
+    const P = (a: number, r: number, y: number): V3 => [x + Math.cos(a) * r, y, z + Math.sin(a) * r];
+    const mid = (A + B) / 2;
+    k.quad(tr, P(A, r0, y0), P(B, r0, y0), P(B, r1, y1), P(A, r1, y1), { hint: [Math.cos(mid), 0, Math.sin(mid)], ru: 0.45, rv: (y1 - y0) / 3 });
   }
-  if (solid) k.solidCircle(x, z, 0.35);
+  const L = (lx: number, ly: number, lz: number): V3 => [x + (lx * cy + lz * sy) * h, ly * th, z + (-lx * sy + lz * cy) * h];
+  limbPrism(k, tr, [x, 2.3 * th, z], L(0, 4.8, 0), 0.17 * tw, 0.06 * tw);
+  limbPrism(k, tr, [x, 2.6 * th, z], L(1.4, 4.1, 0.9), 0.12 * tw, 0.05 * tw);
+  limbPrism(k, tr, [x, 2.6 * th, z], L(-1.2, 4.2, -1.0), 0.12 * tw, 0.05 * tw);
+  for (const [ox, oy, oz, r, sq] of parts.clouds) {
+    const ex = ox * cy + oz * sy, ez = -ox * sy + oz * cy;
+    addGeo(k, lv, cloudGeo, r, r * sq, r, rng.next() * 6.28, x + ex, oy * h, z + ez);
+  }
+  if (solid) k.solidCircle(x, z, 0.35 + 0.3 * h);
+}
+
+/**
+ * A shrub mass: one or two low flattened leaf clouds (16 triangles each) sitting on the ground. `r` is the radius in metres.
+ * Understorey for the parks: groups under the big trees, along paths and fences.
+ */
+export function shrub(k: Kit, x: number, z: number, rng: Rng, r = 1.1, squash = 0.72): void {
+  if (k.far) return;
+  shrubGeo ??= buildCloudGeometry(SHRUB_CARDS);
+  const lv = k.m('treeLeaves', 0);
+  addGeo(k, lv, shrubGeo, r, r * squash, r, rng.next() * 6.28, x, r * squash * 0.62, z);
+}
+
+/** A clipped hedge along (x0, z0) to (x1, z1): a row of overlapping low shrub clouds, `h` high (about 1 m). */
+export function hedge(k: Kit, x0: number, z0: number, x1: number, z1: number, rng: Rng, h = 1.0): void {
+  if (k.far) return;
+  const L = Math.hypot(x1 - x0, z1 - z0);
+  if (L < 1) return;
+  const step = h * 1.5, n = Math.max(1, Math.round(L / step));
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n;
+    shrub(k, x0 + (x1 - x0) * t, z0 + (z1 - z0) * t, rng, h * 0.95, 0.9);
+  }
 }
 
 /** A bench: seat and back slats, two end frames (about 28 triangles). */

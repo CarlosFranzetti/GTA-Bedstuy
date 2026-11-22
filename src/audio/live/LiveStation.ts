@@ -11,13 +11,17 @@
 import type { CatalogEntry, LiveNowPlaying } from '../stations';
 
 export const LIVE_STALL_MS = 12000;
-export const LIVE_CONNECT_MS = 20000;
+export const LIVE_CONNECT_MS = 12000;
 export const LIVE_BLOCKED_MS = 4000;
 export const LIVE_MAX_RECONNECTS = 3;
+/** How long a connection may take before the display says so (a slow stream is not a silent one). */
+export const LIVE_SAY_MS = 3000;
 /** After a failure, how long before a tune-in may try the station again. */
 export const LIVE_RETRY_MS = 30000;
 export const LIVE_TAP_PROMPT = 'Tap to start radio';
 export const LIVE_NO_STREAM = 'No stream: this station could not be reached';
+export const LIVE_CONNECTING = 'Connecting to the stream...';
+export const LIVE_RETRYING = 'Stream interrupted. Trying again...';
 const NOWPLAYING_MS = 30000;
 
 /** The slice of HTMLAudioElement the station uses (tests pass a fake). */
@@ -91,6 +95,7 @@ export class LiveStation {
   private reconnects = 0;
   private lastProgAt = 0;
   private lastTime = -1;
+  private lastNotice = '';
   private connectAt = 0;
   private failedAt = -Infinity;
   private tick: ReturnType<typeof setInterval> | null = null;
@@ -122,8 +127,22 @@ export class LiveStation {
   get notice(): string {
     if (!this.active) return '';
     if (this.state === 'failed') return LIVE_NO_STREAM;
-    return this.needsTap ? LIVE_TAP_PROMPT : '';
+    if (this.needsTap) return LIVE_TAP_PROMPT;
+    if (!this.paused && this.play_ !== 'playing' && (this.state === 'connecting' || this.state === 'idle') && this.audio) {
+      if (this.reconnects > 0) return LIVE_RETRYING;
+      if (this.env.now() - this.connectAt >= LIVE_SAY_MS) return LIVE_CONNECTING;
+    }
+    return '';
   }
+  /** Retries at once from the director's watchdog (a station that has not started after a long wait). */
+  restart(): void {
+    if (!this.active || this.paused) return;
+    if (this.state === 'failed') { this.failedAt = -Infinity; this.state = 'idle'; }
+    this.unhook();
+    this.connect();
+  }
+  /** Reconnects a single-URL stream gets before it is given up (retry once); stations with mirrors try each of them. */
+  private get maxReconnects(): number { const n = this.def.streams?.length ?? 1; return n > 1 ? Math.min(LIVE_MAX_RECONNECTS, n - 1) : 1; }
   onChange(fn: () => void): () => void { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; }
   private emit(): void { this.listeners.forEach((fn) => fn()); }
 
@@ -176,7 +195,8 @@ export class LiveStation {
     this.state = 'connecting';
     this.play_ = 'starting';
     this.connects++;
-    const a = this.audio ?? this.makeAudio();
+    let a: AudioLike;
+    try { a = this.audio ?? this.makeAudio(); } catch { this.fail(); return; } // no media element in this environment
     this.audio = a;
     this.connectAt = this.env.now();
     this.lastProgAt = this.connectAt;
@@ -202,7 +222,9 @@ export class LiveStation {
       });
     }
     if (this.blockTimer) clearTimeout(this.blockTimer);
-    this.blockTimer = setTimeout(() => { if (this.active && !this.paused && this.play_ !== 'playing') this.markBlocked(); }, this.env.blockedMs);
+    // Only a browser that refused leaves the element paused. A stream that is merely slow has accepted play() (paused is false): it is
+    // connecting, and the stall watchdog below owns it. Calling it blocked hid it behind "Tap to start radio" for ever, with no timeout.
+    this.blockTimer = setTimeout(() => { if (this.active && !this.paused && this.play_ !== 'playing' && this.audio?.paused) this.markBlocked(); }, this.env.blockedMs);
   }
 
   private markBlocked(): void {
@@ -216,6 +238,7 @@ export class LiveStation {
     const a = this.env.createAudio();
     a.preload = 'none';
     const onPlaying = () => {
+      if (!this.active || this.audio !== a) return; // a late event from a connection that was dropped
       this.state = 'playing';
       this.play_ = 'playing';
       this.lastProgAt = this.env.now();
@@ -224,9 +247,11 @@ export class LiveStation {
     };
     a.addEventListener('playing', onPlaying);
     a.addEventListener('timeupdate', () => {
+      if (!this.active || this.audio !== a) return;
       if (a.currentTime !== this.lastTime) { this.lastTime = a.currentTime; this.lastProgAt = this.env.now(); if (this.play_ !== 'playing' && !a.paused) onPlaying(); }
     });
-    a.addEventListener('error', () => { if (this.active && !this.paused) this.reconnect(); });
+    // Clearing the source (dropConnection) makes browsers raise an error too, and so does a station that has already failed: neither is news.
+    a.addEventListener('error', () => { if (this.active && !this.paused && this.state !== 'failed' && a.src) this.reconnect(); });
     a.addEventListener('stalled', () => { /* the watchdog decides */ });
     return a;
   }
@@ -248,11 +273,13 @@ export class LiveStation {
     if (this.play_ === 'blocked') return; // waiting for a tap, not stalled
     const idle = this.env.now() - this.lastProgAt;
     const limit = this.state === 'playing' ? this.env.stallMs : this.env.connectMs;
-    if (idle >= limit) this.reconnect();
+    if (idle >= limit) { this.reconnect(); return; }
+    const n = this.notice;
+    if (n !== this.lastNotice) { this.lastNotice = n; this.emit(); }
   }
 
   private reconnect(): void {
-    if (++this.reconnects > LIVE_MAX_RECONNECTS) { this.fail(); return; }
+    if (++this.reconnects > this.maxReconnects) { this.fail(); return; }
     this.streamIdx++; // alternate stream URL when the station publishes more than one
     this.state = 'connecting';
     this.play_ = 'starting';

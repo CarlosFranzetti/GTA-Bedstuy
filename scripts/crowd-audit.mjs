@@ -137,7 +137,7 @@ async function pedAudit() {
     console.error(`[crowd] hours ${chunk[0]}..${chunk[chunk.length - 1]}`);
     const page = await browser.newPage({ viewport: { width: 320, height: 180 } });
     page.on('pageerror', (e) => console.error('[crowd] pageerror', String(e).slice(0, 200)));
-    await page.goto(`${base}/?q=${o.q}&perf=0`, { waitUntil: 'load', timeout: 120_000 });
+    await page.goto(`${base}/?map=grid&q=${o.q}&perf=0`, { waitUntil: 'load', timeout: 120_000 });
     await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 180_000 });
     await page.mouse.click(160, 90); await page.waitForTimeout(600);
     const resume = page.getByRole('button', { name: 'Resume' });

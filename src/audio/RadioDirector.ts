@@ -31,6 +31,12 @@ export type RadioKind = 'synth' | 'library' | 'talk' | 'sc' | 'live';
 export const LAST_STATION_KEY = 'gta-bedstuy.radio.last.v1';
 /** How long the "off the air" toast replaces the HUD track line (game seconds). */
 export const TOAST_SECONDS = 6;
+/**
+ * AUDIOFIX: how long (game seconds, not counting pauses) a tuned SoundCloud or live station may stay silent before the director retries it
+ * once and says so, and how long until it is given up and the dial moves on. A tap prompt (the browser blocked sound) is not counted: a tap fixes that.
+ */
+export const START_RETRY_S = 20;
+export const START_GIVEUP_S = 40;
 
 /** Where the last tuned station id is kept (localStorage by default; null in tests). */
 export interface LastStationStore { get(): string | null; set(id: string): void }
@@ -397,6 +403,7 @@ export class RadioDirector {
     this.announcer.update(dt);
     if (this.toastLeft > 0) { this.toastLeft -= dt; if (this.toastLeft <= 0) this.toastText = ''; }
     this.checkFailures();
+    this.checkStart(dt);
     for (let i = 0; i < 2; i++) {
       const r = this.retire[i];
       if (r !== null) {
@@ -445,6 +452,27 @@ export class RadioDirector {
     if (this.handledFail.has(c.id)) return;
     this.handledFail.add(c.id);
     this.skipFailed(c);
+  }
+
+  private waitId = '';
+  private waited = 0;
+  private retried = false;
+
+  /** Start watchdog for the tuned SoundCloud or live station (see START_RETRY_S). Called from update, so it only runs while the radio is on and not paused. */
+  private checkStart(dt: number): void {
+    const c = this.current;
+    const st = this.on ? (c.kind === 'sc' ? this.currentSc : c.kind === 'live' ? this.currentLive : null) : null;
+    if (!st || st.playState === 'playing' || st.needsTap || st.status === 'failed') { this.waited = 0; this.retried = false; this.waitId = c.id; return; }
+    if (this.waitId !== c.id) { this.waitId = c.id; this.waited = 0; this.retried = false; }
+    this.waited += Math.min(dt, 1); // a jump in game time (a skipped night, a long stall) is not a station that stayed silent that long
+    if (!this.retried && this.waited >= START_RETRY_S) {
+      this.retried = true;
+      this.toast(`${c.name} is slow to start. Trying again.`);
+      st.restart();
+    } else if (this.retried && this.waited >= START_GIVEUP_S) {
+      this.waited = 0; this.retried = false;
+      this.skipFailed(c);
+    }
   }
 
   private onLiveFail(id: string): void {

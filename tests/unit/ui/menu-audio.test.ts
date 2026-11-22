@@ -23,9 +23,24 @@ describe('Menu Audio group', () => {
     expect(menu.pendingCount).toBe(0);
     expect(cb.onMasterVolume).not.toHaveBeenCalled();
   });
+  it('has an Engine Sound row: 100% by default, steps of 5, Off at 0, applied live to the mixer (AUDIOFIX)', () => {
+    const mixer = new Mixer(null);
+    const menu = new Menu(parent, {}, { storage: null, mixer });
+    expect(row(menu, 'enginevol').hidden).toBe(false);
+    expect(row(menu, 'enginevol').textContent).toContain('Engine Sound');
+    expect(val(menu, 'enginevol')).toContain('100%');
+    menu.open();
+    for (let i = 0; i < 80 && menu.root.querySelector<HTMLElement>('.gp-pane-settings .gp-row.hi')?.dataset.id !== 'enginevol'; i++) menu.navigate('down');
+    menu.navigate('left');
+    expect(val(menu, 'enginevol')).toContain('95%');
+    expect(mixer.get('engine')).toBeCloseTo(0.95);
+    for (let i = 0; i < 19; i++) menu.navigate('left');
+    expect(val(menu, 'enginevol')).toContain('Off');
+    expect(mixer.get('engine')).toBe(0);
+  });
   it('without a mixer only Master and Radio show', () => {
     const menu = new Menu(parent, {}, { storage: null });
     expect(row(menu, 'master').hidden).toBe(false);
-    for (const id of ['sfxvol', 'voicevol', 'ambvol']) expect(row(menu, id).hidden).toBe(true);
+    for (const id of ['sfxvol', 'enginevol', 'voicevol', 'ambvol']) expect(row(menu, id).hidden).toBe(true);
   });
 });

@@ -26,7 +26,7 @@ try {
   const page = await browser.newPage({ viewport: { width: o.width, height: o.height } });
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 300)); });
   page.on('pageerror', (e) => errors.push(String(e).slice(0, 300)));
-  await page.goto(`${base}/?q=${o.q}&perf=0`, { waitUntil: 'load', timeout: 120_000 });
+  await page.goto(`${base}/?map=grid&q=${o.q}&perf=0`, { waitUntil: 'load', timeout: 120_000 });
   await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 180_000 });
   await page.mouse.click(o.width / 2, o.height / 2); await page.waitForTimeout(800);
   const b = page.getByRole('button', { name: 'Resume' }); if (await b.isVisible().catch(() => false)) { await b.click(); await page.waitForTimeout(300); }

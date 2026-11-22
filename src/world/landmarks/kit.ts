@@ -337,7 +337,7 @@ export class Kit {
         nor[i * 3] = f.fx * nx + f.nx * nz; nor[i * 3 + 1] = ny; nor[i * 3 + 2] = f.fz * nx + f.nz * nz;
       }
       const uv = new Float32Array(r.uv);
-      const colr = mat === this.flatM ? new Float32Array(r.c) : null;
+      const colr = mat === this.flatM || (mat as THREE.MeshStandardMaterial).vertexColors ? new Float32Array(r.c) : null; // the leaf material carries a per-card grey (parts.ts addGeo)
       if (flip) {
         // mirrored frame: swap the 2nd and 3rd vertex of every triangle so the winding follows the (transformed) normal
         for (let t = 0; t < nv; t += 3) {

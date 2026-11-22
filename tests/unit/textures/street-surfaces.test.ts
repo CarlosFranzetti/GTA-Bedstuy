@@ -9,11 +9,11 @@ describe('street tree forms', () => {
     expect(new Set([1, 2, 3, 4].map((s) => treeFormOf(s).name)).size).toBe(4);
     expect(TREE_FORMS.map((f) => f.name)).toEqual(['plane', 'honeylocust', 'pinoak', 'pear']);
   });
-  it('never draws more than three canopy clouds (the old model drew two or three)', () => {
+  it('draws three to five overlapping canopy clouds (TREES, 22 Nov: fuller crowns; the old model drew two or three)', () => {
     for (let sp = 0; sp < 9; sp++) for (let u = 0; u < 1; u += 0.1) {
       const style = { dbhIn: 12, species: sp, scale: 1, canopy: 1 };
-      expect(treePartsFor(style, 1.4, u, 0.3).clouds.length).toBeLessThanOrEqual(3);
-      expect(treePartsFor(style, 1.4, u, 0.3).clouds.length).toBeGreaterThanOrEqual(2);
+      expect(treePartsFor(style, 1.4, u, 0.3).clouds.length).toBeLessThanOrEqual(5);
+      expect(treePartsFor(style, 1.4, u, 0.3).clouds.length).toBeGreaterThanOrEqual(3);
     }
   });
   it('forms differ in silhouette: pear is taller and narrower than honey locust', () => {

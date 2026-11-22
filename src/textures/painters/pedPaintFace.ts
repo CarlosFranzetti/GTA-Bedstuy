@@ -16,7 +16,7 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
   const fm = sst(0.02, 0.32, fz);                                                    // 1 on the front of the face
   const edm = K.edm, yN = -0.32 * edm, yM = -0.59 * edm, yChin = -edm;
   const tt = (y - lm.chinY) / (lm.crownY - lm.chinY);
-  const ageK = K.old ? 1 : s.age === 'adult' ? 0.5 : 0;   // PEOPLE9: weather on the face of adults too, at half the strength of an elder's
+  const ageK = K.wear;   // FACES2: how much living shows, by person (0 child, about 0.15 to 0.85 adults, 1.1 to 1.5 elders)
   const old = K.old, expr = K.expr, tired = expr === 'tired', amused = expr === 'amused';
   o.set(K.skin);
   if ((globalThis as { __pedGrid?: boolean }).__pedGrid) { const gx = Math.floor(xm / 0.005 + 0.5) & 1, gy = Math.floor(ym / 0.005 + 0.5) & 1; o.set(gx ^ gy ? [230, 230, 230] : [40, 40, 90]); if (Math.abs(xm - 0.029) < 0.0006) o.set([255, 0, 0]); if (Math.abs(ym) < 0.0006) o.set([0, 255, 0]); return; }
@@ -42,7 +42,7 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
     o.tint(K.skinSh, 0.34 * g2(xm - 0.035, 0.03) * g2(ym - 0.0315, 0.0075) * fm * (old ? 1.4 : 1));                        // soft shadow under the brow ridge
     o.mix(K.skinHi, 0.13 * g2(xm - 0.034, 0.028) * g2(ym - 0.0415, 0.007) * fm);                                           // the brow bone above it
     o.tint(K.skinSh, 0.12 * sst(0.07, 0.09, xm) * sst(0.0, 0.04, ym) * fm);                                                // temples
-    o.mix(K.skinCool, (0.14 + (tired ? 0.16 : 0) + (old ? 0.12 : 0)) * g2(xm - 0.03, 0.017) * g2(ym + 0.0105, 0.0055) * fm);   // under-eye
+    o.mix(K.skinCool, (0.1 + 0.16 * K.h.bag + (tired ? 0.14 : 0) + 0.1 * Math.min(1.4, ageK)) * g2(xm - 0.03, 0.017) * g2(ym + 0.0105, 0.0055) * fm);   // under-eye
     o.tint(K.skinSh, 0.14 * g2(sx + 0.03, 0.03) * g2(ym - yN * 0.4, 0.04) * fm * sst(0.02, 0.04, -ym - 0.012 + 0.04));      // the cheek on the shaded side of the nose
     // uneven tone: ruddy nose and cheeks, a sallow patch at the temple and a grey cast round the mouth on weathered faces
     if (ageK > 0) {
@@ -51,6 +51,9 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
       o.mix(K.skinCool, 0.1 * ageK * sst(0.5, 0.85, vn3(x * 20 + 9, y * 20, z * 20, 13)) * fm);
       o.tint(K.skinSh, 0.1 * ageK * g2(xm, 0.04) * band(yM - 0.012, yM + 0.002, ym, 0.004) * fm);
     }
+    // FACES2: weathering that follows living: sun and age spots on the cheeks and temples, redder nose and cheeks with years, and pores at close range
+    if (ageK > 0.3) o.tint(K.skinSh, 0.1 * Math.min(1.3, ageK) * sst(0.74, 0.86, vn3(x * 90 + 5, y * 90, z * 90, 21)) * sst(0.0, 0.5, fz) * sst(0.0, -0.05, ym - 0.045));
+    if (K.size >= 512) o.tint(K.skinSh, (0.035 + 0.05 * K.h.pore) * sst(0.62, 0.8, vn3(x * 820, y * 820, z * 820, 22)) * g2(xm - 0.02, 0.04) * g2(ym + 0.01, 0.045) * fm);
     // ---------------------------------------------------------------- nose: bridge light, both side planes, wings, nostrils, tip
     const nzone = band(yN - 0.006, 0.0, ym, 0.004);
     o.mix(K.skinHi, 0.2 * g2(xm, 0.0032) * nzone * fm);                                                                      // the bridge
@@ -62,10 +65,10 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
     o.mix(K.skinHi, 0.16 * g2(xm, 0.0032) * g2(ym - (yN + 0.0042), 0.0026) * fm);                                            // a small highlight on the tip
     o.mix(K.skinWarm, 0.2 * g2(xm, 0.0065) * g2(ym - (yN + 0.0035), 0.005) * fm);                                           // warm tip
     // ---------------------------------------------------------------- age: nasolabial folds, marionette lines
-    const fold = (old ? 0.2 : 0.05) + (tired ? 0.04 : 0) + (amused ? 0.04 : 0);
+    const fold = 0.03 + 0.15 * Math.min(1.5, ageK) + (tired ? 0.04 : 0) + (amused ? 0.04 : 0);
     const xf = 0.0185 + (yN - ym) * 0.34;
     o.tint(K.skinSh, fold * g2(xm - xf, 0.0034) * band(yM - 0.006, yN + 0.002, ym, 0.004) * fm);
-    if (old) o.tint(K.skinSh, 0.12 * g2(xm - 0.0215 + (yM - ym) * 0.2, 0.003) * band(yM - 0.026, yM - 0.004, ym, 0.004) * fm);
+    if (ageK > 0.55) o.tint(K.skinSh, 0.12 * Math.min(1.3, ageK) * g2(xm - 0.0215 + (yM - ym) * 0.2, 0.003) * band(yM - 0.026, yM - 0.004, ym, 0.004) * fm);
     // philtrum
     o.tint(K.skinSh, 0.07 * g2(xm - 0.0055, 0.0017) * band(yM + 0.007, yN - 0.002, ym, 0.002) * fm);
 
@@ -79,7 +82,7 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
     const tilt = 0.0009 + 0.0004 * K.h.tl;
     if (Math.abs(u) < 1.5) {
       const shp = u * u < 1 ? Math.pow(1 - u * u, 0.62) : 0;
-      const bUp = 0.0074 * (tired ? 0.76 : amused ? 0.92 : 1) * (K.kidish ? 1.1 : 1) * (face.eyes === 'wide' ? 1.1 : face.eyes === 'sleepy' ? 0.8 : 1);
+      const bUp = 0.0074 * (0.8 + 0.2 * (1 - K.h.lid)) * (tired ? 0.76 : amused ? 0.92 : 1) * (K.kidish ? 1.1 : 1) * (face.eyes === 'wide' ? 1.1 : face.eyes === 'sleepy' ? 0.8 : 1);
       const bLo = 0.0024 * (amused ? 0.68 : 1);
       const yu = bUp * shp * (u < 0 ? 0.92 : 1) + tilt * u, yl = -bLo * Math.pow(Math.max(0, 1 - u * u), 0.8) + tilt * u;
       const dUp = yu - eym, dLo = eym - yl;
@@ -109,7 +112,7 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
         if (lidAbove > 0 && lidAbove < 0.0075 && shp > 0) {
           o.mix(mixc(K.skin, K.skinHi, 0.5), 0.2 * sst(0.0006, 0.002, lidAbove) * sst(0.0058, 0.0035, lidAbove));
           o.tint(K.skinSh, 0.1 * sst(0.0, 0.002, lidAbove) * sst(0.0058, 0.0035, lidAbove));                                        // the lid itself, a touch shaded
-          o.tint(K.skinSh, 0.46 * g2(lidAbove - 0.0058, 0.0013) * (tired ? 1.25 : 1));                                            // lid crease
+          o.tint(K.skinSh, 0.46 * g2(lidAbove - 0.0058, 0.0013) * (tired ? 1.25 : 1) * (0.8 + 0.5 * K.h.lid + 0.2 * Math.min(1.4, ageK)));                                            // lid crease
           o.mix(mixc(K.hairC, [20, 14, 14], 0.6), 0.9 * sst(lashT * 1.25, 0.0, lidAbove));
         }
         if (lidBelow > 0 && lidBelow < 0.0045 && shp > 0) o.tint(K.skinSh, 0.1 * sst(0.0, 0.001, lidBelow) * sst(0.0045, 0.0015, lidBelow));      // the lower lid, a touch shaded
@@ -125,7 +128,7 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
       }
     }
     if (ageK > 0) {
-      o.tint(K.skinSh, 0.1 * ageK * g2(xm - 0.03, 0.014) * g2(ym + 0.0185, 0.0035));                                                     // eye bag edge
+      o.tint(K.skinSh, (0.05 + 0.1 * K.h.bag) * (0.4 + ageK) * g2(xm - 0.03, 0.014) * g2(ym + 0.0185, 0.0035));                                                     // eye bag edge
       for (let i = 0; i < 4; i++) {                                                                                                // forehead lines, broken and wavy
         const yl2 = 0.03 + i * 0.0062, w = vn2(xm * 120 + i * 5, i, 6);
         o.tint(K.skinSh, 0.13 * ageK * g2(ym - yl2 - 0.002 * (w - 0.5), 0.0012) * sst(0.075, 0.055, xm) * sst(0.25, 0.55, w) * sst(0.1, 0.4, fz));
@@ -134,12 +137,12 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
     }
 
     // ---------------------------------------------------------------- brows: strokes of hair, thick at the inner end, thin at the tail
-    const bt = (xm - 0.012) / 0.034;                                                                                               // 0 inner .. 1 tail
+    const bt = (xm - (0.009 + 0.008 * K.h.bg)) / 0.034;                                                                                               // 0 inner .. 1 tail
     if (bt > -0.1 && bt < 1.12) {
       const broad = face.brows === 'thick' ? 1.35 : face.brows === 'thin' ? 0.85 : 1.1;
-      const wB = 0.0030 * broad * (0.88 + 0.2 * K.h.bw) * (1.15 - 0.62 * Math.pow(Math.max(0, bt), 1.3)) * (old ? 0.8 : 1);
+      const wB = 0.0030 * broad * (0.66 + 0.82 * K.h.bw) * (1.15 - 0.62 * Math.pow(Math.max(0, bt), 1.3)) * (old ? 0.8 : 1);
       const lift = (tired ? 0.0009 : amused ? 0.0012 : 0.0003) * (1 - bt * 2) ;
-      const arch = (face.brows === 'arched' ? 0.0033 : 0.0021) * Math.sin(Math.PI * Math.min(1, Math.max(0, bt * 0.85 + 0.12)));
+      const arch = (face.brows === 'arched' ? 0.0033 : 0.0021) * (0.55 + 1.1 * K.h.ba) * Math.sin(Math.PI * Math.min(1, Math.max(0, bt * 0.85 + 0.12)));
       const yb = 0.0188 + arch + lift - (tired ? 0.0016 : 0.0004) * bt * bt;
       const d = (ym - yb) / wB;
       if (d > -1.3 && d < 1.3) {
@@ -244,7 +247,7 @@ function beardPass(K: Look, t: Tex, o: Px, xm: number, ym: number, sx: number, f
   const upH = 0.0066 * (1 - 0.45 * mx * mx) * (old ? 0.75 : 1), loH = 0.0094 * (1 - 0.7 * mx * mx) * (old ? 0.8 : 1);
   // ---------------------------------------------------------------- beard, moustache, stubble: a texture with an edge, not a box
   // some men without any facial hair still carry a five o'clock shadow
-  const shadow5 = !face.beard && !face.mustache && !face.stubble && !K.female && !K.kidish && K.h.f5 < 0.35;
+  const shadow5 = !face.beard && !face.mustache && !face.stubble && !K.female && !K.kidish && K.h.f5 < 0.5;
   const hairy = !!(face.beard || face.mustache || face.stubble) || shadow5;
   if (hairy) {
     const topEdge = yM + 0.007 + 0.034 * sst(0.02, 0.078, xm);                          // the cheek line, high by the ear, low by the mouth

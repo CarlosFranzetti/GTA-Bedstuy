@@ -144,3 +144,32 @@ describe('pause and resume', () => {
     expect(engineGraphs(v)).toBe(0);
   });
 });
+
+describe('AI engines of parked cars', () => {
+  // main.ts hands the nearest cars within 45 m, parked kerb cars included (TrafficSystem.vehicles holds both), speed 0 and throttle 0.1.
+  const parked = (n: number): TrafficCar[] => Array.from({ length: n }, (_, i) => ({ id: `p${i}`, type: ['sedan', 'beater', 'pickup', 'bus'][i % 4], x: 6 + i * 5, z: 3, vx: 0, vz: 0, speed: 0, throttle: 0.1 }));
+  it.each([60, 30])('a street of parked cars is silent: no engine voice for a car that is not moving (%i fps)', (fps) => {
+    const { ctx, v } = rig();
+    for (let t = 0; t < 20; t += 1 / fps) frame(ctx, v, 1 / fps, { type: null, speed: 0, throttle: 0, inCar: false, cars: parked(12) });
+    expect(priv(v).traffic!.active, 'engines idling on parked cars').toBe(0);
+  });
+  it('a moving car gets a voice, which is released a few seconds after it stops, and parked neighbours never take a slot from it', () => {
+    const { ctx, v } = rig();
+    const mixed = (speed: number): TrafficCar[] => [...parked(10), { id: 'mover', type: 'sedan', x: 30, z: 0, vx: speed, vz: 0, speed, throttle: speed > 1 ? 0.5 : 0.1 }];
+    for (let t = 0; t < 3; t += 1 / 60) frame(ctx, v, 1 / 60, { type: null, speed: 0, throttle: 0, inCar: false, cars: mixed(9) });
+    expect(priv(v).traffic!.active).toBe(1);
+    for (let t = 0; t < 8; t += 1 / 60) frame(ctx, v, 1 / 60, { type: null, speed: 0, throttle: 0, inCar: false, cars: mixed(0) });
+    expect(priv(v).traffic!.active).toBe(0);
+  });
+  it('a car creeping around 1 m/s does not hunt between two revs (main.ts flips the throttle 0.5 / 0.1 at 1 m/s)', () => {
+    const { ctx, v } = rig();
+    const rpm = () => (priv(v).traffic as unknown as { slots: { sim: { rpm: number } | null }[] }).slots[0]?.sim?.rpm ?? 0;
+    let lo = Infinity, hi = 0;
+    for (let t = 0; t < 12; t += 1 / 60) {
+      const sp = 1 + 0.4 * Math.sin(t * 4); // wanders across the switch about every 0.8 s
+      frame(ctx, v, 1 / 60, { type: null, speed: 0, throttle: 0, inCar: false, cars: [{ id: 'q', type: 'sedan', x: 12, z: 0, vx: sp, vz: 0, speed: sp, throttle: sp > 1 ? 0.5 : 0.1 }] });
+      if (t > 3) { lo = Math.min(lo, rpm()); hi = Math.max(hi, rpm()); }
+    }
+    expect(hi - lo, `rpm swung ${Math.round(lo)} to ${Math.round(hi)}`).toBeLessThan(700);
+  });
+});

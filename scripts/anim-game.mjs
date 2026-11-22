@@ -25,7 +25,7 @@ try {
   await page.route('**/ra-api/**', (r) => r.abort());
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 240)); });
   page.on('pageerror', (e) => errors.push(String(e).slice(0, 240)));
-  await page.goto(`http://localhost:${port}/?q=low&perf=0`, { waitUntil: 'load', timeout: 180_000 });
+  await page.goto(`http://localhost:${port}/?map=grid&q=low&perf=0`, { waitUntil: 'load', timeout: 180_000 });
   await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 280_000 });
   await page.waitForTimeout(3000); // the street pack is a fetch
   const results = await page.evaluate(async (o) => {

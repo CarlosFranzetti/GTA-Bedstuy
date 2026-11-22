@@ -8,6 +8,8 @@ export interface Scenario {
   /** seconds after which the hitch is tried (the action window) */
   window: number;
   run: (r: CamRig) => void;
+  /** the sequence changes views with a chase-family blend: the lens legitimately moves fast relative to the body (about 25 m/s at the peak) */
+  blends?: boolean;
   /** meant to be rough: cuts are declared by the script */
 }
 
@@ -42,28 +44,28 @@ export const SCENARIOS: Scenario[] = [
     run: (r) => { r.look(-600, 0, 8); r.wait(2.9); r.tap('KeyF', 2.5); } },
   { name: 'enter-idle-cinematic', opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR, startHeading: Math.PI / 2 }, window: 10,
     run: (r) => { r.wait(9.5); r.tap('KeyF', 2.5); } },
-  { name: 'enter-first-person-foot', opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR, startHeading: Math.PI / 2 }, window: 3,
-    run: (r) => { r.tap('KeyV', 0.3); r.tap('KeyV', 0.3); r.tap('KeyV', 0.3); r.wait(0.8); r.tap('KeyF', 2.5); } },
-  { name: 'cycle-views-slow-driving', opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 9,
+  { name: 'enter-first-person-foot', blends: true, opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR, startHeading: Math.PI / 2 }, window: 3,
+    run: (r) => { r.tap('KeyV', 0.4); r.tap('KeyV', 0.4); r.wait(0.8); r.tap('KeyF', 2.5); } },
+  { name: 'cycle-views-slow-driving', blends: true, opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 9,
     run: (r) => { r.tap('KeyF', 1.2); r.hold('KeyW'); r.wait(2); for (let i = 0; i < 6; i++) r.tap('KeyV', 1.0); } },
-  { name: 'cycle-views-fast', opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 3,
+  { name: 'cycle-views-fast', blends: true, opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 3,
     run: (r) => { r.tap('KeyF', 1.2); r.hold('KeyW'); r.wait(2); for (let i = 0; i < 4; i++) r.tap('KeyV', 0.09); r.wait(1); for (let i = 0; i < 3; i++) r.tap('KeyV', 0.09); r.wait(1.5); } },
-  { name: 'cycle-views-hard-turn', opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 6,
+  { name: 'cycle-views-hard-turn', blends: true, opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 6,
     run: (r) => { r.tap('KeyF', 1.2); r.hold('KeyW'); r.wait(2.5); r.hold('KeyW', 'KeyD'); for (let i = 0; i < 5; i++) r.tap('KeyV', 0.7); r.hold(); r.wait(1.5); } },
-  { name: 'cycle-views-reversing', opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 6,
+  { name: 'cycle-views-reversing', blends: true, opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 6,
     run: (r) => { r.tap('KeyF', 1.2); r.hold('KeyS'); r.wait(2.2); for (let i = 0; i < 5; i++) r.tap('KeyV', 0.7); r.hold(); r.wait(1.5); } },
-  { name: 'cycle-views-lookback-held', opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 6,
+  { name: 'cycle-views-lookback-held', blends: true, opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 6,
     run: (r) => { r.tap('KeyF', 1.2); r.hold('KeyW'); r.wait(2.2); r.hold('KeyW', 'KeyC'); r.wait(0.5); for (let i = 0; i < 5; i++) r.tap('KeyV', 0.7); r.hold('KeyW'); r.wait(1.5); } },
-  { name: 'cycle-views-top-speed', opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 12,
+  { name: 'cycle-views-top-speed', blends: true, opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 12,
     run: (r) => { r.tap('KeyF', 1.2); r.hold('KeyW'); r.wait(9); for (let i = 0; i < 5; i++) r.tap('KeyV', 0.7); r.wait(1.5); } },
-  { name: 'cinematic-and-back', opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 10,
+  { name: 'cinematic-and-back', blends: true, opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 10,
     run: (r) => { r.tap('KeyF', 1.2); r.hold('KeyW'); r.wait(2); r.cam.views.setView('vehicle', 'cinematic'); r.wait(8); r.cam.views.setView('vehicle', 'chase'); r.wait(2); } },
-  { name: 'leave-in-hood-view', opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 6,
+  { name: 'leave-in-hood-view', blends: true, opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 6,
     run: (r) => { r.tap('KeyF', 1.2); r.cam.views.setView('vehicle', 'hood'); r.wait(1.2); r.hold(); r.tap('KeyF', 3); r.tap('KeyF', 3); } },
-  { name: 'leave-in-cinematic-view', opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 7,
+  { name: 'leave-in-cinematic-view', blends: true, opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 7,
     run: (r) => { r.tap('KeyF', 1.2); r.cam.views.setView('vehicle', 'cinematic'); r.wait(2.2); r.tap('KeyF', 3); r.tap('KeyF', 3); } },
   { name: 'car-to-car', opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 6,
-    run: (r) => { r.addCar(-4, 0, 0); r.tap('KeyF', 1.2); r.wait(0.5); r.tap('KeyF', 0.6); r.player.body.pos.x = -2.2; r.tap('KeyF', 3); } },
+    run: (r) => { r.addCar(-4, 0, 0); r.tap('KeyF', 1.2); r.wait(0.5); r.tap('KeyF', 0.6); r.tap('KeyF', 3); } },
   { name: 'hit-while-entering', opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 3,
     run: (r) => { r.tap('KeyF', 0.15); r.car.body.vel.x = 7; r.car.body.vel.z = -3; r.cam.addShake(1); r.wait(2.5); } },
   { name: 'teleport-while-driving', opts: { car: { x: 0, z: 0 }, start: SIDE_DOOR }, window: 6,

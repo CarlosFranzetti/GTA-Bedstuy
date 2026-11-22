@@ -52,28 +52,31 @@ export function treeStyleFor(streetId: string, u1: number, u2: number, u3: numbe
 
 export interface TreeForm {
   name: 'plane' | 'honeylocust' | 'pinoak' | 'pear';
-  /** trunk thickness and height multipliers (instance matrix only) */
+  /** trunk thickness and height multipliers (instance matrix only); the x / y ratio tells the forms apart in treeTint.ts */
   trunkW: number;
   trunkH: number;
-  /** canopy cloud y squash: flat honey locust 0.62, columnar pear 1.3 */
+  /** canopy cloud y squash: flat honey locust 0.6, columnar pear 1.35 (the ratio tells the forms apart in treeTint.ts) */
   squash: number;
-  /** cloud centres in the tree's local frame as [x, y, z, radius factor] (before the species canopy multiplier); at most 3, as before */
+  /**
+   * cloud centres in the tree's local frame as [x, y, z, radius] in metres at model scale 1 and crown factor 1: a main dome,
+   * side lobes and a lower skirt overlap so little sky shows through the middle (TREES, 22 Nov)
+   */
   clouds: ReadonlyArray<readonly [number, number, number, number]>;
-  /** the last lobe is left out of this share of the trees (the old model dropped its third cloud 40 % of the time) */
+  /** the last lobe is left out of this share of the trees */
   dropLast: number;
 }
 
 /**
  * One form per street-tree species of the census, so a block of planes, a row of honey locusts, a pin oak and a callery pear no
- * longer read as one tree: broad three-lobed plane, airy flat-topped honey locust, tall stacked oval pin oak, narrow upright pear.
- * They share one trunk mesh and one 48-triangle cloud mesh: the form lives in the instance matrices, so draws and triangles stay as they were.
- * Seasonal neutral: mid-summer green only.
+ * longer read as one tree: broad round plane (10 to 11 m wide), wide flat-topped honey locust, tall stacked oval pin oak (also used for
+ * linden: dense teardrop), small upright pear. Four or five overlapping clouds each, one trunk mesh and one 32-triangle cloud mesh:
+ * the form lives in the instance matrices. Seasonal neutral: mid-summer green only.
  */
 export const TREE_FORMS: readonly TreeForm[] = [
-  { name: 'plane', trunkW: 1.3, trunkH: 1.1, squash: 0.86, dropLast: 0.4, clouds: [[0, 4.5, 0, 1.12], [1.0, 3.95, 0.65, 0.88], [-0.9, 4.05, -0.8, 0.84]] },
-  { name: 'honeylocust', trunkW: 0.85, trunkH: 0.95, squash: 0.6, dropLast: 0.4, clouds: [[0, 4.3, 0, 0.8], [1.3, 3.8, 0.25, 0.64], [-1.2, 3.9, 0.55, 0.62]] },
-  { name: 'pinoak', trunkW: 1.0, trunkH: 1.2, squash: 1.12, dropLast: 0, clouds: [[0, 5.5, 0, 0.55], [0.15, 4.55, 0.1, 0.82], [-0.2, 3.65, 0.05, 1.0]] },
-  { name: 'pear', trunkW: 0.7, trunkH: 0.92, squash: 1.35, dropLast: 0, clouds: [[0, 4.6, 0, 0.78], [0.05, 3.75, 0.1, 0.72]] },
+  { name: 'plane', trunkW: 1.3, trunkH: 1.1, squash: 0.86, dropLast: 0.3, clouds: [[0, 7.0, 0, 3.4], [3.0, 6.1, 1.0, 2.7], [-2.8, 6.3, -1.2, 2.7], [0.8, 6.0, -3.0, 2.5], [-0.6, 5.8, 2.7, 2.5]] },
+  { name: 'honeylocust', trunkW: 0.85, trunkH: 0.95, squash: 0.6, dropLast: 0.3, clouds: [[0, 6.1, 0, 2.9], [2.9, 5.6, 0.5, 2.5], [-2.7, 5.7, -0.9, 2.5], [0.4, 5.5, 2.8, 2.3], [-0.4, 5.6, -2.8, 2.2]] },
+  { name: 'pinoak', trunkW: 1.0, trunkH: 1.2, squash: 1.12, dropLast: 0, clouds: [[0, 8.3, 0, 2.2], [0.3, 7.0, 0.2, 3.0], [-0.4, 5.9, -0.1, 3.2], [2.0, 6.3, 1.0, 2.0], [-2.0, 6.7, -1.0, 2.0]] },
+  { name: 'pear', trunkW: 0.7, trunkH: 0.92, squash: 1.35, dropLast: 0, clouds: [[0, 5.6, 0, 1.7], [0.1, 4.7, 0.1, 1.9], [1.1, 5.1, 0.6, 1.3], [-1.0, 5.2, -0.6, 1.3]] },
 ];
 
 /** census species class -> form (planetree, maple and the unlisted species broad; ginkgo airy; linden and oak ovoid; pear and ornamentals narrow) */
@@ -89,17 +92,19 @@ export interface TreeParts {
 
 /**
  * Trunk scale and canopy clouds of one tree. `R` is the cloud radius the caller used to draw (1.2 to 1.6 times the species
- * canopy); `u1` decides whether the last lobe is drawn, `u2` jitters the lobes.
+ * canopy, about 1.4 for a mid-size tree): it sets the crown width, kept between 0.82 and 1.15 of the form's own width unless
+ * `free` (park trees pass their own size). `u1` decides whether the last lobe is drawn, `u2` jitters the lobes.
  */
-export function treePartsFor(style: TreeStyle, R: number, u1: number, u2: number): TreeParts {
+export function treePartsFor(style: TreeStyle, R: number, u1: number, u2: number, free = false): TreeParts {
   const f = treeFormOf(style.species);
   const tw = f.trunkW, th = f.trunkH;
+  const k = free ? R / 1.4 : Math.min(1.15, Math.max(0.82, R / 1.4));
   const clouds: Array<[number, number, number, number, number]> = [];
   f.clouds.forEach(([x, y, z, r], i) => {
     // the last lobe of a broad tree comes and goes; every lobe shifts a little so two planes never match
     if (i === f.clouds.length - 1 && u1 < f.dropLast) return;
     const j = (u2 * 7.31 + i * 1.7) % 1;
-    clouds.push([x + (j - 0.5) * 0.35, y * th, z + (((j * 5.3) % 1) - 0.5) * 0.35, R * r, f.squash * (0.92 + 0.16 * ((j * 3.7) % 1))]);
+    clouds.push([(x + (j - 0.5) * 0.6) * k, (y + (((j * 3.1) % 1) - 0.5) * 0.5) * th, (z + (((j * 5.3) % 1) - 0.5) * 0.6) * k, r * k, f.squash * (0.92 + 0.16 * ((j * 3.7) % 1))]);
   });
   return { trunk: [tw, th, tw], clouds };
 }

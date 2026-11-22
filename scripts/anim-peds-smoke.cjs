@@ -13,7 +13,7 @@ const fs = require('fs');
   const log = []; page.on('console', (m) => { if (m.type() === 'error') log.push('CONSOLE ' + m.text().slice(0, 200)); }); page.on('pageerror', (e) => log.push('PAGEERR ' + e.message.slice(0, 200)));
   await page.route('**/ra-api/**', (r) => r.abort());
   try {
-    await page.goto('http://localhost:' + port + '/?perf=0&q=low', { waitUntil: 'domcontentloaded' });
+    await page.goto('http://localhost:' + port + '/?map=grid&perf=0&q=low', { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 900000 });
     await page.evaluate(() => { window.__gtaDebug.renderer.domElement.style.visibility = 'hidden'; });
     await page.waitForTimeout(4000);

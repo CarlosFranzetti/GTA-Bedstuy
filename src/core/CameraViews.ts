@@ -120,6 +120,8 @@ export class CameraViews {
   readonly director = new CinematicDirector();
   /** Set when the cinematic director cut this frame (the camera snaps its smoothing once). */
   cutThisFrame = false;
+  /** Counts view changes (a key press, a swap, `setView`). The camera compares it with the last one it saw to start a blend or a cut. */
+  serial = 0;
   /** Fires after a change the player should be told about (the host shows a toast). */
   onChange: ((label: string, mode: ViewMode) => void) | null = null;
 
@@ -172,6 +174,7 @@ export class CameraViews {
   }
 
   private change(mode: ViewMode, next: number): void {
+    this.serial++;
     this.prev[mode] = this.cur[mode];
     this.cur[mode] = next;
     if (VIEWS[mode][next].cinematic) { this.director.reset(); this.cutThisFrame = true; }

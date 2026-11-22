@@ -74,6 +74,27 @@ export function cullCellSize(grid: GridModel): { x: number; z: number } {
   return { x: l.cellX, z: l.cellZ };
 }
 
+/**
+ * What the real-street map still reads from the grid world: the grid MODEL (streets, graphs and crosswalks that missions,
+ * the minimap, pedestrians and the pointer are built on) and nothing drawn. Every group is empty, there are no colliders or
+ * lamps, and the el is an inert stand-in (the real map has its own el; the grid's invisible one used to rumble and take
+ * boarding presses at grid coordinates). Skips roads, lots, buildings, furniture, props, signals, skyline and transit
+ * meshes. `buildWorld` is unchanged for the grid map.
+ */
+export function buildGridModelOnly(data: BedstuyData): BuiltWorld {
+  const grid = buildGrid(data);
+  const none = (name: string): THREE.Group => { const g = new THREE.Group(); g.name = name; return g; };
+  const transit = {
+    group: none('transit'), colliders: [] as StaticCollider[], trains: [], time: 0, ride: null,
+    attachAudio(): void { /* no grid el */ }, update(): void { /* no grid el */ },
+    tryBoard(): boolean { return false; }, takeAlight(): null { return null; }, takeMessage(): null { return null; }, entranceNear(): null { return null; },
+  } as unknown as TransitSystem;
+  return {
+    grid, lots: [], group: none('world'), colliders: [], furnitureGroup: none('furniture'), signalsGroup: none('signals'), lamps: [], transit, propCells: [], chunkMeshes: [],
+    chunks: chunkLayout(grid.streets, FINE_CELLS['low']), stats: { meshes: 0, lots: 0, colliders: 0, cells: { meshesBefore: 0, meshesAfter: 0, trianglesAfter: 0 } }, stream: null,
+  };
+}
+
 /** `tier` picks the render-cell size (Culling.FINE_CELLS); omitted = the tier the page starts in (coarse cells without a browser). */
 export function buildWorld(data: BedstuyData, materials: IMaterialLibrary, rng: Rng, tier: Quality = browserTier() ?? 'high'): BuiltWorld {
   const grid = buildGrid(data);

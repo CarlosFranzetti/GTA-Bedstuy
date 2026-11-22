@@ -95,9 +95,11 @@ export function makeLook(b: BakeInput) {
     return [62, 84, 112];                                                  // blue-grey
   })();
   // per-person constants the face painter would otherwise hash per texel
-  const h = { tl: hash(id + 'tl'), gz: hash(id + 'gz'), bw: hash(id + 'bw'), fr: hash(id + 'fr'), mol: hash(id + 'mol'), mxp: hash(id + 'mxp'), myp: hash(id + 'myp'), f5: hash(id + 'f5') };
+  const h = { tl: hash(id + 'tl'), gz: hash(id + 'gz'), bw: hash(id + 'bw'), fr: hash(id + 'fr'), mol: hash(id + 'mol'), mxp: hash(id + 'mxp'), myp: hash(id + 'myp'), f5: hash(id + 'f5'), bag: hash(id + 'bag'), lid: hash(id + 'lid'), ba: hash(id + 'ba'), bg: hash(id + 'bg'), tone: hash(id + 'tone'), pore: hash(id + 'pore') };
+  // FACES2: how much living shows on the face, 0 for a child, about 0.15 to 0.85 for adults by id (22 to 60 years), 1.1 to 1.5 for the old
+  const wear = kid || teen ? 0 : old ? 1.1 + 0.4 * hash(id + 'wear') : 0.15 + 0.7 * hash(id + 'wear');
   const hairC = rgb(s.hairColor);
-  const lipBase = face.lips ? mixc(skin, rgb(face.lips), 0.3) : mixc(skin, [150, 66, 66], female ? 0.4 : 0.32);
+  const lipBase = face.lips ? mixc(skin, rgb(face.lips), 0.3) : mixc(skin, [140, 74, 70], female ? 0.3 : 0.24);
   const topC = rgb(top.color), botC = rgb(bot.color), underC = top.under ? rgb(top.under) : null;
   const k = top.kind;
   const open = !!top.open && !!underC;
@@ -122,7 +124,7 @@ export function makeLook(b: BakeInput) {
   const sh = skin;
   return {
     s, lm, R, top, bot, face, id, k, h, hs, wsx, edm, zc: eyeRing[2], rzH: eyeRing[3], hemTop: b.topHem,
-    female, old, kid, teen, kidish, expr, grp, open, underC, fabric, shoeStyle, grime,
+    female, old, kid, teen, kidish, wear, expr, grp, open, underC, fabric, shoeStyle, grime,
     skin, hairC, topC, botC,
     trimC: rgb(top.trim), botTrim: rgb(bot.trim), irisC,
     skinSh: [Math.min(255, sh[0] * 0.74 + 10), sh[1] * 0.6, sh[2] * 0.56] as RGB,

@@ -34,7 +34,7 @@ import type { IMaterialLibrary, StaticCollider } from '@/world/types';
 import { chunkKeyOf, type ChunkLayout } from '@/render/Culling';
 import type { Quality } from '@/render/Shadows';
 import { treePartsFor, treeStyleFor } from '@/world/data/streetTrees';
-import { buildCloudGeometry } from '@/world/props/treeCloud';
+import { buildCloudGeometry, buildTreeTrunkGeometry } from '@/world/props/treeCloud';
 import { LAMP_HEAD_NAME, placeMatrix, type LampSpot } from '@/world/FurnitureGen';
 import { SIGN_LAYOUT } from '@/world/signBlades';
 import { alignYaw, box, cyl, frameMatrix, xform } from '@/world/props/common';
@@ -155,26 +155,14 @@ function segDist(p: Vec2, a: Vec2, b: Vec2): number {
 // ---------------------------------------------------------------- shared geometries (built once, shared by every chunk)
 
 function buildGeometries(): Record<'trunk' | 'leaves' | 'lamp' | 'lampHead' | 'hydrant' | 'trash' | 'signLampDisc' | 'stopPole', THREE.BufferGeometry> {
-  const limb = (a: [number, number, number], b: [number, number, number], r0: number, r1: number): THREE.BufferGeometry => {
-    const d = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
-    const len = d.length();
-    const g = new THREE.CylinderGeometry(r1, r0, len, 4, 1, true).translate(0, len / 2, 0);
-    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()));
-    return g.translate(a[0], a[1], a[2]);
-  };
   const merge = (parts: THREE.BufferGeometry[]): THREE.BufferGeometry => {
     const g = mergeGeometries(parts, false);
     if (!g) throw new Error('propsReal: could not merge geometry');
     parts.forEach((p) => p.dispose());
     return g;
   };
-  const trunk = merge([
-    new THREE.CylinderGeometry(0.19, 0.37, 3, 6, 1, true).translate(0, 1.5, 0),
-    limb([0, 2.5, 0], [0, 4.0, 0], 0.14, 0.06),
-    limb([0, 2.7, 0], [0.7, 3.6, 0.5], 0.1, 0.05),
-    limb([0, 2.7, 0], [-0.6, 3.7, -0.6], 0.1, 0.05),
-  ]);
-  const leaves = buildCloudGeometry(); // 48 triangle leaf cards (same triangles as the old 24 quads), shared with FurnitureGen
+  const trunk = buildTreeTrunkGeometry(); // root flare plus four limbs, shared with the grid map and the parks (props/treeCloud.ts)
+  const leaves = buildCloudGeometry(); // 32 triangles of leaf cards per cloud, shared with FurnitureGen
   return {
     trunk, leaves,
     lamp: merge([cyl(0.07, 0.09, LAMP_HEIGHT, 6).translate(0, LAMP_HEIGHT / 2, 0), box(LAMP_ARM, 0.08, 0.1).translate(LAMP_ARM / 2, 7.9, 0)]),

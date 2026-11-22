@@ -19,9 +19,14 @@ try {
     const page = await browser.newPage({ viewport: { width: Number(new URLSearchParams(query).get("w") ?? 1280), height: Number(new URLSearchParams(query).get("h") ?? 720) } });
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 300)); });
     page.on('pageerror', (e) => errors.push(String(e).slice(0, 300)));
-    await page.goto(`http://localhost:${port}/scripts/faces2-harness.html?view=${v}${query ? '&' + query : ''}`, { waitUntil: 'load', timeout: 120000 });
-    await page.waitForFunction(() => window.__ready, null, { timeout: 120000 });
-    const r = await page.evaluate(() => ({ info: window.__ready, data: document.querySelector('canvas').toDataURL('image/png') }));
+    let r = null;
+    for (let attempt = 0; attempt < 3 && !r; attempt++) {
+      try {
+        await page.goto(`http://localhost:${port}/scripts/faces2-harness.html?view=${v}${query ? '&' + query : ''}`, { waitUntil: 'load', timeout: 120000 });
+        await page.waitForFunction(() => window.__ready, null, { timeout: 120000 });
+        r = await page.evaluate(() => ({ info: window.__ready, data: document.querySelector('canvas').toDataURL('image/png') }));
+      } catch (e) { if (attempt === 2) throw e; await new Promise((q) => setTimeout(q, 3000)); }
+    }
     writeFileSync(`${out}/${v}${tag ? '-' + tag : ''}.png`, Buffer.from(r.data.split(',')[1], 'base64'));
     console.log(v, JSON.stringify(r.info));
     await page.close();

@@ -69,7 +69,7 @@ export interface RealWorld {
   /** per frame: streams buildings around (px, pz), runs the el trains. cam = camera position. */
   update: (dt: number, px: number, pz: number, cam: { x: number; y: number; z: number }, night: boolean) => void;
   trains: RealTrains | null;
-  /** one line for the screen */
+  /** one line for the screen; empty since the real map became the main map */
   notice: string;
   /** blocks left without lots and boxes because their building ring leaves the kerb ring */
   badBlocks: number[];
@@ -119,7 +119,8 @@ export interface RealWorldOptions {
   forceStandIns?: boolean;
 }
 
-export const REAL_NOTICE = 'Real-map preview: traffic, pedestrians, missions and saving are on; expect rough edges.';
+/** Was the "Real-map preview ... expect rough edges" line. The real map is the main map now (22 Nov 2026): nothing to say, so no text is drawn. */
+export const REAL_NOTICE = '';
 
 const triCount = (m: THREE.Mesh): number => {
   const g = m.geometry;

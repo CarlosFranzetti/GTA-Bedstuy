@@ -20,6 +20,12 @@ const NOVELTY = 0.04;
 export class VehicleAudio {
   private ctx: BaseAudioContext | null = null;
   private master: AudioNode | null = null;
+  /** where the player's engine, its ghosts and the AI engines connect (the engine bus: level and Off live there); the master when none is given */
+  private engineDest: AudioNode | null = null;
+  /** Engine sound off (settings): no engine voice is created, the player's, the ghosts' or the AI cars'. */
+  private engineOn = true;
+  /** The audio clock is stopped (pause menu, hidden tab, listening post): nothing may be scheduled, it would all land on one instant and play in a burst on resume. */
+  private frozen = false;
   /** destination of the ambience beds (city wash, birds, kids, leaking music); the sound effects bus when none is given */
   private amb: AudioNode | null = null;
   private noise: AudioBuffer | null = null;
@@ -63,8 +69,8 @@ export class VehicleAudio {
   constructor(private readonly rnd: () => number = Math.random) {}
 
   /** Called once the AudioContext exists. */
-  attach(ctx: BaseAudioContext, master: AudioNode, noise: AudioBuffer, amb: AudioNode = master): void {
-    this.ctx = ctx; this.master = master; this.noise = noise; this.amb = amb;
+  attach(ctx: BaseAudioContext, master: AudioNode, noise: AudioBuffer, amb: AudioNode = master, engine: AudioNode = master): void {
+    this.ctx = ctx; this.master = master; this.noise = noise; this.amb = amb; this.engineDest = engine;
     this.ensureWash();
     this.ensureEngine();
   }
@@ -72,6 +78,26 @@ export class VehicleAudio {
   get vehicleType(): string | null { return this.type; }
   get trafficVoices(): TrafficEngines | null { return this.traffic; }
   get engineNodes(): EngineNodes | null { return this.eng; }
+  get engineEnabled(): boolean { return this.engineOn; }
+  /** Live voices: the player's engine (0 or 1), engines still fading after the player left a car, and AI engines. For tests and the debug probe. */
+  get voiceCount(): { player: number; ghosts: number; traffic: number } { return { player: this.eng ? 1 : 0, ghosts: this.ghosts.length, traffic: this.traffic?.active ?? 0 }; }
+
+  /** Engine sound on or off. Off removes every engine voice at once and creates none; on brings the current car's engine back. */
+  setEngineEnabled(on: boolean): void {
+    if (on === this.engineOn) return;
+    this.engineOn = on;
+    this.traffic?.setEnabled(on);
+    if (!on) {
+      this.eng?.dispose(); this.eng = null; this.engineRetired = false;
+      for (const g of this.ghosts) g.eng.dispose();
+      this.ghosts.length = 0;
+      this.traffic?.update(0, { x: 0, z: 0 }, []);
+    } else {
+      this.ensureEngine();
+    }
+  }
+  /** The audio clock stopped or started again. While stopped every per-frame write and one-shot is dropped. */
+  setFrozen(on: boolean): void { this.frozen = on; }
 
   setType(type: string | null): void {
     if (type === this.type) return;
@@ -89,14 +115,14 @@ export class VehicleAudio {
     const { eng, sim, ctx } = this;
     this.eng = null;
     if (!eng) return;
-    if (!sim || !ctx || sim.phase === 'off') { eng.dispose(); return; }
+    if (!sim || !ctx || sim.phase === 'off' || !this.engineOn) { eng.dispose(); return; }
     sim.stop();
     this.ghosts.push({ sim, eng, until: ctx.currentTime + 1.4 });
   }
 
   private ensureEngine(): void {
-    if (!this.ctx || !this.master || !this.noise || !this.type || this.eng) return;
-    this.eng = new EngineNodes(this.ctx, engineVoiceFor(this.type), this.noise, this.master);
+    if (!this.ctx || !this.master || !this.noise || !this.type || this.eng || !this.engineOn) return;
+    this.eng = new EngineNodes(this.ctx, engineVoiceFor(this.type), this.noise, this.engineDest ?? this.master);
     this.engineRetired = false;
   }
 
@@ -130,7 +156,7 @@ export class VehicleAudio {
 
   update(dt: number): void {
     const ctx = this.ctx;
-    if (!ctx) return;
+    if (!ctx || this.frozen) return;
     this.clock += dt;
     const t = ctx.currentTime;
     if (this.sim && this.eng) {
@@ -265,7 +291,7 @@ export class VehicleAudio {
 
   /** One-shot layers on the master bus. */
   private fx(layers: Layer[], gain = 1, rate = 1): void {
-    if (!this.ctx || !this.noise || !this.master) return;
+    if (!this.ctx || !this.noise || !this.master || this.frozen) return;
     playLayers(this.ctx, this.noise, this.master, layers, this.ctx.currentTime, gain, rate, this.rnd);
   }
   /** Door of the car just entered or left; on leaving, the type is the one the player was driving. */
@@ -283,7 +309,7 @@ export class VehicleAudio {
   setListener(l: Listener | null): void { this.listener = l; }
   /** Horn pressed (event). The player's horn starts at once; honks that are not at the listener are AI cars'. */
   hornEvent(pos?: { x: number; z: number }): void {
-    if (!this.ctx || !this.master) return;
+    if (!this.ctx || !this.master || this.frozen) return;
     const l = this.listener;
     const d = pos && l ? Math.hypot(pos.x - l.x, pos.z - l.z) : 0;
     if (d > 3) {
@@ -307,7 +333,7 @@ export class VehicleAudio {
   }
   /** An AI car honks with its own horn; rate-limited, attenuated by distance. */
   honkAt(id: string, type: string, dist: number): boolean {
-    if (!this.ctx || !this.master) return false;
+    if (!this.ctx || !this.master || this.frozen) return false;
     const g = distanceGain(dist, 90);
     if (g < 0.02 || !this.limiter.allow(id, this.clock)) return false;
     const h = hornFor(type);
@@ -321,8 +347,8 @@ export class VehicleAudio {
 
   setTraffic(l: Listener, cars: TrafficCar[], dt = 1 / 60): void {
     this.listener = l; this.cars = cars;
-    if (!this.ctx || !this.master) return;
-    this.traffic ??= new TrafficEngines(this.ctx, this.master, 4, 70, this.rnd);
+    if (!this.ctx || !this.master || this.frozen) return;
+    if (!this.traffic) { if (!this.engineOn) return; this.traffic = new TrafficEngines(this.ctx, this.engineDest ?? this.master, 4, 70, this.rnd); }
     this.traffic.update(dt, l, cars);
   }
 
@@ -330,7 +356,7 @@ export class VehicleAudio {
 
   /** One-shots of the city bed go to the ambience bus, not the effects bus. */
   private bedFx(layers: Layer[], gain: number): void {
-    if (!this.ctx || !this.noise || !this.amb) return;
+    if (!this.ctx || !this.noise || !this.amb || this.frozen) return;
     playLayers(this.ctx, this.noise, this.amb, layers, this.ctx.currentTime, gain, 1, this.rnd);
   }
 

@@ -11,7 +11,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { Block, BlockFace, GridModel, IMaterialLibrary, Lot, Side, StaticCollider, StreetDef } from '@/world/types';
 import { Rng } from '@/core/Rng';
 import { treePartsFor, treeStyleFor } from '@/world/data/streetTrees';
-import { buildCloudGeometry } from '@/world/props/treeCloud';
+import { buildCloudGeometry, buildTreeTrunkGeometry } from '@/world/props/treeCloud';
 type V3 = [number, number, number];
 import type { Vec2 } from '@/core/Math2';
 import { planSignBlades, SIGN_LAYOUT } from '@/world/signBlades';
@@ -149,25 +149,12 @@ export function buildFurniture(
 
   // ---- primitives (geometry is built around the local origin; the instance matrix places it)
 
-  /** Branch from a to b (tapered prism). */
-  const limb = (a: V3, b: V3, r0: number, r1: number): THREE.BufferGeometry => {
-    const d = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
-    const len = d.length();
-    const g = new THREE.CylinderGeometry(r1, r0, len, 4, 1, true).translate(0, len / 2, 0); // open-ended, 4 sides: the ends sit inside the canopy / trunk
-    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()));
-    return g.translate(a[0], a[1], a[2]);
-  };
-  // tapered trunk plus three limbs reaching the canopy clouds (see addTree)
-  const trunkGeo = (): THREE.BufferGeometry[] => [
-    new THREE.CylinderGeometry(0.19, 0.37, TREE_TRUNK_H, 6, 1, true).translate(0, TREE_TRUNK_H / 2, 0), // open-ended: ground below, limbs and canopy above
-    limb([0, 2.5, 0], [0, 4.0, 0], 0.14, 0.06),
-    limb([0, 2.7, 0], [0.7, 3.6, 0.5], 0.1, 0.05),
-    limb([0, 2.7, 0], [-0.6, 3.7, -0.6], 0.1, 0.05),
-  ];
+  // trunk with a root flare plus four limbs reaching the canopy clouds (props/treeCloud.ts, shared with the real map and the parks)
+  const trunkGeo = (): THREE.BufferGeometry[] => [buildTreeTrunkGeometry()];
   /**
    * Canopy cloud: leaf cards scattered through a unit ball, every vertex normal pointing out of the ball centre (so the
    * cloud shades like a soft volume, not like flat cards) and the double-sided material lights the back the
-   * same (no flipped normal). Alpha-tested leaf sprite; 48 triangles, shared by every instance (scale = cloud radius).
+   * same (no flipped normal). Alpha-tested leaf sprite; 32 triangles, shared by every instance (scale = cloud radius).
    */
   const blobGeo = (): THREE.BufferGeometry[] => [buildCloudGeometry()];
 

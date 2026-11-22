@@ -556,7 +556,7 @@ export class MaterialLibrary implements IMaterialLibrary {
       treeTrunk: { variants: 1, build: tex('treeTrunk', 256, 256, treeTrunkPainter) },
       treeLeaves: { variants: LEAF_VARIANTS, build: (v) => {
         // double-sided cards (the canopy mesh has one winding: half the triangles); the shader keeps the radial canopy normal on the back face
-        const m = tex('treeLeaves', 256, 256, treeLeavesPainter, { roughness: 0.8, alphaTest: 0.45, side: THREE.DoubleSide })(v);
+        const m = tex('treeLeaves', 256, 256, treeLeavesPainter, { roughness: 0.8, alphaTest: 0.45, side: THREE.DoubleSide, vertexColors: true })(v); // per-vertex grey from the cloud geometry: dark core, light rim (props/treeCloud.ts)
         m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n#ifdef DOUBLE_SIDED\n  normal *= faceDirection; // undo the back-face flip: the canopy normal points out of the cloud on both sides\n#endif'); };
         return m;
       } },

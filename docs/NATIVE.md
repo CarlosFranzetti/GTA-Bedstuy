@@ -25,7 +25,7 @@ If something looks wrong: menu **Game, Copy Graphics Report** (`Ctrl/Cmd+Shift+G
 - Cost: download about 100 MB instead of about 10 MB. Accepted for a 3D game.
 
 ## What the shell does
-- Serves the web build from a secure `app://bedstuy` protocol. Relative fetches (`anim/street.bin`, `voice/`, `data/*.json`, `fonts/`, `art/`, the lazy `?map=real` chunks) all resolve there; `/ra-api/*` is forwarded to `https://ra-nyc.vercel.app/api/*` in the main process (12 s timeout, no CORS).
+- Serves the web build from a secure `app://bedstuy` protocol. Relative fetches (`anim/street.bin`, `voice/`, `data/*.json`, `fonts/`, `art/`, the lazy real-street map chunks) all resolve there; `/ra-api/*` is forwarded to `https://ra-nyc.vercel.app/api/*` in the main process (12 s timeout, no CORS).
 - Strict content security policy and navigation rules. One list of remote hosts: `REMOTE_ALLOWLIST` in `native/src/policy.ts`. Radio streams may come from any https host (media elements cannot run code; stations redirect between CDNs). `contextIsolation` on, `nodeIntegration` off, `sandbox` on, no camera or microphone permission.
 - **Launch**: true full screen by default (menu **Game, Start in Full Screen** turns it off; `--windowed` and `--fullscreen` override once). The window is black and hidden until the first frame is ready, so there is no white flash. Window size and place are remembered for the windowed mode. One instance only. The display is kept awake while the app runs (a gamepad does not count as activity to the OS).
 - **Menu** (Game): Toggle Full Screen, Start in Full Screen, Reload (`Ctrl/Cmd+Shift+R`, not bare `R`, so it cannot fire mid-drive), Copy Graphics Report, Show Saves Folder, Quit. On Mac the usual app menu, Edit and Window menus are there too. The window title is always "GTA Bed-Stuy"; the icon is `public/icons/icon-512.png`.
@@ -108,4 +108,4 @@ npm --prefix native run compile
 GTA_WEB_DIR=<hosted build folder> npm --prefix native run prep
 scripts/swarm-render.sh xvfb-run -a node native/scripts/smoke.mjs --json out.json --shot out.png   # Linux boot smoke
 ```
-The smoke script hides the game canvas before the page runs (swarm rules), uses `--debug-gfx --q=low`, adds `perf=0`, and takes `--query "map=real&perf=0"` for the real-map path. Env switches: `GTA_SMOKE=1` (set by the script: software GL, no saved state), `GTA_IGNORE_GPU_BLOCKLIST=1`.
+The smoke script hides the game canvas before the page runs (swarm rules), uses `--debug-gfx --q=low`, adds `perf=0`, and takes `--query "map=grid&perf=0"` for the classic-grid path (the real streets are the default map). It starts the game with Space, the documented key, and ignores two expected 404s: the optional loading posters (`art/loading/poster-*.webp`) and its own `art/` directory probe. Env switches: `GTA_SMOKE=1` (set by the script: software GL, no saved state), `GTA_IGNORE_GPU_BLOCKLIST=1`.

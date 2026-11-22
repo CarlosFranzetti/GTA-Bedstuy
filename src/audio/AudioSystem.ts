@@ -25,7 +25,7 @@ import type { PersistentStore } from './voice/ClipCache';
 import { VehicleAudio } from './vehicle/VehicleAudio';
 import { BarkDirector, normalizeBark, type SpeechEventName } from './voice/peds/BarkDirector';
 import { PedVoicePlayer } from './voice/peds/PedVoicePlayer';
-import { Mixer, type MixKey } from './Mixer';
+import { Mixer, engineBusGain, type MixKey } from './Mixer';
 import type { Surface } from './vehicle/fx';
 import type { Listener, TrafficCar } from './vehicle/nodes';
 import { loadBundledScript, type TalkSegment } from './talk/script';
@@ -57,6 +57,8 @@ interface Graph {
   voiceBus: GainNode;
   hubBus: GainNode;
   ambBus: GainNode;
+  /** The engine bus (into sfxBus): every engine voice, the player's and the AI cars', and the old untyped engine. Level and Off live here. */
+  engineBus: GainNode;
   saw: OscillatorNode;
   sq: OscillatorNode;
   engineFilter: BiquadFilterNode;
@@ -241,8 +243,8 @@ export class AudioSystem {
     this.radio.onSweeper = (entry) => { if (this.radioOn && this.g) this.playSting(entry.id === 'sc' ? scJingle() : stationJingle(entry.id)); };
     this.unsubs.push(
       events.on('userGesture', () => { void this.start(); void this.libraryController.autoReconnect().catch(() => undefined); }),
-      events.on('horn', (e) => { if (this.vehicle.typed) this.vehicle.hornEvent(e.pos); else this.playHorn(); }),
-      events.on('impact', (e) => { if (this.vehicle.typed) this.vehicle.playCrash(e.strength); else this.playImpact(e.strength); }),
+      events.on('horn', (e) => { if (this.pauseReasons.size > 0) return; if (this.vehicle.typed) this.vehicle.hornEvent(e.pos); else this.playHorn(); }),
+      events.on('impact', (e) => { if (this.pauseReasons.size > 0) return; if (this.vehicle.typed) this.vehicle.playCrash(e.strength); else this.playImpact(e.strength); }),
       events.on('enterVehicle', () => { this.inCar = true; this.setRadioOn(true); }),
       events.on('exitVehicle', () => { this.inCar = false; this.setRadioOn(false); }),
       // VOICE14: Leila's pedBark request and every mission / story subtitle line get a voice.
@@ -313,7 +315,7 @@ export class AudioSystem {
       this.shiftFactor = gearShiftFactor(this.gear, gear);
     }
     this.gear = gear;
-    if (this.g) {
+    if (this.g && this.pauseReasons.size === 0) {
       this.applyEngine(this.g);
       this.applySqueal(this.g);
     }
@@ -376,6 +378,7 @@ export class AudioSystem {
   pause(reason = 'manual'): void {
     this.pauseReasons.add(reason);
     this.radio.setPaused(true);
+    this.vehicle.setFrozen(true); // the clock is about to stop: anything scheduled now would pile up on one instant and play in a burst on resume
     const g = this.g;
     if (g && typeof g.ctx.suspend === 'function') void Promise.resolve(g.ctx.suspend()).catch(() => undefined);
   }
@@ -383,9 +386,11 @@ export class AudioSystem {
   resume(reason = 'manual'): void {
     this.pauseReasons.delete(reason);
     const g = this.g;
-    if (this.pauseReasons.size === 0) this.radio.setPaused(false);
+    if (this.pauseReasons.size === 0) { this.radio.setPaused(false); this.vehicle.setFrozen(false); }
     if (this.pauseReasons.size > 0 || !g) return;
-    if (g.ctx.state !== 'running' && typeof g.ctx.resume === 'function') void Promise.resolve(g.ctx.resume()).catch(() => undefined);
+    // Always ask, whatever `state` says: suspend() settles later, so right after a pause the state still reads 'running' and a resume skipped
+    // on that reading left the context suspended for good (AUDIOFIX). Resuming a running context is a no-op.
+    if (g.ctx.state !== 'closed' && typeof g.ctx.resume === 'function') void Promise.resolve(g.ctx.resume()).catch(() => undefined);
   }
 
   /** Convenience for integrators: `setPaused(true)` is `pause('menu')`, `setPaused(false)` is `resume('menu')`. */
@@ -406,10 +411,12 @@ export class AudioSystem {
   /** One slider changed: ramp that bus over ~50 ms (time constant 17 ms), once per change. */
   private applyMix(k: MixKey): void {
     this.syncScVolume();
+    if (k === 'engine') this.vehicle.setEngineEnabled(this.mixer.get('engine') > 0);
     const g = this.g;
     if (!g) return;
     const t = g.ctx.currentTime, tc = 0.017;
     if (k === 'radio') this.applyRadioGain(g, tc);
+    else if (k === 'engine') { this.vehicle.setEngineEnabled(this.mixer.get('engine') > 0); g.engineBus.gain.setTargetAtTime(engineBusGain(this.mixer.get('engine')), t, tc); this.applyEngine(g); }
     else (k === 'master' ? g.master : k === 'sfx' ? g.sfxBus : k === 'voices' ? g.voiceBus : g.ambBus).gain.setTargetAtTime(this.mixer.gain(k), t, tc);
   }
 
@@ -539,6 +546,7 @@ export class AudioSystem {
     const voiceBus = bus(master, this.mixer.gain('voices'));
     const hubBus = bus(voiceBus, MUSIC_GAIN); // radio hosts keep the level they had on the music bus
     const ambBus = bus(master, this.mixer.gain('ambience'));
+    const engineBus = bus(sfxBus, engineBusGain(this.mixer.get('engine')));
 
     // White noise for drums, impacts and radio mumble.
     const noise = ctx.createBuffer(1, sr, sr);
@@ -552,7 +560,7 @@ export class AudioSystem {
     const engineGain = ctx.createGain();
     engineGain.gain.value = 0;
     engineFilter.connect(engineGain);
-    engineGain.connect(sfxBus);
+    engineGain.connect(engineBus);
     const f0 = engineFrequency(0, 0);
     const saw = ctx.createOscillator();
     saw.type = 'sawtooth';
@@ -640,8 +648,9 @@ export class AudioSystem {
     musicBus.gain.value = this.radioOn ? MUSIC_GAIN * this.radioVolume : 0;
     musicBus.connect(master);
 
-    const g: Graph = { ctx, master, sfxBus, voiceBus, hubBus, ambBus, saw, sq, engineFilter, engineGain, radioBus, musicBus, dayGain, nightGain, squealGain, squealFilter, noise };
-    this.vehicle.attach(ctx, sfxBus, noise, ambBus);
+    const g: Graph = { ctx, master, sfxBus, voiceBus, hubBus, ambBus, engineBus, saw, sq, engineFilter, engineGain, radioBus, musicBus, dayGain, nightGain, squealGain, squealFilter, noise };
+    this.vehicle.setEngineEnabled(this.mixer.get('engine') > 0);
+    this.vehicle.attach(ctx, sfxBus, noise, ambBus, engineBus);
     this.applyEngine(g);
     this.applySqueal(g);
     // The user's files play through two media elements. Unlocking them here is inside the first user gesture (iOS).
@@ -658,7 +667,7 @@ export class AudioSystem {
     g.saw.frequency.setTargetAtTime(f, now, 0.05);
     g.sq.frequency.setTargetAtTime(f / 2, now, 0.05);
     g.engineFilter.frequency.setTargetAtTime(300 + 900 * throttle, now, 0.1);
-    const target = this.engineOn && !this.vehicle.typed ? 0.04 + 0.08 * throttle : 0;
+    const target = this.engineOn && !this.vehicle.typed && this.vehicle.engineEnabled ? 0.04 + 0.08 * throttle : 0;
     g.engineGain.gain.setTargetAtTime(target, now, 0.2);
   }
 

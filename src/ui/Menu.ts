@@ -26,6 +26,7 @@ import { RowList, type RowSpec } from './menuRows';
 import { menuArtSvg } from './menuArt';
 import { MIX_LABELS, MIX_DESC, type MixKey } from '@/audio/Mixer';
 import { isNativeApp, nativeQuit, nativeShell } from '@/native/NativeBridge';
+import { currentMap, mapSwitchUrl, type MapChoice } from '@/world/mapChoice';
 import {
   GraphicsStore, supports, presetFor, SHADOW_MODES, FPS_CAPS, RANGES, gpuLoad, optionLoad, loadLabel,
   type GraphicsKey, type GraphicsSettings, type ShadowMode,
@@ -140,6 +141,8 @@ export interface MenuOptions {
   mixer?: { get(k: MixKey): number; set(k: MixKey, v: number): void; onChange?(fn: (k: MixKey) => void): () => void };
   /** Show the "install as app" hint (hosted build only). Default: true when built with VITE_HOSTED=1. */
   installable?: boolean;
+  /** The "Map" row (Real streets / Classic grid): hosted and native builds only. Defaults read the build flag and `location`; tests inject. `go` gets the address of the other map. */
+  mapSwitch?: { available: boolean; current: MapChoice; go(url: string): void };
 }
 
 const DEFAULTS: MenuSettings = { quality: 'medium', auto: false, master: 1, radio: 1, invertY: false };
@@ -261,6 +264,8 @@ export class Menu {
   private quitArmed = false;
   private resetArmed = false;
   private resetTimer = 0;
+  private mapArmed = false;
+  private mapTimer = 0;
 
   // embeds
   private savePanel: SavePanel | null = null;
@@ -959,6 +964,20 @@ export class Menu {
         if ((v === 'full') !== !!fs?.active) void fs?.toggle();
       }) as RowSpec['set'],
     });
+    S.set('map', {
+      id: 'map', label: 'Map', kind: 'action',
+      desc: 'Real streets is the Bedford-Stuyvesant street map. Classic grid is the older stylised map. Each map keeps its own saves. Press twice to reload on the other map.',
+      visible: () => this.mapSwitchInfo().available,
+      text: () => `${this.mapSwitchInfo().current === 'real' ? 'Real streets' : 'Classic grid'}${this.mapArmed ? ' · PRESS AGAIN for ' + (this.mapSwitchInfo().current === 'real' ? 'Classic grid' : 'Real streets') : ' ›'}`,
+      press: () => {
+        if (!this.mapArmed) { this.mapArmed = true; this.refreshAll(); const w = this.doc.defaultView; if (w) this.mapTimer = w.setTimeout(() => { this.mapArmed = false; this.refreshAll(); }, 3500); return; }
+        this.doc.defaultView?.clearTimeout(this.mapTimer); this.mapArmed = false;
+        const info = this.mapSwitchInfo(); const w = this.doc.defaultView;
+        const href = w ? w.location.href : 'http://localhost/';
+        this.opts.saves?.autosave(Date.now(), true, true); // the pagehide autosave also fires, but a reload from a menu should not depend on it
+        info.go(mapSwitchUrl(href, info.current === 'real' ? 'grid' : 'real'));
+      },
+    });
     S.set('install', {
       id: 'install', label: 'Install as app', kind: 'info', desc: 'Chrome: menu, Cast, save and share, Install page as app. Safari: File, Add to Dock. It then opens in its own window with no browser bars.',
       visible: () => (this.opts.installable ?? hostedBuild()) && !this.isStandalone() && !isNativeApp(), text: () => 'How to',
@@ -978,14 +997,14 @@ export class Menu {
     });
     const mx = this.opts.mixer;
     const mixRow = (id: string, k: MixKey, legacy?: { get(): number; set(v: number): void }): void => {
-      S.set(id, { id, label: MIX_LABELS[k], kind: 'slider', live: !!mx, min: 0, max: 100, step: 5, def: () => 100, desc: MIX_DESC[k], fmt: (v) => `${v}%`,
+      S.set(id, { id, label: MIX_LABELS[k], kind: 'slider', live: !!mx, min: 0, max: 100, step: 5, def: () => 100, desc: MIX_DESC[k], fmt: (v) => (k === 'engine' && v === 0 ? 'Off' : `${v}%`),
         visible: legacy || mx ? undefined : () => false,
         get: () => Math.round((mx ? mx.get(k) : legacy ? legacy.get() : 1) * 100),
         set: ((v: number) => { if (mx) mx.set(k, v / 100); else legacy?.set(v / 100); }) as RowSpec['set'] });
     };
     mixRow('master', 'master', { get: () => this.state.master, set: (v) => this.setMaster(v) });
     mixRow('radiovol', 'radio', { get: () => this.state.radio, set: (v) => this.setRadio(v) });
-    mixRow('sfxvol', 'sfx'); mixRow('voicevol', 'voices'); mixRow('ambvol', 'ambience');
+    mixRow('sfxvol', 'sfx'); mixRow('enginevol', 'engine'); mixRow('voicevol', 'voices'); mixRow('ambvol', 'ambience');
     S.set('radiolib', { id: 'radiolib', label: 'Radio library', kind: 'action', desc: 'Opens the radio library: tracks, stations and the playlist.', press: () => { this.cb.onRadioLibrary?.(); } });
     S.set('credits', { id: 'credits', label: 'Credits', kind: 'action', desc: 'Who made the game, and who we thank.', visible: () => !!this.cb.onCredits, press: () => { this.cb.onCredits?.(); } });
     S.set('quit', {
@@ -1025,6 +1044,12 @@ export class Menu {
     } catch { return false; }
   }
 
+  private mapSwitchInfo(): { available: boolean; current: MapChoice; go(url: string): void } {
+    if (this.opts.mapSwitch) return this.opts.mapSwitch;
+    const hosted = hostedBuild(), w = this.doc.defaultView;
+    return { available: hosted, current: currentMap(hosted, w ? w.location.search : ''), go: (url) => { try { w?.location.assign(url); } catch { /* blocked */ } } };
+  }
+
   private disarmReset(): void {
     this.doc.defaultView?.clearTimeout(this.resetTimer);
     if (this.resetArmed) { this.resetArmed = false; this.refreshAll(); }
@@ -1042,9 +1067,9 @@ export class Menu {
     const sections: Array<[string, RowSpec[]]> = [
       ['Display', [S.get('windowmode')!, ...g('fpsCap', 'resolution', 'nativeDpr', 'showFps')]],
       ['Graphics', [S.get('quality')!, S.get('autodetect')!, ...g('shadows', 'drawDistance', 'treeRange', 'crowd', 'traffic', 'aa', 'textures', 'ao', 'bloom', 'dof', 'vignette', 'grain', 'fov')]],
-      ['Audio', [S.get('master')!, S.get('radiovol')!, S.get('sfxvol')!, S.get('voicevol')!, S.get('ambvol')!, S.get('hdvoices')!]],
+      ['Audio', [S.get('master')!, S.get('radiovol')!, S.get('sfxvol')!, S.get('enginevol')!, S.get('voicevol')!, S.get('ambvol')!, S.get('hdvoices')!]],
       ['Controls', [S.get('invert')!]],
-      ['Game', [S.get('install')!, S.get('radiolib')!, S.get('reset')!, S.get('credits')!, S.get('quit')!]],
+      ['Game', [S.get('install')!, S.get('map')!, S.get('radiolib')!, S.get('reset')!, S.get('credits')!, S.get('quit')!]],
       ...(this.inputMode === 'touch' ? [['Touch controls', TOUCH_ROWS.map(([k, v]) => ({ id: `c:${k}`, label: k, kind: 'info' as const, desc: `${k}: ${v}`, text: () => v }))] as [string, RowSpec[]]] : []),
       ['Minimap', MINIMAP_LEGEND.map((item) => ({ id: `l:${item.text}`, label: item.text, kind: 'info' as const, desc: `On the minimap: ${item.text}.`, text: () => '', swatch: { color: item.swatch, shape: item.shape } }))],
     ];

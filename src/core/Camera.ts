@@ -120,6 +120,8 @@ const TOUCH_LOOK_RATE = 26;
 const WALL_IN_RATE = 14;
 /** The lens never moves in faster than this (m/s) when something comes between it and the body: it glides in, it does not pop. */
 const WALL_IN_MAX = 16;
+/** ... and during a blend (getting in or out, a view change) the view is already moving: the pull-in is slower so it does not add a pop to it. */
+const WALL_IN_MAX_BLEND = 7;
 /** Rates (1/s) at which the lens rises over a roof and comes back down. */
 const LIFT_UP = 9;
 const LIFT_DOWN = 4;
@@ -128,8 +130,14 @@ const PIVOT_OMEGA_FOOT = 20;
 const PIVOT_OMEGA_CAR = 60;
 /** A pivot further than this from its target (a teleport, a respawn) snaps. */
 const PIVOT_SNAP = 6;
-/** After getting in or out of a car the rig eases over about this long (s): its distance, height and lens change slowly. */
-const TRANSITION_TIME = 1.1;
+/**
+ * Getting in or out of a car is one blend of the whole rig (distance, height, lens, shoulder and the pivot's door-to-centre offset) on one
+ * smoothstep, MODE_BLEND seconds long; a view change between chase-family views is VIEW_BLEND. A change to or from first person, the
+ * hood or the cinematic view is a clean cut (every parameter at once, the pivot included), never a blend: a blend would fly the lens
+ * through the car body and turn the view down onto the roof.
+ */
+const MODE_BLEND = 0.6;
+const VIEW_BLEND = 0.25;
 /** Car cam: the view swings out of a corner (rad per rad/s of turn rate) and looks into a slide (share of the slip angle), and settles. */
 const SWING_RATE = 0.16;
 const SWING_SLIP = 0.5;
@@ -192,7 +200,15 @@ export class ThirdPersonCamera {
   private backVel = 0;
   private cineBlend = 0;
   private spX = 0; private spZ = 0; private svX = 0; private svZ = 0;
-  private transT = 0;
+  /** Rig blend in progress (see MODE_BLEND): progress 0..1, length (s), the rig values it started from, and the pivot offset it started with. */
+  private blendOn = false;
+  private blendT = 1;
+  private blendDur = MODE_BLEND;
+  private bf = { distance: CAM_FOOT.distance, height: CAM_FOOT.height, lookY: CAM_FOOT.look, forward: 0, shoulder: CAM_FOOT.shoulder, fov: CAM_FOOT.fov as number };
+  private off0X = 0; private off0Z = 0;
+  private seenSerial = 0;
+  private prevCutClass = false;
+  private snapped = false;
   private liftS = 0;
   private swing = 0; private swingVel = 0;
   private cineYaw = 0;
@@ -261,6 +277,8 @@ export class ThirdPersonCamera {
   get letterboxOn(): boolean { return this.lbTarget; }
   /** 0..1: how far into first person the rig is. The host hides the player's head (on foot) once this passes ~0.85. */
   get firstPersonAmount(): number { return this.firstAmt; }
+  /** True when the last update was a clean cut (first frame, a view change to or from first person, hood or cinematic, a director cut). */
+  get snappedThisFrame(): boolean { return this.snapped; }
   /** Id of the active view for the current mode ('chase', 'first', 'hood', 'cinematic' ...). */
   get viewId(): string { return this.views.id(this.lastMode ?? 'foot'); }
 
@@ -317,16 +335,41 @@ export class ThirdPersonCamera {
     const veh = ctx?.vehicle ?? null;
     const vehicleMode = mode === 'vehicle';
     const first = !this.initialised;
-    // The pivot differs between modes (the player's door spot vs the car's centre): carry the jump as an offset that decays,
+    const vrig = this.views.rig(mode);
+    // A change of mode or of view starts either a clean cut (to or from first person, the hood, the cinematic view) or one blend.
+    const cutClass = vrig.first || (vehicleMode && vrig.cinematic);
+    const modeChanged = this.lastMode !== null && mode !== this.lastMode;
+    const viewChanged = this.views.serial !== this.seenSerial;
+    this.seenSerial = this.views.serial;
+    let cutNow = first;
+    // The pivot differs between modes (the player's door spot vs the car's centre): carry the jump as an offset that the blend takes out,
     // so getting in or out glides the view instead of popping it by a metre or two.
-    if (this.lastMode !== null && mode !== this.lastMode) {
+    if (modeChanged) {
       const jx = this.prevX - targetPos.x, jz = this.prevZ - targetPos.z;
       if (Math.hypot(jx, jz) < PIVOT_JUMP_MAX) { this.offX += jx; this.offZ += jz; } else { this.offX = 0; this.offZ = 0; }
+      // Stepping out: the player turns to face the car, but the view stays where it was (behind the way the car pointed) and
+      // returns behind the player by the usual two-second rule, so "forward" does not swing round under the player's thumb.
+      if (mode === 'foot') { this.idle = 0; this.yawVel = 0; }
     }
-    if (this.lastMode !== null && mode !== this.lastMode) this.transT = 1;
+    if (!first && (modeChanged || viewChanged)) {
+      if (cutClass || this.prevCutClass) {
+        cutNow = true;
+        this.offX = 0; this.offZ = 0; this.blendOn = false; this.blendT = 1;
+      } else {
+        this.blendOn = true; this.blendT = 0; this.blendDur = modeChanged ? MODE_BLEND : VIEW_BLEND;
+        this.bf = { distance: this.distance, height: this.height, lookY: this.lookY, forward: this.forward, shoulder: this.shoulder, fov: this.fovNow };
+        this.off0X = this.offX; this.off0Z = this.offZ;
+      }
+    }
     this.lastMode = mode;
-    this.transT = Math.max(0, this.transT - dt / TRANSITION_TIME);
-    if (this.offX !== 0 || this.offZ !== 0) {
+    this.prevCutClass = cutClass;
+    if (this.blendOn) this.blendT = Math.min(1, this.blendT + dt / this.blendDur);
+    const blendFrame = this.blendOn; // true on every frame of a blend, the last one included
+    const bs = this.blendT * this.blendT * (3 - 2 * this.blendT);
+    if (blendFrame) {
+      this.offX = this.off0X * (1 - bs); this.offZ = this.off0Z * (1 - bs);
+      if (this.blendT >= 1) this.blendOn = false;
+    } else if (this.offX !== 0 || this.offZ !== 0) {
       const decay = Math.exp(-PIVOT_SETTLE * dt);
       this.offX *= decay; this.offZ *= decay;
       if (Math.abs(this.offX) < 1e-3 && Math.abs(this.offZ) < 1e-3) { this.offX = 0; this.offZ = 0; }
@@ -344,7 +387,14 @@ export class ThirdPersonCamera {
         this.slkZ = slackFollow(this.slkZ, uz, band);
       }
       // critically damped pivot: a little lag behind a moving body, no shiver, settles when it stops
-      if (first || Math.hypot(this.spX - this.slkX, this.spZ - this.slkZ) > PIVOT_SNAP) { this.spX = this.slkX; this.spZ = this.slkZ; this.svX = 0; this.svZ = 0; }
+      if (cutNow && !first && !modeChanged && dt > 1e-6 && Math.hypot(this.slkX - oldKX, this.slkZ - oldKZ) / dt < 60) {
+        // a view cut puts the pivot where it would be in steady motion (2u/omega behind the target, moving at u) so the lens does not
+        // start from rest and lag in over the next few frames (not on a mode change: the followed body jumps there, so that is no velocity)
+        const om = vehicleMode ? PIVOT_OMEGA_CAR : PIVOT_OMEGA_FOOT;
+        const ux = (this.slkX - oldKX) / dt, uz = (this.slkZ - oldKZ) / dt;
+        this.spX = this.slkX - 2 * ux / om; this.spZ = this.slkZ - 2 * uz / om; this.svX = ux; this.svZ = uz;
+      }
+      else if (first || cutNow || Math.hypot(this.spX - this.slkX, this.spZ - this.slkZ) > PIVOT_SNAP) { this.spX = this.slkX; this.spZ = this.slkZ; this.svX = 0; this.svZ = 0; }
       else {
         const om = vehicleMode ? PIVOT_OMEGA_CAR : PIVOT_OMEGA_FOOT;
         // The target moved from oldK to slk during this step: treat it as moving at that constant velocity u. In the frame that
@@ -386,8 +436,9 @@ export class ThirdPersonCamera {
       this.idle += dt;
     }
     this.views.tick(dt, mode);
-    const vrig = this.views.rig(mode);
-    const snap = first || this.views.cutThisFrame;
+    const snap = cutNow || this.views.cutThisFrame;
+    this.snapped = snap;
+    if (snap) this.initReach = false; // the wall reach of the old rig means nothing to the new one
     const lim = vrig.first ? PITCH_FIRST : vehicleMode ? PITCH_VEH : PITCH_FOOT;
     this.pitch = clamp(this.pitch, lim.min, lim.max);
     if (anyInput || moveSpeed > MOVE_EPS) this.still = 0; else this.still += dt;
@@ -457,7 +508,7 @@ export class ThirdPersonCamera {
 
     // ---- speed, rig distance/height/fov --------------------------------------------------------------------
     const smooth = vehicleMode ? SMOOTH_VEH : SMOOTH_FOOT;
-    const k = snap ? 1 : 1 - Math.exp(-smooth * dt * (1 - 0.7 * this.transT));
+    const k = snap ? 1 : 1 - Math.exp(-smooth * dt);
     const kSpeed = first ? 1 : 1 - Math.exp(-SPEED_SMOOTH * dt);
     const speed = vehicleMode ? Math.abs(veh ? veh.speed : ctx?.speed ?? 0) : 0;
     this.speedN += (clamp(speed / SPEED_FULL, 0, 1) - this.speedN) * kSpeed;
@@ -479,18 +530,21 @@ export class ThirdPersonCamera {
           : { distance: sedanRig.distance * vrig.distScale, height: sedanRig.height * vrig.heightScale, look: sedanRig.look, forward: 0 }
       : { distance: vrig.distance, height: vrig.height, look: vrig.look, forward: 0 };
     const wantDistance = (rig.distance + (vehicleMode && !vrig.first && !cine ? SPEED_DISTANCE * this.speedN : 0)) * (1 + CINE_ZOOM * this.cineBlend);
-    this.distance += (wantDistance - this.distance) * k;
-    this.height += (rig.height - this.height) * k;
-    this.lookY += (rig.look - this.lookY) * k;
-    this.forward += (rig.forward - this.forward) * k;
+    // a cut puts every value at its goal; a blend runs from the values it started with to the goal on one smoothstep; otherwise they follow the goal
+    const bf = this.bf;
+    const mix = (cur: number, from: number, want: number): number => snap ? want : blendFrame ? from + (want - from) * bs : cur + (want - cur) * k;
+    this.distance = mix(this.distance, bf.distance, wantDistance);
+    this.height = mix(this.height, bf.height, rig.height);
+    this.lookY = mix(this.lookY, bf.lookY, rig.look);
+    this.forward = mix(this.forward, bf.forward, rig.forward);
     const side = vehicleMode ? 0 : vrig.shoulder * this.views.side * (this.slide ? -1 : 1);
-    this.shoulder += (side + aimShoulder(side, this.aimBias, vrig.first || vehicleMode) - this.shoulder) * k;
+    this.shoulder = mix(this.shoulder, bf.shoulder, side + aimShoulder(side, this.aimBias, vrig.first || vehicleMode));
     this.cineShotYaw = cine ? cine.yaw : 0;
 
     const fov = vehicleMode
       ? (cine ? cine.fov : CAM_VEHICLE.fov + (CAM_VEHICLE.fovTop - CAM_VEHICLE.fov) * this.speedN + vrig.fov) + this.fovOffset
       : vrig.fov + this.fovOffset;
-    this.fovNow = snap ? fov : this.fovNow + (fov - this.fovNow) * k;
+    this.fovNow = mix(this.fovNow, bf.fov, fov);
     if (Math.abs(this.fovNow - this.camera.fov) > 0.01) {
       this.camera.fov = this.fovNow;
       this.camera.updateProjectionMatrix();
@@ -549,7 +603,7 @@ export class ThirdPersonCamera {
         // slack above the real distance is dead weight: a wall that appears must start pulling the lens in on this frame
         if (this.reach > d + 0.05) this.reach = d + 0.05;
         if (first || !this.initReach) this.reach = limitNow;
-        else if (limitNow < this.reach) this.reach += Math.max((limitNow - this.reach) * (1 - Math.exp(-WALL_IN_RATE * dt)), -WALL_IN_MAX * dt);
+        else if (limitNow < this.reach) this.reach += Math.max((limitNow - this.reach) * (1 - Math.exp(-WALL_IN_RATE * dt)), -(blendFrame ? WALL_IN_MAX_BLEND : WALL_IN_MAX) * dt);
         else if (limitNow - this.reach > REACH_DEAD) this.reach += (limitNow - this.reach) * (1 - Math.exp(-WALL_OUT_RATE * dt));
         this.initReach = true;
         const h = Math.max(MIN_REACH, Math.min(d, this.reach));

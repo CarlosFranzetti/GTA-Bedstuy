@@ -5,7 +5,7 @@
 import type { Rng } from '@/core/Rng';
 import type { LandmarkRow } from './types';
 import { Kit, type V3 } from './kit';
-import { band, bench, fence, lampPost, signBoard, tree, windowBand, flatRoof, rectCornice } from './parts';
+import { band, bench, fence, hedge, lampPost, shrub, signBoard, tree, windowBand, flatRoof, rectCornice } from './parts';
 
 export interface BuildCtx {
   k: Kit;
@@ -30,6 +30,14 @@ export function localRing(row: LandmarkRow): Pt[] {
     out.push([X * s.fx + Z * s.fz, X * s.nx + Z * s.nz]);
   }
   return out;
+}
+
+/** a point `inset` metres inside a random edge of the ring (the park side is found with pointInRing) */
+function ringEdgePoint(rng: Rng, ring: Pt[], inset: number): Pt {
+  const i = rng.int(0, ring.length - 1), a = ring[i], b = ring[(i + 1) % ring.length], t = rng.next();
+  const ux = b[0] - a[0], uz = b[1] - a[1], L = Math.hypot(ux, uz) || 1;
+  const p: Pt = [a[0] + ux * t + (uz / L) * inset, a[1] + uz * t - (ux / L) * inset];
+  return pointInRing(p, ring) ? p : [a[0] + ux * t - (uz / L) * inset, a[1] + uz * t + (ux / L) * inset];
 }
 
 function pointInRing(p: Pt, ring: Pt[]): boolean {
@@ -345,30 +353,80 @@ export function* buildPark(c: BuildCtx): Generator<void> {
   }
   yield;
 
-  // trees: along the perimeter first, then scattered
-  const want = Math.round(Number(look.trees ?? 60) * (detail === 0 ? 0.5 : 1));
+  // trees (TREES, 22 Nov): big old trees with crowns 10 to 15 m wide, planted in groups and in rows along the paths so the crowns overlap
+  // into shade; a few small ornamental trees; shrub masses under and between them; hedges along the fence. Trunks stay 5 m apart or more.
+  const want = Math.round(Number(look.trees ?? 60) * 0.8 * (detail === 0 ? 0.5 : 1));
+  const treeOk = (p: Pt, gap = 5): boolean =>
+    pointInRing(p, ring) && taken.every((t) => Math.hypot(t.x - p[0], t.z - p[1]) > t.r + (t.r < 4 ? gap - 2.6 + 0.0 : 1.2)) &&
+    distToPaths(p) > 3.4 && !gates.some((g) => Math.hypot(g[0] - p[0], g[1] - p[1]) < 7);
+  const plant = (p: Pt, h: number): void => {
+    tree(k, p[0], p[1], rng, h);
+    taken.push({ x: p[0], z: p[1], r: 2.6 });
+  };
   let placed = 0, tries = 0;
-  while (placed < want && tries < want * 25) {
+  // 1. rows along the paths, both sides, every 11 to 16 m
+  for (const [a, b] of segs) {
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (L < 12) continue;
+    const ux = (b[0] - a[0]) / L, uz = (b[1] - a[1]) / L;
+    for (const sd of [-1, 1]) {
+      for (let t = 6 + rng.range(0, 6); t < L - 4 && placed < want * 0.4; t += rng.range(11, 16)) {
+        const off = sd * rng.range(4.4, 6.2);
+        const p: Pt = [a[0] + ux * t - uz * off, a[1] + uz * t + ux * off];
+        if (Math.hypot(p[0] - cx, p[1] - cz) < plazaR + 5 || !treeOk(p, 5)) continue;
+        plant(p, rng.range(0.95, 1.3));
+        placed++;
+      }
+    }
+    yield;
+  }
+  // 2. groves: a centre, then three to five trees around it 6 to 9 m apart, and the odd single tree and small ornamental
+  while (placed < want && tries < want * 40) {
     tries++;
-    const edge = rng.chance(0.4);
-    let p: Pt;
-    if (edge) {
-      const i = rng.int(0, ring.length - 1);
-      const a = ring[i], b = ring[(i + 1) % ring.length];
-      const t = rng.next();
-      const ux = b[0] - a[0], uz = b[1] - a[1], L = Math.hypot(ux, uz) || 1;
-      p = [a[0] + ux * t + (-uz / L) * 0 + (uz / L) * 3.2, a[1] + uz * t + (ux / L) * 3.2 * 0 - (ux / L) * 3.2];
-      // pointInRing decides which of the two sides is the park
-      const q: Pt = [a[0] + ux * t - (uz / L) * 3.2, a[1] + uz * t + (ux / L) * 3.2];
-      if (!pointInRing(p, ring)) p = q;
-    } else p = [rng.range(inner.x0, inner.x1), rng.range(inner.z0, inner.z1)];
-    if (!free(p, 1.2)) continue;
-    // keep the gates open
-    if (gates.some((g) => Math.hypot(g[0] - p[0], g[1] - p[1]) < 7)) continue;
-    tree(k, p[0], p[1], rng, 0.9 + rng.next() * 0.45);
-    taken.push({ x: p[0], z: p[1], r: 2.2 });
-    placed++;
-    if (placed % 12 === 0) yield;
+    const c0: Pt = rng.chance(0.4) ? ringEdgePoint(rng, ring, 5.5) : [rng.range(inner.x0, inner.x1), rng.range(inner.z0, inner.z1)];
+    if (!treeOk(c0)) continue;
+    const grove = rng.int(3, 5);
+    plant(c0, rng.range(1.0, 1.4)); placed++;
+    for (let g = 1; g < grove; g++) {
+      const ang = rng.range(0, Math.PI * 2), dist = rng.range(6, 9.5);
+      const p: Pt = [c0[0] + Math.cos(ang) * dist, c0[1] + Math.sin(ang) * dist];
+      if (!treeOk(p)) continue;
+      plant(p, g === grove - 1 && rng.chance(0.4) ? rng.range(0.42, 0.52) : rng.range(0.85, 1.25)); placed++;
+    }
+    if (placed % 12 < 4) yield;
+  }
+  yield;
+  // 3. understorey: shrub masses at the foot of the big trees (not on the paths), hedges inside the fence
+  if (detail > 0) {
+    const bigs = taken.filter((t) => t.r === 2.6);
+    let nShrub = 0;
+    for (const t of bigs) {
+      if (!rng.chance(0.55)) continue;
+      for (let i = 0; i < 2; i++) {
+        const ang = rng.range(0, Math.PI * 2), dist = rng.range(2.4, 4.2);
+        const p: Pt = [t.x + Math.cos(ang) * dist, t.z + Math.sin(ang) * dist];
+        if (!pointInRing(p, ring) || distToPaths(p) < 2.6 || gates.some((g) => Math.hypot(g[0] - p[0], g[1] - p[1]) < 5)) continue;
+        if (taken.some((o) => o.r > 4 && Math.hypot(o.x - p[0], o.z - p[1]) < o.r)) continue; // courts, plaza, playground
+        shrub(k, p[0], p[1], rng, rng.range(0.9, 1.5));
+        if (++nShrub % 20 === 0) yield;
+      }
+    }
+    // hedges: a metre inside the fence, in runs of about 8 m with gaps, none at the gates
+    for (let i = 0; i < ring.length; i++) {
+      const A = ring[i], B = ring[(i + 1) % ring.length];
+      const L = Math.hypot(B[0] - A[0], B[1] - A[1]);
+      if (L < 8) continue;
+      const ux = (B[0] - A[0]) / L, uz = (B[1] - A[1]) / L;
+      let nx = -uz, nz = ux;
+      if (!pointInRing([A[0] + ux * L / 2 + nx * 1.6, A[1] + uz * L / 2 + nz * 1.6], ring)) { nx = -nx; nz = -nz; }
+      for (let t = 2; t < L - 2; t += 9) {
+        const e = Math.min(t + 7, L - 2);
+        const mx = A[0] + ux * (t + e) / 2, mz = A[1] + uz * (t + e) / 2;
+        if (rng.chance(0.3) || gates.some((g) => Math.hypot(g[0] - mx, g[1] - mz) < 7)) continue;
+        hedge(k, A[0] + ux * t + nx * 1.1, A[1] + uz * t + nz * 1.1, A[0] + ux * e + nx * 1.1, A[1] + uz * e + nz * 1.1, rng, 0.95);
+      }
+      yield;
+    }
   }
   void solids;
 }
@@ -433,10 +491,15 @@ export function* buildPlayground(c: BuildCtx): Generator<void> {
   fence(k, W, D, 0, D, { h, mat: k.m('chainlinkFence'), postEvery: 6 });
   fence(k, 0, D, 0, 0, { h, mat: k.m('chainlinkFence'), postEvery: 6 });
   signBoard(k, row.name.toUpperCase(), W / 2, 2.6, 0.2, [0, -1], 4.2, '#1f4a36', '#f1ecd8', 0);
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 8; i++) { // fewer, bigger trees (crowns 8 to 11 m), a hedge inside the fence and shrub clumps
     const x = 4 + rng.next() * (W - 8), z = 4 + rng.next() * (D - 8);
     if (z > 5 && z < 40 && x > 3 && x < W - 30) continue;
-    tree(k, x, z, rng, 0.8 + rng.next() * 0.3);
+    tree(k, x, z, rng, 0.75 + rng.next() * 0.3);
+  }
+  if (c.detail > 0) {
+    hedge(k, 2, D - 1.2, W - 2, D - 1.2, rng, 1.0);
+    hedge(k, 1.3, 8, 1.3, D - 3, rng, 1.0);
+    for (let i = 0; i < 6; i++) shrub(k, 5 + rng.next() * (W - 10), D - 3 - rng.next() * 3, rng, rng.range(0.9, 1.4));
   }
 }
 
@@ -487,11 +550,12 @@ export function* buildPool(c: BuildCtx): Generator<void> {
   fence(k, W, 0, W, D, { h: 2.2, mat: k.m('chainlinkFence'), postEvery: 6 });
   fence(k, W, D, 0, D, { h: 2.2, mat: k.m('chainlinkFence'), postEvery: 6 });
   fence(k, 0, D, 0, 0, { h: 2.2, mat: k.m('chainlinkFence'), postEvery: 6 });
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 7; i++) {
     const x = 3 + rng.next() * (W - 6), z = bz + bd + 2 + rng.next() * (D - bz - bd - 4);
     if (x > px0 - 3 && x < px1 + 3 && z < pz1 + 3) continue;
-    tree(k, x, z, rng, 0.8 + rng.next() * 0.3);
+    tree(k, x, z, rng, 0.75 + rng.next() * 0.3);
   }
+  if (c.detail > 0) hedge(k, 2, D - 1.2, W - 2, D - 1.2, rng, 1.0);
 }
 
 // ----------------------------------------------------------------------------------------------- community garden
@@ -529,6 +593,7 @@ export function* buildGarden(c: BuildCtx): Generator<void> {
   fence(k, W, 0, W, D, { h: 2, mat: k.m('chainlinkFence'), postEvery: 5 });
   fence(k, 0, D, 0, 0, { h: 2, mat: k.m('chainlinkFence'), postEvery: 5 });
   signBoard(k, row.name.toUpperCase(), W / 2, 2.2, 0.2, [0, -1], 3.4, '#355e3b', '#f4efd8', 0);
-  for (let i = 0; i < 3; i++) tree(k, 5 + rng.next() * (W - 10), D - 3.5, rng, 0.7);
+  for (let i = 0; i < 3; i++) tree(k, 5 + rng.next() * (W - 10), D - 3.5, rng, 0.6);
+  if (c.detail > 0) for (let i = 0; i < 6; i++) shrub(k, 3 + rng.next() * (W - 6), D - 2.4 - rng.next() * 2, rng, rng.range(0.8, 1.2));
   yield;
 }

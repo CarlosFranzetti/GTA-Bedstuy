@@ -22,7 +22,7 @@ try {
   const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: dpr });
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 200)); });
   page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));
-  await page.goto(`${base}/?q=${q}&perf=0`, { waitUntil: 'load', timeout: 120_000 });
+  await page.goto(`${base}/?map=grid&q=${q}&perf=0`, { waitUntil: 'load', timeout: 120_000 });
   await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 240_000 });
   await page.mouse.click(w / 2, h / 2); await page.waitForTimeout(500);
   const resume = page.getByRole('button', { name: 'Resume' });

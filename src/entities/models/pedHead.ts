@@ -29,41 +29,77 @@ function bell(id: string, trait: string): number {
   return a + b - 1;
 }
 
+/** FACES2: switches for review sheets only (the game leaves them alone): `morph` false renders the shipped base heads, `stress` scales every trait deviation. */
+export const faceDebug = { morph: true, stress: 1 };
+
 export interface FaceTraits {
-  /** relative width of the jaw / lower face (1 = shipped shape) */ jawW: number;
-  /** chin: forward and down in metres */ chinFwd: number; chinDrop: number;
-  /** nose: tip forward, tip down (droop), alar width scale, bridge raised, length (tip to base) in metres / ratio */ noseFwd: number; noseDrop: number; noseW: number; bridge: number;
-  /** brow ridge forward (m) */ brow: number;
-  /** cheekbone / cheek fullness outward (m) */ cheek: number;
-  /** lip fullness (m forward) */ lips: number;
-  /** eye spacing scale (1 = shipped) */ eyeGap: number;
-  /** ear scale */ ear: number;
-  /** head width, depth and height scale */ headW: number; headL: number; headH: number;
-  /** forehead height (m the hairline and brow move apart) and slope */ foreheadSlope: number;
+  /** head width, depth and height scale (about the middle of the head) */ headW: number; headL: number; headH: number;
+  /** lower face length: scales the distance from the eye line down to the chin (1 = shipped), forehead height: scales the part above the brow */ faceLen: number; foreheadH: number;
+  /** forehead slope (m, back at the hairline) and brow ridge forward (m) */ foreheadSlope: number; brow: number;
+  /** eye spacing scale, socket depth (m, back), tilt (m the outer corner rises) */ eyeGap: number; eyeDepth: number; eyeTilt: number;
+  /** nose: tip forward (m), tip drop (m, positive = down), length (m the tip and base move down together), alar width scale, bridge raised (m) */ noseFwd: number; noseDrop: number; noseLen: number; noseW: number; bridge: number;
+  /** cheekbone outward (m), cheekbone height shift (m), cheek fullness (m, negative = hollow) */ cheekBone: number; cheekH: number; cheek: number;
+  /** jaw / lower face width scale, jaw angle (m the gonial corner moves out and down), chin forward (m), chin drop (m = chin length), chin width scale, jowl (m) */ jawW: number; jawAngle: number; chinFwd: number; chinDrop: number; chinW: number; jowl: number;
+  /** lip fullness (m forward), mouth width scale */ lips: number; mouthW: number;
+  /** ear scale, ear flare (m the top of the ear stands out) */ ear: number; earFlare: number;
+  /** neck thickness scale, head carried forward on the neck (m) */ neckT: number; neckFwd: number;
+  /** asymmetry, a few percent: nose and chin line shift (m), mouth tilt (m across the mouth), eye height difference (m), jaw and cheek width difference (fraction) */ asymMid: number; asymMouth: number; asymEye: number; asymJaw: number;
 }
 
-/** The person's face traits, from their id, sex and age. Plain numbers so tests and the painter can read them. */
+/** A person's character, 0..1 by trait, from the id: a roughly bell-shaped number in [-1, 1] that is wide (a typical person is half way to the limit). */
+const gv = (id: string, t: string): number => Math.max(-1, Math.min(1, 1.5 * bell(id, t)));
+
+/**
+ * The person's face traits, from their id, sex, age and build. Plain numbers so tests and the painter can read them.
+ *
+ * Each trait is its own draw from the id, so two people differ in several places at once; a few move together the way real faces do:
+ * men's brow, jaw and neck run heavier and women's softer and finer, the old have longer ears and noses, thinner lips, jowls and a head
+ * carried forward, a heavier build fills the cheek, jaw and neck and a light build hollows them. The crowd group does NOT enter here:
+ * it sets the base structure through the MakeHuman shape; every group is drawn from the same wide ranges, so no trait is tied to a
+ * group and nobody is a type.
+ */
 export function faceTraits(spec: PedSpec): FaceTraits {
-  const id = spec.id, b = (t: string): number => bell(id, t);
-  const male = spec.sex === 'm', female = spec.sex === 'f', old = spec.age === 'old', young = spec.age === 'kid' || spec.age === 'teen';
-  const sx = male ? 1 : female ? -1 : 0;
+  const id = spec.id, g = (t: string): number => gv(id, t) * faceDebug.stress;
+  const sx = spec.sex === 'm' ? 1 : spec.sex === 'f' ? -1 : 0;
+  const age = spec.age ?? 'adult', old = age === 'old' ? 1 : 0, kid = age === 'kid' ? 1 : age === 'teen' ? 0.45 : 0;
+  const fat = Math.max(-1, Math.min(1.3, bodyTypeOf(spec).weight)) + 0.35 * g('heft'), thin = Math.max(0, -fat);
+  const pro = 0.3 * g('robust') + 0.7 * sx;                                   // robustness: leans male, drawn on its own too
+  const kidK = 1 - 0.55 * kid;
   return {
-    jawW: 1 + 0.085 * b('jaw') + 0.025 * sx - (old ? 0.02 : 0),
-    chinFwd: 0.0085 * b('chinf') + 0.003 * sx,
-    chinDrop: 0.0075 * b('chind') + 0.002 * sx,
-    noseFwd: (0.0085 * b('nosef') + (old ? 0.004 : 0)) * (young ? 0.6 : 1),
-    noseDrop: 0.004 * b('nosed') + (old ? 0.006 : 0),
-    noseW: 1 + 0.12 * b('nosew'),
-    bridge: 0.0055 * b('bridge'),
-    brow: 0.0045 * b('brow') + 0.0025 * sx,
-    cheek: 0.0065 * b('cheek') - (old ? 0.002 : 0),
-    lips: 0.0045 * b('lips') - 0.0018 * sx + (old ? -0.002 : 0),
-    eyeGap: 1 + 0.07 * b('eyegap'),
-    ear: 1 + 0.16 * b('ear') + (old ? 0.1 : 0),
-    headW: 1 + 0.035 * b('hw'),
-    headL: 1 + 0.035 * b('hl'),
-    headH: 1 + 0.03 * b('hh'),
-    foreheadSlope: 0.006 * b('fs'),
+    headW: 1 + 0.055 * g('hw') + 0.012 * pro + 0.018 * fat,
+    headL: 1 + 0.06 * g('hl'),
+    headH: 1 + 0.04 * g('hh') - 0.03 * kid,
+    faceLen: 1 + 0.075 * g('flen') * kidK + 0.012 * old - 0.1 * kid,
+    foreheadH: 1 + 0.09 * g('fh') + 0.1 * kid,
+    foreheadSlope: 0.011 * g('fs') + 0.003 * pro,
+    brow: (0.0075 * g('brow') + 0.0045 * pro + 0.003 * old) * kidK,
+    eyeGap: 1 + 0.085 * g('eyegap'),
+    eyeDepth: 0.0042 * g('eyed') + 0.0022 * old + 0.0012 * pro,
+    eyeTilt: 0.0034 * g('eyetilt'),
+    noseFwd: (0.0115 * g('nosef') + 0.0045 * old + 0.002 * pro) * (1 - 0.5 * kid),
+    noseDrop: 0.007 * g('nosed') + 0.0065 * old,
+    noseLen: 0.006 * g('nosel') * (1 - 0.5 * kid) + 0.004 * old - 0.003 * kid,
+    noseW: 1 + 0.17 * g('nosew') + 0.03 * fat + 0.03 * old,
+    bridge: 0.0075 * g('bridge') + 0.002 * pro,
+    cheekBone: 0.0095 * g('cbone') - 0.003 * thin * 0 - 0.0025 * old,
+    cheekH: 0.009 * g('cheekh'),
+    cheek: 0.0045 * g('cfull') + 0.0075 * fat - 0.0045 * old,
+    jawW: 1 + 0.11 * g('jaw') + 0.03 * pro + 0.045 * fat - 0.02 * old,
+    jawAngle: 0.0065 * g('jawa') + 0.002 * pro,
+    chinFwd: 0.011 * g('chinf') + 0.003 * pro - 0.0025 * old,
+    chinDrop: 0.012 * g('chind') + 0.0025 * pro,
+    chinW: 1 + 0.35 * g('chinw'),
+    jowl: Math.max(0, 0.0042 * (0.9 * old + 0.55 * Math.max(0, fat) + 0.35 * g('jowl') + 0.1)) * (1 - kid),
+    lips: 0.0058 * g('lips') - 0.002 * pro - 0.0032 * old,
+    mouthW: 1 + 0.1 * g('mouthw') + 0.015 * pro,
+    ear: 1 + 0.2 * g('ear') + 0.13 * old - 0.06 * kid,
+    earFlare: 0.0075 * g('earfl'),
+    neckT: 1 + 0.12 * g('neck') + 0.055 * pro + 0.085 * fat + 0.04 * old,
+    neckFwd: Math.max(0, 0.0035 + 0.0045 * g('nfwd') + 0.011 * old),
+    asymMid: 0.0016 * g('asm'),
+    asymMouth: 0.0012 * g('asmo'),
+    asymEye: 0.0012 * g('ase'),
+    asymJaw: 0.035 * g('asj'),
   };
 }
 
@@ -75,7 +111,7 @@ export interface HeadFrame {
 }
 
 /** Positions of the face features on this shape, from its landmarks and rings (the same fractions the face painter and the pipeline use). */
-export function headFrame(s: MhShape): HeadFrame {
+export function headFrame(s: Pick<MhShape, 'landmarks' | 'headRings'>): HeadFrame {
   const lm = s.landmarks, D = lm.eyeY - lm.chinY;
   const eyeRing = s.headRings.reduce((b, r) => (Math.abs(r[0] - lm.eyeY) < Math.abs(b[0] - lm.eyeY) ? r : b));
   return {
@@ -105,53 +141,103 @@ function weld(pos: Float32Array, idx: Uint32Array): Float32Array {
 const headW = (L: MhLod, i: number): number => { let t = 0; for (let k = 0; k < 4; k++) if (L.joints[i * 4 + k] === HEAD_BONE) t += L.weights[i * 4 + k]; return t; };
 
 /**
- * Displace the head vertices of a LOD by the person's face traits. The displacement is a function of position only (so vertices
- * duplicated for UV borders stay together), fades out over the neck by the head bone weight, and keeps the crown, ears and back of
- * the skull smooth. Returns the LOD unchanged for `far`.
+ * Displace the head and neck vertices (in `pos`, in place) by the person's face traits. The displacement is a function of position only
+ * (so vertices duplicated for UV borders stay together, and the hi, mid and far levels, which share one surface, agree), fades out
+ * over the neck by the head bone weight, and keeps the crown, ears and back of the skull smooth. Every offset is a smooth gaussian field
+ * round a landmark of the shape, so nothing tears; the features keep their UVs, so the painted eyes, brows and lips travel with them.
+ * Sizes are in metres for a head whose eye-to-chin distance is 0.12 m and scale with the shape.
+ */
+export function morphHead(s: Pick<MhShape, 'landmarks' | 'headRings'>, L: MhLod, pos: Float32Array, tr: FaceTraits): void {
+  const f = headFrame(s), n = pos.length / 3;
+  const D = f.eyeY - f.chinY, H = f.crownY - f.chinY, K = D / 0.1225;      // K scales every absolute size: a child's head is a smaller head
+  const headMidY = f.chinY + H * 0.5, earY = f.chinY + 0.55 * D, neckZ = f.midZ + 0.012 * K;
+  const m = (v: number): number => v * K;
+  for (let i = 0; i < n; i++) {
+    let hw = sstep(0.3, 0.85, headW(L, i));
+    const x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
+    const ax = Math.abs(x), sgn = x < 0 ? -1 : 1;
+    // the neck: its thickness about its own axis (it is on the neck bones, so it needs its own mask), and the head carried forward over it
+    const neckBand = gauss(y - (f.chinY - m(0.055)), m(0.05)) * sstep(m(0.115), m(0.075), ax) * (1 - sstep(f.chinY + 0.02, f.chinY + 0.05, y));
+    if (hw <= 0 && neckBand < 0.01) continue;
+    const front = sstep(f.midZ - m(0.01), f.frontZ + m(0.02), z);             // 1 on the face plane, 0 behind the middle of the head
+    const nv = (y - f.chinY) / D;                                              // 0 at the chin, 1 at the eyes, > 1 the brow and forehead
+    let dx = 0, dy = 0, dz = 0;
+    const side = sgn;                                                          // left / right of the face for asymmetry (x < 0 is the person's left)
+    // ---- head proportions about the middle of the head
+    dx += x * (tr.headW - 1) * sstep(f.chinY - m(0.02), f.chinY + m(0.1), y);
+    dz += (z - f.midZ) * (tr.headL - 1);
+    dy += (y - headMidY) * (tr.headH - 1) * sstep(f.chinY + m(0.02), f.chinY + m(0.12), y);
+    // ---- lower face length: everything below the eye line slides down (or up) with a smooth ramp from the cheeks to the chin; the mouth follows
+    dy += (tr.faceLen - 1) * (y - f.eyeY) * sstep(f.eyeY - m(0.01), f.eyeY - m(0.045), y);
+    // ---- forehead height: the part above the brow stretches
+    dy += (tr.foreheadH - 1) * (y - f.browY) * sstep(f.browY - m(0.01), f.browY + m(0.04), y) * (1 - sstep(f.crownY - m(0.05), f.crownY, y)) * 0.55;
+    // ---- jaw and lower face width: fades in from the eyes down to the angle of the jaw; the two sides differ a little
+    const jawBand = sstep(1.12, 0.12, nv);
+    dx += x * (tr.jawW - 1) * (1 + tr.asymJaw * side) * jawBand;
+    // gonial angle: the corner of the jaw moves out and down (a square jaw) or in and up (a soft one)
+    const gon = gauss(y - (f.chinY + 0.2 * D), m(0.03)) * gauss(ax - m(0.067), m(0.022)) * (1 - front * 0.5);
+    dx += sgn * tr.jawAngle * gon * 0.8; dy -= tr.jawAngle * gon * 0.45;
+    // chin: forward, down (chin length), width
+    const chinG = gauss(y - (f.chinY + m(0.012)), m(0.024)) * gauss(ax, m(0.036) * Math.max(0.6, tr.chinW)) * front;
+    dz -= tr.chinFwd * chinG; dy -= tr.chinDrop * chinG;
+    dx += sgn * (tr.chinW - 1) * 0.004 * chinG;
+    dx += tr.asymMid * gauss(y - (f.chinY + m(0.02)), m(0.03)) * front * 1.0;
+    // jowl: the soft lower cheek sags down and out along the jaw line
+    const jowlG = gauss(y - (f.chinY + 0.26 * D), m(0.024)) * gauss(ax - m(0.05), m(0.022)) * front;
+    dy -= tr.jowl * jowlG * 0.9; dx += sgn * tr.jowl * jowlG * 0.7; dz -= tr.jowl * jowlG * 0.35;
+    // ---- nose: tip forward and drooping, length, wings wider, bridge raised, a little off-centre
+    const tipG = gauss(y - f.noseTipY, m(0.021)) * gauss(ax, m(0.018)) * front;
+    dz -= tr.noseFwd * tipG; dy -= (tr.noseDrop * 0.75 + tr.noseLen) * tipG;
+    const wingG = gauss(y - f.noseBaseY, m(0.018)) * gauss(ax - m(0.02), m(0.014)) * front;
+    dx += sgn * (tr.noseW - 1) * m(0.02) * wingG; dy -= tr.noseLen * 0.5 * wingG;
+    dz -= tr.bridge * gauss(y - (f.eyeY - m(0.012)), m(0.024)) * gauss(ax, m(0.012)) * front;
+    dz -= tr.bridge * 0.35 * gauss(y - (f.eyeY - m(0.035)), m(0.02)) * gauss(ax, m(0.011)) * front;
+    dx += tr.asymMid * (0.8 * gauss(y - f.noseTipY, m(0.035)) + 0.4 * gauss(y - f.eyeY, m(0.03))) * gauss(ax, m(0.03)) * front;
+    // ---- brow ridge and forehead slope
+    dz -= tr.brow * gauss(y - f.browY, m(0.015)) * sstep(m(0.08), m(0.015), ax) * front;
+    const fhr = sstep(f.eyeY + m(0.03), f.eyeY + m(0.09), y);
+    dy += tr.foreheadSlope * 0.5 * fhr * front; dz += tr.foreheadSlope * fhr * front;
+    // ---- eyes: spacing, socket depth, tilt, one a little higher than the other
+    const eyeG = gauss(y - f.eyeY, m(0.034)) * sstep(m(0.075), m(0.02), ax) * front;
+    dx += x * (tr.eyeGap - 1) * eyeG;
+    const sock = gauss(y - f.eyeY, m(0.022)) * gauss(ax - f.eyeX * tr.eyeGap, m(0.026)) * front;
+    dz += tr.eyeDepth * sock;
+    dy += tr.eyeTilt * Math.max(-1.2, Math.min(1.2, (ax - f.eyeX) / m(0.03))) * eyeG + tr.asymEye * side * eyeG;
+    // ---- cheeks: bone, height, fullness or hollow (the hollow sits lower, under the bone)
+    const cbY = f.eyeY - m(0.045) + tr.cheekH;
+    const boneG = gauss(y - cbY, m(0.03)) * gauss(ax - m(0.058), m(0.026)) * front * (1 + tr.asymJaw * side * 0.6);
+    dx += sgn * tr.cheekBone * boneG; dz -= tr.cheekBone * 0.5 * boneG;
+    const fullG = gauss(y - (f.eyeY - m(0.075)), m(0.034)) * gauss(ax - m(0.05), m(0.03)) * front;
+    dx += sgn * tr.cheek * fullG * 0.8; dz -= tr.cheek * 0.8 * fullG;
+    // ---- lips and mouth width: fullness forward, mouth corners
+    const lipG = gauss(y - f.mouthY, m(0.011)) * gauss(ax, m(0.028)) * front;
+    dz -= tr.lips * lipG;
+    dx += x * (tr.mouthW - 1) * gauss(y - f.mouthY, m(0.016)) * sstep(m(0.05), m(0.01), ax) * front;
+    dy += tr.asymMouth * Math.max(-1.5, Math.min(1.5, x / m(0.025))) * gauss(y - f.mouthY, m(0.02)) * front;
+    // ---- ears: the vertices beside the head, scaled about the ear root; flare turns the top out
+    const earG = sstep(m(0.068), m(0.082), ax) * gauss(y - earY, m(0.034)) * (1 - front);
+    dx += sgn * (tr.ear - 1) * m(0.012) * earG; dy += (tr.ear - 1) * (y - earY) * 0.5 * earG;
+    dx += sgn * tr.earFlare * earG * Math.max(0, Math.min(1, (y - earY) / m(0.03) + 0.4));
+    // ---- the head carried forward on the neck (a ramp from the lower neck to the head)
+    dz -= tr.neckFwd * K * sstep(f.chinY - m(0.1), f.chinY + m(0.07), y);
+    const scale = hw > 0 ? hw : 0;
+    let px = x + dx * scale, py = y + dy * scale, pz = z + dz * scale;
+    // ---- neck thickness about its axis
+    if (neckBand > 0.01) {
+      const k = 1 + (tr.neckT - 1) * neckBand;
+      px *= k; pz = neckZ + (pz - neckZ) * k;
+    }
+    pos[i * 3] = px; pos[i * 3 + 1] = py; pos[i * 3 + 2] = pz;
+  }
+}
+
+/**
+ * Displace the head vertices of a LOD by the person's face traits and return the LOD with fresh normals (used by the tests and the sheets;
+ * pedMesh.dressLod calls `morphHead` on its own position buffer so the morph shares one pass with the body type).
  */
 export function faceMorph(s: MhShape, spec: PedSpec, L: MhLod, tr: FaceTraits = faceTraits(spec)): MhLod {
-  const f = headFrame(s), n = L.position.length / 3, pos = new Float32Array(L.position);
-  const D = f.eyeY - f.chinY, H = f.crownY - f.chinY;
-  const headMidY = f.chinY + H * 0.5;
-  for (let i = 0; i < n; i++) {
-    const hw = sstep(0.3, 0.85, headW(L, i));
-    if (hw <= 0) continue;
-    let x = pos[i * 3], y = pos[i * 3 + 1], z = pos[i * 3 + 2];
-    const ax = Math.abs(x), sgn = x < 0 ? -1 : 1;
-    const front = sstep(f.midZ - 0.01, f.frontZ + 0.02, z);                 // 1 on the face plane, 0 behind the middle of the head
-    const nv = (y - f.chinY) / D;                                            // 0 at the chin, 1 at the eyes, > 1 the brow and forehead
-    let dx = 0, dy = 0, dz = 0;
-    // jaw and lower face: the width fades in from the eyes down to the angle of the jaw
-    dx += x * (tr.jawW - 1) * sstep(1.15, 0.15, nv);
-    // chin: forward and down
-    const chinG = gauss(y - (f.chinY + 0.012), 0.022) * gauss(ax, 0.034) * front;
-    dz -= tr.chinFwd * chinG; dy -= tr.chinDrop * chinG;
-    // nose: tip forward and drooping, wings wider, bridge raised
-    const tipG = gauss(y - f.noseTipY, 0.02) * gauss(ax, 0.017) * front;
-    dz -= tr.noseFwd * tipG; dy -= tr.noseDrop * tipG * 0.7;
-    const wingG = gauss(y - f.noseBaseY, 0.017) * gauss(ax - 0.02, 0.014) * front;
-    dx += sgn * (tr.noseW - 1) * 0.02 * wingG;
-    dz -= tr.bridge * gauss(y - (f.eyeY - 0.012), 0.022) * gauss(ax, 0.011) * front;
-    // brow ridge
-    dz -= tr.brow * gauss(y - f.browY, 0.014) * sstep(0.075, 0.015, ax) * front;
-    dy += tr.foreheadSlope * 0.5 * sstep(f.eyeY + 0.03, f.eyeY + 0.09, y) * front;
-    dz += tr.foreheadSlope * sstep(f.eyeY + 0.03, f.eyeY + 0.09, y) * front;
-    // cheeks: bone and fullness, out and a little forward
-    const chG = gauss(y - (f.eyeY - 0.045), 0.03) * gauss(ax - 0.058, 0.026) * front;
-    dx += sgn * tr.cheek * chG; dz -= tr.cheek * 0.5 * chG;
-    // lips
-    dz -= tr.lips * gauss(y - f.mouthY, 0.011) * gauss(ax, 0.026) * front;
-    // eye spacing: scale x about the face centre round the eyes
-    dx += x * (tr.eyeGap - 1) * gauss(y - f.eyeY, 0.032) * sstep(0.06, 0.02, ax) * front;
-    // ears: the vertices beside the head, scaled about the ear root
-    const earG = sstep(0.068, 0.082, ax) * gauss(y - (f.chinY + 0.55 * D), 0.034) * (1 - front);
-    dx += sgn * (tr.ear - 1) * 0.012 * earG; dy += (tr.ear - 1) * (y - (f.chinY + 0.55 * D)) * 0.5 * earG;
-    // overall head proportions, about the middle of the head
-    dx += x * (tr.headW - 1) * sstep(f.chinY - 0.02, f.chinY + 0.1, y);
-    dz += (z - f.midZ) * (tr.headL - 1);
-    dy += (y - headMidY) * (tr.headH - 1) * sstep(f.chinY + 0.02, f.chinY + 0.12, y);
-    pos[i * 3] = x + dx * hw; pos[i * 3 + 1] = y + dy * hw; pos[i * 3 + 2] = z + dz * hw;
-  }
+  const pos = new Float32Array(L.position);
+  morphHead(s, L, pos, tr);
   return { ...L, position: pos, normal: weld(pos, L.index) };
 }
 

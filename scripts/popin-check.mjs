@@ -92,7 +92,7 @@ try {
   const page = await browser.newPage({ viewport: { width: opt.width, height: opt.height } });
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text().slice(0, 300)); });
   page.on('pageerror', (e) => errors.push(String(e).slice(0, 300)));
-  await page.goto(`${base}/?q=${opt.q}&perf=0`, { waitUntil: 'load', timeout: 120_000 });
+  await page.goto(`${base}/?map=grid&q=${opt.q}&perf=0`, { waitUntil: 'load', timeout: 120_000 });
   await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 180_000 });
   await page.mouse.click(opt.width / 2, opt.height / 2);
   await page.waitForTimeout(800);

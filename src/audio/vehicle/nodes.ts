@@ -196,7 +196,8 @@ export class EngineNodes {
     aim(this.lopeD.gain, mix.lope, t, 0.08);
     aim(this.lp.frequency, mix.lpHz, t, 0.05, 0.0015);
     aim(this.ex.gain, mix.ex, t, 0.08);
-    this.lim.gain.setTargetAtTime(mix.lim, t, f.miss ? 0.008 : 0.01);
+    aim(this.lim.gain, mix.lim, t, f.miss ? 0.008 : 0.01, 0.004);
+    aim(this.acc.gain, 1, t, 0.04); // after retire() zeroed it, the next frame of a running engine brings the accessories back
     aim(this.out.gain, mix.out, t, 0.04);
     aim(this.bp.frequency, 350 + 2300 * rn, t, 0.08, 0.0015);
     aim(this.gAir.gain, mix.air * el, t, 0.08);
@@ -274,6 +275,10 @@ export class CheapVoice {
   /** a slot handed to a new car stays muted until this time so the old note fades before the new one starts (no pitch jump at full level) */
   private holdUntil = 0;
   private fresh = false;
+  /** seconds since the car last moved; a voice is released a few seconds after its car stops (parked and waiting cars are silent) */
+  still = 0;
+  /** throttle as the voice hears it: the caller's value flips between two numbers at walking pace, which made a creeping car hunt between two revs */
+  th = 0;
   constructor(ctx: BaseAudioContext, dest: AudioNode, t0 = ctx.currentTime) {
     this.g = gain(ctx, 0);
     this.pan = typeof ctx.createStereoPanner === 'function' ? ctx.createStereoPanner() : null;
@@ -284,7 +289,7 @@ export class CheapVoice {
     this.o.start(t0);
   }
   assign(id: string, type: string, rand?: () => number, t = 0): void {
-    this.id = id;
+    this.id = id; this.still = 0; this.th = 0.2;
     this.fresh = true; this.holdUntil = t + 0.14;
     this.sim = new EngineSim(engineVoiceFor(type), rand);
     this.sim.startNow();
@@ -311,18 +316,38 @@ export class CheapVoice {
 export interface TrafficCar { id: string; type: string; x: number; z: number; vx: number; vz: number; speed: number; throttle: number }
 export interface Listener { x: number; z: number; vx?: number; vz?: number; /** right-hand unit vector for panning */ rx?: number; rz?: number }
 
-/** The nearest few AI cars get an engine voice; slots are pooled so nothing is created or destroyed per frame. */
+/** A car slower than this (m/s) is not driving: parked kerb cars and cars waiting in a queue have no engine voice. */
+export const TRAFFIC_MIN_SPEED = 0.5;
+/** A voice outlives its car's stop by this long (s), so a car braking to a light does not cut out under you. */
+export const TRAFFIC_STILL_GRACE = 3;
+
+/**
+ * The nearest few MOVING AI cars get an engine voice; slots are pooled so nothing is created or destroyed per frame.
+ * AUDIOFIX: cars that are not moving never take a slot. `main.ts` hands over every nearby car, parked ones included, and picking by
+ * distance alone gave the four idling voices to the kerb cars next to you (a drone that never went away) and starved the moving ones.
+ */
 export class TrafficEngines {
   private readonly slots: CheapVoice[] = [];
+  private on = true;
   constructor(private readonly ctx: BaseAudioContext, private readonly dest: AudioNode, readonly cap = 4, private readonly maxDist = 70, private readonly rand: () => number = Math.random) {}
   get active(): number { return this.slots.filter((s) => s.id !== null).length; }
   get created(): number { return this.slots.length; }
   ids(): string[] { return this.slots.flatMap((s) => (s.id ? [s.id] : [])); }
+  /** False (Engine sound off): no voice is created, and any that exist are released. */
+  setEnabled(on: boolean): void { this.on = on; }
+  get enabled(): boolean { return this.on; }
 
   update(dt: number, ls: Listener, cars: TrafficCar[], t = this.ctx.currentTime): void {
     const byId = new Map<string, { c: TrafficCar; d: number }>();
-    for (const c of cars) byId.set(c.id, { c, d: Math.hypot(c.x - ls.x, c.z - ls.z) });
-    const want = pickNearest(this.ids(), [...byId].map(([id, e]) => ({ id, d: e.d })), this.cap, this.maxDist);
+    if (this.on) for (const c of cars) byId.set(c.id, { c, d: Math.hypot(c.x - ls.x, c.z - ls.z) });
+    const have0 = new Set(this.ids());
+    for (const s of this.slots) {
+      if (!s.id) continue;
+      const e = byId.get(s.id);
+      if (e && Math.abs(e.c.speed) >= TRAFFIC_MIN_SPEED) s.still = 0; else s.still += dt;
+    }
+    const cands = [...byId].filter(([id, e]) => Math.abs(e.c.speed) >= TRAFFIC_MIN_SPEED || (have0.has(id) && this.slots.find((s) => s.id === id)!.still < TRAFFIC_STILL_GRACE)).map(([id, e]) => ({ id, d: e.d }));
+    const want = pickNearest(this.ids(), cands, this.cap, this.maxDist);
     const wantSet = new Set(want);
     for (const s of this.slots) if (s.id && !wantSet.has(s.id)) s.release(t);
     const have = new Set(this.ids());
@@ -332,10 +357,12 @@ export class TrafficEngines {
       if (!s && this.slots.length < this.cap) { s = new CheapVoice(this.ctx, this.dest, t); this.slots.push(s); }
       if (s) { s.assign(id, byId.get(id)!.c.type, this.rand, t); have.add(id); }
     }
+    const k = 1 - Math.exp(-Math.max(0, dt) / 0.35);
     for (const s of this.slots) {
       if (!s.id || !s.sim) continue;
       const e = byId.get(s.id)!;
-      const fr = s.sim.update(dt, e.c.speed, e.c.throttle);
+      s.th += (Math.min(1, Math.max(0, e.c.throttle)) - s.th) * k;
+      const fr = s.sim.update(dt, e.c.speed, s.th);
       const dx = e.c.x - ls.x, dz = e.c.z - ls.z, d = Math.max(0.1, e.d);
       const closing = -(((e.c.vx - (ls.vx ?? 0)) * dx + (e.c.vz - (ls.vz ?? 0)) * dz) / d);
       s.apply(t, fr, s.sim.v, distanceGain(e.d, this.maxDist), dopplerRatio(closing), ((dx * (ls.rx ?? 0) + dz * (ls.rz ?? 0)) / d) * 0.9);

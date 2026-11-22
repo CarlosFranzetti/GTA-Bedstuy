@@ -69,7 +69,7 @@ const categorize = (p) => { for (const [n, re] of CATS) if (re.test(p)) return n
       const page = await (await browser.newContext({ viewport: { width: 960, height: 540 } })).newPage();
       page.on('pageerror', (e) => errors.push(String(e).slice(0, 300)));
       await page.route('**/ra-api/**', (r) => r.abort());
-      const url = `http://localhost:${port}/?perf=0&q=${q}` + (mapName === 'real' ? '&map=real' : '');
+      const url = `http://localhost:${port}/?perf=0&q=${q}` + (mapName === 'real' ? '&map=real' : '&map=grid');
       await page.goto(url, { waitUntil: 'domcontentloaded' });
       await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 540000 });
       await page.evaluate(() => { const d = window.__gtaDebug; d.renderer.domElement.style.visibility = 'hidden'; d.stopLoop(); if (window.__gtaChunkCuller) { window.__gtaChunkCuller.buildsPerUpdate = 1e9; window.__gtaChunkCuller.streamBudget = 1e9; } });

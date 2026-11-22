@@ -38,6 +38,12 @@ export interface CamFrame {
   cut: boolean;
   /** true when the camera object itself reports a one-frame snap */
   camCut: boolean;
+  /** the player moved the look controls this frame */
+  mouse: boolean;
+  /** the look-back (or reversing) swing is in progress: a deliberate fast orbit round the car */
+  lookBack: boolean;
+  /** the lens is shaking (an impact: deliberate movement) */
+  shake: number;
 }
 
 export interface RigOpts {
@@ -53,7 +59,8 @@ export class CamRig {
   readonly events = new EventBus();
   readonly sim = new Sim();
   readonly input = new KeyInput();
-  readonly cam = new ThirdPersonCamera();
+  /** the remembered views live in localStorage: every rig starts from the defaults */
+  readonly cam = (() => { try { localStorage.clear(); } catch { /* none */ } return new ThirdPersonCamera(); })();
   readonly player: Player;
   readonly vehicles: Vehicle[] = [];
   readonly frames: CamFrame[] = [];
@@ -68,6 +75,7 @@ export class CamRig {
   private hitched = false;
   private tmp = new THREE.Vector3();
   private nextCut = false;
+  private mouseNow = false;
   alpha = 1;
   /** how many deliberate cuts the script has declared for the next frame */
   constructor(readonly opts: RigOpts) {
@@ -124,6 +132,7 @@ export class CamRig {
     if (v) { this.poses.blend(v.body, this.alpha, this.blended); p.object3D.position.x = this.blended.x; p.object3D.position.z = this.blended.z; }
     else p.applyInterpolated(this.alpha), this.poses.blend(p.body, this.alpha, this.blended);
     this.camTarget.x = this.blended.x; this.camTarget.z = this.blended.z; this.camHeading = this.blended.h;
+    this.mouseNow = this.input.mouseDX !== 0 || this.input.mouseDY !== 0;
     this.ctx.vehicle = v as Vehicle | null; this.ctx.ignoreId = p.enteringId;
     this.cam.update(dt, this.camTarget, this.camHeading, p.inVehicle ? 'vehicle' : 'foot', this.input as never, this.ctx as never);
     this.input.mouseDX = 0; this.input.mouseDY = 0;
@@ -140,7 +149,7 @@ export class CamRig {
     const dir = this.tmp.clone();
     const e = c.matrixWorld.elements;
     const look = (this.cam as unknown as { look: THREE.Vector3 }).look;
-    const veh = p.vehicle ?? (p.isEntering ? this.vehicles.find((x) => x.id === p.enteringId) ?? null : null) ?? this.lastCar();
+    const veh = p.vehicle ?? (p.isEntering ? this.vehicles.find((x) => x.id === p.enteringId) ?? null : null) ?? this.lastCar() ?? this.vehicles[0] ?? null;
     this.frames.push({
       t: this.wall, dt, steps, mode: p.inVehicle ? 'vehicle' : 'foot', view: this.cam.viewId, entering: p.isEntering, inVehicle: p.inVehicle,
       px: c.position.x, py: c.position.y, pz: c.position.z, lx: look.x, ly: look.y, lz: look.z, dx: dir.x, dy: dir.y, dz: dir.z,
@@ -149,7 +158,7 @@ export class CamRig {
       bx: this.camTarget.x, bz: this.camTarget.z, bh: this.camHeading,
       cx: veh ? veh.body.pos.x : 0, cz: veh ? veh.body.pos.z : 0, ch: veh ? veh.body.heading : 0,
       cl: veh ? veh.spec.length : 0, cw: veh ? veh.spec.width : 0, chh: veh ? veh.spec.height : 0, hasCar: !!veh,
-      cut: this.nextCut, camCut: (this.cam as unknown as { lastSnap?: boolean }).lastSnap === true,
+      cut: this.nextCut, camCut: (this.cam as unknown as { snappedThisFrame?: boolean }).snappedThisFrame === true, mouse: this.mouseNow, lookBack: this.cam.lookBackAmount > 0.002 && this.cam.lookBackAmount < 0.998, shake: this.cam.shakeAmount,
     });
   }
   private lastCarRef: Vehicle | null = null;
@@ -205,6 +214,12 @@ export function carBoxContains(f: CamFrame, x: number, y: number, z: number, pad
   return Math.abs(along) < f.cl / 2 - pad && Math.abs(across) < f.cw / 2 - pad && y < f.chh - pad && y > 0.1;
 }
 
+/** What the camera follows: the car while driving, the player otherwise. */
+export function subject(f: CamFrame): { x: number; z: number } {
+  if (f.mode === 'vehicle' && f.hasCar) return { x: f.cx, z: f.cz };
+  return { x: f.bx, z: f.bz };
+}
+
 /** A frame is a cut frame when the host declared it or the camera reported a snap. */
 export function analyse(fr: CamFrame[], opts: { from?: number } = {}): Stats {
   const s: Stats = { relStep: 0, relStepAt: 0, turnRate: 0, turnRateAt: 0, fovRate: 0, nan: 0, minAboveGround: Infinity, minAboveGroundAt: 0, insideCar: 0, insideCarAt: -1, lookOff: 0, upStep: 0, yawStep: 0 };
@@ -214,13 +229,21 @@ export function analyse(fr: CamFrame[], opts: { from?: number } = {}): Stats {
     for (const k of ['px', 'py', 'pz', 'lx', 'ly', 'lz', 'dx', 'dy', 'dz', 'fov', 'yaw', 'ux', 'uy', 'uz'] as const) if (!Number.isFinite(f[k])) s.nan++;
     const ag = f.py - groundAt(f.px, f.pz);
     if (ag < s.minAboveGround) { s.minAboveGround = ag; s.minAboveGroundAt = f.t; }
-    s.lookOff = Math.max(s.lookOff, Math.hypot(f.lx - f.bx, f.lz - f.bz));
+    if (f.view !== 'hood' && f.view !== 'first' && f.first < 0.01) s.lookOff = Math.max(s.lookOff, Math.hypot(f.lx - f.bx, f.lz - f.bz));
     if (f.hasCar && f.inVehicle && f.first < 0.5 && f.view !== 'hood' && carBoxContains(f, f.px, f.py, f.pz)) { s.insideCar++; if (s.insideCarAt < 0) s.insideCarAt = f.t; }
     if (i === 0 || i < from) continue;
     const a = fr[i - 1];
-    if (f.cut || f.camCut || a.cut && false) continue;
-    const rel = Math.hypot((f.px - f.bx) - (a.px - a.bx), (f.py - a.py), (f.pz - f.bz) - (a.pz - a.bz));
+    if (f.cut || f.camCut || f.shake > 0 || f.mouse || f.lookBack || a.lookBack) continue;
+    // the subject is the car while one is in use or beside the player, else the player (the body jumps from the door to the car centre on getting in)
+    // The reference is whichever of the player's body and the car moved less this frame: the followed body jumps from the door to the
+    // car centre when the mode flips and the render pose settles a frame after an exit, and neither is a jump of the lens.
+    const bdx = f.bx - a.bx, bdz = f.bz - a.bz, cdx = f.cx - a.cx, cdz = f.cz - a.cz;
+    let rdx: number, rdz: number;
+    if (a.mode !== f.mode && i >= 2) { rdx = a.bx - fr[i - 2].bx; rdz = a.bz - fr[i - 2].bz; } // the followed body jumps on the flip: carry on at the speed it had
+    else { const useCar = f.hasCar && Math.hypot(cdx, cdz) < Math.hypot(bdx, bdz); rdx = useCar ? cdx : bdx; rdz = useCar ? cdz : bdz; }
+    const rel = Math.hypot((f.px - a.px) - rdx, f.py - a.py, (f.pz - a.pz) - rdz);
     if (rel > s.relStep) { s.relStep = rel; s.relStepAt = f.t; }
+    if (f.mouse) continue;
     const ang = deg(Math.acos(Math.max(-1, Math.min(1, a.dx * f.dx + a.dy * f.dy + a.dz * f.dz))));
     const dt = Math.max(f.dt, 1e-4);
     if (ang / dt > s.turnRate) { s.turnRate = ang / dt; s.turnRateAt = f.t; }

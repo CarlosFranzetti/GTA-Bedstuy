@@ -20,12 +20,11 @@ export class RecParam {
     this.ctx.writes++;
     this.events.push(e);
     this.events.sort((a, b) => a.t - b.t);
-    // a browser drops events that are behind the clock, keeping the last one as the starting point
-    const now = this.ctx.currentTime;
-    while (this.events.length > 1 && this.events[1].t <= now) this.events.shift();
     this.peak = Math.max(this.peak, this.events.length);
     this.value = e.v;
   }
+  /** the audio thread drops events that are behind the clock, keeping the last one as the starting point; a suspended context does not run it */
+  prune(now: number): void { while (this.events.length > 1 && this.events[1].t <= now) this.events.shift(); }
   setValueAtTime(v: number, t: number) { this.add({ kind: 'set', v, t }); return this; }
   linearRampToValueAtTime(v: number, t: number) { this.add({ kind: 'lin', v, t }); return this; }
   exponentialRampToValueAtTime(v: number, t: number) { this.add({ kind: 'exp', v, t }); return this; }
@@ -67,14 +66,18 @@ export class RecCtx {
   createWaveShaper() { return this.mk('shaper'); }
   createDynamicsCompressor() { const n = this.mk('comp'); (n as unknown as Record<string, RecParam>).threshold = new RecParam(this, 'th'); (n as unknown as Record<string, RecParam>).knee = new RecParam(this, 'kn'); (n as unknown as Record<string, RecParam>).ratio = new RecParam(this, 'ra'); (n as unknown as Record<string, RecParam>).attack = new RecParam(this, 'at'); (n as unknown as Record<string, RecParam>).release = new RecParam(this, 're'); return n; }
   createPeriodicWave() { return {}; }
-  createBuffer(_c: number, len: number) { const d = new Float32Array(len); return { length: len, getChannelData: () => d }; }
+  createBuffer(_c: number, len: number, _rate?: number) { const d = new Float32Array(len); return { length: len, getChannelData: () => d }; }
   suspend() { this.suspends++; this.pending.push('suspended'); return Promise.resolve(); }
   resume() { this.resumes++; this.pending.push('running'); return Promise.resolve(); }
   close() { this.state = 'closed'; return Promise.resolve(); }
   /** the audio thread processes the queued suspend and resume requests, in order */
   settle(): void { for (const s of this.pending.splice(0)) this.state = s; }
   /** a clock tick: only a running context advances */
-  advance(dt: number): void { if (this.state === 'running') this.currentTime += dt; }
+  advance(dt: number): void {
+    if (this.state !== 'running') return;
+    this.currentTime += dt;
+    for (const n of this.nodes) for (const p of [n.gain, n.frequency, n.detune, n.Q, n.pan]) if (p.events.length > 1) p.prune(this.currentTime);
+  }
   get liveSources(): RecNode[] { return this.nodes.filter((n) => (n.kind === 'osc' || n.kind === 'src') && n.started && !n.stopped); }
   get maxPeak(): number { return Math.max(0, ...this.nodes.flatMap((n) => [n.gain.peak, n.frequency.peak, n.detune.peak, n.Q.peak, n.pan.peak])); }
 }

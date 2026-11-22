@@ -11,8 +11,10 @@ import { MaterialLibrary } from '@/textures/MaterialLibrary';
 import { buildPerson as buildPedModel, loadPeople } from '@/entities/models/pedMesh';
 import { PED_SPECS, CIVILIAN_COUNT } from '@/textures/painters/ped';
 import { setPeopleMode } from '@/textures/painters/pedMode';
+import { faceDebug } from '@/entities/models/pedHead';
 await loadPeople();
 const q = new URLSearchParams(location.search);
+faceDebug.morph = q.get('morph') !== '0'; faceDebug.stress = Number(q.get('stress') ?? 1);
 setPeopleMode('skin');
 const W = Number(q.get('w') ?? 1500), H = Number(q.get('h') ?? 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -34,13 +36,13 @@ const models = variants.map((v) => { const m = buildPedModel(materials, new Rng(
 const buildMs = performance.now() - t0;
 const info = { buildMsPerPerson: +(buildMs / variants.length).toFixed(1), people: variants.length, ids: variants.map((v) => PED_SPECS[v].id), tris: models.map((m) => m.triangles) };
 const rows = Math.ceil(variants.length / cols), tw = Math.floor(W / cols), th = Math.floor(H / rows);
-const dist = Number(q.get('d') ?? 0.85), fov = Number(q.get('fov') ?? 22), full = view === 'full';
+const dist = Number(q.get('d') ?? 0.85), fov = Number(q.get('fov') ?? 24), full = view === 'full';
 const cam = new THREE.PerspectiveCamera(fov, tw / th, 0.05, 50);
 models.forEach((m, i) => {
   m.group.visible = true; m.group.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(m.group); const top = box.max.y;
   const cx = (box.min.x + box.max.x) / 2;
-  const hp = new THREE.Vector3(); m.head.getWorldPosition(hp); const ly = full ? top / 2 : hp.y + Number(q.get('hy') ?? 0.085);
+  const hp = new THREE.Vector3(); m.head.getWorldPosition(hp); const ly = full ? top / 2 : hp.y + Number(q.get('hy') ?? 0.045);
   cam.position.set(m.group.position.x, ly + (full ? 0 : 0.02), dist); cam.lookAt(0, ly, 0); cam.aspect = tw / th; cam.updateProjectionMatrix();
   const c = i % cols, r = Math.floor(i / cols);
   renderer.setViewport(c * tw, H - (r + 1) * th, tw, th); renderer.setScissor(c * tw, H - (r + 1) * th, tw, th);

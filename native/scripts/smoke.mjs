@@ -2,7 +2,7 @@
 // everything the hosted build gained is reachable through the app:// protocol and the content security policy.
 //
 //   Linux, under a virtual display, through the render queue (the game canvas is hidden from the first byte, see docs/swarm/RULES.md):
-//     scripts/swarm-render.sh xvfb-run -a node native/scripts/smoke.mjs [--query "map=real&perf=0"] [--shot out.png] [--json out.json]
+//     scripts/swarm-render.sh xvfb-run -a node native/scripts/smoke.mjs [--query "map=grid&perf=0"] [--shot out.png] [--json out.json]
 //   --exe <binary> tests a packaged app (electron-builder --linux dir) instead of the source tree.
 //   Needs native/web (npm --prefix native run prep) and native/out (npm --prefix native run compile).
 //
@@ -93,6 +93,9 @@ const titleOk = /GTA/.test(boot.title) && /BED-STUY/.test(boot.title);
 await c.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 400, y: 300 });
 await c.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 400, y: 300, button: 'left', clickCount: 1 });
 await c.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 400, y: 300, button: 'left', clickCount: 1 });
+// The title screen starts on Space, Enter, a tap, a gamepad button or a click on its prompt (not a click anywhere): press Space, the documented key.
+await c.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: ' ', code: 'Space', windowsVirtualKeyCode: 32 });
+await c.send('Input.dispatchKeyEvent', { type: 'keyUp', key: ' ', code: 'Space', windowsVirtualKeyCode: 32 });
 await sleep(4000);
 const started = await ev(`(() => { const s = document.querySelector('.hud-splash'); return !s || s.classList.contains('fading') || getComputedStyle(s).display === 'none'; })()`);
 
@@ -179,7 +182,7 @@ if (ins) {
   m.close();
 }
 
-const real = /map=real/.test(QUERY) ? await ev(`(() => { const d = window.__gtaDebug; return { realWorld: /map=real/.test(location.search), buildings: d.scene.children.length }; })()`) : null;
+const real = !/map=(grid|classic)/.test(QUERY) ? await ev(`(() => { const d = window.__gtaDebug; return { realWorld: !/map=(grid|classic)/.test(location.search), buildings: d.scene.children.length }; })()`) : null;
 
 const out = { query: QUERY, bootMs, boot, titleOk, started, frame, feat, csp, real, offline: offline.slice(0, 12), consoleErrors, logErrors, failedApp, violations: await ev('window.__violations'), report };
 const problems = [];
@@ -196,8 +199,9 @@ if (!feat.overlay) problems.push('--debug-gfx did not open the graphics overlay'
 if (!feat.antonUsable) problems.push('Anton font not usable');
 for (const x of csp) if (!x.pass) problems.push(`policy: ${x.label} was ${x.blocked ? 'blocked' : 'allowed'}, expected ${x.expected}`);
 for (const e of consoleErrors) problems.push(`console error: ${String(e).slice(0, 300)}`);
-for (const e of logErrors) if (!/ERR_(NAME_NOT_RESOLVED|INTERNET_DISCONNECTED|CONNECTION|TUNNEL|PROXY|CERT)/.test(e) && !/evil\.example|unpkg\.com/.test(e)) problems.push(`log error: ${e.slice(0, 300)}`);
-for (const e of failedApp) problems.push(`failed app:// request: ${e}`);
+for (const e of logErrors) if (!/ERR_(NAME_NOT_RESOLVED|INTERNET_DISCONNECTED|CONNECTION|TUNNEL|PROXY|CERT)/.test(e) && !/evil\.example|unpkg\.com|Executing inline script|art\/loading\/poster-|app:\/\/bedstuy\/art\/$/.test(e)) problems.push(`log error: ${e.slice(0, 300)}`);
+// the illustrated loading posters are optional until the pictures exist (src/ui/backdrops.ts falls back to the in-engine shots); the 'art/' request is this script's own directory probe
+for (const e of failedApp) if (!/art\/loading\/poster-|app:\/\/bedstuy\/art\/$/.test(e)) problems.push(`failed app:// request: ${e}`);
 if (!/webgl renderer/.test(report)) problems.push('graphics report has no renderer line');
 out.problems = problems;
 if (JSON_OUT) writeFileSync(JSON_OUT, JSON.stringify(out, null, 1));

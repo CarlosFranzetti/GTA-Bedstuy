@@ -30,28 +30,35 @@ export const treeLeavesPainter: Painter = (ctx, w, h, rng, variant) => {
     ctx.lineTo(tx, ty);
     ctx.stroke();
   };
-  // foliage as clustered masses with a broken outline: 9 to 12 lobes (each a few dozen small leaves, darker inside, lit on top),
-  // thin gaps between them, and loose single leaves around the rim, so the alpha cut reads as leafy, not as a disc or a cube
-  const lobes = 9 + Math.floor(rng.next() * 4);
+  // foliage as one dense mass (TREES, 22 Nov): a solid dark core (no pinholes to see sky through), 14 to 17 lobes of small leaves
+  // packed over it, darker inside and lit toward the rim and the top, and loose leaves along the broken outline
+  ctx.fillStyle = hsl(hue + 4, 28, 15);
+  for (let i = 0; i < 16; i++) {
+    const a = rng.range(0, Math.PI * 2), d = Math.sqrt(rng.next()) * R * 0.5;
+    ctx.beginPath();
+    ctx.ellipse(cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.9, R * rng.range(0.26, 0.4), R * rng.range(0.22, 0.34), rng.range(0, 3), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const lobes = 14 + Math.floor(rng.next() * 4);
   for (let lb = 0; lb < lobes; lb++) {
-    const la = rng.range(0, Math.PI * 2), ld = Math.sqrt(rng.next()) * R * 0.62;
+    const la = rng.range(0, Math.PI * 2), ld = Math.sqrt(rng.next()) * R * 0.66;
     const lx = cx + Math.cos(la) * ld, ly = cy + Math.sin(la) * ld * 0.9;
-    const lr = rng.range(0.2, 0.34) * R;
-    const n = 70;
+    const lr = rng.range(0.2, 0.32) * R;
+    const n = 64;
     for (let i = 0; i < n; i++) {
       const a = rng.range(0, Math.PI * 2), d = Math.sqrt(rng.next()) * lr;
       const x = lx + Math.cos(a) * d, y = ly + Math.sin(a) * d * 0.85;
       const top = 1 - y / h;
       const inner = 1 - d / lr; // darker toward the lobe's core, brighter at its lit rim
       const l = 19 + top * 26 + (1 - inner) * 8 + rng.range(-3, 5);
-      leaf(x, y, rng.range(8, 15), rng.range(0, Math.PI * 2), hsl(hue + rng.range(-12, 12), rng.range(24, 40), l), hsl(hue + 6, 30, l + 10));
+      leaf(x, y, rng.range(9, 16), rng.range(0, Math.PI * 2), hsl(hue + rng.range(-12, 12), rng.range(24, 40), l), hsl(hue + 6, 30, l + 10));
     }
   }
-  for (let i = 0; i < 40; i++) { // loose leaves on the rim
-    const a = rng.range(0, Math.PI * 2), d = R * rng.range(0.7, 1.02);
+  for (let i = 0; i < 36; i++) { // loose leaves on the rim
+    const a = rng.range(0, Math.PI * 2), d = R * rng.range(0.72, 1.0);
     const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d * 0.9;
     const l = 28 + (1 - y / h) * 22 + rng.range(-3, 5);
-    leaf(x, y, rng.range(8, 14), rng.range(0, Math.PI * 2), hsl(hue + rng.range(-12, 12), rng.range(26, 42), l), hsl(hue + 6, 30, l + 10));
+    leaf(x, y, rng.range(9, 14), rng.range(0, Math.PI * 2), hsl(hue + rng.range(-12, 12), rng.range(26, 42), l), hsl(hue + 6, 30, l + 10));
   }
 };
 

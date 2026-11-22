@@ -21,6 +21,7 @@ import { createGltfLoader, warnOnce } from './gltf/loader';
 import type { HiTile } from '@/textures/painters/pedHi';
 import { SK_RECTS, bakeSkin } from '@/textures/painters/pedSkinPaint';
 import { releasesCanvases, textureTier } from '@/textures/texTier';
+import { faceDebug, faceTraits, morphHead } from './pedHead';
 import { PED_SPECS, pedVariantIndex, shortsLen, skirtShape, type PedSpec, type PxRect } from '@/textures/painters/ped';
 import { pickWardrobeVariant } from '@/textures/painters/pedWardrobe';
 import { FAR_DIST, MID_DIST, PedLod, buildPedModel as buildProcedural, pedPhone, type PedDetail } from './pedBodyHi';
@@ -34,7 +35,7 @@ import { pickPedVariant, type PedModel, type PedOptions } from './pedBody';
 
 type Ring = [number, number, number, number, number?]; // y, rx, cz, rz, cx (half extents round the centre)
 /** `normal` = smooth normals of the low-poly mesh itself; `normal0` = the normals of the full-resolution MakeHuman surface it was reduced from; `dw` / `dm` = MakeHuman's weight and muscle shapes as position deltas (normalised by deltaScale, hi LOD only) */
-export interface MhLod { position: Float32Array; normal: Float32Array; uv: Float32Array; joints: Uint16Array; weights: Float32Array; index: Uint32Array; normal0?: Float32Array; dw?: Float32Array; dm?: Float32Array; /** set when the trouser legs were cut and replaced by tubes (pedLegs.ts): where the shoes stand */ tube?: LegTube }
+export interface MhLod { position: Float32Array; normal: Float32Array; uv: Float32Array; joints: Uint16Array; weights: Float32Array; index: Uint32Array; normal0?: Float32Array; dw?: Float32Array; dm?: Float32Array; /** set when the trouser legs were cut and replaced by tubes (pedLegs.ts): where the shoes stand */ tube?: LegTube; /** FACES2: how far the face morph moved each vertex (the skin painter reads the unmorphed position so painted features travel with the surface) */ faceDelta?: Float32Array }
 export interface MhShape {
   name: string;
   height: number;
@@ -379,7 +380,14 @@ export function topHemY(s: MhShape, spec: PedSpec): number {
  * One continuous body: first the body type (shoulders, chest, belly, hips, limb thickness) then the clothes as a smooth offset along the
  * normals, weighted by the skin weights so the neck, hands and bare legs stay bare and nothing can gap. Returns new positions and normals.
  */
+/** FACES2: dressLod hands the face morph's displacement to its wrapper here (the LOD objects are built in several returns) */
+let lastFaceDelta: Float32Array | undefined;
 export function dressLod(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): MhLod {
+  lastFaceDelta = undefined;
+  const r = dressLodBody(s, spec, L, dress);
+  return lastFaceDelta ? { ...r, faceDelta: lastFaceDelta } : r;
+}
+function dressLodBody(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): MhLod {
   const bt = bodyTypeOf(spec), lm = s.landmarks, R = s.rig;
   const shY = R.shoulderL[1], elY = R.elbowL[1], wrY = R.wristL[1], knY = R.kneeL[1], anY = lm.ankleY, hemY = lm.hemY;
   const n = L.position.length / 3, pos = new Float32Array(L.position);
@@ -444,6 +452,7 @@ export function dressLod(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): M
     }
     pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
   }
+  if (faceDebug.morph) { const pre = Float32Array.from(pos); morphHead(s, L, pos, faceTraits(spec)); for (let i = 0; i < pos.length; i++) pre[i] = pos[i] - pre[i]; lastFaceDelta = pre; }       // FACES2: a face of their own (pedHead.ts); the same parameters at every level
   flattenTorso(L, pos, hipY + 0.02, shY + 0.01, cz0, 1);
   let normal = shadeNormals(L, pos);
   const covered = isCoveredLeg(spec.bottom.kind), detail: LegDetail = L === s.lods.hi ? 'hi' : L === s.lods.mid ? 'mid' : L === s.lods.far ? 'far' : L.index.length / 3 > 2200 ? 'hi' : L.index.length / 3 > 700 ? 'mid' : 'far';
@@ -742,7 +751,7 @@ function skinMaterial(materials: IMaterialLibrary, s: MhShape, variant: number, 
   if (typeof document !== 'undefined') {
     try {
       const L = dressedFor(s, variant, 'hi');
-      const canvas = bakeSkin({ position: L.position, normal: L.normal, uv: L.uv, index: L.index, joints: L.joints, weights: L.weights, landmarks: s.landmarks, rig: peopleRig(s, spec), headRings: s.headRings as number[][], topHem: topHemY(s, spec), spec }, phone || textureTier() === 'phone' ? 256 : 512);
+      const canvas = bakeSkin({ position: L.faceDelta ? L.position.map((v, i) => v - L.faceDelta![i]) : L.position, normal: L.normal, uv: L.uv, index: L.index, joints: L.joints, weights: L.weights, landmarks: s.landmarks, rig: peopleRig(s, spec), headRings: s.headRings as number[][], topHem: topHemY(s, spec), spec }, phone || textureTier() === 'phone' ? 256 : 512);
       const tex = new THREE.CanvasTexture(canvas);
       tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; tex.name = `ped:${spec.id}`;
       // phone: the baked canvas is only needed for the upload; free its backing store right after (no per-person canvas kept alive)

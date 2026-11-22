@@ -63,7 +63,7 @@ try {
     const errors = [];
     page.on('pageerror', (e) => errors.push(String(e)));
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-    await page.goto(`http://localhost:${PORT}/?q=${q}`, { waitUntil: 'load', timeout: 90_000 });
+    await page.goto(`http://localhost:${PORT}/?map=grid&q=${q}`, { waitUntil: 'load', timeout: 90_000 });
     await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 120_000 });
     await page.evaluate(async () => { await window.__gtaDebug.packsReady; const d = window.__gtaDebug; d.dayNight.hoursPerSecond = 0; const o = document.getElementById('overlay'); if (o) o.style.display = 'none'; });
     const t0 = Date.now();

@@ -23,7 +23,7 @@ try {
   const page = await browser.newPage({ viewport: { width: W, height: H } });
   await page.route((u) => !/^(http:\/\/localhost|data:|blob:)/.test(u.href), (r) => r.abort()); // no CDN speech models etc.: they cost memory
   page.on('pageerror', (e) => console.error(String(e).slice(0, 300)));
-  await page.goto(`${base}/?q=${arg('--q', 'medium')}&perf=0`, { waitUntil: 'load', timeout: 600_000 });
+  await page.goto(`${base}/?map=grid&q=${arg('--q', 'medium')}&perf=0`, { waitUntil: 'load', timeout: 600_000 });
   await page.waitForFunction(() => window.__gtaReady === true, null, { timeout: 1_200_000 });
   console.log('booted', Date.now() - T0, 'ms');
   await page.evaluate(() => { window.__gtaDebug.renderer.domElement.style.visibility = 'hidden'; });
