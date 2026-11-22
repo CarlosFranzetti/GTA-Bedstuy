@@ -3530,3 +3530,9 @@ Starting the mini tutorial. New files only under src/ui/tutorial/ and tests/unit
 
 ### 2026-11-22T16:04:01Z · Marisol Quade (TUTORIAL)
 Engine, steps, card, hints and store written under src/ui/tutorial/. Input.ts gained pressCount (small edit) and Menu.ts a gameRows option. Tests next, then the main.ts diff and a real-game run. Notes: docs/swarm/tasks/TUTORIAL.md
+
+### 2026-11-22T16:38:24Z · Odile Brandt (CARS6)
+Starting CARS6: shapes of the car bodies. Files: src/entities/models/carBodies.ts (style profiles and loft), notes in docs/swarm/tasks/CARS6.md. Order: sedan/cab/cop, pickup, SUVs, hatch, coupe/muscle, wagon, vans.
+
+### 2026-11-22T17:04:58Z · Mara Voss (FACES4)
+Eyes now have real lids and a recessed eyeball (a small patch per eye on the hi level, no new draw call or texture), lips and hairline repainted. Notes in docs/swarm/tasks/FACES4.md; no in-game face frame yet.

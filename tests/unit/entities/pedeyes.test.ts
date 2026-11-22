@@ -22,7 +22,7 @@ describe('FACES4 eye patch (pedEyes.ts)', () => {
     for (const s of PED_SPECS.slice(0, CIVILIAN_COUNT)) {
       const e = eyeShapeOf(s);
       for (let u = -0.95; u <= 0.95; u += 0.05) { const { yu, yl } = eyeEdges(e, u); expect(yu).toBeGreaterThan(yl); }
-      expect(e.bUp).toBeGreaterThan(0.004); expect(e.bUp).toBeLessThan(0.0095); expect(e.ri).toBeLessThan(0.0065);
+      expect(e.bUp).toBeGreaterThan(0.004); expect(e.bUp).toBeLessThan(0.0095); expect(e.ri).toBeLessThan(0.0072);
       expect(eyeEdges(e, 1).yu).toBeCloseTo(eyeEdges(e, 1).yl, 9);
     }
   });

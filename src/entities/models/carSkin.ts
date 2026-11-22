@@ -72,7 +72,7 @@ export function skinLayoutFor(style: SkinStyle, box: PaintBox, pack = 0): SkinLa
     doorGlass: st.doorGlass.map(([a, b]) => [n(a), n(b)] as [number, number]),
     windshield: [n(st.windshield[0]), n(st.windshield[1])], rearGlass: st.rearGlass ? [n(st.rearGlass[0]), n(st.rearGlass[1])] : [0.97, 0.99],
     belt: v(belt),
-    axles: [n(st.axle), n(-st.axle)], archV: (R - box.yMin) / box.H, archRV: (R * 1.12) / box.H, archRN: (R * 1.12) / box.L,
+    axles: [n(st.axle + (st.axleShift ?? 0)), n(-st.axle + (st.axleShift ?? 0))], archV: (R - box.yMin) / box.H, archRV: (R * 1.12) / box.H, archRN: (R * 1.12) / box.L,
     hoodEnd: n(st.hoodBack), bootStart: n(st.rearGlass ? st.rearGlass[1] : -uMax + 0.2),
     bumper: [v(st.bumperY - st.bumperH / 2), v(st.bumperY + st.bumperH / 2)],
     headLamp: { x: (box.W / 2 - 0.2) / box.W, v: v(st.bumperY + st.bumperH / 2 + 0.1) },

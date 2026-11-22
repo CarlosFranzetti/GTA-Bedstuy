@@ -14,6 +14,8 @@ export interface CardExtra {
   hint?: boolean;
   /** Bumps when the bindings or the pad family change, so the caps are redrawn. */
   bindingsVersion?: number;
+  /** The HUD's contextual prompt pill is up ("F  Enter car"): the card sits above it instead of below. */
+  raised?: boolean;
 }
 
 export class TutorialCard {
@@ -53,6 +55,7 @@ export class TutorialCard {
     const line = resolveLine(view.text, env);
     const offer = view.stage === 'offer' && !extra.hint && view.kind === 'step';
     const sig = [view.kind, view.id, view.device, view.stage, view.text, view.tick ? 1 : 0, view.index, view.dots.map((d) => (d.done ? 'd' : d.current ? 'c' : 'p')).join(''), extra.hint ? 'h' : '', extra.bindingsVersion ?? 0, env.inVehicle ? 'v' : ''].join('|');
+    this.el.classList.toggle('up', !!extra.raised);
     if (sig !== this.sig) { this.sig = sig; this.build(view, env, line.parts, offer, !!extra.hint); }
     this.show();
     return { unbound: line.unbound };

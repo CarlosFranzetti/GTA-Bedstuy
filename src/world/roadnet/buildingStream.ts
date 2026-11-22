@@ -150,16 +150,18 @@ const q8 = (v: number): number => Math.max(0, Math.min(255, Math.round(v * 255))
 
 /** Wall height (m above the sidewalk) of the detailed building the lot would build: the generators' own storey rules. */
 export function farHeight(spec: LotSpec, lot: RealLot): { H: number; floors: number; bh: number } {
-  const n = Math.max(1, Math.round(spec.floors));
+  const fl = Number.isFinite(spec.floors) ? spec.floors : 3; // a per-BBL look can carry undefined fields
+  const n = Math.max(1, Math.round(fl));
   if (spec.use === 'mixed') { const up = n >= 2 ? Math.min(5, n - 1) : 2; return { H: GROUND_SHOP_H + up * FAR_UPPER_H + ROOF_EXTRA_H, floors: up + 1, bh: 0 }; }
   if (spec.use === 'apartment') {
     if (lot.poi?.archetype === 'condo') return { H: 3.6 + 6 * 3.3 + ROOF_EXTRA_H, floors: 7, bh: 0 };
     const f = Math.max(3, Math.min(7, n));
     return { H: FAR_PARLOUR_H + (f - 1) * FAR_UPPER_H + ROOF_EXTRA_H, floors: f, bh: 0 };
   }
-  if (spec.use === 'church') return { H: Math.max(8.5, Math.min(11, spec.floors * 3.1)) + 1, floors: Math.max(2, Math.round(Math.max(8.5, Math.min(11, spec.floors * 3.1)) / 3.4)), bh: 0 };
+  if (spec.use === 'church') return { H: Math.max(8.5, Math.min(11, fl * 3.1)) + 1, floors: Math.max(2, Math.round(Math.max(8.5, Math.min(11, fl * 3.1)) / 3.4)), bh: 0 };
   const f = Math.max(2, Math.min(6, n));
-  const bh = spec.stoop.present ? Math.max(0.6, Math.min(2.2, spec.stoop.heightM)) : 0;
+  const sh = spec.stoop?.heightM;
+  const bh = spec.stoop?.present && Number.isFinite(sh) ? Math.max(0.6, Math.min(2.2, sh as number)) : 0;
   return { H: bh + FAR_PARLOUR_H + (f - 1) * FAR_UPPER_H + ROOF_EXTRA_H, floors: f, bh };
 }
 
@@ -186,6 +188,7 @@ export function buildFarGeometry(lots: ReadonlyArray<RealLot>, looks?: (bbl: str
     const ox = lot.outward.x, oz = lot.outward.z;
     const P = (s: number, depth: number): [number, number] => [lot.frontA.x + ux * s - ox * depth, lot.frontA.z + uz * s - oz * depth];
     const c0 = [P(fp.xl, 0), P(fp.xr, 0), P(fp.xr, fp.depth), P(fp.xl, fp.depth)];
+    if (![H, floors, bh, ...c0[0], ...c0[1], ...c0[2], ...c0[3]].every(Number.isFinite)) continue; // never hand the GPU a NaN (it also kills the bounding sphere, so the whole chunk would be culled)
     const bw = fp.xr - fp.xl;
     const seed = hash01(lot.bbl);
     const wall: [number, number, number] = [lin(cw.front[0]) * FAR_WALL_GAIN, lin(cw.front[1]) * FAR_WALL_GAIN, lin(cw.front[2]) * FAR_WALL_GAIN];
@@ -311,7 +314,8 @@ export class RealBuildingStreamer {
   // ------------------------------------------------------------ per frame
 
   /** Streams around (px, pz). `py` is the camera height: the far range grows with it (aerials see the skyline). Returns ms spent. */
-  update(px: number, pz: number, py = 0, budgetMs = this.budgetMs, camX?: number, camZ?: number): number {
+  update(px: number, pz: number, py = 0, budgetArg?: number, camX?: number, camZ?: number): number {
+    const budgetMs = budgetArg ?? this.budgetMs;
     const t0 = this.now();
     // the far massing's windows light up with the detailed windows (same night intensity)
     try { const wm = this.o.materials.get('window', 0) as THREE.MeshStandardMaterial; this.farMaterial.emissiveIntensity = typeof wm.emissiveIntensity === 'number' ? wm.emissiveIntensity : 0; } catch { /* stub library */ }
@@ -343,8 +347,9 @@ export class RealBuildingStreamer {
     // arrival: when a block close to the player is still missing (after a teleport, a load or a fast drive) the plain massing shows
     // right in front of the lens, so spend more of the frame on it until the near ring is in
     let budget = budgetMs;
-    if (queue.length && Number.isFinite(budgetMs)) {
-      const d0 = queue[0].dist;
+    if (queue.length && budgetArg === undefined) { // only the per-frame call (no explicit budget) hurries
+      let d0 = Infinity;
+      for (const c of queue) if (c.dist < d0) d0 = c.dist;
       budget = Math.max(budgetMs, d0 <= HURRY_NEAR_M ? HURRY_NEAR_MS : d0 <= HURRY_MID_M ? HURRY_MID_MS : 0);
     }
     let first = true;

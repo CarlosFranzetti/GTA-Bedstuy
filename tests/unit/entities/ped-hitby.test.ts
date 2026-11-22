@@ -38,13 +38,13 @@ describe('Pedestrian.hitBy', () => {
     expect(ped.state).toBe('down');
     expect(log.filter((l) => l.type === 'pedKnockedDown')).toHaveLength(1);
     expect(log.some((l) => l.type === 'crime')).toBe(false);
-    expect(ped.hitBy(FROM, 'light')).toBe('ignored'); // already on the ground
+    expect(ped.hitBy(FROM, 'light')).toBe('struckDown'); // COMBAT2: already on the ground: still hit (damage, blood), no second knock-down
   });
 
   it('a heavy, thrown or shot hit knocks down straight away, and they are pushed away', () => {
     for (const force of ['heavy', 'thrown', 'shot'] as const) {
       const { ped } = make();
-      expect(ped.hitBy(FROM, force)).toBe('knockedDown');
+      expect(['knockedDown', 'knockedOut']).toContain(ped.hitBy(FROM, force)); // COMBAT2: a hard enough blow on a slight person knocks them out
       expect(ped.body.vel.x).toBeGreaterThan(1);
     }
   });

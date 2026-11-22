@@ -120,6 +120,20 @@ describe('tutorial: the card', () => {
     expect(m.t.engine.current?.id).toBe('look');
   });
 
+  it('sits above the HUD prompt pill when one is up, and below it otherwise; waits while a mission runs', () => {
+    const m = makeTutorial();
+    frames(m.t, 0.3);
+    expect(card(m).classList.contains('up')).toBe(false);
+    m.g.state.prompt = 'F  Enter car'; frames(m.t, 0.1);
+    expect(card(m).classList.contains('up')).toBe(true);
+    m.g.state.prompt = ''; frames(m.t, 0.1);
+    expect(card(m).classList.contains('up')).toBe(false);
+    const t0 = m.t.engine.stepTime;
+    m.g.state.mission = true; frames(m.t, 30);
+    expect(card(m).classList.contains('on')).toBe(false);
+    expect(m.t.engine.stepTime).toBeCloseTo(t0, 3);
+  });
+
   it('hides while a room, a mission beat or the title is up', () => {
     const m = makeTutorial();
     frames(m.t, 0.3);

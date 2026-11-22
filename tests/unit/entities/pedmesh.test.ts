@@ -171,11 +171,11 @@ describe('shipped people glbs', () => {
       expect(new Set(meshes.map((x) => x.material)).size).toBe(1);
       expect(meshes[0].skeleton.bones.length).toBe(14);
       expect(m.triangles).toBeGreaterThan(2500);
-      expect(m.triangles).toBeLessThan(7000);   // FACES: close-level head 3.2k, so // ~3.9k skin (head 1.5k, hands 0.7k, shoulders 0.4k, rest 1.25k) + shoes, hems, cuffs + hair / hat / hood volumes
+      expect(m.triangles).toBeLessThan(7400);   // FACES4: +680 for the two eye patches, -350 skin triangles dropped under them (7000 before). FACES: close-level head 3.2k, so // ~3.9k skin (head 1.5k, hands 0.7k, shoulders 0.4k, rest 1.25k) + shoes, hems, cuffs + hair / hat / hood volumes
       const box = new THREE.Box3().setFromObject(m.group);
       expect(box.max.y).toBeGreaterThan(1.4); expect(box.max.y).toBeLessThan(2.1);
     }
-  });
+  }, 180000);   // FACES4: every variant now also builds its eye patch (about 0.1 s each); on a loaded box the 30 s default timed out
 
   it('triangle budget per LOD over all variants: far <= 600, mid <= 2.1k, hi <= 9k', () => {
     const max = [0, 0, 0];

@@ -75,7 +75,7 @@ export class Blood implements BloodFx {
     for (let i = 0; i < n; i++) {
       const a = (this.rnd() - 0.5) * 1.5, c = Math.cos(a), s = Math.sin(a);
       const sp = 1.2 + this.rnd() * 2.6 * strength;
-      this.addDrop({ x, y, z, vx: (dx * c - dz * s) * sp, vy: 0.8 + this.rnd() * 1.8, vz: (dx * s + dz * c) * sp, life: 0.9, size: 0.035 + this.rnd() * 0.03 });
+      this.addDrop({ x, y, z, vx: (dx * c - dz * s) * sp, vy: 0.8 + this.rnd() * 1.8, vz: (dx * s + dz * c) * sp, life: 0.9, size: 0.05 + this.rnd() * 0.035 });
     }
     // the first drops that land leave a mark (see update); a hit that bleeds also leaves one right under the victim
     if (strength >= 1) this.addMark(x + dx * 0.5, z + dz * 0.5, 0.1 + this.rnd() * 0.08, false);
@@ -87,7 +87,7 @@ export class Blood implements BloodFx {
     const n = Math.min(this.caps.burst, 8);
     for (let i = 0; i < n; i++) {
       const a = (this.rnd() - 0.5) * 0.8, c = Math.cos(a), s = Math.sin(a), sp = 3 + this.rnd() * 3.5;
-      this.addDrop({ x, y, z, vx: (dx * c - dz * s) * sp, vy: 0.3 + this.rnd() * 1.2, vz: (dx * s + dz * c) * sp, life: 0.7, size: 0.028 + this.rnd() * 0.02 });
+      this.addDrop({ x, y, z, vx: (dx * c - dz * s) * sp, vy: 0.3 + this.rnd() * 1.2, vz: (dx * s + dz * c) * sp, life: 0.7, size: 0.04 + this.rnd() * 0.03 });
     }
     this.addMark(x + dx * (0.9 + this.rnd() * 0.8), z + dz * (0.9 + this.rnd() * 0.8), 0.14 + this.rnd() * 0.1, false);
   }

@@ -17,7 +17,7 @@ const view = P.get('view') ?? 'side';
 const ppm = Number(P.get('ppm') ?? 60), rowM = Number(P.get('rowm') ?? 40), rowH = Number(P.get('rowh') ?? 4.2);
 const types = (P.get('types') ?? Object.keys(VEHICLE_SPECS).join(',')).split(',');
 // pack rows by length (side) or width (front)
-const extent = (t) => (view === 'front' ? VEHICLE_SPECS[t].width : VEHICLE_SPECS[t].length) + 0.9;
+const extent = (t) => (view === 'front' ? VEHICLE_SPECS[t].width : view === 'q3' || view === 'r3' ? VEHICLE_SPECS[t].length * 0.74 + VEHICLE_SPECS[t].width * 0.7 : VEHICLE_SPECS[t].length) + 0.9;
 const rows = []; let cur = [], used = 3.2;
 for (const t of types) { if (used + extent(t) > rowM && cur.length) { rows.push(cur); cur = []; used = 3.2; } cur.push(t); used += extent(t); }
 if (cur.length) rows.push(cur);
@@ -71,7 +71,7 @@ for (let ri = 0; ri < rows.length; ri++) {
   for (const o of group.children.slice()) group.remove(o);
   for (const it of rowObjs[ri]) {
     const o = it.obj;
-    if (it.type) { o.position.set(it.h, 0, 0); o.rotation.y = view === 'side' ? Math.PI / 2 : Math.PI; }
+    if (it.type) { o.position.set(it.h, 0, 0); o.rotation.y = view === 'side' ? Math.PI / 2 : view === 'q3' ? 2.4 : view === 'r3' ? 0.74 : Math.PI; }
     group.add(o);
   }
   rowObjs[ri][0].obj.position.set(2.0, 0, 0); rowObjs[ri][1].obj.visible = false;

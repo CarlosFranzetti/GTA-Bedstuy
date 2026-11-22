@@ -513,10 +513,12 @@ export interface CarRing {
   yGl?: number;
   /** slab-sided: no crown on the roof, no bulge on the glass flank */
   flat?: boolean;
+  /** CARS6: how far (m) the glass base sits inside the body side at the belt (default 0.08): the shoulder / tumblehome */
+  tuck?: number;
 }
 const CAR_CREASE = 6;
 export function carHalf(r: CarRing): V2[] {
-  const wG0 = r.wMax - 0.08;
+  const wG0 = r.wMax - (r.tuck ?? 0.08);
   const yG0 = r.yBelt + 0.012;
   const crown = r.flat ? 0.008 : clamp((r.yT - r.yBelt - 0.012) * 0.5, 0.01, 0.032);
   const yR = r.yT - crown;
@@ -747,6 +749,18 @@ export interface Style {
   windowed?: boolean;
   /** convertible: [front u, rear u] of the open cockpit (roof down): the top and the window band there are left out and a tub is built inside */
   open?: [number, number];
+  /** CARS6: tip width of the nose / tail as a share of the body width (default 0.6 both: a pointed plan; trucks and SUVs run 0.8 to 0.9) */
+  endW?: [number, number];
+  /** CARS6: wheel-arch squareness 0 (round, default) to 1 (a box with softened corners): the SUV, pickup and van arch */
+  archSq?: number;
+  /** CARS6: a separate bumper beam standing 3.5 cm proud of the nose and tail (dark, or chrome on `chromeBumper` bodies): [height, depth] (m); y comes from `bumperY` */
+  bumperBeam?: [number, number];
+  /** CARS6: both axles move this far (ref m) toward the nose: the wheelbase stays, the rear overhang grows (pickups, vans, SUVs) */
+  axleShift?: number;
+  /** CARS6: shoulder tuck (m) of the glass base inside the body side at the belt (default 0.08) */
+  tuck?: number;
+  /** CARS6: [u, belt height] of the lowered bed rail of a pickup is simply its `secs` belt; this draws the cab / bed gap line and the cab back panel */
+  cabGap?: boolean;
 }
 
 export type PassengerStyle = 'sedan' | 'coupe' | 'suv' | 'cop' | 'cab' | 'cargo' | 'hatch' | 'beater' | 'pickup' | 'crossover' | 'minivan' | 'luxury' | 'towncar' | 'pony' | 'ambulance' | 'dollar'
@@ -762,7 +776,7 @@ const BASE_STYLES: Record<Exclude<StyleKey, DerivedKey>, Style> = {
   sedan: {
     Lref: 4.6, Href: 1.4,
     sill: 0.2, wheelR: 0.34, wheelW: 0.225,
-    axle: 1.33,
+    axle: 1.33, axleShift: 0.05,
     secs: [
       [-2.26, 0.97, 0.94, 0.93],
       [-1.95, 1.0, 0.97, 0.93],
@@ -786,7 +800,7 @@ const BASE_STYLES: Record<Exclude<StyleKey, DerivedKey>, Style> = {
     handles: [0.02, -0.8],
     hoodBack: 0.92,
     clad: 11,
-    rails: false, spoiler: true, maxGap: 0.22, archN: 8,
+    rails: false, spoiler: true, maxGap: 0.22, archN: 8, endW: [0.72, 0.74], tuck: 0.11,
     headLamp: 'swept', tailLamp: 'camryT', grille: 'wedge', lampD: 0.2, tailD: 0.1, grilleW: 0.5,
     bumperY: 0.34, bumperH: 0.22,
     plan: [[-2.3, 0.9], [-1.7, 0.97], [-0.9, 1], [0.9, 1], [1.7, 0.98], [2.3, 0.92]],
@@ -795,71 +809,71 @@ const BASE_STYLES: Record<Exclude<StyleKey, DerivedKey>, Style> = {
   // "Crown Regent": a full-size body-on-frame 3-box sedan of the a real type (2003-2011): length 212.0 in (5.39 m),
   // wheelbase 114.7 in (2.91 m), width 78.2 in (1.99 m, no mirrors), height 56.8 in (1.44 m). Upright greenhouse, long trunk, tall belt.
   crown: {
+    // CARS6: the old full-size three-box (body-on-frame), in real metres: wheelbase 2.92, front overhang 1.04, rear 1.43; a long flat hood, an upright
+    // windscreen (35 deg) and backlight (39 deg), a flat roof, a belt line that runs straight into a long level trunk deck: square, tall-sided, chrome-less.
     Lref: 5.39, Href: 1.44,
     sill: 0.2, wheelR: 0.34, wheelW: 0.235,
-    axle: 1.455,
+    axle: 1.46, axleShift: 0.195,
     secs: [
-      [-2.69, 1.0, 0.92, 0.93],
-      [-2.35, 1.05, 0.98, 0.93],
-      [-1.9, 1.08, 1.0, 0.92],
-      [-1.5, 1.12, 1.0, 0.88],
-      [-1.25, 1.3, 1.0, 0.8],
-      [-0.95, 1.42, 1.0, 0.74],
-      [-0.35, 1.44, 1.0, 0.73],
-      [0.2, 1.43, 1.0, 0.74],
-      [0.5, 1.33, 1.0, 0.78],
-      [0.9, 1.1, 0.99, 0.88],
-      [1.4, 1.02, 0.96, 0.93],
-      [2.0, 0.98, 0.92, 0.93],
-      [2.45, 0.93, 0.86, 0.92],
-      [2.69, 0.88, 0.8, 0.92],
+      [-2.69, 1.0, 0.95, 0.94],
+      [-2.3, 1.03, 0.99, 0.94],
+      [-1.7, 1.05, 1.0, 0.93],
+      [-1.2, 1.05, 1.0, 0.92],
+      [-0.62, 1.44, 1.0, 0.78],
+      [-0.1, 1.44, 1.0, 0.76],
+      [0.62, 1.43, 1.0, 0.78],
+      [1.25, 1.0, 0.98, 0.92],
+      [1.9, 0.95, 0.92, 0.94],
+      [2.4, 0.91, 0.88, 0.94],
+      [2.69, 0.87, 0.82, 0.93],
     ],
-    windshield: [0.92, 0.2],
-    doorGlass: [[0.8, 0.0], [-0.035, -0.97]],
-    bPillar: [0.0, -0.035],
-    rearGlass: [-1.02, -1.5],
-    seams: [0.86, -0.08, -1.05],
-    handles: [0.08, -0.82],
-    hoodBack: 0.96,
+    windshield: [1.25, 0.62],
+    doorGlass: [[1.05, 0.05], [-0.02, -0.98]],
+    bPillar: [0.05, -0.02],
+    rearGlass: [-0.62, -1.2],
+    seams: [1.05, 0.02, -1.0],
+    handles: [0.28, -0.7],
+    hoodBack: 1.28,
     clad: 11,
     rails: false, spoiler: false, maxGap: 0.2, archN: 8,
-    bumperY: 0.36, bumperH: 0.24,
-    plan: [[-2.7, 0.9], [-2.1, 0.97], [-1, 1], [1, 1], [2.1, 0.98], [2.7, 0.92]],
+    endW: [0.8, 0.82], tuck: 0.07, noseLift: 0.16, tailLift: 0.14, endF: 0.4, endR: 0.35,
+    bumperY: 0.4, bumperH: 0.24, bumperBeam: [0.2, 0.12],
+    plan: [[-2.7, 0.94], [-2.3, 0.98], [-1.5, 1], [1.5, 1], [2.2, 0.99], [2.7, 0.94]],
     dims: { L: 5.39, W: 1.99, H: 1.44 },
     headLamp: 'quad', tailLamp: 'bar', grille: 'bars',
   },
   // "Charge-R": a current-generation large rear-drive sedan of the a real type (2015-): length 198.4 in (5.04 m), wheelbase
   // 120.2 in (3.05 m), width 75.0 in (1.91 m), height 58.2 in (1.48 m). Long hood, high belt line, short deck, fast C pillar.
   charger: {
+    // CARS6: a current large rear-drive sedan in real metres: wheelbase 3.05, front overhang 0.93, rear 1.06; a long hood, a high belt that kicks up
+    // over the rear wheel, a short deck, a fast C pillar (backlight 25 deg), a strong shoulder and a low tail.
     Lref: 5.04, Href: 1.48,
     sill: 0.2, wheelR: 0.35, wheelW: 0.245,
-    axle: 1.525,
+    axle: 1.525, axleShift: 0.065,
     secs: [
-      [-2.52, 1.02, 0.96, 0.9],
-      [-2.2, 1.08, 1.0, 0.9],
-      [-1.8, 1.12, 1.02, 0.86],
-      [-1.4, 1.28, 1.02, 0.78],
-      [-1.0, 1.41, 1.02, 0.72],
-      [-0.4, 1.48, 1.02, 0.7],
-      [0.15, 1.45, 1.02, 0.71],
-      [0.55, 1.3, 1.02, 0.76],
-      [0.95, 1.13, 1.0, 0.86],
-      [1.5, 1.08, 0.98, 0.93],
-      [2.0, 1.04, 0.95, 0.93],
-      [2.35, 0.97, 0.9, 0.93],
-      [2.52, 0.92, 0.85, 0.93],
+      [-2.48, 1.0, 0.98, 0.9],
+      [-2.2, 1.07, 1.04, 0.9],
+      [-1.55, 1.12, 1.07, 0.88],
+      [-1.05, 1.36, 1.05, 0.78],
+      [-0.3, 1.48, 1.03, 0.7],
+      [0.35, 1.46, 1.02, 0.71],
+      [1.15, 1.05, 1.0, 0.86],
+      [1.85, 1.0, 0.96, 0.93],
+      [2.25, 0.95, 0.9, 0.93],
+      [2.48, 0.9, 0.84, 0.93],
     ],
-    windshield: [0.95, 0.25],
-    doorGlass: [[0.82, -0.04], [-0.075, -1.05]],
-    bPillar: [-0.04, -0.075],
-    rearGlass: [-1.1, -1.7],
-    seams: [0.88, -0.07, -1.12],
-    handles: [0.1, -0.85],
-    hoodBack: 1.0,
+    windshield: [1.15, 0.35],
+    doorGlass: [[1.0, -0.03], [-0.08, -1.0]],
+    bPillar: [-0.03, -0.08],
+    rearGlass: [-1.05, -1.7],
+    seams: [1.02, -0.06, -1.1],
+    handles: [0.2, -0.82],
+    hoodBack: 1.18,
     clad: 11,
     rails: false, spoiler: false, maxGap: 0.2, archN: 8,
+    endW: [0.74, 0.74], tuck: 0.11,
     bumperY: 0.36, bumperH: 0.24,
-    plan: [[-2.55, 0.9], [-2, 0.98], [-1, 1], [1, 1], [2, 0.98], [2.55, 0.92]],
+    plan: [[-2.52, 0.9], [-2.1, 0.97], [-1.5, 1], [-1.3, 0.985], [1.3, 0.985], [1.6, 1], [2.1, 0.985], [2.52, 0.92]],
     dims: { L: 5.04, W: 1.91, H: 1.48 },
     headLamp: 'slit', tailLamp: 'loop', grille: 'mesh',
   },
@@ -898,34 +912,33 @@ const BASE_STYLES: Record<Exclude<StyleKey, DerivedKey>, Style> = {
   // "Expedio": a mid-size three-row SUV of the a real type (2020-): length 5,049 mm (198.8 in), wheelbase 3,025 mm (119.1 in),
   // width 2,004 mm (78.9 in, without mirrors), height 1,778 mm (70 in). VEHICLE_SPECS.suv carries the same size.
   suv: {
-    Lref: 4.9, Href: 1.8,
+    Lref: 4.95, Href: 1.74,
     sill: 0.26, wheelR: 0.38, wheelW: 0.25,
-    axle: 1.468,
+    axle: 1.425, axleShift: 0.04,
     secs: [
-      [-2.41, 1.45, 1.17, 0.8],
-      [-2.2, 1.62, 1.17, 0.78],
-      [-1.95, 1.775, 1.17, 0.75],
-      [-1.0, 1.8, 1.17, 0.74],
-      [0.15, 1.78, 1.17, 0.745],
-      [0.5, 1.62, 1.16, 0.78],
-      [0.8, 1.43, 1.16, 0.84],
-      [1.1, 1.25, 1.15, 0.9],
-      [1.5, 1.2, 1.12, 0.92],
-      [2.0, 1.14, 1.07, 0.92],
-      [2.3, 1.06, 1.0, 0.92],
-      [2.41, 1.02, 0.96, 0.92],
+      [-2.47, 1.5, 1.2, 0.82],
+      [-2.35, 1.6, 1.21, 0.8],
+      [-2.15, 1.735, 1.21, 0.76],
+      [-1.0, 1.74, 1.21, 0.75],
+      [0.45, 1.72, 1.2, 0.76],
+      [0.95, 1.38, 1.2, 0.8],
+      [1.25, 1.17, 1.14, 0.88],
+      [1.6, 1.13, 1.1, 0.92],
+      [2.1, 1.07, 1.03, 0.92],
+      [2.4, 1.0, 0.95, 0.92],
+      [2.475, 0.97, 0.92, 0.92],
     ],
-    windshield: [1.1, 0.15],
-    doorGlass: [[0.95, 0.03], [-0.005, -1.05], [-1.05, -1.85]],
-    bPillar: [0.03, -0.005],
-    rearGlass: [-1.95, -2.38],
-    seams: [0.92, -0.06, -0.98],
-    handles: [0.0, -0.86],
-    hoodBack: 1.22,
+    windshield: [1.25, 0.45],
+    doorGlass: [[1.05, 0.2], [0.12, -0.95], [-1.0, -2.0]],
+    bPillar: [0.2, 0.12],
+    rearGlass: [-2.15, -2.4],
+    seams: [1.0, 0.16, -1.0],
+    handles: [0.1, -0.85],
+    hoodBack: 1.28,
     clad: 10,
     rails: true, spoiler: false, maxGap: 0.4, archN: 6, headLamp: 'c', tailLamp: 'tall', tailD: 0.05, grille: 'slats', endT: [0, 1],
     bumperY: 0.45, bumperH: 0.28,
-    plan: [[-2.45, 0.94], [-2.0, 0.99], [-1.0, 1], [1.0, 1], [2.0, 0.99], [2.45, 0.95]],
+    plan: [[-2.5, 0.95], [-2.2, 0.985], [-1.6, 1], [-1.2, 0.985], [1.2, 0.985], [1.65, 1], [2.2, 0.985], [2.5, 0.95]],
   },
   // ROSTER. "Pacer Hop": a subcompact five-door hatchback of the a real type (GK, 2015-2020): length 4,064 mm (160 in), wheelbase
   // 2,530 mm (99.6 in), width 1,702 mm (67 in), height 1,524 mm (60 in). Cab-forward: short hood, long raked windshield, near-vertical tailgate.
@@ -933,35 +946,32 @@ const BASE_STYLES: Record<Exclude<StyleKey, DerivedKey>, Style> = {
   hatch: {
     Lref: 4.06, Href: 1.52,
     sill: 0.2, wheelR: 0.3, wheelW: 0.195,
-    axle: 1.265,
+    axle: 1.265, axleShift: -0.03,
     secs: [
-      [-2.03, 0.98, 0.9, 0.9],
-      [-1.98, 1.12, 0.95, 0.9],
-      [-1.88, 1.3, 0.98, 0.85],
-      [-1.65, 1.43, 0.99, 0.8],
-      [-1.25, 1.5, 0.99, 0.76],
-      [-0.6, 1.52, 0.99, 0.74],
-      [0.0, 1.5, 0.99, 0.74],
-      [0.45, 1.42, 0.99, 0.78],
-      [0.85, 1.22, 0.99, 0.85],
-      [1.15, 1.07, 0.97, 0.9],
-      [1.4, 1.02, 0.94, 0.93],
-      [1.75, 0.97, 0.9, 0.93],
-      [1.95, 0.93, 0.86, 0.92],
-      [2.03, 0.88, 0.8, 0.92],
+      [-2.03, 1.12, 0.98, 0.9],
+      [-1.96, 1.17, 0.99, 0.88],
+      [-1.62, 1.47, 1.0, 0.8],
+      [-1.0, 1.52, 1.0, 0.76],
+      [-0.2, 1.52, 1.0, 0.75],
+      [0.35, 1.5, 1.0, 0.76],
+      [1.1, 1.08, 1.0, 0.9],
+      [1.45, 1.03, 0.96, 0.93],
+      [1.8, 0.97, 0.9, 0.93],
+      [2.03, 0.9, 0.82, 0.92],
     ],
-    windshield: [1.05, 0.25],
+    windshield: [1.1, 0.35],
     doorGlass: [[0.9, 0.0], [-0.08, -1.2]],
     bPillar: [0.0, -0.08],
-    rearGlass: [-1.25, -1.93],
+    rearGlass: [-1.62, -1.96],
     seams: [0.84, -0.04, -1.2],
     handles: [0.06, -0.95],
-    hoodBack: 1.1,
+    hoodBack: 1.12,
     clad: 11,
     rails: false, spoiler: false, hatchback: true, maxGap: 0.24, archN: 6,
     bumperY: 0.3, bumperH: 0.2,
     plan: [[-2.05, 0.9], [-1.6, 0.97], [-0.9, 1], [0.9, 1], [1.6, 0.98], [2.05, 0.9]],
     headLamp: 'swept', tailLamp: 'tall', grille: 'wedge', lampD: 0.2, tailD: 0.1, endR: 0.2, grilleW: 0.45,
+    endW: [0.8, 0.84],
     dims: { L: 4.06, W: 1.7, H: 1.52 },
   },
   // ROSTER. "Marlow Sixty": a 1990s mid-size front-drive notchback of the Oldsmobile Cutlass Ciera type (1982-1996): length 190.3 in (4.83 m),
@@ -1041,39 +1051,43 @@ const BASE_STYLES: Record<Exclude<StyleKey, DerivedKey>, Style> = {
   // "Forge 150": a full-size crew-cab pickup of the a real type (2021-), 5.5 ft bed: wheelbase 145 in (3.68 m, 
   // bed 67.1 in x 50.6 in x 21.4 in ( overall 231.7 x 79.9 x 77.2 in (5.885 x 2.03 x 1.96 m) are from a real's spec sheet as remembered, the search did not return them.
   pickup: {
-    Lref: 5.885, Href: 1.96,
+    // CARS6: a short-bed crew cab, built in real metres (Lref = L, Href = H): wheelbase 3.40, front overhang 0.98, rear 1.22, hood 1.4 m,
+    // cab 2.2 m (windscreen base to cab back), bed 1.83 m with the rail 17 cm under the cab belt, tailgate top = rail, tall squared arches,
+    // a separate bumper beam, a cab / bed gap line. See docs/swarm/tasks/CARS6.md.
+    Lref: 5.6, Href: 1.9,
     sill: 0.3, wheelR: 0.39, wheelW: 0.275,
-    axle: 1.84,
+    axle: 1.7, axleShift: 0.12,
     secs: [
-      [-2.94, 1.43, 1.4, 0.95],
-      [-2.5, 1.44, 1.42, 0.95],
-      [-1.8, 1.44, 1.42, 0.95],
-      [-1.12, 1.44, 1.42, 0.95],
-      [-0.96, 1.94, 1.5, 0.8],
-      [-0.4, 1.96, 1.5, 0.74],
-      [0.35, 1.95, 1.5, 0.74],
-      [0.62, 1.88, 1.5, 0.78],
-      [0.95, 1.68, 1.5, 0.88],
-      [1.15, 1.54, 1.49, 0.92],
-      [1.6, 1.5, 1.46, 0.93],
-      [2.2, 1.47, 1.42, 0.93],
-      [2.7, 1.42, 1.35, 0.93],
-      [2.94, 1.38, 1.28, 0.92],
+      [-2.8, 1.3, 1.28, 0.95],
+      [-2.5, 1.31, 1.29, 0.95],
+      [-1.8, 1.31, 1.29, 0.95],
+      [-0.99, 1.31, 1.29, 0.95],
+      [-0.91, 1.62, 1.47, 0.84],
+      [-0.7, 1.9, 1.47, 0.8],
+      [-0.1, 1.91, 1.47, 0.78],
+      [0.55, 1.9, 1.47, 0.8],
+      [1.0, 1.65, 1.45, 0.86],
+      [1.35, 1.42, 1.39, 0.92],
+      [1.9, 1.4, 1.34, 0.93],
+      [2.4, 1.36, 1.28, 0.93],
+      [2.62, 1.32, 1.22, 0.93],
+      [2.8, 1.26, 1.14, 0.92],
     ],
-    windshield: [1.1, 0.55],
-    doorGlass: [[0.95, 0.04], [-0.04, -0.93]],
-    bPillar: [0.04, -0.04],
-    rearGlass: [-0.94, -1.1],
-    seams: [0.98, 0.02, -0.96],
-    handles: [0.1, -0.78],
-    hoodBack: 1.2,
+    windshield: [1.35, 0.55],
+    doorGlass: [[1.05, 0.08], [0.02, -0.72]],
+    bPillar: [0.08, 0.02],
+    rearGlass: [-0.7, -0.91],
+    seams: [1.1, 0.05, -0.85],
+    handles: [0.2, -0.55],
+    hoodBack: 1.38,
     clad: 10,
     rails: false, spoiler: false, hatchback: true, maxGap: 0.5, archN: 6, endT: [0, 1],
-    bumperY: 0.5, bumperH: 0.28,
-    plan: [[-2.95, 0.95], [-2.5, 0.99], [-1, 1], [1, 1], [2.3, 0.99], [2.95, 0.95]],
+    archSq: 0.75, endW: [0.86, 0.9], tuck: 0.06, cabGap: true, noseLift: 0.1,
+    bumperY: 0.52, bumperH: 0.28, bumperBeam: [0.26, 0.14],
+    plan: [[-2.8, 0.95], [-2.4, 0.975], [-2.0, 0.98], [-1.8, 1], [-1.3, 1], [-1.1, 0.98], [0.9, 0.98], [1.45, 0.98], [1.7, 1], [2.2, 1], [2.45, 0.98], [2.8, 0.95]],
     headLamp: 'quad', tailLamp: 'tall', grille: 'bigbar', lampD: 0.1, tailD: 0.05, endF: 0.3, endR: 0.2, grilleW: 0.78,
     dims: { L: 5.6, W: 2.0, H: 1.9 },
-    bed: { u0: -1.12, u1: -2.94, floor: 0.95 },
+    bed: { u0: -0.93, u1: -2.8, floor: 0.9 },
   },
   // "Trekker V": a compact crossover of the a real type (2023-): length 184.8 in (4.694 m), width 73.5 in (1.867 m), height 66.2 in (1.68 m), wheelbase 106.3 in (2.70 m).
   crossover: {
@@ -1555,33 +1569,35 @@ const BASE_STYLES: Record<Exclude<StyleKey, DerivedKey>, Style> = {
   },
   // "Bruiser 2500": a full-size body-on-frame SUV of the 1990s: 5.55 x 2.0 x 1.95 m, wheelbase 3.3 m. Slab sides, upright glass, roof rails.
   bigsuv: {
-    Lref: 5.55, Href: 1.95,
+    Lref: 5.35, Href: 1.92,
     sill: 0.3, wheelR: 0.4, wheelW: 0.265,
-    axle: 1.65,
+    axle: 1.535, axleShift: 0.17,
     secs: [
-      [-2.775, 1.45, 1.2, 0.85],
-      [-2.7, 1.72, 1.24, 0.82],
-      [-2.55, 1.93, 1.25, 0.78],
-      [-1.0, 1.95, 1.25, 0.76],
-      [0.35, 1.93, 1.25, 0.76],
-      [1.2, 1.34, 1.2, 0.9],
-      [1.55, 1.3, 1.16, 0.92],
-      [2.2, 1.22, 1.1, 0.93],
-      [2.6, 1.16, 1.05, 0.93],
-      [2.775, 1.1, 1.0, 0.92],
+      [-2.63, 1.62, 1.3, 0.84],
+      [-2.5, 1.72, 1.31, 0.8],
+      [-2.28, 1.915, 1.31, 0.76],
+      [-1.0, 1.92, 1.31, 0.75],
+      [0.45, 1.9, 1.31, 0.76],
+      [0.95, 1.55, 1.3, 0.8],
+      [1.3, 1.3, 1.26, 0.88],
+      [1.8, 1.25, 1.2, 0.92],
+      [2.3, 1.2, 1.12, 0.92],
+      [2.55, 1.15, 1.06, 0.92],
+      [2.635, 1.12, 1.02, 0.92],
     ],
-    windshield: [1.2, 0.35],
-    doorGlass: [[1.08, 0.2], [0.14, -0.95], [-1.0, -2.05]],
-    bPillar: [0.2, 0.14],
-    rearGlass: [-2.55, -2.72],
-    seams: [1.0, 0.17, -0.97],
+    windshield: [1.3, 0.45],
+    doorGlass: [[1.1, 0.22], [0.14, -0.95], [-1.0, -2.15]],
+    bPillar: [0.22, 0.14],
+    rearGlass: [-2.28, -2.52],
+    seams: [1.05, 0.18, -0.97],
     handles: [0.5, -0.6],
-    hoodBack: 1.3,
+    hoodBack: 1.34,
     clad: 10,
-    rails: true, spoiler: false, maxGap: 0.45, archN: 6, endT: [0, 1],
+    rails: true, spoiler: false, maxGap: 0.45, archN: 5, endT: [0, 1],
     bumperY: 0.48, bumperH: 0.3,
-    plan: [[-2.8, 0.95], [-2.3, 0.99], [-1.0, 1], [1.0, 1], [2.3, 0.99], [2.8, 0.95]],
+    plan: [[-2.65, 0.95], [-2.3, 0.985], [-1.55, 1], [-1.2, 0.985], [1.2, 0.985], [1.7, 1], [2.3, 0.985], [2.65, 0.95]],
     headLamp: 'box', tailLamp: 'box2', grille: 'bigbar', lampD: 0.1, tailD: 0.05, endF: 0.3, endR: 0.2, grilleW: 0.7, chromeBumper: true,
+    archSq: 0.55, endW: [0.86, 0.86], tuck: 0.05, bumperBeam: [0.26, 0.14],
     dims: { L: 5.35, W: 2.05, H: 1.92 },
   },
   // "Scamper": a compact regular-cab pickup of the 1990s, 6 ft bed: 4.75 x 1.7 x 1.6 m, wheelbase 2.75 m.
@@ -1860,17 +1876,26 @@ export function hullSectionCount(type: VehicleType): number {
 const inI = (u: number, r: V2): boolean => u <= r[0] + 1e-6 && u >= r[1] - 1e-6;
 
 /** Wheel arch geometry shared by the hull and the wheel liners. */
-export interface Arch { R: number; ra: number; sill: number; halfChord: number; phiS: number; }
-export function archOf(R: number, sill: number): Arch {
+export interface Arch { R: number; ra: number; sill: number; halfChord: number; phiS: number; /** CARS6: superellipse exponent of a squared arch (undefined = the round arch) */ p?: number; }
+export function archOf(R: number, sill: number, sq = 0): Arch {
   const ra = R + 0.05; // tyre top within 5 cm of the arch lip (was 6.5)
   const phiS = Math.asin(clamp((sill - R) / ra, -1, 1));
-  return { R, ra, sill, halfChord: ra * Math.cos(phiS), phiS };
+  return { R, ra, sill, halfChord: ra * Math.cos(phiS), phiS, p: sq > 0 ? 2 + 2.4 * sq : undefined };
 }
 export function archY(a: Arch, du: number): number {
+  if (a.p) {
+    const t = Math.abs(du) / a.halfChord;
+    return t < 1 ? a.sill + (a.R + a.ra - a.sill) * Math.pow(1 - Math.pow(t, a.p), 1 / a.p) : 0;
+  }
   return Math.abs(du) < a.halfChord ? a.R + Math.sqrt(a.ra * a.ra - du * du) : 0;
 }
 export function archStations(a: Arch, axle: number, n = 6): number[] {
   const out: number[] = [];
+  if (a.p) {
+    // a squared arch: stations spread by angle, so they crowd the steep sides where the corner turns
+    for (let k = 0; k <= n; k++) out.push(axle - a.halfChord * Math.cos((Math.PI * k) / n));
+    return out;
+  }
   const a0 = Math.PI - a.phiS;
   for (let k = 0; k <= n; k++) {
     const phi = a0 + (a.phiS - a0) * (k / n);
@@ -2074,14 +2099,14 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
   const kx = L / st.Lref;
   const ky = H / st.Href;
   const R = st.wheelR;
-  const arch = archOf(R, st.sill);
+  const arch = archOf(R, st.sill, st.archSq);
   const Wb2 = W / 2 - 0.05;                // body half-width (mirrors reach W / 2 + 0.02)
   const tipF = L / 2 - 0.04;
   const tipR = -(L / 2 - 0.04);
   const drF = st.endF ?? 0.5;
   const drR = st.endR ?? 0.4;
-  const axleF = st.axle * kx;
-  const axleR = -st.axle * kx;
+  const axleF = (st.axle + (st.axleShift ?? 0)) * kx;
+  const axleR = (-st.axle + (st.axleShift ?? 0)) * kx;
 
   const secs = st.secs.map(([u, yT, yB, wr], i, a) => [i === 0 ? tipR : i === a.length - 1 ? tipF : u * kx, yT * ky, yB * ky, wr] as const);
   const su = secs.map((s) => s[0]);
@@ -2113,8 +2138,9 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
     }
     const yT = yTu - drop;
     yBot = Math.min(yBot, yBelt - 0.13);
-    const wMax = Wb2 * (0.6 + 0.4 * g) * planAt(u / kx);
-    return { yT, yBelt, yBot, wMax, wR: fwR(u) * wMax, yGl: st.glassTop === undefined ? undefined : st.glassTop * ky, flat: st.flat };
+    const tw = (front ? st.endW?.[0] : st.endW?.[1]) ?? 0.6;
+    const wMax = Wb2 * (tw + (1 - tw) * g) * planAt(u / kx);
+    return { yT, yBelt, yBot, wMax, wR: fwR(u) * wMax, yGl: st.glassTop === undefined ? undefined : st.glassTop * ky, flat: st.flat, tuck: st.tuck };
   };
 
   // ---- window layout in real metres
@@ -2255,6 +2281,14 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
       chrome.add(bx(0.06, 0.016, len, s2 * (hw + 0.01), yRail + 0.004, mid)); // rail cap
     }
     trim.add(bx(2 * hw, yRail - bed.floor, 0.06, 0, (yRail + bed.floor) / 2, -(bed.u0 - 0.03))); // cab back wall (bed side)
+    if (st.cabGap) {
+      // CARS6: the cab back stands above the rail: a body-colour wall fills the open top between the bed front and the cab back, and the gap line runs down the flanks
+      const uC = bed.u0 + 0.02;
+      const yCab = ring(uC - 0.01).yT;
+      if (yCab > yRail + 0.05) paint.add(bx(2 * hw, yCab - yRail, 0.07, 0, (yCab + yRail) / 2, -(bed.u0 - 0.01)));
+      const iG = hull.at(uC + 0.04);
+      trim.addBoth(rib([[iG, 6], [iG, 7], [iG, 8], [iG, 9], [iG, 10]], 0.018, 0.006));
+    }
     trim.add(bx(2 * hw, 0.05, 0.04, 0, bed.floor + 0.2, -(bed.u1 + 0.08))); // tailgate inner lip
     trim.add(bx(0.32, 0.04, 0.025, 0, yRail - 0.12, -(bed.u1 - 0.003))); // tailgate handle
     for (let k = 0; k < 5; k++) trim.add(bx(2 * hw - 0.1, 0.012, 0.05, 0, bed.floor + 0.03, mid + (k - 2) * 0.32)); // liner ribs
@@ -2317,6 +2351,21 @@ export function buildPassengerParts(typeIn: PassengerStyle | 'unmarked', spec: V
   };
   cutRibbon(-tipF, wF, endF.cut, -1);
   cutRibbon(-tipR, wR, endR.cut, 1);
+  // CARS6: a bumper beam that stands proud of the nose and tail (the integral cover reads as one lump on trucks and SUVs)
+  if (st.bumperBeam) {
+    const [bh, bd] = st.bumperBeam;
+    const proud = 0.035;
+    const wFb = Math.max(0.3, capHalf(hull.us.length - 1, st.bumperY));
+    const wRb = Math.max(0.3, capHalf(0, st.bumperY));
+    const beamAcc = st.chromeBumper ? chrome : trim;
+    beamAcc.add(bumperGeo(2 * wFb, bd, bh, st.bumperY, -(tipF + proud) + bd, false));
+    beamAcc.add(bumperGeo(2 * wRb, bd, bh, st.bumperY, tipF + proud - bd, true));
+    if (!st.chromeBumper) {
+      // a bright strip along the top of each beam so it reads against the dark valance
+      chrome.add(bx(2 * wFb - 0.16, 0.012, 0.02, 0, st.bumperY + bh / 2 - 0.02, -(tipF + proud) + 0.02));
+      chrome.add(bx(2 * wRb - 0.16, 0.012, 0.02, 0, st.bumperY + bh / 2 - 0.02, tipF + proud - 0.02));
+    }
+  }
   // fog lamps in the valance corners
   const fogOK = !st.rails && !st.mirror && endF.cut - endF.yBot >= 0.12;
   for (const sg of fogOK ? [-1, 1] : []) {

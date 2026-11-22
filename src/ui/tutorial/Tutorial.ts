@@ -143,7 +143,7 @@ export class Tutorial {
     const running = this.engine.running;
     fillContext(this.ctx, o.host, running || this.pendingStart || this.store.deferred.length > 0);
     const c = this.ctx;
-    if (o.splashUp()) c.blocked = true;
+    if (o.splashUp() || c.mission) c.blocked = true; // the title, or a mission (its dialogue owns the bottom of the screen): the card waits
 
     if (this.pendingStart && !o.splashUp()) {
       this.pendingStart = false;
@@ -163,7 +163,7 @@ export class Tutorial {
     if (this.engine.running) {
       const v = this.engine.view(c);
       this.lastView = v;
-      const r = this.card.render(v, { device: c.device, inVehicle: c.inVehicle, bindings: o.host.input.bindings }, { bindingsVersion: o.host.input.bindings.version });
+      const r = this.card.render(v, { device: c.device, inVehicle: c.inVehicle, bindings: o.host.input.bindings }, { bindingsVersion: o.host.input.bindings.version, raised: c.prompt.trim() !== '' });
       // a step whose key has no binding can never be done: move on after a moment
       if (r.unbound && v.visible && v.kind === 'step' && !v.tick) { this.unboundT += dt; if (this.unboundT >= 2.5) { this.unboundT = 0; this.engine.skipStep(); } } else this.unboundT = 0;
       return;
@@ -200,7 +200,7 @@ export class Tutorial {
     if (s.t >= HINT_SECONDS) { this.shown = null; this.card.hide(); this.lastView = null; return; }
     const v: CardView = { visible: !c.blocked && !c.mission, kind: 'step', id: `hint:${s.def.id}`, device: c.device, stage: 'hint', text: s.def.text[c.device], why: '', tick: false, dots: [], index: -1 };
     this.lastView = v;
-    this.card.render(v, { device: c.device, inVehicle: c.inVehicle, bindings: this.o.host.input.bindings }, { hint: true, bindingsVersion: this.o.host.input.bindings.version });
+    this.card.render(v, { device: c.device, inVehicle: c.inVehicle, bindings: this.o.host.input.bindings }, { hint: true, bindingsVersion: this.o.host.input.bindings.version, raised: c.prompt.trim() !== '' });
   }
 
   // ---- ending --------------------------------------------------------------------------------------------------------

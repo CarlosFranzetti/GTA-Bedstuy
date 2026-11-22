@@ -12,6 +12,9 @@ import { placeLotsDetailed, type RealLot } from '@/world/roadnet/lotsReal';
 import { chunkLayoutFromBounds } from '@/world/roadnet/chunksReal';
 import { RealBuildingStreamer, STREAM_RANGES, buildFarGeometry } from '@/world/roadnet/buildingStream';
 import { chunkKeyOf } from '@/render/Culling';
+import { lotColourway } from '@/world/buildings/colourway';
+import { specForBuild } from '@/world/roadnet/buildingsReal';
+import { FAR_KIND } from '@/world/roadnet/farFacade';
 
 class StubMaterials implements IMaterialLibrary {
   private cache = new Map<string, THREE.Material>();
@@ -55,6 +58,36 @@ const chunkList = [...byChunk.entries()].sort((a, b) => b[1].length - a[1].lengt
 const centreOf = (key: string): { x: number; z: number } => { const [ix, iz] = key.split('_').map(Number); return { x: layout.originX + (ix + 0.5) * layout.chunkX, z: layout.originZ + (iz + 0.5) * layout.chunkZ }; };
 
 describe('far boxes', () => {
+  it('carry a facade: finite positions, a bounding sphere the frustum test can use, and the per-lot attributes of farFacade.ts', () => {
+    for (const [, lots] of chunkList.slice(0, 12)) {
+      const g = buildFarGeometry(lots)!;
+      const n = g.getAttribute('position').count;
+      expect(Array.from(g.getAttribute('position').array).every(Number.isFinite)).toBe(true);
+      expect(Number.isFinite(g.boundingSphere!.radius)).toBe(true);
+      for (const a of ['normal', 'color', 'aWin', 'aLot', 'aTrim', 'aAwn']) expect(g.getAttribute(a).count).toBe(n);
+      const kinds = new Set<number>();
+      const win = g.getAttribute('aWin');
+      for (let i = 0; i < n; i++) kinds.add(win.getW(i));
+      expect([...kinds].sort()).toEqual(expect.arrayContaining([FAR_KIND.facade, FAR_KIND.roof]));
+    }
+  });
+  it('take the wall colour from the lot colourway the detailed building uses (no pop in colour when the detail arrives)', () => {
+    const [, lots] = chunkList[1];
+    const lot = lots.find((l) => !l.wedge && l.type !== 'vacant')!;
+    const g = buildFarGeometry([lot])!;
+    const col = g.getAttribute('color');
+    const cw = lotColourway({ id: lot.id, type: lot.type, spec: specForBuild(lot) });
+    const lin = (c: number): number => { const x = c / 255; return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+    // the first quad is the front wall
+    expect(col.getX(0)).toBeCloseTo(lin(cw.front[0]) * 0.92, 1);
+    expect(col.getY(0)).toBeCloseTo(lin(cw.front[1]) * 0.92, 1);
+  });
+  it('honour the per-BBL look hook like the detailed build', () => {
+    const [, lots] = chunkList[1];
+    const lot = lots.find((l) => !l.wedge && l.type !== 'vacant')!;
+    const plain = buildFarGeometry([lot])!, looked = buildFarGeometry([lot], () => ({ family: 'limestone' }))!;
+    expect(Array.from(looked.getAttribute('color').array.slice(0, 3))).not.toEqual(Array.from(plain.getAttribute('color').array.slice(0, 3)));
+  });
   it('are one merged mesh per chunk with outward normals and ten triangles per building', () => {
     const [, lots] = chunkList[0];
     const g = buildFarGeometry(lots)!;

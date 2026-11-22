@@ -29,3 +29,10 @@ Sheets in scratchpad/faces4: `before/` (FACES3 state), `a9/` and `b3/` (end stat
 ## Tests
 - New `tests/unit/entities/pedeyes.test.ts` (curve closed for every person, expression and wear draws agree with the painter, the patch is finite, faces out, stays in its atlas rectangles, drops skin under it).
 - Red and not from this lane: `ped-hitby` (2), `pedround4` (legs, daylight at the knee) and the known `pedround5` shoe-hem check. The skin-paint test "dark pupils and lighter eye whites" went red from my darker first sclera and went green after I made the white brighter (no assertion changed).
+
+## In the running game
+Hosted build, `?q=low`, three pedestrians near the player (scratchpad/faces4/out/g2 and g3, `game4.cjs`): the game boots and runs with the patch on the hi level, no page error. My free camera did not frame a face (it ended up behind the pedestrians: the heading convention of the example script is not what I assumed), so there is NO in-game frame of a face from this lane. Faces were judged in the harness only (software rendering, same materials and lights as the game, no post chain).
+
+## Files touched
+New: `src/textures/painters/pedEyeShape.ts`, `src/textures/painters/pedHairline.ts`, `src/entities/models/pedEyes.ts`, `tests/unit/entities/pedeyes.test.ts`.
+Edited: `src/textures/painters/pedPaintFace.ts` (eyes, lips, hairline, ghost fix), `pedPaintShared.ts` (`lipFull`, lip colour, `eye`, `eyeRect`), `pedSkinPaint.ts` (patch rectangles), `src/entities/models/pedMesh.ts` (patch part, drop skin under it, bake input), `pedHairPieces.ts` (rim tables moved to pedHairline.ts), `scripts/faces2-harness.html` (`eyes=0`, rect dump), `tests/unit/entities/pedmesh.test.ts` (triangle bound 7000 to 7400 and a 180 s timeout), this file.
