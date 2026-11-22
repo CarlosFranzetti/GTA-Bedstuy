@@ -175,7 +175,7 @@ describe('lane graph on the real core', () => {
       const a = g.nodes[ed.from];
       const b = g.nodes[ed.to];
       const isCx = ed.from.startsWith('cx:') || ed.to.startsWith('cx:');
-      expect(ed.length).toBeLessThan(isCx ? 24 : 15.01) // REALFIX: connectors that feed a stop line are cut into fewer, longer pieces (lanes.ts maxSeg): 407 of them are over 12 m, the longest 22.9 m, on the core
+      expect(ed.length).toBeLessThan(isCx ? 12 : 15.01)
       expect(b.streetId).toBeTruthy();
       expect(a.heading).toBeGreaterThanOrEqual(-Math.PI - 1e-9);
     }

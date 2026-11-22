@@ -48,3 +48,11 @@ Log (newest last):
   `nightLights.setExtraLamps(realWorld?.ringProps?.lamps ?? []);` (no per-frame line: the list is read each `nightLights.update`).
 - Open: the outer ring is expensive in draws: 299 draws / 546k triangles at Malcolm X Blvd, far south (low tier budget 220), 225 / 409k in the east: the streamed ring props alone are 200k to 366k triangles
   in 4 to 7 resident tiles (531 to 1,027 meshes). Needs instancing or a smaller tile budget (propsStream.ts, propsReal.ts).
+
+## REALFIX3 (22 Nov 2026, engineer: Tomas Ridley, lane REALFIX3)
+
+Job: keep the red-light fix of `lanes.ts` (speed cap on connector nodes feeding a stop line within 45 m) but drop the coarse connectors (`maxSeg`), and restore the
+two loosened test limits (turns: 2 connectors over 6 m; connector spacing 12 m).
+- Reading: in `TrafficAgent` the braking for a red only starts when the stop line is the TARGET node (`node.stopLine`, around line 452). `signalQueueAhead` (six nodes)
+  feeds only stuck detection and overtaking. So coarse connectors were not needed for braking; the speed cap is what keeps a car able to stop.
+- Log: first step, remove `maxSeg` and measure.
