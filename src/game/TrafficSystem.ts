@@ -214,6 +214,8 @@ const STOOP_OUT = 1.1;
 const DOOR_OUT = 1.3;
 /** a pedestrian is added / removed no closer to the player than this (m), so the crowd changes out of sight */
 const PED_SWAP_CLEAR = 35;
+/** real-street map: the opening crowd stands within this distance (m) of the start point (the grid map spreads it over the whole map) */
+const OPENING_CROWD_RADIUS = 240;
 const PED_TICK = 0.25;
 /** most new pedestrians appear within this range of the player (m) */
 const PED_NEAR = 110;
@@ -392,6 +394,15 @@ export class TrafficSystem {
       if (spawnAllowed(this.playerAt, this.facing, node.pos, () => this.lineBlocked(node.pos)) && !this.pedSpawnUnsafe(node)) return node;
       node = nodes[this.pedRng.pick(ids)];
     }
+    // On a big map a random node almost never lands in the ring (the real-street map is 15 km2: about one pick in 500), so the
+    // crowd used to stay spread over the whole map and the pavement by the player was empty. Search the ring itself before giving up.
+    // Real-street map only (its lane graph carries signalLookAheadM): the grid map keeps its old picks, which its seeded traffic runs depend on.
+    const ring: GraphNode[] = [];
+    if (this.grid.lanes.signalLookAheadM !== undefined) for (const id of ids) {
+      const n = nodes[id];
+      if (spawnAllowed(this.playerAt, this.facing, n.pos, () => this.lineBlocked(n.pos)) && !this.pedSpawnUnsafe(n)) ring.push(n);
+    }
+    if (ring.length > 0) return ring[Math.min(ring.length - 1, Math.floor(this.pedRng.next() * ring.length))];
     return this.pickPedNode(ids, PED_SWAP_CLEAR, false);
   }
 
@@ -574,7 +585,16 @@ export class TrafficSystem {
     const cross = this.crosswalkNodeIds();
     const ids = Object.keys(this.grid.sidewalks.nodes);
     if (ids.length === 0) return;
-    for (let i = 0; i < this.pedTarget; i++) this.addPed(this.pickPedNode(ids, 0, false), cross); // the opening crowd is spread evenly; hour changes bias new arrivals toward the player
+    // The opening crowd is spread evenly; hour changes bias new arrivals toward the player. On the real-street map (its lane graph
+    // carries signalLookAheadM) "evenly" would be 40 people over 15 km2, so the opening crowd is spread over the streets within
+    // OPENING_CROWD_RADIUS of the start point instead, and the scheduler keeps it round the player from there.
+    let openIds = ids;
+    if (this.grid.lanes.signalLookAheadM !== undefined) {
+      const nodes = this.grid.sidewalks.nodes;
+      const local = ids.filter((id) => dist(nodes[id].pos, this.playerAt) <= OPENING_CROWD_RADIUS);
+      if (local.length >= Math.max(8, this.pedTarget)) openIds = local;
+    }
+    for (let i = 0; i < this.pedTarget; i++) this.addPed(this.pickPedNode(openIds, 0, false), cross);
     this.formGroups();
   }
 

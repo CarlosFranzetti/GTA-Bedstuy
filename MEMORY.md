@@ -2,7 +2,7 @@
 
 Read this first. It is the project's standing memory: the owner's rules, how we work, where things are, and what is open.
 Update it when a rule changes or a decision is made. Keep it short; history lives in `docs/swarm/transcript.md` and the PRD.
-Last full update: 21 Nov 2026.
+Last full update: 22 Nov 2026.
 
 ## The project in one paragraph
 
@@ -185,14 +185,43 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   `docs/swarm/tasks/SURFACES2.md`); low home 269 -> 223 draws. New wall classes join as sheet layers, not as materials.
 - Free image generators reachable from here refuse without a token; a keyless one stamps a watermark. Not used.
 
-## State on 21 Nov 2026
+## State on 22 Nov 2026
 
-- 22 Nov, MAINMAP (not committed, main.ts patch pending): real map as the main map on hosted and native desktop builds; phones (`quality === 'phone'`) stay on the grid unless
-  `?map=real`, because the real map on the emulated iPhone holds 2x the grid's heap, 1.6x its boot peak and 2.3x its spawn triangles and no real iPhone has tried it. Per-map saves with a
-  cash, records and look carry-over; Settings "Map" row; preview notice gone; the grid world is no longer built on the real map (patch: `scratchpad/mainmap/main-patch.diff`);
-  phone sun-shadow casters cut into cells; native smoke test fixed and green. Details and numbers: `docs/swarm/tasks/MAINMAP.md`.
-
-- Live since 22 Nov: the real-street map grown to 15.15 km2 (R4), 17 more landmarks under invented names (LANDMARKS2 and 3),
+- Third deploy of 22 Nov (the owner's play report and asks of that morning). What it carries:
+  - The real-street map is the MAIN map on desktop browsers and the desktop apps (`src/world/mapChoice.ts`); `?map=grid` or
+    Settings, "Map" opens the old grid. PHONES STAY ON THE GRID by default (`quality === 'phone'`): on the emulated iPhone the
+    real map fits its budgets (282k triangles, 61 draws at the spawn) but holds about twice the grid's heap, and no real
+    iPhone has tried it. Reverse by dropping the third argument of `chooseMap` in `src/main.ts` after a real-iPhone test.
+    Each map has its own save slots (`gta-bedstuy.save.v2.` grid, `...v2.real.` real); a grid-only player starts fresh at home
+    on the real map with cash, records, look and station carried over. The grid's meshes are no longer built when the real
+    map is chosen (`buildGridModelOnly`). The single-file build is always the grid. Numbers: `docs/swarm/tasks/MAINMAP.md`.
+  - Pedestrians on the real map now stand round the player. Before, `TrafficSystem.pickRingNode` drew 64 random sidewalk
+    nodes from the whole 15 km2 net, almost never hit the 62 to 115 m ring, and fell back to anywhere: nobody within 150 m of
+    the player (measured on the live build too). Now, on the real map only, it searches the ring itself and the opening
+    crowd is placed within 240 m of the start. The grid map's picks are untouched: its seeded five-minute traffic run jams
+    on seed 7 if they change. No unit test for this yet; measured in the running game (14 people within 150 m at the
+    start, 27 after a minute).
+  - Sound (AUDIOFIX, `docs/swarm/tasks/AUDIOFIX.md`): parked and waiting cars get no engine voice (they took every AI slot
+    and droned); pause and resume no longer leaves the audio context suspended; nothing is scheduled while paused; all
+    engines go through one engine bus at 0.55 (45 percent lower); Settings, Audio, "Engine Sound" (0 = Off creates no engine
+    voice); a silent radio station retries once at 20 s and tunes on at 40 s with a notice. NOT HEARD by anyone here, and
+    the real streams and SoundCloud cannot be reached from this box.
+  - Camera (CAMFIX, `docs/swarm/tasks/CAMFIX.md`): first person, hood and cinematic are clean cuts (the hood blend flew the
+    lens through the car); getting in or out is one 0.6 s eased blend; chase views blend in 0.25 s; stepping out holds the
+    view. Rig numbers unchanged. 143 harness tests in `tests/unit/entities/camfix*.ts`.
+  - Faces (FACES2, `docs/swarm/tasks/FACES2.md`): about 30 seeded shape traits per person (`pedHead.ts` `faceTraits`,
+    `morphHead`, called from `pedMesh.dressLod`), age in shape and skin. No extra triangles, draws or textures. Still short:
+    everyone frowns, a pale ragged patch on the cheek by the ear (an unwrap or chart edge in `scripts/people-pipeline.mjs`),
+    hairline teeth, painted eyes. Next lane: those four.
+  - Trees (TREES, `docs/swarm/tasks/TREES.md`): crowns of 4 or 5 overlapping leaf clouds (`src/world/props/treeCloud.ts`),
+    flared trunks, park groves, hedges and shrubs; about the same triangles per tree on phone and low.
+  - Anti-aliasing is off by default on every tier (owner); SMAA is a choice in Settings.
+  - The `native` workflow takes a release tag when run by hand and publishes a public GitHub Release (a tag push from this
+    box is refused, HTTP 403). The Linux boot smoke test was failing for our own reasons and is repaired.
+  - Known and not fixed: on the low tier, buildings beyond the detail range of the real map are plain coloured blocks
+    (visible across a junction); the old grid's start view is over the low budget (about 554k triangles, 230 draws, as it
+    was before: 542k, 230); far buildings cast no sun shadow on the phone tier's real map.
+- Before that, live since early 22 Nov (`5bc431a`): the real-street map grown to 15.15 km2 (R4), 17 more landmarks under invented names (LANDMARKS2 and 3),
   lit outer-ring lamps, real-map memory back at the old map's level, and (second deploy of the day) real-map traffic that
   steers by a look-ahead point (`TrafficAgent.pursuitPoint`, gated on `lanes.signalLookAheadM`, real map only), slower
   junction exits at crosswalks, a cop-spawn fallback and merged outer-ring furniture. Verified by the lead on that tree:
@@ -204,10 +233,6 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
   the new steering has not been watched in the running game. First deploy of the day (ff12a75) went out on the owner's
   instruction before the last test groups finished and carried one regression (a pedestrian knocked down in the
   five-minute real-map sim), fixed in the second.
-- AUDIOFIX (22 Nov, not yet released; owner's report: stuck engine, silent radio, too loud): parked kerb cars no longer get idling engine voices (they took all four AI slots,
-  a constant drone), pause/resume no longer leaves the audio context suspended, nothing is scheduled while the clock is stopped, the engine bus sits at 0.55 of its old level
-  (-45%), a new Settings row "Engine Sound" (0 = Off creates no engine voice), and the radio retries a silent station once and then tunes on with a toast. Tests green; not heard.
-  Notes and the unchecked stream URLs: `docs/swarm/tasks/AUDIOFIX.md`. Lead still to add one line in `src/main.ts` (skip cars under 0.5 m/s when filling `NEAR_AUDIO_CARS`).
 - Before that: commit `41357ca` (21 Nov night): everything in `6110995` plus the dance-only WAX DELI (18 openly licensed dance
   records 2005 to 2018, ten pre-war dance sides, a SoundCloud listening post of four Kompakt tracks) and Vercel Web
   Analytics code. Verified by the lead on that exact tree. The map-growth (MAP4) and LANDMARKS2 work was left out of it.
