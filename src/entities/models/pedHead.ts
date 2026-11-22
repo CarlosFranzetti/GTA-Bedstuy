@@ -40,7 +40,7 @@ export interface FaceTraits {
   /** nose: tip forward (m), tip drop (m, positive = down), length (m the tip and base move down together), alar width scale, bridge raised (m) */ noseFwd: number; noseDrop: number; noseLen: number; noseW: number; bridge: number;
   /** cheekbone outward (m), cheekbone height shift (m), cheek fullness (m, negative = hollow) */ cheekBone: number; cheekH: number; cheek: number;
   /** jaw / lower face width scale, jaw angle (m the gonial corner moves out and down), chin forward (m), chin drop (m = chin length), chin width scale, jowl (m) */ jawW: number; jawAngle: number; chinFwd: number; chinDrop: number; chinW: number; jowl: number;
-  /** lip fullness (m forward), mouth width scale */ lips: number; mouthW: number;
+  /** lip fullness (m forward), mouth width scale, mouth corners raised (m; the shipped mesh rests a little downturned, so about +2 mm is neutral, 0 or below reads as a frown) */ lips: number; mouthW: number; mouthUp: number;
   /** ear scale, ear flare (m the top of the ear stands out) */ ear: number; earFlare: number;
   /** neck thickness scale, head carried forward on the neck (m) */ neckT: number; neckFwd: number;
   /** asymmetry, a few percent: nose and chin line shift (m), mouth tilt (m across the mouth), eye height difference (m), jaw and cheek width difference (fraction) */ asymMid: number; asymMouth: number; asymEye: number; asymJaw: number;
@@ -86,12 +86,14 @@ export function faceTraits(spec: PedSpec): FaceTraits {
     cheek: 0.0045 * g('cfull') + 0.006 * fat - 0.0045 * old,
     jawW: 1 + 0.11 * g('jaw') + 0.03 * pro + 0.045 * fat - 0.02 * old,
     jawAngle: 0.0065 * g('jawa') + 0.002 * pro,
-    chinFwd: 0.0085 * g('chinf') + 0.003 * pro - 0.0025 * old,
+    // FACES3: on a heavy build the chin pad, the jowl and the lower lip stacked into a pout: the chin pushes forward less and the lips are no fuller as the build grows
+    chinFwd: 0.0085 * g('chinf') + 0.003 * pro - 0.0025 * old - 0.0035 * Math.max(0, fat),
     chinDrop: 0.009 * g('chind') + 0.0025 * pro,
     chinW: 1 + 0.35 * g('chinw'),
-    jowl: Math.max(0, 0.0042 * (0.9 * old + 0.3 * Math.max(0, fat) + 0.35 * g('jowl') + 0.1)) * (1 - kid),
-    lips: 0.0045 * g('lips') - 0.002 * pro - 0.0032 * old,
+    jowl: Math.max(0, 0.0042 * (0.9 * old + 0.18 * Math.max(0, fat) + 0.35 * g('jowl') + 0.05)) * (1 - kid),
+    lips: 0.0045 * g('lips') - 0.002 * pro - 0.0032 * old - 0.0015 * Math.max(0, fat),
     mouthW: 1 + 0.1 * g('mouthw') + 0.015 * pro,
+    mouthUp: 0.0056 + 0.0034 * g('mcorn') - 0.0006 * old,
     ear: 1 + 0.2 * g('ear') + 0.13 * old - 0.06 * kid,
     earFlare: 0.0075 * g('earfl'),
     neckT: Math.max(0.84, Math.min(1.32, 1 + 0.12 * g('neck') + 0.055 * pro + 0.085 * fat + 0.04 * old)),
@@ -213,6 +215,8 @@ export function morphHead(s: Pick<MhShape, 'landmarks' | 'headRings'>, L: MhLod,
     const lipG = gauss(y - f.mouthY, m(0.011)) * gauss(ax, m(0.028)) * front;
     dz -= tr.lips * lipG;
     dx += x * (tr.mouthW - 1) * gauss(y - f.mouthY, m(0.016)) * sstep(m(0.05), m(0.01), ax) * front;
+    // FACES3: the corners of the mouth: raised to a neutral rest (a few people a little up, a few a little down), with the cheek above them following
+    dy += tr.mouthUp * K * gauss(y - f.mouthY, m(0.013)) * sstep(m(0.01), m(0.026), ax) * sstep(m(0.06), m(0.036), ax) * front;
     dy += tr.asymMouth * Math.max(-1.5, Math.min(1.5, x / m(0.025))) * gauss(y - f.mouthY, m(0.02)) * front;
     // ---- ears: the vertices beside the head, scaled about the ear root; flare turns the top out
     const earG = sstep(m(0.068), m(0.082), ax) * gauss(y - earY, m(0.034)) * (1 - front);
@@ -628,7 +632,16 @@ export function headGear(s: MhShape, L: MhLod, ao: Float32Array, spec: PedSpec, 
     };
     const ys = [lm.chinY, lm.chinY + 0.41 * (lm.eyeY - lm.chinY), lm.chinY + 0.68 * (lm.eyeY - lm.chinY), lm.eyeY, lm.crownY], ts = [0, 0.255, 0.42, 0.565, 1];
     const headT = (y: number): number => { if (y <= ys[0]) return 0; for (let k = 1; k < ys.length; k++) if (y <= ys[k]) return ts[k - 1] + ((y - ys[k - 1]) / (ys[k] - ys[k - 1])) * (ts[k] - ts[k - 1]); return 1; };
-    const faceUV = (p: P3): [number, number] => tileUV(HI_RECTS.head, p[2] > zc + 0.015 ? (p[0] >= 0 ? 0.992 : 0.008) : 0.5 + 0.189 * (p[0] / Math.max(1e-3, lm.eyeX)), headT(p[1]));
+    // the head chart's own map (scripts/people-pipeline.mjs, unwrapUVs): the angle round the cylinder axis, weighted toward the face; the shell's texels must be the skin's texels beneath it
+    const axH = lm.uAxisHead, axN = lm.uAxisNeck ?? lm.uAxisHead, pw = lm.uPower ?? 3.5;
+    const sstp = (a: number, b: number, x: number): number => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+    const faceU = (p: P3): number => {
+      if (axH === undefined) return p[2] > zc + 0.015 ? (p[0] >= 0 ? 0.992 : 0.008) : 0.5 + 0.189 * (p[0] / Math.max(1e-3, lm.eyeX));
+      const cz = (axN ?? axH) + (axH - (axN ?? axH)) * sstp(lm.chinY - 0.05, lm.chinY + 0.07, p[1]);
+      const a = Math.atan2(p[0], Math.max(0.012, -(p[2] - cz))), s0 = Math.min(1, Math.abs(a) / Math.PI);
+      return Math.min(0.992, Math.max(0.008, 0.5 + 0.5 * Math.sign(a) * (1 - Math.pow(1 - s0, pw))));
+    };
+    const faceUV = (p: P3): [number, number] => tileUV(HI_RECTS.head, faceU(p), headT(p[1]));
     void frontZ;
     add(scalpShell(clip(head, beardRegion), { thick: (v) => 0.004 + 0.006 * smooth(0.3, 0.05, tOf(v.p[1])) * smooth(rx * 0.97, rx * 0.5, Math.abs(v.p[0])), uv: faceUV, tile: HI_RECTS.head, iterations: 4, taper: 0.45 }));
   }

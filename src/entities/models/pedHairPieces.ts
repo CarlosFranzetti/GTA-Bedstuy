@@ -137,7 +137,10 @@ function shell(ctx: Ctx, mb: MeshBuilder, o: ShellOpts): void {
       const w = Math.max(hw, sstep(0, 0.4, o.inner ? Math.min(u, 1 - u) : u)), R =
        lerp(sampleF(F.raw, al, be), sampleF(F.env, al, be), w);
       const th = !o.inner && k === 0 ? poleTh : Math.max(o.thick(be, u), hang && hw > 0 ? hang.thick(be, 0) * hw * (1 - sstep(0, 0.35, u)) : 0), up = !o.inner && k === 0 ? poleUp : o.up ? o.up(be, u) : 0;
-      const rad = o.radius ? o.radius(be, u, R, al, rimA) : R + th;
+      // FACES3: the edge stood exactly ON the skull's surface, so between two rim columns the shell's straight chord dipped under the faceted, morphed forehead and the hairline came out as teeth.
+      // A 3.2 mm lift at the rim (fading out by u = 0.6) keeps the edge clear of the skin; the painted scalp band beneath is hair-coloured, so the wall is not seen.
+      const lift = o.inner || hemJ !== null ? 0 : 0.0032 * (1 - sstep(0.15, 0.6, u));
+      const rad = o.radius ? o.radius(be, u, R, al, rimA) : R + th + lift;
       last = [ctx.C[0] + d[0] * rad, ctx.C[1] + d[1] * rad + up, ctx.C[2] + d[2] * rad];
       const yt = o.flat ? o.flat(be) : undefined;
       if (yt !== undefined) { const dy = last[1] - ctx.C[1], kk = 0.012; if (dy > yt - kk) last = [last[0], ctx.C[1] + (yt - kk) + kk * Math.tanh((dy - (yt - kk)) / kk), last[2]]; }

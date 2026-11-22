@@ -68,7 +68,7 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
     const fold = 0.03 + 0.15 * Math.min(1.5, ageK) + (tired ? 0.04 : 0) + (amused ? 0.04 : 0);
     const xf = 0.0185 + (yN - ym) * 0.34;
     o.tint(K.skinSh, fold * g2(xm - xf, 0.0034) * band(yM - 0.006, yN + 0.002, ym, 0.004) * fm);
-    if (ageK > 0.55) o.tint(K.skinSh, 0.12 * Math.min(1.3, ageK) * g2(xm - 0.0215 + (yM - ym) * 0.2, 0.003) * band(yM - 0.026, yM - 0.004, ym, 0.004) * fm);
+    if (ageK > 0.55) o.tint(K.skinSh, 0.07 * Math.min(1.3, ageK) * g2(xm - 0.0215 + (yM - ym) * 0.2, 0.003) * band(yM - 0.026, yM - 0.004, ym, 0.004) * fm);
     // philtrum
     o.tint(K.skinSh, 0.07 * g2(xm - 0.0055, 0.0017) * band(yM + 0.007, yN - 0.002, ym, 0.002) * fm);
 
@@ -86,18 +86,18 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
       const bLo = 0.0024 * (amused ? 0.68 : 1);
       const yu = bUp * shp * (u < 0 ? 0.92 : 1) + tilt * u, yl = -bLo * Math.pow(Math.max(0, 1 - u * u), 0.8) + tilt * u;
       const dUp = yu - eym, dLo = eym - yl;
-      const lashT = (face.lashes ? 0.0013 : 0.001) * (1 + 0.5 * sst(0.0, 1.0, u));
+      const lashT = (face.lashes ? 0.0016 : 0.0013) * (1 + 0.5 * sst(0.0, 1.0, u));
       if (shp > 0 && dUp > 0 && dLo > 0) {
         // inside the opening: white of the eye, shaded under the upper lid and into the corners, then the iris
         const shade = 0.62 * sst(0.0048, 0.0, dUp) + 0.26 * sst(0.55, 1.0, Math.abs(u));
         o.set(SCLERA).mix(SCLERA_SH, shade);
         o.mix(CARUNCLE, 0.45 * sst(-0.7, -0.95, u) * sst(0.0, 0.002, dLo));
-        const ri = 0.0074 * (K.kidish ? 1.08 : 1), gx = 0.0005 * (K.h.gz - 0.5), dx0 = exm - gx, dy0 = eym - 0.0003, dIr = Math.hypot(dx0, dy0) / ri;
+        const ri = 0.0074 * (K.kidish ? 1.08 : 1), gx = 0.0009 * (K.h.gz - 0.5) * (x > 0 ? 1 : -1), dx0 = exm - gx, dy0 = eym - 0.0003, dIr = Math.hypot(dx0, dy0) / ri;
         if (dIr < 1.0) {
           // iris: a dark limbal ring, striations that fan out from the pupil, a lighter collar; then pupil and one catchlight
           const e = sst(1.0, 0.9, dIr), ang = Math.atan2(dy0, dx0), fan = 0.5 + 0.5 * Math.sin(ang * 13 + 2.4 * vn2(ang * 3 + 5, dIr * 4, 15));
           const ic = mixc(mulc(K.irisC, 0.8 + 0.3 * fan), mixc(K.irisC, [176, 142, 96], 0.5), 0.5 * sst(0.35, 0.68, dIr) * (1 - sst(0.68, 0.84, dIr)));
-          o.mix(mulc(ic, 1 - 0.55 * sst(0.72, 0.96, dIr)), e);
+          o.mix(mulc(ic, 1 - 0.68 * sst(0.7, 0.96, dIr)), e);
           o.mix(PUPIL, sst(0.4, 0.33, dIr) * e);
           o.mix([244, 240, 232], 0.95 * g2(dx0 + 0.0019, 0.0009) * g2(dy0 - 0.0021, 0.0009) * sst(0.9, 0.6, dIr));          // the catchlight, once, upper left
           o.mul(1 - 0.35 * sst(0.0044, 0.0008, dUp));                                                                       // the lid shades the top of the iris
@@ -155,7 +155,7 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
 
     // ---------------------------------------------------------------- mouth: lips as form
     const mx = xm / K.mouthMw;
-    const gm = face.mouth, cornerLift = (gm === 'grin' ? 0.0032 : amused ? 0.0017 : tired ? -0.0007 : gm === 'frown' ? -0.0006 : 0.0001);
+    const gm = face.mouth, cornerLift = (gm === 'grin' ? 0.0032 : amused ? 0.0014 : 0.0002);   // FACES3: no painted droop (the geometry carries each person's resting expression)
     const my = ym - yM - cornerLift * mx * mx;
     const upH = 0.0066 * (1 - 0.45 * mx * mx) * (old ? 0.75 : 1), loH = 0.0094 * (1 - 0.7 * mx * mx) * (old ? 0.8 : 1);
     if (mx < 1.12) {
@@ -165,7 +165,7 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
       if (inLo) { o.mix(K.lipC, 0.86 * lipE * sst(-loH, -loH * 0.8, my)); o.mix(K.lipHi, 0.5 * g2(my + loH * 0.5, loH * 0.33) * g2(mx, 0.42) * lipE); }
       if (gm === 'grin' && Math.abs(my) < 0.0032 * (1 - mx * mx) && mx < 0.78) o.set([222, 216, 205]).mix(K.lipDark, 0.1 + 0.4 * sst(0.0015, 0.0032, Math.abs(my)));
       // the mouth line and its corners, then the soft shadow under the lower lip
-      o.mix(mulc(K.lipDark, 0.7), 0.9 * g2(my, 0.0009) * sst(1.1, 0.85, mx) + 0.5 * g2(mx - 1.0, 0.09) * g2(my, 0.0024));
+      o.mix(mulc(K.lipDark, 0.7), 0.72 * g2(my, 0.0009) * sst(1.05, 0.55, mx) + 0.22 * g2(mx - 1.0, 0.08) * g2(my, 0.0016));
       o.tint(K.skinSh, 0.3 * g2(my + loH + 0.0035, 0.0042) * sst(0.95, 0.2, mx));                                                      // under the lower lip
       o.tint(K.skinSh, 0.14 * g2(my - upH - 0.0035, 0.0035) * sst(0.8, 0.0, mx));                                                       // under the nose, above the lip
     }
@@ -175,7 +175,7 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
     // ---------------------------------------------------------------- reading the face from 5 to 15 m, where it is a few pixels: broad dark shapes in the places a face keeps them
     o.tint(K.skinSh, 0.32 * g2(xm - 0.031, 0.03) * g2(ym - 0.006, 0.016) * fm);                                                // the eye band
     o.tint(K.skinSh, 0.26 * g2(xm - 0.034, 0.032) * g2(ym - 0.022, 0.0075) * fm);                                                // under the brow
-    o.mix(mulc(K.lipDark, 0.8), 0.42 * g2(my, 0.0030) * sst(1.2, 0.7, mx) * (mx < 1.2 ? 1 : 0));                              // the mouth line, wider
+    o.mix(mulc(K.lipDark, 0.8), 0.3 * g2(my, 0.0030) * sst(1.1, 0.4, mx) * (mx < 1.2 ? 1 : 0));                              // the mouth line, wider
     o.tint(K.skinSh, 0.22 * g2(xm, 0.014) * g2(ym - (yN - 0.004), 0.0065) * fm);                                              // the nose underside
 
     // ---------------------------------------------------------------- freckles and a mole, a few people
@@ -243,7 +243,7 @@ const exmL = (xm: number): number => xm - 0.029;
 function beardPass(K: Look, t: Tex, o: Px, xm: number, ym: number, sx: number, fz: number): void {
   const { face } = K, old = K.old, expr = K.expr, tired = expr === 'tired', amused = expr === 'amused';
   const edm = K.edm, yN = -0.32 * edm, yM = -0.59 * edm, yChin = -edm, sfade = sst(-0.75, -0.05, fz);
-  const mx = xm / K.mouthMw, gm = face.mouth, cornerLift = (gm === 'grin' ? 0.0032 : amused ? 0.0017 : tired ? -0.0007 : gm === 'frown' ? -0.0006 : 0.0001);
+  const mx = xm / K.mouthMw, gm = face.mouth, cornerLift = (gm === 'grin' ? 0.0032 : amused ? 0.0014 : 0.0002);   // FACES3: no painted droop (the geometry carries each person's resting expression)
   const my = ym - yM - cornerLift * mx * mx;
   const upH = 0.0066 * (1 - 0.45 * mx * mx) * (old ? 0.75 : 1), loH = 0.0094 * (1 - 0.7 * mx * mx) * (old ? 0.8 : 1);
   // ---------------------------------------------------------------- beard, moustache, stubble: a texture with an edge, not a box

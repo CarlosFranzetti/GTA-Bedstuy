@@ -40,7 +40,7 @@ export interface MhShape {
   name: string;
   height: number;
   rig: Record<string, number[]>;
-  landmarks: { chinY: number; crownY: number; eyeY: number; eyeX: number; hemY: number; ankleY: number; wristY: number };
+  landmarks: { chinY: number; crownY: number; eyeY: number; eyeX: number; hemY: number; ankleY: number; wristY: number; uAxisHead?: number; uAxisNeck?: number; uPower?: number };
   headRings: Ring[]; torsoRings: Ring[]; hipRings: Ring[];
   /** left limbs (x < 0), ascending in y */
   armRings: { upper: Ring[]; fore: Ring[] }; legRings: { thigh: Ring[]; shin: Ring[] };

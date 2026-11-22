@@ -460,6 +460,8 @@ export const TILES = {
   upperArm: { x: 0, y: 256, w: 128, h: 128 }, foreArm: { x: 128, y: 256, w: 128, h: 128 }, hand: { x: 256, y: 256, w: 128, h: 64 }, neck: { x: 384, y: 256, w: 128, h: 64 },
   thigh: { x: 0, y: 384, w: 128, h: 128 }, shin: { x: 128, y: 384, w: 128, h: 128 }, pelvis: { x: 256, y: 384, w: 128, h: 128 }, shoe: { x: 384, y: 384, w: 128, h: 128 },
 };
+/** the front of the head is weighted this much (1 = uniform around the axis); 3.5 with the axis at the ear plane gives the face the texel density the old forward axis gave it */
+export const HEAD_U_POWER = 3.5;
 const FACE_T = { chin: 0, mouth: 0.255, nose: 0.42, eye: 0.565, crown: 1 };
 
 export function tileUV(rect, fu, ft) {
@@ -516,6 +518,16 @@ export function unwrapUVs(mesh, lm, shared = null) {
   const head = [...groups.values()].find((g) => g.tile === 'head');
   let headCz = 0;
   if (head) { for (const v of head.vs) headCz += P[v * 3 + 2]; headCz /= head.vs.size; }
+  // FACES3: the head's cylinder axis stood about the mean z of the head's vertices, which the dense face pulls 4 to 5 cm FORWARD of the ears. So the nose floor, the
+  // columella, the cheeks and the ears sat BEHIND the axis (d < 0) and their angle fell to +-pi: triangles of the nose underside were stretched across half the tile from u = 0 to u = 0.5
+  // and, being in front, overwrote the back of the head's texels in a band at nose-floor height. That band was the pale ragged patch (hard edge at ear-lobe level, torn edge by the cheek).
+  // The axis now stands at the ear plane (median z of the side of the head at eye height) and the front is weighted by a steeper curve (HEAD_U_POWER) so the face keeps its texel density.
+  if (!shared) {
+    const zs = [];
+    for (const v of head ? head.vs : []) if (Math.abs(P[v * 3]) > 0.06 && Math.abs(P[v * 3 + 1] - lm.eyeY) < 0.05) zs.push(P[v * 3 + 2]);
+    zs.sort((p1, p2) => p1 - p2);
+    if (zs.length) headCz = zs[zs.length >> 1] + 0.01;
+  }
   if (shared) headCz = shared.headCz;
   // FACES: the head's cylinder axis slides back to the neck's axis toward the chin. The throat and the underside of the jaw sit BEHIND the head's centre, so with one axis they
   // wrapped round to the sides of the tile and overlapped the cheeks and ears (the ragged light patches at jaw and neck: two surfaces fighting for the same texels).
@@ -527,15 +539,27 @@ export function unwrapUVs(mesh, lm, shared = null) {
   const ys = [lm.chinY, lm.chinY + 0.41 * (lm.eyeY - lm.chinY), lm.chinY + 0.68 * (lm.eyeY - lm.chinY), lm.eyeY, lm.crownY];
   const ts = [FACE_T.chin, FACE_T.mouth, FACE_T.nose, FACE_T.eye, FACE_T.crown];
   const headT = (y) => { if (y <= ys[0]) return 0; for (let k = 1; k < ys.length; k++) if (y <= ys[k]) return ts[k - 1] + ((y - ys[k - 1]) / (ys[k] - ys[k - 1])) * (ts[k] - ts[k - 1]); return 1; };
+  // FACES3: the face's own surface, as the least z in each 6 mm cell of (x, y) over the hi mesh's head vertices (the coarse levels reuse it through `shared`)
+  const CELL = 0.006;
+  let fgrid = shared ? shared.frontGrid : null;
+  if (!fgrid) { fgrid = new Map(); if (head) for (const v of head.vs) { const k = Math.round(P[v * 3] / CELL) * 4096 + Math.round(P[v * 3 + 1] / CELL); const o = fgrid.get(k); if (o === undefined || P[v * 3 + 2] < o) fgrid.set(k, P[v * 3 + 2]); } }
+  const frontZ = (x, y) => { const o = fgrid.get(Math.round(x / CELL) * 4096 + Math.round(y / CELL)); return o === undefined ? 9 : o; };
   const TAU = Math.PI * 2;
   const uOf = (g, v) => {
     const x = P[v * 3], yy = P[v * 3 + g.long], zz = P[v * 3 + g.a1], ft = (yy - g.lo) / Math.max(1e-4, g.hi - g.lo);
     const cx = g.cb[0] + (g.ct[0] - g.cb[0]) * ft, cz = g.cb[1] + (g.ct[1] - g.cb[1]) * ft;
     if (g.tile === 'head') {
-      // front at the middle of the tile, the front half weighted twice as dense as the back; the seam is the back of the skull
-      let a = Math.atan2(x - 0, -(zz - czAt(yy)));            // 0 = straight ahead (-z), +- pi = behind
+      // front at the middle of the tile, weighted toward the face (HEAD_U_POWER); the seam is the back of the skull
+      // FACES3: the nostrils and the mouth are hollows in the base mesh: a vertex deep inside them (behind the axis or just in front of it) has an angle that jumps to +-pi, and at the coarse
+      // levels their triangles poke through the cheek. The eye sockets are hollows too (7 cm deep). A vertex within 5.6 cm of the midline that lies more than 25 mm BEHIND the face's own surface (the hi mesh's, from the grid below) is
+      // unwrapped as if it lay on that surface, so it carries the colour of the skin in front of it.
+      let zEff = zz;
+      if (zz < headCz + 0.045 && Math.abs(x) < 0.056 && yy > lm.chinY + 0.07) { const fz0 = frontZ(x, yy); if (zz - fz0 > 0.025) zEff = fz0; }
+      let dd = -(zEff - czAt(yy));
+      if (dd < 0.012 && Math.abs(x) < 0.03 && zEff < headCz + 0.02) dd = 0.012;
+      let a = Math.atan2(x - 0, dd);                          // 0 = straight ahead (-z), +- pi = behind
       const sgn = a < 0 ? -1 : 1, s0 = Math.min(1, Math.abs(a) / Math.PI);
-      return [0.5 + 0.5 * sgn * (2 * s0 - s0 * s0), headT(yy)];
+      return [0.5 + 0.5 * sgn * (1 - Math.pow(1 - s0, HEAD_U_POWER)), headT(yy)];
     }
     const mir = g.side > 0 ? -1 : 1;                          // right limbs are mirrored
     let a;
@@ -590,7 +614,7 @@ export function unwrapUVs(mesh, lm, shared = null) {
     for (const j of order) sum += W[v * 12 + j];
     order.forEach((j, k2) => { joints[i * 4 + k2] = j; weights[i * 4 + k2] = W[v * 12 + j] / sum; });
   });
-  const out = { groups: {}, headCz, neckCz, maxU: Object.fromEntries(maxU) };
+  const out = { groups: {}, headCz, neckCz, frontGrid: fgrid, maxU: Object.fromEntries(maxU) };
   for (const [k, g] of groups) out.groups[k] = { lo: g.lo, hi: g.hi, long: g.long, a1: g.a1, cb: g.cb, ct: g.ct, tile: g.tile, side: g.side };
   return { position, normal, uv: Float32Array.from(outUv), joints, weights, indices: Uint32Array.from(outIdx), regions: region, shared: out, srcVertex: Int32Array.from(outSrc) };
 }
@@ -683,7 +707,8 @@ export function buildShape(src, simplifier, name) {
     deltaScale: { w: maxAbs(lods.hi.dw) || 1e-6, m: maxAbs(lods.hi.dm) || 1e-6 },
     shape: name, group: shape.group, sex: shape.sex, age: shape.age, height: r(body.height),
     rig: Object.fromEntries(Object.entries(R).map(([k, v]) => [k, Array.isArray(v) ? v.map(r) : r(v)])),
-    landmarks: Object.fromEntries(Object.entries(lm).map(([k, v]) => [k, r(v)])),
+    // uAxisHead / uAxisNeck: the head chart's cylinder axis (z) at the head and at the neck, and the front weighting: the beard shell's UVs in pedHead.ts follow the same map
+    landmarks: { ...Object.fromEntries(Object.entries(lm).map(([k, v]) => [k, r(v)])), uAxisHead: r(lods.hi.shared.headCz), uAxisNeck: r(lods.hi.shared.neckCz), uPower: HEAD_U_POWER },
     headRings: rings(ringsOf(hiMesh, 'head', lm, lm.chinY, lm.crownY, 12)),
     torsoRings: rings(ringsOf(hiMesh, 'torso', lm, lm.hemY, R.shoulderL[1] + 0.03, 8)),
     hipRings: rings(ringsOf(hiMesh, 'pelvis', lm, lm.ankleY + 0.6, lm.hemY + 0.03, 5)),
