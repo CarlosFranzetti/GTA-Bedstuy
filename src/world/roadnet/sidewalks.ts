@@ -21,7 +21,7 @@ import type { PedCrossing } from '@/entities/Pedestrian';
 import { CROSSWALK_START, CROSSWALK_WIDTH } from './contract';
 import { clusterIndexOfNode, isRibbonless, junctionClusters } from './clusters';
 import type { Derived } from './derive';
-import { closestOnSegment, distance, pointInPolygon } from './geom';
+import { closestOnSegment, distance, pointInPolygon, simplifyPolyline } from './geom';
 import type { RoadNet } from './RoadNet';
 
 export interface RealCrosswalk extends Crosswalk { edge: number; node: number }
@@ -40,6 +40,8 @@ export const FALLBACK_INSET = 1.5;
 const SNAP_TOL = 3;
 const MIN_NODE_GAP = 0.25;
 const MIN_END_GAP = 0.3;
+/** Douglas-Peucker tolerance (m) for a block's walking ring */
+export const WALK_SIMPLIFY_TOL = 0.2;
 
 export function insetRing(ring: ReadonlyArray<Vec2>, d: number): Vec2[] {
   const n = ring.length;
@@ -87,7 +89,11 @@ export function walkingRing(d: Derived, b: number, island: boolean): Vec2[] {
   const out: Vec2[] = [];
   for (const p of ring) if (!out.length || distance(out[out.length - 1], p) >= MIN_NODE_GAP) out.push(p);
   while (out.length > 1 && distance(out[0], out[out.length - 1]) < MIN_NODE_GAP) out.pop();
-  return out.length >= 3 ? out : [];
+  if (out.length < 3) return [];
+  // REALFIX2: the corner arcs of the kerb ring (15 deg steps) are one node each; a walker cuts such a corner by a few centimetres, so near-collinear vertices go (the graph is the heap's biggest object on the grown map)
+  const lean = simplifyPolyline([...out, out[0]], WALK_SIMPLIFY_TOL);
+  lean.pop();
+  return lean.length >= 3 ? lean : out;
 }
 
 function sideOf(dir: Vec2): Side {

@@ -25,7 +25,7 @@ import { buildBuildings } from '@/world/BuildingGen';
 import { SIDEWALK_HEIGHT } from '@/world/WorldBuilder';
 import { loadRoadNet } from './MapSource';
 import type { RoadNet } from './RoadNet';
-import { deriveGeometry, type Derived } from './derive';
+import { deriveGeometry, pullInside, type Derived } from './derive';
 import { buildRoadMeshes } from './meshRoads';
 import { CHUNK_ANCHOR, chunkLayoutFromBounds, ROAD_CHUNK_PREFIX, tagRoadChunks } from './chunksReal';
 import { buildSidewalkGraph, type SidewalkNet } from './sidewalks';
@@ -98,7 +98,7 @@ export interface RealWorld {
   homeSpawn: { x: number; z: number; heading: number };
   /** moves HOME / deli / club doors and nav targets onto the real lots; call once before the interiors are built (no-op without places) */
   applyDoors: () => void;
-  stats: { meshes: number; triangles: number; lots: number; colliders: number; ms: Record<string, number>; /** REALFIX: fenced lots standing in for the blocks without buildings */ fences: { lots: number; panels: number } };
+  stats: { meshes: number; triangles: number; lots: number; colliders: number; ms: Record<string, number>; /** REALFIX: fenced lots standing in for the blocks without buildings */ fences: { lots: number; panels: number }; /** REALFIX2: blocks whose building ring was repaired (repairBadBlocks) */ repaired?: number };
 }
 
 export interface RealWorldOptions {
@@ -229,12 +229,17 @@ export function badBlocks(net: RoadNet, d: Derived): Set<number> {
  */
 export function kerbCoversRoad(net: RoadNet, d: Derived, blocks: Iterable<number>): Set<number> {
   const out = new Set<number>();
-  for (const b of blocks) {
-    const ring = d.curbRings[b];
-    if (!ring || ring.length < 3) continue;
+  for (const b of blocks) if (ringCoversRoad(net, d, d.curbRings[b])) out.add(b);
+  return out;
+}
+
+/** a centreline sample (every 3 m of a driven edge, outside the junction polygons) lies inside `ring` */
+export function ringCoversRoad(net: RoadNet, d: Derived, ring: ReadonlyArray<Vec2> | undefined): boolean {
+  {
+    if (!ring || ring.length < 3) return false;
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
     for (const q of ring) { x0 = Math.min(x0, q.x); z0 = Math.min(z0, q.z); x1 = Math.max(x1, q.x); z1 = Math.max(z1, q.z); }
-    const hit = net.edges.some((E, e) => {
+    return net.edges.some((E, e) => {
       if (E.level !== 0 || E.cls === 'ped' || E.a === E.b) return false;
       const L = net.lengths[e], c0 = d.cuts[e].cutA + 1, c1 = L - d.cuts[e].cutB - 1;
       for (let s = c0; s <= c1; s += 3) {
@@ -244,10 +249,30 @@ export function kerbCoversRoad(net: RoadNet, d: Derived, blocks: Iterable<number
       }
       return false;
     });
-    if (hit) out.add(b);
   }
-  return out;
 }
+
+/**
+ * REALFIX2 (bare blocks): `deriveGeometry` has `repairRings` off because repaired rings put colliders where traffic drives. Here the repair is tried block by
+ * block on the blocks `badBlocks` lists, and kept only when the pulled-in ring is simple, inside the kerb ring, covers no driven centreline and has no vertex or
+ * edge midpoint on the roadway. A repaired block gets its building ring (so lots, walking ring and buildings follow); the rest stay bad (fenced lots).
+ * Mutates `d.buildingRings`; returns the repaired block numbers.
+ */
+export function repairBadBlocks(net: RoadNet, d: Derived): number[] {
+  const done: number[] = [];
+  for (const b of badBlocks(net, d)) {
+    const ring = d.buildingRings[b], curb = d.curbRings[b];
+    if (!ring || ring.length < 4 || !curb || curb.length < 3) continue;
+    const pulled = pullInside(ring, curb);
+    if (!pulled || pulled.length < 3 || Math.abs(signedArea(pulled)) < REPAIR_MIN_AREA) continue;
+    if (pulled.some((p, i) => !pointInPolygon(p, curb) || net.isOnRoad(p) || net.isOnRoad({ x: (p.x + pulled[(i + 1) % pulled.length].x) / 2, z: (p.z + pulled[(i + 1) % pulled.length].z) / 2 }))) continue;
+    if (ringCoversRoad(net, d, pulled)) continue;
+    d.buildingRings[b] = pulled;
+    done.push(b);
+  }
+  return done;
+}
+const REPAIR_MIN_AREA = 60;
 
 /** a lot tile's box (minX, minZ, maxX, maxZ) touches the polygon: some point of a 5 x 5 sample of the box is inside it */
 export function boxTouchesPolygon(b: readonly [number, number, number, number], poly: ReadonlyArray<Vec2>): boolean {
@@ -280,6 +305,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   let t0 = performance.now();
   const net = await loadRoadNet();
   const derived = deriveGeometry(net);
+  const repairedBlocks = opts.forceStandIns ? [] : repairBadBlocks(net, derived);
   t('net+derive', t0);
 
   const group = new THREE.Group();
@@ -339,7 +365,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
       colliders.push(...fl.colliders);
       fenceInfo = { lots: fl.lots, panels: fl.panels };
     }
-  } catch (e) { standIns.push(`fences: ${(e as Error).message}`); }
+  } catch (e) { if (!opts.forceStandIns) standIns.push(`fences: ${(e as Error).message}`); } // forced stand-ins skip the fences quietly: they are an extra, not a stand-in for something
 
   // buildings: streamed by 128 m chunk around the player (WP4 buildingStream), far boxes beyond; stand-in boxes if it throws
   t0 = performance.now();
@@ -453,7 +479,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   let traffic: RealTraffic | null = null;
   t0 = performance.now();
   try {
-    if (!opts.forceStandIns) traffic = (await import('./trafficReal')).makeRealTraffic(net, derived, sidewalks, (await import('@/world/data/roadnet-controls-r4.json')).default as unknown);
+    if (!opts.forceStandIns) traffic = (await import('./trafficReal')).makeRealTraffic(net, derived, sidewalks, (await import('@/world/data/roadnet-controls-r4.json')).default as unknown, 0, true);
   } catch (e) { standIns.push(`traffic: ${(e as Error).message}`); traffic = null; }
   t('traffic', t0);
   let signalHeads: ((g: THREE.Object3D, l: RealTraffic['lights']) => void) | null = null;
@@ -471,7 +497,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
     if (traffic && props && signalHeads) { signalHeads(props.group, traffic.lights); if (ringProps) for (const g of ringProps.groups()) signalHeads(g, traffic.lights); }
   };
   const setColliderHost = (h: ColliderHost): void => { host = h; if (held.size) h.add([...held.values()]); };
-  const stats = { ...measureWorld(group), lots: lots.length, colliders: colliders.length, ms, fences: fenceInfo };
+  const stats = { ...measureWorld(group), lots: lots.length, colliders: colliders.length, ms, fences: fenceInfo, repaired: repairedBlocks.length };
   void ROAD_CHUNK_PREFIX;
   if (typeof window !== 'undefined') { // debug: scripts/perf-real.mjs reads the world and the review frames from the page
     const w = window as unknown as { __gtaRealWorld?: () => RealWorld; __gtaRealFrames?: () => Promise<unknown> };

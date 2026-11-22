@@ -222,6 +222,7 @@ sky.starsEnabled = tier0.stars;
 dayNight.attachSky(sky);
 scene.environmentIntensity = dayNight.isNight ? LIGHTING.envIntensityNight : LIGHTING.envIntensityDay;
 const nightLights = new NightLights(scene, world.lamps, { poolSize: LIGHTING.lampPool[quality] });
+nightLights.setExtraLamps(realWorld?.ringProps?.lamps ?? []); // real map: lamps streamed in the outer rings get pooled lights too
 const sunFlare = new SunFlare(scene);
 // wet-street / rain state: patches the ground materials in place, so it is built before the shader warm-up compile
 const weather = new Weather(scene, materials, { rainStreaks: 2000 }); // streak pool; the tier sets how many are drawn

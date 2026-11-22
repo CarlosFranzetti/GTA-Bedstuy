@@ -103,3 +103,29 @@ describe('kerb rings that cover a roadway', () => {
     expect(kerbCoversRoad(net, d, bad).size).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('REALFIX2: compact graphs and repaired rings', () => {
+  it('repairBadBlocks keeps only rings inside the kerb that cover no driven centreline, and fewer blocks stay bad', async () => {
+    const { repairBadBlocks, kerbCoversRoad } = await import('@/world/roadnet/realWorld');
+    const d2 = deriveGeometry(net);
+    const before = badBlocks(net, d2).size;
+    const done = repairBadBlocks(net, d2);
+    expect(done.length).toBeGreaterThan(0);
+    expect(badBlocks(net, d2).size).toBe(before - done.length);
+    expect(kerbCoversRoad(net, d2, done).size).toBe(0);
+  });
+
+  it('compact traffic: the sidewalk graph is the walking graph, one adjacency table, no per-node block table', async () => {
+    const { buildSidewalkGraph } = await import('@/world/roadnet/sidewalks');
+    const { makeRealTraffic } = await import('@/world/roadnet/trafficReal');
+    const controls = (await import('@/world/data/roadnet-controls-r4.json')).default as unknown;
+    const sw = buildSidewalkGraph(net, d);
+    const full = Object.keys(sw.graph.nodes).length;
+    const rt = makeRealTraffic(net, d, sw, controls, 0, true);
+    expect(rt.sidewalks.graph).toBe(rt.walk);
+    expect(Object.keys(rt.walk.nodes).length).toBeLessThanOrEqual(full);
+    expect(Object.keys(sw.blockOf).length).toBe(0);
+    expect(rt.laneBuild.chains.length).toBe(0);
+    expect(Object.keys(rt.lanes.nodes).length).toBeGreaterThan(1000);
+  }, 60000);
+});

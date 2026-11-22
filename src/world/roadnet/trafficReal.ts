@@ -148,7 +148,13 @@ function nearestOf<T extends GraphNode>(list: readonly T[], p: Vec2): T {
   return best;
 }
 
-export function makeRealTraffic(net: RoadNet, d: Derived, sidewalks: SidewalkNet, controlsJson: unknown, startTime = 0): RealTraffic {
+/**
+ * `compact` (the game, not the tests): REALFIX2. The whole-map graphs are string-keyed object graphs, so they are what makes the heap grow with the map
+ * (adjacency tables alone were 34 MB of 83 on the grown net). With it the sidewalk graph IS the walking graph (`sidewalks.graph` is replaced by the
+ * filtered one, so one adjacency table instead of two, and the pointer arrow and the mission walker stop routing over a roadway or through a building
+ * too), the per-node block table is emptied, and the lane builder's chains and connector lists, which only tests read, are dropped.
+ */
+export function makeRealTraffic(net: RoadNet, d: Derived, sidewalks: SidewalkNet, controlsJson: unknown, startTime = 0, compact = false): RealTraffic {
   const laneBuild = buildLaneGraphDetailed(net, d);
   const lanes = laneBuild.graph;
   const control = nodeControl(net, controlsJson);
@@ -220,6 +226,12 @@ export function makeRealTraffic(net: RoadNet, d: Derived, sidewalks: SidewalkNet
     isOnRoad: (p: Vec2) => net.isOnRoad(p),
   } as unknown as GridModel;
 
+  if (compact) {
+    sidewalks.graph = walk;
+    (sidewalks as { blockOf: Record<string, number> }).blockOf = {};
+    const lb = laneBuild as unknown as Record<string, unknown>;
+    for (const k of ['chains', 'connectors', 'strandedEnds', 'orphanStarts', 'extraSinks', 'extraSources', 'clusters']) lb[k] = Array.isArray(lb[k]) ? [] : lb[k];
+  }
   const fitVehicles = (make: MakeVehicleFn): MakeVehicleFn => (type, pos, heading, color) =>
     make(VEHICLE_SPECS[type].length > MAX_REAL_VEHICLE_LENGTH ? 'boxtruck' : type, pos, heading, color);
   return { grid, lights, lanes, sidewalks, crosswalkNodes: sidewalks.crosswalkNodes, laneBuild, fitVehicles, density: (d) => ({ ...d, parkOccupancy: d.parkOccupancy * REAL_PARK_SHARE }), walk };

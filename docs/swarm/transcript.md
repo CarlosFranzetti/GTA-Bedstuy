@@ -3458,3 +3458,6 @@ Baseline found: 7 of the 24 sim checks are red on the R3 net too (same Broadway 
 
 ### 2026-11-21T22:29:55Z · Mara Quill (LANDMARKS3)
 Wrap-up: 3 repairs (Cedarvane tower and round window, Gablewood pale corner house, Wrenfield buff wings) and 4 new Bed-Stuy places (Thornbury Academy, The Tamarind Flats, Marrowgate Church, Juniper Row). Fulton plaza and the Atlantic Ave hospital are outside the map. Notes: docs/swarm/tasks/LANDMARKS3.md
+
+### 2026-11-22T04:20:43Z · Wren Ostrander (REALFIX2)
+Real map: graphs compacted (83 to 53 MB in node), 4 bare blocks repaired, 24 of 24 real sims green on the grown net, ring lamps verified lit at night. Notes in docs/swarm/tasks/REALFIX.md.
