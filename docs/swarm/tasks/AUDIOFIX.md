@@ -70,3 +70,17 @@ Radio (see "Radio causes")
 ## Streams NOT checked (this box cannot reach them; the tests use mocked elements)
 wfmu rocknsoul `https://stream0.wfmu.org/rocknsoul`, wfmu freeform `https://stream0.wfmu.org/freeform-128k`, KEXP `https://kexp.streamguys1.com/kexp128.mp3`, SomaFM u80s
 (`ice2` / `ice6` mp3, `ice2` aac) and 181.FM, WNYC (`fm939.wnyc.org/wnycfm`, `stream.wnyc.org/wnycfm`), the SoundCloud player API and every SoundCloud account. Whether any is dead today is unknown.
+
+## Boot check (hosted build, `?map=grid&q=low`, canvas hidden, Space pressed; script `scratchpad/audiofix/boot.cjs`, raw `boot.json`)
+Network blocked, so every real stream failed and the radio fell back as designed (toasts such as "Rinse FM is off the air. Tuning to Soulection." ending on WBSY Talk).
+On foot: 0 engine voices. In a car: player 1, AI 2 to 4 (moving cars only). Exit: player 0 straight away, 0 ghosts. Re-enter: player 1.
+Menu open: context suspended; closed: running; two Escapes at once: running. `audio.pause('listening-post')` then resume: suspended then running.
+Eight station changes: no errors. `mixer.set('engine', 0)`: 0 player and 0 AI voices, context still running; back to 1: player 1, AI 4.
+Page errors: none from the game. Console: blocked outside requests, one 502 for `/ra-api` (no proxy rewrite in `vite preview`). The script's last step (reading the menu row text) lost the page; the row is covered by tests/unit/ui/menu-audio.test.ts.
+Checks: `npx vitest run tests/unit/audio tests/unit/ui --maxWorkers=1` 69 files, 916 tests green; `npx tsc --noEmit` clean for src (only the CAMFIX test files report).
+## Lines for the lead (src/main.ts)
+In the loop that fills `NEAR_AUDIO_CARS` (about line 847), after `if (v === player.vehicle) continue;` add:
+`if (Math.abs(v.speed) < 0.5) continue; // parked and waiting cars have no engine voice; they also filled the 12 slots before a moving car was reached (AUDIOFIX)`
+Without it the audio layer still ignores parked cars, but on the real map the first 12 cars within 45 m in list order can all be parked, so moving cars never reach it.
+## Not verified
+Nothing was heard. Not measured: the new engine loudness against the radio in an offline render (only -5.2 dB by arithmetic). Real streams and SoundCloud untested. Whether the parked-car drone is what the owner heard is an inference from the code and the measured voice counts, not a recording.

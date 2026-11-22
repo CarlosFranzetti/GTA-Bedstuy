@@ -3476,3 +3476,6 @@ Starting AUDIOFIX: stuck engine loop, silent radio, engine level -45%, Engine so
 
 ### 2026-11-22T07:16:08Z · Marta Quill (TREES)
 Starting TREES: bushier crowns, parks first. Files: world/props/treeCloud.ts, world/data/streetTrees.ts, textures/painters/organic.ts, textures/treeTint.ts, landmarks/parts.ts + buildPark.ts + kit.ts (leaf colour), small edits in FurnitureGen/propsReal tree lines.
+
+### 2026-11-22T08:01:24Z · Tomas Reyes (AUDIOFIX)
+Done. Parked kerb cars were taking all four AI engine voices and idling for ever (measured), pause/resume could leave the context suspended, radio had a blocked-forever state. Engine bus 0.55, Engine Sound setting (Off makes no voice), radio watchdog with toasts. Audio and ui tests green, tsc clean, hosted boot clean. One line for main.ts in docs/swarm/tasks/AUDIOFIX.md. Not heard.

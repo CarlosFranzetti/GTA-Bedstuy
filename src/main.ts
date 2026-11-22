@@ -846,6 +846,7 @@ game.add({
       if (!away) for (const v of traffic.vehicles) {
         if (n >= NEAR_AUDIO_CARS.length) break;
         if (v === player.vehicle) continue;
+        if (Math.abs(v.speed) < 0.5) continue; // parked and waiting cars have no engine voice, and must not take the twelve slots from moving ones
         const dx = v.body.pos.x - lp.pos.x, dz = v.body.pos.z - lp.pos.z;
         if (dx * dx + dz * dz > 45 * 45) continue;
         const c = NEAR_AUDIO_CARS[n++]!;
