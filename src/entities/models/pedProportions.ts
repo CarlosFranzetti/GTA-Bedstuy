@@ -1,0 +1,56 @@
+/**
+ * BODY seat: the proportions of the shipped MakeHuman bases, corrected once when a base is loaded (all three levels, the rig, the rings and the
+ * landmarks move together, so garments, legs, painters and the skin bake all see the same body).
+ *
+ * Measured on the bases (22 Nov): the elbow stood 0.027 of stature too high, the wrist 0.03 too high and the hand was a third too short, so the
+ * fingertips of a hanging arm fell at 0.425 of stature (real people: 0.375, mid-thigh; ANSUR II via docs/reference/gta5-characters.md) and the
+ * upper arm was a fifth short. The arm is re-spaced along its length: shoulder fixed, elbow 0.630, wrist 0.485, fingertip 0.375 of stature.
+ */
+import type { MhLod, MhShape } from './pedMesh';
+import { weldedNormals } from './pedMesh';
+
+export const ARM_TARGET = { elbow: 0.630, wrist: 0.485, tip: 0.375 } as const;
+const ARM_BONES = [4, 5, 6, 7];
+
+function armWeight(L: MhLod, i: number): number {
+  let t = 0;
+  for (let k = 0; k < 4; k++) if (ARM_BONES.includes(L.joints[i * 4 + k])) t += L.weights[i * 4 + k];
+  return Math.min(1, t);
+}
+
+/** piecewise linear map of height along the arm: [from] anchors to [to] anchors, shifted below the last */
+function armMap(from: number[], to: number[]): (y: number) => number {
+  return (y) => {
+    if (y >= from[0]) return y;
+    for (let i = 1; i < from.length; i++) if (y >= from[i]) return to[i] + ((y - from[i]) / (from[i - 1] - from[i])) * (to[i - 1] - to[i]);
+    return y + (to[from.length - 1] - from[from.length - 1]);
+  };
+}
+
+export function normalizeShape(s: MhShape): MhShape {
+  const H = s.landmarks.crownY, sh = s.rig.shoulderL[1], el = s.rig.elbowL[1], wr = s.rig.wristL[1];
+  const hi = s.lods.hi;
+  let tip = Infinity;
+  for (let i = 0; i < hi.position.length / 3; i++) if (hi.position[i * 3] < 0 && armWeight(hi, i) > 0.5) tip = Math.min(tip, hi.position[i * 3 + 1]);
+  const f = armMap([sh, el, wr, tip], [sh, ARM_TARGET.elbow * H, ARM_TARGET.wrist * H, ARM_TARGET.tip * H]);
+  for (const L of [s.lods.hi, s.lods.mid, s.lods.far]) {
+    const n = L.position.length / 3, before = weldedNormals(L.position, L.index);
+    for (let i = 0; i < n; i++) {
+      const w = armWeight(L, i);
+      if (w <= 0) continue;
+      const y = L.position[i * 3 + 1];
+      L.position[i * 3 + 1] = y + (f(y) - y) * w;
+    }
+    const now = weldedNormals(L.position, L.index);
+    if (L.normal0) for (let i = 0; i < now.length; i += 3) {
+      const x = L.normal0[i] + now[i] - before[i], y = L.normal0[i + 1] + now[i + 1] - before[i + 1], z = L.normal0[i + 2] + now[i + 2] - before[i + 2], l = Math.hypot(x, y, z) || 1;
+      L.normal0[i] = x / l; L.normal0[i + 1] = y / l; L.normal0[i + 2] = z / l;
+    }
+    L.normal = now;
+  }
+  for (const k of Object.keys(s.rig)) if (/^(elbow|wrist)/.test(k)) s.rig[k][1] = f(s.rig[k][1]);
+  s.landmarks.wristY = f(s.landmarks.wristY);
+  for (const rs of [s.armRings.upper, s.armRings.fore]) for (const r of rs) if (r) r[0] = f(r[0]);
+  void wr;
+  return s;
+}

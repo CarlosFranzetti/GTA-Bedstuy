@@ -166,14 +166,11 @@ export class FootLock {
       const kd = kx * Dx + ky * Dy + kz * Dz;
       let Px = kx - Dx * kd, Py = ky - Dy * kd, Pz = kz - Dz * kd;
       const pl = Math.hypot(Px, Py, Pz);
-      // forward (-z) taken across the hip-ankle line: a knee only bends this way. A leg that is nearly straight has no steady side of its own (its old
-      // knee sits on the line), so the side fades to forward as the old bend fades, and is never allowed behind the line (GAIT: no knee flip at full reach)
+      // a leg that is nearly straight has no steady side of its own (its old knee sits on the line): the side fades to forward (-z, across the line) as the old bend fades
       const fz = -1, fd = fz * Dz, Fx = -Dx * fd, Fy = -Dy * fd, Fz = fz - Dz * fd, fl = Math.hypot(Fx, Fy, Fz) || 1;
-      const bent = sstep(0.004 * a, 0.05 * a, pl);
+      const bent = sstep(0.0005 * a, 0.01 * a, pl);
       if (pl < 1e-5) { Px = Fx; Py = Fy; Pz = Fz; } else { Px /= pl; Py /= pl; Pz /= pl; }
       Px = Px * bent + (Fx / fl) * (1 - bent); Py = Py * bent + (Fy / fl) * (1 - bent); Pz = Pz * bent + (Fz / fl) * (1 - bent);
-      const behind = Px * Fx + Py * Fy + Pz * Fz;
-      if (behind < 0.15 * fl) { const k = (0.15 * fl - behind) / fl; Px += (Fx / fl) * k; Py += (Fy / fl) * k; Pz += (Fz / fl) * k; }
       const pn = Math.hypot(Px, Py, Pz) || 1; Px /= pn; Py /= pn; Pz /= pn;
       const Kx = hx + a * (Dx * cosA + Px * sinA), Ky = hy + a * (Dy * cosA + Py * sinA), Kz = hz + a * (Dz * cosA + Pz * sinA);
       const Ex = hx + Dx * dist, Ey = hy + Dy * dist, Ez = hz + Dz * dist;   // the ankle as reached

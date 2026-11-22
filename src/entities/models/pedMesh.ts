@@ -13,6 +13,7 @@
  * load, keeps PEDHI's procedural people (buildPedModel of pedBodyHi.ts) as the fallback.
  */
 import * as THREE from 'three';
+import { normalizeShape } from './pedProportions';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { GLTF } from 'three/addons/loaders/GLTFLoader.js';
 import { Rng } from '@/core/Rng';
@@ -112,7 +113,7 @@ function shapeFromGltf(gltf: GLTF): MhShape {
   });
   if (!lods.hi || !lods.mid || !lods.far) throw new Error('people glb needs meshes hi, mid and far');
   const p = meta as Omit<MhShape, 'name' | 'lods'> & { shape: string };
-  return { deltaScale: (p as { deltaScale?: { w: number; m: number } }).deltaScale, name: p.shape, height: p.height, rig: p.rig, landmarks: p.landmarks, headRings: p.headRings, torsoRings: p.torsoRings, hipRings: p.hipRings, armRings: p.armRings, legRings: p.legRings, lods };
+  return normalizeShape({ deltaScale: (p as { deltaScale?: { w: number; m: number } }).deltaScale, name: p.shape, height: p.height, rig: p.rig, landmarks: p.landmarks, headRings: p.headRings, torsoRings: p.torsoRings, hipRings: p.hipRings, armRings: p.armRings, legRings: p.legRings, lods });
 }
 
 const FILES = peopleFlag() ? import.meta.glob('@/assets/models/people/*.glb', { eager: true, query: '?url', import: 'default' }) as Record<string, string> : {};
@@ -797,7 +798,7 @@ function peopleRig(s: MhShape, spec: PedSpec): Record<string, number[]> {
 // ---------------------------------------------------------------- the model
 
 /** stature in head heights (chin to crown) by age: 7.2 for an adult, the GTA IV figure; a bigger head on a body type (short, petite, teen, kid) takes a share of it */
-export const HEADS_OF_STATURE: Record<'adult' | 'old' | 'teen' | 'kid', number> = { adult: 7.2, old: 7.3, teen: 6.9, kid: 6.2 };
+export const HEADS_OF_STATURE: Record<'adult' | 'old' | 'teen' | 'kid', number> = { adult: 7.5, old: 7.5, teen: 7.1, kid: 6.2 };
 export function headsOf(spec: PedSpec, bt: BodyType): number {
   const age = spec.age ?? 'adult';
   return HEADS_OF_STATURE[age === 'old' ? 'old' : age === 'teen' ? 'teen' : age === 'kid' ? 'kid' : 'adult'] / Math.sqrt(bt.head);
