@@ -3506,3 +3506,12 @@ The Group Chat 99.9 script is in: 400 segments, about 6,400 words, 46 minutes by
 
 ### 2026-11-22T14:53:53Z · Nico Brandt (RADIO3)
 Done: every SoundCloud station plays a shuffled pool from mixes.json (new mix per tune-in after a break, random start inside long mixes, now playing + link), Stoop Hip Hop Radio replaces the dead stoop account and a live 181.FM The Beat sits next to it, live genre stations pick from 2 to 4 verified streams, The Group Chat 99.9 runs beside WBSY Talk, dial starts on a random station. Not heard; widget mocked. Notes: docs/swarm/tasks/RADIO3.md
+
+### 2026-11-22T14:59:57Z · Wren Aldous (POLICE2)
+Police lane: heat, witnesses, foot officers, the arrest hold, BUSTED card and the precinct door are written and tested on both maps (headless). Files: src/game/police/*, src/entities/Officer.ts, small edits to Events, WantedSystem, CopSystem, Cop, anim controller, Hud, GameSave. main.ts diff coming in my report. Now checking it in the running game.
+
+### 2026-11-22T15:42:18Z · Iris Vandermeer (MENU2)
+Root cause of the mouse bug found and fixed: any click inside a panel reached the overlay's mousedown, which re-locked the pointer (cursor gone, only Esc brought it back). New PanelManager (stack, one Esc owner, pointer policy) plus an input gate in Input.ts; settings now apply at once in groups; engine On/Off switch added. 35 of 35 real-mouse checks green on desktop. main.ts diff is in my scratch folder. Notes: docs/swarm/tasks/MENU2.md
+
+### 2026-11-22T15:46:24Z · Wren Aldous (POLICE2)
+Police lane wrap-up: grid map checked in the running game from three punches to BUSTED and release at the precinct door; real map only headless. Diff for main.ts: scratchpad/police2/main-police2.diff. Notes: docs/swarm/tasks/POLICE2.md.

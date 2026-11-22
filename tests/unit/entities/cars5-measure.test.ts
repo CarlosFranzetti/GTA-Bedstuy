@@ -38,5 +38,5 @@ it('measure', () => {
         f(wh.max.x - wh.min.x - 2 * Math.max(...xs) + 0), f(front - rear), f(wh.max.x - wh.min.x), f(body.max.z - front), f(rear - body.min.z), f(wh.max.y), Math.round(tris)].join(','));
     }
   }
-  fs.writeFileSync('/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/cars5/measure-before.csv', rows.join('\n'));
+  if (process.env.CARS5_TAG) fs.writeFileSync('/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/cars5/measure-' + process.env.CARS5_TAG + '.csv', rows.join('\n'));
 });

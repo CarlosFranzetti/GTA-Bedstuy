@@ -328,7 +328,7 @@ export class Menu {
     this.root.setAttribute('aria-labelledby', 'menu-title');
     this.root.setAttribute('data-ui-modal', '');
     // Right click goes back one step, like Esc (the PanelManager does this first when it is attached).
-    this.root.addEventListener('contextmenu', (e) => { e.preventDefault(); if (this.opened) this.back(); });
+    this.root.addEventListener('contextmenu', (e) => { e.preventDefault(); if (this.opened && (e as PointerEvent).pointerType !== 'touch') this.back(); });
     this.shell = this.el('div', 'gp-shell');
 
     const head = this.el('header', 'gp-head');
@@ -1010,8 +1010,8 @@ export class Menu {
       set: ((v: boolean) => { if (v) this.setAuto(true); else this.setQuality(this.state.quality); }) as RowSpec['set'],
     });
     const mx = this.opts.mixer;
-    const mixRow = (id: string, k: MixKey, legacy?: { get(): number; set(v: number): void }): void => {
-      S.set(id, { id, label: MIX_LABELS[k], kind: 'slider', live: !!mx, min: 0, max: 100, step: 5, def: () => 100, desc: MIX_DESC[k], fmt: (v) => (k === 'engine' && v === 0 ? 'Off' : `${v}%`),
+    const mixRow = (id: string, k: MixKey, legacy?: { get(): number; set(v: number): void }, label?: string): void => {
+      S.set(id, { id, label: label ?? MIX_LABELS[k], kind: 'slider', live: !!mx, min: 0, max: 100, step: 5, def: () => 100, desc: MIX_DESC[k], fmt: (v) => (k === 'engine' && v === 0 ? 'Off' : `${v}%`),
         visible: legacy || mx ? undefined : () => false,
         get: () => Math.round((mx ? mx.get(k) : legacy ? legacy.get() : 1) * 100),
         set: ((v: number) => { if (mx) { mx.set(k, v / 100); if (k === 'engine' && v > 0) this.rememberEngine(v / 100); } else legacy?.set(v / 100); }) as RowSpec['set'] });
@@ -1026,7 +1026,7 @@ export class Menu {
       set: ((v: boolean) => { this.setEngineOn(v); }) as RowSpec['set'],
     });
     mixRow('radiovol', 'radio', { get: () => this.state.radio, set: (v) => this.setRadio(v) });
-    mixRow('sfxvol', 'sfx'); mixRow('enginevol', 'engine'); mixRow('voicevol', 'voices'); mixRow('ambvol', 'ambience');
+    mixRow('sfxvol', 'sfx'); mixRow('enginevol', 'engine', undefined, 'Engine volume'); mixRow('voicevol', 'voices'); mixRow('ambvol', 'ambience');
     S.set('radiolib', { id: 'radiolib', label: 'Radio library', kind: 'action', desc: 'Opens the radio library: tracks, stations and the playlist.', press: () => { this.cb.onRadioLibrary?.(); } });
     S.set('credits', { id: 'credits', label: 'Credits', kind: 'action', desc: 'Who made the game, and who we thank.', visible: () => !!this.cb.onCredits, press: () => { this.cb.onCredits?.(); } });
     S.set('quit', {

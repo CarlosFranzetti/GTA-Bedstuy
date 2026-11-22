@@ -250,3 +250,16 @@ describe('Menu + PanelManager + Input together', () => {
     pm.dispose(); menu.dispose(); parent.remove(); vi.useRealTimers();
   });
 });
+
+describe('PanelManager on touch', () => {
+  it('a long press (a touch contextmenu) opens no browser menu and does not go back', () => {
+    const menu = fake('menu');
+    const pm = new PanelManager(document, { input: gate() }); pm.register(menu);
+    menu.open(); pm.sync();
+    const e = new MouseEvent('contextmenu', { bubbles: true, cancelable: true }) as MouseEvent & { pointerType?: string };
+    Object.defineProperty(e, 'pointerType', { value: 'touch' });
+    document.body.dispatchEvent(e);
+    expect(e.defaultPrevented).toBe(true); expect(menu.backs).toBe(0);
+    pm.dispose();
+  });
+});

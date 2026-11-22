@@ -187,7 +187,7 @@ export function keyVault(p: Float32Array, k: number, side: number): void {
   for (const name of BONES) {
     const o = boneChannel(name);
     const va = a.v[name], vb = b.v[name];
-    for (let c = 0; c < 3; c++) p[o + c] = va && vb ? va[c] + (vb[c] - va[c]) * u : p[o + c] * (1 - u * 0) ;
+    if (va && vb) for (let c = 0; c < 3; c++) p[o + c] = va[c] + (vb[c] - va[c]) * u; // (every bone is keyed; an unkeyed one keeps the pose under it)
   }
   p[RIG_CH] = 0; p[RIG_CH + 1] = a.dy + (b.dy - a.dy) * u; p[RIG_CH + 2] = a.surge + (b.surge - a.surge) * u;
   if (side < 0) mirrorPose(p);
@@ -267,6 +267,10 @@ export class AnimController {
   private readonly armLoad = [1, 1];
   /** the far level of detail: no foot lock, no breathing or look-at (a cheaper update for crowds and the phone tier) */
   cheap = false;
+  /** tests and the showcase: false measures the clips' own foot skate with the lock off */
+  footLockOn = true;
+  /** 0 turns the lean into a turn off (tests); 1 is the shipped amount */
+  leanGain = 1;
   /** the foot lock's weights (0 free, 1 held) for tests and the showcase */
   get footLock(): readonly number[] { return this.lock.w; }
 
@@ -488,7 +492,10 @@ export class AnimController {
     const lead = Math.min(1, speed / 1.2) * Math.max(-3, Math.min(3, yawRate));
     this.yawLead += (lead - this.yawLead) * Math.min(1, dt * 12);
     p[boneChannel('head')] += 0; p[boneChannel('head') + 1] += this.yawLead * 0.13;
-    p[boneChannel('torso') + 1] += this.yawLead * 0.07; p[boneChannel('torso') + 2] += -this.yawLead * 0.02 * Math.min(1.5, speed / 2);
+    p[boneChannel('torso') + 1] += this.yawLead * 0.07;
+    // the body leans into a turn the faster it goes (a lean of about 11 degrees at a sprint turning at 3 rad/s, none standing): hips and chest roll together
+    const leanZ = Math.max(-0.2, Math.min(0.2, -this.yawLead * Math.min(speed, 6.5) * 0.0105 * this.leanGain));
+    p[boneChannel('torso') + 2] += leanZ * 0.6; p[boneChannel('hips') + 2] += leanZ * 0.4;
     if (!this.cheap) this.alive(p, dt, inp);
     // the pelvis: the capture says how high its lowest sole was above the ground (0 for a foot on the floor, more in a stride's flight or a jump);
     // this body's own legs are then placed so THEIR lowest sole is at that height. The old rule used the ankle, so a rolling foot dug in.
@@ -511,7 +518,7 @@ export class AnimController {
     if (this.cheap) { this.lock.reset(); return; }
     const sitting = !!this.shot && /^(sit|stand|stumble|flinch)/.test(this.shot.clip.name);
     const turning = Math.abs(yawRate) > 1.4 && speed < 1;
-    const enable = sitting || this.jumpTouched || this.vaultTouched || turning ? 0 : 1;
+    const enable = !this.footLockOn || sitting || this.jumpTouched || this.vaultTouched || turning ? 0 : 1;
     const gz = this.target.group?.scale.z ?? 1;
     this.rigV.set(p[RIG_CH] * sc, p[RIG_CH + 1], p[RIG_CH + 2] * sc);
     const lq = this.lockQ;

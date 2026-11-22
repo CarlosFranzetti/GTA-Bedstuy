@@ -58,6 +58,7 @@ import { GraphicsStore, deriveGraphics } from '@/ui/GraphicsSettings';
 import { createLoadingMusic } from '@/render/LoadingMusic';
 import { createTitleMusic } from '@/render/TitleMusic';
 import { Credits } from '@/ui/Credits';
+import { PanelManager } from '@/ui/PanelManager';
 import { RadioUi } from '@/ui/RadioUi';
 import { GamepadInput } from '@/core/Gamepad';
 import { startAnalytics } from '@/core/Analytics';
@@ -357,7 +358,10 @@ hud.onCycleHands = () => combat.cycle(1);
 // fades out a few seconds after the player presses start, and plays again under the credits roll.
 const titleMusic = createTitleMusic({ volume: 0.7 });
 let splashUp = false;
-const credits = new Credits(overlay, { onOpen: () => titleMusic.start(), onClose: () => { if (!splashUp) titleMusic.stop(1.5); } });
+// MENU2: one stack of open screens owns the mouse, the keys and Esc (src/ui/PanelManager.ts). Built before the screens so its Esc handler runs first.
+const panels = new PanelManager(document);
+const credits = new Credits(overlay, { onOpen: () => { titleMusic.start(); panels.sync(); }, onClose: () => { if (!splashUp) titleMusic.stop(1.5); panels.sync(); } });
+panels.register({ id: 'credits', isOpen: () => credits.isOpen, close: () => credits.close() });
 hud.onSplash = (shown) => { splashUp = shown; input.lockBlocked = shown; document.body.classList.toggle('title-up', shown); if (shown) titleMusic.start(); else if (!credits.isOpen) titleMusic.stop(3); }; // title-up: the game's interface is hidden behind the title (hud.css)
 hud.onCredits = () => credits.open();
 const missionHud = new MissionHud(overlay);
@@ -367,6 +371,7 @@ const minimap = new Minimap(overlay, grid, realGame?.minimapRoads);
 const map = new MapScreen(overlay, grid, realGame ? { places: realGame.mapPlaces, streets: realGame.streetSource, router: realGame.router } : { places: [...navPlaces(), ...placesFromLots(world.lots)] });
 
 const input = new Input(renderer.domElement);
+panels.configure({ input, openPause: () => menu.open() }); // the gate: no keys, clicks or pointer lock reach the game while a screen is open
 let lastOutside: Vec2 = { x: HOME.x, z: HOME.z };
 function ensureAudio(): boolean {
   if (recSource) return true;
@@ -382,6 +387,8 @@ function ensureAudio(): boolean {
     libraryTracks: () => audio.library.serialize().pool.map((t) => ({ id: t.id, name: t.name, path: t.path })),
   });
   djUi = new DjUi(overlay, { game: dj, inventory, source: recSource, onToggle: (o) => ambient.duck(o), releasePointerLock: true });
+  panels.register({ id: 'shop', isOpen: () => !!shopUi?.isOpen, close: () => shopUi?.close(), back: () => shopUi?.navigate('back') });
+  panels.register({ id: 'decks', isOpen: () => !!djUi?.isOpen, close: () => djUi?.leave() });
   return true;
 }
 const interiors = new Interiors({
@@ -433,7 +440,7 @@ const startGame = (): void => { if (!splashUp) return; menu.startGesture(); hud.
 hud.onStart = startGame;
 input.onFirstGesture = () => { events.emit('userGesture', {}); if (splashUp) titleMusic.start(); };
 window.addEventListener('keydown', (e) => {
-  if (!splashUp || credits.isOpen || e.repeat) return;
+  if (!splashUp || credits.isOpen || panels.anyOpen || e.repeat) return;
   if (e.code === 'Space' || e.code === 'Enter' || e.code === 'NumpadEnter') { e.preventDefault(); startGame(); }
 });
 overlay.addEventListener('mousedown', () => input.notifyGesture());
@@ -694,12 +701,13 @@ const game = new Game(
 
 // pause menu, gamepad, settings (Menu fires its persisted-setting callbacks once at construction)
 let lastPad = performance.now();
-const gamepad = new GamepadInput(input, { onBumper: (d) => { if (phoneHud.isOpen || shopUi?.isOpen || djUi?.isOpen || !menu.isOpen) return false; menu.tab(d); return true; }, onToast: (m) => hud.showToast(m), onStart: () => { if (splashUp) { startGame(); return; } if (shopUi?.isOpen) shopUi.close(); else if (djUi?.isOpen) djUi.leave(); else menu.toggle(); }, onNav: (d) => { if (phoneHud.isOpen) phoneHud.navigate(d); else if (shopUi?.isOpen) shopUi.navigate(d); else if (djUi?.isOpen) djUi.navigate(d); else menu.navigate(d); } });
+const gamepad = new GamepadInput(input, { onBumper: (d) => { if (phoneHud.isOpen || shopUi?.isOpen || djUi?.isOpen || !menu.isOpen) return false; menu.tab(d); return true; }, onToast: (m) => hud.showToast(m), onStart: () => { if (splashUp) { startGame(); return; } if (panels.anyOpen && panels.top !== 'menu') panels.back(); else menu.toggle(); }, onNav: (d) => { if (panels.top === 'radio') { if (d === 'back') panels.back(); return; } if (phoneHud.isOpen) phoneHud.navigate(d); else if (shopUi?.isOpen) shopUi.navigate(d); else if (djUi?.isOpen) djUi.navigate(d); else menu.navigate(d); } });
 events.on('gunshot', () => gamepad.rumble(0.45, 0.2, 90)); // a pad shivers with a shot
 events.on('pedHit', (e) => { if (e.by !== 'shot') gamepad.rumble(0.3, 0.5, 120); }); // and thumps with a punch or a thrown brick
-const radioUi = new RadioUi(overlay, audio);
+const radioUi = new RadioUi(overlay, audio, { onToggle: () => panels.sync() });
+panels.register({ id: 'radio', isOpen: () => radioUi.isOpen, close: () => radioUi.close() });
 const menu = new Menu(overlay, {
-  onPause: (p) => { game.paused = p || document.hidden; gamepad.paused = p; audio.setPaused(p); if (!p) { input.endFrame(); input.requestLock(); } },
+  onPause: (p) => { game.paused = p || document.hidden; gamepad.paused = p; audio.setPaused(p); if (!p) input.endFrame(); }, // the PanelManager gives the pointer back to the game from the Resume click or key
   onQuality: (q) => setTier(q),
   onAuto: (a) => perf.setAutoDrop(a),
   onGraphics: () => applyGraphics(),
@@ -710,7 +718,7 @@ const menu = new Menu(overlay, {
   onInvertLookY: (b) => { input.invertLookY = b; },
   onReset: () => { clearMissionData(); missions.story.reset(); inventory.reset(PROCEDURAL_RECORDS); clearPhoneData(); phone.messages.length = 0; phone.version++; if (interiors.inside) interiors.exit(); const b = player.vehicle ? player.vehicle.body : player.body; b.pos.x = HOME.x; b.pos.z = HOME.z; b.vel.x = 0; b.vel.z = 0; },
 }, {
-  touch: isTouch, initialQuality: quality, ignoreSavedQuality: params.has('q'), saves, canSave: () => interiors.state === 'outside',
+  touch: isTouch, openOnPointerUnlock: false, initialQuality: quality, ignoreSavedQuality: params.has('q'), saves, canSave: () => interiors.state === 'outside',
   mixer: audio.mixer, graphics: graphicsStore, getQuality: () => quality, auto: !params.has('q') && params.get('perf') !== '0', map,
   info: () => ({ cash: inventory.cash, hour: dayNight.timeOfDay, day: gameDay, street: streetName, station: audio.stationName, stats: [
     ['Missions done', `${missions.missions.filter((m) => missions.isCompleted(m.id)).length} / ${missions.missions.length}`],
@@ -718,6 +726,9 @@ const menu = new Menu(overlay, {
   missionLog: () => missionLogOf(missions),
   hdVoices: { get: () => audio.hdVoices, set: (v) => audio.setHdVoices(v), label: () => audio.hdLabel },
 });
+panels.register({ id: 'menu', isOpen: () => menu.isOpen, close: () => menu.close(), back: () => menu.back(), keepsEscape: () => menu.keepsEscape });
+panels.register({ id: 'map', isOpen: () => map.isOpen, close: () => map.close(), insideOf: 'menu' });
+panels.register({ id: 'phone', isOpen: () => phoneHud.isOpen, close: () => { if (phoneHud.isOpen) phoneHud.toggle(); }, back: () => phoneHud.navigate('back') });
 input.onModeChange = (m) => { hud.setInputMode(m); menu.setInputMode(m); };
 hud.setInputMode(input.mode); menu.setInputMode(input.mode);
 let pendingLook: RosterLook | null = null;
@@ -939,7 +950,7 @@ document.addEventListener('visibilitychange', () => { game.paused = document.hid
     camHeading = (veh ? veh.body : player.body).heading;
     for (let i = 0; i < n; i++) updateCamera();
   },
-  interiors, inventory, phone, combat, get dj() { return dj; }, get shopUi() { return shopUi; }, get djUi() { return djUi; }, ensureAudio, missions,
+  panels, menu, input, interiors, inventory, phone, combat, get dj() { return dj; }, get shopUi() { return shopUi; }, get djUi() { return djUi; }, ensureAudio, missions,
   player, cops, traffic, wanted, physics, grid, events, scene, sky, pipeline, blobs, nightLights, dayNight, renderer, materials, perf, culler, carLod, proxies, weather,
   nearby(r: number) { const p = player.body.pos; const out: unknown[] = []; for (const b of physics.bodies()) { const d = Math.hypot(b.pos.x - p.x, b.pos.z - p.z); if (b.shape.kind === 'circle' && d < r) out.push({ id: b.id, kind: b.kind, d: +d.toFixed(2) }); } return out; },
 };

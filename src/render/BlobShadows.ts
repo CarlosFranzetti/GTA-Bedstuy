@@ -20,9 +20,13 @@ export const BLOB_CAR_CAPACITY = 96;
 export const BLOB_PED_CAPACITY = 96;
 /** Blob height above the ground (m): above the road/sidewalk top, below decals that use polygonOffset. */
 export const BLOB_Y = 0.045;
-/** A car blob is its spec box times this (so the soft edge reaches past the wheels). */
-export const CAR_BLOB_SCALE_W = 1.28;
-export const CAR_BLOB_SCALE_L = 1.18;
+/**
+ * A car blob is its spec box times this. CARS5: the old 1.28 x 1.18 left the whole soft edge UNDER the body (the fade ended at 0.4 of the
+ * car's width), so no contact shadow was ever seen beside a car and it read as floating. The decal now reaches about 0.4 m past the
+ * flanks and 0.45 m past the bumpers (see `carBlobAlpha`).
+ */
+export const CAR_BLOB_SCALE_W = 1.5;
+export const CAR_BLOB_SCALE_L = 1.22;
 /** Pedestrian blob diameter (m). */
 export const PED_BLOB_SIZE = 0.95;
 /** Peak opacity per blob kind at full daylight; `setStrength` scales both. */
@@ -40,12 +44,15 @@ export function writeBlobMatrix(out: Float32Array | number[], o: number, x: numb
   out[o + 12] = x; out[o + 13] = y; out[o + 14] = z; out[o + 15] = 1;
 }
 
-/** Opacity (0..1) of a pixel at normalised position (u, v in -1..1) of the car decal: a rounded box with a dark core. */
+/**
+ * Opacity (0..1) of a pixel at normalised position (u, v in -1..1) of the car decal: a rounded box whose dark core covers the whole
+ * footprint of the car and whose soft edge ends about 0.4 m beyond the flanks (the body edge sits at u = 0.71 for a 1.83 m car).
+ */
 export function carBlobAlpha(u: number, v: number): number {
-  // signed distance to a rounded rectangle (half-extents 0.62 x 0.72, corner radius 0.3), soft falloff to the edge
-  const qx = Math.abs(u) - (0.62 - 0.3), qy = Math.abs(v) - (0.72 - 0.3);
-  const d = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - 0.3;
-  const t = Math.min(1, Math.max(0, 1 - (d + 0.34) / 0.34)); // 1 inside d <= -0.34, 0 at d >= 0
+  const R = 0.35;
+  const qx = Math.abs(u) - (0.96 - R), qy = Math.abs(v) - (0.97 - R);
+  const d = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - R;
+  const t = Math.min(1, Math.max(0, 1 - (d + 0.5) / 0.5)); // 1 inside d <= -0.5, 0 at d >= 0
   return t * t * (3 - 2 * t);
 }
 
@@ -158,6 +165,8 @@ export class BlobShadows {
   private readonly textures: THREE.Texture[] = [];
   private strength = 1;
   private on = true;
+  /** CARS5: with `setEnabled(false)` (tiers that have a sun shadow map) the CAR blob stays on as a contact / ambient shadow (one draw call for all cars); pedestrians' blobs go. */
+  private contact = false;
 
   constructor(carCapacity = BLOB_CAR_CAPACITY, pedCapacity = BLOB_PED_CAPACITY) {
     this.group.name = 'blob-shadows';
@@ -271,14 +280,17 @@ export class BlobShadows {
   get droppedPeds(): number { return this.peds.dropped; }
   /** Draw calls the blobs add to a frame (0 when nothing is added or the set is disabled). */
   get drawCalls(): number {
-    return this.on ? (this.cars.n > 0 ? 1 : 0) + (this.peds.n > 0 ? 1 : 0) : 0;
+    return (this.cars.n > 0 ? 1 : 0) + (this.on && this.peds.n > 0 ? 1 : 0);
   }
   get enabled(): boolean { return this.on; }
 
   /** Tier switch: the blobs are for tiers WITHOUT a sun shadow map (they would double the shadow under cars otherwise). */
   setEnabled(on: boolean): void {
     this.on = on;
-    this.group.visible = on;
+    this.contact = !on;
+    this.group.visible = true;
+    this.applyStrength();
+    this.peds.mesh.visible = on && this.peds.n > 0;
   }
 
   /** Daylight strength 0..1 (sun shadows fade at night; the blob keeps a floor of 0.45 so cars stay grounded under street lamps). */
@@ -287,7 +299,7 @@ export class BlobShadows {
     this.applyStrength();
   }
   private applyStrength(): void {
-    const k = (0.45 + 0.55 * this.strength) * (this.sunCasters ? SUN_SHADOW_BLOB_WEIGHT : 1);
+    const k = (0.45 + 0.55 * this.strength) * (this.sunCasters || this.contact ? SUN_SHADOW_BLOB_WEIGHT : 1);
     this.carMat.opacity = CAR_BLOB_OPACITY * k;
     this.pedMat.opacity = PED_BLOB_OPACITY * k;
   }
@@ -319,7 +331,7 @@ export class BlobShadows {
   endFrame(): void {
     for (const s of [this.cars, this.peds]) {
       s.mesh.count = s.n;
-      s.mesh.visible = s.n > 0;
+      s.mesh.visible = s.n > 0 && (this.on || s === this.cars);
       if (s.caster) { s.caster.count = s.n; s.caster.visible = s.n > 0; }
       if (s.n > 0) {
         const a = s.mesh.instanceMatrix;

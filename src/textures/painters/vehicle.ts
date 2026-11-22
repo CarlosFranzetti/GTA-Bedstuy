@@ -244,7 +244,8 @@ export const TIRE_TEXT = 'BEDSTUY RADIAL';
 export const tireSidewallPainter: Painter = (ctx, w, h, rng, _variant, aux) => {
   const hc = aux?.height;
   const ar = aux?.rng;
-  ctx.fillStyle = '#161616';
+  // CARS5: rubber a step lighter (was #161616: the tyre vanished into a shaded road and a dark arch, the car read as hovering)
+  ctx.fillStyle = '#222223';
   ctx.fillRect(0, 0, w, h);
   if (hc) { hc.fillStyle = gray(128); hc.fillRect(0, 0, w, h); }
 
@@ -253,7 +254,7 @@ export const tireSidewallPainter: Painter = (ctx, w, h, rng, _variant, aux) => {
     const base = side === 0 ? 0 : h * 0.7;
     for (let i = 0; i < 9; i++) {
       const y = base + h * 0.03 * i + (i % 3) * 0.5;
-      withAlpha(ctx, 0.5, () => { ctx.fillStyle = i % 3 === 0 ? '#262626' : '#101010'; ctx.fillRect(0, y, w, 1.5); });
+      withAlpha(ctx, 0.5, () => { ctx.fillStyle = i % 3 === 0 ? '#3a3a3b' : '#1c1c1d'; ctx.fillRect(0, y, w, 1.5); });
       if (hc) { hc.fillStyle = gray(i % 3 === 0 ? 150 : 112); hc.fillRect(0, y, w, 1.5); }
     }
   }

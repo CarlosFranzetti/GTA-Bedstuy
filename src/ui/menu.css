@@ -260,8 +260,11 @@
   .gp-body { margin-top: 6px; }
   .gp-foot { margin-top: 4px; min-height: 0; }
   .gp-foot .gp-prompt, .gp-foot-fill { display: none; }
-  .gp-foot-back { min-height: 38px; }
-  .gp-chip { min-height: 38px; }
+  .gp-foot-back { min-height: 34px; }
+  .gp-chip { min-height: 34px; padding: 0 14px; font-size: 15px; }
+  .gp-groups { padding: 4px 6px; }
+  .menu-tab { min-height: 36px; }
+  .gp-x { height: 38px; }
   .gp-pane-settings, .gp-pane-radio, .gp-pane-missions, .gp-pane-stats { grid-template-columns: minmax(0, 1fr) minmax(150px, 240px); }
   .gp-row { min-height: 40px; font-size: 17px; }
   .menu-root[data-input="touch"] .gp-row { min-height: 44px; }

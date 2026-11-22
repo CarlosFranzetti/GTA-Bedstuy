@@ -302,6 +302,7 @@ export class Player implements Entity {
    */
   onContact(contact: Contact, other: Body2D): void {
     if (this.vehicle || this.entering || this.downT > 0 || this.vault) return;
+    if (other.kind === 'ped') { this.shoulderCheck(contact, other); return; }
     if (other.kind !== 'vehicle' && other.kind !== 'cop') return;
     const sp = Math.hypot(other.vel.x, other.vel.z);
     if (sp < KNOCK_SPEED) return;
@@ -320,6 +321,24 @@ export class Player implements Entity {
     this.jump.reset(); b.height = 0; this.prevY = 0;
     this.moveDir = null; this.wantRun = false; this.sprintBlend = 0; this.actionPose = null;
   }
+  /**
+   * Running into a person: a shoulder check and a half-step, not a wall. The physics has already pushed the bodies apart; here the runner turns the
+   * shoulder (a small stumble layered on the stride), loses a fifth of the speed and the camera gives the smallest kick. Once every 0.7 s.
+   */
+  private shoulderCheck(contact: Contact, other: Body2D): void {
+    const b = this.body;
+    if (this.shoulderCool > 0 || this.jump.busy || this.vault) return;
+    const sp = Math.hypot(b.vel.x, b.vel.z);
+    if (sp < 2 || contact.impulse < 1.2) return;
+    const toward = (other.pos.x - b.pos.x) * b.vel.x + (other.pos.z - b.pos.z) * b.vel.z;
+    if (toward <= 0) return; // brushed past, not run into
+    const k = clamp(contact.impulse / 5, 0.25, 1);
+    this.shoulderCool = 0.7;
+    b.vel.x *= 1 - 0.2 * k; b.vel.z *= 1 - 0.2 * k;
+    this.anim?.playOnce('stumble', { amp: 0.12 + 0.14 * k, from: 0.25, to: 0.5, rate: 2.2, fadeIn: 0.04, fadeOut: 0.2 });
+    this.onBump?.(0.12 * k);
+  }
+  private shoulderCool = 0;
   /** True during the short walk to the door that precedes getting into a car (see tryEnter). */
   get isEntering(): boolean { return this.entering !== null; }
   /** 0..1 sprint ramp (0 = walking, 1 = full run). */
@@ -844,6 +863,7 @@ export class Player implements Entity {
       this.onBump?.(strength);
     }
     this.braceT = Math.max(0, this.braceT - dt);
+    this.shoulderCool = Math.max(0, this.shoulderCool - dt);
     if (speedNow < 2.5) this.wallBraced = false;
     const brace = 1 - 0.65 * (this.braceT / BRACE_TIME); // the legs come back under the body: less push for a moment after a hit
     // flat out into a low car: the vault starts by itself (and the sprint is not braked for the car)

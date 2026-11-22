@@ -199,6 +199,7 @@ export class PanelManager {
     if (t && typeof t.closest === 'function' && t.closest('input, textarea, select, [contenteditable="true"]')) return; // keep paste for text fields
     e.preventDefault();
     e.stopImmediatePropagation();
+    if ((e as PointerEvent).pointerType === 'touch') return; // a long press is not a right click: no menu, but no Back either
     this.lastGesture = 'pointer';
     this.back();
   }

@@ -76,12 +76,13 @@ describe('BlobShadows bookkeeping', () => {
     expect(BLOB_CAR_CAPACITY).toBeGreaterThanOrEqual(64);
   });
 
-  it('setEnabled hides the group and zeroes the draw count; strength fades but keeps a floor', () => {
+  it('setEnabled(false) (a tier with a real sun shadow) keeps ONE contact blob draw for the cars and drops the pedestrians; strength fades but keeps a floor', () => {
     const b = new BlobShadows();
     b.beginFrame(); b.addCar(0, 0, 0, 4, 2); b.addPed(0, 0); b.endFrame();
     expect(b.drawCalls).toBe(2);
     b.setEnabled(false);
-    expect(b.group.visible).toBe(false); expect(b.drawCalls).toBe(0); expect(b.enabled).toBe(false);
+    expect(b.group.visible).toBe(true); expect(b.drawCalls).toBe(1); expect(b.enabled).toBe(false); // CARS5: car contact shadow stays on every tier
+    expect(at(b, 'peds').visible).toBe(false);
     b.setEnabled(true);
     const m = (at(b, 'cars').material as THREE.MeshBasicMaterial);
     b.setStrength(1); const day = m.opacity;
