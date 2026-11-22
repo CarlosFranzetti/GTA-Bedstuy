@@ -71,7 +71,7 @@ export class Input {
       // Ctrl is a game key only while the Keyboard Lock API holds it (fullscreen); otherwise Ctrl+W would close the tab.
       if (LOCK_ONLY_KEYS.has(e.code) && !this.bindings.ctrlSafe) return;
       this.setMode('keyboard');
-      if (!this.phys.has(e.code)) this.physEdges.add(e.code);
+      if (!this.phys.has(e.code)) { this.physEdges.add(e.code); this.bump(e.code); }
       this.phys.add(e.code);
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'AltLeft'].includes(e.code)) e.preventDefault(); // Alt is the walk key: keep the browser menu bar out of it
       else if (e.code === 'Tab' && this.pointerLocked) e.preventDefault(); // Tab is the item key while playing
@@ -92,13 +92,13 @@ export class Input {
       if (!code) return;
       if (e.button === 1) e.preventDefault(); // middle click opens the phone: keep the browser's autoscroll out of it
       if (e.button === 0 && !wasLocked) return;
-      if (!this.phys.has(code)) this.physEdges.add(code);
+      if (!this.phys.has(code)) { this.physEdges.add(code); this.bump(code); }
       this.phys.add(code);
     });
     el.addEventListener('wheel', (e) => {
       if (this.gateClosed) return;
       this.wheel += Math.sign(e.deltaY);
-      if (this.pointerLocked && e.deltaY !== 0) this.physEdges.add(e.deltaY < 0 ? WHEEL_UP : WHEEL_DOWN);
+      if (this.pointerLocked && e.deltaY !== 0) { const w = e.deltaY < 0 ? WHEEL_UP : WHEEL_DOWN; this.physEdges.add(w); this.bump(w); }
     }, { passive: true });
     document.addEventListener('pointerlockchange', () => { this.pointerLocked = document.pointerLockElement === el; });
     document.addEventListener('fullscreenchange', () => this.syncKeyboardLock());
@@ -172,9 +172,24 @@ export class Input {
     for (const k of this.physFor(code)) if (this.phys.has(k)) return true;
     return false;
   }
+  /** Press edges seen per raw code (a physical code or a virtual action id) since the page loaded. Never consumed or cleared. */
+  private pressTotals = new Map<string, number>();
+  private bump(code: string): void { this.pressTotals.set(code, (this.pressTotals.get(code) ?? 0) + 1); }
+  /**
+   * How many times `code` has been pressed so far, from any device, without taking the edge: a physical code counts itself; an action
+   * id counts its virtual presses (touch, pad) plus the physical keys bound to it in the current context. The tutorial compares two
+   * readings ("has the player pressed it since this step began").
+   */
+  pressCount(code: string): number {
+    const n = this.pressTotals.get(code) ?? 0;
+    if (!this.actionsFor(code)) return n;
+    let t = n;
+    for (const k of this.physFor(code)) t += this.pressTotals.get(k) ?? 0;
+    return t;
+  }
   /** Press/release an action from an on-screen control or pad. A press also counts as an edge for `pressed()`. */
   setVirtual(code: string, down: boolean): void {
-    if (down) { if (this.gateClosed) return; if (!this.virtualDown.has(code)) this.virtEdges.add(code); this.virtualDown.add(code); this.gesture(); }
+    if (down) { if (this.gateClosed) return; if (!this.virtualDown.has(code)) { this.virtEdges.add(code); this.bump(code); } this.virtualDown.add(code); this.gesture(); }
     else this.virtualDown.delete(code);
   }
   /**
@@ -182,7 +197,7 @@ export class Input {
    * frame's steps and BEFORE `endFrame()`): the edge is kept through that frame's `endFrame()` so the next frame's
    * steps can still see it. A plain `setVirtual` edge raised there would be wiped before any step read it.
    */
-  pulse(code: string): void { if (this.gateClosed) return; this.virtEdges.add(code); this.carryOver.add(code); this.gesture(); }
+  pulse(code: string): void { if (this.gateClosed) return; this.virtEdges.add(code); this.carryOver.add(code); this.bump(code); this.gesture(); }
   /** Camera look delta from a touch drag, in pixels. */
   addLook(dx: number, dy: number): void { if (this.gateClosed) return; this.mouseDX += dx; this.mouseDY += this.invertLookY ? -dy : dy; }
   /** Record which device the player is using; fires `onModeChange` only on a real change. */
@@ -250,6 +265,6 @@ export class Input {
 
   /** Raise or release a physical key as the player would (tests and the rebinding screen's capture use real events instead). */
   simulatePhysical(code: string, down: boolean): void {
-    if (down) { if (!this.phys.has(code)) this.physEdges.add(code); this.phys.add(code); } else this.phys.delete(code);
+    if (down) { if (!this.phys.has(code)) { this.physEdges.add(code); this.bump(code); } this.phys.add(code); } else this.phys.delete(code);
   }
 }

@@ -129,6 +129,20 @@ export function specForRealLot(lot: RealLot): LotSpec {
   return type === 'brownstone' && family === 'brownstone' ? applyEraStyle(base, { bbl, yr, cls, fl: p?.fl, rf: p?.rf }, { keepFamily: true, keepStoop: true, keepDoor: true, keepFloors: true }) : applyEraStyle(base, { bbl, yr, cls, fl: p?.fl, rf: p?.rf }, { keepFamily: true, keepStoop: true, keepDoor: true, keepFloors: true }); // the traffic 5-minute sim is chaotic in the real map's lot geometry: era family, stoop height, door side and floors apply on the grid map only
 }
 
+/**
+ * The spec a lot is BUILT from: the PLUTO spec, the per-BBL look on top, and the shop re-purposing of a lot that carries a place.
+ * `buildRealBuildings` and the far massing (buildingStream.ts) both read it, so the two agree on family, floors and colourway.
+ */
+export function specForBuild(lot: RealLot, looks?: (bbl: string) => Partial<LotSpec> | undefined): LotSpec {
+  let spec = { ...specForRealLot(lot), ...(looks?.(lot.bbl) ?? {}) };
+  if (lot.poi) {
+    // a shop from the places table: same re-purposing as LotSubdivider (keep floors / family, drop what no longer applies)
+    const use = lot.poi.archetype === 'church' ? 'church' : lot.poi.archetype === 'condo' ? 'apartment' : 'mixed';
+    if (spec.use !== use) spec = { ...spec, use, scaffold: false, stoop: use === 'church' ? spec.stoop : { present: false, heightM: 0 } };
+  }
+  return spec;
+}
+
 // ---------------------------------------------------------------- footprint inside the lot polygon
 
 /** distance inside the convex polygon (>= 0 inside) */
@@ -201,12 +215,7 @@ export function buildRealBuildings(lots: ReadonlyArray<RealLot>, materials: IMat
     let fb: Vec2 = { x: lot.frontA.x + dir.x * fp.xr, z: lot.frontA.z + dir.z * fp.xr };
     const corner = lot.corner && lot.type !== 'vacant';
     if (corner && cornersByFace.get(`${lot.block}:${lot.face}`) === 1 && lot.cornerEnd === 'b') { const t = fa; fa = fb; fb = t; }
-    let spec = { ...specForRealLot(lot), ...(opts.looks?.(lot.bbl) ?? {}) };
-    if (lot.poi) {
-      // a shop from the places table: same re-purposing as LotSubdivider (keep floors / family, drop what no longer applies)
-      const use = lot.poi.archetype === 'church' ? 'church' : lot.poi.archetype === 'condo' ? 'apartment' : 'mixed';
-      if (spec.use !== use) spec = { ...spec, use, scaffold: false, stoop: use === 'church' ? spec.stoop : { present: false, heightM: 0 } };
-    }
+    const spec = specForBuild(lot, opts.looks);
     spec.widthM = fp.xr - fp.xl;
     specLots.push({
       id: lot.id, blockId: lot.blockId, side: lot.side, frontA: fa, frontB: fb, width: fp.xr - fp.xl, depth: fp.depth,

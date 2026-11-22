@@ -1,5 +1,5 @@
 /**
- * The hands icons for the HUD: a fist, a bottle, a brick, a pistol, each a small SVG silhouette drawn here (no lettering).
+ * The hands icons for the HUD: a fist, a bottle, a brick, a bat, a pipe, a fish, a pistol, a revolver, a shotgun, each a small SVG silhouette drawn here (no lettering).
  * Plain strings so the HUD can set them as innerHTML and tests can read them.
  */
 import type { HandItem } from './items';
@@ -29,6 +29,39 @@ export const HAND_ICONS: Record<HandItem, string> = {
     '<path d="M35 20 42 14v15l-7 6z" opacity=".6"/>' +
     '<ellipse cx="19" cy="17" rx="3" ry="1" fill="#000" fill-opacity=".35"/><ellipse cx="29" cy="17" rx="3" ry="1" fill="#000" fill-opacity=".35"/>' +
     '<path d="M7 27.5h28" stroke="#000" stroke-opacity=".25" stroke-width="1"/>',
+  ),
+  // a baseball bat laid on the diagonal: a fat barrel, a tapered handle, a knob, a lighter band at the grip
+  bat: wrap(
+    '<path d="M38 5c3 0 5 2 5 5l-1 5c-1 3-3 5-6 8L18 38l-5 5-8-8 5-5L25 17c3-3 6-5 9-6z"/>' +
+    '<path d="M11 36l-6 6 3 3 6-6z" opacity=".8"/><path d="M30 10l8 8" stroke="#000" stroke-opacity=".28" stroke-width="1.6" fill="none"/>' +
+    '<path d="M16 32l5 5" stroke="#fff" stroke-opacity=".5" stroke-width="2" fill="none" stroke-linecap="round"/>',
+  ),
+  // a length of pipe with a flange at each end and a bright rim
+  pipe: wrap(
+    '<path d="M9 37 31 15l4 4-22 22z"/><rect x="29" y="9" width="12" height="12" rx="2" transform="rotate(45 35 15)"/>' +
+    '<rect x="6" y="34" width="12" height="12" rx="2" transform="rotate(45 12 40)" opacity=".85"/>' +
+    '<path d="M15 31 33 13" stroke="#fff" stroke-opacity=".45" stroke-width="1.6" fill="none"/>',
+  ),
+  // a frozen fish seen from the side: oval body, forked tail, an eye, ice-crystal marks
+  fish: wrap(
+    '<path d="M4 24c6-9 16-12 26-9l8-7 3 6-4 4 4 4-3 6-8-7C20 33 10 34 4 24z"/>' +
+    '<circle cx="12" cy="21" r="1.8" fill="#000" fill-opacity=".6"/>' +
+    '<path d="M18 17l3 4-3 4M25 16l3 4-3 5" stroke="#000" stroke-opacity=".3" stroke-width="1.3" fill="none"/>' +
+    '<path d="M8 28l3 1M14 31l3 .5" stroke="#fff" stroke-opacity=".7" stroke-width="1.4" fill="none" stroke-linecap="round"/>',
+  ),
+  // a revolver in profile, pointing left: a round cylinder behind a long barrel, a hammer, a rounded grip
+  revolver: wrap(
+    '<path d="M3 17h25v6H12l-9-2a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1z" opacity=".9"/><rect x="3" y="17" width="26" height="4"/>' +
+    '<circle cx="24" cy="21" r="7"/><circle cx="24" cy="21" r="2.2" fill="#000" fill-opacity=".4"/>' +
+    '<path d="M29 20h8l3 4v4l-4 14a2 2 0 0 1-2 1.5h-4a2 2 0 0 1-2-2.4L29 28z"/>' +
+    '<path d="M33 16l4 1-2 4z"/><path d="M22 28v2a3 3 0 0 0 3 3" stroke="currentColor" stroke-width="2" fill="none"/>',
+  ),
+  // a pump shotgun in profile, pointing left: a long barrel over a tube magazine, the forend, the stock
+  shotgun: wrap(
+    '<rect x="2" y="16" width="30" height="3.2" rx="1"/><rect x="2" y="21" width="26" height="3" rx="1" opacity=".8"/>' +
+    '<rect x="16" y="20" width="10" height="6" rx="2"/>' +
+    '<path d="M30 16h6l8 5v5l-9 2-5-3z"/><path d="M36 20h4" stroke="#000" stroke-opacity=".3" stroke-width="1.2"/>' +
+    '<path d="M28 24v3a3 3 0 0 0 3 3" stroke="currentColor" stroke-width="2" fill="none"/>',
   ),
   // a pistol in profile, pointing left: slide, barrel, trigger guard, grip
   pistol: wrap(

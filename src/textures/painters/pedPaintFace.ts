@@ -4,6 +4,8 @@
  * age lines for the elders, and the painted hairline under the hair pieces. Sizes are in "standard metres" (xm from the
  * midline, ym above the eye line, both divided by the head scale), so a big head and a small one carry the same face.
  */
+import { eyeEdges } from './pedEyeShape';
+import { hairlineFor, knotsAt } from './pedHairline';
 import { Px, g2, ln, sst, band, hash, vn2, vn3, rnd, mixc, mulc, type Look, type Tex, type RGB } from './pedPaintShared';
 
 const SCLERA: RGB = [232, 226, 216], SCLERA_SH: RGB = [158, 134, 126], CARUNCLE: RGB = [186, 108, 98], PUPIL: RGB = [12, 10, 10];
@@ -72,50 +74,61 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
     // philtrum
     o.tint(K.skinSh, 0.07 * g2(xm - 0.0055, 0.0017) * band(yM + 0.007, yN - 0.002, ym, 0.002) * fm);
 
-    // ---------------------------------------------------------------- eyes
-    // the eye is drawn in map space round the eye texel when it was found (the lid triangles are squeezed in the unwrap); otherwise by position
-    const slot = K.eyes[x < 0 ? 0 : 1], pxq = t.q % K.size, pyq = (t.q / K.size) | 0;
-    const loc = !!slot && Math.abs(pxq - slot.cx) < 60 && Math.abs(pyq - slot.cy) < 40;
+    // ---------------------------------------------------------------- eyes (FACES4)
+    // the eye is drawn in map space round a slot: the patch rectangle's middle when this texel is in it (pedEyes.ts builds the lids and the eyeball over exactly this curve), else the eye texel
+    // found in the head tile (the mid and far levels show the tile); otherwise by position. The opening's shape is shared with the geometry (pedEyeShape.ts).
+    let slot = K.eyes[x < 0 ? 0 : 1];
+    const pxq = t.q % K.size, pyq = (t.q / K.size) | 0, rr = K.eyeRect ? K.eyeRect[x < 0 ? 0 : 1] : null;
+    let loc = !!slot && Math.abs(pxq - slot.cx) < 60 && Math.abs(pyq - slot.cy) < 40;
+    if (rr && pxq >= rr.x0 && pxq < rr.x0 + rr.w && pyq >= rr.y0 && pyq < rr.y0 + rr.h) { slot = rr; loc = true; }
     const exm = loc ? (pxq - slot!.cx) * slot!.dirx * slot!.sx : xm - 0.029;
     const eym = loc ? (slot!.cy - pyq) * slot!.sy : ym;
-    const a = 0.0152 * K.eyeK, u = exm / a;
-    const tilt = 0.0009 + 0.0004 * K.h.tl;
+    const E = K.eye, a = E.a, u = exm / a;
     if (Math.abs(u) < 1.5) {
-      const shp = u * u < 1 ? Math.pow(1 - u * u, 0.62) : 0;
-      const bUp = 0.0074 * (1) * (tired ? 0.76 : amused ? 0.92 : 1) * (K.kidish ? 1.1 : 1) * (face.eyes === 'wide' ? 1.1 : face.eyes === 'sleepy' ? 0.8 : 1);
-      const bLo = 0.0024 * (amused ? 0.68 : 1);
-      const yu = bUp * shp * (u < 0 ? 0.92 : 1) + tilt * u, yl = -bLo * Math.pow(Math.max(0, 1 - u * u), 0.8) + tilt * u;
+      const { yu, yl } = eyeEdges(E, u), isOpen = Math.abs(u) < 1;
       const dUp = yu - eym, dLo = eym - yl;
-      const lashT = (face.lashes ? 0.0016 : 0.0013) * (1 + 0.5 * sst(0.0, 1.0, u));
-      if (shp > 0 && dUp > 0 && dLo > 0) {
-        // inside the opening: white of the eye, shaded under the upper lid and into the corners, then the iris
-        const shade = 0.62 * sst(0.0048, 0.0, dUp) + 0.26 * sst(0.55, 1.0, Math.abs(u));
-        o.set(SCLERA).mix(SCLERA_SH, shade);
-        o.mix(CARUNCLE, 0.45 * sst(-0.7, -0.95, u) * sst(0.0, 0.002, dLo));
-        const ri = 0.0074 * (K.kidish ? 1.08 : 1), gx = 0.0009 * (K.h.gz - 0.5) * (x > 0 ? 1 : -1), dx0 = exm - gx, dy0 = eym - 0.0003, dIr = Math.hypot(dx0, dy0) / ri;
+      const lashT = (face.lashes ? 0.0022 : 0.0016) * (1 + 0.5 * sst(0.0, 1.0, u)) * (K.female ? 1.1 : 1);
+      const lashC = mixc(K.hairC, [20, 14, 14], 0.6);
+      if (isOpen && dUp > 0 && dLo > 0) {
+        // inside the opening: the white of the eye (off-white, never pure, yellower with years), shaded under the upper lid and into the corners, then the iris
+        const sc = mixc(SCLERA, [224, 210, 182], Math.min(0.6, 0.3 * K.wear));
+        const shade = 0.66 * sst(0.0052, 0.0, dUp) + 0.2 * sst(0.0022, 0.0, dLo) + 0.34 * sst(0.45, 1.0, Math.abs(u));
+        o.set(sc).mix(SCLERA_SH, Math.min(0.95, shade));
+        o.mix([188, 92, 84], (0.06 + 0.12 * Math.min(1.3, K.wear)) * sst(0.55, 0.95, Math.abs(u)) * (0.6 + 0.4 * vn2(exm * 700, eym * 300, 17)));   // a little red in the corners
+        o.mix(CARUNCLE, 0.55 * sst(-0.7, -0.94, u) * sst(0.0, 0.0016, dLo));
+        o.mix([232, 168, 156], 0.22 * g2(u + 0.86, 0.05) * g2(eym - 0.0006, 0.0013));                                    // the caruncle catches a little light
+        const side = x < 0 ? -1 : 1, ri = E.ri, dx0 = exm - E.gx * side, dy0 = eym - E.iy, dIr = Math.hypot(dx0, dy0) / ri;
         if (dIr < 1.0) {
-          // iris: a dark limbal ring, striations that fan out from the pupil, a lighter collar; then pupil and one catchlight
-          const e = sst(1.0, 0.9, dIr), ang = Math.atan2(dy0, dx0), fan = 0.5 + 0.5 * Math.sin(ang * 13 + 2.4 * vn2(ang * 3 + 5, dIr * 4, 15));
+          // iris: striations that fan out from the pupil, a lighter collar, a dark limbal ring at the edge, then the pupil and the catchlights
+          const e = sst(1.0, 0.93, dIr), ang = Math.atan2(dy0, dx0), fan = 0.5 + 0.5 * Math.sin(ang * 13 + 2.4 * vn2(ang * 3 + 5, dIr * 4, 15));
           const ic = mixc(mulc(K.irisC, 0.8 + 0.3 * fan), mixc(K.irisC, [176, 142, 96], 0.5), 0.5 * sst(0.35, 0.68, dIr) * (1 - sst(0.68, 0.84, dIr)));
-          o.mix(mulc(ic, 1 - 0.68 * sst(0.7, 0.96, dIr)), e);
-          o.mix(PUPIL, sst(0.4, 0.33, dIr) * e);
-          o.mix([244, 240, 232], 0.95 * g2(dx0 + 0.0019, 0.0009) * g2(dy0 - 0.0021, 0.0009) * sst(0.9, 0.6, dIr));          // the catchlight, once, upper left
-          o.mul(1 - 0.35 * sst(0.0044, 0.0008, dUp));                                                                       // the lid shades the top of the iris
+          o.mix(mulc(ic, (1 - 0.78 * sst(0.74, 0.98, dIr)) * (1 + 0.16 * sst(-0.1, -0.8, dy0 / ri))), e);                     // limbal ring; the lower iris takes the light through it
+          o.mix(PUPIL, sst(0.42, 0.34, dIr) * e);
+          const cxl = dx0 - side * 0.0018, cyl = dy0 - 0.0019;
+          o.mix([246, 242, 234], 0.97 * g2(cxl, 0.00085) * g2(cyl, 0.0009) * sst(0.95, 0.6, dIr));                              // the catchlight: toward the key light (model +x), once
+          o.mix([236, 232, 226], 0.22 * g2(cxl * 0.7, 0.0026) * g2(cyl * 0.7, 0.0022) * sst(1.0, 0.5, dIr));                    // the sheen round it
+          o.mix([226, 222, 216], 0.3 * g2(dx0 + side * 0.0017, 0.0007) * g2(dy0 + 0.0022, 0.0006) * sst(0.95, 0.6, dIr));       // a faint second reflection, opposite
+          o.mul(1 - 0.5 * sst(0.0044, 0.0003, dUp));                                                                          // the lid shades the top of the iris
         }
-        o.tint(K.skinSh, 0.4 * sst(0.0013, 0.0, dUp));                                                                       // the lid's shadow on the eye
+        o.tint(K.skinSh, 0.5 * sst(0.0016, 0.0, dUp));                                                                         // the upper lid's shadow on the ball (the lid has thickness)
+        o.mix([236, 226, 216], 0.22 * g2(dLo - 0.0003, 0.00035) * sst(0.95, 0.5, Math.abs(u)));                                 // the wet line along the lower lid
         // lash line on the upper lid, thick and dark; a fine line under the lower lid
-        o.mix(mixc(K.hairC, [20, 14, 14], 0.6), 0.96 * sst(lashT * 1.25, 0.0, dUp));
-        o.mix(mixc(K.skinSh, [40, 24, 22], 0.4), 0.16 * sst(0.0008, 0.0, dLo));
-      } else {
+        o.mix(lashC, 0.96 * sst(lashT * 1.25, 0.0, dUp));
+        o.mix(mixc(K.skinSh, [40, 24, 22], 0.4), 0.2 * sst(0.0008, 0.0, dLo));
+      } else if (isOpen) {
         // outside: the lid skin, its crease above, the lower lid
         const lidAbove = eym - yu, lidBelow = yl - eym;
-        if (lidAbove > 0 && lidAbove < 0.0075 && shp > 0) {
+        if (lidAbove > 0 && lidAbove < 0.0075) {
           o.mix(mixc(K.skin, K.skinHi, 0.5), 0.2 * sst(0.0006, 0.002, lidAbove) * sst(0.0058, 0.0035, lidAbove));
-          o.tint(K.skinSh, 0.1 * sst(0.0, 0.002, lidAbove) * sst(0.0058, 0.0035, lidAbove));                                        // the lid itself, a touch shaded
-          o.tint(K.skinSh, 0.46 * g2(lidAbove - 0.0058, 0.0013) * (tired ? 1.25 : 1) * (0.8 + 0.5 * K.h.lid + 0.2 * Math.min(1.4, ageK)));                                            // lid crease
-          o.mix(mixc(K.hairC, [20, 14, 14], 0.6), 0.9 * sst(lashT * 1.25, 0.0, lidAbove));
+          o.tint(K.skinSh, (0.1 + 0.08 * E.heavy) * sst(0.0, 0.002, lidAbove) * sst(0.0058, 0.0035, lidAbove));                  // the lid itself, a touch shaded
+          o.tint(K.skinSh, 0.46 * g2(lidAbove - 0.0058, 0.0013) * (tired ? 1.25 : 1) * (0.8 + 0.5 * K.h.lid + 0.3 * E.heavy));   // lid crease
+          o.mix(lashC, 0.92 * sst(lashT * 1.25, 0.0, lidAbove));
         }
-        if (lidBelow > 0 && lidBelow < 0.0045 && shp > 0) o.tint(K.skinSh, 0.1 * sst(0.0, 0.001, lidBelow) * sst(0.0045, 0.0015, lidBelow));      // the lower lid, a touch shaded
+        if (lidBelow > 0 && lidBelow < 0.0045) {
+          o.tint(K.skinSh, 0.1 * sst(0.0, 0.001, lidBelow) * sst(0.0045, 0.0015, lidBelow));                                    // the lower lid, a touch shaded
+          o.mix([176, 100, 94], 0.32 * sst(0.0009, 0.0, lidBelow));                                                              // the moist rim of the lid
+          o.mix(K.skinHi, 0.2 * g2(lidBelow - 0.0019, 0.0007));                                                                  // the lid's edge catches light
+        }
       }
     }
     // crow's feet and under-eye lines
@@ -153,22 +166,37 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
       }
     }
 
-    // ---------------------------------------------------------------- mouth: lips as form
+    // ---------------------------------------------------------------- mouth: lips as form (FACES4: a cupid's bow and a darker upper surface, a fuller lower lip that catches light on top, a soft border, thin / medium / full by person, drier and paler with age)
     const mx = xm / K.mouthMw;
     const gm = face.mouth, cornerLift = (gm === 'grin' ? 0.0032 : amused ? 0.0014 : 0.0002);   // FACES3: no painted droop (the geometry carries each person's resting expression)
     const my = ym - yM - cornerLift * mx * mx;
-    const upH = 0.0066 * (1 - 0.45 * mx * mx) * (old ? 0.75 : 1), loH = 0.0094 * (1 - 0.7 * mx * mx) * (old ? 0.8 : 1);
+    const lf = K.lipFull * (old ? 0.82 : 1), upH = 0.0066 * lf * (1 - 0.45 * mx * mx) * (old ? 0.75 : 1), loH = 0.0094 * lf * (1 - 0.7 * mx * mx) * (old ? 0.8 : 1);
+    const upTop = upH * (1 - 0.3 * g2(mx, 0.17) + 0.14 * g2(mx - 0.3, 0.13));                       // the bow: a dip in the middle between two peaks
     if (mx < 1.12) {
-      const lipE = sst(1.08, 0.78, mx);
-      const inUp = my > 0 && my < upH, inLo = my <= 0 && my > -loH;
-      if (inUp) { o.mix(mulc(K.lipC, 0.9), 0.86 * lipE * sst(upH, upH * 0.82, my)); o.tint(K.skinSh, 0.16 * lipE); o.mix(K.lipHi, 0.18 * g2(my - upH * 0.55, upH * 0.3) * g2(mx, 0.3) * lipE); }
-      if (inLo) { o.mix(K.lipC, 0.86 * lipE * sst(-loH, -loH * 0.8, my)); o.mix(K.lipHi, 0.5 * g2(my + loH * 0.5, loH * 0.33) * g2(mx, 0.42) * lipE); }
+      const lipE = sst(1.08, 0.7, mx), pale = Math.min(0.4, 0.28 * Math.min(1.5, ageK));
+      const lipUp = mixc(mulc(K.lipC, 0.88), K.skin, pale * 0.7), lipLo = mixc(K.lipC, K.skin, pale);
+      const inUp = my > -0.0004 && my < upTop, inLo = my <= 0.0004 && my > -loH;
+      if (inUp) {
+        const edge = sst(upTop, upTop * 0.55, my);                                                    // the vermilion border is soft, not a line
+        o.mix(lipUp, 0.9 * lipE * edge); o.tint(K.skinSh, 0.14 * lipE * sst(0.2, 1.0, my / upTop));
+        o.mix(K.lipHi, 0.1 * g2(my - upTop * 0.35, upTop * 0.25) * g2(mx - 0.25, 0.22) * lipE);       // the upper lip's lit front on each side of the bow
+      }
+      if (inLo) {
+        const edge = sst(-loH, -loH * 0.7, my);
+        o.mix(lipLo, 0.9 * lipE * edge);
+        o.mix(K.lipHi, 0.62 * g2(my + loH * 0.42, loH * 0.3) * g2(mx, 0.44) * lipE * (1 - 0.5 * pale));  // the lower lip's top catches the light
+        o.tint(K.skinSh, 0.1 * lipE * sst(-loH * 0.55, -loH * 0.95, my));                             // and turns under at the bottom
+        o.tint(K.skinSh, 0.07 * g2(mx, 0.05) * sst(-loH * 0.1, -loH * 0.9, my) * lipE);               // a faint central crease
+      }
       if (gm === 'grin' && Math.abs(my) < 0.0032 * (1 - mx * mx) && mx < 0.78) o.set([222, 216, 205]).mix(K.lipDark, 0.1 + 0.4 * sst(0.0015, 0.0032, Math.abs(my)));
-      // the mouth line and its corners, then the soft shadow under the lower lip
-      o.mix(mulc(K.lipDark, 0.7), 0.72 * g2(my, 0.0009) * sst(1.05, 0.55, mx) + 0.22 * g2(mx - 1.0, 0.08) * g2(my, 0.0016));
+      // the seam between the lips, dark and thin, fading toward the soft corners, then the soft shadow under the lower lip
+      o.mix(mulc(K.lipDark, 0.66), (0.62 * g2(my - 0.0001, 0.0007)) * sst(1.0, 0.45, mx) + 0.16 * g2(mx - 0.98, 0.1) * g2(my, 0.0012));
       o.tint(K.skinSh, 0.3 * g2(my + loH + 0.0035, 0.0042) * sst(0.95, 0.2, mx));                                                      // under the lower lip
-      o.tint(K.skinSh, 0.14 * g2(my - upH - 0.0035, 0.0035) * sst(0.8, 0.0, mx));                                                       // under the nose, above the lip
+      o.tint(K.skinSh, 0.12 * g2(my - upTop - 0.0032, 0.0035) * sst(0.8, 0.0, mx));                                                    // under the nose, above the lip
+      o.mix(K.skinHi, 0.12 * g2(my - upTop - 0.0006, 0.0006) * sst(0.8, 0.1, mx));                                                     // the border's faint light edge
     }
+    // the two ridges of the philtrum above the bow
+    o.mix(K.skinHi, 0.07 * g2(xm - 0.0095, 0.0016) * band(yM + upH, yN - 0.002, ym, 0.002) * fm);
     // chin: a faint dimple, and a darker fold above the chin
     o.tint(K.skinSh, 0.14 * g2(xm, 0.006) * g2(ym - yChin * 0.86, 0.006));
 
@@ -203,12 +231,22 @@ export function paintHead(K: Look, t: Tex, o: Px): void {
     o.mix(K.skinWarm, 0.18 * earM * g2(ym + 0.052, 0.008));
   }
 
-  // ---------------------------------------------------------------- the scalp under the hair meshes: plain skin, a little darker toward the hair colour above the brow line (no painted hairline, strokes or edge)
-  if (s.hair !== 'bald') {
-    const side2 = sst(0.05, 0.085, ax), back = sst(0.1, -0.35, fz);
-    const hl = lm.chinY + (lm.crownY - lm.chinY) * (0.8 - 0.1 * side2 - 0.4 * back) + 0.01;
-    // FACES2: the hair piece's border is ragged (triangle edges), so the skin below it fades to the hair colour over a wide soft band: the teeth lose their contrast instead of showing as pale skin cut out of dark hair
-    o.mix(mixc(K.skin, K.hairC, 0.62), 0.85 * sst(hl - 0.07, hl + 0.02, y));
+  // ---------------------------------------------------------------- the scalp under the hair meshes and the hairline's soft edge (FACES4)
+  // The hair shell ends in an edge; below it the skin should not meet it as a ruled line. The rim follows the style's table (pedHairline.ts, the same one the shell is built from): solid hair colour just under it (this
+  // also covers the few mm the morph moves the rim), then hair-coloured stubble that fades into skin over about 8 mm, irregular, a widow's peak on some, grey with age.
+  const kn = hairlineFor(s.hair);
+  if (kn) {
+    const az = Math.abs(Math.atan2(x, K.zc - z));
+    let yRim = lm.chinY + (knotsAt(kn, az) + 0.014 * Math.sin(az * 3 + 1.3) + 0.008 * Math.sin(az * 6 + 0.7)) * (lm.crownY - lm.chinY);
+    if (K.h.fr < 0.2 || K.h.mol < 0.1) yRim -= 0.014 * Math.exp(-Math.pow(az / 0.24, 2)) * sst(0.1, 0.3, (K.zc - z) / Math.max(0.05, K.rzH));   // a widow's peak on a few
+    const d = yRim - y, nz = vn3(x * 300 + 4, y * 300, z * 300, 31), nz2 = vn3(x * 90, y * 90 + 2, z * 90, 32);
+    if (d < 0.022) {
+      const grey = K.old ? 0.45 : 0, stub = mixc(mixc(K.skin, K.hairC, 0.8), [150, 146, 142], grey);
+      const wide = 0.0075 * (0.65 + 0.7 * nz2) * (K.old ? 1.1 : 1) * sst(0.1, 0.45, az + 0.2);                       // the front line is the finest
+      const fade = 1 - sst(0.004, 0.004 + wide, d);
+      o.mix(stub, d < 0.004 ? 0.96 : Math.min(0.9, fade * (0.55 + 0.6 * sst(0.3, 0.75, nz)) * 0.9));
+      if (d >= 0.004 && d < 0.004 + wide) o.tint(K.skinSh, 0.1 * fade);                                              // the roots show as a faint shadow
+    }
   }
 
   // ---------------------------------------------------------------- hats that show on the skull

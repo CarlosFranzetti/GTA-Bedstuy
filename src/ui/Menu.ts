@@ -152,6 +152,8 @@ export interface MenuOptions {
   hdVoices?: { get(): boolean; set(on: boolean): void; label?(): string };
   /** The audio mixer (AudioSystem.mixer): five volume sliders in the Audio group, saved by the mixer. Omit and only Master and Radio show, on the menu's own settings. */
   mixer?: { get(k: MixKey): number; set(k: MixKey, v: number): void; onChange?(fn: (k: MixKey) => void): () => void };
+  /** Extra rows at the end of Settings > Game, before "Reset Game to defaults" (the tutorial's "Replay tutorial" and "Hints", src/ui/tutorial/rows.ts). */
+  gameRows?: readonly RowSpec[];
   /** Show the "install as app" hint (hosted build only). Default: true when built with VITE_HOSTED=1. */
   installable?: boolean;
   /** The "Map" row (Real streets / Classic grid): hosted and native builds only. Defaults read the build flag and `location`; tests inject. `go` gets the address of the other map. */
@@ -1093,7 +1095,7 @@ export class Menu {
     const g = (...keys: GraphicsKey[]): RowSpec[] => keys.map((k) => G.get(k)!);
     const touchRows: RowSpec[] = TOUCH_ROWS.map(([k, v]) => ({ id: `c:${k}`, label: k, kind: 'info' as const, desc: `${k}: ${v}`, text: () => v, visible: () => this.inputMode === 'touch' }));
     const defs: Array<[SettingsGroup, RowSpec[]]> = [
-      ['game', [S.get('install')!, S.get('radiolib')!, S.get('reset')!, S.get('credits')!, S.get('quit')!]],
+      ['game', [S.get('install')!, S.get('radiolib')!, S.get('reset')!, ...(this.opts.gameRows ?? []), S.get('credits')!, S.get('quit')!]],
       ['controls', [S.get('invert')!, S.get('keys')!, ...touchRows]],
       ['audio', [S.get('master')!, S.get('radiovol')!, S.get('sfxvol')!, S.get('engineon')!, S.get('enginevol')!, S.get('voicevol')!, S.get('ambvol')!, S.get('hdvoices')!]],
       ['graphics', [S.get('windowmode')!, S.get('quality')!, S.get('autodetect')!, ...g('fpsCap', 'resolution', 'nativeDpr', 'showFps', 'shadows', 'drawDistance', 'treeRange', 'crowd', 'traffic', 'aa', 'textures', 'ao', 'bloom', 'dof', 'vignette', 'grain', 'fov')]],

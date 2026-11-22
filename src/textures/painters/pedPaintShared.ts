@@ -4,6 +4,7 @@
  * numbers the face and cloth painters use. Everything is deterministic by the person's id. No lettering anywhere.
  */
 import type { BakeInput } from './pedSkinPaint';
+import { eyeShapeOf } from './pedEyeShape';
 
 export type RGB = [number, number, number];
 
@@ -99,7 +100,7 @@ export function makeLook(b: BakeInput) {
   // FACES2: how much living shows on the face, 0 for a child, about 0.15 to 0.85 for adults by id (22 to 60 years), 1.1 to 1.5 for the old
   const wear = kid || teen ? 0 : old ? 1.1 + 0.4 * hash(id + 'wear') : 0.15 + 0.7 * hash(id + 'wear');
   const hairC = rgb(s.hairColor);
-  const lipBase = face.lips ? mixc(skin, rgb(face.lips), 0.3) : mixc(skin, [140, 74, 70], female ? 0.3 : 0.24);
+  const lipBase = face.lips ? mixc(skin, rgb(face.lips), 0.3) : mixc(skin, [138, 70, 68], female ? 0.36 : 0.3);
   const topC = rgb(top.color), botC = rgb(bot.color), underC = top.under ? rgb(top.under) : null;
   const k = top.kind;
   const open = !!top.open && !!underC;
@@ -133,13 +134,16 @@ export function makeLook(b: BakeInput) {
     skinCool: mixc(skin, [104, 76, 98], 0.3),
     skinWarm: mixc(skin, [214, 110, 90], 0.4),
     lipC: lipBase, lipDark: mulc(lipBase, 0.72), lipHi: mixc(lipBase, [255, 220, 210], 0.28),
-    mouthMw: 0.0215 + 0.003 * hash(id + 'mw'), eyeK: 0.92 + 0.14 * hash(id + 'ek'),
+    mouthMw: 0.0215 + 0.003 * hash(id + 'mw'), lipFull: 0.8 + 0.45 * hash(id + 'lipf') + (female ? 0.06 : 0), eyeK: 0.92 + 0.14 * hash(id + 'ek'),
     shY: R.shoulderL[1], shX: Math.abs(R.shoulderL[0]), elY: R.elbowL[1], knY: R.kneeL[1], wrY: R.wristL[1], anY: lm.ankleY, hipY: R.hipL[1], hipX: Math.abs(R.hipL[0]),
     torsoZ: -0.035,
     shoeTop: lm.ankleY + (s.shoes.high ? 0.13 : 0.045),
     // hand extent (filled by the bake from the mesh)
     // where each eye sits in the map (found from the mesh, so the eye is drawn in map space and survives the folded lids): [left, right]
     size: 512, eyes: [null, null] as Array<EyeSlot | null>,
+    /** FACES4: the patch rectangles of the atlas, when the eye patch exists for this bake (set by bakeSkin from the BakeInput) */
+    eyeRect: null as null | Array<EyeSlot & { x0: number; y0: number; w: number; h: number }>,
+    eye: eyeShapeOf(s),
     handTipY: R.wristL[1] - 0.17, handAxis: 0 as 0 | 1,
     
   };

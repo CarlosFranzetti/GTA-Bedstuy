@@ -13,7 +13,7 @@ export const BEARD_IDS = ['beard', 'goatee', 'stache'] as const;
 export type BeardId = typeof BEARD_IDS[number];
 
 const TAU = Math.PI * 2;
-type Knots = Array<[number, number]>;
+import { L_FADE, L_SHORT, L_AFRO, L_LONG, type Knots } from '@/textures/painters/pedHairline';
 /** piecewise linear height fraction (0 chin, 1 crown) by |azimuth| from the front (0) to the back (pi) */
 function knots(k: Knots): (be: number) => number {
   return (be) => {
@@ -200,10 +200,6 @@ function ball(ctx: Ctx, mb: MeshBuilder, c0: V3, r: number, squash = 1, lump = 0
 // ---------------------------------------------------------------- the styles
 
 /** hairlines: height fraction (0 chin, 1 crown) by azimuth from the front: forehead, temple, sideburn, above the ear, behind it, nape (blurred smooth by rimFn) */
-const L_FADE: Knots = [[0, 0.8], [0.6, 0.79], [0.98, 0.76], [1.28, 0.71], [1.52, 0.67], [1.85, 0.65], [2.3, 0.57], [2.8, 0.5], [Math.PI, 0.48]];
-const L_SHORT: Knots = [[0, 0.79], [0.6, 0.78], [1.0, 0.74], [1.3, 0.66], [1.55, 0.62], [1.85, 0.62], [2.3, 0.52], [2.8, 0.42], [Math.PI, 0.4]];
-const L_AFRO: Knots = [[0, 0.85], [0.7, 0.82], [1.1, 0.74], [1.4, 0.64], [1.8, 0.62], [2.3, 0.5], [2.8, 0.43], [Math.PI, 0.42]];
-const L_LONG: Knots = [[0, 0.82], [0.6, 0.8], [1.0, 0.73], [1.35, 0.63], [1.7, 0.57], [2.4, 0.52], [Math.PI, 0.5]];
 /** ridges that run from the crown to the hem: 1 on the crest, 0 in the groove. n ridges round the head, the crest at azimuth ph */
 const ridge = (be: number, n: number, ph = 0): number => 0.5 + 0.5 * Math.cos((be - ph) * n);
 /** a rounded lump pattern (curls, twists, locs in a cap): amplitude 0..1 */

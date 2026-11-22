@@ -10,6 +10,7 @@ import { createCanvas } from '@/textures/canvas';
 import { Px } from './pedPaintShared';
 import { makeShader, locateEyes } from './pedPaintShade';
 import { paintSwatches } from './pedPaintSwatch';
+import { EYE_RECTS, EYE_SR, EYE_EYC } from './pedEyeShape';
 
 export { rgb } from './pedPaintShared';
 
@@ -35,6 +36,8 @@ export interface BakeInput {
   /** where the top ends (y) */
   topHem: number;
   spec: PedSpec;
+  /** FACES4: the arrays carry the eye patch (pedEyes.ts), whose UVs fall in the atlas rectangles of EYE_RECTS */
+  eyePatch?: boolean;
 }
 
 const N = SK_ATLAS;
@@ -107,6 +110,10 @@ function bakeSkinInner(b: BakeInput, size: number): HTMLCanvasElement {
   rasterise(b, size);
   const { K, shade } = makeShader(b), px = new Px();
   locateEyes(K, size, cover, posMap, wMap);
+  if (b.eyePatch) K.eyeRect = EYE_RECTS.map((r) => {
+    const f = size / 512, x0 = r.x * f, y0 = r.y * f, w = r.w * f, h = r.h * f, sr = EYE_SR / f;
+    return { x0, y0, w, h, cx: x0 + w / 2 - 0.5, cy: y0 + h / 2 + EYE_EYC / sr - 0.5, dirx: 1, sx: sr, sy: sr };
+  });
   const img = new Uint8ClampedArray(size * size * 4), filled = new Uint8Array(size * size), sk = K.skin;
   for (let q = 0; q < size * size; q++) { img[q * 4] = sk[0]; img[q * 4 + 1] = sk[1]; img[q * 4 + 2] = sk[2]; img[q * 4 + 3] = 255; }
   for (let q = 0; q < size * size; q++) {

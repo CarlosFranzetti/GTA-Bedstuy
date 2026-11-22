@@ -53,6 +53,7 @@ export const FACE_BEAT = 0.55;
 const FLEE_SPREAD = 22;
 /** Fleeing people whose way out is within this cosine of side-on to the threat pick a way at random. */
 const FLEE_TIE = 0.5;
+const DOWN_TIME = 6;
 /** COMBAT2: what happened to a person who was hit (see `Pedestrian.hitBy`). 'struckDown' = hit while already on the ground. */
 export type HitResult = 'staggered' | 'knockedDown' | 'knockedOut' | 'struckDown' | 'ignored';
 /** COMBAT2: what a person is doing instead of their daily walk: cowering, filming it, watching it, or fighting the player. */
@@ -264,6 +265,8 @@ export class Pedestrian implements Entity {
    */
   flee(from: Vec2, seconds = 5, pause = 0): void {
     if (this.state === 'down') return;
+    if (this.special && (this.special.mode === 'fight' || this.special.mode === 'cower')) return; // a fighter fights on; a person cowering stays frozen
+    if (this.special) this.endSpecial(false);
     this.dropChat(false);
     this.flinchT = pause > 0 ? pause * (0.6 + 0.8 * this.rng.next()) : 0;
     this.flinchAt.x = from.x; this.flinchAt.z = from.z;
@@ -291,21 +294,32 @@ export class Pedestrian implements Entity {
   }
 
   /**
-   * The player hit this pedestrian (src/game/combat). A first light blow staggers them: a startle, a step back, then they run. A
-   * second blow inside HIT_MEMORY seconds, or a heavy / thrown / shot hit, puts them on the ground (the same 'down' state a car
-   * leaves them in; they get up on their own). No blood, nobody dies. Returns what happened; a pedestrian already down is left alone.
+   * Someone hit this person (src/game/combat). COMBAT2: health by age and build, a strike by its kind (`force`, and `damage` when the
+   * weapon says so). A jab staggers; a second jab inside six seconds, a heavy, thrown, club or shot blow, or a person already worn down
+   * puts them on the ground; running out of health knocks them OUT (down for twenty seconds and more, breathing, then up and away).
+   * A person already on the ground can be hit again ('struckDown'; the blow that empties them knocks them out). Nobody dies.
+   * Who runs, cowers or fights back after it is decided from the temperament (cower here; fighting back is started by Combat).
    */
-  hitBy(from: Vec2, force: 'light' | 'heavy' | 'thrown' | 'shot' = 'light'): 'staggered' | 'knockedDown' | 'ignored' {
-    if (this.state === 'down') return 'ignored';
-    const knock = force !== 'light' || this.gesture - this.hitStamp < HIT_MEMORY;
-    this.hitStamp = this.gesture;
-    this.dropChat(false);
+  hitBy(from: Vec2, force: Force = 'light', damage?: number): HitResult {
+    const onGround = this.state === 'down';
+    const wasOut = this.vitals.out;
+    const out = this.vitals.strike(force, damage ?? DAMAGE[force], onGround);
     const dx = this.body.pos.x - from.x, dz = this.body.pos.z - from.z, d = hyp(dx, dz) || 1;
-    if (!knock) {
+    this.dropChat(false);
+    if (onGround) {
+      this.body.vel.x += (dx / d) * 0.8; this.body.vel.z += (dz / d) * 0.8;
+      if (out === 'out' && !wasOut) { this.downTimer = this.vitals.downSeconds('out'); return 'knockedOut'; }
+      if (this.vitals.out) this.downTimer = Math.max(this.downTimer, 6); // hit again while out: stays out a while longer
+      else this.downTimer = Math.max(this.downTimer, 2.5); // hit on the ground: not up for a moment
+      return 'struckDown';
+    }
+    if (this.special) this.endSpecial(false);
+    if (out === 'stagger') {
       this.body.pos.x += (dx / d) * 0.25; this.body.pos.z += (dz / d) * 0.25;
       this.react('startle', from);
-      this.say('bumped');
-      this.flee(from, 5, FACE_BEAT); // turns to face whoever did it for a beat, then runs
+      this.say('hurt');
+      if (this.vitals.temper === 'cower') this.cower(from, 7);
+      else this.flee(from, 5, FACE_BEAT); // turns to face whoever did it for a beat, then runs
       return 'staggered';
     }
     this.state = 'down';
@@ -314,12 +328,107 @@ export class Pedestrian implements Entity {
     this.detour = null;
     this.reaction = null;
     this.detach();
-    this.downTimer = DOWN_TIME;
-    const push = force === 'heavy' ? 3.4 : 2.4;
+    this.downTimer = out === 'out' ? this.vitals.downSeconds('out') : DOWN_TIME;
+    const push = force === 'blast' ? 5.2 : force === 'heavy' || force === 'club' ? 3.4 : 2.4;
     this.body.vel.x = (dx / d) * push;
     this.body.vel.z = (dz / d) * push;
     this.events.emit('pedKnockedDown', { id: this.id, pos: { x: this.body.pos.x, z: this.body.pos.z } });
-    return 'knockedDown';
+    return out === 'out' ? 'knockedOut' : 'knockedDown';
+  }
+
+  /** A mission person who must not stay out (they go down for a few seconds but wake at once). */
+  get knockoutImmune(): boolean { return this.vitals.immune; }
+  set knockoutImmune(v: boolean) { this.vitals.immune = v; }
+  /** Out cold on the ground (knocked out and not yet up). */
+  get isKnockedOut(): boolean { return this.state === 'down' && this.vitals.out; }
+
+  // ------------------------------------------------------------------ COMBAT2: what people do in a fight
+
+  /** Freeze and cover up for `seconds`, facing away from the threat. */
+  cower(from: Vec2, seconds = 7): void { this.beginSpecial({ mode: 'cower', t: seconds * (0.8 + 0.4 * this.rng.next()), at: { x: from.x, z: from.z } }); this.say('help'); }
+  /** Stand, face it and film it on a phone. */
+  film(toward: Vec2, seconds = 11): void { this.beginSpecial({ mode: 'film', t: seconds * (0.8 + 0.4 * this.rng.next()), at: { x: toward.x, z: toward.z } }); this.say('filming'); }
+  /** Stand and watch (a ring of onlookers). */
+  watch(toward: Vec2, seconds = 8): void { this.beginSpecial({ mode: 'watch', t: seconds * (0.7 + 0.6 * this.rng.next()), at: { x: toward.x, z: toward.z } }); }
+  /** Go for `target` (the player): close in, wind up where it can be seen, punch two or three times, then leave. */
+  fightBack(target: Body2D, onHit: (damage: number, from: Vec2) => void): void {
+    if (this.state === 'down') return;
+    this.beginSpecial({ mode: 'fight', t: BRAWL.fightSeconds, at: { x: target.pos.x, z: target.pos.z }, target, onHit });
+    this.say('fightMe');
+  }
+
+  private beginSpecial(o: { mode: PedSpecial['mode']; t: number; at: Vec2; target?: Body2D; onHit?: PedSpecial['onHit'] }): void {
+    this.dropChat(false); this.detach();
+    this.waitCrossing = null; this.detour = null; this.flinchT = 0; this.fightPose = null;
+    this.special = { ...o, phase: 'close', pt: 0, punches: 0, landed: false };
+    this.state = 'waiting'; this.waitTimer = 0;
+  }
+
+  /** Back to walking (or running off, when `run`). */
+  endSpecial(run: boolean): void {
+    const sp = this.special;
+    if (!sp) return;
+    this.special = null; this.fightPose = null;
+    if (this.state === 'waiting') this.state = 'walking';
+    this.body.vel.x = 0; this.body.vel.z = 0;
+    if (sp.mode === 'fight') this.snapToGraph();
+    if (run) this.flee(sp.at, 6);
+  }
+
+  /** The step of whoever is doing one of the special things; true while moving. */
+  private updateSpecial(dt: number, sp: PedSpecial): boolean {
+    const b = this.body;
+    sp.t -= dt;
+    if (sp.mode !== 'fight') {
+      b.vel.x = 0; b.vel.z = 0;
+      const want = sp.mode === 'cower' ? Math.atan2(-(sp.at.x - b.pos.x), sp.at.z - b.pos.z) : Math.atan2(sp.at.x - b.pos.x, -(sp.at.z - b.pos.z));
+      b.heading += angleDiff(b.heading, want) * Math.min(1, dt * 6);
+      if (sp.t <= 0) this.endSpecial(false);
+      return false;
+    }
+    const tg = sp.target;
+    if (!tg || sp.t <= 0) { this.endSpecial(true); return false; }
+    const dx = tg.pos.x - b.pos.x, dz = tg.pos.z - b.pos.z, d = hyp(dx, dz) || 1e-3;
+    sp.at.x = tg.pos.x; sp.at.z = tg.pos.z;
+    b.heading += angleDiff(b.heading, Math.atan2(dx, -dz)) * Math.min(1, dt * 12);
+    sp.pt += dt;
+    const hand = sp.punches % 2 === 0 ? 'punchR' : 'punchL';
+    const heavy = sp.punches >= BRAWL.punches - 1;
+    const kind = heavy ? 'heavy' : hand;
+    this.fightPose = null;
+    if (sp.phase === 'close') {
+      if (d > BRAWL.giveUp) { this.endSpecial(true); return false; }
+      if (d > BRAWL.reach) {
+        const v = Math.min(BRAWL.speed, (d - BRAWL.reach * 0.9) / Math.max(dt, 1e-3));
+        b.vel.x = (dx / d) * v; b.vel.z = (dz / d) * v;
+        b.pos.x += b.vel.x * dt; b.pos.z += b.vel.z * dt;
+        return true;
+      }
+      sp.phase = 'wind'; sp.pt = 0; sp.landed = false;
+    }
+    b.vel.x = 0; b.vel.z = 0;
+    if (sp.phase === 'wind') {
+      this.fightPose = { kind, k: 0.18 * Math.min(1, sp.pt / BRAWL.wind) };
+      if (d > BRAWL.reach + 0.8) { sp.phase = 'close'; sp.pt = 0; return false; }
+      if (sp.pt >= BRAWL.wind) { sp.phase = 'swing'; sp.pt = 0; }
+      return false;
+    }
+    if (sp.phase === 'swing') {
+      const k = 0.18 + 0.82 * Math.min(1, sp.pt / BRAWL.swing);
+      this.fightPose = { kind, k };
+      if (!sp.landed && k >= (heavy ? 0.5 : 0.4)) {
+        sp.landed = true;
+        if (d <= BRAWL.reach + 0.5) sp.onHit?.(BRAWL.damage[Math.min(sp.punches, 2)], { x: b.pos.x, z: b.pos.z });
+      }
+      if (sp.pt >= BRAWL.swing) { sp.punches++; sp.phase = 'recover'; sp.pt = 0; }
+      return false;
+    }
+    // recover
+    if (sp.pt >= BRAWL.recover) {
+      if (sp.punches >= BRAWL.punches) { this.endSpecial(true); return false; }
+      sp.phase = 'close'; sp.pt = 0;
+    }
+    return false;
   }
 
   onContact(_contact: Contact, other: Body2D): void {
@@ -355,7 +464,10 @@ export class Pedestrian implements Entity {
   update(dt: number): void {
     const b = this.body;
     let moving = false;
-    switch (this.state) {
+    this.vitals.tick(dt);
+    if (this.state !== 'down' && this.vitals.health < this.vitals.max) this.vitals.health = Math.min(this.vitals.max, this.vitals.health + 0.35 * dt);
+    if (this.special && this.state !== 'down') moving = this.updateSpecial(dt, this.special);
+    else switch (this.state) {
       case 'down': {
         this.downTimer -= dt;
         b.pos.x += b.vel.x * dt;
@@ -366,6 +478,7 @@ export class Pedestrian implements Entity {
         if (this.downTimer < DOWN_TIME - 1.2) b.vehiclePass = false; // the slide is over after ~1.2 s: from then on they are an obstacle on the ground again
         if (this.downTimer <= 0) {
           this.state = 'walking';
+          if (this.vitals.out) this.vitals.wake();
           b.vehiclePass = false;
           b.vel.x = 0;
           b.vel.z = 0;
@@ -943,7 +1056,7 @@ export class Pedestrian implements Entity {
       const lod = (this.lodObj ??= this.model.group.getObjectByName('pedLod') as THREE.LOD | null ?? null);
       const farLevel = !!lod && lod.levels.length > 1 && lod.levels[lod.levels.length - 1].object.visible;
       if (this.anim.cheap !== farLevel) this.anim.cheap = farLevel;
-      if (!this.anim.update(dt, { speed, yawRate, look: farLevel ? null : this.glance(dt) })) animateWalk(this.model, this.phase, this.amp);
+      if (!this.anim.update(dt, { speed, yawRate, look: farLevel ? null : this.glance(dt), action: this.fightPose })) animateWalk(this.model, this.phase, this.amp);
       this.applyIdlePose(this.model);
     }
   }
@@ -986,6 +1099,7 @@ export class Pedestrian implements Entity {
     const pose = this.pose;
     if (pose === 'talk' && !(this.anim?.idleClipName.startsWith('talk') ?? false)) this.talkPose(m); // the captured conversation gestures replace it when loaded
     this.reactionPose(m);
+    if (this.special && this.special.mode !== 'fight') this.specialPose(m, this.special.mode);
     if (pose === 'phone' && this.anim?.idleClipName === 'phone') {
       // the captured phone-to-ear idle is already playing
     } else if (pose === 'phone') {
@@ -1003,6 +1117,25 @@ export class Pedestrian implements Entity {
         m.arms[1].rotation.x = 1.0;
         m.elbows[1].rotation.x = 1.5;
       }
+    }
+  }
+
+  /** COMBAT2: cowering (bent over, arms over the head, knees bent), filming (a phone held up in front), watching (arms folded). */
+  private specialPose(m: HumanModel, mode: 'cower' | 'film' | 'watch'): void {
+    const t = this.gesture;
+    if (mode === 'cower') {
+      m.torso.rotation.x = -0.62; m.head.rotation.x = 0.35;
+      m.arms[0].rotation.x = 2.3; m.arms[1].rotation.x = 2.3; m.elbows[0].rotation.x = 2.1; m.elbows[1].rotation.x = 2.1;
+      m.arms[0].rotation.z = 0.25; m.arms[1].rotation.z = -0.25;
+      m.legs[0].rotation.x = 0.55; m.legs[1].rotation.x = 0.55; m.knees[0].rotation.x = -1.0; m.knees[1].rotation.x = -1.0;
+      m.rig.position.y = -0.3 + 0.01 * Math.sin(t * 9);
+    } else if (mode === 'film') {
+      m.arms[1].rotation.x = 1.5; m.elbows[1].rotation.x = 1.1; m.arms[1].rotation.z = -0.1;
+      m.arms[0].rotation.x = 1.25; m.elbows[0].rotation.x = 1.3; m.arms[0].rotation.z = 0.12;
+      m.head.rotation.x = 0.06 * Math.sin(t * 1.3); m.torso.rotation.x = 0.04;
+    } else {
+      m.arms[0].rotation.x = 0.55; m.arms[1].rotation.x = 0.55; m.elbows[0].rotation.x = 1.9; m.elbows[1].rotation.x = 1.9; m.arms[0].rotation.y = -0.9; m.arms[1].rotation.y = 0.9;
+      m.head.rotation.x = 0.05 * Math.sin(t * 0.9);
     }
   }
 
@@ -1048,7 +1181,9 @@ export class Pedestrian implements Entity {
     const o = this.object3D;
     const down = this.state === 'down';
     this.groundY = easeGround(this.groundY, groundAt(this.body.pos.x, this.body.pos.z), 1 / 60); // on a sidewalk the slab is 0.15 m up
-    o.position.set(this.body.pos.x, (down ? 0.22 : 0) + this.groundY, this.body.pos.z);
+    // COMBAT2: someone knocked out breathes
+    const breath = down && this.vitals.out ? 0.012 * Math.sin(this.gesture * 2.4) : 0;
+    o.position.set(this.body.pos.x, (down ? 0.22 : 0) + this.groundY + breath, this.body.pos.z);
     o.rotation.y = -this.body.heading;
     if (this.rig) this.rig.setDown(down); else o.rotation.x = down ? Math.PI / 2 : 0;
   }

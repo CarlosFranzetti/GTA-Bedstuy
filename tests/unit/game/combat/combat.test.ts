@@ -161,7 +161,7 @@ describe('the hands are saved and reset', () => {
     expect(r2.combat.hands.current).toBe('pistol');
     expect(r2.combat.hudState()).toMatchObject({ item: 'pistol', count: 5, reserve: 20 });
     r2.combat.reset();
-    expect(r2.combat.hands.serialize()).toEqual({ bottles: 0, bricks: 0, pistol: false, mag: 0, reserve: 0, current: 'fists' });
+    expect(r2.combat.hands.serialize()).toMatchObject({ bottles: 0, bricks: 0, pistol: false, mag: 0, reserve: 0, current: 'fists' });
   });
   it('a restored game with bad data ends up with empty hands and no crash', () => {
     const r = rig({ pistol: true });

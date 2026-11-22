@@ -7,7 +7,8 @@ import type { Rng } from '@/core/Rng';
 
 export type BarkKind =
   | 'greet' | 'greetMorning' | 'greetEvening' | 'stoopHello' | 'stoopReply' | 'chat' | 'chatReply' | 'laugh' | 'bye'
-  | 'excuse' | 'bumped' | 'nearMiss' | 'crash' | 'horn' | 'sirens' | 'phone';
+  | 'excuse' | 'bumped' | 'nearMiss' | 'crash' | 'horn' | 'sirens' | 'phone'
+  | 'hurt' | 'help' | 'filming' | 'fightMe';
 
 export const BARKS: Record<BarkKind, readonly string[]> = {
   greet: ['Hey, how you doing?', 'Look who it is!', 'There she is.', 'What is good?', 'Long time!', 'Hey, neighbour.', 'Yo, you good?', 'Nice day for it.'],
@@ -25,6 +26,10 @@ export const BARKS: Record<BarkKind, readonly string[]> = {
   crash: ['Oh no, did you see that?', 'Is everyone okay?', 'Somebody call someone!', 'That was loud!', 'Are they all right?'],
   horn: ['Okay, okay, we all heard you!', 'Someone is in a mood.', 'Honk louder, that will help.', 'Calm down, it is a street.'],
   sirens: ['What is going on?', 'Is that for us?', 'Not again.', 'Everybody stay calm.'],
+  hurt: ['Ow! What is wrong with you?', 'Hey! Not the face!', 'Oof. Really?', 'Ow, my ribs!', 'Are you serious?!'],
+  help: ['Please, please, no!', 'I have a cat at home!', 'Somebody help!', 'Do not hurt me!', 'I am just going to stay down here.'],
+  filming: ['I am getting all of this!', 'Keep going, this is going viral.', 'Hold on, let me get the angle.', 'This is going on my story!', 'Nobody move, I am recording!'],
+  fightMe: ['You want some? Come on!', 'Oh, you picked the wrong block!', 'Say that to my face!', 'Come here, tough guy!', 'You just made a mistake, friend.'],
   phone: ['Yeah, I am outside.', 'I will be there in five.', 'No, you hang up first.', 'Can you hear me now?', 'I said the blue door.'],
 };
 
@@ -55,5 +60,5 @@ export function greetKind(hour: number): BarkKind { return hour >= 5 && hour < 1
 /** how loud a situation is spoken (0..1): shouts carry, small talk does not */
 export const LOUDNESS: Record<BarkKind, number> = {
   greet: 0.7, greetMorning: 0.7, greetEvening: 0.7, stoopHello: 0.9, stoopReply: 0.8, chat: 0.55, chatReply: 0.5, laugh: 0.6, bye: 0.65,
-  excuse: 0.5, bumped: 0.85, nearMiss: 1, crash: 1, horn: 0.8, sirens: 0.9, phone: 0.5,
+  excuse: 0.5, bumped: 0.85, nearMiss: 1, crash: 1, horn: 0.8, sirens: 0.9, phone: 0.5, hurt: 1, help: 1, filming: 0.85, fightMe: 1,
 };

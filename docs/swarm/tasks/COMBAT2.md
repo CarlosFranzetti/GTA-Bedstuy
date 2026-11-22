@@ -22,3 +22,10 @@ Rule 5 now: blood and weapons are in; anyone can be hit; people go down hurt or 
 - Real map as against the grid: both use `traffic.peds`; no difference found.
 
 (sections below are filled as the work lands)
+
+## Log
+
+- 22 Nov: read the combat, pedestrian, officer and police code. Built: `src/entities/pedVitals.ts` (health, build, temperament), health and fight
+  behaviour in `Pedestrian` (hitBy with force and damage, cower, film, watch, fightBack), `Officer.hitBy` (health, down 4 s), `arsenal.ts` and
+  `items.ts` (bat, pipe, fish, revolver, shotgun, ammo, carry rules, saves), `melee.ts`, `crowd.ts`, `vitals.ts` (player health, hospital),
+  `blood.ts` + `bloodView.ts`, `Combat.ts` rewritten around them, `anim/combatPoses.ts` (+ two lines in controller.ts), icons, sfx, pickups.

@@ -488,7 +488,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
 
   let ringLit = false, ringBuilt = -1;
   const update: RealWorld['update'] = (dt, px, pz, cam, night) => {
-    streamer?.update(px, pz, cam.y); trains?.update(dt, cam, night); landmarks?.update(px, pz, cam.y);
+    streamer?.update(px, pz, cam.y, undefined, cam.x, cam.z); trains?.update(dt, cam, night); landmarks?.update(px, pz, cam.y);
     if (lotTiles && streamer) lotTiles.update(px, pz, streamer.ranges.far + Math.max(0, cam.y - 3) * CHUNK_RANGE_PER_M_HEIGHT + 160);
     if (ringProps) {
       ringProps.update(px, pz);

@@ -9,6 +9,7 @@
  */
 export const LEVELS = {
   whoosh: 5.1, punch: 0.43, punchHeavy: 0.33, thud: 0.46, carThud: 0.33, glass: 0.34, crack: 0.52, tick: 0.65, click: 2.55, reload: 1.87, pickup: 0.75, throwAway: 6.7,
+  swing: 4.2, club: 0.5, slap: 0.5, bang: 0.55, pump: 1.9, body: 0.5, grunt: 0.35,
 } as const;
 
 export interface SfxHost { ctx: AudioContext; dest: AudioNode }
@@ -27,6 +28,14 @@ export interface CombatSounds {
   reload(): void;
   pickup(): void;
   throwAway(): void;
+  /** COMBAT2 (optional so older recorders still fit): a club or fish swung, what it hits, the revolver and shotgun, the pump, a dull thump of someone hitting the ground */
+  swing?(heavy: boolean): void;
+  club?(kind: 'bat' | 'pipe'): void;
+  slap?(): void;
+  bang?(kind: 'revolver' | 'shotgun'): void;
+  pump?(): void;
+  body?(): void;
+  grunt?(): void;
 }
 
 export class CombatSfx implements CombatSounds {
@@ -119,4 +128,33 @@ export class CombatSfx implements CombatSounds {
   }
   pickup(): void { this.lv(LEVELS.pickup, () => { this.tone('sine', 660, 700, 0.1, 0.12); this.tone('sine', 990, 1020, 0.16, 0.1, 0.08); }); }
   throwAway(): void { this.lv(LEVELS.throwAway, () => this.burst('bandpass', 700, 2200, 0.1, 0.12, 1.5)); }
+  // ---- COMBAT2 (all synthesised here)
+  /** a long swing through the air: a lower, longer rush than the jab's */
+  swing(heavy: boolean): void { this.lv(LEVELS.swing, () => this.burst('bandpass', heavy ? 260 : 380, heavy ? 1300 : 1900, heavy ? 0.26 : 0.17, 0.16, 0.9)); }
+  /** wood or metal on a body: a hard thock and, for pipe, a ring */
+  club(kind: 'bat' | 'pipe'): void {
+    this.lv(LEVELS.club, () => {
+      this.tone('sine', kind === 'bat' ? 210 : 170, 60, 0.13, 0.7);
+      this.burst('bandpass', kind === 'bat' ? 1500 : 2200, 700, 0.06, 0.45, 1.6);
+      if (kind === 'pipe') { this.tone('triangle', 640, 610, 0.34, 0.16, 0.01); this.tone('sine', 1330, 1290, 0.22, 0.07, 0.01); }
+    });
+  }
+  /** a wet slap */
+  slap(): void { this.lv(LEVELS.slap, () => { this.burst('bandpass', 1100, 450, 0.09, 0.55, 1.1); this.tone('sine', 120, 55, 0.1, 0.4); }); }
+  /** the revolver: a deeper, longer report than the pistol; the shotgun: a wide noise blast with a long low tail */
+  bang(kind: 'revolver' | 'shotgun'): void {
+    this.lv(LEVELS.bang, () => {
+      if (kind === 'revolver') {
+        this.burst('highpass', 700, 500, 0.06, 1.0, 0.5); this.tone('sine', 105, 30, 0.34, 0.85); this.burst('lowpass', 1500, 160, 0.55, 0.3, 0.6, 0.02);
+      } else {
+        this.burst('lowpass', 3200, 300, 0.14, 1.0, 0.4); this.burst('bandpass', 800, 400, 0.1, 0.8, 0.5); this.tone('sine', 80, 26, 0.45, 0.95); this.burst('lowpass', 1200, 120, 0.8, 0.34, 0.6, 0.03);
+      }
+    });
+  }
+  /** the slide of a pump forend: two clacks */
+  pump(): void { this.lv(LEVELS.pump, () => { this.burst('bandpass', 1300, 900, 0.05, 0.35, 2); this.burst('bandpass', 2100, 1500, 0.04, 0.4, 3, 0.16); this.tone('square', 300, 200, 0.03, 0.05, 0.16); }); }
+  /** someone hitting the ground */
+  body(): void { this.lv(LEVELS.body, () => { this.tone('sine', 85, 38, 0.2, 0.6); this.burst('lowpass', 420, 120, 0.16, 0.35); }); }
+  /** a short pained "hnh" from the player (a low voiced noise, no words) */
+  grunt(): void { this.lv(LEVELS.grunt, () => { this.tone('sawtooth', 130, 95, 0.16, 0.18); this.burst('bandpass', 700, 500, 0.12, 0.2, 2); }); }
 }

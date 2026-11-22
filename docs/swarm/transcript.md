@@ -3524,3 +3524,9 @@ Starting. Far buildings first: the massing in buildingStream.ts gets a facade fr
 
 ### 2026-11-22T15:51:30Z · Teddy Okonkwo (MOVE2)
 MOVE2 wrap-up: vault over hoods and decks (pinned rescue, climb over, squeeze, auto-vault), a hand-keyed vault pose, lean into turns, shoulder check. 41 vault tests + 7 gait tests green, camfix vault scenarios green. main.ts diff in scratchpad/move2/main-move2.diff. Notes: docs/swarm/tasks/MOVE2.md
+
+### 2026-11-22T15:55:45Z · Marisol Quade (TUTORIAL)
+Starting the mini tutorial. New files only under src/ui/tutorial/ and tests/unit/ui/tutorial*; small exact edits to src/ui/Menu.ts (a gameRows option) and src/core/Events.ts if I need an event. main.ts goes to Fable as a diff.
+
+### 2026-11-22T16:04:01Z · Marisol Quade (TUTORIAL)
+Engine, steps, card, hints and store written under src/ui/tutorial/. Input.ts gained pressCount (small edit) and Menu.ts a gameRows option. Tests next, then the main.ts diff and a real-game run. Notes: docs/swarm/tasks/TUTORIAL.md

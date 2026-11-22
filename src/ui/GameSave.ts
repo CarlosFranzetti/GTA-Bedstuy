@@ -9,7 +9,7 @@
 import type { Inventory } from '@/game/Inventory';
 import type { RecordDef } from '@/game/records';
 import { splitWithdrawn } from '@/game/recordsWithdrawn';
-import type { SavedHands } from '@/game/combat/items';
+import { Hands, type SavedHands } from '@/game/combat/items';
 
 /**
  * v3 adds `story` (StoryState: branch flags, fork choices, heard news). v2 saves load unchanged (story absent: the mission
@@ -123,14 +123,12 @@ function cleanStory(o: unknown): { v: 1; flags: string[]; choices: Record<string
   return { v: 1, flags, choices, seenNews };
 }
 
-const HAND_ITEMS = ['fists', 'bottle', 'brick', 'pistol'] as const;
-/** A hands block that is not the expected shape is dropped; counts are clamped to what the game allows. */
+/** A hands block that is not the expected shape is dropped; counts are clamped to what the game allows (COMBAT2: the new weapons too; an older save has fists and a pistol at most). */
 function cleanHands(o: unknown): SavedHands | undefined {
   if (!isObj(o)) return undefined;
-  const n = (v: unknown, max: number): number => (finite(v) ? Math.max(0, Math.min(max, Math.floor(v))) : 0);
-  const pistol = o.pistol === true;
-  const current = (HAND_ITEMS as readonly unknown[]).includes(o.current) ? (o.current as SavedHands['current']) : 'fists';
-  return { bottles: n(o.bottles, 99), bricks: n(o.bricks, 99), pistol, mag: pistol ? n(o.mag, 12) : 0, reserve: pistol ? n(o.reserve, 60) : 0, current };
+  const h = new Hands();
+  h.restore(o);
+  return h.serialize();
 }
 
 function cleanInventory(o: unknown): SaveInventory | undefined {

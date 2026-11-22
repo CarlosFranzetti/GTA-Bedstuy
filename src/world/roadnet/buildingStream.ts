@@ -34,7 +34,9 @@ import type { Quality } from '@/render/Shadows';
 import { CHUNK_RANGE_PER_M_HEIGHT, chunkKeyOf, type ChunkLayout } from '@/render/Culling';
 import { PHONE_HIDDEN_MESH, TRIM_MESH } from '@/render/TierGeometry';
 import type { RealLot } from './lotsReal';
-import { BUILDING_BASE_Y, STOREY_M, buildRealBuildings, fitFootprint, specForRealLot } from './buildingsReal';
+import { BUILDING_BASE_Y, buildRealBuildings, fitFootprint, specForBuild } from './buildingsReal';
+import { lotColourway } from '@/world/buildings/colourway';
+import { FAR_KIND, FAR_PARLOUR_H, FAR_UPPER_H, makeFarMaterial } from './farFacade';
 
 export interface StreamRanges {
   /** small-detail meshes (fire escapes, tanks, fences, wires) are drawn inside this distance; 0 = never built */
@@ -60,6 +62,13 @@ export const STREAM_RANGES: Record<Quality, StreamRanges> = {
 
 /** a chunk keeps its level this much farther out than it was granted (no flapping at the border) */
 export const STREAM_MARGIN = 30;
+/** chunks in front of the camera are built this much sooner (m of distance) */
+export const FRONT_BONUS_M = 45;
+/** while a chunk this close is still missing the streamer spends more of each frame (arrival after a teleport or a fast drive) */
+export const HURRY_NEAR_M = 45;
+export const HURRY_NEAR_MS = 12;
+export const HURRY_MID_M = 90;
+export const HURRY_MID_MS = 6;
 export const DEFAULT_BUDGET_MS = 3;
 
 export interface ColliderHost {
@@ -125,15 +134,10 @@ interface Chunk {
 
 // ---------------------------------------------------------------- far boxes
 
-const FAMILY_COLOUR: Record<string, [number, number, number]> = {
-  brownstone: [0.42, 0.25, 0.19],
-  brick: [0.55, 0.29, 0.23],
-  tanBrick: [0.66, 0.54, 0.38],
-  paintedBrick: [0.64, 0.62, 0.58],
-  limestone: [0.72, 0.70, 0.62],
-};
-const ROOF_COLOUR: [number, number, number] = [0.2, 0.2, 0.21];
-const FAR_EXTRA_H = 1.2;
+/** the detailed wall renders a little darker than its colourway target (soot, damp base, window reveals, ambient occlusion): measured in the running game */
+export const FAR_WALL_GAIN = 0.92;
+const ROOF_EXTRA_H = 0.6;
+const GROUND_SHOP_H = 3.6;
 
 function hash01(s: string): number {
   let h = 2166136261;
@@ -141,26 +145,40 @@ function hash01(s: string): number {
   return ((h >>> 0) % 10000) / 10000;
 }
 
-/** one merged box-and-roof geometry for the lots of a chunk (null when none has a footprint). Built at BUILDING_BASE_Y local 0. */
-export function buildFarGeometry(lots: ReadonlyArray<RealLot>): THREE.BufferGeometry | null {
-  const pos: number[] = [], nrm: number[] = [], col: number[] = [];
-  /** quad a-b-c-d (a loop), wound so that its normal points along `out` */
-  const quad = (a: number[], b: number[], c: number[], dd: number[], out: [number, number, number], k: [number, number, number]): void => {
-    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
-    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
-    const l = Math.hypot(nx, ny, nz) || 1;
-    nx /= l; ny /= l; nz /= l;
-    const flip = nx * out[0] + ny * out[1] + nz * out[2] < 0;
-    if (flip) { nx = -nx; ny = -ny; nz = -nz; }
-    const order = flip ? [a, c, b, a, dd, c] : [a, b, c, a, c, dd];
-    for (const p of order) { pos.push(p[0], p[1], p[2]); nrm.push(nx, ny, nz); col.push(k[0], k[1], k[2]); }
-  };
+const lin = (c: number): number => { const x = c / 255; return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+const q8 = (v: number): number => Math.max(0, Math.min(255, Math.round(v * 255)));
+
+/** Wall height (m above the sidewalk) of the detailed building the lot would build: the generators' own storey rules. */
+export function farHeight(spec: LotSpec, lot: RealLot): { H: number; floors: number; bh: number } {
+  const n = Math.max(1, Math.round(spec.floors));
+  if (spec.use === 'mixed') { const up = n >= 2 ? Math.min(5, n - 1) : 2; return { H: GROUND_SHOP_H + up * FAR_UPPER_H + ROOF_EXTRA_H, floors: up + 1, bh: 0 }; }
+  if (spec.use === 'apartment') {
+    if (lot.poi?.archetype === 'condo') return { H: 3.6 + 6 * 3.3 + ROOF_EXTRA_H, floors: 7, bh: 0 };
+    const f = Math.max(3, Math.min(7, n));
+    return { H: FAR_PARLOUR_H + (f - 1) * FAR_UPPER_H + ROOF_EXTRA_H, floors: f, bh: 0 };
+  }
+  if (spec.use === 'church') return { H: Math.max(8.5, Math.min(11, spec.floors * 3.1)) + 1, floors: Math.max(2, Math.round(Math.max(8.5, Math.min(11, spec.floors * 3.1)) / 3.4)), bh: 0 };
+  const f = Math.max(2, Math.min(6, n));
+  const bh = spec.stoop.present ? Math.max(0.6, Math.min(2.2, spec.stoop.heightM)) : 0;
+  return { H: bh + FAR_PARLOUR_H + (f - 1) * FAR_UPPER_H + ROOF_EXTRA_H, floors: f, bh };
+}
+
+/**
+ * one merged box-and-roof geometry for the lots of a chunk (null when none has a footprint). Built at BUILDING_BASE_Y local 0.
+ * Per lot it carries the data `farFacade.ts` draws a facade from (colourway colour, floors, shop, cornice). `looks` is the same
+ * per-BBL hook the detailed build uses, so the box has the colour the building will have when its detail arrives.
+ */
+export function buildFarGeometry(lots: ReadonlyArray<RealLot>, looks?: (bbl: string) => Partial<LotSpec> | undefined): THREE.BufferGeometry | null {
+  const pos: number[] = [], nrm: number[] = [], col: number[] = [], win: number[] = [], lotA: number[] = [], trimA: number[] = [], awnA: number[] = [];
   let boxes = 0;
   for (const lot of lots) {
     if (lot.wedge || lot.type === 'vacant') continue;
     const fp = fitFootprint(lot);
     if (!fp) continue;
-    const spec = specForRealLot(lot);
+    const spec = specForBuild(lot, looks);
+    const cw = lotColourway({ id: lot.id, type: lot.type, spec });
+    const { H, floors, bh } = farHeight(spec, lot);
+    const shop = spec.use === 'mixed' || !!lot.poi && lot.poi.archetype !== 'church' && lot.poi.archetype !== 'condo';
     const dx = lot.frontB.x - lot.frontA.x, dz = lot.frontB.z - lot.frontA.z;
     const W = Math.hypot(dx, dz) || 1;
     const ux = dx / W, uz = dz / W;
@@ -168,27 +186,67 @@ export function buildFarGeometry(lots: ReadonlyArray<RealLot>): THREE.BufferGeom
     const ox = lot.outward.x, oz = lot.outward.z;
     const P = (s: number, depth: number): [number, number] => [lot.frontA.x + ux * s - ox * depth, lot.frontA.z + uz * s - oz * depth];
     const c0 = [P(fp.xl, 0), P(fp.xr, 0), P(fp.xr, fp.depth), P(fp.xl, fp.depth)];
-    const H = Math.max(1, spec.floors) * STOREY_M + FAR_EXTRA_H;
-    const base = FAMILY_COLOUR[spec.family] ?? FAMILY_COLOUR.brick;
-    const v = 0.9 + hash01(lot.bbl) * 0.2;
-    const k: [number, number, number] = [base[0] * v, base[1] * v, base[2] * v];
+    const bw = fp.xr - fp.xl;
+    const seed = hash01(lot.bbl);
+    const wall: [number, number, number] = [lin(cw.front[0]) * FAR_WALL_GAIN, lin(cw.front[1]) * FAR_WALL_GAIN, lin(cw.front[2]) * FAR_WALL_GAIN];
+    const party = cw.party[0];
+    const partyC: [number, number, number] = [lin(party[0]) * FAR_WALL_GAIN, lin(party[1]) * FAR_WALL_GAIN, lin(party[2]) * FAR_WALL_GAIN];
+    // roof: tar, now and then a silver coat
+    const rr = hash01(lot.bbl + 'r');
+    const tar = rr < 0.2 ? 0.2 + 0.1 * hash01(lot.bbl + 'q') : 0.05 + 0.05 * rr;
+    const roof: [number, number, number] = rr < 0.2 ? [tar, tar * 1.02, tar * 1.06] : [tar, tar * 0.98, tar * 0.95];
+    const corn = cw.cornice, awn = cw.awning[0];
     const cx = (c0[0][0] + c0[2][0]) / 2, cz = (c0[0][1] + c0[2][1]) / 2;
+    const exposedEdge = lot.corner ? (lot.cornerEnd === 'a' ? 3 : 1) : -1;
+    const push = (n: number, k: [number, number, number], u: number[], kind: number): void => {
+      for (let i = 0; i < n; i++) {
+        col.push(q8(k[0]), q8(k[1]), q8(k[2]), 255);
+        win.push(u[i * 2], u[i * 2 + 1], bw, kind);
+        lotA.push(Math.round(floors / 32 * 255), Math.round(seed * 255), Math.round(Math.min(4, bh) / 4 * 255), shop ? 255 : 0);
+        trimA.push(q8(lin(corn[0])), q8(lin(corn[1])), q8(lin(corn[2])), Math.round(hash01(lot.bbl + 't') * 255));
+        awnA.push(q8(lin(awn[0])), q8(lin(awn[1])), q8(lin(awn[2])), 255);
+      }
+    };
+    /** quad a-b-c-d (a loop), wound so that its normal points along `out`; `uv` holds the wall coordinates (m) of the four corners */
+    const quad = (a: number[], b: number[], c: number[], dd: number[], out: [number, number, number], k: [number, number, number], uv: number[], kind: number): void => {
+      const ux2 = b[0] - a[0], uy = b[1] - a[1], uz2 = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+      let nx = uy * vz - uz2 * vy, ny = uz2 * vx - ux2 * vz, nz = ux2 * vy - uy * vx;
+      const l = Math.hypot(nx, ny, nz) || 1;
+      nx /= l; ny /= l; nz /= l;
+      const flip = nx * out[0] + ny * out[1] + nz * out[2] < 0;
+      if (flip) { nx = -nx; ny = -ny; nz = -nz; }
+      const pts = [a, b, c, dd];
+      const order = flip ? [0, 2, 1, 0, 3, 2] : [0, 1, 2, 0, 2, 3];
+      const uvs: number[] = [];
+      for (const i of order) { const p = pts[i]; pos.push(p[0], p[1], p[2]); nrm.push(Math.round(nx * 127), Math.round(ny * 127), Math.round(nz * 127), 0); uvs.push(uv[i * 2], uv[i * 2 + 1]); }
+      push(6, k, uvs, kind);
+    };
     for (let i = 0; i < 4; i++) {
       const p = c0[i], q = c0[(i + 1) % 4];
       let nx = q[1] - p[1], nz = -(q[0] - p[0]);
       const l = Math.hypot(nx, nz) || 1;
       nx /= l; nz /= l;
       if (nx * ((p[0] + q[0]) / 2 - cx) + nz * ((p[1] + q[1]) / 2 - cz) < 0) { nx = -nx; nz = -nz; }
-      quad([p[0], 0, p[1]], [q[0], 0, q[1]], [q[0], H, q[1]], [p[0], H, p[1]], [nx, 0, nz], k);
+      const len = Math.hypot(q[0] - p[0], q[1] - p[1]);
+      // the wall coordinate runs along the lot frame (front: 0 at the left end as seen from the street)
+      const facade = i === 0 || i === exposedEdge;
+      const kind = facade ? FAR_KIND.facade : FAR_KIND.plain;
+      const u0 = 0, u1 = len;
+      quad([p[0], 0, p[1]], [q[0], 0, q[1]], [q[0], H, q[1]], [p[0], H, p[1]], [nx, 0, nz], facade ? wall : partyC, [u0, 0, u1, 0, u1, H, u0, H], kind);
     }
-    quad([c0[0][0], H, c0[0][1]], [c0[1][0], H, c0[1][1]], [c0[2][0], H, c0[2][1]], [c0[3][0], H, c0[3][1]], [0, 1, 0], ROOF_COLOUR);
+    quad([c0[0][0], H, c0[0][1]], [c0[1][0], H, c0[1][1]], [c0[2][0], H, c0[2][1]], [c0[3][0], H, c0[3][1]], [0, 1, 0], roof, [0, 0, bw, 0, bw, fp.depth, 0, fp.depth], FAR_KIND.roof);
     boxes++;
   }
   if (!boxes) return null;
   const g = new THREE.BufferGeometry();
+  const u8 = (a: number[], n: number, norm = true): THREE.BufferAttribute => new THREE.BufferAttribute(new Uint8Array(a), n, norm);
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
-  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(new Int8Array(nrm), 4, true));
+  g.setAttribute('color', u8(col, 4));
+  g.setAttribute('aWin', new THREE.Float32BufferAttribute(win, 4));
+  g.setAttribute('aLot', u8(lotA, 4));
+  g.setAttribute('aTrim', u8(trimA, 4));
+  g.setAttribute('aAwn', u8(awnA, 4));
   g.computeBoundingSphere();
   return g;
 }
@@ -224,7 +282,7 @@ export class RealBuildingStreamer {
     this.seed = Math.floor(o.rng.next() * 0xffffffff) >>> 0;
     this.root.name = 'buildings-stream';
     this.root.userData.streamer = this; // review hook: scene.getObjectByName('buildings-stream').userData.streamer.stats()
-    this.farMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
+    this.farMaterial = makeFarMaterial();
     this.chunks = this.map;
     this.addLots(o.lots);
   }
@@ -253,8 +311,13 @@ export class RealBuildingStreamer {
   // ------------------------------------------------------------ per frame
 
   /** Streams around (px, pz). `py` is the camera height: the far range grows with it (aerials see the skyline). Returns ms spent. */
-  update(px: number, pz: number, py = 0, budgetMs = this.budgetMs): number {
+  update(px: number, pz: number, py = 0, budgetMs = this.budgetMs, camX?: number, camZ?: number): number {
     const t0 = this.now();
+    // the far massing's windows light up with the detailed windows (same night intensity)
+    try { const wm = this.o.materials.get('window', 0) as THREE.MeshStandardMaterial; this.farMaterial.emissiveIntensity = typeof wm.emissiveIntensity === 'number' ? wm.emissiveIntensity : 0; } catch { /* stub library */ }
+    // heading: from the camera to the player (the camera sits behind), so what is in front of the lens builds first
+    let fx = 0, fz = 0;
+    if (camX !== undefined && camZ !== undefined) { const l = Math.hypot(px - camX, pz - camZ); if (l > 0.5) { fx = (px - camX) / l; fz = (pz - camZ) / l; } }
     const boost = Math.max(0, py - 3) * CHUNK_RANGE_PER_M_HEIGHT;
     const r = this.ranges;
     const queue: Chunk[] = [];
@@ -269,10 +332,23 @@ export class RealBuildingStreamer {
     }
     // work: far boxes are nearly free, near chunks are built nearest-first
     for (const c of this.all) if (c.farWanted && !c.far && !c.farTried) this.buildFar(c);
-    queue.sort((a, b) => a.dist - b.dist);
+    const rank = (c: Chunk): number => {
+      if (!fx && !fz) return c.dist;
+      const mx = (c.minX + c.maxX) / 2 - px, mz = (c.minZ + c.maxZ) / 2 - pz;
+      const l = Math.hypot(mx, mz) || 1;
+      return c.dist - FRONT_BONUS_M * Math.max(0, (mx * fx + mz * fz) / l) * Math.min(1, c.dist / 40);
+    };
+    queue.sort((a, b) => rank(a) - rank(b));
     if (this.active && !queue.includes(this.active)) this.active = null;
+    // arrival: when a block close to the player is still missing (after a teleport, a load or a fast drive) the plain massing shows
+    // right in front of the lens, so spend more of the frame on it until the near ring is in
+    let budget = budgetMs;
+    if (queue.length && Number.isFinite(budgetMs)) {
+      const d0 = queue[0].dist;
+      budget = Math.max(budgetMs, d0 <= HURRY_NEAR_M ? HURRY_NEAR_MS : d0 <= HURRY_MID_M ? HURRY_MID_MS : 0);
+    }
     let first = true;
-    while (queue.length && (first || this.now() - t0 < budgetMs)) {
+    while (queue.length && (first || this.now() - t0 < budget)) {
       first = false;
       const c = this.active && queue.includes(this.active) ? this.active : queue[0];
       this.active = c;
@@ -319,7 +395,7 @@ export class RealBuildingStreamer {
 
   private buildFar(c: Chunk): void {
     c.farTried = true;
-    const g = buildFarGeometry(c.lots);
+    const g = buildFarGeometry(c.lots, this.o.looks);
     if (!g) return;
     this.geoms.add(g);
     const m = new THREE.Mesh(g, this.farMaterial);

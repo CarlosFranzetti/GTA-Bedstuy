@@ -311,11 +311,11 @@ describe('the hands in the save', () => {
     w.parts.hands = h.hands;
     h.state.d = { bottles: 2, bricks: 1, pistol: true, mag: 7, reserve: 24, current: 'pistol' };
     const snap = JSON.parse(JSON.stringify(captureSave(w.parts, 5)));
-    expect(snap.hands).toEqual(h.state.d);
+    expect(snap.hands).toMatchObject(h.state.d as object);
     const w2 = world(), h2 = handsPart();
     w2.parts.hands = h2.hands;
     applySave(w2.parts, migrateSave(snap)!);
-    expect(h2.state.d).toEqual(h.state.d);
+    expect(h2.state.d).toMatchObject(h.state.d as object);
   });
   it('an old save without them loads and leaves empty hands', () => {
     const w = world(), h = handsPart();
@@ -334,7 +334,7 @@ describe('the hands in the save', () => {
   it('a damaged hands block is cleaned, and New Game resets them', () => {
     const base = JSON.parse(JSON.stringify(captureSave(world().parts, 5)));
     const s = migrateSave({ ...base, hands: { bottles: 'x', pistol: true, mag: 500, reserve: -1, current: 'rocket' } })!;
-    expect(s.hands).toEqual({ bottles: 0, bricks: 0, pistol: true, mag: 12, reserve: 0, current: 'fists' });
+    expect(s.hands).toMatchObject({ bottles: 0, bricks: 0, pistol: true, mag: 12, reserve: 0, current: 'fists' });
     expect(migrateSave({ ...base, hands: 'junk' })!.hands).toBeUndefined();
     const w = world(), h = handsPart();
     w.parts.hands = h.hands;

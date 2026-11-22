@@ -19,9 +19,10 @@ import { Rng } from '@/core/Rng';
 import type { IMaterialLibrary } from '@/world/types';
 import { createGltfLoader, warnOnce } from './gltf/loader';
 import type { HiTile } from '@/textures/painters/pedHi';
-import { SK_RECTS, bakeSkin } from '@/textures/painters/pedSkinPaint';
+import { SK_RECTS, bakeSkin, type BakeInput } from '@/textures/painters/pedSkinPaint';
 import { releasesCanvases, textureTier } from '@/textures/texTier';
 import { faceDebug, faceTraits, morphHead } from './pedHead';
+import { eyePatchFor, type EyePatch } from './pedEyes';
 import { PED_SPECS, pedVariantIndex, shortsLen, skirtShape, type PedSpec, type PxRect } from '@/textures/painters/ped';
 import { pickWardrobeVariant } from '@/textures/painters/pedWardrobe';
 import { FAR_DIST, MID_DIST, PedLod, buildPedModel as buildProcedural, pedPhone, type PedDetail } from './pedBodyHi';
@@ -722,8 +723,11 @@ function geometryFor(s: MhShape, variant: number, detail: PedDetail): { geo: THR
   base.setAttribute('skinWeight', new THREE.BufferAttribute(L.weights, 4));
   const ao = bodyAo(s, L0.position);
   const veil = detail === 'hi' && spec.hat === 'hijab' ? hijabShell(s, L0, ao, spec) : null;      // the hijab at the hi level is a drape made from the head and shoulders
-  base.setIndex(new THREE.BufferAttribute(detail === 'far' ? L.index : noFoot(s, L, veil?.hide, legCutY(s, spec)), 1));
+  const eyes = detail === 'hi' ? eyePatchFor(s, spec, L0) : null;      // FACES4: real eyes on the hi level (pedEyes.ts)
+  const hide = eyes ? new Set<number>([...(veil?.hide ?? []), ...eyes.hide]) : veil?.hide;
+  base.setIndex(new THREE.BufferAttribute(detail === 'far' ? L.index : noFoot(s, L, hide, legCutY(s, spec)), 1));
   const parts = detail === 'far' ? [] : [...separatePieces(s, spec, bt, L0, detail, !!veil), ...bodyParts(s, spec, detail === 'hi'), ...skinExtras(s, spec, detail === 'hi'), ...clothExtras(s, spec, L0, detail === 'hi')];
+  if (eyes) parts.push(eyePatchGeometry(eyes));
   if (detail === 'hi' && veil) parts.push(...veil.shell);
   for (const g of parts) leanGeometry(g.getAttribute('position').array as Float32Array, (g.getAttribute('normal')?.array as Float32Array) ?? null, g.getAttribute('skinIndex').array, g.getAttribute('skinWeight').array, bt, pivot);
   base.setAttribute('color', new THREE.BufferAttribute(ao, 3));
@@ -751,7 +755,8 @@ function skinMaterial(materials: IMaterialLibrary, s: MhShape, variant: number, 
   if (typeof document !== 'undefined') {
     try {
       const L = dressedFor(s, variant, 'hi');
-      const canvas = bakeSkin({ position: L.faceDelta ? L.position.map((v, i) => v - L.faceDelta![i]) : L.position, normal: L.normal, uv: L.uv, index: L.index, joints: L.joints, weights: L.weights, landmarks: s.landmarks, rig: peopleRig(s, spec), headRings: s.headRings as number[][], topHem: topHemY(s, spec), spec }, phone || textureTier() === 'phone' ? 256 : 512);
+      const eyes = eyePatchFor(s, spec, L), p0 = L.faceDelta ? L.position.map((v, i) => v - L.faceDelta![i]) : L.position;
+      const canvas = bakeSkin({ ...(eyes ? bakeWithEyes(L, p0, eyes) : { position: p0, normal: L.normal, uv: L.uv, index: L.index, joints: L.joints, weights: L.weights }), eyePatch: !!eyes, landmarks: s.landmarks, rig: peopleRig(s, spec), headRings: s.headRings as number[][], topHem: topHemY(s, spec), spec }, phone || textureTier() === 'phone' ? 256 : 512);
       const tex = new THREE.CanvasTexture(canvas);
       tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; tex.name = `ped:${spec.id}`;
       // phone: the baked canvas is only needed for the upload; free its backing store right after (no per-person canvas kept alive)
@@ -762,6 +767,23 @@ function skinMaterial(materials: IMaterialLibrary, s: MhShape, variant: number, 
   if (!mat.map) mat.color.set(spec.top.color);
   byV.set(key, mat);
   return mat;
+}
+/** FACES4: the eye patch as a part of the skinned geometry (same attributes as the body) */
+function eyePatchGeometry(e: EyePatch): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(Float32Array.from(e.position), 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(Float32Array.from(e.normal), 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(e.uv, 2));
+  g.setAttribute('skinIndex', new THREE.BufferAttribute(Uint16Array.from(e.joints), 4));
+  g.setAttribute('skinWeight', new THREE.BufferAttribute(e.weights, 4));
+  g.setIndex(new THREE.BufferAttribute(Uint32Array.from(e.index), 1));
+  return g;
+}
+/** the arrays of the bake: the skin plus the eye patch (its unmorphed skin points and the skin's normals, so the painter sees what it always saw) */
+function bakeWithEyes(L: MhLod, p0: Float32Array, e: EyePatch): Pick<BakeInput, 'position' | 'normal' | 'uv' | 'index' | 'joints' | 'weights'> {
+  const n = L.position.length / 3, cat = <T extends Float32Array | Uint16Array>(a: T, b: T): T => { const o = new (a.constructor as new (n: number) => T)(a.length + b.length); o.set(a, 0); o.set(b, a.length); return o; };
+  const idx = new Uint32Array(L.index.length + e.index.length); idx.set(L.index, 0); for (let i = 0; i < e.index.length; i++) idx[L.index.length + i] = e.index[i] + n;
+  return { position: cat(Float32Array.from(p0), e.position0), normal: cat(Float32Array.from(L.normal), e.normal0), uv: cat(Float32Array.from(L.uv), e.uv), index: idx, joints: cat(Uint16Array.from(L.joints), e.joints), weights: cat(Float32Array.from(L.weights), e.weights) };
 }
 function peopleRig(s: MhShape, spec: PedSpec): Record<string, number[]> {
   const bt = bodyTypeOf(spec), R: Record<string, number[]> = {};

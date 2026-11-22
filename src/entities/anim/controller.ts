@@ -10,6 +10,7 @@ import { chainBlend, cycleFrequency, idleWeight, jumpTime, rateFor, smooth, type
 import type { Gait } from './gait';
 import { clipLibrary, type ClipLibrary } from './library';
 import { FootLock, soleRel, type LegDims } from './footlock';
+import { isCombatPose, keyCombatPose } from './combatPoses';
 
 export interface PoseTarget {
   hips: THREE.Object3D; torso: THREE.Object3D; head: THREE.Object3D; rig: THREE.Object3D;
@@ -64,7 +65,7 @@ export function keyIdle(p: Float32Array, kind: 'crossed' | 'lean', side: number)
  * move; for 'aim' it is how far the arms are up (0 hanging, 1 levelled) and `recoil` (0..1) kicks the gun arm back after a shot.
  * Torso, head, shoulders and elbows are written; a punch also adds a stance and a step to the hips, legs and knees (added onto the walk, so it keeps going underneath).
  */
-export interface ActionPose { kind: 'punchL' | 'punchR' | 'heavy' | 'throw' | 'aim' | 'grab' | 'held'; k: number; recoil?: number }
+export interface ActionPose { kind: 'punchL' | 'punchR' | 'heavy' | 'throw' | 'aim' | 'grab' | 'held' | 'swingR' | 'swingL' | 'smash' | 'longgun' | 'hurt'; k: number; recoil?: number }
 
 /** The bones an action may write: the upper body and, for a punch's stance and step, the hips, legs and knees (added onto whatever they are doing). */
 const ACTION_CH = ['hips', 'torso', 'head', 'armL', 'elbowL', 'armR', 'elbowR', 'legL', 'kneeL', 'legR', 'kneeR'] as const;
@@ -97,6 +98,7 @@ export function swingCurve(k: number, hit: number): number {
  * shoulders, the rear foot pivots, the lead foot steps in, and the body surges and leans into the blow.
  */
 export function keyAction(p: Float32Array, a: ActionPose): void {
+  if (isCombatPose(a.kind)) { keyCombatPose(p, a); return; } // COMBAT2: club swings, the long gun and being hit live in combatPoses.ts
   const set = (b: Parameters<typeof boneChannel>[0], x: number, y: number, z: number): void => { const o = boneChannel(b); p[o] = x; p[o + 1] = y; p[o + 2] = z; };
   const add = (b: Parameters<typeof boneChannel>[0], x: number, y: number, z: number): void => { const o = boneChannel(b); p[o] += x; p[o + 1] += y; p[o + 2] += z; };
   const k = Math.min(1, Math.max(0, a.k));
@@ -451,7 +453,7 @@ export class AnimController {
 
     // an on-foot action (punch, throw, aim): the hand-keyed upper body, faded in and out so the arms never snap
     if (inp.action) this.lastAction = inp.action;
-    this.actionU = Math.max(0, Math.min(1, this.actionU + (inp.action ? dt / (inp.action.kind === 'aim' ? 0.18 : 0.09) : -dt / 0.2)));
+    this.actionU = Math.max(0, Math.min(1, this.actionU + (inp.action ? dt / (inp.action.kind === 'aim' || inp.action.kind === 'longgun' ? 0.18 : inp.action.kind === 'hurt' ? 0.05 : 0.09) : -dt / 0.2)));
     this.actionW = ease(this.actionU);
     if (this.lastAction && this.actionW > 0.01) {
       this.tmp.set(this.base);

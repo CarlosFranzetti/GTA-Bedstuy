@@ -8,6 +8,8 @@ import { groundAt } from '@/world/Ground';
 import type { HandItem } from './items';
 import type { PickupDef } from './pickups';
 import { PickupInstances } from './pickupView';
+import type { Blood } from './blood';
+import { BloodView } from './bloodView';
 import type { ThrowKind } from './projectile';
 
 export type Burst = 'glass' | 'dust' | 'spark' | 'puff';
@@ -92,19 +94,28 @@ export class CombatView implements CombatFx {
     bottleBody: new THREE.CylinderGeometry(0.036, 0.038, 0.17, 10), bottleNeck: new THREE.CylinderGeometry(0.014, 0.024, 0.1, 8),
     brick: new THREE.BoxGeometry(0.21, 0.065, 0.1), pistolSlide: new THREE.BoxGeometry(0.034, 0.034, 0.19), pistolGrip: new THREE.BoxGeometry(0.03, 0.09, 0.045),
     bar: new THREE.BoxGeometry(1, 1, 1),
+    // COMBAT2: held weapons (all primitives)
+    bat: new THREE.CylinderGeometry(0.04, 0.016, 0.82, 10), pipe: new THREE.CylinderGeometry(0.026, 0.026, 0.78, 8), fish: new THREE.BoxGeometry(0.1, 0.46, 0.036),
+    fishTail: new THREE.ConeGeometry(0.075, 0.12, 4), cyl: new THREE.CylinderGeometry(0.036, 0.036, 0.06, 8), barrel: new THREE.CylinderGeometry(0.014, 0.014, 0.62, 8), stock: new THREE.BoxGeometry(0.04, 0.2, 0.05),
   };
   private readonly mat = {
     glass: new THREE.MeshLambertMaterial({ color: 0x3f8f58, transparent: true, opacity: 0.88 }),
     brick: new THREE.MeshLambertMaterial({ color: 0x9a4b34 }),
     gun: new THREE.MeshLambertMaterial({ color: 0x24272c }),
     tracer: new THREE.MeshBasicMaterial({ color: 0xfff1c4, transparent: true, opacity: 0.85, depthWrite: false, fog: false }),
+    wood: new THREE.MeshLambertMaterial({ color: 0xa8773f }), metal: new THREE.MeshLambertMaterial({ color: 0x7d8790 }), fish: new THREE.MeshLambertMaterial({ color: 0xa9c1d1 }),
+    dark: new THREE.MeshLambertMaterial({ color: 0x3a3d44 }), stockWood: new THREE.MeshLambertMaterial({ color: 0x5a4331 }),
   };
+  private readonly bloodView: BloodView | null;
+  private readonly blood: Blood | null = null;
   private held: THREE.Object3D | null = null;
   private heldItem: HandItem = 'fists';
   private heldAnchor: THREE.Object3D | null = null;
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, blood?: Blood) {
     this.root.name = 'combat';
+    this.bloodView = blood ? new BloodView(scene, blood) : null;
+    this.blood = blood ?? null;
     scene.add(this.root);
     for (let i = 0; i < MAX_PARTICLES; i++) {
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.glow, transparent: true, depthWrite: false, fog: true }));
@@ -217,20 +228,46 @@ export class CombatView implements CombatFx {
     this.held?.removeFromParent();
     this.held = null; this.heldItem = item; this.heldAnchor = anchor;
     if (item === 'fists' || !anchor) return;
-    const o = item === 'pistol' ? this.makePistol() : item === 'bottle' ? this.makeBottle() : new THREE.Mesh(this.geo.brick, this.mat.brick);
-    if (item === 'pistol') o.position.set(0, -0.22, 0);
-    else if (item === 'bottle') { o.position.set(0, -0.25, 0.02); o.rotation.x = Math.PI / 2; }
-    else { o.position.set(0, -0.25, 0.03); o.rotation.x = Math.PI / 2; }
+    const o = this.makeHeld(item);
     anchor.add(o);
     this.held = o;
+  }
+
+  /** COMBAT2: the item as it sits in the hand (the arm points along its -y; the weapon extends outward from the fist). */
+  private makeHeld(item: HandItem): THREE.Object3D {
+    const g = new THREE.Group();
+    const part = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number, rx = 0): THREE.Mesh => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.x = rx; g.add(m); return m; };
+    switch (item) {
+      case 'pistol': { const o = this.makePistol(); o.position.set(0, -0.22, 0); return o; }
+      case 'bottle': { const o = this.makeBottle(); o.position.set(0, -0.25, 0.02); o.rotation.x = Math.PI / 2; return o; }
+      case 'brick': { const o = new THREE.Mesh(this.geo.brick, this.mat.brick); o.position.set(0, -0.25, 0.03); o.rotation.x = Math.PI / 2; return o; }
+      case 'bat': part(this.geo.bat, this.mat.wood, 0, -0.36, 0.02, Math.PI); return g;
+      case 'pipe': part(this.geo.pipe, this.mat.metal, 0, -0.33, 0.02); return g;
+      case 'fish': part(this.geo.fish, this.mat.fish, 0, -0.3, 0.02); part(this.geo.fishTail, this.mat.fish, 0, -0.56, 0.02, Math.PI); return g;
+      case 'revolver': {
+        part(this.geo.pistolSlide, this.mat.dark, 0, -0.1, 0, Math.PI / 2).scale.set(0.8, 1.5, 0.8);
+        part(this.geo.cyl, this.mat.dark, 0, -0.04, 0, 0).scale.set(1.4, 1.2, 1.4);
+        part(this.geo.pistolGrip, this.mat.stockWood, 0, 0, 0.055, Math.PI / 2 + 0.3);
+        g.position.set(0, -0.22, 0); return g;
+      }
+      case 'shotgun': {
+        part(this.geo.barrel, this.mat.dark, 0, -0.38, 0.0, 0);
+        part(this.geo.barrel, this.mat.dark, 0, -0.38, 0.034, 0).scale.set(1.15, 1, 1.15);
+        part(this.geo.stock, this.mat.stockWood, 0, 0.0, 0.03, 0).scale.set(1, 1.3, 1.2);
+        part(this.geo.cyl, this.mat.stockWood, 0, -0.3, 0.06, 0).scale.set(1.5, 2.2, 1.5); // the pump grip
+        g.position.set(0, -0.12, 0); return g;
+      }
+      default: return g;
+    }
   }
 
   private readonly tmpV = new THREE.Vector3();
   /** World position of the pistol muzzle (for the flash and the tracer), or null when no pistol is in hand. */
   muzzlePoint(): V3 | null {
-    if (this.heldItem !== 'pistol' || !this.held) return null;
+    const len = this.heldItem === 'pistol' ? -0.19 : this.heldItem === 'revolver' ? -0.21 : this.heldItem === 'shotgun' ? -0.7 : 0;
+    if (!len || !this.held) return null;
     this.held.updateWorldMatrix(true, false);
-    const v = this.tmpV.set(0, -0.19, 0).applyMatrix4(this.held.matrixWorld);
+    const v = this.tmpV.set(0, len, 0).applyMatrix4(this.held.matrixWorld);
     return { x: v.x, y: v.y, z: v.z };
   }
 
@@ -239,6 +276,7 @@ export class CombatView implements CombatFx {
   }
 
   update(dt: number): void {
+    if (this.blood) { this.blood.update(dt); this.bloodView?.sync(); }
     for (const q of this.particles) {
       if (!q.s.visible) continue;
       q.life -= dt;
@@ -268,6 +306,7 @@ export class CombatView implements CombatFx {
   dispose(): void {
     this.root.removeFromParent();
     this.pickupView.dispose();
+    this.bloodView?.dispose();
     this.held?.removeFromParent();
     this.glow.dispose(); this.star.dispose();
     for (const g of Object.values(this.geo)) g.dispose();

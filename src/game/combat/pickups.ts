@@ -7,14 +7,14 @@
 import { dist, type Vec2 } from '@/core/Math2';
 import type { Lot } from '@/world/types';
 
-export type PickupKind = 'bottle' | 'brick' | 'pistol';
+export type PickupKind = 'bottle' | 'brick' | 'pistol' | 'bat' | 'pipe' | 'fish' | 'revolver' | 'shotgun' | 'ammo';
 
 export interface PickupDef { id: string; kind: PickupKind; x: number; z: number }
 
 /** Walk over a pickup within this distance (m) to take it. */
 export const PICKUP_RADIUS = 1.0;
 /** Seconds until a collected pickup is back. */
-export const RESPAWN_SECONDS: Record<PickupKind, number> = { bottle: 180, brick: 240, pistol: 300 };
+export const RESPAWN_SECONDS: Record<PickupKind, number> = { bottle: 180, brick: 240, pistol: 300, bat: 300, pipe: 300, fish: 240, revolver: 420, shotgun: 480, ammo: 240 };
 /** A thrown brick that came to rest stays this long. */
 export const DROP_SECONDS = 120;
 
@@ -82,7 +82,32 @@ export function placePickups(lots: readonly Lot[], home: Vec2, blocked?: Blocked
     const l = lots.find((x) => x.poi?.archetype === arch);
     if (l) add(`pistol:${arch}`, 'pistol', findFree(l, mid(l), [1.6, 2.1, 2.6], [-l.width * 0.3, l.width * 0.3, 0], blocked));
   }
+  placeArsenal(lots, home, add, blocked);
   return out;
+}
+
+/**
+ * COMBAT2: the rest of the arsenal. A bat outside the hardware store, a pipe at the scaffold fences, the silly one (a frozen fish) outside
+ * the bodega (the nearest thing to a fish counter the shop types have), a revolver at the liquor store, a pump shotgun in the car repair
+ * yard, an ammo box by the dollar store and one near home. Same rules as the rest: deterministic, nudged off solids by `blocked`.
+ */
+function placeArsenal(lots: readonly Lot[], home: Vec2, add: (id: string, kind: PickupKind, p: Vec2 | null) => void, blocked?: Blocked): void {
+  const near = (arch: string, from: Vec2 | null, nth = 0): Lot | undefined => {
+    const list = lots.filter((x) => x.poi?.archetype === arch);
+    if (!from) return list[nth];
+    return [...list].sort((a, b) => dist(mid(a), from) - dist(mid(b), from))[nth];
+  };
+  const put = (id: string, kind: PickupKind, l: Lot | undefined, side: number): void => { if (l) add(id, kind, findFree(l, mid(l), [1.9, 2.4, 2.9], [side * l.width * 0.3, -side * l.width * 0.3, 0], blocked)); };
+  put('bat:hardware', 'bat', near('hardware', home), 1);
+  put('bat:hardware2', 'bat', near('hardware', home, 3), -1);
+  put('fish:bodega', 'fish', near('bodega', home, 1), 1);
+  put('fish:bodega2', 'fish', near('bodega', home, 6), -1);
+  put('revolver:liquor', 'revolver', near('liquor', home, 1), -1);
+  put('shotgun:auto', 'shotgun', near('auto', home) ?? near('autorepair', home, 0), -1);
+  put('ammo:dollar', 'ammo', near('dollar', home), 1);
+  put('ammo:home', 'ammo', near('bodega', home), -1);
+  let n = 0;
+  for (const l of lots) if (l.type === 'scaffold' && n++ % 2 === 1) add(`pipe:${l.id}`, 'pipe', findFree(l, mid(l), [1.9, 2.4, 2.9], [0.8, -0.8], blocked));
 }
 
 /**
@@ -121,6 +146,13 @@ export function placeRealPickups(data: RealPickupData, blocked?: Blocked): Picku
     if (near(sh, 'bottle', SHOP_SPACING)) continue;
     add(`bottle:real:${sh.id}`, 'bottle', free(sh));
   }
+  // COMBAT2: the arsenal at shop doors, spread by the order of the shops: a bat, a fish, a revolver, a shotgun and ammo within reach of home
+  const byHome = [...data.shops].sort((a, b) => Math.hypot(a.x - data.home.x, a.z - data.home.z) - Math.hypot(b.x - data.home.x, b.z - data.home.z));
+  const arms: PickupKind[] = ['bat', 'fish', 'ammo', 'pipe', 'revolver', 'fish', 'shotgun', 'bat', 'ammo', 'pipe', 'revolver', 'ammo'];
+  byHome.filter((sh) => Math.hypot(sh.x - data.home.x, sh.z - data.home.z) >= HOME_MIN).slice(0, arms.length * 3).forEach((sh, i) => {
+    if (i % 3 !== 1 || out.some((o) => o.kind !== 'bottle' && Math.hypot(o.x - sh.x, o.z - sh.z) < 3)) return;
+    add(`arms:real:${sh.id}`, arms[Math.floor(i / 3) % arms.length], free({ x: sh.x - 1.4, z: sh.z + 0.6 }) ?? free(sh));
+  });
   if (!out.some((o) => o.kind === 'pistol' && Math.hypot(o.x - data.home.x, o.z - data.home.z) <= HOME_MAX)) {
     let best: { x: number; z: number } | null = null, bestD = Infinity;
     for (const sh of data.shops) {
@@ -165,7 +197,7 @@ export class PickupSet {
   /**
    * Advance timers; when `canCollect`, take everything within PICKUP_RADIUS of `pos`. Returns what was taken this call.
    */
-  update(dt: number, pos: Vec2, canCollect: boolean): CollectedPickup[] {
+  update(dt: number, pos: Vec2, canCollect: boolean, accept?: (k: PickupKind) => boolean): CollectedPickup[] {
     for (const [id, t] of this.away) {
       if (t - dt <= 0) this.away.delete(id); else this.away.set(id, t - dt);
     }
@@ -176,12 +208,12 @@ export class PickupSet {
     const got: CollectedPickup[] = [];
     if (!canCollect) return got;
     for (const d of this.defs) {
-      if (this.away.has(d.id)) continue;
+      if (this.away.has(d.id) || (accept && !accept(d.kind))) continue;
       if (Math.hypot(d.x - pos.x, d.z - pos.z) <= PICKUP_RADIUS) { this.away.set(d.id, RESPAWN_SECONDS[d.kind]); got.push(d); }
     }
     for (let i = this.dropped.length - 1; i >= 0; i--) {
       const d = this.dropped[i];
-      if (d.arm <= 0 && Math.hypot(d.x - pos.x, d.z - pos.z) <= PICKUP_RADIUS) { this.dropped.splice(i, 1); got.push(d); }
+      if (d.arm <= 0 && (!accept || accept(d.kind)) && Math.hypot(d.x - pos.x, d.z - pos.z) <= PICKUP_RADIUS) { this.dropped.splice(i, 1); got.push(d); }
     }
     return got;
   }
