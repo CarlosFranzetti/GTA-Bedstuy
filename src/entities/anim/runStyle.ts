@@ -17,6 +17,9 @@ const C_LEG_L = boneChannel('legL'), C_LEG_R = boneChannel('legR'), C_KNEE_L = b
 
 const sstep = (a: number, b: number, x: number): number => { const t = x <= a ? 0 : x >= b ? 1 : (x - a) / (b - a); return t * t * (3 - 2 * t); };
 
+/** where the style is wanted at this speed (before the caller eases it): 0 below 1.7 m/s, 1 from 2.7 */
+export const runStyleWeight = (speed: number): number => sstep(1.7, 2.7, speed);
+
 /** the numbers, in radians, for tests and tuning */
 export const RUN = {
   /** shoulder swing amplitude: jog .. sprint */
@@ -26,18 +29,17 @@ export const RUN = {
   /** elbow flexion mean, and how much more it folds as the arm comes forward: jog .. sprint */
   elbowJog: 1.5, elbowSprint: 1.56, elbowFold: 0.14,
   /** forward lean added to the clip's own (rad, split between chest and pelvis): jog, sprint */
-  leanJog: 0.03, leanSprint: 0.17,
+  leanJog: 0.03, leanSprint: 0.15,
   /** extra thigh lift and knee fold of the swing leg at a sprint */
   kneeLift: 0.3, kneeFold: 0.16,
 } as const;
 
 /**
- * Apply the run style to pose `p` (clip channels, after the gait and the body layers). `speed` is the eased ground speed in the clips' proportions,
+ * Apply the run style to pose `p` (clip channels, after the gait and the body layers). `speed` is the eased ground speed in the clips' proportions, `a` the run-style weight 0..1 (`runStyleWeight(speed)` eased over about a quarter second by the caller, so a change of pace never snaps the arms),
  * `w` 0..1 the weight (0 while an action, a vault, a jump or a carried load poses the arms), `lean` the weight of the lean and the knee (0 when the whole body is posed).
  * Returns nothing. Cost: about forty multiplies.
  */
-export function applyRunStyle(p: Float32Array, speed: number, w: number, lean: number): void {
-  const a = sstep(1.7, 2.7, speed);
+export function applyRunStyle(p: Float32Array, speed: number, a: number, w: number, lean: number): void {
   if (a < 0.002) return;
   const q = sstep(3.0, 6.2, speed);
   // the arm swing follows the opposite thigh: the left arm forward while the right thigh is forward

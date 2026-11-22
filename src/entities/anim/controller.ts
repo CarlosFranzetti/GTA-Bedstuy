@@ -12,7 +12,7 @@ import { clipLibrary, type ClipLibrary } from './library';
 import { FootLock, soleRel, type LegDims } from './footlock';
 import { isCombatPose, keyCombatPose } from './combatPoses';
 import { applyBodyLayers, makeBodyLayerState, type BodyLayerIn } from './bodyLayers';
-import { applyRunStyle } from './runStyle';
+import { applyRunStyle, runStyleWeight } from './runStyle';
 
 export interface PoseTarget {
   hips: THREE.Object3D; torso: THREE.Object3D; head: THREE.Object3D; rig: THREE.Object3D;
@@ -278,6 +278,8 @@ export class AnimController {
   /** the POSE seat's upper-body layers: one small state and one reused input per person */
   private readonly bls = makeBodyLayerState();
   private readonly bli: BodyLayerIn;
+  /** the eased weight of the run style (runStyle.ts) */
+  private runA = 0;
   /** 0 turns the body layers off (tests) */
   bodyLayersOn = true;
   /** false turns the GAIT run style (arms, lean and knee lift in a jog and a sprint: runStyle.ts) off, for the before strips and tests */
@@ -560,7 +562,7 @@ export class AnimController {
     const fw = Math.max(-0.2, Math.min(0.17, this.accelS * 0.011)) * Math.min(1, speed / 0.6 + 0.4);
     p[boneChannel('torso')] -= fw * 0.65; p[boneChannel('hips')] -= fw * 0.35; p[boneChannel('head')] += fw * 0.5;
     if (this.bodyLayersOn) this.layers(p, dt, speed, yawRate, inp);
-    if (this.runStyleOn) this.runStyle(p, speed);
+    if (this.runStyleOn) this.runStyle(p, speed, dt);
     if (!this.cheap) this.alive(p, dt, inp);
     if (this.legFixGain > 0) {
       const lf = this.legFix, g = this.legFixGain;
@@ -601,10 +603,12 @@ export class AnimController {
   }
 
   /** GAIT's run style (runStyle.ts): arms driving opposite to the legs, a forward lean and a lifting knee, faded out while an action, a vault, a jump or a carried load poses the body. */
-  private runStyle(p: Float32Array, speed: number): void {
+  private runStyle(p: Float32Array, speed: number, dt: number): void {
     const off = Math.max(this.actionW, this.jumpW, ease(this.vaultU));
     const busy = this.keyed || /^(phone|talk|eat)/.test(this.idleName) ? 1 : Math.max(this.armLoad[0] < 1 ? 1 - this.armLoad[0] : 0, this.armLoad[1] < 1 ? 1 - this.armLoad[1] : 0);
-    applyRunStyle(p, speed, (1 - off) * (1 - busy), 1 - off);
+    const want = runStyleWeight(speed), k = Math.min(1, dt / (want > this.runA ? 0.22 : 0.3));
+    this.runA += (want - this.runA) * k;
+    applyRunStyle(p, speed, this.runA, (1 - off) * (1 - busy), 1 - off);
   }
 
   /** The POSE seat's upper-body layers (bodyLayers.ts): arms that hang, the ribcage over the weight, standing weight shift and head. They only add to the upper body. */
