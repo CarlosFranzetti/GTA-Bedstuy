@@ -37,7 +37,7 @@ export function buildFenceLots(net: RoadNet, d: Derived, bad: Iterable<number>, 
     const curb = d.curbRings[blk];
     if (!curb || curb.length < 3) continue;
     const ring = insetRing(curb, FENCE_INSET);
-    if (ring.length < 3 || Math.abs(signedArea(ring)) < MIN_LOT_AREA || ring.some((p) => !pointInPolygon(p, curb))) continue;
+    if (ring.length < 3 || Math.abs(signedArea(ring)) < MIN_LOT_AREA) continue;
     let any = false;
     for (let i = 0; i < ring.length; i++) {
       const a = ring[i], b = ring[(i + 1) % ring.length];
@@ -48,7 +48,7 @@ export function buildFenceLots(net: RoadNet, d: Derived, bad: Iterable<number>, 
       for (let k = 0; k < n; k++) {
         const p0 = { x: a.x + ux * (len * k) / n, z: a.z + uz * (len * k) / n }, p1 = { x: a.x + ux * (len * (k + 1)) / n, z: a.z + uz * (len * (k + 1)) / n };
         const mid = { x: (p0.x + p1.x) / 2, z: (p0.z + p1.z) / 2 };
-        if (net.isOnRoad(p0) || net.isOnRoad(p1) || net.isOnRoad(mid)) continue;
+        if (net.isOnRoad(p0) || net.isOnRoad(p1) || net.isOnRoad(mid) || !pointInPolygon(mid, curb)) continue;
         quad(p0, p1, Y0 + 0.1, FENCE_H);
         post(p0, ux, uz); post(p1, ux, uz);
         const hw = 0.1, nx = -uz * hw, nz = ux * hw;

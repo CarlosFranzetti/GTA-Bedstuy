@@ -45,6 +45,8 @@ export interface RoadMeshOptions {
    * split into `cellM` cells (default 1,024 m on a big net) that the chunk culler hides by distance. Without it a big net is cells everywhere.
    */
   core?: ReadonlyArray<Vec2>;
+  /** REALFIX: blocks whose kerb ring covers a roadway (derive.ts defect on thin wedges): no sidewalk slab and no kerb, which would stand on the road */
+  skipBlocks?: ReadonlySet<number>;
 }
 
 /** metres per texture repeat (RoadBuilder TILE_M) */
@@ -438,7 +440,7 @@ export function buildRoadMeshes(net: RoadNet, d: Derived, mats: WorldMaterials, 
   const chamfer = tier === 'medium' || tier === 'high';
   net.blocks.forEach((blk, i) => {
     const curb = d.curbRings[i];
-    if (!curb || curb.length < 3) return;
+    if (!curb || curb.length < 3 || opts.skipBlocks?.has(i)) return;
     const building = d.buildingRings[i];
     const blue = fnv(blk.ref ?? String(i)) % 2 === 1;
     const sw = blue ? slot('sidewalk', 'bluestone', 0, 'sidewalks-bluestone') : slot('sidewalk', 'concrete', 0, 'sidewalks');

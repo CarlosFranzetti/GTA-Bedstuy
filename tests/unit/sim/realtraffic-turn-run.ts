@@ -13,7 +13,7 @@ import type { Vec2 } from '@/core/Math2';
 import type { LaneGraph, LaneNode, VehicleType } from '@/world/types';
 import { buildLaneGraphDetailed } from '@/world/roadnet/lanes';
 import { pointInPolygon } from '@/world/roadnet/geom';
-import { derived, net } from './realtraffic-run';
+import { badKerb, derived, net } from './realtraffic-run';
 import { DT, stubMaterials } from './harness';
 
 export const MAX_DEV = 2.6;
@@ -46,7 +46,7 @@ export function driveTurns(type: VehicleType = 'sedan', onlyEvery = 1, fromRest 
   const g = lb.graph;
   const chainEndingAt = new Map(lb.chains.map((c) => [c.nodeIds[c.nodeIds.length - 1], c]));
   const chainStartingAt = new Map(lb.chains.map((c) => [c.nodeIds[0], c]));
-  const curbs = derived.curbRings.filter((r) => r.length > 2).map((ring) => {
+  const curbs = derived.curbRings.filter((r, i) => r.length > 2 && !badKerb.has(i)).map((ring) => {
     let a = Infinity, b = Infinity, c = -Infinity, e = -Infinity;
     for (const p of ring) { a = Math.min(a, p.x); b = Math.min(b, p.z); c = Math.max(c, p.x); e = Math.max(e, p.z); }
     return { ring, box: [a, b, c, e] as const };

@@ -16,7 +16,7 @@ import { pointInPolygon } from '@/world/roadnet/geom';
 import { makeRealTraffic } from '@/world/roadnet/trafficReal';
 import type { IVehicle, VehicleType } from '@/world/types';
 import { DT, Sim, input, stubMaterials } from './harness';
-import { controls, derived, net, playerSpot, sidewalks } from './realtraffic-run';
+import { badKerb, controls, derived, net, playerSpot, sidewalks } from './realtraffic-run';
 
 interface CopRun { maxOnDuty: number; spawned: number; closest: number; closeAt: number; travelled: number; kerb: number; building: number; samples: number; nonFinite: number; sirensOffAt: number; zeroAt: number; stuck: string[]; trail: string[] }
 
@@ -25,7 +25,7 @@ const box = (ring: readonly Vec2[]): readonly [number, number, number, number] =
   for (const p of ring) { a = Math.min(a, p.x); b = Math.min(b, p.z); c = Math.max(c, p.x); e = Math.max(e, p.z); }
   return [a, b, c, e];
 };
-const curbs = derived.curbRings.filter((r) => r.length > 2).map((ring) => ({ ring, b: box(ring) }));
+const curbs = derived.curbRings.filter((r, i) => r.length > 2 && !badKerb.has(i)).map((ring) => ({ ring, b: box(ring) }));
 const buildings = derived.buildingRings.filter((r) => r.length > 2).map((ring) => ({ ring, b: box(ring) }));
 const inside = (set: typeof curbs, p: Vec2): boolean => set.some((q) => p.x >= q.b[0] && p.x <= q.b[2] && p.z >= q.b[1] && p.z <= q.b[3] && pointInPolygon(p, q.ring));
 

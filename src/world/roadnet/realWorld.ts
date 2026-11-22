@@ -223,6 +223,32 @@ export function badBlocks(net: RoadNet, d: Derived): Set<number> {
   return bad;
 }
 
+/**
+ * REALFIX: blocks whose kerb ring covers a carriageway: a centreline sample (every 3 m of a driven edge, outside the junction polygons) lies inside the ring.
+ * Their sidewalk slab and kerb would stand on the road; the blocks are all in `badBlocks` (a ring that wrong cannot hold a building ring).
+ */
+export function kerbCoversRoad(net: RoadNet, d: Derived, blocks: Iterable<number>): Set<number> {
+  const out = new Set<number>();
+  for (const b of blocks) {
+    const ring = d.curbRings[b];
+    if (!ring || ring.length < 3) continue;
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const q of ring) { x0 = Math.min(x0, q.x); z0 = Math.min(z0, q.z); x1 = Math.max(x1, q.x); z1 = Math.max(z1, q.z); }
+    const hit = net.edges.some((E, e) => {
+      if (E.level !== 0 || E.cls === 'ped' || E.a === E.b) return false;
+      const L = net.lengths[e], c0 = d.cuts[e].cutA + 1, c1 = L - d.cuts[e].cutB - 1;
+      for (let s = c0; s <= c1; s += 3) {
+        const p = net.pointAt(e, s).p;
+        if (p.x < x0 || p.x > x1 || p.z < z0 || p.z > z1) continue;
+        if (pointInPolygon(p, ring)) return true;
+      }
+      return false;
+    });
+    if (hit) out.add(b);
+  }
+  return out;
+}
+
 /** a lot tile's box (minX, minZ, maxX, maxZ) touches the polygon: some point of a 5 x 5 sample of the box is inside it */
 export function boxTouchesPolygon(b: readonly [number, number, number, number], poly: ReadonlyArray<Vec2>): boolean {
   for (let i = 0; i <= 4; i++) for (let j = 0; j <= 4; j++) {
@@ -285,7 +311,7 @@ export async function buildRealWorld(opts: RealWorldOptions): Promise<RealWorld>
   let roads: THREE.Group;
   try {
     if (opts.forceStandIns) throw new Error('forced');
-    roads = buildRoadMeshes(net, derived, mats, { tier, crosswalks: sidewalks.crosswalks, core: R3_EXTENT });
+    roads = buildRoadMeshes(net, derived, mats, { tier, crosswalks: sidewalks.crosswalks, core: R3_EXTENT, skipBlocks: kerbCoversRoad(net, derived, badBlocks(net, derived)) });
     roads.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && typeof m.userData.chunk === 'string') chunkMeshes.push(m); });
   } catch (e) {
     standIns.push(`roads: ${(e as Error).message}`);

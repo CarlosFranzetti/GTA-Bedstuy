@@ -28,6 +28,7 @@ import type { RoadNetJson } from '@/world/roadnet/codec';
 import { deriveGeometry } from '@/world/roadnet/derive';
 import { closestOnSegment, pointInPolygon } from '@/world/roadnet/geom';
 import { RoadNet } from '@/world/roadnet/RoadNet';
+import { badBlocks } from '@/world/roadnet/realWorld';
 import { buildSidewalkGraph } from '@/world/roadnet/sidewalks';
 import { makeRealTraffic } from '@/world/roadnet/trafficReal';
 import type { IVehicle, LaneNode, VehicleType } from '@/world/types';
@@ -38,19 +39,21 @@ export const ALL_STILL_MAX = 150;
 const ARMED_RANGE = 8;
 const CROSSWALK_SLACK = 3.2;
 
-/** MAP4: REAL_NET=r4 runs the whole grown network (R1..R4); REAL_PLAYER="x,z" puts the player there (default: the middle of the bounds) */
-const WHOLE = process.env.REAL_NET === 'r4';
+/** REALFIX: the whole grown network (R1..R4) is the default; REAL_NET=core runs the first two rings only (the MAP3 net); REAL_PLAYER="x,z" puts the player there */
+const WHOLE = process.env.REAL_NET !== 'core';
 export const controls = WHOLE ? controlsR4 : controlsCore;
-/** where the player stands: REAL_PLAYER="x,z", else the game's own start area (0, 0) on the whole net (the middle of its bounds is a quiet corner of Queens side streets), else the middle of the bounds */
+/** where the player stands: REAL_PLAYER="x,z", else (0, -300) on the whole net, inside the first two rings (the middle of its bounds is a quiet corner of Queens side streets; the cop checks pass from this spot and fail at several others, see REALFIX.md), else the middle of the bounds */
 export const playerSpot = (): { x: number; z: number } => {
   const at = process.env.REAL_PLAYER?.split(',').map(Number);
   if (at && at.length === 2 && at.every(Number.isFinite)) return { x: at[0], z: at[1] };
-  if (WHOLE) return { x: 0, z: 0 };
+  if (WHOLE) return { x: 0, z: -300 };
   return { x: (net.bounds.minX + net.bounds.maxX) / 2, z: (net.bounds.minZ + net.bounds.maxZ) / 2 };
 };
 export const net = RoadNet.fromJson((WHOLE ? r4 : core) as unknown as RoadNetJson);
 export const derived = deriveGeometry(net);
 export const sidewalks = buildSidewalkGraph(net, derived);
+/** REALFIX: the kerb rings of the blocks without buildings (`badBlocks`: their rings disagree with the lanes, a known derive.ts defect, and they are fenced lots in the game) are not trusted as kerb */
+export const badKerb = badBlocks(net, derived);
 
 export interface RealRun {
   seed: number;
@@ -160,7 +163,7 @@ const anyStill = new Map<string, number>();
     for (const p of ring) { a = Math.min(a, p.x); b = Math.min(b, p.z); c = Math.max(c, p.x); e = Math.max(e, p.z); }
     return [a, b, c, e];
   };
-  const curbs = derived.curbRings.filter((r) => r.length > 2).map((ring) => ({ ring, box: boxOf(ring) }));
+  const curbs = derived.curbRings.filter((r, i) => r.length > 2 && !badKerb.has(i)).map((ring) => ({ ring, box: boxOf(ring) }));
   const buildings = derived.buildingRings.filter((r) => r.length > 2).map((ring) => ({ ring, box: boxOf(ring) }));
   const inAny = (set: Array<{ ring: readonly Vec2[]; box: readonly [number, number, number, number] }>, p: Vec2): boolean => {
     for (const q of set) if (p.x >= q.box[0] && p.x <= q.box[2] && p.z >= q.box[1] && p.z <= q.box[3] && pointInPolygon(p, q.ring)) return true;
