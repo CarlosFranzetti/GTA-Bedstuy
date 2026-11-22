@@ -302,4 +302,210 @@ These rows are the band medians above, rounded; the BMI values are band mid-poin
 Height is independent: shoulders and limbs do not scale with BMI (bone lengths, section 1) except the shoulder tips
 (bideltoid .264 slim to .325 very heavy in men).
 
-Pending in this file: 4 movement, 5 the GTA V look.
+
+## 4. MOVEMENT (numbers for GAIT and POSE)
+
+Honest status first. CHECKED means a table or abstract was opened and the number is copied from it. SEARCH EXCERPT
+means a search result quoted the page but the page itself refused to load (PMC and MDPI block scripts). ESTIMATE means
+standard textbook value from memory (Perry, Whittle, Winter style) that I could NOT open here: use it as a starting
+value and let REVIEW's measurement on our rig decide. I did not find an open page giving pelvis excursion, arm swing
+or trunk rotation numbers, so those rows are all ESTIMATE.
+
+### 4a. Walking, by age (CHECKED: Normative reference gait data, inertial sensors, children and young adults, PMC7388584, Table 2 and 3, opened; wearable sensors on the lower back and feet, 22 to 37 people per band)
+
+Self-selected pace (mean):
+| Age band | Stride length m | Stride as % of stature | Speed m/s | Speed as stature/s | Cadence steps/min | Swing % | Stance % | Double support % (both) |
+|---|---|---|---|---|---|---|---|---|
+| 5 to 6 | 0.99 | 85.5 | 1.11 | 0.96 | 139 | 42.1 | 57.9 | 16.3 |
+| 7 to 8 | 1.10 | 85.4 | 1.19 | 0.93 | 131 | 41.3 | 58.7 | 17.6 |
+| 9 to 10 | 1.20 | 84.7 | 1.25 | 0.88 | 124 | 41.4 | 58.6 | 17.3 |
+| 11 to 13 | 1.32 | 83.5 | 1.34 | 0.85 | 122 | 42.2 | 57.8 | 15.7 |
+| 14 to 21 | 1.34 | 79.7 | 1.28 | 0.77 | 115 | 41.1 | 58.9 | 17.9 |
+| 22 to 30 | 1.42 | 81.6 | 1.36 | 0.78 | 115 | 41.2 | 58.8 | 17.6 |
+
+Fast as possible (mean): stride 1.04 / 1.17 / 1.31 / 1.45 / 1.50 / 1.61 m; speed 1.26 / 1.46 / 1.59 / 1.70 / 1.65 / 1.81 m/s;
+cadence 148 / 151 / 148 / 141 / 133 / 134 steps/min; swing 41.8 / 42.6 / 43.6 / 44.5 / 43.1 / 43.6 %; double support
+15.7 / 15.3 / 13.6 / 11.5 / 14.1 / 13.3 %. In stature units, fast stride is 89 to 93 percent of stature at every age,
+fast speed 1.0 to 1.1 stature per second.
+
+Rules from it:
+- A relaxed adult stride (two steps) is about 0.8 of stature, i.e. step 0.4 stature (1.42 m stride for a 1.75 m person); a
+  child's stride is a little longer in stature units (0.85) and quicker (cadence 139 against 115). Small people step
+  fast: a 5 year old takes 2.3 steps a second, an adult 1.9.
+- Speed in stature per second FALLS with age through childhood (0.96 to 0.78): kids move proportionally faster.
+- Swing is 41 to 42 percent and stance 58 to 59 percent in self-selected walking (the textbook 60/40, a little less
+  stance). Double support: the table's figure is total of both double-support phases (16 to 18 percent of the cycle, so
+  about 8 to 9 percent each), measured with sensors; the textbook figure from a search excerpt of the AAPMR overview
+  (`now.aapmr.org`, page itself did not load) is 20 percent total, 60 stance / 40 swing, young-adult cadence 115 to 120,
+  stride 150 to 170 cm. Two sources, they differ by a few points: use 18 percent total.
+- When walking fast, swing grows and double support shrinks (to 13 percent), the cycle's feet leave the ground more.
+- Sex: women walk at higher cadence (statistically, in the same paper's Table 4); men have longer stride and speed in the
+  fast condition (1.72 against 1.50 m at 22 to 30). Wikipedia "Gait (human)" (opened): "females tend to walk with smaller
+  step width and more pelvic movement".
+- Turning: peak turn velocity is 276 to 318 deg/s for children and 221 to 236 for adults at self-selected pace; a turn takes
+  1.5 to 1.6 s for children, 1.8 to 1.9 s for adults, about 3 steps either way. Fast turns: children 300 to 360 deg/s, adults
+  about 280 deg/s, 1.4 to 1.7 s.
+- Foot angles: foot strike angle (heel contact) 26 to 29 degrees and toe-off angle 39 to 42 degrees for 9 year olds to
+  adults; toe-out angle about 4 to 6 degrees (feet turn out a few degrees). Same paper.
+
+### 4b. Walking, older adults
+
+- CHECKED (Europe PMC abstract, review of 42 papers, "The effect of aging on gait parameters in able-bodied older
+  subjects", PMID 26210370): stride length 135 to 153 cm, cadence 103 to 112 steps/min, step width 41 percent wider than
+  young people, 20 to 30 percent more metabolic energy, more asymmetry, longer double support, "shorter steps and slower walking".
+- SEARCH EXCERPT (PMC6660692 table: speed, step length and cadence by decade): 70 and over: speed 0.94 m/s, step
+  length 0.52 m, cadence 102 steps/min; 10 to 19: 1.16 m/s and 112 steps/min.
+- CHECKED (abstract, "1000 healthy individuals aged 3 to 101", PMID 28763713): gait velocity is steady through
+  adolescence and adulthood; children and older adults walk at a comparable, slower speed.
+- Wikipedia "Preferred walking speed" (opened): typical adult preferred speed 1.4 m/s (design guide), range 1.1 to 1.65 m/s;
+  New York City crowds walk faster than rural ones; age, joint pain, instability and poor vision slow people.
+- Build to: elder about 0.95 m/s, step 0.52 m, cadence 102, wide base, double support longer (ESTIMATE: 24 to 26 percent
+  total; not opened), arms swing less (ESTIMATE), head forward and knees and hips a little bent (clinical teaching, not
+  quantified here).
+- Children: normalized stride (% of leg length or stature) does not change with age, so a child gait is a SCALED adult gait with
+  higher cadence (PMC7388584 abstract and PMC5135775, children 6 to 10, Cape Town, Table 2, opened: cadence 2.16 to 2.42 steps/s,
+  speed 1.14 to 1.34 m/s, stride 0.97 to 1.23 m, median).
+
+### 4c. Running and sprinting
+
+No open source with numbers was reached. ESTIMATES from memory (coaching and biomechanics textbooks), not checked:
+- Jogging 2.5 to 3.5 m/s: cadence about 160 to 170 steps/min, stride about 1.7 to 2.0 m; a flight phase appears above about 2 m/s; no double support.
+- Running 4 to 5 m/s: cadence about 170 to 185 steps/min, contact time about 0.25 s.
+- Sprint 8 to 10 m/s: step frequency 4.2 to 4.8 steps/s (252 to 288 steps/min), step length about 2.1 to 2.3 m for a tall man,
+  contact time about 0.1 s, trunk leaning forward at the start and upright at top speed.
+- Ordinary people sprint 5.5 to 7.5 m/s; elite 100 m runners peak above 10 m/s (ESTIMATE). A street sprint of 6 to 7 m/s is realistic for the game.
+- The walk to run switch: people change gait at around 2.0 to 2.1 m/s (ESTIMATE, from locomotion literature, not opened).
+
+### 4d. Pelvis, trunk, arms (ESTIMATES from the textbook; nothing opened)
+
+- Centre of mass (pelvis) VERTICAL rise and fall: about 4 to 5 cm peak to peak at ordinary walking, two humps per
+  stride (the highest point is mid-stance, the lowest is at double support). Lateral sway of the pelvis: about 4 to 5 cm
+  peak to peak, one swing per stride, toward the stance leg. Both are bigger at higher speed in vertical (running: 6 to 10 cm).
+- Pelvic rotation about the vertical axis: about 4 degrees each way (8 total) in walking; pelvic list (obliquity) about
+  4 to 5 degrees, the swing-side hip drops; pelvic tilt moves about 3 to 4 degrees. Women show a little more pelvic motion (Wikipedia).
+- Shoulders rotate OPPOSITE to the pelvis: the trunk counter-rotation is about 4 to 8 degrees of upper-trunk rotation in
+  normal walking, growing with speed; the arm swings with the shoulder opposite the leading leg.
+- Arm swing at ordinary walking: shoulder total range about 25 to 35 degrees (more forward than back, 10 to 15 degrees
+  back and 15 to 20 forward), elbow bent about 20 to 40 degrees and a bit more on the forward swing; the hand passes the thigh.
+  At a run: shoulder 60 to 90 degrees total, elbow about 80 to 100 degrees bent, arms drive across less. Arm swing is smaller in elders.
+- At rest (standing), the arm hangs with a CARRYING ANGLE, an elbow outward bend of the forearm of roughly 10 to 15 degrees
+  (ESTIMATE; Wikipedia "Carrying angle", opened, says the carrying angle lets the arm swing "without contacting the
+  hips", is larger in women on average because of smaller shoulders and wider hips, but "extensive overlap" and sex
+  bias "not consistently observed", and is larger in the dominant arm). The hand hangs beside the thigh, not touching
+  it: the elbow at the waist (section 1c), the wrist at .48 of stature, so the hand is on the outside of the thigh.
+  Reconcile with the width table: bideltoid .29 of stature against hip breadth .196 (men) leaves about 0.047 of stature
+  (about 8 cm for a 1.75 m man) on each side between the hip and the shoulder tip: the arm hangs in that gap, so
+  hands at rest sit just outside the thigh without touching (computed from the widths, section 1b).
+- Standing: weight is shifted onto one leg for many seconds and swapped slowly; pelvis tilts 2 to 4 degrees, a little
+  hip sway; people rarely stand with both feet at the same angle (ESTIMATE; Wikipedia and the style brief section 5).
+
+## 5. THE GTA V LOOK: a style brief
+
+How to read this section. Public, citable material on how GTA V's ordinary street people were made is thin: Rockstar
+has published almost nothing on pedestrian modelling, and the best-documented pedestrian material online (the 600,000
+animation figure, personality traits, retargeting to body proportions) is about GTA VI, a different game: it must not be
+quoted as GTA V. So: Part A is what I could open and cite. Part B is a description of how the people READ in widely
+published footage and screenshots, from memory, flagged OBSERVED, not checked in this session (I cannot view images
+here). Part C is what the team should take as principles, tied to the measured numbers above. Nothing here is a
+measurement of the game; no game file was opened.
+
+### A. What is documented (opened or quoted)
+
+- The engine is Rockstar's RAGE; "the Euphoria and Bullet software handle additional animation and rendering tasks"
+  (Wikipedia, "Grand Theft Auto V", opened). Euphoria is the physics-driven animation that makes people stumble, brace
+  and flail when shoved or shot. The principle for us: reactions are physical, not canned.
+- Skin shading: GTA V runs a subsurface-scattering pass on the skin of the player AND the ordinary pedestrians, using a
+  skin mask written in the G-buffer; "as humans we instinctively tend to look at the character's face a lot"; the
+  light bleeds red through ears and lips (Courrèges, "GTA V graphics study", opened). NPCs have their own stencil value.
+  The principle: faces and ears get the light budget first.
+- Pedestrian assembly: modding documentation for the pedestrian format lists slots for head, beard or mask, hair,
+  upper body, lower body, hands, feet, teeth, accessories, extra gear, decals and an alternate upper, with a drawable
+  and a texture variation per slot, plus separate prop slots for hats and glasses; different ambient models expose
+  different numbers of them (search excerpts of LCPDFR, FiveM and 5mods documentation; those pages refused or were not opened:
+  not checked). Our existing study already records this; I add only that the number of choices per slot varies by model:
+  it is a menu per body type, not one global menu.
+- Art direction: Aaron Garbut, art director, said the varied world needs varied people and that the aim was new cities,
+  not copies (search excerpt of the pre-release coverage; the existing gta5-style-notes.md cites GamingBolt for "not
+  recreate existing cities"). Not opened here.
+- Scale of animation: a search result cited 55,000 animations for GTA V (as a comparison in coverage of GTA VI); not
+  verified, second hand.
+- The game was built on motion capture for its main cast (Wikipedia: performances "mostly recorded using motion
+  capture"); nothing public says how ordinary pedestrians were animated.
+
+### B. How the street people READ (OBSERVED from published footage, from memory, not checked; treat as the team's shared eye, argue with it)
+
+Proportion and build
+- Natural adult proportions, not heroic: heads about 7 to 7.5 tall, legs about half the height, arms reaching to mid-thigh,
+  shoulder wider than hip for men. Variety is in build far more than in height: a street holds thin, soft-bellied,
+  stocky, broad and very heavy adults, and the very heavy ones are carried by their bodies (belly, upper arm, neck), not by
+  scaled limbs. Compare section 3: this is the real distribution (median adult BMI near 28).
+- Silhouette variety comes from stance and clothing mass (hoods, baggy trousers, long coats, bags), so a crowd has a rhythm of shapes.
+- Men are slightly caricatured at the extremes (very large or very thin), women and children less so; tone is satirical,
+  proportion is not.
+
+Dress
+- Layered and worn: a base layer, a shirt or hoodie, a jacket, a bag; trousers that crease at knee and hip; hems that stack on shoes;
+  sleeves pushed up. Uniformed jobs read by cut and colour. Fit varies by person: tight, regular, baggy, not one ease for everyone.
+- Wear: faded dark denim, scuffed shoes, stretched knit collars, sun-bleached tees. Fabric is rendered by a texture, a
+  fold normal and a hem, not by geometry. Colours are muted and ordinary with one earned accent.
+- No text on clothes in our game (owner rule 4), which GTA V partly avoids by parody labels; we replace with plain cuts and colour.
+
+Stance and idle
+- Standing people are rarely symmetric: weight on one leg, a hand in a pocket, arms folded, a phone in hand with head
+  down, leaning on a wall or a car. Groups face each other. Idles have personality by age and mood. Elders stand stooped,
+  teens loose and wide.
+- Arms hang with an elbow bend and the hands beside, not in front of, the thighs (which is what section 4d predicts); this is
+  the POSE seat's first fix.
+
+Walk and reaction
+- A walk with a clear pelvis bob, opposite arm swing, heel strike and toe push; speed varies by person (stroll, commute, hurry);
+  walkers slow at kerbs, look at the traffic light, step aside from the player, stop to look at a commotion, then resume.
+- Under threat: flinch, duck, cover the head, run in a chaotic arc, shout; the physical reaction (Euphoria) and the voice
+  line come together; bystanders film (modern ones, our owner's rule 5 temperament already).
+- Starts and stops carry weight: a short lean forward on the first step; a settling step or two on stopping.
+
+Detail by distance
+- At 20 m and more: silhouette, colour block, gait rhythm: the player recognises "tall man in a puffer" or "woman with a
+  bag" by shape alone. At 5 to 10 m: layers, hems, shoes, hair shape, skin tone. Within 3 m: faces with light through ears
+  and lips, eyes, eyebrows and a hairline; fabric detail and wear.
+
+### C. Principles for the team (each tied to a measured number)
+
+1. TRUST THE SURVEY, NOT THE SKETCH. Build to section 1 shares: crotch .48, fingertips .37, hand .11, foot .15, shoulder
+   to hip 1.48 men and 1.27 women, upper arm to forearm 1.36 : 1, arm span 1.03. Toy proportions come from violating these.
+2. THE HEAVY MIDDLE IS THE STREET. Median adult BMI 28 to 29 (NHANES); waist share .55 to .64. At least half our adults should have
+   a visible belly; mass goes to belly first (depth), neck, wrist and ankle barely change (section 3c).
+3. CHILDREN ARE NOT SMALL ADULTS. Head share 1/6 at 5 to 1/7 at 12, short legs, round trunk, arms near adult share. Teens
+   in a growth spurt are long-limbed and thin-waisted (boys' waist share falls at 12 to 13).
+4. VARIETY IN BUILD AND POSTURE BEFORE VARIETY IN FACES. Six builds per sex, stature spread (men 1.65 to 1.87 m, women 1.53 to
+   1.74 m, 5th to 95th, ANSUR), and per-person stance and idle.
+5. WEIGHT IN THE STEP. Stride 0.8 of stature at an ordinary walk (cadence 115, 1.36 m/s adult), kids at cadence 139 and a
+   scaled stride, elders 0.95 m/s, cadence 102, wide base. Swing 41 percent, double support 17 percent. A walk that
+   matches speed to stride length cannot skate.
+6. ARMS HANG: elbow only a few degrees from straight at rest (REVIEW measured 40 to 55 degrees on our rig, which is the first thing to fix), hands beside the thigh, fingertips at .37 of stature.
+7. CLOTHES FIT PEOPLE DIFFERENTLY: tight, regular, baggy and oversized are all in a street; layers bulk the silhouette; hem
+   and cuff position matter more than texture at 5 to 10 m.
+8. LIGHT THE FACE FIRST. Skin shading and eye, brow, mouth values at 3 m outrank everything else in the budget (Courrèges on GTA V's skin pass).
+9. REACTIONS ARE PHYSICAL. Shoved or hit people stumble and catch themselves; this is what made GTA's street feel alive, and the
+   idea is allowed (no code or data from the game): our combat lane already has temperaments.
+10. SILHOUETTE BEFORE DETAIL AT DISTANCE, DETAIL ONLY WHERE THE EYE LANDS (faces, hands, feet).
+
+### D. Corrections to the existing notes (I did not edit those files)
+
+- `gta4-5-study.md` (Characters, "What it means for us"): says "shoulder width 2 to 2.3 heads for men, 1.8 to 2 for
+  women". With a head of .133 of stature (7.5 heads), measured shoulder (bideltoid) is 2.2 heads for men (P5 to P95 2.0 to 2.4)
+  and 2.07 for women (1.9 to 2.3); bone-to-bone shoulder (biacromial) is 1.8 men, 1.7 women. So the female figure is
+  right only if it means bone width. Do not build women narrower than 2.0 heads at the deltoid.
+- Same file: "shoulder-to-hip 1.2 to 1.4 head heights" is ambiguous; the measured shoulder-to-hip WIDTH ratio is 1.48 (men),
+  1.27 (women). The measured vertical distance from shoulder tip to hip joint is .821 minus .512 = .31 of stature (2.3 heads).
+- Same file: "heads 12+ ... components" is supported by the slot structure but the specific counts are our own targets; no source for GTA V's counts.
+- Same file: "stature 1.55 to 1.95 m" is wider than the survey: 5th to 95th is men 1.65 to 1.87 m, women 1.53 to 1.74 m; the extremes (1.95) are the 99th percentile for men; fine for a few characters.
+- `gta5-style-notes.md` is rendering notes only; it does not cover people. Its sourcing caveat stands.
+
+### E. Not found
+
+- No developer talk, interview or article describing the proportions, heights or triangle counts of GTA V's ordinary pedestrians
+  (the GDC and Edge pieces I found were about GTA VI).
+- No open numbers for pelvis excursion, arm swing, trunk rotation, running and sprint cadence, child shoulder breadth,
+  elder double-support share.
+- CDC growth-chart files and the NASA MSIS pages refused the connection; ANSUR II and NHANES raw files were used instead.

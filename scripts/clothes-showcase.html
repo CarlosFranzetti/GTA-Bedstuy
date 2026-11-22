@@ -316,7 +316,20 @@ if (view === 'bakeprobe') {
     sh.shade(av((q) => cap.position[q*3]), av((q) => cap.position[q*3+1]), av((q) => cap.position[q*3+2]), av((q) => cap.normal[q*3]), av((q) => cap.normal[q*3+1]), av((q) => cap.normal[q*3+2]), wj([3]), wj([1,2]), wj([4,5,6,7]), wj([8,9,10,11]), 7, px);
     probes.push([px.r, px.g, px.b].map((x) => +x.toFixed(1)));
   }
-  window.__uvstat = { total: cap.index.length / 3, nanN, lowN, nbad: bad.length, probes };
+  const S2 = S; const cover = [];
+  const b0 = bad[0]; const px0 = Math.floor(b0.uv[0]), py0 = Math.floor(S - b0.uv[1]); const cu = px0 + 0.5, cv = py0 + 0.5;
+  for (let t = 0; t < cap.index.length; t += 3) {
+    const ii = [cap.index[t], cap.index[t+1], cap.index[t+2]]; const X = ii.map((q) => cap.uv[q*2] * S2), Y = ii.map((q) => (1 - cap.uv[q*2+1]) * S2);
+    const den = (Y[1]-Y[2])*(X[0]-X[2]) + (X[2]-X[1])*(Y[0]-Y[2]); if (Math.abs(den) < 1e-9) continue;
+    const l1 = ((Y[1]-Y[2])*(cu-X[2]) + (X[2]-X[1])*(cv-Y[2]))/den, l2 = ((Y[2]-Y[0])*(cu-X[2]) + (X[0]-X[2])*(cv-Y[2]))/den, l3 = 1-l1-l2;
+    if (l1 < -0.04 || l2 < -0.04 || l3 < -0.04) continue;
+    const L = [l1,l2,l3], at = (f) => ii.reduce((a, q, k) => a + f(q) * L[k], 0);
+    const wj = (set) => at((q) => { let w = 0; for (let k = 0; k < 4; k++) if (set.includes(cap.joints[q*4+k])) w += cap.weights[q*4+k]; return w; });
+    sh.shade(at((q) => cap.position[q*3]), at((q) => cap.position[q*3+1]), at((q) => cap.position[q*3+2]), at((q) => cap.normal[q*3]), at((q) => cap.normal[q*3+1]), at((q) => cap.normal[q*3+2]), wj([3]), wj([1,2]), wj([4,5,6,7]), wj([8,9,10,11]), 7, px);
+    cover.push({ t: t/3, z: +at((q) => cap.position[q*3+2]).toFixed(3), y: +at((q) => cap.position[q*3+1]).toFixed(3), x: +at((q) => cap.position[q*3]).toFixed(3), rgb: [px.r, px.g, px.b].map((x) => +x.toFixed(0)), w: ii.map((q) => cap.joints[q*4] + ':' + cap.weights[q*4].toFixed(2)).join(' ') });
+  }
+  const pix = (data[(py0 * S + px0) * 4]) + ',' + data[(py0 * S + px0) * 4 + 1] + ',' + data[(py0 * S + px0) * 4 + 2];
+  window.__uvstat = { total: cap.index.length / 3, nanN, lowN, nbad: bad.length, probes, b0: [b0.t, b0.uv], S, cover, pix };
 }
 if (params.get('unlit') === '1') scene.traverse((o) => { if (o.isMesh && o !== ground && o.material?.map) o.material = new THREE.MeshBasicMaterial({ map: o.material.map }); });
 if (params.get('cam')) { const c = params.get('cam').split(',').map(Number); cam.position.set(c[0], c[1], c[2]); look.set(c[3], c[4], c[5]); if (c[6]) cam.fov = c[6]; }

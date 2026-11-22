@@ -129,7 +129,7 @@ export class FootLock {
       // held: the full offset to the ground point; once the foot is up the last offset is kept and fades with the weight (the anchor is stale by then)
       if (this.held[s]) { this.cx[s] = this.ax[s] - bx; this.cz[s] = this.az[s] - bz; }
       // a foot the capture drags far from its ground point (an acceleration the clip does not match) is let go gradually, never pulled hard
-      const full = Math.hypot(this.cx[s], this.cz[s]), gain = this.w[s] * (1 - sstep(0.05, 0.12, full));
+      const full = Math.hypot(this.cx[s], this.cz[s]), gain = this.w[s] * (1 - sstep(0.09, 0.26, full));
       const tx = this.cx[s] * gain, tz = this.cz[s] * gain;
       this.tx[s] = tx; this.tz[s] = tz;
       // sink needed: the horizontal distance to the target ankle fixes how far down it can be at full reach
@@ -159,14 +159,22 @@ export class FootLock {
       const Tx = A.x + tx, Ty = A.y + lift, Tz = A.z + tz;
       const hx = hip.x, hy = hip.y, hz = hip.z, kx = kneeOld.x - hx, ky = kneeOld.y - hy, kz = kneeOld.z - hz;
       const dx = Tx - hx, dy = Ty - hy, dz = Tz - hz, dl = Math.hypot(dx, dy, dz);
-      const dist = Math.min(Math.max(dl, Math.abs(a - b) + 1e-3), a + b - 1e-3);
+      const dist = Math.min(Math.max(dl, Math.abs(a - b) + 1e-3), 0.992 * (a + b));
       const Dx = dx / dl, Dy = dy / dl, Dz = dz / dl;
       const cosA = (a * a + dist * dist - b * b) / (2 * a * dist), sinA = Math.sqrt(Math.max(0, 1 - cosA * cosA));
       // the knee stays on the side of the line the capture bent it to
       const kd = kx * Dx + ky * Dy + kz * Dz;
       let Px = kx - Dx * kd, Py = ky - Dy * kd, Pz = kz - Dz * kd;
       const pl = Math.hypot(Px, Py, Pz);
-      if (pl < 1e-5) { Px = 0; Py = 0; Pz = -1; } else { Px /= pl; Py /= pl; Pz /= pl; }
+      // forward (-z) taken across the hip-ankle line: a knee only bends this way. A leg that is nearly straight has no steady side of its own (its old
+      // knee sits on the line), so the side fades to forward as the old bend fades, and is never allowed behind the line (GAIT: no knee flip at full reach)
+      const fz = -1, fd = fz * Dz, Fx = -Dx * fd, Fy = -Dy * fd, Fz = fz - Dz * fd, fl = Math.hypot(Fx, Fy, Fz) || 1;
+      const bent = sstep(0.004 * a, 0.05 * a, pl);
+      if (pl < 1e-5) { Px = Fx; Py = Fy; Pz = Fz; } else { Px /= pl; Py /= pl; Pz /= pl; }
+      Px = Px * bent + (Fx / fl) * (1 - bent); Py = Py * bent + (Fy / fl) * (1 - bent); Pz = Pz * bent + (Fz / fl) * (1 - bent);
+      const behind = Px * Fx + Py * Fy + Pz * Fz;
+      if (behind < 0.15 * fl) { const k = (0.15 * fl - behind) / fl; Px += (Fx / fl) * k; Py += (Fy / fl) * k; Pz += (Fz / fl) * k; }
+      const pn = Math.hypot(Px, Py, Pz) || 1; Px /= pn; Py /= pn; Pz /= pn;
       const Kx = hx + a * (Dx * cosA + Px * sinA), Ky = hy + a * (Dy * cosA + Py * sinA), Kz = hz + a * (Dz * cosA + Pz * sinA);
       const Ex = hx + Dx * dist, Ey = hy + Dy * dist, Ez = hz + Dz * dist;   // the ankle as reached
       // thigh: the smallest swing from the old direction to the new, so the captured twist stays
@@ -179,6 +187,10 @@ export class FootLock {
       quat(qK, p, ko);
       v1.copy(d.ankle[s]).normalize().applyQuaternion(qK);
       const nk = this.kq[s].setFromUnitVectors(v1, v3).multiply(qK);
+      // the solve is mixed in by how far it moves the foot (a straight captured leg gets a few degrees of bend from the reach limit; that must fade out, not pop off when the pull ends)
+      const kk = sstep(0.0004, 0.012, Math.max(this.pull[s], lift));
+      qW.setFromEuler(eul.set(p[lo], p[lo + 1], p[lo + 2], 'XYZ')); nl.copy(qW.slerp(nl, kk));
+      qK.setFromEuler(eul.set(p[ko], p[ko + 1], p[ko + 2], 'XYZ')); nk.copy(qK.slerp(nk, kk));
       leg[s].copy(nl); knee[s].copy(nk);
       if (d.hasAnkle) {
         // the foot keeps the tilt it had in the capture: its world orientation is carried over
