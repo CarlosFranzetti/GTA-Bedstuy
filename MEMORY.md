@@ -156,8 +156,8 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 ## Where things are
 
 - `src/main.ts`: assembly and the frame loop. `src/core/`: input, camera, events, math. `src/physics/`: flat 2D world.
-- `src/world/`: the grid map (default) and `src/world/roadnet/**`, the real-street map (`?map=real`, hosted and native
-  only; default-path modules never import roadnet except type-only: `docs/swarm/plans/briefs/_realmap-rules.md`).
+- `src/world/`: the grid map (`?map=grid`; the only map of the single-file build and the default on phones) and `src/world/roadnet/**`, the real-street map (the
+  main map on hosted and native builds since 22 Nov, `src/world/mapChoice.ts`; each map has its own save slots, `GameSave.savePrefix`; default-path modules never import roadnet except type-only: `docs/swarm/plans/briefs/_realmap-rules.md`).
 - `src/entities/`: player, pedestrians, vehicles, traffic agents; `models/` builds people (closed skin from MakeHuman
   data, garment geometry, separate hair, hats and bags, three detail levels) and cars (lofted bodies).
 - `src/entities/anim/`: motion-capture clips, posture correction, hand-keyed action poses.
@@ -186,6 +186,11 @@ The full list with dates is in `docs/swarm/PRD.md` (Stage 13 onwards).
 - Free image generators reachable from here refuse without a token; a keyless one stamps a watermark. Not used.
 
 ## State on 21 Nov 2026
+
+- 22 Nov, MAINMAP (not committed, main.ts patch pending): real map as the main map on hosted and native desktop builds; phones (`quality === 'phone'`) stay on the grid unless
+  `?map=real`, because the real map on the emulated iPhone holds 2x the grid's heap, 1.6x its boot peak and 2.3x its spawn triangles and no real iPhone has tried it. Per-map saves with a
+  cash, records and look carry-over; Settings "Map" row; preview notice gone; the grid world is no longer built on the real map (patch: `scratchpad/mainmap/main-patch.diff`);
+  phone sun-shadow casters cut into cells; native smoke test fixed and green. Details and numbers: `docs/swarm/tasks/MAINMAP.md`.
 
 - Live since 22 Nov: the real-street map grown to 15.15 km2 (R4), 17 more landmarks under invented names (LANDMARKS2 and 3),
   lit outer-ring lamps, real-map memory back at the old map's level, and (second deploy of the day) real-map traffic that

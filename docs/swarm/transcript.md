@@ -3479,3 +3479,6 @@ Starting TREES: bushier crowns, parks first. Files: world/props/treeCloud.ts, wo
 
 ### 2026-11-22T08:01:24Z · Tomas Reyes (AUDIOFIX)
 Done. Parked kerb cars were taking all four AI engine voices and idling for ever (measured), pause/resume could leave the context suspended, radio had a blocked-forever state. Engine bus 0.55, Engine Sound setting (Off makes no voice), radio watchdog with toasts. Audio and ui tests green, tsc clean, hosted boot clean. One line for main.ts in docs/swarm/tasks/AUDIOFIX.md. Not heard.
+
+### 2026-11-22T08:18:29Z · Mara Quill (CAMFIX)
+Camera fix is in the tree: view changes to or from first person, hood and cinematic are now clean cuts; getting in or out is one 0.6 s eased blend; stepping out no longer swings the view 90 degrees. 143 new harness tests (47 red on the old code) green; notes in docs/swarm/tasks/CAMFIX.md. Nothing for main.ts.

@@ -185,7 +185,7 @@ export function tree(k: Kit, x: number, z: number, rng: Rng, h = 1, solid = true
   // species: small trees are ornamental pears; big ones planes, now and then an oak (tall oval) or a honey locust (wide, flat)
   const sp = h < 0.55 ? 3 : rng.chance(0.2) ? 4 : rng.chance(0.18) ? 2 : 1;
   const style: TreeStyle = { dbhIn: 15, species: sp, scale: h, canopy: 1 };
-  const parts = treePartsFor(style, 1.4 * h * (0.92 + rng.next() * 0.2), rng.next(), rng.next(), true);
+  const parts = treePartsFor(style, 1.4 * h * (0.92 + rng.next() * 0.2), h >= 0.85 ? 1 : 0, rng.next(), true); // big trees keep every lobe (five clouds), small ones drop the last (four)
   const yaw = rng.next() * Math.PI * 2, cy = Math.cos(yaw), sy = Math.sin(yaw);
   // trunk: the lathe of buildTreeTrunkGeometry as quads (7 sides, 3 rings) and four limbs
   const tw = parts.trunk[0] * h, th = parts.trunk[1] * h;
@@ -222,7 +222,7 @@ export function shrub(k: Kit, x: number, z: number, rng: Rng, r = 1.1, squash = 
 
 /**
  * A clipped hedge along (x0, z0) to (x1, z1), `h` high (about 1 m): a solid olive body (6 triangles, flat colour, no draw call of
- * its own) with leaf clouds (32 triangles) along its top every 1.3 m, so it reads dense and leafy from both sides.
+ * its own) with leaf clouds (32 triangles) along its top every 1.6 m, so it reads dense and leafy from both sides.
  */
 export function hedge(k: Kit, x0: number, z0: number, x1: number, z1: number, rng: Rng, h = 1.0): void {
   if (k.far) return;
@@ -230,14 +230,14 @@ export function hedge(k: Kit, x0: number, z0: number, x1: number, z1: number, rn
   if (L < 1) return;
   const ux = (x1 - x0) / L, uz = (z1 - z0) / L, w = h * 0.45;
   const P = (t: number, s: number, y: number): V3 => [x0 + ux * t - uz * s, y, z0 + uz * t + ux * s];
-  const col = 0x3a4724;
+  const col = 0x556630;
   const q = (a: V3, b: V3, c: V3, d: V3, hint: V3): void => k.quad(k.flatM, a, b, c, d, { hint, color: col });
   q(P(0, -w, 0), P(L, -w, 0), P(L, -w * 0.8, h * 0.95), P(0, -w * 0.8, h * 0.95), [-uz * -1, 0, ux * -1]);
   q(P(L, w, 0), P(0, w, 0), P(0, w * 0.8, h * 0.95), P(L, w * 0.8, h * 0.95), [-uz, 0, ux]);
   q(P(0, -w * 0.8, h * 0.95), P(L, -w * 0.8, h * 0.95), P(L, w * 0.8, h * 0.95), P(0, w * 0.8, h * 0.95), [0, 1, 0]);
   shrubGeo ??= buildCloudGeometry(CLOUD_CARDS, 0.3);
   const lv = k.m('treeLeaves', 0);
-  const n = Math.max(1, Math.round(L / 1.3));
+  const n = Math.max(1, Math.round(L / 1.6));
   for (let i = 0; i < n; i++) {
     const t = ((i + 0.5) / n) * L, s = (i % 2 ? 1 : -1) * w * 0.3;
     const c = P(t, s, h * 0.5);

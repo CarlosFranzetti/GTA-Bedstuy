@@ -83,3 +83,16 @@ inside" (main.ts never removes the player's car: its only exits are `player.exit
 
 ## Tests changed
 No existing test changed. New: `tests/unit/entities/camfix.test.ts`, `camfix-harness.ts`, `camfix-scenarios.ts`.
+
+## Checks run (22 Nov)
+- `npx vitest run tests/unit/core tests/unit/entities tests/unit/render/camera-views.test.ts --maxWorkers=1`: 1155 passed, 4 failed, all four in
+  people-model tests that other lanes have open (anim-bodies, pedbodytypes, pedmesh, pedround5: the known shoe-hem check and FACES2's files). Every camera
+  test (camera, camera-gta, camera-clearance, camera-views, mechanics-measure, the 143 CAMFIX tests) is green. `npx tsc --noEmit` is clean.
+- Old code against the new tests: 47 of 143 red (list in the lane's scratch folder, `prefix-fail.txt`).
+- In the running game (hosted build, `?map=grid&q=low`, canvas hidden, 640 x 360, frames drawn by hand every 6 steps; rendered in software, no fps
+  claimed): a parked taxi entered with F, the views cycled with V (far, cinematic, hood, close, chase), then F to get out.
+  Strips: `/tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/camfix/game/strip-A-enter.jpg` (12 frames), `strip-B1..B5-view.jpg` (6 frames each, one strip per press), `strip-C-exit.jpg`; numbers per
+  frame in `game/out/log.txt`. What the frames show: entering is one smooth swing from beside the taxi round to behind it with no frame inside the body;
+  the cinematic and the hood views are already fully the new view on the first frame after the press (cuts, nothing in between); hood to close chase
+  and back are clean; far chase is a blend; on stepping out the lens slides past the taxi's rear corner without entering the body and the view stays
+  pointed the way the car faced. Not checked in the game: a moving car, the wall and elevated-line cases, a phone, a pad.

@@ -401,8 +401,8 @@ export function* buildPark(c: BuildCtx): Generator<void> {
     const bigs = taken.filter((t) => t.r === 2.6);
     let nShrub = 0;
     for (const t of bigs) {
-      if (!rng.chance(0.55)) continue;
-      for (let i = 0; i < 2; i++) {
+      if (!rng.chance(0.4)) continue;
+      for (let i = 0; i < 1; i++) {
         const ang = rng.range(0, Math.PI * 2), dist = rng.range(2.4, 4.2);
         const p: Pt = [t.x + Math.cos(ang) * dist, t.z + Math.sin(ang) * dist];
         if (!pointInRing(p, ring) || distToPaths(p) < 2.6 || gates.some((g) => Math.hypot(g[0] - p[0], g[1] - p[1]) < 5)) continue;
@@ -422,8 +422,8 @@ export function* buildPark(c: BuildCtx): Generator<void> {
       for (let t = 2; t < L - 2; t += 9) {
         const e = Math.min(t + 7, L - 2);
         const mx = A[0] + ux * (t + e) / 2, mz = A[1] + uz * (t + e) / 2;
-        if (rng.chance(0.3) || gates.some((g) => Math.hypot(g[0] - mx, g[1] - mz) < 7)) continue;
-        hedge(k, A[0] + ux * t + nx * 1.1, A[1] + uz * t + nz * 1.1, A[0] + ux * e + nx * 1.1, A[1] + uz * e + nz * 1.1, rng, 0.95);
+        if (rng.chance(0.5) || gates.some((g) => Math.hypot(g[0] - mx, g[1] - mz) < 7)) continue;
+        hedge(k, A[0] + ux * t + nx * 1.1, A[1] + uz * t + nz * 1.1, A[0] + ux * e + nx * 1.1, A[1] + uz * e + nz * 1.1, rng, 0.85);
       }
       yield;
     }

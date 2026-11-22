@@ -72,7 +72,8 @@ or X abandon use those keys too.
   street centrelines, buildings from its tax lots, about 15 km2 with traffic, pedestrians, police, missions and saving.
   The older stylised grid of named streets (sixteen in `src/world/data/bedstuy.json`, centred on Throop Ave and Kosciuszko St)
   is still there: add `?map=grid` (or pick "Map" in Settings), and it is the only map in the single-file build, which carries
-  no real-street code or data. Each map keeps its own save slots; a first visit to the real map with only grid saves starts
+  no real-street code or data. Phones open the grid unless the address says `?map=real`, until the real map has been tried on a real
+  iPhone (it is heavier in memory). Each map keeps its own save slots; a first visit to the real map with only grid saves starts
   fresh and brings the cash, records and look along.
 - **People.** Pedestrians built from open MakeHuman data, with their own clothes, hair, hats and bags, moving with
   captured walking and running motion. Twenty-one body types and a large wardrobe are in development.
