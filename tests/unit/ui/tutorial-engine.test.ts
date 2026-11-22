@@ -195,3 +195,42 @@ describe('tutorial engine: timeouts, skip, hiding', () => {
     expect(e.completed).toEqual(['info']);
   });
 });
+
+describe('tutorial engine: things done out of turn', () => {
+  it('a step whose thing is already true while it waits counts as done, silently (got into a car early)', () => {
+    const car: StepDef = { id: 'car', text: line('Car'), why: '', already: (c) => c.inVehicle, done: (c) => c.inVehicle };
+    const drive: StepDef = { id: 'drive', text: line('Drive'), why: '', when: (c) => c.inVehicle, done: (c) => c.speed > 4 };
+    const f = { a: false, b: false, c: false };
+    const e = new TutorialEngine([{ ...steps(f)[0], when: (c) => !c.inVehicle }, car, drive]);
+    e.start();
+    const c = ctx();
+    e.update(0.1, c);
+    c.inVehicle = true; run(e, 1.0, c);                 // in a car while step a is on the card
+    expect(e.completed).toContain('car');
+    expect(e.current?.id).toBe('drive');                // a stepped aside at once (the player changed over), no tick for car
+    c.inVehicle = false; run(e, 6, c);
+    expect(e.current?.id).not.toBe('car');             // never asked to get in a car they already got into
+  });
+
+  it('a step meant for the street goes at once when the player gets into a car; one that drifted out of reach waits', () => {
+    const f = { a: false, b: false, c: false };
+    const walk: StepDef = { id: 'walk', text: line('Walk'), why: '', when: (c) => !c.inVehicle, done: () => false };
+    const drive: StepDef = { id: 'drive', text: line('Drive'), why: '', when: (c) => c.inVehicle, done: () => false };
+    const e = new TutorialEngine([walk, drive, steps(f)[0]]);
+    e.start(); const c = ctx(); e.update(0.1, c);
+    expect(e.current?.id).toBe('walk');
+    c.inVehicle = true; run(e, 0.6, c);
+    expect(e.current?.id).toBe('drive');
+  });
+
+  it('a panel opened before its step comes up is remembered: the phone step is done as soon as it arrives', () => {
+    const phone: StepDef = { id: 'phone', text: line('Phone'), why: '', done: (_c, s) => s.seen.has('phone') };
+    const f = { a: false, b: false, c: false };
+    const e = new TutorialEngine([steps(f)[0], phone]);
+    e.start();
+    e.update(0.1, ctx({ blocked: true, panel: 'phone' }));
+    f.a = true; run(e, 2.5, ctx());
+    expect(e.completed).toEqual(['a', 'phone']);
+  });
+});
+

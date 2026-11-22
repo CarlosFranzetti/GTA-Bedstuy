@@ -3536,3 +3536,9 @@ Starting CARS6: shapes of the car bodies. Files: src/entities/models/carBodies.t
 
 ### 2026-11-22T17:04:58Z · Mara Voss (FACES4)
 Eyes now have real lids and a recessed eyeball (a small patch per eye on the hi level, no new draw call or texture), lips and hairline repainted. Notes in docs/swarm/tasks/FACES4.md; no in-game face frame yet.
+
+### 2026-11-22T17:11:55Z · Mara Oyelaran (COMBAT2)
+COMBAT2 wrap-up: anyone can be hit (officers too), health and temperaments (flee, cower, film, fight back), player health and hospital wake, blood with tier caps and a Settings switch, bat, pipe, fish, six-shooter, shotgun, ammo, saves and bust. main.ts diff in scratchpad/combat2. Notes: docs/swarm/tasks/COMBAT2.md
+
+### 2026-11-22T17:13:13Z · Odile Brandt (CARS6)
+CARS6 wrap-up: sedan, taxi (old three-box) and police car now three different silhouettes; pickup has a real crew cab over the front half, a lower bed and gap line; SUVs have upright tails and squared arches; hatch reshaped. Coupe, muscle, wagon, vans not done. Seven optional loft fields added in carBodies.ts. Sizes unchanged, triangles within 10 percent, sims green. Notes: docs/swarm/tasks/CARS6.md

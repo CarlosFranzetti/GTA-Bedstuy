@@ -32,7 +32,31 @@ Shares are of overall length L from the front unless said. Heights are shares of
 | mid-size 3-row SUV (2020) | 5.0 x 1.78 | 0.60 | 0.21 | 0.67 | tail upright | 0.20 / 0.20 | 30 deg, tail 80 deg | 0.68 | 0.43 |
 | big SUV (2022) | 5.35 x 1.92 | 0.57 | 0.22 | 0.66 | upright | 0.19 / 0.24 | 32 deg, tail 85 deg | 0.66 | 0.42 |
 | subcompact hatch (2016) | 4.06 x 1.52 | 0.62 | 0.20 | 0.64 | 0.16 (tailgate) | 0.17 / 0.21 | 30 deg, tailgate 70 deg | 0.65 | 0.40 |
-(Further rows are added per class as it is built.)
 
-## Per class
-(filled in as each class lands)
+## Per class (what I built, real metres; numbers are from my own profile data, measured sizes are in `scratchpad/cars5/measure-cars6.csv`)
+* Sedan (family "Kamari"): axles shifted 0.05, tip width 0.72, shoulder tuck 0.11 (was 0.08). Kept its fastback-ish notchback: wheelbase 2.79 (0.58 L), overhang 0.96 / 1.07, backlight 31 deg.
+* Taxi / "cab" (old full-size three-box, `crown`): wheelbase 2.92 (0.54 L), overhang 1.04 / 1.43, hood 1.44 m (27 percent), windscreen 35 deg, backlight 39 deg, flat roof 1.17 m, level trunk deck 1.49 m at belt height, tip width 0.8, bumper beams. Reads as a different, older, squarer car than the sedan.
+* Police ("charger"): wheelbase 3.05, overhang 0.93 / 1.06, hood 1.3, belt 1.02 to 1.07 kicking up over the rear wheel, backlight 25 deg, short deck, tuck 0.11, tip 0.74.
+* Pickup: crew cab over the front half (windscreen base 1.35, cab back -0.91, 2.26 m), bed 1.87 m, bed rail and tailgate top 1.30 against cab belt 1.47 and roof 1.90, cab / bed gap line, squared arches, bumper beams, axles shifted +0.12 (wheelbase 3.40 = 0.607 L; overhang 0.98 / 1.22), tip 0.86 / 0.9, tuck 0.06. 4 percent flare at the wheels (plan 1.0 against 0.98).
+* Mid-size SUV: tail upright (backlight 43 deg into a 1.5 m tall tailgate face), belt 1.2 (69 percent), shorter higher hood, squared arches 0.55, beam bumpers, wheelbase 2.85 (was 2.97), tip 0.85. Police SUV follows.
+* Big SUV: wheelbase 3.07 (was 3.18; the 2022 big-SUV figure), rear overhang 1.35, belt 1.30 (68 percent), roof flat to the tail, tip 0.86, chrome beam bumpers.
+* Hatch: roof runs back to 1.96 and drops to a 1.17 m tailgate over 0.34 m (43 deg), short hood, tip 0.8 / 0.84, rear overhang a touch smaller than the front.
+
+## Triangles per car (`measure-cars6.csv` against CARS5's `measure-after.csv`; full / lite)
+sedan 6,542 / 3,766 (was 6,998 / 3,926), cab 7,850 / 4,050 (7,302 / 4,090), cop 7,226 / 4,006 (7,174 / 4,006), pickup 5,472 / 3,090 (5,088 / 3,146), suv 5,558 / 3,350 (5,494 / 3,302),
+bigsuv 6,360 / 3,470 (5,768 / 3,430; +10.3 percent on the full level, one step from archN 6 to 5 was taken afterwards: not re-measured), hatch 5,770 / 3,374 (5,818 / 3,374). No new draw call (the beams go into the trim mesh), no new texture.
+Drawn L x W x H unchanged for every type (within 0.01; the taxi roof sign is the only part above H). The visual wheelbase of five types now follows the real car (pickup 3.50 to 3.40, suv 2.97 to 2.85, bigsuv 3.18 to 3.07, copsuv 3.03 to 2.91, cab 2.91 to 2.92); physics uses 0.6 L from the spec and is untouched.
+
+## Checks
+* `npx vitest run tests/unit/entities tests/unit/world tests/unit/physics --maxWorkers=1`: 2,065 passed, 2 failed: pedround5 shoe hem (the known 2 mm check) and `roadnet-stream` "builds incrementally: a zero budget" (not mine: roadnet files are being edited by another lane). Vault tests, `ai-trajectory` fixture (unchanged on disk) and `carbodies`, `cars2`, `cars4`, `car-lod-tris` all green.
+* `tests/unit/sim/traffic-5min` and `realtraffic-5min`: 30 passed (224 s).
+* `npx tsc --noEmit`: nothing from carBodies.ts or carSkin.ts. Single-file build 10,930,512 bytes (10.42 MiB; was 10.92 MB: +10 kB).
+* In game (hosted build, `?perf=0&q=low`, 17:30, parked cars, 640 x 360): `scratchpad/cars6/game/sheet-sedans.jpg`, `sheet-trucks.jpg`. The rear three-quarter frames came out for all seven types; the FRONT three-quarter camera missed the car in four of seven (street furniture or the slot heading), so front views are only from the line-up tool.
+
+## What still reads wrong (honest)
+* Not reshaped at all: coupe, coupe911, muscle, pony, wagon, minivan, crossover, cargo van, ambulance, box truck, bus, hearse, limo, classic. They keep CARS5 shapes and the old pointed plan.
+* Glass is still a flush band with thin pillars, there is no true hood crown or fender edge, no body-side character line; mirrors and door handles unchanged. The loft has one crease (the belt).
+* Pickup: the cab-back wall is a plain box, the bed has no separate tailgate gap, and the frame "rails" line above hatch and SUV roofs is the old roof-rail / look geometry.
+* The hatch still reads between hatch and small wagon from the side: its roof is long.
+* Door positions for entering are unchanged (door glass u values move with the cab; the walk-to points were not checked).
+* Evidence: `scratchpad/cars6/lineup/before-side.jpg` / `after-side.jpg` (16 types, same cameras), `pair-sedans-*.jpg`, `pair-trucks-side.jpg` (top before, bottom after), `p1-all.jpg`, `s1-all.jpg`, `u1-all.jpg` (side, front and rear three-quarter of the new bodies).

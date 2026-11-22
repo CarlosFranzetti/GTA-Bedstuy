@@ -97,3 +97,21 @@ scatters the street and brings a star). Changed older tests only where the new r
   behaviour in `Pedestrian` (hitBy with force and damage, cower, film, watch, fightBack), `Officer.hitBy` (health, down 4 s), `arsenal.ts` and
   `items.ts` (bat, pipe, fish, revolver, shotgun, ammo, carry rules, saves), `melee.ts`, `crowd.ts`, `vitals.ts` (player health, hospital),
   `blood.ts` + `bloodView.ts`, `Combat.ts` rewritten around them, `anim/combatPoses.ts` (+ two lines in controller.ts), icons, sfx, pickups.
+
+## main.ts (for the lead): /tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/combat2/combat2-main.diff
+
+Applies cleanly to the current file (`git apply --check` passed; tsc clean on a scratch copy). What it does: builds `Blood` (tier = `quality`), `PlayerVitals`, `Combat` with
+`peds` = pedestrians plus `police.officers`, `noteAttacked` = `police.noteAttacked`, `onKnockedOut` = the hospital wake (`applyKnockout`: bill, 7 hours, teleport, toast, stars cleared);
+`CombatView(scene, blood)`; `hudState.health`; the Blood row through `MenuOptions.gameRows`; `vitals.reset(); blood.clear()` on New Game; `vitals` and `blood` on `__gtaDebug`.
+No other shared file needs a line: Bindings.ts already has Tab, wheel, LB and d-pad cycling; Menu.ts, Camera.ts and Player.ts were not touched.
+
+Shared files I edited (small): `src/entities/anim/controller.ts` (the ActionPose union, one early `return` in `keyAction`, one import, the ramp time for two kinds; the poses are in `anim/combatPoses.ts`),
+`src/game/pedBarks.ts` (four text bark kinds: hurt, help, filming, fightMe), `src/ui/GameSave.ts` (`cleanHands` passes the new fields), `src/entities/Officer.ts`.
+
+## In the running game (hosted build of a scratch worktree with the diff applied, `?map=grid&q=low`, 640 x 360, software rendering; frames in scratchpad/combat2/frames)
+
+- A punch sequence on a person at half health: jab (stagger, then the next jab knocked down; the log shows health 42, 30, 18 and 8 droplets after the second and third hits), frame 01.
+- Knocked out (club blow on a person at 20 percent): lies down, out, 9 marks and 1 pool after six seconds; frame 02 (a dark oxblood pool and drops on the pavement, person on the ground).
+- Bat: the swing pose ran (swingR at k 0.33 after 10 steps) and the person went down with health 30 (frame 03b); the bat in hand seen in frame 06 (held down along the leg at rest).
+- Shotgun and the HUD icons: see the report; the page crashed ("Target crashed", memory on this shared box) after two or three `renderOnce` calls in several runs, so not every frame was taken.
+- Triangles and draws at the grid start with the arsenal, bat and blood live: 427k to 499k triangles, 185 to 228 draw calls (the grid start was already over the low budget before: 542k, 230). Blood adds at most 2 draws; pickups at most 3 more when several kinds are in range.

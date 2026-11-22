@@ -50,6 +50,7 @@ export const STEPS: readonly StepDef[] = [
     text: { keyboard: 'Press {jump} to jump.', gamepad: 'Press {jump} to jump.', touch: 'Tap {jump} to jump.' },
     why: 'Handy for low fences.',
     when: (c) => !c.inVehicle,
+    already: (c) => c.jumpHeight > 0.08,
     done: (c) => c.jumpHeight > 0.08,
   },
   {
@@ -59,6 +60,7 @@ export const STEPS: readonly StepDef[] = [
     why: 'Boxed in between two cars? Same move gets you out.',
     opportunistic: true,
     when: (c) => !c.inVehicle && c.nearCar <= VAULT_NEAR_M,
+    already: (c) => c.vaulting,
     done: (c) => c.vaulting,
   },
   {
@@ -67,6 +69,7 @@ export const STEPS: readonly StepDef[] = [
     plain: { keyboard: 'Stand beside a door of any parked car and press {enter}.', gamepad: 'Stand beside a door of any parked car and press {enter}.', touch: 'Stand beside a door of any parked car. The {=CAR} button lights up. Tap it.' },
     why: 'Walking is fine. Driving is faster.',
     when: (c) => !c.inVehicle && c.nearCar <= CAR_NEAR_M,
+    already: (c) => c.inVehicle,
     done: (c) => c.inVehicle,
   },
   {

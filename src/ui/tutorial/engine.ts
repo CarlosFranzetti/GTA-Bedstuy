@@ -54,6 +54,8 @@ export class TutorialEngine {
   private idleT = 0;
   private dwell = new Map<string, number>();
   private withBye = true;
+  /** Panels opened since the run began: a step that asks "open the phone" is done at once if the player already did. */
+  private runSeen = new Set<string>();
 
   constructor(readonly all: readonly StepDef[], opts: EngineOptions = {}) {
     this.o = { plainAfter: 20, offerAfter: 45, tickSeconds: 0.9, byeSeconds: 4.5, dwellSeconds: 0.6, lapseSeconds: 4, idleEndSeconds: 25, ...opts };
@@ -70,7 +72,7 @@ export class TutorialEngine {
   /** Begin a run. `ids` picks and orders steps from `all` (default: all of them, in order). `bye` = say goodbye when the run ends. */
   start(ids?: readonly string[], bye = true): void {
     this.run = ids ? ids.map((id) => this.all.find((s) => s.id === id)).filter((s): s is StepDef => !!s) : [...this.all];
-    this.doneIds.clear(); this.droppedIds.clear(); this.dwell.clear();
+    this.doneIds.clear(); this.droppedIds.clear(); this.dwell.clear(); this.runSeen.clear();
     this.cur = null; this.st = fresh(); this.phase = 'step'; this.phaseT = 0; this.lapseT = 0; this.idleT = 0;
     this.deferred = []; this.outcome = ''; this.state = 'running'; this.withBye = bye;
   }
@@ -99,7 +101,7 @@ export class TutorialEngine {
   private setPhase(p: Phase): void { this.phase = p; this.phaseT = 0; }
 
   private take(s: StepDef, c: TutorialCtx): void {
-    this.cur = s; this.st = fresh(); this.lapseT = 0; this.phase = 'step'; this.phaseT = 0;
+    this.cur = s; this.st = fresh(); this.st.seen = new Set(this.runSeen); this.st.acc.veh = c.inVehicle ? 1 : 0; this.lapseT = 0; this.phase = 'step'; this.phaseT = 0;
     s.start?.(c, this.st);
     this.onStepStart?.(s.id);
   }
@@ -125,7 +127,8 @@ export class TutorialEngine {
       else return;
     }
 
-    if (c.panel) this.st.seen.add(c.panel);
+    if (c.panel) { this.st.seen.add(c.panel); this.runSeen.add(c.panel); }
+    for (const p of this.pending()) if (p !== this.cur && p.already?.(c)) this.doneIds.add(p.id);   // got into a car early, jumped early: not asked again
 
     if (!this.cur) {
       const next = this.pick(c);
@@ -148,7 +151,9 @@ export class TutorialEngine {
 
     if (s.when && !s.when(c)) {
       this.lapseT += live;
-      if (this.lapseT >= this.o.lapseSeconds) { this.cur = null; this.lapseT = 0; return; }
+      // a step meant for the street (or the car) goes at once when the player changes over; one that merely drifted out of reach waits a few seconds
+      const flipped = (c.inVehicle ? 1 : 0) !== this.st.acc.veh;
+      if (this.lapseT >= (flipped ? 0.4 : this.o.lapseSeconds)) { this.cur = null; this.lapseT = 0; return; }
     } else this.lapseT = 0;
 
     // an opportunistic step (the vault) takes the card when its moment comes

@@ -102,8 +102,8 @@ const FRAG_MAIN = `
         float awn = step( 2.62, yl ) * step( yl, 3.1 ) * step( 0.2, fs ) * step( fs, fW - 0.2 );
         vec3 awnC = vFAwn.rgb * ( 0.85 + 0.15 * step( 0.5, fract( fs * 1.6 ) ) * fMid );
         fBase = mix( fBase, awnC, awn );
-        float sign = step( 3.1, yl ) * step( yl, 3.3 ) * step( 0.2, fs ) * step( fs, fW - 0.2 );
-        fBase = mix( fBase, vec3( 0.07, 0.065, 0.06 ), sign * 0.8 );
+        float signB = step( 3.1, yl ) * step( yl, 3.3 ) * step( 0.2, fs ) * step( fs, fW - 0.2 );
+        fBase = mix( fBase, vec3( 0.07, 0.065, 0.06 ), signB * 0.8 );
         fBase = mix( fBase, fBase * 0.55, step( yl, 0.4 ) * inX ); // tile bulkhead
       } else {
         float wy0 = k < 0.5 ? 0.75 : 0.6;
@@ -142,9 +142,9 @@ const FRAG_MAIN = `
     }
   } else {
     // roof: tar or silver coat with patches, a bulkhead or skylight, a lighter parapet line along the front
-    float patch = fNoise( vec2( fs, fv ) * 0.35 + fSeed * 17.0 );
+    float roofPatch = fNoise( vec2( fs, fv ) * 0.35 + fSeed * 17.0 );
     float tone = vFTrim.a;
-    fBase *= 0.85 + 0.3 * patch * ( 0.4 + 0.6 * fMid );
+    fBase *= 0.85 + 0.3 * roofPatch * ( 0.4 + 0.6 * fMid );
     vec2 bc = floor( vec2( fs, fv ) / 6.0 );
     float bl = fHash( bc + fSeed * 23.0 );
     vec2 bf = fract( vec2( fs, fv ) / 6.0 );

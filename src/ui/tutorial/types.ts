@@ -75,6 +75,8 @@ export interface StepDef {
   start?: (c: TutorialCtx, s: StepState) => void;
   /** The thing was done. Called every frame while the step is current (also while the card is hidden under a panel). `dt` is real seconds. */
   done?: (c: TutorialCtx, s: StepState, dt: number) => boolean;
+  /** The thing is already true while the step is waiting its turn (the player got into a car early): it counts as done, silently. */
+  already?: (c: TutorialCtx) => boolean;
   /** An information step: done after this many visible seconds. */
   auto?: number;
   /** May take the card from the step in front of it as soon as it becomes available (the vault, when a car is close). */
