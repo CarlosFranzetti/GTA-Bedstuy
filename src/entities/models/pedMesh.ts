@@ -774,7 +774,7 @@ function skinMaterial(materials: IMaterialLibrary, s: MhShape, variant: number, 
   if (typeof document !== 'undefined') {
     try {
       const L = dressedFor(s, variant, 'hi');
-      const eyes = eyePatchFor(s, spec, L), p0 = L.faceDelta ? L.position.map((v, i) => v - L.faceDelta![i]) : L.position;
+      const eyes = eyePatchFor(s, spec, L), p0 = L.faceDelta ? L.position.map((v, i) => (i < L.faceDelta!.length ? v - L.faceDelta![i] : v)) : L.position; // the leg tubes are appended after the face delta: without the guard their bake positions were NaN and painted black wedges under every hem
       const canvas = bakeSkin({ ...(eyes ? bakeWithEyes(L, p0, eyes) : { position: p0, normal: L.normal, uv: L.uv, index: L.index, joints: L.joints, weights: L.weights }), eyePatch: !!eyes, landmarks: s.landmarks, rig: peopleRig(s, spec), headRings: s.headRings as number[][], topHem: topHemY(s, spec), spec }, phone || textureTier() === 'phone' ? 256 : 512);
       const tex = new THREE.CanvasTexture(canvas);
       tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4; tex.name = `ped:${spec.id}`;

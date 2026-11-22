@@ -42,13 +42,13 @@ const ageBand = (a?: string): 'kid' | 'teen' | 'adult' | 'old' => (a === 'kid' ?
 const r1 = (x: number): number => Math.round(x * 10) / 10, r2 = (x: number): number => Math.round(x * 100) / 100, r3 = (x: number): number => Math.round(x * 1000) / 1000;
 const W = (o: THREE.Object3D): THREE.Vector3 => o.getWorldPosition(new THREE.Vector3());
 
-interface Posed { m: ReturnType<typeof buildMhPedModel> & object; mesh: THREE.SkinnedMesh; ctl: AnimController; shape: MhShape; id: string }
+interface Posed { lodTris: number[]; m: ReturnType<typeof buildMhPedModel> & object; mesh: THREE.SkinnedMesh; ctl: AnimController; shape: MhShape; id: string }
 function build(id: string, lib: ReturnType<typeof fullLib>): Posed {
   const v = PED_SPECS.findIndex((s) => s.id === id), spec = PED_SPECS[v];
   const m = buildMhPedModel(materials, new Rng(v + 1), { variant: v })!;
   const levels: THREE.SkinnedMesh[] = []; m.group.traverse((o) => { if ((o as THREE.SkinnedMesh).isSkinnedMesh) levels.push(o as THREE.SkinnedMesh); });
   const ctl = new AnimController(m, makeGait(v * 7 + 3, ageBand(spec.age)), lib);
-  return { m, mesh: levels[0], ctl, shape: shapes.get(shapeFor(spec))!, id };
+  return { lodTris: levels.map((l) => (l.geometry.getIndex()?.count ?? 0) / 3), m, mesh: levels[0], ctl, shape: shapes.get(shapeFor(spec))!, id };
 }
 const splay = (p: Posed): void => { const sp = (p.m.group.userData.splay as number) ?? 0; p.m.arms[0].rotation.z = -sp; p.m.arms[1].rotation.z = sp; };
 /** world positions of every vertex of the close-level skin in the current pose, with each vertex's dominant bone */
@@ -143,7 +143,7 @@ function measure(p: Posed): Record<string, number | string> {
   {
     const g = p.mesh.geometry, idx = g.getIndex()!, P = g.getAttribute('position'), N = g.getAttribute('normal'); let inv = 0, zero = 0; const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), fn = new THREE.Vector3(), vn = new THREE.Vector3();
     for (let t = 0; t < idx.count; t += 3) { const i0 = idx.getX(t), i1 = idx.getX(t + 1), i2 = idx.getX(t + 2); a.fromBufferAttribute(P, i0); b.fromBufferAttribute(P, i1); c.fromBufferAttribute(P, i2); fn.crossVectors(b.sub(a), c.sub(a.fromBufferAttribute(P, i0))); const area = fn.length(); if (area < 1e-10) { zero++; continue; } fn.divideScalar(area); vn.set(0, 0, 0); for (const i of [i0, i1, i2]) vn.x += N.getX(i), vn.y += N.getY(i), vn.z += N.getZ(i); if (fn.dot(vn.normalize()) < -0.2) inv++; }
-    R.trisHi = idx.count / 3; R.trisInverted = inv; R.trisZeroArea = zero;
+    R.trisHi = p.lodTris[0]; R.trisMid = p.lodTris[1]; R.trisFar = p.lodTris[2]; R.trisPersonAllLevels = p.lodTris.reduce((a, b) => a + b, 0); R.trisInverted = inv; R.trisZeroArea = zero;
   }
   return R;
 }
@@ -153,16 +153,17 @@ function playerSpeed(target: (t: number) => number): (t: number) => number {
   let v = 0, last = 0; const cache = new Map<number, number>();
   return (t: number) => { const k = Math.round(t * 600); if (cache.has(k)) return cache.get(k)!; for (let tt = last; tt < t - 1e-9; tt += 1 / 60) { const want = target(tt), fr = Math.min(1, v / 6.5), a = want > v ? 9 + (4.6 - 9) * fr : 12 + (17 - 12) * fr; v += Math.sign(want - v) * Math.min(Math.abs(want - v), a * (1 / 60)); } last = t; cache.set(k, v); return v; };
 }
-function slideRun(p: Posed, speed: (t: number) => number, seconds: number): { n: number; mean: number; max: number; byBand: Record<string, { n: number; mean: number; max: number }> } {
+function slideRun(p: Posed, speed: (t: number) => number, seconds: number): { clearance_cm: number; n: number; mean: number; max: number; byBand: Record<string, { n: number; mean: number; max: number }> } {
   const m = p.m, dt = 1 / 60; m.group.position.set(0, 0, 0); m.group.rotation.y = 0;
   const frames: Array<{ a: THREE.Vector3[]; v: number }> = []; let z = 0;
   const rest = Math.min(...[0, 1].map((s) => { m.group.updateMatrixWorld(true); return W(m.ankles![s]).y; }));
   for (let i = 0; i < seconds / dt; i++) { const v = speed(i * dt); z -= v * dt; m.group.position.z = z; p.ctl.update(dt, { speed: v }); m.group.updateMatrixWorld(true); frames.push({ a: [0, 1].map((s) => W(m.ankles![s])), v }); }
-  const thr = rest + 0.03, rows: Array<{ s: number; v: number }> = [];
+  void rest; const thr = Math.min(...frames.slice(30).flatMap((f) => [f.a[0].y, f.a[1].y])) + 0.03, rows: Array<{ s: number; v: number }> = [];
   for (let side = 0; side < 2; side++) { let st = -1; const close = (e: number): void => { if (st >= 0 && e - st >= 3) { const a = frames[st].a[side], b = frames[e].a[side]; rows.push({ s: Math.hypot(b.x - a.x, b.z - a.z), v: frames[Math.round((st + e) / 2)].v }); } st = -1; }; for (let i = 0; i < frames.length; i++) { const low = frames[i].a[side].y < thr; if (low && st < 0) st = i; else if (!low && st >= 0) close(i - 1); } }
   const use = rows.slice(2), stat = (r: typeof rows): { n: number; mean: number; max: number } => ({ n: r.length, mean: r.length ? r1((100 * r.reduce((q, x) => q + x.s, 0)) / r.length) : NaN, max: r.length ? r1(100 * Math.max(...r.map((x) => x.s))) : NaN });
   const bands: Array<[string, number, number]> = [['0-1.5', 0, 1.5], ['1.5-3', 1.5, 3], ['3-5', 3, 5], ['5+', 5, 9]];
-  return { ...stat(use), byBand: Object.fromEntries(bands.map(([n, lo, hi]) => [n, stat(use.filter((r) => r.v >= lo && r.v < hi))])) };
+  const lowY = thr - 0.03, clearance = Math.max(...frames.slice(30).flatMap((f) => [f.a[0].y, f.a[1].y])) - lowY;
+  return { clearance_cm: r1(clearance * 100), ...stat(use), byBand: Object.fromEntries(bands.map(([n, lo, hi]) => [n, stat(use.filter((r) => r.v >= lo && r.v < hi))])) };
 }
 
 describe('body review: measurements', () => {

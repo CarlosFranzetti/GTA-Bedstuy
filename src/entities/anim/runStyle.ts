@@ -29,9 +29,9 @@ export const RUN = {
   /** elbow flexion mean, and how much more it folds as the arm comes forward: jog .. sprint */
   elbowJog: 1.5, elbowSprint: 1.56, elbowFold: 0.14,
   /** forward lean added to the clip's own (rad, split between chest and pelvis): jog, sprint */
-  leanJog: 0.03, leanSprint: 0.15,
+  leanJog: 0.0, leanSprint: 0.15,
   /** extra thigh lift and knee fold of the swing leg at a sprint */
-  kneeLift: 0.3, kneeFold: 0.16,
+  kneeLift: 0.28, kneeFold: 0.0,
 } as const;
 
 /**
@@ -59,7 +59,7 @@ export function applyRunStyle(p: Float32Array, speed: number, a: number, w: numb
   const wl = a * lean;
   if (wl > 0.002) {
     const l = (RUN.leanJog + (RUN.leanSprint - RUN.leanJog) * q) * wl;
-    p[C_TORSO] -= l * 0.7; p[C_HIPS] -= l * 0.3; p[C_HEAD] += l * 0.5; // forward is negative x; the head stays up and the eyes forward
+    p[C_TORSO] -= l * 0.5; p[C_HIPS] -= l * 0.5; p[C_HEAD] += l * 0.5; // forward is negative x; the head stays up and the eyes forward
     if (q > 0.002) {
       // the swing leg (knee folded) lifts its thigh and folds the heel toward the seat; the planted leg (knee near straight) is left to the stride matching and the foot lock
       const k = q * wl;

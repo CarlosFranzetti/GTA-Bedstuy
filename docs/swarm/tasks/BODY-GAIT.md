@@ -64,3 +64,36 @@ So about 10 to 15 percent more for a walker; the far level the same within noise
 Taking over from Rowan. Order of work: 1 jog and sprint arms, lean and knees; 2 the standing squat; 3 turn in place and reversal; 4 walk cycle (pelvis, heel-toe, shuffle); 5 kerbs; 6 cost; 7 the five sims.
 Bone ownership agreed with POSE on the channel (see transcript): arms and elbows below 2.6 m/s are POSE's (bodyLayers.ts); from 2.6 to 4.2 m/s a run style blends in; above 4.2 the run style (new `src/entities/anim/runStyle.ts`, GAIT's) writes arm, elbow, torso and hips pitch and the swing knees. Acceleration lean stays GAIT's.
 Notes are written as I go; items below are filled when done.
+
+## Second shift: what landed (Tomas Reyes, headless; strips from the REVIEW harness)
+### 1 The run (done)
+Cause: the captured jog and run keep the upper arm at -22..+4 degrees (never forward) with the elbow at 90 to 126: praying hands. Fix: `src/entities/anim/runStyle.ts` (GAIT's), called in `controller.write()` after `applyBodyLayers`.
+From 1.7 to 2.7 m/s (weight eased over 0.22 s up, 0.3 s down) the arms swing opposite to the legs, the swing read from the same pose's thighs (so phase follows the clips and the stride matching, through blends): jog +-0.55 rad (31 deg),
+elbow 1.5 rad (86 deg) folding 0.14 more on the forward arm; sprint +-0.86 (49 deg), elbow 1.56. Sprint adds 0.15 rad (8.6 deg) forward lean, split torso/hips, faded out while the acceleration lean is working (`accelS`);
+the swing thigh lifts 0.28 rad (knee fold stays the clip's: adding 0.16 put walkJogSprint at 29 deg in one frame, limit 25). Off while an action, vault, jump, carried bag or keyed idle poses the arms. `ctl.runStyleOn = false` for a before.
+Ownership with POSE: arms below about 2 m/s are bodyLayers.ts's; above it runStyle.ts's; torso roll, head, standing, weight shift stay POSE's; acceleration lean GAIT's.
+Strips: `scratchpad/bodyteam/gait2/strips/jog-sprint-before.png` / `jog-sprint-after.png` (REVIEW's strips view, one adult, 8 frames a cycle). Tests: `gait2-run.test.ts` (swing, elbows, lean, opposite phase, off at a walk).
+Not done: the whole body lean "from the ankles" is a pitch of torso and hips (the rig does not move the pelvis forward over the feet); heel-to-seat is the clip's own (about 97 degrees of knee).
+### 2 The standing squat (done, residual 4 to 7 degrees)
+Two causes, both in my files. (a) `footlock.ts` limited a held foot's reach to 0.985 of the leg (pelvis sink) and 0.992 (solve): cos(10 deg) = 0.985, so every standing leg was bent 14 to 20 degrees; now `REACH_NEED` 0.9994 and `REACH_SOLVE` 0.9996 (about 4 degrees).
+(b) the mesh's rest leg is not straight: knee 4.6 deg forward of the hip, shin 1.5 deg back, 6.2 deg of bend at zero rotation, while the clips are cut for a straight reference leg. `controller.legFix` (hip -4.6, knee +6.1, ankle -1.5 deg on that body; foot pitch unchanged) is added on every pose; `legFixGain = 0` turns it off.
+Standing knee bend (angle between the thigh and shin vectors, lock on, 2 s of idle): la-hoodie-cap, ba-hoodie-fade, ba-work, ba-elder, ea-kid: before 20.9, 21.2, 20.9, 20.7, 23.7; after 6.3, 4.1, 6.6, 6.7, 5.0 (mean 5.7). The rest is POSE's weight shift (the pelvis moves over held feet). Test: `gait2-standing.test.ts` (each under 10, mean under 8).
+Both feet flat: the foot lock keeps the shoe's pitch; not measured separately.
+### Lead's asks passed on: `layers()` data
+`i.stoop`, `i.pockets` (group.userData.pockets ?? 1) and `i.splay = max(userData.splay, armClearRad(torsoHalfWidthAt ...))` are set once in the constructor; the stoop-twice bug (`own`, tested `> 0.02` on a negative number) is fixed, so an elder takes 30 percent of the gait lean and head drop.
+### 7 Sims
+Pedestrian ramp left at Rowan's 3.4 m/s2. The five sims are chaotic against it (cars brake for people), so the red moves: 3.4 = traffic-5min (grid), police, combat, tutorial green; realtraffic-5min red on "cars stay on the roadway and out of buildings" (7 car samples in a building, seed 4242).
+4.5 = real green, grid red (AI-vs-AI collision seed 7, strength 3.49); 5 = grid red twice (gridlock window and the same collision); 6 = grid green, real red ("no red-light violations"); ramp removed = all green. Not a gait fault: pick the value with the sims you can afford to keep, or let the sims set a ramp of 1e6 (a `Pedestrian` static knob; not added).
+
+### 6 Cost (microseconds per update, 100 people, 60 Hz, best of five, noisy; `GAIT_COST=1 npx vitest run tests/unit/entities/gait2-cost.test.ts --silent=false`)
+| | tree 25450d0 (Rowan's before) | now, all on | GAIT run style and leg fix off | POSE layers off |
+|---|---|---|---|---|
+| walk 1.4 | 8.6 to 10.6 | 11.7 | 11.5 | 8.3 |
+| walk far level | 5.6 to 7.0 | 6.6 | 7.2 | 5.9 |
+| stand | 6.5 to 7.9 | 8.8 | 10.0 | 8.6 |
+| jog 3 | 7.5 to 8.2 | 8.9 | 9.9 | 8.0 |
+| sprint 6.5 | (none) | 8.8 | 7.5 | 8.3 |
+My two additions cost under 1 microsecond (runs within noise); POSE's layers are about 3 microseconds on a walker (more than their 1 to 2). A walker is at the top of the 10 percent band (11.7 against 10.6 x 1.1), the far level and the others are inside it. Not reduced further: no skip for people off screen (the controller does not know; the caller would pass a flag).
+
+### Not done
+3 turn in place with small steps and the plant-and-push reversal; 4 pelvis rise and side shift, heel-toe roll, the after-stop shuffle; 5 kerbs. 6 cost: see the table below.

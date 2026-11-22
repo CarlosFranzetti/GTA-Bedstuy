@@ -18,3 +18,16 @@ Status: current, first audit done 22 Nov 2026 evening. Edits no game source. Own
 
 ## Audit, worst first (before numbers; real figures from docs/reference/gta5-characters.md, ANSUR II shares)
 See the channel post of the same time; numbers per item are in the table above. Real: crotch 0.48 H, hand 0.11 H, foot 0.154 H, fingertips of a hanging arm about 0.37 H, adult 7.5 heads.
+
+## Method notes
+- Tags: base = the tree before the team started (git worktree of fe3ab94, same measuring test); r2 = 22:12; r4 = 22:30; r5 = final. Sheets for before = /tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/bodyteam/review/before/ (21:38 tree).
+- Street mix = 300 pedestrian draws as the game picks them (pickWardrobeVariant); aggregate files list P5/P50/P95 of adults.
+- Foot slide is the ankle bone in stance on real built bodies (threshold: within 3 cm of the lowest ankle height of the run), not the generic rig of gait-measure.test.ts.
+- In-game: /tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/bodyteam/review/game.cjs (hosted build, ?q=low, 640x360). Frames in /tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/bodyteam/review/game/<tag>/.
+- Caveats: the ba-elder hand/fingertip rows include the cane (ignore); head width includes hats; 'cloth_*' are dressed minus undressed at rest on the shape's close level.
+
+## Final state (tag r5, tree of 22:40 UTC)
+- Demo pairs: /tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/bodyteam/review/demo/demo1-standing-lineup.png, demo2-walking-lineup.png, demo3-walk-jog-sprint.png; walk strip /tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/bodyteam/review/demo/demo4-walk-strip-after.png.
+- In-game (hosted build, ?q=low, 640x360, 17:30): /tmp/claude-0/-home-user-GTA-Bedstuy/b724b335-0535-5878-9045-0474ae836c7e/scratchpad/bodyteam/review/game/before-low, r5-low, r5-phone (montages game/*-player.png and *-peds.png). Low: 460k tris / 266 draws before, 438k / 262 after (no rise; still over the 220 low draw budget, as MEMORY says). Phone: 293k tris / 111 draws at the start (budget 300k / 150).
+- Per person triangles, close / mid / far: 6391 / 1626 / 360 mean over the 12, identical before and after.
+- Open: foot slide on speed changes got worse (start to jog max 2.5 -> 27 cm, GAIT), NaN bake line in pedMesh.skinMaterial (torn dark hems), feet 0.188 of stature (real 0.154), chest/waist depth 14-17 percent thick and bideltoid 8 percent wide (coats), 5 red tests (see channel).

@@ -11,8 +11,10 @@ import type { Gait } from './gait';
 import { clipLibrary, type ClipLibrary } from './library';
 import { FootLock, soleRel, type LegDims } from './footlock';
 import { isCombatPose, keyCombatPose } from './combatPoses';
-import { applyBodyLayers, makeBodyLayerState, type BodyLayerIn } from './bodyLayers';
+import { applyBodyLayers, armClearRad, makeBodyLayerState, type BodyLayerIn } from './bodyLayers';
 import { applyRunStyle, runStyleWeight } from './runStyle';
+import { armSegments, torsoHalfWidthAt } from '../models/pedProportions';
+import type { PedModel } from '../models/pedBody';
 
 export interface PoseTarget {
   hips: THREE.Object3D; torso: THREE.Object3D; head: THREE.Object3D; rig: THREE.Object3D;
@@ -328,8 +330,19 @@ export class AnimController {
       this.legFix[i * 3] = -ft; this.legFix[i * 3 + 1] = ft - fs; this.legFix[i * 3 + 2] = fs;
     }
     this.aliveT = gait.phase * 40;
+    // (BodyLayerIn.stoop = this.stoopBaked is NOT passed: with it POSE's elder arm test reads -14.0 deg behind the body against a limit of -12, see BODY-GAIT.md)
     this.bls.rng = (gait.seed | 0) || 1;
-    this.bli = { dt: 0, speed: 0, idleW: 1, yawRate: 0, age: gait.age, armSwing: gait.armSwing, sway: gait.sway, phase0: gait.phase, seed: gait.seed, splay: (t.group?.userData.splay as number | undefined) ?? 0, startT: -1, stopT: -1 };
+    this.bli = { dt: 0, speed: 0, idleW: 1, yawRate: 0, age: gait.age, armSwing: gait.armSwing, sway: gait.sway, phase0: gait.phase, seed: gait.seed, splay: Math.max((t.group?.userData.splay as number | undefined) ?? 0, gait.age === 'kid' || gait.age === 'teen' ? 0 : this.clearRad(t)), pockets: (t.group?.userData.pockets as number | undefined) ?? 1, startT: -1, stopT: -1 };
+  }
+
+  /** the arm lift this body's torso needs so a hanging elbow clears it (bodyLayers.armClearRad off BODY's torsoHalfWidthAt); 0 for a rig that is not a built person */
+  private clearRad(t: PoseTarget): number {
+    try {
+      const m = t as unknown as PedModel;
+      if (!m.spec || !m.group) return 0;
+      const sy = m.group.scale.y, sx = m.group.scale.x, shoulderY = (m.torso.position.y + m.arms[0].position.y) * sy, upper = armSegments(m).upper;
+      return armClearRad(torsoHalfWidthAt(m, shoulderY - upper), Math.abs(m.arms[0].position.x) * sx, upper, 0.055 * Math.min(1, sy * sy)); // the arm and its sleeve are thinner on a child
+    } catch { return 0; }
   }
 
   /** What a person carries: a bag in a hand takes the swing out of that arm. `arm` 0 = left, 1 = right, `free` 0..1 of the normal swing. */
@@ -536,7 +549,7 @@ export class AnimController {
     p[boneChannel('armL')] *= g.armSwing * this.armLoad[0]; p[boneChannel('armR')] *= g.armSwing * this.armLoad[1];
     p[boneChannel('elbowL')] *= 0.6 + 0.4 * g.armSwing; p[boneChannel('elbowR')] *= 0.6 + 0.4 * g.armSwing;
     const walkiness = 1 - smooth(1.6, 3.0, speed); // posture quirks fade out when running
-    const own = this.stoopBaked > 0.02 ? 0.3 : 1; // a stoop already baked into this body's rest pose is not added again
+    const own = this.stoopBaked < -0.02 ? 0.3 : 1; // a stoop already baked into this body's rest pose (stored negative: forward) is not added again
     // forward is negative x (a captured run leans to about -12 degrees), so a forward lean subtracts
     p[boneChannel('torso')] -= g.lean * walkiness * own;
     p[boneChannel('head')] -= (g.headDrop * walkiness - g.lean * 0.4 * walkiness) * own;
@@ -608,7 +621,7 @@ export class AnimController {
     const busy = this.keyed || /^(phone|talk|eat)/.test(this.idleName) ? 1 : Math.max(this.armLoad[0] < 1 ? 1 - this.armLoad[0] : 0, this.armLoad[1] < 1 ? 1 - this.armLoad[1] : 0);
     const want = runStyleWeight(speed), k = Math.min(1, dt / (want > this.runA ? 0.22 : 0.3));
     this.runA += (want - this.runA) * k;
-    applyRunStyle(p, speed, this.runA, (1 - off) * (1 - busy), 1 - off);
+    applyRunStyle(p, speed, this.runA, (1 - off) * (1 - busy), (1 - off) * (1 - sstep(1.5, 5, Math.max(0, this.accelS)))); // while speeding up the acceleration lean is already tipping the body
   }
 
   /** The POSE seat's upper-body layers (bodyLayers.ts): arms that hang, the ribcage over the weight, standing weight shift and head. They only add to the upper body. */
