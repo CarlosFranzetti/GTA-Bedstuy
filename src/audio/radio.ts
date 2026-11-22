@@ -202,7 +202,7 @@ export const GENRE_STATIONS: Record<LibraryStationId, Station> = {
  * A set belongs to a station when its title or DJ name matches one of the station's keyword patterns
  * (case-insensitive). Radio SC has no filter: any set. When SoundCloud cannot load, the station says so; nothing is synthesized. */
 
-export type ScStationId = 'bkhouse' | 'dublab' | 'stoop' | 'boogie' | 'weird' | 'yard' | 'flashback' | 'latin' | 'sc';
+export type ScStationId = 'bkhouse' | 'dublab' | 'hiphop' | 'boogie' | 'weird' | 'yard' | 'flashback' | 'latin' | 'sc';
 
 export interface ScStationDef {
   id: ScStationId;
@@ -229,7 +229,7 @@ const kw = (alts: string): RegExp => new RegExp(`(?:^|[^a-z0-9])(?:${alts})(?:$|
 
 /** Dial text for the announcers, per SoundCloud station id. */
 const SC_FREQ: Record<ScStationId, string> = {
-  bkhouse: 'ninety point nine', dublab: 'ninety one point seven', stoop: 'ninety three point five', boogie: 'ninety five point three',
+  bkhouse: 'ninety point nine', dublab: 'ninety one point seven', hiphop: 'ninety three point five', boogie: 'ninety five point three',
   weird: 'ninety seven point one', yard: 'ninety eight point nine', flashback: 'ninety-nine point one', latin: 'one hundred and two point three', sc: 'one hundred point one',
 };
 
@@ -239,7 +239,7 @@ const SC_FREQ: Record<ScStationId, string> = {
 const SC_HINTS: Record<ScStationId, { keywords: readonly string[]; patterns: readonly RegExp[] }> = {
   bkhouse: { keywords: ['house', 'garage', 'deep', 'soulful', 'chicago', 'jackin'], patterns: [kw('house|garage|deep|soulful|chicago|jackin|2[- ]?step')] },
   dublab: { keywords: ['dub', 'techno', 'dubstep', 'bass', 'riddim'], patterns: [kw('dub|techno|dubstep|bass|minimal|industrial')] },
-  stoop: { keywords: ['hip hop', 'rap', 'trap', 'boom bap', 'drill', 'grime', 'r&b'], patterns: [kw('hip[- ]?hop|rap|trap|boom[- ]?bap|drill|grime|cypher|r&b|rnb')] },
+  hiphop: { keywords: ['hip hop', 'rap', 'trap', 'boom bap', 'drill', 'grime', 'r&b'], patterns: [kw('hip[- ]?hop|rap|trap|boom[- ]?bap|drill|grime|cypher|r&b|rnb')] },
   boogie: { keywords: ['disco', 'boogie', 'funk', 'soul', 'italo', 'groove'], patterns: [kw('disco|boogie|funk|soul|italo|groove|nu[- ]?disco')] },
   weird: { keywords: ['psych', 'jazz', 'experimental', 'ambient', 'avant', 'krautrock', 'leftfield'], patterns: [kw('psych(?:edelic)?|jazz|experimental|ambient|avant|noise|krautrock|leftfield|improv|weird|dream|idm')] },
   yard: { keywords: ['reggae', 'dancehall', 'afrobeats', 'soca', 'amapiano', 'riddim'], patterns: [kw('reggae|dancehall|afro(?:beats?)?|soca|amapiano|kuduro|bashment|zouk|ragga|calypso|riddim|caribbean')] },
@@ -248,7 +248,7 @@ const SC_HINTS: Record<ScStationId, { keywords: readonly string[]; patterns: rea
   sc: { keywords: [], patterns: [] },
 };
 
-const SC_ORDER = ['bkhouse', 'dublab', 'stoop', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc'];
+const SC_ORDER = ['hiphop', 'bkhouse', 'dublab', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc'];
 export const SC_STATIONS: readonly ScStationDef[] = CATALOG.filter((e) => e.kind === 'sc-account' || e.kind === 'ra-pool' || e.kind === 'sc-playlist').map((e): ScStationDef => ({
   id: e.id as ScStationId,
   name: e.name,

@@ -15,12 +15,12 @@ const cache = (sets: Array<ReturnType<typeof poolSet>>) => mem({ [RA_CACHE_KEY]:
 
 const house = scStationDef('bkhouse')!;
 const dub = scStationDef('dublab')!;
-const stoop = scStationDef('stoop')!;
+const stoop = scStationDef('hiphop')!;
 
 describe('station table', () => {
   it('has the eight stations in dial order, Radio SC last', () => {
     expect(SC_STATIONS.map((s) => s.name)).toEqual(['Boiler Room', 'Dekmantel Podcast', 'Universal Hip Hop Radio', 'Soulection', 'The Lot Radio', 'SilverStarSound', 'Rinse FM', 'DJ RubyTunes Latin', 'Resident Advisor']);
-    expect(SC_STATIONS.map((s) => s.id)).toEqual(['bkhouse', 'dublab', 'stoop', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc']);
+    expect(SC_STATIONS.map((s) => s.id)).toEqual(['hiphop', 'bkhouse', 'dublab', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc']);
   });
 
   it('filters by keywords in the set title or the DJ name, case-insensitively', () => {
@@ -30,10 +30,10 @@ describe('station table', () => {
     expect(acc('bkhouse', 'Peak time techno')).toBe(false);
     expect(acc('dublab', 'Dub Techno Hour')).toBe(true);
     expect(acc('dublab', 'Brostep and Dubstep mix')).toBe(true);
-    expect(acc('stoop', 'Boom Bap Tuesdays')).toBe(true);
-    expect(acc('stoop', 'Trap Dreams')).toBe(true);
-    expect(acc('stoop', 'Hip Hop Vault')).toBe(true);
-    expect(acc('stoop', 'Rapture')).toBe(false);
+    expect(acc('hiphop', 'Boom Bap Tuesdays')).toBe(true);
+    expect(acc('hiphop', 'Trap Dreams')).toBe(true);
+    expect(acc('hiphop', 'Hip Hop Vault')).toBe(true);
+    expect(acc('hiphop', 'Rapture')).toBe(false);
     expect(acc('boogie', 'Disco Inferno')).toBe(true);
     expect(acc('weird', 'Avant Jazz Night')).toBe(true);
     expect(acc('yard', 'Dancehall Sound Clash')).toBe(true);
@@ -259,10 +259,10 @@ describe('virtual clock per station', () => {
     dir.setOn(true);
     dir.update(100);
     expect(dir.scStation('bkhouse')!.position).toBeCloseTo(100, 5);
-    dir.selectById('stoop');
+    dir.selectById('hiphop');
     dir.update(50);
     expect(dir.scStation('bkhouse')!.position).toBeCloseTo(150, 5);
-    expect(dir.scStation('stoop')!.position).toBeCloseTo(50, 5); // starts when first tuned in
+    expect(dir.scStation('hiphop')!.position).toBeCloseTo(50, 5); // starts when first tuned in
     dir.selectById('bkhouse');
     expect(dir.scStation('bkhouse')!.position).toBeCloseTo(150, 5); // resumes where the set would be
     expect(dir.scStations).toHaveLength(9);

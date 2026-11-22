@@ -5,6 +5,10 @@
  * with right-aligned values, and a description panel with a rough GPU load bar for graphics options.
  *
  * Opens on Esc, gamepad Start (via `toggle()`), the touch pause button, or when the browser releases pointer lock.
+ * MENU2: every change applies at once (no Apply step). Settings are grouped Game / Controls / Audio / Graphics / Map; each group
+ * ends with a "Reset to defaults" row that asks once. One focus: the highlighted row is what hover, the keyboard and the pad all
+ * act on, moved by whichever device was used last. Back (Esc, B, a right click, the Back button) cancels a pending question, then
+ * resumes. Resume re-locks the pointer from the same click or key (the PanelManager decides; see src/ui/PanelManager.ts).
  * Keyboard: Q / E (or PageUp / PageDown) tabs, arrows or WASD select and change, Enter accepts, Backspace goes back, Esc resumes.
  * Gamepad: D-pad, A, B, LB / RB (`tab()`), Start. Mouse and touch: every row, arrow and bar is clickable / draggable.
  *
@@ -23,6 +27,7 @@ import { formatClock, formatDay, type SaveManager } from './GameSave';
 import { SavePanel } from './SavePanel';
 import { FullscreenControl } from './Fullscreen';
 import { RowList, type RowSpec } from './menuRows';
+import { setPanelClass } from './panelKeys';
 import { menuArtSvg } from './menuArt';
 import { MIX_LABELS, MIX_DESC, type MixKey } from '@/audio/Mixer';
 import { isNativeApp, nativeQuit, nativeShell } from '@/native/NativeBridge';
@@ -52,7 +57,15 @@ export interface MenuSettings {
   /** 0..1 */
   radio: number;
   invertY: boolean;
+  /** Last Engine Sound position (0..1) above zero: what the Engine sound switch restores when turned back On. */
+  engineLast: number;
 }
+
+/** The settings groups, in order. */
+export type SettingsGroup = 'game' | 'controls' | 'audio' | 'graphics' | 'map';
+export const SETTINGS_GROUPS: ReadonlyArray<{ id: SettingsGroup; label: string }> = [
+  { id: 'game', label: 'Game' }, { id: 'controls', label: 'Controls' }, { id: 'audio', label: 'Audio' }, { id: 'graphics', label: 'Graphics' }, { id: 'map', label: 'Map' },
+];
 
 export interface MenuCallbacks {
   /** Game should freeze while true. Resume (false) is invoked inside a user gesture: a good place to re-request pointer lock. */
@@ -145,7 +158,7 @@ export interface MenuOptions {
   mapSwitch?: { available: boolean; current: MapChoice; go(url: string): void; handheld?: boolean };
 }
 
-const DEFAULTS: MenuSettings = { quality: 'medium', auto: false, master: 1, radio: 1, invertY: false };
+const DEFAULTS: MenuSettings = { quality: 'medium', auto: false, master: 1, radio: 1, invertY: false, engineLast: 1 };
 
 const clamp01 = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : fallback);
 
@@ -232,7 +245,8 @@ export class Menu {
   private readonly panes = new Map<MenuTab, HTMLElement>();
   private readonly tabHintL: HTMLButtonElement;
   private readonly tabHintR: HTMLButtonElement;
-  private readonly backBtn: HTMLButtonElement;
+  private readonly resumeBtn: HTMLButtonElement;
+  private readonly footBack: HTMLButtonElement;
   private readonly cashEl: HTMLElement;
   private readonly whenEl: HTMLElement;
   private readonly streetEl: HTMLElement;
@@ -248,13 +262,12 @@ export class Menu {
   private readonly missionList: RowList;
   private readonly statList: RowList;
   private readonly settingsPane: HTMLElement;
-  private readonly pending = new Map<string, unknown>();
-  private readonly orig = new Map<string, RowSpec>();
-  private zone: 'list' | 'acts' = 'list';
-  private actIdx = 0;
-  private readonly actBtns: HTMLButtonElement[] = [];
-  private discardArmed = false;
-  private discardTimer = 0;
+  private group: SettingsGroup = 'game';
+  private onChips = false;
+  private readonly chipBtns = new Map<SettingsGroup, HTMLButtonElement>();
+  private readonly groupSpecs = new Map<SettingsGroup, RowSpec[]>();
+  private resetGroupArmed: SettingsGroup | null = null;
+  private resetGroupTimer = 0;
   private readonly titleEl: HTMLElement;
   private readonly statusEl: HTMLElement;
   private readonly descs = new Map<string, DescPanel>();
@@ -317,9 +330,6 @@ export class Menu {
     this.shell = this.el('div', 'gp-shell');
 
     const head = this.el('header', 'gp-head');
-    this.backBtn = this.button('‹', 'gp-back');
-    this.backBtn.setAttribute('aria-label', 'Back');
-    this.backBtn.addEventListener('click', () => this.back());
     const titleBox = this.el('div', 'gp-titlebox');
     const title = this.el('h2', 'menu-title gp-title');
     title.id = 'menu-title';
@@ -333,10 +343,10 @@ export class Menu {
     this.whenEl = this.el('span', 'gp-when');
     this.streetEl = this.el('span', 'gp-street');
     player.append(this.cashEl, this.whenEl, this.streetEl);
-    const xBtn = this.button('\u2715', 'gp-x');
-    xBtn.setAttribute('aria-label', 'Resume');
-    xBtn.addEventListener('click', () => this.close());
-    head.append(this.backBtn, titleBox, player, xBtn);
+    this.resumeBtn = this.button('Resume', 'gp-x gp-resume');
+    this.resumeBtn.setAttribute('aria-label', 'Resume');
+    this.resumeBtn.addEventListener('click', () => this.close());
+    head.append(titleBox, player, this.resumeBtn);
 
     const bar = this.el('div', 'gp-tabbar');
     this.tabHintL = this.button('Q', 'gp-tabhint l');
@@ -372,14 +382,16 @@ export class Menu {
     }
 
     this.footEl = this.el('footer', 'gp-foot');
+    this.footBack = this.button('Back', 'gp-foot-back');
+    this.footBack.setAttribute('aria-label', 'Back');
+    this.footBack.addEventListener('click', () => this.back());
 
     // ---- lists
     const mkList = (cls: string, label: string, onHi: (r: RowSpec | null) => void, which: 'opts' | 'single'): RowList => new RowList(this.doc, {
       label,
-      canHover: () => which !== 'opts' || this.zone === 'list',
       onHighlight: onHi,
       onChange: () => { this.afterChange(); },
-      onPointer: () => { if (which === 'opts') this.setZone('list'); },
+      onPointer: () => { if (which === 'opts') this.setChips(false); },
     }, cls);
     this.optList = mkList('gp-opts', 'Options', (r) => this.showDesc('settings', r), 'opts');
     this.radioList = mkList('gp-opts', 'Radio', (r) => this.showDesc('radio', r), 'single');
@@ -388,18 +400,22 @@ export class Menu {
 
     this.settingsPane = this.panes.get('settings')!;
     const optsBox = this.column('gp-col gp-col-opts', this.optList.el);
-    const acts = this.el('div', 'gp-acts');
-    for (const [label, fn] of [['Apply', () => this.apply()], ['Defaults', () => this.defaults()], ['Back', () => this.back()]] as const) {
-      const b = this.button(label, `gp-act gp-act-${label.toLowerCase()}`);
-      b.addEventListener('click', () => { fn(); });
+    const chips = this.el('div', 'gp-groups');
+    chips.setAttribute('role', 'tablist');
+    chips.setAttribute('aria-label', 'Settings groups');
+    for (const g of SETTINGS_GROUPS) {
+      const b = this.button(g.label, 'gp-chip');
+      b.dataset.group = g.id;
+      b.setAttribute('role', 'tab');
       b.tabIndex = -1;
-      this.actBtns.push(b);
-      acts.appendChild(b);
+      b.addEventListener('click', () => this.showGroup(g.id));
+      this.chipBtns.set(g.id, b);
+      chips.appendChild(b);
     }
     this.statusEl = this.el('p', 'gp-status');
     this.statusEl.setAttribute('role', 'status');
-    acts.appendChild(this.statusEl);
-    this.settingsPane.append(optsBox, this.descPanel('settings'), acts);
+    chips.appendChild(this.statusEl);
+    this.settingsPane.append(chips, optsBox, this.descPanel('settings'));
 
     this.controlsPane = new ControlsPane(this.doc);
     this.panes.get('controls')!.append(this.column('gp-col gp-col-opts', this.controlsPane.root), this.controlsPane.side);
@@ -528,6 +544,7 @@ export class Menu {
     this.openedAt = this.now();
     this.restoreFocus = this.doc.activeElement instanceof HTMLElement ? this.doc.activeElement : null;
     this.root.hidden = false;
+    setPanelClass(this.doc, 'menu-open', true);
     this.root.classList.remove('gp-in'); void this.root.offsetWidth; this.root.classList.add('gp-in');
     this.pauseButton.hidden = true;
     this.syncLiveTier();
@@ -548,10 +565,10 @@ export class Menu {
     this.pausedMs += this.now() - this.openedAt;
     this.doc.defaultView?.clearInterval(this.infoTimer);
     this.root.hidden = true;
+    setPanelClass(this.doc, 'menu-open', false);
     this.pauseButton.hidden = !this.touchEnabled;
-    this.disarmReset();
-    this.quitArmed = false;
-    this.pending.clear(); this.disarmDiscard(); this.statusEl.textContent = ''; this.zone = 'list';
+    this.disarmAll();
+    this.statusEl.textContent = ''; this.onChips = false;
     this.optList.refresh();
     const prev = this.restoreFocus;
     this.restoreFocus = null;
@@ -578,13 +595,32 @@ export class Menu {
     pane.classList.remove('gp-swap'); void pane.offsetWidth; pane.classList.add('gp-swap');
     this.root.dataset.tab = id;
     this.titleEl.textContent = MENU_TABS.find((t) => t.id === id)!.label;
-    if (id === 'settings') this.zone = 'list';
+    if (id === 'settings') this.onChips = false;
     if (this.opened) this.enterTab(id);
     this.syncFoot();
-    this.syncBack();
     this.syncLists();
     if (this.opened) this.focusList();
   }
+
+  /** Selects a settings group (Game, Controls, Audio, Graphics, Map). The Settings tab shows it. */
+  showGroup(id: SettingsGroup): void {
+    if (!this.chipBtns.has(id)) return;
+    this.disarmAll();
+    this.group = id;
+    this.syncChips();
+    this.optList.refresh();
+    this.optList.snapToFirst();
+    this.statusEl.textContent = '';
+    this.showDesc('settings', this.optList.current);
+    this.syncFoot();
+  }
+
+  /** Which group a settings row sits in (tests, the harness). */
+  groupOfRow(id: string): SettingsGroup | null {
+    for (const [g, rows] of this.groupSpecs) if (rows.some((r) => r.id === id)) return g;
+    return null;
+  }
+  get settingsGroup(): SettingsGroup { return this.group; }
 
   /** Next / previous tab (Q / E, LB / RB), skipping tabs that are not shown. */
   tab(delta: -1 | 1): void {
@@ -651,24 +687,34 @@ export class Menu {
 
   private syncLists(): void {
     const act = this.activeList();
-    for (const l of [this.optList, this.radioList, this.missionList, this.statList]) l.setActive(l === act && !(l === this.optList && this.zone === 'acts'));
-    this.syncActs();
+    for (const l of [this.optList, this.radioList, this.missionList, this.statList]) l.setActive(l === act && !(l === this.optList && this.onChips));
+    this.syncChips();
+  }
+
+  private syncChips(): void {
+    for (const [g, b] of this.chipBtns) {
+      const on = g === this.group;
+      b.classList.toggle('on', on);
+      b.classList.toggle('hi', on && this.onChips);
+      b.setAttribute('aria-selected', String(on));
+    }
+    this.root.dataset.group = this.group;
   }
 
   private focusList(): void {
     const l = this.activeList();
-    if (l && this.opened) l.highlight(l.index, true);
+    if (l && this.opened) { if (this.tabId === 'settings' && this.onChips) this.chipBtns.get(this.group)?.focus(); else l.highlight(l.index, true); }
     else if (this.opened && this.tabId === 'controls') this.controlsPane.focusFirst();
     else if (this.opened) (this.tabBtns.get(this.tabId))?.focus();
   }
 
-  /** Moves the focus between the option rows and the APPLY / DEFAULTS / BACK stack. */
-  private setZone(z: 'list' | 'acts'): void {
-    if (this.tabId !== 'settings') return;
-    this.zone = z;
+  /** The group chips share the one focus with the rows: Up from the first row reaches them, Left / Right change group, Down returns. */
+  private setChips(on: boolean): void {
+    if (this.tabId !== 'settings' || this.onChips === on) return;
+    this.onChips = on;
     this.syncLists();
-    if (z === 'list') { this.optList.highlight(this.optList.index, true); this.showDesc('settings', this.optList.current); }
-    else { this.actBtns[this.actIdx]?.focus(); this.showDesc('settings', null); }
+    if (on) { this.chipBtns.get(this.group)?.focus(); this.showDesc('settings', null); }
+    else { this.optList.highlight(this.optList.index, true); this.showDesc('settings', this.optList.current); }
     this.syncFoot();
   }
 
@@ -676,96 +722,63 @@ export class Menu {
     const l = this.activeList();
     if (!l) return;
     if (this.tabId === 'settings') {
-      if (this.zone === 'acts') {
-        if (d > 0) this.actIdx = Math.min(this.actBtns.length - 1, this.actIdx + 1);
-        else if (this.actIdx === 0) { this.setZone('list'); this.optList.highlightLast(true); return; }
-        else this.actIdx--;
-        this.syncActs(); this.actBtns[this.actIdx]?.focus();
-        return;
-      }
-      if (d > 0 && l.atEnd()) { this.actIdx = 0; this.setZone('acts'); return; }
+      if (this.onChips) { if (d > 0) this.setChips(false); return; }
+      if (d < 0 && l.atStart()) { this.setChips(true); return; }
     }
     l.move(d);
     this.syncFoot();
   }
 
   private sideways(d: -1 | 1): void {
-    if (this.tabId === 'settings' && this.zone === 'acts') { if (d < 0) this.setZone('list'); return; }
+    if (this.tabId === 'settings' && this.onChips) {
+      const ids = SETTINGS_GROUPS.map((g) => g.id);
+      this.showGroup(ids[(ids.indexOf(this.group) + d + ids.length) % ids.length]);
+      this.chipBtns.get(this.group)?.focus();
+      return;
+    }
     const l = this.activeList();
     if (l?.adjust(d)) this.syncFoot();
   }
 
   private confirm(): void {
-    if (this.tabId === 'settings' && this.zone === 'acts') { [() => this.apply(), () => this.defaults(), () => this.back()][this.actIdx](); return; }
+    if (this.tabId === 'settings' && this.onChips) { this.setChips(false); return; }
     this.activeList()?.activate();
   }
 
-  private syncActs(): void {
-    const settings = this.tabId === 'settings';
-    this.actBtns.forEach((b, i) => {
-      b.classList.toggle('hi', settings && this.zone === 'acts' && i === this.actIdx);
-      b.classList.toggle('dim', i === 0 && this.pending.size === 0);
-    });
-    const back = this.actBtns[2];
-    if (back) back.textContent = this.discardArmed ? 'Discard?' : 'Back';
-    this.root.classList.toggle('has-pending', this.pending.size > 0);
+  private disarmAll(): void {
+    const w = this.doc.defaultView;
+    w?.clearTimeout(this.resetTimer); w?.clearTimeout(this.mapTimer); w?.clearTimeout(this.resetGroupTimer);
+    const was = this.resetArmed || this.quitArmed || this.mapArmed || this.resetGroupArmed !== null;
+    this.resetArmed = false; this.quitArmed = false; this.mapArmed = false; this.resetGroupArmed = null;
+    if (was) this.refreshAll();
   }
 
-  /** APPLY: commits every pending value (preset and auto detect first, so the rest sit on top of the right tier). */
-  apply(): void {
-    if (this.pending.size === 0) { this.statusEl.textContent = 'Nothing to apply'; return; }
-    const ids = [...this.pending.keys()].sort((a, b) => (a === 'quality' ? -2 : a === 'autodetect' ? -1 : 0) - (b === 'quality' ? -2 : b === 'autodetect' ? -1 : 0));
-    const n = ids.length;
-    for (const id of ids) {
-      const v = this.pending.get(id);
-      this.pending.delete(id); // cleared first: the setter's own bookkeeping must not see it as pending
-      this.orig.get(id)?.set?.(v as never);
-    }
-    this.pending.clear();
-    this.disarmDiscard();
-    this.statusEl.textContent = `Applied ${n} change${n === 1 ? '' : 's'}`;
-    this.refreshAll();
-  }
+  /** True while a "press again to confirm" question is open. */
+  get asking(): boolean { return this.resetArmed || this.quitArmed || this.mapArmed || this.resetGroupArmed !== null; }
 
-  /** DEFAULTS: every setting row goes back to its default as a pending change (APPLY commits it). */
-  defaults(): void {
-    for (const [id, spec] of this.orig) {
-      if (!spec.def || !spec.set) continue;
-      const want = spec.def(), cur = spec.get?.();
-      if (spec.live) { if (want !== cur) spec.set(want as never); } else if (want === cur) this.pending.delete(id); else this.pending.set(id, want);
-    }
-    this.statusEl.textContent = this.pending.size ? 'Defaults ready: press Apply' : 'Already at defaults';
-    this.refreshAll();
-  }
-
-  private disarmDiscard(): void {
-    this.doc.defaultView?.clearTimeout(this.discardTimer);
-    this.discardArmed = false;
-    this.syncActs();
-  }
-
-  /** BACK / Esc / B / Backspace: with pending changes the first press asks (the button says DISCARD?), the second discards and resumes. */
+  /**
+   * Back: cancels a rebinding or a "press again" question first, then resumes. Esc, B, Backspace, a right click and the Back and
+   * Resume buttons all come here, so the same thing happens whichever the player uses.
+   */
   back(): void {
-    if (this.tabId === 'settings' && this.pending.size > 0 && !this.discardArmed) {
-      this.discardArmed = true;
-      this.statusEl.textContent = `${this.pending.size} unapplied change${this.pending.size === 1 ? '' : 's'}. Back again to discard`;
-      this.syncActs();
-      const w = this.doc.defaultView;
-      if (w) this.discardTimer = w.setTimeout(() => { this.discardArmed = false; this.statusEl.textContent = ''; this.syncActs(); }, 4000);
-      return;
-    }
+    if (this.tabId === 'controls' && this.controlsPane.capturing) { this.controlsPane.cancel(); return; }
+    if (this.asking) { this.disarmAll(); this.statusEl.textContent = 'Cancelled'; return; }
     this.close();
   }
+
+  /** The panel manager leaves Esc to the menu while a key is being rebound. */
+  get keepsEscape(): boolean { return this.opened && this.tabId === 'controls' && this.controlsPane.capturing; }
 
   private onWindowKey(e: KeyboardEvent): void {
     if (e.code === 'Escape' && !e.repeat) { e.preventDefault(); if (this.opened) this.back(); else this.open(); return; }
     if (!this.opened || e.ctrlKey || e.metaKey || e.altKey) return;
+    this.setDevice('keyboard');
     const t = e.target as HTMLElement | null;
     const typing = !!t && (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable || (t.tagName === 'INPUT' && (t as HTMLInputElement).type !== 'checkbox' && (t as HTMLInputElement).type !== 'range'));
     if (typing) return;
     if (e.code === 'KeyQ' || e.code === 'PageUp') { e.preventDefault(); this.tab(-1); return; }
     if (e.code === 'KeyE' || e.code === 'PageDown') { e.preventDefault(); this.tab(1); return; }
-    const onBtn = t?.tagName === 'BUTTON' && !t.classList.contains('gp-arrow');
+    const onBtn = t?.tagName === 'BUTTON' && !t.classList.contains('gp-arrow') && !t.classList.contains('gp-chip');
     const lists = this.activeList();
     if (!lists) {
       if (this.tabId === 'controls') {
@@ -807,6 +820,9 @@ export class Menu {
     if (!e.shiftKey && (active === last || !active || !this.root.contains(active))) { e.preventDefault(); first.focus(); return true; }
     return false;
   }
+
+  /** Mouse / touch moved the one focus: the footer shows the matching prompts. */
+  private setDevice(m: InputMode): void { if (m !== this.inputMode) { this.inputMode = m; this.root.dataset.input = m; this.syncFoot(); } }
 
   /* ---------- tabs: content ---------- */
 

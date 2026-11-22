@@ -26,7 +26,7 @@ describe('Announcer with the voice hub', () => {
       speech, makeUtterance: utter, volume: () => 1, setDuck: (d) => ducks.push(d), talkBusy: () => false, context: () => ({ ...DEFAULT_BROADCAST, hour: 22 }), random: () => 0.5,
       dj: new DjScheduler(() => 0.4), hub: hubWith(speech),
     });
-    const stoop = SC_STATIONS.find((s) => s.id === 'stoop')!;
+    const stoop = SC_STATIONS.find((s) => s.id === 'hiphop')!;
     a.tuneIn(stoop);
     a.update(2);
     await until(() => !a.speaking);

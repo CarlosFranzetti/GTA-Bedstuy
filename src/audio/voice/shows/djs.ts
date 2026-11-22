@@ -45,7 +45,7 @@ export const DJ_COPY: Record<ScStationId, DjCopy> = {
     traffic: ['Traffic on {street} is a slow riddim. [pause 0.4] Everybody is late and nobody is sorry.', '{street} is backed up. [pause 0.4] Somebody double-parked for a bag of ice.', 'Drive carefully on {street}. [pause 0.4] The low end can wait.'],
     shouts: ['Respect to {hood}. [pause 0.4] The neighbours know the frequency.', 'A nod to {hood}. [pause 0.4] You are the reason the windows hum.', 'To everyone near {hood}: [pause 0.4] the rattle is love. The noise complaint is a hobby.'],
   },
-  stoop: {
+  hiphop: {
     who: 'tayo',
     idents: ['{station}, {freq}! [beat] Straight off the stoop!', 'Big Tayo, {station}, and the stoop is full! [beat] Say it with your whole chest!', 'You are locked into {station}! Where lunch is an event and every verse is a block party!'],
     intros: ['Next up, {dj}! The set is {title}! Let me hear you!', '{dj} on the mic with {title}! Stoop, stand up!', 'Here it comes, {title}, from {dj}! No sitting, no excuses!', 'Give it up for {dj}! {title}, right now, on {station}!'],

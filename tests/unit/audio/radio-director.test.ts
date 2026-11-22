@@ -118,7 +118,7 @@ describe('virtual time', () => {
     dir.setOn(true);
     dir.select(idx('mylib'));
     dir.update(1);
-    dir.select(idx('stoop'));
+    dir.select(idx('hiphop'));
     for (let i = 0; i < 60; i++) dir.update(1);
     expect(dir.libraryClock).toBeCloseTo(61, 5);
     dir.select(idx('mylib'));
@@ -151,7 +151,7 @@ describe('virtual time', () => {
   it('plays the second track after the first and picks up mid-way into it on a later tune-in', () => {
     const { dir, decks, idx } = setup([item('Pop/a.mp3', 100), item('Pop/b.mp3', 200)]);
     dir.setOn(true);
-    dir.select(idx('stoop'));
+    dir.select(idx('hiphop'));
     for (let i = 0; i < 150; i++) dir.update(1);
     dir.select(idx('mylib'));
     const last = decks.flatMap((d) => d.loads).at(-1)!;

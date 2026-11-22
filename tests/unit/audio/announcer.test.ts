@@ -169,7 +169,7 @@ describe('cadence', () => {
     run(r.a, 3);
     expect(r.speech.spoken).toHaveLength(n);
     run(r.a, ANNOUNCER_TUNE_COOLDOWN_S);
-    r.a.tuneIn(scStationDef('stoop')!);
+    r.a.tuneIn(scStationDef('hiphop')!);
     run(r.a, 3);
     expect(r.speech.spoken.length).toBe(n + 1);
     expect(r.a.name).toBe('Big Tayo');

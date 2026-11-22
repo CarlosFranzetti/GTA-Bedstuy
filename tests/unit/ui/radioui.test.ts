@@ -305,7 +305,7 @@ describe('RadioUi SoundCloud stations', () => {
     ui.open();
     const sections = qa(ui.root, '.rl-sc');
     expect(sections).toHaveLength(9);
-    expect(sections.map((s) => (s as HTMLElement).dataset.station)).toEqual(['bkhouse', 'dublab', 'stoop', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc']);
+    expect(sections.map((s) => (s as HTMLElement).dataset.station)).toEqual(['hiphop', 'bkhouse', 'dublab', 'boogie', 'weird', 'yard', 'flashback', 'latin', 'sc']);
     const houseSec = sections[0];
     expect(q(houseSec, '.rl-station-name').textContent).toBe('Boiler Room');
     expect(q(houseSec, '.rl-sc-pool').textContent).toBe('Pool for Boiler Room: 2 of 3 sets match, 2 not heard yet.');

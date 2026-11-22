@@ -32,9 +32,13 @@ Test: `tests/unit/audio/groupchat-script.test.ts`.
 - Wrong time checks. The G train as a rumour. The sourdough phase. Wendell's sock and Thursday routine.
 - The "guy" and the dealer on the other line: it is always an art dealer, or a plumber, or something else; never a product.
 
-## Rundown (about 41 minutes, one looping day)
-See the show list in the JSON ids: `morn` Morning Scroll, `bell` Thirty Seconds and a Bell, `money` Money Chat, `land` Landmarks of
-Questionable Importance, `clin` The Clinic, then the rest as written. Final numbers are in the report and the test.
+## Rundown (400 segments, about 6,400 words, 46 minutes by estimate, one looping day)
+Order as played: morn Morning Scroll (AI 1, weather 1, transit 1) 7; bell Thirty Seconds and a Bell 3; money Money Chat 3.5;
+land Landmarks 3; clin The Clinic 3.5; tech Black Room 3; house Hug Frequency 3; after After the After (dealer on line two) 3.5;
+news Tiny News 1; ai2 Eviction Poetry 2.5; bell2 2; money2 3; land2 2.5; wx2 Weather 2; transit2 2.5; clin2 3; tech2 3;
+house2 2.5; after2 3; news2 1; ai3 Is Pat Real 3; close Sign Off 1.5. Segment ids are the show tag plus a counter.
+Time checks: six, all wrong. Disclaimer: eight spoken lines in six readings, each longer than the last (test checks it).
+Ads: ten invented businesses.
 
 ## What I checked (and could not)
 - Parses with `parseScript`; test checks unique ids, kinds, voices, segment length, total minutes and a list of words that

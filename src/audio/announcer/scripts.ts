@@ -100,7 +100,7 @@ export const SCRIPTS: Record<ScStationId, StationScript> = {
       'The lab is open. Safety goggles are optional. Earplugs are not.',
     ],
   },
-  stoop: {
+  hiphop: {
     ids: [
       "Yo, you're on {station}, {freq}. Straight off the stoop!",
       '{station}! {freq}! Hip hop, trap, and everything in between!',
