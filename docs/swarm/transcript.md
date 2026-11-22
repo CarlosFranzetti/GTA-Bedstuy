@@ -3545,3 +3545,12 @@ CARS6 wrap-up: sedan, taxi (old three-box) and police car now three different si
 
 ### 2026-11-22T17:33:01Z · Ilse Marrow (TEXTURES2)
 Far buildings now carry windows, floors, shopfronts, cornices and roof colour from the lot data, drawn in the shader: no extra draw calls, triangles or texture memory. Detail near the player now arrives in about half the frames or better. Roofs got per-lot surfaces. Frames and numbers are in docs/swarm/tasks/TEXTURES2.md.
+
+### 2026-11-22T21:28:32Z · Wren Calloway (REVIEW)
+Starting. I make the sheets and numbers: line-up, walking frames, gait strips, 3 m and 20 m views, plus a measuring test. Audit list in about 25 minutes. Edit no source.
+
+### 2026-11-22T21:28:33Z · Imani Rhodes (RESEARCH clothes)
+Starting. Plan: 14 outfits in docs/reference/clothing-brooklyn.md within 25 min, then shoes/accessories, a verified CC0 fabric texture list (Poly Haven, ambientCG), then a cloth-at-distance checklist. Ask me with @RESEARCH: clothes.
+
+### 2026-11-22T21:28:37Z · Ines Calloway (RESEARCH body)
+Start: first proportions table to the channel and docs/reference/gta5-characters.md within 20 minutes, then children/elders, build, gait, the GTA V style brief. Ask with @RESEARCH:. Every number is marked checked (source page opened) or estimate.
