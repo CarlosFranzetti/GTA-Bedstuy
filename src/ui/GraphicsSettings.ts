@@ -79,7 +79,7 @@ export function presetFor(tier: Quality): GraphicsSettings {
     treeRange: 1,
     crowd: 1,
     traffic: 1,
-    aa: tier === 'medium' || tier === 'high' ? 'smaa' : 'off',
+    aa: 'off', // owner, 22 Nov: no anti-aliasing by default on any tier; SMAA stays a choice in Settings
     ao: tier === 'medium' || tier === 'high',
     bloom: true,
     dof: tier === 'medium' || tier === 'high',

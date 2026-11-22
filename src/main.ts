@@ -61,6 +61,7 @@ import { Credits } from '@/ui/Credits';
 import { RadioUi } from '@/ui/RadioUi';
 import { GamepadInput } from '@/core/Gamepad';
 import { startAnalytics } from '@/core/Analytics';
+import { chooseMap } from '@/world/mapChoice';
 import { SaveManager, SaveStore, poseOnMap } from '@/ui/GameSave';
 import { MapScreen, navPlaces, placesFromLots } from '@/ui/MapScreen';
 import { getPlayerLook, setPlayerLook, randomPlayerLook, type PlayerLook as RosterLook } from '@/textures/painters/pedRoster';
@@ -149,9 +150,9 @@ const packsReady = loadTexturePacks(materials, renderer.capabilities.getMaxAniso
 await nextPaint();
 loading.begin('world');
 const world = buildWorld(data, materials, rng);
-// Real-map preview (`?map=real`): hosted and native builds only. The flag is a build-time constant, so the single-file
+// The real-street map is the main map of the hosted and native builds (`?map=grid` opens the older grid). The flag is a build-time constant, so the single-file
 // build drops this branch and never carries the real street network or the 1.5 MB lot data.
-const realWorld = import.meta.env?.VITE_HOSTED === '1' && params.get('map') === 'real'
+const realWorld = import.meta.env?.VITE_HOSTED === '1' && chooseMap(true, params.get('map')) === 'real'
   ? await (await import('@/world/roadnet/realWorld')).buildRealWorld({ materials, rng: rng.fork('real'), tier: quality })
   : null;
 if (realWorld) Object.assign(world, { group: realWorld.group, colliders: realWorld.colliders, chunkMeshes: realWorld.chunkMeshes, propCells: [], lamps: realWorld.lamps, lots: realWorld.lots, furnitureGroup: realWorld.furnitureGroup });
