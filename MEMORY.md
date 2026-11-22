@@ -26,7 +26,12 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
    CMU motion capture is free to use (not to resell as data). Mixamo, LaFAN1 and Bandai Namco sets are ruled out.
 4. Real places appear under invented names. Shops, brands and liveries are parodies with invented wording. Real DJ and
    artist names appear only for real public radio streams. No lettering, logos or numbers on clothes.
-5. Tone: no blood, no gore, nobody dies on screen. People go down, get up and run.
+   Talk radio may joke ABOUT public figures and topics the owner named on 22 Nov (AI, Trump, Mamdani, stocks and crypto,
+   the subway, parodied landmarks, weather, dating, the techno, house and wider underground scenes): satire only, hosts are
+   invented characters, no imitation of a real person's voice, no invented quote or factual claim presented as real.
+5. Tone (CHANGED by the owner on 22 Nov: "i do want blood and weapons in the game, its a parody but its still GTA"; "should
+   be able to hit anyone"). Blood and weapons are in; anyone on the street can be hit. The lead's reading until he says
+   more: blood yes (hits, marks that fade), people go down hurt or knocked out; no dismemberment and no gore beyond blood.
 6. Privacy: the owner's email is private and never goes to an outside service. Prompts to outside services never carry
    the project's or the owner's name.
 7. Never put AI model identifiers in commits, code or docs. Commits end with the two attribution lines the session gives.
@@ -35,6 +40,25 @@ https://github.com/CarlosFranzetti/GTA-Bedstuy.
 10. Reports to the owner: lead with the outcome, short sentences, no em-dashes, bullets for parallel items.
 
 ## What the owner wants (his words, newest first)
+
+- 22 Nov, afternoon (after the third and fourth deploys), one long message. The list:
+  - cars: SUVs and trucks "feel strangely larger and longer than they should be compared to the sedans and sports cars",
+    "get the dimensions so they make sense", "model them on real world vehicles"; car shadows "wonky ... looks like the car
+    hovers over the street without wheels" (lane CARS5);
+  - traffic: "a bit too much", "cut overall at 25%" (lead's reading: a quarter less), random, congested only sometimes in
+    the early morning and afternoon, "9-5 kinda deal" (lane TRAFFIC2);
+  - "revamp the entire menu system", buggy with the mouse and needing Esc to click; make sure the engine on/off option is
+    in Settings (lane MENU2); "a mini tutorial" (lane TUTORIAL);
+  - "more realistic character movement"; "jump over car hoods such that if you're pinned between two you can get away"
+    (lane MOVE2); hit anyone, blood, weapons (rule 5 changed; lane COMBAT2);
+  - police: "dont actually grab you", "wheres the jail?", "a few more actions before they start chasing and eventually
+    arrest you" (lane POLICE2);
+  - radio: each SoundCloud station "more than one DJ mix ... 7 DJs per radio station for now" (The Lot Radio guests, RA);
+    the other streaming stations "more random"; "i heard zero hip hop. please add hip hop station"; a new humorous talk
+    station (topics in rule 4) (lanes RADIO3, SCMIXES, TALK2);
+  - "really aim for AAA in the faces, physics and textures (more textures)" (lanes FACES4, TEXTURES2, PHYSICS2);
+  - "run multiple haiku and sonnet agents in parallel", ordered so usage holds; "a full transcript of their interactions
+    in conversational English" (`docs/swarm/transcripts/`).
 
 - 22 Nov, after playing the live game: "radio station issues (sometimes it wont play)"; "the car engine sound gets stuck,
   starts to loop and stutters"; "engine should be 45% lower by default and also an option in settings to turn engine off
