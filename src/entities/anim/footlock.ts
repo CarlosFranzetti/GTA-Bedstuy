@@ -17,6 +17,11 @@ import { boneChannel } from './clipPack';
 /** the shoe against its ankle pivot: the ankle's height above the sole, and where the heel, ball and toe are along the foot (forward is -z) */
 export const FOOT = { ankleH: 0.075, heel: 0.07, ball: -0.12, toe: -0.2 };
 const SOLE_Z = [FOOT.heel, FOOT.ball, FOOT.toe];
+/**
+ * How much of the full leg (thigh + shin) a held foot may be asked to reach: the pelvis sinks so the reach stays under REACH_NEED, and the solve never stretches past
+ * REACH_SOLVE. They were 0.985 and 0.992, which made a straight standing leg bend 15 to 20 degrees (cos(10 deg) = 0.985): the standing squat. At 0.9994 the least bend is about 4 degrees.
+ */
+export const REACH_NEED = 0.9994, REACH_SOLVE = 0.9996;
 
 export interface LegDims {
   /** the leg pivot (hip) in the rig frame, the knee pivot in the leg frame, the ankle pivot in the knee frame */
@@ -146,7 +151,7 @@ export class FootLock {
       this.tx[s] = tx; this.tz[s] = tz;
       // sink needed: the horizontal distance to the target ankle fixes how far down it can be at full reach
       if (this.w[s] > 0.01) {
-        const L = 0.985 * (d.knee[s].length() + d.ankle[s].length());
+        const L = REACH_NEED * (d.knee[s].length() + d.ankle[s].length());
         const ux = A.x + tx - hip.x, uy = A.y - hip.y, uz = A.z + tz - hip.z, h2 = ux * ux + uz * uz;
         const dy = L * L > h2 ? -Math.sqrt(L * L - h2) - uy : 0.05;
         if (dy > 0) need = Math.max(need, Math.min(0.05, dy) * Math.min(1, this.w[s] * 2));
@@ -171,7 +176,7 @@ export class FootLock {
       const Tx = A.x + tx, Ty = A.y + lift, Tz = A.z + tz;
       const hx = hip.x, hy = hip.y, hz = hip.z, kx = kneeOld.x - hx, ky = kneeOld.y - hy, kz = kneeOld.z - hz;
       const dx = Tx - hx, dy = Ty - hy, dz = Tz - hz, dl = Math.hypot(dx, dy, dz);
-      const dist = Math.min(Math.max(dl, Math.abs(a - b) + 1e-3), 0.992 * (a + b));
+      const dist = Math.min(Math.max(dl, Math.abs(a - b) + 1e-3), REACH_SOLVE * (a + b));
       const Dx = dx / dl, Dy = dy / dl, Dz = dz / dl;
       const cosA = (a * a + dist * dist - b * b) / (2 * a * dist), sinA = Math.sqrt(Math.max(0, 1 - cosA * cosA));
       // the knee stays on the side of the line the capture bent it to

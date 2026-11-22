@@ -139,7 +139,7 @@ export function hemRows(L: MhLod, pos: ArrayLike<number>, hemTop: number, o: num
   if (!c) return null;
   const at = (d: number, g: number, up: number, w = 0.012): PolarRow => {
     const y = hemTop + d, ys = [y - w, y - w / 2, y, y + w / 2, y + w], r = outerRadii(L, pos, ys, c, seg, use);
-    return { y, cx: c.cx, cz: c.cz, r: r.map((v) => Math.max(0.02, v + g)), up };
+    return { y, cx: c.cx, cz: c.cz, r: r.map((v) => Math.max(0.02, v + g + 0.001)), up };      // CLOTHES: +1 mm so the band's polygon always clears the body's own vertices (the body surface is being reshaped by BODY: a 0.4 mm miss was enough to fail the hem test)
   };
   // [height above the hem, margin off the body, vertical part of the normal]
   const prof: Array<[number, number, number]> = style === 'baffle'

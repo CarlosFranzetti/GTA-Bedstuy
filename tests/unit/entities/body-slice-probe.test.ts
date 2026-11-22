@@ -46,7 +46,7 @@ export function slices(spec: PedSpec, seed: number): Record<string, number> {
   put('chest', slab(0.735, trunk, 0.012));
   put('waist', slab(0.602, trunk, 0.012));
   put('hip', slab(0.50, (i) => wsum(i, arms) < 0.35, 0.012));       // buttock: widest, legs included
-  put('neck', slab(0.836, (i) => P(i)[1] > 0 && wsum(i, [2, 3]) > 0.2 && Math.abs(P(i)[0]) < 0.1, 0.008));
+  { const cy = (s.landmarks.chinY * gs.y - 0.012 * H / 1.78) / H; put('neck', slab(cy, (i) => Math.abs(P(i)[0]) < 0.075 * H / 1.78 && wsum(i, [3]) < 0.5 && P(i)[1] < s.landmarks.chinY * gs.y, 0.008)); }
   put('thigh', slab(0.44, (i) => P(i)[0] < 0 && wsum(i, legs) > 0.5, 0.01), 1);
   put('calf', slab(0.17, (i) => P(i)[0] < 0 && wsum(i, legs) > 0.5, 0.01), 1);
   put('biceps', slab(0.72, (i) => P(i)[0] < 0 && wsum(i, arms) > 0.5, 0.01), 1);
@@ -65,7 +65,7 @@ describe('body slice probe', () => {
     let n = 0;
     for (const sex of ['m', 'f'] as const) for (const id of TYPES) {
       const age = id === 'elder' || id === 'elder-heavy' ? 'old' : id === 'teen' ? 'teen' : id === 'kid' ? 'kid' : 'adult';
-      const spec = { ...base, id: `sp-${sex}-${id}-${n++}`, group: 'wh', role: 'civilian', build: age === 'kid' ? 'kid' : 'avg', sex, age, body: id } as PedSpec;
+      const spec = { ...base, ...(process.env.BODY_BOTTOM === 'shorts' ? { bottom: { ...base.bottom, kind: 'shorts' } } : {}), id: `sp-${sex}-${id}-${n++}`, group: 'wh', role: 'civilian', build: age === 'kid' ? 'kid' : 'avg', sex, age, body: id } as PedSpec;
       const ms = [1, 2, 3, 4, 5, 6].map((sd) => slices(spec, sd)), avg: Record<string, number> = {};
       for (const k of Object.keys(ms[0])) avg[k] = ms.reduce((a, b) => a + b[k], 0) / ms.length;
       rows.push({ key: `${sex}-${id}`, m: avg });

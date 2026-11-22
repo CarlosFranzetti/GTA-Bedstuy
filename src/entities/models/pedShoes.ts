@@ -56,7 +56,8 @@ function foot(ctx: Ctx, mb: MeshBuilder, side: 'L' | 'R', st: Style, o: { rect: 
   const stations = ctx.detail === 'hi' ? ((st as Style & { fine?: boolean }).fine ? [0, 0.14, 0.3, 0.42, 0.58, 0.75, 1] : st.T) : [0, 0.3, 0.45, 0.62, 0.82, 1];
   const prof = (arr: number[], t: number): number => { for (let i = 1; i < st.T.length; i++) if (t <= st.T[i]) return lerp(arr[i - 1], arr[i], (t - st.T[i - 1]) / (st.T[i] - st.T[i - 1] || 1)); return arr[arr.length - 1]; };
   for (const t of stations) {
-    const z = zToe + t * (zHeel - zToe), w = Math.max(prof(st.W, t) * sc, t >= 0.99 ? a.rx + 0.006 : 0), h = prof(st.H, t) * scH;
+    let z = zToe + t * (zHeel - zToe), zHemF = ctx.skin.tube ? ctx.skin.tube.cz - ctx.skin.tube.rz : -9, w = Math.max(prof(st.W, t) * sc, t >= 0.99 ? Math.min(a.rx + 0.006, prof(st.W, t) * sc * 1.25) : 0), h = prof(st.H, t) * scH;
+    if (z >= zHemF - 0.035) h = Math.max(h, 0.09);      // under a trouser hem the instep (the tongue) reaches 9 cm from the ankle forward of the hem's front edge, however the body's width moves it (hem + 4 mm is the rule, pedround5)
     const lift = st.toeUp * sc * Math.pow(1 - Math.min(1, t / 0.25), 2) + st.arch * sc * Math.sin(Math.PI * Math.min(1, Math.max(0, (t - 0.2) / 0.55))) + (st.heel ?? 0) * sc * Math.min(1, Math.max(0, (t - 0.3) / 0.6)) ** 2;
     const sec = section(w, h, st.sh * sc, st.s * sc);
     P.push(sec.map(([x, y]) => [a.cx + x, lift + y, z] as V3)); U.push(sec.map((p) => p[2]));

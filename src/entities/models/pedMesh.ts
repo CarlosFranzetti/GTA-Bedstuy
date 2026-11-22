@@ -31,7 +31,8 @@ import { hijabShell } from './pedGarments';
 import { peopleMode } from '@/textures/painters/pedMode';
 import { legTubes, isCoveredLeg, StripMesh, addStrip, type Row, type LegTube, type LegDetail } from './pedLegs';
 import { addPolarStrip, cuffRows, hemRows, straightenArms, swingSkirt, type CuffStyle } from './pedCuts';
-import { bodyTypeOf, type BodyType } from './pedBodyTypes';
+import { bodyTypeOf, bodyTypeId, type BodyType } from './pedBodyTypes';
+import { fitMass, replayMass, sexOf, type MassFit } from './pedMass';
 import { makeCtx, personPieces } from './pedPieces';
 import { pickPedVariant, type PedModel, type PedOptions } from './pedBody';
 
@@ -56,7 +57,19 @@ export function peopleReady(): boolean { return peopleFlag() && shapes.size > 0;
 export function peopleShapes(): string[] { return [...shapes.keys()]; }
 /** a shipped base shape by name (the BODY harness and measuring tests read the joints and landmarks from it) */
 export function shapeByName(name: string): MhShape | undefined { return shapes.get(name); }
-export function clearPeople(): void { shapes.clear(); geoCache.clear(); dressCache.clear(); }
+export function clearPeople(): void { shapes.clear(); geoCache.clear(); dressCache.clear(); massCache.clear(); }
+/** BODY (second shift): the mass fit of a shape and body type, calibrated once on the hi mesh and replayed on the other levels (pedMass.ts) */
+const massCache = new Map<string, MassFit | null>();
+function massApply(s: MhShape, spec: PedSpec, L: MhLod, pos: Float32Array): void {
+  const age = spec.age ?? 'adult'; if (age === 'kid' || spec.build === 'kid') return;
+  const id = bodyTypeId(spec), sx = sexOf(spec), key = `${s.name}:${id}:${sx}`;
+  let fit = massCache.get(key);
+  if (fit === undefined) {
+    if (L === s.lods.hi) { fit = fitMass(s, L, pos, sx, id); massCache.set(key, fit); return; }
+    dressLodBody(s, spec, s.lods.hi, false); fit = massCache.get(key) ?? null;
+  }
+  if (fit) replayMass(s, L, pos, fit);
+}
 
 /** smooth normals; vertices at the same position (tile borders of the UV projection) share one normal */
 export function weldedNormals(pos: Float32Array, idx: Uint32Array): Float32Array {
@@ -426,8 +439,10 @@ function dressLodBody(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): MhLo
     const shTop = sstep(shY - 0.07 * K, shY + 0.03 * K, y) * (1 - sstep(neckY - 0.01, neckY + 0.06, y)) * Math.min(1, wT + wA);
     if (shTop > 0) {
       const xo = armX * bt.shoulders, ax = Math.abs(x), reach = sstep(0.07, xo + 0.01, ax), corner = sstep(xo - 0.035, xo + 0.035, ax);
-      y -= (0.024 * reach + 0.012 * corner) * K * shTop;
-      x -= sx * 0.014 * corner * K * sstep(shY - 0.02, shY + 0.04, y + 0.03) * shTop;
+      // BODY (second shift): the trapezius slopes from the neck to the shoulder point (men more, women less) and the deltoid cap is round, not a squared corner
+      const slope = spec.sex === 'f' ? 0.030 : 0.042, cap = spec.sex === 'f' ? 0.015 : 0.02;
+      y -= (slope * reach + cap * corner) * K * shTop;
+      x -= sx * 0.026 * corner * K * sstep(shY - 0.02, shY + 0.04, y + 0.03) * shTop;
     }
     const front = z < cz0;
     z = cz0 + (z - cz0) * (1 + (bt.chest - 1) * (front ? 0.9 : 0.5) * gauss(y - yChest, 0.13) * torsoLike);
@@ -458,6 +473,7 @@ function dressLodBody(s: MhShape, spec: PedSpec, L: MhLod, dress: boolean): MhLo
   }
   if (faceDebug.morph) { const pre = Float32Array.from(pos); morphHead(s, L, pos, faceTraits(spec)); for (let i = 0; i < pos.length; i++) pre[i] = pos[i] - pre[i]; lastFaceDelta = pre; }       // FACES2: a face of their own (pedHead.ts); the same parameters at every level
   flattenTorso(L, pos, hipY + 0.02, shY + 0.01, cz0, 1);
+  massApply(s, spec, L, pos);
   let normal = shadeNormals(L, pos);
   const covered = isCoveredLeg(spec.bottom.kind), detail: LegDetail = L === s.lods.hi ? 'hi' : L === s.lods.mid ? 'mid' : L === s.lods.far ? 'far' : L.index.length / 3 > 2200 ? 'hi' : L.index.length / 3 > 700 ? 'mid' : 'far';
   if (dress) {
@@ -872,7 +888,10 @@ export function buildMhPedModel(materials: IMaterialLibrary, rng: Rng, opts: Ped
     const bh = skinMode ? bt.h : BUILD_SCALE[spec.build][1], bw = skinMode ? 1 : BUILD_SCALE[spec.build][0];
     // the type sets the build and part of the stature (0.65 of its factor: a type is a tendency, not a mould), a normal draw does the rest
     let target = shape.height * ((skinMode ? 1 + (bh - 1) * 0.65 : bh) + gz() * (grown ? 0.032 : 0.04)) * (age === 'old' ? 0.985 : 1);
-    if (grown) target = Math.min(1.97, Math.max(1.48, target));
+    // BODY (second shift): grown people are drawn like the survey's civilians, not from the shape's height: median 1.755 m men and 1.626 m women, sd 3.85 and 4.0 percent
+    // (5th to 95th percentile 1.65 to 1.87 m and 1.53 to 1.74 m), the type pulls a third of its factor; over 1.90 m is under 2 in 100, nobody over 1.93 m
+    if (grown && skinMode) { const med = spec.sex === 'f' ? 1.626 : spec.sex === 'x' ? 1.69 : 1.755; target = med * (1 + (bh - 1) * 0.35 + gz() * (spec.sex === 'f' ? 0.040 : 0.0385)) * (age === 'old' ? 0.985 : 1); }
+    if (grown) target = Math.min(spec.sex === 'f' ? 1.82 : 1.93, Math.max(1.48, target));
     // the head is sized by HEADS OF STATURE (adults 7.2, GTA IV proportion), not by a factor on the MakeHuman head (which is a small head: 7.9 heads);
     // the taller head lifts the crown, so the stature is brought back to the target
     const headK = headScaleFor(shape, spec, bt), crownRise = 1 + ((headK - 1) * (shape.landmarks.crownY - shape.rig.head[1])) / shape.height;

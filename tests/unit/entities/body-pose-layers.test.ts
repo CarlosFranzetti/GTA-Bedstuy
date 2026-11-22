@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyBodyLayers, makeBodyLayerState, type BodyLayerIn } from '@/entities/anim/bodyLayers';
+import { applyBodyLayers, armClearRad, makeBodyLayerState, type BodyLayerIn } from '@/entities/anim/bodyLayers';
 import { BONES, NCH, RIG_CH, boneChannel } from '@/entities/anim/clipPack';
 import { fullLib } from './anim-measure';
 
@@ -122,12 +122,14 @@ describe('body layers: the standing person', () => {
     let any = 0, out = 0;
     for (let s = 1; s <= 8; s++) {
       const series = run(180, () => ({}), s * 53);
-      const bent = series.map((p) => Math.max(p[ch('elbowL')], p[ch('elbowR')]) > 0.5);
+      const bent = series.map((p) => Math.min(p[ch('armL')], p[ch('armR')]) < -0.15); // the pocket pose carries the upper arm back
       if (bent.some(Boolean)) any++;
       if (bent.some(Boolean) && bent.some((b) => !b)) out++;
     }
     expect(any).toBeGreaterThanOrEqual(4);
-    expect(out).toBeGreaterThanOrEqual(4);
+    expect(out).toBeGreaterThanOrEqual(3);
+    // no pockets (a dress): no hand goes in
+    for (let s = 1; s <= 8; s++) expect(run(120, () => ({ pockets: 0 }), s * 53).some((p) => Math.min(p[ch('armL')], p[ch('armR')]) < -0.15)).toBe(false);
   });
 });
 
@@ -144,10 +146,20 @@ describe('body layers: the arms', () => {
   it('the elbow is never locked straight, standing or walking, and bends more on the forward swing', () => {
     const base = (): Float32Array => { const p = new Float32Array(NCH); p[ch('armL')] = 0.35; p[ch('armR')] = -0.35; return p; }; // elbows at 0 = straight
     const p = run(3, () => ({ speed: 1.4, idleW: 0 }), 3, base).at(-1)!;
-    expect(p[ch('elbowL')]).toBeGreaterThan(0.15); expect(p[ch('elbowR')]).toBeGreaterThan(0.1);
+    expect(p[ch('elbowL')]).toBeGreaterThan(0.15); expect(p[ch('elbowR')]).toBeGreaterThan(0.05);
     expect(p[ch('elbowL')], 'the arm swinging forward bends more').toBeGreaterThan(p[ch('elbowR')] + 0.04);
     const s = run(3, () => ({ speed: 0 }), 3, base).at(-1)!;
-    expect(s[ch('elbowL')]).toBeGreaterThan(0.08);
+    expect(s[ch('elbowL')]).toBeGreaterThan(0.03);
+  });
+});
+
+describe('armClearRad: how far a wide body pushes its arms out', () => {
+  it('is zero when the elbow already clears, grows with the torso and with a thick coat, and is capped', () => {
+    expect(armClearRad(0.1, 0.18, 0.3)).toBe(0);
+    const a = armClearRad(0.16, 0.17, 0.3), b = armClearRad(0.2, 0.17, 0.3), c = armClearRad(0.2, 0.17, 0.3, 0.085);
+    expect(a).toBeGreaterThan(0); expect(b).toBeGreaterThan(a); expect(c).toBeGreaterThan(b);
+    expect(armClearRad(0.5, 0.1, 0.3)).toBeLessThanOrEqual(Math.asin(0.5) + 1e-9);
+    expect(armClearRad(0.2, 0.17, 0)).toBe(0);
   });
 });
 

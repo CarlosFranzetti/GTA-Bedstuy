@@ -4,6 +4,7 @@
  * Fractions are multipliers (1 = the base shape) except `belly` and `stoop`, which are metres / radians.
  */
 import type { PedSpec } from '@/textures/painters/ped';
+import { massTargets } from './pedMass';
 
 export type BodyTypeId = 'avg' | 'slim' | 'athletic' | 'heavy' | 'tall-thin' | 'short-stocky' | 'broad' | 'pear' | 'petite' | 'elder' | 'teen' | 'kid'
   /** PEOPLE6: lanky (very tall, long thin limbs), swimmer (broad-shouldered athletic woman), stoop-slim (slim older man, stooped), elder-heavy (heavy older woman), big-tall (large tall man), pregnant, lean-teen, stout (short, round), slight (very small, light woman) */
@@ -36,7 +37,7 @@ export const BODY_TYPES: Record<BodyTypeId, BodyType> = {
   slim: T({ h: 1.02, weight: -0.8, shoulders: 0.97 }),
   athletic: T({ h: 1.03, muscle: 1.0, weight: -0.2, shoulders: 1.06 }),
   heavy: T({ h: 0.98, weight: 1.2, belly: 0.03, shoulders: 1.0 }),
-  'tall-thin': T({ h: 1.11, weight: -1.0, shoulders: 0.96 }),
+  'tall-thin': T({ h: 1.08, weight: -1.0, shoulders: 0.96 }),
   'short-stocky': T({ h: 0.88, weight: 0.8, muscle: 0.6, shoulders: 1.02, head: 1.05 }),
   broad: T({ h: 1.05, muscle: 1.0, weight: 0.3, shoulders: 1.06 }),
   pear: T({ h: 0.99, weight: 0.9, hips: 1.08, shoulders: 0.97 }),
@@ -44,11 +45,11 @@ export const BODY_TYPES: Record<BodyTypeId, BodyType> = {
   elder: T({ h: 0.96, weight: 0.5, shoulders: 0.96, stoop: -0.22 }),
   teen: T({ h: 0.95, weight: -0.2, shoulders: 0.95, head: 1.07 }),
   kid: T({ h: 0.78, head: 1.22 }),
-  lanky: T({ h: 1.15, weight: -1.0, shoulders: 0.93, arms: 0.9, legs: 0.9, head: 0.97, waist: 0.97, stoop: -0.06 }),
+  lanky: T({ h: 1.10, weight: -1.0, shoulders: 0.93, arms: 0.9, legs: 0.9, head: 0.97, waist: 0.97, stoop: -0.06 }),
   swimmer: T({ h: 1.04, muscle: 0.9, weight: -0.3, shoulders: 1.11, chest: 1.02, hips: 0.97, waist: 0.97, arms: 1.06 }),
   'stoop-slim': T({ h: 1.0, weight: -0.7, shoulders: 0.94, stoop: -0.3, arms: 0.93, legs: 0.93, waist: 1.02 }),
   'elder-heavy': T({ h: 0.94, weight: 1.3, belly: 0.05, shoulders: 0.98, hips: 1.1, stoop: -0.14, chest: 1.06 }),
-  'big-tall': T({ h: 1.09, weight: 1.1, muscle: 0.6, shoulders: 1.1, belly: 0.045, chest: 1.08, arms: 1.1, legs: 1.04 }),
+  'big-tall': T({ h: 1.06, weight: 1.1, muscle: 0.6, shoulders: 1.1, belly: 0.045, chest: 1.08, arms: 1.1, legs: 1.04 }),
   pregnant: T({ h: 0.98, weight: 0.15, belly: 0.1, waist: 1.04, shoulders: 0.97, hips: 1.03, chest: 1.04, stoop: 0.06 }),
   'lean-teen': T({ h: 1.0, weight: -0.9, shoulders: 0.92, arms: 0.9, legs: 0.92, head: 1.05, waist: 1.0 }),
   stout: T({ h: 0.9, weight: 1.0, belly: 0.05, shoulders: 1.03, head: 1.05, hips: 1.05, legs: 1.04 }),
@@ -58,8 +59,9 @@ export const BODY_TYPES: Record<BodyTypeId, BodyType> = {
 for (const [id, b] of Object.entries(BODY_TYPES)) { b.shoulders *= id === 'kid' ? 1.0 : id === 'teen' || id === 'lean-teen' ? 1.04 : 1.08; b.chest *= id === 'kid' ? 1.0 : 1.07; }
 /** the types a generated person may have, by age and sex, with weights (pedWardrobe.ts) */
 export const BODY_POOLS: Record<string, Array<[BodyTypeId, number]>> = {
-  'adult-m': [['avg', 3], ['athletic', 2], ['heavy', 1.2], ['lanky', 1.1], ['tall-thin', 0.8], ['short-stocky', 1], ['broad', 1], ['slim', 1.5], ['big-tall', 1.2], ['stout', 0.9]],
-  'adult-f': [['avg', 3], ['slim', 1.5], ['pear', 2], ['swimmer', 1], ['petite', 1.1], ['slight', 0.9], ['heavy', 1.4], ['tall-thin', 0.9], ['pregnant', 0.55]],
+  // the street is heavy (median civilian BMI about 28): more stocky and heavy builds than slim ones (BODY, second shift)
+  'adult-m': [['avg', 3], ['athletic', 1.2], ['heavy', 2.2], ['lanky', 0.4], ['tall-thin', 0.4], ['short-stocky', 1.3], ['broad', 1.3], ['slim', 1], ['big-tall', 1.6], ['stout', 1.6]],
+  'adult-f': [['avg', 3], ['slim', 0.9], ['pear', 2.4], ['swimmer', 0.6], ['petite', 0.7], ['slight', 0.4], ['heavy', 2.4], ['tall-thin', 0.4], ['pregnant', 0.5]],
   'adult-x': [['avg', 3], ['slim', 2], ['lanky', 1], ['athletic', 1], ['petite', 1]],
   'old-m': [['elder', 2], ['stoop-slim', 1.6], ['heavy', 0.8], ['stout', 0.8]],
   'old-f': [['elder', 2], ['elder-heavy', 1.6], ['petite', 0.7], ['slight', 0.8]],
@@ -91,14 +93,16 @@ export function bodyTypeId(spec: Pick<PedSpec, 'id' | 'build' | 'sex' | 'age' | 
   return list[Math.floor(hash(spec.id + ':body') * list.length) % list.length];
 }
 /** per sex adjustment on top of the body type: men carry the wedge (narrower waist and hips), women a softer taper */
-const SEX_ADJ: Record<'m' | 'f' | 'x', Partial<BodyType>> = { m: { hips: 0.95, waist: 0.97 }, f: { waist: 1.0 }, x: { hips: 0.975, waist: 0.97 } };
+/** BODY (second shift): shoulders to the survey's bideltoid (men 0.290, women 0.276 of stature; the bases were 0.268 and 0.248 after the first x1.08) */
+const SEX_ADJ: Record<'m' | 'f' | 'x', Partial<BodyType>> = { m: { hips: 0.95, waist: 0.97, shoulders: 1.12 }, f: { waist: 1.0, shoulders: 1.135 }, x: { hips: 0.975, waist: 0.97, shoulders: 1.125 } };
 const adjusted = new Map<string, BodyType>();
 export function bodyTypeOf(spec: Parameters<typeof bodyTypeId>[0]): BodyType {
   const id = bodyTypeId(spec), sx = spec.sex === 'f' ? 'f' : spec.sex === 'x' ? 'x' : 'm', k = id + sx;
   let b = adjusted.get(k);
   if (!b) {
     const base = BODY_TYPES[id], a = SEX_ADJ[sx];
-    b = { ...base, hips: base.hips * (a.hips ?? 1), waist: base.waist * (a.waist ?? 1) };
+    b = { ...base, hips: base.hips * (a.hips ?? 1), waist: base.waist * (a.waist ?? 1), shoulders: base.shoulders * (id === 'kid' || id === 'teen' || id === 'lean-teen' ? 1 : (a.shoulders ?? 1)) };
+    const t = massTargets(sx === 'f' ? 'f' : 'm', id); if (t) b.legs = 1 + (t.thigh * 0.94 / (sx === 'f' ? 0.286 : 0.305) - 1) / 0.7;      // trouser legs size from this (pedLegs.ts: 1 + (legs - 1) * 0.7)
     adjusted.set(k, b);
   }
   return b;

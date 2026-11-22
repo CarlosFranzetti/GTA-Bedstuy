@@ -12,6 +12,7 @@ import { clipLibrary, type ClipLibrary } from './library';
 import { FootLock, soleRel, type LegDims } from './footlock';
 import { isCombatPose, keyCombatPose } from './combatPoses';
 import { applyBodyLayers, makeBodyLayerState, type BodyLayerIn } from './bodyLayers';
+import { applyRunStyle } from './runStyle';
 
 export interface PoseTarget {
   hips: THREE.Object3D; torso: THREE.Object3D; head: THREE.Object3D; rig: THREE.Object3D;
@@ -270,11 +271,17 @@ export class AnimController {
   private lookPitch = 0;
   private aliveT: number;
   private readonly lock: FootLock;
+  /** this body's rest pose is not a straight leg (the mesh's knee sits a little forward of the hip-ankle line): per side, the hip, knee and ankle pitch (rad) that straighten it, so the clips (cut for a straight reference leg) read true. 0 = off */
+  private readonly legFix = new Float32Array(6);
+  /** 0 turns the straightening off (tests) */
+  legFixGain = 1;
   /** the POSE seat's upper-body layers: one small state and one reused input per person */
   private readonly bls = makeBodyLayerState();
   private readonly bli: BodyLayerIn;
   /** 0 turns the body layers off (tests) */
   bodyLayersOn = true;
+  /** false turns the GAIT run style (arms, lean and knee lift in a jog and a sprint: runStyle.ts) off, for the before strips and tests */
+  runStyleOn = true;
   private readonly rigV = new THREE.Vector3();
   private readonly refDims: LegDims;
   private readonly realDims: LegDims;
@@ -312,6 +319,12 @@ export class AnimController {
       ankle: [0, 1].map((i) => (t.ankles && t.ankles[i].position.length() > 0.1 ? t.ankles[i].position.clone() : V(0, -this.dims.shin, 0))) as [THREE.Vector3, THREE.Vector3], hasAnkle,
     };
     this.lock = new FootLock(this.realDims);
+    for (let i = 0; i < 2; i++) { // straighten the rest leg: thigh and shin both vertical, the foot's pitch unchanged
+      const k = t.knees[i].position, a = hasAnkle ? t.ankles![i].position : null;
+      if (!a || k.y > -0.1 || a.y > -0.1) continue;
+      const ft = Math.atan2(-k.z, -k.y), fs = Math.atan2(-a.z, -a.y);
+      this.legFix[i * 3] = -ft; this.legFix[i * 3 + 1] = ft - fs; this.legFix[i * 3 + 2] = fs;
+    }
     this.aliveT = gait.phase * 40;
     this.bls.rng = (gait.seed | 0) || 1;
     this.bli = { dt: 0, speed: 0, idleW: 1, yawRate: 0, age: gait.age, armSwing: gait.armSwing, sway: gait.sway, phase0: gait.phase, seed: gait.seed, splay: (t.group?.userData.splay as number | undefined) ?? 0, startT: -1, stopT: -1 };
@@ -547,7 +560,12 @@ export class AnimController {
     const fw = Math.max(-0.2, Math.min(0.17, this.accelS * 0.011)) * Math.min(1, speed / 0.6 + 0.4);
     p[boneChannel('torso')] -= fw * 0.65; p[boneChannel('hips')] -= fw * 0.35; p[boneChannel('head')] += fw * 0.5;
     if (this.bodyLayersOn) this.layers(p, dt, speed, yawRate, inp);
+    if (this.runStyleOn) this.runStyle(p, speed);
     if (!this.cheap) this.alive(p, dt, inp);
+    if (this.legFixGain > 0) {
+      const lf = this.legFix, g = this.legFixGain;
+      for (let i = 0; i < 2; i++) { p[boneChannel('legL') + i * 6] += lf[i * 3] * g; p[boneChannel('kneeL') + i * 6] += lf[i * 3 + 1] * g; p[boneChannel('ankleL') + i * 3] += lf[i * 3 + 2] * g; }
+    }
     // the pelvis: the capture says how high its lowest sole was above the ground (0 for a foot on the floor, more in a stride's flight or a jump);
     // this body's own legs are then placed so THEIR lowest sole is at that height. The old rule used the ankle, so a rolling foot dug in.
     const sc = this.fp / (REF.thigh + REF.shin);
@@ -580,6 +598,13 @@ export class AnimController {
       this.bones[8 + i * 2]?.quaternion.copy(lq.knee[i]);
       if (this.target.ankles) this.bones[11 + i]?.quaternion.copy(lq.ankle[i]);
     }
+  }
+
+  /** GAIT's run style (runStyle.ts): arms driving opposite to the legs, a forward lean and a lifting knee, faded out while an action, a vault, a jump or a carried load poses the body. */
+  private runStyle(p: Float32Array, speed: number): void {
+    const off = Math.max(this.actionW, this.jumpW, ease(this.vaultU));
+    const busy = this.keyed || /^(phone|talk|eat)/.test(this.idleName) ? 1 : Math.max(this.armLoad[0] < 1 ? 1 - this.armLoad[0] : 0, this.armLoad[1] < 1 ? 1 - this.armLoad[1] : 0);
+    applyRunStyle(p, speed, (1 - off) * (1 - busy), 1 - off);
   }
 
   /** The POSE seat's upper-body layers (bodyLayers.ts): arms that hang, the ribcage over the weight, standing weight shift and head. They only add to the upper body. */

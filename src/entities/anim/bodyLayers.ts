@@ -52,6 +52,8 @@ export interface BodyLayerIn {
   splay?: number;
   /** the forward lean baked into this body's rest pose (rad, negative = forward: `torso.userData.stoopBaked`; 0 or absent for none) */
   stoop?: number;
+  /** 0..1: this outfit has trouser or jacket pockets a hand can go in (0 for a dress, a skirt, a tight top; absent = 1) */
+  pockets?: number;
   /** the far level of detail: arms only */
   cheap?: boolean;
 }
@@ -68,6 +70,8 @@ export interface BodyLayerState {
   // standing: head
   hYaw: number; hPitch: number; hTYaw: number; hTPitch: number; hIn: number; hBusy: number;
   // standing: slouch and gesture
+  // per-person arm habits: how far the arms stand off the body, how bent the elbows rest, and a left/right difference in the forward hang
+  vOut: number; vElb: number; vFwdL: number; vFwdR: number;
   slouch: number; gestKind: number; gestU: number; gestOn: boolean; gestIn: number; gestSide: number; gestChance: number;
 }
 
@@ -76,6 +80,7 @@ export function makeBodyLayerState(seed = 1): BodyLayerState {
     ready: false, rng: (seed | 0) || 1, t: 0, w: 0, aw: 0,
     side: 1, shiftU: 0, shiftTarget: 0, shiftIn: 0, shiftAmp: 1, shiftMin: 5, shiftMax: 12,
     hYaw: 0, hPitch: 0, hTYaw: 0, hTPitch: 0, hIn: 2, hBusy: 1,
+    vOut: 1, vElb: 0, vFwdL: 0, vFwdR: 0,
     slouch: 0, gestKind: 0, gestU: 0, gestOn: false, gestIn: 6, gestSide: 1, gestChance: 0.5,
   };
 }
@@ -114,6 +119,17 @@ export const ARM = {
   pronate: 0,
 } as const;
 
+/**
+ * The arm lift (rad) a hanging upper arm needs so its elbow clears the clothed torso: the torso's half-width where the elbow hangs (BODY's
+ * `torsoHalfWidthAt`), the shoulder joint's distance from the centre line, the upper arm's length, and the arm's own radius plus any garment
+ * thickness there (metres). Call once when a person is built and pass the larger of this and `group.userData.splay` as `BodyLayerIn.splay`:
+ * a wider body then moves its arms out by itself, whatever BODY does to the torso next.
+ */
+export function armClearRad(torsoHalfAtElbow: number, shoulderX: number, upperLen: number, armRadiusAndCloth = 0.055): number {
+  const deficit = torsoHalfAtElbow + armRadiusAndCloth - Math.abs(shoulderX);
+  return deficit <= 0 || upperLen <= 0 ? 0 : Math.asin(Math.min(0.5, deficit / upperLen));
+}
+
 function initState(st: BodyLayerState, s: BodyLayerIn): void {
   if (s.seed !== undefined) st.rng = (Math.imul(s.seed | 0, 0x9e3779b1) ^ 0x85ebca6b) | 0 || 1;
   else st.rng = (Math.imul(Math.floor(s.phase0 * 1e6) | 1, 0x9e3779b1) ^ 0x85ebca6b) | 0 || 1;
@@ -134,15 +150,18 @@ function initState(st: BodyLayerState, s: BodyLayerIn): void {
   st.gestChance = age === 'kid' ? 0.05 : age === 'teen' ? 0.5 : age === 'old' ? 0.25 : 0.4;
   st.gestIn = 2 + rnd(st) * 10;
   st.gestSide = rnd(st) < 0.5 ? -1 : 1;
+  st.vOut = 0.85 + 0.6 * rnd(st) + (age === 'teen' ? 0.15 : 0);
+  st.vElb = (rnd(st) - 0.4) * 0.12 + (age === 'old' ? 0.03 : 0);
+  st.vFwdL = (rnd(st) - 0.4) * 0.12; st.vFwdR = (rnd(st) - 0.4) * 0.12;
 }
 
 /** Layer 1: arms. aw = weight 0..1. */
-function arms(p: Float32Array, s: BodyLayerIn, aw: number): void {
+function arms(p: Float32Array, s: BodyLayerIn, st: BodyLayerState, aw: number): void {
   const idle = clamp(s.idleW, 0, 1);
   const walkW = (1 - idle) * (1 - sstep(2.6, 4.2, s.speed));
   // clearance: the clips' mean abduction is set in posture.ts; this adds what this body and its clothes need on top
   const want = Math.max(ARM.abdMin, (s.splay ?? 0.03) + ARM.abdAdd);
-  const extra = Math.max(0, want - ARM.clipAbd) * aw;
+  const extra = Math.max(0, want * st.vOut - ARM.clipAbd) * aw;
   p[C_ARM_L + 2] -= extra; p[C_ARM_R + 2] += extra;
   // and never inward: whatever a walk style does (a limp throws the arms out, an angry one crosses them in), the upper arm stays off the torso and the coat
   const floorAbd = Math.max(0.06, want * 0.75);
@@ -152,7 +171,8 @@ function arms(p: Float32Array, s: BodyLayerIn, aw: number): void {
   const lean = -(p[C_TORSO] + (s.stoop ?? 0));
   if (lean > 0) { const g = ARM.hangBack * Math.min(lean, 0.35) * aw; p[C_ARM_L] += g; p[C_ARM_R] += g; }
   // the elbow never locks straight; more bent on the forward swing
-  const floor = ARM.elbowStand * idle + ARM.elbowWalk * walkW;
+  const floor = (ARM.elbowStand * idle + ARM.elbowWalk * walkW) + st.vElb * (idle + 0.5 * walkW);
+  p[C_ARM_L] += st.vFwdL * (idle + 0.5 * walkW) * aw; p[C_ARM_R] += st.vFwdR * (idle + 0.5 * walkW) * aw;
   for (let i = 0; i < 2; i++) {
     const ec = i ? C_ELB_R : C_ELB_L, ac = i ? C_ARM_R : C_ARM_L;
     let e = p[ec];
@@ -190,7 +210,7 @@ function standing(p: Float32Array, s: BodyLayerIn, st: BodyLayerState, dt: numbe
   p[C_TORSO + 1] += 0.02 * u;              // a hint of twist with the hip
 
   // slouch (teenagers mostly): chest and head forward, shoulders rolled in
-  const sl = st.slouch * sw;
+  const sl = st.slouch * sw * Math.max(0, 1 - Math.abs(p[C_TORSO]) / 0.35); // only while the chest is not already pitched by a start, a stop or a run
   p[C_TORSO] -= 0.07 * sl; p[C_HEAD] -= 0.05 * sl;
   p[C_ARM_L] -= 0.06 * sl * aw; p[C_ARM_R] -= 0.06 * sl * aw;
 
@@ -215,21 +235,25 @@ function standing(p: Float32Array, s: BodyLayerIn, st: BodyLayerState, dt: numbe
   st.gestIn -= dt;
   if (st.gestIn <= 0) {
     if (st.gestOn) { st.gestOn = false; st.gestIn = 8 + rnd(st) * 17; }
-    else if (rnd(st) < st.gestChance) { st.gestOn = true; st.gestKind = 1; st.gestSide = rnd(st) < 0.5 ? -1 : 1; st.gestIn = 6 + rnd(st) * 14; }
+    else if (rnd(st) < st.gestChance * clamp(s.pockets ?? 1, 0, 1)) { st.gestOn = true; st.gestKind = rnd(st) < 0.25 ? 2 : 1; st.gestSide = rnd(st) < 0.5 ? -1 : 1; st.gestIn = 6 + rnd(st) * 14; }
     else st.gestIn = 8 + rnd(st) * 17;
   }
   st.gestU += ((st.gestOn ? 1 : 0) - st.gestU) * (1 - Math.exp(-dt * 3));
   const g = st.gestU * sw * aw;
-  if (g > 0.003) pocket(p, st.gestSide, g);
+  if (g > 0.003) { pocket(p, st.gestSide, g); if (st.gestKind === 2) pocket(p, -st.gestSide, g); }
 }
 
-/** One hand in the trouser pocket: the arm eased from its hang to a back-and-in pose (side: -1 left arm, +1 right arm). */
+/**
+ * One hand in the trouser pocket: the arm eased from its hang to a pose found by searching the built bodies (a slim adult, a stocky one in a jacket, an
+ * elder): upper arm back 11 degrees and turned about its axis so the elbow's bend carries the forearm in toward the hip, elbow bent 20 to 25 degrees, the
+ * wrist a centimetre or so from the pocket opening at the hip, the elbow 4 to 6 cm clear of the torso (side: -1 left arm, +1 right arm).
+ */
 function pocket(p: Float32Array, side: number, g: number): void {
-  const ac = side < 0 ? C_ARM_L : C_ARM_R, ec = side < 0 ? C_ELB_L : C_ELB_R, o = side; // o: sign of the outward roll for this arm
-  p[ac] += (-0.1 - p[ac]) * g;
-  p[ac + 1] += (o * -0.5 - p[ac + 1]) * g;
-  p[ac + 2] += (o * 0.05 - p[ac + 2]) * g;
-  p[ec] += (0.75 - p[ec]) * g;
+  const ac = side < 0 ? C_ARM_L : C_ARM_R, ec = side < 0 ? C_ELB_L : C_ELB_R;
+  p[ac] += (-0.2 - p[ac]) * g;
+  p[ac + 1] += (side * 0.4 - p[ac + 1]) * g;
+  p[ac + 2] += (-side * 0.05 - p[ac + 2]) * g;
+  p[ec] += (0.4 - p[ec]) * g;
   p[ec + 1] += (0 - p[ec + 1]) * g;
 }
 
@@ -246,7 +270,7 @@ export function applyBodyLayers(p: Float32Array, s: BodyLayerIn, st: BodyLayerSt
   const ta = tw * (1 - clamp(s.armsBusy ?? 0, 0, 1));
   if (ta < st.aw) st.aw = ta; else st.aw += (ta - st.aw) * Math.min(1, dt * 6);
   if (st.w < 0.002 && st.aw < 0.002) return;
-  arms(p, s, st.aw);
+  arms(p, s, st, st.aw);
   if (s.cheap) return;
   trunk(p, s, st.w);
   const idle = clamp(s.idleW, 0, 1);
