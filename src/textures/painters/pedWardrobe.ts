@@ -10,6 +10,8 @@
  * number of bakes alive at once is capped (`pickWardrobeVariant` snaps new people onto an existing one of the same group, sex and age when the cap is reached).
  * No lettering, no logos, no numbers on any garment.
  */
+import { outfitWeights, type Outfit, type Way } from './pedOutfits';
+export { OUTFITS } from './pedOutfits';
 import { Rng } from '@/core/Rng';
 import { BODY_POOLS, type BodyTypeId } from '@/entities/models/pedBodyTypes';
 import { PED_SPECS, registerSpec, type BottomCut, type HairStyle, type HatStyle, type PedSpec, type PopGroup, type ShoeKind, type TopStyle } from './ped';
@@ -352,7 +354,7 @@ function faceFor(rng: Rng, sex: 'm' | 'f' | 'x', age: Age, g: PopGroup, mask: nu
 
 // ---------------------------------------------------------------- composing a person
 
-export interface WardrobeOpts { look?: Look; /** PEOPLE7: a district's weights over the looks (see DISTRICT_LOOKS), used when no look is given */ bias?: Partial<Record<Look, number>>; season?: Season; /** probability of a face mask (a few percent) */ mask?: number; sunday?: boolean }
+export interface WardrobeOpts { look?: Look; /** PEOPLE7: a district's weights over the looks (see DISTRICT_LOOKS), used when no look is given */ bias?: Partial<Record<Look, number>>; season?: Season; /** probability of a face mask (a few percent) */ mask?: number; sunday?: boolean; /** CLOTHES: false/omitted = about half the people wear a whole outfit (pedOutfits.ts); true keeps the random pools only */ noOutfit?: boolean }
 let SEASON: Season = 'mild';
 /** the season hint for every person drawn from now on (the game may set it from its date; the same seed + season is always the same person) */
 export function setWardrobeSeason(s: Season): void { SEASON = s; }
@@ -402,6 +404,10 @@ export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 
   const group = (base.group ?? 'wh') as PopGroup, sex = base.sex ?? 'm', age = (base.age ?? 'adult') as Age;
   const season = opts.season ?? SEASON, lk = opts.look ?? pickLook(rng, age, opts.sunday, opts.bias);
   const who: Who = { age, sex, look: lk, season };
+  // CLOTHES: about half of the people wear a whole outfit (pedOutfits.ts: garments and colours that belong together), drawn from a stream of its own so the rest of the draw is unchanged
+  const oRng = new Rng((seed * 7919 + 13) >>> 0), ofw = outfitWeights(age, sex, lk, season);
+  const OFT: Outfit | null = !opts.noOutfit && oRng.next() < 0.55 ? wpick(oRng, ofw) : null;
+  const WAY: Way | null = OFT ? OFT.ways[Math.floor(oRng.next() * OFT.ways.length) % OFT.ways.length] : null;
   // the body
   const pool = BODY_POOLS[`${age}-${sex}`] ?? BODY_POOLS['adult-m'];
   const body = wpick(rng, pool.map(([b, w]) => [b, w] as [BodyTypeId, number])) ?? 'avg';
@@ -414,7 +420,7 @@ export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 
   const op = Object.keys(ONE_PIECE).map((id) => { const o = ONE_PIECE[id]; return [id, (o.a ?? 'ato').includes(ageCode(age)) && (!o.sx || o.sx === sex || sex === 'x') ? look(o.k, lk) * seasonK(o.w, season) : 0] as [string, number]; });
   const opTot = op.reduce((a, [, w]) => a + w, 0);
   let sets: PedSpec['top'] | null = null;
-  if (opTot > 0 && rng.next() < onePieceP * (1 + Math.min(2, opTot / 6))) {
+  if (!OFT && opTot > 0 && rng.next() < onePieceP * (1 + Math.min(2, opTot / 6))) {
     const id = wpick(rng, op)!, o = ONE_PIECE[id], c = o.c === 'dark' ? colour(rng, 'dark') : colour(rng, o.c);
     const tc = o.tr ? colour(rng, o.tr) : shade(c, 0.72);
     sets = { kind: 'dress', color: c, trim: tc, sleeves: 'short', print: 'none', printColor: tc, ...o.top } as Top;
@@ -428,14 +434,14 @@ export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 
     botId = id === 'boilerSuit' ? 'cargo' : id === 'trackSet' ? 'trackPants' : id === 'wrapDress' || id === 'shirtDress' ? 'pleated' : 'pleated';
   } else {
     // bottom first (it decides the shoes), then the base top, then a layer
-    const bId = pickG(rng, BOTTOMS, who)!;
-    const tId = pickG(rng, BASE_TOPS, who, (id) => goes(id, bId) * (BASE_TOPS[id].only ? 0.3 : 1))!;
+    const bId = OFT ? OFT.bottom : pickG(rng, BOTTOMS, who)!;
+    const tId = OFT ? OFT.top : pickG(rng, BASE_TOPS, who, (id) => goes(id, bId) * (BASE_TOPS[id].only ? 0.3 : 1))!;
     botId = bId; topId = tId;
     const bg = BOTTOMS[bId], tg = BASE_TOPS[tId];
-    const bc = colour(rng, bg.c);
+    const bc = WAY ? WAY.bottom : colour(rng, bg.c);
     botSpec = { kind: 'jeans', color: bc, trim: bg.tr ? colour(rng, bg.tr) : shade(bc, 0.72), ...bg.p } as Bottom;
     if (bg.p.cut === 'long' || bg.p.cut === 'run') botSpec.trim = distinct(rng, 'trackTrim', [bc]);
-    const tc = distinct(rng, tg.c, [bc], 50);
+    const tc = WAY ? WAY.top : distinct(rng, tg.c, [bc], 50);
     const tt = tg.tr ? colour(rng, tg.tr) : shade(tc, 0.72);
     topSpec = { kind: 'tee', color: tc, trim: tt, sleeves: 'short', print: 'none', printColor: '#ffffff', ...tg.p } as Top;
     hatBrought = tg.hat;
@@ -445,12 +451,12 @@ export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 
     if (tId === 'footballShirt') { topSpec.printColor = distinct(rng, 'trackTrim', [tc], 90); }
     if (tId === 'shirt' || tId === 'dressShirt') { if (lk === 'smart' || lk === 'church') topSpec.tie = tId === 'dressShirt' && rng.next() < 0.7 ? colour(rng, 'bright') : undefined; }
     // layer
-    const cold = season === 'cold' ? 0.9 : season === 'warm' ? 0.07 : 0.42, wantLayer = tg.only ? 0 : cold * (lk === 'smart' ? 1.4 : lk === 'sport' ? 0.7 : 1);
-    if (rng.next() < wantLayer) {
-      const lId = pickG(rng, LAYERS, who, (id) => layerOk(id, tId, bId));
+    const cold = season === 'cold' ? 0.9 : season === 'warm' ? 0.07 : 0.42, wantLayer = tg.only && !OFT ? 0 : cold * (lk === 'smart' ? 1.4 : lk === 'sport' ? 0.7 : 1);
+    if (OFT ? !!OFT.layer && (season !== 'warm' || OFT.season[2] > 0.5) : rng.next() < wantLayer) {
+      const lId = OFT ? OFT.layer : pickG(rng, LAYERS, who, (id) => layerOk(id, tId, bId));
       if (lId) {
         layerId = lId;
-        const lg = LAYERS[lId], lc = lg.c === 'tee' ? distinct(rng, 'tee', [tc, bc], 55) : distinct(rng, lg.c, [bc], 45);
+        const lg = LAYERS[lId], lc = WAY?.layer ?? (lg.c === 'tee' ? distinct(rng, 'tee', [tc, bc], 55) : distinct(rng, lg.c, [bc], 45));
         const under = tc;
         topSpec = { kind: 'jacket', color: lc, trim: lg.tr ? colour(rng, lg.tr) : shade(lc, 0.72), sleeves: 'long', print: 'none', printColor: '#ffffff', ...lg.p, under } as Top;
         if (lId === 'shirtOpen') { topSpec.pattern = pickOf(rng, ['plaid', 'plaid', 'check', 'none'] as const); topSpec.trim = distinct(rng, 'tee', [lc], 70); }
@@ -470,18 +476,18 @@ export function composeSpec(seed: number, base: Pick<PedSpec, 'group' | 'sex' | 
     }
   }
   // the shoes
-  const sId = wpick(rng, Object.keys(SHOES).map((id) => [id, gW(SHOES[id], who, shoeOk(id, botId, topId, sex, season, age))] as [string, number])) ?? 'sneakerLow';
-  const sg = SHOES[sId], sc = colour(rng, sg.c);
+  const sId = (OFT ? OFT.shoes : null) ?? wpick(rng, Object.keys(SHOES).map((id) => [id, gW(SHOES[id], who, shoeOk(id, botId, topId, sex, season, age))] as [string, number])) ?? 'sneakerLow';
+  const sg = SHOES[sId], sc = WAY ? WAY.shoes : colour(rng, sg.c);
   const shoes: PedSpec['shoes'] = { color: sc, sole: sg.p.kind === 'sneakerLow' || sg.p.kind === 'sneakerHigh' || sg.p.kind === 'runner' ? shade(sc, 0.82) : shade(sc, 0.35), accent: sg.p.kind === 'runner' || sg.p.kind === 'sneakerHigh' ? colour(rng, 'bright') : shade(sc, 0.7), kind: sg.p.kind };
   if (sg.p.kind === 'sneakerHigh') shoes.high = true;
   if (sg.p.kind === 'workBoot' || sg.p.kind === 'tallBoot') shoes.high = true;
   if (sg.p.kind === 'slide') shoes.sock = rng.next() < 0.7 ? '#f0f0ee' : '#1c1c20';
   if (sg.p.kind === 'sandal' || sg.p.kind === 'slide') { /* bare foot */ }
   // headwear, hair, face, bag
-  const hw = hatFor(rng, lk, season, sex, group, age, hatBrought);
+  const hw = OFT && OFT.hat !== undefined && !(layerId && LAYERS[layerId]?.hat && OFT.hat === 'none') ? { hat: OFT.hat as HatStyle, color: WAY?.hat ?? '#222222' } : hatFor(rng, lk, season, sex, group, age, hatBrought);
   const hair = hairFor(rng, group, sex, age, hw.hat);
   const hairColor = kidOld && rng.next() < (group === 'wh' ? 0.85 : 0.6) ? pickOf(rng, GREY) : hair === 'bald' ? pal.hair[0] : pickOf(rng, pal.hair);
-  const gear = gearFor(rng, lk, sex, age, !!topSpec.long);
+  const gear = OFT && OFT.gear ? { gear: OFT.gear as PedSpec['gear'], color: WAY?.gear ?? '#2a2c32' } : gearFor(rng, lk, sex, age, !!topSpec.long);
   const face = faceFor(rng, sex, age, group, opts.mask ?? 0.03);
   const spec: PedSpec = {
     id: '', role: 'civilian', group, sex, age, skin: skinJ,

@@ -21,6 +21,8 @@ export interface Gait {
   idleOffset: number;
   /** factor on the pedestrian walking speed (a hobble is slower, a stride quicker) */
   speedScale: number;
+  /** how far the legs are carried apart in the walk (rad of hip abduction each): a wider base for elders and heavier builds */
+  width: number;
   /** age band this walk was drawn for, and a whole number of this person's own (for the body layers) */
   age: AgeBand;
   seed: number;
@@ -70,10 +72,11 @@ export function makeGait(seed: number, age: AgeBand = 'adult'): Gait {
     phase: r(),
     idleOffset: spread(0, 5),
     speedScale: style[2] * spread(0.95, 1.05),
+    width: spread(0, 0.035) + (elder ? 0.045 : 0),
     age,
     seed: seed | 0,
   };
 }
 
 /** The player's own walk: the plain clip, neutral settings. */
-export const PLAYER_GAIT: Gait = { walkClip: 'walkBrisk', cadence: 1, stride: 1, armSwing: 1, lean: 0, headDrop: 0, sway: 1, phase: 0, idleOffset: 0, speedScale: 1, age: 'adult', seed: 1 };
+export const PLAYER_GAIT: Gait = { walkClip: 'walkBrisk', cadence: 1, stride: 1, armSwing: 1, lean: 0, headDrop: 0, sway: 1, phase: 0, idleOffset: 0, speedScale: 1, width: 0.01, age: 'adult', seed: 1 };

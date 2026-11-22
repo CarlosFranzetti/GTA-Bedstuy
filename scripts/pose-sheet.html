@@ -41,6 +41,7 @@ const people = ids.map((id, i) => {
   const spec = PED_SPECS[v], age = spec.age ?? 'adult', gait = makeGait(seed0 * 7 + i * 13, age);
   const ctl = new AnimController(m, gait, lib);
   const st = mkState ? mkState(seed0 * 101 + i) : null, p = new Float32Array(42);
+  if (st && P.get('pocket')) { st.ready = false; st.__force = P.get('pocket'); }
   return { m, ctl, spec, st, p, age, gait, seed: seed0 * 101 + i };
 });
 const dt = 1 / 60, EUL = new THREE.Euler();
@@ -52,6 +53,7 @@ function layersOn(p0) {
   idx.forEach((b, k) => { const o = bones[k].rotation; p[b * 3] = o.x; p[b * 3 + 1] = o.y; p[b * 3 + 2] = o.z; });
   const kn = [m.knees[0], m.knees[1]]; p[8 * 3] = kn[0].rotation.x; p[10 * 3] = kn[1].rotation.x;
   p[39] = 0;
+  if (st.__force && st.ready) { st.gestOn = true; st.gestU = 1; st.gestIn = 1e9; st.gestSide = st.__force === 'L' ? -1 : 1; st.shiftIn = 1e9; }
   layerFn(p, { dt, speed, idleW: speed < 0.1 ? 1 : 0, yawRate: 0, age, armSwing: gait.armSwing, sway: gait.sway, phase0: gait.phase, seed, splay: m.group.userData.splay ?? 0.03 }, st);
   idx.forEach((b, k) => { bones[k].rotation.set(p[b * 3], p[b * 3 + 1], p[b * 3 + 2]); });
   m.rig.position.x += p[39];

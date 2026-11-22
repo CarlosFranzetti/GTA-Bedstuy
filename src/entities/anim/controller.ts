@@ -511,6 +511,9 @@ export class AnimController {
     const stride = this.strideFactor();
     const hipL = boneChannel('legL'), hipR = boneChannel('legR');
     p[hipL] *= stride; p[hipR] *= stride;
+    // a base of support as wide as this person carries it (the left leg is at +x, so a positive roll takes it outward); the foot lock keeps the shoes put
+    const wide = g.width * (1 - this.idleW);
+    p[hipL + 2] += wide; p[hipR + 2] -= wide;
     p[boneChannel('kneeL')] *= 1 + (stride - 1) * 0.5; p[boneChannel('kneeR')] *= 1 + (stride - 1) * 0.5;
     p[boneChannel('armL')] *= g.armSwing * this.armLoad[0]; p[boneChannel('armR')] *= g.armSwing * this.armLoad[1];
     p[boneChannel('elbowL')] *= 0.6 + 0.4 * g.armSwing; p[boneChannel('elbowR')] *= 0.6 + 0.4 * g.armSwing;
