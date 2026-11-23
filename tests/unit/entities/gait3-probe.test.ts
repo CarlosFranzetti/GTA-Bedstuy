@@ -1,3 +1,5 @@
+// @ts-ignore
+import { appendFileSync } from 'node:fs';
 import { describe, it, beforeAll } from 'vitest';
 import { loadShapes, buildPerson, runFrames, stances, reviewerStances, SIX } from './gait3-rig';
 beforeAll(async () => { await loadShapes(); });
@@ -9,7 +11,7 @@ describe('gait3 probe', () => {
       const miny = (k: 'meshBall' | 'meshHeel' | 'ankle') => Math.min(...fr.flatMap((q) => [q.pts[k][0].y, q.pts[k][1].y]));
       const rv = reviewerStances(fr), bs = stances(fr, (q) => q.meshBall), bs2 = stances(fr, (q) => q.meshBall, miny('meshBall') + 0.015);
       const rs = rv.st.map((s) => s.slide);
-      console.log(`${id} v${v} scale ${p.m.group.scale.y.toFixed(3)} minBall ${f(miny('meshBall'))} minHeel ${f(miny('meshHeel'))} minAnkle ${f(miny('ankle'))} | revStances ${rs.length} meanSlide ${f(rs.reduce((a, b) => a + b, 0) / (rs.length || 1))} maxSlide ${f(Math.max(0, ...rs))} clear ${f(rv.clearance)} | ball0 n${bs.length} max ${f(Math.max(0, ...bs.map((s) => s.slide)))} | ballRel n${bs2.length} max ${f(Math.max(0, ...bs2.map((s) => s.slide)))}`);
+      appendFileSync(process.env.P_OUT ?? '/dev/null', (`${id} v${v} scale ${p.m.group.scale.y.toFixed(3)} minBall ${f(miny('meshBall'))} minHeel ${f(miny('meshHeel'))} minAnkle ${f(miny('ankle'))} | revStances ${rs.length} meanSlide ${f(rs.reduce((a, b) => a + b, 0) / (rs.length || 1))} maxSlide ${f(Math.max(0, ...rs))} clear ${f(rv.clearance)} | ball0 n${bs.length} max ${f(Math.max(0, ...bs.map((s) => s.slide)))} | ballRel n${bs2.length} max ${f(Math.max(0, ...bs2.map((s) => s.slide)))}`) + '\n');
     }
   }, 300000);
 });

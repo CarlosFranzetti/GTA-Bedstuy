@@ -22,8 +22,9 @@ export function paintBody(K: Look, t: Tex, o: Px): void {
   const front = (zz: number): number => sst(-0.045, -0.11, zz);
   const fr0 = front(z);
   const cdip = k === 'scrubs' ? 0.075 : k === 'blouse' ? 0.04 : k === 'dress' ? (top.style === 'wrap' ? 0.1 : 0.045) : k === 'uniform' ? 0.02 : k === 'jersey' ? 0.04 : k === 'tee' ? 0.032 : 0.008;
-  const neckY = (k === 'hoodie' || k === 'puffer' || k === 'tracksuit' || k === 'jacket' ? 1.512 : 1.498) - cdip * fr0 * (1 - sst(0.04, 0.1, ax))
-    + (K.open && fr0 > 0.3 ? -0.05 * (1 - sst(0.0, 0.09, ax)) : 0) + 0.03 * sst(0.05, 0.1, ax);
+  // FIT: the neck line is measured from THIS body's shoulder joint and head size (it was 1.498 / 1.512 m for everyone: a bib up to the chin on women, elders and children, mid-neck on tall men)
+  const hk = K.hs, neckY = K.shY + (k === 'hoodie' || k === 'puffer' || k === 'tracksuit' || k === 'jacket' ? 0.079 : 0.065) * hk - cdip * hk * fr0 * (1 - sst(0.04 * hk, 0.1 * hk, ax))
+    + (K.open && fr0 > 0.3 ? -0.05 * hk * (1 - sst(0.0, 0.09 * hk, ax)) : 0) + 0.03 * hk * sst(0.05 * hk, 0.1 * hk, ax);
   const shoeTop = K.shoeTop;
   const hemBot = bot.kind === 'shorts' ? K.knY + shortsLen(bot.cut) : bot.kind === 'skirt' ? 9 : -9;
   let aTop = 0, aBot = 0, aShoe = 0;
