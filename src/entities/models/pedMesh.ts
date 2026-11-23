@@ -289,8 +289,8 @@ const W_TORSO = [2], W_HIPS = [1], W_ARMS = [4, 5, 6, 7], W_LEGS = [8, 9, 10, 11
 export const BODY_DEFORMERS = ['torso', 'wedge', 'shtop', 'depth', 'hipx', 'arms', 'legs', 'flatten', 'mass', 'r2'] as const;
 export type BodyDeformer = typeof BODY_DEFORMERS[number];
 const bodyOld = (): boolean => (import.meta.env?.VITE_BODY_OLD ?? '') === '1';
-export const bodyStack: Record<BodyDeformer, boolean> = Object.fromEntries(BODY_DEFORMERS.map((k) => [k, true])) as Record<BodyDeformer, boolean>;
-void bodyOld;
+/** on by default only with VITE_BODY_OLD=1: the sheets of round 3 (docs/swarm/teams/sheets/base-*) showed every one of them making the body worse once the grid builds it */
+export const bodyStack: Record<BodyDeformer, boolean> = Object.fromEntries(BODY_DEFORMERS.map((k) => [k, bodyOld()])) as Record<BodyDeformer, boolean>;
 /** where the joints go for a body type: shoulders and arms follow the shoulder width, legs the hip width */
 export function jointFor(name: string, p: number[], bt: BodyType, pivot?: number[]): number[] {
   if (/^(shoulder|elbow|wrist)/.test(name)) return leanPoint(bodyStack.arms ? [p[0] * bt.shoulders - Math.sign(p[0] || 1) * ARM_IN * (name.startsWith('elbow') ? 0.5 : name.startsWith('wrist') ? 1 : 0), p[1], p[2]] : p, bt, pivot);

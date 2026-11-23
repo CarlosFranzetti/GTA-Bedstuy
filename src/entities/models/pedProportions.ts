@@ -58,7 +58,7 @@ export function normalizeShape(s: MhShape): MhShape {
 // ---------------------------------------------------------------- what the other seats read from a built person (metres, in world scale, at rest)
 import type { PedModel } from './pedBody';
 import { bodyTypeOf } from './pedBodyTypes';
-import { shapeByName } from './pedMesh';
+import { shapeByName, bodyStack, dressLod } from './pedMesh';
 
 const segLen = (o: { position: { x: number; y: number; z: number } }): number => Math.hypot(o.position.x, o.position.y, o.position.z);
 /** leg segments of a built person: hip joint to knee, knee to ankle joint, ankle joint to the floor, and the whole (hip joint height) */
@@ -77,13 +77,33 @@ export function armSegments(p: PedModel): { upper: number; fore: number; hand: n
   return { upper, fore, hand, total: upper + fore + hand };
 }
 export const armLength = (p: PedModel): number => armSegments(p).total;
-/** half the width of the body's torso (without the arms) at a height above the floor, from the base shape's rings and the person's type and scale: a close estimate for placing hands, hip props and sleeves, not a surface */
+/** half the width of the body's torso (without the arms) at a height above the floor, for placing hands, hip props and sleeves and for the arm clearance of
+ * bodyLayers: measured on the person's own built hi body (round 3: the build comes from the source's grid, so the base rings alone are not enough), in 2 cm bands */
+const halfWidthCache = new Map<string, Float32Array>();
 export function torsoHalfWidthAt(p: PedModel, height: number): number {
   const s = shapeByName(p.group.userData.pedShape);
   if (!s) return 0.17 * p.group.scale.x;
-  const bt = bodyTypeOf(p.spec), y = height / p.group.scale.y, rings = [...s.hipRings, ...s.torsoRings].filter((r) => r).sort((a, b) => a[0] - b[0]);
-  let r = rings[rings.length - 1];
-  for (let i = 1; i < rings.length; i++) if (y <= rings[i][0]) { const a = rings[i - 1], b = rings[i], t = (y - a[0]) / (b[0] - a[0] || 1); r = [y, a[1] + (b[1] - a[1]) * t, 0, 0]; break; }
-  const k = y > s.rig.shoulderL[1] - 0.12 ? bt.shoulders : y < s.rig.hipL[1] + 0.05 ? bt.hips : 1 + 0.5 * (bt.belly * 1.1 + bt.hips - 1);
-  return r[1] * k * p.group.scale.x;
+  const bt = bodyTypeOf(p.spec), y = height / p.group.scale.y;
+  if (bodyStack.torso) {
+    const rings = [...s.hipRings, ...s.torsoRings].filter((r) => r).sort((a, b) => a[0] - b[0]);
+    let r = rings[rings.length - 1];
+    for (let i = 1; i < rings.length; i++) if (y <= rings[i][0]) { const a = rings[i - 1], b = rings[i], t = (y - a[0]) / (b[0] - a[0] || 1); r = [y, a[1] + (b[1] - a[1]) * t, 0, 0]; break; }
+    const k = y > s.rig.shoulderL[1] - 0.12 ? bt.shoulders : y < s.rig.hipL[1] + 0.05 ? bt.hips : 1 + 0.5 * (bt.belly * 1.1 + bt.hips - 1);
+    return r[1] * k * p.group.scale.x;
+  }
+  const key = `${s.name}:${p.spec.id}`;
+  let bands = halfWidthCache.get(key);
+  if (!bands) {
+    const L = dressLod(s, p.spec, s.lods.hi, false), n = L.position.length / 3;
+    bands = new Float32Array(Math.ceil(s.landmarks.crownY / 0.02) + 1);
+    for (let i = 0; i < n; i++) {
+      let wt = 0; for (let k = 0; k < 4; k++) if (L.joints[i * 4 + k] === 1 || L.joints[i * 4 + k] === 2) wt += L.weights[i * 4 + k];
+      if (wt < 0.5) continue;
+      const b = Math.round(L.position[i * 3 + 1] / 0.02); if (b >= 0 && b < bands.length) bands[b] = Math.max(bands[b], Math.abs(L.position[i * 3]));
+    }
+    for (let b = 1; b < bands.length; b++) if (!bands[b]) bands[b] = bands[b - 1];
+    halfWidthCache.set(key, bands);
+  }
+  const b = Math.min(bands.length - 1, Math.max(0, Math.round(y / 0.02)));
+  return (bands[b] || 0.17) * p.group.scale.x;
 }
