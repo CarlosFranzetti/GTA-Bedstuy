@@ -92,12 +92,12 @@ describe('round 5: shoes, hems, seat, sleeves', () => {
     for (const spec of PED_SPECS) {
       if (spec.top.sleeves !== 'long' && spec.top.sleeves !== 'short') continue;
       const s = shapes.get(shapeFor(spec))!, R = s.rig, K = s.landmarks.crownY / 1.78;
-      const yTop = R.shoulderL[1] - 0.08 * K, yBot = spec.top.sleeves === 'long' ? R.wristL[1] + 0.05 : R.elbowL[1] + (R.shoulderL[1] - R.elbowL[1]) * 0.42 + 0.03;
+      const yTop = R.shoulderL[1] - 0.08 * K, yBot = spec.top.sleeves === 'long' ? R.wristL[1] + 0.05 : R.elbowL[1] + (R.shoulderL[1] - R.elbowL[1]) * 0.42 + 0.03 * Math.min(1, K);
       for (const d of DETAILS) {
         const L = dressLod(s, spec, s.lods[d], true);
         for (const side of [-1, 1] as const) {
           const use = armOf(L, side), w: number[] = [];
-          for (let y = yTop; y >= yBot; y -= 0.025) {
+          for (let y = yTop; y >= yBot - 1e-6; y -= 0.025 * Math.min(1, K)) {      // stations scale with the person: a child's sleeve is shorter than two adult steps
             const sg = cutSegments(L, L.position, y, use); let x0 = 9, x1 = -9, z0 = 9, z1 = -9;
             for (let i = 0; i < sg.length; i += 2) { x0 = Math.min(x0, sg[i]); x1 = Math.max(x1, sg[i]); z0 = Math.min(z0, sg[i + 1]); z1 = Math.max(z1, sg[i + 1]); }
             if (x1 > x0) w.push((x1 - x0 + z1 - z0) / 2);

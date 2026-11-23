@@ -21,7 +21,11 @@ const TYPES: BodyTypeId[] = ['avg', 'slim', 'athletic', 'heavy', 'tall-thin', 's
 const specsOfType = (t: BodyTypeId): PedSpec[] => {
   const all = PED_SPECS.filter((s) => (s.role === 'civilian' || s.role === 'player') && bodyTypeId(s) === t);
   const m = all.find((s) => s.sex !== 'f'), f = all.find((s) => s.sex === 'f');
-  return [m, f].filter(Boolean) as PedSpec[];
+  const got = [m, f].filter(Boolean) as PedSpec[];
+  if (got.length) return got;
+  // 23 Nov: the cast is drawn per person now, so a type may have nobody in the fixed roster ('broad'): give it to an adult civilian
+  const adult = PED_SPECS.find((s) => s.role === 'civilian' && s.sex !== 'f' && (s.age ?? 'adult') === 'adult')!;
+  return [{ ...adult, id: `${adult.id}-as-${t}`, body: t } as PedSpec];
 };
 const HEAD_SLOT = (p: Piece): boolean => p.slot === 'hair' || p.slot === 'hat' || (p.slot === 'accessory' && ACC_HEAD.some((h) => p.id === 'acc:' + h));
 const ALLOWED = [SWATCH.hair, SWATCH.hat, SWATCH.gear, SWATCH.torso, SWATCH.pelvis, SWATCH.shoe, NEUTRAL, { x: 256, y: 256, w: 128, h: 64 }];

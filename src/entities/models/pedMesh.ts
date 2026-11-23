@@ -677,8 +677,17 @@ function skinExtras(s: MhShape, spec: PedSpec, hi: boolean): THREE.BufferGeometr
   // (no hood roll round the neck any more: it read as a black collar block; the neckline and the hood opening are painted into the skin)
   if (spec.top.long && spec.top.kind !== 'dress') {
     // a coat's lower half: narrower flare than before (the hands hang outside it), starts inside the dressed waist, textured with the bottom rows of the torso tile
-    const hip = s.hipRings, top = hip[hip.length - 1], tor = s.torsoRings, waist = tor[0], kneeY = R.kneeL[1] + 0.05, w = Math.max(1, bt.hips);
+    const hip = s.hipRings, top0 = hip[hip.length - 1], tor = s.torsoRings, waist = tor[0], kneeY = R.kneeL[1] + 0.05, w = Math.max(1, bt.hips);
     const coatRect = SK_RECTS.torso;
+    // the skirt of a coat goes round THIS person's hips and thighs (the built body), not the base shape's hip ring: a heavier build's thighs came through the front in a stride
+    const keepDelta = lastFaceDelta, bare = dressLodBody(s, spec, s.lods.mid, false); lastFaceDelta = keepDelta;
+    let hx = top0[1], hz = top0[3];
+    for (let i = 0, n = bare.position.length / 3; i < n; i++) {
+      const y = bare.position[i * 3 + 1];
+      if (y < kneeY || y > top0[0] + 0.03 || wsumAt(bare, i, [1, 8, 9, 10, 11]) < 0.6) continue;
+      hx = Math.max(hx, Math.abs(bare.position[i * 3])); hz = Math.max(hz, Math.abs(bare.position[i * 3 + 2] - top0[2]));
+    }
+    const top = [top0[0], Math.min(hx, top0[1] + 0.09), top0[2], Math.min(hz, top0[3] + 0.09)];
     out.push(swingSkirt(loft([
       { y: kneeY, rx: (top[1] + 0.062) * w, rz: top[3] + 0.05, cz: top[2] },
       { y: (kneeY + top[0]) / 2 + 0.05, rx: (top[1] + 0.04) * w, rz: top[3] + 0.034, cz: top[2] },

@@ -89,9 +89,9 @@ function sideBag(ctx: Ctx, mb: MeshBuilder, o: { sx: -1 | 1; yTop: number; h: nu
   const W = one(o.bone ?? BONE.torso);
   loftY(mb, rings, ctx.detail === 'hi' ? 8 : 6, { rect: GEAR, capTop: true, capBottom: true, lift: -0.002, W, uv: (i, j, R, C) => [j / (C - 1), 0.3 + 0.5 * (i / (R - 1))], shade: (i) => 0.84 + 0.16 * (i / 4) });
   if (o.handles || o.strap) {
-    const ridge = topY(ctx, o.sx * 0.1, ctx.C[2], 0.012);
+    const ridge = topY(ctx, o.sx * 0.1, ctx.C[2], 0.016);      // 23 Nov: the rebuilt shoulder is rounder; the handles ride 4 mm higher and the bend stands 1 cm further out
     for (const dz of o.handles ? [-1, 1] : [0]) {
-      const a: V3 = [cx, o.yTop - 0.005, cz + dz * o.hw * 0.55], b: V3 = [x0 + o.sx * 0.012, lerp(o.yTop, ridge, 0.55), cz + dz * 0.02], c: V3 = [o.sx * 0.1, ridge, ctx.C[2] + dz * 0.012];
+      const a: V3 = [cx, o.yTop - 0.005, cz + dz * o.hw * 0.55], b: V3 = [x0 + o.sx * 0.022, lerp(o.yTop, ridge, 0.55), cz + dz * 0.02], c: V3 = [o.sx * 0.1, ridge, ctx.C[2] + dz * 0.012];
       tube(mb, [a, b, c], () => [o.strap ? 0.011 : 0.0055, 0.0045], 3, { rect: GEAR, W: torsoW, tint: [0.7, 0.7, 0.7], uv: () => [0.5, 0.2], capEnd: true, capStart: true });
     }
   }
